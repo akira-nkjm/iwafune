@@ -48,9 +48,14 @@ checks, and lists any inputs that are still missing.
 
 ## Install
 
-Each release attaches `fune-<version>-x86_64-linux-gnu.tar.gz`: the `fune` binary with the GUI embedded, for x86_64
-Linux with glibc 2.39 or later (Ubuntu 24.04 or newer, including WSL). With the GitHub CLI signed in
-(`gh auth login`) to an account that can read this repository:
+Each release attaches the `fune` binary with the GUI embedded:
+
+| File | For |
+|---|---|
+| `fune-<version>-x86_64-linux-gnu.tar.gz` | x86_64 Linux with glibc 2.39 or later (Ubuntu 24.04 or newer, including WSL) |
+| `fune-<version>-universal-apple-darwin.tar.gz` | macOS on Apple Silicon and Intel |
+
+With the GitHub CLI signed in (`gh auth login`) to an account that can read this repository:
 
 ```bash
 gh release download --repo akira-nkjm/iwafune --pattern 'fune-*-x86_64-linux-gnu.tar.gz*'
@@ -58,6 +63,10 @@ sha256sum -c fune-*-x86_64-linux-gnu.tar.gz.sha256
 tar -xzf fune-*-x86_64-linux-gnu.tar.gz
 install -m 755 fune-*-x86_64-linux-gnu/fune ~/.local/bin/fune   # any directory on PATH
 ```
+
+On macOS, use `universal-apple-darwin` in place of `x86_64-linux-gnu` and check the file with `shasum -a 256 -c`.
+The binary is not notarized: downloaded with `gh` it runs as is, but a copy downloaded in a browser is blocked by
+Gatekeeper until you run `xattr -d com.apple.quarantine fune`.
 
 Then run `fune gui` in a design directory (one with `fune.toml`), or `fune init` to start one.
 `fune data fetch de440` downloads the optional DE440 ephemeris the same way. On other platforms, build from source.

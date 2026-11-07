@@ -333,8 +333,10 @@ CI（`.github/workflows/ci.yml`）は main・develop への push と PR で動�
 - PR を出す前に `develop` で版を上げる。`Cargo.toml` の `[workspace.package] version` と `web/package.json` の `version` を同じ値にする。
 - `release.yml`
   - main への PR: 2 つの版が一致していて、そのタグがまだ無いことを確かめる。
-  - main への push: `image.yml` を呼んでコンテナイメージを出し、そのあとタグ `v<版>` と GitHub Release（変更点は自動生成）を作る。
-    Release には、`image.yml` が作ったバイナリの tar.gz とその SHA-256 を添付する。リリース済みのコミットで動き直しても何もしない。
+  - main への push: `image.yml` を呼んでコンテナイメージを出し、macOS のバイナリを作ってから、タグ `v<版>` と GitHub Release（変更点は自動生成）を作る。
+    Release には、Linux と macOS のバイナリの tar.gz とその SHA-256 を添付する。リリース済みのコミットで動き直しても何もしない。
+  - macOS のバイナリ: Apple Silicon の runner（macos-15）で arm64 をビルドし、x86_64 をクロスコンパイルして、`lipo` で 1 つにまとめる
+    （`fune-<版>-universal-apple-darwin.tar.gz`）。GUI は `image.yml` がビルドしたものを使う。公証はしていない。
 - `image.yml`: SPA をビルドし、ubuntu-24.04 で `fune` をビルドして（イメージの元と glibc を揃える）、`fune --version` が版と合うかを確かめる。
   バイナリが同梱した GUI を返すことを確かめてから、`fune-<版>-x86_64-linux-gnu.tar.gz`（バイナリ・README・ライセンス）にまとめる。
   `docker/fune.Dockerfile` でイメージを作り、デモの設計データで `fune check` と `fune fmt --check` を通してから、
