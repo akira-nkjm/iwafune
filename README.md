@@ -46,9 +46,25 @@ attitude, C&DH, communications, thermal and structure on the same data.
 Each analysis takes typed SI inputs built from the design, returns typed outputs with pass/warning/violation
 checks, and lists any inputs that are still missing.
 
+## Install
+
+Each release attaches `fune-<version>-x86_64-linux-gnu.tar.gz`: the `fune` binary with the GUI embedded, for x86_64
+Linux with glibc 2.39 or later (Ubuntu 24.04 or newer, including WSL). With the GitHub CLI signed in
+(`gh auth login`) to an account that can read this repository:
+
+```bash
+gh release download --repo akira-nkjm/iwafune --pattern 'fune-*-x86_64-linux-gnu.tar.gz*'
+sha256sum -c fune-*-x86_64-linux-gnu.tar.gz.sha256
+tar -xzf fune-*-x86_64-linux-gnu.tar.gz
+install -m 755 fune-*-x86_64-linux-gnu/fune ~/.local/bin/fune   # any directory on PATH
+```
+
+Then run `fune gui` in a design directory (one with `fune.toml`), or `fune init` to start one.
+`fune data fetch de440` downloads the optional DE440 ephemeris the same way. On other platforms, build from source.
+
 ## Quick start
 
-Requirements: Rust 1.99 or later (edition 2024), Node.js 24 or later, pnpm.
+To build from source: Rust 1.99 or later (edition 2024), Node.js 24 or later, pnpm.
 
 ```bash
 pnpm -C web install && pnpm -C web build                       # build the GUI (the fune binary serves web/dist)

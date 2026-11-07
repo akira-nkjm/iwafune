@@ -2,6 +2,8 @@ name: image
 
 # Build the fune CLI and publish it as a container image, ghcr.io/<owner>/fune:<version> (and :latest), for other
 # repositories' CI. Called by release.yml after a release reaches main; it is not triggered on its own.
+# The same binary (with the GUI embedded) is also packaged as the artifact `fune-release`, which release.yml attaches
+# to the GitHub Release.
 # The package is linked to this repository through the image's source label; give another repository read access
 # under the package's "Manage Actions access" and its own GITHUB_TOKEN can pull it.
 on:
@@ -61,6 +63,29 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
         run: test "fune $VERSION" = "$(./target/release/fune --version)"
+      - name: the binary serves the embedded GUI
+        run: |
+          ./target/release/fune -C fixtures/demo-6u gui --no-open --port 8787 &
+          server=$!
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8787/api/v1/project > /dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:8787/ | grep -qi '<html'
+          kill "$server"
+      - name: package the binary for the GitHub Release
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          name="fune-$VERSION-x86_64-linux-gnu"
+          mkdir -p "release/$name"
+          cp target/release/fune README.md LICENSE-MIT LICENSE-APACHE THIRD-PARTY-NOTICES.md "release/$name/"
+          tar -C release -czf "release/$name.tar.gz" "$name"
+          (cd release && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
+      - uses: actions/upload-artifact@v7
+        with:
+          name: fune-release
+          path: |
+            release/*.tar.gz
+            release/*.sha256
+          if-no-files-found: error
       - name: build the image and check it on the demo data
         env:
           VERSION: ${{ inputs.version }}

@@ -334,8 +334,9 @@ CI（`.github/workflows/ci.yml`）は main・develop への push と PR で動�
 - `release.yml`
   - main への PR: 2 つの版が一致していて、そのタグがまだ無いことを確かめる。
   - main への push: `image.yml` を呼んでコンテナイメージを出し、そのあとタグ `v<版>` と GitHub Release（変更点は自動生成）を作る。
-    リリース済みのコミットで動き直しても何もしない。
+    Release には、`image.yml` が作ったバイナリの tar.gz とその SHA-256 を添付する。リリース済みのコミットで動き直しても何もしない。
 - `image.yml`: SPA をビルドし、ubuntu-24.04 で `fune` をビルドして（イメージの元と glibc を揃える）、`fune --version` が版と合うかを確かめる。
+  バイナリが同梱した GUI を返すことを確かめてから、`fune-<版>-x86_64-linux-gnu.tar.gz`（バイナリ・README・ライセンス）にまとめる。
   `docker/fune.Dockerfile` でイメージを作り、デモの設計データで `fune check` と `fune fmt --check` を通してから、
   `ghcr.io/<owner>/fune:<版>` と `:latest` を push する。
 - タグは手で打たない。
