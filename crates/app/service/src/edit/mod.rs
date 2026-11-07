@@ -1,0 +1,158 @@
+//! 編集の関数。**書き込みは [`apply`] だけ**（Op の列を fune-ops で計画・適用する）。CLI のコマンドも GUI の操作も Op にしてここを呼ぶ。
+//! 人が打つ値の文字列（`"620 g"`）を属性の型に合わせて Op にするのも、属性定義を見る必要があるのでここで行う。
+
+use crate::diff;
+use crate::dto::{ApplyRequest, ApplyResult, ChangedFile, FileChangeKind, InitResult};
+use crate::error::{Result, ServiceError};
+use crate::workspace::{Workspace, store_error, with_excerpt};
+use fune_model::design::Revision;
+use fune_ops::{ApplyOptions, Op, OpError};
+use fune_store::{FileSet, StoreError};
+use std::path::Path;
+
+mod catalog;
+mod place;
+mod text;
+
+pub use catalog::maturity;
+pub use fune_ops::{to_cli, to_cli_script};
+pub use place::{place_body, place_body_op};
+pub use text::{
+    SetText, UnsetText, list_from_text, quantity_from_text, quaternion_from_text, vector_from_text,
+};
+
+/// 人が打った値の文字列 → Op（`fune set`・`fune catalog set`・`POST /ops/from_text`）。
+/// `item` があればカタログ品の値かフィールド（`SetCatalogValue`・`SetCatalogField`）、無ければ部品の値・フィールドか設定
+/// （`SetValue`・`SetField`・`SetSetting`）。値の型は属性定義・設定の今の型から決める。
+pub fn set_op(ws: &Workspace, t: &SetText) -> Result<Op> {
+    match &t.item {
+        Some(item) => catalog::catalog_set_op(ws, item, t),
+        None => text::param_set_op(ws, t),
+    }
+}
+
+/// 人が打った消す先のパス → Op（`fune unset`・`fune catalog unset`・`POST /ops/unset_from_text`）。
+/// `item` があれば `UnsetCatalogValue`・`SetCatalogField`（空）、無ければ `UnsetValue`・`SetField`（空）・`SetSetting`（消す）。
+pub fn unset_op(t: &UnsetText) -> Result<Op> {
+    match &t.item {
+        Some(item) => catalog::catalog_unset_op(item, &t.path),
+        None => text::param_unset_op(&t.path),
+    }
+}
+
+/// Op の一括適用（`POST /ops`）。全部が通るか、何も書かないか。
+pub fn apply(ws: &Workspace, req: &ApplyRequest) -> Result<ApplyResult> {
+    let options = ApplyOptions {
+        base_revision: req.base_revision.clone().map(Revision),
+        dry_run: req.dry_run,
+    };
+    let out = fune_ops::apply(ws.root(), &req.ops, &options).map_err(|e| op_error(ws, e))?;
+    let changed = changed_files(&out.plan.changes);
+    let mut after = FileSet::new();
+    for c in &out.plan.changes {
+        if let Some(text) = &c.after {
+            after.insert(c.path.clone(), text.clone());
+        }
+    }
+    let diagnostics = out
+        .plan
+        .diagnostics
+        .into_iter()
+        .map(|d| with_excerpt(d, &after))
+        .collect();
+    Ok(ApplyResult {
+        revision: if out.written {
+            out.plan.revision.0
+        } else {
+            out.plan.base_revision.0.clone()
+        },
+        previous_revision: out.plan.base_revision.0,
+        dry_run: !out.written,
+        changed,
+        diagnostics,
+        cli: req.ops.iter().flat_map(fune_ops::to_cli).collect(),
+    })
+}
+
+/// 変わったファイルの一覧（同じ本文の削除と新規の組は移動とみなす）。
+fn changed_files(changes: &[fune_store::FileChange]) -> Vec<ChangedFile> {
+    let mut out = Vec::new();
+    let mut moved_from: Vec<&str> = Vec::new();
+    for c in changes {
+        let (kind, from) = match (&c.before, &c.after) {
+            (None, Some(after)) => match changes
+                .iter()
+                .find(|d| d.after.is_none() && d.before.as_ref() == Some(after))
+            {
+                Some(d) => {
+                    moved_from.push(&d.path);
+                    (FileChangeKind::Renamed, Some(d.path.clone()))
+                }
+                None => (FileChangeKind::Created, None),
+            },
+            (Some(_), None) => (FileChangeKind::Deleted, None),
+            _ => (FileChangeKind::Modified, None),
+        };
+        let before = c.before.as_deref().unwrap_or_default();
+        let after = c.after.as_deref().unwrap_or_default();
+        out.push(ChangedFile {
+            path: c.path.clone(),
+            change: kind,
+            diff: diff::unified(
+                &c.path,
+                if kind == FileChangeKind::Renamed {
+                    after
+                } else {
+                    before
+                },
+                after,
+            ),
+            from,
+        });
+    }
+    out.retain(|f| !(f.change == FileChangeKind::Deleted && moved_from.contains(&f.path.as_str())));
+    out
+}
+
+/// ops のエラー → サービスのエラー。
+/// fune-ops のエラーをサービスのエラーにする（保存と、保存しない編集のプレビューで共通）。
+pub(crate) fn op_error(ws: &Workspace, e: OpError) -> ServiceError {
+    match e {
+        OpError::Conflict { expected, actual } => ServiceError::Conflict {
+            expected: expected.0,
+            actual: actual.0,
+        },
+        OpError::NotFound { what } => ServiceError::NotFound {
+            what: "対象",
+            id: what,
+        },
+        OpError::AlreadyExists { what } => {
+            ServiceError::InvalidInput(format!("{what} は既にあります"))
+        }
+        OpError::Invalid { message } => ServiceError::InvalidInput(message),
+        OpError::Rejected { diagnostics } => {
+            // 書き込まなかったので、該当行は今のファイルから取る（変えていないファイルの行は同じ）。
+            let files = fune_store::read::scan(ws.root()).unwrap_or_default();
+            ServiceError::Validation {
+                diagnostics: diagnostics
+                    .into_iter()
+                    .map(|d| with_excerpt(d, &files))
+                    .collect(),
+            }
+        }
+        OpError::Store(StoreError::Locked { lock }) => ServiceError::Locked(lock),
+        OpError::Store(e) => store_error(e),
+    }
+}
+
+/// 新しいプロジェクトを作る（`fune init`）。
+pub fn init(dir: &Path, name: &str) -> Result<InitResult> {
+    std::fs::create_dir_all(dir)
+        .map_err(|e| ServiceError::Store(format!("{}: {e}", dir.display())))?;
+    let created = fune_store::project::init(dir, name).map_err(store_error)?;
+    let ws = Workspace::open(dir)?;
+    Ok(InitResult {
+        project: crate::query::project_info(&ws)?,
+        created,
+    })
+}

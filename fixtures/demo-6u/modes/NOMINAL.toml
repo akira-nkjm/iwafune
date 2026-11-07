@@ -1,0 +1,23 @@
+label       = "定常"
+description = "太陽指向で待機。RW で 3 軸制御、MTQ でアンロード。通信は UHF のみ"
+
+[states]
+CAM     = { state = "off" }
+GPS     = { state = "on" }
+HTR_BAT = { state = "off", duty = { on = 0.2 } }
+HTR_CAM = { state = "off", duty = { on = 0.2 } }
+MTQ_X   = { state = "off", duty = { on = 0.2 } }
+MTQ_Y   = { state = "off", duty = { on = 0.2 } }
+MTQ_Z   = { state = "off", duty = { on = 0.2 } }
+OBC     = { state = "on" }
+PCDU    = { state = "on" }
+RW_X    = { state = "on" }
+RW_Y    = { state = "on" }
+RW_Z    = { state = "on" }
+SS_MX   = { state = "on" }
+SS_MY   = { state = "on" }
+SS_PX   = { state = "on" }
+SS_PY   = { state = "on" }
+STT     = { state = "on" }
+STX     = { state = "off" }
+UHF_TRX = { state = "rx", duty = { tx = 0.02 } }

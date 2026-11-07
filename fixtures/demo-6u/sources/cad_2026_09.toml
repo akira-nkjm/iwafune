@@ -1,0 +1,5 @@
+kind  = "analysis"
+label = "構造 CAD の質量特性（2026-09 版）"
+ref   = "CAD rev.C"
+date  = "2026-09-30"
+by    = "structure-team"

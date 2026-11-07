@@ -1,0 +1,5 @@
+kind   = "power"
+label  = "バッテリ母線（非安定）"
+source = "BAT.PWR"
+rail   = { value = 7.4, unit = "V" }
+limit  = { value = 6.0, unit = "A" }

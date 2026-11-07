@@ -1,0 +1,5 @@
+label        = "低温（セーフ）"
+mode         = "SAFE"
+side         = "min"
+thermal_case = "cold"
+beta         = { value = 0.0, unit = "deg" }

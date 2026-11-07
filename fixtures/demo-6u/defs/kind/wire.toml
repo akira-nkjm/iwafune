@@ -1,0 +1,5 @@
+# 線材（ハーネスの wire が指すカタログ品の種別）。機器ではないので component を継承しない
+label    = "線材"
+label_en = "Wire"
+required = ["linear_density", "resistance_per_length"]
+optional = ["temp_op"]

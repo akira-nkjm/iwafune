@@ -1,0 +1,311 @@
+//! 軌道上の発電（`power.orbit_generation`）。
+//!
+//! 軌道と姿勢則の時系列（`sat_astro::timeline`）に沿って発電を求める。発電モデルは [`super::solar`]。
+//! 軌道平均は回り切った周回（[`crate::spec::orbit_ranges`]）のサンプルの平均（1 周未満なら全期間）。
+
+use super::solar::{SolarArray, SolarLife, SolarProfile, eclipses};
+use crate::spec::{
+    Analysis, AnalysisError, AnalysisKind, Channel, Check, Series, System, Verdict,
+    masked_time_mean, orbit_mean, orbit_ranges,
+};
+use sat_astro::timeline::{self, TimelineSpec, Window};
+use sat_units::typed::{Energy, Fraction, Power, Qty, Time};
+use serde::{Deserialize, Serialize};
+
+/// 軌道上の発電の入力。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct OrbitGenerationInput {
+    pub timeline: TimelineSpec,
+    pub array: SolarArray,
+    /// 時系列と平均に使う寿命の時点（省略時 EOL）。BOL・EOL の軌道平均はどちらも出す
+    #[serde(default)]
+    pub life: SolarLife,
+}
+
+/// 軌道上の発電の出力。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct OrbitGenerationOutput {
+    /// 時系列と平均に使った寿命の時点
+    pub life: SolarLife,
+    /// 軌道周期
+    pub period: Qty<Time>,
+    /// 回り切った周回の数（0 なら平均は全期間）
+    pub complete_orbits: usize,
+    /// 軌道平均の発電（`life`）
+    pub orbit_average: Qty<Power>,
+    pub orbit_average_bol: Qty<Power>,
+    pub orbit_average_eol: Qty<Power>,
+    /// 日照中の平均発電（`life`）
+    pub sunlit_average: Qty<Power>,
+    /// 最大の発電（`life`）
+    pub peak: Qty<Power>,
+    /// 1 周あたりの発電量（軌道平均 × 周期）
+    pub energy_per_orbit: Qty<Energy>,
+    /// 日照の割合（0〜1、回り切った周回）
+    pub sunlit_fraction: Fraction,
+    /// 最長の日陰
+    pub max_eclipse_duration: Qty<Time>,
+    /// 日陰の区間（端はサンプル時刻）
+    pub eclipses: Vec<Window>,
+    /// パネル別の寄与（入力のパネルの順）
+    pub panels: Vec<OrbitGenerationPanel>,
+    /// 時系列: `generation`・`sunlit`・`panel:<id>`
+    pub series: Series,
+    pub checks: Vec<Check>,
+}
+
+/// 1 パネルの寄与。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct OrbitGenerationPanel {
+    pub id: String,
+    /// 軌道平均の発電（`life`）
+    pub orbit_average: Qty<Power>,
+    /// 組全体の軌道平均に対する割合（0〜1）
+    pub share: Fraction,
+}
+
+/// 軌道上の発電。
+pub struct OrbitGeneration;
+
+impl Analysis for OrbitGeneration {
+    const ID: &'static str = "power.orbit_generation";
+    const TITLE: &'static str = "軌道上の発電";
+    const SYSTEM: System = System::Power;
+    const KIND: AnalysisKind = AnalysisKind::TimeSeries;
+    const DESCRIPTION: &'static str = "軌道 1〜N 周の発電電力と日陰の時系列";
+    const TITLE_EN: &'static str = "Orbital power generation";
+    const DESCRIPTION_EN: &'static str =
+        "Time series of generated power and eclipse over one or more orbits";
+    type Input = OrbitGenerationInput;
+    type Output = OrbitGenerationOutput;
+
+    fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
+        input.array.validate()?;
+        let samples = timeline::build(&input.timeline)?;
+        let period_s = input.timeline.orbit.period_s();
+        let profile = SolarProfile::build(&input.array, &samples);
+        Ok(summarize(input, &profile, eclipses(&samples), period_s))
+    }
+}
+
+/// 発電の時系列を集計する。
+fn summarize(
+    input: &OrbitGenerationInput,
+    profile: &SolarProfile,
+    eclipses: Vec<Window>,
+    period_s: f64,
+) -> OrbitGenerationOutput {
+    let life = input.life;
+    let ranges = orbit_ranges(&profile.t, period_s);
+    let gen_life = profile.total(life);
+    let flags = profile.sunlit_flags();
+    let sunlit_num: Vec<f64> = flags.iter().map(|&f| if f { 1.0 } else { 0.0 }).collect();
+    let orbit_average = orbit_mean(&profile.t, &gen_life, &ranges);
+    let panels = panel_shares(input, profile, &ranges, orbit_average);
+    OrbitGenerationOutput {
+        life,
+        period: Qty::from_raw(period_s),
+        complete_orbits: ranges.len(),
+        orbit_average: Qty::from_raw(orbit_average),
+        orbit_average_bol: Qty::from_raw(orbit_mean(
+            &profile.t,
+            &profile.total(SolarLife::Bol),
+            &ranges,
+        )),
+        orbit_average_eol: Qty::from_raw(orbit_mean(
+            &profile.t,
+            &profile.total(SolarLife::Eol),
+            &ranges,
+        )),
+        sunlit_average: Qty::from_raw(
+            masked_time_mean(&profile.t, &gen_life, &flags).unwrap_or(0.0),
+        ),
+        peak: Qty::from_raw(gen_life.iter().fold(0.0, |a: f64, &p| a.max(p))),
+        energy_per_orbit: Qty::<Power>::from_raw(orbit_average) * Qty::<Time>::from_raw(period_s),
+        sunlit_fraction: Fraction::new(orbit_mean(&profile.t, &sunlit_num, &ranges)),
+        max_eclipse_duration: eclipses
+            .iter()
+            .map(|w| w.duration)
+            .fold(Qty::ZERO, |a, d| if d > a { d } else { a }),
+        eclipses,
+        panels,
+        series: generation_series(input, profile, gen_life),
+        checks: span_checks(ranges.len()),
+    }
+}
+
+/// 時系列: 発電・日照率・パネル別の発電。
+fn generation_series(
+    input: &OrbitGenerationInput,
+    profile: &SolarProfile,
+    gen_life: Vec<f64>,
+) -> Series {
+    let life = input.life;
+    let mut channels = vec![
+        Channel::new("generation", "発電電力", "Power", gen_life),
+        Channel::new("sunlit", "日照率", Fraction::KIND, profile.sunlit.clone()),
+    ];
+    for (i, p) in input.array.panels.iter().enumerate() {
+        let key = format!("panel:{}", p.id);
+        let label = format!("{} の発電", p.id);
+        channels.push(Channel::new(&key, &label, "Power", profile.panel(i, life)));
+    }
+    Series {
+        t: profile.t.clone(),
+        channels,
+    }
+}
+fn panel_shares(
+    input: &OrbitGenerationInput,
+    profile: &SolarProfile,
+    ranges: &[std::ops::Range<usize>],
+    orbit_average: f64,
+) -> Vec<OrbitGenerationPanel> {
+    input
+        .array
+        .panels
+        .iter()
+        .enumerate()
+        .map(|(i, p)| {
+            let avg = orbit_mean(&profile.t, &profile.panel(i, input.life), ranges);
+            OrbitGenerationPanel {
+                id: p.id.clone(),
+                orbit_average: Qty::from_raw(avg),
+                share: Fraction::new(if orbit_average > 0.0 {
+                    avg / orbit_average
+                } else {
+                    0.0
+                }),
+            }
+        })
+        .collect()
+}
+
+/// 期間が 1 周に満たないときの注意（電力収支でも使う）。
+pub(crate) fn span_checks(complete_orbits: usize) -> Vec<Check> {
+    if complete_orbits > 0 {
+        return Vec::new();
+    }
+    vec![Check::new(
+        "span",
+        "解析期間",
+        Verdict::Warning,
+        "解析期間が 1 周に満たないため、軌道平均は全期間の平均です",
+    )]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::power::solar::SolarPanel;
+    use crate::power::testkit::{leo, leo_timeline, sun_pointing_z};
+    use sat_astro::constants::R_EARTH;
+    use sat_astro::math::Vec3;
+    use sat_astro::orbit::beta_angle_rad;
+
+    fn array() -> SolarArray {
+        SolarArray {
+            panels: vec![SolarPanel {
+                id: "PZ".to_owned(),
+                area: Qty::from_raw(1.0),
+                cell_efficiency: 0.3,
+                packing_factor: Some(1.0),
+                eol_factor: Some(0.8),
+                normal: Vec3::Z,
+            }],
+            solar_flux: Some(Qty::from_raw(1361.0)),
+            conversion_efficiency: None,
+        }
+    }
+
+    fn input(orbits: f64) -> OrbitGenerationInput {
+        OrbitGenerationInput {
+            timeline: leo_timeline(sun_pointing_z(), orbits, 10.0),
+            array: array(),
+            life: SolarLife::Bol,
+        }
+    }
+
+    #[test]
+    fn synthetic_profile_by_hand() {
+        // 10 s 刻み、周期 100 s のうち t = 0..50 が日照、+Z 面 1 枚に垂直入射（408.3 W）
+        let t: Vec<f64> = (0..=20).map(|k| f64::from(k) * 10.0).collect();
+        let sunlit: Vec<f64> = t
+            .iter()
+            .map(|&x| if x % 100.0 < 60.0 { 1.0 } else { 0.0 })
+            .collect();
+        let mut p = SolarProfile::build(&array(), &[]);
+        p.panel_bol = vec![sunlit.iter().map(|s| 408.3 * s).collect()];
+        p.t = t;
+        p.sunlit = sunlit;
+        let ecl = vec![Window {
+            start: Qty::from_raw(55.0),
+            end: Qty::from_raw(95.0),
+            duration: Qty::from_raw(40.0),
+        }];
+        let out = summarize(&input(1.0), &p, ecl, 100.0);
+        assert_eq!(out.complete_orbits, 2);
+        // 1 周 10 サンプルのうち 6 サンプルが日照 → 408.3 × 0.6 = 244.98 W
+        assert!((out.orbit_average.value() - 244.98).abs() < 1e-9);
+        assert!((out.orbit_average_eol.value() - 244.98 * 0.8).abs() < 1e-9);
+        assert!((out.sunlit_average.value() - 408.3).abs() < 1e-9);
+        assert!((out.sunlit_fraction.value() - 0.6).abs() < 1e-12);
+        assert!((out.energy_per_orbit.value() - 24498.0).abs() < 1e-6);
+        assert!((out.max_eclipse_duration.value() - 40.0).abs() < 1e-12);
+        assert!((out.panels[0].share.value() - 1.0).abs() < 1e-12);
+        assert!(out.checks.is_empty());
+    }
+
+    #[test]
+    fn sun_pointing_leo_against_cylindrical_eclipse_formula() {
+        // 太陽指向で +Z 面は日照中つねに垂直入射 → 日照中の平均 = 408.3 W。
+        // 日陰の割合（円柱影）= acos(√(h² + 2Rh) / (r cos β)) / π
+        let out = OrbitGeneration::run(&input(2.0)).unwrap();
+        assert_eq!(out.complete_orbits, 2);
+        assert!(
+            (out.sunlit_average.value() - 408.3).abs() < 1e-6,
+            "{}",
+            out.sunlit_average.value()
+        );
+        let orbit = leo();
+        let beta = beta_angle_rad(&orbit, orbit.epoch).unwrap();
+        let r = orbit.elements.semi_major_axis.value();
+        let h = r - R_EARTH;
+        let eclipse_fraction =
+            ((h * h + 2.0 * R_EARTH * h).sqrt() / (r * beta.cos())).acos() / std::f64::consts::PI;
+        let period = orbit.period_s();
+        let expect = eclipse_fraction * period;
+        assert!(
+            (out.max_eclipse_duration.value() - expect).abs() < 0.01 * expect,
+            "{} vs {expect}",
+            out.max_eclipse_duration.value()
+        );
+        assert!((out.sunlit_fraction.value() - (1.0 - eclipse_fraction)).abs() < 0.01);
+        let avg = 408.3 * (1.0 - eclipse_fraction);
+        assert!((out.orbit_average.value() - avg).abs() < 0.01 * avg);
+        assert_eq!(out.series.channels.len(), 3);
+        assert_eq!(out.series.t.len(), out.series.channels[0].values.len());
+    }
+
+    #[test]
+    fn beta_zero_gives_the_longest_eclipse() {
+        // β = 0（TimelineSpec.beta）で円柱影の日陰は 2·asin(R/r)/(2π) 周 = asin(R/r)/π
+        let mut i = input(1.0);
+        i.timeline.beta = Some(Qty::from_raw(0.0));
+        let out = OrbitGeneration::run(&i).unwrap();
+        let r = i.timeline.orbit.elements.semi_major_axis.value();
+        let expect = (R_EARTH / r).asin() / std::f64::consts::PI * out.period.value();
+        let got = out.max_eclipse_duration.value();
+        assert!((got - expect).abs() < 0.01 * expect, "{got} vs {expect}");
+    }
+
+    #[test]
+    fn short_span_warns() {
+        let out = OrbitGeneration::run(&input(0.5)).unwrap();
+        assert_eq!(out.complete_orbits, 0);
+        assert_eq!(out.checks[0].key, "span");
+    }
+}

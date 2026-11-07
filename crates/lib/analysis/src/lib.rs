@@ -1,0 +1,29 @@
+//! # sat-analysis — 各系の解析
+//!
+//! すべての解析は [`spec::Analysis`] を実装し、`Input` → `Output` の純粋な関数として振る舞う。
+//! 設計モデル（`fune-*`）を知らず、I/O もしない。入力の組み立ては呼び出し側（fune-projection）が行う。
+//! 物理の共通部品（軌道・太陽・食・姿勢則・時系列・積分器）は `sat_astro` を使い、ここに書き直さない。
+//!
+//! | モジュール | 責務 |
+//! |---|---|
+//! | [`spec`] | 解析の共通の型（trait・情報・エラー・時系列・判定）と判定文の数量の sat-units への委譲 |
+//! | [`catalog`] | 解析の一覧と、ID による動的な実行（ここだけで登録する） |
+//! | [`modes`] | モードごとの状態と時間割合の計算（電源・C&DH・熱で共有） |
+//! | [`power`] | 電源: モード別消費電力・日照時発電・軌道上発電・収支と DoD |
+//! | [`attitude`] | 姿勢: 擾乱と RW アンロード・MTQ/RCS のアンロード時間・センサ FoV |
+//! | [`budget`] | バジェット（質量・電力・データ量）の集計と判定（判定はここだけ） |
+//! | [`cdh`] | C&DH: HK・ミッションデータの量とストレージ |
+//! | [`comm`] | 通信: 回線バジェット・可視・データ蓄積 |
+//! | [`thermal`] | 熱: 多節点の定常・非定常 |
+//! | [`structure`] | 構造: 質量特性・準静的荷重・簡易固有振動数 |
+
+pub mod attitude;
+pub mod budget;
+pub mod catalog;
+pub mod cdh;
+pub mod comm;
+pub mod modes;
+pub mod power;
+pub mod spec;
+pub mod structure;
+pub mod thermal;

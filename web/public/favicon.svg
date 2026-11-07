@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="iwafune">
+  <!-- web/src/shell/brand-svg.ts が書き出したもの。手で直さず `pnpm -C web brand` で作り直す -->
+  <svg viewBox="0 0 24 24" width="128" height="128" fill="none">
+    <g transform="translate(0.5 -2)">
+      <path d="M2.5 9.5H10.8L12.6 20.3L6.4 19.2L3.3 14.4Z" fill="#a9c9e6"/>
+      <path d="M10.8 9.5H21.5L18.6 16.4L11.6 14.3Z" fill="#3382c2"/>
+      <path d="M11.6 14.3L18.6 16.4L12.6 20.3Z" fill="#062654"/>
+      <g stroke="#062654" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M2.5 9.5H21.5L18.6 16.4L12.6 20.3L6.4 19.2L3.3 14.4Z"/>
+        <path d="M10.8 9.5L12.6 20.3"/>
+        <path d="M11.6 14.3L18.6 16.4"/>
+      </g>
+    </g>
+  </svg>
+</svg>

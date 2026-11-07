@@ -1,0 +1,5 @@
+label        = "高温（撮像）"
+mode         = "MISSION"
+side         = "max"
+thermal_case = "hot"
+beta         = { value = 60.0, unit = "deg" }

@@ -1,0 +1,40 @@
+---
+source: crates/app/cli/tests/snapshots_cli.rs
+expression: "stdout(&[\"-C\", root.to_str().unwrap(), \"part\", \"ls\"])"
+---
+ ID          サブシステム   種別             定義                数   質量     電力          動作温度           
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ BAT         POWER          battery          local/bat_2s2p       1    395 g             —       0 °C … 45.0 °C 
+ BUS_FRAME   STRUCTURE      structure        —                    1    620 g             —   未設定             
+ CAM         PAYLOAD        camera           local/cam_ms_5m      1    920 g   6.80 W (on)       0 °C … 35.0 °C 
+ CELLS       POWER          solar_panel      local/tj_cell_30    20   2.60 g             —   未設定             
+ GPS         AOCS           gps              local/gps_l1         1   80.0 g   900 mW (on)   -20.0 °C … 60.0 °C 
+ HTR_BAT     THERMAL        heater           —                    1   5.00 g   2.00 W (on)   未設定             
+ HTR_CAM     THERMAL        heater           —                    1   4.00 g   1.00 W (on)   未設定             
+ MTQ_X       AOCS           magnetorquer     local/mtq_0p2        1   30.0 g   450 mW (on)   -30.0 °C … 70.0 °C 
+ MTQ_Y       AOCS           magnetorquer     local/mtq_0p2        1   30.0 g   450 mW (on)   -30.0 °C … 70.0 °C 
+ MTQ_Z       AOCS           magnetorquer     local/mtq_0p2        1   30.0 g   450 mW (on)   -30.0 °C … 70.0 °C 
+ OBC         CDH            obc              local/obc_m7         1   90.0 g   650 mW (on)   -25.0 °C … 70.0 °C 
+ PANEL_MX    STRUCTURE      panel            —                    1    120 g             —   未設定             
+ PANEL_MY    STRUCTURE      panel            —                    1   70.0 g             —   未設定             
+ PANEL_MZ    STRUCTURE      panel            —                    1   90.0 g             —   未設定             
+ PANEL_PX    STRUCTURE      panel            —                    1    120 g             —   未設定             
+ PANEL_PY    STRUCTURE      panel            —                    1   60.0 g             —   未設定             
+ PANEL_PZ    STRUCTURE      panel            —                    1   70.0 g             —   未設定             
+ PCDU        POWER          pcdu             local/pcdu_6u        1    200 g   350 mW (on)   -30.0 °C … 70.0 °C 
+ RW_X        AOCS           reaction_wheel   local/rw_10mNms      1    152 g   600 mW (on)   -20.0 °C … 60.0 °C 
+ RW_Y        AOCS           reaction_wheel   local/rw_10mNms      1    150 g   600 mW (on)   -20.0 °C … 60.0 °C 
+ RW_Z        AOCS           reaction_wheel   local/rw_10mNms      1    150 g   600 mW (on)   -20.0 °C … 60.0 °C 
+ SAP_PY      POWER          structure        —                    1    180 g             —   未設定             
+ SP_MX       POWER          solar_panel      local/sp_2u3u        1    210 g             —   未設定             
+ SP_MY       POWER          solar_panel      local/sp_1u3u        1    100 g             —   未設定             
+ SP_PX       POWER          solar_panel      local/sp_2u3u        1    210 g             —   未設定             
+ SP_PY       POWER          solar_panel      local/sp_1u3u        1    100 g             —   未設定             
+ SS_MX       AOCS           sun_sensor       local/fss_60         1   35.0 g   130 mW (on)   -40.0 °C … 85.0 °C 
+ SS_MY       AOCS           sun_sensor       local/fss_60         1   35.0 g   130 mW (on)   -40.0 °C … 85.0 °C 
+ SS_PX       AOCS           sun_sensor       local/fss_60         1   35.0 g   130 mW (on)   -40.0 °C … 85.0 °C 
+ SS_PY       AOCS           sun_sensor       local/fss_60         1   35.0 g   130 mW (on)   -40.0 °C … 85.0 °C 
+ STT         AOCS           star_tracker     local/stt_nano       1    280 g   1.10 W (on)   -20.0 °C … 50.0 °C 
+ STX         COM            transceiver      local/sband_tx_2m    1    250 g   9.50 W (tx)   -20.0 °C … 50.0 °C 
+ UHF_TRX     COM            transceiver      local/uhf_trx_9k6    1   90.0 g   3.80 W (tx)   -30.0 °C … 60.0 °C 
+33 部品

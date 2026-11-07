@@ -1,0 +1,157 @@
+//! 解析 ID → 射影（入力の JSON）。**射影の対応表はここだけ。** 解析の登録と実行は `sat_analysis::catalog`（service が呼ぶ）。
+//! `every_catalog_entry_has_a_row` のテストが、カタログとこの表がずれていないことを確かめる。
+
+use crate::context::Context;
+use crate::missing::MissingInputs;
+use crate::{attitude, cdh, comm, power, structure, thermal};
+use sat_analysis::spec::Analysis;
+use sat_analysis::{
+    attitude as aattitude, cdh as acdh, comm as acomm, power as apower, structure as astructure,
+    thermal as athermal,
+};
+use serde_json::Value;
+use ts_rs::{Config, TS, TypeVisitor};
+
+/// 射影のエラー。
+#[derive(Debug, thiserror::Error)]
+pub enum ProjectionError {
+    #[error("未知の解析です: {0}")]
+    UnknownAnalysis(String),
+    #[error("{0}")]
+    Missing(MissingInputs),
+    #[error(
+        "{0} は設計データからの入力の組み立てが未実装です（入力を JSON で与えれば実行できます）"
+    )]
+    NotImplemented(String),
+    #[error("入力を JSON にできません: {0}")]
+    Json(String),
+    #[error("解析が失敗しました: {0}")]
+    Analysis(String),
+}
+
+impl From<MissingInputs> for ProjectionError {
+    fn from(m: MissingInputs) -> Self {
+        ProjectionError::Missing(m)
+    }
+}
+
+/// 表の 1 行の説明。
+#[derive(Debug, Clone)]
+pub struct Entry {
+    pub id: &'static str,
+    /// 入力の TS 型名
+    pub input_type: String,
+    /// 出力の TS 型名
+    pub output_type: String,
+    /// 設計データから入力を組み立てられるか
+    pub projectable: bool,
+}
+
+type Projector<A> = Option<fn(&Context<'_>) -> Result<<A as Analysis>::Input, MissingInputs>>;
+
+fn entry<A: Analysis>(p: Projector<A>) -> Entry
+where
+    A::Input: TS,
+    A::Output: TS,
+{
+    let cfg = Config::new();
+    Entry {
+        id: A::ID,
+        input_type: <A::Input as TS>::name(&cfg),
+        output_type: <A::Output as TS>::name(&cfg),
+        projectable: p.is_some(),
+    }
+}
+
+fn to_json<A: Analysis>(ctx: &Context<'_>, p: Projector<A>) -> Result<Value, ProjectionError> {
+    let project = p.ok_or_else(|| ProjectionError::NotImplemented(A::ID.to_owned()))?;
+    let input = project(ctx)?;
+    serde_json::to_value(input).map_err(|e| ProjectionError::Json(e.to_string()))
+}
+
+macro_rules! table {
+    ($($a:ty => $p:expr),+ $(,)?) => {
+        /// 表のすべての行。
+        pub fn entries() -> Vec<Entry> {
+            vec![$(entry::<$a>($p)),+]
+        }
+
+        /// 解析の入力を設計データから組み立てて JSON で返す。
+        pub fn project_json(id: &str, ctx: &Context<'_>) -> Result<Value, ProjectionError> {
+            $(if id == <$a as Analysis>::ID {
+                return to_json::<$a>(ctx, $p);
+            })+
+            Err(ProjectionError::UnknownAnalysis(id.to_owned()))
+        }
+
+        /// すべての解析の入出力の TS 型を書き出す（service の TS の書き出しから呼ぶ）。
+        pub fn export_ts(cfg: &Config) -> Result<(), ts_rs::ExportError> {
+            $(
+                <<$a as Analysis>::Input as TS>::export_all(cfg)?;
+                <<$a as Analysis>::Output as TS>::export_all(cfg)?;
+            )+
+            Ok(())
+        }
+
+        /// すべての解析の入出力の型をたどる（TS の型名の重複の検査用）。
+        pub fn visit_ts<V: TypeVisitor>(v: &mut V) {
+            $(
+                v.visit::<<$a as Analysis>::Input>();
+                v.visit::<<$a as Analysis>::Output>();
+            )+
+        }
+
+        /// 出力の JSON を解析の出力の型に戻して `v` に渡す（service が量の次元を集めるのに使う）。
+        pub fn visit_output<V: OutputVisitor>(id: &str, output: &Value, v: &mut V) -> Result<(), ProjectionError> {
+            $(if id == <$a as Analysis>::ID {
+                let typed: <$a as Analysis>::Output = serde_json::from_value(output.clone())
+                    .map_err(|e| ProjectionError::Json(e.to_string()))?;
+                v.visit(&typed);
+                return Ok(());
+            })+
+            Err(ProjectionError::UnknownAnalysis(id.to_owned()))
+        }
+    };
+}
+
+/// 型の付いた解析の出力を受け取る（`visit_output`）。
+pub trait OutputVisitor {
+    fn visit<T: serde::Serialize>(&mut self, value: &T);
+}
+
+table!(
+    apower::ModeLoad => Some(power::mode_load),
+    apower::SolarSunlit => Some(power::solar_sunlit),
+    apower::OrbitGeneration => Some(power::orbit_generation),
+    apower::EnergyBalance => Some(power::energy_balance),
+    aattitude::RwUnloading => Some(attitude::rw_unloading),
+    aattitude::UnloadTime => Some(attitude::unload_time),
+    aattitude::SensorFov => Some(attitude::sensor_fov),
+    acdh::DataBudget => Some(cdh::data_budget),
+    acomm::LinkBudget => Some(comm::link_budget),
+    acomm::Visibility => Some(comm::visibility),
+    acomm::DataThroughput => Some(comm::data_throughput),
+    athermal::ThermalSteady => Some(thermal::steady),
+    athermal::ThermalTransient => Some(thermal::transient),
+    astructure::MassProperties => Some(structure::mass_properties),
+    astructure::StaticLoad => Some(structure::static_load),
+    astructure::ModalEstimate => Some(structure::modal_estimate),
+);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_catalog_entry_has_a_row() {
+        let rows: Vec<&str> = entries().iter().map(|e| e.id).collect();
+        for info in sat_analysis::catalog::catalog() {
+            assert!(
+                rows.contains(&info.id.as_str()),
+                "{} の射影の行がありません",
+                info.id
+            );
+        }
+        assert_eq!(rows.len(), sat_analysis::catalog::catalog().len());
+    }
+}

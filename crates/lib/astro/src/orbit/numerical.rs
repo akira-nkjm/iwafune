@@ -1,0 +1,49 @@
+//! 数値伝搬（Cowell 法）。[`crate::force::acceleration_eci`] を [`crate::ode::Dop853`] で積分し、
+//! 要求された時刻列を 1 回の積分の密出力で返す。
+
+use super::OrbitState;
+use crate::AstroError;
+use crate::ephem::CentralBody;
+use crate::force::{ForceConfig, acceleration_eci_about};
+use crate::math::Vec3;
+use crate::ode::Dop853;
+use crate::time::Epoch;
+
+/// 数値伝搬の積分器の設定（位置 [m]・速度 [m/s] の混在する状態に合わせた許容誤差）。
+pub const NUMERICAL_INTEGRATOR: Dop853 = Dop853 {
+    rtol: 1e-11,
+    atol: 1e-6,
+    max_step: 600.0,
+    max_steps: 2_000_000,
+};
+
+fn to_array(s: &OrbitState) -> [f64; 6] {
+    [
+        s.r_eci.x, s.r_eci.y, s.r_eci.z, s.v_eci.x, s.v_eci.y, s.v_eci.z,
+    ]
+}
+
+fn from_array(y: &[f64; 6]) -> OrbitState {
+    OrbitState {
+        r_eci: Vec3::new(y[0], y[1], y[2]),
+        v_eci: Vec3::new(y[3], y[4], y[5]),
+    }
+}
+
+/// 元期 `epoch` の状態 `x0` から、元期からの秒 `times_s`（昇順・非負）での状態を求める。
+pub(super) fn states_at(
+    central: CentralBody,
+    forces: &ForceConfig,
+    epoch: Epoch,
+    x0: OrbitState,
+    times_s: &[f64],
+) -> Result<Vec<OrbitState>, AstroError> {
+    crate::force::validate_about(central, forces)?;
+    let f = |t: f64, y: &[f64; 6]| {
+        let state = from_array(y);
+        let a = acceleration_eci_about(central, forces, epoch.plus_seconds(t), &state);
+        [y[3], y[4], y[5], a.x, a.y, a.z]
+    };
+    let out = NUMERICAL_INTEGRATOR.integrate_at(f, 0.0, to_array(&x0), times_s)?;
+    Ok(out.iter().map(from_array).collect())
+}

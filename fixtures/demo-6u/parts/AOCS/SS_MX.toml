@@ -1,0 +1,12 @@
+catalog = "local/fss_60"
+
+[mount]
+on    = "PANEL_MX"
+point = "SS"
+
+[pose]
+orientation = { w = 0.707107, x = 0.0, y = -0.707107, z = 0.0 }
+position    = { x = -2.5, y = 0.0, z = 0.0, unit = "mm" }
+
+[ports.PWR]
+net = "P3V3"

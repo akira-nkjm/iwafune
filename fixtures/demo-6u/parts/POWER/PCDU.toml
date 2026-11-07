@@ -1,0 +1,26 @@
+catalog = "local/pcdu_6u"
+
+[mount]
+on    = "BUS_FRAME"
+point = "STACK_2"
+
+[pose]
+position = { x = 0.0, y = 20.0, z = 122.0, unit = "mm" }
+
+[ports.SA]
+net = "SA_BUS"
+
+[ports.BAT]
+net = "BAT_BUS"
+
+[ports.OUT1]
+net = "P3V3"
+
+[ports.OUT2]
+net = "P5V"
+
+[ports.OUT3]
+net = "P12V"
+
+[ports.CAN]
+net = "CAN_BUS"

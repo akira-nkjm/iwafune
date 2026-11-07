@@ -1,0 +1,21 @@
+# 展開パドル（物理的な組立品）。+Y 面のヒンジから +Y 方向に展開し、セルは +X を向く。子部品は SAP_PY/ の下
+kind     = "structure"
+label    = "展開太陽電池パドル（+Y）"
+maturity = "new"
+
+[mount]
+on    = "PANEL_PY"
+point = "HINGE"
+
+[pose]
+position = { x = 0.0, y = 111.5, z = 0.0, unit = "mm" }
+
+[mount_points.CELL_AREA]
+position    = { x = 2.0, y = 113.0, z = 0.0, unit = "mm" }
+orientation = { w = 0.7071067811865476, x = 0.0, y = 0.7071067811865476, z = 0.0 }
+
+[attr]
+mass          = { value = 0.18, unit = "kg", from = { source = "cad_2026_09", note = "基板・ヒンジ・保持機構" } }
+specific_heat = { value = 1000.0, unit = "J/(kg*K)" }
+size          = { x = 2.0, y = 226.0, z = 366.0, unit = "mm" }
+material      = "cfrp_qi"

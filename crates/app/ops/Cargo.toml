@@ -1,0 +1,22 @@
+[package]
+name = "fune-ops"
+description = "Edit operations (Op), the single entry point for changing a design: plan, apply and conversion to CLI commands"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+fune-model = { workspace = true }
+fune-store = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+ts-rs = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

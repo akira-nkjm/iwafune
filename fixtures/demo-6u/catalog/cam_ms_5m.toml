@@ -1,0 +1,25 @@
+kind         = "camera"
+label        = "マルチスペクトルカメラ 5 m 級"
+manufacturer = "Example Optics"
+part_number  = "MSC-5"
+maturity     = "new"
+source       = "ds_vendor"
+
+[attr]
+mass           = { value = 920.0, unit = "g" }
+size           = { x = 95.0, y = 95.0, z = 180.0, unit = "mm" }
+boresight      = { x = 0.0, y = 0.0, z = 1.0 }
+fov_half_angle = { value = 2.4, unit = "deg" }
+exclusion_sun  = { value = 30.0, unit = "deg" }
+temp_op        = { min = 0.0, max = 35.0, unit = "degC" }
+specific_heat  = { value = 850.0, unit = "J/(kg*K)" }
+
+[attr.power]
+off     = { value = 0.0, unit = "W" }
+standby = { value = 1.6, unit = "W" }
+on      = { value = 6.8, unit = "W" }
+
+[attr.mission_rate]
+off     = { value = 0.0, unit = "Mbit/s" }
+standby = { value = 0.0, unit = "Mbit/s" }
+on      = { value = 20.0, unit = "Mbit/s" }

@@ -1,0 +1,32 @@
+[package]
+name = "sat-units"
+description = "The single source of truth for units, dimensions and typed quantities"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "sat_units"
+
+[features]
+# 量の表示文字列（format モジュール）。String を使うので alloc が要る
+default = ["alloc"]
+alloc = []
+# Qty を SI のスカラ値として JSON に出し入れする
+serde = ["dep:serde"]
+# Qty を TS の number として型生成する
+ts = ["dep:ts-rs", "alloc"]
+
+[dependencies]
+typenum = { workspace = true }
+libm = { workspace = true }
+serde = { workspace = true, optional = true }
+ts-rs = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

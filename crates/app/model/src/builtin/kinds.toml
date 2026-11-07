@@ -1,0 +1,150 @@
+# 組み込みの種別定義（docs/architecture/registry.md §3 の role と状態の語彙）。
+# 形は defs/kind/<id>.toml と同じ（キーが ID）。`component` はすべての機器の継承元。
+# 状態を持たない種別（構体・太陽電池・電池など）はモードの表に書かなくてよい。
+
+[component]
+label    = "機器（共通）"
+label_en = "Component (common)"
+required = ["mass"]
+optional = ["size", "temp_op", "temp_survival", "specific_heat", "heat_fraction", "absorptivity", "emissivity", "hk_rate"]
+
+[obc]
+label    = "オンボードコンピュータ"
+label_en = "On-board computer"
+extends  = "component"
+role     = "obc"
+states   = ["off", "on"]
+required = ["power"]
+optional = ["storage_capacity"]
+
+[pcdu]
+label    = "電源制御分配器"
+label_en = "Power control and distribution unit"
+extends  = "component"
+role     = "pcdu"
+states   = ["off", "on"]
+required = ["power"]
+optional = ["voltage"]
+
+[battery]
+label    = "バッテリ"
+label_en = "Battery"
+extends  = "component"
+role     = "battery"
+required = ["capacity", "voltage"]
+optional = ["charge_efficiency", "discharge_efficiency"]
+
+[solar_panel]
+label    = "太陽電池パネル"
+label_en = "Solar panel"
+extends  = "component"
+role     = "solar_panel"
+required = ["area", "cell_efficiency", "normal"]
+optional = ["packing_factor", "eol_factor"]
+
+[reaction_wheel]
+label    = "リアクションホイール"
+label_en = "Reaction wheel"
+extends  = "component"
+role     = "reaction_wheel"
+states   = ["off", "idle", "on", "peak"]
+required = ["power", "max_momentum", "max_torque", "spin_axis"]
+
+[magnetorquer]
+label    = "磁気トルカ"
+label_en = "Magnetorquer"
+extends  = "component"
+role     = "magnetorquer"
+states   = ["off", "on"]
+required = ["power", "max_dipole", "axis"]
+
+[thruster]
+label    = "スラスタ"
+label_en = "Thruster"
+extends  = "component"
+role     = "thruster"
+states   = ["off", "standby", "on"]
+required = ["power", "thrust", "isp", "direction"]
+
+[star_tracker]
+label    = "スタートラッカ"
+label_en = "Star tracker"
+extends  = "component"
+role     = "star_tracker"
+states   = ["off", "on"]
+required = ["power", "boresight", "fov_half_angle"]
+optional = ["exclusion_sun", "exclusion_earth", "exclusion_moon"]
+
+[sun_sensor]
+label    = "太陽センサ"
+label_en = "Sun sensor"
+extends  = "component"
+role     = "sun_sensor"
+states   = ["off", "on"]
+required = ["boresight", "fov_half_angle"]
+optional = ["power"]
+
+[gyro]
+label    = "ジャイロ"
+label_en = "Gyro"
+extends  = "component"
+role     = "gyro"
+states   = ["off", "on"]
+required = ["power"]
+
+[gps]
+label    = "GPS 受信機"
+label_en = "GPS receiver"
+extends  = "component"
+role     = "gps"
+states   = ["off", "on"]
+required = ["power"]
+
+[transceiver]
+label    = "送受信機"
+label_en = "Transceiver"
+extends  = "component"
+role     = "transceiver"
+states   = ["off", "rx", "tx"]
+required = ["power", "tx_power", "frequency_down", "data_rate_down"]
+optional = ["frequency_up", "data_rate_up", "antenna_gain", "noise_temperature"]
+
+[antenna]
+label    = "アンテナ"
+label_en = "Antenna"
+extends  = "component"
+role     = "antenna"
+required = ["antenna_gain"]
+optional = ["boresight"]
+
+[camera]
+label    = "カメラ"
+label_en = "Camera"
+extends  = "component"
+role     = "camera"
+states   = ["off", "standby", "on"]
+required = ["power", "boresight", "fov_half_angle"]
+optional = ["mission_rate", "exclusion_sun"]
+
+[heater]
+label    = "ヒータ"
+label_en = "Heater"
+extends  = "component"
+role     = "heater"
+states   = ["off", "on"]
+required = ["power"]
+optional = ["setpoint"]
+
+[panel]
+label    = "構体パネル"
+label_en = "Structure panel"
+extends  = "component"
+role     = "panel"
+optional = ["area", "thickness", "material", "normal"]
+
+[structure]
+label    = "構体"
+label_en = "Structure"
+extends  = "component"
+role     = "structure"
+optional = ["material"]

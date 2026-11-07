@@ -1,0 +1,33 @@
+# 配分（システム担当）。キーは Group か Part の ID
+[mass]
+limit         = { value = 12.0, unit = "kg" }  # 6U の上限（CDS rev.14）
+system_margin = 0.1
+
+[mass.alloc]
+AOCS      = { value = 1.6, unit = "kg" }
+CDH       = { value = 0.2, unit = "kg" }
+COM       = { value = 0.5, unit = "kg" }
+PAYLOAD   = { value = 1.2, unit = "kg" }
+POWER     = { value = 2.0, unit = "kg" }
+STRUCTURE = { value = 1.8, unit = "kg" }
+THERMAL   = { value = 0.05, unit = "kg" }
+
+[power]
+limit         = { value = 24.0, unit = "W" }  # 太陽指向時の軌道平均の発電見込み
+system_margin = 0.15
+
+[power.alloc]
+AOCS    = { value = 6.0, unit = "W" }
+CDH     = { value = 1.0, unit = "W" }
+COM     = { value = 3.0, unit = "W" }
+PAYLOAD = { value = 4.5, unit = "W" }
+POWER   = { value = 1.0, unit = "W" }
+THERMAL = { value = 1.5, unit = "W" }
+
+[data]
+limit         = { value = 8.0, unit = "GB" }  # OBC のストレージ
+system_margin = 0.2
+
+[data.alloc]
+CDH     = { value = 0.5, unit = "GB" }
+PAYLOAD = { value = 5.5, unit = "GB" }

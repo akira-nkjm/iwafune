@@ -1,0 +1,26 @@
+[package]
+name = "fune-service"
+description = "Application layer: every function the CLI and the HTTP API call, and their types (exported to TypeScript with ts-rs)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+fune-model = { workspace = true }
+fune-store = { workspace = true }
+fune-ops = { workspace = true }
+fune-projection = { workspace = true }
+sat-analysis = { workspace = true, features = ["ts"] }
+sat-astro = { workspace = true, features = ["ts"] }
+sat-units = { workspace = true, features = ["serde", "ts"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+ts-rs = { workspace = true }
+similar = { workspace = true }
+sha2 = { workspace = true }

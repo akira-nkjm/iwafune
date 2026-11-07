@@ -1,0 +1,209 @@
+//! 解析ケース・出典・ハーネスのサブコマンド（`fune case …`・`fune source …`・`fune harness …`）。
+//! 綴りは `fune_ops::to_cli` と同じにする。`set` は無ければ作り、あれば丸ごと置き換える。
+
+use super::EditOpts;
+use clap::{Args, Subcommand};
+
+/// `fune case …`
+#[derive(Debug, Subcommand)]
+pub enum CaseCmd {
+    /// 解析ケースの一覧
+    Ls,
+    /// 解析ケースを書く
+    Set(CaseArgs),
+    /// 解析ケースを消す
+    Rm {
+        id: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+}
+
+/// `fune case set`
+#[derive(Debug, Args)]
+pub struct CaseArgs {
+    pub id: String,
+    #[arg(long)]
+    pub label: Option<String>,
+    #[arg(long)]
+    pub description: Option<String>,
+    /// 使うモード
+    #[arg(long)]
+    pub mode: Option<String>,
+    /// 不確かさのどちら側を読むか（nominal / min / max）
+    #[arg(long)]
+    pub side: Option<String>,
+    /// 熱の環境条件（`analysis.thermal` の `[case.<名前>]`）
+    #[arg(long)]
+    pub thermal_case: Option<String>,
+    /// β 角（例: `"60 deg"`）
+    #[arg(long, allow_hyphen_values = true)]
+    pub beta: Option<String>,
+    /// 時系列の周回数
+    #[arg(long)]
+    pub orbits: Option<u32>,
+    #[command(flatten)]
+    pub edit: EditOpts,
+}
+
+/// `fune source …`
+#[derive(Debug, Subcommand)]
+pub enum SourceCmd {
+    /// 出典の一覧
+    Ls,
+    /// 出典を書く
+    Set(SourceArgs),
+    /// 出典を消す（値から参照されていれば拒む）
+    Rm {
+        id: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+}
+
+/// `fune source set`
+#[derive(Debug, Args)]
+pub struct SourceArgs {
+    pub id: String,
+    /// placeholder / judgement / analysis / datasheet / measured
+    #[arg(long)]
+    pub kind: String,
+    #[arg(long)]
+    pub label: Option<String>,
+    /// 参照先（URL・文書番号）
+    #[arg(long = "ref")]
+    pub reference: Option<String>,
+    #[arg(long)]
+    pub date: Option<String>,
+    #[arg(long)]
+    pub by: Option<String>,
+    #[arg(long)]
+    pub note: Option<String>,
+    #[command(flatten)]
+    pub edit: EditOpts,
+}
+
+/// `fune harness …`
+#[derive(Debug, Subcommand)]
+pub enum HarnessCmd {
+    /// ハーネスの一覧
+    Ls,
+    /// ハーネス区間を書く
+    Set(HarnessArgs),
+    /// ハーネス区間を消す
+    Rm {
+        id: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+}
+
+/// `fune harness set`
+#[derive(Debug, Args)]
+pub struct HarnessArgs {
+    pub id: String,
+    /// 一端のポート（`PCDU.OUT3`）
+    #[arg(long)]
+    pub from: String,
+    /// もう一端のポート（`RW_X.PWR`）
+    #[arg(long)]
+    pub to: String,
+    /// 通すネット（カンマ区切り）
+    #[arg(long)]
+    pub nets: Option<String>,
+    /// 線材のカタログ品
+    #[arg(long)]
+    pub wire: Option<String>,
+    #[arg(long)]
+    pub cores: Option<u32>,
+    /// 長さ（例: `"0.35 m"`）
+    #[arg(long)]
+    pub length: Option<String>,
+    #[arg(long)]
+    pub label: Option<String>,
+    #[command(flatten)]
+    pub edit: EditOpts,
+}
+
+/// `fune part point`（取付点）
+#[derive(Debug, Args)]
+pub struct PointArgs {
+    pub part: String,
+    pub point: String,
+    /// 位置（例: `"30 0 5 mm"`）
+    #[arg(long, allow_hyphen_values = true)]
+    pub position: Option<String>,
+    /// 姿勢のクォータニオン（`"1 0 0 0"`、w x y z）
+    #[arg(long, allow_hyphen_values = true)]
+    pub orientation: Option<String>,
+    /// 取付点を消す
+    #[arg(long, conflicts_with_all = ["position", "orientation"])]
+    pub rm: bool,
+    #[command(flatten)]
+    pub edit: EditOpts,
+}
+
+/// `fune catalog …`（このプロジェクトのカタログ品）
+#[derive(Debug, Subcommand)]
+pub enum CatalogCmd {
+    /// カタログ品の一覧
+    Ls,
+    /// 1 品の内容
+    Show { id: String },
+    /// カタログ品を足す（`--from-part` で部品の値を写す）
+    Add {
+        /// 出所付きの ID（例: `local/rw_30mNms`）
+        id: String,
+        #[arg(long)]
+        kind: String,
+        #[arg(long)]
+        label: Option<String>,
+        #[arg(long)]
+        label_en: Option<String>,
+        /// off_the_shelf / modified / new
+        #[arg(long)]
+        maturity: Option<String>,
+        #[arg(long)]
+        from_part: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// 属性の値かフィールドを書く（例: `fune catalog set local/rw_30mNms mass "0.9 kg"`）
+    Set {
+        id: String,
+        /// 属性（`mass`・`power.on`）かフィールド（`label`・`manufacturer` …）
+        path: String,
+        #[arg(allow_hyphen_values = true)]
+        value: String,
+        #[arg(long)]
+        source: Option<String>,
+        #[arg(long)]
+        note: Option<String>,
+        #[arg(long, allow_hyphen_values = true)]
+        min: Option<String>,
+        #[arg(long, allow_hyphen_values = true)]
+        max: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// 属性の値かフィールドを消す
+    Unset {
+        id: String,
+        path: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// カタログ品を消す（参照されていれば拒む）
+    Rm {
+        id: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// カタログ品の名前を変える（部品の catalog・candidates も書き換える）
+    Rename {
+        from: String,
+        to: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+}

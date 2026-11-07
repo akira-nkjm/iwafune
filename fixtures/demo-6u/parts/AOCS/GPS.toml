@@ -1,0 +1,14 @@
+catalog = "local/gps_l1"
+
+[mount]
+on    = "BUS_FRAME"
+point = "GPS_BAY"
+
+[pose]
+position = { x = 0.0, y = 120.0, z = -170.0, unit = "mm" }
+
+[ports.PWR]
+net = "P3V3"
+
+[ports.DATA]
+net = "CAN_BUS"

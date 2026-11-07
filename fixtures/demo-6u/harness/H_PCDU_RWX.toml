@@ -1,0 +1,7 @@
+label  = "PCDU → RW_X 電源"
+from   = "PCDU.OUT3"
+to     = "RW_X.PWR"
+nets   = ["P12V"]
+wire   = "local/awg24_ptfe"
+cores  = 2
+length = { value = 0.35, unit = "m", from = { source = "cad_2026_09", note = "3D 配置からの概算" } }

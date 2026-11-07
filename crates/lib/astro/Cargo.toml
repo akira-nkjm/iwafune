@@ -1,0 +1,24 @@
+[package]
+name = "sat-astro"
+description = "Astrodynamics building blocks: math, integrators, time, orbits, ephemerides, eclipses, Earth models, geomagnetism, atmosphere, ground stations, attitude laws"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+ts = ["dep:ts-rs", "sat-units/ts"]
+
+[dependencies]
+sat-units = { workspace = true, features = ["serde"] }
+serde = { workspace = true }
+thiserror = { workspace = true }
+ts-rs = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

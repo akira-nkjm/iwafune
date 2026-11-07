@@ -1,0 +1,26 @@
+dod_max               = 0.3
+initial_soc           = 0.9
+conversion_efficiency = 0.9
+orbits                = 15
+
+[mode_share]  # 軌道平均で各モードにいる時間の割合（合計 1）
+DOWNLINK = 0.1
+MISSION  = 0.05
+NOMINAL  = 0.85
+
+# 1 周回（約 95.6 分）のモードの並び
+[[sequence]]
+mode     = "NOMINAL"
+duration = { value = 76.0, unit = "min" }
+
+[[sequence]]
+mode     = "MISSION"
+duration = { value = 5.0, unit = "min" }
+
+[[sequence]]
+mode     = "NOMINAL"
+duration = { value = 5.0, unit = "min" }
+
+[[sequence]]
+mode     = "DOWNLINK"
+duration = { value = 9.6, unit = "min" }

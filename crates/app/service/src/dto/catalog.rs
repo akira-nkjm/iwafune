@@ -1,0 +1,41 @@
+//! カタログ品の表示用の型（`GET /design` の `catalog`、`fune catalog ls|show`）。
+
+use super::ValueView;
+use fune_model::design::{Maturity, NetKind};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use ts_rs::TS;
+
+/// カタログ品 1 つ。値は部品の値と同じ形（`ValueView`）で、表示文字列は service が作る。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CatalogItemView {
+    /// 出所付きの ID（`"local/rw_10mNms"`）
+    pub id: String,
+    /// カタログ名（fune.toml の `[[catalog]]` の `name`。例: `"local"`）
+    pub scope: String,
+    /// カタログの中の名前（例: `"rw_10mNms"`）
+    pub name: String,
+    /// このプロジェクトのカタログ（`[[catalog]] path = …`）の品なら true。共有カタログ（`git = …`）の品は読み取り専用で false
+    pub editable: bool,
+    pub kind: String,
+    pub label: Option<String>,
+    /// 英語の表示名
+    pub label_en: Option<String>,
+    pub manufacturer: Option<String>,
+    pub part_number: Option<String>,
+    pub maturity: Option<Maturity>,
+    /// データシートの場所（URL かリポジトリ内のパス）
+    pub datasheet: Option<String>,
+    /// 出典を書いていない値に当てる既定の出典（`sources/<ID>`）
+    pub source: Option<String>,
+    /// ポートの雛形（ポート名 → ネットの種類）
+    pub ports: BTreeMap<String, NetKind>,
+    /// 機器の状態の語彙（kind から）
+    pub states: Vec<String>,
+    /// 属性 ID → 品に書かれた値（部品の `PartRow.values` と同じ形）
+    pub values: BTreeMap<String, ValueView>,
+    /// 属性 → 状態（空文字なら属性全体）→ パラメーターパス（`local/rw_10mNms.power.on`）
+    pub paths: BTreeMap<String, BTreeMap<String, String>>,
+    /// この品を選択中か候補に入れている部品の ID
+    pub users: Vec<String>,
+}

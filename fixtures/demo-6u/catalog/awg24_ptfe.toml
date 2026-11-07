@@ -1,0 +1,7 @@
+kind  = "wire"
+label = "AWG24 PTFE 被覆線"
+
+[attr]
+linear_density        = { value = 3.2, unit = "g/m" }
+resistance_per_length = { value = 0.084, unit = "ohm/m" }
+temp_op               = { min = -65.0, max = 200.0, unit = "degC" }

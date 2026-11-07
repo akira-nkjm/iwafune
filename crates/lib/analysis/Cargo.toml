@@ -1,0 +1,23 @@
+[package]
+name = "sat-analysis"
+description = "Satellite subsystem analyses (power, attitude, C&DH, communications, thermal, structure) with typed SI inputs and outputs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+ts = ["dep:ts-rs", "sat-units/ts", "sat-astro/ts"]
+
+[dependencies]
+sat-units = { workspace = true, features = ["serde"] }
+sat-astro = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+ts-rs = { workspace = true, optional = true }

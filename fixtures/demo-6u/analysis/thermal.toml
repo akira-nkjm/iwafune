@@ -1,0 +1,35 @@
+contact_conductance = { value = 0.5, unit = "W/K" }  # 取付 1 か所あたりの既定値
+radiative_coupling  = { value = 0.002, unit = "m^2" }  # 内部の節点間の ε·A の既定値
+initial_temperature = { value = 20.0, unit = "degC" }
+time_step           = { value = 30.0, unit = "s" }
+orbits              = 5
+
+[case.hot]
+label      = "高温（夏至・β 大）"
+mode       = "MISSION"
+solar_flux = { value = 1414.0, unit = "W/m^2" }
+albedo     = 0.35
+earth_ir   = { value = 258.0, unit = "W/m^2" }
+beta       = { value = 60.0, unit = "deg" }
+
+[case.cold]
+label      = "低温（冬至・β 0）"
+mode       = "SAFE"
+solar_flux = { value = 1322.0, unit = "W/m^2" }
+albedo     = 0.25
+earth_ir   = { value = 216.0, unit = "W/m^2" }
+beta       = { value = 0.0, unit = "deg" }
+
+[nodes]  # 節点 → まとめる部品
+BAT      = ["BAT", "HTR_BAT"]
+BUS      = ["BUS_FRAME"]
+CAM      = ["CAM", "HTR_CAM"]
+ELEC     = ["OBC", "PCDU", "GPS", "UHF_TRX", "STX"]
+MTQ      = ["MTQ_X", "MTQ_Y", "MTQ_Z"]
+PANEL_MX = ["PANEL_MX", "SP_MX", "SS_MX"]
+PANEL_MY = ["PANEL_MY", "SP_MY", "SS_MY", "STT"]
+PANEL_MZ = ["PANEL_MZ", "RW_X", "RW_Y", "RW_Z"]
+PANEL_PX = ["PANEL_PX", "SP_PX", "SS_PX"]
+PANEL_PY = ["PANEL_PY", "SP_PY", "SS_PY"]
+PANEL_PZ = ["PANEL_PZ"]
+SAP      = ["SAP_PY", "CELLS"]

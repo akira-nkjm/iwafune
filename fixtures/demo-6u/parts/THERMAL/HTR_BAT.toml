@@ -1,0 +1,18 @@
+kind     = "heater"
+label    = "バッテリヒータ"
+maturity = "off_the_shelf"
+
+[mount]
+on = "BAT"
+
+[attr]
+mass          = { value = 5.0, unit = "g", from = { source = "tbd" } }
+specific_heat = { value = 1100.0, unit = "J/(kg*K)" }
+setpoint      = { min = 5.0, max = 10.0, unit = "degC" }
+
+[attr.power]
+off = { value = 0.0, unit = "W" }
+on  = { value = 2.0, unit = "W", from = { source = "sys_judgement" } }
+
+[ports.PWR]
+net = "BAT_BUS"

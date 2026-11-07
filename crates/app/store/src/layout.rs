@@ -1,0 +1,360 @@
+//! ディレクトリの規約（どのエンティティがどこに置かれるか。docs/model.md §6・§11）。
+//!
+//! - `parts/` の下のディレクトリは、同じ名前のファイルが無ければ Group、あればその部品（物理的な組立品）の子。
+//! - `nets/`・`harness/`・`modes/` などは平らに並べる。ディレクトリが親の意味を持つのは `parts/` だけ。
+//! - `.` で始まる名前・`.fune/`・`results/`・`exports/` は読まない。`view/` は見た目だけの情報（整数の座標）。
+
+use crate::error::StoreError;
+use fune_model::design::{Design, EntityKey, NodeRef};
+use fune_model::path::{SettingPath, SettingScope};
+
+pub const PROJECT_FILE: &str = "fune.toml";
+pub const ALLOCATION_FILE: &str = "budget/allocation.toml";
+pub const POLICY_FILE: &str = "budget/policy.toml";
+pub const ATTRIBUTE_DIR: &str = "defs/attribute";
+pub const KIND_DIR: &str = "defs/kind";
+pub const PARTS_DIR: &str = "parts";
+pub const MODES_DIR: &str = "modes";
+pub const NETS_DIR: &str = "nets";
+pub const HARNESS_DIR: &str = "harness";
+pub const CASES_DIR: &str = "cases";
+pub const SOURCES_DIR: &str = "sources";
+/// 規約にあるが まだ読まないディレクトリ（要求・表データ）。
+pub const RESERVED_DIRS: &[&str] = &["requirements", "tables"];
+pub const MISSION_DIR: &str = "mission";
+pub const GROUND_DIR: &str = "mission/ground";
+pub const ANALYSIS_DIR: &str = "analysis";
+/// 内部の作業ディレクトリ（ロック・キャッシュ）。
+pub const WORK_DIR: &str = ".fune";
+/// 読まないディレクトリ。
+pub const IGNORED_DIRS: &[&str] = &["results", "exports", "target", "node_modules"];
+/// 図の配置（見た目だけ。`view/<名前>.toml`）。
+pub const VIEW_DIR: &str = "view";
+/// `mission/` の直下のファイル。
+pub const MISSION_FILES: &[&str] = &["orbit", "launch"];
+/// `analysis/` の直下のファイル。
+pub const ANALYSIS_FILES: &[&str] = &["power", "attitude", "cdh", "comm", "thermal", "structure"];
+
+/// ファイルの役割。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FileRole {
+    Project,
+    Allocation,
+    Policy,
+    Attribute(String),
+    Kind(String),
+    Catalog {
+        source: String,
+        id: String,
+    },
+    /// `dirs` は `parts/` からのディレクトリの列
+    Part {
+        dirs: Vec<String>,
+        id: String,
+    },
+    Mode(String),
+    Net(String),
+    Harness(String),
+    Case(String),
+    Source(String),
+    /// `view/<名前>.toml`
+    View(String),
+    /// 規約にあるが まだ読まない（`requirements/`・`tables/`）
+    Reserved,
+    /// `mission/orbit.toml`・`mission/launch.toml`
+    Mission(String),
+    Ground(String),
+    /// `analysis/<系>.toml`
+    Analysis(String),
+    /// 規約の外（読み飛ばす。check が warning を出す）
+    Other,
+}
+
+/// ID → 役割。
+type RoleOf = fn(String) -> FileRole;
+
+/// 相対パス（`/` 区切り）の役割を決める。`catalogs` は (カタログ名, ディレクトリ) の列。
+pub fn classify(rel: &str, catalogs: &[(String, String)]) -> FileRole {
+    let Some(stem_path) = rel.strip_suffix(".toml") else {
+        return FileRole::Other;
+    };
+    match rel {
+        PROJECT_FILE => return FileRole::Project,
+        ALLOCATION_FILE => return FileRole::Allocation,
+        POLICY_FILE => return FileRole::Policy,
+        _ => {}
+    }
+    for (name, dir) in catalogs {
+        if let Some(id) = flat_child(stem_path, dir) {
+            return FileRole::Catalog {
+                source: name.clone(),
+                id,
+            };
+        }
+    }
+    let flat: [(&str, RoleOf); 10] = [
+        (ATTRIBUTE_DIR, FileRole::Attribute),
+        (KIND_DIR, FileRole::Kind),
+        (MODES_DIR, FileRole::Mode),
+        (NETS_DIR, FileRole::Net),
+        (HARNESS_DIR, FileRole::Harness),
+        (CASES_DIR, FileRole::Case),
+        (SOURCES_DIR, FileRole::Source),
+        (GROUND_DIR, FileRole::Ground),
+        (ANALYSIS_DIR, FileRole::Analysis),
+        (VIEW_DIR, FileRole::View),
+    ];
+    for (dir, make) in flat {
+        if let Some(id) = flat_child(stem_path, dir) {
+            if dir == ANALYSIS_DIR && !ANALYSIS_FILES.contains(&id.as_str()) {
+                return FileRole::Other;
+            }
+            return make(id);
+        }
+    }
+    if let Some(id) = flat_child(stem_path, MISSION_DIR)
+        && MISSION_FILES.contains(&id.as_str())
+    {
+        return FileRole::Mission(id);
+    }
+    if RESERVED_DIRS
+        .iter()
+        .any(|d| stem_path.starts_with(&format!("{d}/")))
+    {
+        return FileRole::Reserved;
+    }
+    if let Some(rest) = stem_path.strip_prefix("parts/") {
+        let mut segments: Vec<String> = rest.split('/').map(str::to_string).collect();
+        if let Some(id) = segments.pop()
+            && !id.is_empty()
+        {
+            return FileRole::Part { dirs: segments, id };
+        }
+    }
+    FileRole::Other
+}
+
+/// `dir/<id>`（入れ子なし）なら id。
+fn flat_child(stem_path: &str, dir: &str) -> Option<String> {
+    let rest = stem_path.strip_prefix(dir)?.strip_prefix('/')?;
+    (!rest.is_empty() && !rest.contains('/')).then(|| rest.to_string())
+}
+
+/// 役割 → 位置を引くためのエンティティの名前。
+pub fn entity_key(role: &FileRole) -> Option<EntityKey> {
+    Some(match role {
+        FileRole::Project => EntityKey::Project,
+        FileRole::Allocation => EntityKey::Allocation,
+        FileRole::Policy => EntityKey::Policy,
+        FileRole::Attribute(id) => EntityKey::Attribute(id.clone()),
+        FileRole::Kind(id) => EntityKey::Kind(id.clone()),
+        FileRole::Catalog { source, id } => EntityKey::Catalog(format!("{source}/{id}")),
+        FileRole::Part { id, .. } => EntityKey::Part(id.clone()),
+        FileRole::Mode(id) => EntityKey::Mode(id.clone()),
+        FileRole::Net(id) => EntityKey::Net(id.clone()),
+        FileRole::Harness(id) => EntityKey::Harness(id.clone()),
+        FileRole::Case(id) => EntityKey::Case(id.clone()),
+        FileRole::Source(id) => EntityKey::Source(id.clone()),
+        FileRole::View(id) => EntityKey::View(id.clone()),
+        FileRole::Reserved => return None,
+        FileRole::Mission(id) => EntityKey::Setting(format!("mission.{id}")),
+        FileRole::Ground(id) => EntityKey::Setting(format!("mission.ground.{id}")),
+        FileRole::Analysis(id) => EntityKey::Setting(format!("analysis.{id}")),
+        FileRole::Other => return None,
+    })
+}
+
+/// 製品ツリーの親から、`parts/` の下のディレクトリの列を作る。
+pub fn dirs_for_parent(design: &Design, parent: Option<&NodeRef>) -> Vec<String> {
+    let Some(parent) = parent else {
+        return Vec::new();
+    };
+    let mut dirs: Vec<String> = design
+        .ancestors(parent)
+        .iter()
+        .map(|n| n.id().to_string())
+        .collect();
+    dirs.reverse();
+    dirs.push(parent.id().to_string());
+    dirs
+}
+
+/// `parts/<dirs…>/<id>.toml`。
+pub fn part_path(dirs: &[String], id: &str) -> String {
+    let mut path = String::from(PARTS_DIR);
+    for d in dirs {
+        path.push('/');
+        path.push_str(d);
+    }
+    format!("{path}/{id}.toml")
+}
+
+/// 部品のファイル（親の連鎖から作る）。
+pub fn part_file(design: &Design, id: &str) -> Option<String> {
+    let part = design.parts.get(id)?;
+    Some(part_path(
+        &dirs_for_parent(design, part.parent.as_ref()),
+        id,
+    ))
+}
+
+/// 組立品の子を置くディレクトリ（`parts/…/<id>`）。
+pub fn assembly_dir(design: &Design, id: &str) -> Option<String> {
+    part_file(design, id).map(|f| f.trim_end_matches(".toml").to_string())
+}
+
+pub fn mode_file(id: &str) -> String {
+    format!("{MODES_DIR}/{id}.toml")
+}
+pub fn net_file(id: &str) -> String {
+    format!("{NETS_DIR}/{id}.toml")
+}
+pub fn harness_file(id: &str) -> String {
+    format!("{HARNESS_DIR}/{id}.toml")
+}
+pub fn case_file(id: &str) -> String {
+    format!("{CASES_DIR}/{id}.toml")
+}
+pub fn source_file(id: &str) -> String {
+    format!("{SOURCES_DIR}/{id}.toml")
+}
+pub fn attribute_file(id: &str) -> String {
+    format!("{ATTRIBUTE_DIR}/{id}.toml")
+}
+pub fn kind_file(id: &str) -> String {
+    format!("{KIND_DIR}/{id}.toml")
+}
+pub fn analysis_file(name: &str) -> String {
+    format!("{ANALYSIS_DIR}/{name}.toml")
+}
+pub fn view_file(name: &str) -> String {
+    format!("{VIEW_DIR}/{name}.toml")
+}
+
+/// カタログ品の置き場所。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CatalogLocation {
+    /// このプロジェクトの中（`[[catalog]] path = …`）。書き換えられる
+    Local { file: String },
+    /// 共有カタログ（`[[catalog]] git = …`）。読み取り専用
+    Shared { source: String },
+    /// `<カタログ名>/<ID>` の形でない、またはカタログ名が fune.toml に無い
+    Unknown,
+}
+
+/// カタログ品の参照（`"local/rw_10mNms"`）→ 置き場所。
+pub fn catalog_location(design: &Design, reference: &str) -> CatalogLocation {
+    let Some((source, id)) = fune_model::design::split_catalog_ref(reference) else {
+        return CatalogLocation::Unknown;
+    };
+    match design.project.catalogs.iter().find(|c| c.name == source) {
+        Some(c) => match &c.path {
+            Some(path) => CatalogLocation::Local {
+                file: format!("{}/{id}.toml", path.trim_end_matches('/')),
+            },
+            None => CatalogLocation::Shared {
+                source: source.to_string(),
+            },
+        },
+        None => CatalogLocation::Unknown,
+    }
+}
+
+/// 設定のパス → (ファイル, ファイル内のキーの列)。
+pub fn setting_location(path: &SettingPath) -> Result<(String, Vec<String>), StoreError> {
+    let bad = || StoreError::SettingPath {
+        path: path.to_string(),
+    };
+    let s = &path.segments;
+    let (file, keys) = match path.scope {
+        SettingScope::Mission if s.first().map(String::as_str) == Some("ground") => {
+            let id = s.get(1).ok_or_else(bad)?;
+            (format!("{GROUND_DIR}/{id}.toml"), &s[2.min(s.len())..])
+        }
+        SettingScope::Mission if MISSION_FILES.contains(&s[0].as_str()) => {
+            (format!("{MISSION_DIR}/{}.toml", s[0]), &s[1..])
+        }
+        SettingScope::Analysis if ANALYSIS_FILES.contains(&s[0].as_str()) => {
+            (analysis_file(&s[0]), &s[1..])
+        }
+        SettingScope::Budget if s[0] == "policy" => (POLICY_FILE.to_string(), &s[1..]),
+        SettingScope::Budget => (ALLOCATION_FILE.to_string(), &s[..]),
+        _ => return Err(bad()),
+    };
+    if keys.is_empty() {
+        return Err(bad());
+    }
+    Ok((file, keys.to_vec()))
+}
+
+/// 設定のパスが書かれている位置（ファイルと行。行はキーが書かれていれば）。パスがどのファイルにも当たらなければ None。
+pub fn locate_setting(design: &Design, path: &SettingPath) -> Option<fune_model::design::Loc> {
+    let (file, keys) = setting_location(path).ok()?;
+    let keys: Vec<&str> = keys.iter().map(String::as_str).collect();
+    Some(design.source_map.locate_in_file(&file, &keys))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn classifies_files() {
+        let cat = vec![("local".to_string(), "catalog".to_string())];
+        assert_eq!(
+            classify("parts/POWER/SAP_PY/CELLS.toml", &cat),
+            FileRole::Part {
+                dirs: vec!["POWER".into(), "SAP_PY".into()],
+                id: "CELLS".into()
+            }
+        );
+        assert_eq!(
+            classify("modes/SAFE.toml", &cat),
+            FileRole::Mode("SAFE".into())
+        );
+        assert_eq!(
+            classify("catalog/rw.toml", &cat),
+            FileRole::Catalog {
+                source: "local".into(),
+                id: "rw".into()
+            }
+        );
+        assert_eq!(
+            classify("mission/ground/HONGO.toml", &cat),
+            FileRole::Ground("HONGO".into())
+        );
+        assert_eq!(
+            classify("analysis/power.toml", &cat),
+            FileRole::Analysis("power".into())
+        );
+        assert_eq!(classify("analysis/other.toml", &cat), FileRole::Other);
+        assert_eq!(classify("README.md", &cat), FileRole::Other);
+    }
+
+    #[test]
+    fn maps_setting_paths_to_files() {
+        let p = |s: &str| match fune_model::path::parse(s) {
+            Ok(fune_model::path::ParamPath::Setting(p)) => p,
+            other => panic!("{other:?}"),
+        };
+        assert_eq!(
+            setting_location(&p("analysis.power.dod_max")).ok(),
+            Some(("analysis/power.toml".into(), vec!["dod_max".into()]))
+        );
+        assert_eq!(
+            setting_location(&p("mission.ground.HONGO.min_elevation")).ok(),
+            Some((
+                "mission/ground/HONGO.toml".into(),
+                vec!["min_elevation".into()]
+            ))
+        );
+        assert_eq!(
+            setting_location(&p("budget.mass.limit")).ok(),
+            Some((
+                "budget/allocation.toml".into(),
+                vec!["mass".into(), "limit".into()]
+            ))
+        );
+        assert!(setting_location(&p("analysis.nope.x")).is_err());
+    }
+}

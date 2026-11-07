@@ -1,0 +1,23 @@
+label       = "セーフ"
+description = "太陽指向で電力を確保。RW は止め、MTQ で B-dot。UHF ビーコンのみ"
+
+[states]
+CAM     = { state = "off" }
+GPS     = { state = "off" }
+HTR_BAT = { state = "off", duty = { on = 0.4 } }
+HTR_CAM = { state = "off", duty = { on = 0.3 } }
+MTQ_X   = { state = "off", duty = { on = 0.5 } }
+MTQ_Y   = { state = "off", duty = { on = 0.5 } }
+MTQ_Z   = { state = "off", duty = { on = 0.5 } }
+OBC     = { state = "on" }
+PCDU    = { state = "on" }
+RW_X    = { state = "off" }
+RW_Y    = { state = "off" }
+RW_Z    = { state = "off" }
+SS_MX   = { state = "on" }
+SS_MY   = { state = "on" }
+SS_PX   = { state = "on" }
+SS_PY   = { state = "on" }
+STT     = { state = "off" }
+STX     = { state = "off" }
+UHF_TRX = { state = "rx", duty = { tx = 0.02 } }

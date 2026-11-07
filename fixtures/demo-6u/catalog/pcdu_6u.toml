@@ -1,0 +1,18 @@
+kind         = "pcdu"
+label        = "PCDU（6U 用、MPPT 4 系統）"
+manufacturer = "Example Power"
+part_number  = "PCDU-6U"
+maturity     = "off_the_shelf"
+source       = "ds_vendor"
+
+[attr]
+mass          = { value = 200.0, unit = "g" }
+specific_heat = { value = 1050.0, unit = "J/(kg*K)" }
+size          = { x = 90.0, y = 96.0, z = 20.0, unit = "mm" }
+voltage       = { value = 7.4, unit = "V" }
+hk_rate       = { value = 1.0, unit = "kbit/s" }
+temp_op       = { min = -30.0, max = 70.0, unit = "degC" }
+
+[attr.power]
+off = { value = 0.0, unit = "W" }
+on  = { value = 0.35, unit = "W" }

@@ -1,0 +1,80 @@
+name: image
+
+# Build the fune CLI and publish it as a container image, ghcr.io/<owner>/fune:<version> (and :latest), for other
+# repositories' CI. Called by release.yml after a release reaches main; it is not triggered on its own.
+# The package is linked to this repository through the image's source label; give another repository read access
+# under the package's "Manage Actions access" and its own GITHUB_TOKEN can pull it.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: The version being released (the crate version, without the leading v)
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: web-dist
+          path: web/dist
+
+  image:
+    needs: [web]
+    # The image's base is ubuntu:24.04; build on the same release so the binary's glibc matches.
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: web-dist
+          path: web/dist
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99"
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release -p fune-cli
+      - name: the binary reports the version being released
+        env:
+          VERSION: ${{ inputs.version }}
+        run: test "fune $VERSION" = "$(./target/release/fune --version)"
+      - name: build the image and check it on the demo data
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/fune"
+          mkdir -p image && cp target/release/fune LICENSE-MIT LICENSE-APACHE THIRD-PARTY-NOTICES.md image/
+          docker build -f docker/fune.Dockerfile -t "$image:$VERSION" -t "$image:latest" image
+          docker run --rm -v "$PWD/fixtures/demo-6u:/design" -w /design "$image:$VERSION" fune check
+          docker run --rm -v "$PWD/fixtures/demo-6u:/design" -w /design "$image:$VERSION" fune fmt --check
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+      - name: push
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push "$IMAGE:$VERSION"
+          docker push "$IMAGE:latest"

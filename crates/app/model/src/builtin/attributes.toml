@@ -1,0 +1,439 @@
+# 組み込みの属性定義（docs/architecture/registry.md §3 の実体）。
+# 解析・projection・デモデータ・GUI が共有する契約。形は defs/attribute/<id>.toml と同じ（キーが ID）。
+# min / max / default は SI の値。
+
+[mass]
+label        = "質量"
+label_en     = "Mass"
+type         = "scalar"
+dimension    = "Mass"
+units        = ["kg", "g"]
+display_unit = "kg"
+min          = 0.0
+budget       = "mass"
+section      = "mass"
+
+[size]
+label        = "外形（箱）"
+label_en     = "Envelope (box)"
+type         = "vec3"
+dimension    = "Length"
+units        = ["mm", "m", "cm"]
+display_unit = "mm"
+section      = "structure"
+
+[power]
+label        = "消費電力"
+label_en     = "Power consumption"
+type         = "scalar"
+by_state     = true
+dimension    = "Power"
+units        = ["W", "mW"]
+display_unit = "W"
+min          = 0.0
+budget       = "power"
+section      = "power"
+
+[heat_fraction]
+label       = "発熱の割合"
+label_en    = "Heat fraction"
+description = "消費電力のうち発熱になる割合"
+type        = "scalar"
+dimension   = "Dimensionless"
+units       = [""]
+min         = 0.0
+max         = 1.0
+default     = 1.0
+section     = "thermal"
+
+[temp_op]
+label        = "動作温度範囲"
+label_en     = "Operating temperature range"
+type         = "range"
+dimension    = "Temperature"
+units        = ["degC", "K"]
+display_unit = "degC"
+section      = "thermal"
+
+[temp_survival]
+label        = "非動作温度範囲"
+label_en     = "Survival temperature range"
+type         = "range"
+dimension    = "Temperature"
+units        = ["degC", "K"]
+display_unit = "degC"
+section      = "thermal"
+
+[specific_heat]
+label        = "比熱"
+label_en     = "Specific heat"
+type         = "scalar"
+dimension    = "SpecificHeatCapacity"
+units        = ["J/(kg*K)"]
+display_unit = "J/(kg*K)"
+min          = 0.0
+default      = 900.0  # アルミ合金の代表値（書かれていなければ仮置きとして使う）
+section      = "thermal"
+
+[absorptivity]
+label     = "太陽光吸収率"
+label_en  = "Solar absorptivity"
+type      = "scalar"
+dimension = "Dimensionless"
+units     = [""]
+min       = 0.0
+max       = 1.0
+section   = "thermal"
+
+[emissivity]
+label     = "赤外放射率"
+label_en  = "IR emissivity"
+type      = "scalar"
+dimension = "Dimensionless"
+units     = [""]
+min       = 0.0
+max       = 1.0
+section   = "thermal"
+
+[hk_rate]
+label        = "HK データレート"
+label_en     = "HK data rate"
+type         = "scalar"
+by_state     = true
+dimension    = "DataRate"
+units        = ["bit/s", "kbit/s"]
+display_unit = "bit/s"
+min          = 0.0
+budget       = "data"
+section      = "cdh"
+
+[mission_rate]
+label        = "ミッションデータレート"
+label_en     = "Mission data rate"
+type         = "scalar"
+by_state     = true
+dimension    = "DataRate"
+units        = ["bit/s", "kbit/s", "Mbit/s"]
+display_unit = "Mbit/s"
+min          = 0.0
+budget       = "data"
+section      = "cdh"
+
+[capacity]
+label        = "電池容量"
+label_en     = "Battery capacity"
+type         = "scalar"
+dimension    = "Energy"
+units        = ["Wh", "J"]
+display_unit = "Wh"
+min          = 0.0
+section      = "power"
+
+[voltage]
+label        = "公称電圧"
+label_en     = "Nominal voltage"
+type         = "scalar"
+dimension    = "Voltage"
+units        = ["V"]
+display_unit = "V"
+section      = "power"
+
+[charge_efficiency]
+label     = "充電効率"
+label_en  = "Charge efficiency"
+type      = "scalar"
+dimension = "Dimensionless"
+units     = [""]
+min       = 0.0
+max       = 1.0
+section   = "power"
+
+[discharge_efficiency]
+label     = "放電効率"
+label_en  = "Discharge efficiency"
+type      = "scalar"
+dimension = "Dimensionless"
+units     = [""]
+min       = 0.0
+max       = 1.0
+section   = "power"
+
+[area]
+label        = "面積"
+label_en     = "Area"
+type         = "scalar"
+dimension    = "Area"
+units        = ["m^2", "cm^2", "mm^2"]
+display_unit = "cm^2"
+min          = 0.0
+section      = "power"
+
+[cell_efficiency]
+label     = "セル変換効率"
+label_en  = "Cell efficiency"
+type      = "scalar"
+dimension = "Dimensionless"
+units     = [""]
+min       = 0.0
+max       = 1.0
+section   = "power"
+
+[packing_factor]
+label     = "セル充填率"
+label_en  = "Packing factor"
+type      = "scalar"
+dimension = "Dimensionless"
+units     = [""]
+min       = 0.0
+max       = 1.0
+section   = "power"
+
+[eol_factor]
+label       = "EOL 劣化係数"
+label_en    = "EOL degradation factor"
+description = "寿命末期の出力 / 初期の出力"
+type        = "scalar"
+dimension   = "Dimensionless"
+units       = [""]
+min         = 0.0
+max         = 1.0
+section     = "power"
+
+[normal]
+label       = "面の法線"
+label_en    = "Surface normal"
+description = "部品座標の単位ベクトル"
+type        = "vec3"
+dimension   = "Dimensionless"
+unit_vector = true
+section     = "power"
+
+[max_momentum]
+label        = "最大角運動量"
+label_en     = "Max momentum"
+type         = "scalar"
+dimension    = "AngularMomentum"
+units        = ["N*m*s", "mN*m*s"]
+display_unit = "mN*m*s"
+min          = 0.0
+section      = "attitude"
+
+[max_torque]
+label        = "最大トルク"
+label_en     = "Max torque"
+type         = "scalar"
+dimension    = "Torque"
+units        = ["N*m", "mN*m"]
+display_unit = "mN*m"
+min          = 0.0
+section      = "attitude"
+
+[spin_axis]
+label       = "回転軸"
+label_en    = "Spin axis"
+description = "部品座標の単位ベクトル"
+type        = "vec3"
+dimension   = "Dimensionless"
+unit_vector = true
+section     = "attitude"
+
+[axis]
+label       = "軸"
+label_en    = "Axis"
+description = "部品座標の単位ベクトル"
+type        = "vec3"
+dimension   = "Dimensionless"
+unit_vector = true
+section     = "attitude"
+
+[max_dipole]
+label        = "最大磁気双極子"
+label_en     = "Max dipole"
+type         = "scalar"
+dimension    = "MagneticDipoleMoment"
+units        = ["A*m^2"]
+display_unit = "A*m^2"
+min          = 0.0
+section      = "attitude"
+
+[thrust]
+label        = "推力"
+label_en     = "Thrust"
+type         = "scalar"
+dimension    = "Force"
+units        = ["N", "mN"]
+display_unit = "mN"
+min          = 0.0
+section      = "attitude"
+
+[isp]
+label        = "比推力"
+label_en     = "Specific impulse"
+type         = "scalar"
+dimension    = "Time"
+units        = ["s"]
+display_unit = "s"
+min          = 0.0
+section      = "attitude"
+
+[direction]
+label       = "推力の向き"
+label_en    = "Thrust direction"
+description = "部品座標の単位ベクトル"
+type        = "vec3"
+dimension   = "Dimensionless"
+unit_vector = true
+section     = "attitude"
+
+[boresight]
+label       = "視線方向"
+label_en    = "Boresight"
+description = "部品座標の単位ベクトル"
+type        = "vec3"
+dimension   = "Dimensionless"
+unit_vector = true
+section     = "attitude"
+
+[fov_half_angle]
+label        = "視野の半角"
+label_en     = "FOV half angle"
+type         = "scalar"
+dimension    = "Angle"
+units        = ["deg", "rad"]
+display_unit = "deg"
+min          = 0.0
+section      = "attitude"
+
+[exclusion_sun]
+label        = "太陽の禁止角"
+label_en     = "Sun exclusion angle"
+type         = "scalar"
+dimension    = "Angle"
+units        = ["deg", "rad"]
+display_unit = "deg"
+min          = 0.0
+section      = "attitude"
+
+[exclusion_earth]
+label        = "地球の禁止角"
+label_en     = "Earth exclusion angle"
+type         = "scalar"
+dimension    = "Angle"
+units        = ["deg", "rad"]
+display_unit = "deg"
+min          = 0.0
+section      = "attitude"
+
+[exclusion_moon]
+label        = "月の禁止角"
+label_en     = "Moon exclusion angle"
+type         = "scalar"
+dimension    = "Angle"
+units        = ["deg", "rad"]
+display_unit = "deg"
+min          = 0.0
+section      = "attitude"
+
+[tx_power]
+label        = "送信電力（RF）"
+label_en     = "TX power (RF)"
+type         = "scalar"
+dimension    = "Power"
+units        = ["W", "mW", "dBm", "dBW"]
+display_unit = "W"
+section      = "comm"
+
+[frequency_down]
+label        = "ダウンリンク周波数"
+label_en     = "Downlink frequency"
+type         = "scalar"
+dimension    = "Frequency"
+units        = ["MHz", "GHz", "kHz", "Hz"]
+display_unit = "MHz"
+min          = 0.0
+section      = "comm"
+
+[frequency_up]
+label        = "アップリンク周波数"
+label_en     = "Uplink frequency"
+type         = "scalar"
+dimension    = "Frequency"
+units        = ["MHz", "GHz", "kHz", "Hz"]
+display_unit = "MHz"
+min          = 0.0
+section      = "comm"
+
+[data_rate_down]
+label        = "ダウンリンクのビットレート"
+label_en     = "Downlink data rate"
+type         = "scalar"
+dimension    = "DataRate"
+units        = ["kbit/s", "bit/s", "Mbit/s"]
+display_unit = "kbit/s"
+min          = 0.0
+section      = "comm"
+
+[data_rate_up]
+label        = "アップリンクのビットレート"
+label_en     = "Uplink data rate"
+type         = "scalar"
+dimension    = "DataRate"
+units        = ["kbit/s", "bit/s", "Mbit/s"]
+display_unit = "kbit/s"
+min          = 0.0
+section      = "comm"
+
+[antenna_gain]
+label        = "アンテナ利得"
+label_en     = "Antenna gain"
+type         = "scalar"
+dimension    = "Dimensionless"
+units        = ["dBi", "dB"]
+display_unit = "dBi"
+section      = "comm"
+
+[noise_temperature]
+label        = "雑音温度"
+label_en     = "Noise temperature"
+type         = "scalar"
+dimension    = "Temperature"
+units        = ["K"]
+display_unit = "K"
+min          = 0.0
+section      = "comm"
+
+[storage_capacity]
+label        = "ストレージ容量"
+label_en     = "Storage capacity"
+type         = "scalar"
+dimension    = "Information"
+units        = ["GB", "Gbit", "MB", "Mbit"]
+display_unit = "GB"
+min          = 0.0
+section      = "cdh"
+
+[setpoint]
+label        = "制御温度（オン・オフ）"
+label_en     = "Heater set point (on/off)"
+type         = "range"
+dimension    = "Temperature"
+units        = ["degC", "K"]
+display_unit = "degC"
+section      = "thermal"
+
+[thickness]
+label        = "板厚"
+label_en     = "Thickness"
+type         = "scalar"
+dimension    = "Length"
+units        = ["mm", "m"]
+display_unit = "mm"
+min          = 0.0
+section      = "structure"
+
+[material]
+label       = "材料"
+label_en    = "Material"
+description = "analysis/structure.toml の [material.<名前>] の名前"
+type        = "enum"
+section     = "structure"

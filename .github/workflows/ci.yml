@@ -1,0 +1,107 @@
+name: ci
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # Cancel superseded runs on pull requests only; every push to main runs to completion so the badge stays accurate.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+jobs:
+  # Architecture checks (dependency direction, registry, languages). Runs first so a broken layout is reported early.
+  architecture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99"
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo xtask check
+
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99"
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: fmt
+        run: cargo fmt --all --check
+      - name: clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: test (including the CLI/HTTP parity tests)
+        run: cargo test --workspace
+      - name: generated TS types match the Rust code
+        run: |
+          cargo test -p fune-service export_ts
+          git diff --exit-code -- web/src/api/gen
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: lint (Biome)
+        run: pnpm lint
+      - name: typecheck
+        run: pnpm typecheck
+      - name: test
+        run: pnpm test
+      - name: build
+        run: pnpm build
+      - uses: actions/upload-artifact@v7
+        with:
+          name: web-dist
+          path: web/dist
+
+  # Build the fune binary with the embedded SPA, start it on the demo data and check that the API responds.
+  bundle:
+    needs: [rust, web]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: web-dist
+          path: web/dist
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99"
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release -p fune-cli
+      - name: smoke (CLI)
+        run: |
+          ./target/release/fune -C fixtures/demo-6u check
+          ./target/release/fune -C fixtures/demo-6u part ls
+          ./target/release/fune -C fixtures/demo-6u analyze power.mode_load --json > /dev/null
+      - name: smoke (HTTP)
+        run: |
+          ./target/release/fune -C fixtures/demo-6u gui --no-open --port 8787 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8787/api/v1/project && break; sleep 1; done
+          curl -sf http://127.0.0.1:8787/api/v1/design > /dev/null
+          curl -sf http://127.0.0.1:8787/ | grep -qi '<html'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: fune-linux-x64
+          path: target/release/fune

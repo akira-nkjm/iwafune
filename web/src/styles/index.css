@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+/*
+ * 書体: 本文は Noto Sans JP（可変。欧文と数字も同じ書体）。
+ * 等幅（数値の表・コード・ID）は Noto Sans Mono（欧文を半角のつまった字にしない）、その中の和文だけ BIZ UDゴシック。
+ * fontsource で同梱する（オフラインでも同じ字面）。
+ */
+@import "@fontsource-variable/noto-sans-jp/wght.css";
+@import "@fontsource-variable/noto-sans-mono/wght.css";
+@import "@fontsource/biz-udgothic/400.css";
+@import "@fontsource/biz-udgothic/700.css";
+
+/* shadcn/ui（radix-nova）が使う状態の variant */
+@custom-variant data-open (
+  &:where([data-state="open"]),
+  &:where([data-open]:not([data-open="false"]))
+);
+@custom-variant data-closed (
+  &:where([data-state="closed"]),
+  &:where([data-closed]:not([data-closed="false"]))
+);
+@custom-variant data-checked (
+  &:where([data-state="checked"]),
+  &:where([data-checked]:not([data-checked="false"]))
+);
+@custom-variant data-unchecked (
+  &:where([data-state="unchecked"]),
+  &:where([data-unchecked]:not([data-unchecked="false"]))
+);
+@custom-variant data-selected (&:where([data-selected="true"]));
+@custom-variant data-disabled (
+  &:where([data-disabled="true"]),
+  &:where([data-disabled]:not([data-disabled="false"]))
+);
+@custom-variant data-active (
+  &:where([data-state="active"]),
+  &:where([data-active]:not([data-active="false"]))
+);
+@custom-variant data-horizontal (&:where([data-orientation="horizontal"]));
+@custom-variant data-vertical (&:where([data-orientation="vertical"]));
+@custom-variant data-placeholder (&:where([data-placeholder]));
+@custom-variant data-inset (&:where([data-inset]));
+
+/*
+ * トークン。コンポーネントでは生の hex を書かず、ここのトークンを使う。色と影の値は lib/tone.ts が正本で、下の colors の区間は
+ * そこから書き出したもの（pnpm -C web tokens。tone.test.ts が一致を検査する）。
+ */
+@theme {
+  --font-sans: "Noto Sans JP Variable", "Noto Sans JP", system-ui, sans-serif;
+  --font-mono: "Noto Sans Mono Variable", "BIZ UDGothic", ui-monospace, monospace;
+
+  /* 色と影（面・線・文字・アクセント・状態・カテゴリ）。値は lib/tone.ts が正本 */
+  /* colors:begin — lib/tone.ts から書き出す（pnpm -C web tokens）。手で書き換えない */
+  --color-app: #fbfcfe;
+  --color-panel: #ffffff;
+  --color-panel-2: #f5f7fa;
+  --color-sunken: #e7ebf2;
+  --color-chip: #eceff5;
+  --color-line-soft: rgba(6, 38, 84, 0.07);
+  --color-line: rgba(6, 38, 84, 0.1);
+  --color-line-strong: rgba(6, 38, 84, 0.14);
+  --color-tick: #dce1ea;
+  --color-ink: #062654;
+  --color-ink-2: #414141;
+  --color-ink-3: #5b6577;
+  --color-ink-4: #8d8d8d;
+  --color-inverse: #ffffff;
+  --color-accent: #3382c2;
+  --color-accent-ink: #1f63a0;
+  --color-accent-tint: #e8f1f9;
+  --color-pos: #0097a7;
+  --color-pos-bg: #e3f4f6;
+  --color-pos-ink: #006d79;
+  --color-warn: #e7bd41;
+  --color-warn-bg: #fbf3d9;
+  --color-warn-ink: #8a6400;
+  --color-neg: #b92626;
+  --color-neg-bg: #fbe9e9;
+  --color-neg-ink: #b92626;
+  --color-cat-blue: #3382c2;
+  --color-cat-gold: #e7bd41;
+  --color-cat-teal: #0097a7;
+  --color-cat-navy: #062654;
+  --color-cat-rose: #e29797;
+  --color-cat-red: #b92626;
+  --color-cat-gray: #b6bcc6;
+  --color-cat-green: #3c9a50;
+  --color-cat-orange: #d9701f;
+  --color-cat-violet: #7a5cc2;
+  --color-cat-blue-ink: #1f63a0;
+  --color-cat-gold-ink: #8a6400;
+  --color-cat-teal-ink: #006d79;
+  --color-cat-navy-ink: #062654;
+  --color-cat-rose-ink: #a33c3c;
+  --color-cat-red-ink: #b92626;
+  --color-cat-gray-ink: #5b6577;
+  --color-cat-green-ink: #2a7438;
+  --color-cat-orange-ink: #9c4a0a;
+  --color-cat-violet-ink: #5f42a6;
+  --shadow-panel: 0 1px 2px rgba(6, 38, 84, 0.04), 0 1px 1px rgba(6, 38, 84, 0.02);
+  --shadow-pop: 0 12px 32px rgba(6, 38, 84, 0.16), 0 2px 6px rgba(6, 38, 84, 0.06);
+  /* colors:end */
+
+  /* 角丸: 外側パネル 20 / 内側 Panel 13 / コントロール 10 / チップ 9 */
+  --radius-panel: 20px;
+  --radius-card: 13px;
+  --radius-control: 10px;
+  --radius-chip: 9px;
+
+  --text-2xs: 10.5px;
+  --text-2xs--line-height: 1.4;
+  --text-md: 13px;
+  --text-md--line-height: 1.45;
+
+  --spacing-sidebar: 232px;
+
+  /* shadcn/ui のトークンを上の値に束ねる */
+  --color-background: var(--color-panel);
+  --color-foreground: var(--color-ink);
+  --color-card: var(--color-panel);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-panel);
+  --color-popover-foreground: var(--color-ink);
+  --color-primary: var(--color-ink);
+  --color-primary-foreground: var(--color-inverse);
+  --color-secondary: var(--color-panel-2);
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted: var(--color-panel-2);
+  --color-muted-foreground: var(--color-ink-3);
+  --color-destructive: var(--color-neg);
+  --color-border: var(--color-line);
+  --color-input: var(--color-line-strong);
+  --color-ring: var(--color-accent);
+
+  --radius: 0.625rem;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.3);
+  --radius-2xl: 13px;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  html,
+  body {
+    @apply bg-app font-sans text-ink antialiased;
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+}
+
+/* 数字は等幅（桁が揃う） */
+@utility num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 目盛りバーの 1 本 */
+@utility tick {
+  flex: 1 1 0%;
+  min-width: 1px;
+  height: 72%;
+  border-radius: 1px;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+}
+
+/* 読み込み中の表示は少し待ってから出す（速い読み込みでちらつかない）。動きを減らす設定では待たずに出す */
+@keyframes loading-appear {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@utility loading-appear {
+  animation: loading-appear 0.2s ease-out 0.15s both;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}

@@ -1,0 +1,17 @@
+kind         = "battery"
+label        = "Li-ion 18650 2S2P"
+manufacturer = "Example Power"
+part_number  = "BAT-2S2P"
+maturity     = "off_the_shelf"
+source       = "ds_vendor"
+
+[attr]
+mass                 = { value = 380.0, unit = "g" }
+size                 = { x = 90.0, y = 96.0, z = 40.0, unit = "mm" }
+capacity             = { value = 45.0, unit = "Wh" }
+voltage              = { value = 7.4, unit = "V" }
+charge_efficiency    = 0.95
+discharge_efficiency = 0.97
+specific_heat        = { value = 1000.0, unit = "J/(kg*K)" }
+temp_op              = { min = 0.0, max = 45.0, unit = "degC" }
+temp_survival        = { min = -20.0, max = 60.0, unit = "degC" }

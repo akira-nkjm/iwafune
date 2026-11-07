@@ -1,0 +1,130 @@
+//! 部品を読むコマンド: `fune part ls`・`fune part show`（と、値の出所の表示）。
+
+use super::common::{Handled, provenance};
+use crate::args::PartCmd;
+use crate::diag;
+use crate::output::{C, Out};
+use fune_service::dto::{Origin, PartsQuery, ValueData, ValueView};
+use fune_service::{Workspace, query};
+
+/// `fune part ls|show`
+pub fn part(ws: &Workspace, cmd: &PartCmd, out: &Out) -> Handled {
+    match cmd {
+        PartCmd::Ls { group, kind } => {
+            let q = PartsQuery {
+                group: group.clone(),
+                kind: kind.clone(),
+            };
+            part_ls(ws, &q, out).map(Some)
+        }
+        PartCmd::Show { id } => part_show(ws, id, out).map(Some),
+        _ => Ok(None),
+    }
+}
+
+const PART_COLUMNS: [&str; 3] = ["mass", "power", "temp_op"];
+
+fn part_ls(ws: &Workspace, q: &PartsQuery, out: &Out) -> anyhow::Result<u8> {
+    let rows = query::list_parts(ws, q)?;
+    if out.json {
+        out.json(&rows)?;
+        return Ok(0);
+    }
+    let mut t = out.table(&[
+        "ID",
+        "サブシステム",
+        "種別",
+        "定義",
+        "数",
+        "質量",
+        "電力",
+        "動作温度",
+    ]);
+    t = t.numeric(&[4, 5, 6]);
+    for r in &rows {
+        let mut cells = vec![
+            C::Strong(r.id.clone()),
+            C::Text(r.subsystem.clone().unwrap_or_default()),
+            C::Text(r.kind.clone()),
+            C::Dim(r.catalog.clone().unwrap_or_else(|| "—".into())),
+            C::Num(r.count.to_string()),
+        ];
+        for attr in PART_COLUMNS {
+            cells.push(compact_cell(r.values.get(attr)));
+        }
+        t.row(cells);
+    }
+    t.print();
+    println!("{}", out.dim(format!("{} 部品", rows.len())));
+    Ok(0)
+}
+
+fn value_cell(v: Option<&ValueView>) -> C {
+    match v {
+        None => C::Dim("—".into()),
+        Some(v) if v.origin == Origin::Unset => C::Dim("未設定".into()),
+        Some(v) => C::Num(v.display.clone()),
+    }
+}
+
+/// 一覧の表では、状態ごとの値は `on`（無ければ最大の状態）だけを出す。
+fn compact_cell(v: Option<&ValueView>) -> C {
+    let Some(ValueView {
+        value: ValueData::ByState { states },
+        ..
+    }) = v
+    else {
+        return value_cell(v);
+    };
+    let pick = states
+        .iter()
+        .find(|(s, _)| s.as_str() == "on")
+        .or_else(|| states.iter().max_by(|a, b| a.1.si.total_cmp(&b.1.si)));
+    match pick {
+        Some((s, q)) => C::Num(format!("{} ({s})", q.display)),
+        None => value_cell(v),
+    }
+}
+
+fn part_show(ws: &Workspace, id: &str, out: &Out) -> anyhow::Result<u8> {
+    let p = query::part_view(ws, id)?;
+    if out.json {
+        out.json(&p)?;
+        return Ok(0);
+    }
+    let r = &p.part;
+    out.heading(&r.id);
+    let def = r
+        .catalog
+        .clone()
+        .unwrap_or_else(|| format!("kind {}", r.kind));
+    println!("{}", out.dim(format!("{def}  ×{}  {}", r.count, r.file)));
+    for section in &p.sections {
+        let mut t = out.table(&[section.label.as_str(), "値", "出所"]);
+        t = t.numeric(&[1]);
+        for attr in &section.attrs {
+            if let Some(v) = r.values.get(attr) {
+                t.row(vec![
+                    C::Text(attr.clone()),
+                    value_cell(Some(v)),
+                    C::Dim(provenance(v)),
+                ]);
+            }
+        }
+        t.print();
+    }
+    if !r.ports.is_empty() {
+        let mut t = out.table(&["ポート", "ネット"]);
+        for port in &r.ports {
+            t.row(vec![
+                C::Text(port.id.clone()),
+                C::Text(port.net.clone().unwrap_or_else(|| "—".into())),
+            ]);
+        }
+        t.print();
+    }
+    if !p.diagnostics.is_empty() {
+        eprint!("{}", diag::render(&p.diagnostics, out.color));
+    }
+    Ok(0)
+}

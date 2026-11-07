@@ -1,0 +1,22 @@
+kind         = "star_tracker"
+label        = "小型スタートラッカ"
+manufacturer = "Example Optics"
+part_number  = "ST-NANO"
+maturity     = "off_the_shelf"
+source       = "ds_vendor"
+
+[attr]
+mass            = { value = 280.0, unit = "g" }
+specific_heat   = { value = 900.0, unit = "J/(kg*K)" }
+size            = { x = 60.0, y = 60.0, z = 90.0, unit = "mm" }
+boresight       = { x = 0.0, y = 0.0, z = 1.0 }
+fov_half_angle  = { value = 10.0, unit = "deg" }
+exclusion_sun   = { value = 40.0, unit = "deg" }
+exclusion_earth = { value = 25.0, unit = "deg" }
+exclusion_moon  = { value = 10.0, unit = "deg" }
+hk_rate         = { value = 1.0, unit = "kbit/s" }
+temp_op         = { min = -20.0, max = 50.0, unit = "degC" }
+
+[attr.power]
+off = { value = 0.0, unit = "W" }
+on  = { value = 1.1, unit = "W" }

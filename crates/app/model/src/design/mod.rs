@@ -1,0 +1,203 @@
+//! Design 層の型（書かれたままの設計。docs/model.md §4）。
+//!
+//! | モジュール | 中身 |
+//! |---|---|
+//! | `part` | Part・Group・NodeRef・Mount・Pose・PortBinding・CatalogItem |
+//! | `defs` | AttributeDef・KindDef・BudgetKind・NetKind |
+//! | `system` | Mode・Net・Harness・Case・Source |
+//! | `budget` | 配分とマージン方針 |
+//! | `project` | `fune.toml` |
+//! | `mission` / `analysis` | `mission/`・`analysis/` の型付きの設定 |
+//! | `settings_view` | 型付きの設定をパス記法で読む（`Design::setting`・`setting_entries`・`settings_json`） |
+//! | `source_map` | エンティティ → ファイル・キー → 行 |
+//! | `view` | 図の配置（見た目だけ） |
+
+pub mod analysis;
+pub mod budget;
+pub mod defs;
+pub mod mission;
+pub mod net;
+pub mod part;
+pub mod project;
+pub mod settings_view;
+pub mod source_map;
+pub mod system;
+pub mod view;
+
+pub use analysis::*;
+pub use budget::*;
+pub use defs::*;
+pub use mission::*;
+pub use part::*;
+pub use project::*;
+pub use settings_view::SettingEntry;
+pub use source_map::{EntityKey, Loc, SourceMap};
+pub use system::*;
+pub use view::{ViewEdge, ViewLayout, ViewNode, ViewPortSide};
+
+use crate::diagnostic::Diagnostic;
+use crate::id::Id;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use ts_rs::TS;
+
+/// 追跡ファイルの (path, bytes) の BLAKE3（store が計算する）。楽観ロックに使う。
+#[derive(
+    Debug, Clone, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, TS,
+)]
+pub struct Revision(pub String);
+
+impl Revision {
+    /// 表示用の短い形（先頭 12 文字）。
+    pub fn short(&self) -> &str {
+        let end = self
+            .0
+            .char_indices()
+            .nth(12)
+            .map_or(self.0.len(), |(i, _)| i);
+        &self.0[..end]
+    }
+}
+
+impl std::fmt::Display for Revision {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+/// 書かれたままの設計。不変のスナップショットで、編集のたびに新しいものを作る。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+pub struct Design {
+    pub project: Project,
+    pub budget: Budget,
+    /// プロジェクト独自の属性定義（組み込みは [`Design::attribute`] が合わせて引く）
+    pub attributes: BTreeMap<Id<AttributeDef>, AttributeDef>,
+    /// プロジェクト独自の種別定義
+    pub kinds: BTreeMap<Id<KindDef>, KindDef>,
+    /// カタログ品（`"local/rw_10mNms"` → 定義）
+    pub catalog: BTreeMap<CatalogRef, CatalogItem>,
+    pub groups: BTreeMap<Id<Group>, Group>,
+    pub parts: BTreeMap<Id<Part>, Part>,
+    pub modes: BTreeMap<Id<Mode>, Mode>,
+    pub nets: BTreeMap<Id<Net>, Net>,
+    pub harnesses: BTreeMap<Id<Harness>, Harness>,
+    pub cases: BTreeMap<Id<Case>, Case>,
+    pub sources: BTreeMap<Id<Source>, Source>,
+    pub mission: MissionSettings,
+    pub analysis: AnalysisSettings,
+    /// 図の配置（`view/<名前>.toml`。見た目だけ）
+    pub views: BTreeMap<String, ViewLayout>,
+    pub revision: Revision,
+    /// 読み込みのときに見つかった問題（構文・型の誤り。該当エンティティは読み飛ばされている）
+    pub load_diagnostics: Vec<Diagnostic>,
+    /// 位置の索引（API には出さない）
+    #[serde(skip)]
+    #[ts(skip)]
+    pub source_map: SourceMap,
+}
+
+impl Design {
+    /// 部品の種別 ID（部品に書かれた `kind`、無ければカタログ品の `kind`）。
+    pub fn part_kind_id<'a>(&'a self, part: &'a Part) -> Option<&'a str> {
+        part.kind.as_ref().map(Id::as_str).or_else(|| {
+            part.catalog
+                .as_ref()
+                .and_then(|c| self.catalog.get(c))
+                .map(|item| item.kind.as_str())
+        })
+    }
+
+    /// 種別の状態の語彙（継承を含む。最初に見つかった空でない語彙）。
+    pub fn kind_states(&self, kind: &str) -> &[String] {
+        self.kind_chain(kind)
+            .into_iter()
+            .map(|k| k.states.as_slice())
+            .find(|s| !s.is_empty())
+            .unwrap_or(&[])
+    }
+
+    /// 部品の状態の語彙。
+    pub fn part_states<'a>(&'a self, part: &'a Part) -> &'a [String] {
+        self.part_kind_id(part)
+            .map_or(&[], |kind| self.kind_states(kind))
+    }
+
+    /// 種別の役割（継承を含む）。
+    pub fn kind_role(&self, kind: &str) -> Option<&str> {
+        self.kind_chain(kind)
+            .into_iter()
+            .find_map(|k| k.role.as_deref())
+    }
+
+    /// Group か Part の ID が存在するか。
+    pub fn node_exists(&self, id: &str) -> bool {
+        self.parts.contains_key(id) || self.groups.contains_key(id)
+    }
+
+    /// ID が指すノード。
+    pub fn node(&self, id: &str) -> Option<NodeRef> {
+        if self.parts.contains_key(id) {
+            Some(NodeRef::Part(Id::new(id)))
+        } else if self.groups.contains_key(id) {
+            Some(NodeRef::Group(Id::new(id)))
+        } else {
+            None
+        }
+    }
+
+    /// ノードの親。
+    pub fn parent_of(&self, node: &NodeRef) -> Option<&NodeRef> {
+        match node {
+            NodeRef::Group(id) => self.groups.get(id).and_then(|g| g.parent.as_ref()),
+            NodeRef::Part(id) => self.parts.get(id).and_then(|p| p.parent.as_ref()),
+        }
+    }
+
+    /// ノードの祖先の連鎖（親 → 最上位の順）。
+    pub fn ancestors(&self, node: &NodeRef) -> Vec<NodeRef> {
+        let mut out: Vec<NodeRef> = Vec::new();
+        let mut current = self.parent_of(node).cloned();
+        while let Some(parent) = current {
+            if out.contains(&parent) {
+                break;
+            }
+            current = self.parent_of(&parent).cloned();
+            out.push(parent);
+        }
+        out
+    }
+
+    /// カタログ品を参照しているもの（部品の `catalog`・`candidates`、ハーネスの `wire`）。
+    pub fn catalog_users(&self, reference: &str) -> Vec<String> {
+        let harnesses = self
+            .harnesses
+            .values()
+            .filter(|h| h.wire.as_deref() == Some(reference))
+            .map(|h| format!("harness/{}", h.id));
+        self.catalog_part_users(reference)
+            .into_iter()
+            .chain(harnesses)
+            .collect()
+    }
+
+    /// カタログ品を選択中（`catalog`）か候補（`candidates`）に入れている部品の ID（ID 順）。
+    pub fn catalog_part_users(&self, reference: &str) -> Vec<String> {
+        self.parts
+            .values()
+            .filter(|p| {
+                p.catalog.as_deref() == Some(reference)
+                    || p.candidates.iter().any(|c| c == reference)
+            })
+            .map(|p| p.id.to_string())
+            .collect()
+    }
+
+    /// 最上位の Group（サブシステム）。
+    pub fn subsystem_of(&self, part: &str) -> Option<&str> {
+        let ancestors = self.ancestors(&NodeRef::Part(Id::new(part)));
+        ancestors.last().and_then(|n| match n {
+            NodeRef::Group(g) => self.groups.get(g).map(|g| g.id.as_str()),
+            NodeRef::Part(_) => None,
+        })
+    }
+}

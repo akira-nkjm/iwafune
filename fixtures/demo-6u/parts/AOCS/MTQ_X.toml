@@ -1,0 +1,12 @@
+catalog = "local/mtq_0p2"
+
+[mount]
+on    = "BUS_FRAME"
+point = "MTQ_BAY"
+
+[pose]
+position    = { x = 0.0, y = -20.0, z = 40.0, unit = "mm" }
+orientation = { w = 1.0, x = 0.0, y = 0.0, z = 0.0 }
+
+[ports.PWR]
+net = "P5V"

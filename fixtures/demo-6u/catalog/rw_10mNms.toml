@@ -1,0 +1,28 @@
+kind         = "reaction_wheel"
+label        = "RW 10 mN·m·s 級"
+manufacturer = "Example Space"
+part_number  = "RW-10"
+maturity     = "off_the_shelf"
+datasheet    = "docs/datasheets/rw-10.pdf"
+source       = "ds_vendor"
+
+[attr]
+mass          = { value = 150.0, unit = "g" }
+size          = { x = 50.0, y = 50.0, z = 30.0, unit = "mm" }
+max_momentum  = { value = 10.0, unit = "mN*m*s" }
+max_torque    = { value = 1.0, unit = "mN*m" }
+spin_axis     = { x = 0.0, y = 0.0, z = 1.0 }
+hk_rate       = { value = 200.0, unit = "bit/s" }
+temp_op       = { min = -20.0, max = 60.0, unit = "degC" }
+temp_survival = { min = -30.0, max = 70.0, unit = "degC" }
+specific_heat = { value = 900.0, unit = "J/(kg*K)" }
+
+[attr.power]
+off  = { value = 0.0, unit = "W" }
+idle = { value = 0.18, unit = "W" }
+on   = { value = 0.6, min = 0.5, max = 0.75, unit = "W" }
+peak = { value = 3.2, unit = "W" }
+
+[ports]
+PWR  = "power"
+DATA = "data"

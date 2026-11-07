@@ -1,0 +1,29 @@
+/** 英語の辞書。形は日本語の辞書（Dict）と同じ */
+import { catalogEn } from "./catalog.en";
+import { commonEn } from "./common.en";
+import { componentsEn } from "./components.en";
+import { defsEn } from "./defs.en";
+import { diagramEn } from "./diagram.en";
+import { fieldsEn } from "./fields.en";
+import type { Dict } from "./ja";
+import { missionEn } from "./mission.en";
+import { modesEn } from "./modes.en";
+import { overviewEn } from "./overview.en";
+import { projectEn } from "./project.en";
+import { shellEn } from "./shell.en";
+import { systemsEn } from "./systems.en";
+
+export const en: Dict = {
+  ...commonEn,
+  ...catalogEn,
+  ...shellEn,
+  ...componentsEn,
+  ...modesEn,
+  ...diagramEn,
+  ...defsEn,
+  ...systemsEn,
+  ...fieldsEn,
+  ...overviewEn,
+  ...projectEn,
+  ...missionEn,
+};

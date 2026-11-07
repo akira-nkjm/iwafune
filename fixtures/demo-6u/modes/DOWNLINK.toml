@@ -1,0 +1,23 @@
+label       = "ダウンリンク"
+description = "地上局の可視中に S バンドでミッションデータを降ろす"
+
+[states]
+CAM     = { state = "off" }
+GPS     = { state = "on" }
+HTR_BAT = { state = "off", duty = { on = 0.1 } }
+HTR_CAM = { state = "off", duty = { on = 0.2 } }
+MTQ_X   = { state = "off" }
+MTQ_Y   = { state = "off" }
+MTQ_Z   = { state = "off" }
+OBC     = { state = "on" }
+PCDU    = { state = "on" }
+RW_X    = { state = "on" }
+RW_Y    = { state = "on" }
+RW_Z    = { state = "on" }
+SS_MX   = { state = "on" }
+SS_MY   = { state = "on" }
+SS_PX   = { state = "on" }
+SS_PY   = { state = "on" }
+STT     = { state = "on" }
+STX     = { state = "tx" }
+UHF_TRX = { state = "rx", duty = { tx = 0.1 } }

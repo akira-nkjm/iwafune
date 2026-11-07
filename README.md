@@ -1,0 +1,131 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/banner-dark.svg">
+    <img src="docs/assets/banner-light.svg" width="480" alt="iwafune — Satellite design workbench">
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://github.com/akira-nkjm/iwafune/actions/workflows/ci.yml"><img src="https://github.com/akira-nkjm/iwafune/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
+  <img src="https://img.shields.io/badge/Rust-1.99-062654?logo=rust&logoColor=white" alt="Rust 1.99">
+  <img src="https://img.shields.io/badge/React-19-3382c2?logo=react&logoColor=white" alt="React 19">
+  <img src="https://img.shields.io/badge/design%20data-TOML%201.0-0097a7" alt="Design data in TOML 1.0">
+</p>
+
+<p align="center">
+  <b>Design data in git</b> · <b>CLI and GUI as equals</b> · <b>16 subsystem analyses</b>
+</p>
+
+iwafune is a workbench for the conceptual design of small satellites. The design lives in a git-friendly
+directory of TOML files. You edit it from either the `fune` CLI or a web GUI, and run analyses for power,
+attitude, C&DH, communications, thermal and structure on the same data.
+
+> The name comes from Ama-no-Iwafune, the rock boat said to have carried Nigihayahi down from the heavens.
+> The logo is its hull.
+
+## Highlights
+
+|  |  |
+|---|---|
+| **Design data as files** | One entity per TOML file: parts, modes, nets, harness, budgets, mission, analysis settings and catalog items. Quantities carry units, and every value records where it came from (catalog, override or kind default) and what backs it (datasheet, measurement, placeholder…). |
+| **CLI and GUI as equals** | Every edit is an `Op`, and both front ends call the same service functions. A parity test checks that the same edit made from the CLI and from the HTTP API writes byte-identical files. |
+| **GUI** | Budgets overview, part table, mode matrix (ON/OFF and duty cycles), electrical system diagram (power and signal, overlaid or separate), editable 3D layout, and one page per subsystem. Japanese and English UI. |
+| **Orbit and environment** | Kepler/J2 and numerical propagation (DOP853), EGM96 gravity to degree 70, NRLMSISE-00, DE440 ephemerides (fetched on demand), central bodies other than Earth, solid tides, relativistic correction, ground track. |
+
+## Analyses
+
+| Subsystem | Analyses |
+|---|---|
+| Power | Mode power · sunlit generation · orbit generation · energy balance and depth of discharge |
+| Attitude | RW unloading interval · MTQ/RCS unloading time · sensor field-of-view keep-out |
+| C&DH | Data budget and storage |
+| Communications | Link budget · ground-station visibility · downlink throughput |
+| Thermal | Steady-state and transient multi-node |
+| Structure | Mass properties · quasi-static loads · simple modal estimate |
+
+Each analysis takes typed SI inputs built from the design, returns typed outputs with pass/warning/violation
+checks, and lists any inputs that are still missing.
+
+## Quick start
+
+Requirements: Rust 1.99 or later (edition 2024), Node.js 24 or later, pnpm.
+
+```bash
+pnpm -C web install && pnpm -C web build                       # build the GUI (the fune binary serves web/dist)
+cargo run -p fune-cli -- -C fixtures/demo-6u gui                # open the GUI on the demo 6U satellite
+cargo run -p fune-cli -- -C fixtures/demo-6u part ls            # list parts from the CLI
+cargo run -p fune-cli -- -C fixtures/demo-6u analyze power.energy_balance
+```
+
+`fune --help` lists every command. `fune analyze ls` lists the analyses.
+
+## Repository layout
+
+| Path | Contents |
+|---|---|
+| `crates/lib/units` (`sat-units`) | Units, dimensions and typed quantities |
+| `crates/lib/astro` (`sat-astro`) | Math, integrators, time, orbits, ephemerides, eclipses, Earth models, attitude laws |
+| `crates/lib/analysis` (`sat-analysis`) | Subsystem analyses with typed SI inputs and outputs; no knowledge of the design model |
+| `crates/app/model` (`fune-model`) | Design data types, built-in vocabulary, resolution and validation |
+| `crates/app/store` (`fune-store`) | Reading and writing the TOML directory, revisions, locking |
+| `crates/app/ops` (`fune-ops`) | `Op`, the single entry point for edits: plan, apply, and conversion to CLI commands |
+| `crates/app/projection` (`fune-projection`) | Resolved design → analysis inputs, with a list of missing inputs |
+| `crates/app/service` (`fune-service`) | Every function the CLI and the HTTP API call, plus their types (exported to TypeScript) |
+| `crates/app/server` (`fune-server`) | HTTP API (axum) and the embedded GUI |
+| `crates/app/cli` (`fune-cli`) | The `fune` command |
+| `web/` | GUI (React, TypeScript) |
+| `fixtures/demo-6u` | Demo 6U satellite |
+| `docs/` | Architecture overview, data model, architecture registry, roadmap |
+
+`crates/lib/*` never depend on `crates/app/*`. `cargo xtask check` enforces the dependency direction and the
+"one capability, one place" rules recorded in [docs/architecture/registry.md](docs/architecture/registry.md).
+
+## Development
+
+```bash
+cargo xtask check                              # dependency and registry rules
+cargo test --workspace
+cargo clippy --all-targets -- -D warnings
+pnpm -C web lint && pnpm -C web typecheck && pnpm -C web test
+cargo test -p fune-service export_ts           # regenerate web/src/api/gen after changing API types
+```
+
+CI runs all of the above, then builds the release binary and smoke-tests the CLI and the HTTP server.
+
+### Branches and releases
+
+Daily work goes to `develop`. `main` only receives pull requests from `develop`, and each one is a release: bump
+the version on `develop` first (`[workspace.package] version` in `Cargo.toml` and `version` in `web/package.json`,
+to the same value). [release.yml](.github/workflows/release.yml) checks on the pull request that the version is
+consistent and not released yet; after the merge it publishes the container image, then creates the tag `vX.Y.Z`
+and its GitHub Release. Tags are not pushed by hand.
+
+### fune in other repositories' CI
+
+Each release publishes the CLI as `ghcr.io/akira-nkjm/fune:<version>` (and `:latest`) through
+[image.yml](.github/workflows/image.yml). To let another repository pull it, add that repository under the
+package's "Manage Actions access"; its workflow then uses the image as a job container with its own
+`GITHUB_TOKEN` (`permissions: packages: read`) and runs `fune check`.
+
+## Documentation
+
+The design documents are written in Japanese.
+
+- Architecture overview: [docs/architecture.md](docs/architecture.md)
+- Design model and file format: [docs/model.md](docs/model.md)
+- Architecture registry (where each capability lives): [docs/architecture/registry.md](docs/architecture/registry.md)
+- Roadmap toward conceptual design: [docs/roadmap.md](docs/roadmap.md) (tracked in issues #1–#16)
+- Development rules for contributors: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## License
+
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+- MIT license ([LICENSE-MIT](LICENSE-MIT))
+
+at your option. Parts derived from other works, and the fonts bundled with the GUI, keep their own terms; see
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you,
+as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.

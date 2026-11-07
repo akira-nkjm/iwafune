@@ -1,0 +1,15 @@
+catalog    = "local/sband_tx_2m"
+candidates = ["local/sband_tx_2m"]
+
+[mount]
+on    = "BUS_FRAME"
+point = "COM_BAY"
+
+[pose]
+position = { x = 0.0, y = 120.0, z = 55.0, unit = "mm" }
+
+[ports.PWR]
+net = "P12V"
+
+[ports.DATA]
+net = "LVDS_STX"

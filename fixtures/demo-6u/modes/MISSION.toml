@@ -1,0 +1,23 @@
+label       = "撮像"
+description = "地心指向で撮像。目標上空で RW をピーク出力で使う"
+
+[states]
+CAM     = { state = "standby", duty = { on = 0.5 } }
+GPS     = { state = "on" }
+HTR_BAT = { state = "off", duty = { on = 0.1 } }
+HTR_CAM = { state = "off" }
+MTQ_X   = { state = "off" }
+MTQ_Y   = { state = "off" }
+MTQ_Z   = { state = "off" }
+OBC     = { state = "on" }
+PCDU    = { state = "on" }
+RW_X    = { state = "on", duty = { peak = 0.1 } }
+RW_Y    = { state = "on", duty = { peak = 0.1 } }
+RW_Z    = { state = "on", duty = { peak = 0.1 } }
+SS_MX   = { state = "on" }
+SS_MY   = { state = "on" }
+SS_PX   = { state = "on" }
+SS_PY   = { state = "on" }
+STT     = { state = "on" }
+STX     = { state = "off" }
+UHF_TRX = { state = "rx" }

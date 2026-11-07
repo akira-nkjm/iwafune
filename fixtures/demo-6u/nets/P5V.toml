@@ -1,0 +1,5 @@
+kind   = "power"
+label  = "5 V 系（STT・MTQ・UHF・カメラ）"
+source = "PCDU.OUT2"
+rail   = { value = 5.0, unit = "V" }
+limit  = { value = 3.0, unit = "A" }

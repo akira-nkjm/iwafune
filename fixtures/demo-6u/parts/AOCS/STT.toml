@@ -1,0 +1,16 @@
+# 視線は -Y（取付点 STT_SLOT の姿勢で回す）。太陽指向（+X）・地心指向（+Z）のどちらとも直交
+catalog = "local/stt_nano"
+
+[mount]
+on    = "PANEL_MY"
+point = "STT_SLOT"
+
+[pose]
+position    = { x = 0.0, y = -140.0, z = -43.0, unit = "mm" }
+orientation = { w = 1.0, x = 0.0, y = 0.0, z = 0.0 }
+
+[ports.PWR]
+net = "P5V"
+
+[ports.DATA]
+net = "CAN_BUS"

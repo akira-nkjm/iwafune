@@ -1,0 +1,17 @@
+kind         = "gps"
+label        = "GPS L1 受信機（アンテナ込み）"
+manufacturer = "Example Nav"
+part_number  = "GPS-L1"
+maturity     = "modified"
+source       = "ds_vendor"
+
+[attr]
+mass          = { value = 80.0, unit = "g" }
+specific_heat = { value = 1000.0, unit = "J/(kg*K)" }
+hk_rate       = { value = 0.5, unit = "kbit/s" }
+temp_op       = { min = -20.0, max = 60.0, unit = "degC" }
+size          = { x = 70.0, y = 45.0, z = 12.0, unit = "mm" }
+
+[attr.power]
+off = { value = 0.0, unit = "W" }
+on  = { value = 0.9, unit = "W" }

@@ -1,0 +1,18 @@
+kind         = "obc"
+label        = "OBC（Cortex-M7）"
+manufacturer = "Example Avionics"
+part_number  = "OBC-M7"
+maturity     = "modified"
+source       = "ds_vendor"
+
+[attr]
+mass             = { value = 90.0, unit = "g" }
+specific_heat    = { value = 1100.0, unit = "J/(kg*K)" }
+size             = { x = 90.0, y = 96.0, z = 15.0, unit = "mm" }
+storage_capacity = { value = 8.0, unit = "GB" }
+hk_rate          = { value = 2.0, unit = "kbit/s" }
+temp_op          = { min = -25.0, max = 70.0, unit = "degC" }
+
+[attr.power]
+off = { value = 0.0, unit = "W" }
+on  = { value = 0.65, unit = "W" }

@@ -1,0 +1,83 @@
+name: release
+
+# Branches: daily work goes to develop; main receives changes only through pull requests from develop, and every
+# change that reaches main is a release.
+# - On a pull request into main: the version (Cargo.toml [workspace.package] = web/package.json) must match and must
+#   not be released yet, so a release always carries a version bump made on develop.
+# - On a push to main: publish the container image for that version (image.yml), then create the tag vX.Y.Z and its
+#   GitHub Release. Re-running on an already released commit does nothing.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      previous: ${{ steps.v.outputs.previous }}
+      released: ${{ steps.v.outputs.released }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: v
+        name: the version is set once and not released yet
+        run: |
+          version=$(sed -n '/^\[workspace.package\]/,/^\[/s/^version *= *"\(.*\)"/\1/p' Cargo.toml)
+          web=$(sed -n 's/^  "version": "\(.*\)",$/\1/p' web/package.json)
+          if [ -z "$version" ]; then
+            echo "::error::no [workspace.package] version in Cargo.toml"; exit 1
+          fi
+          if [ "$version" != "$web" ]; then
+            echo "::error::Cargo.toml has $version but web/package.json has $web; set both to the same version"; exit 1
+          fi
+          tag="v$version"
+          released=false
+          if git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
+            if [ "$GITHUB_EVENT_NAME" = push ] && [ "$(git rev-list -n 1 "$tag")" = "$GITHUB_SHA" ]; then
+              released=true
+            else
+              echo "::error::$tag is already released; bump the version on develop (Cargo.toml and web/package.json)"
+              exit 1
+            fi
+          fi
+          previous=$(git tag -l 'v*' --sort=-v:refname | grep -vx "$tag" | head -n 1 || true)
+          {
+            echo "version=$version"
+            echo "previous=$previous"
+            echo "released=$released"
+          } >> "$GITHUB_OUTPUT"
+
+  image:
+    needs: [version]
+    if: github.event_name == 'push' && needs.version.outputs.released == 'false'
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/image.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+
+  release:
+    needs: [version, image]
+    if: github.event_name == 'push' && needs.version.outputs.released == 'false'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: tag vX.Y.Z and create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+          PREVIOUS: ${{ needs.version.outputs.previous }}
+        run: |
+          args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "fune $VERSION" --generate-notes)
+          if [ -n "$PREVIOUS" ]; then args+=(--notes-start-tag "$PREVIOUS"); fi
+          gh release create "v$VERSION" "${args[@]}"

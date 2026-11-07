@@ -1,0 +1,20 @@
+catalog = "local/obc_m7"
+
+[mount]
+on    = "BUS_FRAME"
+point = "STACK_1"
+
+[pose]
+position = { x = 0.0, y = 20.0, z = 112.0, unit = "mm" }
+
+[ports.PWR]
+net = "P3V3"
+
+[ports.CAN1]
+net = "CAN_BUS"
+
+[ports.SPW1]
+net = "SPW_PL"
+
+[ports.LVDS1]
+net = "LVDS_STX"

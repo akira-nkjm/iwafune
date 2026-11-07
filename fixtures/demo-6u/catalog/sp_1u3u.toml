@@ -1,0 +1,16 @@
+kind     = "solar_panel"
+label    = "太陽電池パネル 1U×3U（三接合 8 セル）"
+maturity = "modified"
+source   = "ds_vendor"
+
+[attr]
+mass            = { value = 100.0, unit = "g" }
+specific_heat   = { value = 800.0, unit = "J/(kg*K)" }
+size            = { x = 100.0, y = 366.0, z = 1.6, unit = "mm" }
+area            = { value = 366.0, unit = "cm^2" }
+cell_efficiency = 0.295
+packing_factor  = 0.66
+eol_factor      = 0.88
+normal          = { x = 0.0, y = 0.0, z = 1.0 }
+absorptivity    = 0.91
+emissivity      = 0.85

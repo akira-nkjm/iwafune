@@ -1,0 +1,16 @@
+---
+source: crates/app/cli/tests/snapshots_cli.rs
+expression: text
+---
+--- a/parts/AOCS/RW_X.toml
++++ b/parts/AOCS/RW_X.toml
+@@ -5,7 +5,7 @@
+ point = "RW_SLOT_X"
+ 
+ [attr]
+-mass = { value = 0.152, unit = "kg", from = { source = "em_test_2026_10", note = "EM 実測" } }
++mass = { value = 650.0, unit = "g" }
+ 
+ [ports.PWR]
+ net = "P12V"
+✔ dry-run: 1 ファイルが変わります（書き込んでいません）

@@ -1,0 +1,23 @@
+[package]
+name = "fune-store"
+description = "Reads and writes the iwafune TOML design directory (toml_edit), with revisions and locking"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+fune-model = { workspace = true }
+toml_edit = { workspace = true }
+toml = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+blake3 = { workspace = true }
+ts-rs = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

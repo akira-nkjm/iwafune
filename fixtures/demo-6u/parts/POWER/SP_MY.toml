@@ -1,0 +1,11 @@
+catalog = "local/sp_1u3u"
+
+[mount]
+on    = "PANEL_MY"
+point = "OUTER"
+
+[pose]
+orientation = { w = 0.7071067811865476, x = 0.7071067811865476, y = 0.0, z = 0.0 }
+
+[ports.PWR]
+net = "SA_BUS"

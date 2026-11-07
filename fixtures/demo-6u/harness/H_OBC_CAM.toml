@@ -1,0 +1,7 @@
+label  = "OBC → カメラ（SpaceWire）"
+from   = "OBC.SPW1"
+to     = "CAM.DATA"
+nets   = ["SPW_PL"]
+wire   = "local/awg24_ptfe"
+cores  = 8
+length = { value = 0.28, unit = "m", from = { source = "cad_2026_09" } }

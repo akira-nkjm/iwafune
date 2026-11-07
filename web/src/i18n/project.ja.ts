@@ -1,0 +1,35 @@
+/** プロジェクト（診断・設定）の文言（日本語） */
+export const projectJa = {
+  project: {
+    eyebrow: "プロジェクト",
+    diagnostics: "診断",
+    diagSubtitle: (e: number, w: number, i: number) => `エラー ${e} · 警告 ${w} · 情報 ${i}`,
+    filterBySeverity: "重さで絞る",
+    filter: { all: "すべて", error: "エラー", warning: "警告", info: "情報" },
+    cannotLoadDiagnostics: (msg: string) => `診断を読めません: ${msg}`,
+    noDiagnostics: "該当する診断はありません",
+    settings: "設定",
+    data: {
+      installed: "読み込み済み",
+      cached: "キャッシュ済み",
+      missing: "未取得",
+      fetching: "取得中…",
+      fetch: "取得",
+    },
+    projectPanel: "プロジェクト",
+    name: "名前",
+    root: "場所",
+    branch: "ブランチ",
+    notGit: "（git ではない）",
+    groups: {
+      mission: { title: "ミッション", caption: "mission/ — 軌道・地上局・期間" },
+      analysis: { title: "解析", caption: "analysis/ — 各系の解析の設定" },
+      budget: { title: "バジェット", caption: "budget/ — 配分・マージン方針" },
+      other: { title: "その他", caption: "—" },
+    },
+    noSettings: "設定がありません",
+    key: "キー",
+    value: "値",
+    file: "ファイル",
+  },
+};

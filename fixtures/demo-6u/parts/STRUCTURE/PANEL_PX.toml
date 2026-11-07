@@ -1,0 +1,23 @@
+kind     = "panel"
+maturity = "new"
+
+[mount]
+on    = "BUS_FRAME"
+point = "FACE_PX"
+
+[mount_points.OUTER]
+position = { x = 1.5, y = 0.0, z = 0.0, unit = "mm" }
+
+[mount_points.SS]
+position = { x = 1.5, y = 80.0, z = 150.0, unit = "mm" }
+
+[attr]
+mass          = { value = 0.12, unit = "kg", from = { source = "cad_2026_09" } }
+specific_heat = { value = 896.0, unit = "J/(kg*K)" }
+size          = { x = 1.5, y = 226.0, z = 366.0, unit = "mm" }
+area          = { value = 827.0, unit = "cm^2" }
+thickness     = { value = 1.5, unit = "mm" }
+material      = "al6061_t6"
+normal        = { x = 1.0, y = 0.0, z = 0.0 }
+absorptivity  = 0.3
+emissivity    = 0.8

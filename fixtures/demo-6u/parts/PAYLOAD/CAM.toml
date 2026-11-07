@@ -1,0 +1,15 @@
+# 地心指向で +Z が地心方向。視線は +Z
+catalog = "local/cam_ms_5m"
+
+[mount]
+on    = "PANEL_PZ"
+point = "CAM_PORT"
+
+[pose]
+position = { x = 0.0, y = -60.0, z = -90.0, unit = "mm" }
+
+[ports.PWR]
+net = "P5V"
+
+[ports.DATA]
+net = "SPW_PL"

@@ -1,0 +1,7 @@
+label        = "単位長さ抵抗"
+label_en     = "Resistance per length"
+type         = "scalar"
+units        = ["ohm/m"]
+display_unit = "ohm/m"
+min          = 0.0
+section      = "power"

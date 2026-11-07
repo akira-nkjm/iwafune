@@ -1,0 +1,109 @@
+//! 読み取りの関数（設計全体・部品・値・定義・診断）。どれもディスクから読み直したスナップショットを見る。
+//!
+//! | モジュール | 中身 |
+//! |---|---|
+//! | `views` | Design → 製品ツリー・モード表・ネット・ハーネス・定義・ケース |
+//! | `parts` | 部品の行・1 部品の全情報・1 つの値 |
+//! | `catalog` | カタログ品（値・パス・使っている部品・書き換えられるか） |
+//! | `values` | 解決済みの値・書かれた量 → 表示用の型 |
+//! | `settings` | 設定 → キーと値の一覧 |
+
+mod catalog;
+mod parts;
+mod settings;
+pub(crate) mod values;
+pub(crate) mod views;
+
+use crate::dto::{
+    CheckReport, DefsView, DesignCounts, DesignView, DiagnosticCounts, PartRow, PartView,
+    PartsQuery, ProjectInfo, ValueAnswer, ValueQuery,
+};
+use crate::error::Result;
+use crate::workspace::{Snapshot, Workspace};
+
+/// 組み込みの列挙の値の表示名（正本は `fune_model::builtin` の labels.toml。`ty` は `origin`・`evidence`・`maturity` など）。
+/// 表に無ければ値の綴り（`kind_default` など）。CLI の表示に使う（GUI は `GET /defs` の `labels` を引く）。
+pub fn enum_label<T: std::fmt::Display>(ty: &str, value: &T) -> String {
+    let code = value.to_string();
+    fune_model::builtin::enum_label(ty, &code).map_or(code, |l| l.label.clone())
+}
+
+/// プロジェクトの概要（`GET /project`）。
+pub fn project_info(ws: &Workspace) -> Result<ProjectInfo> {
+    Ok(info_of(ws, &ws.snapshot()?))
+}
+
+fn info_of(ws: &Workspace, s: &Snapshot) -> ProjectInfo {
+    let d = &s.design;
+    let count = |n: usize| u32::try_from(n).unwrap_or(u32::MAX);
+    ProjectInfo {
+        name: d.project.meta.name.clone(),
+        root: ws.root().display().to_string(),
+        revision: d.revision.0.clone(),
+        branch: ws.git_branch(),
+        schema: d.project.meta.schema,
+        counts: DesignCounts {
+            parts: count(d.parts.len()),
+            groups: count(d.groups.len()),
+            modes: count(d.modes.len()),
+            nets: count(d.nets.len()),
+            harnesses: count(d.harnesses.len()),
+            cases: count(d.cases.len()),
+        },
+        diagnostics: DiagnosticCounts::of(&s.diagnostics),
+    }
+}
+
+/// 画面表示用の設計全体（`GET /design`）。
+pub fn design_view(ws: &Workspace) -> Result<DesignView> {
+    let s = ws.snapshot()?;
+    let d = &s.design;
+    Ok(DesignView {
+        project: info_of(ws, &s),
+        tree: views::tree(d),
+        parts: parts::list(d, &s.resolved, &PartsQuery::default()),
+        modes: views::mode_table(d),
+        nets: views::nets(d),
+        harnesses: views::harnesses(d),
+        defs: views::defs(d),
+        settings: settings::settings(d),
+        cases: views::cases(d),
+        sources: d.sources.values().cloned().collect(),
+        catalog: catalog::list(d),
+        views: d.views.values().cloned().collect(),
+        diagnostics: s.diagnostics.clone(),
+    })
+}
+
+/// 部品の一覧（`GET /parts`）。
+pub fn list_parts(ws: &Workspace, q: &PartsQuery) -> Result<Vec<PartRow>> {
+    let s = ws.snapshot()?;
+    Ok(parts::list(&s.design, &s.resolved, q))
+}
+
+/// 1 部品の全情報（`GET /parts/{id}`）。
+pub fn part_view(ws: &Workspace, id: &str) -> Result<PartView> {
+    let s = ws.snapshot()?;
+    parts::view(&s.design, &s.resolved, &s.diagnostics, id)
+}
+
+/// 1 つの値（`GET /values/{path}`）。
+pub fn get_value(ws: &Workspace, path: &str, q: &ValueQuery) -> Result<ValueAnswer> {
+    let s = ws.snapshot()?;
+    parts::get_value(&s.resolved, path, q)
+}
+
+/// 属性定義と種別定義（`GET /defs`）。
+pub fn defs_view(ws: &Workspace) -> Result<DefsView> {
+    Ok(views::defs(&ws.snapshot()?.design))
+}
+
+/// 検証（`GET /diagnostics`）。
+pub fn check(ws: &Workspace) -> Result<CheckReport> {
+    let s = ws.snapshot()?;
+    Ok(CheckReport {
+        revision: s.design.revision.0.clone(),
+        counts: DiagnosticCounts::of(&s.diagnostics),
+        diagnostics: s.diagnostics,
+    })
+}

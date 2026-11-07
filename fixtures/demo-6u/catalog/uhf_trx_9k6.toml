@@ -1,0 +1,25 @@
+kind         = "transceiver"
+label        = "UHF 送受信機 9600 bps（アンテナ込み）"
+manufacturer = "Example Radio"
+part_number  = "UTRX-96"
+maturity     = "off_the_shelf"
+source       = "ds_vendor"
+
+[attr]
+mass              = { value = 90.0, unit = "g" }
+specific_heat     = { value = 1000.0, unit = "J/(kg*K)" }
+tx_power          = { value = 1.0, unit = "W" }
+frequency_down    = { value = 437.25, unit = "MHz" }
+frequency_up      = { value = 437.25, unit = "MHz" }
+data_rate_down    = { value = 9.6, unit = "kbit/s" }
+data_rate_up      = { value = 9.6, unit = "kbit/s" }
+antenna_gain      = { value = 0.0, unit = "dBi" }
+noise_temperature = { value = 650.0, unit = "K" }
+hk_rate           = { value = 0.5, unit = "kbit/s" }
+temp_op           = { min = -30.0, max = 60.0, unit = "degC" }
+size              = { x = 90.0, y = 96.0, z = 15.0, unit = "mm" }
+
+[attr.power]
+off = { value = 0.0, unit = "W" }
+rx  = { value = 0.45, unit = "W" }
+tx  = { value = 3.8, unit = "W" }

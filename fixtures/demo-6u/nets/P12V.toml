@@ -1,0 +1,5 @@
+kind   = "power"
+label  = "12 V 系（RW・S バンド）"
+source = "PCDU.OUT3"
+rail   = { value = 12.0, unit = "V" }
+limit  = { value = 2.0, unit = "A" }

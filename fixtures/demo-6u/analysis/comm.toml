@@ -1,0 +1,37 @@
+stations   = ["TOKYO_GS"]
+min_margin = { value = 3.0, unit = "dB" }
+
+[link.uhf_down]
+direction           = "down"
+part                = "UHF_TRX"
+band                = "uhf"
+modulation          = "GMSK"
+ebn0_required       = { value = 10.5, unit = "dB" }  # BER 1e-5
+pointing_loss       = { value = 3.0, unit = "dB" }
+polarization_loss   = { value = 3.0, unit = "dB" }
+atmospheric_loss    = { value = 0.5, unit = "dB" }
+implementation_loss = { value = 2.0, unit = "dB" }
+line_loss           = { value = 0.5, unit = "dB" }
+
+[link.uhf_up]
+direction           = "up"
+part                = "UHF_TRX"
+band                = "uhf"
+modulation          = "GMSK"
+ebn0_required       = { value = 10.5, unit = "dB" }
+pointing_loss       = { value = 3.0, unit = "dB" }
+polarization_loss   = { value = 3.0, unit = "dB" }
+atmospheric_loss    = { value = 0.5, unit = "dB" }
+implementation_loss = { value = 2.0, unit = "dB" }
+
+[link.s_down]
+direction           = "down"
+part                = "STX"
+band                = "s_band"
+modulation          = "QPSK"
+ebn0_required       = { value = 9.6, unit = "dB" }
+pointing_loss       = { value = 1.0, unit = "dB" }
+polarization_loss   = { value = 0.5, unit = "dB" }
+atmospheric_loss    = { value = 0.4, unit = "dB" }
+implementation_loss = { value = 1.5, unit = "dB" }
+line_loss           = { value = 0.5, unit = "dB" }

@@ -1,0 +1,14 @@
+catalog = "local/uhf_trx_9k6"
+
+[mount]
+on    = "BUS_FRAME"
+point = "COM_BAY"
+
+[pose]
+position = { x = 0.0, y = 120.0, z = 2.0, unit = "mm" }
+
+[ports.PWR]
+net = "P5V"
+
+[ports.DATA]
+net = "CAN_BUS"

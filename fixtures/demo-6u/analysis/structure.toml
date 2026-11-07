@@ -1,0 +1,19 @@
+fastener_allowable = { value = 1500.0, unit = "N" }  # M3 ねじ 1 本の許容せん断荷重
+
+[material.al6061_t6]
+label                = "A6061-T6"
+density              = { value = 2700.0, unit = "kg/m^3" }
+youngs_modulus       = { value = 68.9, unit = "GPa" }
+poisson_ratio        = 0.33
+yield_strength       = { value = 276.0, unit = "MPa" }
+ultimate_strength    = { value = 310.0, unit = "MPa" }
+thermal_conductivity = { value = 167.0, unit = "W/(m*K)" }
+
+[material.cfrp_qi]
+label                = "CFRP 擬似等方積層"
+density              = { value = 1600.0, unit = "kg/m^3" }
+youngs_modulus       = { value = 50.0, unit = "GPa" }
+poisson_ratio        = 0.3
+yield_strength       = { value = 450.0, unit = "MPa" }
+ultimate_strength    = { value = 500.0, unit = "MPa" }
+thermal_conductivity = { value = 5.0, unit = "W/(m*K)" }

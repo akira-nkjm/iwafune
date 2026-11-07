@@ -1,0 +1,33 @@
+//! # fune-projection — Resolved → 解析の入力型
+//!
+//! 解析（sat-analysis）は設計モデルを知らないので、ここで入力を組み立てる。足りない入力はパスで列挙する。
+//! 物理計算はしない（必要なら sat-analysis / sat-astro の関数を呼ぶ）。
+//!
+//! | モジュール | 責務 |
+//! |---|---|
+//! | `context` | 解析ケースの文脈と、どの解析でも使う入力（軌道・地上局・姿勢則・モード） |
+//! | `timeline` | 時系列の仕様（軌道・姿勢則・期間・刻み・β） |
+//! | `parts` | 解決済みの部品から値を取り出す部品（役割での選択・型付きの量・機体座標の方向） |
+//! | `pose` | 取付の連鎖 → 機体座標の位置・姿勢（sat-astro の Quat で合成。合成はここだけ） |
+//! | `quantity` | 書かれた量 → 型付きの SI 量（換算は sat-units） |
+//! | `missing` | 不足入力の型と収集 |
+//! | `power` `attitude` `cdh` `comm` `thermal` `structure` | 系ごとの射影 |
+//! | `dispatch` | 解析 ID → 射影（入力の JSON）の対応表。実行は service（`sat_analysis::catalog::run_json`） |
+
+pub mod attitude;
+pub mod cdh;
+pub mod comm;
+pub mod context;
+pub mod dispatch;
+pub mod missing;
+pub mod parts;
+pub mod pose;
+pub mod power;
+pub mod quantity;
+pub mod structure;
+pub mod thermal;
+pub mod timeline;
+
+pub use context::Context;
+pub use dispatch::{Entry, OutputVisitor, ProjectionError, entries, project_json, visit_output};
+pub use missing::{MissingInput, MissingInputs};

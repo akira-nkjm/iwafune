@@ -1,0 +1,59 @@
+{
+  "name": "iwafune-web",
+  "description": "Web GUI for iwafune, a satellite design workbench (React, TypeScript)",
+  "private": true,
+  "license": "MIT OR Apache-2.0",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "react-router dev",
+    "build": "react-router build",
+    "preview": "vite preview --outDir dist",
+    "typecheck": "react-router typegen && tsc -b",
+    "test": "vitest run",
+    "brand": "UPDATE_BRAND=1 vitest run src/shell/brand-svg.test.ts",
+    "tokens": "UPDATE_TOKENS=1 vitest run src/lib/tone.test.ts",
+    "lint": "biome ci .",
+    "format": "biome check --write ."
+  },
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@fontsource-variable/noto-sans-jp": "5.3.1",
+    "@fontsource-variable/noto-sans-mono": "5.3.0",
+    "@fontsource/biz-udgothic": "5.3.0",
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.2",
+    "@tanstack/react-query": "5.106.1",
+    "@xyflow/react": "12.12.1",
+    "class-variance-authority": "0.7.1",
+    "clsx": "2.1.1",
+    "cmdk": "1.1.1",
+    "isbot": "^5",
+    "lucide-react": "1.69.0",
+    "radix-ui": "1.8.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-router": "8.5.1",
+    "recharts": "3.10.1",
+    "sonner": "2.0.8",
+    "tailwind-merge": "3.7.0",
+    "three": "0.187.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.5",
+    "@react-router/dev": "8.5.1",
+    "@tailwindcss/vite": "4.3.4",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/three": "0.187.0",
+    "@vitejs/plugin-react": "6.2.1",
+    "tailwindcss": "4.3.4",
+    "typescript": "7.0.2",
+    "vite": "8.3.6",
+    "vitest": "5.1.0"
+  }
+}

@@ -1,0 +1,5 @@
+kind     = "data"
+label    = "S バンド送信データ"
+protocol = "LVDS"
+bitrate  = { value = 10.0, unit = "Mbit/s" }
+master   = "OBC.LVDS1"

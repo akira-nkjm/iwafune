@@ -1,0 +1,220 @@
+# 構成台帳（registry）
+
+**機能の置き場所の正本。** 新しい型・関数・モジュールを作る前にここを見る。同じ機能があればそれを使い、無ければ行を足してから作る。
+行を足したら「変更履歴」にも 1 行書き、レビューで照合する。
+
+## 1. crate と依存
+
+依存の向きは `cargo xtask check` が検査する（`crates/xtask/src/main.rs` の `ALLOWED`）。定義の重複は同じく xtask の `single_home` が検査する。
+
+![crate の構成](../diagrams/crate-architecture.drawio.svg)
+
+| crate | 場所 | 責務 | 依存してよい内部 crate |
+|---|---|---|---|
+| `sat-units` | crates/lib/units | 単位・次元・量の唯一の正本 | なし |
+| `sat-astro` | crates/lib/astro | 数学・積分器・時刻・天体・力モデル・軌道・食・地球・地磁気・大気・地上局・姿勢則・入射・時系列 | sat-units |
+| `sat-analysis` | crates/lib/analysis | 各系の解析（Input → Output の純粋な関数） | sat-units, sat-astro |
+| `fune-model` | crates/app/model | 設計データの型・組み込みの語彙・解決・検証 | sat-units |
+| `fune-store` | crates/app/store | ディレクトリ ⇄ Design（toml_edit）・revision・ロック | fune-model |
+| `fune-ops` | crates/app/ops | Op・plan / apply・to_cli | fune-model, fune-store |
+| `fune-projection` | crates/app/projection | Resolved → 解析の入力型・不足入力 | fune-model, sat-analysis, sat-astro, sat-units |
+| `fune-service` | crates/app/service | CLI と HTTP が呼ぶ関数と入出力の型 | 上のすべて |
+| `fune-server` | crates/app/server | axum のルーティング・JSON 化・SPA の配信 | fune-service |
+| `fune-cli` | crates/app/cli | `fune` の引数解析と表示 | fune-service, fune-server |
+| `web/` | web | 表示と操作（React SPA） | HTTP API だけ |
+
+## 2. 機能台帳
+
+| 機能 | 置き場所 | 備考 |
+|---|---|---|
+| 単位文字列の解析・次元 | `sat_units::parse_unit` / `Unit` / `Dimension` / `named_dimensions` | ここ以外で単位文字列を解析しない |
+| dB ⇄ 比 | `sat_units::{ratio_to_db, db_to_ratio, apply_db_gain}` | **dB の換算はここだけ**（回線計算もこれを使う） |
+| JSON に書いた量の次元 | `sat_units::take_last_dimension` | `Qty` の `Serialize` が記録する（スレッドごと）。JSON は変えない |
+| 次元の表示名 | `sat_units::format::dimension_label` | 名前が無ければ SI の組立単位の式 |
+| 二分法・黄金分割 | `sat_astro::math::{bisect, golden_section_max}` | **根と極値の探索はここだけ** |
+| 型付きの量 | `sat_units::typed::Qty<D>` | JSON では SI の数値。TS では number |
+| dB の型付き表示 | `sat_units::typed::{Decibel, DecibelWatt, DecibelPerKelvin, DecibelHertz}` | JSON は dB 数値のまま。種類を記録して format_quantity で表示 |
+| 解析結果の判定集約 | `fune_service::analysis` / `sat_analysis::spec::Verdict::worst` | checks をサービスで平坦化し、CLI と Web に返す |
+| 比（0〜1。% で表示） | `sat_units::typed::Fraction` | JSON では数値、TS では number。書き出すと `take_last_dimension` が種類名 `Fraction` を返し、`format_quantity(_, "Fraction")` が % で出す。**解析の出力の割合（DoD・SOC・日照率・稼働率・余裕・占有率）はこれにする**（Web が欄の名前で判断しないため） |
+| 量の表示文字列（SI 接頭辞の選択） | `sat_units::format::{format_quantity, format_dimension, format_in_unit, format_number, FormattedQuantity}` | CLI と Web は service が返す表示文字列を使う。TS で単位換算しない。表示単位の候補は `display_units`、SI の組立単位の式は `si_unit_expression` |
+| 次元 → 次元名 | `sat_units::format::{dimension_name, canonical_dimension_name}` | Energy と Torque は同じ次元なので、整形は次元名で指定する |
+| ベクトル・行列・クォータニオン | `sat_astro::math::{Vec3, Mat3, Quat}` | 演算子（Vec3 の + − × ÷、Mat3 の +）、`Mat3::{mul, inverse, outer, scale}`、`Quat::{rotate, rotate_inverse, from_matrix}`。対称行列の固有値分解（主慣性モーメント・主軸）は `Mat3::symmetric_eigen` だけ。軸まわりの回転行列は `Mat3::{rotation_x, rotation_y, rotation_z}`、球面座標の単位ベクトルは `Vec3::from_spherical`、`Quat::{from_wxyz, to_wxyz}` |
+| 密行列の連立一次方程式 | `sat_astro::math::solve_dense` | 部分ピボット付き Gauss 消去。熱ネットワークの定常解など。**線形ソルバーはここだけ** |
+| 積分器（固定刻み RK4・適応刻み DOP853） | `sat_astro::ode` | **積分器はここだけ**。固定刻みの格子は `ode::{step_count, step_offsets}` だけ（時系列の時刻列も使う） |
+| 物理定数・天体定数 | `sat_astro::constants` | 定数の重複定義をしない |
+| 元期・恒星時 | `sat_astro::time::Epoch` | JSON では ISO 8601 |
+| 天体の位置（太陽・月・惑星）と μ | `sat_astro::ephem` | 太陽 VSOP87A・月 Meeus・惑星 Standish。Kepler 方程式は `kepler::solve_kepler`（orbit からも再公開）を使う。JPL DE440 は `ephem::De440::from_bytes` で読み、`ephem::install_de440` で登録（1849〜2150 年に使う。プロセス全体の唯一の状態）、出所は `ephem::source_at` |
+| 軌道の中心天体（μ・半径・J2・位置） | `sat_astro::ephem::CentralBody` | `OrbitSpec::central`（既定は地球）。中心天体から見た太陽の方向は `ephem::sun_direction_from` |
+| 天体の自転軸・本初子午線・天体固定座標 | `sat_astro::ephem::orientation`（`pole_eci`・`equatorial_frame`・`moon_fixed_frame`・`lunar_orientation`） | IAU WGCCRE 2015。月は秤動の周期項込み。地球の ECEF は `earth` |
+| 力モデル（重力場・第三体・SRP・抗力） | `sat_astro::force` | EGM96 70 次まで。項ごとの関数 `point_mass` `j2_perturbation` `third_body_eci` `srp_eci` `drag_eci`、設定の検査 `validate`。共回転大気に対する相対速度 `force::relative_wind_eci`、太陽輻射圧 `force::srp_pressure`（抗力・空力トルク・SRP トルクで共有） |
+| 軌道要素・伝搬・周期・SSO 傾斜角・β 角 | `sat_astro::orbit` | 伝搬はここだけ。`Propagator::default()` は J2 永年項。書かれていない要素の慣例の値（離心率 `DEFAULT_ECCENTRICITY`・角度 0）は `OrbitElements::with_defaults` だけ。要素 ⇄ 状態 `elements_to_state` / `osculating_elements`、`solve_kepler`、`j2_secular_rates`。β 角から RAAN を逆算するのは `orbit::raan_for_beta` だけ（β の符号は `beta_angle_rad` と同じ）。交点の地方時 ⇄ RAAN は `orbit::{raan_from_ltan, raan_from_ltdn, ltan_from_raan}`（真太陽時）。高度 ⇄ 長半径は `orbit::{semi_major_axis_from_altitude, altitude_from_semi_major_axis}` と `OrbitSpec::altitude_m` だけ（中心天体の半径）。平均運動は `orbit::mean_motion_rad_s` |
+| 地球の影（食） | `sat_astro::shadow::earth_shadow_factor` | 食の判定はここだけ。月・惑星の影は `shadow::body_shadow_factor`。中心天体の影は `shadow::central_shadow_factor`（時系列と SRP で共有）、天体の陰（月が地球の陰か）は `shadow::occulted_by` |
+| ECI ⇄ ECEF・測地座標・高度・歳差 | `sat_astro::earth` | 座標変換はここだけ（`of_date_to_j2000`・`mean_obliquity_rad`・`ecliptic_to_equatorial` を含む） |
+| 地磁気（傾斜双極子） | `sat_astro::geomag` | 地球以外の中心天体では 0（`geomag::field_about_eci_t`） |
+| 大気密度（指数大気・NRLMSISE-00） | `sat_astro::atmosphere::{density_kg_m3, AtmosphereModel, density_exponential_kg_m3}`、`atmosphere::nrlmsise00` | 大気モデルはここだけ。抗力（`force::DragParams::atmosphere`）と空力トルクは `AtmosphereModel` を受けて `density_kg_m3` を呼ぶ |
+| 地上局・見通し角・パス | `sat_astro::ground` | 書かれていない標高・最低仰角（0）は `GroundStation::with_defaults` だけ |
+| 姿勢則 → 機体姿勢 | `sat_astro::attitude` | 2 軸の合わせ込みは `align_two_axes`。既定主軸 `DEFAULT_PRIMARY_AXIS` = +Z、副軸 `DEFAULT_SECONDARY_AXIS` = +X |
+| 面への太陽入射・地球の形態係数・太陽光の強さ | `sat_astro::illumination` | 電源と熱で共有（`solar_incidence`・`earth_view_factor`・`solar_flux_w_m2`） |
+| 軌道上の時系列（位置・太陽・日陰・姿勢） | `sat_astro::timeline` | 時系列の解析は自前のループを書かずにこれを使う。共通の既定刻み `DEFAULT_STEP_S` = 30 s。時刻列 `sample_times`、日照率の平均 `mean_sunlit`。時系列の時間平均・累積は `timeline::{time_mean, cumulative_trapezoid}` だけ |
+| 判定文中の量の文字列 | `sat_analysis::spec::quantity_text` | 換算・整形は `sat_units::format` に委譲。未知の次元は `format_number` |
+| 解析の trait・情報・エラー・時系列・判定 | `sat_analysis::spec` | |
+| 時系列の中の区間（日陰・侵入・可視） | `sat_astro::timeline::{Window, windows}`（`sat_analysis::spec` が再公開） | 区間の抽出はここだけ。日陰は `timeline::shadow_windows` |
+| 周回ごとの切り出し | `sat_analysis::spec::orbit_ranges` | 周回平均・周回ごとの積算に使う |
+| 周回平均・条件付きの時間平均 | `sat_analysis::spec::{orbit_mean, masked_time_mean}` | 台形則の時間平均（`sat_astro::timeline::time_mean`）。標本数で割る平均を書かない |
+| 判定と入力の検査の部品 | `sat_analysis::spec::{Verdict::from_ok, margin_verdict, ensure_fraction, ensure_positive, ensure_non_negative}` | 余裕の三段階判定と、割合・正値・非負の検査 |
+| バジェット（質量・電力・データ量）の集計と判定 | `sat_analysis::budget::{budget_rollup, BudgetRollupRow}` | 個数 × 値、成長余裕は 1 回、判定 = 成長込み ≤ 上限 × (1 − システム余裕)。**バジェットの判定はここだけ** |
+| 解析の登録と ID による実行 | `sat_analysis::catalog` | 登録と実行はここだけ（run_json と型付き run_typed） |
+| モードの状態と時間割合 | `sat_analysis::modes` | 電源・C&DH・熱で共有。`DUTY_TOLERANCE`（設計の検査の `fune_model::check::SHARE_TOLERANCE` と同じ値。fune-projection のテストが確かめる）・`find_mode`・`evaluate`（未割り当て・値の不足は警告して合計から除く、の方針はここだけ） |
+| 各解析 | `sat_analysis::<系>::<名前>` | 1 ファイル 1 解析。一覧は docs/architecture.md §6.1 |
+| 擾乱トルク | `sat_analysis::attitude::disturbance` | 重力傾斜・空力・SRP・残留磁気。`DisturbanceSurface::from_box` が箱の最大面積 × 係数を求める。`DisturbanceSpacecraft::torques(central, &TimelineSample)`（μ・磁場・大気は中心天体のもの、風と輻射圧は `sat_astro::force`）。アンロード頻度と時系列で共有 |
+| RW の組への配分（擬似逆行列）と容量 | `sat_analysis::attitude::wheels` | `RwWheel`・`WheelSet::{distribute, capacity_along}`・`DEFAULT_USABLE_FRACTION`（0.8）。台数・配置は任意 |
+| 太陽電池の発電モデル | `sat_analysis::power::solar` | `SolarPanel`・`SolarArray::{panel_powers, sample_powers}`・時系列 `SolarProfile`・`eclipses`（`timeline::shadow_windows`）・`SUNLIT_THRESHOLD`（日照の閾値はこれだけ。センサ FoV も使う）。日照時・軌道上・収支で共有 |
+| 電池の充放電の積分 | `sat_analysis::power::battery` | `simulate`（`ode::rk4_linear_step` で積分、容量で切る、シャント）。電力収支が使う。`power::battery::EnergyBalanceBattery::combine` が電池容量を合計し、電圧・効率は先頭を採用 |
+| モードの消費電力の集計 | `sat_analysis::power::mode_load::evaluate_mode` | `power.mode_load` と `power.energy_balance` で共有（平均と警告は `modes::evaluate`） |
+| 回線計算の部品（FSPL・EIRP・Eb/N0） | `sat_analysis::comm::link` | `RfLinkParams::{evaluate, eb_n0_margin_db, min_elevation_for_margin}`・`slant_range_m`・`fspl_db`・`eirp_dbw`・`g_over_t_dbk`・`c_over_n0_dbhz`・`eb_over_n0_db`・`max_data_rate_bps`・要求余裕の既定値 `DEFAULT_REQUIRED_MARGIN_DB`（既定値はここだけ）。dB の換算は `sat_units::{ratio_to_db, db_to_ratio}`、閉じる仰角の探索は `sat_astro::math::bisect`。回線バジェットと送信量で共有 |
+| 複数局のパスの集計 | `sat_analysis::comm::passes` | 検出は `sat_astro::ground::find_passes` だけ。ここは局をまとめて AOS 順に並べ、開始からの秒の区間・日の窓に直す（`find_all_passes`・`pass_interval`・`union_sorted`・`day_windows`）。可視と送信量で共有 |
+| 熱ネットワークの解法 | `sat_analysis::thermal::network` | 型（`ThermalNetwork` ほか）。`ThermalMounts::links` が取付から並列伝導・節点対ごとの放射結合を作る。`ThermalModeLoads::evaluate` が `modes::evaluate` で単体平均電力と警告を求める。節点の熱容量と動作範囲のまとめ（`ThermalNode::{heat_capacity, operating}`）・熱収支・微分・安定な刻みの目安。定常解の Newton 法は `network::newton`（線形ソルバーは `sat_astro::math::solve_dense`）。定常・非定常で共有 |
+| 熱環境と外面への入熱 | `sat_analysis::thermal::orbit_heat` | `ThermalEnvironment`・`ThermalExposure`。太陽・アルベド・地球赤外の吸収。入射の幾何は `sat_astro::illumination`、向きは `sat_astro::timeline`、周回の切り出しは `spec::orbit_ranges`、時間平均は `timeline::time_mean`。宇宙の背景温度の既定値 `DEFAULT_SPACE_TEMPERATURE_K`。定常・非定常で共有 |
+| 質量特性 | `sat_analysis::structure::mass_properties` | 関数 `mass_properties(&[MassPropertiesItem]) -> MassPropertiesSummary`（箱の近似＋平行軸、主慣性は `Mat3::symmetric_eigen`）。姿勢の解析が使う慣性も、projection がここを呼んで求める |
+| 型付き ID と ID の規則 | `fune_model::id` | 一意性は大文字小文字を無視（`fold`）。部品・グループは `validate_node_id`（パスの予約語も禁止） |
+| 設計データの型 | `fune_model::design` | enum の Display / FromStr はモデル。service::query::enum_label は Display の綴りで引く |
+| 書かれたままの量・値の型・出典 | `fune_model::value` | |
+| 単位の窓口（app 側） | `fune_model::value::units` | 単位文字列の解析・次元の検査・SI 換算・次元の表示名（`dimension_label`）。中身は sat-units。projection の SI 換算は `Quantity::si_as` |
+| 人の入力の解釈（`"620 g"`・`"-20 .. 60 degC"`） | `fune_model::value::text` | `parse_number_unit`・`value_from_text`。CLI と service はこれを使う |
+| JSON の中の量・ベクトルの見分け | `fune_model::value::json` | `quantity_from_json`・`is_quantity_json`・`vector_from_json` |
+| 設定をパス記法で読む | `fune_model::design::settings_view` | `Design::setting`・`setting_entries`・`settings_json`（キーはパス記法と同じ） |
+| 組み込みの属性・種別 | `fune_model::builtin` | §3 の語彙 |
+| 語彙の表示名（日英）と系の並び | `fune_model::builtin::labels` | CLI は `fune_service::query::enum_label`、Web は `web/src/api/labels.ts` の `useEnumLabel`（`GET /defs` の `labels`）で引く。i18n に写さない。状態・系（section）・列挙（budget_kind など）の `label` / `label_en`、`sections()` の順、属性 → 系は `Design::attribute_section`、role → 系・サブシステムは labels の role_system / role_subsystem |
+| 型付き解析出力の読み取り（TS） | `web/src/api/analysis-output.ts` | dispatch 由来の生成型 AnalysisOutputs を ID・成功状態で絞り込む唯一の入口 |
+| パラメーターのパス記法 | `fune_model::path` | CLI と API で共通。service::query::views::parameter_paths がフィールドと状態のパスを DTO に添える |
+| 解決（Resolved） | `fune_model::resolve` | カタログ品そのものに書かれた値の解決は `resolve_catalog_item`（部品がその品の値を使うときと同じ関数を通る） |
+| 検証と診断 | `fune_model::check` / `fune_model::diagnostic` | |
+| ディレクトリの規約 | `fune_store::layout` | |
+| 設定のパス → ファイル | `fune_store::layout::setting_location` | 唯一の対応（`locate_setting` で行も引ける） |
+| プロジェクトの探索・初期化・git のブランチ名 | `fune_store::project` | `find_root`・`init`・`git_branch` |
+| 読み込み・書き込み・整形 | `fune_store::{read, write, format}` | ファイル I/O はここだけ |
+| 属性の値のファイル上の形 ⇄ `Value` | `fune_store::codec` | 読みと書きの両方がこれを使う |
+| revision・ロック | `fune_store::{revision, lock}` | |
+| Op | `fune_ops::op` | 編集の唯一の入口 |
+| 変更計画・適用 | `fune_ops::{plan, apply}` | |
+| Op → CLI のコマンド文字列 | `fune_ops::cli` | |
+| モデル → 解析の入力 | `fune_projection::<系>` | |
+| 不足入力 | `fune_projection::missing` | part をモデルのパス解析で添え、Web は文字列を分割しない |
+| 取付の連鎖 ⇄ 機体座標の位置・姿勢（合成と逆変換） | `fune_projection::pose` | sat-astro の `Quat` で合成する（`body_pose`・`mount_frame`・`body_to_mount_local`）。service もこれを呼ぶ |
+| 解析 ID → 射影の対応表・型付きの出力の受け渡し・解析の入出力の TS 書き出し | `fune_projection::dispatch` | 実行は `sat_analysis::catalog`（service が呼ぶ）。AnalysisOutputs の TS 対応表も同じ表から生成。表がずれないことをテストで確かめる |
+| 解析ケースの文脈（軌道・地上局・姿勢則・モード） | `fune_projection::context` | 軌道の組み立ては `OrbitSpec::new`・`semi_major_axis_from_altitude`・`raan_from_ltdn` を呼ぶだけ |
+| 時系列の仕様（軌道・姿勢則・期間・刻み・β） | `fune_projection::timeline` | `TimelineSpec::new`。既定の周回数 `DEFAULT_ORBITS` はここだけ。刻みは `sat_astro::timeline::DEFAULT_STEP_S` |
+| 解決済みの部品の値の取り出し・員数（示量）・成長余裕 | `fune_projection::parts` | **`count_of` が設計の員数を正規化（0 → 1）。入力に `count` がある場合は単体値と員数を渡して解析が掛ける。無い場合だけ `extensive*` で合計値を渡す。成熟度 → 成長余裕は `growth` だけ**（service のバジェットも使う）（part_qty は部品属性、quantity::qty は書かれた量） |
+| 書かれた量 → 型付きの SI 量・dB | `fune_projection::quantity` | 換算は `fune_model::value::units`・`sat_units::ratio_to_db` |
+| CLI と HTTP が呼ぶ関数 | `fune_service::{query, edit, units, analysis, budget}` | |
+| 保存していない編集（Op の列）を書き込まずに当てた設計 | `fune_service::preview::snapshot_with` | スナップショットの組み立ては `workspace::Snapshot::of` だけ。下書きのまま解析（依頼の `ops`）・バジェット（`POST /budgets/{kind}`、`fune budget --ops`・`fune analyze --ops`）を見るのに使う |
+| プロジェクトを開く・スナップショット（読み直し・診断の該当行） | `fune_service::workspace` | 読み込みは `fune_store::load` |
+| サービスのエラーと分類（HTTP の状態・終了コードの元） | `fune_service::error` |  |
+| 人が打つ文字列 → Op（属性の型・設定の今の型・一覧） | `fune_service::edit::{text, catalog, place}` | **CLI も GUI もここを通す**（入口は `edit::set_op(&SetText)`・`edit::unset_op(&UnsetText)`。`item` があればカタログ品（`catalog`）、無ければ部品と設定（`text`）。GUI は `POST /ops/from_text`・`POST /ops/unset_from_text` で Op にしてから `POST /ops`。`fune set`・`fune unset`・`fune catalog set`・`fune catalog unset` も同じ関数）。文字列の読み方は `fune_model::value::{value_from_text, parse_number_unit}`・`path::{AttrPath, PortRef}`。一覧の規則は `edit::list_from_text`（カンマのみ・trim・空要素除外）。kind 作成欄だけは同じ規則で Op の配列を作る |
+| 解析の出力の量の次元（JSON Pointer → 次元名）・時系列の表示単位 | `fune_service::analysis::{dims, channels}` | `sat_units::take_last_dimension`・`sat_units::format` を使う |
+| 外部データ（DE440）の取得・状態・読み込み | `fune_service::data` | ユーザーのキャッシュ。install_cached_ephemeris を CLI・HTTP 起動時に明示的に呼ぶ。GUI 設定の DataPanel も同じ API を使う。状態の SHA-256 には、同じプロセスの中でファイルの大きさと更新時刻が変わらない間は前回の結果を使う |
+| 変更前後の本文 → unified diff | `fune_service::diff` | `--dry-run` と GUI の変更の確認で共通 |
+| 表示用の型（DTO） | `fune_service::dto` | DiagnosticView.part、NetView の PortRef、PartRow.paths / CatalogItemView.paths と SettingView.group / field、AttributeDefView.section と型付き enum。TS 型の生成元。`DisplayChannel`・`DisplaySeries` は service が表示情報を添えた時系列。値の表示 `ValueView`・`ValueData` は `dto::value`（部品・カタログ品・設定で共有） |
+| カタログ品の表示（値・パス・使っている部品・書き換えられるか・カタログ名と名前） | `fune_service::query::catalog`（`dto::CatalogItemView`、`DesignView.catalog`） | 値は部品と同じ `query::values::value_view`（解決は `fune_model::resolve::resolve_catalog_item`）、パスは `views::parameter_paths`、書き換えられるか（`editable`）は fune-ops と同じ `fune_store::layout::catalog_location`、使っている部品は `Design::catalog_part_users`、`scope`・`name` は `split_catalog_ref`。Web は ID を分解しない（`editable`・`scope`・`users` を使う）。CLI の `fune catalog ls`・`fune catalog show` も同じ型 |
+| TS の型名の重複の検査 | `fune_service::export::names` | 書き出しのときに止める（registry §4） |
+| HTTP のルーティング | `fune_server::routes` | |
+| HTTP のエラーの本文・Host の許可リスト・SPA の配信 | `fune_server::{error, host, spa}` |  |
+| CLI の引数・表示・診断 | `fune_cli::{args, cmd, output, diag}` | |
+| API クライアント（TS） | `web/src/api/client.ts` | 型は `web/src/api/gen/`（生成物）だけ |
+| 画面の枠・ナビゲーション | `web/src/shell/` | |
+| ページの遅れた読み込みと先読み（ルート単位の分割・待つ間の骨組み・ナビのホバーと空き時間の先読み） | `web/src/shell/{pages.ts,preload.ts,lazy-page.ts,LazyRoute.tsx}` | `routes/` のモジュールは `LazyRoute` でページの本体を描き、`clientLoader`（`loadOnNavigate`）で本体を読み始めるだけ（読み終わっていれば待たずに描く。Suspense の 300 ms の間引きを避ける）。サイドバーはホバー・フォーカスで先読み（`preloadHandlers`、React Router の `prefetch="intent"`）、軽いページは最初のデータを取り終えたあとの空き時間に読む（`preloadIdlePages`）。待つ間の骨組みは `kit/Loading.tsx` の `SkeletonPage`。系の解析の先読みは `api/queries.ts` の `prefetchSystemAnalyses`。大きなライブラリは使う所で遅れて読む（three.js は `features/layout3d/LazyLayout3D.tsx`、recharts は `SystemTabs` の時系列タブ） |
+| ロゴ（マーク・名前と説明文の字形・並べ方）と README・ファビコンの SVG | `web/src/shell/{brand-art,brand-glyphs,brand-svg}.ts`・`BrandMark.tsx`・`BrandWordmark.tsx` | 字形はヒラギノ角ゴシック（名前 W6・説明文 W4）を輪郭にしたもの（フォントそのものは入れない）。配色は `lib/tone.ts` の `brandHex`・`brandInkHex`。SVG は `pnpm -C web brand` で書き出し、テストが一致を検査する |
+| ファイル階層のツリー表示・構築・絞り込み | `web/src/kit/{Tree,ViewSwitch}.tsx`・`web/src/kit/tree.ts`、各ページの `*Tree.tsx` | 部品の親子・カタログの階層、URL の表示切替、ARIA キーボード操作 |
+| 一覧と詳細の表示面・ツリー列幅・詳細の欄の幅 | `web/src/kit/{DetailLayout,DetailDialog,TreePane}.tsx`・`tree-width.ts`・`use-detail-route.ts` | 全幅表のモーダル、可変幅ツリー、カードの一覧の横の可変幅の詳細（`wideList`・`DETAIL_WIDTH`）、URL 選択と幅保存 |
+| 共通の部品（表・パネル・KPI・入力欄・開閉する領域） | `web/src/kit/` | 下書きのときだけ出る帯などの開閉は `kit/Reveal.tsx` |
+| 量の表示と入力欄 | `web/src/quantity/` | 単位の解析は `/units/parse` に問い合わせる |
+| 各ページ | `web/src/features/<ページ>/` | |
+| モードの行列（状態の切替・セルの表示・時間割合の編集・足もとの合計と余裕） | `web/src/features/modes/{matrix.ts,ModeCell,ModeDutyForm,ModeBudgetRows}` | セルの電力は power.mode_load の出力、セルの文字はモード表の `display`。足もとの合計・使用可能電力・余裕と判定は `BudgetView.modes`（`fune_service::budget` が全体と同じ `budget_rollup` と判定で作る） |
+| Op の送信・dry_run・無効化・トースト（CLI としてコピー） | `web/src/api/ops.ts` | Op を送るのはここの `useApplyOps` だけ。打った文字列の編集は `useSetText`（`/ops/from_text`）・`useUnsetText`（`/ops/unset_from_text`）で、`item` を渡すとカタログ品。キーは `web/src/api/keys.ts` だけで作る |
+| Op の確定前のプレビューと編集ダイアログの共通形 | `web/src/ops/` | `OpPreview`（dry_run の CLI・差分）、`OpDialog` |
+| shadcn/ui のプリミティブ | `web/src/ui/` | shadcn/ui から取り込んだもの。見た目の小物は `kit/` |
+| オン・オフのスイッチと切り替えボタン | `web/src/kit/{Switch,Toggle}.tsx` | チェックボックスは使わない。1 つのオン・オフは `Switch`、いくつかの中から重ねて選ぶ切り替え（系統図の層など）は `Toggle` |
+| 色・パレット・サブシステム色・開け閉めの動き・小さな汎用関数 | `web/src/lib/` | `tone.ts`（色の値の正本。`index.css` の色と影の変数は `pnpm -C web tokens` で書き出し、test が一致・コントラスト・見分けやすさを検査）、`subsystems.ts`、`design.ts`（設計データの引き当て）、`motion.ts`（開け閉めの時間と曲線。サイドバーと保存の帯で共通） |
+| 解析の出力の汎用の読み取り・欄の表示名と次元 | `web/src/features/systems/{output,fields}.ts` | 出力の形に依らず表・時系列を見つける。判定は service の checks / verdict、dB の表示も dims を使う。数の表示は `/units/format`（`web/src/quantity/use-formatted.ts`、まとめて 1 回）。換算はしない |
+| UI の文言（日本語・英語） | `web/src/i18n/` | `useT()` / `getT()`。区分ごとの `<区分>.{ja,en}.ts`。組み込みの語彙の名前は `localized(label, label_en)` |
+| コンポーネントの一覧（サブシステムの枠ごとに部品のカードを並べるタブ） | `web/src/features/components/PartsOverview.tsx` | 製品ツリー（`design.tree`）の形のまま、絞り込んだ部品（`PartRow`）を並べる。種類の名前は種別定義（`defs.kinds`）、アイコンは `kit/RoleIcon.tsx`。タブは `?view=overview|tree|table`（`useDetailRoute` の `views`） |
+| 部品の役割のアイコン | `web/src/kit/RoleIcon.tsx` | role → lucide のアイコン。知らない役割は箱 |
+| 大きさのばらばらな箱を隙間少なく詰めて並べる | `web/src/lib/skyline.ts`（スカイライン法の計算）・`web/src/kit/Packed.tsx`（子の大きさと幅を測って置く） | コンポーネントの一覧のサブシステムの枠。系統図の配置（`features/diagram/layout*.ts`）は線の経路のための別の配置 |
+| 製品ツリーのノードとモードの表示名（言語ごと） | `web/src/lib/design.ts` の `nodeName` / `nodeLabel` / `idWithName` | 英語は ID、日本語は表示名（無ければ ID）。選択肢の「ID（表示名）」は `idWithName`。系統図の枠・一覧・表・モードの行列の見出し・部品詳細のモード・検索が使う |
+| 系統図の表示モデル・線の飛び越し | `web/src/features/diagram/{model,jumps,line-store,power}.ts` | 位置は表示だけ。手で動かした位置は `set_view_layout` |
+| 型レベル次元の定義 | `sat_units::dimensions` | typed・parse・unit が共有。typed の公開名は再公開で維持 |
+| 診断の位置 | `fune_model::diagnostic::Loc` | design::Loc・source_map::Loc は再公開 |
+| カタログ参照の分解 | `fune_model::path::split_catalog_ref` | design::part の公開パスも維持。Web は分解せず `CatalogItemView.{scope, name}` を使う（カタログのツリーも） |
+| プロジェクト作成（HTTP 例外） | `fune_service::edit::init` | サーバーは既存プロジェクト内で動くため CLI のみ。起動前の操作 |
+| グラフ目盛りの数の表示 | `web/src/quantity/chart.ts` | Intl.NumberFormat は quantity/ 内だけ |
+| 表示種別の名前 | `sat_units::display_kind` | format・typed・parse の共有定数 |
+| 軌道の共有状態・Kepler 幾何 | `sat_astro::{state, kepler}` | orbit の公開パスは再公開で維持。force・ephem は leaf を参照 |
+| 中心天体の型・定数 | `sat_astro::body` | 位置の取得メソッドは ephem に実装 |
+| 設計の組み込み fallback | `fune_model::lookup` | Design の inherent methods。design は builtin を参照しない |
+| ネットの型 | `fune_model::design::net` | part と system の共有型 |
+| ファイル集合・TOML 共通処理 | `fune_store::{fileset, profile}` | read・write・format の共有 leaf |
+| TS の生成 | `fune_service::export` | dto は型だけ。従来の dto::export_ts は再公開 |
+| 設計ファイルの整形 | `fune_service::format` | CLI fmt と HTTP /fmt（check 対応） |
+| CLI の共通補助 | `fune_cli::cmd::common` | read・parts・records・nouns の共有 |
+| モジュール循環の検査 | `xtask::module_cycles` | production の crate / super 参照を検査 |
+| 図の線の経路・端子の側・リセット | `fune_model::design::view`（`ViewEdge`・`ViewPortSide`。側の書き方は `ViewPortSide::as_str` だけ）、`fune_ops::Op`、`fune_store::write::entities` | SetViewEdge / UnsetViewEdge / ResetView。CLI・HTTP 共通。`points` は整数のまま（`fune_store::profile::VIEW_INTEGER_KEYS`） |
+| 系統図の自動配置（枠とカードの置き方の探索・端子の側・線の経路探索・候補の費用・線の無い枠・ラベル） | `web/src/features/diagram/{layout,layout-pack,layout-place,layout-estimate,layout-compact,layout-ports,layout-refine,layout-wires,layout-route,layout-route-board,layout-score,grid,labels,layout-geometry}.ts` | 条件は docs/model.md §10.4。部品の ID や名前は見ない。テストは `web/src/test/diagram-model.ts`（作り直しは `diagram-model.gen.test.ts`） |
+| 系統図の線の手動編集（直交経路・線のキー・保存・元に戻す） | `web/src/features/diagram/{routes.ts,EdgeEditor.tsx,RouteControls.tsx,view-history.ts,use-undo-keys.ts}` | 線のキーは `ネット:始点の端子>終点の端子`（`routes.ts` の `waypointKey`）。保存は useApplyOps の Op だけ。配置の編集はすべて `view-history.ts` の `useViewEdits` を通し、戻す Op（`inverseOf`）を積む |
+
+## 3. 標準の語彙（組み込みの属性と種別）
+
+解析・projection・デモデータ・GUI が共有する取り決め。実体は `fune_model::builtin`。ここに無い属性は各プロジェクトが `defs/` に足せる。
+
+| 属性 ID | 次元 | 主な単位 | 状態で引く | 主に使う種別 |
+|---|---|---|---|---|
+| `mass` | Mass | kg, g | | すべて |
+| `size` | Length（ベクトル） | mm, m | | すべて（箱の外形） |
+| `power` | Power | W, mW | ✓ | 電力を使うもの |
+| `heat_fraction` | Dimensionless | — | | 消費電力のうち発熱になる割合（既定 1） |
+| `temp_op` | Temperature（範囲） | degC, K | | すべて |
+| `temp_survival` | Temperature（範囲） | degC, K | | すべて |
+| `specific_heat` | SpecificHeatCapacity | J/(kg*K) | | 熱 |
+| `absorptivity` / `emissivity` | Dimensionless | — | | 熱（外面） |
+| `hk_rate` | DataRate | bit/s | ✓ | HK を出すもの |
+| `mission_rate` | DataRate | bit/s, Mbit/s | ✓ | ミッション機器 |
+| `capacity` | Energy | Wh | | battery |
+| `voltage` | Voltage | V | | battery, pcdu |
+| `charge_efficiency` / `discharge_efficiency` | Dimensionless | — | | battery |
+| `area` | Area | m^2, cm^2 | | solar_panel, panel |
+| `cell_efficiency` / `packing_factor` / `eol_factor` | Dimensionless | — | | solar_panel |
+| `normal` | Dimensionless（ベクトル、部品座標） | — | | solar_panel, panel |
+| `max_momentum` | AngularMomentum | N*m*s, mN*m*s | | reaction_wheel |
+| `max_torque` | Torque | N*m, mN*m | | reaction_wheel |
+| `spin_axis` / `axis` | Dimensionless（ベクトル、部品座標） | — | | reaction_wheel, magnetorquer |
+| `max_dipole` | MagneticDipoleMoment | A*m^2 | | magnetorquer |
+| `thrust` | Force | N, mN | | thruster |
+| `isp` | Time | s | | thruster |
+| `direction` | Dimensionless（ベクトル、部品座標） | — | | thruster |
+| `boresight` | Dimensionless（ベクトル、部品座標） | — | | star_tracker, sun_sensor, camera, antenna |
+| `fov_half_angle` | Angle | deg | | センサ類 |
+| `exclusion_sun` / `exclusion_earth` / `exclusion_moon` | Angle | deg | | センサ類 |
+| `tx_power` | Power | W | | transceiver |
+| `frequency_down` / `frequency_up` | Frequency | MHz, GHz | | transceiver |
+| `data_rate_down` / `data_rate_up` | DataRate | kbit/s | | transceiver |
+| `antenna_gain` | Dimensionless | dB | | transceiver, antenna |
+| `noise_temperature` | Temperature | K | | transceiver（受信系） |
+| `storage_capacity` | Information | GB, Gbit | | obc |
+| `setpoint` | Temperature（範囲） | degC | | heater |
+| `thickness` | Length | mm | | panel |
+| `material` | 列挙 | — | | panel |
+
+種別（kind）の role: `obc` `pcdu` `battery` `solar_panel` `reaction_wheel` `magnetorquer` `thruster` `star_tracker` `sun_sensor` `gyro` `gps` `transceiver` `antenna` `camera` `heater` `panel` `structure`。
+機器の状態の語彙は kind ごとに持つ（例: 多くは `off` / `on`、transceiver は `off` / `rx` / `tx`、reaction_wheel は `off` / `idle` / `on` / `peak`）。
+
+## 4. 名前の規則
+
+- TS に出す型名はワークスペース全体で一意にする（例: `OrbitState`・`GroundPass`。`State`・`Pass` のような短い名前を使わない）。
+- 解析の型は `<名前>Input` / `<名前>Output`（例: `EnergyBalanceInput`）。
+- 解析 ID は `<系>.<名前>`（snake_case）。
+- ファイル・モジュールは snake_case、型は UpperCamelCase、TS のコンポーネントは PascalCase のファイル名。
+
+## 5. 変更履歴
+
+| 日時 | 変更 | 理由 |
+|---|---|---|
+| 2026-11-08 | 公開に向けて整理した版を初版とする | これより前の履歴は省いた |

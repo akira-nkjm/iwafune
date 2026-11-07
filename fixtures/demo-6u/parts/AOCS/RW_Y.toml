@@ -1,0 +1,11 @@
+catalog = "local/rw_10mNms"
+
+[mount]
+on    = "PANEL_MZ"
+point = "RW_SLOT_Y"
+
+[ports.PWR]
+net = "P12V"
+
+[ports.DATA]
+net = "CAN_BUS"

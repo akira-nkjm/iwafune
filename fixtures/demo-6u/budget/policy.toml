@@ -1,0 +1,12 @@
+[growth]  # 成熟度ごとの成長余裕（質量・電力に掛ける）
+off_the_shelf = 0.05
+modified      = 0.1
+new           = 0.2
+
+[uncertainty]  # 不確かさを書いていない値に当てる既定の幅（±）
+off_the_shelf = 0.03
+modified      = 0.1
+new           = 0.2
+
+[harness]
+allowance = 0.05  # harness/ が無い区間の見込み（サブシステム質量に対する割合）

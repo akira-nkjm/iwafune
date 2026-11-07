@@ -1,0 +1,35 @@
+// Generated from fune_projection::dispatch. Do not edit.
+import type { ModeLoadOutput } from "./ModeLoadOutput";
+import type { SolarSunlitOutput } from "./SolarSunlitOutput";
+import type { OrbitGenerationOutput } from "./OrbitGenerationOutput";
+import type { EnergyBalanceOutput } from "./EnergyBalanceOutput";
+import type { RwUnloadingOutput } from "./RwUnloadingOutput";
+import type { UnloadTimeOutput } from "./UnloadTimeOutput";
+import type { SensorFovOutput } from "./SensorFovOutput";
+import type { DataBudgetOutput } from "./DataBudgetOutput";
+import type { LinkBudgetOutput } from "./LinkBudgetOutput";
+import type { VisibilityOutput } from "./VisibilityOutput";
+import type { DataThroughputOutput } from "./DataThroughputOutput";
+import type { ThermalSteadyOutput } from "./ThermalSteadyOutput";
+import type { ThermalTransientOutput } from "./ThermalTransientOutput";
+import type { MassPropertiesOutput } from "./MassPropertiesOutput";
+import type { StaticLoadOutput } from "./StaticLoadOutput";
+import type { ModalEstimateOutput } from "./ModalEstimateOutput";
+export type AnalysisOutputs = {
+  "power.mode_load": ModeLoadOutput;
+  "power.solar_sunlit": SolarSunlitOutput;
+  "power.orbit_generation": OrbitGenerationOutput;
+  "power.energy_balance": EnergyBalanceOutput;
+  "attitude.rw_unloading": RwUnloadingOutput;
+  "attitude.unload_time": UnloadTimeOutput;
+  "attitude.sensor_fov": SensorFovOutput;
+  "cdh.data_budget": DataBudgetOutput;
+  "comm.link_budget": LinkBudgetOutput;
+  "comm.visibility": VisibilityOutput;
+  "comm.data_throughput": DataThroughputOutput;
+  "thermal.steady": ThermalSteadyOutput;
+  "thermal.transient": ThermalTransientOutput;
+  "structure.mass_properties": MassPropertiesOutput;
+  "structure.static_load": StaticLoadOutput;
+  "structure.modal_estimate": ModalEstimateOutput;
+};
