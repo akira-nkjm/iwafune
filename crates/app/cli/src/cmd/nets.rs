@@ -29,13 +29,17 @@ pub fn net(c: &NetCmd) -> BuiltMany<'_> {
 }
 
 fn set_port(port: &str, net: Option<String>) -> anyhow::Result<Op> {
-    let r = PortRef::parse(port)
-        .ok_or_else(|| anyhow::anyhow!("ポートは 部品.ポート の形です（例: RW_X.PWR）: {port}"))?;
+    let r: PortRef = port.parse()?;
     Ok(Op::SetPort {
         part: r.part,
         port: r.port,
         net,
     })
+}
+
+/// 打ったポートの参照（`PCDU.OUT3`）。読み方は `PortRef` の `FromStr`（ファイルの読み込みと同じ）。
+fn port_arg(text: &Option<String>) -> anyhow::Result<Option<PortRef>> {
+    Ok(text.as_deref().map(str::parse).transpose()?)
 }
 
 fn kind_of(text: &str) -> anyhow::Result<NetKind> {
@@ -50,12 +54,12 @@ fn quantity(t: &Option<String>) -> anyhow::Result<Option<fune_service::dto::Quan
 fn net_of(a: &NetArgs) -> anyhow::Result<Net> {
     let mut net = Net::new(a.id.as_str(), kind_of(&a.kind)?);
     net.label = a.label.clone();
-    net.source = a.source.clone();
+    net.source = port_arg(&a.source)?;
     net.rail = quantity(&a.rail)?;
     net.limit = quantity(&a.limit)?;
     net.protocol = a.protocol.clone();
     net.bitrate = quantity(&a.bitrate)?;
-    net.master = a.master.clone();
+    net.master = port_arg(&a.master)?;
     Ok(net)
 }
 
@@ -67,12 +71,12 @@ fn set_fields(a: &NetSetArgs) -> anyhow::Result<Vec<Op>> {
     }
     let text = |v: &Option<String>| v.clone().map(Some);
     fields.extend(text(&a.label).map(NetField::Label));
-    fields.extend(text(&a.source).map(NetField::Source));
+    fields.extend(port_arg(&a.source)?.map(|p| NetField::Source(Some(p))));
     fields.extend(quantity(&a.rail)?.map(|q| NetField::Rail(Some(q))));
     fields.extend(quantity(&a.limit)?.map(|q| NetField::Limit(Some(q))));
     fields.extend(text(&a.protocol).map(NetField::Protocol));
     fields.extend(quantity(&a.bitrate)?.map(|q| NetField::Bitrate(Some(q))));
-    fields.extend(text(&a.master).map(NetField::Master));
+    fields.extend(port_arg(&a.master)?.map(|p| NetField::Master(Some(p))));
     if fields.is_empty() {
         anyhow::bail!("書くフィールドの旗がありません（--rail など）");
     }

@@ -12,14 +12,14 @@ import { PanelHeader } from "@/kit/PanelHeader";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 
-/** ミッション / 軌道と地上局: mission.* の設定と、地上局ごとの可視（comm.visibility） */
+/** ミッション / 軌道と地上局: ミッションの設定（API の `scope`）と、地上局ごとの可視（comm.visibility） */
 export function OrbitPage() {
   const t = useT();
   const m = t.mission;
   const design = useDesign();
   const [vis] = useAnalyses(["comm.visibility"], null);
   const d = design.data;
-  const mission = (d?.settings ?? []).filter((s) => s.key.startsWith("mission."));
+  const mission = (d?.settings ?? []).filter((s) => s.scope === "mission");
   const groups = [...new Set(mission.map((s) => s.group))];
   const stations = analysisOutput(vis?.result, "comm.visibility")?.stations ?? [];
   return (
@@ -46,11 +46,11 @@ export function OrbitPage() {
                   <div className="p-4 pb-2">
                     <PanelHeader
                       className="mb-0"
-                      title={label?.display ?? g.slice(0, -1)}
+                      title={label?.display ?? g}
                       caption={<span className="font-mono">{list[0]?.file ?? g}</span>}
                     />
                   </div>
-                  <SettingsTable settings={list} prefix={g} />
+                  <SettingsTable settings={list} grouped />
                 </Panel>
               );
             })}
@@ -65,7 +65,7 @@ export function OrbitPage() {
                 caption="comm.visibility"
               />
             </div>
-            <ResultTable rows={stations} pointer="/stations" dims={vis?.result?.dims} />
+            <ResultTable rows={stations} at={["stations"]} dims={vis?.result?.dims} />
           </Panel>
         )}
         {vis && <AnalysisCard state={vis} entry={undefined} design={d} />}

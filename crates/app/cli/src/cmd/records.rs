@@ -87,8 +87,8 @@ fn harness_of(a: &HarnessArgs) -> anyhow::Result<Harness> {
     Ok(Harness {
         id: a.id.as_str().into(),
         label: a.label.clone(),
-        from: a.from.clone(),
-        to: a.to.clone(),
+        from: a.from.parse()?,
+        to: a.to.parse()?,
         nets: list(&a.nets)
             .into_iter()
             .map(|n| n.as_str().into())

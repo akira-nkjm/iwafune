@@ -1,4 +1,5 @@
 import { useDesign } from "@/api/queries";
+import type { SettingScope } from "@/api/types";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/Empty";
 import { Loading, SkeletonPanel } from "@/kit/Loading";
@@ -10,12 +11,8 @@ import { PageHeader } from "@/shell/PageHeader";
 import { DataPanel } from "./DataPanel";
 import { SettingsTable } from "./SettingsTable";
 
-/** 設定の区分（キーの接頭辞）。名前は i18n の project.groups */
-const GROUPS = [
-  { prefix: "mission.", key: "mission" },
-  { prefix: "analysis.", key: "analysis" },
-  { prefix: "budget.", key: "budget" },
-] as const;
+/** 設定の区分（API の `SettingView.scope`）の並び。名前は i18n の project.groups */
+const SCOPES: readonly SettingScope[] = ["mission", "analysis", "budget"];
 
 /** プロジェクト / 設定: プロジェクトの情報と、すべての設定（SetSetting）。CLI では fune setting set */
 export function SettingsPage() {
@@ -23,7 +20,6 @@ export function SettingsPage() {
   const p = t.project;
   const design = useDesign();
   const d = design.data;
-  const rest = (d?.settings ?? []).filter((s) => !GROUPS.some((g) => s.key.startsWith(g.prefix)));
   return (
     <>
       <PageHeader eyebrow={p.eyebrow} title={p.settings} />
@@ -59,22 +55,18 @@ export function SettingsPage() {
               </dl>
             </Panel>
             <DataPanel />
-            {[...GROUPS, { prefix: "", key: "other" as const }].map((g) => {
-              const list = g.prefix ? d.settings.filter((s) => s.key.startsWith(g.prefix)) : rest;
-              if (!g.prefix && list.length === 0) return null;
-              return (
-                <Panel key={g.key} pad={false}>
-                  <div className="p-4 pb-2">
-                    <PanelHeader
-                      className="mb-0"
-                      title={p.groups[g.key].title}
-                      caption={p.groups[g.key].caption}
-                    />
-                  </div>
-                  <SettingsTable settings={list} />
-                </Panel>
-              );
-            })}
+            {SCOPES.map((scope) => (
+              <Panel key={scope} pad={false}>
+                <div className="p-4 pb-2">
+                  <PanelHeader
+                    className="mb-0"
+                    title={p.groups[scope].title}
+                    caption={p.groups[scope].caption}
+                  />
+                </div>
+                <SettingsTable settings={d.settings.filter((s) => s.scope === scope)} />
+              </Panel>
+            ))}
           </>
         )}
       </PageBody>

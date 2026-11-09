@@ -26,7 +26,6 @@ export const projectEn: typeof projectJa = {
       mission: { title: "Mission", caption: "mission/ — orbit, ground stations, period" },
       analysis: { title: "Analysis", caption: "analysis/ — settings of each subsystem analysis" },
       budget: { title: "Budget", caption: "budget/ — allocations and margin policy" },
-      other: { title: "Other", caption: "—" },
     },
     noSettings: "No settings",
     key: "Key",

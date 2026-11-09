@@ -7,7 +7,7 @@ import type { Quantity } from "./Quantity";
  */
 export type Net = { id: string, kind: NetKind, label?: string | null, 
 /**
- * 電源の供給元のポート（`"PCDU.OUT3"`）
+ * 電源の供給元のポート（`"PCDU.OUT3"`。読み込むときに `PortRef` にする）
  */
 source?: string | null, 
 /**
@@ -19,6 +19,6 @@ rail?: Quantity | null,
  */
 limit?: Quantity | null, protocol?: string | null, bitrate?: Quantity | null, 
 /**
- * バスのマスターのポート（`"OBC.CAN1"`）
+ * バスのマスターのポート（`"OBC.CAN1"`。読み込むときに `PortRef` にする）
  */
 master?: string | null, };

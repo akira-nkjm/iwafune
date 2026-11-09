@@ -6,6 +6,7 @@ use crate::codec::{encode_vector, float};
 use crate::error::StoreError;
 use crate::profile as format;
 use fune_model::design::{AttributeDef, KindDef, Mode, Net, NetField, StateAssign, ViewNode};
+use fune_model::path::PortRef;
 use fune_model::value::{Quantity, SettingValue};
 use serde::Serialize;
 use toml_edit::{DocumentMut, InlineTable, Item, Table, Value};
@@ -83,17 +84,22 @@ pub fn set_mode_row(
     })
 }
 
+/// ポートの参照（`"PCDU.OUT3"`。書き方は `PortRef` の `Display` だけ）。
+fn port(p: &PortRef) -> Item {
+    string(&p.to_string())
+}
+
 /// ネットの見出しのキー（正規の順）。
 fn net_items(net: &Net) -> Vec<(&'static str, Option<Item>)> {
     vec![
         ("kind", Some(string(net.kind.as_str()))),
         ("label", net.label.as_deref().map(string)),
-        ("source", net.source.as_deref().map(string)),
+        ("source", net.source.as_ref().map(port)),
         ("rail", net.rail.as_ref().map(quantity)),
         ("limit", net.limit.as_ref().map(quantity)),
         ("protocol", net.protocol.as_deref().map(string)),
         ("bitrate", net.bitrate.as_ref().map(quantity)),
-        ("master", net.master.as_deref().map(string)),
+        ("master", net.master.as_ref().map(port)),
     ]
 }
 
@@ -122,9 +128,8 @@ pub fn write_net(edits: &mut Edits, file: &str, net: &Net) -> Result<(), StoreEr
 pub fn set_net_field(edits: &mut Edits, file: &str, field: &NetField) -> Result<(), StoreError> {
     let item = match field {
         NetField::Kind(k) => Some(string(k.as_str())),
-        NetField::Label(v) | NetField::Source(v) | NetField::Protocol(v) | NetField::Master(v) => {
-            v.as_deref().map(string)
-        }
+        NetField::Label(v) | NetField::Protocol(v) => v.as_deref().map(string),
+        NetField::Source(p) | NetField::Master(p) => p.as_ref().map(port),
         NetField::Rail(q) | NetField::Limit(q) | NetField::Bitrate(q) => q.as_ref().map(quantity),
     };
     edits.edit(file, |doc| {

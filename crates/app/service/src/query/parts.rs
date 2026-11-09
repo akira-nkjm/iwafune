@@ -64,6 +64,8 @@ pub(crate) fn part_row(design: &Design, resolved: &Resolved, rp: &ResolvedPart) 
         mount,
         states: rp.states.clone(),
         file: file_of(design, EntityKey::Part(rp.id.clone())),
+        // 置き場所の区間はディレクトリの規約（`fune_store::layout`）が親の連鎖から作る（パスの文字列は分解しない）
+        dir: fune_store::layout::dirs_for_parent(design, rp.parent.as_ref()),
     }
 }
 
@@ -122,11 +124,11 @@ pub(crate) fn view(
         .values()
         .filter_map(|m| m.states.get(id).map(|a| (m.id.to_string(), a.clone())))
         .collect();
-    let prefix = format!("{id}.");
+    // ハーネスは端のポートの部品（構造）で選ぶ
     let harnesses = design
         .harnesses
         .values()
-        .filter(|h| h.from.starts_with(&prefix) || h.to.starts_with(&prefix))
+        .filter(|h| h.from.part == id || h.to.part == id)
         .map(|h| h.id.to_string())
         .collect();
     // 診断は対象の構造で選ぶ（部品のファイルの中の対象か、部品のファイルの位置）

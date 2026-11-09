@@ -88,7 +88,7 @@ fn by_state() -> Value {
 fn net() -> Net {
     let mut n = Net::new("P5V_PL", NetKind::Power);
     n.label = Some("5 V 系".into());
-    n.source = Some("PCDU.OUT2".into());
+    n.source = "PCDU.OUT2".parse().ok();
     n.rail = Some(Quantity::new(5.0, "V"));
     n
 }
@@ -231,8 +231,8 @@ fn other_ops() -> Vec<Op> {
     let harness = Harness {
         id: Id::new("H_NEW"),
         label: None,
-        from: "PCDU.OUT2".into(),
-        to: "CAM.PWR".into(),
+        from: "PCDU.OUT2".parse().unwrap(),
+        to: "CAM.PWR".parse().unwrap(),
         nets: vec![Id::new("P5V")],
         wire: Some("local/awg24_ptfe".into()),
         cores: Some(2),

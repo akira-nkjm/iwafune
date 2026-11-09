@@ -1,13 +1,16 @@
 import { useMemo } from "react";
 import type { DesignView, PartRow } from "@/api/types";
-import { localized, useT } from "@/i18n";
+import { useT } from "@/i18n";
 import { SubsystemDot } from "@/kit/SubsystemDot";
 import { Tree } from "@/kit/Tree";
 import { filterTree, partsTree } from "@/kit/tree";
 import { attrOf, nodeLabel } from "@/lib/design";
 import { valueText } from "@/quantity/format";
 
-/** 部品のファイル階層と組立品の親子。絞り込みでも祖先を残す。 */
+/**
+ * 部品のファイル階層と組立品の親子。絞り込みでも祖先を残す。
+ * フォルダーの見出しは製品ツリーのノードの表示名（`nodeLabel`。区間は API の `PartRow.dir` のノードの ID）。
+ */
 export function PartsTree({
   design,
   parts,
@@ -21,15 +24,7 @@ export function PartsTree({
 }) {
   const t = useT();
   const all = design.parts;
-  const folderLabel = (name: string) => {
-    const labels = design.defs.labels;
-    const role = Object.keys(labels.role_subsystem).find(
-      (role) => labels.role_subsystem[role] === name,
-    );
-    const sectionKey = role ? labels.role_system[role] : undefined;
-    const section = sectionKey ? labels.section[sectionKey] : undefined;
-    return section ? localized(section.label, section.label_en) : nodeLabel(design, name);
-  };
+  const folderLabel = (id: string) => nodeLabel(design, id);
   const tree = useMemo(() => {
     const ids = new Set(parts.map((part) => part.id));
     return filterTree(partsTree(all), (part) => ids.has(part.id));
@@ -59,9 +54,6 @@ function PartTreeRow({ part }: { part: PartRow }) {
         <SubsystemDot group={part.subsystem} role={part.role} />
         <span className="max-w-20 shrink-0 truncate font-medium font-mono">{part.id}</span>
         <span className="min-w-0 flex-1 truncate text-ink-2">{part.kind}</span>
-        <span className="min-w-0 flex-1 truncate font-mono text-ink-3">
-          {part.file.split(/[\\/]/).at(-1)}
-        </span>
       </span>
       <span className="shrink-0 text-right tabular-nums" title={t.count}>
         {part.count}

@@ -35,13 +35,10 @@ const RAIL_COLORS = [
   toneInkHex.teal,
 ];
 
-const isGndNet = (n: NetView) =>
-  /(^|_)(GND|RTN)(_|$)/i.test(n.id) || /GND|リターン/.test(n.label ?? "") || n.rail?.si === 0;
-
-/** ネットの層: 電源は給電、0 V や GND/RTN の名前の電源は GND、データと RF は信号 */
+/** ネットの層: 戻り（API の `is_return`。判定は fune_model の Net::is_return）は GND、ほかの電源は給電、データと RF は信号 */
 export function layerOf(n: NetView): Layer {
   if (n.kind !== "power") return "signal";
-  return isGndNet(n) ? "gnd" : "power";
+  return n.is_return ? "gnd" : "power";
 }
 
 function roleOf(design: DesignView, portRef: PortRef | null): string | null {
@@ -52,7 +49,7 @@ function roleOf(design: DesignView, portRef: PortRef | null): string | null {
 
 /**
  * 電源ネットの系統（凡例と線の色）。表示だけの分類で、設計データには書かない。
- * GND → 供給元が電池 → 太陽電池がつながる → レール電圧ごと（無ければ非安定化バス）の順に決める。
+ * 戻り（GND）→ 供給元が電池 → 太陽電池がつながる → レール電圧ごと（無ければ非安定化バス）の順に決める。
  */
 export function powerCategories(design: DesignView): Map<string, PowerCategory> {
   const out = new Map<string, PowerCategory>();
@@ -60,7 +57,7 @@ export function powerCategories(design: DesignView): Map<string, PowerCategory> 
   const rails: { net: NetView; si: number; display: string }[] = [];
   for (const n of design.nets) {
     if (n.kind !== "power") continue;
-    if (isGndNet(n)) out.set(n.id, GND);
+    if (n.is_return) out.set(n.id, GND);
     else if (roleOf(design, n.source) === "battery") out.set(n.id, BATTERY);
     else if (n.members.some((m) => roleOf(design, m) === "solar_panel")) out.set(n.id, SOLAR);
     else if (!n.rail) out.set(n.id, UNREG);

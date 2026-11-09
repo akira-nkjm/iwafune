@@ -6,13 +6,13 @@ import type { V3 } from "@/features/layout3d/scene";
 import { getT } from "@/i18n";
 import { toneHex } from "@/lib/tone";
 import { heatHex, heatKey, heatMapOf, heatRatio } from "./heat";
-import { dimOf } from "./output";
+import { dimOf, EACH } from "./output";
 import type { SystemTab } from "./SystemTabs";
 import { ThermalHeatmap } from "./ThermalHeatmap";
 import type { AnalysisState } from "./use-analyses";
 
-function dimsOf(states: readonly AnalysisState[], id: string): Record<string, string> | undefined {
-  return states.find((s) => s.id === id)?.result?.dims;
+function resultOf(states: readonly AnalysisState[], id: string) {
+  return states.find((s) => s.id === id)?.result;
 }
 
 function outputOf<K extends keyof AnalysisOutputs>(
@@ -54,7 +54,13 @@ export function systemExtras(
         <>
           <ThermalHeatmap
             map={map}
-            dimension={dimOf(dimsOf(states, "thermal.steady"), "cases[].nodes[].temperature")}
+            dimension={dimOf(resultOf(states, "thermal.steady"), [
+              "cases",
+              EACH,
+              "nodes",
+              EACH,
+              "temperature",
+            ])}
           />
           <LazyLayout3D
             design={design}

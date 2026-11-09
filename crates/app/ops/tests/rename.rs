@@ -33,8 +33,9 @@ fn rename_part_updates_references() {
     }
     let d = &p.design;
     assert!(d.modes["NOMINAL"].states.contains_key("EPS_PCDU"));
-    assert_eq!(d.nets["P5V"].source.as_deref(), Some("EPS_PCDU.OUT2"));
-    assert_eq!(d.harnesses["H_PCDU_RWX"].from, "EPS_PCDU.OUT3");
+    let source = d.nets["P5V"].source.as_ref().map(ToString::to_string);
+    assert_eq!(source.as_deref(), Some("EPS_PCDU.OUT2"));
+    assert_eq!(d.harnesses["H_PCDU_RWX"].from.to_string(), "EPS_PCDU.OUT3");
     assert!(check(d).iter().all(|x| !x.is_error()));
 }
 

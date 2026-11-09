@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { collectScalars, collectSeries, collectTables, pickNumbers, tableColumns } from "./output";
+import {
+  collectScalars,
+  collectSeries,
+  collectTables,
+  dimOf,
+  EACH,
+  groupScalars,
+  jsonPointer,
+  pickNumbers,
+  tableColumns,
+} from "./output";
 
 const out = {
   life: "eol",
@@ -27,12 +37,17 @@ const out = {
 
 describe("解析の出力の読み取り", () => {
   it("スカラー（入れ子のオブジェクトの中も）を集め、checks と時系列は除く", () => {
-    expect(collectScalars(out).map((s) => s.path)).toEqual([
+    const scalars = collectScalars(out);
+    expect(scalars.map((s) => s.path)).toEqual([
       "life",
       "period",
       "summary.total_mass",
       "summary.center_of_mass",
     ]);
+    expect(scalars[2]).toMatchObject({
+      at: ["summary", "total_mass"],
+      pointer: "/summary/total_mass",
+    });
   });
   it("Series を集める", () => {
     expect(collectSeries(out).map((s) => s.path)).toEqual(["series"]);
@@ -40,18 +55,18 @@ describe("解析の出力の読み取り", () => {
   it("オブジェクトの配列は表になり、入れ子の配列は列にしない", () => {
     const t = collectTables(out);
     expect(t.map((x) => x.path)).toEqual(["cases"]);
+    expect(t[0]!.at).toEqual(["cases"]);
     expect(tableColumns(t[0]!.rows)).toEqual(["id", "max_dod"]);
   });
-  it("パスで数を引く（[] で配列を展開）", () => {
-    expect(pickNumbers(out, "cases[].max_dod")).toEqual([0.21, 0.12]);
-    expect(pickNumbers(out, "summary.total_mass")).toEqual([8.2]);
-    expect(pickNumbers(out, "nope.x")).toEqual([]);
+  it("欄の指し方で数を引く（EACH で配列を展開）", () => {
+    expect(pickNumbers(out, ["cases", EACH, "max_dod"])).toEqual([0.21, 0.12]);
+    expect(pickNumbers(out, ["summary", "total_mass"])).toEqual([8.2]);
+    expect(pickNumbers(out, ["nope", "x"])).toEqual([]);
   });
 });
 
 describe("スカラーの区分", () => {
-  it("入れ子のオブジェクトごとに分け、最上位を先にする", async () => {
-    const { groupScalars, collectScalars } = await import("./output");
+  it("入れ子のオブジェクトごとに分け、最上位を先にする", () => {
     const g = groupScalars(collectScalars({ mtq: { time: 10 }, period: 5, rcs: { time: 2 } }));
     expect(g.map(([k, v]) => [k, v.map((s) => s.key)])).toEqual([
       ["", ["period"]],
@@ -61,17 +76,33 @@ describe("スカラーの区分", () => {
   });
 });
 
+describe("JSON Pointer", () => {
+  it("区間の列から作り、RFC 6901 のとおり ~ と / を逃がす", () => {
+    expect(jsonPointer(["cases", 0, "max_dod"])).toBe("/cases/0/max_dod");
+    expect(jsonPointer(["a/b", "c~d"])).toBe("/a~1b/c~0d");
+    expect(jsonPointer([])).toBe("");
+  });
+  it("キーに . や / を含んでも分解しない", () => {
+    const found = collectScalars({ "local/rw.x": { "p.q": 1 } });
+    expect(found[0]).toMatchObject({ at: ["local/rw.x", "p.q"], pointer: "/local~1rw.x/p.q" });
+  });
+});
+
 describe("dims（次元）の引き当て", () => {
-  it("パス（[] で配列）に当たる JSON Pointer の次元を返す", async () => {
-    const { dimOf } = await import("./output");
-    const dims = {
-      "/cases/0/max_dod": "Fraction",
-      "/cases/1/load_sunlit": "Power",
-      "/period": "Time",
+  it("欄の指し方（EACH で配列）に当たる位置の JSON Pointer で次元を引く", () => {
+    const result = {
+      output: { cases: [{ max_dod: 0.2 }, { load_sunlit: 3 }], period: 5600, "a/b": { c: 1 } },
+      dims: {
+        "/cases/0/max_dod": "Fraction",
+        "/cases/1/load_sunlit": "Power",
+        "/period": "Time",
+        "/a~1b/c": "Length",
+      },
     };
-    expect(dimOf(dims, "cases[].load_sunlit")).toBe("Power");
-    expect(dimOf(dims, "period")).toBe("Time");
-    expect(dimOf(dims, "cases[].nope")).toBeNull();
-    expect(dimOf(undefined, "period")).toBeNull();
+    expect(dimOf(result, ["cases", EACH, "load_sunlit"])).toBe("Power");
+    expect(dimOf(result, ["period"])).toBe("Time");
+    expect(dimOf(result, ["a/b", "c"])).toBe("Length");
+    expect(dimOf(result, ["cases", EACH, "nope"])).toBeNull();
+    expect(dimOf(undefined, ["period"])).toBeNull();
   });
 });
