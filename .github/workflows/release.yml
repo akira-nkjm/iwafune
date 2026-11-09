@@ -4,8 +4,9 @@ name: release
 # change that reaches main is a release.
 # - On a pull request into main: the version (Cargo.toml [workspace.package] = web/package.json) must match and must
 #   not be released yet, so a release always carries a version bump made on develop.
-# - On a push to main: publish the container image for that version (image.yml), then create the tag vX.Y.Z and its
-#   GitHub Release. Re-running on an already released commit does nothing.
+# - On a push to main: publish the container image for that version (image.yml), build the macOS binary, then create
+#   the tag vX.Y.Z and its GitHub Release with the Linux and macOS binaries attached. Re-running on an already
+#   released commit does nothing.
 on:
   pull_request:
     branches: [main]
@@ -65,14 +66,80 @@ jobs:
     with:
       version: ${{ needs.version.outputs.version }}
 
-  release:
+  # The macOS binary: built on Apple Silicon, with the Intel half cross-compiled, joined into one universal binary.
+  # It reuses the GUI (web-dist) that image.yml built in this run.
+  macos:
     needs: [version, image]
+    if: github.event_name == 'push' && needs.version.outputs.released == 'false'
+    runs-on: macos-15
+    permissions:
+      contents: read
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: web-dist
+          path: web/dist
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99"
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+      - name: build both architectures and join them
+        run: |
+          cargo build --release -p fune-cli --target aarch64-apple-darwin
+          cargo build --release -p fune-cli --target x86_64-apple-darwin
+          mkdir -p universal
+          lipo -create -output universal/fune \
+            target/aarch64-apple-darwin/release/fune target/x86_64-apple-darwin/release/fune
+          codesign --force --sign - universal/fune
+          lipo -archs universal/fune
+      - name: the binary reports the version being released
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: test "fune $VERSION" = "$(./universal/fune --version)"
+      - name: the binary serves the embedded GUI
+        run: |
+          ./universal/fune -C fixtures/demo-6u gui --no-open --port 8787 &
+          server=$!
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8787/api/v1/project > /dev/null && break; sleep 1; done
+          curl -sf http://127.0.0.1:8787/ | grep -qi '<html'
+          kill "$server"
+      - name: package the binary for the GitHub Release
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+          COPYFILE_DISABLE: "1"
+        run: |
+          name="fune-$VERSION-universal-apple-darwin"
+          mkdir -p "release/$name"
+          cp universal/fune README.md LICENSE-MIT LICENSE-APACHE THIRD-PARTY-NOTICES.md "release/$name/"
+          tar -C release -czf "release/$name.tar.gz" "$name"
+          (cd release && shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256")
+      - uses: actions/upload-artifact@v7
+        with:
+          name: fune-release-macos
+          path: |
+            release/*.tar.gz
+            release/*.sha256
+          if-no-files-found: error
+
+  release:
+    needs: [version, image, macos]
     if: github.event_name == 'push' && needs.version.outputs.released == 'false'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: tag vX.Y.Z and create the GitHub Release
+      # The packaged binaries (GUI embedded): Linux from image.yml, macOS from the job above
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: fune-release*
+          path: release
+          merge-multiple: true
+      - name: tag vX.Y.Z and create the GitHub Release with the binaries attached
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.version.outputs.version }}
@@ -80,4 +147,4 @@ jobs:
         run: |
           args=(--repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "fune $VERSION" --generate-notes)
           if [ -n "$PREVIOUS" ]; then args+=(--notes-start-tag "$PREVIOUS"); fi
-          gh release create "v$VERSION" "${args[@]}"
+          gh release create "v$VERSION" release/* "${args[@]}"
