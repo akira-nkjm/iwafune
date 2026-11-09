@@ -79,7 +79,7 @@ export const systemsJa = {
     part: "部品",
     kind: "種別",
     settingsTitle: (system: string) => `${system}の設定`,
-    settingsCaption: (prefixes: string) => `キーが ${prefixes} で始まる設定`,
+    settingsCaption: (files: string) => `${files} の設定`,
     noSettings: "この系の設定はまだありません（プロジェクト / 設定 にすべての設定があります）",
     inputOf: (title: string) => `${title} に渡した入力`,
     noSeries: "時系列の結果はまだありません（時系列の解析が実行されると、ここにグラフを出します）",

@@ -7,6 +7,7 @@ use crate::dto::{
 use crate::query::values::authored_quantity;
 use fune_model::builtin;
 use fune_model::design::{Design, EntityKey, NodeRef};
+use fune_model::path::PortRef;
 use std::collections::BTreeMap;
 
 /// エンティティのファイル（ルートからの相対パス）。
@@ -106,17 +107,14 @@ pub(crate) fn mode_table(design: &Design) -> ModeTable {
 
 /// ネット（つながるポートは部品の ports から集める）。
 pub(crate) fn nets(design: &Design) -> Vec<NetView> {
-    let mut members: BTreeMap<&str, Vec<fune_model::path::PortRef>> = BTreeMap::new();
+    let mut members: BTreeMap<&str, Vec<PortRef>> = BTreeMap::new();
     for p in design.parts.values() {
         for (port, binding) in &p.ports {
             if let Some(net) = &binding.net {
                 members
                     .entry(net.as_str())
                     .or_default()
-                    .push(fune_model::path::PortRef {
-                        part: p.id.to_string(),
-                        port: port.clone(),
-                    });
+                    .push(PortRef::new(p.id.as_str(), port.as_str()));
             }
         }
     }
@@ -126,11 +124,9 @@ pub(crate) fn nets(design: &Design) -> Vec<NetView> {
         .map(|n| NetView {
             id: n.id.to_string(),
             kind: n.kind,
+            is_return: n.is_return(),
             label: n.label.clone(),
-            source: n
-                .source
-                .as_deref()
-                .and_then(fune_model::path::PortRef::parse),
+            source: n.source.clone(),
             rail: n
                 .rail
                 .as_ref()
@@ -144,10 +140,7 @@ pub(crate) fn nets(design: &Design) -> Vec<NetView> {
                 .bitrate
                 .as_ref()
                 .map(|q| authored_quantity(q, Some("DataRate"))),
-            master: n
-                .master
-                .as_deref()
-                .and_then(fune_model::path::PortRef::parse),
+            master: n.master.clone(),
             members: members.remove(n.id.as_str()).unwrap_or_default(),
             file: file_of(design, EntityKey::Net(n.id.to_string())),
         })

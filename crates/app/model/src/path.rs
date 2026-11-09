@@ -10,12 +10,15 @@
 //! | `analysis.power.dod_max` | `analysis/power.toml` の `dod_max` |
 //! | `budget.mass.limit`・`budget.policy.growth.new` | `budget/allocation.toml`・`budget/policy.toml` |
 //!
-//! ポートの参照（`PCDU.OUT3`。部品 ID と、`.` を含まないポート名）は [`PortRef`]。属性だけのパス（`power.on`）は [`AttrPath`]、
-//! カタログ品の属性（`local/rw_10mNms.power.on`）は [`parse_catalog_attr`]。CLI と service はこれらを使い、自前で分割しない。
+//! ポートの参照（`PCDU.OUT3`。部品 ID と、`.` を含まないポート名）は [`PortRef`]（ファイルと Op の上の文字列の形は [`port_text`]）。
+//! 属性だけのパス（`power.on`）は [`AttrPath`]、カタログ品の属性（`local/rw_10mNms.power.on`）は [`parse_catalog_attr`]。
+//! CLI と service はこれらを使い、自前で分割しない。
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use ts_rs::TS;
+
+pub mod port_text;
 
 /// 部品のフィールド名（属性 ID と重ねてはいけない。検査の `def.reserved` が拒む）。
 pub const PART_FIELDS: &[&str] = &[
@@ -157,6 +160,8 @@ pub enum PathError {
         "パス `{0}` を読めません（例: `RW_X.mass`・`RW_X.power.on`・`analysis.power.dod_max`）"
     )]
     Syntax(String),
+    #[error("ポート `{0}` は `部品.ポート` の形で書きます（例: `RW_X.PWR`）")]
+    Port(String),
 }
 
 /// パスを解析する。
@@ -231,7 +236,7 @@ pub fn parse_catalog_attr(text: &str) -> Result<(String, AttrPath), PathError> {
         .trim()
         .split_once('.')
         .ok_or_else(|| PathError::Syntax(text.to_string()))?;
-    if crate::design::split_catalog_ref(item).is_none() {
+    if split_catalog_ref(item).is_none() {
         return Err(PathError::Syntax(text.to_string()));
     }
     Ok((item.to_string(), AttrPath::parse(rest)?))
@@ -245,6 +250,14 @@ pub struct PortRef {
 }
 
 impl PortRef {
+    /// 部品 ID とポート名から作る。
+    pub fn new(part: impl Into<String>, port: impl Into<String>) -> Self {
+        Self {
+            part: part.into(),
+            port: port.into(),
+        }
+    }
+
     /// `"PART.PORT"` を解析する。
     pub fn parse(text: &str) -> Option<PortRef> {
         let (part, port) = text.split_once('.')?;
@@ -258,6 +271,14 @@ impl PortRef {
 impl fmt::Display for PortRef {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}.{}", self.part, self.port)
+    }
+}
+
+impl std::str::FromStr for PortRef {
+    type Err = PathError;
+    /// [`PortRef::parse`] の誤りを文で返す版（CLI の引数・ファイルの読み込み）。
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        PortRef::parse(text).ok_or_else(|| PathError::Port(text.to_string()))
     }
 }
 
@@ -324,5 +345,9 @@ mod tests {
             })
         );
         assert_eq!(PortRef::parse("PCDU"), None);
+        assert_eq!(
+            "PCDU".parse::<PortRef>(),
+            Err(PathError::Port("PCDU".into()))
+        );
     }
 }

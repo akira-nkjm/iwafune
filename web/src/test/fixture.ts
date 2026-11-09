@@ -58,6 +58,7 @@ function part(
     mount: null,
     states,
     file: `parts/${group}/${id}.toml`,
+    dir: [group],
   };
 }
 
@@ -65,6 +66,7 @@ function net(id: string, kind: NetKind, members: PortRef[], extra: Partial<NetVi
   return {
     id,
     kind,
+    is_return: false,
     label: null,
     source: null,
     rail: null,

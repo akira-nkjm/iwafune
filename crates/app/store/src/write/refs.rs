@@ -39,9 +39,9 @@ pub fn rename_key(table: &mut Table, from: &str, to: &str) -> bool {
     true
 }
 
-fn rename_port_owner(text: &str, from: &str, to: &str) -> Option<String> {
-    let port = PortRef::parse(text)?;
-    (port.part == from).then(|| format!("{to}.{}", port.port))
+/// 部品 `from` のポートなら、部品を `to` に替えた参照の書き方（`Display`）。
+fn rename_port_owner(port: &PortRef, from: &str, to: &str) -> Option<String> {
+    (port.part == from).then(|| PortRef::new(to, port.port.as_str()).to_string())
 }
 
 /// 部品の名前を変える（ファイルと組立品のディレクトリの移動・参照の書き換え）。
@@ -151,11 +151,11 @@ fn rename_port_refs(
     from: &str,
     to: &str,
 ) -> Result<(), StoreError> {
-    let owner = |s: Option<&str>| s.and_then(|s| rename_port_owner(s, from, to));
+    let owner = |p: Option<&PortRef>| p.and_then(|p| rename_port_owner(p, from, to));
     for net in design.nets.values() {
         let values = vec![
-            ("source", owner(net.source.as_deref())),
-            ("master", owner(net.master.as_deref())),
+            ("source", owner(net.source.as_ref())),
+            ("master", owner(net.master.as_ref())),
         ];
         set_strings(edits, &layout::net_file(net.id.as_str()), values)?;
     }

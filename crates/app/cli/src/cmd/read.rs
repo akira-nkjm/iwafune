@@ -343,8 +343,8 @@ pub fn harness(ws: &Workspace, cmd: &crate::args::HarnessCmd, out: &Out) -> Hand
     for h in &harnesses {
         t.row(vec![
             C::Strong(h.id.clone()),
-            C::Text(h.from.clone()),
-            C::Text(h.to.clone()),
+            C::Text(h.from.to_string()),
+            C::Text(h.to.to_string()),
             C::Text(h.nets.join(", ")),
             h.length
                 .as_ref()

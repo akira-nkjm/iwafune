@@ -80,16 +80,16 @@ export function SystemTabs({
                   caption={<span className="font-mono">{`${s.id} · ${t.path}`}</span>}
                 />
               </div>
-              <ResultTable rows={t.rows} pointer={t.pointer} dims={s.result?.dims} />
+              <ResultTable rows={t.rows} at={t.at} dims={s.result?.dims} />
             </Panel>
           ));
         })}
       </>
     );
   if (tab === "settings") {
-    const settings = (design?.settings ?? []).filter((x) =>
-      spec.settings.some((p) => x.key.startsWith(p)),
-    );
+    // 系と設定の対応は API（`SettingView.system`。正本は fune_service の query::settings）
+    const settings = (design?.settings ?? []).filter((x) => x.system === spec.key);
+    const files = [...new Set(settings.flatMap((x) => (x.file ? [x.file] : [])))];
     return (
       <>
         <Panel pad={false}>
@@ -97,7 +97,9 @@ export function SystemTabs({
             <PanelHeader
               className="mb-0"
               title={dict.systems.settingsTitle(systemTitle(spec.key, design?.defs))}
-              caption={dict.systems.settingsCaption(spec.settings.join(" / "))}
+              caption={
+                files.length > 0 ? dict.systems.settingsCaption(files.join(" / ")) : undefined
+              }
             />
           </div>
           <SettingsTable settings={settings} empty={dict.systems.noSettings} />

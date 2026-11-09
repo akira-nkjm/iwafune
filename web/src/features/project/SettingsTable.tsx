@@ -16,12 +16,12 @@ import { quantityInputText } from "@/quantity/format";
 export function SettingsTable({
   settings,
   empty,
-  prefix,
+  grouped = false,
 }: {
   settings: SettingView[];
   empty?: string;
-  /** キーの表示から外す接頭辞（枠の見出しで分かるとき。例: "mission.orbit."） */
-  prefix?: string;
+  /** 1 つのまとまり（API の `group`）だけの表で、枠の見出しで分かるとき: キーはファイル内のキー（`field`）だけにし、ファイルの列を出さない */
+  grouped?: boolean;
 }) {
   const t = useT();
   const setText = useSetText();
@@ -34,7 +34,7 @@ export function SettingsTable({
         <>
           <Th>{t.project.key}</Th>
           <Th>{t.project.value}</Th>
-          {!prefix && <Th>{t.project.file}</Th>}
+          {!grouped && <Th>{t.project.file}</Th>}
         </>
       }
     >
@@ -43,7 +43,7 @@ export function SettingsTable({
         return (
           <tr key={s.key} className="hover:bg-panel-2/60">
             <Td mono className="text-ink-2">
-              {prefix && s.key.startsWith(prefix) ? s.key.slice(prefix.length) : s.key}
+              {grouped ? s.field : s.key}
             </Td>
             <Td>
               {v.type === "scalar" ? (
@@ -81,7 +81,7 @@ export function SettingsTable({
                 <span className="font-mono text-[12px]">{s.display}</span>
               )}
             </Td>
-            {!prefix && (
+            {!grouped && (
               <Td mono className="text-ink-4">
                 {s.file ?? "—"}
               </Td>

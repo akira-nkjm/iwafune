@@ -239,7 +239,7 @@ fn settings_and_nets() {
         Op::CreateNet {
             net: {
                 let mut n = Net::new("P3V3_PL", NetKind::Power);
-                n.source = Some("PCDU.OUT1".into());
+                n.source = "PCDU.OUT1".parse().ok();
                 n.rail = Some(Quantity::new(3.3, "V"));
                 n
             },

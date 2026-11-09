@@ -10,7 +10,11 @@ export type NetView = { id: string,
 /**
  * `"power"` / `"data"` / `"rf"`
  */
-kind: NetKind, label: string | null, 
+kind: NetKind, 
+/**
+ * 戻り（GND）のネットか（判定は `fune_model::design::Net::is_return`。系統図の GND の層）
+ */
+is_return: boolean, label: string | null, 
 /**
  * 供給元のポート（part = PCDU、port = OUT3）
  */

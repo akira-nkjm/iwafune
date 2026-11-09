@@ -79,8 +79,8 @@ fn harness_cmd(h: &Harness) -> String {
     let cores = h.cores.map(|c| c.to_string());
     let length = h.length.as_ref().map(quantity_text);
     Cmd::new(&["fune", "harness", "set", h.id.as_str()])
-        .flag("from", Some(&h.from))
-        .flag("to", Some(&h.to))
+        .flag("from", Some(&h.from.to_string()))
+        .flag("to", Some(&h.to.to_string()))
         .flag("nets", nets.as_deref())
         .flag("wire", h.wire.as_deref())
         .flag("cores", cores.as_deref())

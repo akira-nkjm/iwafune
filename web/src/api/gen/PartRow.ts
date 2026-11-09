@@ -39,4 +39,9 @@ states: Array<string>,
 /**
  * 部品ファイル（ルートからの相対パス）
  */
-file: string, };
+file: string, 
+/**
+ * 部品ファイルの置き場所の `parts/` からのディレクトリの区間（例: `["POWER", "SAP_PY"]`）。
+ * 各区間は製品ツリーのノードの ID（表示名は `DesignView.tree`）。`parts/` の直下なら空
+ */
+dir: Array<string>, };

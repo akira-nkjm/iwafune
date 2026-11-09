@@ -4,5 +4,6 @@ import type { Quantity } from "./Quantity";
 
 /**
  * ネットの型付きのフィールド（`SetNetField` の Op と store の書き込みが共有する）。None は消す（`kind` は消せない）。
+ * ポートの参照は JSON でも `"PCDU.OUT3"` の文字列（`fune_model::path::port_text`）。
  */
 export type NetField = { "field": "kind", "value": NetKind } | { "field": "label", "value": string | null } | { "field": "source", "value": string | null } | { "field": "rail", "value": Quantity | null } | { "field": "limit", "value": Quantity | null } | { "field": "protocol", "value": string | null } | { "field": "bitrate", "value": Quantity | null } | { "field": "master", "value": string | null };

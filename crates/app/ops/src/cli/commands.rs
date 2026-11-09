@@ -270,9 +270,8 @@ fn mode_cell(cell: &ModeCell) -> String {
 fn net_field_cmd(net: &str, field: &NetField) -> String {
     let text: Option<String> = match field {
         NetField::Kind(k) => Some(k.as_str().to_string()),
-        NetField::Label(v) | NetField::Source(v) | NetField::Protocol(v) | NetField::Master(v) => {
-            v.clone()
-        }
+        NetField::Label(v) | NetField::Protocol(v) => v.clone(),
+        NetField::Source(p) | NetField::Master(p) => p.as_ref().map(ToString::to_string),
         NetField::Rail(q) | NetField::Limit(q) | NetField::Bitrate(q) => {
             q.as_ref().map(quantity_text)
         }
@@ -289,15 +288,17 @@ fn net_cmd(verb: &str, net: &Net) -> String {
     let rail = net.rail.as_ref().map(quantity_text);
     let limit = net.limit.as_ref().map(quantity_text);
     let bitrate = net.bitrate.as_ref().map(quantity_text);
+    let source = net.source.as_ref().map(ToString::to_string);
+    let master = net.master.as_ref().map(ToString::to_string);
     Cmd::new(&["fune", "net", verb, net.id.as_str()])
         .flag("kind", Some(net.kind.as_str()))
         .flag("label", net.label.as_deref())
-        .flag("source", net.source.as_deref())
+        .flag("source", source.as_deref())
         .flag("rail", rail.as_deref())
         .flag("limit", limit.as_deref())
         .flag("protocol", net.protocol.as_deref())
         .flag("bitrate", bitrate.as_deref())
-        .flag("master", net.master.as_deref())
+        .flag("master", master.as_deref())
         .done()
 }
 

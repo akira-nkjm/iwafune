@@ -89,7 +89,7 @@ export const systemsEn: typeof systemsJa = {
     part: "Part",
     kind: "Kind",
     settingsTitle: (system: string) => `${system} settings`,
-    settingsCaption: (prefixes: string) => `Settings whose key starts with ${prefixes}`,
+    settingsCaption: (files: string) => `Settings in ${files}`,
     noSettings: "No settings for this subsystem yet (Project / Settings lists every setting)",
     inputOf: (title: string) => `Input passed to ${title}`,
     noSeries: "No time-series results yet (graphs appear here once a time-series analysis runs)",

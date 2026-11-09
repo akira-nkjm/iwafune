@@ -80,26 +80,17 @@ fn check_mode_row(
 }
 
 /// ポートの参照（部品が存在するか。ポートの所属が違えば warning）。対象は参照を書いたキー（`target`）。
+/// `部品.ポート` の形でない書き方は読み込み（`fune_model::path::port_text`）が誤りにする。
 fn check_port_ref(
     ctx: &mut Ctx,
     entity: &EntityKey,
     key: &str,
     target: Target,
-    text: &str,
+    port: &PortRef,
     net: Option<&str>,
 ) {
     let design = ctx.design;
     let path = Some(target);
-    let Some(port) = PortRef::parse(text) else {
-        ctx.error(
-            "ref.port",
-            entity,
-            &[key],
-            path,
-            format!("ポート `{text}` は `部品.ポート` の形で書きます"),
-        );
-        return;
-    };
     let Some(part) = design.parts.get(port.part.as_str()) else {
         ctx.error(
             "ref.part",
@@ -127,7 +118,7 @@ fn check_port_ref(
                 entity,
                 &[key],
                 path,
-                format!("ポート `{text}` はネット `{net}` に属していません"),
+                format!("ポート `{port}` はネット `{net}` に属していません"),
             );
         }
         _ => {}

@@ -1,8 +1,8 @@
 //! 往復の検査の見本（すべての Op の種類を少なくとも 1 つ）。
 
 use fune_service::dto::{
-    AttributeDef, Case, Harness, KindDef, ModeCell, Net, NetField, NetKind, Op, PartField, Pose,
-    Provenance, Quantity, Quaternion, SettingValue, Source, SourceKind, Value, Vector3,
+    AttributeDef, Case, Harness, KindDef, ModeCell, Net, NetField, NetKind, Op, PartField, PortRef,
+    Pose, Provenance, Quantity, Quaternion, SettingValue, Source, SourceKind, Value, Vector3,
     ViewNodePos,
 };
 use serde_json::json;
@@ -252,13 +252,13 @@ pub(super) fn def_ops() -> Vec<Op> {
 pub(super) fn system_ops() -> Vec<Op> {
     let mut net = Net::new("P5V_X", NetKind::Power);
     net.label = Some(s("5 V 系"));
-    net.source = Some(s("PCDU.OUT1"));
+    net.source = Some(PortRef::new("PCDU", "OUT1"));
     net.rail = Some(Quantity::new(5.0, "V"));
     net.limit = Some(Quantity::new(2.0, "A"));
     let mut bus = Net::new("CAN_X", NetKind::Data);
     bus.protocol = Some(s("CAN"));
     bus.bitrate = Some(Quantity::new(1.0, "Mbit/s"));
-    bus.master = Some(s("OBC.CAN1"));
+    bus.master = Some(PortRef::new("OBC", "CAN1"));
     let cell = |part: &str, state: Option<&str>, duty: &[(&str, f64)]| ModeCell {
         mode: s("NOMINAL"),
         part: s(part),
@@ -302,7 +302,7 @@ pub(super) fn system_ops() -> Vec<Op> {
         },
         Op::SetNetField {
             net: s("CAN_BUS"),
-            field: NetField::Master(Some(s("OBC.CAN2"))),
+            field: NetField::Master(Some(PortRef::new("OBC", "CAN2"))),
         },
         Op::RemoveNet { id: s("P5V") },
     ]
@@ -365,8 +365,8 @@ pub(super) fn record_ops() -> Vec<Op> {
     let harness = Harness {
         id: "H_X".into(),
         label: Some(s("PCDU → RW_X")),
-        from: s("PCDU.OUT3"),
-        to: s("RW_X.PWR"),
+        from: PortRef::new("PCDU", "OUT3"),
+        to: PortRef::new("RW_X", "PWR"),
         nets: vec!["P12V".into(), "CAN_BUS".into()],
         wire: Some(s("local/awg22")),
         cores: Some(2),

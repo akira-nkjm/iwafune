@@ -94,6 +94,32 @@ fn dangling_references_are_errors() {
     }
 }
 
+/// ポートの参照は読み込みで `PortRef` にする。`部品.ポート` の形でなければ、そのファイルの形の誤り（行付き）。
+#[test]
+fn port_refs_are_read_as_structure() {
+    let harness = "from = \"PCDU.OUT3\"\nto = \"RW_X\"\n";
+    let d = diags(&[("harness/H.toml", harness)]);
+    let schema = d
+        .iter()
+        .find(|x| x.code == "toml.schema")
+        .expect("schema error");
+    assert_eq!(schema.line, Some(2));
+    assert!(schema.message.contains("部品.ポート"), "{schema:?}");
+    let mut set = FileSet::new();
+    set.insert("fune.toml", PROJECT);
+    set.insert(
+        "harness/H.toml",
+        "from = \"PCDU.OUT3\"\nto = \"RW_X.PWR\"\n",
+    );
+    let design = design_of(&set);
+    let h = &design.harnesses["H"];
+    assert_eq!(
+        (h.from.part.as_str(), h.from.port.as_str()),
+        ("PCDU", "OUT3")
+    );
+    assert_eq!(h.to.to_string(), "RW_X.PWR");
+}
+
 #[test]
 fn mount_cycles_and_syntax_errors() {
     let a = "kind = \"panel\"\n\n[mount]\non = \"B\"\n";

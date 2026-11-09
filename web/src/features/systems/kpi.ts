@@ -18,9 +18,7 @@ export function kpiValue(
     );
   }
   if (!out) return null;
-  const xs = (Array.isArray(spec.path) ? spec.path : [spec.path]).flatMap((p) =>
-    pickNumbers(out, p),
-  );
+  const xs = spec.paths.flatMap((p) => pickNumbers(out, p));
   if (xs.length === 0) return null;
   return spec.pick === "max"
     ? Math.max(...xs)
@@ -31,7 +29,7 @@ export function kpiValue(
 
 /** KPI の値の次元（解析の API の dims から。最初のパスで引く） */
 export function kpiDimension(spec: KpiSpec, states: readonly AnalysisState[]): string | null {
-  const dims = states.find((s) => s.id === spec.analysis)?.result?.dims;
-  const path = Array.isArray(spec.path) ? spec.path[0] : spec.path;
-  return path ? dimOf(dims, path) : null;
+  const result = states.find((s) => s.id === spec.analysis)?.result;
+  const path = spec.paths[0];
+  return path ? dimOf(result, path) : null;
 }

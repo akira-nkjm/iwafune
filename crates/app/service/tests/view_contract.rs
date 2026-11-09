@@ -64,6 +64,60 @@ fn draft_part_view_has_paths_for_new_attributes() {
     assert!(!saved.part.paths.contains_key("tank_pressure"));
 }
 
+/// ネットとハーネスの端・戻りの区分・部品の置き場所・設定の区分は構造で返す（Web は文字列を分解しない）。
+#[test]
+fn ends_places_and_setting_groups_are_structured() {
+    use fune_model::path::SettingScope;
+    use fune_service::dto::System;
+    let ws = demo();
+    let design = query::design_view(&ws).unwrap();
+    let h = design
+        .harnesses
+        .iter()
+        .find(|h| h.id == "H_PCDU_RWX")
+        .unwrap();
+    assert_eq!((h.from.part.as_str(), h.to.part.as_str()), ("PCDU", "RW_X"));
+    // 部品のハーネスは端の部品で選ぶ
+    let view = query::part_view(&ws, "RW_X", &Default::default()).unwrap();
+    assert_eq!(view.harnesses, ["H_PCDU_RWX"]);
+    assert!(
+        query::part_view(&ws, "RW_Y", &Default::default())
+            .unwrap()
+            .harnesses
+            .is_empty()
+    );
+    // デモに戻り（GND）のネットは無い
+    assert!(design.nets.iter().all(|n| !n.is_return));
+    let cells = design.parts.iter().find(|p| p.id == "CELLS").unwrap();
+    assert_eq!(cells.dir, ["POWER", "SAP_PY"]);
+    for dir in cells.dir.iter() {
+        assert!(design.tree.iter().any(|n| &n.id == dir), "{dir}");
+    }
+    let setting = |key: &str| design.settings.iter().find(|s| s.key == key).unwrap();
+    let altitude = setting("mission.orbit.altitude");
+    assert_eq!(
+        (
+            altitude.scope,
+            altitude.group.as_str(),
+            altitude.field.as_str()
+        ),
+        (SettingScope::Mission, "mission.orbit", "altitude")
+    );
+    assert_eq!(altitude.system, None);
+    assert_eq!(
+        setting("analysis.power.dod_max").system,
+        Some(System::Power)
+    );
+    assert_eq!(setting("budget.mass.limit").system, Some(System::Structure));
+    assert_eq!(setting("budget.data.limit").system, Some(System::Cdh));
+    let policy = design
+        .settings
+        .iter()
+        .find(|s| s.key.starts_with("budget.policy."))
+        .unwrap();
+    assert_eq!((policy.scope, policy.system), (SettingScope::Budget, None));
+}
+
 /// カタログ品の値は、その品を選んで上書きしていない部品の値と同じ形・同じ表示（組み立ては service の 1 か所）。
 #[test]
 fn catalog_items_share_the_part_value_view() {

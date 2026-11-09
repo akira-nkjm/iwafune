@@ -4,6 +4,7 @@
 
 use super::part::Part;
 use crate::id::Id;
+use crate::path::{PortRef, port_text};
 use crate::value::Quantity;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -53,9 +54,13 @@ pub struct Harness {
     pub id: Id<Harness>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
-    /// 端のポート（`"PCDU.OUT3"`）
-    pub from: String,
-    pub to: String,
+    /// 端のポート（`"PCDU.OUT3"`。読み込むときに `PortRef` にする）
+    #[serde(with = "port_text")]
+    #[ts(as = "String")]
+    pub from: PortRef,
+    #[serde(with = "port_text")]
+    #[ts(as = "String")]
+    pub to: PortRef,
     #[serde(default)]
     pub nets: Vec<Id<Net>>,
     /// 線材（カタログ品）

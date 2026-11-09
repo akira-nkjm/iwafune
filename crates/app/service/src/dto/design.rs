@@ -110,6 +110,9 @@ pub struct PartRow {
     pub states: Vec<String>,
     /// 部品ファイル（ルートからの相対パス）
     pub file: String,
+    /// 部品ファイルの置き場所の `parts/` からのディレクトリの区間（例: `["POWER", "SAP_PY"]`）。
+    /// 各区間は製品ツリーのノードの ID（表示名は `DesignView.tree`）。`parts/` の直下なら空
+    pub dir: Vec<String>,
 }
 
 /// 1 部品の表示の依頼（`POST /parts/{id}`、`fune part show <ID> --ops`）。
@@ -207,6 +210,8 @@ pub struct NetView {
     pub id: String,
     /// `"power"` / `"data"` / `"rf"`
     pub kind: fune_model::design::NetKind,
+    /// 戻り（GND）のネットか（判定は `fune_model::design::Net::is_return`。系統図の GND の層）
+    pub is_return: bool,
     pub label: Option<String>,
     /// 供給元のポート（part = PCDU、port = OUT3）
     pub source: Option<fune_model::path::PortRef>,
@@ -225,8 +230,9 @@ pub struct NetView {
 pub struct HarnessView {
     pub id: String,
     pub label: Option<String>,
-    pub from: String,
-    pub to: String,
+    /// 端のポート（part = PCDU、port = OUT3）
+    pub from: fune_model::path::PortRef,
+    pub to: fune_model::path::PortRef,
     pub nets: Vec<String>,
     pub wire: Option<String>,
     pub cores: u32,
@@ -283,9 +289,13 @@ pub struct KindDefView {
 /// 設定 1 項目（`mission/`・`analysis/`・`budget/` の値）。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct SettingView {
-    /// 設定ファイルごとの表示グループのパス接頭辞。
+    /// 置き場所の種類（`mission` / `analysis` / `budget`。設定のページの区分）
+    pub scope: fune_model::path::SettingScope,
+    /// この設定を見せる系（系のページの設定のタブ）。どの系にも属さなければ null
+    pub system: Option<sat_analysis::spec::System>,
+    /// 設定ファイルごとの表示のまとまり（例: `"mission.orbit"`・`"mission.ground.<局の ID>"`。`key` = `<group>.<field>`）
     pub group: String,
-    /// ファイル内のキー（表示用）。
+    /// ファイル内のキー（表示用。例: `"altitude"`）
     pub field: String,
     /// 例: `"analysis.power.dod_max"`
     pub key: String,

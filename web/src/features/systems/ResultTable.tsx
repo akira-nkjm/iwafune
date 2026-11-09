@@ -8,20 +8,20 @@ import { Th } from "@/kit/Th";
 import { VerdictPill } from "@/kit/VerdictPill";
 import { FieldValue } from "./FieldValue";
 import { fieldLabel } from "./fields";
-import { type JsonObject, nestedTables, tableColumns } from "./output";
+import { type JsonObject, type JsonPath, jsonPointer, nestedTables, tableColumns } from "./output";
 
 const isVerdict = (v: unknown): v is Verdict => v === "ok" || v === "warning" || v === "violation";
 
 /** 解析の出力の「オブジェクトの配列」を表にする。行の中の入れ子の配列は行を開いて見る */
 export function ResultTable({
   rows,
-  pointer,
+  at,
   dims,
   depth = 0,
 }: {
   rows: JsonObject[];
-  /** この表の JSON Pointer（`/cases`）。セルの次元を dims から引くのに使う */
-  pointer: string;
+  /** この表の出力の中の位置（`["cases"]`）。セルの次元を dims から引くのに使う（pointer は `jsonPointer` が作る） */
+  at: JsonPath;
   dims: Record<string, string> | undefined;
   depth?: number;
 }) {
@@ -86,7 +86,11 @@ export function ResultTable({
                     align={typeof v === "number" ? "right" : "left"}
                     mono={typeof v !== "number"}
                   >
-                    <FieldValue field={c} value={v} dimension={dims?.[`${pointer}/${i}/${c}`]} />
+                    <FieldValue
+                      field={c}
+                      value={v}
+                      dimension={dims?.[jsonPointer([...at, i, c])]}
+                    />
                   </Td>
                 );
               })}
@@ -98,12 +102,7 @@ export function ResultTable({
                     <div className="mb-1 font-medium text-[11px] text-ink-3">
                       {fieldLabel(k)}（{sub.length}）
                     </div>
-                    <ResultTable
-                      rows={sub}
-                      pointer={`${pointer}/${i}/${k}`}
-                      dims={dims}
-                      depth={depth + 1}
-                    />
+                    <ResultTable rows={sub} at={[...at, i, k]} dims={dims} depth={depth + 1} />
                   </td>
                 </tr>
               ))}
