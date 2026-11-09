@@ -139,7 +139,70 @@ fn gui_part_text_edits_match_cli() {
     assert!(rw.contains("count") && !rw.contains("label"), "{rw}");
 }
 
+/// GUI の部品の基本の欄（カタログの候補の切り替え・候補の一覧・員数・成熟度・説明）。パスは API の
+/// `PartRow.field_paths` の値（web はつながない）、値は打った文字列のまま（候補の一覧のカンマ区切りも service が読む）。
+#[test]
+fn gui_part_field_edits_use_api_paths_and_match_cli() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_t1, cli_root) = demo_copy();
+    let (_t2, http_root) = demo_copy();
+    let view = post_json(&rt, &http_root, "/api/v1/parts/STX", json!({}));
+    let path = |field: &str| {
+        view["part"]["field_paths"][field]
+            .as_str()
+            .unwrap_or_else(|| panic!("field_paths に {field} がありません: {view}"))
+            .to_owned()
+    };
+    let edits = [
+        (
+            "candidates",
+            Some(" local/sband_tx_2m,local/uhf_trx_9k6 , "),
+        ),
+        ("catalog", Some("local/uhf_trx_9k6")),
+        ("count", Some("2")),
+        ("maturity", Some("new")),
+        ("description", Some("S 帯の送信機")),
+        ("catalog", Some("local/sband_tx_2m")),
+        ("candidates", None),
+        ("count", None),
+        ("maturity", None),
+        ("description", None),
+    ];
+    for (field, value) in edits {
+        let p = path(field);
+        let op = match value {
+            Some(v) => {
+                run_cli(&cli_root, &["set", &p, v]);
+                let body = json!({ "path": p, "value": v });
+                http_text(&rt, &http_root, "/api/v1/ops/from_text", body)
+            }
+            None => {
+                run_cli(&cli_root, &["unset", &p]);
+                let body = json!({ "path": p });
+                http_text(&rt, &http_root, "/api/v1/ops/unset_from_text", body)
+            }
+        };
+        assert_eq!(op["op"], "set_field", "{op}");
+        if field == "candidates" && value.is_some() {
+            // 一覧の読み方は service の `edit::list_from_text`（カンマで分け、空白を除き、空の語を捨てる）
+            let list = &op["field"]["value"];
+            assert_eq!(
+                list,
+                &json!(["local/sband_tx_2m", "local/uhf_trx_9k6"]),
+                "{op}"
+            );
+        }
+        assert_same_files(&cli_root, &http_root, &format!("{p} {value:?}"));
+    }
+    let stx = std::fs::read_to_string(http_root.join("parts/COM/STX.toml")).unwrap();
+    assert!(
+        !stx.contains("candidates") && !stx.contains("count"),
+        "{stx}"
+    );
+}
+
 /// GUI のパラメーター追加: 属性の定義と値を 1 回の編集で作る。値は定義を書き込まずに当てた設計（`ops`）で読む。
+/// パスは、その定義を書き込まずに当てた部品（`POST /parts/{id}` の `ops`）の `paths` から引く（web はつながない）。
 /// CLI では `fune attr add` と `fune set` の 2 回。
 #[test]
 fn gui_new_attribute_with_value_matches_cli() {
@@ -164,8 +227,15 @@ fn gui_new_attribute_with_value_matches_cli() {
     run_cli(&cli_root, &["set", "UHF_TRX.tank_pressure.tx", "120 kPa"]);
     let create = json!({ "op": "create_attribute", "def": { "id": "tank_pressure", "label": "タンク圧",
         "type": "scalar", "dimension": "Pressure", "units": ["Pa", "kPa"], "by_state": true } });
-    let body =
-        json!({ "path": "UHF_TRX.tank_pressure.tx", "value": "120 kPa", "ops": [create.clone()] });
+    let draft = post_json(
+        &rt,
+        &http_root,
+        "/api/v1/parts/UHF_TRX",
+        json!({ "ops": [create.clone()] }),
+    );
+    let path = draft["part"]["paths"]["tank_pressure"]["tx"].clone();
+    assert_eq!(path, "UHF_TRX.tank_pressure.tx", "{draft}");
+    let body = json!({ "path": path, "value": "120 kPa", "ops": [create.clone()] });
     let op = post_json(&rt, &http_root, "/api/v1/ops/from_text", body);
     assert_eq!(op["op"], "set_value", "{op}");
     post_json(

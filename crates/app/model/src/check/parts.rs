@@ -3,9 +3,8 @@
 use super::Ctx;
 use super::values::check_value_against;
 use crate::design::{EntityKey, Part, Pose};
-use crate::diagnostic::Severity;
 use crate::id::{fold, validate_node_id};
-use crate::path::{AttrPath, CATALOG_FIELDS, PART_FIELDS, PortRef};
+use crate::path::{AttrPath, PortRef};
 use crate::target::Target;
 use crate::value::units::expect_dimension;
 use std::collections::BTreeMap;
@@ -360,18 +359,6 @@ pub(super) fn check_catalog(ctx: &mut Ctx) {
                     format!("属性 `{attr}` の定義がありません"),
                 ),
             }
-        }
-    }
-    for id in design.attributes.keys() {
-        if PART_FIELDS.contains(&id.as_str()) || CATALOG_FIELDS.contains(&id.as_str()) {
-            ctx.report(
-                Severity::Error,
-                "def.reserved",
-                &EntityKey::Attribute(id.to_string()),
-                &[],
-                Some(Target::AttributeDef { id: id.to_string() }),
-                format!("属性 ID `{id}` は部品・カタログ品のフィールド名と同じです"),
-            );
         }
     }
 }

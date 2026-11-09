@@ -8,6 +8,7 @@ use super::{
 use fune_model::builtin::Labels;
 use fune_model::design::{Source, StateAssign, ViewLayout};
 use fune_model::value::Vector3;
+use fune_ops::Op;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
@@ -86,6 +87,9 @@ pub enum TreeNodeKind {
 pub struct PartRow {
     /// 属性 → 状態（空文字なら属性全体）→ パラメーターパス。
     pub paths: BTreeMap<String, BTreeMap<String, String>>,
+    /// 部品のフィールド名（`fune_model::path::PART_FIELDS`）→ パラメーターパス（`"RW_X.count"`）。
+    /// GUI の基本の欄は、打った文字列とこのパスをそのまま `POST /ops/from_text` に送る
+    pub field_paths: BTreeMap<String, String>,
     pub id: String,
     /// 製品ツリーの親（Group か組立品の Part）
     pub parent: Option<String>,
@@ -106,6 +110,15 @@ pub struct PartRow {
     pub states: Vec<String>,
     /// 部品ファイル（ルートからの相対パス）
     pub file: String,
+}
+
+/// 1 部品の表示の依頼（`POST /parts/{id}`、`fune part show <ID> --ops`）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(default)]
+pub struct PartViewRequest {
+    /// 保存していない編集。書き込まずに当てた設計で表示する（空なら保存済みの設計。`GET` と同じ）。
+    /// GUI のパラメーター追加は、同じ編集で定義を作る属性のパス（`PartRow.paths`）をここから引く
+    pub ops: Vec<Op>,
 }
 
 /// 1 部品の全情報（`GET /parts/{id}`）。全系の属性を 1 か所に。

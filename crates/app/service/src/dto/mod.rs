@@ -35,6 +35,7 @@ pub use common::{
     SourceExcerpt,
 };
 pub use data::{DataItem, DataStatus};
+pub use design::PartViewRequest;
 pub use design::{
     AttrSection, AttributeDefView, CaseView, DefsView, DesignCounts, DesignView, HarnessView,
     KindDefView, ModeHeader, ModeRow, ModeTable, MountView, NetView, PartRow, PartView, PartsQuery,

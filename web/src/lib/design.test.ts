@@ -4,9 +4,10 @@ import {
   attrLabel,
   defName,
   defWithId,
+  fieldPath,
+  findParamPath,
   idWithName,
   kindLabel,
-  newAttrPath,
   nodeName,
   paramPath,
 } from "./design";
@@ -60,15 +61,25 @@ describe("属性・種別の表示名", () => {
 });
 
 describe("パラメーターのパス", () => {
-  const part = { id: "RW_X", paths: { power: { "": "RW_X.power", on: "RW_X.power.on" } } };
+  const part = {
+    id: "RW_X",
+    paths: { power: { "": "RW_X.power", on: "RW_X.power.on" } },
+    field_paths: { count: "RW_X.count" },
+  };
 
   it("定義のある属性は API の paths を引く", () => {
     expect(paramPath(part, "power", "on")).toBe("RW_X.power.on");
     expect(paramPath(part, "power")).toBe("RW_X.power");
+    expect(findParamPath(part, "power", "on")).toBe("RW_X.power.on");
   });
 
-  it("同じ編集で作る属性は部品・属性・状態をつなぐ", () => {
-    expect(newAttrPath(part, "tank_pressure", null)).toBe("RW_X.tank_pressure");
-    expect(newAttrPath(part, "tank_pressure", "on")).toBe("RW_X.tank_pressure.on");
+  it("API の paths に無い属性・状態はつながない（null）", () => {
+    expect(findParamPath(part, "tank_pressure")).toBeNull();
+    expect(findParamPath(part, "power", "peak")).toBeNull();
+  });
+
+  it("部品のフィールドは API の field_paths を引く", () => {
+    expect(fieldPath(part, "count")).toBe("RW_X.count");
+    expect(fieldPath(part, "maturity")).toBeNull();
   });
 });

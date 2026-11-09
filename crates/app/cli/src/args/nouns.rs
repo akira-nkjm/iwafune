@@ -38,7 +38,12 @@ pub enum PartCmd {
         kind: Option<String>,
     },
     /// 1 部品の全情報
-    Show { id: String },
+    Show {
+        id: String,
+        /// 保存していない編集（Op の配列の JSON ファイル、`-` で標準入力）を書き込まずに当てて表示する
+        #[arg(long)]
+        ops: Option<std::path::PathBuf>,
+    },
     /// 部品を追加する（`--catalog` か `--kind`）
     Add {
         id: String,

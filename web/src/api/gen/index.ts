@@ -141,6 +141,7 @@ export type * from "./ParsedQuantity";
 export type * from "./PartField";
 export type * from "./PartRow";
 export type * from "./PartView";
+export type * from "./PartViewRequest";
 export type * from "./PartsQuery";
 export type * from "./PlaceBodyRequest";
 export type * from "./PortRef";

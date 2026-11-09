@@ -2,7 +2,7 @@
 //!
 //! | モジュール | パス |
 //! |---|---|
-//! | `design` | `/project` `/design` `/parts` `/parts/{id}` `/values/{path}` `/defs` `/diagnostics` |
+//! | `design` | `/project` `/design` `/parts` `/parts/{id}`（POST は下書きを当てた部品） `/values/{path}` `/defs` `/diagnostics` |
 //! | `edit` | `/ops` `/ops/from_text` `/ops/unset_from_text` `/parts/{id}/place_body` `/fmt` |
 //! | `units` | `/units` `/units/parse` `/units/format` |
 //! | `analyses` | `/analyses` `/analyses/{id}` `/budgets/{kind}` |
@@ -45,7 +45,7 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
         .route("/project", get(design::project))
         .route("/design", get(design::design))
         .route("/parts", get(design::parts))
-        .route("/parts/{id}", get(design::part))
+        .route("/parts/{id}", get(design::part).post(design::part_with))
         .route("/parts/{id}/place_body", post(edit::place_body))
         .route("/values/{path}", get(design::value))
         .route("/defs", get(design::defs))

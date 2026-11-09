@@ -44,6 +44,7 @@ function part(
   return {
     id,
     paths: {},
+    field_paths: {},
     parent: group,
     subsystem: group,
     kind,

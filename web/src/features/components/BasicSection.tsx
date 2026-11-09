@@ -1,22 +1,44 @@
 import { useEnumOptions } from "@/api/labels";
-import { useApplyOps } from "@/api/ops";
-import type { DesignView, Maturity, PartField, PartRow } from "@/api/types";
+import { useApplyOps, useSetText, useUnsetText } from "@/api/ops";
+import type { DesignView, PartRow } from "@/api/types";
 import { useT } from "@/i18n";
 import { NativeSelect } from "@/kit/NativeSelect";
 import { PropertyList } from "@/kit/PropertyList";
 import { PropertyRow } from "@/kit/PropertyRow";
 import { SubsystemDot } from "@/kit/SubsystemDot";
-import { idWithName } from "@/lib/design";
+import { fieldPath, idWithName } from "@/lib/design";
+import { useFieldError } from "@/lib/field-errors";
 
-/** 基本: 種別・カタログ（トレード候補の切り替え）・員数・成熟度・所属（グループ） */
+const INPUT = "h-7 rounded-[8px] border border-line-strong px-2";
+
+/** 検証で弾かれた理由（その欄のパスに付いたもの）を欄の下に出す */
+function FieldError({ path }: { path: string | null }) {
+  const error = useFieldError(path);
+  return error ? <p className="mt-0.5 text-[11px] text-neg-ink">{error}</p> : null;
+}
+
+/**
+ * 基本: 種別・カタログ（トレード候補の切り替え）・トレード候補の一覧・員数・成熟度・所属（グループ）。
+ * フィールドの欄は、打った（選んだ）文字列と API のパス（`PartRow.field_paths`）をそのまま `fune set`・`fune unset` と
+ * 同じ service の関数に渡す（空なら消す）。員数・成熟度・一覧の読み方と検査は service で、Web は `set_field` の Op を組み立てない
+ */
 export function BasicSection({ design, part }: { design: DesignView; part: PartRow }) {
   const apply = useApplyOps();
+  const setText = useSetText();
+  const unsetText = useUnsetText();
   const t = useT().components.basic;
   const maturity = useEnumOptions("maturity");
-  const field = (f: PartField, summary: string) =>
-    apply.mutate({ ops: [{ op: "set_field", part: part.id, field: f }], summary });
+  const path = (field: string) => fieldPath(part, field);
+  const save = (field: string, value: string, summary: string) => {
+    const p = path(field);
+    if (!p) return;
+    if (value) setText.mutate({ path: p, value, summary });
+    else unsetText.mutate({ path: p, summary });
+  };
   const candidates =
     part.candidates.length > 0 ? part.candidates : part.catalog ? [part.catalog] : [];
+  // 一覧の書き方は `fune set <部品>.candidates "a, b"` と同じカンマ区切り（読むのは service の edit::list_from_text）
+  const candidateText = part.candidates.join(", ");
   return (
     <PropertyList>
       <PropertyRow label={t.kind}>
@@ -34,16 +56,28 @@ export function BasicSection({ design, part }: { design: DesignView; part: PartR
             aria-label={t.candidate}
             value={part.catalog ?? ""}
             onChange={(e) =>
-              field(
-                { field: "catalog", value: e.target.value },
-                t.candidateSummary(part.id, e.target.value),
-              )
+              save("catalog", e.target.value, t.candidateSummary(part.id, e.target.value))
             }
             options={candidates.map((c) => ({ value: c, label: c }))}
           />
         ) : (
           <span className="font-mono">{part.catalog ?? t.kindOnly}</span>
         )}
+        <FieldError path={path("catalog")} />
+      </PropertyRow>
+      <PropertyRow label={t.candidates} title={t.candidatesHint}>
+        <input
+          aria-label={t.candidates}
+          title={t.candidatesHint}
+          defaultValue={candidateText}
+          key={candidateText}
+          onBlur={(e) => {
+            const v = e.target.value.trim();
+            if (v !== candidateText) save("candidates", v, t.candidatesSummary(part.id));
+          }}
+          className={`${INPUT} w-full min-w-0 font-mono text-[12px]`}
+        />
+        <FieldError path={path("candidates")} />
       </PropertyRow>
       <PropertyRow label={t.count}>
         <input
@@ -54,12 +88,14 @@ export function BasicSection({ design, part }: { design: DesignView; part: PartR
           defaultValue={part.count}
           key={part.count}
           onBlur={(e) => {
-            const n = Number.parseInt(e.target.value, 10);
-            if (Number.isInteger(n) && n >= 1 && n !== part.count)
-              field({ field: "count", value: n }, t.countSummary(part.id, n));
+            const v = e.target.value.trim();
+            // 空にしただけなら元に戻す（員数を 1 に戻すときは 1 と打つ）
+            if (!v) e.target.value = String(part.count);
+            else if (v !== String(part.count)) save("count", v, t.countSummary(part.id, v));
           }}
-          className="num h-7 w-20 rounded-[8px] border border-line-strong px-2 text-right"
+          className={`${INPUT} num w-20 text-right`}
         />
+        <FieldError path={path("count")} />
       </PropertyRow>
       <PropertyRow label={t.maturity}>
         <NativeSelect
@@ -68,13 +104,11 @@ export function BasicSection({ design, part }: { design: DesignView; part: PartR
           value={part.maturity ?? ""}
           placeholder={t.maturityUnset}
           onChange={(e) =>
-            field(
-              { field: "maturity", value: (e.target.value || null) as Maturity | null },
-              t.maturitySummary(part.id, e.target.value),
-            )
+            save("maturity", e.target.value, t.maturitySummary(part.id, e.target.value))
           }
           options={maturity}
         />
+        <FieldError path={path("maturity")} />
       </PropertyRow>
       <PropertyRow label={t.parent}>
         <span className="flex items-center gap-2">

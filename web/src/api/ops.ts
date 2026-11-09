@@ -151,7 +151,7 @@ export function useApplyOps() {
   );
 }
 
-/** 人が打った文字列で 1 つの値を書き換える（部品の値・設定の表・カタログ品の値とフィールドなど） */
+/** 人が打った文字列で 1 つの値を書き換える（部品の値とフィールド・設定の表・カタログ品の値とフィールドなど） */
 export interface SetTextEdit {
   /** カタログ品の ID。あれば path は品のパラメーターパス（API の `paths` の値）かフィールド名（`label` など） */
   item?: string | null;

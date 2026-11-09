@@ -1,9 +1,10 @@
-//! プロジェクト独自の属性定義・種別定義の検査（次元と許可単位の一致、参照、継承の循環）。
+//! プロジェクト独自の属性定義・種別定義の検査（ID の規則とフィールド名との重なり、次元と許可単位の一致、参照、継承の循環）。
 
 use super::Ctx;
 use crate::builtin;
 use crate::design::{AttributeDef, EntityKey, KindDef};
-use crate::id::validate_local_name;
+use crate::id::{fold, validate_local_name};
+use crate::path::{CATALOG_FIELDS, PART_FIELDS};
 use crate::target::Target;
 use crate::value::ValueType;
 use crate::value::units::{expect_dimension, parse_dimension_name, same_dimension, unit_info};
@@ -13,6 +14,9 @@ pub fn attribute_def_problems(def: &AttributeDef) -> Vec<(&'static str, String)>
     let mut out = Vec::new();
     if let Err(e) = validate_local_name(def.id.as_str()) {
         out.push(("id.invalid", e.to_string()));
+    }
+    if let Some(message) = field_name_clash(def.id.as_str()) {
+        out.push(("def.reserved", message));
     }
     let needs_unit = matches!(
         def.value_type,
@@ -60,6 +64,24 @@ pub fn attribute_def_problems(def: &AttributeDef) -> Vec<(&'static str, String)>
         }
     }
     out
+}
+
+/// 属性 ID が部品・カタログ品のフィールド名（[`PART_FIELDS`]・[`CATALOG_FIELDS`]）と重なるなら、その問題の本文。
+/// パスの記法（`RW_X.label`・`fune catalog set <品> label`）では属性とフィールドを区別できないため。ID の一意性と同じく
+/// 大文字小文字は無視する。
+fn field_name_clash(id: &str) -> Option<String> {
+    let folded = fold(id);
+    let owners: Vec<&str> = [(PART_FIELDS, "部品"), (CATALOG_FIELDS, "カタログ品")]
+        .into_iter()
+        .filter(|(fields, _)| fields.iter().any(|f| fold(f) == folded))
+        .map(|(_, owner)| owner)
+        .collect();
+    (!owners.is_empty()).then(|| {
+        format!(
+            "属性 ID `{id}` は{}のフィールド名と同じです（パスの記法で属性とフィールドを区別できません）",
+            owners.join("・")
+        )
+    })
 }
 
 /// プロジェクト独自の定義。
@@ -140,6 +162,55 @@ fn check_kind(ctx: &mut Ctx, kind: &KindDef) {
                 path.clone(),
                 format!("属性 `{attr}` の定義がありません"),
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::design::Design;
+    use crate::diagnostic::Severity;
+    use crate::id::Id;
+
+    /// 組み込みの `heat_fraction`（無次元のスカラー）を別の ID で定義し直したもの。
+    fn def(id: &str) -> AttributeDef {
+        let mut def = builtin::attributes()["heat_fraction"].clone();
+        def.id = Id::new(id);
+        def
+    }
+
+    /// 部品・カタログ品のフィールド名と同じ属性 ID は error（対象は属性定義）。大文字小文字を変えても同じ。
+    #[test]
+    fn attribute_ids_must_not_be_field_names() {
+        let mut design = Design::default();
+        for id in ["label", "count", "part_number", "Maturity", "tank_pressure"] {
+            design.attributes.insert(Id::new(id), def(id));
+        }
+        let reserved: Vec<_> = crate::check::check(&design)
+            .into_iter()
+            .filter(|d| d.code == "def.reserved")
+            .collect();
+        let ids: Vec<String> = reserved
+            .iter()
+            .map(|d| match &d.target {
+                Some(Target::AttributeDef { id }) => id.clone(),
+                other => panic!("対象が属性定義ではありません: {other:?}"),
+            })
+            .collect();
+        assert_eq!(ids, ["Maturity", "count", "label", "part_number"]);
+        assert!(reserved.iter().all(|d| d.severity == Severity::Error));
+        let message = |i: usize| reserved[i].message.as_str();
+        assert!(message(0).contains("部品・カタログ品の"), "{}", message(0));
+        assert!(message(1).contains("は部品の"), "{}", message(1));
+        assert!(message(3).contains("はカタログ品の"), "{}", message(3));
+    }
+
+    /// 組み込みの属性もフィールド名と重ならない（検査はプロジェクト独自の定義だけを見るので、ここで確かめる）。
+    #[test]
+    fn builtin_attributes_are_not_field_names() {
+        for id in builtin::attributes().keys() {
+            assert_eq!(field_name_clash(id.as_str()), None, "{id}");
         }
     }
 }

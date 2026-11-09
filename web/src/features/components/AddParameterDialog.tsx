@@ -1,12 +1,13 @@
 import { useCallback, useState } from "react";
 import { useTextOp } from "@/api/ops";
+import { useDraftPart } from "@/api/queries";
 import type { DesignView, Op, PartRow, SetText } from "@/api/types";
 import { useT } from "@/i18n";
 import { Field } from "@/kit/Field";
 import { NativeSelect } from "@/kit/NativeSelect";
 import { Segmented } from "@/kit/Segmented";
 import { cn } from "@/lib/cn";
-import { attrDef, newAttrPath, paramPath } from "@/lib/design";
+import { attrDef, findParamPath, paramPath } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
 import { attrEditMode } from "@/quantity/attr-mode";
@@ -22,7 +23,8 @@ const EMPTY: NewAttribute = { id: "", label: "", dimension: "", units: [], bySta
 /**
  * 「パラメーター追加」: 標準（組み込み＋プロジェクト独自）の属性から選ぶか、新しく定義する（次元 → 許可単位）。
  * 値は /units/parse で 1 打鍵ごとに検査し、打った文字列をパラメーターパスと一緒に `POST /ops/from_text` で Op にする
- * （`fune set` と同じ service。新しく定義する属性は、その定義を当てた設計で読む）。ID などの規則は dry_run で検査する。
+ * （`fune set` と同じ service。新しく定義する属性は、その定義を当てた設計で読み、パスもその設計の部品から引く）。
+ * ID などの規則（フィールド名と重ならないことも）は service の検査に任せる。
  */
 export function AddParameterDialog({
   design,
@@ -53,11 +55,13 @@ export function AddParameterDialog({
   const byState = mode === "standard" ? (def?.by_state ?? false) : fresh.byState;
   const editable = mode === "new" || !def || attrEditMode(def) !== "display";
   const cell = byState ? state || null : null;
-  // 定義のある属性は API の paths、同じ編集で定義を作る属性（create は新しく定義するときだけ）はつないだパス
+  // パスは API が返したものだけを使う: 定義のある属性は部品の paths、同じ編集で定義を作る属性（create は新しく
+  // 定義するときだけ）は、その定義を書き込まずに当てた部品（POST /parts/{id}）の paths
+  const draft = useDraftPart(part.id, open && create ? [create] : null);
   const path = create
-    ? newAttrPath(part, fresh.id, cell)
+    ? draft.part && findParamPath(draft.part, fresh.id, cell)
     : mode === "standard" && def
-      ? paramPath(part, picked, cell)
+      ? findParamPath(part, picked, cell)
       : null;
   const text: SetText | null =
     path && value && editable
@@ -106,7 +110,7 @@ export function AddParameterDialog({
         <NewAttributeFields
           value={fresh}
           onChange={setFresh}
-          idError={check.error ?? textOp.error}
+          idError={check.error ?? textOp.error ?? draft.error}
         />
       )}
       {editable ? (
