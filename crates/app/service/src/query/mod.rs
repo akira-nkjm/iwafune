@@ -1,4 +1,5 @@
-//! 読み取りの関数（設計全体・部品・値・定義・診断）。どれもディスクから読み直したスナップショットを見る。
+//! 読み取りの関数（設計全体・部品・値・定義・診断）。どれもディスクから読み直したスナップショットを見る
+//! （`part_view` は、依頼の `ops` があれば書き込まずに当てたスナップショット。`preview::snapshot_with`）。
 //!
 //! | モジュール | 中身 |
 //! |---|---|
@@ -16,7 +17,7 @@ pub(crate) mod views;
 
 use crate::dto::{
     CheckReport, DefsView, DesignCounts, DesignView, DiagnosticCounts, PartRow, PartView,
-    PartsQuery, ProjectInfo, ValueAnswer, ValueQuery,
+    PartViewRequest, PartsQuery, ProjectInfo, ValueAnswer, ValueQuery,
 };
 use crate::error::Result;
 use crate::workspace::{Snapshot, Workspace};
@@ -82,9 +83,10 @@ pub fn list_parts(ws: &Workspace, q: &PartsQuery) -> Result<Vec<PartRow>> {
     Ok(parts::list(&s.design, &s.resolved, q))
 }
 
-/// 1 部品の全情報（`GET /parts/{id}`）。
-pub fn part_view(ws: &Workspace, id: &str) -> Result<PartView> {
-    let s = ws.snapshot()?;
+/// 1 部品の全情報（`GET /parts/{id}`・`fune part show`）。`req.ops` があれば、それを書き込まずに当てた設計で表示する
+/// （`POST /parts/{id}`・`fune part show --ops`。同じ編集で定義を作る属性のパスも `paths` に入る）。
+pub fn part_view(ws: &Workspace, id: &str, req: &PartViewRequest) -> Result<PartView> {
+    let s = crate::preview::snapshot_with(ws, &req.ops)?;
     parts::view(&s.design, &s.resolved, &s.diagnostics, id)
 }
 

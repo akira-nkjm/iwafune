@@ -63,6 +63,23 @@ fn create_attribute_checks_dimension_and_units() {
     ));
 }
 
+/// 部品・カタログ品のフィールド名と同じ ID の属性は作れない（規則は検査の `attribute_def_problems` の 1 か所）。
+#[test]
+fn create_attribute_rejects_field_names() {
+    let snap = snapshot();
+    for id in ["count", "label", "part_number", "Candidates"] {
+        let op = Op::CreateAttribute {
+            def: attr_def(id, "MagneticDipoleMoment", &["A*m^2"]),
+        };
+        match plan(&snap, &[op]) {
+            Err(OpError::Invalid { message }) => {
+                assert!(message.contains("フィールド名"), "{id}: {message}");
+            }
+            other => panic!("{id} の属性が作れてしまう: {other:?}"),
+        }
+    }
+}
+
 #[test]
 fn create_kind_and_use_it() {
     let snap = snapshot();

@@ -33,6 +33,7 @@ pub(crate) fn part_row(design: &Design, resolved: &Resolved, rp: &ResolvedPart) 
     });
     PartRow {
         paths: crate::query::views::parameter_paths(design, &rp.id, &rp.states),
+        field_paths: crate::query::views::field_paths(&rp.id),
         id: rp.id.clone(),
         parent: rp.parent.as_ref().map(|n| n.id().to_owned()),
         subsystem: rp.subsystem.clone().or_else(|| {

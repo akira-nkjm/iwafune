@@ -115,7 +115,13 @@ fn field_value(field: &str, text: Option<&str>) -> Result<PartField> {
         "description" => PartField::Description(owned),
         "catalog" => PartField::Catalog(owned),
         "kind" => PartField::Kind(owned),
-        "count" => PartField::Count(text.unwrap_or("1").parse().map_err(invalid)?),
+        "count" => PartField::Count(match text {
+            Some(t) => t
+                .trim()
+                .parse()
+                .map_err(|_| invalid(format!("員数は整数で書きます: {t}")))?,
+            None => 1,
+        }),
         "maturity" => PartField::Maturity(text.map(maturity).transpose()?),
         "candidates" => PartField::Candidates(text.map(list_from_text).unwrap_or_default()),
         other => return Err(invalid(format!("部品のフィールドではありません: {other}"))),
@@ -196,4 +202,30 @@ pub fn list_from_text(text: &str) -> Vec<String> {
         .map(|s| s.trim().to_owned())
         .filter(|s| !s.is_empty())
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 部品のフィールドの打った文字列（GUI の基本の欄もこれを通る）。員数は整数、一覧はカンマ区切り。
+    #[test]
+    fn part_fields_read_typed_text() {
+        assert_eq!(
+            field_value("count", Some(" 3 ")).unwrap(),
+            PartField::Count(3)
+        );
+        assert_eq!(field_value("count", None).unwrap(), PartField::Count(1));
+        let e = field_value("count", Some("1.5")).unwrap_err().to_string();
+        assert!(e.contains("員数は整数"), "{e}");
+        assert_eq!(
+            field_value("candidates", Some(" local/a, local/b ,")).unwrap(),
+            PartField::Candidates(vec!["local/a".into(), "local/b".into()])
+        );
+        assert_eq!(
+            field_value("candidates", None).unwrap(),
+            PartField::Candidates(vec![])
+        );
+        assert!(field_value("maturity", Some("brand_new")).is_err());
+    }
 }

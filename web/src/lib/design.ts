@@ -16,21 +16,30 @@ export function attrOf(part: PartRow, id: string): ValueView | undefined {
   return part.values[id];
 }
 
-/** パラメーターのパス（`RW_X.mass`、`RW_X.power.on`）。記法の正本は fune_model::path */
+/**
+ * パラメーターのパス（`RW_X.mass`、`RW_X.power.on`）。API の `paths` に無ければ null。記法の正本は fune_model::path で、
+ * Web はつながない（同じ編集で定義を作る属性は、その定義を当てた部品 `POST /parts/{id}` の `paths` から引く）
+ */
+export function findParamPath(
+  owner: Pick<PartRow, "paths">,
+  attr: string,
+  state?: string | null,
+): string | null {
+  return owner.paths[attr]?.[state ?? ""] ?? null;
+}
+
+/** パラメーターのパス（`findParamPath`。API の `paths` に無ければ属性 ID を見出しに出す） */
 export function paramPath(
   part: Pick<PartRow, "paths">,
   attr: string,
   state?: string | null,
 ): string {
-  return part.paths[attr]?.[state ?? ""] ?? attr;
+  return findParamPath(part, attr, state) ?? attr;
 }
 
-/**
- * 同じ編集で定義を作る属性（まだ API の `paths` に無い属性）のパス。定義のある属性は `paramPath` を使う。
- * 記法は fune_model::path（`<部品>.<属性>[.<状態>]`）で、サーバーが読み直して検査する（`POST /ops/from_text`）
- */
-export function newAttrPath(part: Pick<PartRow, "id">, attr: string, state: string | null): string {
-  return [part.id, attr, ...(state ? [state] : [])].join(".");
+/** 部品のフィールドのパス（`RW_X.count`）。API の `field_paths`（名前は fune_model::path::PART_FIELDS）。無ければ null */
+export function fieldPath(part: Pick<PartRow, "field_paths">, field: string): string | null {
+  return part.field_paths[field] ?? null;
 }
 
 /** 日英の表示名を持つ定義（属性・種別） */

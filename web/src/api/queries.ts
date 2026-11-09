@@ -1,4 +1,5 @@
 import { keepPreviousData, QueryClient, queryOptions, useQuery } from "@tanstack/react-query";
+import { useDebounced } from "@/lib/use-debounced";
 import { api, seg } from "./client";
 import { keys } from "./keys";
 import type {
@@ -11,7 +12,9 @@ import type {
   DefsView,
   DesignView,
   Op,
+  PartRow,
   PartView,
+  PartViewRequest,
   ProjectInfo,
   RunAnalysisRequest,
   UnitsCatalog,
@@ -28,8 +31,18 @@ export const q = {
   project: () =>
     queryOptions({ queryKey: keys.project, queryFn: () => api<ProjectInfo>("/project") }),
   design: () => queryOptions({ queryKey: keys.design, queryFn: () => api<DesignView>("/design") }),
-  part: (id: string) =>
-    queryOptions({ queryKey: keys.part(id), queryFn: () => api<PartView>(`/parts/${seg(id)}`) }),
+  /** 1 部品。`ops` を渡すと、保存していない編集を書き込まずに当てた設計の部品（`POST /parts/{id}`） */
+  part: (id: string, ops: readonly Op[] = []) => {
+    const json = ops.length > 0 ? JSON.stringify(ops) : "";
+    return queryOptions({
+      queryKey: keys.part(id, json),
+      queryFn: () => {
+        if (!json) return api<PartView>(`/parts/${seg(id)}`);
+        const body: PartViewRequest = { ops: [...ops] };
+        return api<PartView>(`/parts/${seg(id)}`, { method: "POST", body });
+      },
+    });
+  },
   defs: () => queryOptions({ queryKey: keys.defs, queryFn: () => api<DefsView>("/defs") }),
   diagnostics: () =>
     queryOptions({
@@ -85,6 +98,30 @@ export const q = {
 /** 画面全体で使う設計データ（ほとんどのページはこれ 1 つから表を作る） */
 export function useDesign() {
   return useQuery(q.design());
+}
+
+/**
+ * 保存していない編集（ops）を書き込まずに当てた部品（`POST /parts/{id}`）。ops が null か空なら問い合わせない。
+ * 打つ間は 250 ms 待ってから問い合わせる。同じ編集で定義を作る属性のパスを、その部品の `paths` から引くのに使う
+ * （Web はパスをつながない）。
+ */
+export function useDraftPart(
+  id: string,
+  ops: readonly Op[] | null,
+): { part: PartRow | null; error: string | null } {
+  // 文字列で待つ（毎回作り直す配列を待つと、描き直すたびに待ち直す）
+  const now = ops && ops.length > 0 ? JSON.stringify(ops) : "";
+  const json = useDebounced(now, 250);
+  const query = useQuery({
+    ...q.part(id, json ? (JSON.parse(json) as Op[]) : []),
+    enabled: json.length > 0,
+    retry: false,
+  });
+  const settled = json === now && now.length > 0;
+  return {
+    part: settled ? (query.data?.part ?? null) : null,
+    error: settled ? (query.error?.message ?? null) : null,
+  };
 }
 
 /** 解析を計算し直す（設計の編集の後は api/ops.ts が自動で無効化する。これは「再計算」ボタン用） */

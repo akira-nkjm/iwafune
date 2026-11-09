@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use ts_rs::TS;
 
-/// 部品のフィールド名（属性 ID と重ねてはいけない）。
+/// 部品のフィールド名（属性 ID と重ねてはいけない。検査の `def.reserved` が拒む）。
 pub const PART_FIELDS: &[&str] = &[
     "label",
     "description",
@@ -28,7 +28,7 @@ pub const PART_FIELDS: &[&str] = &[
     "candidates",
 ];
 
-/// カタログ品のフィールド名（`fune catalog set <品> <フィールド>`。属性 ID と重ねてはいけない）。
+/// カタログ品のフィールド名（`fune catalog set <品> <フィールド>`。属性 ID と重ねてはいけない。検査の `def.reserved` が拒む）。
 pub const CATALOG_FIELDS: &[&str] = &[
     "kind",
     "label",

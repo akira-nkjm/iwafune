@@ -26,8 +26,42 @@ fn definitions_references_and_paths_come_from_model() {
             .any(|m| m.part == "RW_X" && m.port == "PWR")
     );
     assert_eq!(bus.kind.to_string(), "power");
-    let view = query::part_view(&ws, "RW_X").unwrap();
+    let view = query::part_view(&ws, "RW_X", &Default::default()).unwrap();
     assert_eq!(view.part.paths, wheel.paths);
+    // 部品のフィールドのパス（名前は fune_model::path::PART_FIELDS、記法は ParamPath::Field）
+    let mut fields = fune_model::path::PART_FIELDS.to_vec();
+    fields.sort_unstable();
+    let names: Vec<&str> = wheel.field_paths.keys().map(String::as_str).collect();
+    assert_eq!(names, fields);
+    assert_eq!(wheel.field_paths["count"], "RW_X.count");
+    assert_eq!(wheel.field_paths["candidates"], "RW_X.candidates");
+}
+
+/// 下書き（書き込まない `ops`）を当てた部品の表示: 同じ編集で定義を作る属性のパスも、定義のある属性と同じ記法で入る。
+#[test]
+fn draft_part_view_has_paths_for_new_attributes() {
+    let ws = demo();
+    let def = fune_model::builtin::attributes()["heat_fraction"].clone();
+    let create = fune_service::dto::Op::CreateAttribute {
+        def: fune_model::design::AttributeDef {
+            id: fune_model::Id::new("tank_pressure"),
+            by_state: true,
+            ..def
+        },
+    };
+    let req = fune_service::dto::PartViewRequest { ops: vec![create] };
+    let draft = query::part_view(&ws, "UHF_TRX", &req).unwrap();
+    assert_eq!(
+        draft.part.paths["tank_pressure"]["tx"],
+        "UHF_TRX.tank_pressure.tx"
+    );
+    assert_eq!(
+        draft.part.paths["tank_pressure"][""],
+        "UHF_TRX.tank_pressure"
+    );
+    // 書き込んでいない
+    let saved = query::part_view(&ws, "UHF_TRX", &Default::default()).unwrap();
+    assert!(!saved.part.paths.contains_key("tank_pressure"));
 }
 
 /// カタログ品の値は、その品を選んで上書きしていない部品の値と同じ形・同じ表示（組み立ては service の 1 か所）。

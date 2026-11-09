@@ -147,11 +147,13 @@ CLI と HTTP は `fune-service` の同じ関数を呼ぶ。
 
 - `fune set RW_X.mass "620 g"` の `"620 g"` を量・整数・ベクトル・状態ごとの値のどれとして読むかは、属性定義を見て service が決める。
   GUI も打った文字列を `/ops/from_text` で Op にしてから `/ops` で送るので、解釈が 2 つに分かれない（部品・カタログ品の値の欄、
-  設定の表、パラメーター追加のダイアログのどれも）。同じ編集で定義を作る属性の値は、依頼の `ops`（下書き）を当てた設計で読む。
+  設定の表、部品の基本の欄、パラメーター追加のダイアログのどれも）。同じ編集で定義を作る属性の値は、依頼の `ops`（下書き）を当てた設計で読む。
+  GUI が送るパスは API が返したもの（`PartRow.paths`・`field_paths`、同じ編集で定義を作る属性は `POST /parts/{id}` の `ops` を当てた部品の `paths`）で、
+  Web は ID やパスの文字列をつながない。
 - 適用の結果には、同じ編集をする CLI のコマンド（`fune_ops::to_cli`）が入る。GUI の「CLI としてコピー」はこれを使う。
 - `fune apply` は GUI が送るのと同じ Op の JSON を受ける。スクリプトからの一括編集にも使える。
-- 書き込まずに編集を当ててみることもできる（`fune_service::preview`）。`POST /analyses/{id}` と `POST /budgets/{kind}` の `ops`、
-  `fune analyze --ops`・`fune budget --ops` が、保存前の下書き（モード表の編集など）のまま解析とバジェットを計算する。
+- 書き込まずに編集を当ててみることもできる（`fune_service::preview`）。`POST /analyses/{id}`・`POST /budgets/{kind}`・`POST /parts/{id}` の `ops`、
+  `fune analyze --ops`・`fune budget --ops`・`fune part show --ops` が、保存前の下書き（モード表の編集など）のまま解析・バジェット・部品の表示を作る。
 - 例外は `fune init` だけ。サーバーはプロジェクトの中でしか動かないので、HTTP には無い。
 
 テストで次の 2 つを確かめる。
@@ -194,6 +196,7 @@ HTTP の失敗は `{ "error": { "code", "message" }, "diagnostics": [...] }` で
 |---|---|
 | `GET /project`・`/design`・`/parts`・`/parts/{id}`・`/values/{path}`・`/defs`・`/diagnostics` | 読み取り（概要と revision、設計全体、部品、1 つの値、定義、診断） |
 | `POST /ops`・`/ops/from_text`・`/ops/unset_from_text`・`/fmt` | 編集（§4.3） |
+| `POST /parts/{id}` | 保存していない編集（`ops`）を書き込まずに当てた部品（`GET` と同じ形。`fune part show --ops`） |
 | `POST /parts/{id}/place_body` | 機体座標での配置を、取付先に対する相対の `Place` に直して適用する |
 | `GET /units`・`POST /units/parse`・`/units/format` | 単位の一覧、入力の解析（次元と SI 換算）、SI 値の表示文字列 |
 | `GET /analyses`・`POST /analyses/{id}`・`GET`/`POST /budgets/{kind}` | 解析の一覧と実行、バジェット（§6） |

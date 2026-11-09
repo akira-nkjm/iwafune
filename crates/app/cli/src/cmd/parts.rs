@@ -1,10 +1,10 @@
-//! 部品を読むコマンド: `fune part ls`・`fune part show`（と、値の出所の表示）。
+//! 部品を読むコマンド: `fune part ls`・`fune part show`（`--ops` で下書きを当てる。と、値の出所の表示）。
 
 use super::common::{Handled, provenance};
 use crate::args::PartCmd;
 use crate::diag;
 use crate::output::{C, Out};
-use fune_service::dto::{Origin, PartsQuery, ValueData, ValueView};
+use fune_service::dto::{Origin, PartViewRequest, PartsQuery, ValueData, ValueView};
 use fune_service::{Workspace, query};
 
 /// `fune part ls|show`
@@ -17,7 +17,15 @@ pub fn part(ws: &Workspace, cmd: &PartCmd, out: &Out) -> Handled {
             };
             part_ls(ws, &q, out).map(Some)
         }
-        PartCmd::Show { id } => part_show(ws, id, out).map(Some),
+        PartCmd::Show { id, ops } => {
+            let req = PartViewRequest {
+                ops: match ops {
+                    Some(path) => super::ops::ops_from_file(path)?,
+                    None => Vec::new(),
+                },
+            };
+            part_show(ws, id, &req, out).map(Some)
+        }
         _ => Ok(None),
     }
 }
@@ -86,8 +94,8 @@ fn compact_cell(v: Option<&ValueView>) -> C {
     }
 }
 
-fn part_show(ws: &Workspace, id: &str, out: &Out) -> anyhow::Result<u8> {
-    let p = query::part_view(ws, id)?;
+fn part_show(ws: &Workspace, id: &str, req: &PartViewRequest, out: &Out) -> anyhow::Result<u8> {
+    let p = query::part_view(ws, id, req)?;
     if out.json {
         out.json(&p)?;
         return Ok(0);

@@ -4,7 +4,9 @@
 export const keys = {
   project: ["project"] as const,
   design: ["design"] as const,
-  part: (id: string) => ["design", "part", id] as const,
+  /** 1 部品。`opsJson` は保存していない編集（下書き）を当てたもの（空なら保存済みの設計） */
+  part: (id: string, opsJson = "") =>
+    opsJson ? (["design", "part", id, opsJson] as const) : (["design", "part", id] as const),
   defs: ["design", "defs"] as const,
   diagnostics: ["diagnostics"] as const,
   units: (dimension?: string | null) => ["units", dimension ?? null] as const,

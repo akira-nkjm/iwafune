@@ -10,6 +10,7 @@ describe("query keys", () => {
       keys.project,
       keys.design,
       keys.part("RW_X"),
+      keys.part("RW_X", '[{"op":"create_attribute"}]'),
       keys.defs,
       keys.diagnostics,
       keys.analysis("power.mode_load", null),

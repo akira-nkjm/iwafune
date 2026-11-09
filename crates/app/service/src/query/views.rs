@@ -246,6 +246,20 @@ pub(crate) fn cell_text(c: &fune_model::design::StateAssign) -> String {
     format!("{}（{}）", c.state, duty.join("、"))
 }
 
+/// 部品のフィールドのパス（フィールド名 → `RW_X.count`）。名前は `fune_model::path::PART_FIELDS`、記法は `ParamPath::Field`。
+pub(crate) fn field_paths(part: &str) -> BTreeMap<String, String> {
+    fune_model::path::PART_FIELDS
+        .iter()
+        .map(|field| {
+            let path = fune_model::path::ParamPath::Field {
+                part: part.to_owned(),
+                field: (*field).to_owned(),
+            };
+            ((*field).to_owned(), path.to_string())
+        })
+        .collect()
+}
+
 /// 全属性と状態のフィールドパス。未設定の欄も同じ記法で編集できる。
 pub(crate) fn parameter_paths(
     design: &Design,
