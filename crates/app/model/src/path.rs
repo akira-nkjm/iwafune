@@ -41,7 +41,7 @@ pub const CATALOG_FIELDS: &[&str] = &[
 ];
 
 /// 設定の置き場所の種類。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum SettingScope {
     Mission,
@@ -70,10 +70,43 @@ impl SettingScope {
 }
 
 /// 設定のパス（先頭の種類と、残りの区切り）。
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 pub struct SettingPath {
     pub scope: SettingScope,
     pub segments: Vec<String>,
+}
+
+impl SettingPath {
+    /// 種類と区切りの列から作る（`SettingPath::new(SettingScope::Mission, &["orbit", "altitude"])`）。
+    pub fn new(scope: SettingScope, segments: &[&str]) -> Self {
+        Self {
+            scope,
+            segments: segments.iter().map(|s| (*s).to_owned()).collect(),
+        }
+    }
+
+    /// `mission.<…>`。
+    pub fn mission(segments: &[&str]) -> Self {
+        Self::new(SettingScope::Mission, segments)
+    }
+
+    /// `analysis.<…>`。
+    pub fn analysis(segments: &[&str]) -> Self {
+        Self::new(SettingScope::Analysis, segments)
+    }
+
+    /// `budget.<…>`。
+    pub fn budget(segments: &[&str]) -> Self {
+        Self::new(SettingScope::Budget, segments)
+    }
+
+    /// 区切りを後ろに足したパス（`analysis.thermal.case.hot` → `analysis.thermal.case.hot.beta`）。
+    pub fn child(&self, segments: &[&str]) -> Self {
+        let mut out = self.clone();
+        out.segments
+            .extend(segments.iter().map(|s| (*s).to_owned()));
+        out
+    }
 }
 
 impl fmt::Display for SettingPath {
@@ -87,7 +120,7 @@ impl fmt::Display for SettingPath {
 }
 
 /// 解析済みのパラメーターのパス。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 #[serde(tag = "target", rename_all = "snake_case")]
 pub enum ParamPath {
     Attr {
@@ -151,7 +184,7 @@ pub fn parse(path: &str) -> Result<ParamPath, PathError> {
 }
 
 /// 属性のパス（`mass`・`power.on`）。部品の中・カタログ品の中の属性（と状態ごとのセル）を指す。
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 pub struct AttrPath {
     pub attr: String,
     pub state: Option<String>,
@@ -205,7 +238,7 @@ pub fn parse_catalog_attr(text: &str) -> Result<(String, AttrPath), PathError> {
 }
 
 /// ポートの参照（`"PCDU.OUT3"` → 部品 PCDU のポート OUT3）。
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 pub struct PortRef {
     pub part: String,
     pub port: String,

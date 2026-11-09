@@ -1,8 +1,9 @@
 import { Link } from "react-router";
 import type { DesignView, MissingInput } from "@/api/types";
 import { useT } from "@/i18n";
+import { targetLink } from "@/lib/target-link";
 
-/** 足りない入力（名指し）。部品のパスはコンポーネントのページへ、設定はプロジェクトの設定へ飛べる */
+/** 足りない入力（名指し）。対象の構造から、部品はコンポーネントのページへ、設定はプロジェクトの設定へ飛べる */
 export function MissingList({
   design,
   missing,
@@ -18,13 +19,16 @@ export function MissingList({
       <p className="mb-1 font-medium text-warn-ink text-xs">{t.systems.missing(missing.length)}</p>
       <ul className="space-y-0.5 text-xs">
         {missing.map((m) => {
-          const head = m.part ?? "";
-          const to = partIds.has(head) ? `/design/components/${head}` : "/project/settings";
+          const to = targetLink(m.target, partIds);
           return (
-            <li key={m.path} className="flex gap-2">
-              <Link to={to} className="font-mono text-accent-ink hover:underline">
-                {m.path}
-              </Link>
+            <li key={`${m.path}-${m.reason}`} className="flex gap-2">
+              {to ? (
+                <Link to={to} className="font-mono text-accent-ink hover:underline">
+                  {m.path}
+                </Link>
+              ) : (
+                <span className="font-mono text-ink-2">{m.path}</span>
+              )}
               <span className="text-ink-2">{m.reason}</span>
             </li>
           );

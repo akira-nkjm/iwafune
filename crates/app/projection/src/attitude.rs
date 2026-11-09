@@ -5,6 +5,8 @@ use crate::missing::MissingInputs;
 use crate::parts::{self, by_role, direction_body};
 use crate::quantity::vec_si;
 use crate::{structure, timeline};
+use fune_model::Target;
+use fune_model::path::SettingPath;
 use sat_analysis::attitude::disturbance::{DisturbanceSpacecraft, DisturbanceSurface};
 use sat_analysis::attitude::sensor_fov::SensorFovSensor;
 use sat_analysis::attitude::unload_time::{UnloadTimeField, UnloadTimeMtq, UnloadTimeThruster};
@@ -38,7 +40,7 @@ pub fn wheels(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<RwWheel> {
         .collect();
     if out.is_empty() {
         m.push(
-            "<reaction_wheel>",
+            Target::any_of_roles(&["reaction_wheel"], None),
             "リアクションホイール（role = reaction_wheel）の部品がありません",
         );
     }
@@ -49,29 +51,26 @@ pub fn wheels(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<RwWheel> {
 fn spacecraft(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<DisturbanceSpacecraft> {
     let summary = structure::summary(ctx, m)?;
     let s = settings(ctx);
-    let v = |x: Option<&fune_model::value::Vector3>, path: &str, m: &mut MissingInputs| {
-        x.and_then(|x| vec_si(x, path, m)).unwrap_or(Vec3::ZERO)
+    let v = |x: Option<&fune_model::value::Vector3>, key: &str, m: &mut MissingInputs| {
+        x.and_then(|x| vec_si(x, SettingPath::analysis(&["attitude", key]), m))
+            .unwrap_or(Vec3::ZERO)
     };
     let size = reference_box(ctx);
     let surface =
         |coef: Option<f64>, cp: Vec3| Some(DisturbanceSurface::from_box(size?, coef?, cp));
     let aero_cp = v(
         s.and_then(|s| s.cp_offset_aero.as_ref()),
-        "analysis.attitude.cp_offset_aero",
+        "cp_offset_aero",
         m,
     );
-    let srp_cp = v(
-        s.and_then(|s| s.cp_offset_srp.as_ref()),
-        "analysis.attitude.cp_offset_srp",
-        m,
-    );
+    let srp_cp = v(s.and_then(|s| s.cp_offset_srp.as_ref()), "cp_offset_srp", m);
     Some(DisturbanceSpacecraft {
         inertia: summary.inertia,
         aero: surface(s.and_then(|s| s.drag_coefficient), aero_cp),
         srp: surface(s.and_then(|s| s.srp_coefficient), srp_cp),
         residual_dipole: v(
             s.and_then(|s| s.residual_dipole.as_ref()),
-            "analysis.attitude.residual_dipole",
+            "residual_dipole",
             m,
         ),
         atmosphere: Default::default(),
@@ -206,7 +205,7 @@ pub fn sensor_fov(ctx: &Context<'_>) -> Result<SensorFovInput, MissingInputs> {
         .collect();
     if sensors.is_empty() {
         m.push(
-            "<sensor>",
+            Target::any_of_roles(SENSOR_ROLES, Some("boresight")),
             "視線を持つセンサ（role = star_tracker / sun_sensor / camera）がありません",
         );
     }

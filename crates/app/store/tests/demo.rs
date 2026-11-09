@@ -15,7 +15,12 @@ fn demo_loads_without_errors_or_warnings() {
     for d in &diags {
         eprintln!(
             "{:?} {} {:?} {:?}:{:?} {}",
-            d.severity, d.code, d.path, d.file, d.line, d.message
+            d.severity,
+            d.code,
+            d.path(),
+            d.file,
+            d.line,
+            d.message
         );
     }
     assert!(

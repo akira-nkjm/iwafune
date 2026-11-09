@@ -89,6 +89,7 @@
 | パラメーターのパス記法 | `fune_model::path` | CLI と API で共通。service::query::views::parameter_paths がフィールドと状態のパスを DTO に添える |
 | 解決（Resolved） | `fune_model::resolve` | カタログ品そのものに書かれた値の解決は `resolve_catalog_item`（部品がその品の値を使うときと同じ関数を通る） |
 | 検証と診断 | `fune_model::check` / `fune_model::diagnostic` | |
+| 診断と不足入力の対象 | `fune_model::target::Target` | 部品 ID などは構造で持ち、文字列のパスは `Display` だけが作る（受け取る側は読み直さない）。部品の属性・フィールド・設定は `path::ParamPath`、ポートは `PortRef`、カタログ品の属性は `AttrPath` を入れる。どの部品の話かは `Target::part`（部品のファイルの中の対象だけ）。読み込みの診断の対象（ファイル → エンティティ）は `fune_store::layout::file_target` |
 | ディレクトリの規約 | `fune_store::layout` | |
 | 設定のパス → ファイル | `fune_store::layout::setting_location` | 唯一の対応（`locate_setting` で行も引ける） |
 | プロジェクトの探索・初期化・git のブランチ名 | `fune_store::project` | `find_root`・`init`・`git_branch` |
@@ -99,7 +100,7 @@
 | 変更計画・適用 | `fune_ops::{plan, apply}` | |
 | Op → CLI のコマンド文字列 | `fune_ops::cli` | |
 | モデル → 解析の入力 | `fune_projection::<系>` | |
-| 不足入力 | `fune_projection::missing` | part をモデルのパス解析で添え、Web は文字列を分割しない |
+| 不足入力 | `fune_projection::missing` | 対象は `fune_model::Target` で直接作る（文字列を作って読み直さない）。`part` は `Target::part`、`path` は表示。「どれかの部品」は `Target::AnyPart`（部品 ID を持たない） |
 | 取付の連鎖 ⇄ 機体座標の位置・姿勢（合成と逆変換） | `fune_projection::pose` | sat-astro の `Quat` で合成する（`body_pose`・`mount_frame`・`body_to_mount_local`）。service もこれを呼ぶ |
 | 解析 ID → 射影の対応表・型付きの出力の受け渡し・解析の入出力の TS 書き出し | `fune_projection::dispatch` | 実行は `sat_analysis::catalog`（service が呼ぶ）。AnalysisOutputs の TS 対応表も同じ表から生成。表がずれないことをテストで確かめる |
 | 解析ケースの文脈（軌道・地上局・姿勢則・モード） | `fune_projection::context` | 軌道の組み立ては `OrbitSpec::new`・`semi_major_axis_from_altitude`・`raan_from_ltdn` を呼ぶだけ |
@@ -114,7 +115,7 @@
 | 解析の出力の量の次元（JSON Pointer → 次元名）・時系列の表示単位 | `fune_service::analysis::{dims, channels}` | `sat_units::take_last_dimension`・`sat_units::format` を使う |
 | 外部データ（DE440）の取得・状態・読み込み | `fune_service::data` | ユーザーのキャッシュ。install_cached_ephemeris を CLI・HTTP 起動時に明示的に呼ぶ。GUI 設定の DataPanel も同じ API を使う。状態の SHA-256 には、同じプロセスの中でファイルの大きさと更新時刻が変わらない間は前回の結果を使う |
 | 変更前後の本文 → unified diff | `fune_service::diff` | `--dry-run` と GUI の変更の確認で共通 |
-| 表示用の型（DTO） | `fune_service::dto` | DiagnosticView.part、NetView の PortRef、PartRow.paths / CatalogItemView.paths と SettingView.group / field、AttributeDefView.section と型付き enum。TS 型の生成元。`DisplayChannel`・`DisplaySeries` は service が表示情報を添えた時系列。値の表示 `ValueView`・`ValueData` は `dto::value`（部品・カタログ品・設定で共有） |
+| 表示用の型（DTO） | `fune_service::dto` | DiagnosticView の `target`（構造）と、それから作った `part`・`path`、NetView の PortRef、PartRow.paths / CatalogItemView.paths と SettingView.group / field、AttributeDefView.section と型付き enum。TS 型の生成元。`DisplayChannel`・`DisplaySeries` は service が表示情報を添えた時系列。値の表示 `ValueView`・`ValueData` は `dto::value`（部品・カタログ品・設定で共有） |
 | カタログ品の表示（値・パス・使っている部品・書き換えられるか・カタログ名と名前） | `fune_service::query::catalog`（`dto::CatalogItemView`、`DesignView.catalog`） | 値は部品と同じ `query::values::value_view`（解決は `fune_model::resolve::resolve_catalog_item`）、パスは `views::parameter_paths`、書き換えられるか（`editable`）は fune-ops と同じ `fune_store::layout::catalog_location`、使っている部品は `Design::catalog_part_users`、`scope`・`name` は `split_catalog_ref`。Web は ID を分解しない（`editable`・`scope`・`users` を使う）。CLI の `fune catalog ls`・`fune catalog show` も同じ型 |
 | TS の型名の重複の検査 | `fune_service::export::names` | 書き出しのときに止める（registry §4） |
 | HTTP のルーティング | `fune_server::routes` | |
@@ -134,6 +135,7 @@
 | Op の確定前のプレビューと編集ダイアログの共通形 | `web/src/ops/` | `OpPreview`（dry_run の CLI・差分）、`OpDialog` |
 | shadcn/ui のプリミティブ | `web/src/ui/` | shadcn/ui から取り込んだもの。見た目の小物は `kit/` |
 | オン・オフのスイッチと切り替えボタン | `web/src/kit/{Switch,Toggle}.tsx` | チェックボックスは使わない。1 つのオン・オフは `Switch`、いくつかの中から重ねて選ぶ切り替え（系統図の層など）は `Toggle` |
+| 診断・不足入力の対象 → 直しに行くページ | `web/src/lib/target-link.ts` の `targetLink` | API の `DesignTarget`（構造）だけを見る。診断のページ・概要の診断・解析の不足入力が使う |
 | 色・パレット・サブシステム色・開け閉めの動き・小さな汎用関数 | `web/src/lib/` | `tone.ts`（色の値の正本。`index.css` の色と影の変数は `pnpm -C web tokens` で書き出し、test が一致・コントラスト・見分けやすさを検査）、`subsystems.ts`、`design.ts`（設計データの引き当て）、`motion.ts`（開け閉めの時間と曲線。サイドバーと保存の帯で共通） |
 | 解析の出力の汎用の読み取り・欄の表示名と次元 | `web/src/features/systems/{output,fields}.ts` | 出力の形に依らず表・時系列を見つける。判定は service の checks / verdict、dB の表示も dims を使う。数の表示は `/units/format`（`web/src/quantity/use-formatted.ts`、まとめて 1 回）。換算はしない |
 | UI の文言（日本語・英語） | `web/src/i18n/` | `useT()` / `getT()`。区分ごとの `<区分>.{ja,en}.ts`。組み込みの語彙の名前は `localized(label, label_en)` |
@@ -218,3 +220,4 @@
 | 日時 | 変更 | 理由 |
 |---|---|---|
 | 2026-11-08 | 公開に向けて整理した版を初版とする | これより前の履歴は省いた |
+| 2026-11-09 | 診断と不足入力の対象を `fune_model::target::Target` の型で持つ（`layout::file_target`・`web/src/lib/target-link.ts` も追加） | 文字列のパスを読み直して部品 ID を推していたため、存在しない ID（`<部品>`・`cases`）が入っていた（#21） |

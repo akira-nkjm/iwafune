@@ -23,6 +23,7 @@ pub use values::{Finding, check_quantity_dimension, check_value_against};
 
 use crate::design::{Design, EntityKey};
 use crate::diagnostic::{Diagnostic, Severity};
+use crate::target::Target;
 
 /// 設計全体を検証する（読み込み時の診断を含む）。
 pub fn check(design: &Design) -> Vec<Diagnostic> {
@@ -52,19 +53,19 @@ pub(crate) struct Ctx<'a> {
 }
 
 impl Ctx<'_> {
-    /// 診断を位置付きで足す。
+    /// 診断を位置と対象付きで足す。
     pub fn report(
         &mut self,
         severity: Severity,
         code: &str,
         entity: &EntityKey,
         keys: &[&str],
-        path: Option<String>,
+        target: Option<Target>,
         message: impl Into<String>,
     ) {
         let loc = self.design.source_map.locate(entity, keys);
         let mut d = Diagnostic::new(severity, code, message).at(loc);
-        d.path = path;
+        d.target = target;
         self.out.push(d);
     }
 
@@ -74,10 +75,10 @@ impl Ctx<'_> {
         code: &str,
         entity: &EntityKey,
         keys: &[&str],
-        path: Option<String>,
+        target: Option<Target>,
         message: impl Into<String>,
     ) {
-        self.report(Severity::Error, code, entity, keys, path, message);
+        self.report(Severity::Error, code, entity, keys, target, message);
     }
 
     /// warning を足す。
@@ -86,9 +87,9 @@ impl Ctx<'_> {
         code: &str,
         entity: &EntityKey,
         keys: &[&str],
-        path: Option<String>,
+        target: Option<Target>,
         message: impl Into<String>,
     ) {
-        self.report(Severity::Warning, code, entity, keys, path, message);
+        self.report(Severity::Warning, code, entity, keys, target, message);
     }
 }

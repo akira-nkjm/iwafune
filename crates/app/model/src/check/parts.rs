@@ -5,7 +5,8 @@ use super::values::check_value_against;
 use crate::design::{EntityKey, Part, Pose};
 use crate::diagnostic::Severity;
 use crate::id::{fold, validate_node_id};
-use crate::path::{CATALOG_FIELDS, PART_FIELDS};
+use crate::path::{AttrPath, CATALOG_FIELDS, PART_FIELDS, PortRef};
+use crate::target::Target;
 use crate::value::units::expect_dimension;
 use std::collections::BTreeMap;
 
@@ -31,7 +32,7 @@ fn check_node_ids(ctx: &mut Ctx) {
                 "group.unknown_label",
                 &EntityKey::Project,
                 &["groups", id.as_str()],
-                Some(id.clone()),
+                Some(Target::Group { id: id.clone() }),
                 format!(
                     "fune.toml の [groups] の `{id}` に当たるディレクトリが parts/ にありません"
                 ),
@@ -39,26 +40,31 @@ fn check_node_ids(ctx: &mut Ctx) {
         }
     }
     let mut seen: BTreeMap<String, String> = BTreeMap::new();
-    let ids = design
-        .parts
-        .keys()
-        .map(|id| (id.to_string(), EntityKey::Part(id.to_string())))
-        .chain(
-            design
-                .groups
-                .keys()
-                .map(|id| (id.to_string(), EntityKey::Part(id.to_string()))),
-        );
-    for (id, entity) in ids {
+    let parts = design.parts.keys().map(|id| {
+        let id = id.to_string();
+        (id.clone(), Target::Part { id })
+    });
+    let groups = design.groups.keys().map(|id| {
+        let id = id.to_string();
+        (id.clone(), Target::Group { id })
+    });
+    for (id, target) in parts.chain(groups) {
+        let entity = EntityKey::Part(id.clone());
         if let Err(e) = validate_node_id(&id) {
-            ctx.error("id.invalid", &entity, &[], Some(id.clone()), e.to_string());
+            ctx.error(
+                "id.invalid",
+                &entity,
+                &[],
+                Some(target.clone()),
+                e.to_string(),
+            );
         }
         if let Some(other) = seen.insert(fold(&id), id.clone()) {
             ctx.error(
                 "id.duplicate",
                 &entity,
                 &[],
-                Some(id.clone()),
+                Some(target),
                 format!("ID `{id}` が `{other}` と重複しています（大文字小文字を無視して比較）"),
             );
         }
@@ -75,7 +81,7 @@ fn check_definition(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
             "ref.catalog",
             entity,
             &["catalog"],
-            Some(format!("{id}.catalog")),
+            Some(Target::field(&id, "catalog")),
             format!("カタログ品 `{reference}` がありません"),
         );
     }
@@ -85,7 +91,7 @@ fn check_definition(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                 "ref.kind",
                 entity,
                 &["kind"],
-                Some(format!("{id}.kind")),
+                Some(Target::field(&id, "kind")),
                 format!("種別 `{kind}` がありません"),
             );
         } else if let Some((_, Some(item))) = item
@@ -95,7 +101,7 @@ fn check_definition(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                 "kind.catalog_mismatch",
                 entity,
                 &["kind"],
-                Some(format!("{id}.kind")),
+                Some(Target::field(&id, "kind")),
                 format!(
                     "種別 `{kind}` がカタログ品の種別 `{}` と違います",
                     item.kind
@@ -115,7 +121,7 @@ fn check_count_and_candidates(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
             "part.no_definition",
             entity,
             &[],
-            Some(id.clone()),
+            Some(Target::Part { id: id.clone() }),
             "部品に `catalog` も `kind` もありません",
         );
     }
@@ -125,7 +131,7 @@ fn check_count_and_candidates(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                 "ref.catalog",
                 entity,
                 &["candidates"],
-                Some(format!("{id}.candidates")),
+                Some(Target::field(&id, "candidates")),
                 format!("候補のカタログ品 `{candidate}` がありません"),
             );
         }
@@ -135,7 +141,7 @@ fn check_count_and_candidates(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
             "part.count",
             entity,
             &["count"],
-            Some(format!("{id}.count")),
+            Some(Target::field(&id, "count")),
             "員数が 0 です",
         );
     }
@@ -147,7 +153,7 @@ fn check_part_attrs(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
     let id = part.id.to_string();
     let states = design.part_states(part).to_vec();
     for (attr, authored) in &part.attr {
-        let path = Some(format!("{id}.{attr}"));
+        let path = Some(Target::attr(&id, attr.as_str()));
         let Some(def) = design.attribute(attr.as_str()) else {
             ctx.error(
                 "ref.attribute",
@@ -185,7 +191,7 @@ fn check_part_attrs(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                     "attr.missing",
                     entity,
                     &["attr"],
-                    Some(format!("{id}.{attr}")),
+                    Some(Target::attr(&id, attr.as_str())),
                     format!("必須の属性 `{attr}` が未設定です（種別 `{}`）", k.id),
                 );
             }
@@ -197,13 +203,14 @@ fn check_part_attrs(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
 fn check_mount(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
     let design = ctx.design;
     let id = part.id.to_string();
+    let target = || Some(Target::Mount { part: id.clone() });
     if let Some(mount) = &part.mount {
         match design.parts.get(mount.on.as_str()) {
             None => ctx.error(
                 "ref.mount",
                 entity,
                 &["mount", "on"],
-                Some(format!("{id}.mount")),
+                target(),
                 format!("取付先の部品 `{}` がありません", mount.on),
             ),
             Some(parent) => {
@@ -214,7 +221,7 @@ fn check_mount(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                         "ref.mount_point",
                         entity,
                         &["mount", "point"],
-                        Some(format!("{id}.mount")),
+                        target(),
                         format!("部品 `{}` に取付点 `{point}` がありません", mount.on),
                     );
                 }
@@ -223,7 +230,7 @@ fn check_mount(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                         "mount.cycle",
                         entity,
                         &["mount"],
-                        Some(format!("{id}.mount")),
+                        target(),
                         "取付の連鎖が循環しています",
                     );
                 }
@@ -231,10 +238,10 @@ fn check_mount(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
         }
     }
     if let Some(pose) = &part.pose {
-        check_pose(ctx, entity, &["pose"], &id, pose);
+        check_pose(ctx, entity, &id, None, pose);
     }
     for (name, pose) in &part.mount_points {
-        check_pose(ctx, entity, &["mount_points", name.as_str()], &id, pose);
+        check_pose(ctx, entity, &id, Some(name.as_str()), pose);
     }
 }
 
@@ -255,7 +262,18 @@ fn mount_cycle(design: &crate::design::Design, part: &Part) -> bool {
     false
 }
 
-fn check_pose(ctx: &mut Ctx, entity: &EntityKey, keys: &[&str], id: &str, pose: &Pose) {
+/// 姿勢 1 つ（部品の `pose` か、取付点 `mount_point` の姿勢）。
+fn check_pose(ctx: &mut Ctx, entity: &EntityKey, id: &str, mount_point: Option<&str>, pose: &Pose) {
+    let keys: &[&str] = match mount_point {
+        None => &["pose"],
+        Some(point) => &["mount_points", point],
+    };
+    let target = || {
+        Some(Target::Pose {
+            part: id.to_owned(),
+            mount_point: mount_point.map(str::to_owned),
+        })
+    };
     if let Some(p) = &pose.position
         && let Err(e) = expect_dimension(p.unit.as_deref().unwrap_or("m"), "Length")
     {
@@ -263,13 +281,7 @@ fn check_pose(ctx: &mut Ctx, entity: &EntityKey, keys: &[&str], id: &str, pose: 
             crate::value::ValueError::Dimension { .. } => "unit.dimension",
             _ => "unit.parse",
         };
-        ctx.error(
-            code,
-            entity,
-            keys,
-            Some(format!("{id}.{}", keys.join("."))),
-            e.to_string(),
-        );
+        ctx.error(code, entity, keys, target(), e.to_string());
     }
     if let Some(q) = &pose.orientation {
         let norm = (q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z).sqrt();
@@ -278,7 +290,7 @@ fn check_pose(ctx: &mut Ctx, entity: &EntityKey, keys: &[&str], id: &str, pose: 
                 "pose.quaternion_norm",
                 entity,
                 keys,
-                Some(format!("{id}.{}", keys.join("."))),
+                target(),
                 format!("姿勢のクォータニオンの大きさが 1 ではありません（{norm:.4}）"),
             );
         }
@@ -296,7 +308,10 @@ fn check_ports(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                 "ref.net",
                 entity,
                 &["ports", port.as_str(), "net"],
-                Some(format!("{}.{port}", part.id)),
+                Some(Target::Port(PortRef {
+                    part: part.id.to_string(),
+                    port: port.to_string(),
+                })),
                 format!("ネット `{net}` がありません"),
             );
         }
@@ -313,7 +328,10 @@ pub(super) fn check_catalog(ctx: &mut Ctx) {
                 "ref.kind",
                 &entity,
                 &["kind"],
-                Some(item.id.clone()),
+                Some(Target::Catalog {
+                    id: item.id.clone(),
+                    attr: None,
+                }),
                 format!("種別 `{}` がありません", item.kind),
             );
             continue;
@@ -321,7 +339,13 @@ pub(super) fn check_catalog(ctx: &mut Ctx) {
         let states = design.kind_states(item.kind.as_str()).to_vec();
         for (attr, authored) in &item.attr {
             let keys = ["attr", attr.as_str()];
-            let path = Some(format!("{}.{attr}", item.id));
+            let path = Some(Target::Catalog {
+                id: item.id.clone(),
+                attr: Some(AttrPath {
+                    attr: attr.to_string(),
+                    state: None,
+                }),
+            });
             match design.attribute(attr.as_str()) {
                 Some(def) => {
                     for (sev, code, msg) in check_value_against(def, &authored.value, &states) {
@@ -345,7 +369,7 @@ pub(super) fn check_catalog(ctx: &mut Ctx) {
                 "def.reserved",
                 &EntityKey::Attribute(id.to_string()),
                 &[],
-                Some(id.to_string()),
+                Some(Target::AttributeDef { id: id.to_string() }),
                 format!("属性 ID `{id}` は部品・カタログ品のフィールド名と同じです"),
             );
         }

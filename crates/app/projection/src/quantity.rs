@@ -2,24 +2,25 @@
 //! 単位の解析と換算は `fune_model::value::units`（中身は sat-units）に任せる。
 
 use crate::missing::MissingInputs;
+use fune_model::Target;
 use fune_model::value::Quantity;
 use sat_units::typed::{Dimension, Qty};
 
 /// 書かれた量を `Qty<D>` にする。無いとき・次元が違うときは `m` に記録して `None`。
 pub fn qty<D: Dimension>(
     q: Option<&Quantity>,
-    path: &str,
+    target: impl Into<Target>,
     reason: &str,
     m: &mut MissingInputs,
 ) -> Option<Qty<D>> {
     let Some(q) = q else {
-        m.push(path, reason);
+        m.push(target, reason);
         return None;
     };
     match si::<D>(q) {
         Ok(v) => Some(v),
         Err(e) => {
-            m.push(path, format!("{reason}（{e}）"));
+            m.push(target, format!("{reason}（{e}）"));
             None
         }
     }
@@ -28,14 +29,14 @@ pub fn qty<D: Dimension>(
 /// 書かれた量を `Qty<D>` にする（任意の入力。無ければ `None`、次元が違えば記録）。
 pub fn qty_opt<D: Dimension>(
     q: Option<&Quantity>,
-    path: &str,
+    target: impl Into<Target>,
     m: &mut MissingInputs,
 ) -> Option<Qty<D>> {
     let q = q?;
     match si::<D>(q) {
         Ok(v) => Some(v),
         Err(e) => {
-            m.push(path, e);
+            m.push(target, e);
             None
         }
     }
@@ -63,7 +64,7 @@ pub fn from_si<D: Dimension>(v: f64) -> Qty<D> {
 /// 単位付きのベクトル（`{ x, y, z, unit }`）→ SI の `Vec3`。単位が無ければそのまま。
 pub fn vec_si(
     v: &fune_model::value::Vector3,
-    path: &str,
+    target: impl Into<Target>,
     m: &mut MissingInputs,
 ) -> Option<sat_astro::math::Vec3> {
     let unit = v.unit.as_deref().unwrap_or("");
@@ -71,7 +72,7 @@ pub fn vec_si(
     match (conv(v.x), conv(v.y), conv(v.z)) {
         (Ok(x), Ok(y), Ok(z)) => Some(sat_astro::math::Vec3::new(x, y, z)),
         _ => {
-            m.push(path, format!("単位 `{unit}` を解釈できません"));
+            m.push(target, format!("単位 `{unit}` を解釈できません"));
             None
         }
     }

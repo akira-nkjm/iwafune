@@ -3,6 +3,7 @@
 use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::pose;
+use fune_model::Target;
 use fune_model::resolve::{ResolvedPart, SiValue};
 use sat_astro::math::Vec3;
 use sat_units::typed::{Dimension, Qty};
@@ -38,14 +39,14 @@ pub fn part_qty<D: Dimension>(
     m: &mut MissingInputs,
 ) -> Option<Qty<D>> {
     let v = p.scalar(attr);
-    m.need(v, format!("{}.{attr}", p.id), reason)
+    m.need(v, Target::attr(&p.id, attr), reason)
         .map(Qty::from_raw)
 }
 
 /// 無次元の比（必須）。無ければ `PART.attr` を記録。省略できる比は `p.scalar(attr)` をそのまま解析に渡す
 /// （既定値は解析が持つ）。
 pub fn ratio(p: &ResolvedPart, attr: &str, reason: &str, m: &mut MissingInputs) -> Option<f64> {
-    m.need(p.scalar(attr), format!("{}.{attr}", p.id), reason)
+    m.need(p.scalar(attr), Target::attr(&p.id, attr), reason)
 }
 
 /// 部品座標で書かれた方向ベクトルを機体座標に直したもの。無ければ記録。
@@ -56,7 +57,7 @@ pub fn direction_body(
     reason: &str,
     m: &mut MissingInputs,
 ) -> Option<Vec3> {
-    let v = m.need(p.vec3(attr), format!("{}.{attr}", p.id), reason)?;
+    let v = m.need(p.vec3(attr), Target::attr(&p.id, attr), reason)?;
     Some(pose::to_body(
         ctx.resolved,
         &p.id,

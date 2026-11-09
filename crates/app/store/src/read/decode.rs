@@ -7,7 +7,7 @@ use super::{profile, spans};
 use crate::layout::{self, FileRole};
 use fune_model::design::{Design, Project};
 use fune_model::id::Id;
-use fune_model::{Diagnostic, Severity};
+use fune_model::{Diagnostic, Severity, Target};
 use serde::de::DeserializeOwned;
 use std::collections::BTreeMap;
 
@@ -49,6 +49,11 @@ pub fn decode(files: &FileSet) -> Design {
         FileRole::Attribute(_) | FileRole::Kind(_) => 1,
         _ => 2,
     });
+    // 読み込みの診断には、ファイルが書いているものを対象として付ける（`parts/` のファイルならその部品）。
+    let targets: BTreeMap<&str, Target> = roles
+        .iter()
+        .filter_map(|(role, path)| Some((*path, layout::file_target(role)?)))
+        .collect();
     for (role, path) in roles {
         if let Some(entity) = layout::entity_key(&role) {
             d.design.source_map.insert_file(entity, path);
@@ -56,6 +61,11 @@ pub fn decode(files: &FileSet) -> Design {
         d.read_file(&role, path);
     }
     d.build_tree();
+    for diag in &mut d.design.load_diagnostics {
+        if diag.target.is_none() {
+            diag.target = diag.file.as_deref().and_then(|f| targets.get(f)).cloned();
+        }
+    }
     d.design
 }
 

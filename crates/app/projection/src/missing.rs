@@ -1,17 +1,37 @@
-//! 不足入力。**解析に必要なのに設計データに無いものを、パラメーターのパスで名指しする。**
+//! 不足入力。**解析に必要なのに設計データに無いものを、対象（`fune_model::Target`）で名指しする。**
+//! 文字列のパスは対象の `Display` から作るだけで、読み直さない。
 
+use fune_model::Target;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+
+/// 対象を名指しできない不足（入力の組み立ての内部の誤り）の表示。
+const INTERNAL: &str = "(内部)";
 
 /// 足りない入力 1 件。
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 pub struct MissingInput {
-    /// 部品の入力なら ID。設定や集合の要求は None。
+    /// 部品のファイルの中の入力ならその部品 ID（[`Target::part`]）。設定・解析ケース・「どれかの部品」は None。
     pub part: Option<String>,
-    /// パラメーターのパス（例: `"RW_X.max_momentum"`、`"mission.orbit.altitude"`）
+    /// 表示用のパス（対象の `Display`。例: `"RW_X.max_momentum"`、`"mission.orbit.altitude"`、`"<部品>.power"`）
     pub path: String,
+    /// 足りない入力の対象（構造）。None は対象を名指しできない内部の不足
+    pub target: Option<Target>,
     /// 何に使うか・何が要るか（例: `"RW の角運動量の上限"`）
     pub reason: String,
+}
+
+impl MissingInput {
+    fn new(target: Option<Target>, reason: String) -> Self {
+        Self {
+            part: target.as_ref().and_then(Target::part).map(str::to_owned),
+            path: target
+                .as_ref()
+                .map_or_else(|| INTERNAL.to_owned(), Target::to_string),
+            target,
+            reason,
+        }
+    }
 }
 
 /// 足りない入力の集まり。射影の途中で見つけたものをすべて集めてから返す（最初の 1 件で止めない）。
@@ -25,31 +45,20 @@ impl MissingInputs {
     }
 
     /// 1 件足す。
-    pub fn push(&mut self, path: impl Into<String>, reason: impl Into<String>) {
-        let path = path.into();
-        let part = match fune_model::path::parse(&path) {
-            Ok(
-                fune_model::path::ParamPath::Attr { part, .. }
-                | fune_model::path::ParamPath::Field { part, .. },
-            ) if !part.contains('/') => Some(part),
-            _ => None,
-        };
-        self.0.push(MissingInput {
-            part,
-            path,
-            reason: reason.into(),
-        });
+    pub fn push(&mut self, target: impl Into<Target>, reason: impl Into<String>) {
+        self.0
+            .push(MissingInput::new(Some(target.into()), reason.into()));
     }
 
     /// `Option` の値を取り出し、無ければ不足として記録して `None` を返す。
     pub fn need<T>(
         &mut self,
         value: Option<T>,
-        path: impl Into<String>,
+        target: impl Into<Target>,
         reason: impl Into<String>,
     ) -> Option<T> {
         if value.is_none() {
-            self.push(path, reason);
+            self.push(target, reason);
         }
         value
     }
@@ -73,7 +82,8 @@ impl MissingInputs {
             Some(v) => Ok(v),
             None => {
                 let mut m = self;
-                m.push("(内部)", "入力を組み立てられませんでした");
+                let reason = "入力を組み立てられませんでした".to_owned();
+                m.0.push(MissingInput::new(None, reason));
                 Err(m)
             }
         }

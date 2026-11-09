@@ -4,6 +4,7 @@ use super::Ctx;
 use crate::builtin;
 use crate::design::{AttributeDef, EntityKey, KindDef};
 use crate::id::validate_local_name;
+use crate::target::Target;
 use crate::value::ValueType;
 use crate::value::units::{expect_dimension, parse_dimension_name, same_dimension, unit_info};
 
@@ -66,17 +67,22 @@ pub(super) fn check_defs(ctx: &mut Ctx) {
     let design = ctx.design;
     for def in design.attributes.values() {
         let entity = EntityKey::Attribute(def.id.to_string());
+        let target = || {
+            Some(Target::AttributeDef {
+                id: def.id.to_string(),
+            })
+        };
         if builtin::is_builtin_attribute(def.id.as_str()) {
             ctx.error(
                 "def.shadow_builtin",
                 &entity,
                 &[],
-                Some(def.id.to_string()),
+                target(),
                 format!("属性 `{}` は組み込みの定義と同じ ID です", def.id),
             );
         }
         for (code, message) in attribute_def_problems(def) {
-            ctx.error(code, &entity, &[], Some(def.id.to_string()), message);
+            ctx.error(code, &entity, &[], target(), message);
         }
     }
     for kind in design.kinds.values() {
@@ -88,7 +94,9 @@ pub(super) fn check_defs(ctx: &mut Ctx) {
 fn check_kind(ctx: &mut Ctx, kind: &KindDef) {
     let design = ctx.design;
     let entity = EntityKey::Kind(kind.id.to_string());
-    let path = Some(kind.id.to_string());
+    let path = Some(Target::KindDef {
+        id: kind.id.to_string(),
+    });
     if builtin::is_builtin_kind(kind.id.as_str()) {
         ctx.error(
             "def.shadow_builtin",

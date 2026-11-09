@@ -104,11 +104,8 @@ fn unit_dimension_mismatch_is_rejected() {
     let snap = snapshot();
     match plan(&snap, &[set_mass("RW_X", 1.0, "W")]) {
         Err(OpError::Rejected { diagnostics }) => {
-            assert!(
-                diagnostics
-                    .iter()
-                    .any(|d| d.code == "unit.dimension" && d.path.as_deref() == Some("RW_X.mass"))
-            );
+            assert!(diagnostics.iter().any(|d| d.code == "unit.dimension"
+                && d.target == Some(fune_model::Target::attr("RW_X", "mass"))));
             assert_eq!(diagnostics[0].file.as_deref(), Some("parts/AOCS/RW_X.toml"));
             assert!(diagnostics[0].line.is_some());
         }

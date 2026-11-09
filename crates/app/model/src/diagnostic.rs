@@ -1,5 +1,6 @@
-//! 診断の型（severity・code・path・file・line）。
+//! 診断の型（severity・code・対象・file・line）。
 
+use crate::target::Target;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -19,8 +20,8 @@ pub struct Diagnostic {
     /// 機械向けのコード（例: `"unit.dimension"`）
     pub code: String,
     pub message: String,
-    /// 対象のパラメーターのパス（例: `"RW_X.mass"`・`"modes.NOMINAL.TRX"`）
-    pub path: Option<String>,
+    /// 何についての診断か（構造。表示用のパスは [`Diagnostic::path`]）
+    pub target: Option<Target>,
     /// プロジェクトのルートからの相対パス
     pub file: Option<String>,
     /// 1 始まり
@@ -35,7 +36,7 @@ impl Diagnostic {
             severity,
             code: code.to_string(),
             message: message.into(),
-            path: None,
+            target: None,
             file: None,
             line: None,
             column: None,
@@ -57,10 +58,15 @@ impl Diagnostic {
         Self::new(Severity::Info, code, message)
     }
 
-    /// パラメーターのパスを付ける。
-    pub fn with_path(mut self, path: impl Into<String>) -> Self {
-        self.path = Some(path.into());
+    /// 対象を付ける。
+    pub fn with_target(mut self, target: impl Into<Target>) -> Self {
+        self.target = Some(target.into());
         self
+    }
+
+    /// 対象の表示用のパス（`Target` の `Display`。例: `"RW_X.mass"`・`"modes.NOMINAL.TRX"`）。
+    pub fn path(&self) -> Option<String> {
+        self.target.as_ref().map(Target::to_string)
     }
 
     /// ファイルの位置を付ける。

@@ -9,12 +9,13 @@ import { Loading, SkeletonPanel } from "@/kit/Loading";
 import { Panel } from "@/kit/Panel";
 import { Segmented } from "@/kit/Segmented";
 import { SeverityPill } from "@/kit/SeverityPill";
+import { targetLink } from "@/lib/target-link";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 
 type Filter = "all" | Severity;
 
-/** プロジェクト / 診断: fune check と同じ検証結果。該当ファイルの行と、部品のページへのリンク */
+/** プロジェクト / 診断: fune check と同じ検証結果。該当ファイルの行と、対象（部品・モード・設定など）のページへのリンク */
 export function DiagnosticsPage() {
   const t = useT();
   const p = t.project;
@@ -60,7 +61,7 @@ export function DiagnosticsPage() {
         ) : (
           <div className="space-y-2">
             {list.map((d) => {
-              const head = d.part;
+              const to = targetLink(d.target, parts);
               return (
                 <Panel
                   key={`${d.code}-${d.path}-${d.file}-${d.line}-${d.column}`}
@@ -70,11 +71,8 @@ export function DiagnosticsPage() {
                     <SeverityPill severity={d.severity} />
                     <span className="font-mono text-ink-3">{d.code}</span>
                     {d.path &&
-                      (head && parts.has(head) ? (
-                        <Link
-                          to={`/design/components/${head}`}
-                          className="font-mono text-accent-ink hover:underline"
-                        >
+                      (to ? (
+                        <Link to={to} className="font-mono text-accent-ink hover:underline">
                           {d.path}
                         </Link>
                       ) : (

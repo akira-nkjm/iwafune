@@ -89,7 +89,7 @@ pub fn plan(snapshot: &Snapshot, ops: &[Op]) -> Result<Plan, OpError> {
 
 /// 適用後に新しく増えた error（位置は比べない。編集で行がずれ、名前の変更でファイルも変わるため）。
 fn new_errors(before: &[Diagnostic], after: &[Diagnostic]) -> Vec<Diagnostic> {
-    let key = |d: &Diagnostic| (d.code.clone(), d.path.clone(), d.message.clone());
+    let key = |d: &Diagnostic| (d.code.clone(), d.target.clone(), d.message.clone());
     let old: BTreeSet<_> = before.iter().filter(|d| d.is_error()).map(key).collect();
     after
         .iter()

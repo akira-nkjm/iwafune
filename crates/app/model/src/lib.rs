@@ -11,6 +11,7 @@
 //! | `resolve` | Design → Resolved（カタログ・上書きの重ね合わせ、SI 換算、出所） |
 //! | `check` | 検証（severity 付きの診断） |
 //! | `diagnostic` | 診断の型 |
+//! | `target` | 診断と不足入力の対象（部品・属性・設定・モードなどを構造で持つ。文字列のパスは `Display` だけ） |
 //!
 //! 設計データのファイル I/O はしない（読み書きは fune-store）。TOML を読むのは、埋め込みの組み込み定義（`builtin`）だけ。
 
@@ -21,6 +22,7 @@ pub mod diagnostic;
 pub mod id;
 pub mod path;
 pub mod resolve;
+pub mod target;
 pub mod value;
 
 pub use check::check;
@@ -28,5 +30,6 @@ pub use design::Design;
 pub use diagnostic::{Diagnostic, Severity};
 pub use id::Id;
 pub use resolve::{Resolved, resolve};
+pub use target::Target;
 
 mod lookup;

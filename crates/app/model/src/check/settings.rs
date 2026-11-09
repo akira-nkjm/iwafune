@@ -4,21 +4,25 @@
 use super::Ctx;
 use super::values::check_quantity_dimension;
 use crate::design::{EntityKey, GroundStationSettings, OrbitSettings};
+use crate::path::SettingPath;
+use crate::target::Target;
 use crate::value::{Quantity, Value, Vector3};
 
 /// 設定ファイル 1 つ分の検査の窓口。
 pub(super) struct Scope<'c, 'a> {
     pub ctx: &'c mut Ctx<'a>,
     pub entity: EntityKey,
-    pub prefix: String,
+    /// 設定ファイルのパス（`mission.orbit` など）。キーの列を足して対象にする
+    pub prefix: SettingPath,
 }
 
 /// 量の検査の 1 行（キーの列・量・次元）。
 pub(super) type QtySpec<'q> = (&'q [&'q str], Option<&'q Quantity>, &'q str);
 
 impl Scope<'_, '_> {
-    pub fn path(&self, keys: &[&str]) -> Option<String> {
-        Some(format!("{}.{}", self.prefix, keys.join(".")))
+    /// ファイルの中のキーの列 → 設定の対象。
+    pub fn path(&self, keys: &[&str]) -> Option<Target> {
+        Some(self.prefix.child(keys).into())
     }
 
     pub fn qty(&mut self, keys: &[&str], q: Option<&Quantity>, dim: &str) {
@@ -64,12 +68,12 @@ impl Scope<'_, '_> {
     }
 }
 
-/// 設定ファイル（`"mission.orbit"` など）の検査の窓口を作る。
-pub(super) fn scope<'c, 'a>(ctx: &'c mut Ctx<'a>, name: &str) -> Scope<'c, 'a> {
+/// 設定ファイル（`mission.orbit` など）の検査の窓口を作る。
+pub(super) fn scope<'c, 'a>(ctx: &'c mut Ctx<'a>, prefix: SettingPath) -> Scope<'c, 'a> {
     Scope {
         ctx,
-        entity: EntityKey::Setting(name.to_string()),
-        prefix: name.to_string(),
+        entity: EntityKey::Setting(prefix.to_string()),
+        prefix,
     }
 }
 
@@ -77,13 +81,13 @@ pub(super) fn scope<'c, 'a>(ctx: &'c mut Ctx<'a>, name: &str) -> Scope<'c, 'a> {
 pub(super) fn check_mission(ctx: &mut Ctx) {
     let design = ctx.design;
     if let Some(o) = &design.mission.orbit {
-        check_orbit(&mut scope(ctx, "mission.orbit"), o);
+        check_orbit(&mut scope(ctx, SettingPath::mission(&["orbit"])), o);
     }
     for (id, g) in &design.mission.ground {
-        check_ground(&mut scope(ctx, &format!("mission.ground.{id}")), g);
+        check_ground(&mut scope(ctx, SettingPath::mission(&["ground", id])), g);
     }
     if let Some(l) = &design.mission.launch {
-        scope(ctx, "mission.launch").qtys(&[
+        scope(ctx, SettingPath::mission(&["launch"])).qtys(&[
             (&["load_axial"], l.load_axial.as_ref(), "Acceleration"),
             (&["load_lateral"], l.load_lateral.as_ref(), "Acceleration"),
             (
@@ -169,15 +173,21 @@ pub(super) fn check_materials(ctx: &mut Ctx) {
     let Some(structure) = &design.analysis.structure else {
         return;
     };
-    let parts = design
-        .parts
-        .values()
-        .map(|p| (EntityKey::Part(p.id.to_string()), p.id.to_string(), &p.attr));
-    let items = design
-        .catalog
-        .values()
-        .map(|c| (EntityKey::Catalog(c.id.clone()), c.id.clone(), &c.attr));
-    for (entity, owner, attrs) in parts.chain(items) {
+    let parts = design.parts.values().map(|p| {
+        let target = Target::attr(p.id.as_str(), "material");
+        (EntityKey::Part(p.id.to_string()), target, &p.attr)
+    });
+    let items = design.catalog.values().map(|c| {
+        let target = Target::Catalog {
+            id: c.id.clone(),
+            attr: Some(crate::path::AttrPath {
+                attr: "material".to_owned(),
+                state: None,
+            }),
+        };
+        (EntityKey::Catalog(c.id.clone()), target, &c.attr)
+    });
+    for (entity, target, attrs) in parts.chain(items) {
         let Some(value) = attrs.get("material") else {
             continue;
         };
@@ -188,7 +198,7 @@ pub(super) fn check_materials(ctx: &mut Ctx) {
                 "ref.material",
                 &entity,
                 &["attr", "material"],
-                Some(format!("{owner}.material")),
+                Some(target),
                 format!("材料 `{m}` が analysis/structure.toml の [material.*] にありません"),
             );
         }

@@ -128,13 +128,11 @@ pub(crate) fn view(
         .filter(|h| h.from.starts_with(&prefix) || h.to.starts_with(&prefix))
         .map(|h| h.id.to_string())
         .collect();
+    // 診断は対象の構造で選ぶ（部品のファイルの中の対象か、部品のファイルの位置）
     let diagnostics = diagnostics
         .iter()
         .filter(|d| {
-            d.diagnostic
-                .path
-                .as_deref()
-                .is_some_and(|p| p == id || p.starts_with(&prefix))
+            d.part.as_deref() == Some(id)
                 || d.diagnostic.file.as_deref() == Some(part.file.as_str())
         })
         .cloned()

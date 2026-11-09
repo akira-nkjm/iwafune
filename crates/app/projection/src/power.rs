@@ -4,6 +4,8 @@ use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::parts::{self, by_role, direction_body, extensive_by_state, label, ratio};
 use crate::timeline;
+use fune_model::Target;
+use fune_model::path::SettingPath;
 use sat_analysis::power::energy_balance::{
     EnergyBalanceBattery, EnergyBalanceCase, EnergyBalanceLoad,
 };
@@ -36,10 +38,10 @@ pub fn mode_load_input(ctx: &Context<'_>, m: &mut MissingInputs) -> ModeLoadInpu
         })
         .collect();
     if parts.is_empty() {
-        m.push("<部品>.power", "消費電力を持つ部品がありません");
+        m.push(Target::any_part("power"), "消費電力を持つ部品がありません");
     }
     if ctx.design.modes.is_empty() {
-        m.push("modes", "運用モード（modes/<ID>.toml）");
+        m.push(Target::Modes, "運用モード（modes/<ID>.toml）");
     }
     ModeLoadInput {
         parts,
@@ -68,7 +70,7 @@ pub fn solar_array(ctx: &Context<'_>, m: &mut MissingInputs) -> SolarArray {
         .collect();
     if panels.is_empty() {
         m.push(
-            "<solar_panel>",
+            Target::any_of_roles(&["solar_panel"], None),
             "太陽電池パネル（kind の role = solar_panel）の部品がありません",
         );
     }
@@ -91,7 +93,10 @@ pub fn solar_sunlit(ctx: &Context<'_>) -> Result<SolarSunlitInput, MissingInputs
     let mut cases = Vec::new();
     let modes = timeline::modes_with_law(ctx);
     if modes.is_empty() {
-        m.push("analysis.attitude.law", "姿勢則（モードごと）");
+        m.push(
+            SettingPath::analysis(&["attitude", "law"]),
+            "姿勢則（モードごと）",
+        );
     }
     for mode in modes {
         if let Some(t) = timeline::timeline(ctx, Some(&mode), 1, &mut m) {
@@ -169,7 +174,7 @@ fn batteries(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceBatte
     let cells: Vec<_> = by_role(ctx, "battery").collect();
     if cells.is_empty() {
         m.push(
-            "<battery>",
+            Target::any_of_roles(&["battery"], None),
             "電池（kind の role = battery）の部品がありません",
         );
         return Vec::new();
@@ -178,7 +183,7 @@ fn batteries(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceBatte
     let settings = ctx.design.analysis.power.as_ref();
     let dod = m.need(
         settings.and_then(|s| s.dod_max),
-        "analysis.power.dod_max",
+        SettingPath::analysis(&["power", "dod_max"]),
         "許容 DoD",
     );
 

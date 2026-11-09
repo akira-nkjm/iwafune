@@ -4,6 +4,8 @@ use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::parts::by_role;
 use crate::quantity::qty;
+use fune_model::Target;
+use fune_model::path::SettingPath;
 use fune_model::resolve::{ResolvedPart, SiValue};
 use sat_analysis::cdh::DataBudgetInput;
 use sat_analysis::cdh::data_budget::{
@@ -28,7 +30,7 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
         .collect();
     if parts.is_empty() {
         m.push(
-            "<部品>.hk_rate",
+            Target::any_part("hk_rate"),
             "HK・ミッションデータのレートを持つ部品がありません",
         );
     }
@@ -45,14 +47,14 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
         .collect();
     if storage.is_empty() {
         m.push(
-            "<obc>.storage_capacity",
+            Target::any_of_roles(&["obc"], Some("storage_capacity")),
             "搭載ストレージの容量（role = obc の部品）",
         );
     }
     let s = ctx.design.analysis.cdh.as_ref();
     let retention = qty::<Time>(
         s.and_then(|s| s.retention.as_ref()),
-        "analysis.cdh.retention",
+        SettingPath::analysis(&["cdh", "retention"]),
         "地上に降ろすまで保持する期間",
         &mut m,
     );
@@ -110,7 +112,7 @@ pub fn mode_shares(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<DataBudgetMo
             .collect(),
         _ => {
             m.push(
-                "analysis.power.mode_share",
+                SettingPath::analysis(&["power", "mode_share"]),
                 "軌道平均で各モードにいる時間の割合",
             );
             Vec::new()

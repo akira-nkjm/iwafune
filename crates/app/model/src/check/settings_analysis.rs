@@ -3,6 +3,7 @@
 use super::Ctx;
 use super::settings::{Scope, scope};
 use crate::design::{CommLinkSettings, Design, MaterialSettings, ThermalSettings};
+use crate::path::SettingPath;
 
 /// `analysis/` の全体。
 pub(super) fn check_analysis(ctx: &mut Ctx) {
@@ -23,7 +24,7 @@ fn check_power(ctx: &mut Ctx) {
     let Some(p) = &design.analysis.power else {
         return;
     };
-    let mut s = scope(ctx, "analysis.power");
+    let mut s = scope(ctx, SettingPath::analysis(&["power"]));
     s.fraction(&["dod_max"], p.dod_max);
     s.fraction(&["initial_soc"], p.initial_soc);
     s.fraction(&["conversion_efficiency"], p.conversion_efficiency);
@@ -69,7 +70,7 @@ fn check_attitude(ctx: &mut Ctx) {
     let Some(a) = &design.analysis.attitude else {
         return;
     };
-    let mut s = scope(ctx, "analysis.attitude");
+    let mut s = scope(ctx, SettingPath::analysis(&["attitude"]));
     s.vector(&["cp_offset_aero"], a.cp_offset_aero.as_ref(), "Length");
     s.vector(&["cp_offset_srp"], a.cp_offset_srp.as_ref(), "Length");
     s.vector(
@@ -95,7 +96,7 @@ fn check_cdh(ctx: &mut Ctx) {
     let Some(c) = &design.analysis.cdh else {
         return;
     };
-    let mut s = scope(ctx, "analysis.cdh");
+    let mut s = scope(ctx, SettingPath::analysis(&["cdh"]));
     s.qty(&["retention"], c.retention.as_ref(), "Time");
     s.fraction(&["storage_margin"], c.storage_margin);
     s.fraction(&["compression_ratio"], c.compression_ratio);
@@ -106,7 +107,7 @@ fn check_comm(ctx: &mut Ctx) {
     let Some(c) = &design.analysis.comm else {
         return;
     };
-    let mut s = scope(ctx, "analysis.comm");
+    let mut s = scope(ctx, SettingPath::analysis(&["comm"]));
     for station in &c.stations {
         let exists = design.mission.ground.contains_key(station);
         s.reference(
@@ -169,7 +170,7 @@ fn check_thermal(ctx: &mut Ctx) {
     let Some(t) = &design.analysis.thermal else {
         return;
     };
-    let mut s = scope(ctx, "analysis.thermal");
+    let mut s = scope(ctx, SettingPath::analysis(&["thermal"]));
     s.qtys(&[
         (
             &["contact_conductance"],
@@ -245,7 +246,7 @@ fn check_structure(ctx: &mut Ctx) {
     let Some(st) = &design.analysis.structure else {
         return;
     };
-    let mut s = scope(ctx, "analysis.structure");
+    let mut s = scope(ctx, SettingPath::analysis(&["structure"]));
     for (name, m) in &st.material {
         check_material(&mut s, name, m);
     }

@@ -3,6 +3,7 @@
 use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::quantity::qty_opt;
+use fune_model::Target;
 use sat_astro::timeline::TimelineSpec;
 use sat_units::typed::{Angle, Qty};
 
@@ -51,7 +52,8 @@ pub fn timeline(
 /// ケースが指定する β 角（RAAN の置き換えは sat-astro が行う）。
 pub fn case_beta(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<Qty<Angle>> {
     let case = ctx.case?;
-    qty_opt::<Angle>(case.beta.as_ref(), &format!("cases.{}.beta", case.id), m)
+    let target = Target::case(case.id.as_str(), Some("beta"));
+    qty_opt::<Angle>(case.beta.as_ref(), target, m)
 }
 
 /// 1 日分の時系列の期間 [s] と刻み [s]（可視・データ量の解析用）。

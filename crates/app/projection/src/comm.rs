@@ -4,7 +4,9 @@ use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::quantity::{db, qty};
 use crate::{cdh, timeline};
+use fune_model::Target;
 use fune_model::design::{CommLinkSettings, CommSettings, GroundStationSettings, LinkDirection};
+use fune_model::path::SettingPath;
 use fune_model::resolve::ResolvedPart;
 use sat_analysis::comm::data_throughput::DataThroughputLink;
 use sat_analysis::comm::link_budget::{LinkBudgetDirection, LinkBudgetLink};
@@ -15,7 +17,17 @@ use sat_units::typed::{DataRate, Frequency, Length, Power, Qty, Temperature};
 
 fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a CommSettings> {
     let s = ctx.design.analysis.comm.as_ref();
-    m.need(s, "analysis.comm", "通信の解析の設定（analysis/comm.toml）")
+    m.need(s, comm(&[]), "通信の解析の設定（analysis/comm.toml）")
+}
+
+/// `analysis.comm.<…>`（`analysis/comm.toml` のキー）。
+fn comm(keys: &[&str]) -> SettingPath {
+    SettingPath::analysis(&["comm"]).child(keys)
+}
+
+/// 地上局のある帯域の性能（`mission.ground.<局>.link.<帯域>`）。
+fn ground_band(station: &str, band: &str) -> SettingPath {
+    SettingPath::mission(&["ground", station, "link", band])
 }
 
 /// `comm.link_budget`: 設定の回線 × 使う地上局の先頭。
@@ -27,7 +39,7 @@ pub fn link_budget(ctx: &Context<'_>) -> Result<LinkBudgetInput, MissingInputs> 
     let mut links = Vec::new();
     if let (Some(s), Some(station)) = (s, stations.first()) {
         if s.links.is_empty() {
-            m.push("analysis.comm.link", "回線の設定（[link.<名前>]）");
+            m.push(comm(&["link"]), "回線の設定（[link.<名前>]）");
         }
         for (name, link) in &s.links {
             if let Some(l) = budget_link(ctx, name, link, station, altitude, &mut m) {
@@ -55,7 +67,7 @@ fn budget_link(
     let (rf, data_rate) = rf_params(ctx, name, link, &station.id, m)?;
     let required = m.need(
         db(link.ebn0_required.as_ref()),
-        format!("analysis.comm.link.{name}.ebn0_required"),
+        comm(&["link", name, "ebn0_required"]),
         "所要 Eb/N0（dB）",
     );
     Some(LinkBudgetLink {
@@ -83,11 +95,11 @@ fn rf_params(
     let part = ctx.resolved.parts.get(link.part.as_str());
     let part = m.need(
         part,
-        format!("analysis.comm.link.{name}.part"),
+        comm(&["link", name, "part"]),
         "回線の送受信機（部品 ID）",
     )?;
     let ground = ground_link(ctx, station_id, &link.band, m)?;
-    let gp = format!("mission.ground.{station_id}.link.{}", link.band);
+    let gp = ground_band(station_id, &link.band);
     let down = link.direction == LinkDirection::Down;
     let (freq_attr, rate_attr) = if down {
         ("frequency_down", "data_rate_down")
@@ -100,7 +112,7 @@ fn rf_params(
     let sat_gain = sat_gain_db(part, m);
     let ground_gain = m.need(
         db(ground.antenna_gain.as_ref()),
-        format!("{gp}.antenna_gain"),
+        gp.child(&["antenna_gain"]),
         "地上局のアンテナ利得（dBi）",
     );
     let sat_loss = db(link.line_loss.as_ref());
@@ -132,7 +144,7 @@ fn rf_params(
 fn power_and_noise(
     part: &ResolvedPart,
     ground: &fune_model::design::GroundLinkSettings,
-    gp: &str,
+    gp: &SettingPath,
     down: bool,
     m: &mut MissingInputs,
 ) -> (Option<Qty<Power>>, Option<Qty<Temperature>>) {
@@ -143,7 +155,7 @@ fn power_and_noise(
             crate::parts::part_qty::<Power>(part, "tx_power", why, m),
             qty::<Temperature>(
                 noise,
-                &format!("{gp}.noise_temperature"),
+                gp.child(&["noise_temperature"]),
                 "地上局の雑音温度",
                 m,
             ),
@@ -151,7 +163,7 @@ fn power_and_noise(
     } else {
         let power = ground.tx_power.as_ref();
         (
-            qty::<Power>(power, &format!("{gp}.tx_power"), "地上局の送信電力", m),
+            qty::<Power>(power, gp.child(&["tx_power"]), "地上局の送信電力", m),
             crate::parts::part_qty::<Temperature>(part, "noise_temperature", why, m),
         )
     }
@@ -161,7 +173,7 @@ fn power_and_noise(
 fn sat_gain_db(part: &ResolvedPart, m: &mut MissingInputs) -> Option<f64> {
     let ratio = m.need(
         part.scalar("antenna_gain"),
-        format!("{}.antenna_gain", part.id),
+        Target::attr(&part.id, "antenna_gain"),
         "衛星側のアンテナ利得",
     );
     ratio.filter(|r| *r > 0.0).map(sat_units::ratio_to_db)
@@ -175,11 +187,7 @@ fn ground_link<'a>(
 ) -> Option<&'a fune_model::design::GroundLinkSettings> {
     let g: Option<&GroundStationSettings> = ctx.design.mission.ground.get(station);
     let l = g.and_then(|g| g.links.get(band));
-    m.need(
-        l,
-        format!("mission.ground.{station}.link.{band}"),
-        "地上局のこの帯域の性能",
-    )
+    m.need(l, ground_band(station, band), "地上局のこの帯域の性能")
 }
 
 /// 円軌道の高度（`mission.orbit.altitude`、無ければ長半径 − 地球半径）。
@@ -223,11 +231,7 @@ pub fn data_throughput(ctx: &Context<'_>) -> Result<DataThroughputInput, Missing
             .iter()
             .find(|(_, l)| l.direction == LinkDirection::Down)
     });
-    let down = m.need(
-        down,
-        "analysis.comm.link",
-        "下りの回線（direction = \"down\"）",
-    );
+    let down = m.need(down, comm(&["link"]), "下りの回線（direction = \"down\"）");
     let rate = down.and_then(|(_, l)| {
         let part = ctx.resolved.parts.get(l.part.as_str())?;
         crate::parts::part_qty::<DataRate>(part, "data_rate_down", "下りのデータレート", &mut m)
@@ -271,10 +275,10 @@ fn generated_per_day(
         Ok(input) => match sat_analysis::cdh::DataBudget::run(&input) {
             Ok(out) => Some(out.total_per_day),
             Err(e) => {
-                m.push(
-                    "cdh.data_budget",
-                    format!("データ量を求められません（{e}）"),
-                );
+                let target = Target::Analysis {
+                    id: sat_analysis::cdh::DataBudget::ID.to_owned(),
+                };
+                m.push(target, format!("データ量を求められません（{e}）"));
                 None
             }
         },

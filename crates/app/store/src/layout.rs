@@ -5,6 +5,7 @@
 //! - `.` で始まる名前・`.fune/`・`results/`・`exports/` は読まない。`view/` は見た目だけの情報（整数の座標）。
 
 use crate::error::StoreError;
+use fune_model::Target;
 use fune_model::design::{Design, EntityKey, NodeRef};
 use fune_model::path::{SettingPath, SettingScope};
 
@@ -161,6 +162,31 @@ pub fn entity_key(role: &FileRole) -> Option<EntityKey> {
         FileRole::Ground(id) => EntityKey::Setting(format!("mission.ground.{id}")),
         FileRole::Analysis(id) => EntityKey::Setting(format!("analysis.{id}")),
         FileRole::Other => return None,
+    })
+}
+
+/// 役割 → そのファイルが書いているものの対象（読み込みの診断に付ける）。`fune.toml` と規約の外は None。
+pub fn file_target(role: &FileRole) -> Option<Target> {
+    Some(match role {
+        FileRole::Allocation => SettingPath::budget(&[]).into(),
+        FileRole::Policy => SettingPath::budget(&["policy"]).into(),
+        FileRole::Attribute(id) => Target::AttributeDef { id: id.clone() },
+        FileRole::Kind(id) => Target::KindDef { id: id.clone() },
+        FileRole::Catalog { source, id } => Target::Catalog {
+            id: format!("{source}/{id}"),
+            attr: None,
+        },
+        FileRole::Part { id, .. } => Target::Part { id: id.clone() },
+        FileRole::Mode(id) => Target::mode(id, None),
+        FileRole::Net(id) => Target::net(id, None),
+        FileRole::Harness(id) => Target::harness(id, None),
+        FileRole::Case(id) => Target::case(id, None),
+        FileRole::Source(id) => Target::Source { id: id.clone() },
+        FileRole::View(id) => Target::view(id, None),
+        FileRole::Mission(id) => SettingPath::mission(&[id]).into(),
+        FileRole::Ground(id) => SettingPath::mission(&["ground", id]).into(),
+        FileRole::Analysis(id) => SettingPath::analysis(&[id]).into(),
+        FileRole::Project | FileRole::Reserved | FileRole::Other => return None,
     })
 }
 

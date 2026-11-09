@@ -181,7 +181,7 @@ pub struct Resolved {
     pub parts: BTreeMap<Id<Part>, ResolvedPart>,
     pub tree: Tree<NodeRef>,               // 製品ツリー（機能の階層）
     pub mounts: Tree<Id<Part>>,            // 取付の階層（物理の階層）
-    pub diagnostics: Vec<Diagnostic>,      // severity・code・パス・ファイル位置
+    pub diagnostics: Vec<Diagnostic>,      // severity・code・対象（Target）・ファイル位置
 }
 
 pub struct ResolvedPart {
@@ -205,7 +205,7 @@ pub trait Project<I> {
     fn project(r: &Resolved, case: &CaseCtx) -> Result<I, MissingInputs>;
 }
 // 例: impl Project<rw_unloading::Input> for RwUnloadingProjection { … }
-// MissingInputs は ["RW_X.max_momentum", "SC.residual_dipole"] のようにパスで返す
+// MissingInputs は対象（fune_model::Target）で返す。表示は "RW_X.max_momentum"・"<部品>.power" のようなパス
 ```
 
 - 編集の流れ: Op は Design のパス（`RW_X.attr.mass`）を対象にする。store が最小差分のファイル編集に変え、
