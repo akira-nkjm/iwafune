@@ -89,6 +89,8 @@ export const shellEn: typeof shellJa = {
     noText: "No display text returned",
     tensor: (unit: string) => `tensor ${unit}`,
     table: (id: string) => `table ${id}`,
+    setSummary: (path: string, text: string) => `${path} = ${text}`,
+    byState: "by state",
   },
   verdict: { ok: "OK", warning: "Caution", violation: "Violation" },
   severity: { error: "Error", warning: "Warning", info: "Info" },

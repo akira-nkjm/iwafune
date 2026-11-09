@@ -2,13 +2,14 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import type { DesignView, Op } from "@/api/types";
 import { type NewAttribute, NewAttributeFields } from "@/features/components/NewAttributeFields";
-import { localized, useT } from "@/i18n";
+import { useT } from "@/i18n";
 import { DataTable } from "@/kit/DataTable";
 import { Panel } from "@/kit/Panel";
 import { PanelHeader } from "@/kit/PanelHeader";
 import { Pill } from "@/kit/Pill";
 import { Td } from "@/kit/Td";
 import { Th } from "@/kit/Th";
+import { defName } from "@/lib/design";
 
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
@@ -72,7 +73,7 @@ export function AttributesTab({ design }: { design: DesignView }) {
         {attrs.map((a) => (
           <tr key={a.id} title={a.description ?? undefined}>
             <Td mono>{a.id}</Td>
-            <Td>{localized(a.label, a.label_en)}</Td>
+            <Td>{defName(a)}</Td>
             <Td mono className="text-ink-3">
               {a.value_type}
             </Td>

@@ -2,7 +2,8 @@
 //! ファイルの分け方に関係なく、画面が見たい単位（部品・モード表・ネット）にまとめる。
 
 use super::{
-    CatalogItemView, DiagnosticCounts, DiagnosticView, QuantityView, ValueData, ValueView,
+    CatalogItemView, CatalogSourceView, DiagnosticCounts, DiagnosticView, QuantityView, ValueData,
+    ValueView,
 };
 use fune_model::builtin::Labels;
 use fune_model::design::{Source, StateAssign, ViewLayout};
@@ -24,6 +25,8 @@ pub struct ProjectInfo {
     pub schema: u32,
     pub counts: DesignCounts,
     pub diagnostics: DiagnosticCounts,
+    /// カタログの出所（fune.toml の `[[catalog]]` の順。書き込めるかの印付き）
+    pub catalogs: Vec<CatalogSourceView>,
 }
 
 /// エンティティの件数。

@@ -107,6 +107,11 @@ async fn project_and_design() {
     assert_eq!(s, StatusCode::OK, "{p}");
     assert!(p["revision"].as_str().unwrap().starts_with("b3:"));
     assert!(p["counts"]["parts"].as_u64().unwrap() > 0);
+    // 書き込めるカタログの出所（Web が置き先の名前を書かずに選ぶ）
+    assert_eq!(
+        p["catalogs"],
+        json!([{ "name": "local", "editable": true }])
+    );
     let (s, d) = call(&r, "GET", "/api/v1/design", None).await;
     assert_eq!(s, StatusCode::OK);
     assert_eq!(d["project"]["revision"], p["revision"]);

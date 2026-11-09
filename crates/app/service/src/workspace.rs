@@ -1,5 +1,6 @@
 //! プロジェクトを開く。読み取りのたびにディレクトリから読み直したスナップショット（Design・Resolved・診断）を作る。
 //! 状態はディスクだけに置くので、CLI と GUI が同時に書いても食い違わない（数十ファイルで数 ms）。
+//! fune-store・fune-ops のエラーをサービスのエラーに読み替える関数（`store_error`・`op_error`）もここに置く（edit・preview が共有）。
 
 use crate::dto::{DiagnosticView, SourceExcerpt};
 use crate::error::{Result, ServiceError};
@@ -75,6 +76,37 @@ pub(crate) fn store_error(e: fune_store::StoreError) -> ServiceError {
     match e {
         fune_store::StoreError::NotAProject { start } => ServiceError::ProjectNotFound(start),
         other => ServiceError::Store(other.to_string()),
+    }
+}
+
+/// fune-ops のエラー → サービスのエラー（保存・保存しない編集のプレビュー・打った文字列の読み取りで共通）。
+pub(crate) fn op_error(ws: &Workspace, e: fune_ops::OpError) -> ServiceError {
+    use fune_ops::OpError;
+    match e {
+        OpError::Conflict { expected, actual } => ServiceError::Conflict {
+            expected: expected.0,
+            actual: actual.0,
+        },
+        OpError::NotFound { what } => ServiceError::NotFound {
+            what: "対象",
+            id: what,
+        },
+        OpError::AlreadyExists { what } => {
+            ServiceError::InvalidInput(format!("{what} は既にあります"))
+        }
+        OpError::Invalid { message } => ServiceError::InvalidInput(message),
+        OpError::Rejected { diagnostics } => {
+            // 書き込まなかったので、該当行は今のファイルから取る（変えていないファイルの行は同じ）。
+            let files = fune_store::read::scan(ws.root()).unwrap_or_default();
+            ServiceError::Validation {
+                diagnostics: diagnostics
+                    .into_iter()
+                    .map(|d| with_excerpt(d, &files))
+                    .collect(),
+            }
+        }
+        OpError::Store(fune_store::StoreError::Locked { lock }) => ServiceError::Locked(lock),
+        OpError::Store(e) => store_error(e),
     }
 }
 

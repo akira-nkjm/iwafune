@@ -1,7 +1,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import type { DesignView, Op } from "@/api/types";
-import { localized, useT } from "@/i18n";
+import { useT } from "@/i18n";
 import { DataTable } from "@/kit/DataTable";
 import { Field } from "@/kit/Field";
 import { Panel } from "@/kit/Panel";
@@ -10,6 +10,7 @@ import { Pill } from "@/kit/Pill";
 import { Td } from "@/kit/Td";
 import { TextInput } from "@/kit/TextInput";
 import { Th } from "@/kit/Th";
+import { defName } from "@/lib/design";
 
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
@@ -80,7 +81,7 @@ export function KindsTab({ design }: { design: DesignView }) {
         {kinds.map((k) => (
           <tr key={k.id}>
             <Td mono>{k.id}</Td>
-            <Td>{localized(k.label, k.label_en)}</Td>
+            <Td>{defName(k)}</Td>
             <Td mono className="text-ink-3">
               {k.role ?? "—"}
             </Td>

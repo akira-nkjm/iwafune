@@ -88,6 +88,9 @@ export const shellJa = {
     noText: "表示文字列が返りませんでした",
     tensor: (unit: string) => `テンソル ${unit}`,
     table: (id: string) => `表 ${id}`,
+    /** 値を書き換えた編集の見出し（部品・カタログ品・設定で共通） */
+    setSummary: (path: string, text: string) => `${path} = ${text}`,
+    byState: "状態ごと",
   },
   verdict: { ok: "OK", warning: "注意", violation: "違反" },
   severity: { error: "エラー", warning: "警告", info: "情報" },

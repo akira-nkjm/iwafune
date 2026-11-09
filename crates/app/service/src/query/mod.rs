@@ -51,6 +51,7 @@ fn info_of(ws: &Workspace, s: &Snapshot) -> ProjectInfo {
             cases: count(d.cases.len()),
         },
         diagnostics: DiagnosticCounts::of(&s.diagnostics),
+        catalogs: catalog::sources(d),
     }
 }
 

@@ -3,6 +3,7 @@
 //! 入口は `edit::{set_op, unset_op}`（カタログ品は `super::catalog`、部品と設定はここ）。
 
 use crate::error::{Result, ServiceError};
+use crate::preview::snapshot_with;
 use crate::workspace::Workspace;
 use fune_model::design::{Maturity, PartField};
 use fune_model::path::{ParamPath, SettingPath, parse};
@@ -36,7 +37,7 @@ pub(super) fn param_set_op(ws: &Workspace, t: &SetText) -> Result<Op> {
             field: field_value(&field, Some(&t.value))?,
         }),
         ParamPath::Setting(path) => Ok(Op::SetSetting {
-            value: Some(setting_value(ws, &path, &t.value)?),
+            value: Some(setting_value(ws, &path, t)?),
             path: path.to_string(),
         }),
     }
@@ -63,8 +64,9 @@ pub(super) fn invalid(e: impl std::fmt::Display) -> ServiceError {
     ServiceError::InvalidInput(e.to_string())
 }
 
+/// 属性の値（`cell` なら状態ごとの 1 セル）。型は属性定義から決める（`t.ops` があれば、それを当てた設計の定義）。
 pub(super) fn attr_value(ws: &Workspace, attr: &str, cell: bool, t: &SetText) -> Result<Value> {
-    let snapshot = ws.snapshot()?;
+    let snapshot = snapshot_with(ws, &t.ops)?;
     let def = snapshot
         .design
         .attribute(attr)
@@ -114,24 +116,25 @@ fn field_value(field: &str, text: Option<&str>) -> Result<PartField> {
         "catalog" => PartField::Catalog(owned),
         "kind" => PartField::Kind(owned),
         "count" => PartField::Count(text.unwrap_or("1").parse().map_err(invalid)?),
-        "maturity" => PartField::Maturity(match text {
-            None => None,
-            Some(t) => Some(
-                serde_json::from_value::<Maturity>(serde_json::Value::String(t.to_owned()))
-                    .map_err(|_| {
-                        invalid(format!("成熟度は off_the_shelf / modified / new です: {t}"))
-                    })?,
-            ),
-        }),
+        "maturity" => PartField::Maturity(text.map(maturity).transpose()?),
         "candidates" => PartField::Candidates(text.map(list_from_text).unwrap_or_default()),
         other => return Err(invalid(format!("部品のフィールドではありません: {other}"))),
     })
 }
 
+/// 成熟度の文字列（`off_the_shelf` / `modified` / `new`）。部品とカタログ品のフィールド、`fune catalog add --maturity` で共通。
+pub fn maturity(text: &str) -> Result<Maturity> {
+    text.parse().map_err(|_| {
+        invalid(format!(
+            "成熟度は off_the_shelf / modified / new です: {text}"
+        ))
+    })
+}
+
 /// 設定の値。今の値の型（整数・小数・量）に合わせ、無ければ文字列から推し量る。
-fn setting_value(ws: &Workspace, path: &SettingPath, text: &str) -> Result<SettingValue> {
-    let snapshot = ws.snapshot()?;
-    let t = text.trim();
+fn setting_value(ws: &Workspace, path: &SettingPath, text: &SetText) -> Result<SettingValue> {
+    let snapshot = snapshot_with(ws, &text.ops)?;
+    let t = text.value.trim();
     // 今の値の型（`Design::setting`）に合わせる。書かれていなければ文字列から推し量る。
     Ok(match snapshot.design.setting(path) {
         Some(SettingValue::Number(_)) => SettingValue::Number(t.parse().map_err(invalid)?),

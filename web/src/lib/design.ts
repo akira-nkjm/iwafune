@@ -1,5 +1,13 @@
-import type { DesignView, PartRow, TreeNode, ValueView } from "@/api/types";
-import { getLang, type Lang } from "@/i18n";
+import type {
+  AttributeDefView,
+  DefsView,
+  DesignView,
+  KindDefView,
+  PartRow,
+  TreeNode,
+  ValueView,
+} from "@/api/types";
+import { getLang, type Lang, localized } from "@/i18n";
 
 /**
  * 設計データ（GET /design）からの引き当て。表示の組み立てだけで、値の計算はしない。
@@ -15,6 +23,53 @@ export function paramPath(
   state?: string | null,
 ): string {
   return part.paths[attr]?.[state ?? ""] ?? attr;
+}
+
+/**
+ * 同じ編集で定義を作る属性（まだ API の `paths` に無い属性）のパス。定義のある属性は `paramPath` を使う。
+ * 記法は fune_model::path（`<部品>.<属性>[.<状態>]`）で、サーバーが読み直して検査する（`POST /ops/from_text`）
+ */
+export function newAttrPath(part: Pick<PartRow, "id">, attr: string, state: string | null): string {
+  return [part.id, attr, ...(state ? [state] : [])].join(".");
+}
+
+/** 日英の表示名を持つ定義（属性・種別） */
+type Labeled = { id: string; label: string; label_en: string | null };
+
+/** 定義の表示名（言語で選ぶ。英語名が無ければ日本語、どちらも無ければ ID） */
+export function defName(def: Labeled): string {
+  return localized(def.label, def.label_en) || def.id;
+}
+
+/** 選択肢に出す「ID（表示名）」。表示名が ID と同じなら ID だけ */
+export function defWithId(def: Labeled): string {
+  const name = defName(def);
+  return name !== def.id ? `${def.id}（${name}）` : def.id;
+}
+
+/** 属性定義（GET /design の defs）。無ければ undefined */
+export function attrDef(
+  defs: Pick<DefsView, "attributes">,
+  id: string,
+): AttributeDefView | undefined {
+  return defs.attributes.find((a) => a.id === id);
+}
+
+/** 属性の表示名（定義が無ければ ID） */
+export function attrLabel(defs: Pick<DefsView, "attributes">, id: string): string {
+  const def = attrDef(defs, id);
+  return def ? defName(def) : id;
+}
+
+/** 種別定義。無ければ undefined */
+export function kindDef(defs: Pick<DefsView, "kinds">, id: string): KindDefView | undefined {
+  return defs.kinds.find((k) => k.id === id);
+}
+
+/** 種別の表示名（定義が無ければ ID） */
+export function kindLabel(defs: Pick<DefsView, "kinds">, id: string): string {
+  const def = kindDef(defs, id);
+  return def ? defName(def) : id;
 }
 
 /** 製品ツリーの Group（サブシステムなど） */
@@ -48,11 +103,6 @@ export function nodeLabel(design: DesignView, id: string | null, lang: Lang = ge
 
 export function partById(design: DesignView): Map<string, PartRow> {
   return new Map(design.parts.map((p) => [p.id, p]));
-}
-
-/** 属性定義の表示名（無ければ ID） */
-export function attrLabel(design: DesignView, id: string): string {
-  return design.defs.attributes.find((a) => a.id === id)?.label ?? id;
 }
 
 /** ポートの種類はネットの種類から決める（電源ネットの供給元なら出力） */

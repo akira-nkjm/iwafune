@@ -7,8 +7,8 @@ export const catalogJa = {
     search: "ID・種別・名前",
     empty: "カタログ品がありません",
     select: "カタログ品を選ぶと、値と使っている部品をここに出します",
-    readOnly:
-      "共有カタログ（lab/…）は読み取り専用です。値を直すときは共有リポジトリに PR を出すか、部品の側で上書きします。",
+    readOnly: (scope: string) =>
+      `共有カタログ（${scope}/…）の品は読み取り専用です。値を直すときは共有リポジトリに PR を出すか、部品の側で上書きします。`,
     colId: "ID",
     colKind: "種別",
     colLabel: "名前",
@@ -47,9 +47,14 @@ export const catalogJa = {
     kind: "種別",
     fromPart: "部品から作る（任意）",
     fromPartNone: "（空から作る）",
-    idLocal: "このプロジェクトの品は local/ で始めます（例: local/rw_30mNms）",
+    idHint: (writable: string) =>
+      `ID は <カタログ名>/<名前> の形です。書き込めるカタログ: ${writable}`,
+    scope: "カタログ",
+    itemName: "名前",
+    itemNameHint: "カタログの中の名前（例: rw_30mNms）",
+    noWritable:
+      "書き込めるカタログがありません。fune.toml に [[catalog]] path = … のカタログを足してください。",
     taken: "同じ ID の品があります",
-    summarySet: (path: string, v: string) => `${path} = ${v}`,
     summaryUnset: (path: string) => `${path} を消す`,
     summaryField: (id: string, field: string) => `${id} の ${field} を変更`,
     summaryCreate: (id: string) => `カタログ品 ${id} を作る`,

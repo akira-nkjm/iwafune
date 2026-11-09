@@ -1,9 +1,8 @@
-import type { Provenance } from "@/api/types";
 import { useT } from "@/i18n";
 import { Field } from "@/kit/Field";
 import { TextInput } from "@/kit/TextInput";
 
-/** 出典とメモ（任意）。どちらも空なら null */
+/** 出典とメモ（任意）。打ったまま `SetText` の source・note に渡す（空なら付けない） */
 export function ProvenanceFields({
   value,
   onChange,
@@ -33,9 +32,4 @@ export function ProvenanceFields({
       </Field>
     </div>
   );
-}
-
-/** 入力から Op の出典にする */
-export function provenanceOf(v: { source: string; note: string }): Provenance | null {
-  return v.source || v.note ? { source: v.source || null, note: v.note || null } : null;
 }

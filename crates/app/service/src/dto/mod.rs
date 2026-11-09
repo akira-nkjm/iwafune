@@ -29,7 +29,7 @@ pub use analysis::{
     RunAnalysisRequest,
 };
 pub use budget::{BudgetRequest, BudgetRow, BudgetView};
-pub use catalog::CatalogItemView;
+pub use catalog::{CatalogItemView, CatalogSourceView};
 pub use common::{
     CheckReport, DiagnosticCounts, DiagnosticView, ErrorEnvelope, ErrorInfo, QuantityView,
     SourceExcerpt,

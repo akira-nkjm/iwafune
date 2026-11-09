@@ -28,9 +28,9 @@ pub async fn place_body(
         .map(Json)
 }
 
-/// POST `/ops/from_text` `{ item?, path, value, source?, note?, min?, max? }`
+/// POST `/ops/from_text` `{ item?, path, value, source?, note?, min?, max?, ops? }`
 /// 人が打った値の文字列を Op にする（`fune set <PATH> <VALUE>`、`item` があれば `fune catalog set <品> <PATH> <VALUE>`
-/// と同じ解釈）。適用はしない（`POST /ops` で送る）。
+/// と同じ解釈。`ops` は書き込まずに当ててから読む下書き）。適用はしない（`POST /ops` で送る）。
 pub async fn op_from_text(
     State(s): State<AppState>,
     ApiJson(req): ApiJson<SetText>,

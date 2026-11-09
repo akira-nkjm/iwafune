@@ -11,9 +11,9 @@ import { useOpCheck } from "@/ops/use-op-check";
 import { Button } from "@/ui/button";
 import { CatalogFields } from "./CatalogFields";
 import { CatalogValues } from "./CatalogValues";
-import { itemLabel } from "./catalog";
+import { itemLabel, writableCatalogs } from "./catalog";
 
-/** カタログ品 1 つの詳細: 基本の欄・値・使っている部品。共有カタログ（lab/…）は読み取り専用 */
+/** カタログ品 1 つの詳細: 基本の欄・値・使っている部品。共有カタログ（`git = …` の出所）の品は読み取り専用 */
 export function CatalogDetail({
   design,
   item,
@@ -65,7 +65,7 @@ export function CatalogDetail({
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3">
         {readOnly && (
           <p className="rounded-control bg-warn-bg px-3 py-2 text-warn-ink text-xs">
-            {t.catalog.readOnly}
+            {t.catalog.readOnly(item.scope)}
           </p>
         )}
         <DetailSection title={t.catalog.fields}>
@@ -108,7 +108,7 @@ export function CatalogDetail({
             label={t.catalog.newId}
             htmlFor="cat-rename"
             error={renameError}
-            hint={t.catalog.idLocal}
+            hint={t.catalog.idHint(writableCatalogs(design.project).join(", "))}
           >
             <TextInput
               id="cat-rename"

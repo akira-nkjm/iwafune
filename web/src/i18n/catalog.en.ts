@@ -8,8 +8,8 @@ export const catalogEn: typeof catalogJa = {
     search: "ID, kind, name",
     empty: "No catalog items",
     select: "Select an item to see its values and the parts that use it",
-    readOnly:
-      "Shared catalog items (lab/…) are read-only. To change a value, open a PR on the shared repository or override it on the part.",
+    readOnly: (scope: string) =>
+      `Items of the shared catalog (${scope}/…) are read-only. To change a value, open a PR on the shared repository or override it on the part.`,
     colId: "ID",
     colKind: "Kind",
     colLabel: "Name",
@@ -47,9 +47,13 @@ export const catalogEn: typeof catalogJa = {
     kind: "Kind",
     fromPart: "Create from a part (optional)",
     fromPartNone: "(start empty)",
-    idLocal: "Project items start with local/ (e.g. local/rw_30mNms)",
+    idHint: (writable: string) =>
+      `IDs have the form <catalog>/<name>. Writable catalogs: ${writable}`,
+    scope: "Catalog",
+    itemName: "Name",
+    itemNameHint: "Name inside the catalog (e.g. rw_30mNms)",
+    noWritable: "No writable catalog. Add a catalog with [[catalog]] path = … to fune.toml.",
     taken: "An item with this ID exists",
-    summarySet: (path: string, v: string) => `${path} = ${v}`,
     summaryUnset: (path: string) => `Remove ${path}`,
     summaryField: (id: string, field: string) => `Change ${field} of ${id}`,
     summaryCreate: (id: string) => `Create catalog item ${id}`,

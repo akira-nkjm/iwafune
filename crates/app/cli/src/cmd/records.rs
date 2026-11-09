@@ -179,6 +179,7 @@ fn catalog_set<'a>(
         note: note.clone(),
         min: min.clone(),
         max: max.clone(),
+        ops: Vec::new(),
     };
     Ok((edit::set_op(ws, &text)?, opts))
 }

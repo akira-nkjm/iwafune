@@ -51,7 +51,7 @@ export function CatalogTable({
             <span className="flex items-center gap-2">
               {c.id}
               {!c.editable && (
-                <Pill dot={false} title={t.catalog.readOnly}>
+                <Pill dot={false} title={t.catalog.readOnly(c.scope)}>
                   {c.scope}
                 </Pill>
               )}

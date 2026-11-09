@@ -10,6 +10,7 @@ import { getT } from "@/i18n";
 import { paramPath } from "@/lib/design";
 import { clearFieldErrors, setFieldErrors } from "@/lib/field-errors";
 import { copyText, recordChange } from "@/lib/history";
+import { useDebounced } from "@/lib/use-debounced";
 import { type ApiError, api, seg } from "./client";
 import { invalidatedByOps, keys } from "./keys";
 import { q } from "./queries";
@@ -18,8 +19,10 @@ import type {
   ApplyResult,
   BudgetKind,
   BudgetView,
+  CatalogItemView,
   DesignView,
   Op,
+  PartRow,
   PlaceBodyRequest,
   ProjectInfo,
   SetText,
@@ -148,7 +151,7 @@ export function useApplyOps() {
   );
 }
 
-/** 人が打った文字列で 1 つの値を書き換える（設定の表・カタログ品の値とフィールドなど） */
+/** 人が打った文字列で 1 つの値を書き換える（部品の値・設定の表・カタログ品の値とフィールドなど） */
 export interface SetTextEdit {
   /** カタログ品の ID。あれば path は品のパラメーターパス（API の `paths` の値）かフィールド名（`label` など） */
   item?: string | null;
@@ -157,7 +160,7 @@ export interface SetTextEdit {
   summary: string;
 }
 
-/** 人が打ったパスの値を消す（カタログ品の値・フィールドなど） */
+/** 人が打ったパスの値を消す（部品の上書き・カタログ品の値・フィールド・設定など） */
 export interface UnsetTextEdit {
   /** カタログ品の ID。あれば path は品のパラメーターパス（API の `paths` の値）かフィールド名 */
   item?: string | null;
@@ -191,11 +194,39 @@ export function useSetText() {
         note: null,
         min: null,
         max: null,
+        ops: [],
       };
       return sendText("/ops/from_text", text, revision);
     },
     ({ path }) => [path],
   );
+}
+
+/** 属性の値を持つもの（部品・カタログ品）。パスは API の `paths`（`RW_X.power.on`・`local/rw_10mNms.power.on`） */
+export type AttrOwner =
+  | { kind: "part"; owner: Pick<PartRow, "paths"> }
+  | { kind: "catalog"; owner: Pick<CatalogItemView, "id" | "paths"> };
+
+/**
+ * 属性の値の欄の編集（部品・カタログ品で共通の送り口）。打った文字列とパラメーターパスをそのまま
+ * `useSetText`・`useUnsetText` に渡す（値の型は `fune set`・`fune catalog set` と同じ service が決める）。
+ */
+export function useAttrEdit(target: AttrOwner) {
+  const setText = useSetText();
+  const unsetText = useUnsetText();
+  const item = target.kind === "catalog" ? target.owner.id : null;
+  return {
+    set: (attr: string, state: string | null, value: string) => {
+      const path = paramPath(target.owner, attr, state);
+      setText.mutate({ item, path, value, summary: getT().quantity.setSummary(path, value) });
+    },
+    unset: (attr: string, state: string | null = null) => {
+      const path = paramPath(target.owner, attr, state);
+      const t = getT();
+      const summary = item ? t.catalog.summaryUnset(path) : t.components.attr.unsetSummary(path);
+      unsetText.mutate({ item, path, summary });
+    },
+  };
 }
 
 /**
@@ -253,4 +284,28 @@ export function useDryRun(ops: Op[] | null) {
     // 編集のたびにキーが変わる。次の結果が来るまで前の結果を出しておき、プレビューが空に戻って跳ねないようにする
     placeholderData: keepPreviousData,
   });
+}
+
+/**
+ * 打った文字列を Op にするだけ（書き込まない。`POST /ops/from_text`）。確定前に dry_run と CLI を見せるダイアログが、
+ * service の作った Op を `OpDialog` に渡すのに使う。text が null なら問い合わせない。打つ間は 250 ms 待ってから問い合わせる。
+ */
+export function useTextOp(text: SetText | null): { op: Op | null; error: string | null } {
+  const qc = useQueryClient();
+  const revision = currentRevision(qc);
+  // 文字列で待つ（毎回作り直すオブジェクトを待つと、描き直すたびに待ち直す）
+  const now = text ? JSON.stringify(text) : "";
+  const json = useDebounced(now, 250);
+  const query = useQuery<Op, ApiError>({
+    queryKey: keys.textOp(revision ?? "", json),
+    queryFn: () => api<Op>("/ops/from_text", { method: "POST", body: JSON.parse(json) }),
+    enabled: json.length > 0,
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const settled = json === now && now.length > 0;
+  return {
+    op: settled ? (query.data ?? null) : null,
+    error: settled ? (query.error?.message ?? null) : null,
+  };
 }

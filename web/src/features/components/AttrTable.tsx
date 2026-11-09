@@ -1,12 +1,16 @@
-import { setValueOp, unsetValueOp } from "@/api/op-values";
-import { useApplyOps } from "@/api/ops";
-import type { DesignView, PartRow, QuantityView } from "@/api/types";
+import { useAttrEdit } from "@/api/ops";
+import type { DesignView, PartRow } from "@/api/types";
 import { useT } from "@/i18n";
 import { PropertyList } from "@/kit/PropertyList";
-import { paramPath } from "@/lib/design";
-import { AttrRow } from "./AttrRow";
+import { ResetButton } from "@/kit/ResetButton";
+import { attrDef, attrLabel } from "@/lib/design";
+import { AttrValueEditor } from "@/quantity/AttrValueEditor";
+import { OriginBadge } from "@/quantity/OriginBadge";
 
-/** 1 区分の属性の表。編集は SetValue、上書きを消すのは UnsetValue（どちらも POST /ops） */
+/**
+ * 1 区分の属性の表（ラベル / 値 / 出所 / 戻す）。打った文字列は部品のパラメーターパスのまま `fune set` と同じ service に
+ * 渡し（`useAttrEdit`）、上書きを消すと `fune unset` と同じくカタログの値に戻る
+ */
 export function AttrTable({
   design,
   part,
@@ -16,30 +20,33 @@ export function AttrTable({
   part: PartRow;
   attrIds: string[];
 }) {
-  const { mutate } = useApplyOps();
   const t = useT().components.attr;
-  const onSet = (attr: string, state: string | null, q: QuantityView, text: string) =>
-    mutate({
-      ops: [setValueOp(part.id, attr, state, q)],
-      summary: t.setSummary(paramPath(part, attr, state), text),
-    });
-  const onUnset = (attr: string) =>
-    mutate({
-      ops: [unsetValueOp(part.id, attr, null)],
-      summary: t.unsetSummary(paramPath(part, attr)),
-    });
+  const edit = useAttrEdit({ kind: "part", owner: part });
   return (
     <PropertyList>
-      {attrIds.map((id) => (
-        <AttrRow
-          key={id}
-          part={part}
-          id={id}
-          def={design.defs.attributes.find((a) => a.id === id)}
-          onSet={onSet}
-          onUnset={onUnset}
-        />
-      ))}
+      {attrIds.map((id) => {
+        const v = part.values[id];
+        const origin = v?.origin ?? "unset";
+        return (
+          <AttrValueEditor
+            key={id}
+            layout="row"
+            rowLayout="values"
+            owner={part}
+            attr={id}
+            def={attrDef(design.defs, id)}
+            value={v}
+            label={attrLabel(design.defs, id)}
+            source={<OriginBadge origin={origin} source={v?.source} evidence={v?.evidence} />}
+            action={
+              origin === "override" ? (
+                <ResetButton title={t.resetTitle} onClick={() => edit.unset(id)} />
+              ) : null
+            }
+            onSet={(state, text) => edit.set(id, state, text)}
+          />
+        );
+      })}
     </PropertyList>
   );
 }

@@ -43,10 +43,8 @@ export const componentsEn: typeof componentsJa = {
       harnesses: "Harnesses",
     },
     attr: {
-      byState: "by state",
       reset: "Revert to the catalog value",
       resetTitle: "Remove the override and revert to the catalog value (unset)",
-      setSummary: (path: string, text: string) => `${path} = ${text}`,
       unsetSummary: (path: string) => `Revert ${path} to the catalog value`,
     },
     basic: {

@@ -84,13 +84,13 @@
 | JSON の中の量・ベクトルの見分け | `fune_model::value::json` | `quantity_from_json`・`is_quantity_json`・`vector_from_json` |
 | 設定をパス記法で読む | `fune_model::design::settings_view` | `Design::setting`・`setting_entries`・`settings_json`（キーはパス記法と同じ） |
 | 組み込みの属性・種別 | `fune_model::builtin` | §3 の語彙 |
-| 語彙の表示名（日英）と系の並び | `fune_model::builtin::labels` | CLI は `fune_service::query::enum_label`、Web は `web/src/api/labels.ts` の `useEnumLabel`（`GET /defs` の `labels`）で引く。i18n に写さない。状態・系（section）・列挙（budget_kind など）の `label` / `label_en`、`sections()` の順、属性 → 系は `Design::attribute_section`、role → 系・サブシステムは labels の role_system / role_subsystem |
+| 語彙の表示名（日英）と系の並び | `fune_model::builtin::labels` | CLI は `fune_service::query::enum_label`、Web は `web/src/api/labels.ts` の `useEnumLabel`（`GET /defs` の `labels`）で引く。i18n に写さない。状態・系（section）・列挙（budget_kind など）の `label` / `label_en`、`sections()` の順、選択肢に並べる列挙の値の順は `enum_order`（Web は `useEnumOptions`。成熟度の選択肢などの値の一覧を手で書かない）、属性 → 系は `Design::attribute_section`、role → 系・サブシステムは labels の role_system / role_subsystem |
 | 型付き解析出力の読み取り（TS） | `web/src/api/analysis-output.ts` | dispatch 由来の生成型 AnalysisOutputs を ID・成功状態で絞り込む唯一の入口 |
-| パラメーターのパス記法 | `fune_model::path` | CLI と API で共通。service::query::views::parameter_paths がフィールドと状態のパスを DTO に添える |
+| パラメーターのパス記法 | `fune_model::path` | CLI と API で共通。service::query::views::parameter_paths がフィールドと状態のパスを DTO に添える。Web は `lib/design.ts` の `paramPath` で引くだけ（同じ編集で定義を作る属性だけは `newAttrPath` でつなぎ、サーバーが読み直して検査する） |
 | 解決（Resolved） | `fune_model::resolve` | カタログ品そのものに書かれた値の解決は `resolve_catalog_item`（部品がその品の値を使うときと同じ関数を通る） |
 | 検証と診断 | `fune_model::check` / `fune_model::diagnostic` | |
 | 診断と不足入力の対象 | `fune_model::target::Target` | 部品 ID などは構造で持ち、文字列のパスは `Display` だけが作る（受け取る側は読み直さない）。部品の属性・フィールド・設定は `path::ParamPath`、ポートは `PortRef`、カタログ品の属性は `AttrPath` を入れる。どの部品の話かは `Target::part`（部品のファイルの中の対象だけ）。読み込みの診断の対象（ファイル → エンティティ）は `fune_store::layout::file_target` |
-| ディレクトリの規約 | `fune_store::layout` | |
+| ディレクトリの規約 | `fune_store::layout` | カタログの出所が書き換えられるか（`[[catalog]] path = …`）の判定は `local_catalog_dir` だけ（`catalog_location`・fune-ops・service の出所の一覧が使う） |
 | 設定のパス → ファイル | `fune_store::layout::setting_location` | 唯一の対応（`locate_setting` で行も引ける） |
 | プロジェクトの探索・初期化・git のブランチ名 | `fune_store::project` | `find_root`・`init`・`git_branch` |
 | 読み込み・書き込み・整形 | `fune_store::{read, write, format}` | ファイル I/O はここだけ |
@@ -110,13 +110,14 @@
 | CLI と HTTP が呼ぶ関数 | `fune_service::{query, edit, units, analysis, budget}` | |
 | 保存していない編集（Op の列）を書き込まずに当てた設計 | `fune_service::preview::snapshot_with` | スナップショットの組み立ては `workspace::Snapshot::of` だけ。下書きのまま解析（依頼の `ops`）・バジェット（`POST /budgets/{kind}`、`fune budget --ops`・`fune analyze --ops`）を見るのに使う |
 | プロジェクトを開く・スナップショット（読み直し・診断の該当行） | `fune_service::workspace` | 読み込みは `fune_store::load` |
-| サービスのエラーと分類（HTTP の状態・終了コードの元） | `fune_service::error` |  |
-| 人が打つ文字列 → Op（属性の型・設定の今の型・一覧） | `fune_service::edit::{text, catalog, place}` | **CLI も GUI もここを通す**（入口は `edit::set_op(&SetText)`・`edit::unset_op(&UnsetText)`。`item` があればカタログ品（`catalog`）、無ければ部品と設定（`text`）。GUI は `POST /ops/from_text`・`POST /ops/unset_from_text` で Op にしてから `POST /ops`。`fune set`・`fune unset`・`fune catalog set`・`fune catalog unset` も同じ関数）。文字列の読み方は `fune_model::value::{value_from_text, parse_number_unit}`・`path::{AttrPath, PortRef}`。一覧の規則は `edit::list_from_text`（カンマのみ・trim・空要素除外）。kind 作成欄だけは同じ規則で Op の配列を作る |
+| サービスのエラーと分類（HTTP の状態・終了コードの元） | `fune_service::error` | fune-store・fune-ops のエラーの読み替えは `workspace::{store_error, op_error}`（保存・下書きのプレビュー・打った文字列の読み取りで共通） |
+| 人が打つ文字列 → Op（属性の型・設定の今の型・一覧） | `fune_service::edit::{text, catalog, place}` | **CLI も GUI もここを通す**（入口は `edit::set_op(&SetText)`・`edit::unset_op(&UnsetText)`。`item` があればカタログ品（`catalog`）、無ければ部品と設定（`text`）。GUI は `POST /ops/from_text`・`POST /ops/unset_from_text` で Op にしてから `POST /ops`。`fune set`・`fune unset`・`fune setting set|unset`・`fune catalog set`・`fune catalog unset` も同じ関数）。`SetText.ops` があれば、それを書き込まずに当てた設計（`preview::snapshot_with`）で型を決める（GUI のパラメーター追加が属性の定義と値を 1 回で作るとき）。成熟度の読み方は `edit::maturity` だけ。文字列の読み方は `fune_model::value::{value_from_text, parse_number_unit}`・`path::{AttrPath, PortRef}`。一覧の規則は `edit::list_from_text`（カンマのみ・trim・空要素除外）。kind 作成欄だけは同じ規則で Op の配列を作る |
 | 解析の出力の量の次元（JSON Pointer → 次元名）・時系列の表示単位 | `fune_service::analysis::{dims, channels}` | `sat_units::take_last_dimension`・`sat_units::format` を使う |
 | 外部データ（DE440）の取得・状態・読み込み | `fune_service::data` | ユーザーのキャッシュ。install_cached_ephemeris を CLI・HTTP 起動時に明示的に呼ぶ。GUI 設定の DataPanel も同じ API を使う。状態の SHA-256 には、同じプロセスの中でファイルの大きさと更新時刻が変わらない間は前回の結果を使う |
 | 変更前後の本文 → unified diff | `fune_service::diff` | `--dry-run` と GUI の変更の確認で共通 |
 | 表示用の型（DTO） | `fune_service::dto` | DiagnosticView の `target`（構造）と、それから作った `part`・`path`、NetView の PortRef、PartRow.paths / CatalogItemView.paths と SettingView.group / field、AttributeDefView.section と型付き enum。TS 型の生成元。`DisplayChannel`・`DisplaySeries` は service が表示情報を添えた時系列。値の表示 `ValueView`・`ValueData` は `dto::value`（部品・カタログ品・設定で共有） |
 | カタログ品の表示（値・パス・使っている部品・書き換えられるか・カタログ名と名前） | `fune_service::query::catalog`（`dto::CatalogItemView`、`DesignView.catalog`） | 値は部品と同じ `query::values::value_view`（解決は `fune_model::resolve::resolve_catalog_item`）、パスは `views::parameter_paths`、書き換えられるか（`editable`）は fune-ops と同じ `fune_store::layout::catalog_location`、使っている部品は `Design::catalog_part_users`、`scope`・`name` は `split_catalog_ref`。Web は ID を分解しない（`editable`・`scope`・`users` を使う）。CLI の `fune catalog ls`・`fune catalog show` も同じ型 |
+| カタログの出所の一覧（名前・書き込めるか） | `fune_service::query::catalog::sources`（`dto::CatalogSourceView`、`ProjectInfo.catalogs`） | fune.toml の `[[catalog]]` の順。書き込めるかは `fune_store::layout::local_catalog_dir`。Web は出所の名前を書かず、カタログ品を作る置き先・読み取り専用の文言・ID の説明をここから作る（`features/catalog/catalog.ts` の `writableCatalogs`） |
 | TS の型名の重複の検査 | `fune_service::export::names` | 書き出しのときに止める（registry §4） |
 | HTTP のルーティング | `fune_server::routes` | |
 | HTTP のエラーの本文・Host の許可リスト・SPA の配信 | `fune_server::{error, host, spa}` |  |
@@ -129,9 +130,10 @@
 | 一覧と詳細の表示面・ツリー列幅・詳細の欄の幅 | `web/src/kit/{DetailLayout,DetailDialog,TreePane}.tsx`・`tree-width.ts`・`use-detail-route.ts` | 全幅表のモーダル、可変幅ツリー、カードの一覧の横の可変幅の詳細（`wideList`・`DETAIL_WIDTH`）、URL 選択と幅保存 |
 | 共通の部品（表・パネル・KPI・入力欄・開閉する領域） | `web/src/kit/` | 下書きのときだけ出る帯などの開閉は `kit/Reveal.tsx` |
 | 量の表示と入力欄 | `web/src/quantity/` | 単位の解析は `/units/parse` に問い合わせる |
+| 属性の値の表示と編集（部品・カタログ品で共通） | `web/src/quantity/{AttrValueEditor.tsx,attr-mode.ts}`、送り口は `web/src/api/ops.ts` の `useAttrEdit` | **属性の値の欄はここだけ**（部品の詳細・系のページの表・カタログ品の詳細）。編集できるかは属性定義の `value_type`・`by_state` だけで決める（`attrEditMode`: スカラー・状態ごと・表示だけ）。打った文字列とパラメーターパスをそのまま `useSetText`・`useUnsetText` に渡し、Web は `set_value` などの Op を組み立てない |
 | 各ページ | `web/src/features/<ページ>/` | |
 | モードの行列（状態の切替・セルの表示・時間割合の編集・足もとの合計と余裕） | `web/src/features/modes/{matrix.ts,ModeCell,ModeDutyForm,ModeBudgetRows}` | セルの電力は power.mode_load の出力、セルの文字はモード表の `display`。足もとの合計・使用可能電力・余裕と判定は `BudgetView.modes`（`fune_service::budget` が全体と同じ `budget_rollup` と判定で作る） |
-| Op の送信・dry_run・無効化・トースト（CLI としてコピー） | `web/src/api/ops.ts` | Op を送るのはここの `useApplyOps` だけ。打った文字列の編集は `useSetText`（`/ops/from_text`）・`useUnsetText`（`/ops/unset_from_text`）で、`item` を渡すとカタログ品。キーは `web/src/api/keys.ts` だけで作る |
+| Op の送信・dry_run・無効化・トースト（CLI としてコピー） | `web/src/api/ops.ts` | Op を送るのはここの `useApplyOps` だけ。打った文字列の編集は `useSetText`（`/ops/from_text`）・`useUnsetText`（`/ops/unset_from_text`）で、`item` を渡すとカタログ品。属性の値の欄は `useAttrEdit`（要約の文言も）。確定前に dry_run を見せるダイアログは `useTextOp` で打った文字列を Op にしてから `OpDialog` に渡す。キーは `web/src/api/keys.ts` だけで作る |
 | Op の確定前のプレビューと編集ダイアログの共通形 | `web/src/ops/` | `OpPreview`（dry_run の CLI・差分）、`OpDialog` |
 | shadcn/ui のプリミティブ | `web/src/ui/` | shadcn/ui から取り込んだもの。見た目の小物は `kit/` |
 | オン・オフのスイッチと切り替えボタン | `web/src/kit/{Switch,Toggle}.tsx` | チェックボックスは使わない。1 つのオン・オフは `Switch`、いくつかの中から重ねて選ぶ切り替え（系統図の層など）は `Toggle` |
@@ -139,10 +141,11 @@
 | 色・パレット・サブシステム色・開け閉めの動き・小さな汎用関数 | `web/src/lib/` | `tone.ts`（色の値の正本。`index.css` の色と影の変数は `pnpm -C web tokens` で書き出し、test が一致・コントラスト・見分けやすさを検査）、`subsystems.ts`、`design.ts`（設計データの引き当て）、`motion.ts`（開け閉めの時間と曲線。サイドバーと保存の帯で共通） |
 | 解析の出力の汎用の読み取り・欄の表示名と次元 | `web/src/features/systems/{output,fields}.ts` | 出力の形に依らず表・時系列を見つける。判定は service の checks / verdict、dB の表示も dims を使う。数の表示は `/units/format`（`web/src/quantity/use-formatted.ts`、まとめて 1 回）。換算はしない |
 | UI の文言（日本語・英語） | `web/src/i18n/` | `useT()` / `getT()`。区分ごとの `<区分>.{ja,en}.ts`。組み込みの語彙の名前は `localized(label, label_en)` |
-| コンポーネントの一覧（サブシステムの枠ごとに部品のカードを並べるタブ） | `web/src/features/components/PartsOverview.tsx` | 製品ツリー（`design.tree`）の形のまま、絞り込んだ部品（`PartRow`）を並べる。種類の名前は種別定義（`defs.kinds`）、アイコンは `kit/RoleIcon.tsx`。タブは `?view=overview|tree|table`（`useDetailRoute` の `views`） |
+| コンポーネントの一覧（サブシステムの枠ごとに部品のカードを並べるタブ） | `web/src/features/components/PartsOverview.tsx` | 製品ツリー（`design.tree`）の形のまま、絞り込んだ部品（`PartRow`）を並べる。種類の名前は種別定義（`lib/design.ts` の `kindLabel`）、アイコンは `kit/RoleIcon.tsx`。タブは `?view=overview|tree|table`（`useDetailRoute` の `views`） |
 | 部品の役割のアイコン | `web/src/kit/RoleIcon.tsx` | role → lucide のアイコン。知らない役割は箱 |
 | 大きさのばらばらな箱を隙間少なく詰めて並べる | `web/src/lib/skyline.ts`（スカイライン法の計算）・`web/src/kit/Packed.tsx`（子の大きさと幅を測って置く） | コンポーネントの一覧のサブシステムの枠。系統図の配置（`features/diagram/layout*.ts`）は線の経路のための別の配置 |
 | 製品ツリーのノードとモードの表示名（言語ごと） | `web/src/lib/design.ts` の `nodeName` / `nodeLabel` / `idWithName` | 英語は ID、日本語は表示名（無ければ ID）。選択肢の「ID（表示名）」は `idWithName`。系統図の枠・一覧・表・モードの行列の見出し・部品詳細のモード・検索が使う |
+| 属性・種別の定義と表示名の引き当て（言語ごと） | `web/src/lib/design.ts` の `attrDef` / `attrLabel` / `kindDef` / `kindLabel` / `defName` / `defWithId` | **`defs.attributes`・`defs.kinds` を ID で探して名前にするのはここだけ**。`label_en` があれば英語で使う（`localized`）。定義が無ければ ID。選択肢の「ID（表示名）」は `defWithId` |
 | 系統図の表示モデル・線の飛び越し | `web/src/features/diagram/{model,jumps,line-store,power}.ts` | 位置は表示だけ。手で動かした位置は `set_view_layout` |
 | 型レベル次元の定義 | `sat_units::dimensions` | typed・parse・unit が共有。typed の公開名は再公開で維持 |
 | 診断の位置 | `fune_model::diagnostic::Loc` | design::Loc・source_map::Loc は再公開 |
@@ -221,3 +224,4 @@
 |---|---|---|
 | 2026-11-08 | 公開に向けて整理した版を初版とする | これより前の履歴は省いた |
 | 2026-11-09 | 診断と不足入力の対象を `fune_model::target::Target` の型で持つ（`layout::file_target`・`web/src/lib/target-link.ts` も追加） | 文字列のパスを読み直して部品 ID を推していたため、存在しない ID（`<部品>`・`cases`）が入っていた（#21） |
+| 2026-11-09 | 属性の値の欄を `quantity/AttrValueEditor`（判定は `attr-mode.ts`）と `useAttrEdit` の 1 つにした。部品の値も打った文字列のまま service に渡す（`op-values.ts` の `set_value` の組み立てを消した）。`SetText.ops`（下書きを当てて型を決める）・`useTextOp`。成熟度の選択肢は `labels.enum_order` と `useEnumOptions`。属性・種別の表示名は `lib/design.ts`。カタログの出所の一覧 `ProjectInfo.catalogs`（`local_catalog_dir`）。`fune setting unset` も `edit::unset_op`。`op_error` は `workspace` へ | 部品とカタログ品と設定で、文字列の解釈・欄・語彙の選択肢・出所の名前を 1 か所にするため（CLI と GUI の対等性） |

@@ -46,6 +46,7 @@ pub fn edit_of<'a>(ws: &Workspace, command: &'a Command) -> anyhow::Result<Optio
                 note: a.note.clone(),
                 min: a.min.clone(),
                 max: a.max.clone(),
+                ops: Vec::new(),
             };
             Some(Edit {
                 ops: vec![edit::set_op(ws, &text)?],

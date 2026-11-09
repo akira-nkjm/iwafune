@@ -29,4 +29,8 @@ section: { [key in string]: VocabLabel },
  * 列挙の型（`maturity`・`net_kind`・`source_kind`・`evidence`・`origin`・`severity`・`attitude_law`・
  * `propagator`・`link_direction`・`uncertainty_side`・`value_type`・`budget_kind`）→ 値 → 表示名
  */
-enum: { [key in string]: { [key in string]: VocabLabel } }, };
+enum: { [key in string]: { [key in string]: VocabLabel } }, 
+/**
+ * 列挙の型 → 値を選択肢に並べる順（`enum` の同じ型の値をすべて並べる。無い型は値の綴りの順）
+ */
+enum_order: { [key in string]: Array<string> }, };

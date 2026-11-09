@@ -1,4 +1,4 @@
-import { useEnumLabel } from "@/api/labels";
+import { useEnumOptions } from "@/api/labels";
 import { useApplyOps } from "@/api/ops";
 import type { DesignView, Maturity, PartField, PartRow } from "@/api/types";
 import { useT } from "@/i18n";
@@ -12,11 +12,7 @@ import { idWithName } from "@/lib/design";
 export function BasicSection({ design, part }: { design: DesignView; part: PartRow }) {
   const apply = useApplyOps();
   const t = useT().components.basic;
-  const label = useEnumLabel();
-  const maturity = (["off_the_shelf", "modified", "new"] satisfies Maturity[]).map((v) => ({
-    value: v,
-    label: `${label("maturity", v)}（${v}）`,
-  }));
+  const maturity = useEnumOptions("maturity");
   const field = (f: PartField, summary: string) =>
     apply.mutate({ ops: [{ op: "set_field", part: part.id, field: f }], summary });
   const candidates =

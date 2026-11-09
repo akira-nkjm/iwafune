@@ -6,6 +6,16 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
 
+/// カタログの出所 1 つ（fune.toml の `[[catalog]]`。`ProjectInfo.catalogs`）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct CatalogSourceView {
+    /// カタログ名（品の ID の `<カタログ名>/` の部分。`CatalogItemView.scope` と同じ値）
+    pub name: String,
+    /// このプロジェクトの中（`path = …`）なら true。共有カタログ（`git = …`）は読み取り専用で false。
+    /// 判定は `fune_store::layout::local_catalog_dir`（品の `editable` と同じ）
+    pub editable: bool,
+}
+
 /// カタログ品 1 つ。値は部品の値と同じ形（`ValueView`）で、表示文字列は service が作る。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct CatalogItemView {

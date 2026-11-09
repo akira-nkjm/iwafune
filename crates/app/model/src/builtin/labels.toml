@@ -1,6 +1,7 @@
 # 組み込みの語彙の表示名（日本語・英語）。GUI と CLI の表示に使う。
 # [state.<状態>]: 機器の状態、[section.<系>]: 属性の系（AttributeDef の section）、[enum.<型>.<値>]: API の列挙の値
 # section_order: 画面で系を並べる順（section の無い属性は basic）
+# [enum_order]: 列挙の値を選択肢に並べる順（同じ型の [enum.<型>.<値>] をすべて並べる。無い型は値の綴りの順）
 
 section_order = ["basic", "mass", "power", "thermal", "attitude", "comm", "cdh", "structure"]
 
@@ -63,6 +64,9 @@ label_en = "C&DH"
 [section.structure]
 label    = "構造・配置"
 label_en = "Structure & layout"
+
+[enum_order]
+maturity = ["off_the_shelf", "modified", "new"]
 
 [enum.maturity.off_the_shelf]
 label    = "既製品"

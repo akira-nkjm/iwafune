@@ -1,7 +1,8 @@
 import { useCallback, useState } from "react";
 import type { CatalogItemView, DesignView } from "@/api/types";
-import { localized, useT } from "@/i18n";
+import { useT } from "@/i18n";
 import { NativeSelect } from "@/kit/NativeSelect";
+import { attrDef, defWithId } from "@/lib/design";
 import { QuantityInput } from "@/quantity/QuantityInput";
 import { Button } from "@/ui/button";
 
@@ -24,7 +25,7 @@ export function CatalogAddValue({
     (typed: string, ok: boolean) => setText(ok ? typed.trim() : null),
     [],
   );
-  const def = design.defs.attributes.find((a) => a.id === attr);
+  const def = attrDef(design.defs, attr);
   return (
     <div className="grid grid-cols-[1fr_90px_1fr_auto] items-start gap-2">
       <NativeSelect
@@ -35,7 +36,7 @@ export function CatalogAddValue({
         onChange={(e) => setAttr(e.target.value)}
         options={design.defs.attributes
           .filter((a) => a.value_type === "scalar")
-          .map((a) => ({ value: a.id, label: `${a.id}（${localized(a.label, a.label_en)}）` }))}
+          .map((a) => ({ value: a.id, label: defWithId(a) }))}
       />
       <NativeSelect
         size="sm"

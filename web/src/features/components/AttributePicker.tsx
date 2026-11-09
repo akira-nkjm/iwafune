@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import type { AttributeDefView, PartRow } from "@/api/types";
-import { localized, useT } from "@/i18n";
+import { useT } from "@/i18n";
 import { TextInput } from "@/kit/TextInput";
 import { cn } from "@/lib/cn";
+import { defName } from "@/lib/design";
 
 /** 標準の属性（組み込み＋プロジェクト独自）を検索して 1 つ選ぶ。値のある属性は外す（状態ごとの属性は残す） */
 export function AttributePicker({
@@ -50,7 +51,7 @@ export function AttributePicker({
               )}
             >
               <span className="truncate font-mono">{a.id}</span>
-              <span className="truncate text-ink-2">{localized(a.label, a.label_en)}</span>
+              <span className="truncate text-ink-2">{defName(a)}</span>
               <span className="text-ink-3">
                 {a.dimension ?? a.value_type}
                 {a.by_state ? tp.byState : ""}

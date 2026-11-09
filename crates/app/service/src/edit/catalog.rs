@@ -2,10 +2,10 @@
 //! 入口は `edit::{set_op, unset_op}`（`SetText.item`・`UnsetText.item` があるときここに振り分ける）。
 //! 属性の値の読み方は部品と同じ（`text::attr_value`）。フィールド名（`fune_model::path::CATALOG_FIELDS`）は `SetCatalogField` にする。
 
-use super::text::{SetText, attr_value, invalid};
+use super::text::{SetText, attr_value, invalid, maturity};
 use crate::error::Result;
 use crate::workspace::Workspace;
-use fune_model::design::{CatalogField, Maturity};
+use fune_model::design::CatalogField;
 use fune_model::path::{AttrPath, CATALOG_FIELDS, parse_catalog_attr};
 use fune_model::value::Provenance;
 use fune_ops::Op;
@@ -89,15 +89,6 @@ fn catalog_field(name: &str, text: Option<&str>) -> Result<CatalogField> {
                 "カタログ品のフィールドではありません: {other}"
             )));
         }
-    })
-}
-
-/// `off_the_shelf` / `modified` / `new`。
-pub fn maturity(text: &str) -> Result<Maturity> {
-    text.parse().map_err(|_| {
-        invalid(format!(
-            "成熟度は off_the_shelf / modified / new です: {text}"
-        ))
     })
 }
 

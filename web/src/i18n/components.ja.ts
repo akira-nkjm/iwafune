@@ -42,10 +42,8 @@ export const componentsJa = {
       harnesses: "ハーネス",
     },
     attr: {
-      byState: "状態ごと",
       reset: "カタログの値に戻す",
       resetTitle: "上書きを消してカタログの値に戻す（unset）",
-      setSummary: (path: string, text: string) => `${path} = ${text}`,
       unsetSummary: (path: string) => `${path} をカタログの値に戻す`,
     },
     basic: {

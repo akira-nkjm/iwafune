@@ -10,7 +10,7 @@ use fune_model::resolve::Origin;
 use fune_model::value::Authored;
 use fune_model::{Design, resolve};
 use fune_store::Edits;
-use fune_store::layout::{CatalogLocation, catalog_location};
+use fune_store::layout::{CatalogLocation, catalog_location, local_catalog_dir};
 use fune_store::write::{catalog as wcatalog, refs};
 use std::collections::BTreeMap;
 
@@ -65,7 +65,7 @@ fn full_ref(design: &Design, text: &str) -> Result<String, OpError> {
         .project
         .catalogs
         .iter()
-        .find(|c| c.path.is_some())
+        .find(|c| local_catalog_dir(c).is_some())
         .map(|c| format!("{}/{text}", c.name))
         .ok_or_else(|| {
             OpError::invalid(

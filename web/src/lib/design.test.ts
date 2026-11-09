@@ -1,5 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { idWithName, nodeName } from "./design";
+import { afterEach, describe, expect, it } from "vitest";
+import { getLang, setLang } from "@/i18n";
+import {
+  attrLabel,
+  defName,
+  defWithId,
+  idWithName,
+  kindLabel,
+  newAttrPath,
+  nodeName,
+  paramPath,
+} from "./design";
 
 describe("nodeName / idWithName", () => {
   const mode = { id: "CHARGE", label: "充電" };
@@ -18,5 +28,47 @@ describe("nodeName / idWithName", () => {
     expect(idWithName(mode, "ja")).toBe("CHARGE（充電）");
     expect(idWithName(mode, "en")).toBe("CHARGE");
     expect(idWithName({ id: "SAFE", label: "SAFE" }, "ja")).toBe("SAFE");
+  });
+});
+
+describe("属性・種別の表示名", () => {
+  const before = getLang();
+  afterEach(() => setLang(before));
+  const rw = { id: "reaction_wheel", label: "リアクションホイール", label_en: "Reaction wheel" };
+  const defs = {
+    kinds: [rw],
+    attributes: [{ id: "mass", label: "質量", label_en: null }],
+  } as unknown as Parameters<typeof kindLabel>[0] & Parameters<typeof attrLabel>[0];
+
+  it("表示の言語の名前（英語名が無ければ日本語）を引き、定義が無ければ ID", () => {
+    setLang("ja");
+    expect(kindLabel(defs, "reaction_wheel")).toBe("リアクションホイール");
+    expect(attrLabel(defs, "mass")).toBe("質量");
+    setLang("en");
+    expect(kindLabel(defs, "reaction_wheel")).toBe("Reaction wheel");
+    expect(attrLabel(defs, "mass")).toBe("質量");
+    expect(kindLabel(defs, "heater")).toBe("heater");
+    expect(attrLabel(defs, "max_dipole")).toBe("max_dipole");
+  });
+
+  it("選択肢は「ID（表示名）」、表示名が無ければ ID", () => {
+    setLang("ja");
+    expect(defWithId(rw)).toBe("reaction_wheel（リアクションホイール）");
+    expect(defName({ id: "x", label: "", label_en: null })).toBe("x");
+    expect(defWithId({ id: "x", label: "", label_en: null })).toBe("x");
+  });
+});
+
+describe("パラメーターのパス", () => {
+  const part = { id: "RW_X", paths: { power: { "": "RW_X.power", on: "RW_X.power.on" } } };
+
+  it("定義のある属性は API の paths を引く", () => {
+    expect(paramPath(part, "power", "on")).toBe("RW_X.power.on");
+    expect(paramPath(part, "power")).toBe("RW_X.power");
+  });
+
+  it("同じ編集で作る属性は部品・属性・状態をつなぐ", () => {
+    expect(newAttrPath(part, "tank_pressure", null)).toBe("RW_X.tank_pressure");
+    expect(newAttrPath(part, "tank_pressure", "on")).toBe("RW_X.tank_pressure.on");
   });
 });

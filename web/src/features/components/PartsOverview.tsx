@@ -1,9 +1,9 @@
 import type { DesignView, PartRow, TreeNode } from "@/api/types";
-import { localized, useLang, useT } from "@/i18n";
+import { useLang, useT } from "@/i18n";
 import { Packed } from "@/kit/Packed";
 import { RoleIcon } from "@/kit/RoleIcon";
 import { cn } from "@/lib/cn";
-import { nodeName } from "@/lib/design";
+import { kindLabel, nodeName } from "@/lib/design";
 import { subsystemTone } from "@/lib/subsystems";
 import { type Tone, toneHex, toneInkHex, toneText } from "@/lib/tone";
 
@@ -35,17 +35,14 @@ export function PartsOverview({
   const td = useT().components;
   const rows = new Map(parts.map((p) => [p.id, p]));
   const nodes = new Map(design.tree.map((n) => [n.id, n]));
-  const kindLabel = (kind: string) => {
-    const k = design.defs.kinds.find((x) => x.id === kind);
-    return k ? localized(k.label, k.label_en) : kind;
-  };
+  const kindName = (kind: string) => kindLabel(design.defs, kind);
   const nameOf = (n: TreeNode) => nodeName(n, lang);
   // 絞り込んだ部品か、それを子孫に持つノードだけを出す
   const shown = (id: string): boolean => {
     const n = nodes.get(id);
     return rows.has(id) || !!n?.children.some(shown);
   };
-  const context = { design, rows, nodes, kindLabel, nameOf, shown, selected, onSelect };
+  const context = { design, rows, nodes, kindName, nameOf, shown, selected, onSelect };
   const roots = design.tree.filter((n) => !n.parent && shown(n.id));
   const loose = roots.filter((n) => n.node === "part");
   return (
@@ -76,7 +73,7 @@ interface Ctx {
   design: DesignView;
   rows: Map<string, PartRow>;
   nodes: Map<string, TreeNode>;
-  kindLabel: (kind: string) => string;
+  kindName: (kind: string) => string;
   nameOf: (n: TreeNode) => string;
   shown: (id: string) => boolean;
   selected: string | null;
@@ -200,7 +197,7 @@ function PartCard({ row, ctx }: { row: PartRow; ctx: Ctx }) {
           <RoleIcon role={row.role} size={20} />
         </span>
         <span className="min-w-0">
-          <span className="block truncate text-[11.5px] text-ink-3">{ctx.kindLabel(row.kind)}</span>
+          <span className="block truncate text-[11.5px] text-ink-3">{ctx.kindName(row.kind)}</span>
           <span className="block truncate font-medium text-[14px] text-ink">{row.id}</span>
         </span>
       </button>

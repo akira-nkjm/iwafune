@@ -42,6 +42,9 @@ pub struct Labels {
     /// `propagator`・`link_direction`・`uncertainty_side`・`value_type`・`budget_kind`）→ 値 → 表示名
     #[serde(default, rename = "enum")]
     pub enums: BTreeMap<String, BTreeMap<String, Label>>,
+    /// 列挙の型 → 値を選択肢に並べる順（`enum` の同じ型の値をすべて並べる。無い型は値の綴りの順）
+    #[serde(default)]
+    pub enum_order: BTreeMap<String, Vec<String>>,
 }
 
 /// 組み込みの表示名（埋め込みの TOML はテストで解析できることを保証している）。
@@ -96,5 +99,21 @@ mod tests {
             labels().enums["maturity"]["new"].label_en.as_deref(),
             Some("New")
         );
+    }
+
+    #[test]
+    fn enum_order_lists_every_value_of_its_type_once() {
+        for (ty, order) in &labels().enum_order {
+            let mut sorted = order.clone();
+            sorted.sort();
+            let keys: Vec<String> = labels().enums[ty].keys().cloned().collect();
+            assert_eq!(sorted, keys, "enum_order.{ty}");
+        }
+        // 成熟度は選択肢の順（既製品 → 改修品 → 新規開発）で、どれもモデルの Maturity として読める
+        let maturity = &labels().enum_order["maturity"];
+        assert_eq!(maturity, &["off_the_shelf", "modified", "new"]);
+        for m in maturity {
+            assert!(m.parse::<crate::design::Maturity>().is_ok(), "{m}");
+        }
     }
 }

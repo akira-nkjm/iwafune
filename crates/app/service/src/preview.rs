@@ -2,7 +2,7 @@
 //! fune-ops で計画し、計画したあとの設計とファイルからスナップショットを作る。
 
 use crate::error::Result;
-use crate::workspace::{Snapshot, Workspace, store_error};
+use crate::workspace::{Snapshot, Workspace, op_error, store_error};
 use fune_ops::Op;
 
 /// `ops` を当てたスナップショット（書き込まない）。`ops` が空なら [`Workspace::snapshot`] と同じ。
@@ -12,7 +12,7 @@ pub fn snapshot_with(ws: &Workspace, ops: &[Op]) -> Result<Snapshot> {
         return ws.snapshot();
     }
     let store = fune_store::load(ws.root()).map_err(store_error)?;
-    let plan = fune_ops::plan(&store, ops).map_err(|e| crate::edit::op_error(ws, e))?;
+    let plan = fune_ops::plan(&store, ops).map_err(|e| op_error(ws, e))?;
     let mut files = store.files;
     for change in &plan.changes {
         match &change.after {

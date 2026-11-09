@@ -5,7 +5,7 @@ import { Field } from "@/kit/Field";
 import { NativeSelect } from "@/kit/NativeSelect";
 import { Segmented } from "@/kit/Segmented";
 import { TextInput } from "@/kit/TextInput";
-import { groupsOf, nodeName } from "@/lib/design";
+import { defWithId, groupsOf, nodeName } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
 
@@ -128,13 +128,7 @@ export function AddPartDialog({
             value={kind}
             onChange={(e) => setKind(e.target.value)}
             placeholder={ta.pickKind}
-            options={design.defs.kinds.map((k) => ({
-              value: k.id,
-              label: (() => {
-                const l = localized(k.label, k.label_en);
-                return l && l !== k.id ? `${k.id} — ${l}` : k.id;
-              })(),
-            }))}
+            options={design.defs.kinds.map((k) => ({ value: k.id, label: defWithId(k) }))}
           />
         )}
       </div>

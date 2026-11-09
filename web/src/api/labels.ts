@@ -13,3 +13,18 @@ export function useEnumLabel(): (ty: string, value: string) => string {
     return (l && localized(l.label, l.label_en)) || value;
   };
 }
+
+/**
+ * 列挙の値の選択肢（`labels.enum` の値を `labels.enum_order` の順に。順が無い型は綴りの順）。表示は「表示名（値）」。
+ * 成熟度（`maturity`）などの選択肢は、値の一覧を手で書かずにこれで作る。届くまでは空。
+ */
+export function useEnumOptions(ty: string): { value: string; label: string }[] {
+  const { data } = useQuery(q.defs());
+  const labels = data?.labels;
+  const values = labels?.enum_order[ty] ?? Object.keys(labels?.enum[ty] ?? {}).sort();
+  return values.map((value) => {
+    const l = labels?.enum[ty]?.[value];
+    const name = (l && localized(l.label, l.label_en)) || value;
+    return { value, label: name !== value ? `${name}（${value}）` : value };
+  });
+}

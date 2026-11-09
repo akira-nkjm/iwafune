@@ -141,12 +141,13 @@ CLI と HTTP は `fune-service` の同じ関数を呼ぶ。
 | 操作 | CLI | HTTP（`/api/v1`） | service の関数 |
 |---|---|---|---|
 | Op の適用 | 編集の各コマンド、`fune apply ops.json` | `POST /ops` | `edit::apply` |
-| 打った値の文字列 → Op | `fune set`・`fune catalog set` | `POST /ops/from_text` | `edit::set_op` |
-| 消す先のパス → Op | `fune unset`・`fune catalog unset` | `POST /ops/unset_from_text` | `edit::unset_op` |
+| 打った値の文字列 → Op | `fune set`・`fune setting set`・`fune catalog set` | `POST /ops/from_text` | `edit::set_op` |
+| 消す先のパス → Op | `fune unset`・`fune setting unset`・`fune catalog unset` | `POST /ops/unset_from_text` | `edit::unset_op` |
 | 整形 | `fune fmt [--check]` | `POST /fmt` | `format::format_design` |
 
 - `fune set RW_X.mass "620 g"` の `"620 g"` を量・整数・ベクトル・状態ごとの値のどれとして読むかは、属性定義を見て service が決める。
-  GUI も打った文字列を `/ops/from_text` で Op にしてから `/ops` で送るので、解釈が 2 つに分かれない。
+  GUI も打った文字列を `/ops/from_text` で Op にしてから `/ops` で送るので、解釈が 2 つに分かれない（部品・カタログ品の値の欄、
+  設定の表、パラメーター追加のダイアログのどれも）。同じ編集で定義を作る属性の値は、依頼の `ops`（下書き）を当てた設計で読む。
 - 適用の結果には、同じ編集をする CLI のコマンド（`fune_ops::to_cli`）が入る。GUI の「CLI としてコピー」はこれを使う。
 - `fune apply` は GUI が送るのと同じ Op の JSON を受ける。スクリプトからの一括編集にも使える。
 - 書き込まずに編集を当ててみることもできる（`fune_service::preview`）。`POST /analyses/{id}` と `POST /budgets/{kind}` の `ops`、

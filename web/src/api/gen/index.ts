@@ -26,6 +26,7 @@ export type * from "./BudgetView";
 export type * from "./CaseView";
 export type * from "./CatalogField";
 export type * from "./CatalogItemView";
+export type * from "./CatalogSourceView";
 export type * from "./CentralBody";
 export type * from "./ChangedFile";
 export type * from "./Channel";

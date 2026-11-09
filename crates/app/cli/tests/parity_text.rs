@@ -15,7 +15,7 @@ fn http_text(rt: &tokio::runtime::Runtime, root: &Path, uri: &str, body: Value) 
     op
 }
 
-/// 設定の表（`fune setting set` と `POST /ops/from_text`）。
+/// 設定の表（`fune setting set`・`fune setting unset` と `POST /ops/from_text`・`/ops/unset_from_text`）。
 #[test]
 fn gui_text_edits_match_cli() {
     let rt = tokio::runtime::Runtime::new().unwrap();
@@ -39,6 +39,142 @@ fn gui_text_edits_match_cli() {
     }
     let power = std::fs::read_to_string(http_root.join("analysis/power.toml")).unwrap();
     assert!(power.contains("= 12\n"), "周回数は整数のまま書く:\n{power}");
+    let path = "analysis.power.dod_max";
+    run_cli(&cli_root, &["setting", "unset", path]);
+    let op = http_text(
+        &rt,
+        &http_root,
+        "/api/v1/ops/unset_from_text",
+        json!({ "path": path }),
+    );
+    assert_eq!(op["op"], "set_setting", "{op}");
+    assert_same_files(&cli_root, &http_root, "setting unset");
+}
+
+/// 部品の値とフィールドの書き込みと消去（`fune set`・`fune unset` と `POST /ops/from_text`・`/ops/unset_from_text`）。
+/// GUI の属性の欄は部品のパラメーターパス（`PartRow.paths` の値）と打った文字列をそのまま送る。
+/// (CLI の引数, 送り先, 本文)。
+fn part_text_edits() -> Vec<(Vec<&'static str>, &'static str, Value)> {
+    const SET: &str = "/api/v1/ops/from_text";
+    const UNSET: &str = "/api/v1/ops/unset_from_text";
+    let set = |path: &'static str, value: &'static str| {
+        (
+            vec!["set", path, value],
+            SET,
+            json!({ "path": path, "value": value }),
+        )
+    };
+    let unset = |path: &'static str| (vec!["unset", path], UNSET, json!({ "path": path }));
+    vec![
+        // スカラー（カタログの値の上書き）
+        set("RW_X.mass", "160 g"),
+        // 状態ごとの値の 1 セル（部品にまだ上書きの無い属性）
+        set("RW_X.power.on", "0.7 W"),
+        // 不確かさ（--min / --max）付きの状態のセル
+        (
+            vec![
+                "set",
+                "UHF_TRX.power.tx",
+                "4.2 W",
+                "--min",
+                "3.9 W",
+                "--max",
+                "4.6 W",
+            ],
+            SET,
+            json!({ "path": "UHF_TRX.power.tx", "value": "4.2 W", "min": "3.9 W", "max": "4.6 W" }),
+        ),
+        // 出典と注記
+        (
+            vec![
+                "set",
+                "OBC.mass",
+                "0.09 kg",
+                "--source",
+                "em_test_2026_10",
+                "--note",
+                "EM 実測",
+            ],
+            SET,
+            json!({ "path": "OBC.mass", "value": "0.09 kg", "source": "em_test_2026_10", "note": "EM 実測" }),
+        ),
+        // 属性定義の型で読む値（ベクトル・範囲）
+        set("OBC.size", "95 95 20 mm"),
+        set("OBC.temp_op", "-30 .. 70 degC"),
+        // フィールド（文字列・成熟度・員数）
+        set("RW_X.label", "X 軸 RW"),
+        set("RW_X.maturity", "modified"),
+        set("RW_X.count", "2"),
+        // 消す: 状態のセル・属性・フィールド
+        unset("RW_X.power.on"),
+        unset("UHF_TRX.power.tx"),
+        unset("OBC.size"),
+        unset("RW_X.label"),
+        unset("RW_X.maturity"),
+    ]
+}
+
+#[test]
+fn gui_part_text_edits_match_cli() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_t1, cli_root) = demo_copy();
+    let (_t2, http_root) = demo_copy();
+    for (cli, uri, body) in part_text_edits() {
+        run_cli(&cli_root, &cli);
+        let op = http_text(&rt, &http_root, uri, body);
+        match cli[1] {
+            "RW_X.power.on" if cli[0] == "set" => {
+                assert_eq!(op["op"], "set_value", "{op}");
+                assert_eq!(op["state"], "on", "{op}");
+            }
+            "OBC.size" if cli[0] == "set" => assert_eq!(op["value"]["type"], "vec3", "{op}"),
+            "OBC.temp_op" => assert_eq!(op["value"]["type"], "range", "{op}"),
+            _ => {}
+        }
+        assert_same_files(&cli_root, &http_root, &cli.join(" "));
+    }
+    let trx = std::fs::read_to_string(http_root.join("parts/COM/UHF_TRX.toml")).unwrap();
+    assert!(!trx.contains("4.2"), "消したセルは残さない:\n{trx}");
+    let rw = std::fs::read_to_string(http_root.join("parts/AOCS/RW_X.toml")).unwrap();
+    assert!(rw.contains("count") && !rw.contains("label"), "{rw}");
+}
+
+/// GUI のパラメーター追加: 属性の定義と値を 1 回の編集で作る。値は定義を書き込まずに当てた設計（`ops`）で読む。
+/// CLI では `fune attr add` と `fune set` の 2 回。
+#[test]
+fn gui_new_attribute_with_value_matches_cli() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_t1, cli_root) = demo_copy();
+    let (_t2, http_root) = demo_copy();
+    run_cli(
+        &cli_root,
+        &[
+            "attr",
+            "add",
+            "tank_pressure",
+            "--label",
+            "タンク圧",
+            "--dimension",
+            "Pressure",
+            "--units",
+            "Pa,kPa",
+            "--by-state",
+        ],
+    );
+    run_cli(&cli_root, &["set", "UHF_TRX.tank_pressure.tx", "120 kPa"]);
+    let create = json!({ "op": "create_attribute", "def": { "id": "tank_pressure", "label": "タンク圧",
+        "type": "scalar", "dimension": "Pressure", "units": ["Pa", "kPa"], "by_state": true } });
+    let body =
+        json!({ "path": "UHF_TRX.tank_pressure.tx", "value": "120 kPa", "ops": [create.clone()] });
+    let op = post_json(&rt, &http_root, "/api/v1/ops/from_text", body);
+    assert_eq!(op["op"], "set_value", "{op}");
+    post_json(
+        &rt,
+        &http_root,
+        "/api/v1/ops",
+        json!({ "ops": [create, op] }),
+    );
+    assert_same_files(&cli_root, &http_root, "attr add + set");
 }
 
 /// カタログ品の値とフィールドの書き込み（`fune catalog set` と `POST /ops/from_text` の `item`）。

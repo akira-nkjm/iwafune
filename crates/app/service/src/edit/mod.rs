@@ -4,26 +4,27 @@
 use crate::diff;
 use crate::dto::{ApplyRequest, ApplyResult, ChangedFile, FileChangeKind, InitResult};
 use crate::error::{Result, ServiceError};
-use crate::workspace::{Workspace, store_error, with_excerpt};
+use crate::workspace::{Workspace, op_error, store_error, with_excerpt};
 use fune_model::design::Revision;
-use fune_ops::{ApplyOptions, Op, OpError};
-use fune_store::{FileSet, StoreError};
+use fune_ops::{ApplyOptions, Op};
+use fune_store::FileSet;
 use std::path::Path;
 
 mod catalog;
 mod place;
 mod text;
 
-pub use catalog::maturity;
 pub use fune_ops::{to_cli, to_cli_script};
 pub use place::{place_body, place_body_op};
 pub use text::{
-    SetText, UnsetText, list_from_text, quantity_from_text, quaternion_from_text, vector_from_text,
+    SetText, UnsetText, list_from_text, maturity, quantity_from_text, quaternion_from_text,
+    vector_from_text,
 };
 
 /// 人が打った値の文字列 → Op（`fune set`・`fune catalog set`・`POST /ops/from_text`）。
 /// `item` があればカタログ品の値かフィールド（`SetCatalogValue`・`SetCatalogField`）、無ければ部品の値・フィールドか設定
-/// （`SetValue`・`SetField`・`SetSetting`）。値の型は属性定義・設定の今の型から決める。
+/// （`SetValue`・`SetField`・`SetSetting`）。値の型は属性定義・設定の今の型から決める（`ops` があれば、それを書き込まずに
+/// 当てた設計の定義と型。同じ編集で作る属性の値を読むため）。
 pub fn set_op(ws: &Workspace, t: &SetText) -> Result<Op> {
     match &t.item {
         Some(item) => catalog::catalog_set_op(ws, item, t),
@@ -112,37 +113,6 @@ fn changed_files(changes: &[fune_store::FileChange]) -> Vec<ChangedFile> {
     }
     out.retain(|f| !(f.change == FileChangeKind::Deleted && moved_from.contains(&f.path.as_str())));
     out
-}
-
-/// ops のエラー → サービスのエラー。
-/// fune-ops のエラーをサービスのエラーにする（保存と、保存しない編集のプレビューで共通）。
-pub(crate) fn op_error(ws: &Workspace, e: OpError) -> ServiceError {
-    match e {
-        OpError::Conflict { expected, actual } => ServiceError::Conflict {
-            expected: expected.0,
-            actual: actual.0,
-        },
-        OpError::NotFound { what } => ServiceError::NotFound {
-            what: "対象",
-            id: what,
-        },
-        OpError::AlreadyExists { what } => {
-            ServiceError::InvalidInput(format!("{what} は既にあります"))
-        }
-        OpError::Invalid { message } => ServiceError::InvalidInput(message),
-        OpError::Rejected { diagnostics } => {
-            // 書き込まなかったので、該当行は今のファイルから取る（変えていないファイルの行は同じ）。
-            let files = fune_store::read::scan(ws.root()).unwrap_or_default();
-            ServiceError::Validation {
-                diagnostics: diagnostics
-                    .into_iter()
-                    .map(|d| with_excerpt(d, &files))
-                    .collect(),
-            }
-        }
-        OpError::Store(StoreError::Locked { lock }) => ServiceError::Locked(lock),
-        OpError::Store(e) => store_error(e),
-    }
 }
 
 /// 新しいプロジェクトを作る（`fune init`）。

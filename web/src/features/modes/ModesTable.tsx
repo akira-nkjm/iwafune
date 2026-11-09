@@ -2,10 +2,10 @@ import { Fragment, useMemo } from "react";
 import { analysisOutput } from "@/api/analysis-output";
 import type { DesignView, ModeHeader, ModeLoadOutput, ModeRow, ModeTable, Op } from "@/api/types";
 import { useAnalyses } from "@/features/systems/use-analyses";
-import { localized, useT } from "@/i18n";
+import { useT } from "@/i18n";
 import { SubsystemDot } from "@/kit/SubsystemDot";
 import { cn } from "@/lib/cn";
-import { nodeLabel, nodeName, partById } from "@/lib/design";
+import { kindLabel, nodeLabel, nodeName, partById } from "@/lib/design";
 import { useDebounced } from "@/lib/use-debounced";
 import { cellOf, draftOps, type ModeDraft, withCell } from "./draft";
 import { ModeBudgetRows } from "./ModeBudgetRows";
@@ -147,7 +147,6 @@ function MatrixRow({
 }) {
   const part = design.parts.find((p) => p.id === row.part);
   const levels = powerLevels(part);
-  const kind = design.defs.kinds.find((k) => k.id === row.kind);
   return (
     <tr>
       <th scope="row" className={`${STICKY.rowHead} px-4 py-1 text-left font-normal`}>
@@ -155,9 +154,7 @@ function MatrixRow({
           {row.part}
           {part && part.count > 1 ? ` ×${part.count}` : ""}
         </div>
-        <div className="text-[10px] text-ink-4">
-          {kind ? localized(kind.label, kind.label_en) : row.kind}
-        </div>
+        <div className="text-[10px] text-ink-4">{kindLabel(design.defs, row.kind)}</div>
       </th>
       <td
         className="num whitespace-nowrap px-3 py-1 text-right text-ink-3 text-xs"

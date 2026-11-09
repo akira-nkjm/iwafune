@@ -86,6 +86,7 @@ export const fixture: DesignView = {
     schema: 2,
     counts: { parts: 3, groups: 3, modes: 2, nets: 2, harnesses: 0, cases: 0 },
     diagnostics: { errors: 0, warnings: 1, infos: 0 },
+    catalogs: [{ name: "local", editable: true }],
   },
   tree: [
     { id: "AOCS", node: "group", label: "姿勢制御系", parent: null, children: ["RW_X"] },
@@ -226,6 +227,7 @@ export const fixture: DesignView = {
       state: {},
       section: {},
       enum: {},
+      enum_order: {},
     },
   },
   settings: [],

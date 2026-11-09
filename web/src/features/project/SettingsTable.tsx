@@ -27,7 +27,7 @@ export function SettingsTable({
   const setText = useSetText();
   if (settings.length === 0) return <Empty>{empty ?? t.project.noSettings}</Empty>;
   const set = (key: string, text: string) =>
-    setText.mutate({ path: key, value: text, summary: `${key} = ${text}` });
+    setText.mutate({ path: key, value: text, summary: t.quantity.setSummary(key, text) });
   return (
     <DataTable
       head={

@@ -4,8 +4,8 @@
 use super::common::Built;
 use crate::args::{EditOpts, ModeCmd, PartCmd, SettingCmd, ViewCmd};
 use fune_service::Workspace;
-use fune_service::dto::{ModeCell, Op, SettingValue, ViewNodePos};
-use fune_service::edit::{self, SetText};
+use fune_service::dto::{ModeCell, Op, ViewNodePos};
+use fune_service::edit::{self, SetText, UnsetText};
 use std::collections::BTreeMap;
 
 /// `fune part add|rm|mv|rename|rename-group|place`
@@ -171,10 +171,10 @@ pub fn setting<'a>(ws: &Workspace, c: &'a SettingCmd) -> Built<'a> {
             (edit::set_op(ws, &text)?, e)
         }
         SettingCmd::Unset { key, edit } => (
-            Op::SetSetting {
+            edit::unset_op(&UnsetText {
+                item: None,
                 path: key.clone(),
-                value: None::<SettingValue>,
-            },
+            })?,
             edit,
         ),
         SettingCmd::Ls => return Ok(None),

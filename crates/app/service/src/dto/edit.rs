@@ -98,6 +98,10 @@ pub struct SetText {
     pub min: Option<String>,
     #[serde(default)]
     pub max: Option<String>,
+    /// 保存していない編集。書き込まずに当てた設計で値の型を決める（空なら保存済みの設計）。
+    /// GUI のパラメーター追加が、属性の定義（`create_attribute`）とその値を 1 回の編集で作るときに使う
+    #[serde(default)]
+    pub ops: Vec<Op>,
 }
 
 /// 人が打った消す先のパス（`fune unset <PATH>`・`fune catalog unset <品> <PATH>` の引数、`POST /ops/unset_from_text`）。
