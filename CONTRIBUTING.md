@@ -55,6 +55,9 @@ Web の禁止事項（`fetch(` は API クライアントだけ、数の整形�
 ## 進め方
 
 - コミットメッセージは英語。日々の作業は `develop` に入れる（CI: 構成・Rust・web・同梱ビルド）。
+- 作業は Issue に紐づける。Issue ごとに develop からブランチ `issue-<番号>-<短い名前>`（例: `issue-21-port-refs`）を切り、
+  develop への PR で入れる。PR の本文には、Issue を閉じるなら `Closes #<番号>`、段階の一部なら `Part of #<番号>` を書く。
+  コミットメッセージの件名の末尾にも `(#<番号>)` を付ける。Issue の無い小さな直し（文書の誤字など）だけは develop に直接入れてよい。
 - `main` はリリースだけ。develop からの PR でだけ入れ、PR の前に develop で版を上げる（`Cargo.toml` の `[workspace.package] version` と
   `web/package.json` の `version` を同じ値に）。PR では release.yml が「版が揃っていて、まだ出ていない」ことを検査し、main に入ると
   コンテナイメージ（`ghcr.io/<owner>/fune:<版>`）・タグ `v<版>`・GitHub Release を作る。タグは手で打たない。
