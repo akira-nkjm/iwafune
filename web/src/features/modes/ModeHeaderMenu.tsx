@@ -1,12 +1,9 @@
 import { MoreHorizontal } from "lucide-react";
-import { useState } from "react";
-import type { ModeHeader, Op } from "@/api/types";
+import type { ModeHeader } from "@/api/types";
 import { useT } from "@/i18n";
-import { Field } from "@/kit/Field";
-import { TextInput } from "@/kit/TextInput";
-
+import { useDialogs } from "@/kit/use-dialogs";
 import { OpDialog } from "@/ops/OpDialog";
-import { useOpCheck } from "@/ops/use-op-check";
+import { RenameDialog } from "@/ops/RenameDialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,13 +13,8 @@ import {
 
 /** モードの列見出しの操作（名前の変更・削除） */
 export function ModeHeaderMenu({ mode }: { mode: ModeHeader }) {
-  const t = useT();
-  const tm = t.modes.menu;
-  const [dialog, setDialog] = useState<"rename" | "remove" | null>(null);
-  const [to, setTo] = useState(mode.id);
-  const renameOps: Op[] | null =
-    to && to !== mode.id ? [{ op: "rename_mode", id: mode.id, to }] : null;
-  const error = useOpCheck(dialog === "rename" ? renameOps : null).error;
+  const tm = useT().modes.menu;
+  const dialogs = useDialogs<"rename" | "remove">();
   return (
     <>
       <DropdownMenu>
@@ -36,37 +28,27 @@ export function ModeHeaderMenu({ mode }: { mode: ModeHeader }) {
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => setDialog("rename")}>{tm.rename}</DropdownMenuItem>
-          <DropdownMenuItem variant="destructive" onSelect={() => setDialog("remove")}>
+          <DropdownMenuItem onSelect={() => dialogs.show("rename")}>{tm.rename}</DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onSelect={() => dialogs.show("remove")}>
             {tm.remove}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      {dialog === "rename" && (
-        <OpDialog
-          open
-          onOpenChange={(o) => !o && setDialog(null)}
+      {dialogs.current === "rename" && (
+        <RenameDialog
+          {...dialogs.props}
+          from={mode.id}
           title={tm.renameTitle(mode.id)}
           description={tm.renameDescription}
-          ops={renameOps}
-          summary={tm.renameSummary(mode.id, to)}
+          label={tm.newId}
           confirmLabel={tm.renameConfirm}
-        >
-          <Field label={tm.newId} htmlFor="mode-rename" error={error}>
-            <TextInput
-              id="mode-rename"
-              mono
-              value={to}
-              invalid={!!error}
-              onChange={(e) => setTo(e.target.value)}
-            />
-          </Field>
-        </OpDialog>
+          opsFor={(to) => [{ op: "rename_mode", id: mode.id, to }]}
+          summary={(to) => tm.renameSummary(mode.id, to)}
+        />
       )}
-      {dialog === "remove" && (
+      {dialogs.current === "remove" && (
         <OpDialog
-          open
-          onOpenChange={(o) => !o && setDialog(null)}
+          {...dialogs.props}
           title={tm.removeTitle(mode.id)}
           description={tm.removeDescription(mode.file)}
           ops={[{ op: "remove_mode", id: mode.id }]}

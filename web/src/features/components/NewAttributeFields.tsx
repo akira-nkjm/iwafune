@@ -1,11 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { q } from "@/api/queries";
 import { useT } from "@/i18n";
+import { Chip } from "@/kit/Chip";
 import { Field } from "@/kit/Field";
 import { NativeSelect } from "@/kit/NativeSelect";
 import { Switch } from "@/kit/Switch";
 import { TextInput } from "@/kit/TextInput";
-import { cn } from "@/lib/cn";
 
 export interface NewAttribute {
   id: string;
@@ -83,20 +83,9 @@ export function NewAttributeFields({
         <Field label={tn.units} hint={tn.unitsHint}>
           <div className="flex max-h-28 flex-wrap gap-1 overflow-y-auto">
             {symbols.map((u) => (
-              <button
-                type="button"
-                key={u}
-                onClick={() => toggle(u)}
-                aria-pressed={value.units.includes(u)}
-                className={cn(
-                  "rounded-chip border px-1.5 py-0.5 font-mono text-[11.5px]",
-                  value.units.includes(u)
-                    ? "border-accent bg-accent-tint text-accent-ink"
-                    : "border-line text-ink-3 hover:text-ink",
-                )}
-              >
+              <Chip key={u} selected={value.units.includes(u)} onSelect={() => toggle(u)}>
                 {u}
-              </button>
+              </Chip>
             ))}
             {units.isFetching && <span className="text-ink-3 text-xs">{t.common.loading}</span>}
           </div>

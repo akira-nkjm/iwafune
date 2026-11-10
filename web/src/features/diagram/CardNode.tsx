@@ -1,7 +1,7 @@
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import type { ViewPortSide } from "@/api/types";
 import { cn } from "@/lib/cn";
-import { toneBorder, toneHex } from "@/lib/tone";
+import { toneBorder, toneHex, toneTint } from "@/lib/tone";
 import type { DiagramCard } from "./model";
 
 /** 線の端を手で付けた所（ハンドル ID・カードの側・その側の左か上の角からの距離 [px]） */
@@ -38,7 +38,7 @@ const sidePos = {
  */
 export function CardNode({ data, width, height }: NodeProps<CardNodeType>) {
   const { card } = data;
-  const tint = toneHex[card.tone];
+  const stroke = toneHex[card.tone];
   const stacked = card.count > 1 && !card.assembly;
   return (
     <div
@@ -50,9 +50,9 @@ export function CardNode({ data, width, height }: NodeProps<CardNodeType>) {
       style={{
         width,
         height,
-        background: `color-mix(in srgb, ${tint} ${card.assembly ? 10 : 18}%, var(--color-panel))`,
+        background: toneTint(card.tone, card.assembly ? "header" : "card"),
         boxShadow: stacked
-          ? `4px 4px 0 -1px var(--color-panel), 4px 4px 0 0 ${tint}, 8px 8px 0 -1px var(--color-panel), 8px 8px 0 0 ${tint}`
+          ? `4px 4px 0 -1px var(--color-panel), 4px 4px 0 0 ${stroke}, 8px 8px 0 -1px var(--color-panel), 8px 8px 0 0 ${stroke}`
           : undefined,
       }}
     >

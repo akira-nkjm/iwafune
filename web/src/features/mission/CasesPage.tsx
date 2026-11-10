@@ -1,7 +1,7 @@
-import { Link } from "react-router";
 import { useDesign } from "@/api/queries";
 import { systemOrder, systemTitle } from "@/features/systems/systems";
 import { useT } from "@/i18n";
+import { ChipLink } from "@/kit/Chip";
 import { DataTable } from "@/kit/DataTable";
 import { Empty } from "@/kit/Empty";
 import { Loading, SkeletonPanel } from "@/kit/Loading";
@@ -57,13 +57,13 @@ export function CasesPage() {
                   <Td>
                     <span className="flex flex-wrap gap-1">
                       {systemOrder.map((s) => (
-                        <Link
+                        <ChipLink
                           key={s}
                           to={`/systems/${s}?case=${encodeURIComponent(c.id)}`}
-                          className="rounded-chip border border-line px-1.5 py-0.5 text-[11px] hover:bg-panel-2"
+                          mono={false}
                         >
                           {systemTitle(s, d.defs)}
-                        </Link>
+                        </ChipLink>
                       ))}
                     </span>
                   </Td>

@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { QuantityView } from "@/api/types";
 import { useT } from "@/i18n";
+import { TextInput } from "@/kit/TextInput";
 import { cn } from "@/lib/cn";
 import { useParseQuantity } from "./use-parse";
 
@@ -57,11 +58,13 @@ export function QuantityInput({
 
   return (
     <div className={cn("relative min-w-0", className)}>
-      <input
+      <TextInput
         ref={ref}
         id={id}
+        size="sm"
+        mono
+        invalid={!!error}
         aria-label={label}
-        aria-invalid={error ? true : undefined}
         aria-describedby={`${id}-echo`}
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -74,12 +77,6 @@ export function QuantityInput({
             onCancel?.();
           }
         }}
-        className={cn(
-          "h-7 w-full min-w-0 rounded-[8px] border bg-panel px-2 font-mono text-[12.5px] outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
-          error ? "border-neg" : "border-line-strong",
-        )}
-        spellCheck={false}
-        autoComplete="off"
       />
       <div
         id={`${id}-echo`}

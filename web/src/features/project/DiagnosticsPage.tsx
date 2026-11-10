@@ -1,14 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link } from "react-router";
 import { q, useDesign } from "@/api/queries";
 import type { Severity } from "@/api/types";
 import { useT } from "@/i18n";
+import { DiagnosticCard, diagnosticKey } from "@/kit/DiagnosticItem";
 import { Empty } from "@/kit/Empty";
 import { Loading, SkeletonPanel } from "@/kit/Loading";
-import { Panel } from "@/kit/Panel";
 import { Segmented } from "@/kit/Segmented";
-import { SeverityPill } from "@/kit/SeverityPill";
 import { targetLink } from "@/lib/target-link";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
@@ -60,50 +58,13 @@ export function DiagnosticsPage() {
           <Empty>{p.noDiagnostics}</Empty>
         ) : (
           <div className="space-y-2">
-            {list.map((d) => {
-              const to = targetLink(d.target, parts);
-              return (
-                <Panel
-                  key={`${d.code}-${d.path}-${d.file}-${d.line}-${d.column}`}
-                  className="space-y-1.5 py-3"
-                >
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <SeverityPill severity={d.severity} />
-                    <span className="font-mono text-ink-3">{d.code}</span>
-                    {d.path &&
-                      (to ? (
-                        <Link to={to} className="font-mono text-accent-ink hover:underline">
-                          {d.path}
-                        </Link>
-                      ) : (
-                        <span className="font-mono">{d.path}</span>
-                      ))}
-                    {d.file && (
-                      <span className="ml-auto font-mono text-ink-4">
-                        {d.file}
-                        {d.line ? `:${d.line}${d.column ? `:${d.column}` : ""}` : ""}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-ink text-md">{d.message}</p>
-                  {d.excerpt && (
-                    <pre className="overflow-x-auto rounded-control bg-panel-2 px-3 py-2 font-mono text-[11.5px] text-ink-2">
-                      {d.excerpt.text.split("\n").map((line, i) => {
-                        const n = (d.excerpt?.first_line ?? 1) + i;
-                        return (
-                          <div key={n} className={n === d.line ? "bg-warn-bg" : undefined}>
-                            <span className="mr-3 inline-block w-8 select-none text-right text-ink-4">
-                              {n}
-                            </span>
-                            {line}
-                          </div>
-                        );
-                      })}
-                    </pre>
-                  )}
-                </Panel>
-              );
-            })}
+            {list.map((d) => (
+              <DiagnosticCard
+                key={diagnosticKey(d)}
+                diagnostic={d}
+                to={targetLink(d.target, parts)}
+              />
+            ))}
           </div>
         )}
       </PageBody>

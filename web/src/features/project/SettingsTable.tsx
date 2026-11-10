@@ -1,6 +1,7 @@
 import { useSetText } from "@/api/ops";
 import type { SettingView } from "@/api/types";
 import { useT } from "@/i18n";
+import { CommitInput } from "@/kit/CommitInput";
 import { DataTable } from "@/kit/DataTable";
 import { Empty } from "@/kit/Empty";
 import { Switch } from "@/kit/Switch";
@@ -70,12 +71,11 @@ export function SettingsTable({
                   onChange={(next) => set(s.key, String(next))}
                 />
               ) : v.type === "text" || v.type === "enum" ? (
-                <input
-                  aria-label={s.key}
-                  defaultValue={v.value}
-                  key={v.value}
-                  onBlur={(e) => e.target.value !== v.value && set(s.key, e.target.value)}
-                  className="h-7 w-full max-w-72 rounded-[8px] border border-line-strong px-2 text-[12.5px]"
+                <CommitInput
+                  label={s.key}
+                  value={v.value}
+                  onCommit={(text) => set(s.key, text)}
+                  className="max-w-72"
                 />
               ) : (
                 <span className="font-mono text-[12px]">{s.display ?? "—"}</span>
