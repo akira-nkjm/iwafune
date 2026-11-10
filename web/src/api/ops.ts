@@ -6,7 +6,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { getT } from "@/i18n";
+import { getT, localized } from "@/i18n";
 import { paramPath } from "@/lib/design";
 import { clearFieldErrors, setFieldErrors } from "@/lib/field-errors";
 import { copyText, recordChange } from "@/lib/history";
@@ -48,8 +48,13 @@ function opPaths(ops: readonly Op[], design: DesignView | undefined): string[] {
   });
 }
 
-/** トーストに変化を出すバジェット */
-const DELTA_KINDS: readonly BudgetKind[] = ["mass", "power", "data"];
+/**
+ * トーストに変化を出すバジェット: すべての種類（一覧は API の `DefsView.budget_kinds`。設計をまだ読んでいなければ出さない）。
+ * そのうち、編集の前に読んであったものだけを比べる
+ */
+function budgetKinds(qc: QueryClient): readonly BudgetKind[] {
+  return qc.getQueryData<DesignView>(keys.design)?.defs.budget_kinds ?? [];
+}
 
 export function currentRevision(qc: QueryClient): string | null {
   const design = qc.getQueryData<DesignView>(keys.design);
@@ -57,13 +62,14 @@ export function currentRevision(qc: QueryClient): string | null {
   return design?.project.revision ?? project?.revision ?? null;
 }
 
-type Snapshot = Partial<Record<BudgetKind, string>>;
+/** 編集の前のバジェットの合計（種類 → 表示文字列） */
+type Snapshot = ReadonlyMap<BudgetKind, string>;
 
 function snapshot(qc: QueryClient): Snapshot {
-  const s: Snapshot = {};
-  for (const k of DELTA_KINDS) {
+  const s = new Map<BudgetKind, string>();
+  for (const k of budgetKinds(qc)) {
     const b = qc.getQueryData<BudgetView>(keys.budget(k));
-    if (b?.total) s[k] = b.total.display;
+    if (b?.total) s.set(k, b.total.display);
   }
   return s;
 }
@@ -71,12 +77,11 @@ function snapshot(qc: QueryClient): Snapshot {
 /** 変わったバジェットを「質量: 10.84 kg → 10.86 kg」の行にする（表示文字列を並べるだけ） */
 async function deltas(qc: QueryClient, before: Snapshot): Promise<string[]> {
   const lines: string[] = [];
-  for (const k of DELTA_KINDS) {
-    const was = before[k];
-    if (was === undefined) continue;
+  for (const [k, was] of before) {
     const now = await qc.fetchQuery(q.budget(k)).catch(() => null);
     const total = now?.total?.display;
-    if (now && total && total !== was) lines.push(`${now.label}: ${was} → ${total}`);
+    if (now && total && total !== was)
+      lines.push(`${localized(now.label, now.label_en)}: ${was} → ${total}`);
   }
   return lines;
 }
@@ -136,7 +141,7 @@ function useEdit<R extends { summary: string }>(
   return useMutation<ApplyResult, ApiError, R, Snapshot>({
     onMutate: () => snapshot(qc),
     mutationFn: (req) => send(req, currentRevision(qc)),
-    onSuccess: (r, req, before) => onApplied(qc, r, req.summary, pathsOf(req), before ?? {}),
+    onSuccess: (r, req, before) => onApplied(qc, r, req.summary, pathsOf(req), before ?? new Map()),
     onError: (e, req) => onRejected(qc, e, req.summary, pathsOf(req)),
   });
 }

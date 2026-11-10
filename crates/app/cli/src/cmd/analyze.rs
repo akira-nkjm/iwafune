@@ -4,7 +4,7 @@ use crate::args::AnalyzeArgs;
 use crate::output::{C, Out};
 use fune_service::dto::{
     AnalysisInputSource, AnalysisKind, AnalysisRunStatus, BudgetRequest, BudgetRow, BudgetView,
-    MissingInput, RunAnalysisRequest, Verdict,
+    KpiView, MissingInput, RunAnalysisRequest, Verdict,
 };
 use fune_service::{Workspace, analysis, budget};
 
@@ -44,6 +44,7 @@ pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
         )),
     }
     print_missing(&r.missing, out);
+    print_kpis(&r.kpis, out);
     print_checks(&r.checks, out);
     if r.status == AnalysisRunStatus::Ok {
         println!("{}", out.dim("全体の結果は --json で出せます"));
@@ -59,6 +60,25 @@ fn print_missing(missing: &[MissingInput], out: &Out) {
     let mut t = out.table(&["足りない入力", "内容"]);
     for m in missing {
         t.row(vec![C::Strong(m.path.clone()), C::Text(m.reason.clone())]);
+    }
+    t.print();
+}
+
+/// KPI（代表値・判定。選び方は service の `analysis::kpi`）を表にする。判定を数える KPI は数を出す。
+fn print_kpis(kpis: &[KpiView], out: &Out) {
+    if kpis.is_empty() {
+        return;
+    }
+    let mut t = out.table(&["", "KPI", "値"]).numeric(&[2]);
+    for k in kpis {
+        let value = match (&k.value, k.tally) {
+            (Some(v), _) => C::Num(v.display.clone()),
+            (None, Some(t)) if t.flagged == 0 => C::Text(format!("すべて OK（{}）", t.checked)),
+            (None, Some(t)) => C::Text(format!("{} / {} が要確認", t.flagged, t.checked)),
+            (None, None) => C::Dim("—".into()),
+        };
+        let mark = k.verdict.map_or(C::Dim(String::new()), verdict_cell);
+        t.row(vec![mark, C::Strong(k.label.clone()), value]);
     }
     t.print();
 }

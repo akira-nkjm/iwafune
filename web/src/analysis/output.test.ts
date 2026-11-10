@@ -7,7 +7,6 @@ import {
   EACH,
   groupScalars,
   jsonPointer,
-  pickNumbers,
   tableColumns,
 } from "./output";
 
@@ -57,11 +56,6 @@ describe("解析の出力の読み取り", () => {
     expect(t.map((x) => x.path)).toEqual(["cases"]);
     expect(t[0]!.at).toEqual(["cases"]);
     expect(tableColumns(t[0]!.rows)).toEqual(["id", "max_dod"]);
-  });
-  it("欄の指し方で数を引く（EACH で配列を展開）", () => {
-    expect(pickNumbers(out, ["cases", EACH, "max_dod"])).toEqual([0.21, 0.12]);
-    expect(pickNumbers(out, ["summary", "total_mass"])).toEqual([8.2]);
-    expect(pickNumbers(out, ["nope", "x"])).toEqual([]);
   });
 });
 

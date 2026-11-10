@@ -233,6 +233,8 @@ export const fixture: DesignView = {
       enum: {},
       enum_order: {},
     },
+    systems: ["power", "attitude", "cdh", "comm", "thermal", "structure"],
+    budget_kinds: ["mass", "power", "data"],
   },
   settings: [],
   cases: [],

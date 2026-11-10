@@ -72,7 +72,38 @@ fn skeletons_come_from_kit_loading() {
         rule,
         &mut errors,
     );
-    assert_eq!(errors.len(), 2);
+    // 解析の結果の表示にも一時的な許可は無い
+    check_rule("web/src/analysis/AnalysisCard.tsx", line, rule, &mut errors);
+    check_rule(
+        "web/src/features/systems/SystemTabs.tsx",
+        line,
+        rule,
+        &mut errors,
+    );
+    assert_eq!(errors.len(), 4);
+}
+
+/// Web は系とバジェットの種類の一覧を API から取り、写しを書かない（テストの補助のデータは除く）。
+#[test]
+fn web_takes_systems_and_budget_kinds_from_the_api() {
+    let systems = "export const systemOrder = [\"power\", \"attitude\", \"cdh\"];";
+    let kinds = "const DELTA_KINDS = [\"mass\", \"power\", \"data\"];";
+    for (needle, line) in [
+        ("\"power\", \"attitude\"", systems),
+        ("\"mass\", \"power\", \"data\"", kinds),
+    ] {
+        let rule = WEB_RULES.iter().find(|r| r.0 == needle).unwrap();
+        let mut errors = Vec::new();
+        check_rule(
+            "web/src/features/systems/systems.ts",
+            line,
+            rule,
+            &mut errors,
+        );
+        assert_eq!(errors.len(), 1, "{needle}");
+        check_rule("web/src/test/fixture.ts", line, rule, &mut errors);
+        assert_eq!(errors.len(), 1, "{needle}");
+    }
 }
 
 /// 系とバジェットの種類の一覧は model の列挙だけ。参照の所在は model の索引だけ（Rust のコードの規則）。

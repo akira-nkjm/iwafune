@@ -1,4 +1,10 @@
-import { keepPreviousData, QueryClient, queryOptions, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  QueryClient,
+  queryOptions,
+  useQueries,
+  useQuery,
+} from "@tanstack/react-query";
 import { useDebounced } from "@/lib/use-debounced";
 import { api, seg } from "./client";
 import { keys } from "./keys";
@@ -132,16 +138,48 @@ export function recomputeAnalyses(ids: readonly string[], kase: string | null): 
   for (const id of ids) void queryClient.invalidateQueries({ queryKey: keys.analysis(id, kase) });
 }
 
-/** ある系の解析の ID。系への所属は sat-analysis の info.system が正本 */
-function systemAnalysisIds(entries: readonly AnalysisEntry[], system: string | null): string[] {
-  return entries.filter((e) => e.info.system === system).map((e) => e.info.id);
+/** 解析 1 つの実行の状態（`useAnalyses` の 1 要素） */
+export interface AnalysisState {
+  id: string;
+  result: AnalysisRunResult | undefined;
+  error: string | null;
+  loading: boolean;
+  /** 前の結果を出したまま、次の結果を問い合わせている */
+  updating: boolean;
 }
 
-/** 解析の一覧（GET /analyses）から、ある系の解析を引く */
+/**
+ * 解析をまとめて実行する（POST /analyses/{id}。結果は設計の編集で無効化される）。
+ * `ops` を渡すと、保存していない編集（下書き）を当てた設計で計算する。系のページ・概要・軌道・モードが使う。
+ */
+export function useAnalyses(
+  ids: readonly string[],
+  kase: string | null,
+  ops: readonly Op[] = [],
+): AnalysisState[] {
+  return useQueries({
+    queries: ids.map((id) => q.analysis(id, kase, ops)),
+    combine: (rs) =>
+      rs.map((r, i) => ({
+        id: ids[i] ?? "",
+        result: r.data,
+        error: r.error?.message ?? null,
+        loading: r.isPending,
+        updating: r.isFetching && !r.isPending,
+      })),
+  });
+}
+
+/** ある系の解析。系への所属は sat-analysis の info.system が正本 */
+function systemEntries(entries: readonly AnalysisEntry[], system: string | null): AnalysisEntry[] {
+  return entries.filter((e) => e.info.system === system);
+}
+
+/** 解析の一覧（GET /analyses）から、ある系の解析（一覧の順）とその ID を引く */
 export function useSystemAnalyses(system: string | null) {
   const catalog = useQuery(q.analyses());
-  const entries = catalog.data ?? [];
-  return { entries, ids: systemAnalysisIds(entries, system), loading: catalog.isPending };
+  const entries = systemEntries(catalog.data ?? [], system);
+  return { entries, ids: entries.map((e) => e.info.id), loading: catalog.isPending };
 }
 
 /**
@@ -152,8 +190,8 @@ export async function prefetchSystemAnalyses(system: string): Promise<void> {
   try {
     const entries = await queryClient.fetchQuery(q.analyses());
     await Promise.all(
-      systemAnalysisIds(entries, system).map((id) =>
-        queryClient.prefetchQuery(q.analysis(id, null)),
+      systemEntries(entries, system).map((e) =>
+        queryClient.prefetchQuery(q.analysis(e.info.id, null)),
       ),
     );
   } catch {

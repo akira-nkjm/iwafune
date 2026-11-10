@@ -258,6 +258,10 @@ pub struct DefsView {
     pub kinds: Vec<KindDefView>,
     /// 組み込みの語彙の表示名（系の順と見出し・機器の状態・列挙の値。`fune_model::builtin::labels`）
     pub labels: Labels,
+    /// 解析の系の一覧と並び（`fune_model::design::AnalysisSystem` の宣言の順。表示名は `labels.section`）
+    pub systems: Vec<sat_analysis::spec::System>,
+    /// バジェットの種類の一覧と並び（`fune_model::design::BudgetKind` の宣言の順。表示名は `labels.enum.budget_kind`）
+    pub budget_kinds: Vec<fune_model::design::BudgetKind>,
 }
 
 /// 属性定義。

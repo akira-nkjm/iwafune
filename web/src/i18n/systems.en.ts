@@ -34,40 +34,12 @@ export const systemsEn: typeof systemsJa = {
           "3D layout, mass properties, quasi-static loads and simple natural frequencies",
       },
     },
-    kpis: {
-      power: {
-        load: "Peak mode load",
-        gen: "Orbit-average generation",
-        balance: "Orbit-average balance (worst)",
-        dod: "Max DoD",
-      },
-      attitude: {
-        interval: "Unload interval",
-        peak: "Peak momentum",
-        mtq: "MTQ unload time",
-        fov: "Sensor intrusion (max)",
-      },
-      cdh: {
-        total: "Generated per day",
-        storage: "Storage required",
-        margin: "Storage capacity margin",
-      },
-      comm: {
-        margin: "Link margin (min)",
-        contact: "Contact per day",
-        capacity: "Downlink capacity per day",
-        backlog: "Max backlog",
-      },
-      thermal: {
-        max: "Max temperature",
-        min: "Min temperature",
-        tmax: "Transient max temperature",
-      },
-      structure: {
-        mass: "Total mass",
-        freq: "Lowest natural frequency",
-        ms: "Minimum margin of safety",
-      },
+    kpiTally: (checked: number, flagged: number) =>
+      flagged === 0 ? `All OK (${checked})` : `${flagged} of ${checked} need attention`,
+    kpiFill: {
+      value: "Value (fraction)",
+      used_over_limit: "Used against the limit",
+      ok_share: "Share of OK checks",
     },
     status: {
       ok: "Done",

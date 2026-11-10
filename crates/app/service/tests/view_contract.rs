@@ -118,6 +118,21 @@ fn ends_places_and_setting_groups_are_structured() {
     assert_eq!((policy.scope, policy.system), (SettingScope::Budget, None));
 }
 
+/// 系とバジェットの種類の一覧と並びは、model の列挙から（Web は一覧を手で書かない）。
+#[test]
+fn defs_list_systems_and_budget_kinds_from_the_model() {
+    use fune_model::design::{AnalysisSystem, BudgetKind};
+    let design = query::design_view(&demo()).unwrap();
+    let systems: Vec<AnalysisSystem> = design
+        .defs
+        .systems
+        .iter()
+        .map(|s| fune_projection::system::from_analysis(*s))
+        .collect();
+    assert_eq!(systems, AnalysisSystem::ALL);
+    assert_eq!(design.defs.budget_kinds, BudgetKind::ALL);
+}
+
 /// カタログ品の値は、その品を選んで上書きしていない部品の値と同じ形・同じ表示（組み立ては service の 1 か所）。
 #[test]
 fn catalog_items_share_the_part_value_view() {

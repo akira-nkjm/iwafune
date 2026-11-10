@@ -2,6 +2,7 @@
 import type { AnalysisLabel } from "./AnalysisLabel";
 import type { AnalysisRunStatus } from "./AnalysisRunStatus";
 import type { CheckView } from "./CheckView";
+import type { KpiView } from "./KpiView";
 import type { MissingInput } from "./MissingInput";
 import type { Verdict } from "./Verdict";
 
@@ -17,6 +18,11 @@ checks: Array<CheckView>,
  * 判定が無ければ null。
  */
 verdict: Verdict | null, 
+/**
+ * この解析の KPI（`AnalysisEntry.kpis` と同じ並び。出力が無ければ空）。代表値の選び方・判定・塗りの比は
+ * `fune_service::analysis::kpi` が決める
+ */
+kpis: Array<KpiView>, 
 /**
  * 実際に使った入力（`input_type` の形）
  */

@@ -1,8 +1,9 @@
-//! 解析の出力の語彙の表示名（日本語・英語）。解析はキー（時系列の種類・列挙の値）だけを返し、表示名はここで引く。
+//! 解析の出力の語彙の表示名（日本語・英語）。解析はキー（時系列の種類・列挙の値）だけを返し、表示名はここで引く
+//! （service が作る KPI の名前も）。
 //! **解析の出力の表示名はここだけ**（設計データの語彙は `fune_model::builtin::labels`）。列挙は型ごとに漏れなく
 //! `match` で書くので、解析に値が増えたら、ここが書かれるまでコンパイルが通らない。
 
-use crate::dto::AnalysisLabel;
+use crate::dto::{AnalysisLabel, KpiKey};
 use sat_analysis::attitude::disturbance::DisturbanceKind;
 use sat_analysis::attitude::sensor_fov::SensorFovTarget;
 use sat_analysis::attitude::unload_time::UnloadAssumption;
@@ -158,6 +159,35 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "ModalEstimateKind" => parse(value).map(modal_kind),
         "DataThroughputLinkClosure" => link_closure(value),
         _ => None,
+    }
+}
+
+/// KPI の表示名（`analysis::kpi`。キーはすべての系を通して一意）。
+pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
+    use KpiKey as K;
+    match key {
+        K::ModeLoad => label("モードの消費電力（バジェット）", "Mode load (budget)"),
+        K::OrbitGeneration => label("軌道平均の発電", "Orbit-average generation"),
+        K::OrbitBalance => label("軌道平均の収支（最悪）", "Orbit-average balance (worst)"),
+        K::MaxDod => label("最大 DoD", "Max DoD"),
+        K::UnloadInterval => label("アンロード間隔", "Unload interval"),
+        K::PeakMomentum => label("最大角運動量", "Peak momentum"),
+        K::MtqUnloadTime => label("MTQ のアンロード時間", "MTQ unload time"),
+        K::SensorIntrusion => label("センサ侵入の割合（最大）", "Sensor intrusion (max)"),
+        K::DataPerDay => label("1 日の発生量", "Generated per day"),
+        K::StorageRequired => label("必要なストレージ", "Storage required"),
+        K::StorageMargin => label("ストレージの容量の余裕", "Storage capacity margin"),
+        K::LinkMargin => label("回線余裕（最小）", "Link margin (min)"),
+        K::ContactPerDay => label("1 日の可視時間", "Contact per day"),
+        K::DownlinkPerDay => label("1 日の送信可能量", "Downlink capacity per day"),
+        K::MaxBacklog => label("最大の未送信", "Max backlog"),
+        K::MaxTemperature => label("最高温度", "Max temperature"),
+        K::MinTemperature => label("最低温度", "Min temperature"),
+        K::NodesInRange => label("動作範囲の判定（節点）", "Operating range checks (nodes)"),
+        K::TransientMaxTemperature => label("非定常の最高温度", "Transient max temperature"),
+        K::TotalMass => label("総質量", "Total mass"),
+        K::MinSafetyMargin => label("最小の安全余裕（MS）", "Minimum margin of safety"),
+        K::MinFrequency => label("最低の固有振動数", "Lowest natural frequency"),
     }
 }
 

@@ -1,10 +1,9 @@
+import { AnalysisCard } from "@/analysis/AnalysisCard";
+import { ResultTable } from "@/analysis/ResultTable";
 import { analysisOutput } from "@/api/analysis-output";
-import { useDesign } from "@/api/queries";
+import { useAnalyses, useDesign } from "@/api/queries";
 import type { SettingView } from "@/api/types";
 import { SettingsTable } from "@/features/project/SettingsTable";
-import { AnalysisCard } from "@/features/systems/AnalysisCard";
-import { ResultTable } from "@/features/systems/ResultTable";
-import { useAnalyses } from "@/features/systems/use-analyses";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/Empty";
 import { SkeletonPanel } from "@/kit/Loading";

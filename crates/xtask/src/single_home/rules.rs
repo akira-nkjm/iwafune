@@ -218,7 +218,7 @@ pub(super) const RULES: &[(&str, &[&str], &str)] = &[
     ),
 ];
 
-/// Rust のコードだけに適用する規則（web/ の写しは #25 の側で片づける。registry.md の課題）。
+/// Rust のコードだけに適用する規則（同じ一覧の web/ の側は `WEB_RULES` が見る。テストの補助のデータだけは許す）。
 pub(super) const RUST_RULES: &[(&str, &[&str], &str)] = &[
     // 解析の系の一覧（`fune_model::design::AnalysisSystem`。`ALL`・`NAMES` を使う）
     (
@@ -245,16 +245,22 @@ pub(super) const WEB_RULES: &[(&str, &[&str], &str)] = &[
     ("toPrecision(", &["web/src/quantity/"], "数の整形"),
     ("toExponential(", &["web/src/quantity/"], "数の整形"),
     ("toFixed(", &["web/src/quantity/"], "数の整形"),
-    // 読み込み中の表示は kit/Loading のスケルトンだけ（`Loading` で包み、画面読み上げにも伝える）。
-    // 解析の結果の表示（AnalysisCard・SystemTabs）は、解析の出力の型（#23）の後に kit/Loading の部品へ替える
+    // 読み込み中の表示は kit/Loading のスケルトンだけ（`Loading` で包み、画面読み上げにも伝える）
     (
         "@/ui/skeleton",
-        &[
-            "web/src/kit/Loading.tsx",
-            "web/src/features/systems/AnalysisCard.tsx",
-            "web/src/features/systems/SystemTabs.tsx",
-        ],
+        &["web/src/kit/Loading.tsx"],
         "スケルトン（読み込み中の表示）",
+    ),
+    // 系とバジェットの種類の一覧と並びは API（`DefsView.systems`・`budget_kinds`）。Web に写しを書かない
+    (
+        "\"power\", \"attitude\"",
+        &["web/src/test/"],
+        "解析の系の一覧（API の `DefsView.systems`）",
+    ),
+    (
+        "\"mass\", \"power\", \"data\"",
+        &["web/src/test/"],
+        "バジェットの種類の一覧（API の `DefsView.budget_kinds`）",
     ),
     // 負の字間は欧文を半角のつまった字にする（Noto Sans JP の欧文が詰まって読みにくい）。使わない
     ("tracking-tight", &["web/src/ui/"], "負の字間"),

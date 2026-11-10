@@ -1,6 +1,5 @@
 import { useDesign } from "@/api/queries";
 import type { DesignView } from "@/api/types";
-import { systemOrder, systemTitle } from "@/features/systems/systems";
 import { useT } from "@/i18n";
 import { ChipLink } from "@/kit/Chip";
 import { DataTable } from "@/kit/DataTable";
@@ -10,6 +9,7 @@ import { Panel } from "@/kit/Panel";
 import { QueryState } from "@/kit/QueryState";
 import { Td } from "@/kit/Td";
 import { Th } from "@/kit/Th";
+import { systemTitle } from "@/lib/design";
 import { paths } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
@@ -58,7 +58,7 @@ function CasesTable({ design: d }: { design: DesignView }) {
             </Td>
             <Td>
               <span className="flex flex-wrap gap-1">
-                {systemOrder.map((s) => (
+                {d.defs.systems.map((s) => (
                   <ChipLink key={s} to={paths.system(s, { kase: c.id })} mono={false}>
                     {systemTitle(s, d.defs)}
                   </ChipLink>

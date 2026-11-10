@@ -23,7 +23,7 @@ export function jsonPointer(path: JsonPath): string {
 /** 配列の全要素を表す区間（`FieldPath` の中で使う） */
 export const EACH: unique symbol = Symbol("each");
 
-/** 出力の欄の指し方（キーの列。`EACH` は配列の全要素）。系のページの KPI（systems.ts）が書く */
+/** 出力の欄の指し方（キーの列。`EACH` は配列の全要素）。次元を引く `dimOf` に渡す（KPI の値は API の `kpis`） */
 export type FieldPath = readonly (string | typeof EACH)[];
 
 export function isObject(v: unknown): v is JsonObject {
@@ -175,13 +175,6 @@ function lookup(v: unknown, path: FieldPath): { at: JsonPath; value: unknown }[]
     });
   }
   return cur;
-}
-
-/** 欄の指し方（`["modes", EACH, "total"]`）で数を引く。見つからない・数でないものは捨てる */
-export function pickNumbers(v: unknown, path: FieldPath): number[] {
-  return lookup(v, path)
-    .map((m) => m.value)
-    .filter((x): x is number => typeof x === "number" && Number.isFinite(x));
 }
 
 /**

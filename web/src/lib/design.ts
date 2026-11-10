@@ -4,6 +4,7 @@ import type {
   DesignView,
   KindDefView,
   PartRow,
+  System,
   TreeNode,
   ValueView,
 } from "@/api/types";
@@ -90,6 +91,12 @@ export function kindDef(defs: Pick<DefsView, "kinds">, id: string): KindDefView 
 export function kindLabel(defs: Pick<DefsView, "kinds">, id: string): string {
   const def = kindDef(defs, id);
   return def ? defName(def) : id;
+}
+
+/** 解析の系の表示名（`labels.section`。言語に合わせる。届くまでと表に無いときは系の綴り） */
+export function systemTitle(system: System, defs?: Pick<DefsView, "labels">): string {
+  const label = defs?.labels.section[system];
+  return label ? localized(label.label, label.label_en) : system;
 }
 
 /** 製品ツリーの Group（サブシステムなど） */

@@ -11,6 +11,7 @@
 //! | `edit` | Op の適用と、人が打った文字列（`SetText`・`UnsetText`） |
 //! | `command` | 名詞のコマンドに打った引数（`CommandText`。`fune net set`・`fune part place`・`fune mode set` など） |
 //! | `budget` | 質量・電力・データ量のバジェット |
+//! | `kpi` | KPI（系の代表値・判定・塗りの比・判定の数え方）と塗りの比 |
 //! | `data` | 外部データ（DE440）の状態 |
 
 mod analysis;
@@ -23,6 +24,8 @@ mod design;
 mod edit;
 mod format;
 pub use format::{FormatDesignRequest, FormatDesignResult};
+mod kpi;
+pub use kpi::{FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView};
 mod units;
 mod value;
 

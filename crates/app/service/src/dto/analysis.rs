@@ -1,5 +1,6 @@
 //! 解析の API の型。解析ごとの入出力の型は sat-analysis が定義し、そのまま TS に出す。
 
+use super::{KpiDef, KpiView};
 use fune_projection::MissingInput;
 use sat_analysis::spec::AnalysisInfo;
 use serde::{Deserialize, Serialize};
@@ -15,6 +16,8 @@ pub struct AnalysisEntry {
     pub output_type: String,
     /// 設計データから入力を組み立てられるか（projection が実装済みか）
     pub projectable: bool,
+    /// この解析が出す KPI（並びは系のページに並べる順。値は実行の結果の `kpis`）
+    pub kpis: Vec<KpiDef>,
 }
 
 /// 解析の実行の依頼（`POST /analyses/{id}`、`fune analyze <id>`）。
@@ -84,6 +87,9 @@ pub struct AnalysisRunResult {
     pub checks: Vec<CheckView>,
     /// 判定が無ければ null。
     pub verdict: Option<sat_analysis::spec::Verdict>,
+    /// この解析の KPI（`AnalysisEntry.kpis` と同じ並び。出力が無ければ空）。代表値の選び方・判定・塗りの比は
+    /// `fune_service::analysis::kpi` が決める
+    pub kpis: Vec<KpiView>,
     /// 実際に使った入力（`input_type` の形）
     #[ts(type = "unknown")]
     pub input: Option<serde_json::Value>,

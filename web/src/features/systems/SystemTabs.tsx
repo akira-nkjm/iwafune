@@ -1,21 +1,20 @@
 import { lazy, type ReactNode, Suspense } from "react";
-import type { AnalysisEntry, DesignView } from "@/api/types";
+import { AnalysisCard } from "@/analysis/AnalysisCard";
+import { fieldLabel } from "@/analysis/fields";
+import { collectSeries, collectTables } from "@/analysis/output";
+import { ResultTable } from "@/analysis/ResultTable";
+import type { AnalysisState } from "@/api/queries";
+import type { AnalysisEntry, DesignView, System } from "@/api/types";
 import { SettingsTable } from "@/features/project/SettingsTable";
 import { useT } from "@/i18n";
 import { analysisTitle } from "@/i18n/analysis-names";
 import { Empty } from "@/kit/Empty";
-import { Loading, SkeletonTable } from "@/kit/Loading";
+import { Loading, SkeletonBlock, SkeletonTable } from "@/kit/Loading";
 import { Panel } from "@/kit/Panel";
 import { PanelHeader } from "@/kit/PanelHeader";
 import { TablePanel } from "@/kit/TablePanel";
-import { Skeleton } from "@/ui/skeleton";
-import { AnalysisCard } from "./AnalysisCard";
-import { fieldLabel } from "./fields";
-import { collectSeries, collectTables } from "./output";
-import { ResultTable } from "./ResultTable";
+import { systemTitle } from "@/lib/design";
 import { SystemPartsTable } from "./SystemPartsTable";
-import { type SystemSpec, systemTitle } from "./systems";
-import type { AnalysisState } from "./use-analyses";
 
 /** グラフ（recharts）は時系列のタブを開いたときだけ読む。系のページの最初のチャンクを小さくするため */
 const SeriesChart = lazy(() => import("./SeriesChart").then((m) => ({ default: m.SeriesChart })));
@@ -25,14 +24,14 @@ export type SystemTab = "results" | "breakdown" | "settings" | "series";
 /** 系のページのタブの中身（結果・内訳・設定・時系列）。extra は系ごとの追加の表示（熱の温度表、構造の 3D など） */
 export function SystemTabs({
   tab,
-  spec,
+  system,
   design,
   states,
   entries,
   extra,
 }: {
   tab: SystemTab;
-  spec: SystemSpec;
+  system: System;
   design: DesignView | undefined;
   states: AnalysisState[];
   entries: Map<string, AnalysisEntry>;
@@ -55,7 +54,7 @@ export function SystemTabs({
       <>
         <TablePanel title={dict.systems.partsAttrs} caption={dict.systems.partsAttrsCaption}>
           {design ? (
-            <SystemPartsTable design={design} spec={spec} />
+            <SystemPartsTable design={design} system={system} />
           ) : (
             <Loading>
               <SkeletonTable rows={6} cols={5} />
@@ -84,12 +83,12 @@ export function SystemTabs({
     );
   if (tab === "settings") {
     // 系と設定の対応は API（`SettingView.system`。正本は fune_service の query::settings）
-    const settings = (design?.settings ?? []).filter((x) => x.system === spec.key);
+    const settings = (design?.settings ?? []).filter((x) => x.system === system);
     const files = [...new Set(settings.flatMap((x) => (x.file ? [x.file] : [])))];
     return (
       <>
         <TablePanel
-          title={dict.systems.settingsTitle(systemTitle(spec.key, design?.defs))}
+          title={dict.systems.settingsTitle(systemTitle(system, design?.defs))}
           caption={files.length > 0 ? dict.systems.settingsCaption(files.join(" / ")) : undefined}
         >
           <SettingsTable settings={settings} empty={dict.systems.noSettings} />
@@ -129,7 +128,7 @@ export function SystemTabs({
           <Suspense
             fallback={
               <Loading>
-                <Skeleton className="h-56 w-full" />
+                <SkeletonBlock className="h-56 w-full" />
               </Loading>
             }
           >

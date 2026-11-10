@@ -51,12 +51,18 @@ pub(crate) fn system_of(path: &SettingPath) -> Option<System> {
             .parse::<AnalysisSystem>()
             .ok()
             .map(fune_projection::system::to_analysis),
-        SettingScope::Budget => Some(match first.parse::<BudgetKind>().ok()? {
-            BudgetKind::Mass => System::Structure,
-            BudgetKind::Power => System::Power,
-            BudgetKind::Data => System::Cdh,
-        }),
+        SettingScope::Budget => Some(budget_system(first.parse::<BudgetKind>().ok()?)),
         SettingScope::Mission => None,
+    }
+}
+
+/// バジェットの種類を見せる系（質量 → 構造・電力 → 電源・データ量 → C&DH）。**バジェットと系の対応はここだけ**
+/// （配分の設定の `SettingView.system` と、バジェットの `BudgetView.system`）。
+pub(crate) fn budget_system(kind: BudgetKind) -> System {
+    match kind {
+        BudgetKind::Mass => System::Structure,
+        BudgetKind::Power => System::Power,
+        BudgetKind::Data => System::Cdh,
     }
 }
 

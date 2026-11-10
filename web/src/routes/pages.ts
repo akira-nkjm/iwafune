@@ -1,6 +1,5 @@
 import { preloadSystem } from "@/features/systems/preload";
-import { isSystem } from "@/features/systems/systems";
-import type { NavItemKey } from "@/lib/nav";
+import { isSystemItem, type NavItemKey } from "@/lib/nav";
 import { lazyPage as page, quietly } from "@/shell/lazy-page";
 import type { PreloadPlan } from "@/shell/preload";
 
@@ -61,7 +60,7 @@ export const pages = {
  * 先に読む。系のページは 1 つの本体を系ごとの項目で共有する。
  */
 function preloadItem(key: NavItemKey): void {
-  if (isSystem(key)) {
+  if (isSystemItem(key)) {
     quietly(pages.system.load());
     for (const p of preloadSystem(key)) quietly(p);
     return;
