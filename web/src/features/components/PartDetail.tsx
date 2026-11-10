@@ -31,18 +31,21 @@ function modesFromTable(design: DesignView, id: string): Record<string, StateAss
  */
 export function PartDetail({
   design,
-  row,
+  item,
   onSelect,
   onClose,
 }: {
   design: DesignView;
-  row: PartRow;
+  /** 一覧で選んだ部品（GET /design の行。詳細が届くまではこれで描く） */
+  item: PartRow;
+  /** 名前を変えたら新しい ID、消したら null で選び直す */
   onSelect: (id: string | null) => void;
+  /** 見出しの右端の閉じるボタン（一覧のタブの横の欄だけ） */
   onClose?: () => void;
 }) {
   const t = useT().components.detail;
-  const detail = useQuery(q.part(row.id));
-  const part = detail.data?.part ?? row;
+  const detail = useQuery(q.part(item.id));
+  const part = detail.data?.part ?? item;
   // 区分（系）と並びは API（fune_model::builtin）が正本。詳細が届くまでは 1 つの「基本」に並べる
   const basic = design.defs.labels.section.basic;
   const sections = detail.data?.sections ?? [
@@ -50,12 +53,12 @@ export function PartDetail({
       key: "basic",
       label: basic?.label ?? "basic",
       label_en: basic?.label_en ?? null,
-      attrs: Object.keys(row.values),
+      attrs: Object.keys(item.values),
     },
   ];
-  const modes = detail.data?.modes ?? modesFromTable(design, row.id);
+  const cells = detail.data?.modes ?? modesFromTable(design, item.id);
   const diagnostics =
-    detail.data?.diagnostics ?? design.diagnostics.filter((d) => d.part === row.id);
+    detail.data?.diagnostics ?? design.diagnostics.filter((d) => d.part === item.id);
   const dialogs = useDialogs<"param" | "rename" | "delete">();
   const shown = new Set(sections.flatMap((s) => s.attrs));
   const rest = Object.keys(part.values).filter((id) => !shown.has(id));
@@ -66,8 +69,8 @@ export function PartDetail({
         // 系統図のカードと同じ形: サブシステム色の淡い地と左の色の線
         <DetailHeader
           title={part.id}
-          tone={subsystemTone(part.subsystem, part.role)}
-          leading={<SubsystemDot group={part.subsystem} role={part.role} />}
+          tone={subsystemTone(part.subsystem)}
+          leading={<SubsystemDot group={part.subsystem} />}
           trailing={part.count > 1 && <span className="text-ink-3 text-xs">× {part.count}</span>}
           subtitle={`${nodeLabel(design, part.parent)} · ${part.kind}${part.catalog ? ` · ${part.catalog}` : ""}`}
           actions={
@@ -100,12 +103,12 @@ export function PartDetail({
         .filter((s) => s.attrs.length > 0)
         .map((s) => (
           <DetailSection key={s.key} title={localized(s.label, s.label_en)}>
-            <AttrTable design={design} part={part} attrIds={s.attrs} />
+            <AttrTable defs={design.defs} part={part} attrIds={s.attrs} />
           </DetailSection>
         ))}
       {rest.length > 0 && (
         <DetailSection title={localized(basic?.label ?? "basic", basic?.label_en)}>
-          <AttrTable design={design} part={part} attrIds={rest} />
+          <AttrTable defs={design.defs} part={part} attrIds={rest} />
         </DetailSection>
       )}
       <DetailSection title={t.placement}>
@@ -119,7 +122,7 @@ export function PartDetail({
         <PortsSection design={design} part={part} />
       </DetailSection>
       <DetailSection title={t.modes}>
-        <PartModes design={design} part={part.id} modes={modes} />
+        <PartModes table={design.modes} part={part.id} cells={cells} />
       </DetailSection>
       {detail.data && detail.data.harnesses.length > 0 && (
         <DetailSection title={t.harnesses}>
@@ -135,9 +138,9 @@ export function PartDetail({
       {dialogs.current === "delete" && (
         <DeletePartDialog
           {...dialogs.props}
-          design={design}
+          table={design.modes}
           part={part}
-          onDeleted={() => onSelect(null)}
+          onDone={() => onSelect(null)}
         />
       )}
     </DetailPane>

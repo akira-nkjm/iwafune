@@ -1,5 +1,5 @@
 import { useAttrEdit } from "@/api/ops";
-import type { DesignView, PartRow } from "@/api/types";
+import type { DefsView, PartRow } from "@/api/types";
 import { useT } from "@/i18n";
 import { PropertyList } from "@/kit/PropertyList";
 import { ResetButton } from "@/kit/ResetButton";
@@ -12,11 +12,12 @@ import { OriginBadge } from "@/quantity/OriginBadge";
  * 渡し（`useAttrEdit`）、上書きを消すと `fune unset` と同じくカタログの値に戻る
  */
 export function AttrTable({
-  design,
+  defs,
   part,
   attrIds,
 }: {
-  design: DesignView;
+  /** 属性の定義（値の型・次元・表示名） */
+  defs: DefsView;
   part: PartRow;
   attrIds: string[];
 }) {
@@ -34,16 +35,16 @@ export function AttrTable({
             rowLayout="values"
             owner={part}
             attr={id}
-            def={attrDef(design.defs, id)}
+            def={attrDef(defs, id)}
             value={v}
-            label={attrLabel(design.defs, id)}
+            label={attrLabel(defs, id)}
             source={<OriginBadge origin={origin} source={v?.source} evidence={v?.evidence} />}
             action={
               origin === "override" ? (
                 <ResetButton title={t.resetTitle} onClick={() => edit.unset(id)} />
               ) : null
             }
-            onSet={(state, text) => edit.set(id, state, text)}
+            onCommit={(state, text) => edit.set(id, state, text)}
           />
         );
       })}

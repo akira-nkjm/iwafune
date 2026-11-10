@@ -50,7 +50,7 @@ export function DiagramInspector({
           <PartDetail
             key={row.id}
             design={design}
-            row={row}
+            item={row}
             onSelect={(id) => onSelect(id ? { kind: "card", id: card.id, member: id } : null)}
           />
         ) : (

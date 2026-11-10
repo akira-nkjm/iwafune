@@ -53,7 +53,7 @@ export function SettingsTable({
                   initial={quantityInputText(v.nominal)}
                   dimension={v.nominal.dimension}
                   label={s.key}
-                  onCommit={(_q, t) => set(s.key, t)}
+                  onCommit={(t) => set(s.key, t)}
                 />
               ) : v.type === "unset" ? (
                 <EditableQuantity
@@ -62,12 +62,12 @@ export function SettingsTable({
                   dimension={null}
                   label={s.key}
                   muted
-                  onCommit={(_q, t) => set(s.key, t)}
+                  onCommit={(t) => set(s.key, t)}
                 />
               ) : v.type === "bool" ? (
                 <Switch
                   aria-label={s.key}
-                  on={v.value}
+                  value={v.value}
                   onChange={(next) => set(s.key, String(next))}
                 />
               ) : v.type === "text" || v.type === "enum" ? (

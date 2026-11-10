@@ -16,13 +16,14 @@ export function AddPartDialog({
   design,
   open,
   onOpenChange,
-  onCreated,
+  onDone,
   initialGroup,
 }: {
   design: DesignView;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated: (id: string) => void;
+  /** 作ったとき（新しい部品の ID） */
+  onDone: (id: string) => void;
   initialGroup?: string | null;
 }) {
   const t = useT();
@@ -73,7 +74,7 @@ export function AddPartDialog({
       summary={ta.summary(id)}
       confirmLabel={ta.confirm}
       onDone={() => {
-        onCreated(id);
+        onDone(id);
         setId("");
       }}
     >

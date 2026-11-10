@@ -49,7 +49,7 @@ export function NetInspector({ net }: { net: NetView }) {
               dimension="Voltage"
               label={railPath}
               muted={!net.rail}
-              onCommit={(_, t) =>
+              onCommit={(t) =>
                 command.mutate({
                   command: { command: "net_set", net: net.id, rail: t },
                   summary: tn.railSummary(net.id, t),

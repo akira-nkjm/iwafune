@@ -9,6 +9,7 @@ import type { DetailRoute } from "./use-detail-route";
 function route(over: Partial<DetailRoute> = {}): DetailRoute {
   return {
     view: "tree",
+    setView: vi.fn(),
     tree: true,
     selected: null,
     select: vi.fn(),

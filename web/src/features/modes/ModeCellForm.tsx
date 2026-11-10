@@ -11,18 +11,21 @@ import type { CellText } from "./draft";
  */
 export function ModeCellForm({
   states,
-  cell,
+  value,
   onChange,
 }: {
+  /** 部品の状態の語彙（基本の状態の選択肢と、時間割合の欄） */
   states: string[];
-  cell: CellText | null;
-  onChange: (cell: CellText | null) => void;
+  /** 今のセル（未指定は null） */
+  value: CellText | null;
+  /** 状態・時間割合を変えたとき、未指定に戻したとき（null） */
+  onChange: (value: CellText | null) => void;
 }) {
   const t = useT().modes.cell;
   const id = useId();
   // 基本の状態を変えたら、その状態の時間割合は意味が無くなるので消す
   const setState = (state: string) => {
-    const duty = Object.entries(cell?.duty ?? {}).filter(([s]) => s !== state);
+    const duty = Object.entries(value?.duty ?? {}).filter(([s]) => s !== state);
     onChange({ state, duty: Object.fromEntries(duty) });
   };
   const setDuty = (base: CellText, state: string, raw: string) => {
@@ -37,20 +40,20 @@ export function ModeCellForm({
         label={t.state}
         size="sm"
         options={states.map((s) => ({ value: s, label: s }))}
-        value={cell?.state ?? null}
+        value={value?.state ?? null}
         onChange={setState}
       />
-      {cell && (
+      {value && (
         <div className="space-y-2">
           <p className="text-ink-2 text-xs">
-            {t.dutyHelpBefore} <span className="font-mono">{cell.state}</span>
+            {t.dutyHelpBefore} <span className="font-mono">{value.state}</span>
             {t.dutyHelpAfter}
           </p>
           {states
-            .filter((s) => s !== cell.state)
+            .filter((s) => s !== value.state)
             .map((s) => (
               <label
-                key={`${cell.state}-${s}`}
+                key={`${value.state}-${s}`}
                 htmlFor={`${id}-${s}`}
                 className="flex items-center justify-between gap-2 text-xs"
               >
@@ -62,8 +65,8 @@ export function ModeCellForm({
                   max={1}
                   step={0.01}
                   label={t.dutyFor(s)}
-                  value={cell.duty[s] ?? ""}
-                  onCommit={(text) => setDuty(cell, s, text)}
+                  value={value.duty[s] ?? ""}
+                  onCommit={(text) => setDuty(value, s, text)}
                   className="num w-20 text-right"
                 />
               </label>

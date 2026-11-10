@@ -71,7 +71,7 @@ function PartCells({ design, part, cols }: { design: DesignView; part: PartRow; 
     <tr className="hover:bg-panel-2/60">
       <Td>
         <Link to={paths.component(part.id)} className="flex items-center gap-2 hover:underline">
-          <SubsystemDot group={part.subsystem} role={part.role} />
+          <SubsystemDot group={part.subsystem} />
           <span className="font-mono text-[12.5px]">{part.id}</span>
         </Link>
       </Td>
@@ -92,7 +92,7 @@ function PartCells({ design, part, cols }: { design: DesignView; part: PartRow; 
               state={c.state}
               def={attrDef(design.defs, c.attr)}
               value={part.values[c.attr]}
-              onSet={(state, text) => edit.set(c.attr, state, text)}
+              onCommit={(state, text) => edit.set(c.attr, state, text)}
             />
           </Td>
         );

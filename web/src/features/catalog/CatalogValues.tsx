@@ -1,5 +1,5 @@
 import { useAttrEdit } from "@/api/ops";
-import type { CatalogItemView, DesignView } from "@/api/types";
+import type { CatalogItemView, DefsView } from "@/api/types";
 import { useT } from "@/i18n";
 import { PropertyList } from "@/kit/PropertyList";
 import { ResetButton } from "@/kit/ResetButton";
@@ -12,7 +12,14 @@ import { CatalogAddValue } from "./CatalogAddValue";
  * `POST /ops/from_text`（消すときは `/ops/unset_from_text`）に渡し、値の型と単位の読み方は `fune catalog set` と同じ
  * service が決める（`useAttrEdit`）
  */
-export function CatalogValues({ design, item }: { design: DesignView; item: CatalogItemView }) {
+export function CatalogValues({
+  defs,
+  item,
+}: {
+  /** 属性の定義（値の型・次元・表示名） */
+  defs: DefsView;
+  item: CatalogItemView;
+}) {
   const t = useT();
   const edit = useAttrEdit({ kind: "catalog", owner: item });
   const readOnly = !item.editable;
@@ -30,20 +37,20 @@ export function CatalogValues({ design, item }: { design: DesignView; item: Cata
             rowLayout="action"
             owner={item}
             attr={a}
-            def={attrDef(design.defs, a)}
+            def={attrDef(defs, a)}
             value={v}
-            label={attrLabel(design.defs, a)}
+            label={attrLabel(defs, a)}
             disabled={readOnly}
             action={
               readOnly ? null : (
                 <ResetButton title={t.catalog.reset} onClick={() => edit.unset(a)} />
               )
             }
-            onSet={(state, text) => edit.set(a, state, text)}
+            onCommit={(state, text) => edit.set(a, state, text)}
           />
         ))}
       </PropertyList>
-      {!readOnly && <CatalogAddValue design={design} item={item} onAdd={edit.set} />}
+      {!readOnly && <CatalogAddValue defs={defs} item={item} onCommit={edit.set} />}
     </div>
   );
 }

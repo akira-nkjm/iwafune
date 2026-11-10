@@ -7,14 +7,15 @@ import { PRESSED } from "./pressed";
  * 系統図の層の切り替え・Segmented と同じ高さと角丸。
  */
 export function Toggle({
-  on,
+  value,
   onChange,
   children,
   title,
   className,
 }: {
-  on: boolean;
-  onChange: (on: boolean) => void;
+  /** 押されているか（オン） */
+  value: boolean;
+  onChange: (value: boolean) => void;
   children: ReactNode;
   title?: string;
   className?: string;
@@ -22,12 +23,12 @@ export function Toggle({
   return (
     <button
       type="button"
-      aria-pressed={on}
+      aria-pressed={value}
       title={title}
-      onClick={() => onChange(!on)}
+      onClick={() => onChange(!value)}
       className={cn(
         "h-7 shrink-0 rounded-[8px] border px-2.5 font-medium text-xs transition-colors",
-        on ? PRESSED : "border-line bg-panel text-ink-3 hover:text-ink",
+        value ? PRESSED : "border-line bg-panel text-ink-3 hover:text-ink",
         className,
       )}
     >

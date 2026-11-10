@@ -8,15 +8,16 @@ import { cn } from "@/lib/cn";
  * いくつかの中から選ぶ切り替え（系統図の層など）はボタン型の Toggle を使う。
  */
 export function Switch({
-  on,
+  value,
   onChange,
   children,
   title,
   className,
   "aria-label": ariaLabel,
 }: {
-  on: boolean;
-  onChange: (on: boolean) => void;
+  /** オンか */
+  value: boolean;
+  onChange: (value: boolean) => void;
   children?: ReactNode;
   title?: string;
   className?: string;
@@ -24,14 +25,14 @@ export function Switch({
 }) {
   const track = (
     <Primitive.Root
-      checked={on}
+      checked={value}
       onCheckedChange={onChange}
       aria-label={ariaLabel}
       title={children ? undefined : title}
       className={cn(
         "relative inline-flex h-4 w-7 shrink-0 items-center rounded-full outline-none transition-colors",
         "focus-visible:ring-2 focus-visible:ring-accent/40",
-        on ? "bg-accent" : "bg-line-strong",
+        value ? "bg-accent" : "bg-line-strong",
         // Noto Sans JP の字面は行の箱の中心より 0.5px ほど下に来るので、文字を添えるときは溝も同じだけ下げて中心を揃える
         children && "translate-y-[0.5px]",
         !children && className,
@@ -40,7 +41,7 @@ export function Switch({
       <Primitive.Thumb
         className={cn(
           "block size-3 rounded-full bg-panel shadow-panel transition-transform",
-          on ? "translate-x-3.5" : "translate-x-0.5",
+          value ? "translate-x-3.5" : "translate-x-0.5",
         )}
       />
     </Primitive.Root>

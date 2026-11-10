@@ -23,7 +23,7 @@ interface Common {
   def: AttributeDefView | undefined;
   value: ValueView | undefined;
   /** 確定: 状態（属性全体なら null）と打った文字列（型は service が決める。`useAttrEdit` の `set` に渡す） */
-  onSet: (state: string | null, text: string) => void;
+  onCommit: (state: string | null, text: string) => void;
   disabled?: boolean;
 }
 
@@ -46,7 +46,7 @@ interface CellProps extends Common {
 
 /**
  * 属性の値の表示と編集（部品とカタログ品で共通）。スカラー・状態ごと・表示だけの分岐はここだけで行い、
- * 打った文字列はそのまま `onSet` に渡す（呼び手は `api/ops.ts` の `useAttrEdit`）。
+ * 打った文字列はそのまま `onCommit` に渡す（呼び手は `api/ops.ts` の `useAttrEdit`）。
  */
 export function AttrValueEditor(props: RowProps | CellProps) {
   return props.layout === "row" ? <AttrRowEditor {...props} /> : <AttrCellEditor {...props} />;
@@ -62,7 +62,7 @@ function QuantityField({
   display,
   muted,
   disabled,
-  onSet,
+  onCommit,
 }: Common & {
   state: string | null;
   q: QuantityView | null;
@@ -77,7 +77,7 @@ function QuantityField({
       label={paramPath(owner, attr, state)}
       muted={muted}
       disabled={disabled}
-      onCommit={(_q, text) => onSet(state, text)}
+      onCommit={(text) => onCommit(state, text)}
     />
   );
 }

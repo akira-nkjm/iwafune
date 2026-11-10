@@ -98,7 +98,7 @@ export function NewAttributeFields({
         </Field>
       )}
       <Switch
-        on={value.byState}
+        value={value.byState}
         onChange={(byState) => onChange({ ...value, byState })}
         className="self-start"
       >

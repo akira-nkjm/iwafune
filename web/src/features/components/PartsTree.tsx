@@ -1,38 +1,41 @@
 import { useMemo } from "react";
-import type { DesignView, PartRow } from "@/api/types";
+import type { PartRow } from "@/api/types";
 import { useT } from "@/i18n";
 import { SubsystemDot } from "@/kit/SubsystemDot";
 import { Tree } from "@/kit/Tree";
 import { filterTree, partsTree } from "@/kit/tree";
-import { attrOf, nodeLabel } from "@/lib/design";
+import { attrOf } from "@/lib/design";
 import { valueText } from "@/quantity/format";
 
 /**
- * 部品のファイル階層と組立品の親子。絞り込みでも祖先を残す。
- * フォルダーの見出しは製品ツリーのノードの表示名（`nodeLabel`。区間は API の `PartRow.dir` のノードの ID）。
+ * 部品のファイル階層と組立品の親子。絞り込みでも祖先を残す（`CatalogTree` と同じ形の Props）。
+ * フォルダーの見出しは呼び手が渡す（製品ツリーのノードの表示名。区間は API の `PartRow.dir` のノードの ID）。
  */
 export function PartsTree({
-  design,
-  parts,
+  all,
+  items,
   selected,
   onSelect,
+  folderLabel,
 }: {
-  design: DesignView;
-  parts: PartRow[];
+  /** すべての部品（ツリーの形を作る） */
+  all: PartRow[];
+  /** 絞り込んだ部品（出すもの。祖先のフォルダーは残す） */
+  items: PartRow[];
   selected: string | null;
   onSelect: (id: string) => void;
+  /** フォルダー（製品ツリーのノードの ID）の見出し（`lib/design.ts` の `nodeLabel`） */
+  folderLabel: (id: string) => string;
 }) {
   const t = useT();
-  const all = design.parts;
-  const folderLabel = (id: string) => nodeLabel(design, id);
   const tree = useMemo(() => {
-    const ids = new Set(parts.map((part) => part.id));
+    const ids = new Set(items.map((part) => part.id));
     return filterTree(partsTree(all), (part) => ids.has(part.id));
-  }, [all, parts]);
+  }, [all, items]);
   return (
     <Tree
       nodes={tree.nodes}
-      expanded={parts.length < all.length ? tree.expanded : undefined}
+      expanded={items.length < all.length ? tree.expanded : undefined}
       label={t.components.title}
       selected={selected}
       onSelect={onSelect}
@@ -51,7 +54,7 @@ function PartTreeRow({ part }: { part: PartRow }) {
         className="flex min-w-0 flex-1 items-center gap-1.5"
         title={[part.id, part.kind, part.file].filter((s) => s !== null).join(" · ")}
       >
-        <SubsystemDot group={part.subsystem} role={part.role} />
+        <SubsystemDot group={part.subsystem} />
         <span className="max-w-20 shrink-0 truncate font-medium font-mono">{part.id}</span>
         <span className="min-w-0 flex-1 truncate text-ink-2">{part.kind}</span>
       </span>

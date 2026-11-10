@@ -105,8 +105,8 @@ export function AddParameterDialog({
         <AttributePicker
           attributes={design.defs.attributes}
           part={part}
-          picked={picked}
-          onPick={setPicked}
+          selected={picked}
+          onSelect={setPicked}
         />
       ) : (
         <NewAttributeFields

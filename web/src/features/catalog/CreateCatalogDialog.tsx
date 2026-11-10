@@ -18,12 +18,13 @@ export function CreateCatalogDialog({
   design,
   open,
   onOpenChange,
-  onCreated,
+  onDone,
 }: {
   design: DesignView;
   open: boolean;
-  onOpenChange: (o: boolean) => void;
-  onCreated: (id: string) => void;
+  onOpenChange: (open: boolean) => void;
+  /** 作ったとき（新しいカタログ品の ID） */
+  onDone: (id: string) => void;
 }) {
   const t = useT();
   const maturities = useEnumOptions("maturity");
@@ -63,7 +64,7 @@ export function CreateCatalogDialog({
       ops={ops}
       summary={t.catalog.summaryCreate(id)}
       confirmLabel={t.common.add}
-      onDone={() => onCreated(id)}
+      onDone={() => onDone(id)}
     >
       {writable.length === 0 ? (
         <p className="rounded-control bg-warn-bg px-3 py-2 text-warn-ink text-xs">

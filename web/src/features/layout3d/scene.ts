@@ -74,7 +74,7 @@ export function boxesOf(
       position: m.body_position,
       orientation: m.body_orientation,
       size: size ?? DEFAULT_BOX,
-      color: colorOf?.(p.id) ?? toneHex[subsystemTone(p.subsystem, p.role)],
+      color: colorOf?.(p.id) ?? toneHex[subsystemTone(p.subsystem)],
       sized: size !== null,
     });
   }

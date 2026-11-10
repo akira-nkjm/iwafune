@@ -127,7 +127,7 @@ function buildCards(design: DesignView, merge: boolean): CardIndex {
       label: merged ? prefix || (first.kind ?? first.id) : first.id,
       sub: first.catalog ?? first.kind,
       role: first.role,
-      tone: subsystemTone(first.subsystem, first.role),
+      tone: subsystemTone(first.subsystem),
       members: group.map((p) => p.id),
       count,
       parent: parentNode(first),

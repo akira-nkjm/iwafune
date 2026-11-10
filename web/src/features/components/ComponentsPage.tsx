@@ -10,7 +10,7 @@ import { PageTabs } from "@/kit/PageTabs";
 import { SearchInput } from "@/kit/SearchInput";
 import { matchesSearch } from "@/kit/search";
 import { type DetailRoute, useDetailRoute } from "@/kit/use-detail-route";
-import { groupsOf, nodeName } from "@/lib/design";
+import { groupsOf, nodeLabel, nodeName } from "@/lib/design";
 import { paths, SEARCH } from "@/lib/nav";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
@@ -52,12 +52,12 @@ export function ComponentsPage() {
         tabs={<ComponentsTabs view={route.view} />}
         list={(d) => <ComponentsList design={d} filters={filters} route={route} />}
         detail={(d, id) => {
-          const row = d.parts.find((p) => p.id === id);
-          return row ? (
+          const item = d.parts.find((p) => p.id === id);
+          return item ? (
             <PartDetail
-              key={row.id}
+              key={item.id}
               design={d}
-              row={row}
+              item={item}
               onSelect={route.select}
               onClose={overview ? close : undefined}
             />
@@ -70,7 +70,7 @@ export function ComponentsPage() {
           open
           onOpenChange={route.setAdding}
           initialGroup={filters.group || null}
-          onCreated={(id) => {
+          onDone={(id) => {
             setFilters({ search: "", group: "" });
             route.select(id);
           }}
@@ -146,15 +146,23 @@ function ComponentsList({
 }) {
   const t = useT();
   const { search, group } = filters;
-  const parts = useMemo(
+  const items = useMemo(
     () => filterParts(design.parts, search, group),
     [design.parts, search, group],
   );
-  if (!parts.length) return <Empty>{t.components.noMatch}</Empty>;
-  const props = { design, parts, selected: route.selected, onSelect: route.select };
-  if (route.view === "overview") return <PartsOverview {...props} />;
-  if (route.tree) return <PartsTree key={JSON.stringify([search, group])} {...props} />;
-  return <PartsTable {...props} />;
+  if (!items.length) return <Empty>{t.components.noMatch}</Empty>;
+  const props = { items, selected: route.selected, onSelect: route.select };
+  if (route.view === "overview") return <PartsOverview design={design} {...props} />;
+  if (route.tree)
+    return (
+      <PartsTree
+        key={JSON.stringify([search, group])}
+        all={design.parts}
+        folderLabel={(id) => nodeLabel(design, id)}
+        {...props}
+      />
+    );
+  return <PartsTable design={design} {...props} />;
 }
 
 function filterParts(parts: PartRow[], search: string, group: string) {

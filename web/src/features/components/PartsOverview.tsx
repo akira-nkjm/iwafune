@@ -17,23 +17,24 @@ const columnsFor = (n: number) => (n <= 2 ? Math.max(1, n) : n <= 6 ? 2 : 3);
  * コンポーネントの「一覧」のタブ: サブシステム（Group）の枠ごとに部品のカードを並べる（製品ツリーの形のまま）。
  * カードは役割のアイコン・種類（種別定義の表示名）・ID と、員数（2 以上のとき右上の数。重ねて描く）。組立品は枠の中の
  * 小さな枠で、見出しを押すと組立品そのものを選び、子の部品をその中に並べる。サブシステムの枠は隙間が少なくなるよう
- * 詰めて並べる（`kit/Packed.tsx`）。表示するのは絞り込んだ部品（`parts`）と、それを含む枠だけ。
+ * 詰めて並べる（`kit/Packed.tsx`）。表示するのは絞り込んだ部品（`items`）と、それを含む枠だけ。
  * 枠の名前は表示の言語の名前だけ（英語は ID、日本語は表示名）。
  */
 export function PartsOverview({
   design,
-  parts,
+  items,
   selected,
   onSelect,
 }: {
   design: DesignView;
-  parts: readonly PartRow[];
+  /** 絞り込んだ部品（出すカード） */
+  items: readonly PartRow[];
   selected: string | null;
   onSelect: (id: string | null) => void;
 }) {
   const lang = useLang();
   const td = useT().components;
-  const rows = new Map(parts.map((p) => [p.id, p]));
+  const rows = new Map(items.map((p) => [p.id, p]));
   const nodes = new Map(design.tree.map((n) => [n.id, n]));
   const kindName = (kind: string | null) => (kind ? kindLabel(design.defs, kind) : "");
   const nameOf = (n: TreeNode) => nodeName(n, lang);
@@ -42,7 +43,7 @@ export function PartsOverview({
     const n = nodes.get(id);
     return rows.has(id) || !!n?.children.some(shown);
   };
-  const context = { design, rows, nodes, kindName, nameOf, shown, selected, onSelect };
+  const context = { rows, nodes, kindName, nameOf, shown, selected, onSelect };
   const roots = design.tree.filter((n) => !n.parent && shown(n.id));
   const loose = roots.filter((n) => n.node === "part");
   return (
@@ -70,7 +71,6 @@ export function PartsOverview({
 }
 
 interface Ctx {
-  design: DesignView;
   rows: Map<string, PartRow>;
   nodes: Map<string, TreeNode>;
   /** 種別の表示名（種別の無い部品は空） */
@@ -104,9 +104,7 @@ function Box({
   const inner = children.filter((n) => n.node === "group" || n.children.length > 0);
   const assembly = node?.node === "part";
   const row = node ? ctx.rows.get(node.id) : undefined;
-  const tone: Tone = node
-    ? subsystemTone(row?.subsystem ?? (assembly ? null : node.id), row?.role)
-    : "gray";
+  const tone: Tone = node ? subsystemTone(row?.subsystem ?? (assembly ? null : node.id)) : "gray";
   const heading = (
     <>
       <span
@@ -167,7 +165,7 @@ function Box({
 }
 
 function PartCard({ row, ctx }: { row: PartRow; ctx: Ctx }) {
-  const tone = subsystemTone(row.subsystem, row.role);
+  const tone = subsystemTone(row.subsystem);
   const stacked = row.count > 1;
   return (
     <div className="relative" style={{ width: CARD_WIDTH }}>

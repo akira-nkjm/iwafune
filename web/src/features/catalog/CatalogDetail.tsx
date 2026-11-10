@@ -60,7 +60,7 @@ export function CatalogDetail({
         <CatalogFields key={item.id} item={item} />
       </DetailSection>
       <DetailSection title={t.catalog.values}>
-        <CatalogValues design={design} item={item} />
+        <CatalogValues defs={design.defs} item={item} />
       </DetailSection>
       <DetailSection title={t.catalog.usedBy}>
         {users.length === 0 ? (

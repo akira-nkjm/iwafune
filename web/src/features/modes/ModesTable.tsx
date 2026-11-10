@@ -4,18 +4,18 @@ import { useT } from "@/i18n";
 import { SubsystemDot } from "@/kit/SubsystemDot";
 import { cn } from "@/lib/cn";
 import { nodeName } from "@/lib/design";
-import type { CellText } from "./draft";
 import { ModeBudgetRows } from "./ModeBudgetRows";
 import { ModeCell } from "./ModeCell";
 import { ModeHeaderMenu } from "./ModeHeaderMenu";
 import { STICKY } from "./matrix";
-import type { MatrixGroup, MatrixRow } from "./matrix-rows";
+import { MatrixFocus } from "./matrix-focus";
+import type { MatrixGroup, MatrixRow, OnCell } from "./matrix-rows";
 import type { DraftComputed } from "./use-mode-draft-load";
 
 /**
  * 「部品 × モード」の行列の表示。行（`matrixGroups` が作ったサブシステムごとの部品の行）と、足もとのバジェットを
- * 受け取って並べるだけ（問い合わせと行への変換は `useModeDraftLoad`・`matrixGroups`）。
- * スクロールしても読めるよう、見出しの行は上、部品の列は左、足もとの行は下に貼り付ける（STICKY）。
+ * 受け取って並べるだけ（問い合わせと行への変換は `useModeDraftLoad`・`matrixGroups`）。セルの間の矢印キーの移動は
+ * `MatrixFocus` が受け持つ。スクロールしても読めるよう、見出しの行は上、部品の列は左、足もとの行は下に貼り付ける（STICKY）。
  */
 export function ModesTable({
   modes,
@@ -24,12 +24,16 @@ export function ModesTable({
   updating,
   onCell,
 }: {
+  /** 列（モード）の見出し */
   modes: ModeHeader[];
+  /** サブシステムごとの部品の行（`matrixGroups`） */
   groups: MatrixGroup[];
+  /** 足もとの合計・使用可能電力・余裕（下書きを当てた値） */
   budget: DraftComputed<BudgetView | undefined>;
   /** セルの電力を下書きで問い合わせている間（前の数字を薄くして出しておく） */
   updating: boolean;
-  onCell: (mode: string, part: string, cell: CellText | null) => void;
+  /** セルを書き換えたとき（下書きにする） */
+  onCell: OnCell;
 }) {
   const tm = useT().modes;
   return (
@@ -63,29 +67,31 @@ export function ModesTable({
         </tr>
       </thead>
       <tbody>
-        {groups.map((g) => (
-          <Fragment key={g.group ?? ""}>
-            {/* 系の見出しも部品の列に置く（表の幅いっぱいの 1 セルにすると、固定した列の境目の線がここで切れる） */}
-            <tr>
-              <th
-                scope="rowgroup"
-                className={cn(
-                  STICKY.rowHead,
-                  "whitespace-nowrap px-4 pt-4 pb-1 text-left font-medium text-ink-3 text-xs",
-                )}
-              >
-                <span className="flex items-center gap-2">
-                  <SubsystemDot group={g.group} />
-                  {g.label}
-                </span>
-              </th>
-              <td colSpan={modes.length + 1} />
-            </tr>
-            {g.rows.map((r) => (
-              <MatrixRowCells key={r.part} row={r} onCell={onCell} />
-            ))}
-          </Fragment>
-        ))}
+        <MatrixFocus>
+          {groups.map((g) => (
+            <Fragment key={g.group ?? ""}>
+              {/* 系の見出しも部品の列に置く（表の幅いっぱいの 1 セルにすると、固定した列の境目の線がここで切れる） */}
+              <tr>
+                <th
+                  scope="rowgroup"
+                  className={cn(
+                    STICKY.rowHead,
+                    "whitespace-nowrap px-4 pt-4 pb-1 text-left font-medium text-ink-3 text-xs",
+                  )}
+                >
+                  <span className="flex items-center gap-2">
+                    <SubsystemDot group={g.group} />
+                    {g.label}
+                  </span>
+                </th>
+                <td colSpan={modes.length + 1} />
+              </tr>
+              {g.rows.map((r) => (
+                <MatrixRowCells key={r.part} row={r} onCell={onCell} />
+              ))}
+            </Fragment>
+          ))}
+        </MatrixFocus>
       </tbody>
       <tfoot className={`${STICKY.foot} bg-panel-2`}>
         <ModeBudgetRows modes={modes} budget={budget} />
@@ -106,13 +112,7 @@ function ModeName({ mode }: { mode: ModeHeader }) {
 }
 
 /** 部品 1 つの行（部品の名前・電力レベル・モードごとのセル） */
-function MatrixRowCells({
-  row,
-  onCell,
-}: {
-  row: MatrixRow;
-  onCell: (mode: string, part: string, cell: CellText | null) => void;
-}) {
+function MatrixRowCells({ row, onCell }: { row: MatrixRow; onCell: OnCell }) {
   return (
     <tr>
       <th scope="row" className={`${STICKY.rowHead} px-4 py-1 text-left font-normal`}>
@@ -128,21 +128,9 @@ function MatrixRowCells({
       >
         {row.levels}
       </td>
-      {row.cells.map((c, column) => (
+      {row.cells.map((c) => (
         <td key={c.mode} className="px-1 py-0.5">
-          <ModeCell
-            part={row.part}
-            mode={c.mode}
-            row={row.index}
-            column={column}
-            states={row.states}
-            cell={c.cell}
-            display={c.display}
-            changed={c.changed}
-            power={c.power}
-            shade={c.shade}
-            onChange={(cell) => onCell(c.mode, row.part, cell)}
-          />
+          <ModeCell cell={c} onCell={onCell} />
         </td>
       ))}
     </tr>
