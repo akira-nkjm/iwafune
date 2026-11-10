@@ -3,16 +3,18 @@
 use crate::args::AnalyzeArgs;
 use crate::output::{C, Out};
 use fune_service::dto::{
-    AnalysisKind, AnalysisRunStatus, BudgetRequest, BudgetRow, BudgetView, MissingInput,
-    RunAnalysisRequest, Verdict,
+    AnalysisInputSource, AnalysisKind, AnalysisRunStatus, BudgetRequest, BudgetRow, BudgetView,
+    MissingInput, RunAnalysisRequest, Verdict,
 };
 use fune_service::{Workspace, analysis, budget};
 
 /// `fune analyze <id> [--case X] [--input in.json] [--ops ops.json]`
 pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
-    let input = match &a.input {
-        Some(path) => Some(serde_json::from_str(&std::fs::read_to_string(path)?)?),
-        None => None,
+    let source = match &a.input {
+        Some(path) => AnalysisInputSource::Given {
+            input: serde_json::from_str(&std::fs::read_to_string(path)?)?,
+        },
+        None => AnalysisInputSource::Design,
     };
     let ops = match &a.ops {
         Some(path) => super::ops::ops_from_file(path)?,
@@ -20,8 +22,7 @@ pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
     };
     let req = RunAnalysisRequest {
         case: a.case.clone(),
-        input,
-        input_patch: None,
+        source,
         ops,
     };
     let r = analysis::run_analysis(ws, &a.target, &req)?;

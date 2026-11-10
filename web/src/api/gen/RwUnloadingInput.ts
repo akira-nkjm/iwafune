@@ -12,9 +12,9 @@ export type RwUnloadingInput = { timeline: TimelineSpec, spacecraft: Disturbance
  */
 wheels: Array<RwWheel>, 
 /**
- * 最大角運動量のうち使ってよい割合（0〜1）。省略時 0.8
+ * 最大角運動量のうち使ってよい割合（0〜1）。省略時 [`super::wheels::DEFAULT_USABLE_MOMENTUM_FRACTION`]
  */
-usable_fraction: number, 
+usable_momentum_fraction: number | null, 
 /**
  * アンロード間隔の要求下限（省略時は判定しない）
  */

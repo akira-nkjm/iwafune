@@ -27,8 +27,8 @@ mod units;
 mod value;
 
 pub use analysis::{
-    AnalysisEntry, AnalysisRunResult, AnalysisRunStatus, CheckView, DisplayChannel, DisplaySeries,
-    RunAnalysisRequest,
+    AnalysisEntry, AnalysisInputSource, AnalysisLabel, AnalysisRunResult, AnalysisRunStatus,
+    CheckView, DisplayChannel, DisplaySeries, RunAnalysisRequest,
 };
 pub use budget::{BudgetRequest, BudgetRow, BudgetView};
 pub use catalog::{CatalogItemView, CatalogSourceView};

@@ -276,12 +276,16 @@ Web は次のことをしない。
 3. 足りない入力があれば解析を呼ばずに `missing_inputs` を返す。`missing_inputs` は足りないものをパラメーターのパス（`RW_X.max_momentum`・`mission.orbit.altitude`）と理由で表し、
    見つかった分をすべて並べる。
 4. `sat_analysis::catalog::run_json` で解析を実行する。
-5. service が出力の量ごとの次元（JSON Pointer → 次元名）を集め、出力の中の判定を並べて、最も悪い判定を付ける。
+5. service が出力の量ごとの次元（JSON Pointer → 次元名）と語彙の値（列挙）の表示名を集め、時系列に表示名と表示単位を付け、
+   出力の中の判定を並べて、最も悪い判定を付ける。解析は表示名を持たず、キー（`ChannelKind`・列挙の値・`span_fallback`）だけを返す
+   （日本語と英語の表示名は `fune_service::analysis::labels`）。
 
-入力は差し替えられる。`input_patch`（JSON Merge Patch）は組み立てた入力の一部を一時的に上書きし、`input`（CLI の `--input`）は入力を丸ごと与える。
+入力の与え方は依頼の `source` で選ぶ。`design`（既定）は設計から組み立て、`patched`（JSON Merge Patch）は組み立てた入力の一部を一時的に上書きし、
+`given`（CLI の `--input`）は入力を丸ごと与える。
 
 判定は解析が出す。`Check` は key・label・判定（`ok`・`warning`・`violation`）・文を持つ。
-余裕の三段階の判定は `spec::margin_verdict` で決め、判定文の中の数は `spec::quantity_text`（中身は sat-units の整形）で書く。
+余裕の三段階の判定は `spec::margin_verdict` で決め（警告の幅は解析ごとに名前付きの定数）、判定文の中の数は `spec::quantity_text::<次元の型>`（中身は sat-units の整形）で書く。
+比の余裕の定義は `spec::ratio_margin`（`能力 / 要求 − 1`）の 1 つだけ。
 バジェット（質量・電力・データ量）の集計と判定は `sat_analysis::budget::budget_rollup` が行う。
 service は部品や解析の結果を項目に並べ、`budget/allocation.toml` の配分の行に割り当てるだけ。成長余裕は部品の成熟度と `budget/policy.toml` から決める。
 バジェットも解析ケースを指定できる（`POST /budgets/{kind}` の `case`、`fune budget --case`）。電力はケースのモードで、データ量はケースのモードだけで数える。

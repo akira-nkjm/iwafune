@@ -1,6 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import { Fragment, useState } from "react";
-import type { Verdict } from "@/api/types";
+import type { AnalysisLabel, Verdict } from "@/api/types";
 import { useT } from "@/i18n";
 import { DataTable } from "@/kit/DataTable";
 import { Td } from "@/kit/Td";
@@ -17,12 +17,15 @@ export function ResultTable({
   rows,
   at,
   dims,
+  labels,
   depth = 0,
 }: {
   rows: JsonObject[];
   /** この表の出力の中の位置（`["cases"]`）。セルの次元を dims から引くのに使う（pointer は `jsonPointer` が作る） */
   at: JsonPath;
   dims: Record<string, string> | undefined;
+  /** 語彙の値の表示名（API の labels。JSON Pointer → 表示名） */
+  labels?: { [key in string]: AnalysisLabel } | undefined;
   depth?: number;
 }) {
   const tr = useT();
@@ -90,6 +93,7 @@ export function ResultTable({
                       field={c}
                       value={v}
                       dimension={dims?.[jsonPointer([...at, i, c])]}
+                      label={labels?.[jsonPointer([...at, i, c])]}
                     />
                   </Td>
                 );
@@ -102,7 +106,13 @@ export function ResultTable({
                     <div className="mb-1 font-medium text-[11px] text-ink-3">
                       {fieldLabel(k)}（{sub.length}）
                     </div>
-                    <ResultTable rows={sub} at={[...at, i, k]} dims={dims} depth={depth + 1} />
+                    <ResultTable
+                      rows={sub}
+                      at={[...at, i, k]}
+                      dims={dims}
+                      labels={labels}
+                      depth={depth + 1}
+                    />
                   </td>
                 </tr>
               ))}

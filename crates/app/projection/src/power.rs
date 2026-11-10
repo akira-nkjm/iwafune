@@ -7,7 +7,7 @@ use crate::timeline;
 use fune_model::Target;
 use fune_model::path::SettingPath;
 use sat_analysis::power::energy_balance::{
-    EnergyBalanceBattery, EnergyBalanceCase, EnergyBalanceLoad,
+    EnergyBalanceBattery, EnergyBalanceCase, EnergyBalanceLoad, LoadGrowth,
 };
 use sat_analysis::power::mode_load::ModeLoadPart;
 use sat_analysis::power::solar::{SolarArray, SolarLife, SolarPanel};
@@ -157,7 +157,7 @@ pub fn energy_balance(ctx: &Context<'_>) -> Result<EnergyBalanceInput, MissingIn
             life: SolarLife::Eol,
             batteries,
             loads,
-            without_growth: false,
+            load_growth: LoadGrowth::Included,
             cases,
         })
     })

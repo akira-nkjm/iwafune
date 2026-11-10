@@ -6,6 +6,6 @@ import type { LinkBudgetLink } from "./LinkBudgetLink";
  */
 export type LinkBudgetInput = { links: Array<LinkBudgetLink>, 
 /**
- * 要求する回線余裕 [dB]（既定 [`DEFAULT_REQUIRED_MARGIN_DB`]）
+ * 要求する回線余裕（既定 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）
  */
 required_margin_db: number | null, };

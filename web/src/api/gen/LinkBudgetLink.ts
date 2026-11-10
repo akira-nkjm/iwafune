@@ -20,7 +20,7 @@ rf: RfLinkParams,
  */
 data_rate: number, 
 /**
- * 変調・符号化で決まる所要 Eb/N0 [dB]
+ * 変調・符号化で決まる所要 Eb/N0
  */
 required_eb_n0_db: number, 
 /**

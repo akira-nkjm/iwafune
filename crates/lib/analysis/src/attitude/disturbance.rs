@@ -10,7 +10,7 @@
 //! | 太陽輻射圧 | `F = −P (Cr·A) ŝ`、`P = force::srp_pressure(太陽距離) · ν`、`τ = r_cp × F` |
 //! | 残留磁気 | `τ = m × B`（B は `geomag::field_about_eci_t`。地球以外は 0） |
 
-use crate::spec::{AnalysisError, ensure_non_negative, ensure_positive};
+use crate::spec::{AnalysisError, ChannelKind, ensure_non_negative, ensure_positive};
 use sat_astro::atmosphere::{AtmosphereModel, density_about_kg_m3};
 use sat_astro::ephem::CentralBody;
 use sat_astro::force::{drag_force, relative_wind_eci, srp_pressure};
@@ -74,13 +74,41 @@ pub struct DisturbanceTorques {
     pub magnetic: Vec3,
 }
 
-/// 擾乱の種類の機械向けの名前と表示名（[`DisturbanceTorques::by_kind`] の順）。
-pub const DISTURBANCE_KINDS: [(&str, &str); 4] = [
-    ("gravity_gradient", "重力傾斜トルク"),
-    ("aero", "空力トルク"),
-    ("srp", "太陽輻射圧トルク"),
-    ("magnetic", "残留磁気トルク"),
-];
+/// 擾乱の種類。**表示名は持たない**（service の語彙が日本語と英語で引く）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "snake_case")]
+pub enum DisturbanceKind {
+    GravityGradient,
+    Aero,
+    Srp,
+    Magnetic,
+}
+
+impl DisturbanceKind {
+    /// すべての種類（[`DisturbanceTorques::by_kind`] の順）。
+    pub const ALL: [Self; 4] = [Self::GravityGradient, Self::Aero, Self::Srp, Self::Magnetic];
+
+    /// 機械向けの名前（時系列の key `torque:<名前>` に使う。JSON の綴りと同じ）。
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::GravityGradient => "gravity_gradient",
+            Self::Aero => "aero",
+            Self::Srp => "srp",
+            Self::Magnetic => "magnetic",
+        }
+    }
+
+    /// この種類のトルクの時系列の種類。
+    pub fn channel(self) -> ChannelKind {
+        match self {
+            Self::GravityGradient => ChannelKind::GravityGradientTorque,
+            Self::Aero => ChannelKind::AeroTorque,
+            Self::Srp => ChannelKind::SrpTorque,
+            Self::Magnetic => ChannelKind::MagneticTorque,
+        }
+    }
+}
 
 impl DisturbanceTorques {
     /// 合計 [N·m]。
@@ -88,7 +116,7 @@ impl DisturbanceTorques {
         self.gravity_gradient + self.aero + self.srp + self.magnetic
     }
 
-    /// [`DISTURBANCE_KINDS`] の順に並べたもの。
+    /// [`DisturbanceKind::ALL`] の順に並べたもの。
     pub fn by_kind(&self) -> [Vec3; 4] {
         [self.gravity_gradient, self.aero, self.srp, self.magnetic]
     }
@@ -105,9 +133,7 @@ impl DisturbanceSpacecraft {
                 "慣性テンソルが有限ではありません".to_owned(),
             ));
         }
-        if let Some(s) = self.density_scale {
-            ensure_non_negative("大気密度の倍率", s)?;
-        }
+        ensure_non_negative("大気密度の倍率", self.density_scale())?;
         for (name, s) in [("空力の Cd·A", &self.aero), ("SRP の Cr·A", &self.srp)] {
             if let Some(s) = s {
                 ensure_non_negative(name, s.coefficient_area.value())?;
@@ -116,8 +142,12 @@ impl DisturbanceSpacecraft {
         Ok(())
     }
 
-    /// 時系列の 1 点での擾乱トルク。
-    /// 時系列の 1 点での擾乱トルク。`central` は軌道の中心天体（`TimelineSpec.orbit.central`）。
+    /// 大気密度に掛ける倍率（省略時 1 = モデルのまま）。
+    pub fn density_scale(&self) -> f64 {
+        self.density_scale.unwrap_or(1.0)
+    }
+
+    /// 時系列の 1 点での擾乱トルク。`central` は軌道の中心天体（`TimelineSpec::orbit` の `central`）。
     /// μ・磁場・大気は中心天体のもの（磁場と大気は地球だけにあり、ほかの中心天体では 0）。
     pub fn torques(&self, central: CentralBody, s: &TimelineSample) -> DisturbanceTorques {
         let r_body = s.to_body(s.r_eci);
@@ -129,7 +159,7 @@ impl DisturbanceSpacecraft {
         };
         if let Some(surface) = &self.aero {
             let rho = density_about_kg_m3(central, &self.atmosphere, s.r_eci, s.epoch)
-                * self.density_scale.unwrap_or(1.0);
+                * self.density_scale();
             out.aero = aero(surface, rho, s.to_body(relative_wind_eci(s.r_eci, s.v_eci)));
         }
         if let Some(surface) = &self.srp {

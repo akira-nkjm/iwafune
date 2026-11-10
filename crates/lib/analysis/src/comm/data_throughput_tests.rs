@@ -22,17 +22,19 @@ fn backlog_hand_calculation() {
 
 fn input() -> DataThroughputInput {
     DataThroughputInput {
-        orbit: sso_orbit(),
+        sampling: OrbitSampling::new(
+            sso_orbit(),
+            Qty::from_raw(2.0 * SECONDS_PER_DAY),
+            Qty::from_raw(30.0),
+        ),
         stations: vec![tokyo()],
-        start: None,
-        span: Qty::from_raw(2.0 * SECONDS_PER_DAY),
-        step: Qty::from_raw(30.0),
         downlink_rate: Qty::from_raw(9600.0),
-        usable_fraction: Some(0.8),
+        usable_pass_fraction: Some(Fraction::new(0.8)),
         generated_per_day: Qty::from_raw(50.0e6),
         initial_backlog: None,
         storage_capacity: Some(Qty::from_raw(8.0e9)),
         link: None,
+        required_margin_db: None,
     }
 }
 
@@ -43,27 +45,45 @@ fn capacity_is_rate_times_assigned_time() {
     let total: f64 = out.days.iter().map(|d| d.capacity.value()).sum();
     assert!((total - 9600.0 * 0.8 * assigned).abs() < 1e-3 * total.max(1.0));
     assert_eq!(out.days.len(), 2);
-    // 発生 50 Mbit/日に対し、9.6 kbit/s × 数十分/日 ≈ 十数 Mbit/日なので溜まり続ける。
-    assert!(out.capacity_ratio.value() < 1.0);
+    assert_eq!(out.usable_pass_fraction.value(), 0.8);
+    // 発生 50 Mbit/日に対し、9.6 kbit/s × 数十分/日 ≈ 十数 Mbit/日なので溜まり続ける（送信の余裕は負）。
+    // 余裕 = 1 日の送信可能量 / 発生量 − 1
+    let margin = out.downlink_margin.unwrap().value();
+    let expect = out.capacity_per_day.value() / 50.0e6 - 1.0;
+    assert!((margin - expect).abs() < 1e-12 && margin < 0.0);
     assert!(out.final_backlog.value() > 0.0);
     let gen_total: f64 = out.days.iter().map(|d| d.generated.value()).sum();
     let sent: f64 = out.days.iter().map(|d| d.downlinked.value()).sum();
     assert!((gen_total - sent - out.final_backlog.value()).abs() < 1e-3);
+    assert_eq!(out.link_closure, DataThroughputLinkClosure::NotEvaluated);
+    assert_eq!(out.required_margin_db, None);
+}
+
+/// 発生量が 0 なら送信の余裕は無限大なので数を出さない（None。JSON は null で、TS の `number | null` と合う）。
+#[test]
+fn no_generation_has_no_margin() {
+    let mut i = input();
+    i.generated_per_day = Qty::ZERO;
+    let out = DataThroughput::run(&i).unwrap();
+    assert_eq!(out.downlink_margin, None);
+    let json = serde_json::to_value(&out).unwrap();
+    assert!(json["downlink_margin"].is_null());
 }
 
 fn uhf() -> RfLinkParams {
+    let db = Decibel::new;
     RfLinkParams {
         frequency: Qty::from_raw(437.0e6),
         tx_power: Qty::from_raw(1.0),
-        tx_gain_db: 0.0,
-        tx_loss_db: Some(1.0),
-        rx_gain_db: 12.0,
-        rx_loss_db: Some(0.0),
+        tx_gain_db: db(0.0),
+        tx_loss_db: Some(db(1.0)),
+        rx_gain_db: db(12.0),
+        rx_loss_db: Some(db(0.0)),
         system_noise_temperature: Qty::from_raw(500.0),
-        atmospheric_loss_db: Some(0.5),
-        polarization_loss_db: Some(3.0),
-        pointing_loss_db: Some(0.5),
-        other_loss_db: Some(0.0),
+        atmospheric_loss_db: Some(db(0.5)),
+        polarization_loss_db: Some(db(3.0)),
+        pointing_loss_db: Some(db(0.5)),
+        other_loss_db: Some(db(0.0)),
     }
 }
 
@@ -76,28 +96,31 @@ fn link_closure_raises_min_elevation() {
     let mut with_link = input();
     with_link.link = Some(DataThroughputLink {
         rf: uhf(),
-        required_eb_n0_db: 20.0,
-        required_margin_db: None,
+        required_eb_n0_db: Decibel::new(20.0),
     });
     let out = DataThroughput::run(&with_link).unwrap();
-    let el = out.link_min_elevation.unwrap().value();
+    let DataThroughputLinkClosure::ClosesAbove { min_elevation } = out.link_closure else {
+        panic!("{:?}", out.link_closure);
+    };
+    let el = min_elevation.value();
     assert!(
         el > 10.0_f64.to_radians() && el < 80.0_f64.to_radians(),
         "{el}"
     );
     let range = sat_astro::ground::slant_range_m(sat_astro::constants::R_EARTH, 550.0e3, el);
-    let margin = uhf().eb_n0_margin_db(range, 9600.0, 20.0);
+    let margin = uhf().eb_n0_margin_db(range, 9600.0, Decibel::new(20.0));
     assert!((margin - 3.0).abs() < 1e-6, "{margin}");
     let total = |o: &DataThroughputOutput| o.passes.iter().map(|p| p.assigned.value()).sum::<f64>();
     assert!(total(&out) < total(&base));
-    assert_eq!(out.link_closes, Some(true));
+    // 使った要求余裕は既定の 3 dB
+    assert_eq!(out.required_margin_db, Some(Decibel::new(3.0)));
 
     let mut never = with_link;
     if let Some(link) = never.link.as_mut() {
-        link.required_eb_n0_db = 40.0;
+        link.required_eb_n0_db = Decibel::new(40.0);
     }
     let out = DataThroughput::run(&never).unwrap();
-    assert_eq!(out.link_closes, Some(false));
+    assert_eq!(out.link_closure, DataThroughputLinkClosure::NeverCloses);
     assert!(out.passes.is_empty());
     let c = out.checks.iter().find(|c| c.key == "link_closes").unwrap();
     assert_eq!(c.verdict, Verdict::Violation);

@@ -107,9 +107,9 @@ export const systems: Record<System, SystemSpec> = {
       {
         key: "margin",
         analysis: "cdh.data_budget",
-        paths: [["storage_margin"]],
+        paths: [["capacity_margin"]],
         pick: "first",
-        field: "storage_margin",
+        field: "capacity_margin",
       },
     ],
   },

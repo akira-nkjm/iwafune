@@ -28,6 +28,7 @@ const result: AnalysisRunResult = {
   missing: [],
   error: null,
   dims: {},
+  labels: {},
 };
 
 describe("typed analysis outputs", () => {

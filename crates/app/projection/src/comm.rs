@@ -2,7 +2,7 @@
 
 use crate::context::Context;
 use crate::missing::MissingInputs;
-use crate::quantity::{db, qty};
+use crate::quantity::{db, qty, ratio_db};
 use crate::{cdh, timeline};
 use fune_model::Target;
 use fune_model::design::{CommLinkSettings, CommSettings, GroundStationSettings, LinkDirection};
@@ -14,7 +14,7 @@ use sat_analysis::comm::{DataThroughputInput, LinkBudgetInput, RfLinkParams, Vis
 use sat_analysis::spec::Analysis;
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
-use sat_units::typed::{DataRate, Frequency, Length, Power, Qty, Temperature};
+use sat_units::typed::{DataRate, Decibel, Frequency, Length, Power, Qty, Temperature};
 
 fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a CommSettings> {
     let s = ctx.design.analysis.comm.as_ref();
@@ -172,13 +172,13 @@ fn power_and_noise(
 }
 
 /// 衛星側のアンテナ利得 [dB]（送受信機の `antenna_gain`。解決済みの値は線形の比なので dB に戻す）。
-fn sat_gain_db(part: &ResolvedPart, m: &mut MissingInputs) -> Option<f64> {
+fn sat_gain_db(part: &ResolvedPart, m: &mut MissingInputs) -> Option<Decibel> {
     let ratio = m.need(
         part.scalar("antenna_gain"),
         Target::attr(&part.id, "antenna_gain"),
         "衛星側のアンテナ利得",
     );
-    ratio.filter(|r| *r > 0.0).map(sat_units::ratio_to_db)
+    ratio.and_then(ratio_db)
 }
 
 fn ground_link<'a>(
@@ -209,15 +209,11 @@ pub fn visibility(ctx: &Context<'_>) -> Result<VisibilityInput, MissingInputs> {
         .map(|s| s.stations.clone())
         .unwrap_or_default();
     let stations = ctx.stations(&ids, &mut m);
-    let orbit = ctx.orbit(&mut m);
-    let (span, step) = timeline::one_day();
+    let sampling = timeline::day_sampling(ctx, &mut m);
     m.finish(|| {
         Some(VisibilityInput {
-            orbit: orbit?,
+            sampling: sampling?,
             stations,
-            start: None,
-            span: Qty::from_raw(span),
-            step: Qty::from_raw(step),
         })
     })
 }
@@ -228,7 +224,7 @@ pub fn data_throughput(ctx: &Context<'_>) -> Result<DataThroughputInput, Missing
     let s = settings(ctx, &mut m);
     let ids = s.map(|s| s.stations.clone()).unwrap_or_default();
     let stations = ctx.stations(&ids, &mut m);
-    let orbit = ctx.orbit(&mut m);
+    let sampling = timeline::day_sampling(ctx, &mut m);
     let down = s.and_then(|s| {
         s.links
             .iter()
@@ -245,27 +241,23 @@ pub fn data_throughput(ctx: &Context<'_>) -> Result<DataThroughputInput, Missing
                 Some(DataThroughputLink {
                     rf,
                     required_eb_n0_db: db(l.ebn0_required.as_ref())?,
-                    required_margin_db: s.and_then(|s| db(s.min_margin.as_ref())),
                 })
             })
         }
         _ => None,
     };
     let generated = generated_per_day(ctx, &mut m);
-    let (span, step) = timeline::one_day();
     m.finish(|| {
         Some(DataThroughputInput {
-            orbit: orbit?,
+            sampling: sampling?,
             stations,
-            start: None,
-            span: Qty::from_raw(span),
-            step: Qty::from_raw(step),
             downlink_rate: rate?,
-            usable_fraction: None,
+            usable_pass_fraction: None,
             generated_per_day: generated?,
             initial_backlog: None,
             storage_capacity: None,
             link,
+            required_margin_db: s.and_then(|s| db(s.min_margin.as_ref())),
         })
     })
 }

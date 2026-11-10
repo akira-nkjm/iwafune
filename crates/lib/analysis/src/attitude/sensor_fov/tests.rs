@@ -34,7 +34,7 @@ fn verdict_rules() {
         exclusion_sun: Some(Qty::from_raw(0.5)),
         exclusion_earth: None,
         exclusion_moon: None,
-        max_intrusion_fraction: Some(0.1),
+        max_intrusion_fraction: Some(Fraction::new(0.1)),
     };
     let mut r = SensorFovResult {
         id: "STT".to_owned(),
@@ -110,7 +110,7 @@ fn nadir_pointing_sensor_sees_earth() {
     };
     assert_eq!(earth(0).intrusion_fraction.value(), 1.0);
     assert_eq!(earth(1).intrusion_fraction.value(), 0.0);
-    let rho = (R_EARTH / input.timeline.orbit.elements.semi_major_axis.value()).asin();
+    let rho = (R_EARTH / input.timeline.orbit().elements.semi_major_axis.value()).asin();
     assert!((earth(0).min_angle.value() + rho).abs() < 1e-3);
     assert_eq!(earth(0).windows.len(), 1);
 }

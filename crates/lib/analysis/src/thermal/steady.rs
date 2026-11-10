@@ -5,7 +5,9 @@ use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, Verdict}
 use crate::thermal::network::{
     Compiled, INITIAL_GUESS_K, ThermalLoad, ThermalModeLoads, ThermalNetwork, ThermalTempRange,
 };
-use crate::thermal::orbit_heat::{ThermalEnvironment, ThermalExposure, exposure_absorbed};
+use crate::thermal::orbit_heat::{
+    ThermalEnvironment, ThermalEnvironmentUsed, ThermalExposure, exposure_absorbed,
+};
 use crate::thermal::range::{RANGE_WARNING_BAND_K, range_check, range_verdict};
 use sat_units::typed::{Power, Qty, Temperature};
 use serde::{Deserialize, Serialize};
@@ -58,6 +60,8 @@ pub struct ThermalSteadyNodeResult {
 pub struct ThermalSteadyCaseResult {
     pub id: String,
     pub label: String,
+    /// 使った熱環境（入力に無い値は既定値）
+    pub environment: ThermalEnvironmentUsed,
     /// 入力の節点の順
     pub nodes: Vec<ThermalSteadyNodeResult>,
     pub iterations: u32,
@@ -153,7 +157,7 @@ fn solve_case(
     let q: Vec<f64> = absorbed.iter().zip(&internal).map(|(a, b)| a + b).collect();
     let sol = net.solve_steady(
         &q,
-        case.environment.space_temperature.value(),
+        case.environment.space_temperature().value(),
         INITIAL_GUESS_K,
     )?;
     let nodes = network
@@ -177,6 +181,7 @@ fn solve_case(
     Ok(ThermalSteadyCaseResult {
         id: case.id.clone(),
         label: case.label.clone(),
+        environment: case.environment.used(),
         nodes,
         iterations: sol.iterations,
         residual: Qty::from_raw(sol.residual_w),
@@ -221,6 +226,7 @@ mod tests {
     use crate::thermal::network::{ThermalConductiveLink, ThermalSurface, tests::node};
     use sat_astro::constants::SIGMA_SB;
     use sat_astro::math::Vec3;
+    use sat_units::typed::Fraction;
 
     fn input() -> ThermalSteadyInput {
         let mut panel = node("panel", None);
@@ -254,7 +260,7 @@ mod tests {
                 label: "高温".to_owned(),
                 environment: ThermalEnvironment {
                     solar_flux: Some(Qty::from_raw(1400.0)),
-                    space_temperature: Qty::from_raw(0.0),
+                    space_temperature: Some(Qty::from_raw(0.0)),
                     ..ThermalEnvironment::default()
                 },
                 exposure: ThermalExposure::Fixed {
@@ -295,8 +301,8 @@ mod tests {
     fn orbit_average_cube() {
         use crate::thermal::orbit_heat::fixtures::{cube, leo_timeline};
         let mut tl = leo_timeline(1.0, 20.0);
-        let period = tl.orbit.period_s();
-        tl.span = Qty::from_raw(period);
+        let period = tl.orbit().period_s();
+        tl.sampling.span = Qty::from_raw(period);
         let samples = sat_astro::timeline::build(&tl).unwrap();
         let t: Vec<f64> = samples.iter().map(|s| s.t_s).collect();
         // 1 周回（両端を含む）で台形則の時間平均を取る。
@@ -313,9 +319,9 @@ mod tests {
             / (t[last] - t[first]);
         let env = |flux: f64, albedo: f64, ir: f64| ThermalEnvironment {
             solar_flux: Some(Qty::from_raw(flux)),
-            albedo,
-            earth_ir: Qty::from_raw(ir),
-            space_temperature: Qty::from_raw(0.0),
+            albedo: Some(Fraction::new(albedo)),
+            earth_ir: Some(Qty::from_raw(ir)),
+            space_temperature: Some(Qty::from_raw(0.0)),
         };
         let case = |id: &str, e: ThermalEnvironment| ThermalSteadyCase {
             mode_loads: None,

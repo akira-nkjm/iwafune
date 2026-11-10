@@ -4,17 +4,23 @@
 //! `W⁺ = Wᵀ (W Wᵀ)⁻¹` で、機体の角運動量 `h` を最小ノルムで各ホイールに配る（`h_i = a_i · (W Wᵀ)⁻¹ h`）。
 //! 直交 3 台でも 4 台ピラミッドでも同じ式で、軸が 3 次元を張らなければエラー。
 
-use crate::spec::{AnalysisError, ensure_positive};
+use crate::spec::{AnalysisError, ensure_fraction, ensure_positive};
 use sat_astro::math::{Mat3, Vec3};
-use sat_units::typed::{AngularMomentum, Qty, Torque};
+use sat_units::typed::{AngularMomentum, Fraction, Qty, Torque};
 use serde::{Deserialize, Serialize};
 
-/// 最大角運動量のうち使ってよい割合の既定値（RW アンロード頻度・アンロード時間で共有）。
-pub const DEFAULT_USABLE_FRACTION: f64 = 0.8;
+/// 最大角運動量のうち使ってよい割合の既定値（RW アンロード頻度・アンロード時間で共有）。**既定値はここだけ。**
+pub const DEFAULT_USABLE_MOMENTUM_FRACTION: Fraction = Fraction::new(0.8);
 
-/// serde の既定値（[`DEFAULT_USABLE_FRACTION`]）。
-pub fn default_usable_fraction() -> f64 {
-    DEFAULT_USABLE_FRACTION
+/// 配分がこれより小さいホイールは、その向きの容量を決めない（ほぼ直交する軸の 0 割りを避ける）。
+const NEGLIGIBLE_SHARE: f64 = 1e-15;
+
+/// 最大角運動量のうち使ってよい割合（入力 `given`、省略時 [`DEFAULT_USABLE_MOMENTUM_FRACTION`]）。0 より大きく 1 以下か調べる。
+pub fn usable_momentum_fraction(given: Option<Fraction>) -> Result<Fraction, AnalysisError> {
+    let f = given.unwrap_or(DEFAULT_USABLE_MOMENTUM_FRACTION);
+    ensure_fraction("使える割合", f.value())?;
+    ensure_positive("使える割合", f.value())?;
+    Ok(f)
 }
 
 /// リアクションホイール 1 台。
@@ -82,7 +88,7 @@ impl WheelSet {
         self.distribute(d)
             .iter()
             .zip(limits)
-            .filter(|(share, _)| share.abs() > 1e-15)
+            .filter(|(share, _)| share.abs() > NEGLIGIBLE_SHARE)
             .map(|(share, lim)| lim / share.abs())
             .fold(f64::INFINITY, f64::min)
     }

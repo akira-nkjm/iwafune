@@ -7,6 +7,6 @@ import type { Verdict } from "./Verdict";
  */
 export type ModalEstimateResult = { id: string, kind: ModalEstimateKind, frequency: number, required: number | null, 
 /**
- * 余裕 = f / f_req − 1
+ * 余裕 = f / f_req − 1（[`crate::spec::ratio_margin`]。要求が無いか 0 なら `None`）
  */
 margin: number | null, verdict: Verdict, };

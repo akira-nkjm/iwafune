@@ -16,17 +16,21 @@ average_rate: number, modes: Array<DataBudgetModeResult>, parts: Array<DataBudge
  */
 storage_capacity: number, 
 /**
- * 判定に使ったストレージ余裕の要求値（入力が無ければ既定値）
+ * 使った「容量のうち残しておく割合」（入力が無ければ既定値）
  */
-min_storage_margin: number, 
+storage_reserve: number, 
+/**
+ * 容量の余裕の要求値 = 残す割合 / (1 − 残す割合)（[`required_capacity_margin`]。これを下回ると警告）
+ */
+required_capacity_margin: number, 
 /**
  * 保持に必要な量 = total_per_day × retention / 1 日
  */
 storage_required: number, 
 /**
- * ストレージ余裕 = 1 − 必要量 / 容量（負なら足りない）
+ * 容量の余裕 = 容量 / 必要量 − 1（[`crate::spec::ratio_margin`]。負なら足りない。必要量が 0 なら `None`）
  */
-storage_margin: number, 
+capacity_margin: number | null, 
 /**
  * 1 日の収支 = 降ろせる量 − 発生量（`downlink_per_day` を与えたときだけ）
  */

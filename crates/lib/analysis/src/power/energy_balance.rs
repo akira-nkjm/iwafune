@@ -8,8 +8,8 @@ pub use super::battery::EnergyBalanceBattery;
 use super::mode_load::ModeLoadInput;
 use super::solar::{SolarArray, SolarLife, SolarProfile};
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Channel, Check, Series, System, orbit_mean,
-    orbit_ranges, time_fraction,
+    Analysis, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series, SpanFallback,
+    System, orbit_mean, orbit_ranges, span_fallback, time_fraction,
 };
 use sat_astro::attitude::AttitudeLaw;
 use sat_astro::timeline::{self, TimelineSpec};
@@ -31,10 +31,22 @@ pub struct EnergyBalanceInput {
     /// 部品とモード（`power.mode_load` と同じ入力）。モードで負荷を指定するケースが使う
     #[serde(default)]
     pub loads: ModeLoadInput,
-    /// 真なら成長余裕を含めない消費電力を使う（省略時は成長余裕込み）
+    /// モードの消費電力に成長余裕を含めるか（省略時は含める）
     #[serde(default)]
-    pub without_growth: bool,
+    pub load_growth: LoadGrowth,
     pub cases: Vec<EnergyBalanceCase>,
+}
+
+/// モードの消費電力に成長余裕を含めるか。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "snake_case")]
+pub enum LoadGrowth {
+    /// 成長余裕込みの消費電力（`total_with_growth`）
+    #[default]
+    Included,
+    /// 成長余裕を含めない消費電力（`total`）
+    Excluded,
 }
 
 /// 評価するケース（負荷のかけ方）1 つ。
@@ -75,6 +87,8 @@ pub struct EnergyBalanceOutput {
     pub period: Qty<Time>,
     /// 回り切った周回の数（0 なら平均は全期間）
     pub complete_orbits: usize,
+    /// 1 周に満たないときの代わりの集計（回り切った周回があれば `None`）
+    pub span_fallback: Option<SpanFallback>,
     /// 軌道平均の発電（`timeline.attitude` の姿勢則。ケースで姿勢則を替えたときはケースの値を見る）
     pub orbit_average_generation: Qty<Power>,
     /// 日照の割合（0〜1）
@@ -155,7 +169,7 @@ impl Analysis for EnergyBalance {
         let battery = EnergyBalanceBattery::combine(&input.batteries)?;
         input.array.validate()?;
         super::mode_load::validate(&input.loads)?;
-        let period_s = input.timeline.orbit.period_s();
+        let period_s = input.timeline.orbit().period_s();
         let ctx = Context::new(input, &battery, profile(input, &input.timeline)?, period_s);
         let mut cases = Vec::with_capacity(input.cases.len());
         for c in &input.cases {
@@ -213,6 +227,7 @@ impl<'a> Context<'a> {
             life: self.input.life,
             period: Qty::from_raw(self.period_s),
             complete_orbits: self.ranges.len(),
+            span_fallback: span_fallback(self.ranges.len(), SpanFallback::OrbitMeanOverSpan),
             orbit_average_generation: Qty::from_raw(orbit_mean(
                 &self.profile.t,
                 &self.generation,
@@ -221,8 +236,8 @@ impl<'a> Context<'a> {
             sunlit_fraction: time_fraction(&self.profile.t, &self.profile.lit, &self.ranges),
             series: Series {
                 channels: vec![
-                    Channel::new("generation", "発電電力", "Power", self.generation),
-                    Channel::new("sunlit", "日照率", Fraction::KIND, self.profile.sunlit),
+                    Channel::of::<Power>("generation", ChannelKind::Generation, self.generation),
+                    Channel::of::<Fraction>("sunlit", ChannelKind::Sunlit, self.profile.sunlit),
                 ],
                 t: self.profile.t,
             },

@@ -1,20 +1,32 @@
 //! 回線計算の部品（自由空間損失・EIRP・G/T・C/N0・Eb/N0）。斜距離は `sat_astro::ground::slant_range_m`（中心天体の半径）。
 //! **回線計算はここだけ。** `comm.link_budget` と `comm.data_throughput` が使う。
 //!
-//! dB の値は f64 で持ち、名前に `_db`（`_dbw`・`_dbk`・`_dbhz`）を付ける。すべて電力比の `10 log10`（`sat_units::ratio_to_db`）。
+//! 入出力の dB の値は型（`sat_units::typed::Decibel`・`DecibelWatt` など）で持ち、名前に `_db`（`_dbw`・`_dbk`・`_dbhz`）を付ける。
+//! すべて電力比の `10 log10`（`sat_units::ratio_to_db`）。式の部品（`fspl_db` など）は境界で取り出した f64 で計算する。
 //! 線形の量（周波数・電力・雑音温度・データレート）は SI の `Qty` で持つ。
 
 use crate::spec::AnalysisError;
 use sat_astro::constants::{C_LIGHT, K_BOLTZMANN};
 use sat_astro::ground::slant_range_m;
 use sat_astro::math::bisect;
-use sat_units::typed::{Frequency, Power, Qty, Temperature};
+use sat_units::typed::{Decibel, Frequency, Power, Qty, Temperature};
 use sat_units::{db_to_ratio, ratio_to_db};
 use serde::{Deserialize, Serialize};
 use std::f64::consts::{FRAC_PI_2, PI};
 
-/// 要求する回線余裕の既定値 [dB]。**既定値はここだけ**（`comm.link_budget` と `comm.data_throughput` が使う）。
-pub const DEFAULT_REQUIRED_MARGIN_DB: f64 = 3.0;
+/// 要求する回線余裕の既定値。**既定値はここだけ**（`comm.link_budget` と `comm.data_throughput` が使う）。
+pub const DEFAULT_REQUIRED_MARGIN: Decibel = Decibel::new(3.0);
+
+/// 要求する回線余裕（入力 `given`、省略時 [`DEFAULT_REQUIRED_MARGIN`]）。
+pub fn required_margin(given: Option<Decibel>) -> Decibel {
+    given.unwrap_or(DEFAULT_REQUIRED_MARGIN)
+}
+
+/// 回線が閉じる仰角の二分法の許容 [rad]。
+const ELEVATION_TOLERANCE_RAD: f64 = 1e-12;
+
+/// 回線が閉じる仰角の二分法の反復の上限。
+const ELEVATION_MAX_ITERATIONS: usize = 100;
 
 /// 送受信端と経路の RF パラメーター。データレートと所要 Eb/N0 は含まない（使う側の入力に置く）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,34 +37,34 @@ pub struct RfLinkParams {
     /// 送信電力（アンテナ給電点の手前）
     pub tx_power: Qty<Power>,
     /// 送信アンテナ利得 [dBi]
-    pub tx_gain_db: f64,
+    pub tx_gain_db: Decibel,
     /// 送信側の給電損失 [dB]（正の値が損失）。省略時 0
     #[serde(default)]
-    pub tx_loss_db: Option<f64>,
+    pub tx_loss_db: Option<Decibel>,
     /// 受信アンテナ利得 [dBi]
-    pub rx_gain_db: f64,
+    pub rx_gain_db: Decibel,
     /// 受信側の給電損失 [dB]（LNA の手前。正の値が損失）。省略時 0
     #[serde(default)]
-    pub rx_loss_db: Option<f64>,
+    pub rx_loss_db: Option<Decibel>,
     /// 受信系のシステム雑音温度
     pub system_noise_temperature: Qty<Temperature>,
     /// 大気・降雨の損失 [dB]。省略時 0
     #[serde(default)]
-    pub atmospheric_loss_db: Option<f64>,
+    pub atmospheric_loss_db: Option<Decibel>,
     /// 偏波損失 [dB]。省略時 0
     #[serde(default)]
-    pub polarization_loss_db: Option<f64>,
+    pub polarization_loss_db: Option<Decibel>,
     /// 指向損失 [dB]。省略時 0
     #[serde(default)]
-    pub pointing_loss_db: Option<f64>,
+    pub pointing_loss_db: Option<Decibel>,
     /// その他の損失（実装損失など）[dB]。省略時 0
     #[serde(default)]
-    pub other_loss_db: Option<f64>,
+    pub other_loss_db: Option<Decibel>,
 }
 
 /// 書かれていない損失は 0 dB（損失なし）とする。
-fn loss_or_none(loss_db: Option<f64>) -> f64 {
-    loss_db.unwrap_or(0.0)
+fn loss_or_none(loss_db: Option<Decibel>) -> f64 {
+    loss_db.map_or(0.0, Decibel::value)
 }
 
 /// ある斜距離での回線の計算結果（すべて dB）。
@@ -109,9 +121,9 @@ impl RfLinkParams {
             self.system_noise_temperature.value(),
         ];
         let finite = [
-            self.tx_gain_db,
+            self.tx_gain_db.value(),
             self.tx_loss(),
-            self.rx_gain_db,
+            self.rx_gain_db.value(),
             self.rx_loss(),
             self.extra_loss_db(),
         ];
@@ -150,11 +162,15 @@ impl RfLinkParams {
 
     /// 斜距離 `range_m` での回線を計算する。
     pub fn evaluate(&self, range_m: f64) -> LinkEvaluation {
-        let eirp = eirp_dbw(self.tx_power.value(), self.tx_gain_db, self.tx_loss());
+        let eirp = eirp_dbw(
+            self.tx_power.value(),
+            self.tx_gain_db.value(),
+            self.tx_loss(),
+        );
         let fspl = fspl_db(range_m, self.frequency.value());
         let extra = self.extra_loss_db();
         let g_t = g_over_t_dbk(
-            self.rx_gain_db,
+            self.rx_gain_db.value(),
             self.rx_loss(),
             self.system_noise_temperature.value(),
         );
@@ -168,26 +184,31 @@ impl RfLinkParams {
     }
 
     /// Eb/N0 の余裕 [dB]（`eb_n0 − required − margin` ではなく `eb_n0 − required`）。
-    pub fn eb_n0_margin_db(&self, range_m: f64, data_rate_bps: f64, required_eb_n0_db: f64) -> f64 {
-        eb_over_n0_db(self.evaluate(range_m).c_over_n0_dbhz, data_rate_bps) - required_eb_n0_db
+    pub fn eb_n0_margin_db(
+        &self,
+        range_m: f64,
+        data_rate_bps: f64,
+        required_eb_n0: Decibel,
+    ) -> f64 {
+        eb_over_n0_db(self.evaluate(range_m).c_over_n0_dbhz, data_rate_bps) - required_eb_n0.value()
     }
 
-    /// 半径 `body_radius_m` の中心天体を回る高度 `altitude_m` の衛星で、Eb/N0 の余裕が `margin_db` 以上になる
+    /// 半径 `body_radius_m` の中心天体を回る高度 `altitude_m` の衛星で、Eb/N0 の余裕が `margin` 以上になる
     /// 最低の仰角 [rad]（斜距離は `sat_astro::ground::slant_range_m`）。天頂でも足りなければ `None`、水平線でも足りれば 0。
     pub fn min_elevation_for_margin(
         &self,
         body_radius_m: f64,
         altitude_m: f64,
         data_rate_bps: f64,
-        required_eb_n0_db: f64,
-        margin_db: f64,
+        required_eb_n0: Decibel,
+        margin: Decibel,
     ) -> Option<f64> {
         let excess = |e: f64| {
             self.eb_n0_margin_db(
                 slant_range_m(body_radius_m, altitude_m, e),
                 data_rate_bps,
-                required_eb_n0_db,
-            ) - margin_db
+                required_eb_n0,
+            ) - margin.value()
         };
         if excess(FRAC_PI_2) < 0.0 {
             return None;
@@ -196,10 +217,15 @@ impl RfLinkParams {
             return Some(0.0);
         }
         // 余裕は仰角に対して単調に増えるので二分法で求める。
-        bisect(excess, 0.0, FRAC_PI_2, 1e-12, 100)
+        bisect(
+            excess,
+            0.0,
+            FRAC_PI_2,
+            ELEVATION_TOLERANCE_RAD,
+            ELEVATION_MAX_ITERATIONS,
+        )
     }
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -222,9 +248,9 @@ mod tests {
         let rf = RfLinkParams {
             frequency: Qty::from_raw(437.0e6),
             tx_power: Qty::from_raw(1.0),
-            tx_gain_db: 0.0,
+            tx_gain_db: Decibel::new(0.0),
             tx_loss_db: None,
-            rx_gain_db: 12.0,
+            rx_gain_db: Decibel::new(12.0),
             rx_loss_db: None,
             system_noise_temperature: Qty::from_raw(500.0),
             atmospheric_loss_db: None,
@@ -232,11 +258,13 @@ mod tests {
             pointing_loss_db: None,
             other_loss_db: None,
         };
-        let el = |radius: f64| rf.min_elevation_for_margin(radius, 550.0e3, 9600.0, 20.0, 3.0);
+        let db = Decibel::new;
+        let el =
+            |radius: f64| rf.min_elevation_for_margin(radius, 550.0e3, 9600.0, db(20.0), db(3.0));
         let (earth, moon) = (el(R_EARTH).unwrap(), el(R_MOON).unwrap());
         assert!(earth > 0.0 && moon == 0.0, "{moon} vs {earth}");
         // 閉じる仰角での余裕は要求ちょうど（斜距離は ground::slant_range_m）
-        let at = rf.eb_n0_margin_db(slant_range_m(R_EARTH, 550.0e3, earth), 9600.0, 20.0);
+        let at = rf.eb_n0_margin_db(slant_range_m(R_EARTH, 550.0e3, earth), 9600.0, db(20.0));
         assert!((at - 3.0).abs() < 1e-6, "{at}");
     }
 

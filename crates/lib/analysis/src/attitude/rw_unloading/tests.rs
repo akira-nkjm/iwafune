@@ -72,7 +72,7 @@ fn input(sc: DisturbanceSpacecraft, law: sat_astro::attitude::AttitudeLaw) -> Rw
         timeline: leo_timeline(law, 2.0, 10.0),
         spacecraft: sc,
         wheels: wheels(),
-        usable_fraction: 0.8,
+        usable_momentum_fraction: None,
         required_unload_interval: None,
     }
 }
@@ -100,7 +100,7 @@ fn srp_on_sun_pointing_accumulates_secularly() {
     let i = input(sc, sun_pointing_z());
     let out = RwUnloading::run(&i).unwrap();
     let srp = &out.disturbances[2];
-    assert_eq!(srp.key, "srp");
+    assert_eq!(srp.key, DisturbanceKind::Srp);
     // P は太陽距離で変わるので、得られたピークから 1 AU 換算の値と 2 % 以内で比べる
     let tau_1au = 1361.0 / C_LIGHT * 0.1 * 0.05;
     assert!((srp.peak.value() - tau_1au).abs() < 0.02 * tau_1au);
@@ -114,7 +114,16 @@ fn srp_on_sun_pointing_accumulates_secularly() {
     let interval = out.unload_interval.unwrap().value();
     let expect_interval = (0.016 - out.cyclic_amplitude.value()) / got * out.period.value();
     assert!((interval - expect_interval).abs() < 1e-6 * expect_interval);
-    assert!(out.torque_margin.unwrap() > 1000.0);
+    // トルクの余裕 = 最大トルク / 必要なトルク − 1（利用率の最大の逆数 − 1）
+    let worst = out
+        .wheels
+        .iter()
+        .map(|w| w.torque_utilization.value())
+        .fold(0.0, f64::max);
+    let margin = out.min_torque_margin.unwrap().value();
+    assert!((margin - (1.0 / worst - 1.0)).abs() < 1e-9 * margin && margin > 1000.0);
+    assert_eq!(out.usable_momentum_fraction.value(), 0.8);
+    assert_eq!(out.span_fallback, None);
 }
 
 #[test]
@@ -142,7 +151,7 @@ fn nadir_gravity_gradient_with_product_of_inertia_on_pyramid() {
         max_torque: Qty::from_raw(0.002),
     });
     let out = RwUnloading::run(&i).unwrap();
-    let r = i.timeline.orbit.elements.semi_major_axis.value();
+    let r = i.timeline.orbit().elements.semi_major_axis.value();
     let k = 3.0 * sat_astro::constants::MU_EARTH / r.powi(3);
     let expect = k * ixz * out.period.value();
     let got = out.secular_per_orbit.value();
@@ -172,7 +181,7 @@ fn aero_on_nadir_pointing_accumulates_about_orbit_normal() {
     });
     let out = RwUnloading::run(&input(sc, nadir_pointing_z())).unwrap();
     let aero = &out.disturbances[1];
-    assert_eq!(aero.key, "aero");
+    assert_eq!(aero.key, DisturbanceKind::Aero);
     assert!(aero.peak.value() > 0.0);
     let expect = aero.mean.value() * out.period.value();
     let got = out.secular_per_orbit.value();

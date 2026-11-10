@@ -42,7 +42,7 @@ export const systemsJa = {
       cdh: {
         total: "1 日の発生量",
         storage: "必要なストレージ",
-        margin: "ストレージ余裕",
+        margin: "ストレージの容量の余裕",
       } as Record<string, string>,
       comm: {
         margin: "回線余裕（最小）",

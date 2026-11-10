@@ -8,6 +8,21 @@ use sat_astro::math::solve_dense;
 /// 初期温度を周回平均の定常解にするときに使う）。
 pub const INITIAL_GUESS_K: f64 = 290.0;
 
+/// 反復の上限。
+const MAX_ITERATIONS: u32 = 200;
+
+/// 1 回の修正の上限 [K]（遠い初期値から放射の T⁴ で発散しないように）。
+const MAX_STEP_K: f64 = 50.0;
+
+/// 温度の下限 [K]（修正で 0 K 以下にしない）。
+const MIN_TEMPERATURE_K: f64 = 1.0;
+
+/// 修正がこれより小さくなったら収束とみなす [K]。
+const STEP_TOLERANCE_K: f64 = 1e-9;
+
+/// 熱収支の残差の許容（入熱の絶対値の合計に対する比）。
+const RESIDUAL_TOLERANCE: f64 = 1e-6;
+
 /// 定常解。
 #[derive(Debug, Clone)]
 pub(crate) struct SteadySolution {
@@ -35,7 +50,7 @@ impl Compiled {
         jac
     }
 
-    /// 定常解を Newton 法で求める（1 回の修正は ±50 K まで）。`guess` は初期値 [K]。
+    /// 定常解を Newton 法で求める（1 回の修正は ±50 K（`MAX_STEP_K`）まで）。`guess` は初期値 [K]。
     pub fn solve_steady(
         &self,
         q: &[f64],
@@ -45,7 +60,7 @@ impl Compiled {
         let n = self.len();
         let mut t: Vec<f64> = (0..n).map(|i| self.fixed[i].unwrap_or(guess)).collect();
         let scale = q.iter().map(|x| x.abs()).sum::<f64>().max(1.0);
-        for iter in 1..=200 {
+        for iter in 1..=MAX_ITERATIONS {
             let f = self.net_heat(&t, q, space_k);
             let mut jac = self.jacobian(&t);
             let mut rhs: Vec<f64> = f.iter().map(|x| -x).collect();
@@ -62,17 +77,17 @@ impl Compiled {
                 )
             })?;
             let max_step = dt.iter().fold(0.0_f64, |m, x| m.max(x.abs()));
-            let k = if max_step > 50.0 {
-                50.0 / max_step
+            let k = if max_step > MAX_STEP_K {
+                MAX_STEP_K / max_step
             } else {
                 1.0
             };
             for i in 0..n {
-                t[i] = (t[i] + k * dt[i]).max(1.0);
+                t[i] = (t[i] + k * dt[i]).max(MIN_TEMPERATURE_K);
             }
-            if max_step < 1e-9 {
+            if max_step < STEP_TOLERANCE_K {
                 let residual = self.residual(&t, q, space_k);
-                if residual <= 1e-6 * scale {
+                if residual <= RESIDUAL_TOLERANCE * scale {
                     return Ok(SteadySolution {
                         temps: t,
                         iterations: iter,

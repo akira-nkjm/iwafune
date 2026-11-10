@@ -21,9 +21,10 @@ retention: number,
  */
 downlink_per_day: number | null, 
 /**
- * 要求するストレージ余裕（0〜1、既定 [`DEFAULT_MIN_STORAGE_MARGIN`]）
+ * ストレージの容量のうち残しておく割合（0 以上 1 未満、既定 [`DEFAULT_STORAGE_RESERVE`]）。
+ * 必要量がこれを食い込むと警告、容量を超えると違反
  */
-min_storage_margin: number | null, 
+storage_reserve: number | null, 
 /**
  * ミッションデータの圧縮率（圧縮後 / 圧縮前、既定 1）
  */

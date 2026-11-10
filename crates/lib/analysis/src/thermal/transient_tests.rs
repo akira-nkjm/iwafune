@@ -85,8 +85,8 @@ fn phases_cycle() {
 #[test]
 fn orbit_average_start_is_near_periodic() {
     let mut tl = leo_timeline(1.0, 30.0);
-    let period = tl.orbit.period_s();
-    tl.span = Qty::from_raw(period);
+    let period = tl.orbit().period_s();
+    tl.sampling.span = Qty::from_raw(period);
     let loads = vec![ThermalLoad {
         count: 1,
         node: "cube".to_owned(),

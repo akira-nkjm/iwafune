@@ -3,6 +3,7 @@ import type { Check } from "./Check";
 import type { RwUnloadingDisturbance } from "./RwUnloadingDisturbance";
 import type { RwUnloadingWheelResult } from "./RwUnloadingWheelResult";
 import type { Series } from "./Series";
+import type { SpanFallback } from "./SpanFallback";
 import type { Vec3 } from "./Vec3";
 
 /**
@@ -13,6 +14,14 @@ export type RwUnloadingOutput = { period: number,
  * 回り切った周回の数（0 なら全期間から 1 周分に外挿）
  */
 complete_orbits: number, 
+/**
+ * 1 周に満たないときの代わりの集計（回り切った周回があれば `None`）
+ */
+span_fallback: SpanFallback | null, 
+/**
+ * 使った「最大角運動量のうち使ってよい割合」（入力が無ければ既定値）
+ */
+usable_momentum_fraction: number, 
 /**
  * 種類別の擾乱トルク（大きさの最大・平均）
  */
@@ -54,9 +63,10 @@ unloads_per_day: number | null,
  */
 first_saturation: number | null, 
 /**
- * トルクの余裕（最大トルク / 必要なトルク の最小。擾乱が 0 なら `None`）
+ * トルクの余裕 = 最大トルク / 必要なトルク − 1 のホイールのうち最小（[`crate::spec::ratio_margin`]）。
+ * 擾乱が 0 なら `None`（余裕は無限大）
  */
-torque_margin: number | null, 
+min_torque_margin: number | null, 
 /**
  * ホイール別（入力の順）
  */

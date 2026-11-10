@@ -72,7 +72,7 @@ fn input() -> DataBudgetInput {
         }],
         retention: Qty::from_raw(3.0 * SECONDS_PER_DAY),
         downlink_per_day: Some(Qty::from_raw(1.0e9)),
-        min_storage_margin: None,
+        storage_reserve: None,
         compression_ratio: None,
         hk_overhead: None,
     }
@@ -87,10 +87,13 @@ fn hand_calculated_budget() {
     assert!((out.mission_per_day.value() - 0.05e6 * SECONDS_PER_DAY).abs() < 1e-3);
     let total = 102.5 * SECONDS_PER_DAY + 0.05e6 * SECONDS_PER_DAY;
     assert!((out.storage_required.value() - 3.0 * total).abs() < 1e-3);
-    assert!((out.storage_margin.value() - (1.0 - 3.0 * total / 32.0e9)).abs() < 1e-12);
-    // 16 Gbit × 2 台 = 32 Gbit、要求余裕は既定の 0.2
+    // 容量の余裕 = 容量 / 必要量 − 1 = 32 / 12.98 − 1 = 1.465
+    let margin = out.capacity_margin.unwrap().value();
+    assert!((margin - (32.0e9 / (3.0 * total) - 1.0)).abs() < 1e-12);
+    // 16 Gbit × 2 台 = 32 Gbit、残す割合は既定の 0.2 → 余裕の要求は 0.2 / 0.8 = 0.25
     assert_eq!(out.storage_capacity.value(), 32.0e9);
-    assert_eq!(out.min_storage_margin.value(), DEFAULT_MIN_STORAGE_MARGIN);
+    assert_eq!(out.storage_reserve, DEFAULT_STORAGE_RESERVE);
+    assert!((out.required_capacity_margin.value() - 0.25).abs() < 1e-15);
     assert!((out.modes[1].mission_rate.value() - 0.5e6).abs() < 1e-9);
     let cam = &out.parts[1];
     assert!((cam.share.value() - (0.05e6 + 2.5) / (0.05e6 + 102.5)).abs() < 1e-12);
@@ -153,4 +156,28 @@ fn rates_and_storage_use_per_unit_counts() {
         three.storage_capacity.value(),
         3.0 * one.storage_capacity.value()
     );
+}
+
+/// 残す割合 0.2 の判定は「必要量 ≤ 容量 × 0.8 なら ok、容量までは警告、超えたら違反」（旧来の 1 − 必要量 / 容量 と 0.2 の比較と同じ）。
+/// 容量 32 Gbit に対して必要量を変え、容量の余裕 = 32 / 必要量 − 1 と要求 0.25 で境目を確かめる。
+#[test]
+fn storage_verdict_follows_the_reserve() {
+    let required = required_capacity_margin(DEFAULT_STORAGE_RESERVE);
+    let verdict = |need: f64| ratio_margin_verdict(ratio_margin(32.0e9, need * 32.0e9), required);
+    assert_eq!(verdict(0.79), Verdict::Ok);
+    assert_eq!(verdict(0.81), Verdict::Warning);
+    assert_eq!(verdict(0.99), Verdict::Warning);
+    assert_eq!(verdict(1.01), Verdict::Violation);
+    // 発生量が無ければ必要量 0 で余裕は無限大（None。JSON は null）、判定は ok
+    let mut none = input();
+    none.parts.clear();
+    none.mode_shares.clear();
+    let out = DataBudget::run(&none).unwrap();
+    assert_eq!(out.capacity_margin, None);
+    let c = out.checks.iter().find(|c| c.key == "storage_margin");
+    assert_eq!(c.map(|c| c.verdict), Some(Verdict::Ok));
+    // 容量をすべて残すことはできない
+    let mut bad = input();
+    bad.storage_reserve = Some(Fraction::new(1.0));
+    assert!(DataBudget::run(&bad).is_err());
 }

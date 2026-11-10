@@ -1,11 +1,14 @@
-//! 時系列のチャンネルの表示単位: 次元名から `sat_units::format` で選び JSON に付加する。
+//! 時系列のチャンネルの表示名と表示単位: 表示名は系列の種類（`kind`）と対象（`subject`）から語彙（`analysis::labels`）で引き、
+//! 表示単位は次元名から `sat_units::format` で選び JSON に付加する（形は `dto::DisplayChannel`）。
 //! 表示値 = SI × `display_scale` で済むよう、一次式の単位（affine・対数でないもの）だけを選ぶ。
 
+use super::labels::channel_label;
+use sat_analysis::spec::ChannelKind;
 use sat_units::format::{format_quantity, si_unit_expression, unit_label};
 use sat_units::{parse_dimension, parse_unit};
 use serde_json::Value;
 
-/// 出力の JSON の中のすべての `Channel`（`key`・`label`・`dimension`・`values` を持つ表）に表示単位と倍率を付加する。
+/// 出力の JSON の中のすべての `Channel`（`key`・`kind`・`dimension`・`values` を持つ表）に表示名・表示単位・倍率を付加する。
 pub fn fix_channels(v: &mut Value) {
     match v {
         Value::Object(map) => {
@@ -20,12 +23,21 @@ pub fn fix_channels(v: &mut Value) {
 }
 
 fn is_channel(map: &serde_json::Map<String, Value>) -> bool {
-    ["key", "label", "dimension", "values"]
+    ["key", "kind", "dimension", "values"]
         .iter()
         .all(|k| map.contains_key(*k))
 }
 
 fn fix(map: &mut serde_json::Map<String, Value>) {
+    let kind = map
+        .get("kind")
+        .and_then(|k| serde_json::from_value::<ChannelKind>(k.clone()).ok());
+    if let Some(kind) = kind {
+        let subject = map.get("subject").and_then(Value::as_str);
+        let l = channel_label(kind, subject);
+        map.insert("label".into(), Value::String(l.label));
+        map.insert("label_en".into(), Value::String(l.label_en));
+    }
     let Some(dim) = map
         .get("dimension")
         .and_then(Value::as_str)
@@ -67,8 +79,8 @@ mod tests {
     #[test]
     fn inserts_fraction_fields_in_nested_and_empty_series() {
         let mut v = json!({"nested": [{"channels": [
-            {"key": "ratio", "label": "割合", "dimension": "Fraction", "values": [-0.1, 0.5]},
-            {"key": "empty", "label": "空", "dimension": "Power", "values": []}
+            {"key": "soc", "kind": "soc", "subject": null, "dimension": "Fraction", "values": [-0.1, 0.5]},
+            {"key": "wheel:RW", "kind": "wheel_momentum", "subject": "RW", "dimension": "Power", "values": []}
         ]}]});
         fix_channels(&mut v);
         let c = &v["nested"][0]["channels"];
@@ -76,13 +88,17 @@ mod tests {
         assert_eq!(c[0]["display_scale"], 100.0);
         assert_eq!(c[1]["display_unit"], "W");
         assert_eq!(c[1]["display_scale"], 1.0);
+        // 表示名は種類と対象から語彙で引く（日本語と英語）
+        assert_eq!(c[0]["label"], "SOC");
+        assert_eq!(c[1]["label"], "RW の角運動量");
+        assert_eq!(c[1]["label_en"], "RW momentum");
     }
 
     #[test]
     fn picks_unit_from_dimension() {
         let mut v = json!({ "series": { "channels": [
-            { "key": "p", "label": "p", "dimension": "Power", "values": [0.0, 0.012] },
-            { "key": "t", "label": "t", "dimension": "Temperature", "values": [290.0] }
+            { "key": "p", "kind": "load", "dimension": "Power", "values": [0.0, 0.012] },
+            { "key": "t", "kind": "node_temperature", "subject": "PANEL", "dimension": "Temperature", "values": [290.0] }
         ] } });
         fix_channels(&mut v);
         let c = &v["series"]["channels"];

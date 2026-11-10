@@ -2,17 +2,19 @@
 
 use super::{
     Context, EnergyBalanceCase, EnergyBalanceCaseResult, EnergyBalanceInput, EnergyBalanceLoad,
-    EnergyBalanceOrbit,
+    EnergyBalanceOrbit, LoadGrowth,
 };
 use crate::modes::find_mode;
 use crate::power::battery::{self, BatteryTrace};
 use crate::power::mode_load::evaluate_mode;
 use crate::spec::quantity_text;
 use crate::spec::{
-    AnalysisError, Channel, Check, Series, SpanFallback, Verdict, orbit_mean, orbit_segment,
-    short_span_check,
+    AnalysisError, Channel, ChannelKind, Check, Series, Verdict, orbit_mean, orbit_segment,
 };
-use sat_units::typed::{Fraction, Power, Qty, Time};
+use sat_units::typed::{Energy, Fraction, Power, Qty, Time};
+
+/// DoD の上限との比較の許容（SOC の積分の丸めで上限ちょうどが超過にならないように）。
+const DOD_TOLERANCE: f64 = 1e-12;
 
 /// ケースの負荷（日照中・日陰中）を求める。モードの警告は `checks` に足す。
 fn case_loads(
@@ -30,10 +32,9 @@ fn case_loads(
                 checks.push(c);
             }
         }
-        Ok(if input.without_growth {
-            r.total
-        } else {
-            r.total_with_growth
+        Ok(match input.load_growth {
+            LoadGrowth::Included => r.total_with_growth,
+            LoadGrowth::Excluded => r.total,
         })
     };
     match &case.load {
@@ -176,24 +177,31 @@ fn case_series(ctx: &Context, load: Vec<f64>, soc: Vec<f64>, trace: &BatteryTrac
     Series {
         t: ctx.profile.t.clone(),
         channels: vec![
-            Channel::new("generation", "発電電力", "Power", ctx.generation.clone()),
-            Channel::new("load", "消費電力", "Power", load),
-            Channel::new("soc", "SOC", Fraction::KIND, soc),
-            Channel::new("charge_power", "充電電力", "Power", trace.charge.clone()),
-            Channel::new(
+            Channel::of::<Power>(
+                "generation",
+                ChannelKind::Generation,
+                ctx.generation.clone(),
+            ),
+            Channel::of::<Power>("load", ChannelKind::Load, load),
+            Channel::of::<Fraction>("soc", ChannelKind::Soc, soc),
+            Channel::of::<Power>(
+                "charge_power",
+                ChannelKind::ChargePower,
+                trace.charge.clone(),
+            ),
+            Channel::of::<Power>(
                 "discharge_power",
-                "放電電力",
-                "Power",
+                ChannelKind::DischargePower,
                 trace.discharge.clone(),
             ),
-            Channel::new("shunt_power", "余剰電力", "Power", trace.shunt.clone()),
+            Channel::of::<Power>("shunt_power", ChannelKind::ShuntPower, trace.shunt.clone()),
         ],
     }
 }
 
 fn verdicts(ctx: &Context, r: &EnergyBalanceCaseResult, depleted: bool) -> Vec<Check> {
     let limit = ctx.battery.dod_limit;
-    let dod_ok = r.max_dod.value() <= limit + 1e-12;
+    let dod_ok = r.max_dod.value() <= limit + DOD_TOLERANCE;
     let mut checks = vec![
         Check::new(
             "dod",
@@ -201,8 +209,8 @@ fn verdicts(ctx: &Context, r: &EnergyBalanceCaseResult, depleted: bool) -> Vec<C
             Verdict::from_ok(dod_ok),
             format!(
                 "最大 DoD {}（上限 {}）",
-                quantity_text(r.max_dod.value(), Fraction::KIND),
-                quantity_text(limit, Fraction::KIND)
+                quantity_text::<Fraction>(r.max_dod.value()),
+                quantity_text::<Fraction>(limit)
             ),
         ),
         Check::new(
@@ -211,7 +219,7 @@ fn verdicts(ctx: &Context, r: &EnergyBalanceCaseResult, depleted: bool) -> Vec<C
             Verdict::from_ok(r.energy_margin_per_orbit.value() >= 0.0),
             format!(
                 "1 周あたりのエネルギー余裕 {}（電池の効率込み）",
-                quantity_text(r.energy_margin_per_orbit.value(), "Energy")
+                quantity_text::<Energy>(r.energy_margin_per_orbit.value())
             ),
         ),
     ];
@@ -223,9 +231,5 @@ fn verdicts(ctx: &Context, r: &EnergyBalanceCaseResult, depleted: bool) -> Vec<C
             "電池が空になり、負荷をまかなえない時間があります",
         ));
     }
-    checks.extend(short_span_check(
-        ctx.ranges.len(),
-        SpanFallback::OrbitMeanOverSpan,
-    ));
     checks
 }

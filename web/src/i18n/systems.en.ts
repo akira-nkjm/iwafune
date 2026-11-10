@@ -51,7 +51,7 @@ export const systemsEn: typeof systemsJa = {
       cdh: {
         total: "Generated per day",
         storage: "Storage required",
-        margin: "Storage margin",
+        margin: "Storage capacity margin",
       },
       comm: {
         margin: "Link margin (min)",
