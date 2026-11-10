@@ -3,44 +3,42 @@
 //! - **捨てる量**: `momentum` を与えなければ、ホイールの最大角運動量の最大 × 使ってよい割合（既定 0.8）。
 //! - **MTQ**: 出せるトルクは `τ = η · m_eff · |B|`。`m_eff` は MTQ の組が機体のどの軸の向きにも出せる双極子の最小
 //!   （各機体軸 j について `Σ_i m_max,i |a_i·e_j|` を求め、その最小）。`|B|` は軌道に沿った磁場の大きさの時間平均
-//!   （`sat_astro::geomag::field_about_eci_t`、中心天体が地球以外なら 0。時系列は `sat_astro::timeline`）。η は **双極子が B と直交する成分しかトルクにならず、
-//!   B の向きが軌道上で変わることを見込んだ平均の有効率**で、入力で与える（省略時 0.5。概算）。
+//!   （`sat_astro::geomag::field_about_eci_t`、中心天体が地球以外なら 0。標本は `sat_astro::timeline::OrbitSampling`）。
+//!   η は **双極子が B と直交する成分しかトルクにならず、B の向きが軌道上で変わることを見込んだ平均の有効率**で、
+//!   入力で与える（省略時 0.5。概算）。
 //! - **RCS**: スラスタの取付位置・推力の向きと重心から各スラスタのトルクを求め、捨てる向き（−ĥ）の成分が正の
 //!   スラスタを同時に噴射する（[`rcs`]）。時間 `t = H / T`、推薬 `m = Σ F_i t / (Isp_i g₀)`。
 
-use super::wheels::{RwWheel, default_usable_fraction};
+use super::wheels::{RwWheel, usable_momentum_fraction};
 use crate::spec::quantity_text;
 use crate::spec::{
     Analysis, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_fraction,
     ensure_non_negative, ensure_positive,
 };
-use sat_astro::attitude::AttitudeLaw;
 use sat_astro::geomag::field_about_eci_t;
-use sat_astro::math::{Quat, Vec3};
-use sat_astro::orbit::OrbitSpec;
-use sat_astro::timeline::DEFAULT_STEP_S;
-use sat_astro::timeline::{self, TimelineSpec, time_mean};
+use sat_astro::math::Vec3;
+use sat_astro::timeline::{OrbitSampling, time_mean};
 use sat_units::typed::{
     AngularMomentum, Fraction, MagneticDipoleMoment, MagneticFluxDensity, Qty, Time, Torque,
 };
 use serde::{Deserialize, Serialize};
 
-/// MTQ の有効率の既定値。
-pub const DEFAULT_MTQ_EFFICIENCY: f64 = 0.5;
+/// MTQ の有効率の既定値。**既定値はここだけ。**
+pub const DEFAULT_MTQ_EFFICIENCY: Fraction = Fraction::new(0.5);
 
 /// アンロードにかかる時間の入力。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct UnloadTimeInput {
-    /// 捨てる角運動量（大きさ）。省略時は `wheels` の最大角運動量の最大 × `usable_fraction`
+    /// 捨てる角運動量（大きさ）。省略時は `wheels` の最大角運動量の最大 × `usable_momentum_fraction`
     #[serde(default)]
     pub momentum: Option<Qty<AngularMomentum>>,
     /// ホイール（`momentum` を省略したときに捨てる量を決める）
     #[serde(default)]
     pub wheels: Vec<RwWheel>,
-    /// 最大角運動量のうち使ってよい割合（0〜1）。省略時 0.8
-    #[serde(default = "default_usable_fraction")]
-    pub usable_fraction: f64,
+    /// 最大角運動量のうち使ってよい割合（0〜1）。省略時 [`super::wheels::DEFAULT_USABLE_MOMENTUM_FRACTION`]
+    #[serde(default)]
+    pub usable_momentum_fraction: Option<Fraction>,
     /// 捨てる角運動量の向き ĥ（機体座標系。RCS の評価に使う）。省略時は機体の ±x・±y・±z で評価して最悪を取る
     #[serde(default)]
     pub momentum_direction: Option<Vec3>,
@@ -50,9 +48,9 @@ pub struct UnloadTimeInput {
     /// 地磁気の大きさの与え方（MTQ があるときに使う）
     #[serde(default)]
     pub field: Option<UnloadTimeField>,
-    /// MTQ の平均の有効率（0〜1）。省略時 0.5
+    /// MTQ の平均の有効率（0〜1）。省略時 [`DEFAULT_MTQ_EFFICIENCY`]
     #[serde(default)]
-    pub mtq_efficiency: Option<f64>,
+    pub mtq_efficiency: Option<Fraction>,
     /// スラスタ（空なら RCS の評価をしない）
     #[serde(default)]
     pub thrusters: Vec<UnloadTimeThruster>,
@@ -62,6 +60,13 @@ pub struct UnloadTimeInput {
     /// アンロード時間の要求上限（省略時は判定しない）
     #[serde(default)]
     pub required_time: Option<Qty<Time>>,
+}
+
+impl UnloadTimeInput {
+    /// MTQ の平均の有効率（省略時 [`DEFAULT_MTQ_EFFICIENCY`]）。
+    pub fn mtq_efficiency(&self) -> Fraction {
+        self.mtq_efficiency.unwrap_or(DEFAULT_MTQ_EFFICIENCY)
+    }
 }
 
 /// 磁気トルカ 1 台。
@@ -79,16 +84,21 @@ pub struct UnloadTimeMtq {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum UnloadTimeField {
-    /// 軌道に沿って平均する。期間の省略時は 1 周、刻みの省略時は 30 s
-    Orbit {
-        orbit: OrbitSpec,
-        #[serde(default)]
-        span: Option<Qty<Time>>,
-        #[serde(default)]
-        step: Option<Qty<Time>>,
-    },
+    /// 軌道に沿って平均する（期間・刻み・β は時系列と同じ標本の取り方）
+    Orbit { sampling: OrbitSampling },
     /// 大きさを直接与える
     Constant { strength: Qty<MagneticFluxDensity> },
+}
+
+/// アンロードの評価の仮定。**文は持たない**（service の語彙が日本語と英語で引く）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "snake_case")]
+pub enum UnloadAssumption {
+    /// MTQ: トルク = 有効率 × 最も弱い機体軸の双極子 × 軌道平均の |B|（B と直交する成分だけが使え、B の向きの変化を有効率で見込む）
+    MtqMeanField,
+    /// RCS: −H 向きのトルク成分が正のスラスタをすべて同時に連続噴射する（H と直交するトルクと正味の推力は残る）
+    RcsSimultaneousFiring,
 }
 
 /// アンロードにかかる時間の出力。
@@ -97,6 +107,8 @@ pub enum UnloadTimeField {
 pub struct UnloadTimeOutput {
     /// 捨てる角運動量（入力の値か、ホイールから求めた値）
     pub momentum: Qty<AngularMomentum>,
+    /// 捨てる量をホイールから求めたときに使った「使ってよい割合」（`momentum` を与えたときは `None`）
+    pub usable_momentum_fraction: Option<Fraction>,
     pub mtq: Option<UnloadTimeMtqResult>,
     pub rcs: Option<UnloadTimeRcs>,
     pub checks: Vec<Check>,
@@ -112,15 +124,15 @@ pub struct UnloadTimeMtqResult {
     pub max_field: Qty<MagneticFluxDensity>,
     /// どの機体軸の向きにも出せる双極子の最小
     pub effective_dipole: Qty<MagneticDipoleMoment>,
-    /// 使った有効率
+    /// 使った有効率（入力が無ければ既定値）
     pub efficiency: Fraction,
     /// 平均のアンロードトルク（η · m_eff · |B| の平均）
     pub torque: Qty<Torque>,
     pub time: Qty<Time>,
     /// 時間を軌道周期で割ったもの（地磁気を軌道から求めたときだけ）
     pub orbits: Option<f64>,
-    /// 仮定の説明
-    pub assumption: String,
+    /// 仮定（文は service が語彙で引く。有効率の値は `efficiency`）
+    pub assumption: UnloadAssumption,
 }
 
 /// アンロードにかかる時間。
@@ -139,7 +151,7 @@ impl Analysis for UnloadTime {
     type Output = UnloadTimeOutput;
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
-        let h = dump_momentum(input)?;
+        let (h, usable) = dump_momentum(input)?;
         let mtq = if input.magnetorquers.is_empty() {
             None
         } else {
@@ -163,6 +175,7 @@ impl Analysis for UnloadTime {
         let checks = verdicts(input, mtq.as_ref(), rcs.as_ref());
         Ok(UnloadTimeOutput {
             momentum: Qty::from_raw(h),
+            usable_momentum_fraction: usable,
             mtq,
             rcs,
             checks,
@@ -170,13 +183,13 @@ impl Analysis for UnloadTime {
     }
 }
 
-/// 捨てる角運動量 [N·m·s]。入力に無ければ、ホイールの最大角運動量の最大 × 使ってよい割合。
-fn dump_momentum(input: &UnloadTimeInput) -> Result<f64, AnalysisError> {
+/// 捨てる角運動量 [N·m·s] と、ホイールから求めたときに使った割合。入力に無ければ、ホイールの最大角運動量の最大 × 使ってよい割合。
+fn dump_momentum(input: &UnloadTimeInput) -> Result<(f64, Option<Fraction>), AnalysisError> {
     if let Some(h) = input.momentum {
         ensure_non_negative("捨てる角運動量", h.value())?;
-        return Ok(h.value());
+        return Ok((h.value(), None));
     }
-    ensure_fraction("使える割合", input.usable_fraction)?;
+    let usable = usable_momentum_fraction(input.usable_momentum_fraction)?;
     let max = input
         .wheels
         .iter()
@@ -188,7 +201,7 @@ fn dump_momentum(input: &UnloadTimeInput) -> Result<f64, AnalysisError> {
         ));
     }
     ensure_non_negative("ホイールの最大角運動量", max)?;
-    Ok(max * input.usable_fraction)
+    Ok((max * usable.value(), Some(usable)))
 }
 
 /// どの機体軸の向きにも出せる双極子の最小 [A·m²]。
@@ -217,21 +230,14 @@ fn field_stats(field: &UnloadTimeField) -> Result<(FieldStats, Option<f64>), Ana
             let b = strength.value();
             Ok(((b, b, b), None))
         }
-        UnloadTimeField::Orbit { orbit, span, step } => {
-            let period = orbit.period_s();
-            let spec = TimelineSpec::new(
-                orbit.clone(),
-                AttitudeLaw::Inertial {
-                    q_body_to_eci: Quat::IDENTITY,
-                },
-                span.unwrap_or(Qty::from_raw(period)),
-                step.unwrap_or(Qty::from_raw(DEFAULT_STEP_S)),
-            );
-            let samples = timeline::build(&spec)?;
-            let t: Vec<f64> = samples.iter().map(|s| s.t_s).collect();
-            let b: Vec<f64> = samples
+        UnloadTimeField::Orbit { sampling } => {
+            // 磁場は位置だけで決まるので、姿勢則の要らない軌道の標本で求める（β の指定は RAAN に当てる）
+            let central = sampling.orbit.central;
+            let points = sampling.states()?;
+            let t: Vec<f64> = points.iter().map(|p| p.t_s).collect();
+            let b: Vec<f64> = points
                 .iter()
-                .map(|s| field_about_eci_t(orbit.central, s.r_eci, s.epoch).norm())
+                .map(|p| field_about_eci_t(central, p.state.r_eci, p.epoch).norm())
                 .collect();
             if b.is_empty() {
                 return Err(AnalysisError::InvalidInput(
@@ -241,21 +247,21 @@ fn field_stats(field: &UnloadTimeField) -> Result<(FieldStats, Option<f64>), Ana
             let mean = time_mean(&t, &b);
             let min = b.iter().copied().fold(f64::INFINITY, f64::min);
             let max = b.iter().copied().fold(0.0, f64::max);
-            Ok(((mean, min, max), Some(period)))
+            Ok(((mean, min, max), Some(sampling.orbit.period_s())))
         }
     }
 }
 
 fn mtq_result(input: &UnloadTimeInput, h: f64) -> Result<UnloadTimeMtqResult, AnalysisError> {
-    let eta = input.mtq_efficiency.unwrap_or(DEFAULT_MTQ_EFFICIENCY);
-    ensure_fraction("MTQ の有効率", eta)?;
-    ensure_positive("MTQ の有効率", eta)?;
+    let eta = input.mtq_efficiency();
+    ensure_fraction("MTQ の有効率", eta.value())?;
+    ensure_positive("MTQ の有効率", eta.value())?;
     let field = input.field.as_ref().ok_or_else(|| {
         AnalysisError::InvalidInput("MTQ の評価には地磁気（field）が要ります".to_owned())
     })?;
     let ((mean, min, max), period) = field_stats(field)?;
     let m_eff = effective_dipole(&input.magnetorquers)?;
-    let torque = eta * m_eff * mean;
+    let torque = eta.value() * m_eff * mean;
     if torque <= 0.0 {
         return Err(AnalysisError::InvalidInput(
             "MTQ のトルクが 0 です".to_owned(),
@@ -267,13 +273,11 @@ fn mtq_result(input: &UnloadTimeInput, h: f64) -> Result<UnloadTimeMtqResult, An
         min_field: Qty::from_raw(min),
         max_field: Qty::from_raw(max),
         effective_dipole: Qty::from_raw(m_eff),
-        efficiency: Fraction::new(eta),
+        efficiency: eta,
         torque: Qty::from_raw(torque),
         time: Qty::from_raw(time),
         orbits: period.map(|p| time / p),
-        assumption: format!(
-            "トルク = 有効率 {eta} × 最も弱い機体軸の双極子 × 軌道平均の |B|。B と直交する成分だけが使え、B の向きが軌道上で変わることを有効率で見込む"
-        ),
+        assumption: UnloadAssumption::MtqMeanField,
     })
 }
 
@@ -302,7 +306,7 @@ fn verdicts(
     let mut check = |key: &str, label: &str, time: Option<Qty<Time>>| {
         let v = Verdict::from_ok(time.is_some_and(|t| t <= req));
         let shown = time.map_or("捨てられない".to_owned(), |t| {
-            quantity_text(t.value(), "Time")
+            quantity_text::<Time>(t.value())
         });
         checks.push(Check::new(
             key,
@@ -310,7 +314,7 @@ fn verdicts(
             v,
             format!(
                 "{shown}（要求 {} 以内）",
-                quantity_text(req.value(), "Time")
+                quantity_text::<Time>(req.value())
             ),
         ));
     };

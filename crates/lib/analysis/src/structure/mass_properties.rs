@@ -8,7 +8,7 @@ use crate::budget::{BudgetItem, limit_check};
 use crate::spec::quantity_text;
 use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, Verdict};
 use sat_astro::math::{Mat3, Quat, Vec3};
-use sat_units::typed::{Fraction, Mass, Qty};
+use sat_units::typed::{Fraction, Length, Mass, Qty};
 use serde::{Deserialize, Serialize};
 
 /// 質量を持つ 1 部品。
@@ -211,7 +211,7 @@ fn checks(
             .iter()
             .map(|it| BudgetItem::counted(it.id.clone(), it.mass.value(), it.count))
             .collect();
-        out.extend(limit_check(&rows, max.value(), "mass", "総質量", "Mass")?);
+        out.extend(limit_check::<Mass>(&rows, max.value(), "mass", "総質量")?);
     }
     if let Some(b) = &input.com_box {
         let d = s.center_of_mass - b.center;
@@ -224,12 +224,12 @@ fn checks(
             Verdict::from_ok(inside),
             format!(
                 "中心からのずれ ({}, {}, {})、許容 (±{}, ±{}, ±{})",
-                quantity_text(d.x, "Length"),
-                quantity_text(d.y, "Length"),
-                quantity_text(d.z, "Length"),
-                quantity_text(b.half_extent.x, "Length"),
-                quantity_text(b.half_extent.y, "Length"),
-                quantity_text(b.half_extent.z, "Length")
+                quantity_text::<Length>(d.x),
+                quantity_text::<Length>(d.y),
+                quantity_text::<Length>(d.z),
+                quantity_text::<Length>(b.half_extent.x),
+                quantity_text::<Length>(b.half_extent.y),
+                quantity_text::<Length>(b.half_extent.z)
             ),
         ));
     }

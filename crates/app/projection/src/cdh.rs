@@ -8,7 +8,7 @@ use fune_model::Target;
 use fune_model::path::SettingPath;
 use sat_analysis::cdh::DataBudgetInput;
 use sat_analysis::cdh::data_budget::{DataBudgetModeShare, DataBudgetPart, DataBudgetStorage};
-use sat_units::typed::{Qty, Time};
+use sat_units::typed::{Fraction, Qty, Time};
 
 /// `cdh.data_budget`
 pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> {
@@ -63,7 +63,7 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
             storage,
             retention: retention?,
             downlink_per_day: None,
-            min_storage_margin: s.and_then(|s| s.storage_margin),
+            storage_reserve: s.and_then(|s| s.storage_margin).map(Fraction::new),
             compression_ratio: s.and_then(|s| s.compression_ratio),
             hk_overhead: s.and_then(|s| s.packet_overhead),
         })

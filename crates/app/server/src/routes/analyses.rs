@@ -14,7 +14,7 @@ pub async fn catalog() -> Result<Json<Vec<AnalysisEntry>>, ApiError> {
     Ok(Json(analysis::analysis_catalog()?))
 }
 
-/// POST `/analyses/{id}` `{ case?, input_patch?, input?, ops? }`
+/// POST `/analyses/{id}` `{ case?, source?, ops? }`（`source` は `{ kind: "design" | "patched" | "given", … }`）
 pub async fn run(
     State(s): State<AppState>,
     Path(id): Path<String>,

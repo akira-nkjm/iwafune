@@ -69,8 +69,7 @@ export const q = {
       queryFn: () => {
         const body: RunAnalysisRequest = {
           case: kase,
-          input_patch: null,
-          input: null,
+          source: { kind: "design" },
           ops: [...ops],
         };
         return api<AnalysisRunResult>(`/analyses/${seg(id)}`, { method: "POST", body });

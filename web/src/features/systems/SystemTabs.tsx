@@ -71,7 +71,12 @@ export function SystemTabs({
               title={`${analysisTitle(entries.get(s.id)?.info, s.id)} — ${fieldLabel(t.key)}`}
               caption={<span className="font-mono">{`${s.id} · ${t.path}`}</span>}
             >
-              <ResultTable rows={t.rows} at={t.at} dims={s.result?.dims} />
+              <ResultTable
+                rows={t.rows}
+                at={t.at}
+                dims={s.result?.dims}
+                labels={s.result?.labels}
+              />
             </TablePanel>
           ));
         })}

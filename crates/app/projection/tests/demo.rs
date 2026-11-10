@@ -225,3 +225,30 @@ fn cdh_projects_per_unit_rates_and_normalizes_counts() {
     part.count = 3;
     assert_eq!(fune_projection::parts::extensive(part, 2.0), 6.0);
 }
+
+/// ケースの β（`cases/hot_imaging.toml` は 60°）は、時系列の解析だけでなく、地上局のパス（可視・送信量）と
+/// アンロード時間の地磁気の平均にも届く。ケースが無ければ β の指定は無い。
+#[test]
+fn case_beta_reaches_every_orbit_sampling() {
+    let (design, resolved) = demo();
+    let beta = |id: &str, case: Option<&str>| -> serde_json::Value {
+        let ctx = Context::new(&design, &resolved, case).unwrap();
+        let input = project_json(id, &ctx).unwrap_or_else(|e| panic!("{id}: {e}"));
+        match id {
+            "attitude.unload_time" => input["field"]["sampling"]["beta"].clone(),
+            "attitude.sensor_fov" => input["timeline"]["beta"].clone(),
+            _ => input["sampling"]["beta"].clone(),
+        }
+    };
+    let sixty = 60f64.to_radians();
+    for id in [
+        "comm.visibility",
+        "comm.data_throughput",
+        "attitude.unload_time",
+        "attitude.sensor_fov",
+    ] {
+        assert!(beta(id, None).is_null(), "{id}");
+        let b = beta(id, Some("hot_imaging")).as_f64().unwrap_or(f64::NAN);
+        assert!((b - sixty).abs() < 1e-12, "{id}: {b}");
+    }
+}

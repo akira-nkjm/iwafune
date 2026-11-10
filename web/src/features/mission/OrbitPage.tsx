@@ -56,7 +56,12 @@ export function OrbitPage() {
         )}
         {stations.length > 0 && (
           <TablePanel title={m.visibilityPerStation} caption="comm.visibility">
-            <ResultTable rows={stations} at={["stations"]} dims={vis?.result?.dims} />
+            <ResultTable
+              rows={stations}
+              at={["stations"]}
+              dims={vis?.result?.dims}
+              labels={vis?.result?.labels}
+            />
           </TablePanel>
         )}
         {vis && <AnalysisCard state={vis} entry={undefined} design={d} />}

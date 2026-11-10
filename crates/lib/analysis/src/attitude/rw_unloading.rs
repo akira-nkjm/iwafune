@@ -7,17 +7,26 @@
 //! 4. 回り切った周回ごとに `H_eci` の増分（永年成分）と、そこからの直線のずれの最大（周期成分）を分ける。
 //! 5. アンロード間隔 = (永年成分の向きで蓄えられる量の最小 − 周期成分) / 1 周あたりの永年成分 × 周期。
 
-use super::disturbance::{DISTURBANCE_KINDS, DisturbanceSpacecraft, DisturbanceTorques};
-use super::wheels::{RwWheel, WheelSet, default_usable_fraction};
+use super::disturbance::{DisturbanceKind, DisturbanceSpacecraft, DisturbanceTorques};
+use super::wheels::{RwWheel, WheelSet, usable_momentum_fraction};
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Check, Series, System, ensure_fraction, ensure_positive,
-    orbit_ranges,
+    Analysis, AnalysisError, AnalysisKind, Check, Series, SpanFallback, System, orbit_ranges,
+    ratio_margin, span_fallback,
 };
 use sat_astro::constants::SECONDS_PER_DAY;
 use sat_astro::math::Vec3;
 use sat_astro::timeline::{self, TimelineSample, TimelineSpec, time_mean};
 use sat_units::typed::{AngularMomentum, Fraction, Qty, Time, Torque};
 use serde::{Deserialize, Serialize};
+
+/// トルクの余裕（[`crate::spec::ratio_margin`]）の警告の幅。0 なので、最大トルクが必要なトルク以上なら ok、足りなければ違反の二段階。
+pub const TORQUE_MARGIN_WARNING_BAND: Fraction = Fraction::new(0.0);
+
+/// 1 周あたりの永年成分が容量のこの割合以下なら、永年成分は無い（アンロード不要）とみなす。
+const NEGLIGIBLE_SECULAR_RATIO: f64 = 1e-12;
+
+/// 容量が 0 のときの比較の下限 [N·m·s]（0 割りを避ける）。
+const MIN_CAPACITY_FOR_RATIO: f64 = 1e-30;
 
 /// RW アンロード頻度の入力。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,9 +36,9 @@ pub struct RwUnloadingInput {
     pub spacecraft: DisturbanceSpacecraft,
     /// ホイール（台数・配置は任意。軸が 3 次元を張ること）
     pub wheels: Vec<RwWheel>,
-    /// 最大角運動量のうち使ってよい割合（0〜1）。省略時 0.8
-    #[serde(default = "default_usable_fraction")]
-    pub usable_fraction: f64,
+    /// 最大角運動量のうち使ってよい割合（0〜1）。省略時 [`super::wheels::DEFAULT_USABLE_MOMENTUM_FRACTION`]
+    #[serde(default)]
+    pub usable_momentum_fraction: Option<Fraction>,
     /// アンロード間隔の要求下限（省略時は判定しない）
     #[serde(default)]
     pub required_unload_interval: Option<Qty<Time>>,
@@ -42,6 +51,10 @@ pub struct RwUnloadingOutput {
     pub period: Qty<Time>,
     /// 回り切った周回の数（0 なら全期間から 1 周分に外挿）
     pub complete_orbits: usize,
+    /// 1 周に満たないときの代わりの集計（回り切った周回があれば `None`）
+    pub span_fallback: Option<SpanFallback>,
+    /// 使った「最大角運動量のうち使ってよい割合」（入力が無ければ既定値）
+    pub usable_momentum_fraction: Fraction,
     /// 種類別の擾乱トルク（大きさの最大・平均）
     pub disturbances: Vec<RwUnloadingDisturbance>,
     /// 合計の擾乱トルクの大きさの最大
@@ -62,8 +75,9 @@ pub struct RwUnloadingOutput {
     pub unloads_per_day: Option<f64>,
     /// 解析期間中にどれかのホイールが使える上限を超えた最初の時刻
     pub first_saturation: Option<Qty<Time>>,
-    /// トルクの余裕（最大トルク / 必要なトルク の最小。擾乱が 0 なら `None`）
-    pub torque_margin: Option<f64>,
+    /// トルクの余裕 = 最大トルク / 必要なトルク − 1 のホイールのうち最小（[`crate::spec::ratio_margin`]）。
+    /// 擾乱が 0 なら `None`（余裕は無限大）
+    pub min_torque_margin: Option<Fraction>,
     /// ホイール別（入力の順）
     pub wheels: Vec<RwUnloadingWheelResult>,
     /// 時系列: `torque:<種類>`・`torque:total`・`momentum:{x,y,z,norm}`（機体座標系）・`wheel:<id>`
@@ -75,9 +89,8 @@ pub struct RwUnloadingOutput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct RwUnloadingDisturbance {
-    /// `gravity_gradient`・`aero`・`srp`・`magnetic`
-    pub key: String,
-    pub label: String,
+    /// 擾乱の種類（表示名は service が語彙で引く）
+    pub key: DisturbanceKind,
     pub peak: Qty<Torque>,
     pub mean: Qty<Torque>,
 }
@@ -114,46 +127,47 @@ impl Analysis for RwUnloading {
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         input.spacecraft.validate()?;
-        ensure_fraction("使える割合", input.usable_fraction)?;
-        ensure_positive("使える割合", input.usable_fraction)?;
+        let usable = usable_momentum_fraction(input.usable_momentum_fraction)?;
         let set = WheelSet::new(&input.wheels)?;
         let samples = timeline::build(&input.timeline)?;
         let trace = Trace::build(
             &input.spacecraft,
-            input.timeline.orbit.central,
+            input.timeline.orbit().central,
             &set,
             &samples,
         );
-        Ok(summarize(input, &set, &samples, &trace))
+        Ok(summarize(input, usable, &set, &samples, &trace))
     }
 }
 
 fn summarize(
     input: &RwUnloadingInput,
+    usable: Fraction,
     set: &WheelSet,
     samples: &[TimelineSample],
     tr: &Trace,
 ) -> RwUnloadingOutput {
-    let period_s = input.timeline.orbit.period_s();
+    let period_s = input.timeline.orbit().period_s();
     let ranges = orbit_ranges(&tr.t, period_s);
     let (secular, cyclic) = secular_and_cyclic(&tr.t, &tr.h_eci, &ranges, period_s);
     let limits: Vec<f64> = input
         .wheels
         .iter()
-        .map(|w| w.max_momentum.value() * input.usable_fraction)
+        .map(|w| w.max_momentum.value() * usable.value())
         .collect();
     let capacity = capacity(set, samples, secular, &limits);
     let interval = unload_interval(secular.norm(), cyclic, capacity, period_s);
     let wheels = wheel_results(input, tr, &limits);
-    let torque_margin = wheels
+    let max_utilization = wheels
         .iter()
         .map(|w| w.torque_utilization.value())
         .fold(0.0, f64::max);
-    let torque_margin = (torque_margin > 0.0).then(|| 1.0 / torque_margin);
     let disturbances = disturbance_summary(&tr.t, &tr.torques);
     let mut out = RwUnloadingOutput {
         period: Qty::from_raw(period_s),
         complete_orbits: ranges.len(),
+        span_fallback: span_fallback(ranges.len(), SpanFallback::SecularExtrapolated),
+        usable_momentum_fraction: usable,
         peak_disturbance: Qty::from_raw(
             tr.torques
                 .iter()
@@ -173,7 +187,8 @@ fn summarize(
             Some(_) => None,
         },
         first_saturation: first_saturation(tr, &limits).map(Qty::from_raw),
-        torque_margin,
+        // 最も余裕の無いホイール: 最大トルク / 必要なトルク の最小 = 1 / 利用率の最大
+        min_torque_margin: ratio_margin(1.0, max_utilization),
         wheels,
         series: series(input, tr),
         checks: Vec::new(),
@@ -205,7 +220,7 @@ fn unload_interval(secular: f64, cyclic: f64, capacity: f64, period_s: f64) -> O
     if usable <= 0.0 {
         return Some(0.0);
     }
-    if secular <= 1e-12 * capacity.max(1e-30) {
+    if secular <= NEGLIGIBLE_SECULAR_RATIO * capacity.max(MIN_CAPACITY_FOR_RATIO) {
         return None;
     }
     Some(usable / secular * period_s)
@@ -247,14 +262,13 @@ fn wheel_results(
 
 /// 種類ごとの擾乱トルクの大きさの最大と時間平均（台形則、`sat_astro::timeline::time_mean`）。
 fn disturbance_summary(t: &[f64], torques: &[DisturbanceTorques]) -> Vec<RwUnloadingDisturbance> {
-    DISTURBANCE_KINDS
+    DisturbanceKind::ALL
         .iter()
         .enumerate()
-        .map(|(i, (key, label))| {
+        .map(|(i, &key)| {
             let mags: Vec<f64> = torques.iter().map(|d| d.by_kind()[i].norm()).collect();
             RwUnloadingDisturbance {
-                key: (*key).to_owned(),
-                label: (*label).to_owned(),
+                key,
                 peak: Qty::from_raw(mags.iter().copied().fold(0.0, f64::max)),
                 mean: Qty::from_raw(nan_to_zero(time_mean(t, &mags))),
             }

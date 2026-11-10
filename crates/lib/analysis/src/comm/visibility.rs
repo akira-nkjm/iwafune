@@ -2,12 +2,13 @@
 //! パスの検出は `sat_astro::ground::find_passes`（[`crate::comm::passes`] 経由）。
 
 use crate::comm::passes::{
-    day_windows, find_all_passes, overlap_s, pass_interval, search_window, union_sorted,
+    SearchWindow, day_windows, find_all_passes, overlap_s, pass_interval, search_window,
+    union_sorted,
 };
 use crate::spec::{Analysis, AnalysisError, AnalysisKind, System};
 use sat_astro::ground::{GroundPass, GroundStation};
-use sat_astro::orbit::OrbitSpec;
 use sat_astro::time::Epoch;
+use sat_astro::timeline::OrbitSampling;
 use sat_units::typed::{Angle, Qty, Time};
 use serde::{Deserialize, Serialize};
 
@@ -15,15 +16,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct VisibilityInput {
-    pub orbit: OrbitSpec,
+    /// 軌道・期間・探索の刻み（AOS・LOS は二分法で詰める）・β（時系列と同じ標本の取り方。開始は軌道の元期）
+    pub sampling: OrbitSampling,
     pub stations: Vec<GroundStation>,
-    /// 探索の開始（既定は軌道の元期）
-    #[serde(default)]
-    pub start: Option<Epoch>,
-    /// 探索の期間
-    pub span: Qty<Time>,
-    /// 探索の刻み（AOS・LOS は二分法で詰める）
-    pub step: Qty<Time>,
 }
 
 /// 1 日の可視の集計。
@@ -89,19 +84,18 @@ impl Analysis for Visibility {
     type Output = VisibilityOutput;
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
-        let (start, span_s, step_s) =
-            search_window(&input.orbit, input.start, input.span, input.step)?;
-        let passes = find_all_passes(&input.orbit, &input.stations, start, span_s, step_s)?;
+        let w = search_window(&input.sampling)?;
+        let passes = find_all_passes(&w.orbit, &input.stations, w.start, w.span_s, w.step_s)?;
         let stations = input
             .stations
             .iter()
             .map(|st| {
                 let own: Vec<&GroundPass> = passes.iter().filter(|p| p.station == st.id).collect();
-                summarize(&st.id, &own, start, span_s, false)
+                summarize(&st.id, &own, &w, Contact::PerPass)
             })
             .collect();
         let all: Vec<&GroundPass> = passes.iter().collect();
-        let combined = summarize("*", &all, start, span_s, true);
+        let combined = summarize("*", &all, &w, Contact::Union);
         Ok(VisibilityOutput {
             passes,
             stations,
@@ -110,22 +104,30 @@ impl Analysis for Visibility {
     }
 }
 
-/// パスの一覧（AOS の順）を集計する。`merge` なら重なる区間をつなげてから時間を数える。
+/// 通信時間の数え方。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Contact {
+    /// パスごとの時間を足す（1 局の集計。1 局のパスは重ならない）
+    PerPass,
+    /// 重なる区間をつなげてから足す（全局の集計。同時に見える時間を二重に数えない）
+    Union,
+}
+
+/// パスの一覧（AOS の順）を集計する。通信時間の数え方は `contact`。
 fn summarize(
     station: &str,
     passes: &[&GroundPass],
-    start: Epoch,
-    span_s: f64,
-    merge: bool,
+    w: &SearchWindow,
+    contact: Contact,
 ) -> VisibilitySummary {
+    let (start, span_s) = (w.start, w.span_s);
     let raw: Vec<(f64, f64)> = passes
         .iter()
         .map(|p| pass_interval(p, start, span_s))
         .collect();
-    let intervals = if merge {
-        union_sorted(&raw)
-    } else {
-        raw.clone()
+    let intervals = match contact {
+        Contact::Union => union_sorted(&raw),
+        Contact::PerPass => raw.clone(),
     };
     let total: f64 = intervals.iter().map(|(s, e)| e - s).sum();
     let longest = raw.iter().map(|(s, e)| e - s).fold(0.0, f64::max);
@@ -176,7 +178,7 @@ fn max_gap_s(intervals: &[(f64, f64)], span_s: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::comm::passes::fixtures::{sso_orbit, tokyo};
+    use crate::comm::passes::fixtures::{one_day, sso_orbit, tokyo};
 
     #[test]
     fn gaps_include_edges() {
@@ -189,11 +191,8 @@ mod tests {
     #[test]
     fn sso_over_mid_latitude_station() {
         let out = Visibility::run(&VisibilityInput {
-            orbit: sso_orbit(),
+            sampling: one_day(sso_orbit()),
             stations: vec![tokyo()],
-            start: None,
-            span: Qty::from_raw(sat_astro::constants::SECONDS_PER_DAY),
-            step: Qty::from_raw(30.0),
         })
         .unwrap();
         let s = &out.stations[0];
@@ -211,16 +210,35 @@ mod tests {
         let mut twin = tokyo();
         twin.id = "TKY2".to_owned();
         let out = Visibility::run(&VisibilityInput {
-            orbit: sso_orbit(),
+            sampling: one_day(sso_orbit()),
             stations: vec![tokyo(), twin],
-            start: None,
-            span: Qty::from_raw(sat_astro::constants::SECONDS_PER_DAY),
-            step: Qty::from_raw(30.0),
         })
         .unwrap();
         let one = &out.stations[0];
         assert_eq!(out.combined.pass_count, 2 * one.pass_count);
         assert!((out.combined.total_contact.value() - one.total_contact.value()).abs() < 1e-6);
         assert!((out.combined.max_gap.value() - one.max_gap.value()).abs() < 1e-6);
+    }
+
+    /// β を指定すると RAAN を置き換えた軌道でパスを探す（`OrbitSampling::resolved_orbit` の軌道で探したのと一致し、
+    /// β を指定しないときとはパスの時刻が変わる）。
+    #[test]
+    fn beta_reaches_the_pass_search() {
+        let run = |sampling: OrbitSampling| {
+            Visibility::run(&VisibilityInput {
+                sampling,
+                stations: vec![tokyo()],
+            })
+            .unwrap()
+        };
+        let mut sampling = one_day(sso_orbit());
+        sampling.beta = Some(Qty::from_raw(60f64.to_radians()));
+        let with_beta = run(sampling.clone());
+        let direct = run(one_day(sampling.resolved_orbit().unwrap()));
+        assert_eq!(with_beta.passes.len(), direct.passes.len());
+        let contact = |o: &VisibilityOutput| o.combined.total_contact.value();
+        assert!((contact(&with_beta) - contact(&direct)).abs() < 1e-9);
+        let first = |o: &VisibilityOutput| o.passes.first().map(|p| p.aos.j2000_s);
+        assert_ne!(first(&run(one_day(sso_orbit()))), first(&with_beta));
     }
 }

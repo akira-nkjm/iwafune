@@ -8,7 +8,15 @@ export type CheckView = {
 /**
  * 判定の種類（例: `"dod"`）。同じ解析の中でも、モードごとに同じ key が並ぶことがある
  */
-key: string, label: string, verdict: Verdict, message: string, 
+key: string, label: string, 
+/**
+ * 英語の項目名（語彙から引いた判定だけ。null なら `label` を使う）
+ */
+label_en: string | null, verdict: Verdict, message: string, 
+/**
+ * 英語の文（語彙から引いた判定だけ。null なら `message` を使う）
+ */
+message_en: string | null, 
 /**
  * 判定そのものの場所（出力の JSON Pointer。例: `"/cases/3/checks/1"`）。判定ごとに一意
  */

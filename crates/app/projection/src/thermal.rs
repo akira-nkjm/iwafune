@@ -19,7 +19,9 @@ use sat_analysis::thermal::transient::{ThermalHeatPhase, ThermalInitial};
 use sat_analysis::thermal::{
     ThermalEnvironment, ThermalExposure, ThermalSteadyInput, ThermalTransientInput,
 };
-use sat_units::typed::{Area, Irradiance, Power, Qty, Temperature, ThermalConductance, Time};
+use sat_units::typed::{
+    Area, Fraction, Irradiance, Power, Qty, Temperature, ThermalConductance, Time,
+};
 use std::collections::BTreeMap;
 
 fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a ThermalSettings> {
@@ -195,17 +197,13 @@ fn environment(
     path: &SettingPath,
     m: &mut MissingInputs,
 ) -> ThermalEnvironment {
-    let mut env = ThermalEnvironment {
+    // 書かれていない値は None のまま渡す（既定値は解析が持つ）
+    ThermalEnvironment {
         solar_flux: qty_opt::<Irradiance>(c.solar_flux.as_ref(), path.child(&["solar_flux"]), m),
-        ..Default::default()
-    };
-    if let Some(a) = c.albedo {
-        env.albedo = a;
+        albedo: c.albedo.map(Fraction::new),
+        earth_ir: qty_opt::<Irradiance>(c.earth_ir.as_ref(), path.child(&["earth_ir"]), m),
+        space_temperature: None,
     }
-    if let Some(ir) = qty_opt::<Irradiance>(c.earth_ir.as_ref(), path.child(&["earth_ir"]), m) {
-        env.earth_ir = ir;
-    }
-    env
 }
 
 /// `thermal.steady`: `analysis.thermal` の環境条件ごとに軌道平均の 1 ケース。
@@ -222,7 +220,7 @@ pub fn steady(ctx: &Context<'_>) -> Result<ThermalSteadyInput, MissingInputs> {
         let Some(mut t) = timeline::timeline(ctx, mode, 1, &mut m) else {
             continue;
         };
-        t.beta = qty_opt(c.beta.as_ref(), path.child(&["beta"]), &mut m);
+        t.sampling.beta = qty_opt(c.beta.as_ref(), path.child(&["beta"]), &mut m);
         cases.push(ThermalSteadyCase {
             id: id.clone(),
             label: c.label.clone().unwrap_or_else(|| id.clone()),
@@ -267,9 +265,9 @@ pub fn transient(ctx: &Context<'_>) -> Result<ThermalTransientInput, MissingInpu
         &mut m,
     )
     .map(|mut t| {
-        t.beta = qty_opt(c.beta.as_ref(), path.child(&["beta"]), &mut m);
+        t.sampling.beta = qty_opt(c.beta.as_ref(), path.child(&["beta"]), &mut m);
         if let Some(step) = qty_opt::<Time>(s.time_step.as_ref(), thermal(&["time_step"]), &mut m) {
-            t.step = step;
+            t.sampling.step = step;
         }
         t
     });

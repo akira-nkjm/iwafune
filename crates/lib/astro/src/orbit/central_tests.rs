@@ -112,7 +112,7 @@ fn lunar_eclipse_fraction_at_beta_zero() {
         Qty::from_raw(5.0),
     );
     spec.shadow = ShadowModel::Cylindrical;
-    spec.beta = Some(Qty::from_raw(0.0));
+    spec.sampling.beta = Some(Qty::from_raw(0.0));
     let eclipse = 1.0 - mean_sunlit(&build(&spec).expect("時系列"));
     let (h, r) = (100e3, R_MOON + 100e3);
     let expected = ((h * h + 2.0 * R_MOON * h).sqrt() / r).acos() / core::f64::consts::PI;

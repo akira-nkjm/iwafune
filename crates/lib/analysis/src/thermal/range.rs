@@ -3,6 +3,7 @@
 use crate::spec::quantity_text;
 use crate::spec::{Check, Verdict, margin_verdict};
 use crate::thermal::network::ThermalTempRange;
+use sat_units::typed::Temperature;
 
 /// 動作範囲の端からこの幅 [K] 以内なら警告にする。出力の `range_warning_band` にも出す（Web はこれを使う）。
 pub const RANGE_WARNING_BAND_K: f64 = 5.0;
@@ -30,10 +31,10 @@ pub(crate) fn range_check(
         range_verdict(lo, hi, range),
         format!(
             "{}〜{}（動作範囲 {}〜{}）",
-            quantity_text(lo, "Temperature"),
-            quantity_text(hi, "Temperature"),
-            quantity_text(r.min.value(), "Temperature"),
-            quantity_text(r.max.value(), "Temperature")
+            quantity_text::<Temperature>(lo),
+            quantity_text::<Temperature>(hi),
+            quantity_text::<Temperature>(r.min.value()),
+            quantity_text::<Temperature>(r.max.value())
         ),
     ))
 }

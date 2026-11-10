@@ -1,9 +1,9 @@
-//! 時系列の集計の部品: 日照の判定、周回の切り出しと閉区間、周回平均、時間の割合、最長の区間、期間不足の注意。
+//! 時系列の集計の部品: 日照の判定、周回の切り出しと閉区間、周回平均、時間の割合、最長の区間、期間不足の扱い。
 //! **時系列を周回で区切って平均・割合を求めるのはここだけ。** 親の [`crate::spec`] が再公開する。
 
-use super::{Check, Verdict};
 use sat_astro::timeline::{TimelineSample, Window, time_mean};
 use sat_units::typed::{Fraction, Qty, Time};
+use serde::{Deserialize, Serialize};
 use std::ops::{Range, RangeInclusive};
 
 /// 日照とみなす日照率の下限（半影の中央）。これ以上を「日照中」、未満を「日陰」として区間や平均を数える。
@@ -120,8 +120,11 @@ pub fn longest_window(windows: &[Window]) -> Qty<Time> {
         .fold(Qty::ZERO, |a, d| if d > a { d } else { a })
 }
 
-/// 期間が 1 周に満たないとき、周回の集計を何で代えたか（[`short_span_check`] の文言）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// 期間が 1 周に満たないとき、周回の集計を何で代えたか。出力の `span_fallback` に入れる。
+/// **文言は持たない**: service がこれを注意（key `span`）にし、語彙から日本語と英語の文を引く。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "snake_case")]
 pub enum SpanFallback {
     /// 軌道平均を全期間の平均で代えた
     OrbitMeanOverSpan,
@@ -129,21 +132,10 @@ pub enum SpanFallback {
     SecularExtrapolated,
 }
 
-/// 解析期間が 1 周に満たない（`complete_orbits == 0`）ときの注意（key は `span`）。**期間不足の注意はこれを使う。**
-pub fn short_span_check(complete_orbits: usize, fallback: SpanFallback) -> Option<Check> {
-    if complete_orbits > 0 {
-        return None;
-    }
-    let consequence = match fallback {
-        SpanFallback::OrbitMeanOverSpan => "軌道平均は全期間の平均です",
-        SpanFallback::SecularExtrapolated => "永年成分は全期間から外挿しています",
-    };
-    Some(Check::new(
-        "span",
-        "解析期間",
-        Verdict::Warning,
-        format!("解析期間が 1 周に満たないため、{consequence}"),
-    ))
+/// 解析期間が 1 周に満たない（`complete_orbits == 0`）ときの代わりの集計。回り切った周回があれば `None`。
+/// **期間不足の扱いはこれを使う**（出力の `span_fallback`）。
+pub fn span_fallback(complete_orbits: usize, fallback: SpanFallback) -> Option<SpanFallback> {
+    (complete_orbits == 0).then_some(fallback)
 }
 
 #[cfg(test)]
@@ -237,8 +229,10 @@ mod tests {
             70.0
         );
         assert_eq!(longest_window(&[]).value(), 0.0);
-        assert!(short_span_check(1, SpanFallback::OrbitMeanOverSpan).is_none());
-        let c = short_span_check(0, SpanFallback::SecularExtrapolated).unwrap();
-        assert_eq!((c.key.as_str(), c.verdict), ("span", Verdict::Warning));
+        assert_eq!(span_fallback(1, SpanFallback::OrbitMeanOverSpan), None);
+        assert_eq!(
+            span_fallback(0, SpanFallback::SecularExtrapolated),
+            Some(SpanFallback::SecularExtrapolated)
+        );
     }
 }

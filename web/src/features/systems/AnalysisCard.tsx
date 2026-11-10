@@ -78,7 +78,12 @@ export function AnalysisCard({
                           {fieldLabel(s.key)}
                         </dt>
                         <dd className="num truncate font-medium text-[13px] text-ink">
-                          <FieldValue field={s.key} value={s.value} dimension={r.dims[s.pointer]} />
+                          <FieldValue
+                            field={s.key}
+                            value={s.value}
+                            dimension={r.dims[s.pointer]}
+                            label={r.labels[s.pointer]}
+                          />
                         </dd>
                       </div>
                     ))}

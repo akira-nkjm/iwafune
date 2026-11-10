@@ -25,7 +25,7 @@ fn input() -> UnloadTimeInput {
     UnloadTimeInput {
         momentum: Some(Qty::from_raw(0.01)),
         wheels: Vec::new(),
-        usable_fraction: 0.8,
+        usable_momentum_fraction: None,
         momentum_direction: Some(Vec3::Z),
         magnetorquers: vec![
             mtq("X", Vec3::X, 0.2),
@@ -46,6 +46,7 @@ fn input() -> UnloadTimeInput {
 fn mtq_time_by_hand() {
     // m_eff = 0.2（最も弱い軸）、τ = 0.5 × 0.2 × 30 µT = 3 µN·m → 0.01 / 3e-6 = 3333.3 s
     let out = UnloadTime::run(&input()).unwrap();
+    assert_eq!(out.usable_momentum_fraction, None);
     let m = out.mtq.unwrap();
     assert!((m.effective_dipole.value() - 0.2).abs() < 1e-12);
     assert!((m.torque.value() - 3e-6).abs() < 1e-18);
@@ -135,12 +136,13 @@ fn orbit_averaged_field_is_within_dipole_bounds() {
     let mut i = input();
     let orbit = leo();
     let k = (R_EARTH / orbit.elements.semi_major_axis.value()).powi(3) * B0_EARTH;
+    let period = orbit.period_s();
     i.field = Some(UnloadTimeField::Orbit {
-        orbit,
-        span: None,
-        step: None,
+        sampling: OrbitSampling::new(orbit, Qty::from_raw(period), Qty::from_raw(30.0)),
     });
     let m = UnloadTime::run(&i).unwrap().mtq.unwrap();
+    assert_eq!(m.efficiency, DEFAULT_MTQ_EFFICIENCY);
+    assert_eq!(m.assumption, UnloadAssumption::MtqMeanField);
     assert!(
         m.min_field.value() > 0.95 * k && m.max_field.value() < 2.05 * k,
         "{m:?}"
@@ -174,6 +176,8 @@ fn momentum_from_wheels_by_hand() {
         .collect();
     let out = UnloadTime::run(&i).unwrap();
     assert!((out.momentum.value() - 0.016).abs() < 1e-15);
+    // 使った割合を返す（与えた momentum なら None）
+    assert_eq!(out.usable_momentum_fraction.map(Fraction::value), Some(0.8));
     assert!((out.mtq.unwrap().time.value() - 0.016 / 3e-6).abs() < 1e-6);
     i.wheels.clear();
     assert!(UnloadTime::run(&i).is_err());

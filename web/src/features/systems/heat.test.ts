@@ -3,6 +3,7 @@ import type { ThermalSteadyOutput } from "@/api/types";
 import { heatKey, heatMapOf, heatRatio } from "./heat";
 
 describe("熱の温度表", () => {
+  const environment = { solar_flux: null, albedo: 0.3, earth_ir: 237, space_temperature: 3 };
   const out: ThermalSteadyOutput = {
     envelope: [],
     range_warning_band: 5,
@@ -11,6 +12,7 @@ describe("熱の温度表", () => {
       {
         id: "hot",
         label: "高温",
+        environment,
         iterations: 1,
         residual: 0,
         nodes: [
@@ -37,6 +39,7 @@ describe("熱の温度表", () => {
       {
         id: "cold",
         label: "",
+        environment,
         iterations: 1,
         residual: 0,
         nodes: [

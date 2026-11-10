@@ -11,7 +11,7 @@
 
 use crate::spec::quantity_text;
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Channel, Check, Series, System, Verdict,
+    Analysis, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series, System, Verdict,
     ensure_fraction, ensure_non_negative, is_sunlit, longest_window, time_fraction,
 };
 use sat_astro::ephem::{Body, CentralBody};
@@ -50,7 +50,7 @@ pub struct SensorFovSensor {
     pub exclusion_moon: Option<Qty<Angle>>,
     /// 侵入してよい時間の割合の上限（0〜1）。省略時は侵入があれば警告
     #[serde(default)]
-    pub max_intrusion_fraction: Option<f64>,
+    pub max_intrusion_fraction: Option<Fraction>,
 }
 
 /// 禁止角を調べる天体。
@@ -74,11 +74,12 @@ impl SensorFovTarget {
         }
     }
 
-    fn label(self) -> &'static str {
+    /// この天体となす角の時系列の種類（表示名は service が語彙で引く）。
+    fn channel(self) -> ChannelKind {
         match self {
-            Self::Sun => "太陽",
-            Self::EarthLimb => "地球の縁",
-            Self::Moon => "月",
+            Self::Sun => ChannelKind::SunAngle,
+            Self::EarthLimb => ChannelKind::EarthLimbAngle,
+            Self::Moon => ChannelKind::MoonAngle,
         }
     }
 
@@ -151,7 +152,7 @@ impl Analysis for SensorFov {
             validate(s)?;
         }
         let samples = timeline::build(&input.timeline)?;
-        let central = input.timeline.orbit.central;
+        let central = input.timeline.orbit().central;
         let geometry: Vec<Geometry> = samples.iter().map(|s| Geometry::at(central, s)).collect();
         let t: Vec<f64> = samples.iter().map(|s| s.t_s).collect();
         let mut series = Series {
@@ -195,7 +196,7 @@ fn validate(s: &SensorFovSensor) -> Result<(), AnalysisError> {
         }
     }
     if let Some(f) = s.max_intrusion_fraction {
-        ensure_fraction(&format!("センサ {} の侵入の割合の上限", s.id), f)?;
+        ensure_fraction(&format!("センサ {} の侵入の割合の上限", s.id), f.value())?;
     }
     Ok(())
 }
@@ -255,10 +256,9 @@ fn evaluate_sensor(
         let (angles, countable): (Vec<f64>, Vec<bool>) =
             geometry.iter().map(|g| g.angle(target, b)).unzip();
         let key = format!("{}:{}", s.id, target.key());
-        let label = format!("{} と{}のなす角", s.id, target.label());
         series
             .channels
-            .push(Channel::new(&key, &label, "Angle", angles.clone()));
+            .push(Channel::of::<Angle>(key, target.channel(), angles.clone()).about(&s.id));
         let Some(exclusion) = target.exclusion(s) else {
             continue;
         };
@@ -291,15 +291,21 @@ fn evaluate_sensor(
 fn verdict(s: &SensorFovSensor, r: &SensorFovResult) -> Check {
     let key = format!("intrusion:{}", s.id);
     let label = format!("{} の禁止角", s.id);
-    let pct = quantity_text(r.intrusion_fraction.value(), Fraction::KIND);
+    let pct = quantity_text::<Fraction>(r.intrusion_fraction.value());
     let (v, msg) = match s.max_intrusion_fraction {
-        Some(max) if r.intrusion_fraction.value() <= max => (
+        Some(max) if r.intrusion_fraction <= max => (
             Verdict::Ok,
-            format!("侵入 {pct}（上限 {}）", quantity_text(max, Fraction::KIND)),
+            format!(
+                "侵入 {pct}（上限 {}）",
+                quantity_text::<Fraction>(max.value())
+            ),
         ),
         Some(max) => (
             Verdict::Violation,
-            format!("侵入 {pct}（上限 {}）", quantity_text(max, Fraction::KIND)),
+            format!(
+                "侵入 {pct}（上限 {}）",
+                quantity_text::<Fraction>(max.value())
+            ),
         ),
         None if r.intrusion_fraction.value() > 0.0 => (Verdict::Warning, format!("侵入 {pct}")),
         None => (Verdict::Ok, "侵入なし".to_owned()),

@@ -1,7 +1,15 @@
 //! 解析の一覧と実行。解析の登録は `sat_analysis::catalog`、入力の組み立ては `fune_projection` が行う。
+//!
+//! | モジュール | 責務 |
+//! |---|---|
+//! | `dims` | 出力の量の次元と列挙の値（JSON Pointer ごと） |
+//! | `channels` | 時系列の表示名と表示単位 |
+//! | [`labels`] | 解析の出力の語彙の表示名（日本語・英語） |
+//! | `checks` | 出力の中の判定を集める（期間不足の注意は語彙から作る） |
 
 use crate::dto::{
-    AnalysisEntry, AnalysisRunResult, AnalysisRunStatus, CheckView, RunAnalysisRequest,
+    AnalysisEntry, AnalysisInputSource, AnalysisLabel, AnalysisRunResult, AnalysisRunStatus,
+    RunAnalysisRequest,
 };
 use crate::error::{Result, ServiceError};
 use crate::workspace::Workspace;
@@ -10,7 +18,9 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 mod channels;
+mod checks;
 mod dims;
+pub mod labels;
 
 /// 解析の一覧（`GET /analyses`）。
 pub fn analysis_catalog() -> Result<Vec<AnalysisEntry>> {
@@ -35,6 +45,7 @@ pub fn analysis_catalog() -> Result<Vec<AnalysisEntry>> {
 struct Outcome {
     status: AnalysisRunStatus,
     dims: BTreeMap<String, String>,
+    labels: BTreeMap<String, AnalysisLabel>,
     input: Option<Value>,
     output: Option<Value>,
     missing: Vec<MissingInput>,
@@ -46,6 +57,7 @@ impl Outcome {
         Self {
             status: AnalysisRunStatus::Failed,
             dims: BTreeMap::new(),
+            labels: BTreeMap::new(),
             input: None,
             output: None,
             missing: Vec::new(),
@@ -64,7 +76,7 @@ pub fn run_analysis(
         return Err(ServiceError::not_found("解析", id));
     }
     let outcome = run_inner(ws, id, req)?;
-    let checks = collect_checks(outcome.output.as_ref());
+    let checks = checks::collect_checks(outcome.output.as_ref());
     let verdict = sat_analysis::spec::Verdict::worst(checks.iter().map(|c| c.verdict));
     Ok(AnalysisRunResult {
         checks,
@@ -77,28 +89,27 @@ pub fn run_analysis(
         missing: outcome.missing,
         error: outcome.error,
         dims: outcome.dims,
+        labels: outcome.labels,
     })
 }
 
 fn run_inner(ws: &Workspace, id: &str, req: &RunAnalysisRequest) -> Result<Outcome> {
-    let input = match &req.input {
-        Some(v) => v.clone(),
-        None => {
+    let input = match &req.source {
+        AnalysisInputSource::Given { input } => input.clone(),
+        source => {
             // 下書き（`ops`）が通らなければ、保存・バジェットと同じエラー（検証なら診断付き）を返す
             let snapshot = crate::preview::snapshot_with(ws, &req.ops)?;
             match project(&snapshot, id, req.case.as_deref()) {
-                Ok(v) => match &req.input_patch {
-                    Some(patch) => merge_patch(v, patch),
-                    None => v,
+                Ok(v) => match source {
+                    AnalysisInputSource::Patched { patch } => merge_patch(v, patch),
+                    _ => v,
                 },
                 Err(ProjectionError::Missing(m)) => {
                     return Ok(Outcome {
                         status: AnalysisRunStatus::MissingInputs,
-                        dims: BTreeMap::new(),
-                        input: None,
-                        output: None,
                         missing: m.into_vec(),
                         error: None,
+                        ..Outcome::failed(String::new())
                     });
                 }
                 Err(e @ ProjectionError::NotImplemented(_)) => {
@@ -111,9 +122,11 @@ fn run_inner(ws: &Workspace, id: &str, req: &RunAnalysisRequest) -> Result<Outco
     Ok(match sat_analysis::catalog::run_json(id, input.clone()) {
         Ok(mut output) => {
             channels::fix_channels(&mut output);
+            let (dims, labels) = output_meta(id, &output);
             Outcome {
                 status: AnalysisRunStatus::Ok,
-                dims: output_dims(id, &output),
+                dims,
+                labels,
                 input: Some(input),
                 output: Some(output),
                 missing: Vec::new(),
@@ -125,56 +138,6 @@ fn run_inner(ws: &Workspace, id: &str, req: &RunAnalysisRequest) -> Result<Outco
             ..Outcome::failed(e.to_string())
         },
     })
-}
-
-/// 出力の中の `checks` を、出てきた順に集める（`series` の中は見ない）。
-/// 場所（JSON Pointer）と、`checks` を持つオブジェクトの `label`（無ければ `id`）を添える。
-fn collect_checks(output: Option<&Value>) -> Vec<CheckView> {
-    fn walk(value: &Value, at: &str, out: &mut Vec<CheckView>) {
-        match value {
-            Value::Object(map) => {
-                let scope = ["label", "id"]
-                    .iter()
-                    .find_map(|k| map.get(*k).and_then(Value::as_str))
-                    .map(str::to_owned);
-                for (key, child) in map {
-                    let here = format!("{at}/{}", pointer_token(key));
-                    if key == "checks" {
-                        if let Ok(checks) =
-                            serde_json::from_value::<Vec<sat_analysis::spec::Check>>(child.clone())
-                        {
-                            out.extend(checks.into_iter().enumerate().map(|(i, c)| CheckView {
-                                key: c.key,
-                                label: c.label,
-                                verdict: c.verdict,
-                                message: c.message,
-                                at: format!("{here}/{i}"),
-                                scope: if at.is_empty() { None } else { scope.clone() },
-                            }));
-                        }
-                    } else if key != "series" {
-                        walk(child, &here, out);
-                    }
-                }
-            }
-            Value::Array(items) => {
-                for (i, item) in items.iter().enumerate() {
-                    walk(item, &format!("{at}/{i}"), out);
-                }
-            }
-            _ => {}
-        }
-    }
-    let mut checks = Vec::new();
-    if let Some(output) = output {
-        walk(output, "", &mut checks);
-    }
-    checks
-}
-
-/// JSON Pointer（RFC 6901）のキーの書き方（`~` → `~0`、`/` → `~1`）。
-fn pointer_token(key: &str) -> String {
-    key.replace('~', "~0").replace('/', "~1")
 }
 
 /// 設計（依頼の `ops` があれば書き込まずに当てたもの）から解析の入力を組み立てる。
@@ -208,69 +171,34 @@ fn merge_patch(mut target: Value, patch: &Value) -> Value {
     target
 }
 
-/// 出力の量の葉ごとの次元（JSON Pointer → 次元名）。型付きの出力に戻して `dims::dims_of` で集める。
-fn output_dims(id: &str, output: &Value) -> BTreeMap<String, String> {
-    struct Collect(BTreeMap<String, String>);
+/// 出力の量の葉ごとの次元（JSON Pointer → 次元名）と、語彙の値の表示名（JSON Pointer → 表示名）。
+/// 型付きの出力に戻して `dims::meta_of` で集め、列挙の値は `labels::value_label` で引く。
+fn output_meta(
+    id: &str,
+    output: &Value,
+) -> (BTreeMap<String, String>, BTreeMap<String, AnalysisLabel>) {
+    struct Collect(dims::OutputMeta);
     impl fune_projection::OutputVisitor for Collect {
         fn visit<T: serde::Serialize>(&mut self, value: &T) {
-            self.0 = dims::dims_of(value);
+            self.0 = dims::meta_of(value);
         }
     }
-    let mut c = Collect(BTreeMap::new());
-    match fune_projection::visit_output(id, output, &mut c) {
-        Ok(()) => c.0,
-        Err(_) => BTreeMap::new(),
+    let mut c = Collect(dims::OutputMeta::default());
+    if fune_projection::visit_output(id, output, &mut c).is_err() {
+        return (BTreeMap::new(), BTreeMap::new());
     }
+    let labels =
+        c.0.variants
+            .iter()
+            .filter_map(|(at, (ty, value))| Some((at.clone(), labels::value_label(ty, value)?)))
+            .collect();
+    (c.0.dims, labels)
 }
 
 #[cfg(test)]
 mod tests {
     use super::merge_patch;
     use serde_json::json;
-
-    #[test]
-    fn collects_only_checks_and_skips_series() {
-        let check =
-            |key, verdict| json!({"key": key, "label": key, "verdict": verdict, "message": ""});
-        let output = json!({"cases": [{"checks": [check("first", "warning")]}, {"checks": [check("second", "violation")]}], "series": {"checks": [check("ignored", "ok")]}, "other": [check("not_checks", "ok")]});
-        let checks = super::collect_checks(Some(&output));
-        assert_eq!(
-            checks.iter().map(|c| c.key.as_str()).collect::<Vec<_>>(),
-            ["first", "second"]
-        );
-        assert_eq!(
-            sat_analysis::spec::Verdict::worst(checks.iter().map(|c| c.verdict)),
-            Some(sat_analysis::spec::Verdict::Violation)
-        );
-        assert!(super::collect_checks(None).is_empty());
-    }
-
-    #[test]
-    fn checks_carry_a_unique_place_and_their_owner_name() {
-        // 電力収支のように、モードごとに同じ key の判定が並ぶ（React のキーや表の行を区別できるように）
-        let check = |key| json!({"key": key, "label": key, "verdict": "ok", "message": ""});
-        let output = json!({
-            "checks": [check("total")],
-            "cases": [
-                {"id": "DOWNLINK", "label": "ダウンリンク", "checks": [check("dod"), check("depleted")]},
-                {"id": "SAFE", "checks": [check("dod")]},
-            ],
-        });
-        let checks = super::collect_checks(Some(&output));
-        let places: Vec<(&str, Option<&str>)> = checks
-            .iter()
-            .map(|c| (c.at.as_str(), c.scope.as_deref()))
-            .collect();
-        assert_eq!(
-            places,
-            [
-                ("/cases/0/checks/0", Some("ダウンリンク")),
-                ("/cases/0/checks/1", Some("ダウンリンク")),
-                ("/cases/1/checks/0", Some("SAFE")),
-                ("/checks/0", None),
-            ]
-        );
-    }
 
     #[test]
     fn merge_patch_rfc7396() {

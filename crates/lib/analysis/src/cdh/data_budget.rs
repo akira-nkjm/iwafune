@@ -10,14 +10,14 @@ use crate::modes::{DUTY_TOLERANCE, ModeDef, StateValues, UnlistedParts, evaluate
 use crate::spec::quantity_text;
 use crate::spec::{
     Analysis, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_fraction,
-    ensure_non_negative, ensure_positive, margin_verdict,
+    ensure_non_negative, ensure_positive, ratio_margin, ratio_margin_verdict,
 };
 use sat_astro::constants::SECONDS_PER_DAY;
 use sat_units::typed::{DataRate, Fraction, Information, Qty, Time};
 use serde::{Deserialize, Serialize};
 
-/// 要求するストレージ余裕の既定値（容量に対する割合）。
-pub const DEFAULT_MIN_STORAGE_MARGIN: f64 = 0.2;
+/// ストレージの容量のうち残しておく割合の既定値。**既定値はここだけ。**
+pub const DEFAULT_STORAGE_RESERVE: Fraction = Fraction::new(0.2);
 
 /// データを出す部品。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,15 +71,39 @@ pub struct DataBudgetInput {
     /// 1 日に降ろせる量（`comm.data_throughput` の `capacity_per_day` など。与えると収支を判定する）
     #[serde(default)]
     pub downlink_per_day: Option<Qty<Information>>,
-    /// 要求するストレージ余裕（0〜1、既定 [`DEFAULT_MIN_STORAGE_MARGIN`]）
+    /// ストレージの容量のうち残しておく割合（0 以上 1 未満、既定 [`DEFAULT_STORAGE_RESERVE`]）。
+    /// 必要量がこれを食い込むと警告、容量を超えると違反
     #[serde(default)]
-    pub min_storage_margin: Option<f64>,
+    pub storage_reserve: Option<Fraction>,
     /// ミッションデータの圧縮率（圧縮後 / 圧縮前、既定 1）
     #[serde(default)]
     pub compression_ratio: Option<f64>,
     /// HK に掛けるパケットの余分（割合、既定 0）
     #[serde(default)]
     pub hk_overhead: Option<f64>,
+}
+
+impl DataBudgetInput {
+    /// 残しておく割合（省略時 [`DEFAULT_STORAGE_RESERVE`]）。
+    pub fn storage_reserve(&self) -> Fraction {
+        self.storage_reserve.unwrap_or(DEFAULT_STORAGE_RESERVE)
+    }
+
+    /// ミッションデータの圧縮率（省略時 1 = 圧縮しない）。
+    pub fn compression_ratio(&self) -> f64 {
+        self.compression_ratio.unwrap_or(1.0)
+    }
+
+    /// HK に掛けるパケットの余分（省略時 0）。
+    pub fn hk_overhead(&self) -> f64 {
+        self.hk_overhead.unwrap_or(0.0)
+    }
+}
+
+/// 容量の余裕（`容量 / 必要量 − 1`）の要求値: 容量の `reserve` を残すなら `reserve / (1 − reserve)`
+/// （例: 2 割を残す → 必要量は容量の 0.8 倍まで → 余裕 0.25 以上）。
+pub fn required_capacity_margin(reserve: Fraction) -> Fraction {
+    Fraction::new(reserve.value() / (1.0 - reserve.value()))
 }
 
 /// モードごとの平均レート。
@@ -116,12 +140,14 @@ pub struct DataBudgetOutput {
     pub parts: Vec<DataBudgetPartResult>,
     /// 搭載ストレージの容量の合計（容量 × 員数）
     pub storage_capacity: Qty<Information>,
-    /// 判定に使ったストレージ余裕の要求値（入力が無ければ既定値）
-    pub min_storage_margin: Fraction,
+    /// 使った「容量のうち残しておく割合」（入力が無ければ既定値）
+    pub storage_reserve: Fraction,
+    /// 容量の余裕の要求値 = 残す割合 / (1 − 残す割合)（[`required_capacity_margin`]。これを下回ると警告）
+    pub required_capacity_margin: Fraction,
     /// 保持に必要な量 = total_per_day × retention / 1 日
     pub storage_required: Qty<Information>,
-    /// ストレージ余裕 = 1 − 必要量 / 容量（負なら足りない）
-    pub storage_margin: Fraction,
+    /// 容量の余裕 = 容量 / 必要量 − 1（[`crate::spec::ratio_margin`]。負なら足りない。必要量が 0 なら `None`）
+    pub capacity_margin: Option<Fraction>,
     /// 1 日の収支 = 降ろせる量 − 発生量（`downlink_per_day` を与えたときだけ）
     pub downlink_balance_per_day: Option<Qty<Information>>,
     pub checks: Vec<Check>,
@@ -175,7 +201,7 @@ impl Analysis for DataBudget {
 /// 既定値を埋めた係数と、足し合わせたストレージ容量。
 struct Params {
     storage_bits: f64,
-    min_margin: f64,
+    reserve: Fraction,
     compression: f64,
     hk_factor: f64,
 }
@@ -193,13 +219,18 @@ fn storage_total(storage: &[DataBudgetStorage]) -> Result<f64, AnalysisError> {
 fn validate(input: &DataBudgetInput) -> Result<(f64, Params), AnalysisError> {
     let p = Params {
         storage_bits: storage_total(&input.storage)?,
-        min_margin: input
-            .min_storage_margin
-            .unwrap_or(DEFAULT_MIN_STORAGE_MARGIN),
-        compression: input.compression_ratio.unwrap_or(1.0),
-        hk_factor: 1.0 + input.hk_overhead.unwrap_or(0.0),
+        reserve: input.storage_reserve(),
+        compression: input.compression_ratio(),
+        hk_factor: 1.0 + input.hk_overhead(),
     };
     ensure_positive("ストレージ容量の合計", p.storage_bits)?;
+    ensure_fraction("ストレージに残す割合", p.reserve.value())?;
+    // 1 だと使える量が 0 になる（バジェットのシステム余裕と同じ範囲）
+    if p.reserve.value() >= 1.0 {
+        return Err(AnalysisError::InvalidInput(
+            "ストレージに残す割合は 1 未満にします".to_owned(),
+        ));
+    }
     ensure_non_negative("保持期間", input.retention.value())?;
     ensure_non_negative("圧縮率", p.compression)?;
     ensure_non_negative("HK の余分", p.hk_factor - 1.0)?;
@@ -218,14 +249,6 @@ fn validate(input: &DataBudgetInput) -> Result<(f64, Params), AnalysisError> {
 /// 部品のレートの種類（HK とミッションデータ）。
 type Pick = fn(&DataBudgetPart) -> &StateValues<DataRate>;
 
-fn hk_rates(p: &DataBudgetPart) -> &StateValues<DataRate> {
-    &p.hk_rate
-}
-
-fn mission_rates(p: &DataBudgetPart) -> &StateValues<DataRate> {
-    &p.mission_rate
-}
-
 /// モード中の部品ごとの [HK, ミッション] の平均レート [bit/s]（係数を掛ける前）と、合計から除いた部品の警告。
 /// 平均と除外の扱いは `modes::evaluate`。レートを持たない部品は渡さないので、モードにはあるがレートの一覧に
 /// 無い部品は C&DH では正常として警告にしない（[`UnlistedParts::Ignore`]）。
@@ -234,8 +257,10 @@ fn mode_rates(
     parts: &[DataBudgetPart],
 ) -> Result<(Vec<[f64; 2]>, Vec<Check>), AnalysisError> {
     let kinds: [(&str, &str, Pick); 2] = [
-        ("hk", "HK レート", hk_rates),
-        ("mission", "ミッションデータのレート", mission_rates),
+        ("hk", "HK レート", |p| &p.hk_rate),
+        ("mission", "ミッションデータのレート", |p| {
+            &p.mission_rate
+        }),
     ];
     let mut rates = vec![[0.0; 2]; parts.len()];
     let mut checks = Vec::new();
@@ -291,15 +316,11 @@ fn build_output(
         })
         .collect();
     let required = total * input.retention.value() / SECONDS_PER_DAY;
-    let margin = 1.0 - required / p.storage_bits;
+    let margin = ratio_margin(p.storage_bits, required);
     let balance = input.downlink_per_day.map(|d| d.value() - total);
     let downlink = input.downlink_per_day.map(Qty::value);
     checks.extend(summary_checks(
-        p.min_margin,
-        share_sum,
-        margin,
-        &parts,
-        downlink,
+        p.reserve, share_sum, margin, &parts, downlink,
     )?);
     Ok(DataBudgetOutput {
         hk_per_day: Qty::from_raw(hk),
@@ -309,9 +330,10 @@ fn build_output(
         modes,
         parts,
         storage_capacity: Qty::from_raw(p.storage_bits),
-        min_storage_margin: Fraction::new(p.min_margin),
+        storage_reserve: p.reserve,
+        required_capacity_margin: required_capacity_margin(p.reserve),
         storage_required: Qty::from_raw(required),
-        storage_margin: Fraction::new(margin),
+        capacity_margin: margin,
         downlink_balance_per_day: balance.map(Qty::from_raw),
         checks,
     })
@@ -319,9 +341,9 @@ fn build_output(
 
 /// モードの割合・ストレージ余裕・送信の収支の判定。収支は `budget::limit_check`（部品ごとの 1 日の発生量 ≤ 送信可能量）。
 fn summary_checks(
-    min_margin: f64,
+    reserve: Fraction,
     share_sum: f64,
-    margin: f64,
+    margin: Option<Fraction>,
     parts: &[DataBudgetPartResult],
     downlink_per_day: Option<f64>,
 ) -> Result<Vec<Check>, AnalysisError> {
@@ -333,18 +355,23 @@ fn summary_checks(
             Verdict::Warning,
             format!(
                 "モードの割合の合計が {}（残りはデータを出さない時間とみなします）",
-                quantity_text(share_sum, Fraction::KIND)
+                quantity_text::<Fraction>(share_sum)
             ),
         ));
     }
+    // 警告の幅 = 容量の余裕の要求値（残す割合から）。必要量が容量の (1 − 残す割合) 倍を超えると警告、容量を超えると違反
+    let required = required_capacity_margin(reserve);
+    let shown = margin.map_or("必要量 0".to_owned(), |m| {
+        quantity_text::<Fraction>(m.value())
+    });
     checks.push(Check::new(
         "storage_margin",
         "ストレージ余裕",
-        margin_verdict(margin, min_margin),
+        ratio_margin_verdict(margin, required),
         format!(
-            "余裕 {}（要求 {} 以上）",
-            quantity_text(margin, Fraction::KIND),
-            quantity_text(min_margin, Fraction::KIND)
+            "容量の余裕 {shown}（要求 {} 以上 = 容量の {} を残す）",
+            quantity_text::<Fraction>(required.value()),
+            quantity_text::<Fraction>(reserve.value())
         ),
     ));
     if let Some(limit) = downlink_per_day {
@@ -355,12 +382,11 @@ fn summary_checks(
                 BudgetItem::counted(p.part.clone(), per_day, 1)
             })
             .collect();
-        checks.extend(limit_check(
+        checks.extend(limit_check::<Information>(
             &items,
             limit,
             "downlink",
             "1 日の送信可能量と発生量",
-            "Information",
         )?);
     }
     Ok(checks)

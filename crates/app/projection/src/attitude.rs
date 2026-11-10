@@ -13,7 +13,9 @@ use sat_analysis::attitude::unload_time::{UnloadTimeField, UnloadTimeMtq, Unload
 use sat_analysis::attitude::wheels::RwWheel;
 use sat_analysis::attitude::{RwUnloadingInput, SensorFovInput, UnloadTimeInput};
 use sat_astro::math::Vec3;
-use sat_units::typed::{Angle, AngularMomentum, Force, MagneticDipoleMoment, Qty, Time, Torque};
+use sat_units::typed::{
+    Angle, AngularMomentum, Force, Fraction, MagneticDipoleMoment, Qty, Time, Torque,
+};
 
 /// センサの役割（禁止角を調べる対象）。
 const SENSOR_ROLES: &[&str] = &["star_tracker", "sun_sensor", "camera"];
@@ -89,12 +91,18 @@ fn reference_box(ctx: &Context<'_>) -> Option<Vec3> {
     Some(Vec3::new(x, y, z))
 }
 
-/// RW の角運動量のうち使ってよい割合（書かれていなければ解析の既定 `wheels::default_usable_fraction`）。
-fn usable_fraction(ctx: &Context<'_>) -> f64 {
+/// RW の角運動量のうち使ってよい割合（書かれていなければ `None`。既定値は解析が持つ）。
+fn usable_momentum_fraction(ctx: &Context<'_>) -> Option<Fraction> {
     settings(ctx)
         .and_then(|s| s.usable_momentum_fraction)
-        .unwrap_or_else(sat_analysis::attitude::wheels::default_usable_fraction)
+        .map(Fraction::new)
 }
+
+/// センサ FoV の時系列の周回数（禁止角への侵入の割合は 1 周で数える）。
+const SENSOR_FOV_ORBITS: u32 = 1;
+
+/// アンロード時間の地磁気の大きさを平均する周回数。
+const UNLOAD_FIELD_ORBITS: u32 = 1;
 
 /// `attitude.rw_unloading`
 pub fn rw_unloading(ctx: &Context<'_>) -> Result<RwUnloadingInput, MissingInputs> {
@@ -108,7 +116,7 @@ pub fn rw_unloading(ctx: &Context<'_>) -> Result<RwUnloadingInput, MissingInputs
             timeline: t?,
             spacecraft: sc?,
             wheels,
-            usable_fraction: usable_fraction(ctx),
+            usable_momentum_fraction: usable_momentum_fraction(ctx),
             required_unload_interval: None,
         })
     })
@@ -132,7 +140,7 @@ pub fn unload_time(ctx: &Context<'_>) -> Result<UnloadTimeInput, MissingInputs> 
             })
         })
         .collect();
-    let orbit = ctx.orbit(&mut m);
+    let field_sampling = timeline::orbits_sampling(ctx, UNLOAD_FIELD_ORBITS, &mut m);
     let thrusters = thrusters(ctx, &mut m);
     let center_of_mass = if thrusters.is_empty() {
         None
@@ -143,15 +151,15 @@ pub fn unload_time(ctx: &Context<'_>) -> Result<UnloadTimeInput, MissingInputs> 
         Some(UnloadTimeInput {
             momentum: None,
             wheels,
-            usable_fraction: usable_fraction(ctx),
+            usable_momentum_fraction: usable_momentum_fraction(ctx),
             momentum_direction: None,
             magnetorquers: mtq,
             field: Some(UnloadTimeField::Orbit {
-                orbit: orbit?,
-                span: None,
-                step: None,
+                sampling: field_sampling?,
             }),
-            mtq_efficiency: settings(ctx).and_then(|s| s.unload_dipole_fraction),
+            mtq_efficiency: settings(ctx)
+                .and_then(|s| s.unload_dipole_fraction)
+                .map(Fraction::new),
             thrusters,
             center_of_mass,
             required_time: None,
@@ -183,7 +191,7 @@ fn thrusters(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<UnloadTimeThruster
 pub fn sensor_fov(ctx: &Context<'_>) -> Result<SensorFovInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let mode = timeline::case_mode_id(ctx);
-    let t = timeline::timeline(ctx, mode.as_deref(), 1, &mut m);
+    let t = timeline::timeline(ctx, mode.as_deref(), SENSOR_FOV_ORBITS, &mut m);
     let angle =
         |p: &fune_model::resolve::ResolvedPart, a: &str| p.scalar(a).map(Qty::<Angle>::from_raw);
     let sensors: Vec<SensorFovSensor> = ctx

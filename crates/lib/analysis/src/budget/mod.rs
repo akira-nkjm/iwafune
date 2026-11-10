@@ -10,6 +10,7 @@
 
 use crate::spec::quantity_text;
 use crate::spec::{AnalysisError, Check, Verdict, ensure_fraction, ensure_non_negative};
+use sat_units::typed::{Fraction, NamedKind};
 use serde::{Deserialize, Serialize};
 
 /// バジェットの 1 行（部品など）。
@@ -49,15 +50,14 @@ pub fn counted_total(items: &[BudgetItem]) -> Result<f64, AnalysisError> {
 }
 
 /// 成長余裕込みの合計 ≤ 上限 `limit` の判定（システム余裕なしの [`budget_rollup`] と [`BudgetRollup::check`]）。
-/// 例: 総質量・1 日の送信可能量・未送信データとストレージ。
-pub fn limit_check(
+/// 例: 総質量・1 日の送信可能量・未送信データとストレージ。値の次元は型 `K`（`limit_check::<Information>(…)`）。
+pub fn limit_check<K: NamedKind>(
     items: &[BudgetItem],
     limit: f64,
     key: &str,
     label: &str,
-    dimension: &str,
 ) -> Result<Option<Check>, AnalysisError> {
-    Ok(budget_rollup(items, Some(limit), 0.0)?.check(key, label, dimension))
+    Ok(budget_rollup(items, Some(limit), 0.0)?.check::<K>(key, label))
 }
 
 /// 1 行の集計。
@@ -111,8 +111,8 @@ pub struct BudgetRollup {
 }
 
 impl BudgetRollup {
-    /// 判定を `Check` にする（上限が無ければ `None`）。`key`・`label` と値の `dimension` は呼び出し側が決める。
-    pub fn check(&self, key: &str, label: &str, dimension: &str) -> Option<Check> {
+    /// 判定を `Check` にする（上限が無ければ `None`）。`key`・`label` と値の次元の型 `K` は呼び出し側が決める。
+    pub fn check<K: NamedKind>(&self, key: &str, label: &str) -> Option<Check> {
         let (allowed, verdict, limit) = (self.allowed?, self.verdict?, self.limit?);
         Some(Check::new(
             key,
@@ -120,10 +120,10 @@ impl BudgetRollup {
             verdict,
             format!(
                 "成長余裕込み {} / 使ってよい量 {}（上限 {} × (1 − システム余裕 {})）",
-                quantity_text(self.total_with_growth, dimension),
-                quantity_text(allowed, dimension),
-                quantity_text(limit, dimension),
-                quantity_text(self.system_margin, sat_units::typed::Fraction::KIND)
+                quantity_text::<K>(self.total_with_growth),
+                quantity_text::<K>(allowed),
+                quantity_text::<K>(limit),
+                quantity_text::<Fraction>(self.system_margin)
             ),
         ))
     }
@@ -209,6 +209,7 @@ fn add_to_group(groups: &mut Vec<BudgetGroup>, row: &BudgetRollupRow) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sat_units::typed::{Information, Mass};
 
     fn item(id: &str, group: &str, value: f64, count: u32, growth: f64) -> BudgetItem {
         BudgetItem {
@@ -241,7 +242,7 @@ mod tests {
         let over = budget_rollup(&items, Some(0.65), 0.1).unwrap();
         assert_eq!(over.verdict, Some(Verdict::Violation));
         assert_eq!(
-            over.check("mass", "質量", "Mass").unwrap().verdict,
+            over.check::<Mass>("mass", "質量").unwrap().verdict,
             Verdict::Violation
         );
     }
@@ -256,9 +257,9 @@ mod tests {
         ];
         assert!((counted_total(&storage).unwrap() - 160.0 * gb).abs() < 1.0);
         // 160 GB ≤ 200 GB は ok、≤ 150 GB は超過
-        let ok = limit_check(&storage, 200.0 * gb, "k", "l", "Information").unwrap();
+        let ok = limit_check::<Information>(&storage, 200.0 * gb, "k", "l").unwrap();
         assert_eq!(ok.unwrap().verdict, Verdict::Ok);
-        let over = limit_check(&storage, 150.0 * gb, "k", "l", "Information").unwrap();
+        let over = limit_check::<Information>(&storage, 150.0 * gb, "k", "l").unwrap();
         assert_eq!(over.unwrap().verdict, Verdict::Violation);
         assert!(counted_total(&[BudgetItem::counted("A", f64::NAN, 1)]).is_err());
     }
@@ -267,7 +268,7 @@ mod tests {
     fn no_limit_means_no_verdict() {
         let r = budget_rollup(&[item("A", "", 1.0, 2, 0.0)], None, 0.0).unwrap();
         assert!((r.total - 2.0).abs() < 1e-12);
-        assert!(r.verdict.is_none() && r.check("k", "l", "Mass").is_none());
+        assert!(r.verdict.is_none() && r.check::<Mass>("k", "l").is_none());
         assert!(budget_rollup(&[item("A", "", 1.0, 1, -0.1)], None, 0.0).is_err());
         assert!(budget_rollup(&[], Some(1.0), 1.5).is_err());
     }

@@ -20,6 +20,6 @@ pub use network::{
     ThermalConductiveLink, ThermalLoad, ThermalNetwork, ThermalNode, ThermalRadiativeLink,
     ThermalSurface, ThermalTempRange,
 };
-pub use orbit_heat::{ThermalEnvironment, ThermalExposure};
+pub use orbit_heat::{ThermalEnvironment, ThermalEnvironmentUsed, ThermalExposure};
 pub use steady::{ThermalSteady, ThermalSteadyInput, ThermalSteadyOutput};
 pub use transient::{ThermalTransient, ThermalTransientInput, ThermalTransientOutput};

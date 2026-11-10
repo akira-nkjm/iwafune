@@ -1,42 +1,43 @@
 //! 出力の時系列と判定。
 
 use super::trace::Trace;
-use super::{RwUnloadingInput, RwUnloadingOutput};
-use crate::attitude::disturbance::{DISTURBANCE_KINDS, DisturbanceTorques};
+use super::{RwUnloadingInput, RwUnloadingOutput, TORQUE_MARGIN_WARNING_BAND};
+use crate::attitude::disturbance::{DisturbanceKind, DisturbanceTorques};
 use crate::spec::quantity_text;
-use crate::spec::{Channel, Check, Series, SpanFallback, Verdict, short_span_check};
+use crate::spec::{Channel, ChannelKind, Check, Series, Verdict, ratio_margin_verdict};
 use sat_astro::math::Vec3;
+use sat_units::typed::{AngularMomentum, Fraction, Time, TorqueKind};
 
 pub(super) fn series(input: &RwUnloadingInput, tr: &Trace) -> Series {
-    let torque = |key: &str, label: &str, f: &dyn Fn(&DisturbanceTorques) -> f64| {
+    let torque = |key: &str, kind: ChannelKind, f: &dyn Fn(&DisturbanceTorques) -> f64| {
         let v = tr.torques.iter().map(f).collect();
-        Channel::new(&format!("torque:{key}"), label, "Torque", v)
+        Channel::of::<TorqueKind>(format!("torque:{key}"), kind, v)
     };
-    let momentum = |key: &str, label: &str, f: &dyn Fn(&Vec3) -> f64| {
+    let momentum = |key: &str, kind: ChannelKind, f: &dyn Fn(&Vec3) -> f64| {
         let v = tr.h_body.iter().map(f).collect();
-        Channel::new(&format!("momentum:{key}"), label, "AngularMomentum", v)
+        Channel::of::<AngularMomentum>(format!("momentum:{key}"), kind, v)
     };
-    let mut channels: Vec<Channel> = DISTURBANCE_KINDS
+    let mut channels: Vec<Channel> = DisturbanceKind::ALL
         .iter()
         .enumerate()
-        .map(|(i, (key, label))| torque(key, label, &|d| d.by_kind()[i].norm()))
+        .map(|(i, k)| torque(k.key(), k.channel(), &|d| d.by_kind()[i].norm()))
         .collect();
-    channels.push(torque("total", "擾乱トルクの合計", &|d| {
+    channels.push(torque("total", ChannelKind::TotalDisturbanceTorque, &|d| {
         d.total().norm()
     }));
-    channels.push(momentum("x", "角運動量 x（機体）", &|h| h.x));
-    channels.push(momentum("y", "角運動量 y（機体）", &|h| h.y));
-    channels.push(momentum("z", "角運動量 z（機体）", &|h| h.z));
-    channels.push(momentum("norm", "角運動量の大きさ", &|h| h.norm()));
+    channels.push(momentum("x", ChannelKind::MomentumX, &|h| h.x));
+    channels.push(momentum("y", ChannelKind::MomentumY, &|h| h.y));
+    channels.push(momentum("z", ChannelKind::MomentumZ, &|h| h.z));
+    channels.push(momentum("norm", ChannelKind::MomentumNorm, &|h| h.norm()));
     for (w, values) in input.wheels.iter().zip(&tr.wheel_h) {
-        let label = format!("{} の角運動量", w.id);
-        let key = format!("wheel:{}", w.id);
-        channels.push(Channel::new(
-            &key,
-            &label,
-            "AngularMomentum",
-            values.clone(),
-        ));
+        channels.push(
+            Channel::of::<AngularMomentum>(
+                format!("wheel:{}", w.id),
+                ChannelKind::WheelMomentum,
+                values.clone(),
+            )
+            .about(&w.id),
+        );
     }
     Series {
         t: tr.t.clone(),
@@ -56,21 +57,18 @@ pub(super) fn verdicts(input: &RwUnloadingInput, o: &RwUnloadingOutput) -> Vec<C
         } else {
             format!(
                 "周期成分は容量の {}",
-                quantity_text(
-                    o.cyclic_amplitude.value() / o.capacity.value(),
-                    sat_units::typed::Fraction::KIND
-                )
+                quantity_text::<Fraction>(o.cyclic_amplitude.value() / o.capacity.value())
             )
         },
     ));
-    if let Some(m) = o.torque_margin {
+    if let Some(m) = o.min_torque_margin {
         checks.push(Check::new(
             "torque_margin",
             "トルクの余裕",
-            Verdict::from_ok(m >= 1.0),
+            ratio_margin_verdict(Some(m), TORQUE_MARGIN_WARNING_BAND),
             format!(
-                "最大トルク / 必要トルク = {}",
-                quantity_text(m, sat_units::typed::Fraction::KIND)
+                "余裕（最大トルク / 必要トルク − 1）{}",
+                quantity_text::<Fraction>(m.value())
             ),
         ));
     }
@@ -80,12 +78,8 @@ pub(super) fn verdicts(input: &RwUnloadingInput, o: &RwUnloadingOutput) -> Vec<C
             "unload_interval",
             "アンロード間隔の要求",
             Verdict::from_ok(ok),
-            format!("要求 {} 以上", quantity_text(req.value(), "Time")),
+            format!("要求 {} 以上", quantity_text::<Time>(req.value())),
         ));
     }
-    checks.extend(short_span_check(
-        o.complete_orbits,
-        SpanFallback::SecularExtrapolated,
-    ));
     checks
 }

@@ -9,7 +9,7 @@ import {
   YAxis,
 } from "recharts";
 import type { DisplayChannel as Channel, DisplaySeries as Series } from "@/api/types";
-import { useT } from "@/i18n";
+import { localized, useT } from "@/i18n";
 import { toneAt, toneHex } from "@/lib/tone";
 import { numText } from "@/quantity/chart";
 
@@ -44,7 +44,7 @@ export function SeriesChart({ series, title }: { series: Series; title?: string 
           <figure key={unit} className="m-0">
             <figcaption className="mb-1 text-ink-3 text-xs">
               {title ? `${title} · ` : ""}
-              {chans.map((c) => c.label).join(tr.systems.seriesSep)}
+              {chans.map((c) => localized(c.label, c.label_en)).join(tr.systems.seriesSep)}
               {tr.systems.seriesUnit(unit || "—")}
             </figcaption>
             <div className="h-56">
@@ -85,7 +85,7 @@ export function SeriesChart({ series, title }: { series: Series; title?: string 
                     <Line
                       key={c.key}
                       dataKey={c.key}
-                      name={c.label}
+                      name={localized(c.label, c.label_en)}
                       dot={false}
                       isAnimationActive={false}
                       strokeWidth={1.5}

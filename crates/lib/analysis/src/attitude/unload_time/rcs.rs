@@ -7,6 +7,7 @@
 //! −ĥ と直交するトルクと正味の推力は打ち消さずに残るので、副作用として返す。
 //! ĥ を与えなければ機体の ±x・±y・±z の 6 方向で評価し、最も時間がかかる方向を `worst` にする。
 
+use super::UnloadAssumption;
 use crate::spec::{AnalysisError, ensure_positive};
 use sat_astro::constants::G0;
 use sat_astro::math::Vec3;
@@ -34,7 +35,8 @@ pub struct UnloadTimeRcs {
     pub directions: Vec<UnloadTimeRcsResult>,
     /// 最も時間がかかる方向（捨てられない方向があればそれ）
     pub worst: UnloadTimeRcsResult,
-    pub assumption: String,
+    /// 仮定（文は service が語彙で引く）
+    pub assumption: UnloadAssumption,
 }
 
 /// 1 方向の結果。
@@ -58,9 +60,6 @@ pub struct UnloadTimeRcsResult {
     /// 噴射するスラスタの ID
     pub thrusters: Vec<String>,
 }
-
-/// 仮定の説明。
-pub const RCS_ASSUMPTION: &str = "−H 向きのトルク成分が正のスラスタをすべて同時に連続噴射する（オン・オフのみ）。H と直交するトルクと正味の推力は打ち消さずに残る";
 
 /// スラスタの値を調べ、各スラスタの (トルク [N·m], 推力 [N], Isp [s]) を返す。
 fn thruster_torques(
@@ -161,6 +160,6 @@ pub fn rcs_unload(
     Ok(UnloadTimeRcs {
         directions,
         worst,
-        assumption: RCS_ASSUMPTION.to_owned(),
+        assumption: UnloadAssumption::RcsSimultaneousFiring,
     })
 }

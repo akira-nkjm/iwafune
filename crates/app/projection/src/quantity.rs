@@ -4,7 +4,7 @@
 use crate::missing::MissingInputs;
 use fune_model::Target;
 use fune_model::value::Quantity;
-use sat_units::typed::{Dimension, Qty};
+use sat_units::typed::{Decibel, Dimension, Qty};
 
 /// 書かれた量を `Qty<D>` にする。無いとき・次元が違うときは `m` に記録して `None`。
 pub fn qty<D: Dimension>(
@@ -50,10 +50,15 @@ pub fn si<D: Dimension>(q: &Quantity) -> Result<Qty<D>, String> {
 }
 
 /// 量を dB に（単位どおりに SI の線形の比へ直してから `sat_units::ratio_to_db`。単位の無い値は線形の比、`dB` と書けば dB）。
-pub fn db(q: Option<&Quantity>) -> Option<f64> {
+pub fn db(q: Option<&Quantity>) -> Option<Decibel> {
     let q = q?;
     let ratio = fune_model::value::units::to_si(q.value, &q.unit).ok()?;
-    (ratio > 0.0).then(|| sat_units::ratio_to_db(ratio))
+    ratio_db(ratio)
+}
+
+/// 線形の比（解決済みの値）を dB に（`sat_units::ratio_to_db`）。正でなければ `None`。
+pub fn ratio_db(ratio: f64) -> Option<Decibel> {
+    (ratio > 0.0).then(|| Decibel::new(sat_units::ratio_to_db(ratio)))
 }
 
 /// SI の数値から `Qty<D>`（resolve 済みの SI 値を型に載せる）。

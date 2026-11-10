@@ -10,7 +10,7 @@ import type { Vec3 } from "./Vec3";
  */
 export type UnloadTimeInput = { 
 /**
- * 捨てる角運動量（大きさ）。省略時は `wheels` の最大角運動量の最大 × `usable_fraction`
+ * 捨てる角運動量（大きさ）。省略時は `wheels` の最大角運動量の最大 × `usable_momentum_fraction`
  */
 momentum: number | null, 
 /**
@@ -18,9 +18,9 @@ momentum: number | null,
  */
 wheels: Array<RwWheel>, 
 /**
- * 最大角運動量のうち使ってよい割合（0〜1）。省略時 0.8
+ * 最大角運動量のうち使ってよい割合（0〜1）。省略時 [`super::wheels::DEFAULT_USABLE_MOMENTUM_FRACTION`]
  */
-usable_fraction: number, 
+usable_momentum_fraction: number | null, 
 /**
  * 捨てる角運動量の向き ĥ（機体座標系。RCS の評価に使う）。省略時は機体の ±x・±y・±z で評価して最悪を取る
  */
@@ -34,7 +34,7 @@ magnetorquers: Array<UnloadTimeMtq>,
  */
 field: UnloadTimeField | null, 
 /**
- * MTQ の平均の有効率（0〜1）。省略時 0.5
+ * MTQ の平均の有効率（0〜1）。省略時 [`DEFAULT_MTQ_EFFICIENCY`]
  */
 mtq_efficiency: number | null, 
 /**
