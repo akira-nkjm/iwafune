@@ -10,7 +10,18 @@ import {
   kindLabel,
   nodeName,
   paramPath,
+  withNote,
 } from "./design";
+
+describe("withNote", () => {
+  it("日本語は全角の括弧、英語は半角の括弧。補足が無いか主と同じなら主だけ", () => {
+    expect(withNote("TRX", "transceiver", "ja")).toBe("TRX（transceiver）");
+    expect(withNote("TRX", "transceiver", "en")).toBe("TRX (transceiver)");
+    expect(withNote("TRX", "TRX", "ja")).toBe("TRX");
+    expect(withNote("TRX", null, "ja")).toBe("TRX");
+    expect(withNote("TRX", "", "en")).toBe("TRX");
+  });
+});
 
 describe("nodeName / idWithName", () => {
   const mode = { id: "CHARGE", label: "充電" };

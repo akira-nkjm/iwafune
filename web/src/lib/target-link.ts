@@ -1,13 +1,14 @@
 import type { DesignTarget } from "@/api/types";
+import { paths } from "./nav";
 
 /** 部品のページ。設計に無い部品（読み込めなかったファイルなど）は開けないので null */
 function partPage(id: string, partIds: ReadonlySet<string>): string | null {
-  return partIds.has(id) ? `/design/components/${id}` : null;
+  return partIds.has(id) ? paths.component(id) : null;
 }
 
 /**
  * 診断・不足入力の対象（API が構造で返す `DesignTarget`）→ 直しに行くページの URL。開くページが無ければ null。
- * 表示用のパスの文字列は分解しない。`partIds` は設計にある部品の ID。
+ * 表示用のパスの文字列は分解しない。`partIds` は設計にある部品の ID。URL は `lib/nav.ts` の `paths` で作る。
  */
 export function targetLink(
   target: DesignTarget | null,
@@ -22,25 +23,25 @@ export function targetLink(
     case "pose":
       return partPage(target.part, partIds);
     case "param":
-      return target.target === "setting" ? "/project/settings" : partPage(target.part, partIds);
+      return target.target === "setting" ? paths.settings() : partPage(target.part, partIds);
     case "any_part":
     case "group":
-      return "/design/components";
+      return paths.components();
     case "mode":
     case "modes":
-      return "/design/modes";
+      return paths.modes();
     case "net":
     case "harness":
     case "view":
-      return "/design/diagram";
+      return paths.diagram();
     case "case":
-      return "/mission/cases";
+      return paths.cases();
     case "catalog":
-      return `/design/catalog/${encodeURIComponent(target.id)}`;
+      return paths.catalogItem(target.id);
     case "attribute_def":
-      return "/design/defs/attributes";
+      return paths.defs("attributes");
     case "kind_def":
-      return "/design/defs/kinds";
+      return paths.defs("kinds");
     case "source":
     case "analysis":
       return null;

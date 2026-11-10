@@ -2,8 +2,8 @@ import { LayoutGrid, Redo2, RotateCcw, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
-import { Empty } from "@/kit/Empty";
-import { Loading, SkeletonCanvas } from "@/kit/Loading";
+import { SkeletonCanvas } from "@/kit/Loading";
+import { QueryState } from "@/kit/QueryState";
 import { CanvasFrame } from "@/shell/CanvasFrame";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
@@ -75,95 +75,100 @@ export function DiagramPage() {
             : undefined
         }
       />
-      {design.isError ? (
-        <Empty>{t.common.cannotLoadDesign(design.error.message)}</Empty>
-      ) : !d || !model || !layout ? (
-        <Loading className="flex min-h-0 flex-1 flex-col">
-          <SkeletonCanvas />
-        </Loading>
-      ) : (
-        <CanvasFrame
-          toolbar={
-            <>
-              <DiagramToolbar
-                layers={layers}
-                onLayers={setLayers}
-                merge={merge}
-                onMerge={setMerge}
-              />
-              <Button
-                size="icon-sm"
-                variant="outline"
-                title={td.undoTitle}
-                aria-label={td.undo}
-                disabled={!history.canUndo}
-                onClick={undo}
-              >
-                <Undo2 size={13} />
-              </Button>
-              <Button
-                size="icon-sm"
-                variant="outline"
-                title={td.redoTitle}
-                aria-label={td.redo}
-                disabled={!history.canRedo}
-                onClick={redo}
-              >
-                <Redo2 size={13} />
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                title={td.autoLayoutTitle}
-                onClick={flow.autoLayout}
-              >
-                <LayoutGrid size={13} />
-                {td.autoLayout}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                title={td.resetLayoutTitle}
-                onClick={() => {
-                  flow.resetMoved();
-                  editRoute(null);
-                }}
-              >
-                <RotateCcw size={13} />
-                {td.resetLayout}
-              </Button>
-            </>
-          }
-          inspector={{
-            open: inspectorOpen,
-            onToggle: toggleInspector,
-            title: td.inspectorTitle,
-            showLabel: td.showInspector,
-            hideLabel: td.hideInspector,
-            content: (
-              <DiagramInspector
-                design={d}
-                model={model}
-                selected={selected}
-                onSelect={setSelected}
-              />
-            ),
-          }}
-        >
-          <DiagramCanvas
-            nodes={flow.nodes}
-            edges={flow.edges}
-            selected={selected}
-            onSelect={setSelected}
-            onNodesChange={flow.onNodesChange}
-            onEdgesChange={flow.onEdgesChange}
-            onConnect={connect.onConnect}
-            onEdgesDelete={connect.onEdgesDelete}
-            onNodeDragStop={flow.onNodeDragStop}
-          />
-          <DiagramLegend categories={model.legend} signal={layers.has("signal")} />
-        </CanvasFrame>
-      )}
+      {/* 設計から作った図（配置は空き時間に計算する）ができるまでは、図のスケルトン */}
+      <QueryState
+        query={{
+          data: d && model && layout ? { design: d, model } : undefined,
+          error: design.error,
+          refetch: design.refetch,
+        }}
+        className="flex min-h-0 flex-1 flex-col"
+        skeleton={<SkeletonCanvas />}
+      >
+        {(shown) => (
+          <CanvasFrame
+            toolbar={
+              <>
+                <DiagramToolbar
+                  layers={layers}
+                  onLayers={setLayers}
+                  merge={merge}
+                  onMerge={setMerge}
+                />
+                <Button
+                  size="icon-sm"
+                  variant="outline"
+                  title={td.undoTitle}
+                  aria-label={td.undo}
+                  disabled={!history.canUndo}
+                  onClick={undo}
+                >
+                  <Undo2 size={13} />
+                </Button>
+                <Button
+                  size="icon-sm"
+                  variant="outline"
+                  title={td.redoTitle}
+                  aria-label={td.redo}
+                  disabled={!history.canRedo}
+                  onClick={redo}
+                >
+                  <Redo2 size={13} />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  title={td.autoLayoutTitle}
+                  onClick={flow.autoLayout}
+                >
+                  <LayoutGrid size={13} />
+                  {td.autoLayout}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  title={td.resetLayoutTitle}
+                  onClick={() => {
+                    flow.resetMoved();
+                    editRoute(null);
+                  }}
+                >
+                  <RotateCcw size={13} />
+                  {td.resetLayout}
+                </Button>
+              </>
+            }
+            inspector={{
+              open: inspectorOpen,
+              onToggle: toggleInspector,
+              title: td.inspectorTitle,
+              showLabel: td.showInspector,
+              hideLabel: td.hideInspector,
+              content: (
+                <DiagramInspector
+                  design={shown.design}
+                  model={shown.model}
+                  selected={selected}
+                  onSelect={setSelected}
+                />
+              ),
+            }}
+          >
+            <DiagramCanvas
+              nodes={flow.nodes}
+              edges={flow.edges}
+              selected={selected}
+              onSelect={setSelected}
+              onNodesChange={flow.onNodesChange}
+              onEdgesChange={flow.onEdgesChange}
+              onConnect={connect.onConnect}
+              onEdgesDelete={connect.onEdgesDelete}
+              onNodeDragStop={flow.onNodeDragStop}
+            />
+            <DiagramLegend categories={shown.model.legend} signal={layers.has("signal")} />
+          </CanvasFrame>
+        )}
+      </QueryState>
       {connect.pending && (
         <NewNetDialog
           view={layers.has("power") && !layers.has("signal") ? "power" : "signal"}

@@ -1,48 +1,61 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { api, seg } from "@/api/client";
-import type { DataStatus } from "@/api/gen";
+import { useQuery } from "@tanstack/react-query";
+import { useFetchData } from "@/api/data";
+import { q } from "@/api/queries";
+import type { DataItem } from "@/api/types";
 import { useT } from "@/i18n";
 import { Panel } from "@/kit/Panel";
 import { PanelHeader } from "@/kit/PanelHeader";
+import { Button } from "@/ui/button";
 
-/** 外部データの状態と取得。サービスの検証結果を表示する。 */
+/** 外部データ（天体の暦など）の状態と取得。状態の検証はサービスが行い、ここは表示するだけ */
 export function DataPanel() {
-  const t = useT();
-  const words = t.project.data;
-  const status = useQuery({
-    queryKey: ["data-status"],
-    queryFn: () => api<DataStatus>("/data/status"),
-  });
-  const { refetch: refresh } = status;
-  const fetchData = useMutation({
-    mutationFn: (id: string) => api<DataStatus>(`/data/${seg(id)}/fetch`, { method: "POST" }),
-    onSuccess: () => {
-      void refresh();
-    },
-  });
+  const words = useT().project.data;
+  const status = useQuery(q.dataStatus());
+  const fetchData = useFetchData();
+  const error = status.error ?? fetchData.error;
   return (
     <Panel>
-      <PanelHeader title="DE440" caption={status.data?.ephemeris} />
-      {status.data?.items.map((item) => (
-        <div key={item.id} className="flex items-center gap-3 text-xs">
-          <span>
-            {item.id}:{" "}
-            {item.installed ? words.installed : item.present ? words.cached : words.missing}{" "}
-            {item.size?.display}
-          </span>
-          <button
-            type="button"
-            disabled={fetchData.isPending}
-            onClick={() => fetchData.mutate(item.id)}
-          >
-            {fetchData.isPending ? words.fetching : words.fetch}
-          </button>
-          {item.install_error && <span role="alert">{item.install_error}</span>}
-        </div>
-      ))}
-      {(status.error || fetchData.error) && (
-        <p role="alert">{(status.error || fetchData.error)?.message}</p>
+      <PanelHeader
+        title={words.title}
+        caption={status.data ? words.ephemeris[status.data.ephemeris] : undefined}
+      />
+      <ul className="space-y-1.5">
+        {status.data?.items.map((item) => (
+          <li key={item.id} className="flex items-center gap-3 text-xs">
+            <span>
+              <span className="font-mono">{item.id}</span>: {stateText(item, words)}{" "}
+              {item.size?.display}
+            </span>
+            <Button
+              variant="outline"
+              size="xs"
+              disabled={fetchData.isPending}
+              onClick={() => fetchData.mutate(item.id)}
+            >
+              {fetchData.isPending ? words.fetching : words.fetch}
+            </Button>
+            {item.install_error && (
+              <span role="alert" className="text-neg-ink">
+                {item.install_error}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+      {error && (
+        <p role="alert" className="mt-2 text-neg-ink text-xs">
+          {error.message}
+        </p>
       )}
     </Panel>
   );
+}
+
+/** 1 つのデータの状態（読み込み済み・キャッシュ済み・未取得） */
+function stateText(
+  item: DataItem,
+  words: { installed: string; cached: string; missing: string },
+): string {
+  if (item.installed) return words.installed;
+  return item.present ? words.cached : words.missing;
 }

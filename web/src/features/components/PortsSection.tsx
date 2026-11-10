@@ -5,7 +5,7 @@ import { NativeSelect } from "@/kit/NativeSelect";
 import { Pill } from "@/kit/Pill";
 import { PropertyList } from "@/kit/PropertyList";
 import { PropertyRow } from "@/kit/PropertyRow";
-import { type PortRole, portRole } from "@/lib/design";
+import { type PortRole, portRole, withNote } from "@/lib/design";
 
 const roleTone = {
   power_in: "pos",
@@ -58,7 +58,10 @@ export function PortsSection({ design, part }: { design: DesignView; part: PartR
               }
               options={design.nets.map((n) => ({
                 value: n.id,
-                label: `${n.id}（${n.kind}${n.rail ? ` ${n.rail.display}` : n.protocol ? ` ${n.protocol}` : ""}）`,
+                label: withNote(
+                  n.id,
+                  [n.kind, n.rail?.display ?? n.protocol].filter(Boolean).join(" "),
+                ),
               }))}
             />
           </PropertyRow>

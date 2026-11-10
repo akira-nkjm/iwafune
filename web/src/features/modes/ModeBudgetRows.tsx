@@ -1,29 +1,33 @@
-import { useQuery } from "@tanstack/react-query";
 import type { ReactNode } from "react";
-import { q } from "@/api/queries";
-import type { BudgetRow, ModeHeader, Op } from "@/api/types";
+import type { BudgetRow, BudgetView, ModeHeader } from "@/api/types";
 import { useT } from "@/i18n";
 import { Loading, SkeletonLines } from "@/kit/Loading";
 import { VerdictPill } from "@/kit/VerdictPill";
 import { cn } from "@/lib/cn";
 import { STICKY } from "./matrix";
+import type { DraftComputed } from "./use-mode-draft-load";
 
 /**
  * 表の足もとの 3 行: モードごとの合計（成長余裕込み）・使用可能電力（上限からシステム余裕を引いたもの）・
  * 余裕と判定。どれも電力のバジェット（`/budgets/power` の `modes`）の値で、集計と判定はサーバーが行う。
- * 下書き（`ops`）があれば、それを書き込まずに当てた値（問い合わせの間は前の値を薄く出す）。
+ * 下書きがあれば、それを書き込まずに当てた値（問い合わせは `useModeDraftLoad`。その間は前の値を薄く出す）。
  */
-export function ModeBudgetRows({ modes, ops }: { modes: ModeHeader[]; ops: readonly Op[] }) {
+export function ModeBudgetRows({
+  modes,
+  budget,
+}: {
+  modes: ModeHeader[];
+  budget: DraftComputed<BudgetView | undefined>;
+}) {
   const t = useT();
   const tm = t.modes;
-  const budget = useQuery(q.budget("power", ops));
-  const dim = budget.isFetching && !budget.isPending && "opacity-50";
+  const dim = budget.updating && "opacity-50";
   const cells = (className: string, render: (row: BudgetRow) => ReactNode) =>
     modes.map((mode) => {
       const row = budget.data?.modes.find((m) => m.node === mode.id);
       return (
         <td key={mode.id} className={className}>
-          {budget.isPending ? (
+          {budget.pending ? (
             <Loading>
               <SkeletonLines lines={1} />
             </Loading>

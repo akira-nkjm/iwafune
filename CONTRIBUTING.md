@@ -20,7 +20,9 @@
 
 `cargo xtask check` が機械的に検査する: 依存の向き、モジュールの循環、台帳、「1 か所だけ」の規則（`crates/xtask/src/single_home.rs`）、
 Web の禁止事項（`fetch(` は API クライアントだけ、数の整形・`Intl.NumberFormat` は `web/src/quantity/` だけ、色の直書き（hex・`white` などの色の名前）と色の混ぜ方（`color-mix(`）は `lib/tone.ts` だけ（`index.css` の色は `pnpm -C web tokens` でそこから書き出す。`crates/xtask/src/web_colors.rs`）、
-負の字間 `tracking-tight` を使わない、ID やパスを `/`・`.` で分けない、打った文字列を `Number(`・`parseFloat(` で数にしない（`crates/xtask/src/web_strings.rs`））、長すぎるファイルの警告。規則を増やしたら xtask にも足す。
+負の字間 `tracking-tight` を使わない、ID やパスを `/`・`.` で分けない、打った文字列を `Number(`・`parseFloat(` で数にしない（`crates/xtask/src/web_strings.rs`）、
+スケルトン（`ui/skeleton`）は `kit/Loading.tsx` だけ、ページの URL（`/design/…` など）は `lib/nav.ts` の `paths` だけで作る、`features/` を import してよいのは
+`features/` と `routes/` だけ（`crates/xtask/src/web_pages.rs`））、長すぎるファイルの警告。規則を増やしたら xtask にも足す。
 
 ## 層の責務
 

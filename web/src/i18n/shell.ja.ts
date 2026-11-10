@@ -93,5 +93,4 @@ export const shellJa = {
     byState: "状態ごと",
   },
   verdict: { ok: "OK", warning: "注意", violation: "違反" },
-  severity: { error: "エラー", warning: "警告", info: "情報" },
 };

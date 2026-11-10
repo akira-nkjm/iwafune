@@ -1,7 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import type { DesignView } from "@/api/types";
 import { fixture } from "@/test/fixture";
-import { type DesignQuery, ListDetailPage } from "./ListDetailPage";
+import { ListDetailPage } from "./ListDetailPage";
+import type { QueryLike } from "./QueryState";
 import type { DetailRoute } from "./use-detail-route";
 
 function route(over: Partial<DetailRoute> = {}): DetailRoute {
@@ -15,6 +17,8 @@ function route(over: Partial<DetailRoute> = {}): DetailRoute {
     ...over,
   };
 }
+
+type DesignQuery = QueryLike<DesignView>;
 
 function page(design: DesignQuery, r: DetailRoute, detail = vi.fn(() => <p>詳細</p>)) {
   const html = renderToStaticMarkup(
@@ -31,11 +35,12 @@ function page(design: DesignQuery, r: DetailRoute, detail = vi.fn(() => <p>詳�
   return { html, detail };
 }
 
-const loaded: DesignQuery = { data: fixture, isError: false, error: null };
+const refetch = () => undefined;
+const loaded: DesignQuery = { data: fixture, error: null, refetch };
 
 describe("ListDetailPage", () => {
   it("見出しとタブはいつも出し、読み込めなければ理由を出す", () => {
-    const { html } = page({ data: undefined, isError: true, error: { message: "500" } }, route());
+    const { html } = page({ data: undefined, error: { message: "500" }, refetch }, route());
     expect(html).toContain("見出し");
     expect(html).toContain("タブ");
     expect(html).toContain("500");
@@ -43,8 +48,10 @@ describe("ListDetailPage", () => {
   });
 
   it("読み込むまではスケルトン（読み込み中の印）を出す", () => {
-    const { html } = page({ data: undefined, isError: false, error: null }, route());
+    const { html } = page({ data: undefined, error: null, refetch }, route());
     expect(html).toContain('aria-busy="true"');
+    // 読み込み中の印の中に、フォーカスできる境目を入れない
+    expect(html).not.toContain('role="separator"');
   });
 
   it("読み込んだら一覧を出し、何も選んでいなければ詳細の欄に案内を出す", () => {

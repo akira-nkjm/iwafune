@@ -33,6 +33,12 @@ describe("targetLink", () => {
     expect(targetLink({ kind: "case", id: "HOT", field: "beta" }, parts)).toBe("/mission/cases");
   });
 
+  it("部品の ID も URL に入れるときに符号化する", () => {
+    expect(targetLink({ kind: "part", id: "A B" }, new Set(["A B"]))).toBe(
+      "/design/components/A%20B",
+    );
+  });
+
   it("カタログ品の ID は URL に入れるときだけ符号化し、対象が無ければ null", () => {
     expect(targetLink({ kind: "catalog", id: "local/rw", attr: null }, parts)).toBe(
       "/design/catalog/local%2Frw",

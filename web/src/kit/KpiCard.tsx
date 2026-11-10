@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Skeleton } from "@/ui/skeleton";
+import { Loading, SkeletonBlock } from "./Loading";
 import { Panel } from "./Panel";
 import { TickBar, type TickTone } from "./TickBar";
 
@@ -37,7 +37,9 @@ export function KpiCard({
         {caption && <span className="truncate text-2xs text-ink-3">{caption}</span>}
       </div>
       {loading ? (
-        <Skeleton className="h-7 w-32" />
+        <Loading>
+          <SkeletonBlock className="h-7 w-32" />
+        </Loading>
       ) : (
         <div className="num line-clamp-2 font-semibold text-[24px] text-ink leading-tight [overflow-wrap:anywhere]">
           {value}

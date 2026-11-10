@@ -5,7 +5,7 @@ import { useT } from "@/i18n";
 import { Field } from "@/kit/Field";
 import { NativeSelect } from "@/kit/NativeSelect";
 import { TextInput } from "@/kit/TextInput";
-import { defWithId } from "@/lib/design";
+import { defWithId, withNote } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
 import { catalogItemId, writableCatalogs } from "./catalog";
@@ -104,7 +104,7 @@ export function CreateCatalogDialog({
           onChange={(e) => setFromPart(e.target.value)}
           options={design.parts.map((p) => ({
             value: p.id,
-            label: p.kind ? `${p.id}（${p.kind}）` : p.id,
+            label: withNote(p.id, p.kind),
           }))}
         />
       </Field>

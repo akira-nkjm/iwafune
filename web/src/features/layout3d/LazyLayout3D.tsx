@@ -1,6 +1,5 @@
 import { type ComponentProps, lazy, Suspense } from "react";
-import { Loading } from "@/kit/Loading";
-import { Skeleton } from "@/ui/skeleton";
+import { Loading, SkeletonBlock } from "@/kit/Loading";
 import type { Layout3D } from "./Layout3D";
 
 /** 3D 配置の本体（three.js を含む大きなチャンク）。構造・熱のナビにホバーしたときにも先に読む */
@@ -17,7 +16,7 @@ export function LazyLayout3D(props: ComponentProps<typeof Layout3D>) {
     <Suspense
       fallback={
         <Loading>
-          <Skeleton className="h-[502px] rounded-card" />
+          <SkeletonBlock className="h-[502px] rounded-card" />
         </Loading>
       }
     >

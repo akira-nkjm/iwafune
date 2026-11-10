@@ -93,5 +93,4 @@ export const shellEn: typeof shellJa = {
     byState: "by state",
   },
   verdict: { ok: "OK", warning: "Caution", violation: "Violation" },
-  severity: { error: "Error", warning: "Warning", info: "Info" },
 };

@@ -1,17 +1,19 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useEnumValues } from "@/api/labels";
 import { q, useDesign } from "@/api/queries";
-import type { Severity } from "@/api/types";
 import { useT } from "@/i18n";
 import { DiagnosticCard, diagnosticKey } from "@/kit/DiagnosticItem";
 import { Empty } from "@/kit/Empty";
-import { Loading, SkeletonPanel } from "@/kit/Loading";
+import { SkeletonPanel } from "@/kit/Loading";
+import { QueryState } from "@/kit/QueryState";
 import { Segmented } from "@/kit/Segmented";
 import { targetLink } from "@/lib/target-link";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 
-type Filter = "all" | Severity;
+/** 絞り込み: すべてか、重さ（API の `Severity`。名前と並びは `labels.enum.severity`・`enum_order.severity`） */
+const ALL = "all";
 
 /** プロジェクト / 診断: fune check と同じ検証結果。該当ファイルの行と、対象（部品・モード・設定など）のページへのリンク */
 export function DiagnosticsPage() {
@@ -19,10 +21,10 @@ export function DiagnosticsPage() {
   const p = t.project;
   const report = useQuery(q.diagnostics());
   const design = useDesign();
-  const [filter, setFilter] = useState<Filter>("all");
+  const severities = useEnumValues("severity");
+  const [filter, setFilter] = useState<string>(ALL);
   const parts = new Set(design.data?.parts.map((p) => p.id) ?? []);
   const r = report.data;
-  const list = (r?.diagnostics ?? []).filter((d) => filter === "all" || d.severity === filter);
   return (
     <>
       <PageHeader
@@ -36,37 +38,39 @@ export function DiagnosticsPage() {
             label={p.filterBySeverity}
             value={filter}
             onChange={setFilter}
-            options={[
-              { value: "all", label: p.filter.all },
-              { value: "error", label: p.filter.error },
-              { value: "warning", label: p.filter.warning },
-              { value: "info", label: p.filter.info },
-            ]}
+            options={[{ value: ALL, label: t.common.all }, ...severities]}
           />
         }
       />
       <PageBody>
-        {report.isError ? (
-          <Empty>{p.cannotLoadDiagnostics(report.error.message)}</Empty>
-        ) : !r ? (
-          <Loading className="space-y-2">
-            <SkeletonPanel lines={2} />
-            <SkeletonPanel lines={2} />
-            <SkeletonPanel lines={2} />
-          </Loading>
-        ) : list.length === 0 ? (
-          <Empty>{p.noDiagnostics}</Empty>
-        ) : (
-          <div className="space-y-2">
-            {list.map((d) => (
-              <DiagnosticCard
-                key={diagnosticKey(d)}
-                diagnostic={d}
-                to={targetLink(d.target, parts)}
-              />
-            ))}
-          </div>
-        )}
+        <QueryState
+          query={report}
+          failure={p.cannotLoadDiagnostics}
+          className="flex flex-col gap-2"
+          skeleton={
+            <>
+              <SkeletonPanel lines={2} />
+              <SkeletonPanel lines={2} />
+              <SkeletonPanel lines={2} />
+            </>
+          }
+        >
+          {(report) => {
+            const list = report.diagnostics.filter((d) => filter === ALL || d.severity === filter);
+            if (list.length === 0) return <Empty>{p.noDiagnostics}</Empty>;
+            return (
+              <div className="space-y-2">
+                {list.map((d) => (
+                  <DiagnosticCard
+                    key={diagnosticKey(d)}
+                    diagnostic={d}
+                    to={targetLink(d.target, parts)}
+                  />
+                ))}
+              </div>
+            );
+          }}
+        </QueryState>
       </PageBody>
     </>
   );

@@ -104,8 +104,8 @@ pub fn check(root: &Path, files: &[std::path::PathBuf], errors: &mut Vec<String>
     }
 }
 
-/// `web/src/` のテスト以外の TS（生成物とテストの補助を除く）。
-fn is_web_production(rel: &str) -> bool {
+/// `web/src/` のテスト以外の TS（生成物とテストの補助を除く）。[`crate::web_pages`] も使う。
+pub(crate) fn is_web_production(rel: &str) -> bool {
     let code = rel.ends_with(".ts") || rel.ends_with(".tsx");
     code && rel.starts_with("web/src/")
         && !rel.contains("/gen/")

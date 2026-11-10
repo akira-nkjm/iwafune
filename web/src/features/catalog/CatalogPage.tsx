@@ -9,6 +9,7 @@ import { SearchInput } from "@/kit/SearchInput";
 import { matchesSearch } from "@/kit/search";
 import { type DetailRoute, useDetailRoute } from "@/kit/use-detail-route";
 import { ViewSwitch } from "@/kit/ViewSwitch";
+import { paths } from "@/lib/nav";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
 import { CatalogDetail } from "./CatalogDetail";
@@ -21,7 +22,7 @@ import { itemLabel } from "./catalog";
 export function CatalogPage() {
   const t = useT();
   const design = useDesign();
-  const route = useDetailRoute("/design/catalog");
+  const route = useDetailRoute(paths.catalog());
   const [search, setSearch] = useState("");
   return (
     <>

@@ -5,7 +5,6 @@ export const systemsJa = {
     unknown: (s: string) => `知らない系です: ${s}`,
     caseLabel: "解析ケース",
     defaultCase: "既定のケース",
-    caseOption: (label: string, id: string) => `${label}（${id}）`,
     recompute: "再計算",
     tabs: { results: "結果", breakdown: "内訳", settings: "設定", series: "時系列" },
     specs: {

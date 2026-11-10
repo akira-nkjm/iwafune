@@ -5,6 +5,7 @@ import { ChipLink } from "@/kit/Chip";
 import { DetailAction, DetailHeader, DetailPane } from "@/kit/DetailPane";
 import { DetailSection } from "@/kit/DetailSection";
 import { useDialogs } from "@/kit/use-dialogs";
+import { paths } from "@/lib/nav";
 import { OpDialog } from "@/ops/OpDialog";
 import { CatalogFields } from "./CatalogFields";
 import { CatalogValues } from "./CatalogValues";
@@ -68,7 +69,7 @@ export function CatalogDetail({
           <ul className="flex flex-wrap gap-1">
             {users.map((u) => (
               <li key={u}>
-                <ChipLink to={`/design/components/${u}`}>{u}</ChipLink>
+                <ChipLink to={paths.component(u)}>{u}</ChipLink>
               </li>
             ))}
           </ul>

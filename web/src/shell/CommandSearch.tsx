@@ -5,7 +5,7 @@ import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { nodeName } from "@/lib/design";
-import { nav } from "@/lib/nav";
+import { nav, paths } from "@/lib/nav";
 import {
   CommandDialog,
   CommandEmpty,
@@ -84,7 +84,7 @@ export function CommandSearch({ rail = false }: { rail?: boolean }) {
                 <CommandItem
                   key={p.id}
                   value={`part ${p.id} ${p.kind ?? ""} ${p.catalog ?? ""}`}
-                  onSelect={() => go(`/design/components/${p.id}`)}
+                  onSelect={() => go(paths.component(p.id))}
                 >
                   <span className="font-mono">{p.id}</span>
                   <span className="text-ink-3 text-xs">{p.kind}</span>
@@ -98,7 +98,7 @@ export function CommandSearch({ rail = false }: { rail?: boolean }) {
                 <CommandItem
                   key={n.id}
                   value={`net ${n.id} ${n.kind}`}
-                  onSelect={() => go("/design/diagram")}
+                  onSelect={() => go(paths.diagram())}
                 >
                   <span className="font-mono">{n.id}</span>
                   <span className="text-ink-3 text-xs">{n.kind}</span>
@@ -112,7 +112,7 @@ export function CommandSearch({ rail = false }: { rail?: boolean }) {
                 <CommandItem
                   key={m.id}
                   value={`mode ${m.id} ${m.label}`}
-                  onSelect={() => go("/design/modes")}
+                  onSelect={() => go(paths.modes())}
                 >
                   <span className="font-mono">{m.id}</span>
                   {nodeName(m) !== m.id && (

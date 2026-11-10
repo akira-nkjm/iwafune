@@ -15,13 +15,33 @@ const keys = (n: number) => KEYS.slice(0, Math.min(n, KEYS.length));
 /**
  * 読み込み中の枠。見た目はスケルトン、画面読み上げには「読み込み中…」を伝える。
  * 少し待ってから現れる（index.css の `loading-appear`）ので、速い読み込みではちらつかない。
+ * スケルトンを包む要素は箱を作らない（`contents`）ので、`className` の flex・gap はスケルトンにそのまま効く
+ * （間を空けるのは `flex flex-col gap-4`。`space-y-*` は子の子に届かないので効かない）。
  */
 export function Loading({ children, className }: { children: ReactNode; className?: string }) {
   const t = useT();
   return (
     <div role="status" aria-busy="true" className={cn("loading-appear", className)}>
       <span className="sr-only">{t.common.loading}</span>
-      <div aria-hidden="true">{children}</div>
+      <div aria-hidden="true" className="contents">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** 形を決めたスケルトンの塊（KPI の数・図・チップなど。大きさと角丸は `className`） */
+export function SkeletonBlock({ className }: { className?: string }) {
+  return <Skeleton className={className} />;
+}
+
+/** 小さなチップの並び（単位の候補など） */
+export function SkeletonChips({ count = 4 }: { count?: number }) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {keys(count).map((k) => (
+        <Skeleton key={k} className="h-6 w-12 rounded-chip" />
+      ))}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import type {
   TreeNode,
   ValueView,
 } from "@/api/types";
-import { getLang, type Lang, localized } from "@/i18n";
+import { dictionaries, getLang, type Lang, localized } from "@/i18n";
 
 /**
  * 設計データ（GET /design）からの引き当て。表示の組み立てだけで、値の計算はしない。
@@ -42,6 +42,18 @@ export function fieldPath(part: Pick<PartRow, "field_paths">, field: string): st
   return part.field_paths[field] ?? null;
 }
 
+/**
+ * 「主（補足）」の表示: 選択肢の「ID（表示名）」、「名前（種類）」など。**ID と名前を並べるのはここだけ**
+ * （括弧の書き方は i18n の `common.withNote`。日本語は全角、英語は半角）。補足が無いか主と同じなら主だけ。
+ */
+export function withNote(
+  main: string,
+  note: string | null | undefined,
+  lang: Lang = getLang(),
+): string {
+  return note && note !== main ? dictionaries[lang].common.withNote(main, note) : main;
+}
+
 /** 日英の表示名を持つ定義（属性・種別） */
 type Labeled = { id: string; label: string; label_en: string | null };
 
@@ -50,10 +62,9 @@ export function defName(def: Labeled): string {
   return localized(def.label, def.label_en) || def.id;
 }
 
-/** 選択肢に出す「ID（表示名）」。表示名が ID と同じなら ID だけ */
+/** 選択肢に出す「ID（表示名）」（`withNote`）。表示名が ID と同じなら ID だけ */
 export function defWithId(def: Labeled): string {
-  const name = defName(def);
-  return name !== def.id ? `${def.id}（${name}）` : def.id;
+  return withNote(def.id, defName(def));
 }
 
 /** 属性定義（GET /design の defs）。無ければ undefined */
@@ -97,10 +108,9 @@ export function nodeName(node: Named, lang: Lang = getLang()): string {
   return lang === "en" || !node.label ? node.id : node.label;
 }
 
-/** 選択肢に出す「ID（表示名）」。表示名が ID と同じとき（英語・表示名なし）は ID だけ */
+/** 選択肢に出す「ID（表示名）」（`withNote`）。表示名が ID と同じとき（英語・表示名なし）は ID だけ */
 export function idWithName(node: Named, lang: Lang = getLang()): string {
-  const name = nodeName(node, lang);
-  return name !== node.id ? `${node.id}（${name}）` : node.id;
+  return withNote(node.id, nodeName(node, lang), lang);
 }
 
 /** ID からノードの表示名（`nodeName`）。ID が無ければ「—」、ツリーに無ければ ID */

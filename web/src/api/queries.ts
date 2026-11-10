@@ -9,6 +9,7 @@ import type {
   BudgetRequest,
   BudgetView,
   CheckReport,
+  DataStatus,
   DefsView,
   DesignView,
   Op,
@@ -79,6 +80,9 @@ export const q = {
       placeholderData: keepPreviousData,
     });
   },
+  /** 外部データ（DE440）の状態。取得は `api/data.ts` の `useFetchData` */
+  dataStatus: () =>
+    queryOptions({ queryKey: keys.dataStatus, queryFn: () => api<DataStatus>("/data/status") }),
   /** バジェット。`ops` の意味は analysis と同じ（下書きがあれば POST で送る） */
   budget: (kind: BudgetKind, ops: readonly Op[] = []) => {
     const json = ops.length > 0 ? JSON.stringify(ops) : "";

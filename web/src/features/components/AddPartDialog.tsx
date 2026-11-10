@@ -5,7 +5,7 @@ import { Field } from "@/kit/Field";
 import { NativeSelect } from "@/kit/NativeSelect";
 import { Segmented } from "@/kit/Segmented";
 import { TextInput } from "@/kit/TextInput";
-import { defWithId, groupsOf, nodeName } from "@/lib/design";
+import { defWithId, groupsOf, nodeName, withNote } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
 
@@ -37,7 +37,7 @@ export function AddPartDialog({
     ]),
   ].sort();
   const catalogLabel = new Map(
-    design.catalog.map((c) => [c.id, `${localized(c.label, c.label_en)}（${c.kind}）`]),
+    design.catalog.map((c) => [c.id, withNote(localized(c.label, c.label_en), c.kind)]),
   );
   const [group, setGroup] = useState(initialGroup ?? groups[0]?.id ?? "");
   const [by, setBy] = useState<DefBy>(known.length > 0 ? "catalog" : "kind");

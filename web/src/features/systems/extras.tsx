@@ -7,6 +7,7 @@ import { getT } from "@/i18n";
 import { heatHex, toneHex } from "@/lib/tone";
 import { heatKey, heatMapOf, heatRatio } from "./heat";
 import { dimOf, EACH } from "./output";
+import { hasExtras } from "./preload";
 import type { SystemTab } from "./SystemTabs";
 import { ThermalHeatmap } from "./ThermalHeatmap";
 import type { AnalysisState } from "./use-analyses";
@@ -22,13 +23,16 @@ function outputOf<K extends keyof AnalysisOutputs>(
   return analysisOutput(states.find((s) => s.id === id)?.result, id);
 }
 
-/** 系ごとの追加の表示（構造: 3D 配置と重心、熱: 節点温度の表と温度で塗った 3D） */
+/**
+ * 系ごとの追加の表示（構造: 3D 配置と重心、熱: 節点温度の表と温度で塗った 3D）。どの系が持つかは `preload.ts` の
+ * `EXTRA_CHUNKS`（ナビの先読みと共通）で、下の分岐はその系をちょうど覆う（型で確かめる）。
+ */
 export function systemExtras(
   system: System,
   design: DesignView | undefined,
   states: readonly AnalysisState[],
 ): Partial<Record<SystemTab, ReactNode>> {
-  if (!design) return {};
+  if (!design || !hasExtras(system)) return {};
   if (system === "structure") {
     const mp = outputOf(states, "structure.mass_properties");
     const c = mp?.summary.center_of_mass;
@@ -73,5 +77,6 @@ export function systemExtras(
       ),
     };
   }
-  return {};
+  // 上の分岐が EXTRA_CHUNKS の系をすべて覆っていなければ、ここで型が合わない
+  return system satisfies never;
 }

@@ -11,6 +11,7 @@ import { SearchInput } from "@/kit/SearchInput";
 import { matchesSearch } from "@/kit/search";
 import { type DetailRoute, useDetailRoute } from "@/kit/use-detail-route";
 import { groupsOf, nodeName } from "@/lib/design";
+import { paths, SEARCH } from "@/lib/nav";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
 import { AddPartDialog } from "./AddPartDialog";
@@ -29,7 +30,7 @@ type Filters = { search: string; group: string };
 export function ComponentsPage() {
   const t = useT().components;
   const design = useDesign();
-  const route = useDetailRoute("/design/components", VIEWS);
+  const route = useDetailRoute(paths.components(), VIEWS);
   const [filters, setFilters] = useState<Filters>({ search: "", group: "" });
   const overview = route.view === "overview";
   const close = () => route.select(null);
@@ -129,7 +130,7 @@ function ComponentsTabs({ view }: { view: string }) {
   const label = { overview: t.tabOverview, tree: t.tabTree, table: t.tabTable };
   return (
     <PageTabs
-      tabs={VIEWS.map((v) => ({ to: `?view=${v}`, label: label[v], active: view === v }))}
+      tabs={VIEWS.map((v) => ({ to: `?${SEARCH.view}=${v}`, label: label[v], active: view === v }))}
     />
   );
 }

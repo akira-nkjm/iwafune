@@ -6,7 +6,6 @@ export const systemsEn: typeof systemsJa = {
     unknown: (s: string) => `Unknown subsystem: ${s}`,
     caseLabel: "Analysis case",
     defaultCase: "Default case",
-    caseOption: (label: string, id: string) => `${label} (${id})`,
     recompute: "Recompute",
     tabs: {
       results: "Results",

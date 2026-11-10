@@ -1,9 +1,9 @@
-import type { ModeRow, PartRow } from "@/api/types";
+import type { ModeRow, ModeTable, PartRow } from "@/api/types";
 import type { modesJa } from "@/i18n/modes.ja";
 import type { CellText } from "./draft";
 
 /** セルの文言の並べ方（i18n の `modes` の辞書） */
-type CellWords = Pick<
+export type CellWords = Pick<
   (typeof modesJa)["modes"],
   "cellShare" | "cellShareSeparator" | "cellWithShares"
 >;
@@ -22,7 +22,12 @@ export function savedCellText(row: ModeRow, mode: string, words: CellWords): str
   return words.cellWithShares(cell.state, shares.join(words.cellShareSeparator));
 }
 
-/** セルを押してオンにするときの状態: 語彙に `on` があれば on、無ければ off 以外の最初の状態（送受信機なら rx） */
+/** 状態の書かれていないセルの数（部品 × モードのうち、そのモードのファイルに部品が無いもの） */
+export function unassignedCells(table: ModeTable): number {
+  return table.rows.reduce((n, r) => n + table.modes.filter((m) => !r.cells[m.id]).length, 0);
+}
+
+/** セルを押してオンにするときの状態:語彙に `on` があれば on、無ければ off 以外の最初の状態（送受信機なら rx） */
 export function mainState(states: readonly string[]): string | null {
   if (states.includes("on")) return "on";
   return states.find((s) => s !== "off") ?? null;

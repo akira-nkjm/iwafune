@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/Empty";
+import { paths } from "@/lib/nav";
 import { PageHeader } from "@/shell/PageHeader";
 
 export default function NotFound() {
@@ -9,7 +10,7 @@ export default function NotFound() {
     <>
       <PageHeader title={t.shell.pageNotFound} />
       <Empty>
-        <Link to="/" className="text-accent-ink underline">
+        <Link to={paths.overview()} className="text-accent-ink underline">
           {t.shell.backToOverview}
         </Link>
       </Empty>
