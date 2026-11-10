@@ -12,9 +12,13 @@ export const keys = {
   units: (dimension?: string | null) => ["units", dimension ?? null] as const,
   parse: (input: string, dimension: string | null) => ["units", "parse", input, dimension] as const,
   analyses: ["analyses"] as const,
+  /** すべての解析の結果（下の `analysis` の先頭。設計の編集と天体の暦の読み込みで無効化する） */
+  analysisResults: ["analysis"] as const,
   /** 解析の結果。`opsJson` は保存していない編集（下書き）を当てて計算したもの（空なら保存済みの設計） */
   analysis: (id: string, kase: string | null, opsJson = "") =>
     opsJson ? (["analysis", id, kase, opsJson] as const) : (["analysis", id, kase] as const),
+  /** 外部データ（DE440）の状態（`GET /data/status`）。設計の編集では変わらない */
+  dataStatus: ["data", "status"] as const,
   /** バジェット。`opsJson` の意味は analysis と同じ */
   budget: (kind: string, opsJson = "") =>
     opsJson ? (["budget", kind, opsJson] as const) : (["budget", kind] as const),
@@ -32,6 +36,6 @@ export const invalidatedByOps: readonly (readonly string[])[] = [
   keys.project,
   keys.design,
   keys.diagnostics,
-  ["analysis"],
+  keys.analysisResults,
   ["budget"],
 ];

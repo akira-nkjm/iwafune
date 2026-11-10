@@ -206,6 +206,17 @@ pub(super) const WEB_RULES: &[(&str, &[&str], &str)] = &[
     ("toPrecision(", &["web/src/quantity/"], "数の整形"),
     ("toExponential(", &["web/src/quantity/"], "数の整形"),
     ("toFixed(", &["web/src/quantity/"], "数の整形"),
+    // 読み込み中の表示は kit/Loading のスケルトンだけ（`Loading` で包み、画面読み上げにも伝える）。
+    // 解析の結果の表示（AnalysisCard・SystemTabs）は、解析の出力の型（#23）の後に kit/Loading の部品へ替える
+    (
+        "@/ui/skeleton",
+        &[
+            "web/src/kit/Loading.tsx",
+            "web/src/features/systems/AnalysisCard.tsx",
+            "web/src/features/systems/SystemTabs.tsx",
+        ],
+        "スケルトン（読み込み中の表示）",
+    ),
     // 負の字間は欧文を半角のつまった字にする（Noto Sans JP の欧文が詰まって読みにくい）。使わない
     ("tracking-tight", &["web/src/ui/"], "負の字間"),
     ("tracking-tighter", &["web/src/ui/"], "負の字間"),

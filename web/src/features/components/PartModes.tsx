@@ -5,6 +5,7 @@ import { useT } from "@/i18n";
 import { PropertyList } from "@/kit/PropertyList";
 import { PropertyRow } from "@/kit/PropertyRow";
 import { nodeName } from "@/lib/design";
+import { paths } from "@/lib/nav";
 
 /** この部品がモードごとにどの状態か（編集はモードの表で行う） */
 export function PartModes({
@@ -46,7 +47,7 @@ export function PartModes({
         );
       })}
       <div className="px-3 py-1 text-right text-[11px]">
-        <Link to="/design/modes" className="text-accent-ink hover:underline">
+        <Link to={paths.modes()} className="text-accent-ink hover:underline">
           {t.edit}
         </Link>
       </div>

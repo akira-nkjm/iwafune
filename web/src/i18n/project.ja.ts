@@ -5,11 +5,13 @@ export const projectJa = {
     diagnostics: "診断",
     diagSubtitle: (e: number, w: number, i: number) => `エラー ${e} · 警告 ${w} · 情報 ${i}`,
     filterBySeverity: "重さで絞る",
-    filter: { all: "すべて", error: "エラー", warning: "警告", info: "情報" },
     cannotLoadDiagnostics: (msg: string) => `診断を読めません: ${msg}`,
     noDiagnostics: "該当する診断はありません",
     settings: "設定",
     data: {
+      title: "外部データ",
+      /** 解析が使う天体の暦（API の `DataStatus.ephemeris`） */
+      ephemeris: { de440: "天体の暦: DE440", analytic: "天体の暦: 解析式" },
       installed: "読み込み済み",
       cached: "キャッシュ済み",
       missing: "未取得",
@@ -21,6 +23,8 @@ export const projectJa = {
     root: "場所",
     branch: "ブランチ",
     notGit: "（git ではない）",
+    revision: "リビジョン",
+    schema: "スキーマの版",
     groups: {
       mission: { title: "ミッション", caption: "mission/ — 軌道・地上局・期間" },
       analysis: { title: "解析", caption: "analysis/ — 各系の解析の設定" },

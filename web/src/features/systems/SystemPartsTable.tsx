@@ -8,6 +8,7 @@ import { SubsystemDot } from "@/kit/SubsystemDot";
 import { Td } from "@/kit/Td";
 import { Th } from "@/kit/Th";
 import { attrDef, attrLabel } from "@/lib/design";
+import { paths } from "@/lib/nav";
 import { AttrValueEditor } from "@/quantity/AttrValueEditor";
 import { relevantParts } from "./relevant";
 import type { SystemSpec } from "./systems";
@@ -69,10 +70,7 @@ function PartCells({ design, part, cols }: { design: DesignView; part: PartRow; 
   return (
     <tr className="hover:bg-panel-2/60">
       <Td>
-        <Link
-          to={`/design/components/${part.id}`}
-          className="flex items-center gap-2 hover:underline"
-        >
+        <Link to={paths.component(part.id)} className="flex items-center gap-2 hover:underline">
           <SubsystemDot group={part.subsystem} role={part.role} />
           <span className="font-mono text-[12.5px]">{part.id}</span>
         </Link>

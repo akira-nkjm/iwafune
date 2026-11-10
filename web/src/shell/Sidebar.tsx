@@ -5,7 +5,7 @@ import { useNavigate } from "react-router";
 import { q } from "@/api/queries";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { nav } from "@/lib/nav";
+import { nav, paths } from "@/lib/nav";
 import { Kbd } from "@/ui/kbd";
 import { BrandToggle } from "./BrandToggle";
 import { CommandSearch } from "./CommandSearch";
@@ -28,7 +28,7 @@ export function Sidebar() {
   const project = useQuery(q.project());
   const navigate = useNavigate();
   const { open, toggle, closedSections, toggleSection } = useSidebar();
-  const addPart = () => navigate("/design/components?new=1");
+  const addPart = () => navigate(paths.addComponent());
   const rail = !open;
 
   useEffect(() => {
@@ -37,7 +37,7 @@ export function Sidebar() {
       if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
       if (e.key === "n" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
-        navigate("/design/components?new=1");
+        navigate(paths.addComponent());
       }
     };
     window.addEventListener("keydown", onKey);

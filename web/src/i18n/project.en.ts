@@ -6,11 +6,12 @@ export const projectEn: typeof projectJa = {
     diagnostics: "Diagnostics",
     diagSubtitle: (e: number, w: number, i: number) => `${e} errors · ${w} warnings · ${i} info`,
     filterBySeverity: "Filter by severity",
-    filter: { all: "All", error: "Errors", warning: "Warnings", info: "Info" },
     cannotLoadDiagnostics: (msg: string) => `Cannot load diagnostics: ${msg}`,
     noDiagnostics: "No matching diagnostics",
     settings: "Settings",
     data: {
+      title: "External data",
+      ephemeris: { de440: "Ephemeris: DE440", analytic: "Ephemeris: analytic" },
       installed: "Installed",
       cached: "Cached",
       missing: "Missing",
@@ -22,6 +23,8 @@ export const projectEn: typeof projectJa = {
     root: "Location",
     branch: "Branch",
     notGit: "(not a git repository)",
+    revision: "Revision",
+    schema: "Schema version",
     groups: {
       mission: { title: "Mission", caption: "mission/ — orbit, ground stations, period" },
       analysis: { title: "Analysis", caption: "analysis/ — settings of each subsystem analysis" },

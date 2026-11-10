@@ -4,11 +4,11 @@ import { q } from "@/api/queries";
 import type { DesignView } from "@/api/types";
 import { useT } from "@/i18n";
 import { DataTable } from "@/kit/DataTable";
-import { Empty } from "@/kit/Empty";
-import { Loading, SkeletonTable } from "@/kit/Loading";
+import { SkeletonTable } from "@/kit/Loading";
 import { NativeSelect } from "@/kit/NativeSelect";
 import { Panel } from "@/kit/Panel";
 import { PanelHeader } from "@/kit/PanelHeader";
+import { QueryState } from "@/kit/QueryState";
 import { TablePanel } from "@/kit/TablePanel";
 import { Td } from "@/kit/Td";
 import { Th } from "@/kit/Th";
@@ -53,42 +53,40 @@ export function UnitsTab({ design }: { design: DesignView | undefined }) {
           />
         }
       >
-        {!data ? (
-          all.isError ? (
-            <Empty>{tu.cannotLoad(all.error.message)}</Empty>
-          ) : (
-            <Loading>
-              <SkeletonTable rows={10} cols={5} />
-            </Loading>
-          )
-        ) : (
-          <DataTable
-            head={
-              <>
-                <Th>{tu.symbol}</Th>
-                <Th>{tu.dimension}</Th>
-                <Th>{tu.mapping}</Th>
-                <Th align="right">{tu.scale}</Th>
-                <Th>{tu.usedBy}</Th>
-              </>
-            }
-          >
-            {data.units.map((u) => (
-              <tr key={u.symbol}>
-                <Td mono>{u.symbol}</Td>
-                <Td>{u.dimension}</Td>
-                <Td className="text-ink-3">{mappingLabel[u.mapping]}</Td>
-                <Td align="right" mono>
-                  {u.scale}
-                  {u.offset !== 0 ? ` + ${u.offset}` : ""}
-                </Td>
-                <Td mono className="text-ink-3">
-                  {usedBy(u.dimension).join(", ")}
-                </Td>
-              </tr>
-            ))}
-          </DataTable>
-        )}
+        <QueryState
+          query={dim ? filtered : all}
+          failure={tu.cannotLoad}
+          skeleton={<SkeletonTable rows={10} cols={5} />}
+        >
+          {(data) => (
+            <DataTable
+              head={
+                <>
+                  <Th>{tu.symbol}</Th>
+                  <Th>{tu.dimension}</Th>
+                  <Th>{tu.mapping}</Th>
+                  <Th align="right">{tu.scale}</Th>
+                  <Th>{tu.usedBy}</Th>
+                </>
+              }
+            >
+              {data.units.map((u) => (
+                <tr key={u.symbol}>
+                  <Td mono>{u.symbol}</Td>
+                  <Td>{u.dimension}</Td>
+                  <Td className="text-ink-3">{mappingLabel[u.mapping]}</Td>
+                  <Td align="right" mono>
+                    {u.scale}
+                    {u.offset !== 0 ? ` + ${u.offset}` : ""}
+                  </Td>
+                  <Td mono className="text-ink-3">
+                    {usedBy(u.dimension).join(", ")}
+                  </Td>
+                </tr>
+              ))}
+            </DataTable>
+          )}
+        </QueryState>
       </TablePanel>
     </>
   );

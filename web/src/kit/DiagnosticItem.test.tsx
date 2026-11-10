@@ -1,8 +1,11 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
+import { keys } from "@/api/keys";
 import type { DiagnosticView } from "@/api/types";
+import { fixture } from "@/test/fixture";
 import { DiagnosticCard, DiagnosticItem, diagnosticKey } from "./DiagnosticItem";
 
 const diag: DiagnosticView = {
@@ -18,12 +21,26 @@ const diag: DiagnosticView = {
   column: 8,
 };
 
-const render = (node: ReactNode) => renderToStaticMarkup(<MemoryRouter>{node}</MemoryRouter>);
+/** 重さの名前は API の語彙（`GET /defs` の labels.enum.severity）から引く */
+function client(): QueryClient {
+  const qc = new QueryClient();
+  const enums = { severity: { error: { label: "エラー", label_en: "Error" } } };
+  qc.setQueryData(keys.defs, { ...fixture.defs, labels: { ...fixture.defs.labels, enum: enums } });
+  return qc;
+}
+
+const render = (node: ReactNode) =>
+  renderToStaticMarkup(
+    <QueryClientProvider client={client()}>
+      <MemoryRouter>{node}</MemoryRouter>
+    </QueryClientProvider>,
+  );
 
 describe("DiagnosticItem", () => {
-  it("重さ・パス・本文・ファイルの行を 1 行に出す", () => {
+  it("重さ（API の語彙の名前）・パス・本文・ファイルの行を 1 行に出す", () => {
     const html = render(<DiagnosticItem diagnostic={diag} />);
     expect(html.startsWith("<li")).toBe(true);
+    expect(html).toContain("エラー");
     expect(html).toContain("RW_X.mass");
     expect(html).toContain("次元が合いません");
     expect(html).toContain("parts/aocs/rw_x.toml:4<");

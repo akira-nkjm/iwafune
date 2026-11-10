@@ -2,8 +2,8 @@ import { ChevronRight } from "lucide-react";
 import { NavLink } from "react-router";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
-import type { NavSection } from "@/lib/nav";
-import { preloadHandlers } from "./preload";
+import { type NavSection, paths } from "@/lib/nav";
+import { preloadHandlers, usePreloadPlan } from "./preload";
 import { RailTip } from "./RailTip";
 import { railFade } from "./sidebar-motion";
 import { SIDEBAR_ID } from "./sidebar-state";
@@ -25,6 +25,7 @@ export function NavSectionList({
   onToggle: () => void;
 }) {
   const t = useT();
+  const preload = usePreloadPlan();
   const itemsId = `${SIDEBAR_ID}-${section.id}`;
   const heading = section.heading ? t.nav.sections[section.id] : null;
   const showItems = rail || !closed || !heading;
@@ -77,9 +78,9 @@ export function NavSectionList({
                       ホバー・フォーカスしたら、ルートのモジュール（React Router）とページの本体・データを先に読む */}
                   <NavLink
                     to={it.to}
-                    end={it.to === "/"}
+                    end={it.to === paths.overview()}
                     prefetch="intent"
-                    {...preloadHandlers(it.key)}
+                    {...preloadHandlers(() => preload.item(it.key))}
                     aria-label={rail ? name : undefined}
                     className={cn(
                       "flex h-8 items-center gap-2.5 overflow-hidden rounded-control border border-transparent px-[11px] text-[13px] text-ink-2 transition-colors hover:bg-panel/70 hover:text-ink",

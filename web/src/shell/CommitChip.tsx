@@ -2,15 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 import { GitBranch, History } from "lucide-react";
 import { Link } from "react-router";
 import { q } from "@/api/queries";
-import { useT } from "@/i18n";
+import { useLang, useT } from "@/i18n";
 import { CliCopyButton } from "@/kit/CliCopyButton";
 import { useChangeHistory } from "@/lib/history";
+import { paths } from "@/lib/nav";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 
 /** サイドバー下部: ブランチ・revision・診断の件数・このセッションの変更履歴（CLI としてコピー） */
 export function CommitChip({ rail = false }: { rail?: boolean }) {
   const project = useQuery(q.project());
   const t = useT();
+  const lang = useLang();
   const history = useChangeHistory();
   const p = project.data;
   const errors = p?.diagnostics.errors ?? 0;
@@ -18,7 +20,7 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
   if (rail)
     return (
       <Link
-        to="/project/diagnostics"
+        to={paths.diagnostics()}
         title={t.shell.diagTitle(errors, warnings)}
         aria-label={t.shell.diagLabel(errors, warnings)}
         className="mx-auto flex size-9 flex-col items-center justify-center rounded-control text-[10px] hover:bg-panel"
@@ -46,7 +48,7 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
         </div>
       ) : (
         <Link
-          to="/project/diagnostics"
+          to={paths.diagnostics()}
           className="flex items-center gap-2 rounded-chip px-1 py-0.5 text-[11.5px] hover:bg-panel"
         >
           <span className={errors > 0 ? "text-neg-ink" : "text-ink-3"}>
@@ -80,7 +82,7 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
               <li key={h.id} className="space-y-1 border-line-soft border-b px-3 py-2">
                 <div className="flex items-center gap-2 text-xs">
                   <span className="font-medium">{h.summary}</span>
-                  <span className="ml-auto text-ink-4">{h.at.toLocaleTimeString("ja-JP")}</span>
+                  <span className="ml-auto text-ink-4">{h.at.toLocaleTimeString(lang)}</span>
                 </div>
                 {h.cli.length > 0 && (
                   <pre className="overflow-x-auto rounded-chip bg-panel-2 px-2 py-1 font-mono text-[11px] text-ink-2">

@@ -3,6 +3,7 @@ import type { QuantityView } from "@/api/types";
 import { useT } from "@/i18n";
 import { TextInput } from "@/kit/TextInput";
 import { cn } from "@/lib/cn";
+import { withNote } from "@/lib/design";
 import { useParseQuantity } from "./use-parse";
 
 /**
@@ -94,7 +95,7 @@ export function QuantityInput({
           : pending
             ? t.quantity.parsing
             : parsed
-              ? `= ${parsed.si.display}（${parsed.quantity.dimension}）`
+              ? `= ${withNote(parsed.si.display, parsed.quantity.dimension)}`
               : dimension
                 ? t.quantity.dimension(dimension)
                 : t.quantity.example}

@@ -2,6 +2,7 @@ import type { Op } from "@/api/types";
 import { useT } from "@/i18n";
 import { CliCopyButton } from "@/kit/CliCopyButton";
 import { cn } from "@/lib/cn";
+import { withNote } from "@/lib/design";
 import { useOpCheck } from "./use-op-check";
 
 /**
@@ -64,7 +65,7 @@ export function OpPreview({ ops, compact = false }: { ops: Op[] | null; compact?
         <details className="text-[11px] text-ink-3">
           <summary className="cursor-pointer truncate">
             {t.cli.changedFiles}{" "}
-            {changed.map((c) => `${c.path}（${t.cli.change[c.change]}）`).join(", ")}
+            {changed.map((c) => withNote(c.path, t.cli.change[c.change])).join(", ")}
           </summary>
           <pre className="mt-1 max-h-40 overflow-auto whitespace-pre font-mono text-[11px] text-ink-2">
             {changed.map((c) => c.diff).join("\n")}

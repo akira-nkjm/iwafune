@@ -8,10 +8,13 @@
 //! - 1 機能 1 か所: 台帳で決めた定義が別のファイルに現れていないか（[`single_home`]）
 //! - Web の文字列の分解: ID やパスを `/`・`.` で分けていないか（[`web_strings`]）
 //! - Web の色の直書き: hex・色の名前（`white` など）・`color-mix(` が `lib/tone.ts` の外に無いか（[`web_colors`]）
+//! - Web のページ: ページの URL を `lib/nav.ts` の外で組み立てていないか、`features/` に shell などから依存していないか
+//!   （[`web_pages`]）
 
 mod module_cycles;
 mod single_home;
 mod web_colors;
+mod web_pages;
 mod web_strings;
 
 use anyhow::{Context, Result, bail};
@@ -90,6 +93,7 @@ fn check() -> Result<()> {
     single_home::check(&meta.workspace_root, &files, &mut errors);
     web_strings::check(&meta.workspace_root, &files, &mut errors);
     web_colors::check(&meta.workspace_root, &files, &mut errors);
+    web_pages::check(&meta.workspace_root, &files, &mut errors);
     module_cycles::check(&meta.workspace_root, &mut errors)?;
     warn_long_files(&meta.workspace_root)?;
     if errors.is_empty() {

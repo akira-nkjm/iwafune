@@ -21,9 +21,9 @@ export const commonJa = {
     no: "いいえ",
     search: "検索",
     all: "すべて",
-    error: "エラー",
-    warning: "警告",
-    info: "情報",
+    retry: "再試行",
+    /** 「主（補足）」の書き方（ID と表示名、名前と種類など。組み立ては lib/design.ts の withNote） */
+    withNote: (main: string, note: string) => `${main}（${note}）`,
     ok: "OK",
     caution: "注意",
     violation: "違反",

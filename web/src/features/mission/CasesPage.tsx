@@ -1,78 +1,73 @@
 import { useDesign } from "@/api/queries";
+import type { DesignView } from "@/api/types";
 import { systemOrder, systemTitle } from "@/features/systems/systems";
 import { useT } from "@/i18n";
 import { ChipLink } from "@/kit/Chip";
 import { DataTable } from "@/kit/DataTable";
 import { Empty } from "@/kit/Empty";
-import { Loading, SkeletonPanel } from "@/kit/Loading";
+import { SkeletonPanel } from "@/kit/Loading";
 import { Panel } from "@/kit/Panel";
+import { QueryState } from "@/kit/QueryState";
 import { Td } from "@/kit/Td";
 import { Th } from "@/kit/Th";
+import { paths } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 
 /** ミッション / 解析ケース: cases/ の一覧。各系のページをそのケースで開ける */
 export function CasesPage() {
-  const t = useT();
-  const m = t.mission;
+  const m = useT().mission;
   const design = useDesign();
-  const d = design.data;
   return (
     <>
       <PageHeader eyebrow={m.eyebrow} title={m.cases} subtitle={m.casesSubtitle} />
       <PageBody>
-        {!d ? (
-          design.isError ? (
-            <Empty>{t.common.cannotLoadDesign(design.error.message)}</Empty>
-          ) : (
-            <Loading>
-              <SkeletonPanel lines={5} />
-            </Loading>
-          )
-        ) : d.cases.length === 0 ? (
-          <Empty>{m.noCases}</Empty>
-        ) : (
-          <Panel pad={false}>
-            <DataTable
-              head={
-                <>
-                  <Th>ID</Th>
-                  <Th>{m.name}</Th>
-                  <Th>{m.description}</Th>
-                  <Th>{m.modes}</Th>
-                  <Th>{m.file}</Th>
-                  <Th>{m.openWith}</Th>
-                </>
-              }
-            >
-              {d.cases.map((c) => (
-                <tr key={c.id}>
-                  <Td mono>{c.id}</Td>
-                  <Td>{c.label}</Td>
-                  <Td className="text-ink-2">{c.description ?? "—"}</Td>
-                  <Td mono>{c.modes.join(" → ")}</Td>
-                  <Td mono className="text-ink-4">
-                    {c.file}
-                  </Td>
-                  <Td>
-                    <span className="flex flex-wrap gap-1">
-                      {systemOrder.map((s) => (
-                        <ChipLink
-                          key={s}
-                          to={`/systems/${s}?case=${encodeURIComponent(c.id)}`}
-                          mono={false}
-                        >
-                          {systemTitle(s, d.defs)}
-                        </ChipLink>
-                      ))}
-                    </span>
-                  </Td>
-                </tr>
-              ))}
-            </DataTable>
-          </Panel>
-        )}
+        <QueryState query={design} skeleton={<SkeletonPanel lines={5} />}>
+          {(d) => (d.cases.length === 0 ? <Empty>{m.noCases}</Empty> : <CasesTable design={d} />)}
+        </QueryState>
       </PageBody>
     </>
+  );
+}
+
+/** ケースの表。最後の列は、そのケースで開く系のページへのリンク */
+function CasesTable({ design: d }: { design: DesignView }) {
+  const m = useT().mission;
+  return (
+    <Panel pad={false}>
+      <DataTable
+        head={
+          <>
+            <Th>ID</Th>
+            <Th>{m.name}</Th>
+            <Th>{m.description}</Th>
+            <Th>{m.modes}</Th>
+            <Th>{m.file}</Th>
+            <Th>{m.openWith}</Th>
+          </>
+        }
+      >
+        {d.cases.map((c) => (
+          <tr key={c.id}>
+            <Td mono>{c.id}</Td>
+            <Td>{c.label}</Td>
+            <Td className="text-ink-2">{c.description ?? "—"}</Td>
+            <Td mono>{c.modes.join(" → ")}</Td>
+            <Td mono className="text-ink-4">
+              {c.file}
+            </Td>
+            <Td>
+              <span className="flex flex-wrap gap-1">
+                {systemOrder.map((s) => (
+                  <ChipLink key={s} to={paths.system(s, { kase: c.id })} mono={false}>
+                    {systemTitle(s, d.defs)}
+                  </ChipLink>
+                ))}
+              </span>
+            </Td>
+          </tr>
+        ))}
+      </DataTable>
+    </Panel>
   );
 }

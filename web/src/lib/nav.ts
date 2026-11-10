@@ -17,7 +17,58 @@ import {
   Thermometer,
   Workflow,
 } from "lucide-react";
+import type { System } from "@/api/types";
 import type { Dict } from "@/i18n";
+
+/**
+ * URL の検索部分の名前。ページが読み（`useDetailRoute`・系のページ）、下の `paths` が書く。
+ * - `view`: 一覧と詳細のページの表示方法
+ * - `adding`: 追加ダイアログを開いているか（値は `"1"`）
+ * - `case`: 系のページの解析ケース
+ */
+export const SEARCH = { view: "view", adding: "new", case: "case" } as const;
+
+/** 一覧のページの URL の下に、1 つのものの ID を足す（ID は encode する。受け取る側は React Router が decode した値を使う） */
+export function itemPath(base: string, id: string): string {
+  return `${base}/${encodeURIComponent(id)}`;
+}
+
+/** 検索部分を付ける（値が null・空のものは付けない） */
+function withSearch(path: string, search: Record<string, string | null | undefined>): string {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(search)) if (v) params.set(k, v);
+  const text = params.toString();
+  return text ? `${path}?${text}` : path;
+}
+
+/** 定義のページのタブ（単位は既定のタブで、URL に区間を足さない） */
+export type DefsTab = "attributes" | "kinds";
+
+/**
+ * ページの URL。**ページの URL を組み立てるのはここだけ**（ルートの形は `routes.ts`。一致は nav.test.ts が確かめる）。
+ * ID と解析ケースは encode する。
+ */
+export const paths = {
+  overview: () => "/",
+  components: () => "/design/components",
+  component: (id: string) => itemPath(paths.components(), id),
+  /** 部品の追加ダイアログを開いた部品のページ */
+  addComponent: () => withSearch(paths.components(), { [SEARCH.adding]: "1" }),
+  catalog: () => "/design/catalog",
+  catalogItem: (id: string) => itemPath(paths.catalog(), id),
+  diagram: () => "/design/diagram",
+  modes: () => "/design/modes",
+  defs: (tab?: DefsTab) => (tab ? `/design/defs/${tab}` : "/design/defs"),
+  /** 系のページ。`tab` が無ければ結果のタブ、`kase` があればその解析ケースで開く */
+  system: (system: System, at: { tab?: string | null; kase?: string | null } = {}) =>
+    withSearch(at.tab ? `/systems/${system}/${at.tab}` : `/systems/${system}`, {
+      [SEARCH.case]: at.kase,
+    }),
+  orbit: () => "/mission/orbit",
+  cases: () => "/mission/cases",
+  diagnostics: () => "/project/diagnostics",
+  settings: () => "/project/settings",
+};
 
 export type NavItemKey = keyof Dict["nav"]["items"];
 export type NavSectionKey = keyof Dict["nav"]["sections"];
@@ -36,46 +87,50 @@ export interface NavSection {
   items: NavItem[];
 }
 
-/** サイドバーの並び。ページの URL もここが正 */
+/** サイドバーの並び（URL は `paths`） */
 export const nav: NavSection[] = [
-  { id: "top", heading: false, items: [{ to: "/", key: "overview", icon: LayoutDashboard }] },
+  {
+    id: "top",
+    heading: false,
+    items: [{ to: paths.overview(), key: "overview", icon: LayoutDashboard }],
+  },
   {
     id: "design",
     heading: true,
     items: [
-      { to: "/design/components", key: "components", icon: Boxes },
-      { to: "/design/catalog", key: "catalog", icon: Library },
-      { to: "/design/diagram", key: "diagram", icon: Network },
-      { to: "/design/modes", key: "modes", icon: Table2 },
-      { to: "/design/defs", key: "defs", icon: Ruler },
+      { to: paths.components(), key: "components", icon: Boxes },
+      { to: paths.catalog(), key: "catalog", icon: Library },
+      { to: paths.diagram(), key: "diagram", icon: Network },
+      { to: paths.modes(), key: "modes", icon: Table2 },
+      { to: paths.defs(), key: "defs", icon: Ruler },
     ],
   },
   {
     id: "systems",
     heading: true,
     items: [
-      { to: "/systems/power", key: "power", icon: Sun },
-      { to: "/systems/attitude", key: "attitude", icon: Gauge },
-      { to: "/systems/cdh", key: "cdh", icon: Cpu },
-      { to: "/systems/comm", key: "comm", icon: Radio },
-      { to: "/systems/thermal", key: "thermal", icon: Thermometer },
-      { to: "/systems/structure", key: "structure", icon: Layers3 },
+      { to: paths.system("power"), key: "power", icon: Sun },
+      { to: paths.system("attitude"), key: "attitude", icon: Gauge },
+      { to: paths.system("cdh"), key: "cdh", icon: Cpu },
+      { to: paths.system("comm"), key: "comm", icon: Radio },
+      { to: paths.system("thermal"), key: "thermal", icon: Thermometer },
+      { to: paths.system("structure"), key: "structure", icon: Layers3 },
     ],
   },
   {
     id: "mission",
     heading: true,
     items: [
-      { to: "/mission/orbit", key: "orbit", icon: Orbit },
-      { to: "/mission/cases", key: "cases", icon: Workflow },
+      { to: paths.orbit(), key: "orbit", icon: Orbit },
+      { to: paths.cases(), key: "cases", icon: Workflow },
     ],
   },
   {
     id: "project",
     heading: true,
     items: [
-      { to: "/project/diagnostics", key: "diagnostics", icon: FileWarning },
-      { to: "/project/settings", key: "settings", icon: Settings },
+      { to: paths.diagnostics(), key: "diagnostics", icon: FileWarning },
+      { to: paths.settings(), key: "settings", icon: Settings },
     ],
   },
 ];

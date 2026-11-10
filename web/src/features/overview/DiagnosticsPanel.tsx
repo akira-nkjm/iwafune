@@ -5,6 +5,7 @@ import { useT } from "@/i18n";
 import { DiagnosticItem, diagnosticKey } from "@/kit/DiagnosticItem";
 import { Panel } from "@/kit/Panel";
 import { PanelHeader } from "@/kit/PanelHeader";
+import { paths } from "@/lib/nav";
 import { targetLink } from "@/lib/target-link";
 
 /** 概要の診断（先頭の 8 件と件数）。対象のパスから直しに行くページへ飛べる。すべては プロジェクト / 診断 */
@@ -22,7 +23,7 @@ export function DiagnosticsPanel() {
             : undefined
         }
         right={
-          <Link to="/project/diagnostics" className="text-accent-ink text-xs hover:underline">
+          <Link to={paths.diagnostics()} className="text-accent-ink text-xs hover:underline">
             {o.seeAll}
           </Link>
         }

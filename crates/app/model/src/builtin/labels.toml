@@ -67,6 +67,7 @@ label_en = "Structure & layout"
 
 [enum_order]
 maturity = ["off_the_shelf", "modified", "new"]
+severity = ["error", "warning", "info"]
 
 [enum.maturity.off_the_shelf]
 label    = "既製品"

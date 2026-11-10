@@ -3,6 +3,7 @@ import { recomputeAnalyses } from "@/api/queries";
 import type { CaseView } from "@/api/types";
 import { useT } from "@/i18n";
 import { NativeSelect } from "@/kit/NativeSelect";
+import { idWithName } from "@/lib/design";
 import { Button } from "@/ui/button";
 
 /** 系のページの右上: 解析ケースの選択と「再計算」 */
@@ -25,7 +26,7 @@ export function SystemHeaderActions({
         value={kase ?? ""}
         placeholder={t.systems.defaultCase}
         onChange={(e) => onCase(e.target.value || null)}
-        options={cases.map((c) => ({ value: c.id, label: t.systems.caseOption(c.label, c.id) }))}
+        options={cases.map((c) => ({ value: c.id, label: idWithName(c) }))}
       />
       <Button variant="outline" onClick={() => recomputeAnalyses(ids, kase)}>
         <RefreshCw size={14} />

@@ -3,9 +3,11 @@ import { q } from "@/api/queries";
 import { useT } from "@/i18n";
 import { Chip } from "@/kit/Chip";
 import { Field } from "@/kit/Field";
+import { Loading, SkeletonChips } from "@/kit/Loading";
 import { NativeSelect } from "@/kit/NativeSelect";
 import { Switch } from "@/kit/Switch";
 import { TextInput } from "@/kit/TextInput";
+import { withNote } from "@/lib/design";
 
 export interface NewAttribute {
   id: string;
@@ -75,7 +77,7 @@ export function NewAttributeFields({
           placeholder={tn.pickDimension}
           options={dims.map((d) => ({
             value: d.name,
-            label: d.si_unit ? `${d.name}（${d.si_unit}）` : d.name,
+            label: withNote(d.name, d.si_unit),
           }))}
         />
       </Field>
@@ -87,7 +89,11 @@ export function NewAttributeFields({
                 {u}
               </Chip>
             ))}
-            {units.isFetching && <span className="text-ink-3 text-xs">{t.common.loading}</span>}
+            {units.isPending && (
+              <Loading>
+                <SkeletonChips count={3} />
+              </Loading>
+            )}
           </div>
         </Field>
       )}

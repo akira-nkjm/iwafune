@@ -1,5 +1,6 @@
 import { useSearchParams } from "react-router";
 import { useT } from "@/i18n";
+import { SEARCH } from "@/lib/nav";
 import { Segmented } from "./Segmented";
 
 /** 表示方法を URL に保存する共通スイッチ。 */
@@ -9,7 +10,7 @@ export function ViewSwitch() {
   return (
     <Segmented
       label={t.view}
-      value={params.get("view") === "tree" ? "tree" : "table"}
+      value={params.get(SEARCH.view) === "tree" ? "tree" : "table"}
       options={[
         { value: "table", label: t.tableView },
         { value: "tree", label: t.treeView },
@@ -17,7 +18,7 @@ export function ViewSwitch() {
       onChange={(view) =>
         setParams((previous) => {
           const next = new URLSearchParams(previous);
-          next.set("view", view);
+          next.set(SEARCH.view, view);
           return next;
         })
       }

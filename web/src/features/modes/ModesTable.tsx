@@ -1,53 +1,42 @@
 import { Fragment } from "react";
-import { analysisOutput } from "@/api/analysis-output";
-import type { DesignView, ModeHeader, ModeLoadOutput, ModeRow, ModeTable, Op } from "@/api/types";
-import { useAnalyses } from "@/features/systems/use-analyses";
+import type { BudgetView, ModeHeader } from "@/api/types";
 import { useT } from "@/i18n";
 import { SubsystemDot } from "@/kit/SubsystemDot";
 import { cn } from "@/lib/cn";
-import { kindLabel, nodeLabel, nodeName, partById } from "@/lib/design";
-import { cellOf, type ModeDraft, withCell } from "./draft";
+import { nodeName } from "@/lib/design";
+import type { CellText } from "./draft";
 import { ModeBudgetRows } from "./ModeBudgetRows";
 import { ModeCell } from "./ModeCell";
 import { ModeHeaderMenu } from "./ModeHeaderMenu";
-import { powerLevels, STICKY, savedCellText } from "./matrix";
+import { STICKY } from "./matrix";
+import type { MatrixGroup, MatrixRow } from "./matrix-rows";
+import type { DraftComputed } from "./use-mode-draft-load";
 
 /**
- * 「部品 × モード」の行列。行はサブシステム（部品の Group）ごとにまとめ、電力を使う部品だけを出す。
- * セルの電力は power.mode_load の出力、足もとの合計と余裕は電力のバジェットの値。
+ * 「部品 × モード」の行列の表示。行（`matrixGroups` が作ったサブシステムごとの部品の行）と、足もとのバジェットを
+ * 受け取って並べるだけ（問い合わせと行への変換は `useModeDraftLoad`・`matrixGroups`）。
  * スクロールしても読めるよう、見出しの行は上、部品の列は左、足もとの行は下に貼り付ける（STICKY）。
  */
 export function ModesTable({
-  design,
-  table,
-  draft,
-  ops,
-  onDraft,
+  modes,
+  groups,
+  budget,
+  updating,
+  onCell,
 }: {
-  design: DesignView;
-  table: ModeTable;
-  draft: ModeDraft;
-  /** 下書きを service が Op にしたもの（無ければ空）。これを書き込まずに当てて電力と合計を計算する */
-  ops: readonly Op[];
-  onDraft: (d: ModeDraft) => void;
+  modes: ModeHeader[];
+  groups: MatrixGroup[];
+  budget: DraftComputed<BudgetView | undefined>;
+  /** セルの電力を下書きで問い合わせている間（前の数字を薄くして出しておく） */
+  updating: boolean;
+  onCell: (mode: string, part: string, cell: CellText | null) => void;
 }) {
   const tm = useT().modes;
-  // 下書きを当てた電力と合計（書き込まずにサーバーが計算する）
-  const [load] = useAnalyses(["power.mode_load"], null, ops);
-  const output = analysisOutput(load?.result, "power.mode_load");
-  const parts = partById(design);
-  const groupOf = (row: ModeRow) => parts.get(row.part)?.subsystem ?? null;
-  const rows = table.rows
-    .filter((r) => powerLevels(parts.get(r.part)).some(([, q]) => q.si > 0))
-    .sort(
-      (a, b) => (groupOf(a) ?? "").localeCompare(groupOf(b) ?? "") || a.part.localeCompare(b.part),
-    );
   return (
     <table
       className={cn(
         "w-full border-separate border-spacing-0 text-sm [&_.num]:transition-opacity",
-        // 下書きの電力を問い合わせている間は、前の数字を薄くして出しておく
-        load?.updating && "[&_tbody_.num]:opacity-50",
+        updating && "[&_tbody_.num]:opacity-50",
       )}
     >
       <thead className="text-ink-3 text-xs">
@@ -58,7 +47,7 @@ export function ModesTable({
           <th scope="col" className={`${STICKY.head} min-w-36 px-3 py-3 text-right font-medium`}>
             {tm.powerLevels}
           </th>
-          {table.modes.map((m) => (
+          {modes.map((m) => (
             <th
               key={m.id}
               scope="col"
@@ -74,44 +63,32 @@ export function ModesTable({
         </tr>
       </thead>
       <tbody>
-        {rows.map((r, index) => {
-          const group = groupOf(r);
-          const first = index === 0 || groupOf(rows[index - 1] as ModeRow) !== group;
-          return (
-            <Fragment key={r.part}>
-              {first && (
-                // 系の見出しも部品の列に置く（表の幅いっぱいの 1 セルにすると、固定した列の境目の線がここで切れる）
-                <tr>
-                  <th
-                    scope="rowgroup"
-                    className={cn(
-                      STICKY.rowHead,
-                      "whitespace-nowrap px-4 pt-4 pb-1 text-left font-medium text-ink-3 text-xs",
-                    )}
-                  >
-                    <span className="flex items-center gap-2">
-                      <SubsystemDot group={group} />
-                      {nodeLabel(design, group)}
-                    </span>
-                  </th>
-                  <td colSpan={table.modes.length + 1} />
-                </tr>
-              )}
-              <MatrixRow
-                design={design}
-                table={table}
-                row={r}
-                index={index}
-                draft={draft}
-                output={output}
-                onDraft={onDraft}
-              />
-            </Fragment>
-          );
-        })}
+        {groups.map((g) => (
+          <Fragment key={g.group ?? ""}>
+            {/* 系の見出しも部品の列に置く（表の幅いっぱいの 1 セルにすると、固定した列の境目の線がここで切れる） */}
+            <tr>
+              <th
+                scope="rowgroup"
+                className={cn(
+                  STICKY.rowHead,
+                  "whitespace-nowrap px-4 pt-4 pb-1 text-left font-medium text-ink-3 text-xs",
+                )}
+              >
+                <span className="flex items-center gap-2">
+                  <SubsystemDot group={g.group} />
+                  {g.label}
+                </span>
+              </th>
+              <td colSpan={modes.length + 1} />
+            </tr>
+            {g.rows.map((r) => (
+              <MatrixRowCells key={r.part} row={r} onCell={onCell} />
+            ))}
+          </Fragment>
+        ))}
       </tbody>
       <tfoot className={`${STICKY.foot} bg-panel-2`}>
-        <ModeBudgetRows modes={table.modes} ops={ops} />
+        <ModeBudgetRows modes={modes} budget={budget} />
       </tfoot>
     </table>
   );
@@ -128,64 +105,46 @@ function ModeName({ mode }: { mode: ModeHeader }) {
   );
 }
 
-function MatrixRow({
-  design,
-  table,
+/** 部品 1 つの行（部品の名前・電力レベル・モードごとのセル） */
+function MatrixRowCells({
   row,
-  index,
-  draft,
-  output,
-  onDraft,
+  onCell,
 }: {
-  design: DesignView;
-  table: ModeTable;
-  row: ModeRow;
-  index: number;
-  draft: ModeDraft;
-  output: ModeLoadOutput | null;
-  onDraft: (d: ModeDraft) => void;
+  row: MatrixRow;
+  onCell: (mode: string, part: string, cell: CellText | null) => void;
 }) {
-  const part = design.parts.find((p) => p.id === row.part);
-  const levels = powerLevels(part);
-  const words = useT().modes;
   return (
     <tr>
       <th scope="row" className={`${STICKY.rowHead} px-4 py-1 text-left font-normal`}>
         <div className="font-mono text-xs">
           {row.part}
-          {part && part.count > 1 ? ` ×${part.count}` : ""}
+          {row.count > 1 ? ` ×${row.count}` : ""}
         </div>
-        <div className="text-[10px] text-ink-4">{row.kind && kindLabel(design.defs, row.kind)}</div>
+        <div className="text-[10px] text-ink-4">{row.kind}</div>
       </th>
       <td
         className="num whitespace-nowrap px-3 py-1 text-right text-ink-3 text-xs"
-        title={levels.map(([state, q]) => `${state}: ${q.display}`).join(" / ")}
+        title={row.levelsTitle}
       >
-        {levels.map(([, q]) => q.display).join(" / ")}
+        {row.levels}
       </td>
-      {table.modes.map((m, column) => {
-        const cell = cellOf(table, draft, m.id, row.part);
-        const power =
-          output?.modes.find((mode) => mode.id === m.id)?.parts.find((p) => p.part === row.part)
-            ?.mean ?? null;
-        return (
-          <td key={m.id} className="px-1 py-0.5">
-            <ModeCell
-              part={row.part}
-              mode={m.id}
-              row={index}
-              column={column}
-              states={row.states}
-              cell={cell}
-              display={savedCellText(row, m.id, words)}
-              changed={draft.get(m.id)?.has(row.part) ?? false}
-              power={power}
-              shade={levels.findIndex(([state]) => state === cell?.state)}
-              onChange={(c) => onDraft(withCell(table, draft, m.id, row.part, c))}
-            />
-          </td>
-        );
-      })}
+      {row.cells.map((c, column) => (
+        <td key={c.mode} className="px-1 py-0.5">
+          <ModeCell
+            part={row.part}
+            mode={c.mode}
+            row={row.index}
+            column={column}
+            states={row.states}
+            cell={c.cell}
+            display={c.display}
+            changed={c.changed}
+            power={c.power}
+            shade={c.shade}
+            onChange={(cell) => onCell(c.mode, row.part, cell)}
+          />
+        </td>
+      ))}
     </tr>
   );
 }
