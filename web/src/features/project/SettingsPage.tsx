@@ -5,6 +5,7 @@ import { Empty } from "@/kit/Empty";
 import { Loading, SkeletonPanel } from "@/kit/Loading";
 import { Panel } from "@/kit/Panel";
 import { PanelHeader } from "@/kit/PanelHeader";
+import { TablePanel } from "@/kit/TablePanel";
 import { LanguageSwitch } from "@/shell/LanguageSwitch";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
@@ -56,16 +57,13 @@ export function SettingsPage() {
             </Panel>
             <DataPanel />
             {SCOPES.map((scope) => (
-              <Panel key={scope} pad={false}>
-                <div className="p-4 pb-2">
-                  <PanelHeader
-                    className="mb-0"
-                    title={p.groups[scope].title}
-                    caption={p.groups[scope].caption}
-                  />
-                </div>
+              <TablePanel
+                key={scope}
+                title={p.groups[scope].title}
+                caption={p.groups[scope].caption}
+              >
                 <SettingsTable settings={d.settings.filter((s) => s.scope === scope)} />
-              </Panel>
+              </TablePanel>
             ))}
           </>
         )}

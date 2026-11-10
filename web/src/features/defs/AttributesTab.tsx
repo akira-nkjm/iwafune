@@ -6,9 +6,8 @@ import { type NewAttribute, NewAttributeFields } from "@/features/components/New
 import { attrAddCommand } from "@/features/components/param-ops";
 import { useT } from "@/i18n";
 import { DataTable } from "@/kit/DataTable";
-import { Panel } from "@/kit/Panel";
-import { PanelHeader } from "@/kit/PanelHeader";
 import { Pill } from "@/kit/Pill";
+import { TablePanel } from "@/kit/TablePanel";
 import { Td } from "@/kit/Td";
 import { Th } from "@/kit/Th";
 import { defName } from "@/lib/design";
@@ -33,20 +32,16 @@ export function AttributesTab({ design }: { design: DesignView }) {
   const ops = made.ops;
   const idError = useOpCheck(adding ? ops : null).error ?? made.error;
   return (
-    <Panel pad={false}>
-      <div className="p-4 pb-2">
-        <PanelHeader
-          className="mb-0"
-          title={ta.title}
-          caption={ta.caption(attrs.length, attrs.filter((a) => a.builtin).length)}
-          right={
-            <Button size="sm" onClick={() => setAdding(true)}>
-              <Plus size={13} />
-              {ta.add}
-            </Button>
-          }
-        />
-      </div>
+    <TablePanel
+      title={ta.title}
+      caption={ta.caption(attrs.length, attrs.filter((a) => a.builtin).length)}
+      right={
+        <Button size="sm" onClick={() => setAdding(true)}>
+          <Plus size={13} />
+          {ta.add}
+        </Button>
+      }
+    >
       <DataTable
         head={
           <>
@@ -103,6 +98,6 @@ export function AttributesTab({ design }: { design: DesignView }) {
           <NewAttributeFields value={fresh} onChange={setFresh} idError={idError} />
         </OpDialog>
       )}
-    </Panel>
+    </TablePanel>
   );
 }

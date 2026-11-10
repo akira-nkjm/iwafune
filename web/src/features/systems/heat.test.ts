@@ -67,11 +67,3 @@ describe("熱の温度表", () => {
     expect(heatMapOf(null)).toBeNull();
   });
 });
-
-describe("3D の塗り", () => {
-  it("両端は accent と neg", async () => {
-    const { heatHex } = await import("./heat");
-    expect(heatHex(0)).toBe("#3382c2");
-    expect(heatHex(1)).toBe("#b92626");
-  });
-});

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { usePlaceBody } from "@/api/ops";
 import type { DesignView } from "@/api/types";
-import { DetailSection } from "@/features/components/DetailSection";
 import { PlacementSection } from "@/features/components/PlacementSection";
 import { useT } from "@/i18n";
+import { Chip } from "@/kit/Chip";
+import { DetailSection } from "@/kit/DetailSection";
 import { Empty } from "@/kit/Empty";
 import { NativeSelect } from "@/kit/NativeSelect";
 import { Panel } from "@/kit/Panel";
@@ -128,13 +129,7 @@ export function Layout3D({
                   <ul className="flex flex-wrap gap-1">
                     {unplaced.map((id) => (
                       <li key={id}>
-                        <button
-                          type="button"
-                          onClick={() => setSelected(id)}
-                          className="rounded-chip border border-line px-1.5 py-0.5 font-mono text-[11px] hover:bg-panel-2"
-                        >
-                          {id}
-                        </button>
+                        <Chip onSelect={() => setSelected(id)}>{id}</Chip>
                       </li>
                     ))}
                   </ul>

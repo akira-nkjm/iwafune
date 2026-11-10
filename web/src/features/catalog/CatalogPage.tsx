@@ -1,13 +1,13 @@
-import { Plus, Search } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useParams } from "react-router";
 import { useDesign } from "@/api/queries";
 import type { DesignView } from "@/api/types";
 import { useT } from "@/i18n";
-import { DetailLayout, DetailLoading } from "@/kit/DetailLayout";
 import { Empty } from "@/kit/Empty";
-import { TextInput } from "@/kit/TextInput";
-import { useDetailRoute } from "@/kit/use-detail-route";
+import { ListDetailPage } from "@/kit/ListDetailPage";
+import { SearchInput } from "@/kit/SearchInput";
+import { matchesSearch } from "@/kit/search";
+import { type DetailRoute, useDetailRoute } from "@/kit/use-detail-route";
 import { ViewSwitch } from "@/kit/ViewSwitch";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
@@ -17,36 +17,40 @@ import { CatalogTree } from "./CatalogTree";
 import { CreateCatalogDialog } from "./CreateCatalogDialog";
 import { itemLabel } from "./catalog";
 
-type Selection = { tree: boolean; selected: string | null; onSelect: (id: string | null) => void };
-
 /** カタログも同じ URL 選択で、表ではモーダル・ツリーではサイドパネルを開く。 */
 export function CatalogPage() {
+  const t = useT();
   const design = useDesign();
   const route = useDetailRoute("/design/catalog");
-  const { itemId } = useParams();
   const [search, setSearch] = useState("");
-  const [creating, setCreating] = useState(false);
-  const selection = {
-    tree: route.tree,
-    selected: itemId ? decodeURIComponent(itemId) : null,
-    onSelect: route.select,
-  };
   return (
     <>
-      <CatalogHeader
-        design={design.data}
-        search={search}
-        onSearch={setSearch}
-        onAdd={() => setCreating(true)}
+      <ListDetailPage
+        design={design}
+        route={route}
+        hint={t.catalog.select}
+        header={
+          <CatalogHeader
+            design={design.data}
+            search={search}
+            onSearch={setSearch}
+            onAdd={() => route.setAdding(true)}
+          />
+        }
+        list={(d) => <CatalogList design={d} search={search} route={route} />}
+        detail={(d, id) => {
+          const item = d.catalog.find((c) => c.id === id);
+          return item ? (
+            <CatalogDetail key={item.id} design={d} item={item} onSelect={route.select} />
+          ) : null;
+        }}
       />
-      <CatalogContent design={design} search={search} selection={selection} />
-      {design.data && creating && (
+      {design.data && route.adding && (
         <CreateCatalogDialog
           design={design.data}
           open
-          onOpenChange={setCreating}
+          onOpenChange={route.setAdding}
           onCreated={(id) => {
-            setCreating(false);
             setSearch("");
             route.select(id);
           }}
@@ -83,16 +87,7 @@ function CatalogHeader({
       actions={
         <>
           <ViewSwitch />
-          <div className="relative">
-            <Search size={13} className="absolute top-2.5 left-2.5 text-ink-4" />
-            <TextInput
-              aria-label={t.catalog.search}
-              placeholder={t.catalog.search}
-              className="w-52 pl-7"
-              value={search}
-              onChange={(e) => onSearch(e.target.value)}
-            />
-          </div>
+          <SearchInput label={t.catalog.search} value={search} onChange={onSearch} />
           <Button onClick={onAdd} disabled={!design}>
             <Plus size={14} />
             {t.catalog.add}
@@ -103,62 +98,30 @@ function CatalogHeader({
   );
 }
 
-function CatalogContent({
-  design,
-  search,
-  selection,
-}: {
-  design: ReturnType<typeof useDesign>;
-  search: string;
-  selection: Selection;
-}) {
-  const t = useT();
-  const d = design.data;
-  if (design.isError) return <Empty>{t.common.cannotLoadDesign(design.error.message)}</Empty>;
-  if (!d) return <DetailLoading tree={selection.tree} />;
-  const current = d.catalog.find((c) => c.id === selection.selected);
-  return (
-    <DetailLayout
-      tree={selection.tree}
-      title={current?.id ?? t.catalog.title}
-      hint={t.catalog.select}
-      onClose={() => selection.onSelect(null)}
-      list={<CatalogList design={d} search={search} selection={selection} />}
-      detail={
-        current ? (
-          <CatalogDetail key={current.id} design={d} item={current} onSelect={selection.onSelect} />
-        ) : null
-      }
-    />
-  );
-}
-
 function CatalogList({
   design,
   search,
-  selection,
+  route,
 }: {
   design: DesignView;
   search: string;
-  selection: Selection;
+  route: DetailRoute;
 }) {
   const t = useT();
-  const items = useMemo(() => {
-    const s = search.trim().toLowerCase();
-    return design.catalog.filter(
-      (c) => !s || [c.id, c.kind, itemLabel(c)].some((value) => value.toLowerCase().includes(s)),
-    );
-  }, [design.catalog, search]);
+  const items = useMemo(
+    () => design.catalog.filter((c) => matchesSearch(search, [c.id, c.kind, itemLabel(c)])),
+    [design.catalog, search],
+  );
   if (!items.length) return <Empty>{t.catalog.empty}</Empty>;
-  if (selection.tree)
+  if (route.tree)
     return (
       <CatalogTree
         key={search}
         all={design.catalog}
         items={items}
-        selected={selection.selected}
-        onSelect={selection.onSelect}
+        selected={route.selected}
+        onSelect={route.select}
       />
     );
-  return <CatalogTable items={items} selected={selection.selected} onSelect={selection.onSelect} />;
+  return <CatalogTable items={items} selected={route.selected} onSelect={route.select} />;
 }

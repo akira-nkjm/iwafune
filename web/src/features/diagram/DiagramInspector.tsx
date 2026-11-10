@@ -1,8 +1,8 @@
 import type { DesignView } from "@/api/types";
 import { PartDetail } from "@/features/components/PartDetail";
 import { getT } from "@/i18n";
+import { Chip } from "@/kit/Chip";
 import { Empty } from "@/kit/Empty";
-import { cn } from "@/lib/cn";
 import type { DiagramModel } from "./model";
 import { NetInspector } from "./NetInspector";
 
@@ -36,19 +36,13 @@ export function DiagramInspector({
         {card.members.length > 1 && (
           <div className="flex flex-wrap gap-1 border-line border-b px-4 py-2">
             {card.members.map((m) => (
-              <button
+              <Chip
                 key={m}
-                type="button"
-                onClick={() => onSelect({ ...selected, member: m })}
-                className={cn(
-                  "rounded-chip border px-1.5 py-0.5 font-mono text-[11px]",
-                  m === member
-                    ? "border-accent bg-accent-tint text-accent-ink"
-                    : "border-line hover:bg-panel-2",
-                )}
+                selected={m === member}
+                onSelect={() => onSelect({ ...selected, member: m })}
               >
                 {m}
-              </button>
+              </Chip>
             ))}
           </div>
         )}
@@ -76,19 +70,13 @@ export function DiagramInspector({
       {nets.length > 1 && (
         <div className="flex flex-wrap gap-1 border-line border-b px-4 py-2">
           {nets.map((n) => (
-            <button
+            <Chip
               key={n}
-              type="button"
-              onClick={() => onSelect({ ...selected, member: n })}
-              className={cn(
-                "rounded-chip border px-1.5 py-0.5 font-mono text-[11px]",
-                n === current
-                  ? "border-accent bg-accent-tint text-accent-ink"
-                  : "border-line hover:bg-panel-2",
-              )}
+              selected={n === current}
+              onSelect={() => onSelect({ ...selected, member: n })}
             >
               {n}
-            </button>
+            </Chip>
           ))}
         </div>
       )}

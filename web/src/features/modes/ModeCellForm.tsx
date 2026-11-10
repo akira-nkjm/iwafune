@@ -1,4 +1,6 @@
+import { useId } from "react";
 import { useT } from "@/i18n";
+import { CommitInput } from "@/kit/CommitInput";
 import { Segmented } from "@/kit/Segmented";
 import type { CellText } from "./draft";
 
@@ -17,6 +19,7 @@ export function ModeCellForm({
   onChange: (cell: CellText | null) => void;
 }) {
   const t = useT().modes.cell;
+  const id = useId();
   // 基本の状態を変えたら、その状態の時間割合は意味が無くなるので消す
   const setState = (state: string) => {
     const duty = Object.entries(cell?.duty ?? {}).filter(([s]) => s !== state);
@@ -48,18 +51,20 @@ export function ModeCellForm({
             .map((s) => (
               <label
                 key={`${cell.state}-${s}`}
+                htmlFor={`${id}-${s}`}
                 className="flex items-center justify-between gap-2 text-xs"
               >
                 <span className="font-mono">{s}</span>
-                <input
+                <CommitInput
+                  id={`${id}-${s}`}
                   type="number"
                   min={0}
                   max={1}
                   step={0.01}
-                  aria-label={t.dutyFor(s)}
-                  defaultValue={cell.duty[s] ?? ""}
-                  onBlur={(e) => setDuty(cell, s, e.target.value)}
-                  className="num h-7 w-20 rounded-md border border-line-strong px-1.5 text-right"
+                  label={t.dutyFor(s)}
+                  value={cell.duty[s] ?? ""}
+                  onCommit={(text) => setDuty(cell, s, text)}
+                  className="num w-20 text-right"
                 />
               </label>
             ))}

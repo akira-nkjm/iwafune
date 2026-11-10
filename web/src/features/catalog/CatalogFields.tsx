@@ -2,6 +2,7 @@ import { useEnumOptions } from "@/api/labels";
 import { useSetText, useUnsetText } from "@/api/ops";
 import type { CatalogItemView } from "@/api/types";
 import { useT } from "@/i18n";
+import { CommitInput } from "@/kit/CommitInput";
 import { NativeSelect } from "@/kit/NativeSelect";
 import { PropertyList } from "@/kit/PropertyList";
 import { PropertyRow } from "@/kit/PropertyRow";
@@ -39,16 +40,11 @@ export function CatalogFields({ item }: { item: CatalogItemView }) {
       </PropertyRow>
       {rows.map((r) => (
         <PropertyRow key={r.key} label={r.label}>
-          <input
-            aria-label={r.label}
-            defaultValue={r.value ?? ""}
-            key={`${item.id}-${r.value ?? ""}`}
+          <CommitInput
+            label={r.label}
+            value={r.value ?? ""}
             disabled={readOnly}
-            onBlur={(e) => {
-              const v = e.target.value.trim();
-              if (v !== (r.value ?? "")) save(r.key, r.label, v);
-            }}
-            className="h-7 w-full min-w-0 rounded-[8px] border border-line-strong bg-panel px-2 text-[12.5px] disabled:border-transparent disabled:bg-transparent"
+            onCommit={(v) => save(r.key, r.label, v)}
           />
         </PropertyRow>
       ))}

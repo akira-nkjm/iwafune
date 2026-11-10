@@ -5,9 +5,8 @@ import type { CommandText, DesignView } from "@/api/types";
 import { useT } from "@/i18n";
 import { DataTable } from "@/kit/DataTable";
 import { Field } from "@/kit/Field";
-import { Panel } from "@/kit/Panel";
-import { PanelHeader } from "@/kit/PanelHeader";
 import { Pill } from "@/kit/Pill";
+import { TablePanel } from "@/kit/TablePanel";
 import { Td } from "@/kit/Td";
 import { TextInput } from "@/kit/TextInput";
 import { Th } from "@/kit/Th";
@@ -37,20 +36,16 @@ export function KindsTab({ design }: { design: DesignView }) {
   const ops = made.ops;
   const error = useOpCheck(adding ? ops : null).error ?? made.error;
   return (
-    <Panel pad={false}>
-      <div className="p-4 pb-2">
-        <PanelHeader
-          className="mb-0"
-          title={tk.title}
-          caption={tk.caption(kinds.length)}
-          right={
-            <Button size="sm" onClick={() => setAdding(true)}>
-              <Plus size={13} />
-              {tk.add}
-            </Button>
-          }
-        />
-      </div>
+    <TablePanel
+      title={tk.title}
+      caption={tk.caption(kinds.length)}
+      right={
+        <Button size="sm" onClick={() => setAdding(true)}>
+          <Plus size={13} />
+          {tk.add}
+        </Button>
+      }
+    >
       <DataTable
         head={
           <>
@@ -145,6 +140,6 @@ export function KindsTab({ design }: { design: DesignView }) {
           </Field>
         </OpDialog>
       )}
-    </Panel>
+    </TablePanel>
   );
 }

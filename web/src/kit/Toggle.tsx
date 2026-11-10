@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { PRESSED } from "./pressed";
 
 /**
  * オン・オフを切り替えるボタン（チェックボックスの代わり）。押されているときはアクセント色の淡い地と枠で、
@@ -26,9 +27,7 @@ export function Toggle({
       onClick={() => onChange(!on)}
       className={cn(
         "h-7 shrink-0 rounded-[8px] border px-2.5 font-medium text-xs transition-colors",
-        on
-          ? "border-accent bg-accent-tint text-accent-ink"
-          : "border-line bg-panel text-ink-3 hover:text-ink",
+        on ? PRESSED : "border-line bg-panel text-ink-3 hover:text-ink",
         className,
       )}
     >

@@ -10,7 +10,7 @@ import { Focus, Map as MapIcon, Maximize, ZoomIn, ZoomOut } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { uiHex } from "@/lib/tone";
+import { inkVeil, uiHex } from "@/lib/tone";
 import type { DiagramSelection } from "./DiagramInspector";
 
 /** 拡大率の範囲（10%〜1000%） */
@@ -109,7 +109,7 @@ export function DiagramZoom({
           ariaLabel={td.minimap}
           nodeColor={(n) => (n.type === "card" ? uiHex.ink3 : "transparent")}
           nodeStrokeColor={(n) => (n.type === "container" ? uiHex.ink3 : "transparent")}
-          maskColor="color-mix(in srgb, var(--color-ink) 8%, transparent)"
+          maskColor={inkVeil}
           className="!rounded-control !border !border-line !bg-panel !shadow-panel"
         />
       )}
