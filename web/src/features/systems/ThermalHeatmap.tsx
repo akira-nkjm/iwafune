@@ -1,10 +1,10 @@
+import { FieldValue } from "@/analysis/FieldValue";
 import { useT } from "@/i18n";
 import { Panel } from "@/kit/Panel";
 import { PanelHeader } from "@/kit/PanelHeader";
 import { cn } from "@/lib/cn";
 import { heatHex } from "@/lib/tone";
 import { Formatted } from "@/quantity/Formatted";
-import { FieldValue } from "./FieldValue";
 import { type HeatMap, heatKey, heatRatio } from "./heat";
 
 const ring = {

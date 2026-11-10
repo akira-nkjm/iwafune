@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { analysisOutput } from "@/api/analysis-output";
 import { useCommandOps } from "@/api/ops";
-import { q } from "@/api/queries";
+import { q, useAnalyses } from "@/api/queries";
 import type { BudgetView, ModeLoadOutput, ModeTable, Op } from "@/api/types";
-import { useAnalyses } from "@/features/systems/use-analyses";
 import { draftCommand, type ModeDraft } from "./draft";
 
 const NO_OPS: readonly Op[] = [];

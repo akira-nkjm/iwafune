@@ -78,6 +78,13 @@ export interface NavItem {
   /** 表示名は辞書（t.nav.items）から引く */
   key: NavItemKey;
   icon: LucideIcon;
+  /** 系のページの項目なら、その系（先読みで系の解析を読む） */
+  system?: System;
+}
+
+/** 系の項目（URL は `paths.system`） */
+function systemItem(system: System & NavItemKey, icon: LucideIcon): NavItem {
+  return { to: paths.system(system), key: system, icon, system };
 }
 
 export interface NavSection {
@@ -109,12 +116,12 @@ export const nav: NavSection[] = [
     id: "systems",
     heading: true,
     items: [
-      { to: paths.system("power"), key: "power", icon: Sun },
-      { to: paths.system("attitude"), key: "attitude", icon: Gauge },
-      { to: paths.system("cdh"), key: "cdh", icon: Cpu },
-      { to: paths.system("comm"), key: "comm", icon: Radio },
-      { to: paths.system("thermal"), key: "thermal", icon: Thermometer },
-      { to: paths.system("structure"), key: "structure", icon: Layers3 },
+      systemItem("power", Sun),
+      systemItem("attitude", Gauge),
+      systemItem("cdh", Cpu),
+      systemItem("comm", Radio),
+      systemItem("thermal", Thermometer),
+      systemItem("structure", Layers3),
     ],
   },
   {
@@ -134,3 +141,10 @@ export const nav: NavSection[] = [
     ],
   },
 ];
+
+/**
+ * ナビの項目が系のページか（項目の `system` で見る。系の項目のキーは系の綴りそのもの）。先読みの計画が系の解析を読むのに使う
+ */
+export function isSystemItem(key: NavItemKey): key is NavItemKey & System {
+  return nav.some((s) => s.items.some((i) => i.key === key && i.system === key));
+}

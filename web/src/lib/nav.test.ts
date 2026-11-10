@@ -1,7 +1,7 @@
 import type { RouteConfigEntry } from "@react-router/dev/routes";
 import { describe, expect, it } from "vitest";
 import routes from "@/routes";
-import { nav, paths } from "./nav";
+import { isSystemItem, nav, paths } from "./nav";
 
 /** routes.ts のルートの形（`design/components/:id?`）→ 道筋に合うかの正規表現 */
 function patterns(entries: readonly RouteConfigEntry[]): RegExp[] {
@@ -50,5 +50,16 @@ describe("paths", () => {
       "/systems/thermal/series?case=hot%26cold",
     );
     expect(paths.system("power", { tab: null, kase: null })).toBe("/systems/power");
+  });
+});
+
+describe("isSystemItem", () => {
+  it("系の項目だけが系のページ（キーは系の綴り）", () => {
+    expect(isSystemItem("thermal")).toBe(true);
+    expect(isSystemItem("overview")).toBe(false);
+    expect(isSystemItem("modes")).toBe(false);
+    const systems = nav.flatMap((s) => s.items.flatMap((i) => (i.system ? [i.system] : [])));
+    expect(systems).toHaveLength(6);
+    expect(systems.every((s) => isSystemItem(s))).toBe(true);
   });
 });

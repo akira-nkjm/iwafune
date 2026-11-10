@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
+import { MissingList } from "@/analysis/MissingList";
 import { q, useDesign } from "@/api/queries";
 import type { BudgetKind, BudgetRow } from "@/api/types";
-import { MissingList } from "@/features/systems/MissingList";
 import { localized, useT } from "@/i18n";
 import { Empty } from "@/kit/Empty";
 import { Loading, SkeletonPanel } from "@/kit/Loading";
@@ -12,7 +12,7 @@ import { VerdictPill } from "@/kit/VerdictPill";
 import { verdictTone } from "@/kit/verdict-tone";
 
 /**
- * バジェット 1 種類（配分と現状）。行ごとの目盛りバーは「成長余裕込み / 配分」（塗りの長さだけに使う比）。
+ * バジェット 1 種類（配分と現状）。行ごとの目盛りバーは API の塗りの比（`BudgetRow.fill`。成長余裕込み / 配分）。
  * 入力が足りなければ、解析と同じく足りない入力（`missing`）を名指しする。
  */
 export function BudgetPanel({ kind }: { kind: BudgetKind }) {
@@ -85,7 +85,7 @@ function BudgetRowItem({ row: r }: { row: BudgetRow }) {
       </span>
       <TickBar
         ticks={36}
-        ratio={r.allocated && r.allocated.si > 0 ? r.with_growth.si / r.allocated.si : null}
+        ratio={r.fill?.ratio ?? null}
         tone={verdictTone[r.verdict]}
         label={`${title}: ${r.with_growth.display}${r.allocated ? ` / ${r.allocated.display}` : ""}`}
       />

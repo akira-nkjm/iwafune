@@ -6,7 +6,7 @@ use crate::dto::{
 };
 use crate::query::values::authored_quantity;
 use fune_model::builtin;
-use fune_model::design::{Design, EntityKey, NodeRef};
+use fune_model::design::{AnalysisSystem, BudgetKind, Design, EntityKey, NodeRef};
 use fune_model::path::PortRef;
 use std::collections::BTreeMap;
 
@@ -210,6 +210,11 @@ pub(crate) fn defs(design: &Design) -> DefsView {
         attributes,
         kinds,
         labels: builtin::labels().clone(),
+        systems: AnalysisSystem::ALL
+            .iter()
+            .map(|s| fune_projection::system::to_analysis(*s))
+            .collect(),
+        budget_kinds: BudgetKind::ALL.to_vec(),
     }
 }
 

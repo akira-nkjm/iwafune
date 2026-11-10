@@ -1,40 +1,40 @@
-import { useQuery } from "@tanstack/react-query";
-import { q } from "@/api/queries";
-import type { System } from "@/api/types";
+import { kpiSlots, kpiText } from "@/analysis/kpi";
+import type { AnalysisState } from "@/api/queries";
+import type { AnalysisEntry } from "@/api/types";
+import { localized, useT } from "@/i18n";
+import { Loading, SkeletonBlock } from "@/kit/Loading";
 import { StatStrip } from "@/kit/StatStrip";
-import { FieldValue } from "./FieldValue";
-import { kpiDimension, kpiValue } from "./kpi";
-import { type KpiSpec, kpiLabel } from "./systems";
-import type { AnalysisState } from "./use-analyses";
 
-/** 系のページ上部の主要 KPI */
+/**
+ * 系のページ上部の主要 KPI。並び・名前・値は API（解析の一覧の `kpis` と、結果の `kpis`）で、ここは並べるだけ。
+ * 解析の一覧を待つ間は帯のスケルトン、結果を待つ間は値のスケルトン。
+ */
 export function SystemKpis({
-  system,
-  kpis,
+  entries,
   states,
+  loading,
 }: {
-  system: System;
-  kpis: KpiSpec[];
-  states: AnalysisState[];
+  /** この系の解析（一覧の順） */
+  entries: readonly AnalysisEntry[];
+  states: readonly AnalysisState[];
+  /** 解析の一覧を待っている */
+  loading: boolean;
 }) {
-  const budget = useQuery({ ...q.budget("power"), enabled: system === "power" });
+  const t = useT().systems;
+  if (loading)
+    return (
+      <Loading>
+        <SkeletonBlock className="h-[62px] rounded-card" />
+      </Loading>
+    );
   return (
     <StatStrip
-      items={kpis.map((k) => {
-        const v = kpiValue(k, states, budget.data?.mode);
-        const loading = states.find((s) => s.id === k.analysis)?.loading;
-        return {
-          key: k.key,
-          label: kpiLabel(system, k.key),
-          value: loading ? (
-            "…"
-          ) : v === null ? (
-            "—"
-          ) : (
-            <FieldValue field={k.field} value={v} dimension={kpiDimension(k, states)} />
-          ),
-        };
-      })}
+      items={kpiSlots(entries, states).map((s) => ({
+        key: s.def.key,
+        label: localized(s.def.label, s.def.label_en),
+        value: kpiText(s.kpi, (n) => t.kpiTally(n.checked, n.flagged)),
+        loading: s.loading,
+      }))}
     />
   );
 }

@@ -1,6 +1,6 @@
 //! バジェットの API の型（`GET`・`POST /budgets/{kind}`、`fune budget`）。
 
-use super::QuantityView;
+use super::{FillRatio, QuantityView};
 use fune_model::design::BudgetKind;
 use fune_ops::Op;
 use fune_projection::MissingInput;
@@ -24,6 +24,8 @@ pub struct BudgetRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct BudgetView {
     pub kind: BudgetKind,
+    /// このバジェットを見せる系（質量 → 構造・電力 → 電源・データ量 → C&DH。`query::settings::budget_system`）
+    pub system: sat_analysis::spec::System,
     /// 例: `"質量"`
     pub label: String,
     /// 英語の見出し（例: `"Mass"`）
@@ -40,6 +42,8 @@ pub struct BudgetView {
     pub margin: Option<QuantityView>,
     /// 判定（入力が足りなければ null）
     pub verdict: Option<Verdict>,
+    /// 塗りの比（合計 / 上限。上限か合計が無ければ null）
+    pub fill: Option<FillRatio>,
     /// 行（サブシステムや組立品）
     pub rows: Vec<BudgetRow>,
     /// 電力のモードごとの行（電力のときだけ。ほかは空）。`node` はモード ID、`allocated` はシステム余裕を
@@ -70,4 +74,6 @@ pub struct BudgetRow {
     /// 配分 − 成長余裕込み
     pub margin: Option<QuantityView>,
     pub verdict: Verdict,
+    /// 塗りの比（成長余裕込み / 配分。配分が無ければ null）
+    pub fill: Option<FillRatio>,
 }

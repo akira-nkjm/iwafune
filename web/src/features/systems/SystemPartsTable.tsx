@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useAttrEdit } from "@/api/ops";
-import type { DesignView, PartRow } from "@/api/types";
+import type { DesignView, PartRow, System } from "@/api/types";
 import { useT } from "@/i18n";
 import { DataTable } from "@/kit/DataTable";
 import { Empty } from "@/kit/Empty";
@@ -11,7 +11,6 @@ import { attrDef, attrLabel } from "@/lib/design";
 import { paths } from "@/lib/nav";
 import { AttrValueEditor } from "@/quantity/AttrValueEditor";
 import { relevantParts } from "./relevant";
-import type { SystemSpec } from "./systems";
 
 /** 状態ごとの属性は、状態の数がこれ以下なら状態ごとの列に開く（電力の off / on / tx …） */
 const MAX_STATE_COLUMNS = 6;
@@ -37,9 +36,9 @@ function columnsOf(design: DesignView, parts: PartRow[], attrs: string[]): Colum
  * 系のページの「部品 × この系の属性」の表。セルで直接直す（部品の詳細と同じ `AttrValueEditor` と `useAttrEdit`）。
  * 状態ごとの値は状態の列に開く
  */
-export function SystemPartsTable({ design, spec }: { design: DesignView; spec: SystemSpec }) {
+export function SystemPartsTable({ design, system }: { design: DesignView; system: System }) {
   const t = useT();
-  const { parts, attrs } = relevantParts(design, spec);
+  const { parts, attrs } = relevantParts(design, system);
   if (parts.length === 0) return <Empty>{t.systems.noParts}</Empty>;
   const cols = columnsOf(design, parts, attrs);
   return (

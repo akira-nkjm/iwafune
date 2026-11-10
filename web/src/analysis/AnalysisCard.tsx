@@ -1,17 +1,16 @@
-import type { ReactNode } from "react";
+import type { AnalysisState } from "@/api/queries";
 import type { AnalysisEntry, DesignView } from "@/api/types";
 import { useT } from "@/i18n";
 import { analysisDescription, analysisTitle } from "@/i18n/analysis-names";
+import { Loading, SkeletonLines } from "@/kit/Loading";
 import { Panel } from "@/kit/Panel";
 import { PanelHeader } from "@/kit/PanelHeader";
 import { Pill } from "@/kit/Pill";
-import { Skeleton } from "@/ui/skeleton";
 import { ChecksList } from "./ChecksList";
 import { FieldValue } from "./FieldValue";
 import { fieldLabel } from "./fields";
 import { MissingList } from "./MissingList";
 import { collectScalars, groupScalars } from "./output";
-import type { AnalysisState } from "./use-analyses";
 
 const statusTone = { ok: "pos", missing_inputs: "warn", failed: "neg" } as const;
 
@@ -20,12 +19,10 @@ export function AnalysisCard({
   state,
   entry,
   design,
-  children,
 }: {
   state: AnalysisState;
   entry: AnalysisEntry | undefined;
   design: DesignView | undefined;
-  children?: ReactNode;
 }) {
   const t = useT();
   const r = state.result;
@@ -54,7 +51,9 @@ export function AnalysisCard({
         }
       />
       {state.loading ? (
-        <Skeleton className="h-16 w-full" />
+        <Loading>
+          <SkeletonLines lines={3} />
+        </Loading>
       ) : state.error ? (
         <p className="text-neg-ink text-xs">{state.error}</p>
       ) : r ? (
@@ -92,7 +91,6 @@ export function AnalysisCard({
               ))}
             </div>
           )}
-          {children}
         </div>
       ) : null}
     </Panel>

@@ -1,15 +1,15 @@
 import type { ReactNode } from "react";
+import { dimOf, EACH } from "@/analysis/output";
 import { analysisOutput } from "@/api/analysis-output";
+import type { AnalysisState } from "@/api/queries";
 import type { AnalysisOutputs, DesignView, System } from "@/api/types";
 import { LazyLayout3D } from "@/features/layout3d/LazyLayout3D";
 import type { V3 } from "@/features/layout3d/scene";
 import { heatHex, toneHex } from "@/lib/tone";
 import { heatKey, heatMapOf, heatRatio } from "./heat";
-import { dimOf, EACH } from "./output";
 import { hasExtras } from "./preload";
 import type { SystemTab } from "./SystemTabs";
 import { ThermalHeatmap } from "./ThermalHeatmap";
-import type { AnalysisState } from "./use-analyses";
 
 function resultOf(states: readonly AnalysisState[], id: string) {
   return states.find((s) => s.id === id)?.result;

@@ -6,6 +6,7 @@
 //! | `channels` | 時系列の表示名と表示単位 |
 //! | [`labels`] | 解析の出力の語彙の表示名（日本語・英語） |
 //! | `checks` | 出力の中の判定を集める（期間不足の注意は語彙から作る） |
+//! | `kpi` | KPI（代表値の選び方・判定・塗りの比・判定の数え方） |
 
 use crate::dto::{
     AnalysisEntry, AnalysisInputSource, AnalysisLabel, AnalysisRunResult, AnalysisRunStatus,
@@ -20,6 +21,7 @@ use std::collections::BTreeMap;
 mod channels;
 mod checks;
 mod dims;
+mod kpi;
 pub mod labels;
 
 /// 解析の一覧（`GET /analyses`）。
@@ -35,6 +37,7 @@ pub fn analysis_catalog() -> Result<Vec<AnalysisEntry>> {
                 input_type: row.input_type.clone(),
                 output_type: row.output_type.clone(),
                 projectable: row.projectable,
+                kpis: kpi::defs(&info.id),
                 info,
             })
         })
@@ -50,6 +53,8 @@ struct Outcome {
     output: Option<Value>,
     missing: Vec<MissingInput>,
     error: Option<String>,
+    /// 解析ケースのモード（KPI の電力のモードの選び方に使う。入力を丸ごと与えたときは None）
+    case_mode: Option<String>,
 }
 
 impl Outcome {
@@ -62,8 +67,15 @@ impl Outcome {
             output: None,
             missing: Vec::new(),
             error: Some(error),
+            case_mode: None,
         }
     }
+}
+
+/// 設計から組み立てた入力と、そのケースのモード。
+struct Projected {
+    input: Value,
+    case_mode: Option<String>,
 }
 
 /// 解析を実行する（`POST /analyses/{id}`）。足りない入力は `missing` に入れて返す（エラーにしない）。
@@ -78,9 +90,18 @@ pub fn run_analysis(
     let outcome = run_inner(ws, id, req)?;
     let checks = checks::collect_checks(outcome.output.as_ref());
     let verdict = sat_analysis::spec::Verdict::worst(checks.iter().map(|c| c.verdict));
+    let kpis = kpi::kpis(
+        id,
+        outcome.output.as_ref(),
+        &checks,
+        kpi::KpiContext {
+            case_mode: outcome.case_mode.as_deref(),
+        },
+    );
     Ok(AnalysisRunResult {
         checks,
         verdict,
+        kpis,
         id: id.to_owned(),
         case: req.case.clone(),
         status: outcome.status,
@@ -94,15 +115,17 @@ pub fn run_analysis(
 }
 
 fn run_inner(ws: &Workspace, id: &str, req: &RunAnalysisRequest) -> Result<Outcome> {
-    let input = match &req.source {
-        AnalysisInputSource::Given { input } => input.clone(),
+    let (input, case_mode) = match &req.source {
+        AnalysisInputSource::Given { input } => (input.clone(), None),
         source => {
             // 下書き（`ops`）が通らなければ、保存・バジェットと同じエラー（検証なら診断付き）を返す
             let snapshot = crate::preview::snapshot_with(ws, &req.ops)?;
             match project(&snapshot, id, req.case.as_deref()) {
-                Ok(v) => match source {
-                    AnalysisInputSource::Patched { patch } => merge_patch(v, patch),
-                    _ => v,
+                Ok(p) => match source {
+                    AnalysisInputSource::Patched { patch } => {
+                        (merge_patch(p.input, patch), p.case_mode)
+                    }
+                    _ => (p.input, p.case_mode),
                 },
                 Err(ProjectionError::Missing(m)) => {
                     return Ok(Outcome {
@@ -131,6 +154,7 @@ fn run_inner(ws: &Workspace, id: &str, req: &RunAnalysisRequest) -> Result<Outco
                 output: Some(output),
                 missing: Vec::new(),
                 error: None,
+                case_mode,
             }
         }
         Err(e) => Outcome {
@@ -140,14 +164,17 @@ fn run_inner(ws: &Workspace, id: &str, req: &RunAnalysisRequest) -> Result<Outco
     })
 }
 
-/// 設計（依頼の `ops` があれば書き込まずに当てたもの）から解析の入力を組み立てる。
+/// 設計（依頼の `ops` があれば書き込まずに当てたもの）から解析の入力を組み立てる。ケースのモードも添える。
 fn project(
     snapshot: &crate::workspace::Snapshot,
     id: &str,
     case: Option<&str>,
-) -> Result<Value, ProjectionError> {
+) -> Result<Projected, ProjectionError> {
     let ctx = Context::new(&snapshot.design, &snapshot.resolved, case)?;
-    project_json(id, &ctx)
+    Ok(Projected {
+        input: project_json(id, &ctx)?,
+        case_mode: ctx.case_mode().map(|m| m.id.to_string()),
+    })
 }
 
 /// JSON Merge Patch（RFC 7396）。

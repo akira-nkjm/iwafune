@@ -1,12 +1,13 @@
 import { useMemo } from "react";
 import { useParams, useSearchParams } from "react-router";
-import { useDesign, useSystemAnalyses } from "@/api/queries";
-import type { AnalysisEntry } from "@/api/types";
+import { useAnalyses, useDesign, useSystemAnalyses } from "@/api/queries";
+import type { AnalysisEntry, System } from "@/api/types";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/Empty";
-import { SkeletonPanel } from "@/kit/Loading";
+import { SkeletonPage, SkeletonPanel } from "@/kit/Loading";
 import { PageTabs } from "@/kit/PageTabs";
 import { QueryState } from "@/kit/QueryState";
+import { systemTitle } from "@/lib/design";
 import { paths, SEARCH } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
@@ -14,14 +15,14 @@ import { systemExtras } from "./extras";
 import { SystemHeaderActions } from "./SystemHeaderActions";
 import { SystemKpis } from "./SystemKpis";
 import { type SystemTab, SystemTabs } from "./SystemTabs";
-import { isSystem, systemDescription, systems, systemTitle } from "./systems";
-import { useAnalyses } from "./use-analyses";
 
 const TABS: SystemTab[] = ["results", "breakdown", "settings", "series"];
 
 function isTab(s: string | undefined): s is SystemTab {
   return TABS.some((t) => t === s);
 }
+
+type DesignQuery = ReturnType<typeof useDesign>;
 
 /** 設計を読むまでのタブの中身（解析のカードの 2 列） */
 function SystemBodySkeleton() {
@@ -34,30 +35,57 @@ function SystemBodySkeleton() {
 }
 
 /**
- * 系の解析のページ（電源・姿勢・C&DH・通信・熱・構造）。共通の型: 上にケースの選択と主要 KPI、
- * 下にタブ（結果・内訳・設定・時系列）。その系の解析は GET /analyses の info.system から引く。
+ * 系の解析のページ（電源・姿勢・C&DH・通信・熱・構造）。どの系があるかは API（`DefsView.systems`。設計と一緒に届く）で、
+ * 届くまではページの骨組み、読めなければ理由と再試行を出す。
  */
 export function SystemPage() {
   const t = useT();
-  const { system, tab: rawTab } = useParams();
-  const [params, setParams] = useSearchParams();
+  const { system: param } = useParams();
   const design = useDesign();
+  const systems = design.data?.defs.systems;
+  const system = systems?.find((s) => s === param);
+  if (system) return <SystemView system={system} design={design} />;
+  if (systems) return <Empty>{t.systems.unknown(param ?? "")}</Empty>;
+  if (!design.error)
+    return (
+      <SkeletonPage kpis tabs>
+        <SystemBodySkeleton />
+      </SkeletonPage>
+    );
+  return (
+    <>
+      <PageHeader eyebrow={t.systems.eyebrow} title={param ?? ""} />
+      <PageBody>
+        <QueryState query={design} skeleton={<SystemBodySkeleton />}>
+          {() => null}
+        </QueryState>
+      </PageBody>
+    </>
+  );
+}
+
+/**
+ * 1 つの系のページ。共通の型: 上にケースの選択と主要 KPI、下にタブ（結果・内訳・設定・時系列）。
+ * その系の解析は GET /analyses の info.system から引く。
+ */
+function SystemView({ system, design }: { system: System; design: DesignQuery }) {
+  const t = useT();
+  const { tab: rawTab } = useParams();
+  const [params, setParams] = useSearchParams();
   const kase = params.get(SEARCH.case);
-  const spec = isSystem(system) ? systems[system] : null;
-  const catalog = useSystemAnalyses(spec?.key ?? null);
+  const catalog = useSystemAnalyses(system);
   const states = useAnalyses(catalog.ids, kase);
   const entries = useMemo(
     () => new Map<string, AnalysisEntry>(catalog.entries.map((e) => [e.info.id, e])),
     [catalog.entries],
   );
-  if (!spec) return <Empty>{t.systems.unknown(system ?? "")}</Empty>;
   const tab: SystemTab = isTab(rawTab) ? rawTab : "results";
   return (
     <>
       <PageHeader
         eyebrow={t.systems.eyebrow}
-        title={systemTitle(spec.key, design.data?.defs)}
-        subtitle={systemDescription(spec.key)}
+        title={systemTitle(system, design.data?.defs)}
+        subtitle={t.systems.specs[system].description}
         actions={
           <SystemHeaderActions
             cases={design.data?.cases ?? []}
@@ -68,11 +96,11 @@ export function SystemPage() {
         }
       />
       <div className="px-6 pb-3">
-        <SystemKpis system={spec.key} kpis={spec.kpis} states={states} />
+        <SystemKpis entries={catalog.entries} states={states} loading={catalog.loading} />
       </div>
       <PageTabs
         tabs={TABS.map((k) => ({
-          to: paths.system(spec.key, { tab: k === "results" ? null : k, kase }),
+          to: paths.system(system, { tab: k === "results" ? null : k, kase }),
           label: t.systems.tabs[k],
         }))}
       />
@@ -81,11 +109,11 @@ export function SystemPage() {
           {(d) => (
             <SystemTabs
               tab={tab}
-              spec={spec}
+              system={system}
               design={d}
               states={states}
               entries={entries}
-              extra={systemExtras(spec.key, d, states)}
+              extra={systemExtras(system, d, states)}
             />
           )}
         </QueryState>

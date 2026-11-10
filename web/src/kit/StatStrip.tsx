@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { Loading, SkeletonBlock } from "./Loading";
 import { Panel } from "./Panel";
 
 export interface StatItem {
@@ -7,6 +8,8 @@ export interface StatItem {
   label: string;
   value: ReactNode;
   extra?: ReactNode;
+  /** 値を待っている（値の代わりに `kit/Loading` のスケルトンを出す） */
+  loading?: boolean;
 }
 
 /** 縦の罫線で区切った数値帯 */
@@ -21,7 +24,13 @@ export function StatStrip({ items, className }: { items: StatItem[]; className?:
           <div key={it.key} className="-ml-px min-w-0 border-line border-l px-4 py-3">
             <dt className="truncate text-2xs text-ink-3">{it.label}</dt>
             <dd className="mt-1 flex flex-wrap items-center gap-1.5">
-              <span className="num truncate font-semibold text-[16px] text-ink">{it.value}</span>
+              {it.loading ? (
+                <Loading>
+                  <SkeletonBlock className="h-6 w-20" />
+                </Loading>
+              ) : (
+                <span className="num truncate font-semibold text-[16px] text-ink">{it.value}</span>
+              )}
               {it.extra}
             </dd>
           </div>

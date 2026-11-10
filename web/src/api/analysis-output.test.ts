@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { kpiValue } from "@/features/systems/kpi";
-import { systems } from "@/features/systems/systems";
 import { analysisOutput } from "./analysis-output";
 import type { AnalysisRunResult, ModeLoadMode, ModeLoadOutput } from "./types";
 
@@ -25,6 +23,7 @@ const result: AnalysisRunResult = {
   output,
   checks: [],
   verdict: null,
+  kpis: [],
   missing: [],
   error: null,
   dims: {},
@@ -37,13 +36,5 @@ describe("typed analysis outputs", () => {
     expect(analysisOutput(result, "thermal.steady")).toBeNull();
     expect(analysisOutput({ ...result, status: "failed" }, "power.mode_load")).toBeNull();
     expect(analysisOutput(undefined, "power.mode_load")).toBeNull();
-  });
-  it("uses the budget's chosen mode without picking the largest again", () => {
-    const spec = systems.power.kpis.find((k) => k.key === "load");
-    expect(spec).toBeDefined();
-    if (!spec) return;
-    const states = [{ id: result.id, result, error: null, loading: false, updating: false }];
-    expect(kpiValue(spec, states, "budget_choice")).toBe(20);
-    expect(kpiValue(spec, states, "absent")).toBeNull();
   });
 });

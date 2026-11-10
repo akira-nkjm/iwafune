@@ -3,7 +3,7 @@
 //! 成長余裕は `fune_projection::parts::growth`、表示名は `fune_model::builtin::enum_label("budget_kind", …)`。
 //! 入力が足りなければ、解析（`analysis::run_analysis`）と同じく `missing` に並べて返す（エラーにしない）。
 
-use crate::dto::{BudgetKind, BudgetRequest, BudgetRow, BudgetView};
+use crate::dto::{BudgetKind, BudgetRequest, BudgetRow, BudgetView, FillRatio};
 use crate::error::{Result, ServiceError};
 use crate::units::quantity_auto;
 use crate::workspace::{Snapshot, Workspace};
@@ -169,23 +169,30 @@ fn mode_items(s: &Snapshot, mode: &ModeLoadMode) -> Vec<BudgetItem> {
         .collect()
 }
 
-/// 電力: ケースのモード（ケースが無いかモードを持たなければ、成長余裕込みの合計が最大のモード）の部品。
+/// 電力のバジェットで数えるモード: ケースのモード（`case_mode`。ケースが無いかモードを持たなければ、
+/// 成長余裕込みの合計が最大のモード）。**モードの選び方はここだけ**（KPI の `mode_load` も使う）。
+pub(crate) fn budget_mode<'a>(
+    out: &'a ModeLoadOutput,
+    case_mode: Option<&str>,
+) -> Option<&'a ModeLoadMode> {
+    out.modes
+        .iter()
+        .filter(|m| case_mode.is_none_or(|w| m.id == w))
+        .max_by(|a, b| {
+            a.total_with_growth
+                .value()
+                .total_cmp(&b.total_with_growth.value())
+        })
+}
+
+/// 電力: バジェットのモード（`budget_mode`）の部品。
 fn power_items(
     s: &Snapshot,
     ctx: &Context<'_>,
     out: &ModeLoadOutput,
 ) -> (Vec<BudgetItem>, Option<String>) {
     let wanted = ctx.case_mode().map(|m| m.id.to_string());
-    let worst = out
-        .modes
-        .iter()
-        .filter(|m| wanted.as_ref().is_none_or(|w| &m.id == w))
-        .max_by(|a, b| {
-            a.total_with_growth
-                .value()
-                .total_cmp(&b.total_with_growth.value())
-        });
-    match worst {
+    match budget_mode(out, wanted.as_deref()) {
         Some(mode) => (mode_items(s, mode), Some(mode.id.clone())),
         None => (Vec::new(), None),
     }
@@ -208,6 +215,7 @@ fn power_modes(s: &Snapshot, out: &ModeLoadOutput) -> Result<Vec<BudgetRow>> {
                 allocated: r.allowed.map(q),
                 margin: r.margin.map(q),
                 verdict: verdict(&r),
+                fill: FillRatio::used_over_limit(r.total_with_growth, r.allowed),
             })
         })
         .collect()
@@ -300,6 +308,7 @@ fn rows(
             allocated: allocated.map(q),
             margin: r.margin.map(q),
             verdict: verdict(&r),
+            fill: FillRatio::used_over_limit(r.total_with_growth, allocated),
         });
     }
     Ok(out)
@@ -317,6 +326,7 @@ fn header(design: &Design, kind: BudgetKind, case: Option<String>) -> BudgetView
     }
     BudgetView {
         kind,
+        system: crate::query::settings::budget_system(kind),
         label: label.map_or_else(|| key.clone(), |l| l.label.clone()),
         label_en: label.and_then(|l| l.label_en.clone()),
         case,
@@ -325,6 +335,7 @@ fn header(design: &Design, kind: BudgetKind, case: Option<String>) -> BudgetView
         total: None,
         margin: None,
         verdict: None,
+        fill: None,
         rows: Vec::new(),
         modes: Vec::new(),
         analysis: analysis_of(kind).to_owned(),
@@ -343,6 +354,7 @@ fn fill(design: &Design, view: &mut BudgetView, counted: Counted) -> Result<()> 
     view.total = Some(q(total.total_with_growth));
     view.margin = total.margin.map(q);
     view.verdict = Some(verdict(&total));
+    view.fill = FillRatio::used_over_limit(total.total_with_growth, limit);
     view.rows = rows(
         design,
         design.budget.allocation.get(view.kind),

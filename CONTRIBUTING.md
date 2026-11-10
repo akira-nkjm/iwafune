@@ -21,8 +21,8 @@
 `cargo xtask check` が機械的に検査する: 依存の向き、モジュールの循環、台帳、「1 か所だけ」の規則（`crates/xtask/src/single_home.rs`）、
 Web の禁止事項（`fetch(` は API クライアントだけ、数の整形・`Intl.NumberFormat` は `web/src/quantity/` だけ、色の直書き（hex・`white` などの色の名前）と色の混ぜ方（`color-mix(`）は `lib/tone.ts` だけ（`index.css` の色は `pnpm -C web tokens` でそこから書き出す。`crates/xtask/src/web_colors.rs`）、
 負の字間 `tracking-tight` を使わない、ID やパスを `/`・`.` で分けない、打った文字列を `Number(`・`parseFloat(` で数にしない（`crates/xtask/src/web_strings.rs`）、
-スケルトン（`ui/skeleton`）は `kit/Loading.tsx` だけ、ページの URL（`/design/…` など）は `lib/nav.ts` の `paths` だけで作る、`features/` を import してよいのは
-`features/` と `routes/` だけ（`crates/xtask/src/web_pages.rs`））、長すぎるファイルの警告。規則を増やしたら xtask にも足す。
+スケルトン（`ui/skeleton`）は `kit/Loading.tsx` だけ、系とバジェットの種類の並びを書かない（API の `DefsView.systems`・`budget_kinds`）、ページの URL（`/design/…` など）は `lib/nav.ts` の `paths` だけで作る、`features/` を import してよいのは
+`features/` と `routes/` だけで、ページの中身どうしの import は理由付きの許可リスト（`FEATURE_EDGES`）にあるものだけ（`crates/xtask/src/web_pages.rs`））、長すぎるファイルの警告。規則を増やしたら xtask にも足す。
 
 ## 層の責務
 
@@ -38,7 +38,7 @@ Web の禁止事項（`fetch(` は API クライアントだけ、数の整形�
 | `fune-service` | CLI と HTTP が呼ぶ関数すべてと、その入出力の型（ts-rs で TS を生成）。表示用の文字列は `sat_units::format` で作って DTO に入れる | HTTP の知識、整形の規則を自前で持つこと。ファイル I/O は store を通す（外部データのキャッシュと TS の書き出しだけは例外） |
 | `fune-server` | axum のルーティングと JSON 化、SPA の配信、Host の許可リスト | ロジック |
 | `fune-cli` | 引数の解析と表示（表・色・診断） | ロジック |
-| `web/` | 表示と操作 | 物理計算、次元の計算、単位の換算、文字列の分解による ID やパスの解釈（API が構造で返す） |
+| `web/` | 表示と操作 | 物理計算、次元の計算、単位の換算、文字列の分解による ID やパスの解釈（API が構造で返す）、判定と集計（KPI の代表値の選び方・判定の数え方・塗りの比。API が返す） |
 
 ## コーディング規約
 

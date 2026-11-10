@@ -35,7 +35,7 @@ pub fn dims_of<T: Serialize>(value: &T) -> BTreeMap<String, String> {
 const TAG: &str = "kind";
 
 /// JSON Pointer（RFC 6901）の 1 区間の書き方（`~` → `~0`、`/` → `~1`）。**service の pointer の区間はここだけで書く**
-/// （次元・列挙の位置と、判定の位置 `analysis::checks`。Web は `features/systems/output.ts` の `jsonPointer`）。
+/// （次元・列挙の位置と、判定の位置 `analysis::checks`。Web は `analysis/output.ts` の `jsonPointer`）。
 pub(super) fn pointer_token(key: &str) -> String {
     key.replace('~', "~0").replace('/', "~1")
 }

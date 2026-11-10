@@ -7,11 +7,11 @@
 //! | `parts` | 部品の行・1 部品の全情報・1 つの値 |
 //! | `catalog` | カタログ品（値・パス・使っている部品・書き換えられるか） |
 //! | `values` | 解決済みの値・書かれた量 → 表示用の型 |
-//! | `settings` | 設定 → キーと値の一覧 |
+//! | `settings` | 設定 → キーと値の一覧、設定・バジェットと系の対応 |
 
 mod catalog;
 mod parts;
-mod settings;
+pub(crate) mod settings;
 pub(crate) mod values;
 pub(crate) mod views;
 

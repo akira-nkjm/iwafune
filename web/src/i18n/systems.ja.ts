@@ -1,3 +1,5 @@
+import type { FillBasis } from "@/api/types";
+
 /** 系の解析のページの文言（日本語） */
 export const systemsJa = {
   systems: {
@@ -25,41 +27,14 @@ export const systemsJa = {
         description: "3D 配置、質量特性、準静的荷重と簡易な固有振動数",
       },
     },
-    kpis: {
-      power: {
-        load: "最大のモード消費電力",
-        gen: "軌道平均の発電",
-        balance: "軌道平均の収支（最悪）",
-        dod: "最大 DoD",
-      } as Record<string, string>,
-      attitude: {
-        interval: "アンロード間隔",
-        peak: "最大角運動量",
-        mtq: "MTQ のアンロード時間",
-        fov: "センサ侵入の割合（最大）",
-      } as Record<string, string>,
-      cdh: {
-        total: "1 日の発生量",
-        storage: "必要なストレージ",
-        margin: "ストレージの容量の余裕",
-      } as Record<string, string>,
-      comm: {
-        margin: "回線余裕（最小）",
-        contact: "1 日の可視時間",
-        capacity: "1 日の送信可能量",
-        backlog: "最大の未送信",
-      } as Record<string, string>,
-      thermal: {
-        max: "最高温度",
-        min: "最低温度",
-        tmax: "非定常の最高温度",
-      } as Record<string, string>,
-      structure: {
-        mass: "総質量",
-        freq: "最低の固有振動数",
-        ms: "最小の安全余裕（MS）",
-      } as Record<string, string>,
-    },
+    // KPI の名前は API（`KpiDef.label`・`label_en`）。ここは判定を数える KPI の数の文と、塗りの比の根拠（`FillBasis`）の文
+    kpiTally: (checked: number, flagged: number) =>
+      flagged === 0 ? `すべて OK（${checked}）` : `${flagged} / ${checked} が要確認`,
+    kpiFill: {
+      value: "値（割合）",
+      used_over_limit: "上限に対する使用量",
+      ok_share: "OK の判定の割合",
+    } satisfies Record<FillBasis, string>,
     status: {
       ok: "実行済み",
       missing_inputs: "入力不足",
