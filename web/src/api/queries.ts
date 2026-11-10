@@ -87,7 +87,7 @@ export const q = {
       queryKey: keys.budget(kind, json),
       queryFn: () => {
         if (!json) return api<BudgetView>(`/budgets/${seg(kind)}`);
-        const body: BudgetRequest = { ops: [...ops] };
+        const body: BudgetRequest = { case: null, ops: [...ops] };
         return api<BudgetView>(`/budgets/${seg(kind)}`, { method: "POST", body });
       },
       placeholderData: keepPreviousData,

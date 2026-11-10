@@ -83,7 +83,7 @@ export function CommandSearch({ rail = false }: { rail?: boolean }) {
               {d.parts.map((p) => (
                 <CommandItem
                   key={p.id}
-                  value={`part ${p.id} ${p.kind} ${p.catalog ?? ""}`}
+                  value={`part ${p.id} ${p.kind ?? ""} ${p.catalog ?? ""}`}
                   onSelect={() => go(`/design/components/${p.id}`)}
                 >
                   <span className="font-mono">{p.id}</span>

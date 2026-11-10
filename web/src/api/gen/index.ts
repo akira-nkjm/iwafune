@@ -80,7 +80,6 @@ export type * from "./FormatDesignResult";
 export type * from "./FormatItem";
 export type * from "./FormatRequest";
 export type * from "./FormatResponse";
-export type * from "./FormattedQuantity";
 export type * from "./GravityModel";
 export type * from "./GroundPass";
 export type * from "./GroundStation";

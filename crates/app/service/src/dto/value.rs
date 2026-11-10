@@ -11,8 +11,8 @@ use ts_rs::TS;
 pub struct ValueView {
     pub attr: String,
     pub value: ValueData,
-    /// 表示文字列（例: `"620 g"`、`"on 1.2 W / idle 0.3 W"`）
-    pub display: String,
+    /// 表示文字列（例: `"620 g"`、`"on 1.2 W / idle 0.3 W"`）。未設定（`value` が `unset`）なら null で、文言は CLI と Web が作る
+    pub display: Option<String>,
     pub origin: Origin,
     /// 根拠の強さ
     pub evidence: Evidence,

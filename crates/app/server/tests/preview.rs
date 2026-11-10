@@ -89,6 +89,32 @@ async fn an_invalid_draft_is_rejected_like_saving() {
     assert!(e["error"]["code"].is_string());
 }
 
+/// 検証で拒まれる下書き（種別に無い状態）は、解析でもバジェットでも、保存と同じく 422 と診断で返す
+/// （解析の画面でも、どのセルが悪いかが分かる）。
+#[tokio::test]
+async fn a_draft_rejected_by_validation_is_422_with_diagnostics_everywhere() {
+    let (_tmp, r) = demo_router();
+    let bad = json!([{ "op": "set_mode_states", "cells": [
+        { "mode": "MISSION", "part": "CAM", "state": "bogus", "duty": {} },
+    ] }]);
+    for uri in [
+        "/api/v1/analyses/power.mode_load",
+        "/api/v1/analyses/power.energy_balance",
+        "/api/v1/budgets/power",
+    ] {
+        let (s, e) = call(&r, "POST", uri, Some(json!({ "ops": bad }))).await;
+        assert_eq!(s, StatusCode::UNPROCESSABLE_ENTITY, "{uri}: {e}");
+        assert_eq!(e["error"]["code"], "validation_failed", "{uri}: {e}");
+        let d = &e["diagnostics"][0];
+        assert_eq!(d["code"], "state.unknown", "{uri}: {e}");
+        assert_eq!(d["target"]["kind"], "mode", "{uri}: {e}");
+        assert_eq!(d["path"], "modes.MISSION.CAM", "{uri}: {e}");
+    }
+    // 保存も同じ
+    let (s, e) = call(&r, "POST", "/api/v1/ops", Some(json!({ "ops": bad }))).await;
+    assert_eq!(s, StatusCode::UNPROCESSABLE_ENTITY, "{e}");
+}
+
 fn create_attribute(id: &str) -> Value {
     json!({ "op": "create_attribute", "def": { "id": id, "label": id, "type": "scalar",
         "dimension": "Pressure", "units": ["Pa", "kPa"], "by_state": false } })

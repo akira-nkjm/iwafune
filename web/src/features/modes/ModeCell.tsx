@@ -51,7 +51,7 @@ export function ModeCell({
   column: number;
   states: string[];
   cell: StateAssign | null;
-  /** サーバーが整形したセルの表示（例: `"off（on 20.0 %）"`） */
+  /** 保存済みのセルの文言（例: `"off（on 20.0 %）"`。割合の `%` は API の整形、並べ方は i18n。`savedCellText`） */
   display: string | undefined;
   changed: boolean;
   /** 平均消費電力 [W]（解析の出力。無ければ null） */

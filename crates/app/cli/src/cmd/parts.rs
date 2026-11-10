@@ -1,6 +1,6 @@
 //! 部品を読むコマンド: `fune part ls`・`fune part show`（`--ops` で下書きを当てる。と、値の出所の表示）。
 
-use super::common::{Handled, provenance};
+use super::common::{Handled, UNSET, provenance};
 use crate::args::PartCmd;
 use crate::diag;
 use crate::output::{C, Out};
@@ -53,7 +53,7 @@ fn part_ls(ws: &Workspace, q: &PartsQuery, out: &Out) -> anyhow::Result<u8> {
         let mut cells = vec![
             C::Strong(r.id.clone()),
             C::Text(r.subsystem.clone().unwrap_or_default()),
-            C::Text(r.kind.clone()),
+            C::Text(r.kind.clone().unwrap_or_default()),
             C::Dim(r.catalog.clone().unwrap_or_else(|| "—".into())),
             C::Num(r.count.to_string()),
         ];
@@ -68,10 +68,10 @@ fn part_ls(ws: &Workspace, q: &PartsQuery, out: &Out) -> anyhow::Result<u8> {
 }
 
 fn value_cell(v: Option<&ValueView>) -> C {
-    match v {
+    match v.map(|v| (v.origin, v.display.as_deref())) {
         None => C::Dim("—".into()),
-        Some(v) if v.origin == Origin::Unset => C::Dim("未設定".into()),
-        Some(v) => C::Num(v.display.clone()),
+        Some((Origin::Unset, _) | (_, None)) => C::Dim(UNSET.into()),
+        Some((_, Some(text))) => C::Num(text.to_owned()),
     }
 }
 
@@ -105,7 +105,7 @@ fn part_show(ws: &Workspace, id: &str, req: &PartViewRequest, out: &Out) -> anyh
     let def = r
         .catalog
         .clone()
-        .unwrap_or_else(|| format!("kind {}", r.kind));
+        .unwrap_or_else(|| format!("kind {}", r.kind.as_deref().unwrap_or_default()));
     println!("{}", out.dim(format!("{def}  ×{}  {}", r.count, r.file)));
     for section in &p.sections {
         let mut t = out.table(&[section.label.as_str(), "値", "出所"]);

@@ -24,7 +24,7 @@ async function flush(): Promise<void> {
     const res = await api<FormatResponse>("/units/format", { method: "POST", body });
     batch.forEach((w, i) => {
       const r = res.items[i];
-      if (r) w.resolve(r.text);
+      if (r) w.resolve(r.display);
       else w.reject(new Error(getT().quantity.noText));
     });
   } catch (e) {

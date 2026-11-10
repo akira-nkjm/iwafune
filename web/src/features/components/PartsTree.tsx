@@ -49,7 +49,7 @@ function PartTreeRow({ part }: { part: PartRow }) {
     <>
       <span
         className="flex min-w-0 flex-1 items-center gap-1.5"
-        title={`${part.id} · ${part.kind} · ${part.file}`}
+        title={[part.id, part.kind, part.file].filter((s) => s !== null).join(" · ")}
       >
         <SubsystemDot group={part.subsystem} role={part.role} />
         <span className="max-w-20 shrink-0 truncate font-medium font-mono">{part.id}</span>

@@ -158,9 +158,9 @@ pub fn entity_key(role: &FileRole) -> Option<EntityKey> {
         FileRole::Source(id) => EntityKey::Source(id.clone()),
         FileRole::View(id) => EntityKey::View(id.clone()),
         FileRole::Reserved => return None,
-        FileRole::Mission(id) => EntityKey::Setting(format!("mission.{id}")),
-        FileRole::Ground(id) => EntityKey::Setting(format!("mission.ground.{id}")),
-        FileRole::Analysis(id) => EntityKey::Setting(format!("analysis.{id}")),
+        FileRole::Mission(id) => EntityKey::Setting(SettingPath::mission(&[id])),
+        FileRole::Ground(id) => EntityKey::Setting(SettingPath::mission(&["ground", id])),
+        FileRole::Analysis(id) => EntityKey::Setting(SettingPath::analysis(&[id])),
         FileRole::Other => return None,
     })
 }

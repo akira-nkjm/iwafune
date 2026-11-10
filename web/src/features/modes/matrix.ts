@@ -1,4 +1,25 @@
-import type { PartRow, StateAssign } from "@/api/types";
+import type { ModeRow, PartRow, StateAssign } from "@/api/types";
+import type { modesJa } from "@/i18n/modes.ja";
+
+/** セルの文言の並べ方（i18n の `modes` の辞書） */
+type CellWords = Pick<
+  (typeof modesJa)["modes"],
+  "cellShare" | "cellShareSeparator" | "cellWithShares"
+>;
+
+/**
+ * 保存済みのセルの文言（`rx（tx 10.0 %）`）。状態は `ModeRow.cells`、割合の `%` は API の整形（`ModeRow.shares`）で、
+ * 並べ方は i18n（`modes.cellShare`・`cellWithShares`）。そのモードに書かれていなければ undefined。
+ */
+export function savedCellText(row: ModeRow, mode: string, words: CellWords): string | undefined {
+  const cell = row.cells[mode];
+  if (!cell) return undefined;
+  const shares = Object.entries(row.shares[mode] ?? {}).flatMap(([state, q]) =>
+    q ? [words.cellShare(state, q.display)] : [],
+  );
+  if (shares.length === 0) return cell.state;
+  return words.cellWithShares(cell.state, shares.join(words.cellShareSeparator));
+}
 
 /** セルを押してオンにするときの状態: 語彙に `on` があれば on、無ければ off 以外の最初の状態（送受信機なら rx） */
 export function mainState(states: readonly string[]): string | null {

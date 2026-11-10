@@ -72,7 +72,7 @@ impl Scope<'_, '_> {
 pub(super) fn scope<'c, 'a>(ctx: &'c mut Ctx<'a>, prefix: SettingPath) -> Scope<'c, 'a> {
     Scope {
         ctx,
-        entity: EntityKey::Setting(prefix.to_string()),
+        entity: EntityKey::Setting(prefix.clone()),
         prefix,
     }
 }

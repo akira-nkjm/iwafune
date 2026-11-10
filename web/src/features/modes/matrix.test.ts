@@ -1,7 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { modesEn } from "@/i18n/modes.en";
 import { modesJa } from "@/i18n/modes.ja";
-import { cellSymbol, mainState, toggleCell } from "./matrix";
+import { fixture } from "@/test/fixture";
+import { cellSymbol, mainState, savedCellText, toggleCell } from "./matrix";
+
+describe("保存済みのセルの文言", () => {
+  const row = (part: string) => {
+    const r = fixture.modes.rows.find((x) => x.part === part);
+    if (!r) throw new Error(part);
+    return r;
+  };
+  it("状態と、API が整形した割合を言語ごとに並べる（文言を API から受け取らない）", () => {
+    expect(savedCellText(row("TRX"), "NOMINAL", modesJa.modes)).toBe("rx（tx 10 %）");
+    expect(savedCellText(row("TRX"), "NOMINAL", modesEn.modes)).toBe("rx (tx 10 %)");
+  });
+  it("割合の無いセルは状態だけ、書かれていないモードは undefined", () => {
+    expect(savedCellText(row("PCDU"), "SAFE", modesJa.modes)).toBe("on");
+    expect(savedCellText(row("TRX"), "SAFE", modesJa.modes)).toBeUndefined();
+  });
+});
 
 describe("セルを押したときの切り替え", () => {
   const wheel = ["off", "idle", "on", "peak"];

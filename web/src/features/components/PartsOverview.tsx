@@ -35,7 +35,7 @@ export function PartsOverview({
   const td = useT().components;
   const rows = new Map(parts.map((p) => [p.id, p]));
   const nodes = new Map(design.tree.map((n) => [n.id, n]));
-  const kindName = (kind: string) => kindLabel(design.defs, kind);
+  const kindName = (kind: string | null) => (kind ? kindLabel(design.defs, kind) : "");
   const nameOf = (n: TreeNode) => nodeName(n, lang);
   // 絞り込んだ部品か、それを子孫に持つノードだけを出す
   const shown = (id: string): boolean => {
@@ -73,7 +73,8 @@ interface Ctx {
   design: DesignView;
   rows: Map<string, PartRow>;
   nodes: Map<string, TreeNode>;
-  kindName: (kind: string) => string;
+  /** 種別の表示名（種別の無い部品は空） */
+  kindName: (kind: string | null) => string;
   nameOf: (n: TreeNode) => string;
   shown: (id: string) => boolean;
   selected: string | null;
@@ -176,7 +177,7 @@ function PartCard({ row, ctx }: { row: PartRow; ctx: Ctx }) {
           e.stopPropagation();
           ctx.onSelect(row.id);
         }}
-        title={row.catalog ?? row.kind}
+        title={row.catalog ?? row.kind ?? undefined}
         className={cn(
           "flex w-full items-center gap-3 rounded-[12px] border border-line bg-panel px-3 py-2.5 text-left transition-colors hover:border-line-strong",
           ctx.selected === row.id && "ring-2 ring-accent ring-offset-1",

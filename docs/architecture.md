@@ -169,10 +169,12 @@ CLI と HTTP は `fune-service` の同じ関数を呼ぶ。
 | 検証 | 編集で新しい error が出る | 422 | 1 |
 | 入力の誤り | 引数・単位・Op の形 | 400 | 2 |
 | 不在 | 部品や解析が無い | 404 | 2 |
-| 競合 | revision が違う、ロックが取れない | 409 | 3 |
+| 競合 | revision が違う、ロックが取れない、同じ ID がもうある | 409 | 3 |
 | その他 | I/O など | 500 | 1 |
 
 HTTP の失敗は `{ "error": { "code", "message" }, "diagnostics": [...] }` で返し、CLI も `--json` で同じ形を出す。
+保存しない下書き（解析・バジェット・部品の表示の `ops`）が通らないときも、保存と同じ分類で返す（検証なら 422 と診断）。
+入力が足りないのは誤りではないので、解析もバジェットも 200 で `missing`（足りない入力の対象と理由）を返す。
 `fune check` は error があれば 1 で終わる（`--deny-warnings` なら warning でも）。
 
 ## 5. サーバーと Web アプリ
@@ -199,7 +201,7 @@ HTTP の失敗は `{ "error": { "code", "message" }, "diagnostics": [...] }` で
 | `POST /parts/{id}` | 保存していない編集（`ops`）を書き込まずに当てた部品（`GET` と同じ形。`fune part show --ops`） |
 | `POST /parts/{id}/place_body` | 機体座標での配置を、取付先に対する相対の `Place` に直して適用する |
 | `GET /units`・`POST /units/parse`・`/units/format` | 単位の一覧、入力の解析（次元と SI 換算）、SI 値の表示文字列 |
-| `GET /analyses`・`POST /analyses/{id}`・`GET`/`POST /budgets/{kind}` | 解析の一覧と実行、バジェット（§6） |
+| `GET /analyses`・`POST /analyses/{id}`・`GET`/`POST /budgets/{kind}` | 解析の一覧と実行、バジェット（§6。POST の `case`・`ops` で解析ケースと下書きを指定） |
 | `GET /data/status`・`POST /data/{id}/fetch` | 外部データの状態と取得（§6.5） |
 
 ### 5.2 Web アプリ
@@ -276,6 +278,8 @@ Web は次のことをしない。
 余裕の三段階の判定は `spec::margin_verdict` で決め、判定文の中の数は `spec::quantity_text`（中身は sat-units の整形）で書く。
 バジェット（質量・電力・データ量）の集計と判定は `sat_analysis::budget::budget_rollup` が行う。
 service は部品や解析の結果を項目に並べ、`budget/allocation.toml` の配分の行に割り当てるだけ。成長余裕は部品の成熟度と `budget/policy.toml` から決める。
+バジェットも解析ケースを指定できる（`POST /budgets/{kind}` の `case`、`fune budget --case`）。電力はケースのモードで、データ量はケースのモードだけで数える。
+どの Group にも属さない部品は「その他」の行にまとめる（行の `node` が null。文言は CLI と Web が作る）。
 
 ### 6.4 sat-astro
 

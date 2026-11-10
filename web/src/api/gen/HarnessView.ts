@@ -5,7 +5,11 @@ import type { QuantityView } from "./QuantityView";
 /**
  * ハーネス（ケーブル区間）。
  */
-export type HarnessView = { id: string, label: string | null, 
+export type HarnessView = { id: string, 
+/**
+ * 表示名（無ければ ID）
+ */
+label: string, 
 /**
  * 端のポート（part = PCDU、port = OUT3）
  */

@@ -12,7 +12,7 @@ pub enum ErrorKind {
     InvalidInput,
     /// 検証エラーで書き込まなかった。
     Validation,
-    /// revision が一致しない（ほかで書き換えられた）。
+    /// 今の状態とぶつかる（revision が違う・ロックが取れない・同じ ID がもうある）。
     Conflict,
     /// それ以外（I/O など）。
     Internal,
@@ -29,6 +29,8 @@ pub enum ServiceError {
     NotFound { what: &'static str, id: String },
     #[error("入力が不正です: {0}")]
     InvalidInput(String),
+    #[error("{what} は既にあります")]
+    AlreadyExists { what: String },
     #[error("単位を解釈できません: {input}（{reason}）")]
     Unit { input: String, reason: String },
     #[error("検証エラーがあるため書き込みませんでした（{} 件）", .diagnostics.len())]
@@ -56,7 +58,9 @@ impl ServiceError {
             Self::ProjectNotFound(_) | Self::NotFound { .. } => ErrorKind::NotFound,
             Self::InvalidInput(_) | Self::Unit { .. } => ErrorKind::InvalidInput,
             Self::Validation { .. } => ErrorKind::Validation,
-            Self::Conflict { .. } | Self::Locked(_) => ErrorKind::Conflict,
+            Self::Conflict { .. } | Self::Locked(_) | Self::AlreadyExists { .. } => {
+                ErrorKind::Conflict
+            }
             Self::Analysis(_) | Self::Store(_) | Self::Data(_) | Self::Internal(_) => {
                 ErrorKind::Internal
             }
@@ -69,6 +73,7 @@ impl ServiceError {
             Self::ProjectNotFound(_) => "project_not_found",
             Self::NotFound { .. } => "not_found",
             Self::InvalidInput(_) => "invalid_input",
+            Self::AlreadyExists { .. } => "already_exists",
             Self::Unit { .. } => "unit_error",
             Self::Validation { .. } => "validation_failed",
             Self::Conflict { .. } => "revision_conflict",

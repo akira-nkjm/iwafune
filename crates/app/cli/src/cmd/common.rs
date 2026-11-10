@@ -14,6 +14,14 @@ pub(crate) fn list(text: &Option<String>) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// 未設定の値の文言（service は `ValueData::Unset` と `display: null` の構造で返す）。
+pub(crate) const UNSET: &str = "未設定";
+
+/// 値の表示文字列（未設定なら [`UNSET`]）。
+pub(crate) fn value_text(display: Option<&str>) -> String {
+    display.unwrap_or(UNSET).to_owned()
+}
+
 /// 値の出所・出典・根拠（表示名は組み込みの語彙の表。GUI と同じ）。
 pub(crate) fn provenance(v: &ValueView) -> String {
     let mut parts = vec![query::enum_label("origin", &v.origin)];

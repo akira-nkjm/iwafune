@@ -19,6 +19,9 @@ export const modesEn: typeof modesJa = {
     draftApplied: "Power, totals and margins include this draft (not saved yet).",
     cellLabel: (part: string, mode: string, state: string, power: string) =>
       `${part} in ${mode}: ${state}, ${power}`,
+    cellShare: (state: string, share: string) => `${state} ${share}`,
+    cellShareSeparator: ", ",
+    cellWithShares: (state: string, shares: string) => `${state} (${shares})`,
     part: "Part",
     powerRow: "Total (with growth margin)",
     saveSummary: (n: number) => `Save the mode table (${n} cells)`,

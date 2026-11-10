@@ -25,8 +25,6 @@ pub enum ProjectionError {
     NotImplemented(String),
     #[error("入力を JSON にできません: {0}")]
     Json(String),
-    #[error("解析が失敗しました: {0}")]
-    Analysis(String),
 }
 
 impl From<MissingInputs> for ProjectionError {

@@ -57,8 +57,8 @@ pub use fune_model::resolve::{Evidence, Origin};
 pub use fune_model::value::{Provenance, Quantity, Quaternion, SettingValue, Value, Vector3};
 pub use fune_model::{Diagnostic, Severity};
 pub use fune_ops::{ModeCell, Op, ViewNodePos};
+pub use fune_projection::MissingInput;
 pub use sat_analysis::spec::{AnalysisInfo, AnalysisKind, Channel, Check, Series, System, Verdict};
-pub use sat_units::format::FormattedQuantity;
 pub use units::{
     DimensionInfo, FormatItem, FormatRequest, FormatResponse, ParseQuantityRequest, ParsedQuantity,
     UnitInfo, UnitMapping, UnitsCatalog, UnitsQuery,

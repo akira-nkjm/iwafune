@@ -1,6 +1,6 @@
 //! 設計ファイルを store の TOML プロファイルで整形する共通操作。
 use crate::dto::{FormatDesignRequest, FormatDesignResult};
-use crate::error::{Result, ServiceError};
+use crate::error::Result;
 use crate::workspace::{Workspace, store_error};
 use std::time::Duration;
 
@@ -10,12 +10,8 @@ pub fn format_design(ws: &Workspace, req: &FormatDesignRequest) -> Result<Format
         None
     } else {
         Some(
-            fune_store::lock::ProjectLock::acquire(ws.root(), Duration::ZERO).map_err(
-                |e| match e {
-                    fune_store::StoreError::Locked { lock } => ServiceError::Locked(lock),
-                    other => store_error(other),
-                },
-            )?,
+            fune_store::lock::ProjectLock::acquire(ws.root(), Duration::ZERO)
+                .map_err(store_error)?,
         )
     };
     let files = fune_store::read::scan(ws.root()).map_err(store_error)?;

@@ -222,6 +222,8 @@ function filterParts(parts: PartRow[], search: string, group: string) {
     (p) =>
       (!group || p.subsystem === group || p.parent === group) &&
       (!s ||
-        [p.id, p.kind, p.catalog ?? "", p.file].some((value) => value.toLowerCase().includes(s))),
+        [p.id, p.kind ?? "", p.catalog ?? "", p.file].some((value) =>
+          value.toLowerCase().includes(s),
+        )),
   );
 }

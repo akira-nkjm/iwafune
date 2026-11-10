@@ -2,7 +2,7 @@
 
 use crate::dto::{
     AttributeDefView, CaseView, DefsView, HarnessView, KindDefView, ModeHeader, ModeRow, ModeTable,
-    NetView, TreeNode, TreeNodeKind,
+    NetView, QuantityView, TreeNode, TreeNodeKind,
 };
 use crate::query::values::authored_quantity;
 use fune_model::builtin;
@@ -92,11 +92,12 @@ pub(crate) fn mode_table(design: &Design) -> ModeTable {
                 .collect();
             ModeRow {
                 part: p.id.to_string(),
-                kind: design.part_kind_id(p).unwrap_or_default().to_owned(),
+                kind: design.part_kind_id(p).map(str::to_owned),
                 states: design.part_states(p).to_vec(),
-                display: cells
+                shares: cells
                     .iter()
-                    .map(|(m, c)| (m.clone(), cell_text(c)))
+                    .filter(|(_, c)| !c.duty.is_empty())
+                    .map(|(m, c)| (m.clone(), duty_shares(c)))
                     .collect(),
                 cells,
             }
@@ -125,7 +126,7 @@ pub(crate) fn nets(design: &Design) -> Vec<NetView> {
             id: n.id.to_string(),
             kind: n.kind,
             is_return: n.is_return(),
-            label: n.label.clone(),
+            label: n.label.clone().unwrap_or_else(|| n.id.to_string()),
             source: n.source.clone(),
             rail: n
                 .rail
@@ -154,7 +155,7 @@ pub(crate) fn harnesses(design: &Design) -> Vec<HarnessView> {
         .values()
         .map(|h| HarnessView {
             id: h.id.to_string(),
-            label: h.label.clone(),
+            label: h.label.clone().unwrap_or_else(|| h.id.to_string()),
             from: h.from.clone(),
             to: h.to.clone(),
             nets: h.nets.iter().map(ToString::to_string).collect(),
@@ -226,17 +227,13 @@ pub(crate) fn cases(design: &Design) -> Vec<CaseView> {
         .collect()
 }
 
-/// モード表のセルの表示（`"rx（tx 10.0 %）"`。割合は `crate::units::percent`）。
-pub(crate) fn cell_text(c: &fune_model::design::StateAssign) -> String {
-    if c.duty.is_empty() {
-        return c.state.clone();
-    }
-    let duty: Vec<String> = c
-        .duty
+/// モード表のセルの割合（状態 → `%` の表示。整形は `crate::units::percent`）。
+/// セルの文言（`rx（tx 10.0 %）`）は CLI と Web が言語ごとに作る。
+fn duty_shares(c: &fune_model::design::StateAssign) -> BTreeMap<String, QuantityView> {
+    c.duty
         .iter()
-        .map(|(s, f)| format!("{s} {}", crate::units::percent(*f).display))
-        .collect();
-    format!("{}（{}）", c.state, duty.join("、"))
+        .map(|(s, f)| (s.clone(), crate::units::percent(*f)))
+        .collect()
 }
 
 /// 部品のフィールドのパス（フィールド名 → `RW_X.count`）。名前は `fune_model::path::PART_FIELDS`、記法は `ParamPath::Field`。
@@ -278,4 +275,29 @@ pub(crate) fn parameter_paths(
             ((*attr).to_owned(), paths)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// 表示名の無いネット・ハーネスは ID で埋める（製品ツリー・モードの見出し・ケースと同じ）。
+    #[test]
+    fn labels_fall_back_to_ids() {
+        let mut design = Design::default();
+        for net in [
+            json!({ "id": "N1", "kind": "power" }),
+            json!({ "id": "N2", "kind": "data", "label": "バス" }),
+        ] {
+            let net: fune_model::design::Net = serde_json::from_value(net).unwrap();
+            design.nets.insert(net.id.clone(), net);
+        }
+        let harness: fune_model::design::Harness =
+            serde_json::from_value(json!({ "id": "H1", "from": "A.P1", "to": "B.P2" })).unwrap();
+        design.harnesses.insert(harness.id.clone(), harness);
+        let labels: Vec<String> = nets(&design).into_iter().map(|n| n.label).collect();
+        assert_eq!(labels, ["N1", "バス"]);
+        assert_eq!(harnesses(&design)[0].label, "H1");
+    }
 }

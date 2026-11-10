@@ -102,7 +102,10 @@ export function CreateCatalogDialog({
           value={fromPart}
           placeholder={t.catalog.fromPartNone}
           onChange={(e) => setFromPart(e.target.value)}
-          options={design.parts.map((p) => ({ value: p.id, label: `${p.id}（${p.kind}）` }))}
+          options={design.parts.map((p) => ({
+            value: p.id,
+            label: p.kind ? `${p.id}（${p.kind}）` : p.id,
+          }))}
         />
       </Field>
       {!fromPart && (

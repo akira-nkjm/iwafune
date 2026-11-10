@@ -254,8 +254,11 @@ async fn units_format_and_views() {
         { "si": 2.0e6, "dimension": "Information", "unit": "Mbit" } ] });
     let (s, v) = call(&r, "POST", "/api/v1/units/format", Some(body)).await;
     assert_eq!(s, StatusCode::OK, "{v}");
-    assert_eq!(v["items"][0]["text"], "12.3 mW");
-    assert_eq!(v["items"][1]["text"], "2.00 Mbit");
+    // ほかの API と同じ量の表示（`QuantityView`）
+    assert_eq!(v["items"][0]["display"], "12.3 mW");
+    assert_eq!(v["items"][0]["si"], 0.0123);
+    assert_eq!(v["items"][1]["display"], "2.00 Mbit");
+    assert_eq!(v["items"][1]["unit"], "Mbit");
     let op = json!([{ "op": "set_view_layout", "view": "electrical",
         "nodes": [{ "id": "RW_X", "x": 10, "y": 20 }] }]);
     let (s, _) = call(&r, "POST", "/api/v1/ops", Some(json!({ "ops": op }))).await;
