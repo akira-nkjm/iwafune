@@ -8,7 +8,7 @@ use super::text::{
 };
 use crate::dto::{CommandText, ModeCellText, ModeSetText, NetSetText, NetUnsetText, PlaceText};
 use crate::error::Result;
-use fune_model::design::NetField;
+use fune_model::design::{NetField, NetFieldName};
 use fune_model::path::PortRef;
 use fune_ops::{ModeCell, Op};
 use std::collections::BTreeMap;
@@ -25,21 +25,11 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
     })
 }
 
-/// `fune net set <ID> --rail "5 V" …` → 書いた旗ごとに `SetNetField`（`NetField::NAMES` の順）。
+/// `fune net set <ID> --rail "5 V" …` → 書いた旗ごとに `SetNetField`（`NetFieldName` の順）。
 pub fn net_set_ops(t: &NetSetText) -> Result<Vec<Op>> {
-    let flags = [
-        ("kind", &t.kind),
-        ("label", &t.label),
-        ("source", &t.source),
-        ("rail", &t.rail),
-        ("limit", &t.limit),
-        ("protocol", &t.protocol),
-        ("bitrate", &t.bitrate),
-        ("master", &t.master),
-    ];
-    let ops = flags
-        .into_iter()
-        .filter_map(|(name, text)| text.as_deref().map(|text| (name, text)))
+    let ops = NetFieldName::ALL
+        .iter()
+        .filter_map(|&name| flag_text(t, name).map(|text| (name, text)))
         .map(|(name, text)| {
             Ok(Op::SetNetField {
                 net: t.net.clone(),
@@ -53,16 +43,32 @@ pub fn net_set_ops(t: &NetSetText) -> Result<Vec<Op>> {
     Ok(ops)
 }
 
+/// `fune net set` の旗（GUI の欄）に書いた文字列。
+fn flag_text(t: &NetSetText, name: NetFieldName) -> Option<&str> {
+    match name {
+        NetFieldName::Kind => &t.kind,
+        NetFieldName::Label => &t.label,
+        NetFieldName::Source => &t.source,
+        NetFieldName::Rail => &t.rail,
+        NetFieldName::Limit => &t.limit,
+        NetFieldName::Protocol => &t.protocol,
+        NetFieldName::Bitrate => &t.bitrate,
+        NetFieldName::Master => &t.master,
+    }
+    .as_deref()
+}
+
 /// `fune net unset <ID> <フィールド>` → 空にした `SetNetField`。
 pub fn net_unset_op(t: &NetUnsetText) -> Result<Op> {
+    let name = t.field.trim().parse::<NetFieldName>().map_err(invalid)?;
     Ok(Op::SetNetField {
         net: t.net.clone(),
-        field: net_field(t.field.trim(), None)?,
+        field: net_field(name, None)?,
     })
 }
 
-/// フィールド名と打った文字列 → 型付きのフィールド（`text` が None なら消す）。**ネットのフィールドの読み方はここだけ**。
-fn net_field(name: &str, text: Option<&str>) -> Result<NetField> {
+/// フィールドと打った文字列 → 型付きのフィールド（`text` が None なら消す）。**ネットのフィールドの読み方はここだけ**。
+fn net_field(name: NetFieldName, text: Option<&str>) -> Result<NetField> {
     let quantity = || text.map(quantity_from_text).transpose();
     let port = || {
         text.map(|t| t.trim().parse::<PortRef>().map_err(invalid))
@@ -70,21 +76,16 @@ fn net_field(name: &str, text: Option<&str>) -> Result<NetField> {
     };
     let owned = text.map(str::to_owned);
     Ok(match name {
-        "kind" => NetField::Kind(net_kind(
+        NetFieldName::Kind => NetField::Kind(net_kind(
             text.ok_or_else(|| invalid("ネットの kind は消せません"))?,
         )?),
-        "label" => NetField::Label(owned),
-        "source" => NetField::Source(port()?),
-        "rail" => NetField::Rail(quantity()?),
-        "limit" => NetField::Limit(quantity()?),
-        "protocol" => NetField::Protocol(owned),
-        "bitrate" => NetField::Bitrate(quantity()?),
-        "master" => NetField::Master(port()?),
-        other => {
-            return Err(invalid(format!(
-                "ネットのフィールドではありません: {other}"
-            )));
-        }
+        NetFieldName::Label => NetField::Label(owned),
+        NetFieldName::Source => NetField::Source(port()?),
+        NetFieldName::Rail => NetField::Rail(quantity()?),
+        NetFieldName::Limit => NetField::Limit(quantity()?),
+        NetFieldName::Protocol => NetField::Protocol(owned),
+        NetFieldName::Bitrate => NetField::Bitrate(quantity()?),
+        NetFieldName::Master => NetField::Master(port()?),
     })
 }
 
@@ -161,25 +162,34 @@ pub fn duty_from_text(text: &str) -> Result<BTreeMap<String, String>> {
 mod tests {
     use super::*;
 
-    /// ネットのフィールドの名前（`NetField::NAMES`）は、どれも読めて同じ名前の型付きのフィールドになる。
+    /// ネットのフィールドの名前（`NetFieldName::NAMES`）は、どれも読めて同じ名前の型付きのフィールドになる。
     #[test]
     fn every_net_field_name_reads_back_to_the_same_name() {
-        let sample = |name: &str| match name {
-            "kind" => "data",
-            "source" | "master" => "PCDU.OUT3",
-            "rail" => "5 V",
-            "limit" => "2 A",
-            "bitrate" => "1 Mbit/s",
-            _ => "text",
+        let sample = |name: NetFieldName| match name {
+            NetFieldName::Kind => "data",
+            NetFieldName::Source | NetFieldName::Master => "PCDU.OUT3",
+            NetFieldName::Rail => "5 V",
+            NetFieldName::Limit => "2 A",
+            NetFieldName::Bitrate => "1 Mbit/s",
+            NetFieldName::Label | NetFieldName::Protocol => "text",
         };
-        for name in NetField::NAMES {
-            assert_eq!(net_field(name, Some(sample(name))).unwrap().name(), *name);
-            if *name != "kind" {
-                assert_eq!(net_field(name, None).unwrap().name(), *name);
+        for &name in NetFieldName::ALL {
+            assert_eq!(net_field(name, Some(sample(name))).unwrap().key(), name);
+            if name != NetFieldName::Kind {
+                assert_eq!(net_field(name, None).unwrap().key(), name);
+                let unset = NetUnsetText {
+                    net: "P5V".into(),
+                    field: format!(" {name} "),
+                };
+                assert!(net_unset_op(&unset).is_ok(), "{name}");
             }
         }
-        assert!(net_field("kind", None).is_err());
-        assert!(net_field("voltage", Some("5 V")).is_err());
+        assert!(net_field(NetFieldName::Kind, None).is_err());
+        let unknown = NetUnsetText {
+            net: "P5V".into(),
+            field: "voltage".into(),
+        };
+        assert!(net_unset_op(&unknown).is_err());
     }
 
     /// `fune net set` は書いた旗だけを宣言の順に（GUI のレールの欄は `rail` だけ）。
@@ -200,7 +210,7 @@ mod tests {
             })
             .collect();
         assert_eq!(names, ["label", "rail"]);
-        // 旗を全部書けば、フィールドの名前の一覧（`NetField::NAMES`）と同じ順になる
+        // 旗を全部書けば、フィールドの名前の一覧（`NetFieldName::NAMES`）と同じ順になる
         let all = NetSetText {
             net: "CAN".into(),
             kind: Some("data".into()),
@@ -220,7 +230,7 @@ mod tests {
                 _ => "",
             })
             .collect();
-        assert_eq!(names, NetField::NAMES);
+        assert_eq!(names, NetFieldName::NAMES);
         assert!(net_set_ops(&NetSetText::default()).is_err());
         let bad = NetSetText {
             net: "P5V".into(),

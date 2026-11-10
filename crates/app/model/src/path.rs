@@ -4,7 +4,7 @@
 //! |---|---|
 //! | `RW_X.mass` | 部品 RW_X の属性 mass |
 //! | `RW_X.power.on` | 状態ごとの属性 power の状態 on のセル |
-//! | `RW_X.label` | 部品のフィールド（[`PART_FIELDS`]） |
+//! | `RW_X.label` | 部品のフィールド（[`PartFieldName`]） |
 //! | `mission.orbit.altitude` | `mission/orbit.toml` の `altitude` |
 //! | `mission.ground.TOKYO_GS.min_elevation` | `mission/ground/TOKYO_GS.toml` の `min_elevation` |
 //! | `analysis.power.dod_max` | `analysis/power.toml` の `dod_max` |
@@ -14,61 +14,21 @@
 //! 属性だけのパス（`power.on`）は [`AttrPath`]、カタログ品の属性（`local/rw_10mNms.power.on`）は [`parse_catalog_attr`]。
 //! CLI と service はこれらを使い、自前で分割しない。
 
+use crate::enum_text::enum_text;
+use crate::field_names::PartFieldName;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use ts_rs::TS;
 
 pub mod port_text;
 
-/// 部品のフィールド名（属性 ID と重ねてはいけない。検査の `def.reserved` が拒む）。
-pub const PART_FIELDS: &[&str] = &[
-    "label",
-    "description",
-    "catalog",
-    "kind",
-    "count",
-    "maturity",
-    "candidates",
-];
-
-/// カタログ品のフィールド名（`fune catalog set <品> <フィールド>`。属性 ID と重ねてはいけない。検査の `def.reserved` が拒む）。
-pub const CATALOG_FIELDS: &[&str] = &[
-    "kind",
-    "label",
-    "label_en",
-    "manufacturer",
-    "part_number",
-    "maturity",
-    "datasheet",
-    "source",
-];
-
-/// 設定の置き場所の種類。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum SettingScope {
-    Mission,
-    Analysis,
-    Budget,
-}
-
-impl SettingScope {
-    /// パスの先頭の綴り。
-    pub fn as_str(self) -> &'static str {
-        match self {
-            SettingScope::Mission => "mission",
-            SettingScope::Analysis => "analysis",
-            SettingScope::Budget => "budget",
-        }
-    }
-
-    fn parse(text: &str) -> Option<Self> {
-        match text {
-            "mission" => Some(SettingScope::Mission),
-            "analysis" => Some(SettingScope::Analysis),
-            "budget" => Some(SettingScope::Budget),
-            _ => None,
-        }
+enum_text! {
+    /// 設定の置き場所の種類。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+    pub enum SettingScope: "設定の置き場所" {
+        Mission = "mission",
+        Analysis = "analysis",
+        Budget = "budget",
     }
 }
 
@@ -171,14 +131,14 @@ pub fn parse(path: &str) -> Result<ParamPath, PathError> {
     if segments.iter().any(|s| s.is_empty()) || segments.len() < 2 {
         return Err(bad());
     }
-    if let Some(scope) = SettingScope::parse(segments[0]) {
+    if let Ok(scope) = segments[0].parse::<SettingScope>() {
         return Ok(ParamPath::Setting(SettingPath {
             scope,
             segments: segments[1..].iter().map(|s| s.to_string()).collect(),
         }));
     }
     let part = segments[0].to_string();
-    if segments.len() == 2 && PART_FIELDS.contains(&segments[1]) {
+    if segments.len() == 2 && segments[1].parse::<PartFieldName>().is_ok() {
         return Ok(ParamPath::Field {
             part,
             field: segments[1].to_string(),

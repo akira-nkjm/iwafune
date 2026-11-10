@@ -1,16 +1,18 @@
 //! 診断の型（severity・code・対象・file・line）。
 
+use crate::enum_text::enum_text;
 use crate::target::Target;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-/// 診断の重さ。error は書き込みを拒む（新たに増える場合）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum Severity {
-    Error,
-    Warning,
-    Info,
+enum_text! {
+    /// 診断の重さ。error は書き込みを拒む（新たに増える場合）。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+    pub enum Severity: "診断の重さ" {
+        Error = "error",
+        Warning = "warning",
+        Info = "info",
+    }
 }
 
 /// 検証の結果 1 件。

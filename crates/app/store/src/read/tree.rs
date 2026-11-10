@@ -12,7 +12,9 @@ use fune_model::value::{Authored, Value};
 use serde::Deserialize;
 use std::collections::BTreeMap;
 
-/// 部品ファイルの形。
+/// 部品ファイルの形。見出しのキーはモデルのフィールド名（`PartFieldName`）、表は書き出しと同じ `PART_SECTIONS`
+/// （どちらもテストで突き合わせる）。値の型はモデルの serde の型（`Mount`・`Pose`・`PortBinding`・`Maturity`）。
+/// 属性の値だけは定義の型で読む（`codec`）ので、モデルの `Part` をそのまま読まない。
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct PartDoc {
@@ -34,7 +36,7 @@ struct PartDoc {
     ports: BTreeMap<String, PortBinding>,
 }
 
-/// カタログ品のファイルの形。
+/// カタログ品のファイルの形。見出しのキーはモデルのフィールド名（`CatalogFieldName`。テストで突き合わせる）。
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct CatalogDoc {
@@ -170,5 +172,76 @@ impl Decoder<'_> {
                 part.parent = parent;
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::write::part::PART_SECTIONS;
+    use fune_model::design::{CatalogFieldName, Net, NetFieldName, PartFieldName};
+    use serde::de::{self, Visitor};
+
+    /// serde の構造体が受け取るキー（`deserialize_struct` に渡る `fields`）。
+    fn struct_keys<T: for<'de> Deserialize<'de>>() -> Vec<&'static str> {
+        #[derive(Debug)]
+        struct Stop;
+        impl std::fmt::Display for Stop {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("stop")
+            }
+        }
+        impl std::error::Error for Stop {}
+        impl de::Error for Stop {
+            fn custom<M: std::fmt::Display>(_: M) -> Self {
+                Stop
+            }
+        }
+        struct Grab<'a>(&'a mut Vec<&'static str>);
+        impl<'de> de::Deserializer<'de> for Grab<'_> {
+            type Error = Stop;
+            fn deserialize_any<V: Visitor<'de>>(self, _: V) -> Result<V::Value, Stop> {
+                Err(Stop)
+            }
+            fn deserialize_struct<V: Visitor<'de>>(
+                self,
+                _: &'static str,
+                fields: &'static [&'static str],
+                _: V,
+            ) -> Result<V::Value, Stop> {
+                self.0.extend_from_slice(fields);
+                Err(Stop)
+            }
+            serde::forward_to_deserialize_any! {
+                bool i8 i16 i32 i64 i128 u8 u16 u32 u64 u128 f32 f64 char str string bytes byte_buf
+                option unit unit_struct newtype_struct seq tuple tuple_struct map enum identifier ignored_any
+            }
+        }
+        let mut keys = Vec::new();
+        let _ = T::deserialize(Grab(&mut keys));
+        keys
+    }
+
+    /// 読み込みが受け取るキー = モデルのフィールド名の一覧（正規の順）+ 表の見出し（書き出しと同じ名前と順）。
+    #[test]
+    fn file_keys_are_the_model_field_names() {
+        let part: Vec<&str> = PartFieldName::NAMES
+            .iter()
+            .chain(PART_SECTIONS)
+            .copied()
+            .collect();
+        assert_eq!(struct_keys::<PartDoc>(), part);
+        let catalog: Vec<&str> = CatalogFieldName::NAMES
+            .iter()
+            .chain(&["attr", "ports"])
+            .copied()
+            .collect();
+        assert_eq!(struct_keys::<CatalogDoc>(), catalog);
+        // ネットのファイルはモデルの `Net` をそのまま読む（`id` はファイル名）
+        let net: Vec<&str> = struct_keys::<Net>()
+            .into_iter()
+            .filter(|k| *k != "id")
+            .collect();
+        assert_eq!(net, NetFieldName::NAMES);
     }
 }

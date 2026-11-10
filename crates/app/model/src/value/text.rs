@@ -1,8 +1,22 @@
-//! 人が打つ値の文字列（CLI の `fune set RW_X.mass "620 g"`・GUI の入力欄）→ [`Value`]。
+//! 人が打つ値の文字列（CLI の `fune set RW_X.mass "620 g"`・GUI の入力欄）の書式。**読む向きと書く向きの両方がここ**。
 //!
-//! 単位の部分はそのまま文字列で残す（解析と次元の検査は `check` と [`super::units`]）。
+//! - 読む: 文字列 → [`Value`]・[`SettingValue`]・量・一覧（[`value_from_text`]・[`setting_from_text`] など）
+//! - 書く: 値 → 文字列（[`write`]。`to_cli` の値の引数）。書いたものを読むと元の値に戻る（往復のテストはこのファイル）
+//!
+//! 単位の部分はそのまま文字列で残す（次元の検査は `check`）。量として読むときだけ単位が読めるかを確かめる（[`super::units`]）。
+//! どの型で読むか（属性定義・設定の今の値）は呼ぶ側（fune-service）が決める。
 
-use super::{Quaternion, RangeValue, Scalar, Value, ValueError, ValueType, Vector3};
+mod write;
+
+pub use write::{
+    list_to_text, number_to_text, number_unit_to_text, quantity_to_text, quaternion_to_text,
+    range_to_text, setting_to_text, value_to_text, vector_to_text,
+};
+
+use super::units::unit_info;
+use super::{
+    Quantity, Quaternion, RangeValue, Scalar, SettingValue, Value, ValueError, ValueType, Vector3,
+};
 
 /// `"620 g"`・`"0.3"`・`"-20degC"` → (数値, 単位)。単位が無ければ無次元（空文字列）。
 pub fn parse_number_unit(text: &str) -> Result<(f64, String), ValueError> {
@@ -137,6 +151,58 @@ fn parse_quaternion(text: &str) -> Result<Quaternion, ValueError> {
     }
 }
 
+/// 量（`"12 V"`・`"-5 deg"`）。単位が読めなければ [`ValueError::Unit`]（次元は見ない）。
+pub fn quantity_from_text(text: &str) -> Result<Quantity, ValueError> {
+    let (value, unit) = parse_number_unit(text)?;
+    unit_info(&unit)?;
+    Ok(Quantity::new(value, unit))
+}
+
+/// カンマ区切りの一覧（`"off,on"`・`"mass, power"`）→ 語の列（空白を除き、空の語は捨てる）。
+/// **一覧の読み方はここだけ**（CLI の旗・GUI の欄・設定の一覧で共通。fune-service が `edit::list_from_text` として再公開する）。
+pub fn list_from_text(text: &str) -> Vec<String> {
+    text.split(',')
+        .map(|s| s.trim().to_owned())
+        .filter(|s| !s.is_empty())
+        .collect()
+}
+
+/// 設定の値（`fune setting set <パス> <値>`）。`like`（設定の今の値）と同じ型で読む。今の値が無ければ文字列から推し量る
+/// （整数 → 小数 → 真偽 → 量 → 文字列の順。量は単位が読めるときだけ）。
+pub fn setting_from_text(
+    text: &str,
+    like: Option<&SettingValue>,
+) -> Result<SettingValue, ValueError> {
+    let t = text.trim();
+    let syntax = || ValueError::Syntax(t.to_owned());
+    Ok(match like {
+        Some(SettingValue::Number(_)) => SettingValue::Number(t.parse().map_err(|_| syntax())?),
+        Some(SettingValue::Integer(_)) => SettingValue::Integer(t.parse().map_err(|_| syntax())?),
+        Some(SettingValue::Bool(_)) => SettingValue::Bool(t.parse().map_err(|_| syntax())?),
+        Some(SettingValue::Quantity(_)) => SettingValue::Quantity(quantity_from_text(t)?),
+        Some(SettingValue::Vector(_)) => SettingValue::Vector(parse_vector(t)?),
+        Some(SettingValue::List(_)) => SettingValue::List(list_from_text(t)),
+        Some(SettingValue::Text(_)) => SettingValue::Text(t.to_owned()),
+        None => guess_setting(t),
+    })
+}
+
+fn guess_setting(t: &str) -> SettingValue {
+    if let Ok(i) = t.parse::<i64>() {
+        return SettingValue::Integer(i);
+    }
+    if let Ok(x) = t.parse::<f64>() {
+        return SettingValue::Number(x);
+    }
+    if let Ok(b) = t.parse::<bool>() {
+        return SettingValue::Bool(b);
+    }
+    match quantity_from_text(t) {
+        Ok(q) => SettingValue::Quantity(q),
+        Err(_) => SettingValue::Text(t.to_owned()),
+    }
+}
+
 /// 地方時 `"HH:MM"`（`"10:30"`・`"9:05"`。時は 0〜23、分は 2 桁の 0〜59）→ 時（10.5）。読めなければ None。
 /// 降交点・昇交点の地方時を検証（`check`）と軌道の組み立て（projection）の両方がこれで読む。
 pub fn parse_clock_hours(text: &str) -> Option<f64> {
@@ -192,5 +258,126 @@ mod tests {
         let v = value_from_text("100 100 20 mm", ValueType::Vec3);
         assert!(matches!(v, Ok(Value::Vec3(Vector3 { z, .. })) if z == 20.0));
         assert!(value_from_text("1 0 0 0", ValueType::Quat).is_ok());
+    }
+
+    /// 書いた文字列を同じ型で読み直すと元の値に戻る（`to_cli` の値の引数が `fune set` でそのまま使える）。
+    #[test]
+    fn values_survive_text_and_back() {
+        let scalar = |v: f64, u: &str| Value::Scalar(Scalar::new(v, u));
+        let values = [
+            scalar(620.0, "g"),
+            scalar(-20.5, "degC"),
+            scalar(1e-7, "N*m"),
+            scalar(0.3, ""),
+            scalar(18.0, "mN*m*s"),
+            Value::Range(RangeValue {
+                min: -20.0,
+                max: 60.0,
+                unit: "degC".into(),
+            }),
+            Value::Range(RangeValue {
+                min: 0.1,
+                max: 0.9,
+                unit: String::new(),
+            }),
+            Value::Vec3(Vector3 {
+                x: 100.0,
+                y: -0.5,
+                z: 20.0,
+                unit: Some("mm".into()),
+                frame: None,
+            }),
+            Value::Vec3(Vector3::unitless(0.0, 0.0, 1.0)),
+            Value::Quat(Quaternion {
+                w: std::f64::consts::FRAC_1_SQRT_2,
+                x: 0.0,
+                y: 0.0,
+                z: -std::f64::consts::FRAC_1_SQRT_2,
+            }),
+            Value::Bool(true),
+            Value::Enum("al6061_t6".into()),
+            Value::Text("EM 実測".into()),
+            Value::Table("rw_torque".into()),
+        ];
+        for v in &values {
+            let text = value_to_text(v).unwrap();
+            assert_eq!(
+                &value_from_text(&text, v.value_type()).unwrap(),
+                v,
+                "{text}"
+            );
+        }
+        assert_eq!(value_to_text(&scalar(620.0, "g")).as_deref(), Some("620 g"));
+        assert_eq!(value_to_text(&values[5]).as_deref(), Some("-20 .. 60 degC"));
+        // 状態ごとの値は 1 セルずつスカラーとして書いて読む
+        let mut cells = std::collections::BTreeMap::new();
+        for (state, w) in [("on", 1.2), ("peak", 3.5)] {
+            cells.insert(
+                state.to_owned(),
+                super::super::Authored::bare(Scalar::new(w, "W")),
+            );
+        }
+        assert_eq!(value_to_text(&Value::ByState(cells.clone())), None);
+        for cell in cells.values() {
+            let text = value_to_text(&Value::Scalar(cell.value.clone())).unwrap();
+            assert_eq!(
+                value_from_text(&text, ValueType::Scalar).unwrap(),
+                Value::Scalar(cell.value.clone())
+            );
+        }
+    }
+
+    /// 設定の値は、今の値の型で読み直すと元に戻る。今の値が無ければ書いた形から推し量る。
+    #[test]
+    fn settings_survive_text_and_back() {
+        let settings = [
+            SettingValue::Number(0.25),
+            SettingValue::Number(4.0),
+            SettingValue::Integer(-3),
+            SettingValue::Bool(false),
+            SettingValue::Text("10:30".into()),
+            SettingValue::Quantity(Quantity::new(500.0, "km")),
+            SettingValue::Quantity(Quantity::new(-5.0, "deg")),
+            SettingValue::Vector(Vector3 {
+                x: 0.0,
+                y: 0.1,
+                z: -0.2,
+                unit: Some("m".into()),
+                frame: None,
+            }),
+            SettingValue::List(vec!["TOKYO_GS".into(), "OKINAWA".into()]),
+        ];
+        for s in &settings {
+            let text = setting_to_text(s);
+            assert_eq!(&setting_from_text(&text, Some(s)).unwrap(), s, "{text}");
+        }
+        assert_eq!(setting_to_text(&settings[5]), "500 km");
+        assert_eq!(
+            setting_from_text("4", None).unwrap(),
+            SettingValue::Integer(4)
+        );
+        assert_eq!(
+            setting_from_text("0.25", None).unwrap(),
+            SettingValue::Number(0.25)
+        );
+        assert_eq!(setting_from_text("-5 deg", None).unwrap(), settings[6]);
+        // 単位として読めなければ文字列
+        assert_eq!(
+            setting_from_text("5 parsec", None).unwrap(),
+            SettingValue::Text("5 parsec".into())
+        );
+        assert!(matches!(
+            setting_from_text("5 parsec", Some(&settings[5])),
+            Err(ValueError::Unit { .. })
+        ));
+        assert!(setting_from_text("abc", Some(&settings[0])).is_err());
+    }
+
+    #[test]
+    fn lists_split_on_commas_only() {
+        assert_eq!(list_from_text(" a, b ,,c "), ["a", "b", "c"]);
+        assert_eq!(list_to_text(["off", "on"]), "off,on");
+        assert_eq!(list_from_text(&list_to_text(["off", "on"])), ["off", "on"]);
+        assert!(list_from_text(" ").is_empty());
     }
 }

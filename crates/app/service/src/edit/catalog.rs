@@ -1,12 +1,12 @@
 //! カタログ品の編集の文字列 → Op（`fune catalog set local/rw_10mNms mass "620 g"` → `SetCatalogValue` など）。
 //! 入口は `edit::{set_op, unset_op}`（`SetText.item`・`UnsetText.item` があるときここに振り分ける）。
-//! 属性の値の読み方は部品と同じ（`text::attr_value`）。フィールド名（`fune_model::path::CATALOG_FIELDS`）は `SetCatalogField` にする。
+//! 属性の値の読み方は部品と同じ（`text::attr_value`）。フィールド名（`fune_model::design::CatalogFieldName`）は `SetCatalogField` にする。
 
 use super::text::{SetText, attr_value, invalid, maturity};
 use crate::error::Result;
 use crate::workspace::Workspace;
-use fune_model::design::CatalogField;
-use fune_model::path::{AttrPath, CATALOG_FIELDS, parse_catalog_attr};
+use fune_model::design::{CatalogField, CatalogFieldName};
+use fune_model::path::{AttrPath, parse_catalog_attr};
 use fune_model::value::Provenance;
 use fune_ops::Op;
 
@@ -22,9 +22,12 @@ fn item_path(item: &str, path: &str) -> Result<AttrPath> {
     }
 }
 
-/// フィールド名（`fune_model::path::CATALOG_FIELDS`）なら、その名前。状態の付いたパスはフィールドではない。
-fn field_name(p: &AttrPath) -> Option<&str> {
-    (p.state.is_none() && CATALOG_FIELDS.contains(&p.attr.as_str())).then_some(p.attr.as_str())
+/// フィールド名（`CatalogFieldName`）なら、そのフィールド。状態の付いたパスはフィールドではない。
+fn field_name(p: &AttrPath) -> Option<CatalogFieldName> {
+    match p.state {
+        Some(_) => None,
+        None => p.attr.parse().ok(),
+    }
 }
 
 /// `fune catalog set <品> <属性[.状態] | フィールド> <値>`。`t.path` は品の中のパス。
@@ -68,33 +71,44 @@ pub(super) fn catalog_unset_op(item: &str, path: &str) -> Result<Op> {
     })
 }
 
-fn catalog_field(name: &str, text: Option<&str>) -> Result<CatalogField> {
+/// フィールドと打った文字列 → 型付きのフィールド（`text` が None なら消す。`kind` は消せない）。
+fn catalog_field(name: CatalogFieldName, text: Option<&str>) -> Result<CatalogField> {
     let owned = text.map(str::to_owned);
     Ok(match name {
-        "kind" => {
+        CatalogFieldName::Kind => {
             CatalogField::Kind(owned.ok_or_else(|| invalid("カタログ品の kind は消せません"))?)
         }
-        "label" => CatalogField::Label(owned),
-        "label_en" => CatalogField::LabelEn(owned),
-        "manufacturer" => CatalogField::Manufacturer(owned),
-        "part_number" => CatalogField::PartNumber(owned),
-        "datasheet" => CatalogField::Datasheet(owned),
-        "source" => CatalogField::Source(owned),
-        "maturity" => CatalogField::Maturity(match text {
-            None => None,
-            Some(t) => Some(maturity(t)?),
-        }),
-        other => {
-            return Err(invalid(format!(
-                "カタログ品のフィールドではありません: {other}"
-            )));
-        }
+        CatalogFieldName::Label => CatalogField::Label(owned),
+        CatalogFieldName::LabelEn => CatalogField::LabelEn(owned),
+        CatalogFieldName::Manufacturer => CatalogField::Manufacturer(owned),
+        CatalogFieldName::PartNumber => CatalogField::PartNumber(owned),
+        CatalogFieldName::Datasheet => CatalogField::Datasheet(owned),
+        CatalogFieldName::Source => CatalogField::Source(owned),
+        CatalogFieldName::Maturity => CatalogField::Maturity(text.map(maturity).transpose()?),
     })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// カタログ品のフィールドの名前（`CatalogFieldName::NAMES`）は、どれも読めて同じ名前の型付きのフィールドになる。
+    #[test]
+    fn every_catalog_field_name_reads_back_to_the_same_name() {
+        for &name in CatalogFieldName::ALL {
+            let text = if name == CatalogFieldName::Maturity {
+                "modified"
+            } else {
+                "text"
+            };
+            assert_eq!(catalog_field(name, Some(text)).unwrap().key(), name);
+            if name != CatalogFieldName::Kind {
+                assert_eq!(catalog_field(name, None).unwrap().key(), name);
+            }
+        }
+        assert!(catalog_field(CatalogFieldName::Kind, None).is_err());
+        assert!(catalog_field(CatalogFieldName::Maturity, Some("brand_new")).is_err());
+    }
 
     #[test]
     fn item_paths_and_parameter_paths_give_the_same_op() {

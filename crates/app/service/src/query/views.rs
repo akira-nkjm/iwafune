@@ -237,10 +237,10 @@ fn duty_shares(c: &fune_model::design::StateAssign) -> BTreeMap<String, Quantity
         .collect()
 }
 
-/// ネットのフィールドの対象のパス（フィールド名 → `nets.P12V.rail`）。名前は `NetField::NAMES`、書き方は `Target::net` の表示
+/// ネットのフィールドの対象のパス（フィールド名 → `nets.P12V.rail`）。名前は `NetFieldName::NAMES`、書き方は `Target::net` の表示
 /// （診断の `DiagnosticView.path` と同じなので、弾かれた理由がその欄に付く）。
 fn net_field_paths(net: &str) -> BTreeMap<String, String> {
-    fune_model::design::NetField::NAMES
+    fune_model::design::NetFieldName::NAMES
         .iter()
         .map(|field| {
             let target = fune_model::Target::net(net, Some(field));
@@ -249,9 +249,9 @@ fn net_field_paths(net: &str) -> BTreeMap<String, String> {
         .collect()
 }
 
-/// 部品のフィールドのパス（フィールド名 → `RW_X.count`）。名前は `fune_model::path::PART_FIELDS`、記法は `ParamPath::Field`。
+/// 部品のフィールドのパス（フィールド名 → `RW_X.count`）。名前は `fune_model::design::PartFieldName::NAMES`、記法は `ParamPath::Field`。
 pub(crate) fn field_paths(part: &str) -> BTreeMap<String, String> {
-    fune_model::path::PART_FIELDS
+    fune_model::design::PartFieldName::NAMES
         .iter()
         .map(|field| {
             let path = fune_model::path::ParamPath::Field {

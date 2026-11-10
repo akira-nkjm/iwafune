@@ -157,32 +157,4 @@ fn is_allowed(path: &str, allowed: &str) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn analysis_display_conversions_are_rejected_only_in_production() {
-        for needle in ["/ 3600.0", "* 100.0", ".log10()"] {
-            let rule = PROD_RULES.iter().find(|r| r.0 == needle).unwrap();
-            let mut errors = Vec::new();
-            check_rule(
-                "crates/lib/analysis/src/check.rs",
-                needle,
-                rule,
-                &mut errors,
-            );
-            assert_eq!(errors.len(), 1);
-            errors.clear();
-            check_rule("crates/lib/units/src/format.rs", needle, rule, &mut errors);
-            assert!(errors.is_empty());
-            let code = format!("fn run() {{}}\n#[cfg(test)]\nmod tests {{ {needle} }}");
-            check_rule(
-                "crates/lib/analysis/src/check.rs",
-                production_text("check.rs", &code).unwrap(),
-                rule,
-                &mut errors,
-            );
-            assert!(errors.is_empty());
-        }
-    }
-}
+mod tests;

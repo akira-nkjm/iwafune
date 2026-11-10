@@ -28,8 +28,8 @@ fn definitions_references_and_paths_come_from_model() {
     assert_eq!(bus.kind.to_string(), "power");
     let view = query::part_view(&ws, "RW_X", &Default::default()).unwrap();
     assert_eq!(view.part.paths, wheel.paths);
-    // 部品のフィールドのパス（名前は fune_model::path::PART_FIELDS、記法は ParamPath::Field）
-    let mut fields = fune_model::path::PART_FIELDS.to_vec();
+    // 部品のフィールドのパス（名前は fune_model::design::PartFieldName::NAMES、記法は ParamPath::Field）
+    let mut fields = fune_model::design::PartFieldName::NAMES.to_vec();
     fields.sort_unstable();
     let names: Vec<&str> = wheel.field_paths.keys().map(String::as_str).collect();
     assert_eq!(names, fields);

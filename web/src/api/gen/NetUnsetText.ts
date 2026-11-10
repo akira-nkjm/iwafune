@@ -5,6 +5,6 @@
  */
 export type NetUnsetText = { net: string, 
 /**
- * `label`・`source`・`rail`・`limit`・`protocol`・`bitrate`・`master`（`fune_model::design::NetField::NAMES`。`kind` は消せない）
+ * `label`・`source`・`rail`・`limit`・`protocol`・`bitrate`・`master`（`fune_model::design::NetFieldName::NAMES`。`kind` は消せない）
  */
 field: string, };

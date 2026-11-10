@@ -3,7 +3,9 @@
 //! | モジュール | 責務 |
 //! |---|---|
 //! | `id` | 型付き ID と ID の規則 |
-//! | `value` | 書かれたままの量（数値＋単位文字列）・値の型・出典。`value::units` は単位の唯一の窓口（中身は sat-units）、`value::text` は人の入力の解釈、`value::json` は JSON の中の量・ベクトルの見分け |
+//! | `enum_text` | 列挙の値の綴り（serde・`as_str`・`Display`・`FromStr`・値の一覧）を 1 回だけ書く仕組み（`enum_text!`） |
+//! | `field_names` | 部品・カタログ品・ネットのフィールド名の正本（ファイルのキー・パス記法・CLI の名前と正規の順） |
+//! | `value` | 書かれたままの量（数値＋単位文字列）・値の型・出典。`value::units` は単位の唯一の窓口（中身は sat-units）、`value::text` は人の入力の書式（読む向きと書く向き）、`value::json` は JSON の中の量・ベクトルの見分け |
 //! | `design` | Design 層の型（Project・Part・Group・Mode・Net・Harness・Budget・設定など。docs/model.md §4）と、設定をパス記法で読む関数 |
 //! | `lookup` | Design の組み込み fallback 検索（型定義から分離） |
 //! | `builtin` | 組み込みの属性定義・種別定義（解析が前提にする標準の語彙）と、状態・系・列挙の表示名（日英） |
@@ -19,6 +21,8 @@ pub mod builtin;
 pub mod check;
 pub mod design;
 pub mod diagnostic;
+pub mod enum_text;
+pub mod field_names;
 pub mod id;
 pub mod path;
 pub mod resolve;

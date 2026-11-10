@@ -87,7 +87,7 @@ pub enum TreeNodeKind {
 pub struct PartRow {
     /// 属性 → 状態（空文字なら属性全体）→ パラメーターパス。
     pub paths: BTreeMap<String, BTreeMap<String, String>>,
-    /// 部品のフィールド名（`fune_model::path::PART_FIELDS`）→ パラメーターパス（`"RW_X.count"`）。
+    /// 部品のフィールド名（`fune_model::design::PartFieldName`）→ パラメーターパス（`"RW_X.count"`）。
     /// GUI の基本の欄は、打った文字列とこのパスをそのまま `POST /ops/from_text` に送る
     pub field_paths: BTreeMap<String, String>,
     pub id: String,
@@ -228,7 +228,7 @@ pub struct NetView {
     pub master: Option<fune_model::path::PortRef>,
     /// このネットに属するポート（part = RW_X、port = PWR）。部品側の ports から集めたもの
     pub members: Vec<fune_model::path::PortRef>,
-    /// フィールド名（`NetField::NAMES`）→ 対象のパス（`"nets.P12V.rail"`。診断の `DiagnosticView.path` と同じ
+    /// フィールド名（`NetFieldName::NAMES`）→ 対象のパス（`"nets.P12V.rail"`。診断の `DiagnosticView.path` と同じ
     /// `fune_model::Target::net` の表示）。GUI の欄の名前で、検証で弾かれた理由をその欄の下に出す鍵。
     /// 編集はパスではなく `CommandText::NetSet`（`fune net set` の引数）で送る
     pub field_paths: BTreeMap<String, String>,

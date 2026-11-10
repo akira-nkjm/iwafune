@@ -4,6 +4,7 @@
 //! モードや部品の ID を参照する箇所（`mode_share` のキー・`law` のキー・`nodes` の値など）は `check` が検査し、
 //! 名前の変更（RenamePart・RenameMode）で一緒に書き換わる。
 
+use crate::enum_text::enum_text;
 use crate::value::{Quantity, Quaternion, Vector3};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -52,13 +53,14 @@ pub struct ModeSegment {
     pub duration: Quantity,
 }
 
-/// 姿勢則の種類（sat_astro::attitude::AttitudeLaw に射影する）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum AttitudeLawKind {
-    SunPointing,
-    NadirPointing,
-    Inertial,
+enum_text! {
+    /// 姿勢則の種類（sat_astro::attitude::AttitudeLaw に射影する）。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+    pub enum AttitudeLawKind: "姿勢則の種類" {
+        SunPointing = "sun_pointing",
+        NadirPointing = "nadir_pointing",
+        Inertial = "inertial",
+    }
 }
 
 /// モードごとの姿勢則。軸は機体座標の単位ベクトル。
@@ -128,13 +130,14 @@ pub struct CdhSettings {
     pub packet_overhead: Option<f64>,
 }
 
-/// 回線の向き。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename = "CommLinkDirection")]
-pub enum LinkDirection {
-    Down,
-    Up,
+enum_text! {
+    /// 回線の向き。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+    #[ts(rename = "CommLinkDirection")]
+    pub enum LinkDirection: "回線の向き" {
+        Down = "down",
+        Up = "up",
+    }
 }
 
 /// 回線 1 本の設定（`[link.<名前>]`）。

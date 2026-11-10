@@ -1,5 +1,6 @@
 //! 人が打つ文字列（`fune set RW_X.mass "620 g"`）→ Op。属性定義・部品のフィールド・設定の現在の型を見て値の型を決める。
-//! 文字列の読み方そのものは `fune_model::value::{value_from_text, parse_number_unit}` に任せる。
+//! 文字列の書式そのもの（読む向きと書く向き）は `fune_model::value`（`value_from_text`・`setting_from_text`・
+//! `quantity_from_text`・`list_from_text` など）に任せ、ここは型を決めて誤りをサービスのエラーにする。
 //! 入口は `edit::{set_op, unset_op}`（カタログ品は `super::catalog`、部品と設定はここ）。
 //! 名詞のコマンドの引数（`super::command`・`super::defs`）も、ここの読み方（量・ベクトル・クォータニオン・一覧・`名前=値`・
 //! X,Y・ネットの種類）を使う。
@@ -7,15 +8,17 @@
 use crate::error::{Result, ServiceError};
 use crate::preview::snapshot_with;
 use crate::workspace::Workspace;
-use fune_model::design::{Maturity, NetKind, PartField};
+use fune_model::design::{Maturity, NetKind, PartField, PartFieldName};
 use fune_model::path::{ParamPath, SettingPath, parse};
 use fune_model::value::{
-    Provenance, Quantity, Quaternion, Scalar, SettingValue, Value, ValueType, Vector3,
-    parse_number_unit, value_from_text,
+    Provenance, Quantity, Quaternion, Scalar, SettingValue, Value, ValueError, ValueType, Vector3,
+    parse_number_unit, setting_from_text, value_from_text,
 };
 use fune_ops::Op;
 
 pub use crate::dto::{SetText, UnsetText};
+/// カンマ区切りの一覧の読み方（定義は `fune_model::value::list_from_text`。CLI と名詞のコマンドはここから呼ぶ）。
+pub use fune_model::value::list_from_text;
 
 /// `fune set` → `SetValue`・`SetField`・`SetSetting` のどれか（`t.path` は部品か設定のパス）。
 pub(super) fn param_set_op(ws: &Workspace, t: &SetText) -> Result<Op> {
@@ -110,23 +113,25 @@ fn with_bounds(mut s: Scalar, t: &SetText) -> Result<Scalar> {
     Ok(s)
 }
 
+/// フィールド名（`PartFieldName`）と打った文字列 → 型付きのフィールド（`text` が None なら消す）。
 fn field_value(field: &str, text: Option<&str>) -> Result<PartField> {
     let owned = text.map(str::to_owned);
-    Ok(match field {
-        "label" => PartField::Label(owned),
-        "description" => PartField::Description(owned),
-        "catalog" => PartField::Catalog(owned),
-        "kind" => PartField::Kind(owned),
-        "count" => PartField::Count(match text {
+    Ok(match field.parse::<PartFieldName>().map_err(invalid)? {
+        PartFieldName::Label => PartField::Label(owned),
+        PartFieldName::Description => PartField::Description(owned),
+        PartFieldName::Catalog => PartField::Catalog(owned),
+        PartFieldName::Kind => PartField::Kind(owned),
+        PartFieldName::Count => PartField::Count(match text {
             Some(t) => t
                 .trim()
                 .parse()
                 .map_err(|_| invalid(format!("員数は整数で書きます: {t}")))?,
             None => 1,
         }),
-        "maturity" => PartField::Maturity(text.map(maturity).transpose()?),
-        "candidates" => PartField::Candidates(text.map(list_from_text).unwrap_or_default()),
-        other => return Err(invalid(format!("部品のフィールドではありません: {other}"))),
+        PartFieldName::Maturity => PartField::Maturity(text.map(maturity).transpose()?),
+        PartFieldName::Candidates => {
+            PartField::Candidates(text.map(list_from_text).unwrap_or_default())
+        }
     })
 }
 
@@ -139,37 +144,14 @@ pub fn maturity(text: &str) -> Result<Maturity> {
     })
 }
 
-/// 設定の値。今の値の型（整数・小数・量）に合わせ、無ければ文字列から推し量る。
+/// 設定の値。今の値（`Design::setting`）の型に合わせ、書かれていなければ文字列から推し量る（`setting_from_text`）。
 fn setting_value(ws: &Workspace, path: &SettingPath, text: &SetText) -> Result<SettingValue> {
     let snapshot = snapshot_with(ws, &text.ops)?;
-    let t = text.value.trim();
-    // 今の値の型（`Design::setting`）に合わせる。書かれていなければ文字列から推し量る。
-    Ok(match snapshot.design.setting(path) {
-        Some(SettingValue::Number(_)) => SettingValue::Number(t.parse().map_err(invalid)?),
-        Some(SettingValue::Integer(_)) => SettingValue::Integer(t.parse().map_err(invalid)?),
-        Some(SettingValue::Bool(_)) => SettingValue::Bool(t.parse().map_err(invalid)?),
-        Some(SettingValue::Quantity(_)) => SettingValue::Quantity(quantity_from_text(t)?),
-        Some(SettingValue::Vector(_)) => SettingValue::Vector(vector_from_text(t)?),
-        Some(SettingValue::List(_)) => SettingValue::List(list_from_text(t)),
-        Some(SettingValue::Text(_)) => SettingValue::Text(t.to_owned()),
-        None => guess_setting(t),
+    let like = snapshot.design.setting(path);
+    setting_from_text(&text.value, like.as_ref()).map_err(|e| match like {
+        Some(SettingValue::Quantity(_)) => quantity_error(text.value.trim(), e),
+        _ => invalid(e),
     })
-}
-
-fn guess_setting(t: &str) -> SettingValue {
-    if let Ok(i) = t.parse::<i64>() {
-        return SettingValue::Integer(i);
-    }
-    if let Ok(x) = t.parse::<f64>() {
-        return SettingValue::Number(x);
-    }
-    if let Ok(b) = t.parse::<bool>() {
-        return SettingValue::Bool(b);
-    }
-    match quantity_from_text(t) {
-        Ok(q) => SettingValue::Quantity(q),
-        Err(_) => SettingValue::Text(t.to_owned()),
-    }
 }
 
 /// 文字列 → ベクトル（`"0 0 12 mm"`）。`fune part place --position` 用。
@@ -188,22 +170,23 @@ pub fn quaternion_from_text(text: &str) -> Result<Quaternion> {
     }
 }
 
-/// 文字列 → 量（`"12 V"`）。単位が読めなければエラー。
+/// 文字列 → 量（`"12 V"`）。単位が読めなければエラー（読み方は `fune_model::value::quantity_from_text`）。
 pub fn quantity_from_text(text: &str) -> Result<Quantity> {
-    let (value, unit) = parse_number_unit(text).map_err(|e| ServiceError::Unit {
-        input: text.to_owned(),
-        reason: e.to_string(),
-    })?;
-    crate::units::quantity_from_authored(value, &unit, None)?;
-    Ok(Quantity::new(value, unit))
+    fune_model::value::quantity_from_text(text).map_err(|e| quantity_error(text, e))
 }
 
-/// カンマ区切りの一覧（`"off,on"`・`"mass, power"`）→ 語の列（空白を除き、空の語は捨てる）。**一覧の読み方はここだけ**（CLI も使う）。
-pub fn list_from_text(text: &str) -> Vec<String> {
-    text.split(',')
-        .map(|s| s.trim().to_owned())
-        .filter(|s| !s.is_empty())
-        .collect()
+/// 量として読めない誤り → `ServiceError::Unit`（単位が読めなければその単位、数が読めなければ打った文字列を添える）。
+fn quantity_error(text: &str, e: ValueError) -> ServiceError {
+    match e {
+        ValueError::Unit { unit, reason } => ServiceError::Unit {
+            input: unit,
+            reason,
+        },
+        e => ServiceError::Unit {
+            input: text.to_owned(),
+            reason: e.to_string(),
+        },
+    }
 }
 
 /// `名前=値`（`"tx=0.1"`・`"PWR=power"`）→ (名前, 値)。前後の空白を除き、どちらかが空なら None。
@@ -266,5 +249,21 @@ mod tests {
             PartField::Candidates(vec![])
         );
         assert!(field_value("maturity", Some("brand_new")).is_err());
+    }
+
+    /// 部品のフィールドの名前（`PartFieldName::NAMES`）は、どれも読めて同じ名前の型付きのフィールドになる（消すときも）。
+    #[test]
+    fn every_part_field_name_reads_back_to_the_same_name() {
+        for &name in PartFieldName::ALL {
+            let text = match name {
+                PartFieldName::Count => "3",
+                PartFieldName::Maturity => "new",
+                PartFieldName::Candidates => "local/a,local/b",
+                _ => "text",
+            };
+            assert_eq!(field_value(name.as_str(), Some(text)).unwrap().key(), name);
+            assert_eq!(field_value(name.as_str(), None).unwrap().key(), name);
+        }
+        assert!(field_value("voltage", Some("5 V")).is_err());
     }
 }

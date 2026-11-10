@@ -3,8 +3,8 @@
 use super::Ctx;
 use crate::builtin;
 use crate::design::{AttributeDef, EntityKey, KindDef};
+use crate::field_names::{CatalogFieldName, PartFieldName};
 use crate::id::{fold, validate_local_name};
-use crate::path::{CATALOG_FIELDS, PART_FIELDS};
 use crate::target::Target;
 use crate::value::ValueType;
 use crate::value::units::{expect_dimension, parse_dimension_name, same_dimension, unit_info};
@@ -66,16 +66,19 @@ pub fn attribute_def_problems(def: &AttributeDef) -> Vec<(&'static str, String)>
     out
 }
 
-/// 属性 ID が部品・カタログ品のフィールド名（[`PART_FIELDS`]・[`CATALOG_FIELDS`]）と重なるなら、その問題の本文。
+/// 属性 ID が部品・カタログ品のフィールド名（[`PartFieldName`]・[`CatalogFieldName`]）と重なるなら、その問題の本文。
 /// パスの記法（`RW_X.label`・`fune catalog set <品> label`）では属性とフィールドを区別できないため。ID の一意性と同じく
 /// 大文字小文字は無視する。
 fn field_name_clash(id: &str) -> Option<String> {
     let folded = fold(id);
-    let owners: Vec<&str> = [(PART_FIELDS, "部品"), (CATALOG_FIELDS, "カタログ品")]
-        .into_iter()
-        .filter(|(fields, _)| fields.iter().any(|f| fold(f) == folded))
-        .map(|(_, owner)| owner)
-        .collect();
+    let owners: Vec<&str> = [
+        (PartFieldName::NAMES, "部品"),
+        (CatalogFieldName::NAMES, "カタログ品"),
+    ]
+    .into_iter()
+    .filter(|(fields, _)| fields.iter().any(|f| fold(f) == folded))
+    .map(|(_, owner)| owner)
+    .collect();
     (!owners.is_empty()).then(|| {
         format!(
             "属性 ID `{id}` は{}のフィールド名と同じです（パスの記法で属性とフィールドを区別できません）",
