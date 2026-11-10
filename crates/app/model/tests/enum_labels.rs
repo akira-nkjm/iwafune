@@ -46,3 +46,32 @@ fn every_enum_value_has_a_label() {
     let listed: Vec<&str> = labels().enums.keys().map(String::as_str).collect();
     assert_eq!(listed, types, "表示名の表にある列挙の型");
 }
+
+/// 系の表示名と並び（labels.toml の `[section.<系>]`・`section_order`）と、役割 → 系（`role_system`）は、
+/// 解析の系の一覧（`AnalysisSystem`）と一致する。系でない区分（`basic`・`mass`）は表示名と並びにだけある。
+#[test]
+fn sections_and_role_systems_name_analysis_systems() {
+    use fune_model::design::AnalysisSystem;
+    let l = labels();
+    for system in AnalysisSystem::ALL {
+        let name = system.as_str();
+        assert!(l.section.contains_key(name), "section.{name}");
+        assert!(
+            l.section_order.iter().any(|s| s == name),
+            "section_order に {name}"
+        );
+    }
+    for (role, system) in &l.role_system {
+        assert!(
+            system.parse::<AnalysisSystem>().is_ok(),
+            "role_system.{role} = {system} は解析の系ではありません"
+        );
+    }
+    let mut order = l.section_order.clone();
+    order.sort();
+    let sections: Vec<String> = l.section.keys().cloned().collect();
+    assert_eq!(
+        order, sections,
+        "section_order はすべての区分を 1 回ずつ並べる"
+    );
+}

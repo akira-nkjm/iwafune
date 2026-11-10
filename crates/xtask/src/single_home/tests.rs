@@ -74,3 +74,37 @@ fn skeletons_come_from_kit_loading() {
     );
     assert_eq!(errors.len(), 2);
 }
+
+/// 系とバジェットの種類の一覧は model の列挙だけ。参照の所在は model の索引だけ（Rust のコードの規則）。
+#[test]
+fn lists_and_reference_sites_have_one_home() {
+    let rust = |needle: &str| RUST_RULES.iter().find(|r| r.0 == needle).unwrap();
+    let mut errors = Vec::new();
+    let systems = rust("\"power\", \"attitude\"");
+    check_rule(
+        "crates/app/store/src/layout.rs",
+        "&[\"power\", \"attitude\", \"cdh\"]",
+        systems,
+        &mut errors,
+    );
+    assert_eq!(errors.len(), 1);
+    errors.clear();
+    check_rule(
+        "crates/app/model/src/design/analysis.rs",
+        "&[\"power\", \"attitude\"]",
+        systems,
+        &mut errors,
+    );
+    assert!(errors.is_empty());
+    let site = PROD_RULES
+        .iter()
+        .find(|r| r.0 == "wire.as_deref() == Some(")
+        .unwrap();
+    check_rule(
+        "crates/app/store/src/write/refs.rs",
+        "h.wire.as_deref() == Some(from)",
+        site,
+        &mut errors,
+    );
+    assert_eq!(errors.len(), 1);
+}

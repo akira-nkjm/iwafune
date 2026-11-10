@@ -1,0 +1,114 @@
+//! ID の規則と一意性の検査。一意性は大文字小文字を無視して比べる（規則は `id::same_id`・`id::duplicates`）。
+//!
+//! | 名前空間 | ID の規則 |
+//! |---|---|
+//! | 部品とグループ（同じ名前空間） | `validate_node_id`（パスの予約語も禁止） |
+//! | モード・ネット・ハーネス・解析ケース・出典 | `validate_entity_id` |
+//! | カタログ品（出所ごと。`<出所>/<ID>` の ID の部分） | `validate_entity_id` |
+
+use super::Ctx;
+use crate::design::{EntityKey, split_catalog_ref};
+use crate::id::{IdError, duplicates, validate_entity_id, validate_node_id};
+use crate::target::Target;
+
+/// 1 つの名前空間の ID（検査する ID, 位置を引くエンティティ, 対象）。
+type Entry = (String, EntityKey, Target);
+
+pub(super) fn check_ids(ctx: &mut Ctx) {
+    let design = ctx.design;
+    let parts = design.parts.keys().map(|id| {
+        let id = id.to_string();
+        (id.clone(), EntityKey::Part(id.clone()), Target::Part { id })
+    });
+    let groups = design.groups.keys().map(|id| {
+        let id = id.to_string();
+        (
+            id.clone(),
+            EntityKey::Part(id.clone()),
+            Target::Group { id },
+        )
+    });
+    namespace(ctx, parts.chain(groups).collect(), validate_node_id);
+    let modes = design.modes.keys().map(|id| {
+        let id = id.to_string();
+        let target = Target::mode(&id, None);
+        (id.clone(), EntityKey::Mode(id), target)
+    });
+    namespace(ctx, modes.collect(), validate_entity_id);
+    let nets = design.nets.keys().map(|id| {
+        let id = id.to_string();
+        let target = Target::net(&id, None);
+        (id.clone(), EntityKey::Net(id), target)
+    });
+    namespace(ctx, nets.collect(), validate_entity_id);
+    let harnesses = design.harnesses.keys().map(|id| {
+        let id = id.to_string();
+        let target = Target::harness(&id, None);
+        (id.clone(), EntityKey::Harness(id), target)
+    });
+    namespace(ctx, harnesses.collect(), validate_entity_id);
+    let cases = design.cases.keys().map(|id| {
+        let id = id.to_string();
+        let target = Target::case(&id, None);
+        (id.clone(), EntityKey::Case(id), target)
+    });
+    namespace(ctx, cases.collect(), validate_entity_id);
+    let sources = design.sources.keys().map(|id| {
+        let id = id.to_string();
+        (
+            id.clone(),
+            EntityKey::Source(id.clone()),
+            Target::Source { id },
+        )
+    });
+    namespace(ctx, sources.collect(), validate_entity_id);
+    check_catalog_ids(ctx);
+}
+
+/// カタログ品の ID（出所ごとの名前空間）。
+fn check_catalog_ids(ctx: &mut Ctx) {
+    let design = ctx.design;
+    for source in &design.project.catalogs {
+        let items: Vec<Entry> = design
+            .catalog
+            .keys()
+            .filter_map(|reference| {
+                let (s, id) = split_catalog_ref(reference)?;
+                (s == source.name).then(|| {
+                    let target = Target::Catalog {
+                        id: reference.clone(),
+                        attr: None,
+                    };
+                    (id.to_owned(), EntityKey::Catalog(reference.clone()), target)
+                })
+            })
+            .collect();
+        namespace(ctx, items, validate_entity_id);
+    }
+}
+
+/// 1 つの名前空間の ID の規則と一意性。
+fn namespace(ctx: &mut Ctx, entries: Vec<Entry>, rule: fn(&str) -> Result<(), IdError>) {
+    for (id, entity, target) in &entries {
+        if let Err(e) = rule(id) {
+            ctx.error(
+                "id.invalid",
+                entity,
+                &[],
+                Some(target.clone()),
+                e.to_string(),
+            );
+        }
+    }
+    for (later, first) in duplicates(entries.iter().map(|(id, _, _)| id.as_str())) {
+        let (id, entity, target) = &entries[later];
+        let other = &entries[first].0;
+        ctx.error(
+            "id.duplicate",
+            entity,
+            &[],
+            Some(target.clone()),
+            format!("ID `{id}` が `{other}` と重複しています（大文字小文字を無視して比較）"),
+        );
+    }
+}

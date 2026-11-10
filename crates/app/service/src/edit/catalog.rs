@@ -2,7 +2,7 @@
 //! 入口は `edit::{set_op, unset_op}`（`SetText.item`・`UnsetText.item` があるときここに振り分ける）。
 //! 属性の値の読み方は部品と同じ（`text::attr_value`）。フィールド名（`fune_model::design::CatalogFieldName`）は `SetCatalogField` にする。
 
-use super::text::{SetText, attr_value, invalid, maturity};
+use super::text::{AttrSlot, SetText, attr_value, invalid, maturity};
 use crate::error::Result;
 use crate::workspace::Workspace;
 use fune_model::design::{CatalogField, CatalogFieldName};
@@ -40,7 +40,7 @@ pub(super) fn catalog_set_op(ws: &Workspace, item: &str, t: &SetText) -> Result<
         });
     }
     let AttrPath { attr, state } = path;
-    let value = attr_value(ws, &attr, state.is_some(), t)?;
+    let value = attr_value(ws, &attr, AttrSlot::of(state.as_deref()), t)?;
     let from = (t.source.is_some() || t.note.is_some()).then(|| Provenance {
         source: t.source.clone(),
         note: t.note.clone(),

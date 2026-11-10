@@ -1,9 +1,10 @@
 //! 解析ケースの文脈: 設計・解決済みの値・ケースと、どの解析でも使う入力（軌道・地上局・姿勢則・モード）の組み立て。
 
 use crate::missing::MissingInputs;
-use crate::quantity::{qty, qty_opt};
+use crate::quantity::{setting, setting_opt};
 use fune_model::Target;
-use fune_model::design::{AttitudeLawKind, AttitudeLawSetting, Case, Design, Mode};
+use fune_model::design::setting_dims as dims;
+use fune_model::design::{AnalysisSystem, AttitudeLawKind, AttitudeLawSetting, Case, Design, Mode};
 use fune_model::path::SettingPath;
 use fune_model::resolve::Resolved;
 use fune_model::value::{Quaternion, Vector3};
@@ -78,16 +79,17 @@ impl<'a> Context<'a> {
         };
         let a = self.semi_major_axis(o, m);
         let inc = match (o.inclination.as_ref(), o.sun_synchronous, a) {
-            (Some(q), _, _) => qty::<Angle>(Some(q), orbit(&["inclination"]), "", m),
+            (Some(q), _, _) => setting(&dims::ORBIT_INCLINATION, &[], Some(q), "", m),
             (None, Some(true), Some(a)) => {
                 Some(Qty::from_raw(sat_astro::orbit::sso_inclination_rad(
                     a.value(),
                     o.eccentricity.unwrap_or(DEFAULT_ECCENTRICITY),
                 )))
             }
-            _ => qty::<Angle>(
+            _ => setting(
+                &dims::ORBIT_INCLINATION,
+                &[],
                 None,
-                orbit(&["inclination"]),
                 "傾斜角（または sun_synchronous = true）",
                 m,
             ),
@@ -95,13 +97,13 @@ impl<'a> Context<'a> {
         // 書かれていない要素は None のまま渡す（慣例の値は `OrbitElements::with_defaults` が持つ）。
         // RAAN は LTDN からも求める。外側の None は「求められない」（不足として記録済み）。
         let raan = match (o.raan.as_ref(), o.ltdn.as_deref(), epoch) {
-            (Some(q), _, _) => qty::<Angle>(Some(q), orbit(&["raan"]), "", m).map(Some),
+            (Some(q), _, _) => setting(&dims::ORBIT_RAAN, &[], Some(q), "", m).map(Some),
             (None, Some(text), Some(epoch)) => raan_from_ltdn(epoch, text, m).map(Some),
             (None, Some(_), None) => None,
             (None, None, _) => Some(None),
         };
-        let argp = qty_opt::<Angle>(o.arg_perigee.as_ref(), orbit(&["arg_perigee"]), m);
-        let ma = qty_opt::<Angle>(o.mean_anomaly.as_ref(), orbit(&["mean_anomaly"]), m);
+        let argp = setting_opt(&dims::ORBIT_ARG_PERIGEE, &[], o.arg_perigee.as_ref(), m);
+        let ma = setting_opt(&dims::ORBIT_MEAN_ANOMALY, &[], o.mean_anomaly.as_ref(), m);
         let propagator = match o.propagator {
             Some(fune_model::design::PropagatorKind::Kepler) => Propagator::Kepler,
             _ => Propagator::default(),
@@ -116,16 +118,18 @@ impl<'a> Context<'a> {
         m: &mut MissingInputs,
     ) -> Option<Qty<Length>> {
         if o.semi_major_axis.is_some() {
-            return qty::<Length>(
+            return setting(
+                &dims::ORBIT_SEMI_MAJOR_AXIS,
+                &[],
                 o.semi_major_axis.as_ref(),
-                orbit(&["semi_major_axis"]),
                 "",
                 m,
             );
         }
-        let alt = qty::<Length>(
+        let alt = setting(
+            &dims::ORBIT_ALTITUDE,
+            &[],
             o.altitude.as_ref(),
-            orbit(&["altitude"]),
             "軌道の高度（または semi_major_axis）",
             m,
         )?;
@@ -159,14 +163,25 @@ impl<'a> Context<'a> {
                     m.push(target, "地上局の設定がありません");
                     return None;
                 };
-                let p = |k: &str| SettingPath::mission(&["ground", id, k]);
+                let at = [id.as_str()];
                 // 標高と最低仰角は書かれていなければ None（慣例の値は `GroundStation::with_defaults`）。
                 Some(GroundStation::with_defaults(
                     id.clone(),
-                    qty::<Angle>(g.latitude.as_ref(), p("latitude"), "緯度", m)?,
-                    qty::<Angle>(g.longitude.as_ref(), p("longitude"), "経度", m)?,
-                    qty_opt::<Length>(g.altitude.as_ref(), p("altitude"), m),
-                    qty_opt::<Angle>(g.min_elevation.as_ref(), p("min_elevation"), m),
+                    setting(&dims::GROUND_LATITUDE, &at, g.latitude.as_ref(), "緯度", m)?,
+                    setting(
+                        &dims::GROUND_LONGITUDE,
+                        &at,
+                        g.longitude.as_ref(),
+                        "経度",
+                        m,
+                    )?,
+                    setting_opt(&dims::GROUND_ALTITUDE, &at, g.altitude.as_ref(), m),
+                    setting_opt(
+                        &dims::GROUND_MIN_ELEVATION,
+                        &at,
+                        g.min_elevation.as_ref(),
+                        m,
+                    ),
                 ))
             })
             .collect()
@@ -178,7 +193,7 @@ impl<'a> Context<'a> {
         let found = laws.and_then(|l| mode.and_then(|id| l.get(id)).or_else(|| l.values().next()));
         let Some(setting) = found else {
             // モードを決めていなければ、姿勢則の表そのものが足りない
-            let law = SettingPath::analysis(&["attitude", "law"]);
+            let law = AnalysisSystem::Attitude.setting_path().child(&["law"]);
             let target = mode.map_or_else(|| law.clone(), |id| law.child(&[id]));
             m.push(target, "モードの姿勢則");
             return None;

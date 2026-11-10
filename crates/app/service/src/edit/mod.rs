@@ -61,12 +61,9 @@ pub fn apply(ws: &Workspace, req: &ApplyRequest) -> Result<ApplyResult> {
     };
     let out = fune_ops::apply(ws.root(), &req.ops, &options).map_err(|e| op_error(ws, e))?;
     let changed = changed_files(&out.plan.changes);
+    // 診断の抜粋は、変わったファイルの適用後の本文から取る
     let mut after = FileSet::new();
-    for c in &out.plan.changes {
-        if let Some(text) = &c.after {
-            after.insert(c.path.clone(), text.clone());
-        }
-    }
+    fune_store::apply_changes(&mut after, &out.plan.changes);
     let diagnostics = out
         .plan
         .diagnostics

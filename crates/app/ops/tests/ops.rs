@@ -183,11 +183,7 @@ fn create_move_and_remove_part() {
         root: snap.root.clone(),
         files: {
             let mut f = snap.files.clone();
-            for c in &p.changes {
-                if let Some(a) = &c.after {
-                    f.insert(c.path.clone(), a.clone());
-                }
-            }
+            fune_store::apply_changes(&mut f, &p.changes);
             f
         },
         design: p.design.clone(),

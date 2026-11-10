@@ -2,10 +2,13 @@
 
 use crate::context::Context;
 use crate::missing::MissingInputs;
-use crate::quantity::{db, qty, ratio_db};
+use crate::quantity::{db, ratio_db, setting};
 use crate::{cdh, timeline};
 use fune_model::Target;
-use fune_model::design::{CommLinkSettings, CommSettings, GroundStationSettings, LinkDirection};
+use fune_model::design::setting_dims as dims;
+use fune_model::design::{
+    AnalysisSystem, CommLinkSettings, CommSettings, GroundStationSettings, LinkDirection,
+};
 use fune_model::path::SettingPath;
 use fune_model::resolve::ResolvedPart;
 use sat_analysis::comm::data_throughput::DataThroughputLink;
@@ -23,7 +26,7 @@ fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a CommS
 
 /// `analysis.comm.<…>`（`analysis/comm.toml` のキー）。
 fn comm(keys: &[&str]) -> SettingPath {
-    SettingPath::analysis(&["comm"]).child(keys)
+    AnalysisSystem::Comm.setting_path().child(keys)
 }
 
 /// 地上局のある帯域の性能（`mission.ground.<局>.link.<帯域>`）。
@@ -68,7 +71,7 @@ fn budget_link(
     let (rf, data_rate) = rf_params(ctx, name, link, &station.id, m)?;
     let required = m.need(
         db(link.ebn0_required.as_ref()),
-        comm(&["link", name, "ebn0_required"]),
+        dims::COMM_EBN0_REQUIRED.at(&[name]),
         "所要 Eb/N0（dB）",
     );
     Some(LinkBudgetLink {
@@ -101,7 +104,7 @@ fn rf_params(
         "回線の送受信機（部品 ID）",
     )?;
     let ground = ground_link(ctx, station_id, &link.band, m)?;
-    let gp = ground_band(station_id, &link.band);
+    let at = [station_id, link.band.as_str()];
     let down = link.direction == LinkDirection::Down;
     let (freq_attr, rate_attr) = if down {
         ("frequency_down", "data_rate_down")
@@ -114,12 +117,12 @@ fn rf_params(
     let sat_gain = sat_gain_db(part, m);
     let ground_gain = m.need(
         db(ground.antenna_gain.as_ref()),
-        gp.child(&["antenna_gain"]),
+        dims::GROUND_ANTENNA_GAIN.at(&at),
         "地上局のアンテナ利得（dBi）",
     );
     let sat_loss = db(link.line_loss.as_ref());
     let ground_loss = db(ground.line_loss.as_ref());
-    let (tx_power, noise) = power_and_noise(part, ground, &gp, down, m);
+    let (tx_power, noise) = power_and_noise(part, ground, &at, down, m);
     let (sat_gain, ground_gain) = (sat_gain?, ground_gain?);
     let (tx_gain_db, rx_gain_db, tx_loss_db, rx_loss_db) = if down {
         (sat_gain, ground_gain, sat_loss, ground_loss)
@@ -142,11 +145,11 @@ fn rf_params(
     Some((rf, rate?))
 }
 
-/// 送信電力（送信側）と雑音温度（受信側）。下りは衛星が送信、上りは地上局が送信。
+/// 送信電力（送信側）と雑音温度（受信側）。下りは衛星が送信、上りは地上局が送信。`at` は (地上局, 帯域)。
 fn power_and_noise(
     part: &ResolvedPart,
     ground: &fune_model::design::GroundLinkSettings,
-    gp: &SettingPath,
+    at: &[&str],
     down: bool,
     m: &mut MissingInputs,
 ) -> (Option<Qty<Power>>, Option<Qty<Temperature>>) {
@@ -155,9 +158,10 @@ fn power_and_noise(
         let noise = ground.noise_temperature.as_ref();
         (
             crate::parts::part_qty::<Power>(part, "tx_power", why, m),
-            qty::<Temperature>(
+            setting(
+                &dims::GROUND_NOISE_TEMPERATURE,
+                at,
                 noise,
-                gp.child(&["noise_temperature"]),
                 "地上局の雑音温度",
                 m,
             ),
@@ -165,7 +169,7 @@ fn power_and_noise(
     } else {
         let power = ground.tx_power.as_ref();
         (
-            qty::<Power>(power, gp.child(&["tx_power"]), "地上局の送信電力", m),
+            setting(&dims::GROUND_TX_POWER, at, power, "地上局の送信電力", m),
             crate::parts::part_qty::<Temperature>(part, "noise_temperature", why, m),
         )
     }

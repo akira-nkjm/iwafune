@@ -193,6 +193,45 @@ pub(super) const RULES: &[(&str, &[&str], &str)] = &[
         &["crates/app/model/src/value/text.rs"],
         "一覧の読み方",
     ),
+    // 次元 → 次元名（同じ名前の別物を作らない。別名を選ぶのは `dimension_label_preferring`）
+    (
+        "fn dimension_name(",
+        &["crates/lib/units/src/format.rs"],
+        "次元 → 次元名",
+    ),
+    // 位置の既定の単位（`fune_model::design::DEFAULT_POSITION_UNIT`・`position_unit`）
+    (
+        "unwrap_or(\"m\")",
+        &["crates/app/model/src/design/part.rs"],
+        "位置の既定の単位",
+    ),
+    // service の JSON Pointer の区間と、計画の変更をファイルの集合に当てる処理
+    (
+        "fn pointer_token",
+        &["crates/app/service/src/analysis/dims.rs"],
+        "JSON Pointer の区間の書き方",
+    ),
+    (
+        "fn apply_changes",
+        &["crates/app/store/src/write/mod.rs"],
+        "変更の列をファイルの集合に当てる処理",
+    ),
+];
+
+/// Rust のコードだけに適用する規則（web/ の写しは #25 の側で片づける。registry.md の課題）。
+pub(super) const RUST_RULES: &[(&str, &[&str], &str)] = &[
+    // 解析の系の一覧（`fune_model::design::AnalysisSystem`。`ALL`・`NAMES` を使う）
+    (
+        "\"power\", \"attitude\"",
+        &["crates/app/model/src/design/analysis.rs"],
+        "解析の系の一覧（`AnalysisSystem`）",
+    ),
+    // バジェットの種類の一覧（`BudgetKind::ALL`）
+    (
+        "\"mass\", \"power\", \"data\"",
+        &["crates/app/model/src/design/defs.rs"],
+        "バジェットの種類の一覧（`BudgetKind`）",
+    ),
 ];
 
 /// web/ の中だけに適用する規則（Rust 側の同名の関数を誤検出しないため）。
@@ -267,5 +306,16 @@ pub(super) const PROD_RULES: &[(&str, &[&str], &str)] = &[
         "R_EARTH +",
         &["crates/lib/astro/src/"],
         "高度 → 半径の換算（`semi_major_axis_from_altitude`）",
+    ),
+    // 参照の所在（`Design::references`）。テストは期待値として書いてよい
+    (
+        "catalog.as_deref() == Some(",
+        &["crates/app/model/src/design/refs.rs"],
+        "参照の索引",
+    ),
+    (
+        "wire.as_deref() == Some(",
+        &["crates/app/model/src/design/refs.rs"],
+        "参照の索引",
     ),
 ];

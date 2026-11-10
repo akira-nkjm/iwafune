@@ -6,7 +6,7 @@
 
 use crate::error::StoreError;
 use fune_model::Target;
-use fune_model::design::{CatalogSource, Design, EntityKey, NodeRef};
+use fune_model::design::{AnalysisSystem, CatalogSource, Design, EntityKey, NodeRef};
 use fune_model::path::{SettingPath, SettingScope};
 
 pub const PROJECT_FILE: &str = "fune.toml";
@@ -33,8 +33,6 @@ pub const IGNORED_DIRS: &[&str] = &["results", "exports", "target", "node_module
 pub const VIEW_DIR: &str = "view";
 /// `mission/` の直下のファイル。
 pub const MISSION_FILES: &[&str] = &["orbit", "launch"];
-/// `analysis/` の直下のファイル。
-pub const ANALYSIS_FILES: &[&str] = &["power", "attitude", "cdh", "comm", "thermal", "structure"];
 
 /// ファイルの役割。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -65,8 +63,8 @@ pub enum FileRole {
     /// `mission/orbit.toml`・`mission/launch.toml`
     Mission(String),
     Ground(String),
-    /// `analysis/<系>.toml`
-    Analysis(String),
+    /// `analysis/<系>.toml`（`analysis/` の直下のファイルは系の一覧 [`AnalysisSystem`] の綴りだけ）
+    Analysis(AnalysisSystem),
     /// 規約の外（読み飛ばす。check が warning を出す）
     Other,
 }
@@ -93,7 +91,12 @@ pub fn classify(rel: &str, catalogs: &[(String, String)]) -> FileRole {
             };
         }
     }
-    let flat: [(&str, RoleOf); 10] = [
+    if let Some(name) = flat_child(stem_path, ANALYSIS_DIR) {
+        return name
+            .parse::<AnalysisSystem>()
+            .map_or(FileRole::Other, FileRole::Analysis);
+    }
+    let flat: [(&str, RoleOf); 9] = [
         (ATTRIBUTE_DIR, FileRole::Attribute),
         (KIND_DIR, FileRole::Kind),
         (MODES_DIR, FileRole::Mode),
@@ -102,14 +105,10 @@ pub fn classify(rel: &str, catalogs: &[(String, String)]) -> FileRole {
         (CASES_DIR, FileRole::Case),
         (SOURCES_DIR, FileRole::Source),
         (GROUND_DIR, FileRole::Ground),
-        (ANALYSIS_DIR, FileRole::Analysis),
         (VIEW_DIR, FileRole::View),
     ];
     for (dir, make) in flat {
         if let Some(id) = flat_child(stem_path, dir) {
-            if dir == ANALYSIS_DIR && !ANALYSIS_FILES.contains(&id.as_str()) {
-                return FileRole::Other;
-            }
             return make(id);
         }
     }
@@ -160,7 +159,7 @@ pub fn entity_key(role: &FileRole) -> Option<EntityKey> {
         FileRole::Reserved => return None,
         FileRole::Mission(id) => EntityKey::Setting(SettingPath::mission(&[id])),
         FileRole::Ground(id) => EntityKey::Setting(SettingPath::mission(&["ground", id])),
-        FileRole::Analysis(id) => EntityKey::Setting(SettingPath::analysis(&[id])),
+        FileRole::Analysis(system) => EntityKey::Setting(system.setting_path()),
         FileRole::Other => return None,
     })
 }
@@ -185,7 +184,7 @@ pub fn file_target(role: &FileRole) -> Option<Target> {
         FileRole::View(id) => Target::view(id, None),
         FileRole::Mission(id) => SettingPath::mission(&[id]).into(),
         FileRole::Ground(id) => SettingPath::mission(&["ground", id]).into(),
-        FileRole::Analysis(id) => SettingPath::analysis(&[id]).into(),
+        FileRole::Analysis(system) => system.setting_path().into(),
         FileRole::Project | FileRole::Reserved | FileRole::Other => return None,
     })
 }
@@ -250,8 +249,9 @@ pub fn attribute_file(id: &str) -> String {
 pub fn kind_file(id: &str) -> String {
     format!("{KIND_DIR}/{id}.toml")
 }
-pub fn analysis_file(name: &str) -> String {
-    format!("{ANALYSIS_DIR}/{name}.toml")
+/// 系の解析の設定のファイル（`analysis/<系>.toml`）。
+pub fn analysis_file(system: AnalysisSystem) -> String {
+    format!("{ANALYSIS_DIR}/{system}.toml")
 }
 pub fn view_file(name: &str) -> String {
     format!("{VIEW_DIR}/{name}.toml")
@@ -306,9 +306,10 @@ pub fn setting_location(path: &SettingPath) -> Result<(String, Vec<String>), Sto
         SettingScope::Mission if MISSION_FILES.contains(&s[0].as_str()) => {
             (format!("{MISSION_DIR}/{}.toml", s[0]), &s[1..])
         }
-        SettingScope::Analysis if ANALYSIS_FILES.contains(&s[0].as_str()) => {
-            (analysis_file(&s[0]), &s[1..])
-        }
+        SettingScope::Analysis => match s.first().map(|f| f.parse::<AnalysisSystem>()) {
+            Some(Ok(system)) => (analysis_file(system), &s[1..]),
+            _ => return Err(bad()),
+        },
         SettingScope::Budget if s[0] == "policy" => (POLICY_FILE.to_string(), &s[1..]),
         SettingScope::Budget => (ALLOCATION_FILE.to_string(), &s[..]),
         _ => return Err(bad()),
@@ -352,13 +353,18 @@ mod tests {
             }
         );
         assert_eq!(
-            classify("mission/ground/HONGO.toml", &cat),
-            FileRole::Ground("HONGO".into())
+            classify("mission/ground/TOKYO_GS.toml", &cat),
+            FileRole::Ground("TOKYO_GS".into())
         );
         assert_eq!(
             classify("analysis/power.toml", &cat),
-            FileRole::Analysis("power".into())
+            FileRole::Analysis(AnalysisSystem::Power)
         );
+        for s in AnalysisSystem::ALL {
+            assert_eq!(classify(&analysis_file(*s), &cat), FileRole::Analysis(*s));
+            let (file, _) = setting_location(&s.setting_path().child(&["x"])).unwrap();
+            assert_eq!(file, analysis_file(*s));
+        }
         assert_eq!(classify("analysis/other.toml", &cat), FileRole::Other);
         assert_eq!(classify("README.md", &cat), FileRole::Other);
     }
@@ -374,9 +380,9 @@ mod tests {
             Some(("analysis/power.toml".into(), vec!["dod_max".into()]))
         );
         assert_eq!(
-            setting_location(&p("mission.ground.HONGO.min_elevation")).ok(),
+            setting_location(&p("mission.ground.TOKYO_GS.min_elevation")).ok(),
             Some((
-                "mission/ground/HONGO.toml".into(),
+                "mission/ground/TOKYO_GS.toml".into(),
                 vec!["min_elevation".into()]
             ))
         );

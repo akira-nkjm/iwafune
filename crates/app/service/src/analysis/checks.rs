@@ -1,5 +1,6 @@
 //! 出力の中の判定（`checks`）を、出てきた順に平らに集める。期間不足（出力の `span_fallback`）は語彙から注意を作る。
 
+use super::dims::pointer_token;
 use super::labels::span_check;
 use crate::dto::CheckView;
 use sat_analysis::spec::{Check, SpanFallback, Verdict};
@@ -75,11 +76,6 @@ fn span_view(f: SpanFallback, at: String, scope: Option<String>) -> CheckView {
         at,
         scope,
     }
-}
-
-/// JSON Pointer（RFC 6901）のキーの書き方（`~` → `~0`、`/` → `~1`）。
-fn pointer_token(key: &str) -> String {
-    key.replace('~', "~0").replace('/', "~1")
 }
 
 #[cfg(test)]

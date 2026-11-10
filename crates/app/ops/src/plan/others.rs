@@ -6,7 +6,7 @@ use fune_model::Design;
 use fune_model::builtin;
 use fune_model::check::attribute_def_problems;
 use fune_model::design::{AttributeDef, KindDef, Mode, Net, StateAssign, ViewNode};
-use fune_model::id::{Id, fold, validate_entity_id, validate_local_name};
+use fune_model::id::{Id, clash, validate_entity_id, validate_local_name};
 use fune_model::path::{self, ParamPath};
 use fune_model::value::SettingValue;
 use fune_store::Edits;
@@ -70,7 +70,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             remove,
         } => set_view(edits, view, nodes, remove),
         Op::SetViewEdge { view, key, edge } => {
-            validate_view_edge(view, key, Some(edge))?;
+            validate_view_edge(view, key)?;
             Ok(entities::set_view_edge(
                 edits,
                 &layout::view_file(view),
@@ -79,7 +79,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             )?)
         }
         Op::UnsetViewEdge { view, key } => {
-            validate_view_edge(view, key, None)?;
+            validate_view_edge(view, key)?;
             Ok(entities::set_view_edge(
                 edits,
                 &layout::view_file(view),
@@ -194,15 +194,14 @@ fn existing_net(design: &Design, net: &Net) -> Result<(), OpError> {
     }
 }
 
-/// 平らなディレクトリ（modes/・nets/）の新しい ID として使えるか。
+/// 平らなディレクトリ（modes/・nets/）の新しい ID として使えるか（ID の規則と、大文字小文字を無視した一意性 `id::clash`）。
 fn new_flat_id<'a>(
     existing: impl Iterator<Item = &'a str>,
     id: &str,
     what: &str,
 ) -> Result<(), OpError> {
     validate_entity_id(id).map_err(|e| OpError::invalid(e.to_string()))?;
-    let mut existing = existing;
-    if existing.any(|k| fold(k) == fold(id)) {
+    if clash(existing, id).is_some() {
         return Err(OpError::exists(format!("{what} `{id}`")));
     }
     Ok(())
@@ -251,32 +250,12 @@ fn set_cell(edits: &mut Edits, design: &Design, cell: &ModeCell) -> Result<(), O
     )?)
 }
 
-fn validate_view_edge(
-    view: &str,
-    key: &str,
-    edge: Option<&fune_model::design::ViewEdge>,
-) -> Result<(), OpError> {
+/// 図のファイル名と線のキー。経路の形（直交・端子の位置）は検査（`view.route`・`view.port_offset`）が見るので、
+/// 形の悪い経路は計画の最後の検査で拒まれる。
+fn validate_view_edge(view: &str, key: &str) -> Result<(), OpError> {
     validate_entity_id(view).map_err(|e| OpError::invalid(e.to_string()))?;
     if key.is_empty() {
         return Err(OpError::invalid("辺のキーが空です"));
-    }
-    if let Some(e) = edge
-        && (e.points.len() < 2
-            || e.points
-                .windows(2)
-                .any(|p| p[0][0] != p[1][0] && p[0][1] != p[1][1]))
-    {
-        return Err(OpError::invalid("経路は2点以上の直交線にしてください"));
-    }
-    if let Some(e) = edge
-        && [e.source_offset, e.target_offset]
-            .into_iter()
-            .flatten()
-            .any(|o| o < 0)
-    {
-        return Err(OpError::invalid(
-            "端子の位置は 0 以上（側の左か上の角からの距離）にしてください",
-        ));
     }
     Ok(())
 }

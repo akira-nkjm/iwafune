@@ -50,6 +50,18 @@ pub fn dimension_label(dim: Dimension) -> String {
     dimension_name(dim).map_or_else(|| si_unit_expression(dim), String::from)
 }
 
+/// 次元の表示名。`preferred`（呼び出し側が知っている次元名）がその次元の名前として正しければ、その正規の綴り
+/// （[`canonical_dimension_name`]）を使い、違えば [`dimension_label`]。**同じ次元の別名（Energy と Torque）を
+/// 選ぶ規則はここだけ**（次元だけからは Energy になるため、名前を知っている側が渡す）。
+pub fn dimension_label_preferring(dim: Dimension, preferred: Option<&str>) -> String {
+    if let Some(p) = preferred
+        && parse_dimension(p).is_ok_and(|d| d == dim)
+    {
+        return canonical_dimension_name(p).unwrap_or(p).into();
+    }
+    dimension_label(dim)
+}
+
 /// 次元名の代わりに使える表示の種類（次元は無次元。比を % で出す [`Fraction`]）。
 const KINDS: &[&str] = &[
     crate::display_kind::FRACTION,

@@ -3,7 +3,7 @@
 use crate::error::OpError;
 use crate::op::Op;
 use fune_model::Design;
-use fune_model::id::validate_entity_id;
+use fune_model::id::{clash, validate_entity_id};
 use fune_store::Edits;
 use fune_store::layout;
 use fune_store::write::records::write_record;
@@ -11,12 +11,9 @@ use fune_store::write::records::write_record;
 pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> {
     match op {
         Op::SetCase { case } => {
-            valid_id(case.id.as_str())?;
-            Ok(write_record(
-                edits,
-                &layout::case_file(case.id.as_str()),
-                case,
-            )?)
+            let id = case.id.as_str();
+            set_id(design.cases.keys().map(|k| k.as_str()), id, "解析ケース")?;
+            Ok(write_record(edits, &layout::case_file(id), case)?)
         }
         Op::RemoveCase { id } => remove(
             edits,
@@ -26,12 +23,9 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             id,
         ),
         Op::SetSource { source } => {
-            valid_id(source.id.as_str())?;
-            Ok(write_record(
-                edits,
-                &layout::source_file(source.id.as_str()),
-                source,
-            )?)
+            let id = source.id.as_str();
+            set_id(design.sources.keys().map(|k| k.as_str()), id, "出典")?;
+            Ok(write_record(edits, &layout::source_file(id), source)?)
         }
         Op::RemoveSource { id } => remove(
             edits,
@@ -41,12 +35,9 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             id,
         ),
         Op::SetHarness { harness } => {
-            valid_id(harness.id.as_str())?;
-            Ok(write_record(
-                edits,
-                &layout::harness_file(harness.id.as_str()),
-                harness,
-            )?)
+            let id = harness.id.as_str();
+            set_id(design.harnesses.keys().map(|k| k.as_str()), id, "ハーネス")?;
+            Ok(write_record(edits, &layout::harness_file(id), harness)?)
         }
         Op::RemoveHarness { id } => remove(
             edits,
@@ -59,8 +50,24 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
     }
 }
 
-fn valid_id(id: &str) -> Result<(), OpError> {
-    validate_entity_id(id).map_err(|e| OpError::invalid(e.to_string()))
+/// 書き込む（無ければ作る）ID として使えるか。同じ綴りの既存のものは書き換え、大文字小文字だけが違う既存の ID とは
+/// 重ねない（一意性の規則は `id::clash`。部品・モード・ネット・カタログ品と同じ）。
+fn set_id<'a>(
+    existing: impl Iterator<Item = &'a str>,
+    id: &str,
+    what: &str,
+) -> Result<(), OpError> {
+    validate_entity_id(id).map_err(|e| OpError::invalid(e.to_string()))?;
+    let existing: Vec<&str> = existing.collect();
+    if existing.contains(&id) {
+        return Ok(());
+    }
+    match clash(existing, id) {
+        Some(other) => Err(OpError::exists(format!(
+            "{what} `{id}`（`{other}` と大文字小文字だけが違います）"
+        ))),
+        None => Ok(()),
+    }
 }
 
 fn remove(

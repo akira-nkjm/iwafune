@@ -26,7 +26,7 @@ pub mod write;
 
 pub use error::StoreError;
 pub use read::{FileSet, Snapshot, load};
-pub use write::{Edits, FileChange, commit};
+pub use write::{Edits, FileChange, apply_changes, commit};
 
 pub mod fileset;
 pub mod profile;

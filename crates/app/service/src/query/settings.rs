@@ -5,13 +5,11 @@
 use crate::dto::{QuantityView, SettingView, ValueData};
 use crate::query::values::{authored_quantity, display_of};
 use crate::units::number_text;
-use fune_model::design::{BudgetKind, Design};
+use fune_model::design::{AnalysisSystem, BudgetKind, Design};
 use fune_model::path::{SettingPath, SettingScope};
 use fune_model::value::SettingValue;
 use fune_model::value::units::to_si;
 use sat_analysis::spec::System;
-use serde::Deserialize;
-use serde::de::value::{Error as ValueError, StrDeserializer};
 
 /// 設定の一覧（種類 → キーの順）。書かれていない任意の値は `unset` で出す（GUI が埋められるように）。
 pub(crate) fn settings(design: &Design) -> Vec<SettingView> {
@@ -48,10 +46,11 @@ pub(crate) fn settings(design: &Design) -> Vec<SettingView> {
 pub(crate) fn system_of(path: &SettingPath) -> Option<System> {
     let first = path.segments.first()?.as_str();
     match path.scope {
-        // 解析の設定のファイル名は系の名前（serde の綴り）そのもの
-        SettingScope::Analysis => {
-            System::deserialize(StrDeserializer::<ValueError>::new(first)).ok()
-        }
+        // 解析の設定のファイル名は系の綴り（`AnalysisSystem`）そのもの
+        SettingScope::Analysis => first
+            .parse::<AnalysisSystem>()
+            .ok()
+            .map(fune_projection::system::to_analysis),
         SettingScope::Budget => Some(match first.parse::<BudgetKind>().ok()? {
             BudgetKind::Mass => System::Structure,
             BudgetKind::Power => System::Power,

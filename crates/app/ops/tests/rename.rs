@@ -173,9 +173,7 @@ fn edge_routes_are_toml_10_round_tripped_and_resettable() {
     let p = plan(&snap, &[op]).unwrap();
     assert_eq!(p.design.views["electrical"].edge[key], edge);
     let mut updated = snap;
-    for c in &p.changes {
-        updated.files.insert(&c.path, c.after.clone().unwrap());
-    }
+    fune_store::apply_changes(&mut updated.files, &p.changes);
     updated.design = fune_store::read::design_of(&updated.files);
     assert_eq!(updated.design.views["electrical"].edge[key], edge);
     let unset = plan(

@@ -6,7 +6,7 @@
 use std::path::Path;
 
 mod rules;
-use rules::{PROD_RULES, RULES, WEB_RULES};
+use rules::{PROD_RULES, RULES, RUST_RULES, WEB_RULES};
 
 /// 違反を `errors` に積む。`files` はワークスペースのファイル一覧。色の直書きは [`crate::web_colors`] が見る。
 pub fn check(root: &Path, files: &[std::path::PathBuf], errors: &mut Vec<String>) {
@@ -24,7 +24,7 @@ pub fn check(root: &Path, files: &[std::path::PathBuf], errors: &mut Vec<String>
         let rules = if web {
             RULES.iter().chain(WEB_RULES)
         } else {
-            RULES.iter().chain(&[][..])
+            RULES.iter().chain(RUST_RULES)
         };
         for rule in rules {
             check_rule(&rel_s, &text, rule, errors);

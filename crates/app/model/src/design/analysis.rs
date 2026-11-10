@@ -5,12 +5,35 @@
 //! 名前の変更（RenamePart・RenameMode）で一緒に書き換わる。
 
 use crate::enum_text::enum_text;
+use crate::path::SettingPath;
 use crate::value::{Quantity, Quaternion, Vector3};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
 
-/// `analysis/` 全体。
+enum_text! {
+    /// 解析の系。綴りは設定のファイル名（`analysis/<系>.toml`）・設定のパス（`analysis.<系>`）・解析 ID の接頭辞
+    /// （`power.energy_balance`）と同じ。**系の一覧はここだけ**（store のファイルの規約・読み込み・参照の書き換えもこれを回す）。
+    /// 解析の側の `sat_analysis::spec::System` は依存の向きで共有できないので、fune-projection（`system`）の対応とテストで一致を確かめる。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    pub enum AnalysisSystem: "解析の系" {
+        Power = "power",
+        Attitude = "attitude",
+        Cdh = "cdh",
+        Comm = "comm",
+        Thermal = "thermal",
+        Structure = "structure",
+    }
+}
+
+impl AnalysisSystem {
+    /// 系の設定のパス（`analysis.<系>`。`analysis/<系>.toml` の全体）。
+    pub fn setting_path(self) -> SettingPath {
+        SettingPath::analysis(&[self.as_str()])
+    }
+}
+
+/// `analysis/` 全体。欄の名前は [`AnalysisSystem`] の綴りと同じ（`model/tests/enum_text.rs` が確かめる）。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct AnalysisSettings {
     pub power: Option<PowerSettings>,

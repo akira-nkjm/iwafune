@@ -3,6 +3,7 @@
 
 use crate::missing::MissingInputs;
 use fune_model::Target;
+use fune_model::design::setting_dims::SettingQuantity;
 use fune_model::value::Quantity;
 use sat_units::typed::{Decibel, Dimension, Qty};
 
@@ -40,6 +41,28 @@ pub fn qty_opt<D: Dimension>(
             None
         }
     }
+}
+
+/// 設定の量を `Qty<D>` にする。次元の型 `D` は設定の次元の表の欄 `key`（`fune_model::design::setting_dims`。
+/// 検査と同じ表）から決まる。`fill` はパスの形の `*` を前から埋める区切り（地上局の ID など）。
+pub fn setting<D: Dimension>(
+    key: &SettingQuantity<D>,
+    fill: &[&str],
+    q: Option<&Quantity>,
+    reason: &str,
+    m: &mut MissingInputs,
+) -> Option<Qty<D>> {
+    qty(q, key.at(fill), reason, m)
+}
+
+/// 任意の設定の量を `Qty<D>` にする（無ければ `None`、次元が違えば記録）。型は [`setting`] と同じく表の欄から。
+pub fn setting_opt<D: Dimension>(
+    key: &SettingQuantity<D>,
+    fill: &[&str],
+    q: Option<&Quantity>,
+    m: &mut MissingInputs,
+) -> Option<Qty<D>> {
+    qty_opt(q, key.at(fill), m)
 }
 
 /// 次元を検査して SI の `Qty<D>` にする（検査と換算は `Quantity::si_as`）。
@@ -80,5 +103,22 @@ pub fn vec_si(
             m.push(target, format!("単位 `{unit}` を解釈できません"));
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use fune_model::design::BudgetKind;
+    use fune_model::value::units::parse_dimension_name;
+    use sat_units::typed::{Dimension, Information, Mass, Power};
+
+    /// 配分（`budget.<種類>.*`）の次元は種類から決まる（`BudgetKind::dimension`。設定の次元の表には無い）。
+    /// 射影とバジェットが型で読む次元と同じ。
+    #[test]
+    fn budget_kind_dimensions_are_the_projected_types() {
+        let dim = |k: BudgetKind| parse_dimension_name(k.dimension()).ok();
+        assert_eq!(dim(BudgetKind::Mass), Some(Mass::DIM));
+        assert_eq!(dim(BudgetKind::Power), Some(Power::DIM));
+        assert_eq!(dim(BudgetKind::Data), Some(Information::DIM));
     }
 }

@@ -5,7 +5,7 @@ use super::attr::{AttrTarget, unset_attr, write_attr};
 use crate::error::OpError;
 use crate::op::Op;
 use fune_model::design::{CatalogItem, Maturity, split_catalog_ref};
-use fune_model::id::{Id, fold, validate_entity_id};
+use fune_model::id::{Id, clash, validate_entity_id};
 use fune_model::resolve::Origin;
 use fune_model::value::Authored;
 use fune_model::{Design, resolve};
@@ -106,11 +106,12 @@ fn new_ref(design: &Design, text: &str) -> Result<(String, String), OpError> {
         OpError::invalid(format!("`{reference}` は `<カタログ名>/<ID>` の形にします"))
     })?;
     validate_entity_id(id).map_err(|e| OpError::invalid(e.to_string()))?;
-    let taken = design
+    let same_source = design
         .catalog
         .keys()
-        .any(|k| split_catalog_ref(k).is_some_and(|(s, i)| s == source && fold(i) == fold(id)));
-    if taken {
+        .filter_map(|k| split_catalog_ref(k).filter(|(s, _)| *s == source))
+        .map(|(_, i)| i);
+    if clash(same_source, id).is_some() {
         return Err(OpError::exists(format!("カタログ品 `{reference}`")));
     }
     let file = writable_file(design, &reference)?;

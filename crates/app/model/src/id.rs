@@ -1,7 +1,7 @@
 //! 型付き ID と ID の規則（docs/model.md §4・§10.2）。
 //!
 //! ID はファイル名（またはディレクトリ名）の stem と一致し、全体で一意。比較は大文字小文字を区別するが、
-//! 一意性の検査（[`fold`]）は大文字小文字を無視する。JSON・TS では文字列。
+//! 一意性の検査（[`same_id`]・[`clash`]・[`duplicates`]）は大文字小文字を無視する。JSON・TS では文字列。
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use smol_str::SmolStr;
@@ -116,9 +116,34 @@ impl<T: 'static> ts_rs::TS for Id<T> {
     }
 }
 
-/// 一意性の検査に使う正規形（大文字小文字を無視）。
-pub fn fold(id: &str) -> String {
+/// 一意性の検査に使う正規形（大文字小文字を無視）。比べるのは [`same_id`] を通す。
+fn fold(id: &str) -> String {
     id.to_ascii_lowercase()
+}
+
+/// 大文字小文字を無視して同じ ID か。**ID の一意性の比べ方はここだけ**（大文字小文字を区別しないファイルシステムでも
+/// ファイルが重ならないように）。部品とグループ（同じ名前空間）・モード・ネット・ハーネス・解析ケース・出典・
+/// カタログ品（出所ごと）に同じ規則を当てる（検査は [`duplicates`]、新しい ID の事前の確かめは [`clash`]）。
+pub fn same_id(a: &str, b: &str) -> bool {
+    fold(a) == fold(b)
+}
+
+/// `existing` のうち、`id` と大文字小文字を無視して同じもの（新しく作る・名前を変える先の ID の確かめ）。
+pub fn clash<'a>(existing: impl IntoIterator<Item = &'a str>, id: &str) -> Option<&'a str> {
+    existing.into_iter().find(|e| same_id(e, id))
+}
+
+/// 一覧の中で、先に出てきた ID と大文字小文字を無視して重なるもの（重なった ID の番号, 先に出てきた ID の番号）。検査が使う。
+pub fn duplicates<'a>(ids: impl IntoIterator<Item = &'a str>) -> Vec<(usize, usize)> {
+    let mut seen: Vec<(usize, &'a str)> = Vec::new();
+    let mut out = Vec::new();
+    for (i, id) in ids.into_iter().enumerate() {
+        match seen.iter().find(|(_, s)| same_id(s, id)) {
+            Some((first, _)) => out.push((i, *first)),
+            None => seen.push((i, id)),
+        }
+    }
+    out
 }
 
 /// パスの先頭に来る予約語（部品 ID に使えない）。`mission.orbit.altitude` などと区別するため。
@@ -196,6 +221,16 @@ mod tests {
         assert!(validate_entity_id("MISSION").is_ok());
         assert!(validate_node_id("Mission").is_err());
         assert!(validate_entity_id("").is_err());
+    }
+
+    #[test]
+    fn uniqueness_ignores_case() {
+        assert!(same_id("RW_X", "rw_x"));
+        assert!(!same_id("RW_X", "RW_Y"));
+        assert_eq!(clash(["SAFE", "NOMINAL"], "safe"), Some("SAFE"));
+        assert_eq!(clash(["SAFE"], "MISSION"), None);
+        assert_eq!(duplicates(["hot", "cold", "Hot", "HOT"]), [(2, 0), (3, 0)]);
+        assert!(duplicates(["a", "b"]).is_empty());
     }
 
     #[test]

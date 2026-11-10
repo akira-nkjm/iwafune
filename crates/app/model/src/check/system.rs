@@ -1,10 +1,9 @@
-//! モード・ネット・ハーネス・ケース・出典の検査。
+//! モード・ネット・ハーネス・ケース・出典の検査（参照・状態・次元）。ID の規則と一意性は `super::ids`、図は `super::views`。
 
 use super::Ctx;
 use super::values::check_quantity_dimension;
 use crate::design::{EntityKey, Mode, NetKind, StateAssign};
 use crate::diagnostic::Severity;
-use crate::id::validate_entity_id;
 use crate::path::{AttrPath, ParamPath, PortRef};
 use crate::target::Target;
 use crate::value::{Provenance, Quantity, Value};
@@ -14,15 +13,6 @@ pub(super) fn check_modes(ctx: &mut Ctx) {
     let design = ctx.design;
     for mode in design.modes.values() {
         let entity = EntityKey::Mode(mode.id.to_string());
-        if let Err(e) = validate_entity_id(mode.id.as_str()) {
-            ctx.error(
-                "id.invalid",
-                &entity,
-                &[],
-                Some(Target::mode(mode.id.as_str(), None)),
-                e.to_string(),
-            );
-        }
         for (part_id, assign) in &mode.states {
             check_mode_row(ctx, mode, &entity, part_id.as_str(), assign);
         }
@@ -144,15 +134,6 @@ pub(super) fn check_nets(ctx: &mut Ctx) {
     for net in design.nets.values() {
         let entity = EntityKey::Net(net.id.to_string());
         let id = net.id.as_str();
-        if let Err(e) = validate_entity_id(id) {
-            ctx.error(
-                "id.invalid",
-                &entity,
-                &[],
-                Some(Target::net(id, None)),
-                e.to_string(),
-            );
-        }
         for (key, port) in [("source", &net.source), ("master", &net.master)] {
             if let Some(port) = port {
                 let target = Target::net(id, Some(key));
@@ -338,28 +319,6 @@ fn collect_from<'a>(
         for (state, cell) in cells {
             let t = target(Some(state.as_str()));
             out.push((entity.clone(), attr.to_string(), t, cell.from.as_ref()));
-        }
-    }
-}
-
-/// 図の配置のノードが部品・グループ・ネットを指すか（見た目だけなので warning）。
-pub(super) fn check_views(ctx: &mut Ctx) {
-    let design = ctx.design;
-    for view in design.views.values() {
-        let entity = EntityKey::View(view.id.clone());
-        for id in view.nodes.keys() {
-            if !design.node_exists(id) && !design.nets.contains_key(id.as_str()) {
-                ctx.warning(
-                    "view.unknown_node",
-                    &entity,
-                    &["nodes", id.as_str()],
-                    Some(Target::view(view.id.as_str(), Some(id.as_str()))),
-                    format!(
-                        "図 `{}` のノード `{id}` は部品・グループ・ネットのどれでもありません",
-                        view.id
-                    ),
-                );
-            }
         }
     }
 }

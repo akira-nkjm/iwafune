@@ -5,7 +5,7 @@
 use super::files::FileSet;
 use super::{profile, spans};
 use crate::layout::{self, FileRole};
-use fune_model::design::{Design, Project};
+use fune_model::design::{AnalysisSystem, Design, Project};
 use fune_model::id::Id;
 use fune_model::{Diagnostic, Severity, Target};
 use serde::de::DeserializeOwned;
@@ -228,7 +228,7 @@ impl Decoder<'_> {
                 v.id = id.clone();
                 g.mission.ground.insert(id.clone(), v);
             }),
-            FileRole::Analysis(name) => self.read_analysis(path, name),
+            FileRole::Analysis(system) => self.read_analysis(path, *system),
             FileRole::View(id) => self.read_into(path, |g, mut v: d::ViewLayout| {
                 v.id = id.clone();
                 g.views.insert(id.clone(), v);
@@ -251,15 +251,14 @@ impl Decoder<'_> {
         }
     }
 
-    fn read_analysis(&mut self, path: &str, name: &str) {
-        match name {
-            "power" => self.design.analysis.power = self.parse(path),
-            "attitude" => self.design.analysis.attitude = self.parse(path),
-            "cdh" => self.design.analysis.cdh = self.parse(path),
-            "comm" => self.design.analysis.comm = self.parse(path),
-            "thermal" => self.design.analysis.thermal = self.parse(path),
-            "structure" => self.design.analysis.structure = self.parse(path),
-            _ => {}
+    fn read_analysis(&mut self, path: &str, system: AnalysisSystem) {
+        match system {
+            AnalysisSystem::Power => self.design.analysis.power = self.parse(path),
+            AnalysisSystem::Attitude => self.design.analysis.attitude = self.parse(path),
+            AnalysisSystem::Cdh => self.design.analysis.cdh = self.parse(path),
+            AnalysisSystem::Comm => self.design.analysis.comm = self.parse(path),
+            AnalysisSystem::Thermal => self.design.analysis.thermal = self.parse(path),
+            AnalysisSystem::Structure => self.design.analysis.structure = self.parse(path),
         }
     }
 }

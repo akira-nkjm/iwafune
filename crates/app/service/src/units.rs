@@ -8,8 +8,9 @@ use crate::dto::{
 use crate::error::{Result, ServiceError};
 use fune_model::value::parse_number_unit;
 use sat_units::format::{
-    FormattedQuantity, SIGNIFICANT_DIGITS, canonical_dimension_name, display_units,
-    format_dimension, format_in_unit, format_number, format_quantity, si_unit_expression,
+    FormattedQuantity, SIGNIFICANT_DIGITS, canonical_dimension_name, dimension_label_preferring,
+    display_units, format_dimension, format_in_unit, format_number, format_quantity,
+    si_unit_expression,
 };
 use sat_units::{Dimension, Unit, named_dimensions, parse_dimension, parse_unit};
 
@@ -33,7 +34,7 @@ pub fn format_quantities(req: &FormatRequest) -> Result<FormatResponse> {
                             ),
                         });
                     }
-                    let name = dimension_name(u.dimension(), Some(&item.dimension));
+                    let name = dimension_label_preferring(u.dimension(), Some(&item.dimension));
                     format_in_unit(item.si, unit).map(|f| (f, name))
                 }
                 None => format_quantity(item.si, &item.dimension).map(|f| {
@@ -89,7 +90,7 @@ pub fn parse_quantity(req: &ParseQuantityRequest) -> Result<ParsedQuantity> {
                 input: req.input.clone(),
                 reason: format!(
                     "次元が {expected} ではなく {} です",
-                    dimension_name(unit.dimension(), None)
+                    sat_units::format::dimension_label(unit.dimension())
                 ),
             });
         }
@@ -126,7 +127,7 @@ pub fn quantity_from_si(
         text: format_number(si, SIGNIFICANT_DIGITS),
     });
     let dim_name = match unit_dim {
-        Some((_, d)) => dimension_name(d, dimension),
+        Some((_, d)) => dimension_label_preferring(d, dimension),
         None => dimension
             .and_then(canonical_dimension_name)
             .unwrap_or_default()
@@ -167,18 +168,8 @@ pub fn quantity_from_authored(
     Ok(view(
         si,
         formatted,
-        dimension_name(unit.dimension(), dimension),
+        dimension_label_preferring(unit.dimension(), dimension),
     ))
-}
-
-/// 次元の表示名。`preferred` がその次元の名前として正しければそれを使う（Energy と Torque のような同じ次元の別名のため）。
-pub fn dimension_name(dim: Dimension, preferred: Option<&str>) -> String {
-    if let Some(p) = preferred
-        && parse_dimension(p).is_ok_and(|d| d == dim)
-    {
-        return canonical_dimension_name(p).unwrap_or(p).to_owned();
-    }
-    sat_units::format::dimension_label(dim)
 }
 
 /// 数値だけの表示（有効数字 3 桁）。
@@ -222,7 +213,7 @@ fn unit_info(symbol: &str, u: &Unit, preferred: Option<&str>) -> UnitInfo {
     };
     UnitInfo {
         symbol: symbol.to_owned(),
-        dimension: dimension_name(u.dimension(), preferred),
+        dimension: dimension_label_preferring(u.dimension(), preferred),
         scale: u.scale(),
         offset: u.offset(),
         scale_text: number_text(u.scale()),

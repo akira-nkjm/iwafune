@@ -6,6 +6,7 @@ use crate::parts::{self, by_role, direction_body};
 use crate::quantity::vec_si;
 use crate::{structure, timeline};
 use fune_model::Target;
+use fune_model::design::setting_dims as dims;
 use fune_model::path::SettingPath;
 use sat_analysis::attitude::disturbance::{DisturbanceSpacecraft, DisturbanceSurface};
 use sat_analysis::attitude::sensor_fov::SensorFovSensor;
@@ -53,26 +54,30 @@ pub fn wheels(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<RwWheel> {
 fn spacecraft(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<DisturbanceSpacecraft> {
     let summary = structure::summary(ctx, m)?;
     let s = settings(ctx);
-    let v = |x: Option<&fune_model::value::Vector3>, key: &str, m: &mut MissingInputs| {
-        x.and_then(|x| vec_si(x, SettingPath::analysis(&["attitude", key]), m))
-            .unwrap_or(Vec3::ZERO)
+    // ベクトルの設定（パスは設定の次元の表の欄から。単位どおりに SI へ直す）
+    let v = |x: Option<&fune_model::value::Vector3>, path: SettingPath, m: &mut MissingInputs| {
+        x.and_then(|x| vec_si(x, path, m)).unwrap_or(Vec3::ZERO)
     };
     let size = reference_box(ctx);
     let surface =
         |coef: Option<f64>, cp: Vec3| Some(DisturbanceSurface::from_box(size?, coef?, cp));
     let aero_cp = v(
         s.and_then(|s| s.cp_offset_aero.as_ref()),
-        "cp_offset_aero",
+        dims::ATTITUDE_CP_OFFSET_AERO.at(&[]),
         m,
     );
-    let srp_cp = v(s.and_then(|s| s.cp_offset_srp.as_ref()), "cp_offset_srp", m);
+    let srp_cp = v(
+        s.and_then(|s| s.cp_offset_srp.as_ref()),
+        dims::ATTITUDE_CP_OFFSET_SRP.at(&[]),
+        m,
+    );
     Some(DisturbanceSpacecraft {
         inertia: summary.inertia,
         aero: surface(s.and_then(|s| s.drag_coefficient), aero_cp),
         srp: surface(s.and_then(|s| s.srp_coefficient), srp_cp),
         residual_dipole: v(
             s.and_then(|s| s.residual_dipole.as_ref()),
-            "residual_dipole",
+            dims::ATTITUDE_RESIDUAL_DIPOLE.at(&[]),
             m,
         ),
         atmosphere: Default::default(),

@@ -1,47 +1,33 @@
-//! 名前の変更・削除に伴う参照の書き換え（どのキーが部品・モード・ネットの ID を持つかを知っているのはここ）。
-//!
-//! | 参照 | 置き場所 |
-//! |---|---|
-//! | 部品 | modes の `[states]` のキー・nets の `source` / `master`・harness の `from` / `to`・部品の `mount.on`・配分のキー・`analysis/comm.toml` の `part`・`analysis/thermal.toml` の `nodes` |
-//! | モード | cases の `mode`・`analysis/power.toml` の `mode_share` と `sequence`・`analysis/attitude.toml` の `law`・`analysis/thermal.toml` の `case.*.mode` |
-//! | ネット | 部品のポートの `net`・harness の `nets` |
-//! | カタログ品 | 部品の `catalog`・`candidates`・harness の `wire` |
+//! 名前の変更・削除に伴う参照の書き換え。**どこがその ID を参照しているかは model の索引（`Design::references`・
+//! [`RefSite`]）が決め、ここは参照元のファイル（`layout`）とキーを書き換えるだけ。**
 
 use super::Edits;
-use super::doc::{set, string, table_opt};
+use super::doc::{rename_key, replace_in_array, set, string, table_opt};
 use super::part::{rename_mount_target, set_port};
 use crate::error::StoreError;
 use crate::layout;
 use fune_model::Design;
+use fune_model::design::{AnalysisSystem, RefSite, Referent};
 use fune_model::path::PortRef;
-use toml_edit::{Item, Key, Table, Value};
+use toml_edit::Item;
 
-/// 表のキーの名前を変える（行の装飾と `=` の位置を保つ）。変えたら true。
-pub fn rename_key(table: &mut Table, from: &str, to: &str) -> bool {
-    let sorted = {
-        let keys: Vec<&str> = table.iter().map(|(k, _)| k).collect();
-        keys.windows(2).all(|w| w[0] <= w[1])
-    };
-    let Some((old, item)) = table.remove_entry(from) else {
-        return false;
-    };
-    let mut key = Key::new(to);
-    let mut decor = old.leaf_decor().clone();
-    let old_suffix = decor.suffix().and_then(|s| s.as_str()).map_or(1, str::len);
-    let total = old.display_repr().len() + old_suffix;
-    let new_len = key.display_repr().len();
-    decor.set_suffix(" ".repeat(total.saturating_sub(new_len).max(1)));
-    *key.leaf_decor_mut() = decor;
-    table.insert_formatted(&key, item);
-    if sorted {
-        table.sort_values();
-    }
-    true
+/// 部品の名前の変更で移ったファイル（部品のファイルと、組立品のディレクトリごと移した子部品のファイル）。
+struct Moved {
+    file: (String, String),
+    dir: (String, String),
 }
 
-/// 部品 `from` のポートなら、部品を `to` に替えた参照の書き方（`Display`）。
-fn rename_port_owner(port: &PortRef, from: &str, to: &str) -> Option<String> {
-    (port.part == from).then(|| PortRef::new(to, port.port.as_str()).to_string())
+impl Moved {
+    /// 移る前のファイルのパス → 移った先。
+    fn after(&self, file: String) -> String {
+        if file == self.file.0 {
+            return self.file.1.clone();
+        }
+        match file.strip_prefix(&self.dir.0) {
+            Some(rest) => format!("{}{rest}", self.dir.1),
+            None => file,
+        }
+    }
 }
 
 /// 部品の名前を変える（ファイルと組立品のディレクトリの移動・参照の書き換え）。
@@ -51,44 +37,22 @@ pub fn rename_part(
     from: &str,
     to: &str,
 ) -> Result<(), StoreError> {
-    let old_file =
-        layout::part_file(design, from).ok_or_else(|| StoreError::Missing { path: from.into() })?;
+    let old_file = part_file(design, from)?;
     let dir = old_file
         .trim_end_matches(&format!("{from}.toml"))
         .to_string();
-    edits.rename(&old_file, &format!("{dir}{to}.toml"))?;
+    let new_file = format!("{dir}{to}.toml");
+    edits.rename(&old_file, &new_file)?;
     edits.rename_dir(&format!("{dir}{from}"), &format!("{dir}{to}"))?;
-    for mode in design
-        .modes
-        .values()
-        .filter(|m| m.states.contains_key(from))
-    {
-        edits.edit(&layout::mode_file(mode.id.as_str()), |doc| {
-            if let Some(t) = table_opt(doc, &["states"]) {
-                rename_key(t, from, to);
-            }
-            Ok(())
-        })?;
-    }
-    rename_port_refs(edits, design, from, to)?;
-    for part in design
-        .parts
-        .values()
-        .filter(|p| p.mount.as_ref().is_some_and(|m| m.on.as_str() == from))
-    {
-        // 子部品は組立品のディレクトリごと移っているので、移った先のファイルを書き換える。
-        let mut file = layout::part_file(design, part.id.as_str()).unwrap_or_default();
-        if let Some(rest) = file.strip_prefix(&format!("{dir}{from}/")) {
-            file = format!("{dir}{to}/{rest}");
-        }
-        rename_mount_target(edits, &file, to)?;
-    }
-    rename_budget_node(edits, design, from, to)?;
-    rename_part_in_settings(edits, design, from, to)
+    let moved = Moved {
+        file: (old_file, new_file),
+        dir: (format!("{dir}{from}/"), format!("{dir}{to}/")),
+    };
+    rename_sites(edits, design, Referent::Part(from), to, Some(&moved))
 }
 
-/// グループの名前を変える。`parts/` の下のディレクトリを移し、fune.toml の `[groups]` の表示名のキー・配分のキー・
-/// 図の配置（`view/*.toml` の `[nodes]`）のキーを書き換える。部品はディレクトリごと移るので、中の部品の参照は変わらない。
+/// グループの名前を変える。`parts/` の下のディレクトリを移し、参照（fune.toml の `[groups]` の表示名のキー・配分のキー・
+/// 図の配置のキー）を書き換える。部品はディレクトリごと移るので、中の部品の参照は変わらない。
 pub fn rename_group(
     edits: &mut Edits,
     design: &Design,
@@ -107,135 +71,7 @@ pub fn rename_group(
         &format!("{}/{parent}{from}", layout::PARTS_DIR),
         &format!("{}/{parent}{to}", layout::PARTS_DIR),
     )?;
-    edits.edit(layout::PROJECT_FILE, |doc| {
-        if let Some(t) = table_opt(doc, &["groups"]) {
-            rename_key(t, from, to);
-        }
-        Ok(())
-    })?;
-    rename_budget_node(edits, design, from, to)?;
-    for view in design.views.values().filter(|v| v.nodes.contains_key(from)) {
-        edits.edit(&layout::view_file(view.id.as_str()), |doc| {
-            if let Some(t) = table_opt(doc, &["nodes"]) {
-                rename_key(t, from, to);
-            }
-            Ok(())
-        })?;
-    }
-    Ok(())
-}
-
-/// 文書の見出しのキーに書き換えを当てる（値があるものだけ）。
-fn set_strings(
-    edits: &mut Edits,
-    file: &str,
-    values: Vec<(&str, Option<String>)>,
-) -> Result<(), StoreError> {
-    if values.iter().all(|(_, v)| v.is_none()) {
-        return Ok(());
-    }
-    edits.edit(file, |doc| {
-        for (key, value) in values {
-            if let Some(v) = value {
-                set(doc.as_table_mut(), key, string(&v));
-            }
-        }
-        Ok(())
-    })
-}
-
-/// ネットの source / master、ハーネスの from / to の `PART.PORT` を書き換える。
-fn rename_port_refs(
-    edits: &mut Edits,
-    design: &Design,
-    from: &str,
-    to: &str,
-) -> Result<(), StoreError> {
-    let owner = |p: Option<&PortRef>| p.and_then(|p| rename_port_owner(p, from, to));
-    for net in design.nets.values() {
-        let values = vec![
-            ("source", owner(net.source.as_ref())),
-            ("master", owner(net.master.as_ref())),
-        ];
-        set_strings(edits, &layout::net_file(net.id.as_str()), values)?;
-    }
-    for h in design.harnesses.values() {
-        let values = vec![("from", owner(Some(&h.from))), ("to", owner(Some(&h.to)))];
-        set_strings(edits, &layout::harness_file(h.id.as_str()), values)?;
-    }
-    Ok(())
-}
-
-fn rename_budget_node(
-    edits: &mut Edits,
-    design: &Design,
-    from: &str,
-    to: &str,
-) -> Result<(), StoreError> {
-    let present = design
-        .budget
-        .allocation
-        .iter()
-        .any(|(_, a)| a.alloc.contains_key(from));
-    if !present {
-        return Ok(());
-    }
-    edits.edit(layout::ALLOCATION_FILE, |doc| {
-        for kind in ["mass", "power", "data"] {
-            if let Some(t) = table_opt(doc, &[kind, "alloc"]) {
-                rename_key(t, from, to);
-            }
-        }
-        Ok(())
-    })
-}
-
-/// 文字列の配列の要素を置き換える。
-fn replace_in_array(item: &mut Item, from: &str, to: &str) {
-    if let Some(array) = item.as_array_mut() {
-        for v in array.iter_mut() {
-            if v.as_str() == Some(from) {
-                let decor = v.decor().clone();
-                *v = Value::from(to);
-                *v.decor_mut() = decor;
-            }
-        }
-    }
-}
-
-fn rename_part_in_settings(
-    edits: &mut Edits,
-    design: &Design,
-    from: &str,
-    to: &str,
-) -> Result<(), StoreError> {
-    if design
-        .analysis
-        .comm
-        .as_ref()
-        .is_some_and(|c| c.links.values().any(|l| l.part == from))
-    {
-        edits.edit(&layout::analysis_file("comm"), |doc| {
-            retarget_subtables(doc, "link", "part", from, to);
-            Ok(())
-        })?;
-    }
-    if design
-        .analysis
-        .thermal
-        .as_ref()
-        .is_some_and(|t| t.nodes.values().any(|n| n.iter().any(|p| p == from)))
-    {
-        edits.edit(&layout::analysis_file("thermal"), |doc| {
-            if let Some(nodes) = table_opt(doc, &["nodes"]) {
-                for (_, item) in nodes.iter_mut() {
-                    replace_in_array(item, from, to);
-                }
-            }
-            Ok(())
-        })?;
-    }
-    Ok(())
+    rename_sites(edits, design, Referent::Group(from), to, None)
 }
 
 /// モードの名前を変える（ファイルの移動・ケースと解析の設定の参照の書き換え）。
@@ -246,136 +82,7 @@ pub fn rename_mode(
     to: &str,
 ) -> Result<(), StoreError> {
     edits.rename(&layout::mode_file(from), &layout::mode_file(to))?;
-    for case in design
-        .cases
-        .values()
-        .filter(|c| c.mode.as_ref().is_some_and(|m| m.as_str() == from))
-    {
-        edits.edit(&layout::case_file(case.id.as_str()), |doc| {
-            set(doc.as_table_mut(), "mode", string(to));
-            Ok(())
-        })?;
-    }
-    rename_mode_in_settings(edits, design, from, to)
-}
-
-/// `[<table>.*]` の各表のうち `key = from` のものを `to` に書き換える。
-fn retarget_subtables(
-    doc: &mut toml_edit::DocumentMut,
-    table: &str,
-    key: &str,
-    from: &str,
-    to: &str,
-) {
-    if let Some(parent) = table_opt(doc, &[table]) {
-        for (_, item) in parent.iter_mut() {
-            if let Some(t) = item.as_table_mut()
-                && t.get(key).and_then(Item::as_str) == Some(from)
-            {
-                set(t, key, string(to));
-            }
-        }
-    }
-}
-
-fn rename_mode_in_settings(
-    edits: &mut Edits,
-    design: &Design,
-    from: &str,
-    to: &str,
-) -> Result<(), StoreError> {
-    let analysis = &design.analysis;
-    if let Some(p) = &analysis.power
-        && (p.mode_share.contains_key(from) || p.sequence.iter().any(|s| s.mode == from))
-    {
-        edits.edit(&layout::analysis_file("power"), |doc| {
-            if let Some(t) = table_opt(doc, &["mode_share"]) {
-                rename_key(t, from, to);
-            }
-            if let Some(seq) = doc
-                .get_mut("sequence")
-                .and_then(Item::as_array_of_tables_mut)
-            {
-                for t in seq.iter_mut() {
-                    if t.get("mode").and_then(Item::as_str) == Some(from) {
-                        set(t, "mode", string(to));
-                    }
-                }
-            }
-            Ok(())
-        })?;
-    }
-    if analysis
-        .attitude
-        .as_ref()
-        .is_some_and(|a| a.law.contains_key(from))
-    {
-        edits.edit(&layout::analysis_file("attitude"), |doc| {
-            if let Some(t) = table_opt(doc, &["law"]) {
-                rename_key(t, from, to);
-            }
-            Ok(())
-        })?;
-    }
-    let thermal_refs = analysis
-        .thermal
-        .as_ref()
-        .is_some_and(|t| t.cases.values().any(|c| c.mode.as_deref() == Some(from)));
-    if thermal_refs {
-        edits.edit(&layout::analysis_file("thermal"), |doc| {
-            retarget_subtables(doc, "case", "mode", from, to);
-            Ok(())
-        })?;
-    }
-    Ok(())
-}
-
-/// 部品の削除に伴い、モードの行と配分を消す。
-pub fn forget_part(edits: &mut Edits, design: &Design, id: &str) -> Result<(), StoreError> {
-    for mode in design.modes.values().filter(|m| m.states.contains_key(id)) {
-        super::entities::set_mode_row(edits, &layout::mode_file(mode.id.as_str()), id, None)?;
-    }
-    if design
-        .budget
-        .allocation
-        .iter()
-        .any(|(_, a)| a.alloc.contains_key(id))
-    {
-        edits.edit(layout::ALLOCATION_FILE, |doc| {
-            for kind in ["mass", "power", "data"] {
-                if let Some(t) = table_opt(doc, &[kind, "alloc"]) {
-                    t.remove(id);
-                }
-            }
-            Ok(())
-        })?;
-    }
-    Ok(())
-}
-
-/// ネットの削除に伴い、部品のポートとハーネスから外す。
-pub fn forget_net(edits: &mut Edits, design: &Design, net: &str) -> Result<(), StoreError> {
-    for part in design.parts.values() {
-        for (port, binding) in &part.ports {
-            if binding.net.as_ref().is_some_and(|n| n.as_str() == net) {
-                let file = layout::part_file(design, part.id.as_str()).unwrap_or_default();
-                set_port(edits, &file, port, None)?;
-            }
-        }
-    }
-    for h in design
-        .harnesses
-        .values()
-        .filter(|h| h.nets.iter().any(|n| n.as_str() == net))
-    {
-        edits.edit(&layout::harness_file(h.id.as_str()), |doc| {
-            if let Some(array) = doc.get_mut("nets").and_then(Item::as_array_mut) {
-                array.retain(|v| v.as_str() != Some(net));
-            }
-            Ok(())
-        })?;
-    }
-    Ok(())
+    rename_sites(edits, design, Referent::Mode(from), to, None)
 }
 
 /// カタログ品の名前を変える（ファイルの移動と、部品の `catalog`・`candidates`、ハーネスの `wire` の書き換え）。
@@ -386,33 +93,278 @@ pub fn rename_catalog(
     (to, to_file): (&str, &str),
 ) -> Result<(), StoreError> {
     edits.rename(from_file, to_file)?;
-    for part in design.parts.values() {
-        let uses = part.catalog.as_deref() == Some(from);
-        let candidate = part.candidates.iter().any(|c| c == from);
-        if !uses && !candidate {
-            continue;
-        }
-        let file = layout::part_file(design, part.id.as_str()).unwrap_or_default();
-        edits.edit(&file, |doc| {
-            if uses {
-                set(doc.as_table_mut(), "catalog", string(to));
+    rename_sites(edits, design, Referent::Catalog(from), to, None)
+}
+
+/// 部品の削除に伴い、モードの行と配分を消す。ほかの参照（ネットの端・取付・解析の設定）は残すので、
+/// 参照先が無くなれば検査の誤りになり、削除の計画が拒まれる。
+pub fn forget_part(edits: &mut Edits, design: &Design, id: &str) -> Result<(), StoreError> {
+    for site in design.references(Referent::Part(id)) {
+        match site {
+            RefSite::ModeRow { mode } => {
+                super::entities::set_mode_row(edits, &layout::mode_file(&mode), id, None)?;
             }
-            if let Some(item) = doc.get_mut("candidates") {
+            RefSite::Allocation { kind } => edits.edit(layout::ALLOCATION_FILE, |doc| {
+                if let Some(t) = table_opt(doc, &[kind.as_str(), "alloc"]) {
+                    t.remove(id);
+                }
+                Ok(())
+            })?,
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+/// ネットの削除に伴い、部品のポートとハーネスから外す。
+pub fn forget_net(edits: &mut Edits, design: &Design, net: &str) -> Result<(), StoreError> {
+    for site in design.references(Referent::Net(net)) {
+        match site {
+            RefSite::PortNet { part, port } => {
+                set_port(edits, &part_file(design, &part)?, &port, None)?;
+            }
+            RefSite::HarnessNet { harness } => {
+                edits.edit(&layout::harness_file(&harness), |doc| {
+                    if let Some(array) = doc.get_mut("nets").and_then(Item::as_array_mut) {
+                        array.retain(|v| v.as_str() != Some(net));
+                    }
+                    Ok(())
+                })?;
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+/// `referent` の参照元をすべて `to` に書き換える。
+fn rename_sites(
+    edits: &mut Edits,
+    design: &Design,
+    referent: Referent,
+    to: &str,
+    moved: Option<&Moved>,
+) -> Result<(), StoreError> {
+    let from = match referent {
+        Referent::Part(id)
+        | Referent::Group(id)
+        | Referent::Mode(id)
+        | Referent::Net(id)
+        | Referent::Catalog(id) => id,
+    };
+    for site in design.references(referent) {
+        rename_at(edits, design, &site, (from, to), moved)?;
+    }
+    Ok(())
+}
+
+/// 参照元 1 つを書き換える（参照元の置き場所で 3 つに分ける）。
+fn rename_at(
+    edits: &mut Edits,
+    design: &Design,
+    site: &RefSite,
+    names: (&str, &str),
+    moved: Option<&Moved>,
+) -> Result<(), StoreError> {
+    match site {
+        RefSite::ModeRow { .. }
+        | RefSite::NetPort { .. }
+        | RefSite::HarnessPort { .. }
+        | RefSite::MountOn { .. }
+        | RefSite::Allocation { .. }
+        | RefSite::ViewNode { .. }
+        | RefSite::GroupLabel => rename_key_at(edits, design, site, names, moved),
+        RefSite::CommLink { .. }
+        | RefSite::ThermalNode { .. }
+        | RefSite::CaseMode { .. }
+        | RefSite::PowerModeShare
+        | RefSite::PowerSequence { .. }
+        | RefSite::AttitudeLaw
+        | RefSite::ThermalCaseMode { .. } => rename_setting_at(edits, site, names),
+        RefSite::PortNet { .. }
+        | RefSite::HarnessNet { .. }
+        | RefSite::PartCatalog { .. }
+        | RefSite::PartCandidate { .. }
+        | RefSite::HarnessWire { .. } => rename_value_at(edits, design, site, names),
+    }
+}
+
+/// 表のキー・ポートの参照・取付先に書かれた部品とグループの ID（モード・ネット・ハーネス・部品・配分・図・fune.toml）。
+fn rename_key_at(
+    edits: &mut Edits,
+    design: &Design,
+    site: &RefSite,
+    (from, to): (&str, &str),
+    moved: Option<&Moved>,
+) -> Result<(), StoreError> {
+    match site {
+        RefSite::ModeRow { mode } => {
+            rename_in(edits, &layout::mode_file(mode), &["states"], from, to)
+        }
+        RefSite::NetPort { net, end, port } => set_top(
+            edits,
+            &layout::net_file(net),
+            end.as_str(),
+            &owner(port, to),
+        ),
+        RefSite::HarnessPort { harness, end, port } => set_top(
+            edits,
+            &layout::harness_file(harness),
+            end.as_str(),
+            &owner(port, to),
+        ),
+        RefSite::MountOn { part } => {
+            let file = part_file(design, part)?;
+            let file = moved.map_or_else(|| file.clone(), |m| m.after(file.clone()));
+            rename_mount_target(edits, &file, to)
+        }
+        RefSite::Allocation { kind } => rename_in(
+            edits,
+            layout::ALLOCATION_FILE,
+            &[kind.as_str(), "alloc"],
+            from,
+            to,
+        ),
+        RefSite::ViewNode { view } => {
+            rename_in(edits, &layout::view_file(view), &["nodes"], from, to)
+        }
+        RefSite::GroupLabel => rename_in(edits, layout::PROJECT_FILE, &["groups"], from, to),
+        _ => Ok(()),
+    }
+}
+
+/// 解析の設定（`analysis/<系>.toml`）とケースに書かれた部品・モードの ID。
+fn rename_setting_at(
+    edits: &mut Edits,
+    site: &RefSite,
+    (from, to): (&str, &str),
+) -> Result<(), StoreError> {
+    let power = || layout::analysis_file(AnalysisSystem::Power);
+    let thermal = || layout::analysis_file(AnalysisSystem::Thermal);
+    match site {
+        RefSite::CommLink { link } => set_in(
+            edits,
+            &layout::analysis_file(AnalysisSystem::Comm),
+            &["link", link],
+            "part",
+            to,
+        ),
+        RefSite::ThermalNode { node } => edits.edit(&thermal(), |doc| {
+            if let Some(item) = table_opt(doc, &["nodes"]).and_then(|t| t.get_mut(node)) {
                 replace_in_array(item, from, to);
             }
             Ok(())
-        })?;
-    }
-    for h in design
-        .harnesses
-        .values()
-        .filter(|h| h.wire.as_deref() == Some(from))
-    {
-        set_strings(
+        }),
+        RefSite::CaseMode { case } => set_top(edits, &layout::case_file(case), "mode", to),
+        RefSite::PowerModeShare => rename_in(edits, &power(), &["mode_share"], from, to),
+        RefSite::PowerSequence { index } => edits.edit(&power(), |doc| {
+            let segment = doc
+                .get_mut("sequence")
+                .and_then(Item::as_array_of_tables_mut)
+                .and_then(|a| a.get_mut(*index));
+            if let Some(t) = segment {
+                set(t, "mode", string(to));
+            }
+            Ok(())
+        }),
+        RefSite::AttitudeLaw => rename_in(
             edits,
-            &layout::harness_file(h.id.as_str()),
-            vec![("wire", Some(to.to_string()))],
-        )?;
+            &layout::analysis_file(AnalysisSystem::Attitude),
+            &["law"],
+            from,
+            to,
+        ),
+        RefSite::ThermalCaseMode { case } => set_in(edits, &thermal(), &["case", case], "mode", to),
+        _ => Ok(()),
     }
-    Ok(())
+}
+
+/// 部品とハーネスの値に書かれたネット・カタログ品の参照（ポートの `net`・`nets`・`catalog`・`candidates`・`wire`）。
+fn rename_value_at(
+    edits: &mut Edits,
+    design: &Design,
+    site: &RefSite,
+    (from, to): (&str, &str),
+) -> Result<(), StoreError> {
+    match site {
+        RefSite::PortNet { part, port } => {
+            set_port(edits, &part_file(design, part)?, port, Some(to))
+        }
+        RefSite::HarnessNet { harness } => {
+            replace_in(edits, &layout::harness_file(harness), "nets", from, to)
+        }
+        RefSite::PartCatalog { part } => set_top(edits, &part_file(design, part)?, "catalog", to),
+        RefSite::PartCandidate { part } => {
+            replace_in(edits, &part_file(design, part)?, "candidates", from, to)
+        }
+        RefSite::HarnessWire { harness } => {
+            set_top(edits, &layout::harness_file(harness), "wire", to)
+        }
+        _ => Ok(()),
+    }
+}
+/// 部品のファイル（無ければ誤り）。
+fn part_file(design: &Design, id: &str) -> Result<String, StoreError> {
+    layout::part_file(design, id).ok_or_else(|| StoreError::Missing { path: id.into() })
+}
+
+/// 部品 `to` に替えたポートの参照の書き方（`Display`）。
+fn owner(port: &PortRef, to: &str) -> String {
+    PortRef::new(to, port.port.as_str()).to_string()
+}
+
+/// 見出しの文字列のキーを書く。
+fn set_top(edits: &mut Edits, file: &str, key: &str, value: &str) -> Result<(), StoreError> {
+    edits.edit(file, |doc| {
+        set(doc.as_table_mut(), key, string(value));
+        Ok(())
+    })
+}
+
+/// 表 `table` の文字列のキーを書く（表が無ければ何もしない）。
+fn set_in(
+    edits: &mut Edits,
+    file: &str,
+    table: &[&str],
+    key: &str,
+    value: &str,
+) -> Result<(), StoreError> {
+    edits.edit(file, |doc| {
+        if let Some(t) = table_opt(doc, table) {
+            set(t, key, string(value));
+        }
+        Ok(())
+    })
+}
+
+/// 表 `table` のキーの名前を変える。
+fn rename_in(
+    edits: &mut Edits,
+    file: &str,
+    table: &[&str],
+    from: &str,
+    to: &str,
+) -> Result<(), StoreError> {
+    edits.edit(file, |doc| {
+        if let Some(t) = table_opt(doc, table) {
+            rename_key(t, from, to);
+        }
+        Ok(())
+    })
+}
+
+/// 見出しの文字列の配列 `key` の要素を置き換える。
+fn replace_in(
+    edits: &mut Edits,
+    file: &str,
+    key: &str,
+    from: &str,
+    to: &str,
+) -> Result<(), StoreError> {
+    edits.edit(file, |doc| {
+        if let Some(item) = doc.get_mut(key) {
+            replace_in_array(item, from, to);
+        }
+        Ok(())
+    })
 }

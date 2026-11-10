@@ -71,6 +71,15 @@ pub struct Pose {
     pub orientation: Option<Quaternion>,
 }
 
+/// 位置（`pose.position`・取付点の位置）に単位を書かなかったときの単位。**位置の既定の単位はここだけ**
+/// （解決・検査・機体座標での配置が [`position_unit`] で引く）。
+pub const DEFAULT_POSITION_UNIT: &str = "m";
+
+/// 位置のベクトルの単位（書かれていなければ [`DEFAULT_POSITION_UNIT`]）。
+pub fn position_unit(position: &Vector3) -> &str {
+    position.unit.as_deref().unwrap_or(DEFAULT_POSITION_UNIT)
+}
+
 /// ポートの所属ネット。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
