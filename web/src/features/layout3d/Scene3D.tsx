@@ -24,30 +24,36 @@ const AXIS_COLOR: Record<Axis3D["attr"], string> = {
 
 export type TransformMode = "translate" | "rotate";
 
-/** 機体座標系（+Z を上）で部品の箱を描く。選んだ箱には TransformControls を付け、離したときに onPlace を 1 回呼ぶ */
+/** 箱を動かす編集（構造の配置）。操作の種類・並進のスナップと、離したときに 1 回呼ぶ `onPlace` */
+export interface SceneEdit {
+  mode: TransformMode;
+  /** 並進のスナップ [m] */
+  snap: number;
+  /** 動かし終えた箱の機体座標の位置 [m] と姿勢 [w, x, y, z] */
+  onPlace: (id: string, position: V3, orientation: Q4) => void;
+}
+
+/**
+ * 機体座標系（+Z を上）で部品の箱を描く。`edit` があれば、選んだ箱に TransformControls を付け、離したときに
+ * `edit.onPlace` を 1 回呼ぶ（無ければ選ぶだけ）。
+ */
 export function Scene3D({
   boxes,
   selected,
   onSelect,
-  onPlace,
-  mode,
-  snap,
   com,
-  editable,
   axes,
+  edit,
 }: {
   boxes: Box3D[];
   selected: string | null;
   onSelect: (id: string | null) => void;
-  onPlace?: (id: string, position: V3, orientation: Q4) => void;
-  mode: TransformMode;
-  /** 並進のスナップ [m] */
-  snap: number;
   /** 重心（機体座標、m） */
   com?: V3 | null;
-  editable: boolean;
   /** 方向ベクトルの矢印（null なら描かない） */
   axes?: Axis3D[] | null;
+  /** 箱を動かせるとき（無ければ表示だけ） */
+  edit?: SceneEdit;
 }) {
   const [target, setTarget] = useState<Mesh | null>(null);
   return (
@@ -116,17 +122,17 @@ export function Scene3D({
           <meshBasicMaterial color={toneHex.red} depthTest={false} />
         </mesh>
       )}
-      {editable && target && selected && (
+      {edit && target && selected && (
         <TransformControls
           object={target}
-          mode={mode}
-          translationSnap={snap}
+          mode={edit.mode}
+          translationSnap={edit.snap}
           rotationSnap={Math.PI / 12}
           size={0.7}
           onMouseUp={() => {
             const p = target.position;
             const q = target.quaternion;
-            onPlace?.(selected, [p.x, p.y, p.z], [q.w, q.x, q.y, q.z]);
+            edit.onPlace(selected, [p.x, p.y, p.z], [q.w, q.x, q.y, q.z]);
           }}
         />
       )}

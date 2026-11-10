@@ -174,7 +174,8 @@ export function DiagramPage() {
           view={layers.has("power") && !layers.has("signal") ? "power" : "signal"}
           a={connect.pending.a}
           b={connect.pending.b}
-          onClose={connect.clearPending}
+          open
+          onOpenChange={(open) => !open && connect.clearPending()}
         />
       )}
     </>

@@ -12,8 +12,8 @@ describe("サブシステムの色", () => {
   });
 
   it("service が解決したサブシステムを使い、不明なら OTHER", () => {
-    expect(subsystemKey(null, "reaction_wheel")).toBe("OTHER");
-    expect(subsystemKey("misc", "unknown")).toBe("OTHER");
+    expect(subsystemKey(null)).toBe("OTHER");
+    expect(subsystemKey("misc")).toBe("OTHER");
     expect(subsystemKey("structure")).toBe("STR");
   });
 });

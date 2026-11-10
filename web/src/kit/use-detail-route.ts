@@ -8,6 +8,7 @@ import { itemPath, SEARCH } from "@/lib/nav";
  * - 選んだ ID は URL の末尾の区間（ルートの `:id?`。`routes.ts`）。React Router が decode した値をそのまま使う
  *   （重ねて decode しない。`%` を含む ID が壊れる）。`select` は `itemPath` で encode して URL を作る。
  * - 表示方法は `?view=`（`views` のどれか。無ければ先頭）。`tree` は詳細を横の欄に出す表示（表以外）か。
+ *   切り替えは `setView`（選んだ ID はそのまま。`kit/ViewSwitch` はこれを受け取り、URL を自分で読まない）。
  * - 追加ダイアログは `?new=1`。選び直すと消す。検索部分の名前は `SEARCH`。
  */
 export function useDetailRoute(base: string, views: readonly string[] = ["table", "tree"]) {
@@ -25,15 +26,19 @@ export function useDetailRoute(base: string, views: readonly string[] = ["table"
       search: search.toString(),
     });
   };
-  const setAdding = (open: boolean) =>
+  // 検索部分の 1 つだけを書き換える（選んだ ID とほかの検索部分はそのまま）
+  const patch = (edit: (search: URLSearchParams) => void) =>
     setParams((previous) => {
       const search = new URLSearchParams(previous);
-      if (open) search.set(SEARCH.adding, "1");
-      else search.delete(SEARCH.adding);
+      edit(search);
       return search;
     });
+  const setView = (next: string) => patch((search) => search.set(SEARCH.view, next));
+  const setAdding = (open: boolean) =>
+    patch((search) => (open ? search.set(SEARCH.adding, "1") : search.delete(SEARCH.adding)));
   return {
     view,
+    setView,
     tree: view !== "table",
     selected: id ?? null,
     select,

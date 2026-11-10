@@ -55,15 +55,14 @@ const alias: Record<string, SubsystemKey> = {
   STRUCT: "STR",
 };
 
-export function subsystemKey(
-  group: string | null | undefined,
-  _role?: string | null,
-): SubsystemKey {
+/** Group の ID → サブシステム（表記揺れを正規化する。知らない ID と、Group の無い部品は OTHER） */
+export function subsystemKey(group: string | null | undefined): SubsystemKey {
   const g = group ? alias[group.toUpperCase()] : undefined;
   if (g) return g;
   return "OTHER";
 }
 
-export function subsystemTone(group: string | null | undefined, role?: string | null): Tone {
-  return tone[subsystemKey(group, role)];
+/** サブシステムの色（`subsystemKey` の対応） */
+export function subsystemTone(group: string | null | undefined): Tone {
+  return tone[subsystemKey(group)];
 }

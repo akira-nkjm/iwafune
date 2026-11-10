@@ -10,17 +10,17 @@ import { isVec3, type Json } from "./output";
  * 数以外はそのまま。
  */
 export function FieldValue({
-  field,
   value,
   dimension,
   label,
 }: {
+  /** 欄の名前（出し方は次元だけで決まるので使わない。呼び手から外すのは解析の表示を共通の場所へ移すとき） */
   field: string;
   value: Json | undefined;
   dimension?: string | null;
   label?: AnalysisLabel | null;
 }) {
-  const f = fieldFormat(field, dimension);
+  const f = fieldFormat(dimension);
   const one = (n: number) => <Formatted si={n} dimension={f.dimension} fallback={String(n)} />;
   if (typeof value === "number") return one(value);
   if (isVec3(value) && dimension)

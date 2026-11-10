@@ -33,6 +33,8 @@ export function CatalogPage() {
         header={
           <CatalogHeader
             design={design.data}
+            view={route.view}
+            onView={route.setView}
             search={search}
             onSearch={setSearch}
             onAdd={() => route.setAdding(true)}
@@ -51,7 +53,7 @@ export function CatalogPage() {
           design={design.data}
           open
           onOpenChange={route.setAdding}
-          onCreated={(id) => {
+          onDone={(id) => {
             setSearch("");
             route.select(id);
           }}
@@ -63,11 +65,16 @@ export function CatalogPage() {
 
 function CatalogHeader({
   design,
+  view,
+  onView,
   search,
   onSearch,
   onAdd,
 }: {
   design?: DesignView;
+  /** 表示方法（`useDetailRoute` の `view`・`setView`） */
+  view: string;
+  onView: (view: string) => void;
   search: string;
   onSearch: (value: string) => void;
   onAdd: () => void;
@@ -87,7 +94,7 @@ function CatalogHeader({
       }
       actions={
         <>
-          <ViewSwitch />
+          <ViewSwitch value={view} onChange={onView} />
           <SearchInput label={t.catalog.search} value={search} onChange={onSearch} />
           <Button onClick={onAdd} disabled={!design}>
             <Plus size={14} />

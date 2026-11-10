@@ -11,12 +11,13 @@ import { valueText } from "@/quantity/format";
 /** 部品の一覧（密な表）。行を選ぶと右のパネルに詳細を出す */
 export function PartsTable({
   design,
-  parts,
+  items,
   selected,
   onSelect,
 }: {
   design: DesignView;
-  parts: PartRow[];
+  /** 絞り込んだ部品（出す行） */
+  items: PartRow[];
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -51,7 +52,7 @@ export function PartsTable({
         </>
       }
     >
-      {parts.map((p) => {
+      {items.map((p) => {
         const mass = attrOf(p, "mass");
         const power = attrOf(p, "power");
         const unset = Object.values(p.values).filter((v) => v.origin === "unset").length;
@@ -60,7 +61,7 @@ export function PartsTable({
           <SelectableRow key={p.id} selected={selected === p.id} onSelect={() => onSelect(p.id)}>
             <Td>
               <span className="flex items-center gap-2">
-                <SubsystemDot group={p.subsystem} role={p.role} />
+                <SubsystemDot group={p.subsystem} />
                 <span className="font-medium font-mono text-[12.5px]">{p.id}</span>
               </span>
             </Td>

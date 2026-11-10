@@ -8,7 +8,7 @@ import { useParseQuantity } from "./use-parse";
 
 /**
  * 単位付きの量の入力欄。打鍵ごとに /units/parse で解析し、SI での値（`= 0.018 N*m*s`）か次元のエラーを
- * 入力欄の下に出す。Enter（または onBlurCommit で欄を離れたとき）で確定し、文字列のまま onCommit に渡す。
+ * 入力欄の下に出す。Enter で確定し、文字列のまま onCommit に渡す（Escape は onCancel）。
  * 次元が合わないとき・解析できないときは確定させない。
  */
 export function QuantityInput({
@@ -25,8 +25,8 @@ export function QuantityInput({
   initial: string;
   /** 期待する次元（例: "Power"）。null なら次元を問わない */
   dimension: string | null;
-  /** 確定: 入力文字列と、/units/parse が読んだ値（書かれたままの数値と単位） */
-  onCommit?: (text: string, q: QuantityView) => void;
+  /** 確定: 打った文字列（前後の空白を除く。数として読むのは service） */
+  onCommit?: (text: string) => void;
   onCancel?: () => void;
   autoFocus?: boolean;
   label: string;
@@ -54,7 +54,7 @@ export function QuantityInput({
   }, [text, valid, parsed, onChangeValid]);
 
   const commit = () => {
-    if (valid && parsed) onCommit?.(text.trim(), parsed.quantity);
+    if (valid) onCommit?.(text.trim());
   };
 
   return (

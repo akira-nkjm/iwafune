@@ -9,13 +9,15 @@ import { defName } from "@/lib/design";
 export function AttributePicker({
   attributes,
   part,
-  picked,
-  onPick,
+  selected,
+  onSelect,
 }: {
   attributes: AttributeDefView[];
+  /** 値のある属性を候補から外すための部品 */
   part: PartRow;
-  picked: string;
-  onPick: (id: string) => void;
+  /** 選んでいる属性の ID（無ければ空） */
+  selected: string;
+  onSelect: (id: string) => void;
 }) {
   const tp = useT().components.param;
   const [search, setSearch] = useState("");
@@ -44,10 +46,10 @@ export function AttributePicker({
           <li key={a.id}>
             <button
               type="button"
-              onClick={() => onPick(a.id)}
+              onClick={() => onSelect(a.id)}
               className={cn(
                 "grid w-full grid-cols-[160px_1fr_auto] items-baseline gap-2 border-line-soft border-b px-3 py-1.5 text-left text-xs hover:bg-panel-2",
-                picked === a.id && "bg-accent-tint",
+                selected === a.id && "bg-accent-tint",
               )}
             >
               <span className="truncate font-mono">{a.id}</span>

@@ -3,7 +3,6 @@ import { analysisOutput } from "@/api/analysis-output";
 import type { AnalysisOutputs, DesignView, System } from "@/api/types";
 import { LazyLayout3D } from "@/features/layout3d/LazyLayout3D";
 import type { V3 } from "@/features/layout3d/scene";
-import { getT } from "@/i18n";
 import { heatHex, toneHex } from "@/lib/tone";
 import { heatKey, heatMapOf, heatRatio } from "./heat";
 import { dimOf, EACH } from "./output";
@@ -37,7 +36,7 @@ export function systemExtras(
     const mp = outputOf(states, "structure.mass_properties");
     const c = mp?.summary.center_of_mass;
     const com: V3 | null = c ? [c.x, c.y, c.z] : null;
-    return { results: <LazyLayout3D design={design} com={com} /> };
+    return { results: <LazyLayout3D variant="placement" design={design} com={com} /> };
   }
   if (system === "thermal") {
     const map = heatMapOf(outputOf(states, "thermal.steady"));
@@ -66,13 +65,7 @@ export function systemExtras(
               "temperature",
             ])}
           />
-          <LazyLayout3D
-            design={design}
-            colorOf={colorOf}
-            editable={false}
-            title={getT().systems.thermal3d}
-            legend={getT().systems.thermal3dLegend}
-          />
+          <LazyLayout3D variant="heat" design={design} colorOf={colorOf} />
         </>
       ),
     };

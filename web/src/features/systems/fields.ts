@@ -18,7 +18,7 @@ export interface FieldFormat {
   dimension: string;
 }
 
-export function fieldFormat(_key: string, dimension: string | null | undefined): FieldFormat {
+export function fieldFormat(dimension: string | null | undefined): FieldFormat {
   if (dimension) return { dimension };
   return { dimension: "Dimensionless" };
 }

@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import type { DesignView, StateAssign } from "@/api/types";
+import type { ModeTable, StateAssign } from "@/api/types";
 import { savedCellText } from "@/features/modes/matrix";
 import { useT } from "@/i18n";
 import { PropertyList } from "@/kit/PropertyList";
@@ -9,23 +9,25 @@ import { paths } from "@/lib/nav";
 
 /** この部品がモードごとにどの状態か（編集はモードの表で行う） */
 export function PartModes({
-  design,
+  table,
   part,
-  modes,
+  cells,
 }: {
-  design: DesignView;
+  /** モード表（列の見出しと、保存済みのセルの文言） */
+  table: ModeTable;
   part: string;
-  modes: Record<string, StateAssign>;
+  /** この部品のモードごとの状態（`ModeRow.cells` と同じ形。GET /parts/{id} の `modes`） */
+  cells: Record<string, StateAssign>;
 }) {
   const all = useT();
   const t = all.components.partModes;
-  const headers = design.modes.modes;
-  const row = design.modes.rows.find((r) => r.part === part);
+  const headers = table.modes;
+  const row = table.rows.find((r) => r.part === part);
   if (headers.length === 0) return <p className="px-1 text-ink-3 text-xs">{t.none}</p>;
   return (
     <PropertyList>
       {headers.map((m) => {
-        const s = modes[m.id];
+        const s = cells[m.id];
         // 割合の `%` はサーバー（モード表の shares）が整形したもの。並べ方はモード表と同じ i18n
         const shown = (row && savedCellText(row, m.id, all.modes)) ?? s?.state;
         const name = nodeName(m);

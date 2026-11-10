@@ -19,12 +19,16 @@ export function NewNetDialog({
   view,
   a,
   b,
-  onClose,
+  open,
+  onOpenChange,
 }: {
+  /** 今の図（電源の図ならネットの種類の初期値を電源にする） */
   view: DiagramView;
+  /** 繋いだ 2 つのポート */
   a: End;
   b: End;
-  onClose: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }) {
   const t = useT();
   const tn = t.diagram.newNet;
@@ -66,8 +70,8 @@ export function NewNetDialog({
   const ends = [`${a.part}.${a.port}`, `${b.part}.${b.port}`];
   return (
     <OpDialog
-      open
-      onOpenChange={(o) => !o && onClose()}
+      open={open}
+      onOpenChange={onOpenChange}
       title={tn.title}
       description={tn.description(ends[0] ?? "", ends[1] ?? "")}
       ops={ops}

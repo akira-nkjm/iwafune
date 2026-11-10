@@ -5,11 +5,10 @@ import { toneBg } from "@/lib/tone";
 /** サブシステム色の点（表・凡例） */
 export function SubsystemDot({
   group,
-  role,
   className,
 }: {
+  /** サブシステム（Group）の ID。無ければ灰色 */
   group: string | null;
-  role?: string | null;
   className?: string;
 }) {
   return (
@@ -17,7 +16,7 @@ export function SubsystemDot({
       aria-hidden="true"
       className={cn(
         "inline-block size-2 shrink-0 rounded-full",
-        toneBg[subsystemTone(group, role)],
+        toneBg[subsystemTone(group)],
         className,
       )}
     />

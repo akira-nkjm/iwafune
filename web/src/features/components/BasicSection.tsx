@@ -103,7 +103,7 @@ export function BasicSection({ design, part }: { design: DesignView; part: PartR
       </PropertyRow>
       <PropertyRow label={t.parent}>
         <span className="flex items-center gap-2">
-          <SubsystemDot group={part.subsystem} role={part.role} />
+          <SubsystemDot group={part.subsystem} />
           <NativeSelect
             size="sm"
             aria-label={t.parentGroup}

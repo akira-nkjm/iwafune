@@ -53,7 +53,7 @@ export function ModesMatrix({
             groups={matrixGroups(design, draft, computed.load.data, tm)}
             budget={computed.budget}
             updating={computed.load.updating}
-            onCell={(mode, part, cell) => onDraft(withCell(table, draft, mode, part, cell))}
+            onCell={({ mode, part }, cell) => onDraft(withCell(table, draft, mode, part, cell))}
           />
         </div>
         {/* 保存の帯はカードのいちばん下。最初の下書きで滑らかに開き、保存・破棄で滑らかに閉じる */}
