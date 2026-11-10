@@ -5,7 +5,7 @@ use crate::missing::MissingInputs;
 use crate::parts::{self, by_role, direction_body, label, ratio, state_values};
 use crate::timeline;
 use fune_model::Target;
-use fune_model::path::SettingPath;
+use fune_model::design::AnalysisSystem;
 use sat_analysis::power::energy_balance::{
     EnergyBalanceBattery, EnergyBalanceCase, EnergyBalanceLoad, LoadGrowth,
 };
@@ -95,7 +95,7 @@ pub fn solar_sunlit(ctx: &Context<'_>) -> Result<SolarSunlitInput, MissingInputs
     let modes = timeline::modes_with_law(ctx);
     if modes.is_empty() {
         m.push(
-            SettingPath::analysis(&["attitude", "law"]),
+            AnalysisSystem::Attitude.setting_path().child(&["law"]),
             "姿勢則（モードごと）",
         );
     }
@@ -184,7 +184,7 @@ fn batteries(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceBatte
     let settings = ctx.design.analysis.power.as_ref();
     let dod = m.need(
         settings.and_then(|s| s.dod_max),
-        SettingPath::analysis(&["power", "dod_max"]),
+        AnalysisSystem::Power.setting_path().child(&["dod_max"]),
         "許容 DoD",
     );
 

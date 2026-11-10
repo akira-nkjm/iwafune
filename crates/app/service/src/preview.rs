@@ -14,13 +14,6 @@ pub fn snapshot_with(ws: &Workspace, ops: &[Op]) -> Result<Snapshot> {
     let store = fune_store::load(ws.root()).map_err(store_error)?;
     let plan = fune_ops::plan(&store, ops).map_err(|e| op_error(ws, e))?;
     let mut files = store.files;
-    for change in &plan.changes {
-        match &change.after {
-            Some(text) => files.insert(change.path.clone(), text.clone()),
-            None => {
-                files.remove(&change.path);
-            }
-        }
-    }
+    fune_store::apply_changes(&mut files, &plan.changes);
     Ok(Snapshot::of(plan.design, files))
 }

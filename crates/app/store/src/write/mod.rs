@@ -2,21 +2,24 @@
 //!
 //! | モジュール | 中身 |
 //! |---|---|
-//! | `doc` | toml_edit の小さな道具（装飾を保った値の置き換え・揃えた挿入・表の確保） |
+//! | `doc` | toml_edit の小さな道具（装飾を保った値の置き換え・揃えた挿入・表の確保・キーの名前の変更・配列の要素の置き換え） |
 //! | `catalog` | カタログ品のファイルの正規形とフィールド |
 //! | `part` | 部品ファイルの編集（属性・フィールド・取付・ポート）と新しい部品ファイル |
 //! | `entities` | モード・ネット・定義・設定のファイルの編集と新しいファイル |
+//! | `project` | プロジェクトのファイル（`fune.toml`・`budget/`）の新しい本文（`fune init` の雛形も） |
 //! | `records` | ケース・出典・ハーネス（serde の形のファイル）の書き込み |
-//! | `refs` | 名前の変更・削除に伴う参照の書き換え |
+//! | `refs` | 名前の変更・削除に伴う参照の書き換え（参照の所在は model の `Design::references`） |
 //! | `commit` | tmp ＋ rename、失敗したら戻す |
 //!
 //! 編集は既存の行の装飾（空白・コメント）を保ち、変えた値の行だけが変わるようにする。
+//! 計画した変更の列を（ディスクに書かずに）ファイルの集合に当てるのは [`apply_changes`]。
 
 pub mod catalog;
 mod commit;
 pub mod doc;
 pub mod entities;
 pub mod part;
+pub mod project;
 pub mod records;
 pub mod refs;
 
@@ -35,6 +38,19 @@ pub struct FileChange {
     pub path: String,
     pub before: Option<String>,
     pub after: Option<String>,
+}
+
+/// 変更の列をファイルの集合に当てる（ディスクには書かない）。**計画の変更を集合に当てるのはここだけ**
+/// （下書きを当てたスナップショット・保存の診断の抜粋）。削除は集合から消す。
+pub fn apply_changes(files: &mut FileSet, changes: &[FileChange]) {
+    for change in changes {
+        match &change.after {
+            Some(text) => files.insert(change.path.clone(), text.clone()),
+            None => {
+                files.remove(&change.path);
+            }
+        }
+    }
 }
 
 /// 編集中のファイルの集合（元の集合と、変更後の集合）。ディスクには書かない。

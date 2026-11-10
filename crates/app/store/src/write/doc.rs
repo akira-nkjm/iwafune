@@ -2,7 +2,7 @@
 
 use crate::error::StoreError;
 pub use crate::profile::parse;
-use toml_edit::{DocumentMut, Item, Table, Value};
+use toml_edit::{DocumentMut, Item, Key, Table, Value};
 
 /// 表の中の `=` の揃え幅（すべての値の行が同じ幅で揃っていればその幅）。
 fn aligned_width(table: &Table) -> Option<usize> {
@@ -200,6 +200,41 @@ pub fn strings<'a>(items: impl IntoIterator<Item = &'a str>) -> Item {
     Item::Value(Value::Array(array))
 }
 
+/// 表のキーの名前を変える（行の装飾と `=` の位置を保つ）。変えたら true。
+pub fn rename_key(table: &mut Table, from: &str, to: &str) -> bool {
+    let sorted = {
+        let keys: Vec<&str> = table.iter().map(|(k, _)| k).collect();
+        keys.windows(2).all(|w| w[0] <= w[1])
+    };
+    let Some((old, item)) = table.remove_entry(from) else {
+        return false;
+    };
+    let mut key = Key::new(to);
+    let mut decor = old.leaf_decor().clone();
+    let old_suffix = decor.suffix().and_then(|s| s.as_str()).map_or(1, str::len);
+    let total = old.display_repr().len() + old_suffix;
+    let new_len = key.display_repr().len();
+    decor.set_suffix(" ".repeat(total.saturating_sub(new_len).max(1)));
+    *key.leaf_decor_mut() = decor;
+    table.insert_formatted(&key, item);
+    if sorted {
+        table.sort_values();
+    }
+    true
+}
+
+/// 文字列の配列の要素を置き換える（装飾を保つ）。
+pub fn replace_in_array(item: &mut Item, from: &str, to: &str) {
+    if let Some(array) = item.as_array_mut() {
+        for v in array.iter_mut() {
+            if v.as_str() == Some(from) {
+                let decor = v.decor().clone();
+                *v = Value::from(to);
+                *v.decor_mut() = decor;
+            }
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;

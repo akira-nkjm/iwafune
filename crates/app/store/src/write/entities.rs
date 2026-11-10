@@ -140,7 +140,7 @@ pub fn set_net_field(edits: &mut Edits, file: &str, field: &NetField) -> Result<
 }
 
 /// serde の形をそのまま TOML にする（`id` はファイル名で決まるので書かない）。
-fn serde_text<T: Serialize>(path: &str, value: &T) -> Result<String, StoreError> {
+pub(super) fn serde_text<T: Serialize>(path: &str, value: &T) -> Result<String, StoreError> {
     let text = toml::to_string(value).map_err(|e| StoreError::edit(path, e.to_string()))?;
     let mut doc = doc::parse(path, &text)?;
     doc.as_table_mut().remove("id");

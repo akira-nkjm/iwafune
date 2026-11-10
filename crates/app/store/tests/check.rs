@@ -201,3 +201,89 @@ fn an_id_field_must_match_the_file_name() {
     set.insert("nets/P5V.toml", net);
     assert_eq!(design_of(&set).nets["P5V"].id.as_str(), "P5V");
 }
+
+/// ID の一意性（大文字小文字を無視）と規則は、部品だけでなくケース・出典・ハーネスにも同じに当てる。
+#[test]
+fn ids_are_unique_ignoring_case_in_every_namespace() {
+    let case = "mode = \"SAFE\"\n";
+    let source = "kind = \"datasheet\"\n";
+    let harness = "from = \"A.P\"\nto = \"B.P\"\n";
+    for (a, b, text) in [
+        ("cases/hot.toml", "cases/Hot.toml", case),
+        ("sources/ds.toml", "sources/DS.toml", source),
+        ("harness/H1.toml", "harness/h1.toml", harness),
+        ("modes/SAFE.toml", "modes/safe.toml", "[states]\n"),
+        ("nets/P5V.toml", "nets/p5v.toml", "kind = \"power\"\n"),
+    ] {
+        let d = diags(&[(a, text), (b, text)]);
+        assert!(has(&d, "id.duplicate", Severity::Error), "{a}: {d:?}");
+        let one = diags(&[(a, text)]);
+        assert!(!has(&one, "id.duplicate", Severity::Error), "{a}: {one:?}");
+    }
+    let bad = diags(&[("cases/9hot.toml", case)]);
+    assert!(has(&bad, "id.invalid", Severity::Error), "{bad:?}");
+}
+
+/// 手で書いた図の線の経路も、GUI と同じ規則（直交・端子の位置が 0 以上）で検査する。
+#[test]
+fn view_routes_are_orthogonal() {
+    let good = "[edge]\n\"k\" = { points = [[0, 0], [0, 40], [30, 40]], source_offset = 0 }\n";
+    let d = diags(&[("view/electrical.toml", good)]);
+    assert!(d.iter().all(|x| !x.is_error()), "{d:?}");
+    let diagonal = "[edge]\n\"k\" = { points = [[0, 0], [10, 10]] }\n";
+    assert!(has(
+        &diags(&[("view/electrical.toml", diagonal)]),
+        "view.route",
+        Severity::Error
+    ));
+    let one_point = "[edge]\n\"k\" = { points = [[0, 0]] }\n";
+    assert!(has(
+        &diags(&[("view/electrical.toml", one_point)]),
+        "view.route",
+        Severity::Error
+    ));
+    let negative = "[edge]\n\"k\" = { points = [[0, 0], [0, 10]], target_offset = -1 }\n";
+    assert!(has(
+        &diags(&[("view/electrical.toml", negative)]),
+        "view.port_offset",
+        Severity::Error
+    ));
+}
+
+/// 設定の量の次元は表（`setting_dims`）で引く。配列の中（`[[sequence]]`）や名前付きの表（`[link.<回線>]`）も。
+#[test]
+fn setting_dimensions_come_from_the_table() {
+    let power = "[[sequence]]\nmode = \"SAFE\"\nduration = { value = 10.0, unit = \"kg\" }\n";
+    let d = diags(&[
+        ("modes/SAFE.toml", "[states]\n"),
+        ("analysis/power.toml", power),
+    ]);
+    let dim = d
+        .iter()
+        .find(|x| x.code == "unit.dimension")
+        .expect("dimension");
+    assert_eq!(
+        dim.target.as_ref().map(ToString::to_string).as_deref(),
+        Some("analysis.power.sequence.0.duration")
+    );
+    let ground = "latitude = { value = 35.0, unit = \"deg\" }\nlongitude = { value = 139.0, unit = \"m\" }\n\n[link.s]\ntx_power = { value = 1.0, unit = \"K\" }\n";
+    let d = diags(&[("mission/ground/GS.toml", ground)]);
+    let paths: Vec<String> = d
+        .iter()
+        .filter(|x| x.code == "unit.dimension")
+        .filter_map(|x| x.target.as_ref().map(ToString::to_string))
+        .collect();
+    assert_eq!(
+        paths,
+        [
+            "mission.ground.GS.link.s.tx_power",
+            "mission.ground.GS.longitude"
+        ]
+    );
+    let material = "[material.al]\nthermal_conductivity = { value = 1.0, unit = \"W\" }\n";
+    assert!(has(
+        &diags(&[("analysis/structure.toml", material)]),
+        "unit.dimension",
+        Severity::Error
+    ));
+}

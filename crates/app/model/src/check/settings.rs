@@ -1,12 +1,14 @@
 //! `mission/` の設定と材料の参照の検査。`analysis/` は [`super::settings_analysis`]。
 //! 共通の道具（設定ファイル 1 つ分の検査の窓口 [`Scope`]）もここに置く。
+//! 量の次元は設定の次元の表（`design::setting_dims`）を引く（ファイルの中の量の葉をすべて見る。[`Scope::dimensions`]）。
 
 use super::Ctx;
 use super::values::check_quantity_dimension;
-use crate::design::{EntityKey, GroundStationSettings, OrbitSettings};
+use crate::design::setting_dims::setting_dimension;
+use crate::design::{EntityKey, OrbitSettings, SettingEntry};
 use crate::path::SettingPath;
 use crate::target::Target;
-use crate::value::{Quantity, Value, Vector3};
+use crate::value::{Quantity, SettingValue, Value};
 
 /// 設定ファイル 1 つ分の検査の窓口。
 pub(super) struct Scope<'c, 'a> {
@@ -16,32 +18,37 @@ pub(super) struct Scope<'c, 'a> {
     pub prefix: SettingPath,
 }
 
-/// 量の検査の 1 行（キーの列・量・次元）。
-pub(super) type QtySpec<'q> = (&'q [&'q str], Option<&'q Quantity>, &'q str);
-
 impl Scope<'_, '_> {
     /// ファイルの中のキーの列 → 設定の対象。
     pub fn path(&self, keys: &[&str]) -> Option<Target> {
         Some(self.prefix.child(keys).into())
     }
 
-    pub fn qty(&mut self, keys: &[&str], q: Option<&Quantity>, dim: &str) {
-        if let Some((sev, code, msg)) = q.and_then(|q| check_quantity_dimension(q, dim)) {
-            let path = self.path(keys);
-            self.ctx.report(sev, code, &self.entity, keys, path, msg);
-        }
-    }
-
-    pub fn qtys(&mut self, specs: &[QtySpec]) {
-        for (keys, q, dim) in specs {
-            self.qty(keys, *q, dim);
-        }
-    }
-
-    pub fn vector(&mut self, keys: &[&str], v: Option<&Vector3>, dim: &str) {
-        if let Some(v) = v {
-            let q = Quantity::new(v.x, v.unit.clone().unwrap_or_default());
-            self.qty(keys, Some(&q), dim);
+    /// このファイルの量の葉（ベクトルは成分の単位）の次元を、設定の次元の表と比べる。`entries` は `Design::setting_entries`。
+    pub fn dimensions(&mut self, entries: &[SettingEntry]) {
+        for entry in entries {
+            let (scope, segments) = (entry.path.scope, &entry.path.segments);
+            if scope != self.prefix.scope || !segments.starts_with(&self.prefix.segments) {
+                continue;
+            }
+            let q = match &entry.value {
+                Some(SettingValue::Quantity(q)) => q.clone(),
+                Some(SettingValue::Vector(v)) => {
+                    Quantity::new(v.x, v.unit.clone().unwrap_or_default())
+                }
+                _ => continue,
+            };
+            let Some(dim) = setting_dimension(&entry.path) else {
+                continue;
+            };
+            if let Some((sev, code, msg)) = check_quantity_dimension(&q, dim) {
+                let keys: Vec<&str> = segments[self.prefix.segments.len()..]
+                    .iter()
+                    .map(String::as_str)
+                    .collect();
+                let target = Some(entry.path.clone().into());
+                self.ctx.report(sev, code, &self.entity, &keys, target, msg);
+            }
         }
     }
 
@@ -77,42 +84,23 @@ pub(super) fn scope<'c, 'a>(ctx: &'c mut Ctx<'a>, prefix: SettingPath) -> Scope<
     }
 }
 
-/// `mission/` の全体。
-pub(super) fn check_mission(ctx: &mut Ctx) {
+/// `mission/` の全体。`entries` は `Design::setting_entries`。
+pub(super) fn check_mission(ctx: &mut Ctx, entries: &[SettingEntry]) {
     let design = ctx.design;
     if let Some(o) = &design.mission.orbit {
-        check_orbit(&mut scope(ctx, SettingPath::mission(&["orbit"])), o);
+        let mut s = scope(ctx, SettingPath::mission(&["orbit"]));
+        s.dimensions(entries);
+        check_orbit(&mut s, o);
     }
-    for (id, g) in &design.mission.ground {
-        check_ground(&mut scope(ctx, SettingPath::mission(&["ground", id])), g);
+    for id in design.mission.ground.keys() {
+        scope(ctx, SettingPath::mission(&["ground", id])).dimensions(entries);
     }
-    if let Some(l) = &design.mission.launch {
-        scope(ctx, SettingPath::mission(&["launch"])).qtys(&[
-            (&["load_axial"], l.load_axial.as_ref(), "Acceleration"),
-            (&["load_lateral"], l.load_lateral.as_ref(), "Acceleration"),
-            (
-                &["min_frequency_axial"],
-                l.min_frequency_axial.as_ref(),
-                "Frequency",
-            ),
-            (
-                &["min_frequency_lateral"],
-                l.min_frequency_lateral.as_ref(),
-                "Frequency",
-            ),
-        ]);
+    if design.mission.launch.is_some() {
+        scope(ctx, SettingPath::mission(&["launch"])).dimensions(entries);
     }
 }
 
 fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
-    s.qtys(&[
-        (&["altitude"], o.altitude.as_ref(), "Length"),
-        (&["semi_major_axis"], o.semi_major_axis.as_ref(), "Length"),
-        (&["inclination"], o.inclination.as_ref(), "Angle"),
-        (&["raan"], o.raan.as_ref(), "Angle"),
-        (&["arg_perigee"], o.arg_perigee.as_ref(), "Angle"),
-        (&["mean_anomaly"], o.mean_anomaly.as_ref(), "Angle"),
-    ]);
     if o.eccentricity.is_some_and(|e| !(0.0..1.0).contains(&e)) {
         s.error(
             &["eccentricity"],
@@ -129,41 +117,6 @@ fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
             "setting.format",
             "降交点の地方時は `HH:MM` で書きます".into(),
         );
-    }
-}
-
-fn check_ground(s: &mut Scope, g: &GroundStationSettings) {
-    s.qtys(&[
-        (&["latitude"], g.latitude.as_ref(), "Angle"),
-        (&["longitude"], g.longitude.as_ref(), "Angle"),
-        (&["min_elevation"], g.min_elevation.as_ref(), "Angle"),
-        (&["altitude"], g.altitude.as_ref(), "Length"),
-    ]);
-    for (band, link) in &g.links {
-        let b = band.as_str();
-        s.qtys(&[
-            (
-                &["link", b, "antenna_gain"],
-                link.antenna_gain.as_ref(),
-                "Dimensionless",
-            ),
-            (
-                &["link", b, "noise_temperature"],
-                link.noise_temperature.as_ref(),
-                "Temperature",
-            ),
-            (
-                &["link", b, "g_over_t"],
-                link.g_over_t.as_ref(),
-                "Dimensionless",
-            ),
-            (&["link", b, "tx_power"], link.tx_power.as_ref(), "Power"),
-            (
-                &["link", b, "line_loss"],
-                link.line_loss.as_ref(),
-                "Dimensionless",
-            ),
-        ]);
     }
 }
 

@@ -1,4 +1,5 @@
 //! 組み込みと設計固有の語彙の検索。
+use crate::chain::chain;
 use crate::{builtin, design::*};
 use std::collections::BTreeMap;
 impl Design {
@@ -43,15 +44,11 @@ impl Design {
 
     /// 種別の継承の連鎖（自分 → 継承元の順。循環や未定義はそこで止める）。
     pub fn kind_chain(&self, id: &str) -> Vec<&KindDef> {
-        let mut chain: Vec<&KindDef> = Vec::new();
-        let mut next = self.kind(id);
-        while let Some(kind) = next {
-            if chain.iter().any(|k| k.id == kind.id) {
-                break;
-            }
-            chain.push(kind);
-            next = kind.extends.as_ref().and_then(|e| self.kind(e.as_str()));
-        }
-        chain
+        chain(
+            self.kind(id),
+            |k: &&KindDef| k.id.as_str(),
+            |k| k.extends.as_ref().and_then(|e| self.kind(e.as_str())),
+        )
+        .collect()
     }
 }

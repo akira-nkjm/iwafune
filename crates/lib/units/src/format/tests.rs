@@ -136,6 +136,24 @@ fn dimension_label_names_or_expresses() {
     assert!(parse_unit(&dimension_label(odd)).is_ok());
 }
 
+/// 同じ次元の別名は、呼び出し側が知っている名前を正規の綴りで選ぶ。合わない名前は次元から決める。
+#[test]
+fn dimension_label_prefers_a_matching_alias() {
+    assert_eq!(dimension_label_preferring(Torque::DIM, None), "Energy");
+    assert_eq!(
+        dimension_label_preferring(Torque::DIM, Some("torque")),
+        "Torque"
+    );
+    assert_eq!(
+        dimension_label_preferring(Energy::DIM, Some("Energy")),
+        "Energy"
+    );
+    assert_eq!(
+        dimension_label_preferring(Power::DIM, Some("Torque")),
+        "Power"
+    );
+}
+
 #[test]
 fn fractions_are_shown_in_percent() {
     let f = format_quantity(0.253, crate::typed::Fraction::KIND).expect("Fraction");

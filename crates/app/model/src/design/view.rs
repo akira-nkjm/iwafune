@@ -52,6 +52,25 @@ pub struct ViewEdge {
     pub target_offset: Option<i32>,
 }
 
+impl ViewEdge {
+    /// 経路が 2 点以上で、隣り合う点が水平か垂直に並んでいるか（**経路の規則はここだけ**。検査 `view.route` が使う）。
+    pub fn is_orthogonal(&self) -> bool {
+        self.points.len() >= 2
+            && self
+                .points
+                .windows(2)
+                .all(|p| p[0][0] == p[1][0] || p[0][1] == p[1][1])
+    }
+
+    /// 端子の位置（側の左か上の角からの距離）が 0 以上か（検査 `view.port_offset` が使う）。
+    pub fn offsets_are_valid(&self) -> bool {
+        [self.source_offset, self.target_offset]
+            .into_iter()
+            .flatten()
+            .all(|o| o >= 0)
+    }
+}
+
 enum_text! {
     /// カードの端子を出す側。設計ファイルと CLI での書き方（`left` など）は [`ViewPortSide::as_str`] だけで決める。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

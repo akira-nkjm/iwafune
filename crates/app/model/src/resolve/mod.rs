@@ -8,6 +8,7 @@ mod compute;
 
 pub use compute::{evidence_of, pose_si, resolve, resolve_catalog_item, si_value};
 
+use crate::chain::{Chain, chain};
 use crate::design::{CatalogRef, Loc, Maturity, NetKind, NodeRef};
 use crate::enum_text::enum_text;
 use crate::id::Id;
@@ -219,36 +220,38 @@ impl Resolved {
     /// `body_T_part = chain[0] ∘ chain[1] ∘ …` の順に合成すると機体座標での部品の姿勢になる。
     /// 各取付は (取付点の姿勢, 取付点に対する姿勢) の 2 つを積む。循環していれば途中で止める。
     pub fn pose_chain(&self, part: &str) -> Vec<PoseSi> {
-        let mut reversed: Vec<PoseSi> = Vec::new();
-        let mut seen: Vec<&str> = Vec::new();
-        let mut current = self.parts.get(part);
-        while let Some(p) = current {
-            if seen.contains(&p.id.as_str()) {
-                break;
-            }
-            seen.push(&p.id);
-            let Some(mount) = &p.mount else { break };
-            reversed.push(mount.pose);
-            reversed.push(mount.point_pose);
-            current = self.parts.get(mount.on.as_str());
-        }
+        let mut reversed: Vec<PoseSi> = self
+            .mount_chain(part)
+            .filter_map(|p| p.mount.as_ref())
+            .flat_map(|mount| [mount.pose, mount.point_pose])
+            .collect();
         reversed.reverse();
         reversed
     }
 
-    /// 取付の根（取付先を持たない部品）までたどった ID（循環なら None）。
+    /// 取付の根（取付先を持たない部品）までたどった ID（循環か、取付先の部品が無ければ None）。
     pub fn mount_root(&self, part: &str) -> Option<&str> {
-        let mut seen: Vec<&str> = Vec::new();
-        let mut current = self.parts.get(part)?;
-        loop {
-            if seen.contains(&current.id.as_str()) {
-                return None;
-            }
-            seen.push(&current.id);
-            match &current.mount {
-                Some(m) => current = self.parts.get(m.on.as_str())?,
-                None => return Some(&current.id),
-            }
-        }
+        let mut parts = self.mount_chain(part);
+        let last = parts.by_ref().last()?;
+        (!parts.cycled() && last.mount.is_none()).then_some(last.id.as_str())
+    }
+
+    /// 部品から取付先をたどる連鎖（自分 → 取付先 → … の順。循環すればそこで止まる）。
+    fn mount_chain<'a>(
+        &'a self,
+        part: &str,
+    ) -> Chain<
+        &'a ResolvedPart,
+        &'a str,
+        impl Fn(&&'a ResolvedPart) -> &'a str,
+        impl FnMut(&&'a ResolvedPart) -> Option<&'a ResolvedPart>,
+    > {
+        chain(
+            self.parts.get(part),
+            |p: &&'a ResolvedPart| p.id.as_str(),
+            move |p: &&'a ResolvedPart| {
+                p.mount.as_ref().and_then(|m| self.parts.get(m.on.as_str()))
+            },
+        )
     }
 }

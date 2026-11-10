@@ -3,8 +3,9 @@
 
 use fune_model::Severity;
 use fune_model::design::{
-    AttitudeLawKind, BudgetKind, CatalogFieldName, LinkDirection, Maturity, NetFieldName, NetKind,
-    PartFieldName, PropagatorKind, SourceKind, UncertaintySide, ViewPortSide,
+    AnalysisSystem, AttitudeLawKind, BudgetKind, CatalogFieldName, HarnessEnd, LinkDirection,
+    Maturity, NetEnd, NetFieldName, NetKind, PartFieldName, PropagatorKind, SourceKind,
+    UncertaintySide, ViewPortSide,
 };
 use fune_model::enum_text::{EnumText, EnumTextError};
 use fune_model::path::SettingScope;
@@ -63,6 +64,41 @@ fn enum_text_matches_serde_names() {
     same_as_serde::<PartFieldName>();
     same_as_serde::<CatalogFieldName>();
     same_as_serde::<NetFieldName>();
+    same_as_serde::<AnalysisSystem>();
+    same_as_serde::<NetEnd>();
+    same_as_serde::<HarnessEnd>();
+}
+
+/// `analysis/` の型の欄（serde の名前 = ファイル名）は、解析の系の綴りと同じ順に並ぶ。
+#[test]
+fn analysis_settings_fields_are_the_analysis_systems() {
+    use fune_model::design::AnalysisSettings;
+    let all = AnalysisSettings {
+        power: Some(Default::default()),
+        attitude: Some(Default::default()),
+        cdh: Some(Default::default()),
+        comm: Some(Default::default()),
+        thermal: Some(Default::default()),
+        structure: Some(Default::default()),
+    };
+    let json = serde_json::to_value(&all).unwrap();
+    let keys: Vec<&str> = json
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    let mut names = AnalysisSystem::NAMES.to_vec();
+    let mut sorted = keys.clone();
+    sorted.sort_unstable();
+    names.sort_unstable();
+    assert_eq!(sorted, names);
+    for system in AnalysisSystem::ALL {
+        assert_eq!(
+            system.setting_path().to_string(),
+            format!("analysis.{system}")
+        );
+    }
 }
 
 /// 誤りの文は値の一覧を添える（CLI の `--source-side` の誤りなど、そのまま利用者に見せる）。

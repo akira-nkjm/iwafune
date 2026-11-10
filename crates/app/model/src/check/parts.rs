@@ -2,16 +2,15 @@
 
 use super::Ctx;
 use super::values::check_value_against;
-use crate::design::{EntityKey, Part, Pose};
-use crate::id::{fold, validate_node_id};
+use crate::chain::chain;
+use crate::design::{EntityKey, Part, Pose, position_unit};
 use crate::path::{AttrPath, PortRef};
 use crate::target::Target;
 use crate::value::units::expect_dimension;
-use std::collections::BTreeMap;
 
 /// 部品とグループ。
 pub(super) fn check_parts(ctx: &mut Ctx) {
-    check_node_ids(ctx);
+    check_group_labels(ctx);
     let design = ctx.design;
     for part in design.parts.values() {
         let entity = EntityKey::Part(part.id.to_string());
@@ -22,8 +21,8 @@ pub(super) fn check_parts(ctx: &mut Ctx) {
     }
 }
 
-/// ID の規則と、Group と Part を合わせた一意性（大文字小文字を無視）。
-fn check_node_ids(ctx: &mut Ctx) {
+/// fune.toml の `[groups]` の表示名が、parts/ のグループを指すか（ID の規則と一意性は `super::ids`）。
+fn check_group_labels(ctx: &mut Ctx) {
     let design = ctx.design;
     for id in design.project.groups.keys() {
         if !design.groups.contains_key(id.as_str()) {
@@ -35,36 +34,6 @@ fn check_node_ids(ctx: &mut Ctx) {
                 format!(
                     "fune.toml の [groups] の `{id}` に当たるディレクトリが parts/ にありません"
                 ),
-            );
-        }
-    }
-    let mut seen: BTreeMap<String, String> = BTreeMap::new();
-    let parts = design.parts.keys().map(|id| {
-        let id = id.to_string();
-        (id.clone(), Target::Part { id })
-    });
-    let groups = design.groups.keys().map(|id| {
-        let id = id.to_string();
-        (id.clone(), Target::Group { id })
-    });
-    for (id, target) in parts.chain(groups) {
-        let entity = EntityKey::Part(id.clone());
-        if let Err(e) = validate_node_id(&id) {
-            ctx.error(
-                "id.invalid",
-                &entity,
-                &[],
-                Some(target.clone()),
-                e.to_string(),
-            );
-        }
-        if let Some(other) = seen.insert(fold(&id), id.clone()) {
-            ctx.error(
-                "id.duplicate",
-                &entity,
-                &[],
-                Some(target),
-                format!("ID `{id}` が `{other}` と重複しています（大文字小文字を無視して比較）"),
             );
         }
     }
@@ -245,20 +214,17 @@ fn check_mount(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
 }
 
 fn mount_cycle(design: &crate::design::Design, part: &Part) -> bool {
-    let mut seen = vec![part.id.as_str()];
-    let mut current = part.mount.as_ref().map(|m| m.on.as_str());
-    while let Some(on) = current {
-        if seen.contains(&on) {
-            return true;
-        }
-        seen.push(on);
-        current = design
-            .parts
-            .get(on)
-            .and_then(|p| p.mount.as_ref())
-            .map(|m| m.on.as_str());
-    }
-    false
+    let mut parts = chain(
+        Some(part),
+        |p: &&Part| p.id.as_str(),
+        |p| {
+            p.mount
+                .as_ref()
+                .and_then(|m| design.parts.get(m.on.as_str()))
+        },
+    );
+    parts.by_ref().for_each(drop);
+    parts.cycled()
 }
 
 /// 姿勢 1 つ（部品の `pose` か、取付点 `mount_point` の姿勢）。
@@ -274,7 +240,7 @@ fn check_pose(ctx: &mut Ctx, entity: &EntityKey, id: &str, mount_point: Option<&
         })
     };
     if let Some(p) = &pose.position
-        && let Err(e) = expect_dimension(p.unit.as_deref().unwrap_or("m"), "Length")
+        && let Err(e) = expect_dimension(position_unit(p), "Length")
     {
         let code = match e {
             crate::value::ValueError::Dimension { .. } => "unit.dimension",
@@ -284,7 +250,7 @@ fn check_pose(ctx: &mut Ctx, entity: &EntityKey, id: &str, mount_point: Option<&
     }
     if let Some(q) = &pose.orientation {
         let norm = (q.w * q.w + q.x * q.x + q.y * q.y + q.z * q.z).sqrt();
-        if (norm - 1.0).abs() > 1e-3 {
+        if (norm - 1.0).abs() > super::UNIT_NORM_TOLERANCE {
             ctx.error(
                 "pose.quaternion_norm",
                 entity,

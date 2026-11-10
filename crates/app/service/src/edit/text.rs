@@ -24,7 +24,7 @@ pub use fune_model::value::list_from_text;
 pub(super) fn param_set_op(ws: &Workspace, t: &SetText) -> Result<Op> {
     match parse(&t.path).map_err(|e| ServiceError::InvalidInput(e.to_string()))? {
         ParamPath::Attr { part, attr, state } => {
-            let value = attr_value(ws, &attr, state.is_some(), t)?;
+            let value = attr_value(ws, &attr, AttrSlot::of(state.as_deref()), t)?;
             let from = (t.source.is_some() || t.note.is_some()).then(|| Provenance {
                 source: t.source.clone(),
                 note: t.note.clone(),
@@ -69,17 +69,35 @@ pub(super) fn invalid(e: impl std::fmt::Display) -> ServiceError {
     ServiceError::InvalidInput(e.to_string())
 }
 
-/// 属性の値（`cell` なら状態ごとの 1 セル）。型は属性定義から決める（`t.ops` があれば、それを当てた設計の定義）。
-pub(super) fn attr_value(ws: &Workspace, attr: &str, cell: bool, t: &SetText) -> Result<Value> {
+/// 打った値を書く先（属性の値そのものか、状態ごとの値の 1 セルか）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum AttrSlot {
+    /// 属性の値そのもの（型は属性定義の `type`）
+    Whole,
+    /// 状態ごとの値の 1 セル（`RW_X.power.on`。スカラー）
+    StateCell,
+}
+
+impl AttrSlot {
+    /// パスの状態（あればそのセル）から。
+    pub(super) fn of(state: Option<&str>) -> Self {
+        match state {
+            Some(_) => AttrSlot::StateCell,
+            None => AttrSlot::Whole,
+        }
+    }
+}
+
+/// 属性の値（`slot` が状態のセルならスカラー）。型は属性定義から決める（`t.ops` があれば、それを当てた設計の定義）。
+pub(super) fn attr_value(ws: &Workspace, attr: &str, slot: AttrSlot, t: &SetText) -> Result<Value> {
     let snapshot = snapshot_with(ws, &t.ops)?;
     let def = snapshot
         .design
         .attribute(attr)
         .ok_or_else(|| ServiceError::not_found("属性定義", attr))?;
-    let value_type = if cell {
-        ValueType::Scalar
-    } else {
-        def.value_type
+    let value_type = match slot {
+        AttrSlot::StateCell => ValueType::Scalar,
+        AttrSlot::Whole => def.value_type,
     };
     if t.value.trim_start().starts_with('{') {
         // `to_cli` はテンソルなどを `fune set <path> --json '{…}'` の形で出す。値の JSON（`{ type, data }`）として読む。

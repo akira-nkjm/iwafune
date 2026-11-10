@@ -34,6 +34,12 @@ pub fn dims_of<T: Serialize>(value: &T) -> BTreeMap<String, String> {
 /// 内部タグの列挙のタグの欄（sat-analysis の列挙はどれも `#[serde(tag = "kind")]`）。
 const TAG: &str = "kind";
 
+/// JSON Pointer（RFC 6901）の 1 区間の書き方（`~` → `~0`、`/` → `~1`）。**service の pointer の区間はここだけで書く**
+/// （次元・列挙の位置と、判定の位置 `analysis::checks`。Web は `features/systems/output.ts` の `jsonPointer`）。
+pub(super) fn pointer_token(key: &str) -> String {
+    key.replace('~', "~0").replace('/', "~1")
+}
+
 #[derive(Default)]
 struct Recorder {
     path: Vec<String>,
@@ -51,7 +57,7 @@ impl Recorder {
     fn pointer(&self) -> String {
         self.path
             .iter()
-            .map(|s| format!("/{}", s.replace('~', "~0").replace('/', "~1")))
+            .map(|s| format!("/{}", pointer_token(s)))
             .collect()
     }
 

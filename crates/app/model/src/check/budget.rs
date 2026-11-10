@@ -2,7 +2,7 @@
 
 use super::Ctx;
 use super::values::check_quantity_dimension;
-use crate::design::{Allocation, BudgetKind, EntityKey, MaturityFactors};
+use crate::design::{Allocation, BudgetKind, EntityKey, Maturity, MaturityFactors};
 use crate::diagnostic::Severity;
 use crate::path::SettingPath;
 use crate::target::Target;
@@ -33,12 +33,12 @@ pub(super) fn check_budget(ctx: &mut Ctx) {
 }
 
 fn check_factors(ctx: &mut Ctx, factors: &MaturityFactors, key: &str) {
-    for (name, value) in [
-        ("off_the_shelf", factors.off_the_shelf),
-        ("modified", factors.modified),
-        ("new", factors.new),
-    ] {
-        if value.is_some_and(|v| !(0.0..=1.0).contains(&v)) {
+    for maturity in Maturity::ALL {
+        let name = maturity.as_str();
+        if factors
+            .get(*maturity)
+            .is_some_and(|v| !(0.0..=1.0).contains(&v))
+        {
             ctx.report(
                 Severity::Error,
                 "budget.policy",
@@ -55,26 +55,26 @@ fn check_factors(ctx: &mut Ctx, factors: &MaturityFactors, key: &str) {
 fn check_allocation(ctx: &mut Ctx, kind: BudgetKind, alloc: &Allocation) {
     let design = ctx.design;
     let entity = EntityKey::Allocation;
-    let name = format!("{kind:?}").to_lowercase();
+    let name = kind.as_str();
     let dim = kind.dimension();
     if let Some((sev, code, msg)) = check_quantity_dimension(&alloc.limit, dim) {
-        let target = budget_target(&[&name, "limit"]);
-        ctx.report(sev, code, &entity, &[&name, "limit"], target, msg);
+        let target = budget_target(&[name, "limit"]);
+        ctx.report(sev, code, &entity, &[name, "limit"], target, msg);
         return;
     }
     if !(0.0..1.0).contains(&alloc.system_margin) {
         ctx.error(
             "budget.margin",
             &entity,
-            &[&name, "system_margin"],
-            budget_target(&[&name, "system_margin"]),
+            &[name, "system_margin"],
+            budget_target(&[name, "system_margin"]),
             "システムマージンは 0 以上 1 未満にします",
         );
     }
     let mut total = 0.0;
     for (node, q) in &alloc.alloc {
-        let keys = [name.as_str(), "alloc", node.as_str()];
-        let path = budget_target(&[&name, "alloc", node.as_str()]);
+        let keys = [name, "alloc", node.as_str()];
+        let path = budget_target(&[name, "alloc", node.as_str()]);
         if !design.node_exists(node) {
             ctx.error(
                 "ref.node",
@@ -95,8 +95,8 @@ fn check_allocation(ctx: &mut Ctx, kind: BudgetKind, alloc: &Allocation) {
         ctx.warning(
             "budget.over_allocated",
             &entity,
-            &[&name, "alloc"],
-            budget_target(&[&name, "alloc"]),
+            &[name, "alloc"],
+            budget_target(&[name, "alloc"]),
             format!("配分の合計 {total} が上限 × (1 − マージン) = {available}（SI）を超えています"),
         );
     }

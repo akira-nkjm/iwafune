@@ -277,7 +277,7 @@ pub fn pose_si(pose: Option<&Pose>) -> PoseSi {
         return PoseSi::IDENTITY;
     };
     let position = pose.position.as_ref().map_or([0.0; 3], |p| {
-        let unit = p.unit.as_deref().unwrap_or("m");
+        let unit = crate::design::position_unit(p);
         [
             to_si(p.x, unit).unwrap_or(0.0),
             to_si(p.y, unit).unwrap_or(0.0),

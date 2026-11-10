@@ -4,10 +4,11 @@
 use crate::context::{Context, mode_def};
 use crate::missing::MissingInputs;
 use crate::parts::{direction_body, state_values};
-use crate::quantity::{qty, qty_opt};
+use crate::quantity::{setting, setting_opt};
 use crate::timeline;
 use fune_model::Target;
-use fune_model::design::{ThermalCaseSettings, ThermalSettings};
+use fune_model::design::setting_dims as dims;
+use fune_model::design::{AnalysisSystem, ThermalCaseSettings, ThermalSettings};
 use fune_model::path::SettingPath;
 use fune_model::resolve::SiValue;
 use sat_analysis::thermal::network::{
@@ -19,9 +20,7 @@ use sat_analysis::thermal::transient::{ThermalHeatPhase, ThermalInitial};
 use sat_analysis::thermal::{
     ThermalEnvironment, ThermalExposure, ThermalSteadyInput, ThermalTransientInput,
 };
-use sat_units::typed::{
-    Area, Fraction, Irradiance, Power, Qty, Temperature, ThermalConductance, Time,
-};
+use sat_units::typed::{Fraction, Power, Qty};
 use std::collections::BTreeMap;
 
 fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a ThermalSettings> {
@@ -31,7 +30,7 @@ fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a Therm
 
 /// `analysis.thermal.<…>`（`analysis/thermal.toml` のキー）。
 fn thermal(keys: &[&str]) -> SettingPath {
-    SettingPath::analysis(&["thermal"]).child(keys)
+    AnalysisSystem::Thermal.setting_path().child(keys)
 }
 
 /// 部品 → 節点。
@@ -96,15 +95,17 @@ fn node_part(
 /// 取付の両端を節点へ対応させ、単体コンダクタンスとともに解析へ渡す。
 fn links(ctx: &Context<'_>, s: &ThermalSettings, m: &mut MissingInputs) -> Option<ThermalMounts> {
     let node = node_of(s);
-    let g = qty::<ThermalConductance>(
+    let g = setting(
+        &dims::THERMAL_CONTACT_CONDUCTANCE,
+        &[],
         s.contact_conductance.as_ref(),
-        thermal(&["contact_conductance"]),
         "取付の接触熱コンダクタンス",
         m,
     );
-    let r = qty_opt::<Area>(
+    let r = setting_opt(
+        &dims::THERMAL_RADIATIVE_COUPLING,
+        &[],
         s.radiative_coupling.as_ref(),
-        thermal(&["radiative_coupling"]),
         m,
     );
     let mounts = ctx
@@ -192,16 +193,18 @@ fn loads(ctx: &Context<'_>, s: &ThermalSettings, mode: Option<&str>) -> Option<T
     })
 }
 
-fn environment(
-    c: &ThermalCaseSettings,
-    path: &SettingPath,
-    m: &mut MissingInputs,
-) -> ThermalEnvironment {
+/// 環境条件 `id`（`[case.<id>]`）の入熱の環境。
+fn environment(id: &str, c: &ThermalCaseSettings, m: &mut MissingInputs) -> ThermalEnvironment {
     // 書かれていない値は None のまま渡す（既定値は解析が持つ）
     ThermalEnvironment {
-        solar_flux: qty_opt::<Irradiance>(c.solar_flux.as_ref(), path.child(&["solar_flux"]), m),
+        solar_flux: setting_opt(
+            &dims::THERMAL_CASE_SOLAR_FLUX,
+            &[id],
+            c.solar_flux.as_ref(),
+            m,
+        ),
         albedo: c.albedo.map(Fraction::new),
-        earth_ir: qty_opt::<Irradiance>(c.earth_ir.as_ref(), path.child(&["earth_ir"]), m),
+        earth_ir: setting_opt(&dims::THERMAL_CASE_EARTH_IR, &[id], c.earth_ir.as_ref(), m),
         space_temperature: None,
     }
 }
@@ -215,16 +218,15 @@ pub fn steady(ctx: &Context<'_>) -> Result<ThermalSteadyInput, MissingInputs> {
     let net = network(ctx, s, &mut m);
     let mut cases = Vec::new();
     for (id, c) in &s.cases {
-        let path = thermal(&["case", id]);
         let mode = c.mode.as_deref();
         let Some(mut t) = timeline::timeline(ctx, mode, 1, &mut m) else {
             continue;
         };
-        t.sampling.beta = qty_opt(c.beta.as_ref(), path.child(&["beta"]), &mut m);
+        t.sampling.beta = setting_opt(&dims::THERMAL_CASE_BETA, &[id], c.beta.as_ref(), &mut m);
         cases.push(ThermalSteadyCase {
             id: id.clone(),
             label: c.label.clone().unwrap_or_else(|| id.clone()),
-            environment: environment(c, &path, &mut m),
+            environment: environment(id, c, &mut m),
             exposure: ThermalExposure::OrbitAverage { timeline: t },
             loads: Vec::new(),
             mode_loads: loads(ctx, s, mode),
@@ -256,7 +258,6 @@ pub fn transient(ctx: &Context<'_>) -> Result<ThermalTransientInput, MissingInpu
         m.push(thermal(&["case"]), "熱の環境条件（[case.<名前>]）");
         return Err(m);
     };
-    let path = thermal(&["case", id]);
     let mode = c.mode.as_deref();
     let t = timeline::timeline(
         ctx,
@@ -265,21 +266,23 @@ pub fn transient(ctx: &Context<'_>) -> Result<ThermalTransientInput, MissingInpu
         &mut m,
     )
     .map(|mut t| {
-        t.sampling.beta = qty_opt(c.beta.as_ref(), path.child(&["beta"]), &mut m);
-        if let Some(step) = qty_opt::<Time>(s.time_step.as_ref(), thermal(&["time_step"]), &mut m) {
+        t.sampling.beta = setting_opt(&dims::THERMAL_CASE_BETA, &[id], c.beta.as_ref(), &mut m);
+        if let Some(step) = setting_opt(&dims::THERMAL_TIME_STEP, &[], s.time_step.as_ref(), &mut m)
+        {
             t.sampling.step = step;
         }
         t
     });
-    let initial = match qty_opt::<Temperature>(
+    let initial = match setting_opt(
+        &dims::THERMAL_INITIAL_TEMPERATURE,
+        &[],
         s.initial_temperature.as_ref(),
-        thermal(&["initial_temperature"]),
         &mut m,
     ) {
         Some(temperature) => ThermalInitial::Uniform { temperature },
         None => ThermalInitial::OrbitAverageSteady,
     };
-    let environment = environment(c, &path, &mut m);
+    let environment = environment(id, c, &mut m);
     let phases = vec![ThermalHeatPhase {
         label: mode.unwrap_or("").to_owned(),
         duration: Qty::from_raw(sat_astro::constants::SECONDS_PER_DAY),

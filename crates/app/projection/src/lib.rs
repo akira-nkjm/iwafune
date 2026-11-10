@@ -13,6 +13,7 @@
 //! | `missing` | 不足入力の型と収集 |
 //! | `power` `attitude` `cdh` `comm` `thermal` `structure` | 系ごとの射影 |
 //! | `dispatch` | 解析 ID → 射影（入力の JSON）の対応表。実行は service（`sat_analysis::catalog::run_json`） |
+//! | `system` | 解析の系の対応（model の `AnalysisSystem` ⇄ sat-analysis の `System`）と一致のテスト |
 
 pub mod attitude;
 pub mod cdh;
@@ -25,6 +26,7 @@ pub mod pose;
 pub mod power;
 pub mod quantity;
 pub mod structure;
+pub mod system;
 pub mod thermal;
 pub mod timeline;
 
