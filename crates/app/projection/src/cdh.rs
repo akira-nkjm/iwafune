@@ -2,15 +2,12 @@
 
 use crate::context::Context;
 use crate::missing::MissingInputs;
-use crate::parts::by_role;
+use crate::parts::{by_role, state_values};
 use crate::quantity::qty;
 use fune_model::Target;
 use fune_model::path::SettingPath;
-use fune_model::resolve::{ResolvedPart, SiValue};
 use sat_analysis::cdh::DataBudgetInput;
-use sat_analysis::cdh::data_budget::{
-    DataBudgetModeShare, DataBudgetPart, DataBudgetRates, DataBudgetStorage,
-};
+use sat_analysis::cdh::data_budget::{DataBudgetModeShare, DataBudgetPart, DataBudgetStorage};
 use sat_units::typed::{Qty, Time};
 
 /// `cdh.data_budget`
@@ -24,8 +21,8 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
         .map(|p| DataBudgetPart {
             id: p.id.clone(),
             count: crate::parts::count_of(p),
-            hk_rate: rates(p, "hk_rate"),
-            mission_rate: rates(p, "mission_rate"),
+            hk_rate: state_values(p, "hk_rate").unwrap_or_default(),
+            mission_rate: state_values(p, "mission_rate").unwrap_or_default(),
         })
         .collect();
     if parts.is_empty() {
@@ -71,26 +68,6 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
             hk_overhead: s.and_then(|s| s.packet_overhead),
         })
     })
-}
-
-fn rates(p: &ResolvedPart, attr: &str) -> DataBudgetRates {
-    match p.value(attr) {
-        Some(SiValue::Scalar(s)) => DataBudgetRates {
-            default: Some(Qty::from_raw(s.value)),
-            by_state: Default::default(),
-        },
-        Some(SiValue::ByState(map)) => DataBudgetRates {
-            default: None,
-            by_state: map
-                .iter()
-                .map(|(k, v)| (k.clone(), Qty::from_raw(v.value)))
-                .collect(),
-        },
-        _ => DataBudgetRates {
-            default: None,
-            by_state: Default::default(),
-        },
-    }
 }
 
 /// 1 日に占めるモードの割合（`analysis.power.mode_share`。ケースがあればそのモードだけで 1）。

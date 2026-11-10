@@ -300,8 +300,7 @@ fn verdicts(
         return checks;
     };
     let mut check = |key: &str, label: &str, time: Option<Qty<Time>>| {
-        let ok = time.is_some_and(|t| t <= req);
-        let v = if ok { Verdict::Ok } else { Verdict::Violation };
+        let v = Verdict::from_ok(time.is_some_and(|t| t <= req));
         let shown = time.map_or("捨てられない".to_owned(), |t| {
             quantity_text(t.value(), "Time")
         });

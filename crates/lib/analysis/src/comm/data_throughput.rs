@@ -5,7 +5,7 @@
 //! - `link` を与えると、回線余裕を満たす最低仰角（[`crate::comm::link`]）を局の最低仰角に重ねて、その上だけを数える。
 //! - データは一様に発生し、パス中は「発生量 + 蓄積」を上限に送る。
 
-use crate::budget::{BudgetItem, budget_rollup};
+use crate::budget::{BudgetItem, limit_check};
 use crate::comm::link::{DEFAULT_REQUIRED_MARGIN_DB, RfLinkParams};
 use crate::comm::passes::{day_windows, find_all_passes, pass_interval, search_window};
 use crate::spec::{
@@ -178,6 +178,7 @@ fn link_min_elevation(
         return Err(AnalysisError::InvalidInput("軌道の高度が負です".to_owned()));
     }
     let el = link.rf.min_elevation_for_margin(
+        input.orbit.central.radius_m(),
         altitude,
         input.downlink_rate.value(),
         link.required_eb_n0_db,
@@ -329,15 +330,20 @@ fn checks(
             "天頂でも要求の回線余裕を満たしません",
         ));
     }
+    // `value ≤ limit` の判定はバジェットの判定（`budget::limit_check`）を 1 行で使う。
+    let at_most = |key: &str, label: &str, value: f64, limit: f64| {
+        let row = [BudgetItem::counted(key, value, 1)];
+        limit_check(&row, limit, key, label, "Information")
+    };
     let generated = input.generated_per_day.value();
-    out.extend(limit_check(
+    out.extend(at_most(
         "capacity",
         "送信可能量と発生量",
         generated,
         capacity_per_day,
     )?);
     if let Some(cap) = input.storage_capacity {
-        out.extend(limit_check(
+        out.extend(at_most(
             "storage",
             "未送信データとストレージ",
             max_backlog,
@@ -345,23 +351,6 @@ fn checks(
         )?);
     }
     Ok(out)
-}
-
-/// `value ≤ limit` の判定（バジェットの判定 `budget::budget_rollup` を 1 行で使う）。
-fn limit_check(
-    key: &str,
-    label: &str,
-    value: f64,
-    limit: f64,
-) -> Result<Option<Check>, AnalysisError> {
-    let item = BudgetItem {
-        id: key.to_owned(),
-        group: String::new(),
-        value,
-        count: 1,
-        growth: 0.0,
-    };
-    Ok(budget_rollup(&[item], Some(limit), 0.0)?.check(key, label, "Information"))
 }
 
 #[path = "data_throughput_backlog.rs"]

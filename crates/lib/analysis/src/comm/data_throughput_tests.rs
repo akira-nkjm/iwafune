@@ -85,7 +85,7 @@ fn link_closure_raises_min_elevation() {
         el > 10.0_f64.to_radians() && el < 80.0_f64.to_radians(),
         "{el}"
     );
-    let range = crate::comm::link::slant_range_m(550.0e3, el);
+    let range = sat_astro::ground::slant_range_m(sat_astro::constants::R_EARTH, 550.0e3, el);
     let margin = uhf().eb_n0_margin_db(range, 9600.0, 20.0);
     assert!((margin - 3.0).abs() < 1e-6, "{margin}");
     let total = |o: &DataThroughputOutput| o.passes.iter().map(|p| p.assigned.value()).sum::<f64>();

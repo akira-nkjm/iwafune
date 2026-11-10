@@ -9,6 +9,6 @@ export type ModeLoadStateShare = { state: string,
  */
 fraction: number, 
 /**
- * その状態の消費電力（表に無ければ `None`）
+ * その状態の部品の消費電力（単体値 × 員数。表に無ければ `None`）
  */
 power: number | null, };

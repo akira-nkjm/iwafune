@@ -1,11 +1,11 @@
 //! 日照時の発電（`power.solar_sunlit`）。
 //!
 //! ケースごとに、太陽方向を直接与えるか（機体座標系）、軌道と姿勢則の時系列を与える。
-//! 時系列のケースは日照中（日照率 ≥ [`SUNLIT_THRESHOLD`]）の時間だけの時間平均（台形則）と最小・最大を出し、
+//! 時系列のケースは日照中（[`crate::spec::is_sunlit`]）の時間だけの時間平均（台形則）と最小・最大を出し、
 //! **全日照（日照率 1）として**発電を評価する（姿勢による差だけを見るため）。発電モデルは [`super::solar`]。
 
-use super::solar::{SUNLIT_THRESHOLD, SolarArray, SolarLife, total};
-use crate::spec::{Analysis, AnalysisError, AnalysisKind, System, masked_time_mean};
+use super::solar::{SolarArray, SolarLife, total};
+use crate::spec::{Analysis, AnalysisError, AnalysisKind, System, is_sunlit, masked_time_mean};
 use sat_astro::math::Vec3;
 use sat_astro::timeline::{self, TimelineSpec};
 use sat_units::typed::{Angle, Power, Qty};
@@ -142,7 +142,7 @@ fn evaluate_case(
                     .iter()
                     .map(|s| (s.sun_dir_body(), array.flux(Some(s.sun_distance_m))))
                     .collect(),
-                lit: tl.iter().map(|s| s.sunlit >= SUNLIT_THRESHOLD).collect(),
+                lit: tl.iter().map(is_sunlit).collect(),
             }
         }
     };

@@ -2,6 +2,7 @@
 
 use crate::attitude::disturbance::{DisturbanceSpacecraft, DisturbanceTorques};
 use crate::attitude::wheels::WheelSet;
+use crate::spec::orbit_segments;
 use sat_astro::ephem::CentralBody;
 use sat_astro::math::Vec3;
 use sat_astro::ode::rk4_linear_step;
@@ -88,17 +89,11 @@ pub(super) fn secular_and_cyclic(
     if t.len() < 2 {
         return (Vec3::ZERO, 0.0);
     }
-    let segments: Vec<(usize, usize)> = if ranges.is_empty() {
-        vec![(0, t.len() - 1)]
-    } else {
-        ranges
-            .iter()
-            .map(|r| (r.start, r.end.min(t.len() - 1)))
-            .collect()
-    };
+    let segments = orbit_segments(t.len(), ranges);
     let mut secular = Vec3::ZERO;
     let mut amplitude = 0.0_f64;
-    for &(s, e) in &segments {
+    for seg in &segments {
+        let (s, e) = (*seg.start(), *seg.end());
         let duration = t[e] - t[s];
         if duration <= 0.0 {
             continue;

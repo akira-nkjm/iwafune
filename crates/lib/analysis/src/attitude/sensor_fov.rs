@@ -3,22 +3,21 @@
 //! 軌道と姿勢則の時系列（`sat_astro::timeline`）の各点で、センサの視線（機体座標系）と
 //! 太陽・中心天体（地球）の縁・月のなす角を求め、禁止角を下回る時間（侵入）の割合を時間平均（台形則）で数える。
 //!
-//! - 太陽: 日陰中（日照率 < [`SUNLIT_THRESHOLD`]）は侵入としない。
+//! - 太陽: 日陰中（[`crate::spec::is_sunlit`] が偽）は侵入としない。
 //! - 中心天体の縁（`earth_limb`）: `視線と中心方向のなす角 − 見込み半角 asin(R/|r|)`。R は `TimelineSpec.orbit.central`
 //!   の半径。負なら視線が円盤の中。
 //! - 月: 衛星から月への方向（`CentralBody::relative_position_m`）。中心天体の陰にあるとき
 //!   （`sat_astro::shadow::occulted_by`）は侵入としない。
 
-use crate::power::solar::SUNLIT_THRESHOLD;
 use crate::spec::quantity_text;
 use crate::spec::{
     Analysis, AnalysisError, AnalysisKind, Channel, Check, Series, System, Verdict,
-    ensure_fraction, ensure_non_negative,
+    ensure_fraction, ensure_non_negative, is_sunlit, longest_window, time_fraction,
 };
 use sat_astro::ephem::{Body, CentralBody};
 use sat_astro::math::Vec3;
 use sat_astro::shadow::occulted_by;
-use sat_astro::timeline::{self, TimelineSample, TimelineSpec, Window, time_mean, windows};
+use sat_astro::timeline::{self, TimelineSample, TimelineSpec, Window, windows};
 use sat_units::typed::{Angle, Fraction, Qty, Time};
 use serde::{Deserialize, Serialize};
 
@@ -223,7 +222,7 @@ impl Geometry {
         let to_moon_eci = r_moon - s.r_eci;
         Self {
             sun_body: s.sun_dir_body(),
-            sun_visible: s.sunlit >= SUNLIT_THRESHOLD,
+            sun_visible: is_sunlit(s),
             nadir_body: s.nadir_body(),
             earth_radius_rad,
             moon_body: s.to_body(to_moon_eci),
@@ -274,11 +273,8 @@ fn evaluate_sensor(
             target,
             exclusion,
             min_angle: Qty::from_raw(angles.iter().copied().fold(f64::INFINITY, f64::min)),
-            intrusion_fraction: Fraction::new(fraction(t, &flags)),
-            longest_intrusion: w
-                .iter()
-                .map(|w| w.duration)
-                .fold(Qty::ZERO, |a, d| if d > a { d } else { a }),
+            intrusion_fraction: time_fraction(t, &flags, &[]),
+            longest_intrusion: longest_window(&w),
             windows: w,
         });
     }
@@ -286,16 +282,10 @@ fn evaluate_sensor(
         id: s.id.clone(),
         fov_half_angle: s.fov_half_angle,
         targets,
-        intrusion_fraction: Fraction::new(fraction(t, &any)),
+        // 侵入の割合は周回で区切らず、全期間で数える
+        intrusion_fraction: time_fraction(t, &any, &[]),
         intrusions: windows(t, &any),
     }
-}
-
-/// 真の時間の割合（台形則の時間平均、`sat_astro::timeline::time_mean`）。
-fn fraction(t: &[f64], flags: &[bool]) -> f64 {
-    let v: Vec<f64> = flags.iter().map(|&f| f64::from(u8::from(f))).collect();
-    let m = time_mean(t, &v);
-    if m.is_finite() { m } else { 0.0 }
 }
 
 fn verdict(s: &SensorFovSensor, r: &SensorFovResult) -> Check {

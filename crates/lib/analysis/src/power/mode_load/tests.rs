@@ -6,10 +6,14 @@ fn part(id: &str, group: &str, states: &[(&str, f64)], growth: Option<f64>) -> M
         id: id.to_owned(),
         label: id.to_owned(),
         group: group.to_owned(),
-        power: states
-            .iter()
-            .map(|(s, w)| ((*s).to_owned(), Qty::from_raw(*w)))
-            .collect(),
+        count: 1,
+        power: StateValues {
+            default: None,
+            by_state: states
+                .iter()
+                .map(|(s, w)| ((*s).to_owned(), Qty::from_raw(*w)))
+                .collect(),
+        },
         growth_margin: growth,
     }
 }
@@ -71,11 +75,25 @@ fn unassigned_part_is_warned_not_zero() {
 #[test]
 fn missing_state_power_is_reported() {
     let mut i = input();
-    i.parts[2].power.remove("on");
+    i.parts[2].power.by_state.remove("on");
     let m = &ModeLoad::run(&i).unwrap().modes[0];
     assert_eq!(m.missing_power.len(), 1);
     assert_eq!(m.missing_power[0].state, "on");
     let cam = m.parts.iter().find(|p| p.part == "CAM").unwrap();
     assert!(cam.mean.is_none());
     assert!((m.total.value() - 4.3).abs() < 1e-12);
+}
+
+#[test]
+fn count_multiplies_the_unit_power() {
+    // TRX を 2 台: 0.9×2×2 + 0.1×10×2 = 5.6 W、成長余裕 20 % で 6.72 W。状態の電力も 2 台分を出す
+    let mut i = input();
+    i.parts[1].count = 2;
+    let m = &ModeLoad::run(&i).unwrap().modes[0];
+    let trx = m.parts.iter().find(|p| p.part == "TRX").unwrap();
+    assert!((trx.mean.unwrap().value() - 5.6).abs() < 1e-12);
+    assert!((trx.mean_with_growth.unwrap().value() - 6.72).abs() < 1e-12);
+    assert_eq!(trx.states[1].power.map(Qty::value), Some(20.0));
+    // 合計は 1.5 + 5.6 + 1.0 = 8.1 W
+    assert!((m.total.value() - 8.1).abs() < 1e-12);
 }

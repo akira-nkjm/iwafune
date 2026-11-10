@@ -41,24 +41,15 @@ pub fn point_mass(mu: f64, r: Vec3) -> Vec3 {
     }
 }
 
-/// J2 による摂動加速度（ECI。地球の自転軸は ECI の z 軸とみなす）。
+/// 地球の J2 による摂動加速度（ECI。地球の自転軸は ECI の z 軸とみなす）。[`zonal_j2`] の地球・`pole = z`。
 pub fn j2_perturbation(r: Vec3) -> Vec3 {
-    let rn = r.norm();
-    if rn.is_nan() || rn <= 0.0 {
-        return Vec3::ZERO;
-    }
-    let k = -1.5 * J2_EARTH * MU_EARTH * R_EARTH * R_EARTH / rn.powi(5);
-    let z2 = (r.z / rn).powi(2);
-    Vec3::new(
-        k * r.x * (1.0 - 5.0 * z2),
-        k * r.y * (1.0 - 5.0 * z2),
-        k * r.z * (3.0 - 5.0 * z2),
-    )
+    zonal_j2(MU_EARTH, R_EARTH, J2_EARTH, Vec3::Z, r)
 }
 
-/// 自転軸 `pole`（単位ベクトル）まわりの J2 の摂動（μ [m³/s²]・基準半径 `re` [m]・J2）。
+/// 自転軸 `pole`（単位ベクトル）まわりの J2 の摂動（μ [m³/s²]・基準半径 `re` [m]・J2）。**J2 の式はここだけ。**
 ///
-/// `a = −(3/2) J2 μ R²/r⁵ [r (1 − 5 (r·p)²/r²) + 2 (r·p) p]`。`pole = z` なら [`j2_perturbation`] と同じ式。
+/// `a = −(3/2) J2 μ R²/r⁵ [r (1 − 5 (r·p)²/r²) + 2 (r·p) p]`。`pole = z` なら成分は
+/// `k x (1 − 5 z²/r²)`・`k y (1 − 5 z²/r²)`・`k z (3 − 5 z²/r²)`（`k = −(3/2) J2 μ R²/r⁵`）。
 pub fn zonal_j2(mu: f64, re: f64, j2: f64, pole: Vec3, r: Vec3) -> Vec3 {
     let rn = r.norm();
     if rn.is_nan() || rn <= 0.0 {
@@ -97,10 +88,18 @@ pub fn srp_eci(p: &SrpParams, r_sat: Vec3, r_sun: Vec3) -> Vec3 {
 }
 
 /// 大気抵抗（キャノンボール、大気は地球と共回転）。密度は [`crate::atmosphere::density_kg_m3`]。
+/// 加速度は [`drag_force`] に `Cd·A/m` を渡したもの。
 pub fn drag_eci(p: &DragParams, epoch: Epoch, state: &OrbitState) -> Vec3 {
     let v_rel = relative_wind_eci(state.r_eci, state.v_eci);
     let rho = density_kg_m3(&p.atmosphere, state.r_eci, epoch);
-    v_rel * (-0.5 * rho * p.cd * p.area_to_mass * v_rel.norm())
+    drag_force(rho, p.cd * p.area_to_mass, v_rel)
+}
+
+/// 抗力 `F = −½ ρ (Cd·A) |v| v`。`rho` は大気密度 [kg/m³]、`cd_area` は抗力係数 × 面積 [m²]、
+/// `v_rel` は大気に対する速度 [m/s]（[`relative_wind_eci`] か、それを機体座標系に直したもの）。
+/// `cd_area` に `Cd·A/m` [m²/kg] を渡すと加速度 [m/s²]。**抗力の式はここだけ**（軌道の抗力と空力トルクで共有する）。
+pub fn drag_force(rho: f64, cd_area: f64, v_rel: Vec3) -> Vec3 {
+    v_rel * (-0.5 * rho * cd_area * v_rel.norm())
 }
 
 /// 一般相対論の補正（Schwarzschild 項、IERS 2010 eq. 10.12 の主項。中心天体の μ [m³/s²]）。

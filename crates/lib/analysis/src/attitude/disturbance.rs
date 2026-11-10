@@ -6,14 +6,14 @@
 //! | 種類 | 式 |
 //! |---|---|
 //! | 重力傾斜 | `τ = 3μ/|r|⁵ · r × (I r)`（`r` は中心天体 → 衛星、機体座標系。μ は中心天体のもの） |
-//! | 空力 | `F = −½ ρ (Cd·A) |v| v`、`τ = r_cp × F`（`v` は `sat_astro::force::relative_wind_eci`、ρ は `atmosphere::density_about_kg_m3`。地球以外は 0） |
+//! | 空力 | `F = −½ ρ (Cd·A) |v| v`（`sat_astro::force::drag_force`）、`τ = r_cp × F`（`v` は `sat_astro::force::relative_wind_eci`、ρ は `atmosphere::density_about_kg_m3`。地球以外は 0） |
 //! | 太陽輻射圧 | `F = −P (Cr·A) ŝ`、`P = force::srp_pressure(太陽距離) · ν`、`τ = r_cp × F` |
 //! | 残留磁気 | `τ = m × B`（B は `geomag::field_about_eci_t`。地球以外は 0） |
 
 use crate::spec::{AnalysisError, ensure_non_negative, ensure_positive};
 use sat_astro::atmosphere::{AtmosphereModel, density_about_kg_m3};
 use sat_astro::ephem::CentralBody;
-use sat_astro::force::{relative_wind_eci, srp_pressure};
+use sat_astro::force::{drag_force, relative_wind_eci, srp_pressure};
 use sat_astro::geomag::field_about_eci_t;
 use sat_astro::math::{Mat3, Vec3};
 use sat_astro::timeline::TimelineSample;
@@ -151,8 +151,9 @@ pub fn gravity_gradient(inertia: &Mat3, r_body: Vec3, mu: f64) -> Vec3 {
 }
 
 /// 空力トルク [N·m]。`rho` は大気密度 [kg/m³]、`v_rel_body` は大気に対する機体の速度 [m/s]（機体座標系）。
+/// 抗力は `sat_astro::force::drag_force`。
 pub fn aero(surface: &DisturbanceSurface, rho: f64, v_rel_body: Vec3) -> Vec3 {
-    let force = v_rel_body * (-0.5 * rho * surface.coefficient_area.value() * v_rel_body.norm());
+    let force = drag_force(rho, surface.coefficient_area.value(), v_rel_body);
     surface.cp_offset.cross(force)
 }
 

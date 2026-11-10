@@ -12,6 +12,7 @@ use sat_analysis::comm::data_throughput::DataThroughputLink;
 use sat_analysis::comm::link_budget::{LinkBudgetDirection, LinkBudgetLink};
 use sat_analysis::comm::{DataThroughputInput, LinkBudgetInput, RfLinkParams, VisibilityInput};
 use sat_analysis::spec::Analysis;
+use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
 use sat_units::typed::{DataRate, Frequency, Length, Power, Qty, Temperature};
 
@@ -35,14 +36,14 @@ pub fn link_budget(ctx: &Context<'_>) -> Result<LinkBudgetInput, MissingInputs> 
     let mut m = MissingInputs::new();
     let s = settings(ctx, &mut m);
     let stations = ctx.stations(s.map(|s| s.stations.as_slice()).unwrap_or(&[]), &mut m);
-    let altitude = altitude(ctx, &mut m);
+    let height = orbit_height(ctx, &mut m);
     let mut links = Vec::new();
     if let (Some(s), Some(station)) = (s, stations.first()) {
         if s.links.is_empty() {
             m.push(comm(&["link"]), "回線の設定（[link.<名前>]）");
         }
         for (name, link) in &s.links {
-            if let Some(l) = budget_link(ctx, name, link, station, altitude, &mut m) {
+            if let Some(l) = budget_link(ctx, name, link, station, height, &mut m) {
                 links.push(l);
             }
         }
@@ -61,7 +62,7 @@ fn budget_link(
     name: &str,
     link: &CommLinkSettings,
     station: &GroundStation,
-    altitude: Option<Qty<Length>>,
+    height: Option<(Qty<Length>, CentralBody)>,
     m: &mut MissingInputs,
 ) -> Option<LinkBudgetLink> {
     let (rf, data_rate) = rf_params(ctx, name, link, &station.id, m)?;
@@ -79,7 +80,8 @@ fn budget_link(
         rf,
         data_rate,
         required_eb_n0_db: required?,
-        altitude: altitude?,
+        altitude: height?.0,
+        central: height?.1,
         elevation: station.min_elevation,
     })
 }
@@ -190,9 +192,10 @@ fn ground_link<'a>(
     m.need(l, ground_band(station, band), "地上局のこの帯域の性能")
 }
 
-/// 円軌道の高度（`mission.orbit.altitude`、無ければ長半径 − 地球半径）。
-fn altitude(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<Qty<Length>> {
-    Some(Qty::from_raw(ctx.orbit(m)?.altitude_m()))
+/// 円軌道の高度（`mission.orbit.altitude`、無ければ長半径 − 中心天体の半径）と中心天体（斜距離に半径を使う）。
+fn orbit_height(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<(Qty<Length>, CentralBody)> {
+    let orbit = ctx.orbit(m)?;
+    Some((Qty::from_raw(orbit.altitude_m()), orbit.central))
 }
 
 /// `comm.visibility`: 1 日分。

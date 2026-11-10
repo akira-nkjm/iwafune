@@ -4,14 +4,14 @@
 //! 軌道上の向きは `sat_astro::timeline` のサンプルから取る。ここでは吸収率・放射率を掛けて節点に配るだけ。
 //! アルベドは「形態係数 × max(0, 衛星の位置と太陽方向の cos)」で近似する（概念設計の精度）。
 
-use crate::spec::{AnalysisError, orbit_ranges};
+use crate::spec::{AnalysisError, orbit_mean, orbit_ranges};
 use crate::thermal::network::{Compiled, Surface};
 use sat_astro::constants::{EARTH_ALBEDO, EARTH_IR, SOLAR_CONSTANT};
 use sat_astro::ephem::CentralBody;
 use sat_astro::illumination::{earth_view_factor, solar_flux_w_m2, solar_incidence};
 use sat_astro::math::Vec3;
 use sat_astro::orbit::semi_major_axis_from_altitude;
-use sat_astro::timeline::{TimelineSample, TimelineSpec, build, time_mean};
+use sat_astro::timeline::{TimelineSample, TimelineSpec, build};
 use sat_units::typed::{Irradiance, Length, Qty, Temperature};
 use serde::{Deserialize, Serialize};
 
@@ -138,34 +138,21 @@ pub(crate) fn timeline_geometry(
     Ok((t, samples.iter().map(Geometry::from_sample).collect()))
 }
 
-/// 時系列の入熱の平均 [W]。完全な周回があれば、その範囲（最初の周回の先頭〜最後の周回の末尾）だけで平均する。
+/// 時系列の入熱の周回平均 [W]（`crate::spec::orbit_mean`。完全な周回が無ければ全期間の平均）。
 pub(crate) fn mean_absorbed(
     net: &Compiled,
     env: &ThermalEnvironment,
     spec: &TimelineSpec,
 ) -> Result<Vec<f64>, AnalysisError> {
     let (t, geo) = timeline_geometry(spec)?;
-    let range = averaging_range(&t, spec.orbit.period_s());
-    let per_sample: Vec<Vec<f64>> = geo[range.clone()]
-        .iter()
-        .map(|g| absorbed(net, env, g))
-        .collect();
+    let ranges = orbit_ranges(&t, spec.orbit.period_s());
+    let per_sample: Vec<Vec<f64>> = geo.iter().map(|g| absorbed(net, env, g)).collect();
     Ok((0..net.len())
         .map(|i| {
             let v: Vec<f64> = per_sample.iter().map(|q| q[i]).collect();
-            time_mean(&t[range.clone()], &v)
+            orbit_mean(&t, &v, &ranges)
         })
         .collect())
-}
-
-/// 時間平均を取るサンプルの範囲（両端を含む）。完全な周回があれば最初の周回の先頭〜最後の周回の末尾、無ければ全体。
-pub(crate) fn averaging_range(t: &[f64], period_s: f64) -> std::ops::RangeInclusive<usize> {
-    let last = t.len().saturating_sub(1);
-    let ranges = orbit_ranges(t, period_s);
-    match (ranges.first(), ranges.last()) {
-        (Some(a), Some(b)) if b.end > a.start => a.start..=b.end.min(last),
-        _ => 0..=last,
-    }
 }
 
 /// 定常解析の入熱 [W]。

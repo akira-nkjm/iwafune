@@ -2,10 +2,12 @@
 //! 計算の部品は [`crate::comm::link`] を使う。
 
 use crate::comm::link::{
-    DEFAULT_REQUIRED_MARGIN_DB, RfLinkParams, eb_over_n0_db, max_data_rate_bps, slant_range_m,
+    DEFAULT_REQUIRED_MARGIN_DB, RfLinkParams, eb_over_n0_db, max_data_rate_bps,
 };
 use crate::spec::quantity_text;
 use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, margin_verdict};
+use sat_astro::ephem::CentralBody;
+use sat_astro::ground::slant_range_m;
 use sat_units::typed::{
     Angle, DataRate, Decibel, DecibelHertz, DecibelPerKelvin, DecibelWatt, Length, Qty,
 };
@@ -35,8 +37,11 @@ pub struct LinkBudgetLink {
     pub data_rate: Qty<DataRate>,
     /// 変調・符号化で決まる所要 Eb/N0 [dB]
     pub required_eb_n0_db: f64,
-    /// 衛星の高度
+    /// 衛星の高度（中心天体の半径から）
     pub altitude: Qty<Length>,
+    /// 軌道の中心天体（斜距離に半径を使う。省略時は地球）
+    #[serde(default)]
+    pub central: CentralBody,
     /// 評価する仰角（最悪は運用の最低仰角）
     pub elevation: Qty<Angle>,
 }
@@ -139,7 +144,7 @@ fn evaluate(
             link.name
         )));
     }
-    let range = slant_range_m(altitude, link.elevation.value());
+    let range = slant_range_m(link.central.radius_m(), altitude, link.elevation.value());
     let eval = link.rf.evaluate(range);
     let eb_n0 = eb_over_n0_db(eval.c_over_n0_dbhz, rate);
     Ok(LinkBudgetLinkResult {
@@ -200,6 +205,7 @@ mod tests {
             data_rate: Qty::from_raw(9600.0),
             required_eb_n0_db: 10.0,
             altitude: Qty::from_raw(1.0e6),
+            central: CentralBody::Earth,
             elevation: Qty::from_raw(std::f64::consts::FRAC_PI_2),
         }
     }
@@ -247,5 +253,25 @@ mod tests {
         .unwrap();
         assert!(out.links[0].margin_db.value() < 0.0);
         assert_eq!(out.checks[0].verdict, Verdict::Violation);
+    }
+
+    /// 地平線の斜距離は中心天体の半径で決まる: 月（R = 1737.4 km）の高度 1000 km は
+    /// √(2737.4² − 1737.4²) km ≈ 2115.5 km（地球なら √(7378.1² − 6378.1²) km ≈ 3709.0 km）。
+    #[test]
+    fn horizon_distance_follows_the_central_body() {
+        let range = |central: CentralBody| {
+            let mut link = uhf_down();
+            link.elevation = Qty::from_raw(0.0);
+            link.central = central;
+            let input = LinkBudgetInput {
+                links: vec![link],
+                required_margin_db: None,
+            };
+            LinkBudget::run(&input).unwrap().links[0]
+                .slant_range
+                .value()
+        };
+        assert!((range(CentralBody::Moon) - 2115.5e3).abs() < 0.5e3);
+        assert!((range(CentralBody::Earth) - 3709.0e3).abs() < 0.5e3);
     }
 }

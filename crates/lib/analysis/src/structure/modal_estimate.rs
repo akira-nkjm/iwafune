@@ -7,7 +7,7 @@
 //!   横: 1 + cos β cosh β + (M/m) β (cos β sinh β − sin β cosh β) = 0 の最小根 β から f = β²/(2π)·√(EI/(m L³))。
 //!   機軸（EA を与えたとき）: β tan β = m/M の最小根から f = β/(2π)·√(EA/(m L))。M = 0 なら β = π/2（f = ¼√(EA/(mL))）。
 
-use crate::budget::{BudgetItem, budget_rollup};
+use crate::budget::{BudgetItem, counted_total};
 use crate::spec::quantity_text;
 use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, Verdict};
 use sat_astro::math::bisect;
@@ -216,19 +216,13 @@ fn invalid(id: &str) -> AnalysisError {
     ))
 }
 
-/// パネルに載る部品の質量の合計 Σ 質量 × 員数 [kg]（`budget::budget_rollup` で数える）。
+/// パネルに載る部品の質量の合計 Σ 質量 × 員数 [kg]（`budget::counted_total` で数える）。
 fn mounted_mass(mounted: &[ModalEstimateMounted]) -> Result<f64, AnalysisError> {
     let items: Vec<BudgetItem> = mounted
         .iter()
-        .map(|m| BudgetItem {
-            id: m.id.clone(),
-            group: String::new(),
-            value: m.mass.value(),
-            count: m.count,
-            growth: 0.0,
-        })
+        .map(|m| BudgetItem::counted(m.id.clone(), m.mass.value(), m.count))
         .collect();
-    Ok(budget_rollup(&items, None, 0.0)?.total)
+    counted_total(&items)
 }
 
 /// 四辺単純支持の平板の一次固有振動数 [Hz]。

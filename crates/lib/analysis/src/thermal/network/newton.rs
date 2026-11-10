@@ -4,6 +4,10 @@ use super::{Compiled, invalid};
 use crate::spec::AnalysisError;
 use sat_astro::math::solve_dense;
 
+/// Newton 法の初期値 [K]（固定温度でない節点の初期温度）。**定常解の初期値はこれだけ**（定常解析と、非定常の
+/// 初期温度を周回平均の定常解にするときに使う）。
+pub const INITIAL_GUESS_K: f64 = 290.0;
+
 /// 定常解。
 #[derive(Debug, Clone)]
 pub(crate) struct SteadySolution {

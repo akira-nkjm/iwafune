@@ -1,11 +1,12 @@
-//! 回線計算の部品（斜距離・自由空間損失・EIRP・G/T・C/N0・Eb/N0）。
+//! 回線計算の部品（自由空間損失・EIRP・G/T・C/N0・Eb/N0）。斜距離は `sat_astro::ground::slant_range_m`（中心天体の半径）。
 //! **回線計算はここだけ。** `comm.link_budget` と `comm.data_throughput` が使う。
 //!
-//! dB の値は f64 で持ち、名前に `_db`（`_dbw`・`_dbk`・`_dbhz`）を付ける。すべて電力比の `10 log10`。
+//! dB の値は f64 で持ち、名前に `_db`（`_dbw`・`_dbk`・`_dbhz`）を付ける。すべて電力比の `10 log10`（`sat_units::ratio_to_db`）。
 //! 線形の量（周波数・電力・雑音温度・データレート）は SI の `Qty` で持つ。
 
 use crate::spec::AnalysisError;
-use sat_astro::constants::{C_LIGHT, K_BOLTZMANN, R_EARTH};
+use sat_astro::constants::{C_LIGHT, K_BOLTZMANN};
+use sat_astro::ground::slant_range_m;
 use sat_astro::math::bisect;
 use sat_units::typed::{Frequency, Power, Qty, Temperature};
 use sat_units::{db_to_ratio, ratio_to_db};
@@ -69,16 +70,9 @@ pub struct LinkEvaluation {
     pub c_over_n0_dbhz: f64,
 }
 
-/// 地上局から高度 `altitude_m` の衛星を仰角 `elevation_rad` で見たときの斜距離 [m]（球の地球）。
-pub fn slant_range_m(altitude_m: f64, elevation_rad: f64) -> f64 {
-    let r = R_EARTH + altitude_m;
-    let (sin_e, cos_e) = elevation_rad.sin_cos();
-    (r * r - (R_EARTH * cos_e).powi(2)).sqrt() - R_EARTH * sin_e
-}
-
-/// 自由空間損失 [dB] = 20 log10(4π d f / c)。
+/// 自由空間損失 [dB] = 20 log10(4π d f / c)。電力の比 (4π d f / c)² の dB なので、振幅の比の dB を 2 倍する。
 pub fn fspl_db(range_m: f64, frequency_hz: f64) -> f64 {
-    20.0 * (4.0 * PI * range_m * frequency_hz / C_LIGHT).log10()
+    2.0 * ratio_to_db(4.0 * PI * range_m * frequency_hz / C_LIGHT)
 }
 
 /// EIRP [dBW] = 10 log10(P) + G − L。
@@ -178,10 +172,11 @@ impl RfLinkParams {
         eb_over_n0_db(self.evaluate(range_m).c_over_n0_dbhz, data_rate_bps) - required_eb_n0_db
     }
 
-    /// 高度 `altitude_m` で、Eb/N0 の余裕が `margin_db` 以上になる最低の仰角 [rad]。
-    /// 天頂でも足りなければ `None`、水平線でも足りれば 0。
+    /// 半径 `body_radius_m` の中心天体を回る高度 `altitude_m` の衛星で、Eb/N0 の余裕が `margin_db` 以上になる
+    /// 最低の仰角 [rad]（斜距離は `sat_astro::ground::slant_range_m`）。天頂でも足りなければ `None`、水平線でも足りれば 0。
     pub fn min_elevation_for_margin(
         &self,
+        body_radius_m: f64,
         altitude_m: f64,
         data_rate_bps: f64,
         required_eb_n0_db: f64,
@@ -189,7 +184,7 @@ impl RfLinkParams {
     ) -> Option<f64> {
         let excess = |e: f64| {
             self.eb_n0_margin_db(
-                slant_range_m(altitude_m, e),
+                slant_range_m(body_radius_m, altitude_m, e),
                 data_rate_bps,
                 required_eb_n0_db,
             ) - margin_db
@@ -208,20 +203,41 @@ impl RfLinkParams {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sat_astro::constants::{R_EARTH, R_MOON};
 
     #[test]
     fn fspl_437mhz_1000km() {
         // 20 log10(4π·1e6·437e6/c) = 145.25 dB
         let l = fspl_db(1.0e6, 437.0e6);
         assert!((l - 145.25).abs() < 0.02, "{l}");
+        // 距離が 10 倍なら 20 dB 増える（振幅の比の 20 log10）
+        assert!((fspl_db(1.0e7, 437.0e6) - l - 20.0).abs() < 1e-9);
     }
 
     #[test]
-    fn slant_range_at_zenith_and_horizon() {
-        let h = 500.0e3;
-        assert!((slant_range_m(h, FRAC_PI_2) - h).abs() < 1e-6);
-        let horizon = ((R_EARTH + h).powi(2) - R_EARTH.powi(2)).sqrt();
-        assert!((slant_range_m(h, 0.0) - horizon).abs() < 1e-6);
+    fn min_elevation_uses_the_central_body_radius() {
+        // 高度 550 km・所要 20 dB ＋ 余裕 3 dB。地平線の斜距離は地球（R = 6378 km）で約 2705 km、
+        // Eb/N0 ≈ 0 − 153.9 − 15.0 + 228.6 − 39.8 = 19.9 dB で足りない。月（R = 1737 km）では約 1488 km、
+        // FSPL ≈ 148.7 dB で Eb/N0 ≈ 25.1 dB となり、地平線から閉じる
+        let rf = RfLinkParams {
+            frequency: Qty::from_raw(437.0e6),
+            tx_power: Qty::from_raw(1.0),
+            tx_gain_db: 0.0,
+            tx_loss_db: None,
+            rx_gain_db: 12.0,
+            rx_loss_db: None,
+            system_noise_temperature: Qty::from_raw(500.0),
+            atmospheric_loss_db: None,
+            polarization_loss_db: None,
+            pointing_loss_db: None,
+            other_loss_db: None,
+        };
+        let el = |radius: f64| rf.min_elevation_for_margin(radius, 550.0e3, 9600.0, 20.0, 3.0);
+        let (earth, moon) = (el(R_EARTH).unwrap(), el(R_MOON).unwrap());
+        assert!(earth > 0.0 && moon == 0.0, "{moon} vs {earth}");
+        // 閉じる仰角での余裕は要求ちょうど（斜距離は ground::slant_range_m）
+        let at = rf.eb_n0_margin_db(slant_range_m(R_EARTH, 550.0e3, earth), 9600.0, 20.0);
+        assert!((at - 3.0).abs() < 1e-6, "{at}");
     }
 
     #[test]
