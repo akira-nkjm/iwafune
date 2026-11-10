@@ -326,13 +326,9 @@ pub fn source(ws: &Workspace, cmd: &crate::args::SourceCmd, out: &Out) -> Handle
     }
     let mut t = out.table(&["ID", "種類", "名前", "参照先", "日付"]);
     for s in &sources {
-        let kind = serde_json::to_value(s.kind)
-            .ok()
-            .and_then(|v| v.as_str().map(str::to_owned))
-            .unwrap_or_default();
         t.row(vec![
             C::Strong(s.id.to_string()),
-            C::Text(kind),
+            C::Text(s.kind.as_str().to_owned()),
             C::Text(s.label.clone().unwrap_or_default()),
             C::Dim(s.reference.clone().unwrap_or_default()),
             C::Dim(s.date.clone().unwrap_or_default()),

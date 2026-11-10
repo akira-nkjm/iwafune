@@ -5,7 +5,7 @@ use super::doc::{self, set, set_opt, string, strings, table_mut, table_opt};
 use crate::codec::{encode_quaternion, encode_scalar, encode_value, encode_vector};
 use crate::error::StoreError;
 use crate::profile as format;
-use fune_model::design::{Mount, Part, PartField, Pose};
+use fune_model::design::{Mount, Part, PartField, PartFieldName, Pose};
 use fune_model::value::{Authored, Scalar, Value};
 use toml_edit::{DocumentMut, Item, Table};
 
@@ -88,30 +88,28 @@ fn sync_section(
     Ok(())
 }
 
-/// 見出しのキー（正規の順: label → description → catalog → kind → candidates → count → maturity）。
+/// 型付きのフィールド → ファイルの値（None なら書かない。員数 1・空の候補は既定なので書かない）。
+/// 新しいファイルの見出しと 1 フィールドの書き込みで共通。
+fn field_item(field: &PartField) -> Option<Item> {
+    match field {
+        PartField::Label(v)
+        | PartField::Description(v)
+        | PartField::Catalog(v)
+        | PartField::Kind(v) => v.as_deref().map(string),
+        PartField::Count(1) => None,
+        PartField::Count(n) => Some(Item::Value(i64::from(*n).into())),
+        PartField::Maturity(m) => m.map(|m| string(m.as_str())),
+        PartField::Candidates(c) if c.is_empty() => None,
+        PartField::Candidates(c) => Some(strings(c.iter().map(String::as_str))),
+    }
+}
+
+/// 見出しのキー（正規の順は `PartFieldName` の宣言の順）。
 fn insert_header(top: &mut Table, part: &Part) {
-    let fields = [
-        ("label", part.label.as_deref()),
-        ("description", part.description.as_deref()),
-        ("catalog", part.catalog.as_deref()),
-        ("kind", part.kind.as_ref().map(|k| k.as_str())),
-    ];
-    for (key, value) in fields {
-        if let Some(v) = value {
-            top.insert(key, string(v));
+    for &key in PartFieldName::ALL {
+        if let Some(item) = field_item(&PartField::of(part, key)) {
+            top.insert(key.as_str(), item);
         }
-    }
-    if !part.candidates.is_empty() {
-        top.insert(
-            "candidates",
-            strings(part.candidates.iter().map(String::as_str)),
-        );
-    }
-    if part.count != 1 {
-        top.insert("count", Item::Value(i64::from(part.count).into()));
-    }
-    if let Some(m) = part.maturity {
-        top.insert("maturity", string(m.as_str()));
     }
 }
 
@@ -214,17 +212,7 @@ pub fn unset_attr(
 
 /// 型付きのフィールドを書く。
 pub fn set_field(edits: &mut Edits, file: &str, field: &PartField) -> Result<(), StoreError> {
-    let item: Option<Item> = match field {
-        PartField::Label(v)
-        | PartField::Description(v)
-        | PartField::Catalog(v)
-        | PartField::Kind(v) => v.as_deref().map(string),
-        PartField::Count(1) => None,
-        PartField::Count(n) => Some(Item::Value(i64::from(*n).into())),
-        PartField::Maturity(m) => m.map(|m| string(m.as_str())),
-        PartField::Candidates(c) if c.is_empty() => None,
-        PartField::Candidates(c) => Some(strings(c.iter().map(String::as_str))),
-    };
+    let item = field_item(field);
     edit_part(edits, file, |doc| {
         set_opt(doc.as_table_mut(), field.name(), item);
         Ok(())

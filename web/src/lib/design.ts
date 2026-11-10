@@ -37,7 +37,7 @@ export function paramPath(
   return findParamPath(part, attr, state) ?? attr;
 }
 
-/** 部品のフィールドのパス（`RW_X.count`）。API の `field_paths`（名前は fune_model::path::PART_FIELDS）。無ければ null */
+/** 部品のフィールドのパス（`RW_X.count`）。API の `field_paths`（名前は fune_model::field_names::PartFieldName）。無ければ null */
 export function fieldPath(part: Pick<PartRow, "field_paths">, field: string): string | null {
   return part.field_paths[field] ?? null;
 }

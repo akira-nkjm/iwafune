@@ -3,19 +3,21 @@
 //! 組み込みの定義（[`crate::builtin`]）とプロジェクト独自の定義（`defs/attribute/<id>.toml`・
 //! `defs/kind/<id>.toml`）は同じ形。serde の形がそのままファイルの形になる（`id` はファイル名から決まる）。
 
+use crate::enum_text::enum_text;
 use crate::id::Id;
 use crate::value::ValueType;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
 
-/// どのバジェットに入るか。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum BudgetKind {
-    Mass,
-    Power,
-    Data,
+enum_text! {
+    /// どのバジェットに入るか。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+    pub enum BudgetKind: "バジェットの種類" {
+        Mass = "mass",
+        Power = "power",
+        Data = "data",
+    }
 }
 
 impl BudgetKind {
@@ -29,23 +31,13 @@ impl BudgetKind {
     }
 }
 
-/// ネットの種類。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum NetKind {
-    Power,
-    Data,
-    Rf,
-}
-
-impl NetKind {
-    /// ファイルに書く綴り。
-    pub fn as_str(self) -> &'static str {
-        match self {
-            NetKind::Power => "power",
-            NetKind::Data => "data",
-            NetKind::Rf => "rf",
-        }
+enum_text! {
+    /// ネットの種類。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+    pub enum NetKind: "ネットの種類" {
+        Power = "power",
+        Data = "data",
+        Rf = "rf",
     }
 }
 
@@ -142,42 +134,4 @@ pub struct KindDef {
     /// ポートの雛形（ポート名 → ネットの種類）
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub ports: BTreeMap<String, NetKind>,
-}
-
-impl std::fmt::Display for BudgetKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Mass => "mass",
-            Self::Power => "power",
-            Self::Data => "data",
-        })
-    }
-}
-impl std::str::FromStr for BudgetKind {
-    type Err = String;
-    fn from_str(text: &str) -> Result<Self, Self::Err> {
-        match text {
-            "mass" => Ok(Self::Mass),
-            "power" => Ok(Self::Power),
-            "data" => Ok(Self::Data),
-            _ => Err(format!("Unknown BudgetKind: {text}")),
-        }
-    }
-}
-
-impl std::fmt::Display for NetKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-impl std::str::FromStr for NetKind {
-    type Err = String;
-    fn from_str(text: &str) -> Result<Self, Self::Err> {
-        match text {
-            "power" => Ok(Self::Power),
-            "data" => Ok(Self::Data),
-            "rf" => Ok(Self::Rf),
-            _ => Err(format!("Unknown NetKind: {text}")),
-        }
-    }
 }

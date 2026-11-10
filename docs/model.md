@@ -477,7 +477,7 @@ PR では CI が両方のリビジョンで計算し直した変化量をコメ�
 `fune fmt` と `fune check` で強制する書き方の規則。
 
 1. 1 ファイル 1 エンティティ。ID はファイル名の stem で、全体で一意（大文字小文字を無視、Windows の予約名は不可、`_` で始めない）。
-   属性 ID には部品・カタログ品のフィールド名（`label`・`count`・`maturity` など。`fune_model::path::{PART_FIELDS, CATALOG_FIELDS}`）を使わない
+   属性 ID には部品・カタログ品のフィールド名（`label`・`count`・`maturity` など。`fune_model::field_names::{PartFieldName, CatalogFieldName}`）を使わない
    （パスの記法 `RW_X.label` で属性とフィールドを区別できないため。`fune check` の `def.reserved`、`fune attr add` も拒む）。
 2. 入れ子は 2 段まで。ツリーはディレクトリ、エンティティ間の関係は ID の参照で表す。
 3. インライン表は `{ value, unit, from }`、短いベクトル（`{ x, y, z, unit }`）、1 行で収まる参照だけ。

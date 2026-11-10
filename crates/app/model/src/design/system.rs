@@ -3,6 +3,7 @@
 //! serde の形がそのままファイルの形（`id` はファイル名から決まるので書かない）。
 
 use super::part::Part;
+use crate::enum_text::enum_text;
 use crate::id::Id;
 use crate::path::{PortRef, port_text};
 use crate::value::Quantity;
@@ -11,7 +12,7 @@ use std::collections::BTreeMap;
 use ts_rs::TS;
 
 pub use super::defs::NetKind;
-pub use super::net::{Net, NetField};
+pub use super::net::{Net, NetField, NetFieldName};
 
 /// 衛星の運用モード（`modes/<ID>.toml`）。部品 → 状態の表。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
@@ -72,13 +73,14 @@ pub struct Harness {
     pub length: Option<Quantity>,
 }
 
-/// 不確かさのどちら側を読むか。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum UncertaintySide {
-    Nominal,
-    Min,
-    Max,
+enum_text! {
+    /// 不確かさのどちら側を読むか。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+    pub enum UncertaintySide: "不確かさの側" {
+        Nominal = "nominal",
+        Min = "min",
+        Max = "max",
+    }
 }
 
 /// 解析ケース（`cases/<ID>.toml`）。
@@ -109,15 +111,16 @@ pub struct Case {
     pub orbits: Option<u32>,
 }
 
-/// 出典の種類（根拠の強さの順: placeholder が最も弱い）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum SourceKind {
-    Placeholder,
-    Judgement,
-    Analysis,
-    Datasheet,
-    Measured,
+enum_text! {
+    /// 出典の種類（根拠の強さの順: placeholder が最も弱い）。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+    pub enum SourceKind: "出典の種類" {
+        Placeholder = "placeholder",
+        Judgement = "judgement",
+        Analysis = "analysis",
+        Datasheet = "datasheet",
+        Measured = "measured",
+    }
 }
 
 /// 出典の台帳（`sources/<ID>.toml`）。
@@ -141,29 +144,4 @@ pub struct Source {
     pub by: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
-}
-
-impl std::fmt::Display for SourceKind {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Placeholder => "placeholder",
-            Self::Judgement => "judgement",
-            Self::Analysis => "analysis",
-            Self::Datasheet => "datasheet",
-            Self::Measured => "measured",
-        })
-    }
-}
-impl std::str::FromStr for SourceKind {
-    type Err = String;
-    fn from_str(text: &str) -> Result<Self, Self::Err> {
-        match text {
-            "placeholder" => Ok(Self::Placeholder),
-            "judgement" => Ok(Self::Judgement),
-            "analysis" => Ok(Self::Analysis),
-            "datasheet" => Ok(Self::Datasheet),
-            "measured" => Ok(Self::Measured),
-            _ => Err(format!("Unknown SourceKind: {text}")),
-        }
-    }
 }

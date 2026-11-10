@@ -9,6 +9,7 @@ mod compute;
 pub use compute::{evidence_of, pose_si, resolve, resolve_catalog_item, si_value};
 
 use crate::design::{CatalogRef, Loc, Maturity, NetKind, NodeRef};
+use crate::enum_text::enum_text;
 use crate::id::Id;
 use crate::value::{Provenance, Value};
 use serde::{Deserialize, Serialize};
@@ -47,30 +48,32 @@ pub struct ResolvedPart {
     pub evidence: Evidence,
 }
 
-/// 値の出所。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename = "AttrOrigin")]
-pub enum Origin {
-    Catalog,
-    Override,
-    /// 属性定義の既定値
-    KindDefault,
-    Derived,
-    Unset,
+enum_text! {
+    /// 値の出所。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+    #[ts(rename = "AttrOrigin")]
+    pub enum Origin: "値の出所" {
+        Catalog = "catalog",
+        Override = "override",
+        /// 属性定義の既定値
+        KindDefault = "kind_default",
+        Derived = "derived",
+        Unset = "unset",
+    }
 }
 
-/// 根拠の強さ（弱い順）。値の根拠は出典（`sources/<ID>`）の種類から決まる。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum Evidence {
-    Placeholder,
-    /// 出典が書かれていない
-    Unsourced,
-    Judgement,
-    Analysis,
-    Datasheet,
-    Measured,
+enum_text! {
+    /// 根拠の強さ（弱い順）。値の根拠は出典（`sources/<ID>`）の種類から決まる。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+    pub enum Evidence: "根拠の強さ" {
+        Placeholder = "placeholder",
+        /// 出典が書かれていない
+        Unsourced = "unsourced",
+        Judgement = "judgement",
+        Analysis = "analysis",
+        Datasheet = "datasheet",
+        Measured = "measured",
+    }
 }
 
 /// 値があるか。
@@ -246,58 +249,6 @@ impl Resolved {
                 Some(m) => current = self.parts.get(m.on.as_str())?,
                 None => return Some(&current.id),
             }
-        }
-    }
-}
-
-impl std::fmt::Display for Origin {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Catalog => "catalog",
-            Self::Override => "override",
-            Self::KindDefault => "kind_default",
-            Self::Derived => "derived",
-            Self::Unset => "unset",
-        })
-    }
-}
-impl std::str::FromStr for Origin {
-    type Err = String;
-    fn from_str(text: &str) -> Result<Self, Self::Err> {
-        match text {
-            "catalog" => Ok(Self::Catalog),
-            "override" => Ok(Self::Override),
-            "kind_default" => Ok(Self::KindDefault),
-            "derived" => Ok(Self::Derived),
-            "unset" => Ok(Self::Unset),
-            _ => Err(format!("Unknown Origin: {text}")),
-        }
-    }
-}
-
-impl std::fmt::Display for Evidence {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Placeholder => "placeholder",
-            Self::Unsourced => "unsourced",
-            Self::Judgement => "judgement",
-            Self::Analysis => "analysis",
-            Self::Datasheet => "datasheet",
-            Self::Measured => "measured",
-        })
-    }
-}
-impl std::str::FromStr for Evidence {
-    type Err = String;
-    fn from_str(text: &str) -> Result<Self, Self::Err> {
-        match text {
-            "placeholder" => Ok(Self::Placeholder),
-            "unsourced" => Ok(Self::Unsourced),
-            "judgement" => Ok(Self::Judgement),
-            "analysis" => Ok(Self::Analysis),
-            "datasheet" => Ok(Self::Datasheet),
-            "measured" => Ok(Self::Measured),
-            _ => Err(format!("Unknown Evidence: {text}")),
         }
     }
 }

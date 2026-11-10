@@ -30,7 +30,10 @@ pub fn budget(ws: &Workspace, kind: BudgetKind, req: &BudgetRequest) -> Result<B
 
 /// `"mass"` などの文字列からバジェットの種類を読む。
 pub fn parse_kind(text: &str) -> Result<BudgetKind> {
-    text.parse().map_err(ServiceError::InvalidInput)
+    text.parse()
+        .map_err(|e: fune_model::enum_text::EnumTextError| {
+            ServiceError::InvalidInput(e.to_string())
+        })
 }
 
 /// 数えた結果（配分の行に割り当てる前）。

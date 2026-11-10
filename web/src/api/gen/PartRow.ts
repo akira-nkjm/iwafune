@@ -13,7 +13,7 @@ export type PartRow = {
  */
 paths: { [key in string]: { [key in string]: string } }, 
 /**
- * 部品のフィールド名（`fune_model::path::PART_FIELDS`）→ パラメーターパス（`"RW_X.count"`）。
+ * 部品のフィールド名（`fune_model::design::PartFieldName`）→ パラメーターパス（`"RW_X.count"`）。
  * GUI の基本の欄は、打った文字列とこのパスをそのまま `POST /ops/from_text` に送る
  */
 field_paths: { [key in string]: string }, id: string, 

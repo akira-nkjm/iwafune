@@ -28,7 +28,7 @@ source: PortRef | null, rail: QuantityView | null, limit: QuantityView | null, p
  */
 members: Array<PortRef>, 
 /**
- * フィールド名（`NetField::NAMES`）→ 対象のパス（`"nets.P12V.rail"`。診断の `DiagnosticView.path` と同じ
+ * フィールド名（`NetFieldName::NAMES`）→ 対象のパス（`"nets.P12V.rail"`。診断の `DiagnosticView.path` と同じ
  * `fune_model::Target::net` の表示）。GUI の欄の名前で、検証で弾かれた理由をその欄の下に出す鍵。
  * 編集はパスではなく `CommandText::NetSet`（`fune net set` の引数）で送る
  */

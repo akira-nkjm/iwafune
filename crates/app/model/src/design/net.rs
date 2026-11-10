@@ -1,5 +1,6 @@
 //! ネットの型（部品と運用エンティティが共有）。
 use super::defs::NetKind;
+pub use crate::field_names::NetFieldName;
 use crate::path::{PortRef, port_text};
 use crate::{id::Id, value::Quantity};
 use serde::{Deserialize, Serialize};
@@ -100,23 +101,37 @@ pub enum NetField {
 }
 
 impl NetField {
-    /// フィールド名の一覧（[`NetField::name`] の綴り。宣言の順）。`fune net set` の旗の順・`NetView.field_paths` のキー。
+    /// フィールド名（[`NetFieldName`]。名前の一覧は `NetFieldName::NAMES`）。
     /// 名前 → 型付きのフィールドの読み方は `fune_service::edit`（そのテストが全部の名前の往復を確かめる）。
-    pub const NAMES: &[&str] = &[
-        "kind", "label", "source", "rail", "limit", "protocol", "bitrate", "master",
-    ];
-
-    /// フィールド名（ファイルのキー・CLI の旗の名前）。
-    pub fn name(&self) -> &'static str {
+    pub fn key(&self) -> NetFieldName {
         match self {
-            NetField::Kind(_) => "kind",
-            NetField::Label(_) => "label",
-            NetField::Source(_) => "source",
-            NetField::Rail(_) => "rail",
-            NetField::Limit(_) => "limit",
-            NetField::Protocol(_) => "protocol",
-            NetField::Bitrate(_) => "bitrate",
-            NetField::Master(_) => "master",
+            NetField::Kind(_) => NetFieldName::Kind,
+            NetField::Label(_) => NetFieldName::Label,
+            NetField::Source(_) => NetFieldName::Source,
+            NetField::Rail(_) => NetFieldName::Rail,
+            NetField::Limit(_) => NetFieldName::Limit,
+            NetField::Protocol(_) => NetFieldName::Protocol,
+            NetField::Bitrate(_) => NetFieldName::Bitrate,
+            NetField::Master(_) => NetFieldName::Master,
+        }
+    }
+
+    /// フィールド名の綴り（ファイルのキー・CLI の旗の名前）。
+    pub fn name(&self) -> &'static str {
+        self.key().as_str()
+    }
+
+    /// ネットのそのフィールドの今の値（新しいファイル・丸ごとの書き込みと `fune net add` の旗が、1 フィールドずつと同じ形で書くため）。
+    pub fn of(net: &Net, key: NetFieldName) -> Self {
+        match key {
+            NetFieldName::Kind => NetField::Kind(net.kind),
+            NetFieldName::Label => NetField::Label(net.label.clone()),
+            NetFieldName::Source => NetField::Source(net.source.clone()),
+            NetFieldName::Rail => NetField::Rail(net.rail.clone()),
+            NetFieldName::Limit => NetField::Limit(net.limit.clone()),
+            NetFieldName::Protocol => NetField::Protocol(net.protocol.clone()),
+            NetFieldName::Bitrate => NetField::Bitrate(net.bitrate.clone()),
+            NetFieldName::Master => NetField::Master(net.master.clone()),
         }
     }
 }

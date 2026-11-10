@@ -1,6 +1,6 @@
-//! コマンド文字列の組み立ての道具（引用・数値と単位の書き方）。
+//! コマンド文字列の組み立ての道具（引用・旗）。値の文字列の書き方は `fune_model::value`（`value_to_text` など。読み方と同じ場所）。
 
-use fune_model::value::{Provenance, Quantity, Vector3};
+use fune_model::value::Provenance;
 
 /// シェルにそのまま貼れるように引数を引用する（グロブや空白を含むものだけ `"…"` で囲む）。
 pub fn quote(arg: &str) -> String {
@@ -20,31 +20,6 @@ pub fn quote(arg: &str) -> String {
     }
     out.push('"');
     out
-}
-
-pub(super) fn num(v: f64) -> String {
-    format!("{v}")
-}
-
-pub(super) fn number_unit(value: f64, unit: &str) -> String {
-    if unit.is_empty() {
-        num(value)
-    } else {
-        format!("{} {unit}", num(value))
-    }
-}
-
-pub(super) fn vector_text(v: &Vector3) -> String {
-    let mut s = format!("{} {} {}", num(v.x), num(v.y), num(v.z));
-    if let Some(u) = &v.unit {
-        s.push(' ');
-        s.push_str(u);
-    }
-    s
-}
-
-pub(super) fn quantity_text(q: &Quantity) -> String {
-    number_unit(q.value, &q.unit)
 }
 
 /// コマンドを組み立てる小さな道具。

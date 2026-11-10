@@ -9,9 +9,14 @@ mod text;
 pub mod units;
 
 pub use json::{is_quantity_json, quantity_from_json, vector_from_json};
-pub use text::{parse_clock_hours, parse_number_unit, value_from_text};
+pub use text::{
+    list_from_text, list_to_text, number_to_text, number_unit_to_text, parse_clock_hours,
+    parse_number_unit, quantity_from_text, quantity_to_text, quaternion_to_text, range_to_text,
+    setting_from_text, setting_to_text, value_from_text, value_to_text, vector_to_text,
+};
 pub use units::{UnitInfo, dimension_label, unit_dimension, unit_info};
 
+use crate::enum_text::enum_text;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
@@ -203,20 +208,21 @@ impl Value {
     }
 }
 
-/// 値の型（AttributeDef の `type`）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename = "AttrValueType")]
-pub enum ValueType {
-    Scalar,
-    Vec3,
-    Quat,
-    Tensor3,
-    Enum,
-    Bool,
-    Text,
-    Range,
-    Table,
+enum_text! {
+    /// 値の型（AttributeDef の `type`）。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+    #[ts(rename = "AttrValueType")]
+    pub enum ValueType: "値の型" {
+        Scalar = "scalar",
+        Vec3 = "vec3",
+        Quat = "quat",
+        Tensor3 = "tensor3",
+        Enum = "enum",
+        Bool = "bool",
+        Text = "text",
+        Range = "range",
+        Table = "table",
+    }
 }
 
 /// 値・単位の解析と検査のエラー。
@@ -249,20 +255,4 @@ pub enum SettingValue {
     Quantity(Quantity),
     Vector(Vector3),
     List(Vec<String>),
-}
-
-impl std::fmt::Display for ValueType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::Scalar => "scalar",
-            Self::Vec3 => "vec3",
-            Self::Quat => "quat",
-            Self::Tensor3 => "tensor3",
-            Self::Enum => "enum",
-            Self::Bool => "bool",
-            Self::Text => "text",
-            Self::Range => "range",
-            Self::Table => "table",
-        })
-    }
 }

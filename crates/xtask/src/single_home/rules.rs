@@ -171,6 +171,28 @@ pub(super) const RULES: &[(&str, &[&str], &str)] = &[
         &["crates/lib/analysis/src/catalog.rs"],
         "解析の登録",
     ),
+    // 列挙の綴り（serde_json を経由して綴りを得る関数を書かない。`enum_text!` の `as_str` を使う）
+    (
+        "fn enum_str",
+        &["crates/app/model/src/enum_text.rs"],
+        "列挙の綴り（`enum_text!`）",
+    ),
+    // 値の文字列の書式（読む向きと書く向き）
+    (
+        "fn value_to_text",
+        &["crates/app/model/src/value/text"],
+        "値の文字列の書き方",
+    ),
+    (
+        "fn setting_to_text",
+        &["crates/app/model/src/value/text"],
+        "設定の値の文字列の書き方",
+    ),
+    (
+        "fn list_from_text",
+        &["crates/app/model/src/value/text.rs"],
+        "一覧の読み方",
+    ),
 ];
 
 /// web/ の中だけに適用する規則（Rust 側の同名の関数を誤検出しないため）。

@@ -52,7 +52,7 @@ pub struct NetSetText {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 pub struct NetUnsetText {
     pub net: String,
-    /// `label`・`source`・`rail`・`limit`・`protocol`・`bitrate`・`master`（`fune_model::design::NetField::NAMES`。`kind` は消せない）
+    /// `label`・`source`・`rail`・`limit`・`protocol`・`bitrate`・`master`（`fune_model::design::NetFieldName::NAMES`。`kind` は消せない）
     pub field: String,
 }
 
