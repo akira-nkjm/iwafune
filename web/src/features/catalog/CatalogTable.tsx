@@ -3,10 +3,9 @@ import type { CatalogItemView } from "@/api/types";
 import { useT } from "@/i18n";
 import { DataTable } from "@/kit/DataTable";
 import { Pill } from "@/kit/Pill";
+import { SelectableRow } from "@/kit/SelectableRow";
 import { Td } from "@/kit/Td";
 import { Th } from "@/kit/Th";
-import { detailRowProps } from "@/kit/use-detail-route";
-import { cn } from "@/lib/cn";
 import { itemLabel } from "./catalog";
 
 /** カタログ品の一覧（密な表）。行を選ぶと右に詳細。共有カタログの品にはカタログ名の札を付ける */
@@ -38,15 +37,7 @@ export function CatalogTable({
       }
     >
       {items.map((c) => (
-        <tr
-          key={c.id}
-          {...detailRowProps(c.id, onSelect)}
-          aria-selected={selected === c.id}
-          className={cn(
-            "cursor-pointer hover:bg-panel-2",
-            selected === c.id && "bg-accent-tint hover:bg-accent-tint",
-          )}
-        >
+        <SelectableRow key={c.id} selected={selected === c.id} onSelect={() => onSelect(c.id)}>
           <Td mono>
             <span className="flex items-center gap-2">
               {c.id}
@@ -67,7 +58,7 @@ export function CatalogTable({
           </Td>
           <Td className="text-ink-3">{c.maturity ? label("maturity", c.maturity) : "—"}</Td>
           <Td align="right">{c.users.length}</Td>
-        </tr>
+        </SelectableRow>
       ))}
     </DataTable>
   );

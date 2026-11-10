@@ -1,11 +1,10 @@
 import type { DesignView, PartRow } from "@/api/types";
 import { useT } from "@/i18n";
 import { DataTable } from "@/kit/DataTable";
+import { SelectableRow } from "@/kit/SelectableRow";
 import { SubsystemDot } from "@/kit/SubsystemDot";
 import { Td } from "@/kit/Td";
 import { Th } from "@/kit/Th";
-import { detailRowProps } from "@/kit/use-detail-route";
-import { cn } from "@/lib/cn";
 import { attrOf, nodeName } from "@/lib/design";
 import { valueText } from "@/quantity/format";
 
@@ -58,15 +57,7 @@ export function PartsTable({
         const unset = Object.values(p.values).filter((v) => v.origin === "unset").length;
         const { errors, warns } = diagsByPart.get(p.id) ?? { errors: 0, warns: 0 };
         return (
-          <tr
-            key={p.id}
-            {...detailRowProps(p.id, onSelect)}
-            aria-selected={selected === p.id}
-            className={cn(
-              "cursor-pointer hover:bg-panel-2",
-              selected === p.id && "bg-accent-tint hover:bg-accent-tint",
-            )}
-          >
+          <SelectableRow key={p.id} selected={selected === p.id} onSelect={() => onSelect(p.id)}>
             <Td>
               <span className="flex items-center gap-2">
                 <SubsystemDot group={p.subsystem} role={p.role} />
@@ -99,7 +90,7 @@ export function PartsTable({
                 <span className="text-ink-4">0</span>
               )}
             </Td>
-          </tr>
+          </SelectableRow>
         );
       })}
     </DataTable>

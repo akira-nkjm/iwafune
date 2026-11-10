@@ -9,6 +9,7 @@ import { Loading, SkeletonTable } from "@/kit/Loading";
 import { NativeSelect } from "@/kit/NativeSelect";
 import { Panel } from "@/kit/Panel";
 import { PanelHeader } from "@/kit/PanelHeader";
+import { TablePanel } from "@/kit/TablePanel";
 import { Td } from "@/kit/Td";
 import { Th } from "@/kit/Th";
 import { QuantityInput } from "@/quantity/QuantityInput";
@@ -39,13 +40,10 @@ export function UnitsTab({ design }: { design: DesignView | undefined }) {
           className="max-w-md"
         />
       </Panel>
-      <Panel pad={false}>
-        <div className="flex items-center justify-between gap-2 p-4 pb-2">
-          <PanelHeader
-            className="mb-0"
-            title={tu.title}
-            caption={data ? tu.caption(data.units.length, data.dimensions.length) : undefined}
-          />
+      <TablePanel
+        title={tu.title}
+        caption={data ? tu.caption(data.units.length, data.dimensions.length) : undefined}
+        right={
           <NativeSelect
             aria-label={tu.filter}
             value={dim}
@@ -53,7 +51,8 @@ export function UnitsTab({ design }: { design: DesignView | undefined }) {
             placeholder={tu.allDimensions}
             options={(all.data?.dimensions ?? []).map((d) => ({ value: d.name, label: d.name }))}
           />
-        </div>
+        }
+      >
         {!data ? (
           all.isError ? (
             <Empty>{tu.cannotLoad(all.error.message)}</Empty>
@@ -90,7 +89,7 @@ export function UnitsTab({ design }: { design: DesignView | undefined }) {
             ))}
           </DataTable>
         )}
-      </Panel>
+      </TablePanel>
     </>
   );
 }

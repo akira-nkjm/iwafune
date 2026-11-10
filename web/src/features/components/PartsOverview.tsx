@@ -5,7 +5,7 @@ import { RoleIcon } from "@/kit/RoleIcon";
 import { cn } from "@/lib/cn";
 import { kindLabel, nodeName } from "@/lib/design";
 import { subsystemTone } from "@/lib/subsystems";
-import { type Tone, toneHex, toneInkHex, toneText } from "@/lib/tone";
+import { type Tone, toneHex, toneInkHex, toneText, toneTint } from "@/lib/tone";
 
 /** カード 1 枚の幅 [px] */
 const CARD_WIDTH = 216;
@@ -191,7 +191,7 @@ function PartCard({ row, ctx }: { row: PartRow; ctx: Ctx }) {
         <span
           className="flex size-10 shrink-0 items-center justify-center rounded-full"
           style={{
-            background: `color-mix(in srgb, ${toneHex[tone]} 16%, var(--color-panel))`,
+            background: toneTint(tone, "icon"),
             color: toneInkHex[tone],
           }}
         >

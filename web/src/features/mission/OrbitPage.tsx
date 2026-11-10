@@ -9,6 +9,7 @@ import { Empty } from "@/kit/Empty";
 import { Loading, SkeletonPanel } from "@/kit/Loading";
 import { Panel } from "@/kit/Panel";
 import { PanelHeader } from "@/kit/PanelHeader";
+import { TablePanel } from "@/kit/TablePanel";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 
@@ -42,31 +43,21 @@ export function OrbitPage() {
               const list = mission.filter((s) => s.group === g);
               const label = list.find((s) => s.field === "label");
               return (
-                <Panel key={g} pad={false}>
-                  <div className="p-4 pb-2">
-                    <PanelHeader
-                      className="mb-0"
-                      title={label?.display ?? g}
-                      caption={<span className="font-mono">{list[0]?.file ?? g}</span>}
-                    />
-                  </div>
+                <TablePanel
+                  key={g}
+                  title={label?.display ?? g}
+                  caption={<span className="font-mono">{list[0]?.file ?? g}</span>}
+                >
                   <SettingsTable settings={list} grouped />
-                </Panel>
+                </TablePanel>
               );
             })}
           </div>
         )}
         {stations.length > 0 && (
-          <Panel pad={false}>
-            <div className="p-4 pb-2">
-              <PanelHeader
-                className="mb-0"
-                title={m.visibilityPerStation}
-                caption="comm.visibility"
-              />
-            </div>
+          <TablePanel title={m.visibilityPerStation} caption="comm.visibility">
             <ResultTable rows={stations} at={["stations"]} dims={vis?.result?.dims} />
-          </Panel>
+          </TablePanel>
         )}
         {vis && <AnalysisCard state={vis} entry={undefined} design={d} />}
       </PageBody>

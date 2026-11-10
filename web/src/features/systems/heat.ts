@@ -1,5 +1,4 @@
 import type { ThermalSteadyOutput, Verdict } from "@/api/types";
-import { toneHex } from "@/lib/tone";
 
 export interface HeatCell {
   temperature: number;
@@ -44,28 +43,10 @@ export function heatMapOf(output: ThermalSteadyOutput | null): HeatMap | null {
   return { cases, nodes, cells, min, max, band };
 }
 
-/** 色の位置（0 = 表の最低温度、1 = 最高温度）。色を塗るためだけの比で、物理量ではない */
+/**
+ * 色の位置（0 = 表の最低温度、1 = 最高温度）。色を塗るためだけの比で、物理量ではない。色そのものは
+ * `lib/tone.ts` の `heatHex`（温度表と 3D で共通）
+ */
 export function heatRatio(t: number, map: Pick<HeatMap, "min" | "max">): number {
   return map.max > map.min ? (t - map.min) / (map.max - map.min) : 0.5;
-}
-
-/** 寒色（accent）→ 暖色（neg）の塗り。color-mix で混ぜる */
-export function heatColor(ratio: number): string {
-  const p = Math.round(Math.max(0, Math.min(1, ratio)) * 100);
-  return `color-mix(in oklab, var(--color-neg) ${p}%, var(--color-accent))`;
-}
-
-/** 3D（three.js は color-mix を読めない）用の同じ塗り。accent（blue）→ neg（red）を sRGB で線形に混ぜた hex */
-export function heatHex(ratio: number): string {
-  const rgb = (hex: string) => [1, 3, 5].map((i) => Number.parseInt(hex.slice(i, i + 2), 16));
-  const a = rgb(toneHex.blue);
-  const b = rgb(toneHex.red);
-  const r = Math.max(0, Math.min(1, ratio));
-  return `#${a
-    .map((x, i) =>
-      Math.round(x + ((b[i] ?? x) - x) * r)
-        .toString(16)
-        .padStart(2, "0"),
-    )
-    .join("")}`;
 }

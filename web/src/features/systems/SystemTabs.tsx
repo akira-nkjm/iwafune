@@ -7,6 +7,7 @@ import { Empty } from "@/kit/Empty";
 import { Loading, SkeletonTable } from "@/kit/Loading";
 import { Panel } from "@/kit/Panel";
 import { PanelHeader } from "@/kit/PanelHeader";
+import { TablePanel } from "@/kit/TablePanel";
 import { Skeleton } from "@/ui/skeleton";
 import { AnalysisCard } from "./AnalysisCard";
 import { fieldLabel } from "./fields";
@@ -52,14 +53,7 @@ export function SystemTabs({
   if (tab === "breakdown")
     return (
       <>
-        <Panel pad={false}>
-          <div className="p-4 pb-2">
-            <PanelHeader
-              className="mb-0"
-              title={dict.systems.partsAttrs}
-              caption={dict.systems.partsAttrsCaption}
-            />
-          </div>
+        <TablePanel title={dict.systems.partsAttrs} caption={dict.systems.partsAttrsCaption}>
           {design ? (
             <SystemPartsTable design={design} spec={spec} />
           ) : (
@@ -67,21 +61,18 @@ export function SystemTabs({
               <SkeletonTable rows={6} cols={5} />
             </Loading>
           )}
-        </Panel>
+        </TablePanel>
         {extra?.breakdown}
         {states.map((s) => {
           const tables = s.result?.output ? collectTables(s.result.output) : [];
           return tables.map((t) => (
-            <Panel key={`${s.id}:${t.path}`} pad={false}>
-              <div className="p-4 pb-2">
-                <PanelHeader
-                  className="mb-0"
-                  title={`${analysisTitle(entries.get(s.id)?.info, s.id)} — ${fieldLabel(t.key)}`}
-                  caption={<span className="font-mono">{`${s.id} · ${t.path}`}</span>}
-                />
-              </div>
+            <TablePanel
+              key={`${s.id}:${t.path}`}
+              title={`${analysisTitle(entries.get(s.id)?.info, s.id)} — ${fieldLabel(t.key)}`}
+              caption={<span className="font-mono">{`${s.id} · ${t.path}`}</span>}
+            >
               <ResultTable rows={t.rows} at={t.at} dims={s.result?.dims} />
-            </Panel>
+            </TablePanel>
           ));
         })}
       </>
@@ -92,18 +83,12 @@ export function SystemTabs({
     const files = [...new Set(settings.flatMap((x) => (x.file ? [x.file] : [])))];
     return (
       <>
-        <Panel pad={false}>
-          <div className="p-4 pb-2">
-            <PanelHeader
-              className="mb-0"
-              title={dict.systems.settingsTitle(systemTitle(spec.key, design?.defs))}
-              caption={
-                files.length > 0 ? dict.systems.settingsCaption(files.join(" / ")) : undefined
-              }
-            />
-          </div>
+        <TablePanel
+          title={dict.systems.settingsTitle(systemTitle(spec.key, design?.defs))}
+          caption={files.length > 0 ? dict.systems.settingsCaption(files.join(" / ")) : undefined}
+        >
           <SettingsTable settings={settings} empty={dict.systems.noSettings} />
-        </Panel>
+        </TablePanel>
         {states.map((s) =>
           s.result?.input ? (
             <Panel key={s.id}>

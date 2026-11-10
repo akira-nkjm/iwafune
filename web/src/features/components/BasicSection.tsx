@@ -2,14 +2,13 @@ import { useEnumOptions } from "@/api/labels";
 import { useApplyOps, useSetText, useUnsetText } from "@/api/ops";
 import type { DesignView, PartRow } from "@/api/types";
 import { useT } from "@/i18n";
+import { CommitInput } from "@/kit/CommitInput";
 import { NativeSelect } from "@/kit/NativeSelect";
 import { PropertyList } from "@/kit/PropertyList";
 import { PropertyRow } from "@/kit/PropertyRow";
 import { SubsystemDot } from "@/kit/SubsystemDot";
 import { fieldPath, idWithName } from "@/lib/design";
 import { useFieldError } from "@/lib/field-errors";
-
-const INPUT = "h-7 rounded-[8px] border border-line-strong px-2";
 
 /** 検証で弾かれた理由（その欄のパスに付いたもの）を欄の下に出す */
 function FieldError({ path }: { path: string | null }) {
@@ -66,34 +65,26 @@ export function BasicSection({ design, part }: { design: DesignView; part: PartR
         <FieldError path={path("catalog")} />
       </PropertyRow>
       <PropertyRow label={t.candidates} title={t.candidatesHint}>
-        <input
-          aria-label={t.candidates}
+        <CommitInput
+          label={t.candidates}
           title={t.candidatesHint}
-          defaultValue={candidateText}
-          key={candidateText}
-          onBlur={(e) => {
-            const v = e.target.value.trim();
-            if (v !== candidateText) save("candidates", v, t.candidatesSummary(part.id));
-          }}
-          className={`${INPUT} w-full min-w-0 font-mono text-[12px]`}
+          mono
+          value={candidateText}
+          onCommit={(v) => save("candidates", v, t.candidatesSummary(part.id))}
         />
         <FieldError path={path("candidates")} />
       </PropertyRow>
       <PropertyRow label={t.count}>
-        <input
+        {/* 空にしただけなら元に戻す（員数を 1 に戻すときは 1 と打つ） */}
+        <CommitInput
           type="number"
           min={1}
           step={1}
-          aria-label={t.count}
-          defaultValue={part.count}
-          key={part.count}
-          onBlur={(e) => {
-            const v = e.target.value.trim();
-            // 空にしただけなら元に戻す（員数を 1 に戻すときは 1 と打つ）
-            if (!v) e.target.value = String(part.count);
-            else if (v !== String(part.count)) save("count", v, t.countSummary(part.id, v));
-          }}
-          className={`${INPUT} num w-20 text-right`}
+          label={t.count}
+          allowEmpty={false}
+          value={String(part.count)}
+          onCommit={(v) => save("count", v, t.countSummary(part.id, v))}
+          className="num w-20 text-right"
         />
         <FieldError path={path("count")} />
       </PropertyRow>

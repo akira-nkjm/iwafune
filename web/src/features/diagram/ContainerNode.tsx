@@ -1,5 +1,5 @@
 import { type Node, type NodeProps, NodeResizer } from "@xyflow/react";
-import { toneBorder, toneHex, toneText } from "@/lib/tone";
+import { toneBorder, toneText, toneTint } from "@/lib/tone";
 import type { DiagramContainer } from "./model";
 
 export type ContainerNodeType = Node<
@@ -13,7 +13,7 @@ export function ContainerNode({ id, data, width, height, selected }: NodeProps<C
   return (
     <div
       className={`relative h-full w-full rounded-[13px] border ${toneBorder[c.tone]}`}
-      style={{ width, height, background: `color-mix(in srgb, ${toneHex[c.tone]} 6%, white)` }}
+      style={{ width, height, background: toneTint(c.tone, "frame") }}
     >
       <NodeResizer
         isVisible={selected}

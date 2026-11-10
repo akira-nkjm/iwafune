@@ -2,9 +2,10 @@ import { useT } from "@/i18n";
 import { Panel } from "@/kit/Panel";
 import { PanelHeader } from "@/kit/PanelHeader";
 import { cn } from "@/lib/cn";
+import { heatHex } from "@/lib/tone";
 import { Formatted } from "@/quantity/Formatted";
 import { FieldValue } from "./FieldValue";
-import { type HeatMap, heatColor, heatKey, heatRatio } from "./heat";
+import { type HeatMap, heatKey, heatRatio } from "./heat";
 
 const ring = {
   ok: "",
@@ -70,7 +71,7 @@ export function ThermalHeatmap({ map, dimension }: { map: HeatMap; dimension: st
                         "num min-w-24 rounded-[6px] px-2 py-1 text-right text-inverse",
                         cell.verdict && ring[cell.verdict],
                       )}
-                      style={{ background: heatColor(heatRatio(cell.temperature, map)) }}
+                      style={{ background: heatHex(heatRatio(cell.temperature, map)) }}
                       title={cell.verdict ?? undefined}
                     >
                       <FieldValue
