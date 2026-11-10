@@ -134,7 +134,11 @@ fn sunlit_and_eclipse_modes() {
         id: id.to_owned(),
         label: String::new(),
         group: String::new(),
-        power: [("on".to_owned(), Qty::from_raw(w))].into_iter().collect(),
+        count: 1,
+        power: crate::modes::StateValues {
+            default: None,
+            by_state: [("on".to_owned(), Qty::from_raw(w))].into(),
+        },
         growth_margin: Some(0.0),
     };
     let on = |p: &str| StateAssignment {

@@ -94,6 +94,34 @@ fn drag_opposes_relative_velocity() {
 }
 
 #[test]
+fn drag_force_by_hand() {
+    // ρ = 1e-12 kg/m³、Cd·A = 0.1 m²、v = 7.5 km/s（+x）→ F = −½·1e-12·0.1·7500² = −2.8125e-6 N（x）
+    let f = drag_force(1e-12, 0.1, Vec3::new(7500.0, 0.0, 0.0));
+    assert!((f.x + 2.8125e-6).abs() < 1e-18, "{f:?}");
+    assert!(f.y == 0.0 && f.z == 0.0);
+    assert_eq!(drag_force(1e-12, 0.1, Vec3::ZERO), Vec3::ZERO);
+}
+
+#[test]
+fn j2_on_the_equator_and_over_the_pole_by_hand() {
+    use crate::constants::{J2_EARTH, MU_EARTH};
+    // 赤道上 r では内向きに (3/2) J2 μ R²/r⁴、極の上では外向きに 3 J2 μ R²/r⁴（7000 km で約 1.10e-2 m/s²）
+    let r = 7.0e6_f64;
+    let unit = J2_EARTH * MU_EARTH * R_EARTH * R_EARTH / r.powi(4);
+    let eq = j2_perturbation(Vec3::new(r, 0.0, 0.0));
+    assert!((eq.x / (-1.5 * unit) - 1.0).abs() < 1e-12, "{eq:?}");
+    assert!((eq.x + 1.097e-2).abs() < 1e-5);
+    let pole = j2_perturbation(Vec3::new(0.0, 0.0, r));
+    assert!((pole.z / (3.0 * unit) - 1.0).abs() < 1e-12, "{pole:?}");
+    // 地球の J2 は z 軸まわりの zonal_j2 そのもの
+    let p = Vec3::new(3.0e6, -4.0e6, 5.0e6);
+    assert_eq!(
+        j2_perturbation(p),
+        zonal_j2(MU_EARTH, R_EARTH, J2_EARTH, Vec3::Z, p)
+    );
+}
+
+#[test]
 fn validate_rejects_bad_configs() {
     let bad = config(GravityModel::Harmonics {
         degree: 71,

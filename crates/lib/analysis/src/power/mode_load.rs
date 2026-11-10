@@ -5,11 +5,10 @@
 //! **0 W とみなさず**、合計から外して警告に出す。成長余裕は部品ごとの割合（0.2 = +20 %）。
 //! 電力収支（`power.energy_balance`）もモードの負荷を [`evaluate_mode`] で求める。
 
-use crate::modes::{self, ModeDef};
+use crate::modes::{self, ModeDef, StateValues, UnlistedParts};
 use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, ensure_non_negative};
 use sat_units::typed::{Fraction, Power, Qty};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 /// モード別消費電力の入力。
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -35,11 +34,21 @@ pub struct ModeLoadPart {
     /// 表示上のまとまり（例: `"AOCS"`）。集計の小計に使う
     #[serde(default)]
     pub group: String,
-    /// 状態ごとの消費電力（例: `{"off": 0, "on": 1.2}`）
-    pub power: BTreeMap<String, Qty<Power>>,
+    /// 員数。消費電力は単体値を渡し、解析が掛ける（省略時 1）
+    #[serde(default = "crate::spec::default_count")]
+    pub count: u32,
+    /// 1 台の状態ごとの消費電力（例: `{"by_state": {"off": 0, "on": 1.2}}`）
+    pub power: StateValues<Power>,
     /// 成長余裕（0.2 = +20 %）。省略時は `default_growth_margin`
     #[serde(default)]
     pub growth_margin: Option<f64>,
+}
+
+impl ModeLoadPart {
+    /// 状態 `state` での部品の消費電力（単体値 × 員数）。表に無ければ `None`。
+    pub fn power_in(&self, state: &str) -> Option<Qty<Power>> {
+        self.power.get(state).map(|p| p * f64::from(self.count))
+    }
 }
 
 /// モード別消費電力の出力。
@@ -106,7 +115,7 @@ pub struct ModeLoadStateShare {
     pub state: String,
     /// 時間割合（0〜1）
     pub fraction: Fraction,
-    /// その状態の消費電力（表に無ければ `None`）
+    /// その状態の部品の消費電力（単体値 × 員数。表に無ければ `None`）
     pub power: Option<Qty<Power>>,
 }
 
@@ -168,13 +177,14 @@ pub fn evaluate_mode(input: &ModeLoadInput, mode: &ModeDef) -> Result<ModeLoadMo
     let ev = modes::evaluate(
         mode,
         input.parts.iter().map(|p| p.id.as_str()),
+        UnlistedParts::Warn,
         |part, state| {
             input
                 .parts
                 .iter()
                 .find(|p| p.id == part)
-                .and_then(|p| p.power.get(state))
-                .map(|w| w.value())
+                .and_then(|p| p.power_in(state))
+                .map(Qty::value)
         },
     )?;
     let mut out = ModeLoadMode {
@@ -218,7 +228,7 @@ fn part_result(
         .fractions()?
         .into_iter()
         .map(|(state, fraction)| ModeLoadStateShare {
-            power: part.power.get(&state).copied(),
+            power: part.power_in(&state),
             state,
             fraction: Fraction::new(fraction),
         })

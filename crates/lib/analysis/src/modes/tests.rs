@@ -93,13 +93,45 @@ fn evaluate_excludes_unassigned_and_missing_with_warnings() {
         ("TRX", "tx") => Some(10.0),
         _ => None,
     };
-    let ev = evaluate(&mode, ["TRX", "CAM", "GPS"], value).unwrap();
+    let ev = evaluate(&mode, ["TRX", "CAM", "GPS"], UnlistedParts::Warn, value).unwrap();
     assert!((ev.total() - 2.8).abs() < 1e-12);
     assert_eq!(ev.unassigned, vec!["CAM".to_owned()]);
     assert_eq!(ev.missing, vec![("GPS".to_owned(), "on".to_owned())]);
     assert_eq!(ev.unknown_parts, vec!["HTR".to_owned()]);
     let keys: Vec<String> = ev.checks("消費電力").into_iter().map(|c| c.key).collect();
     assert_eq!(keys, ["unassigned", "missing_value", "unknown_part"]);
+    // 一覧に無い部品を警告しない評価では unknown_part だけが消える
+    let quiet = evaluate(&mode, ["TRX", "CAM", "GPS"], UnlistedParts::Ignore, value).unwrap();
+    assert!(quiet.unknown_parts.is_empty());
+    let keys: Vec<String> = quiet
+        .checks("消費電力")
+        .into_iter()
+        .map(|c| c.key)
+        .collect();
+    assert_eq!(keys, ["unassigned", "missing_value"]);
+    assert!((quiet.total() - 2.8).abs() < 1e-12);
     assert!(find_mode(std::slice::from_ref(&mode), "NOMINAL").is_ok());
     assert!(find_mode(std::slice::from_ref(&mode), "SAFE").is_err());
+}
+
+#[test]
+fn state_values_fall_back_to_the_default() {
+    use sat_units::typed::{Power, Qty};
+    // by_state に無い状態は default。default も無ければ値なし
+    let v = StateValues::<Power> {
+        default: Some(Qty::from_raw(1.5)),
+        by_state: [("off".to_owned(), Qty::from_raw(0.0))].into(),
+    };
+    assert_eq!(v.get("off").map(Qty::value), Some(0.0));
+    assert_eq!(v.get("on").map(Qty::value), Some(1.5));
+    let only_states = StateValues::<Power> {
+        default: None,
+        ..v.clone()
+    };
+    assert!(only_states.get("on").is_none());
+    assert!(StateValues::<Power>::default().is_empty() && !only_states.is_empty());
+    // JSON は {"default": …, "by_state": {…}}。どちらも省略できる
+    let parsed: StateValues<Power> = serde_json::from_str(r#"{"by_state": {"on": 2}}"#).unwrap();
+    assert_eq!(parsed.get("on").map(Qty::value), Some(2.0));
+    assert!(parsed.default.is_none());
 }

@@ -1,17 +1,86 @@
-//! モードごとの状態と時間割合。**電源（消費電力）と C&DH（データ発生量）の両方がこれを使う。**
+//! モードごとの状態と時間割合。**電源（消費電力）・C&DH（データ発生量）・熱（内部発熱）がこれを使う。**
 //!
 //! モードは「部品 ID → 状態（＋デューティ比）」の割り当ての集まり。部品は文字列の ID で識別し、
 //! 部品の中身（電力・データレートなど）はこのモジュールは知らない。値は呼び出し側が状態名から引く。
+//! 部品の状態ごとの値の表は [`StateValues`]（単体値。員数は各解析の部品の `count` に持たせて解析が掛ける）。
 //!
 //! **方針（ここだけ）**: モードで状態が割り当てられていない部品と、使う状態の値が無い部品は、
 //! 0 とみなさず**警告して合計から除く**（[`evaluate`]・[`ModeEvaluation::checks`]）。
 
 use crate::spec::{AnalysisError, Check, Verdict};
+use sat_units::typed::{Dimension, Qty};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 /// 割合の合計を 1 とみなす許容差（デューティ比・モードの時間割合）。**この許容差はここだけ。**
 pub const DUTY_TOLERANCE: f64 = 1e-9;
+
+/// 部品 1 台の状態ごとの値（消費電力・データレートなど、単体値）。`by_state` に無い状態は `default`
+/// （それも無ければ値なし）。**状態ごとの値の表はこれを使う**（電源・C&DH・熱で共有）。
+#[derive(Serialize, Deserialize)]
+#[serde(bound = "")]
+#[cfg_attr(
+    feature = "ts",
+    derive(ts_rs::TS),
+    ts(concrete(D = sat_units::typed::Dimensionless), bound = "")
+)]
+pub struct StateValues<D: Dimension> {
+    /// 状態によらない値（`by_state` に無い状態に使う）
+    #[serde(default)]
+    pub default: Option<Qty<D>>,
+    /// 状態ごとの値（例: `{"off": 0, "on": 1.2}`）
+    #[serde(default)]
+    pub by_state: BTreeMap<String, Qty<D>>,
+}
+
+impl<D: Dimension> StateValues<D> {
+    /// 状態 `state` の値（`by_state` に無ければ `default`、それも無ければ `None`）。
+    pub fn get(&self, state: &str) -> Option<Qty<D>> {
+        self.by_state.get(state).copied().or(self.default)
+    }
+
+    /// 値が 1 つも無いか（`default` も `by_state` も無い）。
+    pub fn is_empty(&self) -> bool {
+        self.default.is_none() && self.by_state.is_empty()
+    }
+}
+
+// 次元の型 `D` は印だけなので、`D` に何も求めずに実装する（derive だと `D: Clone` などが要る）。
+impl<D: Dimension> Default for StateValues<D> {
+    fn default() -> Self {
+        Self {
+            default: None,
+            by_state: BTreeMap::new(),
+        }
+    }
+}
+
+impl<D: Dimension> Clone for StateValues<D> {
+    fn clone(&self) -> Self {
+        Self {
+            default: self.default,
+            by_state: self.by_state.clone(),
+        }
+    }
+}
+
+impl<D: Dimension> std::fmt::Debug for StateValues<D> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("StateValues")
+            .field("default", &self.default)
+            .field("by_state", &self.by_state)
+            .finish()
+    }
+}
+
+/// モードの割り当てのうち、[`evaluate`] に渡した部品の一覧に無い部品の扱い。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnlistedParts {
+    /// 警告する（`unknown_part`）。一覧が値を持ちうる部品のすべてのとき（電源の消費電力）
+    Warn,
+    /// 警告しない。一覧がその解析の対象の部品だけのとき（C&DH はレートを持つ部品、熱は節点に含まれる部品）
+    Ignore,
+}
 
 /// 衛星のモード（部品ごとの状態の割り当て）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -121,7 +190,7 @@ pub struct ModeEvaluation {
     pub unassigned: Vec<String>,
     /// 割合が正の状態に値が無い (部品, 状態)
     pub missing: Vec<(String, String)>,
-    /// 割り当てはあるが部品の一覧に無い ID
+    /// 割り当てはあるが部品の一覧に無い ID（[`UnlistedParts::Ignore`] で評価したときは空）
     pub unknown_parts: Vec<String>,
 }
 
@@ -173,9 +242,11 @@ impl ModeEvaluation {
 }
 
 /// モード `mode` での部品 `parts`（ID）の時間平均を求める。`value_of(部品, 状態)` は状態の値（無ければ `None`）。
+/// 一覧に無い部品の割り当てを警告するかは `unlisted` で選ぶ。
 pub fn evaluate<'a>(
     mode: &ModeDef,
     parts: impl IntoIterator<Item = &'a str>,
+    unlisted: UnlistedParts,
     value_of: impl Fn(&str, &str) -> Option<f64>,
 ) -> Result<ModeEvaluation, AnalysisError> {
     mode.validate()?;
@@ -201,12 +272,14 @@ pub fn evaluate<'a>(
             .extend(lacking.into_iter().map(|s| (part.to_owned(), s)));
         ev.means.push((part.to_owned(), mean));
     }
-    ev.unknown_parts = mode
-        .assignments
-        .iter()
-        .filter(|a| !parts.contains(&a.part.as_str()))
-        .map(|a| a.part.clone())
-        .collect();
+    if unlisted == UnlistedParts::Warn {
+        ev.unknown_parts = mode
+            .assignments
+            .iter()
+            .filter(|a| !parts.contains(&a.part.as_str()))
+            .map(|a| a.part.clone())
+            .collect();
+    }
     Ok(ev)
 }
 

@@ -1,4 +1,4 @@
-//! 太陽電池の発電モデル。**日照時（`.map(SolarPanel::eol)ower.solar_sunlit`）・軌道上（`power.orbit_generation`）・
+//! 太陽電池の発電モデル。**日照時（`power.solar_sunlit`）・軌道上（`power.orbit_generation`）・
 //! 収支（`power.energy_balance`）の 3 つの解析はこのモデルだけを使う。**
 //!
 //! パネル 1 枚の発電（バス側）:
@@ -9,16 +9,15 @@
 //! - f_life: BOL なら 1、EOL なら `eol_factor`
 //! - n̂: パネルの法線（機体座標系）、ŝ: 太陽方向（機体座標系）、ν: 日照率（入射は `sat_astro::illumination`）
 
-use crate::spec::{AnalysisError, ensure_fraction, ensure_non_negative};
+use crate::spec::{
+    AnalysisError, SUNLIT_THRESHOLD, ensure_fraction, ensure_non_negative, is_sunlit,
+};
 use sat_astro::constants::SOLAR_CONSTANT;
 use sat_astro::illumination::{solar_flux_w_m2, solar_incidence};
 use sat_astro::math::Vec3;
 use sat_astro::timeline::{TimelineSample, Window, shadow_windows};
 use sat_units::typed::{Area, Irradiance, Power, Qty};
 use serde::{Deserialize, Serialize};
-
-/// 日照とみなす日照率の下限。これ以上を「日照中」、未満を「日陰」として区間や平均を数える（半影の中央）。
-pub const SUNLIT_THRESHOLD: f64 = 0.5;
 
 /// 太陽電池パネル 1 枚。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -169,6 +168,8 @@ pub struct SolarProfile {
     pub t: Vec<f64>,
     /// 日照率
     pub sunlit: Vec<f64>,
+    /// 日照中か（`crate::spec::is_sunlit`）
+    pub lit: Vec<bool>,
     /// `panel_bol[i][k]`: パネル `i` のサンプル `k` での発電（BOL、バス側）[W]
     pub panel_bol: Vec<Vec<f64>>,
     eol_factors: Vec<f64>,
@@ -186,6 +187,7 @@ impl SolarProfile {
         Self {
             t: samples.iter().map(|s| s.t_s).collect(),
             sunlit: samples.iter().map(|s| s.sunlit).collect(),
+            lit: samples.iter().map(is_sunlit).collect(),
             panel_bol,
             eol_factors: array.panels.iter().map(SolarPanel::eol).collect(),
         }
@@ -209,11 +211,6 @@ impl SolarProfile {
             }
         }
         sum
-    }
-
-    /// 日照中（日照率 ≥ [`SUNLIT_THRESHOLD`]）かどうか。
-    pub fn sunlit_flags(&self) -> Vec<bool> {
-        self.sunlit.iter().map(|&s| s >= SUNLIT_THRESHOLD).collect()
     }
 }
 

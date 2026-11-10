@@ -16,7 +16,7 @@ series: Series,
  */
 nodes: Array<ThermalTransientNodeResult>, 
 /**
- * 動作範囲の端からこの幅以内を警告にした（`thermal::steady::RANGE_WARNING_BAND_K`）
+ * 動作範囲の端からこの幅以内を警告にした（`thermal::range::RANGE_WARNING_BAND_K`）
  */
 range_warning_band: number, 
 /**

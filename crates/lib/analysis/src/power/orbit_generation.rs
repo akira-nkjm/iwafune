@@ -5,8 +5,8 @@
 
 use super::solar::{SolarArray, SolarLife, SolarProfile, eclipses};
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Channel, Check, Series, System, Verdict,
-    masked_time_mean, orbit_mean, orbit_ranges,
+    Analysis, AnalysisError, AnalysisKind, Channel, Check, Series, SpanFallback, System,
+    longest_window, masked_time_mean, orbit_mean, orbit_ranges, short_span_check, time_fraction,
 };
 use sat_astro::timeline::{self, TimelineSpec, Window};
 use sat_units::typed::{Energy, Fraction, Power, Qty, Time};
@@ -101,8 +101,7 @@ fn summarize(
     let life = input.life;
     let ranges = orbit_ranges(&profile.t, period_s);
     let gen_life = profile.total(life);
-    let flags = profile.sunlit_flags();
-    let sunlit_num: Vec<f64> = flags.iter().map(|&f| if f { 1.0 } else { 0.0 }).collect();
+    let flags = &profile.lit;
     let orbit_average = orbit_mean(&profile.t, &gen_life, &ranges);
     let panels = panel_shares(input, profile, &ranges, orbit_average);
     OrbitGenerationOutput {
@@ -121,19 +120,18 @@ fn summarize(
             &ranges,
         )),
         sunlit_average: Qty::from_raw(
-            masked_time_mean(&profile.t, &gen_life, &flags).unwrap_or(0.0),
+            masked_time_mean(&profile.t, &gen_life, flags).unwrap_or(0.0),
         ),
         peak: Qty::from_raw(gen_life.iter().fold(0.0, |a: f64, &p| a.max(p))),
         energy_per_orbit: Qty::<Power>::from_raw(orbit_average) * Qty::<Time>::from_raw(period_s),
-        sunlit_fraction: Fraction::new(orbit_mean(&profile.t, &sunlit_num, &ranges)),
-        max_eclipse_duration: eclipses
-            .iter()
-            .map(|w| w.duration)
-            .fold(Qty::ZERO, |a, d| if d > a { d } else { a }),
+        sunlit_fraction: time_fraction(&profile.t, flags, &ranges),
+        max_eclipse_duration: longest_window(&eclipses),
         eclipses,
         panels,
         series: generation_series(input, profile, gen_life),
-        checks: span_checks(ranges.len()),
+        checks: short_span_check(ranges.len(), SpanFallback::OrbitMeanOverSpan)
+            .into_iter()
+            .collect(),
     }
 }
 
@@ -184,19 +182,6 @@ fn panel_shares(
         .collect()
 }
 
-/// 期間が 1 周に満たないときの注意（電力収支でも使う）。
-pub(crate) fn span_checks(complete_orbits: usize) -> Vec<Check> {
-    if complete_orbits > 0 {
-        return Vec::new();
-    }
-    vec![Check::new(
-        "span",
-        "解析期間",
-        Verdict::Warning,
-        "解析期間が 1 周に満たないため、軌道平均は全期間の平均です",
-    )]
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -240,6 +225,7 @@ mod tests {
         let mut p = SolarProfile::build(&array(), &[]);
         p.panel_bol = vec![sunlit.iter().map(|s| 408.3 * s).collect()];
         p.t = t;
+        p.lit = sunlit.iter().map(|&s| s > 0.5).collect();
         p.sunlit = sunlit;
         let ecl = vec![Window {
             start: Qty::from_raw(55.0),

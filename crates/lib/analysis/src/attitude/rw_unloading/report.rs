@@ -4,7 +4,7 @@ use super::trace::Trace;
 use super::{RwUnloadingInput, RwUnloadingOutput};
 use crate::attitude::disturbance::{DISTURBANCE_KINDS, DisturbanceTorques};
 use crate::spec::quantity_text;
-use crate::spec::{Channel, Check, Series, Verdict};
+use crate::spec::{Channel, Check, Series, SpanFallback, Verdict, short_span_check};
 use sat_astro::math::Vec3;
 
 pub(super) fn series(input: &RwUnloadingInput, tr: &Trace) -> Series {
@@ -50,11 +50,7 @@ pub(super) fn verdicts(input: &RwUnloadingInput, o: &RwUnloadingOutput) -> Vec<C
     checks.push(Check::new(
         "momentum_capacity",
         "角運動量の容量",
-        if zero_interval {
-            Verdict::Violation
-        } else {
-            Verdict::Ok
-        },
+        Verdict::from_ok(!zero_interval),
         if zero_interval {
             "周期成分だけで使える角運動量を超えます".to_owned()
         } else {
@@ -68,15 +64,10 @@ pub(super) fn verdicts(input: &RwUnloadingInput, o: &RwUnloadingOutput) -> Vec<C
         },
     ));
     if let Some(m) = o.torque_margin {
-        let v = if m >= 1.0 {
-            Verdict::Ok
-        } else {
-            Verdict::Violation
-        };
         checks.push(Check::new(
             "torque_margin",
             "トルクの余裕",
-            v,
+            Verdict::from_ok(m >= 1.0),
             format!(
                 "最大トルク / 必要トルク = {}",
                 quantity_text(m, sat_units::typed::Fraction::KIND)
@@ -85,21 +76,16 @@ pub(super) fn verdicts(input: &RwUnloadingInput, o: &RwUnloadingOutput) -> Vec<C
     }
     if let Some(req) = input.required_unload_interval {
         let ok = o.unload_interval.is_none_or(|i| i >= req);
-        let v = if ok { Verdict::Ok } else { Verdict::Violation };
         checks.push(Check::new(
             "unload_interval",
             "アンロード間隔の要求",
-            v,
+            Verdict::from_ok(ok),
             format!("要求 {} 以上", quantity_text(req.value(), "Time")),
         ));
     }
-    if o.complete_orbits == 0 {
-        checks.push(Check::new(
-            "span",
-            "解析期間",
-            Verdict::Warning,
-            "解析期間が 1 周に満たないため、永年成分は全期間から外挿しています",
-        ));
-    }
+    checks.extend(short_span_check(
+        o.complete_orbits,
+        SpanFallback::SecularExtrapolated,
+    ));
     checks
 }

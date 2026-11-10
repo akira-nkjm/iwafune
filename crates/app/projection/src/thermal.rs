@@ -3,7 +3,7 @@
 
 use crate::context::{Context, mode_def};
 use crate::missing::MissingInputs;
-use crate::parts::direction_body;
+use crate::parts::{direction_body, state_values};
 use crate::quantity::{qty, qty_opt};
 use crate::timeline;
 use fune_model::Target;
@@ -19,7 +19,7 @@ use sat_analysis::thermal::transient::{ThermalHeatPhase, ThermalInitial};
 use sat_analysis::thermal::{
     ThermalEnvironment, ThermalExposure, ThermalSteadyInput, ThermalTransientInput,
 };
-use sat_units::typed::{Area, Irradiance, Qty, Temperature, ThermalConductance, Time};
+use sat_units::typed::{Area, Irradiance, Power, Qty, Temperature, ThermalConductance, Time};
 use std::collections::BTreeMap;
 
 fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a ThermalSettings> {
@@ -175,22 +175,11 @@ fn loads(ctx: &Context<'_>, s: &ThermalSettings, mode: Option<&str>) -> Option<T
         .filter_map(|(pid, node)| {
             let p = ctx.resolved.parts.get(*pid)?;
             // 消費電力を持つ部品だけが発熱の源（構体やパネルは渡さない。電源の mode_load と同じ選び方）
-            let (power, by_state) = match p.value("power")? {
-                SiValue::Scalar(s) => (Some(Qty::from_raw(s.value)), BTreeMap::new()),
-                SiValue::ByState(map) => (
-                    None,
-                    map.iter()
-                        .map(|(k, v)| (k.clone(), Qty::from_raw(v.value)))
-                        .collect(),
-                ),
-                _ => return None,
-            };
             Some(ThermalModePart {
                 id: p.id.clone(),
                 node: node.to_string(),
                 count: crate::parts::count_of(p),
-                power,
-                by_state,
+                power: state_values::<Power>(p, "power")?,
                 heat_fraction: p.scalar("heat_fraction"),
             })
         })

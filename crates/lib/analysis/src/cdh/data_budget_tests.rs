@@ -3,8 +3,8 @@
 use super::*;
 use crate::modes::StateAssignment;
 
-fn rates(pairs: &[(&str, f64)]) -> DataBudgetRates {
-    DataBudgetRates {
+fn rates(pairs: &[(&str, f64)]) -> StateValues<DataRate> {
+    StateValues {
         default: None,
         by_state: pairs
             .iter()
@@ -27,11 +27,11 @@ fn input() -> DataBudgetInput {
             DataBudgetPart {
                 count: 1,
                 id: "OBC".to_owned(),
-                hk_rate: DataBudgetRates {
+                hk_rate: StateValues {
                     default: Some(Qty::from_raw(100.0)),
-                    by_state: BTreeMap::new(),
+                    by_state: Default::default(),
                 },
-                mission_rate: DataBudgetRates::default(),
+                mission_rate: StateValues::default(),
             },
             DataBudgetPart {
                 count: 1,

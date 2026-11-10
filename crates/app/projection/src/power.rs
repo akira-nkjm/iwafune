@@ -2,7 +2,7 @@
 
 use crate::context::Context;
 use crate::missing::MissingInputs;
-use crate::parts::{self, by_role, direction_body, extensive_by_state, label, ratio};
+use crate::parts::{self, by_role, direction_body, label, ratio, state_values};
 use crate::timeline;
 use fune_model::Target;
 use fune_model::path::SettingPath;
@@ -32,7 +32,8 @@ pub fn mode_load_input(ctx: &Context<'_>, m: &mut MissingInputs) -> ModeLoadInpu
                 id: p.id.clone(),
                 label: label(p),
                 group: p.subsystem.clone().unwrap_or_default(),
-                power: extensive_by_state::<Power>(p, "power")?,
+                count: parts::count_of(p),
+                power: state_values::<Power>(p, "power")?,
                 growth_margin: parts::growth(ctx.design, p),
             })
         })

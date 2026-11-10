@@ -6,10 +6,10 @@
 
 use crate::spec::{Analysis, AnalysisError, AnalysisKind, Channel, Check, Series, System, Verdict};
 use crate::thermal::network::{
-    Compiled, ThermalLoad, ThermalModeLoads, ThermalNetwork, ThermalTempRange,
+    Compiled, INITIAL_GUESS_K, ThermalLoad, ThermalModeLoads, ThermalNetwork, ThermalTempRange,
 };
 use crate::thermal::orbit_heat::{ThermalEnvironment, absorbed, mean_absorbed, timeline_geometry};
-use crate::thermal::steady::{RANGE_WARNING_BAND_K, range_check, range_verdict};
+use crate::thermal::range::{RANGE_WARNING_BAND_K, range_check, range_verdict};
 use sat_astro::ode::integrate;
 use sat_astro::timeline::TimelineSpec;
 use sat_astro::timeline::time_mean;
@@ -88,7 +88,7 @@ pub struct ThermalTransientOutput {
     pub series: Series,
     /// 入力の節点の順
     pub nodes: Vec<ThermalTransientNodeResult>,
-    /// 動作範囲の端からこの幅以内を警告にした（`thermal::steady::RANGE_WARNING_BAND_K`）
+    /// 動作範囲の端からこの幅以内を警告にした（`thermal::range::RANGE_WARNING_BAND_K`）
     pub range_warning_band: Qty<Temperature>,
     /// 動作範囲を持つ節点ごとの判定（key は `range:<node>`）
     pub checks: Vec<Check>,
@@ -227,7 +227,7 @@ fn initial(
             let ext = mean_absorbed(net, &input.environment, timeline)?;
             let q: Vec<f64> = ext.iter().zip(phases.mean()).map(|(a, b)| a + b).collect();
             let space_k = input.environment.space_temperature.value();
-            net.solve_steady(&q, space_k, 290.0)?.temps
+            net.solve_steady(&q, space_k, INITIAL_GUESS_K)?.temps
         }
     };
     if t.iter().any(|x| x.is_nan() || *x <= 0.0) {

@@ -1,6 +1,7 @@
 use super::*;
 use crate::power::testkit::{leo_timeline, nadir_pointing_z, sun_pointing_z};
 use sat_astro::constants::R_EARTH;
+use sat_astro::timeline::time_mean;
 use sat_units::typed::Fraction;
 
 #[test]
@@ -68,7 +69,7 @@ fn sun_pointing_sensor_sees_sun_only_when_lit() {
     let t: Vec<f64> = samples.iter().map(|s| s.t_s).collect();
     let flags: Vec<f64> = samples
         .iter()
-        .map(|s| f64::from(u8::from(s.sunlit >= SUNLIT_THRESHOLD)))
+        .map(|s| f64::from(u8::from(is_sunlit(s))))
         .collect();
     let lit = time_mean(&t, &flags);
     let input = SensorFovInput {

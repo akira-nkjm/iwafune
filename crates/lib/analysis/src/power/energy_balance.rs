@@ -2,13 +2,14 @@
 //!
 //! 軌道と姿勢則の時系列に沿った発電（[`super::solar`]）と、ケースごとの負荷（モードの平均消費電力
 //! [`super::mode_load::evaluate_mode`] か一定値）から、電池の充放電（[`super::battery`]）を積分する。
-//! 日照中（日照率 ≥ [`super::solar::SUNLIT_THRESHOLD`]）と日陰中で別のモードを使える。
+//! 日照中（[`crate::spec::is_sunlit`]）と日陰中で別のモードを使える。
 
 pub use super::battery::EnergyBalanceBattery;
 use super::mode_load::ModeLoadInput;
 use super::solar::{SolarArray, SolarLife, SolarProfile};
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Channel, Check, Series, System, orbit_mean, orbit_ranges,
+    Analysis, AnalysisError, AnalysisKind, Channel, Check, Series, System, orbit_mean,
+    orbit_ranges, time_fraction,
 };
 use sat_astro::attitude::AttitudeLaw;
 use sat_astro::timeline::{self, TimelineSpec};
@@ -186,7 +187,6 @@ struct Context<'a> {
     battery: &'a EnergyBalanceBattery,
     profile: SolarProfile,
     generation: Vec<f64>,
-    flags: Vec<bool>,
     ranges: Vec<Range<usize>>,
     period_s: f64,
 }
@@ -200,7 +200,6 @@ impl<'a> Context<'a> {
     ) -> Self {
         Self {
             generation: profile.total(input.life),
-            flags: profile.sunlit_flags(),
             ranges: orbit_ranges(&profile.t, period_s),
             input,
             battery,
@@ -210,7 +209,6 @@ impl<'a> Context<'a> {
     }
 
     fn output(self, cases: Vec<EnergyBalanceCaseResult>) -> EnergyBalanceOutput {
-        let sunlit_num: Vec<f64> = self.flags.iter().map(|&f| f64::from(u8::from(f))).collect();
         EnergyBalanceOutput {
             life: self.input.life,
             period: Qty::from_raw(self.period_s),
@@ -220,7 +218,7 @@ impl<'a> Context<'a> {
                 &self.generation,
                 &self.ranges,
             )),
-            sunlit_fraction: Fraction::new(orbit_mean(&self.profile.t, &sunlit_num, &self.ranges)),
+            sunlit_fraction: time_fraction(&self.profile.t, &self.profile.lit, &self.ranges),
             series: Series {
                 channels: vec![
                     Channel::new("generation", "発電電力", "Power", self.generation),

@@ -10,7 +10,7 @@ mod terms;
 pub use gravity::EGM96_MAX_DEGREE;
 pub use solid_tide::solid_tide_eci;
 pub use terms::{
-    drag_eci, j2_perturbation, point_mass, relative_wind_eci, relativity_eci, srp_eci,
+    drag_eci, drag_force, j2_perturbation, point_mass, relative_wind_eci, relativity_eci, srp_eci,
     srp_pressure, third_body_eci, zonal_j2,
 };
 

@@ -1,11 +1,10 @@
 //! モードごとの単体消費電力を共通評価器で平均し、発熱入力と警告にする。
 
 use super::ThermalLoad;
-use crate::modes::{ModeDef, evaluate};
+use crate::modes::{ModeDef, StateValues, UnlistedParts, evaluate};
 use crate::spec::{AnalysisError, Check};
 use sat_units::typed::{Power, Qty};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 /// モード発熱の部品（単体値と員数）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,12 +17,9 @@ pub struct ThermalModePart {
     /// 員数（省略で 1）。
     #[serde(default = "crate::spec::default_count")]
     pub count: u32,
-    /// 状態によらない単体電力（状態別に無い場合の値）。
+    /// 1 台の状態ごとの消費電力（単体値。`by_state` に無い状態は `default`）。
     #[serde(default)]
-    pub power: Option<Qty<Power>>,
-    /// 状態ごとの単体電力。
-    #[serde(default)]
-    pub by_state: BTreeMap<String, Qty<Power>>,
+    pub power: StateValues<Power>,
     /// 熱になる割合（省略で 1）。
     #[serde(default)]
     pub heat_fraction: Option<f64>,
@@ -41,13 +37,15 @@ pub struct ThermalModeLoads {
 
 impl ThermalModeLoads {
     /// 単体平均電力と員数を渡す。不足・未割り当ては modes の警告を返して合計から除く。
+    /// 熱節点の対象外の部品の割り当ては、この解析では未知部品としない（[`UnlistedParts::Ignore`]）。
     pub fn evaluate(&self) -> Result<(Vec<ThermalLoad>, Vec<Check>), AnalysisError> {
         let ev = evaluate(
             &self.mode,
             self.parts.iter().map(|p| p.id.as_str()),
+            UnlistedParts::Ignore,
             |id, state| {
                 let p = self.parts.iter().find(|p| p.id == id)?;
-                p.by_state.get(state).copied().or(p.power).map(Qty::value)
+                p.power.get(state).map(Qty::value)
             },
         )?;
         let loads = self
@@ -63,13 +61,7 @@ impl ThermalModeLoads {
                 })
             })
             .collect();
-        // 熱節点の対象外の部品の割り当ては、この解析では未知部品としない。
-        let checks = ev
-            .checks("消費電力")
-            .into_iter()
-            .filter(|c| c.key != "unknown_part")
-            .collect();
-        Ok((loads, checks))
+        Ok((loads, ev.checks("消費電力")))
     }
 }
 
@@ -84,12 +76,14 @@ mod tests {
             id: id.into(),
             node: "n".into(),
             count: 3,
-            power: None,
-            by_state: [
-                ("off".into(), Qty::from_raw(0.0)),
-                ("on".into(), Qty::from_raw(8.0)),
-            ]
-            .into(),
+            power: StateValues {
+                default: None,
+                by_state: [
+                    ("off".into(), Qty::from_raw(0.0)),
+                    ("on".into(), Qty::from_raw(8.0)),
+                ]
+                .into(),
+            },
             heat_fraction: Some(0.5),
         };
         let input = ThermalModeLoads {

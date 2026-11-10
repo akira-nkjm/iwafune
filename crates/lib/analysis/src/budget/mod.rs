@@ -5,6 +5,8 @@
 //! - 成長余裕は 1 回だけ掛ける: `成長込み = value × count × (1 + growth)`。
 //! - 判定: `成長込みの合計 ≤ limit × (1 − system_margin)` なら `ok`、超えれば `violation`。
 //! - 値は SI の f64（質量 kg・電力 W・データ量 bit など）。何の量かは呼び出し側が知っている。
+//! - 解析の中で個数 × 値を数えるだけ・上限と比べるだけのときは [`counted_total`]・[`limit_check`]
+//!   （行は [`BudgetItem::counted`]）を使い、[`budget_rollup`] を呼ぶ定型を書かない。
 
 use crate::spec::quantity_text;
 use crate::spec::{AnalysisError, Check, Verdict, ensure_fraction, ensure_non_negative};
@@ -26,6 +28,36 @@ pub struct BudgetItem {
     /// 成長余裕（0.2 = +20 %、省略時 0）
     #[serde(default)]
     pub growth: f64,
+}
+
+impl BudgetItem {
+    /// まとまりも成長余裕も無い 1 行（個数 × 値を数えるだけの集計・上限の判定に使う）。
+    pub fn counted(id: impl Into<String>, value: f64, count: u32) -> Self {
+        Self {
+            id: id.into(),
+            group: String::new(),
+            value,
+            count,
+            growth: 0.0,
+        }
+    }
+}
+
+/// Σ 値 × 個数（上限もシステム余裕も無い [`budget_rollup`]）。例: ストレージの容量・パネルに載る質量。
+pub fn counted_total(items: &[BudgetItem]) -> Result<f64, AnalysisError> {
+    Ok(budget_rollup(items, None, 0.0)?.total)
+}
+
+/// 成長余裕込みの合計 ≤ 上限 `limit` の判定（システム余裕なしの [`budget_rollup`] と [`BudgetRollup::check`]）。
+/// 例: 総質量・1 日の送信可能量・未送信データとストレージ。
+pub fn limit_check(
+    items: &[BudgetItem],
+    limit: f64,
+    key: &str,
+    label: &str,
+    dimension: &str,
+) -> Result<Option<Check>, AnalysisError> {
+    Ok(budget_rollup(items, Some(limit), 0.0)?.check(key, label, dimension))
 }
 
 /// 1 行の集計。
@@ -212,6 +244,23 @@ mod tests {
             over.check("mass", "質量", "Mass").unwrap().verdict,
             Verdict::Violation
         );
+    }
+
+    #[test]
+    fn counted_helpers_by_hand() {
+        // 容量 64 GB × 2 台 + 32 GB × 1 台 = 160 GB（成長余裕なし）
+        let gb = 8.0e9;
+        let storage = [
+            BudgetItem::counted("OBC", 64.0 * gb, 2),
+            BudgetItem::counted("CAM", 32.0 * gb, 1),
+        ];
+        assert!((counted_total(&storage).unwrap() - 160.0 * gb).abs() < 1.0);
+        // 160 GB ≤ 200 GB は ok、≤ 150 GB は超過
+        let ok = limit_check(&storage, 200.0 * gb, "k", "l", "Information").unwrap();
+        assert_eq!(ok.unwrap().verdict, Verdict::Ok);
+        let over = limit_check(&storage, 150.0 * gb, "k", "l", "Information").unwrap();
+        assert_eq!(over.unwrap().verdict, Verdict::Violation);
+        assert!(counted_total(&[BudgetItem::counted("A", f64::NAN, 1)]).is_err());
     }
 
     #[test]
