@@ -20,6 +20,7 @@ import type {
   BudgetKind,
   BudgetView,
   CatalogItemView,
+  CommandText,
   DesignView,
   Op,
   PartRow,
@@ -240,6 +241,59 @@ export function useUnsetText() {
       sendText("/ops/unset_from_text", { item: item ?? null, path }, revision),
     ({ path }) => [path],
   );
+}
+
+/** 名詞のコマンドに打った引数で編集する（ネットの欄・配置の欄など） */
+export interface CommandEdit {
+  command: CommandText;
+  summary: string;
+  /** 欄の名前（API が返したパス。弾かれた理由をその欄の下に出す） */
+  paths?: string[];
+}
+
+/**
+ * 欄に打った文字列を `fune net set`・`fune part place` などと同じ引数の形のまま `POST /ops/from_command` で Op にしてから
+ * `POST /ops` で送る。量・ベクトル・割合・一覧の読み方は CLI と同じ service の関数（ここでは読まない）。
+ */
+export function useCommandText() {
+  return useEdit<CommandEdit>(
+    async ({ command }, revision) => {
+      const ops = await api<Op[]>("/ops/from_command", { method: "POST", body: command });
+      const body: ApplyRequest = { ops, base_revision: revision, dry_run: false };
+      return api<ApplyResult>("/ops", { method: "POST", body });
+    },
+    ({ paths }) => paths ?? [],
+  );
+}
+
+/**
+ * 打った引数を Op の列にするだけ（書き込まない。`POST /ops/from_command`）。確定前に dry_run を見せるダイアログ・
+ * 下書きを当てた計算に使う。command が null なら問い合わせない。打つ間は 250 ms 待ってから問い合わせる。
+ * `ops` は今の引数の結果だけ（待っている間と失敗したときは null）。`latest` は待っている間も前の結果を出す（下書きの計算用）。
+ */
+export function useCommandOps(command: CommandText | null): {
+  ops: Op[] | null;
+  latest: Op[] | null;
+  error: string | null;
+} {
+  const qc = useQueryClient();
+  const revision = currentRevision(qc);
+  const now = command ? JSON.stringify(command) : "";
+  const json = useDebounced(now, 250);
+  const query = useQuery<Op[], ApiError>({
+    queryKey: keys.commandOps(revision ?? "", json),
+    queryFn: () => api<Op[]>("/ops/from_command", { method: "POST", body: JSON.parse(json) }),
+    enabled: json.length > 0,
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+    placeholderData: keepPreviousData,
+  });
+  const settled = json === now && now.length > 0 && !query.isPlaceholderData;
+  return {
+    ops: settled ? (query.data ?? null) : null,
+    latest: now.length > 0 ? (query.data ?? null) : null,
+    error: settled ? (query.error?.message ?? null) : null,
+  };
 }
 
 /** 3D で動かした機体座標の位置・姿勢を送る（取付点に対する相対の Place への換算は service が行う） */

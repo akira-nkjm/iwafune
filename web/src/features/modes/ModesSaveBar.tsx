@@ -12,10 +12,14 @@ import { Button } from "@/ui/button";
  */
 export function ModesSaveBar({
   ops,
+  error,
   count,
   onDone,
 }: {
+  /** 下書きを service が Op にしたもの（読んでいる間と読めないときは null） */
   ops: Op[] | null;
+  /** 下書きを Op にできなかった理由（打った時間割合が数でないなど） */
+  error: string | null;
   count: number;
   onDone: () => void;
 }) {
@@ -23,6 +27,7 @@ export function ModesSaveBar({
   const apply = useApplyOps();
   // 時間割合の合計などの規則はサーバー（dry_run）が検査する
   const check = useOpCheck(ops);
+  const reason = error ?? check.error;
   const save = () => {
     if (ops && check.ok)
       apply.mutate({ ops, summary: t.modes.saveSummary(count) }, { onSuccess: onDone });
@@ -35,7 +40,7 @@ export function ModesSaveBar({
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1.5">
         <span className="text-ink-2 text-xs">{t.modes.changed(count)}</span>
-        {check.error && <span className="max-w-80 text-[11px] text-neg-ink">{check.error}</span>}
+        {reason && <span className="max-w-80 text-[11px] text-neg-ink">{reason}</span>}
         <div className="flex gap-2">
           <Button variant="outline" onClick={onDone}>
             <Undo2 size={14} />

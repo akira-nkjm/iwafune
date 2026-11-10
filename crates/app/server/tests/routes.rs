@@ -216,6 +216,22 @@ async fn invalid_op_is_400() {
     assert!(e["error"]["code"].is_string());
 }
 
+/// 名詞のコマンドの引数（`POST /ops/from_command`）: 読めれば Op の列、読めない文字列は入力の誤りで、書き込まない。
+#[tokio::test]
+async fn command_text_becomes_ops_or_400() {
+    let (_tmp, r) = demo_router();
+    let body = json!({ "command": "net_set", "net": "P5V", "rail": "5.1 V" });
+    let (s, ops) = call(&r, "POST", "/api/v1/ops/from_command", Some(body)).await;
+    assert_eq!(s, StatusCode::OK, "{ops}");
+    assert_eq!(ops[0]["op"], "set_net_field", "{ops}");
+    assert_eq!(ops[0]["field"]["value"]["unit"], "V", "{ops}");
+    let bad = json!({ "command": "mode_set", "cells": [
+        { "mode": "NOMINAL", "part": "UHF_TRX", "state": "rx", "duty": { "tx": "ten" } }] });
+    let (s, e) = call(&r, "POST", "/api/v1/ops/from_command", Some(bad)).await;
+    assert!(s.is_client_error(), "{s} {e}");
+    assert_eq!(e["error"]["code"], "invalid_input", "{e}");
+}
+
 #[tokio::test]
 async fn analyses_run_and_budgets() {
     let (_tmp, r) = demo_router();

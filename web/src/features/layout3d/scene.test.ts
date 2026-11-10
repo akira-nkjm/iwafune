@@ -6,7 +6,7 @@ import { axesOf, boxesOf } from "./scene";
 const base = fixture.parts[0]!;
 
 describe("3D 配置", () => {
-  it("機体座標の無い部品は未配置に回す", () => {
+  it("取付の無い部品は未配置に回す", () => {
     const { boxes, unplaced } = boxesOf(fixture);
     expect(boxes).toEqual([]);
     expect(unplaced).toEqual(["RW_X", "PCDU", "TRX"]);
@@ -19,7 +19,7 @@ describe("方向ベクトルの矢印", () => {
     const p: PartRow = {
       ...base,
       mount: {
-        on: null,
+        on: "BUS_FRAME",
         point: null,
         position: [0, 0, 0],
         authored_position: null,

@@ -143,6 +143,7 @@ pub(crate) fn nets(design: &Design) -> Vec<NetView> {
                 .map(|q| authored_quantity(q, Some("DataRate"))),
             master: n.master.clone(),
             members: members.remove(n.id.as_str()).unwrap_or_default(),
+            field_paths: net_field_paths(n.id.as_str()),
             file: file_of(design, EntityKey::Net(n.id.to_string())),
         })
         .collect()
@@ -233,6 +234,18 @@ fn duty_shares(c: &fune_model::design::StateAssign) -> BTreeMap<String, Quantity
     c.duty
         .iter()
         .map(|(s, f)| (s.clone(), crate::units::percent(*f)))
+        .collect()
+}
+
+/// ネットのフィールドの対象のパス（フィールド名 → `nets.P12V.rail`）。名前は `NetField::NAMES`、書き方は `Target::net` の表示
+/// （診断の `DiagnosticView.path` と同じなので、弾かれた理由がその欄に付く）。
+fn net_field_paths(net: &str) -> BTreeMap<String, String> {
+    fune_model::design::NetField::NAMES
+        .iter()
+        .map(|field| {
+            let target = fune_model::Target::net(net, Some(field));
+            ((*field).to_owned(), target.to_string())
+        })
         .collect()
 }
 

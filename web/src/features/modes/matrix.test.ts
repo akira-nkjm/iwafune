@@ -29,11 +29,11 @@ describe("セルを押したときの切り替え", () => {
     expect(toggleCell(wheel, { state: "peak", duty: {} })).toEqual({ state: "off", duty: {} });
   });
   it("時間割合は持ち越さない（間欠のオフを押すとオン）", () => {
-    expect(toggleCell(wheel, { state: "off", duty: { on: 0.2 } })).toEqual({
+    expect(toggleCell(wheel, { state: "off", duty: { on: "0.2" } })).toEqual({
       state: "on",
       duty: {},
     });
-    expect(toggleCell(wheel, { state: "on", duty: { peak: 0.1 } })).toEqual({
+    expect(toggleCell(wheel, { state: "on", duty: { peak: "0.1" } })).toEqual({
       state: "off",
       duty: {},
     });
@@ -49,7 +49,7 @@ describe("セルを押したときの切り替え", () => {
 describe("セルの記号", () => {
   it("時間割合があれば間欠、off と未指定は横線", () => {
     expect(cellSymbol({ state: "on", duty: {} })).toBe("●");
-    expect(cellSymbol({ state: "off", duty: { on: 0.2 } })).toBe("◐");
+    expect(cellSymbol({ state: "off", duty: { on: "0.2" } })).toBe("◐");
     expect(cellSymbol({ state: "off", duty: {} })).toBe("—");
     expect(cellSymbol(null)).toBe("—");
   });

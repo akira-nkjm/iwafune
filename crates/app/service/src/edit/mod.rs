@@ -1,5 +1,13 @@
 //! 編集の関数。**書き込みは [`apply`] だけ**（Op の列を fune-ops で計画・適用する）。CLI のコマンドも GUI の操作も Op にしてここを呼ぶ。
 //! 人が打つ値の文字列（`"620 g"`）を属性の型に合わせて Op にするのも、属性定義を見る必要があるのでここで行う。
+//!
+//! | モジュール | 打った文字列 → Op |
+//! |---|---|
+//! | `text` | `fune set`・`fune unset`・`fune setting set|unset` のパスと値（[`set_op`]・[`unset_op`]）と、値の読み方 |
+//! | `catalog` | `fune catalog set|unset` |
+//! | `command` | 名詞のコマンドの引数（[`command_ops`]。`fune net set|unset`・`fune part place`・`fune mode set|unset`） |
+//! | `defs` | `fune attr add`・`fune kind add` |
+//! | `place` | 機体座標での配置（`fune part place --body-pos`・`POST /parts/{id}/place_body`） |
 
 use crate::diff;
 use crate::dto::{ApplyRequest, ApplyResult, ChangedFile, FileChangeKind, InitResult};
@@ -11,14 +19,18 @@ use fune_store::FileSet;
 use std::path::Path;
 
 mod catalog;
+mod command;
+mod defs;
 mod place;
 mod text;
 
+pub use command::{command_ops, duty_from_text, mode_set_op, net_set_ops, net_unset_op, place_op};
+pub use defs::{attr_add_op, kind_add_op, port_template_from_text};
 pub use fune_ops::{to_cli, to_cli_script};
 pub use place::{place_body, place_body_op};
 pub use text::{
-    SetText, UnsetText, list_from_text, maturity, quantity_from_text, quaternion_from_text,
-    vector_from_text,
+    SetText, UnsetText, list_from_text, maturity, net_kind, pair_from_text, points_from_text,
+    quantity_from_text, quaternion_from_text, vector_from_text, xy_from_text,
 };
 
 /// 人が打った値の文字列 → Op（`fune set`・`fune catalog set`・`POST /ops/from_text`）。

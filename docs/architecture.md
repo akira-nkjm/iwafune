@@ -143,6 +143,7 @@ CLI と HTTP は `fune-service` の同じ関数を呼ぶ。
 | Op の適用 | 編集の各コマンド、`fune apply ops.json` | `POST /ops` | `edit::apply` |
 | 打った値の文字列 → Op | `fune set`・`fune setting set`・`fune catalog set` | `POST /ops/from_text` | `edit::set_op` |
 | 消す先のパス → Op | `fune unset`・`fune setting unset`・`fune catalog unset` | `POST /ops/unset_from_text` | `edit::unset_op` |
+| 名詞のコマンドに打った引数 → Op | `fune net set|unset`・`fune part place`・`fune mode set|unset`・`fune attr add`・`fune kind add` | `POST /ops/from_command` | `edit::command_ops` |
 | 整形 | `fune fmt [--check]` | `POST /fmt` | `format::format_design` |
 
 - `fune set RW_X.mass "620 g"` の `"620 g"` を量・整数・ベクトル・状態ごとの値のどれとして読むかは、属性定義を見て service が決める。
@@ -150,6 +151,11 @@ CLI と HTTP は `fune-service` の同じ関数を呼ぶ。
   設定の表、部品の基本の欄、パラメーター追加のダイアログのどれも）。同じ編集で定義を作る属性の値は、依頼の `ops`（下書き）を当てた設計で読む。
   GUI が送るパスは API が返したもの（`PartRow.paths`・`field_paths`、同じ編集で定義を作る属性は `POST /parts/{id}` の `ops` を当てた部品の `paths`）で、
   Web は ID やパスの文字列をつながない。
+- パスと値の 1 組でない編集（ネットのレール電圧、部品の配置の位置と姿勢、モード表の時間割合、属性・種別の定義の作成）は、
+  CLI の名詞のコマンドと同じ引数の形（`CommandText`。`{ command: "part_place", part, on, point, position: "0 0 12 mm", … }`）で
+  打った文字列のまま `/ops/from_command` に送る。量・ベクトル・クォータニオン・割合・カンマ区切りの一覧・`名前=種類` を読むのも、
+  表示名の既定（空なら ID）を決めるのも、CLI と同じ service の関数（`edit::{command, defs}`）。Web は打った値を数にしない
+  （`cargo xtask check` が `Number(`・`parseFloat(` を検査する）。
 - 適用の結果には、同じ編集をする CLI のコマンド（`fune_ops::to_cli`）が入る。GUI の「CLI としてコピー」はこれを使う。
 - `fune apply` は GUI が送るのと同じ Op の JSON を受ける。スクリプトからの一括編集にも使える。
 - 書き込まずに編集を当ててみることもできる（`fune_service::preview`）。`POST /analyses/{id}`・`POST /budgets/{kind}`・`POST /parts/{id}` の `ops`、
@@ -158,7 +164,7 @@ CLI と HTTP は `fune-service` の同じ関数を呼ぶ。
 
 テストで次の 2 つを確かめる。
 
-- 同じ編集を `fune` の実行ファイルと HTTP で行うと、ファイルがバイト単位で一致する（`crates/app/cli/tests/parity.rs`・`parity_text.rs`）。
+- 同じ編集を `fune` の実行ファイルと HTTP で行うと、ファイルがバイト単位で一致する（`crates/app/cli/tests/parity.rs`・`parity_text.rs`・`parity_command.rs`）。
 - すべての種類の Op で、`to_cli` の文字列を clap で読み直すと元の Op に戻る（`crates/app/cli/src/cmd/roundtrip/`）。
   Op の種類を足すと、見本を足すまでコンパイルが通らない。
 
@@ -197,7 +203,7 @@ HTTP の失敗は `{ "error": { "code", "message" }, "diagnostics": [...] }` で
 | パス | 内容 |
 |---|---|
 | `GET /project`・`/design`・`/parts`・`/parts/{id}`・`/values/{path}`・`/defs`・`/diagnostics` | 読み取り（概要と revision、設計全体、部品、1 つの値、定義、診断） |
-| `POST /ops`・`/ops/from_text`・`/ops/unset_from_text`・`/fmt` | 編集（§4.3） |
+| `POST /ops`・`/ops/from_text`・`/ops/unset_from_text`・`/ops/from_command`・`/fmt` | 編集（§4.3） |
 | `POST /parts/{id}` | 保存していない編集（`ops`）を書き込まずに当てた部品（`GET` と同じ形。`fune part show --ops`） |
 | `POST /parts/{id}/place_body` | 機体座標での配置を、取付先に対する相対の `Place` に直して適用する |
 | `GET /units`・`POST /units/parse`・`/units/format` | 単位の一覧、入力の解析（次元と SI 換算）、SI 値の表示文字列 |

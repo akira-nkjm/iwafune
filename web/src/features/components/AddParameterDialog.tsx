@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { useTextOp } from "@/api/ops";
+import { useCommandOps, useTextOp } from "@/api/ops";
 import { useDraftPart } from "@/api/queries";
 import type { DesignView, Op, PartRow, SetText } from "@/api/types";
 import { useT } from "@/i18n";
@@ -15,7 +15,7 @@ import { QuantityInput } from "@/quantity/QuantityInput";
 import { AttributePicker } from "./AttributePicker";
 import { type NewAttribute, NewAttributeFields } from "./NewAttributeFields";
 import { ProvenanceFields } from "./ProvenanceFields";
-import { createAttributeOp } from "./param-ops";
+import { attrAddCommand } from "./param-ops";
 
 type Mode = "standard" | "new";
 const EMPTY: NewAttribute = { id: "", label: "", dimension: "", units: [], byState: false };
@@ -49,7 +49,9 @@ export function AddParameterDialog({
     [],
   );
   const def = attrDef(design.defs, picked);
-  const create = mode === "new" ? createAttributeOp(fresh) : null;
+  // 新しく定義する属性は `fune attr add` と同じ引数を service で create_attribute にする（定義ページの作成と共通）
+  const made = useCommandOps(open && mode === "new" ? attrAddCommand(fresh) : null);
+  const create = made.ops?.[0] ?? null;
   const attrId = mode === "standard" ? picked : fresh.id;
   const dimension = mode === "standard" ? (def?.dimension ?? null) : fresh.dimension || null;
   const byState = mode === "standard" ? (def?.by_state ?? false) : fresh.byState;
@@ -110,7 +112,7 @@ export function AddParameterDialog({
         <NewAttributeFields
           value={fresh}
           onChange={setFresh}
-          idError={check.error ?? textOp.error ?? draft.error}
+          idError={made.error ?? check.error ?? textOp.error ?? draft.error}
         />
       )}
       {editable ? (

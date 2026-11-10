@@ -9,12 +9,14 @@
 //! | `catalog` | カタログ品の表示（値・パス・使っている部品） |
 //! | `value` | 値の表示（部品・カタログ品・設定で共有） |
 //! | `edit` | Op の適用と、人が打った文字列（`SetText`・`UnsetText`） |
+//! | `command` | 名詞のコマンドに打った引数（`CommandText`。`fune net set`・`fune part place`・`fune mode set` など） |
 //! | `budget` | 質量・電力・データ量のバジェット |
 //! | `data` | 外部データ（DE440）の状態 |
 
 mod analysis;
 mod budget;
 mod catalog;
+mod command;
 mod common;
 mod data;
 mod design;
@@ -30,6 +32,10 @@ pub use analysis::{
 };
 pub use budget::{BudgetRequest, BudgetRow, BudgetView};
 pub use catalog::{CatalogItemView, CatalogSourceView};
+pub use command::{
+    AttrAddText, CommandText, KindAddText, ModeCellText, ModeSetText, NetSetText, NetUnsetText,
+    PlaceText,
+};
 pub use common::{
     CheckReport, DiagnosticCounts, DiagnosticView, ErrorEnvelope, ErrorInfo, QuantityView,
     SourceExcerpt,

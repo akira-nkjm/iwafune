@@ -12,11 +12,13 @@ import { Switch } from "@/kit/Switch";
 import { Scene3D, type TransformMode } from "./Scene3D";
 import { axesOf, boxesOf, type V3 } from "./scene";
 
+/** 移動のスナップ（選択肢の値は名前。刻み [m] は表から引く。選んだ文字列を数として読まない） */
 const SNAPS = [
-  { value: "0.001", label: "1 mm" },
-  { value: "0.005", label: "5 mm" },
-  { value: "0.01", label: "10 mm" },
-];
+  { value: "1mm", label: "1 mm", step: 0.001 },
+  { value: "5mm", label: "5 mm", step: 0.005 },
+  { value: "10mm", label: "10 mm", step: 0.01 },
+] as const;
+const DEFAULT_SNAP = SNAPS[1];
 
 /**
  * 3D 配置の表示・編集。箱を選んで動かし、離すと Place を 1 回送る（15° と 1/5/10 mm でスナップ）。
@@ -41,7 +43,8 @@ export function Layout3D({
   const place = usePlaceBody();
   const [selected, setSelected] = useState<string | null>(null);
   const [mode, setMode] = useState<TransformMode>("translate");
-  const [snap, setSnap] = useState("0.005");
+  const [snap, setSnap] = useState<string>(DEFAULT_SNAP.value);
+  const step = (SNAPS.find((s) => s.value === snap) ?? DEFAULT_SNAP).step;
   const [showAxes, setShowAxes] = useState(true);
   const { boxes, unplaced } = boxesOf(design, colorOf);
   const part = design.parts.find((p) => p.id === selected) ?? null;
@@ -91,7 +94,7 @@ export function Layout3D({
               selected={selected}
               onSelect={setSelected}
               mode={mode}
-              snap={Number(snap)}
+              snap={step}
               com={com}
               axes={showAxes ? axesOf(design) : null}
               editable={editable}

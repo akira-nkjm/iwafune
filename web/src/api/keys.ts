@@ -22,6 +22,9 @@ export const keys = {
   dryRun: (revision: string, opsJson: string) => ["dry_run", revision, opsJson] as const,
   /** 打った文字列から作った Op（`POST /ops/from_text`。書き込まない）。revision が変われば別のキー */
   textOp: (revision: string, textJson: string) => ["text_op", revision, textJson] as const,
+  /** 名詞のコマンドに打った引数から作った Op の列（`POST /ops/from_command`。書き込まない） */
+  commandOps: (revision: string, commandJson: string) =>
+    ["command_ops", revision, commandJson] as const,
 };
 
 /** どの Op の後でも無効化するキーの先頭（設計・診断・解析・バジェットはすべて設計から導出される） */

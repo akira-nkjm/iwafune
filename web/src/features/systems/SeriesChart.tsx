@@ -71,7 +71,9 @@ export function SeriesChart({ series, title }: { series: Series; title?: string 
                   />
                   <Tooltip
                     formatter={(v) => (typeof v === "number" ? `${numText(v)} ${unit}` : String(v))}
-                    labelFormatter={(v) => `t = ${numText(Number(v))} s`}
+                    labelFormatter={(v) =>
+                      `t = ${typeof v === "number" ? numText(v) : String(v)} s`
+                    }
                     contentStyle={{
                       fontSize: 12,
                       borderRadius: 9,
