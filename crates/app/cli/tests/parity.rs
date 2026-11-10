@@ -1,6 +1,7 @@
 //! パリティテスト（CI 必須）: 同じ編集を CLI（`fune` の実行ファイル）と HTTP（`POST /api/v1/ops`）で行い、
 //! 結果のファイルがバイト単位で一致することを確かめる（CONTRIBUTING.md の「CLI と GUI の対等性」）。
-//! 人が打った文字列の編集（`POST /ops/from_text`・`/ops/unset_from_text`）は `parity_text.rs`。
+//! 人が打った文字列の編集（`POST /ops/from_text`・`/ops/unset_from_text`）は `parity_text.rs`、
+//! 名詞のコマンドに打った引数（`POST /ops/from_command`）は `parity_command.rs`。
 
 mod common;
 

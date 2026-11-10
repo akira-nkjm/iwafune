@@ -75,6 +75,7 @@ function net(id: string, kind: NetKind, members: PortRef[], extra: Partial<NetVi
     bitrate: null,
     master: null,
     members,
+    field_paths: { rail: `nets.${id}.rail` },
     file: `nets/${id}.toml`,
     ...extra,
   };

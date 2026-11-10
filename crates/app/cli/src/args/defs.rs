@@ -38,15 +38,15 @@ pub struct AttrAddArgs {
     pub units: Option<String>,
     #[arg(long)]
     pub display_unit: Option<String>,
-    /// 値域の下限（SI の数値）
+    /// 値域の下限（SI の数値。読むのは service）
     #[arg(long, allow_negative_numbers = true)]
-    pub min: Option<f64>,
+    pub min: Option<String>,
     /// 値域の上限（SI の数値）
     #[arg(long, allow_negative_numbers = true)]
-    pub max: Option<f64>,
+    pub max: Option<String>,
     /// 既定値（SI の数値）
     #[arg(long, allow_negative_numbers = true)]
-    pub default: Option<f64>,
+    pub default: Option<String>,
     /// 列挙の語彙（カンマ区切り）
     #[arg(long)]
     pub symbols: Option<String>,

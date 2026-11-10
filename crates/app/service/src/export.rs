@@ -53,6 +53,7 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         PlaceBodyRequest,
         SetText,
         UnsetText,
+        CommandText,
         InitResult,
         BudgetKind,
         BudgetRequest,

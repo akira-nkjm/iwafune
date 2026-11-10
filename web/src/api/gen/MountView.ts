@@ -2,26 +2,34 @@
 import type { Vector3 } from "./Vector3";
 
 /**
- * 取付先と、機体座標での位置・姿勢。
+ * 取付先と、機体座標での位置・姿勢（取付のある部品だけ）。
  */
-export type MountView = { on: string | null, point: string | null, 
+export type MountView = { 
 /**
- * 取付点に対する相対位置 [m]
+ * 取付先の部品
  */
-position: [number, number, number] | null, 
+on: string, 
+/**
+ * 取付点（書かれていなければ取付先の原点）
+ */
+point: string | null, 
+/**
+ * 取付点に対する相対位置 [m]（書かれていなければ原点）
+ */
+position: [number, number, number], 
 /**
  * 取付点に対する相対位置の書かれたまま（値と単位）。GUI はこの単位で見せて送る（ファイルの単位を保つ。CLI で同じ単位を打つのと同じ）
  */
 authored_position: Vector3 | null, 
 /**
- * 取付点に対する相対姿勢 `[w, x, y, z]`
+ * 取付点に対する相対姿勢 `[w, x, y, z]`（書かれていなければ恒等）
  */
-orientation: [number, number, number, number] | null, 
+orientation: [number, number, number, number], 
 /**
  * 機体座標での位置 [m]（取付の連鎖をたどったもの）
  */
-body_position: [number, number, number] | null, 
+body_position: [number, number, number], 
 /**
  * 機体座標での姿勢 `[w, x, y, z]`
  */
-body_orientation: [number, number, number, number] | null, };
+body_orientation: [number, number, number, number], };

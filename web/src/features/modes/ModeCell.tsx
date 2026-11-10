@@ -1,9 +1,9 @@
 import { type KeyboardEvent, type MouseEvent, useState } from "react";
-import type { StateAssign } from "@/api/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useFormatted } from "@/quantity/use-formatted";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/ui/popover";
+import type { CellText } from "./draft";
 import { ModeCellForm } from "./ModeCellForm";
 import { cellSymbol, ON_SHADES, toggleCell } from "./matrix";
 
@@ -50,7 +50,7 @@ export function ModeCell({
   row: number;
   column: number;
   states: string[];
-  cell: StateAssign | null;
+  cell: CellText | null;
   /** 保存済みのセルの文言（例: `"off（on 20.0 %）"`。割合の `%` は API の整形、並べ方は i18n。`savedCellText`） */
   display: string | undefined;
   changed: boolean;
@@ -58,7 +58,7 @@ export function ModeCell({
   power: number | null;
   /** 塗りの段階（ON_SHADES の添字） */
   shade: number;
-  onChange: (cell: StateAssign | null) => void;
+  onChange: (cell: CellText | null) => void;
 }) {
   const t = useT().modes;
   const [editing, setEditing] = useState(false);
@@ -124,7 +124,7 @@ function CellDetail({
   display,
   changed,
 }: {
-  cell: StateAssign | null;
+  cell: CellText | null;
   display: string | undefined;
   changed: boolean;
 }) {

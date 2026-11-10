@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from "react";
+import { Fragment } from "react";
 import { analysisOutput } from "@/api/analysis-output";
 import type { DesignView, ModeHeader, ModeLoadOutput, ModeRow, ModeTable, Op } from "@/api/types";
 import { useAnalyses } from "@/features/systems/use-analyses";
@@ -6,8 +6,7 @@ import { useT } from "@/i18n";
 import { SubsystemDot } from "@/kit/SubsystemDot";
 import { cn } from "@/lib/cn";
 import { kindLabel, nodeLabel, nodeName, partById } from "@/lib/design";
-import { useDebounced } from "@/lib/use-debounced";
-import { cellOf, draftOps, type ModeDraft, withCell } from "./draft";
+import { cellOf, type ModeDraft, withCell } from "./draft";
 import { ModeBudgetRows } from "./ModeBudgetRows";
 import { ModeCell } from "./ModeCell";
 import { ModeHeaderMenu } from "./ModeHeaderMenu";
@@ -22,17 +21,18 @@ export function ModesTable({
   design,
   table,
   draft,
+  ops,
   onDraft,
 }: {
   design: DesignView;
   table: ModeTable;
   draft: ModeDraft;
+  /** 下書きを service が Op にしたもの（無ければ空）。これを書き込まずに当てて電力と合計を計算する */
+  ops: readonly Op[];
   onDraft: (d: ModeDraft) => void;
 }) {
   const tm = useT().modes;
-  // 下書きを当てた電力と合計（書き込まずにサーバーが計算する）。押し終わるまで少し待ってから問い合わせる
-  const opsJson = useDebounced(JSON.stringify(draftOps(table, draft)), 200);
-  const ops = useMemo(() => JSON.parse(opsJson) as Op[], [opsJson]);
+  // 下書きを当てた電力と合計（書き込まずにサーバーが計算する）
   const [load] = useAnalyses(["power.mode_load"], null, ops);
   const output = analysisOutput(load?.result, "power.mode_load");
   const parts = partById(design);

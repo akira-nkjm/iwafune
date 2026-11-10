@@ -1,6 +1,8 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
+import { useCommandOps } from "@/api/ops";
 import { useDesign } from "@/api/queries";
+import type { Op } from "@/api/types";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/Empty";
 import { Loading, SkeletonTable } from "@/kit/Loading";
@@ -8,13 +10,16 @@ import { Reveal } from "@/kit/Reveal";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
 import { AddModeDialog } from "./AddModeDialog";
-import { draftCount, draftOps, type ModeDraft } from "./draft";
+import { draftCommand, draftCount, type ModeDraft } from "./draft";
 import { ModesSaveBar } from "./ModesSaveBar";
 import { ModesTable } from "./ModesTable";
 
+const NO_OPS: readonly Op[] = [];
+
 /**
  * 設計 / モード: 「部品 × モード」の表。ファイルは 1 モード 1 ファイルだが、ここでは表で見て一括で直す。
- * セルの変更は下書きに貯め、「保存」で変えたセルを 1 つの SetModeStates にして POST /ops で送る。
+ * セルの変更は下書きに貯め、変えたセルを `fune mode set|unset` と同じ引数にして service で 1 つの SetModeStates にする
+ * （打った時間割合を読むのも service）。表の電力と合計はそれを書き込まずに当てた値で、「保存」で POST /ops で送る。
  */
 export function ModesPage() {
   const design = useDesign();
@@ -25,6 +30,7 @@ export function ModesPage() {
   const d = design.data;
   const table = d?.modes;
   const count = draftCount(draft);
+  const made = useCommandOps(table ? draftCommand(table, draft) : null);
   const unassigned = table
     ? table.rows.reduce((n, r) => n + table.modes.filter((m) => !r.cells[m.id]).length, 0)
     : 0;
@@ -72,12 +78,19 @@ export function ModesPage() {
               </Button>
             </div>
             <div className="min-h-0 flex-1 scroll-pt-16 scroll-pb-36 scroll-pl-52 overflow-auto">
-              <ModesTable design={d} table={table} draft={draft} onDraft={setDraft} />
+              <ModesTable
+                design={d}
+                table={table}
+                draft={draft}
+                ops={made.latest ?? NO_OPS}
+                onDraft={setDraft}
+              />
             </div>
             {/* 保存の帯はカードのいちばん下。最初の下書きで滑らかに開き、保存・破棄で滑らかに閉じる */}
             <Reveal open={count > 0}>
               <ModesSaveBar
-                ops={draftOps(table, draft)}
+                ops={made.ops}
+                error={made.error}
                 count={count}
                 onDone={() => setDraft(new Map())}
               />

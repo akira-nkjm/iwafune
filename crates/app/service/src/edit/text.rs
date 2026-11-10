@@ -1,11 +1,13 @@
 //! 人が打つ文字列（`fune set RW_X.mass "620 g"`）→ Op。属性定義・部品のフィールド・設定の現在の型を見て値の型を決める。
 //! 文字列の読み方そのものは `fune_model::value::{value_from_text, parse_number_unit}` に任せる。
 //! 入口は `edit::{set_op, unset_op}`（カタログ品は `super::catalog`、部品と設定はここ）。
+//! 名詞のコマンドの引数（`super::command`・`super::defs`）も、ここの読み方（量・ベクトル・クォータニオン・一覧・`名前=値`・
+//! X,Y・ネットの種類）を使う。
 
 use crate::error::{Result, ServiceError};
 use crate::preview::snapshot_with;
 use crate::workspace::Workspace;
-use fune_model::design::{Maturity, PartField};
+use fune_model::design::{Maturity, NetKind, PartField};
 use fune_model::path::{ParamPath, SettingPath, parse};
 use fune_model::value::{
     Provenance, Quantity, Quaternion, Scalar, SettingValue, Value, ValueType, Vector3,
@@ -202,6 +204,43 @@ pub fn list_from_text(text: &str) -> Vec<String> {
         .map(|s| s.trim().to_owned())
         .filter(|s| !s.is_empty())
         .collect()
+}
+
+/// `名前=値`（`"tx=0.1"`・`"PWR=power"`）→ (名前, 値)。前後の空白を除き、どちらかが空なら None。
+/// **`名前=値` の読み方はここだけ**（`--duty` の割合・`--port` の雛形）。
+pub fn pair_from_text(text: &str) -> Option<(String, String)> {
+    let (name, value) = text.split_once('=')?;
+    let (name, value) = (name.trim(), value.trim());
+    (!name.is_empty() && !value.is_empty()).then(|| (name.to_owned(), value.to_owned()))
+}
+
+/// 図の上の位置・大きさ（`"420,120"`、整数の X,Y）。`fune view set --pos|--size`・`fune view edge-set --points` の 1 点。
+pub fn xy_from_text(text: &str) -> Result<(i32, i32)> {
+    let bad = || invalid(format!("X,Y の整数の組で書きます（例: 420,120）: {text}"));
+    let (x, y) = text.split_once(',').ok_or_else(bad)?;
+    Ok((
+        x.trim().parse().map_err(|_| bad())?,
+        y.trim().parse().map_err(|_| bad())?,
+    ))
+}
+
+/// 空白区切りの点の列（`"-20,0 20,0 20,80"`）→ 点の列（`fune view edge-set --points`）。
+pub fn points_from_text(text: &str) -> Result<Vec<[i32; 2]>> {
+    text.split_whitespace()
+        .map(|p| xy_from_text(p).map(|(x, y)| [x, y]))
+        .collect()
+}
+
+/// ネットの種類（`power` / `data` / `rf`）。`fune net add|set --kind`・`fune kind add --port` で共通。
+pub fn net_kind(text: &str) -> Result<NetKind> {
+    text.trim()
+        .parse()
+        .map_err(|_| invalid(format!("ネットの種類は power / data / rf です: {text}")))
+}
+
+/// 書いた旗・欄の文字列（前後の空白を除く）。省略か空なら None（GUI の空の欄は CLI で旗を書かないのと同じ）。
+pub(super) fn given(text: &Option<String>) -> Option<&str> {
+    text.as_deref().map(str::trim).filter(|t| !t.is_empty())
 }
 
 #[cfg(test)]

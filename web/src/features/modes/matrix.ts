@@ -1,5 +1,6 @@
-import type { ModeRow, PartRow, StateAssign } from "@/api/types";
+import type { ModeRow, PartRow } from "@/api/types";
 import type { modesJa } from "@/i18n/modes.ja";
+import type { CellText } from "./draft";
 
 /** セルの文言の並べ方（i18n の `modes` の辞書） */
 type CellWords = Pick<
@@ -32,19 +33,16 @@ export function mainState(states: readonly string[]): string | null {
  * 時間割合は前の状態に対するものなので持ち越さない。ほかの状態（idle・peak など）はポップオーバーで選ぶ。
  * 語彙に off が無ければオンのまま。
  */
-export function toggleCell(
-  states: readonly string[],
-  cell: StateAssign | null,
-): StateAssign | null {
+export function toggleCell(states: readonly string[], cell: CellText | null): CellText | null {
   const off = !cell || cell.state === "off";
   const next = off ? mainState(states) : states.includes("off") ? "off" : cell.state;
   return next ? { state: next, duty: {} } : cell;
 }
 
 /** セルの記号: ◐ 間欠（ほかの状態の時間割合がある）、● オン（off 以外）、— オフ・未指定 */
-export function cellSymbol(cell: StateAssign | null): "●" | "◐" | "—" {
+export function cellSymbol(cell: CellText | null): "●" | "◐" | "—" {
   if (!cell) return "—";
-  if (Object.keys(cell.duty ?? {}).length > 0) return "◐";
+  if (Object.keys(cell.duty).length > 0) return "◐";
   return cell.state === "off" ? "—" : "●";
 }
 

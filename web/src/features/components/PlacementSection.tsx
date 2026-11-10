@@ -1,67 +1,58 @@
 import { useState } from "react";
-import { useApplyOps } from "@/api/ops";
-import type { DesignView, PartRow } from "@/api/types";
+import { useApplyOps, useCommandOps } from "@/api/ops";
+import type { CommandText, DesignView, PartRow } from "@/api/types";
 import { useT } from "@/i18n";
 import { NativeSelect } from "@/kit/NativeSelect";
 import { PropertyList } from "@/kit/PropertyList";
 import { PropertyRow } from "@/kit/PropertyRow";
 import { TextInput } from "@/kit/TextInput";
 import { Formatted } from "@/quantity/Formatted";
+import { numbersInputText, vectorInputText } from "@/quantity/format";
 import { Button } from "@/ui/button";
 
-type Vec = [string, string, string];
-type Q = [string, string, string, string];
-
-const str = (a: readonly number[] | null | undefined, n: number, fill: number[]) =>
-  (a ?? fill).slice(0, n).map((v) => String(v));
+/** 姿勢の欄の書き方の例（w x y z） */
+const QUATERNION_EXAMPLE = "1 0 0 0";
 
 /**
- * 配置: 取付先と取付点、取付点に対する位置・姿勢（Place）。位置はファイルに書かれた単位（`authored_position`）で
- * 見せてその単位で送る（CLI で同じ単位を打つのと同じファイルになる。換算はしない）。書かれていなければ m。
+ * 配置: 取付先と取付点、取付点に対する位置・姿勢（Place）。位置と姿勢は `fune part place --position "0 0 12 mm"
+ * --orientation "1 0 0 0"` と同じ文字列で打ち、そのまま `POST /ops/from_command` に送る（読むのは service）。
+ * 位置の初期値はファイルに書かれた値を書かれた単位（`authored_position`）で見せる（換算しない）。
  * 機体座標は取付をたどった導出値で、表示だけ。
  */
 export function PlacementSection({ design, part }: { design: DesignView; part: PartRow }) {
   const apply = useApplyOps();
   const t = useT().components.placement;
   const m = part.mount;
-  const authored = m?.authored_position;
-  const unit = authored?.unit ?? "m";
-  const [mountOn, setMountOn] = useState(m?.on ?? "");
-  const [point, setPoint] = useState(m?.point ?? "");
-  const [pos, setPos] = useState<Vec>(
-    (authored
-      ? [authored.x, authored.y, authored.z].map(String)
-      : str(m?.position, 3, [0, 0, 0])) as Vec,
-  );
-  const [rot, setRot] = useState<Q>(str(m?.orientation, 4, [1, 0, 0, 0]) as Q);
-  const nums = [...pos, ...rot].map(Number);
-  const ok = nums.every(Number.isFinite);
-  const place = () => {
-    if (!ok) return;
-    const [x, y, z, w, qx, qy, qz] = nums as [
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-      number,
-    ];
-    apply.mutate({
-      ops: [
-        {
-          op: "place",
-          part: part.id,
-          on: mountOn || null,
-          point: mountOn ? point || null : null,
-          position: { x, y, z, unit },
-          orientation: { w, x: qx, y: qy, z: qz },
-        },
-      ],
-      summary: t.summary(part.id),
-    });
+  // 位置は書かれたものだけを書かれた単位で見せる（書かれていなければ空。空の欄は CLI で旗を書かないのと同じで、書かない）
+  const [initial] = useState(() => ({
+    on: m?.on ?? "",
+    point: m?.point ?? "",
+    position: m?.authored_position ? vectorInputText(m.authored_position) : "",
+    orientation: m ? numbersInputText(m.orientation) : "",
+  }));
+  const [mountOn, setMountOn] = useState(initial.on);
+  const [point, setPoint] = useState(initial.point);
+  const [position, setPosition] = useState(initial.position);
+  const [orientation, setOrientation] = useState(initial.orientation);
+  const changed =
+    mountOn !== initial.on ||
+    point !== initial.point ||
+    position !== initial.position ||
+    orientation !== initial.orientation;
+  const text: CommandText = {
+    command: "part_place",
+    part: part.id,
+    on: mountOn,
+    point,
+    position,
+    orientation,
   };
-  const body = m?.body_position;
+  // 欄を変えたら service で Op にしてみる（読めなければ理由を出し、適用させない）
+  const made = useCommandOps(changed ? text : null);
+  const place = () => {
+    if (made.ops) apply.mutate({ ops: made.ops, summary: t.summary(part.id) });
+  };
+  const unit = m?.authored_position?.unit ?? "m";
   return (
     <PropertyList>
       <PropertyRow label={t.mountOn}>
@@ -87,40 +78,31 @@ export function PlacementSection({ design, part }: { design: DesignView; part: P
         </span>
       </PropertyRow>
       <PropertyRow label={t.position}>
-        <span className="flex items-center gap-1">
-          {(["x", "y", "z"] as const).map((k, i) => (
-            <TextInput
-              key={k}
-              aria-label={t.positionAxis(k)}
-              mono
-              className="h-7 w-20 text-right"
-              value={pos[i]}
-              onChange={(e) => setPos(pos.map((v, j) => (j === i ? e.target.value : v)) as Vec)}
-            />
-          ))}
-          <span className="font-mono text-[11.5px] text-ink-3">{unit}</span>
-        </span>
+        <TextInput
+          aria-label={t.position}
+          mono
+          className="h-7 w-52"
+          value={position}
+          placeholder={t.positionPlaceholder}
+          onChange={(e) => setPosition(e.target.value)}
+        />
       </PropertyRow>
       <PropertyRow label={t.orientation}>
-        <span className="flex items-center gap-1">
-          {(["w", "x", "y", "z"] as const).map((k, i) => (
-            <TextInput
-              key={k}
-              aria-label={t.orientationAxis(k)}
-              mono
-              className="h-7 w-16 text-right"
-              value={rot[i]}
-              onChange={(e) => setRot(rot.map((v, j) => (j === i ? e.target.value : v)) as Q)}
-            />
-          ))}
-        </span>
+        <TextInput
+          aria-label={t.orientation}
+          mono
+          className="h-7 w-52"
+          value={orientation}
+          placeholder={QUATERNION_EXAMPLE}
+          onChange={(e) => setOrientation(e.target.value)}
+        />
       </PropertyRow>
       <PropertyRow label={t.bodyFrame}>
         <span className="font-mono text-[11.5px] text-ink-3">
-          {body ? (
+          {m ? (
             <>
               (
-              {body.map((v, i) => (
+              {m.body_position.map((v, i) => (
                 <span key={["x", "y", "z"][i]}>
                   {i > 0 && ", "}
                   <Formatted si={v} dimension="Length" unit={unit} fallback={String(v)} />
@@ -133,8 +115,9 @@ export function PlacementSection({ design, part }: { design: DesignView; part: P
           )}
         </span>
       </PropertyRow>
-      <div className="flex justify-end px-3 py-1.5">
-        <Button size="sm" variant="outline" disabled={!ok || apply.isPending} onClick={place}>
+      <div className="flex items-center justify-end gap-3 px-3 py-1.5">
+        {made.error && <span className="min-w-0 text-[11px] text-neg-ink">{made.error}</span>}
+        <Button size="sm" variant="outline" disabled={!made.ops || apply.isPending} onClick={place}>
           {t.apply}
         </Button>
       </div>

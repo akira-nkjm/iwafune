@@ -201,7 +201,8 @@ fn gui_part_field_edits_use_api_paths_and_match_cli() {
     );
 }
 
-/// GUI のパラメーター追加: 属性の定義と値を 1 回の編集で作る。値は定義を書き込まずに当てた設計（`ops`）で読む。
+/// GUI のパラメーター追加: 属性の定義と値を 1 回の編集で作る。定義は `fune attr add` と同じ打った引数を
+/// `POST /ops/from_command` で Op にする。値は定義を書き込まずに当てた設計（`ops`）で読む。
 /// パスは、その定義を書き込まずに当てた部品（`POST /parts/{id}` の `ops`）の `paths` から引く（web はつながない）。
 /// CLI では `fune attr add` と `fune set` の 2 回。
 #[test]
@@ -225,8 +226,15 @@ fn gui_new_attribute_with_value_matches_cli() {
         ],
     );
     run_cli(&cli_root, &["set", "UHF_TRX.tank_pressure.tx", "120 kPa"]);
-    let create = json!({ "op": "create_attribute", "def": { "id": "tank_pressure", "label": "タンク圧",
-        "type": "scalar", "dimension": "Pressure", "units": ["Pa", "kPa"], "by_state": true } });
+    let made = post_json(
+        &rt,
+        &http_root,
+        "/api/v1/ops/from_command",
+        json!({ "command": "attr_add", "id": "tank_pressure", "label": "タンク圧",
+            "dimension": "Pressure", "units": ["Pa", "kPa"], "by_state": true }),
+    );
+    let create = made[0].clone();
+    assert_eq!(create["op"], "create_attribute", "{made}");
     let draft = post_json(
         &rt,
         &http_root,

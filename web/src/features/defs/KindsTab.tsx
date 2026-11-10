@@ -1,6 +1,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import type { DesignView, Op } from "@/api/types";
+import { useCommandOps } from "@/api/ops";
+import type { CommandText, DesignView } from "@/api/types";
 import { useT } from "@/i18n";
 import { DataTable } from "@/kit/DataTable";
 import { Field } from "@/kit/Field";
@@ -16,14 +17,10 @@ import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
 import { Button } from "@/ui/button";
 
-// edit::list_from_text と同じ: カンマのみで分割。内部の空白は保存する。
-const list = (s: string) =>
-  s
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
-
-/** 種別定義（機器の状態の語彙・必須の属性・ポートの雛形）。新しい種別は CreateKind */
+/**
+ * 種別定義（機器の状態の語彙・必須の属性・ポートの雛形）。新しい種別は `fune kind add` と同じ引数を打った文字列のまま
+ * service に渡して CreateKind にする（状態・属性のカンマ区切りの一覧を読むのも、表示名の既定も service）
+ */
 export function KindsTab({ design }: { design: DesignView }) {
   const t = useT();
   const tk = t.defs.kinds;
@@ -33,21 +30,12 @@ export function KindsTab({ design }: { design: DesignView }) {
   const [states, setStates] = useState("off, on");
   const [required, setRequired] = useState("mass");
   const kinds = design.defs.kinds;
-  const ops: Op[] | null = id
-    ? [
-        {
-          op: "create_kind",
-          def: {
-            id,
-            label: id,
-            role: role || null,
-            states: list(states),
-            required: list(required),
-          },
-        },
-      ]
+  const command: CommandText | null = id
+    ? { command: "kind_add", id, role, states, required, ports: [] }
     : null;
-  const error = useOpCheck(adding ? ops : null).error;
+  const made = useCommandOps(adding ? command : null);
+  const ops = made.ops;
+  const error = useOpCheck(adding ? ops : null).error ?? made.error;
   return (
     <Panel pad={false}>
       <div className="p-4 pb-2">

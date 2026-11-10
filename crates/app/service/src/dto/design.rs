@@ -159,21 +159,23 @@ pub struct PortView {
     pub net: Option<String>,
 }
 
-/// 取付先と、機体座標での位置・姿勢。
+/// 取付先と、機体座標での位置・姿勢（取付のある部品だけ）。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct MountView {
-    pub on: Option<String>,
+    /// 取付先の部品
+    pub on: String,
+    /// 取付点（書かれていなければ取付先の原点）
     pub point: Option<String>,
-    /// 取付点に対する相対位置 [m]
-    pub position: Option<[f64; 3]>,
+    /// 取付点に対する相対位置 [m]（書かれていなければ原点）
+    pub position: [f64; 3],
     /// 取付点に対する相対位置の書かれたまま（値と単位）。GUI はこの単位で見せて送る（ファイルの単位を保つ。CLI で同じ単位を打つのと同じ）
     pub authored_position: Option<Vector3>,
-    /// 取付点に対する相対姿勢 `[w, x, y, z]`
-    pub orientation: Option<[f64; 4]>,
+    /// 取付点に対する相対姿勢 `[w, x, y, z]`（書かれていなければ恒等）
+    pub orientation: [f64; 4],
     /// 機体座標での位置 [m]（取付の連鎖をたどったもの）
-    pub body_position: Option<[f64; 3]>,
+    pub body_position: [f64; 3],
     /// 機体座標での姿勢 `[w, x, y, z]`
-    pub body_orientation: Option<[f64; 4]>,
+    pub body_orientation: [f64; 4],
 }
 
 /// 部品 × モードの表。
@@ -226,6 +228,10 @@ pub struct NetView {
     pub master: Option<fune_model::path::PortRef>,
     /// このネットに属するポート（part = RW_X、port = PWR）。部品側の ports から集めたもの
     pub members: Vec<fune_model::path::PortRef>,
+    /// フィールド名（`NetField::NAMES`）→ 対象のパス（`"nets.P12V.rail"`。診断の `DiagnosticView.path` と同じ
+    /// `fune_model::Target::net` の表示）。GUI の欄の名前で、検証で弾かれた理由をその欄の下に出す鍵。
+    /// 編集はパスではなく `CommandText::NetSet`（`fune net set` の引数）で送る
+    pub field_paths: BTreeMap<String, String>,
     pub file: String,
 }
 

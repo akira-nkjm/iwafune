@@ -1,0 +1,149 @@
+//! 名詞のコマンドに打った引数（文字列のまま）の型（`POST /ops/from_command`）。CLI はコマンドの引数から、GUI は欄に打った
+//! 文字列から作り、どちらも service の `edit::command_ops` が同じ読み方で Op にする。パスと値の 1 組は `SetText`。
+
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use ts_rs::TS;
+
+/// 名詞のコマンドの引数（`POST /ops/from_command` の本文）。`command` でコマンドを選ぶ。
+/// 書かなかった旗（省略・null）は CLI で旗を書かないのと同じ。読み方（量・ベクトル・割合・一覧・`名前=種類`）は service が持つ。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(tag = "command", rename_all = "snake_case")]
+pub enum CommandText {
+    /// `fune net set <ID> --rail "5 V" …`（書いた旗ごとに `SetNetField`）
+    NetSet(NetSetText),
+    /// `fune net unset <ID> <フィールド>`
+    NetUnset(NetUnsetText),
+    /// `fune part place <ID> --on … --point … --position "0 0 12 mm" --orientation "1 0 0 0"`（`--root` は `on` を省く）
+    PartPlace(PlaceText),
+    /// `fune mode set <モード> <部品> <状態> --duty tx=0.1`・`fune mode unset <モード> <部品>`。
+    /// GUI のモード表は変えたセルをまとめて送り、1 つの `SetModeStates` になる
+    ModeSet(ModeSetText),
+    /// `fune attr add <ID> --dimension … --units …`
+    AttrAdd(AttrAddText),
+    /// `fune kind add <ID> --states off,on --required mass --port PWR=power`
+    KindAdd(KindAddText),
+}
+
+/// `fune net set` の引数。旗を書いたフィールドだけを書く（宣言の順に 1 フィールド 1 つの `SetNetField`）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(default)]
+#[ts(optional_fields = nullable)]
+pub struct NetSetText {
+    /// ネットの ID
+    pub net: String,
+    /// `power` / `data` / `rf`
+    pub kind: Option<String>,
+    pub label: Option<String>,
+    /// 供給元のポート（`PCDU.OUT3`）
+    pub source: Option<String>,
+    /// レール電圧（`"5 V"`）
+    pub rail: Option<String>,
+    /// 電流制限（`"2 A"`）
+    pub limit: Option<String>,
+    pub protocol: Option<String>,
+    /// ビットレート（`"1 Mbit/s"`）
+    pub bitrate: Option<String>,
+    /// バスのマスターのポート（`OBC.CAN1`）
+    pub master: Option<String>,
+}
+
+/// `fune net unset <ID> <フィールド>` の引数。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct NetUnsetText {
+    pub net: String,
+    /// `label`・`source`・`rail`・`limit`・`protocol`・`bitrate`・`master`（`fune_model::design::NetField::NAMES`。`kind` は消せない）
+    pub field: String,
+}
+
+/// `fune part place` の引数（取付と、取付点に対する位置・姿勢を丸ごと置き換える）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(default)]
+#[ts(optional_fields = nullable)]
+pub struct PlaceText {
+    /// 部品 ID
+    pub part: String,
+    /// 取付先の部品。省略か空なら取付を外して機体の根にする（`--root`）
+    pub on: Option<String>,
+    /// 取付点（取付先があるときだけ書く）
+    pub point: Option<String>,
+    /// 取付点に対する位置（`"0 0 12 mm"`。読み方は `edit::vector_from_text`）。省略か空なら書かない
+    pub position: Option<String>,
+    /// 取付点に対する姿勢のクォータニオン（`"1 0 0 0"`、w x y z。`edit::quaternion_from_text`）。省略か空なら書かない
+    pub orientation: Option<String>,
+}
+
+/// モード表のセルの編集（`fune mode set|unset` の引数の列）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct ModeSetText {
+    pub cells: Vec<ModeCellText>,
+}
+
+/// モード表の 1 セル（`fune mode set <モード> <部品> <状態> --duty …`・`fune mode unset <モード> <部品>`）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct ModeCellText {
+    pub mode: String,
+    pub part: String,
+    /// 基本の状態。null ならそのモードの表から部品の行を消す（`fune mode unset`）
+    #[serde(default)]
+    pub state: Option<String>,
+    /// ほかの状態 → 周回のうちその状態で過ごす割合の打った文字列（`"0.1"`）。空の文字列の状態は書かない。
+    /// CLI の `--duty tx=0.1,rx=0.2` は `edit::duty_from_text` でこの形にする
+    #[serde(default)]
+    pub duty: BTreeMap<String, String>,
+}
+
+/// `fune attr add` の引数。表示名を省くと ID、値の型を省くと scalar。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(default)]
+#[ts(optional_fields = nullable)]
+pub struct AttrAddText {
+    pub id: String,
+    pub label: Option<String>,
+    pub label_en: Option<String>,
+    pub description: Option<String>,
+    /// 値の型（`scalar`・`vec3`・`quat`・`tensor3`・`enum`・`bool`・`text`・`range`・`table`）
+    #[serde(rename = "type")]
+    pub value_type: Option<String>,
+    /// 状態ごとに値を持つか
+    pub by_state: bool,
+    /// 次元名（`Pressure`）
+    pub dimension: Option<String>,
+    /// 許可する単位（GUI は選んだ単位。CLI は `--units Pa,kPa` を `edit::list_from_text` で分けたもの）
+    pub units: Vec<String>,
+    pub display_unit: Option<String>,
+    /// 値域の下限・上限（SI の数値の打った文字列。`"-40"`）
+    pub min: Option<String>,
+    pub max: Option<String>,
+    /// 既定値（SI の数値の打った文字列）
+    pub default: Option<String>,
+    /// 列挙の語彙（CLI は `--symbols a,b` を分けたもの）
+    pub symbols: Vec<String>,
+    /// どのバジェットに入るか（`mass` / `power` / `data`）
+    pub budget: Option<String>,
+    /// 方向ベクトル（単位ベクトルであるべきもの）
+    pub unit_vector: bool,
+    /// 画面で並べる系（`basic`・`mass`・`power`・…）
+    pub section: Option<String>,
+}
+
+/// `fune kind add` の引数。表示名を省くと ID。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(default)]
+#[ts(optional_fields = nullable)]
+pub struct KindAddText {
+    pub id: String,
+    pub label: Option<String>,
+    pub label_en: Option<String>,
+    pub description: Option<String>,
+    pub extends: Option<String>,
+    pub role: Option<String>,
+    /// 機器の状態の打った一覧（`"off, on"`。読み方は `edit::list_from_text`）
+    pub states: Option<String>,
+    /// 必須の属性の打った一覧（`"mass, power"`）
+    pub required: Option<String>,
+    /// 任意の属性の打った一覧
+    pub optional: Option<String>,
+    /// ポートの雛形（`"PWR=power"` の列。`--port` の繰り返し。読み方は `edit::port_template_from_text`）
+    pub ports: Vec<String>,
+}

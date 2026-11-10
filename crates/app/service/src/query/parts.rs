@@ -16,20 +16,18 @@ use fune_model::resolve::{Resolved, ResolvedPart};
 /// 部品の一覧の 1 行。
 pub(crate) fn part_row(design: &Design, resolved: &Resolved, rp: &ResolvedPart) -> PartRow {
     let part = design.parts.get(rp.id.as_str());
-    let (body_position, body_orientation) = fune_projection::pose::body_pose(resolved, &rp.id)
-        .map_or((None, None), |(p, q)| {
-            (Some([p.x, p.y, p.z]), Some([q.w, q.x, q.y, q.z]))
-        });
-    let mount = rp.mount.as_ref().map(|m| MountView {
-        on: Some(m.on.clone()),
+    // 機体座標の姿勢は、解決済みの部品なら必ず求まる（`body_pose` が None になるのは部品が無いときだけ）
+    let body = fune_projection::pose::body_pose(resolved, &rp.id);
+    let mount = rp.mount.as_ref().zip(body).map(|(m, (p, q))| MountView {
+        on: m.on.clone(),
         point: m.point.clone(),
-        position: Some(m.pose.position),
+        position: m.pose.position,
         authored_position: part
             .and_then(|p| p.pose.as_ref())
             .and_then(|p| p.position.clone()),
-        orientation: Some(m.pose.orientation),
-        body_position,
-        body_orientation,
+        orientation: m.pose.orientation,
+        body_position: [p.x, p.y, p.z],
+        body_orientation: [q.w, q.x, q.y, q.z],
     });
     PartRow {
         paths: crate::query::views::parameter_paths(design, &rp.id, &rp.states),

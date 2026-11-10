@@ -33,8 +33,7 @@ export interface Axis3D {
 export function axesOf(design: DesignView): Axis3D[] {
   const out: Axis3D[] = [];
   for (const p of design.parts) {
-    const pos = p.mount?.body_position;
-    if (!pos) continue;
+    if (!p.mount) continue;
     for (const attr of AXIS_ATTRS) {
       const v = p.values[attr]?.value;
       if (v?.type !== "vector") continue;
@@ -63,16 +62,17 @@ export function boxesOf(
   const boxes: Box3D[] = [];
   const unplaced: string[] = [];
   for (const p of design.parts) {
-    const pos = p.mount?.body_position;
-    if (!pos) {
+    // 取付のある部品だけを置く（取付があれば機体座標の位置・姿勢は必ず API が返す）
+    const m = p.mount;
+    if (!m) {
       unplaced.push(p.id);
       continue;
     }
     const size = sizeOf(p);
     boxes.push({
       id: p.id,
-      position: pos,
-      orientation: p.mount?.body_orientation ?? [1, 0, 0, 0],
+      position: m.body_position,
+      orientation: m.body_orientation,
       size: size ?? DEFAULT_BOX,
       color: colorOf?.(p.id) ?? toneHex[subsystemTone(p.subsystem, p.role)],
       sized: size !== null,

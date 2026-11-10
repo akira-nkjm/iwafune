@@ -1,10 +1,11 @@
 //! 名詞のコマンドの引数 → Op（`fune part add` → `CreatePart` など）。綴りは `fune_ops::to_cli` と対になる。
-//! 値の文字列の解釈が要るもの（ベクトル・量）は `fune_service::edit` の関数を使う。
+//! 値の文字列の解釈が要るもの（配置・モードの時間割合・X,Y・設定の値）は `fune_service::edit` の関数を使う
+//! （`fune part place`・`fune mode set|unset` は GUI と同じ打った引数の型にして渡す）。
 
 use super::common::Built;
 use crate::args::{EditOpts, ModeCmd, PartCmd, SettingCmd, ViewCmd};
 use fune_service::Workspace;
-use fune_service::dto::{ModeCell, Op, ViewNodePos};
+use fune_service::dto::{ModeCellText, ModeSetText, Op, PlaceText, ViewNodePos};
 use fune_service::edit::{self, SetText, UnsetText};
 use std::collections::BTreeMap;
 
@@ -63,25 +64,20 @@ pub fn part(c: &PartCmd) -> Built<'_> {
     Ok(Some((op, e)))
 }
 
-/// `fune part place` → `Place`（位置と姿勢の文字列は service が読む）。
+/// `fune part place` → `Place`（位置と姿勢の文字列は GUI の配置の欄と同じ `edit::place_op` が読む）。
 fn place_op(p: &crate::args::PlaceArgs) -> anyhow::Result<Op> {
-    let position = p
-        .position
-        .as_deref()
-        .map(edit::vector_from_text)
-        .transpose()?;
-    let orientation = p
-        .orientation
-        .as_deref()
-        .map(edit::quaternion_from_text)
-        .transpose()?;
-    Ok(Op::Place {
+    Ok(edit::place_op(&PlaceText {
         part: p.id.clone(),
         on: p.on.clone(),
         point: p.point.clone(),
-        position,
-        orientation,
-    })
+        position: p.position.clone(),
+        orientation: p.orientation.clone(),
+    })?)
+}
+
+/// `fune mode set|unset` の 1 セル → `SetModeStates`（割合の読み方は GUI のモード表と同じ `edit::mode_set_op`）。
+fn mode_cell_op(cell: ModeCellText) -> anyhow::Result<Op> {
+    Ok(edit::mode_set_op(&ModeSetText { cells: vec![cell] })?)
 }
 
 /// `fune mode add|rm|rename|set|unset`
@@ -117,42 +113,26 @@ pub fn mode(c: &ModeCmd) -> Built<'_> {
             duty,
             edit,
         } => (
-            Op::SetModeStates {
-                cells: vec![ModeCell {
-                    mode: mode.clone(),
-                    part: part.clone(),
-                    state: Some(state.clone()),
-                    duty: parse_duty(duty.as_deref())?,
-                }],
-            },
+            mode_cell_op(ModeCellText {
+                mode: mode.clone(),
+                part: part.clone(),
+                state: Some(state.clone()),
+                duty: edit::duty_from_text(duty.as_deref().unwrap_or_default())?,
+            })?,
             edit,
         ),
         ModeCmd::Unset { mode, part, edit } => (
-            Op::SetModeStates {
-                cells: vec![ModeCell {
-                    mode: mode.clone(),
-                    part: part.clone(),
-                    state: None,
-                    duty: BTreeMap::new(),
-                }],
-            },
+            mode_cell_op(ModeCellText {
+                mode: mode.clone(),
+                part: part.clone(),
+                state: None,
+                duty: BTreeMap::new(),
+            })?,
             edit,
         ),
         ModeCmd::Ls | ModeCmd::Table => return Ok(None),
     };
     Ok(Some((op, e)))
-}
-
-/// `--duty tx=0.1,rx=0.2` → 状態 → 割合。
-fn parse_duty(text: Option<&str>) -> anyhow::Result<BTreeMap<String, f64>> {
-    let mut out = BTreeMap::new();
-    for pair in edit::list_from_text(text.unwrap_or_default()) {
-        let (state, fraction) = pair
-            .split_once('=')
-            .ok_or_else(|| anyhow::anyhow!("--duty は 状態=割合 の形です: {pair}"))?;
-        out.insert(state.trim().to_owned(), fraction.trim().parse()?);
-    }
-    Ok(out)
 }
 
 /// `fune setting set|unset`
@@ -182,14 +162,6 @@ pub fn setting<'a>(ws: &Workspace, c: &'a SettingCmd) -> Built<'a> {
     Ok(Some((op, e)))
 }
 
-/// `--pos 420,120` → (420, 120)。
-fn pair(text: &str, what: &str) -> anyhow::Result<(i32, i32)> {
-    let (a, b) = text
-        .split_once(',')
-        .ok_or_else(|| anyhow::anyhow!("{what} は X,Y の形です（例: 420,120）: {text}"))?;
-    Ok((a.trim().parse()?, b.trim().parse()?))
-}
-
 /// `fune view set|rm`
 pub fn view(c: &ViewCmd) -> Built<'_> {
     let (op, e) = match c {
@@ -200,8 +172,9 @@ pub fn view(c: &ViewCmd) -> Built<'_> {
             size,
             edit,
         } => {
-            let (x, y) = pair(pos, "--pos")?;
-            let size = size.as_deref().map(|s| pair(s, "--size")).transpose()?;
+            // `--pos 420,120`・`--size 200,80` の読み方は service（`edit::xy_from_text`）
+            let (x, y) = edit::xy_from_text(pos)?;
+            let size = size.as_deref().map(edit::xy_from_text).transpose()?;
             let node = ViewNodePos {
                 id: id.clone(),
                 x,
@@ -236,10 +209,7 @@ pub fn view(c: &ViewCmd) -> Built<'_> {
             target_offset,
             edit,
         } => {
-            let points = points
-                .split_whitespace()
-                .map(|p| pair(p, "--points").map(|(x, y)| [x, y]))
-                .collect::<anyhow::Result<Vec<_>>>()?;
+            let points = edit::points_from_text(points)?;
             (
                 Op::SetViewEdge {
                     view: view.clone(),

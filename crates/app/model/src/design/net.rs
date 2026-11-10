@@ -100,6 +100,12 @@ pub enum NetField {
 }
 
 impl NetField {
+    /// フィールド名の一覧（[`NetField::name`] の綴り。宣言の順）。`fune net set` の旗の順・`NetView.field_paths` のキー。
+    /// 名前 → 型付きのフィールドの読み方は `fune_service::edit`（そのテストが全部の名前の往復を確かめる）。
+    pub const NAMES: &[&str] = &[
+        "kind", "label", "source", "rail", "limit", "protocol", "bitrate", "master",
+    ];
+
     /// フィールド名（ファイルのキー・CLI の旗の名前）。
     pub fn name(&self) -> &'static str {
         match self {
