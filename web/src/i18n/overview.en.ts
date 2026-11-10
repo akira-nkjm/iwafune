@@ -33,6 +33,8 @@ export const overviewEn: typeof overviewJa = {
     budgetMode: (mode: string) => ` · mode ${mode}`,
     budgetMargin: (v: string) => `Margin ${v}`,
     budgetLimit: (limit: string, margin: string) => `/ limit ${limit} (system margin ${margin})`,
+    budgetOther: "(other)",
+    budgetOtherTitle: "Parts outside every group",
     note: (n: string) => `• ${n}`,
   },
 };

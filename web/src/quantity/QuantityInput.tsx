@@ -97,7 +97,7 @@ export function QuantityInput({
           : pending
             ? t.quantity.parsing
             : parsed
-              ? `= ${parsed.si_display}（${parsed.quantity.dimension}）`
+              ? `= ${parsed.si.display}（${parsed.quantity.dimension}）`
               : dimension
                 ? t.quantity.dimension(dimension)
                 : t.quantity.example}

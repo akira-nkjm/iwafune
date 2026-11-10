@@ -33,7 +33,7 @@ fn show(s: &DataStatus, out: &Out) -> anyhow::Result<()> {
             (true, _) => C::Verdict("✖ SHA-256 不一致".into(), false),
         };
         let size = item
-            .size_display
+            .size
             .as_ref()
             .map_or(C::Dim("—".into()), |q| C::Num(q.display.clone()));
         let installed = if item.installed {

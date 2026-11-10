@@ -32,6 +32,8 @@ export const overviewJa = {
     budgetMode: (mode: string) => ` · モード ${mode}`,
     budgetMargin: (v: string) => `余裕 ${v}`,
     budgetLimit: (limit: string, margin: string) => `/ 上限 ${limit}（システムマージン ${margin}）`,
+    budgetOther: "（その他）",
+    budgetOtherTitle: "どの Group にも属さない部品",
     note: (n: string) => `・${n}`,
   },
 };

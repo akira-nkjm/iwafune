@@ -23,7 +23,7 @@ export interface OverviewCard {
 
 /** 塗りの長さ（上限に対する割合）。表示のための比で、値は API の SI 値 */
 function budgetRatio(b: BudgetView | undefined): number | null {
-  return b?.limit && b.limit.si > 0 ? b.total.si / b.limit.si : null;
+  return b?.total && b.limit && b.limit.si > 0 ? b.total.si / b.limit.si : null;
 }
 
 /** 解析の結果を KPI・判定として読む小さな道具 */
@@ -129,8 +129,8 @@ export function useOverviewCards(): OverviewCard[] {
       label: o.massMargin,
       value: mass.data?.margin?.display ?? "—",
       ratio: budgetRatio(mass.data),
-      tone: mass.data ? verdictTone[mass.data.verdict] : "accent",
-      footer: mass.data ? o.massTotal(mass.data.total.display) : o.massBudget,
+      tone: mass.data?.verdict ? verdictTone[mass.data.verdict] : "accent",
+      footer: mass.data?.total ? o.massTotal(mass.data.total.display) : o.massBudget,
       footerRight: mass.data?.limit ? o.limit(mass.data.limit.display) : "",
       to: "/systems/structure",
       loading: mass.isPending,
@@ -140,7 +140,7 @@ export function useOverviewCards(): OverviewCard[] {
       value: k.text("power", "balance"),
       ratio: budgetRatio(power.data),
       tone: k.tone("power", "balance"),
-      footer: power.data ? o.consumption(power.data.total.display) : "",
+      footer: power.data?.total ? o.consumption(power.data.total.display) : "",
       footerRight: power.data?.limit ? o.generationLimit(power.data.limit.display) : "",
       to: "/systems/power",
       loading: k.loading("power", "balance"),

@@ -14,13 +14,9 @@ id: string, path: string,
  */
 present: boolean, 
 /**
- * バイト数
+ * 大きさ（ファイルが無ければ null。`display` は `"20.7 MB"`）
  */
-size: number | null, 
-/**
- * 大きさの表示（`"20.7 MB"`）
- */
-size_display: QuantityView | null, sha256_expected: string, 
+size: QuantityView | null, sha256_expected: string, 
 /**
  * SHA-256 が一致したか（ファイルが無ければ null）
  */

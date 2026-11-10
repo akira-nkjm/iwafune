@@ -62,7 +62,7 @@ function snapshot(qc: QueryClient): Snapshot {
   const s: Snapshot = {};
   for (const k of DELTA_KINDS) {
     const b = qc.getQueryData<BudgetView>(keys.budget(k));
-    if (b) s[k] = b.total.display;
+    if (b?.total) s[k] = b.total.display;
   }
   return s;
 }
@@ -74,7 +74,8 @@ async function deltas(qc: QueryClient, before: Snapshot): Promise<string[]> {
     const was = before[k];
     if (was === undefined) continue;
     const now = await qc.fetchQuery(q.budget(k)).catch(() => null);
-    if (now && now.total.display !== was) lines.push(`${now.label}: ${was} → ${now.total.display}`);
+    const total = now?.total?.display;
+    if (now && total && total !== was) lines.push(`${now.label}: ${was} → ${total}`);
   }
   return lines;
 }

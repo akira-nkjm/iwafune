@@ -4,10 +4,11 @@
 use crate::args::{AttrCmd, KindCmd, ModeCmd, NetCmd, SettingCmd};
 use crate::diag;
 use crate::output::{C, Out};
-use fune_service::dto::{ValueData, ValueQuery};
+use fune_service::dto::{QuantityView, ValueData, ValueQuery};
 use fune_service::{Workspace, query};
+use std::collections::BTreeMap;
 
-use super::common::Handled;
+use super::common::{Handled, UNSET, value_text};
 
 /// `fune status`
 pub fn status(ws: &Workspace, out: &Out) -> anyhow::Result<u8> {
@@ -71,10 +72,10 @@ pub fn get(ws: &Workspace, path: &str, state: Option<&str>, out: &Out) -> anyhow
         out.json(&a)?;
         return Ok(0);
     }
-    let shown = a
-        .selected
-        .as_ref()
-        .map_or(a.value.display.clone(), |q| q.display.clone());
+    let shown = a.selected.as_ref().map_or_else(
+        || value_text(a.value.display.as_deref()),
+        |q| q.display.clone(),
+    );
     println!("{shown}  {}", out.dim(super::common::provenance(&a.value)));
     Ok(0)
 }
@@ -109,15 +110,29 @@ pub fn mode(ws: &Workspace, cmd: &ModeCmd, out: &Out) -> Handled {
     for row in &modes.rows {
         let mut cells = vec![C::Strong(row.part.clone())];
         for m in &modes.modes {
-            cells.push(match row.display.get(&m.id) {
+            cells.push(match row.cells.get(&m.id) {
                 None => C::Dim("未指定".into()),
-                Some(text) => C::Text(text.clone()),
+                Some(cell) => C::Text(cell_text(&cell.state, row.shares.get(&m.id))),
             });
         }
         t.row(cells);
     }
     t.print();
     Ok(Some(0))
+}
+
+/// モード表のセルの文言（`rx（tx 10.0 %）`）。割合の表示（`%`）は service が整形したもの（`ModeRow.shares`）。
+fn cell_text(state: &str, shares: Option<&BTreeMap<String, QuantityView>>) -> String {
+    let shares: Vec<String> = shares
+        .into_iter()
+        .flatten()
+        .map(|(s, q)| format!("{s} {}", q.display))
+        .collect();
+    if shares.is_empty() {
+        state.to_owned()
+    } else {
+        format!("{state}（{}）", shares.join("、"))
+    }
 }
 
 /// `fune net ls`
@@ -224,9 +239,9 @@ pub fn setting(ws: &Workspace, cmd: &SettingCmd, out: &Out) -> Handled {
     let mut t = out.table(&["キー", "値", "ファイル"]);
     t = t.numeric(&[1]);
     for s in &settings {
-        let value = match &s.value {
-            ValueData::Unset => C::Dim("未設定".into()),
-            _ => C::Num(s.display.clone()),
+        let value = match (&s.value, &s.display) {
+            (ValueData::Unset, _) | (_, None) => C::Dim(UNSET.into()),
+            (_, Some(text)) => C::Num(text.clone()),
         };
         t.row(vec![
             C::Text(s.key.clone()),

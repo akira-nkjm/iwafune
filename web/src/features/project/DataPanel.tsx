@@ -28,7 +28,7 @@ export function DataPanel() {
           <span>
             {item.id}:{" "}
             {item.installed ? words.installed : item.present ? words.cached : words.missing}{" "}
-            {item.size_display?.display}
+            {item.size?.display}
           </span>
           <button
             type="button"

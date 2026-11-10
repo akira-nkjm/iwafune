@@ -14,7 +14,11 @@ kind: NetKind,
 /**
  * 戻り（GND）のネットか（判定は `fune_model::design::Net::is_return`。系統図の GND の層）
  */
-is_return: boolean, label: string | null, 
+is_return: boolean, 
+/**
+ * 表示名（無ければ ID）
+ */
+label: string, 
 /**
  * 供給元のポート（part = PCDU、port = OUT3）
  */

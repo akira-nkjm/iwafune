@@ -42,12 +42,12 @@ pub(crate) fn part_row(design: &Design, resolved: &Resolved, rp: &ResolvedPart) 
                 .and_then(|r| fune_model::builtin::labels().role_subsystem.get(r))
                 .cloned()
         }),
-        kind: rp.kind.clone().unwrap_or_default(),
+        kind: rp.kind.clone(),
         role: rp.role.clone(),
         catalog: rp.catalog.clone(),
         candidates: part.map(|p| p.candidates.clone()).unwrap_or_default(),
         count: rp.count,
-        maturity: rp.maturity.as_ref().map(|m| m.as_str().to_owned()),
+        maturity: rp.maturity,
         values: rp
             .attr
             .iter()

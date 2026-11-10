@@ -18,6 +18,11 @@ export const modesJa = {
     draftApplied: "電力・合計・余裕は、この下書きを当てて計算した値です（まだ保存していません）",
     cellLabel: (part: string, mode: string, state: string, power: string) =>
       `${part}、${mode}: ${state}、${power}`,
+    /** セルの文言の部品: ほかの状態 1 つとその時間の割合（割合の `%` は API の整形 `ModeRow.shares`） */
+    cellShare: (state: string, share: string) => `${state} ${share}`,
+    cellShareSeparator: "、",
+    /** 状態のあとに割合を並べたセル（`rx（tx 10.0 %）`） */
+    cellWithShares: (state: string, shares: string) => `${state}（${shares}）`,
     part: "部品",
     powerRow: "合計（成長余裕込み）",
     saveSummary: (n: number) => `モード表を保存（${n} セル）`,

@@ -18,6 +18,6 @@ dimension: string,
  */
 scale: number, offset: number, 
 /**
- * `scale` の表示文字列
+ * `scale` の数の表示（量ではないので文字列。例: `"0.001"`）
  */
-scale_display: string, mapping: UnitMapping, };
+scale_text: string, mapping: UnitMapping, };

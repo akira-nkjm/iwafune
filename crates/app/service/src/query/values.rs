@@ -103,10 +103,10 @@ fn value_data(v: &SiValue, rv: &ResolvedValue) -> ValueData {
     }
 }
 
-/// 値の表示文字列。
-pub(crate) fn display_of(v: &ValueData) -> String {
-    match v {
-        ValueData::Unset => "未設定".to_owned(),
+/// 値の表示文字列。未設定なら None（「未設定」の文言は CLI と Web が作る。`ValueData::Unset` が構造）。
+pub(crate) fn display_of(v: &ValueData) -> Option<String> {
+    Some(match v {
+        ValueData::Unset => return None,
         ValueData::Scalar { nominal, min, max } => match (min, max) {
             (None, None) => nominal.display.clone(),
             (lo, hi) => format!(
@@ -142,5 +142,5 @@ pub(crate) fn display_of(v: &ValueData) -> String {
         ValueData::Enum { value } | ValueData::Text { value } => value.clone(),
         ValueData::Bool { value } => value.to_string(),
         ValueData::Table { id } => format!("table:{id}"),
-    }
+    })
 }

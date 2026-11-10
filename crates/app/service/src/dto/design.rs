@@ -6,7 +6,7 @@ use super::{
     ValueView,
 };
 use fune_model::builtin::Labels;
-use fune_model::design::{Source, StateAssign, ViewLayout};
+use fune_model::design::{Maturity, Source, StateAssign, ViewLayout};
 use fune_model::value::Vector3;
 use fune_ops::Op;
 use serde::{Deserialize, Serialize};
@@ -95,13 +95,14 @@ pub struct PartRow {
     pub parent: Option<String>,
     /// 最上位の Group（例: `"AOCS"`）。未所属ならモデルの role_subsystem の既定
     pub subsystem: Option<String>,
-    pub kind: String,
+    /// 種別（kind の無い部品は null）
+    pub kind: Option<String>,
     pub role: Option<String>,
-    /// 選択中のカタログ（例: `"lab/rw_18mNms"`）
+    /// 選択中のカタログ（例: `"local/rw_18mNms"`）
     pub catalog: Option<String>,
     pub candidates: Vec<String>,
     pub count: u32,
-    pub maturity: Option<String>,
+    pub maturity: Option<Maturity>,
     /// 属性 ID → 解決済みの値
     pub values: BTreeMap<String, ValueView>,
     pub ports: Vec<PortView>,
@@ -195,13 +196,15 @@ pub struct ModeHeader {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ModeRow {
     pub part: String,
-    pub kind: String,
+    /// 種別（kind の無い部品は null）
+    pub kind: Option<String>,
     /// 選べる状態（kind の語彙）
     pub states: Vec<String>,
     /// モード ID → 状態（そのモードの表に書かれていなければ無い）
     pub cells: BTreeMap<String, StateAssign>,
-    /// モード ID → セルの表示（例: `"rx（tx 10.0 %）"`。割合の整形は sat-units）
-    pub display: BTreeMap<String, String>,
+    /// モード ID → そのセルのほかの状態の時間の割合（状態 → `%` の表示。`cells` の `duty` を sat-units で整形したもの）。
+    /// 割合の無いセルは入れない。セルの文言（`rx（tx 10.0 %）` など）は CLI と Web が状態とこれから作る
+    pub shares: BTreeMap<String, BTreeMap<String, QuantityView>>,
 }
 
 /// ネット（電気的な接続）。
@@ -212,7 +215,8 @@ pub struct NetView {
     pub kind: fune_model::design::NetKind,
     /// 戻り（GND）のネットか（判定は `fune_model::design::Net::is_return`。系統図の GND の層）
     pub is_return: bool,
-    pub label: Option<String>,
+    /// 表示名（無ければ ID）
+    pub label: String,
     /// 供給元のポート（part = PCDU、port = OUT3）
     pub source: Option<fune_model::path::PortRef>,
     pub rail: Option<QuantityView>,
@@ -229,7 +233,8 @@ pub struct NetView {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct HarnessView {
     pub id: String,
-    pub label: Option<String>,
+    /// 表示名（無ければ ID）
+    pub label: String,
     /// 端のポート（part = PCDU、port = OUT3）
     pub from: fune_model::path::PortRef,
     pub to: fune_model::path::PortRef,
@@ -300,7 +305,8 @@ pub struct SettingView {
     /// 例: `"analysis.power.dod_max"`
     pub key: String,
     pub value: ValueData,
-    pub display: String,
+    /// 値の表示文字列（未設定なら null。文言は CLI と Web が作る）
+    pub display: Option<String>,
     pub file: Option<String>,
 }
 

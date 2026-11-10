@@ -26,4 +26,8 @@ field: string,
 /**
  * 例: `"analysis.power.dod_max"`
  */
-key: string, value: ValueData, display: string, file: string | null, };
+key: string, value: ValueData, 
+/**
+ * 値の表示文字列（未設定なら null。文言は CLI と Web が作る）
+ */
+display: string | null, file: string | null, };

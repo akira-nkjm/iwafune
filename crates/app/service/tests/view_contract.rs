@@ -189,15 +189,17 @@ fn mode_power_budgets_match_analysis_and_shared_rollup() {
         serde_json::from_value(result.output.unwrap()).unwrap();
     assert_eq!(view.modes.len(), out.modes.len());
     // 全体の行（ケースのモードか、いちばん重いモード）は、そのモードの行と同じ値・同じ判定
-    let main = view
-        .modes
-        .iter()
-        .find(|r| Some(&r.node) == view.mode.as_ref())
-        .unwrap();
-    assert!((main.with_growth.si - view.total.si).abs() < 1e-12);
-    assert_eq!(main.verdict, view.verdict);
+    let main = view.modes.iter().find(|r| r.node == view.mode).unwrap();
+    let total = view.total.as_ref().unwrap();
+    assert!((main.with_growth.si - total.si).abs() < 1e-12);
+    assert_eq!(Some(main.verdict), view.verdict);
+    assert!(view.missing.is_empty());
     for mode in &out.modes {
-        let row = view.modes.iter().find(|r| r.node == mode.id).unwrap();
+        let row = view
+            .modes
+            .iter()
+            .find(|r| r.node.as_deref() == Some(mode.id.as_str()))
+            .unwrap();
         let items: Vec<_> = mode
             .parts
             .iter()
@@ -214,7 +216,7 @@ fn mode_power_budgets_match_analysis_and_shared_rollup() {
         let expected = budget_rollup(
             &items,
             view.limit.as_ref().map(|q| q.si),
-            view.system_margin,
+            view.system_margin.si,
         )
         .unwrap();
         assert!((row.with_growth.si - mode.total_with_growth.value()).abs() < 1e-10);
@@ -223,4 +225,83 @@ fn mode_power_budgets_match_analysis_and_shared_rollup() {
         assert_eq!(Some(row.verdict), expected.verdict);
         assert!(!row.margin.as_ref().unwrap().display.is_empty());
     }
+}
+
+/// 無いものは null で返す（空文字や日本語の文言で埋めない）。未設定の値・種別・成熟度・モード表のセルの割合。
+#[test]
+fn absent_values_are_structured_not_text() {
+    use fune_model::design::Maturity;
+    use fune_service::dto::ValueData;
+    let design = query::design_view(&demo()).unwrap();
+    let rw = design.parts.iter().find(|p| p.id == "RW_X").unwrap();
+    assert_eq!(rw.kind.as_deref(), Some("reaction_wheel"));
+    let bat = design.parts.iter().find(|p| p.id == "BAT").unwrap();
+    assert_eq!(bat.maturity, Some(Maturity::OffTheShelf));
+    // 未設定の値は `unset` と `display: null`（「未設定」の文言は CLI と Web が作る）
+    let mut unset = 0;
+    for part in &design.parts {
+        for v in part.values.values() {
+            let is_unset = matches!(v.value, ValueData::Unset);
+            assert_eq!(v.display.is_none(), is_unset, "{}.{}", part.id, v.attr);
+            unset += usize::from(is_unset);
+        }
+    }
+    assert!(unset > 0);
+    for s in &design.settings {
+        assert_eq!(s.display.is_none(), matches!(s.value, ValueData::Unset));
+    }
+    // モード表のセルは状態（`cells`）と割合の表示（`shares`）の構造。割合の無いセルは `shares` に無い
+    let trx = design
+        .modes
+        .rows
+        .iter()
+        .find(|r| r.part == "UHF_TRX")
+        .unwrap();
+    assert_eq!(trx.cells["DOWNLINK"].state, "rx");
+    assert_eq!(trx.shares["DOWNLINK"]["tx"].display, "10.0 %");
+    assert!((trx.shares["DOWNLINK"]["tx"].si - 0.1).abs() < 1e-12);
+    assert!(!trx.shares.contains_key("MISSION"));
+    assert_eq!(trx.kind.as_deref(), Some("transceiver"));
+}
+
+/// どの Group にも属さない部品は「その他」の行（`node`・`label` が null）にまとめる。ID の欄に文言を入れない。
+/// 合計と、配分の行の値は変わらない（「その他」の行に足されるだけ）。
+#[test]
+fn budget_puts_parts_without_a_group_in_one_other_row() {
+    use fune_service::{
+        budget,
+        dto::{BudgetKind, BudgetRequest},
+    };
+    let ws = demo();
+    let saved = budget::budget(&ws, BudgetKind::Mass, &BudgetRequest::default()).unwrap();
+    assert!(
+        saved
+            .rows
+            .iter()
+            .all(|r| r.node.is_some() && r.label.is_some())
+    );
+    let ops = serde_json::from_value(serde_json::json!([
+        { "op": "create_part", "id": "LOOSE_A", "kind": "structure" },
+        { "op": "create_part", "id": "LOOSE_B", "kind": "structure" },
+        { "op": "set_value", "part": "LOOSE_A", "attr": "mass",
+          "value": { "type": "scalar", "data": { "value": 100.0, "unit": "g" } } },
+        { "op": "set_value", "part": "LOOSE_B", "attr": "mass",
+          "value": { "type": "scalar", "data": { "value": 50.0, "unit": "g" } } },
+    ]))
+    .unwrap();
+    let req = BudgetRequest { case: None, ops };
+    let draft = budget::budget(&ws, BudgetKind::Mass, &req).unwrap();
+    let others: Vec<_> = draft.rows.iter().filter(|r| r.node.is_none()).collect();
+    assert_eq!(others.len(), 1);
+    assert_eq!(others[0].label, None);
+    assert!((others[0].current.si - 0.15).abs() < 1e-12);
+    // 「その他」は最後の行
+    assert!(draft.rows.last().unwrap().node.is_none());
+    assert_eq!(draft.rows.len(), saved.rows.len() + 1);
+    for (a, b) in saved.rows.iter().zip(&draft.rows) {
+        assert_eq!(a.node, b.node);
+        assert_eq!(a.with_growth.si, b.with_growth.si);
+    }
+    let total = |v: &fune_service::dto::BudgetView| v.total.as_ref().unwrap().si;
+    assert!(total(&draft) > total(&saved));
 }

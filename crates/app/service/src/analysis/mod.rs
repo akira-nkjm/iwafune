@@ -83,27 +83,30 @@ pub fn run_analysis(
 fn run_inner(ws: &Workspace, id: &str, req: &RunAnalysisRequest) -> Result<Outcome> {
     let input = match &req.input {
         Some(v) => v.clone(),
-        None => match project(ws, id, req.case.as_deref(), &req.ops) {
-            Ok(v) => match &req.input_patch {
-                Some(patch) => merge_patch(v, patch),
-                None => v,
-            },
-            Err(ProjectionError::Missing(m)) => {
-                return Ok(Outcome {
-                    status: AnalysisRunStatus::MissingInputs,
-                    dims: BTreeMap::new(),
-                    input: None,
-                    output: None,
-                    missing: m.into_vec(),
-                    error: None,
-                });
+        None => {
+            // 下書き（`ops`）が通らなければ、保存・バジェットと同じエラー（検証なら診断付き）を返す
+            let snapshot = crate::preview::snapshot_with(ws, &req.ops)?;
+            match project(&snapshot, id, req.case.as_deref()) {
+                Ok(v) => match &req.input_patch {
+                    Some(patch) => merge_patch(v, patch),
+                    None => v,
+                },
+                Err(ProjectionError::Missing(m)) => {
+                    return Ok(Outcome {
+                        status: AnalysisRunStatus::MissingInputs,
+                        dims: BTreeMap::new(),
+                        input: None,
+                        output: None,
+                        missing: m.into_vec(),
+                        error: None,
+                    });
+                }
+                Err(e @ ProjectionError::NotImplemented(_)) => {
+                    return Ok(Outcome::failed(e.to_string()));
+                }
+                Err(e) => return Err(ServiceError::Analysis(e.to_string())),
             }
-            Err(e @ ProjectionError::NotImplemented(_)) => {
-                return Ok(Outcome::failed(e.to_string()));
-            }
-            Err(ProjectionError::Analysis(e)) => return Err(ServiceError::Analysis(e)),
-            Err(e) => return Err(ServiceError::Analysis(e.to_string())),
-        },
+        }
     };
     Ok(match sat_analysis::catalog::run_json(id, input.clone()) {
         Ok(mut output) => {
@@ -174,16 +177,12 @@ fn pointer_token(key: &str) -> String {
     key.replace('~', "~0").replace('/', "~1")
 }
 
-/// 設計データから入力を組み立てる。
-/// 設計（`ops` があれば書き込まずに当てたもの）から解析の入力を組み立てる。
+/// 設計（依頼の `ops` があれば書き込まずに当てたもの）から解析の入力を組み立てる。
 fn project(
-    ws: &Workspace,
+    snapshot: &crate::workspace::Snapshot,
     id: &str,
     case: Option<&str>,
-    ops: &[fune_ops::Op],
 ) -> Result<Value, ProjectionError> {
-    let snapshot = crate::preview::snapshot_with(ws, ops)
-        .map_err(|e| ProjectionError::Analysis(e.to_string()))?;
     let ctx = Context::new(&snapshot.design, &snapshot.resolved, case)?;
     project_json(id, &ctx)
 }

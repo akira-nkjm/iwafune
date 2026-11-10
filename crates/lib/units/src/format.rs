@@ -26,10 +26,8 @@ pub use label::unit_label;
 /// 表示の有効数字。
 pub const SIGNIFICANT_DIGITS: u32 = 3;
 
-/// 整形した量。
+/// 整形した量（整形の関数の戻り値）。これ自体は API に出さず、アプリ層が SI 値・次元と合わせて表示用の型にする。
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct FormattedQuantity {
     /// 表示単位での値（丸める前）
     pub value: f64,

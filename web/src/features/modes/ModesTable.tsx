@@ -11,7 +11,7 @@ import { cellOf, draftOps, type ModeDraft, withCell } from "./draft";
 import { ModeBudgetRows } from "./ModeBudgetRows";
 import { ModeCell } from "./ModeCell";
 import { ModeHeaderMenu } from "./ModeHeaderMenu";
-import { powerLevels, STICKY } from "./matrix";
+import { powerLevels, STICKY, savedCellText } from "./matrix";
 
 /**
  * 「部品 × モード」の行列。行はサブシステム（部品の Group）ごとにまとめ、電力を使う部品だけを出す。
@@ -147,6 +147,7 @@ function MatrixRow({
 }) {
   const part = design.parts.find((p) => p.id === row.part);
   const levels = powerLevels(part);
+  const words = useT().modes;
   return (
     <tr>
       <th scope="row" className={`${STICKY.rowHead} px-4 py-1 text-left font-normal`}>
@@ -154,7 +155,7 @@ function MatrixRow({
           {row.part}
           {part && part.count > 1 ? ` ×${part.count}` : ""}
         </div>
-        <div className="text-[10px] text-ink-4">{kindLabel(design.defs, row.kind)}</div>
+        <div className="text-[10px] text-ink-4">{row.kind && kindLabel(design.defs, row.kind)}</div>
       </th>
       <td
         className="num whitespace-nowrap px-3 py-1 text-right text-ink-3 text-xs"
@@ -176,7 +177,7 @@ function MatrixRow({
               column={column}
               states={row.states}
               cell={cell}
-              display={row.display[m.id]}
+              display={savedCellText(row, m.id, words)}
               changed={draft.get(m.id)?.has(row.part) ?? false}
               power={power}
               shade={levels.findIndex(([state]) => state === cell?.state)}

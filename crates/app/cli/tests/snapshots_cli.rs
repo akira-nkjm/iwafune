@@ -110,7 +110,9 @@ fn units_format_parity_with_http_shape() {
         "Power",
     ]);
     let v: serde_json::Value = serde_json::from_str(&out).unwrap();
-    assert_eq!(v["items"][0]["text"], "12.3 mW");
+    // ほかの API と同じ量の表示（`QuantityView`）
+    assert_eq!(v["items"][0]["display"], "12.3 mW");
+    assert_eq!(v["items"][0]["dimension"], "Power");
 }
 
 #[test]

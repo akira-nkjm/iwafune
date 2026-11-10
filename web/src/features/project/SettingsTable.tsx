@@ -48,7 +48,7 @@ export function SettingsTable({
             <Td>
               {v.type === "scalar" ? (
                 <EditableQuantity
-                  display={s.display}
+                  display={s.display ?? "—"}
                   initial={quantityInputText(v.nominal)}
                   dimension={v.nominal.dimension}
                   label={s.key}
@@ -78,7 +78,7 @@ export function SettingsTable({
                   className="h-7 w-full max-w-72 rounded-[8px] border border-line-strong px-2 text-[12.5px]"
                 />
               ) : (
-                <span className="font-mono text-[12px]">{s.display}</span>
+                <span className="font-mono text-[12px]">{s.display ?? "—"}</span>
               )}
             </Td>
             {!grouped && (

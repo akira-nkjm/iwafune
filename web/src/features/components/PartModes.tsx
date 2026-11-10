@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import type { DesignView, StateAssign } from "@/api/types";
+import { savedCellText } from "@/features/modes/matrix";
 import { useT } from "@/i18n";
 import { PropertyList } from "@/kit/PropertyList";
 import { PropertyRow } from "@/kit/PropertyRow";
@@ -15,7 +16,8 @@ export function PartModes({
   part: string;
   modes: Record<string, StateAssign>;
 }) {
-  const t = useT().components.partModes;
+  const all = useT();
+  const t = all.components.partModes;
   const headers = design.modes.modes;
   const row = design.modes.rows.find((r) => r.part === part);
   if (headers.length === 0) return <p className="px-1 text-ink-3 text-xs">{t.none}</p>;
@@ -23,8 +25,8 @@ export function PartModes({
     <PropertyList>
       {headers.map((m) => {
         const s = modes[m.id];
-        // 割合の表示はサーバー（モード表の display）が整形したもの
-        const shown = row?.display[m.id] ?? s?.state;
+        // 割合の `%` はサーバー（モード表の shares）が整形したもの。並べ方はモード表と同じ i18n
+        const shown = (row && savedCellText(row, m.id, all.modes)) ?? s?.state;
         const name = nodeName(m);
         return (
           <PropertyRow

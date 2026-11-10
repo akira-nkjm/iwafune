@@ -7,9 +7,14 @@ import type { Verdict } from "./Verdict";
  */
 export type BudgetRow = { 
 /**
- * Group か Part の ID
+ * Group か Part の ID（電力のモードの行はモード ID）。どの配分の行にも最上位の Group にも属さない部品を
+ * まとめた「その他」の行は null（文言は CLI と Web が作る）
  */
-node: string, label: string, 
+node: string | null, 
+/**
+ * 表示名（無ければ ID。「その他」の行は null）
+ */
+label: string | null, 
 /**
  * 成長余裕を含まない現状の値
  */

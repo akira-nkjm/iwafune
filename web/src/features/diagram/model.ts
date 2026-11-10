@@ -30,7 +30,8 @@ export interface DiagramCard {
   id: string;
   label: string;
   role?: string | null;
-  sub: string;
+  /** 2 行目（カタログ品か種別。どちらも無ければ null） */
+  sub: string | null;
   tone: Tone;
   /** カードに含まれる部品（まとめたときは複数） */
   members: string[];
@@ -88,7 +89,7 @@ function commonPrefix(ids: string[]): string {
 
 function signature(p: PartRow): string {
   const ports = p.ports.map((x) => `${x.id}=${x.net ?? ""}`).sort();
-  return `${p.catalog ?? ""}|${p.kind}|${ports.join(",")}`;
+  return `${p.catalog ?? ""}|${p.kind ?? ""}|${ports.join(",")}`;
 }
 
 interface CardIndex {
@@ -123,7 +124,7 @@ function buildCards(design: DesignView, merge: boolean): CardIndex {
     const prefix = merged ? commonPrefix(group.map((p) => p.id)) : first.id;
     cards.push({
       id,
-      label: merged ? prefix || first.kind : first.id,
+      label: merged ? prefix || (first.kind ?? first.id) : first.id,
       sub: first.catalog ?? first.kind,
       role: first.role,
       tone: subsystemTone(first.subsystem, first.role),

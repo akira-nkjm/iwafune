@@ -71,10 +71,13 @@ impl Workspace {
     }
 }
 
-/// 店（store）のエラー → サービスのエラー。
+/// 店（store）のエラー → サービスのエラー。ロックと「もうある」（`fune init` の既存のプロジェクトなど）は競合に分ける。
 pub(crate) fn store_error(e: fune_store::StoreError) -> ServiceError {
+    use fune_store::StoreError;
     match e {
-        fune_store::StoreError::NotAProject { start } => ServiceError::ProjectNotFound(start),
+        StoreError::NotAProject { start } => ServiceError::ProjectNotFound(start),
+        StoreError::Locked { lock } => ServiceError::Locked(lock),
+        StoreError::AlreadyExists { path } => ServiceError::AlreadyExists { what: path },
         other => ServiceError::Store(other.to_string()),
     }
 }
@@ -91,9 +94,7 @@ pub(crate) fn op_error(ws: &Workspace, e: fune_ops::OpError) -> ServiceError {
             what: "対象",
             id: what,
         },
-        OpError::AlreadyExists { what } => {
-            ServiceError::InvalidInput(format!("{what} は既にあります"))
-        }
+        OpError::AlreadyExists { what } => ServiceError::AlreadyExists { what },
         OpError::Invalid { message } => ServiceError::InvalidInput(message),
         OpError::Rejected { diagnostics } => {
             // 書き込まなかったので、該当行は今のファイルから取る（変えていないファイルの行は同じ）。
@@ -105,7 +106,6 @@ pub(crate) fn op_error(ws: &Workspace, e: fune_ops::OpError) -> ServiceError {
                     .collect(),
             }
         }
-        OpError::Store(fune_store::StoreError::Locked { lock }) => ServiceError::Locked(lock),
         OpError::Store(e) => store_error(e),
     }
 }

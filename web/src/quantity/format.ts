@@ -11,7 +11,7 @@ export function quantityText(q: QuantityView | null | undefined): string {
 /** 値 1 つを 1 行の文字列にする（表のセル向け）。文字は service の display（整形は Rust）をそのまま使う */
 export function valueText(v: ValueView | null | undefined): string {
   if (!v || v.value.type === "unset") return "—";
-  return v.display || "—";
+  return v.display ?? "—";
 }
 
 /** 入力欄の初期値（書かれたままの数値と単位。換算しない） */
