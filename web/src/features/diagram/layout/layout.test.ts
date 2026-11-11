@@ -25,9 +25,9 @@ const box = (l: DiagramLayout, id: string): Box => {
 describe("自動配置で並べるもの", () => {
   it("線の無い枠（構体）は線のある図に入れない", () => {
     const linked = connectedNodes(model);
-    expect(linked.has("group:STRUCTURE")).toBe(false);
+    expect(linked.has("group:structure")).toBe(false);
     expect(linked.has("card:PANEL_PX")).toBe(false);
-    expect(linked.has("group:POWER")).toBe(true);
+    expect(linked.has("group:power")).toBe(true);
   });
 });
 
@@ -99,7 +99,7 @@ describe("デモの系統図の配置", () => {
     expect(whole.width / whole.height).toBeGreaterThan(1.2);
     // 線の無い構体の枠は、線のある図の下か右（重ならない）
     const linked = extentOf(connectedNodes(model), l);
-    const structure = box(l, "group:STRUCTURE");
+    const structure = box(l, "group:structure");
     expect(structure.y >= linked.y + linked.height || structure.x >= linked.x + linked.width).toBe(
       true,
     );
@@ -181,9 +181,9 @@ describe("デモの系統図の配置", () => {
       const again = await layoutModel(model);
       expect([...again.boxes]).toEqual([...l.boxes]);
       expect([...again.routes]).toEqual([...l.routes]);
-      const saved = new Map([["POWER", { id: "POWER", x: -100, y: 10, w: null, h: null }]]);
+      const saved = new Map([["power", { id: "power", x: -100, y: 10, w: null, h: null }]]);
       expect(
-        flowNodes(model, l, saved, { onResized: () => {} }).find((n) => n.id === "group:POWER")
+        flowNodes(model, l, saved, { onResized: () => {} }).find((n) => n.id === "group:power")
           ?.position,
       ).toEqual({ x: -100, y: 10 });
     },

@@ -33,7 +33,7 @@ export const overviewJa = {
     budgetMargin: (v: string) => `余裕 ${v}`,
     budgetLimit: (limit: string, margin: string) => `/ 上限 ${limit}（システムマージン ${margin}）`,
     budgetOther: "（その他）",
-    budgetOtherTitle: "どの Group にも属さない部品",
+    budgetOtherTitle: "系に属さず部品の配分も無い部品",
     note: (n: string) => `・${n}`,
   },
 };

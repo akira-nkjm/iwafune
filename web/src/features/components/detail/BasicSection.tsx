@@ -6,8 +6,8 @@ import { PropertyList } from "@/kit/detail/PropertyList";
 import { PropertyRow } from "@/kit/detail/PropertyRow";
 import { CommitInput } from "@/kit/forms/CommitInput";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
-import { SubsystemDot } from "@/kit/SubsystemDot";
-import { fieldPath, idWithName } from "@/lib/design";
+import { SystemDot } from "@/kit/SystemDot";
+import { fieldPath, parentOptions, systemTitle } from "@/lib/design";
 import { useFieldError } from "@/lib/field-errors";
 
 /** 検証で弾かれた理由（その欄のパスに付いたもの）を欄の下に出す */
@@ -101,9 +101,15 @@ export function BasicSection({ design, part }: { design: DesignView; part: PartR
         />
         <FieldError path={path("maturity")} />
       </PropertyRow>
+      <PropertyRow label={t.system}>
+        <span className="flex items-center gap-2">
+          <SystemDot system={part.system} />
+          {part.system ? systemTitle(part.system, design.defs) : "—"}
+        </span>
+      </PropertyRow>
       <PropertyRow label={t.parent}>
         <span className="flex items-center gap-2">
-          <SubsystemDot group={part.subsystem} />
+          <SystemDot system={part.system} />
           <NativeSelect
             size="sm"
             aria-label={t.parentGroup}
@@ -114,10 +120,7 @@ export function BasicSection({ design, part }: { design: DesignView; part: PartR
                 summary: t.moveSummary(part.id, e.target.value),
               })
             }
-            options={design.tree
-              .filter((n) => n.id !== part.id)
-              .filter((n) => n.node === "group" || n.children.length > 0 || n.id === part.parent)
-              .map((n) => ({ value: n.id, label: idWithName(n) }))}
+            options={parentOptions(design).filter((n) => n.value !== part.id)}
           />
         </span>
       </PropertyRow>

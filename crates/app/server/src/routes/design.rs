@@ -21,7 +21,7 @@ pub async fn design(State(s): State<AppState>) -> Result<Json<DesignView>, ApiEr
     blocking(&s, query::design_view).await.map(Json)
 }
 
-/// GET `/parts?group=AOCS&kind=reaction_wheel`
+/// GET `/parts?group=aocs&kind=reaction_wheel`
 pub async fn parts(
     State(s): State<AppState>,
     ApiQuery(q): ApiQuery<PartsQuery>,

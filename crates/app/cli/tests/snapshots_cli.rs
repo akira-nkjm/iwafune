@@ -86,7 +86,7 @@ fn json_error_envelope() {
 #[test]
 fn check_points_at_the_toml_line() {
     let (_tmp, root) = demo_copy();
-    let file = root.join("parts/AOCS/RW_X.toml");
+    let file = root.join("parts/aocs/RW_X.toml");
     let text = std::fs::read_to_string(&file).unwrap();
     std::fs::write(&file, text.replace("unit = \"kg\"", "unit = \"furlong\"")).unwrap();
     let out = fune()
@@ -95,7 +95,7 @@ fn check_points_at_the_toml_line() {
         .unwrap();
     assert_eq!(out.status.code(), Some(1));
     let err = String::from_utf8(out.stderr).unwrap();
-    assert!(err.contains("parts/AOCS/RW_X.toml"), "{err}");
+    assert!(err.contains("parts/aocs/RW_X.toml"), "{err}");
     assert!(err.contains("furlong"), "{err}");
 }
 

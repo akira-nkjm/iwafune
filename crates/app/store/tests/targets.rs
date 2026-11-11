@@ -25,7 +25,7 @@ fn target_of(d: &[Diagnostic], code: &str, file: &str) -> Option<Target> {
 fn diagnostics_carry_typed_targets() {
     let d = diags(&[
         (
-            "parts/AOCS/RW.toml",
+            "parts/aocs/RW.toml",
             "kind = \"reaction_wheel\"\n\n[ports.PWR]\nnet = \"NOPE\"\n",
         ),
         (
@@ -40,7 +40,7 @@ fn diagnostics_carry_typed_targets() {
         part: "RW".into(),
         port: "PWR".into(),
     };
-    let part_file = "parts/AOCS/RW.toml";
+    let part_file = "parts/aocs/RW.toml";
     assert_eq!(target_of(&d, "ref.net", part_file), Some(port.into()));
     // ネットの供給元の誤りは、参照を書いたネットのキーが対象（参照先の部品 ID を対象にしない）
     let source = Target::net("P12V", Some("source"));
@@ -68,7 +68,7 @@ fn diagnostics_carry_typed_targets() {
 #[test]
 fn load_diagnostics_target_the_file_entity() {
     let d = diags(&[
-        ("parts/AOCS/BAD.toml", "kind = \n"),
+        ("parts/aocs/BAD.toml", "kind = \n"),
         ("nets/BROKEN.toml", "kind = [\n"),
     ]);
     let of_file = |file: &str| {
@@ -76,7 +76,7 @@ fn load_diagnostics_target_the_file_entity() {
             .find(|x| x.file.as_deref() == Some(file))
             .and_then(|x| x.target.clone())
     };
-    let bad = of_file("parts/AOCS/BAD.toml");
+    let bad = of_file("parts/aocs/BAD.toml");
     assert_eq!(bad, Some(Target::Part { id: "BAD".into() }));
     assert_eq!(bad.as_ref().and_then(Target::part), Some("BAD"));
     assert_eq!(

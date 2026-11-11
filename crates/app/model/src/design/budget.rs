@@ -55,11 +55,12 @@ impl Allocations {
 #[serde(deny_unknown_fields)]
 pub struct Allocation {
     /// 上限（ロケット側の上限・軌道平均の発電見込みなど）
-    pub limit: Quantity,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<Quantity>,
     /// システムマージン（上限に対する割合）
     #[serde(default)]
     pub system_margin: f64,
-    /// Group か Part の ID → 配分
+    /// 系か部品の ID → 配分
     #[serde(default)]
     pub alloc: BTreeMap<String, Quantity>,
 }

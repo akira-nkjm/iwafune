@@ -10,7 +10,7 @@ import { matchesSearch } from "@/kit/forms/search";
 import { ListDetailPage } from "@/kit/list-detail/ListDetailPage";
 import { type DetailRoute, useDetailRoute } from "@/kit/list-detail/use-detail-route";
 import { PageTabs } from "@/kit/selection/PageTabs";
-import { groupsOf, nodeLabel, nodeName } from "@/lib/design";
+import { nodeLabel, systemTitle } from "@/lib/design";
 import { paths, SEARCH } from "@/lib/nav";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
@@ -96,7 +96,7 @@ function ComponentsHeader({
     <PageHeader
       eyebrow={t.eyebrow}
       title={t.title}
-      subtitle={design ? t.subtitle(design.parts.length, groupsOf(design).length) : undefined}
+      subtitle={design ? t.subtitle(design.parts.length, design.defs.systems.length) : undefined}
       actions={
         <>
           <SearchInput
@@ -110,9 +110,9 @@ function ComponentsHeader({
             value={filters.group}
             onChange={(e) => onFilters({ ...filters, group: e.target.value })}
             placeholder={t.allGroups}
-            options={(design ? groupsOf(design) : []).map((g) => ({
-              value: g.id,
-              label: nodeName(g),
+            options={(design?.defs.systems ?? []).map((system) => ({
+              value: system,
+              label: systemTitle(system, design?.defs),
             }))}
           />
           <Button onClick={onAdd} disabled={!design}>
@@ -168,7 +168,7 @@ function ComponentsList({
 function filterParts(parts: PartRow[], search: string, group: string) {
   return parts.filter(
     (p) =>
-      (!group || p.subsystem === group || p.parent === group) &&
+      (!group || p.system === group || p.parent === group) &&
       matchesSearch(search, [p.id, p.kind, p.catalog, p.file]),
   );
 }

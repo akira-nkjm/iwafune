@@ -29,7 +29,7 @@ label_en: string | null,
  */
 case: string | null, 
 /**
- * 上限（配分が無ければ null）
+ * 上限（未設定なら null）
  */
 limit: QuantityView | null, 
 /**
@@ -45,7 +45,7 @@ total: QuantityView | null,
  */
 margin: QuantityView | null, 
 /**
- * 判定（入力が足りなければ null）
+ * 判定（入力か上限が無ければ null）
  */
 verdict: Verdict | null, 
 /**
@@ -53,7 +53,7 @@ verdict: Verdict | null,
  */
 fill: FillRatio | null, 
 /**
- * 行（サブシステムや組立品）
+ * 行（系や配分された部品）
  */
 rows: Array<BudgetRow>, 
 /**

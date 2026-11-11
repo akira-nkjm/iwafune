@@ -5,15 +5,6 @@ label  = "IWAFUNE 6U（デモ）"
 schema = 2
 toml   = "1.0"
 
-[groups]
-AOCS      = "姿勢制御系"
-CDH       = "コマンド・データ処理系"
-COM       = "通信系"
-PAYLOAD   = "ミッション機器"
-POWER     = "電源系"
-STRUCTURE = "構体系"
-THERMAL   = "熱制御系"
-
 [[catalog]]
 name = "local"
 path = "catalog"

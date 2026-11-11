@@ -4,7 +4,7 @@ use fune_model::{Diagnostic, Severity, check};
 use fune_store::FileSet;
 use fune_store::read::design_of;
 
-const PROJECT: &str = "[project]\nname = \"t\"\n\n[groups]\nAOCS = \"姿勢\"\n";
+const PROJECT: &str = "[project]\nname = \"t\"\n";
 
 fn diags(files: &[(&str, &str)]) -> Vec<Diagnostic> {
     let mut set = FileSet::new();
@@ -23,7 +23,7 @@ const RW: &str = "kind = \"reaction_wheel\"\n\n[attr]\nmass = { value = 0.15, un
 
 #[test]
 fn a_clean_part_has_no_errors() {
-    let d = diags(&[("parts/AOCS/RW.toml", RW)]);
+    let d = diags(&[("parts/aocs/RW.toml", RW)]);
     assert!(d.iter().all(|x| x.severity != Severity::Error), "{d:?}");
 }
 
@@ -33,7 +33,7 @@ fn units_and_value_shapes() {
         .replace("unit = \"kg\"", "unit = \"W\"")
         .replace("mN*m*s", "mN*m*sec")
         .replace("z = 1.0 }", "z = 2.0 }");
-    let d = diags(&[("parts/AOCS/RW.toml", &bad)]);
+    let d = diags(&[("parts/aocs/RW.toml", &bad)]);
     assert!(has(&d, "unit.dimension", Severity::Error), "{d:?}");
     assert!(has(&d, "unit.parse", Severity::Error));
     assert!(has(&d, "vector.not_unit", Severity::Warning));
@@ -143,17 +143,17 @@ fn mount_cycles_and_syntax_errors() {
 
 #[test]
 fn budget_over_allocation_is_a_warning() {
-    let alloc = "[mass]\nlimit = { value = 10.0, unit = \"kg\" }\nsystem_margin = 0.1\n\n[mass.alloc]\nAOCS = { value = 9.5, unit = \"kg\" }\n";
+    let alloc = "[mass]\nlimit = { value = 10.0, unit = \"kg\" }\nsystem_margin = 0.1\n\n[mass.alloc]\naocs = { value = 9.5, unit = \"kg\" }\n";
     let d = diags(&[
         ("budget/allocation.toml", alloc),
-        ("parts/AOCS/RW.toml", RW),
+        ("parts/aocs/RW.toml", RW),
     ]);
     assert!(has(&d, "budget.over_allocated", Severity::Warning), "{d:?}");
     let wrong = alloc.replace("9.5, unit = \"kg\"", "9.5, unit = \"W\"");
     assert!(has(
         &diags(&[
             ("budget/allocation.toml", &wrong),
-            ("parts/AOCS/RW.toml", RW)
+            ("parts/aocs/RW.toml", RW)
         ]),
         "unit.dimension",
         Severity::Error
@@ -286,4 +286,95 @@ fn setting_dimensions_come_from_the_table() {
         "unit.dimension",
         Severity::Error
     ));
+}
+
+/// グループは系。系の下の組立品・入れ子と、parts/ 直下の部品は許す。
+#[test]
+fn top_level_directories_are_system_ids() {
+    for path in [
+        "parts/aocs/RW.toml",
+        "parts/RW.toml",
+        "parts/power/spares/RW.toml",
+    ] {
+        let d = diags(&[(path, RW)]);
+        assert!(
+            !has(&d, "part.system_dir", Severity::Error),
+            "{path}: {d:?}"
+        );
+    }
+    for path in [
+        "parts/ADCS/RW.toml",
+        "parts/AOCS/RW.toml",
+        "parts/custom/nested/RW.toml",
+    ] {
+        let d = diags(&[(path, RW)]);
+        let error = d.iter().find(|d| d.code == "part.system_dir").unwrap();
+        assert_eq!(error.severity, Severity::Error);
+        for system in fune_model::design::AnalysisSystem::ALL {
+            assert!(error.message.contains(system.as_str()), "{error:?}");
+        }
+    }
+    // 最上位の同名部品を持つディレクトリも、系でなければ拒む。
+    let d = diags(&[("parts/ASSEMBLY.toml", RW), ("parts/ASSEMBLY/RW.toml", RW)]);
+    assert!(has(&d, "part.system_dir", Severity::Error));
+}
+
+#[test]
+fn part_system_uses_location_then_role_then_none() {
+    use fune_model::design::AnalysisSystem;
+    let mut files = FileSet::new();
+    files.insert("fune.toml", PROJECT);
+    files.insert("parts/power/spares/WHEEL.toml", RW);
+    files.insert(
+        "defs/kind/custom_wheel.toml",
+        "label = \"wheel\"\nextends = \"reaction_wheel\"\n",
+    );
+    files.insert(
+        "parts/FREE_WHEEL.toml",
+        RW.replace("reaction_wheel", "custom_wheel"),
+    );
+    files.insert("parts/UNASSIGNED.toml", "kind = \"component\"\n");
+    files.insert("parts/payload/ASSEMBLY.toml", "kind = \"structure\"\n");
+    files.insert("parts/payload/ASSEMBLY/CHILD.toml", RW);
+    let design = design_of(&files);
+    assert_eq!(design.system_of("WHEEL"), Some(AnalysisSystem::Power));
+    assert_eq!(design.system_of("FREE_WHEEL"), Some(AnalysisSystem::Aocs));
+    assert_eq!(design.system_of("UNASSIGNED"), None);
+    assert_eq!(design.system_of("CHILD"), Some(AnalysisSystem::Payload));
+    assert_eq!(design.system_of("MISSING"), None);
+    let resolved = fune_model::resolve::resolve(&design);
+    assert_eq!(resolved.parts["WHEEL"].system, design.system_of("WHEEL"));
+}
+
+#[test]
+fn allocations_accept_systems_without_directories_and_parts_but_not_arbitrary_groups() {
+    let d = diags(&[
+        ("parts/RW.toml", RW),
+        ("parts/aocs/spares/P.toml", "kind = \"component\"\n"),
+        (
+            "budget/allocation.toml",
+            "[mass.alloc]\npayload = { value = 1.0, unit = \"kg\" }\nRW = { value = 0.2, unit = \"kg\" }\n",
+        ),
+    ]);
+    assert!(!has(&d, "ref.node", Severity::Error), "{d:?}");
+    assert!(has(&d, "budget.limit_unset", Severity::Warning));
+    let bad = diags(&[
+        ("parts/aocs/spares/RW.toml", RW),
+        (
+            "budget/allocation.toml",
+            "[mass.alloc]\nspares = { value = 1.0, unit = \"kg\" }\n",
+        ),
+    ]);
+    assert!(has(&bad, "ref.node", Severity::Error));
+    assert!(!has(&d, "budget.over_allocated", Severity::Warning));
+}
+
+#[test]
+fn removed_project_groups_are_rejected() {
+    let mut files = FileSet::new();
+    files.insert(
+        "fune.toml",
+        "[project]\nname = \"t\"\n[groups]\naocs = \"custom\"\n",
+    );
+    assert!(check(&design_of(&files)).iter().any(|d| d.is_error()));
 }

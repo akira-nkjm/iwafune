@@ -14,8 +14,24 @@ fn budget_target(segments: &[&str]) -> Option<Target> {
 
 pub(super) fn check_budget(ctx: &mut Ctx) {
     let design = ctx.design;
-    for (kind, alloc) in design.budget.allocation.iter() {
-        check_allocation(ctx, kind, alloc);
+    for kind in BudgetKind::ALL {
+        if design
+            .budget
+            .allocation
+            .get(*kind)
+            .is_none_or(|a| a.limit.is_none())
+        {
+            ctx.warning(
+                "budget.limit_unset",
+                &EntityKey::Allocation,
+                &[kind.as_str(), "limit"],
+                budget_target(&[kind.as_str(), "limit"]),
+                format!("{} の上限が未設定です", kind.as_str()),
+            );
+        }
+        if let Some(alloc) = design.budget.allocation.get(*kind) {
+            check_allocation(ctx, *kind, alloc);
+        }
     }
     let policy = &design.budget.policy;
     check_factors(ctx, &policy.growth, "growth");
@@ -57,7 +73,9 @@ fn check_allocation(ctx: &mut Ctx, kind: BudgetKind, alloc: &Allocation) {
     let entity = EntityKey::Allocation;
     let name = kind.as_str();
     let dim = kind.dimension();
-    if let Some((sev, code, msg)) = check_quantity_dimension(&alloc.limit, dim) {
+    if let Some(limit) = &alloc.limit
+        && let Some((sev, code, msg)) = check_quantity_dimension(limit, dim)
+    {
         let target = budget_target(&[name, "limit"]);
         ctx.report(sev, code, &entity, &[name, "limit"], target, msg);
         return;
@@ -75,13 +93,15 @@ fn check_allocation(ctx: &mut Ctx, kind: BudgetKind, alloc: &Allocation) {
     for (node, q) in &alloc.alloc {
         let keys = [name, "alloc", node.as_str()];
         let path = budget_target(&[name, "alloc", node.as_str()]);
-        if !design.node_exists(node) {
+        if node.parse::<crate::design::AnalysisSystem>().is_err()
+            && !design.parts.contains_key(node.as_str())
+        {
             ctx.error(
                 "ref.node",
                 &entity,
                 &keys,
                 path.clone(),
-                format!("配分先 `{node}` はグループにも部品にもありません"),
+                format!("配分先 `{node}` は系の ID にも部品にもありません"),
             );
         }
         match check_quantity_dimension(q, dim) {
@@ -89,7 +109,9 @@ fn check_allocation(ctx: &mut Ctx, kind: BudgetKind, alloc: &Allocation) {
             None => total += q.si().unwrap_or(0.0),
         }
     }
-    let limit = alloc.limit.si().unwrap_or(0.0);
+    let Some(limit) = alloc.limit.as_ref().and_then(|q| q.si().ok()) else {
+        return;
+    };
     let available = limit * (1.0 - alloc.system_margin);
     if total > available + 1e-12 {
         ctx.warning(

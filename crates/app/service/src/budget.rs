@@ -7,7 +7,7 @@ use crate::dto::{BudgetKind, BudgetRequest, BudgetRow, BudgetView, FillRatio};
 use crate::error::{Result, ServiceError};
 use crate::units::quantity_auto;
 use crate::workspace::{Snapshot, Workspace};
-use fune_model::design::{Allocation, Design, NodeRef};
+use fune_model::design::{Allocation, AnalysisSystem, Design, NodeRef};
 use fune_model::id::Id;
 use fune_model::value::units::to_si;
 use fune_projection::{Context, MissingInputs};
@@ -99,24 +99,18 @@ fn analysis_of(kind: BudgetKind) -> &'static str {
     }
 }
 
-/// 部品 → 配分の行（配分のキーになっている最も近い祖先。無ければ最上位の Group）。
-/// どの Group にも属さない部品は None（「その他」の行）。
-fn row_of(design: &Design, part: &str) -> Option<String> {
-    let all: Vec<&String> = design
-        .budget
-        .allocation
-        .iter()
-        .flat_map(|(_, a)| a.alloc.keys())
-        .collect();
-    if all.iter().any(|k| k.as_str() == part) {
+/// 部品 → 配分の行。部品・組立品の明示配分を優先し、無ければ部品の系（未所属は「その他」）。
+fn row_of(design: &Design, alloc: Option<&Allocation>, part: &str) -> Option<String> {
+    let allocated = |id: &str| alloc.is_some_and(|a| a.alloc.contains_key(id));
+    if allocated(part) {
         return Some(part.to_owned());
     }
     let ancestors = design.ancestors(&NodeRef::Part(Id::new(part)));
     ancestors
         .iter()
-        .find(|n| all.iter().any(|k| k.as_str() == n.id()))
-        .or_else(|| ancestors.last())
+        .find(|n| matches!(n, NodeRef::Part(_)) && allocated(n.id()))
         .map(|n| n.id().to_owned())
+        .or_else(|| design.system_of(part).map(|s| s.to_string()))
 }
 
 /// 1 部品の値。配分の行は `rows` が `row_of` で決める（`budget_rollup` の `by_group` は使わない）。
@@ -210,6 +204,8 @@ fn power_modes(s: &Snapshot, out: &ModeLoadOutput) -> Result<Vec<BudgetRow>> {
             Ok(BudgetRow {
                 node: Some(mode.id.clone()),
                 label: Some(mode.label.clone()),
+                label_en: None,
+                system: None,
                 current: q(r.total),
                 with_growth: q(r.total_with_growth),
                 allocated: r.allowed.map(q),
@@ -250,7 +246,7 @@ fn si(x: &fune_model::value::Quantity) -> Option<f64> {
 fn allocated(design: &Design, kind: BudgetKind) -> (Option<f64>, f64) {
     let alloc = design.budget.allocation.get(kind);
     (
-        alloc.and_then(|a| si(&a.limit)),
+        alloc.and_then(|a| a.limit.as_ref()).and_then(si),
         alloc.map_or(0.0, |a| a.system_margin),
     )
 }
@@ -271,8 +267,10 @@ fn rows(
     dim: &str,
 ) -> Result<Vec<BudgetRow>> {
     let q = |v: f64| quantity_auto(v, dim);
-    let placed: Vec<(Option<String>, &BudgetItem)> =
-        items.iter().map(|i| (row_of(design, &i.id), i)).collect();
+    let placed: Vec<(Option<String>, &BudgetItem)> = items
+        .iter()
+        .map(|i| (row_of(design, alloc, &i.id), i))
+        .collect();
     let mut keys: Vec<Option<String>> = alloc
         .map(|a| a.alloc.keys().cloned().map(Some).collect())
         .unwrap_or_default();
@@ -296,12 +294,26 @@ fn rows(
         let r = rollup(&group, allocated, 0.0)?;
         out.push(BudgetRow {
             label: key.as_ref().map(|k| {
-                design
-                    .groups
-                    .get(k.as_str())
-                    .and_then(|g| g.label.clone())
+                k.parse::<AnalysisSystem>()
+                    .ok()
+                    .and_then(|s| fune_model::builtin::labels().section.get(s.as_str()))
+                    .map(|l| l.label.clone())
+                    .or_else(|| design.parts.get(k.as_str()).and_then(|p| p.label.clone()))
                     .unwrap_or_else(|| k.clone())
             }),
+            label_en: key
+                .as_ref()
+                .and_then(|k| k.parse::<AnalysisSystem>().ok())
+                .and_then(|s| fune_model::builtin::labels().section.get(s.as_str()))
+                .and_then(|l| l.label_en.clone()),
+            system: key
+                .as_ref()
+                .and_then(|k| {
+                    k.parse::<AnalysisSystem>()
+                        .ok()
+                        .or_else(|| design.system_of(k))
+                })
+                .map(fune_projection::system::to_analysis),
             node: key,
             current: q(r.total),
             with_growth: q(r.total_with_growth),
@@ -353,7 +365,7 @@ fn fill(design: &Design, view: &mut BudgetView, counted: Counted) -> Result<()> 
     let total = rollup(&counted.items, limit, system_margin)?;
     view.total = Some(q(total.total_with_growth));
     view.margin = total.margin.map(q);
-    view.verdict = Some(verdict(&total));
+    view.verdict = total.verdict;
     view.fill = FillRatio::used_over_limit(total.total_with_growth, limit);
     view.rows = rows(
         design,

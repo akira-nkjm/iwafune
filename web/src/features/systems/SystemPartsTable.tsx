@@ -3,7 +3,7 @@ import { useAttrEdit } from "@/api/ops";
 import type { DesignView, PartRow, System } from "@/api/types";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
-import { SubsystemDot } from "@/kit/SubsystemDot";
+import { SystemDot } from "@/kit/SystemDot";
 import { DataTable } from "@/kit/table/DataTable";
 import { Td } from "@/kit/table/Td";
 import { Th } from "@/kit/table/Th";
@@ -70,7 +70,7 @@ function PartCells({ design, part, cols }: { design: DesignView; part: PartRow; 
     <tr className="hover:bg-panel-2/60">
       <Td>
         <Link to={paths.component(part.id)} className="flex items-center gap-2 hover:underline">
-          <SubsystemDot group={part.subsystem} />
+          <SystemDot system={part.system} />
           <span className="font-mono text-[12.5px]">{part.id}</span>
         </Link>
       </Td>

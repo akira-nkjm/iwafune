@@ -165,7 +165,7 @@ mod tests {
         assert_eq!(view.path.as_deref(), Some("RW_X.power"));
         // 対象の無い診断は、ファイルの場所から部品を推さない
         let mut d = Diagnostic::warning("test", "test");
-        d.file = Some("parts/AOCS/RW_X.toml".into());
+        d.file = Some("parts/aocs/RW_X.toml".into());
         assert_eq!(with_excerpt(d, &FileSet::new()).part, None);
     }
 

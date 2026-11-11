@@ -41,7 +41,20 @@ pub(crate) fn tree(design: &Design) -> Vec<TreeNode> {
     let groups = design.groups.values().map(|g| TreeNode {
         id: g.id.to_string(),
         node: TreeNodeKind::Group,
-        label: g.label.clone().unwrap_or_else(|| g.id.to_string()),
+        label: builtin::labels()
+            .section
+            .get(g.id.as_str())
+            .filter(|_| g.parent.is_none())
+            .map(|l| l.label.clone())
+            .unwrap_or_else(|| g.id.to_string()),
+        label_en: builtin::labels()
+            .section
+            .get(g.id.as_str())
+            .filter(|_| g.parent.is_none())
+            .and_then(|l| l.label_en.clone()),
+        system: design
+            .system_of(g.id.as_str())
+            .map(fune_projection::system::to_analysis),
         parent: g.parent.as_ref().map(|n| n.id().to_owned()),
         children: children.get(g.id.as_str()).cloned().unwrap_or_default(),
     });
@@ -49,6 +62,10 @@ pub(crate) fn tree(design: &Design) -> Vec<TreeNode> {
         id: p.id.to_string(),
         node: TreeNodeKind::Part,
         label: p.label.clone().unwrap_or_else(|| p.id.to_string()),
+        label_en: None,
+        system: design
+            .system_of(p.id.as_str())
+            .map(fune_projection::system::to_analysis),
         parent: p.parent.as_ref().map(|n| n.id().to_owned()),
         children: children.get(p.id.as_str()).cloned().unwrap_or_default(),
     });

@@ -1,6 +1,6 @@
 import type { DesignView, NetView, PartRow } from "@/api/types";
-import { nodeName } from "@/lib/design";
-import { subsystemTone } from "@/lib/subsystems";
+import { nodeName, systemTree } from "@/lib/design";
+import { systemTone } from "@/lib/systems";
 import { type Tone, toneHex, uiHex } from "@/lib/tone";
 import { type Layer, layerOf, type PowerCategory, powerCategories } from "./power";
 
@@ -13,7 +13,7 @@ export interface DiagramOptions {
   /** 同じカタログ・同じ接続の兄弟の部品を 1 枚の「×N」のカードにまとめる */
   mergeSiblings: boolean;
   /**
-   * 枠（サブシステム）の名前の言語。`"en"` は ID（AOCS など）だけ、`"ja"` は設計に書いた表示名だけ（無ければ ID）。
+   * 枠の名前の言語。系は API の語彙の日英名、入れ子は設計の表示名（無ければ ID）。
    * 2 つの言語を並べると見出しが長くなり、読みにくいので 1 つにする。省くと `"ja"`。
    */
   lang?: "ja" | "en";
@@ -103,8 +103,9 @@ function buildCards(design: DesignView, merge: boolean): CardIndex {
   const parts = new Map(design.parts.map((p) => [p.id, p]));
   const isAssembly = (id: string) => tree.get(id)?.children.some((c) => parts.has(c)) ?? false;
   const parentNode = (p: PartRow): string | null => {
-    if (!p.parent) return null;
-    return parts.has(p.parent) ? cardNodeId(p.parent) : groupNodeId(p.parent);
+    const parent = tree.get(p.id)?.parent ?? p.parent;
+    if (!parent) return null;
+    return parts.has(parent) ? cardNodeId(parent) : groupNodeId(parent);
   };
   const buckets = new Map<string, PartRow[]>();
   for (const p of design.parts.toSorted((a, b) => a.id.localeCompare(b.id))) {
@@ -127,7 +128,7 @@ function buildCards(design: DesignView, merge: boolean): CardIndex {
       label: merged ? prefix || (first.kind ?? first.id) : first.id,
       sub: first.catalog ?? first.kind,
       role: first.role,
-      tone: subsystemTone(first.subsystem),
+      tone: systemTone(first.system),
       members: group.map((p) => p.id),
       count,
       parent: parentNode(first),
@@ -144,7 +145,7 @@ function containersOf(design: DesignView, lang: "ja" | "en"): DiagramContainer[]
     .map((n) => ({
       id: groupNodeId(n.id),
       label: nodeName(n, lang),
-      tone: subsystemTone(n.id),
+      tone: systemTone(n.system),
       parent: n.parent ? groupNodeId(n.parent) : null,
     }));
 }
@@ -180,8 +181,9 @@ const endpointOf = (e: End): Endpoint => ({
 });
 
 export function buildModel(design: DesignView, opts: DiagramOptions): DiagramModel {
-  const { cardOfPart, cards } = buildCards(design, opts.mergeSiblings);
-  const containers = containersOf(design, opts.lang ?? "ja");
+  const grouped = { ...design, tree: systemTree(design) };
+  const { cardOfPart, cards } = buildCards(grouped, opts.mergeSiblings);
+  const containers = containersOf(grouped, opts.lang ?? "ja");
   const categories = powerCategories(design);
   const cardById = new Map(cards.map((c) => [c.id, c]));
   const junctions: DiagramJunction[] = [];

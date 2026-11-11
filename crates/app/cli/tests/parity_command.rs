@@ -93,7 +93,7 @@ fn gui_placement_matches_cli() {
         assert_eq!(ops[0]["op"], "place", "{ops:?}");
         assert_same_files(&cli_root, &http_root, &cli.join(" "));
     }
-    let cam = std::fs::read_to_string(http_root.join("parts/PAYLOAD/CAM.toml")).unwrap();
+    let cam = std::fs::read_to_string(http_root.join("parts/payload/CAM.toml")).unwrap();
     assert!(
         cam.contains("-55.0") && cam.contains("unit = \"mm\""),
         "{cam}"

@@ -220,6 +220,11 @@ pub(super) const RULES: &[(&str, &[&str], &str)] = &[
 
 /// Rust のコードだけに適用する規則（同じ一覧の web/ の側は `WEB_RULES` が見る。テストの補助のデータだけは許す）。
 pub(super) const RUST_RULES: &[(&str, &[&str], &str)] = &[
+    (
+        "fn system_of(",
+        &["crates/app/model/src/part_system.rs"],
+        "部品の系の決定",
+    ),
     // 解析の系の一覧（`fune_model::design::AnalysisSystem`。`ALL`・`NAMES` を使う）
     (
         "\"power\", \"aocs\"",
@@ -236,6 +241,26 @@ pub(super) const RUST_RULES: &[(&str, &[&str], &str)] = &[
 
 /// web/ の中だけに適用する規則（Rust 側の同名の関数を誤検出しないため）。
 pub(super) const WEB_RULES: &[(&str, &[&str], &str)] = &[
+    (
+        "function systemTone(",
+        &["web/src/lib/systems.ts"],
+        "系の色",
+    ),
+    (
+        "const SCENE_RATIOS",
+        &["web/src/features/layout3d/scene.ts"],
+        "3D の外形に対する表示寸法の比",
+    ),
+    (
+        "function systemTree(",
+        &["web/src/lib/design.ts"],
+        "系別の表示ツリー",
+    ),
+    (
+        "function parentOptions(",
+        &["web/src/lib/design.ts"],
+        "部品の置き場所の選択肢",
+    ),
     ("Intl.NumberFormat", &["web/src/quantity/"], "数の表示"),
     // HTTP の呼び出しは API クライアントだけ
     ("fetch(", &["web/src/api/client.ts"], "API クライアント"),

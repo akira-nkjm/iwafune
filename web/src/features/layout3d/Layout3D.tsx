@@ -129,7 +129,7 @@ function Layout3DFrame({
   title: string;
   /** 部品の数の後ろに添える補足（凡例・重心の印） */
   note: string;
-  /** 箱の色（無ければサブシステム色） */
+  /** 箱の色（無ければ系の色） */
   colorOf?: (id: string) => string;
   com?: V3 | null;
   /** 見出しの右端の操作と、箱を動かす編集（配置の編集だけ） */
@@ -139,7 +139,7 @@ function Layout3DFrame({
   const L = useT().systems.layout3d;
   const [selected, setSelected] = useState<string | null>(null);
   const [showAxes, setShowAxes] = useState(true);
-  const { boxes, unplaced } = boxesOf(design, colorOf);
+  const { boxes, unplaced, dimensions } = boxesOf(design, colorOf);
   const part = design.parts.find((p) => p.id === selected) ?? null;
   return (
     <Panel pad={false} className="overflow-hidden">
@@ -163,6 +163,7 @@ function Layout3DFrame({
           ) : (
             <Scene3D
               boxes={boxes}
+              dimensions={dimensions}
               selected={selected}
               onSelect={setSelected}
               com={com}

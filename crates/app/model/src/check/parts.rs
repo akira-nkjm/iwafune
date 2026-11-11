@@ -10,7 +10,7 @@ use crate::value::units::expect_dimension;
 
 /// 部品とグループ。
 pub(super) fn check_parts(ctx: &mut Ctx) {
-    check_group_labels(ctx);
+    check_system_dirs(ctx);
     let design = ctx.design;
     for part in design.parts.values() {
         let entity = EntityKey::Part(part.id.to_string());
@@ -21,19 +21,34 @@ pub(super) fn check_parts(ctx: &mut Ctx) {
     }
 }
 
-/// fune.toml の `[groups]` の表示名が、parts/ のグループを指すか（ID の規則と一意性は `super::ids`）。
-fn check_group_labels(ctx: &mut Ctx) {
+/// 最上位ディレクトリは系の ID（parts/ 直下の部品は許す）。
+fn check_system_dirs(ctx: &mut Ctx) {
+    use crate::design::{AnalysisSystem, NodeRef};
     let design = ctx.design;
-    for id in design.project.groups.keys() {
-        if !design.groups.contains_key(id.as_str()) {
-            ctx.warning(
-                "group.unknown_label",
-                &EntityKey::Project,
-                &["groups", id.as_str()],
-                Some(Target::Group { id: id.clone() }),
-                format!(
-                    "fune.toml の [groups] の `{id}` に当たるディレクトリが parts/ にありません"
-                ),
+    let roots: std::collections::BTreeSet<NodeRef> = design
+        .parts
+        .values()
+        .filter_map(|p| {
+            design
+                .ancestors(&NodeRef::Part(p.id.clone()))
+                .last()
+                .cloned()
+        })
+        .collect();
+    let allowed = AnalysisSystem::ALL
+        .iter()
+        .map(|s| s.as_str())
+        .collect::<Vec<_>>()
+        .join(", ");
+    for root in roots {
+        let id = root.id();
+        if id.parse::<AnalysisSystem>().is_err() {
+            ctx.error(
+                "part.system_dir",
+                &EntityKey::Part(id.to_owned()),
+                &[],
+                Some(Target::Group { id: id.to_owned() }),
+                format!("parts/ の最上位ディレクトリ `{id}` は系の ID にします（{allowed}）"),
             );
         }
     }

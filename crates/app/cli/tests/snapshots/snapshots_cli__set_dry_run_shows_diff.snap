@@ -2,8 +2,8 @@
 source: crates/app/cli/tests/snapshots_cli.rs
 expression: text
 ---
---- a/parts/AOCS/RW_X.toml
-+++ b/parts/AOCS/RW_X.toml
+--- a/parts/aocs/RW_X.toml
++++ b/parts/aocs/RW_X.toml
 @@ -5,7 +5,7 @@
  point = "RW_SLOT_X"
  

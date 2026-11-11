@@ -29,6 +29,11 @@ pub fn enum_label<T: std::fmt::Display>(ty: &str, value: &T) -> String {
     fune_model::builtin::enum_label(ty, &code).map_or(code, |l| l.label.clone())
 }
 
+/// API の系の ID。綴りは model の系から取り、CLI は列挙の対応を持たない。
+pub fn system_id(system: sat_analysis::spec::System) -> &'static str {
+    fune_projection::system::from_analysis(system).as_str()
+}
+
 /// プロジェクトの概要（`GET /project`）。
 pub fn project_info(ws: &Workspace) -> Result<ProjectInfo> {
     Ok(info_of(ws, &ws.snapshot()?))

@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import type { BudgetView, ModeHeader } from "@/api/types";
 import { useT } from "@/i18n";
-import { SubsystemDot } from "@/kit/SubsystemDot";
+import { SystemDot } from "@/kit/SystemDot";
 import { cn } from "@/lib/cn";
 import { nodeName } from "@/lib/design";
 import type { DraftComputed } from "../draft/use-mode-draft-load";
@@ -80,7 +80,7 @@ export function ModesTable({
                   )}
                 >
                   <span className="flex items-center gap-2">
-                    <SubsystemDot group={g.group} />
+                    <SystemDot system={g.group} />
                     {g.label}
                   </span>
                 </th>

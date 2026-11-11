@@ -1,4 +1,4 @@
-import type { DesignView, ModeLoadOutput, ModeRow, ModeTable } from "@/api/types";
+import type { DesignView, ModeLoadOutput, ModeRow, ModeTable, PartRow } from "@/api/types";
 import { kindLabel, nodeLabel, partById } from "@/lib/design";
 import { type CellText, cellOf, type ModeDraft } from "../draft/draft";
 import { type CellWords, powerLevels, savedCellText } from "./matrix";
@@ -42,7 +42,7 @@ export interface MatrixRow {
 
 /** サブシステム（部品の Group）ごとのまとまり */
 export interface MatrixGroup {
-  group: string | null;
+  group: PartRow["system"];
   /** まとまりの見出し（ノードの表示名） */
   label: string;
   rows: MatrixRow[];
@@ -93,7 +93,7 @@ export function matrixGroups(
 ): MatrixGroup[] {
   const table = design.modes;
   const parts = partById(design);
-  const groupOf = (row: ModeRow) => parts.get(row.part)?.subsystem ?? null;
+  const groupOf = (row: ModeRow) => parts.get(row.part)?.system ?? null;
   const rows = table.rows
     .filter((r) => powerLevels(parts.get(r.part)).some(([, q]) => q.si > 0))
     .sort(

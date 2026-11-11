@@ -34,7 +34,7 @@ fn demo_loads_without_errors_or_warnings() {
     let design = &snap.design;
     assert!(design.parts.len() >= 30);
     assert_eq!(design.modes.len(), 4);
-    assert!(design.groups.contains_key("AOCS"));
+    assert!(design.groups.contains_key("aocs"));
     assert_eq!(
         design
             .parts

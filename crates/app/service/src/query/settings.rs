@@ -28,7 +28,7 @@ pub(crate) fn settings(design: &Design) -> Vec<SettingView> {
             };
             SettingView {
                 scope: e.path.scope,
-                system: system_of(&e.path),
+                system: setting_system(&e.path),
                 group: group.to_string(),
                 field: keys.join("."),
                 key: e.path.to_string(),
@@ -43,7 +43,7 @@ pub(crate) fn settings(design: &Design) -> Vec<SettingView> {
 /// 設定を見せる系。**設定と系の対応はここだけ**（Web の系のページはこの欄で選ぶ）。
 /// `analysis/<系>.toml` はその系、配分（`budget/allocation.toml`）は質量 → 構造・電力 → 電源・データ量 → C&DH。
 /// 共通解析設定（`analysis.common`）・ミッション（軌道・打ち上げ・地上局）とマージン方針（`budget.policy`）はどの系にも属さない。
-pub(crate) fn system_of(path: &SettingPath) -> Option<System> {
+pub(crate) fn setting_system(path: &SettingPath) -> Option<System> {
     let first = path.segments.first()?.as_str();
     match path.scope {
         // 解析の設定のファイル名は系の綴り（`AnalysisSystem`）そのもの

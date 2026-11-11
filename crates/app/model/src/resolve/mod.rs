@@ -30,8 +30,8 @@ pub struct ResolvedPart {
     pub label: Option<String>,
     /// 製品ツリーの親
     pub parent: Option<NodeRef>,
-    /// 最上位の Group（サブシステム）
-    pub subsystem: Option<String>,
+    /// 部品の系（`Design::system_of`）
+    pub system: Option<crate::design::AnalysisSystem>,
     /// 選択中のカタログ品
     pub catalog: Option<CatalogRef>,
     pub kind: Option<String>,

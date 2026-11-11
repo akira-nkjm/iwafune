@@ -10,6 +10,7 @@
 //! | `design` | Design 層の型（Project・Part・Group・Mode・Net・Harness・Budget・設定など。docs/model.md §4）と、設定をパス記法で読む関数、解析の系の一覧（`AnalysisSystem`）、参照の索引（`refs`）、設定の量の次元の表（`setting_dims`） |
 //! | `lookup` | Design の組み込み fallback 検索（型定義から分離） |
 //! | `builtin` | 組み込みの属性定義・種別定義（解析が前提にする標準の語彙）と、状態・系・列挙の表示名（日英） |
+//! | `part_system` | 部品・フォルダの系（`Design::system_of`。置き場所 → 役割の系。`design` と `builtin` の両方を見る葉） |
 //! | `path` | パラメーターのパス記法（`RW_X.mass`、`RW_X.power.on`） |
 //! | `resolve` | Design → Resolved（カタログ・上書きの重ね合わせ、SI 換算、出所） |
 //! | `check` | 検証（severity 付きの診断） |
@@ -26,6 +27,7 @@ pub mod diagnostic;
 pub mod enum_text;
 pub mod field_names;
 pub mod id;
+pub mod part_system;
 pub mod path;
 pub mod resolve;
 pub mod target;

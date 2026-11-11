@@ -15,7 +15,7 @@ fn definitions_references_and_paths_come_from_model() {
     for attr in &design.defs.attributes {
         assert_eq!(attr.section, snapshot.design.attribute_section(&attr.id));
     }
-    assert_eq!(design.defs.labels.role_subsystem["reaction_wheel"], "AOCS");
+    assert_eq!(design.defs.labels.role_system["reaction_wheel"], "aocs");
     let wheel = design.parts.iter().find(|p| p.id == "RW_X").unwrap();
     assert_eq!(wheel.paths["power"]["on"], "RW_X.power.on");
     assert_eq!(wheel.paths["mass"][""], "RW_X.mass");
@@ -89,7 +89,7 @@ fn ends_places_and_setting_groups_are_structured() {
     // デモに戻り（GND）のネットは無い
     assert!(design.nets.iter().all(|n| !n.is_return));
     let cells = design.parts.iter().find(|p| p.id == "CELLS").unwrap();
-    assert_eq!(cells.dir, ["POWER", "SAP_PY"]);
+    assert_eq!(cells.dir, ["power", "SAP_PY"]);
     for dir in cells.dir.iter() {
         assert!(design.tree.iter().any(|n| &n.id == dir), "{dir}");
     }
@@ -292,7 +292,7 @@ fn absent_values_are_structured_not_text() {
     assert_eq!(trx.kind.as_deref(), Some("transceiver"));
 }
 
-/// どの Group にも属さない部品は「その他」の行（`node`・`label` が null）にまとめる。ID の欄に文言を入れない。
+/// 系に属さず部品の配分も無い部品は「その他」の行（`node`・`label` が null）にまとめる。ID の欄に文言を入れない。
 /// 合計と、配分の行の値は変わらない（「その他」の行に足されるだけ）。
 #[test]
 fn budget_puts_parts_without_a_group_in_one_other_row() {
@@ -309,8 +309,8 @@ fn budget_puts_parts_without_a_group_in_one_other_row() {
             .all(|r| r.node.is_some() && r.label.is_some())
     );
     let ops = serde_json::from_value(serde_json::json!([
-        { "op": "create_part", "id": "LOOSE_A", "kind": "structure" },
-        { "op": "create_part", "id": "LOOSE_B", "kind": "structure" },
+        { "op": "create_part", "id": "LOOSE_A", "kind": "component" },
+        { "op": "create_part", "id": "LOOSE_B", "kind": "component" },
         { "op": "set_value", "part": "LOOSE_A", "attr": "mass",
           "value": { "type": "scalar", "data": { "value": 100.0, "unit": "g" } } },
         { "op": "set_value", "part": "LOOSE_B", "attr": "mass",
@@ -332,4 +332,56 @@ fn budget_puts_parts_without_a_group_in_one_other_row() {
     }
     let total = |v: &fune_service::dto::BudgetView| v.total.as_ref().unwrap().si;
     assert!(total(&draft) > total(&saved));
+}
+
+/// 役割で決まる系、種類ごとの配分、上限の省略を同じ集計で扱う。
+#[test]
+fn budget_system_rows_and_optional_limits() {
+    use fune_service::{
+        budget,
+        dto::{BudgetKind, BudgetRequest, Op, System},
+    };
+    let ws = demo();
+    let saved = budget::budget(&ws, BudgetKind::Mass, &BudgetRequest::default()).unwrap();
+    let ops = serde_json::from_value(serde_json::json!([
+        { "op": "move_part", "id": "RW_X", "to": null },
+        { "op": "set_setting", "path": "budget.mass.limit", "value": null },
+        { "op": "set_setting", "path": "budget.power.alloc.RW_X",
+          "value": { "type": "quantity", "value": { "value": 1.0, "unit": "W" } } }
+    ]))
+    .unwrap();
+    let request = BudgetRequest { case: None, ops };
+    let view = budget::budget(&ws, BudgetKind::Mass, &request).unwrap();
+    assert!(view.limit.is_none() && view.verdict.is_none() && view.margin.is_none());
+    assert_eq!(
+        view.total.as_ref().unwrap().si,
+        saved.total.as_ref().unwrap().si
+    );
+    assert!(view.rows.iter().all(|r| r.node.as_deref() != Some("RW_X")));
+    let aocs = view
+        .rows
+        .iter()
+        .find(|r| r.node.as_deref() == Some("aocs"))
+        .unwrap();
+    let before = saved.rows.iter().find(|r| r.node == aocs.node).unwrap();
+    assert_eq!(aocs.current.si, before.current.si);
+    assert_eq!(aocs.system, Some(System::Aocs));
+    assert_eq!(aocs.label.as_deref(), Some("AOCS"));
+    assert_eq!(aocs.label_en.as_deref(), Some("AOCS"));
+    let mut explicit = request;
+    explicit.ops.push(
+        serde_json::from_value::<Op>(serde_json::json!({
+            "op": "set_setting", "path": "budget.mass.alloc.RW_X",
+            "value": { "type": "quantity", "value": { "value": 0.3, "unit": "kg" } }
+        }))
+        .unwrap(),
+    );
+    let view = budget::budget(&ws, BudgetKind::Mass, &explicit).unwrap();
+    let wheel = view
+        .rows
+        .iter()
+        .find(|r| r.node.as_deref() == Some("RW_X"))
+        .unwrap();
+    assert!((wheel.current.si - 0.152).abs() < 1e-12);
+    assert_eq!(wheel.system, Some(System::Aocs));
 }

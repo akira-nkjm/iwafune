@@ -14,7 +14,7 @@ use crate::write::FileChange;
 use toml_edit::{Item, Table, Value};
 
 /// ID をキーにする表（行を ID 順に並べる）。
-pub const SORTED_TABLES: &[&str] = &["states", "alloc", "groups", "mode_share", "nodes"];
+pub const SORTED_TABLES: &[&str] = &["states", "alloc", "mode_share", "nodes"];
 
 /// 本文を正規形に整える。
 pub fn format_text(path: &str, text: &str) -> Result<String, StoreError> {

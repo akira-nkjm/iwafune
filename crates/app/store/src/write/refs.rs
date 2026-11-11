@@ -51,7 +51,7 @@ pub fn rename_part(
     rename_sites(edits, design, Referent::Part(from), to, Some(&moved))
 }
 
-/// グループの名前を変える。`parts/` の下のディレクトリを移し、参照（fune.toml の `[groups]` の表示名のキー・配分のキー・
+/// グループの名前を変える。`parts/` の下のディレクトリを移し、参照（配分のキー・
 /// 図の配置のキー）を書き換える。部品はディレクトリごと移るので、中の部品の参照は変わらない。
 pub fn rename_group(
     edits: &mut Edits,
@@ -172,8 +172,7 @@ fn rename_at(
         | RefSite::HarnessPort { .. }
         | RefSite::MountOn { .. }
         | RefSite::Allocation { .. }
-        | RefSite::ViewNode { .. }
-        | RefSite::GroupLabel => rename_key_at(edits, design, site, names, moved),
+        | RefSite::ViewNode { .. } => rename_key_at(edits, design, site, names, moved),
         RefSite::CommLink { .. }
         | RefSite::ThermalNode { .. }
         | RefSite::CaseMode { .. }
@@ -228,7 +227,6 @@ fn rename_key_at(
         RefSite::ViewNode { view } => {
             rename_in(edits, &layout::view_file(view), &["nodes"], from, to)
         }
-        RefSite::GroupLabel => rename_in(edits, layout::PROJECT_FILE, &["groups"], from, to),
         _ => Ok(()),
     }
 }

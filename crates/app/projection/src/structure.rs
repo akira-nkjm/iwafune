@@ -53,7 +53,13 @@ pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem
 pub fn mass_properties(ctx: &Context<'_>) -> Result<MassPropertiesInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let items = items(ctx, &mut m);
-    let limit = ctx.design.budget.allocation.mass.as_ref().map(|a| &a.limit);
+    let limit = ctx
+        .design
+        .budget
+        .allocation
+        .mass
+        .as_ref()
+        .and_then(|a| a.limit.as_ref());
     let target = SettingPath::budget(&[BudgetKind::Mass.as_str(), "limit"]);
     let max_mass = qty_opt::<Mass>(limit, target, &mut m);
     m.finish(|| {

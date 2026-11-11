@@ -23,7 +23,7 @@ iwafune は小型衛星の概念設計のための道具である。部品の選
 
 | 場所 | 中身 |
 |---|---|
-| `fune.toml` | プロジェクト名、スキーマの版、系（グループ）の名前、使うカタログ |
+| `fune.toml` | プロジェクト名、スキーマの版、使うカタログ |
 | `parts/` | 部品。サブディレクトリで製品ツリーを表す |
 | `catalog/` | カタログ品（購入品などの値と出典） |
 | `defs/attribute/`・`defs/kind/` | プロジェクト独自の属性定義・種別定義（組み込みの定義は fune-model が持つ） |
@@ -289,7 +289,7 @@ Web は次のことをしない。
 バジェット（質量・電力・データ量）の集計と判定は `sat_analysis::budget::budget_rollup` が行う。
 service は部品や解析の結果を項目に並べ、`budget/allocation.toml` の配分の行に割り当てるだけ。成長余裕は部品の成熟度と `budget/policy.toml` から決める。
 バジェットも解析ケースを指定できる（`POST /budgets/{kind}` の `case`、`fune budget --case`）。電力はケースのモードで、データ量はケースのモードだけで数える。
-どの Group にも属さない部品は「その他」の行にまとめる（行の `node` が null。文言は CLI と Web が作る）。
+系に属さず部品への明示配分も無い部品は「その他」の行にまとめる（行の `node` が null。文言は CLI と Web が作る）。
 
 ### 6.4 sat-astro
 
@@ -364,3 +364,7 @@ CI（`.github/workflows/ci.yml`）は main・develop への push と PR で動�
 ## 9. これから
 
 予定している機能は [roadmap.md](roadmap.md) と GitHub の Issue にある。この文書には今あるものだけを書き、機能が入ったら書き足す。
+
+部品の最上位の区分は系（`parts/<系 ID>/`）。`Design::system_of` が置き場所 → 役割 → 未所属の順で決め、Resolved と API の `PartRow.system` に渡す。系とバジェットの表示名は組み込みの語彙（日英）、色は Web の `lib/systems.ts` の対応だけが持つ。配分のキーは系か部品の ID で、上限は任意（未設定を check が警告）。init は上限を決めない。
+
+3D は `features/layout3d/scene.ts` が回転込みの外形（Bounds）の最大辺から表示寸法を作る。仮の箱・方向の矢印・重心球・座標軸・グリッド・カメラは `SCENE_RATIOS` の比を共有する。形状も位置の広がりも無いときだけ表示用の基準を使う。編集のスナップはユーザーが選ぶ実寸、操作ハンドルと画面隅のギズモは画面に対する大きさ。
