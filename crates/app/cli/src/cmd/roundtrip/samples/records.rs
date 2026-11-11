@@ -1,221 +1,14 @@
-//! 往復の検査の見本（すべての Op の種類を少なくとも 1 つ）。
+//! 往復の検査の見本（定義・系・表示・記録の Op）。
 
+use super::s;
 use fune_service::dto::{
-    AttributeDef, Case, Harness, KindDef, ModeCell, Net, NetField, NetKind, Op, PartField, PortRef,
-    Pose, Provenance, Quantity, Quaternion, SettingValue, Source, SourceKind, Value, Vector3,
-    ViewNodePos,
+    AttributeDef, Case, Harness, KindDef, ModeCell, Net, NetField, NetKind, Op, PortRef, Quantity,
+    SettingValue, Source, SourceKind, ViewNodePos,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
-use std::f64::consts::FRAC_1_SQRT_2;
 
-pub(super) fn s(v: &str) -> String {
-    v.to_owned()
-}
-
-pub(super) fn scalar(value: f64, unit: &str) -> Value {
-    serde_json::from_value(json!({ "type": "scalar", "data": { "value": value, "unit": unit } }))
-        .unwrap()
-}
-
-fn mm(x: f64, y: f64, z: f64) -> Vector3 {
-    Vector3 {
-        x,
-        y,
-        z,
-        unit: Some(s("mm")),
-        frame: None,
-    }
-}
-pub(super) fn part_ops() -> Vec<Op> {
-    [tree_ops(), value_ops(), unset_and_field_ops(), place_ops()].concat()
-}
-
-fn quat() -> Quaternion {
-    Quaternion {
-        w: FRAC_1_SQRT_2,
-        x: 0.0,
-        y: 0.0,
-        z: FRAC_1_SQRT_2,
-    }
-}
-
-fn tree_ops() -> Vec<Op> {
-    vec![
-        Op::CreatePart {
-            id: s("RW_W"),
-            group: Some(s("AOCS")),
-            catalog: Some(s("local/rw_10mNms")),
-            kind: None,
-            count: Some(2),
-            label: Some(s("予備 RW")),
-            mode_state: Some(s("off")),
-        },
-        Op::CreatePart {
-            id: s("HTR_X"),
-            group: None,
-            catalog: None,
-            kind: Some(s("heater")),
-            count: None,
-            label: None,
-            mode_state: None,
-        },
-        Op::RemovePart { id: s("RW_Z") },
-        Op::RenamePart {
-            id: s("RW_Z"),
-            to: s("RW_S"),
-        },
-        Op::RenameGroup {
-            id: s("AOCS"),
-            to: s("AOCS"),
-        },
-        Op::MovePart {
-            id: s("RW_Z"),
-            to: Some(s("POWER")),
-        },
-        Op::MovePart {
-            id: s("RW_Z"),
-            to: None,
-        },
-    ]
-}
-
-fn value_ops() -> Vec<Op> {
-    let ranged = serde_json::from_value::<Value>(json!({ "type": "scalar",
-        "data": { "value": 620.0, "min": 600.0, "max": 640.0, "unit": "g" } }))
-    .unwrap();
-    let from = Some(Provenance {
-        source: Some(s("em_test_2026_10")),
-        note: Some(s("EM 実測 \"v2\"")),
-    });
-    vec![
-        Op::SetValue {
-            part: s("RW_X"),
-            attr: s("mass"),
-            state: None,
-            value: ranged,
-            from,
-        },
-        Op::SetValue {
-            part: s("RW_X"),
-            attr: s("power"),
-            state: Some(s("on")),
-            value: scalar(1.2, "W"),
-            from: None,
-        },
-        Op::SetValue {
-            part: s("RW_X"),
-            attr: s("temp_op"),
-            state: None,
-            value: serde_json::from_value(
-                json!({ "type": "range", "data": { "min": -20.0, "max": 60.0, "unit": "degC" } }),
-            )
-            .unwrap(),
-            from: None,
-        },
-        Op::SetValue {
-            part: s("RW_X"),
-            attr: s("size"),
-            state: None,
-            value: Value::Vec3(mm(100.0, 100.0, 20.0)),
-            from: None,
-        },
-        Op::SetValue {
-            part: s("PANEL_PX"),
-            attr: s("material"),
-            state: None,
-            value: Value::Enum(s("al6061_t6")),
-            from: None,
-        },
-        Op::SetValue {
-            part: s("RW_X"),
-            attr: s("heat_fraction"),
-            state: None,
-            value: scalar(0.8, ""),
-            from: None,
-        },
-    ]
-}
-
-fn unset_and_field_ops() -> Vec<Op> {
-    vec![
-        Op::UnsetValue {
-            part: s("RW_X"),
-            attr: s("mass"),
-            state: None,
-        },
-        Op::UnsetValue {
-            part: s("RW_X"),
-            attr: s("power"),
-            state: Some(s("peak")),
-        },
-        Op::SetField {
-            part: s("RW_X"),
-            field: PartField::Label(Some(s("X 軸 RW"))),
-        },
-        Op::SetField {
-            part: s("RW_X"),
-            field: PartField::Label(None),
-        },
-        Op::SetField {
-            part: s("RW_X"),
-            field: PartField::Count(3),
-        },
-        Op::SetField {
-            part: s("RW_X"),
-            field: PartField::Candidates(vec![s("local/a"), s("local/b")]),
-        },
-        Op::SetField {
-            part: s("RW_X"),
-            field: serde_json::from_value(json!({ "field": "maturity", "value": "new" })).unwrap(),
-        },
-    ]
-}
-
-fn place_ops() -> Vec<Op> {
-    let q = quat();
-    vec![
-        Op::Place {
-            part: s("RW_X"),
-            on: Some(s("PANEL_MZ")),
-            point: Some(s("RW_SLOT_X")),
-            position: Some(mm(0.0, 0.0, 12.0)),
-            orientation: Some(q.clone()),
-        },
-        Op::Place {
-            part: s("RW_X"),
-            on: None,
-            point: None,
-            position: None,
-            orientation: None,
-        },
-        Op::SetPort {
-            part: s("RW_X"),
-            port: s("PWR"),
-            net: Some(s("P12V")),
-        },
-        Op::SetPort {
-            part: s("RW_X"),
-            port: s("PWR"),
-            net: None,
-        },
-        Op::SetMountPoint {
-            part: s("PANEL_MZ"),
-            point: s("SLOT_9"),
-            pose: Some(Pose {
-                position: Some(mm(30.0, -5.0, 5.0)),
-                orientation: Some(q),
-            }),
-        },
-        Op::SetMountPoint {
-            part: s("PANEL_MZ"),
-            point: s("SLOT_9"),
-            pose: None,
-        },
-    ]
-}
-
-pub(super) fn def_ops() -> Vec<Op> {
+pub(in super::super) fn def_ops() -> Vec<Op> {
     let mut attr: AttributeDef = serde_json::from_value(json!({ "label": "最大双極子", "label_en": "Max dipole",
         "type": "scalar", "by_state": true, "dimension": "MagneticDipoleMoment", "units": ["A*m^2", "mA*m^2"],
         "display_unit": "A*m^2" })).unwrap();
@@ -249,7 +42,7 @@ pub(super) fn def_ops() -> Vec<Op> {
     ]
 }
 
-pub(super) fn system_ops() -> Vec<Op> {
+pub(in super::super) fn system_ops() -> Vec<Op> {
     let mut net = Net::new("P5V_X", NetKind::Power);
     net.label = Some(s("5 V 系"));
     net.source = Some(PortRef::new("PCDU", "OUT1"));
@@ -307,7 +100,8 @@ pub(super) fn system_ops() -> Vec<Op> {
         Op::RemoveNet { id: s("P5V") },
     ]
 }
-pub(super) fn view_ops() -> Vec<Op> {
+
+pub(in super::super) fn view_ops() -> Vec<Op> {
     vec![
         Op::SetViewEdge {
             view: "electrical".into(),
@@ -349,7 +143,8 @@ pub(super) fn view_ops() -> Vec<Op> {
         },
     ]
 }
-pub(super) fn record_ops() -> Vec<Op> {
+
+pub(in super::super) fn record_ops() -> Vec<Op> {
     let mut case: Case = serde_json::from_value(json!({ "label": "最悪の日陰", "description": "β 0",
         "mode": "NOMINAL", "side": "max", "thermal_case": "cold", "beta": { "value": 0.0, "unit": "deg" }, "orbits": 5 })).unwrap();
     case.id = "eclipse_worst".into();
