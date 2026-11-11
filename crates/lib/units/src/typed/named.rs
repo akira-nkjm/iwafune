@@ -31,6 +31,19 @@ impl NamedKind for TorqueKind {
     }
 }
 
+impl TorqueKind {
+    /// トルクの出力欄を SI 数値のまま書き出し、次元の代わりに量の種類を記録する。
+    /// `#[serde(serialize_with = "sat_units::typed::TorqueKind::serialize")]` で指定する。
+    #[cfg(feature = "serde")]
+    pub fn serialize<S: serde::Serializer>(
+        value: &super::Qty<super::Torque>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        crate::last_dimension::record_kind(Self::name());
+        serializer.serialize_f64(value.value())
+    }
+}
+
 macro_rules! kind_name {
     ($($t:ty),+ $(,)?) => {
         $(impl NamedKind for $t {

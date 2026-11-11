@@ -48,8 +48,10 @@ pub struct UnloadTimeRcsResult {
     /// 捨てる角運動量の向き ĥ（機体座標系の単位ベクトル。トルクは −ĥ 向き）
     pub momentum_direction: Vec3,
     /// −ĥ 向きのトルク
+    #[serde(serialize_with = "sat_units::typed::TorqueKind::serialize")]
     pub torque: Qty<Torque>,
     /// −ĥ と直交して残るトルクの大きさ
+    #[serde(serialize_with = "sat_units::typed::TorqueKind::serialize")]
     pub off_axis_torque: Qty<Torque>,
     /// 噴射するスラスタの正味の推力の大きさ（並進の副作用）
     pub net_force: Qty<Force>,
