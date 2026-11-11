@@ -21,7 +21,7 @@ export function OpPreview({ ops, compact = false }: { ops: Op[] | null; compact?
   return (
     <div
       className={cn(
-        "rounded-control border border-line bg-panel-2 transition-opacity",
+        "min-w-0 rounded-control border border-line bg-panel-2 transition-opacity",
         compact ? "space-y-1 px-2.5 py-2" : "space-y-1.5 p-2.5",
         check.pending && cli.length > 0 && "opacity-60",
       )}
