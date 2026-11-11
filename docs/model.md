@@ -40,8 +40,8 @@ flowchart LR
 
 | エンティティ | 役割 | ファイル | 主な中身 |
 |---|---|---|---|
-| Project | プロジェクト全体の設定 | `fune.toml` | schema 版、書き出す TOML の版、サブシステムの表示名、共有カタログの参照 |
-| Allocation | 配分 | `budget/allocation.toml` | 質量・電力などの上限、システムマージン、サブシステムごとの配分 |
+| Project | プロジェクト全体の設定 | `fune.toml` | schema 版、書き出す TOML の版、共有カタログの参照 |
+| Allocation | 配分 | `budget/allocation.toml` | 質量・電力などの上限、システムマージン、系（または部品）ごとの配分 |
 | BudgetPolicy | マージン方針 | `budget/policy.toml` | 成熟度ごとの成長余裕、不確かさの既定幅、ハーネスの見込み |
 | AttributeDef | 量の種類（quantity kind） | `defs/attribute/<id>.toml` | 値の型、次元、許可単位、表示単位、値域、状態で引くか、どのバジェットに入るか |
 | KindDef | 部品の種別 | `defs/kind/<id>.toml` | 継承元、必須・任意の属性、機器の状態の語彙（off / standby / on …）、ポートの雛形、role |
@@ -268,7 +268,7 @@ default_case = "hot_imaging"
 
 ### 6.1 2 つの階層
 
-部品には「どのサブシステムに属するか（機能）」と「どこに付いているか（物理）」の 2 つの親がある。
+部品には「どの系に属するか（機能）」と「どこに付いているか（物理）」の 2 つの親がある。
 RW は AOCS に属するが、物理的には -Z パネルに付いている。1 つの木で両方を表そうとすると、どちらかが歪む。
 
 - **製品ツリー（機能）** = `parts/` のディレクトリ構成。配分との比較とバジェットの集計に使う。
@@ -673,7 +673,7 @@ power = { x = 20, y = 20 }
 
 ```
 my-sat-design/
-├── fune.toml                    # プロジェクト設定・サブシステムの表示名・共有カタログ・TOML の版
+├── fune.toml                    # プロジェクト設定・共有カタログ・TOML の版
 ├── catalog.lock                 # 共有カタログの固定 commit
 ├── budget/
 │   ├── allocation.toml          # 配分（システム担当）
