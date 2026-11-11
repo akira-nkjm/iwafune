@@ -50,14 +50,14 @@ export function OpDialog({
   const check = useOpCheck(open ? ops : null);
   const submit = () => {
     if (!ops) return;
-    apply.mutate(
-      { ops, summary },
-      {
-        onSuccess: () => {
-          onOpenChange(false);
-          onDone?.();
-        },
+    // 設計の再読込で詳細が消えても、閉じる処理と選び直しを最後まで実行する。
+    void apply.mutateAsync({ ops, summary }).then(
+      () => {
+        onOpenChange(false);
+        onDone?.();
       },
+      // エラー表示は mutation の状態に任せ、ダイアログは開いたままにする。
+      () => {},
     );
   };
   return (
@@ -68,7 +68,7 @@ export function OpDialog({
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         <form
-          className="grid gap-3"
+          className="grid min-w-0 gap-3"
           onSubmit={(e) => {
             e.preventDefault();
             submit();

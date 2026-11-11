@@ -58,6 +58,7 @@ pub struct RwUnloadingOutput {
     /// 種類別の擾乱トルク（大きさの最大・平均）
     pub disturbances: Vec<RwUnloadingDisturbance>,
     /// 合計の擾乱トルクの大きさの最大
+    #[serde(serialize_with = "sat_units::typed::TorqueKind::serialize")]
     pub peak_disturbance: Qty<Torque>,
     /// 1 周あたりの永年成分 [N·m·s]（ECI。周回の平均）
     pub secular_per_orbit_eci: Vec3,
@@ -91,7 +92,9 @@ pub struct RwUnloadingOutput {
 pub struct RwUnloadingDisturbance {
     /// 擾乱の種類（表示名は service が語彙で引く）
     pub key: DisturbanceKind,
+    #[serde(serialize_with = "sat_units::typed::TorqueKind::serialize")]
     pub peak: Qty<Torque>,
+    #[serde(serialize_with = "sat_units::typed::TorqueKind::serialize")]
     pub mean: Qty<Torque>,
 }
 
@@ -105,6 +108,7 @@ pub struct RwUnloadingWheelResult {
     /// 最大角運動量 × 使える割合 に対する割合
     pub momentum_utilization: Fraction,
     /// 擾乱を打ち消すのに要るトルクの最大
+    #[serde(serialize_with = "sat_units::typed::TorqueKind::serialize")]
     pub peak_torque: Qty<Torque>,
     /// 最大トルクに対する割合
     pub torque_utilization: Fraction,

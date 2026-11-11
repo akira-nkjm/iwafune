@@ -105,6 +105,7 @@ pub struct StaticLoadMountResult {
     pub carried_mass: Qty<Mass>,
     pub axial: Qty<Force>,
     pub lateral: Qty<Force>,
+    #[serde(serialize_with = "sat_units::typed::TorqueKind::serialize")]
     pub moment: Qty<Torque>,
     /// 安全余裕 MS = 許容荷重 / (安全率 × 荷重) − 1（[`crate::spec::ratio_margin`]。許容値が無いか荷重が 0 なら `None`）
     pub margin_axial: Option<Fraction>,
