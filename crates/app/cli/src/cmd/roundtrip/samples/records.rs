@@ -177,6 +177,10 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         Op::SetHarness { harness },
         Op::RemoveHarness { id: s("H_X") },
         Op::SetSetting {
+            path: s("analysis.common.default_case"),
+            value: Some(SettingValue::Text(s("hot_imaging"))),
+        },
+        Op::SetSetting {
             path: s("analysis.power.dod_max"),
             value: Some(SettingValue::Number(0.25)),
         },

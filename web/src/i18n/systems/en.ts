@@ -4,8 +4,11 @@ export const systemsEn: typeof systemsJa = {
   systems: {
     eyebrow: "Subsystem analysis",
     unknown: (s: string) => `Unknown subsystem: ${s}`,
+    defaultDerivedCase: (name: string) => `Default for analyses requiring a condition: ${name}`,
+    defaultAttitude:
+      "Energy balance: only the top-level timeline attitude comes from the default case. Each mode uses its own attitude law.",
     caseLabel: "Analysis case",
-    defaultCase: "Default case",
+    defaultCase: "Automatic (default where needed)",
     recompute: "Recompute",
     tabs: {
       results: "Results",

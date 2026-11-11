@@ -10,21 +10,27 @@ import { Button } from "@/ui/button";
 export function SystemHeaderActions({
   cases,
   kase,
+  defaultCaseId,
   onCase,
   ids,
 }: {
   cases: CaseView[];
   kase: string | null;
+  defaultCaseId: string | null;
   onCase: (c: string | null) => void;
   ids: string[];
 }) {
   const t = useT();
+  const defaultCase = cases.find((c) => c.id === defaultCaseId);
+  const placeholder = defaultCaseId
+    ? t.systems.defaultDerivedCase(defaultCase ? idWithName(defaultCase) : defaultCaseId)
+    : t.systems.defaultCase;
   return (
     <>
       <NativeSelect
         aria-label={t.systems.caseLabel}
         value={kase ?? ""}
-        placeholder={t.systems.defaultCase}
+        placeholder={placeholder}
         onChange={(e) => onCase(e.target.value || null)}
         options={cases.map((c) => ({ value: c.id, label: idWithName(c) }))}
       />

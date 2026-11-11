@@ -69,11 +69,12 @@ fn enum_text_matches_serde_names() {
     same_as_serde::<HarnessEnd>();
 }
 
-/// `analysis/` の型の欄（serde の名前 = ファイル名）は、解析の系の綴りと同じ順に並ぶ。
+/// `analysis/` の型の欄（serde の名前 = ファイル名）は、共通設定と解析の系から成る。
 #[test]
 fn analysis_settings_fields_are_the_analysis_systems() {
     use fune_model::design::AnalysisSettings;
     let all = AnalysisSettings {
+        common: Some(Default::default()),
         power: Some(Default::default()),
         attitude: Some(Default::default()),
         cdh: Some(Default::default()),
@@ -89,6 +90,7 @@ fn analysis_settings_fields_are_the_analysis_systems() {
         .map(String::as_str)
         .collect();
     let mut names = AnalysisSystem::NAMES.to_vec();
+    names.push("common");
     let mut sorted = keys.clone();
     sorted.sort_unstable();
     names.sort_unstable();

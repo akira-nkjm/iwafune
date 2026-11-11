@@ -19,6 +19,7 @@ const result: AnalysisRunResult = {
   id: "power.mode_load",
   status: "ok",
   case: null,
+  case_source: null,
   input: null,
   output,
   checks: [],

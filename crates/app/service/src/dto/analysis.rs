@@ -24,7 +24,7 @@ pub struct AnalysisEntry {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(default)]
 pub struct RunAnalysisRequest {
-    /// 解析ケースの ID（`cases/<ID>.toml`）。省略すると既定のケース
+    /// 解析ケースの ID（`cases/<ID>.toml`）。省略時は projection の対象解析だけ既定ケースを適用
     pub case: Option<String>,
     /// 入力の与え方（省略時は設計データから組み立てる）
     pub source: AnalysisInputSource,
@@ -77,11 +77,22 @@ pub struct CheckView {
     pub scope: Option<String>,
 }
 
+/// 解析ケースの選択元。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum AnalysisCaseSource {
+    Explicit,
+    Default,
+    /// 電力収支の上段の姿勢則だけ既定ケースから選択（case は null）。
+    DefaultAttitude,
+}
+
 /// 解析の実行結果。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct AnalysisRunResult {
     pub id: String,
     pub case: Option<String>,
+    pub case_source: Option<AnalysisCaseSource>,
     pub status: AnalysisRunStatus,
     /// 出力中の判定を、出てきた順に平らに並べたもの（場所と持ち主の名前つき）。
     pub checks: Vec<CheckView>,

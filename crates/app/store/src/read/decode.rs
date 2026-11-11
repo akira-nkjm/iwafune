@@ -229,6 +229,7 @@ impl Decoder<'_> {
                 g.mission.ground.insert(id.clone(), v);
             }),
             FileRole::Analysis(system) => self.read_analysis(path, *system),
+            FileRole::CommonAnalysis => self.design.analysis.common = self.parse(path),
             FileRole::View(id) => self.read_into(path, |g, mut v: d::ViewLayout| {
                 v.id = id.clone();
                 g.views.insert(id.clone(), v);

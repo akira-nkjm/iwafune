@@ -32,6 +32,9 @@ enum_text! {
     }
 }
 
+/// 系に属さない解析の共通設定の区切り（`analysis.common.<キー>`）。綴りはここだけ。
+pub const ANALYSIS_COMMON: &str = "common";
+
 /// 設定のパス（先頭の種類と、残りの区切り）。
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 pub struct SettingPath {
@@ -56,6 +59,11 @@ impl SettingPath {
     /// `analysis.<…>`。
     pub fn analysis(segments: &[&str]) -> Self {
         Self::new(SettingScope::Analysis, segments)
+    }
+
+    /// 系に属さない解析の共通設定 `analysis.common`（`analysis/common.toml`）。
+    pub fn analysis_common() -> Self {
+        Self::analysis(&[ANALYSIS_COMMON])
     }
 
     /// `budget.<…>`。

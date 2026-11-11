@@ -9,8 +9,8 @@
 //! | `kpi` | KPI（代表値の選び方・判定・塗りの比・判定の数え方） |
 
 use crate::dto::{
-    AnalysisEntry, AnalysisInputSource, AnalysisLabel, AnalysisRunResult, AnalysisRunStatus,
-    RunAnalysisRequest,
+    AnalysisCaseSource, AnalysisEntry, AnalysisInputSource, AnalysisLabel, AnalysisRunResult,
+    AnalysisRunStatus, RunAnalysisRequest,
 };
 use crate::error::{Result, ServiceError};
 use crate::workspace::Workspace;
@@ -87,7 +87,12 @@ pub fn run_analysis(
     if !sat_analysis::catalog::catalog().iter().any(|i| i.id == id) {
         return Err(ServiceError::not_found("解析", id));
     }
-    let outcome = run_inner(ws, id, req)?;
+    let snapshot = match &req.source {
+        AnalysisInputSource::Given { .. } => None,
+        _ => Some(crate::preview::snapshot_with(ws, &req.ops)?),
+    };
+    let (case, case_source) = effective_case(snapshot.as_ref(), id, req.case.as_deref());
+    let outcome = run_inner(id, req, snapshot.as_ref(), case.as_deref())?;
     let checks = checks::collect_checks(outcome.output.as_ref());
     let verdict = sat_analysis::spec::Verdict::worst(checks.iter().map(|c| c.verdict));
     let kpis = kpi::kpis(
@@ -103,7 +108,8 @@ pub fn run_analysis(
         verdict,
         kpis,
         id: id.to_owned(),
-        case: req.case.clone(),
+        case,
+        case_source,
         status: outcome.status,
         input: outcome.input,
         output: outcome.output,
@@ -114,13 +120,39 @@ pub fn run_analysis(
     })
 }
 
-fn run_inner(ws: &Workspace, id: &str, req: &RunAnalysisRequest) -> Result<Outcome> {
+/// projection のケース選択を DTO に写す。上段の姿勢則専用の ID は全体に渡さない。
+fn effective_case(
+    snapshot: Option<&crate::workspace::Snapshot>,
+    id: &str,
+    explicit: Option<&str>,
+) -> (Option<String>, Option<AnalysisCaseSource>) {
+    use fune_projection::case_policy::{CaseSource, effective_case};
+    let (case, source) = effective_case(snapshot.map(|s| &s.design), id, explicit);
+    let source = source.map(|s| match s {
+        CaseSource::Explicit => AnalysisCaseSource::Explicit,
+        CaseSource::Default => AnalysisCaseSource::Default,
+        CaseSource::DefaultAttitude => AnalysisCaseSource::DefaultAttitude,
+    });
+    let case = if source == Some(AnalysisCaseSource::DefaultAttitude) {
+        None
+    } else {
+        case.map(str::to_owned)
+    };
+    (case, source)
+}
+
+fn run_inner(
+    id: &str,
+    req: &RunAnalysisRequest,
+    snapshot: Option<&crate::workspace::Snapshot>,
+    case: Option<&str>,
+) -> Result<Outcome> {
     let (input, case_mode) = match &req.source {
         AnalysisInputSource::Given { input } => (input.clone(), None),
         source => {
-            // 下書き（`ops`）が通らなければ、保存・バジェットと同じエラー（検証なら診断付き）を返す
-            let snapshot = crate::preview::snapshot_with(ws, &req.ops)?;
-            match project(&snapshot, id, req.case.as_deref()) {
+            let snapshot = snapshot
+                .ok_or_else(|| ServiceError::Internal("解析用の設計がありません".to_owned()))?;
+            match project(snapshot, id, case) {
                 Ok(p) => match source {
                     AnalysisInputSource::Patched { patch } => {
                         (merge_patch(p.input, patch), p.case_mode)

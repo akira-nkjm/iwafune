@@ -20,7 +20,7 @@ use sat_units::typed::{Angle, Length, Qty};
 pub struct Context<'a> {
     pub design: &'a Design,
     pub resolved: &'a Resolved,
-    /// 選んだ解析ケース（無ければ既定）
+    /// 選んだ解析ケース（無ければケース未選択）
     pub case: Option<&'a Case>,
 }
 
@@ -187,15 +187,22 @@ impl<'a> Context<'a> {
             .collect()
     }
 
-    /// モードの姿勢則（`analysis/attitude.toml` の `[law.<モード>]`）。無ければ不足入力。
+    /// 指定モードの姿勢則。モード未指定なら唯一の姿勢則だけを使い、選べなければ不足入力。
     pub fn attitude_law(&self, mode: Option<&str>, m: &mut MissingInputs) -> Option<AttitudeLaw> {
         let laws = self.design.analysis.attitude.as_ref().map(|a| &a.law);
-        let found = laws.and_then(|l| mode.and_then(|id| l.get(id)).or_else(|| l.values().next()));
+        let found = laws.and_then(|l| match mode {
+            Some(id) => l.get(id),
+            None if l.len() == 1 => l.values().next(),
+            None => None,
+        });
         let Some(setting) = found else {
-            // モードを決めていなければ、姿勢則の表そのものが足りない
+            // モード未指定なら姿勢則の表を、指定済みならそのモードの欄を示す。
             let law = AnalysisSystem::Attitude.setting_path().child(&["law"]);
             let target = mode.map_or_else(|| law.clone(), |id| law.child(&[id]));
-            m.push(target, "モードの姿勢則");
+            m.push(
+                target,
+                "モードの姿勢則を一意に選べません。対象モードの姿勢則を指定してください",
+            );
             return None;
         };
         Some(law_of(setting))

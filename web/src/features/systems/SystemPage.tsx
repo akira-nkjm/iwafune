@@ -90,12 +90,18 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
           <SystemHeaderActions
             cases={design.data?.cases ?? []}
             kase={kase}
+            defaultCaseId={
+              states.find((s) => s.result?.case_source === "default")?.result?.case ?? null
+            }
             onCase={(c) => setParams(c ? { [SEARCH.case]: c } : {})}
             ids={catalog.ids}
           />
         }
       />
       <div className="px-6 pb-3">
+        {states.some((s) => s.result?.case_source === "default_attitude") && (
+          <p className="text-sm text-muted-foreground">{t.systems.defaultAttitude}</p>
+        )}
         <SystemKpis entries={catalog.entries} states={states} loading={catalog.loading} />
       </div>
       <PageTabs

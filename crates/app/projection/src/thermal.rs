@@ -222,7 +222,9 @@ pub fn steady(ctx: &Context<'_>) -> Result<ThermalSteadyInput, MissingInputs> {
         let Some(mut t) = timeline::timeline(ctx, mode, 1, &mut m) else {
             continue;
         };
-        t.sampling.beta = setting_opt(&dims::THERMAL_CASE_BETA, &[id], c.beta.as_ref(), &mut m);
+        if c.beta.is_some() {
+            t.sampling.beta = setting_opt(&dims::THERMAL_CASE_BETA, &[id], c.beta.as_ref(), &mut m);
+        }
         cases.push(ThermalSteadyCase {
             id: id.clone(),
             label: c.label.clone().unwrap_or_else(|| id.clone()),
@@ -243,19 +245,39 @@ pub fn steady(ctx: &Context<'_>) -> Result<ThermalSteadyInput, MissingInputs> {
     })
 }
 
-/// `thermal.transient`: 解析ケースの熱の条件（無ければ最初の条件）で `orbits` 周。
+/// 非定常熱の条件は明示 ID、または唯一の条件から選ぶ。
+fn transient_case<'a>(
+    ctx: &Context<'_>,
+    s: &'a ThermalSettings,
+    m: &mut MissingInputs,
+) -> Option<(&'a String, &'a ThermalCaseSettings)> {
+    let selected = ctx.case.and_then(|c| c.thermal_case.as_deref());
+    let chosen = match selected {
+        Some(id) => s.cases.get_key_value(id),
+        None if s.cases.len() == 1 => s.cases.iter().next(),
+        None => None,
+    };
+    if chosen.is_none() {
+        let target = ctx.case.map_or_else(
+            || thermal(&["case"]).into(),
+            |c| Target::case(c.id.as_str(), Some("thermal_case")),
+        );
+        m.push(
+            target,
+            "熱の環境条件を一意に選べません。存在する thermal_case を指定してください",
+        );
+    }
+    chosen
+}
+
+/// `thermal.transient`: 明示した熱条件（省略時は唯一の条件）で `orbits` 周。
 pub fn transient(ctx: &Context<'_>) -> Result<ThermalTransientInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let Some(s) = settings(ctx, &mut m) else {
         return Err(m);
     };
     let net = network(ctx, s, &mut m);
-    let chosen = ctx
-        .case
-        .and_then(|c| c.thermal_case.as_deref())
-        .and_then(|id| s.cases.get_key_value(id));
-    let Some((id, c)) = chosen.or_else(|| s.cases.iter().next()) else {
-        m.push(thermal(&["case"]), "熱の環境条件（[case.<名前>]）");
+    let Some((id, c)) = transient_case(ctx, s, &mut m) else {
         return Err(m);
     };
     let mode = c.mode.as_deref();
@@ -266,7 +288,9 @@ pub fn transient(ctx: &Context<'_>) -> Result<ThermalTransientInput, MissingInpu
         &mut m,
     )
     .map(|mut t| {
-        t.sampling.beta = setting_opt(&dims::THERMAL_CASE_BETA, &[id], c.beta.as_ref(), &mut m);
+        if c.beta.is_some() {
+            t.sampling.beta = setting_opt(&dims::THERMAL_CASE_BETA, &[id], c.beta.as_ref(), &mut m);
+        }
         if let Some(step) = setting_opt(&dims::THERMAL_TIME_STEP, &[], s.time_step.as_ref(), &mut m)
         {
             t.sampling.step = step;

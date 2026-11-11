@@ -146,6 +146,11 @@ pub(crate) fn absorbed(net: &Compiled, env: &ThermalEnvironment, g: &Geometry) -
 pub(crate) fn timeline_geometry(
     spec: &TimelineSpec,
 ) -> Result<(Vec<f64>, Vec<Geometry>), AnalysisError> {
+    if spec.orbit().central != CentralBody::Earth {
+        return Err(AnalysisError::InvalidInput(
+            "地球以外を中心天体とする熱解析は未対応です（地球の形態係数・アルベド・赤外放射を使用）".to_owned(),
+        ));
+    }
     let samples = build(spec)?;
     if samples.is_empty() {
         return Err(AnalysisError::InvalidInput("時系列が空です".to_owned()));

@@ -33,7 +33,7 @@ fn cases_are_created_and_updated_minimally() {
     case.orbits = Some(30);
     let p = plan(&snap, &[Op::SetCase { case: case.clone() }]).unwrap();
     let (_, added) = one_line_change(&p);
-    assert_eq!(added, "orbits      = 30");
+    assert_eq!(added, "orbits       = 30");
     let new_case = Case {
         id: Id::new("launch_day"),
         label: Some("打ち上げ当日".into()),
@@ -234,4 +234,57 @@ fn every_op_has_a_cli_form() {
             "{op:?} -> {lines:?}"
         );
     }
+}
+
+/// 共通設定も既存の SetSetting と正規形で往復し、未設定に戻せる（デモは hot_imaging なので cold_safe に替える）。
+#[test]
+fn default_analysis_case_setting_round_trips() {
+    use fune_model::value::SettingValue;
+    let mut snap = snapshot();
+    let op = Op::SetSetting {
+        path: "analysis.common.default_case".to_owned(),
+        value: Some(SettingValue::Text("cold_safe".to_owned())),
+    };
+    let p = plan(&snap, &[op]).unwrap();
+    let change = &p.changes[0];
+    assert_eq!(change.path, "analysis/common.toml");
+    let text = change.after.as_deref().unwrap();
+    assert_eq!(text, "default_case = \"cold_safe\"\n");
+    assert_eq!(
+        fune_store::format::format_text(&change.path, text).unwrap(),
+        text
+    );
+    fune_store::apply_changes(&mut snap.files, &p.changes);
+    snap.design = fune_store::read::design_of(&snap.files);
+    assert_eq!(
+        snap.design
+            .analysis
+            .common
+            .as_ref()
+            .unwrap()
+            .default_case
+            .as_deref(),
+        Some("cold_safe")
+    );
+    assert!(
+        plan(
+            &snap,
+            &[Op::RemoveCase {
+                id: "cold_safe".to_owned()
+            }]
+        )
+        .is_err()
+    );
+    let p = plan(
+        &snap,
+        &[Op::SetSetting {
+            path: "analysis.common.default_case".to_owned(),
+            value: None,
+        }],
+    )
+    .unwrap();
+    assert_eq!(
+        p.design.analysis.common.as_ref().unwrap().default_case,
+        None
+    );
 }

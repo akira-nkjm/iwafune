@@ -5,6 +5,7 @@
 //!
 //! | モジュール | 責務 |
 //! |---|---|
+//! | `case_policy` | 解析ごとの既定ケースの対象宣言と解決 |
 //! | `context` | 解析ケースの文脈と、どの解析でも使う入力（軌道・地上局・姿勢則・モード） |
 //! | `timeline` | 時系列の仕様（軌道・姿勢則・期間・刻み・β） |
 //! | `parts` | 解決済みの部品から値を取り出す部品（役割での選択・型付きの量・機体座標の方向） |
@@ -16,6 +17,7 @@
 //! | `system` | 解析の系の対応（model の `AnalysisSystem` ⇄ sat-analysis の `System`）と一致のテスト |
 
 pub mod attitude;
+pub mod case_policy;
 pub mod cdh;
 pub mod comm;
 pub mod context;
