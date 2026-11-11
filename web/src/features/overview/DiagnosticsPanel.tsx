@@ -2,9 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { q, useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
-import { DiagnosticItem, diagnosticKey } from "@/kit/DiagnosticItem";
-import { Panel } from "@/kit/Panel";
-import { PanelHeader } from "@/kit/PanelHeader";
+import { Panel } from "@/kit/panel/Panel";
+import { PanelHeader } from "@/kit/panel/PanelHeader";
+import { DiagnosticItem, diagnosticKey } from "@/kit/status/DiagnosticItem";
 import { paths } from "@/lib/nav";
 import { targetLink } from "@/lib/target-link";
 

@@ -1,9 +1,9 @@
 import { useParams } from "react-router";
 import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
-import { SkeletonTable } from "@/kit/Loading";
-import { PageTabs } from "@/kit/PageTabs";
-import { QueryState } from "@/kit/QueryState";
+import { SkeletonTable } from "@/kit/feedback/Loading";
+import { QueryState } from "@/kit/feedback/QueryState";
+import { PageTabs } from "@/kit/selection/PageTabs";
 import { paths } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";

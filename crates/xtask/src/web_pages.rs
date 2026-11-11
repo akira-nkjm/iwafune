@@ -29,27 +29,27 @@ const FEATURE_IMPORTERS: &[&str] = &["web/src/features/", "web/src/routes/"];
 const FEATURE_EDGES: &[(&str, &str, &str)] = &[
     (
         "components",
-        "modes/matrix",
+        "modes/matrix/matrix",
         "部品の詳細のモードの欄が、モード表のセルの文字と同じ読み方を使う",
     ),
     (
         "defs",
-        "components/NewAttributeFields",
+        "components/parameters/NewAttributeFields",
         "属性の作成の欄を、部品のパラメーター追加と共有する",
     ),
     (
         "defs",
-        "components/param-ops",
+        "components/parameters/param-ops",
         "属性の作成の引数（`attrAddCommand`）を、部品のパラメーター追加と共有する",
     ),
     (
         "diagram",
-        "components/PartDetail",
+        "components/detail/PartDetail",
         "系統図の詳細に部品の詳細を出す",
     ),
     (
         "layout3d",
-        "components/PlacementSection",
+        "components/detail/PlacementSection",
         "3D 配置で選んだ部品の配置の欄を出す",
     ),
     (
@@ -173,11 +173,14 @@ mod tests {
     #[test]
     fn only_nav_builds_urls_and_only_pages_import_features() {
         let url = "const to = `/design/components/${id}`;";
-        assert_eq!(problems("web/src/shell/CommandSearch.tsx", url).len(), 1);
+        assert_eq!(
+            problems("web/src/shell/sidebar/CommandSearch.tsx", url).len(),
+            1
+        );
         assert!(problems("web/src/lib/nav.ts", url).is_empty());
         let import = "import { preloadSystem } from \"@/features/systems/preload\";";
         assert_eq!(problems("web/src/shell/preload.ts", import).len(), 1);
-        assert_eq!(problems("web/src/kit/Tree.tsx", import).len(), 1);
+        assert_eq!(problems("web/src/kit/tree/Tree.tsx", import).len(), 1);
         assert!(problems("web/src/routes/pages.ts", import).is_empty());
         assert!(problems("web/src/features/systems/SystemPage.tsx", import).is_empty());
         let lazy = "() => import(\"@/features/overview/OverviewPage\"),";
@@ -204,7 +207,7 @@ mod tests {
         assert!(errs[0].contains("features/mission → features/systems/AnalysisCard"));
         let listed = "import { SettingsTable } from \"@/features/project/SettingsTable\";";
         assert!(problems("web/src/features/mission/OrbitPage.tsx", listed).is_empty());
-        let own = "import { heatMapOf } from \"@/features/systems/heat\";";
+        let own = "import { heatMapOf } from \"@/features/systems/thermal/heat\";";
         assert!(problems("web/src/features/systems/extras.tsx", own).is_empty());
         assert!(problems("web/src/routes/pages.ts", shared).is_empty());
         assert_eq!(
@@ -215,7 +218,7 @@ mod tests {
             feature_of("web/src/features/overview/cards.ts"),
             Some("overview")
         );
-        assert_eq!(feature_of("web/src/kit/Tree.tsx"), None);
+        assert_eq!(feature_of("web/src/kit/tree/Tree.tsx"), None);
         for (from, target, why) in FEATURE_EDGES {
             assert!(
                 !why.is_empty() && !target.starts_with(from),

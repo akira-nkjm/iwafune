@@ -1,6 +1,6 @@
 import type { CheckView } from "@/api/types";
 import { localized, useT } from "@/i18n";
-import { VerdictPill } from "@/kit/VerdictPill";
+import { VerdictPill } from "@/kit/status/VerdictPill";
 
 /**
  * 判定の一覧（違反 → 注意 → OK の順）。モードごとなど同じ項目の判定が並ぶので、対象（判定の持ち主の名前）を前に添える。

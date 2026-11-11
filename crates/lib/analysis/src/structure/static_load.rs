@@ -310,5 +310,4 @@ fn interface_check(input: &StaticLoadInput, m: &StaticLoadMountResult) -> Option
 }
 
 #[cfg(test)]
-#[path = "static_load_tests.rs"]
 mod tests;

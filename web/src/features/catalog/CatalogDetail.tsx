@@ -1,10 +1,10 @@
 import { Pencil, Trash2 } from "lucide-react";
 import type { CatalogItemView, DesignView } from "@/api/types";
 import { useT } from "@/i18n";
-import { ChipLink } from "@/kit/Chip";
-import { DetailAction, DetailHeader, DetailPane } from "@/kit/DetailPane";
-import { DetailSection } from "@/kit/DetailSection";
-import { useDialogs } from "@/kit/use-dialogs";
+import { DetailAction, DetailHeader, DetailPane } from "@/kit/detail/DetailPane";
+import { DetailSection } from "@/kit/detail/DetailSection";
+import { useDialogs } from "@/kit/detail/use-dialogs";
+import { ChipLink } from "@/kit/selection/Chip";
 import { paths } from "@/lib/nav";
 import { OpDialog } from "@/ops/OpDialog";
 import { CatalogFields } from "./CatalogFields";

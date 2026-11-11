@@ -1,9 +1,9 @@
 import { useState } from "react";
 import type { ModeTable, Op } from "@/api/types";
 import { useT } from "@/i18n";
-import { Field } from "@/kit/Field";
-import { NativeSelect } from "@/kit/NativeSelect";
-import { TextInput } from "@/kit/TextInput";
+import { Field } from "@/kit/forms/Field";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
+import { TextInput } from "@/kit/forms/TextInput";
 import { idWithName } from "@/lib/design";
 
 import { OpDialog } from "@/ops/OpDialog";

@@ -1,11 +1,11 @@
 import { type KpiSlot, kpiText } from "@/analysis/kpi";
 import type { BudgetView, FillRatio, KpiKey, KpiTally } from "@/api/types";
 import type { Dict } from "@/i18n";
-import type { TickTone } from "@/kit/TickBar";
-import { verdictTone } from "@/kit/verdict-tone";
+import type { TickTone } from "@/kit/metrics/TickBar";
+import { verdictTone } from "@/kit/status/verdict-tone";
 import { paths } from "@/lib/nav";
 
-/** 概要の KPI カード 1 枚（`kit/KpiCard` に渡すもの） */
+/** 概要の KPI カード 1 枚（`kit/metrics/KpiCard` に渡すもの） */
 export interface OverviewCard {
   key: string;
   label: string;

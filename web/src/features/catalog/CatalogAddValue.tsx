@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import type { CatalogItemView, DefsView } from "@/api/types";
 import { useT } from "@/i18n";
-import { NativeSelect } from "@/kit/NativeSelect";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { attrDef, defWithId } from "@/lib/design";
 import { QuantityInput } from "@/quantity/QuantityInput";
 import { Button } from "@/ui/button";

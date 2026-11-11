@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { QuantityView } from "@/api/types";
 import { useT } from "@/i18n";
-import { TextInput } from "@/kit/TextInput";
+import { TextInput } from "@/kit/forms/TextInput";
 import { cn } from "@/lib/cn";
 import { withNote } from "@/lib/design";
 import { useParseQuantity } from "./use-parse";

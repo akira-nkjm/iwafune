@@ -6,10 +6,10 @@ import type { AnalysisOutputs, DesignView, System } from "@/api/types";
 import { LazyLayout3D } from "@/features/layout3d/LazyLayout3D";
 import type { V3 } from "@/features/layout3d/scene";
 import { heatHex, toneHex } from "@/lib/tone";
-import { heatKey, heatMapOf, heatRatio } from "./heat";
 import { hasExtras } from "./preload";
 import type { SystemTab } from "./SystemTabs";
-import { ThermalHeatmap } from "./ThermalHeatmap";
+import { heatKey, heatMapOf, heatRatio } from "./thermal/heat";
+import { ThermalHeatmap } from "./thermal/ThermalHeatmap";
 
 function resultOf(states: readonly AnalysisState[], id: string) {
   return states.find((s) => s.id === id)?.result;

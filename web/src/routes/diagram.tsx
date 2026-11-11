@@ -1,4 +1,4 @@
-import { SkeletonCanvas, SkeletonPage } from "@/kit/Loading";
+import { SkeletonCanvas, SkeletonPage } from "@/kit/feedback/Loading";
 import { LazyRoute } from "@/shell/LazyRoute";
 import { loadOnNavigate } from "@/shell/lazy-page";
 import { pages } from "./pages";

@@ -329,5 +329,4 @@ fn extreme(values: &[f64], better: impl Fn(f64, f64) -> bool) -> (usize, f64) {
 }
 
 #[cfg(test)]
-#[path = "transient_tests.rs"]
 mod tests;

@@ -57,15 +57,15 @@ fn spelling_and_text_format_have_one_home() {
     assert_eq!(errors.len(), 1);
 }
 
-/// 読み込み中のスケルトンは kit/Loading の部品だけが ui/skeleton を使う。
+/// 読み込み中のスケルトンは kit/feedback/Loading の部品だけが ui/skeleton を使う。
 #[test]
 fn skeletons_come_from_kit_loading() {
     let rule = WEB_RULES.iter().find(|r| r.0 == "@/ui/skeleton").unwrap();
     let line = "import { Skeleton } from \"@/ui/skeleton\";";
     let mut errors = Vec::new();
-    check_rule("web/src/kit/Loading.tsx", line, rule, &mut errors);
+    check_rule("web/src/kit/feedback/Loading.tsx", line, rule, &mut errors);
     assert!(errors.is_empty());
-    check_rule("web/src/kit/KpiCard.tsx", line, rule, &mut errors);
+    check_rule("web/src/kit/metrics/KpiCard.tsx", line, rule, &mut errors);
     check_rule(
         "web/src/features/layout3d/LazyLayout3D.tsx",
         line,

@@ -1,6 +1,6 @@
 import { Languages } from "lucide-react";
 import { type Lang, langNames, langs, setLang, useLang, useT } from "@/i18n";
-import { Segmented } from "@/kit/Segmented";
+import { Segmented } from "@/kit/selection/Segmented";
 
 /** 表示言語の切り替え（日本語 / English）。選んだ言語は閲覧者ごとに保存する。rail では 1 つのボタンで交互に切り替える */
 export function LanguageSwitch({ rail = false }: { rail?: boolean }) {

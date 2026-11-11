@@ -322,5 +322,4 @@ fn view(
 }
 
 #[cfg(test)]
-#[path = "kpi_tests.rs"]
 mod tests;

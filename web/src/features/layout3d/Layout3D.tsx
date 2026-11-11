@@ -1,15 +1,15 @@
 import { type ReactNode, useState } from "react";
 import { usePlaceBody } from "@/api/ops";
 import type { DesignView } from "@/api/types";
-import { PlacementSection } from "@/features/components/PlacementSection";
+import { PlacementSection } from "@/features/components/detail/PlacementSection";
 import { useT } from "@/i18n";
-import { Chip } from "@/kit/Chip";
-import { DetailSection } from "@/kit/DetailSection";
-import { Empty } from "@/kit/Empty";
-import { NativeSelect } from "@/kit/NativeSelect";
-import { Panel } from "@/kit/Panel";
-import { Segmented } from "@/kit/Segmented";
-import { Switch } from "@/kit/Switch";
+import { DetailSection } from "@/kit/detail/DetailSection";
+import { Empty } from "@/kit/feedback/Empty";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
+import { Panel } from "@/kit/panel/Panel";
+import { Chip } from "@/kit/selection/Chip";
+import { Segmented } from "@/kit/selection/Segmented";
+import { Switch } from "@/kit/selection/Switch";
 import { Scene3D, type SceneEdit, type TransformMode } from "./Scene3D";
 import { axesOf, boxesOf, type V3 } from "./scene";
 

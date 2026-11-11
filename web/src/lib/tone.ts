@@ -124,7 +124,7 @@ export const uiHex = {
 } as const;
 
 /**
- * ロゴのマーク（shell/brand-art.ts）の 3 面の色。ブランドの青（LIGHT ACCENT / ACCENT1 / DARK1）で固定し、
+ * ロゴのマーク（shell/brand/brand-art.ts）の 3 面の色。ブランドの青（LIGHT ACCENT / ACCENT1 / DARK1）で固定し、
  * テーマにも地の明暗にも追従させない。
  */
 export const brandHex = {

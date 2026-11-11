@@ -1,12 +1,12 @@
 import { useSetText } from "@/api/ops";
 import type { SettingView } from "@/api/types";
 import { useT } from "@/i18n";
-import { CommitInput } from "@/kit/CommitInput";
-import { DataTable } from "@/kit/DataTable";
-import { Empty } from "@/kit/Empty";
-import { Switch } from "@/kit/Switch";
-import { Td } from "@/kit/Td";
-import { Th } from "@/kit/Th";
+import { Empty } from "@/kit/feedback/Empty";
+import { CommitInput } from "@/kit/forms/CommitInput";
+import { Switch } from "@/kit/selection/Switch";
+import { DataTable } from "@/kit/table/DataTable";
+import { Td } from "@/kit/table/Td";
+import { Th } from "@/kit/table/Th";
 import { EditableQuantity } from "@/quantity/EditableQuantity";
 import { quantityInputText } from "@/quantity/format";
 

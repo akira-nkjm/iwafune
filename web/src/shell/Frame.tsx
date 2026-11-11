@@ -4,8 +4,8 @@ import { useNavigation } from "react-router";
 import { q } from "@/api/queries";
 import { cn } from "@/lib/cn";
 import { PreloadContext, type PreloadPlan, preloadIdlePages } from "./preload";
-import { Sidebar } from "./Sidebar";
-import { SidebarProvider } from "./SidebarContext";
+import { Sidebar } from "./sidebar/Sidebar";
+import { SidebarProvider } from "./sidebar/SidebarContext";
 
 /**
  * 画面の枠: 232px の固定サイドバー + 10px 内側に浮いた白いメインパネル 1 枚。

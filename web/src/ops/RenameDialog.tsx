@@ -1,7 +1,7 @@
 import { type ReactNode, useId, useState } from "react";
 import type { Op } from "@/api/types";
-import { Field } from "@/kit/Field";
-import { TextInput } from "@/kit/TextInput";
+import { Field } from "@/kit/forms/Field";
+import { TextInput } from "@/kit/forms/TextInput";
 import { OpDialog } from "./OpDialog";
 import { useOpCheck } from "./use-op-check";
 

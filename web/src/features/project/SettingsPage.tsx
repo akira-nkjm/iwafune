@@ -1,11 +1,11 @@
 import { useDesign } from "@/api/queries";
 import type { DesignView, SettingScope } from "@/api/types";
 import { useT } from "@/i18n";
-import { SkeletonPanel } from "@/kit/Loading";
-import { Panel } from "@/kit/Panel";
-import { PanelHeader } from "@/kit/PanelHeader";
-import { QueryState } from "@/kit/QueryState";
-import { TablePanel } from "@/kit/TablePanel";
+import { SkeletonPanel } from "@/kit/feedback/Loading";
+import { QueryState } from "@/kit/feedback/QueryState";
+import { Panel } from "@/kit/panel/Panel";
+import { PanelHeader } from "@/kit/panel/PanelHeader";
+import { TablePanel } from "@/kit/table/TablePanel";
 import { LanguageSwitch } from "@/shell/LanguageSwitch";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";

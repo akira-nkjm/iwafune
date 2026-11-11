@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router";
 import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
-import { KpiCard } from "@/kit/KpiCard";
+import { KpiCard } from "@/kit/metrics/KpiCard";
 import { withNote } from "@/lib/design";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";

@@ -393,5 +393,4 @@ fn summary_checks(
 }
 
 #[cfg(test)]
-#[path = "data_budget_tests.rs"]
 mod tests;

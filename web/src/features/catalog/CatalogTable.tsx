@@ -1,11 +1,11 @@
 import { useEnumLabel } from "@/api/labels";
 import type { CatalogItemView } from "@/api/types";
 import { useT } from "@/i18n";
-import { DataTable } from "@/kit/DataTable";
-import { Pill } from "@/kit/Pill";
-import { SelectableRow } from "@/kit/SelectableRow";
-import { Td } from "@/kit/Td";
-import { Th } from "@/kit/Th";
+import { Pill } from "@/kit/status/Pill";
+import { DataTable } from "@/kit/table/DataTable";
+import { SelectableRow } from "@/kit/table/SelectableRow";
+import { Td } from "@/kit/table/Td";
+import { Th } from "@/kit/table/Th";
 import { itemLabel } from "./catalog";
 
 /** カタログ品の一覧（密な表）。行を選ぶと右に詳細。共有カタログの品にはカタログ名の札を付ける */

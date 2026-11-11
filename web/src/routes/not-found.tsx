@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { useT } from "@/i18n";
-import { Empty } from "@/kit/Empty";
+import { Empty } from "@/kit/feedback/Empty";
 import { paths } from "@/lib/nav";
 import { PageHeader } from "@/shell/PageHeader";
 
