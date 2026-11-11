@@ -21,15 +21,12 @@ fn spec(shadow: ShadowModel) -> TimelineSpec {
     let orbit = polar_orbit_with_beta_zero();
     let span = orbit.period_s();
     TimelineSpec {
-        orbit,
+        sampling: OrbitSampling::new(orbit, Qty::from_raw(span), Qty::from_raw(5.0)),
         attitude: AttitudeLaw::SunPointing {
             axis: Vec3::Z,
             secondary: Vec3::Y,
         },
-        span: Qty::from_raw(span),
-        step: Qty::from_raw(5.0),
         shadow,
-        beta: None,
     }
 }
 
@@ -37,7 +34,7 @@ fn spec(shadow: ShadowModel) -> TimelineSpec {
 #[test]
 fn eclipse_fraction_at_550_km_beta_zero() {
     let sp = spec(ShadowModel::Cylindrical);
-    let beta = beta_angle_rad(&sp.orbit, sp.orbit.epoch).expect("β");
+    let beta = beta_angle_rad(&sp.sampling.orbit, sp.sampling.orbit.epoch).expect("β");
     assert!(beta.abs() < 1e-6, "β = {beta}");
     let h = 550e3;
     let r = R_EARTH + h;
@@ -56,7 +53,7 @@ fn eclipse_fraction_at_550_km_beta_zero() {
     let w = shadow_windows(&samples, 0.5);
     assert_eq!(w.len(), 1, "{w:?}");
     let minutes = w[0].duration.value() / 60.0;
-    let expected_min = expected * sp.orbit.period_s() / 60.0;
+    let expected_min = expected * sp.sampling.orbit.period_s() / 60.0;
     // 端は標本の時刻なので刻み（5 s）の分だけ短くなりうる
     assert!((minutes - expected_min).abs() < 0.2, "{minutes} 分");
 }
@@ -115,9 +112,9 @@ fn empty_and_all_true() {
 #[test]
 fn beta_override_sets_raan_at_start() {
     let mut sp = spec(ShadowModel::Conical);
-    sp.span = Qty::from_raw(600.0);
+    sp.sampling.span = Qty::from_raw(600.0);
     for beta_deg in [-30.0_f64, 0.0, 25.0, 60.0] {
-        sp.beta = Some(Qty::from_raw(beta_deg.to_radians()));
+        sp.sampling.beta = Some(Qty::from_raw(beta_deg.to_radians()));
         let orbit = sp.resolved_orbit().expect("β に届く");
         let beta = beta_angle_rad(&orbit, orbit.epoch).expect("β").to_degrees();
         assert!((beta - beta_deg).abs() < 1e-9, "{beta} vs {beta_deg}");
@@ -126,10 +123,10 @@ fn beta_override_sets_raan_at_start() {
         let expected = orbit.state_at(0.0).expect("状態").r_eci;
         assert!((first.r_eci - expected).norm() < 1e-6);
     }
-    sp.beta = None;
+    sp.sampling.beta = None;
     assert_eq!(
         sp.resolved_orbit().expect("そのまま").elements.raan,
-        sp.orbit.elements.raan
+        sp.sampling.orbit.elements.raan
     );
 }
 
@@ -144,4 +141,19 @@ fn time_mean_and_cumulative_trapezoid() {
     assert_eq!(time_mean(&[2.0], &[7.0]), 7.0);
     assert_eq!(time_mean(&[1.0, 1.0], &[4.0, 9.0]), 4.0);
     assert_eq!(cumulative_trapezoid(&t, &v[..2]).len(), 2);
+}
+
+/// 標本の取り方は JSON では時系列の同じ階層に並ぶ（`orbit`・`span`・`step`・`beta` を `attitude` と並べて書く）。
+#[test]
+fn sampling_is_flattened_in_json() {
+    let mut sp = spec(ShadowModel::Conical);
+    sp.sampling.beta = Some(Qty::from_raw(0.5));
+    let json = serde_json::to_value(&sp).expect("JSON");
+    for key in ["orbit", "span", "step", "beta", "attitude", "shadow"] {
+        assert!(json.get(key).is_some(), "{key}: {json}");
+    }
+    assert!(json.get("sampling").is_none());
+    let back: TimelineSpec = serde_json::from_value(json).expect("読み戻し");
+    assert_eq!(back.sampling.beta, sp.sampling.beta);
+    assert_eq!(back.sampling.step, sp.sampling.step);
 }

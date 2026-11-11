@@ -2,13 +2,14 @@
 //!
 //! 軌道と姿勢則の時系列に沿った発電（[`super::solar`]）と、ケースごとの負荷（モードの平均消費電力
 //! [`super::mode_load::evaluate_mode`] か一定値）から、電池の充放電（[`super::battery`]）を積分する。
-//! 日照中（日照率 ≥ [`super::solar::SUNLIT_THRESHOLD`]）と日陰中で別のモードを使える。
+//! 日照中（[`crate::spec::is_sunlit`]）と日陰中で別のモードを使える。
 
 pub use super::battery::EnergyBalanceBattery;
 use super::mode_load::ModeLoadInput;
 use super::solar::{SolarArray, SolarLife, SolarProfile};
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Channel, Check, Series, System, orbit_mean, orbit_ranges,
+    Analysis, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series, SpanFallback,
+    System, orbit_mean, orbit_ranges, span_fallback, time_fraction,
 };
 use sat_astro::attitude::AttitudeLaw;
 use sat_astro::timeline::{self, TimelineSpec};
@@ -30,10 +31,22 @@ pub struct EnergyBalanceInput {
     /// 部品とモード（`power.mode_load` と同じ入力）。モードで負荷を指定するケースが使う
     #[serde(default)]
     pub loads: ModeLoadInput,
-    /// 真なら成長余裕を含めない消費電力を使う（省略時は成長余裕込み）
+    /// モードの消費電力に成長余裕を含めるか（省略時は含める）
     #[serde(default)]
-    pub without_growth: bool,
+    pub load_growth: LoadGrowth,
     pub cases: Vec<EnergyBalanceCase>,
+}
+
+/// モードの消費電力に成長余裕を含めるか。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "snake_case")]
+pub enum LoadGrowth {
+    /// 成長余裕込みの消費電力（`total_with_growth`）
+    #[default]
+    Included,
+    /// 成長余裕を含めない消費電力（`total`）
+    Excluded,
 }
 
 /// 評価するケース（負荷のかけ方）1 つ。
@@ -74,6 +87,8 @@ pub struct EnergyBalanceOutput {
     pub period: Qty<Time>,
     /// 回り切った周回の数（0 なら平均は全期間）
     pub complete_orbits: usize,
+    /// 1 周に満たないときの代わりの集計（回り切った周回があれば `None`）
+    pub span_fallback: Option<SpanFallback>,
     /// 軌道平均の発電（`timeline.attitude` の姿勢則。ケースで姿勢則を替えたときはケースの値を見る）
     pub orbit_average_generation: Qty<Power>,
     /// 日照の割合（0〜1）
@@ -99,8 +114,10 @@ pub struct EnergyBalanceCaseResult {
     pub orbit_average_load: Qty<Power>,
     /// 軌道平均の発電 − 負荷（電池の効率を含まない）
     pub orbit_average_balance: Qty<Power>,
-    /// 1 周あたりのエネルギー余裕（電池の効率込み、容量の上下限で切る前）。周回のうち最小のもの
-    pub energy_margin_per_orbit: Qty<Energy>,
+    /// 1 周あたりのエネルギー余裕（電池の効率込み、容量の上下限で切る前）。周回のうち最小のもの。回り切った周回が無ければ None
+    pub energy_margin_per_orbit: Option<Qty<Energy>>,
+    /// 解析期間全体の収支（電池の効率込み、容量の上下限で切る前、周期への換算なし）。回り切った周回が無いときだけ Some
+    pub energy_margin_over_span: Option<Qty<Energy>>,
     pub min_soc: Fraction,
     /// 最大の DoD（1 − 最小 SOC）
     pub max_dod: Fraction,
@@ -154,7 +171,7 @@ impl Analysis for EnergyBalance {
         let battery = EnergyBalanceBattery::combine(&input.batteries)?;
         input.array.validate()?;
         super::mode_load::validate(&input.loads)?;
-        let period_s = input.timeline.orbit.period_s();
+        let period_s = input.timeline.orbit().period_s();
         let ctx = Context::new(input, &battery, profile(input, &input.timeline)?, period_s);
         let mut cases = Vec::with_capacity(input.cases.len());
         for c in &input.cases {
@@ -186,7 +203,6 @@ struct Context<'a> {
     battery: &'a EnergyBalanceBattery,
     profile: SolarProfile,
     generation: Vec<f64>,
-    flags: Vec<bool>,
     ranges: Vec<Range<usize>>,
     period_s: f64,
 }
@@ -200,7 +216,6 @@ impl<'a> Context<'a> {
     ) -> Self {
         Self {
             generation: profile.total(input.life),
-            flags: profile.sunlit_flags(),
             ranges: orbit_ranges(&profile.t, period_s),
             input,
             battery,
@@ -210,21 +225,21 @@ impl<'a> Context<'a> {
     }
 
     fn output(self, cases: Vec<EnergyBalanceCaseResult>) -> EnergyBalanceOutput {
-        let sunlit_num: Vec<f64> = self.flags.iter().map(|&f| f64::from(u8::from(f))).collect();
         EnergyBalanceOutput {
             life: self.input.life,
             period: Qty::from_raw(self.period_s),
             complete_orbits: self.ranges.len(),
+            span_fallback: span_fallback(self.ranges.len(), SpanFallback::OrbitMeanOverSpan),
             orbit_average_generation: Qty::from_raw(orbit_mean(
                 &self.profile.t,
                 &self.generation,
                 &self.ranges,
             )),
-            sunlit_fraction: Fraction::new(orbit_mean(&self.profile.t, &sunlit_num, &self.ranges)),
+            sunlit_fraction: time_fraction(&self.profile.t, &self.profile.lit, &self.ranges),
             series: Series {
                 channels: vec![
-                    Channel::new("generation", "発電電力", "Power", self.generation),
-                    Channel::new("sunlit", "日照率", Fraction::KIND, self.profile.sunlit),
+                    Channel::of::<Power>("generation", ChannelKind::Generation, self.generation),
+                    Channel::of::<Fraction>("sunlit", ChannelKind::Sunlit, self.profile.sunlit),
                 ],
                 t: self.profile.t,
             },

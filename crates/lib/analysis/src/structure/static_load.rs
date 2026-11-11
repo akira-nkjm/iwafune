@@ -9,10 +9,10 @@
 use crate::spec::quantity_text;
 use crate::spec::{
     Analysis, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_non_negative,
-    ensure_positive,
+    ensure_positive, ratio_margin, ratio_margin_verdict,
 };
 use sat_astro::constants::G0;
-use sat_units::typed::{Force, Length, Mass, Qty, Torque};
+use sat_units::typed::{Dimensionless, Force, Fraction, Length, Mass, Qty, Torque};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -75,6 +75,9 @@ pub struct StaticLoadInput {
 /// 安全率の既定値。
 pub const DEFAULT_SAFETY_FACTOR: f64 = 1.25;
 
+/// 安全余裕 MS の警告の幅。0 なので、MS ≥ 0 なら ok、負なら違反の二段階（[`crate::spec::ratio_margin_verdict`]）。
+pub const MS_WARNING_BAND: Fraction = Fraction::new(0.0);
+
 impl StaticLoadItem {
     /// 質量 × 員数 [kg]。
     pub fn total_mass(&self) -> f64 {
@@ -102,13 +105,14 @@ pub struct StaticLoadMountResult {
     pub carried_mass: Qty<Mass>,
     pub axial: Qty<Force>,
     pub lateral: Qty<Force>,
+    #[serde(serialize_with = "sat_units::typed::TorqueKind::serialize")]
     pub moment: Qty<Torque>,
-    /// 安全余裕（許容値が無ければ `None`）
-    pub margin_axial: Option<f64>,
-    pub margin_lateral: Option<f64>,
-    pub margin_moment: Option<f64>,
+    /// 安全余裕 MS = 許容荷重 / (安全率 × 荷重) − 1（[`crate::spec::ratio_margin`]。許容値が無いか荷重が 0 なら `None`）
+    pub margin_axial: Option<Fraction>,
+    pub margin_lateral: Option<Fraction>,
+    pub margin_moment: Option<Fraction>,
     /// 3 つの安全余裕のうち最小（許容値が 1 つも無ければ `None`）
-    pub min_margin: Option<f64>,
+    pub min_margin: Option<Fraction>,
     pub verdict: Verdict,
 }
 
@@ -177,14 +181,17 @@ impl Analysis for StaticLoad {
         Ok(StaticLoadOutput {
             items,
             mounts,
-            safety_factor: safety_factor(input),
+            safety_factor: input.safety_factor(),
             checks,
         })
     }
 }
 
-fn safety_factor(input: &StaticLoadInput) -> f64 {
-    input.safety_factor.unwrap_or(DEFAULT_SAFETY_FACTOR)
+impl StaticLoadInput {
+    /// 安全率（省略時 [`DEFAULT_SAFETY_FACTOR`]）。
+    pub fn safety_factor(&self) -> f64 {
+        self.safety_factor.unwrap_or(DEFAULT_SAFETY_FACTOR)
+    }
 }
 
 fn validate(input: &StaticLoadInput) -> Result<(), AnalysisError> {
@@ -193,7 +200,7 @@ fn validate(input: &StaticLoadInput) -> Result<(), AnalysisError> {
             "荷重のケースがありません".to_owned(),
         ));
     }
-    ensure_positive("安全率", safety_factor(input))?;
+    ensure_positive("安全率", input.safety_factor())?;
     for it in &input.items {
         ensure_non_negative(&format!("部品 {} の質量", it.id), it.mass.value())?;
     }
@@ -253,8 +260,8 @@ fn mount_results(
             }
             let (axial, lateral) = (mass * G0 * n_ax, mass * G0 * n_lat);
             let iface = input.interfaces.iter().find(|i| i.mount == m);
-            let sf = safety_factor(input);
-            let ms = |allow: Option<f64>, load: f64| allow.map(|a| a / (sf * load) - 1.0);
+            let sf = input.safety_factor();
+            let ms = |allow: Option<f64>, load: f64| allow.and_then(|a| ratio_margin(a, sf * load));
             let margin_axial = ms(iface.and_then(|i| i.allowable_axial).map(Qty::value), axial);
             let margin_lateral = ms(
                 iface.and_then(|i| i.allowable_lateral).map(Qty::value),
@@ -267,7 +274,7 @@ fn mount_results(
             let min_margin = [margin_axial, margin_lateral, margin_moment]
                 .into_iter()
                 .flatten()
-                .reduce(f64::min);
+                .reduce(|a, b| if b < a { b } else { a });
             StaticLoadMountResult {
                 mount: m.to_owned(),
                 carried_mass: Qty::from_raw(mass),
@@ -278,7 +285,7 @@ fn mount_results(
                 margin_lateral,
                 margin_moment,
                 min_margin,
-                verdict: Verdict::from_ok(min_margin.is_none_or(|m| m >= 0.0)),
+                verdict: ratio_margin_verdict(min_margin, MS_WARNING_BAND),
             }
         })
         .collect()
@@ -289,8 +296,8 @@ fn interface_check(input: &StaticLoadInput, m: &StaticLoadMountResult) -> Option
     let text = if let Some(worst) = m.min_margin {
         format!(
             "最小の安全余裕 MS = {}（安全率 {}）",
-            quantity_text(worst, sat_units::typed::Fraction::KIND),
-            quantity_text(safety_factor(input), "Dimensionless")
+            quantity_text::<Fraction>(worst.value()),
+            quantity_text::<Dimensionless>(input.safety_factor())
         )
     } else {
         "許容値がありません".to_owned()
@@ -304,82 +311,4 @@ fn interface_check(input: &StaticLoadInput, m: &StaticLoadMountResult) -> Option
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn item(id: &str, mass: f64, mount: &str, h: Option<f64>) -> StaticLoadItem {
-        StaticLoadItem {
-            id: id.to_owned(),
-            mass: Qty::from_raw(mass),
-            count: 1,
-            mount: mount.to_owned(),
-            cg_height: h.map(Qty::from_raw),
-        }
-    }
-
-    /// RW 0.6 kg を PANEL（0.4 kg）に付け、PANEL を FRAME に付ける。機軸 7 g、横 3 g。
-    /// PANEL の取付部: 0.6 kg × 9.80665 × 7 = 41.19 N。FRAME の取付部: 1.0 kg → 68.65 N、
-    /// 横 29.42 N、モーメント 1.0·9.80665·3·0.05 = 1.471 N·m。
-    #[test]
-    fn hand_calculated_tree() {
-        let input = StaticLoadInput {
-            items: vec![
-                item("RW", 0.6, "PANEL", Some(0.02)),
-                item("PANEL", 0.4, "FRAME", Some(0.05)),
-            ],
-            cases: vec![
-                StaticLoadCase {
-                    id: "a".to_owned(),
-                    label: "機軸".to_owned(),
-                    axial: 7.0,
-                    lateral: 1.0,
-                },
-                StaticLoadCase {
-                    id: "l".to_owned(),
-                    label: "横".to_owned(),
-                    axial: 2.0,
-                    lateral: 3.0,
-                },
-            ],
-            interfaces: vec![StaticLoadInterface {
-                mount: "FRAME".to_owned(),
-                allowable_axial: Some(Qty::from_raw(200.0)),
-                allowable_lateral: None,
-                allowable_moment: Some(Qty::from_raw(1.0)),
-            }],
-            safety_factor: None,
-        };
-        let out = StaticLoad::run(&input).unwrap();
-        let frame = out.mounts.iter().find(|m| m.mount == "FRAME").unwrap();
-        let panel = out.mounts.iter().find(|m| m.mount == "PANEL").unwrap();
-        assert!((panel.axial.value() - 0.6 * G0 * 7.0).abs() < 1e-9);
-        assert!((frame.carried_mass.value() - 1.0).abs() < 1e-12);
-        assert!((frame.axial.value() - G0 * 7.0).abs() < 1e-9);
-        assert!((frame.lateral.value() - G0 * 3.0).abs() < 1e-9);
-        assert!((frame.moment.value() - G0 * 3.0 * 0.05).abs() < 1e-9);
-        let ms_ax = 200.0 / (1.25 * G0 * 7.0) - 1.0;
-        assert!((frame.margin_axial.unwrap() - ms_ax).abs() < 1e-9);
-        // モーメントは 1.471 N·m × 1.25 > 1 N·m で負の余裕
-        assert!(frame.margin_moment.unwrap() < 0.0);
-        assert_eq!(frame.min_margin, frame.margin_moment);
-        assert_eq!(out.safety_factor, DEFAULT_SAFETY_FACTOR);
-        assert_eq!(out.checks.len(), 1);
-        assert_eq!(out.checks[0].verdict, Verdict::Violation);
-    }
-
-    #[test]
-    fn mount_cycle_is_rejected() {
-        let input = StaticLoadInput {
-            items: vec![item("A", 1.0, "B", None), item("B", 1.0, "A", None)],
-            cases: vec![StaticLoadCase {
-                id: "a".to_owned(),
-                label: String::new(),
-                axial: 1.0,
-                lateral: 1.0,
-            }],
-            interfaces: vec![],
-            safety_factor: None,
-        };
-        assert!(StaticLoad::run(&input).is_err());
-    }
-}
+mod tests;

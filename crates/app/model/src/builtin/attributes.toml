@@ -216,7 +216,7 @@ dimension    = "AngularMomentum"
 units        = ["N*m*s", "mN*m*s"]
 display_unit = "mN*m*s"
 min          = 0.0
-section      = "attitude"
+section      = "aocs"
 
 [max_torque]
 label        = "最大トルク"
@@ -226,7 +226,7 @@ dimension    = "Torque"
 units        = ["N*m", "mN*m"]
 display_unit = "mN*m"
 min          = 0.0
-section      = "attitude"
+section      = "aocs"
 
 [spin_axis]
 label       = "回転軸"
@@ -235,7 +235,7 @@ description = "部品座標の単位ベクトル"
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true
-section     = "attitude"
+section     = "aocs"
 
 [axis]
 label       = "軸"
@@ -244,7 +244,7 @@ description = "部品座標の単位ベクトル"
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true
-section     = "attitude"
+section     = "aocs"
 
 [max_dipole]
 label        = "最大磁気双極子"
@@ -254,7 +254,7 @@ dimension    = "MagneticDipoleMoment"
 units        = ["A*m^2"]
 display_unit = "A*m^2"
 min          = 0.0
-section      = "attitude"
+section      = "aocs"
 
 [thrust]
 label        = "推力"
@@ -264,7 +264,7 @@ dimension    = "Force"
 units        = ["N", "mN"]
 display_unit = "mN"
 min          = 0.0
-section      = "attitude"
+section      = "aocs"
 
 [isp]
 label        = "比推力"
@@ -274,7 +274,7 @@ dimension    = "Time"
 units        = ["s"]
 display_unit = "s"
 min          = 0.0
-section      = "attitude"
+section      = "aocs"
 
 [direction]
 label       = "推力の向き"
@@ -283,7 +283,7 @@ description = "部品座標の単位ベクトル"
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true
-section     = "attitude"
+section     = "aocs"
 
 [boresight]
 label       = "視線方向"
@@ -292,7 +292,7 @@ description = "部品座標の単位ベクトル"
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true
-section     = "attitude"
+section     = "aocs"
 
 [fov_half_angle]
 label        = "視野の半角"
@@ -302,7 +302,7 @@ dimension    = "Angle"
 units        = ["deg", "rad"]
 display_unit = "deg"
 min          = 0.0
-section      = "attitude"
+section      = "aocs"
 
 [exclusion_sun]
 label        = "太陽の禁止角"
@@ -312,7 +312,7 @@ dimension    = "Angle"
 units        = ["deg", "rad"]
 display_unit = "deg"
 min          = 0.0
-section      = "attitude"
+section      = "aocs"
 
 [exclusion_earth]
 label        = "地球の禁止角"
@@ -322,7 +322,7 @@ dimension    = "Angle"
 units        = ["deg", "rad"]
 display_unit = "deg"
 min          = 0.0
-section      = "attitude"
+section      = "aocs"
 
 [exclusion_moon]
 label        = "月の禁止角"
@@ -332,7 +332,7 @@ dimension    = "Angle"
 units        = ["deg", "rad"]
 display_unit = "deg"
 min          = 0.0
-section      = "attitude"
+section      = "aocs"
 
 [tx_power]
 label        = "送信電力（RF）"

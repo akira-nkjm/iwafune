@@ -5,26 +5,30 @@ use super::doc::{set_opt, string};
 use crate::codec::encode_value;
 use crate::error::StoreError;
 use crate::profile as format;
-use fune_model::design::{CatalogField, CatalogItem};
+use fune_model::design::{CatalogField, CatalogFieldName, CatalogItem};
 use toml_edit::{DocumentMut, Item, Table};
 
-/// 新しいカタログ品のファイル（正規形: 見出しのキー → `[attr]` → `[ports]`）。
+/// 型付きのフィールド → ファイルの値（None なら書かない）。新しいファイルの見出しと 1 フィールドの書き込みで共通。
+fn field_item(field: &CatalogField) -> Option<Item> {
+    match field {
+        CatalogField::Kind(k) => Some(string(k)),
+        CatalogField::Maturity(m) => m.map(|m| string(m.as_str())),
+        CatalogField::Label(v)
+        | CatalogField::LabelEn(v)
+        | CatalogField::Manufacturer(v)
+        | CatalogField::PartNumber(v)
+        | CatalogField::Datasheet(v)
+        | CatalogField::Source(v) => v.as_deref().map(string),
+    }
+}
+
+/// 新しいカタログ品のファイル（正規形: 見出しのキー（`CatalogFieldName` の順）→ `[attr]` → `[ports]`）。
 pub fn new_catalog_text(item: &CatalogItem) -> String {
     let mut doc = DocumentMut::new();
     let top = doc.as_table_mut();
-    top.insert("kind", string(item.kind.as_str()));
-    let fields = [
-        ("label", item.label.as_deref()),
-        ("label_en", item.label_en.as_deref()),
-        ("manufacturer", item.manufacturer.as_deref()),
-        ("part_number", item.part_number.as_deref()),
-        ("maturity", item.maturity.map(|m| m.as_str())),
-        ("datasheet", item.datasheet.as_deref()),
-        ("source", item.source.as_deref()),
-    ];
-    for (key, value) in fields {
-        if let Some(v) = value {
-            top.insert(key, string(v));
+    for &key in CatalogFieldName::ALL {
+        if let Some(value) = field_item(&CatalogField::of(item, key)) {
+            top.insert(key.as_str(), value);
         }
     }
     if !item.attr.is_empty() {
@@ -50,16 +54,7 @@ pub fn set_catalog_field(
     file: &str,
     field: &CatalogField,
 ) -> Result<(), StoreError> {
-    let item = match field {
-        CatalogField::Kind(k) => Some(string(k)),
-        CatalogField::Maturity(m) => m.map(|m| string(m.as_str())),
-        CatalogField::Label(v)
-        | CatalogField::LabelEn(v)
-        | CatalogField::Manufacturer(v)
-        | CatalogField::PartNumber(v)
-        | CatalogField::Datasheet(v)
-        | CatalogField::Source(v) => v.as_deref().map(string),
-    };
+    let item = field_item(field);
     edits.edit(file, |doc| {
         set_opt(doc.as_table_mut(), field.name(), item);
         Ok(())

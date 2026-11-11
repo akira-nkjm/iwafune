@@ -19,8 +19,10 @@
    例外は `fune init`（サーバーはプロジェクトの中でしか動かないので HTTP に無い）だけ。
 
 `cargo xtask check` が機械的に検査する: 依存の向き、モジュールの循環、台帳、「1 か所だけ」の規則（`crates/xtask/src/single_home.rs`）、
-Web の禁止事項（`fetch(` は API クライアントだけ、数の整形・`Intl.NumberFormat` は `web/src/quantity/` だけ、色の直書きは `lib/tone.ts` だけ（`index.css` の色は `pnpm -C web tokens` でそこから書き出す）、
-負の字間 `tracking-tight` を使わない）、長すぎるファイルの警告。規則を増やしたら xtask にも足す。
+Web の禁止事項（`fetch(` は API クライアントだけ、数の整形・`Intl.NumberFormat` は `web/src/quantity/` だけ、色の直書き（hex・`white` などの色の名前）と色の混ぜ方（`color-mix(`）は `lib/tone.ts` だけ（`index.css` の色は `pnpm -C web tokens` でそこから書き出す。`crates/xtask/src/web_colors.rs`）、
+負の字間 `tracking-tight` を使わない、ID やパスを `/`・`.` で分けない、打った文字列を `Number(`・`parseFloat(` で数にしない（`crates/xtask/src/web_strings.rs`）、
+スケルトン（`ui/skeleton`）は `kit/feedback/Loading.tsx` だけ、系とバジェットの種類の並びを書かない（API の `DefsView.systems`・`budget_kinds`）、ページの URL（`/design/…` など）は `lib/nav.ts` の `paths` だけで作る、`features/` を import してよいのは
+`features/` と `routes/` だけで、ページの中身どうしの import は理由付きの許可リスト（`FEATURE_EDGES`）にあるものだけ（`crates/xtask/src/web_pages.rs`））、長すぎるファイルの警告。規則を増やしたら xtask にも足す。
 
 ## 層の責務
 
@@ -36,7 +38,7 @@ Web の禁止事項（`fetch(` は API クライアントだけ、数の整形�
 | `fune-service` | CLI と HTTP が呼ぶ関数すべてと、その入出力の型（ts-rs で TS を生成）。表示用の文字列は `sat_units::format` で作って DTO に入れる | HTTP の知識、整形の規則を自前で持つこと。ファイル I/O は store を通す（外部データのキャッシュと TS の書き出しだけは例外） |
 | `fune-server` | axum のルーティングと JSON 化、SPA の配信、Host の許可リスト | ロジック |
 | `fune-cli` | 引数の解析と表示（表・色・診断） | ロジック |
-| `web/` | 表示と操作 | 物理計算、次元の計算、単位の換算、文字列の分解による ID やパスの解釈（API が構造で返す） |
+| `web/` | 表示と操作 | 物理計算、次元の計算、単位の換算、文字列の分解による ID やパスの解釈（API が構造で返す）、判定と集計（KPI の代表値の選び方・判定の数え方・塗りの比。API が返す） |
 
 ## コーディング規約
 
@@ -46,7 +48,7 @@ Web の禁止事項（`fetch(` は API クライアントだけ、数の整形�
 - 解析の関数には手計算や文献値と比べるテストを最低 1 つ付ける。リファクタリングではデモの解析結果の数値が変わらないことを確かめる。
 - TypeScript: strict、Biome、`any` を使わない。API の型は `web/src/api/gen/`（ts-rs の生成物）だけを使い、手で書かない。
   型を変えたら `cargo test -p fune-service export_ts` で作り直してコミットする（CI が差分を検査する）。
-- Web の UI: 文言は i18n の辞書（日本語と英語の両方）。数と量の表示は API の整形（`Formatted`）を使う。読み込み中は `kit/Loading.tsx` のスケルトン。
+- Web の UI: 文言は i18n の辞書（日本語と英語の両方）。数と量の表示は API の整形（`Formatted`）を使う。読み込み中は `kit/feedback/Loading.tsx` のスケルトン。
   書体は Noto Sans JP（等幅は Noto Sans Mono と BIZ UDゴシック）。Radix の `asChild` に渡す子の `className` は文字列にする（関数は崩れる）。
 - 依存は最新の安定版を固定する（2 週間以上前に出た版）。パッケージ管理は pnpm。言語は Rust と TS だけ。
 - TOML の書き方は docs/model.md §10（書き出しは TOML 1.0 の範囲）。デモのデータ（`fixtures/`）も CLI（`fune part place`・`fune set` など）で編集し、
@@ -54,7 +56,10 @@ Web の禁止事項（`fetch(` は API クライアントだけ、数の整形�
 
 ## 進め方
 
-- コミットメッセージは英語。日々の作業は `develop` に入れる（CI: 構成・Rust・web・同梱ビルド）。
+- コミットメッセージは英語。日々の作業は `develop` に入れる（CI: 構成・Rust・web・同梱ビルド。PR では変更した部分の検査だけを回し、同梱ビルドは develop と main への push で回す）。
+- 作業は Issue に紐づける。Issue ごとに develop からブランチ `issue-<番号>-<短い名前>`（例: `issue-21-port-refs`）を切り、
+  develop への PR で入れる。PR の本文には、Issue を閉じるなら `Closes #<番号>`、段階の一部なら `Part of #<番号>` を書く。
+  コミットメッセージの件名の末尾にも `(#<番号>)` を付ける。Issue の無い小さな直し（文書の誤字など）だけは develop に直接入れてよい。
 - `main` はリリースだけ。develop からの PR でだけ入れ、PR の前に develop で版を上げる（`Cargo.toml` の `[workspace.package] version` と
   `web/package.json` の `version` を同じ値に）。PR では release.yml が「版が揃っていて、まだ出ていない」ことを検査し、main に入ると
   コンテナイメージ（`ghcr.io/<owner>/fune:<版>`）・タグ `v<版>`・GitHub Release を作る。タグは手で打たない。

@@ -5,16 +5,19 @@
 //!
 //! | モジュール | 責務 |
 //! |---|---|
+//! | `case_policy` | 解析ごとの既定ケースの対象宣言と解決 |
 //! | `context` | 解析ケースの文脈と、どの解析でも使う入力（軌道・地上局・姿勢則・モード） |
 //! | `timeline` | 時系列の仕様（軌道・姿勢則・期間・刻み・β） |
 //! | `parts` | 解決済みの部品から値を取り出す部品（役割での選択・型付きの量・機体座標の方向） |
 //! | `pose` | 取付の連鎖 → 機体座標の位置・姿勢（sat-astro の Quat で合成。合成はここだけ） |
 //! | `quantity` | 書かれた量 → 型付きの SI 量（換算は sat-units） |
 //! | `missing` | 不足入力の型と収集 |
-//! | `power` `attitude` `cdh` `comm` `thermal` `structure` | 系ごとの射影 |
+//! | `power` `aocs` `cdh` `comm` `thermal` `structure` | 系ごとの射影 |
 //! | `dispatch` | 解析 ID → 射影（入力の JSON）の対応表。実行は service（`sat_analysis::catalog::run_json`） |
+//! | `system` | 解析の系の対応（model の `AnalysisSystem` ⇄ sat-analysis の `System`）と一致のテスト |
 
-pub mod attitude;
+pub mod aocs;
+pub mod case_policy;
 pub mod cdh;
 pub mod comm;
 pub mod context;
@@ -25,6 +28,7 @@ pub mod pose;
 pub mod power;
 pub mod quantity;
 pub mod structure;
+pub mod system;
 pub mod thermal;
 pub mod timeline;
 

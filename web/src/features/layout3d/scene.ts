@@ -1,6 +1,6 @@
-import { Vector3 } from "three";
+import { Box3, Quaternion, Vector3 } from "three";
 import type { DesignView, PartRow } from "@/api/types";
-import { subsystemTone } from "@/lib/subsystems";
+import { systemTone } from "@/lib/systems";
 import { toneHex } from "@/lib/tone";
 
 export type V3 = [number, number, number];
@@ -33,8 +33,7 @@ export interface Axis3D {
 export function axesOf(design: DesignView): Axis3D[] {
   const out: Axis3D[] = [];
   for (const p of design.parts) {
-    const pos = p.mount?.body_position;
-    if (!pos) continue;
+    if (!p.mount) continue;
     for (const attr of AXIS_ATTRS) {
       const v = p.values[attr]?.value;
       if (v?.type !== "vector") continue;
@@ -47,36 +46,90 @@ export function axesOf(design: DesignView): Axis3D[] {
   return out;
 }
 
-/** size が無い部品の仮の箱 [m] */
-export const DEFAULT_BOX: V3 = [0.05, 0.05, 0.05];
+/** Bounds の最大辺に対する表示寸法の比。装飾の寸法はここだけで定義する。 */
+export const SCENE_RATIOS = {
+  defaultBox: 0.12,
+  arrow: 0.25,
+  arrowHead: 0.06,
+  arrowWidth: 0.035,
+  comRadius: 0.025,
+  axes: 0.5,
+  grid: 6,
+  gridCell: 0.05,
+  gridSection: 0.5,
+  gridFade: 10,
+  cameraX: 2,
+  cameraY: -2.3,
+  cameraZ: 1.7,
+  near: 0.001,
+  far: 100,
+} as const;
+
+/** 外形も位置の広がりも無い設計だけに使う表示の基準 [m]。 */
+const EMPTY_EXTENT = 1;
+
+/** 回転を含む機体座標での外形。未寸法の部品は位置だけを含める。 */
+export function boundsOf(boxes: readonly Box3D[]): Box3 {
+  const bounds = new Box3();
+  for (const box of boxes) {
+    const [w, x, y, z] = box.orientation;
+    const q = new Quaternion(x, y, z, w);
+    for (const sx of [-1, 1])
+      for (const sy of [-1, 1])
+        for (const sz of [-1, 1]) {
+          bounds.expandByPoint(
+            new Vector3((sx * box.size[0]) / 2, (sy * box.size[1]) / 2, (sz * box.size[2]) / 2)
+              .applyQuaternion(q)
+              .add(new Vector3(...box.position)),
+          );
+        }
+  }
+  return bounds;
+}
+
+/** すべての表示寸法を外形の最大辺から作る。倍率は Bounds と同じになる。 */
+export function sceneDimensions(bounds: Box3): Record<keyof typeof SCENE_RATIOS, number> {
+  const size = bounds.getSize(new Vector3());
+  const extent = Math.max(size.x, size.y, size.z) || EMPTY_EXTENT;
+  return Object.fromEntries(
+    Object.entries(SCENE_RATIOS).map(([key, ratio]) => [key, extent * ratio]),
+  ) as Record<keyof typeof SCENE_RATIOS, number>;
+}
 
 function sizeOf(p: PartRow): V3 | null {
   const v = p.values.size?.value;
   return v?.type === "vector" ? v.si : null;
 }
 
-/** 設計から 3D の箱を作る（機体座標が導出できた部品だけ）。色はサブシステム色か、colorOf の上書き */
+/** 設計から 3D の箱を作る（機体座標が導出できた部品だけ）。色は系の色か、colorOf の上書き */
 export function boxesOf(
   design: DesignView,
   colorOf?: (id: string) => string | undefined,
-): { boxes: Box3D[]; unplaced: string[] } {
+): { boxes: Box3D[]; unplaced: string[]; dimensions: ReturnType<typeof sceneDimensions> } {
   const boxes: Box3D[] = [];
   const unplaced: string[] = [];
   for (const p of design.parts) {
-    const pos = p.mount?.body_position;
-    if (!pos) {
+    // 取付のある部品だけを置く（取付があれば機体座標の位置・姿勢は必ず API が返す）
+    const m = p.mount;
+    if (!m) {
       unplaced.push(p.id);
       continue;
     }
     const size = sizeOf(p);
     boxes.push({
       id: p.id,
-      position: pos,
-      orientation: p.mount?.body_orientation ?? [1, 0, 0, 0],
-      size: size ?? DEFAULT_BOX,
-      color: colorOf?.(p.id) ?? toneHex[subsystemTone(p.subsystem, p.role)],
+      position: m.body_position,
+      orientation: m.body_orientation,
+      size: size ?? [0, 0, 0],
+      color: colorOf?.(p.id) ?? toneHex[systemTone(p.system)],
       sized: size !== null,
     });
   }
-  return { boxes, unplaced };
+  const bounds = boundsOf(boxes);
+  const dimensions = sceneDimensions(bounds);
+  for (const box of boxes) {
+    if (!box.sized)
+      box.size = [dimensions.defaultBox, dimensions.defaultBox, dimensions.defaultBox];
+  }
+  return { boxes, unplaced, dimensions };
 }

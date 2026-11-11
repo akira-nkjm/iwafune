@@ -1,20 +1,20 @@
 import { lazy, type ReactNode, Suspense } from "react";
-import type { AnalysisEntry, DesignView } from "@/api/types";
+import { AnalysisCard } from "@/analysis/AnalysisCard";
+import { fieldLabel } from "@/analysis/fields";
+import { collectSeries, collectTables } from "@/analysis/output";
+import { ResultTable } from "@/analysis/ResultTable";
+import type { AnalysisState } from "@/api/queries";
+import type { AnalysisEntry, DesignView, System } from "@/api/types";
 import { SettingsTable } from "@/features/project/SettingsTable";
 import { useT } from "@/i18n";
 import { analysisTitle } from "@/i18n/analysis-names";
-import { Empty } from "@/kit/Empty";
-import { Loading, SkeletonTable } from "@/kit/Loading";
-import { Panel } from "@/kit/Panel";
-import { PanelHeader } from "@/kit/PanelHeader";
-import { Skeleton } from "@/ui/skeleton";
-import { AnalysisCard } from "./AnalysisCard";
-import { fieldLabel } from "./fields";
-import { collectSeries, collectTables } from "./output";
-import { ResultTable } from "./ResultTable";
+import { Empty } from "@/kit/feedback/Empty";
+import { Loading, SkeletonBlock, SkeletonTable } from "@/kit/feedback/Loading";
+import { Panel } from "@/kit/panel/Panel";
+import { PanelHeader } from "@/kit/panel/PanelHeader";
+import { TablePanel } from "@/kit/table/TablePanel";
+import { systemTitle } from "@/lib/design";
 import { SystemPartsTable } from "./SystemPartsTable";
-import { type SystemSpec, systemTitle } from "./systems";
-import type { AnalysisState } from "./use-analyses";
 
 /** グラフ（recharts）は時系列のタブを開いたときだけ読む。系のページの最初のチャンクを小さくするため */
 const SeriesChart = lazy(() => import("./SeriesChart").then((m) => ({ default: m.SeriesChart })));
@@ -24,23 +24,26 @@ export type SystemTab = "results" | "breakdown" | "settings" | "series";
 /** 系のページのタブの中身（結果・内訳・設定・時系列）。extra は系ごとの追加の表示（熱の温度表、構造の 3D など） */
 export function SystemTabs({
   tab,
-  spec,
+  system,
   design,
   states,
   entries,
   extra,
+  noAnalyses = false,
 }: {
   tab: SystemTab;
-  spec: SystemSpec;
+  system: System;
   design: DesignView | undefined;
   states: AnalysisState[];
   entries: Map<string, AnalysisEntry>;
   extra?: Partial<Record<SystemTab, ReactNode>>;
+  noAnalyses?: boolean;
 }) {
   const dict = useT();
   if (tab === "results")
     return (
       <>
+        {noAnalyses && <Empty>{dict.systems.noAnalyses}</Empty>}
         {extra?.results}
         <div className="grid gap-4 xl:grid-cols-2">
           {states.map((s) => (
@@ -52,56 +55,47 @@ export function SystemTabs({
   if (tab === "breakdown")
     return (
       <>
-        <Panel pad={false}>
-          <div className="p-4 pb-2">
-            <PanelHeader
-              className="mb-0"
-              title={dict.systems.partsAttrs}
-              caption={dict.systems.partsAttrsCaption}
-            />
-          </div>
+        <TablePanel title={dict.systems.partsAttrs} caption={dict.systems.partsAttrsCaption}>
           {design ? (
-            <SystemPartsTable design={design} spec={spec} />
+            <SystemPartsTable design={design} system={system} />
           ) : (
             <Loading>
               <SkeletonTable rows={6} cols={5} />
             </Loading>
           )}
-        </Panel>
+        </TablePanel>
         {extra?.breakdown}
         {states.map((s) => {
           const tables = s.result?.output ? collectTables(s.result.output) : [];
           return tables.map((t) => (
-            <Panel key={`${s.id}:${t.path}`} pad={false}>
-              <div className="p-4 pb-2">
-                <PanelHeader
-                  className="mb-0"
-                  title={`${analysisTitle(entries.get(s.id)?.info, s.id)} — ${fieldLabel(t.key)}`}
-                  caption={<span className="font-mono">{`${s.id} · ${t.path}`}</span>}
-                />
-              </div>
-              <ResultTable rows={t.rows} pointer={t.pointer} dims={s.result?.dims} />
-            </Panel>
+            <TablePanel
+              key={`${s.id}:${t.path}`}
+              title={`${analysisTitle(entries.get(s.id)?.info, s.id)} — ${fieldLabel(t.key)}`}
+              caption={<span className="font-mono">{`${s.id} · ${t.path}`}</span>}
+            >
+              <ResultTable
+                rows={t.rows}
+                at={t.at}
+                dims={s.result?.dims}
+                labels={s.result?.labels}
+              />
+            </TablePanel>
           ));
         })}
       </>
     );
   if (tab === "settings") {
-    const settings = (design?.settings ?? []).filter((x) =>
-      spec.settings.some((p) => x.key.startsWith(p)),
-    );
+    // 系と設定の対応は API（`SettingView.system`。正本は fune_service の query::settings）
+    const settings = (design?.settings ?? []).filter((x) => x.system === system);
+    const files = [...new Set(settings.flatMap((x) => (x.file ? [x.file] : [])))];
     return (
       <>
-        <Panel pad={false}>
-          <div className="p-4 pb-2">
-            <PanelHeader
-              className="mb-0"
-              title={dict.systems.settingsTitle(systemTitle(spec.key, design?.defs))}
-              caption={dict.systems.settingsCaption(spec.settings.join(" / "))}
-            />
-          </div>
+        <TablePanel
+          title={dict.systems.settingsTitle(systemTitle(system, design?.defs))}
+          caption={files.length > 0 ? dict.systems.settingsCaption(files.join(" / ")) : undefined}
+        >
           <SettingsTable settings={settings} empty={dict.systems.noSettings} />
-        </Panel>
+        </TablePanel>
         {states.map((s) =>
           s.result?.input ? (
             <Panel key={s.id}>
@@ -137,7 +131,7 @@ export function SystemTabs({
           <Suspense
             fallback={
               <Loading>
-                <Skeleton className="h-56 w-full" />
+                <SkeletonBlock className="h-56 w-full" />
               </Loading>
             }
           >

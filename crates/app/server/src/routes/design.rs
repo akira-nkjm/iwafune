@@ -1,12 +1,13 @@
-//! 読み取りの API: `/project`・`/design`・`/parts`・`/parts/{id}`・`/values/{path}`・`/defs`・`/diagnostics`。
+//! 読み取りの API: `/project`・`/design`・`/parts`・`/parts/{id}`（POST は下書きを当てる）・`/values/{path}`・`/defs`・
+//! `/diagnostics`。
 
-use super::{ApiQuery, AppState, blocking};
+use super::{ApiJson, ApiQuery, AppState, blocking};
 use crate::error::ApiError;
 use axum::Json;
 use axum::extract::{Path, State};
 use fune_service::dto::{
-    CheckReport, DefsView, DesignView, PartRow, PartView, PartsQuery, ProjectInfo, ValueAnswer,
-    ValueQuery,
+    CheckReport, DefsView, DesignView, PartRow, PartView, PartViewRequest, PartsQuery, ProjectInfo,
+    ValueAnswer, ValueQuery,
 };
 use fune_service::query;
 
@@ -20,7 +21,7 @@ pub async fn design(State(s): State<AppState>) -> Result<Json<DesignView>, ApiEr
     blocking(&s, query::design_view).await.map(Json)
 }
 
-/// GET `/parts?group=AOCS&kind=reaction_wheel`
+/// GET `/parts?group=aocs&kind=reaction_wheel`
 pub async fn parts(
     State(s): State<AppState>,
     ApiQuery(q): ApiQuery<PartsQuery>,
@@ -35,7 +36,20 @@ pub async fn part(
     State(s): State<AppState>,
     Path(id): Path<String>,
 ) -> Result<Json<PartView>, ApiError> {
-    blocking(&s, move |ws| query::part_view(ws, &id))
+    blocking(&s, move |ws| {
+        query::part_view(ws, &id, &PartViewRequest::default())
+    })
+    .await
+    .map(Json)
+}
+
+/// POST `/parts/{id}` `{ ops }`: 保存していない編集を当てた設計の部品（書き込まない）
+pub async fn part_with(
+    State(s): State<AppState>,
+    Path(id): Path<String>,
+    ApiJson(req): ApiJson<PartViewRequest>,
+) -> Result<Json<PartView>, ApiError> {
+    blocking(&s, move |ws| query::part_view(ws, &id, &req))
         .await
         .map(Json)
 }

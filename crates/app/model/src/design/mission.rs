@@ -2,6 +2,7 @@
 //!
 //! 値はすべて任意（`Option`）。足りない入力は projection が `mission.orbit.altitude` のようなパスで列挙する。
 
+use crate::enum_text::enum_text;
 use crate::value::Quantity;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -18,14 +19,15 @@ pub struct MissionSettings {
     pub launch: Option<LaunchSettings>,
 }
 
-/// 軌道の伝搬方法。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename = "OrbitPropagatorKind")]
-pub enum PropagatorKind {
-    Kepler,
-    J2,
-    Numerical,
+enum_text! {
+    /// 軌道の伝搬方法。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+    #[ts(rename = "OrbitPropagatorKind")]
+    pub enum PropagatorKind: "軌道の伝搬方法" {
+        Kepler = "kepler",
+        J2 = "j2",
+        Numerical = "numerical",
+    }
 }
 
 /// 軌道（`mission/orbit.toml`）。円軌道は `altitude`、一般の軌道は `semi_major_axis` 以下の要素で書く。

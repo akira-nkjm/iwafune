@@ -22,10 +22,8 @@ pub struct DataItem {
     pub path: String,
     /// ファイルがあるか
     pub present: bool,
-    /// バイト数
-    pub size: Option<u64>,
-    /// 大きさの表示（`"20.7 MB"`）
-    pub size_display: Option<QuantityView>,
+    /// 大きさ（ファイルが無ければ null。`display` は `"20.7 MB"`）
+    pub size: Option<QuantityView>,
     pub sha256_expected: String,
     /// SHA-256 が一致したか（ファイルが無ければ null）
     pub verified: Option<bool>,

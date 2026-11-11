@@ -55,7 +55,7 @@ fn input(panels: Vec<SolarPanel>, cases: Vec<EnergyBalanceCase>) -> EnergyBalanc
         life: SolarLife::Bol,
         batteries: vec![battery_100wh()],
         loads: ModeLoadInput::default(),
-        without_growth: false,
+        load_growth: LoadGrowth::Included,
         cases,
     }
 }
@@ -97,11 +97,40 @@ fn discharge_only_by_hand() {
     assert!((c.max_dod.value() - (1.0 - expect)).abs() < 1e-9);
     // 1 周の余裕は −10 W × 周期
     let margin = -10.0 * out.period.value();
-    assert!((c.energy_margin_per_orbit.value() - margin).abs() < 1e-6 * margin.abs());
+    assert!(out.complete_orbits >= 2);
+    assert!((c.energy_margin_per_orbit.unwrap().value() - margin).abs() < 1e-6 * margin.abs());
+    assert_eq!(c.energy_margin_over_span, None);
     let verdict = |k: &str| c.checks.iter().find(|x| x.key == k).unwrap().verdict;
     assert_eq!(verdict("dod"), Verdict::Violation);
     assert_eq!(verdict("energy_balance"), Verdict::Violation);
     assert!((c.peak_discharge_current.value() - 9.5 / 8.0).abs() < 1e-12);
+}
+
+#[test]
+fn half_orbit_reports_span_balance_without_judging_per_orbit_margin() {
+    for watts in [0.0, 9.5] {
+        let mut i = input(Vec::new(), vec![constant("idle", watts)]);
+        i.timeline = leo_timeline(sun_pointing_z(), 0.5, 10.0);
+        let out = EnergyBalance::run(&i).unwrap();
+        let c = &out.cases[0];
+        assert_eq!(out.complete_orbits, 0);
+        assert_eq!(out.span_fallback, Some(SpanFallback::OrbitMeanOverSpan));
+        assert!(c.orbits.is_empty());
+        assert_eq!(c.energy_margin_per_orbit, None);
+        // 発電なし: 9.5 W / 放電効率 0.95 = 10 W。周期へ換算せず実際の期間を掛ける。
+        let span = c.series.t.last().unwrap() - c.series.t[0];
+        let expected = 0.0 - watts / 0.95 * span;
+        assert!((c.energy_margin_over_span.unwrap().value() - expected).abs() < 1e-6);
+        let check = c.checks.iter().find(|c| c.key == "energy_balance").unwrap();
+        assert_eq!(check.verdict, Verdict::Warning);
+        assert_eq!(
+            check.message,
+            format!(
+                "解析期間が 1 周に満たないため 1 周あたりの余裕を判定できない（解析期間の収支は {}、電池の効率込み）",
+                crate::spec::quantity_text::<Energy>(expected)
+            )
+        );
+    }
 }
 
 #[test]
@@ -117,7 +146,8 @@ fn sun_pointing_eclipse_dod_by_hand() {
         "{} vs {expect}",
         c.max_eclipse_dod.value()
     );
-    assert!(c.energy_margin_per_orbit.value() > 0.0);
+    assert!(c.energy_margin_per_orbit.unwrap().value() > 0.0);
+    assert_eq!(c.energy_margin_over_span, None);
     assert!(
         c.checks.iter().all(|x| x.verdict == Verdict::Ok),
         "{:?}",
@@ -134,7 +164,11 @@ fn sunlit_and_eclipse_modes() {
         id: id.to_owned(),
         label: String::new(),
         group: String::new(),
-        power: [("on".to_owned(), Qty::from_raw(w))].into_iter().collect(),
+        count: 1,
+        power: crate::modes::StateValues {
+            default: None,
+            by_state: [("on".to_owned(), Qty::from_raw(w))].into(),
+        },
         growth_margin: Some(0.0),
     };
     let on = |p: &str| StateAssignment {
@@ -249,7 +283,7 @@ fn inertial_law_toward_the_sun_lights_the_panel_fully() {
     i.timeline.attitude = AttitudeLaw::Inertial {
         q_body_to_eci: sat_astro::math::Quat::IDENTITY,
     };
-    i.array.panels[0].normal = sat_astro::ephem::sun_direction_eci(i.timeline.orbit.epoch);
+    i.array.panels[0].normal = sat_astro::ephem::sun_direction_eci(i.timeline.orbit().epoch);
     let out = EnergyBalance::run(&i).unwrap();
     let full = 0.0827 * 0.295 * 0.73 * 1361.0;
     let sunlit = &out

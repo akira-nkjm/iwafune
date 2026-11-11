@@ -1,12 +1,15 @@
+import { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 import type { PartRow } from "@/api/types";
+import { systemTone } from "@/lib/systems";
+import { toneHex } from "@/lib/tone";
 import { fixture } from "@/test/fixture";
-import { axesOf, boxesOf } from "./scene";
+import { axesOf, boundsOf, boxesOf } from "./scene";
 
 const base = fixture.parts[0]!;
 
 describe("3D 配置", () => {
-  it("機体座標の無い部品は未配置に回す", () => {
+  it("取付の無い部品は未配置に回す", () => {
     const { boxes, unplaced } = boxesOf(fixture);
     expect(boxes).toEqual([]);
     expect(unplaced).toEqual(["RW_X", "PCDU", "TRX"]);
@@ -19,7 +22,7 @@ describe("方向ベクトルの矢印", () => {
     const p: PartRow = {
       ...base,
       mount: {
-        on: null,
+        on: "BUS_FRAME",
         point: null,
         position: [0, 0, 0],
         authored_position: null,
@@ -41,5 +44,77 @@ describe("方向ベクトルの矢印", () => {
     expect(a?.dir[0]).toBeCloseTo(0);
     expect(a?.dir[1]).toBeCloseTo(0);
     expect(a?.dir[2]).toBeCloseTo(1);
+  });
+});
+
+// 外形と表示寸法の比例は CubeSat（0.1 m）と 1 m 級で同じ。
+describe("外形に対する表示寸法", () => {
+  function designAt(scale: number) {
+    const mount = {
+      on: "body",
+      point: null,
+      position: [0, 0, 0] as [number, number, number],
+      authored_position: null,
+      orientation: [1, 0, 0, 0] as [number, number, number, number],
+      body_position: [0, 0, 0] as [number, number, number],
+      body_orientation: [1, 0, 0, 0] as [number, number, number, number],
+    };
+    const sized: PartRow = {
+      ...base,
+      id: "sized",
+      mount,
+      values: {
+        size: {
+          ...base.values.mass!,
+          attr: "size",
+          value: {
+            type: "vector",
+            x: scale,
+            y: scale / 2,
+            z: scale / 3,
+            unit: "m",
+            si: [scale, scale / 2, scale / 3],
+            frame: null,
+          },
+        },
+      },
+    };
+    const unsized: PartRow = {
+      ...base,
+      id: "unsized",
+      mount,
+      values: {},
+      system: "payload",
+      parent: "aocs",
+    };
+    return { ...fixture, parts: [sized, unsized] };
+  }
+
+  it("外形が 10 倍なら仮の箱・矢印・重心・軸・グリッド・カメラも 10 倍", () => {
+    const small = boxesOf(designAt(0.1));
+    const large = boxesOf(designAt(1));
+    for (const key of Object.keys(small.dimensions) as (keyof typeof small.dimensions)[]) {
+      expect(large.dimensions[key]).toBeCloseTo(small.dimensions[key] * 10);
+    }
+    expect(large.boxes[1]!.size[0]).toBeCloseTo(small.boxes[1]!.size[0] * 10);
+  });
+
+  it("親の名前によらず API の system で色を決める", () => {
+    const { boxes } = boxesOf(designAt(0.1));
+    expect(boxes[1]!.color).toBe(toneHex[systemTone("payload")]);
+    const design = designAt(0.1);
+    design.parts[1]!.system = null;
+    expect(boxesOf(design).boxes[1]!.color).toBe(toneHex.gray);
+  });
+
+  it("回転した箱の外形も含め、未寸法だけでも有限の寸法にする", () => {
+    const design = designAt(1);
+    design.parts[0]!.mount!.body_orientation = [Math.SQRT1_2, 0, 0, Math.SQRT1_2];
+    const b = boundsOf(boxesOf(design).boxes).getSize(new Vector3());
+    expect(b.x).toBeCloseTo(0.5);
+    expect(b.y).toBeCloseTo(1);
+    const only = boxesOf({ ...design, parts: [design.parts[1]!] });
+    expect(only.boxes[0]!.size[0]).toBeGreaterThan(0);
+    expect(Object.values(only.dimensions).every(Number.isFinite)).toBe(true);
   });
 });

@@ -9,32 +9,42 @@
 //! | `catalog` | カタログ品の表示（値・パス・使っている部品） |
 //! | `value` | 値の表示（部品・カタログ品・設定で共有） |
 //! | `edit` | Op の適用と、人が打った文字列（`SetText`・`UnsetText`） |
+//! | `command` | 名詞のコマンドに打った引数（`CommandText`。`fune net set`・`fune part place`・`fune mode set` など） |
 //! | `budget` | 質量・電力・データ量のバジェット |
+//! | `kpi` | KPI（系の代表値・判定・塗りの比・判定の数え方）と塗りの比 |
 //! | `data` | 外部データ（DE440）の状態 |
 
 mod analysis;
 mod budget;
 mod catalog;
+mod command;
 mod common;
 mod data;
 mod design;
 mod edit;
 mod format;
 pub use format::{FormatDesignRequest, FormatDesignResult};
+mod kpi;
+pub use kpi::{FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView};
 mod units;
 mod value;
 
 pub use analysis::{
-    AnalysisEntry, AnalysisRunResult, AnalysisRunStatus, CheckView, DisplayChannel, DisplaySeries,
-    RunAnalysisRequest,
+    AnalysisCaseSource, AnalysisEntry, AnalysisInputSource, AnalysisLabel, AnalysisRunResult,
+    AnalysisRunStatus, CheckView, DisplayChannel, DisplaySeries, RunAnalysisRequest,
 };
 pub use budget::{BudgetRequest, BudgetRow, BudgetView};
-pub use catalog::CatalogItemView;
+pub use catalog::{CatalogItemView, CatalogSourceView};
+pub use command::{
+    AttrAddText, CommandText, KindAddText, ModeCellText, ModeSetText, NetSetText, NetUnsetText,
+    PlaceText,
+};
 pub use common::{
     CheckReport, DiagnosticCounts, DiagnosticView, ErrorEnvelope, ErrorInfo, QuantityView,
     SourceExcerpt,
 };
 pub use data::{DataItem, DataStatus};
+pub use design::PartViewRequest;
 pub use design::{
     AttrSection, AttributeDefView, CaseView, DefsView, DesignCounts, DesignView, HarnessView,
     KindDefView, ModeHeader, ModeRow, ModeTable, MountView, NetView, PartRow, PartView, PartsQuery,
@@ -56,8 +66,8 @@ pub use fune_model::resolve::{Evidence, Origin};
 pub use fune_model::value::{Provenance, Quantity, Quaternion, SettingValue, Value, Vector3};
 pub use fune_model::{Diagnostic, Severity};
 pub use fune_ops::{ModeCell, Op, ViewNodePos};
+pub use fune_projection::MissingInput;
 pub use sat_analysis::spec::{AnalysisInfo, AnalysisKind, Channel, Check, Series, System, Verdict};
-pub use sat_units::format::FormattedQuantity;
 pub use units::{
     DimensionInfo, FormatItem, FormatRequest, FormatResponse, ParseQuantityRequest, ParsedQuantity,
     UnitInfo, UnitMapping, UnitsCatalog, UnitsQuery,

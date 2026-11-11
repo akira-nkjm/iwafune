@@ -42,8 +42,8 @@ pub enum Op {
         id: String,
         to: String,
     },
-    /// グループ（サブシステム）の名前を変える。`parts/` の下のディレクトリを移し、fune.toml の表示名・配分・
-    /// 図の配置の参照も書き換える（例: ADCS → AOCS）。
+    /// 系の下の入れ子のフォルダ（グループ）の名前を変える。`parts/` の下のディレクトリを移し、図の配置の参照も書き換える。
+    /// 最上位のフォルダは系の ID なので、系の ID 以外には変えられない（`fune check` の error）。
     RenameGroup {
         id: String,
         to: String,

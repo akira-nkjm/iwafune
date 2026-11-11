@@ -4,11 +4,11 @@
 //! 外形が無ければ点質量、`inertia` を与えればそれを使う。主慣性モーメントと主軸は `Mat3::symmetric_eigen` で求める。
 //! **質量特性はここだけ**: 姿勢の解析に渡す慣性も、projection が [`mass_properties`] を呼んで求める。
 
-use crate::budget::{BudgetItem, budget_rollup};
+use crate::budget::{BudgetItem, limit_check};
 use crate::spec::quantity_text;
 use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, Verdict};
 use sat_astro::math::{Mat3, Quat, Vec3};
-use sat_units::typed::{Fraction, Mass, Qty};
+use sat_units::typed::{Fraction, Length, Mass, Qty};
 use serde::{Deserialize, Serialize};
 
 /// 質量を持つ 1 部品。
@@ -199,7 +199,7 @@ fn parallel_axis(mass_kg: f64, d: Vec3) -> Mat3 {
     Mat3::IDENTITY.scale(mass_kg * d.norm_squared()) + Mat3::outer(d, d).scale(-mass_kg)
 }
 
-/// 総質量（`budget::budget_rollup` の判定。部品ごとに 1 行）と重心の判定。
+/// 総質量（`budget::limit_check` の判定。部品ごとに 1 行）と重心の判定。
 fn checks(
     input: &MassPropertiesInput,
     s: &MassPropertiesSummary,
@@ -209,15 +209,9 @@ fn checks(
         let rows: Vec<BudgetItem> = input
             .items
             .iter()
-            .map(|it| BudgetItem {
-                id: it.id.clone(),
-                group: String::new(),
-                value: it.mass.value(),
-                count: it.count,
-                growth: 0.0,
-            })
+            .map(|it| BudgetItem::counted(it.id.clone(), it.mass.value(), it.count))
             .collect();
-        out.extend(budget_rollup(&rows, Some(max.value()), 0.0)?.check("mass", "総質量", "Mass"));
+        out.extend(limit_check::<Mass>(&rows, max.value(), "mass", "総質量")?);
     }
     if let Some(b) = &input.com_box {
         let d = s.center_of_mass - b.center;
@@ -230,12 +224,12 @@ fn checks(
             Verdict::from_ok(inside),
             format!(
                 "中心からのずれ ({}, {}, {})、許容 (±{}, ±{}, ±{})",
-                quantity_text(d.x, "Length"),
-                quantity_text(d.y, "Length"),
-                quantity_text(d.z, "Length"),
-                quantity_text(b.half_extent.x, "Length"),
-                quantity_text(b.half_extent.y, "Length"),
-                quantity_text(b.half_extent.z, "Length")
+                quantity_text::<Length>(d.x),
+                quantity_text::<Length>(d.y),
+                quantity_text::<Length>(d.z),
+                quantity_text::<Length>(b.half_extent.x),
+                quantity_text::<Length>(b.half_extent.y),
+                quantity_text::<Length>(b.half_extent.z)
             ),
         ));
     }
@@ -345,7 +339,7 @@ mod tests {
         assert!((axis.dot(expected).abs() - 1.0).abs() < 1e-9, "{axis:?}");
     }
 
-    /// 員数 2 は 2 倍の質量・慣性として数え、総質量の判定はバジェット（`budget_rollup`）で行う。
+    /// 員数 2 は 2 倍の質量・慣性として数え、総質量の判定はバジェット（`budget::limit_check`）で行う。
     #[test]
     fn count_and_mass_budget() {
         let mut it = item(

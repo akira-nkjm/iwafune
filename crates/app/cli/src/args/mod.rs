@@ -157,6 +157,9 @@ pub enum Command {
     /// バジェット（mass / power / data）
     Budget {
         kind: String,
+        /// 解析ケースの ID（cases/<ID>.toml）。電力はケースのモード、データ量はケースのモードだけで数える
+        #[arg(long)]
+        case: Option<String>,
         /// 保存していない編集（Op の配列の JSON ファイル、`-` で標準入力）を書き込まずに当てて数える
         #[arg(long)]
         ops: Option<PathBuf>,

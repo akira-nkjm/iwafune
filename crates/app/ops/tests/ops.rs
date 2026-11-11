@@ -60,7 +60,7 @@ fn set_value_changes_exactly_one_line() {
     let snap = snapshot();
     let p = plan(&snap, &[set_mass("RW_X", 0.155, "kg")]).unwrap();
     assert_eq!(p.changes.len(), 1);
-    assert_eq!(p.changes[0].path, "parts/AOCS/RW_X.toml");
+    assert_eq!(p.changes[0].path, "parts/aocs/RW_X.toml");
     let (removed, added) = changed_lines(&p.changes[0]);
     assert_eq!(removed.len(), 1, "{removed:?}");
     // 出典を付けずに書いた値は、前の値の出典を引き継がない（EM 実測の値ではなくなるため）。
@@ -104,12 +104,9 @@ fn unit_dimension_mismatch_is_rejected() {
     let snap = snapshot();
     match plan(&snap, &[set_mass("RW_X", 1.0, "W")]) {
         Err(OpError::Rejected { diagnostics }) => {
-            assert!(
-                diagnostics
-                    .iter()
-                    .any(|d| d.code == "unit.dimension" && d.path.as_deref() == Some("RW_X.mass"))
-            );
-            assert_eq!(diagnostics[0].file.as_deref(), Some("parts/AOCS/RW_X.toml"));
+            assert!(diagnostics.iter().any(|d| d.code == "unit.dimension"
+                && d.target == Some(fune_model::Target::attr("RW_X", "mass"))));
+            assert_eq!(diagnostics[0].file.as_deref(), Some("parts/aocs/RW_X.toml"));
             assert!(diagnostics[0].line.is_some());
         }
         other => panic!("{other:?}"),
@@ -167,7 +164,7 @@ fn create_move_and_remove_part() {
     let snap = snapshot();
     let create = Op::CreatePart {
         id: "RW_S".into(),
-        group: Some("AOCS".into()),
+        group: Some("aocs".into()),
         catalog: Some("local/rw_10mNms".into()),
         kind: None,
         count: None,
@@ -178,7 +175,7 @@ fn create_move_and_remove_part() {
     assert!(
         p.changes
             .iter()
-            .any(|c| c.path == "parts/AOCS/RW_S.toml" && c.before.is_none())
+            .any(|c| c.path == "parts/aocs/RW_S.toml" && c.before.is_none())
     );
     assert_eq!(p.changes.len(), 5, "part file + 4 modes");
     assert_eq!(p.design.modes["SAFE"].states["RW_S"].state, "off");
@@ -186,11 +183,7 @@ fn create_move_and_remove_part() {
         root: snap.root.clone(),
         files: {
             let mut f = snap.files.clone();
-            for c in &p.changes {
-                if let Some(a) = &c.after {
-                    f.insert(c.path.clone(), a.clone());
-                }
-            }
+            fune_store::apply_changes(&mut f, &p.changes);
             f
         },
         design: p.design.clone(),
@@ -199,11 +192,11 @@ fn create_move_and_remove_part() {
         &after,
         &[Op::MovePart {
             id: "RW_S".into(),
-            to: Some("SPARE".into()),
+            to: Some("payload".into()),
         }],
     )
     .unwrap();
-    assert!(moved.design.groups.contains_key("SPARE"));
+    assert!(moved.design.groups.contains_key("payload"));
     let removed = plan(&after, &[Op::RemovePart { id: "RW_S".into() }]).unwrap();
     assert!(!removed.design.parts.contains_key("RW_S"));
     assert!(!removed.design.modes["SAFE"].states.contains_key("RW_S"));
@@ -242,7 +235,7 @@ fn settings_and_nets() {
         Op::CreateNet {
             net: {
                 let mut n = Net::new("P3V3_PL", NetKind::Power);
-                n.source = Some("PCDU.OUT1".into());
+                n.source = "PCDU.OUT1".parse().ok();
                 n.rail = Some(Quantity::new(3.3, "V"));
                 n
             },

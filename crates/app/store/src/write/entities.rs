@@ -5,7 +5,10 @@ use super::doc::{self, set_opt, string, strings, table_mut};
 use crate::codec::{encode_vector, float};
 use crate::error::StoreError;
 use crate::profile as format;
-use fune_model::design::{AttributeDef, KindDef, Mode, Net, NetField, StateAssign, ViewNode};
+use fune_model::design::{
+    AttributeDef, KindDef, Mode, Net, NetField, NetFieldName, StateAssign, ViewNode,
+};
+use fune_model::path::PortRef;
 use fune_model::value::{Quantity, SettingValue};
 use serde::Serialize;
 use toml_edit::{DocumentMut, InlineTable, Item, Table, Value};
@@ -83,18 +86,27 @@ pub fn set_mode_row(
     })
 }
 
-/// ネットの見出しのキー（正規の順）。
+/// ポートの参照（`"PCDU.OUT3"`。書き方は `PortRef` の `Display` だけ）。
+fn port(p: &PortRef) -> Item {
+    string(&p.to_string())
+}
+
+/// 型付きのフィールド → ファイルの値（None なら書かない）。新しいファイル・丸ごとの書き込み・1 フィールドの書き込みで共通。
+fn net_field_item(field: &NetField) -> Option<Item> {
+    match field {
+        NetField::Kind(k) => Some(string(k.as_str())),
+        NetField::Label(v) | NetField::Protocol(v) => v.as_deref().map(string),
+        NetField::Source(p) | NetField::Master(p) => p.as_ref().map(port),
+        NetField::Rail(q) | NetField::Limit(q) | NetField::Bitrate(q) => q.as_ref().map(quantity),
+    }
+}
+
+/// ネットの見出しのキー（正規の順は `NetFieldName` の宣言の順）。
 fn net_items(net: &Net) -> Vec<(&'static str, Option<Item>)> {
-    vec![
-        ("kind", Some(string(net.kind.as_str()))),
-        ("label", net.label.as_deref().map(string)),
-        ("source", net.source.as_deref().map(string)),
-        ("rail", net.rail.as_ref().map(quantity)),
-        ("limit", net.limit.as_ref().map(quantity)),
-        ("protocol", net.protocol.as_deref().map(string)),
-        ("bitrate", net.bitrate.as_ref().map(quantity)),
-        ("master", net.master.as_deref().map(string)),
-    ]
+    NetFieldName::ALL
+        .iter()
+        .map(|&key| (key.as_str(), net_field_item(&NetField::of(net, key))))
+        .collect()
 }
 
 /// 新しいネットのファイル。
@@ -120,13 +132,7 @@ pub fn write_net(edits: &mut Edits, file: &str, net: &Net) -> Result<(), StoreEr
 
 /// ネットのフィールドを 1 つ書く（None なら消す）。
 pub fn set_net_field(edits: &mut Edits, file: &str, field: &NetField) -> Result<(), StoreError> {
-    let item = match field {
-        NetField::Kind(k) => Some(string(k.as_str())),
-        NetField::Label(v) | NetField::Source(v) | NetField::Protocol(v) | NetField::Master(v) => {
-            v.as_deref().map(string)
-        }
-        NetField::Rail(q) | NetField::Limit(q) | NetField::Bitrate(q) => q.as_ref().map(quantity),
-    };
+    let item = net_field_item(field);
     edits.edit(file, |doc| {
         set_opt(doc.as_table_mut(), field.name(), item);
         Ok(())
@@ -134,7 +140,7 @@ pub fn set_net_field(edits: &mut Edits, file: &str, field: &NetField) -> Result<
 }
 
 /// serde の形をそのまま TOML にする（`id` はファイル名で決まるので書かない）。
-fn serde_text<T: Serialize>(path: &str, value: &T) -> Result<String, StoreError> {
+pub(super) fn serde_text<T: Serialize>(path: &str, value: &T) -> Result<String, StoreError> {
     let text = toml::to_string(value).map_err(|e| StoreError::edit(path, e.to_string()))?;
     let mut doc = doc::parse(path, &text)?;
     doc.as_table_mut().remove("id");

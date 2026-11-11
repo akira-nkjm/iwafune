@@ -1,5 +1,6 @@
 //! 見た目だけの情報（`view/<名前>.toml`。系統図の配置など）。解析は読まない。
 
+use crate::enum_text::enum_text;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
@@ -51,59 +52,32 @@ pub struct ViewEdge {
     pub target_offset: Option<i32>,
 }
 
-/// カードの端子を出す側。設計ファイルと CLI での書き方（`left` など）は [`ViewPortSide::as_str`] だけで決める。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum ViewPortSide {
-    Left,
-    Right,
-    Top,
-    Bottom,
-}
-
-impl ViewPortSide {
-    /// すべての側（CLI の選択肢の順）。
-    pub const ALL: [Self; 4] = [Self::Left, Self::Right, Self::Top, Self::Bottom];
-
-    /// 設計ファイルと CLI での書き方。serde の名前（snake_case）と同じ（テストで確かめる）。
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Left => "left",
-            Self::Right => "right",
-            Self::Top => "top",
-            Self::Bottom => "bottom",
-        }
+impl ViewEdge {
+    /// 経路が 2 点以上で、隣り合う点が水平か垂直に並んでいるか（**経路の規則はここだけ**。検査 `view.route` が使う）。
+    pub fn is_orthogonal(&self) -> bool {
+        self.points.len() >= 2
+            && self
+                .points
+                .windows(2)
+                .all(|p| p[0][0] == p[1][0] || p[0][1] == p[1][1])
     }
-}
 
-impl std::fmt::Display for ViewPortSide {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl std::str::FromStr for ViewPortSide {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::ALL
+    /// 端子の位置（側の左か上の角からの距離）が 0 以上か（検査 `view.port_offset` が使う）。
+    pub fn offsets_are_valid(&self) -> bool {
+        [self.source_offset, self.target_offset]
             .into_iter()
-            .find(|side| side.as_str() == s)
-            .ok_or_else(|| format!("`{s}` は端子の側ではありません（left / right / top / bottom）"))
+            .flatten()
+            .all(|o| o >= 0)
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::ViewPortSide;
-
-    #[test]
-    fn side_names_match_serde_and_parse_back() {
-        for side in ViewPortSide::ALL {
-            let json = serde_json::to_string(&side).unwrap();
-            assert_eq!(json, format!("\"{}\"", side.as_str()));
-            assert_eq!(side.as_str().parse::<ViewPortSide>(), Ok(side));
-        }
-        assert!("middle".parse::<ViewPortSide>().is_err());
+enum_text! {
+    /// カードの端子を出す側。設計ファイルと CLI での書き方（`left` など）は [`ViewPortSide::as_str`] だけで決める。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+    pub enum ViewPortSide: "端子の側" {
+        Left = "left",
+        Right = "right",
+        Top = "top",
+        Bottom = "bottom",
     }
 }

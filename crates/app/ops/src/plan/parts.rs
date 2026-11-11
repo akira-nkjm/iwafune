@@ -5,7 +5,7 @@ use crate::error::OpError;
 use crate::op::Op;
 use fune_model::Design;
 use fune_model::design::{Mount, NodeRef, Part, Pose, StateAssign};
-use fune_model::id::{Id, fold, validate_local_name, validate_node_id};
+use fune_model::id::{Id, clash, validate_local_name, validate_node_id};
 use fune_model::value::Value;
 use fune_store::Edits;
 use fune_store::layout::{self, dirs_for_parent, part_path};
@@ -117,16 +117,15 @@ pub(super) fn existing_file(design: &Design, id: &str) -> Result<String, OpError
     layout::part_file(design, id).ok_or_else(|| OpError::not_found(format!("部品 `{id}`")))
 }
 
-/// 新しいノード（部品・グループ）の ID として使えるか（規則と、大文字小文字を無視した一意性）。
+/// 新しいノード（部品・グループ）の ID として使えるか（規則と、大文字小文字を無視した一意性 `id::clash`）。
 fn new_node_id(design: &Design, id: &str) -> Result<(), OpError> {
     validate_node_id(id).map_err(|e| OpError::invalid(e.to_string()))?;
-    let taken = design
+    let nodes = design
         .parts
         .keys()
         .map(|k| k.as_str())
-        .chain(design.groups.keys().map(|k| k.as_str()))
-        .any(|k| fold(k) == fold(id));
-    if taken {
+        .chain(design.groups.keys().map(|k| k.as_str()));
+    if clash(nodes, id).is_some() {
         return Err(OpError::exists(format!("ID `{id}`")));
     }
     Ok(())
@@ -159,10 +158,8 @@ fn create_part(
     group: Option<&str>,
     mode_state: Option<&str>,
 ) -> Result<(), OpError> {
+    // `catalog` も `kind` も無い部品は検査（`part.no_definition`）の誤りになり、計画の最後に拒まれる
     new_node_id(design, part.id.as_str())?;
-    if part.catalog.is_none() && part.kind.is_none() {
-        return Err(OpError::invalid("部品には catalog か kind が要ります"));
-    }
     let (_, dirs) = parent_dirs(design, group)?;
     let file = part_path(&dirs, part.id.as_str());
     edits.create(&file, wpart::new_part_text(&part))?;

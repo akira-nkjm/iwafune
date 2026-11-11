@@ -1,11 +1,11 @@
 import { useState } from "react";
 import type { DesignView, Op } from "@/api/types";
 import { localized, useT } from "@/i18n";
-import { Field } from "@/kit/Field";
-import { NativeSelect } from "@/kit/NativeSelect";
-import { Segmented } from "@/kit/Segmented";
-import { TextInput } from "@/kit/TextInput";
-import { groupsOf, nodeName } from "@/lib/design";
+import { Field } from "@/kit/forms/Field";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
+import { TextInput } from "@/kit/forms/TextInput";
+import { Segmented } from "@/kit/selection/Segmented";
+import { defWithId, parentOptions, withNote } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
 
@@ -16,19 +16,20 @@ export function AddPartDialog({
   design,
   open,
   onOpenChange,
-  onCreated,
+  onDone,
   initialGroup,
 }: {
   design: DesignView;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated: (id: string) => void;
+  /** 作ったとき（新しい部品の ID） */
+  onDone: (id: string) => void;
   initialGroup?: string | null;
 }) {
   const t = useT();
   const ta = t.components.addPart;
   const [id, setId] = useState("");
-  const groups = groupsOf(design);
+  const groups = parentOptions(design);
   // カタログの品（GET /design の catalog）と、部品が参照している品（共有カタログを含む）
   const known = [
     ...new Set([
@@ -37,9 +38,9 @@ export function AddPartDialog({
     ]),
   ].sort();
   const catalogLabel = new Map(
-    design.catalog.map((c) => [c.id, `${localized(c.label, c.label_en)}（${c.kind}）`]),
+    design.catalog.map((c) => [c.id, withNote(localized(c.label, c.label_en), c.kind)]),
   );
-  const [group, setGroup] = useState(initialGroup ?? groups[0]?.id ?? "");
+  const [group, setGroup] = useState(initialGroup ?? groups[0]?.value ?? "");
   const [by, setBy] = useState<DefBy>(known.length > 0 ? "catalog" : "kind");
   const [catalog, setCatalog] = useState("");
   const [kind, setKind] = useState("");
@@ -73,7 +74,7 @@ export function AddPartDialog({
       summary={ta.summary(id)}
       confirmLabel={ta.confirm}
       onDone={() => {
-        onCreated(id);
+        onDone(id);
         setId("");
       }}
     >
@@ -93,7 +94,7 @@ export function AddPartDialog({
           value={group}
           onChange={(e) => setGroup(e.target.value)}
           placeholder={ta.noGroup}
-          options={groups.map((g) => ({ value: g.id, label: nodeName(g) }))}
+          options={groups}
         />
       </Field>
       <div className="grid gap-1.5">
@@ -128,13 +129,7 @@ export function AddPartDialog({
             value={kind}
             onChange={(e) => setKind(e.target.value)}
             placeholder={ta.pickKind}
-            options={design.defs.kinds.map((k) => ({
-              value: k.id,
-              label: (() => {
-                const l = localized(k.label, k.label_en);
-                return l && l !== k.id ? `${k.id} — ${l}` : k.id;
-              })(),
-            }))}
+            options={design.defs.kinds.map((k) => ({ value: k.id, label: defWithId(k) }))}
           />
         )}
       </div>

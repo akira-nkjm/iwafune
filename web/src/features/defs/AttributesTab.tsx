@@ -1,14 +1,19 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import type { DesignView, Op } from "@/api/types";
-import { type NewAttribute, NewAttributeFields } from "@/features/components/NewAttributeFields";
-import { localized, useT } from "@/i18n";
-import { DataTable } from "@/kit/DataTable";
-import { Panel } from "@/kit/Panel";
-import { PanelHeader } from "@/kit/PanelHeader";
-import { Pill } from "@/kit/Pill";
-import { Td } from "@/kit/Td";
-import { Th } from "@/kit/Th";
+import { useCommandOps } from "@/api/ops";
+import type { DesignView } from "@/api/types";
+import {
+  type NewAttribute,
+  NewAttributeFields,
+} from "@/features/components/parameters/NewAttributeFields";
+import { attrAddCommand } from "@/features/components/parameters/param-ops";
+import { useT } from "@/i18n";
+import { Pill } from "@/kit/status/Pill";
+import { DataTable } from "@/kit/table/DataTable";
+import { TablePanel } from "@/kit/table/TablePanel";
+import { Td } from "@/kit/table/Td";
+import { Th } from "@/kit/table/Th";
+import { defName } from "@/lib/design";
 
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
@@ -16,45 +21,30 @@ import { Button } from "@/ui/button";
 
 const EMPTY: NewAttribute = { id: "", label: "", dimension: "", units: [], byState: false };
 
-/** 属性定義（組み込み＋プロジェクト独自）。新しい属性は CreateAttribute（次元と許可単位を検査） */
+/**
+ * 属性定義（組み込み＋プロジェクト独自）。新しい属性は `fune attr add` と同じ引数を service で CreateAttribute にする
+ * （`attrAddCommand`。パラメーター追加と共通。次元と許可単位は適用のときに検査）
+ */
 export function AttributesTab({ design }: { design: DesignView }) {
   const t = useT();
   const ta = t.defs.attributes;
   const [adding, setAdding] = useState(false);
   const [fresh, setFresh] = useState<NewAttribute>(EMPTY);
   const attrs = design.defs.attributes;
-  const ops: Op[] | null =
-    fresh.id && fresh.dimension
-      ? [
-          {
-            op: "create_attribute",
-            def: {
-              id: fresh.id,
-              label: fresh.label || fresh.id,
-              type: "scalar",
-              dimension: fresh.dimension,
-              units: fresh.units,
-              by_state: fresh.byState,
-            },
-          },
-        ]
-      : null;
-  const idError = useOpCheck(adding ? ops : null).error;
+  const made = useCommandOps(adding ? attrAddCommand(fresh) : null);
+  const ops = made.ops;
+  const idError = useOpCheck(adding ? ops : null).error ?? made.error;
   return (
-    <Panel pad={false}>
-      <div className="p-4 pb-2">
-        <PanelHeader
-          className="mb-0"
-          title={ta.title}
-          caption={ta.caption(attrs.length, attrs.filter((a) => a.builtin).length)}
-          right={
-            <Button size="sm" onClick={() => setAdding(true)}>
-              <Plus size={13} />
-              {ta.add}
-            </Button>
-          }
-        />
-      </div>
+    <TablePanel
+      title={ta.title}
+      caption={ta.caption(attrs.length, attrs.filter((a) => a.builtin).length)}
+      right={
+        <Button size="sm" onClick={() => setAdding(true)}>
+          <Plus size={13} />
+          {ta.add}
+        </Button>
+      }
+    >
       <DataTable
         head={
           <>
@@ -72,7 +62,7 @@ export function AttributesTab({ design }: { design: DesignView }) {
         {attrs.map((a) => (
           <tr key={a.id} title={a.description ?? undefined}>
             <Td mono>{a.id}</Td>
-            <Td>{localized(a.label, a.label_en)}</Td>
+            <Td>{defName(a)}</Td>
             <Td mono className="text-ink-3">
               {a.value_type}
             </Td>
@@ -111,6 +101,6 @@ export function AttributesTab({ design }: { design: DesignView }) {
           <NewAttributeFields value={fresh} onChange={setFresh} idError={idError} />
         </OpDialog>
       )}
-    </Panel>
+    </TablePanel>
   );
 }

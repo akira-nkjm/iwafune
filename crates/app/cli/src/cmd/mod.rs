@@ -53,7 +53,9 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
         } => gui::run(&open(g)?, host, *port, allow_host, *no_open, out),
         Command::Analyze(a) if a.target == "ls" => analyze::ls(out),
         Command::Analyze(a) => analyze::run(&open(g)?, a, out),
-        Command::Budget { kind, ops } => analyze::budget(&open(g)?, kind, ops.as_deref(), out),
+        Command::Budget { kind, case, ops } => {
+            analyze::budget(&open(g)?, kind, case.as_deref(), ops.as_deref(), out)
+        }
         Command::Fmt { check } => {
             let result = fune_service::format::format_design(
                 &open(g)?,

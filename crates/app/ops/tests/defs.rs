@@ -28,7 +28,7 @@ fn attr_def(id: &str, dimension: &str, units: &[&str]) -> AttributeDef {
         budget: None,
         default: None,
         unit_vector: false,
-        section: Some("attitude".into()),
+        section: Some("aocs".into()),
     }
 }
 
@@ -63,6 +63,23 @@ fn create_attribute_checks_dimension_and_units() {
     ));
 }
 
+/// 部品・カタログ品のフィールド名と同じ ID の属性は作れない（規則は検査の `attribute_def_problems` の 1 か所）。
+#[test]
+fn create_attribute_rejects_field_names() {
+    let snap = snapshot();
+    for id in ["count", "label", "part_number", "Candidates"] {
+        let op = Op::CreateAttribute {
+            def: attr_def(id, "MagneticDipoleMoment", &["A*m^2"]),
+        };
+        match plan(&snap, &[op]) {
+            Err(OpError::Invalid { message }) => {
+                assert!(message.contains("フィールド名"), "{id}: {message}");
+            }
+            other => panic!("{id} の属性が作れてしまう: {other:?}"),
+        }
+    }
+}
+
 #[test]
 fn create_kind_and_use_it() {
     let snap = snapshot();
@@ -82,7 +99,7 @@ fn create_kind_and_use_it() {
         Op::CreateKind { def: kind },
         Op::CreatePart {
             id: "SAIL".into(),
-            group: Some("STRUCTURE".into()),
+            group: Some("structure".into()),
             catalog: None,
             kind: Some("deorbit_sail".into()),
             count: None,
@@ -145,7 +162,7 @@ fn set_field_place_and_unset() {
     let gps = p
         .changes
         .iter()
-        .find(|c| c.path == "parts/AOCS/GPS.toml")
+        .find(|c| c.path == "parts/aocs/GPS.toml")
         .unwrap();
     let after = gps.after.as_deref().unwrap();
     assert!(after.contains("[mount]\non    = \"PANEL_PZ\"\npoint = \"CAM_PORT\"\n\n[pose]\nposition    = { x = 30.0, y = 0.0, z = 0.0, unit = \"mm\" }"), "{after}");

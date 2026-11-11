@@ -5,4 +5,4 @@
 /parts/POWER/       @power-lead
 /parts/COM/       @com-lead
 /analysis/power.toml    @power-lead
-/analysis/attitude.toml @aocs-lead
+/analysis/aocs.toml @aocs-lead

@@ -2,6 +2,8 @@
 
 use super::defs::{AttributeDef, KindDef, NetKind};
 use super::net::Net;
+use crate::enum_text::enum_text;
+pub use crate::field_names::{CatalogFieldName, PartFieldName};
 use crate::id::Id;
 pub use crate::path::split_catalog_ref;
 use crate::value::{Authored, Quaternion, Value, Vector3};
@@ -36,27 +38,15 @@ pub struct Group {
     pub id: Id<Group>,
     /// ディレクトリから決まる親（最上位なら None）
     pub parent: Option<NodeRef>,
-    /// `fune.toml` の `[groups]` の表示名
-    pub label: Option<String>,
 }
 
-/// 成熟度（成長余裕と不確かさの既定幅を決める）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum Maturity {
-    OffTheShelf,
-    Modified,
-    New,
-}
-
-impl Maturity {
-    /// ファイルに書く綴り。
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Maturity::OffTheShelf => "off_the_shelf",
-            Maturity::Modified => "modified",
-            Maturity::New => "new",
-        }
+enum_text! {
+    /// 成熟度（成長余裕と不確かさの既定幅を決める）。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+    pub enum Maturity: "成熟度" {
+        OffTheShelf = "off_the_shelf",
+        Modified = "modified",
+        New = "new",
     }
 }
 
@@ -77,6 +67,15 @@ pub struct Pose {
     pub position: Option<Vector3>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub orientation: Option<Quaternion>,
+}
+
+/// 位置（`pose.position`・取付点の位置）に単位を書かなかったときの単位。**位置の既定の単位はここだけ**
+/// （解決・検査・機体座標での配置が [`position_unit`] で引く）。
+pub const DEFAULT_POSITION_UNIT: &str = "m";
+
+/// 位置のベクトルの単位（書かれていなければ [`DEFAULT_POSITION_UNIT`]）。
+pub fn position_unit(position: &Vector3) -> &str {
+    position.unit.as_deref().unwrap_or(DEFAULT_POSITION_UNIT)
 }
 
 /// ポートの所属ネット。
@@ -172,16 +171,34 @@ pub enum PartField {
 }
 
 impl PartField {
-    /// フィールド名（ファイルのキー・パス記法の名前。[`crate::path::PART_FIELDS`] と同じ）。
-    pub fn name(&self) -> &'static str {
+    /// フィールド名（[`PartFieldName`]）。
+    pub fn key(&self) -> PartFieldName {
         match self {
-            PartField::Label(_) => "label",
-            PartField::Description(_) => "description",
-            PartField::Catalog(_) => "catalog",
-            PartField::Kind(_) => "kind",
-            PartField::Count(_) => "count",
-            PartField::Maturity(_) => "maturity",
-            PartField::Candidates(_) => "candidates",
+            PartField::Label(_) => PartFieldName::Label,
+            PartField::Description(_) => PartFieldName::Description,
+            PartField::Catalog(_) => PartFieldName::Catalog,
+            PartField::Kind(_) => PartFieldName::Kind,
+            PartField::Count(_) => PartFieldName::Count,
+            PartField::Maturity(_) => PartFieldName::Maturity,
+            PartField::Candidates(_) => PartFieldName::Candidates,
+        }
+    }
+
+    /// フィールド名の綴り（ファイルのキー・パス記法の名前）。
+    pub fn name(&self) -> &'static str {
+        self.key().as_str()
+    }
+
+    /// 部品のそのフィールドの今の値（新しいファイルの書き出しが、1 フィールドずつの書き込みと同じ形で書くため）。
+    pub fn of(part: &Part, key: PartFieldName) -> Self {
+        match key {
+            PartFieldName::Label => PartField::Label(part.label.clone()),
+            PartFieldName::Description => PartField::Description(part.description.clone()),
+            PartFieldName::Catalog => PartField::Catalog(part.catalog.clone()),
+            PartFieldName::Kind => PartField::Kind(part.kind.as_ref().map(ToString::to_string)),
+            PartFieldName::Candidates => PartField::Candidates(part.candidates.clone()),
+            PartFieldName::Count => PartField::Count(part.count),
+            PartFieldName::Maturity => PartField::Maturity(part.maturity),
         }
     }
 }
@@ -201,29 +218,36 @@ pub enum CatalogField {
 }
 
 impl CatalogField {
-    /// フィールド名（ファイルのキー。[`crate::path::CATALOG_FIELDS`] と同じ）。
-    pub fn name(&self) -> &'static str {
+    /// フィールド名（[`CatalogFieldName`]）。
+    pub fn key(&self) -> CatalogFieldName {
         match self {
-            CatalogField::Kind(_) => "kind",
-            CatalogField::Label(_) => "label",
-            CatalogField::LabelEn(_) => "label_en",
-            CatalogField::Manufacturer(_) => "manufacturer",
-            CatalogField::PartNumber(_) => "part_number",
-            CatalogField::Maturity(_) => "maturity",
-            CatalogField::Datasheet(_) => "datasheet",
-            CatalogField::Source(_) => "source",
+            CatalogField::Kind(_) => CatalogFieldName::Kind,
+            CatalogField::Label(_) => CatalogFieldName::Label,
+            CatalogField::LabelEn(_) => CatalogFieldName::LabelEn,
+            CatalogField::Manufacturer(_) => CatalogFieldName::Manufacturer,
+            CatalogField::PartNumber(_) => CatalogFieldName::PartNumber,
+            CatalogField::Maturity(_) => CatalogFieldName::Maturity,
+            CatalogField::Datasheet(_) => CatalogFieldName::Datasheet,
+            CatalogField::Source(_) => CatalogFieldName::Source,
         }
     }
-}
 
-impl std::str::FromStr for Maturity {
-    type Err = String;
-    fn from_str(text: &str) -> Result<Self, Self::Err> {
-        match text {
-            "off_the_shelf" => Ok(Self::OffTheShelf),
-            "modified" => Ok(Self::Modified),
-            "new" => Ok(Self::New),
-            _ => Err(format!("Unknown Maturity: {text}")),
+    /// フィールド名の綴り（ファイルのキー）。
+    pub fn name(&self) -> &'static str {
+        self.key().as_str()
+    }
+
+    /// カタログ品のそのフィールドの今の値。
+    pub fn of(item: &CatalogItem, key: CatalogFieldName) -> Self {
+        match key {
+            CatalogFieldName::Kind => CatalogField::Kind(item.kind.to_string()),
+            CatalogFieldName::Label => CatalogField::Label(item.label.clone()),
+            CatalogFieldName::LabelEn => CatalogField::LabelEn(item.label_en.clone()),
+            CatalogFieldName::Manufacturer => CatalogField::Manufacturer(item.manufacturer.clone()),
+            CatalogFieldName::PartNumber => CatalogField::PartNumber(item.part_number.clone()),
+            CatalogFieldName::Maturity => CatalogField::Maturity(item.maturity),
+            CatalogFieldName::Datasheet => CatalogField::Datasheet(item.datasheet.clone()),
+            CatalogFieldName::Source => CatalogField::Source(item.source.clone()),
         }
     }
 }

@@ -26,10 +26,8 @@ pub use label::unit_label;
 /// 表示の有効数字。
 pub const SIGNIFICANT_DIGITS: u32 = 3;
 
-/// 整形した量。
+/// 整形した量（整形の関数の戻り値）。これ自体は API に出さず、アプリ層が SI 値・次元と合わせて表示用の型にする。
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct FormattedQuantity {
     /// 表示単位での値（丸める前）
     pub value: f64,
@@ -50,6 +48,18 @@ pub fn dimension_name(dim: Dimension) -> Option<&'static str> {
 /// 次元の表示名: 名前のある次元はその名前（[`dimension_name`]）、無ければ SI の組立単位の式。
 pub fn dimension_label(dim: Dimension) -> String {
     dimension_name(dim).map_or_else(|| si_unit_expression(dim), String::from)
+}
+
+/// 次元の表示名。`preferred`（呼び出し側が知っている次元名）がその次元の名前として正しければ、その正規の綴り
+/// （[`canonical_dimension_name`]）を使い、違えば [`dimension_label`]。**同じ次元の別名（Energy と Torque）を
+/// 選ぶ規則はここだけ**（次元だけからは Energy になるため、名前を知っている側が渡す）。
+pub fn dimension_label_preferring(dim: Dimension, preferred: Option<&str>) -> String {
+    if let Some(p) = preferred
+        && parse_dimension(p).is_ok_and(|d| d == dim)
+    {
+        return canonical_dimension_name(p).unwrap_or(p).into();
+    }
+    dimension_label(dim)
 }
 
 /// 次元名の代わりに使える表示の種類（次元は無次元。比を % で出す [`Fraction`]）。

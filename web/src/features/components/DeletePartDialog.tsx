@@ -1,25 +1,25 @@
-import type { DesignView, PartRow } from "@/api/types";
+import type { ModeTable, PartRow } from "@/api/types";
 import { useT } from "@/i18n";
 import { OpDialog } from "@/ops/OpDialog";
 
 /** 部品の削除（RemovePart）。モードの行やポートの参照がどうなるかは dry_run の CLI と変更ファイルで見せる */
 export function DeletePartDialog({
-  design,
+  table,
   part,
   open,
   onOpenChange,
-  onDeleted,
+  onDone,
 }: {
-  design: DesignView;
+  /** モード表（部品を書いているモードの数を説明に出す） */
+  table: ModeTable;
   part: PartRow;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onDeleted: () => void;
+  /** 消したとき */
+  onDone: () => void;
 }) {
   const t = useT().components.remove;
-  const inModes = Object.keys(
-    design.modes.rows.find((r) => r.part === part.id)?.cells ?? {},
-  ).length;
+  const inModes = Object.keys(table.rows.find((r) => r.part === part.id)?.cells ?? {}).length;
   const connected = part.ports.filter((p) => p.net).length;
   return (
     <OpDialog
@@ -31,7 +31,7 @@ export function DeletePartDialog({
       summary={t.summary(part.id)}
       confirmLabel={t.confirm}
       destructive
-      onDone={onDeleted}
+      onDone={onDone}
     />
   );
 }

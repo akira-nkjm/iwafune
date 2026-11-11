@@ -1,12 +1,14 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { QuantityView } from "@/api/types";
 import { useT } from "@/i18n";
+import { TextInput } from "@/kit/forms/TextInput";
 import { cn } from "@/lib/cn";
+import { withNote } from "@/lib/design";
 import { useParseQuantity } from "./use-parse";
 
 /**
  * 単位付きの量の入力欄。打鍵ごとに /units/parse で解析し、SI での値（`= 0.018 N*m*s`）か次元のエラーを
- * 入力欄の下に出す。Enter（または onBlurCommit で欄を離れたとき）で確定し、文字列のまま onCommit に渡す。
+ * 入力欄の下に出す。Enter で確定し、文字列のまま onCommit に渡す（Escape は onCancel）。
  * 次元が合わないとき・解析できないときは確定させない。
  */
 export function QuantityInput({
@@ -23,8 +25,8 @@ export function QuantityInput({
   initial: string;
   /** 期待する次元（例: "Power"）。null なら次元を問わない */
   dimension: string | null;
-  /** 確定: 入力文字列と、/units/parse が読んだ値（書かれたままの数値と単位） */
-  onCommit?: (text: string, q: QuantityView) => void;
+  /** 確定: 打った文字列（前後の空白を除く。数として読むのは service） */
+  onCommit?: (text: string) => void;
   onCancel?: () => void;
   autoFocus?: boolean;
   label: string;
@@ -52,16 +54,18 @@ export function QuantityInput({
   }, [text, valid, parsed, onChangeValid]);
 
   const commit = () => {
-    if (valid && parsed) onCommit?.(text.trim(), parsed.quantity);
+    if (valid) onCommit?.(text.trim());
   };
 
   return (
     <div className={cn("relative min-w-0", className)}>
-      <input
+      <TextInput
         ref={ref}
         id={id}
+        size="sm"
+        mono
+        invalid={!!error}
         aria-label={label}
-        aria-invalid={error ? true : undefined}
         aria-describedby={`${id}-echo`}
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -74,12 +78,6 @@ export function QuantityInput({
             onCancel?.();
           }
         }}
-        className={cn(
-          "h-7 w-full min-w-0 rounded-[8px] border bg-panel px-2 font-mono text-[12.5px] outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
-          error ? "border-neg" : "border-line-strong",
-        )}
-        spellCheck={false}
-        autoComplete="off"
       />
       <div
         id={`${id}-echo`}
@@ -97,7 +95,7 @@ export function QuantityInput({
           : pending
             ? t.quantity.parsing
             : parsed
-              ? `= ${parsed.si_display}（${parsed.quantity.dimension}）`
+              ? `= ${withNote(parsed.si.display, parsed.quantity.dimension)}`
               : dimension
                 ? t.quantity.dimension(dimension)
                 : t.quantity.example}

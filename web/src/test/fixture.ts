@@ -35,7 +35,7 @@ const scalar = (attr: string, q: QuantityView) =>
 
 function part(
   id: string,
-  group: string,
+  group: PartRow["system"] & string,
   kind: string,
   states: string[],
   values: ValueView[],
@@ -44,8 +44,9 @@ function part(
   return {
     id,
     paths: {},
+    field_paths: {},
     parent: group,
-    subsystem: group,
+    system: group,
     kind,
     role: kind,
     catalog: null,
@@ -57,6 +58,7 @@ function part(
     mount: null,
     states,
     file: `parts/${group}/${id}.toml`,
+    dir: [group],
   };
 }
 
@@ -64,7 +66,8 @@ function net(id: string, kind: NetKind, members: PortRef[], extra: Partial<NetVi
   return {
     id,
     kind,
-    label: null,
+    is_return: false,
+    label: id,
     source: null,
     rail: null,
     limit: null,
@@ -72,6 +75,7 @@ function net(id: string, kind: NetKind, members: PortRef[], extra: Partial<NetVi
     bitrate: null,
     master: null,
     members,
+    field_paths: { rail: `nets.${id}.rail` },
     file: `nets/${id}.toml`,
     ...extra,
   };
@@ -86,19 +90,68 @@ export const fixture: DesignView = {
     schema: 2,
     counts: { parts: 3, groups: 3, modes: 2, nets: 2, harnesses: 0, cases: 0 },
     diagnostics: { errors: 0, warnings: 1, infos: 0 },
+    catalogs: [{ name: "local", editable: true }],
   },
   tree: [
-    { id: "AOCS", node: "group", label: "姿勢制御系", parent: null, children: ["RW_X"] },
-    { id: "POWER", node: "group", label: "電源系", parent: null, children: ["PCDU"] },
-    { id: "COM", node: "group", label: "通信系", parent: null, children: ["TRX"] },
-    { id: "RW_X", node: "part", label: "RW_X", parent: "AOCS", children: [] },
-    { id: "PCDU", node: "part", label: "PCDU", parent: "POWER", children: [] },
-    { id: "TRX", node: "part", label: "TRX", parent: "COM", children: [] },
+    {
+      id: "aocs",
+      node: "group",
+      label_en: "AOCS",
+      system: "aocs",
+      label: "AOCS",
+      parent: null,
+      children: ["RW_X"],
+    },
+    {
+      id: "power",
+      node: "group",
+      label_en: "Power",
+      system: "power",
+      label: "電源系",
+      parent: null,
+      children: ["PCDU"],
+    },
+    {
+      id: "comm",
+      node: "group",
+      label_en: "Communications",
+      system: "comm",
+      label: "通信系",
+      parent: null,
+      children: ["TRX"],
+    },
+    {
+      id: "RW_X",
+      node: "part",
+      label_en: null,
+      system: "aocs",
+      label: "RW_X",
+      parent: "aocs",
+      children: [],
+    },
+    {
+      id: "PCDU",
+      node: "part",
+      label_en: null,
+      system: "power",
+      label: "PCDU",
+      parent: "power",
+      children: [],
+    },
+    {
+      id: "TRX",
+      node: "part",
+      label_en: null,
+      system: "comm",
+      label: "TRX",
+      parent: "comm",
+      children: [],
+    },
   ],
   parts: [
     part(
       "RW_X",
-      "AOCS",
+      "aocs",
       "reaction_wheel",
       ["off", "idle", "on", "peak"],
       [
@@ -117,7 +170,7 @@ export const fixture: DesignView = {
     ),
     part(
       "PCDU",
-      "POWER",
+      "power",
       "pcdu",
       ["off", "on"],
       [scalar("mass", qv(0.3, "kg", "Mass"))],
@@ -128,7 +181,7 @@ export const fixture: DesignView = {
     ),
     part(
       "TRX",
-      "COM",
+      "comm",
       "transceiver",
       ["off", "rx", "tx"],
       [scalar("tx_power", qv(1, "W", "Power"))],
@@ -150,21 +203,21 @@ export const fixture: DesignView = {
         kind: "reaction_wheel",
         states: ["off", "idle", "on", "peak"],
         cells: { NOMINAL: { state: "on", duty: {} } },
-        display: {},
+        shares: {},
       },
       {
         part: "PCDU",
         kind: "pcdu",
         states: ["off", "on"],
         cells: { NOMINAL: { state: "on", duty: {} }, SAFE: { state: "on", duty: {} } },
-        display: {},
+        shares: {},
       },
       {
         part: "TRX",
         kind: "transceiver",
         states: ["off", "rx", "tx"],
         cells: { NOMINAL: { state: "rx", duty: { tx: 0.1 } } },
-        display: {},
+        shares: { NOMINAL: { tx: qv(10, "%", "Dimensionless", 0.1) } },
       },
     ],
   },
@@ -201,7 +254,7 @@ export const fixture: DesignView = {
   defs: {
     attributes: [
       ["power", "power"],
-      ["max_momentum", "attitude"],
+      ["max_momentum", "aocs"],
       ["tx_power", "comm"],
     ].map(
       ([id, section]): AttributeDefView => ({
@@ -220,13 +273,19 @@ export const fixture: DesignView = {
     ),
     kinds: [],
     labels: {
-      role_system: { pcdu: "power", reaction_wheel: "attitude", transceiver: "comm" },
-      role_subsystem: {},
+      role_system: { pcdu: "power", reaction_wheel: "aocs", transceiver: "comm" },
       section_order: [],
       state: {},
-      section: {},
+      section: {
+        aocs: { label: "AOCS", label_en: "AOCS" },
+        power: { label: "電源", label_en: "Power" },
+        comm: { label: "通信", label_en: "Communications" },
+      },
       enum: {},
+      enum_order: {},
     },
+    systems: ["power", "aocs", "cdh", "comm", "thermal", "structure", "payload"],
+    budget_kinds: ["mass", "power", "data"],
   },
   settings: [],
   cases: [],

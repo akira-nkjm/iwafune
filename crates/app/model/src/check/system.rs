@@ -1,11 +1,11 @@
-//! モード・ネット・ハーネス・ケース・出典の検査。
+//! モード・ネット・ハーネス・ケース・出典の検査（参照・状態・次元）。ID の規則と一意性は `super::ids`、図は `super::views`。
 
 use super::Ctx;
 use super::values::check_quantity_dimension;
 use crate::design::{EntityKey, Mode, NetKind, StateAssign};
 use crate::diagnostic::Severity;
-use crate::id::validate_entity_id;
-use crate::path::PortRef;
+use crate::path::{AttrPath, ParamPath, PortRef};
+use crate::target::Target;
 use crate::value::{Provenance, Quantity, Value};
 
 /// モード: 部品の参照・状態の語彙・時間割合・表に無い部品。
@@ -13,15 +13,6 @@ pub(super) fn check_modes(ctx: &mut Ctx) {
     let design = ctx.design;
     for mode in design.modes.values() {
         let entity = EntityKey::Mode(mode.id.to_string());
-        if let Err(e) = validate_entity_id(mode.id.as_str()) {
-            ctx.error(
-                "id.invalid",
-                &entity,
-                &[],
-                Some(mode.id.to_string()),
-                e.to_string(),
-            );
-        }
         for (part_id, assign) in &mode.states {
             check_mode_row(ctx, mode, &entity, part_id.as_str(), assign);
         }
@@ -31,7 +22,7 @@ pub(super) fn check_modes(ctx: &mut Ctx) {
                     "mode.unassigned",
                     &entity,
                     &["states"],
-                    Some(format!("modes.{}.{}", mode.id, part.id)),
+                    Some(Target::mode(mode.id.as_str(), Some(part.id.as_str()))),
                     format!(
                         "モード `{}` に部品 `{}` の状態がありません（0 W とはみなしません）",
                         mode.id, part.id
@@ -52,7 +43,7 @@ fn check_mode_row(
 ) {
     let design = ctx.design;
     let keys = ["states", part_id];
-    let path = Some(format!("modes.{}.{part_id}", mode.id));
+    let path = Some(Target::mode(mode.id.as_str(), Some(part_id)));
     let Some(part) = design.parts.get(part_id) else {
         let message = format!("モード `{}` の部品 `{part_id}` がありません", mode.id);
         ctx.error("ref.part", entity, &keys, path, message);
@@ -78,20 +69,18 @@ fn check_mode_row(
     }
 }
 
-/// ポートの参照（部品が存在するか。ポートの所属が違えば warning）。
-fn check_port_ref(ctx: &mut Ctx, entity: &EntityKey, key: &str, text: &str, net: Option<&str>) {
+/// ポートの参照（部品が存在するか。ポートの所属が違えば warning）。対象は参照を書いたキー（`target`）。
+/// `部品.ポート` の形でない書き方は読み込み（`fune_model::path::port_text`）が誤りにする。
+fn check_port_ref(
+    ctx: &mut Ctx,
+    entity: &EntityKey,
+    key: &str,
+    target: Target,
+    port: &PortRef,
+    net: Option<&str>,
+) {
     let design = ctx.design;
-    let path = Some(text.to_string());
-    let Some(port) = PortRef::parse(text) else {
-        ctx.error(
-            "ref.port",
-            entity,
-            &[key],
-            path,
-            format!("ポート `{text}` は `部品.ポート` の形で書きます"),
-        );
-        return;
-    };
+    let path = Some(target);
     let Some(part) = design.parts.get(port.part.as_str()) else {
         ctx.error(
             "ref.part",
@@ -119,7 +108,7 @@ fn check_port_ref(ctx: &mut Ctx, entity: &EntityKey, key: &str, text: &str, net:
                 entity,
                 &[key],
                 path,
-                format!("ポート `{text}` はネット `{net}` に属していません"),
+                format!("ポート `{port}` はネット `{net}` に属していません"),
             );
         }
         _ => {}
@@ -130,12 +119,12 @@ fn check_dim(
     ctx: &mut Ctx,
     entity: &EntityKey,
     key: &str,
-    path: &str,
+    target: Target,
     q: Option<&Quantity>,
     dim: &str,
 ) {
     if let Some((sev, code, msg)) = q.and_then(|q| check_quantity_dimension(q, dim)) {
-        ctx.report(sev, code, entity, &[key], Some(path.to_string()), msg);
+        ctx.report(sev, code, entity, &[key], Some(target), msg);
     }
 }
 
@@ -145,51 +134,25 @@ pub(super) fn check_nets(ctx: &mut Ctx) {
     for net in design.nets.values() {
         let entity = EntityKey::Net(net.id.to_string());
         let id = net.id.as_str();
-        if let Err(e) = validate_entity_id(id) {
-            ctx.error(
-                "id.invalid",
-                &entity,
-                &[],
-                Some(id.to_string()),
-                e.to_string(),
-            );
+        for (key, port) in [("source", &net.source), ("master", &net.master)] {
+            if let Some(port) = port {
+                let target = Target::net(id, Some(key));
+                check_port_ref(ctx, &entity, key, target, port, Some(id));
+            }
         }
-        if let Some(source) = &net.source {
-            check_port_ref(ctx, &entity, "source", source, Some(id));
+        for (key, q, dim) in [
+            ("rail", net.rail.as_ref(), "Voltage"),
+            ("limit", net.limit.as_ref(), "ElectricCurrent"),
+            ("bitrate", net.bitrate.as_ref(), "DataRate"),
+        ] {
+            check_dim(ctx, &entity, key, Target::net(id, Some(key)), q, dim);
         }
-        if let Some(master) = &net.master {
-            check_port_ref(ctx, &entity, "master", master, Some(id));
-        }
-        check_dim(
-            ctx,
-            &entity,
-            "rail",
-            &format!("nets.{id}.rail"),
-            net.rail.as_ref(),
-            "Voltage",
-        );
-        check_dim(
-            ctx,
-            &entity,
-            "limit",
-            &format!("nets.{id}.limit"),
-            net.limit.as_ref(),
-            "ElectricCurrent",
-        );
-        check_dim(
-            ctx,
-            &entity,
-            "bitrate",
-            &format!("nets.{id}.bitrate"),
-            net.bitrate.as_ref(),
-            "DataRate",
-        );
         if net.kind != NetKind::Power && (net.rail.is_some() || net.source.is_some()) {
             ctx.warning(
                 "net.kind",
                 &entity,
                 &["kind"],
-                Some(format!("nets.{id}")),
+                Some(Target::net(id, None)),
                 "電源でないネットに rail / source が書かれています",
             );
         }
@@ -201,15 +164,18 @@ pub(super) fn check_harnesses(ctx: &mut Ctx) {
     let design = ctx.design;
     for h in design.harnesses.values() {
         let entity = EntityKey::Harness(h.id.to_string());
-        check_port_ref(ctx, &entity, "from", &h.from, None);
-        check_port_ref(ctx, &entity, "to", &h.to, None);
+        let id = h.id.as_str();
+        for (key, port) in [("from", &h.from), ("to", &h.to)] {
+            let target = Target::harness(id, Some(key));
+            check_port_ref(ctx, &entity, key, target, port, None);
+        }
         for net in &h.nets {
             if !design.nets.contains_key(net.as_str()) {
                 ctx.error(
                     "ref.net",
                     &entity,
                     &["nets"],
-                    Some(format!("harness.{}", h.id)),
+                    Some(Target::harness(id, None)),
                     format!("ネット `{net}` がありません"),
                 );
             }
@@ -221,7 +187,7 @@ pub(super) fn check_harnesses(ctx: &mut Ctx) {
                 "ref.catalog",
                 &entity,
                 &["wire"],
-                Some(format!("harness.{}", h.id)),
+                Some(Target::harness(id, None)),
                 format!("線材のカタログ品 `{wire}` がありません"),
             );
         }
@@ -229,7 +195,7 @@ pub(super) fn check_harnesses(ctx: &mut Ctx) {
             ctx,
             &entity,
             "length",
-            &format!("harness.{}.length", h.id),
+            Target::harness(id, Some("length")),
             h.length.as_ref(),
             "Length",
         );
@@ -253,7 +219,7 @@ fn check_cases(ctx: &mut Ctx) {
                 "ref.mode",
                 &entity,
                 &["mode"],
-                Some(format!("cases.{}", case.id)),
+                Some(Target::case(case.id.as_str(), None)),
                 format!("モード `{mode}` がありません"),
             );
         }
@@ -265,7 +231,7 @@ fn check_cases(ctx: &mut Ctx) {
                 "ref.thermal_case",
                 &entity,
                 &["thermal_case"],
-                Some(format!("cases.{}", case.id)),
+                Some(Target::case(case.id.as_str(), None)),
                 format!("熱の環境条件 `{tc}` が analysis/thermal.toml にありません"),
             );
         }
@@ -273,38 +239,53 @@ fn check_cases(ctx: &mut Ctx) {
             ctx,
             &entity,
             "beta",
-            &format!("cases.{}.beta", case.id),
+            Target::case(case.id.as_str(), Some("beta")),
             case.beta.as_ref(),
             "Angle",
         );
     }
 }
 
+/// 出典を調べる値 1 つ（位置を引くエンティティ・属性・対象・出典）。
+type FromRef<'a> = (EntityKey, String, Target, Option<&'a Provenance>);
+
 /// 値の出典（`from.source`）が `sources/` にあるか。
 fn check_source_refs(ctx: &mut Ctx) {
     let design = ctx.design;
-    let mut refs: Vec<(EntityKey, String, Option<&Provenance>)> = Vec::new();
+    let mut refs: Vec<FromRef> = Vec::new();
     for part in design.parts.values() {
+        let id = part.id.as_str();
         for (attr, v) in &part.attr {
+            let target = |state: Option<&str>| {
+                Target::Param(ParamPath::Attr {
+                    part: id.to_owned(),
+                    attr: attr.to_string(),
+                    state: state.map(str::to_owned),
+                })
+            };
             collect_from(
                 &mut refs,
-                EntityKey::Part(part.id.to_string()),
+                EntityKey::Part(id.to_owned()),
                 attr.as_str(),
                 v,
+                target,
             );
         }
     }
     for item in design.catalog.values() {
         for (attr, v) in &item.attr {
-            collect_from(
-                &mut refs,
-                EntityKey::Catalog(item.id.clone()),
-                attr.as_str(),
-                v,
-            );
+            let target = |state: Option<&str>| Target::Catalog {
+                id: item.id.clone(),
+                attr: Some(AttrPath {
+                    attr: attr.to_string(),
+                    state: state.map(str::to_owned),
+                }),
+            };
+            let entity = EntityKey::Catalog(item.id.clone());
+            collect_from(&mut refs, entity, attr.as_str(), v, target);
         }
     }
-    for (entity, attr, from) in refs {
+    for (entity, attr, target, from) in refs {
         if let Some(source) = from.and_then(|f| f.source.as_deref())
             && !design.sources.contains_key(source)
         {
@@ -313,45 +294,31 @@ fn check_source_refs(ctx: &mut Ctx) {
                 "ref.source",
                 &entity,
                 &["attr", &attr],
-                None,
+                Some(target),
                 format!("出典 `{source}` が sources/ にありません"),
             );
         }
     }
 }
 
+/// 値（と状態ごとのセル）の出典を集める。`target` は状態（セルなら Some）→ 対象。
 fn collect_from<'a>(
-    out: &mut Vec<(EntityKey, String, Option<&'a Provenance>)>,
+    out: &mut Vec<FromRef<'a>>,
     entity: EntityKey,
     attr: &str,
     value: &'a crate::value::Authored<Value>,
+    target: impl Fn(Option<&str>) -> Target,
 ) {
-    out.push((entity.clone(), attr.to_string(), value.from.as_ref()));
+    out.push((
+        entity.clone(),
+        attr.to_string(),
+        target(None),
+        value.from.as_ref(),
+    ));
     if let Value::ByState(cells) = &value.value {
-        for cell in cells.values() {
-            out.push((entity.clone(), attr.to_string(), cell.from.as_ref()));
-        }
-    }
-}
-
-/// 図の配置のノードが部品・グループ・ネットを指すか（見た目だけなので warning）。
-pub(super) fn check_views(ctx: &mut Ctx) {
-    let design = ctx.design;
-    for view in design.views.values() {
-        let entity = EntityKey::View(view.id.clone());
-        for id in view.nodes.keys() {
-            if !design.node_exists(id) && !design.nets.contains_key(id.as_str()) {
-                ctx.warning(
-                    "view.unknown_node",
-                    &entity,
-                    &["nodes", id.as_str()],
-                    Some(format!("view.{}.{id}", view.id)),
-                    format!(
-                        "図 `{}` のノード `{id}` は部品・グループ・ネットのどれでもありません",
-                        view.id
-                    ),
-                );
-            }
+        for (state, cell) in cells {
+            let t = target(Some(state.as_str()));
+            out.push((entity.clone(), attr.to_string(), t, cell.from.as_ref()));
         }
     }
 }

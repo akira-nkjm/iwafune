@@ -1,6 +1,5 @@
 import { Pencil } from "lucide-react";
 import { useState } from "react";
-import type { QuantityView } from "@/api/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useFieldError } from "@/lib/field-errors";
@@ -8,7 +7,7 @@ import { QuantityInput } from "./QuantityInput";
 
 /**
  * 表のセルで直接編集する量。普段は display を出し、クリックで入力欄になる。
- * 確定すると onCommit(入力文字列) を呼ぶ（呼び手が SetValue / SetSetting の Op にする）。
+ * 確定すると onCommit(打った文字列) を呼ぶ（呼び手が文字列のまま service に渡す）。
  */
 export function EditableQuantity({
   display,
@@ -23,7 +22,8 @@ export function EditableQuantity({
   display: string;
   initial: string;
   dimension: string | null;
-  onCommit: (q: QuantityView, text: string) => void;
+  /** 確定: 打った文字列（元の文字列と同じなら呼ばない） */
+  onCommit: (text: string) => void;
   label: string;
   disabled?: boolean;
   className?: string;
@@ -43,9 +43,9 @@ export function EditableQuantity({
         dimension={dimension}
         label={label}
         className={cn("w-36", className)}
-        onCommit={(t, q) => {
+        onCommit={(text) => {
           setEditing(false);
-          if (t !== initial) onCommit(q, t);
+          if (text !== initial) onCommit(text);
         }}
         onCancel={() => setEditing(false)}
       />

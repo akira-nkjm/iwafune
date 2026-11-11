@@ -2,11 +2,13 @@
 //! ファイルの分け方に関係なく、画面が見たい単位（部品・モード表・ネット）にまとめる。
 
 use super::{
-    CatalogItemView, DiagnosticCounts, DiagnosticView, QuantityView, ValueData, ValueView,
+    CatalogItemView, CatalogSourceView, DiagnosticCounts, DiagnosticView, QuantityView, ValueData,
+    ValueView,
 };
 use fune_model::builtin::Labels;
-use fune_model::design::{Source, StateAssign, ViewLayout};
+use fune_model::design::{Maturity, Source, StateAssign, ViewLayout};
 use fune_model::value::Vector3;
+use fune_ops::Op;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
@@ -24,6 +26,8 @@ pub struct ProjectInfo {
     pub schema: u32,
     pub counts: DesignCounts,
     pub diagnostics: DiagnosticCounts,
+    /// カタログの出所（fune.toml の `[[catalog]]` の順。書き込めるかの印付き）
+    pub catalogs: Vec<CatalogSourceView>,
 }
 
 /// エンティティの件数。
@@ -66,6 +70,10 @@ pub struct TreeNode {
     pub node: TreeNodeKind,
     /// 表示名（無ければ ID）
     pub label: String,
+    /// 英語の系の表示名（部品や入れ子のフォルダは None）
+    pub label_en: Option<String>,
+    /// ノードの系（色の表示にも使う）
+    pub system: Option<sat_analysis::spec::System>,
     pub parent: Option<String>,
     pub children: Vec<String>,
 }
@@ -83,18 +91,22 @@ pub enum TreeNodeKind {
 pub struct PartRow {
     /// 属性 → 状態（空文字なら属性全体）→ パラメーターパス。
     pub paths: BTreeMap<String, BTreeMap<String, String>>,
+    /// 部品のフィールド名（`fune_model::design::PartFieldName`）→ パラメーターパス（`"RW_X.count"`）。
+    /// GUI の基本の欄は、打った文字列とこのパスをそのまま `POST /ops/from_text` に送る
+    pub field_paths: BTreeMap<String, String>,
     pub id: String,
     /// 製品ツリーの親（Group か組立品の Part）
     pub parent: Option<String>,
-    /// 最上位の Group（例: `"AOCS"`）。未所属ならモデルの role_subsystem の既定
-    pub subsystem: Option<String>,
-    pub kind: String,
+    /// 部品の系（置き場所 → 役割 → None）
+    pub system: Option<sat_analysis::spec::System>,
+    /// 種別（kind の無い部品は null）
+    pub kind: Option<String>,
     pub role: Option<String>,
-    /// 選択中のカタログ（例: `"lab/rw_18mNms"`）
+    /// 選択中のカタログ（例: `"local/rw_18mNms"`）
     pub catalog: Option<String>,
     pub candidates: Vec<String>,
     pub count: u32,
-    pub maturity: Option<String>,
+    pub maturity: Option<Maturity>,
     /// 属性 ID → 解決済みの値
     pub values: BTreeMap<String, ValueView>,
     pub ports: Vec<PortView>,
@@ -103,6 +115,18 @@ pub struct PartRow {
     pub states: Vec<String>,
     /// 部品ファイル（ルートからの相対パス）
     pub file: String,
+    /// 部品ファイルの置き場所の `parts/` からのディレクトリの区間（例: `["power", "SAP_PY"]`）。
+    /// 各区間は製品ツリーのノードの ID（表示名は `DesignView.tree`）。`parts/` の直下なら空
+    pub dir: Vec<String>,
+}
+
+/// 1 部品の表示の依頼（`POST /parts/{id}`、`fune part show <ID> --ops`）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(default)]
+pub struct PartViewRequest {
+    /// 保存していない編集。書き込まずに当てた設計で表示する（空なら保存済みの設計。`GET` と同じ）。
+    /// GUI のパラメーター追加は、同じ編集で定義を作る属性のパス（`PartRow.paths`）をここから引く
+    pub ops: Vec<Op>,
 }
 
 /// 1 部品の全情報（`GET /parts/{id}`）。全系の属性を 1 か所に。
@@ -139,21 +163,23 @@ pub struct PortView {
     pub net: Option<String>,
 }
 
-/// 取付先と、機体座標での位置・姿勢。
+/// 取付先と、機体座標での位置・姿勢（取付のある部品だけ）。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct MountView {
-    pub on: Option<String>,
+    /// 取付先の部品
+    pub on: String,
+    /// 取付点（書かれていなければ取付先の原点）
     pub point: Option<String>,
-    /// 取付点に対する相対位置 [m]
-    pub position: Option<[f64; 3]>,
+    /// 取付点に対する相対位置 [m]（書かれていなければ原点）
+    pub position: [f64; 3],
     /// 取付点に対する相対位置の書かれたまま（値と単位）。GUI はこの単位で見せて送る（ファイルの単位を保つ。CLI で同じ単位を打つのと同じ）
     pub authored_position: Option<Vector3>,
-    /// 取付点に対する相対姿勢 `[w, x, y, z]`
-    pub orientation: Option<[f64; 4]>,
+    /// 取付点に対する相対姿勢 `[w, x, y, z]`（書かれていなければ恒等）
+    pub orientation: [f64; 4],
     /// 機体座標での位置 [m]（取付の連鎖をたどったもの）
-    pub body_position: Option<[f64; 3]>,
+    pub body_position: [f64; 3],
     /// 機体座標での姿勢 `[w, x, y, z]`
-    pub body_orientation: Option<[f64; 4]>,
+    pub body_orientation: [f64; 4],
 }
 
 /// 部品 × モードの表。
@@ -176,13 +202,15 @@ pub struct ModeHeader {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ModeRow {
     pub part: String,
-    pub kind: String,
+    /// 種別（kind の無い部品は null）
+    pub kind: Option<String>,
     /// 選べる状態（kind の語彙）
     pub states: Vec<String>,
     /// モード ID → 状態（そのモードの表に書かれていなければ無い）
     pub cells: BTreeMap<String, StateAssign>,
-    /// モード ID → セルの表示（例: `"rx（tx 10.0 %）"`。割合の整形は sat-units）
-    pub display: BTreeMap<String, String>,
+    /// モード ID → そのセルのほかの状態の時間の割合（状態 → `%` の表示。`cells` の `duty` を sat-units で整形したもの）。
+    /// 割合の無いセルは入れない。セルの文言（`rx（tx 10.0 %）` など）は CLI と Web が状態とこれから作る
+    pub shares: BTreeMap<String, BTreeMap<String, QuantityView>>,
 }
 
 /// ネット（電気的な接続）。
@@ -191,7 +219,10 @@ pub struct NetView {
     pub id: String,
     /// `"power"` / `"data"` / `"rf"`
     pub kind: fune_model::design::NetKind,
-    pub label: Option<String>,
+    /// 戻り（GND）のネットか（判定は `fune_model::design::Net::is_return`。系統図の GND の層）
+    pub is_return: bool,
+    /// 表示名（無ければ ID）
+    pub label: String,
     /// 供給元のポート（part = PCDU、port = OUT3）
     pub source: Option<fune_model::path::PortRef>,
     pub rail: Option<QuantityView>,
@@ -201,6 +232,10 @@ pub struct NetView {
     pub master: Option<fune_model::path::PortRef>,
     /// このネットに属するポート（part = RW_X、port = PWR）。部品側の ports から集めたもの
     pub members: Vec<fune_model::path::PortRef>,
+    /// フィールド名（`NetFieldName::NAMES`）→ 対象のパス（`"nets.P12V.rail"`。診断の `DiagnosticView.path` と同じ
+    /// `fune_model::Target::net` の表示）。GUI の欄の名前で、検証で弾かれた理由をその欄の下に出す鍵。
+    /// 編集はパスではなく `CommandText::NetSet`（`fune net set` の引数）で送る
+    pub field_paths: BTreeMap<String, String>,
     pub file: String,
 }
 
@@ -208,9 +243,11 @@ pub struct NetView {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct HarnessView {
     pub id: String,
-    pub label: Option<String>,
-    pub from: String,
-    pub to: String,
+    /// 表示名（無ければ ID）
+    pub label: String,
+    /// 端のポート（part = PCDU、port = OUT3）
+    pub from: fune_model::path::PortRef,
+    pub to: fune_model::path::PortRef,
     pub nets: Vec<String>,
     pub wire: Option<String>,
     pub cores: u32,
@@ -225,6 +262,10 @@ pub struct DefsView {
     pub kinds: Vec<KindDefView>,
     /// 組み込みの語彙の表示名（系の順と見出し・機器の状態・列挙の値。`fune_model::builtin::labels`）
     pub labels: Labels,
+    /// 解析の系の一覧と並び（`fune_model::design::AnalysisSystem` の宣言の順。表示名は `labels.section`）
+    pub systems: Vec<sat_analysis::spec::System>,
+    /// バジェットの種類の一覧と並び（`fune_model::design::BudgetKind` の宣言の順。表示名は `labels.enum.budget_kind`）
+    pub budget_kinds: Vec<fune_model::design::BudgetKind>,
 }
 
 /// 属性定義。
@@ -267,14 +308,19 @@ pub struct KindDefView {
 /// 設定 1 項目（`mission/`・`analysis/`・`budget/` の値）。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct SettingView {
-    /// 設定ファイルごとの表示グループのパス接頭辞。
+    /// 置き場所の種類（`mission` / `analysis` / `budget`。設定のページの区分）
+    pub scope: fune_model::path::SettingScope,
+    /// この設定を見せる系（系のページの設定のタブ）。どの系にも属さなければ null
+    pub system: Option<sat_analysis::spec::System>,
+    /// 設定ファイルごとの表示のまとまり（例: `"mission.orbit"`・`"mission.ground.<局の ID>"`。`key` = `<group>.<field>`）
     pub group: String,
-    /// ファイル内のキー（表示用）。
+    /// ファイル内のキー（表示用。例: `"altitude"`）
     pub field: String,
     /// 例: `"analysis.power.dod_max"`
     pub key: String,
     pub value: ValueData,
-    pub display: String,
+    /// 値の表示文字列（未設定なら null。文言は CLI と Web が作る）
+    pub display: Option<String>,
     pub file: Option<String>,
 }
 

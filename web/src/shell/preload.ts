@@ -1,22 +1,26 @@
-import { prefetchSystemAnalyses, queryClient } from "@/api/queries";
-import { loadLayout3D } from "@/features/layout3d/LazyLayout3D";
-import { isSystem } from "@/features/systems/systems";
+import { createContext, useContext } from "react";
+import { queryClient } from "@/api/queries";
 import type { NavItemKey } from "@/lib/nav";
-import { quietly } from "./lazy-page";
-import { pages } from "./pages";
+import { type LazyPage, quietly } from "./lazy-page";
 
 /**
- * ナビの項目にホバー・フォーカスしたときに、そのページの本体と、時間のかかるデータ（系の解析）を先に読む。
- * 構造と熱は 3D 配置（three.js）も読む。
+ * 先読みの計画。何を読むか（ページの本体・系の解析・大きなライブラリ）はページの登録（`routes/pages.ts`）が決めて
+ * `Frame` に渡す。shell はページの中身（features）を知らない。
  */
-export function preloadPage(key: NavItemKey): void {
-  if (isSystem(key)) {
-    quietly(pages.system.load());
-    quietly(prefetchSystemAnalyses(key));
-    if (key === "structure" || key === "thermal") quietly(loadLayout3D());
-    return;
-  }
-  quietly(pages[key].load());
+export interface PreloadPlan {
+  /** ナビの項目にホバー・フォーカスしたときに読むもの */
+  item: (key: NavItemKey) => void;
+  /** 最初のページが落ち着いたあとの空き時間に読む、軽いページの本体 */
+  idle: readonly LazyPage[];
+}
+
+const NO_PRELOAD: PreloadPlan = { item: () => undefined, idle: [] };
+
+/** `Frame` が渡した先読みの計画（ナビの項目が使う） */
+export const PreloadContext = createContext<PreloadPlan>(NO_PRELOAD);
+
+export function usePreloadPlan(): PreloadPlan {
+  return useContext(PreloadContext);
 }
 
 /** ホバーとみなすまでの待ち [ms]（サイドバーの上をなぞっただけでは解析を頼まない） */
@@ -30,11 +34,11 @@ function cancelHover(): void {
   hoverTimer = undefined;
 }
 
-/** ナビのリンクに付ける先読みのハンドラ（ホバーが続いたら・フォーカスしたら・押し始めたら読む） */
-export function preloadHandlers(key: NavItemKey) {
+/** ナビのリンクに付ける先読みのハンドラ（ホバーが続いたら・フォーカスしたら・押し始めたら `run` を呼ぶ） */
+export function preloadHandlers(run: () => void) {
   const now = () => {
     cancelHover();
-    preloadPage(key);
+    run();
   };
   return {
     onPointerEnter: () => {
@@ -47,20 +51,6 @@ export function preloadHandlers(key: NavItemKey) {
   };
 }
 
-/** 大きなチャンク（系統図の React Flow、3D の three.js）は空き時間には読まない。ホバーで読む */
-const IDLE: readonly (keyof typeof pages)[] = [
-  "overview",
-  "components",
-  "catalog",
-  "modes",
-  "defs",
-  "system",
-  "orbit",
-  "cases",
-  "diagnostics",
-  "settings",
-];
-
 /** データを取り終えたかを見る間隔 [ms] と、待つ回数の上限（取り終えなくても 10 秒であきらめて読む） */
 const QUIET_POLL_MS = 250;
 const QUIET_TRIES = 40;
@@ -68,12 +58,13 @@ const QUIET_TRIES = 40;
 /**
  * 最初のページが落ち着いたあとに、軽いページの本体を先に読んでおく。
  * 最初のページのデータ（設計・解析）を取り終えてから、ブラウザの空き時間に読む（回線と CPU を取り合わないように）。
+ * 戻り値は取りやめる関数（`useEffect` の片付け）。
  */
-export function preloadIdlePages(): () => void {
+export function preloadIdlePages(pages: readonly LazyPage[]): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let idle: number | undefined;
   const run = () => {
-    for (const k of IDLE) quietly(pages[k].load());
+    for (const p of pages) quietly(p.load());
   };
   const whenQuiet = (tries: number) => {
     if (queryClient.isFetching() > 0 && tries > 0) {

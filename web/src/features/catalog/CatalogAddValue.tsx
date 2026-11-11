@@ -1,19 +1,22 @@
 import { useCallback, useState } from "react";
-import type { CatalogItemView, DesignView } from "@/api/types";
-import { localized, useT } from "@/i18n";
-import { NativeSelect } from "@/kit/NativeSelect";
+import type { CatalogItemView, DefsView } from "@/api/types";
+import { useT } from "@/i18n";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
+import { attrDef, defWithId } from "@/lib/design";
 import { QuantityInput } from "@/quantity/QuantityInput";
 import { Button } from "@/ui/button";
 
 /** カタログ品に値を足す行（属性・状態・値）。確定は呼び手が打った文字列のまま service に渡す */
 export function CatalogAddValue({
-  design,
+  defs,
   item,
-  onAdd,
+  onCommit,
 }: {
-  design: DesignView;
+  /** 属性の定義（足せる属性の選択肢と、値の次元） */
+  defs: DefsView;
   item: CatalogItemView;
-  onAdd: (attr: string, state: string | null, text: string) => void;
+  /** 確定: 属性・状態（状態ごとでなければ null）・打った文字列（`useAttrEdit` の `set` に渡す） */
+  onCommit: (attr: string, state: string | null, text: string) => void;
 }) {
   const t = useT();
   const states = item.states;
@@ -24,7 +27,7 @@ export function CatalogAddValue({
     (typed: string, ok: boolean) => setText(ok ? typed.trim() : null),
     [],
   );
-  const def = design.defs.attributes.find((a) => a.id === attr);
+  const def = attrDef(defs, attr);
   return (
     <div className="grid grid-cols-[1fr_90px_1fr_auto] items-start gap-2">
       <NativeSelect
@@ -33,9 +36,9 @@ export function CatalogAddValue({
         value={attr}
         placeholder={t.catalog.attr}
         onChange={(e) => setAttr(e.target.value)}
-        options={design.defs.attributes
+        options={defs.attributes
           .filter((a) => a.value_type === "scalar")
-          .map((a) => ({ value: a.id, label: `${a.id}（${localized(a.label, a.label_en)}）` }))}
+          .map((a) => ({ value: a.id, label: defWithId(a) }))}
       />
       <NativeSelect
         size="sm"
@@ -56,7 +59,7 @@ export function CatalogAddValue({
       <Button
         size="sm"
         disabled={!attr || !text || (def?.by_state && !state)}
-        onClick={() => text && onAdd(attr, def?.by_state ? state : null, text)}
+        onClick={() => text && onCommit(attr, def?.by_state ? state : null, text)}
       >
         {t.catalog.addValue}
       </Button>

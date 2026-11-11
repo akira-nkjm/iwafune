@@ -1,18 +1,20 @@
 import { useMemo } from "react";
 import type { CatalogItemView } from "@/api/types";
 import { useT } from "@/i18n";
-import { Tree } from "@/kit/Tree";
-import { catalogTree, filterTree } from "@/kit/tree";
+import { Tree } from "@/kit/tree/Tree";
+import { catalogTree, filterTree } from "@/kit/tree/tree-nodes";
 import { itemLabel } from "./catalog";
 
-/** カタログ ID の階層。同じツリーで検索の一致まで展開する。 */
+/** カタログ ID の階層。同じツリーで検索の一致まで展開する（`PartsTree` と同じ形の Props）。 */
 export function CatalogTree({
   all,
   items,
   selected,
   onSelect,
 }: {
+  /** すべてのカタログ品（ツリーの形を作る） */
   all: CatalogItemView[];
+  /** 絞り込んだカタログ品（出すもの。祖先のフォルダーは残す） */
   items: CatalogItemView[];
   selected: string | null;
   onSelect: (id: string) => void;

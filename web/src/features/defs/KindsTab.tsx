@@ -1,28 +1,25 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import type { DesignView, Op } from "@/api/types";
-import { localized, useT } from "@/i18n";
-import { DataTable } from "@/kit/DataTable";
-import { Field } from "@/kit/Field";
-import { Panel } from "@/kit/Panel";
-import { PanelHeader } from "@/kit/PanelHeader";
-import { Pill } from "@/kit/Pill";
-import { Td } from "@/kit/Td";
-import { TextInput } from "@/kit/TextInput";
-import { Th } from "@/kit/Th";
+import { useCommandOps } from "@/api/ops";
+import type { CommandText, DesignView } from "@/api/types";
+import { useT } from "@/i18n";
+import { Field } from "@/kit/forms/Field";
+import { TextInput } from "@/kit/forms/TextInput";
+import { Pill } from "@/kit/status/Pill";
+import { DataTable } from "@/kit/table/DataTable";
+import { TablePanel } from "@/kit/table/TablePanel";
+import { Td } from "@/kit/table/Td";
+import { Th } from "@/kit/table/Th";
+import { defName } from "@/lib/design";
 
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
 import { Button } from "@/ui/button";
 
-// edit::list_from_text と同じ: カンマのみで分割。内部の空白は保存する。
-const list = (s: string) =>
-  s
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
-
-/** 種別定義（機器の状態の語彙・必須の属性・ポートの雛形）。新しい種別は CreateKind */
+/**
+ * 種別定義（機器の状態の語彙・必須の属性・ポートの雛形）。新しい種別は `fune kind add` と同じ引数を打った文字列のまま
+ * service に渡して CreateKind にする（状態・属性のカンマ区切りの一覧を読むのも、表示名の既定も service）
+ */
 export function KindsTab({ design }: { design: DesignView }) {
   const t = useT();
   const tk = t.defs.kinds;
@@ -32,36 +29,23 @@ export function KindsTab({ design }: { design: DesignView }) {
   const [states, setStates] = useState("off, on");
   const [required, setRequired] = useState("mass");
   const kinds = design.defs.kinds;
-  const ops: Op[] | null = id
-    ? [
-        {
-          op: "create_kind",
-          def: {
-            id,
-            label: id,
-            role: role || null,
-            states: list(states),
-            required: list(required),
-          },
-        },
-      ]
+  const command: CommandText | null = id
+    ? { command: "kind_add", id, role, states, required, ports: [] }
     : null;
-  const error = useOpCheck(adding ? ops : null).error;
+  const made = useCommandOps(adding ? command : null);
+  const ops = made.ops;
+  const error = useOpCheck(adding ? ops : null).error ?? made.error;
   return (
-    <Panel pad={false}>
-      <div className="p-4 pb-2">
-        <PanelHeader
-          className="mb-0"
-          title={tk.title}
-          caption={tk.caption(kinds.length)}
-          right={
-            <Button size="sm" onClick={() => setAdding(true)}>
-              <Plus size={13} />
-              {tk.add}
-            </Button>
-          }
-        />
-      </div>
+    <TablePanel
+      title={tk.title}
+      caption={tk.caption(kinds.length)}
+      right={
+        <Button size="sm" onClick={() => setAdding(true)}>
+          <Plus size={13} />
+          {tk.add}
+        </Button>
+      }
+    >
       <DataTable
         head={
           <>
@@ -80,7 +64,7 @@ export function KindsTab({ design }: { design: DesignView }) {
         {kinds.map((k) => (
           <tr key={k.id}>
             <Td mono>{k.id}</Td>
-            <Td>{localized(k.label, k.label_en)}</Td>
+            <Td>{defName(k)}</Td>
             <Td mono className="text-ink-3">
               {k.role ?? "—"}
             </Td>
@@ -156,6 +140,6 @@ export function KindsTab({ design }: { design: DesignView }) {
           </Field>
         </OpDialog>
       )}
-    </Panel>
+    </TablePanel>
   );
 }

@@ -1,7 +1,7 @@
-import { SkeletonPage, SkeletonPanel } from "@/kit/Loading";
+import { SkeletonPage, SkeletonPanel } from "@/kit/feedback/Loading";
 import { LazyRoute } from "@/shell/LazyRoute";
 import { loadOnNavigate } from "@/shell/lazy-page";
-import { pages } from "@/shell/pages";
+import { pages } from "./pages";
 
 /** ルートを読んだ時点で本体も読み始める（描画を待たない） */
 export const clientLoader = loadOnNavigate(pages.settings);

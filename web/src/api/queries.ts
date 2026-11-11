@@ -1,4 +1,11 @@
-import { keepPreviousData, QueryClient, queryOptions, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  QueryClient,
+  queryOptions,
+  useQueries,
+  useQuery,
+} from "@tanstack/react-query";
+import { useDebounced } from "@/lib/use-debounced";
 import { api, seg } from "./client";
 import { keys } from "./keys";
 import type {
@@ -8,10 +15,13 @@ import type {
   BudgetRequest,
   BudgetView,
   CheckReport,
+  DataStatus,
   DefsView,
   DesignView,
   Op,
+  PartRow,
   PartView,
+  PartViewRequest,
   ProjectInfo,
   RunAnalysisRequest,
   UnitsCatalog,
@@ -28,8 +38,18 @@ export const q = {
   project: () =>
     queryOptions({ queryKey: keys.project, queryFn: () => api<ProjectInfo>("/project") }),
   design: () => queryOptions({ queryKey: keys.design, queryFn: () => api<DesignView>("/design") }),
-  part: (id: string) =>
-    queryOptions({ queryKey: keys.part(id), queryFn: () => api<PartView>(`/parts/${seg(id)}`) }),
+  /** 1 部品。`ops` を渡すと、保存していない編集を書き込まずに当てた設計の部品（`POST /parts/{id}`） */
+  part: (id: string, ops: readonly Op[] = []) => {
+    const json = ops.length > 0 ? JSON.stringify(ops) : "";
+    return queryOptions({
+      queryKey: keys.part(id, json),
+      queryFn: () => {
+        if (!json) return api<PartView>(`/parts/${seg(id)}`);
+        const body: PartViewRequest = { ops: [...ops] };
+        return api<PartView>(`/parts/${seg(id)}`, { method: "POST", body });
+      },
+    });
+  },
   defs: () => queryOptions({ queryKey: keys.defs, queryFn: () => api<DefsView>("/defs") }),
   diagnostics: () =>
     queryOptions({
@@ -56,8 +76,7 @@ export const q = {
       queryFn: () => {
         const body: RunAnalysisRequest = {
           case: kase,
-          input_patch: null,
-          input: null,
+          source: { kind: "design" },
           ops: [...ops],
         };
         return api<AnalysisRunResult>(`/analyses/${seg(id)}`, { method: "POST", body });
@@ -67,6 +86,9 @@ export const q = {
       placeholderData: keepPreviousData,
     });
   },
+  /** 外部データ（DE440）の状態。取得は `api/data.ts` の `useFetchData` */
+  dataStatus: () =>
+    queryOptions({ queryKey: keys.dataStatus, queryFn: () => api<DataStatus>("/data/status") }),
   /** バジェット。`ops` の意味は analysis と同じ（下書きがあれば POST で送る） */
   budget: (kind: BudgetKind, ops: readonly Op[] = []) => {
     const json = ops.length > 0 ? JSON.stringify(ops) : "";
@@ -74,7 +96,7 @@ export const q = {
       queryKey: keys.budget(kind, json),
       queryFn: () => {
         if (!json) return api<BudgetView>(`/budgets/${seg(kind)}`);
-        const body: BudgetRequest = { ops: [...ops] };
+        const body: BudgetRequest = { case: null, ops: [...ops] };
         return api<BudgetView>(`/budgets/${seg(kind)}`, { method: "POST", body });
       },
       placeholderData: keepPreviousData,
@@ -87,21 +109,77 @@ export function useDesign() {
   return useQuery(q.design());
 }
 
+/**
+ * 保存していない編集（ops）を書き込まずに当てた部品（`POST /parts/{id}`）。ops が null か空なら問い合わせない。
+ * 打つ間は 250 ms 待ってから問い合わせる。同じ編集で定義を作る属性のパスを、その部品の `paths` から引くのに使う
+ * （Web はパスをつながない）。
+ */
+export function useDraftPart(
+  id: string,
+  ops: readonly Op[] | null,
+): { part: PartRow | null; error: string | null } {
+  // 文字列で待つ（毎回作り直す配列を待つと、描き直すたびに待ち直す）
+  const now = ops && ops.length > 0 ? JSON.stringify(ops) : "";
+  const json = useDebounced(now, 250);
+  const query = useQuery({
+    ...q.part(id, json ? (JSON.parse(json) as Op[]) : []),
+    enabled: json.length > 0,
+    retry: false,
+  });
+  const settled = json === now && now.length > 0;
+  return {
+    part: settled ? (query.data?.part ?? null) : null,
+    error: settled ? (query.error?.message ?? null) : null,
+  };
+}
+
 /** 解析を計算し直す（設計の編集の後は api/ops.ts が自動で無効化する。これは「再計算」ボタン用） */
 export function recomputeAnalyses(ids: readonly string[], kase: string | null): void {
   for (const id of ids) void queryClient.invalidateQueries({ queryKey: keys.analysis(id, kase) });
 }
 
-/** ある系の解析の ID。系への所属は sat-analysis の info.system が正本 */
-function systemAnalysisIds(entries: readonly AnalysisEntry[], system: string | null): string[] {
-  return entries.filter((e) => e.info.system === system).map((e) => e.info.id);
+/** 解析 1 つの実行の状態（`useAnalyses` の 1 要素） */
+export interface AnalysisState {
+  id: string;
+  result: AnalysisRunResult | undefined;
+  error: string | null;
+  loading: boolean;
+  /** 前の結果を出したまま、次の結果を問い合わせている */
+  updating: boolean;
 }
 
-/** 解析の一覧（GET /analyses）から、ある系の解析を引く */
+/**
+ * 解析をまとめて実行する（POST /analyses/{id}。結果は設計の編集で無効化される）。
+ * `ops` を渡すと、保存していない編集（下書き）を当てた設計で計算する。系のページ・概要・軌道・モードが使う。
+ */
+export function useAnalyses(
+  ids: readonly string[],
+  kase: string | null,
+  ops: readonly Op[] = [],
+): AnalysisState[] {
+  return useQueries({
+    queries: ids.map((id) => q.analysis(id, kase, ops)),
+    combine: (rs) =>
+      rs.map((r, i) => ({
+        id: ids[i] ?? "",
+        result: r.data,
+        error: r.error?.message ?? null,
+        loading: r.isPending,
+        updating: r.isFetching && !r.isPending,
+      })),
+  });
+}
+
+/** ある系の解析。系への所属は sat-analysis の info.system が正本 */
+function systemEntries(entries: readonly AnalysisEntry[], system: string | null): AnalysisEntry[] {
+  return entries.filter((e) => e.info.system === system);
+}
+
+/** 解析の一覧（GET /analyses）から、ある系の解析（一覧の順）とその ID を引く */
 export function useSystemAnalyses(system: string | null) {
   const catalog = useQuery(q.analyses());
-  const entries = catalog.data ?? [];
-  return { entries, ids: systemAnalysisIds(entries, system), loading: catalog.isPending };
+  const entries = systemEntries(catalog.data ?? [], system);
+  return { entries, ids: entries.map((e) => e.info.id), loading: catalog.isPending };
 }
 
 /**
@@ -112,8 +190,8 @@ export async function prefetchSystemAnalyses(system: string): Promise<void> {
   try {
     const entries = await queryClient.fetchQuery(q.analyses());
     await Promise.all(
-      systemAnalysisIds(entries, system).map((id) =>
-        queryClient.prefetchQuery(q.analysis(id, null)),
+      systemEntries(entries, system).map((e) =>
+        queryClient.prefetchQuery(q.analysis(e.info.id, null)),
       ),
     );
   } catch {

@@ -1,17 +1,35 @@
 //! `analysis/` の設定の検査（量の次元・割合の範囲・モードと部品と地上局の参照）。
+//! 量の次元は系ごとのファイルの窓口が設定の次元の表で見る（[`Scope::dimensions`]）。
 
 use super::Ctx;
 use super::settings::{Scope, scope};
-use crate::design::{CommLinkSettings, Design, MaterialSettings, ThermalSettings};
+use crate::design::{AnalysisSystem, CommLinkSettings, Design, SettingEntry, ThermalSettings};
 
-/// `analysis/` の全体。
-pub(super) fn check_analysis(ctx: &mut Ctx) {
+/// `analysis/` の全体。`entries` は `Design::setting_entries`。
+pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
+    // 書かれていない系のファイルには葉が無いので、すべての系を回してよい
+    for system in AnalysisSystem::ALL {
+        scope(ctx, system.setting_path()).dimensions(entries);
+    }
+    let design = ctx.design;
+    if let Some(id) = design
+        .analysis
+        .common
+        .as_ref()
+        .and_then(|c| c.default_case.as_deref())
+    {
+        scope(ctx, crate::path::SettingPath::analysis_common()).reference(
+            &["default_case"],
+            design.cases.contains_key(id),
+            "ref.case",
+            format!("解析ケース `{id}`"),
+        );
+    }
     check_power(ctx);
-    check_attitude(ctx);
+    check_aocs(ctx);
     check_cdh(ctx);
     check_comm(ctx);
     check_thermal(ctx);
-    check_structure(ctx);
 }
 
 fn mode_exists(design: &Design, mode: &str) -> bool {
@@ -23,7 +41,7 @@ fn check_power(ctx: &mut Ctx) {
     let Some(p) = &design.analysis.power else {
         return;
     };
-    let mut s = scope(ctx, "analysis.power");
+    let mut s = scope(ctx, AnalysisSystem::Power.setting_path());
     s.fraction(&["dod_max"], p.dod_max);
     s.fraction(&["initial_soc"], p.initial_soc);
     s.fraction(&["conversion_efficiency"], p.conversion_efficiency);
@@ -60,23 +78,15 @@ fn check_power(ctx: &mut Ctx) {
             "ref.mode",
             format!("モード `{}`", seg.mode),
         );
-        s.qty(&["sequence"], Some(&seg.duration), "Time");
     }
 }
 
-fn check_attitude(ctx: &mut Ctx) {
+fn check_aocs(ctx: &mut Ctx) {
     let design = ctx.design;
-    let Some(a) = &design.analysis.attitude else {
+    let Some(a) = &design.analysis.aocs else {
         return;
     };
-    let mut s = scope(ctx, "analysis.attitude");
-    s.vector(&["cp_offset_aero"], a.cp_offset_aero.as_ref(), "Length");
-    s.vector(&["cp_offset_srp"], a.cp_offset_srp.as_ref(), "Length");
-    s.vector(
-        &["residual_dipole"],
-        a.residual_dipole.as_ref(),
-        "MagneticDipoleMoment",
-    );
+    let mut s = scope(ctx, AnalysisSystem::Aocs.setting_path());
     s.fraction(&["usable_momentum_fraction"], a.usable_momentum_fraction);
     s.fraction(&["unload_dipole_fraction"], a.unload_dipole_fraction);
     for mode in a.law.keys() {
@@ -95,8 +105,7 @@ fn check_cdh(ctx: &mut Ctx) {
     let Some(c) = &design.analysis.cdh else {
         return;
     };
-    let mut s = scope(ctx, "analysis.cdh");
-    s.qty(&["retention"], c.retention.as_ref(), "Time");
+    let mut s = scope(ctx, AnalysisSystem::Cdh.setting_path());
     s.fraction(&["storage_margin"], c.storage_margin);
     s.fraction(&["compression_ratio"], c.compression_ratio);
 }
@@ -106,7 +115,7 @@ fn check_comm(ctx: &mut Ctx) {
     let Some(c) = &design.analysis.comm else {
         return;
     };
-    let mut s = scope(ctx, "analysis.comm");
+    let mut s = scope(ctx, AnalysisSystem::Comm.setting_path());
     for station in &c.stations {
         let exists = design.mission.ground.contains_key(station);
         s.reference(
@@ -116,7 +125,6 @@ fn check_comm(ctx: &mut Ctx) {
             format!("地上局 `{station}`（mission/ground/）"),
         );
     }
-    s.qty(&["min_margin"], c.min_margin.as_ref(), "Dimensionless");
     for (name, link) in &c.links {
         check_link(&mut s, design, &c.stations, name, link);
     }
@@ -151,17 +159,6 @@ fn check_link(
             );
         }
     }
-    let losses = [
-        ("ebn0_required", &link.ebn0_required),
-        ("pointing_loss", &link.pointing_loss),
-        ("polarization_loss", &link.polarization_loss),
-        ("atmospheric_loss", &link.atmospheric_loss),
-        ("implementation_loss", &link.implementation_loss),
-        ("line_loss", &link.line_loss),
-    ];
-    for (key, q) in losses {
-        s.qty(&["link", name, key], q.as_ref(), "Dimensionless");
-    }
 }
 
 fn check_thermal(ctx: &mut Ctx) {
@@ -169,25 +166,7 @@ fn check_thermal(ctx: &mut Ctx) {
     let Some(t) = &design.analysis.thermal else {
         return;
     };
-    let mut s = scope(ctx, "analysis.thermal");
-    s.qtys(&[
-        (
-            &["contact_conductance"],
-            t.contact_conductance.as_ref(),
-            "ThermalConductance",
-        ),
-        (
-            &["radiative_coupling"],
-            t.radiative_coupling.as_ref(),
-            "Area",
-        ),
-        (
-            &["initial_temperature"],
-            t.initial_temperature.as_ref(),
-            "Temperature",
-        ),
-        (&["time_step"], t.time_step.as_ref(), "Time"),
-    ]);
+    let mut s = scope(ctx, AnalysisSystem::Thermal.setting_path());
     for (name, case) in &t.cases {
         let n = name.as_str();
         if let Some(mode) = &case.mode {
@@ -199,19 +178,6 @@ fn check_thermal(ctx: &mut Ctx) {
                 format!("モード `{mode}`"),
             );
         }
-        s.qtys(&[
-            (
-                &["case", n, "solar_flux"],
-                case.solar_flux.as_ref(),
-                "Irradiance",
-            ),
-            (
-                &["case", n, "earth_ir"],
-                case.earth_ir.as_ref(),
-                "Irradiance",
-            ),
-            (&["case", n, "beta"], case.beta.as_ref(), "Angle"),
-        ]);
         s.fraction(&["case", n, "albedo"], case.albedo);
     }
     check_nodes(&mut s, design, t);
@@ -238,50 +204,4 @@ fn check_nodes(s: &mut Scope, design: &Design, t: &ThermalSettings) {
             }
         }
     }
-}
-
-fn check_structure(ctx: &mut Ctx) {
-    let design = ctx.design;
-    let Some(st) = &design.analysis.structure else {
-        return;
-    };
-    let mut s = scope(ctx, "analysis.structure");
-    for (name, m) in &st.material {
-        check_material(&mut s, name, m);
-    }
-    s.qty(
-        &["fastener_allowable"],
-        st.fastener_allowable.as_ref(),
-        "Force",
-    );
-}
-
-fn check_material(s: &mut Scope, name: &str, m: &MaterialSettings) {
-    s.qtys(&[
-        (
-            &["material", name, "density"],
-            m.density.as_ref(),
-            "MassDensity",
-        ),
-        (
-            &["material", name, "youngs_modulus"],
-            m.youngs_modulus.as_ref(),
-            "Pressure",
-        ),
-        (
-            &["material", name, "yield_strength"],
-            m.yield_strength.as_ref(),
-            "Pressure",
-        ),
-        (
-            &["material", name, "ultimate_strength"],
-            m.ultimate_strength.as_ref(),
-            "Pressure",
-        ),
-        (
-            &["material", name, "thermal_conductivity"],
-            m.thermal_conductivity.as_ref(),
-            "W/(m*K)",
-        ),
-    ]);
 }

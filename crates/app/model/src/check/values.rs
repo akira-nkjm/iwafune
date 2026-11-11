@@ -212,7 +212,7 @@ fn direction(v: &[f64; 3]) -> Option<Finding> {
             "vector.zero",
             "方向ベクトルが 0 です".to_string(),
         ))
-    } else if (norm - 1.0).abs() > 1e-3 {
+    } else if (norm - 1.0).abs() > super::UNIT_NORM_TOLERANCE {
         Some((
             Severity::Warning,
             "vector.not_unit",

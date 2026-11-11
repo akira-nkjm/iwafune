@@ -1,4 +1,5 @@
-//! 読み取りの関数（設計全体・部品・値・定義・診断）。どれもディスクから読み直したスナップショットを見る。
+//! 読み取りの関数（設計全体・部品・値・定義・診断）。どれもディスクから読み直したスナップショットを見る
+//! （`part_view` は、依頼の `ops` があれば書き込まずに当てたスナップショット。`preview::snapshot_with`）。
 //!
 //! | モジュール | 中身 |
 //! |---|---|
@@ -6,17 +7,17 @@
 //! | `parts` | 部品の行・1 部品の全情報・1 つの値 |
 //! | `catalog` | カタログ品（値・パス・使っている部品・書き換えられるか） |
 //! | `values` | 解決済みの値・書かれた量 → 表示用の型 |
-//! | `settings` | 設定 → キーと値の一覧 |
+//! | `settings` | 設定 → キーと値の一覧、設定・バジェットと系の対応 |
 
 mod catalog;
 mod parts;
-mod settings;
+pub(crate) mod settings;
 pub(crate) mod values;
 pub(crate) mod views;
 
 use crate::dto::{
     CheckReport, DefsView, DesignCounts, DesignView, DiagnosticCounts, PartRow, PartView,
-    PartsQuery, ProjectInfo, ValueAnswer, ValueQuery,
+    PartViewRequest, PartsQuery, ProjectInfo, ValueAnswer, ValueQuery,
 };
 use crate::error::Result;
 use crate::workspace::{Snapshot, Workspace};
@@ -26,6 +27,11 @@ use crate::workspace::{Snapshot, Workspace};
 pub fn enum_label<T: std::fmt::Display>(ty: &str, value: &T) -> String {
     let code = value.to_string();
     fune_model::builtin::enum_label(ty, &code).map_or(code, |l| l.label.clone())
+}
+
+/// API の系の ID。綴りは model の系から取り、CLI は列挙の対応を持たない。
+pub fn system_id(system: sat_analysis::spec::System) -> &'static str {
+    fune_projection::system::from_analysis(system).as_str()
 }
 
 /// プロジェクトの概要（`GET /project`）。
@@ -51,6 +57,7 @@ fn info_of(ws: &Workspace, s: &Snapshot) -> ProjectInfo {
             cases: count(d.cases.len()),
         },
         diagnostics: DiagnosticCounts::of(&s.diagnostics),
+        catalogs: catalog::sources(d),
     }
 }
 
@@ -81,9 +88,10 @@ pub fn list_parts(ws: &Workspace, q: &PartsQuery) -> Result<Vec<PartRow>> {
     Ok(parts::list(&s.design, &s.resolved, q))
 }
 
-/// 1 部品の全情報（`GET /parts/{id}`）。
-pub fn part_view(ws: &Workspace, id: &str) -> Result<PartView> {
-    let s = ws.snapshot()?;
+/// 1 部品の全情報（`GET /parts/{id}`・`fune part show`）。`req.ops` があれば、それを書き込まずに当てた設計で表示する
+/// （`POST /parts/{id}`・`fune part show --ops`。同じ編集で定義を作る属性のパスも `paths` に入る）。
+pub fn part_view(ws: &Workspace, id: &str, req: &PartViewRequest) -> Result<PartView> {
+    let s = crate::preview::snapshot_with(ws, &req.ops)?;
     parts::view(&s.design, &s.resolved, &s.diagnostics, id)
 }
 

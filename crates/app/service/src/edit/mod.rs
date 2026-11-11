@@ -1,29 +1,42 @@
 //! 編集の関数。**書き込みは [`apply`] だけ**（Op の列を fune-ops で計画・適用する）。CLI のコマンドも GUI の操作も Op にしてここを呼ぶ。
 //! 人が打つ値の文字列（`"620 g"`）を属性の型に合わせて Op にするのも、属性定義を見る必要があるのでここで行う。
+//!
+//! | モジュール | 打った文字列 → Op |
+//! |---|---|
+//! | `text` | `fune set`・`fune unset`・`fune setting set|unset` のパスと値（[`set_op`]・[`unset_op`]）と、値の読み方 |
+//! | `catalog` | `fune catalog set|unset` |
+//! | `command` | 名詞のコマンドの引数（[`command_ops`]。`fune net set|unset`・`fune part place`・`fune mode set|unset`） |
+//! | `defs` | `fune attr add`・`fune kind add` |
+//! | `place` | 機体座標での配置（`fune part place --body-pos`・`POST /parts/{id}/place_body`） |
 
 use crate::diff;
 use crate::dto::{ApplyRequest, ApplyResult, ChangedFile, FileChangeKind, InitResult};
 use crate::error::{Result, ServiceError};
-use crate::workspace::{Workspace, store_error, with_excerpt};
+use crate::workspace::{Workspace, op_error, store_error, with_excerpt};
 use fune_model::design::Revision;
-use fune_ops::{ApplyOptions, Op, OpError};
-use fune_store::{FileSet, StoreError};
+use fune_ops::{ApplyOptions, Op};
+use fune_store::FileSet;
 use std::path::Path;
 
 mod catalog;
+mod command;
+mod defs;
 mod place;
 mod text;
 
-pub use catalog::maturity;
+pub use command::{command_ops, duty_from_text, mode_set_op, net_set_ops, net_unset_op, place_op};
+pub use defs::{attr_add_op, kind_add_op, port_template_from_text};
 pub use fune_ops::{to_cli, to_cli_script};
 pub use place::{place_body, place_body_op};
 pub use text::{
-    SetText, UnsetText, list_from_text, quantity_from_text, quaternion_from_text, vector_from_text,
+    SetText, UnsetText, list_from_text, maturity, net_kind, pair_from_text, points_from_text,
+    quantity_from_text, quaternion_from_text, vector_from_text, xy_from_text,
 };
 
 /// 人が打った値の文字列 → Op（`fune set`・`fune catalog set`・`POST /ops/from_text`）。
 /// `item` があればカタログ品の値かフィールド（`SetCatalogValue`・`SetCatalogField`）、無ければ部品の値・フィールドか設定
-/// （`SetValue`・`SetField`・`SetSetting`）。値の型は属性定義・設定の今の型から決める。
+/// （`SetValue`・`SetField`・`SetSetting`）。値の型は属性定義・設定の今の型から決める（`ops` があれば、それを書き込まずに
+/// 当てた設計の定義と型。同じ編集で作る属性の値を読むため）。
 pub fn set_op(ws: &Workspace, t: &SetText) -> Result<Op> {
     match &t.item {
         Some(item) => catalog::catalog_set_op(ws, item, t),
@@ -48,12 +61,9 @@ pub fn apply(ws: &Workspace, req: &ApplyRequest) -> Result<ApplyResult> {
     };
     let out = fune_ops::apply(ws.root(), &req.ops, &options).map_err(|e| op_error(ws, e))?;
     let changed = changed_files(&out.plan.changes);
+    // 診断の抜粋は、変わったファイルの適用後の本文から取る
     let mut after = FileSet::new();
-    for c in &out.plan.changes {
-        if let Some(text) = &c.after {
-            after.insert(c.path.clone(), text.clone());
-        }
-    }
+    fune_store::apply_changes(&mut after, &out.plan.changes);
     let diagnostics = out
         .plan
         .diagnostics
@@ -112,37 +122,6 @@ fn changed_files(changes: &[fune_store::FileChange]) -> Vec<ChangedFile> {
     }
     out.retain(|f| !(f.change == FileChangeKind::Deleted && moved_from.contains(&f.path.as_str())));
     out
-}
-
-/// ops のエラー → サービスのエラー。
-/// fune-ops のエラーをサービスのエラーにする（保存と、保存しない編集のプレビューで共通）。
-pub(crate) fn op_error(ws: &Workspace, e: OpError) -> ServiceError {
-    match e {
-        OpError::Conflict { expected, actual } => ServiceError::Conflict {
-            expected: expected.0,
-            actual: actual.0,
-        },
-        OpError::NotFound { what } => ServiceError::NotFound {
-            what: "対象",
-            id: what,
-        },
-        OpError::AlreadyExists { what } => {
-            ServiceError::InvalidInput(format!("{what} は既にあります"))
-        }
-        OpError::Invalid { message } => ServiceError::InvalidInput(message),
-        OpError::Rejected { diagnostics } => {
-            // 書き込まなかったので、該当行は今のファイルから取る（変えていないファイルの行は同じ）。
-            let files = fune_store::read::scan(ws.root()).unwrap_or_default();
-            ServiceError::Validation {
-                diagnostics: diagnostics
-                    .into_iter()
-                    .map(|d| with_excerpt(d, &files))
-                    .collect(),
-            }
-        }
-        OpError::Store(StoreError::Locked { lock }) => ServiceError::Locked(lock),
-        OpError::Store(e) => store_error(e),
-    }
 }
 
 /// 新しいプロジェクトを作る（`fune init`）。

@@ -55,6 +55,6 @@ default?: number | null,
  */
 unit_vector?: boolean, 
 /**
- * 画面で並べる系（`basic`・`mass`・`power`・`thermal`・`attitude`・`comm`・`cdh`・`structure`）
+ * 画面で並べる系（`basic`・`mass`・`power`・`thermal`・`aocs`・`comm`・`cdh`・`structure`）
  */
 section?: string | null, };

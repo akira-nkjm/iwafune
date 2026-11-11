@@ -1,11 +1,11 @@
 //! 回線バジェット（`comm.link_budget`）。回線ごとに EIRP・自由空間損失・G/T・C/N0・Eb/N0 と余裕を求める。
 //! 計算の部品は [`crate::comm::link`] を使う。
 
-use crate::comm::link::{
-    DEFAULT_REQUIRED_MARGIN_DB, RfLinkParams, eb_over_n0_db, max_data_rate_bps, slant_range_m,
-};
+use crate::comm::link::{RfLinkParams, eb_over_n0_db, max_data_rate_bps, required_margin};
 use crate::spec::quantity_text;
 use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, margin_verdict};
+use sat_astro::ephem::CentralBody;
+use sat_astro::ground::slant_range_m;
 use sat_units::typed::{
     Angle, DataRate, Decibel, DecibelHertz, DecibelPerKelvin, DecibelWatt, Length, Qty,
 };
@@ -33,10 +33,13 @@ pub struct LinkBudgetLink {
     pub rf: RfLinkParams,
     /// データレート
     pub data_rate: Qty<DataRate>,
-    /// 変調・符号化で決まる所要 Eb/N0 [dB]
-    pub required_eb_n0_db: f64,
-    /// 衛星の高度
+    /// 変調・符号化で決まる所要 Eb/N0
+    pub required_eb_n0_db: Decibel,
+    /// 衛星の高度（中心天体の半径から）
     pub altitude: Qty<Length>,
+    /// 軌道の中心天体（斜距離に半径を使う。省略時は地球）
+    #[serde(default)]
+    pub central: CentralBody,
     /// 評価する仰角（最悪は運用の最低仰角）
     pub elevation: Qty<Angle>,
 }
@@ -46,9 +49,16 @@ pub struct LinkBudgetLink {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct LinkBudgetInput {
     pub links: Vec<LinkBudgetLink>,
-    /// 要求する回線余裕 [dB]（既定 [`DEFAULT_REQUIRED_MARGIN_DB`]）
+    /// 要求する回線余裕（既定 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）
     #[serde(default)]
-    pub required_margin_db: Option<f64>,
+    pub required_margin_db: Option<Decibel>,
+}
+
+impl LinkBudgetInput {
+    /// 要求する回線余裕（省略時 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）。
+    pub fn required_margin_db(&self) -> Decibel {
+        required_margin(self.required_margin_db)
+    }
 }
 
 /// 1 回線の結果（dB の値はすべて電力比の 10 log10）。
@@ -110,9 +120,7 @@ impl Analysis for LinkBudget {
         }
         let mut links = Vec::with_capacity(input.links.len());
         let mut checks = Vec::with_capacity(input.links.len());
-        let required = input
-            .required_margin_db
-            .unwrap_or(DEFAULT_REQUIRED_MARGIN_DB);
+        let required = input.required_margin_db();
         for link in &input.links {
             let result = evaluate(link, required)?;
             checks.push(margin_check(&result, required));
@@ -120,7 +128,7 @@ impl Analysis for LinkBudget {
         }
         Ok(LinkBudgetOutput {
             links,
-            required_margin_db: required.into(),
+            required_margin_db: required,
             checks,
         })
     }
@@ -128,7 +136,7 @@ impl Analysis for LinkBudget {
 
 fn evaluate(
     link: &LinkBudgetLink,
-    required_margin_db: f64,
+    required_margin: Decibel,
 ) -> Result<LinkBudgetLinkResult, AnalysisError> {
     link.rf.validate(&link.name)?;
     let rate = link.data_rate.value();
@@ -139,7 +147,7 @@ fn evaluate(
             link.name
         )));
     }
-    let range = slant_range_m(altitude, link.elevation.value());
+    let range = slant_range_m(link.central.radius_m(), altitude, link.elevation.value());
     let eval = link.rf.evaluate(range);
     let eb_n0 = eb_over_n0_db(eval.c_over_n0_dbhz, rate);
     Ok(LinkBudgetLinkResult {
@@ -152,25 +160,25 @@ fn evaluate(
         g_over_t_dbk: (eval.g_over_t_dbk).into(),
         c_over_n0_dbhz: (eval.c_over_n0_dbhz).into(),
         eb_n0_db: (eb_n0).into(),
-        required_eb_n0_db: (link.required_eb_n0_db).into(),
-        margin_db: (eb_n0 - link.required_eb_n0_db).into(),
+        required_eb_n0_db: link.required_eb_n0_db,
+        margin_db: (eb_n0 - link.required_eb_n0_db.value()).into(),
         max_data_rate: Qty::from_raw(max_data_rate_bps(
             eval.c_over_n0_dbhz,
-            link.required_eb_n0_db,
-            required_margin_db,
+            link.required_eb_n0_db.value(),
+            required_margin.value(),
         )),
     })
 }
 
-fn margin_check(result: &LinkBudgetLinkResult, required_margin_db: f64) -> Check {
+fn margin_check(result: &LinkBudgetLinkResult, required: Decibel) -> Check {
     Check::new(
         &format!("margin:{}", result.name),
         &format!("{} の回線余裕", result.name),
-        margin_verdict(result.margin_db.value(), required_margin_db),
+        margin_verdict(result.margin_db.value(), required.value()),
         format!(
-            "余裕 {} dB（要求 {} dB 以上）",
-            quantity_text(result.margin_db.value(), "Dimensionless"),
-            quantity_text(required_margin_db, "Dimensionless")
+            "余裕 {}（要求 {} 以上）",
+            quantity_text::<Decibel>(result.margin_db.value()),
+            quantity_text::<Decibel>(required.value())
         ),
     )
 }
@@ -180,6 +188,10 @@ mod tests {
     use super::*;
     use crate::spec::Verdict;
 
+    fn db(v: f64) -> Decibel {
+        Decibel::new(v)
+    }
+
     fn uhf_down() -> LinkBudgetLink {
         LinkBudgetLink {
             name: "UHF down".to_owned(),
@@ -187,19 +199,20 @@ mod tests {
             rf: RfLinkParams {
                 frequency: Qty::from_raw(437.0e6),
                 tx_power: Qty::from_raw(1.0),
-                tx_gain_db: 0.0,
-                tx_loss_db: Some(1.0),
-                rx_gain_db: 12.0,
-                rx_loss_db: Some(0.0),
+                tx_gain_db: db(0.0),
+                tx_loss_db: Some(db(1.0)),
+                rx_gain_db: db(12.0),
+                rx_loss_db: Some(db(0.0)),
                 system_noise_temperature: Qty::from_raw(500.0),
-                atmospheric_loss_db: Some(0.5),
-                polarization_loss_db: Some(3.0),
-                pointing_loss_db: Some(0.5),
-                other_loss_db: Some(0.0),
+                atmospheric_loss_db: Some(db(0.5)),
+                polarization_loss_db: Some(db(3.0)),
+                pointing_loss_db: Some(db(0.5)),
+                other_loss_db: Some(db(0.0)),
             },
             data_rate: Qty::from_raw(9600.0),
-            required_eb_n0_db: 10.0,
+            required_eb_n0_db: db(10.0),
             altitude: Qty::from_raw(1.0e6),
+            central: CentralBody::Earth,
             elevation: Qty::from_raw(std::f64::consts::FRAC_PI_2),
         }
     }
@@ -247,5 +260,25 @@ mod tests {
         .unwrap();
         assert!(out.links[0].margin_db.value() < 0.0);
         assert_eq!(out.checks[0].verdict, Verdict::Violation);
+    }
+
+    /// 地平線の斜距離は中心天体の半径で決まる: 月（R = 1737.4 km）の高度 1000 km は
+    /// √(2737.4² − 1737.4²) km ≈ 2115.5 km（地球なら √(7378.1² − 6378.1²) km ≈ 3709.0 km）。
+    #[test]
+    fn horizon_distance_follows_the_central_body() {
+        let range = |central: CentralBody| {
+            let mut link = uhf_down();
+            link.elevation = Qty::from_raw(0.0);
+            link.central = central;
+            let input = LinkBudgetInput {
+                links: vec![link],
+                required_margin_db: None,
+            };
+            LinkBudget::run(&input).unwrap().links[0]
+                .slant_range
+                .value()
+        };
+        assert!((range(CentralBody::Moon) - 2115.5e3).abs() < 0.5e3);
+        assert!((range(CentralBody::Earth) - 3709.0e3).abs() < 0.5e3);
     }
 }

@@ -1,7 +1,6 @@
 //! 単位の API の型。
 
 use super::QuantityView;
-use sat_units::format::FormattedQuantity;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -33,8 +32,8 @@ pub struct UnitInfo {
     /// SI 値 = `scale` × 値 + `offset`（対数単位では 0 dB の基準値）
     pub scale: f64,
     pub offset: f64,
-    /// `scale` の表示文字列
-    pub scale_display: String,
+    /// `scale` の数の表示（量ではないので文字列。例: `"0.001"`）
+    pub scale_text: String,
     pub mapping: UnitMapping,
 }
 
@@ -69,8 +68,8 @@ pub struct ParseQuantityRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ParsedQuantity {
     pub quantity: QuantityView,
-    /// SI 単位での表示（例: `"0.018 N*m*s"`）
-    pub si_display: String,
+    /// 同じ量を SI の組立単位で表したもの（例: `display` が `"0.0180 N·m·s"`。無次元は単位なし）
+    pub si: QuantityView,
 }
 
 /// SI 値の一括整形の依頼（`POST /units/format`、`fune units format`）。解析の出力（SI の数値）を画面に出すのに使う。
@@ -91,8 +90,8 @@ pub struct FormatItem {
     pub unit: Option<String>,
 }
 
-/// 一括整形の結果（`items` と同じ順）。
+/// 一括整形の結果（`items` と同じ順。量の表示はほかの API と同じ `QuantityView`）。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct FormatResponse {
-    pub items: Vec<FormattedQuantity>,
+    pub items: Vec<QuantityView>,
 }

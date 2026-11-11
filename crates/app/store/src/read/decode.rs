@@ -5,9 +5,9 @@
 use super::files::FileSet;
 use super::{profile, spans};
 use crate::layout::{self, FileRole};
-use fune_model::design::{Design, Project};
+use fune_model::design::{AnalysisSystem, Design, Project};
 use fune_model::id::Id;
-use fune_model::{Diagnostic, Severity};
+use fune_model::{Diagnostic, Severity, Target};
 use serde::de::DeserializeOwned;
 use std::collections::BTreeMap;
 
@@ -49,6 +49,11 @@ pub fn decode(files: &FileSet) -> Design {
         FileRole::Attribute(_) | FileRole::Kind(_) => 1,
         _ => 2,
     });
+    // 読み込みの診断には、ファイルが書いているものを対象として付ける（`parts/` のファイルならその部品）。
+    let targets: BTreeMap<&str, Target> = roles
+        .iter()
+        .filter_map(|(role, path)| Some((*path, layout::file_target(role)?)))
+        .collect();
     for (role, path) in roles {
         if let Some(entity) = layout::entity_key(&role) {
             d.design.source_map.insert_file(entity, path);
@@ -56,6 +61,11 @@ pub fn decode(files: &FileSet) -> Design {
         d.read_file(&role, path);
     }
     d.build_tree();
+    for diag in &mut d.design.load_diagnostics {
+        if diag.target.is_none() {
+            diag.target = diag.file.as_deref().and_then(|f| targets.get(f)).cloned();
+        }
+    }
     d.design
 }
 
@@ -218,7 +228,8 @@ impl Decoder<'_> {
                 v.id = id.clone();
                 g.mission.ground.insert(id.clone(), v);
             }),
-            FileRole::Analysis(name) => self.read_analysis(path, name),
+            FileRole::Analysis(system) => self.read_analysis(path, *system),
+            FileRole::CommonAnalysis => self.design.analysis.common = self.parse(path),
             FileRole::View(id) => self.read_into(path, |g, mut v: d::ViewLayout| {
                 v.id = id.clone();
                 g.views.insert(id.clone(), v);
@@ -241,15 +252,15 @@ impl Decoder<'_> {
         }
     }
 
-    fn read_analysis(&mut self, path: &str, name: &str) {
-        match name {
-            "power" => self.design.analysis.power = self.parse(path),
-            "attitude" => self.design.analysis.attitude = self.parse(path),
-            "cdh" => self.design.analysis.cdh = self.parse(path),
-            "comm" => self.design.analysis.comm = self.parse(path),
-            "thermal" => self.design.analysis.thermal = self.parse(path),
-            "structure" => self.design.analysis.structure = self.parse(path),
-            _ => {}
+    fn read_analysis(&mut self, path: &str, system: AnalysisSystem) {
+        match system {
+            AnalysisSystem::Power => self.design.analysis.power = self.parse(path),
+            AnalysisSystem::Aocs => self.design.analysis.aocs = self.parse(path),
+            AnalysisSystem::Cdh => self.design.analysis.cdh = self.parse(path),
+            AnalysisSystem::Comm => self.design.analysis.comm = self.parse(path),
+            AnalysisSystem::Thermal => self.design.analysis.thermal = self.parse(path),
+            AnalysisSystem::Structure => self.design.analysis.structure = self.parse(path),
+            AnalysisSystem::Payload => self.design.analysis.payload = self.parse(path),
         }
     }
 }

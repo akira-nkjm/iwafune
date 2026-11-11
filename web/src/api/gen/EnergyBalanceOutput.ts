@@ -2,6 +2,7 @@
 import type { EnergyBalanceCaseResult } from "./EnergyBalanceCaseResult";
 import type { Series } from "./Series";
 import type { SolarLife } from "./SolarLife";
+import type { SpanFallback } from "./SpanFallback";
 
 /**
  * 電力収支と DoD の出力。
@@ -11,6 +12,10 @@ export type EnergyBalanceOutput = { life: SolarLife, period: number,
  * 回り切った周回の数（0 なら平均は全期間）
  */
 complete_orbits: number, 
+/**
+ * 1 周に満たないときの代わりの集計（回り切った周回があれば `None`）
+ */
+span_fallback: SpanFallback | null, 
 /**
  * 軌道平均の発電（`timeline.attitude` の姿勢則。ケースで姿勢則を替えたときはケースの値を見る）
  */

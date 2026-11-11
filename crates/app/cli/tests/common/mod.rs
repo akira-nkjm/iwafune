@@ -105,6 +105,24 @@ pub fn post_json(
     serde_json::from_str(&text).unwrap()
 }
 
+/// `root` を開いた HTTP のルーターに GET し、200 であることを確かめて本文の JSON を返す（パリティテスト用）。
+pub fn get_json(rt: &tokio::runtime::Runtime, root: &Path, uri: &str) -> serde_json::Value {
+    use axum::body::{Body, to_bytes};
+    use axum::http::{Request, StatusCode};
+    use tower::ServiceExt;
+    let ws = fune_service::Workspace::open(root).unwrap();
+    let router = fune_server::router(std::sync::Arc::new(ws));
+    let req = Request::get(uri).body(Body::empty()).unwrap();
+    let (status, text) = rt.block_on(async {
+        let res = router.oneshot(req).await.unwrap();
+        let status = res.status();
+        let bytes = to_bytes(res.into_body(), usize::MAX).await.unwrap();
+        (status, String::from_utf8_lossy(&bytes).into_owned())
+    });
+    assert_eq!(status, StatusCode::OK, "GET {uri} が失敗しました: {text}");
+    serde_json::from_str(&text).unwrap()
+}
+
 /// 2 つのプロジェクトのファイルの集合と中身がバイト単位で一致することを確かめる（パリティテスト用）。
 pub fn assert_same_files(cli: &Path, http: &Path, after: &str) {
     let a = snapshot_files(cli);

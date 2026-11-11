@@ -2,9 +2,14 @@
 import type { Op } from "./Op";
 
 /**
- * バジェットの依頼（`POST /budgets/{kind}`、`fune budget <kind> --ops`）。
+ * バジェットの依頼（`POST /budgets/{kind}`、`fune budget <kind> --case <ID> --ops <file>`）。
  */
 export type BudgetRequest = { 
+/**
+ * 解析ケースの ID（`cases/<ID>.toml`）。電力はケースのモードで、データ量はケースのモードだけで数える。
+ * 省略すると既定（電力は合計が最大のモード、データ量は `analysis.power.mode_share` の割合）。`GET` は省略と同じ
+ */
+case: string | null, 
 /**
  * 保存していない編集。書き込まずに当てた設計で数える（空なら保存済みの設計。`GET` と同じ）
  */

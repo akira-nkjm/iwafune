@@ -1,12 +1,11 @@
-import { useEnumLabel } from "@/api/labels";
+import { useEnumOptions } from "@/api/labels";
 import { useSetText, useUnsetText } from "@/api/ops";
-import type { CatalogItemView, Maturity } from "@/api/types";
+import type { CatalogItemView } from "@/api/types";
 import { useT } from "@/i18n";
-import { NativeSelect } from "@/kit/NativeSelect";
-import { PropertyList } from "@/kit/PropertyList";
-import { PropertyRow } from "@/kit/PropertyRow";
-
-const MATURITY = ["off_the_shelf", "modified", "new"] satisfies Maturity[];
+import { PropertyList } from "@/kit/detail/PropertyList";
+import { PropertyRow } from "@/kit/detail/PropertyRow";
+import { CommitInput } from "@/kit/forms/CommitInput";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
 
 /** 文字列で書くフィールドの名前（`fune catalog set <品> <フィールド> <値>` のフィールド） */
 type TextField = "label" | "label_en" | "manufacturer" | "part_number" | "datasheet" | "source";
@@ -17,7 +16,7 @@ type TextField = "label" | "label_en" | "manufacturer" | "part_number" | "datash
  */
 export function CatalogFields({ item }: { item: CatalogItemView }) {
   const t = useT();
-  const label = useEnumLabel();
+  const maturity = useEnumOptions("maturity");
   const setText = useSetText();
   const unsetText = useUnsetText();
   const readOnly = !item.editable;
@@ -41,16 +40,11 @@ export function CatalogFields({ item }: { item: CatalogItemView }) {
       </PropertyRow>
       {rows.map((r) => (
         <PropertyRow key={r.key} label={r.label}>
-          <input
-            aria-label={r.label}
-            defaultValue={r.value ?? ""}
-            key={`${item.id}-${r.value ?? ""}`}
+          <CommitInput
+            label={r.label}
+            value={r.value ?? ""}
             disabled={readOnly}
-            onBlur={(e) => {
-              const v = e.target.value.trim();
-              if (v !== (r.value ?? "")) save(r.key, r.label, v);
-            }}
-            className="h-7 w-full min-w-0 rounded-[8px] border border-line-strong bg-panel px-2 text-[12.5px] disabled:border-transparent disabled:bg-transparent"
+            onCommit={(v) => save(r.key, r.label, v)}
           />
         </PropertyRow>
       ))}
@@ -62,7 +56,7 @@ export function CatalogFields({ item }: { item: CatalogItemView }) {
           disabled={readOnly}
           placeholder="—"
           onChange={(e) => save("maturity", t.catalog.maturity, e.target.value)}
-          options={MATURITY.map((m) => ({ value: m, label: `${label("maturity", m)}（${m}）` }))}
+          options={maturity}
         />
       </PropertyRow>
     </PropertyList>

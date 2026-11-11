@@ -11,31 +11,24 @@
 //! | `states` / `required` / `optional` | `--states off,on` / `--required a,b` / `--optional c,d` |
 //! | `ports`（ポート名 → ネットの種類） | `--port PWR=power --port DATA=data`（繰り返し。ポート名の順） |
 
-use super::text::{Cmd, num};
+use super::text::Cmd;
 use fune_model::design::{AttributeDef, KindDef};
-use serde::Serialize;
+use fune_model::value::{list_to_text, number_to_text};
 
-/// 列挙の値のファイル上の綴り。
-fn enum_str<T: Serialize>(value: &T) -> Option<String> {
-    serde_json::to_value(value)
-        .ok()
-        .and_then(|v| v.as_str().map(str::to_string))
-}
-
-fn list(items: &[String]) -> Option<String> {
-    (!items.is_empty()).then(|| items.join(","))
+/// 空でなければ一覧の文字列（`a,b`）。
+fn list<S: AsRef<str>>(items: &[S]) -> Option<String> {
+    (!items.is_empty()).then(|| list_to_text(items))
 }
 
 /// `fune attr add …`
 pub(super) fn attr_add(def: &AttributeDef) -> String {
-    let value_type = enum_str(&def.value_type);
-    let budget = def.budget.as_ref().and_then(enum_str);
+    let num = number_to_text;
     let (min, max, default) = (def.min.map(num), def.max.map(num), def.default.map(num));
     Cmd::new(&["fune", "attr", "add", def.id.as_str()])
         .flag("label", Some(&def.label))
         .flag("label-en", def.label_en.as_deref())
         .flag("description", def.description.as_deref())
-        .flag("type", value_type.as_deref())
+        .flag("type", Some(def.value_type.as_str()))
         .switch("by-state", def.by_state)
         .flag("dimension", def.dimension.as_deref())
         .flag("units", list(&def.units).as_deref())
@@ -44,7 +37,7 @@ pub(super) fn attr_add(def: &AttributeDef) -> String {
         .flag("max", max.as_deref())
         .flag("default", default.as_deref())
         .flag("symbols", list(&def.symbols).as_deref())
-        .flag("budget", budget.as_deref())
+        .flag("budget", def.budget.map(|b| b.as_str()))
         .switch("unit-vector", def.unit_vector)
         .flag("section", def.section.as_deref())
         .done()
@@ -53,7 +46,7 @@ pub(super) fn attr_add(def: &AttributeDef) -> String {
 /// `fune kind add …`
 pub(super) fn kind_add(def: &KindDef) -> String {
     let ids = |v: &[fune_model::Id<AttributeDef>]| {
-        list(&v.iter().map(|a| a.to_string()).collect::<Vec<_>>())
+        list(&v.iter().map(|a| a.as_str()).collect::<Vec<_>>())
     };
     let ports: Vec<String> = def
         .ports

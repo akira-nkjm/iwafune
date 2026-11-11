@@ -1,11 +1,12 @@
 import { useSetText } from "@/api/ops";
 import type { SettingView } from "@/api/types";
 import { useT } from "@/i18n";
-import { DataTable } from "@/kit/DataTable";
-import { Empty } from "@/kit/Empty";
-import { Switch } from "@/kit/Switch";
-import { Td } from "@/kit/Td";
-import { Th } from "@/kit/Th";
+import { Empty } from "@/kit/feedback/Empty";
+import { CommitInput } from "@/kit/forms/CommitInput";
+import { Switch } from "@/kit/selection/Switch";
+import { DataTable } from "@/kit/table/DataTable";
+import { Td } from "@/kit/table/Td";
+import { Th } from "@/kit/table/Th";
 import { EditableQuantity } from "@/quantity/EditableQuantity";
 import { quantityInputText } from "@/quantity/format";
 
@@ -16,25 +17,25 @@ import { quantityInputText } from "@/quantity/format";
 export function SettingsTable({
   settings,
   empty,
-  prefix,
+  grouped = false,
 }: {
   settings: SettingView[];
   empty?: string;
-  /** キーの表示から外す接頭辞（枠の見出しで分かるとき。例: "mission.orbit."） */
-  prefix?: string;
+  /** 1 つのまとまり（API の `group`）だけの表で、枠の見出しで分かるとき: キーはファイル内のキー（`field`）だけにし、ファイルの列を出さない */
+  grouped?: boolean;
 }) {
   const t = useT();
   const setText = useSetText();
   if (settings.length === 0) return <Empty>{empty ?? t.project.noSettings}</Empty>;
   const set = (key: string, text: string) =>
-    setText.mutate({ path: key, value: text, summary: `${key} = ${text}` });
+    setText.mutate({ path: key, value: text, summary: t.quantity.setSummary(key, text) });
   return (
     <DataTable
       head={
         <>
           <Th>{t.project.key}</Th>
           <Th>{t.project.value}</Th>
-          {!prefix && <Th>{t.project.file}</Th>}
+          {!grouped && <Th>{t.project.file}</Th>}
         </>
       }
     >
@@ -43,16 +44,16 @@ export function SettingsTable({
         return (
           <tr key={s.key} className="hover:bg-panel-2/60">
             <Td mono className="text-ink-2">
-              {prefix && s.key.startsWith(prefix) ? s.key.slice(prefix.length) : s.key}
+              {grouped ? s.field : s.key}
             </Td>
             <Td>
               {v.type === "scalar" ? (
                 <EditableQuantity
-                  display={s.display}
+                  display={s.display ?? "—"}
                   initial={quantityInputText(v.nominal)}
                   dimension={v.nominal.dimension}
                   label={s.key}
-                  onCommit={(_q, t) => set(s.key, t)}
+                  onCommit={(t) => set(s.key, t)}
                 />
               ) : v.type === "unset" ? (
                 <EditableQuantity
@@ -61,27 +62,26 @@ export function SettingsTable({
                   dimension={null}
                   label={s.key}
                   muted
-                  onCommit={(_q, t) => set(s.key, t)}
+                  onCommit={(t) => set(s.key, t)}
                 />
               ) : v.type === "bool" ? (
                 <Switch
                   aria-label={s.key}
-                  on={v.value}
+                  value={v.value}
                   onChange={(next) => set(s.key, String(next))}
                 />
               ) : v.type === "text" || v.type === "enum" ? (
-                <input
-                  aria-label={s.key}
-                  defaultValue={v.value}
-                  key={v.value}
-                  onBlur={(e) => e.target.value !== v.value && set(s.key, e.target.value)}
-                  className="h-7 w-full max-w-72 rounded-[8px] border border-line-strong px-2 text-[12.5px]"
+                <CommitInput
+                  label={s.key}
+                  value={v.value}
+                  onCommit={(text) => set(s.key, text)}
+                  className="max-w-72"
                 />
               ) : (
-                <span className="font-mono text-[12px]">{s.display}</span>
+                <span className="font-mono text-[12px]">{s.display ?? "—"}</span>
               )}
             </Td>
-            {!prefix && (
+            {!grouped && (
               <Td mono className="text-ink-4">
                 {s.file ?? "—"}
               </Td>

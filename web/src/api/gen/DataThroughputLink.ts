@@ -10,10 +10,6 @@ export type DataThroughputLink = {
  */
 rf: RfLinkParams, 
 /**
- * 所要 Eb/N0 [dB]
+ * 所要 Eb/N0
  */
-required_eb_n0_db: number, 
-/**
- * 要求する回線余裕 [dB]（既定 [`DEFAULT_REQUIRED_MARGIN_DB`]）
- */
-required_margin_db: number | null, };
+required_eb_n0_db: number, };

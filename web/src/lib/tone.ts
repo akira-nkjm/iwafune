@@ -5,7 +5,11 @@
  *   tone.test.ts が一致と、コントラスト（塗りは 3:1 以上、文字の ink は 4.5:1 以上）・見分けやすさを検査する）。
  * - Tailwind のクラスの対応（toneBg など）。Tailwind はソースに字面で出たクラスだけを生成するので、省略せずに書く。
  * - CSS のクラスを使えない描画（three.js・SVG・README のロゴ）が使う hex（toneHex・uiHex・brandHex）。
+ * - 色の混ぜ方（サブシステム色の淡い地 `toneTint`・熱の配色 `heatHex`・覆い `inkVeil`）。`color-mix(` と色の名前
+ *   （`white` など）はここの外に書かない（xtask の web_colors が検査する）。
  */
+import { mixOklab } from "./color";
+
 export const tones = [
   "blue",
   "gold",
@@ -120,7 +124,7 @@ export const uiHex = {
 } as const;
 
 /**
- * ロゴのマーク（shell/brand-art.ts）の 3 面の色。ブランドの青（LIGHT ACCENT / ACCENT1 / DARK1）で固定し、
+ * ロゴのマーク（shell/brand/brand-art.ts）の 3 面の色。ブランドの青（LIGHT ACCENT / ACCENT1 / DARK1）で固定し、
  * テーマにも地の明暗にも追従させない。
  */
 export const brandHex = {
@@ -198,4 +202,27 @@ export const toneSoft: Record<Tone, string> = {
 /** 系列の色を順番に選ぶ（グラフの線など） */
 export function toneAt(i: number): Tone {
   return tones[((i % tones.length) + tones.length) % tones.length] ?? "blue";
+}
+
+/**
+ * カテゴリ色の淡い地の濃さ（面に混ぜるカテゴリ色の割合 %）。系統図のサブシステムの枠（frame）< 部品の詳細の見出しと
+ * 系統図の組立品（header）< 一覧のアイコンの丸（icon）< 系統図の部品のカード（card）
+ */
+const TINT = { frame: 6, header: 10, icon: 16, card: 18 } as const;
+export type TintLevel = keyof typeof TINT;
+
+/** カテゴリ色を面（panel）の色に混ぜた淡い地（CSS の値。sRGB で混ぜる）。サブシステム色の地はこれだけで作る */
+export function toneTint(tone: Tone, level: TintLevel): string {
+  return `color-mix(in srgb, ${toneHex[tone]} ${TINT[level]}%, var(--color-panel))`;
+}
+
+/** 字の色を薄く透かした覆い（CSS の値）。系統図のミニマップで、いま見えている範囲の外にかける */
+export const inkVeil = "color-mix(in srgb, var(--color-ink) 8%, transparent)";
+
+/**
+ * 熱の配色: 低い温度（`ratio` = 0）の accent から高い温度（1）の neg へ OKLab で混ぜた hex。温度表（2D）も 3D の
+ * 箱（three.js は CSS の color-mix を読めない）もこの 1 つの関数で塗るので、同じ温度は同じ色になる
+ */
+export function heatHex(ratio: number): string {
+  return mixOklab(palette.accent, palette.neg, ratio);
 }

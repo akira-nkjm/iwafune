@@ -6,7 +6,7 @@ import type { Quantity } from "./Quantity";
  */
 export type Harness = { id: string, label?: string | null, 
 /**
- * 端のポート（`"PCDU.OUT3"`）
+ * 端のポート（`"PCDU.OUT3"`。読み込むときに `PortRef` にする）
  */
 from: string, to: string, nets: Array<string>, 
 /**

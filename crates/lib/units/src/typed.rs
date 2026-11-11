@@ -89,8 +89,12 @@ use crate::Dimension as RuntimeDimension;
 
 mod decibel;
 mod fraction;
+#[cfg(feature = "alloc")]
+mod named;
 pub use crate::dimensions::*;
 pub use decibel::{Decibel, DecibelHertz, DecibelPerKelvin, DecibelWatt};
+#[cfg(feature = "alloc")]
+pub use named::{NamedKind, TorqueKind};
 
 /// Numeric values supported as quantity scalars.
 ///

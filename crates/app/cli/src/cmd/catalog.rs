@@ -23,7 +23,8 @@ pub fn read(ws: &Workspace, cmd: &CatalogCmd, out: &Out) -> Handled {
         out.heading(&item.id);
         let mut t = out.table(&["属性", "値"]);
         for (attr, v) in &item.values {
-            t.row(vec![C::Text(attr.clone()), C::Text(v.display.clone())]);
+            let value = super::common::value_text(v.display.as_deref());
+            t.row(vec![C::Text(attr.clone()), C::Text(value)]);
         }
         t.print();
         return Ok(Some(0));

@@ -1,10 +1,11 @@
-//! 編集の API: `POST /ops`・`POST /ops/from_text`・`POST /ops/unset_from_text`・`POST /parts/{id}/place_body`。
+//! 編集の API: `POST /ops`・`POST /ops/from_text`・`POST /ops/unset_from_text`・`POST /ops/from_command`・
+//! `POST /parts/{id}/place_body`。
 
 use super::{ApiJson, AppState, blocking};
 use crate::error::ApiError;
 use axum::Json;
 use axum::extract::State;
-use fune_service::dto::{ApplyRequest, ApplyResult, Op, SetText, UnsetText};
+use fune_service::dto::{ApplyRequest, ApplyResult, CommandText, Op, SetText, UnsetText};
 
 /// POST `/ops` `{ ops, base_revision?, dry_run? }`
 pub async fn apply(
@@ -28,9 +29,9 @@ pub async fn place_body(
         .map(Json)
 }
 
-/// POST `/ops/from_text` `{ item?, path, value, source?, note?, min?, max? }`
+/// POST `/ops/from_text` `{ item?, path, value, source?, note?, min?, max?, ops? }`
 /// 人が打った値の文字列を Op にする（`fune set <PATH> <VALUE>`、`item` があれば `fune catalog set <品> <PATH> <VALUE>`
-/// と同じ解釈）。適用はしない（`POST /ops` で送る）。
+/// と同じ解釈。`ops` は書き込まずに当ててから読む下書き）。適用はしない（`POST /ops` で送る）。
 pub async fn op_from_text(
     State(s): State<AppState>,
     ApiJson(req): ApiJson<SetText>,
@@ -48,6 +49,18 @@ pub async fn op_unset_from_text(
     ApiJson(req): ApiJson<UnsetText>,
 ) -> Result<Json<Op>, ApiError> {
     blocking(&s, move |_| fune_service::edit::unset_op(&req))
+        .await
+        .map(Json)
+}
+
+/// POST `/ops/from_command` `{ command: "net_set" | "net_unset" | "part_place" | "mode_set" | "attr_add" | "kind_add", … }`
+/// 名詞のコマンドに打った引数を Op の列にする（`fune net set`・`fune part place`・`fune mode set|unset`・`fune attr add`・
+/// `fune kind add` と同じ解釈）。適用はしない（`POST /ops` で送る）。
+pub async fn ops_from_command(
+    State(s): State<AppState>,
+    ApiJson(req): ApiJson<CommandText>,
+) -> Result<Json<Vec<Op>>, ApiError> {
+    blocking(&s, move |_| fune_service::edit::command_ops(&req))
         .await
         .map(Json)
 }

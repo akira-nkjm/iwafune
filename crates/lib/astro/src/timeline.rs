@@ -14,39 +14,35 @@ use serde::{Deserialize, Serialize};
 /// 軌道上の時系列に共通の既定刻み [s]。
 pub const DEFAULT_STEP_S: f64 = 30.0;
 
-/// 時系列の作り方。
+/// 軌道の標本の取り方（軌道・期間・刻み・β 角）。時系列（[`TimelineSpec`]）と地上局のパスの探索で共有する。
+/// **軌道・期間・刻み・β をまとめて受けるのはこれだけ**（解析ごとに別々の欄で受けない）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct TimelineSpec {
+pub struct OrbitSampling {
     pub orbit: OrbitSpec,
-    pub attitude: AttitudeLaw,
-    /// 期間
+    /// 期間（軌道の元期から）
     pub span: Qty<Time>,
     /// 刻み
     pub step: Qty<Time>,
-    #[serde(default)]
-    pub shadow: ShadowModel,
-    /// 時系列の始め（軌道の元期）での β 角。指定すると、その β になるように軌道の RAAN を置き換える
+    /// 始め（軌道の元期）での β 角。指定すると、その β になるように軌道の RAAN を置き換える
     /// （[`crate::orbit::raan_for_beta`]。昇交点が昼側の解）。`None` なら軌道の RAAN のまま。
     #[serde(default)]
     pub beta: Option<Qty<Angle>>,
 }
 
-impl TimelineSpec {
-    /// 既定の設定（円錐影、β の指定なし）で作る。フィールドが増えても呼び出し側を変えずに済むよう、
-    /// 構造体リテラルよりこれを使う。
-    pub fn new(orbit: OrbitSpec, attitude: AttitudeLaw, span: Qty<Time>, step: Qty<Time>) -> Self {
+impl OrbitSampling {
+    /// β の指定なしで作る。
+    pub fn new(orbit: OrbitSpec, span: Qty<Time>, step: Qty<Time>) -> Self {
         Self {
             orbit,
-            attitude,
             span,
             step,
-            shadow: ShadowModel::default(),
             beta: None,
         }
     }
-    /// 実際に伝搬に使う軌道（[`TimelineSpec::beta`] を指定したときは RAAN を置き換えたもの）。
-    /// パスの検出など、同じ軌道を別の関数に渡すときはこれを使う。
+
+    /// 実際に伝搬に使う軌道（[`OrbitSampling::beta`] を指定したときは RAAN を置き換えたもの）。
+    /// パスの検出など、同じ軌道を別の関数に渡すときはこれを使う。**β の当て込みはここだけ。**
     pub fn resolved_orbit(&self) -> Result<OrbitSpec, AstroError> {
         let mut orbit = self.orbit.clone();
         if let Some(beta) = self.beta {
@@ -54,6 +50,76 @@ impl TimelineSpec {
             orbit.elements.raan = Qty::from_raw(raan);
         }
         Ok(orbit)
+    }
+
+    /// 時刻列（[`sample_times`]。期間と刻みを検査する）。
+    pub fn times(&self) -> Result<Vec<f64>, AstroError> {
+        sample_times(self.span.value(), self.step.value())
+    }
+
+    /// 標本の時刻ごとの位置・速度（β を当てた軌道で伝搬する）。姿勢の要らない集計（地磁気の平均など）はこれを使う。
+    /// 時系列（[`build`]）もこれから作る。
+    pub fn states(&self) -> Result<Vec<OrbitPoint>, AstroError> {
+        let orbit = self.resolved_orbit()?;
+        let times = self.times()?;
+        let states = orbit.states_at(&times)?;
+        Ok(times
+            .into_iter()
+            .zip(states)
+            .map(|(t_s, state)| OrbitPoint {
+                t_s,
+                epoch: orbit.epoch.plus_seconds(t_s),
+                state,
+            })
+            .collect())
+    }
+}
+
+/// 軌道の標本の 1 点（[`OrbitSampling::states`]）。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct OrbitPoint {
+    /// 元期からの経過 [s]
+    pub t_s: f64,
+    pub epoch: Epoch,
+    /// 位置・速度（中心天体からの相対。向きは ECI）
+    pub state: OrbitState,
+}
+
+/// 時系列の作り方: 軌道の標本の取り方（[`OrbitSampling`]。JSON では同じ階層に並べる）と姿勢則・影のモデル。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct TimelineSpec {
+    #[serde(flatten)]
+    pub sampling: OrbitSampling,
+    pub attitude: AttitudeLaw,
+    #[serde(default)]
+    pub shadow: ShadowModel,
+}
+
+impl TimelineSpec {
+    /// 既定の設定（円錐影、β の指定なし）で作る。フィールドが増えても呼び出し側を変えずに済むよう、
+    /// 構造体リテラルよりこれを使う。
+    pub fn new(orbit: OrbitSpec, attitude: AttitudeLaw, span: Qty<Time>, step: Qty<Time>) -> Self {
+        Self::from_sampling(OrbitSampling::new(orbit, span, step), attitude)
+    }
+
+    /// 軌道の標本の取り方と姿勢則から作る（円錐影）。
+    pub fn from_sampling(sampling: OrbitSampling, attitude: AttitudeLaw) -> Self {
+        Self {
+            sampling,
+            attitude,
+            shadow: ShadowModel::default(),
+        }
+    }
+
+    /// 実際に伝搬に使う軌道（[`OrbitSampling::resolved_orbit`]）。
+    pub fn resolved_orbit(&self) -> Result<OrbitSpec, AstroError> {
+        self.sampling.resolved_orbit()
+    }
+
+    /// 軌道（β を当てる前）。中心天体と周期はこれから取る（β は RAAN だけを変える）。
+    pub fn orbit(&self) -> &OrbitSpec {
+        &self.sampling.orbit
     }
 }
 
@@ -109,20 +175,19 @@ impl TimelineSample {
 
 /// 時系列を作る。
 pub fn build(spec: &TimelineSpec) -> Result<Vec<TimelineSample>, AstroError> {
-    let orbit = spec.resolved_orbit()?;
-    let times = sample_times(spec.span.value(), spec.step.value())?;
-    let states = orbit.states_at(&times)?;
-    Ok(times
+    Ok(spec
+        .sampling
+        .states()?
         .iter()
-        .zip(states.iter())
-        .map(|(&t, state)| sample(spec, orbit.epoch, t, state))
+        .map(|p| sample(spec, p))
         .collect())
 }
 
 /// 1 点の標本を作る。
-fn sample(spec: &TimelineSpec, epoch0: Epoch, t_s: f64, state: &OrbitState) -> TimelineSample {
-    let epoch = epoch0.plus_seconds(t_s);
-    let central = spec.orbit.central;
+fn sample(spec: &TimelineSpec, point: &OrbitPoint) -> TimelineSample {
+    let OrbitPoint { t_s, epoch, state } = *point;
+    let state = &state;
+    let central = spec.orbit().central;
     let r_sun = central.relative_position_m(Body::Sun, epoch);
     let to_sun = r_sun - state.r_eci;
     let sunlit = central_shadow_factor(central, state.r_eci, r_sun, spec.shadow);

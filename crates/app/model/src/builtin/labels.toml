@@ -1,8 +1,9 @@
 # 組み込みの語彙の表示名（日本語・英語）。GUI と CLI の表示に使う。
 # [state.<状態>]: 機器の状態、[section.<系>]: 属性の系（AttributeDef の section）、[enum.<型>.<値>]: API の列挙の値
 # section_order: 画面で系を並べる順（section の無い属性は basic）
+# [enum_order]: 列挙の値を選択肢に並べる順（同じ型の [enum.<型>.<値>] をすべて並べる。無い型は値の綴りの順）
 
-section_order = ["basic", "mass", "power", "thermal", "attitude", "comm", "cdh", "structure"]
+section_order = ["basic", "mass", "power", "thermal", "aocs", "comm", "cdh", "structure", "payload"]
 
 [state.off]
 label    = "停止"
@@ -48,9 +49,9 @@ label_en = "Power"
 label    = "熱"
 label_en = "Thermal"
 
-[section.attitude]
-label    = "姿勢"
-label_en = "Attitude"
+[section.aocs]
+label    = "AOCS"
+label_en = "AOCS"
 
 [section.comm]
 label    = "通信"
@@ -63,6 +64,14 @@ label_en = "C&DH"
 [section.structure]
 label    = "構造・配置"
 label_en = "Structure & layout"
+
+[section.payload]
+label    = "ミッション機器"
+label_en = "Payload"
+
+[enum_order]
+maturity = ["off_the_shelf", "modified", "new"]
+severity = ["error", "warning", "info"]
 
 [enum.maturity.off_the_shelf]
 label    = "既製品"
@@ -256,39 +265,21 @@ label_en = "Range"
 label    = "表"
 label_en = "Table"
 
-[role_subsystem]
-obc = "CDH"
-pcdu = "POWER"
-battery = "POWER"
-solar_panel = "POWER"
-reaction_wheel = "AOCS"
-magnetorquer = "AOCS"
-thruster = "PROP"
-star_tracker = "AOCS"
-sun_sensor = "AOCS"
-gyro = "AOCS"
-gps = "AOCS"
-transceiver = "COM"
-antenna = "COM"
-camera = "PL"
-heater = "THM"
-panel = "STR"
-structure = "STR"
-
 [role_system]
 obc = "cdh"
 pcdu = "power"
 battery = "power"
 solar_panel = "power"
-reaction_wheel = "attitude"
-magnetorquer = "attitude"
-thruster = "attitude"
-star_tracker = "attitude"
-sun_sensor = "attitude"
-gyro = "attitude"
-gps = "attitude"
+reaction_wheel = "aocs"
+magnetorquer = "aocs"
+thruster = "aocs"
+star_tracker = "aocs"
+sun_sensor = "aocs"
+gyro = "aocs"
+gps = "aocs"
 transceiver = "comm"
 antenna = "comm"
+camera = "payload"
 heater = "thermal"
 panel = "structure"
 structure = "structure"

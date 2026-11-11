@@ -6,6 +6,6 @@ import type { QuantityView } from "./QuantityView";
  */
 export type ParsedQuantity = { quantity: QuantityView, 
 /**
- * SI 単位での表示（例: `"0.018 N*m*s"`）
+ * 同じ量を SI の組立単位で表したもの（例: `display` が `"0.0180 N·m·s"`。無次元は単位なし）
  */
-si_display: string, };
+si: QuantityView, };

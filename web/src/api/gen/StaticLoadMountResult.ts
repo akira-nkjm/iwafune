@@ -10,7 +10,7 @@ export type StaticLoadMountResult = { mount: string,
  */
 carried_mass: number, axial: number, lateral: number, moment: number, 
 /**
- * 安全余裕（許容値が無ければ `None`）
+ * 安全余裕 MS = 許容荷重 / (安全率 × 荷重) − 1（[`crate::spec::ratio_margin`]。許容値が無いか荷重が 0 なら `None`）
  */
 margin_axial: number | null, margin_lateral: number | null, margin_moment: number | null, 
 /**

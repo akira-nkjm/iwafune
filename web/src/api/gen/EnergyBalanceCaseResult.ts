@@ -28,9 +28,13 @@ orbit_average_load: number,
  */
 orbit_average_balance: number, 
 /**
- * 1 周あたりのエネルギー余裕（電池の効率込み、容量の上下限で切る前）。周回のうち最小のもの
+ * 1 周あたりのエネルギー余裕（電池の効率込み、容量の上下限で切る前）。周回のうち最小のもの。回り切った周回が無ければ None
  */
-energy_margin_per_orbit: number, min_soc: number, 
+energy_margin_per_orbit: number | null, 
+/**
+ * 解析期間全体の収支（電池の効率込み、容量の上下限で切る前、周期への換算なし）。回り切った周回が無いときだけ Some
+ */
+energy_margin_over_span: number | null, min_soc: number, 
 /**
  * 最大の DoD（1 − 最小 SOC）
  */

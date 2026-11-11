@@ -1,7 +1,6 @@
 //! プロジェクトの設定（`fune.toml`）。serde の形がそのままファイルの形。
 
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use ts_rs::TS;
 
 /// `fune.toml` 全体。
@@ -11,9 +10,6 @@ pub struct Project {
     /// `[project]`
     #[serde(rename = "project")]
     pub meta: ProjectMeta,
-    /// `[groups]`: サブシステムの表示名（任意）
-    #[serde(default)]
-    pub groups: BTreeMap<String, String>,
     /// `[[catalog]]`: カタログの出所
     #[serde(default, rename = "catalog")]
     pub catalogs: Vec<CatalogSource>,

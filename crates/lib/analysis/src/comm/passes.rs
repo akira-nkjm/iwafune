@@ -6,22 +6,36 @@ use sat_astro::constants::SECONDS_PER_DAY;
 use sat_astro::ground::{GroundPass, GroundStation, find_passes};
 use sat_astro::orbit::OrbitSpec;
 use sat_astro::time::Epoch;
-use sat_units::typed::{Qty, Time};
+use sat_astro::timeline::OrbitSampling;
 
-/// 探索の窓（開始・期間・刻み）を検査し、(開始, 期間 [s], 刻み [s]) を返す。開始の既定は軌道の元期。
-pub fn search_window(
-    orbit: &OrbitSpec,
-    start: Option<Epoch>,
-    span: Qty<Time>,
-    step: Qty<Time>,
-) -> Result<(Epoch, f64, f64), AnalysisError> {
-    let (span_s, step_s) = (span.value(), step.value());
+/// パスを探す窓（標本の取り方から求めたもの）。
+#[derive(Debug, Clone)]
+pub struct SearchWindow {
+    /// 伝搬に使う軌道（β を指定したときは RAAN を置き換えたもの。`OrbitSampling::resolved_orbit`）
+    pub orbit: OrbitSpec,
+    /// 探索の開始（軌道の元期）
+    pub start: Epoch,
+    /// 期間 [s]
+    pub span_s: f64,
+    /// 探索の刻み [s]（AOS・LOS は二分法で詰める）
+    pub step_s: f64,
+}
+
+/// 標本の取り方（期間・刻み）を検査し、パスを探す窓を返す。開始は軌道の元期（時系列と同じ）。
+pub fn search_window(sampling: &OrbitSampling) -> Result<SearchWindow, AnalysisError> {
+    let (span_s, step_s) = (sampling.span.value(), sampling.step.value());
     if !(span_s > 0.0 && step_s > 0.0 && step_s <= span_s) {
         return Err(AnalysisError::InvalidInput(
             "期間と刻みは正で、刻みは期間以下にしてください".to_owned(),
         ));
     }
-    Ok((start.unwrap_or(orbit.epoch), span_s, step_s))
+    let orbit = sampling.resolved_orbit()?;
+    Ok(SearchWindow {
+        start: orbit.epoch,
+        orbit,
+        span_s,
+        step_s,
+    })
 }
 
 /// すべての局のパスを AOS の順に並べて返す。
@@ -109,6 +123,15 @@ pub(crate) mod fixtures {
             Epoch::parse("2027-04-01T00:00:00Z").unwrap(),
             elements,
             Propagator::J2,
+        )
+    }
+
+    /// 1 日を 30 s 刻みで探す標本の取り方。
+    pub(crate) fn one_day(orbit: OrbitSpec) -> sat_astro::timeline::OrbitSampling {
+        sat_astro::timeline::OrbitSampling::new(
+            orbit,
+            Qty::from_raw(sat_astro::constants::SECONDS_PER_DAY),
+            Qty::from_raw(30.0),
         )
     }
 

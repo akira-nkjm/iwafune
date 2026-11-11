@@ -100,3 +100,15 @@ fn rejects_bad_inputs() {
     assert!(find_passes(&station(0.0, 0.0, 0.0), &orbit, epoch(), 3600.0, 0.0).is_err());
     assert!(find_passes(&station(95.0, 0.0, 0.0), &orbit, epoch(), 3600.0, 10.0).is_err());
 }
+
+#[test]
+fn slant_range_at_zenith_horizon_and_on_the_moon() {
+    // 天頂では高度そのもの、地平線では √((R + h)² − R²)（接線の長さ）
+    let h = 500.0e3;
+    assert!((slant_range_m(R_EARTH, h, std::f64::consts::FRAC_PI_2) - h).abs() < 1e-6);
+    let horizon = ((R_EARTH + h).powi(2) - R_EARTH.powi(2)).sqrt();
+    assert!((slant_range_m(R_EARTH, h, 0.0) - horizon).abs() < 1e-6);
+    // 月（R = 1737.4 km）の高度 100 km を地平線で見る: √(100 × 3574.8) km ≈ 597.9 km
+    let moon = slant_range_m(crate::constants::R_MOON, 100.0e3, 0.0);
+    assert!((moon - 597.9e3).abs() < 0.1e3, "{moon}");
+}

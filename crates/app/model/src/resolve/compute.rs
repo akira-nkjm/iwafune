@@ -55,7 +55,7 @@ fn resolve_part(design: &Design, part: &Part) -> ResolvedPart {
             .clone()
             .or_else(|| catalog.and_then(|c| c.label.clone())),
         parent: part.parent.clone(),
-        subsystem: design.subsystem_of(part.id.as_str()).map(str::to_string),
+        system: design.system_of(part.id.as_str()),
         catalog: part.catalog.clone(),
         role: kind
             .as_deref()
@@ -277,7 +277,7 @@ pub fn pose_si(pose: Option<&Pose>) -> PoseSi {
         return PoseSi::IDENTITY;
     };
     let position = pose.position.as_ref().map_or([0.0; 3], |p| {
-        let unit = p.unit.as_deref().unwrap_or("m");
+        let unit = crate::design::position_unit(p);
         [
             to_si(p.x, unit).unwrap_or(0.0),
             to_si(p.y, unit).unwrap_or(0.0),

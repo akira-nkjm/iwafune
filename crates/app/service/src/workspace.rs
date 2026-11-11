@@ -1,9 +1,10 @@
 //! プロジェクトを開く。読み取りのたびにディレクトリから読み直したスナップショット（Design・Resolved・診断）を作る。
 //! 状態はディスクだけに置くので、CLI と GUI が同時に書いても食い違わない（数十ファイルで数 ms）。
+//! fune-store・fune-ops のエラーをサービスのエラーに読み替える関数（`store_error`・`op_error`）もここに置く（edit・preview が共有）。
 
 use crate::dto::{DiagnosticView, SourceExcerpt};
 use crate::error::{Result, ServiceError};
-use fune_model::{Design, Diagnostic, Resolved};
+use fune_model::{Design, Diagnostic, Resolved, Target};
 use fune_store::FileSet;
 use std::path::{Path, PathBuf};
 
@@ -29,9 +30,11 @@ impl Snapshot {
     /// ディスクから読んだ設計にも、保存していない編集を当てた設計（[`crate::preview`]）にも使う。
     pub fn of(design: Design, files: FileSet) -> Self {
         let resolved = fune_model::resolve(&design);
-        let mut found: Vec<Diagnostic> = design.load_diagnostics.clone();
-        found.extend(fune_model::check(&design));
-        let diagnostics = found.into_iter().map(|d| with_excerpt(d, &files)).collect();
+        // `check` は読み込み時の問題も含めて返す（ここで足すと 2 回ずつ出る）
+        let diagnostics = fune_model::check(&design)
+            .into_iter()
+            .map(|d| with_excerpt(d, &files))
+            .collect();
         Self {
             design,
             resolved,
@@ -68,46 +71,54 @@ impl Workspace {
     }
 }
 
-/// 店（store）のエラー → サービスのエラー。
+/// 店（store）のエラー → サービスのエラー。ロックと「もうある」（`fune init` の既存のプロジェクトなど）は競合に分ける。
 pub(crate) fn store_error(e: fune_store::StoreError) -> ServiceError {
+    use fune_store::StoreError;
     match e {
-        fune_store::StoreError::NotAProject { start } => ServiceError::ProjectNotFound(start),
+        StoreError::NotAProject { start } => ServiceError::ProjectNotFound(start),
+        StoreError::Locked { lock } => ServiceError::Locked(lock),
+        StoreError::AlreadyExists { path } => ServiceError::AlreadyExists { what: path },
         other => ServiceError::Store(other.to_string()),
     }
 }
 
-/// 診断に該当行の前後 2 行の本文を添える。
+/// fune-ops のエラー → サービスのエラー（保存・保存しない編集のプレビュー・打った文字列の読み取りで共通）。
+pub(crate) fn op_error(ws: &Workspace, e: fune_ops::OpError) -> ServiceError {
+    use fune_ops::OpError;
+    match e {
+        OpError::Conflict { expected, actual } => ServiceError::Conflict {
+            expected: expected.0,
+            actual: actual.0,
+        },
+        OpError::NotFound { what } => ServiceError::NotFound {
+            what: "対象",
+            id: what,
+        },
+        OpError::AlreadyExists { what } => ServiceError::AlreadyExists { what },
+        OpError::Invalid { message } => ServiceError::InvalidInput(message),
+        OpError::Rejected { diagnostics } => {
+            // 書き込まなかったので、該当行は今のファイルから取る（変えていないファイルの行は同じ）。
+            let files = fune_store::read::scan(ws.root()).unwrap_or_default();
+            ServiceError::Validation {
+                diagnostics: diagnostics
+                    .into_iter()
+                    .map(|d| with_excerpt(d, &files))
+                    .collect(),
+            }
+        }
+        OpError::Store(e) => store_error(e),
+    }
+}
+
+/// 診断に、対象の部品・表示用のパス（どちらも対象の構造から）と、該当行の前後 2 行の本文を添える。
 pub(crate) fn with_excerpt(d: Diagnostic, files: &FileSet) -> DiagnosticView {
     let excerpt = match (d.file.as_deref(), d.line) {
         (Some(f), Some(line)) => files.get(f).and_then(|text| excerpt(text, line)),
         _ => None,
     };
-    let part = d
-        .path
-        .as_deref()
-        .and_then(|path| match fune_model::path::parse(path).ok()? {
-            fune_model::path::ParamPath::Attr { part, .. }
-            | fune_model::path::ParamPath::Field { part, .. }
-                if !part.contains('/')
-                    && d.file.as_deref().is_none_or(|f| f.starts_with("parts/")) =>
-            {
-                Some(part)
-            }
-            _ => None,
-        })
-        .or_else(|| {
-            d.file
-                .as_deref()
-                .filter(|f| f.starts_with("parts/") && f.ends_with(".toml"))
-                .and_then(|file| {
-                    std::path::Path::new(file)
-                        .file_stem()?
-                        .to_str()
-                        .map(str::to_owned)
-                })
-        });
     DiagnosticView {
-        part,
+        part: d.target.as_ref().and_then(Target::part).map(str::to_owned),
+        path: d.path(),
         diagnostic: d,
         excerpt,
     }
@@ -130,26 +141,46 @@ fn excerpt(text: &str, line: u32) -> Option<SourceExcerpt> {
 mod tests {
     use super::*;
 
+    use fune_model::path::{AttrPath, SettingPath};
+
+    /// 部品 ID は対象の構造から取る（設定・カタログ品・モードの行・ケースには付けない）。
     #[test]
-    fn diagnostic_links_exclude_settings_and_catalog_references() {
-        for path in [
-            "analysis.power.dod_max",
-            "local/rw.power.on",
-            "mission.orbit.altitude",
-        ] {
-            let d = Diagnostic::warning("test", "test").with_path(path);
+    fn diagnostic_part_comes_from_the_target() {
+        let not_parts: [Target; 4] = [
+            SettingPath::analysis(&["power", "dod_max"]).into(),
+            Target::Catalog {
+                id: "local/rw".into(),
+                attr: AttrPath::parse("power.on").ok(),
+            },
+            Target::mode("NOMINAL", Some("TRX")),
+            Target::case("HOT", Some("beta")),
+        ];
+        for target in not_parts {
+            let d = Diagnostic::warning("test", "test").with_target(target);
             assert_eq!(with_excerpt(d, &FileSet::new()).part, None);
         }
-        let d = Diagnostic::warning("test", "test").with_path("RW_X.power.on");
-        assert_eq!(
-            with_excerpt(d, &FileSet::new()).part.as_deref(),
-            Some("RW_X")
-        );
+        let d = Diagnostic::warning("test", "test").with_target(Target::attr("RW_X", "power"));
+        let view = with_excerpt(d, &FileSet::new());
+        assert_eq!(view.part.as_deref(), Some("RW_X"));
+        assert_eq!(view.path.as_deref(), Some("RW_X.power"));
+        // 対象の無い診断は、ファイルの場所から部品を推さない
         let mut d = Diagnostic::warning("test", "test");
-        d.file = Some("parts/AOCS/RW_X.toml".into());
-        assert_eq!(
-            with_excerpt(d, &FileSet::new()).part.as_deref(),
-            Some("RW_X")
-        );
+        d.file = Some("parts/aocs/RW_X.toml".into());
+        assert_eq!(with_excerpt(d, &FileSet::new()).part, None);
+    }
+
+    /// 読み込み時の問題は 1 回だけ出る（`check` が含めて返す）。
+    #[test]
+    fn load_diagnostics_are_listed_once() {
+        let mut design = Design::default();
+        let d =
+            Diagnostic::error("toml.syntax", "test").with_target(Target::Part { id: "X".into() });
+        design.load_diagnostics.push(d);
+        let snapshot = Snapshot::of(design, FileSet::new());
+        let found = snapshot
+            .diagnostics
+            .iter()
+            .filter(|d| d.diagnostic.code == "toml.syntax");
+        assert_eq!(found.count(), 1);
     }
 }

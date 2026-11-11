@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router";
 import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
-import { KpiCard } from "@/kit/KpiCard";
+import { KpiCard } from "@/kit/metrics/KpiCard";
+import { withNote } from "@/lib/design";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { BudgetPanel } from "./BudgetPanel";
@@ -10,7 +11,8 @@ import { useOverviewCards } from "./use-overview-cards";
 
 /** 概要: 主要 KPI（質量余裕・電力収支・DoD・RW アンロード間隔・データ余裕・回線余裕・温度）と診断 */
 export function OverviewPage() {
-  const o = useT().overview;
+  const t = useT();
+  const o = t.overview;
   const navigate = useNavigate();
   const d = useDesign().data;
   const cards = useOverviewCards();
@@ -27,10 +29,11 @@ export function OverviewPage() {
         <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
           {cards.map((x) => (
             <KpiCard
-              key={x.label}
+              key={x.key}
               label={x.label}
               value={x.value}
-              ratio={x.ratio}
+              ratio={x.fill?.ratio ?? null}
+              barLabel={x.fill ? withNote(x.label, t.systems.kpiFill[x.fill.basis]) : undefined}
               tone={x.tone}
               footer={x.footer}
               footerRight={x.footerRight}

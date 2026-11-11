@@ -3,14 +3,15 @@ import { useState } from "react";
 import { q } from "@/api/queries";
 import type { DesignView } from "@/api/types";
 import { useT } from "@/i18n";
-import { DataTable } from "@/kit/DataTable";
-import { Empty } from "@/kit/Empty";
-import { Loading, SkeletonTable } from "@/kit/Loading";
-import { NativeSelect } from "@/kit/NativeSelect";
-import { Panel } from "@/kit/Panel";
-import { PanelHeader } from "@/kit/PanelHeader";
-import { Td } from "@/kit/Td";
-import { Th } from "@/kit/Th";
+import { SkeletonTable } from "@/kit/feedback/Loading";
+import { QueryState } from "@/kit/feedback/QueryState";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
+import { Panel } from "@/kit/panel/Panel";
+import { PanelHeader } from "@/kit/panel/PanelHeader";
+import { DataTable } from "@/kit/table/DataTable";
+import { TablePanel } from "@/kit/table/TablePanel";
+import { Td } from "@/kit/table/Td";
+import { Th } from "@/kit/table/Th";
 import { QuantityInput } from "@/quantity/QuantityInput";
 
 /** 単位の一覧（sat-units のカーネル）と、その次元を使っている属性。入力の試し打ちもここでできる */
@@ -39,13 +40,10 @@ export function UnitsTab({ design }: { design: DesignView | undefined }) {
           className="max-w-md"
         />
       </Panel>
-      <Panel pad={false}>
-        <div className="flex items-center justify-between gap-2 p-4 pb-2">
-          <PanelHeader
-            className="mb-0"
-            title={tu.title}
-            caption={data ? tu.caption(data.units.length, data.dimensions.length) : undefined}
-          />
+      <TablePanel
+        title={tu.title}
+        caption={data ? tu.caption(data.units.length, data.dimensions.length) : undefined}
+        right={
           <NativeSelect
             aria-label={tu.filter}
             value={dim}
@@ -53,44 +51,43 @@ export function UnitsTab({ design }: { design: DesignView | undefined }) {
             placeholder={tu.allDimensions}
             options={(all.data?.dimensions ?? []).map((d) => ({ value: d.name, label: d.name }))}
           />
-        </div>
-        {!data ? (
-          all.isError ? (
-            <Empty>{tu.cannotLoad(all.error.message)}</Empty>
-          ) : (
-            <Loading>
-              <SkeletonTable rows={10} cols={5} />
-            </Loading>
-          )
-        ) : (
-          <DataTable
-            head={
-              <>
-                <Th>{tu.symbol}</Th>
-                <Th>{tu.dimension}</Th>
-                <Th>{tu.mapping}</Th>
-                <Th align="right">{tu.scale}</Th>
-                <Th>{tu.usedBy}</Th>
-              </>
-            }
-          >
-            {data.units.map((u) => (
-              <tr key={u.symbol}>
-                <Td mono>{u.symbol}</Td>
-                <Td>{u.dimension}</Td>
-                <Td className="text-ink-3">{mappingLabel[u.mapping]}</Td>
-                <Td align="right" mono>
-                  {u.scale}
-                  {u.offset !== 0 ? ` + ${u.offset}` : ""}
-                </Td>
-                <Td mono className="text-ink-3">
-                  {usedBy(u.dimension).join(", ")}
-                </Td>
-              </tr>
-            ))}
-          </DataTable>
-        )}
-      </Panel>
+        }
+      >
+        <QueryState
+          query={dim ? filtered : all}
+          failure={tu.cannotLoad}
+          skeleton={<SkeletonTable rows={10} cols={5} />}
+        >
+          {(data) => (
+            <DataTable
+              head={
+                <>
+                  <Th>{tu.symbol}</Th>
+                  <Th>{tu.dimension}</Th>
+                  <Th>{tu.mapping}</Th>
+                  <Th align="right">{tu.scale}</Th>
+                  <Th>{tu.usedBy}</Th>
+                </>
+              }
+            >
+              {data.units.map((u) => (
+                <tr key={u.symbol}>
+                  <Td mono>{u.symbol}</Td>
+                  <Td>{u.dimension}</Td>
+                  <Td className="text-ink-3">{mappingLabel[u.mapping]}</Td>
+                  <Td align="right" mono>
+                    {u.scale}
+                    {u.offset !== 0 ? ` + ${u.offset}` : ""}
+                  </Td>
+                  <Td mono className="text-ink-3">
+                    {usedBy(u.dimension).join(", ")}
+                  </Td>
+                </tr>
+              ))}
+            </DataTable>
+          )}
+        </QueryState>
+      </TablePanel>
     </>
   );
 }

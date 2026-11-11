@@ -9,7 +9,7 @@ import {
   ScrollRestoration,
 } from "react-router";
 import { queryClient } from "@/api/queries";
-import { getT, useLang } from "@/i18n";
+import { getT, useLang, useT } from "@/i18n";
 import { Toaster } from "@/ui/sonner";
 import { TooltipProvider } from "@/ui/tooltip";
 import type { Route } from "./+types/root";
@@ -58,12 +58,16 @@ export default function App() {
   );
 }
 
-/** 初回ロード中（SPA の index.html に焼き込まれる）。画面の枠（サイドバーと本体のパネル）の形のスケルトン */
+/**
+ * 初回ロード中（SPA の index.html に焼き込まれる）。画面の枠（サイドバーと本体のパネル）の形のスケルトン。
+ * 文言は `useT()` で引く（ハイドレーションの間は焼き込んだ日本語のまま。`getT()` だと英語のときに食い違う）
+ */
 export function HydrateFallback() {
+  const t = useT();
   const bar = "animate-pulse rounded-md bg-muted motion-reduce:animate-none";
   return (
     <div role="status" aria-busy="true" className="loading-appear flex h-dvh min-h-0">
-      <span className="sr-only">{getT().shell.loading}</span>
+      <span className="sr-only">{t.shell.loading}</span>
       <div aria-hidden="true" className="flex w-sidebar shrink-0 flex-col gap-3 px-3 py-4">
         <div className={`${bar} mb-4 h-7 w-32`} />
         {["w-28", "w-36", "w-24", "w-32", "w-20", "w-30"].map((w) => (

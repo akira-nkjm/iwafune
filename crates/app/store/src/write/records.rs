@@ -53,6 +53,7 @@ pub fn write_record<T: Serialize>(
 mod tests {
     use super::*;
     use fune_model::design::Harness;
+    use fune_model::path::PortRef;
     use fune_model::value::Quantity;
 
     #[test]
@@ -60,8 +61,8 @@ mod tests {
         let mut h = Harness {
             id: "H".into(),
             label: None,
-            from: "A.P".into(),
-            to: "B.P".into(),
+            from: PortRef::new("A", "P"),
+            to: PortRef::new("B", "P"),
             nets: vec!["N".into()],
             wire: None,
             cores: Some(2),

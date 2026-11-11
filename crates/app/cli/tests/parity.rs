@@ -1,6 +1,7 @@
 //! パリティテスト（CI 必須）: 同じ編集を CLI（`fune` の実行ファイル）と HTTP（`POST /api/v1/ops`）で行い、
 //! 結果のファイルがバイト単位で一致することを確かめる（CONTRIBUTING.md の「CLI と GUI の対等性」）。
-//! 人が打った文字列の編集（`POST /ops/from_text`・`/ops/unset_from_text`）は `parity_text.rs`。
+//! 人が打った文字列の編集（`POST /ops/from_text`・`/ops/unset_from_text`）は `parity_text.rs`、
+//! 名詞のコマンドに打った引数（`POST /ops/from_command`）は `parity_command.rs`。
 
 mod common;
 
@@ -58,9 +59,9 @@ fn part_edits() -> Vec<Edit> {
                 "--kind",
                 "reaction_wheel",
                 "--group",
-                "AOCS",
+                "aocs",
             ],
-            ops: json!([{ "op": "create_part", "id": "RW_W", "group": "AOCS", "kind": "reaction_wheel" }]),
+            ops: json!([{ "op": "create_part", "id": "RW_W", "group": "aocs", "kind": "reaction_wheel" }]),
         },
         Edit {
             name: "SetModeStates",
@@ -309,4 +310,57 @@ fn dry_run_writes_nothing_on_both_sides() {
     let status = rt.block_on(async { router.oneshot(req).await.unwrap().status() });
     assert_eq!(status, StatusCode::OK);
     assert_eq!(before, snapshot_files(&root));
+}
+
+/// 系の所属と配分キーの編集・読み出しは CLI と HTTP で同じ。
+#[test]
+fn system_membership_and_budget_keys_match_http() {
+    use common::{fune, get_json};
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_t1, cli_root) = demo_copy();
+    let (_t2, http_root) = demo_copy();
+    run_cli(&cli_root, &["part", "mv", "RW_X", "payload"]);
+    run_http(
+        &rt,
+        &http_root,
+        &json!([{ "op": "move_part", "id": "RW_X", "to": "payload" }]),
+    );
+    let key = "budget.mass.alloc.payload";
+    run_cli(&cli_root, &["setting", "set", key, "1.8 kg"]);
+    let ops = post_json(
+        &rt,
+        &http_root,
+        "/api/v1/ops/from_text",
+        json!({ "path": key, "value": "1.8 kg" }),
+    );
+    post_json(&rt, &http_root, "/api/v1/ops", json!({ "ops": [ops] }));
+    assert_same_files(&cli_root, &http_root, "system and allocation");
+    for (args, endpoint) in [
+        (vec!["part", "ls"], "/api/v1/parts"),
+        (vec!["budget", "mass"], "/api/v1/budgets/mass"),
+    ] {
+        let output = fune()
+            .arg("-C")
+            .arg(&cli_root)
+            .arg("--json")
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let cli: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(cli, get_json(&rt, &http_root, endpoint));
+    }
+    let parts = get_json(&rt, &http_root, "/api/v1/parts");
+    let wheel = parts
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["id"] == "RW_X")
+        .unwrap();
+    assert_eq!(wheel["system"], "payload");
+    assert!(wheel.get("subsystem").is_none());
 }

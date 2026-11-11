@@ -1,18 +1,18 @@
 import type { ReactNode } from "react";
+import { dimOf, EACH } from "@/analysis/output";
 import { analysisOutput } from "@/api/analysis-output";
+import type { AnalysisState } from "@/api/queries";
 import type { AnalysisOutputs, DesignView, System } from "@/api/types";
 import { LazyLayout3D } from "@/features/layout3d/LazyLayout3D";
 import type { V3 } from "@/features/layout3d/scene";
-import { getT } from "@/i18n";
-import { toneHex } from "@/lib/tone";
-import { heatHex, heatKey, heatMapOf, heatRatio } from "./heat";
-import { dimOf } from "./output";
+import { heatHex, toneHex } from "@/lib/tone";
+import { hasExtras } from "./preload";
 import type { SystemTab } from "./SystemTabs";
-import { ThermalHeatmap } from "./ThermalHeatmap";
-import type { AnalysisState } from "./use-analyses";
+import { heatKey, heatMapOf, heatRatio } from "./thermal/heat";
+import { ThermalHeatmap } from "./thermal/ThermalHeatmap";
 
-function dimsOf(states: readonly AnalysisState[], id: string): Record<string, string> | undefined {
-  return states.find((s) => s.id === id)?.result?.dims;
+function resultOf(states: readonly AnalysisState[], id: string) {
+  return states.find((s) => s.id === id)?.result;
 }
 
 function outputOf<K extends keyof AnalysisOutputs>(
@@ -22,18 +22,21 @@ function outputOf<K extends keyof AnalysisOutputs>(
   return analysisOutput(states.find((s) => s.id === id)?.result, id);
 }
 
-/** 系ごとの追加の表示（構造: 3D 配置と重心、熱: 節点温度の表と温度で塗った 3D） */
+/**
+ * 系ごとの追加の表示（構造: 3D 配置と重心、熱: 節点温度の表と温度で塗った 3D）。どの系が持つかは `preload.ts` の
+ * `EXTRA_CHUNKS`（ナビの先読みと共通）で、下の分岐はその系をちょうど覆う（型で確かめる）。
+ */
 export function systemExtras(
   system: System,
   design: DesignView | undefined,
   states: readonly AnalysisState[],
 ): Partial<Record<SystemTab, ReactNode>> {
-  if (!design) return {};
+  if (!design || !hasExtras(system)) return {};
   if (system === "structure") {
     const mp = outputOf(states, "structure.mass_properties");
     const c = mp?.summary.center_of_mass;
     const com: V3 | null = c ? [c.x, c.y, c.z] : null;
-    return { results: <LazyLayout3D design={design} com={com} /> };
+    return { results: <LazyLayout3D variant="placement" design={design} com={com} /> };
   }
   if (system === "thermal") {
     const map = heatMapOf(outputOf(states, "thermal.steady"));
@@ -54,18 +57,19 @@ export function systemExtras(
         <>
           <ThermalHeatmap
             map={map}
-            dimension={dimOf(dimsOf(states, "thermal.steady"), "cases[].nodes[].temperature")}
+            dimension={dimOf(resultOf(states, "thermal.steady"), [
+              "cases",
+              EACH,
+              "nodes",
+              EACH,
+              "temperature",
+            ])}
           />
-          <LazyLayout3D
-            design={design}
-            colorOf={colorOf}
-            editable={false}
-            title={getT().systems.thermal3d}
-            legend={getT().systems.thermal3dLegend}
-          />
+          <LazyLayout3D variant="heat" design={design} colorOf={colorOf} />
         </>
       ),
     };
   }
-  return {};
+  // 上の分岐が EXTRA_CHUNKS の系をすべて覆っていなければ、ここで型が合わない
+  return system satisfies never;
 }

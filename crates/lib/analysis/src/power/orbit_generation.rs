@@ -5,8 +5,8 @@
 
 use super::solar::{SolarArray, SolarLife, SolarProfile, eclipses};
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Channel, Check, Series, System, Verdict,
-    masked_time_mean, orbit_mean, orbit_ranges,
+    Analysis, AnalysisError, AnalysisKind, Channel, ChannelKind, Series, SpanFallback, System,
+    longest_window, masked_time_mean, orbit_mean, orbit_ranges, span_fallback, time_fraction,
 };
 use sat_astro::timeline::{self, TimelineSpec, Window};
 use sat_units::typed::{Energy, Fraction, Power, Qty, Time};
@@ -53,7 +53,8 @@ pub struct OrbitGenerationOutput {
     pub panels: Vec<OrbitGenerationPanel>,
     /// 時系列: `generation`・`sunlit`・`panel:<id>`
     pub series: Series,
-    pub checks: Vec<Check>,
+    /// 1 周に満たないときの代わりの集計（回り切った周回があれば `None`。service が注意 `span` にする）
+    pub span_fallback: Option<SpanFallback>,
 }
 
 /// 1 パネルの寄与。
@@ -85,7 +86,7 @@ impl Analysis for OrbitGeneration {
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         input.array.validate()?;
         let samples = timeline::build(&input.timeline)?;
-        let period_s = input.timeline.orbit.period_s();
+        let period_s = input.timeline.orbit().period_s();
         let profile = SolarProfile::build(&input.array, &samples);
         Ok(summarize(input, &profile, eclipses(&samples), period_s))
     }
@@ -101,8 +102,7 @@ fn summarize(
     let life = input.life;
     let ranges = orbit_ranges(&profile.t, period_s);
     let gen_life = profile.total(life);
-    let flags = profile.sunlit_flags();
-    let sunlit_num: Vec<f64> = flags.iter().map(|&f| if f { 1.0 } else { 0.0 }).collect();
+    let flags = &profile.lit;
     let orbit_average = orbit_mean(&profile.t, &gen_life, &ranges);
     let panels = panel_shares(input, profile, &ranges, orbit_average);
     OrbitGenerationOutput {
@@ -121,19 +121,16 @@ fn summarize(
             &ranges,
         )),
         sunlit_average: Qty::from_raw(
-            masked_time_mean(&profile.t, &gen_life, &flags).unwrap_or(0.0),
+            masked_time_mean(&profile.t, &gen_life, flags).unwrap_or(0.0),
         ),
         peak: Qty::from_raw(gen_life.iter().fold(0.0, |a: f64, &p| a.max(p))),
         energy_per_orbit: Qty::<Power>::from_raw(orbit_average) * Qty::<Time>::from_raw(period_s),
-        sunlit_fraction: Fraction::new(orbit_mean(&profile.t, &sunlit_num, &ranges)),
-        max_eclipse_duration: eclipses
-            .iter()
-            .map(|w| w.duration)
-            .fold(Qty::ZERO, |a, d| if d > a { d } else { a }),
+        sunlit_fraction: time_fraction(&profile.t, flags, &ranges),
+        max_eclipse_duration: longest_window(&eclipses),
         eclipses,
         panels,
         series: generation_series(input, profile, gen_life),
-        checks: span_checks(ranges.len()),
+        span_fallback: span_fallback(ranges.len(), SpanFallback::OrbitMeanOverSpan),
     }
 }
 
@@ -145,13 +142,18 @@ fn generation_series(
 ) -> Series {
     let life = input.life;
     let mut channels = vec![
-        Channel::new("generation", "発電電力", "Power", gen_life),
-        Channel::new("sunlit", "日照率", Fraction::KIND, profile.sunlit.clone()),
+        Channel::of::<Power>("generation", ChannelKind::Generation, gen_life),
+        Channel::of::<Fraction>("sunlit", ChannelKind::Sunlit, profile.sunlit.clone()),
     ];
     for (i, p) in input.array.panels.iter().enumerate() {
-        let key = format!("panel:{}", p.id);
-        let label = format!("{} の発電", p.id);
-        channels.push(Channel::new(&key, &label, "Power", profile.panel(i, life)));
+        channels.push(
+            Channel::of::<Power>(
+                format!("panel:{}", p.id),
+                ChannelKind::PanelGeneration,
+                profile.panel(i, life),
+            )
+            .about(&p.id),
+        );
     }
     Series {
         t: profile.t.clone(),
@@ -182,19 +184,6 @@ fn panel_shares(
             }
         })
         .collect()
-}
-
-/// 期間が 1 周に満たないときの注意（電力収支でも使う）。
-pub(crate) fn span_checks(complete_orbits: usize) -> Vec<Check> {
-    if complete_orbits > 0 {
-        return Vec::new();
-    }
-    vec![Check::new(
-        "span",
-        "解析期間",
-        Verdict::Warning,
-        "解析期間が 1 周に満たないため、軌道平均は全期間の平均です",
-    )]
 }
 
 #[cfg(test)]
@@ -240,6 +229,7 @@ mod tests {
         let mut p = SolarProfile::build(&array(), &[]);
         p.panel_bol = vec![sunlit.iter().map(|s| 408.3 * s).collect()];
         p.t = t;
+        p.lit = sunlit.iter().map(|&s| s > 0.5).collect();
         p.sunlit = sunlit;
         let ecl = vec![Window {
             start: Qty::from_raw(55.0),
@@ -256,7 +246,7 @@ mod tests {
         assert!((out.energy_per_orbit.value() - 24498.0).abs() < 1e-6);
         assert!((out.max_eclipse_duration.value() - 40.0).abs() < 1e-12);
         assert!((out.panels[0].share.value() - 1.0).abs() < 1e-12);
-        assert!(out.checks.is_empty());
+        assert_eq!(out.span_fallback, None);
     }
 
     #[test]
@@ -294,18 +284,22 @@ mod tests {
     fn beta_zero_gives_the_longest_eclipse() {
         // β = 0（TimelineSpec.beta）で円柱影の日陰は 2·asin(R/r)/(2π) 周 = asin(R/r)/π
         let mut i = input(1.0);
-        i.timeline.beta = Some(Qty::from_raw(0.0));
+        i.timeline.sampling.beta = Some(Qty::from_raw(0.0));
         let out = OrbitGeneration::run(&i).unwrap();
-        let r = i.timeline.orbit.elements.semi_major_axis.value();
+        let r = i.timeline.orbit().elements.semi_major_axis.value();
         let expect = (R_EARTH / r).asin() / std::f64::consts::PI * out.period.value();
         let got = out.max_eclipse_duration.value();
         assert!((got - expect).abs() < 0.01 * expect, "{got} vs {expect}");
     }
 
     #[test]
-    fn short_span_warns() {
+    fn short_span_falls_back_to_the_whole_span() {
         let out = OrbitGeneration::run(&input(0.5)).unwrap();
         assert_eq!(out.complete_orbits, 0);
-        assert_eq!(out.checks[0].key, "span");
+        assert_eq!(out.span_fallback, Some(SpanFallback::OrbitMeanOverSpan));
+        assert_eq!(
+            OrbitGeneration::run(&input(1.5)).unwrap().span_fallback,
+            None
+        );
     }
 }

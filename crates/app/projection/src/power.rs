@@ -2,10 +2,12 @@
 
 use crate::context::Context;
 use crate::missing::MissingInputs;
-use crate::parts::{self, by_role, direction_body, extensive_by_state, label, ratio};
+use crate::parts::{self, by_role, direction_body, label, ratio, state_values};
 use crate::timeline;
+use fune_model::Target;
+use fune_model::design::AnalysisSystem;
 use sat_analysis::power::energy_balance::{
-    EnergyBalanceBattery, EnergyBalanceCase, EnergyBalanceLoad,
+    EnergyBalanceBattery, EnergyBalanceCase, EnergyBalanceLoad, LoadGrowth,
 };
 use sat_analysis::power::mode_load::ModeLoadPart;
 use sat_analysis::power::solar::{SolarArray, SolarLife, SolarPanel};
@@ -29,17 +31,18 @@ pub fn mode_load_input(ctx: &Context<'_>, m: &mut MissingInputs) -> ModeLoadInpu
             Some(ModeLoadPart {
                 id: p.id.clone(),
                 label: label(p),
-                group: p.subsystem.clone().unwrap_or_default(),
-                power: extensive_by_state::<Power>(p, "power")?,
+                group: p.system.map(|s| s.to_string()).unwrap_or_default(),
+                count: parts::count_of(p),
+                power: state_values::<Power>(p, "power")?,
                 growth_margin: parts::growth(ctx.design, p),
             })
         })
         .collect();
     if parts.is_empty() {
-        m.push("<部品>.power", "消費電力を持つ部品がありません");
+        m.push(Target::any_part("power"), "消費電力を持つ部品がありません");
     }
     if ctx.design.modes.is_empty() {
-        m.push("modes", "運用モード（modes/<ID>.toml）");
+        m.push(Target::Modes, "運用モード（modes/<ID>.toml）");
     }
     ModeLoadInput {
         parts,
@@ -68,7 +71,7 @@ pub fn solar_array(ctx: &Context<'_>, m: &mut MissingInputs) -> SolarArray {
         .collect();
     if panels.is_empty() {
         m.push(
-            "<solar_panel>",
+            Target::any_of_roles(&["solar_panel"], None),
             "太陽電池パネル（kind の role = solar_panel）の部品がありません",
         );
     }
@@ -91,7 +94,10 @@ pub fn solar_sunlit(ctx: &Context<'_>) -> Result<SolarSunlitInput, MissingInputs
     let mut cases = Vec::new();
     let modes = timeline::modes_with_law(ctx);
     if modes.is_empty() {
-        m.push("analysis.attitude.law", "姿勢則（モードごと）");
+        m.push(
+            AnalysisSystem::Aocs.setting_path().child(&["law"]),
+            "姿勢則（モードごと）",
+        );
     }
     for mode in modes {
         if let Some(t) = timeline::timeline(ctx, Some(&mode), 1, &mut m) {
@@ -128,7 +134,15 @@ pub fn energy_balance(ctx: &Context<'_>) -> Result<EnergyBalanceInput, MissingIn
     let array = solar_array(ctx, &mut m);
     let loads = mode_load_input(ctx, &mut m);
     let mode = timeline::case_mode_id(ctx);
-    let t = timeline::timeline(ctx, mode.as_deref(), power_orbits(ctx), &mut m);
+    // 既定ケースから借りるのは上段の姿勢則のモードだけ。β・周回数などは元の ctx を使う。
+    let (attitude_case, _) = crate::case_policy::effective_case(
+        Some(ctx.design),
+        "power.energy_balance",
+        ctx.case.map(|c| c.id.as_str()),
+    );
+    let attitude_ctx = Context::new(ctx.design, ctx.resolved, attitude_case)?;
+    let attitude_mode = timeline::case_mode_id(&attitude_ctx);
+    let t = timeline::timeline(ctx, attitude_mode.as_deref(), power_orbits(ctx), &mut m);
     let batteries = batteries(ctx, &mut m);
     let cases: Vec<EnergyBalanceCase> = ctx
         .design
@@ -151,7 +165,7 @@ pub fn energy_balance(ctx: &Context<'_>) -> Result<EnergyBalanceInput, MissingIn
             life: SolarLife::Eol,
             batteries,
             loads,
-            without_growth: false,
+            load_growth: LoadGrowth::Included,
             cases,
         })
     })
@@ -169,7 +183,7 @@ fn batteries(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceBatte
     let cells: Vec<_> = by_role(ctx, "battery").collect();
     if cells.is_empty() {
         m.push(
-            "<battery>",
+            Target::any_of_roles(&["battery"], None),
             "電池（kind の role = battery）の部品がありません",
         );
         return Vec::new();
@@ -178,7 +192,7 @@ fn batteries(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceBatte
     let settings = ctx.design.analysis.power.as_ref();
     let dod = m.need(
         settings.and_then(|s| s.dod_max),
-        "analysis.power.dod_max",
+        AnalysisSystem::Power.setting_path().child(&["dod_max"]),
         "許容 DoD",
     );
 
@@ -199,8 +213,8 @@ fn batteries(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceBatte
         .collect()
 }
 
-/// モードの姿勢則（`analysis.attitude.law.<モード>`）。書かれていなければ None（時系列の姿勢則を使う）。
+/// モードの姿勢則（`analysis.aocs.law.<モード>`）。書かれていなければ None（時系列の姿勢則を使う）。
 fn mode_law(ctx: &Context<'_>, mode: &str) -> Option<sat_astro::attitude::AttitudeLaw> {
-    let laws = &ctx.design.analysis.attitude.as_ref()?.law;
+    let laws = &ctx.design.analysis.aocs.as_ref()?.law;
     laws.get(mode).map(crate::context::law_of)
 }

@@ -10,4 +10,8 @@ export type UnloadTimeOutput = {
 /**
  * 捨てる角運動量（入力の値か、ホイールから求めた値）
  */
-momentum: number, mtq: UnloadTimeMtqResult | null, rcs: UnloadTimeRcs | null, checks: Array<Check>, };
+momentum: number, 
+/**
+ * 捨てる量をホイールから求めたときに使った「使ってよい割合」（`momentum` を与えたときは `None`）
+ */
+usable_momentum_fraction: number | null, mtq: UnloadTimeMtqResult | null, rcs: UnloadTimeRcs | null, checks: Array<Check>, };

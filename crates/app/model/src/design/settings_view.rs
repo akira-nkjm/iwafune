@@ -32,7 +32,12 @@ impl Design {
                 }
                 v
             }
-            SettingScope::Analysis => to(serde_json::to_value(&self.analysis)),
+            SettingScope::Analysis => {
+                // 共通設定は未作成でも設定一覧に欄を出す。
+                let mut analysis = self.analysis.clone();
+                analysis.common.get_or_insert_default();
+                to(serde_json::to_value(&analysis))
+            }
             SettingScope::Budget => {
                 let mut map = match to(serde_json::to_value(&self.budget.allocation)) {
                     Json::Object(m) => m,

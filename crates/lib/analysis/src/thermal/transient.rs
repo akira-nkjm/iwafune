@@ -4,16 +4,20 @@
 //! - 内部発熱は `phases` を順に繰り返す（1 区間だけなら一定）。区間はサンプルの時刻で切り替える。
 //! - 積分は `sat_astro::ode::integrate`（固定刻み RK4）。刻みは安定条件の目安と `max_step` の小さい方。
 
-use crate::spec::{Analysis, AnalysisError, AnalysisKind, Channel, Check, Series, System, Verdict};
-use crate::thermal::network::{
-    Compiled, ThermalLoad, ThermalModeLoads, ThermalNetwork, ThermalTempRange,
+use crate::spec::{
+    Analysis, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series, System, Verdict,
 };
-use crate::thermal::orbit_heat::{ThermalEnvironment, absorbed, mean_absorbed, timeline_geometry};
-use crate::thermal::steady::{RANGE_WARNING_BAND_K, range_check, range_verdict};
+use crate::thermal::network::{
+    Compiled, INITIAL_GUESS_K, ThermalLoad, ThermalModeLoads, ThermalNetwork, ThermalTempRange,
+};
+use crate::thermal::orbit_heat::{
+    ThermalEnvironment, ThermalEnvironmentUsed, absorbed, mean_absorbed, timeline_geometry,
+};
+use crate::thermal::range::{RANGE_WARNING_BAND_K, range_check, range_verdict};
 use sat_astro::ode::integrate;
 use sat_astro::timeline::TimelineSpec;
 use sat_astro::timeline::time_mean;
-use sat_units::typed::{Qty, Temperature, Time};
+use sat_units::typed::{Power, Qty, Temperature, Time};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -52,7 +56,7 @@ pub enum ThermalInitial {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThermalTransientInput {
     pub network: ThermalNetwork,
-    /// 軌道・姿勢則・期間・刻み（入熱を求める時刻と、出力の時刻）。β 角の指定は `timeline.beta`
+    /// 軌道・姿勢則・期間・刻み（入熱を求める時刻と、出力の時刻）。β 角の指定は `timeline` の `beta`
     pub timeline: TimelineSpec,
     #[serde(default)]
     pub environment: ThermalEnvironment,
@@ -86,9 +90,11 @@ pub struct ThermalTransientNodeResult {
 pub struct ThermalTransientOutput {
     /// 節点ごとの温度（key は節点 ID、K）と全外部入熱（key `absorbed`、W）
     pub series: Series,
+    /// 使った熱環境（入力に無い値は既定値）
+    pub environment: ThermalEnvironmentUsed,
     /// 入力の節点の順
     pub nodes: Vec<ThermalTransientNodeResult>,
-    /// 動作範囲の端からこの幅以内を警告にした（`thermal::steady::RANGE_WARNING_BAND_K`）
+    /// 動作範囲の端からこの幅以内を警告にした（`thermal::range::RANGE_WARNING_BAND_K`）
     pub range_warning_band: Qty<Temperature>,
     /// 動作範囲を持つ節点ごとの判定（key は `range:<node>`）
     pub checks: Vec<Check>,
@@ -113,7 +119,7 @@ impl Analysis for ThermalTransient {
         let phases = Phases::new(&net, &input.phases)?;
         let timeline = &input.timeline;
         let (t, geo) = timeline_geometry(timeline)?;
-        let space_k = input.environment.space_temperature.value();
+        let space_k = input.environment.space_temperature().value();
         let mut temps = initial(&net, input, timeline, &phases)?;
         let dt = step_s(&net, input, &temps);
         let mut history: Vec<Vec<f64>> = Vec::with_capacity(t.len());
@@ -131,7 +137,13 @@ impl Analysis for ThermalTransient {
             let f = |_: f64, x: &Vec<f64>| net.derivative(x, &q, space_k);
             temps = integrate(f, t[i], temps, t_next, dt, |_, _| {});
         }
-        let mut output = build_output(&input.network, t, &history, absorbed_total);
+        let mut output = build_output(
+            &input.network,
+            t,
+            &history,
+            absorbed_total,
+            input.environment.used(),
+        );
         output.checks.extend(phases.checks);
         Ok(output)
     }
@@ -226,8 +238,8 @@ fn initial(
         ThermalInitial::OrbitAverageSteady => {
             let ext = mean_absorbed(net, &input.environment, timeline)?;
             let q: Vec<f64> = ext.iter().zip(phases.mean()).map(|(a, b)| a + b).collect();
-            let space_k = input.environment.space_temperature.value();
-            net.solve_steady(&q, space_k, 290.0)?.temps
+            let space_k = input.environment.space_temperature().value();
+            net.solve_steady(&q, space_k, INITIAL_GUESS_K)?.temps
         }
     };
     if t.iter().any(|x| x.is_nan() || *x <= 0.0) {
@@ -243,13 +255,22 @@ fn initial(
     Ok(t)
 }
 
+/// 安定な刻みの目安を求める温度の下限 [K]。放射の線形化の剛性は温度の 3 乗で増えるので、初期温度がこれより低くても
+/// 軌道上で上がりうる温度で見積もる。
+const STABLE_STEP_MIN_REFERENCE_K: f64 = 400.0;
+
+/// 積分の刻みの下限 [s]（剛い節点があっても刻みが 0 に近づいて終わらなくならないように）。
+const MIN_STEP_S: f64 = 1e-3;
+
 /// 積分の刻み [s]。
 fn step_s(net: &Compiled, input: &ThermalTransientInput, temps: &[f64]) -> f64 {
-    let t_ref = temps.iter().fold(400.0_f64, |m, x| m.max(*x));
+    let t_ref = temps
+        .iter()
+        .fold(STABLE_STEP_MIN_REFERENCE_K, |m, x| m.max(*x));
     let stable = net.stable_step_s(t_ref);
     let limit = input.max_step.map_or(f64::INFINITY, Qty::value);
-    let timeline = input.timeline.step.value();
-    stable.min(limit).min(timeline).max(1e-3)
+    let timeline = input.timeline.sampling.step.value();
+    stable.min(limit).min(timeline).max(MIN_STEP_S)
 }
 
 fn build_output(
@@ -257,6 +278,7 @@ fn build_output(
     t: Vec<f64>,
     history: &[Vec<f64>],
     absorbed_total: Vec<f64>,
+    environment: ThermalEnvironmentUsed,
 ) -> ThermalTransientOutput {
     let mut channels = Vec::with_capacity(network.nodes.len() + 1);
     let mut nodes = Vec::with_capacity(network.nodes.len());
@@ -277,16 +299,18 @@ fn build_output(
             verdict: range_verdict(min, max, n.operating()),
         });
         checks.extend(range_check(&n.id, min, max, n.operating()));
-        channels.push(Channel::new(&n.id, &n.id, "Temperature", values));
+        channels.push(
+            Channel::of::<Temperature>(&n.id, ChannelKind::NodeTemperature, values).about(&n.id),
+        );
     }
-    channels.push(Channel::new(
+    channels.push(Channel::of::<Power>(
         "absorbed",
-        "外部入熱",
-        "Power",
+        ChannelKind::AbsorbedHeat,
         absorbed_total,
     ));
     ThermalTransientOutput {
         series: Series { t, channels },
+        environment,
         nodes,
         range_warning_band: Qty::from_raw(RANGE_WARNING_BAND_K),
         checks,
@@ -305,5 +329,4 @@ fn extreme(values: &[f64], better: impl Fn(f64, f64) -> bool) -> (usize, f64) {
 }
 
 #[cfg(test)]
-#[path = "transient_tests.rs"]
 mod tests;

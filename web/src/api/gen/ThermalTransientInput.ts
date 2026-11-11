@@ -10,7 +10,7 @@ import type { TimelineSpec } from "./TimelineSpec";
  */
 export type ThermalTransientInput = { network: ThermalNetwork, 
 /**
- * 軌道・姿勢則・期間・刻み（入熱を求める時刻と、出力の時刻）。β 角の指定は `timeline.beta`
+ * 軌道・姿勢則・期間・刻み（入熱を求める時刻と、出力の時刻）。β 角の指定は `timeline` の `beta`
  */
 timeline: TimelineSpec, environment: ThermalEnvironment, 
 /**

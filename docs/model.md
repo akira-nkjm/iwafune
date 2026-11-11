@@ -8,7 +8,7 @@
   編集は Design に対して行い、解析は Resolved を読む。Derived は原則ファイルに保存しない（§9）。
 - **解析はモデルを知らない。** 解析ライブラリ側が「解析ごとの入力型」を定義し、fune-projection が Resolved からその型へ射影して渡す
   （[architecture.md](architecture.md) §6.3）。足りない入力は「この解析には RW_X.max_momentum が要る」と名指しで返す。
-- **製品ツリーはディレクトリで表す。** 機能のまとまり（AOCS など）はディレクトリだけで、ファイルは置かない。
+- **製品ツリーはディレクトリで表す。** 最上位は系の ID（`aocs` など）のディレクトリで、その下に組立品を入れ子にできる。`parts/` 直下の部品も許す。
   自分の質量や取付先を持つ物理的な組立品は「部品ファイル＋同じ名前のディレクトリ」で表す（§6）。
 - **置き場所の原則**（§7）:
   1 つの部品で完結する情報は部品ファイルに書く。複数の部品にまたがり、それ自体が名前や属性を持つもの（モード・ネット・ハーネス）は別ディレクトリにする。
@@ -40,13 +40,13 @@ flowchart LR
 
 | エンティティ | 役割 | ファイル | 主な中身 |
 |---|---|---|---|
-| Project | プロジェクト全体の設定 | `fune.toml` | schema 版、書き出す TOML の版、サブシステムの表示名、共有カタログの参照 |
-| Allocation | 配分 | `budget/allocation.toml` | 質量・電力などの上限、システムマージン、サブシステムごとの配分 |
+| Project | プロジェクト全体の設定 | `fune.toml` | schema 版、書き出す TOML の版、共有カタログの参照 |
+| Allocation | 配分 | `budget/allocation.toml` | 質量・電力などの上限、システムマージン、系（または部品）ごとの配分 |
 | BudgetPolicy | マージン方針 | `budget/policy.toml` | 成熟度ごとの成長余裕、不確かさの既定幅、ハーネスの見込み |
 | AttributeDef | 量の種類（quantity kind） | `defs/attribute/<id>.toml` | 値の型、次元、許可単位、表示単位、値域、状態で引くか、どのバジェットに入るか |
 | KindDef | 部品の種別 | `defs/kind/<id>.toml` | 継承元、必須・任意の属性、機器の状態の語彙（off / standby / on …）、ポートの雛形、role |
 | CatalogItem | 購入品・設計品の定義（ElementDefinition） | 共有カタログ or `catalog/<id>.toml` | kind、型番、成熟度、属性値、ポートの値、形状、データシート |
-| Group | 機能のまとまり（サブシステム） | `parts/` 以下の、同名ファイルを持たないディレクトリ | なし（表示名は `fune.toml` の `[groups]`、配分は `budget/allocation.toml`） |
+| Group | 系・入れ子のフォルダ | `parts/` 以下の、同名ファイルを持たないディレクトリ（最上位は系 ID） | なし（系の表示名は組み込みの語彙、配分は `budget/allocation.toml`） |
 | Part | 製品ツリー上の使用（ElementUsage） | `parts/<…>/<ID>.toml` | 定義（catalog / kind）、トレード候補、員数、取付先と相対姿勢、上書き値、ポートの所属ネット |
 | Mode | 衛星の運用モード | `modes/<ID>.toml` | 部品 → {基本の状態, ほかの状態の時間割合} |
 | Net | 電気的な接続（論理） | `nets/<ID>.toml` | 種類（power / data / rf）、レール電圧、供給元ポート、電流制限、プロトコル |
@@ -87,7 +87,6 @@ pub enum NodeRef { Group(Id<Group>), Part(Id<Part>) }
 
 pub struct Group {
     pub parent: Option<NodeRef>,           // ディレクトリから決まる
-    pub label: Option<String>,             // fune.toml の [groups]。無ければディレクトリ名を表示
 }
 
 pub struct Part {
@@ -181,7 +180,7 @@ pub struct Resolved {
     pub parts: BTreeMap<Id<Part>, ResolvedPart>,
     pub tree: Tree<NodeRef>,               // 製品ツリー（機能の階層）
     pub mounts: Tree<Id<Part>>,            // 取付の階層（物理の階層）
-    pub diagnostics: Vec<Diagnostic>,      // severity・code・パス・ファイル位置
+    pub diagnostics: Vec<Diagnostic>,      // severity・code・対象（Target）・ファイル位置
 }
 
 pub struct ResolvedPart {
@@ -205,7 +204,7 @@ pub trait Project<I> {
     fn project(r: &Resolved, case: &CaseCtx) -> Result<I, MissingInputs>;
 }
 // 例: impl Project<rw_unloading::Input> for RwUnloadingProjection { … }
-// MissingInputs は ["RW_X.max_momentum", "SC.residual_dipole"] のようにパスで返す
+// MissingInputs は対象（fune_model::Target）で返す。表示は "RW_X.max_momentum"・"<部品>.power" のようなパス
 ```
 
 - 編集の流れ: Op は Design のパス（`RW_X.attr.mass`）を対象にする。store が最小差分のファイル編集に変え、
@@ -213,11 +212,63 @@ pub trait Project<I> {
 - 計算のキャッシュ: Derived は入力の fingerprint をキーにメモ化する。数千件規模なら単純な全再計算で足りる。
   遅くなったら incremental な計算フレームワーク（salsa など）を検討する。
 
+### 5.1 解析ケースの条件選択
+
+projection の `case_policy::effective_case` が明示ケースを優先する。省略時に `analysis.common.default_case` を
+解析全体へ適用する対象は、同モジュールの宣言にある `power.orbit_generation`・`aocs.rw_unloading`・
+`aocs.sensor_fov`・`thermal.transient` のみ。それ以外はケース未選択のまま運用全体や全条件を解析する。
+既定の設定が存在しないケースを指すと検査エラーにする。
+実行結果の `case` は使ったケース ID、`case_source` は `explicit` / `default`（ケース未選択なら原則両方 null）。
+保存前の設定変更も同じ規則で解析に適用する。入力を丸ごと与える `given` には既定ケースを適用しない。
+
+`power.energy_balance` はケース未指定なら全モードを 1 ケースずつ並べ、各ケースの姿勢則はそのモードの
+`analysis.aocs.law` を使う。上段の `timeline.attitude` だけは、同じ解決関数で引いた既定ケースのモードの姿勢則を使う。
+この場合は `case = null`、`case_source = default_attitude` とする。既定ケースの β・周回数・side などは適用しない。
+既定ケースがなければ、姿勢則が唯一の場合だけ上段にも使い、複数なら不足入力にする。
+明示ケースがあれば、従来どおりそのケースのモードと条件を使う。
+
+電力収支の各ケースの `energy_margin_per_orbit` は、回り切った周回ごとのエネルギー余裕の最小値
+（電池の効率込み、容量の上下限で切る前、周期へ換算済み）。回り切った周回が無ければ `null` とし、
+`energy_margin_over_span` に解析期間全体の収支を周期へ換算せず返す。この場合の周回の収支判定は Warning とし、
+判定文に期間の収支を添える。回り切った周回があれば `energy_margin_over_span` は `null`。
+期間不足の目印 `span_fallback = orbit_mean_over_span` は引き続き返す。
+KPI の電力収支は別の量である平均電力（`orbit_average_balance`、電池の効率を含まない）を使う。
+
+解析ケースの `mode` が指定されているときは、そのモードの `[law.<mode>]` が必要で、別のモードの姿勢則では代用しない。
+モードが未指定なら、姿勢則が 1 件だけのときに限り使う。0 件または複数なら不足入力として停止する。
+
+### 5.2 熱解析の条件
+
+`thermal.transient` は解析ケースの `thermal_case` で環境条件を選ぶ。省略時は熱条件が 1 件だけなら使い、
+複数なら解析ケースの `thermal_case` を不足入力として示す。選択した ID が存在しない場合も不足入力とする。
+解析ケース自体が未選択の場合は `analysis.thermal.case` を示す。条件が 0 件でも停止する。
+`thermal.steady` は引き続きすべての熱条件を解析する。
+両解析とも、熱条件の `beta` がある場合だけ解析ケースの β を上書きし、省略時はケースの β を保持する。
+軌道の中心天体が地球以外なら、地球の形態係数・アルベド・赤外放射を用いる熱環境は未対応のため入力エラーで停止する。
+
+### 5.3 姿勢解析の機体外形
+
+擾乱に使う機体外形は、`size` があり取付親のない部品が 1 個だけならその部品を使う。
+複数なら候補部品 ID を不足入力の文に示して停止し、ID 順には選ばない。0 個の場合の扱いは従来どおりとする。
+
+### 5.4 共通解析設定
+
+系の一覧は `AnalysisSystem` が正本で、API の `DefsView.systems` に同じ順で返す。`aocs` の表示名は日英とも AOCS、`payload` は日本語「ミッション機器」・英語「Payload」。Payload は解析を持たず、設定項目もまだない。古い系名 `attitude` は受け付けない。
+
+系に属さない設定は `analysis/common.toml` に置く。プロジェクトの設定一覧では scope は `analysis`、system は null。
+`default_case` は解析ケース ID の文字列。§5.1 の対象解析と電力収支の上段の姿勢則にだけ使い、省略時はケース未選択の扱いを維持する。
+CLI と画面は同じ `SetSetting` を使う。例: `fune setting set analysis.common.default_case hot_imaging`。
+
+```toml
+# analysis/common.toml
+default_case = "hot_imaging"
+```
+
 ## 6. 製品ツリーと取付
 
 ### 6.1 2 つの階層
 
-部品には「どのサブシステムに属するか（機能）」と「どこに付いているか（物理）」の 2 つの親がある。
+部品には「どの系に属するか（機能）」と「どこに付いているか（物理）」の 2 つの親がある。
 RW は AOCS に属するが、物理的には -Z パネルに付いている。1 つの木で両方を表そうとすると、どちらかが歪む。
 
 - **製品ツリー（機能）** = `parts/` のディレクトリ構成。配分との比較とバジェットの集計に使う。
@@ -230,10 +281,10 @@ RW は AOCS に属するが、物理的には -Z パネルに付いている。1
 
 ```
 parts/
-├── AOCS/              機能のまとまり: ディレクトリだけ（ファイル不要）
+├── aocs/              機能のまとまり: ディレクトリだけ（ファイル不要）
 │   ├── RW_X.toml
 │   └── STT.toml
-└── POWER/
+└── power/
     ├── BAT.toml
     ├── SAP_PX.toml    物理的な組立品: 普通の部品ファイル（質量・取付・取付点）
     └── SAP_PX/        同じ名前のディレクトリ = SAP_PX の子部品
@@ -242,7 +293,9 @@ parts/
 ```
 
 - Group の ID はディレクトリ名。部品の ID と同じ名前空間で一意にする。
-- Group は質量も取付も持たない。表示名は `fune.toml` の `[groups]` に任意で書き、配分は `budget/allocation.toml` に書く。
+- Group は質量も取付も持たない。最上位のディレクトリ名は `power`・`aocs`・`cdh`・`comm`・`thermal`・`structure`・`payload`。それ以外は `fune check` の error（使える ID を列挙）。入れ子の組立品・フォルダの ID は任意。
+- 部品の系は `Design::system_of` だけが決める。置き場所の最上位の系 → 種別の役割の系（`role_system`、継承を含む）→ `None`。`parts/` 直下の部品も許し、役割があれば系に属する。
+- 系の表示名は組み込みの語彙 `labels.section`（日英）。プロジェクトによる上書きはしない。API の `PartRow.system` は `System | null`、ツリーとバジェットの行も `system` と日英の表示名を返す。Web の色はこの系を `lib/systems.ts` の唯一の対応で引く（未所属は中立色）。配分は `budget/allocation.toml` に書く。
 - 物理的な組立品（`SAP_PX`）は自分の質量・取付先・取付点を持ち、子部品は `mount = { on = "SAP_PX", … }` で組立品に付く。
   バジェットでは「組立品自身＋子部品の合計」がその組立品の質量になる。
 - 部品を別のまとまりへ移すとファイルの移動になり、git は rename として表示する。
@@ -313,8 +366,13 @@ master   = "OBC.CAN1"
 どの部品がつながっているかはネット側に書かず、部品側のポートに書く。部品を足しても共有のファイルを書き換えないので、衝突が起きない。
 系統図は「ネット＋各部品のポート」から組み立てて描く。
 
+- `source`・`master`（とハーネスの `from`・`to`）は `"部品.ポート"` の文字列で書き、読み込むときに `PortRef`（部品 ID とポート名）にする。
+  この形でなければ、そのファイルの形の誤り（`toml.schema`、行付き）としてファイルを読まない。部品やポートが無いことは `fune check` が検査する。
+- **戻り（GND）のネット**は、`kind = "power"` で `rail` が 0 のもの、または ID に `GND`・`RTN` の語（`_` で区切った語。大文字小文字を
+  無視）を含むもの（`fune_model::design::Net::is_return`）。系統図では GND の層に描く。表示名（`label`）は見ない。
+
 ```toml
-# parts/AOCS/RW_X.toml（抜粋）
+# parts/aocs/RW_X.toml（抜粋）
 catalog = "lab/rw_18mNms"
 
 [ports.PWR]
@@ -345,7 +403,7 @@ length = { value = 0.35, unit = "m", from = { source = "layout_estimate", note =
 
 | 操作 | 変わるファイル |
 |---|---|
-| 部品を追加（RW_Z） | `parts/AOCS/RW_Z.toml`（新規）と、各 `modes/*.toml` に 1 行ずつ |
+| 部品を追加（RW_Z） | `parts/aocs/RW_Z.toml`（新規）と、各 `modes/*.toml` に 1 行ずつ |
 | モードを追加 | `modes/NEW.toml`（新規）だけ |
 | 部品をネットにつなぐ | その部品ファイルの `ports` に 1 行 |
 | ネットを新しく作る | `nets/X.toml`（新規）と、つなぐ部品の `ports` |
@@ -364,7 +422,7 @@ length = { value = 0.35, unit = "m", from = { source = "layout_estimate", note =
 
 配分はサブシステムのディレクトリに分散させず、1 つのファイルにまとめる。
 
-- 配分を決めるのはシステム担当、`parts/AOCS/` を触るのは AOCS 担当で、持ち主が違う。`CODEOWNERS` でレビュー担当を分けられる。
+- 配分を決めるのはシステム担当、`parts/aocs/` を触るのは AOCS 担当で、持ち主が違う。`CODEOWNERS` でレビュー担当を分けられる。
 - 配分は一緒に動く。「AOCS に 0.2 kg 回して PAYLOAD を減らす」という変更が、ファイル 1 つ・差分 2 行で済む。
 - 合計の確認が 1 ファイルで済む。`check()` は「配分の合計 ≤ 上限 × (1 − システムマージン)」を検査し、超えたら warning を出す。
 
@@ -375,23 +433,23 @@ limit         = { value = 12.0, unit = "kg" }   # ロケット側の上限
 system_margin = 0.10
 
 [mass.alloc]
-AOCS      = { value = 2.0, unit = "kg" }
-CDH       = { value = 0.8, unit = "kg" }
-COM       = { value = 1.0, unit = "kg" }
-POWER       = { value = 3.2, unit = "kg" }
-PAYLOAD   = { value = 1.5, unit = "kg" }
-STRUCTURE = { value = 2.3, unit = "kg" }
+aocs      = { value = 2.0, unit = "kg" }
+cdh       = { value = 0.8, unit = "kg" }
+comm       = { value = 1.0, unit = "kg" }
+power       = { value = 3.2, unit = "kg" }
+payload   = { value = 1.5, unit = "kg" }
+structure = { value = 2.3, unit = "kg" }
 
 [power]
 limit         = { value = 25.0, unit = "W" }    # 軌道平均の発電見込み
 system_margin = 0.15
 
 [power.alloc]
-AOCS    = { value = 8.0, unit = "W" }
-CDH     = { value = 2.5, unit = "W" }
-COM     = { value = 4.0, unit = "W" }
-POWER     = { value = 1.5, unit = "W" }
-PAYLOAD = { value = 5.0, unit = "W" }
+aocs    = { value = 8.0, unit = "W" }
+cdh     = { value = 2.5, unit = "W" }
+comm     = { value = 4.0, unit = "W" }
+power     = { value = 1.5, unit = "W" }
+payload = { value = 5.0, unit = "W" }
 ```
 
 ```toml
@@ -410,7 +468,9 @@ new           = 0.20
 allowance = 0.05         # harness/ が無い間、サブシステム質量に対して見込む割合
 ```
 
-配分のキーは Group か Part の ID。組立品（`SAP_PX`）のような下位のノードにも配分できる。
+配分のキーは系の ID か部品の ID。系のディレクトリがまだ無くても配分できる。組立品（`SAP_PX`）のような部品にも配分できるが、任意のフォルダの ID は受け付けない。
+集計は明示配分のある部品・最も近い祖先の組立品を優先し、それ以外は部品の系にまとめる（役割から決まる系も含む）。未所属は「その他」の行。種類ごとの配分だけを使い、別種類の配分先には影響されない。
+`limit` は省略できる。未設定の種類は `fune check` が warning「上限が未設定」を出し、上限に対する判定を行わず現状の合計を返す。`fune init` は質量上限を決めず、SAFE モードにも表示名を埋め込まない。
 
 ## 9. Derived の出力先
 
@@ -472,6 +532,8 @@ PR では CI が両方のリビジョンで計算し直した変化量をコメ�
 `fune fmt` と `fune check` で強制する書き方の規則。
 
 1. 1 ファイル 1 エンティティ。ID はファイル名の stem で、全体で一意（大文字小文字を無視、Windows の予約名は不可、`_` で始めない）。
+   属性 ID には部品・カタログ品のフィールド名（`label`・`count`・`maturity` など。`fune_model::field_names::{PartFieldName, CatalogFieldName}`）を使わない
+   （パスの記法 `RW_X.label` で属性とフィールドを区別できないため。`fune check` の `def.reserved`、`fune attr add` も拒む）。
 2. 入れ子は 2 段まで。ツリーはディレクトリ、エンティティ間の関係は ID の参照で表す。
 3. インライン表は `{ value, unit, from }`、短いベクトル（`{ x, y, z, unit }`）、1 行で収まる参照だけ。
    状態や不確かさを持つ値は `[attr.<名前>]` の下にドット付きキーで 1 行 1 セル。
@@ -528,7 +590,7 @@ Python で読む道具は 3.14 以前の `tomllib` で動いていることが�
 
 ```toml
 [nodes]
-POWER = { x = 20, y = 20 }
+power = { x = 20, y = 20 }
 
 [edge]
 "P12V:PCDU.OUT3>RW_X.PWR" = { points = [[100, 80], [400, 80], [400, 200]], target_side = "top", target_offset = 40 }
@@ -545,9 +607,9 @@ POWER = { x = 20, y = 20 }
 `fune view edge-set electrical <キー> --points "x,y x,y …" [--source-side …] [--target-side …] [--source-offset …] [--target-offset …]`、
 `fune view edge-reset electrical <キー>`、`fune view reset electrical`。
 
-自動配置の条件は次のとおり（`web/src/features/diagram/layout*.ts`・`grid.ts`・`labels.ts`。部品の ID・名前・役割は見ない）。
+自動配置の条件は次のとおり（`web/src/features/diagram/layout/`。部品の ID・名前・役割は見ない）。
 
-- 枠の見出しは表示の言語の名前だけ（英語は ID の AOCS など、日本語は設計に書いた表示名。無ければ ID）。
+- 枠の見出しは表示の言語の名前だけ（系は API の組み込みの語彙の日英名、組立品や入れ子は設計の表示名。無ければ ID）。
 - 列や層は決めない（電源の枠を左端に置く、といった決まりも置かない）。いちばん外の枠（サブシステム）を縦横の格子の
   升目に、カードを枠の中の格子に置く。枠の中のすき間は横 56・縦 48 px で、線が通れる幅にする。枠の中をカードの
   縦 1 列（行 > 列 + 1）や横 1 行（列 > 2 × 行 + 1）に並べる形は使わない（図全体が列に見えるため）。
@@ -611,7 +673,7 @@ POWER = { x = 20, y = 20 }
 
 ```
 my-sat-design/
-├── fune.toml                    # プロジェクト設定・サブシステムの表示名・共有カタログ・TOML の版
+├── fune.toml                    # プロジェクト設定・共有カタログ・TOML の版
 ├── catalog.lock                 # 共有カタログの固定 commit
 ├── budget/
 │   ├── allocation.toml          # 配分（システム担当）
@@ -621,19 +683,19 @@ my-sat-design/
 │   └── kind/<id>.toml
 ├── catalog/<id>.toml            # このプロジェクト固有のカタログ
 ├── parts/                       # 製品ツリー = ディレクトリ
-│   ├── AOCS/
+│   ├── aocs/
 │   │   ├── RW_X.toml
 │   │   ├── RW_Y.toml
 │   │   ├── RW_Z.toml
 │   │   └── STT.toml
-│   ├── POWER/
+│   ├── power/
 │   │   ├── BAT.toml
 │   │   ├── PCDU.toml
 │   │   ├── SAP_PX.toml          # 物理的な組立品
 │   │   └── SAP_PX/
 │   │       ├── CELLS.toml
 │   │       └── HINGE.toml
-│   └── STRUCTURE/
+│   └── structure/
 │       ├── BUS_FRAME.toml
 │       └── PANEL_MZ.toml        # 取付点を持つ構体部品
 ├── modes/<ID>.toml
@@ -655,8 +717,8 @@ my-sat-design/
 ```
 /budget/        @system-lead
 /modes/         @system-lead @power-lead
-/parts/AOCS/    @aocs-lead
-/parts/POWER/     @power-lead
+/parts/aocs/    @aocs-lead
+/parts/power/     @power-lead
 ```
 
 ### サンプル
@@ -669,11 +731,6 @@ name   = "my-sat"
 schema = 2
 toml   = "1.0"              # 書き出す TOML の版
 
-[groups]                    # サブシステムの表示名（任意）
-AOCS      = "姿勢制御系"
-POWER       = "電源系"
-STRUCTURE = "構体系"
-
 [[catalog]]
 name = "lab"
 git  = "https://git.example.com/example-lab/parts-catalog"   # 架空の例
@@ -684,7 +741,7 @@ name = "local"
 path = "catalog"
 ```
 
-`parts/AOCS/RW_X.toml`
+`parts/aocs/RW_X.toml`
 
 ```toml
 #:schema ../../.fune/schema/part.json
@@ -709,7 +766,7 @@ net = "P12V_AOCS"
 net = "CAN_BUS"
 ```
 
-`parts/STRUCTURE/PANEL_MZ.toml`
+`parts/structure/PANEL_MZ.toml`
 
 ```toml
 kind     = "panel"
@@ -727,7 +784,7 @@ position    = { x = 30.0, y = 0.0, z = 5.0, unit = "mm" }
 orientation = { w = 1.0, x = 0.0, y = 0.0, z = 0.0 }
 ```
 
-`parts/POWER/SAP_PX.toml`（物理的な組立品）
+`parts/power/SAP_PX.toml`（物理的な組立品）
 
 ```toml
 kind     = "solar_wing"
@@ -749,7 +806,7 @@ position    = { x = 0.0, y = 120.0, z = 2.0, unit = "mm" }
 orientation = { w = 1.0, x = 0.0, y = 0.0, z = 0.0 }
 ```
 
-`parts/POWER/SAP_PX/CELLS.toml`（組立品の子部品）
+`parts/power/SAP_PX/CELLS.toml`（組立品の子部品）
 
 ```toml
 catalog = "lab/triple_junction_cell"

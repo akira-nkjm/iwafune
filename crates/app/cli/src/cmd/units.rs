@@ -32,9 +32,9 @@ fn ls(dimension: Option<String>, out: &Out) -> anyhow::Result<u8> {
             UnitMapping::Logarithmic => "対数",
         };
         let factor = if u.offset == 0.0 {
-            format!("× {}", u.scale_display)
+            format!("× {}", u.scale_text)
         } else {
-            format!("× {} + {}", u.scale_display, units::number_text(u.offset))
+            format!("× {} + {}", u.scale_text, units::number_text(u.offset))
         };
         t.row(vec![
             C::Strong(u.symbol.clone()),
@@ -62,7 +62,7 @@ fn parse(input: &str, dimension: Option<String>, out: &Out) -> anyhow::Result<u8
     t.row(vec![
         C::Num(q.display.clone()),
         C::Text(q.dimension.clone()),
-        C::Num(r.si_display.clone()),
+        C::Num(r.si.display.clone()),
     ]);
     t.print();
     Ok(0)
@@ -86,7 +86,7 @@ fn format(values: &[f64], dimension: &str, unit: Option<&str>, out: &Out) -> any
     }
     let mut t = out.table(&["SI", "表示"]).numeric(&[0, 1]);
     for (si, f) in values.iter().zip(&r.items) {
-        t.row(vec![C::Num(format!("{si:e}")), C::Num(f.text.clone())]);
+        t.row(vec![C::Num(format!("{si:e}")), C::Num(f.display.clone())]);
     }
     t.print();
     Ok(0)

@@ -70,6 +70,15 @@ pub fn look_angles(station: &GroundStation, epoch: Epoch, r_eci_m: Vec3) -> Look
     Topocentric::new(station).look(eci_to_ecef(r_eci_m, epoch))
 }
 
+/// 半径 `body_radius_m` の球の天体の表面の局から、高度 `altitude_m` の衛星を仰角 `elevation_rad` で見たときの
+/// 斜距離 [m] = `√((R + h)² − (R cos E)²) − R sin E`。R は中心天体の半径（`CentralBody::radius_m`）。
+/// **仰角と高度から斜距離を求めるのはここだけ**（回線計算が使う）。
+pub fn slant_range_m(body_radius_m: f64, altitude_m: f64, elevation_rad: f64) -> f64 {
+    let r = body_radius_m + altitude_m;
+    let (sin_e, cos_e) = elevation_rad.sin_cos();
+    (r * r - (body_radius_m * cos_e).powi(2)).sqrt() - body_radius_m * sin_e
+}
+
 /// `start` から `span_s` 秒の間のパスを、`step_s` 秒刻みの探索と二分法で求める。
 pub fn find_passes(
     station: &GroundStation,

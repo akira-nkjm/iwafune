@@ -3,7 +3,9 @@
 use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::pose;
+use fune_model::Target;
 use fune_model::resolve::{ResolvedPart, SiValue};
+use sat_analysis::modes::StateValues;
 use sat_astro::math::Vec3;
 use sat_units::typed::{Dimension, Qty};
 use std::collections::BTreeMap;
@@ -38,14 +40,14 @@ pub fn part_qty<D: Dimension>(
     m: &mut MissingInputs,
 ) -> Option<Qty<D>> {
     let v = p.scalar(attr);
-    m.need(v, format!("{}.{attr}", p.id), reason)
+    m.need(v, Target::attr(&p.id, attr), reason)
         .map(Qty::from_raw)
 }
 
 /// 無次元の比（必須）。無ければ `PART.attr` を記録。省略できる比は `p.scalar(attr)` をそのまま解析に渡す
 /// （既定値は解析が持つ）。
 pub fn ratio(p: &ResolvedPart, attr: &str, reason: &str, m: &mut MissingInputs) -> Option<f64> {
-    m.need(p.scalar(attr), format!("{}.{attr}", p.id), reason)
+    m.need(p.scalar(attr), Target::attr(&p.id, attr), reason)
 }
 
 /// 部品座標で書かれた方向ベクトルを機体座標に直したもの。無ければ記録。
@@ -56,7 +58,7 @@ pub fn direction_body(
     reason: &str,
     m: &mut MissingInputs,
 ) -> Option<Vec3> {
-    let v = m.need(p.vec3(attr), format!("{}.{attr}", p.id), reason)?;
+    let v = m.need(p.vec3(attr), Target::attr(&p.id, attr), reason)?;
     Some(pose::to_body(
         ctx.resolved,
         &p.id,
@@ -64,30 +66,22 @@ pub fn direction_body(
     ))
 }
 
-/// 状態ごとの示量の値（状態 → `Qty<D>`、員数を掛けたもの）。スカラーなら部品のすべての状態に同じ値（状態が無ければ `on`）。
-pub fn extensive_by_state<D: Dimension>(
-    p: &ResolvedPart,
-    attr: &str,
-) -> Option<BTreeMap<String, Qty<D>>> {
+/// 1 台の状態ごとの値の表（`sat_analysis::modes::StateValues`。員数は掛けず、解析に `count` で渡す）。
+/// 状態ごとの値はそのまま `by_state`、スカラーは `default`（どの状態でもその値）。値が無いか、スカラーでも
+/// 状態ごとでもなければ `None`。**状態ごとの値の写し替えはこれだけ**（電源・C&DH・熱）。
+pub fn state_values<D: Dimension>(p: &ResolvedPart, attr: &str) -> Option<StateValues<D>> {
     match p.value(attr)? {
-        SiValue::ByState(map) => Some(
-            map.iter()
-                .map(|(s, v)| (s.clone(), Qty::from_raw(extensive(p, v.value))))
+        SiValue::ByState(map) => Some(StateValues {
+            default: None,
+            by_state: map
+                .iter()
+                .map(|(s, v)| (s.clone(), Qty::from_raw(v.value)))
                 .collect(),
-        ),
-        SiValue::Scalar(s) => {
-            let states: Vec<String> = if p.states.is_empty() {
-                vec!["on".to_owned()]
-            } else {
-                p.states.clone()
-            };
-            Some(
-                states
-                    .into_iter()
-                    .map(|st| (st, Qty::from_raw(extensive(p, s.value))))
-                    .collect(),
-            )
-        }
+        }),
+        SiValue::Scalar(s) => Some(StateValues {
+            default: Some(Qty::from_raw(s.value)),
+            by_state: BTreeMap::new(),
+        }),
         _ => None,
     }
 }

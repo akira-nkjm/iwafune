@@ -8,9 +8,9 @@ import type { ValueData } from "./ValueData";
  */
 export type ValueView = { attr: string, value: ValueData, 
 /**
- * 表示文字列（例: `"620 g"`、`"on 1.2 W / idle 0.3 W"`）
+ * 表示文字列（例: `"620 g"`、`"on 1.2 W / idle 0.3 W"`）。未設定（`value` が `unset`）なら null で、文言は CLI と Web が作る
  */
-display: string, origin: AttrOrigin, 
+display: string | null, origin: AttrOrigin, 
 /**
  * 根拠の強さ
  */

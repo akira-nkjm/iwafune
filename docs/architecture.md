@@ -7,7 +7,7 @@
 ## 1. 目的と範囲
 
 iwafune は小型衛星の概念設計のための道具である。部品の選定、質量・電力・データ量のバジェット、モードごとの消費電力、
-電源・姿勢・C&DH・通信・熱・構造の解析を、1 つの設計データの上で扱う。
+電源・AOCS・C&DH・通信・熱・構造の解析を、1 つの設計データの上で扱う。
 
 - 設計データの正本は git で管理する TOML のディレクトリだけ。常駐のサーバーもデータベースも持たない。
 - 編集の手段は CLI（`fune`）と Web の GUI の 2 つで、できることは同じ。GUI は `fune gui` が手元で起動するサーバーから配信する。
@@ -23,7 +23,7 @@ iwafune は小型衛星の概念設計のための道具である。部品の選
 
 | 場所 | 中身 |
 |---|---|
-| `fune.toml` | プロジェクト名、スキーマの版、系（グループ）の名前、使うカタログ |
+| `fune.toml` | プロジェクト名、スキーマの版、使うカタログ |
 | `parts/` | 部品。サブディレクトリで製品ツリーを表す |
 | `catalog/` | カタログ品（購入品などの値と出典） |
 | `defs/attribute/`・`defs/kind/` | プロジェクト独自の属性定義・種別定義（組み込みの定義は fune-model が持つ） |
@@ -141,21 +141,30 @@ CLI と HTTP は `fune-service` の同じ関数を呼ぶ。
 | 操作 | CLI | HTTP（`/api/v1`） | service の関数 |
 |---|---|---|---|
 | Op の適用 | 編集の各コマンド、`fune apply ops.json` | `POST /ops` | `edit::apply` |
-| 打った値の文字列 → Op | `fune set`・`fune catalog set` | `POST /ops/from_text` | `edit::set_op` |
-| 消す先のパス → Op | `fune unset`・`fune catalog unset` | `POST /ops/unset_from_text` | `edit::unset_op` |
+| 打った値の文字列 → Op | `fune set`・`fune setting set`・`fune catalog set` | `POST /ops/from_text` | `edit::set_op` |
+| 消す先のパス → Op | `fune unset`・`fune setting unset`・`fune catalog unset` | `POST /ops/unset_from_text` | `edit::unset_op` |
+| 名詞のコマンドに打った引数 → Op | `fune net set|unset`・`fune part place`・`fune mode set|unset`・`fune attr add`・`fune kind add` | `POST /ops/from_command` | `edit::command_ops` |
 | 整形 | `fune fmt [--check]` | `POST /fmt` | `format::format_design` |
 
 - `fune set RW_X.mass "620 g"` の `"620 g"` を量・整数・ベクトル・状態ごとの値のどれとして読むかは、属性定義を見て service が決める。
-  GUI も打った文字列を `/ops/from_text` で Op にしてから `/ops` で送るので、解釈が 2 つに分かれない。
+  GUI も打った文字列を `/ops/from_text` で Op にしてから `/ops` で送るので、解釈が 2 つに分かれない（部品・カタログ品の値の欄、
+  設定の表、部品の基本の欄、パラメーター追加のダイアログのどれも）。同じ編集で定義を作る属性の値は、依頼の `ops`（下書き）を当てた設計で読む。
+  GUI が送るパスは API が返したもの（`PartRow.paths`・`field_paths`、同じ編集で定義を作る属性は `POST /parts/{id}` の `ops` を当てた部品の `paths`）で、
+  Web は ID やパスの文字列をつながない。
+- パスと値の 1 組でない編集（ネットのレール電圧、部品の配置の位置と姿勢、モード表の時間割合、属性・種別の定義の作成）は、
+  CLI の名詞のコマンドと同じ引数の形（`CommandText`。`{ command: "part_place", part, on, point, position: "0 0 12 mm", … }`）で
+  打った文字列のまま `/ops/from_command` に送る。量・ベクトル・クォータニオン・割合・カンマ区切りの一覧・`名前=種類` を読むのも、
+  表示名の既定（空なら ID）を決めるのも、CLI と同じ service の関数（`edit::{command, defs}`）。Web は打った値を数にしない
+  （`cargo xtask check` が `Number(`・`parseFloat(` を検査する）。
 - 適用の結果には、同じ編集をする CLI のコマンド（`fune_ops::to_cli`）が入る。GUI の「CLI としてコピー」はこれを使う。
 - `fune apply` は GUI が送るのと同じ Op の JSON を受ける。スクリプトからの一括編集にも使える。
-- 書き込まずに編集を当ててみることもできる（`fune_service::preview`）。`POST /analyses/{id}` と `POST /budgets/{kind}` の `ops`、
-  `fune analyze --ops`・`fune budget --ops` が、保存前の下書き（モード表の編集など）のまま解析とバジェットを計算する。
+- 書き込まずに編集を当ててみることもできる（`fune_service::preview`）。`POST /analyses/{id}`・`POST /budgets/{kind}`・`POST /parts/{id}` の `ops`、
+  `fune analyze --ops`・`fune budget --ops`・`fune part show --ops` が、保存前の下書き（モード表の編集など）のまま解析・バジェット・部品の表示を作る。
 - 例外は `fune init` だけ。サーバーはプロジェクトの中でしか動かないので、HTTP には無い。
 
 テストで次の 2 つを確かめる。
 
-- 同じ編集を `fune` の実行ファイルと HTTP で行うと、ファイルがバイト単位で一致する（`crates/app/cli/tests/parity.rs`・`parity_text.rs`）。
+- 同じ編集を `fune` の実行ファイルと HTTP で行うと、ファイルがバイト単位で一致する（`crates/app/cli/tests/parity.rs`・`parity_text.rs`・`parity_command.rs`）。
 - すべての種類の Op で、`to_cli` の文字列を clap で読み直すと元の Op に戻る（`crates/app/cli/src/cmd/roundtrip/`）。
   Op の種類を足すと、見本を足すまでコンパイルが通らない。
 
@@ -166,10 +175,12 @@ CLI と HTTP は `fune-service` の同じ関数を呼ぶ。
 | 検証 | 編集で新しい error が出る | 422 | 1 |
 | 入力の誤り | 引数・単位・Op の形 | 400 | 2 |
 | 不在 | 部品や解析が無い | 404 | 2 |
-| 競合 | revision が違う、ロックが取れない | 409 | 3 |
+| 競合 | revision が違う、ロックが取れない、同じ ID がもうある | 409 | 3 |
 | その他 | I/O など | 500 | 1 |
 
 HTTP の失敗は `{ "error": { "code", "message" }, "diagnostics": [...] }` で返し、CLI も `--json` で同じ形を出す。
+保存しない下書き（解析・バジェット・部品の表示の `ops`）が通らないときも、保存と同じ分類で返す（検証なら 422 と診断）。
+入力が足りないのは誤りではないので、解析もバジェットも 200 で `missing`（足りない入力の対象と理由）を返す。
 `fune check` は error があれば 1 で終わる（`--deny-warnings` なら warning でも）。
 
 ## 5. サーバーと Web アプリ
@@ -192,10 +203,11 @@ HTTP の失敗は `{ "error": { "code", "message" }, "diagnostics": [...] }` で
 | パス | 内容 |
 |---|---|
 | `GET /project`・`/design`・`/parts`・`/parts/{id}`・`/values/{path}`・`/defs`・`/diagnostics` | 読み取り（概要と revision、設計全体、部品、1 つの値、定義、診断） |
-| `POST /ops`・`/ops/from_text`・`/ops/unset_from_text`・`/fmt` | 編集（§4.3） |
+| `POST /ops`・`/ops/from_text`・`/ops/unset_from_text`・`/ops/from_command`・`/fmt` | 編集（§4.3） |
+| `POST /parts/{id}` | 保存していない編集（`ops`）を書き込まずに当てた部品（`GET` と同じ形。`fune part show --ops`） |
 | `POST /parts/{id}/place_body` | 機体座標での配置を、取付先に対する相対の `Place` に直して適用する |
 | `GET /units`・`POST /units/parse`・`/units/format` | 単位の一覧、入力の解析（次元と SI 換算）、SI 値の表示文字列 |
-| `GET /analyses`・`POST /analyses/{id}`・`GET`/`POST /budgets/{kind}` | 解析の一覧と実行、バジェット（§6） |
+| `GET /analyses`・`POST /analyses/{id}`・`GET`/`POST /budgets/{kind}` | 解析の一覧と実行、バジェット（§6。POST の `case`・`ops` で解析ケースと下書きを指定） |
 | `GET /data/status`・`POST /data/{id}/fetch` | 外部データの状態と取得（§6.5） |
 
 ### 5.2 Web アプリ
@@ -205,7 +217,7 @@ HTTP の失敗は `{ "error": { "code", "message" }, "diagnostics": [...] }` で
 3D 配置は three・@react-three/fiber・@react-three/drei、グラフは Recharts。lint と整形は Biome、テストは Vitest。
 
 画面は概要（バジェットと診断）、部品、カタログ、系統図（給電・信号）、モード表、定義（属性・種別・単位）、
-系ごとのページ（電源・姿勢・C&DH・通信・熱・構造。構造のページに 3D 配置がある）、軌道と地上局、解析ケース、診断、設定。
+系ごとのページ（電源・AOCS・C&DH・通信・熱・構造・ミッション機器。ミッション機器の解析は未登録。構造のページに 3D 配置がある）、軌道と地上局、解析ケース、診断、設定。
 系のページはその系に関係する部品をその系の属性の列だけで並べてセルで編集でき、同じページに解析の結果を出す。
 URL は `src/routes.ts`、サイドバーの並びは `src/lib/nav.ts` にある。
 
@@ -234,7 +246,7 @@ Web は次のことをしない。
 | 系 | 定常 | 時系列 |
 |---|---|---|
 | 電源 | `power.mode_load`（モード別消費電力）、`power.solar_sunlit`（日照時の発電） | `power.orbit_generation`（軌道上の発電）、`power.energy_balance`（電力収支と DoD） |
-| 姿勢 | `attitude.unload_time`（MTQ・RCS でのアンロードにかかる時間） | `attitude.rw_unloading`（擾乱トルクと RW のアンロード頻度）、`attitude.sensor_fov`（センサの FoV と禁止角） |
+| AOCS | `aocs.unload_time`（MTQ・RCS でのアンロードにかかる時間） | `aocs.rw_unloading`（擾乱トルクと RW のアンロード頻度）、`aocs.sensor_fov`（センサの FoV と禁止角） |
 | C&DH | `cdh.data_budget`（データ量とストレージ） | — |
 | 通信 | `comm.link_budget`（回線バジェット） | `comm.visibility`（地上局の可視）、`comm.data_throughput`（データ送信量と蓄積） |
 | 熱 | `thermal.steady`（多節点の定常温度） | `thermal.transient`（多節点の非定常温度） |
@@ -264,14 +276,20 @@ Web は次のことをしない。
 3. 足りない入力があれば解析を呼ばずに `missing_inputs` を返す。`missing_inputs` は足りないものをパラメーターのパス（`RW_X.max_momentum`・`mission.orbit.altitude`）と理由で表し、
    見つかった分をすべて並べる。
 4. `sat_analysis::catalog::run_json` で解析を実行する。
-5. service が出力の量ごとの次元（JSON Pointer → 次元名）を集め、出力の中の判定を並べて、最も悪い判定を付ける。
+5. service が出力の量ごとの次元（JSON Pointer → 次元名）と語彙の値（列挙）の表示名を集め、時系列に表示名と表示単位を付け、
+   出力の中の判定を並べて、最も悪い判定を付ける。解析は表示名を持たず、キー（`ChannelKind`・列挙の値・`span_fallback`）だけを返す
+   （日本語と英語の表示名は `fune_service::analysis::labels`）。
 
-入力は差し替えられる。`input_patch`（JSON Merge Patch）は組み立てた入力の一部を一時的に上書きし、`input`（CLI の `--input`）は入力を丸ごと与える。
+入力の与え方は依頼の `source` で選ぶ。`design`（既定）は設計から組み立て、`patched`（JSON Merge Patch）は組み立てた入力の一部を一時的に上書きし、
+`given`（CLI の `--input`）は入力を丸ごと与える。
 
 判定は解析が出す。`Check` は key・label・判定（`ok`・`warning`・`violation`）・文を持つ。
-余裕の三段階の判定は `spec::margin_verdict` で決め、判定文の中の数は `spec::quantity_text`（中身は sat-units の整形）で書く。
+余裕の三段階の判定は `spec::margin_verdict` で決め（警告の幅は解析ごとに名前付きの定数）、判定文の中の数は `spec::quantity_text::<次元の型>`（中身は sat-units の整形）で書く。
+比の余裕の定義は `spec::ratio_margin`（`能力 / 要求 − 1`）の 1 つだけ。
 バジェット（質量・電力・データ量）の集計と判定は `sat_analysis::budget::budget_rollup` が行う。
 service は部品や解析の結果を項目に並べ、`budget/allocation.toml` の配分の行に割り当てるだけ。成長余裕は部品の成熟度と `budget/policy.toml` から決める。
+バジェットも解析ケースを指定できる（`POST /budgets/{kind}` の `case`、`fune budget --case`）。電力はケースのモードで、データ量はケースのモードだけで数える。
+系に属さず部品への明示配分も無い部品は「その他」の行にまとめる（行の `node` が null。文言は CLI と Web が作る）。
 
 ### 6.4 sat-astro
 
@@ -346,3 +364,7 @@ CI（`.github/workflows/ci.yml`）は main・develop への push と PR で動�
 ## 9. これから
 
 予定している機能は [roadmap.md](roadmap.md) と GitHub の Issue にある。この文書には今あるものだけを書き、機能が入ったら書き足す。
+
+部品の最上位の区分は系（`parts/<系 ID>/`）。`Design::system_of` が置き場所 → 役割 → 未所属の順で決め、Resolved と API の `PartRow.system` に渡す。系とバジェットの表示名は組み込みの語彙（日英）、色は Web の `lib/systems.ts` の対応だけが持つ。配分のキーは系か部品の ID で、上限は任意（未設定を check が警告）。init は上限を決めない。
+
+3D は `features/layout3d/scene.ts` が回転込みの外形（Bounds）の最大辺から表示寸法を作る。仮の箱・方向の矢印・重心球・座標軸・グリッド・カメラは `SCENE_RATIOS` の比を共有する。形状も位置の広がりも無いときだけ表示用の基準を使う。編集のスナップはユーザーが選ぶ実寸、操作ハンドルと画面隅のギズモは画面に対する大きさ。

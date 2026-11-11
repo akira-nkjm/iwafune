@@ -38,7 +38,12 @@ pub enum PartCmd {
         kind: Option<String>,
     },
     /// 1 部品の全情報
-    Show { id: String },
+    Show {
+        id: String,
+        /// 保存していない編集（Op の配列の JSON ファイル、`-` で標準入力）を書き込まずに当てて表示する
+        #[arg(long)]
+        ops: Option<std::path::PathBuf>,
+    },
     /// 部品を追加する（`--catalog` か `--kind`）
     Add {
         id: String,
@@ -46,7 +51,7 @@ pub enum PartCmd {
         catalog: Option<String>,
         #[arg(long)]
         kind: Option<String>,
-        /// 置く Group（または組立品）。無ければ parts/ の直下
+        /// 置く系（または組立品）。無ければ parts/ の直下
         #[arg(long)]
         group: Option<String>,
         #[arg(long)]
@@ -65,7 +70,7 @@ pub enum PartCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 部品を別の Group に移す（`--root` で parts/ の直下）
+    /// 部品を別の系・組立品に移す（`--root` で parts/ の直下）
     Mv {
         id: String,
         #[arg(required_unless_present = "root")]
@@ -82,7 +87,7 @@ pub enum PartCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// グループ（サブシステム）の名前を変える（ディレクトリ・表示名・配分・図の配置の参照も書き換える）
+    /// 入れ子のフォルダの名前を変える（図の配置の参照も書き換える。最上位は系 ID のみ）
     RenameGroup {
         id: String,
         to: String,

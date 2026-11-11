@@ -5,10 +5,10 @@
  */
 export type DataThroughputPass = { station: string, aos: string, los: string, 
 /**
- * 送信に割り当てた時間（他局と重なる分を除く。`usable_fraction` は掛けない）
+ * 送信に割り当てた時間（他局と重なる分を除く。`usable_pass_fraction` は掛けない）
  */
 assigned: number, 
 /**
- * 送信可能量 = レート × 割り当て時間 × `usable_fraction`
+ * 送信可能量 = レート × 割り当て時間 × `usable_pass_fraction`
  */
 capacity: number, };

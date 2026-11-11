@@ -1,12 +1,11 @@
 import { useEnumLabel } from "@/api/labels";
 import type { CatalogItemView } from "@/api/types";
 import { useT } from "@/i18n";
-import { DataTable } from "@/kit/DataTable";
-import { Pill } from "@/kit/Pill";
-import { Td } from "@/kit/Td";
-import { Th } from "@/kit/Th";
-import { detailRowProps } from "@/kit/use-detail-route";
-import { cn } from "@/lib/cn";
+import { Pill } from "@/kit/status/Pill";
+import { DataTable } from "@/kit/table/DataTable";
+import { SelectableRow } from "@/kit/table/SelectableRow";
+import { Td } from "@/kit/table/Td";
+import { Th } from "@/kit/table/Th";
 import { itemLabel } from "./catalog";
 
 /** カタログ品の一覧（密な表）。行を選ぶと右に詳細。共有カタログの品にはカタログ名の札を付ける */
@@ -38,20 +37,12 @@ export function CatalogTable({
       }
     >
       {items.map((c) => (
-        <tr
-          key={c.id}
-          {...detailRowProps(c.id, onSelect)}
-          aria-selected={selected === c.id}
-          className={cn(
-            "cursor-pointer hover:bg-panel-2",
-            selected === c.id && "bg-accent-tint hover:bg-accent-tint",
-          )}
-        >
+        <SelectableRow key={c.id} selected={selected === c.id} onSelect={() => onSelect(c.id)}>
           <Td mono>
             <span className="flex items-center gap-2">
               {c.id}
               {!c.editable && (
-                <Pill dot={false} title={t.catalog.readOnly}>
+                <Pill dot={false} title={t.catalog.readOnly(c.scope)}>
                   {c.scope}
                 </Pill>
               )}
@@ -67,7 +58,7 @@ export function CatalogTable({
           </Td>
           <Td className="text-ink-3">{c.maturity ? label("maturity", c.maturity) : "—"}</Td>
           <Td align="right">{c.users.length}</Td>
-        </tr>
+        </SelectableRow>
       ))}
     </DataTable>
   );

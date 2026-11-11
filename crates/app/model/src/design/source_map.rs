@@ -3,6 +3,7 @@
 //! store が読み込みのときに作る。model は位置を引くだけで、ファイルの形式は知らない。
 
 pub use crate::diagnostic::Loc;
+use crate::path::SettingPath;
 use std::collections::BTreeMap;
 
 /// 位置を引くためのエンティティの名前。
@@ -20,8 +21,8 @@ pub enum EntityKey {
     Harness(String),
     Case(String),
     Source(String),
-    /// 設定ファイル（`"mission.orbit"`・`"mission.ground.TOKYO_GS"`・`"analysis.power"`）
-    Setting(String),
+    /// 設定ファイル（`mission.orbit`・`mission.ground.<局の ID>`・`analysis.power` のパス）
+    Setting(SettingPath),
     /// 図の配置（`view/<名前>.toml`）
     View(String),
 }

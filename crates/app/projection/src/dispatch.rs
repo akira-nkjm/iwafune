@@ -3,10 +3,10 @@
 
 use crate::context::Context;
 use crate::missing::MissingInputs;
-use crate::{attitude, cdh, comm, power, structure, thermal};
+use crate::{aocs, cdh, comm, power, structure, thermal};
 use sat_analysis::spec::Analysis;
 use sat_analysis::{
-    attitude as aattitude, cdh as acdh, comm as acomm, power as apower, structure as astructure,
+    aocs as aaocs, cdh as acdh, comm as acomm, power as apower, structure as astructure,
     thermal as athermal,
 };
 use serde_json::Value;
@@ -25,8 +25,6 @@ pub enum ProjectionError {
     NotImplemented(String),
     #[error("入力を JSON にできません: {0}")]
     Json(String),
-    #[error("解析が失敗しました: {0}")]
-    Analysis(String),
 }
 
 impl From<MissingInputs> for ProjectionError {
@@ -124,9 +122,9 @@ table!(
     apower::SolarSunlit => Some(power::solar_sunlit),
     apower::OrbitGeneration => Some(power::orbit_generation),
     apower::EnergyBalance => Some(power::energy_balance),
-    aattitude::RwUnloading => Some(attitude::rw_unloading),
-    aattitude::UnloadTime => Some(attitude::unload_time),
-    aattitude::SensorFov => Some(attitude::sensor_fov),
+    aaocs::RwUnloading => Some(aocs::rw_unloading),
+    aaocs::UnloadTime => Some(aocs::unload_time),
+    aaocs::SensorFov => Some(aocs::sensor_fov),
     acdh::DataBudget => Some(cdh::data_budget),
     acomm::LinkBudget => Some(comm::link_budget),
     acomm::Visibility => Some(comm::visibility),

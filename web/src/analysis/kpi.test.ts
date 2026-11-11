@@ -1,0 +1,110 @@
+import { describe, expect, it } from "vitest";
+import type { AnalysisState } from "@/api/queries";
+import type { AnalysisEntry, AnalysisRunResult, KpiKey, KpiView, System } from "@/api/types";
+import { analysesFor, kpiSlots, kpiText } from "./kpi";
+
+const def = (key: KpiKey) => ({ key, label: `名前 ${key}`, label_en: `Name ${key}` });
+
+const entry = (id: string, system: System, keys: KpiKey[]): AnalysisEntry => ({
+  info: {
+    id,
+    title: id,
+    title_en: id,
+    system,
+    kind: "steady",
+    description: "",
+    description_en: "",
+  },
+  input_type: "",
+  output_type: "",
+  projectable: true,
+  kpis: keys.map(def),
+});
+
+const view = (key: KpiKey, display: string | null): KpiView => ({
+  ...def(key),
+  value: display === null ? null : { value: 1, unit: "W", si: 1, dimension: "Power", display },
+  verdict: null,
+  fill: null,
+  tally: null,
+});
+
+const result = (id: string, kpis: KpiView[]): AnalysisRunResult => ({
+  id,
+  case: null,
+  case_source: null,
+  status: "ok",
+  checks: [],
+  verdict: null,
+  kpis,
+  input: null,
+  output: {},
+  dims: {},
+  labels: {},
+  missing: [],
+  error: null,
+});
+
+const state = (id: string, kpis: KpiView[] | null): AnalysisState => ({
+  id,
+  result: kpis === null ? undefined : result(id, kpis),
+  error: null,
+  loading: kpis === null,
+  updating: false,
+});
+
+const entries = [
+  entry("power.mode_load", "power", ["mode_load"]),
+  entry("power.solar_sunlit", "power", []),
+  entry("power.energy_balance", "power", ["orbit_balance", "max_dod"]),
+];
+
+describe("kpiSlots", () => {
+  it("解析の一覧の順に KPI を並べ、値は結果の kpis をキーで引く", () => {
+    const slots = kpiSlots(entries, [
+      state("power.mode_load", [view("mode_load", "17.4 W")]),
+      state("power.energy_balance", null),
+    ]);
+    expect(slots.map((s) => s.def.key)).toEqual(["mode_load", "orbit_balance", "max_dod"]);
+    expect(slots[0]).toMatchObject({
+      analysis: "power.mode_load",
+      system: "power",
+      loading: false,
+    });
+    expect(slots[0]?.kpi?.value?.display).toBe("17.4 W");
+    // 結果を待っている解析の KPI は、値が無く読み込み中
+    expect(slots[1]).toMatchObject({ kpi: null, loading: true });
+  });
+
+  it("結果に無いキーと、まだ状態の無い解析は値を持たない", () => {
+    const slots = kpiSlots(entries, [state("power.energy_balance", [view("max_dod", "100 %")])]);
+    expect(slots.find((s) => s.def.key === "orbit_balance")?.kpi).toBeNull();
+    expect(slots.find((s) => s.def.key === "max_dod")?.kpi?.value?.display).toBe("100 %");
+    expect(slots.find((s) => s.def.key === "mode_load")).toMatchObject({
+      kpi: null,
+      loading: true,
+    });
+  });
+});
+
+describe("analysesFor", () => {
+  it("キーを出す解析だけを、一覧の順に重ねずに選ぶ", () => {
+    expect(analysesFor(entries, ["max_dod", "orbit_balance", "mode_load"])).toEqual([
+      "power.mode_load",
+      "power.energy_balance",
+    ]);
+    expect(analysesFor(entries, ["link_margin"])).toEqual([]);
+  });
+});
+
+describe("kpiText", () => {
+  const tally = (t: { checked: number; flagged: number }) => `${t.flagged}/${t.checked}`;
+  it("値は API の整形、数える KPI は呼び手の文、無ければ「—」", () => {
+    expect(kpiText(view("max_dod", "100 %"), tally)).toBe("100 %");
+    expect(
+      kpiText({ ...view("nodes_in_range", null), tally: { checked: 9, flagged: 4 } }, tally),
+    ).toBe("4/9");
+    expect(kpiText(view("max_dod", null), tally)).toBe("—");
+    expect(kpiText(null, tally)).toBe("—");
+  });
+});

@@ -4,7 +4,7 @@ use fune_model::{Diagnostic, Severity, check};
 use fune_store::FileSet;
 use fune_store::read::design_of;
 
-const PROJECT: &str = "[project]\nname = \"t\"\n\n[groups]\nAOCS = \"姿勢\"\n";
+const PROJECT: &str = "[project]\nname = \"t\"\n";
 
 fn diags(files: &[(&str, &str)]) -> Vec<Diagnostic> {
     let mut set = FileSet::new();
@@ -23,7 +23,7 @@ const RW: &str = "kind = \"reaction_wheel\"\n\n[attr]\nmass = { value = 0.15, un
 
 #[test]
 fn a_clean_part_has_no_errors() {
-    let d = diags(&[("parts/AOCS/RW.toml", RW)]);
+    let d = diags(&[("parts/aocs/RW.toml", RW)]);
     assert!(d.iter().all(|x| x.severity != Severity::Error), "{d:?}");
 }
 
@@ -33,7 +33,7 @@ fn units_and_value_shapes() {
         .replace("unit = \"kg\"", "unit = \"W\"")
         .replace("mN*m*s", "mN*m*sec")
         .replace("z = 1.0 }", "z = 2.0 }");
-    let d = diags(&[("parts/AOCS/RW.toml", &bad)]);
+    let d = diags(&[("parts/aocs/RW.toml", &bad)]);
     assert!(has(&d, "unit.dimension", Severity::Error), "{d:?}");
     assert!(has(&d, "unit.parse", Severity::Error));
     assert!(has(&d, "vector.not_unit", Severity::Warning));
@@ -94,6 +94,32 @@ fn dangling_references_are_errors() {
     }
 }
 
+/// ポートの参照は読み込みで `PortRef` にする。`部品.ポート` の形でなければ、そのファイルの形の誤り（行付き）。
+#[test]
+fn port_refs_are_read_as_structure() {
+    let harness = "from = \"PCDU.OUT3\"\nto = \"RW_X\"\n";
+    let d = diags(&[("harness/H.toml", harness)]);
+    let schema = d
+        .iter()
+        .find(|x| x.code == "toml.schema")
+        .expect("schema error");
+    assert_eq!(schema.line, Some(2));
+    assert!(schema.message.contains("部品.ポート"), "{schema:?}");
+    let mut set = FileSet::new();
+    set.insert("fune.toml", PROJECT);
+    set.insert(
+        "harness/H.toml",
+        "from = \"PCDU.OUT3\"\nto = \"RW_X.PWR\"\n",
+    );
+    let design = design_of(&set);
+    let h = &design.harnesses["H"];
+    assert_eq!(
+        (h.from.part.as_str(), h.from.port.as_str()),
+        ("PCDU", "OUT3")
+    );
+    assert_eq!(h.to.to_string(), "RW_X.PWR");
+}
+
 #[test]
 fn mount_cycles_and_syntax_errors() {
     let a = "kind = \"panel\"\n\n[mount]\non = \"B\"\n";
@@ -117,17 +143,17 @@ fn mount_cycles_and_syntax_errors() {
 
 #[test]
 fn budget_over_allocation_is_a_warning() {
-    let alloc = "[mass]\nlimit = { value = 10.0, unit = \"kg\" }\nsystem_margin = 0.1\n\n[mass.alloc]\nAOCS = { value = 9.5, unit = \"kg\" }\n";
+    let alloc = "[mass]\nlimit = { value = 10.0, unit = \"kg\" }\nsystem_margin = 0.1\n\n[mass.alloc]\naocs = { value = 9.5, unit = \"kg\" }\n";
     let d = diags(&[
         ("budget/allocation.toml", alloc),
-        ("parts/AOCS/RW.toml", RW),
+        ("parts/aocs/RW.toml", RW),
     ]);
     assert!(has(&d, "budget.over_allocated", Severity::Warning), "{d:?}");
     let wrong = alloc.replace("9.5, unit = \"kg\"", "9.5, unit = \"W\"");
     assert!(has(
         &diags(&[
             ("budget/allocation.toml", &wrong),
-            ("parts/AOCS/RW.toml", RW)
+            ("parts/aocs/RW.toml", RW)
         ]),
         "unit.dimension",
         Severity::Error
@@ -174,4 +200,181 @@ fn an_id_field_must_match_the_file_name() {
     set.insert("fune.toml", PROJECT);
     set.insert("nets/P5V.toml", net);
     assert_eq!(design_of(&set).nets["P5V"].id.as_str(), "P5V");
+}
+
+/// ID の一意性（大文字小文字を無視）と規則は、部品だけでなくケース・出典・ハーネスにも同じに当てる。
+#[test]
+fn ids_are_unique_ignoring_case_in_every_namespace() {
+    let case = "mode = \"SAFE\"\n";
+    let source = "kind = \"datasheet\"\n";
+    let harness = "from = \"A.P\"\nto = \"B.P\"\n";
+    for (a, b, text) in [
+        ("cases/hot.toml", "cases/Hot.toml", case),
+        ("sources/ds.toml", "sources/DS.toml", source),
+        ("harness/H1.toml", "harness/h1.toml", harness),
+        ("modes/SAFE.toml", "modes/safe.toml", "[states]\n"),
+        ("nets/P5V.toml", "nets/p5v.toml", "kind = \"power\"\n"),
+    ] {
+        let d = diags(&[(a, text), (b, text)]);
+        assert!(has(&d, "id.duplicate", Severity::Error), "{a}: {d:?}");
+        let one = diags(&[(a, text)]);
+        assert!(!has(&one, "id.duplicate", Severity::Error), "{a}: {one:?}");
+    }
+    let bad = diags(&[("cases/9hot.toml", case)]);
+    assert!(has(&bad, "id.invalid", Severity::Error), "{bad:?}");
+}
+
+/// 手で書いた図の線の経路も、GUI と同じ規則（直交・端子の位置が 0 以上）で検査する。
+#[test]
+fn view_routes_are_orthogonal() {
+    let good = "[edge]\n\"k\" = { points = [[0, 0], [0, 40], [30, 40]], source_offset = 0 }\n";
+    let d = diags(&[("view/electrical.toml", good)]);
+    assert!(d.iter().all(|x| !x.is_error()), "{d:?}");
+    let diagonal = "[edge]\n\"k\" = { points = [[0, 0], [10, 10]] }\n";
+    assert!(has(
+        &diags(&[("view/electrical.toml", diagonal)]),
+        "view.route",
+        Severity::Error
+    ));
+    let one_point = "[edge]\n\"k\" = { points = [[0, 0]] }\n";
+    assert!(has(
+        &diags(&[("view/electrical.toml", one_point)]),
+        "view.route",
+        Severity::Error
+    ));
+    let negative = "[edge]\n\"k\" = { points = [[0, 0], [0, 10]], target_offset = -1 }\n";
+    assert!(has(
+        &diags(&[("view/electrical.toml", negative)]),
+        "view.port_offset",
+        Severity::Error
+    ));
+}
+
+/// 設定の量の次元は表（`setting_dims`）で引く。配列の中（`[[sequence]]`）や名前付きの表（`[link.<回線>]`）も。
+#[test]
+fn setting_dimensions_come_from_the_table() {
+    let power = "[[sequence]]\nmode = \"SAFE\"\nduration = { value = 10.0, unit = \"kg\" }\n";
+    let d = diags(&[
+        ("modes/SAFE.toml", "[states]\n"),
+        ("analysis/power.toml", power),
+    ]);
+    let dim = d
+        .iter()
+        .find(|x| x.code == "unit.dimension")
+        .expect("dimension");
+    assert_eq!(
+        dim.target.as_ref().map(ToString::to_string).as_deref(),
+        Some("analysis.power.sequence.0.duration")
+    );
+    let ground = "latitude = { value = 35.0, unit = \"deg\" }\nlongitude = { value = 139.0, unit = \"m\" }\n\n[link.s]\ntx_power = { value = 1.0, unit = \"K\" }\n";
+    let d = diags(&[("mission/ground/GS.toml", ground)]);
+    let paths: Vec<String> = d
+        .iter()
+        .filter(|x| x.code == "unit.dimension")
+        .filter_map(|x| x.target.as_ref().map(ToString::to_string))
+        .collect();
+    assert_eq!(
+        paths,
+        [
+            "mission.ground.GS.link.s.tx_power",
+            "mission.ground.GS.longitude"
+        ]
+    );
+    let material = "[material.al]\nthermal_conductivity = { value = 1.0, unit = \"W\" }\n";
+    assert!(has(
+        &diags(&[("analysis/structure.toml", material)]),
+        "unit.dimension",
+        Severity::Error
+    ));
+}
+
+/// グループは系。系の下の組立品・入れ子と、parts/ 直下の部品は許す。
+#[test]
+fn top_level_directories_are_system_ids() {
+    for path in [
+        "parts/aocs/RW.toml",
+        "parts/RW.toml",
+        "parts/power/spares/RW.toml",
+    ] {
+        let d = diags(&[(path, RW)]);
+        assert!(
+            !has(&d, "part.system_dir", Severity::Error),
+            "{path}: {d:?}"
+        );
+    }
+    for path in [
+        "parts/ADCS/RW.toml",
+        "parts/AOCS/RW.toml",
+        "parts/custom/nested/RW.toml",
+    ] {
+        let d = diags(&[(path, RW)]);
+        let error = d.iter().find(|d| d.code == "part.system_dir").unwrap();
+        assert_eq!(error.severity, Severity::Error);
+        for system in fune_model::design::AnalysisSystem::ALL {
+            assert!(error.message.contains(system.as_str()), "{error:?}");
+        }
+    }
+    // 最上位の同名部品を持つディレクトリも、系でなければ拒む。
+    let d = diags(&[("parts/ASSEMBLY.toml", RW), ("parts/ASSEMBLY/RW.toml", RW)]);
+    assert!(has(&d, "part.system_dir", Severity::Error));
+}
+
+#[test]
+fn part_system_uses_location_then_role_then_none() {
+    use fune_model::design::AnalysisSystem;
+    let mut files = FileSet::new();
+    files.insert("fune.toml", PROJECT);
+    files.insert("parts/power/spares/WHEEL.toml", RW);
+    files.insert(
+        "defs/kind/custom_wheel.toml",
+        "label = \"wheel\"\nextends = \"reaction_wheel\"\n",
+    );
+    files.insert(
+        "parts/FREE_WHEEL.toml",
+        RW.replace("reaction_wheel", "custom_wheel"),
+    );
+    files.insert("parts/UNASSIGNED.toml", "kind = \"component\"\n");
+    files.insert("parts/payload/ASSEMBLY.toml", "kind = \"structure\"\n");
+    files.insert("parts/payload/ASSEMBLY/CHILD.toml", RW);
+    let design = design_of(&files);
+    assert_eq!(design.system_of("WHEEL"), Some(AnalysisSystem::Power));
+    assert_eq!(design.system_of("FREE_WHEEL"), Some(AnalysisSystem::Aocs));
+    assert_eq!(design.system_of("UNASSIGNED"), None);
+    assert_eq!(design.system_of("CHILD"), Some(AnalysisSystem::Payload));
+    assert_eq!(design.system_of("MISSING"), None);
+    let resolved = fune_model::resolve::resolve(&design);
+    assert_eq!(resolved.parts["WHEEL"].system, design.system_of("WHEEL"));
+}
+
+#[test]
+fn allocations_accept_systems_without_directories_and_parts_but_not_arbitrary_groups() {
+    let d = diags(&[
+        ("parts/RW.toml", RW),
+        ("parts/aocs/spares/P.toml", "kind = \"component\"\n"),
+        (
+            "budget/allocation.toml",
+            "[mass.alloc]\npayload = { value = 1.0, unit = \"kg\" }\nRW = { value = 0.2, unit = \"kg\" }\n",
+        ),
+    ]);
+    assert!(!has(&d, "ref.node", Severity::Error), "{d:?}");
+    assert!(has(&d, "budget.limit_unset", Severity::Warning));
+    let bad = diags(&[
+        ("parts/aocs/spares/RW.toml", RW),
+        (
+            "budget/allocation.toml",
+            "[mass.alloc]\nspares = { value = 1.0, unit = \"kg\" }\n",
+        ),
+    ]);
+    assert!(has(&bad, "ref.node", Severity::Error));
+    assert!(!has(&d, "budget.over_allocated", Severity::Warning));
+}
+
+#[test]
+fn removed_project_groups_are_rejected() {
+    let mut files = FileSet::new();
+    files.insert(
+        "fune.toml",
+        "[project]\nname = \"t\"\n[groups]\naocs = \"custom\"\n",
+    );
+    assert!(check(&design_of(&files)).iter().any(|d| d.is_error()));
 }

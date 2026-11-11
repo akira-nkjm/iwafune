@@ -8,13 +8,15 @@ use crate::dto::{
 use crate::error::{Result, ServiceError};
 use fune_model::value::parse_number_unit;
 use sat_units::format::{
-    FormattedQuantity, SIGNIFICANT_DIGITS, canonical_dimension_name, display_units,
-    format_dimension, format_in_unit, format_number, format_quantity, si_unit_expression,
+    FormattedQuantity, SIGNIFICANT_DIGITS, canonical_dimension_name, dimension_label_preferring,
+    display_units, format_dimension, format_in_unit, format_number, format_quantity,
+    si_unit_expression,
 };
+use sat_units::typed::{NamedKind, TorqueKind};
 use sat_units::{Dimension, Unit, named_dimensions, parse_dimension, parse_unit};
 
 /// SI 値の一括整形（`POST /units/format`）。単位の指定が無ければ次元名から読みやすい単位を選ぶ（`sat_units::format`）。
-/// どれか 1 つでも次元名・単位が読めなければ、何番目かを添えてエラーにする。
+/// 結果はほかの API と同じ `QuantityView`。どれか 1 つでも次元名・単位が読めなければ、何番目かを添えてエラーにする。
 pub fn format_quantities(req: &FormatRequest) -> Result<FormatResponse> {
     let items = req
         .items
@@ -33,14 +35,20 @@ pub fn format_quantities(req: &FormatRequest) -> Result<FormatResponse> {
                             ),
                         });
                     }
-                    format_in_unit(item.si, unit)
+                    let name = dimension_label_preferring(u.dimension(), Some(&item.dimension));
+                    format_in_unit(item.si, unit).map(|f| (f, name))
                 }
-                None => format_quantity(item.si, &item.dimension),
+                None => format_quantity(item.si, &item.dimension).map(|f| {
+                    let name = canonical_dimension_name(&item.dimension).unwrap_or(&item.dimension);
+                    (f, name.to_owned())
+                }),
             };
-            formatted.map_err(|e| ServiceError::Unit {
-                input: item.dimension.clone(),
-                reason: format!("{i} 番目: {e}"),
-            })
+            formatted
+                .map(|(f, dimension)| view(item.si, f, dimension))
+                .map_err(|e| ServiceError::Unit {
+                    input: item.dimension.clone(),
+                    reason: format!("{i} 番目: {e}"),
+                })
         })
         .collect::<Result<Vec<_>>>()?;
     Ok(FormatResponse { items })
@@ -49,9 +57,16 @@ pub fn format_quantities(req: &FormatRequest) -> Result<FormatResponse> {
 /// 単位の一覧（`GET /units`）。`query.dimension` を指定するとその次元の単位だけを返す。
 pub fn units_catalog(query: &UnitsQuery) -> Result<UnitsCatalog> {
     let wanted = query.dimension.as_deref().map(dimension_of).transpose()?;
+    let torque = query
+        .dimension
+        .as_deref()
+        .and_then(canonical_dimension_name)
+        == Some(TorqueKind::name());
     let dimensions = named_dimensions()
         .iter()
-        .filter(|(_, d)| wanted.is_none_or(|w| w == *d))
+        .filter(|(name, d)| {
+            wanted.is_none_or(|w| w == *d) && (!torque || *name == TorqueKind::name())
+        })
         .map(|(name, d)| DimensionInfo {
             name: (*name).to_owned(),
             si_unit: si_unit_expression(*d),
@@ -60,9 +75,18 @@ pub fn units_catalog(query: &UnitsQuery) -> Result<UnitsCatalog> {
                 .unwrap_or_default(),
         })
         .collect();
-    let units = sat_units::NAMED_UNIT_SYMBOLS
+    // 同次元の Energy の単位を Torque の入力候補に混ぜない。候補の正本は sat-units。
+    let symbols: Vec<&str> = if torque {
+        display_units(TorqueKind::name())
+            .into_iter()
+            .flatten()
+            .collect()
+    } else {
+        sat_units::NAMED_UNIT_SYMBOLS.to_vec()
+    };
+    let units = symbols
         .iter()
-        .filter_map(|symbol| sat_units::named_unit(symbol).map(|u| (*symbol, u)))
+        .filter_map(|symbol| parse_unit(symbol).ok().map(|u| (*symbol, u)))
         .filter(|(_, u)| wanted.is_none_or(|w| w == u.dimension()))
         .map(|(symbol, u)| unit_info(symbol, &u, query.dimension.as_deref()))
         .collect();
@@ -83,19 +107,21 @@ pub fn parse_quantity(req: &ParseQuantityRequest) -> Result<ParsedQuantity> {
                 input: req.input.clone(),
                 reason: format!(
                     "次元が {expected} ではなく {} です",
-                    dimension_name(unit.dimension(), None)
+                    sat_units::format::dimension_label(unit.dimension())
                 ),
             });
         }
     }
     let quantity = quantity_from_authored(number, &unit_text, req.dimension.as_deref())?;
-    let si = format_in_unit(quantity.si, &si_unit_expression(unit.dimension()))
-        .map(|f| f.text)
-        .unwrap_or_else(|_| format_number(quantity.si, SIGNIFICANT_DIGITS));
-    Ok(ParsedQuantity {
-        quantity,
-        si_display: si,
-    })
+    // 同じ量を SI の組立単位で（`sat_units::format::si_unit_expression`。無次元は単位なし）
+    let si_unit = si_unit_expression(unit.dimension());
+    let formatted = format_in_unit(quantity.si, &si_unit).unwrap_or_else(|_| FormattedQuantity {
+        value: quantity.si,
+        unit: si_unit.clone(),
+        text: format_number(quantity.si, SIGNIFICANT_DIGITS),
+    });
+    let si = view(quantity.si, formatted, quantity.dimension.clone());
+    Ok(ParsedQuantity { quantity, si })
 }
 
 /// SI 値から表示用の量を作る。`display_unit` があればその単位で、無ければ次元名から単位を選んで整形する。
@@ -118,7 +144,7 @@ pub fn quantity_from_si(
         text: format_number(si, SIGNIFICANT_DIGITS),
     });
     let dim_name = match unit_dim {
-        Some((_, d)) => dimension_name(d, dimension),
+        Some((_, d)) => dimension_label_preferring(d, dimension),
         None => dimension
             .and_then(canonical_dimension_name)
             .unwrap_or_default()
@@ -159,18 +185,8 @@ pub fn quantity_from_authored(
     Ok(view(
         si,
         formatted,
-        dimension_name(unit.dimension(), dimension),
+        dimension_label_preferring(unit.dimension(), dimension),
     ))
-}
-
-/// 次元の表示名。`preferred` がその次元の名前として正しければそれを使う（Energy と Torque のような同じ次元の別名のため）。
-pub fn dimension_name(dim: Dimension, preferred: Option<&str>) -> String {
-    if let Some(p) = preferred
-        && parse_dimension(p).is_ok_and(|d| d == dim)
-    {
-        return canonical_dimension_name(p).unwrap_or(p).to_owned();
-    }
-    sat_units::format::dimension_label(dim)
 }
 
 /// 数値だけの表示（有効数字 3 桁）。
@@ -214,10 +230,10 @@ fn unit_info(symbol: &str, u: &Unit, preferred: Option<&str>) -> UnitInfo {
     };
     UnitInfo {
         symbol: symbol.to_owned(),
-        dimension: dimension_name(u.dimension(), preferred),
+        dimension: dimension_label_preferring(u.dimension(), preferred),
         scale: u.scale(),
         offset: u.offset(),
-        scale_display: number_text(u.scale()),
+        scale_text: number_text(u.scale()),
         mapping,
     }
 }
@@ -225,6 +241,37 @@ fn unit_info(symbol: &str, u: &Unit, preferred: Option<&str>) -> UnitInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn torque_input_candidates_exclude_energy_units() {
+        let attr = &fune_model::builtin::attributes()["max_torque"];
+        assert_eq!(attr.dimension.as_deref(), Some(TorqueKind::name()));
+        assert_eq!(attr.units, ["N*m", "mN*m"]);
+        let catalog = units_catalog(&UnitsQuery {
+            dimension: attr.dimension.clone(),
+        })
+        .unwrap();
+        assert_eq!(catalog.dimensions.len(), 1);
+        assert_eq!(catalog.dimensions[0].name, "Torque");
+        let preferred: Vec<_> = display_units(TorqueKind::name()).unwrap().collect();
+        let symbols: Vec<_> = catalog.units.iter().map(|u| u.symbol.as_str()).collect();
+        assert_eq!(symbols, preferred);
+        assert!(symbols.contains(&"N*m") && symbols.contains(&"mN*m"));
+        assert!(!symbols.contains(&"Wh") && !symbols.contains(&"J"));
+        // 次元の検査は従来どおり。入力の綴りだけでは量の種類を拒否しない。
+        let parsed = parse_quantity(&ParseQuantityRequest {
+            input: "1 J".into(),
+            dimension: Some("Torque".into()),
+        })
+        .unwrap();
+        assert_eq!(parsed.quantity.dimension, "Torque");
+        let energy = units_catalog(&UnitsQuery {
+            dimension: Some("Energy".into()),
+        })
+        .unwrap();
+        assert!(energy.units.iter().any(|u| u.symbol == "J"));
+        assert!(energy.units.iter().any(|u| u.symbol == "Wh"));
+    }
 
     #[test]
     fn parses_value_and_unit() {
@@ -238,6 +285,11 @@ mod tests {
         assert!((r.quantity.si - 0.018).abs() < 1e-12);
         assert_eq!(r.quantity.dimension, "AngularMomentum");
         assert_eq!(r.quantity.display, "18.0 mN·m·s");
+        // 同じ量の SI の組立単位での表示も、同じ `QuantityView` の形
+        assert_eq!(r.si.display, "0.0180 m²·kg/s");
+        assert_eq!(r.si.unit, "m^2*kg/s");
+        assert_eq!(r.si.si, r.quantity.si);
+        assert_eq!(r.si.dimension, "AngularMomentum");
     }
 
     #[test]
@@ -259,6 +311,8 @@ mod tests {
         .unwrap();
         assert_eq!(r.quantity.si, 1.5e-3);
         assert_eq!(r.quantity.dimension, "Dimensionless");
+        assert_eq!(r.si.display, "0.00150");
+        assert_eq!(r.si.unit, "");
     }
 
     #[test]
@@ -290,8 +344,24 @@ mod tests {
             ],
         })
         .unwrap();
-        assert_eq!(r.items[0].text, "12.3 mW");
-        assert_eq!(r.items[1].text, "2.00 Mbit");
+        // ほかの API と同じ `QuantityView`（SI 値・表示単位での値・次元名つき）
+        assert_eq!(r.items[0].display, "12.3 mW");
+        assert_eq!(r.items[0].unit, "mW");
+        assert_eq!(r.items[0].si, 0.0123);
+        assert_eq!(r.items[0].dimension, "Power");
+        assert_eq!(r.items[1].display, "2.00 Mbit");
+        assert_eq!(r.items[1].dimension, "Information");
+        // 比は種類名 `Fraction` で % に（次元名の欄も種類名のまま）
+        let fraction = format_quantities(&FormatRequest {
+            items: vec![FormatItem {
+                si: 0.25,
+                dimension: "Fraction".into(),
+                unit: None,
+            }],
+        })
+        .unwrap();
+        assert_eq!(fraction.items[0].display, "25.0 %");
+        assert_eq!(fraction.items[0].dimension, "Fraction");
         let bad = FormatRequest {
             items: vec![FormatItem {
                 si: 1.0,

@@ -10,6 +10,7 @@ describe("query keys", () => {
       keys.project,
       keys.design,
       keys.part("RW_X"),
+      keys.part("RW_X", '[{"op":"create_attribute"}]'),
       keys.defs,
       keys.diagnostics,
       keys.analysis("power.mode_load", null),
@@ -23,9 +24,16 @@ describe("query keys", () => {
     }
   });
 
-  it("単位の一覧と解析の一覧は編集で変わらない", () => {
-    for (const k of [keys.units(null), keys.analyses, keys.parse("1 kg", null)]) {
+  it("単位の一覧・解析の一覧・外部データの状態は編集で変わらない", () => {
+    for (const k of [keys.units(null), keys.analyses, keys.parse("1 kg", null), keys.dataStatus]) {
       expect(invalidatedByOps.some((p) => startsWith(k, p))).toBe(false);
     }
+  });
+
+  it("解析の結果のキーはどれも analysisResults で始まる（天体の暦を読み込んだら読み直す）", () => {
+    for (const k of [keys.analysis("comm.visibility", null), keys.analysis("x", "hot", "[]")]) {
+      expect(startsWith(k, keys.analysisResults)).toBe(true);
+    }
+    expect(startsWith(keys.analyses, keys.analysisResults)).toBe(false);
   });
 });

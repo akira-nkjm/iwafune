@@ -3,15 +3,18 @@
 use crate::args::AnalyzeArgs;
 use crate::output::{C, Out};
 use fune_service::dto::{
-    AnalysisKind, AnalysisRunStatus, BudgetRequest, BudgetView, RunAnalysisRequest, Verdict,
+    AnalysisInputSource, AnalysisKind, AnalysisRunStatus, BudgetRequest, BudgetRow, BudgetView,
+    KpiView, MissingInput, RunAnalysisRequest, Verdict,
 };
 use fune_service::{Workspace, analysis, budget};
 
 /// `fune analyze <id> [--case X] [--input in.json] [--ops ops.json]`
 pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
-    let input = match &a.input {
-        Some(path) => Some(serde_json::from_str(&std::fs::read_to_string(path)?)?),
-        None => None,
+    let source = match &a.input {
+        Some(path) => AnalysisInputSource::Given {
+            input: serde_json::from_str(&std::fs::read_to_string(path)?)?,
+        },
+        None => AnalysisInputSource::Design,
     };
     let ops = match &a.ops {
         Some(path) => super::ops::ops_from_file(path)?,
@@ -19,8 +22,7 @@ pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
     };
     let req = RunAnalysisRequest {
         case: a.case.clone(),
-        input,
-        input_patch: None,
+        source,
         ops,
     };
     let r = analysis::run_analysis(ws, &a.target, &req)?;
@@ -41,18 +43,44 @@ pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
             r.error.clone().unwrap_or_default()
         )),
     }
-    if !r.missing.is_empty() {
-        let mut t = out.table(&["足りない入力", "内容"]);
-        for m in &r.missing {
-            t.row(vec![C::Strong(m.path.clone()), C::Text(m.reason.clone())]);
-        }
-        t.print();
-    }
+    print_missing(&r.missing, out);
+    print_kpis(&r.kpis, out);
     print_checks(&r.checks, out);
     if r.status == AnalysisRunStatus::Ok {
         println!("{}", out.dim("全体の結果は --json で出せます"));
     }
     Ok(u8::from(r.status != AnalysisRunStatus::Ok))
+}
+
+/// 足りない入力の表（解析とバジェットで同じ形）。
+fn print_missing(missing: &[MissingInput], out: &Out) {
+    if missing.is_empty() {
+        return;
+    }
+    let mut t = out.table(&["足りない入力", "内容"]);
+    for m in missing {
+        t.row(vec![C::Strong(m.path.clone()), C::Text(m.reason.clone())]);
+    }
+    t.print();
+}
+
+/// KPI（代表値・判定。選び方は service の `analysis::kpi`）を表にする。判定を数える KPI は数を出す。
+fn print_kpis(kpis: &[KpiView], out: &Out) {
+    if kpis.is_empty() {
+        return;
+    }
+    let mut t = out.table(&["", "KPI", "値"]).numeric(&[2]);
+    for k in kpis {
+        let value = match (&k.value, k.tally) {
+            (Some(v), _) => C::Num(v.display.clone()),
+            (None, Some(t)) if t.flagged == 0 => C::Text(format!("すべて OK（{}）", t.checked)),
+            (None, Some(t)) => C::Text(format!("{} / {} が要確認", t.flagged, t.checked)),
+            (None, None) => C::Dim("—".into()),
+        };
+        let mark = k.verdict.map_or(C::Dim(String::new()), verdict_cell);
+        t.row(vec![mark, C::Strong(k.label.clone()), value]);
+    }
+    t.print();
 }
 
 /// 出力の `checks`（どの解析も同じ形）を表にする。モードごとなど同じ項目が並ぶので、対象の列を付ける。
@@ -110,26 +138,37 @@ pub fn ls(out: &Out) -> anyhow::Result<u8> {
     Ok(0)
 }
 
-/// `fune budget mass|power|data [--ops ops.json]`
+/// `fune budget mass|power|data [--case HOT] [--ops ops.json]`。入力が足りないか判定が違反なら 1 で終わる。
 pub fn budget(
     ws: &Workspace,
     kind: &str,
+    case: Option<&str>,
     ops: Option<&std::path::Path>,
     out: &Out,
 ) -> anyhow::Result<u8> {
     let req = BudgetRequest {
+        case: case.map(str::to_owned),
         ops: match ops {
             Some(path) => super::ops::ops_from_file(path)?,
             None => Vec::new(),
         },
     };
     let b = budget::budget(ws, budget::parse_kind(kind)?, &req)?;
+    let failed = !b.missing.is_empty() || b.verdict == Some(Verdict::Violation);
     if out.json {
         out.json(&b)?;
-        return Ok(0);
+        return Ok(u8::from(!b.missing.is_empty()));
     }
     print_budget(&b, out);
-    Ok(u8::from(b.verdict == Verdict::Violation))
+    Ok(u8::from(failed))
+}
+
+/// 配分の行の名前（「その他」の行は service が null で返すので、ここで文言を付ける）。
+fn row_name(r: &BudgetRow) -> String {
+    r.label
+        .clone()
+        .or_else(|| r.node.clone())
+        .unwrap_or_else(|| "（その他）".to_owned())
 }
 
 fn verdict_cell(v: Verdict) -> C {
@@ -141,13 +180,23 @@ fn verdict_cell(v: Verdict) -> C {
 }
 
 fn print_budget(b: &BudgetView, out: &Out) {
+    let case = b
+        .case
+        .as_ref()
+        .map(|c| format!("  ケース {c}"))
+        .unwrap_or_default();
     let mode = b
         .mode
         .as_ref()
         .map(|m| format!("  モード {m}"))
         .unwrap_or_default();
     out.heading(&format!("{}のバジェット", b.label));
-    println!("{}", out.dim(format!("{}{mode}", b.analysis)));
+    println!("{}", out.dim(format!("{}{case}{mode}", b.analysis)));
+    let Some(total) = &b.total else {
+        out.fail(format!("入力が足りません（{} 件）", b.missing.len()));
+        print_missing(&b.missing, out);
+        return;
+    };
     let mut t = out
         .table(&["", "行", "現状", "成長余裕込み", "配分", "余裕"])
         .numeric(&[2, 3, 4, 5]);
@@ -158,7 +207,7 @@ fn print_budget(b: &BudgetView, out: &Out) {
     for r in &b.rows {
         t.row(vec![
             verdict_cell(r.verdict),
-            C::Strong(r.label.clone()),
+            C::Strong(row_name(r)),
             C::Num(r.current.display.clone()),
             C::Num(r.with_growth.display.clone()),
             opt(&r.allocated),
@@ -176,9 +225,9 @@ fn print_budget(b: &BudgetView, out: &Out) {
         .map_or("—".to_owned(), |q| q.display.clone());
     let line = format!(
         "合計 {}  上限 {limit}（システムマージン {}）  余裕 {margin}",
-        b.total.display, b.system_margin_display.display
+        total.display, b.system_margin.display
     );
-    match b.verdict {
+    match b.verdict.unwrap_or(Verdict::Ok) {
         Verdict::Ok => out.ok(line),
         Verdict::Warning => out.warn(line),
         Verdict::Violation => out.fail(line),

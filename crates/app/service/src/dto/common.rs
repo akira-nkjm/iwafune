@@ -20,11 +20,14 @@ pub struct QuantityView {
     pub display: String,
 }
 
-/// 検証の結果 1 件（`fune_model::Diagnostic` に該当行の本文を添えたもの）。
+/// 検証の結果 1 件（`fune_model::Diagnostic` に、対象の部品・表示用のパス・該当行の本文を添えたもの）。
+/// 何についての診断かは `target`（構造）で見る。`part` と `path` は `target` から作ったもの（文字列を読み直していない）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 pub struct DiagnosticView {
-    /// 部品に関する診断なら部品 ID（設定・カタログは null）。
+    /// 対象が部品のファイルの中にあれば部品 ID（`fune_model::Target::part`。設定・カタログ・モード・ネットなどは null）。
     pub part: Option<String>,
+    /// 対象の表示用のパス（`target` の表示。例: `"RW_X.mass"`・`"modes.NOMINAL.TRX"`）
+    pub path: Option<String>,
     #[serde(flatten)]
     #[ts(flatten)]
     pub diagnostic: Diagnostic,

@@ -1,8 +1,11 @@
 //! 解析ケースの文脈: 設計・解決済みの値・ケースと、どの解析でも使う入力（軌道・地上局・姿勢則・モード）の組み立て。
 
 use crate::missing::MissingInputs;
-use crate::quantity::{qty, qty_opt};
-use fune_model::design::{AttitudeLawKind, AttitudeLawSetting, Case, Design, Mode};
+use crate::quantity::{setting, setting_opt};
+use fune_model::Target;
+use fune_model::design::setting_dims as dims;
+use fune_model::design::{AnalysisSystem, AttitudeLawKind, AttitudeLawSetting, Case, Design, Mode};
+use fune_model::path::SettingPath;
 use fune_model::resolve::Resolved;
 use fune_model::value::{Quaternion, Vector3};
 use sat_analysis::modes::{ModeDef, StateAssignment};
@@ -17,7 +20,7 @@ use sat_units::typed::{Angle, Length, Qty};
 pub struct Context<'a> {
     pub design: &'a Design,
     pub resolved: &'a Resolved,
-    /// 選んだ解析ケース（無ければ既定）
+    /// 選んだ解析ケース（無ければケース未選択）
     pub case: Option<&'a Case>,
 }
 
@@ -34,7 +37,7 @@ impl<'a> Context<'a> {
                 Some(c) => Some(c),
                 None => {
                     let mut m = MissingInputs::new();
-                    m.push(format!("cases.{id}"), "指定した解析ケースがありません");
+                    m.push(Target::case(id, None), "指定した解析ケースがありません");
                     return Err(m);
                 }
             },
@@ -60,35 +63,33 @@ impl<'a> Context<'a> {
     /// 軌道（`mission/orbit.toml`）。
     pub fn orbit(&self, m: &mut MissingInputs) -> Option<OrbitSpec> {
         let Some(o) = self.design.mission.orbit.as_ref() else {
-            m.push("mission.orbit", "軌道の設定（mission/orbit.toml）");
+            m.push(orbit(&[]), "軌道の設定（mission/orbit.toml）");
             return None;
         };
         let epoch = match o.epoch.as_deref().map(Epoch::parse) {
             Some(Ok(e)) => Some(e),
             Some(Err(e)) => {
-                m.push(
-                    "mission.orbit.epoch",
-                    format!("元期を解釈できません（{e}）"),
-                );
+                m.push(orbit(&["epoch"]), format!("元期を解釈できません（{e}）"));
                 None
             }
             None => {
-                m.push("mission.orbit.epoch", "軌道の元期（ISO 8601）");
+                m.push(orbit(&["epoch"]), "軌道の元期（ISO 8601）");
                 None
             }
         };
         let a = self.semi_major_axis(o, m);
         let inc = match (o.inclination.as_ref(), o.sun_synchronous, a) {
-            (Some(q), _, _) => qty::<Angle>(Some(q), "mission.orbit.inclination", "", m),
+            (Some(q), _, _) => setting(&dims::ORBIT_INCLINATION, &[], Some(q), "", m),
             (None, Some(true), Some(a)) => {
                 Some(Qty::from_raw(sat_astro::orbit::sso_inclination_rad(
                     a.value(),
                     o.eccentricity.unwrap_or(DEFAULT_ECCENTRICITY),
                 )))
             }
-            _ => qty::<Angle>(
+            _ => setting(
+                &dims::ORBIT_INCLINATION,
+                &[],
                 None,
-                "mission.orbit.inclination",
                 "傾斜角（または sun_synchronous = true）",
                 m,
             ),
@@ -96,13 +97,13 @@ impl<'a> Context<'a> {
         // 書かれていない要素は None のまま渡す（慣例の値は `OrbitElements::with_defaults` が持つ）。
         // RAAN は LTDN からも求める。外側の None は「求められない」（不足として記録済み）。
         let raan = match (o.raan.as_ref(), o.ltdn.as_deref(), epoch) {
-            (Some(q), _, _) => qty::<Angle>(Some(q), "mission.orbit.raan", "", m).map(Some),
+            (Some(q), _, _) => setting(&dims::ORBIT_RAAN, &[], Some(q), "", m).map(Some),
             (None, Some(text), Some(epoch)) => raan_from_ltdn(epoch, text, m).map(Some),
             (None, Some(_), None) => None,
             (None, None, _) => Some(None),
         };
-        let argp = qty_opt::<Angle>(o.arg_perigee.as_ref(), "mission.orbit.arg_perigee", m);
-        let ma = qty_opt::<Angle>(o.mean_anomaly.as_ref(), "mission.orbit.mean_anomaly", m);
+        let argp = setting_opt(&dims::ORBIT_ARG_PERIGEE, &[], o.arg_perigee.as_ref(), m);
+        let ma = setting_opt(&dims::ORBIT_MEAN_ANOMALY, &[], o.mean_anomaly.as_ref(), m);
         let propagator = match o.propagator {
             Some(fune_model::design::PropagatorKind::Kepler) => Propagator::Kepler,
             _ => Propagator::default(),
@@ -117,16 +118,18 @@ impl<'a> Context<'a> {
         m: &mut MissingInputs,
     ) -> Option<Qty<Length>> {
         if o.semi_major_axis.is_some() {
-            return qty::<Length>(
+            return setting(
+                &dims::ORBIT_SEMI_MAJOR_AXIS,
+                &[],
                 o.semi_major_axis.as_ref(),
-                "mission.orbit.semi_major_axis",
                 "",
                 m,
             );
         }
-        let alt = qty::<Length>(
+        let alt = setting(
+            &dims::ORBIT_ALTITUDE,
+            &[],
             o.altitude.as_ref(),
-            "mission.orbit.altitude",
             "軌道の高度（または semi_major_axis）",
             m,
         )?;
@@ -142,7 +145,10 @@ impl<'a> Context<'a> {
     pub fn stations(&self, ids: &[String], m: &mut MissingInputs) -> Vec<GroundStation> {
         let ground = &self.design.mission.ground;
         if ground.is_empty() {
-            m.push("mission.ground", "地上局（mission/ground/<ID>.toml）");
+            m.push(
+                SettingPath::mission(&["ground"]),
+                "地上局（mission/ground/<ID>.toml）",
+            );
         }
         let chosen: Vec<&String> = if ids.is_empty() {
             ground.keys().collect()
@@ -153,29 +159,50 @@ impl<'a> Context<'a> {
             .into_iter()
             .filter_map(|id| {
                 let Some(g) = ground.get(id) else {
-                    m.push(format!("mission.ground.{id}"), "地上局の設定がありません");
+                    let target = SettingPath::mission(&["ground", id]);
+                    m.push(target, "地上局の設定がありません");
                     return None;
                 };
-                let p = |k: &str| format!("mission.ground.{id}.{k}");
+                let at = [id.as_str()];
                 // 標高と最低仰角は書かれていなければ None（慣例の値は `GroundStation::with_defaults`）。
                 Some(GroundStation::with_defaults(
                     id.clone(),
-                    qty::<Angle>(g.latitude.as_ref(), &p("latitude"), "緯度", m)?,
-                    qty::<Angle>(g.longitude.as_ref(), &p("longitude"), "経度", m)?,
-                    qty_opt::<Length>(g.altitude.as_ref(), &p("altitude"), m),
-                    qty_opt::<Angle>(g.min_elevation.as_ref(), &p("min_elevation"), m),
+                    setting(&dims::GROUND_LATITUDE, &at, g.latitude.as_ref(), "緯度", m)?,
+                    setting(
+                        &dims::GROUND_LONGITUDE,
+                        &at,
+                        g.longitude.as_ref(),
+                        "経度",
+                        m,
+                    )?,
+                    setting_opt(&dims::GROUND_ALTITUDE, &at, g.altitude.as_ref(), m),
+                    setting_opt(
+                        &dims::GROUND_MIN_ELEVATION,
+                        &at,
+                        g.min_elevation.as_ref(),
+                        m,
+                    ),
                 ))
             })
             .collect()
     }
 
-    /// モードの姿勢則（`analysis/attitude.toml` の `[law.<モード>]`）。無ければ不足入力。
+    /// 指定モードの姿勢則。モード未指定なら唯一の姿勢則だけを使い、選べなければ不足入力。
     pub fn attitude_law(&self, mode: Option<&str>, m: &mut MissingInputs) -> Option<AttitudeLaw> {
-        let laws = self.design.analysis.attitude.as_ref().map(|a| &a.law);
-        let found = laws.and_then(|l| mode.and_then(|id| l.get(id)).or_else(|| l.values().next()));
+        let laws = self.design.analysis.aocs.as_ref().map(|a| &a.law);
+        let found = laws.and_then(|l| match mode {
+            Some(id) => l.get(id),
+            None if l.len() == 1 => l.values().next(),
+            None => None,
+        });
         let Some(setting) = found else {
-            let key = mode.unwrap_or("<モード>");
-            m.push(format!("analysis.attitude.law.{key}"), "モードの姿勢則");
+            // モード未指定なら姿勢則の表を、指定済みならそのモードの欄を示す。
+            let law = AnalysisSystem::Aocs.setting_path().child(&["law"]);
+            let target = mode.map_or_else(|| law.clone(), |id| law.child(&[id]));
+            m.push(
+                target,
+                "モードの姿勢則を一意に選べません。対象モードの姿勢則を指定してください",
+            );
             return None;
         };
         Some(law_of(setting))
@@ -231,11 +258,16 @@ pub fn mode_def(mode: &Mode) -> ModeDef {
     }
 }
 
+/// `mission.orbit.<…>`（`mission/orbit.toml` のキー）。
+fn orbit(keys: &[&str]) -> SettingPath {
+    SettingPath::mission(&["orbit"]).child(keys)
+}
+
 /// 降交点地方時（`"10:30"`）→ RAAN（読み方は `fune_model::value::parse_clock_hours`、換算は sat-astro）。
 fn raan_from_ltdn(epoch: Epoch, text: &str, m: &mut MissingInputs) -> Option<Qty<Angle>> {
     let Some(hours) = fune_model::value::parse_clock_hours(text) else {
         m.push(
-            "mission.orbit.ltdn",
+            orbit(&["ltdn"]),
             "降交点地方時は \"HH:MM\" で書いてください",
         );
         return None;
@@ -243,10 +275,7 @@ fn raan_from_ltdn(epoch: Epoch, text: &str, m: &mut MissingInputs) -> Option<Qty
     match sat_astro::orbit::raan_from_ltdn(epoch, hours) {
         Ok(rad) => Some(Qty::from_raw(rad)),
         Err(e) => {
-            m.push(
-                "mission.orbit.ltdn",
-                format!("RAAN に換算できません（{e}）"),
-            );
+            m.push(orbit(&["ltdn"]), format!("RAAN に換算できません（{e}）"));
             None
         }
     }

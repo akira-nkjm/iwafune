@@ -2,14 +2,14 @@
 
 use crate::context::Context;
 use crate::missing::MissingInputs;
-use crate::parts::by_role;
-use crate::quantity::qty;
-use fune_model::resolve::{ResolvedPart, SiValue};
+use crate::parts::{by_role, state_values};
+use crate::quantity::setting;
+use fune_model::Target;
+use fune_model::design::AnalysisSystem;
+use fune_model::design::setting_dims as dims;
 use sat_analysis::cdh::DataBudgetInput;
-use sat_analysis::cdh::data_budget::{
-    DataBudgetModeShare, DataBudgetPart, DataBudgetRates, DataBudgetStorage,
-};
-use sat_units::typed::{Qty, Time};
+use sat_analysis::cdh::data_budget::{DataBudgetModeShare, DataBudgetPart, DataBudgetStorage};
+use sat_units::typed::{Fraction, Qty};
 
 /// `cdh.data_budget`
 pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> {
@@ -22,13 +22,13 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
         .map(|p| DataBudgetPart {
             id: p.id.clone(),
             count: crate::parts::count_of(p),
-            hk_rate: rates(p, "hk_rate"),
-            mission_rate: rates(p, "mission_rate"),
+            hk_rate: state_values(p, "hk_rate").unwrap_or_default(),
+            mission_rate: state_values(p, "mission_rate").unwrap_or_default(),
         })
         .collect();
     if parts.is_empty() {
         m.push(
-            "<部品>.hk_rate",
+            Target::any_part("hk_rate"),
             "HK・ミッションデータのレートを持つ部品がありません",
         );
     }
@@ -45,14 +45,15 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
         .collect();
     if storage.is_empty() {
         m.push(
-            "<obc>.storage_capacity",
+            Target::any_of_roles(&["obc"], Some("storage_capacity")),
             "搭載ストレージの容量（role = obc の部品）",
         );
     }
     let s = ctx.design.analysis.cdh.as_ref();
-    let retention = qty::<Time>(
+    let retention = setting(
+        &dims::CDH_RETENTION,
+        &[],
         s.and_then(|s| s.retention.as_ref()),
-        "analysis.cdh.retention",
         "地上に降ろすまで保持する期間",
         &mut m,
     );
@@ -64,31 +65,11 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
             storage,
             retention: retention?,
             downlink_per_day: None,
-            min_storage_margin: s.and_then(|s| s.storage_margin),
+            storage_reserve: s.and_then(|s| s.storage_margin).map(Fraction::new),
             compression_ratio: s.and_then(|s| s.compression_ratio),
             hk_overhead: s.and_then(|s| s.packet_overhead),
         })
     })
-}
-
-fn rates(p: &ResolvedPart, attr: &str) -> DataBudgetRates {
-    match p.value(attr) {
-        Some(SiValue::Scalar(s)) => DataBudgetRates {
-            default: Some(Qty::from_raw(s.value)),
-            by_state: Default::default(),
-        },
-        Some(SiValue::ByState(map)) => DataBudgetRates {
-            default: None,
-            by_state: map
-                .iter()
-                .map(|(k, v)| (k.clone(), Qty::from_raw(v.value)))
-                .collect(),
-        },
-        _ => DataBudgetRates {
-            default: None,
-            by_state: Default::default(),
-        },
-    }
 }
 
 /// 1 日に占めるモードの割合（`analysis.power.mode_share`。ケースがあればそのモードだけで 1）。
@@ -110,7 +91,7 @@ pub fn mode_shares(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<DataBudgetMo
             .collect(),
         _ => {
             m.push(
-                "analysis.power.mode_share",
+                AnalysisSystem::Power.setting_path().child(&["mode_share"]),
                 "軌道平均で各モードにいる時間の割合",
             );
             Vec::new()

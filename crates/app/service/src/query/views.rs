@@ -2,11 +2,12 @@
 
 use crate::dto::{
     AttributeDefView, CaseView, DefsView, HarnessView, KindDefView, ModeHeader, ModeRow, ModeTable,
-    NetView, TreeNode, TreeNodeKind,
+    NetView, QuantityView, TreeNode, TreeNodeKind,
 };
 use crate::query::values::authored_quantity;
 use fune_model::builtin;
-use fune_model::design::{Design, EntityKey, NodeRef};
+use fune_model::design::{AnalysisSystem, BudgetKind, Design, EntityKey, NodeRef};
+use fune_model::path::PortRef;
 use std::collections::BTreeMap;
 
 /// エンティティのファイル（ルートからの相対パス）。
@@ -40,7 +41,20 @@ pub(crate) fn tree(design: &Design) -> Vec<TreeNode> {
     let groups = design.groups.values().map(|g| TreeNode {
         id: g.id.to_string(),
         node: TreeNodeKind::Group,
-        label: g.label.clone().unwrap_or_else(|| g.id.to_string()),
+        label: builtin::labels()
+            .section
+            .get(g.id.as_str())
+            .filter(|_| g.parent.is_none())
+            .map(|l| l.label.clone())
+            .unwrap_or_else(|| g.id.to_string()),
+        label_en: builtin::labels()
+            .section
+            .get(g.id.as_str())
+            .filter(|_| g.parent.is_none())
+            .and_then(|l| l.label_en.clone()),
+        system: design
+            .system_of(g.id.as_str())
+            .map(fune_projection::system::to_analysis),
         parent: g.parent.as_ref().map(|n| n.id().to_owned()),
         children: children.get(g.id.as_str()).cloned().unwrap_or_default(),
     });
@@ -48,6 +62,10 @@ pub(crate) fn tree(design: &Design) -> Vec<TreeNode> {
         id: p.id.to_string(),
         node: TreeNodeKind::Part,
         label: p.label.clone().unwrap_or_else(|| p.id.to_string()),
+        label_en: None,
+        system: design
+            .system_of(p.id.as_str())
+            .map(fune_projection::system::to_analysis),
         parent: p.parent.as_ref().map(|n| n.id().to_owned()),
         children: children.get(p.id.as_str()).cloned().unwrap_or_default(),
     });
@@ -91,11 +109,12 @@ pub(crate) fn mode_table(design: &Design) -> ModeTable {
                 .collect();
             ModeRow {
                 part: p.id.to_string(),
-                kind: design.part_kind_id(p).unwrap_or_default().to_owned(),
+                kind: design.part_kind_id(p).map(str::to_owned),
                 states: design.part_states(p).to_vec(),
-                display: cells
+                shares: cells
                     .iter()
-                    .map(|(m, c)| (m.clone(), cell_text(c)))
+                    .filter(|(_, c)| !c.duty.is_empty())
+                    .map(|(m, c)| (m.clone(), duty_shares(c)))
                     .collect(),
                 cells,
             }
@@ -106,17 +125,14 @@ pub(crate) fn mode_table(design: &Design) -> ModeTable {
 
 /// ネット（つながるポートは部品の ports から集める）。
 pub(crate) fn nets(design: &Design) -> Vec<NetView> {
-    let mut members: BTreeMap<&str, Vec<fune_model::path::PortRef>> = BTreeMap::new();
+    let mut members: BTreeMap<&str, Vec<PortRef>> = BTreeMap::new();
     for p in design.parts.values() {
         for (port, binding) in &p.ports {
             if let Some(net) = &binding.net {
                 members
                     .entry(net.as_str())
                     .or_default()
-                    .push(fune_model::path::PortRef {
-                        part: p.id.to_string(),
-                        port: port.clone(),
-                    });
+                    .push(PortRef::new(p.id.as_str(), port.as_str()));
             }
         }
     }
@@ -126,11 +142,9 @@ pub(crate) fn nets(design: &Design) -> Vec<NetView> {
         .map(|n| NetView {
             id: n.id.to_string(),
             kind: n.kind,
-            label: n.label.clone(),
-            source: n
-                .source
-                .as_deref()
-                .and_then(fune_model::path::PortRef::parse),
+            is_return: n.is_return(),
+            label: n.label.clone().unwrap_or_else(|| n.id.to_string()),
+            source: n.source.clone(),
             rail: n
                 .rail
                 .as_ref()
@@ -144,11 +158,9 @@ pub(crate) fn nets(design: &Design) -> Vec<NetView> {
                 .bitrate
                 .as_ref()
                 .map(|q| authored_quantity(q, Some("DataRate"))),
-            master: n
-                .master
-                .as_deref()
-                .and_then(fune_model::path::PortRef::parse),
+            master: n.master.clone(),
             members: members.remove(n.id.as_str()).unwrap_or_default(),
+            field_paths: net_field_paths(n.id.as_str()),
             file: file_of(design, EntityKey::Net(n.id.to_string())),
         })
         .collect()
@@ -161,7 +173,7 @@ pub(crate) fn harnesses(design: &Design) -> Vec<HarnessView> {
         .values()
         .map(|h| HarnessView {
             id: h.id.to_string(),
-            label: h.label.clone(),
+            label: h.label.clone().unwrap_or_else(|| h.id.to_string()),
             from: h.from.clone(),
             to: h.to.clone(),
             nets: h.nets.iter().map(ToString::to_string).collect(),
@@ -215,6 +227,11 @@ pub(crate) fn defs(design: &Design) -> DefsView {
         attributes,
         kinds,
         labels: builtin::labels().clone(),
+        systems: AnalysisSystem::ALL
+            .iter()
+            .map(|s| fune_projection::system::to_analysis(*s))
+            .collect(),
+        budget_kinds: BudgetKind::ALL.to_vec(),
     }
 }
 
@@ -233,17 +250,39 @@ pub(crate) fn cases(design: &Design) -> Vec<CaseView> {
         .collect()
 }
 
-/// モード表のセルの表示（`"rx（tx 10.0 %）"`。割合は `crate::units::percent`）。
-pub(crate) fn cell_text(c: &fune_model::design::StateAssign) -> String {
-    if c.duty.is_empty() {
-        return c.state.clone();
-    }
-    let duty: Vec<String> = c
-        .duty
+/// モード表のセルの割合（状態 → `%` の表示。整形は `crate::units::percent`）。
+/// セルの文言（`rx（tx 10.0 %）`）は CLI と Web が言語ごとに作る。
+fn duty_shares(c: &fune_model::design::StateAssign) -> BTreeMap<String, QuantityView> {
+    c.duty
         .iter()
-        .map(|(s, f)| format!("{s} {}", crate::units::percent(*f).display))
-        .collect();
-    format!("{}（{}）", c.state, duty.join("、"))
+        .map(|(s, f)| (s.clone(), crate::units::percent(*f)))
+        .collect()
+}
+
+/// ネットのフィールドの対象のパス（フィールド名 → `nets.P12V.rail`）。名前は `NetFieldName::NAMES`、書き方は `Target::net` の表示
+/// （診断の `DiagnosticView.path` と同じなので、弾かれた理由がその欄に付く）。
+fn net_field_paths(net: &str) -> BTreeMap<String, String> {
+    fune_model::design::NetFieldName::NAMES
+        .iter()
+        .map(|field| {
+            let target = fune_model::Target::net(net, Some(field));
+            ((*field).to_owned(), target.to_string())
+        })
+        .collect()
+}
+
+/// 部品のフィールドのパス（フィールド名 → `RW_X.count`）。名前は `fune_model::design::PartFieldName::NAMES`、記法は `ParamPath::Field`。
+pub(crate) fn field_paths(part: &str) -> BTreeMap<String, String> {
+    fune_model::design::PartFieldName::NAMES
+        .iter()
+        .map(|field| {
+            let path = fune_model::path::ParamPath::Field {
+                part: part.to_owned(),
+                field: (*field).to_owned(),
+            };
+            ((*field).to_owned(), path.to_string())
+        })
+        .collect()
 }
 
 /// 全属性と状態のフィールドパス。未設定の欄も同じ記法で編集できる。
@@ -271,4 +310,29 @@ pub(crate) fn parameter_paths(
             ((*attr).to_owned(), paths)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// 表示名の無いネット・ハーネスは ID で埋める（製品ツリー・モードの見出し・ケースと同じ）。
+    #[test]
+    fn labels_fall_back_to_ids() {
+        let mut design = Design::default();
+        for net in [
+            json!({ "id": "N1", "kind": "power" }),
+            json!({ "id": "N2", "kind": "data", "label": "バス" }),
+        ] {
+            let net: fune_model::design::Net = serde_json::from_value(net).unwrap();
+            design.nets.insert(net.id.clone(), net);
+        }
+        let harness: fune_model::design::Harness =
+            serde_json::from_value(json!({ "id": "H1", "from": "A.P1", "to": "B.P2" })).unwrap();
+        design.harnesses.insert(harness.id.clone(), harness);
+        let labels: Vec<String> = nets(&design).into_iter().map(|n| n.label).collect();
+        assert_eq!(labels, ["N1", "バス"]);
+        assert_eq!(harnesses(&design)[0].label, "H1");
+    }
 }

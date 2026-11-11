@@ -107,6 +107,11 @@ async fn project_and_design() {
     assert_eq!(s, StatusCode::OK, "{p}");
     assert!(p["revision"].as_str().unwrap().starts_with("b3:"));
     assert!(p["counts"]["parts"].as_u64().unwrap() > 0);
+    // 書き込めるカタログの出所（Web が置き先の名前を書かずに選ぶ）
+    assert_eq!(
+        p["catalogs"],
+        json!([{ "name": "local", "editable": true }])
+    );
     let (s, d) = call(&r, "GET", "/api/v1/design", None).await;
     assert_eq!(s, StatusCode::OK);
     assert_eq!(d["project"]["revision"], p["revision"]);
@@ -211,6 +216,22 @@ async fn invalid_op_is_400() {
     assert!(e["error"]["code"].is_string());
 }
 
+/// 名詞のコマンドの引数（`POST /ops/from_command`）: 読めれば Op の列、読めない文字列は入力の誤りで、書き込まない。
+#[tokio::test]
+async fn command_text_becomes_ops_or_400() {
+    let (_tmp, r) = demo_router();
+    let body = json!({ "command": "net_set", "net": "P5V", "rail": "5.1 V" });
+    let (s, ops) = call(&r, "POST", "/api/v1/ops/from_command", Some(body)).await;
+    assert_eq!(s, StatusCode::OK, "{ops}");
+    assert_eq!(ops[0]["op"], "set_net_field", "{ops}");
+    assert_eq!(ops[0]["field"]["value"]["unit"], "V", "{ops}");
+    let bad = json!({ "command": "mode_set", "cells": [
+        { "mode": "NOMINAL", "part": "UHF_TRX", "state": "rx", "duty": { "tx": "ten" } }] });
+    let (s, e) = call(&r, "POST", "/api/v1/ops/from_command", Some(bad)).await;
+    assert!(s.is_client_error(), "{s} {e}");
+    assert_eq!(e["error"]["code"], "invalid_input", "{e}");
+}
+
 #[tokio::test]
 async fn analyses_run_and_budgets() {
     let (_tmp, r) = demo_router();
@@ -249,8 +270,11 @@ async fn units_format_and_views() {
         { "si": 2.0e6, "dimension": "Information", "unit": "Mbit" } ] });
     let (s, v) = call(&r, "POST", "/api/v1/units/format", Some(body)).await;
     assert_eq!(s, StatusCode::OK, "{v}");
-    assert_eq!(v["items"][0]["text"], "12.3 mW");
-    assert_eq!(v["items"][1]["text"], "2.00 Mbit");
+    // ほかの API と同じ量の表示（`QuantityView`）
+    assert_eq!(v["items"][0]["display"], "12.3 mW");
+    assert_eq!(v["items"][0]["si"], 0.0123);
+    assert_eq!(v["items"][1]["display"], "2.00 Mbit");
+    assert_eq!(v["items"][1]["unit"], "Mbit");
     let op = json!([{ "op": "set_view_layout", "view": "electrical",
         "nodes": [{ "id": "RW_X", "x": 10, "y": 20 }] }]);
     let (s, _) = call(&r, "POST", "/api/v1/ops", Some(json!({ "ops": op }))).await;
@@ -346,7 +370,7 @@ async fn place_body_converts_to_mount_local() {
 #[tokio::test]
 async fn format_check_is_read_only_and_apply_is_idempotent() {
     let (tmp, router) = demo_router();
-    let path = tmp.path().join("demo-6u/parts/AOCS/RW_X.toml");
+    let path = tmp.path().join("demo-6u/parts/aocs/RW_X.toml");
     let original = std::fs::read_to_string(&path).unwrap();
     let messy = format!("\n\n{original}\n\n");
     std::fs::write(&path, &messy).unwrap();
@@ -356,7 +380,7 @@ async fn format_check_is_read_only_and_apply_is_idempotent() {
         v["changed"]
             .as_array()
             .unwrap()
-            .contains(&json!("parts/AOCS/RW_X.toml"))
+            .contains(&json!("parts/aocs/RW_X.toml"))
     );
     assert_eq!(std::fs::read_to_string(&path).unwrap(), messy);
     let (s, applied) = call(&router, "POST", "/api/v1/fmt", Some(json!({}))).await;

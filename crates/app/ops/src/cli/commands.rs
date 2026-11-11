@@ -1,9 +1,12 @@
-//! Op ごとのコマンド。
+//! Op ごとのコマンド。値の文字列は `fune_model::value` の書き方（`value_to_text`・`setting_to_text` など）で作る。
 
-use super::text::{Cmd, num, number_unit, quantity_text, vector_text};
+use super::text::Cmd;
 use crate::op::{ModeCell, Op, ViewNodePos};
-use fune_model::design::{Net, NetField, PartField};
-use fune_model::value::{Provenance, Scalar, SettingValue, Value};
+use fune_model::design::{Net, NetField, NetFieldName, PartField};
+use fune_model::value::{
+    Provenance, Scalar, Value, list_to_text, number_to_text, number_unit_to_text, quantity_to_text,
+    quaternion_to_text, setting_to_text, value_to_text, vector_to_text,
+};
 
 /// 部品の Op のコマンド。部品の Op でなければ None。
 pub(super) fn part_op(op: &Op) -> Option<Vec<String>> {
@@ -101,8 +104,8 @@ fn place(
         Some(on) => cmd.flag("on", Some(on)).flag("point", point),
         None => cmd.switch("root", true),
     };
-    let pos = position.map(vector_text);
-    let ori = orientation.map(|q| format!("{} {} {} {}", num(q.w), num(q.x), num(q.y), num(q.z)));
+    let pos = position.map(vector_to_text);
+    let ori = orientation.map(quaternion_to_text);
     cmd.flag("position", pos.as_deref())
         .flag("orientation", ori.as_deref())
         .done()
@@ -170,7 +173,7 @@ pub(super) fn other_op(op: &Op) -> Vec<String> {
         } => view_cmds(view, nodes, remove),
         Op::SetSetting { path, value } => vec![match value {
             Some(v) => Cmd::new(&["fune", "setting", "set", path])
-                .arg(&setting_text(v))
+                .arg(&setting_to_text(v))
                 .done(),
             None => Cmd::new(&["fune", "setting", "unset", path]).done(),
         }],
@@ -179,11 +182,11 @@ pub(super) fn other_op(op: &Op) -> Vec<String> {
 }
 
 fn scalar_cmd(head: &[&str], path: &str, s: &Scalar, from: Option<&Provenance>) -> String {
-    let min = s.min.map(|m| number_unit(m, &s.unit));
-    let max = s.max.map(|m| number_unit(m, &s.unit));
+    let min = s.min.map(|m| number_unit_to_text(m, &s.unit));
+    let max = s.max.map(|m| number_unit_to_text(m, &s.unit));
     Cmd::new(head)
         .arg(path)
-        .arg(&number_unit(s.value, &s.unit))
+        .arg(&number_unit_to_text(s.value, &s.unit))
         .flag("min", min.as_deref())
         .flag("max", max.as_deref())
         .from(from)
@@ -218,15 +221,14 @@ pub(super) fn value_cmds(
                 })
                 .collect();
         }
-        Value::Vec3(v) => vector_text(v),
-        Value::Quat(q) => format!("{} {} {} {}", num(q.w), num(q.x), num(q.y), num(q.z)),
-        Value::Range(r) => format!("{} .. {}", num(r.min), number_unit(r.max, &r.unit)),
-        Value::Enum(s) | Value::Text(s) | Value::Table(s) => s.clone(),
-        Value::Bool(b) => b.to_string(),
-        Value::Tensor3(_) => {
-            let json = serde_json::to_string(value).unwrap_or_default();
-            return vec![Cmd::new(head).arg(&path).flag("json", Some(&json)).done()];
-        }
+        other => match value_to_text(other) {
+            Some(text) => text,
+            // 1 つの文字列にならない値（テンソル）は値の JSON で渡す
+            None => {
+                let json = serde_json::to_string(value).unwrap_or_default();
+                return vec![Cmd::new(head).arg(&path).flag("json", Some(&json)).done()];
+            }
+        },
     };
     vec![Cmd::new(head).arg(&path).arg(&text).from(from).done()]
 }
@@ -240,7 +242,7 @@ fn set_field(part: &str, field: &PartField) -> String {
         | PartField::Kind(v) => v.clone(),
         PartField::Count(n) => Some(n.to_string()),
         PartField::Maturity(m) => m.map(|m| m.as_str().to_string()),
-        PartField::Candidates(c) => (!c.is_empty()).then(|| c.join(",")),
+        PartField::Candidates(c) => (!c.is_empty()).then(|| list_to_text(c)),
     };
     match text {
         Some(t) => Cmd::new(&["fune", "set", &path]).arg(&t).done(),
@@ -252,11 +254,11 @@ fn mode_cell(cell: &ModeCell) -> String {
     match &cell.state {
         Some(state) => {
             let duty = (!cell.duty.is_empty()).then(|| {
-                cell.duty
-                    .iter()
-                    .map(|(s, d)| format!("{s}={}", num(*d)))
-                    .collect::<Vec<_>>()
-                    .join(",")
+                list_to_text(
+                    cell.duty
+                        .iter()
+                        .map(|(s, d)| format!("{s}={}", number_to_text(*d))),
+                )
             });
             Cmd::new(&["fune", "mode", "set", &cell.mode, &cell.part, state])
                 .flag("duty", duty.as_deref())
@@ -266,18 +268,21 @@ fn mode_cell(cell: &ModeCell) -> String {
     }
 }
 
+/// ネットのフィールドの値の文字列（`--<フィールド>` の値。None は消す）。1 フィールドの旗と丸ごとの旗で共通。
+fn net_field_text(field: &NetField) -> Option<String> {
+    match field {
+        NetField::Kind(k) => Some(k.as_str().to_owned()),
+        NetField::Label(v) | NetField::Protocol(v) => v.clone(),
+        NetField::Source(p) | NetField::Master(p) => p.as_ref().map(ToString::to_string),
+        NetField::Rail(q) | NetField::Limit(q) | NetField::Bitrate(q) => {
+            q.as_ref().map(quantity_to_text)
+        }
+    }
+}
+
 /// `fune net set <ID> --<フィールド> <値>` / `fune net unset <ID> <フィールド>`（1 フィールド 1 行）。
 fn net_field_cmd(net: &str, field: &NetField) -> String {
-    let text: Option<String> = match field {
-        NetField::Kind(k) => Some(k.as_str().to_string()),
-        NetField::Label(v) | NetField::Source(v) | NetField::Protocol(v) | NetField::Master(v) => {
-            v.clone()
-        }
-        NetField::Rail(q) | NetField::Limit(q) | NetField::Bitrate(q) => {
-            q.as_ref().map(quantity_text)
-        }
-    };
-    match text {
+    match net_field_text(field) {
         Some(t) => Cmd::new(&["fune", "net", "set", net])
             .flag(field.name(), Some(&t))
             .done(),
@@ -285,19 +290,17 @@ fn net_field_cmd(net: &str, field: &NetField) -> String {
     }
 }
 
+/// `fune net add|replace <ID> --kind … --<フィールド> …`（旗の順は `NetFieldName` の順）。
 fn net_cmd(verb: &str, net: &Net) -> String {
-    let rail = net.rail.as_ref().map(quantity_text);
-    let limit = net.limit.as_ref().map(quantity_text);
-    let bitrate = net.bitrate.as_ref().map(quantity_text);
-    Cmd::new(&["fune", "net", verb, net.id.as_str()])
-        .flag("kind", Some(net.kind.as_str()))
-        .flag("label", net.label.as_deref())
-        .flag("source", net.source.as_deref())
-        .flag("rail", rail.as_deref())
-        .flag("limit", limit.as_deref())
-        .flag("protocol", net.protocol.as_deref())
-        .flag("bitrate", bitrate.as_deref())
-        .flag("master", net.master.as_deref())
+    NetFieldName::ALL
+        .iter()
+        .fold(
+            Cmd::new(&["fune", "net", verb, net.id.as_str()]),
+            |cmd, &key| {
+                let text = net_field_text(&NetField::of(net, key));
+                cmd.flag(key.as_str(), text.as_deref())
+            },
+        )
         .done()
 }
 
@@ -313,16 +316,4 @@ fn view_cmds(view: &str, nodes: &[ViewNodePos], remove: &[String]) -> Vec<String
         .iter()
         .map(|id| Cmd::new(&["fune", "view", "rm", view, id]).done());
     set.chain(rm).collect()
-}
-
-fn setting_text(value: &SettingValue) -> String {
-    match value {
-        SettingValue::Number(n) => num(*n),
-        SettingValue::Integer(i) => i.to_string(),
-        SettingValue::Bool(b) => b.to_string(),
-        SettingValue::Text(s) => s.clone(),
-        SettingValue::Quantity(q) => quantity_text(q),
-        SettingValue::Vector(v) => vector_text(v),
-        SettingValue::List(l) => l.join(","),
-    }
 }

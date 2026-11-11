@@ -1,37 +1,72 @@
-//! 解析の出力の量の次元: 出力を型付きのまま書き出し、`Qty` の葉ごとに JSON Pointer → 次元名を集める。
-//! `Qty::serialize` が書き出す直前に記録する次元（`sat_units::take_last_dimension`）を、数値の葉の位置と結び付けるだけ。
-//! 出力の JSON そのものは `serde_json` が作る（ここは位置と次元しか作らない）。
+//! 解析の出力の量の次元と列挙の値: 出力を型付きのまま書き出し、`Qty` の葉ごとに JSON Pointer → 次元名を、
+//! 列挙の値ごとに JSON Pointer → (型名, 綴り) を集める。
+//! `Qty::serialize`（トルクの欄は `TorqueKind::serialize`）が書き出す直前に記録する次元・種類（`sat_units::take_last_dimension`）を、数値の葉の位置と結び付けるだけ。
+//! 列挙は serde が書き出しに渡す型名で見分ける（表示名は `analysis::labels`）。
+//! 出力の JSON そのものは `serde_json` が作る（ここは位置と次元・列挙しか作らない）。
 
 use serde::ser::{self, Serialize};
 use std::collections::BTreeMap;
 use std::fmt;
 
-/// 出力を書き出して `{ "/a/0/b": "Power" }` を返す。
-pub fn dims_of<T: Serialize>(value: &T) -> BTreeMap<String, String> {
+/// 出力の書き出しで集めたもの。
+#[derive(Debug, Default)]
+pub struct OutputMeta {
+    /// JSON Pointer → 次元名（`{ "/a/0/b": "Power" }`）
+    pub dims: BTreeMap<String, String>,
+    /// JSON Pointer → (型名, 値の綴り)。外部タグの単位の値（`"gravity_gradient"`）と、内部タグの列挙のタグ（`kind`）
+    pub variants: BTreeMap<String, (&'static str, String)>,
+}
+
+/// 出力を書き出して、量の次元と列挙の値を集める。
+pub fn meta_of<T: Serialize>(value: &T) -> OutputMeta {
+    // 同じスレッドで前に書き出した量の記録が残っていると、最初の葉（文字列など）に付いてしまうので消す。
+    let _ = sat_units::take_last_dimension();
     let mut r = Recorder::default();
     // 書き出しの失敗（あり得ないが）では、集めた分だけを返す。
     let _ = value.serialize(&mut r);
-    r.dims
+    r.meta
+}
+
+/// 出力を書き出して `{ "/a/0/b": "Power" }` を返す。
+#[cfg(test)]
+pub fn dims_of<T: Serialize>(value: &T) -> BTreeMap<String, String> {
+    meta_of(value).dims
+}
+
+/// 内部タグの列挙のタグの欄（sat-analysis の列挙はどれも `#[serde(tag = "kind")]`）。
+const TAG: &str = "kind";
+
+/// JSON Pointer（RFC 6901）の 1 区間の書き方（`~` → `~0`、`/` → `~1`）。**service の pointer の区間はここだけで書く**
+/// （次元・列挙の位置と、判定の位置 `analysis::checks`。Web は `analysis/output.ts` の `jsonPointer`）。
+pub(super) fn pointer_token(key: &str) -> String {
+    key.replace('~', "~0").replace('/', "~1")
 }
 
 #[derive(Default)]
 struct Recorder {
     path: Vec<String>,
-    dims: BTreeMap<String, String>,
+    /// 書き出し中の構造体の型名（内側ほど後ろ）。内部タグの列挙はこの名前で書き出される
+    structs: Vec<&'static str>,
+    meta: OutputMeta,
 }
 
 impl Recorder {
+    fn variant(&mut self, ty: &'static str, value: &str) {
+        let p = self.pointer();
+        self.meta.variants.insert(p, (ty, value.to_owned()));
+    }
+
     fn pointer(&self) -> String {
         self.path
             .iter()
-            .map(|s| format!("/{}", s.replace('~', "~0").replace('/', "~1")))
+            .map(|s| format!("/{}", pointer_token(s)))
             .collect()
     }
 
     fn leaf(&mut self) {
         if let Some(dim) = sat_units::take_last_dimension() {
             let p = self.pointer();
-            self.dims.insert(p, dim.to_owned());
+            self.meta.dims.insert(p, dim.to_owned());
         }
     }
 
@@ -99,7 +134,13 @@ impl<'a> ser::Serializer for &'a mut Recorder {
     fn serialize_unit_struct(self, _: &'static str) -> Result<(), Error> {
         Ok(())
     }
-    fn serialize_unit_variant(self, _: &'static str, _: u32, _: &'static str) -> Result<(), Error> {
+    fn serialize_unit_variant(
+        self,
+        ty: &'static str,
+        _: u32,
+        variant: &'static str,
+    ) -> Result<(), Error> {
+        self.variant(ty, variant);
         Ok(())
     }
     fn serialize_newtype_struct<T: Serialize + ?Sized>(
@@ -156,7 +197,9 @@ impl<'a> ser::Serializer for &'a mut Recorder {
     fn serialize_map(self, _: Option<usize>) -> Result<Map<'a>, Error> {
         Ok(Map { r: self, key: None })
     }
-    fn serialize_struct(self, _: &'static str, _: usize) -> Result<&'a mut Recorder, Error> {
+    fn serialize_struct(self, ty: &'static str, _: usize) -> Result<&'a mut Recorder, Error> {
+        // `end` で外す
+        self.structs.push(ty);
         Ok(self)
     }
     fn serialize_struct_variant(
@@ -272,9 +315,19 @@ impl ser::SerializeStruct for &mut Recorder {
         key: &'static str,
         value: &T,
     ) -> Result<(), Error> {
+        if key == TAG
+            && let (Some(&ty), Ok(serde_json::Value::String(tag))) =
+                (self.structs.last(), serde_json::to_value(value))
+        {
+            // 内部タグの列挙（`{ "kind": "closes_above", … }`）は型名とタグの値を記録する
+            self.path.push(key.to_owned());
+            self.variant(ty, &tag);
+            self.path.pop();
+        }
         self.nested(key.to_owned(), value)
     }
     fn end(self) -> Result<(), Error> {
+        self.structs.pop();
         Ok(())
     }
 }
@@ -296,38 +349,4 @@ impl ser::SerializeStructVariant for &mut Recorder {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::dims_of;
-    use sat_units::typed::{Power, Qty, Time};
-    use serde::Serialize;
-
-    #[derive(Serialize)]
-    struct Inner {
-        p: Qty<Power>,
-        ratio: f64,
-    }
-
-    #[derive(Serialize)]
-    struct Out {
-        items: Vec<Inner>,
-        t: Option<Qty<Time>>,
-        map: std::collections::BTreeMap<String, Qty<Power>>,
-    }
-
-    #[test]
-    fn records_pointer_and_dimension_of_every_qty() {
-        let out = Out {
-            items: vec![Inner {
-                p: Qty::from_raw(1.0),
-                ratio: 0.5,
-            }],
-            t: Some(Qty::from_raw(3.0)),
-            map: [("a/b".to_owned(), Qty::from_raw(2.0))].into(),
-        };
-        let d = dims_of(&out);
-        assert_eq!(d.get("/items/0/p").map(String::as_str), Some("Power"));
-        assert_eq!(d.get("/t").map(String::as_str), Some("Time"));
-        assert_eq!(d.get("/map/a~1b").map(String::as_str), Some("Power"));
-        assert!(!d.contains_key("/items/0/ratio"));
-    }
-}
+mod tests;

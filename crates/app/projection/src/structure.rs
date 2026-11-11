@@ -3,7 +3,11 @@
 use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::pose;
-use crate::quantity::{qty, qty_opt};
+use crate::quantity::{qty_opt, setting, setting_opt};
+use fune_model::Target;
+use fune_model::design::setting_dims::{self as dims, SettingQuantity};
+use fune_model::design::{AnalysisSystem, BudgetKind};
+use fune_model::path::SettingPath;
 use fune_model::resolve::SiValue;
 use sat_analysis::structure::mass_properties::{MassPropertiesItem, MassPropertiesSummary};
 use sat_analysis::structure::modal_estimate::{
@@ -14,7 +18,7 @@ use sat_analysis::structure::{
     MassPropertiesInput, ModalEstimateInput, StaticLoadInput, mass_properties as compute,
 };
 use sat_astro::math::Vec3;
-use sat_units::typed::{Force, Frequency, Length, Mass, MassDensity, Pressure, Qty};
+use sat_units::typed::{Acceleration, Length, Mass, Qty};
 
 /// 質量を持つ部品の質量特性の項目（位置は取付をたどった機体座標の部品原点。外形 `size` があれば箱として慣性を足す）。
 pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem> {
@@ -23,7 +27,7 @@ pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem
         // 1 個あたりの質量と員数を渡す（員数を掛けるのは解析）。
         let Some(mass) = p.scalar("mass") else {
             if p.attr.contains_key("mass") {
-                m.push(format!("{}.mass", p.id), "部品の質量");
+                m.push(Target::attr(&p.id, "mass"), "部品の質量");
             }
             continue;
         };
@@ -40,7 +44,7 @@ pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem
         });
     }
     if out.is_empty() {
-        m.push("<部品>.mass", "質量を持つ部品がありません");
+        m.push(Target::any_part("mass"), "質量を持つ部品がありません");
     }
     out
 }
@@ -49,8 +53,15 @@ pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem
 pub fn mass_properties(ctx: &Context<'_>) -> Result<MassPropertiesInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let items = items(ctx, &mut m);
-    let limit = ctx.design.budget.allocation.mass.as_ref().map(|a| &a.limit);
-    let max_mass = qty_opt::<Mass>(limit, "budget.mass.limit", &mut m);
+    let limit = ctx
+        .design
+        .budget
+        .allocation
+        .mass
+        .as_ref()
+        .and_then(|a| a.limit.as_ref());
+    let target = SettingPath::budget(&[BudgetKind::Mass.as_str(), "limit"]);
+    let max_mass = qty_opt::<Mass>(limit, target, &mut m);
     m.finish(|| {
         Some(MassPropertiesInput {
             items,
@@ -66,19 +77,25 @@ pub fn summary(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<MassPropertie
     match compute(&items) {
         Ok(s) => Some(s),
         Err(e) => {
-            m.push("<部品>.mass", format!("質量特性を求められません（{e}）"));
+            let target = Target::any_part("mass");
+            m.push(target, format!("質量特性を求められません（{e}）"));
             None
         }
     }
 }
 
+/// `mission.launch.<…>`（`mission/launch.toml` のキー）。
+fn launch(keys: &[&str]) -> SettingPath {
+    SettingPath::mission(&["launch"]).child(keys)
+}
+
 /// 荷重倍数（`g0` の倍数）。単位が無ければそのまま、あれば `g0` に換算する（換算は sat-units）。
 fn load_factor(
     q: Option<&fune_model::value::Quantity>,
-    path: &str,
+    key: &SettingQuantity<Acceleration>,
     m: &mut MissingInputs,
 ) -> Option<f64> {
-    let q = m.need(q, path, "準静的荷重（g0）")?;
+    let q = m.need(q, key.at(&[]), "準静的荷重（g0）")?;
     if q.unit.is_empty() {
         return Some(q.value);
     }
@@ -118,7 +135,7 @@ fn interfaces(
         .structure
         .as_ref()
         .and_then(|s| s.fastener_allowable.as_ref());
-    let Some(a) = qty_opt::<Force>(allowable, "analysis.structure.fastener_allowable", m) else {
+    let Some(a) = setting_opt(&dims::STRUCTURE_FASTENER_ALLOWABLE, &[], allowable, m) else {
         return Vec::new();
     };
     let mut mounts: Vec<String> = items.iter().map(|i| i.mount.clone()).collect();
@@ -141,18 +158,13 @@ pub fn static_load(ctx: &Context<'_>) -> Result<StaticLoadInput, MissingInputs> 
     let launch = ctx.design.mission.launch.as_ref();
     let launch = m.need(
         launch,
-        "mission.launch",
+        self::launch(&[]),
         "打ち上げ条件（mission/launch.toml）",
     );
-    let axial = launch
-        .and_then(|l| load_factor(l.load_axial.as_ref(), "mission.launch.load_axial", &mut m));
-    let lateral = launch.and_then(|l| {
-        load_factor(
-            l.load_lateral.as_ref(),
-            "mission.launch.load_lateral",
-            &mut m,
-        )
-    });
+    let axial =
+        launch.and_then(|l| load_factor(l.load_axial.as_ref(), &dims::LAUNCH_LOAD_AXIAL, &mut m));
+    let lateral = launch
+        .and_then(|l| load_factor(l.load_lateral.as_ref(), &dims::LAUNCH_LOAD_LATERAL, &mut m));
     let items = load_items(ctx);
     let interfaces = interfaces(ctx, &items, &mut m);
     let safety_factor = launch.and_then(|l| l.safety_factor_yield);
@@ -182,32 +194,42 @@ fn panel(
     m: &mut MissingInputs,
 ) -> Option<ModalEstimatePanel> {
     let Some(SiValue::Enum(name)) = p.value("material") else {
-        m.push(format!("{}.material", p.id), "パネルの材料");
+        m.push(Target::attr(&p.id, "material"), "パネルの材料");
         return None;
     };
-    let mp = format!("analysis.structure.material.{name}");
+    let mp = AnalysisSystem::Structure
+        .setting_path()
+        .child(&["material", name]);
     let materials = ctx.design.analysis.structure.as_ref().map(|s| &s.material);
     let mat = m.need(
         materials.and_then(|ms| ms.get(name.as_str())),
-        mp.as_str(),
+        mp.clone(),
         "材料の物性",
     )?;
     let size = m.need(
         p.vec3("size"),
-        format!("{}.size", p.id),
+        Target::attr(&p.id, "size"),
         "パネルの外形（2 辺）",
     );
     let thickness = crate::parts::part_qty::<Length>(p, "thickness", "パネルの板厚", m);
-    let e = qty::<Pressure>(
+    let at = [name.as_str()];
+    let e = setting(
+        &dims::MATERIAL_YOUNGS_MODULUS,
+        &at,
         mat.youngs_modulus.as_ref(),
-        &format!("{mp}.youngs_modulus"),
         "ヤング率",
         m,
     );
-    let rho = qty::<MassDensity>(mat.density.as_ref(), &format!("{mp}.density"), "密度", m);
+    let rho = setting(
+        &dims::MATERIAL_DENSITY,
+        &at,
+        mat.density.as_ref(),
+        "密度",
+        m,
+    );
     let nu = m.need(
         mat.poisson_ratio,
-        format!("{mp}.poisson_ratio"),
+        mp.child(&["poisson_ratio"]),
         "ポアソン比",
     );
     let mut sides = size?;
@@ -232,18 +254,17 @@ pub fn modal_estimate(ctx: &Context<'_>) -> Result<ModalEstimateInput, MissingIn
         .filter_map(|p| panel(ctx, p, &mut m))
         .collect();
     let launch = ctx.design.mission.launch.as_ref();
-    let freq = |q: Option<&fune_model::value::Quantity>, path: &str, m: &mut MissingInputs| {
-        qty_opt::<Frequency>(q, path, m)
-    };
     let requirements = ModalEstimateRequirements {
-        lateral: freq(
+        lateral: setting_opt(
+            &dims::LAUNCH_MIN_FREQUENCY_LATERAL,
+            &[],
             launch.and_then(|l| l.min_frequency_lateral.as_ref()),
-            "mission.launch.min_frequency_lateral",
             &mut m,
         ),
-        axial: freq(
+        axial: setting_opt(
+            &dims::LAUNCH_MIN_FREQUENCY_AXIAL,
+            &[],
             launch.and_then(|l| l.min_frequency_axial.as_ref()),
-            "mission.launch.min_frequency_axial",
             &mut m,
         ),
         panel: None,

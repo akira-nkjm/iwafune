@@ -7,7 +7,9 @@
 //! | `system` | Mode・Net・Harness・Case・Source |
 //! | `budget` | 配分とマージン方針 |
 //! | `project` | `fune.toml` |
-//! | `mission` / `analysis` | `mission/`・`analysis/` の型付きの設定 |
+//! | `mission` / `analysis` | `mission/`・`analysis/` の型付きの設定。解析の系の一覧 `AnalysisSystem` |
+//! | `refs` | 参照の索引（ある ID をどのエンティティのどのキーが持っているか。`Design::references`） |
+//! | `setting_dims` | 設定の量の次元の表（パスの形 → 次元。検査と射影が引く） |
 //! | `settings_view` | 型付きの設定をパス記法で読む（`Design::setting`・`setting_entries`・`settings_json`） |
 //! | `source_map` | エンティティ → ファイル・キー → 行 |
 //! | `view` | 図の配置（見た目だけ） |
@@ -19,6 +21,8 @@ pub mod mission;
 pub mod net;
 pub mod part;
 pub mod project;
+pub mod refs;
+pub mod setting_dims;
 pub mod settings_view;
 pub mod source_map;
 pub mod system;
@@ -30,11 +34,13 @@ pub use defs::*;
 pub use mission::*;
 pub use part::*;
 pub use project::*;
+pub use refs::{HarnessEnd, NetEnd, RefSite, Referent};
 pub use settings_view::SettingEntry;
 pub use source_map::{EntityKey, Loc, SourceMap};
 pub use system::*;
 pub use view::{ViewEdge, ViewLayout, ViewNode, ViewPortSide};
 
+use crate::chain::chain;
 use crate::diagnostic::Diagnostic;
 use crate::id::Id;
 use serde::{Deserialize, Serialize};
@@ -153,51 +159,41 @@ impl Design {
         }
     }
 
-    /// ノードの祖先の連鎖（親 → 最上位の順）。
+    /// ノードの祖先の連鎖（親 → 最上位の順。循環していればそこで止める）。
     pub fn ancestors(&self, node: &NodeRef) -> Vec<NodeRef> {
-        let mut out: Vec<NodeRef> = Vec::new();
-        let mut current = self.parent_of(node).cloned();
-        while let Some(parent) = current {
-            if out.contains(&parent) {
-                break;
-            }
-            current = self.parent_of(&parent).cloned();
-            out.push(parent);
-        }
-        out
+        chain(self.parent_of(node).cloned(), NodeRef::clone, |n| {
+            self.parent_of(n).cloned()
+        })
+        .collect()
     }
 
-    /// カタログ品を参照しているもの（部品の `catalog`・`candidates`、ハーネスの `wire`）。
+    /// カタログ品を参照しているもの（部品の ID、ハーネスは `harness/<ID>`。部品 → ハーネスの順）。
+    /// 参照の所在は [`Design::references`]（削除を拒む文に使う）。
     pub fn catalog_users(&self, reference: &str) -> Vec<String> {
         let harnesses = self
-            .harnesses
-            .values()
-            .filter(|h| h.wire.as_deref() == Some(reference))
-            .map(|h| format!("harness/{}", h.id));
+            .references(Referent::Catalog(reference))
+            .into_iter()
+            .filter_map(|site| match site {
+                RefSite::HarnessWire { harness } => Some(format!("harness/{harness}")),
+                _ => None,
+            });
         self.catalog_part_users(reference)
             .into_iter()
             .chain(harnesses)
             .collect()
     }
 
-    /// カタログ品を選択中（`catalog`）か候補（`candidates`）に入れている部品の ID（ID 順）。
+    /// カタログ品を選択中（`catalog`）か候補（`candidates`）に入れている部品の ID（ID 順）。参照の所在は [`Design::references`]。
     pub fn catalog_part_users(&self, reference: &str) -> Vec<String> {
-        self.parts
-            .values()
-            .filter(|p| {
-                p.catalog.as_deref() == Some(reference)
-                    || p.candidates.iter().any(|c| c == reference)
+        let mut parts: Vec<String> = self
+            .references(Referent::Catalog(reference))
+            .into_iter()
+            .filter_map(|site| match site {
+                RefSite::PartCatalog { part } | RefSite::PartCandidate { part } => Some(part),
+                _ => None,
             })
-            .map(|p| p.id.to_string())
-            .collect()
-    }
-
-    /// 最上位の Group（サブシステム）。
-    pub fn subsystem_of(&self, part: &str) -> Option<&str> {
-        let ancestors = self.ancestors(&NodeRef::Part(Id::new(part)));
-        ancestors.last().and_then(|n| match n {
-            NodeRef::Group(g) => self.groups.get(g).map(|g| g.id.as_str()),
-            NodeRef::Part(_) => None,
-        })
+            .collect();
+        parts.dedup();
+        parts
     }
 }

@@ -1,17 +1,16 @@
 //! 熱（定常）（`thermal.steady`）。ケース（高温・低温など）ごとに節点温度の定常解を求め、動作温度範囲と比べる。
 //! 解法は [`crate::thermal::network`]、入熱は [`crate::thermal::orbit_heat`]。
 
-use crate::spec::quantity_text;
-use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, Verdict, margin_verdict};
+use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, Verdict};
 use crate::thermal::network::{
-    Compiled, ThermalLoad, ThermalModeLoads, ThermalNetwork, ThermalTempRange,
+    Compiled, INITIAL_GUESS_K, ThermalLoad, ThermalModeLoads, ThermalNetwork, ThermalTempRange,
 };
-use crate::thermal::orbit_heat::{ThermalEnvironment, ThermalExposure, exposure_absorbed};
+use crate::thermal::orbit_heat::{
+    ThermalEnvironment, ThermalEnvironmentUsed, ThermalExposure, exposure_absorbed,
+};
+use crate::thermal::range::{RANGE_WARNING_BAND_K, range_check, range_verdict};
 use sat_units::typed::{Power, Qty, Temperature};
 use serde::{Deserialize, Serialize};
-
-/// Newton 法の初期値 [K]。
-const INITIAL_GUESS_K: f64 = 290.0;
 
 /// 定常のケース。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,6 +60,8 @@ pub struct ThermalSteadyNodeResult {
 pub struct ThermalSteadyCaseResult {
     pub id: String,
     pub label: String,
+    /// 使った熱環境（入力に無い値は既定値）
+    pub environment: ThermalEnvironmentUsed,
     /// 入力の節点の順
     pub nodes: Vec<ThermalSteadyNodeResult>,
     pub iterations: u32,
@@ -156,7 +157,7 @@ fn solve_case(
     let q: Vec<f64> = absorbed.iter().zip(&internal).map(|(a, b)| a + b).collect();
     let sol = net.solve_steady(
         &q,
-        case.environment.space_temperature.value(),
+        case.environment.space_temperature().value(),
         INITIAL_GUESS_K,
     )?;
     let nodes = network
@@ -180,6 +181,7 @@ fn solve_case(
     Ok(ThermalSteadyCaseResult {
         id: case.id.clone(),
         label: case.label.clone(),
+        environment: case.environment.used(),
         nodes,
         iterations: sol.iterations,
         residual: Qty::from_raw(sol.residual_w),
@@ -218,46 +220,13 @@ fn envelope(
         .collect()
 }
 
-/// 動作範囲の端からこの幅 [K] 以内なら警告にする。出力の `range_warning_band` にも出す（Web はこれを使う）。
-pub const RANGE_WARNING_BAND_K: f64 = 5.0;
-
-/// 最低 `lo`・最高 `hi` [K] を動作範囲と比べる（端から [`RANGE_WARNING_BAND_K`] 以内は警告）。範囲が無ければ Ok。
-pub(crate) fn range_verdict(lo: f64, hi: f64, range: Option<ThermalTempRange>) -> Verdict {
-    let Some(r) = range else {
-        return Verdict::Ok;
-    };
-    let margin = (lo - r.min.value()).min(r.max.value() - hi);
-    margin_verdict(margin, RANGE_WARNING_BAND_K)
-}
-
-/// 動作範囲との比較の判定（範囲が無ければ `None`）。温度の表示は sat-units に委譲する。
-pub(crate) fn range_check(
-    node: &str,
-    lo: f64,
-    hi: f64,
-    range: Option<ThermalTempRange>,
-) -> Option<Check> {
-    let r = range?;
-    Some(Check::new(
-        &format!("range:{node}"),
-        &format!("{node} の温度"),
-        range_verdict(lo, hi, range),
-        format!(
-            "{}〜{}（動作範囲 {}〜{}）",
-            quantity_text(lo, "Temperature"),
-            quantity_text(hi, "Temperature"),
-            quantity_text(r.min.value(), "Temperature"),
-            quantity_text(r.max.value(), "Temperature")
-        ),
-    ))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::thermal::network::{ThermalConductiveLink, ThermalSurface, tests::node};
     use sat_astro::constants::SIGMA_SB;
     use sat_astro::math::Vec3;
+    use sat_units::typed::Fraction;
 
     fn input() -> ThermalSteadyInput {
         let mut panel = node("panel", None);
@@ -291,7 +260,7 @@ mod tests {
                 label: "高温".to_owned(),
                 environment: ThermalEnvironment {
                     solar_flux: Some(Qty::from_raw(1400.0)),
-                    space_temperature: Qty::from_raw(0.0),
+                    space_temperature: Some(Qty::from_raw(0.0)),
                     ..ThermalEnvironment::default()
                 },
                 exposure: ThermalExposure::Fixed {
@@ -332,8 +301,8 @@ mod tests {
     fn orbit_average_cube() {
         use crate::thermal::orbit_heat::fixtures::{cube, leo_timeline};
         let mut tl = leo_timeline(1.0, 20.0);
-        let period = tl.orbit.period_s();
-        tl.span = Qty::from_raw(period);
+        let period = tl.orbit().period_s();
+        tl.sampling.span = Qty::from_raw(period);
         let samples = sat_astro::timeline::build(&tl).unwrap();
         let t: Vec<f64> = samples.iter().map(|s| s.t_s).collect();
         // 1 周回（両端を含む）で台形則の時間平均を取る。
@@ -350,9 +319,9 @@ mod tests {
             / (t[last] - t[first]);
         let env = |flux: f64, albedo: f64, ir: f64| ThermalEnvironment {
             solar_flux: Some(Qty::from_raw(flux)),
-            albedo,
-            earth_ir: Qty::from_raw(ir),
-            space_temperature: Qty::from_raw(0.0),
+            albedo: Some(Fraction::new(albedo)),
+            earth_ir: Some(Qty::from_raw(ir)),
+            space_temperature: Some(Qty::from_raw(0.0)),
         };
         let case = |id: &str, e: ThermalEnvironment| ThermalSteadyCase {
             mode_loads: None,

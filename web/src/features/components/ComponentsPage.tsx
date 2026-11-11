@@ -1,72 +1,77 @@
-import { Plus, Search } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
-import { useParams } from "react-router";
 import { useDesign } from "@/api/queries";
 import type { DesignView, PartRow } from "@/api/types";
 import { useT } from "@/i18n";
-import { DetailLayout, DetailLoading } from "@/kit/DetailLayout";
-import { Empty } from "@/kit/Empty";
-import { NativeSelect } from "@/kit/NativeSelect";
-import { PageTabs } from "@/kit/PageTabs";
-import { TextInput } from "@/kit/TextInput";
-import { useDetailRoute } from "@/kit/use-detail-route";
-import { groupsOf, nodeName } from "@/lib/design";
+import { Empty } from "@/kit/feedback/Empty";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
+import { SearchInput } from "@/kit/forms/SearchInput";
+import { matchesSearch } from "@/kit/forms/search";
+import { ListDetailPage } from "@/kit/list-detail/ListDetailPage";
+import { type DetailRoute, useDetailRoute } from "@/kit/list-detail/use-detail-route";
+import { PageTabs } from "@/kit/selection/PageTabs";
+import { nodeLabel, systemTitle } from "@/lib/design";
+import { paths, SEARCH } from "@/lib/nav";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
 import { AddPartDialog } from "./AddPartDialog";
-import { PartDetail } from "./PartDetail";
-import { PartsOverview } from "./PartsOverview";
-import { PartsTable } from "./PartsTable";
-import { PartsTree } from "./PartsTree";
-
-type Selection = {
-  view: string;
-  tree: boolean;
-  selected: string | null;
-  onSelect: (id: string | null) => void;
-};
+import { PartDetail } from "./detail/PartDetail";
+import { PartsOverview } from "./list/PartsOverview";
+import { PartsTable } from "./list/PartsTable";
+import { PartsTree } from "./list/PartsTree";
 
 /** 表示方法（タブ）。一覧とツリーは詳細を横の欄に、表はモーダルに出す */
 const VIEWS = ["overview", "tree", "table"] as const;
-type Filters = {
-  search: string;
-  group: string;
-  setSearch: (value: string) => void;
-  setGroup: (value: string) => void;
-};
+
+/** 一覧の絞り込み（検索の文字列とグループ） */
+type Filters = { search: string; group: string };
 
 /** 一覧・ツリー・表のタブ。表はモーダル、一覧とツリーはサイドパネルに詳細を出す。選択と表示方法は URL に載せる。 */
 export function ComponentsPage() {
+  const t = useT().components;
   const design = useDesign();
-  const route = useDetailRoute("/design/components", VIEWS);
-  const { partId } = useParams();
-  const [search, setSearch] = useState("");
-  const [group, setGroup] = useState("");
-  const filters = { search, setSearch, group, setGroup };
-  const selection = {
-    view: route.view,
-    tree: route.tree,
-    selected: partId ?? null,
-    onSelect: route.select,
-  };
+  const route = useDetailRoute(paths.components(), VIEWS);
+  const [filters, setFilters] = useState<Filters>({ search: "", group: "" });
+  const overview = route.view === "overview";
+  const close = () => route.select(null);
   return (
     <>
-      <ComponentsHeader
-        design={design.data}
-        filters={filters}
-        onAdd={() => route.setAdding(true)}
+      <ListDetailPage
+        design={design}
+        route={route}
+        wideList={overview}
+        hint={t.selectHint}
+        header={
+          <ComponentsHeader
+            design={design.data}
+            filters={filters}
+            onFilters={setFilters}
+            onAdd={() => route.setAdding(true)}
+          />
+        }
+        tabs={<ComponentsTabs view={route.view} />}
+        list={(d) => <ComponentsList design={d} filters={filters} route={route} />}
+        detail={(d, id) => {
+          const item = d.parts.find((p) => p.id === id);
+          return item ? (
+            <PartDetail
+              key={item.id}
+              design={d}
+              item={item}
+              onSelect={route.select}
+              onClose={overview ? close : undefined}
+            />
+          ) : null;
+        }}
       />
-      <ComponentsTabs view={route.view} />
-      <ComponentsContent design={design} filters={filters} selection={selection} />
       {design.data && route.adding && (
         <AddPartDialog
           design={design.data}
           open
           onOpenChange={route.setAdding}
-          initialGroup={group || null}
-          onCreated={(id) => {
-            setSearch("");
-            setGroup("");
+          initialGroup={filters.group || null}
+          onDone={(id) => {
+            setFilters({ search: "", group: "" });
             route.select(id);
           }}
         />
@@ -78,10 +83,12 @@ export function ComponentsPage() {
 function ComponentsHeader({
   design,
   filters,
+  onFilters,
   onAdd,
 }: {
   design?: DesignView;
   filters: Filters;
+  onFilters: (filters: Filters) => void;
   onAdd: () => void;
 }) {
   const t = useT().components;
@@ -89,27 +96,23 @@ function ComponentsHeader({
     <PageHeader
       eyebrow={t.eyebrow}
       title={t.title}
-      subtitle={design ? t.subtitle(design.parts.length, groupsOf(design).length) : undefined}
+      subtitle={design ? t.subtitle(design.parts.length, design.defs.systems.length) : undefined}
       actions={
         <>
-          <div className="relative">
-            <Search size={13} className="absolute top-2.5 left-2.5 text-ink-4" />
-            <TextInput
-              aria-label={t.searchLabel}
-              placeholder={t.searchPlaceholder}
-              className="w-52 pl-7"
-              value={filters.search}
-              onChange={(e) => filters.setSearch(e.target.value)}
-            />
-          </div>
+          <SearchInput
+            label={t.searchLabel}
+            placeholder={t.searchPlaceholder}
+            value={filters.search}
+            onChange={(search) => onFilters({ ...filters, search })}
+          />
           <NativeSelect
             aria-label={t.groupFilter}
             value={filters.group}
-            onChange={(e) => filters.setGroup(e.target.value)}
+            onChange={(e) => onFilters({ ...filters, group: e.target.value })}
             placeholder={t.allGroups}
-            options={(design ? groupsOf(design) : []).map((g) => ({
-              value: g.id,
-              label: nodeName(g),
+            options={(design?.defs.systems ?? []).map((system) => ({
+              value: system,
+              label: systemTitle(system, design?.defs),
             }))}
           />
           <Button onClick={onAdd} disabled={!design}>
@@ -127,46 +130,7 @@ function ComponentsTabs({ view }: { view: string }) {
   const label = { overview: t.tabOverview, tree: t.tabTree, table: t.tabTable };
   return (
     <PageTabs
-      tabs={VIEWS.map((v) => ({ to: `?view=${v}`, label: label[v], active: view === v }))}
-    />
-  );
-}
-
-function ComponentsContent({
-  design,
-  filters,
-  selection,
-}: {
-  design: ReturnType<typeof useDesign>;
-  filters: Filters;
-  selection: Selection;
-}) {
-  const t = useT();
-  const d = design.data;
-  if (design.isError) return <Empty>{t.common.cannotLoadDesign(design.error.message)}</Empty>;
-  if (!d) return <DetailLoading tree={selection.tree} />;
-  const current = d.parts.find((p) => p.id === selection.selected);
-  const overview = selection.view === "overview";
-  const close = () => selection.onSelect(null);
-  return (
-    <DetailLayout
-      tree={selection.tree}
-      wideList={overview}
-      title={current?.id ?? t.components.title}
-      hint={t.components.selectHint}
-      onClose={close}
-      list={<ComponentsList design={d} filters={filters} selection={selection} />}
-      detail={
-        current ? (
-          <PartDetail
-            key={current.id}
-            design={d}
-            row={current}
-            onSelect={selection.onSelect}
-            onClose={overview ? close : undefined}
-          />
-        ) : null
-      }
+      tabs={VIEWS.map((v) => ({ to: `?${SEARCH.view}=${v}`, label: label[v], active: view === v }))}
     />
   );
 }
@@ -174,54 +138,37 @@ function ComponentsContent({
 function ComponentsList({
   design,
   filters,
-  selection,
+  route,
 }: {
   design: DesignView;
   filters: Filters;
-  selection: Selection;
+  route: DetailRoute;
 }) {
   const t = useT();
   const { search, group } = filters;
-  const parts = useMemo(
+  const items = useMemo(
     () => filterParts(design.parts, search, group),
     [design.parts, search, group],
   );
-  if (!parts.length) return <Empty>{t.components.noMatch}</Empty>;
-  if (selection.view === "overview")
-    return (
-      <PartsOverview
-        design={design}
-        parts={parts}
-        selected={selection.selected}
-        onSelect={selection.onSelect}
-      />
-    );
-  if (selection.tree)
+  if (!items.length) return <Empty>{t.components.noMatch}</Empty>;
+  const props = { items, selected: route.selected, onSelect: route.select };
+  if (route.view === "overview") return <PartsOverview design={design} {...props} />;
+  if (route.tree)
     return (
       <PartsTree
         key={JSON.stringify([search, group])}
-        design={design}
-        parts={parts}
-        selected={selection.selected}
-        onSelect={selection.onSelect}
+        all={design.parts}
+        folderLabel={(id) => nodeLabel(design, id)}
+        {...props}
       />
     );
-  return (
-    <PartsTable
-      design={design}
-      parts={parts}
-      selected={selection.selected}
-      onSelect={selection.onSelect}
-    />
-  );
+  return <PartsTable design={design} {...props} />;
 }
 
 function filterParts(parts: PartRow[], search: string, group: string) {
-  const s = search.trim().toLowerCase();
   return parts.filter(
     (p) =>
-      (!group || p.subsystem === group || p.parent === group) &&
-      (!s ||
-        [p.id, p.kind, p.catalog ?? "", p.file].some((value) => value.toLowerCase().includes(s))),
+      (!group || p.system === group || p.parent === group) &&
+      matchesSearch(search, [p.id, p.kind, p.catalog, p.file]),
   );
 }

@@ -4,19 +4,19 @@ import type { OrbitSpec } from "./OrbitSpec";
 import type { ShadowModel } from "./ShadowModel";
 
 /**
- * 時系列の作り方。
+ * 時系列の作り方: 軌道の標本の取り方（[`OrbitSampling`]。JSON では同じ階層に並べる）と姿勢則・影のモデル。
  */
-export type TimelineSpec = { orbit: OrbitSpec, attitude: AttitudeLaw, 
+export type TimelineSpec = { attitude: AttitudeLaw, shadow: ShadowModel, orbit: OrbitSpec, 
 /**
- * 期間
+ * 期間（軌道の元期から）
  */
 span: number, 
 /**
  * 刻み
  */
-step: number, shadow: ShadowModel, 
+step: number, 
 /**
- * 時系列の始め（軌道の元期）での β 角。指定すると、その β になるように軌道の RAAN を置き換える
+ * 始め（軌道の元期）での β 角。指定すると、その β になるように軌道の RAAN を置き換える
  * （[`crate::orbit::raan_for_beta`]。昇交点が昼側の解）。`None` なら軌道の RAAN のまま。
  */
 beta: number | null, };

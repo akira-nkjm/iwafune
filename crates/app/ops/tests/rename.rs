@@ -22,8 +22,8 @@ fn rename_part_updates_references() {
     .unwrap();
     let paths: Vec<&str> = p.changes.iter().map(|c| c.path.as_str()).collect();
     for expected in [
-        "parts/POWER/PCDU.toml",
-        "parts/POWER/EPS_PCDU.toml",
+        "parts/power/PCDU.toml",
+        "parts/power/EPS_PCDU.toml",
         "modes/SAFE.toml",
         "nets/P12V.toml",
         "harness/H_PCDU_RWX.toml",
@@ -33,8 +33,9 @@ fn rename_part_updates_references() {
     }
     let d = &p.design;
     assert!(d.modes["NOMINAL"].states.contains_key("EPS_PCDU"));
-    assert_eq!(d.nets["P5V"].source.as_deref(), Some("EPS_PCDU.OUT2"));
-    assert_eq!(d.harnesses["H_PCDU_RWX"].from, "EPS_PCDU.OUT3");
+    let source = d.nets["P5V"].source.as_ref().map(ToString::to_string);
+    assert_eq!(source.as_deref(), Some("EPS_PCDU.OUT2"));
+    assert_eq!(d.harnesses["H_PCDU_RWX"].from.to_string(), "EPS_PCDU.OUT3");
     assert!(check(d).iter().all(|x| !x.is_error()));
 }
 
@@ -50,7 +51,7 @@ fn rename_assembly_moves_children() {
     )
     .unwrap();
     let paths: Vec<&str> = p.changes.iter().map(|c| c.path.as_str()).collect();
-    assert!(paths.contains(&"parts/POWER/SAP_1/CELLS.toml"), "{paths:?}");
+    assert!(paths.contains(&"parts/power/SAP_1/CELLS.toml"), "{paths:?}");
     assert_eq!(
         p.design.parts["CELLS"]
             .mount
@@ -86,7 +87,7 @@ fn rename_mode_updates_settings_and_cases() {
     );
     assert!(
         d.analysis
-            .attitude
+            .aocs
             .as_ref()
             .unwrap()
             .law
@@ -115,7 +116,7 @@ fn view_layout_is_written_sorted_with_integers() {
             node("RW_X", 420, 120),
             node("PCDU", 100, 80),
             ViewNodePos {
-                id: "POWER".into(),
+                id: "power".into(),
                 x: 0,
                 y: 0,
                 w: Some(640),
@@ -129,7 +130,7 @@ fn view_layout_is_written_sorted_with_integers() {
     assert_eq!(
         p.changes[0].after.as_deref(),
         Some(
-            "[nodes]\nPCDU  = { x = 100, y = 80 }\nPOWER = { x = 0, y = 0, w = 640, h = 360 }\nRW_X  = { x = 420, y = 120 }\n"
+            "[nodes]\nPCDU  = { x = 100, y = 80 }\nRW_X  = { x = 420, y = 120 }\npower = { x = 0, y = 0, w = 640, h = 360 }\n"
         )
     );
     assert_eq!(p.design.views["electrical"].nodes["RW_X"].x, 420);
@@ -139,7 +140,7 @@ fn view_layout_is_written_sorted_with_integers() {
     );
     assert_eq!(
         fune_ops::to_cli(&op)[2],
-        "fune view set electrical POWER --pos 0,0 --size 640,360"
+        "fune view set electrical power --pos 0,0 --size 640,360"
     );
     let files = {
         let mut f = snap.files.clone();
@@ -172,9 +173,7 @@ fn edge_routes_are_toml_10_round_tripped_and_resettable() {
     let p = plan(&snap, &[op]).unwrap();
     assert_eq!(p.design.views["electrical"].edge[key], edge);
     let mut updated = snap;
-    for c in &p.changes {
-        updated.files.insert(&c.path, c.after.clone().unwrap());
-    }
+    fune_store::apply_changes(&mut updated.files, &p.changes);
     updated.design = fune_store::read::design_of(&updated.files);
     assert_eq!(updated.design.views["electrical"].edge[key], edge);
     let unset = plan(
@@ -257,40 +256,45 @@ fn removing_the_last_view_entries_drops_the_empty_tables() {
 }
 
 #[test]
-fn rename_group_moves_the_directory_and_rewrites_group_keys() {
+fn rename_system_to_an_arbitrary_group_is_rejected() {
     let snap = snapshot();
+    let err = plan(
+        &snap,
+        &[Op::RenameGroup {
+            id: "power".into(),
+            to: "ELEC".into(),
+        }],
+    );
+    assert!(err.is_err());
+}
+
+/// 入れ子のフォルダの名前はこれまでどおり変更でき、図のキーも追従する。
+#[test]
+fn rename_nested_group_moves_directory_and_view_keys() {
+    let mut snap = snapshot();
+    snap.files
+        .insert("parts/power/spares/P.toml", "kind = \"component\"\n");
+    snap.files
+        .insert("view/nested.toml", "[nodes]\nspares = { x = 0, y = 0 }\n");
+    snap.design = fune_store::read::design_of(&snap.files);
     let p = plan(
         &snap,
         &[Op::RenameGroup {
-            id: "POWER".into(),
-            to: "ELEC".into(),
+            id: "spares".into(),
+            to: "backup".into(),
         }],
     )
     .unwrap();
-    let paths: Vec<&str> = p.changes.iter().map(|c| c.path.as_str()).collect();
-    // 部品はディレクトリごと移る（組立品の子も）
-    assert!(paths.contains(&"parts/ELEC/PCDU.toml"), "{paths:?}");
-    assert!(paths.contains(&"parts/ELEC/SAP_PY/CELLS.toml"), "{paths:?}");
-    // 表示名と配分のキーも書き換わる
-    assert!(p.design.groups.contains_key("ELEC"));
-    assert!(!p.design.groups.contains_key("POWER"));
-    let mass = p
-        .design
-        .budget
-        .allocation
-        .iter()
-        .find(|(k, _)| *k == fune_model::design::BudgetKind::Mass);
     assert!(
-        mass.is_some_and(|(_, a)| a.alloc.contains_key("ELEC") && !a.alloc.contains_key("POWER"))
+        p.changes
+            .iter()
+            .any(|c| c.path == "parts/power/backup/P.toml")
     );
-    // 部品の所属も新しい名前（ディレクトリで決まる）
+    assert!(p.design.groups.contains_key("backup"));
+    assert!(p.design.views["nested"].nodes.contains_key("backup"));
     assert_eq!(
-        p.design.node("PCDU").and_then(|n| p
-            .design
-            .ancestors(&n)
-            .first()
-            .map(|g| g.id().to_string())),
-        Some("ELEC".into())
+        p.design.system_of("P"),
+        Some(fune_model::design::AnalysisSystem::Power)
     );
 }
 
@@ -300,7 +304,7 @@ fn rename_group_rejects_a_taken_or_missing_name() {
     let taken = plan(
         &snap,
         &[Op::RenameGroup {
-            id: "POWER".into(),
+            id: "power".into(),
             to: "cdh".into(),
         }],
     );

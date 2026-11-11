@@ -17,6 +17,7 @@ mod mounts;
 mod newton;
 pub use mode_loads::{ThermalModeLoads, ThermalModePart};
 pub use mounts::ThermalMounts;
+pub use newton::INITIAL_GUESS_K;
 
 /// 温度の範囲（動作範囲など）。
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

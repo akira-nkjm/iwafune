@@ -15,7 +15,35 @@ env:
   RUSTFLAGS: -D warnings
 
 jobs:
-  # Architecture checks (dependency direction, registry, languages). Runs first so a broken layout is reported early.
+  # Which parts changed. Pull requests skip the jobs their change cannot affect; pushes to main and develop run everything.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "$EVENT" != "pull_request" ]; then
+            echo "rust=true" >> "$GITHUB_OUTPUT"
+            echo "web=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --name-only "$BASE...$HEAD")
+          printf '%s\n' "$files"
+          hit() { printf '%s\n' "$files" | grep -Eq "$1" && echo true || echo false; }
+          # Rust: the crates, the workspace files, the demo data the tests read, and the generated TS types they must match.
+          echo "rust=$(hit '^(crates/|Cargo\.(toml|lock)$|rust-toolchain|\.cargo/|fixtures/|web/src/api/gen/|\.github/workflows/)')" >> "$GITHUB_OUTPUT"
+          echo "web=$(hit '^(web/|\.github/workflows/)')" >> "$GITHUB_OUTPUT"
+
+  # Architecture checks (dependency direction, registry, languages, web rules). Always runs: it reads code, docs and web.
   architecture:
     runs-on: ubuntu-latest
     steps:
@@ -24,9 +52,14 @@ jobs:
         with:
           toolchain: "1.99"
       - uses: Swatinem/rust-cache@v2
+        with:
+          # Pull requests read the develop cache but do not save their own (keeps the develop cache from being evicted).
+          save-if: ${{ github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' }}
       - run: cargo xtask check
 
   rust:
+    needs: [changes]
+    if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -35,6 +68,9 @@ jobs:
           toolchain: "1.99"
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+        with:
+          # Pull requests read the develop cache but do not save their own (keeps the develop cache from being evicted).
+          save-if: ${{ github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' }}
       - name: fmt
         run: cargo fmt --all --check
       - name: clippy
@@ -43,10 +79,12 @@ jobs:
         run: cargo test --workspace
       - name: generated TS types match the Rust code
         run: |
-          cargo test -p fune-service export_ts
+          cargo test --workspace export_ts
           git diff --exit-code -- web/src/api/gen
 
   web:
+    needs: [changes]
+    if: needs.changes.outputs.web == 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -76,8 +114,10 @@ jobs:
           path: web/dist
 
   # Build the fune binary with the embedded SPA, start it on the demo data and check that the API responds.
+  # Only on pushes to main and develop: the release build is the slowest step, and every merge still runs it.
   bundle:
     needs: [rust, web]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -89,6 +129,9 @@ jobs:
         with:
           toolchain: "1.99"
       - uses: Swatinem/rust-cache@v2
+        with:
+          # Pull requests read the develop cache but do not save their own (keeps the develop cache from being evicted).
+          save-if: ${{ github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' }}
       - run: cargo build --release -p fune-cli
       - name: smoke (CLI)
         run: |

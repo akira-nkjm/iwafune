@@ -7,16 +7,24 @@
 //!   横: 1 + cos β cosh β + (M/m) β (cos β sinh β − sin β cosh β) = 0 の最小根 β から f = β²/(2π)·√(EI/(m L³))。
 //!   機軸（EA を与えたとき）: β tan β = m/M の最小根から f = β/(2π)·√(EA/(m L))。M = 0 なら β = π/2（f = ¼√(EA/(mL))）。
 
-use crate::budget::{BudgetItem, budget_rollup};
+use crate::budget::{BudgetItem, counted_total};
 use crate::spec::quantity_text;
-use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, Verdict};
+use crate::spec::{
+    Analysis, AnalysisError, AnalysisKind, Check, System, Verdict, ratio_margin,
+    ratio_margin_verdict,
+};
 use sat_astro::math::bisect;
-use sat_units::typed::{Area, Force, Frequency, Length, Mass, MassDensity, Pressure, Qty};
+use sat_units::typed::{
+    Area, Force, Fraction, Frequency, Length, Mass, MassDensity, Pressure, Qty,
+};
 use serde::{Deserialize, Serialize};
 use std::f64::consts::{FRAC_PI_2, PI};
 
 /// 曲げ剛性 EI の次元（N·m²）。
 pub type FlexuralRigidity = <Force as std::ops::Mul<Area>>::Output;
+
+/// 固有振動数の余裕の警告の幅。0 なので、要求以上なら ok、下回れば違反の二段階（[`crate::spec::ratio_margin_verdict`]）。
+pub const FREQUENCY_MARGIN_WARNING_BAND: Fraction = Fraction::new(0.0);
 
 /// 四辺単純支持のパネル。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -111,8 +119,8 @@ pub struct ModalEstimateResult {
     pub kind: ModalEstimateKind,
     pub frequency: Qty<Frequency>,
     pub required: Option<Qty<Frequency>>,
-    /// 余裕 = f / f_req − 1
-    pub margin: Option<f64>,
+    /// 余裕 = f / f_req − 1（[`crate::spec::ratio_margin`]。要求が無いか 0 なら `None`）
+    pub margin: Option<Fraction>,
     pub verdict: Verdict,
 }
 
@@ -180,14 +188,14 @@ fn result(
     f_hz: f64,
     required: Option<Qty<Frequency>>,
 ) -> ModalEstimateResult {
-    let margin = required.map(|r| f_hz / r.value() - 1.0);
+    let margin = required.and_then(|r| ratio_margin(f_hz, r.value()));
     ModalEstimateResult {
         id: id.to_owned(),
         kind,
         frequency: Qty::from_raw(f_hz),
         required,
         margin,
-        verdict: Verdict::from_ok(margin.is_none_or(|m| m >= 0.0)),
+        verdict: ratio_margin_verdict(margin, FREQUENCY_MARGIN_WARNING_BAND),
     }
 }
 
@@ -204,8 +212,8 @@ fn check(r: &ModalEstimateResult) -> Option<Check> {
         r.verdict,
         format!(
             "{}（要求 {} 以上）",
-            quantity_text(r.frequency.value(), "Frequency"),
-            quantity_text(req.value(), "Frequency")
+            quantity_text::<Frequency>(r.frequency.value()),
+            quantity_text::<Frequency>(req.value())
         ),
     ))
 }
@@ -216,19 +224,13 @@ fn invalid(id: &str) -> AnalysisError {
     ))
 }
 
-/// パネルに載る部品の質量の合計 Σ 質量 × 員数 [kg]（`budget::budget_rollup` で数える）。
+/// パネルに載る部品の質量の合計 Σ 質量 × 員数 [kg]（`budget::counted_total` で数える）。
 fn mounted_mass(mounted: &[ModalEstimateMounted]) -> Result<f64, AnalysisError> {
     let items: Vec<BudgetItem> = mounted
         .iter()
-        .map(|m| BudgetItem {
-            id: m.id.clone(),
-            group: String::new(),
-            value: m.mass.value(),
-            count: m.count,
-            growth: 0.0,
-        })
+        .map(|m| BudgetItem::counted(m.id.clone(), m.mass.value(), m.count))
         .collect();
-    Ok(budget_rollup(&items, None, 0.0)?.total)
+    counted_total(&items)
 }
 
 /// 四辺単純支持の平板の一次固有振動数 [Hz]。
@@ -380,6 +382,6 @@ mod tests {
         })
         .unwrap();
         assert_eq!(out.checks[0].verdict, Verdict::Violation);
-        assert!(out.results[0].margin.unwrap() < 0.0);
+        assert!(out.results[0].margin.unwrap().value() < 0.0);
     }
 }

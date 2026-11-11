@@ -16,37 +16,31 @@ use fune_model::resolve::{Resolved, ResolvedPart};
 /// 部品の一覧の 1 行。
 pub(crate) fn part_row(design: &Design, resolved: &Resolved, rp: &ResolvedPart) -> PartRow {
     let part = design.parts.get(rp.id.as_str());
-    let (body_position, body_orientation) = fune_projection::pose::body_pose(resolved, &rp.id)
-        .map_or((None, None), |(p, q)| {
-            (Some([p.x, p.y, p.z]), Some([q.w, q.x, q.y, q.z]))
-        });
-    let mount = rp.mount.as_ref().map(|m| MountView {
-        on: Some(m.on.clone()),
+    // 機体座標の姿勢は、解決済みの部品なら必ず求まる（`body_pose` が None になるのは部品が無いときだけ）
+    let body = fune_projection::pose::body_pose(resolved, &rp.id);
+    let mount = rp.mount.as_ref().zip(body).map(|(m, (p, q))| MountView {
+        on: m.on.clone(),
         point: m.point.clone(),
-        position: Some(m.pose.position),
+        position: m.pose.position,
         authored_position: part
             .and_then(|p| p.pose.as_ref())
             .and_then(|p| p.position.clone()),
-        orientation: Some(m.pose.orientation),
-        body_position,
-        body_orientation,
+        orientation: m.pose.orientation,
+        body_position: [p.x, p.y, p.z],
+        body_orientation: [q.w, q.x, q.y, q.z],
     });
     PartRow {
         paths: crate::query::views::parameter_paths(design, &rp.id, &rp.states),
+        field_paths: crate::query::views::field_paths(&rp.id),
         id: rp.id.clone(),
         parent: rp.parent.as_ref().map(|n| n.id().to_owned()),
-        subsystem: rp.subsystem.clone().or_else(|| {
-            rp.role
-                .as_ref()
-                .and_then(|r| fune_model::builtin::labels().role_subsystem.get(r))
-                .cloned()
-        }),
-        kind: rp.kind.clone().unwrap_or_default(),
+        system: rp.system.map(fune_projection::system::to_analysis),
+        kind: rp.kind.clone(),
         role: rp.role.clone(),
         catalog: rp.catalog.clone(),
         candidates: part.map(|p| p.candidates.clone()).unwrap_or_default(),
         count: rp.count,
-        maturity: rp.maturity.as_ref().map(|m| m.as_str().to_owned()),
+        maturity: rp.maturity,
         values: rp
             .attr
             .iter()
@@ -63,6 +57,8 @@ pub(crate) fn part_row(design: &Design, resolved: &Resolved, rp: &ResolvedPart) 
         mount,
         states: rp.states.clone(),
         file: file_of(design, EntityKey::Part(rp.id.clone())),
+        // 置き場所の区間はディレクトリの規約（`fune_store::layout`）が親の連鎖から作る（パスの文字列は分解しない）
+        dir: fune_store::layout::dirs_for_parent(design, rp.parent.as_ref()),
     }
 }
 
@@ -82,10 +78,11 @@ pub(crate) fn list(design: &Design, resolved: &Resolved, q: &PartsQuery) -> Vec<
 }
 
 fn in_group(design: &Design, part: &str, group: &str) -> bool {
-    design
-        .ancestors(&NodeRef::Part(Id::new(part)))
-        .iter()
-        .any(|n| n.id() == group)
+    design.system_of(part).is_some_and(|s| s.as_str() == group)
+        || design
+            .ancestors(&NodeRef::Part(Id::new(part)))
+            .iter()
+            .any(|n| n.id() == group)
 }
 
 /// 1 部品の全情報。
@@ -121,20 +118,18 @@ pub(crate) fn view(
         .values()
         .filter_map(|m| m.states.get(id).map(|a| (m.id.to_string(), a.clone())))
         .collect();
-    let prefix = format!("{id}.");
+    // ハーネスは端のポートの部品（構造）で選ぶ
     let harnesses = design
         .harnesses
         .values()
-        .filter(|h| h.from.starts_with(&prefix) || h.to.starts_with(&prefix))
+        .filter(|h| h.from.part == id || h.to.part == id)
         .map(|h| h.id.to_string())
         .collect();
+    // 診断は対象の構造で選ぶ（部品のファイルの中の対象か、部品のファイルの位置）
     let diagnostics = diagnostics
         .iter()
         .filter(|d| {
-            d.diagnostic
-                .path
-                .as_deref()
-                .is_some_and(|p| p == id || p.starts_with(&prefix))
+            d.part.as_deref() == Some(id)
                 || d.diagnostic.file.as_deref() == Some(part.file.as_str())
         })
         .cloned()

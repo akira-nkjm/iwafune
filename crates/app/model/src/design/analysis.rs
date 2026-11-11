@@ -4,20 +4,62 @@
 //! モードや部品の ID を参照する箇所（`mode_share` のキー・`law` のキー・`nodes` の値など）は `check` が検査し、
 //! 名前の変更（RenamePart・RenameMode）で一緒に書き換わる。
 
+use crate::enum_text::enum_text;
+use crate::path::SettingPath;
 use crate::value::{Quantity, Quaternion, Vector3};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
 
-/// `analysis/` 全体。
+enum_text! {
+    /// 解析の系。綴りは設定のファイル名（`analysis/<系>.toml`）・設定のパス（`analysis.<系>`）・解析 ID の接頭辞
+    /// （`power.energy_balance`）と同じ。**系の一覧はここだけ**（store のファイルの規約・読み込み・参照の書き換えもこれを回す）。
+    /// 解析の側の `sat_analysis::spec::System` は依存の向きで共有できないので、fune-projection（`system`）の対応とテストで一致を確かめる。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+    pub enum AnalysisSystem: "解析の系" {
+        Power = "power",
+        Aocs = "aocs",
+        Cdh = "cdh",
+        Comm = "comm",
+        Thermal = "thermal",
+        Structure = "structure",
+        Payload = "payload",
+    }
+}
+
+impl AnalysisSystem {
+    /// 系の設定のパス（`analysis.<系>`。`analysis/<系>.toml` の全体）。
+    pub fn setting_path(self) -> SettingPath {
+        SettingPath::analysis(&[self.as_str()])
+    }
+}
+
+/// `analysis/` 全体。`common` は共通設定、それ以外の欄は [`AnalysisSystem`] の綴り。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
 pub struct AnalysisSettings {
+    pub common: Option<CommonSettings>,
     pub power: Option<PowerSettings>,
-    pub attitude: Option<AttitudeSettings>,
+    pub aocs: Option<AocsSettings>,
     pub cdh: Option<CdhSettings>,
     pub comm: Option<CommSettings>,
     pub thermal: Option<ThermalSettings>,
     pub structure: Option<StructureSettings>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payload: Option<PayloadSettings>,
+}
+
+/// ミッション機器の設定。現在は解析も設定項目も持たない。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PayloadSettings {}
+
+/// 系に属さない解析の共通設定（`analysis/common.toml`）。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct CommonSettings {
+    /// 解析ケースを明示しなかったときに使うケース ID。
+    pub default_case: Option<String>,
 }
 
 /// 電源の解析（`analysis/power.toml`）。
@@ -52,13 +94,14 @@ pub struct ModeSegment {
     pub duration: Quantity,
 }
 
-/// 姿勢則の種類（sat_astro::attitude::AttitudeLaw に射影する）。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum AttitudeLawKind {
-    SunPointing,
-    NadirPointing,
-    Inertial,
+enum_text! {
+    /// 姿勢則の種類（sat_astro::attitude::AttitudeLaw に射影する）。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+    pub enum AttitudeLawKind: "姿勢則の種類" {
+        SunPointing = "sun_pointing",
+        NadirPointing = "nadir_pointing",
+        Inertial = "inertial",
+    }
 }
 
 /// モードごとの姿勢則。軸は機体座標の単位ベクトル。
@@ -80,10 +123,10 @@ pub struct AttitudeLawSetting {
     pub orientation: Option<Quaternion>,
 }
 
-/// 姿勢の解析（`analysis/attitude.toml`）。
+/// AOCS の解析（`analysis/aocs.toml`）。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
-pub struct AttitudeSettings {
+pub struct AocsSettings {
     /// 抗力係数 Cd
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub drag_coefficient: Option<f64>,
@@ -128,13 +171,14 @@ pub struct CdhSettings {
     pub packet_overhead: Option<f64>,
 }
 
-/// 回線の向き。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-#[ts(rename = "CommLinkDirection")]
-pub enum LinkDirection {
-    Down,
-    Up,
+enum_text! {
+    /// 回線の向き。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+    #[ts(rename = "CommLinkDirection")]
+    pub enum LinkDirection: "回線の向き" {
+        Down = "down",
+        Up = "up",
+    }
 }
 
 /// 回線 1 本の設定（`[link.<名前>]`）。

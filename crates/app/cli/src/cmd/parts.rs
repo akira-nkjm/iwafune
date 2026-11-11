@@ -1,10 +1,10 @@
-//! 部品を読むコマンド: `fune part ls`・`fune part show`（と、値の出所の表示）。
+//! 部品を読むコマンド: `fune part ls`・`fune part show`（`--ops` で下書きを当てる。と、値の出所の表示）。
 
-use super::common::{Handled, provenance};
+use super::common::{Handled, UNSET, provenance};
 use crate::args::PartCmd;
 use crate::diag;
 use crate::output::{C, Out};
-use fune_service::dto::{Origin, PartsQuery, ValueData, ValueView};
+use fune_service::dto::{Origin, PartViewRequest, PartsQuery, ValueData, ValueView};
 use fune_service::{Workspace, query};
 
 /// `fune part ls|show`
@@ -17,7 +17,15 @@ pub fn part(ws: &Workspace, cmd: &PartCmd, out: &Out) -> Handled {
             };
             part_ls(ws, &q, out).map(Some)
         }
-        PartCmd::Show { id } => part_show(ws, id, out).map(Some),
+        PartCmd::Show { id, ops } => {
+            let req = PartViewRequest {
+                ops: match ops {
+                    Some(path) => super::ops::ops_from_file(path)?,
+                    None => Vec::new(),
+                },
+            };
+            part_show(ws, id, &req, out).map(Some)
+        }
         _ => Ok(None),
     }
 }
@@ -30,22 +38,17 @@ fn part_ls(ws: &Workspace, q: &PartsQuery, out: &Out) -> anyhow::Result<u8> {
         out.json(&rows)?;
         return Ok(0);
     }
-    let mut t = out.table(&[
-        "ID",
-        "サブシステム",
-        "種別",
-        "定義",
-        "数",
-        "質量",
-        "電力",
-        "動作温度",
-    ]);
+    let mut t = out.table(&["ID", "系", "種別", "定義", "数", "質量", "電力", "動作温度"]);
     t = t.numeric(&[4, 5, 6]);
     for r in &rows {
         let mut cells = vec![
             C::Strong(r.id.clone()),
-            C::Text(r.subsystem.clone().unwrap_or_default()),
-            C::Text(r.kind.clone()),
+            C::Text(
+                r.system
+                    .map(|s| query::system_id(s).to_owned())
+                    .unwrap_or_default(),
+            ),
+            C::Text(r.kind.clone().unwrap_or_default()),
             C::Dim(r.catalog.clone().unwrap_or_else(|| "—".into())),
             C::Num(r.count.to_string()),
         ];
@@ -60,10 +63,10 @@ fn part_ls(ws: &Workspace, q: &PartsQuery, out: &Out) -> anyhow::Result<u8> {
 }
 
 fn value_cell(v: Option<&ValueView>) -> C {
-    match v {
+    match v.map(|v| (v.origin, v.display.as_deref())) {
         None => C::Dim("—".into()),
-        Some(v) if v.origin == Origin::Unset => C::Dim("未設定".into()),
-        Some(v) => C::Num(v.display.clone()),
+        Some((Origin::Unset, _) | (_, None)) => C::Dim(UNSET.into()),
+        Some((_, Some(text))) => C::Num(text.to_owned()),
     }
 }
 
@@ -86,8 +89,8 @@ fn compact_cell(v: Option<&ValueView>) -> C {
     }
 }
 
-fn part_show(ws: &Workspace, id: &str, out: &Out) -> anyhow::Result<u8> {
-    let p = query::part_view(ws, id)?;
+fn part_show(ws: &Workspace, id: &str, req: &PartViewRequest, out: &Out) -> anyhow::Result<u8> {
+    let p = query::part_view(ws, id, req)?;
     if out.json {
         out.json(&p)?;
         return Ok(0);
@@ -97,7 +100,7 @@ fn part_show(ws: &Workspace, id: &str, out: &Out) -> anyhow::Result<u8> {
     let def = r
         .catalog
         .clone()
-        .unwrap_or_else(|| format!("kind {}", r.kind));
+        .unwrap_or_else(|| format!("kind {}", r.kind.as_deref().unwrap_or_default()));
     println!("{}", out.dim(format!("{def}  ×{}  {}", r.count, r.file)));
     for section in &p.sections {
         let mut t = out.table(&[section.label.as_str(), "値", "出所"]);
