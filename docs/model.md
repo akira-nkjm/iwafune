@@ -213,6 +213,49 @@ pub trait Project<I> {
 - 計算のキャッシュ: Derived は入力の fingerprint をキーにメモ化する。数千件規模なら単純な全再計算で足りる。
   遅くなったら incremental な計算フレームワーク（salsa など）を検討する。
 
+### 5.1 解析ケースの条件選択
+
+projection の `case_policy::effective_case` が明示ケースを優先する。省略時に `analysis.common.default_case` を
+解析全体へ適用する対象は、同モジュールの宣言にある `power.orbit_generation`・`attitude.rw_unloading`・
+`attitude.sensor_fov`・`thermal.transient` のみ。それ以外はケース未選択のまま運用全体や全条件を解析する。
+既定の設定が存在しないケースを指すと検査エラーにする。
+実行結果の `case` は使ったケース ID、`case_source` は `explicit` / `default`（ケース未選択なら原則両方 null）。
+保存前の設定変更も同じ規則で解析に適用する。入力を丸ごと与える `given` には既定ケースを適用しない。
+
+`power.energy_balance` はケース未指定なら全モードを 1 ケースずつ並べ、各ケースの姿勢則はそのモードの
+`analysis.attitude.law` を使う。上段の `timeline.attitude` だけは、同じ解決関数で引いた既定ケースのモードの姿勢則を使う。
+この場合は `case = null`、`case_source = default_attitude` とする。既定ケースの β・周回数・side などは適用しない。
+既定ケースがなければ、姿勢則が唯一の場合だけ上段にも使い、複数なら不足入力にする。
+明示ケースがあれば、従来どおりそのケースのモードと条件を使う。
+
+解析ケースの `mode` が指定されているときは、そのモードの `[law.<mode>]` が必要で、別のモードの姿勢則では代用しない。
+モードが未指定なら、姿勢則が 1 件だけのときに限り使う。0 件または複数なら不足入力として停止する。
+
+### 5.2 熱解析の条件
+
+`thermal.transient` は解析ケースの `thermal_case` で環境条件を選ぶ。省略時は熱条件が 1 件だけなら使い、
+複数なら解析ケースの `thermal_case` を不足入力として示す。選択した ID が存在しない場合も不足入力とする。
+解析ケース自体が未選択の場合は `analysis.thermal.case` を示す。条件が 0 件でも停止する。
+`thermal.steady` は引き続きすべての熱条件を解析する。
+両解析とも、熱条件の `beta` がある場合だけ解析ケースの β を上書きし、省略時はケースの β を保持する。
+軌道の中心天体が地球以外なら、地球の形態係数・アルベド・赤外放射を用いる熱環境は未対応のため入力エラーで停止する。
+
+### 5.3 姿勢解析の機体外形
+
+擾乱に使う機体外形は、`size` があり取付親のない部品が 1 個だけならその部品を使う。
+複数なら候補部品 ID を不足入力の文に示して停止し、ID 順には選ばない。0 個の場合の扱いは従来どおりとする。
+
+### 5.4 共通解析設定
+
+系に属さない設定は `analysis/common.toml` に置く。プロジェクトの設定一覧では scope は `analysis`、system は null。
+`default_case` は解析ケース ID の文字列。§5.1 の対象解析と電力収支の上段の姿勢則にだけ使い、省略時はケース未選択の扱いを維持する。
+CLI と画面は同じ `SetSetting` を使う。例: `fune setting set analysis.common.default_case hot_imaging`。
+
+```toml
+# analysis/common.toml
+default_case = "hot_imaging"
+```
+
 ## 6. 製品ツリーと取付
 
 ### 6.1 2 つの階層

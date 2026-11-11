@@ -7,7 +7,7 @@ import type { Op } from "./Op";
  */
 export type RunAnalysisRequest = { 
 /**
- * 解析ケースの ID（`cases/<ID>.toml`）。省略すると既定のケース
+ * 解析ケースの ID（`cases/<ID>.toml`）。省略時は projection の対象解析だけ既定ケースを適用
  */
 case: string | null, 
 /**

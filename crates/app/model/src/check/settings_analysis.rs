@@ -11,6 +11,20 @@ pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
     for system in AnalysisSystem::ALL {
         scope(ctx, system.setting_path()).dimensions(entries);
     }
+    let design = ctx.design;
+    if let Some(id) = design
+        .analysis
+        .common
+        .as_ref()
+        .and_then(|c| c.default_case.as_deref())
+    {
+        scope(ctx, crate::path::SettingPath::analysis_common()).reference(
+            &["default_case"],
+            design.cases.contains_key(id),
+            "ref.case",
+            format!("解析ケース `{id}`"),
+        );
+    }
     check_power(ctx);
     check_attitude(ctx);
     check_cdh(ctx);

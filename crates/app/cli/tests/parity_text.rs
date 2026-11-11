@@ -4,7 +4,7 @@
 
 mod common;
 
-use common::{assert_same_files, demo_copy, post_json, run_cli};
+use common::{assert_same_files, demo_copy, get_json, post_json, run_cli};
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -22,6 +22,7 @@ fn gui_text_edits_match_cli() {
     let (_t1, cli_root) = demo_copy();
     let (_t2, http_root) = demo_copy();
     let cases = [
+        ("analysis.common.default_case", "hot_imaging"),
         ("analysis.power.orbits", "12"),
         ("analysis.power.dod_max", "0.3"),
         ("mission.orbit.altitude", "560 km"),
@@ -37,6 +38,26 @@ fn gui_text_edits_match_cli() {
         );
         assert_same_files(&cli_root, &http_root, path);
     }
+    let common = std::fs::read_to_string(http_root.join("analysis/common.toml")).unwrap();
+    assert_eq!(common, "default_case = \"hot_imaging\"\n");
+    let design = get_json(&rt, &http_root, "/api/v1/design");
+    let setting = design["settings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["key"] == "analysis.common.default_case")
+        .unwrap();
+    assert_eq!(setting["scope"], "analysis");
+    assert!(setting["system"].is_null());
+    assert_eq!(setting["value"]["value"], "hot_imaging");
+    let result = post_json(
+        &rt,
+        &http_root,
+        "/api/v1/analyses/power.orbit_generation",
+        json!({}),
+    );
+    assert_eq!(result["case"], "hot_imaging");
+    assert_eq!(result["case_source"], "default");
     let power = std::fs::read_to_string(http_root.join("analysis/power.toml")).unwrap();
     assert!(power.contains("= 12\n"), "周回数は整数のまま書く:\n{power}");
     let path = "analysis.power.dod_max";

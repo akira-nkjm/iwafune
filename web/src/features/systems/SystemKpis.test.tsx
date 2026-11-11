@@ -52,6 +52,7 @@ const kpis: KpiView[] = [
 const result: AnalysisRunResult = {
   id: "thermal.steady",
   case: null,
+  case_source: null,
   status: "ok",
   checks: [],
   verdict: "violation",

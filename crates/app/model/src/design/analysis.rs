@@ -33,15 +33,24 @@ impl AnalysisSystem {
     }
 }
 
-/// `analysis/` 全体。欄の名前は [`AnalysisSystem`] の綴りと同じ（`model/tests/enum_text.rs` が確かめる）。
+/// `analysis/` 全体。`common` は共通設定、それ以外の欄は [`AnalysisSystem`] の綴り。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct AnalysisSettings {
+    pub common: Option<CommonSettings>,
     pub power: Option<PowerSettings>,
     pub attitude: Option<AttitudeSettings>,
     pub cdh: Option<CdhSettings>,
     pub comm: Option<CommSettings>,
     pub thermal: Option<ThermalSettings>,
     pub structure: Option<StructureSettings>,
+}
+
+/// 系に属さない解析の共通設定（`analysis/common.toml`）。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct CommonSettings {
+    /// 解析ケースを明示しなかったときに使うケース ID。
+    pub default_case: Option<String>,
 }
 
 /// 電源の解析（`analysis/power.toml`）。

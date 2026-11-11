@@ -24,7 +24,9 @@ fn display(k: &KpiView) -> &str {
     k.value.as_ref().map_or("—", |v| v.display.as_str())
 }
 
-/// 系のページの数値帯に並ぶ値（解析の一覧の順）。
+/// 系のページの数値帯に並ぶ値（解析の一覧の順）。ケースなしで回す。
+/// 発電・RW のアンロード・センサの視野・熱の非定常は既定のケース（hot_imaging、MISSION モード）を使う。
+/// #24 より前は姿勢則の表の最初（DOWNLINK）を黙って使っていたので、この 4 つの値はそこから変わった。
 #[test]
 fn demo_kpis_show_the_same_values_as_before() {
     let ws = demo();
@@ -32,7 +34,7 @@ fn demo_kpis_show_the_same_values_as_before() {
         ("power.mode_load", &[(KpiKey::ModeLoad, "17.4 W")]),
         (
             "power.orbit_generation",
-            &[(KpiKey::OrbitGeneration, "12.3 W")],
+            &[(KpiKey::OrbitGeneration, "28.3 W")],
         ),
         (
             "power.energy_balance",
@@ -41,8 +43,8 @@ fn demo_kpis_show_the_same_values_as_before() {
         (
             "attitude.rw_unloading",
             &[
-                (KpiKey::UnloadInterval, "16.4 h"),
-                (KpiKey::PeakMomentum, "2.32 mN·m·s"),
+                (KpiKey::UnloadInterval, "16.2 h"),
+                (KpiKey::PeakMomentum, "2.38 mN·m·s"),
             ],
         ),
         (
@@ -77,7 +79,7 @@ fn demo_kpis_show_the_same_values_as_before() {
         ),
         (
             "thermal.transient",
-            &[(KpiKey::TransientMaxTemperature, "74.2 °C")],
+            &[(KpiKey::TransientMaxTemperature, "72.1 °C")],
         ),
         (
             "structure.mass_properties",
@@ -94,7 +96,9 @@ fn demo_kpis_show_the_same_values_as_before() {
         ),
     ];
     for (id, want) in expected {
-        let got: Vec<(KpiKey, String)> = kpis(&ws, id, None)
+        let values = kpis(&ws, id, None);
+        assert!(!values.is_empty(), "{id}");
+        let got: Vec<(KpiKey, String)> = values
             .iter()
             .map(|k| (k.key, display(k).to_owned()))
             .collect();
@@ -151,7 +155,7 @@ fn demo_verdicts_fills_and_tallies() {
     );
 }
 
-/// 電力のモードの消費電力は、バジェットと同じモード（ケースのモード、無ければ合計が最大のモード）。
+/// ケース未指定なら運用全体、明示なら同じケースを選んだバジェットのモードと一致する。
 #[test]
 fn mode_load_uses_the_budget_mode() {
     let ws = demo();

@@ -58,7 +58,7 @@ fn spacecraft(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<DisturbanceSpa
     let v = |x: Option<&fune_model::value::Vector3>, path: SettingPath, m: &mut MissingInputs| {
         x.and_then(|x| vec_si(x, path, m)).unwrap_or(Vec3::ZERO)
     };
-    let size = reference_box(ctx);
+    let size = reference_box(ctx, m);
     let surface =
         |coef: Option<f64>, cp: Vec3| Some(DisturbanceSurface::from_box(size?, coef?, cp));
     let aero_cp = v(
@@ -86,12 +86,28 @@ fn spacecraft(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<DisturbanceSpa
 }
 
 /// 取付の根の部品（構体）の外形を渡す。面積の近似は解析が行う。
-fn reference_box(ctx: &Context<'_>) -> Option<Vec3> {
-    let root = ctx
+fn reference_box(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<Vec3> {
+    let roots: Vec<_> = ctx
         .resolved
         .parts
         .values()
-        .find(|p| p.mount.is_none() && p.vec3("size").is_some())?;
+        .filter(|p| p.mount.is_none() && p.vec3("size").is_some())
+        .collect();
+    let root = match roots.as_slice() {
+        [] => return None,
+        [root] => root,
+        _ => {
+            let ids: Vec<_> = roots.iter().map(|p| p.id.as_str()).collect();
+            m.push(
+                Target::any_part("size"),
+                format!(
+                    "機体外形の候補が複数あり曖昧です（{}）。取付関係を指定してください",
+                    ids.join("、")
+                ),
+            );
+            return None;
+        }
+    };
     let [x, y, z] = root.vec3("size")?;
     Some(Vec3::new(x, y, z))
 }

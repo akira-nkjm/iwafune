@@ -1,5 +1,6 @@
 // 生成物です。手で編集しないでください（`cargo test -p fune-service export_ts` で作り直す）。
 export type * from "./AnalysisCase";
+export type * from "./AnalysisCaseSource";
 export type * from "./AnalysisEntry";
 export type * from "./AnalysisInfo";
 export type * from "./AnalysisInputSource";

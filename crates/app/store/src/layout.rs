@@ -7,7 +7,7 @@
 use crate::error::StoreError;
 use fune_model::Target;
 use fune_model::design::{AnalysisSystem, CatalogSource, Design, EntityKey, NodeRef};
-use fune_model::path::{SettingPath, SettingScope};
+use fune_model::path::{ANALYSIS_COMMON, SettingPath, SettingScope};
 
 pub const PROJECT_FILE: &str = "fune.toml";
 pub const ALLOCATION_FILE: &str = "budget/allocation.toml";
@@ -25,6 +25,8 @@ pub const RESERVED_DIRS: &[&str] = &["requirements", "tables"];
 pub const MISSION_DIR: &str = "mission";
 pub const GROUND_DIR: &str = "mission/ground";
 pub const ANALYSIS_DIR: &str = "analysis";
+/// 系に属さない解析の共通設定。
+pub const COMMON_ANALYSIS_FILE: &str = "analysis/common.toml";
 /// 内部の作業ディレクトリ（ロック・キャッシュ）。
 pub const WORK_DIR: &str = ".fune";
 /// 読まないディレクトリ。
@@ -63,8 +65,10 @@ pub enum FileRole {
     /// `mission/orbit.toml`・`mission/launch.toml`
     Mission(String),
     Ground(String),
-    /// `analysis/<系>.toml`（`analysis/` の直下のファイルは系の一覧 [`AnalysisSystem`] の綴りだけ）
+    /// `analysis/<系>.toml`（系の一覧は [`AnalysisSystem`]）
     Analysis(AnalysisSystem),
+    /// 系に属さない共通解析設定。
+    CommonAnalysis,
     /// 規約の外（読み飛ばす。check が warning を出す）
     Other,
 }
@@ -79,6 +83,7 @@ pub fn classify(rel: &str, catalogs: &[(String, String)]) -> FileRole {
     };
     match rel {
         PROJECT_FILE => return FileRole::Project,
+        COMMON_ANALYSIS_FILE => return FileRole::CommonAnalysis,
         ALLOCATION_FILE => return FileRole::Allocation,
         POLICY_FILE => return FileRole::Policy,
         _ => {}
@@ -160,6 +165,7 @@ pub fn entity_key(role: &FileRole) -> Option<EntityKey> {
         FileRole::Mission(id) => EntityKey::Setting(SettingPath::mission(&[id])),
         FileRole::Ground(id) => EntityKey::Setting(SettingPath::mission(&["ground", id])),
         FileRole::Analysis(system) => EntityKey::Setting(system.setting_path()),
+        FileRole::CommonAnalysis => EntityKey::Setting(SettingPath::analysis_common()),
         FileRole::Other => return None,
     })
 }
@@ -185,6 +191,7 @@ pub fn file_target(role: &FileRole) -> Option<Target> {
         FileRole::Mission(id) => SettingPath::mission(&[id]).into(),
         FileRole::Ground(id) => SettingPath::mission(&["ground", id]).into(),
         FileRole::Analysis(system) => system.setting_path().into(),
+        FileRole::CommonAnalysis => SettingPath::analysis_common().into(),
         FileRole::Project | FileRole::Reserved | FileRole::Other => return None,
     })
 }
@@ -306,6 +313,9 @@ pub fn setting_location(path: &SettingPath) -> Result<(String, Vec<String>), Sto
         SettingScope::Mission if MISSION_FILES.contains(&s[0].as_str()) => {
             (format!("{MISSION_DIR}/{}.toml", s[0]), &s[1..])
         }
+        SettingScope::Analysis if s.first().map(String::as_str) == Some(ANALYSIS_COMMON) => {
+            (COMMON_ANALYSIS_FILE.to_string(), &s[1..])
+        }
         SettingScope::Analysis => match s.first().map(|f| f.parse::<AnalysisSystem>()) {
             Some(Ok(system)) => (analysis_file(system), &s[1..]),
             _ => return Err(bad()),
@@ -328,71 +338,4 @@ pub fn locate_setting(design: &Design, path: &SettingPath) -> Option<fune_model:
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn classifies_files() {
-        let cat = vec![("local".to_string(), "catalog".to_string())];
-        assert_eq!(
-            classify("parts/POWER/SAP_PY/CELLS.toml", &cat),
-            FileRole::Part {
-                dirs: vec!["POWER".into(), "SAP_PY".into()],
-                id: "CELLS".into()
-            }
-        );
-        assert_eq!(
-            classify("modes/SAFE.toml", &cat),
-            FileRole::Mode("SAFE".into())
-        );
-        assert_eq!(
-            classify("catalog/rw.toml", &cat),
-            FileRole::Catalog {
-                source: "local".into(),
-                id: "rw".into()
-            }
-        );
-        assert_eq!(
-            classify("mission/ground/TOKYO_GS.toml", &cat),
-            FileRole::Ground("TOKYO_GS".into())
-        );
-        assert_eq!(
-            classify("analysis/power.toml", &cat),
-            FileRole::Analysis(AnalysisSystem::Power)
-        );
-        for s in AnalysisSystem::ALL {
-            assert_eq!(classify(&analysis_file(*s), &cat), FileRole::Analysis(*s));
-            let (file, _) = setting_location(&s.setting_path().child(&["x"])).unwrap();
-            assert_eq!(file, analysis_file(*s));
-        }
-        assert_eq!(classify("analysis/other.toml", &cat), FileRole::Other);
-        assert_eq!(classify("README.md", &cat), FileRole::Other);
-    }
-
-    #[test]
-    fn maps_setting_paths_to_files() {
-        let p = |s: &str| match fune_model::path::parse(s) {
-            Ok(fune_model::path::ParamPath::Setting(p)) => p,
-            other => panic!("{other:?}"),
-        };
-        assert_eq!(
-            setting_location(&p("analysis.power.dod_max")).ok(),
-            Some(("analysis/power.toml".into(), vec!["dod_max".into()]))
-        );
-        assert_eq!(
-            setting_location(&p("mission.ground.TOKYO_GS.min_elevation")).ok(),
-            Some((
-                "mission/ground/TOKYO_GS.toml".into(),
-                vec!["min_elevation".into()]
-            ))
-        );
-        assert_eq!(
-            setting_location(&p("budget.mass.limit")).ok(),
-            Some((
-                "budget/allocation.toml".into(),
-                vec!["mass".into(), "limit".into()]
-            ))
-        );
-        assert!(setting_location(&p("analysis.nope.x")).is_err());
-    }
-}
+mod tests;

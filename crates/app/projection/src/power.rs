@@ -134,7 +134,15 @@ pub fn energy_balance(ctx: &Context<'_>) -> Result<EnergyBalanceInput, MissingIn
     let array = solar_array(ctx, &mut m);
     let loads = mode_load_input(ctx, &mut m);
     let mode = timeline::case_mode_id(ctx);
-    let t = timeline::timeline(ctx, mode.as_deref(), power_orbits(ctx), &mut m);
+    // 既定ケースから借りるのは上段の姿勢則のモードだけ。β・周回数などは元の ctx を使う。
+    let (attitude_case, _) = crate::case_policy::effective_case(
+        Some(ctx.design),
+        "power.energy_balance",
+        ctx.case.map(|c| c.id.as_str()),
+    );
+    let attitude_ctx = Context::new(ctx.design, ctx.resolved, attitude_case)?;
+    let attitude_mode = timeline::case_mode_id(&attitude_ctx);
+    let t = timeline::timeline(ctx, attitude_mode.as_deref(), power_orbits(ctx), &mut m);
     let batteries = batteries(ctx, &mut m);
     let cases: Vec<EnergyBalanceCase> = ctx
         .design

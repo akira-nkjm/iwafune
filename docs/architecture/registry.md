@@ -116,6 +116,8 @@
 | Op | `fune_ops::op` | 編集の唯一の入口 |
 | 変更計画・適用 | `fune_ops::{plan, apply}` | |
 | Op → CLI のコマンド文字列 | `fune_ops::cli` | 引用と旗の組み立て（`cli::text`）だけを持つ。値の文字列は `fune_model::value::{value_to_text, setting_to_text, …}`、列挙は `as_str`、フィールド名は `field_names` |
+| 共通解析設定・実効ケース | `fune_model::design::CommonSettings`・`fune_projection::case_policy::{effective_case, CaseSource}`・`dto::AnalysisCaseSource` | `analysis/common.toml` の `default_case`。既定の対象は case_policy の表だけ（発電・RW・視野・非定常熱）。電力収支は上段の姿勢則だけに既定のモードを使い、全モードのケース・β・周回数は変えない。service は選択元を DTO に写す（given には既定を適用しない） |
+| 非定常熱の環境条件の選択 | `fune_projection::thermal::transient_case` | 明示 ID を優先し、省略時は条件が 1 件のときだけ選ぶ |
 | モデル → 解析の入力 | `fune_projection::<系>` | |
 | 不足入力 | `fune_projection::missing` | 対象は `fune_model::Target` で直接作る（文字列を作って読み直さない）。`part` は `Target::part`、`path` は表示。「どれかの部品」は `Target::AnyPart`（部品 ID を持たない）。解析（`AnalysisRunResult.missing`）とバジェット（`BudgetView.missing`）が同じ形で返す（どちらも 200。エラーにしない） |
 | 取付の連鎖 ⇄ 機体座標の位置・姿勢（合成と逆変換） | `fune_projection::pose` | sat-astro の `Quat` で合成する（`body_pose`・`mount_frame`・`body_to_mount_local`）。service もこれを呼ぶ |
@@ -262,6 +264,9 @@
 
 | 日時 | 変更 | 理由 |
 |---|---|---|
+| 2026-11-11 | 既定ケースの対象宣言と解決を projection::case_policy に集約。電力収支は上段の姿勢則だけ既定を使う | 運用全体の集計とモード別の収支を維持する（#24） |
+| 2026-11-11 | 系に属さない `analysis.common.default_case` と参照検査を追加。service で実効ケースを一元選択し、結果と画面に既定由来かを示す | 明示した既定ケースで初期画面の解析を実行する（#24） |
+| 2026-11-11 | 機体外形・姿勢則・熱条件の曖昧な選択を不足入力とし、熱条件の β 省略時はケースの β を保持。熱の共通入熱処理で地球以外の中心天体を入力エラーにする | 暗黙の仮定で解析結果が変わるのを防ぐ（#24） |
 | 2026-11-08 | 公開に向けて整理した版を初版とする | これより前の履歴は省いた |
 | 2026-11-09 | 診断と不足入力の対象を `fune_model::target::Target` の型で持つ（`layout::file_target`・`web/src/lib/target-link.ts` も追加） | 文字列のパスを読み直して部品 ID を推していたため、存在しない ID（`<部品>`・`cases`）が入っていた（#21） |
 | 2026-11-09 | 属性の値の欄を `quantity/AttrValueEditor`（判定は `attr-mode.ts`）と `useAttrEdit` の 1 つにした。部品の値も打った文字列のまま service に渡す（`op-values.ts` の `set_value` の組み立てを消した）。`SetText.ops`（下書きを当てて型を決める）・`useTextOp`。成熟度の選択肢は `labels.enum_order` と `useEnumOptions`。属性・種別の表示名は `lib/design.ts`。カタログの出所の一覧 `ProjectInfo.catalogs`（`local_catalog_dir`）。`fune setting unset` も `edit::unset_op`。`op_error` は `workspace` へ | 部品とカタログ品と設定で、文字列の解釈・欄・語彙の選択肢・出所の名前を 1 か所にするため（CLI と GUI の対等性） |

@@ -32,6 +32,7 @@ const view = (key: KpiKey, display: string | null): KpiView => ({
 const result = (id: string, kpis: KpiView[]): AnalysisRunResult => ({
   id,
   case: null,
+  case_source: null,
   status: "ok",
   checks: [],
   verdict: null,
