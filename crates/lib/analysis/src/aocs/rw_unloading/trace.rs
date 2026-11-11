@@ -1,7 +1,7 @@
 //! 時系列の計算（擾乱トルク → ECI での角運動量 → 機体座標系 → ホイールへの配分）と、永年・周期成分の分離。
 
-use crate::attitude::disturbance::{DisturbanceSpacecraft, DisturbanceTorques};
-use crate::attitude::wheels::WheelSet;
+use crate::aocs::disturbance::{DisturbanceSpacecraft, DisturbanceTorques};
+use crate::aocs::wheels::WheelSet;
 use crate::spec::orbit_segments;
 use sat_astro::ephem::CentralBody;
 use sat_astro::math::Vec3;

@@ -20,9 +20,9 @@ export type AnalysisOutputs = {
   "power.solar_sunlit": SolarSunlitOutput;
   "power.orbit_generation": OrbitGenerationOutput;
   "power.energy_balance": EnergyBalanceOutput;
-  "attitude.rw_unloading": RwUnloadingOutput;
-  "attitude.unload_time": UnloadTimeOutput;
-  "attitude.sensor_fov": SensorFovOutput;
+  "aocs.rw_unloading": RwUnloadingOutput;
+  "aocs.unload_time": UnloadTimeOutput;
+  "aocs.sensor_fov": SensorFovOutput;
   "cdh.data_budget": DataBudgetOutput;
   "comm.link_budget": LinkBudgetOutput;
   "comm.visibility": VisibilityOutput;

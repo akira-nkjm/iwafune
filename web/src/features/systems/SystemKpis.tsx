@@ -27,6 +27,7 @@ export function SystemKpis({
         <SkeletonBlock className="h-[62px] rounded-card" />
       </Loading>
     );
+  if (entries.length === 0) return null;
   return (
     <StatStrip
       items={kpiSlots(entries, states).map((s) => ({

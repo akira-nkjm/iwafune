@@ -206,7 +206,7 @@ export const fixture: DesignView = {
   defs: {
     attributes: [
       ["power", "power"],
-      ["max_momentum", "attitude"],
+      ["max_momentum", "aocs"],
       ["tx_power", "comm"],
     ].map(
       ([id, section]): AttributeDefView => ({
@@ -225,7 +225,7 @@ export const fixture: DesignView = {
     ),
     kinds: [],
     labels: {
-      role_system: { pcdu: "power", reaction_wheel: "attitude", transceiver: "comm" },
+      role_system: { pcdu: "power", reaction_wheel: "aocs", transceiver: "comm" },
       role_subsystem: {},
       section_order: [],
       state: {},
@@ -233,7 +233,7 @@ export const fixture: DesignView = {
       enum: {},
       enum_order: {},
     },
-    systems: ["power", "attitude", "cdh", "comm", "thermal", "structure"],
+    systems: ["power", "aocs", "cdh", "comm", "thermal", "structure", "payload"],
     budget_kinds: ["mass", "power", "data"],
   },
   settings: [],

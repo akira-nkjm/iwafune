@@ -11,11 +11,12 @@ use sat_analysis::spec::System;
 pub fn to_analysis(system: AnalysisSystem) -> System {
     match system {
         AnalysisSystem::Power => System::Power,
-        AnalysisSystem::Attitude => System::Attitude,
+        AnalysisSystem::Aocs => System::Aocs,
         AnalysisSystem::Cdh => System::Cdh,
         AnalysisSystem::Comm => System::Comm,
         AnalysisSystem::Thermal => System::Thermal,
         AnalysisSystem::Structure => System::Structure,
+        AnalysisSystem::Payload => System::Payload,
     }
 }
 
@@ -23,11 +24,12 @@ pub fn to_analysis(system: AnalysisSystem) -> System {
 pub fn from_analysis(system: System) -> AnalysisSystem {
     match system {
         System::Power => AnalysisSystem::Power,
-        System::Attitude => AnalysisSystem::Attitude,
+        System::Aocs => AnalysisSystem::Aocs,
         System::Cdh => AnalysisSystem::Cdh,
         System::Comm => AnalysisSystem::Comm,
         System::Thermal => AnalysisSystem::Thermal,
         System::Structure => AnalysisSystem::Structure,
+        System::Payload => AnalysisSystem::Payload,
     }
 }
 
@@ -44,6 +46,27 @@ mod tests {
                 serde_json::to_value(analysis).unwrap(),
                 serde_json::Value::String(system.as_str().to_owned())
             );
+        }
+    }
+
+    /// Payload は解析を持たず、旧綴りの系と解析 ID は受け付けない。
+    #[test]
+    fn payload_has_no_analyses_and_old_ids_are_rejected() {
+        assert!(
+            !sat_analysis::catalog::catalog()
+                .iter()
+                .any(|a| a.system == System::Payload)
+        );
+        assert!(serde_json::from_str::<System>(r#""attitude""#).is_err());
+        for id in [
+            "attitude.rw_unloading",
+            "attitude.unload_time",
+            "attitude.sensor_fov",
+        ] {
+            assert!(matches!(
+                sat_analysis::catalog::run_json(id, serde_json::Value::Null),
+                Err(sat_analysis::spec::AnalysisError::Unknown(_))
+            ));
         }
     }
 

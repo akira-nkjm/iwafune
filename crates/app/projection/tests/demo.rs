@@ -88,7 +88,7 @@ fn energy_balance_cases_use_each_modes_attitude_law() {
 fn unload_time_without_thrusters() {
     let (design, resolved) = demo();
     let ctx = Context::new(&design, &resolved, None).unwrap();
-    let input = fune_projection::attitude::unload_time(&ctx).unwrap();
+    let input = fune_projection::aocs::unload_time(&ctx).unwrap();
     assert!(input.thrusters.is_empty());
     assert!(input.center_of_mass.is_none());
     assert!(!input.magnetorquers.is_empty());
@@ -159,7 +159,7 @@ fn unload_time_projects_thrusters_in_body_frame() {
     let snap = fune_store::load(&root).unwrap();
     let resolved = fune_model::resolve(&snap.design);
     let ctx = Context::new(&snap.design, &resolved, None).unwrap();
-    let input = fune_projection::attitude::unload_time(&ctx).unwrap();
+    let input = fune_projection::aocs::unload_time(&ctx).unwrap();
     let t = &input.thrusters[0];
     let (origin, q) = fune_projection::pose::body_pose(&resolved, "PANEL_MZ").unwrap();
     let expected = origin + q.rotate(Vec3::new(0.04, 0.0, 0.0));
@@ -171,11 +171,9 @@ fn unload_time_projects_thrusters_in_body_frame() {
     assert!((t.direction - q.rotate(Vec3::new(0.0, 1.0, 0.0))).norm() < 1e-12);
     assert!((t.thrust.value() - 0.010).abs() < 1e-15);
     assert!(input.center_of_mass.is_some());
-    let out = sat_analysis::catalog::run_json(
-        "attitude.unload_time",
-        serde_json::to_value(&input).unwrap(),
-    )
-    .unwrap();
+    let out =
+        sat_analysis::catalog::run_json("aocs.unload_time", serde_json::to_value(&input).unwrap())
+            .unwrap();
     assert!(out["rcs"].is_object(), "{out}");
 }
 
@@ -247,8 +245,8 @@ fn case_beta_reaches_every_orbit_sampling() {
         let ctx = Context::new(&design, &resolved, case).unwrap();
         let input = project_json(id, &ctx).unwrap_or_else(|e| panic!("{id}: {e}"));
         match id {
-            "attitude.unload_time" => input["field"]["sampling"]["beta"].clone(),
-            "attitude.sensor_fov" => input["timeline"]["beta"].clone(),
+            "aocs.unload_time" => input["field"]["sampling"]["beta"].clone(),
+            "aocs.sensor_fov" => input["timeline"]["beta"].clone(),
             _ => input["sampling"]["beta"].clone(),
         }
     };
@@ -256,10 +254,10 @@ fn case_beta_reaches_every_orbit_sampling() {
     for id in [
         "comm.visibility",
         "comm.data_throughput",
-        "attitude.unload_time",
-        "attitude.sensor_fov",
+        "aocs.unload_time",
+        "aocs.sensor_fov",
     ] {
-        let without_beta = (id == "attitude.sensor_fov").then_some("no_beta");
+        let without_beta = (id == "aocs.sensor_fov").then_some("no_beta");
         assert!(beta(id, without_beta).is_null(), "{id}");
         let b = beta(id, Some("hot_imaging")).as_f64().unwrap_or(f64::NAN);
         assert!((b - sixty).abs() < 1e-12, "{id}: {b}");

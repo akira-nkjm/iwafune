@@ -21,6 +21,7 @@ export function SystemHeaderActions({
   ids: string[];
 }) {
   const t = useT();
+  if (ids.length === 0) return null;
   const defaultCase = cases.find((c) => c.id === defaultCaseId);
   const placeholder = defaultCaseId
     ? t.systems.defaultDerivedCase(defaultCase ? idWithName(defaultCase) : defaultCaseId)

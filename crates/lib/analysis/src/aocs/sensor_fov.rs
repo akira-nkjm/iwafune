@@ -1,4 +1,4 @@
-//! センサ FoV と禁止角（`attitude.sensor_fov`）。
+//! センサ FoV と禁止角（`aocs.sensor_fov`）。
 //!
 //! 軌道と姿勢則の時系列（`sat_astro::timeline`）の各点で、センサの視線（機体座標系）と
 //! 太陽・中心天体（地球）の縁・月のなす角を求め、禁止角を下回る時間（侵入）の割合を時間平均（台形則）で数える。
@@ -136,9 +136,9 @@ pub struct SensorFovTargetResult {
 pub struct SensorFov;
 
 impl Analysis for SensorFov {
-    const ID: &'static str = "attitude.sensor_fov";
+    const ID: &'static str = "aocs.sensor_fov";
     const TITLE: &'static str = "センサ FoV と禁止角";
-    const SYSTEM: System = System::Attitude;
+    const SYSTEM: System = System::Aocs;
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;
     const DESCRIPTION: &'static str = "センサの視野への太陽・地球・月の侵入を時系列で調べる";
     const TITLE_EN: &'static str = "Sensor FoV and exclusion angles";

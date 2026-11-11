@@ -1,7 +1,7 @@
 //! 解析の一覧と ID による動的な実行。**解析の登録はここだけで行う。** 新しい解析を足したら下の一覧に 1 行足す。
 
 use crate::spec::{Analysis, AnalysisError, AnalysisInfo};
-use crate::{attitude, cdh, comm, power, structure, thermal};
+use crate::{aocs, cdh, comm, power, structure, thermal};
 
 macro_rules! registry {
     ($($t:path),+ $(,)?) => {
@@ -30,9 +30,9 @@ registry!(
     power::SolarSunlit,
     power::OrbitGeneration,
     power::EnergyBalance,
-    attitude::RwUnloading,
-    attitude::UnloadTime,
-    attitude::SensorFov,
+    aocs::RwUnloading,
+    aocs::UnloadTime,
+    aocs::SensorFov,
     cdh::DataBudget,
     comm::LinkBudget,
     comm::Visibility,

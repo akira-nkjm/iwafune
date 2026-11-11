@@ -1,4 +1,4 @@
-//! 姿勢の射影: `attitude.rw_unloading`・`attitude.unload_time`・`attitude.sensor_fov`。慣性は structure の射影から sat-analysis で求める。
+//! AOCS の射影: `aocs.rw_unloading`・`aocs.unload_time`・`aocs.sensor_fov`。慣性は structure の射影から sat-analysis で求める。
 
 use crate::context::Context;
 use crate::missing::MissingInputs;
@@ -8,11 +8,11 @@ use crate::{structure, timeline};
 use fune_model::Target;
 use fune_model::design::setting_dims as dims;
 use fune_model::path::SettingPath;
-use sat_analysis::attitude::disturbance::{DisturbanceSpacecraft, DisturbanceSurface};
-use sat_analysis::attitude::sensor_fov::SensorFovSensor;
-use sat_analysis::attitude::unload_time::{UnloadTimeField, UnloadTimeMtq, UnloadTimeThruster};
-use sat_analysis::attitude::wheels::RwWheel;
-use sat_analysis::attitude::{RwUnloadingInput, SensorFovInput, UnloadTimeInput};
+use sat_analysis::aocs::disturbance::{DisturbanceSpacecraft, DisturbanceSurface};
+use sat_analysis::aocs::sensor_fov::SensorFovSensor;
+use sat_analysis::aocs::unload_time::{UnloadTimeField, UnloadTimeMtq, UnloadTimeThruster};
+use sat_analysis::aocs::wheels::RwWheel;
+use sat_analysis::aocs::{RwUnloadingInput, SensorFovInput, UnloadTimeInput};
 use sat_astro::math::Vec3;
 use sat_units::typed::{
     Angle, AngularMomentum, Force, Fraction, MagneticDipoleMoment, Qty, Time, Torque,
@@ -21,8 +21,8 @@ use sat_units::typed::{
 /// センサの役割（禁止角を調べる対象）。
 const SENSOR_ROLES: &[&str] = &["star_tracker", "sun_sensor", "camera"];
 
-fn settings<'a>(ctx: &'a Context<'_>) -> Option<&'a fune_model::design::AttitudeSettings> {
-    ctx.design.analysis.attitude.as_ref()
+fn settings<'a>(ctx: &'a Context<'_>) -> Option<&'a fune_model::design::AocsSettings> {
+    ctx.design.analysis.aocs.as_ref()
 }
 
 /// リアクションホイール（role = reaction_wheel）。
@@ -63,12 +63,12 @@ fn spacecraft(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<DisturbanceSpa
         |coef: Option<f64>, cp: Vec3| Some(DisturbanceSurface::from_box(size?, coef?, cp));
     let aero_cp = v(
         s.and_then(|s| s.cp_offset_aero.as_ref()),
-        dims::ATTITUDE_CP_OFFSET_AERO.at(&[]),
+        dims::AOCS_CP_OFFSET_AERO.at(&[]),
         m,
     );
     let srp_cp = v(
         s.and_then(|s| s.cp_offset_srp.as_ref()),
-        dims::ATTITUDE_CP_OFFSET_SRP.at(&[]),
+        dims::AOCS_CP_OFFSET_SRP.at(&[]),
         m,
     );
     Some(DisturbanceSpacecraft {
@@ -77,7 +77,7 @@ fn spacecraft(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<DisturbanceSpa
         srp: surface(s.and_then(|s| s.srp_coefficient), srp_cp),
         residual_dipole: v(
             s.and_then(|s| s.residual_dipole.as_ref()),
-            dims::ATTITUDE_RESIDUAL_DIPOLE.at(&[]),
+            dims::AOCS_RESIDUAL_DIPOLE.at(&[]),
             m,
         ),
         atmosphere: Default::default(),
@@ -125,7 +125,7 @@ const SENSOR_FOV_ORBITS: u32 = 1;
 /// アンロード時間の地磁気の大きさを平均する周回数。
 const UNLOAD_FIELD_ORBITS: u32 = 1;
 
-/// `attitude.rw_unloading`
+/// `aocs.rw_unloading`
 pub fn rw_unloading(ctx: &Context<'_>) -> Result<RwUnloadingInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let mode = timeline::case_mode_id(ctx);
@@ -143,7 +143,7 @@ pub fn rw_unloading(ctx: &Context<'_>) -> Result<RwUnloadingInput, MissingInputs
     })
 }
 
-/// `attitude.unload_time`: 最大のホイールの使える角運動量を MTQ で捨てる時間。
+/// `aocs.unload_time`: 最大のホイールの使える角運動量を MTQ で捨てる時間。
 pub fn unload_time(ctx: &Context<'_>) -> Result<UnloadTimeInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let wheels = wheels(ctx, &mut m);
@@ -208,7 +208,7 @@ fn thrusters(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<UnloadTimeThruster
         .collect()
 }
 
-/// `attitude.sensor_fov`: 視線（boresight）を持つセンサ。
+/// `aocs.sensor_fov`: 視線（boresight）を持つセンサ。
 pub fn sensor_fov(ctx: &Context<'_>) -> Result<SensorFovInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let mode = timeline::case_mode_id(ctx);

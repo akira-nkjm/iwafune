@@ -87,7 +87,7 @@ fn rename_mode_updates_settings_and_cases() {
     );
     assert!(
         d.analysis
-            .attitude
+            .aocs
             .as_ref()
             .unwrap()
             .law

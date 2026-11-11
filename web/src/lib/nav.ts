@@ -17,8 +17,9 @@ import {
   Thermometer,
   Workflow,
 } from "lucide-react";
-import type { System } from "@/api/types";
+import type { DefsView, System } from "@/api/types";
 import type { Dict } from "@/i18n";
+import { systemTitle } from "./design";
 
 /**
  * URL の検索部分の名前。ページが読み（`useDetailRoute`・系のページ）、下の `paths` が書く。
@@ -70,21 +71,32 @@ export const paths = {
   settings: () => "/project/settings",
 };
 
-export type NavItemKey = keyof Dict["nav"]["items"];
+export type NavItemKey = keyof Dict["nav"]["items"] | System;
 export type NavSectionKey = keyof Dict["nav"]["sections"];
 
 export interface NavItem {
   to: string;
-  /** 表示名は辞書（t.nav.items）から引く */
+  /** 表示名は navItemTitle で語彙または辞書から引く */
   key: NavItemKey;
   icon: LucideIcon;
   /** 系のページの項目なら、その系（先読みで系の解析を読む） */
   system?: System;
 }
 
-/** 系の項目（URL は `paths.system`） */
-function systemItem(system: System & NavItemKey, icon: LucideIcon): NavItem {
-  return { to: paths.system(system), key: system, icon, system };
+/** 系のアイコンの対応。項目の一覧と順序は API が返す。 */
+const systemIcons: Record<System, LucideIcon> = {
+  power: Sun,
+  aocs: Gauge,
+  cdh: Cpu,
+  comm: Radio,
+  thermal: Thermometer,
+  structure: Layers3,
+  payload: Boxes,
+};
+
+/** ナビの項目の表示名。系の語彙は API の labels.section から引く。 */
+export function navItemTitle(item: NavItem, dict: Dict, defs?: DefsView): string {
+  return isSystemItem(item.key) ? systemTitle(item.key, defs) : dict.nav.items[item.key];
 }
 
 export interface NavSection {
@@ -95,7 +107,7 @@ export interface NavSection {
 }
 
 /** サイドバーの並び（URL は `paths`） */
-export const nav: NavSection[] = [
+export const nav = (systems: readonly System[]): NavSection[] => [
   {
     id: "top",
     heading: false,
@@ -115,14 +127,12 @@ export const nav: NavSection[] = [
   {
     id: "systems",
     heading: true,
-    items: [
-      systemItem("power", Sun),
-      systemItem("attitude", Gauge),
-      systemItem("cdh", Cpu),
-      systemItem("comm", Radio),
-      systemItem("thermal", Thermometer),
-      systemItem("structure", Layers3),
-    ],
+    items: systems.map((system) => ({
+      to: paths.system(system),
+      key: system,
+      icon: systemIcons[system],
+      system,
+    })),
   },
   {
     id: "mission",
@@ -143,8 +153,8 @@ export const nav: NavSection[] = [
 ];
 
 /**
- * ナビの項目が系のページか（項目の `system` で見る。系の項目のキーは系の綴りそのもの）。先読みの計画が系の解析を読むのに使う
+ * ナビのキーが系のページか。アイコンの対応で型を確かめ、先読みの計画が系の解析を読むのに使う
  */
 export function isSystemItem(key: NavItemKey): key is NavItemKey & System {
-  return nav.some((s) => s.items.some((i) => i.key === key && i.system === key));
+  return Object.hasOwn(systemIcons, key);
 }

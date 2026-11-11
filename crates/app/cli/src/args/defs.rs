@@ -56,7 +56,7 @@ pub struct AttrAddArgs {
     /// 方向ベクトル（単位ベクトルであるべきもの）
     #[arg(long)]
     pub unit_vector: bool,
-    /// 画面で並べる系（basic・mass・power・thermal・attitude・comm・cdh・structure）
+    /// 画面で並べる系（basic・mass・power・thermal・aocs・comm・cdh・structure）
     #[arg(long)]
     pub section: Option<String>,
     #[command(flatten)]

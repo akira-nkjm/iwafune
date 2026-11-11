@@ -26,7 +26,7 @@ pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
         );
     }
     check_power(ctx);
-    check_attitude(ctx);
+    check_aocs(ctx);
     check_cdh(ctx);
     check_comm(ctx);
     check_thermal(ctx);
@@ -81,12 +81,12 @@ fn check_power(ctx: &mut Ctx) {
     }
 }
 
-fn check_attitude(ctx: &mut Ctx) {
+fn check_aocs(ctx: &mut Ctx) {
     let design = ctx.design;
-    let Some(a) = &design.analysis.attitude else {
+    let Some(a) = &design.analysis.aocs else {
         return;
     };
-    let mut s = scope(ctx, AnalysisSystem::Attitude.setting_path());
+    let mut s = scope(ctx, AnalysisSystem::Aocs.setting_path());
     s.fraction(&["usable_momentum_fraction"], a.usable_momentum_fraction);
     s.fraction(&["unload_dipole_fraction"], a.unload_dipole_fraction);
     for mode in a.law.keys() {

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
-import { q } from "@/api/queries";
+import { q, useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { nav, paths } from "@/lib/nav";
@@ -25,6 +25,7 @@ import { SIDEBAR_ID } from "./sidebar-state";
  */
 export function Sidebar() {
   const t = useT();
+  const design = useDesign();
   const project = useQuery(q.project());
   const navigate = useNavigate();
   const { open, toggle, closedSections, toggleSection } = useSidebar();
@@ -89,7 +90,7 @@ export function Sidebar() {
         aria-label={t.nav.main}
         className="no-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto"
       >
-        {nav.map((sec) => (
+        {nav(design.data?.defs.systems ?? []).map((sec) => (
           <NavSectionList
             key={sec.id}
             section={sec}

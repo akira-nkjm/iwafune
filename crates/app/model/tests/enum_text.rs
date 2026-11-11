@@ -76,11 +76,12 @@ fn analysis_settings_fields_are_the_analysis_systems() {
     let all = AnalysisSettings {
         common: Some(Default::default()),
         power: Some(Default::default()),
-        attitude: Some(Default::default()),
+        aocs: Some(Default::default()),
         cdh: Some(Default::default()),
         comm: Some(Default::default()),
         thermal: Some(Default::default()),
         structure: Some(Default::default()),
+        payload: Some(Default::default()),
     };
     let json = serde_json::to_value(&all).unwrap();
     let keys: Vec<&str> = json
@@ -114,4 +115,29 @@ fn unknown_text_names_the_choices() {
         "Mass".parse::<BudgetKind>().unwrap_err().to_string(),
         "`Mass` はバジェットの種類ではありません（mass / power / data）"
     );
+}
+
+/// 旧系名を移行用の別名として受け付けない。
+#[test]
+fn old_system_name_is_rejected() {
+    use fune_model::design::AnalysisSettings;
+    assert!("attitude".parse::<AnalysisSystem>().is_err());
+    assert!(serde_json::from_str::<AnalysisSystem>(r#""attitude""#).is_err());
+    assert!(serde_json::from_str::<AnalysisSettings>(r#"{"attitude": {}}"#).is_err());
+}
+
+/// 解析も設定項目もない系に、編集できない設定の葉を出さない。
+#[test]
+fn payload_has_no_setting_entries() {
+    use fune_model::Design;
+    let mut design = Design::default();
+    let has_payload = |design: &Design| {
+        design.setting_entries().iter().any(|entry| {
+            entry.path.scope == SettingScope::Analysis
+                && entry.path.segments.first().map(String::as_str) == Some("payload")
+        })
+    };
+    assert!(!has_payload(&design));
+    design.analysis.payload = Some(Default::default());
+    assert!(!has_payload(&design));
 }

@@ -1,7 +1,7 @@
 //! 解析条件が曖昧なときに先頭の候補へ暗黙にフォールバックしないこと。
 
 use fune_model::{Design, Target};
-use fune_projection::{Context, MissingInputs, attitude, thermal};
+use fune_projection::{Context, MissingInputs, aocs, thermal};
 use sat_analysis::spec::{Analysis, AnalysisError};
 use sat_analysis::thermal::{ThermalExposure, ThermalSteady, ThermalTransient};
 use sat_astro::ephem::CentralBody;
@@ -20,7 +20,7 @@ fn multiple_root_boxes_are_ambiguous() {
     other.id = "OTHER_ROOT".to_owned();
     resolved.parts.insert(other.id.clone().into(), other);
     let ctx = Context::new(&design, &resolved, Some("hot_imaging")).unwrap();
-    let missing = attitude::rw_unloading(&ctx).unwrap_err().into_vec();
+    let missing = aocs::rw_unloading(&ctx).unwrap_err().into_vec();
     assert!(missing.iter().any(|m| {
         m.target == Some(Target::any_part("size"))
             && m.reason.contains("BUS_FRAME")
@@ -35,8 +35,8 @@ fn attitude_law_requires_the_requested_mode_or_a_unique_law() {
     let resolved = fune_model::resolve(&design);
     let ctx = Context::new(&design, &resolved, None).unwrap();
     for (mode, path) in [
-        (Some("UNKNOWN"), "analysis.attitude.law.UNKNOWN"),
-        (None, "analysis.attitude.law"),
+        (Some("UNKNOWN"), "analysis.aocs.law.UNKNOWN"),
+        (None, "analysis.aocs.law"),
     ] {
         let mut missing = MissingInputs::new();
         assert!(ctx.attitude_law(mode, &mut missing).is_none());
@@ -44,7 +44,7 @@ fn attitude_law_requires_the_requested_mode_or_a_unique_law() {
     }
     design
         .analysis
-        .attitude
+        .aocs
         .as_mut()
         .unwrap()
         .law

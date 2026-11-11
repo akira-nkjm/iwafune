@@ -13,7 +13,7 @@ use super::labels::kpi_label;
 use crate::dto::{CheckView, FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView};
 use crate::units::quantity_auto;
 use sat_analysis::spec::{Analysis, Verdict};
-use sat_analysis::{attitude, cdh, comm, power, structure, thermal};
+use sat_analysis::{aocs, cdh, comm, power, structure, thermal};
 use sat_units::typed::{Decibel, Dimension, Fraction, NamedKind, Qty};
 use serde::Deserialize;
 use serde_json::Value;
@@ -117,9 +117,9 @@ kpi_table! {
     power::ModeLoad { ModeLoad => mode_load }
     power::OrbitGeneration { OrbitGeneration => orbit_generation }
     power::EnergyBalance { OrbitBalance => orbit_balance, MaxDod => max_dod }
-    attitude::RwUnloading { UnloadInterval => unload_interval, PeakMomentum => peak_momentum }
-    attitude::UnloadTime { MtqUnloadTime => mtq_unload_time }
-    attitude::SensorFov { SensorIntrusion => sensor_intrusion }
+    aocs::RwUnloading { UnloadInterval => unload_interval, PeakMomentum => peak_momentum }
+    aocs::UnloadTime { MtqUnloadTime => mtq_unload_time }
+    aocs::SensorFov { SensorIntrusion => sensor_intrusion }
     cdh::DataBudget {
         DataPerDay => data_per_day,
         StorageRequired => storage_required,
@@ -153,16 +153,16 @@ fn orbit_balance(o: &power::EnergyBalanceOutput, _: Ctx<'_>) -> Option<Measured>
 fn max_dod(o: &power::EnergyBalanceOutput, _: Ctx<'_>) -> Option<Measured> {
     largest(o.cases.iter().map(|c| c.max_dod))
 }
-fn unload_interval(o: &attitude::RwUnloadingOutput, _: Ctx<'_>) -> Option<Measured> {
+fn unload_interval(o: &aocs::RwUnloadingOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.unload_interval?)
 }
-fn peak_momentum(o: &attitude::RwUnloadingOutput, _: Ctx<'_>) -> Option<Measured> {
+fn peak_momentum(o: &aocs::RwUnloadingOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.peak_momentum)
 }
-fn mtq_unload_time(o: &attitude::UnloadTimeOutput, _: Ctx<'_>) -> Option<Measured> {
+fn mtq_unload_time(o: &aocs::UnloadTimeOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.mtq.as_ref()?.time)
 }
-fn sensor_intrusion(o: &attitude::SensorFovOutput, _: Ctx<'_>) -> Option<Measured> {
+fn sensor_intrusion(o: &aocs::SensorFovOutput, _: Ctx<'_>) -> Option<Measured> {
     largest(o.sensors.iter().map(|s| s.intrusion_fraction))
 }
 fn data_per_day(o: &cdh::DataBudgetOutput, _: Ctx<'_>) -> Option<Measured> {

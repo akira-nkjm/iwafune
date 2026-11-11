@@ -1,8 +1,8 @@
 //! 解析ごとの既定ケースの対象宣言と解決。共通設定の既定ケースを読むのはここだけ。
 
 use fune_model::Design;
-use sat_analysis::attitude::rw_unloading::RwUnloading;
-use sat_analysis::attitude::sensor_fov::SensorFov;
+use sat_analysis::aocs::rw_unloading::RwUnloading;
+use sat_analysis::aocs::sensor_fov::SensorFov;
 use sat_analysis::power::energy_balance::EnergyBalance;
 use sat_analysis::power::orbit_generation::OrbitGeneration;
 use sat_analysis::spec::Analysis;

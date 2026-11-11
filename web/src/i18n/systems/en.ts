@@ -17,10 +17,11 @@ export const systemsEn: typeof systemsJa = {
       series: "Time series",
     },
     specs: {
+      payload: { description: "Mission equipment (no analyses yet)" },
       power: {
         description: "Load per mode, generation, orbit energy balance and battery DoD",
       },
-      attitude: {
+      aocs: {
         description: "RW unloading frequency, MTQ/RCS unload time and sensor exclusion angles",
       },
       cdh: {
@@ -66,6 +67,7 @@ export const systemsEn: typeof systemsJa = {
     settingsCaption: (files: string) => `Settings in ${files}`,
     noSettings: "No settings for this subsystem yet (Project / Settings lists every setting)",
     inputOf: (title: string) => `Input passed to ${title}`,
+    noAnalyses: "No analyses are available for this system yet",
     noSeries: "No time-series results yet (graphs appear here once a time-series analysis runs)",
     seriesSep: ", ",
     seriesUnit: (u: string) => ` [${u}]`,

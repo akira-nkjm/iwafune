@@ -222,7 +222,7 @@ pub(super) const RULES: &[(&str, &[&str], &str)] = &[
 pub(super) const RUST_RULES: &[(&str, &[&str], &str)] = &[
     // 解析の系の一覧（`fune_model::design::AnalysisSystem`。`ALL`・`NAMES` を使う）
     (
-        "\"power\", \"attitude\"",
+        "\"power\", \"aocs\"",
         &["crates/app/model/src/design/analysis.rs"],
         "解析の系の一覧（`AnalysisSystem`）",
     ),
@@ -253,7 +253,7 @@ pub(super) const WEB_RULES: &[(&str, &[&str], &str)] = &[
     ),
     // 系とバジェットの種類の一覧と並びは API（`DefsView.systems`・`budget_kinds`）。Web に写しを書かない
     (
-        "\"power\", \"attitude\"",
+        "\"power\", \"aocs\"",
         &["web/src/test/"],
         "解析の系の一覧（API の `DefsView.systems`）",
     ),

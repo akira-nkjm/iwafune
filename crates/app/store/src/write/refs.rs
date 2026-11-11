@@ -269,7 +269,7 @@ fn rename_setting_at(
         }),
         RefSite::AttitudeLaw => rename_in(
             edits,
-            &layout::analysis_file(AnalysisSystem::Attitude),
+            &layout::analysis_file(AnalysisSystem::Aocs),
             &["law"],
             from,
             to,

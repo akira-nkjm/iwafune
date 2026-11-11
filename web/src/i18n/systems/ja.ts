@@ -13,10 +13,11 @@ export const systemsJa = {
     recompute: "再計算",
     tabs: { results: "結果", breakdown: "内訳", settings: "設定", series: "時系列" },
     specs: {
+      payload: { description: "ミッション機器（解析はまだありません）" },
       power: {
         description: "モード別の消費電力、発電、軌道上の収支とバッテリーの DoD",
       },
-      attitude: {
+      aocs: {
         description: "RW のアンロード頻度、MTQ・RCS でのアンロード時間、センサの禁止角",
       },
       cdh: {
@@ -59,6 +60,7 @@ export const systemsJa = {
     settingsCaption: (files: string) => `${files} の設定`,
     noSettings: "この系の設定はまだありません（プロジェクト / 設定 にすべての設定があります）",
     inputOf: (title: string) => `${title} に渡した入力`,
+    noAnalyses: "この系の解析はまだありません",
     noSeries: "時系列の結果はまだありません（時系列の解析が実行されると、ここにグラフを出します）",
     seriesSep: "・",
     seriesUnit: (u: string) => `［${u}］`,

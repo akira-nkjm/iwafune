@@ -122,6 +122,7 @@ fn ends_places_and_setting_groups_are_structured() {
 #[test]
 fn defs_list_systems_and_budget_kinds_from_the_model() {
     use fune_model::design::{AnalysisSystem, BudgetKind};
+    use fune_service::dto::System;
     let design = query::design_view(&demo()).unwrap();
     let systems: Vec<AnalysisSystem> = design
         .defs
@@ -131,6 +132,18 @@ fn defs_list_systems_and_budget_kinds_from_the_model() {
         .collect();
     assert_eq!(systems, AnalysisSystem::ALL);
     assert_eq!(design.defs.budget_kinds, BudgetKind::ALL);
+    assert!(design.defs.systems.contains(&System::Payload));
+    assert_eq!(design.defs.labels.section["aocs"].label, "AOCS");
+    assert_eq!(
+        design.defs.labels.section["payload"].label,
+        "ミッション機器"
+    );
+    assert!(
+        !design
+            .settings
+            .iter()
+            .any(|s| s.system == Some(System::Payload))
+    );
 }
 
 /// カタログ品の値は、その品を選んで上書きしていない部品の値と同じ形・同じ表示（組み立ては service の 1 か所）。

@@ -1,4 +1,4 @@
-//! RW アンロード頻度（`attitude.rw_unloading`）。
+//! RW アンロード頻度（`aocs.rw_unloading`）。
 //!
 //! 1. 軌道と姿勢則の時系列（`sat_astro::timeline`）の各点で擾乱トルクを求める（[`super::disturbance`]）。
 //! 2. トルクを ECI に直して `sat_astro::ode::rk4_linear_step`（`sat_astro::ode::rk4_step`）で積分し、ホイールが吸収する角運動量 `H_eci(t)` を得る
@@ -118,9 +118,9 @@ pub struct RwUnloadingWheelResult {
 pub struct RwUnloading;
 
 impl Analysis for RwUnloading {
-    const ID: &'static str = "attitude.rw_unloading";
+    const ID: &'static str = "aocs.rw_unloading";
     const TITLE: &'static str = "RW アンロード頻度";
-    const SYSTEM: System = System::Attitude;
+    const SYSTEM: System = System::Aocs;
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;
     const DESCRIPTION: &'static str = "擾乱トルクから蓄積角運動量とアンロード間隔を求める";
     const TITLE_EN: &'static str = "RW unloading frequency";

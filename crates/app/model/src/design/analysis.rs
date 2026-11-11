@@ -18,11 +18,12 @@ enum_text! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
     pub enum AnalysisSystem: "解析の系" {
         Power = "power",
-        Attitude = "attitude",
+        Aocs = "aocs",
         Cdh = "cdh",
         Comm = "comm",
         Thermal = "thermal",
         Structure = "structure",
+        Payload = "payload",
     }
 }
 
@@ -35,15 +36,23 @@ impl AnalysisSystem {
 
 /// `analysis/` 全体。`common` は共通設定、それ以外の欄は [`AnalysisSystem`] の綴り。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
 pub struct AnalysisSettings {
     pub common: Option<CommonSettings>,
     pub power: Option<PowerSettings>,
-    pub attitude: Option<AttitudeSettings>,
+    pub aocs: Option<AocsSettings>,
     pub cdh: Option<CdhSettings>,
     pub comm: Option<CommSettings>,
     pub thermal: Option<ThermalSettings>,
     pub structure: Option<StructureSettings>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payload: Option<PayloadSettings>,
 }
+
+/// ミッション機器の設定。現在は解析も設定項目も持たない。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PayloadSettings {}
 
 /// 系に属さない解析の共通設定（`analysis/common.toml`）。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
@@ -114,10 +123,10 @@ pub struct AttitudeLawSetting {
     pub orientation: Option<Quaternion>,
 }
 
-/// 姿勢の解析（`analysis/attitude.toml`）。
+/// AOCS の解析（`analysis/aocs.toml`）。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
-pub struct AttitudeSettings {
+pub struct AocsSettings {
     /// 抗力係数 Cd
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub drag_coefficient: Option<f64>,

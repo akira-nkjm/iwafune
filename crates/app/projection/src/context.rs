@@ -189,7 +189,7 @@ impl<'a> Context<'a> {
 
     /// 指定モードの姿勢則。モード未指定なら唯一の姿勢則だけを使い、選べなければ不足入力。
     pub fn attitude_law(&self, mode: Option<&str>, m: &mut MissingInputs) -> Option<AttitudeLaw> {
-        let laws = self.design.analysis.attitude.as_ref().map(|a| &a.law);
+        let laws = self.design.analysis.aocs.as_ref().map(|a| &a.law);
         let found = laws.and_then(|l| match mode {
             Some(id) => l.get(id),
             None if l.len() == 1 => l.values().next(),
@@ -197,7 +197,7 @@ impl<'a> Context<'a> {
         });
         let Some(setting) = found else {
             // モード未指定なら姿勢則の表を、指定済みならそのモードの欄を示す。
-            let law = AnalysisSystem::Attitude.setting_path().child(&["law"]);
+            let law = AnalysisSystem::Aocs.setting_path().child(&["law"]);
             let target = mode.map_or_else(|| law.clone(), |id| law.child(&[id]));
             m.push(
                 target,

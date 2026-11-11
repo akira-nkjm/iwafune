@@ -7,7 +7,7 @@
 ## 1. 目的と範囲
 
 iwafune は小型衛星の概念設計のための道具である。部品の選定、質量・電力・データ量のバジェット、モードごとの消費電力、
-電源・姿勢・C&DH・通信・熱・構造の解析を、1 つの設計データの上で扱う。
+電源・AOCS・C&DH・通信・熱・構造の解析を、1 つの設計データの上で扱う。
 
 - 設計データの正本は git で管理する TOML のディレクトリだけ。常駐のサーバーもデータベースも持たない。
 - 編集の手段は CLI（`fune`）と Web の GUI の 2 つで、できることは同じ。GUI は `fune gui` が手元で起動するサーバーから配信する。
@@ -217,7 +217,7 @@ HTTP の失敗は `{ "error": { "code", "message" }, "diagnostics": [...] }` で
 3D 配置は three・@react-three/fiber・@react-three/drei、グラフは Recharts。lint と整形は Biome、テストは Vitest。
 
 画面は概要（バジェットと診断）、部品、カタログ、系統図（給電・信号）、モード表、定義（属性・種別・単位）、
-系ごとのページ（電源・姿勢・C&DH・通信・熱・構造。構造のページに 3D 配置がある）、軌道と地上局、解析ケース、診断、設定。
+系ごとのページ（電源・AOCS・C&DH・通信・熱・構造・ミッション機器。ミッション機器の解析は未登録。構造のページに 3D 配置がある）、軌道と地上局、解析ケース、診断、設定。
 系のページはその系に関係する部品をその系の属性の列だけで並べてセルで編集でき、同じページに解析の結果を出す。
 URL は `src/routes.ts`、サイドバーの並びは `src/lib/nav.ts` にある。
 
@@ -246,7 +246,7 @@ Web は次のことをしない。
 | 系 | 定常 | 時系列 |
 |---|---|---|
 | 電源 | `power.mode_load`（モード別消費電力）、`power.solar_sunlit`（日照時の発電） | `power.orbit_generation`（軌道上の発電）、`power.energy_balance`（電力収支と DoD） |
-| 姿勢 | `attitude.unload_time`（MTQ・RCS でのアンロードにかかる時間） | `attitude.rw_unloading`（擾乱トルクと RW のアンロード頻度）、`attitude.sensor_fov`（センサの FoV と禁止角） |
+| AOCS | `aocs.unload_time`（MTQ・RCS でのアンロードにかかる時間） | `aocs.rw_unloading`（擾乱トルクと RW のアンロード頻度）、`aocs.sensor_fov`（センサの FoV と禁止角） |
 | C&DH | `cdh.data_budget`（データ量とストレージ） | — |
 | 通信 | `comm.link_budget`（回線バジェット） | `comm.visibility`（地上局の可視）、`comm.data_throughput`（データ送信量と蓄積） |
 | 熱 | `thermal.steady`（多節点の定常温度） | `thermal.transient`（多節点の非定常温度） |

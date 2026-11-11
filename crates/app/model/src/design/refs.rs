@@ -8,7 +8,7 @@
 //! |---|---|
 //! | 部品 | モードの `[states]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part`・`analysis/thermal.toml` の `[nodes]`・図の `[nodes]` のキー |
 //! | グループ | fune.toml の `[groups]` のキー・配分のキー・図の `[nodes]` のキー |
-//! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]` の `mode`・`analysis/attitude.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode` |
+//! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]` の `mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode` |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets` |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire` |
 
@@ -81,7 +81,7 @@ pub enum RefSite {
     PowerModeShare,
     /// 電源のモードの並びの区間（`[[sequence]]` の `index` 番目の `mode`）
     PowerSequence { index: usize },
-    /// 姿勢則のキー（`analysis/attitude.toml` の `[law]`）
+    /// 姿勢則のキー（`analysis/aocs.toml` の `[law]`）
     AttitudeLaw,
     /// 熱の環境条件のモード（`analysis/thermal.toml` の `[case.<条件>].mode`）
     ThermalCaseMode { case: String },
@@ -217,7 +217,7 @@ impl Design {
             );
         }
         if analysis
-            .attitude
+            .aocs
             .as_ref()
             .is_some_and(|a| a.law.contains_key(id))
         {

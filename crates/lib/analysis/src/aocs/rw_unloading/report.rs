@@ -2,7 +2,7 @@
 
 use super::trace::Trace;
 use super::{RwUnloadingInput, RwUnloadingOutput, TORQUE_MARGIN_WARNING_BAND};
-use crate::attitude::disturbance::{DisturbanceKind, DisturbanceTorques};
+use crate::aocs::disturbance::{DisturbanceKind, DisturbanceTorques};
 use crate::spec::quantity_text;
 use crate::spec::{Channel, ChannelKind, Check, Series, Verdict, ratio_margin_verdict};
 use sat_astro::math::Vec3;

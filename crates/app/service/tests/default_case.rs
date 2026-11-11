@@ -27,8 +27,8 @@ fn default_case_supplies_the_missing_analysis_conditions() {
     let original = ws.snapshot().unwrap().design.analysis.common.clone();
     for id in [
         "power.orbit_generation",
-        "attitude.rw_unloading",
-        "attitude.sensor_fov",
+        "aocs.rw_unloading",
+        "aocs.sensor_fov",
         "thermal.transient",
     ] {
         let result = analysis::run_analysis(&ws, id, &default_request()).unwrap();

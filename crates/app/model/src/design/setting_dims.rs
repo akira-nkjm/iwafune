@@ -135,12 +135,12 @@ setting_quantities! {
     GROUND_LINE_LOSS: Dimensionless = Mission["ground", ANY, "link", ANY, "line_loss"];
     /// 電源のモードの並びの区間の長さ（`analysis/power.toml` の `[[sequence]]`）
     POWER_SEQUENCE_DURATION: Time = Analysis["power", "sequence", ANY, "duration"];
-    /// 空力の圧力中心 − 重心（`analysis/attitude.toml`。ベクトル）
-    ATTITUDE_CP_OFFSET_AERO: Length = Analysis["attitude", "cp_offset_aero"];
+    /// 空力の圧力中心 − 重心（`analysis/aocs.toml`。ベクトル）
+    AOCS_CP_OFFSET_AERO: Length = Analysis["aocs", "cp_offset_aero"];
     /// 太陽輻射圧の圧力中心 − 重心（ベクトル）
-    ATTITUDE_CP_OFFSET_SRP: Length = Analysis["attitude", "cp_offset_srp"];
+    AOCS_CP_OFFSET_SRP: Length = Analysis["aocs", "cp_offset_srp"];
     /// 残留磁気双極子（ベクトル）
-    ATTITUDE_RESIDUAL_DIPOLE: MagneticDipoleMoment = Analysis["attitude", "residual_dipole"];
+    AOCS_RESIDUAL_DIPOLE: MagneticDipoleMoment = Analysis["aocs", "residual_dipole"];
     /// 地上に降ろすまで保持する期間（`analysis/cdh.toml`）
     CDH_RETENTION: Time = Analysis["cdh", "retention"];
     /// 要求する回線の余裕（`analysis/comm.toml`。dB）

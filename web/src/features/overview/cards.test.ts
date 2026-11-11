@@ -64,8 +64,8 @@ const slots: KpiSlot[] = [
       fill: { ratio: 1, basis: "value" },
     }),
   ),
-  slot("attitude", kpi("unload_interval", { value: qty("16.4 h"), verdict: "ok" })),
-  slot("attitude", kpi("peak_momentum", { value: qty("2.32 mN·m·s") })),
+  slot("aocs", kpi("unload_interval", { value: qty("16.4 h"), verdict: "ok" })),
+  slot("aocs", kpi("peak_momentum", { value: qty("2.32 mN·m·s") })),
   slot("cdh", kpi("storage_margin", { value: qty("-3.61 %"), fill: { ratio: 0, basis: "value" } })),
   slot("cdh", kpi("data_per_day", { value: qty("2.77 GB") }), true),
   slot("comm", kpi("link_margin", { value: qty("3.05 dB"), verdict: "ok" })),
@@ -134,7 +134,7 @@ describe("overviewCards", () => {
       footer: `${o.peakMomentum} 2.32 mN·m·s`,
       fill: null,
       tone: "pos",
-      to: "/systems/attitude",
+      to: "/systems/aocs",
     });
     expect(card("storage_margin")?.footer).toBe(`${o.perDay} —`);
     expect(card("storage_margin")?.tone).toBe("pos");

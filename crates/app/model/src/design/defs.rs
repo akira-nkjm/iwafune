@@ -86,7 +86,7 @@ pub struct AttributeDef {
     /// 方向ベクトル（単位ベクトルであるべきもの）
     #[serde(default, skip_serializing_if = "is_false")]
     pub unit_vector: bool,
-    /// 画面で並べる系（`basic`・`mass`・`power`・`thermal`・`attitude`・`comm`・`cdh`・`structure`）
+    /// 画面で並べる系（`basic`・`mass`・`power`・`thermal`・`aocs`・`comm`・`cdh`・`structure`）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub section: Option<String>,
 }
