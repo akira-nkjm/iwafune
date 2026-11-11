@@ -1,6 +1,6 @@
 //! 解析の出力の量の次元と列挙の値: 出力を型付きのまま書き出し、`Qty` の葉ごとに JSON Pointer → 次元名を、
 //! 列挙の値ごとに JSON Pointer → (型名, 綴り) を集める。
-//! `Qty::serialize` が書き出す直前に記録する次元（`sat_units::take_last_dimension`）を、数値の葉の位置と結び付けるだけ。
+//! `Qty::serialize`（トルクの欄は `TorqueKind::serialize`）が書き出す直前に記録する次元・種類（`sat_units::take_last_dimension`）を、数値の葉の位置と結び付けるだけ。
 //! 列挙は serde が書き出しに渡す型名で見分ける（表示名は `analysis::labels`）。
 //! 出力の JSON そのものは `serde_json` が作る（ここは位置と次元・列挙しか作らない）。
 
@@ -19,6 +19,8 @@ pub struct OutputMeta {
 
 /// 出力を書き出して、量の次元と列挙の値を集める。
 pub fn meta_of<T: Serialize>(value: &T) -> OutputMeta {
+    // 同じスレッドで前に書き出した量の記録が残っていると、最初の葉（文字列など）に付いてしまうので消す。
+    let _ = sat_units::take_last_dimension();
     let mut r = Recorder::default();
     // 書き出しの失敗（あり得ないが）では、集めた分だけを返す。
     let _ = value.serialize(&mut r);

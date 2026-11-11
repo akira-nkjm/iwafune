@@ -12,6 +12,7 @@ use sat_units::format::{
     display_units, format_dimension, format_in_unit, format_number, format_quantity,
     si_unit_expression,
 };
+use sat_units::typed::{NamedKind, TorqueKind};
 use sat_units::{Dimension, Unit, named_dimensions, parse_dimension, parse_unit};
 
 /// SI 値の一括整形（`POST /units/format`）。単位の指定が無ければ次元名から読みやすい単位を選ぶ（`sat_units::format`）。
@@ -56,9 +57,16 @@ pub fn format_quantities(req: &FormatRequest) -> Result<FormatResponse> {
 /// 単位の一覧（`GET /units`）。`query.dimension` を指定するとその次元の単位だけを返す。
 pub fn units_catalog(query: &UnitsQuery) -> Result<UnitsCatalog> {
     let wanted = query.dimension.as_deref().map(dimension_of).transpose()?;
+    let torque = query
+        .dimension
+        .as_deref()
+        .and_then(canonical_dimension_name)
+        == Some(TorqueKind::name());
     let dimensions = named_dimensions()
         .iter()
-        .filter(|(_, d)| wanted.is_none_or(|w| w == *d))
+        .filter(|(name, d)| {
+            wanted.is_none_or(|w| w == *d) && (!torque || *name == TorqueKind::name())
+        })
         .map(|(name, d)| DimensionInfo {
             name: (*name).to_owned(),
             si_unit: si_unit_expression(*d),
@@ -67,9 +75,18 @@ pub fn units_catalog(query: &UnitsQuery) -> Result<UnitsCatalog> {
                 .unwrap_or_default(),
         })
         .collect();
-    let units = sat_units::NAMED_UNIT_SYMBOLS
+    // 同次元の Energy の単位を Torque の入力候補に混ぜない。候補の正本は sat-units。
+    let symbols: Vec<&str> = if torque {
+        display_units(TorqueKind::name())
+            .into_iter()
+            .flatten()
+            .collect()
+    } else {
+        sat_units::NAMED_UNIT_SYMBOLS.to_vec()
+    };
+    let units = symbols
         .iter()
-        .filter_map(|symbol| sat_units::named_unit(symbol).map(|u| (*symbol, u)))
+        .filter_map(|symbol| parse_unit(symbol).ok().map(|u| (*symbol, u)))
         .filter(|(_, u)| wanted.is_none_or(|w| w == u.dimension()))
         .map(|(symbol, u)| unit_info(symbol, &u, query.dimension.as_deref()))
         .collect();
@@ -224,6 +241,37 @@ fn unit_info(symbol: &str, u: &Unit, preferred: Option<&str>) -> UnitInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn torque_input_candidates_exclude_energy_units() {
+        let attr = &fune_model::builtin::attributes()["max_torque"];
+        assert_eq!(attr.dimension.as_deref(), Some(TorqueKind::name()));
+        assert_eq!(attr.units, ["N*m", "mN*m"]);
+        let catalog = units_catalog(&UnitsQuery {
+            dimension: attr.dimension.clone(),
+        })
+        .unwrap();
+        assert_eq!(catalog.dimensions.len(), 1);
+        assert_eq!(catalog.dimensions[0].name, "Torque");
+        let preferred: Vec<_> = display_units(TorqueKind::name()).unwrap().collect();
+        let symbols: Vec<_> = catalog.units.iter().map(|u| u.symbol.as_str()).collect();
+        assert_eq!(symbols, preferred);
+        assert!(symbols.contains(&"N*m") && symbols.contains(&"mN*m"));
+        assert!(!symbols.contains(&"Wh") && !symbols.contains(&"J"));
+        // 次元の検査は従来どおり。入力の綴りだけでは量の種類を拒否しない。
+        let parsed = parse_quantity(&ParseQuantityRequest {
+            input: "1 J".into(),
+            dimension: Some("Torque".into()),
+        })
+        .unwrap();
+        assert_eq!(parsed.quantity.dimension, "Torque");
+        let energy = units_catalog(&UnitsQuery {
+            dimension: Some("Energy".into()),
+        })
+        .unwrap();
+        assert!(energy.units.iter().any(|u| u.symbol == "J"));
+        assert!(energy.units.iter().any(|u| u.symbol == "Wh"));
+    }
 
     #[test]
     fn parses_value_and_unit() {

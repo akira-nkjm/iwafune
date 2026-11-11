@@ -127,6 +127,7 @@ pub struct UnloadTimeMtqResult {
     /// 使った有効率（入力が無ければ既定値）
     pub efficiency: Fraction,
     /// 平均のアンロードトルク（η · m_eff · |B| の平均）
+    #[serde(serialize_with = "sat_units::typed::TorqueKind::serialize")]
     pub torque: Qty<Torque>,
     pub time: Qty<Time>,
     /// 時間を軌道周期で割ったもの（地磁気を軌道から求めたときだけ）
