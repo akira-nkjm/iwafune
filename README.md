@@ -18,7 +18,7 @@
 
 iwafune is a workbench for the conceptual design of small satellites. The design lives in a git-friendly
 directory of TOML files. You edit it from either the `fune` CLI or a web GUI, and run analyses for power,
-attitude, C&DH, communications, thermal and structure on the same data.
+AOCS, C&DH, communications, thermal and structure on the same data.
 
 > The name comes from Ama-no-Iwafune, the rock boat said to have carried Nigihayahi down from the heavens.
 > The logo is its hull.
@@ -37,7 +37,7 @@ attitude, C&DH, communications, thermal and structure on the same data.
 | Subsystem | Analyses |
 |---|---|
 | Power | Mode power · sunlit generation · orbit generation · energy balance and depth of discharge |
-| Attitude | RW unloading interval · MTQ/RCS unloading time · sensor field-of-view keep-out |
+| AOCS | RW unloading interval · MTQ/RCS unloading time · sensor field-of-view keep-out |
 | C&DH | Data budget and storage |
 | Communications | Link budget · ground-station visibility · downlink throughput |
 | Thermal | Steady-state and transient multi-node |

@@ -37,7 +37,7 @@ fn records_pointer_and_dimension_of_every_qty() {
 /// 列挙の値は型名と綴りで集める（外部タグの単位の値と、内部タグの列挙のタグ）。中の量の次元も集める。
 #[test]
 fn records_enum_values_with_their_type() {
-    use sat_analysis::attitude::disturbance::DisturbanceKind;
+    use sat_analysis::aocs::disturbance::DisturbanceKind;
     use sat_analysis::comm::data_throughput::DataThroughputLinkClosure;
     #[derive(Serialize)]
     struct WithEnums {
@@ -86,7 +86,7 @@ fn assert_torque_fields<T: Serialize>(id: &str, output: &T, pointers: &[&str]) {
 
 #[test]
 fn rw_unloading_and_disturbance_fields_record_torque_kind() {
-    use sat_analysis::attitude::rw_unloading::RwUnloadingOutput;
+    use sat_analysis::aocs::rw_unloading::RwUnloadingOutput;
     let out: RwUnloadingOutput = serde_json::from_value(serde_json::json!({
         "period": 5400.0, "complete_orbits": 1, "span_fallback": null,
         "usable_momentum_fraction": 0.8,
@@ -102,7 +102,7 @@ fn rw_unloading_and_disturbance_fields_record_torque_kind() {
     }))
     .unwrap();
     assert_torque_fields(
-        "attitude.rw_unloading",
+        "aocs.rw_unloading",
         &out,
         &[
             "/peak_disturbance",
@@ -120,7 +120,7 @@ fn rw_unloading_and_disturbance_fields_record_torque_kind() {
 
 #[test]
 fn unload_time_mtq_and_rcs_fields_record_torque_kind() {
-    use sat_analysis::attitude::unload_time::UnloadTimeOutput;
+    use sat_analysis::aocs::unload_time::UnloadTimeOutput;
     let direction = serde_json::json!({
         "label": "given", "momentum_direction": {"x": 0.0, "y": 0.0, "z": 1.0},
         "torque": 2.0, "off_axis_torque": 0.001, "net_force": 1.0,
@@ -137,7 +137,7 @@ fn unload_time_mtq_and_rcs_fields_record_torque_kind() {
     }))
     .unwrap();
     assert_torque_fields(
-        "attitude.unload_time",
+        "aocs.unload_time",
         &out,
         &[
             "/mtq/torque",

@@ -255,11 +255,12 @@ impl Decoder<'_> {
     fn read_analysis(&mut self, path: &str, system: AnalysisSystem) {
         match system {
             AnalysisSystem::Power => self.design.analysis.power = self.parse(path),
-            AnalysisSystem::Attitude => self.design.analysis.attitude = self.parse(path),
+            AnalysisSystem::Aocs => self.design.analysis.aocs = self.parse(path),
             AnalysisSystem::Cdh => self.design.analysis.cdh = self.parse(path),
             AnalysisSystem::Comm => self.design.analysis.comm = self.parse(path),
             AnalysisSystem::Thermal => self.design.analysis.thermal = self.parse(path),
             AnalysisSystem::Structure => self.design.analysis.structure = self.parse(path),
+            AnalysisSystem::Payload => self.design.analysis.payload = self.parse(path),
         }
     }
 }

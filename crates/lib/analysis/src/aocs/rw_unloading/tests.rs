@@ -1,6 +1,6 @@
 use super::trace::{integrate_momentum, secular_and_cyclic};
 use super::*;
-use crate::attitude::disturbance::DisturbanceSurface;
+use crate::aocs::disturbance::DisturbanceSurface;
 use crate::power::testkit::{leo_timeline, nadir_pointing_z, sun_pointing_z};
 use sat_astro::constants::C_LIGHT;
 use sat_astro::math::Mat3;

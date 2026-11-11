@@ -95,7 +95,7 @@ pub fn solar_sunlit(ctx: &Context<'_>) -> Result<SolarSunlitInput, MissingInputs
     let modes = timeline::modes_with_law(ctx);
     if modes.is_empty() {
         m.push(
-            AnalysisSystem::Attitude.setting_path().child(&["law"]),
+            AnalysisSystem::Aocs.setting_path().child(&["law"]),
             "姿勢則（モードごと）",
         );
     }
@@ -213,8 +213,8 @@ fn batteries(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceBatte
         .collect()
 }
 
-/// モードの姿勢則（`analysis.attitude.law.<モード>`）。書かれていなければ None（時系列の姿勢則を使う）。
+/// モードの姿勢則（`analysis.aocs.law.<モード>`）。書かれていなければ None（時系列の姿勢則を使う）。
 fn mode_law(ctx: &Context<'_>, mode: &str) -> Option<sat_astro::attitude::AttitudeLaw> {
-    let laws = &ctx.design.analysis.attitude.as_ref()?.law;
+    let laws = &ctx.design.analysis.aocs.as_ref()?.law;
     laws.get(mode).map(crate::context::law_of)
 }

@@ -8,8 +8,8 @@ describe("系のページに出す部品と属性", () => {
     expect(r.parts.map((p) => p.id)).toEqual(["RW_X", "PCDU"]);
     expect(r.attrs).toEqual(["power"]);
   });
-  it("姿勢: max_momentum を持つ RW だけ", () => {
-    const r = relevantParts(fixture, "attitude");
+  it("AOCS: max_momentum を持つ RW だけ", () => {
+    const r = relevantParts(fixture, "aocs");
     expect(r.parts.map((p) => p.id)).toEqual(["RW_X"]);
     expect(r.attrs).toEqual(["max_momentum"]);
   });

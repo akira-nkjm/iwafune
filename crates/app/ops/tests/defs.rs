@@ -28,7 +28,7 @@ fn attr_def(id: &str, dimension: &str, units: &[&str]) -> AttributeDef {
         budget: None,
         default: None,
         unit_vector: false,
-        section: Some("attitude".into()),
+        section: Some("aocs".into()),
     }
 }
 

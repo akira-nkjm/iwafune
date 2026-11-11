@@ -216,14 +216,14 @@ pub trait Project<I> {
 ### 5.1 解析ケースの条件選択
 
 projection の `case_policy::effective_case` が明示ケースを優先する。省略時に `analysis.common.default_case` を
-解析全体へ適用する対象は、同モジュールの宣言にある `power.orbit_generation`・`attitude.rw_unloading`・
-`attitude.sensor_fov`・`thermal.transient` のみ。それ以外はケース未選択のまま運用全体や全条件を解析する。
+解析全体へ適用する対象は、同モジュールの宣言にある `power.orbit_generation`・`aocs.rw_unloading`・
+`aocs.sensor_fov`・`thermal.transient` のみ。それ以外はケース未選択のまま運用全体や全条件を解析する。
 既定の設定が存在しないケースを指すと検査エラーにする。
 実行結果の `case` は使ったケース ID、`case_source` は `explicit` / `default`（ケース未選択なら原則両方 null）。
 保存前の設定変更も同じ規則で解析に適用する。入力を丸ごと与える `given` には既定ケースを適用しない。
 
 `power.energy_balance` はケース未指定なら全モードを 1 ケースずつ並べ、各ケースの姿勢則はそのモードの
-`analysis.attitude.law` を使う。上段の `timeline.attitude` だけは、同じ解決関数で引いた既定ケースのモードの姿勢則を使う。
+`analysis.aocs.law` を使う。上段の `timeline.attitude` だけは、同じ解決関数で引いた既定ケースのモードの姿勢則を使う。
 この場合は `case = null`、`case_source = default_attitude` とする。既定ケースの β・周回数・side などは適用しない。
 既定ケースがなければ、姿勢則が唯一の場合だけ上段にも使い、複数なら不足入力にする。
 明示ケースがあれば、従来どおりそのケースのモードと条件を使う。
@@ -253,6 +253,8 @@ KPI の電力収支は別の量である平均電力（`orbit_average_balance`�
 複数なら候補部品 ID を不足入力の文に示して停止し、ID 順には選ばない。0 個の場合の扱いは従来どおりとする。
 
 ### 5.4 共通解析設定
+
+系の一覧は `AnalysisSystem` が正本で、API の `DefsView.systems` に同じ順で返す。`aocs` の表示名は日英とも AOCS、`payload` は日本語「ミッション機器」・英語「Payload」。Payload は解析を持たず、設定項目もまだない。古い系名 `attitude` は受け付けない。
 
 系に属さない設定は `analysis/common.toml` に置く。プロジェクトの設定一覧では scope は `analysis`、system は null。
 `default_case` は解析ケース ID の文字列。§5.1 の対象解析と電力収支の上段の姿勢則にだけ使い、省略時はケース未選択の扱いを維持する。

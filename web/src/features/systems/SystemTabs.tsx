@@ -29,6 +29,7 @@ export function SystemTabs({
   states,
   entries,
   extra,
+  noAnalyses = false,
 }: {
   tab: SystemTab;
   system: System;
@@ -36,11 +37,13 @@ export function SystemTabs({
   states: AnalysisState[];
   entries: Map<string, AnalysisEntry>;
   extra?: Partial<Record<SystemTab, ReactNode>>;
+  noAnalyses?: boolean;
 }) {
   const dict = useT();
   if (tab === "results")
     return (
       <>
+        {noAnalyses && <Empty>{dict.systems.noAnalyses}</Empty>}
         {extra?.results}
         <div className="grid gap-4 xl:grid-cols-2">
           {states.map((s) => (

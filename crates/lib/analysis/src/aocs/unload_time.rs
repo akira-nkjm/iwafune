@@ -1,4 +1,4 @@
-//! アンロードにかかる時間（`attitude.unload_time`）。
+//! アンロードにかかる時間（`aocs.unload_time`）。
 //!
 //! - **捨てる量**: `momentum` を与えなければ、ホイールの最大角運動量の最大 × 使ってよい割合（既定 0.8）。
 //! - **MTQ**: 出せるトルクは `τ = η · m_eff · |B|`。`m_eff` は MTQ の組が機体のどの軸の向きにも出せる双極子の最小
@@ -140,9 +140,9 @@ pub struct UnloadTimeMtqResult {
 pub struct UnloadTime;
 
 impl Analysis for UnloadTime {
-    const ID: &'static str = "attitude.unload_time";
+    const ID: &'static str = "aocs.unload_time";
     const TITLE: &'static str = "アンロードにかかる時間";
-    const SYSTEM: System = System::Attitude;
+    const SYSTEM: System = System::Aocs;
     const KIND: AnalysisKind = AnalysisKind::Steady;
     const DESCRIPTION: &'static str = "MTQ・RCS で所定の角運動量を捨てるのにかかる時間";
     const TITLE_EN: &'static str = "Momentum unloading time";

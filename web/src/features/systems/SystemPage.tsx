@@ -35,7 +35,7 @@ function SystemBodySkeleton() {
 }
 
 /**
- * 系の解析のページ（電源・姿勢・C&DH・通信・熱・構造）。どの系があるかは API（`DefsView.systems`。設計と一緒に届く）で、
+ * 系の解析のページ（解析が未登録の系も含む）。どの系があるかは API（`DefsView.systems`。設計と一緒に届く）で、
  * 届くまではページの骨組み、読めなければ理由と再試行を出す。
  */
 export function SystemPage() {
@@ -117,6 +117,7 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
               tab={tab}
               system={system}
               design={d}
+              noAnalyses={!catalog.loading && catalog.entries.length === 0}
               states={states}
               entries={entries}
               extra={systemExtras(system, d, states)}

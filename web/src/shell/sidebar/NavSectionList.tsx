@@ -1,8 +1,9 @@
 import { ChevronRight } from "lucide-react";
 import { NavLink } from "react-router";
+import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { type NavSection, paths } from "@/lib/nav";
+import { type NavSection, navItemTitle, paths } from "@/lib/nav";
 import { preloadHandlers, usePreloadPlan } from "../preload";
 import { RailTip } from "./RailTip";
 import { railFade } from "./sidebar-motion";
@@ -25,6 +26,7 @@ export function NavSectionList({
   onToggle: () => void;
 }) {
   const t = useT();
+  const design = useDesign();
   const preload = usePreloadPlan();
   const itemsId = `${SIDEBAR_ID}-${section.id}`;
   const heading = section.heading ? t.nav.sections[section.id] : null;
@@ -69,7 +71,7 @@ export function NavSectionList({
         <ul id={itemsId} className="space-y-0.5">
           {section.items.map((it) => {
             const Icon = it.icon;
-            const name = t.nav.items[it.key];
+            const name = navItemTitle(it, t, design.data?.defs);
             return (
               <li key={it.to}>
                 <RailTip rail={rail} label={heading ? `${heading} / ${name}` : name}>

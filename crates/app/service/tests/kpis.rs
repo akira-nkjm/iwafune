@@ -41,17 +41,14 @@ fn demo_kpis_show_the_same_values_as_before() {
             &[(KpiKey::OrbitBalance, "-5.09 W"), (KpiKey::MaxDod, "100 %")],
         ),
         (
-            "attitude.rw_unloading",
+            "aocs.rw_unloading",
             &[
                 (KpiKey::UnloadInterval, "16.2 h"),
                 (KpiKey::PeakMomentum, "2.38 mN·m·s"),
             ],
         ),
-        (
-            "attitude.unload_time",
-            &[(KpiKey::MtqUnloadTime, "25.4 min")],
-        ),
-        ("attitude.sensor_fov", &[(KpiKey::SensorIntrusion, "100 %")]),
+        ("aocs.unload_time", &[(KpiKey::MtqUnloadTime, "25.4 min")]),
+        ("aocs.sensor_fov", &[(KpiKey::SensorIntrusion, "100 %")]),
         (
             "cdh.data_budget",
             &[
@@ -131,11 +128,7 @@ fn demo_verdicts_fills_and_tallies() {
     assert!((range.fill.unwrap().ratio - 5.0 / 9.0).abs() < 1e-12);
     // 判定の対象でない KPI（発生量・角運動量）は判定を持たない
     assert!(kpis(&ws, "cdh.data_budget", None)[0].verdict.is_none());
-    assert!(
-        kpis(&ws, "attitude.rw_unloading", None)[1]
-            .verdict
-            .is_none()
-    );
+    assert!(kpis(&ws, "aocs.rw_unloading", None)[1].verdict.is_none());
     // バジェットの塗り（成長余裕込みの合計 / 上限。上限を超える行は 1 に寄せる）
     let mass = budget::budget(&ws, BudgetKind::Mass, &BudgetRequest::default()).unwrap();
     assert_eq!(

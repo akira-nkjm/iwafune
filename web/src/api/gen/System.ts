@@ -3,4 +3,4 @@
 /**
  * 解析が属する系。
  */
-export type System = "power" | "attitude" | "cdh" | "comm" | "thermal" | "structure";
+export type System = "power" | "aocs" | "cdh" | "comm" | "thermal" | "structure" | "payload";

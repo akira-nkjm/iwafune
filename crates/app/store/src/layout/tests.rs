@@ -37,6 +37,7 @@ fn classifies_files() {
         assert_eq!(file, analysis_file(*s));
     }
     assert_eq!(classify("analysis/other.toml", &cat), FileRole::Other);
+    assert_eq!(classify("analysis/attitude.toml", &cat), FileRole::Other);
     assert_eq!(classify("README.md", &cat), FileRole::Other);
 }
 
@@ -65,4 +66,5 @@ fn maps_setting_paths_to_files() {
         ))
     );
     assert!(setting_location(&p("analysis.nope.x")).is_err());
+    assert!(setting_location(&p("analysis.attitude.law")).is_err());
 }

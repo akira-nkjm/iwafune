@@ -1,6 +1,7 @@
 import type { RouteConfigEntry } from "@react-router/dev/routes";
 import { describe, expect, it } from "vitest";
 import routes from "@/routes";
+import { fixture } from "@/test/fixture";
 import { isSystemItem, nav, paths } from "./nav";
 
 /** routes.ts のルートの形（`design/components/:id?`）→ 道筋に合うかの正規表現 */
@@ -29,7 +30,7 @@ const matches = (url: string) => {
 describe("paths", () => {
   it("作る URL はどれも routes.ts のルートに当たる", () => {
     const urls = [
-      ...nav.flatMap((s) => s.items.map((i) => i.to)),
+      ...nav(fixture.defs.systems).flatMap((s) => s.items.map((i) => i.to)),
       paths.component("RW_X"),
       paths.addComponent(),
       paths.catalogItem("local/rw"),
@@ -54,12 +55,23 @@ describe("paths", () => {
 });
 
 describe("isSystemItem", () => {
+  it("API が返した系の一覧と順序に従う", () => {
+    const systems = [...fixture.defs.systems].reverse();
+    expect(
+      nav(systems)
+        .find((s) => s.id === "systems")
+        ?.items.map((i) => i.system),
+    ).toEqual(systems);
+    expect(nav([]).find((s) => s.id === "systems")?.items).toEqual([]);
+  });
   it("系の項目だけが系のページ（キーは系の綴り）", () => {
     expect(isSystemItem("thermal")).toBe(true);
     expect(isSystemItem("overview")).toBe(false);
     expect(isSystemItem("modes")).toBe(false);
-    const systems = nav.flatMap((s) => s.items.flatMap((i) => (i.system ? [i.system] : [])));
-    expect(systems).toHaveLength(6);
+    const systems = nav(fixture.defs.systems).flatMap((s) =>
+      s.items.flatMap((i) => (i.system ? [i.system] : [])),
+    );
+    expect(systems).toEqual(fixture.defs.systems);
     expect(systems.every((s) => isSystemItem(s))).toBe(true);
   });
 });

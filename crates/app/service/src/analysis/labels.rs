@@ -4,9 +4,9 @@
 //! `match` で書くので、解析に値が増えたら、ここが書かれるまでコンパイルが通らない。
 
 use crate::dto::{AnalysisLabel, KpiKey};
-use sat_analysis::attitude::disturbance::DisturbanceKind;
-use sat_analysis::attitude::sensor_fov::SensorFovTarget;
-use sat_analysis::attitude::unload_time::UnloadAssumption;
+use sat_analysis::aocs::disturbance::DisturbanceKind;
+use sat_analysis::aocs::sensor_fov::SensorFovTarget;
+use sat_analysis::aocs::unload_time::UnloadAssumption;
 use sat_analysis::comm::data_throughput::DataThroughputLinkClosure;
 use sat_analysis::comm::link_budget::LinkBudgetDirection;
 use sat_analysis::power::solar::SolarLife;

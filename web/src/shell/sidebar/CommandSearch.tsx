@@ -5,7 +5,7 @@ import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { nodeName } from "@/lib/design";
-import { nav, paths } from "@/lib/nav";
+import { nav, navItemTitle, paths } from "@/lib/nav";
 import {
   CommandDialog,
   CommandEmpty,
@@ -64,16 +64,16 @@ export function CommandSearch({ rail = false }: { rail?: boolean }) {
         <CommandList>
           <CommandEmpty>{t.shell.notFound}</CommandEmpty>
           <CommandGroup heading={t.shell.groupPages}>
-            {nav.flatMap((s) =>
+            {nav(d?.defs.systems ?? []).flatMap((s) =>
               s.items.map((it) => (
                 <CommandItem
                   key={it.to}
-                  value={`page ${t.nav.items[it.key]} ${it.key} ${it.to}`}
+                  value={`page ${navItemTitle(it, t, d?.defs)} ${it.key} ${it.to}`}
                   onSelect={() => go(it.to)}
                 >
                   <it.icon size={14} />
                   {s.heading ? `${t.nav.sections[s.id]} / ` : ""}
-                  {t.nav.items[it.key]}
+                  {navItemTitle(it, t, d?.defs)}
                 </CommandItem>
               )),
             )}
