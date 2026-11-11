@@ -5,12 +5,14 @@
 //! - 台帳: すべての crate が docs/architecture/registry.md に載っているか
 //! - ファイルの長さ: 400 行を超える Rust / TS のファイルを警告する（CONTRIBUTING.md の目安）
 //! - 言語: Python のファイルが無いか（言語は Rust と TS だけ）
+//! - ファイル名: 同じディレクトリで大文字・小文字だけ違う名前が無いか（[`file_names`]。macOS で import が取り違える）
 //! - 1 機能 1 か所: 台帳で決めた定義が別のファイルに現れていないか（[`single_home`]）
 //! - Web の文字列の分解: ID やパスを `/`・`.` で分けていないか（[`web_strings`]）
 //! - Web の色の直書き: hex・色の名前（`white` など）・`color-mix(` が `lib/tone.ts` の外に無いか（[`web_colors`]）
 //! - Web のページ: ページの URL を `lib/nav.ts` の外で組み立てていないか、`features/` に shell などから依存していないか
 //!   （[`web_pages`]）
 
+mod file_names;
 mod module_cycles;
 mod single_home;
 mod web_colors;
@@ -90,6 +92,7 @@ fn check() -> Result<()> {
     check_registry(&meta, &mut errors)?;
     check_languages(&meta.workspace_root, &mut errors)?;
     let files = source_files(&meta.workspace_root)?;
+    file_names::check(&meta.workspace_root, &files, &mut errors);
     single_home::check(&meta.workspace_root, &files, &mut errors);
     web_strings::check(&meta.workspace_root, &files, &mut errors);
     web_colors::check(&meta.workspace_root, &files, &mut errors);

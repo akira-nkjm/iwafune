@@ -3,7 +3,7 @@ import type { PartRow } from "@/api/types";
 import { useT } from "@/i18n";
 import { SubsystemDot } from "@/kit/SubsystemDot";
 import { Tree } from "@/kit/tree/Tree";
-import { filterTree, partsTree } from "@/kit/tree/tree";
+import { filterTree, partsTree } from "@/kit/tree/tree-nodes";
 import { attrOf } from "@/lib/design";
 import { valueText } from "@/quantity/format";
 

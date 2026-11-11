@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PartRow } from "@/api/types";
-import { catalogTree, filterTree, partsTree, treeCount } from "./tree";
+import { catalogTree, filterTree, partsTree, treeCount } from "./tree-nodes";
 
 type Part = Pick<PartRow, "id" | "parent" | "dir" | "subsystem">;
 /** `dir` は API の PartRow.dir（`parts/` からのディレクトリの区間） */

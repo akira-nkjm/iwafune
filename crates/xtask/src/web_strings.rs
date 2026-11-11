@@ -145,8 +145,8 @@ mod tests {
         assert_eq!(number_reader("Number.parseInt(hex, 16)"), None);
         assert_eq!(number_reader("isNumber(x) || Number.isFinite(x)"), None);
         assert_eq!(number_reader("staleTime: Number.POSITIVE_INFINITY"), None);
-        assert!(is_web_production("web/src/kit/tree/tree.ts"));
-        assert!(!is_web_production("web/src/kit/tree/tree.test.ts"));
+        assert!(is_web_production("web/src/kit/tree/tree-nodes.ts"));
+        assert!(!is_web_production("web/src/kit/tree/tree-nodes.test.ts"));
         assert!(!is_web_production("web/src/api/gen/PartRow.ts"));
     }
 }
