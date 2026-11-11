@@ -3,15 +3,15 @@ import { useState } from "react";
 import { q } from "@/api/queries";
 import type { DesignView } from "@/api/types";
 import { useT } from "@/i18n";
-import { DataTable } from "@/kit/DataTable";
-import { SkeletonTable } from "@/kit/Loading";
-import { NativeSelect } from "@/kit/NativeSelect";
-import { Panel } from "@/kit/Panel";
-import { PanelHeader } from "@/kit/PanelHeader";
-import { QueryState } from "@/kit/QueryState";
-import { TablePanel } from "@/kit/TablePanel";
-import { Td } from "@/kit/Td";
-import { Th } from "@/kit/Th";
+import { SkeletonTable } from "@/kit/feedback/Loading";
+import { QueryState } from "@/kit/feedback/QueryState";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
+import { Panel } from "@/kit/panel/Panel";
+import { PanelHeader } from "@/kit/panel/PanelHeader";
+import { DataTable } from "@/kit/table/DataTable";
+import { TablePanel } from "@/kit/table/TablePanel";
+import { Td } from "@/kit/table/Td";
+import { Th } from "@/kit/table/Th";
 import { QuantityInput } from "@/quantity/QuantityInput";
 
 /** 単位の一覧（sat-units のカーネル）と、その次元を使っている属性。入力の試し打ちもここでできる */

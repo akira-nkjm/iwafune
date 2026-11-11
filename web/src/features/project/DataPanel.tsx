@@ -3,8 +3,8 @@ import { useFetchData } from "@/api/data";
 import { q } from "@/api/queries";
 import type { DataItem } from "@/api/types";
 import { useT } from "@/i18n";
-import { Panel } from "@/kit/Panel";
-import { PanelHeader } from "@/kit/PanelHeader";
+import { Panel } from "@/kit/panel/Panel";
+import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { Button } from "@/ui/button";
 
 /** 外部データ（天体の暦など）の状態と取得。状態の検証はサービスが行い、ここは表示するだけ */

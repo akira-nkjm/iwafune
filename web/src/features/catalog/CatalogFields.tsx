@@ -2,10 +2,10 @@ import { useEnumOptions } from "@/api/labels";
 import { useSetText, useUnsetText } from "@/api/ops";
 import type { CatalogItemView } from "@/api/types";
 import { useT } from "@/i18n";
-import { CommitInput } from "@/kit/CommitInput";
-import { NativeSelect } from "@/kit/NativeSelect";
-import { PropertyList } from "@/kit/PropertyList";
-import { PropertyRow } from "@/kit/PropertyRow";
+import { PropertyList } from "@/kit/detail/PropertyList";
+import { PropertyRow } from "@/kit/detail/PropertyRow";
+import { CommitInput } from "@/kit/forms/CommitInput";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
 
 /** 文字列で書くフィールドの名前（`fune catalog set <品> <フィールド> <値>` のフィールド） */
 type TextField = "label" | "label_en" | "manufacturer" | "part_number" | "datasheet" | "source";

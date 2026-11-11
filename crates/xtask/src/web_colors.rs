@@ -177,7 +177,7 @@ mod tests {
         let named = "style={{ background: \"white\" }}";
         assert_eq!(code_problems("web/src/features/x/Card.tsx", named).len(), 1);
         assert!(code_problems("web/src/lib/tone.ts", named).is_empty());
-        assert!(code_problems("web/src/kit/Td.tsx", "whitespace-nowrap").is_empty());
+        assert!(code_problems("web/src/kit/table/Td.tsx", "whitespace-nowrap").is_empty());
     }
 
     #[test]

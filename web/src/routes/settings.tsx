@@ -1,4 +1,4 @@
-import { SkeletonPage, SkeletonPanel } from "@/kit/Loading";
+import { SkeletonPage, SkeletonPanel } from "@/kit/feedback/Loading";
 import { LazyRoute } from "@/shell/LazyRoute";
 import { loadOnNavigate } from "@/shell/lazy-page";
 import { pages } from "./pages";

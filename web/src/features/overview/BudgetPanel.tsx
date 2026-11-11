@@ -3,13 +3,13 @@ import { MissingList } from "@/analysis/MissingList";
 import { q, useDesign } from "@/api/queries";
 import type { BudgetKind, BudgetRow } from "@/api/types";
 import { localized, useT } from "@/i18n";
-import { Empty } from "@/kit/Empty";
-import { Loading, SkeletonPanel } from "@/kit/Loading";
-import { Panel } from "@/kit/Panel";
-import { PanelHeader } from "@/kit/PanelHeader";
-import { TickBar } from "@/kit/TickBar";
-import { VerdictPill } from "@/kit/VerdictPill";
-import { verdictTone } from "@/kit/verdict-tone";
+import { Empty } from "@/kit/feedback/Empty";
+import { Loading, SkeletonPanel } from "@/kit/feedback/Loading";
+import { TickBar } from "@/kit/metrics/TickBar";
+import { Panel } from "@/kit/panel/Panel";
+import { PanelHeader } from "@/kit/panel/PanelHeader";
+import { VerdictPill } from "@/kit/status/VerdictPill";
+import { verdictTone } from "@/kit/status/verdict-tone";
 
 /**
  * バジェット 1 種類（配分と現状）。行ごとの目盛りバーは API の塗りの比（`BudgetRow.fill`。成長余裕込み / 配分）。

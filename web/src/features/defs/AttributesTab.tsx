@@ -2,14 +2,17 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useCommandOps } from "@/api/ops";
 import type { DesignView } from "@/api/types";
-import { type NewAttribute, NewAttributeFields } from "@/features/components/NewAttributeFields";
-import { attrAddCommand } from "@/features/components/param-ops";
+import {
+  type NewAttribute,
+  NewAttributeFields,
+} from "@/features/components/parameters/NewAttributeFields";
+import { attrAddCommand } from "@/features/components/parameters/param-ops";
 import { useT } from "@/i18n";
-import { DataTable } from "@/kit/DataTable";
-import { Pill } from "@/kit/Pill";
-import { TablePanel } from "@/kit/TablePanel";
-import { Td } from "@/kit/Td";
-import { Th } from "@/kit/Th";
+import { Pill } from "@/kit/status/Pill";
+import { DataTable } from "@/kit/table/DataTable";
+import { TablePanel } from "@/kit/table/TablePanel";
+import { Td } from "@/kit/table/Td";
+import { Th } from "@/kit/table/Th";
 import { defName } from "@/lib/design";
 
 import { OpDialog } from "@/ops/OpDialog";

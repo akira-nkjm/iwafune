@@ -347,5 +347,4 @@ impl ser::SerializeStructVariant for &mut Recorder {
 }
 
 #[cfg(test)]
-#[path = "dims_tests.rs"]
 mod tests;

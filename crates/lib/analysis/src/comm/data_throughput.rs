@@ -379,9 +379,7 @@ fn checks(
     Ok(out)
 }
 
-#[path = "data_throughput_backlog.rs"]
 mod backlog;
 
 #[cfg(test)]
-#[path = "data_throughput_tests.rs"]
 mod tests;

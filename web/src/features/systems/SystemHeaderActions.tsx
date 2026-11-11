@@ -2,7 +2,7 @@ import { RefreshCw } from "lucide-react";
 import { recomputeAnalyses } from "@/api/queries";
 import type { CaseView } from "@/api/types";
 import { useT } from "@/i18n";
-import { NativeSelect } from "@/kit/NativeSelect";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { idWithName } from "@/lib/design";
 import { Button } from "@/ui/button";
 

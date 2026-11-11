@@ -8,11 +8,11 @@ import type { AnalysisEntry, DesignView, System } from "@/api/types";
 import { SettingsTable } from "@/features/project/SettingsTable";
 import { useT } from "@/i18n";
 import { analysisTitle } from "@/i18n/analysis-names";
-import { Empty } from "@/kit/Empty";
-import { Loading, SkeletonBlock, SkeletonTable } from "@/kit/Loading";
-import { Panel } from "@/kit/Panel";
-import { PanelHeader } from "@/kit/PanelHeader";
-import { TablePanel } from "@/kit/TablePanel";
+import { Empty } from "@/kit/feedback/Empty";
+import { Loading, SkeletonBlock, SkeletonTable } from "@/kit/feedback/Loading";
+import { Panel } from "@/kit/panel/Panel";
+import { PanelHeader } from "@/kit/panel/PanelHeader";
+import { TablePanel } from "@/kit/table/TablePanel";
 import { systemTitle } from "@/lib/design";
 import { SystemPartsTable } from "./SystemPartsTable";
 

@@ -1,5 +1,5 @@
 import { useT } from "@/i18n";
-import { Toggle } from "@/kit/Toggle";
+import { Toggle } from "@/kit/selection/Toggle";
 import { LAYERS, type Layer } from "./power";
 
 /** 系統図の表示の切り替え: 層（給電・信号・GND を重ねて、どの組み合わせでも）、同種をまとめる */

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import type { AttributeDefView, PartRow, QuantityView, ValueView } from "@/api/types";
 import { useT } from "@/i18n";
-import { type PropertyLayout, PropertyRow } from "@/kit/PropertyRow";
+import { type PropertyLayout, PropertyRow } from "@/kit/detail/PropertyRow";
 import { paramPath } from "@/lib/design";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { attrEditMode, cellValue } from "./attr-mode";

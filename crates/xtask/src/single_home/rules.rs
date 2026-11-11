@@ -245,10 +245,10 @@ pub(super) const WEB_RULES: &[(&str, &[&str], &str)] = &[
     ("toPrecision(", &["web/src/quantity/"], "数の整形"),
     ("toExponential(", &["web/src/quantity/"], "数の整形"),
     ("toFixed(", &["web/src/quantity/"], "数の整形"),
-    // 読み込み中の表示は kit/Loading のスケルトンだけ（`Loading` で包み、画面読み上げにも伝える）
+    // 読み込み中の表示は kit/feedback/Loading のスケルトンだけ（`Loading` で包み、画面読み上げにも伝える）
     (
         "@/ui/skeleton",
-        &["web/src/kit/Loading.tsx"],
+        &["web/src/kit/feedback/Loading.tsx"],
         "スケルトン（読み込み中の表示）",
     ),
     // 系とバジェットの種類の一覧と並びは API（`DefsView.systems`・`budget_kinds`）。Web に写しを書かない

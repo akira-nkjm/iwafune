@@ -1,8 +1,8 @@
 import { useAttrEdit } from "@/api/ops";
 import type { CatalogItemView, DefsView } from "@/api/types";
 import { useT } from "@/i18n";
-import { PropertyList } from "@/kit/PropertyList";
-import { ResetButton } from "@/kit/ResetButton";
+import { PropertyList } from "@/kit/detail/PropertyList";
+import { ResetButton } from "@/kit/forms/ResetButton";
 import { attrDef, attrLabel } from "@/lib/design";
 import { AttrValueEditor } from "@/quantity/AttrValueEditor";
 import { CatalogAddValue } from "./CatalogAddValue";

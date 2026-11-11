@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Loading, SkeletonBlock } from "@/kit/Loading";
+import { Loading, SkeletonBlock } from "@/kit/feedback/Loading";
 import type { Layout3DProps } from "./Layout3D";
 
 /** 3D 配置の本体（three.js を含む大きなチャンク）。構造・熱のナビにホバーしたときにも先に読む */

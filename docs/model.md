@@ -552,7 +552,7 @@ POWER = { x = 20, y = 20 }
 `fune view edge-set electrical <キー> --points "x,y x,y …" [--source-side …] [--target-side …] [--source-offset …] [--target-offset …]`、
 `fune view edge-reset electrical <キー>`、`fune view reset electrical`。
 
-自動配置の条件は次のとおり（`web/src/features/diagram/layout*.ts`・`grid.ts`・`labels.ts`。部品の ID・名前・役割は見ない）。
+自動配置の条件は次のとおり（`web/src/features/diagram/layout/`。部品の ID・名前・役割は見ない）。
 
 - 枠の見出しは表示の言語の名前だけ（英語は ID の AOCS など、日本語は設計に書いた表示名。無ければ ID）。
 - 列や層は決めない（電源の枠を左端に置く、といった決まりも置かない）。いちばん外の枠（サブシステム）を縦横の格子の

@@ -21,7 +21,7 @@
 `cargo xtask check` が機械的に検査する: 依存の向き、モジュールの循環、台帳、「1 か所だけ」の規則（`crates/xtask/src/single_home.rs`）、
 Web の禁止事項（`fetch(` は API クライアントだけ、数の整形・`Intl.NumberFormat` は `web/src/quantity/` だけ、色の直書き（hex・`white` などの色の名前）と色の混ぜ方（`color-mix(`）は `lib/tone.ts` だけ（`index.css` の色は `pnpm -C web tokens` でそこから書き出す。`crates/xtask/src/web_colors.rs`）、
 負の字間 `tracking-tight` を使わない、ID やパスを `/`・`.` で分けない、打った文字列を `Number(`・`parseFloat(` で数にしない（`crates/xtask/src/web_strings.rs`）、
-スケルトン（`ui/skeleton`）は `kit/Loading.tsx` だけ、系とバジェットの種類の並びを書かない（API の `DefsView.systems`・`budget_kinds`）、ページの URL（`/design/…` など）は `lib/nav.ts` の `paths` だけで作る、`features/` を import してよいのは
+スケルトン（`ui/skeleton`）は `kit/feedback/Loading.tsx` だけ、系とバジェットの種類の並びを書かない（API の `DefsView.systems`・`budget_kinds`）、ページの URL（`/design/…` など）は `lib/nav.ts` の `paths` だけで作る、`features/` を import してよいのは
 `features/` と `routes/` だけで、ページの中身どうしの import は理由付きの許可リスト（`FEATURE_EDGES`）にあるものだけ（`crates/xtask/src/web_pages.rs`））、長すぎるファイルの警告。規則を増やしたら xtask にも足す。
 
 ## 層の責務
@@ -48,7 +48,7 @@ Web の禁止事項（`fetch(` は API クライアントだけ、数の整形�
 - 解析の関数には手計算や文献値と比べるテストを最低 1 つ付ける。リファクタリングではデモの解析結果の数値が変わらないことを確かめる。
 - TypeScript: strict、Biome、`any` を使わない。API の型は `web/src/api/gen/`（ts-rs の生成物）だけを使い、手で書かない。
   型を変えたら `cargo test -p fune-service export_ts` で作り直してコミットする（CI が差分を検査する）。
-- Web の UI: 文言は i18n の辞書（日本語と英語の両方）。数と量の表示は API の整形（`Formatted`）を使う。読み込み中は `kit/Loading.tsx` のスケルトン。
+- Web の UI: 文言は i18n の辞書（日本語と英語の両方）。数と量の表示は API の整形（`Formatted`）を使う。読み込み中は `kit/feedback/Loading.tsx` のスケルトン。
   書体は Noto Sans JP（等幅は Noto Sans Mono と BIZ UDゴシック）。Radix の `asChild` に渡す子の `className` は文字列にする（関数は崩れる）。
 - 依存は最新の安定版を固定する（2 週間以上前に出た版）。パッケージ管理は pnpm。言語は Rust と TS だけ。
 - TOML の書き方は docs/model.md §10（書き出しは TOML 1.0 の範囲）。デモのデータ（`fixtures/`）も CLI（`fune part place`・`fune set` など）で編集し、

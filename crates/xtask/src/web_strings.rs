@@ -31,7 +31,7 @@ const NUMBER_READERS: &[&str] = &["Number(", "parseFloat(", ".map(Number)"];
 /// 数の読み取りを許すファイル（人が打った入力欄の値ではないものを読む）。
 const NUMBER_READERS_ALLOWED: &[&str] = &[
     // ブラウザの保存領域に置いたツリーの幅（画面が書いた値。人が打った値ではない）
-    "web/src/kit/tree-width.ts",
+    "web/src/kit/list-detail/tree-width.ts",
 ];
 
 /// 行の中の数の読み取り（[`NUMBER_READERS`]）を探す。
@@ -145,8 +145,8 @@ mod tests {
         assert_eq!(number_reader("Number.parseInt(hex, 16)"), None);
         assert_eq!(number_reader("isNumber(x) || Number.isFinite(x)"), None);
         assert_eq!(number_reader("staleTime: Number.POSITIVE_INFINITY"), None);
-        assert!(is_web_production("web/src/kit/tree.ts"));
-        assert!(!is_web_production("web/src/kit/tree.test.ts"));
+        assert!(is_web_production("web/src/kit/tree/tree.ts"));
+        assert!(!is_web_production("web/src/kit/tree/tree.test.ts"));
         assert!(!is_web_production("web/src/api/gen/PartRow.ts"));
     }
 }

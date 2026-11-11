@@ -5,12 +5,12 @@ import { useAnalyses, useDesign } from "@/api/queries";
 import type { SettingView } from "@/api/types";
 import { SettingsTable } from "@/features/project/SettingsTable";
 import { useT } from "@/i18n";
-import { Empty } from "@/kit/Empty";
-import { SkeletonPanel } from "@/kit/Loading";
-import { Panel } from "@/kit/Panel";
-import { PanelHeader } from "@/kit/PanelHeader";
-import { QueryState } from "@/kit/QueryState";
-import { TablePanel } from "@/kit/TablePanel";
+import { Empty } from "@/kit/feedback/Empty";
+import { SkeletonPanel } from "@/kit/feedback/Loading";
+import { QueryState } from "@/kit/feedback/QueryState";
+import { Panel } from "@/kit/panel/Panel";
+import { PanelHeader } from "@/kit/panel/PanelHeader";
+import { TablePanel } from "@/kit/table/TablePanel";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 

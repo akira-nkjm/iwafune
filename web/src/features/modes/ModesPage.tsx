@@ -2,15 +2,15 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
-import { Empty } from "@/kit/Empty";
-import { SkeletonTable } from "@/kit/Loading";
-import { QueryState } from "@/kit/QueryState";
+import { Empty } from "@/kit/feedback/Empty";
+import { SkeletonTable } from "@/kit/feedback/Loading";
+import { QueryState } from "@/kit/feedback/QueryState";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
 import { AddModeDialog } from "./AddModeDialog";
-import type { ModeDraft } from "./draft";
-import { ModesMatrix } from "./ModesMatrix";
-import { unassignedCells } from "./matrix";
+import type { ModeDraft } from "./draft/draft";
+import { ModesMatrix } from "./matrix/ModesMatrix";
+import { unassignedCells } from "./matrix/matrix";
 
 /**
  * 設計 / モード: 「部品 × モード」の表。ファイルは 1 モード 1 ファイルだが、ここでは表で見て一括で直す。

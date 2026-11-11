@@ -2,21 +2,21 @@ import { LayoutGrid, Redo2, RotateCcw, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
-import { SkeletonCanvas } from "@/kit/Loading";
-import { QueryState } from "@/kit/QueryState";
+import { SkeletonCanvas } from "@/kit/feedback/Loading";
+import { QueryState } from "@/kit/feedback/QueryState";
 import { CanvasFrame } from "@/shell/CanvasFrame";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
-import { DiagramCanvas } from "./DiagramCanvas";
+import { DiagramCanvas } from "./canvas/DiagramCanvas";
+import { useDiagramFlow, useDiagramModel } from "./canvas/use-diagram-flow";
 import { DiagramInspector, type DiagramSelection } from "./DiagramInspector";
 import { DiagramLegend } from "./DiagramLegend";
 import { DiagramToolbar } from "./DiagramToolbar";
-import { NewNetDialog } from "./NewNetDialog";
+import { NewNetDialog } from "./editing/NewNetDialog";
+import { useDiagramConnect } from "./editing/use-diagram-connect";
+import { useUndoKeys } from "./editing/use-undo-keys";
+import { useViewEdits, useViewUndo } from "./editing/view-history";
 import type { Layer } from "./power";
-import { useDiagramConnect } from "./use-diagram-connect";
-import { useDiagramFlow, useDiagramModel } from "./use-diagram-flow";
-import { useUndoKeys } from "./use-undo-keys";
-import { useViewEdits, useViewUndo } from "./view-history";
 
 /**
  * 設計 / システム図: サブシステムの枠の中に部品のカード、組立品は子のカードを中に持つ。給電・信号・GND の層を重ねて

@@ -1,8 +1,8 @@
 import type { DesignView } from "@/api/types";
-import { PartDetail } from "@/features/components/PartDetail";
+import { PartDetail } from "@/features/components/detail/PartDetail";
 import { getT } from "@/i18n";
-import { Chip } from "@/kit/Chip";
-import { Empty } from "@/kit/Empty";
+import { Empty } from "@/kit/feedback/Empty";
+import { Chip } from "@/kit/selection/Chip";
 import type { DiagramModel } from "./model";
 import { NetInspector } from "./NetInspector";
 

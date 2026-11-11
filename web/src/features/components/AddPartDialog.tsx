@@ -1,10 +1,10 @@
 import { useState } from "react";
 import type { DesignView, Op } from "@/api/types";
 import { localized, useT } from "@/i18n";
-import { Field } from "@/kit/Field";
-import { NativeSelect } from "@/kit/NativeSelect";
-import { Segmented } from "@/kit/Segmented";
-import { TextInput } from "@/kit/TextInput";
+import { Field } from "@/kit/forms/Field";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
+import { TextInput } from "@/kit/forms/TextInput";
+import { Segmented } from "@/kit/selection/Segmented";
 import { defWithId, groupsOf, nodeName, withNote } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
