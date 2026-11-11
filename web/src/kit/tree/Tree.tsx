@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronRight, Folder } from "lucide-react";
 import { type HTMLAttributes, type KeyboardEvent, type ReactNode, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
-import { type TreeNode, treeCount } from "./tree";
+import { type TreeNode, treeCount } from "./tree-nodes";
 
 type Row<T> = { node: TreeNode<T>; level: number; parent?: string; position: number; size: number };
 type TreeProps<T> = {
