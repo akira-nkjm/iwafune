@@ -3,6 +3,7 @@ export const commonJa = {
   common: {
     resizeTree: "ツリーの幅を調整",
     view: "表示方法",
+    sortColumn: "昇順・降順・元の順に並べ替え",
     tableView: "表",
     treeView: "ツリー",
     loading: "読み込み中…",

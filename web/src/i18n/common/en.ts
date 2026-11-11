@@ -4,6 +4,7 @@ export const commonEn: typeof commonJa = {
   common: {
     resizeTree: "Resize tree column",
     view: "View",
+    sortColumn: "Sort ascending, descending, then original order",
     tableView: "Table",
     treeView: "Tree",
     loading: "Loading…",
