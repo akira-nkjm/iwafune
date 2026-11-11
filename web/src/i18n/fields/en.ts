@@ -54,6 +54,7 @@ const labels: Record<string, string> = {
   orbit_average_load: "Orbit-average load",
   orbit_average_balance: "Orbit-average balance",
   energy_margin_per_orbit: "Energy margin per orbit",
+  energy_margin_over_span: "Energy balance over analysis span",
   min_soc: "Min SOC",
   max_dod: "Max DoD",
   max_eclipse_dod: "DoD per eclipse",

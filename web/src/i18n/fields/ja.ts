@@ -52,6 +52,7 @@ const labels: Record<string, string> = {
   orbit_average_load: "軌道平均の負荷",
   orbit_average_balance: "軌道平均の収支",
   energy_margin_per_orbit: "1 周のエネルギー余裕",
+  energy_margin_over_span: "解析期間のエネルギー収支",
   min_soc: "最小 SOC",
   max_dod: "最大 DoD",
   max_eclipse_dod: "日陰 1 回の DoD",

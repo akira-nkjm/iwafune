@@ -9,7 +9,8 @@ use crate::power::battery::{self, BatteryTrace};
 use crate::power::mode_load::evaluate_mode;
 use crate::spec::quantity_text;
 use crate::spec::{
-    AnalysisError, Channel, ChannelKind, Check, Series, Verdict, orbit_mean, orbit_segment,
+    AnalysisError, Channel, ChannelKind, Check, Series, SpanFallback, Verdict, orbit_mean,
+    orbit_segment, span_fallback,
 };
 use sat_units::typed::{Energy, Fraction, Power, Qty, Time};
 
@@ -77,7 +78,9 @@ pub(super) fn evaluate_case(
         .iter()
         .map(|o| o.margin.value())
         .reduce(f64::min)
-        .unwrap_or_else(|| trace.delta_unclamped.iter().sum());
+        .map(Qty::from_raw);
+    let margin_over_span = span_fallback(ctx.ranges.len(), SpanFallback::OrbitMeanOverSpan)
+        .map(|_| Qty::from_raw(trace.delta_unclamped.iter().sum()));
     let peak = |v: &[f64]| v.iter().copied().fold(0.0, f64::max);
     let peak_discharge = peak(&trace.discharge);
     let orbit_load = orbit_mean(&ctx.profile.t, &load, &ctx.ranges);
@@ -95,7 +98,8 @@ pub(super) fn evaluate_case(
         orbit_average_balance: Qty::from_raw(
             orbit_mean(&ctx.profile.t, &ctx.generation, &ctx.ranges) - orbit_load,
         ),
-        energy_margin_per_orbit: Qty::from_raw(margin),
+        energy_margin_per_orbit: margin,
+        energy_margin_over_span: margin_over_span,
         min_soc: Fraction::new(min_soc),
         max_dod: Fraction::new(1.0 - min_soc),
         max_eclipse_dod: Fraction::new(max_eclipse_drop(&ctx.profile.lit, &soc)),
@@ -199,6 +203,30 @@ fn case_series(ctx: &Context, load: Vec<f64>, soc: Vec<f64>, trace: &BatteryTrac
     }
 }
 
+fn energy_balance_check(r: &EnergyBalanceCaseResult) -> Check {
+    let (verdict, message) = match r.energy_margin_per_orbit {
+        Some(margin) => (
+            Verdict::from_ok(margin.value() >= 0.0),
+            format!(
+                "1 周あたりのエネルギー余裕 {}（電池の効率込み）",
+                quantity_text::<Energy>(margin.value())
+            ),
+        ),
+        None => (
+            Verdict::Warning,
+            format!(
+                "解析期間が 1 周に満たないため 1 周あたりの余裕を判定できない{}",
+                r.energy_margin_over_span
+                    .map_or_else(String::new, |margin| format!(
+                        "（解析期間の収支は {}、電池の効率込み）",
+                        quantity_text::<Energy>(margin.value())
+                    ))
+            ),
+        ),
+    };
+    Check::new("energy_balance", "周回の電力収支", verdict, message)
+}
+
 fn verdicts(ctx: &Context, r: &EnergyBalanceCaseResult, depleted: bool) -> Vec<Check> {
     let limit = ctx.battery.dod_limit;
     let dod_ok = r.max_dod.value() <= limit + DOD_TOLERANCE;
@@ -213,15 +241,7 @@ fn verdicts(ctx: &Context, r: &EnergyBalanceCaseResult, depleted: bool) -> Vec<C
                 quantity_text::<Fraction>(limit)
             ),
         ),
-        Check::new(
-            "energy_balance",
-            "周回の電力収支",
-            Verdict::from_ok(r.energy_margin_per_orbit.value() >= 0.0),
-            format!(
-                "1 周あたりのエネルギー余裕 {}（電池の効率込み）",
-                quantity_text::<Energy>(r.energy_margin_per_orbit.value())
-            ),
-        ),
+        energy_balance_check(r),
     ];
     if depleted {
         checks.push(Check::new(
