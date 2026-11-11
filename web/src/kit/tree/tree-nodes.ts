@@ -25,9 +25,9 @@ function folder<T>(roots: TreeNode<T>[], path: string[]): TreeNode<T>[] {
 
 /**
  * ファイルの階層（API の `dir`。区間は製品ツリーのノードの ID）を作り、組立品の子は親部品の下に置く。循環は階層にしない。
- * `parts/` の直下の部品はサブシステム（`subsystem`）の節に置く。パスの文字列は分解しない。
+ * `parts/` の直下の部品は系（`system`）の節に置く。パスの文字列は分解しない。
  */
-export function partsTree<T extends Pick<PartRow, "id" | "parent" | "dir" | "subsystem">>(
+export function partsTree<T extends Pick<PartRow, "id" | "parent" | "dir" | "system">>(
   parts: readonly T[],
 ): TreeNode<T>[] {
   const roots: TreeNode<T>[] = [];
@@ -48,7 +48,7 @@ export function partsTree<T extends Pick<PartRow, "id" | "parent" | "dir" | "sub
     if (part.parent && nodes.has(part.parent) && !(parent && seen.has(parent))) {
       nodes.get(part.parent)!.children.push(node);
     } else {
-      const path = part.dir.length ? part.dir : part.subsystem ? [part.subsystem] : [];
+      const path = part.dir.length ? part.dir : part.system ? [part.system] : [];
       folder(roots, path).push(node);
     }
   }

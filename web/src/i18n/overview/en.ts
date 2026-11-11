@@ -34,7 +34,7 @@ export const overviewEn: typeof overviewJa = {
     budgetMargin: (v: string) => `Margin ${v}`,
     budgetLimit: (limit: string, margin: string) => `/ limit ${limit} (system margin ${margin})`,
     budgetOther: "(other)",
-    budgetOtherTitle: "Parts outside every group",
+    budgetOtherTitle: "Parts without a system or part allocation",
     note: (n: string) => `• ${n}`,
   },
 };

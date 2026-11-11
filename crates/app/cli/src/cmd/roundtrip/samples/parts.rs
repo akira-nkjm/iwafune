@@ -12,7 +12,7 @@ fn tree_ops() -> Vec<Op> {
     vec![
         Op::CreatePart {
             id: s("RW_W"),
-            group: Some(s("AOCS")),
+            group: Some(s("aocs")),
             catalog: Some(s("local/rw_10mNms")),
             kind: None,
             count: Some(2),
@@ -34,12 +34,12 @@ fn tree_ops() -> Vec<Op> {
             to: s("RW_S"),
         },
         Op::RenameGroup {
-            id: s("AOCS"),
-            to: s("AOCS"),
+            id: s("aocs"),
+            to: s("aocs"),
         },
         Op::MovePart {
             id: s("RW_Z"),
-            to: Some(s("POWER")),
+            to: Some(s("power")),
         },
         Op::MovePart {
             id: s("RW_Z"),

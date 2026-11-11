@@ -9,7 +9,7 @@ use crate::profile as format;
 use fune_model::design::{Allocations, BudgetPolicy, Project};
 use toml_edit::{DocumentMut, Item, Table};
 
-/// 新しい `fune.toml`（serde の形のまま。`[groups]` は空でも書く）。
+/// 新しい `fune.toml`（serde の形のまま）。
 pub fn new_project_text(project: &Project) -> Result<String, StoreError> {
     serde_text(PROJECT_FILE, project)
 }
@@ -19,7 +19,9 @@ pub fn new_allocation_text(allocations: &Allocations) -> String {
     let mut doc = DocumentMut::new();
     for (kind, a) in allocations.iter() {
         let mut table = Table::new();
-        table.insert("limit", quantity(&a.limit));
+        if let Some(limit) = &a.limit {
+            table.insert("limit", quantity(limit));
+        }
         table.insert("system_margin", Item::Value(float(a.system_margin)));
         let mut alloc = Table::new();
         for (node, q) in &a.alloc {

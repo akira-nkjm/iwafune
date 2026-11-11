@@ -11,7 +11,7 @@ export function relevantParts(
   const want = new Set(attrsInSection);
   const parts = design.parts.filter(
     (p) =>
-      (p.role !== null && design.defs.labels.role_system[p.role] === system) ||
+      p.system === system ||
       Object.entries(p.values).some(([id, v]) => want.has(id) && v.origin !== "unset"),
   );
   const attrs = attrsInSection.filter((a) => parts.some((p) => p.values[a] !== undefined));

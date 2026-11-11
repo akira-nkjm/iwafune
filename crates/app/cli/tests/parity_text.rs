@@ -154,9 +154,9 @@ fn gui_part_text_edits_match_cli() {
         }
         assert_same_files(&cli_root, &http_root, &cli.join(" "));
     }
-    let trx = std::fs::read_to_string(http_root.join("parts/COM/UHF_TRX.toml")).unwrap();
+    let trx = std::fs::read_to_string(http_root.join("parts/comm/UHF_TRX.toml")).unwrap();
     assert!(!trx.contains("4.2"), "消したセルは残さない:\n{trx}");
-    let rw = std::fs::read_to_string(http_root.join("parts/AOCS/RW_X.toml")).unwrap();
+    let rw = std::fs::read_to_string(http_root.join("parts/aocs/RW_X.toml")).unwrap();
     assert!(rw.contains("count") && !rw.contains("label"), "{rw}");
 }
 
@@ -215,7 +215,7 @@ fn gui_part_field_edits_use_api_paths_and_match_cli() {
         }
         assert_same_files(&cli_root, &http_root, &format!("{p} {value:?}"));
     }
-    let stx = std::fs::read_to_string(http_root.join("parts/COM/STX.toml")).unwrap();
+    let stx = std::fs::read_to_string(http_root.join("parts/comm/STX.toml")).unwrap();
     assert!(
         !stx.contains("candidates") && !stx.contains("count"),
         "{stx}"

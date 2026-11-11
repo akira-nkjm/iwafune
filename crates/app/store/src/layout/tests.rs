@@ -6,9 +6,9 @@ use super::*;
 fn classifies_files() {
     let cat = vec![("local".to_string(), "catalog".to_string())];
     assert_eq!(
-        classify("parts/POWER/SAP_PY/CELLS.toml", &cat),
+        classify("parts/power/SAP_PY/CELLS.toml", &cat),
         FileRole::Part {
-            dirs: vec!["POWER".into(), "SAP_PY".into()],
+            dirs: vec!["power".into(), "SAP_PY".into()],
             id: "CELLS".into()
         }
     );

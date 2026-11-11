@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { PartRow } from "@/api/types";
 import { useT } from "@/i18n";
-import { SubsystemDot } from "@/kit/SubsystemDot";
+import { SystemDot } from "@/kit/SystemDot";
 import { Tree } from "@/kit/tree/Tree";
 import { filterTree, partsTree } from "@/kit/tree/tree-nodes";
 import { attrOf } from "@/lib/design";
@@ -54,7 +54,7 @@ function PartTreeRow({ part }: { part: PartRow }) {
         className="flex min-w-0 flex-1 items-center gap-1.5"
         title={[part.id, part.kind, part.file].filter((s) => s !== null).join(" · ")}
       >
-        <SubsystemDot group={part.subsystem} />
+        <SystemDot system={part.system} />
         <span className="max-w-20 shrink-0 truncate font-medium font-mono">{part.id}</span>
         <span className="min-w-0 flex-1 truncate text-ink-2">{part.kind}</span>
       </span>

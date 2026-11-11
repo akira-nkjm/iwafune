@@ -196,13 +196,4 @@ impl Design {
         parts.dedup();
         parts
     }
-
-    /// 最上位の Group（サブシステム）。
-    pub fn subsystem_of(&self, part: &str) -> Option<&str> {
-        let ancestors = self.ancestors(&NodeRef::Part(Id::new(part)));
-        ancestors.last().and_then(|n| match n {
-            NodeRef::Group(g) => self.groups.get(g).map(|g| g.id.as_str()),
-            NodeRef::Part(_) => None,
-        })
-    }
 }

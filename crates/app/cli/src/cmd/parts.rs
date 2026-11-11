@@ -38,21 +38,16 @@ fn part_ls(ws: &Workspace, q: &PartsQuery, out: &Out) -> anyhow::Result<u8> {
         out.json(&rows)?;
         return Ok(0);
     }
-    let mut t = out.table(&[
-        "ID",
-        "サブシステム",
-        "種別",
-        "定義",
-        "数",
-        "質量",
-        "電力",
-        "動作温度",
-    ]);
+    let mut t = out.table(&["ID", "系", "種別", "定義", "数", "質量", "電力", "動作温度"]);
     t = t.numeric(&[4, 5, 6]);
     for r in &rows {
         let mut cells = vec![
             C::Strong(r.id.clone()),
-            C::Text(r.subsystem.clone().unwrap_or_default()),
+            C::Text(
+                r.system
+                    .map(|s| query::system_id(s).to_owned())
+                    .unwrap_or_default(),
+            ),
             C::Text(r.kind.clone().unwrap_or_default()),
             C::Dim(r.catalog.clone().unwrap_or_else(|| "—".into())),
             C::Num(r.count.to_string()),

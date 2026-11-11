@@ -10,10 +10,6 @@ export type VocabLabels = {
  */
 role_system: { [key in string]: string }, 
 /**
- * role → 既定のサブシステム。
- */
-role_subsystem: { [key in string]: string }, 
-/**
  * 画面で系（section）を並べる順
  */
 section_order: Array<string>, 

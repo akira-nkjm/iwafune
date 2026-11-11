@@ -70,6 +70,10 @@ pub struct TreeNode {
     pub node: TreeNodeKind,
     /// 表示名（無ければ ID）
     pub label: String,
+    /// 英語の系の表示名（部品や入れ子のフォルダは None）
+    pub label_en: Option<String>,
+    /// ノードの系（色の表示にも使う）
+    pub system: Option<sat_analysis::spec::System>,
     pub parent: Option<String>,
     pub children: Vec<String>,
 }
@@ -93,8 +97,8 @@ pub struct PartRow {
     pub id: String,
     /// 製品ツリーの親（Group か組立品の Part）
     pub parent: Option<String>,
-    /// 最上位の Group（例: `"AOCS"`）。未所属ならモデルの role_subsystem の既定
-    pub subsystem: Option<String>,
+    /// 部品の系（置き場所 → 役割 → None）
+    pub system: Option<sat_analysis::spec::System>,
     /// 種別（kind の無い部品は null）
     pub kind: Option<String>,
     pub role: Option<String>,
@@ -111,7 +115,7 @@ pub struct PartRow {
     pub states: Vec<String>,
     /// 部品ファイル（ルートからの相対パス）
     pub file: String,
-    /// 部品ファイルの置き場所の `parts/` からのディレクトリの区間（例: `["POWER", "SAP_PY"]`）。
+    /// 部品ファイルの置き場所の `parts/` からのディレクトリの区間（例: `["power", "SAP_PY"]`）。
     /// 各区間は製品ツリーのノードの ID（表示名は `DesignView.tree`）。`parts/` の直下なら空
     pub dir: Vec<String>,
 }

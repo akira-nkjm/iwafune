@@ -15,7 +15,7 @@ enum_text! {
     /// 解析の系。綴りは設定のファイル名（`analysis/<系>.toml`）・設定のパス（`analysis.<系>`）・解析 ID の接頭辞
     /// （`power.energy_balance`）と同じ。**系の一覧はここだけ**（store のファイルの規約・読み込み・参照の書き換えもこれを回す）。
     /// 解析の側の `sat_analysis::spec::System` は依存の向きで共有できないので、fune-projection（`system`）の対応とテストで一致を確かめる。
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
     pub enum AnalysisSystem: "解析の系" {
         Power = "power",
         Aocs = "aocs",

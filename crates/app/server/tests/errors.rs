@@ -13,7 +13,7 @@ async fn existing_id_is_409() {
     let (_tmp, r) = demo_router();
     let (_, before) = call(&r, "GET", "/api/v1/project", None).await;
     let op =
-        json!([{ "op": "create_part", "id": "RW_X", "group": "AOCS", "kind": "reaction_wheel" }]);
+        json!([{ "op": "create_part", "id": "RW_X", "group": "aocs", "kind": "reaction_wheel" }]);
     let (s, e) = call(&r, "POST", "/api/v1/ops", Some(json!({ "ops": op }))).await;
     assert_eq!(s, StatusCode::CONFLICT, "{e}");
     assert_eq!(e["error"]["code"], "already_exists", "{e}");

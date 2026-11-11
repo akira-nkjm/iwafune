@@ -26,9 +26,6 @@ pub struct Labels {
     /// role → 解析の系。
     #[serde(default)]
     pub role_system: BTreeMap<String, String>,
-    /// role → 既定のサブシステム。
-    #[serde(default)]
-    pub role_subsystem: BTreeMap<String, String>,
     /// 画面で系（section）を並べる順
     #[serde(default)]
     pub section_order: Vec<String>,

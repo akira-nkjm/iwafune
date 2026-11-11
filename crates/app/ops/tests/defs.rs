@@ -99,7 +99,7 @@ fn create_kind_and_use_it() {
         Op::CreateKind { def: kind },
         Op::CreatePart {
             id: "SAIL".into(),
-            group: Some("STRUCTURE".into()),
+            group: Some("structure".into()),
             catalog: None,
             kind: Some("deorbit_sail".into()),
             count: None,
@@ -162,7 +162,7 @@ fn set_field_place_and_unset() {
     let gps = p
         .changes
         .iter()
-        .find(|c| c.path == "parts/AOCS/GPS.toml")
+        .find(|c| c.path == "parts/aocs/GPS.toml")
         .unwrap();
     let after = gps.after.as_deref().unwrap();
     assert!(after.contains("[mount]\non    = \"PANEL_PZ\"\npoint = \"CAM_PORT\"\n\n[pose]\nposition    = { x = 30.0, y = 0.0, z = 0.0, unit = \"mm\" }"), "{after}");

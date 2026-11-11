@@ -7,7 +7,7 @@
 //! | 参照先 | 参照元（[`RefSite`]） |
 //! |---|---|
 //! | 部品 | モードの `[states]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part`・`analysis/thermal.toml` の `[nodes]`・図の `[nodes]` のキー |
-//! | グループ | fune.toml の `[groups]` のキー・配分のキー・図の `[nodes]` のキー |
+//! | グループ | 配分のキー・図の `[nodes]` のキー |
 //! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]` の `mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode` |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets` |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire` |
@@ -73,8 +73,6 @@ pub enum RefSite {
     ThermalNode { node: String },
     /// 図の配置のノード（`view/<図>.toml` の `[nodes]` のキー）
     ViewNode { view: String },
-    /// グループの表示名（`fune.toml` の `[groups]` のキー）
-    GroupLabel,
     /// 解析ケースのモード（`cases/<ケース>.toml` の `mode`）
     CaseMode { case: String },
     /// 電源の時間割合のキー（`analysis/power.toml` の `[mode_share]`）
@@ -170,12 +168,7 @@ impl Design {
     }
 
     fn group_refs(&self, id: &str) -> Vec<RefSite> {
-        let label = self
-            .project
-            .groups
-            .contains_key(id)
-            .then_some(RefSite::GroupLabel);
-        label.into_iter().chain(self.node_refs(id)).collect()
+        self.node_refs(id)
     }
 
     /// 部品とグループに共通の参照元（配分のキー・図のノード）。

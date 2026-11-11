@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { getLang, setLang } from "@/i18n";
+import { fixture } from "@/test/fixture";
 import {
   attrLabel,
   defName,
@@ -10,6 +11,8 @@ import {
   kindLabel,
   nodeName,
   paramPath,
+  parentOptions,
+  systemTree,
   withNote,
 } from "./design";
 
@@ -32,8 +35,8 @@ describe("nodeName / idWithName", () => {
   });
 
   it("表示名が無ければどちらの言語でも ID", () => {
-    expect(nodeName({ id: "AOCS", label: null }, "ja")).toBe("AOCS");
-    expect(nodeName({ id: "AOCS" }, "en")).toBe("AOCS");
+    expect(nodeName({ id: "aocs", label: null }, "ja")).toBe("aocs");
+    expect(nodeName({ id: "aocs" }, "en")).toBe("aocs");
   });
 
   it("選択肢は「ID（表示名）」、表示名が ID と同じなら ID だけ", () => {
@@ -92,5 +95,36 @@ describe("パラメーターのパス", () => {
   it("部品のフィールドは API の field_paths を引く", () => {
     expect(fieldPath(part, "count")).toBe("RW_X.count");
     expect(fieldPath(part, "maturity")).toBeNull();
+  });
+});
+
+describe("系別のツリーと置き場所", () => {
+  it("API の系で直下の部品をまとめ、元の置き場所を変えない", () => {
+    const part = { ...fixture.parts[0]!, parent: null, dir: [] };
+    const design = {
+      ...fixture,
+      parts: [part],
+      tree: [{ ...fixture.tree.find((n) => n.id === part.id)!, parent: null }],
+    };
+    const tree = systemTree(design);
+    expect(tree.find((n) => n.id === "aocs")?.children).toEqual([part.id]);
+    expect(tree.find((n) => n.id === part.id)?.parent).toBe("aocs");
+    expect(design.tree[0]?.parent).toBeNull();
+    expect(part.dir).toEqual([]);
+  });
+  it("未所属の部品を系に割り当てず、未作成の系も選べる", () => {
+    const part = { ...fixture.parts[0]!, parent: null, system: null, dir: [] };
+    const design = {
+      ...fixture,
+      parts: [part],
+      tree: [{ ...fixture.tree.find((n) => n.id === part.id)!, parent: null, system: null }],
+    };
+    expect(systemTree(design)).toHaveLength(1);
+    expect(parentOptions(design).some((o) => o.value === "payload")).toBe(true);
+  });
+  it("系の表示名は API の語彙の日英名を使う", () => {
+    const node = { id: "payload", label: "ミッション機器", label_en: "Payload" };
+    expect(nodeName(node, "ja")).toBe("ミッション機器");
+    expect(nodeName(node, "en")).toBe("Payload");
   });
 });

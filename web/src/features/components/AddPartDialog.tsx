@@ -5,7 +5,7 @@ import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
 import { Segmented } from "@/kit/selection/Segmented";
-import { defWithId, groupsOf, nodeName, withNote } from "@/lib/design";
+import { defWithId, parentOptions, withNote } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
 
@@ -29,7 +29,7 @@ export function AddPartDialog({
   const t = useT();
   const ta = t.components.addPart;
   const [id, setId] = useState("");
-  const groups = groupsOf(design);
+  const groups = parentOptions(design);
   // カタログの品（GET /design の catalog）と、部品が参照している品（共有カタログを含む）
   const known = [
     ...new Set([
@@ -40,7 +40,7 @@ export function AddPartDialog({
   const catalogLabel = new Map(
     design.catalog.map((c) => [c.id, withNote(localized(c.label, c.label_en), c.kind)]),
   );
-  const [group, setGroup] = useState(initialGroup ?? groups[0]?.id ?? "");
+  const [group, setGroup] = useState(initialGroup ?? groups[0]?.value ?? "");
   const [by, setBy] = useState<DefBy>(known.length > 0 ? "catalog" : "kind");
   const [catalog, setCatalog] = useState("");
   const [kind, setKind] = useState("");
@@ -94,7 +94,7 @@ export function AddPartDialog({
           value={group}
           onChange={(e) => setGroup(e.target.value)}
           placeholder={ta.noGroup}
-          options={groups.map((g) => ({ value: g.id, label: nodeName(g) }))}
+          options={groups}
         />
       </Field>
       <div className="grid gap-1.5">

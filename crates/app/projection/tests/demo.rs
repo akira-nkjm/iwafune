@@ -117,7 +117,7 @@ fn thruster_ops() -> Vec<fune_ops::Op> {
     vec![
         Op::CreatePart {
             id: "THR_1".into(),
-            group: Some("AOCS".into()),
+            group: Some("aocs".into()),
             catalog: None,
             kind: Some("thruster".into()),
             count: None,

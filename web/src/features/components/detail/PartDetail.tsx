@@ -6,10 +6,10 @@ import { localized, useT } from "@/i18n";
 import { DetailAction, DetailHeader, DetailPane } from "@/kit/detail/DetailPane";
 import { DetailSection } from "@/kit/detail/DetailSection";
 import { useDialogs } from "@/kit/detail/use-dialogs";
-import { SubsystemDot } from "@/kit/SubsystemDot";
+import { SystemDot } from "@/kit/SystemDot";
 import { DiagnosticItem, diagnosticKey } from "@/kit/status/DiagnosticItem";
 import { nodeLabel } from "@/lib/design";
-import { subsystemTone } from "@/lib/subsystems";
+import { systemTone } from "@/lib/systems";
 import { Button } from "@/ui/button";
 import { DeletePartDialog } from "../DeletePartDialog";
 import { AddParameterDialog } from "../parameters/AddParameterDialog";
@@ -69,10 +69,10 @@ export function PartDetail({
         // 系統図のカードと同じ形: サブシステム色の淡い地と左の色の線
         <DetailHeader
           title={part.id}
-          tone={subsystemTone(part.subsystem)}
-          leading={<SubsystemDot group={part.subsystem} />}
+          tone={systemTone(part.system)}
+          leading={<SystemDot system={part.system} />}
           trailing={part.count > 1 && <span className="text-ink-3 text-xs">× {part.count}</span>}
-          subtitle={`${nodeLabel(design, part.parent)} · ${part.kind}${part.catalog ? ` · ${part.catalog}` : ""}`}
+          subtitle={`${nodeLabel(design, part.system)} · ${part.kind}${part.catalog ? ` · ${part.catalog}` : ""}`}
           actions={
             <>
               <Button size="sm" onClick={() => dialogs.show("param")}>

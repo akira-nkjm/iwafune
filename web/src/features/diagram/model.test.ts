@@ -29,11 +29,11 @@ describe("系統図のモデル", () => {
   it("サブシステムの枠の中に部品のカード", () => {
     const m = buildModel(fixture, { layers: both, mergeSiblings: false });
     expect(m.containers.map((c) => c.id)).toEqual([
-      groupNodeId("AOCS"),
-      groupNodeId("POWER"),
-      groupNodeId("COM"),
+      groupNodeId("aocs"),
+      groupNodeId("power"),
+      groupNodeId("comm"),
     ]);
-    expect(m.cards.find((c) => c.id === cardNodeId("PCDU"))?.parent).toBe(groupNodeId("POWER"));
+    expect(m.cards.find((c) => c.id === cardNodeId("PCDU"))?.parent).toBe(groupNodeId("power"));
   });
 
   it("電源は供給元から、データはマスターから星形に辺を出す", () => {
@@ -85,4 +85,15 @@ describe("系統図のモデル", () => {
     expect(e?.label).toBe("CAN×2");
     expect(e?.nets).toEqual(["CAN", "CAN2"]);
   });
+});
+
+it("カードも枠も名前ではなく API の系で色を決める", () => {
+  const design = {
+    ...fixture,
+    parts: fixture.parts.map((p) => ({ ...p, system: "payload" as const })),
+    tree: fixture.tree.map((n) => ({ ...n, system: "payload" as const })),
+  };
+  const model = buildModel(design, { layers: both, mergeSiblings: false });
+  expect(model.cards.every((c) => c.tone === "rose")).toBe(true);
+  expect(model.containers.every((c) => c.tone === "rose")).toBe(true);
 });

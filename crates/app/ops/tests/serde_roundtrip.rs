@@ -97,7 +97,7 @@ fn part_ops() -> Vec<Op> {
     vec![
         Op::CreatePart {
             id: "RW_S".into(),
-            group: Some("AOCS".into()),
+            group: Some("aocs".into()),
             catalog: Some("local/rw_10mNms".into()),
             kind: None,
             count: Some(2),
@@ -110,12 +110,12 @@ fn part_ops() -> Vec<Op> {
             to: "RW_T".into(),
         },
         Op::RenameGroup {
-            id: "AOCS".into(),
+            id: "aocs".into(),
             to: "ADCS".into(),
         },
         Op::MovePart {
             id: "RW_S".into(),
-            to: Some("POWER".into()),
+            to: Some("power".into()),
         },
         Op::SetValue {
             part: "RW_X".into(),

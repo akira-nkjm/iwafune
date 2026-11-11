@@ -72,16 +72,12 @@ fn renaming_keeps_view_positions() {
         &[
             Op::SetViewLayout {
                 view: "electrical".into(),
-                nodes: vec![node("PCDU"), node("POWER")],
+                nodes: vec![node("PCDU"), node("power")],
                 remove: vec![],
             },
             Op::RenamePart {
                 id: "PCDU".into(),
                 to: "MAIN_PCDU".into(),
-            },
-            Op::RenameGroup {
-                id: "POWER".into(),
-                to: "PWR".into(),
             },
         ],
     )
@@ -91,7 +87,7 @@ fn renaming_keeps_view_positions() {
         .keys()
         .map(String::as_str)
         .collect();
-    assert_eq!(keys, ["MAIN_PCDU", "PWR"]);
+    assert_eq!(keys, ["MAIN_PCDU", "power"]);
 }
 
 /// `catalog` も `kind` も無い部品は、検査の `part.no_definition` で拒まれる（ops に別の規則を持たない）。
@@ -99,7 +95,7 @@ fn renaming_keeps_view_positions() {
 fn a_part_without_definition_is_rejected_by_the_check() {
     let undefined = Op::CreatePart {
         id: "RW_T".into(),
-        group: Some("AOCS".into()),
+        group: Some("aocs".into()),
         catalog: None,
         kind: None,
         count: None,
@@ -144,7 +140,7 @@ fn ids_that_differ_only_in_case_are_taken() {
     let snap = snapshot();
     let part = Op::CreatePart {
         id: "rw_x".into(),
-        group: Some("AOCS".into()),
+        group: Some("aocs".into()),
         catalog: Some("local/rw_10mNms".into()),
         kind: None,
         count: None,

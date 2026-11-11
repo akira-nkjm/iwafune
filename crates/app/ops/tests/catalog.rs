@@ -173,7 +173,7 @@ fn rename_rewrites_part_and_harness_references() {
         vec![
             "catalog/sband_tx_2m.toml",
             "catalog/sband_tx_4m.toml",
-            "parts/COM/STX.toml"
+            "parts/comm/STX.toml"
         ]
     );
     let stx = &p.design.parts["STX"];

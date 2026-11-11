@@ -34,12 +34,7 @@ pub(crate) fn part_row(design: &Design, resolved: &Resolved, rp: &ResolvedPart) 
         field_paths: crate::query::views::field_paths(&rp.id),
         id: rp.id.clone(),
         parent: rp.parent.as_ref().map(|n| n.id().to_owned()),
-        subsystem: rp.subsystem.clone().or_else(|| {
-            rp.role
-                .as_ref()
-                .and_then(|r| fune_model::builtin::labels().role_subsystem.get(r))
-                .cloned()
-        }),
+        system: rp.system.map(fune_projection::system::to_analysis),
         kind: rp.kind.clone(),
         role: rp.role.clone(),
         catalog: rp.catalog.clone(),
@@ -83,10 +78,11 @@ pub(crate) fn list(design: &Design, resolved: &Resolved, q: &PartsQuery) -> Vec<
 }
 
 fn in_group(design: &Design, part: &str, group: &str) -> bool {
-    design
-        .ancestors(&NodeRef::Part(Id::new(part)))
-        .iter()
-        .any(|n| n.id() == group)
+    design.system_of(part).is_some_and(|s| s.as_str() == group)
+        || design
+            .ancestors(&NodeRef::Part(Id::new(part)))
+            .iter()
+            .any(|n| n.id() == group)
 }
 
 /// 1 部品の全情報。

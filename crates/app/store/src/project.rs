@@ -10,7 +10,6 @@ use fune_model::design::{
     Project, ProjectMeta,
 };
 use fune_model::id::Id;
-use fune_model::value::Quantity;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -70,7 +69,6 @@ fn template_design(name: &str) -> (Project, Allocations, BudgetPolicy, Mode) {
             name: name.replace('"', ""),
             ..ProjectMeta::default()
         },
-        groups: BTreeMap::new(),
         catalogs: vec![CatalogSource {
             name: "local".to_owned(),
             path: Some("catalog".to_owned()),
@@ -80,7 +78,7 @@ fn template_design(name: &str) -> (Project, Allocations, BudgetPolicy, Mode) {
     };
     let allocations = Allocations {
         mass: Some(Allocation {
-            limit: Quantity::new(12.0, "kg"),
+            limit: None,
             system_margin: 0.1,
             alloc: BTreeMap::new(),
         }),
@@ -99,7 +97,7 @@ fn template_design(name: &str) -> (Project, Allocations, BudgetPolicy, Mode) {
     };
     let safe = Mode {
         id: Id::new("SAFE"),
-        label: Some("セーフ".to_owned()),
+        label: None,
         description: Some("最小限の機器だけを動かす".to_owned()),
         states: BTreeMap::new(),
     };
@@ -165,7 +163,7 @@ mod tests {
         assert_eq!(git_branch(wt.path()).as_deref(), Some("0123456789ab"));
     }
 
-    /// 雛形の本文はバイト単位で変えない（中身を変えるかは別に決める。書き出しの方法だけを store の関数に揃えた）。
+    /// 雛形は任意の質量上限やモードの表示名を持たず、正規形で書き出す。
     #[test]
     fn template_text_is_unchanged() {
         let files: std::collections::BTreeMap<String, String> =
@@ -173,11 +171,11 @@ mod tests {
         let expected = [
             (
                 "fune.toml",
-                "[project]\nname   = \"sample\"\nschema = 2\ntoml   = \"1.0\"\n\n[groups]\n\n[[catalog]]\nname = \"local\"\npath = \"catalog\"\n",
+                "[project]\nname   = \"sample\"\nschema = 2\ntoml   = \"1.0\"\n\n[[catalog]]\nname = \"local\"\npath = \"catalog\"\n",
             ),
             (
                 "budget/allocation.toml",
-                "[mass]\nlimit         = { value = 12.0, unit = \"kg\" }\nsystem_margin = 0.1\n\n[mass.alloc]\n",
+                "[mass]\nsystem_margin = 0.1\n\n[mass.alloc]\n",
             ),
             (
                 "budget/policy.toml",
@@ -185,7 +183,7 @@ mod tests {
             ),
             (
                 "modes/SAFE.toml",
-                "label       = \"セーフ\"\ndescription = \"最小限の機器だけを動かす\"\n\n[states]\n",
+                "description = \"最小限の機器だけを動かす\"\n\n[states]\n",
             ),
         ];
         assert_eq!(files.len(), expected.len(), "{:?}", files.keys());
@@ -211,8 +209,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let created = init(dir.path(), "demo").unwrap();
         assert!(created.contains(&"fune.toml".to_string()));
-        std::fs::create_dir_all(dir.path().join("parts/AOCS")).unwrap();
-        let root = find_root(&dir.path().join("parts/AOCS")).unwrap();
+        std::fs::create_dir_all(dir.path().join("parts/aocs")).unwrap();
+        let root = find_root(&dir.path().join("parts/aocs")).unwrap();
         assert_eq!(root, dir.path());
         let snap = crate::read::load(&root).unwrap();
         assert_eq!(snap.design.project.meta.name, "demo");

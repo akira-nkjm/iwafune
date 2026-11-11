@@ -40,7 +40,7 @@ pub enum Target {
         roles: Vec<String>,
         attr: Option<String>,
     },
-    /// 機能のまとまり（`fune.toml` の `[groups]`、ID の誤り）
+    /// 機能のまとまり（系のディレクトリなど、ID の誤り）
     Group { id: String },
     /// 運用モード（`part` があれば、モードの表のその部品の行）
     Mode { id: String, part: Option<String> },

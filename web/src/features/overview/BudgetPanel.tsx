@@ -76,8 +76,8 @@ export function BudgetPanel({ kind }: { kind: BudgetKind }) {
 /** 配分の 1 行。「その他」の行（どの Group にも属さない部品。`node` が null）の名前は i18n の文言 */
 function BudgetRowItem({ row: r }: { row: BudgetRow }) {
   const t = useT().overview;
-  const name = r.node ?? t.budgetOther;
-  const title = r.label ?? t.budgetOtherTitle;
+  const name = r.label ? localized(r.label, r.label_en) : (r.node ?? t.budgetOther);
+  const title = r.node ?? t.budgetOtherTitle;
   return (
     <li className="grid grid-cols-[110px_minmax(0,1fr)_auto] items-center gap-3 text-xs">
       <span className="truncate font-mono" title={title}>

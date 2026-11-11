@@ -32,7 +32,7 @@ pub struct BudgetView {
     pub label_en: Option<String>,
     /// 依頼で指定した解析ケース
     pub case: Option<String>,
-    /// 上限（配分が無ければ null）
+    /// 上限（未設定なら null）
     pub limit: Option<QuantityView>,
     /// システムマージン（比。`si` が 0〜1 の値、`display` が `"10.0 %"`。配分が無ければ 0）
     pub system_margin: QuantityView,
@@ -40,11 +40,11 @@ pub struct BudgetView {
     pub total: Option<QuantityView>,
     /// 上限 ×（1 − システムマージン）− 合計
     pub margin: Option<QuantityView>,
-    /// 判定（入力が足りなければ null）
+    /// 判定（入力か上限が無ければ null）
     pub verdict: Option<Verdict>,
     /// 塗りの比（合計 / 上限。上限か合計が無ければ null）
     pub fill: Option<FillRatio>,
-    /// 行（サブシステムや組立品）
+    /// 行（系や配分された部品）
     pub rows: Vec<BudgetRow>,
     /// 電力のモードごとの行（電力のときだけ。ほかは空）。`node` はモード ID、`allocated` はシステム余裕を
     /// 引いた使用可能量、`margin` と `verdict` は全体と同じ集計・判定。
@@ -61,11 +61,15 @@ pub struct BudgetView {
 /// バジェットの 1 行。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct BudgetRow {
-    /// Group か Part の ID（電力のモードの行はモード ID）。どの配分の行にも最上位の Group にも属さない部品を
+    /// 系か部品の ID（電力のモードの行はモード ID）。どの配分の行にも系にも属さない部品を
     /// まとめた「その他」の行は null（文言は CLI と Web が作る）
     pub node: Option<String>,
     /// 表示名（無ければ ID。「その他」の行は null）
     pub label: Option<String>,
+    /// 英語の系の表示名
+    pub label_en: Option<String>,
+    /// 行の系（モードと「その他」は None）
+    pub system: Option<sat_analysis::spec::System>,
     /// 成長余裕を含まない現状の値
     pub current: QuantityView,
     /// 成長余裕込み

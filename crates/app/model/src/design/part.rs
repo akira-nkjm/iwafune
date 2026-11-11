@@ -38,8 +38,6 @@ pub struct Group {
     pub id: Id<Group>,
     /// ディレクトリから決まる親（最上位なら None）
     pub parent: Option<NodeRef>,
-    /// `fune.toml` の `[groups]` の表示名
-    pub label: Option<String>,
 }
 
 enum_text! {

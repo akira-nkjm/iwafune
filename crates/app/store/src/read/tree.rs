@@ -155,14 +155,12 @@ impl Decoder<'_> {
                 {
                     NodeRef::Part(Id::new(dir))
                 } else {
-                    let label = self.design.project.groups.get(dir).cloned();
                     self.design
                         .groups
                         .entry(Id::new(dir))
                         .or_insert_with(|| Group {
                             id: Id::new(dir),
                             parent: parent.clone(),
-                            label,
                         });
                     NodeRef::Group(Id::new(dir))
                 };

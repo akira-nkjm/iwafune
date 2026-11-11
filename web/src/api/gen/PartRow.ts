@@ -2,6 +2,7 @@
 import type { Maturity } from "./Maturity";
 import type { MountView } from "./MountView";
 import type { PortView } from "./PortView";
+import type { System } from "./System";
 import type { ValueView } from "./ValueView";
 
 /**
@@ -22,9 +23,9 @@ field_paths: { [key in string]: string }, id: string,
  */
 parent: string | null, 
 /**
- * 最上位の Group（例: `"AOCS"`）。未所属ならモデルの role_subsystem の既定
+ * 部品の系（置き場所 → 役割 → None）
  */
-subsystem: string | null, 
+system: System | null, 
 /**
  * 種別（kind の無い部品は null）
  */
@@ -46,7 +47,7 @@ states: Array<string>,
  */
 file: string, 
 /**
- * 部品ファイルの置き場所の `parts/` からのディレクトリの区間（例: `["POWER", "SAP_PY"]`）。
+ * 部品ファイルの置き場所の `parts/` からのディレクトリの区間（例: `["power", "SAP_PY"]`）。
  * 各区間は製品ツリーのノードの ID（表示名は `DesignView.tree`）。`parts/` の直下なら空
  */
 dir: Array<string>, };

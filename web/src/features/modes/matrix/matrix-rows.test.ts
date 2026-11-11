@@ -28,7 +28,7 @@ function load(mean: number): ModeLoadOutput {
   const part = {
     part: "TRX",
     label: "TRX",
-    group: "COM",
+    group: "comm",
     states: [],
     mean,
     mean_with_growth: mean,
@@ -53,8 +53,8 @@ describe("matrixGroups", () => {
   it("電力を使う部品だけを、サブシステムごとに ID の順で並べ、セルの位置の行を通しで振る", () => {
     const groups = matrixGroups(design(), new Map(), null, modesJa.modes);
     expect(groups.map((g) => [g.group, g.label, g.rows.map((r) => r.part)])).toEqual([
-      ["AOCS", "姿勢制御系", ["RW_X"]],
-      ["COM", "通信系", ["TRX"]],
+      ["aocs", "AOCS", ["RW_X"]],
+      ["comm", "通信", ["TRX"]],
     ]);
     // 系の見出しの行をまたいでも、矢印キーで上下に動けるよう行の番号は通し
     const at = groups.flatMap((g) => g.rows.flatMap((r) => r.cells.map((c) => c.at)));

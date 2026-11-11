@@ -52,7 +52,7 @@ describe("配置の編集を元に戻す Op（view-history.ts）", () => {
     ],
     [
       "位置を消す（自動配置に戻す）",
-      [{ op: "set_view_layout", view: "electrical", nodes: [], remove: ["POWER", "PCDU"] }],
+      [{ op: "set_view_layout", view: "electrical", nodes: [], remove: ["power", "PCDU"] }],
     ],
     [
       "線の経路を書き換える・新しく書く",

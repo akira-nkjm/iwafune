@@ -55,7 +55,7 @@ fn resolve_part(design: &Design, part: &Part) -> ResolvedPart {
             .clone()
             .or_else(|| catalog.and_then(|c| c.label.clone())),
         parent: part.parent.clone(),
-        subsystem: design.subsystem_of(part.id.as_str()).map(str::to_string),
+        system: design.system_of(part.id.as_str()),
         catalog: part.catalog.clone(),
         role: kind
             .as_deref()

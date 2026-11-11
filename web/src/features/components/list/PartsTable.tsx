@@ -1,11 +1,11 @@
 import type { DesignView, PartRow } from "@/api/types";
 import { useT } from "@/i18n";
-import { SubsystemDot } from "@/kit/SubsystemDot";
+import { SystemDot } from "@/kit/SystemDot";
 import { DataTable } from "@/kit/table/DataTable";
 import { SelectableRow } from "@/kit/table/SelectableRow";
 import { Td } from "@/kit/table/Td";
 import { Th } from "@/kit/table/Th";
-import { attrOf, nodeName } from "@/lib/design";
+import { attrOf, systemTitle } from "@/lib/design";
 import { valueText } from "@/quantity/format";
 
 /** 部品の一覧（密な表）。行を選ぶと右のパネルに詳細を出す */
@@ -22,7 +22,6 @@ export function PartsTable({
   onSelect: (id: string) => void;
 }) {
   const t = useT().components.table;
-  const label = new Map(design.tree.map((g) => [g.id, nodeName(g)]));
   const diagsByPart = new Map<string, { errors: number; warns: number }>();
   for (const d of design.diagnostics) {
     const id = d.part;
@@ -61,11 +60,11 @@ export function PartsTable({
           <SelectableRow key={p.id} selected={selected === p.id} onSelect={() => onSelect(p.id)}>
             <Td>
               <span className="flex items-center gap-2">
-                <SubsystemDot group={p.subsystem} />
+                <SystemDot system={p.system} />
                 <span className="font-medium font-mono text-[12.5px]">{p.id}</span>
               </span>
             </Td>
-            <Td className="text-ink-2">{p.parent ? (label.get(p.parent) ?? p.parent) : "—"}</Td>
+            <Td className="text-ink-2">{p.system ? systemTitle(p.system, design.defs) : "—"}</Td>
             <Td mono className="text-ink-2">
               {p.kind}
             </Td>

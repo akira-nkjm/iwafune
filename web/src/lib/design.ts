@@ -99,20 +99,56 @@ export function systemTitle(system: System, defs?: Pick<DefsView, "labels">): st
   return label ? localized(label.label, label.label_en) : system;
 }
 
-/** 製品ツリーの Group（サブシステムなど） */
-export function groupsOf(design: DesignView): TreeNode[] {
-  return design.tree.filter((n) => n.node === "group");
+/** 系と組立品・入れ子のフォルダの選択肢。未作成の系も API の一覧から選べる。 */
+export function parentOptions(design: DesignView): { value: string; label: string }[] {
+  return [
+    ...design.defs.systems.map((system) => ({
+      value: system,
+      label: systemTitle(system, design.defs),
+    })),
+    ...design.tree
+      .filter((n) => n.parent !== null || n.node === "part")
+      .map((n) => ({ value: n.id, label: idWithName(n) })),
+  ];
+}
+
+/** 表示用の系別ツリー。parts/ 直下の部品も API の系にまとめる（置き場所は変更しない）。 */
+export function systemTree(design: DesignView): TreeNode[] {
+  const nodes = new Map(design.tree.map((n) => [n.id, { ...n, children: [...n.children] }]));
+  for (const part of design.parts) {
+    if (part.parent || !part.system) continue;
+    let group = nodes.get(part.system);
+    if (!group) {
+      const label = design.defs.labels.section[part.system];
+      group = {
+        id: part.system,
+        node: "group",
+        system: part.system,
+        label: label?.label ?? part.system,
+        label_en: label?.label_en ?? null,
+        parent: null,
+        children: [],
+      };
+      nodes.set(group.id, group);
+    }
+    const node = nodes.get(part.id);
+    if (node && group.node === "group") {
+      node.parent = group.id;
+      if (!group.children.includes(part.id)) group.children.push(part.id);
+    }
+  }
+  return [...nodes.values()];
 }
 
 /** ID と、設計に書いた表示名（日本語）を持つもの: 製品ツリーのノード・モードなど */
-export type Named = { id: string; label?: string | null };
+export type Named = { id: string; label?: string | null; label_en?: string | null };
 
 /**
- * 製品ツリーのノード（Group・部品）やモードの表示名。表示の言語の名前だけにする: 英語は ID（AOCS など。設計に書く
- * 表示名は日本語のため）、日本語は設計に書いた表示名（無ければ ID）。
+ * 製品ツリーのノードやモードの表示名。系は API の日英名を使う。
+ * 英語名を持たない部品やモードは英語で ID、日本語で設計の表示名（無ければ ID）を使う。
  */
 export function nodeName(node: Named, lang: Lang = getLang()): string {
-  return lang === "en" || !node.label ? node.id : node.label;
+  return lang === "en" ? node.label_en || node.id : node.label || node.id;
 }
 
 /** 選択肢に出す「ID（表示名）」（`withNote`）。表示名が ID と同じとき（英語・表示名なし）は ID だけ */
@@ -123,6 +159,8 @@ export function idWithName(node: Named, lang: Lang = getLang()): string {
 /** ID からノードの表示名（`nodeName`）。ID が無ければ「—」、ツリーに無ければ ID */
 export function nodeLabel(design: DesignView, id: string | null, lang: Lang = getLang()): string {
   if (!id) return "—";
+  const system = design.defs.systems.find((s) => s === id);
+  if (system) return systemTitle(system, design.defs);
   const node = design.tree.find((n) => n.id === id);
   return node ? nodeName(node, lang) : id;
 }

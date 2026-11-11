@@ -3,8 +3,8 @@ import { useLang, useT } from "@/i18n";
 import { Packed } from "@/kit/Packed";
 import { RoleIcon } from "@/kit/RoleIcon";
 import { cn } from "@/lib/cn";
-import { kindLabel, nodeName } from "@/lib/design";
-import { subsystemTone } from "@/lib/subsystems";
+import { kindLabel, nodeName, systemTree } from "@/lib/design";
+import { systemTone } from "@/lib/systems";
 import { type Tone, toneHex, toneInkHex, toneText, toneTint } from "@/lib/tone";
 
 /** カード 1 枚の幅 [px] */
@@ -35,7 +35,8 @@ export function PartsOverview({
   const lang = useLang();
   const td = useT().components;
   const rows = new Map(items.map((p) => [p.id, p]));
-  const nodes = new Map(design.tree.map((n) => [n.id, n]));
+  const tree = systemTree(design);
+  const nodes = new Map(tree.map((n) => [n.id, n]));
   const kindName = (kind: string | null) => (kind ? kindLabel(design.defs, kind) : "");
   const nameOf = (n: TreeNode) => nodeName(n, lang);
   // 絞り込んだ部品か、それを子孫に持つノードだけを出す
@@ -44,7 +45,7 @@ export function PartsOverview({
     return rows.has(id) || !!n?.children.some(shown);
   };
   const context = { rows, nodes, kindName, nameOf, shown, selected, onSelect };
-  const roots = design.tree.filter((n) => !n.parent && shown(n.id));
+  const roots = tree.filter((n) => !n.parent && shown(n.id));
   const loose = roots.filter((n) => n.node === "part");
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: 空いた所を押すと選択を外す（カードはボタンで選べる）
@@ -104,7 +105,7 @@ function Box({
   const inner = children.filter((n) => n.node === "group" || n.children.length > 0);
   const assembly = node?.node === "part";
   const row = node ? ctx.rows.get(node.id) : undefined;
-  const tone: Tone = node ? subsystemTone(row?.subsystem ?? (assembly ? null : node.id)) : "gray";
+  const tone: Tone = node ? systemTone(row?.system ?? node.system) : "gray";
   const heading = (
     <>
       <span
@@ -165,7 +166,7 @@ function Box({
 }
 
 function PartCard({ row, ctx }: { row: PartRow; ctx: Ctx }) {
-  const tone = subsystemTone(row.subsystem);
+  const tone = systemTone(row.system);
   const stacked = row.count > 1;
   return (
     <div className="relative" style={{ width: CARD_WIDTH }}>

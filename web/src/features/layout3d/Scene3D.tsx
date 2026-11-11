@@ -12,7 +12,7 @@ import { useState } from "react";
 import type { Mesh } from "three";
 import { ArrowHelper, Color, Vector3 } from "three";
 import { palette, toneHex, uiHex } from "@/lib/tone";
-import type { Axis3D, Box3D, Q4, V3 } from "./scene";
+import type { Axis3D, Box3D, Q4, sceneDimensions, V3 } from "./scene";
 
 const AXIS_COLOR: Record<Axis3D["attr"], string> = {
   spin_axis: toneHex.blue,
@@ -39,6 +39,7 @@ export interface SceneEdit {
  */
 export function Scene3D({
   boxes,
+  dimensions,
   selected,
   onSelect,
   com,
@@ -46,6 +47,7 @@ export function Scene3D({
   edit,
 }: {
   boxes: Box3D[];
+  dimensions: ReturnType<typeof sceneDimensions>;
   selected: string | null;
   onSelect: (id: string | null) => void;
   /** 重心（機体座標、m） */
@@ -61,7 +63,13 @@ export function Scene3D({
     // 既定の always は止まっている間も毎フレーム描き、ページ全体の操作を重くする
     <Canvas
       frameloop="demand"
-      camera={{ position: [0.6, -0.7, 0.5], up: [0, 0, 1], fov: 40, near: 0.001, far: 100 }}
+      camera={{
+        position: [dimensions.cameraX, dimensions.cameraY, dimensions.cameraZ],
+        up: [0, 0, 1],
+        fov: 40,
+        near: dimensions.near,
+        far: dimensions.far,
+      }}
       onPointerMissed={() => onSelect(null)}
       style={{ background: "var(--color-panel-2)" }}
     >
@@ -69,15 +77,15 @@ export function Scene3D({
       <directionalLight position={[2, -3, 4]} intensity={1.2} />
       <Grid
         rotation={[Math.PI / 2, 0, 0]}
-        args={[2, 2]}
-        cellSize={0.01}
-        sectionSize={0.1}
+        args={[dimensions.grid, dimensions.grid]}
+        cellSize={dimensions.gridCell}
+        sectionSize={dimensions.gridSection}
         cellColor={uiHex.tick}
         sectionColor={toneHex.gray}
-        fadeDistance={3}
+        fadeDistance={dimensions.gridFade}
         infiniteGrid
       />
-      <axesHelper args={[0.15]} />
+      <axesHelper args={[dimensions.axes]} />
       <Bounds fit clip margin={1.3}>
         {boxes.map((b) => (
           <mesh
@@ -105,10 +113,10 @@ export function Scene3D({
                     new ArrowHelper(
                       new Vector3(...a.dir),
                       new Vector3(),
-                      0.08,
+                      dimensions.arrow,
                       new Color(AXIS_COLOR[a.attr]),
-                      0.02,
-                      0.012,
+                      dimensions.arrowHead,
+                      dimensions.arrowWidth,
                     )
                   }
                 />
@@ -118,7 +126,7 @@ export function Scene3D({
       </Bounds>
       {com && (
         <mesh position={com} renderOrder={10}>
-          <sphereGeometry args={[0.008, 16, 16]} />
+          <sphereGeometry args={[dimensions.comRadius, 16, 16]} />
           <meshBasicMaterial color={toneHex.red} depthTest={false} />
         </mesh>
       )}
