@@ -318,3 +318,32 @@ fn rename_group_rejects_a_taken_or_missing_name() {
     );
     assert!(missing.is_err());
 }
+
+#[test]
+fn rename_part_updates_eclipse_rows() {
+    let p = plan(
+        &snapshot(),
+        &[
+            Op::SetModeStates {
+                cells: vec![fune_ops::ModeCell {
+                    mode: "NOMINAL".into(),
+                    part: "HTR_BAT".into(),
+                    state: Some("on".into()),
+                    duty: Default::default(),
+                    active: None,
+                    spare_state: None,
+                    eclipse: true,
+                }],
+            },
+            Op::RenamePart {
+                id: "HTR_BAT".into(),
+                to: "HTR_NEW".into(),
+            },
+        ],
+    )
+    .unwrap();
+    let m = &p.design.modes["NOMINAL"];
+    assert!(m.states.contains_key("HTR_NEW"));
+    assert!(m.eclipse.contains_key("HTR_NEW"));
+    assert!(!m.eclipse.contains_key("HTR_BAT"));
+}

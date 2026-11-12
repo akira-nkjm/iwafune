@@ -87,6 +87,10 @@ pub(crate) fn mode_table(design: &Design) -> ModeTable {
         .modes
         .values()
         .map(|m| ModeHeader {
+            max_duration: m
+                .max_duration
+                .as_ref()
+                .map(|q| authored_quantity(q, Some("Time"))),
             id: m.id.to_string(),
             label: m.label.clone().unwrap_or_else(|| m.id.to_string()),
             description: m.description.clone(),
@@ -115,6 +119,15 @@ pub(crate) fn mode_table(design: &Design) -> ModeTable {
                     .iter()
                     .filter(|(_, c)| !c.duty.is_empty())
                     .map(|(m, c)| (m.clone(), duty_shares(c)))
+                    .collect(),
+                eclipse_cells: design
+                    .modes
+                    .values()
+                    .filter_map(|m| {
+                        m.eclipse
+                            .get(p.id.as_str())
+                            .map(|a| (m.id.to_string(), a.clone()))
+                    })
                     .collect(),
                 cells,
             }

@@ -13,6 +13,7 @@ use fune_model::value::ValueType;
 /// 表示名を持つ列挙（labels.toml の型の名前 → 値の綴りの一覧）。
 const LABELLED: &[(&str, &[&str])] = &[
     ("maturity", Maturity::NAMES),
+    ("redundancy", fune_model::design::Redundancy::NAMES),
     ("net_kind", NetKind::NAMES),
     ("budget_kind", BudgetKind::NAMES),
     ("source_kind", SourceKind::NAMES),

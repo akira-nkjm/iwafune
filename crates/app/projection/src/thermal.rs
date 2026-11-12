@@ -182,6 +182,8 @@ fn loads(ctx: &Context<'_>, s: &ThermalSettings, mode: Option<&str>) -> Option<T
                 id: p.id.clone(),
                 node: node.to_string(),
                 count: crate::parts::count_of(p),
+                redundancy: crate::parts::redundancy(p),
+                states: p.states.clone(),
                 power: state_values::<Power>(p, "power")?,
                 heat_fraction: p.scalar("heat_fraction"),
             })

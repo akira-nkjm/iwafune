@@ -27,6 +27,7 @@ export function BasicSection({ design, part }: { design: DesignView; part: PartR
   const unsetText = useUnsetText();
   const t = useT().components.basic;
   const maturity = useEnumOptions("maturity");
+  const redundancy = useEnumOptions("redundancy");
   const path = (field: string) => fieldPath(part, field);
   const save = (field: string, value: string, summary: string) => {
     const p = path(field);
@@ -87,6 +88,15 @@ export function BasicSection({ design, part }: { design: DesignView; part: PartR
           className="num w-20 text-right"
         />
         <FieldError path={path("count")} />
+      </PropertyRow>
+      <PropertyRow label={t.redundancy}>
+        <NativeSelect
+          aria-label={t.redundancy}
+          value={part.redundancy}
+          options={redundancy}
+          onChange={(e) => save("redundancy", e.target.value, t.redundancySummary(part.id))}
+        />
+        <FieldError path={path("redundancy")} />
       </PropertyRow>
       <PropertyRow label={t.maturity}>
         <NativeSelect

@@ -20,6 +20,9 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
         CommandText::NetUnset(t) => vec![net_unset_op(t)?],
         CommandText::PartPlace(t) => vec![place_op(t)?],
         CommandText::ModeSet(t) => vec![mode_set_op(t)?],
+        CommandText::ModeDuration { mode, duration } => {
+            vec![mode_duration_op(mode, duration.as_deref())?]
+        }
         CommandText::AttrAdd(t) => vec![super::defs::attr_add_op(t)?],
         CommandText::KindAdd(t) => vec![super::defs::kind_add_op(t)?],
     })
@@ -135,6 +138,19 @@ fn mode_cell(c: &ModeCellText) -> Result<ModeCell> {
         part: c.part.trim().to_owned(),
         state,
         duty,
+        active: c
+            .active
+            .as_deref()
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| s.trim().parse::<u32>().map_err(invalid))
+            .transpose()?,
+        spare_state: c
+            .spare_state
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned),
+        eclipse: c.eclipse,
     })
 }
 
@@ -156,6 +172,14 @@ pub fn duty_from_text(text: &str) -> Result<BTreeMap<String, String>> {
                 .ok_or_else(|| invalid(format!("--duty は 状態=割合 の形です: {pair}")))
         })
         .collect()
+}
+
+/// `fune mode duration` と HTTP で共有する量の読み方。
+pub fn mode_duration_op(mode: &str, duration: Option<&str>) -> Result<Op> {
+    Ok(Op::SetModeDuration {
+        mode: mode.trim().to_owned(),
+        duration: duration.map(quantity_from_text).transpose()?,
+    })
 }
 
 #[cfg(test)]
@@ -256,6 +280,9 @@ mod tests {
                 .iter()
                 .map(|(s, f)| ((*s).to_owned(), (*f).to_owned()))
                 .collect(),
+            active: None,
+            spare_state: None,
+            eclipse: false,
         };
         let op = mode_set_op(&ModeSetText {
             cells: vec![

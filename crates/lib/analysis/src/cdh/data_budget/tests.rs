@@ -18,6 +18,8 @@ fn assign(part: &str, state: &str, duty: &[(&str, f64)]) -> StateAssignment {
         part: part.to_owned(),
         state: state.to_owned(),
         duty: duty.iter().map(|(s, f)| ((*s).to_owned(), *f)).collect(),
+        active: None,
+        spare_state: None,
     }
 }
 
@@ -32,12 +34,16 @@ fn input() -> DataBudgetInput {
                     by_state: Default::default(),
                 },
                 mission_rate: StateValues::default(),
+                redundancy: crate::modes::Redundancy::None,
+                states: Vec::new(),
             },
             DataBudgetPart {
                 count: 1,
                 id: "CAM".to_owned(),
                 hk_rate: rates(&[("off", 0.0), ("on", 50.0)]),
                 mission_rate: rates(&[("off", 0.0), ("on", 1.0e6)]),
+                redundancy: crate::modes::Redundancy::None,
+                states: Vec::new(),
             },
         ],
         modes: vec![
@@ -45,6 +51,7 @@ fn input() -> DataBudgetInput {
                 id: "NOM".to_owned(),
                 label: "通常".to_owned(),
                 assignments: vec![assign("OBC", "on", &[]), assign("CAM", "off", &[])],
+                eclipse: Vec::new(),
             },
             ModeDef {
                 id: "OBS".to_owned(),
@@ -53,6 +60,7 @@ fn input() -> DataBudgetInput {
                     assign("OBC", "on", &[]),
                     assign("CAM", "off", &[("on", 0.5)]),
                 ],
+                eclipse: Vec::new(),
             },
         ],
         mode_shares: vec![
@@ -180,4 +188,24 @@ fn storage_verdict_follows_the_reserve() {
     let mut bad = input();
     bad.storage_reserve = Some(Fraction::new(1.0));
     assert!(DataBudget::run(&bad).is_err());
+}
+
+#[test]
+fn redundant_data_rates_by_hand() {
+    let mut i = input();
+    let p = &mut i.parts[0];
+    p.count = 4;
+    p.redundancy = crate::modes::Redundancy::Warm;
+    p.states = vec!["on".into(), "standby".into()];
+    p.hk_rate = rates(&[("on", 100.0), ("standby", 10.0)]);
+    let mut assignment = assign("OBC", "on", &[]);
+    assignment.active = Some(3);
+    let mode = ModeDef {
+        id: "TEST".into(),
+        label: String::new(),
+        assignments: vec![assignment],
+        eclipse: vec![],
+    };
+    let (rates, _) = mode_rates(&mode, &i.parts[..1]).unwrap();
+    assert_eq!(rates[0][0], 310.0); // 3 × 100 + 1 × 10 bit/s
 }

@@ -33,11 +33,14 @@ function load(mean: number): ModeLoadOutput {
     mean,
     mean_with_growth: mean,
     growth_margin: 0,
+    spare_power: null,
   };
   const mode = {
     id: "NOMINAL",
     label: "定常",
     total: mean,
+    total_eclipse: mean,
+    total_eclipse_with_growth: mean,
     total_with_growth: mean,
     peak_with_growth: mean,
     groups: [],

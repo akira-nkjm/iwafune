@@ -93,12 +93,18 @@ pub fn mode(ws: &Workspace, cmd: &ModeCmd, out: &Out) -> Handled {
         return Ok(Some(0));
     }
     if !table {
-        let mut t = out.table(&["ID", "名前", "説明"]);
+        let mut t = out.table(&["ID", "名前", "説明", "最長継続時間"]);
         for m in &modes.modes {
             t.row(vec![
                 C::Strong(m.id.clone()),
                 C::Text(m.label.clone()),
                 C::Dim(m.description.clone().unwrap_or_default()),
+                C::Text(
+                    m.max_duration
+                        .as_ref()
+                        .map(|q| q.display.clone())
+                        .unwrap_or_default(),
+                ),
             ]);
         }
         t.print();
@@ -112,7 +118,19 @@ pub fn mode(ws: &Workspace, cmd: &ModeCmd, out: &Out) -> Handled {
         for m in &modes.modes {
             cells.push(match row.cells.get(&m.id) {
                 None => C::Dim("未指定".into()),
-                Some(cell) => C::Text(cell_text(&cell.state, row.shares.get(&m.id))),
+                Some(cell) => {
+                    let mut text = cell_text(&cell.state, row.shares.get(&m.id));
+                    if let Some(n) = cell.active {
+                        text.push_str(&format!(" [active={n}]"));
+                    }
+                    if let Some(s) = &cell.spare_state {
+                        text.push_str(&format!(" [spare={s}]"));
+                    }
+                    if let Some(e) = row.eclipse_cells.get(&m.id) {
+                        text.push_str(&format!(" [eclipse={}]", e.state));
+                    }
+                    C::Text(text)
+                }
             });
         }
         t.row(cells);

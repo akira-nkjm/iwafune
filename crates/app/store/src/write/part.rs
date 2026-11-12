@@ -96,6 +96,8 @@ fn field_item(field: &PartField) -> Option<Item> {
         | PartField::Description(v)
         | PartField::Catalog(v)
         | PartField::Kind(v) => v.as_deref().map(string),
+        PartField::Redundancy(fune_model::design::Redundancy::None) => None,
+        PartField::Redundancy(r) => Some(string(r.as_str())),
         PartField::Count(1) => None,
         PartField::Count(n) => Some(Item::Value(i64::from(*n).into())),
         PartField::Maturity(m) => m.map(|m| string(m.as_str())),

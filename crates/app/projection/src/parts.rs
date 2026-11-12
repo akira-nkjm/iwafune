@@ -122,3 +122,14 @@ pub fn growth(design: &fune_model::Design, p: &ResolvedPart) -> Option<f64> {
     p.maturity
         .and_then(|mat| design.budget.policy.growth.get(mat))
 }
+
+/// 設計の冗長の方式を解析の列挙へ写す。
+pub fn redundancy(p: &fune_model::resolve::ResolvedPart) -> sat_analysis::modes::Redundancy {
+    use fune_model::design::Redundancy as D;
+    use sat_analysis::modes::Redundancy as A;
+    match p.redundancy {
+        D::None => A::None,
+        D::Cold => A::Cold,
+        D::Warm => A::Warm,
+    }
+}

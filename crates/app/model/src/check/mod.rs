@@ -11,6 +11,7 @@
 mod budget;
 mod defs;
 mod ids;
+mod modes;
 mod parts;
 mod settings;
 mod settings_analysis;
@@ -42,7 +43,7 @@ pub fn check(design: &Design) -> Vec<Diagnostic> {
     ids::check_ids(&mut ctx);
     parts::check_parts(&mut ctx);
     parts::check_catalog(&mut ctx);
-    system::check_modes(&mut ctx);
+    modes::check_modes(&mut ctx);
     system::check_nets(&mut ctx);
     system::check_harnesses(&mut ctx);
     system::check_cases_and_sources(&mut ctx);

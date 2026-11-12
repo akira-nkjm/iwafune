@@ -6,6 +6,8 @@ const mode = (id: string, total: number): ModeLoadMode => ({
   id,
   label: id,
   total,
+  total_eclipse: total,
+  total_eclipse_with_growth: total,
   total_with_growth: total,
   peak_with_growth: total,
   groups: [],

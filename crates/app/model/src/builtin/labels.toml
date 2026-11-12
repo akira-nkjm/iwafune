@@ -71,6 +71,7 @@ label_en = "Payload"
 
 [enum_order]
 maturity = ["off_the_shelf", "modified", "new"]
+redundancy = ["none", "cold", "warm"]
 severity = ["error", "warning", "info"]
 
 [enum.maturity.off_the_shelf]
@@ -283,3 +284,15 @@ camera = "payload"
 heater = "thermal"
 panel = "structure"
 structure = "structure"
+
+[enum.redundancy.none]
+label = "冗長なし"
+label_en = "None"
+
+[enum.redundancy.cold]
+label = "コールド冗長"
+label_en = "Cold redundancy"
+
+[enum.redundancy.warm]
+label = "ウォーム冗長"
+label_en = "Warm redundancy"

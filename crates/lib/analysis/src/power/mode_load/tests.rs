@@ -15,6 +15,8 @@ fn part(id: &str, group: &str, states: &[(&str, f64)], growth: Option<f64>) -> M
                 .collect(),
         },
         growth_margin: growth,
+        redundancy: crate::modes::Redundancy::None,
+        states: Vec::new(),
     }
 }
 
@@ -23,6 +25,8 @@ fn assign(part: &str, state: &str, duty: &[(&str, f64)]) -> StateAssignment {
         part: part.to_owned(),
         state: state.to_owned(),
         duty: duty.iter().map(|(s, f)| ((*s).to_owned(), *f)).collect(),
+        active: None,
+        spare_state: None,
     }
 }
 
@@ -43,6 +47,7 @@ fn input() -> ModeLoadInput {
                 assign("CAM", "off", &[("on", 0.2)]),
                 assign("GPS", "on", &[]),
             ],
+            eclipse: Vec::new(),
         }],
         default_growth_margin: 0.2,
     }
@@ -96,4 +101,76 @@ fn count_multiplies_the_unit_power() {
     assert_eq!(trx.states[1].power.map(Qty::value), Some(20.0));
     // 合計は 1.5 + 5.6 + 1.0 = 8.1 W
     assert!((m.total.value() - 8.1).abs() < 1e-12);
+}
+
+fn redundant_input(redundancy: modes::Redundancy) -> ModeLoadInput {
+    let mut rw = part(
+        "RW",
+        "AOCS",
+        &[("off", 0.0), ("on", 10.0), ("standby", 2.0)],
+        Some(0.0),
+    );
+    rw.count = 4;
+    rw.redundancy = redundancy;
+    rw.states = ["off", "on", "standby"].map(str::to_owned).into();
+    let mut assignment = assign("RW", "on", &[]);
+    assignment.active = Some(3);
+    ModeLoadInput {
+        parts: vec![rw],
+        modes: vec![ModeDef {
+            id: "TEST".into(),
+            label: String::new(),
+            assignments: vec![assignment],
+            eclipse: vec![],
+        }],
+        default_growth_margin: 0.0,
+    }
+}
+
+#[test]
+fn cold_and_warm_units_by_hand() {
+    for (redundancy, expected) in [
+        (modes::Redundancy::Cold, 30.0),
+        (modes::Redundancy::Warm, 32.0),
+    ] {
+        let i = redundant_input(redundancy);
+        let m = evaluate_mode(&i, &i.modes[0]).unwrap();
+        assert_eq!(m.total.value(), expected); // 3 × 10 + 1 × (0 または 2)
+        assert_eq!(m.peak_with_growth.value(), expected);
+        assert_eq!(m.total_eclipse.value(), expected);
+    }
+}
+
+#[test]
+fn spare_is_constant_while_active_units_follow_duty() {
+    let mut i = redundant_input(modes::Redundancy::Warm);
+    i.modes[0].assignments[0].state = "off".into();
+    i.modes[0].assignments[0].duty.insert("on".into(), 0.2);
+    let m = evaluate_mode(&i, &i.modes[0]).unwrap();
+    assert_eq!(m.total.value(), 8.0); // 3 × 10 × 0.2 + 1 × 2
+    assert_eq!(m.peak_with_growth.value(), 32.0);
+}
+
+#[test]
+fn eclipse_overrides_only_the_heater() {
+    let mut i = redundant_input(modes::Redundancy::Cold);
+    i.parts
+        .push(part("HTR", "TCS", &[("off", 0.0), ("on", 5.0)], Some(0.0)));
+    i.modes[0].assignments.push(assign("HTR", "off", &[]));
+    i.modes[0].eclipse.push(assign("HTR", "on", &[]));
+    let m = evaluate_mode(&i, &i.modes[0]).unwrap();
+    assert_eq!(m.total.value(), 30.0);
+    assert_eq!(m.total_eclipse.value(), 35.0);
+}
+
+#[test]
+fn invalid_population_is_rejected() {
+    let mut i = redundant_input(modes::Redundancy::Warm);
+    i.modes[0].assignments[0].active = Some(5);
+    assert!(evaluate_mode(&i, &i.modes[0]).is_err());
+    i.modes[0].assignments[0].active = Some(3);
+    i.parts[0].states = vec!["off".into(), "on".into()];
+    assert!(evaluate_mode(&i, &i.modes[0]).is_err());
+    i.modes[0].assignments[0].spare_state = Some("on".into());
+    assert_eq!(evaluate_mode(&i, &i.modes[0]).unwrap().total.value(), 40.0);
 }

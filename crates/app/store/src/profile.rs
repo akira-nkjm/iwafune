@@ -2,7 +2,7 @@
 use crate::error::StoreError;
 use toml_edit::{DocumentMut, Item, Table};
 /// 整数のまま書くキー（ID・員数・回数）。
-pub const INTEGER_KEYS: &[&str] = &["count", "cores", "schema", "orbits"];
+pub const INTEGER_KEYS: &[&str] = &["count", "active", "cores", "schema", "orbits"];
 /// `view/` の座標（画面の整数座標）。`points` は手で引いた線の折れ点（`[edge]` の `[[x, y], …]`）、
 /// `*_offset` は線の端子のカードの側の上での位置。
 pub const VIEW_INTEGER_KEYS: &[&str] = &[

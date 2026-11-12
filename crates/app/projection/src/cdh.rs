@@ -23,6 +23,8 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
         .map(|p| DataBudgetPart {
             id: p.id.clone(),
             count: crate::parts::count_of(p),
+            redundancy: crate::parts::redundancy(p),
+            states: p.states.clone(),
             hk_rate: state_values(p, "hk_rate").unwrap_or_default(),
             mission_rate: state_values(p, "mission_rate").unwrap_or_default(),
         })

@@ -290,3 +290,73 @@ fn energy_balance_default_only_selects_the_timeline_attitude() {
             .unwrap_err();
     assert!(!missing.into_vec().is_empty());
 }
+
+/// 依存の向きで共有できない設計検査と解析の予備状態の規則を突き合わせる。
+#[test]
+fn mode_validation_and_analysis_agree_on_population() {
+    use fune_model::design::{Mode, Part, Redundancy, StateAssign};
+    use sat_analysis::modes::{Population, counted_states};
+    let (mut design, _) = demo();
+    let mut part = Part::new("TEST_RW");
+    part.kind = Some("reaction_wheel".into());
+    part.count = 4;
+    for (redundancy, active, spare) in [
+        (Redundancy::Cold, Some(3), None),
+        (Redundancy::Warm, Some(3), None),
+        (Redundancy::Warm, Some(3), Some("on")),
+        (Redundancy::Cold, Some(5), None),
+        (Redundancy::None, Some(3), None),
+        (Redundancy::Warm, Some(3), Some("unknown")),
+    ] {
+        part.redundancy = redundancy;
+        design.parts.insert(part.id.clone(), part.clone());
+        let mut a = StateAssign::new("on");
+        a.active = active;
+        a.spare_state = spare.map(str::to_owned);
+        let mode = Mode {
+            id: "TEST_MODE".into(),
+            states: [(part.id.clone(), a)].into(),
+            ..Default::default()
+        };
+        design.modes.insert(mode.id.clone(), mode.clone());
+        let states = design.part_states(&part);
+        let projected = fune_projection::context::mode_def(&mode);
+        let redundancy = match redundancy {
+            Redundancy::None => sat_analysis::modes::Redundancy::None,
+            Redundancy::Cold => sat_analysis::modes::Redundancy::Cold,
+            Redundancy::Warm => sat_analysis::modes::Redundancy::Warm,
+        };
+        let accepted = counted_states(
+            &projected.assignments[0],
+            Population {
+                count: 4,
+                redundancy,
+                states,
+            },
+        )
+        .is_ok();
+        let errors = fune_model::check(&design).iter().any(|d| {
+            d.severity == fune_model::Severity::Error
+                && d.target == Some(fune_model::Target::mode("TEST_MODE", Some("TEST_RW")))
+        });
+        assert_eq!(accepted, !errors, "{active:?} {spare:?}");
+    }
+    let a = sat_analysis::modes::StateAssignment {
+        part: "RW".into(),
+        state: "on".into(),
+        duty: Default::default(),
+        active: Some(3),
+        spare_state: None,
+    };
+    let states = [fune_model::builtin::STATE_OFF.to_owned(), "on".to_owned()];
+    let terms = counted_states(
+        &a,
+        Population {
+            count: 4,
+            redundancy: sat_analysis::modes::Redundancy::Cold,
+            states: &states,
+        },
+    )
+    .unwrap();
+    assert_eq!(terms.last().unwrap().0, fune_model::builtin::STATE_OFF);
+}

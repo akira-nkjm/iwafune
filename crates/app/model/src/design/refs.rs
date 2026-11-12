@@ -49,7 +49,7 @@ enum_text! {
 /// 参照元 1 つ。どのファイルのどのキーかは store（`layout`）が決める。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RefSite {
-    /// モードの表の行（`modes/<モード>.toml` の `[states]` のキー）
+    /// モードの表の行（`modes/<モード>.toml` の `[states]`・`[eclipse]` のキー）
     ModeRow { mode: String },
     /// ネットの供給元・マスター（値はポートの参照 `port`）
     NetPort {
@@ -111,7 +111,7 @@ impl Design {
         let mut out: Vec<RefSite> = self
             .modes
             .values()
-            .filter(|m| m.states.contains_key(id))
+            .filter(|m| m.states.contains_key(id) || m.eclipse.contains_key(id))
             .map(|m| RefSite::ModeRow {
                 mode: m.id.to_string(),
             })

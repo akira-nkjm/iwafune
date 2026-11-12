@@ -131,6 +131,10 @@ fn unset_and_field_ops() -> Vec<Op> {
         },
         Op::SetField {
             part: s("RW_X"),
+            field: serde_json::from_value(json!({"field":"redundancy","value":"warm"})).unwrap(),
+        },
+        Op::SetField {
+            part: s("RW_X"),
             field: PartField::Candidates(vec![s("local/a"), s("local/b")]),
         },
         Op::SetField {

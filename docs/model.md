@@ -47,8 +47,8 @@ flowchart LR
 | KindDef | 部品の種別 | `defs/kind/<id>.toml` | 継承元、必須・任意の属性、機器の状態の語彙（off / standby / on …）、ポートの雛形、role |
 | CatalogItem | 購入品・設計品の定義（ElementDefinition） | 共有カタログ or `catalog/<id>.toml` | kind、型番、成熟度、属性値、ポートの値、形状、データシート |
 | Group | 系・入れ子のフォルダ | `parts/` 以下の、同名ファイルを持たないディレクトリ（最上位は系 ID） | なし（系の表示名は組み込みの語彙、配分は `budget/allocation.toml`） |
-| Part | 製品ツリー上の使用（ElementUsage） | `parts/<…>/<ID>.toml` | 定義（catalog / kind）、トレード候補、員数、取付先と相対姿勢、上書き値、ポートの所属ネット |
-| Mode | 衛星の運用モード | `modes/<ID>.toml` | 部品 → {基本の状態, ほかの状態の時間割合} |
+| Part | 製品ツリー上の使用（ElementUsage） | `parts/<…>/<ID>.toml` | 定義（catalog / kind）、トレード候補、員数・冗長、取付先と相対姿勢、上書き値、ポートの所属ネット |
+| Mode | 衛星の運用モード | `modes/<ID>.toml` | 継続時間、部品 → {状態, 時間割合, 稼働台数, 予備状態}、蝕の上書き |
 | Net | 電気的な接続（論理） | `nets/<ID>.toml` | 種類（power / data / rf）、レール電圧、供給元ポート、電流制限、プロトコル |
 | Harness | ケーブル区間（物理） | `harness/<ID>.toml` | 両端のポート、通すネット、線材、芯数、長さ |
 | Case | 解析ケース | `cases/<ID>.toml` | モードまたはモード時系列、不確かさのどちら側を読むか、軌道、姿勢則、環境条件、期間 |
@@ -100,6 +100,7 @@ pub struct Part {
     pub def: PartDef,                      // Catalog(CatalogRef) | Kind(Id<KindDef>)
     pub candidates: Vec<CatalogRef>,       // トレード候補。def の catalog が選択中の 1 つ
     pub count: u32,                        // 員数。個別の姿勢や配線が要るなら別の Part にする
+    pub redundancy: Redundancy,            // none（既定）/ cold / warm
     pub mount: Option<Mount>,              // 取付先の Part と取付点
     pub pose: Option<Pose>,                // 取付点の座標系に対する相対位置・姿勢
     pub mount_points: BTreeMap<Id<MountPoint>, Pose>,       // 自分に他の部品を付ける点
@@ -136,9 +137,17 @@ pub struct Mode {
     pub label: String,
     pub description: Option<String>,
     pub states: BTreeMap<Id<Part>, StateAssign>,
+    pub max_duration: Option<Quantity>,    // 時間の次元。0.3.0 では解析には使わない
+    pub eclipse: BTreeMap<Id<Part>, StateAssign>, // 書いた部品だけ蝕時に置換
 }
 /// 基本の状態と、ほかの状態で過ごす時間の割合。割合の残りは基本の状態。
-pub struct StateAssign { pub state: Id<State>, pub duty: BTreeMap<Id<State>, f64> }
+pub struct StateAssign {
+    pub state: Id<State>,
+    pub duty: BTreeMap<Id<State>, f64>,
+    pub active: Option<u32>,               // 省略は全台
+    pub spare_state: Option<String>,      // warm の予備状態の明示
+}
+pub enum Redundancy { None, Cold, Warm }
 
 pub struct PortBinding { pub net: Id<Net> }
 
@@ -349,6 +358,42 @@ TRX    = { state = "rx", duty = { tx = 0.1 } }
 - モードの消費電力は「各部品の状態ごとの電力 × 時間割合」の合計として導出する。GUI では「部品 × モード」の表で編集する。
 - 表に書かれていない部品は 0 W にせず、「未指定」の警告を出す。
 
+部品の冗長とモードの稼働台数は次のように書く。
+
+```toml
+# parts/aocs/RW.toml（ほかの部品の欄は省略）
+count = 4
+redundancy = "warm"
+```
+
+```toml
+# modes/NOMINAL.toml
+max_duration = { value = 90.0, unit = "min" }
+
+[states]
+RW = { state = "on", active = 3, spare_state = "idle" }
+HTR = { state = "off", duty = { on = 0.2 } }
+
+[eclipse]
+HTR = { state = "on" }
+```
+
+- `active` は `count` 以下。省略は全台。明示するには `redundancy = "cold"` または `"warm"` が必要。
+- 稼働台は `state` と `duty` に従い、残りの台は常時予備の状態にいる。cold の予備は組み込みの停止状態 `STATE_OFF`。
+  warm は `spare_state`、種別の語彙の `standby`、`idle` の順で選ぶ。予備状態が決まらない場合、語彙に無い場合は error。
+- `[eclipse]` は、書いた部品の割り当て全体を蝕時だけ置換する（`active`・`duty` などの欄を個別に継承しない）。
+  書かなかった部品は `[states]` を使う。`[states]` に無い上書き先は未指定と同様に warning とし、解析には足さない。
+- `max_duration` は時間の次元を検査し、CLI の一覧と GUI のモード見出しに表示する。0.3.0 では解析期間やモードの時間割合に影響しない。
+- 台数の評価は `sat_analysis::modes::counted_states` だけ。電力は「稼働台 × 状態の平均電力 + 予備台 × 予備状態の電力」。
+  `power.mode_load.total` は日照時、`total_eclipse` は蝕時（成長込みはそれぞれ `*_with_growth`）。
+  `power.energy_balance` はこの日照時・蝕時の負荷を使う。C&DH は日照時の割り当てで同じ台数を数える。
+- 熱のモード負荷も同じ台数評価を使う。現段階は日照時の割り当てだけを使い、蝕の上書きによる発熱の変化と軌道平均は扱わない。
+- CLI は `fune set RW.redundancy warm`、`fune mode set NOMINAL RW on --active 3 --spare-state idle`、
+  `fune mode set NOMINAL HTR on --eclipse`。`fune mode unset NOMINAL HTR --eclipse` で日照時の割り当ての継承へ戻す。
+  `fune mode duration NOMINAL --max-duration "90 min"` で継続時間を書き、旗を省くと消す。
+  HTTP は既存の `/ops/from_text` と `/ops/from_command` を通して Op にする。
+- GUI はモード表のセルの編集欄で稼働台数・予備状態を変更し、「蝕の状態」の別欄で上書きを保存する。
+  部品詳細の基本欄で冗長方式を選び、モードの見出しで最長継続時間を編集する。
 ### 7.3 nets/: 1 ネット 1 ファイル、ネット自身の性質だけ
 
 ```toml
@@ -543,7 +588,7 @@ PR では CI が両方のリビジョンで計算し直した変化量をコメ�
 2. 入れ子は 2 段まで。ツリーはディレクトリ、エンティティ間の関係は ID の参照で表す。
 3. インライン表は `{ value, unit, from }`、短いベクトル（`{ x, y, z, unit }`）、1 行で収まる参照だけ。
    状態や不確かさを持つ値は `[attr.<名前>]` の下にドット付きキーで 1 行 1 セル。
-4. 物理量の数値は常に float で書く（`0` ではなく `0.0`）。整数は ID・員数・回数だけ。
+4. 物理量の数値は常に float で書く（`0` ではなく `0.0`）。整数は ID・員数（`count`・`active`）・回数だけ。
 5. 書き出しは TOML 1.0 の範囲（§10.3）。
 6. 曲線・特性表・時系列は CSV に置き、列の単位は対になる TOML で宣言する。
 7. 計算結果は書かない（§9）。
@@ -836,7 +881,7 @@ point = "CELL_AREA"
 |---|---|---|
 | M1 | 物理的な組立品を「同名のファイル＋ディレクトリ」で表す規則でよいか | よい。特別なファイル名（`_assembly.toml`）は使わない |
 | M2 | 共有カタログを最初から分けるか | 最初は `catalog/` に置き、2 機目が出た時点で共有リポジトリに切り出す |
-| M3 | 員数（count）と個別 Part の使い分け | 個別の姿勢・配線・状態が要るものは個別 Part、ねじや太陽電池セルのような一括品だけ count |
+| M3 | 員数（count）と個別 Part の使い分け | 個別の姿勢・配線が要るものは個別 Part。同じ状態で動く機器の組は count、予備との台数配分は active と redundancy |
 | M4 | Range と Uncertain の区別 | 動作温度範囲のような「仕様の範囲」は Range、値のばらつきは Uncertain |
 | M5 | モードの表に書かれていない部品の扱い | 「未指定」の警告。kind に既定の状態は持たせない（暗黙の 0 W を作らないため） |
 | M6 | TOML 1.1 に切り替える時期 | Python の実行環境が 3.15 以上に揃い、エディタが対応した時点 |

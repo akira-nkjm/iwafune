@@ -19,6 +19,10 @@ states: Array<string>,
  */
 cells: { [key in string]: StateAssign }, 
 /**
+ * 蝕の上書き（無ければ cells を継承）。
+ */
+eclipse_cells: { [key in string]: StateAssign }, 
+/**
  * モード ID → そのセルのほかの状態の時間の割合（状態 → `%` の表示。`cells` の `duty` を sat-units で整形したもの）。
  * 割合の無いセルは入れない。セルの文言（`rx（tx 10.0 %）` など）は CLI と Web が状態とこれから作る
  */

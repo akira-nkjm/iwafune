@@ -35,6 +35,12 @@ pub fn quantity(q: &Quantity) -> Item {
 fn state_row(assign: &StateAssign) -> Item {
     let mut t = InlineTable::new();
     t.insert("state", assign.state.as_str().into());
+    if let Some(n) = assign.active {
+        t.insert("active", i64::from(n).into());
+    }
+    if let Some(s) = &assign.spare_state {
+        t.insert("spare_state", s.as_str().into());
+    }
     if !assign.duty.is_empty() {
         let mut duty = InlineTable::new();
         for (s, d) in &assign.duty {
@@ -59,11 +65,19 @@ pub fn new_mode_text(mode: &Mode) -> String {
     if let Some(d) = &mode.description {
         doc.insert("description", string(d));
     }
-    let mut states = Table::new();
-    for (part, assign) in &mode.states {
-        states.insert(part.as_str(), state_row(assign));
+    if let Some(q) = &mode.max_duration {
+        doc.insert("max_duration", quantity(q));
     }
-    doc.insert("states", Item::Table(states));
+    for (section, rows) in [("states", &mode.states), ("eclipse", &mode.eclipse)] {
+        if section == "eclipse" && rows.is_empty() {
+            continue;
+        }
+        let mut table = Table::new();
+        for (part, assign) in rows {
+            table.insert(part.as_str(), state_row(assign));
+        }
+        doc.insert(section, Item::Table(table));
+    }
     format::finish(doc)
 }
 
@@ -72,16 +86,22 @@ pub fn set_mode_row(
     edits: &mut Edits,
     file: &str,
     part: &str,
+    eclipse: bool,
     assign: Option<&StateAssign>,
 ) -> Result<(), StoreError> {
     edits.edit(file, |doc| {
-        let table = table_mut(doc, &["states"])?;
+        let section = if eclipse { "eclipse" } else { "states" };
+        let table = table_mut(doc, &[section])?;
         let sorted = is_sorted(table);
         let is_new = !table.contains_key(part);
         set_opt(table, part, assign.map(state_row));
         if sorted && is_new {
             table.sort_values();
         }
+        if eclipse {
+            doc::drop_if_empty(doc, &[section]);
+        }
+        doc::order_tables(doc, &["states", "eclipse"]);
         Ok(())
     })
 }
@@ -318,6 +338,19 @@ pub fn reset_view(edits: &mut Edits, file: &str) -> Result<(), StoreError> {
     edits.edit_or_create(file, |doc| {
         doc.remove("nodes");
         doc.remove("edge");
+        Ok(())
+    })
+}
+
+/// モードの最長継続時間を書く（None で削除）。
+pub fn set_mode_duration(
+    edits: &mut Edits,
+    file: &str,
+    duration: Option<&Quantity>,
+) -> Result<(), StoreError> {
+    edits.edit(file, |doc| {
+        set_opt(doc.as_table_mut(), "max_duration", duration.map(quantity));
+        doc::order_tables(doc, &["states", "eclipse"]);
         Ok(())
     })
 }

@@ -243,18 +243,24 @@ pub fn quat(q: &Quaternion) -> Quat {
 
 /// 設計のモード → 解析のモード。
 pub fn mode_def(mode: &Mode) -> ModeDef {
+    let assignments = |rows: &std::collections::BTreeMap<_, fune_model::design::StateAssign>| {
+        rows.iter()
+            .map(
+                |(part, a): (&fune_model::id::Id<fune_model::design::Part>, _)| StateAssignment {
+                    part: part.to_string(),
+                    state: a.state.clone(),
+                    duty: a.duty.clone(),
+                    active: a.active,
+                    spare_state: a.spare_state.clone(),
+                },
+            )
+            .collect()
+    };
     ModeDef {
         id: mode.id.to_string(),
         label: mode.label.clone().unwrap_or_else(|| mode.id.to_string()),
-        assignments: mode
-            .states
-            .iter()
-            .map(|(part, a)| StateAssignment {
-                part: part.to_string(),
-                state: a.state.clone(),
-                duty: a.duty.clone(),
-            })
-            .collect(),
+        assignments: assignments(&mode.states),
+        eclipse: assignments(&mode.eclipse),
     }
 }
 

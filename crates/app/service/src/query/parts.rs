@@ -40,6 +40,7 @@ pub(crate) fn part_row(design: &Design, resolved: &Resolved, rp: &ResolvedPart) 
         catalog: rp.catalog.clone(),
         candidates: part.map(|p| p.candidates.clone()).unwrap_or_default(),
         count: rp.count,
+        redundancy: rp.redundancy,
         maturity: rp.maturity,
         values: rp
             .attr

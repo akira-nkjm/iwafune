@@ -26,6 +26,12 @@ pub struct Mode {
     pub description: Option<String>,
     #[serde(default)]
     pub states: BTreeMap<Id<Part>, StateAssign>,
+    /// 最長継続時間（表示と検査のみ）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_duration: Option<Quantity>,
+    /// 蝕の間だけの上書き。
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub eclipse: BTreeMap<Id<Part>, StateAssign>,
 }
 
 /// 基本の状態と、ほかの状態で過ごす時間の割合（残りは基本の状態）。
@@ -33,6 +39,10 @@ pub struct Mode {
 #[serde(deny_unknown_fields)]
 pub struct StateAssign {
     pub state: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spare_state: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub duty: BTreeMap<String, f64>,
 }
@@ -42,6 +52,8 @@ impl StateAssign {
     pub fn new(state: impl Into<String>) -> Self {
         Self {
             state: state.into(),
+            active: None,
+            spare_state: None,
             duty: BTreeMap::new(),
         }
     }

@@ -1,6 +1,8 @@
 import { Fragment } from "react";
+import { useCommandText } from "@/api/ops";
 import type { BudgetView, ModeHeader } from "@/api/types";
 import { useT } from "@/i18n";
+import { CommitInput } from "@/kit/forms/CommitInput";
 import { SystemDot } from "@/kit/SystemDot";
 import { cn } from "@/lib/cn";
 import { nodeName } from "@/lib/design";
@@ -103,10 +105,22 @@ export function ModesTable({
 /** 列見出しのモードの名前。日本語は設計に書いた表示名の下に ID、英語（と表示名が無いとき）は ID だけ */
 function ModeName({ mode }: { mode: ModeHeader }) {
   const name = nodeName(mode);
+  const edit = useCommandText();
+  const t = useT().modes;
   return (
     <div>
       <div className="font-medium text-ink">{name}</div>
       {name !== mode.id && <div className="font-mono text-[10px] text-ink-4">{mode.id}</div>}
+      <CommitInput
+        label={t.maxDuration}
+        value={mode.max_duration?.display ?? ""}
+        onCommit={(duration) =>
+          edit.mutate({
+            command: { command: "mode_duration", mode: mode.id, duration: duration || null },
+            summary: t.durationSummary(mode.id),
+          })
+        }
+      />
     </div>
   );
 }

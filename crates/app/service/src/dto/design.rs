@@ -106,6 +106,7 @@ pub struct PartRow {
     pub catalog: Option<String>,
     pub candidates: Vec<String>,
     pub count: u32,
+    pub redundancy: fune_model::design::Redundancy,
     pub maturity: Option<Maturity>,
     /// 属性 ID → 解決済みの値
     pub values: BTreeMap<String, ValueView>,
@@ -192,6 +193,7 @@ pub struct ModeTable {
 /// モードの列見出し。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ModeHeader {
+    pub max_duration: Option<QuantityView>,
     pub id: String,
     pub label: String,
     pub description: Option<String>,
@@ -208,6 +210,8 @@ pub struct ModeRow {
     pub states: Vec<String>,
     /// モード ID → 状態（そのモードの表に書かれていなければ無い）
     pub cells: BTreeMap<String, StateAssign>,
+    /// 蝕の上書き（無ければ cells を継承）。
+    pub eclipse_cells: BTreeMap<String, StateAssign>,
     /// モード ID → そのセルのほかの状態の時間の割合（状態 → `%` の表示。`cells` の `duty` を sat-units で整形したもの）。
     /// 割合の無いセルは入れない。セルの文言（`rx（tx 10.0 %）` など）は CLI と Web が状態とこれから作る
     pub shares: BTreeMap<String, BTreeMap<String, QuantityView>>,

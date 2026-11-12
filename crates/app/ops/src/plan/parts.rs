@@ -181,6 +181,7 @@ fn create_part(
                 edits,
                 &layout::mode_file(mode.as_str()),
                 part.id.as_str(),
+                false,
                 Some(&assign),
             )?;
         }

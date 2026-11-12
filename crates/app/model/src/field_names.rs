@@ -18,6 +18,7 @@ enum_text! {
         Kind = "kind",
         Candidates = "candidates",
         Count = "count",
+        Redundancy = "redundancy",
         Maturity = "maturity",
     }
 }

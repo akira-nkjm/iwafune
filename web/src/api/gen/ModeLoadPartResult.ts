@@ -20,4 +20,8 @@ mean_with_growth: number | null,
 /**
  * 適用した成長余裕（0.2 = +20 %）
  */
-growth_margin: number, };
+growth_margin: number, 
+/**
+ * 予備機の常時負荷（予備があるとき、states の末尾）。
+ */
+spare_power: number | null, };

@@ -41,7 +41,7 @@ export function mainState(states: readonly string[]): string | null {
 export function toggleCell(states: readonly string[], cell: CellText | null): CellText | null {
   const off = !cell || cell.state === "off";
   const next = off ? mainState(states) : states.includes("off") ? "off" : cell.state;
-  return next ? { state: next, duty: {} } : cell;
+  return next ? { ...cell, state: next, duty: {} } : cell;
 }
 
 /** セルの記号: ◐ 間欠（ほかの状態の時間割合がある）、● オン（off 以外）、— オフ・未指定 */

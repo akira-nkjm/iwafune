@@ -206,3 +206,67 @@ fn gui_definitions_match_cli() {
         "{depth}"
     );
 }
+
+/// 台数・冗長・蝕・継続時間も同じ文字列解釈で、ファイルをバイト単位で一致させる。
+#[test]
+fn gui_mode_extensions_match_cli() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_t1, cli_root) = demo_copy();
+    let (_t2, http_root) = demo_copy();
+    for (path, value) in [("RW_X.count", "4"), ("RW_X.redundancy", "warm")] {
+        run_cli(&cli_root, &["set", path, value]);
+        let op = post_json(
+            &rt,
+            &http_root,
+            "/api/v1/ops/from_text",
+            json!({"path": path, "value": value}),
+        );
+        post_json(&rt, &http_root, "/api/v1/ops", json!({"ops": [op]}));
+        assert_same_files(&cli_root, &http_root, path);
+    }
+    let edits = [
+        (
+            vec![
+                "mode",
+                "set",
+                "NOMINAL",
+                "RW_X",
+                "on",
+                "--active",
+                "3",
+                "--spare-state",
+                "idle",
+            ],
+            json!({"command":"mode_set", "cells":[{"mode":"NOMINAL", "part":"RW_X", "state":"on", "active":"3", "spare_state":"idle"}]}),
+        ),
+        (
+            vec![
+                "mode",
+                "set",
+                "NOMINAL",
+                "HTR_BAT",
+                "on",
+                "--eclipse",
+                "true",
+            ],
+            json!({"command":"mode_set", "cells":[{"mode":"NOMINAL", "part":"HTR_BAT", "state":"on", "eclipse":true}]}),
+        ),
+        (
+            vec!["mode", "duration", "NOMINAL", "--max-duration", "90 min"],
+            json!({"command":"mode_duration", "mode":"NOMINAL", "duration":"90 min"}),
+        ),
+        (
+            vec!["mode", "unset", "NOMINAL", "HTR_BAT", "--eclipse", "true"],
+            json!({"command":"mode_set", "cells":[{"mode":"NOMINAL", "part":"HTR_BAT", "state":null, "eclipse":true}]}),
+        ),
+        (
+            vec!["mode", "duration", "NOMINAL"],
+            json!({"command":"mode_duration", "mode":"NOMINAL", "duration":null}),
+        ),
+    ];
+    for (args, body) in edits {
+        run_cli(&cli_root, &args);
+        http_command(&rt, &http_root, body);
+        assert_same_files(&cli_root, &http_root, &args.join(" "));
+    }
+}

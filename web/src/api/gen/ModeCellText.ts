@@ -12,4 +12,4 @@ state: string | null,
  * ほかの状態 → 周回のうちその状態で過ごす割合の打った文字列（`"0.1"`）。空の文字列の状態は書かない。
  * CLI の `--duty tx=0.1,rx=0.2` は `edit::duty_from_text` でこの形にする
  */
-duty: { [key in string]: string }, };
+duty: { [key in string]: string }, active: string | null, spare_state: string | null, eclipse: boolean, };

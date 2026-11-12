@@ -50,6 +50,17 @@ enum_text! {
     }
 }
 
+enum_text! {
+    /// 予備機の運用方式。
+    #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+    pub enum Redundancy: "冗長" {
+        #[default]
+        None = "none",
+        Cold = "cold",
+        Warm = "warm",
+    }
+}
+
 /// 取付先（取付先の部品と、その部品の取付点）。`point` が無ければ取付先の原点。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -102,6 +113,8 @@ pub struct Part {
     pub candidates: Vec<CatalogRef>,
     /// 員数
     pub count: u32,
+    #[serde(default)]
+    pub redundancy: Redundancy,
     pub maturity: Option<Maturity>,
     pub mount: Option<Mount>,
     pub pose: Option<Pose>,
@@ -125,6 +138,7 @@ impl Part {
             kind: None,
             candidates: Vec::new(),
             count: 1,
+            redundancy: Redundancy::None,
             maturity: None,
             mount: None,
             pose: None,
@@ -166,6 +180,7 @@ pub enum PartField {
     Catalog(Option<CatalogRef>),
     Kind(Option<String>),
     Count(u32),
+    Redundancy(Redundancy),
     Maturity(Option<Maturity>),
     Candidates(Vec<CatalogRef>),
 }
@@ -179,6 +194,7 @@ impl PartField {
             PartField::Catalog(_) => PartFieldName::Catalog,
             PartField::Kind(_) => PartFieldName::Kind,
             PartField::Count(_) => PartFieldName::Count,
+            PartField::Redundancy(_) => PartFieldName::Redundancy,
             PartField::Maturity(_) => PartFieldName::Maturity,
             PartField::Candidates(_) => PartFieldName::Candidates,
         }
@@ -198,6 +214,7 @@ impl PartField {
             PartFieldName::Kind => PartField::Kind(part.kind.as_ref().map(ToString::to_string)),
             PartFieldName::Candidates => PartField::Candidates(part.candidates.clone()),
             PartFieldName::Count => PartField::Count(part.count),
+            PartFieldName::Redundancy => PartField::Redundancy(part.redundancy),
             PartFieldName::Maturity => PartField::Maturity(part.maturity),
         }
     }

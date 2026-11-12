@@ -161,6 +161,14 @@ pub enum ModeCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// モードの最長継続時間を書く（例: `fune mode duration NOMINAL --max-duration "90 min"`。旗を省くと消す）
+    Duration {
+        mode: String,
+        #[arg(long)]
+        max_duration: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// モードでの部品の状態を決める（例: `fune mode set NOMINAL TRX rx --duty tx=0.1`）
     Set {
         mode: String,
@@ -169,6 +177,12 @@ pub enum ModeCmd {
         /// ほかの状態の時間割合（`状態=割合`、カンマ区切り）
         #[arg(long)]
         duty: Option<String>,
+        #[arg(long)]
+        active: Option<String>,
+        #[arg(long)]
+        spare_state: Option<String>,
+        #[arg(long, default_value_t = false, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true")]
+        eclipse: bool,
         #[command(flatten)]
         edit: EditOpts,
     },
@@ -176,6 +190,8 @@ pub enum ModeCmd {
     Unset {
         mode: String,
         part: String,
+        #[arg(long, default_value_t = false, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true")]
+        eclipse: bool,
         #[command(flatten)]
         edit: EditOpts,
     },
