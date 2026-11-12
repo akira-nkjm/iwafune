@@ -378,3 +378,23 @@ fn removed_project_groups_are_rejected() {
     );
     assert!(check(&design_of(&files)).iter().any(|d| d.is_error()));
 }
+
+/// 上限の未設定は、配分にその種類の設定があって上限が無いときだけ知らせる（バジェットを持たないプロジェクトでは出さない）。
+#[test]
+fn limit_unset_only_for_configured_budget_kinds() {
+    let none = diags(&[("parts/RW.toml", RW)]);
+    assert!(
+        !has(&none, "budget.limit_unset", Severity::Warning),
+        "{none:?}"
+    );
+    let mass_only = diags(&[
+        ("parts/RW.toml", RW),
+        ("budget/allocation.toml", "[mass]\nsystem_margin = 0.1\n"),
+    ]);
+    let unset: Vec<_> = mass_only
+        .iter()
+        .filter(|d| d.code == "budget.limit_unset")
+        .collect();
+    assert_eq!(unset.len(), 1, "{mass_only:?}");
+    assert!(unset[0].message.contains("mass"));
+}

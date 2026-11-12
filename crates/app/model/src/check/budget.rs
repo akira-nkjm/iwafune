@@ -15,11 +15,12 @@ fn budget_target(segments: &[&str]) -> Option<Target> {
 pub(super) fn check_budget(ctx: &mut Ctx) {
     let design = ctx.design;
     for kind in BudgetKind::ALL {
+        // 設定の無い種類（バジェットを持たないプロジェクトなど）は知らせない。設定があって上限の無いときだけ
         if design
             .budget
             .allocation
             .get(*kind)
-            .is_none_or(|a| a.limit.is_none())
+            .is_some_and(|a| a.limit.is_none())
         {
             ctx.warning(
                 "budget.limit_unset",
