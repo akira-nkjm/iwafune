@@ -216,7 +216,7 @@ pub fn kind(ws: &Workspace, cmd: &KindCmd, out: &Out) -> Handled {
     for k in &defs.kinds {
         t.row(vec![
             C::Strong(k.id.clone()),
-            C::Text(k.role.clone().unwrap_or_default()),
+            C::Text(k.role.map(|r| r.to_string()).unwrap_or_default()),
             C::Text(k.states.join(" / ")),
             C::Text(k.required.join(", ")),
             C::Dim(if k.builtin { "組み込み" } else { "defs/" }.into()),

@@ -13,6 +13,7 @@
 //! | カタログ品・定義・図・出典 | `local/rw_10mNms.mass`・`mass`・`reaction_wheel`・`view.electrical.POWER`・`sources.em_test` |
 
 use crate::path::{AttrPath, ParamPath, PortRef, SettingPath};
+use crate::role::Role;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use ts_rs::TS;
@@ -37,7 +38,7 @@ pub enum Target {
     },
     /// どれかの部品（特定の部品を指さない）。`roles` が空でなければ、その役割の部品のどれか
     AnyPart {
-        roles: Vec<String>,
+        roles: Vec<Role>,
         attr: Option<String>,
     },
     /// 機能のまとまり（系のディレクトリなど、ID の誤り）
@@ -93,9 +94,9 @@ impl Target {
     }
 
     /// 役割がどれかの部品（`<battery>`・`<obc>.storage_capacity`）。
-    pub fn any_of_roles(roles: &[&str], attr: Option<&str>) -> Self {
+    pub fn any_of_roles(roles: &[Role], attr: Option<&str>) -> Self {
         Target::AnyPart {
-            roles: roles.iter().map(|r| (*r).to_owned()).collect(),
+            roles: roles.to_vec(),
             attr: attr.map(str::to_owned),
         }
     }
@@ -208,7 +209,11 @@ impl fmt::Display for Target {
                 let head = if roles.is_empty() {
                     "部品".to_owned()
                 } else {
-                    roles.join("|")
+                    roles
+                        .iter()
+                        .map(|r| r.as_str())
+                        .collect::<Vec<_>>()
+                        .join("|")
                 };
                 with_tail(f, format_args!("<{head}>"), attr.as_deref())
             }
@@ -270,9 +275,9 @@ mod tests {
                 "PANEL_MZ.mount_points.RW_SLOT_1",
             ),
             (Target::any_part("power"), "<部品>.power"),
-            (Target::any_of_roles(&["battery"], None), "<battery>"),
+            (Target::any_of_roles(&[Role::Battery], None), "<battery>"),
             (
-                Target::any_of_roles(&["obc"], Some("storage_capacity")),
+                Target::any_of_roles(&[Role::Obc], Some("storage_capacity")),
                 "<obc>.storage_capacity",
             ),
             (

@@ -220,6 +220,22 @@ pub(super) const RULES: &[(&str, &[&str], &str)] = &[
 
 /// Rust のコードだけに適用する規則（同じ一覧の web/ の側は `WEB_RULES` が見る。テストの補助のデータだけは許す）。
 pub(super) const RUST_RULES: &[(&str, &[&str], &str)] = &[
+    // 役割の比較・対象は Role を渡す。綴りは role.rs の enum_text! だけ。
+    (
+        "by_role(ctx, \"",
+        &["crates/app/model/src/role.rs"],
+        "部品の役割（`Role`）",
+    ),
+    (
+        "any_of_roles(&[\"",
+        &["crates/app/model/src/role.rs"],
+        "診断対象の役割（`Role`）",
+    ),
+    (
+        "SENSOR_ROLES: &[&str]",
+        &["crates/app/model/src/role.rs"],
+        "センサの役割（`Role`）",
+    ),
     (
         "fn system_of(",
         &["crates/app/model/src/part_system.rs"],
@@ -295,6 +311,11 @@ pub(super) const WEB_RULES: &[(&str, &[&str], &str)] = &[
 
 /// テスト以外のコードにだけ適用する規則（テストは手計算の値を直接書いてよい）。
 pub(super) const PROD_RULES: &[(&str, &[&str], &str)] = &[
+    (
+        "\"off\"",
+        &["crates/app/model/src/role.rs", "web/"],
+        "慣例の停止状態（`STATE_OFF`）",
+    ),
     // 解析の表示換算を禁止する。現在の production の出現は全て判定文の換算。
     (
         "/ 3600.0",

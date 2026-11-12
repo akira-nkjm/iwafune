@@ -6,6 +6,7 @@ use crate::parts::{self, by_role, direction_body};
 use crate::quantity::vec_si;
 use crate::{structure, timeline};
 use fune_model::Target;
+use fune_model::builtin::Role;
 use fune_model::design::setting_dims as dims;
 use fune_model::path::SettingPath;
 use sat_analysis::aocs::disturbance::{DisturbanceSpacecraft, DisturbanceSurface};
@@ -19,7 +20,7 @@ use sat_units::typed::{
 };
 
 /// センサの役割（禁止角を調べる対象）。
-const SENSOR_ROLES: &[&str] = &["star_tracker", "sun_sensor", "camera"];
+const SENSOR_ROLES: &[Role] = &[Role::StarTracker, Role::SunSensor, Role::Camera];
 
 fn settings<'a>(ctx: &'a Context<'_>) -> Option<&'a fune_model::design::AocsSettings> {
     ctx.design.analysis.aocs.as_ref()
@@ -27,7 +28,7 @@ fn settings<'a>(ctx: &'a Context<'_>) -> Option<&'a fune_model::design::AocsSett
 
 /// リアクションホイール（role = reaction_wheel）。
 pub fn wheels(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<RwWheel> {
-    let out: Vec<RwWheel> = by_role(ctx, "reaction_wheel")
+    let out: Vec<RwWheel> = by_role(ctx, Role::ReactionWheel)
         .filter_map(|p| {
             let why = "リアクションホイールの値";
             let axis = direction_body(ctx, p, "spin_axis", "回転軸（部品座標）", m);
@@ -43,7 +44,7 @@ pub fn wheels(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<RwWheel> {
         .collect();
     if out.is_empty() {
         m.push(
-            Target::any_of_roles(&["reaction_wheel"], None),
+            Target::any_of_roles(&[Role::ReactionWheel], None),
             "リアクションホイール（role = reaction_wheel）の部品がありません",
         );
     }
@@ -147,7 +148,7 @@ pub fn rw_unloading(ctx: &Context<'_>) -> Result<RwUnloadingInput, MissingInputs
 pub fn unload_time(ctx: &Context<'_>) -> Result<UnloadTimeInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let wheels = wheels(ctx, &mut m);
-    let mtq: Vec<UnloadTimeMtq> = by_role(ctx, "magnetorquer")
+    let mtq: Vec<UnloadTimeMtq> = by_role(ctx, Role::Magnetorquer)
         .filter_map(|p| {
             Some(UnloadTimeMtq {
                 id: p.id.clone(),
@@ -190,7 +191,7 @@ pub fn unload_time(ctx: &Context<'_>) -> Result<UnloadTimeInput, MissingInputs> 
 
 /// スラスタ（role = thruster）。位置は取付をたどった機体座標の部品原点、推力の向きは部品座標の `direction` を機体座標に回したもの。
 fn thrusters(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<UnloadTimeThruster> {
-    by_role(ctx, "thruster")
+    by_role(ctx, Role::Thruster)
         .filter_map(|p| {
             let why = "スラスタの値";
             let thrust = parts::part_qty::<Force>(p, "thrust", why, m);
@@ -219,7 +220,7 @@ pub fn sensor_fov(ctx: &Context<'_>) -> Result<SensorFovInput, MissingInputs> {
         .resolved
         .parts
         .values()
-        .filter(|p| p.role.as_deref().is_some_and(|r| SENSOR_ROLES.contains(&r)))
+        .filter(|p| p.role.is_some_and(|r| SENSOR_ROLES.contains(&r)))
         .filter_map(|p| {
             Some(SensorFovSensor {
                 id: p.id.clone(),

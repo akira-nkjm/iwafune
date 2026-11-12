@@ -37,7 +37,7 @@ pub struct ModeLoadPart {
     /// 員数。消費電力は単体値を渡し、解析が掛ける（省略時 1）
     #[serde(default = "crate::spec::default_count")]
     pub count: u32,
-    /// 1 台の状態ごとの消費電力（例: `{"by_state": {"off": 0, "on": 1.2}}`）
+    /// 1 台の状態ごとの消費電力（例: `{"by_state": {"idle": 0, "on": 1.2}}`）
     pub power: StateValues<Power>,
     /// 成長余裕（0.2 = +20 %）。省略時は `default_growth_margin`
     #[serde(default)]

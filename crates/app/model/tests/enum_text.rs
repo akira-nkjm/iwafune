@@ -47,6 +47,7 @@ where
 
 #[test]
 fn enum_text_matches_serde_names() {
+    same_as_serde::<fune_model::builtin::Role>();
     same_as_serde::<Maturity>();
     same_as_serde::<BudgetKind>();
     same_as_serde::<NetKind>();

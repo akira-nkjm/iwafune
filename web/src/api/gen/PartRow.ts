@@ -2,6 +2,7 @@
 import type { Maturity } from "./Maturity";
 import type { MountView } from "./MountView";
 import type { PortView } from "./PortView";
+import type { Role } from "./Role";
 import type { System } from "./System";
 import type { ValueView } from "./ValueView";
 
@@ -29,7 +30,7 @@ system: System | null,
 /**
  * 種別（kind の無い部品は null）
  */
-kind: string | null, role: string | null, 
+kind: string | null, role: Role | null, 
 /**
  * 選択中のカタログ（例: `"local/rw_18mNms"`）
  */

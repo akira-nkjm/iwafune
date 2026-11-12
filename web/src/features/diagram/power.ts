@@ -1,6 +1,9 @@
-import type { DesignView, NetView, PortRef } from "@/api/types";
+import type { DesignView, NetView, PortRef, Role } from "@/api/types";
 import { getT } from "@/i18n";
 import { toneHex, toneInkHex, uiHex } from "@/lib/tone";
+
+const BATTERY_ROLE: Role = "battery";
+const SOLAR_PANEL_ROLE: Role = "solar_panel";
 
 /** 系統図の層（表示の切り替え） */
 export type Layer = "power" | "signal" | "gnd";
@@ -41,7 +44,7 @@ export function layerOf(n: NetView): Layer {
   return n.is_return ? "gnd" : "power";
 }
 
-function roleOf(design: DesignView, portRef: PortRef | null): string | null {
+function roleOf(design: DesignView, portRef: PortRef | null): Role | null {
   if (!portRef) return null;
   const part = portRef.part;
   return design.parts.find((p) => p.id === part)?.role ?? null;
@@ -58,8 +61,8 @@ export function powerCategories(design: DesignView): Map<string, PowerCategory> 
   for (const n of design.nets) {
     if (n.kind !== "power") continue;
     if (n.is_return) out.set(n.id, GND);
-    else if (roleOf(design, n.source) === "battery") out.set(n.id, BATTERY);
-    else if (n.members.some((m) => roleOf(design, m) === "solar_panel")) out.set(n.id, SOLAR);
+    else if (roleOf(design, n.source) === BATTERY_ROLE) out.set(n.id, BATTERY);
+    else if (n.members.some((m) => roleOf(design, m) === SOLAR_PANEL_ROLE)) out.set(n.id, SOLAR);
     else if (!n.rail) out.set(n.id, UNREG);
     else rails.push({ net: n, si: n.rail.si, display: n.rail.display });
   }

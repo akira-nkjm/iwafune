@@ -55,6 +55,7 @@ fn check_rule(
 fn production_text<'a>(rel: &str, text: &'a str) -> Option<&'a str> {
     let name = rel.rsplit('/').next().unwrap_or(rel);
     let test_file = rel.contains("/tests/")
+        || rel.starts_with("crates/app/cli/src/cmd/roundtrip/")
         || name == "tests.rs"
         || name.ends_with("_tests.rs")
         || name == "testkit.rs"

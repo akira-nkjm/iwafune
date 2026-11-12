@@ -214,7 +214,7 @@ pub(crate) fn defs(design: &Design) -> DefsView {
             id: id.to_owned(),
             label: k.label.clone(),
             label_en: k.label_en.clone(),
-            role: design.kind_role(id).map(str::to_owned),
+            role: design.kind_role(id),
             parent: k.extends.as_ref().map(ToString::to_string),
             states: design.kind_states(id).to_vec(),
             required: k.required.iter().map(ToString::to_string).collect(),

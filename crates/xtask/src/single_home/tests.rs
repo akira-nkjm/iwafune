@@ -139,3 +139,56 @@ fn lists_and_reference_sites_have_one_home() {
     );
     assert_eq!(errors.len(), 1);
 }
+
+/// 役割は Role、慣例の停止状態は STATE_OFF を使う。停止状態のテストデータは許す。
+#[test]
+fn roles_and_off_state_have_one_home() {
+    for needle in [
+        "by_role(ctx, \"",
+        "any_of_roles(&[\"",
+        "SENSOR_ROLES: &[&str]",
+    ] {
+        let rule = RUST_RULES.iter().find(|r| r.0 == needle).unwrap();
+        let mut errors = Vec::new();
+        check_rule(
+            "crates/app/projection/src/aocs.rs",
+            needle,
+            rule,
+            &mut errors,
+        );
+        assert_eq!(errors.len(), 1, "{needle}");
+    }
+    let rule = PROD_RULES.iter().find(|r| r.0 == "\"off\"").unwrap();
+    let mut errors = Vec::new();
+    check_rule(
+        "crates/app/ops/src/plan/parts.rs",
+        "Some(\"off\")",
+        rule,
+        &mut errors,
+    );
+    assert_eq!(errors.len(), 1);
+    errors.clear();
+    check_rule(
+        "crates/app/model/src/role.rs",
+        "\"off\"",
+        rule,
+        &mut errors,
+    );
+    assert!(errors.is_empty());
+    let text = "fn run() {}\n#[cfg(test)]\nmod tests { let state = \"off\"; }";
+    check_rule(
+        "crates/app/ops/src/plan/parts.rs",
+        production_text("parts.rs", text).unwrap(),
+        rule,
+        &mut errors,
+    );
+    assert!(errors.is_empty());
+    assert!(production_text("crates/app/ops/tests/ops.rs", "\"off\"").is_none());
+    assert!(
+        production_text(
+            "crates/app/cli/src/cmd/roundtrip/samples/parts.rs",
+            "\"off\""
+        )
+        .is_none()
+    );
+}

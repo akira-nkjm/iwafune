@@ -5,7 +5,7 @@ use super::{
     CatalogItemView, CatalogSourceView, DiagnosticCounts, DiagnosticView, QuantityView, ValueData,
     ValueView,
 };
-use fune_model::builtin::Labels;
+use fune_model::builtin::{Labels, Role};
 use fune_model::design::{Maturity, Source, StateAssign, ViewLayout};
 use fune_model::value::Vector3;
 use fune_ops::Op;
@@ -101,7 +101,7 @@ pub struct PartRow {
     pub system: Option<sat_analysis::spec::System>,
     /// 種別（kind の無い部品は null）
     pub kind: Option<String>,
-    pub role: Option<String>,
+    pub role: Option<Role>,
     /// 選択中のカタログ（例: `"local/rw_18mNms"`）
     pub catalog: Option<String>,
     pub candidates: Vec<String>,
@@ -296,7 +296,7 @@ pub struct KindDefView {
     pub label: String,
     /// 英語の表示名（無ければ `label` を使う）
     pub label_en: Option<String>,
-    pub role: Option<String>,
+    pub role: Option<Role>,
     pub parent: Option<String>,
     pub states: Vec<String>,
     pub required: Vec<String>,

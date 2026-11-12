@@ -15,7 +15,7 @@ pub(in super::super) fn def_ops() -> Vec<Op> {
     attr.id = "max_dipole2".into();
     let mut kind: KindDef = serde_json::from_value(
         json!({ "label": "線材", "label_en": "Wire", "extends": "component",
-        "role": "wire", "states": ["off", "on"], "required": ["mass"], "optional": ["power"] }),
+        "states": ["off", "on"], "required": ["mass"], "optional": ["power"] }),
     )
     .unwrap();
     kind.id = "wire2".into();

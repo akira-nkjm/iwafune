@@ -5,6 +5,7 @@ use crate::missing::MissingInputs;
 use crate::parts::{by_role, state_values};
 use crate::quantity::setting;
 use fune_model::Target;
+use fune_model::builtin::Role;
 use fune_model::design::AnalysisSystem;
 use fune_model::design::setting_dims as dims;
 use sat_analysis::cdh::DataBudgetInput;
@@ -34,7 +35,7 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
     }
     let mode_shares = mode_shares(ctx, &mut m);
     // 容量の合計（員数込み）は解析が求めるので、1 台あたりの容量と員数をそのまま渡す。
-    let storage: Vec<DataBudgetStorage> = by_role(ctx, "obc")
+    let storage: Vec<DataBudgetStorage> = by_role(ctx, Role::Obc)
         .filter_map(|p| {
             Some(DataBudgetStorage {
                 part: p.id.clone(),
@@ -45,7 +46,7 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
         .collect();
     if storage.is_empty() {
         m.push(
-            Target::any_of_roles(&["obc"], Some("storage_capacity")),
+            Target::any_of_roles(&[Role::Obc], Some("storage_capacity")),
             "搭載ストレージの容量（role = obc の部品）",
         );
     }

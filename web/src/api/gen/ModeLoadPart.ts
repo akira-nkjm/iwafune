@@ -18,7 +18,7 @@ group: string,
  */
 count: number, 
 /**
- * 1 台の状態ごとの消費電力（例: `{"by_state": {"off": 0, "on": 1.2}}`）
+ * 1 台の状態ごとの消費電力（例: `{"by_state": {"idle": 0, "on": 1.2}}`）
  */
 power: StateValues, 
 /**

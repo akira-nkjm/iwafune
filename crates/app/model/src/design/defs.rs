@@ -5,6 +5,7 @@
 
 use crate::enum_text::enum_text;
 use crate::id::Id;
+use crate::role::Role;
 use crate::value::ValueType;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -121,7 +122,7 @@ pub struct KindDef {
     pub extends: Option<Id<KindDef>>,
     /// 解析が部品を見分ける役割（registry §3 の role）
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub role: Option<String>,
+    pub role: Option<Role>,
     /// 機器の状態の語彙（空なら継承元のもの。どこにも無ければ状態を持たない）
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub states: Vec<String>,

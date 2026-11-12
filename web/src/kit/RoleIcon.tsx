@@ -18,14 +18,14 @@ import {
   Star,
   Sun,
   SunMedium,
-  Thermometer,
 } from "lucide-react";
+import type { Role } from "@/api/types";
 
 /**
  * 部品の役割（role。種別定義の role）→ アイコン。コンポーネントの一覧でカードの左に出す。
- * 役割の名前は設計の語彙（docs/model.md）で、知らない役割は箱のアイコン。
+ * 役割の名前は設計の語彙（docs/model.md）で、役割が無ければ箱のアイコン。
  */
-const ICONS: Record<string, LucideIcon> = {
+const ICONS: Record<Role, LucideIcon> = {
   battery: Battery,
   solar_panel: Sun,
   pcdu: PlugZap,
@@ -40,19 +40,18 @@ const ICONS: Record<string, LucideIcon> = {
   transceiver: RadioTower,
   antenna: Antenna,
   heater: Flame,
-  thermistor: Thermometer,
   thruster: Rocket,
   structure: Box,
   panel: Square,
 };
 
-/** 役割のアイコン（役割が無いか知らないものは箱） */
+/** 役割のアイコン（役割が無ければ箱） */
 export function RoleIcon({
   role,
   size = 18,
   className,
 }: {
-  role: string | null | undefined;
+  role: Role | null | undefined;
   size?: number;
   className?: string;
 }) {
