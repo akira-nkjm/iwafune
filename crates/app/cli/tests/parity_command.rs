@@ -180,7 +180,7 @@ fn gui_definitions_match_cli() {
                 "add",
                 "propellant_tank",
                 "--role",
-                "propellant_tank",
+                "thruster",
                 "--states",
                 "off, on",
                 "--required",
@@ -188,7 +188,7 @@ fn gui_definitions_match_cli() {
                 "--port",
                 "PWR=power",
             ],
-            json!({ "command": "kind_add", "id": "propellant_tank", "role": "propellant_tank",
+            json!({ "command": "kind_add", "id": "propellant_tank", "role": "thruster",
                 "states": "off, on", "required": "mass, tank_pressure", "ports": ["PWR=power"] }),
         ),
     ];

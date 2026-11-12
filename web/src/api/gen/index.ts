@@ -176,6 +176,7 @@ export type * from "./Quat";
 export type * from "./Quaternion";
 export type * from "./RangeValue";
 export type * from "./RfLinkParams";
+export type * from "./Role";
 export type * from "./RunAnalysisRequest";
 export type * from "./RwUnloadingDisturbance";
 export type * from "./RwUnloadingInput";

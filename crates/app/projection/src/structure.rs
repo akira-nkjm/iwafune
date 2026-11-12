@@ -5,6 +5,7 @@ use crate::missing::MissingInputs;
 use crate::pose;
 use crate::quantity::{qty_opt, setting, setting_opt};
 use fune_model::Target;
+use fune_model::builtin::Role;
 use fune_model::design::setting_dims::{self as dims, SettingQuantity};
 use fune_model::design::{AnalysisSystem, BudgetKind};
 use fune_model::path::SettingPath;
@@ -250,7 +251,7 @@ fn panel(
 /// `structure.modal_estimate`: 材料（`analysis.structure.material`）と外形・板厚を持つパネル（role = panel）。
 pub fn modal_estimate(ctx: &Context<'_>) -> Result<ModalEstimateInput, MissingInputs> {
     let mut m = MissingInputs::new();
-    let panels: Vec<ModalEstimatePanel> = crate::parts::by_role(ctx, "panel")
+    let panels: Vec<ModalEstimatePanel> = crate::parts::by_role(ctx, Role::Panel)
         .filter_map(|p| panel(ctx, p, &mut m))
         .collect();
     let launch = ctx.design.mission.launch.as_ref();

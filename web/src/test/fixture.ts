@@ -7,6 +7,7 @@ import type {
   PortRef,
   PortView,
   QuantityView,
+  Role,
   ValueData,
   ValueView,
 } from "@/api/types";
@@ -36,7 +37,7 @@ const scalar = (attr: string, q: QuantityView) =>
 function part(
   id: string,
   group: PartRow["system"] & string,
-  kind: string,
+  kind: Role,
   states: string[],
   values: ValueView[],
   ports: PortView[] = [],

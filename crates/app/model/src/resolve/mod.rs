@@ -12,6 +12,7 @@ use crate::chain::{Chain, chain};
 use crate::design::{CatalogRef, Loc, Maturity, NetKind, NodeRef};
 use crate::enum_text::enum_text;
 use crate::id::Id;
+use crate::role::Role;
 use crate::value::{Provenance, Value};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -36,7 +37,7 @@ pub struct ResolvedPart {
     pub catalog: Option<CatalogRef>,
     pub kind: Option<String>,
     /// 種別の役割（`reaction_wheel` など。継承を含む）
-    pub role: Option<String>,
+    pub role: Option<Role>,
     /// 機器の状態の語彙
     pub states: Vec<String>,
     pub count: u32,

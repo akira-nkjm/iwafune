@@ -1,5 +1,6 @@
 //! 組み込みの語彙の表示名（日本語・英語）。機器の状態・属性の系・API の列挙の値。中身は `labels.toml`。
 
+use super::Role;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
@@ -23,9 +24,9 @@ pub struct Label {
 #[serde(deny_unknown_fields)]
 #[ts(rename = "VocabLabels")]
 pub struct Labels {
-    /// role → 解析の系。
+    /// role → 解析の系（None は系に属さないと明示）。
     #[serde(default)]
-    pub role_system: BTreeMap<String, String>,
+    pub role_system: BTreeMap<Role, Option<String>>,
     /// 画面で系（section）を並べる順
     #[serde(default)]
     pub section_order: Vec<String>,

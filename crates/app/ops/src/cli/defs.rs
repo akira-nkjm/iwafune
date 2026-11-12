@@ -58,7 +58,7 @@ pub(super) fn kind_add(def: &KindDef) -> String {
         .flag("label-en", def.label_en.as_deref())
         .flag("description", def.description.as_deref())
         .flag("extends", def.extends.as_ref().map(|e| e.as_str()))
-        .flag("role", def.role.as_deref())
+        .flag("role", def.role.map(|r| r.as_str()))
         .flag("states", list(&def.states).as_deref())
         .flag("required", ids(&def.required).as_deref())
         .flag("optional", ids(&def.optional).as_deref())

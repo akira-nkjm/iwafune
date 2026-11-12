@@ -181,7 +181,8 @@
 | 解析の出力の中の位置と JSON Pointer（TS） | `web/src/analysis/output.ts` の `JsonPath`・`jsonPointer`・`FieldPath`（`EACH`） | 走査中は区間の列で持ち、**pointer は `jsonPointer` だけが作る**（RFC 6901 のエスケープ。service の `analysis::dims` と同じ書き方）。`dimOf` は出力をたどって当たった位置の pointer で dims を引く（熱の温度表） |
 | UI の文言（日本語・英語） | `web/src/i18n/` | `useT()` / `getT()`。区分ごとの `<区分>/{ja,en}.ts`。組み込みの語彙の名前は `localized(label, label_en)` |
 | コンポーネントの一覧（サブシステムの枠ごとに部品のカードを並べるタブ） | `web/src/features/components/list/PartsOverview.tsx` | 製品ツリー（`design.tree`）の形のまま、絞り込んだ部品（`PartRow`）を並べる。種類の名前は種別定義（`lib/design.ts` の `kindLabel`）、アイコンは `kit/RoleIcon.tsx`。タブは `?view=overview|tree|table`（`useDetailRoute` の `views`） |
-| 部品の役割のアイコン | `web/src/kit/RoleIcon.tsx` | role → lucide のアイコン。知らない役割は箱 |
+| 部品の役割・停止状態の綴り | `fune_model::role::{Role, STATE_OFF}`（`builtin` からも公開） | Role は `enum_text!`。種別・解決済み部品・DTO・診断の対象で共有。役割の表示名は組み込み種別の日英名、系は `labels.role_system`。Web の比較値は系統図内の Role 型の定数 |
+| 部品の役割のアイコン | `web/src/kit/RoleIcon.tsx` | `Record<Role, LucideIcon>`。役割が無ければ箱 |
 | 大きさのばらばらな箱を隙間少なく詰めて並べる | `web/src/lib/skyline.ts`（スカイライン法の計算）・`web/src/kit/Packed.tsx`（子の大きさと幅を測って置く） | コンポーネントの一覧のサブシステムの枠。系統図の配置（`features/diagram/layout/`）は線の経路のための別の配置 |
 | 製品ツリーのノードとモード・解析ケースの表示名（言語ごと） | `web/src/lib/design.ts` の `nodeName` / `nodeLabel` / `idWithName` | 英語は ID、日本語は表示名（無ければ ID）。選択肢の「ID（表示名）」は `idWithName`（系のページの解析ケースの選択肢も）。系統図の枠・一覧・表・モードの行列の見出し・部品詳細のモード・検索が使う。解析の系の表示名は `systemTitle`（`labels.section`。系のページと解析ケースのページ） |
 | 「主（補足）」の表示（ID と表示名・名前と種類など） | `web/src/lib/design.ts` の `withNote` | **ID と名前を並べるのはここだけ**。括弧の書き方は i18n の `common.withNote`（日本語は全角、英語は半角）。補足が無いか主と同じなら主だけ。`idWithName`・`defWithId`・`useEnumOptions`・ポートの接続先・カタログ品の候補・次元の SI 単位・変わるファイルの一覧が使う |
@@ -291,3 +292,4 @@
 | 2026-11-11 | グループを系の ID に統一し、部品の系・配分・色を一本化。[groups] と役割のグループ別名を削除。init の上限・表示名の前提を削除し、3D の表示寸法を外形に比例させた | #55 段 2 と残りの項目 |
 | 2026-11-11 | 系の Attitude を AOCS（`aocs`）に改名し、解析を持たない Payload（`payload`）を追加。設定・解析 ID・語彙・API・ナビを追従し、空の系の結果・KPI・操作を扱う | 系の名前と一覧を揃えるため（#55 段 1） |
 | 2026-11-11 | 共通の列ソートと部品表の全列比較・SI 抽出・見出しの操作と検査を追加 | 部品表を昇順・降順・元の順に並べ替えるため（#60） |
+| 2026-11-12 | Role と STATE_OFF を builtin に集約。種別・解決済み部品・診断対象・DTO・Web を Role 型にし、xtask で役割・停止状態の直書きを拒む | 役割と停止状態の綴りを 1 か所にするため（#54） |

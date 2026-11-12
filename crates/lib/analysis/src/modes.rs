@@ -28,7 +28,7 @@ pub struct StateValues<D: Dimension> {
     /// 状態によらない値（`by_state` に無い状態に使う）
     #[serde(default)]
     pub default: Option<Qty<D>>,
-    /// 状態ごとの値（例: `{"off": 0, "on": 1.2}`）
+    /// 状態ごとの値（例: `{"idle": 0, "on": 1.2}`）
     #[serde(default)]
     pub by_state: BTreeMap<String, Qty<D>>,
 }

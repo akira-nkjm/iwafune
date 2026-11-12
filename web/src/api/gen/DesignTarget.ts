@@ -2,8 +2,9 @@
 import type { AttrPath } from "./AttrPath";
 import type { ParamPath } from "./ParamPath";
 import type { PortRef } from "./PortRef";
+import type { Role } from "./Role";
 
 /**
  * 診断・不足入力の対象。
  */
-export type DesignTarget = { "kind": "part", id: string, } | { "kind": "param" } & ParamPath | { "kind": "port" } & PortRef | { "kind": "mount", part: string, } | { "kind": "pose", part: string, mount_point: string | null, } | { "kind": "any_part", roles: Array<string>, attr: string | null, } | { "kind": "group", id: string, } | { "kind": "mode", id: string, part: string | null, } | { "kind": "modes" } | { "kind": "net", id: string, field: string | null, } | { "kind": "harness", id: string, field: string | null, } | { "kind": "case", id: string, field: string | null, } | { "kind": "catalog", id: string, attr: AttrPath | null, } | { "kind": "attribute_def", id: string, } | { "kind": "kind_def", id: string, } | { "kind": "source", id: string, } | { "kind": "view", id: string, node: string | null, } | { "kind": "analysis", id: string, };
+export type DesignTarget = { "kind": "part", id: string, } | { "kind": "param" } & ParamPath | { "kind": "port" } & PortRef | { "kind": "mount", part: string, } | { "kind": "pose", part: string, mount_point: string | null, } | { "kind": "any_part", roles: Array<Role>, attr: string | null, } | { "kind": "group", id: string, } | { "kind": "mode", id: string, part: string | null, } | { "kind": "modes" } | { "kind": "net", id: string, field: string | null, } | { "kind": "harness", id: string, field: string | null, } | { "kind": "case", id: string, field: string | null, } | { "kind": "catalog", id: string, attr: AttrPath | null, } | { "kind": "attribute_def", id: string, } | { "kind": "kind_def", id: string, } | { "kind": "source", id: string, } | { "kind": "view", id: string, node: string | null, } | { "kind": "analysis", id: string, };

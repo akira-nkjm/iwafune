@@ -5,6 +5,8 @@
 
 mod labels;
 
+pub use crate::role::{Role, STATE_OFF};
+
 pub use labels::{
     DEFAULT_SECTION, LABELS_TOML, Label, Labels, enum_label, labels, sections, state_label,
 };
@@ -84,6 +86,33 @@ mod tests {
         assert!(parsed.is_ok(), "{parsed:?}");
         assert!(attributes().len() >= 40);
         assert!(kinds().contains_key("reaction_wheel"));
+    }
+
+    #[test]
+    fn roles_have_systems_and_bilingual_names() {
+        let labels: Labels = toml::from_str(LABELS_TOML).unwrap();
+        for role in Role::ALL {
+            // None も明示的な対応。キーの欠落を許さない。
+            assert!(labels.role_system.contains_key(role), "{role}");
+            let kind = kinds().values().find(|k| k.role == Some(*role)).unwrap();
+            assert!(!kind.label.trim().is_empty(), "{role}");
+            assert!(
+                kind.label_en
+                    .as_deref()
+                    .is_some_and(|s| !s.trim().is_empty()),
+                "{role}"
+            );
+        }
+        assert_eq!(labels.role_system.len(), Role::ALL.len());
+        assert!(labels.state.contains_key(STATE_OFF));
+    }
+
+    #[test]
+    fn unknown_roles_are_rejected_during_deserialization() {
+        assert!(parse_kinds("[custom]\nlabel = 'Custom'\nrole = 'unknown_role'").is_err());
+        assert!(
+            serde_json::from_str::<KindDef>(r#"{"label":"Custom","role":"unknown_role"}"#).is_err()
+        );
     }
 
     #[test]

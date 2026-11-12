@@ -36,7 +36,7 @@ pub(crate) fn part_row(design: &Design, resolved: &Resolved, rp: &ResolvedPart) 
         parent: rp.parent.as_ref().map(|n| n.id().to_owned()),
         system: rp.system.map(fune_projection::system::to_analysis),
         kind: rp.kind.clone(),
-        role: rp.role.clone(),
+        role: rp.role,
         catalog: rp.catalog.clone(),
         candidates: part.map(|p| p.candidates.clone()).unwrap_or_default(),
         count: rp.count,

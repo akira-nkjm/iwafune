@@ -5,6 +5,7 @@ use crate::missing::MissingInputs;
 use crate::parts::{self, by_role, direction_body, label, ratio, state_values};
 use crate::timeline;
 use fune_model::Target;
+use fune_model::builtin::Role;
 use fune_model::design::AnalysisSystem;
 use sat_analysis::power::energy_balance::{
     EnergyBalanceBattery, EnergyBalanceCase, EnergyBalanceLoad, LoadGrowth,
@@ -53,7 +54,7 @@ pub fn mode_load_input(ctx: &Context<'_>, m: &mut MissingInputs) -> ModeLoadInpu
 
 /// 太陽電池パネル（role = solar_panel）の並び。
 pub fn solar_array(ctx: &Context<'_>, m: &mut MissingInputs) -> SolarArray {
-    let panels: Vec<SolarPanel> = by_role(ctx, "solar_panel")
+    let panels: Vec<SolarPanel> = by_role(ctx, Role::SolarPanel)
         .filter_map(|p| {
             let why = "太陽電池パネルの値";
             let area = parts::extensive_qty::<Area>(p, "area", why, m);
@@ -71,7 +72,7 @@ pub fn solar_array(ctx: &Context<'_>, m: &mut MissingInputs) -> SolarArray {
         .collect();
     if panels.is_empty() {
         m.push(
-            Target::any_of_roles(&["solar_panel"], None),
+            Target::any_of_roles(&[Role::SolarPanel], None),
             "太陽電池パネル（kind の role = solar_panel）の部品がありません",
         );
     }
@@ -180,10 +181,10 @@ fn power_orbits(ctx: &Context<'_>) -> u32 {
 
 /// 電池を個別に渡す。容量の集約規則は解析が持つ。
 fn batteries(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceBattery> {
-    let cells: Vec<_> = by_role(ctx, "battery").collect();
+    let cells: Vec<_> = by_role(ctx, Role::Battery).collect();
     if cells.is_empty() {
         m.push(
-            Target::any_of_roles(&["battery"], None),
+            Target::any_of_roles(&[Role::Battery], None),
             "電池（kind の role = battery）の部品がありません",
         );
         return Vec::new();

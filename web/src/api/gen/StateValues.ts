@@ -10,6 +10,6 @@ export type StateValues = {
  */
 default: number | null, 
 /**
- * 状態ごとの値（例: `{"off": 0, "on": 1.2}`）
+ * 状態ごとの値（例: `{"idle": 0, "on": 1.2}`）
  */
 by_state: { [key in string]: number }, };

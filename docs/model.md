@@ -57,6 +57,12 @@ flowchart LR
 | Table | 表データ | `tables/<ID>.csv` + `tables/<ID>.toml` | 曲線や特性表。列ごとの単位は TOML 側で宣言 |
 | View | 見た目だけの情報（Design の外） | `view/…` | 系統図の座標、3D のカメラ |
 
+### 3.1 種別の役割と状態
+
+- 種別の `role` は `fune_model::builtin::Role`（`enum_text!`）の値。綴りは `builtin/role.rs` の 1 か所で定義し、未知の役割は serde の読み込みで拒む。省略時は継承元の役割、継承元にも無ければ役割なし。独自の種別 ID は自由だが、役割の語彙は追加しない。
+- 役割の表示名は対応する組み込み種別の日英名。`labels.role_system` は Role をキーに全役割の系を持つ（系に属さない対応は `None` と明示）。API の役割は TS の `Role` 型で返し、Web のアイコン表は全役割を網羅する。
+- 状態の語彙は種別ごとに自由に定義する。慣例の停止状態だけは `fune_model::builtin::STATE_OFF` を使い、既定状態を選ぶ処理でもこの定数を参照する（列挙型にはしない）。
+
 ## 4. Rust の型（Design 層）
 
 ```rust

@@ -129,10 +129,8 @@ impl Design {
     }
 
     /// 種別の役割（継承を含む）。
-    pub fn kind_role(&self, kind: &str) -> Option<&str> {
-        self.kind_chain(kind)
-            .into_iter()
-            .find_map(|k| k.role.as_deref())
+    pub fn kind_role(&self, kind: &str) -> Option<crate::role::Role> {
+        self.kind_chain(kind).into_iter().find_map(|k| k.role)
     }
 
     /// Group か Part の ID が存在するか。

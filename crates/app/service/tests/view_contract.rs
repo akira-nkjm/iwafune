@@ -15,7 +15,10 @@ fn definitions_references_and_paths_come_from_model() {
     for attr in &design.defs.attributes {
         assert_eq!(attr.section, snapshot.design.attribute_section(&attr.id));
     }
-    assert_eq!(design.defs.labels.role_system["reaction_wheel"], "aocs");
+    assert_eq!(
+        design.defs.labels.role_system[&fune_model::builtin::Role::ReactionWheel].as_deref(),
+        Some("aocs")
+    );
     let wheel = design.parts.iter().find(|p| p.id == "RW_X").unwrap();
     assert_eq!(wheel.paths["power"]["on"], "RW_X.power.on");
     assert_eq!(wheel.paths["mass"][""], "RW_X.mass");

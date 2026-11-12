@@ -4,6 +4,7 @@ use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::pose;
 use fune_model::Target;
+use fune_model::builtin::Role;
 use fune_model::resolve::{ResolvedPart, SiValue};
 use sat_analysis::modes::StateValues;
 use sat_astro::math::Vec3;
@@ -13,12 +14,12 @@ use std::collections::BTreeMap;
 /// 役割（kind の role）が `role` の部品（ID 順）。
 pub fn by_role<'a>(
     ctx: &'a Context<'_>,
-    role: &'a str,
+    role: Role,
 ) -> impl Iterator<Item = &'a ResolvedPart> + 'a {
     ctx.resolved
         .parts
         .values()
-        .filter(move |p| p.role.as_deref() == Some(role))
+        .filter(move |p| p.role == Some(role))
 }
 
 /// 属性が設定されている部品（ID 順）。

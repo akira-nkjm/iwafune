@@ -62,6 +62,7 @@ fn sections_and_role_systems_name_analysis_systems() {
         );
     }
     for (role, system) in &l.role_system {
+        let Some(system) = system else { continue };
         assert!(
             system.parse::<AnalysisSystem>().is_ok(),
             "role_system.{role} = {system} は解析の系ではありません"

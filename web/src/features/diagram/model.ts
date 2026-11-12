@@ -1,4 +1,4 @@
-import type { DesignView, NetView, PartRow } from "@/api/types";
+import type { DesignView, NetView, PartRow, Role } from "@/api/types";
 import { nodeName, systemTree } from "@/lib/design";
 import { systemTone } from "@/lib/systems";
 import { type Tone, toneHex, uiHex } from "@/lib/tone";
@@ -29,7 +29,7 @@ export interface DiagramContainer {
 export interface DiagramCard {
   id: string;
   label: string;
-  role?: string | null;
+  role?: Role | null;
   /** 2 行目（カタログ品か種別。どちらも無ければ null） */
   sub: string | null;
   tone: Tone;
@@ -77,6 +77,9 @@ export interface DiagramModel {
 export const groupNodeId = (id: string) => `group:${id}`;
 export const cardNodeId = (id: string) => `card:${id}`;
 export const portHandleId = (port: string) => port;
+
+const POWER_HUB_ROLE: Role = "pcdu";
+const DATA_HUB_ROLE: Role = "obc";
 
 const SIGNAL_COLOR = toneHex.blue;
 const RF_COLOR = toneHex.rose;
@@ -166,7 +169,7 @@ function hubOf(
   const ref = net.kind === "power" ? net.source : net.master;
   const byRef = ends.find((e) => e.part === ref?.part && e.port === ref.port);
   if (byRef) return { hub: byRef, collects: false };
-  const role = net.kind === "power" ? "pcdu" : "obc";
+  const role = net.kind === "power" ? POWER_HUB_ROLE : DATA_HUB_ROLE;
   const hub = ends.find((e) => design.parts.find((p) => p.id === e.part)?.role === role) ?? null;
   return { hub, collects: net.kind === "power" && hub !== null };
 }

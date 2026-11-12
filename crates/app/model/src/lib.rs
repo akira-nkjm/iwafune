@@ -12,6 +12,7 @@
 //! | `builtin` | 組み込みの属性定義・種別定義（解析が前提にする標準の語彙）と、状態・系・列挙の表示名（日英） |
 //! | `part_system` | 部品・フォルダの系（`Design::system_of`。置き場所 → 役割の系。`design` と `builtin` の両方を見る葉） |
 //! | `path` | パラメーターのパス記法（`RW_X.mass`、`RW_X.power.on`） |
+//! | `role` | 部品の役割 `Role` と慣例の停止状態 `STATE_OFF` の綴り（どこにも依存しない葉。`builtin` からも公開） |
 //! | `resolve` | Design → Resolved（カタログ・上書きの重ね合わせ、SI 換算、出所） |
 //! | `check` | 検証（severity 付きの診断） |
 //! | `diagnostic` | 診断の型 |
@@ -30,6 +31,7 @@ pub mod id;
 pub mod part_system;
 pub mod path;
 pub mod resolve;
+pub mod role;
 pub mod target;
 pub mod value;
 
