@@ -168,12 +168,7 @@ fn roles_and_off_state_have_one_home() {
     );
     assert_eq!(errors.len(), 1);
     errors.clear();
-    check_rule(
-        "crates/app/model/src/role.rs",
-        "\"off\"",
-        rule,
-        &mut errors,
-    );
+    check_rule("crates/app/model/src/role.rs", "\"off\"", rule, &mut errors);
     assert!(errors.is_empty());
     let text = "fn run() {}\n#[cfg(test)]\nmod tests { let state = \"off\"; }";
     check_rule(
