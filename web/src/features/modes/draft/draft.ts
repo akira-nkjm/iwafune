@@ -4,7 +4,11 @@ import { numbersInputText } from "@/quantity/format";
 /**
  * 下書きのセル: 基本の状態と、ほかの状態の時間割合の打った文字列（`fune mode set --duty` と同じく、数として読むのは service）。
  */
-export type CellText = { state: string; duty: ModeCellText["duty"] };
+export type CellText = Pick<ModeCellText, "state" | "duty"> & {
+  state: string;
+  active?: ModeCellText["active"];
+  spare_state?: ModeCellText["spare_state"];
+};
 
 /**
  * モード表の編集中の下書き。mode → part → セル（null は「未指定にする」）。
@@ -16,7 +20,12 @@ export type ModeDraft = ReadonlyMap<string, ReadonlyMap<string, CellText | null>
 /** 保存済みのセル → 下書きのセルの形（割合は入力欄の文字列にする） */
 export function cellText(cell: StateAssign): CellText {
   const duty = Object.entries(cell.duty ?? {}).map(([s, f]) => [s, numbersInputText([f])] as const);
-  return { state: cell.state, duty: Object.fromEntries(duty) };
+  return {
+    state: cell.state,
+    duty: Object.fromEntries(duty),
+    active: cell.active == null ? null : numbersInputText([cell.active]),
+    spare_state: cell.spare_state ?? null,
+  };
 }
 
 function savedCell(table: ModeTable, mode: string, part: string): CellText | null {
@@ -37,7 +46,12 @@ export function cellOf(
 
 function sameCell(a: CellText | null, b: CellText | null): boolean {
   if (!a || !b) return !a && !b;
-  if (a.state !== b.state) return false;
+  if (
+    a.state !== b.state ||
+    (a.active || null) !== (b.active || null) ||
+    (a.spare_state || null) !== (b.spare_state || null)
+  )
+    return false;
   const ka = Object.keys(a.duty).sort();
   const kb = Object.keys(b.duty).sort();
   return ka.length === kb.length && ka.every((k, i) => k === kb[i] && a.duty[k] === b.duty[k]);
@@ -82,6 +96,9 @@ export function draftCommand(table: ModeTable, draft: ModeDraft): CommandText | 
         mode: header.id,
         part: row.part,
         state: c?.state ?? null,
+        active: c?.active ?? null,
+        spare_state: c?.spare_state ?? null,
+        eclipse: false,
         duty: { ...(c?.duty ?? {}) },
       });
     }

@@ -55,6 +55,8 @@ export const componentsEn: typeof componentsJa = {
       candidates: "Trade candidates",
       candidatesHint: "Catalog item IDs, separated by commas",
       count: "Qty",
+      redundancy: "Redundancy",
+      redundancySummary: (id: string) => `Update redundancy: ${id}`,
       maturity: "Maturity",
       maturityUnset: "(not set)",
       system: "System",

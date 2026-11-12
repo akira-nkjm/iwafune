@@ -130,6 +130,14 @@ pub(super) fn other_op(op: &Op) -> Vec<String> {
         ],
         Op::RemoveMode { id } => vec![Cmd::new(&["fune", "mode", "rm", id]).done()],
         Op::RenameMode { id, to } => vec![Cmd::new(&["fune", "mode", "rename", id, to]).done()],
+        Op::SetModeDuration { mode, duration } => vec![
+            Cmd::new(&["fune", "mode", "duration", mode])
+                .flag(
+                    "max-duration",
+                    duration.as_ref().map(quantity_to_text).as_deref(),
+                )
+                .done(),
+        ],
         Op::SetModeStates { cells } => cells.iter().map(mode_cell).collect(),
         Op::CreateNet { net } => vec![net_cmd("add", net)],
         Op::UpdateNet { net } => vec![net_cmd("replace", net)],
@@ -241,6 +249,7 @@ fn set_field(part: &str, field: &PartField) -> String {
         | PartField::Catalog(v)
         | PartField::Kind(v) => v.clone(),
         PartField::Count(n) => Some(n.to_string()),
+        PartField::Redundancy(r) => Some(r.as_str().to_string()),
         PartField::Maturity(m) => m.map(|m| m.as_str().to_string()),
         PartField::Candidates(c) => (!c.is_empty()).then(|| list_to_text(c)),
     };
@@ -262,9 +271,14 @@ fn mode_cell(cell: &ModeCell) -> String {
             });
             Cmd::new(&["fune", "mode", "set", &cell.mode, &cell.part, state])
                 .flag("duty", duty.as_deref())
+                .flag("active", cell.active.map(|n| n.to_string()).as_deref())
+                .flag("spare-state", cell.spare_state.as_deref())
+                .flag("eclipse", cell.eclipse.then_some("true"))
                 .done()
         }
-        None => Cmd::new(&["fune", "mode", "unset", &cell.mode, &cell.part]).done(),
+        None => Cmd::new(&["fune", "mode", "unset", &cell.mode, &cell.part])
+            .flag("eclipse", cell.eclipse.then_some("true"))
+            .done(),
     }
 }
 

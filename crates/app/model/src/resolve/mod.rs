@@ -41,6 +41,7 @@ pub struct ResolvedPart {
     /// 機器の状態の語彙
     pub states: Vec<String>,
     pub count: u32,
+    pub redundancy: crate::design::Redundancy,
     pub maturity: Option<Maturity>,
     /// 属性 ID → 値。種別の必須・任意の属性は書かれていなくても Unset で入る
     pub attr: BTreeMap<String, ResolvedValue>,

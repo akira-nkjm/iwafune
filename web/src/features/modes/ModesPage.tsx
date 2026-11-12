@@ -9,6 +9,7 @@ import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
 import { AddModeDialog } from "./AddModeDialog";
 import type { ModeDraft } from "./draft/draft";
+import { EclipseEditor } from "./EclipseEditor";
 import { ModesMatrix } from "./matrix/ModesMatrix";
 import { unassignedCells } from "./matrix/matrix";
 
@@ -49,12 +50,15 @@ export function ModesPage() {
               </Button>
             </Empty>
           ) : (
-            <ModesMatrix
-              design={d}
-              draft={draft}
-              onDraft={setDraft}
-              onAdd={() => setAdding(true)}
-            />
+            <>
+              <ModesMatrix
+                design={d}
+                draft={draft}
+                onDraft={setDraft}
+                onAdd={() => setAdding(true)}
+              />
+              <EclipseEditor table={d.modes} />
+            </>
           )
         }
       </QueryState>

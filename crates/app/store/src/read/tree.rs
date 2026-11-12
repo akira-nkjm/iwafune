@@ -25,6 +25,8 @@ struct PartDoc {
     #[serde(default)]
     candidates: Vec<String>,
     count: Option<u32>,
+    #[serde(default)]
+    redundancy: fune_model::design::Redundancy,
     maturity: Option<Maturity>,
     mount: Option<Mount>,
     pose: Option<Pose>,
@@ -132,6 +134,7 @@ impl Decoder<'_> {
             kind: doc.kind.map(Id::new),
             candidates: doc.candidates,
             count: doc.count.unwrap_or(1),
+            redundancy: doc.redundancy,
             maturity: doc.maturity,
             mount: doc.mount,
             pose: doc.pose,

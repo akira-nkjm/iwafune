@@ -60,6 +60,9 @@ pub(in super::super) fn system_ops() -> Vec<Op> {
             .iter()
             .map(|(k, v)| (s(k), *v))
             .collect::<BTreeMap<_, _>>(),
+        active: None,
+        spare_state: None,
+        eclipse: false,
     };
     vec![
         Op::CreateMode {
@@ -73,10 +76,28 @@ pub(in super::super) fn system_ops() -> Vec<Op> {
             id: s("DOWNLINK"),
             to: s("DL"),
         },
+        Op::SetModeDuration {
+            mode: "NOMINAL".into(),
+            duration: Some(Quantity::new(90.0, "min")),
+        },
+        Op::SetModeDuration {
+            mode: "NOMINAL".into(),
+            duration: None,
+        },
         Op::SetModeStates {
             cells: vec![
                 cell("UHF_TRX", Some("rx"), &[("tx", 0.1)]),
                 cell("CAM", None, &[]),
+                ModeCell {
+                    active: Some(3),
+                    spare_state: Some(s("standby")),
+                    eclipse: true,
+                    ..cell("RW_X", Some("on"), &[])
+                },
+                ModeCell {
+                    eclipse: true,
+                    ..cell("CAM", None, &[])
+                },
             ],
         },
         Op::CreateNet { net },

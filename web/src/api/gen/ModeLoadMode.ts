@@ -13,6 +13,14 @@ export type ModeLoadMode = { id: string, label: string,
  */
 total: number, 
 /**
+ * 蝕時の消費電力（成長余裕なし）。
+ */
+total_eclipse: number, 
+/**
+ * 蝕時の消費電力（成長余裕込み）。
+ */
+total_eclipse_with_growth: number, 
+/**
  * 平均消費電力の合計（成長余裕込み）
  */
 total_with_growth: number, 

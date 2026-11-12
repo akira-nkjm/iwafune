@@ -106,11 +106,19 @@ pub fn mode(c: &ModeCmd) -> Built<'_> {
             },
             edit,
         ),
+        ModeCmd::Duration {
+            mode,
+            max_duration,
+            edit: e,
+        } => (edit::mode_duration_op(mode, max_duration.as_deref())?, e),
         ModeCmd::Set {
             mode,
             part,
             state,
             duty,
+            active,
+            spare_state,
+            eclipse,
             edit,
         } => (
             mode_cell_op(ModeCellText {
@@ -118,15 +126,26 @@ pub fn mode(c: &ModeCmd) -> Built<'_> {
                 part: part.clone(),
                 state: Some(state.clone()),
                 duty: edit::duty_from_text(duty.as_deref().unwrap_or_default())?,
+                active: active.clone(),
+                spare_state: spare_state.clone(),
+                eclipse: *eclipse,
             })?,
             edit,
         ),
-        ModeCmd::Unset { mode, part, edit } => (
+        ModeCmd::Unset {
+            mode,
+            part,
+            eclipse,
+            edit,
+        } => (
             mode_cell_op(ModeCellText {
                 mode: mode.clone(),
                 part: part.clone(),
                 state: None,
                 duty: BTreeMap::new(),
+                active: None,
+                spare_state: None,
+                eclipse: *eclipse,
             })?,
             edit,
         ),

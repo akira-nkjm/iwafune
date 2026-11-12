@@ -1,5 +1,6 @@
-label       = "定常"
-description = "太陽指向で待機。RW で 3 軸制御、MTQ でアンロード。通信は UHF のみ"
+label        = "定常"
+description  = "太陽指向で待機。RW で 3 軸制御、MTQ でアンロード。通信は UHF のみ"
+max_duration = { value = 90.0, unit = "min" }
 
 [states]
 CAM     = { state = "off" }

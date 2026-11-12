@@ -31,7 +31,17 @@ describe("モード表の下書き", () => {
     const d = withCell(table, empty, "NOMINAL", "TRX", { state: "rx", duty: { tx: "0.25" } });
     expect(draftCommand(table, d)).toEqual({
       command: "mode_set",
-      cells: [{ mode: "NOMINAL", part: "TRX", state: "rx", duty: { tx: "0.25" } }],
+      cells: [
+        {
+          mode: "NOMINAL",
+          part: "TRX",
+          state: "rx",
+          duty: { tx: "0.25" },
+          active: null,
+          spare_state: null,
+          eclipse: false,
+        },
+      ],
     });
     expect(draftCommand(table, empty)).toBeNull();
   });
@@ -40,7 +50,29 @@ describe("モード表の下書き", () => {
     const d = withCell(table, empty, "NOMINAL", "RW_X", null);
     expect(draftCommand(table, d)).toEqual({
       command: "mode_set",
-      cells: [{ mode: "NOMINAL", part: "RW_X", state: null, duty: {} }],
+      cells: [
+        {
+          mode: "NOMINAL",
+          part: "RW_X",
+          state: null,
+          duty: {},
+          active: null,
+          spare_state: null,
+          eclipse: false,
+        },
+      ],
     });
+  });
+});
+
+it("稼働台数と予備状態を保存用の文字列として保つ", () => {
+  const d = withCell(table, empty, "NOMINAL", "RW_X", {
+    state: "on",
+    duty: {},
+    active: "3",
+    spare_state: "idle",
+  });
+  expect(draftCommand(table, d)).toMatchObject({
+    cells: [{ active: "3", spare_state: "idle", eclipse: false }],
   });
 });

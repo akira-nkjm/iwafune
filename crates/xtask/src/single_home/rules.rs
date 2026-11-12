@@ -313,7 +313,11 @@ pub(super) const WEB_RULES: &[(&str, &[&str], &str)] = &[
 pub(super) const PROD_RULES: &[(&str, &[&str], &str)] = &[
     (
         "\"off\"",
-        &["crates/app/model/src/role.rs", "web/"],
+        &[
+            "crates/app/model/src/role.rs",
+            "crates/lib/analysis/src/modes.rs",
+            "web/",
+        ],
         "慣例の停止状態（`STATE_OFF`）",
     ),
     // 解析の表示換算を禁止する。現在の production の出現は全て判定文の換算。

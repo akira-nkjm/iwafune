@@ -62,6 +62,9 @@ mod tests {
                 part: "TRX".into(),
                 state: Some("rx".into()),
                 duty: BTreeMap::from([("tx".to_string(), 0.1)]),
+                active: None,
+                spare_state: None,
+                eclipse: false,
             }],
         };
         assert_eq!(

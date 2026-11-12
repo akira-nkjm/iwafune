@@ -176,6 +176,11 @@ pub enum Op {
         id: String,
         to: String,
     },
+    /// モードの最長継続時間（None で削除）。
+    SetModeDuration {
+        mode: String,
+        duration: Option<fune_model::value::Quantity>,
+    },
     /// モード表のセルを一括で書く（GUI の表の編集）。
     SetModeStates {
         cells: Vec<ModeCell>,
@@ -273,4 +278,10 @@ pub struct ModeCell {
     pub state: Option<String>,
     #[serde(default)]
     pub duty: BTreeMap<String, f64>,
+    #[serde(default)]
+    pub active: Option<u32>,
+    #[serde(default)]
+    pub spare_state: Option<String>,
+    #[serde(default)]
+    pub eclipse: bool,
 }

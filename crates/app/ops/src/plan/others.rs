@@ -33,6 +33,14 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             new_flat_id(design.modes.keys().map(|k| k.as_str()), to, "モード")?;
             Ok(refs::rename_mode(edits, design, id, to)?)
         }
+        Op::SetModeDuration { mode, duration } => {
+            existing_mode(design, mode)?;
+            Ok(entities::set_mode_duration(
+                edits,
+                &layout::mode_file(mode),
+                duration.as_ref(),
+            )?)
+        }
         Op::SetModeStates { cells } => cells.iter().try_for_each(|c| set_cell(edits, design, c)),
         Op::CreateNet { net } => {
             new_flat_id(
@@ -229,6 +237,13 @@ fn create_mode(
         label: label.clone(),
         description: description.clone(),
         states,
+        max_duration: copy_from
+            .and_then(|src| design.modes.get(src))
+            .and_then(|m| m.max_duration.clone()),
+        eclipse: copy_from
+            .and_then(|src| design.modes.get(src))
+            .map(|m| m.eclipse.clone())
+            .unwrap_or_default(),
     };
     Ok(edits.create(&layout::mode_file(id), entities::new_mode_text(&mode))?)
 }
@@ -241,11 +256,14 @@ fn set_cell(edits: &mut Edits, design: &Design, cell: &ModeCell) -> Result<(), O
     let assign = cell.state.as_ref().map(|state| StateAssign {
         state: state.clone(),
         duty: cell.duty.clone(),
+        active: cell.active,
+        spare_state: cell.spare_state.clone(),
     });
     Ok(entities::set_mode_row(
         edits,
         &layout::mode_file(&cell.mode),
         &cell.part,
+        cell.eclipse,
         assign.as_ref(),
     )?)
 }

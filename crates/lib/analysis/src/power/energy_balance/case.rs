@@ -18,12 +18,12 @@ use sat_units::typed::{Energy, Fraction, Power, Qty, Time};
 const DOD_TOLERANCE: f64 = 1e-12;
 
 /// ケースの負荷（日照中・日陰中）を求める。モードの警告は `checks` に足す。
-fn case_loads(
+pub(super) fn case_loads(
     input: &EnergyBalanceInput,
     case: &EnergyBalanceCase,
     checks: &mut Vec<Check>,
 ) -> Result<(Qty<Power>, Qty<Power>), AnalysisError> {
-    let mut mode_power = |id: &str| -> Result<Qty<Power>, AnalysisError> {
+    let mut mode_power = |id: &str, eclipse: bool| -> Result<Qty<Power>, AnalysisError> {
         let r = evaluate_mode(&input.loads, find_mode(&input.loads.modes, id)?)?;
         for c in r.checks {
             if !checks
@@ -34,19 +34,31 @@ fn case_loads(
             }
         }
         Ok(match input.load_growth {
-            LoadGrowth::Included => r.total_with_growth,
-            LoadGrowth::Excluded => r.total,
+            LoadGrowth::Included => {
+                if eclipse {
+                    r.total_eclipse_with_growth
+                } else {
+                    r.total_with_growth
+                }
+            }
+            LoadGrowth::Excluded => {
+                if eclipse {
+                    r.total_eclipse
+                } else {
+                    r.total
+                }
+            }
         })
     };
     match &case.load {
-        EnergyBalanceLoad::Mode { mode } => {
-            let p = mode_power(mode)?;
-            Ok((p, p))
-        }
+        EnergyBalanceLoad::Mode { mode } => Ok((mode_power(mode, false)?, mode_power(mode, true)?)),
         EnergyBalanceLoad::SunlitEclipse {
             sunlit_mode,
             eclipse_mode,
-        } => Ok((mode_power(sunlit_mode)?, mode_power(eclipse_mode)?)),
+        } => Ok((
+            mode_power(sunlit_mode, false)?,
+            mode_power(eclipse_mode, true)?,
+        )),
         EnergyBalanceLoad::Constant { power } => Ok((*power, *power)),
     }
 }

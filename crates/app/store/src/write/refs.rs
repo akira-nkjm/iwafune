@@ -102,7 +102,8 @@ pub fn forget_part(edits: &mut Edits, design: &Design, id: &str) -> Result<(), S
     for site in design.references(Referent::Part(id)) {
         match site {
             RefSite::ModeRow { mode } => {
-                super::entities::set_mode_row(edits, &layout::mode_file(&mode), id, None)?;
+                super::entities::set_mode_row(edits, &layout::mode_file(&mode), id, false, None)?;
+                super::entities::set_mode_row(edits, &layout::mode_file(&mode), id, true, None)?;
             }
             RefSite::Allocation { kind } => edits.edit(layout::ALLOCATION_FILE, |doc| {
                 if let Some(t) = table_opt(doc, &[kind.as_str(), "alloc"]) {
@@ -198,7 +199,8 @@ fn rename_key_at(
 ) -> Result<(), StoreError> {
     match site {
         RefSite::ModeRow { mode } => {
-            rename_in(edits, &layout::mode_file(mode), &["states"], from, to)
+            rename_in(edits, &layout::mode_file(mode), &["states"], from, to)?;
+            rename_in(edits, &layout::mode_file(mode), &["eclipse"], from, to)
         }
         RefSite::NetPort { net, end, port } => set_top(
             edits,

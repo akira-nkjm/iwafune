@@ -1,5 +1,6 @@
-label       = "ダウンリンク"
-description = "地上局の可視中に S バンドでミッションデータを降ろす"
+label        = "ダウンリンク"
+description  = "地上局の可視中に S バンドでミッションデータを降ろす"
+max_duration = { value = 15.0, unit = "min" }
 
 [states]
 CAM     = { state = "off" }

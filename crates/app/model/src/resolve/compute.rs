@@ -64,6 +64,7 @@ fn resolve_part(design: &Design, part: &Part) -> ResolvedPart {
             .unwrap_or_default(),
         kind,
         count: part.count,
+        redundancy: part.redundancy,
         maturity: part.maturity.or_else(|| catalog.and_then(|c| c.maturity)),
         attr,
         mount: resolve_mount(design, part),

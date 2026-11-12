@@ -146,6 +146,9 @@ fn field_value(field: &str, text: Option<&str>) -> Result<PartField> {
                 .map_err(|_| invalid(format!("員数は整数で書きます: {t}")))?,
             None => 1,
         }),
+        PartFieldName::Redundancy => {
+            PartField::Redundancy(text.unwrap_or("none").parse().map_err(invalid)?)
+        }
         PartFieldName::Maturity => PartField::Maturity(text.map(maturity).transpose()?),
         PartFieldName::Candidates => {
             PartField::Candidates(text.map(list_from_text).unwrap_or_default())
@@ -275,6 +278,7 @@ mod tests {
         for &name in PartFieldName::ALL {
             let text = match name {
                 PartFieldName::Count => "3",
+                PartFieldName::Redundancy => "cold",
                 PartFieldName::Maturity => "new",
                 PartFieldName::Candidates => "local/a,local/b",
                 _ => "text",

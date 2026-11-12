@@ -2,6 +2,7 @@
 import type { Maturity } from "./Maturity";
 import type { MountView } from "./MountView";
 import type { PortView } from "./PortView";
+import type { Redundancy } from "./Redundancy";
 import type { Role } from "./Role";
 import type { System } from "./System";
 import type { ValueView } from "./ValueView";
@@ -34,7 +35,7 @@ kind: string | null, role: Role | null,
 /**
  * 選択中のカタログ（例: `"local/rw_18mNms"`）
  */
-catalog: string | null, candidates: Array<string>, count: number, maturity: Maturity | null, 
+catalog: string | null, candidates: Array<string>, count: number, redundancy: Redundancy, maturity: Maturity | null, 
 /**
  * 属性 ID → 解決済みの値
  */

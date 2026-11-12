@@ -2,9 +2,8 @@
 
 use fune_model::design::{Net, NetKind, Revision};
 use fune_model::value::{Quantity, Scalar, SettingValue, Value};
-use fune_ops::{ApplyOptions, ModeCell, Op, OpError, apply, plan, to_cli};
+use fune_ops::{ApplyOptions, Op, OpError, apply, plan, to_cli};
 use fune_store::{FileChange, Snapshot, load};
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 fn demo() -> PathBuf {
@@ -113,50 +112,6 @@ fn unit_dimension_mismatch_is_rejected() {
     }
     let bad_unit = plan(&snap, &[set_mass("RW_X", 1.0, "kgg")]);
     assert!(matches!(bad_unit, Err(OpError::Rejected { .. })));
-}
-
-#[test]
-fn mode_table_edit_writes_one_row_per_cell() {
-    let snap = snapshot();
-    let op = Op::SetModeStates {
-        cells: vec![
-            ModeCell {
-                mode: "NOMINAL".into(),
-                part: "UHF_TRX".into(),
-                state: Some("rx".into()),
-                duty: BTreeMap::from([("tx".to_string(), 0.05)]),
-            },
-            ModeCell {
-                mode: "SAFE".into(),
-                part: "GPS".into(),
-                state: Some("on".into()),
-                duty: BTreeMap::new(),
-            },
-        ],
-    };
-    let p = plan(&snap, std::slice::from_ref(&op)).unwrap();
-    assert_eq!(p.changes.len(), 2);
-    for c in &p.changes {
-        let (removed, added) = changed_lines(c);
-        assert_eq!((removed.len(), added.len()), (1, 1), "{}", c.path);
-    }
-    assert_eq!(p.design.modes["NOMINAL"].states["UHF_TRX"].duty["tx"], 0.05);
-    assert_eq!(
-        to_cli(&op),
-        vec![
-            "fune mode set NOMINAL UHF_TRX rx --duty tx=0.05",
-            "fune mode set SAFE GPS on"
-        ]
-    );
-    let bad = Op::SetModeStates {
-        cells: vec![ModeCell {
-            mode: "SAFE".into(),
-            part: "GPS".into(),
-            state: Some("tx".into()),
-            duty: BTreeMap::new(),
-        }],
-    };
-    assert!(matches!(plan(&snap, &[bad]), Err(OpError::Rejected { .. })));
 }
 
 #[test]

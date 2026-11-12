@@ -54,6 +54,8 @@ export const componentsJa = {
       candidates: "トレード候補",
       candidatesHint: "カタログ品の ID をカンマで区切る",
       count: "員数",
+      redundancy: "冗長",
+      redundancySummary: (id: string) => `冗長を変更: ${id}`,
       maturity: "成熟度",
       maturityUnset: "（未設定）",
       system: "系",

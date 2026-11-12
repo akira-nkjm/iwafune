@@ -73,13 +73,17 @@
 | 比の余裕の定義と判定 | `sat_analysis::spec::{ratio_margin, ratio_margin_verdict}` | **余裕 = 能力 / 要求 − 1（`Fraction`。0 以上で足りる）の 1 つだけ**。構造の MS・固有振動数・RW のトルク（`min_torque_margin`）・ストレージ（`capacity_margin`）・送信量（`downlink_margin`）。要求が 0（無限大）なら `None`（JSON で非有限の数を出さない）。差で測る余裕（温度・エネルギー・バジェットの `margin`）と dB の回線余裕は、それぞれの量のまま |
 | バジェット（質量・電力・データ量）の集計と判定 | `sat_analysis::budget::{budget_rollup, BudgetRollupRow}` | 個数 × 値、成長余裕は 1 回、判定 = 成長込み ≤ 上限 × (1 − システム余裕)。**バジェットの判定はここだけ**。解析の中で数えるだけ・上限と比べるだけのときは `budget::{counted_total, limit_check}`（行は `BudgetItem::counted`） |
 | 解析の登録と ID による実行 | `sat_analysis::catalog` | 登録と実行はここだけ（run_json と型付き run_typed） |
-| モードの状態と時間割合 | `sat_analysis::modes` | 電源・C&DH・熱で共有。`DUTY_TOLERANCE`（設計の検査の `fune_model::check::SHARE_TOLERANCE` と同じ値。fune-projection のテストが確かめる）・`find_mode`・`evaluate`（未割り当て・値の不足は警告して合計から除く、の方針はここだけ。一覧に無い部品の割り当てを警告するかは引数 `UnlistedParts`）。**部品の状態ごとの値の表は `modes::StateValues<D>`（`default`・`by_state`・`get`）だけ**（電源・C&DH・熱。単体値で、員数は各解析の部品の `count`） |
+| モード検査 | `fune_model::check::modes` | 参照・時間の次元・稼働台数・予備状態を検査 |
+| C&DH のモード別レート | `sat_analysis::cdh::data_budget::mode_rates` | 共通のモード評価器に単体レートと部品情報を渡す |
+| 蝕の編集欄 | `web/src/features/modes/EclipseEditor.tsx` | 日照時を継承、明示したセルだけを既存の service のセル編集で保存 |
+| モード拡張（#6） | `fune_model::design::{Redundancy, Mode, StateAssign}`・`sat_analysis::modes::{Population, counted_states}` | 稼働台・予備台の評価は modes、写し替えは projection、読み書きは store。編集は既存のセル Op とモードの継続時間 Op、service の文字列解釈で CLI / HTTP を共有 |
+| モードの状態と時間割合 | `sat_analysis::modes` | 電源・C&DH・熱で共有。`DUTY_TOLERANCE`（設計の検査の `fune_model::check::SHARE_TOLERANCE` と同じ値。fune-projection のテストが確かめる）・`find_mode`・`evaluate`（未割り当て・値の不足は警告して合計から除く、の方針はここだけ。一覧に無い部品の割り当てを警告するかは引数 `UnlistedParts`）。**部品の状態ごとの値の表は `modes::StateValues<D>`（`default`・`by_state`・`get`）だけ**（電源・C&DH・熱。単体値で、員数・冗長・状態の語彙は `Population` で共通評価器に渡す） |
 | 各解析 | `sat_analysis::<系>::<名前>` | 1 ファイル 1 解析。一覧は docs/architecture.md §6.1 |
 | 擾乱トルク | `sat_analysis::aocs::disturbance` | 重力傾斜・空力・SRP・残留磁気。`DisturbanceSurface::from_box` が箱の最大面積 × 係数を求める。`DisturbanceSpacecraft::torques(central, &TimelineSample)`（μ・磁場・大気は中心天体のもの、風・抗力・輻射圧は `sat_astro::force`）。種類は `DisturbanceKind`（表示名は持たない）。アンロード頻度と時系列で共有 |
 | RW の組への配分（擬似逆行列）と容量 | `sat_analysis::aocs::wheels` | `RwWheel`・`WheelSet::{distribute, capacity_along}`・使ってよい割合 `usable_momentum_fraction`（既定 `DEFAULT_USABLE_MOMENTUM_FRACTION` = 0.8。既定値はここだけ）。台数・配置は任意 |
 | 太陽電池の発電モデル | `sat_analysis::power::solar` | `SolarPanel`・`SolarArray::{panel_powers, sample_powers}`・時系列 `SolarProfile`（日照中かは `lit`。判定は `spec::is_sunlit`）・`eclipses`（`timeline::shadow_windows` に `spec::SUNLIT_THRESHOLD`）。日照時・軌道上・収支で共有 |
 | 電池の充放電の積分 | `sat_analysis::power::battery` | `simulate`（`ode::rk4_linear_step` で積分、容量で切る、シャント）。電力収支が使う。`power::battery::EnergyBalanceBattery::combine` が電池容量を合計し、電圧・効率は先頭を採用 |
-| モードの消費電力の集計 | `sat_analysis::power::mode_load::evaluate_mode` | `power.mode_load` と `power.energy_balance` で共有（平均と警告は `modes::evaluate`）。部品の電力は単体値 × 員数（`ModeLoadPart::power_in`） |
+| モードの消費電力の集計 | `sat_analysis::power::mode_load::evaluate_mode` | `power.mode_load` と `power.energy_balance` で共有（平均と警告は `modes::evaluate`）。台数と予備状態は `modes::counted_states`、日照と蝕を別々に評価 |
 | 回線計算の部品（FSPL・EIRP・Eb/N0） | `sat_analysis::comm::link` | `RfLinkParams::{evaluate, eb_n0_margin_db, min_elevation_for_margin}`（斜距離は `sat_astro::ground::slant_range_m` に中心天体の半径を渡す）・`fspl_db`・`eirp_dbw`・`g_over_t_dbk`・`c_over_n0_dbhz`・`eb_over_n0_db`・`max_data_rate_bps`・要求余裕 `required_margin`（既定 `DEFAULT_REQUIRED_MARGIN`。既定値はここだけ）。入力の dB（利得・損失・所要 Eb/N0・要求余裕）は `Decibel`。要求余裕はどちらの解析も入力の直下（`required_margin_db`）。dB の換算は `sat_units::{ratio_to_db, db_to_ratio}`、閉じる仰角の探索は `sat_astro::math::bisect`。回線バジェットと送信量で共有 |
 | 複数局のパスの集計 | `sat_analysis::comm::passes` | 検出は `sat_astro::ground::find_passes` だけ。ここは標本の取り方を検査して探す窓にし（`search_window` → `SearchWindow`。β を当てた軌道）、局をまとめて AOS 順に並べ、開始からの秒の区間・日の窓に直す（`find_all_passes`・`pass_interval`・`union_sorted`・`day_windows`）。可視と送信量で共有 |
 | 熱ネットワークの解法 | `sat_analysis::thermal::network` | 型（`ThermalNetwork` ほか）。`ThermalMounts::links` が取付から並列伝導・節点対ごとの放射結合を作る。`ThermalModeLoads::evaluate` が `modes::evaluate` で単体平均電力と警告を求める。節点の熱容量と動作範囲のまとめ（`ThermalNode::{heat_capacity, operating}`）・熱収支・微分・安定な刻みの目安。定常解の Newton 法は `network::newton`（線形ソルバーは `sat_astro::math::solve_dense`）、初期値 `INITIAL_GUESS_K`（290 K。初期値はこれだけ）。定常・非定常で共有 |
@@ -264,10 +268,13 @@
 - 解析 ID は `<系>.<名前>`（snake_case）。
 - ファイル・モジュールは snake_case、型は UpperCamelCase、TS のコンポーネントは PascalCase のファイル名。
 
+解析の冗長方式の TS 名は `ModeRedundancy`、設計側の `Redundancy` と区別する。
+
 ## 5. 変更履歴
 
 | 日時 | 変更 | 理由 |
 |---|---|---|
+| 2026-11-12 | #6: 継続時間・蝕・稼働台数・冗長を追加。台数評価は sat-analysis::modes、検査は model::check::modes、C&DH のレートを mode_rates に分離 | 電力・データ量・発熱で同じ台数を使う |
 | 2026-11-11 | 電力収支の `EnergyBalanceCaseResult.energy_margin_per_orbit` を Option にし、1 周未満は `energy_margin_over_span` に期間の収支を返して周回の収支判定を Warning とする。表示欄を日英で追加 | 解析期間全体の収支を 1 周あたりの余裕として出していたため（#47） |
 | 2026-11-11 | 既定ケースの対象宣言と解決を projection::case_policy に集約。電力収支は上段の姿勢則だけ既定を使う | 運用全体の集計とモード別の収支を維持する（#24） |
 | 2026-11-11 | 系に属さない `analysis.common.default_case` と参照検査を追加。service で実効ケースを一元選択し、結果と画面に既定由来かを示す | 明示した既定ケースで初期画面の解析を実行する（#24） |

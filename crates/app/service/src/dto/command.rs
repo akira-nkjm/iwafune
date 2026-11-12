@@ -19,6 +19,11 @@ pub enum CommandText {
     /// `fune mode set <モード> <部品> <状態> --duty tx=0.1`・`fune mode unset <モード> <部品>`。
     /// GUI のモード表は変えたセルをまとめて送り、1 つの `SetModeStates` になる
     ModeSet(ModeSetText),
+    /// モードの最長継続時間（null なら削除）。
+    ModeDuration {
+        mode: String,
+        duration: Option<String>,
+    },
     /// `fune attr add <ID> --dimension … --units …`
     AttrAdd(AttrAddText),
     /// `fune kind add <ID> --states off,on --required mass --port PWR=power`
@@ -91,6 +96,12 @@ pub struct ModeCellText {
     /// CLI の `--duty tx=0.1,rx=0.2` は `edit::duty_from_text` でこの形にする
     #[serde(default)]
     pub duty: BTreeMap<String, String>,
+    #[serde(default)]
+    pub active: Option<String>,
+    #[serde(default)]
+    pub spare_state: Option<String>,
+    #[serde(default)]
+    pub eclipse: bool,
 }
 
 /// `fune attr add` の引数。表示名を省くと ID、値の型を省くと scalar。

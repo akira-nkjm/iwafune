@@ -17,6 +17,12 @@ pub struct ThermalModePart {
     /// 員数（省略で 1）。
     #[serde(default = "crate::spec::default_count")]
     pub count: u32,
+    /// 冗長の方式。
+    #[serde(default)]
+    pub redundancy: crate::modes::Redundancy,
+    /// 種別の状態の語彙（warm の予備状態を選ぶ）。
+    #[serde(default)]
+    pub states: Vec<String>,
     /// 1 台の状態ごとの消費電力（単体値。`by_state` に無い状態は `default`）。
     #[serde(default)]
     pub power: StateValues<Power>,
@@ -43,6 +49,17 @@ impl ThermalModeLoads {
             &self.mode,
             self.parts.iter().map(|p| p.id.as_str()),
             UnlistedParts::Ignore,
+            |id| {
+                self.parts
+                    .iter()
+                    .find(|p| p.id == id)
+                    .map(ThermalModePart::population)
+                    .unwrap_or(crate::modes::Population {
+                        count: 0,
+                        redundancy: crate::modes::Redundancy::None,
+                        states: &[],
+                    })
+            },
             |id, state| {
                 let p = self.parts.iter().find(|p| p.id == id)?;
                 p.power.get(state).map(Qty::value)
@@ -55,13 +72,24 @@ impl ThermalModeLoads {
             .filter_map(|(p, (_, mean))| {
                 Some(ThermalLoad {
                     node: p.node.clone(),
-                    count: p.count,
+                    count: 1,
                     power: Qty::from_raw((*mean)?),
                     heat_fraction: p.heat_fraction,
                 })
             })
             .collect();
         Ok((loads, ev.checks("消費電力")))
+    }
+}
+
+impl ThermalModePart {
+    /// 共通のモード評価に渡す員数と語彙。
+    pub fn population(&self) -> crate::modes::Population<'_> {
+        crate::modes::Population {
+            count: self.count,
+            redundancy: self.redundancy,
+            states: &self.states,
+        }
     }
 }
 
@@ -85,6 +113,8 @@ mod tests {
                 .into(),
             },
             heat_fraction: Some(0.5),
+            redundancy: crate::modes::Redundancy::None,
+            states: Vec::new(),
         };
         let input = ThermalModeLoads {
             mode: ModeDef {
@@ -94,15 +124,31 @@ mod tests {
                     part: "a".into(),
                     state: "off".into(),
                     duty: [("on".into(), 0.25)].into(),
+                    active: None,
+                    spare_state: None,
                 }],
+                eclipse: Vec::new(),
             },
             parts: vec![part("a"), part("missing")],
         };
         let (loads, checks) = input.evaluate().unwrap();
         assert_eq!(loads.len(), 1);
-        assert_eq!(loads[0].power.value(), 2.0); // 8 W × 25 %
-        assert_eq!(loads[0].count, 3);
+        assert_eq!(loads[0].power.value(), 6.0); // 3 台 × 8 W × 25 %
+        assert_eq!(loads[0].count, 1);
         assert_eq!(checks.len(), 1);
         assert_eq!(checks[0].key, "unassigned");
+    }
+    #[test]
+    fn warm_spare_heat_by_hand() {
+        let input: ThermalModeLoads = serde_json::from_value(serde_json::json!({
+            "mode": {"id":"TEST", "label":"", "assignments":[{"part":"RW", "state":"on", "active":3}]},
+            "parts": [{"id":"RW", "node":"n", "count":4, "redundancy":"warm", "states":["on","standby"],
+                "power":{"by_state":{"on":10, "standby":2}}, "heat_fraction":0.5}]
+        })).unwrap();
+        let (loads, checks) = input.evaluate().unwrap();
+        assert!(checks.is_empty());
+        assert_eq!(loads[0].power.value(), 32.0); // 3 × 10 + 1 × 2 W、熱への変換前
+        assert_eq!(loads[0].count, 1); // 台数を二重に掛けない
+        assert_eq!(loads[0].heat_fraction, Some(0.5));
     }
 }

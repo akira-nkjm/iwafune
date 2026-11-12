@@ -34,6 +34,8 @@ pub fn mode_load_input(ctx: &Context<'_>, m: &mut MissingInputs) -> ModeLoadInpu
                 label: label(p),
                 group: p.system.map(|s| s.to_string()).unwrap_or_default(),
                 count: parts::count_of(p),
+                redundancy: crate::parts::redundancy(p),
+                states: p.states.clone(),
                 power: state_values::<Power>(p, "power")?,
                 growth_margin: parts::growth(ctx.design, p),
             })

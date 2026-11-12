@@ -53,6 +53,7 @@ function part(
     catalog: null,
     candidates: [],
     count: 1,
+    redundancy: "none",
     maturity: "off_the_shelf",
     values: Object.fromEntries(values.map((v) => [v.attr, v])),
     ports,
@@ -195,8 +196,20 @@ export const fixture: DesignView = {
   ],
   modes: {
     modes: [
-      { id: "NOMINAL", label: "定常", description: null, file: "modes/NOMINAL.toml" },
-      { id: "SAFE", label: "セーフ", description: null, file: "modes/SAFE.toml" },
+      {
+        id: "NOMINAL",
+        label: "定常",
+        description: null,
+        max_duration: null,
+        file: "modes/NOMINAL.toml",
+      },
+      {
+        id: "SAFE",
+        label: "セーフ",
+        description: null,
+        max_duration: null,
+        file: "modes/SAFE.toml",
+      },
     ],
     rows: [
       {
@@ -204,6 +217,7 @@ export const fixture: DesignView = {
         kind: "reaction_wheel",
         states: ["off", "idle", "on", "peak"],
         cells: { NOMINAL: { state: "on", duty: {} } },
+        eclipse_cells: {},
         shares: {},
       },
       {
@@ -211,6 +225,7 @@ export const fixture: DesignView = {
         kind: "pcdu",
         states: ["off", "on"],
         cells: { NOMINAL: { state: "on", duty: {} }, SAFE: { state: "on", duty: {} } },
+        eclipse_cells: {},
         shares: {},
       },
       {
@@ -218,6 +233,7 @@ export const fixture: DesignView = {
         kind: "transceiver",
         states: ["off", "rx", "tx"],
         cells: { NOMINAL: { state: "rx", duty: { tx: 0.1 } } },
+        eclipse_cells: {},
         shares: { NOMINAL: { tx: qv(10, "%", "Dimensionless", 0.1) } },
       },
     ],

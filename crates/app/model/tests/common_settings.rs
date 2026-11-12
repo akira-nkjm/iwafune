@@ -40,3 +40,59 @@ fn unset_default_case_is_listed() {
             .any(|e| e.path == path && e.value.is_none())
     );
 }
+
+#[test]
+fn mode_duration_requires_time_dimension() {
+    use fune_model::design::Mode;
+    use fune_model::value::Quantity;
+    let mut design = Design::default();
+    let mut mode = Mode {
+        id: "TEST".into(),
+        max_duration: Some(Quantity::new(90.0, "min")),
+        ..Default::default()
+    };
+    design.modes.insert(mode.id.clone(), mode.clone());
+    assert!(
+        !fune_model::check(&design)
+            .iter()
+            .any(|d| d.code == "unit.dimension")
+    );
+    mode.max_duration = Some(Quantity::new(90.0, "W"));
+    design.modes.insert(mode.id.clone(), mode);
+    assert!(
+        fune_model::check(&design)
+            .iter()
+            .any(|d| d.code == "unit.dimension" && d.severity == Severity::Error)
+    );
+}
+
+#[test]
+fn mode_population_errors_are_design_errors() {
+    use fune_model::design::{Mode, Part, Redundancy, StateAssign};
+    let mut design = Design::default();
+    let mut part = Part::new("HTR");
+    part.kind = Some("heater".into()); // off / on、warm の既定の予備状態は無い
+    part.count = 4;
+    for (redundancy, active, code) in [
+        (Redundancy::Cold, 5, "mode.active"),
+        (Redundancy::None, 3, "mode.redundancy"),
+        (Redundancy::Warm, 3, "mode.spare_state"),
+    ] {
+        part.redundancy = redundancy;
+        design.parts.insert(part.id.clone(), part.clone());
+        let mut row = StateAssign::new("on");
+        row.active = Some(active);
+        let mode = Mode {
+            id: "TEST".into(),
+            states: [(part.id.clone(), row)].into(),
+            ..Default::default()
+        };
+        design.modes.insert(mode.id.clone(), mode);
+        assert!(
+            fune_model::check(&design)
+                .iter()
+                .any(|d| d.code == code && d.severity == Severity::Error),
+            "{code}"
+        );
+    }
+}

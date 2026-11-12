@@ -4,4 +4,4 @@ import type { StateAssignment } from "./StateAssignment";
 /**
  * 衛星のモード（部品ごとの状態の割り当て）。
  */
-export type ModeDef = { id: string, label: string, assignments: Array<StateAssignment>, };
+export type ModeDef = { id: string, label: string, assignments: Array<StateAssignment>, eclipse: Array<StateAssignment>, };
