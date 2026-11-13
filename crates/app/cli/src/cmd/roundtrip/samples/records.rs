@@ -2,8 +2,8 @@
 
 use super::s;
 use fune_service::dto::{
-    AttributeDef, Case, Harness, KindDef, ModeCell, Net, NetField, NetKind, Op, PortRef, Quantity,
-    SettingValue, Source, SourceKind, ViewNodePos,
+    AttributeDef, Case, Distribution, Harness, KindDef, ModeCell, Net, NetField, NetKind, Op,
+    PortRef, Quantity, SettingValue, Source, SourceKind, ViewNodePos,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -190,6 +190,10 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         kind: SourceKind::Datasheet,
         label: Some(s("データシート")),
         reference: Some(s("https://example.com/ds.pdf")),
+        revision: Some(s("Rev. B")),
+        retrieved: Some(s("2026-10-02")),
+        sha256: Some("0123456789abcdef".repeat(4)),
+        distribution: Some(Distribution::OnRequest),
         date: Some(s("2026-10-01")),
         by: Some(s("tanaka")),
         note: Some(s("rev B")),

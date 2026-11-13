@@ -10,6 +10,7 @@
 //! | `power_page` | 電源ページの流れ・判定バー・グラフ・部品の表示定義 |
 //! | `design` | 設計データの表示（プロジェクト・部品・モード表・ネット・定義・設定） |
 //! | `catalog` | カタログ品の表示（値・パス・使っている部品） |
+//! | `source` | 出典の台帳の表示（リンク・ファイル） |
 //! | `value` | 値の表示（部品・カタログ品・設定で共有） |
 //! | `edit` | Op の適用と、人が打った文字列（`SetText`・`UnsetText`） |
 //! | `command` | 名詞のコマンドに打った引数（`CommandText`。`fune net set`・`fune part place`・`fune mode set` など） |
@@ -38,6 +39,8 @@ pub use kpi::{FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView};
 pub use maneuver::{ManeuverTargetView, ManeuverText, ManeuverView};
 mod power_page;
 pub use power_page::*;
+mod source;
+pub use source::SourceView;
 mod units;
 mod value;
 
@@ -69,9 +72,9 @@ pub use edit::{
 };
 pub use fune_model::design::PartField;
 pub use fune_model::design::{
-    AttributeDef, Case, CatalogField, CatalogItem, Harness, KindDef, Maneuver, ManeuverCategory,
-    ManeuverConstraints, ManeuverMethod, ManeuverTarget, Net, NetField, NetKind, Pose, Source,
-    SourceKind, UncertaintySide,
+    AttributeDef, Case, CatalogField, CatalogItem, Distribution, Harness, KindDef, Maneuver,
+    ManeuverCategory, ManeuverConstraints, ManeuverMethod, ManeuverTarget, Net, NetField, NetKind,
+    Pose, Source, SourceKind, UncertaintySide,
 };
 pub use fune_model::design::{BudgetKind, StateAssign};
 pub use fune_model::design::{ViewEdge, ViewLayout, ViewNode, ViewPortSide};

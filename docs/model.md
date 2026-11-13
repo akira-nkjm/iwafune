@@ -102,7 +102,7 @@ flowchart LR
 | BudgetPolicy | マージン方針 | `budget/policy.toml` | 成熟度ごとの成長余裕、不確かさの既定幅、ハーネスの見込み |
 | AttributeDef | 量の種類（quantity kind） | `defs/attribute/<id>.toml` | 値の型、次元、許可単位、表示単位、値域、状態で引くか、どのバジェットに入るか |
 | KindDef | 部品の種別 | `defs/kind/<id>.toml` | 継承元、必須・任意の属性、機器の状態の語彙（off / standby / on …）、ポートの雛形、role |
-| CatalogItem | 購入品・設計品の定義（ElementDefinition） | 共有カタログ or `catalog/<id>.toml` | kind、型番、成熟度、属性値、ポートの値、形状、データシート |
+| CatalogItem | 購入品・設計品の定義（ElementDefinition） | 共有カタログ or `catalog/<id>.toml` | kind、型番、成熟度、属性値、ポートの値、形状、データシートの出典（出典の ID。§7.8） |
 | Group | 系・入れ子のフォルダ | `parts/` 以下の、同名ファイルを持たないディレクトリ（最上位は系 ID） | なし（系の表示名は組み込みの語彙、配分は `budget/allocation.toml`） |
 | Part | 製品ツリー上の使用（ElementUsage） | `parts/<…>/<ID>.toml` | 定義（catalog / kind）、トレード候補、員数・冗長、取付先と相対姿勢、上書き値、ポートの所属ネット |
 | Mode | 衛星の運用モード | `modes/<ID>.toml` | 継続時間、部品 → {状態, 時間割合, 稼働台数, 予備状態}、蝕の上書き |
@@ -111,6 +111,7 @@ flowchart LR
 | Case | 解析ケース | `cases/<ID>.toml` | モードまたはモード時系列、不確かさのどちら側を読むか、軌道、姿勢則、環境条件、期間 |
 | Maneuver | マヌーバ | `maneuvers/<ID>.toml` | 区分（ΔV バジェットの行）、計算の段階、スラスタ、前のマヌーバ、目標の軌道、細かい段階だけの制約（§7.7） |
 | Source | 出典の台帳 | `sources/<ID>.toml` | 種類（datasheet / measured / analysis / judgement / placeholder）、参照先、日付、記入者 |
+| Source | 出典の台帳 | `sources/<ID>.toml` | 種類（datasheet / measured / analysis / judgement / placeholder）、参照先、資料の版・取得日・SHA-256・配布の区分、日付、記入者（§7.8） |
 | Requirement | 要求（軽量） | `requirements/<ID>.toml` | 文、対象の量、制約、「全モード・全ケースで」などの量化。正式な判定は外部の検証ツールに書き出す |
 | Table | 表データ | `tables/<ID>.csv` + `tables/<ID>.toml` | 曲線や特性表。列ごとの単位は TOML 側で宣言 |
 | View | 見た目だけの情報（Design の外） | `view/…` | 系統図の座標、3D のカメラ |
@@ -437,8 +438,9 @@ default_case = "hot_imaging"
 電源の系に属する定常解析。SAP と電池の必要量を出力し、部品の属性への書き戻しはしない。
 入力は軌道・`conditions.orbit.duration`・電力を持つ部品とモード・`solar_panel`（法線つき）と `battery` の部品・姿勢則・電源設定。
 部品・軌道・期間・モード・姿勢則・`analysis.power.dod_max` が足りなければ不足入力を返す。
-明示した解析ケースにモードがあればそのモード、無ければ全モードをそれぞれ逆算し、
-必要面積が最大のモード（`area_mode`）と必要容量が最大のモード（`capacity_mode`）で決める。
+明示した解析ケースにモードがあればそのモード、無ければ全モード（時系列の逆算ではモードの並びも）をそれぞれ逆算し、
+必要面積が最大の運用（`area_mode`）と必要容量が最大の運用（`capacity_mode`）で決める。
+時系列の逆算はモードの `max_duration`・`analysis.power.sequence`・`analysis.power.base_mode` を `power.energy_balance` と同じく使う。
 成長余裕・員数・冗長・蝕の上書きは `power.mode_load` の集計を共有する。
 割り当てや電力値の不足を含むモードでは要求を過小評価しないよう解析を止める。
 
@@ -454,8 +456,6 @@ default_case = "hot_imaging"
 `power.orbit_generation` を回し、日照中の平均発電を全パネルに真上から当たるときの発電で割った入射係数として掛ける
 （太陽光の強さは 1 AU に固定し、変換効率は Xd で数えるので時系列には入れない）。
 さらに `(1-annual_degradation)^lifetime_years`・`inherent_degradation` を掛ける。
-SMAD の式は日照中の発電を平均で扱うので、日照中に発電が負荷を下回る姿勢（地心指向の固定パネルなど）では
-日照中にも電池から出す分を数えず、面積と容量を過小評価する。その場合は逆算した値を `power.energy_balance` で確かめる。
 異なるパネルが混在するときは、現在の面積配分を保って拡大縮小する設計を仮定する。
 経年・固有の劣化を既存の `eol_factor` に含めた設計では、追加の劣化を重ねないよう上書きする。
 
@@ -464,10 +464,41 @@ SMAD の式は日照中の発電を平均で扱うので、日照中に発電が
 面積と容量は部品の員数を含む。余裕は `spec::ratio_margin`、判定は `ratio_margin_verdict`（警告幅 0）。
 負荷や蝕が 0 で要求が 0 なら余裕は null（判定 OK）。
 
-出力 `SizingOutput` は必要発電・面積・電池容量（合計と1組）・設計面積/容量・両余裕・決めたモード・モードごとの逆算（入射係数を含む）・日照/蝕の負荷と時間・
-最長蝕の標本（日付付き）・使用した仮定 `used`・判定を持つ。電源ページの KPI は「SAP の余裕」「バッテリーの余裕」。
+SMAD の式は日照中の発電を平均の 1 つの値として扱うので、日照中に発電が負荷を下回る姿勢（地心指向の固定パネルなど）では
+日照中にも電池から出す分とその損失を数えず、面積と容量を少なく見る。そこで判定には次の時系列の逆算を使い、SMAD の値は
+手計算と比べられる参考値として残す。
+
+**時系列の逆算。** `power.energy_balance` と同じ発電・電池・運用のモデルで、1 周の収支 ≥ 0 の最小の面積と、
+DoD が `dod_max` に収まる最小の容量を求める。
+
+- 時系列は最長蝕の時期で回す: 上段の時系列（`power.energy_balance` と同じ姿勢則・期間・刻み）の日付と β を、
+  `orbit.eclipse_season` の `longest` の日付と β に替える。
+- 発電は SAP の変換効率・EOL を含む `power.energy_balance` のモデル（Xd・Xe・Xbattery は使わない）に、
+  `(1-annual_degradation)^lifetime_years`・`inherent_degradation` を掛けたもの。モードの姿勢則ごとに時系列を 1 回だけ作り、
+  面積との比（発電は面積に比例する。現在の面積配分を保つ）を掛けて使う。
+- 運用は `power.energy_balance` が判定に使うもの（`evaluation`）と同じ: 最長継続時間を持つモードは基本のモードの上で 1 回続けて
+  開始を周回内でずらした最悪、持たないモードと基本のモードは連続。全モードを逆算するときはモードの並び（`sequence`）も 1 つの運用として数える
+  （ケースでモードを選んだときは並びを使わない。基本のモードはどちらでも設定か並びの最初）。
+- 面積: 1 周の収支（電池の効率込み、容量の上下限で切る前）は面積に対して増えるので、SMAD の面積から上端を 2 倍ずつ探し、
+  区間の幅が上端の `1e-4`（`AREA_TOLERANCE`）以下になるまで二分法で詰める。収支ちょうど 0 以上の上端を採る。
+  最長継続時間の運用は最悪の開始が面積で変わることがあるので、上端の収支が許容差より大きく残ることがある。
+- 容量: 運用のうち最大の面積で各運用を回し、刻みごとのエネルギーの増分（容量によらない）から閉じた形で求める
+  （`battery::required_capacity`。満充電で切る積分では満充電からの不足が `max(初期の不足 − 累積, 峰 − 累積)` なので、
+  `容量 ≥ max(最深の下がり幅 / dod_max, 累積の最小の大きさ / (dod_max − (1 − 初期 SOC)))`）。最長継続時間の最悪の開始は
+  空にならない大きさの電池で満充電から選ぶ。初期 SOC だけで許容 DoD に届くときは容量を決められない。
+- 必要面積・容量は運用のうち最大のもの（`area_mode`・`capacity_mode`。並びなら `sequence`）。この面積と容量を最長蝕の時期の
+  `power.energy_balance` に渡すと、全運用で 1 周の収支 ≥ 0 かつ DoD ≤ `dod_max` になる。
+- 太陽指向（日照中の発電が一定）で SMAD の経路の効率を電力収支のモデルに揃える（Xd = 変換効率、Xe = 変換効率 × 充電効率 × 放電効率、
+  Xbattery = 放電効率）と、時系列の値と SMAD の値の差は蝕の長さの差（季節解析の円錐影と時系列の影）の分だけで、テストでは 1 % 以内。
+- 1 周に満たない時系列などで判定できないときは SMAD の値で判定し、`checks` に `time_series` の注意を出す（`basis` が `smad`）。
+
+出力 `SizingOutput` は判定に使った求め方 `basis`、その必要面積・電池容量（合計と1組）・余裕・決めた運用、設計面積/容量、
+SMAD の全体の値 `smad`（必要発電・面積・容量・余裕・決めたモード・日照/蝕の負荷）、時系列の逆算 `time_series`（回した日付と β・
+運用ごとの面積・その面積での 1 周の収支・容量・評価の回数）、モードごとの逆算 `modes`（入射係数、SMAD の値、時系列の値と
+SMAD に対する比 `area_ratio`・`capacity_ratio`）、日照/蝕の時間、最長蝕の標本（日付付き）、使用した仮定 `used`、判定を持つ。
+電源ページの KPI「SAP の余裕」「バッテリーの余裕」と判定の文は `basis` の値（判定の文の括弧に求め方を書く）。
 任意の `cell_voltage`・`cell_current` と `sizing.bus_voltage` が揃えば、直列数はバス電圧/セル電圧、
-並列数は必要電流/EOL のセル電流をそれぞれ切り上げる。異種セルの混在や属性不足では直並列を出さない。
+並列数は必要電流/EOL のセル電流をそれぞれ切り上げる（必要電流は SMAD の必要発電から）。異種セルの混在や属性不足では直並列を出さない。
 電圧の温度変化・劣化は扱わず、電流に EOL・経年・固有劣化と面積を決めたモードの入射係数を適用する。
 
 上書きは `analysis/power.toml` の `[sizing]`。すべて任意で、既定値は解析が持つ。
@@ -733,6 +764,49 @@ mode        = "THRUST"
   名前の変更（RenamePart・RenameMode）で一緒に書き換わる。マヌーバを消すと、後ろのマヌーバは消したマヌーバの前につなぎ直す。
 - 書き方: 最上位の値のあと、`[target]`・`[constraints]` を見出しの表で書き、中の量は `{ value, unit }`
   （`fune_store::write::records::MANEUVER_SECTIONS`）。編集は `fune maneuver add|set|rm`（GUI も同じ引数を `POST /ops/from_command` に送る）。
+### 7.8 sources/: 出典の台帳と、値の出典
+
+値の根拠になる資料・試験・解析・判断を 1 つ 1 ファイルで書き、値の `from.source` とカタログ品の `source`・`datasheet` から ID で指す。
+
+```toml
+# sources/ds_rw10.toml
+kind         = "datasheet"
+label        = "RW 10 mNms データシート"
+ref          = "https://example.com/datasheets/rw-10.pdf"
+revision     = "Rev. C"
+retrieved    = "2026-10-15"
+sha256       = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+distribution = "on_request"
+by           = "system-lead"
+```
+
+| キー | 中身 | 検査（`fune check`） |
+|---|---|---|
+| `kind` | `placeholder` / `judgement` / `analysis` / `datasheet` / `measured`（根拠の強さの順） | 読み込みで綴りを検査 |
+| `label` | 表示名 | — |
+| `ref` | 参照先（URL・リポジトリ内のパス・文書番号）。`http://`・`https://` で始まれば GUI は新しいタブで開くリンクにする（判定は `Source::web_link` だけ） | — |
+| `revision` | 資料の版（`Rev. C`・`v1.4` など書かれたまま） | — |
+| `retrieved` | 資料を取得した日 | `YYYY-MM-DD` の暦にある日（`source.date`） |
+| `sha256` | 取得したファイル（PDF など）の SHA-256。ベンダーが版番号を変えずに差し替えたことに気づくため | 64 桁の 16 進数（`source.sha256`。大文字も可） |
+| `distribution` | 配布の区分: `public`（誰でも取れる）/ `on_request`（ベンダーに依頼して配られる）/ `restricted`（公開できない。NDA など） | 書き込めないカタログ（共有カタログ）の品が `restricted` の出典を使うと error（`source.restricted`） |
+| `date` | 試験・解析・判断をした日 | `YYYY-MM-DD` の暦にある日（`source.date`） |
+| `by` | 記入者 | — |
+| `note` | メモ | — |
+
+新しいファイルは表の順に書く。既にあるファイルに欄を足すときは、ほかの記録（ケース・ハーネス）と同じく今の行を動かさずに末尾に足す
+（差分を小さくするため。`fune fmt` はキーを並べ替えない）。`fune source set` と GUI の出典のページは同じ Op `set_source` で書く。資料そのもの（PDF）はリポジトリに置かず、
+`ref` の URL で参照し、取得したものの SHA-256 を残す。
+
+- **値の出典** `from` は `source`（出典の ID）・`at`（資料の中の位置。`p.12 表 3` のようなページ・表・節を書かれたまま）・`note` の 3 つ。
+  出典の付いた値は 1 行 1 要素で、`from.source`・`from.at`・`from.note` の順に書く（§10.2 の 3）。CLI は `fune set … --source … --at … --note …`。
+- **カタログ品の `datasheet` は出典の ID を指す**（URL やパスを直接書かない）。データシートの場所・版・取得日・SHA-256・配布の区分は
+  出典の側の 1 か所だけに書き、カタログ品からは ID で参照する。前は `datasheet` に URL かパスを書いていたが、同じ情報を出典の `ref` と
+  二重に持つことになるのでやめた。無い出典の ID を指すと `ref.source` の error。古い書き方（`datasheet` に URL・パスを直接書く）は読めるまま
+  `source.datasheet_location` の warning にして、出典へ移すよう促す（既存のカタログを壊さないため）。`source`（出典を書いていない値に当てる
+  既定の出典）と同じ出典を指してよい。GUI は指した出典の `ref` が Web の URL なら、データシートの欄の横に開くリンクを出す（API の `datasheet_link`）。
+- 公開できない（`restricted`）資料の値は、衛星をまたいで共有するカタログに入れない。共有カタログ（§12。`[[catalog]] git = …`）の品が
+  `source`・`datasheet`・値の `from.source` で `restricted` の出典を指すと error にする。カタログが書き込めるかの判定は
+  `CatalogSource::local_dir`（`path = …` の出所だけが書き込める）の 1 か所。このプロジェクトの中のカタログ（`path = …`）の品は対象にしない。
 
 ## 8. 配分とマージン方針（budget/）
 
@@ -857,7 +931,7 @@ PR では CI が両方のリビジョンで計算し直した変化量をコメ�
    **出典（`from`）の付いた値は 1 行 1 要素で書く。** 出典の無い値は 1 行のインライン表のまま。
    切り替えは行の長さではなく出典の有無だけで決める（`note` を少し書き足しただけで形が変わり、差分が荒れるのを避ける）。
    - 属性（`[attr]` の行）とファイルの最上位の値（ハーネスの `length` など）は、値の見出しの表（`[attr.<名前>]`・`[length]`）の下に
-     `value`・`unit`（範囲は `min`・`max`、ベクトルは `x`・`y`・`z`）を 1 行ずつ、出典はドット付きキー `from.source`・`from.note` で書く。
+     `value`・`unit`（範囲は `min`・`max`、ベクトルは `x`・`y`・`z`）を 1 行ずつ、出典はドット付きキー `from.source`・`from.at`・`from.note` で書く。
    - 状態ごとの値のセルに出典が付くときは、`[attr.<名前>]` の下にセルの名前のドット付きキー（`on.value`・`on.unit`・`on.from.source`）で書く
      （`[attr.power.on]` は 3 段になるので使わない）。出典の無いセルは今の 1 行のまま、同じ表に並ぶ。
    - 見出しの表は親の表の値の行の後ろに置く（TOML の決まり）。親の表に値の行が残らなければ親の見出し（`[attr]`）は書かない。
@@ -872,7 +946,8 @@ PR では CI が両方のリビジョンで計算し直した変化量をコメ�
    value       = 115.0
    unit        = "g"
    from.source = "ds_example"
-   from.note   = "Technical Specifications table, Mass [g]: 115."
+   from.at     = "p.3 Technical Specifications"
+   from.note   = "Mass [g]: 115."
 
    [attr.power]
    off            = { value = 0.0, unit = "W" }

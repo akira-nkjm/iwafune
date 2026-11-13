@@ -15,6 +15,9 @@ pub struct SetArgs {
     /// 出典 ID（sources/）
     #[arg(long)]
     pub source: Option<String>,
+    /// 資料の中の位置（例: `"p.12 表 3"`）
+    #[arg(long)]
+    pub at: Option<String>,
     #[arg(long)]
     pub note: Option<String>,
     /// 不確かさの下限（例: `"1 W"`）

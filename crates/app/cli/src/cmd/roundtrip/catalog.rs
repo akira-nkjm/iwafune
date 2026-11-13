@@ -26,6 +26,7 @@ pub(super) fn catalog_ops() -> Vec<Op> {
             value: scalar(0.9, "kg"),
             from: Some(Provenance {
                 source: Some(s("ds_vendor")),
+                at: Some(s("p.2 Table 1")),
                 note: None,
             }),
         },

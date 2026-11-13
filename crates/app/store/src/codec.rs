@@ -211,16 +211,25 @@ pub fn float(v: f64) -> toml_edit::Value {
     toml_edit::Value::from(v)
 }
 
-fn push_from(t: &mut InlineTable, from: Option<&Provenance>) {
+/// 出典の表（`{ source, at, note }` の順）。**`from` の表の書き出しはここだけ**（量の行も使う）。
+pub fn encode_from(from: &Provenance) -> InlineTable {
+    let mut f = InlineTable::new();
+    for (key, v) in [
+        ("source", &from.source),
+        ("at", &from.at),
+        ("note", &from.note),
+    ] {
+        if let Some(v) = v {
+            f.insert(key, v.as_str().into());
+        }
+    }
+    f
+}
+
+/// 出典があれば `from` を足す。
+pub fn push_from(t: &mut InlineTable, from: Option<&Provenance>) {
     if let Some(from) = from {
-        let mut f = InlineTable::new();
-        if let Some(s) = &from.source {
-            f.insert("source", s.as_str().into());
-        }
-        if let Some(n) = &from.note {
-            f.insert("note", n.as_str().into());
-        }
-        t.insert("from", toml_edit::Value::InlineTable(f));
+        t.insert("from", toml_edit::Value::InlineTable(encode_from(from)));
     }
 }
 

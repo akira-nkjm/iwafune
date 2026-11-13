@@ -13,6 +13,7 @@ use ts_rs::TS;
 
 pub use super::defs::NetKind;
 pub use super::net::{Net, NetField, NetFieldName};
+pub use super::source::{Distribution, Source, SourceKind};
 
 /// 衛星の運用モード（`modes/<ID>.toml`）。部品 → 状態の表。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
@@ -121,39 +122,4 @@ pub struct Case {
     /// 時系列の解析で回す周回数
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub orbits: Option<u32>,
-}
-
-enum_text! {
-    /// 出典の種類（根拠の強さの順: placeholder が最も弱い）。
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-    pub enum SourceKind: "出典の種類" {
-        Placeholder = "placeholder",
-        Judgement = "judgement",
-        Analysis = "analysis",
-        Datasheet = "datasheet",
-        Measured = "measured",
-    }
-}
-
-/// 出典の台帳（`sources/<ID>.toml`）。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-#[ts(rename = "EvidenceSource")]
-pub struct Source {
-    #[serde(default)]
-    pub id: Id<Source>,
-    pub kind: SourceKind,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
-    /// 参照先（URL・文書番号など）
-    #[serde(default, rename = "ref", skip_serializing_if = "Option::is_none")]
-    pub reference: Option<String>,
-    /// 日付（`2026-10-15` のような文字列）
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub date: Option<String>,
-    /// 記入者
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub by: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub note: Option<String>,
 }

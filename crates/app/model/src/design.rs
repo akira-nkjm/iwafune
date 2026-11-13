@@ -4,7 +4,8 @@
 //! |---|---|
 //! | `part` | Part・Group・NodeRef・Mount・Pose・PortBinding・CatalogItem |
 //! | `defs` | AttributeDef・KindDef・BudgetKind・NetKind |
-//! | `system` | Mode・Net・Harness・Case・Source |
+//! | `system` | Mode・Net・Harness・Case |
+//! | `source` | Source・SourceKind・Distribution（出典の台帳） |
 //! | `maneuver` | マヌーバ（区分・計算の段階・目標の軌道・制約）と実行の順（`Design::ordered_maneuvers`） |
 //! | `budget` | 配分とマージン方針 |
 //! | `project` | `fune.toml` |
@@ -27,6 +28,7 @@ pub mod project;
 pub mod refs;
 pub mod setting_dims;
 pub mod settings_view;
+pub mod source;
 pub mod source_map;
 pub mod system;
 pub mod thermal_settings;

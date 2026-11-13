@@ -18,7 +18,15 @@ path: string,
 /**
  * 打ったままの値（`"620 g"`・`"3"`・`"true"`）
  */
-value: string, source: string | null, note: string | null, 
+value: string, 
+/**
+ * 出典の ID（`sources/<ID>`）
+ */
+source: string | null, 
+/**
+ * 資料の中の位置（`p.12 表 3`）
+ */
+at: string | null, note: string | null, 
 /**
  * 不確かさの下限・上限（スカラーのとき）
  */

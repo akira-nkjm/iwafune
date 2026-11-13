@@ -21,6 +21,7 @@ export const shellJa = {
       cases: "解析ケース",
       diagnostics: "診断",
       settings: "設定",
+      sources: "出典",
     },
     main: "メイン",
   },

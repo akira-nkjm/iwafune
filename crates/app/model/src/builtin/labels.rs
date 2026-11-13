@@ -36,7 +36,7 @@ pub struct Labels {
     /// 属性の系（AttributeDef の `section`）
     #[serde(default)]
     pub section: BTreeMap<String, Label>,
-    /// 列挙の型（`maturity`・`net_kind`・`source_kind`・`evidence`・`origin`・`severity`・`attitude_law`・
+    /// 列挙の型（`maturity`・`net_kind`・`source_kind`・`distribution`・`evidence`・`origin`・`severity`・`attitude_law`・
     /// `propagator`・`link_direction`・`uncertainty_side`・`value_type`・`budget_kind`・`maneuver_category`・`maneuver_method`）→ 値 → 表示名
     #[serde(default, rename = "enum")]
     pub enums: BTreeMap<String, BTreeMap<String, Label>>,

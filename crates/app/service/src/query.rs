@@ -7,6 +7,7 @@
 //! | `parts` | 部品の行・1 部品の全情報・1 つの値 |
 //! | `maneuvers` | マヌーバ（実行の順・目標の要素・編集の欄の初期値） |
 //! | `catalog` | カタログ品（値・パス・使っている部品・書き換えられるか） |
+//! | `sources` | 出典の台帳（Web のリンク・ファイル）とデータシートのリンク |
 //! | `values` | 解決済みの値・書かれた量 → 表示用の型 |
 //! | `settings` | 設定 → キーと値の一覧、設定・バジェットと系の対応 |
 
@@ -14,6 +15,7 @@ mod catalog;
 pub(crate) mod maneuvers;
 mod parts;
 pub(crate) mod settings;
+mod sources;
 pub(crate) mod values;
 pub(crate) mod views;
 
@@ -79,7 +81,7 @@ pub fn design_view(ws: &Workspace) -> Result<DesignView> {
         settings: settings::settings(d),
         cases: views::cases(d),
         maneuvers: maneuvers::maneuvers(d),
-        sources: d.sources.values().cloned().collect(),
+        sources: sources::sources(d),
         catalog: catalog::list(d),
         views: d.views.values().cloned().collect(),
         diagnostics: s.diagnostics.clone(),

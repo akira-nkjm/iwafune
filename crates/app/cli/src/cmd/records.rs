@@ -66,6 +66,14 @@ fn source_of(a: &SourceArgs) -> anyhow::Result<Source> {
         )?,
         label: a.label.clone(),
         reference: a.reference.clone(),
+        revision: a.revision.clone(),
+        retrieved: a.retrieved.clone(),
+        sha256: a.sha256.clone(),
+        distribution: a
+            .distribution
+            .as_deref()
+            .map(|d| enum_of(d, "配布の区分（public / on_request / restricted）"))
+            .transpose()?,
         date: a.date.clone(),
         by: a.by.clone(),
         note: a.note.clone(),
@@ -194,6 +202,7 @@ fn catalog_set<'a>(
         path,
         value,
         source,
+        at,
         note,
         min,
         max,
@@ -207,6 +216,7 @@ fn catalog_set<'a>(
         path: path.clone(),
         value: value.clone(),
         source: source.clone(),
+        at: at.clone(),
         note: note.clone(),
         min: min.clone(),
         max: max.clone(),

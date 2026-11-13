@@ -47,6 +47,7 @@ export function targetLink(
     case "kind_def":
       return paths.defs("kinds");
     case "source":
+      return paths.sources();
     case "analysis":
       return null;
   }

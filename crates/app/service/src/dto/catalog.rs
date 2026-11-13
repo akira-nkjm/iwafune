@@ -12,7 +12,7 @@ pub struct CatalogSourceView {
     /// カタログ名（品の ID の `<カタログ名>/` の部分。`CatalogItemView.scope` と同じ値）
     pub name: String,
     /// このプロジェクトの中（`path = …`）なら true。共有カタログ（`git = …`）は読み取り専用で false。
-    /// 判定は `fune_store::layout::local_catalog_dir`（品の `editable` と同じ）
+    /// 判定は `fune_model::design::CatalogSource::local_dir`（品の `editable` と同じ）
     pub editable: bool,
 }
 
@@ -34,8 +34,10 @@ pub struct CatalogItemView {
     pub manufacturer: Option<String>,
     pub part_number: Option<String>,
     pub maturity: Option<Maturity>,
-    /// データシートの場所（URL かリポジトリ内のパス）
+    /// データシートの出典の ID（`sources/<ID>`。URL・版・sha256 はその出典にある）
     pub datasheet: Option<String>,
+    /// データシートの出典の参照先が Web の URL なら、その URL（GUI のリンク）
+    pub datasheet_link: Option<String>,
     /// 出典を書いていない値に当てる既定の出典（`sources/<ID>`）
     pub source: Option<String>,
     /// ポートの雛形（ポート名 → ネットの種類）

@@ -27,6 +27,7 @@ export const catalogEn: typeof catalogJa = {
     partNumber: "Part number",
     maturity: "Maturity",
     datasheet: "Datasheet",
+    openDatasheet: "Open datasheet",
     source: "Source",
     addValue: "Add value",
     attr: "Attribute",

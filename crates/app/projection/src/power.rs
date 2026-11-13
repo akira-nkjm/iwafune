@@ -160,20 +160,11 @@ pub fn energy_balance(ctx: &Context<'_>) -> Result<EnergyBalanceInput, MissingIn
                 mode: md.id.to_string(),
             },
             attitude: mode_law(ctx, md.id.as_str()),
-            max_duration: qty_opt::<Time>(
-                md.max_duration.as_ref(),
-                Target::mode(md.id.as_str(), None),
-                &mut m,
-            ),
+            max_duration: max_duration(md, &mut m),
         })
         .collect();
     let sequence = sequence(ctx, &mut m);
-    let base_mode = ctx
-        .design
-        .analysis
-        .power
-        .as_ref()
-        .and_then(|p| p.base_mode.clone());
+    let base_mode = base_mode(ctx);
     m.finish(|| {
         Some(EnergyBalanceInput {
             timeline: t?,
@@ -188,6 +179,27 @@ pub fn energy_balance(ctx: &Context<'_>) -> Result<EnergyBalanceInput, MissingIn
             mode_attitudes: mode_law_map(ctx),
         })
     })
+}
+
+/// モードの最長継続時間（`max_duration`）。次元が違えば不足入力。
+fn max_duration(
+    md: &fune_model::design::Mode,
+    m: &mut MissingInputs,
+) -> Option<sat_units::typed::Qty<Time>> {
+    qty_opt::<Time>(
+        md.max_duration.as_ref(),
+        Target::mode(md.id.as_str(), None),
+        m,
+    )
+}
+
+/// 最長継続時間の評価で下に敷く基本のモード（`analysis.power.base_mode`）。
+fn base_mode(ctx: &Context<'_>) -> Option<String> {
+    ctx.design
+        .analysis
+        .power
+        .as_ref()
+        .and_then(|p| p.base_mode.clone())
 }
 
 /// モードの並び（`analysis.power.sequence`）。区間の長さの次元が違えば不足入力。

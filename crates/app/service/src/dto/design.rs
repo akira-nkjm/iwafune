@@ -6,7 +6,7 @@ use super::{
     ValueView,
 };
 use fune_model::builtin::{Labels, Role};
-use fune_model::design::{Maturity, Source, StateAssign, ViewLayout};
+use fune_model::design::{Maturity, StateAssign, ViewLayout};
 use fune_model::value::Vector3;
 use fune_ops::Op;
 use serde::{Deserialize, Serialize};
@@ -56,8 +56,8 @@ pub struct DesignView {
     pub cases: Vec<CaseView>,
     /// マヌーバ（実行の順）
     pub maneuvers: Vec<super::ManeuverView>,
-    /// 出典の台帳（`sources/<ID>.toml`）
-    pub sources: Vec<Source>,
+    /// 出典の台帳（`sources/<ID>.toml`。ID 順）
+    pub sources: Vec<super::SourceView>,
     /// カタログ品（`"local/rw_10mNms"` の順。値は部品と同じ形で、パスと使っている部品も品の中に）
     pub catalog: Vec<CatalogItemView>,
     /// 図の配置（`view/<名前>.toml`。系統図のノードの位置）

@@ -89,8 +89,12 @@ pub struct SetText {
     pub path: String,
     /// 打ったままの値（`"620 g"`・`"3"`・`"true"`）
     pub value: String,
+    /// 出典の ID（`sources/<ID>`）
     #[serde(default)]
     pub source: Option<String>,
+    /// 資料の中の位置（`p.12 表 3`）
+    #[serde(default)]
+    pub at: Option<String>,
     #[serde(default)]
     pub note: Option<String>,
     /// 不確かさの下限・上限（スカラーのとき）

@@ -139,7 +139,8 @@ fn sizing(out: &SizingOutput) -> PowerPageView {
         modes: out
             .modes
             .iter()
-            .map(|m| PowerModeView {
+            .map(|m| (m, m.required(out.basis)))
+            .map(|(m, (area, capacity))| PowerModeView {
                 id: m.id.clone(),
                 label: m.id.clone(),
                 verdict: out
@@ -153,7 +154,7 @@ fn sizing(out: &SizingOutput) -> PowerPageView {
                         "area",
                         label("太陽電池の面積", "Solar Cells area"),
                         Some(out.design_area.value()),
-                        m.required_area.value(),
+                        area.value(),
                         PowerLimitKind::AtLeast,
                         out.mode_checks
                             .get(&m.id)
@@ -163,7 +164,7 @@ fn sizing(out: &SizingOutput) -> PowerPageView {
                         "capacity",
                         label("電池容量", "Battery capacity"),
                         Some(out.design_capacity.value()),
-                        m.required_capacity.value(),
+                        capacity.value(),
                         PowerLimitKind::AtLeast,
                         out.mode_checks
                             .get(&m.id)

@@ -79,6 +79,7 @@ redundancy = ["none", "cold", "warm"]
 severity = ["error", "warning", "info"]
 maneuver_category = ["insertion", "station_keeping", "unloading", "deorbit", "other"]
 maneuver_method = ["impulsive", "finite_burn", "low_thrust"]
+distribution = ["public", "on_request", "restricted"]
 
 [enum.maturity.off_the_shelf]
 label    = "既製品"
@@ -135,6 +136,18 @@ label_en = "Datasheet"
 [enum.source_kind.measured]
 label    = "実測"
 label_en = "Measured"
+
+[enum.distribution.public]
+label    = "公開"
+label_en = "Public"
+
+[enum.distribution.on_request]
+label    = "依頼して配布"
+label_en = "On request"
+
+[enum.distribution.restricted]
+label    = "公開不可（NDA など）"
+label_en = "Restricted (NDA etc.)"
 
 [enum.evidence.placeholder]
 label    = "仮置き"

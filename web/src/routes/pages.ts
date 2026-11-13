@@ -62,6 +62,10 @@ export const pages = {
     () => import("@/features/project/SettingsPage"),
     (m) => m.SettingsPage,
   ),
+  sources: page(
+    () => import("@/features/sources/SourcesPage"),
+    (m) => m.SourcesPage,
+  ),
 };
 
 /**
@@ -93,5 +97,6 @@ export const preloadPlan: PreloadPlan = {
     pages.cases,
     pages.diagnostics,
     pages.settings,
+    pages.sources,
   ],
 };

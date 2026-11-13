@@ -1,6 +1,6 @@
 //! モードごとの逆算。入射は姿勢則の時系列（`power.orbit_generation`）から取り、電力収支と前提を揃える。
 use super::calculate::{ModeLoads, smad_requirements};
-use super::{SizingInput, SizingMode, SizingUsed};
+use super::{SizingInput, SizingMode, SizingTimeSeries, SizingUsed};
 use crate::power::orbit_generation::{OrbitGeneration, OrbitGenerationInput};
 use crate::power::solar::{SolarArray, SolarLife};
 use crate::spec::{Analysis, AnalysisError};
@@ -45,6 +45,10 @@ pub(super) fn evaluate(
                 required_generation: Qty::from_raw(generation),
                 required_area: Qty::from_raw(area),
                 required_capacity: Qty::from_raw(capacity),
+                series_area: None,
+                series_capacity: None,
+                area_ratio: None,
+                capacity_ratio: None,
             })
         })
         .collect()
@@ -74,4 +78,21 @@ pub(super) fn governing(modes: &[SizingMode], key: impl Fn(&SizingMode) -> f64) 
         &modes[0],
         |best, m| if key(m) > key(best) { m } else { best },
     )
+}
+
+/// 時系列の逆算の値と、SMAD の値との比をモードごとに入れる。
+pub(super) fn attach_series(modes: &mut [SizingMode], ts: &SizingTimeSeries) {
+    let ratio = |series: f64, smad: f64| {
+        let r = series / smad;
+        r.is_finite().then_some(Fraction::new(r))
+    };
+    for m in modes {
+        let Some(t) = ts.targets.iter().find(|t| t.id == m.id) else {
+            continue;
+        };
+        m.series_area = Some(t.required_area);
+        m.series_capacity = Some(t.required_capacity);
+        m.area_ratio = ratio(t.required_area.value(), m.required_area.value());
+        m.capacity_ratio = ratio(t.required_capacity.value(), m.required_capacity.value());
+    }
 }

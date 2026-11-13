@@ -147,6 +147,8 @@ export const componentsEn: typeof componentsJa = {
       notScalar: (type: string, path: string) =>
         `Enter ${type} values (${path}) with the CLI or in TOML.`,
       source: "Source (optional)",
+      at: "Location in source (optional)",
+      atPlaceholder: "p.12 Table 3",
       note: "Note (optional)",
       notePlaceholder: "EM measurement",
     },

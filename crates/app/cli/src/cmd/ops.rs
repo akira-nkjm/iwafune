@@ -60,6 +60,7 @@ pub fn edit_of<'a>(ws: &Workspace, command: &'a Command) -> anyhow::Result<Optio
                 path: a.path.clone(),
                 value: a.value.clone(),
                 source: a.source.clone(),
+                at: a.at.clone(),
                 note: a.note.clone(),
                 min: a.min.clone(),
                 max: a.max.clone(),

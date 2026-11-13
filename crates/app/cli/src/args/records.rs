@@ -63,7 +63,7 @@ pub enum SourceCmd {
     /// 出典の一覧
     Ls,
     /// 出典を書く
-    Set(SourceArgs),
+    Set(Box<SourceArgs>),
     /// 出典を消す（値から参照されていれば拒む）
     Rm {
         id: String,
@@ -81,9 +81,22 @@ pub struct SourceArgs {
     pub kind: String,
     #[arg(long)]
     pub label: Option<String>,
-    /// 参照先（URL・文書番号）
+    /// 参照先（URL・リポジトリ内のパス・文書番号）
     #[arg(long = "ref")]
     pub reference: Option<String>,
+    /// 資料の版（例: `"Rev. C"`）
+    #[arg(long)]
+    pub revision: Option<String>,
+    /// 資料を取得した日（`2026-10-15`）
+    #[arg(long)]
+    pub retrieved: Option<String>,
+    /// 取得したファイルの SHA-256（64 桁の 16 進数）
+    #[arg(long)]
+    pub sha256: Option<String>,
+    /// 配布の区分（public / on_request / restricted）
+    #[arg(long)]
+    pub distribution: Option<String>,
+    /// 日付（試験・解析・判断をした日。`2026-10-15`）
     #[arg(long)]
     pub date: Option<String>,
     #[arg(long)]
@@ -248,6 +261,9 @@ pub enum CatalogCmd {
         value: String,
         #[arg(long)]
         source: Option<String>,
+        /// 資料の中の位置（例: `"p.12 表 3"`）
+        #[arg(long)]
+        at: Option<String>,
         #[arg(long)]
         note: Option<String>,
         #[arg(long, allow_hyphen_values = true)]

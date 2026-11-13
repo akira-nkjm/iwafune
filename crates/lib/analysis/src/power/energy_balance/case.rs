@@ -92,14 +92,15 @@ pub(super) fn lit_load(lit: &[bool], sun: Qty<Power>, ecl: Qty<Power>) -> Vec<f6
 const CONTINUOUS_BASIS: &str = "解析期間ずっと続けたとき";
 
 /// 1 ケースを解析期間ずっと続けたとして評価する（最長継続時間の評価は [`super::duration`] が上書きする）。
+/// 電池の積分（`trace`）も返す（時系列の逆算が刻みごとの増分を使う）。
 pub(super) fn evaluate_case(
     ctx: &Context,
     case: &EnergyBalanceCase,
-) -> Result<EnergyBalanceCaseResult, AnalysisError> {
+) -> Result<(EnergyBalanceCaseResult, BatteryTrace), AnalysisError> {
     let mut checks = Vec::new();
     let (sun, ecl) = case_loads(ctx.input, case, &mut checks)?;
     let load = lit_load(&ctx.profile.lit, sun, ecl);
-    let mut result = balance(
+    let (mut result, trace) = balance(
         ctx,
         (&case.id, &case.label),
         (sun, ecl),
@@ -108,11 +109,12 @@ pub(super) fn evaluate_case(
         CONTINUOUS_BASIS,
     );
     result.duty = duty_of(ctx.input, case_modes(case));
-    Ok(result)
+    Ok((result, trace))
 }
 
 /// 負荷の時系列 `load`（発電は `ctx.generation`）で電池を積分し、1 ケースの結果を作る。
 /// `checks` はモードの警告など、判定の前に置くもの。`basis` はどの運用で回したか（判定の文の括弧書き）。
+/// 電池の積分（`trace`）も返す。
 pub(super) fn balance(
     ctx: &Context,
     (id, label): (&str, &str),
@@ -120,7 +122,7 @@ pub(super) fn balance(
     load: Vec<f64>,
     mut checks: Vec<Check>,
     basis: &str,
-) -> EnergyBalanceCaseResult {
+) -> (EnergyBalanceCaseResult, BatteryTrace) {
     let net: Vec<f64> = ctx
         .generation
         .iter()
@@ -152,7 +154,7 @@ pub(super) fn balance(
         },
         basis,
     ));
-    EnergyBalanceCaseResult {
+    let result = EnergyBalanceCaseResult {
         id: id.to_owned(),
         label: label.to_owned(),
         load_sunlit: sun,
@@ -179,7 +181,8 @@ pub(super) fn balance(
         evaluation: EnergyBalanceEvaluation::Continuous,
         by_max_duration: None,
         duty: EnergyBalanceDuty::NotUsed,
-    }
+    };
+    (result, trace)
 }
 
 /// 1 周あたりのエネルギー余裕（周回の最小）と、1 周に満たないときの解析期間全体の収支。

@@ -17,6 +17,7 @@ const LABELLED: &[(&str, &[&str])] = &[
     ("net_kind", NetKind::NAMES),
     ("budget_kind", BudgetKind::NAMES),
     ("source_kind", SourceKind::NAMES),
+    ("distribution", fune_model::design::Distribution::NAMES),
     ("evidence", Evidence::NAMES),
     ("origin", Origin::NAMES),
     ("severity", Severity::NAMES),
