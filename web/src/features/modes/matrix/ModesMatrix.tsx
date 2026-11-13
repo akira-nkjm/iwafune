@@ -1,4 +1,5 @@
 import { Plus } from "lucide-react";
+import { useState } from "react";
 import type { DesignView } from "@/api/types";
 import { useT } from "@/i18n";
 import { Reveal } from "@/kit/Reveal";
@@ -25,6 +26,7 @@ export function ModesMatrix({
   onAdd: () => void;
 }) {
   const tm = useT().modes;
+  const [eclipse, setEclipse] = useState(false);
   const table = design.modes;
   const computed = useModeDraftLoad(table, draft);
   const count = draftCount(draft);
@@ -36,6 +38,7 @@ export function ModesMatrix({
       >
         <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-line border-b px-4 py-3">
           <h2 className="font-semibold text-sm">{tm.matrixTitle}</h2>
+          <LightingSwitch value={eclipse} onChange={setEclipse} />
           <p className="text-xs text-ink-3">{tm.hint}</p>
           <div className="ml-auto flex gap-3 whitespace-nowrap text-xs text-ink-3">
             <span>{tm.legendOn}</span>
@@ -49,11 +52,16 @@ export function ModesMatrix({
         </div>
         <div className="min-h-0 flex-1 scroll-pt-16 scroll-pb-36 scroll-pl-52 overflow-auto">
           <ModesTable
+            key={eclipse ? "eclipse" : "sunlit"}
             modes={table.modes}
-            groups={matrixGroups(design, draft, computed.load.data, tm)}
+            groups={matrixGroups(design, draft, computed.load.data, tm, eclipse)}
+            eclipse={eclipse}
+            load={computed.load}
             budget={computed.budget}
             updating={computed.load.updating}
-            onCell={({ mode, part }, cell) => onDraft(withCell(table, draft, mode, part, cell))}
+            onCell={({ mode, part }, cell) =>
+              onDraft(withCell(table, draft, mode, part, cell, eclipse))
+            }
           />
         </div>
         {/* 保存の帯はカードのいちばん下。最初の下書きで滑らかに開き、保存・破棄で滑らかに閉じる */}
@@ -67,5 +75,36 @@ export function ModesMatrix({
         </Reveal>
       </section>
     </div>
+  );
+}
+
+/** 日照／蝕の表示選択。ネイティブのボタンで Tab・Enter・Space を使える。 */
+export function LightingSwitch({
+  value,
+  onChange,
+}: {
+  value: boolean;
+  onChange: (eclipse: boolean) => void;
+}) {
+  const t = useT().modes;
+  return (
+    <fieldset aria-label={t.lighting} className="flex gap-1">
+      <Button
+        variant="outline"
+        aria-pressed={!value}
+        onClick={() => onChange(false)}
+        className="aria-pressed:border-accent aria-pressed:bg-accent/15 aria-pressed:text-accent"
+      >
+        {t.sunlit}
+      </Button>
+      <Button
+        variant="outline"
+        aria-pressed={value}
+        onClick={() => onChange(true)}
+        className="aria-pressed:border-accent aria-pressed:bg-accent/15 aria-pressed:text-accent"
+      >
+        {t.eclipseView}
+      </Button>
+    </fieldset>
   );
 }

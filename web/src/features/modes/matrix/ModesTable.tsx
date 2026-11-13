@@ -1,14 +1,13 @@
 import { Fragment } from "react";
-import { useCommandText } from "@/api/ops";
-import type { BudgetView, ModeHeader } from "@/api/types";
+import type { BudgetView, ModeHeader, ModeLoadOutput } from "@/api/types";
 import { useT } from "@/i18n";
-import { CommitInput } from "@/kit/forms/CommitInput";
 import { SystemDot } from "@/kit/SystemDot";
 import { cn } from "@/lib/cn";
 import { nodeName } from "@/lib/design";
 import type { DraftComputed } from "../draft/use-mode-draft-load";
 import { ModeBudgetRows } from "./ModeBudgetRows";
 import { ModeCell } from "./ModeCell";
+import { ModeDuration } from "./ModeDuration";
 import { ModeHeaderMenu } from "./ModeHeaderMenu";
 import { STICKY } from "./matrix";
 import { MatrixFocus } from "./matrix-focus";
@@ -23,11 +22,15 @@ export function ModesTable({
   modes,
   groups,
   budget,
+  load,
+  eclipse,
   updating,
   onCell,
 }: {
   /** 列（モード）の見出し */
   modes: ModeHeader[];
+  eclipse: boolean;
+  load: DraftComputed<ModeLoadOutput | null>;
   /** サブシステムごとの部品の行（`matrixGroups`） */
   groups: MatrixGroup[];
   /** 足もとの合計・使用可能電力・余裕（下書きを当てた値） */
@@ -96,31 +99,20 @@ export function ModesTable({
         </MatrixFocus>
       </tbody>
       <tfoot className={`${STICKY.foot} bg-panel-2`}>
-        <ModeBudgetRows modes={modes} budget={budget} />
+        <ModeBudgetRows modes={modes} budget={budget} load={load} eclipse={eclipse} />
       </tfoot>
     </table>
   );
 }
 
-/** 列見出しのモードの名前。日本語は設計に書いた表示名の下に ID、英語（と表示名が無いとき）は ID だけ */
+/** 列見出しのモードの名前と最長継続時間。日本語は設計に書いた表示名の下に ID、英語（と表示名が無いとき）は ID だけ */
 function ModeName({ mode }: { mode: ModeHeader }) {
   const name = nodeName(mode);
-  const edit = useCommandText();
-  const t = useT().modes;
   return (
     <div>
       <div className="font-medium text-ink">{name}</div>
       {name !== mode.id && <div className="font-mono text-[10px] text-ink-4">{mode.id}</div>}
-      <CommitInput
-        label={t.maxDuration}
-        value={mode.max_duration?.display ?? ""}
-        onCommit={(duration) =>
-          edit.mutate({
-            command: { command: "mode_duration", mode: mode.id, duration: duration || null },
-            summary: t.durationSummary(mode.id),
-          })
-        }
-      />
+      <ModeDuration mode={mode} />
     </div>
   );
 }

@@ -1,11 +1,21 @@
-import type { DesignView, ModeLoadOutput, ModeRow, ModeTable, PartRow } from "@/api/types";
+import type {
+  DesignView,
+  ModeLoadOutput,
+  ModeRow,
+  ModeTable,
+  PartRow,
+  StateAssign,
+} from "@/api/types";
 import { kindLabel, nodeLabel, partById } from "@/lib/design";
-import { type CellText, cellOf, type ModeDraft } from "../draft/draft";
+import { type CellText, cellOf, draftKey, type ModeDraft } from "../draft/draft";
 import { type CellWords, powerLevels, savedCellText } from "./matrix";
 import type { CellAt } from "./matrix-focus";
 
 /** 行列の 1 セルに出すもの（`ModeCell` はこれ 1 つで描く） */
 export interface MatrixCell {
+  eclipse?: boolean;
+  override?: boolean;
+  savedDuty?: StateAssign["duty"];
   mode: string;
   part: string;
   /** 部品の状態の語彙（セルの切り替えとポップオーバー） */
@@ -63,17 +73,28 @@ function cellsOf(
   draft: ModeDraft,
   { row, index, levels, power }: RowSource,
   words: CellWords,
+  eclipse: boolean,
 ): MatrixCell[] {
   return table.modes.map((m, column) => {
-    const value = cellOf(table, draft, m.id, row.part);
+    const override = eclipse && cellOf(table, draft, m.id, row.part, true) !== null;
+    const sourceEclipse = eclipse && override;
+    const value = cellOf(table, draft, m.id, row.part, sourceEclipse);
     return {
+      eclipse,
+      override,
+      savedDuty: sourceEclipse ? row.eclipse_cells[m.id]?.duty : undefined,
       mode: m.id,
       part: row.part,
       states: row.states,
       value,
-      display: savedCellText(row, m.id, words),
-      changed: draft.get(m.id)?.has(row.part) ?? false,
-      power: power(m.id),
+      display:
+        sourceEclipse || draft.get(m.id)?.has(row.part)
+          ? undefined
+          : savedCellText(row, m.id, words),
+      changed:
+        (draft.get(draftKey(m.id, eclipse))?.has(row.part) ?? false) ||
+        (eclipse && !override && (draft.get(m.id)?.has(row.part) ?? false)),
+      power: eclipse ? null : power(m.id),
       shade: levels.findIndex(([state]) => state === value?.state),
       at: { row: index, column },
     };
@@ -90,6 +111,7 @@ export function matrixGroups(
   draft: ModeDraft,
   load: ModeLoadOutput | null,
   words: CellWords,
+  eclipse = false,
 ): MatrixGroup[] {
   const table = design.modes;
   const parts = partById(design);
@@ -117,7 +139,7 @@ export function matrixGroups(
       kind: row.kind && kindLabel(design.defs, row.kind),
       levels: levels.map(([, q]) => q.display).join(" / "),
       levelsTitle: levels.map(([state, q]) => `${state}: ${q.display}`).join(" / "),
-      cells: cellsOf(table, draft, { row, index, levels, power }, words),
+      cells: cellsOf(table, draft, { row, index, levels, power }, words, eclipse),
     });
   });
   return groups;

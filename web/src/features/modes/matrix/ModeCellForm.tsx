@@ -13,9 +13,11 @@ export function ModeCellForm({
   states,
   value,
   onChange,
+  clearLabel,
 }: {
   /** 部品の状態の語彙（基本の状態の選択肢と、時間割合の欄） */
   states: string[];
+  clearLabel?: string;
   /** 今のセル（未指定は null） */
   value: CellText | null;
   /** 状態・時間割合を変えたとき、未指定に戻したとき（null） */
@@ -97,7 +99,7 @@ export function ModeCellForm({
             className="text-ink-3 text-xs underline"
             onClick={() => onChange(null)}
           >
-            {t.clear}
+            {clearLabel ?? t.clear}
           </button>
         </div>
       )}
