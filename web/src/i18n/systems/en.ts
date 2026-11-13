@@ -102,6 +102,12 @@ export const systemsEn: typeof systemsJa = {
     thermal3d: "3D colored by temperature",
     thermal3dLegend: "Max temperature per node (nodes whose ID matches a part ID)",
     layout3d: {
+      browser: "Parts tree",
+      showAll: "Show all",
+      show: (name: string) => `Show ${name}`,
+      hide: (name: string) => `Hide ${name}`,
+      helpers: "Coordinate helpers",
+      helper: { origin: "Origin axes", grid: "Grid", gizmo: "Corner axes" },
       pageHint: "Select parts to inspect and edit their mounts, positions and orientations.",
       parts: (n: number) => `${n} parts`,
       unplacedCount: (n: number) => ` · ${n} unplaced`,

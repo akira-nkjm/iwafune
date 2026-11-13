@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { PartRow } from "@/api/types";
-import { catalogTree, filterTree, partsTree, treeCount } from "./tree-nodes";
+import {
+  ancestorKeys,
+  catalogTree,
+  filterTree,
+  partsTree,
+  treeCount,
+  treeItems,
+} from "./tree-nodes";
 
 type Part = Pick<PartRow, "id" | "parent" | "dir" | "system">;
 /** `dir` は API の PartRow.dir（`parts/` からのディレクトリの区間） */
@@ -81,5 +88,29 @@ describe("filterTree", () => {
   });
   it("returns an empty tree and expansion set when nothing matches", () => {
     expect(filterTree(nodes, () => false)).toEqual({ nodes: [], expanded: new Set() });
+  });
+});
+
+describe("treeItems and ancestorKeys", () => {
+  const nodes = partsTree([
+    part("BAT", ["power", "batteries"]),
+    part("CELL", ["other"], "BAT"),
+    part("RW", ["aocs"]),
+  ]);
+  it("collects the item and all descendants of a node", () => {
+    expect(treeItems(nodes[0]!).map((p) => p.id)).toEqual(["BAT", "CELL"]);
+    expect(treeItems(nodes[1]!).map((p) => p.id)).toEqual(["RW"]);
+  });
+  it("returns the folder and assembly keys above a matching item, root first", () => {
+    const power = nodes[0]!;
+    const batteries = power.children[0]!;
+    const bat = batteries.children[0]!;
+    expect(ancestorKeys(nodes, (p) => p.id === "CELL")).toEqual([
+      power.key,
+      batteries.key,
+      bat.key,
+    ]);
+    expect(ancestorKeys(nodes, (p) => p.id === "RW")).toEqual([nodes[1]!.key]);
+    expect(ancestorKeys(nodes, (p) => p.id === "NONE")).toEqual([]);
   });
 });

@@ -6,9 +6,10 @@ import {
   Grid,
   OrbitControls,
   TransformControls,
+  useBounds,
 } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
-import { useState } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import { useEffect, useRef, useState } from "react";
 import type { Mesh } from "three";
 import { ArrowHelper, Color, Vector3 } from "three";
 import { palette, toneHex, uiHex } from "@/lib/tone";
@@ -20,6 +21,7 @@ import {
   type sceneDimensions,
   type V3,
 } from "./scene";
+import { DEFAULT_SCENE_HELPERS, type FocusRequest, type SceneHelpers } from "./visibility";
 
 const AXIS_COLOR: Record<Axis3D["attr"], string> = {
   spin_axis: toneHex.blue,
@@ -53,6 +55,8 @@ export function Scene3D({
   axes,
   edit,
   structureOpacity,
+  helpers = DEFAULT_SCENE_HELPERS,
+  focus = null,
 }: {
   boxes: Box3D[];
   dimensions: ReturnType<typeof sceneDimensions>;
@@ -66,6 +70,10 @@ export function Scene3D({
   edit?: SceneEdit;
   /** 構造の不透明度。省略すると従来の熱の表示を保つ。 */
   structureOpacity?: number;
+  /** 座標の表示（原点の軸・地面の格子・画面隅の軸）。省略するとすべて出す */
+  helpers?: SceneHelpers;
+  /** 視点を寄せる部品（ツリーで押したとき。描いていない部品なら何もしない） */
+  focus?: FocusRequest | null;
 }) {
   const [target, setTarget] = useState<Mesh | null>(null);
   return (
@@ -85,21 +93,25 @@ export function Scene3D({
     >
       <ambientLight intensity={0.7} />
       <directionalLight position={[2, -3, 4]} intensity={1.2} />
-      <Grid
-        rotation={[Math.PI / 2, 0, 0]}
-        args={[dimensions.grid, dimensions.grid]}
-        cellSize={dimensions.gridCell}
-        sectionSize={dimensions.gridSection}
-        cellColor={uiHex.tick}
-        sectionColor={toneHex.gray}
-        fadeDistance={dimensions.gridFade}
-        infiniteGrid
-      />
-      <axesHelper args={[dimensions.axes]} />
+      {helpers.grid && (
+        <Grid
+          rotation={[Math.PI / 2, 0, 0]}
+          args={[dimensions.grid, dimensions.grid]}
+          cellSize={dimensions.gridCell}
+          sectionSize={dimensions.gridSection}
+          cellColor={uiHex.tick}
+          sectionColor={toneHex.gray}
+          fadeDistance={dimensions.gridFade}
+          infiniteGrid
+        />
+      )}
+      {helpers.origin && <axesHelper args={[dimensions.axes]} />}
       <Bounds fit clip margin={1.3}>
+        <FocusOn focus={focus} />
         {boxes.map((b) => (
           <mesh
             key={b.id}
+            name={b.id}
             ref={b.id === selected ? setTarget : undefined}
             position={b.position}
             quaternion={[b.orientation[1], b.orientation[2], b.orientation[3], b.orientation[0]]}
@@ -156,9 +168,30 @@ export function Scene3D({
       )}
       {/* makeDefault: TransformControls を掴んでいる間は drei がカメラ操作を止める */}
       <OrbitControls makeDefault />
-      <GizmoHelper alignment="bottom-right" margin={[64, 64]}>
-        <GizmoViewport labelColor={palette.inverse} axisHeadScale={0.9} />
-      </GizmoHelper>
+      {helpers.gizmo && (
+        <GizmoHelper alignment="bottom-right" margin={[64, 64]}>
+          <GizmoViewport labelColor={palette.inverse} axisHeadScale={0.9} />
+        </GizmoHelper>
+      )}
     </Canvas>
   );
+}
+
+/** 依頼された部品（mesh の name は部品の ID）の外形に視点を寄せる。向きは今のまま、距離と注視点だけを変える */
+function FocusOn({ focus }: { focus: FocusRequest | null }) {
+  const bounds = useBounds();
+  const scene = useThree((state) => state.scene);
+  const invalidate = useThree((state) => state.invalidate);
+  // 同じ依頼を 2 回寄せない（カメラ操作の付け替えで bounds が作り直されても、視点を戻さない）
+  const done = useRef<FocusRequest | null>(null);
+  useEffect(() => {
+    if (!focus || !bounds || done.current === focus) return;
+    done.current = focus;
+    const target = scene.getObjectByName(focus.id);
+    if (!target) return;
+    bounds.refresh(target).fit();
+    // frameloop="demand" では、動かし始めを描き直しの依頼で起こす
+    invalidate();
+  }, [focus, bounds, scene, invalidate]);
+  return null;
 }

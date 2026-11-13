@@ -89,3 +89,22 @@ export function filterTree<T>(nodes: readonly TreeNode<T>[], matches: (item: T) 
 export function treeCount<T>(node: TreeNode<T>): number {
   return (node.item ? 1 : 0) + node.children.reduce((sum, child) => sum + treeCount(child), 0);
 }
+
+/** 節とその子孫の項目（フォルダーの表示・非表示などをまとめて切り替えるため）。 */
+export function treeItems<T>(node: TreeNode<T>): T[] {
+  return [...(node.item ? [node.item] : []), ...node.children.flatMap(treeItems)];
+}
+
+/** 一致する項目までの祖先の節の key（根から順に。項目自身は含めない。無ければ空）。 */
+export function ancestorKeys<T>(
+  nodes: readonly TreeNode<T>[],
+  matches: (item: T) => boolean,
+): string[] {
+  for (const node of nodes) {
+    if (node.item && matches(node.item)) return [];
+    const below = ancestorKeys(node.children, matches);
+    if (below.length || node.children.some((c) => c.item && matches(c.item)))
+      return [node.key, ...below];
+  }
+  return [];
+}

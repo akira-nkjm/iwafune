@@ -1,7 +1,14 @@
 import { ChevronDown, ChevronRight, Folder } from "lucide-react";
-import { type HTMLAttributes, type KeyboardEvent, type ReactNode, useRef, useState } from "react";
+import {
+  type HTMLAttributes,
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { cn } from "@/lib/cn";
-import { type TreeNode, treeCount } from "./tree-nodes";
+import { ancestorKeys, type TreeNode, treeCount } from "./tree-nodes";
 
 type Row<T> = { node: TreeNode<T>; level: number; parent?: string; position: number; size: number };
 type TreeProps<T> = {
@@ -12,6 +19,8 @@ type TreeProps<T> = {
   label: string;
   renderItem: (item: T, label: string) => ReactNode;
   folderLabel?: (name: string) => string;
+  /** 行の右端の操作（表示・非表示の切り替えなど。フォルダーにも出せる）。押しても行の選択・開閉は起こさない */
+  renderActions?: (node: TreeNode<T>) => ReactNode;
 };
 
 function visibleRows<T>(
@@ -79,6 +88,19 @@ function useTree<T extends { id: string }>(props: TreeProps<T>) {
   const active = rows.some((r) => r.node.key === focused)
     ? focused
     : (rows.find((r) => r.node.item?.id === props.selected) ?? rows[0])?.node.key;
+  // 外で選ばれた項目が閉じたフォルダーの中なら祖先を開き、見える所まで送る
+  const { nodes, selected } = props;
+  useEffect(() => {
+    if (selected === null) return;
+    const path = ancestorKeys(nodes, (item) => item.id === selected);
+    setCollapsed((old) =>
+      path.some((key) => old.has(key)) ? new Set([...old].filter((k) => !path.includes(k))) : old,
+    );
+  }, [nodes, selected]);
+  const selectedKey = rows.find((r) => r.node.item && r.node.item.id === selected)?.node.key;
+  useEffect(() => {
+    if (selectedKey) refs.current.get(selectedKey)?.scrollIntoView?.({ block: "nearest" });
+  }, [selectedKey]);
   const toggle = (key: string) =>
     setCollapsed((old) => {
       const next = new Set(old);
@@ -167,11 +189,25 @@ function TreeRow<T extends { id: string }>({
           <span className="shrink-0 text-ink-3 tabular-nums">{treeCount(node)}</span>
         </>
       )}
+      {props.renderActions && (
+        // 行の操作は行の選択・開閉・矢印の移動に渡さない
+        // biome-ignore lint/a11y/noStaticElementInteractions: 中のボタンの押下とキーを行に伝えないための囲み
+        <span
+          className="ml-auto flex shrink-0 items-center"
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+          {props.renderActions(node)}
+        </span>
+      )}
     </div>
   );
 }
 
-/** 共通の単一選択ツリー。フォーカスと選択を分け、矢印・Home/End・Enter に対応。 */
+/**
+ * 共通の単一選択ツリー。フォーカスと選択を分け、矢印・Home/End・Enter に対応。
+ * 外から選ばれた項目（3D で選んだ部品など）は、祖先のフォルダーを開いて見える所まで送る。
+ */
 export function Tree<T extends { id: string }>(props: TreeProps<T>) {
   const tree = useTree(props);
   return (
