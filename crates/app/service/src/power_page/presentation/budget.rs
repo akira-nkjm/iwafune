@@ -69,8 +69,10 @@ pub(super) fn collect(
                 case.sunlit_average_discharge,
             ),
         ];
+        // 発電に比べて丸めの残りしかない区間（10⁻¹⁰ W など）は出さない
+        let floor = case.sunlit_average_generation.value().abs() * 1e-9;
         for (kind, name, value) in extra {
-            if value.value() > 0.0 {
+            if value.value() > floor {
                 segments.push((kind, None, name, value.value()));
             }
         }
