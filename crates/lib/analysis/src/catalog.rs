@@ -45,6 +45,7 @@ registry!(
     structure::StaticLoad,
     structure::ModalEstimate,
     crate::orbit::EclipseSeason,
+    crate::orbit::OrbitDecay,
 );
 
 /// 型付き入力で登録済み解析を実行する。動的実行と budget が共有する入口。

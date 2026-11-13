@@ -116,6 +116,11 @@ macro_rules! kpi_table {
 
 kpi_table! {
     sat_analysis::orbit::EclipseSeason { LongestEclipse => longest_eclipse, BetaMin => beta_min, BetaMax => beta_max }
+    sat_analysis::orbit::OrbitDecay {
+        OrbitLifetime => orbit_lifetime,
+        DecayPerDay => decay_per_day,
+        StationKeepingDeltaV => station_keeping_delta_v,
+    }
     power::ModeLoad { ModeLoad => mode_load }
     power::OrbitGeneration { OrbitGeneration => orbit_generation }
     power::EnergyBalance { OrbitBalance => orbit_balance, MaxDod => max_dod }
@@ -153,6 +158,20 @@ fn beta_min(o: &sat_analysis::orbit::EclipseSeasonOutput, _: Ctx<'_>) -> Option<
 }
 fn beta_max(o: &sat_analysis::orbit::EclipseSeasonOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.beta_max.beta)
+}
+
+fn orbit_lifetime(o: &sat_analysis::orbit::OrbitDecayOutput, _: Ctx<'_>) -> Option<Measured> {
+    // 再突入しない条件があっても、再突入する条件のうち最短を出す（どれも再突入しなければ値なし）
+    smallest(o.cases.iter().filter_map(|c| c.lifetime))
+}
+fn decay_per_day(o: &sat_analysis::orbit::OrbitDecayOutput, _: Ctx<'_>) -> Option<Measured> {
+    largest(o.cases.iter().map(|c| c.decay_per_day))
+}
+fn station_keeping_delta_v(
+    o: &sat_analysis::orbit::OrbitDecayOutput,
+    _: Ctx<'_>,
+) -> Option<Measured> {
+    largest(o.cases.iter().map(|c| c.station_keeping.delta_v_per_year))
 }
 
 fn mode_load(o: &power::ModeLoadOutput, ctx: Ctx<'_>) -> Option<Measured> {
@@ -272,6 +291,7 @@ fn rule(key: KpiKey) -> Rule {
         }
         K::NodesInRange => (true, Fill::OkShare, true),
         K::OrbitBalance
+        | K::OrbitLifetime
         | K::UnloadInterval
         | K::MtqUnloadTime
         | K::SensorIntrusion
@@ -288,6 +308,8 @@ fn rule(key: KpiKey) -> Rule {
         K::LongestEclipse
         | K::BetaMin
         | K::BetaMax
+        | K::DecayPerDay
+        | K::StationKeepingDeltaV
         | K::ModeLoad
         | K::OrbitGeneration
         | K::PeakMomentum

@@ -10,10 +10,12 @@ use sat_analysis::aocs::slew_time::{SlewAssumption, SlewProfile};
 use sat_analysis::aocs::unload_time::UnloadAssumption;
 use sat_analysis::comm::data_throughput::DataThroughputLinkClosure;
 use sat_analysis::comm::link_budget::LinkBudgetDirection;
+use sat_analysis::orbit::decay::{DecayCondition, DragAreaSource};
 use sat_analysis::power::energy_balance::{EnergyBalanceDuty, EnergyBalanceEvaluation};
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
+use sat_astro::atmosphere::space_weather::{SolarActivity, WeatherSource};
 use serde::de::DeserializeOwned;
 
 fn label(ja: impl Into<String>, en: impl Into<String>) -> AnalysisLabel {
@@ -56,6 +58,7 @@ pub fn channel_label(kind: ChannelKind, subject: Option<&str>) -> AnalysisLabel 
         K::NodeTemperature => label(s, s),
         K::AbsorbedHeat => label("外部入熱", "Absorbed heat"),
         K::Backlog => label("未送信データ", "Backlog"),
+        K::Altitude => label("高度", "Altitude"),
     }
 }
 
@@ -181,6 +184,58 @@ fn modal_kind(k: ModalEstimateKind) -> AnalysisLabel {
     }
 }
 
+fn solar_activity(a: SolarActivity) -> AnalysisLabel {
+    match a {
+        SolarActivity::Low => label("低い太陽活動", "Low solar activity"),
+        SolarActivity::Moderate => label("中程度の太陽活動", "Moderate solar activity"),
+        SolarActivity::High => label("高い太陽活動", "High solar activity"),
+    }
+}
+
+fn weather_source(w: WeatherSource) -> AnalysisLabel {
+    match w {
+        WeatherSource::Observed => label("観測値", "Observed"),
+        WeatherSource::Interpolated => label("補間値", "Interpolated"),
+        WeatherSource::DailyPredicted => label("日ごとの予測", "Daily prediction"),
+        WeatherSource::MonthlyPredicted => label("月ごとの予測", "Monthly prediction"),
+        WeatherSource::Preset => label("太陽活動のプリセット", "Solar-activity preset"),
+        WeatherSource::Manual => label("手で与えた値", "Manual value"),
+    }
+}
+
+fn drag_area_source(s: DragAreaSource) -> AnalysisLabel {
+    match s {
+        DragAreaSource::Given => label("与えた面積", "Given area"),
+        DragAreaSource::TumblingBox => label(
+            "構体の外形の箱を向きでならした面積（表面積の 1/4）",
+            "Body box averaged over orientations (a quarter of the surface area)",
+        ),
+    }
+}
+
+fn decay_condition(kind: &str) -> Option<AnalysisLabel> {
+    // 内部タグの列挙はタグの値だけを見る（中身の太陽活動は別の欄の値として引く）
+    let probe = match kind {
+        "preset" => DecayCondition::Preset {
+            activity: SolarActivity::Moderate,
+        },
+        "dated" => DecayCondition::Dated {
+            fallback: SolarActivity::Moderate,
+        },
+        _ => return None,
+    };
+    Some(match probe {
+        DecayCondition::Preset { .. } => label(
+            "太陽活動のプリセットで一定",
+            "Constant solar-activity preset",
+        ),
+        DecayCondition::Dated { .. } => label(
+            "宇宙天気の表から日付で引いた値",
+            "Dated values from the space-weather table",
+        ),
+    })
+}
+
 fn link_closure(kind: &str) -> Option<AnalysisLabel> {
     // 内部タグの列挙はタグの値だけを見る（中身の量は dims で整形する）
     let probe = match kind {
@@ -221,6 +276,10 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
         "DataThroughputLinkClosure" => link_closure(value),
+        "SolarActivity" => parse(value).map(solar_activity),
+        "WeatherSource" => parse(value).map(weather_source),
+        "DragAreaSource" => parse(value).map(drag_area_source),
+        "DecayCondition" => decay_condition(value),
         _ => None,
     }
 }
@@ -232,6 +291,12 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         K::LongestEclipse => label("最長蝕の時間", "Longest eclipse duration"),
         K::BetaMin => label("β の範囲（最小）", "Beta range (minimum)"),
         K::BetaMax => label("β の範囲（最大）", "Beta range (maximum)"),
+        K::OrbitLifetime => label("軌道寿命（最短の条件）", "Orbital lifetime (shortest)"),
+        K::DecayPerDay => label("1 日の高度低下（最大）", "Altitude decay per day (max)"),
+        K::StationKeepingDeltaV => label(
+            "軌道維持の ΔV / 年（最大）",
+            "Station-keeping delta-v per year (max)",
+        ),
         K::ModeLoad => label("モードの消費電力（バジェット）", "Mode load (budget)"),
         K::OrbitGeneration => label("軌道平均の発電", "Orbit-average generation"),
         K::OrbitBalance => label("軌道平均の収支（最悪）", "Orbit-average balance (worst)"),
@@ -323,6 +388,9 @@ mod tests {
         assert!(value_label("SlewProfile", "trapezoidal").is_some());
         assert!(value_label("SlewAssumption", "eigen_axis_rest_to_rest").is_some());
         assert!(value_label("String", "RW_X").is_none());
+        let high = value_label("SolarActivity", "high").unwrap();
+        assert_eq!(high.label_en, "High solar activity");
+        assert!(value_label("DecayCondition", "dated").is_some());
         let (l, m) = span_check(SpanFallback::OrbitMeanOverSpan);
         assert_eq!(l.label, "解析期間");
         assert!(m.label.contains("全期間の平均") && m.label_en.contains("whole span"));

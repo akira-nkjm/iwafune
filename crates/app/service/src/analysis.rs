@@ -7,6 +7,7 @@
 //! | [`labels`] | 解析の出力の語彙の表示名（日本語・英語） |
 //! | `checks` | 出力の中の判定を集める（期間不足の注意は語彙から作る） |
 //! | `kpi` | KPI（代表値の選び方・判定・塗りの比・判定の数え方） |
+//! | `weather` | 高度低下の入力に宇宙天気の表から日付で引いた列を足し、使った表の版を返す |
 
 use crate::dto::{
     AnalysisCaseSource, AnalysisEntry, AnalysisInputSource, AnalysisLabel, AnalysisRunResult,
@@ -25,6 +26,7 @@ pub(crate) mod checks;
 mod dims;
 mod kpi;
 pub mod labels;
+mod weather;
 
 /// 解析の一覧（`GET /analyses`）。
 pub fn analysis_catalog() -> Result<Vec<AnalysisEntry>> {
@@ -57,6 +59,8 @@ struct Outcome {
     error: Option<String>,
     /// 解析ケースのモード（KPI の電力のモードの選び方に使う。入力を丸ごと与えたときは None）
     case_mode: Option<String>,
+    /// 入力に足した宇宙天気の表の版
+    space_weather: Option<crate::dto::SpaceWeatherVersion>,
 }
 
 impl Outcome {
@@ -70,14 +74,16 @@ impl Outcome {
             missing: Vec::new(),
             error: Some(error),
             case_mode: None,
+            space_weather: None,
         }
     }
 }
 
-/// 設計から組み立てた入力と、そのケースのモード。
+/// 設計から組み立てた入力と、そのケースのモード・入力に足した宇宙天気の表の版。
 struct Projected {
     input: Value,
     case_mode: Option<String>,
+    space_weather: Option<crate::dto::SpaceWeatherVersion>,
 }
 
 /// 解析を実行する（`POST /analyses/{id}`）。足りない入力は `missing` に入れて返す（エラーにしない）。
@@ -119,6 +125,7 @@ pub fn run_analysis(
         error: outcome.error,
         dims: outcome.dims,
         labels: outcome.labels,
+        space_weather: outcome.space_weather,
     })
 }
 
@@ -149,17 +156,17 @@ fn run_inner(
     snapshot: Option<&crate::workspace::Snapshot>,
     case: Option<&str>,
 ) -> Result<Outcome> {
-    let (input, case_mode) = match &req.source {
-        AnalysisInputSource::Given { input } => (input.clone(), None),
+    let (input, case_mode, space_weather) = match &req.source {
+        AnalysisInputSource::Given { input } => (input.clone(), None, None),
         source => {
             let snapshot = snapshot
                 .ok_or_else(|| ServiceError::Internal("解析用の設計がありません".to_owned()))?;
             match project(snapshot, id, case) {
                 Ok(p) => match source {
                     AnalysisInputSource::Patched { patch } => {
-                        (merge_patch(p.input, patch), p.case_mode)
+                        (merge_patch(p.input, patch), p.case_mode, p.space_weather)
                     }
-                    _ => (p.input, p.case_mode),
+                    _ => (p.input, p.case_mode, p.space_weather),
                 },
                 Err(ProjectionError::Missing(m)) => {
                     return Ok(Outcome {
@@ -189,25 +196,30 @@ fn run_inner(
                 missing: Vec::new(),
                 error: None,
                 case_mode,
+                space_weather,
             }
         }
         Err(e) => Outcome {
             input: Some(input),
+            space_weather,
             ..Outcome::failed(e.to_string())
         },
     })
 }
 
 /// 設計（依頼の `ops` があれば書き込まずに当てたもの）から解析の入力を組み立てる。ケースのモードも添える。
+/// 外部データの要る解析には、ここでキャッシュの表から引いた値を足す（`weather::attach`）。
 fn project(
     snapshot: &crate::workspace::Snapshot,
     id: &str,
     case: Option<&str>,
 ) -> Result<Projected, ProjectionError> {
     let ctx = Context::new(&snapshot.design, &snapshot.resolved, case)?;
+    let (input, space_weather) = weather::attach(id, project_json(id, &ctx)?);
     Ok(Projected {
-        input: project_json(id, &ctx)?,
+        input,
         case_mode: ctx.case_mode().map(|m| m.id.to_string()),
+        space_weather,
     })
 }
 

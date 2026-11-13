@@ -69,6 +69,9 @@ pub struct OrbitSettings {
     /// 軌道の季節解析の設定。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub eclipse_season: Option<EclipseSeasonSettings>,
+    /// 大気抵抗による高度低下と軌道維持の設定（`[decay]`）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub decay: Option<OrbitDecaySettings>,
 }
 
 /// 季節解析の設定（刻みの既定値は解析が持つ）。
@@ -78,6 +81,31 @@ pub struct EclipseSeasonSettings {
     /// 季節の標本の間隔（時間）。
     #[serde(default)]
     pub step: Option<Quantity>,
+}
+
+/// 高度低下と軌道維持の設定（`conditions/orbit.toml` の `[decay]`）。どれも任意で、既定値は解析が持つ。
+/// 抗力係数は `analysis.aocs.drag_coefficient`、質量は部品、外形は構体の `size` から取る。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct OrbitDecaySettings {
+    /// 積分の期間の上限（時間）。
+    #[serde(default)]
+    pub span: Option<Quantity>,
+    /// 再突入とみなす高度（長さ）。
+    #[serde(default)]
+    pub reentry_altitude: Option<Quantity>,
+    /// 抗力の面積（面積。無ければ構体の外形の箱を向きでならした面積）。
+    #[serde(default)]
+    pub drag_area: Option<Quantity>,
+    /// 軌道維持の高度の帯（長さ。無ければ抗力を連続して打ち消す）。
+    #[serde(default)]
+    pub band: Option<Quantity>,
+    /// 寿命の上限（時間。廃棄の要求）。
+    #[serde(default)]
+    pub max_lifetime: Option<Quantity>,
+    /// 軌道維持に使える推薬（質量。比推力はスラスタの部品から）。
+    #[serde(default)]
+    pub propellant: Option<Quantity>,
 }
 
 /// 地上局（`conditions/ground/<ID>.toml`）。

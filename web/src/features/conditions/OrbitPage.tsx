@@ -14,6 +14,7 @@ import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { TablePanel } from "@/kit/table/TablePanel";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
+import { DecayPanel } from "./DecayPanel";
 import { EclipseSeasonPanel } from "./EclipseSeasonPanel";
 
 /** 前提条件 / 軌道と地上局: 前提条件の設定（API の `scope`）と、地上局ごとの可視（comm.visibility） */
@@ -106,6 +107,9 @@ function OrbitAnalyses() {
         >
           {state.id === "orbit.eclipse_season" && state.result?.status === "ok" && (
             <EclipseSeasonPanel result={state.result} design={design} />
+          )}
+          {state.id === "orbit.decay" && state.result?.status === "ok" && (
+            <DecayPanel result={state.result} />
           )}
         </AnalysisCard>
       ))}

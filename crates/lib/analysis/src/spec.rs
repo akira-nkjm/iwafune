@@ -164,6 +164,8 @@ pub enum ChannelKind {
     AbsorbedHeat,
     /// 未送信データ
     Backlog,
+    /// 軌道の高度（高度低下の推移）
+    Altitude,
 }
 
 impl Channel {

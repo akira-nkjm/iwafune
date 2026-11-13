@@ -13,7 +13,7 @@
 //! | `quantity` | 書かれた量 → 型付きの SI 量（換算は sat-units） |
 //! | `missing` | 不足入力の型と収集 |
 //! | `power` `aocs` `cdh` `comm` `thermal` `structure` | 系ごとの射影 |
-//! | `orbit` | 軌道条件の季節解析の入力（軌道・期間・任意の刻み） |
+//! | `orbit` | 軌道条件の解析の入力（季節解析: 軌道・期間・任意の刻み。高度低下: 軌道・質量・外形・抗力係数・`[decay]` の設定・推進系） |
 //! | `dispatch` | 解析 ID → 射影（入力の JSON）の対応表。実行は service（`sat_analysis::catalog::run_json`） |
 //! | `system` | 解析の系の対応（model の `AnalysisSystem` ⇄ sat-analysis の `System`）と一致のテスト |
 
@@ -24,7 +24,7 @@ pub mod comm;
 pub mod context;
 pub mod dispatch;
 pub mod missing;
-/// 軌道条件の季節解析への写し替え。
+/// 軌道条件の解析（季節解析・高度低下）への写し替え。
 pub mod orbit;
 pub mod parts;
 pub mod pose;

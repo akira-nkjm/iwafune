@@ -9,3 +9,6 @@ ltdn            = "10:30"
 arg_perigee     = { value = 0.0, unit = "deg" }
 mean_anomaly    = { value = 0.0, unit = "deg" }
 duration        = { value = 1.0, unit = "yr" }
+
+[decay]
+max_lifetime = { value = 25.0, unit = "yr" }

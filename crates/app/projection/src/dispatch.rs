@@ -137,6 +137,7 @@ table!(
     astructure::StaticLoad => Some(structure::static_load),
     astructure::ModalEstimate => Some(structure::modal_estimate),
     sat_analysis::orbit::EclipseSeason => Some(crate::orbit::eclipse_season),
+    sat_analysis::orbit::OrbitDecay => Some(crate::orbit::decay),
 );
 
 #[cfg(test)]
