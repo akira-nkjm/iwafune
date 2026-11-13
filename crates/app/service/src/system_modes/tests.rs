@@ -79,7 +79,7 @@ fn dto_values_and_budget_are_hand_checkable() {
     assert_eq!(heat.modes[0].eclipse.total.as_ref().unwrap().si, 0.0);
     let aocs = system_modes_of(&s, System::Aocs).unwrap();
     assert_eq!(
-        aocs.modes[0].attitude_law,
+        aocs.modes[0].aocs.as_ref().unwrap().attitude.law,
         Some(AttitudeLawKind::SunPointing)
     );
     assert!(aocs.modes[0].sunlit.total.is_none());
@@ -116,7 +116,10 @@ fn missing_inputs_do_not_become_zero_or_ok() {
     let mut s = snapshot();
     s.design.analysis.aocs.as_mut().unwrap().law.clear();
     let aocs = system_modes_of(&s, System::Aocs).unwrap();
-    assert_eq!(aocs.modes[0].sunlit.verdict, Some(Verdict::Warning));
+    assert_eq!(
+        aocs.modes[0].aocs.as_ref().unwrap().rw.status,
+        crate::dto::AnalysisRunStatus::MissingInputs
+    );
     let values = mode_values([("part".into(), None)], "Power", &[]);
     assert!(values.parts["part"].is_none());
     assert!(values.total.is_none());

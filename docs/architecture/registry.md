@@ -27,6 +27,7 @@
 
 | 機能 | 置き場所 | 備考 |
 |---|---|---|
+| AOCS のモードカード | `fune_service::system_modes::{aocs,devices,attitude}`・`dto::aocs_modes`、`fune_projection::aocs`、`web/src/features/systems/aocs/` | モードを明示した姿勢則の射影。機器は既存の counted_states で日照・蝕の状態を役割別に集計。姿勢則は既存の SetText 入口（`edit::text` の未設定軸の型ヒント）で編集。クォータニオンの設定は `SettingValue::Quaternion`・既存の value::text / json・store の codec で往復。通常の解析のケース選択・数値は維持する |
 | 系別のモード表示 | `fune_service::system_modes`（DTO は `dto::design`）、`fune_projection::{cdh,thermal}`・既存のモード評価、`web/src/features/modes/matrix/` | 定義は設計のモードだけ。系のタブは同じ下書き・保存を使い、値・合計・判定は Rust が返す。電源の蝕の部品別値は `power::mode_load`。C&DH の部品射影は `cdh::data_parts`、欠損付きレートは `data_budget::mode_part_rates`。熱は `thermal::loads`・`ThermalModeLoads::evaluate_parts`・`ThermalLoad::dissipation`（熱変換の唯一の場所）を共用。 |
 | モードの表示順・並び替え | `Design::ordered_modes`（model::design::project）・`Project.modes`・`fune_ops::op::{Op::MoveMode, ModePosition}`・`plan::others`・`store::write::project`・`service::edit::command` | fune.toml の `[modes] order`。検査は model::check::modes、正規化は store の format_files と共用。CLI mode move と Web ModeHeaderMenu は CommandText::ModeMove を共用 |
 | 解析の区分・前提条件の話題 | `sat_analysis::spec::{AnalysisArea, ConditionTopic}`（葉の `spec::area` から再公開）・`fune_model::design::ConditionTopic` | 区分は系または条件の話題。model ⇄ analysis の話題の対応と区分のキーは `fune_projection::system`。話題の設定は `design::conditions`、対応する条件のファイル内に置く |
@@ -287,6 +288,7 @@
 
 | 日時 | 変更 | 理由 |
 |---|---|---|
+| 2026-11-13 | AOCS のモードを姿勢則・役割別機器・モード姿勢での解析・最長時間のカードに変更。magnetometer を組み込み役割に追加。SetText で未設定の姿勢軸・クォータニオンも編集可能に | #91 |
 | 2026-11-13 | 設計に配置ページを追加し、構造の概要の 3D をリンクに変更。配置は画面高を使い、質量特性の重心を表示。熱の温度 3D は維持 | #90 |
 | 2026-11-13 | 系別のモード DTO と共通行列のモードタブ、電源の蝕の部品別値を追加。定義ページから収支を移す | #78 |
 | 2026-11-13 | モードの表示順を fune.toml に保存し、model の共通順序関数・MoveMode・CLI/HTTP 共通コマンド・行列の左右移動を追加 | #84 |

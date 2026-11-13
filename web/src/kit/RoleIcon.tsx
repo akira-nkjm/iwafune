@@ -32,6 +32,7 @@ const ICONS: Record<Role, LucideIcon> = {
   obc: Cpu,
   reaction_wheel: Disc3,
   magnetorquer: Magnet,
+  magnetometer: Magnet,
   star_tracker: Star,
   sun_sensor: SunMedium,
   gyro: Satellite,

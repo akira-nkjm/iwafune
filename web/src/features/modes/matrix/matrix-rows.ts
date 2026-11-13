@@ -122,9 +122,7 @@ export function matrixGroups(
   const rows = table.rows
     .filter(
       (r) =>
-        !system ||
-        system === "aocs" ||
-        view?.modes.some((m) => r.part in m.sunlit.parts || r.part in m.eclipse.parts),
+        !system || view?.modes.some((m) => r.part in m.sunlit.parts || r.part in m.eclipse.parts),
     )
     .sort(
       (a, b) => (groupOf(a) ?? "").localeCompare(groupOf(b) ?? "") || a.part.localeCompare(b.part),

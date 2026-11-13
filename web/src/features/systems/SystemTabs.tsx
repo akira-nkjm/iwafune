@@ -15,6 +15,7 @@ import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { TablePanel } from "@/kit/table/TablePanel";
 import { systemTitle } from "@/lib/design";
+import { AocsModes } from "./aocs/AocsModes";
 import { SystemPartsTable } from "./SystemPartsTable";
 
 /** グラフ（recharts）は時系列のタブを開いたときだけ読む。系のページの最初のチャンクを小さくするため */
@@ -45,7 +46,11 @@ export function SystemTabs({
   const dict = useT();
   if (tab === "modes")
     return design && hasModes(system) ? (
-      <SystemModes key={system} design={design} system={system} />
+      system === "aocs" ? (
+        <AocsModes design={design} />
+      ) : (
+        <SystemModes key={system} design={design} system={system} />
+      )
     ) : null;
   if (tab === "results")
     return (

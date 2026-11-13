@@ -1,4 +1,3 @@
-import { useEnumLabel } from "@/api/labels";
 import type { ModeHeader, System, SystemModesView } from "@/api/types";
 import { useT } from "@/i18n";
 import { Loading, SkeletonLines } from "@/kit/feedback/Loading";
@@ -8,7 +7,7 @@ import { Formatted } from "@/quantity/Formatted";
 import type { DraftComputed } from "../draft/use-mode-draft-load";
 import { STICKY } from "./matrix";
 
-/** 合計・収支・姿勢則。値と判定は API が返し、ここは表示期間を選んで並べるだけ。 */
+/** 合計・収支。値と判定は API が返し、ここは表示期間を選んで並べるだけ。 */
 export function ModeBudgetRows({
   modes,
   view,
@@ -22,17 +21,9 @@ export function ModeBudgetRows({
 }) {
   const t = useT();
   const tm = t.modes;
-  const label = useEnumLabel();
   const rows =
     system === "power" ? (["total", "available", "margin"] as const) : (["total"] as const);
-  const title =
-    system === "aocs"
-      ? tm.attitudeLaw
-      : system === "cdh"
-        ? tm.dataRate
-        : system === "thermal"
-          ? tm.heat
-          : tm.powerRow;
+  const title = system === "cdh" ? tm.dataRate : system === "thermal" ? tm.heat : tm.powerRow;
   return (
     <>
       {rows.map((key) => (
@@ -59,13 +50,7 @@ export function ModeBudgetRows({
                   </Loading>
                 ) : (
                   <>
-                    {system === "aocs" ? (
-                      found?.attitude_law ? (
-                        label("attitude_law", found.attitude_law)
-                      ) : (
-                        "—"
-                      )
-                    ) : value ? (
+                    {value ? (
                       <Formatted
                         si={value.si}
                         dimension={value.dimension}

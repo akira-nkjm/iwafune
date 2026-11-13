@@ -18,6 +18,7 @@ enum_text! {
         StarTracker = "star_tracker",
         SunSensor = "sun_sensor",
         Gyro = "gyro",
+        Magnetometer = "magnetometer",
         Gps = "gps",
         Transceiver = "transceiver",
         Antenna = "antenna",

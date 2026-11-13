@@ -89,6 +89,12 @@ fn value_data(v: &SettingValue) -> ValueData {
         SettingValue::Quantity(q) => scalar(authored_quantity(q, None)),
         SettingValue::Bool(b) => ValueData::Bool { value: *b },
         SettingValue::Text(s) => ValueData::Text { value: s.clone() },
+        SettingValue::Quaternion(q) => ValueData::Quat {
+            w: q.w,
+            x: q.x,
+            y: q.y,
+            z: q.z,
+        },
         SettingValue::List(items) => ValueData::Text {
             value: items.join(", "),
         },

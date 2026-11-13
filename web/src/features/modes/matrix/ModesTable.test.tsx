@@ -30,7 +30,7 @@ function modeView(system: System = "power"): SystemModesView {
           total: qv(4, unit, dimension),
           margin: qv(36, "W", "Power"),
         },
-        attitude_law: system === "aocs" ? "sun_pointing" : null,
+        aocs: null,
       },
     ],
   };
@@ -77,11 +77,10 @@ describe("系別のモードの行列", () => {
     expect(html).not.toContain(getT().modes.margin);
     expect(html).not.toContain("15 W");
   });
-  it("C&DH・熱・AOCS はそれぞれの見出しを出し、電力の収支を出さない", () => {
+  it("C&DH・熱 はそれぞれの見出しを出し、電力の収支を出さない", () => {
     for (const [system, title] of [
       ["cdh", getT().modes.dataRate],
       ["thermal", getT().modes.heat],
-      ["aocs", getT().modes.attitudeLaw],
     ] as const) {
       const html = render(false, system);
       expect(html).toContain(title);

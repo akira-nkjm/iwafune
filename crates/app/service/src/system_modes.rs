@@ -1,6 +1,10 @@
 //! 系ごとのモードの見方（電源の消費電力・C&DH のデータの発生量・熱の発熱・AOCS の姿勢則）。
 //! 値・合計・判定はここで作り、web は並べるだけ（`POST /system_modes/{system}`）。
 
+mod aocs;
+mod attitude;
+mod devices;
+
 use crate::dto::PartViewRequest;
 use crate::error::Result;
 use crate::workspace::{Snapshot, Workspace};
@@ -20,17 +24,20 @@ fn system_modes_of(
     system: sat_analysis::spec::System,
 ) -> Result<crate::dto::SystemModesView> {
     use crate::dto::{SystemModeView, SystemModesView};
-    use sat_analysis::spec::{System, Verdict};
+    use sat_analysis::spec::System;
+    if system == System::Aocs {
+        return Ok(SystemModesView {
+            system,
+            modes: aocs::views(s)?,
+        });
+    }
     let ctx = fune_projection::Context {
         design: &s.design,
         resolved: &s.resolved,
         case: None,
     };
     let mut modes = Vec::new();
-    if !matches!(
-        system,
-        System::Power | System::Cdh | System::Thermal | System::Aocs
-    ) {
+    if !matches!(system, System::Power | System::Cdh | System::Thermal) {
         return Err(crate::error::ServiceError::InvalidInput(
             "この系にはモード表示がありません".into(),
         ));
@@ -51,48 +58,42 @@ fn system_modes_of(
                 id: mode.id.clone(),
                 sunlit,
                 eclipse,
-                attitude_law: None,
+                aocs: None,
             });
         }
     } else {
-        for mode in ctx.modes() {
-            let (sunlit, eclipse, attitude_law) = match system {
-                System::Cdh => (
-                    data_mode_values(&ctx, &mode)?,
-                    data_mode_values(&ctx, &mode.in_eclipse())?,
-                    None,
-                ),
-                System::Thermal => (
-                    heat_mode_values(&ctx, &mode.id, false)?,
-                    heat_mode_values(&ctx, &mode.id, true)?,
-                    None,
-                ),
-                _ => {
-                    let law = s
-                        .design
-                        .analysis
-                        .aocs
-                        .as_ref()
-                        .and_then(|a| a.law.get(&mode.id))
-                        .map(|l| l.law);
-                    let mut missing = fune_projection::MissingInputs::new();
-                    let valid = ctx.attitude_law(Some(&mode.id), &mut missing).is_some();
-                    let values = crate::dto::ModeValuesView {
-                        verdict: Some(if valid { Verdict::Ok } else { Verdict::Warning }),
-                        ..Default::default()
-                    };
-                    (values.clone(), values, law)
-                }
-            };
-            modes.push(SystemModeView {
-                id: mode.id,
-                sunlit,
-                eclipse,
-                attitude_law,
-            });
-        }
+        modes = matrix_modes(&ctx, system)?;
     }
     Ok(SystemModesView { system, modes })
+}
+
+fn matrix_modes(
+    ctx: &fune_projection::Context<'_>,
+    system: sat_analysis::spec::System,
+) -> Result<Vec<crate::dto::SystemModeView>> {
+    use crate::dto::SystemModeView;
+    use sat_analysis::spec::System;
+    let mut modes = Vec::new();
+    for mode in ctx.modes() {
+        let (sunlit, eclipse) = match system {
+            System::Cdh => (
+                data_mode_values(ctx, &mode)?,
+                data_mode_values(ctx, &mode.in_eclipse())?,
+            ),
+            System::Thermal => (
+                heat_mode_values(ctx, &mode.id, false)?,
+                heat_mode_values(ctx, &mode.id, true)?,
+            ),
+            _ => (Default::default(), Default::default()),
+        };
+        modes.push(SystemModeView {
+            id: mode.id.clone(),
+            sunlit,
+            eclipse,
+            aocs: None,
+        });
+    }
+    Ok(modes)
 }
 
 fn mode_analysis_error(e: sat_analysis::spec::AnalysisError) -> crate::error::ServiceError {
@@ -220,5 +221,7 @@ pub fn parse_system(text: &str) -> Result<sat_analysis::spec::System> {
     Ok(fune_projection::system::to_analysis(system))
 }
 
+#[cfg(test)]
+mod aocs_tests;
 #[cfg(test)]
 mod tests;

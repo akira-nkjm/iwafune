@@ -3,6 +3,31 @@ import type { FillBasis } from "@/api/types";
 /** 系の解析のページの文言（日本語） */
 export const systemsJa = {
   systems: {
+    aocsModes: {
+      empty: "モードがありません",
+      maxDuration: "最長継続時間",
+      devices: "使う機器",
+      primary: "主軸",
+      secondary: "副軸",
+      axisDiagram: "機体軸から目標への方向",
+      noLaw: "姿勢則が未設定",
+      unknownState: "状態未設定",
+      count: (active: number, total: number) => `稼働 ${active} / ${total} 台`,
+      momentum: "運動量とアンロード",
+      perOrbit: "運動量の蓄積 / 周回",
+      perDay: "アンロード回数 / 日",
+      unloadTime: "MTQ アンロード時間",
+      sensorFov: "センサ視野・禁止角",
+      basis:
+        "各モードの姿勢則と既定ケースの軌道条件で評価。機器・センサの解析対象は通常解析と共通。",
+      fields: {
+        law: "姿勢則",
+        axis: "主軸（機体座標）",
+        secondary: "副軸（機体座標）",
+        along_track: "進行方向に合わせる軸",
+        orientation: "機体 → ECI（w x y z）",
+      },
+    },
     eyebrow: "系の解析",
     unknown: (s: string) => `知らない系です: ${s}`,
     defaultDerivedCase: (name: string) => `条件選択が必要な解析の既定: ${name}`,

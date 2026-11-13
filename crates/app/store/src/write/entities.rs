@@ -2,7 +2,7 @@
 
 use super::Edits;
 use super::doc::{self, set_opt, string, strings, table_mut};
-use crate::codec::{encode_vector, float};
+use crate::codec::{encode_quaternion, encode_vector, float};
 use crate::error::StoreError;
 use crate::profile as format;
 use fune_model::design::{
@@ -186,6 +186,7 @@ pub fn setting_item(value: &SettingValue) -> Item {
         SettingValue::Text(s) => string(s),
         SettingValue::Quantity(q) => quantity(q),
         SettingValue::Vector(v) => Item::Value(encode_vector(v, None)),
+        SettingValue::Quaternion(q) => Item::Value(encode_quaternion(q)),
         SettingValue::List(l) => strings(l.iter().map(String::as_str)),
     }
 }

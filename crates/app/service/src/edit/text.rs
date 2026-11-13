@@ -168,11 +168,30 @@ pub fn maturity(text: &str) -> Result<Maturity> {
 /// 設定の値。今の値（`Design::setting`）の型に合わせ、書かれていなければ文字列から推し量る（`setting_from_text`）。
 fn setting_value(ws: &Workspace, path: &SettingPath, text: &SetText) -> Result<SettingValue> {
     let snapshot = snapshot_with(ws, &text.ops)?;
-    let like = snapshot.design.setting(path);
+    let like = snapshot
+        .design
+        .setting(path)
+        .or_else(|| attitude_field_type(path));
     setting_from_text(&text.value, like.as_ref()).map_err(|e| match like {
         Some(SettingValue::Quantity(_)) => quantity_error(text.value.trim(), e),
         _ => invalid(e),
     })
+}
+
+// 未設定でも、AOCS の姿勢則の軸と回転は文字列ではなく構造の値として読む（欄の形は model が持つ）。
+fn attitude_field_type(path: &SettingPath) -> Option<SettingValue> {
+    use fune_model::design::{AnalysisSystem, AttitudeLawSetting};
+    use fune_model::path::SettingScope;
+    let [system, table, _mode, field] = path.segments.as_slice() else {
+        return None;
+    };
+    if path.scope != SettingScope::Analysis
+        || system != AnalysisSystem::Aocs.as_str()
+        || table != "law"
+    {
+        return None;
+    }
+    AttitudeLawSetting::field_shape(field)
 }
 
 /// 文字列 → ベクトル（`"0 0 12 mm"`）。`fune part place --position` 用。
