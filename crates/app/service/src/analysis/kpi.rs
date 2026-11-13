@@ -115,11 +115,11 @@ macro_rules! kpi_table {
 }
 
 kpi_table! {
-    sat_analysis::orbit::EclipseSeason { LongestEclipse => longest_eclipse, BetaMin => beta_min, BetaMax => beta_max }
+    sat_analysis::orbit::EclipseSeason { LongestEclipse => orbit::longest_eclipse, BetaMin => orbit::beta_min, BetaMax => orbit::beta_max }
     sat_analysis::orbit::OrbitDecay {
-        OrbitLifetime => orbit_lifetime,
-        DecayPerDay => decay_per_day,
-        StationKeepingDeltaV => station_keeping_delta_v,
+        OrbitLifetime => orbit::orbit_lifetime,
+        DecayPerDay => orbit::decay_per_day,
+        StationKeepingDeltaV => orbit::station_keeping_delta_v,
     }
     power::ModeLoad { ModeLoad => mode_load }
     power::OrbitGeneration { OrbitGeneration => orbit_generation }
@@ -156,30 +156,6 @@ kpi_table! {
 }
 
 type Ctx<'a> = KpiContext<'a>;
-
-fn longest_eclipse(o: &sat_analysis::orbit::EclipseSeasonOutput, _: Ctx<'_>) -> Option<Measured> {
-    one(o.max_eclipse_duration)
-}
-fn beta_min(o: &sat_analysis::orbit::EclipseSeasonOutput, _: Ctx<'_>) -> Option<Measured> {
-    one(o.beta_min.beta)
-}
-fn beta_max(o: &sat_analysis::orbit::EclipseSeasonOutput, _: Ctx<'_>) -> Option<Measured> {
-    one(o.beta_max.beta)
-}
-
-fn orbit_lifetime(o: &sat_analysis::orbit::OrbitDecayOutput, _: Ctx<'_>) -> Option<Measured> {
-    // 再突入しない条件があっても、再突入する条件のうち最短を出す（どれも再突入しなければ値なし）
-    smallest(o.cases.iter().filter_map(|c| c.lifetime))
-}
-fn decay_per_day(o: &sat_analysis::orbit::OrbitDecayOutput, _: Ctx<'_>) -> Option<Measured> {
-    largest(o.cases.iter().map(|c| c.decay_per_day))
-}
-fn station_keeping_delta_v(
-    o: &sat_analysis::orbit::OrbitDecayOutput,
-    _: Ctx<'_>,
-) -> Option<Measured> {
-    largest(o.cases.iter().map(|c| c.station_keeping.delta_v_per_year))
-}
 
 fn mode_load(o: &power::ModeLoadOutput, ctx: Ctx<'_>) -> Option<Measured> {
     one(crate::budget::budget_mode(o, ctx.case_mode)?.total_with_growth)
@@ -411,6 +387,7 @@ fn view(
     }
 }
 
+mod orbit;
 mod propulsion;
 
 #[cfg(test)]

@@ -10,12 +10,10 @@ use sat_analysis::aocs::slew_time::{SlewAssumption, SlewProfile};
 use sat_analysis::aocs::unload_time::UnloadAssumption;
 use sat_analysis::comm::data_throughput::DataThroughputLinkClosure;
 use sat_analysis::comm::link_budget::LinkBudgetDirection;
-use sat_analysis::orbit::decay::{DecayCondition, DragAreaSource};
 use sat_analysis::power::energy_balance::{EnergyBalanceDuty, EnergyBalanceEvaluation};
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
-use sat_astro::atmosphere::space_weather::{SolarActivity, WeatherSource};
 use serde::de::DeserializeOwned;
 
 fn label(ja: impl Into<String>, en: impl Into<String>) -> AnalysisLabel {
@@ -184,57 +182,7 @@ fn modal_kind(k: ModalEstimateKind) -> AnalysisLabel {
     }
 }
 
-fn solar_activity(a: SolarActivity) -> AnalysisLabel {
-    match a {
-        SolarActivity::Low => label("低い太陽活動", "Low solar activity"),
-        SolarActivity::Moderate => label("中程度の太陽活動", "Moderate solar activity"),
-        SolarActivity::High => label("高い太陽活動", "High solar activity"),
-    }
-}
-
-fn weather_source(w: WeatherSource) -> AnalysisLabel {
-    match w {
-        WeatherSource::Observed => label("観測値", "Observed"),
-        WeatherSource::Interpolated => label("補間値", "Interpolated"),
-        WeatherSource::DailyPredicted => label("日ごとの予測", "Daily prediction"),
-        WeatherSource::MonthlyPredicted => label("月ごとの予測", "Monthly prediction"),
-        WeatherSource::Preset => label("太陽活動のプリセット", "Solar-activity preset"),
-        WeatherSource::Manual => label("手で与えた値", "Manual value"),
-    }
-}
-
-fn drag_area_source(s: DragAreaSource) -> AnalysisLabel {
-    match s {
-        DragAreaSource::Given => label("与えた面積", "Given area"),
-        DragAreaSource::TumblingBox => label(
-            "構体の外形の箱を向きでならした面積（表面積の 1/4）",
-            "Body box averaged over orientations (a quarter of the surface area)",
-        ),
-    }
-}
-
-fn decay_condition(kind: &str) -> Option<AnalysisLabel> {
-    // 内部タグの列挙はタグの値だけを見る（中身の太陽活動は別の欄の値として引く）
-    let probe = match kind {
-        "preset" => DecayCondition::Preset {
-            activity: SolarActivity::Moderate,
-        },
-        "dated" => DecayCondition::Dated {
-            fallback: SolarActivity::Moderate,
-        },
-        _ => return None,
-    };
-    Some(match probe {
-        DecayCondition::Preset { .. } => label(
-            "太陽活動のプリセットで一定",
-            "Constant solar-activity preset",
-        ),
-        DecayCondition::Dated { .. } => label(
-            "宇宙天気の表から日付で引いた値",
-            "Dated values from the space-weather table",
-        ),
-    })
-}
+mod orbit;
 mod propulsion;
 
 fn link_closure(kind: &str) -> Option<AnalysisLabel> {
@@ -277,10 +225,10 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
         "DataThroughputLinkClosure" => link_closure(value),
-        "SolarActivity" => parse(value).map(solar_activity),
-        "WeatherSource" => parse(value).map(weather_source),
-        "DragAreaSource" => parse(value).map(drag_area_source),
-        "DecayCondition" => decay_condition(value),
+        "SolarActivity" => parse(value).map(orbit::solar_activity),
+        "WeatherSource" => parse(value).map(orbit::weather_source),
+        "DragAreaSource" => parse(value).map(orbit::drag_area_source),
+        "DecayCondition" => orbit::decay_condition(value),
         "DvCategory" => parse(value).map(propulsion::category),
         "TransferMethod" => parse(value).map(propulsion::method),
         "ManeuverNote" => parse(value).map(propulsion::note),
