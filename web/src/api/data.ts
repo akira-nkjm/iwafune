@@ -4,7 +4,7 @@ import { keys } from "./keys";
 import type { DataStatus } from "./types";
 
 /**
- * 外部データ（DE440）を取得して読み込む（`POST /data/{id}/fetch`。CLI の `fune data fetch` と同じ service の関数）。
+ * 外部データ（DE440・宇宙天気の表）を取得して読み込む（`POST /data/{id}/fetch`。CLI の `fune data fetch` と同じ service の関数）。
  * 返ってきた状態をそのまま状態の問い合わせに入れ、天体の暦が変わるので解析の結果を読み直す。
  */
 export function useFetchData() {

@@ -208,8 +208,16 @@ pub enum UnitsCmd {
 pub enum DataCmd {
     /// キャッシュにあるデータの状態
     Status,
-    /// データを取得してキャッシュに置く（例: `fune data fetch de440`。gh が要る）
+    /// データを取得してキャッシュに置く（例: `fune data fetch de440`（gh が要る）・`fune data fetch space_weather`（curl が要る））
     Fetch { id: String },
+    /// 日付から宇宙天気（F10.7・Ap）を引く（例: `fune data space-weather 2003-10-29`）
+    SpaceWeather {
+        /// ISO 8601 の元期（日付だけでも可）
+        date: String,
+        /// 表の範囲の外で使う太陽活動（low・moderate・high。省略時は moderate）
+        #[arg(long)]
+        activity: Option<String>,
+    },
 }
 
 /// `fune analyze`

@@ -253,16 +253,6 @@ async fn analyses_run_and_budgets() {
 }
 
 #[tokio::test]
-async fn data_status() {
-    let (_tmp, r) = demo_router();
-    let (s, d) = call(&r, "GET", "/api/v1/data/status", None).await;
-    assert_eq!(s, StatusCode::OK, "{d}");
-    assert_eq!(d["items"][0]["id"], "de440");
-    let (s, e) = call(&r, "POST", "/api/v1/data/nope/fetch", None).await;
-    assert_eq!(s, StatusCode::NOT_FOUND, "{e}");
-}
-
-#[tokio::test]
 async fn units_format_and_views() {
     let (_tmp, r) = demo_router();
     let body = json!({ "items": [

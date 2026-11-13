@@ -69,7 +69,7 @@ The binary is not notarized: downloaded with `gh` it runs as is, but a copy down
 Gatekeeper until you run `xattr -d com.apple.quarantine fune`.
 
 Then run `fune gui` in a design directory (one with `fune.toml`), or `fune init` to start one.
-`fune data fetch de440` downloads the optional DE440 ephemeris the same way. On other platforms, build from source.
+`fune data fetch de440` downloads the optional DE440 ephemeris the same way, and `fune data fetch space_weather` downloads the CelesTrak space weather table (F10.7, Ap) into the user cache. On other platforms, build from source.
 
 ## Quick start
 

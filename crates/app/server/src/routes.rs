@@ -70,6 +70,7 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
             get(analyses::budget).post(analyses::budget_with),
         )
         .route("/data/status", get(data::status))
+        .route("/data/space_weather", get(data::space_weather))
         .route("/data/{id}/fetch", post(data::fetch))
         .fallback(api_not_found);
     Router::new()
