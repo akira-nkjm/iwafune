@@ -114,6 +114,12 @@
 
   --spacing-sidebar: 232px;
 
+  /* 文字の太さ: Noto Sans JP（可変）が細く見えるので、Tailwind の段を全体に一段太くする（#92） */
+  --font-weight-normal: 500;
+  --font-weight-medium: 600;
+  --font-weight-semibold: 700;
+  --font-weight-bold: 800;
+
   /* shadcn/ui のトークンを上の値に束ねる */
   --color-background: var(--color-panel);
   --color-foreground: var(--color-ink);
@@ -146,7 +152,7 @@
   }
   html,
   body {
-    @apply bg-app font-sans text-ink antialiased;
+    @apply bg-app font-sans font-normal text-ink antialiased;
   }
   * {
     @apply border-border outline-ring/50;
