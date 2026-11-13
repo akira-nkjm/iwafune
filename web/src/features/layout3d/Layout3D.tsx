@@ -7,9 +7,11 @@ import { DetailSection } from "@/kit/detail/DetailSection";
 import { Empty } from "@/kit/feedback/Empty";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { Panel } from "@/kit/panel/Panel";
+import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { Chip } from "@/kit/selection/Chip";
 import { Segmented } from "@/kit/selection/Segmented";
 import { Switch } from "@/kit/selection/Switch";
+import { cn } from "@/lib/cn";
 import { Scene3D, type SceneEdit, type TransformMode } from "./Scene3D";
 import { axesOf, boxesOf, type V3 } from "./scene";
 
@@ -65,6 +67,7 @@ function PlacementLayout3D({ design, com }: PlacementProps) {
       title={L.title}
       note={com ? L.com : ""}
       com={com}
+      fill
       tools={
         <div className="ml-auto flex items-center gap-2">
           <Segmented
@@ -124,6 +127,7 @@ function Layout3DFrame({
   com = null,
   tools,
   edit,
+  fill = false,
 }: {
   design: DesignView;
   title: string;
@@ -135,6 +139,8 @@ function Layout3DFrame({
   /** 見出しの右端の操作と、箱を動かす編集（配置の編集だけ） */
   tools?: ReactNode;
   edit?: SceneEdit;
+  /** 配置ページでは残りの画面高を使う。熱の追加表示は既存の高さ */
+  fill?: boolean;
 }) {
   const L = useT().systems.layout3d;
   const [selected, setSelected] = useState<string | null>(null);
@@ -142,21 +148,33 @@ function Layout3DFrame({
   const { boxes, unplaced, dimensions } = boxesOf(design, colorOf);
   const part = design.parts.find((p) => p.id === selected) ?? null;
   return (
-    <Panel pad={false} className="overflow-hidden">
-      <div className="flex flex-wrap items-center gap-2 border-line border-b px-4 py-2">
-        <h2 className="font-semibold text-md">{title}</h2>
-        <span className="text-ink-3 text-xs">
-          {L.parts(boxes.length)}
-          {unplaced.length > 0 ? L.unplacedCount(unplaced.length) : ""}
-          {note}
-        </span>
-        <Switch value={showAxes} onChange={setShowAxes} title={L.axesLegend}>
-          {L.axes}
-        </Switch>
-        {showAxes && <span className="text-ink-3 text-xs">{L.axesLegend}</span>}
-        {tools}
-      </div>
-      <div className="grid h-[460px] grid-cols-[minmax(0,1fr)_340px]">
+    <Panel pad={false} className={cn("overflow-hidden", fill && "flex min-h-0 flex-1 flex-col")}>
+      <PanelHeader
+        title={title}
+        caption={
+          <>
+            {L.parts(boxes.length)}
+            {unplaced.length > 0 ? L.unplacedCount(unplaced.length) : ""}
+            {note}
+          </>
+        }
+        className="mb-0 shrink-0 flex-wrap border-line border-b px-4 py-2"
+        right={
+          <div className="flex flex-wrap items-center gap-2">
+            <Switch value={showAxes} onChange={setShowAxes} title={L.axesLegend}>
+              {L.axes}
+            </Switch>
+            {showAxes && <span className="text-ink-3 text-xs">{L.axesLegend}</span>}
+            {tools}
+          </div>
+        }
+      />
+      <div
+        className={cn(
+          "grid grid-cols-[minmax(0,1fr)_340px]",
+          fill ? "min-h-0 flex-1" : "h-[460px]",
+        )}
+      >
         <div className="relative min-w-0">
           {boxes.length === 0 ? (
             <Empty className="m-auto">{L.empty}</Empty>
