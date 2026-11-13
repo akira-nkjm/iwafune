@@ -6,6 +6,7 @@
 use crate::dto::{AnalysisLabel, KpiKey};
 use sat_analysis::aocs::disturbance::DisturbanceKind;
 use sat_analysis::aocs::sensor_fov::SensorFovTarget;
+use sat_analysis::aocs::slew_time::{SlewAssumption, SlewProfile};
 use sat_analysis::aocs::unload_time::UnloadAssumption;
 use sat_analysis::comm::data_throughput::DataThroughputLinkClosure;
 use sat_analysis::comm::link_budget::LinkBudgetDirection;
@@ -41,6 +42,7 @@ pub fn channel_label(kind: ChannelKind, subject: Option<&str>) -> AnalysisLabel 
         K::AeroTorque => disturbance(DisturbanceKind::Aero),
         K::SrpTorque => disturbance(DisturbanceKind::Srp),
         K::MagneticTorque => disturbance(DisturbanceKind::Magnetic),
+        K::ThrustTorque => disturbance(DisturbanceKind::Thrust),
         K::TotalDisturbanceTorque => label("擾乱トルクの合計", "Total disturbance torque"),
         K::MomentumX => label("角運動量 x（機体）", "Momentum x (body)"),
         K::MomentumY => label("角運動量 y（機体）", "Momentum y (body)"),
@@ -70,6 +72,7 @@ fn disturbance(k: DisturbanceKind) -> AnalysisLabel {
         DisturbanceKind::Aero => label("空力トルク", "Aerodynamic torque"),
         DisturbanceKind::Srp => label("太陽輻射圧トルク", "Solar radiation pressure torque"),
         DisturbanceKind::Magnetic => label("残留磁気トルク", "Residual magnetic torque"),
+        DisturbanceKind::Thrust => label("推力誤差トルク", "Thrust misalignment torque"),
     }
 }
 
@@ -90,6 +93,28 @@ fn unload_assumption(a: UnloadAssumption) -> AnalysisLabel {
         UnloadAssumption::RcsSimultaneousFiring => label(
             "−H 向きのトルク成分が正のスラスタをすべて同時に連続噴射する（オン・オフのみ）。H と直交するトルクと正味の推力は打ち消さずに残る",
             "All thrusters with a positive torque component along −H fire continuously at once (on/off only). Torque perpendicular to H and the net force are left uncancelled",
+        ),
+    }
+}
+
+fn slew_profile(p: SlewProfile) -> AnalysisLabel {
+    match p {
+        SlewProfile::Triangular => label(
+            "三角形（加速して減速）",
+            "Triangular (accelerate, decelerate)",
+        ),
+        SlewProfile::Trapezoidal => label(
+            "台形（角運動量の上限で等速）",
+            "Trapezoidal (coast at the momentum limit)",
+        ),
+    }
+}
+
+fn slew_assumption(a: SlewAssumption) -> AnalysisLabel {
+    match a {
+        SlewAssumption::EigenAxisRestToRest => label(
+            "静止から静止まで固定した軸まわりに、RW の最大トルクで加速・減速する。ホイールの角運動量は 0 から始め、使ってよい割合まで使う。ジャイロ効果・擾乱・整定の時間は含めない",
+            "Rest-to-rest rotation about a fixed axis, accelerating and braking at the RW torque limit. Wheels start from zero momentum and use up to the usable fraction. Gyroscopic coupling, disturbances and settling time are not included",
         ),
     }
 }
@@ -156,6 +181,8 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "DisturbanceKind" => parse(value).map(disturbance),
         "SensorFovTarget" => parse(value).map(sensor_target),
         "UnloadAssumption" => parse(value).map(unload_assumption),
+        "SlewProfile" => parse(value).map(slew_profile),
+        "SlewAssumption" => parse(value).map(slew_assumption),
         "SpanFallback" => parse(value).map(span_fallback),
         "LinkBudgetDirection" => parse(value).map(link_direction),
         "SolarLife" => parse(value).map(solar_life),
@@ -182,6 +209,7 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         K::PeakMomentum => label("最大角運動量", "Peak momentum"),
         K::MtqUnloadTime => label("MTQ のアンロード時間", "MTQ unload time"),
         K::SensorIntrusion => label("センサ侵入の割合（最大）", "Sensor intrusion (max)"),
+        K::SlewTime => label("姿勢変更の時間（最悪の軸）", "Slew time (worst axis)"),
         K::DataPerDay => label("1 日の発生量", "Generated per day"),
         K::StorageRequired => label("必要なストレージ", "Storage required"),
         K::StorageMargin => label("ストレージの容量の余裕", "Storage capacity margin"),
@@ -255,6 +283,12 @@ mod tests {
         );
         assert!(value_label("DataThroughputLinkClosure", "closes_above").is_some());
         assert!(value_label("DisturbanceKind", "unknown").is_none());
+        assert_eq!(
+            value_label("DisturbanceKind", "thrust").unwrap().label,
+            "推力誤差トルク"
+        );
+        assert!(value_label("SlewProfile", "trapezoidal").is_some());
+        assert!(value_label("SlewAssumption", "eigen_axis_rest_to_rest").is_some());
         assert!(value_label("String", "RW_X").is_none());
         let (l, m) = span_check(SpanFallback::OrbitMeanOverSpan);
         assert_eq!(l.label, "解析期間");

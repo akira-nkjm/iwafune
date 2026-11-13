@@ -179,6 +179,12 @@ pub struct AocsSettings {
     /// MTQ の磁気双極子のうちアンロードに使える割合
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unload_dipole_fraction: Option<f64>,
+    /// 姿勢変更（`aocs.slew_time`）の角度（固有軸まわり、180° 以下）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slew_angle: Option<Quantity>,
+    /// 姿勢変更の時間の要求上限（省略時は判定しない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_slew_time: Option<Quantity>,
     /// モード ID → 姿勢則
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub law: BTreeMap<String, AttitudeLawSetting>,

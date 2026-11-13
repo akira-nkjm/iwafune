@@ -6,6 +6,7 @@
 //! 3. 機体座標系に直した `h(t)` をホイールの組に配る（[`super::wheels`]、擬似逆行列）。
 //! 4. 回り切った周回ごとに `H_eci` の増分（永年成分）と、そこからの直線のずれの最大（周期成分）を分ける。
 //! 5. アンロード間隔 = (永年成分の向きで蓄えられる量の最小 − 周期成分) / 1 周あたりの永年成分 × 周期。
+//! 6. スラスタ（`rcs`）があれば、1 日に溜まる永年成分を RCS で捨てる推薬と、その ΔV 換算を求める（[`rcs`]）。
 
 use super::disturbance::{DisturbanceKind, DisturbanceSpacecraft, DisturbanceTorques};
 use super::wheels::{RwWheel, WheelSet, usable_momentum_fraction};
@@ -42,6 +43,9 @@ pub struct RwUnloadingInput {
     /// アンロード間隔の要求下限（省略時は判定しない）
     #[serde(default)]
     pub required_unload_interval: Option<Qty<Time>>,
+    /// RCS でのアンロード（スラスタ・重心・質量）。省略時は推薬と ΔV を求めない
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rcs: Option<RwUnloadingRcsInput>,
 }
 
 /// RW アンロード頻度の出力。
@@ -81,6 +85,9 @@ pub struct RwUnloadingOutput {
     pub min_torque_margin: Option<Fraction>,
     /// ホイール別（入力の順）
     pub wheels: Vec<RwUnloadingWheelResult>,
+    /// 1 日に溜まる角運動量を RCS で捨てる推薬と ΔV 換算（入力に `rcs` があるときだけ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rcs_unloading: Option<RwUnloadingRcs>,
     /// 時系列: `torque:<種類>`・`torque:total`・`momentum:{x,y,z,norm}`（機体座標系）・`wheel:<id>`
     pub series: Series,
     pub checks: Vec<Check>,
@@ -140,7 +147,14 @@ impl Analysis for RwUnloading {
             &set,
             &samples,
         );
-        Ok(summarize(input, usable, &set, &samples, &trace))
+        let mut out = summarize(input, usable, &set, &samples, &trace);
+        if let Some(r) = &input.rcs {
+            let (budget, check) =
+                rcs::per_day(r, out.secular_per_orbit.value(), out.period.value())?;
+            out.rcs_unloading = Some(budget);
+            out.checks.extend(check);
+        }
+        Ok(out)
     }
 }
 
@@ -166,7 +180,8 @@ fn summarize(
         .iter()
         .map(|w| w.torque_utilization.value())
         .fold(0.0, f64::max);
-    let disturbances = disturbance_summary(&tr.t, &tr.torques);
+    let kinds = input.spacecraft.kinds();
+    let disturbances = disturbance_summary(&kinds, &tr.t, &tr.torques);
     let mut out = RwUnloadingOutput {
         period: Qty::from_raw(period_s),
         complete_orbits: ranges.len(),
@@ -194,7 +209,8 @@ fn summarize(
         // 最も余裕の無いホイール: 最大トルク / 必要なトルク の最小 = 1 / 利用率の最大
         min_torque_margin: ratio_margin(1.0, max_utilization),
         wheels,
-        series: series(input, tr),
+        rcs_unloading: None,
+        series: series(input, &kinds, tr),
         checks: Vec::new(),
     };
     out.checks = verdicts(input, &out);
@@ -265,12 +281,15 @@ fn wheel_results(
 }
 
 /// 種類ごとの擾乱トルクの大きさの最大と時間平均（台形則、`sat_astro::timeline::time_mean`）。
-fn disturbance_summary(t: &[f64], torques: &[DisturbanceTorques]) -> Vec<RwUnloadingDisturbance> {
-    DisturbanceKind::ALL
+fn disturbance_summary(
+    kinds: &[DisturbanceKind],
+    t: &[f64],
+    torques: &[DisturbanceTorques],
+) -> Vec<RwUnloadingDisturbance> {
+    kinds
         .iter()
-        .enumerate()
-        .map(|(i, &key)| {
-            let mags: Vec<f64> = torques.iter().map(|d| d.by_kind()[i].norm()).collect();
+        .map(|&key| {
+            let mags: Vec<f64> = torques.iter().map(|d| d.of(key).norm()).collect();
             RwUnloadingDisturbance {
                 key,
                 peak: Qty::from_raw(mags.iter().copied().fold(0.0, f64::max)),
@@ -285,8 +304,10 @@ fn nan_to_zero(v: f64) -> f64 {
     if v.is_finite() { v } else { 0.0 }
 }
 
+pub mod rcs;
 mod report;
 mod trace;
+pub use rcs::{RwUnloadingRcs, RwUnloadingRcsInput};
 use report::{series, verdicts};
 use trace::{Trace, secular_and_cyclic};
 

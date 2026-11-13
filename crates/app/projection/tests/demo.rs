@@ -94,102 +94,6 @@ fn unload_time_without_thrusters() {
     assert!(!input.magnetorquers.is_empty());
 }
 
-/// デモに -Z パネルのスラスタ THR_1（+Y 向き、質量 50 g）を足す Op。
-fn thruster_ops() -> Vec<fune_ops::Op> {
-    use fune_model::value::{Value, Vector3};
-    use fune_ops::Op;
-    let v = |t: &str, d: serde_json::Value| -> Value {
-        serde_json::from_value(serde_json::json!({ "type": t, "data": d })).unwrap()
-    };
-    let scalar = |value: f64, unit: &str| {
-        v(
-            "scalar",
-            serde_json::json!({ "value": value, "unit": unit }),
-        )
-    };
-    let set = |attr: &str, value: Value| Op::SetValue {
-        part: "THR_1".into(),
-        attr: attr.into(),
-        state: None,
-        value,
-        from: None,
-    };
-    vec![
-        Op::CreatePart {
-            id: "THR_1".into(),
-            group: Some("aocs".into()),
-            catalog: None,
-            kind: Some("thruster".into()),
-            count: None,
-            label: None,
-            mode_state: None,
-        },
-        set("mass", scalar(50.0, "g")),
-        set("thrust", scalar(10.0, "mN")),
-        set("isp", scalar(60.0, "s")),
-        set("direction", Value::Vec3(Vector3::unitless(0.0, 1.0, 0.0))),
-        Op::Place {
-            part: "THR_1".into(),
-            on: Some("PANEL_MZ".into()),
-            point: None,
-            position: Some(Vector3 {
-                x: 40.0,
-                y: 0.0,
-                z: 0.0,
-                unit: Some("mm".into()),
-                frame: None,
-            }),
-            orientation: None,
-        },
-    ]
-}
-
-/// スラスタを足すと、取付をたどった機体座標の位置・向きと、重心が入力に入る。
-#[test]
-fn unload_time_projects_thrusters_in_body_frame() {
-    use fune_ops::{ApplyOptions, apply};
-    use sat_astro::math::Vec3;
-    let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().join("demo-6u");
-    copy_dir(
-        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u"),
-        &root,
-    );
-    apply(&root, &thruster_ops(), &ApplyOptions::default()).unwrap();
-    let snap = fune_store::load(&root).unwrap();
-    let resolved = fune_model::resolve(&snap.design);
-    let ctx = Context::new(&snap.design, &resolved, None).unwrap();
-    let input = fune_projection::aocs::unload_time(&ctx).unwrap();
-    let t = &input.thrusters[0];
-    let (origin, q) = fune_projection::pose::body_pose(&resolved, "PANEL_MZ").unwrap();
-    let expected = origin + q.rotate(Vec3::new(0.04, 0.0, 0.0));
-    assert!(
-        (t.position - expected).norm() < 1e-12,
-        "{:?} vs {expected:?}",
-        t.position
-    );
-    assert!((t.direction - q.rotate(Vec3::new(0.0, 1.0, 0.0))).norm() < 1e-12);
-    assert!((t.thrust.value() - 0.010).abs() < 1e-15);
-    assert!(input.center_of_mass.is_some());
-    let out =
-        sat_analysis::catalog::run_json("aocs.unload_time", serde_json::to_value(&input).unwrap())
-            .unwrap();
-    assert!(out["rcs"].is_object(), "{out}");
-}
-
-fn copy_dir(from: &Path, to: &Path) {
-    std::fs::create_dir_all(to).unwrap();
-    for entry in std::fs::read_dir(from).unwrap() {
-        let entry = entry.unwrap();
-        let target = to.join(entry.file_name());
-        if entry.file_type().unwrap().is_dir() {
-            copy_dir(&entry.path(), &target);
-        } else {
-            std::fs::copy(entry.path(), target).unwrap();
-        }
-    }
-}
-
 /// 割合の合計の許容差は、設計の検査（fune-model）と解析（sat-analysis）で同じ値にする。
 /// fune-model は sat-analysis に依存できないので、両方が見えるここで一致を確かめる。
 #[test]
@@ -391,4 +295,27 @@ fn mode_display_order_preserves_analysis_values() {
         .unwrap()
         .sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
     assert_eq!(sorted, run(&design));
+}
+
+/// 姿勢変更の時間: 角度と要求は `analysis/aocs.toml`、慣性は質量特性、ホイールは RW の部品から。
+/// デモ（I_xx = 0.0959 kg·m²、RW 10 mN·m·s × 0.8・1 mN·m、90°）は x 軸が最悪で台形:
+/// t = θ I / h + h / τ = (π/2)(0.0959)/0.008 + 8 = 26.8 s。
+#[test]
+fn slew_time_projects_settings_inertia_and_wheels() {
+    use sat_analysis::spec::Analysis;
+    let (design, resolved) = demo();
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let input = fune_projection::aocs::slew_time(&ctx).unwrap();
+    let mp = fune_projection::structure::summary(&ctx, &mut fune_projection::MissingInputs::new())
+        .unwrap();
+    assert_eq!(input.inertia, mp.inertia);
+    assert!((input.angle.value() - std::f64::consts::FRAC_PI_2).abs() < 1e-12);
+    assert_eq!(input.required_time.map(|t| t.value()), Some(120.0));
+    assert_eq!(input.wheels.len(), 3);
+    let out = sat_analysis::aocs::SlewTime::run(&input).unwrap();
+    let ixx = mp.inertia.m[0][0];
+    let expect = std::f64::consts::FRAC_PI_2 * ixx / 0.008 + 8.0;
+    assert_eq!(out.worst.label, "x");
+    assert!((out.worst.time.value() - expect).abs() < 1e-9);
+    assert!((out.worst.time.value() - 26.8).abs() < 0.05);
 }

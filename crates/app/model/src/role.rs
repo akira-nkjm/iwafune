@@ -31,3 +31,7 @@ enum_text! {
 
 /// 慣例の停止状態。状態の語彙そのものは種別ごとに自由に定義する。
 pub const STATE_OFF: &str = "off";
+
+/// スラスタ（role = thruster）の噴射している状態。モードでこの状態にある時間の割合だけ噴射するとみなす
+/// （推力誤差の擾乱）。組み込みの種別 thruster の語彙にあることは `builtin` のテストで確かめる。
+pub const STATE_THRUSTER_FIRING: &str = "on";

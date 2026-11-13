@@ -19,6 +19,7 @@
 //! | [`atmosphere`] | 大気密度（指数大気・NRLMSISE-00） |
 //! | [`ground`] | 地上局・見通し角・パスの検出・地上軌跡・斜距離（中心天体の半径） |
 //! | [`attitude`] | 姿勢則（太陽指向・地心指向・慣性固定）→ 機体姿勢 |
+//! | [`rocket`] | ロケット方程式（推薬 ⇄ ΔV、有効排気速度）。換算はこれだけ |
 //! | [`illumination`] | 面への太陽入射（cos 則と日陰）。電源と熱で共有する |
 //! | [`timeline`] | 軌道上の時系列（時刻・位置・速度・太陽方向・日陰・機体姿勢）をまとめて作る。区間の抽出 |
 //!
@@ -38,6 +39,7 @@ pub mod illumination;
 pub mod math;
 pub mod ode;
 pub mod orbit;
+pub mod rocket;
 pub mod shadow;
 pub mod time;
 pub mod timeline;

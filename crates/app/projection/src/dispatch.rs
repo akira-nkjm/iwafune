@@ -126,6 +126,7 @@ table!(
     aaocs::RwUnloading => Some(aocs::rw_unloading),
     aaocs::UnloadTime => Some(aocs::unload_time),
     aaocs::SensorFov => Some(aocs::sensor_fov),
+    aaocs::SlewTime => Some(aocs::slew_time),
     acdh::DataBudget => Some(cdh::data_budget),
     acomm::LinkBudget => Some(comm::link_budget),
     acomm::Visibility => Some(comm::visibility),

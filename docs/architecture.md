@@ -276,7 +276,7 @@ Web は次のことをしない。
 | 系 | 定常 | 時系列 |
 |---|---|---|
 | 電源 | `power.mode_load`（モード別消費電力）、`power.solar_sunlit`（日照時の発電） | `power.orbit_generation`（軌道上の発電）、`power.energy_balance`（電力収支と DoD） |
-| AOCS | `aocs.unload_time`（MTQ・RCS でのアンロードにかかる時間） | `aocs.rw_unloading`（擾乱トルクと RW のアンロード頻度）、`aocs.sensor_fov`（センサの FoV と禁止角） |
+| AOCS | `aocs.unload_time`（MTQ・RCS でのアンロードにかかる時間）、`aocs.slew_time`（RW での姿勢変更にかかる時間） | `aocs.rw_unloading`（擾乱トルク（推力誤差を含む）と RW のアンロード頻度、RCS で捨てる 1 日の推薬と ΔV 換算）、`aocs.sensor_fov`（センサの FoV と禁止角） |
 | C&DH | `cdh.data_budget`（データ量とストレージ） | — |
 | 通信 | `comm.link_budget`（回線バジェット） | `comm.visibility`（地上局の可視）、`comm.data_throughput`（データ送信量と蓄積） |
 | 熱 | `thermal.steady`（多節点の定常温度） | `thermal.transient`（多節点の非定常温度） |

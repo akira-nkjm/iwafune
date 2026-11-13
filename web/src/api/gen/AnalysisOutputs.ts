@@ -7,6 +7,7 @@ import type { SizingOutput } from "./SizingOutput";
 import type { RwUnloadingOutput } from "./RwUnloadingOutput";
 import type { UnloadTimeOutput } from "./UnloadTimeOutput";
 import type { SensorFovOutput } from "./SensorFovOutput";
+import type { SlewTimeOutput } from "./SlewTimeOutput";
 import type { DataBudgetOutput } from "./DataBudgetOutput";
 import type { LinkBudgetOutput } from "./LinkBudgetOutput";
 import type { VisibilityOutput } from "./VisibilityOutput";
@@ -26,6 +27,7 @@ export type AnalysisOutputs = {
   "aocs.rw_unloading": RwUnloadingOutput;
   "aocs.unload_time": UnloadTimeOutput;
   "aocs.sensor_fov": SensorFovOutput;
+  "aocs.slew_time": SlewTimeOutput;
   "cdh.data_budget": DataBudgetOutput;
   "comm.link_budget": LinkBudgetOutput;
   "comm.visibility": VisibilityOutput;
