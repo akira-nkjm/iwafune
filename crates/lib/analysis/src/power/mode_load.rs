@@ -6,7 +6,9 @@
 //! 電力収支（`power.energy_balance`）もモードの負荷を [`evaluate_mode`] で求める。
 
 use crate::modes::{self, ModeDef, StateValues, UnlistedParts};
-use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, ensure_non_negative};
+use crate::spec::{
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, ensure_non_negative,
+};
 use sat_units::typed::{Fraction, Power, Qty};
 use serde::{Deserialize, Serialize};
 
@@ -149,7 +151,7 @@ pub struct ModeLoad;
 impl Analysis for ModeLoad {
     const ID: &'static str = "power.mode_load";
     const TITLE: &'static str = "モード別消費電力";
-    const SYSTEM: System = System::Power;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Power);
     const KIND: AnalysisKind = AnalysisKind::Steady;
     const DESCRIPTION: &'static str =
         "モードごとの消費電力を部品別に集計する（デューティ比・成長余裕込み）";

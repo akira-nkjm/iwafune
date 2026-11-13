@@ -9,7 +9,7 @@ use crate::budget::{BudgetItem, counted_total, limit_check};
 use crate::modes::{DUTY_TOLERANCE, ModeDef, StateValues, find_mode};
 use crate::spec::quantity_text;
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_fraction,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_fraction,
     ensure_non_negative, ensure_positive, ratio_margin, ratio_margin_verdict,
 };
 use sat_astro::constants::SECONDS_PER_DAY;
@@ -165,7 +165,7 @@ pub struct DataBudget;
 impl Analysis for DataBudget {
     const ID: &'static str = "cdh.data_budget";
     const TITLE: &'static str = "データ量とストレージ";
-    const SYSTEM: System = System::Cdh;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Cdh);
     const KIND: AnalysisKind = AnalysisKind::Steady;
     const DESCRIPTION: &'static str =
         "HK・ミッションデータの発生量と、保持が必要な量・ストレージ余裕";

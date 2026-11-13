@@ -351,7 +351,10 @@ mod tests {
             part: some("TRX"),
         };
         assert_eq!(mode.part(), None);
-        assert_eq!(Target::from(SettingPath::mission(&["orbit"])).part(), None);
+        assert_eq!(
+            Target::from(SettingPath::conditions(&["orbit"])).part(),
+            None
+        );
     }
 
     /// JSON は `kind` で見分ける（部品の属性はパス記法の型 `ParamPath` のまま入る）。

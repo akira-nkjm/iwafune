@@ -28,6 +28,12 @@ const matches = (url: string) => {
 };
 
 describe("paths", () => {
+  it("前提条件の URL と解析区分の開き先", () => {
+    expect(paths.orbit()).toBe("/conditions/orbit");
+    expect(paths.cases()).toBe("/conditions/cases");
+    expect(paths.area({ kind: "condition", value: "orbit" })).toBe(paths.orbit());
+    expect(paths.area({ kind: "system", value: "power" })).toBe(paths.system("power"));
+  });
   it("作る URL はどれも routes.ts のルートに当たる", () => {
     const urls = [
       ...nav(fixture.defs.systems).flatMap((s) => s.items.map((i) => i.to)),

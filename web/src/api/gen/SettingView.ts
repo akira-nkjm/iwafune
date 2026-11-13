@@ -4,11 +4,11 @@ import type { System } from "./System";
 import type { ValueData } from "./ValueData";
 
 /**
- * 設定 1 項目（`mission/`・`analysis/`・`budget/` の値）。
+ * 設定 1 項目（`conditions/`・`analysis/`・`budget/` の値）。
  */
 export type SettingView = { 
 /**
- * 置き場所の種類（`mission` / `analysis` / `budget`。設定のページの区分）
+ * 置き場所の種類（`conditions` / `analysis` / `budget`。設定のページの区分）
  */
 scope: SettingScope, 
 /**
@@ -16,7 +16,7 @@ scope: SettingScope,
  */
 system: System | null, 
 /**
- * 設定ファイルごとの表示のまとまり（例: `"mission.orbit"`・`"mission.ground.<局の ID>"`。`key` = `<group>.<field>`）
+ * 設定ファイルごとの表示のまとまり（例: `"conditions.orbit"`・`"conditions.ground.<局の ID>"`。`key` = `<group>.<field>`）
  */
 group: string, 
 /**

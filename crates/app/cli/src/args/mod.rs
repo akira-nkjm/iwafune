@@ -125,7 +125,7 @@ pub enum Command {
     /// ネット（電気的な接続）
     #[command(subcommand)]
     Net(NetCmd),
-    /// 設定（mission/・analysis/・budget/）
+    /// 設定（conditions/・analysis/・budget/）
     #[command(subcommand)]
     Setting(SettingCmd),
     /// カタログ品（catalog/）

@@ -25,8 +25,8 @@ fn gui_text_edits_match_cli() {
         ("analysis.common.default_case", "hot_imaging"),
         ("analysis.power.orbits", "12"),
         ("analysis.power.dod_max", "0.3"),
-        ("mission.orbit.altitude", "560 km"),
-        ("mission.orbit.ltdn", "11:00"),
+        ("conditions.orbit.altitude", "560 km"),
+        ("conditions.orbit.ltdn", "11:00"),
     ];
     for (path, value) in cases {
         run_cli(&cli_root, &["setting", "set", path, value]);

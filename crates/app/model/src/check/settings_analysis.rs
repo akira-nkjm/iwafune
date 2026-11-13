@@ -117,12 +117,12 @@ fn check_comm(ctx: &mut Ctx) {
     };
     let mut s = scope(ctx, AnalysisSystem::Comm.setting_path());
     for station in &c.stations {
-        let exists = design.mission.ground.contains_key(station);
+        let exists = design.conditions.ground.contains_key(station);
         s.reference(
             &["stations"],
             exists,
             "ref.station",
-            format!("地上局 `{station}`（mission/ground/）"),
+            format!("地上局 `{station}`（conditions/ground/）"),
         );
     }
     for (name, link) in &c.links {
@@ -145,7 +145,7 @@ fn check_link(
         format!("部品 `{}`", link.part),
     );
     for station in stations {
-        let Some(g) = design.mission.ground.get(station) else {
+        let Some(g) = design.conditions.ground.get(station) else {
             continue;
         };
         if !g.links.contains_key(&link.band) {

@@ -13,7 +13,7 @@ import { DataPanel } from "./DataPanel";
 import { SettingsTable } from "./SettingsTable";
 
 /** 設定の区分（API の `SettingView.scope`）の並び。名前は i18n の project.groups */
-const SCOPES: readonly SettingScope[] = ["mission", "analysis", "budget"];
+const SCOPES: readonly SettingScope[] = ["conditions", "analysis", "budget"];
 
 /** プロジェクト / 設定: プロジェクトの情報と、すべての設定（SetSetting）。CLI では fune setting set */
 export function SettingsPage() {

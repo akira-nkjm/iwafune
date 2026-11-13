@@ -1,8 +1,8 @@
-import type { missionJa } from "./ja";
+import type { conditionsJa } from "./ja";
 
-export const missionEn: typeof missionJa = {
-  mission: {
-    eyebrow: "Mission",
+export const conditionsEn: typeof conditionsJa = {
+  conditions: {
+    eyebrow: "Conditions",
     cases: "Analysis cases",
     casesSubtitle: "cases/<ID>.toml (mode timeline, uncertainty side, orbit, environment)",
     noCases: "No analysis cases (analyses run with the default case)",
@@ -13,10 +13,10 @@ export const missionEn: typeof missionJa = {
     openWith: "Open with this case",
     orbit: "Orbit & ground stations",
     orbitSubtitle:
-      "mission/ settings (orbit, ground stations, period) and ground station visibility",
-    missionSettings: "Mission settings",
-    missionSettingsCaption: "Settings whose key starts with mission.",
-    noMissionSettings: "No mission/ settings",
+      "conditions/ settings (orbit, ground stations, period) and ground station visibility",
+    conditionsSettings: "Conditions settings",
+    conditionsSettingsCaption: "Settings whose key starts with conditions.",
+    noConditionsSettings: "No conditions/ settings",
     visibilityPerStation: "Visibility per ground station",
   },
 };

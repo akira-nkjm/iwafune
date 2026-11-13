@@ -29,9 +29,9 @@ fn comm(keys: &[&str]) -> SettingPath {
     AnalysisSystem::Comm.setting_path().child(keys)
 }
 
-/// 地上局のある帯域の性能（`mission.ground.<局>.link.<帯域>`）。
+/// 地上局のある帯域の性能（`conditions.ground.<局>.link.<帯域>`）。
 fn ground_band(station: &str, band: &str) -> SettingPath {
-    SettingPath::mission(&["ground", station, "link", band])
+    SettingPath::conditions(&["ground", station, "link", band])
 }
 
 /// `comm.link_budget`: 設定の回線 × 使う地上局の先頭。
@@ -191,12 +191,12 @@ fn ground_link<'a>(
     band: &str,
     m: &mut MissingInputs,
 ) -> Option<&'a fune_model::design::GroundLinkSettings> {
-    let g: Option<&GroundStationSettings> = ctx.design.mission.ground.get(station);
+    let g: Option<&GroundStationSettings> = ctx.design.conditions.ground.get(station);
     let l = g.and_then(|g| g.links.get(band));
     m.need(l, ground_band(station, band), "地上局のこの帯域の性能")
 }
 
-/// 円軌道の高度（`mission.orbit.altitude`、無ければ長半径 − 中心天体の半径）と中心天体（斜距離に半径を使う）。
+/// 円軌道の高度（`conditions.orbit.altitude`、無ければ長半径 − 中心天体の半径）と中心天体（斜距離に半径を使う）。
 fn orbit_height(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<(Qty<Length>, CentralBody)> {
     let orbit = ctx.orbit(m)?;
     Some((Qty::from_raw(orbit.altitude_m()), orbit.central))

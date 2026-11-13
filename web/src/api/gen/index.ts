@@ -1,4 +1,5 @@
 // 生成物です。手で編集しないでください（`cargo test -p fune-service export_ts` で作り直す）。
+export type * from "./AnalysisArea";
 export type * from "./AnalysisCase";
 export type * from "./AnalysisCaseSource";
 export type * from "./AnalysisEntry";
@@ -39,6 +40,7 @@ export type * from "./Check";
 export type * from "./CheckReport";
 export type * from "./CheckView";
 export type * from "./CommandText";
+export type * from "./ConditionTopic";
 export type * from "./DataBudgetInput";
 export type * from "./DataBudgetModeResult";
 export type * from "./DataBudgetModeShare";

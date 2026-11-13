@@ -3,7 +3,9 @@
 
 use crate::comm::link::{RfLinkParams, eb_over_n0_db, max_data_rate_bps, required_margin};
 use crate::spec::quantity_text;
-use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, margin_verdict};
+use crate::spec::{
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, margin_verdict,
+};
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::slant_range_m;
 use sat_units::typed::{
@@ -106,7 +108,7 @@ pub struct LinkBudget;
 impl Analysis for LinkBudget {
     const ID: &'static str = "comm.link_budget";
     const TITLE: &'static str = "回線バジェット";
-    const SYSTEM: System = System::Comm;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Comm);
     const KIND: AnalysisKind = AnalysisKind::Steady;
     const DESCRIPTION: &'static str = "アップリンク・ダウンリンクの回線マージン";
     const TITLE_EN: &'static str = "Link budget";

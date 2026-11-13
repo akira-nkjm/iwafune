@@ -309,14 +309,14 @@ pub struct KindDefView {
     pub builtin: bool,
 }
 
-/// 設定 1 項目（`mission/`・`analysis/`・`budget/` の値）。
+/// 設定 1 項目（`conditions/`・`analysis/`・`budget/` の値）。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct SettingView {
-    /// 置き場所の種類（`mission` / `analysis` / `budget`。設定のページの区分）
+    /// 置き場所の種類（`conditions` / `analysis` / `budget`。設定のページの区分）
     pub scope: fune_model::path::SettingScope,
     /// この設定を見せる系（系のページの設定のタブ）。どの系にも属さなければ null
     pub system: Option<sat_analysis::spec::System>,
-    /// 設定ファイルごとの表示のまとまり（例: `"mission.orbit"`・`"mission.ground.<局の ID>"`。`key` = `<group>.<field>`）
+    /// 設定ファイルごとの表示のまとまり（例: `"conditions.orbit"`・`"conditions.ground.<局の ID>"`。`key` = `<group>.<field>`）
     pub group: String,
     /// ファイル内のキー（表示用。例: `"altitude"`）
     pub field: String,

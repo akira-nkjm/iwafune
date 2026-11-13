@@ -17,7 +17,7 @@ import {
   Thermometer,
   Workflow,
 } from "lucide-react";
-import type { DefsView, System } from "@/api/types";
+import type { AnalysisArea, DefsView, System } from "@/api/types";
 import type { Dict } from "@/i18n";
 import { systemTitle } from "./design";
 
@@ -65,8 +65,11 @@ export const paths = {
     withSearch(at.tab ? `/systems/${system}/${at.tab}` : `/systems/${system}`, {
       [SEARCH.case]: at.kase,
     }),
-  orbit: () => "/mission/orbit",
-  cases: () => "/mission/cases",
+  /** 解析の区分に対応するページ。 */
+  area: (area: AnalysisArea): string =>
+    area.kind === "system" ? paths.system(area.value) : paths.orbit(),
+  orbit: () => "/conditions/orbit",
+  cases: () => "/conditions/cases",
   diagnostics: () => "/project/diagnostics",
   settings: () => "/project/settings",
 };
@@ -135,7 +138,7 @@ export const nav = (systems: readonly System[]): NavSection[] => [
     })),
   },
   {
-    id: "mission",
+    id: "conditions",
     heading: true,
     items: [
       { to: paths.orbit(), key: "orbit", icon: Orbit },

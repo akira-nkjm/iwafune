@@ -1,4 +1,4 @@
-//! `mission/` の設定と材料の参照の検査。`analysis/` は [`super::settings_analysis`]。
+//! `conditions/` の設定と材料の参照の検査。`analysis/` は [`super::settings_analysis`]。
 //! 共通の道具（設定ファイル 1 つ分の検査の窓口 [`Scope`]）もここに置く。
 //! 量の次元は設定の次元の表（`design::setting_dims`）を引く（ファイルの中の量の葉をすべて見る。[`Scope::dimensions`]）。
 
@@ -14,7 +14,7 @@ use crate::value::{Quantity, SettingValue, Value};
 pub(super) struct Scope<'c, 'a> {
     pub ctx: &'c mut Ctx<'a>,
     pub entity: EntityKey,
-    /// 設定ファイルのパス（`mission.orbit` など）。キーの列を足して対象にする
+    /// 設定ファイルのパス（`conditions.orbit` など）。キーの列を足して対象にする
     pub prefix: SettingPath,
 }
 
@@ -75,7 +75,7 @@ impl Scope<'_, '_> {
     }
 }
 
-/// 設定ファイル（`mission.orbit` など）の検査の窓口を作る。
+/// 設定ファイル（`conditions.orbit` など）の検査の窓口を作る。
 pub(super) fn scope<'c, 'a>(ctx: &'c mut Ctx<'a>, prefix: SettingPath) -> Scope<'c, 'a> {
     Scope {
         ctx,
@@ -84,19 +84,19 @@ pub(super) fn scope<'c, 'a>(ctx: &'c mut Ctx<'a>, prefix: SettingPath) -> Scope<
     }
 }
 
-/// `mission/` の全体。`entries` は `Design::setting_entries`。
-pub(super) fn check_mission(ctx: &mut Ctx, entries: &[SettingEntry]) {
+/// `conditions/` の全体。`entries` は `Design::setting_entries`。
+pub(super) fn check_conditions(ctx: &mut Ctx, entries: &[SettingEntry]) {
     let design = ctx.design;
-    if let Some(o) = &design.mission.orbit {
-        let mut s = scope(ctx, SettingPath::mission(&["orbit"]));
+    if let Some(o) = &design.conditions.orbit {
+        let mut s = scope(ctx, SettingPath::conditions(&["orbit"]));
         s.dimensions(entries);
         check_orbit(&mut s, o);
     }
-    for id in design.mission.ground.keys() {
-        scope(ctx, SettingPath::mission(&["ground", id])).dimensions(entries);
+    for id in design.conditions.ground.keys() {
+        scope(ctx, SettingPath::conditions(&["ground", id])).dimensions(entries);
     }
-    if design.mission.launch.is_some() {
-        scope(ctx, SettingPath::mission(&["launch"])).dimensions(entries);
+    if design.conditions.launch.is_some() {
+        scope(ctx, SettingPath::conditions(&["launch"])).dimensions(entries);
     }
 }
 

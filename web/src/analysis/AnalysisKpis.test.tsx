@@ -2,14 +2,14 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { AnalysisState } from "@/api/queries";
 import type { AnalysisEntry, AnalysisRunResult, KpiView } from "@/api/types";
-import { SystemKpis } from "./SystemKpis";
+import { AnalysisKpis } from "./AnalysisKpis";
 
 const entry = (id: string, kpis: AnalysisEntry["kpis"]): AnalysisEntry => ({
   info: {
     id,
     title: id,
     title_en: id,
-    system: "thermal",
+    area: { kind: "system", value: "thermal" },
     kind: "steady",
     description: "",
     description_en: "",
@@ -70,16 +70,16 @@ const states: AnalysisState[] = [
   { id: "thermal.transient", result: undefined, error: null, loading: true, updating: false },
 ];
 
-describe("SystemKpis", () => {
+describe("AnalysisKpis", () => {
   it("解析の一覧を待つ間は帯のスケルトン", () => {
-    const html = renderToStaticMarkup(<SystemKpis entries={[]} states={[]} loading />);
+    const html = renderToStaticMarkup(<AnalysisKpis entries={[]} states={[]} loading />);
     expect(html).toContain('aria-busy="true"');
     expect(html).not.toContain("<dl");
   });
 
   it("名前と値は API のものを並べ、数える KPI は数の文、結果を待つ KPI は値のスケルトン", () => {
     const html = renderToStaticMarkup(
-      <SystemKpis entries={[steady, transient]} states={states} loading={false} />,
+      <AnalysisKpis entries={[steady, transient]} states={states} loading={false} />,
     );
     expect(html).toContain("最高温度");
     expect(html).toContain("50.5 °C");

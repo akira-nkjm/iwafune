@@ -15,6 +15,7 @@ import type {
   BudgetRequest,
   BudgetView,
   CheckReport,
+  ConditionTopic,
   DataStatus,
   DefsView,
   DesignView,
@@ -170,9 +171,9 @@ export function useAnalyses(
   });
 }
 
-/** ある系の解析。系への所属は sat-analysis の info.system が正本 */
+/** ある系の解析。系への所属は sat-analysis の info.area が正本 */
 function systemEntries(entries: readonly AnalysisEntry[], system: string | null): AnalysisEntry[] {
-  return entries.filter((e) => e.info.system === system);
+  return entries.filter((e) => e.info.area.kind === "system" && e.info.area.value === system);
 }
 
 /** 解析の一覧（GET /analyses）から、ある系の解析（一覧の順）とその ID を引く */
@@ -197,4 +198,13 @@ export async function prefetchSystemAnalyses(system: string): Promise<void> {
   } catch {
     // 一覧が取れなかった。ページが同じ問い合わせをしてエラーを出す
   }
+}
+
+/** 前提条件の話題に属する解析（系の解析とは別の区分）。 */
+export function useConditionAnalyses(topic: ConditionTopic) {
+  const catalog = useQuery(q.analyses());
+  const entries = (catalog.data ?? []).filter(
+    (e) => e.info.area.kind === "condition" && e.info.area.value === topic,
+  );
+  return { entries, ids: entries.map((e) => e.info.id), loading: catalog.isPending };
 }

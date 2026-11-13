@@ -146,8 +146,8 @@ pub fn duplicates<'a>(ids: impl IntoIterator<Item = &'a str>) -> Vec<(usize, usi
     out
 }
 
-/// パスの先頭に来る予約語（部品 ID に使えない）。`mission.orbit.altitude` などと区別するため。
-pub const RESERVED_ROOTS: &[&str] = &["mission", "analysis", "budget", "modes", "nets"];
+/// パスの先頭に来る予約語（部品 ID に使えない）。`conditions.orbit.altitude` などと区別するため。
+pub const RESERVED_ROOTS: &[&str] = &["conditions", "analysis", "budget", "modes", "nets"];
 
 const WINDOWS_RESERVED: &[&str] = &[
     "con", "prn", "aux", "nul", "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8",
@@ -219,7 +219,7 @@ mod tests {
         assert!(validate_entity_id("RW.X").is_err());
         assert!(validate_entity_id("con").is_err());
         assert!(validate_entity_id("MISSION").is_ok());
-        assert!(validate_node_id("Mission").is_err());
+        assert!(validate_node_id("Conditions").is_err());
         assert!(validate_entity_id("").is_err());
     }
 

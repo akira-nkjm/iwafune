@@ -3,6 +3,6 @@ import type { Quantity } from "./Quantity";
 import type { Vector3 } from "./Vector3";
 
 /**
- * 設定（`mission/`・`analysis/`・`budget/`）の 1 つの値。`SetSetting` の Op と store の書き込みが共有する。
+ * 設定（`conditions/`・`analysis/`・`budget/`）の 1 つの値。`SetSetting` の Op と store の書き込みが共有する。
  */
 export type SettingValue = { "type": "number", "value": number } | { "type": "integer", "value": number } | { "type": "bool", "value": boolean } | { "type": "text", "value": string } | { "type": "quantity", "value": Quantity } | { "type": "vector", "value": Vector3 } | { "type": "list", "value": Array<string> };

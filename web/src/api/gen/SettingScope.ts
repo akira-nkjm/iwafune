@@ -3,4 +3,4 @@
 /**
  * 設定の置き場所の種類。
  */
-export type SettingScope = "mission" | "analysis" | "budget";
+export type SettingScope = "conditions" | "analysis" | "budget";

@@ -12,7 +12,7 @@
 use super::wheels::{RwWheel, usable_momentum_fraction};
 use crate::spec::quantity_text;
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_fraction,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_fraction,
     ensure_non_negative, ensure_positive,
 };
 use sat_astro::geomag::field_about_eci_t;
@@ -142,7 +142,7 @@ pub struct UnloadTime;
 impl Analysis for UnloadTime {
     const ID: &'static str = "aocs.unload_time";
     const TITLE: &'static str = "アンロードにかかる時間";
-    const SYSTEM: System = System::Aocs;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Aocs);
     const KIND: AnalysisKind = AnalysisKind::Steady;
     const DESCRIPTION: &'static str = "MTQ・RCS で所定の角運動量を捨てるのにかかる時間";
     const TITLE_EN: &'static str = "Momentum unloading time";

@@ -321,7 +321,7 @@ fn other_ops() -> Vec<Op> {
             remove: vec!["OLD".into()],
         },
         Op::SetSetting {
-            path: "mission.orbit.altitude".into(),
+            path: "conditions.orbit.altitude".into(),
             value: Some(SettingValue::Quantity(Quantity::new(550.0, "km"))),
         },
         Op::SetSetting {

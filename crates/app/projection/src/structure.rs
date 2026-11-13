@@ -85,9 +85,9 @@ pub fn summary(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<MassPropertie
     }
 }
 
-/// `mission.launch.<…>`（`mission/launch.toml` のキー）。
+/// `conditions.launch.<…>`（`conditions/launch.toml` のキー）。
 fn launch(keys: &[&str]) -> SettingPath {
-    SettingPath::mission(&["launch"]).child(keys)
+    SettingPath::conditions(&["launch"]).child(keys)
 }
 
 /// 荷重倍数（`g0` の倍数）。単位が無ければそのまま、あれば `g0` に換算する（換算は sat-units）。
@@ -153,14 +153,14 @@ fn interfaces(
         .collect()
 }
 
-/// `structure.static_load`: 打ち上げ荷重（`mission/launch.toml`）で、取付の木をたどった取付部の荷重。
+/// `structure.static_load`: 打ち上げ荷重（`conditions/launch.toml`）で、取付の木をたどった取付部の荷重。
 pub fn static_load(ctx: &Context<'_>) -> Result<StaticLoadInput, MissingInputs> {
     let mut m = MissingInputs::new();
-    let launch = ctx.design.mission.launch.as_ref();
+    let launch = ctx.design.conditions.launch.as_ref();
     let launch = m.need(
         launch,
         self::launch(&[]),
-        "打ち上げ条件（mission/launch.toml）",
+        "打ち上げ条件（conditions/launch.toml）",
     );
     let axial =
         launch.and_then(|l| load_factor(l.load_axial.as_ref(), &dims::LAUNCH_LOAD_AXIAL, &mut m));
@@ -254,7 +254,7 @@ pub fn modal_estimate(ctx: &Context<'_>) -> Result<ModalEstimateInput, MissingIn
     let panels: Vec<ModalEstimatePanel> = crate::parts::by_role(ctx, Role::Panel)
         .filter_map(|p| panel(ctx, p, &mut m))
         .collect();
-    let launch = ctx.design.mission.launch.as_ref();
+    let launch = ctx.design.conditions.launch.as_ref();
     let requirements = ModalEstimateRequirements {
         lateral: setting_opt(
             &dims::LAUNCH_MIN_FREQUENCY_LATERAL,

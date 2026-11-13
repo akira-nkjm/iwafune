@@ -109,17 +109,19 @@ fn print_checks(checks: &[fune_service::dto::CheckView], out: &Out) {
 /// `fune analyze ls`（プロジェクトが無くても使える）。
 pub fn ls(out: &Out) -> anyhow::Result<u8> {
     let entries = analysis::analysis_catalog()?;
+    // 並びは解析の一覧（catalog）のまま: 系の決まった順、そのあとに前提条件の話題
     if out.json {
         out.json(&entries)?;
         return Ok(0);
     }
-    let mut t = out.table(&["ID", "名前", "種類", "入力"]);
+    let mut t = out.table(&["区分", "ID", "名前", "種類", "入力"]);
     for e in &entries {
         let kind = match e.info.kind {
             AnalysisKind::Steady => "定常",
             AnalysisKind::TimeSeries => "時系列",
         };
         t.row(vec![
+            C::Text(fune_service::analysis::area_key(e.info.area).to_owned()),
             C::Strong(e.info.id.clone()),
             C::Text(e.info.title.clone()),
             C::Text(kind.to_owned()),

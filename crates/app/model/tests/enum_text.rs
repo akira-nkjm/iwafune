@@ -67,6 +67,7 @@ fn enum_text_matches_serde_names() {
     same_as_serde::<CatalogFieldName>();
     same_as_serde::<NetFieldName>();
     same_as_serde::<AnalysisSystem>();
+    same_as_serde::<fune_model::design::ConditionTopic>();
     same_as_serde::<NetEnd>();
     same_as_serde::<HarnessEnd>();
 }

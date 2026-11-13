@@ -7,7 +7,7 @@
 //! | `system` | Mode・Net・Harness・Case・Source |
 //! | `budget` | 配分とマージン方針 |
 //! | `project` | `fune.toml` |
-//! | `mission` / `analysis` | `mission/`・`analysis/` の型付きの設定。解析の系の一覧 `AnalysisSystem` |
+//! | `conditions` / `analysis` | `conditions/`・`analysis/` の型付きの設定。解析の系の一覧 `AnalysisSystem` |
 //! | `refs` | 参照の索引（ある ID をどのエンティティのどのキーが持っているか。`Design::references`） |
 //! | `setting_dims` | 設定の量の次元の表（パスの形 → 次元。検査と射影が引く） |
 //! | `settings_view` | 型付きの設定をパス記法で読む（`Design::setting`・`setting_entries`・`settings_json`） |
@@ -16,8 +16,8 @@
 
 pub mod analysis;
 pub mod budget;
+pub mod conditions;
 pub mod defs;
-pub mod mission;
 pub mod net;
 pub mod part;
 pub mod project;
@@ -30,8 +30,8 @@ pub mod view;
 
 pub use analysis::*;
 pub use budget::*;
+pub use conditions::*;
 pub use defs::*;
-pub use mission::*;
 pub use part::*;
 pub use project::*;
 pub use refs::{HarnessEnd, NetEnd, RefSite, Referent};
@@ -89,7 +89,7 @@ pub struct Design {
     pub harnesses: BTreeMap<Id<Harness>, Harness>,
     pub cases: BTreeMap<Id<Case>, Case>,
     pub sources: BTreeMap<Id<Source>, Source>,
-    pub mission: MissionSettings,
+    pub conditions: ConditionsSettings,
     pub analysis: AnalysisSettings,
     /// 図の配置（`view/<名前>.toml`。見た目だけ）
     pub views: BTreeMap<String, ViewLayout>,

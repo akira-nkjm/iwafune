@@ -14,9 +14,9 @@ import { paths } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 
-/** ミッション / 解析ケース: cases/ の一覧。各系のページをそのケースで開ける */
+/** 前提条件 / 解析ケース: cases/ の一覧。各系のページをそのケースで開ける */
 export function CasesPage() {
-  const m = useT().mission;
+  const m = useT().conditions;
   const design = useDesign();
   return (
     <>
@@ -32,7 +32,7 @@ export function CasesPage() {
 
 /** ケースの表。最後の列は、そのケースで開く系のページへのリンク */
 function CasesTable({ design: d }: { design: DesignView }) {
-  const m = useT().mission;
+  const m = useT().conditions;
   return (
     <Panel pad={false}>
       <DataTable

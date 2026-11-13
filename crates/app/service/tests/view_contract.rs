@@ -97,14 +97,14 @@ fn ends_places_and_setting_groups_are_structured() {
         assert!(design.tree.iter().any(|n| &n.id == dir), "{dir}");
     }
     let setting = |key: &str| design.settings.iter().find(|s| s.key == key).unwrap();
-    let altitude = setting("mission.orbit.altitude");
+    let altitude = setting("conditions.orbit.altitude");
     assert_eq!(
         (
             altitude.scope,
             altitude.group.as_str(),
             altitude.field.as_str()
         ),
-        (SettingScope::Mission, "mission.orbit", "altitude")
+        (SettingScope::Conditions, "conditions.orbit", "altitude")
     );
     assert_eq!(altitude.system, None);
     assert_eq!(

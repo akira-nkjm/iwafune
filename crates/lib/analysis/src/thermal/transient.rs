@@ -5,7 +5,8 @@
 //! - 積分は `sat_astro::ode::integrate`（固定刻み RK4）。刻みは安定条件の目安と `max_step` の小さい方。
 
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series, System, Verdict,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series,
+    System, Verdict,
 };
 use crate::thermal::network::{
     Compiled, INITIAL_GUESS_K, ThermalLoad, ThermalModeLoads, ThermalNetwork, ThermalTempRange,
@@ -106,7 +107,7 @@ pub struct ThermalTransient;
 impl Analysis for ThermalTransient {
     const ID: &'static str = "thermal.transient";
     const TITLE: &'static str = "熱（非定常）";
-    const SYSTEM: System = System::Thermal;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Thermal);
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;
     const DESCRIPTION: &'static str = "軌道上の多節点モデルの温度の時間変化";
     const TITLE_EN: &'static str = "Thermal (transient)";

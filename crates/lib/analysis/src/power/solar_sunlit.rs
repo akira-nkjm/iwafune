@@ -5,7 +5,9 @@
 //! **全日照（日照率 1）として**発電を評価する（姿勢による差だけを見るため）。発電モデルは [`super::solar`]。
 
 use super::solar::{SolarArray, SolarLife, total};
-use crate::spec::{Analysis, AnalysisError, AnalysisKind, System, is_sunlit, masked_time_mean};
+use crate::spec::{
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, System, is_sunlit, masked_time_mean,
+};
 use sat_astro::math::Vec3;
 use sat_astro::timeline::{self, TimelineSpec};
 use sat_units::typed::{Angle, Power, Qty};
@@ -86,7 +88,7 @@ pub struct SolarSunlit;
 impl Analysis for SolarSunlit {
     const ID: &'static str = "power.solar_sunlit";
     const TITLE: &'static str = "日照時の発電";
-    const SYSTEM: System = System::Power;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Power);
     const KIND: AnalysisKind = AnalysisKind::Steady;
     const DESCRIPTION: &'static str = "姿勢則ごとの日照時の発電電力（BOL/EOL）";
     const TITLE_EN: &'static str = "Sunlit power generation";

@@ -1,4 +1,4 @@
-//! 設定（`mission/`・`analysis/`）の量の次元の表（設定のパスの形 → 次元）。**設定の量の次元はここだけに書く。**
+//! 設定（`conditions/`・`analysis/`）の量の次元の表（設定のパスの形 → 次元）。**設定の量の次元はここだけに書く。**
 //!
 //! 検査（`check`）は書かれた量の葉ごとに [`setting_dimension`] で表を引いて次元を確かめ、射影（fune-projection）は
 //! 欄の定数（[`ORBIT_ALTITUDE`] など）を渡して `Qty<D>` に読む。欄の型 `D` が射影の型になるので、検査と射影の次元はずれない。
@@ -56,7 +56,7 @@ impl<D: Dimension> SettingQuantity<D> {
     }
 
     /// 形の [`ANY`] を `fill` で前から順に埋めたパス（`GROUND_LATITUDE.at(&["TOKYO_GS"])` →
-    /// `mission.ground.TOKYO_GS.latitude`）。`fill` が足りなければ `*` のまま。
+    /// `conditions.ground.TOKYO_GS.latitude`）。`fill` が足りなければ `*` のまま。
     pub fn at(&self, fill: &[&str]) -> SettingPath {
         let mut fill = fill.iter();
         SettingPath {
@@ -95,44 +95,44 @@ macro_rules! setting_quantities {
 }
 
 setting_quantities! {
-    /// 軌道の高度（`mission/orbit.toml`）
-    ORBIT_ALTITUDE: Length = Mission["orbit", "altitude"];
+    /// 軌道の高度（`conditions/orbit.toml`）
+    ORBIT_ALTITUDE: Length = Conditions["orbit", "altitude"];
     /// 軌道長半径
-    ORBIT_SEMI_MAJOR_AXIS: Length = Mission["orbit", "semi_major_axis"];
+    ORBIT_SEMI_MAJOR_AXIS: Length = Conditions["orbit", "semi_major_axis"];
     /// 軌道傾斜角
-    ORBIT_INCLINATION: Angle = Mission["orbit", "inclination"];
+    ORBIT_INCLINATION: Angle = Conditions["orbit", "inclination"];
     /// 昇交点赤経
-    ORBIT_RAAN: Angle = Mission["orbit", "raan"];
+    ORBIT_RAAN: Angle = Conditions["orbit", "raan"];
     /// 近地点引数
-    ORBIT_ARG_PERIGEE: Angle = Mission["orbit", "arg_perigee"];
+    ORBIT_ARG_PERIGEE: Angle = Conditions["orbit", "arg_perigee"];
     /// 平均近点角
-    ORBIT_MEAN_ANOMALY: Angle = Mission["orbit", "mean_anomaly"];
-    /// 準静的荷重（機軸方向。`mission/launch.toml`）
-    LAUNCH_LOAD_AXIAL: Acceleration = Mission["launch", "load_axial"];
+    ORBIT_MEAN_ANOMALY: Angle = Conditions["orbit", "mean_anomaly"];
+    /// 準静的荷重（機軸方向。`conditions/launch.toml`）
+    LAUNCH_LOAD_AXIAL: Acceleration = Conditions["launch", "load_axial"];
     /// 準静的荷重（直交方向）
-    LAUNCH_LOAD_LATERAL: Acceleration = Mission["launch", "load_lateral"];
+    LAUNCH_LOAD_LATERAL: Acceleration = Conditions["launch", "load_lateral"];
     /// 最低固有振動数（機軸方向）
-    LAUNCH_MIN_FREQUENCY_AXIAL: Frequency = Mission["launch", "min_frequency_axial"];
+    LAUNCH_MIN_FREQUENCY_AXIAL: Frequency = Conditions["launch", "min_frequency_axial"];
     /// 最低固有振動数（直交方向）
-    LAUNCH_MIN_FREQUENCY_LATERAL: Frequency = Mission["launch", "min_frequency_lateral"];
-    /// 地上局の緯度（`mission/ground/<局>.toml`）
-    GROUND_LATITUDE: Angle = Mission["ground", ANY, "latitude"];
+    LAUNCH_MIN_FREQUENCY_LATERAL: Frequency = Conditions["launch", "min_frequency_lateral"];
+    /// 地上局の緯度（`conditions/ground/<局>.toml`）
+    GROUND_LATITUDE: Angle = Conditions["ground", ANY, "latitude"];
     /// 地上局の経度
-    GROUND_LONGITUDE: Angle = Mission["ground", ANY, "longitude"];
+    GROUND_LONGITUDE: Angle = Conditions["ground", ANY, "longitude"];
     /// 地上局の最低仰角
-    GROUND_MIN_ELEVATION: Angle = Mission["ground", ANY, "min_elevation"];
+    GROUND_MIN_ELEVATION: Angle = Conditions["ground", ANY, "min_elevation"];
     /// 地上局の標高
-    GROUND_ALTITUDE: Length = Mission["ground", ANY, "altitude"];
+    GROUND_ALTITUDE: Length = Conditions["ground", ANY, "altitude"];
     /// 地上局の帯域ごとのアンテナ利得（`[link.<帯域>]`）
-    GROUND_ANTENNA_GAIN: Dimensionless = Mission["ground", ANY, "link", ANY, "antenna_gain"];
+    GROUND_ANTENNA_GAIN: Dimensionless = Conditions["ground", ANY, "link", ANY, "antenna_gain"];
     /// 地上局の受信系の雑音温度
-    GROUND_NOISE_TEMPERATURE: Temperature = Mission["ground", ANY, "link", ANY, "noise_temperature"];
+    GROUND_NOISE_TEMPERATURE: Temperature = Conditions["ground", ANY, "link", ANY, "noise_temperature"];
     /// 地上局の G/T
-    GROUND_G_OVER_T: Dimensionless = Mission["ground", ANY, "link", ANY, "g_over_t"];
+    GROUND_G_OVER_T: Dimensionless = Conditions["ground", ANY, "link", ANY, "g_over_t"];
     /// 地上局の送信電力
-    GROUND_TX_POWER: Power = Mission["ground", ANY, "link", ANY, "tx_power"];
+    GROUND_TX_POWER: Power = Conditions["ground", ANY, "link", ANY, "tx_power"];
     /// 地上局の給電線の損失
-    GROUND_LINE_LOSS: Dimensionless = Mission["ground", ANY, "link", ANY, "line_loss"];
+    GROUND_LINE_LOSS: Dimensionless = Conditions["ground", ANY, "link", ANY, "line_loss"];
     /// 電源のモードの並びの区間の長さ（`analysis/power.toml` の `[[sequence]]`）
     POWER_SEQUENCE_DURATION: Time = Analysis["power", "sequence", ANY, "duration"];
     /// 空力の圧力中心 − 重心（`analysis/aocs.toml`。ベクトル）
@@ -240,7 +240,7 @@ mod tests {
         let p = GROUND_TX_POWER.at(&["TOKYO_GS", "s_band"]);
         assert_eq!(
             p.to_string(),
-            "mission.ground.TOKYO_GS.link.s_band.tx_power"
+            "conditions.ground.TOKYO_GS.link.s_band.tx_power"
         );
         assert_eq!(setting_dimension(&p), Some("Power"));
         assert_eq!(

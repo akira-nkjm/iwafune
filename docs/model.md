@@ -17,6 +17,25 @@
 - **ファイル形式は TOML。書き出しは 1.0 の範囲に留める**（§10）。表データは CSV、機械向けの交換は JSON。
 - **形式はコーデック層に閉じ込める。** model は TOML を知らず、store の `Codec` だけが知る。将来、形式を変えても model と解析に波及しない。
 
+### 1.1 前提条件と解析の区分
+
+前提条件は `conditions/orbit.toml`・`conditions/launch.toml`・`conditions/ground/<ID>.toml` に置く。
+設定の区分は `SettingScope::Conditions`（綴り `conditions`、表示名は「前提条件」／「Conditions」）。
+キーは `conditions.orbit.altitude`・`conditions.launch.<欄>`・`conditions.ground.<ID>.<欄>`。
+`mission/` は #9 のミッション・サクセスクライテリア・フェーズ用の予約ディレクトリで、現在は読み飛ばす。
+旧配置の軌道なども読まず、軌道の不足は既存の不足入力として返す。移行や旧キーの互換性は持たない。
+
+解析の区分は `sat_analysis::spec::AnalysisArea`。`System(System)` と `Condition(ConditionTopic)` があり、
+最初の話題は `Orbit`（綴り `orbit`、表示名「軌道」／「Orbit」）。既存の 16 解析はすべて系の区分のままで、
+ID は `<区分のキー>.<解析名>`。話題と系のキーは重ならない。部品・バジェット・色・`parts/<系>/` は系のまま扱う。
+API の `AnalysisInfo.area` は `{ "kind": "system", "value": "power" }` または
+`{ "kind": "condition", "value": "orbit" }`。KPI は解析の区分に従って系／話題ごとに並べる。
+
+話題の解析の設定はその条件のファイル内の表に置く（例: `conditions/orbit.toml` の `[eclipse_season]`、
+設定キーは `conditions.orbit.eclipse_season.<欄>`）。`analysis/orbit.toml` は作らない。
+話題の設定位置は `ConditionTopic::setting_path()` で引く。具体的な解析設定の型・読み取り・検査・量の次元は、
+最初の話題の解析を追加する #3 で `OrbitSettings` に追加する。現在は未知の表を受け入れない。
+
 ## 2. 層の構成
 
 | 層 | 中身 | 誰が作るか | 誰が使うか | 保存 |
@@ -752,6 +771,13 @@ my-sat-design/
 ├── modes/<ID>.toml
 ├── nets/<ID>.toml
 ├── harness/<ID>.toml
+├── conditions/                  # 前提条件
+│   ├── orbit.toml               # 軌道と軌道の話題の解析設定
+│   ├── launch.toml              # 打ち上げ条件
+│   └── ground/<ID>.toml         # 地上局
+├── analysis/<系>.toml           # 系ごとの解析設定（話題のファイルは作らない）
+├── analysis/common.toml         # 共通の解析設定
+├── mission/                     # #9 用の予約ディレクトリ（今は読まない）
 ├── cases/<ID>.toml
 ├── sources/<ID>.toml
 ├── requirements/<ID>.toml
@@ -901,4 +927,4 @@ point = "CELL_AREA"
 | ID はファイル名から（ファイルに書かない） | 同じ。加えて JSON の Op ではペイロードの `id` を受け取り、ファイルに `id` があってファイル名と違えば `id.mismatch` | GUI と `fune apply` から新規作成できるようにするため |
 | 属性の既定値 | 組み込みの属性に `default` を持てる（例: 比熱 900 J/(kg·K)）。既定値から解決した値は出所 `kind_default`・根拠 `placeholder` | 仮値であることを画面で示すため |
 
-まだ読み込んでいないもの: `requirements/` と `tables/`（ディレクトリは認識する）。`#:schema` の見出し行はまだ書き出していない。
+まだ読み込んでいないもの: #9 用の `mission/`、`requirements/` と `tables/`（ディレクトリは認識する）。`#:schema` の見出し行はまだ書き出していない。

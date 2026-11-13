@@ -18,6 +18,8 @@ use fune_projection::{Context, MissingInput, ProjectionError, project_json};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+pub use fune_projection::system::area_key;
+
 mod channels;
 mod checks;
 mod dims;

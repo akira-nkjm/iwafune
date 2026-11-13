@@ -1,5 +1,5 @@
-//! KPI（系の代表値）。**どの値を代表にするか（最悪値の選び方）・判定・塗りの比・判定の数え方はここだけ。**
-//! CLI（`fune analyze`）と Web（系のページの数値帯・概要のカード）は、ここで作った `KpiView` を並べるだけにする。
+//! KPI（系・前提条件の話題の代表値）。**どの値を代表にするか（最悪値の選び方）・判定・塗りの比・判定の数え方はここだけ。**
+//! CLI（`fune analyze`）と Web（系・前提条件のページの数値帯・概要のカード）は、ここで作った `KpiView` を並べるだけにする。
 //!
 //! - 値: 解析ごとに出力を型に戻し（下の `kpi_table!`）、欄を引く。並び（ケース・センサ・回線・節点など）は
 //!   KPI ごとに最大か最小（最悪の側）を選ぶ。次元は型から（`sat_units::typed::NamedKind`）。
@@ -92,7 +92,7 @@ fn one<M: Measure>(value: M) -> Option<Measured> {
 
 macro_rules! kpi_table {
     ($($a:ty { $($key:ident => $f:path),+ $(,)? })+) => {
-        /// 解析が出す KPI のキー（系のページに並べる順）。KPI を出さない解析は空。
+        /// 解析が出す KPI のキー（所属する区分のページに並べる順）。KPI を出さない解析は空。
         fn keys(id: &str) -> &'static [KpiKey] {
             $(if id == <$a as Analysis>::ID {
                 return &[$(KpiKey::$key),+];

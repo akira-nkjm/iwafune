@@ -20,10 +20,10 @@ pub const NETS_DIR: &str = "nets";
 pub const HARNESS_DIR: &str = "harness";
 pub const CASES_DIR: &str = "cases";
 pub const SOURCES_DIR: &str = "sources";
-/// 規約にあるが まだ読まないディレクトリ（要求・表データ）。
-pub const RESERVED_DIRS: &[&str] = &["requirements", "tables"];
-pub const MISSION_DIR: &str = "mission";
-pub const GROUND_DIR: &str = "mission/ground";
+/// 規約にあるが まだ読まないディレクトリ（#9 のミッション・要求・表データ）。
+pub const RESERVED_DIRS: &[&str] = &["mission", "requirements", "tables"];
+pub const CONDITIONS_DIR: &str = "conditions";
+pub const GROUND_DIR: &str = "conditions/ground";
 pub const ANALYSIS_DIR: &str = "analysis";
 /// 系に属さない解析の共通設定。
 pub const COMMON_ANALYSIS_FILE: &str = "analysis/common.toml";
@@ -33,8 +33,8 @@ pub const WORK_DIR: &str = ".fune";
 pub const IGNORED_DIRS: &[&str] = &["results", "exports", "target", "node_modules"];
 /// 図の配置（見た目だけ。`view/<名前>.toml`）。
 pub const VIEW_DIR: &str = "view";
-/// `mission/` の直下のファイル。
-pub const MISSION_FILES: &[&str] = &["orbit", "launch"];
+/// `conditions/` の直下のファイル。
+pub const CONDITIONS_FILES: &[&str] = &["orbit", "launch"];
 
 /// ファイルの役割。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,10 +60,10 @@ pub enum FileRole {
     Source(String),
     /// `view/<名前>.toml`
     View(String),
-    /// 規約にあるが まだ読まない（`requirements/`・`tables/`）
+    /// 規約にあるが まだ読まない（#9 用の `mission/`・`requirements/`・`tables/`）
     Reserved,
-    /// `mission/orbit.toml`・`mission/launch.toml`
-    Mission(String),
+    /// `conditions/orbit.toml`・`conditions/launch.toml`
+    Conditions(String),
     Ground(String),
     /// `analysis/<系>.toml`（系の一覧は [`AnalysisSystem`]）
     Analysis(AnalysisSystem),
@@ -117,10 +117,10 @@ pub fn classify(rel: &str, catalogs: &[(String, String)]) -> FileRole {
             return make(id);
         }
     }
-    if let Some(id) = flat_child(stem_path, MISSION_DIR)
-        && MISSION_FILES.contains(&id.as_str())
+    if let Some(id) = flat_child(stem_path, CONDITIONS_DIR)
+        && CONDITIONS_FILES.contains(&id.as_str())
     {
-        return FileRole::Mission(id);
+        return FileRole::Conditions(id);
     }
     if RESERVED_DIRS
         .iter()
@@ -162,8 +162,8 @@ pub fn entity_key(role: &FileRole) -> Option<EntityKey> {
         FileRole::Source(id) => EntityKey::Source(id.clone()),
         FileRole::View(id) => EntityKey::View(id.clone()),
         FileRole::Reserved => return None,
-        FileRole::Mission(id) => EntityKey::Setting(SettingPath::mission(&[id])),
-        FileRole::Ground(id) => EntityKey::Setting(SettingPath::mission(&["ground", id])),
+        FileRole::Conditions(id) => EntityKey::Setting(SettingPath::conditions(&[id])),
+        FileRole::Ground(id) => EntityKey::Setting(SettingPath::conditions(&["ground", id])),
         FileRole::Analysis(system) => EntityKey::Setting(system.setting_path()),
         FileRole::CommonAnalysis => EntityKey::Setting(SettingPath::analysis_common()),
         FileRole::Other => return None,
@@ -188,8 +188,8 @@ pub fn file_target(role: &FileRole) -> Option<Target> {
         FileRole::Case(id) => Target::case(id, None),
         FileRole::Source(id) => Target::Source { id: id.clone() },
         FileRole::View(id) => Target::view(id, None),
-        FileRole::Mission(id) => SettingPath::mission(&[id]).into(),
-        FileRole::Ground(id) => SettingPath::mission(&["ground", id]).into(),
+        FileRole::Conditions(id) => SettingPath::conditions(&[id]).into(),
+        FileRole::Ground(id) => SettingPath::conditions(&["ground", id]).into(),
         FileRole::Analysis(system) => system.setting_path().into(),
         FileRole::CommonAnalysis => SettingPath::analysis_common().into(),
         FileRole::Project | FileRole::Reserved | FileRole::Other => return None,
@@ -306,12 +306,12 @@ pub fn setting_location(path: &SettingPath) -> Result<(String, Vec<String>), Sto
     };
     let s = &path.segments;
     let (file, keys) = match path.scope {
-        SettingScope::Mission if s.first().map(String::as_str) == Some("ground") => {
+        SettingScope::Conditions if s.first().map(String::as_str) == Some("ground") => {
             let id = s.get(1).ok_or_else(bad)?;
             (format!("{GROUND_DIR}/{id}.toml"), &s[2.min(s.len())..])
         }
-        SettingScope::Mission if MISSION_FILES.contains(&s[0].as_str()) => {
-            (format!("{MISSION_DIR}/{}.toml", s[0]), &s[1..])
+        SettingScope::Conditions if CONDITIONS_FILES.contains(&s[0].as_str()) => {
+            (format!("{CONDITIONS_DIR}/{}.toml", s[0]), &s[1..])
         }
         SettingScope::Analysis if s.first().map(String::as_str) == Some(ANALYSIS_COMMON) => {
             (COMMON_ANALYSIS_FILE.to_string(), &s[1..])

@@ -1,4 +1,4 @@
-//! 設定（`mission/`・`analysis/`・`budget/`）→ キーと値の一覧（`analysis.power.dod_max = 0.3`）。
+//! 設定（`conditions/`・`analysis/`・`budget/`）→ キーと値の一覧（`analysis.power.dod_max = 0.3`）。
 //! 葉の列挙は `Design::setting_entries`、ファイルの位置は `fune_store::layout::locate_setting`。ここは表示用の型にするのと、
 //! 設定を見せる系の対応（[`system_of`]）だけ。
 
@@ -52,7 +52,7 @@ pub(crate) fn setting_system(path: &SettingPath) -> Option<System> {
             .ok()
             .map(fune_projection::system::to_analysis),
         SettingScope::Budget => Some(budget_system(first.parse::<BudgetKind>().ok()?)),
-        SettingScope::Mission => None,
+        SettingScope::Conditions => None,
     }
 }
 
