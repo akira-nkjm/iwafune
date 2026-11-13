@@ -19,6 +19,21 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
         CommandText::NetSet(t) => net_set_ops(t)?,
         CommandText::NetUnset(t) => vec![net_unset_op(t)?],
         CommandText::PartPlace(t) => vec![place_op(t)?],
+        CommandText::ModeMove {
+            id,
+            before,
+            after,
+            first,
+            last,
+        } => {
+            vec![mode_move_op(
+                id,
+                before.as_deref(),
+                after.as_deref(),
+                *first,
+                *last,
+            )?]
+        }
         CommandText::ModeSet(t) => vec![mode_set_op(t)?],
         CommandText::ModeDuration { mode, duration } => {
             vec![mode_duration_op(mode, duration.as_deref())?]
@@ -179,6 +194,32 @@ pub fn mode_duration_op(mode: &str, duration: Option<&str>) -> Result<Op> {
     Ok(Op::SetModeDuration {
         mode: mode.trim().to_owned(),
         duration: duration.map(quantity_from_text).transpose()?,
+    })
+}
+
+/// CLI と GUI の移動指定を同じ Op にする。移動先は必ず 1 つだけ指定する。
+pub fn mode_move_op(
+    id: &str,
+    before: Option<&str>,
+    after: Option<&str>,
+    first: bool,
+    last: bool,
+) -> Result<Op> {
+    use fune_ops::op::ModePosition;
+    let position = match (before, after, first, last) {
+        (Some(anchor), None, false, false) => ModePosition::Before(anchor.trim().to_owned()),
+        (None, Some(anchor), false, false) => ModePosition::After(anchor.trim().to_owned()),
+        (None, None, true, false) => ModePosition::First,
+        (None, None, false, true) => ModePosition::Last,
+        _ => {
+            return Err(invalid(
+                "--before / --after / --first / --last のどれか 1 つを指定します",
+            ));
+        }
+    };
+    Ok(Op::MoveMode {
+        id: id.trim().to_owned(),
+        position,
     })
 }
 

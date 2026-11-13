@@ -183,7 +183,7 @@ pub struct MountView {
     pub body_orientation: [f64; 4],
 }
 
-/// 部品 × モードの表。
+/// 部品 × モードの表。列は fune.toml の表示順（未指定のモードは後ろに ID 順）。
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 pub struct ModeTable {
     pub modes: Vec<ModeHeader>,

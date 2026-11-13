@@ -19,6 +19,18 @@ pub enum CommandText {
     /// `fune mode set <モード> <部品> <状態> --duty tx=0.1`・`fune mode unset <モード> <部品>`。
     /// GUI のモード表は変えたセルをまとめて送り、1 つの `SetModeStates` になる
     ModeSet(ModeSetText),
+    /// `fune mode move <ID> --before|--after|--first|--last`。
+    ModeMove {
+        id: String,
+        #[serde(default)]
+        before: Option<String>,
+        #[serde(default)]
+        after: Option<String>,
+        #[serde(default)]
+        first: bool,
+        #[serde(default)]
+        last: bool,
+    },
     /// モードの最長継続時間（null なら削除）。
     ModeDuration {
         mode: String,

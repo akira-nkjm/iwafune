@@ -1,7 +1,7 @@
 //! 定義・モード・ネット・設定の Op の解釈（前提の確認 → store の編集）。
 
 use crate::error::OpError;
-use crate::op::{ModeCell, Op, ViewNodePos};
+use crate::op::{ModeCell, ModePosition, Op, ViewNodePos};
 use fune_model::Design;
 use fune_model::builtin;
 use fune_model::check::attribute_def_problems;
@@ -11,7 +11,7 @@ use fune_model::path::{self, ParamPath};
 use fune_model::value::SettingValue;
 use fune_store::Edits;
 use fune_store::layout;
-use fune_store::write::{entities, refs};
+use fune_store::write::{entities, project::set_mode_order, refs};
 
 pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> {
     match op {
@@ -26,13 +26,27 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         Op::RemoveMode { id } => {
             existing_mode(design, id)?;
             edits.remove(&layout::mode_file(id))?;
+            if let Some(modes) = &design.project.modes {
+                let order: Vec<_> = modes.order.iter().filter(|m| *m != id).cloned().collect();
+                set_mode_order(edits, &order)?;
+            }
             Ok(())
         }
         Op::RenameMode { id, to } => {
             existing_mode(design, id)?;
             new_flat_id(design.modes.keys().map(|k| k.as_str()), to, "モード")?;
-            Ok(refs::rename_mode(edits, design, id, to)?)
+            refs::rename_mode(edits, design, id, to)?;
+            if let Some(modes) = &design.project.modes {
+                let order: Vec<_> = modes
+                    .order
+                    .iter()
+                    .map(|m| if m == id { to.clone() } else { m.clone() })
+                    .collect();
+                set_mode_order(edits, &order)?;
+            }
+            Ok(())
         }
+        Op::MoveMode { id, position } => move_mode(edits, design, id, position),
         Op::SetModeDuration { mode, duration } => {
             existing_mode(design, mode)?;
             Ok(entities::set_mode_duration(
@@ -245,7 +259,14 @@ fn create_mode(
             .map(|m| m.eclipse.clone())
             .unwrap_or_default(),
     };
-    Ok(edits.create(&layout::mode_file(id), entities::new_mode_text(&mode))?)
+    edits.create(&layout::mode_file(id), entities::new_mode_text(&mode))?;
+    if let Some(modes) = &design.project.modes {
+        let mut order = modes.order.clone();
+        order.retain(|m| m != id);
+        order.push(id.to_owned());
+        set_mode_order(edits, &order)?;
+    }
+    Ok(())
 }
 
 fn set_cell(edits: &mut Edits, design: &Design, cell: &ModeCell) -> Result<(), OpError> {
@@ -276,4 +297,49 @@ fn validate_view_edge(view: &str, key: &str) -> Result<(), OpError> {
         return Err(OpError::invalid("辺のキーが空です"));
     }
     Ok(())
+}
+
+/// いまの表示順から対象を抜き、移動先へ挿入する。
+fn move_mode(
+    edits: &mut Edits,
+    design: &Design,
+    id: &str,
+    position: &ModePosition,
+) -> Result<(), OpError> {
+    existing_mode(design, id)?;
+    if let ModePosition::Before(anchor) | ModePosition::After(anchor) = position {
+        existing_mode(design, anchor)?;
+        if anchor == id {
+            return Err(OpError::invalid("移動先には別のモードを指定します"));
+        }
+    }
+    let mut order: Vec<String> = design
+        .ordered_modes()
+        .iter()
+        .filter(|m| m.id.as_str() != id)
+        .map(|m| m.id.to_string())
+        .collect();
+    let at = match position {
+        ModePosition::First => 0,
+        ModePosition::Last => order.len(),
+        ModePosition::Before(anchor) | ModePosition::After(anchor) => {
+            let index = order
+                .iter()
+                .position(|m| m == anchor)
+                .ok_or_else(|| OpError::not_found(format!("モード `{anchor}`")))?;
+            index + usize::from(matches!(position, ModePosition::After(_)))
+        }
+    };
+    order.insert(at, id.to_owned());
+    // 手書きの欠けた参照は保存し、check の警告を維持する。
+    order.extend(
+        design
+            .project
+            .modes
+            .iter()
+            .flat_map(|m| &m.order)
+            .filter(|m| !design.modes.contains_key(m.as_str()))
+            .cloned(),
+    );
+    Ok(set_mode_order(edits, &order)?)
 }

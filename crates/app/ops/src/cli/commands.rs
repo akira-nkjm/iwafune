@@ -1,7 +1,7 @@
 //! Op ごとのコマンド。値の文字列は `fune_model::value` の書き方（`value_to_text`・`setting_to_text` など）で作る。
 
 use super::text::Cmd;
-use crate::op::{ModeCell, Op, ViewNodePos};
+use crate::op::{ModeCell, ModePosition, Op, ViewNodePos};
 use fune_model::design::{Net, NetField, NetFieldName, PartField};
 use fune_model::value::{
     Provenance, Scalar, Value, list_to_text, number_to_text, number_unit_to_text, quantity_to_text,
@@ -130,6 +130,16 @@ pub(super) fn other_op(op: &Op) -> Vec<String> {
         ],
         Op::RemoveMode { id } => vec![Cmd::new(&["fune", "mode", "rm", id]).done()],
         Op::RenameMode { id, to } => vec![Cmd::new(&["fune", "mode", "rename", id, to]).done()],
+        Op::MoveMode { id, position } => vec![match position {
+            ModePosition::Before(anchor) => {
+                Cmd::new(&["fune", "mode", "move", id, "--before", anchor]).done()
+            }
+            ModePosition::After(anchor) => {
+                Cmd::new(&["fune", "mode", "move", id, "--after", anchor]).done()
+            }
+            ModePosition::First => Cmd::new(&["fune", "mode", "move", id, "--first"]).done(),
+            ModePosition::Last => Cmd::new(&["fune", "mode", "move", id, "--last"]).done(),
+        }],
         Op::SetModeDuration { mode, duration } => vec![
             Cmd::new(&["fune", "mode", "duration", mode])
                 .flag(

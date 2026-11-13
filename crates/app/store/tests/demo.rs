@@ -182,3 +182,42 @@ fn every_setting_maps_to_its_file_and_line() {
         Some(SettingValue::List(vec!["TOKYO_GS".into()]))
     );
 }
+
+/// 一部指定・欠けた ID・既定順の省略を正規化し、2 回目は変わらない。
+#[test]
+fn mode_order_canonical_round_trip() {
+    let snap = load(&demo()).unwrap();
+    for (order, omitted) in [
+        (vec!["NOMINAL"], false),
+        (vec!["DOWNLINK"], true),
+        (vec!["DOWNLINK", "MISSION", "NOMINAL", "SAFE"], true),
+        (vec!["MISSING", "DOWNLINK"], false),
+        (vec![], true),
+    ] {
+        let mut edits = fune_store::Edits::new(&snap.files);
+        fune_store::write::project::set_mode_order(
+            &mut edits,
+            &order.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>(),
+        )
+        .unwrap();
+        let written = edits.files().get("fune.toml").unwrap();
+        assert_eq!(!written.contains("[modes]"), omitted, "{written}");
+        assert!(format::format_files(edits.files()).is_empty());
+        let round = read::design_of(edits.files());
+        assert!(round.load_diagnostics.is_empty());
+        if !omitted {
+            assert_eq!(round.project.modes.unwrap().order, order);
+        }
+        // fmt も、手で書いた既定順の表を同じ規則で省く。
+        let mut manual = edits.files().clone();
+        if omitted {
+            manual.insert(
+                "fune.toml",
+                format!("{written}\n[modes]\norder = [\"DOWNLINK\"]\n"),
+            );
+            let changes = format::format_files(&manual);
+            fune_store::apply_changes(&mut manual, &changes);
+            assert_eq!(manual.get("fune.toml"), Some(written));
+        }
+    }
+}

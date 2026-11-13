@@ -144,6 +144,7 @@ export type * from "./ModeLoadOutput";
 export type * from "./ModeLoadPart";
 export type * from "./ModeLoadPartResult";
 export type * from "./ModeLoadStateShare";
+export type * from "./ModePosition";
 export type * from "./ModeRedundancy";
 export type * from "./ModeRow";
 export type * from "./ModeSetText";

@@ -37,3 +37,41 @@ pub fn new_allocation_text(allocations: &Allocations) -> String {
 pub fn new_policy_text(policy: &BudgetPolicy) -> Result<String, StoreError> {
     serde_text(POLICY_FILE, policy)
 }
+
+/// 表示順を保存し、実際の順序が ID 順なら表を省く（欠けた ID の警告は残す）。
+pub fn set_mode_order(edits: &mut crate::Edits, order: &[String]) -> Result<(), StoreError> {
+    let mut design = crate::read::design_of(edits.files());
+    design.project.modes = Some(fune_model::design::ModeOrder {
+        order: order.to_vec(),
+    });
+    edits.edit(PROJECT_FILE, |doc| {
+        super::doc::set(
+            super::doc::table_mut(doc, &["modes"])?,
+            "order",
+            super::doc::strings(order.iter().map(String::as_str)),
+        );
+        normalize_mode_order(doc, &design);
+        *doc = crate::profile::parse(PROJECT_FILE, &format::finish(doc.clone()))?;
+        Ok(())
+    })
+}
+
+/// モードの一覧が ID 順と同じ意味なら省く。存在しない ID は警告のため保持する。
+pub fn normalize_mode_order(doc: &mut DocumentMut, design: &fune_model::Design) {
+    let Some(modes) = &design.project.modes else {
+        return;
+    };
+    let missing = modes
+        .order
+        .iter()
+        .any(|id| !design.modes.contains_key(id.as_str()));
+    if !missing
+        && design
+            .ordered_modes()
+            .iter()
+            .map(|m| &m.id)
+            .eq(design.modes.keys())
+    {
+        doc.remove("modes");
+    }
+}

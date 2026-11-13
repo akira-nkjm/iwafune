@@ -1,4 +1,5 @@
 import { MoreHorizontal } from "lucide-react";
+import { useCommandText } from "@/api/ops";
 import type { ModeHeader } from "@/api/types";
 import { useT } from "@/i18n";
 import { useDialogs } from "@/kit/detail/use-dialogs";
@@ -11,9 +12,18 @@ import {
   DropdownMenuTrigger,
 } from "@/ui/dropdown-menu";
 
-/** モードの列見出しの操作（名前の変更・削除） */
-export function ModeHeaderMenu({ mode }: { mode: ModeHeader }) {
+/** モードの列見出しの操作（表示順・名前の変更・削除） */
+export function ModeHeaderMenu({
+  mode,
+  previous,
+  next,
+}: {
+  mode: ModeHeader;
+  previous?: string;
+  next?: string;
+}) {
   const tm = useT().modes.menu;
+  const edit = useCommandText();
   const dialogs = useDialogs<"rename" | "remove">();
   return (
     <>
@@ -28,6 +38,44 @@ export function ModeHeaderMenu({ mode }: { mode: ModeHeader }) {
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            disabled={!previous || edit.isPending}
+            onSelect={() =>
+              previous &&
+              edit.mutate({
+                command: {
+                  command: "mode_move",
+                  id: mode.id,
+                  before: previous,
+                  after: null,
+                  first: false,
+                  last: false,
+                },
+                summary: tm.moveLeftSummary(mode.id),
+              })
+            }
+          >
+            {tm.moveLeft}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!next || edit.isPending}
+            onSelect={() =>
+              next &&
+              edit.mutate({
+                command: {
+                  command: "mode_move",
+                  id: mode.id,
+                  before: null,
+                  after: next,
+                  first: false,
+                  last: false,
+                },
+                summary: tm.moveRightSummary(mode.id),
+              })
+            }
+          >
+            {tm.moveRight}
+          </DropdownMenuItem>
           <DropdownMenuItem onSelect={() => dialogs.show("rename")}>{tm.rename}</DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onSelect={() => dialogs.show("remove")}>
             {tm.remove}

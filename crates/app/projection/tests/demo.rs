@@ -360,3 +360,35 @@ fn mode_validation_and_analysis_agree_on_population() {
     .unwrap();
     assert_eq!(terms.last().unwrap().0, fune_model::builtin::STATE_OFF);
 }
+
+/// 表示順を変えても消費電力の数値はモードごとに同じで、入力・出力の順だけが変わる。
+#[test]
+fn mode_display_order_preserves_analysis_values() {
+    let (mut design, resolved) = demo();
+    design.project.modes = Some(fune_model::design::ModeOrder {
+        order: ["NOMINAL", "MISSION", "DOWNLINK", "SAFE"]
+            .map(str::to_owned)
+            .to_vec(),
+    });
+    let run = |d: &fune_model::Design| {
+        let ctx = Context::new(d, &resolved, None).unwrap();
+        let input = project_json("power.mode_load", &ctx).unwrap();
+        sat_analysis::catalog::run_json("power.mode_load", input).unwrap()
+    };
+    let ordered = run(&design);
+    let modes = ordered["modes"].as_array().unwrap();
+    assert_eq!(
+        modes
+            .iter()
+            .map(|m| m["id"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        ["NOMINAL", "MISSION", "DOWNLINK", "SAFE"]
+    );
+    design.project.modes = None;
+    let mut sorted = ordered.clone();
+    sorted["modes"]
+        .as_array_mut()
+        .unwrap()
+        .sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+    assert_eq!(sorted, run(&design));
+}

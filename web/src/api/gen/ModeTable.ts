@@ -3,6 +3,6 @@ import type { ModeHeader } from "./ModeHeader";
 import type { ModeRow } from "./ModeRow";
 
 /**
- * 部品 × モードの表。
+ * 部品 × モードの表。列は fune.toml の表示順（未指定のモードは後ろに ID 順）。
  */
 export type ModeTable = { modes: Array<ModeHeader>, rows: Array<ModeRow>, };

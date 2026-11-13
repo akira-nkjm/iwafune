@@ -84,8 +84,8 @@ pub(crate) fn tree(design: &Design) -> Vec<TreeNode> {
 /// 部品 × モードの表。
 pub(crate) fn mode_table(design: &Design) -> ModeTable {
     let modes = design
-        .modes
-        .values()
+        .ordered_modes()
+        .into_iter()
         .map(|m| ModeHeader {
             max_duration: m
                 .max_duration

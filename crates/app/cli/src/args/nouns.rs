@@ -161,6 +161,20 @@ pub enum ModeCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// モードの表示順を変える
+    Move {
+        id: String,
+        #[arg(long, group = "mode_position")]
+        before: Option<String>,
+        #[arg(long, group = "mode_position")]
+        after: Option<String>,
+        #[arg(long, group = "mode_position")]
+        first: bool,
+        #[arg(long, group = "mode_position")]
+        last: bool,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// モードの最長継続時間を書く（例: `fune mode duration NOMINAL --max-duration "90 min"`。旗を省くと消す）
     Duration {
         mode: String,

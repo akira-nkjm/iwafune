@@ -78,3 +78,114 @@ fn mode_table_edit_writes_one_row_per_cell() {
     };
     assert!(matches!(plan(&snap, &[bad]), Err(OpError::Rejected { .. })));
 }
+
+/// 移動と名前変更・削除・追加を同じ計画で行い、一覧の参照と順序を保つ。
+#[test]
+fn mode_edits_preserve_display_order() {
+    use fune_ops::ModePosition;
+    let mut snap = snapshot();
+    snap.files = fune_store::FileSet::new();
+    snap.files.insert("fune.toml", "[project]\nname = \"sample\"\n[modes]\norder = [\"NOMINAL\", \"MISSION\", \"DOWNLINK\", \"SAFE\"]\n");
+    for id in ["NOMINAL", "MISSION", "DOWNLINK", "SAFE"] {
+        snap.files.insert(format!("modes/{id}.toml"), "[states]\n");
+    }
+    snap.design = fune_store::read::design_of(&snap.files);
+    let result = plan(
+        &snap,
+        &[
+            Op::MoveMode {
+                id: "SAFE".into(),
+                position: ModePosition::First,
+            },
+            Op::RenameMode {
+                id: "SAFE".into(),
+                to: "SURVIVAL".into(),
+            },
+            Op::RemoveMode {
+                id: "MISSION".into(),
+            },
+            Op::CreateMode {
+                id: "COMMISSION".into(),
+                label: None,
+                description: None,
+                copy_from: Some("NOMINAL".into()),
+            },
+        ],
+    )
+    .unwrap();
+    assert_eq!(
+        result
+            .design
+            .ordered_modes()
+            .iter()
+            .map(|m| m.id.as_str())
+            .collect::<Vec<_>>(),
+        ["SURVIVAL", "NOMINAL", "DOWNLINK", "COMMISSION"]
+    );
+    assert_eq!(
+        result.design.project.modes.as_ref().unwrap().order,
+        ["SURVIVAL", "NOMINAL", "DOWNLINK", "COMMISSION"]
+    );
+    let text = result
+        .changes
+        .iter()
+        .find(|c| c.path == "fune.toml")
+        .unwrap()
+        .after
+        .as_ref()
+        .unwrap();
+    assert!(!text.contains("SAFE") && !text.contains("\"MISSION\""));
+    assert!(matches!(
+        plan(
+            &snap,
+            &[Op::MoveMode {
+                id: "NO_SUCH_MODE".into(),
+                position: ModePosition::First
+            }]
+        ),
+        Err(OpError::NotFound { .. })
+    ));
+    assert!(
+        plan(
+            &snap,
+            &[Op::MoveMode {
+                id: "SAFE".into(),
+                position: ModePosition::Before("SAFE".into())
+            }]
+        )
+        .is_err()
+    );
+    assert!(
+        plan(
+            &snap,
+            &[Op::MoveMode {
+                id: "SAFE".into(),
+                position: ModePosition::After("MISSING".into())
+            }]
+        )
+        .is_err()
+    );
+}
+
+/// 省略した一覧は追加時にも作らない。
+#[test]
+fn create_mode_without_order_keeps_it_omitted() {
+    let mut snap = snapshot();
+    let text = snap.files.get("fune.toml").unwrap();
+    let mut doc = fune_store::profile::parse("fune.toml", text).unwrap();
+    doc.remove("modes");
+    snap.files.insert("fune.toml", doc.to_string());
+    snap.design = fune_store::read::design_of(&snap.files);
+    let result = plan(
+        &snap,
+        &[Op::CreateMode {
+            id: "COMMISSION".into(),
+            label: None,
+            description: None,
+            copy_from: None,
+        }],
+    )
+    .unwrap();
+    assert!(result.design.project.modes.is_none());
+    assert!(result.changes.iter().all(|c| c.path != "fune.toml"));
+}
