@@ -105,7 +105,6 @@ export const systemsEn: typeof systemsJa = {
     inputOf: (title: string) => `Input passed to ${title}`,
     noAnalyses: "No analyses are available for this system yet",
     noSeries: "No time-series results yet (graphs appear here once a time-series analysis runs)",
-    seriesSep: ", ",
     seriesUnit: (u: string) => ` [${u}]`,
     rangeSep: " – ",
     heatTitle: "Node temperatures (steady)",

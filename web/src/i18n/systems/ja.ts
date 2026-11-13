@@ -103,7 +103,6 @@ export const systemsJa = {
     inputOf: (title: string) => `${title} に渡した入力`,
     noAnalyses: "この系の解析はまだありません",
     noSeries: "時系列の結果はまだありません（時系列の解析が実行されると、ここにグラフを出します）",
-    seriesSep: "・",
     seriesUnit: (u: string) => `［${u}］`,
     rangeSep: " 〜 ",
     heatTitle: "節点温度（定常）",

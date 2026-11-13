@@ -56,7 +56,10 @@ export function SeriesChart({
         <figure key={unit} className="m-0">
           <figcaption className="mb-1 text-ink-3 text-xs">
             {title ? `${title} · ` : ""}
-            {channels.map((c) => localized(c.label, c.label_en)).join(tr.systems.seriesSep)}
+            {/* 2 本以上なら名前は凡例に出るので、見出しには繰り返さない */}
+            {channels.length === 1 &&
+              channels[0] &&
+              localized(channels[0].label, channels[0].label_en)}
             {tr.systems.seriesUnit(unit || "—")}
           </figcaption>
           <SeriesPlot
