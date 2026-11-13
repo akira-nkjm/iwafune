@@ -94,7 +94,7 @@ fn check_points_at_the_toml_line() {
     let (_tmp, root) = demo_copy();
     let file = root.join("parts/aocs/RW_X.toml");
     let text = std::fs::read_to_string(&file).unwrap();
-    std::fs::write(&file, text.replace("unit = \"kg\"", "unit = \"furlong\"")).unwrap();
+    std::fs::write(&file, text.replace("\"kg\"", "\"furlong\"")).unwrap();
     let out = fune()
         .args(["-C", root.to_str().unwrap(), "check"])
         .output()

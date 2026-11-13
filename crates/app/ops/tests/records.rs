@@ -97,11 +97,26 @@ fn sources_and_harnesses() {
         }],
     );
     assert!(matches!(used, Err(OpError::Rejected { .. })));
+    // 出典の付いた長さは `[length]` の下に 1 行 1 要素なので、値だけを変えると 1 行だけが変わる。
     let mut h = snap.design.harnesses["H_PCDU_RWX"].clone();
+    if let Some(length) = h.length.as_mut() {
+        length.value = 0.42;
+    }
+    let p = plan(&snap, &[Op::SetHarness { harness: h.clone() }]).unwrap();
+    let (_, added) = one_line_change(&p);
+    assert_eq!(added, "value       = 0.42");
+    // 出典を外すと 1 行のインライン表に戻る（`=` の揃えも fmt と同じ）。
     h.length = Some(Quantity::new(0.42, "m"));
     let p = plan(&snap, &[Op::SetHarness { harness: h }]).unwrap();
-    let (_, added) = one_line_change(&p);
-    assert_eq!(added, "length = { value = 0.42, unit = \"m\" }");
+    let text = p.changes[0].after.as_deref().unwrap();
+    assert!(
+        text.ends_with("cores  = 2\nlength = { value = 0.42, unit = \"m\" }\n"),
+        "{text}"
+    );
+    assert_eq!(
+        fune_store::format::format_text(&p.changes[0].path, text).unwrap(),
+        text
+    );
     assert!(
         plan(
             &snap,

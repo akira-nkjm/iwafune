@@ -6,13 +6,19 @@ maturity = "off_the_shelf"
 on = "CAM"
 
 [attr]
-mass          = { value = 4.0, unit = "g", from = { source = "tbd" } }
 specific_heat = { value = 1100.0, unit = "J/(kg*K)" }
 setpoint      = { min = 0.0, max = 5.0, unit = "degC" }
 
+[attr.mass]
+value       = 4.0
+unit        = "g"
+from.source = "tbd"
+
 [attr.power]
-off = { value = 0.0, unit = "W" }
-on  = { value = 1.0, unit = "W", from = { source = "sys_judgement" } }
+off            = { value = 0.0, unit = "W" }
+on.value       = 1.0
+on.unit        = "W"
+on.from.source = "sys_judgement"
 
 [ports.PWR]
 net = "P5V"

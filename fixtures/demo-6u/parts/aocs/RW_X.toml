@@ -4,8 +4,11 @@ catalog = "local/rw_10mNms"
 on    = "PANEL_MZ"
 point = "RW_SLOT_X"
 
-[attr]
-mass = { value = 0.152, unit = "kg", from = { source = "em_test_2026_10", note = "EM 実測" } }
+[attr.mass]
+value       = 0.152
+unit        = "kg"
+from.source = "em_test_2026_10"
+from.note   = "EM 実測"
 
 [ports.PWR]
 net = "P12V"
