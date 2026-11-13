@@ -148,12 +148,25 @@ function SeriesPlot({
             }
             labelFormatter={(v) => `t = ${typeof v === "number" ? numText(v) : String(v)} s`}
             contentStyle={{
-              fontSize: 12,
+              fontSize: 11,
+              lineHeight: 1.35,
+              padding: "6px 9px",
               borderRadius: 9,
               borderColor: "var(--color-line-strong)",
             }}
+            itemStyle={{ padding: 0 }}
+            labelStyle={{ marginBottom: 2 }}
+            offset={14}
+            wrapperStyle={{ pointerEvents: "none", zIndex: 10 }}
           />
-          {channels.length > 1 && <Legend wrapperStyle={{ fontSize: 11 }} />}
+          {/* 凡例は上に置き、下に出るツールチップと重ならないようにする */}
+          {channels.length > 1 && (
+            <Legend
+              verticalAlign="top"
+              align="right"
+              wrapperStyle={{ fontSize: 11, paddingBottom: 6 }}
+            />
+          )}
           {channels.map((c, i) => (
             <Line
               key={c.key}
