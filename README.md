@@ -27,7 +27,7 @@ AOCS, C&DH, communications, thermal and structure on the same data.
 
 |  |  |
 |---|---|
-| **Design data as files** | One entity per TOML file: parts, modes, nets, harness, budgets, mission, analysis settings and catalog items. Quantities carry units, and every value records where it came from (catalog, override or kind default) and what backs it (datasheet, measurement, placeholder…). |
+| **Design data as files** | One entity per TOML file: parts, modes, nets, harness, budgets, conditions, analysis settings and catalog items. Quantities carry units, and every value records where it came from (catalog, override or kind default) and what backs it (datasheet, measurement, placeholder…). |
 | **CLI and GUI as equals** | Every edit is an `Op`, and both front ends call the same service functions. A parity test checks that the same edit made from the CLI and from the HTTP API writes byte-identical files. |
 | **GUI** | Budgets overview, part table, mode matrix (ON/OFF and duty cycles), electrical system diagram (power and signal, overlaid or separate), editable 3D layout, and one page per subsystem. Japanese and English UI. |
 | **Orbit and environment** | Kepler/J2 and numerical propagation (DOP853), EGM96 gravity to degree 70, NRLMSISE-00, DE440 ephemerides (fetched on demand), central bodies other than Earth, solid tides, relativistic correction, ground track. |
