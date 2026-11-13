@@ -12,6 +12,7 @@ expression: text
  aocs        aocs.rw_unloading           RW アンロード頻度        時系列   設計から組立
  aocs        aocs.unload_time            アンロードにかかる時間   定常     設計から組立
  aocs        aocs.sensor_fov             センサ FoV と禁止角      時系列   設計から組立
+ aocs        aocs.slew_time              姿勢変更にかかる時間     定常     設計から組立
  cdh         cdh.data_budget             データ量とストレージ     定常     設計から組立
  comm        comm.link_budget            回線バジェット           定常     設計から組立
  comm        comm.visibility             地上局の可視             時系列   設計から組立

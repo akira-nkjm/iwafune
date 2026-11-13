@@ -3,4 +3,4 @@
 /**
  * 擾乱の種類。**表示名は持たない**（service の語彙が日本語と英語で引く）。
  */
-export type DisturbanceKind = "gravity_gradient" | "aero" | "srp" | "magnetic";
+export type DisturbanceKind = "gravity_gradient" | "aero" | "srp" | "magnetic" | "thrust";

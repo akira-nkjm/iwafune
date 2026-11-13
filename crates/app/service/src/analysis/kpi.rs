@@ -123,6 +123,7 @@ kpi_table! {
     aocs::RwUnloading { UnloadInterval => unload_interval, PeakMomentum => peak_momentum }
     aocs::UnloadTime { MtqUnloadTime => mtq_unload_time }
     aocs::SensorFov { SensorIntrusion => sensor_intrusion }
+    aocs::SlewTime { SlewTime => slew_time }
     cdh::DataBudget {
         DataPerDay => data_per_day,
         StorageRequired => storage_required,
@@ -194,6 +195,9 @@ fn peak_momentum(o: &aocs::RwUnloadingOutput, _: Ctx<'_>) -> Option<Measured> {
 }
 fn mtq_unload_time(o: &aocs::UnloadTimeOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.mtq.as_ref()?.time)
+}
+fn slew_time(o: &aocs::SlewTimeOutput, _: Ctx<'_>) -> Option<Measured> {
+    one(o.worst.time)
 }
 fn sensor_intrusion(o: &aocs::SensorFovOutput, _: Ctx<'_>) -> Option<Measured> {
     largest(o.sensors.iter().map(|s| s.intrusion_fraction))
@@ -271,6 +275,7 @@ fn rule(key: KpiKey) -> Rule {
         | K::UnloadInterval
         | K::MtqUnloadTime
         | K::SensorIntrusion
+        | K::SlewTime
         | K::LinkMargin
         | K::DownlinkPerDay
         | K::MaxBacklog

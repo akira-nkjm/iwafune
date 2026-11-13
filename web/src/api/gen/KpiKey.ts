@@ -4,4 +4,4 @@
  * KPI の名前のキー。キーはすべての系を通して一意で、どの解析が出すかは `analysis::kpi` の表が決める。
  * 表示名は `analysis::labels::kpi_label`（日英）。
  */
-export type KpiKey = "longest_eclipse" | "beta_min" | "beta_max" | "mode_load" | "orbit_generation" | "orbit_balance" | "max_dod" | "sap_margin" | "battery_margin" | "unload_interval" | "peak_momentum" | "mtq_unload_time" | "sensor_intrusion" | "data_per_day" | "storage_required" | "storage_margin" | "link_margin" | "contact_per_day" | "downlink_per_day" | "max_backlog" | "max_temperature" | "min_temperature" | "nodes_in_range" | "transient_max_temperature" | "total_mass" | "min_safety_margin" | "min_frequency";
+export type KpiKey = "longest_eclipse" | "beta_min" | "beta_max" | "mode_load" | "orbit_generation" | "orbit_balance" | "max_dod" | "sap_margin" | "battery_margin" | "unload_interval" | "peak_momentum" | "mtq_unload_time" | "sensor_intrusion" | "slew_time" | "data_per_day" | "storage_required" | "storage_margin" | "link_margin" | "contact_per_day" | "downlink_per_day" | "max_backlog" | "max_temperature" | "min_temperature" | "nodes_in_range" | "transient_max_temperature" | "total_mass" | "min_safety_margin" | "min_frequency";

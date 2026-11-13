@@ -4,7 +4,7 @@ import type { Vec3 } from "./Vec3";
 /**
  * スラスタ 1 本。
  */
-export type UnloadTimeThruster = { id: string, thrust: number, isp: number, 
+export type Thruster = { id: string, thrust: number, isp: number, 
 /**
  * 取付位置 [m]（機体座標系）
  */

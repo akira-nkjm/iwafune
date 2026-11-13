@@ -1,8 +1,11 @@
 use super::trace::{integrate_momentum, secular_and_cyclic};
 use super::*;
-use crate::aocs::disturbance::DisturbanceSurface;
+use crate::aocs::disturbance::{DisturbanceSurface, FiringThruster, ThrustDisturbance};
+use crate::aocs::thrusters::Thruster;
 use crate::power::testkit::{leo_timeline, nadir_pointing_z, sun_pointing_z};
+use crate::spec::ChannelKind;
 use sat_astro::constants::C_LIGHT;
+use sat_astro::constants::G0;
 use sat_astro::math::Mat3;
 
 #[test]
@@ -64,6 +67,7 @@ fn spacecraft(inertia: Mat3) -> DisturbanceSpacecraft {
         residual_dipole: Vec3::ZERO,
         atmosphere: Default::default(),
         density_scale: None,
+        thrust: None,
     }
 }
 
@@ -74,6 +78,7 @@ fn input(sc: DisturbanceSpacecraft, law: sat_astro::attitude::AttitudeLaw) -> Rw
         wheels: wheels(),
         usable_momentum_fraction: None,
         required_unload_interval: None,
+        rcs: None,
     }
 }
 
@@ -192,4 +197,125 @@ fn aero_on_nadir_pointing_accumulates_about_orbit_normal() {
         "{}",
         aero.mean.value()
     );
+}
+
+fn thruster(id: &str, position: Vec3, direction: Vec3) -> Thruster {
+    Thruster {
+        id: id.to_owned(),
+        thrust: Qty::from_raw(0.01),
+        isp: Qty::from_raw(60.0),
+        position,
+        direction,
+    }
+}
+
+/// 地心指向で、+z に噴く 10 mN のスラスタの推力の線が重心から x に 2 mm ずれ、時間の 1 % 噴射する。
+fn thrust_misaligned() -> ThrustDisturbance {
+    ThrustDisturbance {
+        center_of_mass: Vec3::new(-0.002, 0.0, 0.0),
+        firing: vec![FiringThruster {
+            thruster: thruster("T", Vec3::new(0.0, 0.0, -0.1), Vec3::Z),
+            firing_fraction: Fraction::new(0.01),
+        }],
+    }
+}
+
+#[test]
+fn thrust_misalignment_accumulates_about_orbit_normal() {
+    // τ = 0.01 × (0.002, 0, 0) × (0, 0, 0.01) = (0, −2e-7, 0) N·m（機体 y = 軌道面の法線まわり、慣性空間で向きが変わらない）。
+    // 1 周の永年成分 = 2e-7 × 周期。ほかの擾乱は 0（等方的な慣性・面なし）
+    let mut sc = spacecraft(Mat3::diagonal(Vec3::new(0.05, 0.05, 0.05)));
+    sc.thrust = Some(thrust_misaligned());
+    let out = RwUnloading::run(&input(sc, nadir_pointing_z())).unwrap();
+    let thrust = out.disturbances.last().unwrap();
+    assert_eq!(thrust.key, DisturbanceKind::Thrust);
+    assert!((thrust.peak.value() - 2e-7).abs() < 1e-18);
+    let expect = 2e-7 * out.period.value();
+    let got = out.secular_per_orbit.value();
+    assert!((got - expect).abs() < 1e-6 * expect, "{got} vs {expect}");
+    assert!(
+        out.series
+            .channels
+            .iter()
+            .any(|c| c.kind == ChannelKind::ThrustTorque)
+    );
+}
+
+#[test]
+fn thrust_kind_is_listed_only_with_thrusters() {
+    let sc = spacecraft(Mat3::diagonal(Vec3::new(0.05, 0.05, 0.05)));
+    let out = RwUnloading::run(&input(sc, nadir_pointing_z())).unwrap();
+    assert_eq!(out.disturbances.len(), 4);
+    assert!(
+        !out.series
+            .channels
+            .iter()
+            .any(|c| c.kind == ChannelKind::ThrustTorque)
+    );
+    assert!(out.rcs_unloading.is_none());
+    let json = serde_json::to_value(&out).unwrap();
+    assert!(json.get("rcs_unloading").is_none());
+}
+
+/// 機体の各軸 ±x・±y・±z のトルクを 1 本ずつが出す 6 本（腕 0.1 m、10 mN → 1 mN·m）。
+fn six_axis_rcs() -> Vec<Thruster> {
+    [
+        ("XP", Vec3::Y, Vec3::Z),
+        ("XM", Vec3::Y, -Vec3::Z),
+        ("YP", Vec3::Z, Vec3::X),
+        ("YM", Vec3::Z, -Vec3::X),
+        ("ZP", Vec3::X, Vec3::Y),
+        ("ZM", Vec3::X, -Vec3::Y),
+    ]
+    .iter()
+    .map(|(id, p, d)| thruster(id, *p * 0.1, *d))
+    .collect()
+}
+
+#[test]
+fn rcs_propellant_and_delta_v_per_day_by_hand() {
+    // 推力誤差だけが溜まる機体（上のテストと同じ）。1 日の角運動量 H = 2e-7 N·m × 1 日 = 0.01728 N·m·s。
+    // どの向きも 1 本（1 mN·m）で捨てる → 噴射 H / 1e-3 s、推薬 H / (0.1 m × 60 s × g₀)、
+    // ΔV 換算 = 60 g₀ ln(10 / (10 − 推薬))
+    let mut sc = spacecraft(Mat3::diagonal(Vec3::new(0.05, 0.05, 0.05)));
+    sc.thrust = Some(thrust_misaligned());
+    let mut i = input(sc, nadir_pointing_z());
+    i.rcs = Some(RwUnloadingRcsInput {
+        thrusters: six_axis_rcs(),
+        center_of_mass: Vec3::ZERO,
+        mass: Qty::from_raw(10.0),
+    });
+    let out = RwUnloading::run(&i).unwrap();
+    let r = out.rcs_unloading.unwrap();
+    let h = out.secular_per_orbit.value() * 86_400.0 / out.period.value();
+    assert!((h - 2e-7 * 86_400.0).abs() < 1e-6 * h);
+    assert!((r.momentum_per_day.value() - h).abs() < 1e-15);
+    assert!((r.per_day.time.unwrap().value() - h / 1e-3).abs() < 1e-9);
+    let mp = h / (0.1 * 60.0 * G0);
+    assert!((r.per_day.propellant.unwrap().value() - mp).abs() < 1e-12);
+    let dv = 60.0 * G0 * (10.0 / (10.0 - mp)).ln();
+    assert!((r.delta_v_per_day.unwrap().value() - dv).abs() < 1e-12);
+    // 小さい推薬なら ΔV ≈ v_e · m_p / m₀ = H / (0.1 m × 10 kg)
+    assert!((dv - h / (0.1 * 10.0)).abs() < 1e-3 * dv);
+    assert!(out.checks.iter().all(|c| c.key != "rcs_direction"));
+}
+
+#[test]
+fn rcs_without_a_direction_is_a_violation() {
+    let sc = spacecraft(Mat3::diagonal(Vec3::new(0.05, 0.05, 0.05)));
+    let mut i = input(sc, nadir_pointing_z());
+    i.rcs = Some(RwUnloadingRcsInput {
+        thrusters: six_axis_rcs()[..1].to_vec(),
+        center_of_mass: Vec3::ZERO,
+        mass: Qty::from_raw(10.0),
+    });
+    let out = RwUnloading::run(&i).unwrap();
+    let r = out.rcs_unloading.unwrap();
+    assert!(r.per_day.time.is_none() && r.delta_v_per_day.is_none());
+    let check = out
+        .checks
+        .iter()
+        .find(|c| c.key == "rcs_direction")
+        .unwrap();
+    assert_eq!(check.verdict, crate::spec::Verdict::Violation);
 }

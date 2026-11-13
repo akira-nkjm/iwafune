@@ -5,7 +5,7 @@
 
 mod labels;
 
-pub use crate::role::{Role, STATE_OFF};
+pub use crate::role::{Role, STATE_OFF, STATE_THRUSTER_FIRING};
 
 pub use labels::{
     DEFAULT_SECTION, LABELS_TOML, Label, Labels, enum_label, labels, sections, state_label,
@@ -105,6 +105,15 @@ mod tests {
         }
         assert_eq!(labels.role_system.len(), Role::ALL.len());
         assert!(labels.state.contains_key(STATE_OFF));
+    }
+
+    #[test]
+    fn thruster_vocabulary_has_the_firing_state() {
+        let thruster = kinds()
+            .values()
+            .find(|k| k.role == Some(Role::Thruster))
+            .unwrap();
+        assert!(thruster.states.iter().any(|s| s == STATE_THRUSTER_FIRING));
     }
 
     #[test]

@@ -138,6 +138,8 @@ pub enum ChannelKind {
     SrpTorque,
     /// 残留磁気トルク
     MagneticTorque,
+    /// 推力誤差のトルク（推力の線と重心のずれ）
+    ThrustTorque,
     /// 擾乱トルクの合計
     TotalDisturbanceTorque,
     /// 機体の角運動量の x 成分（機体座標系）

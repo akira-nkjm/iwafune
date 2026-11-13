@@ -149,6 +149,10 @@ setting_quantities! {
     AOCS_CP_OFFSET_SRP: Length = Analysis["aocs", "cp_offset_srp"];
     /// 残留磁気双極子（ベクトル）
     AOCS_RESIDUAL_DIPOLE: MagneticDipoleMoment = Analysis["aocs", "residual_dipole"];
+    /// 姿勢変更の角度
+    AOCS_SLEW_ANGLE: Angle = Analysis["aocs", "slew_angle"];
+    /// 姿勢変更の時間の要求上限
+    AOCS_MAX_SLEW_TIME: Time = Analysis["aocs", "max_slew_time"];
     /// 地上に降ろすまで保持する期間（`analysis/cdh.toml`）
     CDH_RETENTION: Time = Analysis["cdh", "retention"];
     /// 要求する回線の余裕（`analysis/comm.toml`。dB）
