@@ -176,6 +176,7 @@ fn builder_returns_selected_mode_values_bands_and_soc_limit() {
         loads: Default::default(),
         load_growth: LoadGrowth::Included,
         cases: vec![EnergyBalanceCase {
+            max_duration: None,
             id: "nominal".into(),
             label: "Nominal".into(),
             load: EnergyBalanceLoad::Mode {
@@ -183,6 +184,9 @@ fn builder_returns_selected_mode_values_bands_and_soc_limit() {
             },
             attitude: None,
         }],
+        sequence: Vec::new(),
+        base_mode: None,
+        mode_attitudes: Default::default(),
     };
     case.series = Series {
         t: vec![0.0, 10.0, 20.0],
@@ -225,6 +229,7 @@ fn builder_returns_selected_mode_values_bands_and_soc_limit() {
             )],
         },
         cases: vec![case],
+        sequence: None,
     };
     let mut json = serde_json::to_value(out).unwrap();
     crate::analysis::channels::fix_channels(&mut json);

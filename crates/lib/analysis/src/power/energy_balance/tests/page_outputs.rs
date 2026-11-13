@@ -60,6 +60,7 @@ fn output_limits_mode_loads_and_eclipses_by_hand() {
     let battery = EnergyBalanceBattery::combine(&i.batteries).unwrap();
     let out = Context::new(&i, &battery, p, 100.0).output(
         vec![],
+        None,
         crate::power::mode_load::ModeLoad::run(&i.loads).unwrap(),
     );
     assert_eq!(out.dod_limit.value(), 0.3);

@@ -26,7 +26,7 @@ pub struct Mode {
     pub description: Option<String>,
     #[serde(default)]
     pub states: BTreeMap<Id<Part>, StateAssign>,
-    /// 最長継続時間（表示と検査のみ）。
+    /// 最長継続時間。`power.energy_balance` は基本のモードの上でこの時間だけ続けたときで判定する。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_duration: Option<Quantity>,
     /// 蝕の間だけの上書き。

@@ -95,6 +95,7 @@
 | 太陽電池の発電モデル | `sat_analysis::power::solar` | `SolarPanel`・`SolarArray::{panel_powers, sample_powers}`・時系列 `SolarProfile`（日照中かは `lit`。判定は `spec::is_sunlit`）・`eclipses`（`timeline::shadow_windows` に `spec::SUNLIT_THRESHOLD`）。日照時・軌道上・収支・逆算で共有 |
 | 電源の逆算サイジング | `sat_analysis::power::sizing`・`fune_projection::power::sizing` | SMAD の必要発電・SAP 面積・電池容量・直並列。季節解析は `orbit::EclipseSeason`、負荷は `mode_load`、入射は `orbit_generation` の日照中の平均（姿勢則とモードごとの上書きは `power.energy_balance` と同じ。時系列は `fune_projection::power::attitude_timeline`）、発電は `solar` を再利用。既定値は解析、写し替えは projection。部品への書き戻しはしない |
 | 電池の充放電の積分 | `sat_analysis::power::battery` | `simulate`（`ode::rk4_linear_step` で積分、容量で切る、シャント）。電力収支が使う。`power::battery::EnergyBalanceBattery::combine` が電池容量を合計し、電圧・効率は先頭を採用 |
+| 電力収支の運用（連続・最長継続時間・モードの並び） | `sat_analysis::power::energy_balance::{case, duration, sequence, verdict}`・`fune_projection::power::energy_balance` | ケースは連続で積分（`case::balance` が電池の積分・周回の集計を 1 か所で持つ）。最長継続時間を持つモードは基本のモード（`analysis.power.base_mode`、無ければ並びの最初）の上で 1 回続け、開始を 1 周の標本ごとにずらした最悪で判定を差し替える（`duration`）。並びは繰り返して負荷と姿勢則を切り替える（`sequence`）。判定の文と上限の許容は `verdict` だけ。duty は平均のまま（`modes::ModeDef::uses_duty` で印を出す）。KPI は判定に使った運用の値から `fune_service::analysis::kpi` が選ぶ |
 | モードの消費電力の集計 | `sat_analysis::power::mode_load::evaluate_mode` | `power.mode_load`・`power.energy_balance`・`power.sizing` で共有（平均と警告は `modes::evaluate`）。台数と予備状態は `modes::counted_states`、日照と蝕を別々に評価 |
 | 回線計算の部品（FSPL・EIRP・Eb/N0） | `sat_analysis::comm::link` | `RfLinkParams::{evaluate, eb_n0_margin_db, min_elevation_for_margin}`（斜距離は `sat_astro::ground::slant_range_m` に中心天体の半径を渡す）・`fspl_db`・`eirp_dbw`・`g_over_t_dbk`・`c_over_n0_dbhz`・`eb_over_n0_db`・`max_data_rate_bps`・要求余裕 `required_margin`（既定 `DEFAULT_REQUIRED_MARGIN`。既定値はここだけ）。入力の dB（利得・損失・所要 Eb/N0・要求余裕）は `Decibel`。要求余裕はどちらの解析も入力の直下（`required_margin_db`）。dB の換算は `sat_units::{ratio_to_db, db_to_ratio}`、閉じる仰角の探索は `sat_astro::math::bisect`。回線バジェットと送信量で共有 |
 | 複数局のパスの集計 | `sat_analysis::comm::passes` | 検出は `sat_astro::ground::find_passes` だけ。ここは標本の取り方を検査して探す窓にし（`search_window` → `SearchWindow`。β を当てた軌道）、局をまとめて AOS 順に並べ、開始からの秒の区間・日の窓に直す（`find_all_passes`・`pass_interval`・`union_sorted`・`day_windows`）。可視と送信量で共有 |
@@ -294,6 +295,7 @@
 
 | 日時 | 変更 | 理由 |
 |---|---|---|
+| 2026-11-14 | `power.energy_balance` にモードの並びの収支（`sequence`）と最長継続時間の評価（ケースの `by_max_duration`・`evaluation`）、duty の扱い（`duty`）を追加。設定 `analysis.power.base_mode`（参照・改名・検査）を追加。KPI の最大 DoD・収支は判定に使った運用の値と並びから選ぶ | 短いモードを解析期間ずっと続けた計算で判定していたため（#106） |
 | 2026-11-13 | 電源専用表示を独立した service/API/query に集約し、汎用解析結果・設計 DTO から電源専用欄を削除 | #89 段 1 レビュー対応 |
 | 2026-11-13 | 電源の概要・部品・時系列を専用表示にし、流れ・判定バー・チャートの表示 DTO と日英の名称を追加 | #89 段 1 |
 | 2026-11-13 | 配置の凡例をビュー内に移し、編集欄を縦に配置。構造の透過操作と選択時の不透明表示を追加し、構造の系名と概要を整理 | #96 |

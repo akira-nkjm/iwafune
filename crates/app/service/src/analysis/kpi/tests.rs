@@ -178,3 +178,57 @@ fn sizing_kpis_have_independent_verdicts() {
     assert_eq!(out[1].key, KpiKey::BatteryMargin);
     assert_eq!(out[1].verdict, Some(Verdict::Ok));
 }
+
+/// 電力収支の 1 ケース（KPI が見る欄だけ意味のある値）。
+fn balance_case(dod: f64, balance: f64, duration: Option<(f64, f64)>) -> Value {
+    let series = json!({"t": [], "channels": []});
+    let duration = duration.map(|(dod, balance)| {
+        json!({
+            "base_mode": "NOMINAL", "max_duration": 900.0, "starts": 1, "worst_start": 0.0,
+            "worst_start_in_orbit": 0.0, "eclipse_overlap": 0.0, "min_soc": 1.0 - dod,
+            "max_dod": dod, "max_dod_from_start": dod, "best_max_dod": 0.0, "base_max_dod": 0.0,
+            "orbit_average_balance": balance, "energy_margin_per_orbit": null,
+            "depleted": false, "series": series,
+        })
+    });
+    json!({
+        "id": "M", "label": "", "load_sunlit": 0.0, "load_eclipse": 0.0,
+        "orbit_average_generation": 0.0, "orbit_average_load": 0.0,
+        "orbit_average_balance": balance, "energy_margin_per_orbit": null,
+        "energy_margin_over_span": null, "min_soc": 1.0 - dod, "max_dod": dod,
+        "max_eclipse_dod": 0.0, "final_soc": 1.0, "peak_charge_power": 0.0,
+        "peak_discharge_power": 0.0, "peak_discharge_current": 0.0, "orbits": [],
+        "series": series, "checks": [], "by_max_duration": duration,
+        "sunlit_average_generation": 0.0, "sunlit_average_charge": 0.0,
+        "sunlit_average_discharge": 0.0, "sunlit_average_shunt": 0.0,
+    })
+}
+
+/// 最長継続時間で評価したケースは連続の値ではなく `by_max_duration` の値を、並びがあれば並びも KPI に入れる。
+#[test]
+fn energy_balance_kpis_use_the_judged_operation() {
+    let output = |sequence: Value| {
+        json!({
+            "life": "eol", "period": 5736.0, "complete_orbits": 15, "span_fallback": null,
+            "orbit_average_generation": 20.0, "sunlit_fraction": 0.6,
+            "series": {"t": [], "channels": []},
+            "eclipses": [], "dod_limit": 0.3, "min_allowed_soc": 0.7,
+            "mode_loads": {"modes": []},
+            "cases": [
+                balance_case(0.14, 17.4, None),
+                balance_case(1.0, -5.09, Some((0.19, 12.0))),
+            ],
+            "sequence": sequence,
+        })
+    };
+    let values = |o: &Value| -> Vec<f64> {
+        kpis("power.energy_balance", Some(o), &[], KpiContext::default())
+            .iter()
+            .map(|k| k.value.as_ref().unwrap().si)
+            .collect()
+    };
+    assert_eq!(values(&output(Value::Null)), vec![12.0, 0.19]);
+    let sequence =
+        json!({"cycle": 5736.0, "segments": [], "balance": balance_case(0.22, 10.0, None)});
+    assert_eq!(values(&output(sequence)), vec![10.0, 0.22]);
+}

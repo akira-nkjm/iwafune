@@ -1,21 +1,39 @@
 //! 1 ケースの評価（負荷の決定・電池の積分・周回ごとの集計・判定）。
 
+use super::verdict::{Judged, verdicts};
 use super::{
-    Context, EnergyBalanceCase, EnergyBalanceCaseResult, EnergyBalanceInput, EnergyBalanceLoad,
-    EnergyBalanceOrbit, LoadGrowth,
+    Context, EnergyBalanceCase, EnergyBalanceCaseResult, EnergyBalanceDuty,
+    EnergyBalanceEvaluation, EnergyBalanceInput, EnergyBalanceLoad, EnergyBalanceOrbit, LoadGrowth,
 };
 use crate::modes::find_mode;
 use crate::power::battery::{self, BatteryTrace};
 use crate::power::mode_load::evaluate_mode;
-use crate::spec::quantity_text;
 use crate::spec::{
-    AnalysisError, Channel, ChannelKind, Check, Series, SpanFallback, Verdict, orbit_mean,
-    orbit_segment, span_fallback,
+    AnalysisError, Channel, ChannelKind, Check, Series, SpanFallback, orbit_mean, orbit_segment,
+    span_fallback,
 };
 use sat_units::typed::{Energy, Fraction, Power, Qty, Time};
 
-/// DoD の上限との比較の許容（SOC の積分の丸めで上限ちょうどが超過にならないように）。
-const DOD_TOLERANCE: f64 = 1e-12;
+/// モードの日照中・日陰中の負荷（成長余裕の扱いは `load_growth`）。モードの警告は `checks` に足す（同じものは足さない）。
+pub(super) fn mode_loads(
+    input: &EnergyBalanceInput,
+    id: &str,
+    checks: &mut Vec<Check>,
+) -> Result<(Qty<Power>, Qty<Power>), AnalysisError> {
+    let r = evaluate_mode(&input.loads, find_mode(&input.loads.modes, id)?)?;
+    for c in r.checks {
+        if !checks
+            .iter()
+            .any(|x| x.key == c.key && x.message == c.message)
+        {
+            checks.push(c);
+        }
+    }
+    Ok(match input.load_growth {
+        LoadGrowth::Included => (r.total_with_growth, r.total_eclipse_with_growth),
+        LoadGrowth::Excluded => (r.total, r.total_eclipse),
+    })
+}
 
 /// ケースの負荷（日照中・日陰中）を求める。モードの警告は `checks` に足す。
 pub(super) fn case_loads(
@@ -23,58 +41,86 @@ pub(super) fn case_loads(
     case: &EnergyBalanceCase,
     checks: &mut Vec<Check>,
 ) -> Result<(Qty<Power>, Qty<Power>), AnalysisError> {
-    let mut mode_power = |id: &str, eclipse: bool| -> Result<Qty<Power>, AnalysisError> {
-        let r = evaluate_mode(&input.loads, find_mode(&input.loads.modes, id)?)?;
-        for c in r.checks {
-            if !checks
-                .iter()
-                .any(|x| x.key == c.key && x.message == c.message)
-            {
-                checks.push(c);
-            }
-        }
-        Ok(match input.load_growth {
-            LoadGrowth::Included => {
-                if eclipse {
-                    r.total_eclipse_with_growth
-                } else {
-                    r.total_with_growth
-                }
-            }
-            LoadGrowth::Excluded => {
-                if eclipse {
-                    r.total_eclipse
-                } else {
-                    r.total
-                }
-            }
-        })
-    };
     match &case.load {
-        EnergyBalanceLoad::Mode { mode } => Ok((mode_power(mode, false)?, mode_power(mode, true)?)),
+        EnergyBalanceLoad::Mode { mode } => mode_loads(input, mode, checks),
         EnergyBalanceLoad::SunlitEclipse {
             sunlit_mode,
             eclipse_mode,
         } => Ok((
-            mode_power(sunlit_mode, false)?,
-            mode_power(eclipse_mode, true)?,
+            mode_loads(input, sunlit_mode, checks)?.0,
+            mode_loads(input, eclipse_mode, checks)?.1,
         )),
         EnergyBalanceLoad::Constant { power } => Ok((*power, *power)),
     }
 }
 
+/// ケースが使うモードの ID（一定の負荷なら空）。
+pub(super) fn case_modes(case: &EnergyBalanceCase) -> Vec<&str> {
+    match &case.load {
+        EnergyBalanceLoad::Mode { mode } => vec![mode.as_str()],
+        EnergyBalanceLoad::SunlitEclipse {
+            sunlit_mode,
+            eclipse_mode,
+        } => vec![sunlit_mode.as_str(), eclipse_mode.as_str()],
+        EnergyBalanceLoad::Constant { .. } => Vec::new(),
+    }
+}
+
+/// 使うモードのどれかが duty（時間割合）を持てば平均として扱った印。
+pub(super) fn duty_of<'a>(
+    input: &EnergyBalanceInput,
+    modes: impl IntoIterator<Item = &'a str>,
+) -> EnergyBalanceDuty {
+    let averaged = modes
+        .into_iter()
+        .any(|id| find_mode(&input.loads.modes, id).is_ok_and(crate::modes::ModeDef::uses_duty));
+    if averaged {
+        EnergyBalanceDuty::Averaged
+    } else {
+        EnergyBalanceDuty::NotUsed
+    }
+}
+
+/// 日照中の標本は `sun`、日陰中は `ecl` の負荷の列。
+pub(super) fn lit_load(lit: &[bool], sun: Qty<Power>, ecl: Qty<Power>) -> Vec<f64> {
+    lit.iter()
+        .map(|&f| if f { sun.value() } else { ecl.value() })
+        .collect()
+}
+
+/// 連続で回したときの判定の括弧書き。
+const CONTINUOUS_BASIS: &str = "解析期間ずっと続けたとき";
+
+/// 1 ケースを解析期間ずっと続けたとして評価する（最長継続時間の評価は [`super::duration`] が上書きする）。
 pub(super) fn evaluate_case(
     ctx: &Context,
     case: &EnergyBalanceCase,
 ) -> Result<EnergyBalanceCaseResult, AnalysisError> {
     let mut checks = Vec::new();
     let (sun, ecl) = case_loads(ctx.input, case, &mut checks)?;
-    let load: Vec<f64> = ctx
-        .profile
-        .lit
-        .iter()
-        .map(|&f| if f { sun.value() } else { ecl.value() })
-        .collect();
+    let load = lit_load(&ctx.profile.lit, sun, ecl);
+    let mut result = balance(
+        ctx,
+        (&case.id, &case.label),
+        (sun, ecl),
+        load,
+        checks,
+        CONTINUOUS_BASIS,
+    );
+    result.duty = duty_of(ctx.input, case_modes(case));
+    Ok(result)
+}
+
+/// 負荷の時系列 `load`（発電は `ctx.generation`）で電池を積分し、1 ケースの結果を作る。
+/// `checks` はモードの警告など、判定の前に置くもの。`basis` はどの運用で回したか（判定の文の括弧書き）。
+pub(super) fn balance(
+    ctx: &Context,
+    (id, label): (&str, &str),
+    (sun, ecl): (Qty<Power>, Qty<Power>),
+    load: Vec<f64>,
+    mut checks: Vec<Check>,
+    basis: &str,
+) -> EnergyBalanceCaseResult {
     let net: Vec<f64> = ctx
         .generation
         .iter()
@@ -86,39 +132,38 @@ pub(super) fn evaluate_case(
     let soc: Vec<f64> = trace.energy.iter().map(|e| e / capacity).collect();
     let orbits = orbit_summaries(ctx, &load, &trace, &soc);
     let min_soc = soc.iter().copied().fold(f64::INFINITY, f64::min).min(1.0);
-    let margin = orbits
-        .iter()
-        .map(|o| o.margin.value())
-        .reduce(f64::min)
-        .map(Qty::from_raw);
-    let margin_over_span = span_fallback(ctx.ranges.len(), SpanFallback::OrbitMeanOverSpan)
-        .map(|_| Qty::from_raw(trace.delta_unclamped.iter().sum()));
+    let (margin, margin_over_span) = margins(ctx, &orbits, &trace);
     let peak = |v: &[f64]| v.iter().copied().fold(0.0, f64::max);
     let peak_discharge = peak(&trace.discharge);
+    let orbit_gen = orbit_mean(&ctx.profile.t, &ctx.generation, &ctx.ranges);
     let orbit_load = orbit_mean(&ctx.profile.t, &load, &ctx.ranges);
     let sunlit_mean = |v: &[f64]| {
         Qty::from_raw(
             crate::spec::masked_time_mean(&ctx.profile.t, v, &ctx.profile.lit).unwrap_or(0.0),
         )
     };
-    let mut result = EnergyBalanceCaseResult {
-        id: case.id.clone(),
-        label: case.label.clone(),
+    checks.extend(verdicts(
+        ctx.battery.dod_limit,
+        &Judged {
+            max_dod: 1.0 - min_soc,
+            margin,
+            margin_over_span,
+            depleted: trace.depleted,
+        },
+        basis,
+    ));
+    EnergyBalanceCaseResult {
+        id: id.to_owned(),
+        label: label.to_owned(),
         load_sunlit: sun,
         load_eclipse: ecl,
-        orbit_average_generation: Qty::from_raw(orbit_mean(
-            &ctx.profile.t,
-            &ctx.generation,
-            &ctx.ranges,
-        )),
+        orbit_average_generation: Qty::from_raw(orbit_gen),
         sunlit_average_generation: sunlit_mean(&ctx.generation),
         sunlit_average_charge: sunlit_mean(&trace.charge),
         sunlit_average_discharge: sunlit_mean(&trace.discharge),
         sunlit_average_shunt: sunlit_mean(&trace.shunt),
         orbit_average_load: Qty::from_raw(orbit_load),
-        orbit_average_balance: Qty::from_raw(
-            orbit_mean(&ctx.profile.t, &ctx.generation, &ctx.ranges) - orbit_load,
-        ),
+        orbit_average_balance: Qty::from_raw(orbit_gen - orbit_load),
         energy_margin_per_orbit: margin,
         energy_margin_over_span: margin_over_span,
         min_soc: Fraction::new(min_soc),
@@ -130,11 +175,27 @@ pub(super) fn evaluate_case(
         peak_discharge_current: Qty::<Power>::from_raw(peak_discharge) / ctx.battery.voltage,
         orbits,
         series: case_series(ctx, load, soc, &trace),
-        checks: Vec::new(),
-    };
-    checks.extend(verdicts(ctx, &result, trace.depleted));
-    result.checks = checks;
-    Ok(result)
+        checks,
+        evaluation: EnergyBalanceEvaluation::Continuous,
+        by_max_duration: None,
+        duty: EnergyBalanceDuty::NotUsed,
+    }
+}
+
+/// 1 周あたりのエネルギー余裕（周回の最小）と、1 周に満たないときの解析期間全体の収支。
+fn margins(
+    ctx: &Context,
+    orbits: &[EnergyBalanceOrbit],
+    trace: &BatteryTrace,
+) -> (Option<Qty<Energy>>, Option<Qty<Energy>>) {
+    let margin = orbits
+        .iter()
+        .map(|o| o.margin.value())
+        .reduce(f64::min)
+        .map(Qty::from_raw);
+    let over_span = span_fallback(ctx.ranges.len(), SpanFallback::OrbitMeanOverSpan)
+        .map(|_| Qty::from_raw(trace.delta_unclamped.iter().sum()));
+    (margin, over_span)
 }
 
 fn orbit_summaries(
@@ -233,55 +294,4 @@ fn case_series(ctx: &Context, load: Vec<f64>, soc: Vec<f64>, trace: &BatteryTrac
         );
     }
     series
-}
-
-fn energy_balance_check(r: &EnergyBalanceCaseResult) -> Check {
-    let (verdict, message) = match r.energy_margin_per_orbit {
-        Some(margin) => (
-            Verdict::from_ok(margin.value() >= 0.0),
-            format!(
-                "1 周あたりのエネルギー余裕 {}（電池の効率込み）",
-                quantity_text::<Energy>(margin.value())
-            ),
-        ),
-        None => (
-            Verdict::Warning,
-            format!(
-                "解析期間が 1 周に満たないため 1 周あたりの余裕を判定できない{}",
-                r.energy_margin_over_span
-                    .map_or_else(String::new, |margin| format!(
-                        "（解析期間の収支は {}、電池の効率込み）",
-                        quantity_text::<Energy>(margin.value())
-                    ))
-            ),
-        ),
-    };
-    Check::new("energy_balance", "周回の電力収支", verdict, message)
-}
-
-fn verdicts(ctx: &Context, r: &EnergyBalanceCaseResult, depleted: bool) -> Vec<Check> {
-    let limit = ctx.battery.dod_limit;
-    let dod_ok = r.max_dod.value() <= limit + DOD_TOLERANCE;
-    let mut checks = vec![
-        Check::new(
-            "dod",
-            "DoD の上限",
-            Verdict::from_ok(dod_ok),
-            format!(
-                "最大 DoD {}（上限 {}）",
-                quantity_text::<Fraction>(r.max_dod.value()),
-                quantity_text::<Fraction>(limit)
-            ),
-        ),
-        energy_balance_check(r),
-    ];
-    if depleted {
-        checks.push(Check::new(
-            "depleted",
-            "電池切れ",
-            Verdict::Violation,
-            "電池が空になり、負荷をまかなえない時間があります",
-        ));
-    }
-    checks
 }

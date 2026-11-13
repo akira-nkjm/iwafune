@@ -36,9 +36,11 @@ fn demo_kpis_show_the_same_values_as_before() {
             "power.orbit_generation",
             &[(KpiKey::OrbitGeneration, "28.3 W")],
         ),
+        // #106 から、最長継続時間を持つモード（撮像・ダウンリンク）は定常の上でその時間だけ続けたときで、
+        // モードの並びも入れて選ぶ（以前はダウンリンクを丸 1 日続けた -5.09 W・100 %）
         (
             "power.energy_balance",
-            &[(KpiKey::OrbitBalance, "-5.09 W"), (KpiKey::MaxDod, "100 %")],
+            &[(KpiKey::OrbitBalance, "15.8 W"), (KpiKey::MaxDod, "15.1 %")],
         ),
         (
             "aocs.rw_unloading",
@@ -109,9 +111,10 @@ fn demo_kpis_show_the_same_values_as_before() {
 fn demo_verdicts_fills_and_tallies() {
     let ws = demo();
     let eb = kpis(&ws, "power.energy_balance", None);
-    assert_eq!(eb[1].verdict, Some(Verdict::Violation));
+    assert_eq!(eb[1].verdict, Some(Verdict::Ok));
     let dod = eb[1].fill.unwrap();
-    assert_eq!((dod.ratio, dod.basis), (1.0, FillBasis::Value));
+    assert_eq!(dod.basis, FillBasis::Value);
+    assert!((dod.ratio - eb[1].value.as_ref().unwrap().si).abs() < 1e-12);
     let storage = &kpis(&ws, "cdh.data_budget", None)[2];
     assert_eq!(storage.fill.unwrap().ratio, 0.0, "負の余裕は 0 に寄せる");
     assert_eq!(storage.verdict, Some(Verdict::Violation));

@@ -9,6 +9,7 @@ use sat_analysis::aocs::sensor_fov::SensorFovTarget;
 use sat_analysis::aocs::unload_time::UnloadAssumption;
 use sat_analysis::comm::data_throughput::DataThroughputLinkClosure;
 use sat_analysis::comm::link_budget::LinkBudgetDirection;
+use sat_analysis::power::energy_balance::{EnergyBalanceDuty, EnergyBalanceEvaluation};
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
@@ -117,6 +118,36 @@ fn solar_life(l: SolarLife) -> AnalysisLabel {
     }
 }
 
+fn energy_balance_evaluation(e: EnergyBalanceEvaluation) -> AnalysisLabel {
+    use EnergyBalanceEvaluation as E;
+    match e {
+        E::Continuous => label("解析期間ずっと続けたとき", "Run for the whole span"),
+        E::NoBaseMode => label(
+            "解析期間ずっと続けたとき（基本のモードが無いため最長継続時間を使わない）",
+            "Run for the whole span (no base mode, so the max duration is not used)",
+        ),
+        E::BaseMode => label(
+            "解析期間ずっと続けたとき（基本のモード）",
+            "Run for the whole span (base mode)",
+        ),
+        E::MaxDuration => label(
+            "基本のモードの上で最長継続時間だけ続けたとき（開始は周回内の最悪）",
+            "Max duration on top of the base mode (worst start in the orbit)",
+        ),
+        E::Sequence => label("モードの並びに沿って回したとき", "Along the mode sequence"),
+    }
+}
+
+fn energy_balance_duty(d: EnergyBalanceDuty) -> AnalysisLabel {
+    match d {
+        EnergyBalanceDuty::NotUsed => label("duty なし", "No duty"),
+        EnergyBalanceDuty::Averaged => label(
+            "duty は平均の消費電力として一定にかける（周回内の時間分布は扱わない）",
+            "Duty is applied as a constant average power (no timing within the orbit)",
+        ),
+    }
+}
+
 fn modal_kind(k: ModalEstimateKind) -> AnalysisLabel {
     match k {
         ModalEstimateKind::Panel => label("パネルの面外一次", "Panel out-of-plane"),
@@ -160,6 +191,8 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "LinkBudgetDirection" => parse(value).map(link_direction),
         "SolarLife" => parse(value).map(solar_life),
         "ModalEstimateKind" => parse(value).map(modal_kind),
+        "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),
+        "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
         "DataThroughputLinkClosure" => link_closure(value),
         _ => None,
     }
