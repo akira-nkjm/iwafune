@@ -39,6 +39,24 @@ fn rename_part_updates_references() {
     assert!(check(d).iter().all(|x| !x.is_error()));
 }
 
+/// 表面材を書いた外面（`[surface.<部品>]` のキー）も部品の名前の変更で書き換わる。
+#[test]
+fn rename_part_updates_thermal_surface() {
+    let snap = snapshot();
+    let p = plan(
+        &snap,
+        &[Op::RenamePart {
+            id: "PANEL_PX".into(),
+            to: "PANEL_XP".into(),
+        }],
+    )
+    .unwrap();
+    let t = p.design.analysis.thermal.as_ref().unwrap();
+    assert!(t.surface.contains_key("PANEL_XP"));
+    assert!(!t.surface.contains_key("PANEL_PX"));
+    assert!(check(&p.design).iter().all(|x| !x.is_error()));
+}
+
 #[test]
 fn rename_assembly_moves_children() {
     let snap = snapshot();
@@ -346,4 +364,30 @@ fn rename_part_updates_eclipse_rows() {
     assert!(m.states.contains_key("HTR_NEW"));
     assert!(m.eclipse.contains_key("HTR_NEW"));
     assert!(!m.eclipse.contains_key("HTR_BAT"));
+}
+
+#[test]
+fn rename_mode_updates_the_power_base_mode() {
+    use fune_model::design::{RefSite, Referent};
+    use fune_model::value::SettingValue;
+    let snap = snapshot();
+    let set = Op::SetSetting {
+        path: "analysis.power.base_mode".into(),
+        value: Some(SettingValue::Text("NOMINAL".into())),
+    };
+    let p = plan(&snap, std::slice::from_ref(&set)).unwrap();
+    assert!(
+        p.design
+            .references(Referent::Mode("NOMINAL"))
+            .contains(&RefSite::PowerBaseMode)
+    );
+    let rename = Op::RenameMode {
+        id: "NOMINAL".into(),
+        to: "CRUISE".into(),
+    };
+    let p = plan(&snap, &[set, rename]).unwrap();
+    let power = p.design.analysis.power.as_ref().unwrap();
+    assert_eq!(power.base_mode.as_deref(), Some("CRUISE"));
+    assert!(power.sequence.iter().all(|s| s.mode != "NOMINAL"));
+    assert!(check(&p.design).iter().all(|x| !x.is_error()));
 }

@@ -55,7 +55,7 @@ pub use common::{
     CheckReport, DiagnosticCounts, DiagnosticView, ErrorEnvelope, ErrorInfo, QuantityView,
     SourceExcerpt,
 };
-pub use data::{DataItem, DataStatus};
+pub use data::{DataItem, DataStatus, SpaceWeatherLookup, SpaceWeatherVersion};
 pub use design::PartViewRequest;
 pub use design::{
     AttrSection, AttributeDefView, CaseView, DefsView, DesignCounts, DesignView, HarnessView,

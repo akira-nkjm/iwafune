@@ -8,7 +8,7 @@
 //! |---|---|
 //! | 部品 | モードの `[states]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part`・`analysis/thermal.toml` の `[nodes]`・図の `[nodes]` のキー |
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
-//! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]` の `mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode` |
+//! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode` |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets` |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire` |
 
@@ -71,6 +71,10 @@ pub enum RefSite {
     CommLink { link: String },
     /// 熱の節点に入れた部品（`analysis/thermal.toml` の `[nodes]` の `<節点> = [...]`）
     ThermalNode { node: String },
+    /// 外面の表面材を書いた部品（`analysis/thermal.toml` の `[surface.<部品>]` のキー）
+    ThermalSurface,
+    /// 発熱の場所を書いた部品（`analysis/thermal.toml` の `[heat_node]` のキー）
+    ThermalHeatNode,
     /// 図の配置のノード（`view/<図>.toml` の `[nodes]` のキー）
     ViewNode { view: String },
     /// 解析ケースのモード（`cases/<ケース>.toml` の `mode`）
@@ -79,6 +83,8 @@ pub enum RefSite {
     PowerModeShare,
     /// 電源のモードの並びの区間（`[[sequence]]` の `index` 番目の `mode`）
     PowerSequence { index: usize },
+    /// 電源の基本のモード（`analysis/power.toml` の `base_mode`）
+    PowerBaseMode,
     /// 姿勢則のキー（`analysis/aocs.toml` の `[law]`）
     AttitudeLaw,
     /// 熱の環境条件のモード（`analysis/thermal.toml` の `[case.<条件>].mode`）
@@ -163,6 +169,12 @@ impl Design {
                     .filter(|(_, parts)| parts.iter().any(|p| p == id))
                     .map(|(node, _)| RefSite::ThermalNode { node: node.clone() }),
             );
+            if thermal.surface.contains_key(id) {
+                out.push(RefSite::ThermalSurface);
+            }
+            if thermal.heat_node.contains_key(id) {
+                out.push(RefSite::ThermalHeatNode);
+            }
         }
         out
     }
@@ -208,6 +220,9 @@ impl Design {
                     .filter(|(_, s)| s.mode == id)
                     .map(|(index, _)| RefSite::PowerSequence { index }),
             );
+            if p.base_mode.as_deref() == Some(id) {
+                out.push(RefSite::PowerBaseMode);
+            }
         }
         if analysis
             .aocs

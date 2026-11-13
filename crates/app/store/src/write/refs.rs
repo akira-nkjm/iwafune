@@ -176,9 +176,12 @@ fn rename_at(
         | RefSite::ViewNode { .. } => rename_key_at(edits, design, site, names, moved),
         RefSite::CommLink { .. }
         | RefSite::ThermalNode { .. }
+        | RefSite::ThermalSurface
+        | RefSite::ThermalHeatNode
         | RefSite::CaseMode { .. }
         | RefSite::PowerModeShare
         | RefSite::PowerSequence { .. }
+        | RefSite::PowerBaseMode
         | RefSite::AttitudeLaw
         | RefSite::ThermalCaseMode { .. } => rename_setting_at(edits, site, names),
         RefSite::PortNet { .. }
@@ -255,6 +258,8 @@ fn rename_setting_at(
             }
             Ok(())
         }),
+        RefSite::ThermalSurface => rename_in(edits, &thermal(), &["surface"], from, to),
+        RefSite::ThermalHeatNode => rename_in(edits, &thermal(), &["heat_node"], from, to),
         RefSite::CaseMode { case } => set_top(edits, &layout::case_file(case), "mode", to),
         RefSite::PowerModeShare => rename_in(edits, &power(), &["mode_share"], from, to),
         RefSite::PowerSequence { index } => edits.edit(&power(), |doc| {
@@ -267,6 +272,7 @@ fn rename_setting_at(
             }
             Ok(())
         }),
+        RefSite::PowerBaseMode => set_top(edits, &power(), "base_mode", to),
         RefSite::AttitudeLaw => rename_in(
             edits,
             &layout::analysis_file(AnalysisSystem::Aocs),

@@ -27,6 +27,7 @@ fn first_order_cooling() {
             temperature: Qty::from_raw(350.0),
         },
         max_step: None,
+        margin: ThermalMarginPolicy::default(),
     };
     let out = ThermalTransient::run(&input).unwrap();
     let ch = &out.series.channels[1];
@@ -53,6 +54,7 @@ fn phases_cycle() {
             count: 1,
             node: "a".to_owned(),
             power: Qty::from_raw(w),
+            rf_output: None,
             heat_fraction: Some(1.0),
         }]
     };
@@ -91,6 +93,7 @@ fn orbit_average_start_is_near_periodic() {
         count: 1,
         node: "cube".to_owned(),
         power: Qty::from_raw(2.0),
+        rf_output: None,
         heat_fraction: Some(1.0),
     }];
     let input = ThermalTransientInput {
@@ -105,6 +108,7 @@ fn orbit_average_start_is_near_periodic() {
         }],
         initial: ThermalInitial::OrbitAverageSteady,
         max_step: None,
+        margin: ThermalMarginPolicy::default(),
     };
     let out = ThermalTransient::run(&input).unwrap();
     let steady = crate::thermal::steady::ThermalSteady::run(&crate::thermal::ThermalSteadyInput {
@@ -117,6 +121,7 @@ fn orbit_average_start_is_near_periodic() {
             exposure: crate::thermal::ThermalExposure::OrbitAverage { timeline: tl },
             loads,
         }],
+        margin: ThermalMarginPolicy::default(),
     })
     .unwrap();
     let t_ss = steady.cases[0].nodes[0].temperature.value();

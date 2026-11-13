@@ -57,6 +57,7 @@ fn enum_text_matches_serde_names() {
     same_as_serde::<UncertaintySide>();
     same_as_serde::<ViewPortSide>();
     same_as_serde::<AttitudeLawKind>();
+    same_as_serde::<fune_model::design::ThermalPresetKind>();
     same_as_serde::<LinkDirection>();
     same_as_serde::<PropagatorKind>();
     same_as_serde::<Severity>();

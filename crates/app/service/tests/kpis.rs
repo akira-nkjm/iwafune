@@ -36,9 +36,11 @@ fn demo_kpis_show_the_same_values_as_before() {
             "power.orbit_generation",
             &[(KpiKey::OrbitGeneration, "28.3 W")],
         ),
+        // #106 から、最長継続時間を持つモード（撮像・ダウンリンク）は定常の上でその時間だけ続けたときで、
+        // モードの並びも入れて選ぶ（以前はダウンリンクを丸 1 日続けた -5.09 W・100 %）
         (
             "power.energy_balance",
-            &[(KpiKey::OrbitBalance, "-5.09 W"), (KpiKey::MaxDod, "100 %")],
+            &[(KpiKey::OrbitBalance, "15.8 W"), (KpiKey::MaxDod, "15.1 %")],
         ),
         (
             "aocs.rw_unloading",
@@ -70,14 +72,14 @@ fn demo_kpis_show_the_same_values_as_before() {
         (
             "thermal.steady",
             &[
-                (KpiKey::MaxTemperature, "50.5 °C"),
-                (KpiKey::MinTemperature, "-32.2 °C"),
+                (KpiKey::MaxTemperature, "48.9 °C"),
+                (KpiKey::MinTemperature, "-32.6 °C"),
                 (KpiKey::NodesInRange, "—"),
             ],
         ),
         (
             "thermal.transient",
-            &[(KpiKey::TransientMaxTemperature, "72.1 °C")],
+            &[(KpiKey::TransientMaxTemperature, "70.4 °C")],
         ),
         (
             "structure.mass_properties",
@@ -105,14 +107,16 @@ fn demo_kpis_show_the_same_values_as_before() {
     }
 }
 
-/// 概要のカードに使う判定・塗りの比・判定の数え方。判定は解析の判定（9 件の節点のうち 4 件が範囲の外か端）。
+/// 概要のカードに使う判定・塗りの比・判定の数え方。判定は解析の判定（節点と温度範囲の種類の組 13 件のうち 10 件が、
+/// 不確かさ 5 K を含めて範囲の外か端）。
 #[test]
 fn demo_verdicts_fills_and_tallies() {
     let ws = demo();
     let eb = kpis(&ws, "power.energy_balance", None);
-    assert_eq!(eb[1].verdict, Some(Verdict::Violation));
+    assert_eq!(eb[1].verdict, Some(Verdict::Ok));
     let dod = eb[1].fill.unwrap();
-    assert_eq!((dod.ratio, dod.basis), (1.0, FillBasis::Value));
+    assert_eq!(dod.basis, FillBasis::Value);
+    assert!((dod.ratio - eb[1].value.as_ref().unwrap().si).abs() < 1e-12);
     let storage = &kpis(&ws, "cdh.data_budget", None)[2];
     assert_eq!(storage.fill.unwrap().ratio, 0.0, "負の余裕は 0 に寄せる");
     assert_eq!(storage.verdict, Some(Verdict::Violation));
@@ -122,11 +126,11 @@ fn demo_verdicts_fills_and_tallies() {
     assert_eq!(
         range.tally,
         Some(KpiTally {
-            checked: 9,
-            flagged: 4
+            checked: 13,
+            flagged: 10
         })
     );
-    assert!((range.fill.unwrap().ratio - 5.0 / 9.0).abs() < 1e-12);
+    assert!((range.fill.unwrap().ratio - 3.0 / 13.0).abs() < 1e-12);
     // 判定の対象でない KPI（発生量・角運動量）は判定を持たない
     assert!(kpis(&ws, "cdh.data_budget", None)[0].verdict.is_none());
     assert!(kpis(&ws, "aocs.rw_unloading", None)[1].verdict.is_none());

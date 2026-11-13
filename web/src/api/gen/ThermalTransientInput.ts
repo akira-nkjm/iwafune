@@ -2,6 +2,7 @@
 import type { ThermalEnvironment } from "./ThermalEnvironment";
 import type { ThermalHeatPhase } from "./ThermalHeatPhase";
 import type { ThermalInitial } from "./ThermalInitial";
+import type { ThermalMarginPolicy } from "./ThermalMarginPolicy";
 import type { ThermalNetwork } from "./ThermalNetwork";
 import type { TimelineSpec } from "./TimelineSpec";
 
@@ -20,4 +21,8 @@ phases: Array<ThermalHeatPhase>, initial: ThermalInitial,
 /**
  * 積分の刻みの上限（既定は安定条件の目安だけで決める）
  */
-max_step: number | null, };
+max_step: number | null, 
+/**
+ * 解析マージンの方針（書かれていない値は解析の既定値）
+ */
+margin: ThermalMarginPolicy, };

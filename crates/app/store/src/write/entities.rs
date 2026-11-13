@@ -201,9 +201,13 @@ pub fn set_setting(
                 let rest = &keys[i + 1..];
                 return set_in_inline(inline, rest, item).map_err(|m| StoreError::edit(file, m));
             }
-            let entry = table
-                .entry(key)
-                .or_insert_with(|| Item::Table(Table::new()));
+            // 途中の表は暗黙（`[coating]` のような空の見出しを書かない）。値を入れる表だけ見出しを書く
+            let implicit = i + 1 < parents.len();
+            let entry = table.entry(key).or_insert_with(|| {
+                let mut t = Table::new();
+                t.set_implicit(implicit);
+                Item::Table(t)
+            });
             table = entry
                 .as_table_mut()
                 .ok_or_else(|| StoreError::edit(file, format!("`{key}` は表ではありません")))?;

@@ -6,6 +6,7 @@
 
 use crate::spec::{AnalysisError, orbit_mean, orbit_ranges};
 use crate::thermal::network::{Compiled, Surface};
+use crate::thermal::preset::ThermalPreset;
 use sat_astro::constants::{EARTH_ALBEDO, EARTH_IR, SOLAR_CONSTANT};
 use sat_astro::ephem::CentralBody;
 use sat_astro::illumination::{earth_view_factor, solar_flux_w_m2, solar_incidence};
@@ -15,10 +16,13 @@ use sat_astro::timeline::{TimelineSample, TimelineSpec, build};
 use sat_units::typed::{Fraction, Irradiance, Length, Qty, Temperature};
 use serde::{Deserialize, Serialize};
 
-/// 熱環境（高温・低温のケースで値を変える）。書かれていない値は解析の既定値（取り出しはメソッド）。
+/// 熱環境（高温・低温のケースで値を変える）。書かれていない値はプリセット、それも無ければ解析の既定値（取り出しはメソッド）。
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThermalEnvironment {
+    /// 最悪ケースのプリセット（書かれていない太陽光・アルベド・地球赤外に使う。`thermal::preset`）
+    #[serde(default)]
+    pub preset: Option<ThermalPreset>,
     /// 太陽光の強さ（既定は太陽との距離から。高温ケースは 1414 W/m² などを与える）
     #[serde(default)]
     pub solar_flux: Option<Qty<Irradiance>>,
@@ -37,14 +41,24 @@ pub struct ThermalEnvironment {
 pub const DEFAULT_SPACE_TEMPERATURE_K: f64 = 3.0;
 
 impl ThermalEnvironment {
-    /// 地球のアルベド（省略時 `EARTH_ALBEDO`）。
-    pub fn albedo(&self) -> Fraction {
-        self.albedo.unwrap_or(Fraction::new(EARTH_ALBEDO))
+    /// 太陽光の強さ（省略時はプリセット。それも無ければ `None` で、時刻ごとの太陽との距離から求める）。
+    pub fn solar_flux(&self) -> Option<Qty<Irradiance>> {
+        self.solar_flux
+            .or_else(|| self.preset.map(ThermalPreset::solar_flux))
     }
 
-    /// 地球の赤外放射（省略時 `EARTH_IR`）。
+    /// 地球のアルベド（省略時はプリセット、それも無ければ `EARTH_ALBEDO`）。
+    pub fn albedo(&self) -> Fraction {
+        self.albedo
+            .or_else(|| self.preset.map(ThermalPreset::albedo))
+            .unwrap_or(Fraction::new(EARTH_ALBEDO))
+    }
+
+    /// 地球の赤外放射（省略時はプリセット、それも無ければ `EARTH_IR`）。
     pub fn earth_ir(&self) -> Qty<Irradiance> {
-        self.earth_ir.unwrap_or(Qty::from_raw(EARTH_IR))
+        self.earth_ir
+            .or_else(|| self.preset.map(ThermalPreset::earth_ir))
+            .unwrap_or(Qty::from_raw(EARTH_IR))
     }
 
     /// 宇宙の背景温度（省略時 [`DEFAULT_SPACE_TEMPERATURE_K`]）。
@@ -56,7 +70,8 @@ impl ThermalEnvironment {
     /// 使った値（既定値を埋めたもの）。出力に返す。
     pub fn used(&self) -> ThermalEnvironmentUsed {
         ThermalEnvironmentUsed {
-            solar_flux: self.solar_flux,
+            preset: self.preset,
+            solar_flux: self.solar_flux(),
             albedo: self.albedo(),
             earth_ir: self.earth_ir(),
             space_temperature: self.space_temperature(),
@@ -68,6 +83,8 @@ impl ThermalEnvironment {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThermalEnvironmentUsed {
+    /// 使ったプリセット
+    pub preset: Option<ThermalPreset>,
     /// 太陽光の強さ（`None` なら時刻ごとの太陽との距離から求めた）
     pub solar_flux: Option<Qty<Irradiance>>,
     pub albedo: Fraction,
@@ -121,7 +138,7 @@ impl Geometry {
 
 /// 外面 1 枚の吸収熱 [W]。
 fn surface_absorbed(s: &Surface, env: &ThermalEnvironment, g: &Geometry) -> f64 {
-    let flux = env.solar_flux.map_or(g.solar_flux_w_m2, Qty::value);
+    let flux = env.solar_flux().map_or(g.solar_flux_w_m2, Qty::value);
     let solar = s.alpha * flux * s.area_m2 * solar_incidence(s.normal, g.sun_dir, g.sunlit);
     let Some(r) = g.r_m else {
         return solar;
@@ -223,8 +240,9 @@ mod tests {
                 area: Qty::from_raw(0.01),
                 normal,
                 count: 1,
-                absorptivity: 0.9,
-                emissivity: 0.8,
+                absorptivity: Some(0.9),
+                emissivity: Some(0.8),
+                coatings: vec![],
             }],
         })
         .unwrap()
@@ -241,6 +259,28 @@ mod tests {
         };
         let q = exposure_absorbed(&net, &ThermalEnvironment::default(), &exposure).unwrap();
         assert!((q[0] - 0.9 * 1361.0 * 0.01).abs() < 1e-9);
+    }
+
+    /// プリセットは書かれていない値だけを埋める: 高温のプリセットにアルベド 0.3 を書くと、太陽光 1414 W/m²・
+    /// 地球赤外 258 W/m² はプリセット、アルベドは書いた 0.3。太陽に正対した面（α 0.9、0.01 m²）は 0.9·1414·0.01 W を吸収する。
+    #[test]
+    fn preset_fills_unwritten_values() {
+        let env = ThermalEnvironment {
+            preset: Some(ThermalPreset::Hot),
+            albedo: Some(Fraction::new(0.3)),
+            ..ThermalEnvironment::default()
+        };
+        let used = env.used();
+        assert_eq!(used.solar_flux.map(Qty::value), Some(1414.0));
+        assert_eq!(used.albedo.value(), 0.3);
+        assert_eq!(used.earth_ir.value(), 258.0);
+        let exposure = ThermalExposure::Fixed {
+            sun_dir_body: Some(Vec3::X),
+            nadir_body: None,
+            altitude: Qty::from_raw(500.0e3),
+        };
+        let q = exposure_absorbed(&plate(Vec3::X), &env, &exposure).unwrap();
+        assert!((q[0] - 0.9 * 1414.0 * 0.01).abs() < 1e-9);
     }
 
     /// 天底を向いた面は日陰でも地球赤外を受ける: ε·IR·A·sin²λ（sin λ = R/(R+h)）。
@@ -337,8 +377,9 @@ pub(crate) mod fixtures {
                     area: Qty::from_raw(0.01),
                     normal,
                     count: 1,
-                    absorptivity: 0.6,
-                    emissivity: 0.8,
+                    absorptivity: Some(0.6),
+                    emissivity: Some(0.8),
+                    coatings: vec![],
                 })
                 .collect(),
         }

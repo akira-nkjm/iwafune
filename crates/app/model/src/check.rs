@@ -15,6 +15,7 @@ mod modes;
 mod parts;
 mod settings;
 mod settings_analysis;
+mod settings_thermal;
 mod sources;
 mod system;
 mod values;
@@ -22,7 +23,7 @@ mod views;
 
 pub use defs::attribute_def_problems;
 
-/// 割合の合計を 1 とみなす許容差（デューティ比・モードの時間割合）。解析の側の `sat_analysis::modes::DUTY_TOLERANCE` と
+/// 割合の合計を 1 とみなす許容差（デューティ比・モードの時間割合・熱の表面材の面積割合）。解析の側の `sat_analysis::modes::DUTY_TOLERANCE` と
 /// 同じ値にする（fune-model は sat-analysis に依存できないので、fune-projection のテストが一致を確かめる）。
 pub const SHARE_TOLERANCE: f64 = 1e-9;
 

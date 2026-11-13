@@ -11,7 +11,7 @@ export type ThermalModePart = {
  */
 id: string, 
 /**
- * 所属節点。
+ * 熱を出す節点（既定は部品の属する節点。発熱の場所を指定すればその節点）。
  */
 node: string, 
 /**
@@ -31,6 +31,10 @@ states: Array<string>,
  */
 power: StateValues, 
 /**
- * 熱になる割合（省略で 1）。
+ * 1 台の状態ごとの RF 出力（単体値。書かれていない状態は 0）。
+ */
+rf_output: StateValues, 
+/**
+ * 熱になる割合（書けば RF 出力より優先。`ThermalLoad::dissipation`）。
  */
 heat_fraction: number | null, };

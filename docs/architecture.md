@@ -333,7 +333,7 @@ service は部品や解析の結果を項目に並べ、`budget/allocation.toml`
 | `force` | 重力場（EGM96、70 次まで。係数は埋め込み）、第三体、太陽輻射圧、大気抵抗、固体潮汐、相対論の補正 |
 | `shadow` | 影（円柱・円錐）。食の判定はこれだけ |
 | `earth`・`time` | ECI ⇄ ECEF、測地座標、歳差、元期と恒星時 |
-| `geomag`・`atmosphere` | 地磁気（傾斜双極子）、大気密度（指数大気・NRLMSISE-00） |
+| `geomag`・`atmosphere` | 地磁気（傾斜双極子）、大気密度（指数大気・NRLMSISE-00）、宇宙天気（F10.7・Ap）の日ごとの表 |
 | `ground` | 地上局の見通し角、パスの検出、地上軌跡 |
 | `attitude`・`illumination`・`timeline` | 姿勢則（太陽指向・地心指向・慣性固定）、面への太陽入射、軌道上の時系列 |
 
@@ -349,6 +349,20 @@ DE440 の暦表（`de440.bin`、約 20.7 MB。JPL DE440 を sat-astro が読む�
 - 置き場所はユーザーごとのキャッシュ。`$IWAFUNE_DATA_DIR`、無ければ `$XDG_CACHE_HOME/iwafune/data`、無ければ `~/.cache/iwafune/data`。
 - CLI とサーバーは起動時に一度だけキャッシュを読み、sat-astro に登録する。ファイルを読むのは `fune_service::data` で、sat-astro はバイト列を受け取るだけ。
 - 登録すると 1849〜2150 年は DE440 を使い、無ければ解析式を使う。今どちらを使うかは `fune data status`・`GET /data/status` で分かる。
+
+### 6.6 外部データ（宇宙天気）
+
+NRLMSISE-00 の F10.7・Ap を日付で引くための表（CelesTrak の SW-All、`SW-All.csv`、約 3 MB。1957 年からの実績、45 日先までの日ごとの予測、
+その先の月ごとの予測）。毎日更新されるので、git にもリリースにも入れず、取得の方式にする。
+
+- 取得は `fune data fetch space_weather`（GUI では設定のページ、HTTP では `POST /data/space_weather/fetch`）。中で `curl` を呼ぶ。
+  一時ディレクトリに落とし、表として読めることを確かめてから置き換える。取得元（URL）・取得日時・SHA-256 を `SW-All.json` に記録する。
+- 置き場所は DE440 と同じユーザーごとのキャッシュ。読むのは `fune_service::data::space_weather`（`loaded`）で、表の解釈と日付からの引き方は
+  `sat_astro::atmosphere::space_weather`（バイト列を受け取る）。
+- 日付から引くのは `fune data space-weather <日付> [--activity low|moderate|high]`・`GET /data/space_weather?date=…&activity=…`。
+  F10.7 は前日の観測値、81 日平均はその日の中心平均、Ap はその日の日平均（3 時間値が揃えば NRLMSISE-00 の 3 時間 Ap の履歴も）。
+  表の範囲の外や空欄は太陽活動のプリセット（ECSS-E-ST-10-04C Table 6-3 の長期の値）にし、値ごとの出所と、使った表の版
+  （取得日時・SHA-256・実績と予測の最後の日）を返す。解析はこの版を結果に残す。手で与えた F10.7・Ap（`AtmosphereModel::Nrlmsise00`）があればそちらが優先。
 
 ## 7. 機械的な検査
 

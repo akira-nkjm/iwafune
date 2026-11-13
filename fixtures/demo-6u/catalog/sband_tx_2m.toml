@@ -19,3 +19,6 @@ size           = { x = 90.0, y = 96.0, z = 15.0, unit = "mm" }
 off = { value = 0.0, unit = "W" }
 rx  = { value = 0.6, unit = "W" }  # 待機（送信準備）
 tx  = { value = 9.5, unit = "W" }
+
+[attr.rf_output]
+tx = { value = 2.0, unit = "W" }

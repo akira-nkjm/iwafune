@@ -106,6 +106,15 @@ impl ModeDef {
         out
     }
 
+    /// 時間割合（`duty`）が正の状態を持つ割り当てがあるか（蝕の上書きも見る）。
+    /// 値はどの解析でも時間平均として扱う（周回内の時間分布は持たない）。
+    pub fn uses_duty(&self) -> bool {
+        self.assignments
+            .iter()
+            .chain(&self.eclipse)
+            .any(|a| a.duty.values().any(|&f| f > 0.0))
+    }
+
     /// 部品 `part` の割り当て。無ければ `None`（呼び出し側は「0 とみなす」のではなく未割り当てとして扱う）。
     pub fn assignment(&self, part: &str) -> Option<&StateAssignment> {
         self.assignments.iter().find(|a| a.part == part)

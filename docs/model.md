@@ -194,7 +194,7 @@ pub struct Mode {
     pub label: String,
     pub description: Option<String>,
     pub states: BTreeMap<Id<Part>, StateAssign>,
-    pub max_duration: Option<Quantity>,    // 時間の次元。0.3.0 では解析には使わない
+    pub max_duration: Option<Quantity>,    // 時間の次元。power.energy_balance の判定に使う（§5.1）
     pub eclipse: BTreeMap<Id<Part>, StateAssign>, // 書いた部品だけ蝕時に置換
 }
 /// 基本の状態と、ほかの状態で過ごす時間の割合。割合の残りは基本の状態。
@@ -306,6 +306,42 @@ projection の `case_policy::effective_case` が明示ケースを優先する�
 期間不足の目印 `span_fallback = orbit_mean_over_span` は引き続き返す。
 KPI の電力収支は別の量である平均電力（`orbit_average_balance`、電池の効率を含まない）を使う。
 
+電力収支の運用は 3 通りある。ケースの欄（`max_dod`・`orbit_average_balance`・`orbits`・`series` など）は
+どれも**解析期間ずっと続けた**ときの値のまま。判定（`checks` の `dod`・`energy_balance`・`depleted`）をどの運用で
+評価したかはケースの `evaluation` に書く。
+
+- **連続**（`continuous`）: 最長継続時間の無いモード・一定の負荷。最長継続時間があっても基本のモードが無ければ
+  `no_base_mode`、そのモード自身が基本のモードなら `base_mode` とし、どちらも連続で判定する。
+- **最長継続時間**（`max_duration`）: モードの `max_duration` があれば、基本のモード（`analysis.power.base_mode`、
+  無ければ `[[sequence]]` の最初の区間のモード）を回し続け、その上でこのモードを最長継続時間だけ 1 回続ける。
+  開始は 1 周の中で標本ごとにずらし、窓から後の最小 SOC が最も低い開始を最悪とする。ずらす 1 周は解析期間の終わりから
+  「周期 + 最長継続時間 + 周期」前から始まる 1 周（前で定常に近づき、後ろで 1 周の回復を見る。足りなければ期間の始め）。
+  結果はケースの `by_max_duration`: `max_dod`（解析期間全体の最小 SOC から。判定に使う）・`max_dod_from_start`（窓から後だけ）・
+  `best_max_dod`（最良の開始）・`base_max_dod`（基本のモードだけ）・`worst_start`・`worst_start_in_orbit`・
+  `eclipse_overlap`・`orbit_average_balance` と `energy_margin_per_orbit`（窓の立ち上がりから 1 周。1 周に 1 回入れたとき）。
+  窓は標本の刻みで丸め、窓の中の標本に負荷とそのモードの姿勢則の発電を使う。
+- **モードの並び**（`sequence`）: `[[sequence]]` を繰り返して解析期間を覆い、解析の開始からの経過を 1 周期で割った余りが
+  入る区間のモードの負荷（日照・日陰、蝕の上書きは `mode_load` の評価のまま）と姿勢則の発電で積分する。結果は出力の
+  `sequence.balance`（ケースと同じ形。`load_sunlit`・`load_eclipse` は日照中・日陰中の標本の平均）で、運用を通しての
+  DoD・最小 SOC・周回ごとの収支（`orbits`）と判定を持つ。並びが無ければ `sequence = null`。
+
+duty（状態の時間割合）はどの運用でも平均の消費電力にして一定にかける（周回内の時間分布は扱わない）。使うモードに
+duty があればケースと並びの `duty = averaged` で示す。KPI の最大 DoD・軌道平均の収支（最悪）は、各ケースの判定に使った
+運用の値（`by_max_duration` があればそちら）と並びの値から選ぶ。
+
+```toml
+# analysis/power.toml（並びと基本のモード）
+base_mode = "NOMINAL"   # 省略時は並びの最初の区間のモード
+
+[[sequence]]
+mode     = "NOMINAL"
+duration = { value = 76.0, unit = "min" }
+
+[[sequence]]
+mode     = "DOWNLINK"
+duration = { value = 9.6, unit = "min" }
+```
+
 解析ケースの `mode` が指定されているときは、そのモードの `[law.<mode>]` が必要で、別のモードの姿勢則では代用しない。
 モードが未指定なら、姿勢則が 1 件だけのときに限り使う。0 件または複数なら不足入力として停止する。
 
@@ -317,6 +353,65 @@ KPI の電力収支は別の量である平均電力（`orbit_average_balance`�
 `thermal.steady` は引き続きすべての熱条件を解析する。
 両解析とも、熱条件の `beta` がある場合だけ解析ケースの β を上書きし、省略時はケースの β を保持する。
 軌道の中心天体が地球以外なら、地球の形態係数・アルベド・赤外放射を用いる熱環境は未対応のため入力エラーで停止する。
+
+#### 温度範囲（3 種）と判定
+
+部品の温度範囲は 3 種で、熱解析は種類ごとに判定する（key は `range:<節点>:<種類>`、節点の範囲は部品の範囲の種類ごとの共通部分）。
+
+| 種類 | 属性 | 意味 |
+|---|---|---|
+| `storage`（保管） | `temp_survival` | 電源を切っていても壊れない範囲（非動作） |
+| `operating`（動作） | `temp_op` | 機能を維持する範囲 |
+| `performance`（性能） | `temp_perf` | 仕様の性能を満たす範囲 |
+
+既存の属性はそのまま使う: これまでの唯一の判定だった `temp_op` は「動作」に、非動作の範囲の `temp_survival` は「保管」に当てる
+（ID は変えないので既存の設計はそのまま読める。`temp_survival` もこれから判定に使う）。性能の範囲は新しい `temp_perf`。
+判定はモードによらず予測の最低・最高を 3 種すべてと比べる（電源を切るモードかどうかは見ない）。
+
+#### 解析マージンと最悪ケースのプリセット
+
+```toml
+# analysis/thermal.toml
+[margin]
+uncertainty  = { value = 5.0, unit = "K" }  # 予測温度の不確かさ（既定 0 K）
+warning_band = { value = 5.0, unit = "K" }  # 範囲の端からこの幅以内を警告（既定 5 K）
+
+[case.hot]
+preset = "hot"        # hot / cold / safe_mode
+mode   = "MISSION"
+```
+
+判定は「予測の最低 − 不確かさ」と「予測の最高 + 不確かさ」を範囲と比べ、外れれば violation、端から `warning_band` 以内なら warning。
+出力の余裕（`margin_low`・`margin_high`）は不確かさを引く前の値で、使った値は出力の `margin` に返す。温度差なので K で書く（degC は検査の誤り）。
+
+プリセットは環境条件に書かれていない太陽光・アルベド・地球赤外を埋める（書いた値が優先。値は `sat_analysis::thermal::preset`）。
+`hot` は 1414 W/m²・0.35・258 W/m²、`cold` と `safe_mode` は 1322 W/m²・0.25・217 W/m²。`safe_mode` は低温の環境で、
+セーフモードの運用モード（`mode`）と組み合わせてヒーターだけで保温できるかを見るためのもの。
+
+#### 発熱
+
+発熱は部品のモードの平均から `sat_analysis::thermal::network::load` が求める。優先の順に
+1. `heat_fraction` があれば 発熱 = 消費電力 × `heat_fraction`（RF 出力は見ない。これまでの上書き）、
+2. 無ければ 発熱 = 消費電力 − RF 出力（状態ごとの属性 `rf_output`。書いていない状態は 0）。
+
+`heat_fraction` の既定値 1 は外した（既定値で常に上書きになり RF 出力が効かなくなるため。書かなければ RF 出力の無い部品はこれまでどおり全部が熱）。
+回線計算の送信電力 `tx_power` は状態を持たないので、発熱には状態ごとの `rf_output` を別に書く。
+熱を出す節点は既定で部品の属する節点で、`[heat_node]` に `部品 = "節点"` を書くとその節点に置く（節点に入れていない部品も発熱の源になる）。
+
+#### 表面材
+
+```toml
+[coating.white_paint]
+absorptivity = 0.2
+emissivity   = 0.85
+
+[surface.PANEL_PX]  # 外面の部品 → 表面材 → 面積割合（合計 1）
+white_paint = 0.86
+black_paint = 0.14
+```
+
+面の α/ε は面積割合の加重和（1 面は 1 節点で等温なので吸収も放射も面積に線形）。`[surface.<部品>]` を書いた部品は部品の
+`absorptivity`・`emissivity` を使わない。割合の合計が 1 でない・α/ε の欠けは検査の警告（1 つずつ書いていく途中でも書き込める）で、解析は入力の誤りで止まる。
 
 ### 5.3 姿勢解析の機体外形
 
@@ -514,7 +609,8 @@ HTR = { state = "on" }
   warm は `spare_state`、種別の語彙の `standby`、`idle` の順で選ぶ。予備状態が決まらない場合、語彙に無い場合は error。
 - `[eclipse]` は、書いた部品の割り当て全体を蝕時だけ置換する（`active`・`duty` などの欄を個別に継承しない）。
   書かなかった部品は `[states]` を使う。`[states]` に無い上書き先は未指定と同様に warning とし、解析には足さない。
-- `max_duration` は時間の次元を検査し、CLI の一覧と GUI のモード見出しに表示する。0.3.0 では解析期間やモードの時間割合に影響しない。
+- `max_duration` は時間の次元を検査し、CLI の一覧と GUI のモード見出しに表示する。`power.energy_balance` は、このモードを
+  基本のモードの上で最長継続時間だけ続けたときで判定する（§5.1）。解析期間やモードの時間割合（`mode_share`）には影響しない。
 - 台数の評価は `sat_analysis::modes::counted_states` だけ。電力は「稼働台 × 状態の平均電力 + 予備台 × 予備状態の電力」。
   `power.mode_load.total` は日照時、`total_eclipse` は蝕時（成長込みはそれぞれ `*_with_growth`）。
   `power.energy_balance` はこの日照時・蝕時の負荷を使う。C&DH は日照時の割り当てで同じ台数を数える。
