@@ -2,6 +2,17 @@ import type { fieldsJa } from "./ja";
 
 /** Display names of analysis output fields (English) */
 const labels: Record<string, string> = {
+  longest: "Longest eclipse sample",
+  beta_min: "Minimum beta sample",
+  beta_max: "Maximum beta sample",
+  eclipse_free_duration: "Eclipse-free duration (estimate)",
+  eclipse_free_samples: "Eclipse-free samples",
+  shadow_step: "Shadow sampling interval",
+  step: "Season sampling interval",
+  fixed_sun_per_orbit: "Sun held fixed within each orbit",
+  epoch: "Date (UTC)",
+  umbra: "Umbra duration",
+  penumbra: "Penumbra duration",
   momentum_direction: "Momentum direction",
   off_axis_torque: "Off-axis torque",
   net_force: "Net force",

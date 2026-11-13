@@ -33,8 +33,46 @@ API の `AnalysisInfo.area` は `{ "kind": "system", "value": "power" }` また�
 
 話題の解析の設定はその条件のファイル内の表に置く（例: `conditions/orbit.toml` の `[eclipse_season]`、
 設定キーは `conditions.orbit.eclipse_season.<欄>`）。`analysis/orbit.toml` は作らない。
-話題の設定位置は `ConditionTopic::setting_path()` で引く。具体的な解析設定の型・読み取り・検査・量の次元は、
-最初の話題の解析を追加する #3 で `OrbitSettings` に追加する。現在は未知の表を受け入れない。
+話題の設定位置は `ConditionTopic::setting_path()` で引く。型付きの設定は未知の表・キーを受け入れない。
+
+`conditions/orbit.toml` の `duration` はミッション期間（時間の量、キー `conditions.orbit.duration`）。
+`[eclipse_season]` の任意の `step` も時間の量（キー `conditions.orbit.eclipse_season.step`）。
+読み書きは既存の条件ファイルの経路、次元の検査と projection は `setting_dims` の共通の表を使う。
+未入力の期間・刻みも設定の表に表示する。`duration` が無いと季節解析は不足入力となる。
+
+```toml
+# conditions/orbit.toml（他の軌道要素と同じファイル）
+duration = { value = 1, unit = "yr" }
+
+[eclipse_season]
+step = { value = 1, unit = "day" }
+```
+
+`orbit.eclipse_season` は `AnalysisArea::Condition(ConditionTopic::Orbit)`。
+入力は `OrbitSpec`・`duration`・任意の `step`。刻みの既定の1日は sat-analysis が持ち、projection は補わない。
+期間の始点・終点を含む標本ごとに、既存の `beta_angle_rad` で J2 の RAAN 歳差と太陽方向を考慮した β を求める。
+各標本の1周では太陽位置を固定し、既存の軌道伝搬と円錐影を5秒間隔で標本化する。
+本影（光の割合 0）と、本影を含まない半影（0 より大きく1未満）の時間は、既存の時間割合の台形則で集計する。
+境界の時間精度は各境界で標本間隔程度。短い蝕・半影は標本間に隠れることがある。
+地球以外の中心天体は未対応のエラー。月による遮蔽（月の影）は後回しとし、含めない。
+
+出力 `points` は日付（UTC）・β [rad]・本影 [s]・半影 [s] の列、`series` は同じ値のグラフ用の系列。
+`longest` と `max_eclipse_duration` は本影と半影の合計が最大の標本と時間、
+`beta_min` / `beta_max` は符号付き β の極値とその標本。同じ極値は最初の日付を選ぶ。
+極値は標本の中で選び、日付間の真の極値を探索しない。
+`eclipse_free_samples` は蝕の無い標本の数（端数の終点も含む）、
+`eclipse_free_duration` は蝕なしフラグを季節の格子で台形積算した期間の推定値。
+季節の間隔 `step`、周回内の間隔 `shadow_step`、近似 `fixed_sun_per_orbit` も出す。
+判定は情報のみで checks は付けない。KPI は最長蝕と β の範囲の下端・上端を軌道の話題に並べる。
+
+`fune case from-eclipse <新しいID> --at longest|beta_min [--mode <モード>]` は
+service の `case_from_eclipse_op` で最新の条件を再解析し、既存の `SetCase` Op を作る。
+HTTP は `POST /ops/case_from_eclipse` に `{ "id": "season_longest", "at": "longest", "mode": null }` を送り、
+返る Op を通常の `POST /ops` で保存する。GUI の軌道ページもこの入口を使い、プレビュー・CLI 表示を共用する。
+ケースには β（rad）と任意のモードを保存する。ケースは元期の欄を持たないので、標本の日付は description に記録する。
+これは β の代表条件を再利用するケースであり、description の日付で後続の解析の元期を変えるものではない。
+既存 ID の上書き・未知のモードは拒否する。`to_cli` は値と日付を保持した `fune case set` を返す。
+
 
 ## 2. 層の構成
 

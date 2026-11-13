@@ -95,6 +95,10 @@ macro_rules! setting_quantities {
 }
 
 setting_quantities! {
+    /// ミッション期間
+    ORBIT_DURATION: Time = Conditions["orbit", "duration"];
+    /// 季節解析の標本の間隔
+    ORBIT_ECLIPSE_SEASON_STEP: Time = Conditions["orbit", "eclipse_season", "step"];
     /// 軌道の高度（`conditions/orbit.toml`）
     ORBIT_ALTITUDE: Length = Conditions["orbit", "altitude"];
     /// 軌道長半径

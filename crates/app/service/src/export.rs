@@ -54,6 +54,7 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         SetText,
         UnsetText,
         CommandText,
+        CaseFromEclipseRequest,
         InitResult,
         BudgetKind,
         BudgetRequest,

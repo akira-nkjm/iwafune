@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { AnalysisState } from "@/api/queries";
 import type { AnalysisEntry, DesignView } from "@/api/types";
 import { useT } from "@/i18n";
@@ -19,10 +20,12 @@ export function AnalysisCard({
   state,
   entry,
   design,
+  children,
 }: {
   state: AnalysisState;
   entry: AnalysisEntry | undefined;
   design: DesignView | undefined;
+  children?: ReactNode;
 }) {
   const t = useT();
   const r = state.result;
@@ -61,6 +64,7 @@ export function AnalysisCard({
           {r.error && <p className="text-neg-ink text-xs">{r.error}</p>}
           <MissingList design={design} missing={r.missing} />
           <ChecksList checks={checks} />
+          {children}
           {scalars.length > 0 && (
             <div className="space-y-3">
               {groupScalars(scalars).map(([group, list]) => (

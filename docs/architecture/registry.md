@@ -28,6 +28,9 @@
 | 機能 | 置き場所 | 備考 |
 |---|---|---|
 | 解析の区分・前提条件の話題 | `sat_analysis::spec::{AnalysisArea, ConditionTopic}`（葉の `spec::area` から再公開）・`fune_model::design::ConditionTopic` | 区分は系または条件の話題。model ⇄ analysis の話題の対応と区分のキーは `fune_projection::system`。話題の設定は `design::conditions`、対応する条件のファイル内に置く |
+| β の季節変動・1 周の本影と半影の集計 | `sat_analysis::orbit::eclipse_season`・`fune_projection::orbit` | 季節の入力は軌道・ミッション期間・任意の刻み（β の指定なし）。周回内は既存の時刻格子と states_at を使い太陽を固定。円錐影・伝搬・β は sat-astro。季節の刻みの既定値は解析。設定は `conditions/orbit.toml` |
+| 季節解析からケースを作る | `fune_service::edit::eclipse` | CLI / HTTP 共通で `SetCase` Op を作る。日付は description に保存 |
+| Web の時系列グラフ | `web/src/analysis/SeriesChart.tsx` | 系・条件の解析で共有する。表示単位は service が付加 |
 | Web の解析の KPI 帯 | `web/src/analysis/AnalysisKpis.tsx` | 系・前提条件のページが共用する表示 |
 
 | 機能 | 置き場所 | 備考 |
@@ -279,6 +282,7 @@
 
 | 日時 | 変更 | 理由 |
 |---|---|---|
+| 2026-11-13 | ミッション期間・季節刻み、軌道の β と本影・半影の季節解析・KPI・共通グラフ、代表標本から SetCase を作る CLI / HTTP / GUI とパリティ・往復見本を追加 | #3 |
 | 2026-11-13 | 前提条件を conditions/ に分離し mission/ を #9 用に予約。解析の所属を AnalysisArea（系／条件の話題）にし、CLI・API・web・KPI の区分と URL を更新 | #74 |
 | 2026-11-12 | #6: 継続時間・蝕・稼働台数・冗長を追加。台数評価は sat-analysis::modes、検査は model::check::modes、C&DH のレートを mode_rates に分離 | 電力・データ量・発熱で同じ台数を使う |
 | 2026-11-11 | 電力収支の `EnergyBalanceCaseResult.energy_margin_per_orbit` を Option にし、1 周未満は `energy_margin_over_span` に期間の収支を返して周回の収支判定を Warning とする。表示欄を日英で追加 | 解析期間全体の収支を 1 周あたりの余裕として出していたため（#47） |

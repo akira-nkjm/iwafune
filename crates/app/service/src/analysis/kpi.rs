@@ -114,6 +114,7 @@ macro_rules! kpi_table {
 }
 
 kpi_table! {
+    sat_analysis::orbit::EclipseSeason { LongestEclipse => longest_eclipse, BetaMin => beta_min, BetaMax => beta_max }
     power::ModeLoad { ModeLoad => mode_load }
     power::OrbitGeneration { OrbitGeneration => orbit_generation }
     power::EnergyBalance { OrbitBalance => orbit_balance, MaxDod => max_dod }
@@ -140,6 +141,16 @@ kpi_table! {
 }
 
 type Ctx<'a> = KpiContext<'a>;
+
+fn longest_eclipse(o: &sat_analysis::orbit::EclipseSeasonOutput, _: Ctx<'_>) -> Option<Measured> {
+    one(o.max_eclipse_duration)
+}
+fn beta_min(o: &sat_analysis::orbit::EclipseSeasonOutput, _: Ctx<'_>) -> Option<Measured> {
+    one(o.beta_min.beta)
+}
+fn beta_max(o: &sat_analysis::orbit::EclipseSeasonOutput, _: Ctx<'_>) -> Option<Measured> {
+    one(o.beta_max.beta)
+}
 
 fn mode_load(o: &power::ModeLoadOutput, ctx: Ctx<'_>) -> Option<Measured> {
     one(crate::budget::budget_mode(o, ctx.case_mode)?.total_with_growth)
@@ -245,7 +256,10 @@ fn rule(key: KpiKey) -> Rule {
         | K::TotalMass
         | K::MinSafetyMargin
         | K::MinFrequency => (true, Fill::None, false),
-        K::ModeLoad
+        K::LongestEclipse
+        | K::BetaMin
+        | K::BetaMax
+        | K::ModeLoad
         | K::OrbitGeneration
         | K::PeakMomentum
         | K::DataPerDay

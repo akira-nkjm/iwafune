@@ -15,6 +15,7 @@
 //! | [`cdh`] | C&DH: HK・ミッションデータの量とストレージ |
 //! | [`comm`] | 通信: 回線バジェット・可視・データ蓄積 |
 //! | [`thermal`] | 熱: 多節点の定常・非定常 |
+//! | [`orbit`] | 軌道条件: β と1周の本影・半影の季節変動、極値と蝕なし期間 |
 //! | [`structure`] | 構造: 質量特性・準静的荷重・簡易固有振動数 |
 
 pub mod aocs;
@@ -23,6 +24,8 @@ pub mod catalog;
 pub mod cdh;
 pub mod comm;
 pub mod modes;
+/// 軌道条件の解析（β と蝕の季節変動）。
+pub mod orbit;
 pub mod power;
 pub mod spec;
 pub mod structure;

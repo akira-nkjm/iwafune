@@ -63,6 +63,21 @@ pub struct OrbitSettings {
     pub arg_perigee: Option<Quantity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mean_anomaly: Option<Quantity>,
+    /// ミッション期間（時間）。
+    #[serde(default)]
+    pub duration: Option<Quantity>,
+    /// 軌道の季節解析の設定。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub eclipse_season: Option<EclipseSeasonSettings>,
+}
+
+/// 季節解析の設定（刻みの既定値は解析が持つ）。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct EclipseSeasonSettings {
+    /// 季節の標本の間隔（時間）。
+    #[serde(default)]
+    pub step: Option<Quantity>,
 }
 
 /// 地上局（`conditions/ground/<ID>.toml`）。
