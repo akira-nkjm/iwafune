@@ -37,6 +37,8 @@ pub enum KpiKey {
     MtqUnloadTime,
     /// センサの禁止角への侵入の割合（センサのうち最大）
     SensorIntrusion,
+    /// 姿勢変更の時間（最悪の軸）
+    SlewTime,
     /// 1 日のデータ発生量
     DataPerDay,
     /// 必要なストレージ

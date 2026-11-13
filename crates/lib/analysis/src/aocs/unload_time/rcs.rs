@@ -1,6 +1,6 @@
 //! RCS でのアンロード（スラスタの配置から求める）。
 //!
-//! スラスタ i のトルクは `τ_i = (r_i − r_cm) × (F_i d̂_i)`（機体座標系）。角運動量 ĥ を捨てるには −ĥ 向きのトルクが要る。
+//! スラスタ i のトルクは `τ_i = (r_i − r_cm) × (F_i d̂_i)`（機体座標系。[`crate::aocs::thrusters`]）。角運動量 ĥ を捨てるには −ĥ 向きのトルクが要る。
 //! **仮定: −ĥ 向きの成分 `c_i = τ_i · (−ĥ)` が正のスラスタをすべて同時に連続噴射する**（オン・オフだけで
 //! −ĥ 向きのトルクを最大にする組み合わせ。パルス幅の調整や最適配分はしない）。
 //! 捨てる向きのトルクは `T = Σ c_i`、時間 `t = H / T`、推薬 `m = Σ F_i t / (Isp_i g₀)`。
@@ -8,24 +8,12 @@
 //! ĥ を与えなければ機体の ±x・±y・±z の 6 方向で評価し、最も時間がかかる方向を `worst` にする。
 
 use super::UnloadAssumption;
-use crate::spec::{AnalysisError, ensure_positive};
+use crate::aocs::thrusters::{Thruster, ThrusterTorque, thruster_torques};
+use crate::spec::AnalysisError;
 use sat_astro::constants::G0;
 use sat_astro::math::Vec3;
 use sat_units::typed::{Force, Mass, Qty, Time, Torque};
 use serde::{Deserialize, Serialize};
-
-/// スラスタ 1 本。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct UnloadTimeThruster {
-    pub id: String,
-    pub thrust: Qty<Force>,
-    pub isp: Qty<Time>,
-    /// 取付位置 [m]（機体座標系）
-    pub position: Vec3,
-    /// 推力の向き（機体座標系。機体が押される向き。長さは問わない）
-    pub direction: Vec3,
-}
 
 /// RCS での結果。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,47 +51,24 @@ pub struct UnloadTimeRcsResult {
     pub thrusters: Vec<String>,
 }
 
-/// スラスタの値を調べ、各スラスタの (トルク [N·m], 推力 [N], Isp [s]) を返す。
-fn thruster_torques(
-    thrusters: &[UnloadTimeThruster],
-    center_of_mass: Vec3,
-) -> Result<Vec<(Vec3, f64, f64)>, AnalysisError> {
-    thrusters
-        .iter()
-        .map(|t| {
-            let (f, isp) = (t.thrust.value(), t.isp.value());
-            ensure_positive(&format!("スラスタ {} の推力", t.id), f)?;
-            ensure_positive(&format!("スラスタ {} の比推力", t.id), isp)?;
-            let d = t
-                .direction
-                .normalized()
-                .filter(|_| t.position.norm().is_finite())
-                .ok_or_else(|| {
-                    AnalysisError::InvalidInput(format!("スラスタ {} の位置・向きが不正です", t.id))
-                })?;
-            Ok(((t.position - center_of_mass).cross(d * f), f, isp))
-        })
-        .collect()
-}
-
 /// 1 方向（ĥ、単位ベクトル）で評価する。
 fn evaluate(
     label: &str,
     h_hat: Vec3,
     momentum: f64,
-    thrusters: &[UnloadTimeThruster],
-    torques: &[(Vec3, f64, f64)],
+    thrusters: &[Thruster],
+    torques: &[ThrusterTorque],
 ) -> UnloadTimeRcsResult {
     let dump = -h_hat;
     let mut torque = Vec3::ZERO;
     let mut force = Vec3::ZERO;
     let mut used = Vec::new();
     let mut flow = 0.0; // Σ F / (Isp g₀) [kg/s]
-    for (t, &(tau, f, isp)) in thrusters.iter().zip(torques) {
-        if tau.dot(dump) > 0.0 {
-            torque += tau;
-            force += t.direction.normalized().unwrap_or(Vec3::ZERO) * f;
-            flow += f / (isp * G0);
+    for (t, tt) in thrusters.iter().zip(torques) {
+        if tt.torque.dot(dump) > 0.0 {
+            torque += tt.torque;
+            force += tt.force;
+            flow += tt.thrust / (tt.isp * G0);
             used.push(t.id.clone());
         }
     }
@@ -125,7 +90,7 @@ fn evaluate(
 pub fn rcs_unload(
     momentum: f64,
     direction: Option<Vec3>,
-    thrusters: &[UnloadTimeThruster],
+    thrusters: &[Thruster],
     center_of_mass: Vec3,
 ) -> Result<UnloadTimeRcs, AnalysisError> {
     let torques = thruster_torques(thrusters, center_of_mass)?;

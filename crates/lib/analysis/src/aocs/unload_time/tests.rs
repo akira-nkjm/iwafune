@@ -1,4 +1,5 @@
 use super::*;
+use crate::aocs::thrusters::Thruster;
 use crate::power::testkit::leo;
 use sat_astro::constants::{B0_EARTH, G0, R_EARTH};
 
@@ -11,8 +12,8 @@ fn mtq(id: &str, axis: Vec3, m: f64) -> UnloadTimeMtq {
 }
 
 /// +x 向きに 10 mN、+y に 0.1 m の位置（重心は原点）→ τ = (0, 0.1, 0) × (0.01, 0, 0) = (0, 0, −1 mN·m)。
-fn thruster(id: &str, position: Vec3, direction: Vec3) -> UnloadTimeThruster {
-    UnloadTimeThruster {
+fn thruster(id: &str, position: Vec3, direction: Vec3) -> Thruster {
+    Thruster {
         id: id.to_owned(),
         thrust: Qty::from_raw(0.01),
         isp: Qty::from_raw(60.0),

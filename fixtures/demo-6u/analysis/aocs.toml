@@ -5,6 +5,8 @@ cp_offset_srp            = { x = 4.0, y = 2.0, z = 8.0, unit = "mm" }
 residual_dipole          = { x = 0.01, y = 0.01, z = 0.02, unit = "A*m^2" }
 usable_momentum_fraction = 0.8
 unload_dipole_fraction   = 0.7
+slew_angle               = { value = 90.0, unit = "deg" }
+max_slew_time            = { value = 120.0, unit = "s" }
 
 [law.SAFE]
 law       = "sun_pointing"

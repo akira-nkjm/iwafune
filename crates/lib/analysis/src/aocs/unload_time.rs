@@ -9,6 +9,7 @@
 //! - **RCS**: スラスタの取付位置・推力の向きと重心から各スラスタのトルクを求め、捨てる向き（−ĥ）の成分が正の
 //!   スラスタを同時に噴射する（[`rcs`]）。時間 `t = H / T`、推薬 `m = Σ F_i t / (Isp_i g₀)`。
 
+use super::thrusters::Thruster;
 use super::wheels::{RwWheel, usable_momentum_fraction};
 use crate::spec::quantity_text;
 use crate::spec::{
@@ -53,7 +54,7 @@ pub struct UnloadTimeInput {
     pub mtq_efficiency: Option<Fraction>,
     /// スラスタ（空なら RCS の評価をしない）
     #[serde(default)]
-    pub thrusters: Vec<UnloadTimeThruster>,
+    pub thrusters: Vec<Thruster>,
     /// 重心 [m]（機体座標系）。スラスタがあるときは必須
     #[serde(default)]
     pub center_of_mass: Option<Vec3>,
@@ -333,7 +334,7 @@ fn verdicts(
 }
 
 pub mod rcs;
-pub use rcs::{UnloadTimeRcs, UnloadTimeRcsResult, UnloadTimeThruster, rcs_unload};
+pub use rcs::{UnloadTimeRcs, UnloadTimeRcsResult, rcs_unload};
 
 #[cfg(test)]
 mod tests;

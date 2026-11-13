@@ -34,6 +34,7 @@ registry!(
     aocs::RwUnloading,
     aocs::UnloadTime,
     aocs::SensorFov,
+    aocs::SlewTime,
     cdh::DataBudget,
     comm::LinkBudget,
     comm::Visibility,

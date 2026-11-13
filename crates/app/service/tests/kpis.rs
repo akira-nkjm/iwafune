@@ -49,6 +49,7 @@ fn demo_kpis_show_the_same_values_as_before() {
         ),
         ("aocs.unload_time", &[(KpiKey::MtqUnloadTime, "25.4 min")]),
         ("aocs.sensor_fov", &[(KpiKey::SensorIntrusion, "100 %")]),
+        ("aocs.slew_time", &[(KpiKey::SlewTime, "26.8 s")]),
         (
             "cdh.data_budget",
             &[

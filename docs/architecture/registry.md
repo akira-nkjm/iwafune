@@ -12,7 +12,7 @@
 | crate | 場所 | 責務 | 依存してよい内部 crate |
 |---|---|---|---|
 | `sat-units` | crates/lib/units | 単位・次元・量の唯一の正本 | なし |
-| `sat-astro` | crates/lib/astro | 数学・積分器・時刻・天体・力モデル・軌道・食・地球・地磁気・大気・地上局・姿勢則・入射・時系列 | sat-units |
+| `sat-astro` | crates/lib/astro | 数学・積分器・時刻・天体・力モデル・軌道・食・地球・地磁気・大気・地上局・姿勢則・入射・時系列・ロケット方程式 | sat-units |
 | `sat-analysis` | crates/lib/analysis | 各系の解析（Input → Output の純粋な関数） | sat-units, sat-astro |
 | `fune-model` | crates/app/model | 設計データの型・組み込みの語彙・解決・検証 | sat-units |
 | `fune-store` | crates/app/store | ディレクトリ ⇄ Design（toml_edit）・revision・ロック | fune-model |
@@ -90,7 +90,11 @@
 | モード拡張（#6） | `fune_model::design::{Redundancy, Mode, StateAssign}`・`sat_analysis::modes::{Population, counted_states}` | 稼働台・予備台の評価は modes、写し替えは projection、読み書きは store。編集は既存のセル Op とモードの継続時間 Op、service の文字列解釈で CLI / HTTP を共有 |
 | モードの状態と時間割合 | `sat_analysis::modes` | 電源・C&DH・熱で共有。`DUTY_TOLERANCE`（設計の検査の `fune_model::check::SHARE_TOLERANCE` と同じ値。fune-projection のテストが確かめる）・`find_mode`・`evaluate`（未割り当て・値の不足は警告して合計から除く、の方針はここだけ。一覧に無い部品の割り当てを警告するかは引数 `UnlistedParts`）。**部品の状態ごとの値の表は `modes::StateValues<D>`（`default`・`by_state`・`get`）だけ**（電源・C&DH・熱。単体値で、員数・冗長・状態の語彙は `Population` で共通評価器に渡す） |
 | 各解析 | `sat_analysis::<系>::<名前>` | 1 ファイル 1 解析。一覧は docs/architecture.md §6.1 |
-| 擾乱トルク | `sat_analysis::aocs::disturbance` | 重力傾斜・空力・SRP・残留磁気。`DisturbanceSurface::from_box` が箱の最大面積 × 係数を求める。`DisturbanceSpacecraft::torques(central, &TimelineSample)`（μ・磁場・大気は中心天体のもの、風・抗力・輻射圧は `sat_astro::force`）。種類は `DisturbanceKind`（表示名は持たない）。アンロード頻度と時系列で共有 |
+| 擾乱トルク | `sat_analysis::aocs::disturbance` | 重力傾斜・空力・SRP・残留磁気・推力誤差（`ThrustDisturbance`。モードで噴射するスラスタの時間平均。出力の種類の一覧には `thrust` があるときだけ出す: `DisturbanceSpacecraft::kinds`）。`DisturbanceSurface::from_box` が箱の最大面積 × 係数を求める。`DisturbanceSpacecraft::torques(central, &TimelineSample)`（μ・磁場・大気は中心天体のもの、風・抗力・輻射圧は `sat_astro::force`）。種類は `DisturbanceKind`（表示名は持たない）。アンロード頻度と時系列で共有 |
+| スラスタ 1 本の値と重心まわりのトルク | `sat_analysis::aocs::thrusters`（`Thruster`・`Thruster::torque_about`・`thruster_torques`） | **`τ = (r − r_cm) × F d̂` はここだけ**。RCS でのアンロード（`unload_time::rcs`）・推力誤差の擾乱・RCS で捨てる 1 日の推薬が共有。射影は `fune_projection::aocs::thrust`（噴射の割合はモードで `fune_model::role::STATE_THRUSTER_FIRING` にいる時間の割合） |
+| RCS で捨てる 1 日の推薬と ΔV 換算 | `sat_analysis::aocs::rw_unloading::rcs`（入力 `RwUnloadingInput.rcs`、出力 `RwUnloadingOutput.rcs_unloading`） | 1 日の角運動量 = 1 周の永年成分 × 1 日の周回数。推薬は `unload_time::rcs_unload`（機体 ±x・±y・±z の最悪）、ΔV 換算は `sat_astro::rocket::delta_v`。ΔV バジェット（#1）はこの値に日数を掛けて使う。スラスタが無ければ欄を出さない |
+| 姿勢変更にかかる時間 | `sat_analysis::aocs::slew_time`（`aocs.slew_time`）・`fune_projection::aocs::slew_time` | 静止から静止の固定軸まわりの回転を三角形／台形の角速度で。トルク・角運動量は `WheelSet::capacity_along`、使ってよい割合は `wheels`、慣性は質量特性。角度は設定 `analysis.aocs.slew_angle`（必須）、要求は `max_slew_time`（任意） |
+| ロケット方程式（推薬 ⇄ ΔV） | `sat_astro::rocket`（`exhaust_velocity`・`delta_v`） | **換算はここだけ**（アンロードの ΔV 換算と、今後の ΔV バジェット） |
 | RW の組への配分（擬似逆行列）と容量 | `sat_analysis::aocs::wheels` | `RwWheel`・`WheelSet::{distribute, capacity_along}`・使ってよい割合 `usable_momentum_fraction`（既定 `DEFAULT_USABLE_MOMENTUM_FRACTION` = 0.8。既定値はここだけ）。台数・配置は任意 |
 | 太陽電池の発電モデル | `sat_analysis::power::solar` | `SolarPanel`・`SolarArray::{panel_powers, sample_powers}`・時系列 `SolarProfile`（日照中かは `lit`。判定は `spec::is_sunlit`）・`eclipses`（`timeline::shadow_windows` に `spec::SUNLIT_THRESHOLD`）。日照時・軌道上・収支・逆算で共有 |
 | 電源の逆算サイジング | `sat_analysis::power::sizing`・`fune_projection::power::sizing` | SMAD の必要発電・SAP 面積・電池容量・直並列。季節解析は `orbit::EclipseSeason`、負荷は `mode_load`、入射は `orbit_generation` の日照中の平均（姿勢則とモードごとの上書きは `power.energy_balance` と同じ。時系列は `fune_projection::power::attitude_timeline`）、発電は `solar` を再利用。既定値は解析、写し替えは projection。部品への書き戻しはしない |
@@ -294,6 +298,7 @@
 
 | 日時 | 変更 | 理由 |
 |---|---|---|
+| 2026-11-14 | `aocs.slew_time`（姿勢変更の時間、設定 `slew_angle`・`max_slew_time`、KPI `SlewTime`）を追加。推力誤差を擾乱の種類 `thrust` に足し（モードで噴射するスラスタ。噴射の状態は `role::STATE_THRUSTER_FIRING`）、RW アンロード頻度に RCS で捨てる 1 日の推薬と ΔV 換算を足した。スラスタの値とトルクを `aocs::thrusters` に切り出し（TS の `UnloadTimeThruster` は `Thruster` に改名）、ロケット方程式を `sat_astro::rocket` に置いた | 姿勢の章の定型の表（姿勢変更時間・推力誤差・アンロードの ΔV）を解析で出すため（#12） |
 | 2026-11-13 | 電源専用表示を独立した service/API/query に集約し、汎用解析結果・設計 DTO から電源専用欄を削除 | #89 段 1 レビュー対応 |
 | 2026-11-13 | 電源の概要・部品・時系列を専用表示にし、流れ・判定バー・チャートの表示 DTO と日英の名称を追加 | #89 段 1 |
 | 2026-11-13 | 配置の凡例をビュー内に移し、編集欄を縦に配置。構造の透過操作と選択時の不透明表示を追加し、構造の系名と概要を整理 | #96 |
