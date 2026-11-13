@@ -1,22 +1,23 @@
 ---
 source: crates/app/cli/tests/snapshots_cli.rs
-expression: "stdout(&[\"analyze\", \"ls\"])"
+expression: text
 ---
- 区分        ID                          名前                     種類     入力         
+ 区分        ID                          名前                     種類     入力
 ────────────────────────────────────────────────────────────────────────────────────────
- power       power.mode_load             モード別消費電力         定常     設計から組立 
- power       power.solar_sunlit          日照時の発電             定常     設計から組立 
- power       power.orbit_generation      軌道上の発電             時系列   設計から組立 
- power       power.energy_balance        電力収支と DoD           時系列   設計から組立 
- aocs        aocs.rw_unloading           RW アンロード頻度        時系列   設計から組立 
- aocs        aocs.unload_time            アンロードにかかる時間   定常     設計から組立 
- aocs        aocs.sensor_fov             センサ FoV と禁止角      時系列   設計から組立 
- cdh         cdh.data_budget             データ量とストレージ     定常     設計から組立 
- comm        comm.link_budget            回線バジェット           定常     設計から組立 
- comm        comm.visibility             地上局の可視             時系列   設計から組立 
- comm        comm.data_throughput        データ送信量と蓄積       時系列   設計から組立 
- thermal     thermal.steady              熱（定常）               定常     設計から組立 
- thermal     thermal.transient           熱（非定常）             時系列   設計から組立 
- structure   structure.mass_properties   質量特性                 定常     設計から組立 
- structure   structure.static_load       準静的荷重               定常     設計から組立 
+ power       power.mode_load             モード別消費電力         定常     設計から組立
+ power       power.solar_sunlit          日照時の発電             定常     設計から組立
+ power       power.orbit_generation      軌道上の発電             時系列   設計から組立
+ power       power.energy_balance        電力収支と DoD           時系列   設計から組立
+ aocs        aocs.rw_unloading           RW アンロード頻度        時系列   設計から組立
+ aocs        aocs.unload_time            アンロードにかかる時間   定常     設計から組立
+ aocs        aocs.sensor_fov             センサ FoV と禁止角      時系列   設計から組立
+ cdh         cdh.data_budget             データ量とストレージ     定常     設計から組立
+ comm        comm.link_budget            回線バジェット           定常     設計から組立
+ comm        comm.visibility             地上局の可視             時系列   設計から組立
+ comm        comm.data_throughput        データ送信量と蓄積       時系列   設計から組立
+ thermal     thermal.steady              熱（定常）               定常     設計から組立
+ thermal     thermal.transient           熱（非定常）             時系列   設計から組立
+ structure   structure.mass_properties   質量特性                 定常     設計から組立
+ structure   structure.static_load       準静的荷重               定常     設計から組立
  structure   structure.modal_estimate    簡易固有振動数           定常     設計から組立
+ orbit       orbit.eclipse_season        β と蝕の季節変動         時系列   設計から組立

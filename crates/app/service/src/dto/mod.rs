@@ -36,8 +36,8 @@ pub use analysis::{
 pub use budget::{BudgetRequest, BudgetRow, BudgetView};
 pub use catalog::{CatalogItemView, CatalogSourceView};
 pub use command::{
-    AttrAddText, CommandText, KindAddText, ModeCellText, ModeSetText, NetSetText, NetUnsetText,
-    PlaceText,
+    AttrAddText, CaseFromEclipseRequest, CommandText, EclipseCaseAt, KindAddText, ModeCellText,
+    ModeSetText, NetSetText, NetUnsetText, PlaceText,
 };
 pub use common::{
     CheckReport, DiagnosticCounts, DiagnosticView, ErrorEnvelope, ErrorInfo, QuantityView,

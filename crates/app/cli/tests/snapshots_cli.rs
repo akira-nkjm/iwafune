@@ -32,7 +32,13 @@ fn units_ls_power() {
 
 #[test]
 fn analyze_ls() {
-    insta::assert_snapshot!(stdout(&["analyze", "ls"]));
+    // 表の行末の空白は表示の内容と分け、スナップショットでは正規化する。
+    let text = stdout(&["analyze", "ls"])
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n");
+    insta::assert_snapshot!(text);
 }
 
 #[test]

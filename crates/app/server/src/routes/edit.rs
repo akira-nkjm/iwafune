@@ -74,3 +74,16 @@ pub async fn format(
         .await
         .map(Json)
 }
+
+/// POST `/ops/case_from_eclipse`。CLI と同じ解析から SetCase Op を作る。
+/// 保存は他の編集と同じく POST `/ops`。
+pub async fn case_from_eclipse(
+    State(s): State<AppState>,
+    ApiJson(req): ApiJson<fune_service::dto::CaseFromEclipseRequest>,
+) -> Result<Json<Op>, ApiError> {
+    blocking(&s, move |ws| {
+        fune_service::edit::case_from_eclipse_op(ws, &req)
+    })
+    .await
+    .map(Json)
+}

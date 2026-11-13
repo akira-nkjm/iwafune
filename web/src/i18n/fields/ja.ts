@@ -1,5 +1,16 @@
 /** 解析の出力の欄の表示名（日本語）。欄の名前（sat-analysis の型のフィールド名）→ 表示名 */
 const labels: Record<string, string> = {
+  longest: "最長蝕の標本",
+  beta_min: "β 最小の標本",
+  beta_max: "β 最大の標本",
+  eclipse_free_duration: "蝕が無い期間（推定）",
+  eclipse_free_samples: "蝕が無い標本の数",
+  shadow_step: "1 周内の標本間隔",
+  step: "季節の標本間隔",
+  fixed_sun_per_orbit: "1 周中の太陽位置を固定",
+  epoch: "日付（UTC）",
+  umbra: "本影の時間",
+  penumbra: "半影の時間",
   momentum_direction: "角運動量の向き",
   off_axis_torque: "軸外トルク",
   net_force: "正味の推力",

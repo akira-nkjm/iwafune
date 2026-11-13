@@ -11,6 +11,17 @@ pub enum CaseCmd {
     Ls,
     /// 解析ケースを書く
     Set(CaseArgs),
+    /// 季節解析の代表日から解析ケースを作る
+    FromEclipse {
+        id: String,
+        /// longest / beta_min
+        #[arg(long, value_parser = ["longest", "beta_min"])]
+        at: String,
+        #[arg(long)]
+        mode: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// 解析ケースを消す
     Rm {
         id: String,

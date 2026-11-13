@@ -1,8 +1,10 @@
 //! 往復の検査の見本（すべての Op の種類を少なくとも 1 つ）と共通関数。
 
+mod eclipse;
 mod parts;
 mod records;
 
+pub(super) use eclipse::eclipse_cases;
 pub(super) use parts::part_ops;
 pub(super) use records::{def_ops, record_ops, system_ops, view_ops};
 

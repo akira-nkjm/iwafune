@@ -108,6 +108,12 @@ pub struct Channel {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(rename_all = "snake_case")]
 pub enum ChannelKind {
+    /// 季節の β 角。
+    Beta,
+    /// 1 周の本影の時間。
+    UmbraDuration,
+    /// 1 周の半影の時間（本影を含まない）。
+    PenumbraDuration,
     /// 発電電力（パネルの合計）
     Generation,
     /// 日照率

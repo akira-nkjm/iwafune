@@ -16,7 +16,7 @@ pub fn case(c: &CaseCmd) -> Built<'_> {
     Ok(match c {
         CaseCmd::Set(a) => Some((Op::SetCase { case: case_of(a)? }, &a.edit)),
         CaseCmd::Rm { id, edit } => Some((Op::RemoveCase { id: id.clone() }, edit)),
-        CaseCmd::Ls => None,
+        CaseCmd::Ls | CaseCmd::FromEclipse { .. } => None,
     })
 }
 

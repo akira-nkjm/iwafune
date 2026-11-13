@@ -26,6 +26,9 @@ pub fn channel_label(kind: ChannelKind, subject: Option<&str>) -> AnalysisLabel 
     let s = subject.unwrap_or("");
     use ChannelKind as K;
     match kind {
+        K::Beta => label("β 角", "Beta angle"),
+        K::UmbraDuration => label("本影の時間", "Umbra duration"),
+        K::PenumbraDuration => label("半影の時間", "Penumbra duration"),
         K::Generation => label("発電電力", "Generated power"),
         K::Sunlit => label("日照率", "Sunlit fraction"),
         K::PanelGeneration => label(format!("{s} の発電"), format!("{s} generation")),
@@ -166,6 +169,9 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
 pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
     use KpiKey as K;
     match key {
+        K::LongestEclipse => label("最長蝕の時間", "Longest eclipse duration"),
+        K::BetaMin => label("β の範囲（最小）", "Beta range (minimum)"),
+        K::BetaMax => label("β の範囲（最大）", "Beta range (maximum)"),
         K::ModeLoad => label("モードの消費電力（バジェット）", "Mode load (budget)"),
         K::OrbitGeneration => label("軌道平均の発電", "Orbit-average generation"),
         K::OrbitBalance => label("軌道平均の収支（最悪）", "Orbit-average balance (worst)"),

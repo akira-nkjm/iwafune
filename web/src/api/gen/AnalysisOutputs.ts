@@ -15,6 +15,7 @@ import type { ThermalTransientOutput } from "./ThermalTransientOutput";
 import type { MassPropertiesOutput } from "./MassPropertiesOutput";
 import type { StaticLoadOutput } from "./StaticLoadOutput";
 import type { ModalEstimateOutput } from "./ModalEstimateOutput";
+import type { EclipseSeasonOutput } from "./EclipseSeasonOutput";
 export type AnalysisOutputs = {
   "power.mode_load": ModeLoadOutput;
   "power.solar_sunlit": SolarSunlitOutput;
@@ -32,4 +33,5 @@ export type AnalysisOutputs = {
   "structure.mass_properties": MassPropertiesOutput;
   "structure.static_load": StaticLoadOutput;
   "structure.modal_estimate": ModalEstimateOutput;
+  "orbit.eclipse_season": EclipseSeasonOutput;
 };

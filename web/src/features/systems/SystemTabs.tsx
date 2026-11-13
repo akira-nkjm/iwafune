@@ -17,7 +17,9 @@ import { systemTitle } from "@/lib/design";
 import { SystemPartsTable } from "./SystemPartsTable";
 
 /** グラフ（recharts）は時系列のタブを開いたときだけ読む。系のページの最初のチャンクを小さくするため */
-const SeriesChart = lazy(() => import("./SeriesChart").then((m) => ({ default: m.SeriesChart })));
+const SeriesChart = lazy(() =>
+  import("@/analysis/SeriesChart").then((m) => ({ default: m.SeriesChart })),
+);
 
 export type SystemTab = "results" | "breakdown" | "settings" | "series";
 
