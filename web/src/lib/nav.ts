@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Box,
   Boxes,
   Cpu,
@@ -81,6 +82,7 @@ export const paths = {
   cases: () => "/conditions/cases",
   diagnostics: () => "/project/diagnostics",
   settings: () => "/project/settings",
+  sources: () => "/project/sources",
 };
 
 export type NavItemKey = keyof Dict["nav"]["items"] | System;
@@ -161,6 +163,7 @@ export const nav = (systems: readonly System[]): NavSection[] => [
       { to: paths.diagnostics(), key: "diagnostics", icon: FileWarning },
       { to: paths.settings(), key: "settings", icon: Settings },
       { to: paths.defs(), key: "defs", icon: Ruler },
+      { to: paths.sources(), key: "sources", icon: BookOpen },
     ],
   },
 ];

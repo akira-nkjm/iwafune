@@ -53,6 +53,7 @@ fn enum_text_matches_serde_names() {
     same_as_serde::<BudgetKind>();
     same_as_serde::<NetKind>();
     same_as_serde::<SourceKind>();
+    same_as_serde::<fune_model::design::Distribution>();
     same_as_serde::<UncertaintySide>();
     same_as_serde::<ViewPortSide>();
     same_as_serde::<AttitudeLawKind>();

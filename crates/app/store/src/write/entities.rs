@@ -2,7 +2,7 @@
 
 use super::Edits;
 use super::doc::{self, set_opt, string, strings, table_mut};
-use crate::codec::{encode_quaternion, encode_vector, float};
+use crate::codec::{encode_quaternion, encode_vector, float, push_from};
 use crate::error::StoreError;
 use crate::profile as format;
 use fune_model::design::{
@@ -18,16 +18,7 @@ pub fn quantity(q: &Quantity) -> Item {
     let mut t = InlineTable::new();
     t.insert("value", float(q.value));
     t.insert("unit", q.unit.as_str().into());
-    if let Some(from) = &q.from {
-        let mut f = InlineTable::new();
-        if let Some(s) = &from.source {
-            f.insert("source", s.as_str().into());
-        }
-        if let Some(n) = &from.note {
-            f.insert("note", n.as_str().into());
-        }
-        t.insert("from", Value::InlineTable(f));
-    }
+    push_from(&mut t, q.from.as_ref());
     Item::Value(Value::InlineTable(t))
 }
 

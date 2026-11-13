@@ -10,6 +10,6 @@ export type CatalogSourceView = {
 name: string, 
 /**
  * このプロジェクトの中（`path = …`）なら true。共有カタログ（`git = …`）は読み取り専用で false。
- * 判定は `fune_store::layout::local_catalog_dir`（品の `editable` と同じ）
+ * 判定は `fune_model::design::CatalogSource::local_dir`（品の `editable` と同じ）
  */
 editable: boolean, };

@@ -15,6 +15,7 @@ export default [
     route("conditions/cases", "routes/conditions-cases.tsx"),
     route("project/diagnostics", "routes/diagnostics.tsx"),
     route("project/settings", "routes/settings.tsx"),
+    route("project/sources", "routes/sources.tsx"),
     route("*", "routes/not-found.tsx"),
   ]),
 ] satisfies RouteConfig;

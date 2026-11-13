@@ -4,8 +4,8 @@
 use fune_model::Id;
 use fune_model::builtin;
 use fune_model::design::{
-    Case, CatalogField, Harness, Maturity, Net, NetField, NetKind, PartField, Pose, Source,
-    SourceKind, UncertaintySide,
+    Case, CatalogField, Distribution, Harness, Maturity, Net, NetField, NetKind, PartField, Pose,
+    Source, SourceKind, UncertaintySide,
 };
 use fune_model::value::{
     Authored, Provenance, Quantity, Quaternion, Scalar, SettingValue, Value, Vector3,
@@ -72,6 +72,7 @@ fn mm(x: f64, y: f64, z: f64) -> Vector3 {
 fn from() -> Option<Provenance> {
     Some(Provenance {
         source: Some("em_test_2026_10".into()),
+        at: Some("TR-EM 表 4".into()),
         note: Some("EM 実測".into()),
     })
 }
@@ -226,6 +227,10 @@ fn other_ops() -> Vec<Op> {
         kind: SourceKind::Measured,
         label: Some("TVAC".into()),
         reference: Some("TR-1".into()),
+        revision: Some("Rev. B".into()),
+        retrieved: Some("2027-01-21".into()),
+        sha256: Some("ab".repeat(32)),
+        distribution: Some(Distribution::OnRequest),
         date: Some("2027-01-20".into()),
         by: Some("tanaka".into()),
         note: None,

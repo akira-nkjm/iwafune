@@ -342,13 +342,18 @@ pub fn source(ws: &Workspace, cmd: &crate::args::SourceCmd, out: &Out) -> Handle
         out.json(&sources)?;
         return Ok(Some(0));
     }
-    let mut t = out.table(&["ID", "種類", "名前", "参照先", "日付"]);
-    for s in &sources {
+    let mut t = out.table(&["ID", "種類", "名前", "参照先", "版", "配布", "日付"]);
+    for s in sources.iter().map(|v| &v.source) {
+        let distribution = s
+            .distribution
+            .map(|d| query::enum_label("distribution", &d));
         t.row(vec![
             C::Strong(s.id.to_string()),
             C::Text(s.kind.as_str().to_owned()),
             C::Text(s.label.clone().unwrap_or_default()),
             C::Dim(s.reference.clone().unwrap_or_default()),
+            C::Dim(s.revision.clone().unwrap_or_default()),
+            C::Dim(distribution.unwrap_or_default()),
             C::Dim(s.date.clone().unwrap_or_default()),
         ]);
     }

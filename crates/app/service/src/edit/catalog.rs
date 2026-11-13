@@ -7,7 +7,6 @@ use crate::error::Result;
 use crate::workspace::Workspace;
 use fune_model::design::{CatalogField, CatalogFieldName};
 use fune_model::path::{AttrPath, parse_catalog_attr};
-use fune_model::value::Provenance;
 use fune_ops::Op;
 
 /// 品の中のパス（`mass`・`power.on`・`label`）→ 属性と状態。品のパラメーターパス（`local/rw_10mNms.power.on`。
@@ -41,10 +40,7 @@ pub(super) fn catalog_set_op(ws: &Workspace, item: &str, t: &SetText) -> Result<
     }
     let AttrPath { attr, state } = path;
     let value = attr_value(ws, &attr, AttrSlot::of(state.as_deref()), t)?;
-    let from = (t.source.is_some() || t.note.is_some()).then(|| Provenance {
-        source: t.source.clone(),
-        note: t.note.clone(),
-    });
+    let from = t.provenance();
     Ok(Op::SetCatalogValue {
         item: item.to_owned(),
         attr,

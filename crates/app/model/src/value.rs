@@ -4,10 +4,12 @@
 //! [`units`] から sat-units を呼ぶ（ここ以外で単位文字列を解析しない）。
 //! ファイル上の形（`{ value, unit, from }`）への変換は fune-store の codec が持つ。
 
+mod date;
 pub mod json;
 mod text;
 pub mod units;
 
+pub use date::is_calendar_date;
 pub use json::{is_quantity_json, quantity_from_json, quaternion_from_json, vector_from_json};
 pub use text::{
     list_from_text, list_to_text, number_to_text, number_unit_to_text, parse_clock_hours,
@@ -27,8 +29,22 @@ use ts_rs::TS;
 pub struct Provenance {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
+    /// 資料の中の位置（`p.12 表 3` のようなページ・表・節。書かれたまま）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+}
+
+impl Provenance {
+    /// 打った出典・位置・メモから作る。どれも無ければ None（出典を付けない）。
+    pub fn from_parts(
+        source: Option<String>,
+        at: Option<String>,
+        note: Option<String>,
+    ) -> Option<Self> {
+        (source.is_some() || at.is_some() || note.is_some()).then_some(Self { source, at, note })
+    }
 }
 
 /// 書かれた値と、その出典。

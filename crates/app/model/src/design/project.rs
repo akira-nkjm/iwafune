@@ -68,6 +68,15 @@ pub struct CatalogSource {
     pub rev: Option<String>,
 }
 
+impl CatalogSource {
+    /// 書き換えられる（このプロジェクトの中の `[[catalog]] path = …`）なら、そのディレクトリ。共有カタログ（`git = …`）は None。
+    /// **カタログの出所が書き換えられるかの判定はここだけ**（store の `catalog_location`・fune-ops・service の一覧・
+    /// 公開できない出典の検査が使う）。
+    pub fn local_dir(&self) -> Option<&str> {
+        self.path.as_deref()
+    }
+}
+
 /// モードの表示順。指定していないモードは後ろに ID 順で並べる。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]

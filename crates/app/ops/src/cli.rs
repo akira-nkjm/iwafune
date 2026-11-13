@@ -49,12 +49,13 @@ mod tests {
             value: Value::Scalar(Scalar::new(620.0, "g")),
             from: Some(Provenance {
                 source: Some("em_test".into()),
+                at: Some("p.3 表 2".into()),
                 note: Some("EM 実測".into()),
             }),
         };
         assert_eq!(
             to_cli(&op),
-            vec![r#"fune set RW_X.mass "620 g" --source em_test --note "EM 実測""#]
+            vec![r#"fune set RW_X.mass "620 g" --source em_test --at "p.3 表 2" --note "EM 実測""#]
         );
         let op = Op::SetModeStates {
             cells: vec![ModeCell {

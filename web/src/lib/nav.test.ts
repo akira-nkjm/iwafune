@@ -61,9 +61,18 @@ describe("paths", () => {
     const design = sections.find((s) => s.id === "design")?.items ?? [];
     const project = sections.find((s) => s.id === "project")?.items ?? [];
     expect(design.some((i) => i.key === "defs")).toBe(false);
-    expect(project.map((i) => i.key)).toEqual(["diagnostics", "settings", "defs"]);
+    expect(project.map((i) => i.key)).toEqual(["diagnostics", "settings", "defs", "sources"]);
     expect(paths.defs()).toBe("/project/defs");
     expect(matches(paths.defs("attributes"))).toBe(true);
+  });
+
+  it("出典の台帳はプロジェクトの下のページ", () => {
+    expect(paths.sources()).toBe("/project/sources");
+    expect(matches(paths.sources())).toBe(true);
+    const project = nav(fixture.defs.systems).find((s) => s.id === "project")?.items ?? [];
+    const item = project.find((i) => i.key === "sources");
+    expect(item?.to).toBe(paths.sources());
+    expect(item && navItemTitle(item, en)).toBe("Sources");
   });
 
   it("前提条件の URL と解析区分の開き先", () => {

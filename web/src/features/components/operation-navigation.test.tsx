@@ -103,6 +103,7 @@ const catalog: CatalogItemView = {
   part_number: null,
   maturity: null,
   datasheet: null,
+  datasheet_link: null,
   source: null,
   ports: {},
   states: [],

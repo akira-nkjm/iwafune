@@ -78,8 +78,7 @@ fn sources_and_harnesses() {
         label: Some("熱真空試験".into()),
         reference: Some("TR-TVAC-01".into()),
         date: Some("2027-01-20".into()),
-        by: None,
-        note: None,
+        ..Source::new("tvac_2027_01", SourceKind::Measured)
     };
     let p = plan(&snap, &[Op::SetSource { source }]).unwrap();
     assert!(

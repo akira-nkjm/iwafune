@@ -26,6 +26,7 @@ export const catalogJa = {
     partNumber: "型番",
     maturity: "成熟度",
     datasheet: "データシート",
+    openDatasheet: "データシートを開く",
     source: "出典",
     addValue: "値を追加",
     attr: "属性",

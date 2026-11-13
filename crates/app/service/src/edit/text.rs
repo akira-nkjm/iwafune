@@ -20,15 +20,19 @@ pub use crate::dto::{SetText, UnsetText};
 /// カンマ区切りの一覧の読み方（定義は `fune_model::value::list_from_text`。CLI と名詞のコマンドはここから呼ぶ）。
 pub use fune_model::value::list_from_text;
 
+impl SetText {
+    /// 打った出典・位置・メモ → 値の出典（どれも無ければ付けない）。部品の値とカタログ品の値の両方がこれを通す。
+    pub fn provenance(&self) -> Option<Provenance> {
+        Provenance::from_parts(self.source.clone(), self.at.clone(), self.note.clone())
+    }
+}
+
 /// `fune set` → `SetValue`・`SetField`・`SetSetting` のどれか（`t.path` は部品か設定のパス）。
 pub(super) fn param_set_op(ws: &Workspace, t: &SetText) -> Result<Op> {
     match parse(&t.path).map_err(|e| ServiceError::InvalidInput(e.to_string()))? {
         ParamPath::Attr { part, attr, state } => {
             let value = attr_value(ws, &attr, AttrSlot::of(state.as_deref()), t)?;
-            let from = (t.source.is_some() || t.note.is_some()).then(|| Provenance {
-                source: t.source.clone(),
-                note: t.note.clone(),
-            });
+            let from = t.provenance();
             Ok(Op::SetValue {
                 part,
                 attr,

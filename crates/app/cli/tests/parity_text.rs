@@ -113,11 +113,13 @@ fn part_text_edits() -> Vec<(Vec<&'static str>, &'static str, Value)> {
                 "0.09 kg",
                 "--source",
                 "em_test_2026_10",
+                "--at",
+                "TR-EM 表 4",
                 "--note",
                 "EM 実測",
             ],
             SET,
-            json!({ "path": "OBC.mass", "value": "0.09 kg", "source": "em_test_2026_10", "note": "EM 実測" }),
+            json!({ "path": "OBC.mass", "value": "0.09 kg", "source": "em_test_2026_10", "at": "TR-EM 表 4", "note": "EM 実測" }),
         ),
         // 属性定義の型で読む値（ベクトル・範囲）
         set("OBC.size", "95 95 20 mm"),
@@ -301,6 +303,23 @@ fn catalog_sets() -> Vec<(Vec<&'static str>, Value)> {
             ],
             json!({ "item": ITEM, "path": "power.on", "value": "0.65 W", "min": "0.55 W", "max": "0.8 W" }),
         ),
+        // 出典と資料の中の位置
+        (
+            vec![
+                "catalog",
+                "set",
+                ITEM,
+                "max_torque",
+                "1.1 mN*m",
+                "--source",
+                "ds_rw10",
+                "--at",
+                "p.2 表 1",
+            ],
+            json!({ "item": ITEM, "path": "max_torque", "value": "1.1 mN*m", "source": "ds_rw10", "at": "p.2 表 1" }),
+        ),
+        // データシートは出典の ID
+        set("datasheet", "ds_vendor"),
         // 属性定義の型で読む値（ベクトル・範囲）
         set("size", "52 50 30 mm"),
         set("temp_op", "-25 .. 60 degC"),
