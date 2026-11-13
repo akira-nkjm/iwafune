@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { usePlaceBody } from "@/api/ops";
 import type { DesignView } from "@/api/types";
 import { PlacementSection } from "@/features/components/detail/PlacementSection";
@@ -6,6 +6,7 @@ import { useT } from "@/i18n";
 import { DetailSection } from "@/kit/detail/DetailSection";
 import { Empty } from "@/kit/feedback/Empty";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
+import { RangeInput } from "@/kit/forms/RangeInput";
 import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { Chip } from "@/kit/selection/Chip";
@@ -13,7 +14,7 @@ import { Segmented } from "@/kit/selection/Segmented";
 import { Switch } from "@/kit/selection/Switch";
 import { cn } from "@/lib/cn";
 import { Scene3D, type SceneEdit, type TransformMode } from "./Scene3D";
-import { axesOf, boxesOf, type V3 } from "./scene";
+import { axesOf, boxesOf, DEFAULT_STRUCTURE_OPACITY, type V3 } from "./scene";
 
 /** 移動のスナップ（選択肢の値は名前。刻み [m] は表から引く。選んだ文字列を数として読まない） */
 const SNAPS = [
@@ -64,7 +65,6 @@ function PlacementLayout3D({ design, com }: PlacementProps) {
   return (
     <Layout3DFrame
       design={design}
-      title={L.title}
       note={com ? L.com : ""}
       com={com}
       fill
@@ -130,7 +130,7 @@ function Layout3DFrame({
   fill = false,
 }: {
   design: DesignView;
-  title: string;
+  title?: string;
   /** 部品の数の後ろに添える補足（凡例・重心の印） */
   note: string;
   /** 箱の色（無ければ系の色） */
@@ -145,37 +145,60 @@ function Layout3DFrame({
   const L = useT().systems.layout3d;
   const [selected, setSelected] = useState<string | null>(null);
   const [showAxes, setShowAxes] = useState(true);
+  const opacityId = useId();
+  const [structureOpacity, setStructureOpacity] = useState(DEFAULT_STRUCTURE_OPACITY);
   const { boxes, unplaced, dimensions } = boxesOf(design, colorOf);
   const part = design.parts.find((p) => p.id === selected) ?? null;
   return (
-    <Panel pad={false} className={cn("overflow-hidden", fill && "flex min-h-0 flex-1 flex-col")}>
-      <PanelHeader
-        title={title}
-        caption={
-          <>
-            {L.parts(boxes.length)}
-            {unplaced.length > 0 ? L.unplacedCount(unplaced.length) : ""}
-            {note}
-          </>
-        }
-        className="mb-0 shrink-0 flex-wrap border-line border-b px-4 py-2"
-        right={
-          <div className="flex flex-wrap items-center gap-2">
-            <Switch value={showAxes} onChange={setShowAxes} title={L.axesLegend}>
-              {L.axes}
-            </Switch>
-            {showAxes && <span className="text-ink-3 text-xs">{L.axesLegend}</span>}
-            {tools}
-          </div>
-        }
-      />
+    <Panel
+      pad={false}
+      className={cn("@container overflow-hidden", fill && "flex min-h-0 flex-1 flex-col")}
+    >
+      {title && (
+        <PanelHeader
+          title={title}
+          caption={note}
+          className="mb-0 shrink-0 flex-wrap border-line border-b px-4 py-2"
+        />
+      )}
+      <div className="flex shrink-0 flex-wrap items-center gap-3 border-line border-b px-4 py-2">
+        <p className="text-ink-3 text-xs">
+          {L.parts(boxes.length)}
+          {unplaced.length > 0 ? L.unplacedCount(unplaced.length) : ""}
+          {!title && note}
+        </p>
+        <div className="ml-auto flex min-w-0 flex-wrap items-center gap-3">
+          <Switch value={showAxes} onChange={setShowAxes}>
+            {L.axes}
+          </Switch>
+          {fill && (
+            <label
+              htmlFor={opacityId}
+              className="flex min-w-0 flex-wrap items-center gap-2 text-ink-2 text-xs"
+            >
+              {L.structureOpacity}
+              <RangeInput
+                id={opacityId}
+                aria-label={L.structureOpacity}
+                min={0}
+                max={1}
+                step={0.01}
+                value={structureOpacity}
+                onChange={setStructureOpacity}
+                className="w-24 max-w-full"
+              />
+            </label>
+          )}
+          {tools}
+        </div>
+      </div>
       <div
         className={cn(
-          "grid grid-cols-[minmax(0,1fr)_340px]",
+          "grid min-w-0 grid-cols-1 grid-rows-[minmax(240px,1fr)_auto] overflow-y-auto @min-[700px]:grid-cols-[minmax(0,1fr)_minmax(0,340px)] @min-[700px]:grid-rows-1",
           fill ? "min-h-0 flex-1" : "h-[460px]",
         )}
       >
-        <div className="relative min-w-0">
+        <div className="relative min-h-[240px] min-w-0">
           {boxes.length === 0 ? (
             <Empty className="m-auto">{L.empty}</Empty>
           ) : (
@@ -187,10 +210,16 @@ function Layout3DFrame({
               com={com}
               axes={showAxes ? axesOf(design) : null}
               edit={edit}
+              structureOpacity={fill ? structureOpacity : undefined}
             />
           )}
+          {showAxes && (
+            <p className="pointer-events-none absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-control bg-panel/90 px-2 py-1 text-ink-3 text-xs">
+              {L.axesLegend}
+            </p>
+          )}
         </div>
-        <aside className="overflow-y-auto border-line border-l p-3">
+        <aside className="min-w-0 overflow-y-auto border-line border-t p-3 wrap-anywhere @min-[700px]:border-t-0 @min-[700px]:border-l">
           {part ? (
             <DetailSection title={L.placementOf(part.id)}>
               <PlacementSection

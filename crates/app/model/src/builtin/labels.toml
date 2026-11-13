@@ -62,8 +62,8 @@ label    = "C&DH"
 label_en = "C&DH"
 
 [section.structure]
-label    = "構造・配置"
-label_en = "Structure & layout"
+label    = "構造"
+label_en = "Structure"
 
 [section.payload]
 label    = "ミッション機器"

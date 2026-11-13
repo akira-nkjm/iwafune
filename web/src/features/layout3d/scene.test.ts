@@ -4,7 +4,7 @@ import type { PartRow } from "@/api/types";
 import { systemTone } from "@/lib/systems";
 import { toneHex } from "@/lib/tone";
 import { fixture } from "@/test/fixture";
-import { axesOf, boundsOf, boxesOf } from "./scene";
+import { axesOf, boundsOf, boxesOf, boxMaterial, DEFAULT_STRUCTURE_OPACITY } from "./scene";
 
 const base = fixture.parts[0]!;
 
@@ -116,5 +116,43 @@ describe("外形に対する表示寸法", () => {
     const only = boxesOf({ ...design, parts: [design.parts[1]!] });
     expect(only.boxes[0]!.size[0]).toBeGreaterThan(0);
     expect(Object.values(only.dimensions).every(Number.isFinite)).toBe(true);
+  });
+});
+
+describe("構造の透過表示", () => {
+  const mount: NonNullable<PartRow["mount"]> = {
+    on: "",
+    point: null,
+    position: [0, 0, 0],
+    authored_position: null,
+    orientation: [1, 0, 0, 0],
+    body_position: [0, 0, 0],
+    body_orientation: [1, 0, 0, 0],
+  };
+
+  it("名前・親によらず API の system が構造の部品だけを透過対象にする", () => {
+    const parts: PartRow[] = [
+      { ...base, id: "internal", system: "structure", parent: "power", mount },
+      { ...base, id: "PANEL_FRAME", system: "power", parent: "structure", mount },
+    ];
+    const { boxes } = boxesOf({ ...fixture, parts });
+    expect(boxes.map((b) => b.structure)).toEqual([true, false]);
+    expect(boxMaterial(boxes[0]!, false, DEFAULT_STRUCTURE_OPACITY).opacity).toBe(0.3);
+    expect(boxMaterial(boxes[1]!, false, 0.3).opacity).toBe(0.45);
+  });
+
+  it("不透明度を連続して変えても透過モードは一定で、選択中は常に不透明", () => {
+    const box = boxesOf({ ...fixture, parts: [{ ...base, system: "structure", mount }] }).boxes[0]!;
+    for (const opacity of [0, 0.15, 0.3, 0.75, 1]) {
+      expect(boxMaterial(box, false, opacity)).toMatchObject({
+        transparent: true,
+        opacity,
+        depthWrite: opacity === 1,
+      });
+      expect(boxMaterial(box, true, opacity)).toMatchObject({ opacity: 1, depthWrite: true });
+    }
+    expect(boxMaterial(box, false).opacity).toBe(0.45);
+    expect(boxMaterial({ ...box, sized: true }, false).opacity).toBe(0.85);
+    expect(boxMaterial({ ...box, structure: false }, true, 0).opacity).toBe(1);
   });
 });

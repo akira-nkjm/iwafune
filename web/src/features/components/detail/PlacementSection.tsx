@@ -3,7 +3,7 @@ import { useApplyOps, useCommandOps } from "@/api/ops";
 import type { CommandText, DesignView, PartRow } from "@/api/types";
 import { useT } from "@/i18n";
 import { PropertyList } from "@/kit/detail/PropertyList";
-import { PropertyRow } from "@/kit/detail/PropertyRow";
+import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
 import { Formatted } from "@/quantity/Formatted";
@@ -54,9 +54,9 @@ export function PlacementSection({ design, part }: { design: DesignView; part: P
   };
   const unit = m?.authored_position?.unit ?? "m";
   return (
-    <PropertyList>
-      <PropertyRow label={t.mountOn}>
-        <span className="flex gap-1.5">
+    <PropertyList className="@container min-w-0">
+      <Field className="px-3 py-2 wrap-anywhere" label={t.mountOn}>
+        <span className="grid min-w-0 grid-cols-1 gap-1.5 @min-[260px]:grid-cols-2">
           <NativeSelect
             size="sm"
             aria-label={t.mountPart}
@@ -70,35 +70,35 @@ export function PlacementSection({ design, part }: { design: DesignView; part: P
           <TextInput
             aria-label={t.point}
             mono
-            className="h-7 w-28"
+            size="sm"
             value={point}
             placeholder={t.point}
             onChange={(e) => setPoint(e.target.value)}
           />
         </span>
-      </PropertyRow>
-      <PropertyRow label={t.position}>
+      </Field>
+      <Field className="px-3 py-2 wrap-anywhere" label={t.position}>
         <TextInput
           aria-label={t.position}
           mono
-          className="h-7 w-52"
+          size="sm"
           value={position}
           placeholder={t.positionPlaceholder}
           onChange={(e) => setPosition(e.target.value)}
         />
-      </PropertyRow>
-      <PropertyRow label={t.orientation}>
+      </Field>
+      <Field className="px-3 py-2 wrap-anywhere" label={t.orientation}>
         <TextInput
           aria-label={t.orientation}
           mono
-          className="h-7 w-52"
+          size="sm"
           value={orientation}
           placeholder={QUATERNION_EXAMPLE}
           onChange={(e) => setOrientation(e.target.value)}
         />
-      </PropertyRow>
-      <PropertyRow label={t.bodyFrame}>
-        <span className="font-mono text-[11.5px] text-ink-3">
+      </Field>
+      <Field className="px-3 py-2 wrap-anywhere" label={t.bodyFrame}>
+        <span className="min-w-0 font-mono text-[11.5px] text-ink-3 wrap-anywhere">
           {m ? (
             <>
               (
@@ -114,8 +114,8 @@ export function PlacementSection({ design, part }: { design: DesignView; part: P
             "—"
           )}
         </span>
-      </PropertyRow>
-      <div className="flex items-center justify-end gap-3 px-3 py-1.5">
+      </Field>
+      <div className="flex flex-wrap items-center justify-end gap-3 px-3 py-1.5">
         {made.error && <span className="min-w-0 text-[11px] text-neg-ink">{made.error}</span>}
         <Button size="sm" variant="outline" disabled={!made.ops || apply.isPending} onClick={place}>
           {t.apply}
