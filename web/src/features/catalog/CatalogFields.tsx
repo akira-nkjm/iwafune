@@ -4,6 +4,7 @@ import type { CatalogItemView } from "@/api/types";
 import { useT } from "@/i18n";
 import { PropertyList } from "@/kit/detail/PropertyList";
 import { PropertyRow } from "@/kit/detail/PropertyRow";
+import { ExternalLink } from "@/kit/ExternalLink";
 import { CommitInput } from "@/kit/forms/CommitInput";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 
@@ -12,7 +13,8 @@ type TextField = "label" | "label_en" | "manufacturer" | "part_number" | "datash
 
 /**
  * カタログ品の基本の欄（名前・英語名・メーカー・型番・成熟度・データシート・出典）。欄を離れると、打った文字列のまま
- * `fune catalog set` と同じ service の関数に渡す（空なら `fune catalog unset`）
+ * `fune catalog set` と同じ service の関数に渡す（空なら `fune catalog unset`）。データシートは出典の ID で、
+ * その出典の参照先が Web の URL なら（API の `datasheet_link`）横に開くリンクを出す
  */
 export function CatalogFields({ item }: { item: CatalogItemView }) {
   const t = useT();
@@ -39,7 +41,18 @@ export function CatalogFields({ item }: { item: CatalogItemView }) {
         <span className="font-mono">{item.kind}</span>
       </PropertyRow>
       {rows.map((r) => (
-        <PropertyRow key={r.key} label={r.label}>
+        <PropertyRow
+          key={r.key}
+          label={r.label}
+          layout={r.key === "datasheet" ? "action" : "pair"}
+          action={
+            r.key === "datasheet" && item.datasheet_link ? (
+              <ExternalLink href={item.datasheet_link} label={t.catalog.openDatasheet}>
+                <span className="sr-only">{t.catalog.openDatasheet}</span>
+              </ExternalLink>
+            ) : undefined
+          }
+        >
           <CommitInput
             label={r.label}
             value={r.value ?? ""}

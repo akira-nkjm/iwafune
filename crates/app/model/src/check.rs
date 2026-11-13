@@ -15,6 +15,7 @@ mod modes;
 mod parts;
 mod settings;
 mod settings_analysis;
+mod sources;
 mod system;
 mod values;
 mod views;
@@ -46,7 +47,8 @@ pub fn check(design: &Design) -> Vec<Diagnostic> {
     modes::check_modes(&mut ctx);
     system::check_nets(&mut ctx);
     system::check_harnesses(&mut ctx);
-    system::check_cases_and_sources(&mut ctx);
+    system::check_cases(&mut ctx);
+    sources::check_sources(&mut ctx);
     views::check_views(&mut ctx);
     budget::check_budget(&mut ctx);
     let entries = design.setting_entries();

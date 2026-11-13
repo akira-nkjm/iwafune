@@ -6,7 +6,7 @@
 
 use crate::error::StoreError;
 use fune_model::Target;
-use fune_model::design::{AnalysisSystem, CatalogSource, Design, EntityKey, NodeRef};
+use fune_model::design::{AnalysisSystem, Design, EntityKey, NodeRef};
 use fune_model::path::{ANALYSIS_COMMON, SettingPath, SettingScope};
 
 pub const PROJECT_FILE: &str = "fune.toml";
@@ -275,19 +275,13 @@ pub enum CatalogLocation {
     Unknown,
 }
 
-/// カタログの出所が書き換えられる（このプロジェクトの中の `[[catalog]] path = …`）なら、そのディレクトリ。
-/// 共有カタログ（`git = …`）は None。**書き換えられるかの判定はここだけ**（`catalog_location`・fune-ops・service の一覧が使う）。
-pub fn local_catalog_dir(source: &CatalogSource) -> Option<&str> {
-    source.path.as_deref()
-}
-
 /// カタログ品の参照（`"local/rw_10mNms"`）→ 置き場所。
 pub fn catalog_location(design: &Design, reference: &str) -> CatalogLocation {
     let Some((source, id)) = fune_model::design::split_catalog_ref(reference) else {
         return CatalogLocation::Unknown;
     };
     match design.project.catalogs.iter().find(|c| c.name == source) {
-        Some(c) => match local_catalog_dir(c) {
+        Some(c) => match c.local_dir() {
             Some(path) => CatalogLocation::Local {
                 file: format!("{}/{id}.toml", path.trim_end_matches('/')),
             },

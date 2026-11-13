@@ -13,6 +13,7 @@ import { modesJa } from "./modes/ja";
 import { overviewJa } from "./overview/ja";
 import { projectJa } from "./project/ja";
 import { shellJa } from "./shell/ja";
+import { sourcesJa } from "./sources/ja";
 import { systemsJa } from "./systems/ja";
 
 export const ja = {
@@ -28,6 +29,7 @@ export const ja = {
   ...overviewJa,
   ...projectJa,
   ...conditionsJa,
+  ...sourcesJa,
 };
 
 export type Dict = typeof ja;

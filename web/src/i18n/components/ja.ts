@@ -145,6 +145,8 @@ export const componentsJa = {
       notScalar: (type: string, path: string) =>
         `${type} 型の値（${path}）は CLI か TOML で入力してください。`,
       source: "出典（任意）",
+      at: "資料の中の位置（任意）",
+      atPlaceholder: "p.12 表 3",
       note: "メモ（任意）",
       notePlaceholder: "EM 実測",
     },

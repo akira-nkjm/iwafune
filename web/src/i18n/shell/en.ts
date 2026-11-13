@@ -21,6 +21,7 @@ export const shellEn: typeof shellJa = {
       cases: "Analysis cases",
       diagnostics: "Diagnostics",
       settings: "Settings",
+      sources: "Sources",
     },
     main: "Main",
   },

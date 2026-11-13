@@ -1,12 +1,11 @@
-//! モード・ネット・ハーネス・ケース・出典の検査（参照・状態・次元）。ID の規則と一意性は `super::ids`、図は `super::views`。
+//! モード・ネット・ハーネス・ケースの検査（参照・状態・次元）。出典は `super::sources`。ID の規則と一意性は `super::ids`、図は `super::views`。
 
 use super::Ctx;
 use super::values::check_quantity_dimension;
 use crate::design::{EntityKey, NetKind};
-use crate::diagnostic::Severity;
-use crate::path::{AttrPath, ParamPath, PortRef};
+use crate::path::PortRef;
 use crate::target::Target;
-use crate::value::{Provenance, Quantity, Value};
+use crate::value::Quantity;
 
 /// ポートの参照（部品が存在するか。ポートの所属が違えば warning）。対象は参照を書いたキー（`target`）。
 /// `部品.ポート` の形でない書き方は読み込み（`fune_model::path::port_text`）が誤りにする。
@@ -141,13 +140,8 @@ pub(super) fn check_harnesses(ctx: &mut Ctx) {
     }
 }
 
-/// ケースの参照と、すべての出典（`from.source`）の参照。
-pub(super) fn check_cases_and_sources(ctx: &mut Ctx) {
-    check_cases(ctx);
-    check_source_refs(ctx);
-}
-
-fn check_cases(ctx: &mut Ctx) {
+/// ケースの参照（モード・熱の環境条件）と β の次元。
+pub(super) fn check_cases(ctx: &mut Ctx) {
     let design = ctx.design;
     for case in design.cases.values() {
         let entity = EntityKey::Case(case.id.to_string());
@@ -182,82 +176,5 @@ fn check_cases(ctx: &mut Ctx) {
             case.beta.as_ref(),
             "Angle",
         );
-    }
-}
-
-/// 出典を調べる値 1 つ（位置を引くエンティティ・属性・対象・出典）。
-type FromRef<'a> = (EntityKey, String, Target, Option<&'a Provenance>);
-
-/// 値の出典（`from.source`）が `sources/` にあるか。
-fn check_source_refs(ctx: &mut Ctx) {
-    let design = ctx.design;
-    let mut refs: Vec<FromRef> = Vec::new();
-    for part in design.parts.values() {
-        let id = part.id.as_str();
-        for (attr, v) in &part.attr {
-            let target = |state: Option<&str>| {
-                Target::Param(ParamPath::Attr {
-                    part: id.to_owned(),
-                    attr: attr.to_string(),
-                    state: state.map(str::to_owned),
-                })
-            };
-            collect_from(
-                &mut refs,
-                EntityKey::Part(id.to_owned()),
-                attr.as_str(),
-                v,
-                target,
-            );
-        }
-    }
-    for item in design.catalog.values() {
-        for (attr, v) in &item.attr {
-            let target = |state: Option<&str>| Target::Catalog {
-                id: item.id.clone(),
-                attr: Some(AttrPath {
-                    attr: attr.to_string(),
-                    state: state.map(str::to_owned),
-                }),
-            };
-            let entity = EntityKey::Catalog(item.id.clone());
-            collect_from(&mut refs, entity, attr.as_str(), v, target);
-        }
-    }
-    for (entity, attr, target, from) in refs {
-        if let Some(source) = from.and_then(|f| f.source.as_deref())
-            && !design.sources.contains_key(source)
-        {
-            ctx.report(
-                Severity::Error,
-                "ref.source",
-                &entity,
-                &["attr", &attr],
-                Some(target),
-                format!("出典 `{source}` が sources/ にありません"),
-            );
-        }
-    }
-}
-
-/// 値（と状態ごとのセル）の出典を集める。`target` は状態（セルなら Some）→ 対象。
-fn collect_from<'a>(
-    out: &mut Vec<FromRef<'a>>,
-    entity: EntityKey,
-    attr: &str,
-    value: &'a crate::value::Authored<Value>,
-    target: impl Fn(Option<&str>) -> Target,
-) {
-    out.push((
-        entity.clone(),
-        attr.to_string(),
-        target(None),
-        value.from.as_ref(),
-    ));
-    if let Value::ByState(cells) = &value.value {
-        for (state, cell) in cells {
-            let t = target(Some(state.as_str()));
-            out.push((entity.clone(), attr.to_string(), t, cell.from.as_ref()));
-        }
     }
 }

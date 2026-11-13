@@ -6,7 +6,7 @@ use crate::query::views::parameter_paths;
 use fune_model::design::{CatalogItem, Design};
 use fune_model::path::split_catalog_ref;
 use fune_model::resolve::resolve_catalog_item;
-use fune_store::layout::{CatalogLocation, catalog_location, local_catalog_dir};
+use fune_store::layout::{CatalogLocation, catalog_location};
 
 /// カタログの出所の一覧（fune.toml の `[[catalog]]` の順）。書き込めるかは品の `editable` と同じ判定。
 pub(crate) fn sources(design: &Design) -> Vec<CatalogSourceView> {
@@ -16,7 +16,7 @@ pub(crate) fn sources(design: &Design) -> Vec<CatalogSourceView> {
         .iter()
         .map(|c| CatalogSourceView {
             name: c.name.clone(),
-            editable: local_catalog_dir(c).is_some(),
+            editable: c.local_dir().is_some(),
         })
         .collect()
 }
@@ -49,6 +49,7 @@ fn item_view(design: &Design, item: &CatalogItem) -> CatalogItemView {
         part_number: item.part_number.clone(),
         maturity: item.maturity,
         datasheet: item.datasheet.clone(),
+        datasheet_link: super::sources::datasheet_link(design, item.datasheet.as_deref()),
         source: item.source.clone(),
         ports: item.ports.clone(),
         paths: parameter_paths(design, &item.id, &states),

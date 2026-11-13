@@ -28,9 +28,13 @@ editable: boolean, kind: string, label: string | null,
  */
 label_en: string | null, manufacturer: string | null, part_number: string | null, maturity: Maturity | null, 
 /**
- * データシートの場所（URL かリポジトリ内のパス）
+ * データシートの出典の ID（`sources/<ID>`。URL・版・sha256 はその出典にある）
  */
 datasheet: string | null, 
+/**
+ * データシートの出典の参照先が Web の URL なら、その URL（GUI のリンク）
+ */
+datasheet_link: string | null, 
 /**
  * 出典を書いていない値に当てる既定の出典（`sources/<ID>`）
  */

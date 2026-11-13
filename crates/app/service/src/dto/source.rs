@@ -1,0 +1,17 @@
+//! 出典の台帳の表示用の型（`GET /design` の `sources`、`fune source ls`）。
+
+use fune_model::design::Source;
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
+/// 出典 1 つ（書かれた欄のまま）と、画面が使う派生の欄。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SourceView {
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub source: Source,
+    /// 参照先が Web の URL なら、その URL（GUI のリンク。判定は `fune_model::design::Source::web_link`）
+    pub link: Option<String>,
+    /// 台帳のファイル（`sources/<ID>.toml`）
+    pub file: String,
+}

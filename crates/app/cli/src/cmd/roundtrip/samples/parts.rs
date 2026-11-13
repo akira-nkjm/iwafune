@@ -54,6 +54,7 @@ fn value_ops() -> Vec<Op> {
     .unwrap();
     let from = Some(Provenance {
         source: Some(s("em_test_2026_10")),
+        at: Some(s("TR-EM 表 4")),
         note: Some(s("EM 実測 \"v2\"")),
     });
     vec![

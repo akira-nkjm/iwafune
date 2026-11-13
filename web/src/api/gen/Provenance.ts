@@ -3,4 +3,8 @@
 /**
  * 値の出典。`source` は `sources/<ID>.toml` の ID。
  */
-export type Provenance = { source?: string | null, note?: string | null, };
+export type Provenance = { source?: string | null, 
+/**
+ * 資料の中の位置（`p.12 表 3` のようなページ・表・節。書かれたまま）
+ */
+at?: string | null, note?: string | null, };

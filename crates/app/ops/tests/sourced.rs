@@ -98,6 +98,7 @@ fn adding_a_source_spreads_the_value_over_lines() {
         value: Value::Scalar(Scalar::new(1100.0, "J/(kg*K)")),
         from: Some(Provenance {
             source: Some("tbd".into()),
+            at: None,
             note: Some("仮の値".into()),
         }),
     };
@@ -120,6 +121,7 @@ fn a_sourced_state_cell_uses_dotted_keys() {
         value: Value::Scalar(Scalar::new(2.5, "W")),
         from: from.map(|s| Provenance {
             source: Some(s.into()),
+            at: None,
             note: None,
         }),
     };

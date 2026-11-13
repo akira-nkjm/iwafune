@@ -14,7 +14,7 @@ import { attrEditMode } from "@/quantity/attr-mode";
 import { QuantityInput } from "@/quantity/QuantityInput";
 import { AttributePicker } from "./AttributePicker";
 import { type NewAttribute, NewAttributeFields } from "./NewAttributeFields";
-import { ProvenanceFields } from "./ProvenanceFields";
+import { type Provenance, ProvenanceFields } from "./ProvenanceFields";
 import { attrAddCommand } from "./param-ops";
 
 type Mode = "standard" | "new";
@@ -43,7 +43,7 @@ export function AddParameterDialog({
   const [fresh, setFresh] = useState<NewAttribute>(EMPTY);
   const [state, setState] = useState(part.states[0] ?? "");
   const [value, setValue] = useState<string | null>(null);
-  const [prov, setProv] = useState({ source: "", note: "" });
+  const [prov, setProv] = useState<Provenance>({ source: "", at: "", note: "" });
   const onValid = useCallback(
     (typed: string, ok: boolean) => setValue(ok ? typed.trim() : null),
     [],
@@ -72,6 +72,7 @@ export function AddParameterDialog({
           path,
           value,
           source: prov.source || null,
+          at: prov.at || null,
           note: prov.note || null,
           min: null,
           max: null,

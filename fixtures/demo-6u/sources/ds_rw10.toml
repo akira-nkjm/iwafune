@@ -1,0 +1,7 @@
+kind         = "datasheet"
+label        = "RW 10 mNms データシート（架空）"
+ref          = "docs/datasheets/rw-10.pdf"
+revision     = "Rev. A"
+retrieved    = "2026-08-01"
+distribution = "on_request"
+by           = "system-lead"

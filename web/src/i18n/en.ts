@@ -11,6 +11,7 @@ import { modesEn } from "./modes/en";
 import { overviewEn } from "./overview/en";
 import { projectEn } from "./project/en";
 import { shellEn } from "./shell/en";
+import { sourcesEn } from "./sources/en";
 import { systemsEn } from "./systems/en";
 
 export const en: Dict = {
@@ -26,4 +27,5 @@ export const en: Dict = {
   ...overviewEn,
   ...projectEn,
   ...conditionsEn,
+  ...sourcesEn,
 };
