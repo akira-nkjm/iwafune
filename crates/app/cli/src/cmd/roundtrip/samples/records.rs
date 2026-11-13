@@ -76,6 +76,22 @@ pub(in super::super) fn system_ops() -> Vec<Op> {
             id: s("DOWNLINK"),
             to: s("DL"),
         },
+        Op::MoveMode {
+            id: s("SAFE"),
+            position: fune_service::dto::ModePosition::First,
+        },
+        Op::MoveMode {
+            id: s("SAFE"),
+            position: fune_service::dto::ModePosition::Last,
+        },
+        Op::MoveMode {
+            id: s("SAFE"),
+            position: fune_service::dto::ModePosition::Before(s("NOMINAL")),
+        },
+        Op::MoveMode {
+            id: s("SAFE"),
+            position: fune_service::dto::ModePosition::After(s("NOMINAL")),
+        },
         Op::SetModeDuration {
             mode: "NOMINAL".into(),
             duration: Some(Quantity::new(90.0, "min")),

@@ -56,7 +56,7 @@ export function ModesTable({
           <th scope="col" className={`${STICKY.head} min-w-36 px-3 py-3 text-right font-medium`}>
             {tm.powerLevels}
           </th>
-          {modes.map((m) => (
+          {modes.map((m, index) => (
             <th
               key={m.id}
               scope="col"
@@ -65,7 +65,11 @@ export function ModesTable({
             >
               <div className="flex items-center justify-center gap-1">
                 <ModeName mode={m} />
-                <ModeHeaderMenu mode={m} />
+                <ModeHeaderMenu
+                  mode={m}
+                  previous={modes[index - 1]?.id}
+                  next={modes[index + 1]?.id}
+                />
               </div>
             </th>
           ))}

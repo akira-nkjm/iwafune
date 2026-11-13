@@ -270,3 +270,58 @@ fn gui_mode_extensions_match_cli() {
         assert_same_files(&cli_root, &http_root, &args.join(" "));
     }
 }
+
+/// 左右・先頭・末尾の操作で CLI と HTTP が同じ fune.toml を書く。
+#[test]
+fn gui_mode_moves_match_cli() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_t1, cli_root) = demo_copy();
+    let (_t2, http_root) = demo_copy();
+    for (args, body) in [
+        (
+            vec!["mode", "move", "MISSION", "--before", "NOMINAL"],
+            json!({"command":"mode_move", "id":"MISSION", "before":"NOMINAL"}),
+        ),
+        (
+            vec!["mode", "move", "MISSION", "--after", "NOMINAL"],
+            json!({"command":"mode_move", "id":"MISSION", "after":"NOMINAL"}),
+        ),
+        (
+            vec!["mode", "move", "SAFE", "--first"],
+            json!({"command":"mode_move", "id":"SAFE", "first":true}),
+        ),
+        (
+            vec!["mode", "move", "SAFE", "--last"],
+            json!({"command":"mode_move", "id":"SAFE", "last":true}),
+        ),
+        (
+            vec!["mode", "move", "DOWNLINK", "--first"],
+            json!({"command":"mode_move", "id":"DOWNLINK", "first":true}),
+        ),
+        (
+            vec!["mode", "move", "MISSION", "--before", "NOMINAL"],
+            json!({"command":"mode_move", "id":"MISSION", "before":"NOMINAL"}),
+        ),
+    ] {
+        run_cli(&cli_root, &args);
+        http_command(&rt, &http_root, body);
+        assert_same_files(&cli_root, &http_root, &args.join(" "));
+        assert_eq!(
+            std::fs::read(cli_root.join("fune.toml")).unwrap(),
+            std::fs::read(http_root.join("fune.toml")).unwrap()
+        );
+    }
+    assert!(
+        !std::fs::read_to_string(cli_root.join("fune.toml"))
+            .unwrap()
+            .contains("[modes]")
+    );
+    let design = get_json(&rt, &http_root, "/api/v1/design");
+    let ids: Vec<_> = design["modes"]["modes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, ["DOWNLINK", "MISSION", "NOMINAL", "SAFE"]);
+}

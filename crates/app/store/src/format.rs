@@ -25,11 +25,19 @@ pub fn format_text(path: &str, text: &str) -> Result<String, StoreError> {
 
 /// 集合のうち整形で変わる TOML ファイルの変更。
 pub fn format_files(files: &FileSet) -> Vec<FileChange> {
+    let design = crate::read::design_of(files);
     files
         .iter()
         .filter(|(p, _)| p.ends_with(".toml"))
         .filter_map(|(path, text)| {
-            let after = format_text(path, text).ok()?;
+            let source = if path == crate::layout::PROJECT_FILE {
+                let mut doc = parse(path, text).ok()?;
+                crate::write::project::normalize_mode_order(&mut doc, &design);
+                doc.to_string()
+            } else {
+                text.to_string()
+            };
+            let after = format_text(path, &source).ok()?;
             (after != text).then(|| FileChange {
                 path: path.to_string(),
                 before: Some(text.to_string()),

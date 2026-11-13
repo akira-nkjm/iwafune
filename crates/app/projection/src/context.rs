@@ -57,7 +57,11 @@ impl<'a> Context<'a> {
 
     /// 全モードを解析の形に。
     pub fn modes(&self) -> Vec<ModeDef> {
-        self.design.modes.values().map(mode_def).collect()
+        self.design
+            .ordered_modes()
+            .into_iter()
+            .map(mode_def)
+            .collect()
     }
 
     /// 軌道（`conditions/orbit.toml`）。

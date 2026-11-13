@@ -458,6 +458,15 @@ my-sat-design/
 
 ### 7.2 modes/: 1 モード 1 ファイル、「部品 → 状態」の表
 
+表示順は `fune.toml` の `[modes] order` に置く。一覧のモードを指定順、未指定のモードを後ろに ID 順で並べる。
+省略時は ID 順。存在しない ID は `check` の警告となる。正規形では実際の順が ID 順と同じなら `[modes]` を省く
+（存在しない ID がある一覧は警告を残すため保持する）。名前の変更は一覧も書き換え、削除は一覧から除く。追加は一覧があるとき末尾に足す。
+
+`fune mode move <ID> --before <ID> | --after <ID> | --first | --last` で移動する。
+GUI の列見出しの「左へ移動」「右へ移動」も `POST /ops/from_command` の同じ service 関数を使う。
+表示順の正本は `Design::ordered_modes`。モード表・CLI の一覧・解析のモード列はこの順を使い、Web は並べ直さない。
+
+
 ```toml
 # modes/NOMINAL.toml
 label       = "定常"
@@ -910,6 +919,9 @@ my-sat-design/
 name   = "my-sat"
 schema = 2
 toml   = "1.0"              # 書き出す TOML の版
+
+[modes]
+order = ["NOMINAL", "MISSION", "DOWNLINK", "SAFE"]  # 省略時は ID 順
 
 [[catalog]]
 name = "lab"

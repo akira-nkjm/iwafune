@@ -69,6 +69,7 @@ fn template_design(name: &str) -> (Project, Allocations, BudgetPolicy, Mode) {
             name: name.replace('"', ""),
             ..ProjectMeta::default()
         },
+        modes: None,
         catalogs: vec![CatalogSource {
             name: "local".to_owned(),
             path: Some("catalog".to_owned()),

@@ -38,6 +38,7 @@ fn name(op: &Op) -> &'static str {
         Op::CreateMode { .. } => "CreateMode",
         Op::RemoveMode { .. } => "RemoveMode",
         Op::RenameMode { .. } => "RenameMode",
+        Op::MoveMode { .. } => "MoveMode",
         Op::SetModeDuration { .. } => "SetModeDuration",
         Op::SetModeStates { .. } => "SetModeStates",
         Op::CreateNet { .. } => "CreateNet",
@@ -242,6 +243,10 @@ fn other_ops() -> Vec<Op> {
     vec![
         Op::CreateAttribute { def: attr },
         Op::CreateKind { def: kind },
+        Op::MoveMode {
+            id: "SAFE".into(),
+            position: fune_ops::ModePosition::Before("NOMINAL".into()),
+        },
         Op::SetModeDuration {
             mode: "NOMINAL".into(),
             duration: Some(Quantity::new(90.0, "min")),
@@ -337,7 +342,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 39, "見本の無い Op の種類があります: {seen:?}");
+    assert_eq!(seen.len(), 40, "見本の無い Op の種類があります: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =

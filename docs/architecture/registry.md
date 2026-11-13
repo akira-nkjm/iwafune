@@ -27,6 +27,7 @@
 
 | 機能 | 置き場所 | 備考 |
 |---|---|---|
+| モードの表示順・並び替え | `Design::ordered_modes`（model::design::project）・`Project.modes`・`fune_ops::op::{Op::MoveMode, ModePosition}`・`plan::others`・`store::write::project`・`service::edit::command` | fune.toml の `[modes] order`。検査は model::check::modes、正規化は store の format_files と共用。CLI mode move と Web ModeHeaderMenu は CommandText::ModeMove を共用 |
 | 解析の区分・前提条件の話題 | `sat_analysis::spec::{AnalysisArea, ConditionTopic}`（葉の `spec::area` から再公開）・`fune_model::design::ConditionTopic` | 区分は系または条件の話題。model ⇄ analysis の話題の対応と区分のキーは `fune_projection::system`。話題の設定は `design::conditions`、対応する条件のファイル内に置く |
 | β の季節変動・1 周の本影と半影の集計 | `sat_analysis::orbit::eclipse_season`・`fune_projection::orbit` | 季節の入力は軌道・ミッション期間・任意の刻み（β の指定なし）。周回内は既存の時刻格子と states_at を使い太陽を固定。円錐影・伝搬・β は sat-astro。季節の刻みの既定値は解析。設定は `conditions/orbit.toml` |
 | 季節解析からケースを作る | `fune_service::edit::eclipse` | CLI / HTTP 共通で `SetCase` Op を作る。日付は description に保存 |
@@ -284,6 +285,7 @@
 
 | 日時 | 変更 | 理由 |
 |---|---|---|
+| 2026-11-13 | モードの表示順を fune.toml に保存し、model の共通順序関数・MoveMode・CLI/HTTP 共通コマンド・行列の左右移動を追加 | #84 |
 | 2026-11-13 | `power.sizing` と電源の設定・射影・KPI、セル電圧・電流属性を追加。最長蝕・負荷・発電モデルは既存の正本を共有 | 電源の必要面積・容量を解析の出力として比較するため（#7） |
 | 2026-11-13 | ミッション期間・季節刻み、軌道の β と本影・半影の季節解析・KPI・共通グラフ、代表標本から SetCase を作る CLI / HTTP / GUI とパリティ・往復見本を追加 | #3 |
 | 2026-11-13 | 前提条件を conditions/ に分離し mission/ を #9 用に予約。解析の所属を AnalysisArea（系／条件の話題）にし、CLI・API・web・KPI の区分と URL を更新 | #74 |

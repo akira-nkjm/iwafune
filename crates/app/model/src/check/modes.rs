@@ -7,6 +7,17 @@ use crate::target::Target;
 /// モード: 部品の参照・状態の語彙・時間割合・表に無い部品。
 pub(super) fn check_modes(ctx: &mut Ctx) {
     let design = ctx.design;
+    for id in design.project.modes.iter().flat_map(|m| &m.order) {
+        if !design.modes.contains_key(id.as_str()) {
+            ctx.warning(
+                "mode.order_missing",
+                &EntityKey::Project,
+                &["modes", "order"],
+                Some(Target::Modes),
+                format!("表示順のモード `{id}` がありません"),
+            );
+        }
+    }
     for mode in design.modes.values() {
         let entity = EntityKey::Mode(mode.id.to_string());
         check_dim(

@@ -146,8 +146,8 @@ pub fn energy_balance(ctx: &Context<'_>) -> Result<EnergyBalanceInput, MissingIn
     let batteries = batteries(ctx, &mut m);
     let cases: Vec<EnergyBalanceCase> = ctx
         .design
-        .modes
-        .values()
+        .ordered_modes()
+        .into_iter()
         .filter(|md| mode.as_ref().is_none_or(|id| md.id.as_str() == id))
         .map(|md| EnergyBalanceCase {
             id: md.id.to_string(),

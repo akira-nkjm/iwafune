@@ -19,5 +19,5 @@ pub mod plan;
 pub use apply::{ApplyOptions, ApplyOutcome, apply};
 pub use cli::{to_cli, to_cli_script};
 pub use error::OpError;
-pub use op::{ModeCell, Op, ViewNodePos};
+pub use op::{ModeCell, ModePosition, Op, ViewNodePos};
 pub use plan::{Plan, PlanSummary, plan};

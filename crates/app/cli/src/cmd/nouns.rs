@@ -106,6 +106,17 @@ pub fn mode(c: &ModeCmd) -> Built<'_> {
             },
             edit,
         ),
+        ModeCmd::Move {
+            id,
+            before,
+            after,
+            first,
+            last,
+            edit: e,
+        } => (
+            edit::mode_move_op(id, before.as_deref(), after.as_deref(), *first, *last)?,
+            e,
+        ),
         ModeCmd::Duration {
             mode,
             max_duration,

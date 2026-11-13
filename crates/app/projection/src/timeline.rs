@@ -25,10 +25,12 @@ pub fn modes_with_law(ctx: &Context<'_>) -> Vec<String> {
     let Some(laws) = laws else { return Vec::new() };
     match case_mode_id(ctx) {
         Some(id) => vec![id],
-        None => laws
-            .keys()
-            .filter(|k| ctx.design.modes.contains_key(k.as_str()))
-            .cloned()
+        None => ctx
+            .design
+            .ordered_modes()
+            .into_iter()
+            .filter(|mode| laws.contains_key(mode.id.as_str()))
+            .map(|mode| mode.id.to_string())
             .collect(),
     }
 }

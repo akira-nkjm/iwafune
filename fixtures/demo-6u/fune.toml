@@ -8,3 +8,6 @@ toml   = "1.0"
 [[catalog]]
 name = "local"
 path = "catalog"
+
+[modes]
+order = ["NOMINAL", "MISSION", "DOWNLINK", "SAFE"]

@@ -176,6 +176,11 @@ pub enum Op {
         id: String,
         to: String,
     },
+    /// モードを指定した相対位置へ移す。
+    MoveMode {
+        id: String,
+        position: ModePosition,
+    },
     /// モードの最長継続時間（None で削除）。
     SetModeDuration {
         mode: String,
@@ -284,4 +289,18 @@ pub struct ModeCell {
     pub spare_state: Option<String>,
     #[serde(default)]
     pub eclipse: bool,
+}
+
+/// モードの移動先。相対指定は CLI と GUI とで同じ意味を持つ。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ModePosition {
+    /// 指定モードの直前。
+    Before(String),
+    /// 指定モードの直後。
+    After(String),
+    /// 先頭。
+    First,
+    /// 末尾。
+    Last,
 }
