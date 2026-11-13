@@ -1,17 +1,62 @@
-import { useEnumOptions } from "@/api/labels";
+import { Pencil } from "lucide-react";
+import { useEnumLabel, useEnumOptions } from "@/api/labels";
 import { useSetText } from "@/api/ops";
 import type { AocsAttitudeView, AocsLawField } from "@/api/types";
 import { localized, useT } from "@/i18n";
 import { CommitInput } from "@/kit/forms/CommitInput";
 import { systemTone } from "@/lib/systems";
 import { toneText } from "@/lib/tone";
+import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
+
+/**
+ * カードに出す姿勢則の 1 行（姿勢則の表示名と主軸 → 目標）と「編集」。編集はポップオーバーで `Attitude` の欄を開く
+ * （設定ページと同じ SetText の経路）。
+ */
+export function AttitudeLine({ item, mode }: { item: AocsAttitudeView; mode: string }) {
+  const dict = useT();
+  const t = dict.systems.aocsModes;
+  const enumLabel = useEnumLabel();
+  const primary = item.axes[0];
+  return (
+    <div className="flex items-center justify-between gap-2 text-xs">
+      <p className="min-w-0 truncate">
+        {item.law ? (
+          <span className="font-medium">{enumLabel("attitude_law", item.law)}</span>
+        ) : (
+          <span className="text-ink-3">{t.noLaw}</span>
+        )}
+        {primary && (
+          <span className="ml-1.5 text-ink-3">
+            <span className="font-mono">{primary.body}</span> →{" "}
+            {localized(primary.target, primary.target_en)}
+          </span>
+        )}
+      </p>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={t.editLawOf(mode)}
+            className="inline-flex shrink-0 items-center gap-1 rounded-control px-1.5 py-0.5 text-ink-3 hover:bg-panel-2 hover:text-ink"
+          >
+            <Pencil size={12} aria-hidden />
+            {t.edit}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-80 p-3" aria-label={t.editLawOf(mode)}>
+          <Attitude item={item} />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
 
 /** 実効軸の小さな図と設定欄。全欄は設定ページと同じ SetText で編集する。 */
 export function Attitude({ item }: { item: AocsAttitudeView }) {
   const dict = useT();
   const t = dict.systems.aocsModes;
   return (
-    <section className="border-line border-t py-3">
+    <section>
       <h3 className="mb-2 font-medium text-sm">{dict.modes.attitudeLaw}</h3>
       {item.axes.length === 0 && <p className="text-xs text-ink-3">{t.noLaw}</p>}
       <div className="mb-3 space-y-2">
@@ -39,7 +84,7 @@ export function Attitude({ item }: { item: AocsAttitudeView }) {
           </div>
         ))}
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid gap-2">
         {item.fields.map((field) => (
           <LawField key={field.path} field={field} />
         ))}

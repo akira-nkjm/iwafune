@@ -2,8 +2,39 @@ import { useState } from "react";
 import type { AocsDeviceGroup, DefsView } from "@/api/types";
 import { LightingSwitch } from "@/features/modes/matrix/ModesMatrix";
 import { localized, useT } from "@/i18n";
+import { RoleIcon } from "@/kit/RoleIcon";
 import { ChipLink } from "@/kit/selection/Chip";
+import { cn } from "@/lib/cn";
 import { paths } from "@/lib/nav";
+
+/** カードに出す役割のチップ（稼働台数 / 全台数）。1 台も使わない役割は点線で薄く出す。 */
+export function DeviceChips({ groups }: { groups: AocsDeviceGroup[] }) {
+  const t = useT().systems.aocsModes;
+  return (
+    <ul aria-label={t.devices} className="flex flex-wrap gap-1.5">
+      {groups.map((group) => {
+        const idle = group.active_count === 0;
+        return (
+          <li
+            key={group.role}
+            title={t.count(group.active_count, group.total_count)}
+            data-idle={idle || undefined}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-chip border px-1.5 py-0.5 text-[11px]",
+              idle ? "border-dashed border-line-strong text-ink-4" : "border-line text-ink-2",
+            )}
+          >
+            <RoleIcon role={group.role} size={12} />
+            <span>{localized(group.label, group.label_en)}</span>
+            <span className="num text-ink-3">
+              {t.chipCount(group.active_count, group.total_count)}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 /** API が役割別に集約した機器と状態。非稼働は薄く、不明は明示する。 */
 export function Devices({
