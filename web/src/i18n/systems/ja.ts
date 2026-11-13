@@ -3,6 +3,29 @@ import type { FillBasis } from "@/api/types";
 /** 系の解析のページの文言（日本語） */
 export const systemsJa = {
   systems: {
+    power: {
+      budgetSunlit: "日照中の電力の行き先",
+      budgetEclipse: "蝕中の電力（電池から）",
+      budgetSunlitCaption:
+        "日照中の平均発電がどこへ行くか（各系・電池への充電・余り）。目盛りは全モードで共通。行を押すとそのモードを選びます。",
+      budgetEclipseCaption: "蝕中に電池から各系へ出す電力。目盛りは全モードで共通。",
+      upperLimit: "上限",
+      required: "必要",
+      worstMode: (m: string) => `最悪 ${m}`,
+      verdictsCaption: "全モードのうち最悪の値。縦の線が上限・必要値（100 %）で、色は判定。",
+      order: "並び",
+      orderTight: "余裕の少ない順",
+      orderDefined: "定義の順",
+      showAll: (n: number) => `すべて表示（${n}）`,
+      showFewer: "少なく表示",
+      verdicts: "判定",
+      mode: "モード",
+      unavailable: "データなし",
+      design: "設計値",
+      limit: "限界／必要量",
+      outline: "このページの目次",
+      data: "データを見る",
+    },
     aocsModes: {
       empty: "モードがありません",
       maxDuration: "最長継続時間",
@@ -99,7 +122,6 @@ export const systemsJa = {
     inputOf: (title: string) => `${title} に渡した入力`,
     noAnalyses: "この系の解析はまだありません",
     noSeries: "時系列の結果はまだありません（時系列の解析が実行されると、ここにグラフを出します）",
-    seriesSep: "・",
     seriesUnit: (u: string) => `［${u}］`,
     rangeSep: " 〜 ",
     heatTitle: "節点温度（定常）",

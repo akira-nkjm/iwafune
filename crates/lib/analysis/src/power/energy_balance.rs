@@ -84,6 +84,12 @@ pub enum EnergyBalanceLoad {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct EnergyBalanceOutput {
     pub life: SolarLife,
+    /// モード別の負荷内訳（電源ページでも共用）。
+    pub mode_loads: super::mode_load::ModeLoadOutput,
+    /// 集中電池モデルで使った DoD 上限。
+    pub dod_limit: Fraction,
+    /// 許容する SOC の下限。
+    pub min_allowed_soc: Fraction,
     pub period: Qty<Time>,
     /// 回り切った周回の数（0 なら平均は全期間）
     pub complete_orbits: usize,
@@ -93,6 +99,8 @@ pub struct EnergyBalanceOutput {
     pub orbit_average_generation: Qty<Power>,
     /// 日照の割合（0〜1）
     pub sunlit_fraction: Fraction,
+    /// 共通の影の判定による蝕区間。
+    pub eclipses: Vec<sat_astro::timeline::Window>,
     /// 時系列（`timeline.attitude` の姿勢則）: `generation`・`sunlit`
     pub series: Series,
     pub cases: Vec<EnergyBalanceCaseResult>,
@@ -110,7 +118,15 @@ pub struct EnergyBalanceCaseResult {
     pub load_eclipse: Qty<Power>,
     /// 軌道平均の発電（このケースの姿勢則で）
     pub orbit_average_generation: Qty<Power>,
-    /// 軌道平均の負荷
+    /// このケースの姿勢則での日照中の平均発電。
+    pub sunlit_average_generation: Qty<Power>,
+    /// 日照中のバス側平均充電電力。
+    pub sunlit_average_charge: Qty<Power>,
+    /// 日照中のバス側平均放電電力。
+    pub sunlit_average_discharge: Qty<Power>,
+    /// 日照中のバス側平均シャント電力。
+    pub sunlit_average_shunt: Qty<Power>,
+    /// 軌道平均の負荷。
     pub orbit_average_load: Qty<Power>,
     /// 軌道平均の発電 − 負荷（電池の効率を含まない）
     pub orbit_average_balance: Qty<Power>,
@@ -188,7 +204,7 @@ impl Analysis for EnergyBalance {
             };
             cases.push(result);
         }
-        Ok(ctx.output(cases))
+        Ok(ctx.output(cases, super::mode_load::ModeLoad::run(&input.loads)?))
     }
 }
 
@@ -224,9 +240,16 @@ impl<'a> Context<'a> {
         }
     }
 
-    fn output(self, cases: Vec<EnergyBalanceCaseResult>) -> EnergyBalanceOutput {
+    fn output(
+        self,
+        cases: Vec<EnergyBalanceCaseResult>,
+        mode_loads: super::mode_load::ModeLoadOutput,
+    ) -> EnergyBalanceOutput {
         EnergyBalanceOutput {
             life: self.input.life,
+            mode_loads,
+            dod_limit: Fraction::new(self.battery.dod_limit),
+            min_allowed_soc: Fraction::new(1.0 - self.battery.dod_limit),
             period: Qty::from_raw(self.period_s),
             complete_orbits: self.ranges.len(),
             span_fallback: span_fallback(self.ranges.len(), SpanFallback::OrbitMeanOverSpan),
@@ -235,6 +258,7 @@ impl<'a> Context<'a> {
                 &self.generation,
                 &self.ranges,
             )),
+            eclipses: self.profile.eclipses,
             sunlit_fraction: time_fraction(&self.profile.t, &self.profile.lit, &self.ranges),
             series: Series {
                 channels: vec![

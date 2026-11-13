@@ -12,6 +12,7 @@
 //! | `edit` | 編集の関数（Op の適用と、人が打った文字列 → Op。CLI と GUI が同じ `set_op`・`unset_op`・`command_ops` を通す） |
 //! | `preview` | 保存していない編集（Op の列）を書き込まずに当てた設計（下書きのまま解析・バジェットを見る） |
 //! | `units` | 単位の一覧・入力文字列の解析 |
+//! | `power_page` | 電源ページ全体の解析収集と表示用集約 |
 //! | `analysis` | 解析の一覧・実行・KPI（代表値・判定・塗りの比） |
 //! | `budget` | 質量・電力・データ量のバジェット |
 //! | `system_modes` | 系ごとのモードの見方（電源・C&DH・熱・AOCS の値・合計・判定） |
@@ -26,6 +27,7 @@ pub mod diff;
 pub mod dto;
 pub mod edit;
 pub mod error;
+pub mod power_page;
 pub mod preview;
 pub mod query;
 pub mod system_modes;

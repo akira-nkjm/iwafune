@@ -1,0 +1,157 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { renderToStaticMarkup } from "react-dom/server";
+import { MemoryRouter } from "react-router";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type {
+  AnalysisRunResult,
+  PowerBudgetView,
+  PowerModeView,
+  PowerPageView,
+  PowerVerdictView,
+} from "@/api/types";
+import { setLang } from "@/i18n";
+import { qv } from "@/test/fixture";
+import { PowerModes } from "./PowerModes";
+import { PowerOverview } from "./PowerOverview";
+import { PowerVerdictCard } from "./PowerVerdictCard";
+
+// SSR has a fixed Japanese hydration snapshot; emulate the client's selected dictionary here.
+vi.mock("@/i18n", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/i18n")>();
+  return { ...actual, useT: actual.getT };
+});
+
+const bar: PowerVerdictView = {
+  key: "dod",
+  label: { label: "最大 DoD", label_en: "Maximum DoD" },
+  value: qv(20, "%", "Fraction", 0.2),
+  limit: qv(40, "%", "Fraction", 0.4),
+  verdict: "ok",
+  kind: "at_most",
+  mode: "nominal",
+  note: { label: "上限の 50.0 %", label_en: "50.0 % of limit" },
+  fill_start: 0,
+  fill_end: 33.3,
+  limit_at: 66.7,
+};
+const budget: PowerBudgetView = {
+  supply: qv(60, "W", "Power"),
+  order: 30,
+  segments: [
+    {
+      kind: "load",
+      system: "comm",
+      label: { label: "通信", label_en: "Communication" },
+      value: qv(30, "W", "Power"),
+      fraction: 0.5,
+    },
+    {
+      kind: "shunt",
+      system: null,
+      label: { label: "余り（シャント）", label_en: "Surplus (shunt)" },
+      value: qv(30, "W", "Power"),
+      fraction: 0.5,
+    },
+  ],
+};
+const modes: PowerModeView[] = [
+  {
+    id: "nominal",
+    label: "Nominal",
+    verdict: "ok",
+    sunlit: budget,
+    eclipse: null,
+    bars: [bar],
+    charts: [],
+  },
+];
+const result: AnalysisRunResult = {
+  id: "power.energy_balance",
+  case: null,
+  case_source: null,
+  status: "ok",
+  checks: [],
+  verdict: "ok",
+  kpis: [],
+  input: null,
+  output: { rows: [{ id: "nominal", load: 30 }] },
+  dims: {},
+  labels: {},
+  missing: [],
+  error: null,
+};
+const page: PowerPageView = {
+  modes,
+  verdicts: [bar],
+  parts: [],
+  analyses: [
+    {
+      result,
+      entry: {
+        info: {
+          id: result.id,
+          title: "収支",
+          title_en: "Balance",
+          description: "",
+          description_en: "",
+          area: { kind: "system", value: "power" },
+          kind: "time_series",
+        },
+        input_type: "",
+        output_type: "",
+        projectable: true,
+        kpis: [],
+      },
+    },
+  ],
+};
+
+function overview() {
+  return renderToStaticMarkup(
+    <MemoryRouter>
+      <QueryClientProvider client={new QueryClient()}>
+        <PowerOverview page={page} />
+      </QueryClientProvider>
+    </MemoryRouter>,
+  );
+}
+
+afterEach(() => setLang("ja"));
+
+describe("power overview", () => {
+  it("draws one bar per mode with API widths and labels in both languages", () => {
+    const render = () => renderToStaticMarkup(<PowerModes page={page} />);
+    const ja = render();
+    expect(ja).toContain("width:50%");
+    expect(ja).toContain("60 W");
+    expect(ja).toContain("余り（シャント）");
+    expect(ja).toContain("余裕の少ない順");
+    setLang("en");
+    const en = render();
+    expect(en).toContain("Surplus (shunt)");
+    expect(en).not.toContain("SAP");
+  });
+  it("shows the verdict as a ratio meter with the worst mode", () => {
+    const html = renderToStaticMarkup(<PowerVerdictCard item={bar} modeName="Nominal" />);
+    expect(html).toContain("width:33.3%");
+    expect(html).toContain("left:calc(66.7% - 1px)");
+    expect(html).toContain("上限の 50.0 %");
+    expect(html).toContain("最悪 Nominal");
+    const missing = renderToStaticMarkup(
+      <PowerVerdictCard item={{ ...bar, value: null, verdict: "warning" }} />,
+    );
+    expect(missing).toContain("データなし");
+  });
+  it("keeps analysis tables in a collapsed data section with an outline", () => {
+    const html = overview();
+    expect(html).toContain("データを見る");
+    expect(html).toContain("このページの目次");
+    expect(html).toContain('<details class="mt-3">');
+    expect(html).not.toContain("<details open");
+    expect(html).toContain("最大 DoD");
+    expect(html).toContain('id="power-verdicts"');
+    expect(html).not.toContain("<circle");
+    setLang("en");
+    expect(overview()).toContain("View data");
+  });
+});

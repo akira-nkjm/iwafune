@@ -6,6 +6,8 @@
 //! | `units` | 単位の一覧と解析 |
 //! | `aocs_modes` | AOCS の姿勢・役割別機器・モード別解析のカード |
 //! | `analysis` | 解析の一覧と実行 |
+//! | `display` | 解析表示の葉の型（名前・時系列） |
+//! | `power_page` | 電源ページの流れ・判定バー・グラフ・部品の表示定義 |
 //! | `design` | 設計データの表示（プロジェクト・部品・モード表・ネット・定義・設定） |
 //! | `catalog` | カタログ品の表示（値・パス・使っている部品） |
 //! | `value` | 値の表示（部品・カタログ品・設定で共有） |
@@ -18,6 +20,8 @@
 mod aocs_modes;
 pub use aocs_modes::*;
 mod analysis;
+mod display;
+pub use display::{AnalysisLabel, DisplayChannel, DisplaySeries};
 mod budget;
 mod catalog;
 mod command;
@@ -29,12 +33,14 @@ mod format;
 pub use format::{FormatDesignRequest, FormatDesignResult};
 mod kpi;
 pub use kpi::{FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView};
+mod power_page;
+pub use power_page::*;
 mod units;
 mod value;
 
 pub use analysis::{
-    AnalysisCaseSource, AnalysisEntry, AnalysisInputSource, AnalysisLabel, AnalysisRunResult,
-    AnalysisRunStatus, CheckView, DisplayChannel, DisplaySeries, RunAnalysisRequest,
+    AnalysisCaseSource, AnalysisEntry, AnalysisInputSource, AnalysisRunResult, AnalysisRunStatus,
+    CheckView, RunAnalysisRequest,
 };
 pub use budget::{BudgetRequest, BudgetRow, BudgetView};
 pub use catalog::{CatalogItemView, CatalogSourceView};

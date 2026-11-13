@@ -96,6 +96,11 @@ pub(super) fn evaluate_case(
     let peak = |v: &[f64]| v.iter().copied().fold(0.0, f64::max);
     let peak_discharge = peak(&trace.discharge);
     let orbit_load = orbit_mean(&ctx.profile.t, &load, &ctx.ranges);
+    let sunlit_mean = |v: &[f64]| {
+        Qty::from_raw(
+            crate::spec::masked_time_mean(&ctx.profile.t, v, &ctx.profile.lit).unwrap_or(0.0),
+        )
+    };
     let mut result = EnergyBalanceCaseResult {
         id: case.id.clone(),
         label: case.label.clone(),
@@ -106,6 +111,10 @@ pub(super) fn evaluate_case(
             &ctx.generation,
             &ctx.ranges,
         )),
+        sunlit_average_generation: sunlit_mean(&ctx.generation),
+        sunlit_average_charge: sunlit_mean(&trace.charge),
+        sunlit_average_discharge: sunlit_mean(&trace.discharge),
+        sunlit_average_shunt: sunlit_mean(&trace.shunt),
         orbit_average_load: Qty::from_raw(orbit_load),
         orbit_average_balance: Qty::from_raw(
             orbit_mean(&ctx.profile.t, &ctx.generation, &ctx.ranges) - orbit_load,
@@ -190,7 +199,7 @@ pub(super) fn max_eclipse_drop(sunlit: &[bool], soc: &[f64]) -> f64 {
 }
 
 fn case_series(ctx: &Context, load: Vec<f64>, soc: Vec<f64>, trace: &BatteryTrace) -> Series {
-    Series {
+    let mut series = Series {
         t: ctx.profile.t.clone(),
         channels: vec![
             Channel::of::<Power>(
@@ -212,7 +221,18 @@ fn case_series(ctx: &Context, load: Vec<f64>, soc: Vec<f64>, trace: &BatteryTrac
             ),
             Channel::of::<Power>("shunt_power", ChannelKind::ShuntPower, trace.shunt.clone()),
         ],
+    };
+    for (i, panel) in ctx.input.array.panels.iter().enumerate() {
+        series.channels.push(
+            Channel::of::<Power>(
+                format!("panel:{}", panel.id),
+                ChannelKind::PanelGeneration,
+                ctx.profile.panel(i, ctx.input.life),
+            )
+            .about(&panel.id),
+        );
     }
+    series
 }
 
 fn energy_balance_check(r: &EnergyBalanceCaseResult) -> Check {

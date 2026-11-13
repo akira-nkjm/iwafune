@@ -2,6 +2,31 @@ import type { systemsJa } from "./ja";
 
 export const systemsEn: typeof systemsJa = {
   systems: {
+    power: {
+      budgetSunlit: "Where sunlit power goes",
+      budgetEclipse: "Eclipse power (from battery)",
+      budgetSunlitCaption:
+        "Where the sunlit-average generation goes: subsystems, battery charge and surplus. One scale for all modes; click a row to select that mode.",
+      budgetEclipseCaption:
+        "Power drawn from the battery by each subsystem during eclipse. One scale for all modes.",
+      upperLimit: "limit",
+      required: "required",
+      worstMode: (m: string) => `Worst: ${m}`,
+      verdictsCaption:
+        "Worst value across all modes. The vertical line is the limit or requirement (100 %); color shows the verdict.",
+      order: "Order",
+      orderTight: "Least margin first",
+      orderDefined: "Defined order",
+      showAll: (n: number) => `Show all (${n})`,
+      showFewer: "Show fewer",
+      verdicts: "Verdicts",
+      mode: "Mode",
+      unavailable: "Unavailable",
+      design: "Design",
+      limit: "Limit / required",
+      outline: "On this page",
+      data: "View data",
+    },
     aocsModes: {
       empty: "No modes",
       maxDuration: "Max duration",
@@ -100,7 +125,6 @@ export const systemsEn: typeof systemsJa = {
     inputOf: (title: string) => `Input passed to ${title}`,
     noAnalyses: "No analyses are available for this system yet",
     noSeries: "No time-series results yet (graphs appear here once a time-series analysis runs)",
-    seriesSep: ", ",
     seriesUnit: (u: string) => ` [${u}]`,
     rangeSep: " – ",
     heatTitle: "Node temperatures (steady)",

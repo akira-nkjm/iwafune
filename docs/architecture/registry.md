@@ -33,6 +33,7 @@
 | 解析の区分・前提条件の話題 | `sat_analysis::spec::{AnalysisArea, ConditionTopic}`（葉の `spec::area` から再公開）・`fune_model::design::ConditionTopic` | 区分は系または条件の話題。model ⇄ analysis の話題の対応と区分のキーは `fune_projection::system`。話題の設定は `design::conditions`、対応する条件のファイル内に置く |
 | β の季節変動・1 周の本影と半影の集計 | `sat_analysis::orbit::eclipse_season`・`fune_projection::orbit` | 季節の入力は軌道・ミッション期間・任意の刻み（β の指定なし）。周回内は既存の時刻格子と states_at を使い太陽を固定。円錐影・伝搬・β は sat-astro。季節の刻みの既定値は解析。設定は `conditions/orbit.toml` |
 | 季節解析からケースを作る | `fune_service::edit::eclipse` | CLI / HTTP 共通で `SetCase` Op を作る。日付は description に保存 |
+| 電源ページの表示定義・流れ・判定バー・部品の役割 | `fune_service::power_page`・`dto::power_page`・`dto::display`（表示の葉の型）・`power_page::parts`、`web/src/features/systems/power/` | `GET /power_page?case=…` が既存の service 解析入口を呼び、全解析・モードごとの流れ／判定／グラフ・部品を 1 DTO に集約。汎用の解析結果・設計 DTO に電源専用の欄を持たせない。日照平均と許容 SOC は energy_balance の解析出力。蝕区間は `power::solar::SolarProfile` が共通の影判定で返す。流れの太さ・帯・位置・グラフのチャンネル定義は Rust。Web は表示・選択・目次だけ。 |
 | Web の時系列グラフ | `web/src/analysis/SeriesChart.tsx` | 系・条件の解析で共有する。表示単位は service が付加 |
 | Web の解析の KPI 帯 | `web/src/analysis/AnalysisKpis.tsx` | 系・前提条件のページが共用する表示 |
 
@@ -292,6 +293,8 @@
 
 | 日時 | 変更 | 理由 |
 |---|---|---|
+| 2026-11-13 | 電源専用表示を独立した service/API/query に集約し、汎用解析結果・設計 DTO から電源専用欄を削除 | #89 段 1 レビュー対応 |
+| 2026-11-13 | 電源の概要・部品・時系列を専用表示にし、流れ・判定バー・チャートの表示 DTO と日英の名称を追加 | #89 段 1 |
 | 2026-11-13 | 配置の凡例をビュー内に移し、編集欄を縦に配置。構造の透過操作と選択時の不透明表示を追加し、構造の系名と概要を整理 | #96 |
 | 2026-11-13 | AOCS のモードを姿勢則・役割別機器・モード姿勢での解析・最長時間のカードに変更。magnetometer を組み込み役割に追加。SetText で未設定の姿勢軸・クォータニオンも編集可能に | #91 |
 | 2026-11-13 | 設計に配置ページを追加し、構造の概要の 3D をリンクに変更。配置は画面高を使い、質量特性の重心を表示。熱の温度 3D は維持 | #90 |

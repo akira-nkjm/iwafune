@@ -1,8 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { keys } from "./keys";
-import { useConditionAnalyses, useSystemAnalyses } from "./queries";
+import { q, useConditionAnalyses, useSystemAnalyses } from "./queries";
 import type { AnalysisArea, AnalysisEntry } from "./types";
 
 const entry = (id: string, area: AnalysisArea): AnalysisEntry => ({
@@ -37,4 +37,25 @@ it("系と話題の解析を area で分け、ID の接頭辞では選ばない"
     ),
   );
   client.clear();
+});
+
+it("電源の全タブ用に単一のケース別 API とキャッシュを使う", async () => {
+  const page = { modes: [], analyses: [], parts: [] };
+  const fetcher = vi
+    .fn()
+    .mockImplementation(async () => new Response(JSON.stringify(page), { status: 200 }));
+  vi.stubGlobal("fetch", fetcher);
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  try {
+    expect(await client.fetchQuery(q.powerPage("case A"))).toEqual(page);
+    expect(await client.fetchQuery(q.powerPage("case A"))).toEqual(page);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/v1/power_page?case=case%20A");
+    expect(q.powerPage(null).queryKey).not.toEqual(q.powerPage("case A").queryKey);
+    expect(await client.fetchQuery(q.powerPage(null))).toEqual(page);
+    expect(fetcher.mock.calls[1]?.[0]).toBe("/api/v1/power_page");
+  } finally {
+    client.clear();
+    vi.unstubAllGlobals();
+  }
 });

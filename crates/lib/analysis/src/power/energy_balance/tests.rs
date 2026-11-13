@@ -362,3 +362,5 @@ fn eclipse_assignment_reaches_balance_loads() {
     assert_eq!(sun.value(), 0.0);
     assert_eq!(eclipse.value(), 5.0);
 }
+
+mod page_outputs;

@@ -4,7 +4,7 @@ import { fieldLabel } from "@/analysis/fields";
 import { collectSeries, collectTables } from "@/analysis/output";
 import { ResultTable } from "@/analysis/ResultTable";
 import type { AnalysisState } from "@/api/queries";
-import type { AnalysisEntry, DesignView, System } from "@/api/types";
+import type { AnalysisEntry, DesignView, PowerPageView, System } from "@/api/types";
 import { SystemModes } from "@/features/modes/matrix/ModesMatrix";
 import { SettingsTable } from "@/features/project/SettingsTable";
 import { useT } from "@/i18n";
@@ -16,6 +16,10 @@ import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { TablePanel } from "@/kit/table/TablePanel";
 import { systemTitle } from "@/lib/design";
 import { AocsModes } from "./aocs/AocsModes";
+import { PowerModes } from "./power/PowerModes";
+import { PowerOverview } from "./power/PowerOverview";
+import { PowerParts } from "./power/PowerParts";
+import { PowerSeries } from "./power/PowerSeries";
 import { SystemPartsTable } from "./SystemPartsTable";
 
 /** グラフ（recharts）は時系列のタブを開いたときだけ読む。系のページの最初のチャンクを小さくするため */
@@ -28,6 +32,7 @@ export type SystemTab = "results" | "modes" | "breakdown" | "settings" | "series
 /** 系のページのタブの中身（結果・内訳・設定・時系列）。extra は系ごとの追加の表示（熱の温度表、構造の 3D など） */
 export function SystemTabs({
   tab,
+  powerPage,
   system,
   design,
   states,
@@ -36,6 +41,7 @@ export function SystemTabs({
   noAnalyses = false,
 }: {
   tab: SystemTab;
+  powerPage?: PowerPageView;
   system: System;
   design: DesignView | undefined;
   states: AnalysisState[];
@@ -44,6 +50,12 @@ export function SystemTabs({
   noAnalyses?: boolean;
 }) {
   const dict = useT();
+  if (system === "power" && powerPage) {
+    if (tab === "results") return <PowerOverview page={powerPage} design={design} />;
+    if (tab === "breakdown" && design) return <PowerParts page={powerPage} defs={design.defs} />;
+    if (tab === "series") return <PowerSeries page={powerPage} />;
+    if (tab === "modes") return <PowerModes page={powerPage} />;
+  }
   if (tab === "modes")
     return design && hasModes(system) ? (
       system === "aocs" ? (
