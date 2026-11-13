@@ -98,9 +98,6 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
           />
         }
       />
-      {states.some((s) => s.result?.case_source === "default_attitude") && (
-        <p className="px-6 pb-3 text-muted-foreground text-sm">{t.systems.defaultAttitude}</p>
-      )}
       <PageTabs
         tabs={TABS.filter((k) => k !== "modes" || hasModes(system)).map((k) => ({
           to: paths.system(system, { tab: k === "results" ? null : k, kase }),
