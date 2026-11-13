@@ -38,7 +38,22 @@ pub fn power_page(ws: &Workspace, case: Option<&str>) -> Result<PowerPageView> {
         })
         .collect::<Result<Vec<_>>>()?;
     let parts = parts::groups(&query::list_parts(ws, &PartsQuery::default())?);
-    Ok(assemble(analyses, parts))
+    let mut page = assemble(analyses, parts);
+    // モードは設計の表示順（fune.toml の `[modes] order`）に並べる。一覧に無いものは後ろ
+    let order: Vec<String> = ws
+        .snapshot()?
+        .design
+        .ordered_modes()
+        .iter()
+        .map(|m| m.id.to_string())
+        .collect();
+    page.modes.sort_by_key(|m| {
+        order
+            .iter()
+            .position(|id| *id == m.id)
+            .unwrap_or(usize::MAX)
+    });
+    Ok(page)
 }
 
 fn assemble(
