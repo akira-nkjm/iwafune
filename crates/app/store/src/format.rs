@@ -2,13 +2,14 @@
 //!
 //! - 物理量の数値は float（`0` → `0.0`）。整数のままにするのは [`INTEGER_KEYS`] だけ
 //! - インライン表は 1 行（TOML 1.1 の複数行のインライン表は 1.0 の書き方に直す）。文字列は基本形の引用
+//! - 出典の付いた値は 1 行 1 要素（[`crate::profile::spread_rows`]。見出しの表かドット付きキー）
 //! - ID をキーにする表（[`SORTED_TABLES`]）は ID 順
 //! - 表ごとに `=` を揃える。コメントは残す。末尾は改行 1 つ
 
 use crate::error::StoreError;
 use crate::fileset::FileSet;
 pub use crate::profile::{
-    INTEGER_KEYS, VIEW_INTEGER_KEYS, align_table, finish, integer_keys, parse,
+    INTEGER_KEYS, VIEW_INTEGER_KEYS, align_table, finish, integer_keys, parse, spread_rows,
 };
 use crate::write::FileChange;
 use toml_edit::{Item, Table, Value};
@@ -19,7 +20,7 @@ pub const SORTED_TABLES: &[&str] = &["states", "eclipse", "alloc", "mode_share",
 /// 本文を正規形に整える。
 pub fn format_text(path: &str, text: &str) -> Result<String, StoreError> {
     let mut doc = parse(path, text)?;
-    normalize_table(doc.as_table_mut(), "", integer_keys(path));
+    normalize_table(doc.as_table_mut(), "", 0, integer_keys(path));
     Ok(finish(doc))
 }
 
@@ -47,20 +48,25 @@ pub fn format_files(files: &FileSet) -> Vec<FileChange> {
         .collect()
 }
 
-fn normalize_table(table: &mut Table, key: &str, ints: &[&str]) {
+/// `depth` は `table` の見出しの段数（ルートは 0。ドット付きキーの表は親と同じ）。
+fn normalize_table(table: &mut Table, key: &str, depth: usize, ints: &[&str]) {
     if SORTED_TABLES.contains(&key) {
         table.sort_values();
     }
+    spread_rows(table, depth);
     let keys: Vec<String> = table.iter().map(|(k, _)| k.to_string()).collect();
     for k in keys {
         let Some(item) = table.get_mut(&k) else {
             continue;
         };
         match item {
-            Item::Table(t) => normalize_table(t, &k, ints),
+            Item::Table(t) => {
+                let inner = if t.is_dotted() { depth } else { depth + 1 };
+                normalize_table(t, &k, inner, ints);
+            }
             Item::ArrayOfTables(a) => {
                 for t in a.iter_mut() {
-                    normalize_table(t, &k, ints);
+                    normalize_table(t, &k, depth + 1, ints);
                 }
             }
             Item::Value(v) => normalize_value(v, &k, ints),

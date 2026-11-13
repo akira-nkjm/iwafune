@@ -1,7 +1,8 @@
 //! serde の形がそのままファイルの形のエンティティ（解析ケース・出典・ハーネス）の書き込み。
 //!
 //! 新しいファイルは serde の順（正規の順）で書き、既にあれば値の変わった行だけを書き換える。
-//! 入れ子の値（`{ value, unit, from }` など）はインライン表にする（§10.2 の 3）。
+//! 入れ子の値（`{ value, unit }` など）はインライン表にし、出典の付いた値（`length` など）は 1 行 1 要素の
+//! 表にする（§10.2 の 3。形は `crate::profile::lay_out` と同じ規則の `spread_rows`）。
 
 use super::Edits;
 use super::doc;
@@ -29,6 +30,7 @@ pub fn record_doc<T: Serialize>(path: &str, value: &T) -> Result<DocumentMut, St
     let mut doc = doc::parse(path, &text)?;
     doc.as_table_mut().remove("id");
     inline_nested(doc.as_table_mut());
+    format::spread_rows(doc.as_table_mut(), 0);
     Ok(doc)
 }
 

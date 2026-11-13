@@ -130,6 +130,7 @@
 | プロジェクトの探索・初期化・git のブランチ名 | `fune_store::project` | `find_root`・`init`・`git_branch`。`fune init` の雛形は型付きの値（`template_design`）を store の書き出し関数（`write::project::{new_project_text, new_allocation_text, new_policy_text}`・`write::entities::new_mode_text`）で本文にする（TOML を手で書かない。本文が変わらないことは `project` のテスト） |
 | 読み込み・書き込み・整形 | `fune_store::{read, write, format}` | ファイル I/O はここだけ。計画した変更の列を（書き込まずに）ファイルの集合に当てるのは `fune_store::apply_changes` だけ（service の `preview::snapshot_with`・`edit::apply` の診断の抜粋） |
 | 属性の値のファイル上の形 ⇄ `Value` | `fune_store::codec` | 読みと書きの両方がこれを使う |
+| 出典の付いた値の 1 行 1 要素の形（見出しの表かドット付きキーか・値の行の無い表の見出しを書かない） | `fune_store::profile::{lay_out, spread_rows, hide_empty_header}`（`profile/sourced.rs`） | **形の規則はここだけ**（docs/model.md §10.2 の 3）。属性の書き出し（`codec::{encode_value, encode_cell}`）は `lay_out`、ケース・出典・ハーネスの書き出し（`write::records`）と `fune fmt`（`format`）は `spread_rows` を通す。ドット付きキーの行も含めた `=` の揃えは `profile::{align_rows, row_key_len}`（書き込みの `write::doc::{insert_aligned, set, remove_aligned}` も同じ幅で数える） |
 | revision・ロック | `fune_store::{revision, lock}` | |
 | Op | `fune_ops::op` | 編集の唯一の入口 |
 | 変更計画・適用 | `fune_ops::{plan, apply}` | |
@@ -329,3 +330,4 @@
 | 2026-11-13 | モード行列に日照／蝕の切替と共通の下書き編集を統合し、別の蝕編集欄を廃止 | 蝕の上書きを同じ行列で編集するため（#76） |
 | 2026-11-14 | 配置のページに左の部品のツリー（`LayoutBrowser`）と、部品・フォルダー・座標の表示の切り替えを追加。`Tree` に行の操作（`renderActions`）と外で選んだ項目の表示、`PartsTree` に狭い欄の `compact` を足した | 部品が多いと目的の部品を探しにくく、見たいものだけを出す手段が無かったため（#103） |
 | 2026-11-13 | 系統図に API の系一覧を使う表示トグルと URL の状態、表示モデルのフィルターを追加 | 構造などの部品を隠して接続を見やすくするため（#97） |
+| 2026-11-14 | 出典（`from`）の付いた値を 1 行 1 要素で書く形を `fune_store::profile::sourced`（`lay_out`・`spread_rows`）の 1 か所にした。属性は `[attr.<名前>]`、最上位の値は `[<名前>]` の見出しの表、状態ごとの値のセルは `<状態>.value` などのドット付きキー、出典は `from.source`・`from.note`。`=` の揃え（`align_rows`）と書き込みの揃え（`write::doc`）はドット付きキーの行も数える。値の行の無い表の見出しは書かない。読み込みは古い形も同じ値になり、`fune fmt` がデモを書き直した。codec のテストを `codec/tests.rs` に分けた | 出典の `note` が長い値の行が読みにくく、どの要素を変えても 1 行全体が差分になっていたため（#77） |

@@ -568,13 +568,18 @@ net = "CAN_BUS"
 
 ```toml
 # harness/H_PCDU_RWX.toml
-label  = "PCDU → RW_X 電源"
-from   = "PCDU.OUT3"
-to     = "RW_X.PWR"
-nets   = ["P12V_AOCS"]
-wire   = "lab/awg22_ptfe"
-cores  = 2
-length = { value = 0.35, unit = "m", from = { source = "layout_estimate", note = "3D 配置からの概算" } }
+label = "PCDU → RW_X 電源"
+from  = "PCDU.OUT3"
+to    = "RW_X.PWR"
+nets  = ["P12V_AOCS"]
+wire  = "lab/awg22_ptfe"
+cores = 2
+
+[length]
+value       = 0.35
+unit        = "m"
+from.source = "layout_estimate"
+from.note   = "3D 配置からの概算"
 ```
 
 - ネットが「論理的なつながり」なのに対して、ハーネスは「実際の線」。1 本の束に複数のネットを通せる。
@@ -717,8 +722,35 @@ PR では CI が両方のリビジョンで計算し直した変化量をコメ�
    属性 ID には部品・カタログ品のフィールド名（`label`・`count`・`maturity` など。`fune_model::field_names::{PartFieldName, CatalogFieldName}`）を使わない
    （パスの記法 `RW_X.label` で属性とフィールドを区別できないため。`fune check` の `def.reserved`、`fune attr add` も拒む）。
 2. 入れ子は 2 段まで。ツリーはディレクトリ、エンティティ間の関係は ID の参照で表す。
-3. インライン表は `{ value, unit, from }`、短いベクトル（`{ x, y, z, unit }`）、1 行で収まる参照だけ。
-   状態や不確かさを持つ値は `[attr.<名前>]` の下にドット付きキーで 1 行 1 セル。
+   例外は出典の付いた値の行（3）のドット付きキー（`[attr.<名前>]` の下の `from.*`、状態ごとの値のセルの `<状態>.*`）だけ。
+3. インライン表は `{ value, unit }`、短いベクトル（`{ x, y, z, unit }`）、範囲（`{ min, max, unit }`）、1 行で収まる参照だけ。
+   状態や不確かさを持つ値は `[attr.<名前>]` の下に 1 行 1 セル。
+   **出典（`from`）の付いた値は 1 行 1 要素で書く。** 出典の無い値は 1 行のインライン表のまま。
+   切り替えは行の長さではなく出典の有無だけで決める（`note` を少し書き足しただけで形が変わり、差分が荒れるのを避ける）。
+   - 属性（`[attr]` の行）とファイルの最上位の値（ハーネスの `length` など）は、値の見出しの表（`[attr.<名前>]`・`[length]`）の下に
+     `value`・`unit`（範囲は `min`・`max`、ベクトルは `x`・`y`・`z`）を 1 行ずつ、出典はドット付きキー `from.source`・`from.note` で書く。
+   - 状態ごとの値のセルに出典が付くときは、`[attr.<名前>]` の下にセルの名前のドット付きキー（`on.value`・`on.unit`・`on.from.source`）で書く
+     （`[attr.power.on]` は 3 段になるので使わない）。出典の無いセルは今の 1 行のまま、同じ表に並ぶ。
+   - 見出しの表は親の表の値の行の後ろに置く（TOML の決まり）。親の表に値の行が残らなければ親の見出し（`[attr]`）は書かない。
+   - 表の `=` は、ドット付きキーの行も含めて表ごとに揃える。
+   - 読み込みはどちらの形（古い 1 行のインライン表、見出しの表・ドット付きキー）も同じ値になる。`fune fmt` が今の形に直す。
+
+   ```toml
+   [attr]
+   specific_heat = { value = 1100.0, unit = "J/(kg*K)" }
+
+   [attr.mass]
+   value       = 115.0
+   unit        = "g"
+   from.source = "ds_example"
+   from.note   = "Technical Specifications table, Mass [g]: 115."
+
+   [attr.power]
+   off            = { value = 0.0, unit = "W" }
+   on.value       = 1.0
+   on.unit        = "W"
+   on.from.source = "sys_judgement"
+   ```
 4. 物理量の数値は常に float で書く（`0` ではなく `0.0`）。整数は ID・員数（`count`・`active`）・回数だけ。
 5. 書き出しは TOML 1.0 の範囲（§10.3）。
 6. 曲線・特性表・時系列は CSV に置き、列の単位は対になる TOML で宣言する。
@@ -948,8 +980,11 @@ point = "RW_SLOT_1"
 position    = { x = 0.0, y = 0.0, z = 12.0, unit = "mm" }
 orientation = { w = 1.0, x = 0.0, y = 0.0, z = 0.0 }
 
-[attr]
-mass = { value = 0.62, unit = "kg", from = { source = "em_test_2026_10", note = "EM 実測" } }
+[attr.mass]
+value       = 0.62
+unit        = "kg"
+from.source = "em_test_2026_10"
+from.note   = "EM 実測"
 
 [ports.PWR]
 net = "P12V_AOCS"
@@ -964,8 +999,10 @@ net = "CAN_BUS"
 kind     = "panel"
 maturity = "new"
 
-[attr]
-mass = { value = 0.35, unit = "kg", from = { source = "cad_2026_09" } }
+[attr.mass]
+value       = 0.35
+unit        = "kg"
+from.source = "cad_2026_09"
 
 [mount]
 on    = "BUS_FRAME"
@@ -982,8 +1019,11 @@ orientation = { w = 1.0, x = 0.0, y = 0.0, z = 0.0 }
 kind     = "solar_wing"
 maturity = "new"
 
-[attr]
-mass = { value = 0.18, unit = "kg", from = { source = "cad_2026_09", note = "基板と構造のみ" } }
+[attr.mass]
+value       = 0.18
+unit        = "kg"
+from.source = "cad_2026_09"
+from.note   = "基板と構造のみ"
 
 [mount]
 on    = "PANEL_PX"

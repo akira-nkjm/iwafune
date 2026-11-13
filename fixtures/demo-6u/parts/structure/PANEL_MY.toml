@@ -16,7 +16,6 @@ position    = { x = 0.0, y = 2.0, z = 110.0, unit = "mm" }
 orientation = { w = 0.7071067811865476, x = 0.7071067811865476, y = 0.0, z = 0.0 }
 
 [attr]
-mass          = { value = 0.07, unit = "kg", from = { source = "cad_2026_09" } }
 specific_heat = { value = 896.0, unit = "J/(kg*K)" }
 size          = { x = 100.0, y = 1.5, z = 366.0, unit = "mm" }
 area          = { value = 366.0, unit = "cm^2" }
@@ -25,3 +24,8 @@ material      = "al6061_t6"
 normal        = { x = 0.0, y = -1.0, z = 0.0 }
 absorptivity  = 0.3
 emissivity    = 0.8
+
+[attr.mass]
+value       = 0.07
+unit        = "kg"
+from.source = "cad_2026_09"

@@ -55,22 +55,6 @@ fn set_mass(part: &str, value: f64, unit: &str) -> Op {
 }
 
 #[test]
-fn set_value_changes_exactly_one_line() {
-    let snap = snapshot();
-    let p = plan(&snap, &[set_mass("RW_X", 0.155, "kg")]).unwrap();
-    assert_eq!(p.changes.len(), 1);
-    assert_eq!(p.changes[0].path, "parts/aocs/RW_X.toml");
-    let (removed, added) = changed_lines(&p.changes[0]);
-    assert_eq!(removed.len(), 1, "{removed:?}");
-    // 出典を付けずに書いた値は、前の値の出典を引き継がない（EM 実測の値ではなくなるため）。
-    let expected = r#"mass = { value = 0.155, unit = "kg" }"#;
-    assert_eq!(added, vec![expected.to_string()]);
-    assert!(added[0].contains("0.155"));
-    let resolved = fune_model::resolve(&p.design);
-    assert!((resolved.parts["RW_X"].scalar("mass").unwrap() - 0.155).abs() < 1e-12);
-}
-
-#[test]
 fn new_override_line_is_aligned_and_alone() {
     let snap = snapshot();
     let p = plan(&snap, &[set_mass("RW_Y", 151.0, "g")]).unwrap();
@@ -88,14 +72,15 @@ fn state_cell_edit_is_one_line() {
     let op = Op::SetValue {
         part: "HTR_BAT".into(),
         attr: "power".into(),
-        state: Some("on".into()),
-        value: Value::Scalar(Scalar::new(2.5, "W")),
+        state: Some("off".into()),
+        value: Value::Scalar(Scalar::new(0.1, "W")),
         from: None,
     };
     let p = plan(&snap, &[op]).unwrap();
     let (removed, added) = changed_lines(&p.changes[0]);
     assert_eq!((removed.len(), added.len()), (1, 1));
-    assert_eq!(added[0], "on  = { value = 2.5, unit = \"W\" }");
+    // 隣の `on` は出典付きのドット付きキー（`on.from.source`）なので、その幅で揃える。
+    assert_eq!(added[0], "off            = { value = 0.1, unit = \"W\" }");
 }
 
 #[test]

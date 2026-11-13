@@ -45,7 +45,11 @@ position = { x = 0.0, y = -60.0, z = 60.0, unit = "mm" }
 position = { x = 0.0, y = -60.0, z = 120.0, unit = "mm" }
 
 [attr]
-mass          = { value = 0.62, unit = "kg", from = { source = "cad_2026_09" } }
 specific_heat = { value = 896.0, unit = "J/(kg*K)" }
 size          = { x = 100.0, y = 226.0, z = 366.0, unit = "mm" }
 material      = "al6061_t6"
+
+[attr.mass]
+value       = 0.62
+unit        = "kg"
+from.source = "cad_2026_09"
