@@ -146,6 +146,13 @@ kpi_table! {
     structure::MassProperties { TotalMass => total_mass }
     structure::StaticLoad { MinSafetyMargin => min_safety_margin }
     structure::ModalEstimate { MinFrequency => min_frequency }
+    sat_analysis::propulsion::Maneuvers { LongestTransfer => propulsion::longest_transfer }
+    sat_analysis::propulsion::DvBudget { DvWithMargin => propulsion::dv_with_margin }
+    sat_analysis::propulsion::Propellant {
+        LoadedPropellant => propulsion::loaded_propellant,
+        TankVolumeMargin => propulsion::tank_volume_margin,
+    }
+    sat_analysis::propulsion::ThrusterUsage { ImpulseMargin => propulsion::impulse_margin }
 }
 
 type Ctx<'a> = KpiContext<'a>;
@@ -286,9 +293,12 @@ struct Rule {
 fn rule(key: KpiKey) -> Rule {
     use KpiKey as K;
     let (judged, fill, tally) = match key {
-        K::MaxDod | K::StorageMargin | K::SapMargin | K::BatteryMargin => {
-            (true, Fill::Value, false)
-        }
+        K::MaxDod
+        | K::StorageMargin
+        | K::SapMargin
+        | K::BatteryMargin
+        | K::TankVolumeMargin
+        | K::ImpulseMargin => (true, Fill::Value, false),
         K::NodesInRange => (true, Fill::OkShare, true),
         K::OrbitBalance
         | K::OrbitLifetime
@@ -315,7 +325,10 @@ fn rule(key: KpiKey) -> Rule {
         | K::PeakMomentum
         | K::DataPerDay
         | K::StorageRequired
-        | K::ContactPerDay => (false, Fill::None, false),
+        | K::ContactPerDay
+        | K::LongestTransfer
+        | K::DvWithMargin
+        | K::LoadedPropellant => (false, Fill::None, false),
     };
     Rule {
         judged,
@@ -361,6 +374,8 @@ pub(crate) fn kpis(
             let check_key = match key {
                 KpiKey::SapMargin => Some("sap_margin"),
                 KpiKey::BatteryMargin => Some("battery_margin"),
+                KpiKey::TankVolumeMargin => Some("tank_volume"),
+                KpiKey::ImpulseMargin => Some("total_impulse"),
                 _ => None,
             };
             let verdict = check_key.map_or(verdict, |key| {
@@ -395,6 +410,8 @@ fn view(
         tally,
     }
 }
+
+mod propulsion;
 
 #[cfg(test)]
 mod tests;

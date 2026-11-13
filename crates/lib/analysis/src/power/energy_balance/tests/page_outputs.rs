@@ -18,8 +18,9 @@ fn sunlit_means_by_hand_include_charge_shunt_and_discharge() {
         let mut i = input(vec![pz_panel()], vec![constant("nominal", 30.0)]);
         i.batteries[0].initial_soc = Some(start_soc);
         let battery = EnergyBalanceBattery::combine(&i.batteries).unwrap();
-        let ctx = Context::new(&i, &battery, profile(&i), 100.0);
-        let case = evaluate_case(&ctx, &i.cases[0]).unwrap();
+        let p = profile(&i);
+        let ctx = Context::new(&i, &battery, &p, 100.0);
+        let (case, _) = evaluate_case(&ctx, &i.cases[0]).unwrap();
         assert_eq!(case.sunlit_average_generation.value(), 60.0);
         assert_eq!(case.sunlit_average_discharge.value(), 0.0);
         assert_eq!(case.sunlit_average_charge.value(), expected_charge);
@@ -30,7 +31,7 @@ fn sunlit_means_by_hand_include_charge_shunt_and_discharge() {
     let battery = EnergyBalanceBattery::combine(&i.batteries).unwrap();
     let mut p = profile(&i);
     p.panel_bol[0] = vec![20.0, 20.0, 0.0];
-    let case = evaluate_case(&Context::new(&i, &battery, p, 100.0), &i.cases[0]).unwrap();
+    let (case, _) = evaluate_case(&Context::new(&i, &battery, &p, 100.0), &i.cases[0]).unwrap();
     assert_eq!(case.sunlit_average_discharge.value(), 10.0);
 }
 
@@ -58,7 +59,7 @@ fn output_limits_mode_loads_and_eclipses_by_hand() {
     // 日照率 0.5 は日照。蝕は t=20,30 s の二標本 → 区間 20..30 s。
     let p = SolarProfile::build(&i.array, &samples);
     let battery = EnergyBalanceBattery::combine(&i.batteries).unwrap();
-    let out = Context::new(&i, &battery, p, 100.0).output(
+    let out = Context::new(&i, &battery, &p, 100.0).output(
         vec![],
         None,
         crate::power::mode_load::ModeLoad::run(&i.loads).unwrap(),

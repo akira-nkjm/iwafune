@@ -56,6 +56,7 @@ pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
             ))
         );
     }
+    super::output_tables::print(&r, out);
     if r.status == AnalysisRunStatus::Ok {
         println!("{}", out.dim("全体の結果は --json で出せます"));
     }

@@ -3,8 +3,8 @@
 //! JSON では `{ "op": "set_value", ... }` の形（`op` が種類）。
 
 use fune_model::design::{
-    AttributeDef, Case, CatalogField, Harness, KindDef, Maturity, Net, NetField, PartField, Pose,
-    Source,
+    AttributeDef, Case, CatalogField, Harness, KindDef, Maneuver, Maturity, Net, NetField,
+    PartField, Pose, Source,
 };
 use fune_model::value::{Provenance, Quaternion, SettingValue, Value, Vector3};
 use serde::{Deserialize, Serialize};
@@ -207,7 +207,7 @@ pub enum Op {
     RemoveNet {
         id: String,
     },
-    // ---- 解析ケース・出典・ハーネス（無ければ作り、あれば変わった行だけを書き換える）
+    // ---- 解析ケース・出典・ハーネス・マヌーバ（無ければ作り、あれば変わった行だけを書き換える）
     /// 解析ケースを書く（`case.id` が対象）。
     SetCase {
         case: Case,
@@ -227,6 +227,18 @@ pub enum Op {
         harness: Harness,
     },
     RemoveHarness {
+        id: String,
+    },
+    /// マヌーバを足す（`maneuver.id` が対象。同じ ID があれば拒む）。
+    CreateManeuver {
+        maneuver: Maneuver,
+    },
+    /// マヌーバを書く（`maneuver.id` が対象。無ければ作り、あれば変わった行だけを書き換える）。
+    SetManeuver {
+        maneuver: Maneuver,
+    },
+    /// マヌーバを消す（ほかのマヌーバの `after` が指していれば、消したマヌーバの `after` につなぎ直す）。
+    RemoveManeuver {
         id: String,
     },
     // ---- 図の配置（見た目だけ）

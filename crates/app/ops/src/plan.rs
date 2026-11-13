@@ -123,7 +123,10 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::SetSource { .. }
         | Op::RemoveSource { .. }
         | Op::SetHarness { .. }
-        | Op::RemoveHarness { .. } => records::interpret(edits, design, op),
+        | Op::RemoveHarness { .. }
+        | Op::CreateManeuver { .. }
+        | Op::SetManeuver { .. }
+        | Op::RemoveManeuver { .. } => records::interpret(edits, design, op),
         _ => others::interpret(edits, design, op),
     }
 }

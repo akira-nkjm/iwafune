@@ -3,7 +3,7 @@
 # section_order: 画面で系を並べる順（section の無い属性は basic）
 # [enum_order]: 列挙の値を選択肢に並べる順（同じ型の [enum.<型>.<値>] をすべて並べる。無い型は値の綴りの順）
 
-section_order = ["basic", "mass", "power", "thermal", "aocs", "comm", "cdh", "structure", "payload"]
+section_order = ["basic", "mass", "power", "thermal", "aocs", "comm", "cdh", "structure", "payload", "propulsion"]
 
 [state.off]
 label    = "停止"
@@ -69,10 +69,16 @@ label_en = "Structure"
 label    = "ミッション機器"
 label_en = "Payload"
 
+[section.propulsion]
+label    = "推進"
+label_en = "Propulsion"
+
 [enum_order]
 maturity = ["off_the_shelf", "modified", "new"]
 redundancy = ["none", "cold", "warm"]
 severity = ["error", "warning", "info"]
+maneuver_category = ["insertion", "station_keeping", "unloading", "deorbit", "other"]
+maneuver_method = ["impulsive", "finite_burn", "low_thrust"]
 distribution = ["public", "on_request", "restricted"]
 
 [enum.maturity.off_the_shelf]
@@ -310,6 +316,8 @@ camera = "payload"
 heater = "thermal"
 panel = "structure"
 structure = "structure"
+propulsion_thruster = "propulsion"
+propellant_tank = "propulsion"
 
 [enum.redundancy.none]
 label = "冗長なし"
@@ -322,3 +330,35 @@ label_en = "Cold redundancy"
 [enum.redundancy.warm]
 label = "ウォーム冗長"
 label_en = "Warm redundancy"
+
+[enum.maneuver_category.insertion]
+label    = "軌道投入・上昇"
+label_en = "Insertion"
+
+[enum.maneuver_category.station_keeping]
+label    = "軌道維持"
+label_en = "Station keeping"
+
+[enum.maneuver_category.unloading]
+label    = "アンロード"
+label_en = "Unloading"
+
+[enum.maneuver_category.deorbit]
+label    = "廃棄（デオービット）"
+label_en = "Deorbit"
+
+[enum.maneuver_category.other]
+label    = "その他"
+label_en = "Other"
+
+[enum.maneuver_method.impulsive]
+label    = "インパルス"
+label_en = "Impulsive"
+
+[enum.maneuver_method.finite_burn]
+label    = "有限燃焼"
+label_en = "Finite burn"
+
+[enum.maneuver_method.low_thrust]
+label    = "低推力"
+label_en = "Low thrust"

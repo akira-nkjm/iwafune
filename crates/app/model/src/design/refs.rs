@@ -6,9 +6,9 @@
 //!
 //! | 参照先 | 参照元（[`RefSite`]） |
 //! |---|---|
-//! | 部品 | モードの `[states]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part`・`analysis/thermal.toml` の `[nodes]`・図の `[nodes]` のキー |
+//! | 部品 | モードの `[states]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part`・`analysis/thermal.toml` の `[nodes]`・図の `[nodes]` のキー・マヌーバの `thruster` |
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
-//! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode` |
+//! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode` |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets` |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire` |
 
@@ -99,6 +99,10 @@ pub enum RefSite {
     PartCandidate { part: String },
     /// ハーネスの線材（`wire`）
     HarnessWire { harness: String },
+    /// マヌーバのスラスタ（`maneuvers/<マヌーバ>.toml` の `thruster`）
+    ManeuverThruster { maneuver: String },
+    /// マヌーバの噴射するモード（`[constraints].mode`）
+    ManeuverMode { maneuver: String },
 }
 
 impl Design {
@@ -176,6 +180,14 @@ impl Design {
                 out.push(RefSite::ThermalHeatNode);
             }
         }
+        out.extend(
+            self.maneuvers
+                .values()
+                .filter(|m| m.thruster.as_ref().is_some_and(|t| t.as_str() == id))
+                .map(|m| RefSite::ManeuverThruster {
+                    maneuver: m.id.to_string(),
+                }),
+        );
         out
     }
 
@@ -239,6 +251,19 @@ impl Design {
                     .map(|(case, _)| RefSite::ThermalCaseMode { case: case.clone() }),
             );
         }
+        out.extend(
+            self.maneuvers
+                .values()
+                .filter(|m| {
+                    m.constraints
+                        .mode
+                        .as_ref()
+                        .is_some_and(|x| x.as_str() == id)
+                })
+                .map(|m| RefSite::ManeuverMode {
+                    maneuver: m.id.to_string(),
+                }),
+        );
         out
     }
 

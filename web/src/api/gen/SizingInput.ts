@@ -2,6 +2,7 @@
 import type { AttitudeLaw } from "./AttitudeLaw";
 import type { EclipseSeasonInput } from "./EclipseSeasonInput";
 import type { EnergyBalanceBattery } from "./EnergyBalanceBattery";
+import type { EnergyBalanceSegment } from "./EnergyBalanceSegment";
 import type { ModeLoadInput } from "./ModeLoadInput";
 import type { SizingCell } from "./SizingCell";
 import type { SizingOptions } from "./SizingOptions";
@@ -23,4 +24,16 @@ mode_laws: { [key in string]: AttitudeLaw }, loads: ModeLoadInput, mode: string 
 /**
  * 設計の SAP（法線つき）。変換効率は日照経路の効率 Xd で数えるのでここでは使わない
  */
-array: SolarArray, cells: Array<SizingCell>, batteries: Array<EnergyBalanceBattery>, options: SizingOptions, };
+array: SolarArray, cells: Array<SizingCell>, batteries: Array<EnergyBalanceBattery>, options: SizingOptions, 
+/**
+ * モードの最長継続時間（`power.energy_balance` と同じ。時系列の逆算で基本のモードの上に 1 回入れる）
+ */
+max_durations: { [key in string]: number }, 
+/**
+ * モードの並び（`power.energy_balance` と同じ。全モードを逆算するときだけ時系列の逆算に使う）
+ */
+sequence: Array<EnergyBalanceSegment>, 
+/**
+ * 最長継続時間の評価で下に敷く基本のモード（`power.energy_balance` と同じ）
+ */
+base_mode: string | null, };

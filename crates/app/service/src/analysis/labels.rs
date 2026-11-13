@@ -235,6 +235,7 @@ fn decay_condition(kind: &str) -> Option<AnalysisLabel> {
         ),
     })
 }
+mod propulsion;
 
 fn link_closure(kind: &str) -> Option<AnalysisLabel> {
     // 内部タグの列挙はタグの値だけを見る（中身の量は dims で整形する）
@@ -280,6 +281,10 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "WeatherSource" => parse(value).map(weather_source),
         "DragAreaSource" => parse(value).map(drag_area_source),
         "DecayCondition" => decay_condition(value),
+        "DvCategory" => parse(value).map(propulsion::category),
+        "TransferMethod" => parse(value).map(propulsion::method),
+        "ManeuverNote" => parse(value).map(propulsion::note),
+        "UnloadingNote" => parse(value).map(propulsion::unloading),
         _ => None,
     }
 }
@@ -322,6 +327,11 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         K::TotalMass => label("総質量", "Total mass"),
         K::MinSafetyMargin => label("最小の安全余裕（MS）", "Minimum margin of safety"),
         K::MinFrequency => label("最低の固有振動数", "Lowest natural frequency"),
+        K::LongestTransfer => label("最長の遷移時間", "Longest transfer time"),
+        K::DvWithMargin => label("ΔV（マージン込み）", "Delta-V (with margin)"),
+        K::LoadedPropellant => label("積む推薬", "Loaded propellant"),
+        K::TankVolumeMargin => label("タンクの容積の余裕", "Tank volume margin"),
+        K::ImpulseMargin => label("総インパルスの余裕", "Total impulse margin"),
     }
 }
 
@@ -391,6 +401,11 @@ mod tests {
         let high = value_label("SolarActivity", "high").unwrap();
         assert_eq!(high.label_en, "High solar activity");
         assert!(value_label("DecayCondition", "dated").is_some());
+        assert_eq!(
+            value_label("DvCategory", "deorbit").unwrap().label_en,
+            "Deorbit"
+        );
+        assert!(value_label("UnloadingNote", "no_rcs").is_some());
         let (l, m) = span_check(SpanFallback::OrbitMeanOverSpan);
         assert_eq!(l.label, "解析期間");
         assert!(m.label.contains("全期間の平均") && m.label_en.contains("whole span"));

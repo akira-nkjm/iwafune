@@ -31,6 +31,17 @@ pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
     check_cdh(ctx);
     check_comm(ctx);
     super::settings_thermal::check_thermal(ctx);
+    check_propulsion(ctx);
+}
+
+fn check_propulsion(ctx: &mut Ctx) {
+    let design = ctx.design;
+    let Some(p) = &design.analysis.propulsion else {
+        return;
+    };
+    let mut s = scope(ctx, AnalysisSystem::Propulsion.setting_path());
+    s.fraction(&["dv_margin"], p.dv_margin);
+    s.fraction(&["residual_fraction"], p.residual_fraction);
 }
 
 fn mode_exists(design: &Design, mode: &str) -> bool {

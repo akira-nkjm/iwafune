@@ -3,4 +3,4 @@
 /**
  * 解析が部品を見分ける役割。種別の継承で引き継ぐ。
  */
-export type Role = "obc" | "pcdu" | "battery" | "solar_panel" | "reaction_wheel" | "magnetorquer" | "thruster" | "star_tracker" | "sun_sensor" | "gyro" | "magnetometer" | "gps" | "transceiver" | "antenna" | "camera" | "heater" | "panel" | "structure";
+export type Role = "obc" | "pcdu" | "battery" | "solar_panel" | "reaction_wheel" | "magnetorquer" | "thruster" | "star_tracker" | "sun_sensor" | "gyro" | "magnetometer" | "gps" | "transceiver" | "antenna" | "camera" | "heater" | "panel" | "structure" | "propulsion_thruster" | "propellant_tank";

@@ -1,5 +1,8 @@
 //! 電源サイジングへの写し替え。最長蝕の計算は解析に渡す。SAP と姿勢則は電力収支と同じものを渡す。
-use super::{attitude_timeline, batteries, mode_law_map, mode_load_input, solar_array};
+use super::{
+    attitude_timeline, base_mode, batteries, max_duration, mode_law_map, mode_load_input, sequence,
+    solar_array,
+};
 use crate::parts::by_role;
 use crate::quantity::setting_opt;
 use crate::{Context, MissingInputs};
@@ -10,7 +13,8 @@ use sat_analysis::power::sizing::{Sizing, SizingCell, SizingInput, SizingOptions
 use sat_analysis::spec::Analysis;
 use sat_units::typed::Qty;
 
-/// 軌道・期間・時系列と姿勢則・モード・パネルと電池・電源設定。
+/// 軌道・期間・時系列と姿勢則・モード・パネルと電池・電源設定。時系列の逆算に使う最長継続時間・
+/// モードの並び・基本のモードは `power.energy_balance` と同じものを渡す。
 pub fn sizing(ctx: &Context<'_>) -> Result<SizingInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let season = match crate::orbit::eclipse_season(ctx) {
@@ -26,6 +30,14 @@ pub fn sizing(ctx: &Context<'_>) -> Result<SizingInput, MissingInputs> {
     let batteries = batteries(ctx, &mut m);
     let options = options(ctx, &mut m);
     let mode = crate::timeline::case_mode_id(ctx);
+    let max_durations = ctx
+        .design
+        .ordered_modes()
+        .into_iter()
+        .filter(|md| mode.as_ref().is_none_or(|id| md.id.as_str() == id))
+        .filter_map(|md| Some((md.id.to_string(), max_duration(md, &mut m)?)))
+        .collect();
+    let sequence = sequence(ctx, &mut m);
     if let Some(case) = ctx.case
         && case.mode.is_some()
         && mode.is_none()
@@ -46,6 +58,9 @@ pub fn sizing(ctx: &Context<'_>) -> Result<SizingInput, MissingInputs> {
             array,
             batteries,
             options,
+            max_durations,
+            sequence,
+            base_mode: base_mode(ctx),
         })
     })
 }

@@ -6,10 +6,10 @@
 //! （窓の中の標本 `t_k ≤ t < t_k + 最長継続時間` にモードの負荷・発電を使い、刻みの間は線形補間）。
 
 use super::case::{lit_load, mode_loads};
+use super::context::mode_generation;
 use super::verdict::{Judged, verdicts};
 use super::{
-    Context, EnergyBalanceCase, EnergyBalanceCaseResult, EnergyBalanceEvaluation,
-    EnergyBalanceLoad, mode_generation,
+    Context, EnergyBalanceCase, EnergyBalanceCaseResult, EnergyBalanceEvaluation, EnergyBalanceLoad,
 };
 use crate::power::battery::{self, BatteryTrace};
 use crate::spec::{AnalysisError, Channel, ChannelKind, Series, ensure_positive, quantity_text};
@@ -83,27 +83,28 @@ impl BaseMode {
 
 /// 最長継続時間を持つモードのケースを、基本のモードの上で評価し直す（判定を差し替える）。
 /// 最長継続時間が無い・基本のモードが無い・自身が基本のモードのときは連続のまま、`evaluation` にそう書く。
+/// 差し替えたときは、最悪の開始での刻みごとのエネルギーの増分（容量の上下限で切る前）を返す（時系列の逆算が使う）。
 pub(super) fn apply(
     ctx: &Context,
     case: &EnergyBalanceCase,
     base: Option<&BaseMode>,
     result: &mut EnergyBalanceCaseResult,
-) -> Result<(), AnalysisError> {
+) -> Result<Option<Vec<f64>>, AnalysisError> {
     let (EnergyBalanceLoad::Mode { mode }, Some(d)) = (&case.load, case.max_duration) else {
-        return Ok(());
+        return Ok(None);
     };
     ensure_positive("モードの最長継続時間", d.value())?;
     let Some(base) = base else {
         result.evaluation = EnergyBalanceEvaluation::NoBaseMode;
-        return Ok(());
+        return Ok(None);
     };
     if base.id == *mode {
         result.evaluation = EnergyBalanceEvaluation::BaseMode;
-        return Ok(());
+        return Ok(None);
     }
     let load = lit_load(&ctx.profile.lit, result.load_sunlit, result.load_eclipse);
-    let Some(duration) = sweep(ctx, base, &load, d.value()) else {
-        return Ok(());
+    let Some((duration, delta)) = sweep(ctx, base, &load, d.value()) else {
+        return Ok(None);
     };
     let basis = format!(
         "基本のモード {} の上で最長継続時間 {} だけ続けたとき（開始は周回内の最悪）",
@@ -125,7 +126,7 @@ pub(super) fn apply(
     ));
     result.evaluation = EnergyBalanceEvaluation::MaxDuration;
     result.by_max_duration = Some(duration);
-    Ok(())
+    Ok(Some(delta))
 }
 
 /// 正味電力の列（基本のモードと窓の中のモード）と、窓。
@@ -218,13 +219,14 @@ impl BaseRun {
 }
 
 /// 開始時刻をずらして最悪を取る。最悪は窓から後の最小 SOC が最も低い開始（解析の始めの過渡は開始によらないので比べない）。
+/// 最悪の開始での刻みごとのエネルギーの増分（基本のモードの積分の前半と積分し直した分をつないだもの）も返す。
 /// 標本が無ければ None。
 fn sweep(
     ctx: &Context,
     base: &BaseMode,
     mode_load: &[f64],
     duration: f64,
-) -> Option<EnergyBalanceDuration> {
+) -> Option<(EnergyBalanceDuration, Vec<f64>)> {
     let t = &ctx.profile.t;
     if t.is_empty() {
         return None;
@@ -250,13 +252,19 @@ fn sweep(
     }
     let (k, r) = worst?;
     let base_min = base_run.prefix_min.last().copied().unwrap_or(1.0).min(1.0);
-    Some(summarize(
+    let delta = base_run.trace.delta_unclamped[..r.from]
+        .iter()
+        .chain(&r.trace.delta_unclamped)
+        .copied()
+        .collect();
+    let summary = summarize(
         ctx,
         &w,
         (k, &r, starts.len()),
         &base_run.trace,
         (best_dod, base_min),
-    ))
+    );
+    Some((summary, delta))
 }
 
 /// ずらす開始の標本（1 周分）。最初の標本は窓の前の刻みが無く窓が半刻み短くなるので、標本が 2 つ以上あれば開始にしない。

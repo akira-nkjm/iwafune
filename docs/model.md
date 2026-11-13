@@ -146,14 +146,16 @@ flowchart LR
 | BudgetPolicy | マージン方針 | `budget/policy.toml` | 成熟度ごとの成長余裕、不確かさの既定幅、ハーネスの見込み |
 | AttributeDef | 量の種類（quantity kind） | `defs/attribute/<id>.toml` | 値の型、次元、許可単位、表示単位、値域、状態で引くか、どのバジェットに入るか |
 | KindDef | 部品の種別 | `defs/kind/<id>.toml` | 継承元、必須・任意の属性、機器の状態の語彙（off / standby / on …）、ポートの雛形、role |
-| CatalogItem | 購入品・設計品の定義（ElementDefinition） | 共有カタログ or `catalog/<id>.toml` | kind、型番、成熟度、属性値、ポートの値、形状、データシートの出典（出典の ID。§7.7） |
+| CatalogItem | 購入品・設計品の定義（ElementDefinition） | 共有カタログ or `catalog/<id>.toml` | kind、型番、成熟度、属性値、ポートの値、形状、データシートの出典（出典の ID。§7.8） |
 | Group | 系・入れ子のフォルダ | `parts/` 以下の、同名ファイルを持たないディレクトリ（最上位は系 ID） | なし（系の表示名は組み込みの語彙、配分は `budget/allocation.toml`） |
 | Part | 製品ツリー上の使用（ElementUsage） | `parts/<…>/<ID>.toml` | 定義（catalog / kind）、トレード候補、員数・冗長、取付先と相対姿勢、上書き値、ポートの所属ネット |
 | Mode | 衛星の運用モード | `modes/<ID>.toml` | 継続時間、部品 → {状態, 時間割合, 稼働台数, 予備状態}、蝕の上書き |
 | Net | 電気的な接続（論理） | `nets/<ID>.toml` | 種類（power / data / rf）、レール電圧、供給元ポート、電流制限、プロトコル |
 | Harness | ケーブル区間（物理） | `harness/<ID>.toml` | 両端のポート、通すネット、線材、芯数、長さ |
 | Case | 解析ケース | `cases/<ID>.toml` | モードまたはモード時系列、不確かさのどちら側を読むか、軌道、姿勢則、環境条件、期間 |
-| Source | 出典の台帳 | `sources/<ID>.toml` | 種類（datasheet / measured / analysis / judgement / placeholder）、参照先、資料の版・取得日・SHA-256・配布の区分、日付、記入者（§7.7） |
+| Maneuver | マヌーバ | `maneuvers/<ID>.toml` | 区分（ΔV バジェットの行）、計算の段階、スラスタ、前のマヌーバ、目標の軌道、細かい段階だけの制約（§7.7） |
+| Source | 出典の台帳 | `sources/<ID>.toml` | 種類（datasheet / measured / analysis / judgement / placeholder）、参照先、日付、記入者 |
+| Source | 出典の台帳 | `sources/<ID>.toml` | 種類（datasheet / measured / analysis / judgement / placeholder）、参照先、資料の版・取得日・SHA-256・配布の区分、日付、記入者（§7.8） |
 | Requirement | 要求（軽量） | `requirements/<ID>.toml` | 文、対象の量、制約、「全モード・全ケースで」などの量化。正式な判定は外部の検証ツールに書き出す |
 | Table | 表データ | `tables/<ID>.csv` + `tables/<ID>.toml` | 曲線や特性表。列ごとの単位は TOML 側で宣言 |
 | View | 見た目だけの情報（Design の外） | `view/…` | 系統図の座標、3D のカメラ |
@@ -480,8 +482,9 @@ default_case = "hot_imaging"
 電源の系に属する定常解析。SAP と電池の必要量を出力し、部品の属性への書き戻しはしない。
 入力は軌道・`conditions.orbit.duration`・電力を持つ部品とモード・`solar_panel`（法線つき）と `battery` の部品・姿勢則・電源設定。
 部品・軌道・期間・モード・姿勢則・`analysis.power.dod_max` が足りなければ不足入力を返す。
-明示した解析ケースにモードがあればそのモード、無ければ全モードをそれぞれ逆算し、
-必要面積が最大のモード（`area_mode`）と必要容量が最大のモード（`capacity_mode`）で決める。
+明示した解析ケースにモードがあればそのモード、無ければ全モード（時系列の逆算ではモードの並びも）をそれぞれ逆算し、
+必要面積が最大の運用（`area_mode`）と必要容量が最大の運用（`capacity_mode`）で決める。
+時系列の逆算はモードの `max_duration`・`analysis.power.sequence`・`analysis.power.base_mode` を `power.energy_balance` と同じく使う。
 成長余裕・員数・冗長・蝕の上書きは `power.mode_load` の集計を共有する。
 割り当てや電力値の不足を含むモードでは要求を過小評価しないよう解析を止める。
 
@@ -497,8 +500,6 @@ default_case = "hot_imaging"
 `power.orbit_generation` を回し、日照中の平均発電を全パネルに真上から当たるときの発電で割った入射係数として掛ける
 （太陽光の強さは 1 AU に固定し、変換効率は Xd で数えるので時系列には入れない）。
 さらに `(1-annual_degradation)^lifetime_years`・`inherent_degradation` を掛ける。
-SMAD の式は日照中の発電を平均で扱うので、日照中に発電が負荷を下回る姿勢（地心指向の固定パネルなど）では
-日照中にも電池から出す分を数えず、面積と容量を過小評価する。その場合は逆算した値を `power.energy_balance` で確かめる。
 異なるパネルが混在するときは、現在の面積配分を保って拡大縮小する設計を仮定する。
 経年・固有の劣化を既存の `eol_factor` に含めた設計では、追加の劣化を重ねないよう上書きする。
 
@@ -507,10 +508,41 @@ SMAD の式は日照中の発電を平均で扱うので、日照中に発電が
 面積と容量は部品の員数を含む。余裕は `spec::ratio_margin`、判定は `ratio_margin_verdict`（警告幅 0）。
 負荷や蝕が 0 で要求が 0 なら余裕は null（判定 OK）。
 
-出力 `SizingOutput` は必要発電・面積・電池容量（合計と1組）・設計面積/容量・両余裕・決めたモード・モードごとの逆算（入射係数を含む）・日照/蝕の負荷と時間・
-最長蝕の標本（日付付き）・使用した仮定 `used`・判定を持つ。電源ページの KPI は「SAP の余裕」「バッテリーの余裕」。
+SMAD の式は日照中の発電を平均の 1 つの値として扱うので、日照中に発電が負荷を下回る姿勢（地心指向の固定パネルなど）では
+日照中にも電池から出す分とその損失を数えず、面積と容量を少なく見る。そこで判定には次の時系列の逆算を使い、SMAD の値は
+手計算と比べられる参考値として残す。
+
+**時系列の逆算。** `power.energy_balance` と同じ発電・電池・運用のモデルで、1 周の収支 ≥ 0 の最小の面積と、
+DoD が `dod_max` に収まる最小の容量を求める。
+
+- 時系列は最長蝕の時期で回す: 上段の時系列（`power.energy_balance` と同じ姿勢則・期間・刻み）の日付と β を、
+  `orbit.eclipse_season` の `longest` の日付と β に替える。
+- 発電は SAP の変換効率・EOL を含む `power.energy_balance` のモデル（Xd・Xe・Xbattery は使わない）に、
+  `(1-annual_degradation)^lifetime_years`・`inherent_degradation` を掛けたもの。モードの姿勢則ごとに時系列を 1 回だけ作り、
+  面積との比（発電は面積に比例する。現在の面積配分を保つ）を掛けて使う。
+- 運用は `power.energy_balance` が判定に使うもの（`evaluation`）と同じ: 最長継続時間を持つモードは基本のモードの上で 1 回続けて
+  開始を周回内でずらした最悪、持たないモードと基本のモードは連続。全モードを逆算するときはモードの並び（`sequence`）も 1 つの運用として数える
+  （ケースでモードを選んだときは並びを使わない。基本のモードはどちらでも設定か並びの最初）。
+- 面積: 1 周の収支（電池の効率込み、容量の上下限で切る前）は面積に対して増えるので、SMAD の面積から上端を 2 倍ずつ探し、
+  区間の幅が上端の `1e-4`（`AREA_TOLERANCE`）以下になるまで二分法で詰める。収支ちょうど 0 以上の上端を採る。
+  最長継続時間の運用は最悪の開始が面積で変わることがあるので、上端の収支が許容差より大きく残ることがある。
+- 容量: 運用のうち最大の面積で各運用を回し、刻みごとのエネルギーの増分（容量によらない）から閉じた形で求める
+  （`battery::required_capacity`。満充電で切る積分では満充電からの不足が `max(初期の不足 − 累積, 峰 − 累積)` なので、
+  `容量 ≥ max(最深の下がり幅 / dod_max, 累積の最小の大きさ / (dod_max − (1 − 初期 SOC)))`）。最長継続時間の最悪の開始は
+  空にならない大きさの電池で満充電から選ぶ。初期 SOC だけで許容 DoD に届くときは容量を決められない。
+- 必要面積・容量は運用のうち最大のもの（`area_mode`・`capacity_mode`。並びなら `sequence`）。この面積と容量を最長蝕の時期の
+  `power.energy_balance` に渡すと、全運用で 1 周の収支 ≥ 0 かつ DoD ≤ `dod_max` になる。
+- 太陽指向（日照中の発電が一定）で SMAD の経路の効率を電力収支のモデルに揃える（Xd = 変換効率、Xe = 変換効率 × 充電効率 × 放電効率、
+  Xbattery = 放電効率）と、時系列の値と SMAD の値の差は蝕の長さの差（季節解析の円錐影と時系列の影）の分だけで、テストでは 1 % 以内。
+- 1 周に満たない時系列などで判定できないときは SMAD の値で判定し、`checks` に `time_series` の注意を出す（`basis` が `smad`）。
+
+出力 `SizingOutput` は判定に使った求め方 `basis`、その必要面積・電池容量（合計と1組）・余裕・決めた運用、設計面積/容量、
+SMAD の全体の値 `smad`（必要発電・面積・容量・余裕・決めたモード・日照/蝕の負荷）、時系列の逆算 `time_series`（回した日付と β・
+運用ごとの面積・その面積での 1 周の収支・容量・評価の回数）、モードごとの逆算 `modes`（入射係数、SMAD の値、時系列の値と
+SMAD に対する比 `area_ratio`・`capacity_ratio`）、日照/蝕の時間、最長蝕の標本（日付付き）、使用した仮定 `used`、判定を持つ。
+電源ページの KPI「SAP の余裕」「バッテリーの余裕」と判定の文は `basis` の値（判定の文の括弧に求め方を書く）。
 任意の `cell_voltage`・`cell_current` と `sizing.bus_voltage` が揃えば、直列数はバス電圧/セル電圧、
-並列数は必要電流/EOL のセル電流をそれぞれ切り上げる。異種セルの混在や属性不足では直並列を出さない。
+並列数は必要電流/EOL のセル電流をそれぞれ切り上げる（必要電流は SMAD の必要発電から）。異種セルの混在や属性不足では直並列を出さない。
 電圧の温度変化・劣化は扱わず、電流に EOL・経年・固有劣化と面積を決めたモードの入射係数を適用する。
 
 上書きは `analysis/power.toml` の `[sizing]`。すべて任意で、既定値は解析が持つ。
@@ -745,7 +777,38 @@ from.note   = "3D 配置からの概算"
 「電力の担当者が 1 ファイルでモードの全体を確認できること」を優先して、モードの側に置く。
 行は ID 順に並べるので、隣り合う ID を 2 本のブランチで同時に足さない限り、git は自動でマージできる。
 
-### 7.7 sources/: 出典の台帳と、値の出典
+### 7.7 maneuvers/: 1 マヌーバ 1 ファイル
+
+推進系の解析が共有する入力（モードの表と同じ位置づけ）。ID はファイル名。
+
+```toml
+# maneuvers/RAISE.toml
+label    = "軌道上昇 550 → 600 km"
+category = "insertion"   # insertion / station_keeping / unloading / deorbit / other（ΔV バジェットの行）
+method   = "low_thrust"  # impulsive / finite_burn / low_thrust（推力を入れた数値伝搬 propagated は別の Issue）
+thruster = "EPT"         # スラスタの部品（推力・比推力・噴射中の消費電力は部品から）
+after    = "LEOP"        # 前のマヌーバ（任意。マヌーバでない ID は今は最初のマヌーバとして扱う）
+
+[target]                 # 変えたい要素だけ（書かない要素は前の軌道のまま）
+altitude    = { value = 600.0, unit = "km" }   # 円軌道。perigee_altitude・apogee_altitude と一緒には書かない
+inclination = { value = 97.8, unit = "deg" }
+
+[constraints]            # 細かい段階（数値伝搬）でだけ効く。粗い段階の解析は無視したことを結果に書く
+sunlit_only = true
+mode        = "THRUST"
+```
+
+- 書ける目標の要素は `altitude`・`perigee_altitude`・`apogee_altitude`・`inclination`（RAAN の変化はまだ扱わない）。
+  `via_altitude`（最上位）を書くと、インパルス・有限燃焼はその高度を中間の遠地点にしたバイエリプティック遷移で計算する。
+- 実行の順は `after` でつなぐ。正本は `Design::ordered_maneuvers`（`after` の無いものを ID 順に始点にし、後ろにつながるものを続ける）。
+  循環は `check` の error（`maneuver.cycle`）。
+- 最初の軌道は前提条件の軌道（`conditions/orbit.toml`）。乾燥質量は `analysis/propulsion.toml` の `dry_mass`、無ければ部品の質量特性の総質量。
+- `analysis/propulsion.toml` の `dv_margin`（既定 10 %）・`residual_fraction`（残る推薬、既定 3 %）。既定値は sat-analysis（`propulsion::input`）が持つ。
+- 参照の検査: スラスタは部品（無ければ error、役割が `propulsion_thruster`・`thruster` でなければ warning）、制約のモードはモード。
+  名前の変更（RenamePart・RenameMode）で一緒に書き換わる。マヌーバを消すと、後ろのマヌーバは消したマヌーバの前につなぎ直す。
+- 書き方: 最上位の値のあと、`[target]`・`[constraints]` を見出しの表で書き、中の量は `{ value, unit }`
+  （`fune_store::write::records::MANEUVER_SECTIONS`）。編集は `fune maneuver add|set|rm`（GUI も同じ引数を `POST /ops/from_command` に送る）。
+### 7.8 sources/: 出典の台帳と、値の出典
 
 値の根拠になる資料・試験・解析・判断を 1 つ 1 ファイルで書き、値の `from.source` とカタログ品の `source`・`datasheet` から ID で指す。
 
@@ -1108,6 +1171,7 @@ my-sat-design/
 ├── analysis/common.toml         # 共通の解析設定
 ├── mission/                     # #9 用の予約ディレクトリ（今は読まない）
 ├── cases/<ID>.toml
+├── maneuvers/<ID>.toml          # マヌーバ（§7.7）
 ├── sources/<ID>.toml
 ├── requirements/<ID>.toml
 ├── tables/<ID>.csv  tables/<ID>.toml

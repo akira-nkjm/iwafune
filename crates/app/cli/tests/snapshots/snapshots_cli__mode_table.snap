@@ -5,6 +5,7 @@ expression: "stdout(&[\"-C\", root.to_str().unwrap(), \"mode\", \"table\"])"
  部品      NOMINAL            MISSION                DOWNLINK           SAFE             
 ─────────────────────────────────────────────────────────────────────────────────────────
  CAM       off                standby（on 50.0 %）   off                off              
+ EPT       off                off                    off                off              
  GPS       on                 on                     on                 off              
  HTR_BAT   off（on 20.0 %）   off（on 10.0 %）       off（on 10.0 %）   off（on 40.0 %） 
  HTR_CAM   off（on 20.0 %）   off                    off（on 20.0 %）   off（on 30.0 %） 

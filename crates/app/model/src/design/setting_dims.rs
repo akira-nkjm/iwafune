@@ -209,6 +209,8 @@ setting_quantities! {
     MATERIAL_YIELD_STRENGTH: Pressure = Analysis["structure", "material", ANY, "yield_strength"];
     /// 材料の引張強さ
     MATERIAL_ULTIMATE_STRENGTH: Pressure = Analysis["structure", "material", ANY, "ultimate_strength"];
+    /// 推進系の解析の乾燥質量の上書き（`analysis/propulsion.toml`）
+    PROPULSION_DRY_MASS: Mass = Analysis["propulsion", "dry_mass"];
 }
 
 /// 次元の型を持たない欄（名前の無い次元。射影は読まない）。

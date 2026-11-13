@@ -9,6 +9,7 @@ import { conditionsJa } from "./conditions/ja";
 import { defsJa } from "./defs/ja";
 import { diagramJa } from "./diagram/ja";
 import { fieldsJa } from "./fields/ja";
+import { maneuversJa } from "./maneuvers/ja";
 import { modesJa } from "./modes/ja";
 import { overviewJa } from "./overview/ja";
 import { projectJa } from "./project/ja";
@@ -29,6 +30,7 @@ export const ja = {
   ...overviewJa,
   ...projectJa,
   ...conditionsJa,
+  ...maneuversJa,
   ...sourcesJa,
 };
 

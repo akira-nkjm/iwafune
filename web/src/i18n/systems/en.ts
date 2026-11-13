@@ -75,6 +75,10 @@ export const systemsEn: typeof systemsJa = {
     },
     specs: {
       payload: { description: "Mission equipment (no analyses yet)" },
+      propulsion: {
+        description:
+          "Maneuver delta-V and delta-V budget, propellant and tank margin, thruster usage against ratings",
+      },
       power: {
         description: "Load per mode, generation, orbit energy balance and battery DoD",
       },

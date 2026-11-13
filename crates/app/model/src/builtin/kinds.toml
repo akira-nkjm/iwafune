@@ -156,3 +156,20 @@ label_en = "Structure"
 extends  = "component"
 role     = "structure"
 optional = ["material"]
+
+[propulsion_thruster]
+label    = "推進系スラスタ"
+label_en = "Propulsion thruster"
+extends  = "component"
+role     = "propulsion_thruster"
+states   = ["off", "standby", "on"]
+required = ["power", "thrust", "isp"]
+optional = ["propellant", "min_impulse_bit", "rated_total_impulse", "rated_firing_time", "rated_firings", "direction"]
+
+[propellant_tank]
+label    = "推薬タンク"
+label_en = "Propellant tank"
+extends  = "component"
+role     = "propellant_tank"
+required = ["tank_volume", "propellant"]
+optional = ["propellant_density"]

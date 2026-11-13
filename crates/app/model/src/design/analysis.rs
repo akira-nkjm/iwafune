@@ -25,6 +25,7 @@ enum_text! {
         Thermal = "thermal",
         Structure = "structure",
         Payload = "payload",
+        Propulsion = "propulsion",
     }
 }
 
@@ -48,12 +49,29 @@ pub struct AnalysisSettings {
     pub structure: Option<StructureSettings>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub payload: Option<PayloadSettings>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub propulsion: Option<PropulsionSettings>,
 }
 
 /// ミッション機器の設定。現在は解析も設定項目も持たない。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct PayloadSettings {}
+
+/// 推進系の解析（`analysis/propulsion.toml`）。省略した値の既定は sat-analysis（`propulsion::input`）が持つ。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PropulsionSettings {
+    /// ΔV のマージン（合計 ΔV に対する割合。既定 10 %）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dv_margin: Option<f64>,
+    /// 使い切れずに残る推薬の割合（使う推薬に対する割合。既定 3 %）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub residual_fraction: Option<f64>,
+    /// 乾燥質量の上書き（省略時は部品の質量特性の総質量）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dry_mass: Option<Quantity>,
+}
 
 /// 系に属さない解析の共通設定（`analysis/common.toml`）。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
