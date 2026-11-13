@@ -4,7 +4,7 @@ import { loadLayout3D } from "@/features/layout3d/LazyLayout3D";
 
 /**
  * 大きなチャンクを使う追加の表示（`extras.tsx` の `systemExtras`）を持つ系と、そのチャンク（熱の温度で塗った 3D は three.js）。
- * **大きなチャンクを使う系はここだけに書く**: `systemExtras` は構造の軽いリンクを除き、この系を型（`ExtraSystem`）で突き合わせる。
+ * **大きなチャンクを使う系はここだけに書く**: `systemExtras` はこの系を型（`ExtraSystem`）で突き合わせる。
  * 表示の本体（extras.tsx）は大きいので、ナビの先読み（`routes/pages.ts`）はこちらの軽いモジュールだけを読む。
  */
 export const EXTRA_CHUNKS = {

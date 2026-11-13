@@ -102,7 +102,6 @@ export const systemsEn: typeof systemsJa = {
     thermal3d: "3D colored by temperature",
     thermal3dLegend: "Max temperature per node (nodes whose ID matches a part ID)",
     layout3d: {
-      title: "3D layout",
       pageHint: "Select parts to inspect and edit their mounts, positions and orientations.",
       parts: (n: number) => `${n} parts`,
       unplacedCount: (n: number) => ` · ${n} unplaced`,
@@ -110,6 +109,7 @@ export const systemsEn: typeof systemsJa = {
       operation: "Operation",
       translate: "Move",
       rotate: "Rotate",
+      structureOpacity: "Structure opacity",
       snap: "Snap",
       empty: "No part has derived body coordinates yet (set a mount and position to see it)",
       moved: (id: string) => `Moved ${id}`,

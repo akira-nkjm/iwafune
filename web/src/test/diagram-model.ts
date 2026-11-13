@@ -10,7 +10,7 @@ export const diagramDemo: DiagramModel = {
     {"id":"group:comm","label":"通信","tone":"gold","parent":null},
     {"id":"group:power","label":"電源","tone":"green","parent":null},
     {"id":"group:payload","label":"ミッション機器","tone":"rose","parent":null},
-    {"id":"group:structure","label":"構造・配置","tone":"violet","parent":null},
+    {"id":"group:structure","label":"構造","tone":"violet","parent":null},
     {"id":"group:thermal","label":"熱","tone":"orange","parent":null},
   ],
   cards: [

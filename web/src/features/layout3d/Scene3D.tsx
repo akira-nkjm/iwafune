@@ -12,7 +12,14 @@ import { useState } from "react";
 import type { Mesh } from "three";
 import { ArrowHelper, Color, Vector3 } from "three";
 import { palette, toneHex, uiHex } from "@/lib/tone";
-import type { Axis3D, Box3D, Q4, sceneDimensions, V3 } from "./scene";
+import {
+  type Axis3D,
+  type Box3D,
+  boxMaterial,
+  type Q4,
+  type sceneDimensions,
+  type V3,
+} from "./scene";
 
 const AXIS_COLOR: Record<Axis3D["attr"], string> = {
   spin_axis: toneHex.blue,
@@ -45,6 +52,7 @@ export function Scene3D({
   com,
   axes,
   edit,
+  structureOpacity,
 }: {
   boxes: Box3D[];
   dimensions: ReturnType<typeof sceneDimensions>;
@@ -56,6 +64,8 @@ export function Scene3D({
   axes?: Axis3D[] | null;
   /** 箱を動かせるとき（無ければ表示だけ） */
   edit?: SceneEdit;
+  /** 構造の不透明度。省略すると従来の熱の表示を保つ。 */
+  structureOpacity?: number;
 }) {
   const [target, setTarget] = useState<Mesh | null>(null);
   return (
@@ -99,7 +109,7 @@ export function Scene3D({
             }}
           >
             <boxGeometry args={b.size} />
-            <meshStandardMaterial color={b.color} transparent opacity={b.sized ? 0.85 : 0.45} />
+            <meshStandardMaterial {...boxMaterial(b, b.id === selected, structureOpacity)} />
             <Edges
               color={b.id === selected ? uiHex.ink : uiHex.ink3}
               lineWidth={b.id === selected ? 2 : 1}

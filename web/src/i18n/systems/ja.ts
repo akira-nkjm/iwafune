@@ -101,7 +101,6 @@ export const systemsJa = {
     thermal3d: "温度で塗った 3D",
     thermal3dLegend: "各節点の最高温度（節点 ID = 部品 ID のもの）",
     layout3d: {
-      title: "3D 配置",
       pageHint: "部品を選び、取付・位置・姿勢を確認・編集します。",
       parts: (n: number) => `${n} 部品`,
       unplacedCount: (n: number) => ` · 未配置 ${n}`,
@@ -109,6 +108,7 @@ export const systemsJa = {
       operation: "操作",
       translate: "移動",
       rotate: "回転",
+      structureOpacity: "構造の不透明度",
       snap: "スナップ",
       empty: "機体座標が導出できた部品がありません（取付と位置を入れると出ます）",
       moved: (id: string) => `${id} を動かした`,

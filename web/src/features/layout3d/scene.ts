@@ -16,6 +16,8 @@ export interface Box3D {
   size: V3;
   color: string;
   sized: boolean;
+  /** API が返した系で構造を判別する（名前や ID から推測しない）。 */
+  structure: boolean;
 }
 
 /** 部品座標の方向ベクトルを持つ属性（RW のスピン軸・MTQ の軸・パネルの法線・センサの視線・推力の向き） */
@@ -123,6 +125,7 @@ export function boxesOf(
       size: size ?? [0, 0, 0],
       color: colorOf?.(p.id) ?? toneHex[systemTone(p.system)],
       sized: size !== null,
+      structure: p.system === "structure",
     });
   }
   const bounds = boundsOf(boxes);
@@ -132,4 +135,19 @@ export function boxesOf(
       box.size = [dimensions.defaultBox, dimensions.defaultBox, dimensions.defaultBox];
   }
   return { boxes, unplaced, dimensions };
+}
+
+/** 配置では構造の内側が見える不透明度を既定にする。 */
+export const DEFAULT_STRUCTURE_OPACITY = 0.3;
+
+/** 材質は透過モードを固定し、スライダー操作でシェーダーを作り直さない。透過した箱は奥行きを遮らない。 */
+export function boxMaterial(box: Box3D, selected: boolean, structureOpacity?: number) {
+  const opacity = selected
+    ? 1
+    : box.structure && structureOpacity !== undefined
+      ? structureOpacity
+      : box.sized
+        ? 0.85
+        : 0.45;
+  return { color: box.color, transparent: true, opacity, depthWrite: opacity === 1 };
 }
