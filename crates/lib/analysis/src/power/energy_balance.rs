@@ -7,6 +7,7 @@
 //! - ケースは既定で解析期間ずっと続けたとして評価する（[`case`]）。
 //! - 最長継続時間を持つモードのケースは、基本のモードの上でその時間だけ続けたときの最悪で判定し直す（[`duration`]）。
 //! - モードの並びがあれば、並びに沿って負荷と姿勢則を切り替えた収支を別に出す（[`sequence`]）。
+//! - 発電に倍率をかけて同じ運用を繰り返し評価する入口（[`ScaledBalance`]）を `power.sizing` の時系列の逆算が使う。
 //! - duty（状態の時間割合）はどれも平均の消費電力として一定にかける（周回内の時間分布は扱わない。結果の `duty` に書く）。
 
 pub use super::battery::EnergyBalanceBattery;
@@ -14,14 +15,13 @@ use super::mode_load::ModeLoadInput;
 use super::solar::{SolarArray, SolarLife, SolarProfile};
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series,
-    SpanFallback, System, orbit_mean, orbit_ranges, span_fallback, time_fraction,
+    SpanFallback, System, orbit_mean, span_fallback, time_fraction,
 };
 use sat_astro::attitude::AttitudeLaw;
-use sat_astro::timeline::{self, TimelineSpec};
+use sat_astro::timeline::TimelineSpec;
 use sat_units::typed::{ElectricCurrent, Energy, Fraction, Power, Qty, Time};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::ops::Range;
 
 /// 電力収支と DoD の入力。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -251,25 +251,24 @@ impl Analysis for EnergyBalance {
         super::mode_load::validate(&input.loads)?;
         sequence::validate(input)?;
         let period_s = input.timeline.orbit().period_s();
-        let ctx = Context::new(input, &battery, profile(input, &input.timeline)?, period_s);
+        let main = profile(input, &input.timeline)?;
+        let ctx = Context::new(input, &battery, &main, period_s);
         let base = duration::BaseMode::new(&ctx)?;
         let mut cases = Vec::with_capacity(input.cases.len());
         for c in &input.cases {
             let own = match &c.attitude {
                 None => None,
-                Some(law) => Some(Context::new(
-                    input,
-                    &battery,
-                    profile(input, &with_law(input, law))?,
-                    period_s,
-                )),
+                Some(law) => Some(profile(input, &with_law(input, law))?),
             };
-            let case_ctx = own.as_ref().unwrap_or(&ctx);
-            let mut result = evaluate_case(case_ctx, c)?;
+            let own_ctx = own
+                .as_ref()
+                .map(|p| Context::new(input, &battery, p, period_s));
+            let case_ctx = own_ctx.as_ref().unwrap_or(&ctx);
+            let (mut result, _) = evaluate_case(case_ctx, c)?;
             duration::apply(case_ctx, c, base.as_ref(), &mut result)?;
             cases.push(result);
         }
-        let sequence = sequence::evaluate(&ctx)?;
+        let sequence = sequence::evaluate(&ctx)?.map(|(s, _)| s);
         Ok(ctx.output(
             cases,
             sequence,
@@ -278,71 +277,14 @@ impl Analysis for EnergyBalance {
     }
 }
 
-/// 軌道・期間・刻み・β はそのままで姿勢則だけを替えた時系列。
-fn with_law(input: &EnergyBalanceInput, law: &AttitudeLaw) -> TimelineSpec {
-    let mut spec = input.timeline.clone();
-    spec.attitude = law.clone();
-    spec
-}
-
-/// モードの姿勢則（`mode_attitudes`）での発電。姿勢則の無いモードは `ctx` の発電のまま。
-fn mode_generation(ctx: &Context, mode: &str) -> Result<Vec<f64>, AnalysisError> {
-    match ctx.input.mode_attitudes.get(mode) {
-        None => Ok(ctx.generation.clone()),
-        Some(law) => Ok(profile(ctx.input, &with_law(ctx.input, law))?.total(ctx.input.life)),
-    }
-}
-
-/// 時系列に沿った発電。
-fn profile(input: &EnergyBalanceInput, spec: &TimelineSpec) -> Result<SolarProfile, AnalysisError> {
-    Ok(SolarProfile::build(&input.array, &timeline::build(spec)?))
-}
-
-/// 1 つの姿勢則での時系列と集計（ケースが姿勢則を替えなければ全ケースで共通）。
-struct Context<'a> {
-    input: &'a EnergyBalanceInput,
-    battery: &'a EnergyBalanceBattery,
-    profile: SolarProfile,
-    generation: Vec<f64>,
-    ranges: Vec<Range<usize>>,
-    period_s: f64,
-}
-
-impl<'a> Context<'a> {
-    fn new(
-        input: &'a EnergyBalanceInput,
-        battery: &'a EnergyBalanceBattery,
-        profile: SolarProfile,
-        period_s: f64,
-    ) -> Self {
-        Self {
-            generation: profile.total(input.life),
-            ranges: orbit_ranges(&profile.t, period_s),
-            input,
-            battery,
-            profile,
-            period_s,
-        }
-    }
-
-    /// 時刻・日照・周回はそのままで、発電だけを替えた文脈（モードの並びで姿勢則が切り替わるとき）。
-    fn with_generation(&self, generation: Vec<f64>) -> Self {
-        Self {
-            input: self.input,
-            battery: self.battery,
-            profile: self.profile.clone(),
-            generation,
-            ranges: self.ranges.clone(),
-            period_s: self.period_s,
-        }
-    }
-
-    fn output(
+impl Context<'_> {
+    pub(super) fn output(
         self,
         cases: Vec<EnergyBalanceCaseResult>,
         sequence: Option<EnergyBalanceSequence>,
-        mode_loads: super::mode_load::ModeLoadOutput,
+        mode_loads: crate::power::mode_load::ModeLoadOutput,
     ) -> EnergyBalanceOutput {
+        let p = self.profile;
         EnergyBalanceOutput {
             life: self.input.life,
             mode_loads,
@@ -352,18 +294,18 @@ impl<'a> Context<'a> {
             complete_orbits: self.ranges.len(),
             span_fallback: span_fallback(self.ranges.len(), SpanFallback::OrbitMeanOverSpan),
             orbit_average_generation: Qty::from_raw(orbit_mean(
-                &self.profile.t,
+                &p.t,
                 &self.generation,
                 &self.ranges,
             )),
-            eclipses: self.profile.eclipses,
-            sunlit_fraction: time_fraction(&self.profile.t, &self.profile.lit, &self.ranges),
+            eclipses: p.eclipses.clone(),
+            sunlit_fraction: time_fraction(&p.t, &p.lit, &self.ranges),
             series: Series {
                 channels: vec![
                     Channel::of::<Power>("generation", ChannelKind::Generation, self.generation),
-                    Channel::of::<Fraction>("sunlit", ChannelKind::Sunlit, self.profile.sunlit),
+                    Channel::of::<Fraction>("sunlit", ChannelKind::Sunlit, p.sunlit.clone()),
                 ],
-                t: self.profile.t,
+                t: p.t.clone(),
             },
             cases,
             sequence,
@@ -372,11 +314,15 @@ impl<'a> Context<'a> {
 }
 
 mod case;
+mod context;
 mod duration;
+mod scaled;
 mod sequence;
 mod verdict;
 use case::evaluate_case;
+use context::{Context, profile, with_law};
 pub use duration::EnergyBalanceDuration;
+pub use scaled::{ScaledBalance, ScaledJudgement};
 pub use sequence::{EnergyBalanceSegment, EnergyBalanceSequence};
 
 #[cfg(test)]

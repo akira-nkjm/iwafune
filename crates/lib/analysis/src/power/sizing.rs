@@ -1,11 +1,16 @@
-//! SMAD の逆算サイジング。季節の蝕・モード負荷・発電モデルの正本を共有する。
+//! 電源の逆算サイジング。季節の蝕・モード負荷・発電モデル・電力収支の正本を共有する。
+//!
+//! - SMAD の式（[`calculate::smad_requirements`]）: 手計算と比べられる参考値（`smad`・`modes` の SMAD の欄）。
+//! - 時系列の逆算（[`series`]）: 電力収支と同じ運用で 1 周の収支 ≥ 0 の最小面積と、DoD が上限に収まる最小容量。
+//!   KPI と判定（`sap_margin`・`battery_margin`・`mode_checks`）はこちらで行う（`basis`）。判定できなければ SMAD で行う。
 use super::battery::EnergyBalanceBattery;
+use super::energy_balance::EnergyBalanceSegment;
 use super::mode_load::{ModeLoad, ModeLoadInput};
 use super::solar::{SolarArray, SolarPanel};
 use crate::orbit::{EclipseSeason, EclipseSeasonInput, EclipseSeasonPoint};
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, ensure_fraction,
-    ensure_non_negative, ensure_positive, quantity_text, ratio_margin, ratio_margin_verdict,
+    ensure_non_negative, ensure_positive, quantity_text, ratio_margin_verdict,
 };
 use sat_astro::attitude::AttitudeLaw;
 use sat_astro::constants::AU;
@@ -59,6 +64,15 @@ pub struct SizingInput {
     pub cells: Vec<SizingCell>,
     pub batteries: Vec<EnergyBalanceBattery>,
     pub options: SizingOptions,
+    /// モードの最長継続時間（`power.energy_balance` と同じ。時系列の逆算で基本のモードの上に 1 回入れる）
+    #[serde(default)]
+    pub max_durations: BTreeMap<String, Qty<Time>>,
+    /// モードの並び（`power.energy_balance` と同じ。全モードを逆算するときだけ時系列の逆算に使う）
+    #[serde(default)]
+    pub sequence: Vec<EnergyBalanceSegment>,
+    /// 最長継続時間の評価で下に敷く基本のモード（`power.energy_balance` と同じ）
+    #[serde(default)]
+    pub base_mode: Option<String>,
 }
 
 /// 計算に用いた仮定。寿命はミッション期間の Julian year 換算。
@@ -79,7 +93,8 @@ pub struct SizingUsed {
     pub panels: Vec<SolarPanel>,
 }
 
-/// モードごとの逆算。入射係数は姿勢則の時系列での日照中の平均発電 / 真上から当たるときの発電。
+/// モードごとの逆算。`required_*` は SMAD の式、`series_*` は時系列の逆算（[`SizingSeriesTarget`]）。
+/// 入射係数は姿勢則の時系列での日照中の平均発電 / 真上から当たるときの発電。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct SizingMode {
@@ -88,8 +103,53 @@ pub struct SizingMode {
     pub eclipse_load: Qty<Power>,
     pub incidence_factor: Fraction,
     pub required_generation: Qty<Power>,
+    /// SMAD の式の必要面積
+    pub required_area: Qty<Area>,
+    /// SMAD の式の必要容量（合計）
+    pub required_capacity: Qty<Energy>,
+    /// 時系列の逆算の必要面積（時系列の逆算ができなければ None）
+    #[serde(default)]
+    pub series_area: Option<Qty<Area>>,
+    /// 時系列の逆算の必要容量（全体の必要面積で求めたもの）
+    #[serde(default)]
+    pub series_capacity: Option<Qty<Energy>>,
+    /// 時系列の面積 / SMAD の面積（SMAD がどれだけ少なく見ていたか。SMAD が 0 なら None）
+    #[serde(default)]
+    pub area_ratio: Option<Fraction>,
+    /// 時系列の容量 / SMAD の容量
+    #[serde(default)]
+    pub capacity_ratio: Option<Fraction>,
+}
+
+/// KPI と判定に使った必要量の求め方。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "snake_case")]
+pub enum SizingBasis {
+    /// 時系列の逆算（電力収支と同じ運用）
+    #[default]
+    TimeSeries,
+    /// SMAD の式（時系列の逆算ができなかったとき）
+    Smad,
+}
+
+/// SMAD の式による全体の必要量（参考値）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct SizingSmad {
+    pub required_generation: Qty<Power>,
     pub required_area: Qty<Area>,
     pub required_capacity: Qty<Energy>,
+    pub sap_margin: Option<Fraction>,
+    pub battery_margin: Option<Fraction>,
+    /// 必要面積が最大のモード
+    pub area_mode: String,
+    /// 必要容量が最大のモード
+    pub capacity_mode: String,
+    /// `area_mode` の日照中の負荷
+    pub sunlit_load: Qty<Power>,
+    /// `capacity_mode` の蝕中の負荷
+    pub eclipse_load: Qty<Power>,
 }
 
 /// 同じセルを使う場合の太陽電池全体の直並列数。
@@ -101,13 +161,14 @@ pub struct SizingStrings {
     pub required_current: Qty<ElectricCurrent>,
 }
 
-/// 必要量と現在値の比較。容量は N 組の合計を返す。面積は `area_mode`、容量は `capacity_mode` で決まる。
+/// 必要量と現在値の比較。必要量・余裕・決めた運用は `basis` の求め方の値（容量は N 組の合計）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct SizingOutput {
-    /// モードごとの面積・容量の判定。
+    /// KPI と判定に使った必要量の求め方
+    pub basis: SizingBasis,
+    /// モードごとの面積・容量の判定（`basis` の値で）。
     pub mode_checks: BTreeMap<String, Vec<Check>>,
-    pub required_generation: Qty<Power>,
     pub required_area: Qty<Area>,
     pub required_capacity: Qty<Energy>,
     pub required_capacity_per_string: Qty<Energy>,
@@ -115,15 +176,16 @@ pub struct SizingOutput {
     pub design_capacity: Qty<Energy>,
     pub sap_margin: Option<Fraction>,
     pub battery_margin: Option<Fraction>,
-    pub strings: Option<SizingStrings>,
-    /// 必要面積が最大のモード
+    /// 必要面積を決めた運用（モードの ID か `sequence`）
     pub area_mode: String,
-    /// 必要容量が最大のモード
+    /// 必要容量を決めた運用
     pub capacity_mode: String,
-    /// `area_mode` の日照中の負荷
-    pub sunlit_load: Qty<Power>,
-    /// `capacity_mode` の蝕中の負荷
-    pub eclipse_load: Qty<Power>,
+    /// SMAD の式による全体の必要量（参考値）
+    pub smad: SizingSmad,
+    /// 時系列の逆算（できなければ None。理由は `checks` の `time_series`）
+    pub time_series: Option<SizingTimeSeries>,
+    /// 直並列数（SMAD の必要発電と、面積を決めたモードの入射係数から）
+    pub strings: Option<SizingStrings>,
     pub modes: Vec<SizingMode>,
     pub sunlit_duration: Qty<Time>,
     pub eclipse_duration: Qty<Time>,
@@ -151,97 +213,60 @@ impl Analysis for Sizing {
         let used = used(input, &battery)?;
         let SizingLoads { loads, mut checks } = loads(input)?;
         let season = EclipseSeason::run(&input.season)?;
-        let te = season.max_eclipse_duration.value();
-        let td = input.season.orbit.period_s() - te;
+        let (period, te) = (
+            input.season.orbit.period_s(),
+            season.max_eclipse_duration.value(),
+        );
+        let td = period - te;
         let (design_area, array) = design(input)?;
-        let modes = modes::evaluate(input, &array, &used, &loads, td, te)?;
-        let mode_checks = mode_checks(&modes, design_area, battery.capacity);
-        let area = modes::governing(&modes, |m| m.required_area.value());
-        let capacity = modes::governing(&modes, |m| m.required_capacity.value());
-        let sap_margin = ratio_margin(design_area.value(), area.required_area.value());
-        let battery_margin =
-            ratio_margin(battery.capacity.value(), capacity.required_capacity.value());
-        checks.push(margin_check::<Area>(
-            "sap_margin",
-            "太陽電池の余裕",
-            sap_margin,
-            design_area.value(),
-            area.required_area.value(),
-        ));
-        checks.push(margin_check::<Energy>(
-            "battery_margin",
-            "バッテリーの余裕",
-            battery_margin,
-            battery.capacity.value(),
-            capacity.required_capacity.value(),
-        ));
-        let generation = area.required_generation;
+        let mut modes = modes::evaluate(input, &array, &used, &loads, td, te)?;
+        let smad = smad_totals(&modes, design_area, battery.capacity);
+        let series = series::evaluate(
+            input,
+            &series::SeriesBasis {
+                battery: &battery,
+                used: &used,
+                design_area: design_area.value(),
+                longest: &season.longest,
+                loads: &loads,
+                smad: &modes,
+            },
+        )?;
+        let (chosen, time_series) = choose(series, &mut modes, &smad, &mut checks);
+        let (sap_margin, battery_margin) =
+            margin_checks(&chosen, design_area, battery.capacity, &mut checks);
         Ok(SizingOutput {
-            mode_checks,
-            required_generation: generation,
-            required_area: area.required_area,
-            required_capacity: capacity.required_capacity,
-            required_capacity_per_string: capacity.required_capacity
-                / f64::from(used.battery_strings),
+            basis: chosen.basis,
+            mode_checks: mode_checks(&modes, chosen.basis, design_area, battery.capacity),
+            required_area: chosen.area,
+            required_capacity: chosen.capacity,
+            required_capacity_per_string: chosen.capacity / f64::from(used.battery_strings),
             design_area,
             design_capacity: battery.capacity,
             sap_margin,
             battery_margin,
-            strings: strings(
-                input,
-                &used,
-                generation.value(),
-                area.incidence_factor.value(),
-            )?,
-            area_mode: area.id.clone(),
-            capacity_mode: capacity.id.clone(),
-            sunlit_load: area.sunlit_load,
-            eclipse_load: capacity.eclipse_load,
+            strings: smad_strings(input, &used, &modes, &smad)?,
+            area_mode: chosen.area_mode,
+            capacity_mode: chosen.capacity_mode,
+            smad,
+            time_series,
             sunlit_duration: Qty::from_raw(td),
             eclipse_duration: Qty::from_raw(te),
             longest: season.longest,
-            modes: modes.clone(),
+            modes,
             used,
             checks,
         })
     }
 }
 
-/// 各モードの必要量を同じ面積・容量の基準で比較する。
-fn mode_checks(
-    modes: &[SizingMode],
-    area: Qty<Area>,
-    capacity: Qty<Energy>,
-) -> BTreeMap<String, Vec<Check>> {
-    modes
-        .iter()
-        .map(|m| {
-            (
-                m.id.clone(),
-                vec![
-                    margin_check::<Area>(
-                        "sap_margin",
-                        "太陽電池の余裕",
-                        ratio_margin(area.value(), m.required_area.value()),
-                        area.value(),
-                        m.required_area.value(),
-                    ),
-                    margin_check::<Energy>(
-                        "battery_margin",
-                        "電池の余裕",
-                        ratio_margin(capacity.value(), m.required_capacity.value()),
-                        capacity.value(),
-                        m.required_capacity.value(),
-                    ),
-                ],
-            )
-        })
-        .collect()
-}
-
 mod calculate;
+mod judge;
 mod modes;
-use calculate::{SizingLoads, design, loads, margin_check, strings, used};
+mod series;
+use calculate::{SizingLoads, design, loads, used};
+use judge::{choose, margin_checks, mode_checks, smad_strings, smad_totals};
+pub use series::{AREA_TOLERANCE, SizingSeriesTarget, SizingTimeSeries, worst_season};
 
 #[cfg(test)]
 mod tests;

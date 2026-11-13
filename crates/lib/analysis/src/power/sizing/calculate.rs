@@ -21,19 +21,20 @@ pub(super) fn smad_requirements(
     Ok((generation, area, capacity))
 }
 
+/// 設計値と必要量の比の余裕の判定。`note` は必要量の求め方（文の括弧書き）。
 pub(super) fn margin_check<K: sat_units::typed::NamedKind>(
-    key: &str,
-    label: &str,
+    (key, label): (&str, &str),
     margin: Option<Fraction>,
     design: f64,
     required: f64,
+    note: &str,
 ) -> Check {
     Check::new(
         key,
         label,
         ratio_margin_verdict(margin, Fraction::new(0.0)),
         format!(
-            "設計 {} / 必要 {}",
+            "設計 {} / 必要 {}（{note}）",
             quantity_text::<K>(design),
             quantity_text::<K>(required)
         ),
