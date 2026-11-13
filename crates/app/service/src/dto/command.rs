@@ -158,3 +158,20 @@ pub struct KindAddText {
     /// ポートの雛形（`"PWR=power"` の列。`--port` の繰り返し。読み方は `edit::port_template_from_text`）
     pub ports: Vec<String>,
 }
+
+/// 季節解析のケースにする標本。
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum EclipseCaseAt {
+    Longest,
+    BetaMin,
+}
+
+/// `fune case from-eclipse` と HTTP が共有する要求。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CaseFromEclipseRequest {
+    pub id: String,
+    pub at: EclipseCaseAt,
+    #[serde(default)]
+    pub mode: Option<String>,
+}

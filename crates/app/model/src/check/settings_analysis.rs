@@ -26,6 +26,7 @@ pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
         );
     }
     check_power(ctx);
+    check_power_sizing(ctx);
     check_aocs(ctx);
     check_cdh(ctx);
     check_comm(ctx);
@@ -34,6 +35,35 @@ pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
 
 fn mode_exists(design: &Design, mode: &str) -> bool {
     design.modes.contains_key(mode)
+}
+
+fn check_power_sizing(ctx: &mut Ctx) {
+    let Some(p) = ctx
+        .design
+        .analysis
+        .power
+        .as_ref()
+        .and_then(|p| p.sizing.as_ref())
+    else {
+        return;
+    };
+    let mut s = scope(ctx, AnalysisSystem::Power.setting_path());
+    for (key, value) in [
+        ("sunlit_efficiency", p.sunlit_efficiency),
+        ("eclipse_efficiency", p.eclipse_efficiency),
+        ("battery_efficiency", p.battery_efficiency),
+        ("annual_degradation", p.annual_degradation),
+        ("inherent_degradation", p.inherent_degradation),
+    ] {
+        s.fraction(&["sizing", key], value);
+    }
+    if p.battery_strings == Some(0) {
+        s.error(
+            &["sizing", "battery_strings"],
+            "setting.range",
+            "電池の組数は正にしてください".into(),
+        );
+    }
 }
 
 fn check_power(ctx: &mut Ctx) {

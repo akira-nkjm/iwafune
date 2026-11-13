@@ -28,6 +28,9 @@
 | 機能 | 置き場所 | 備考 |
 |---|---|---|
 | 解析の区分・前提条件の話題 | `sat_analysis::spec::{AnalysisArea, ConditionTopic}`（葉の `spec::area` から再公開）・`fune_model::design::ConditionTopic` | 区分は系または条件の話題。model ⇄ analysis の話題の対応と区分のキーは `fune_projection::system`。話題の設定は `design::conditions`、対応する条件のファイル内に置く |
+| β の季節変動・1 周の本影と半影の集計 | `sat_analysis::orbit::eclipse_season`・`fune_projection::orbit` | 季節の入力は軌道・ミッション期間・任意の刻み（β の指定なし）。周回内は既存の時刻格子と states_at を使い太陽を固定。円錐影・伝搬・β は sat-astro。季節の刻みの既定値は解析。設定は `conditions/orbit.toml` |
+| 季節解析からケースを作る | `fune_service::edit::eclipse` | CLI / HTTP 共通で `SetCase` Op を作る。日付は description に保存 |
+| Web の時系列グラフ | `web/src/analysis/SeriesChart.tsx` | 系・条件の解析で共有する。表示単位は service が付加 |
 | Web の解析の KPI 帯 | `web/src/analysis/AnalysisKpis.tsx` | 系・前提条件のページが共用する表示 |
 
 | 機能 | 置き場所 | 備考 |
@@ -85,9 +88,10 @@
 | 各解析 | `sat_analysis::<系>::<名前>` | 1 ファイル 1 解析。一覧は docs/architecture.md §6.1 |
 | 擾乱トルク | `sat_analysis::aocs::disturbance` | 重力傾斜・空力・SRP・残留磁気。`DisturbanceSurface::from_box` が箱の最大面積 × 係数を求める。`DisturbanceSpacecraft::torques(central, &TimelineSample)`（μ・磁場・大気は中心天体のもの、風・抗力・輻射圧は `sat_astro::force`）。種類は `DisturbanceKind`（表示名は持たない）。アンロード頻度と時系列で共有 |
 | RW の組への配分（擬似逆行列）と容量 | `sat_analysis::aocs::wheels` | `RwWheel`・`WheelSet::{distribute, capacity_along}`・使ってよい割合 `usable_momentum_fraction`（既定 `DEFAULT_USABLE_MOMENTUM_FRACTION` = 0.8。既定値はここだけ）。台数・配置は任意 |
-| 太陽電池の発電モデル | `sat_analysis::power::solar` | `SolarPanel`・`SolarArray::{panel_powers, sample_powers}`・時系列 `SolarProfile`（日照中かは `lit`。判定は `spec::is_sunlit`）・`eclipses`（`timeline::shadow_windows` に `spec::SUNLIT_THRESHOLD`）。日照時・軌道上・収支で共有 |
+| 太陽電池の発電モデル | `sat_analysis::power::solar` | `SolarPanel`・`SolarArray::{panel_powers, sample_powers}`・時系列 `SolarProfile`（日照中かは `lit`。判定は `spec::is_sunlit`）・`eclipses`（`timeline::shadow_windows` に `spec::SUNLIT_THRESHOLD`）。日照時・軌道上・収支・逆算で共有 |
+| 電源の逆算サイジング | `sat_analysis::power::sizing`・`fune_projection::power::sizing` | SMAD の必要発電・SAP 面積・電池容量・直並列。季節解析は `orbit::EclipseSeason`、負荷は `mode_load`、入射は `orbit_generation` の日照中の平均（姿勢則とモードごとの上書きは `power.energy_balance` と同じ。時系列は `fune_projection::power::attitude_timeline`）、発電は `solar` を再利用。既定値は解析、写し替えは projection。部品への書き戻しはしない |
 | 電池の充放電の積分 | `sat_analysis::power::battery` | `simulate`（`ode::rk4_linear_step` で積分、容量で切る、シャント）。電力収支が使う。`power::battery::EnergyBalanceBattery::combine` が電池容量を合計し、電圧・効率は先頭を採用 |
-| モードの消費電力の集計 | `sat_analysis::power::mode_load::evaluate_mode` | `power.mode_load` と `power.energy_balance` で共有（平均と警告は `modes::evaluate`）。台数と予備状態は `modes::counted_states`、日照と蝕を別々に評価 |
+| モードの消費電力の集計 | `sat_analysis::power::mode_load::evaluate_mode` | `power.mode_load`・`power.energy_balance`・`power.sizing` で共有（平均と警告は `modes::evaluate`）。台数と予備状態は `modes::counted_states`、日照と蝕を別々に評価 |
 | 回線計算の部品（FSPL・EIRP・Eb/N0） | `sat_analysis::comm::link` | `RfLinkParams::{evaluate, eb_n0_margin_db, min_elevation_for_margin}`（斜距離は `sat_astro::ground::slant_range_m` に中心天体の半径を渡す）・`fspl_db`・`eirp_dbw`・`g_over_t_dbk`・`c_over_n0_dbhz`・`eb_over_n0_db`・`max_data_rate_bps`・要求余裕 `required_margin`（既定 `DEFAULT_REQUIRED_MARGIN`。既定値はここだけ）。入力の dB（利得・損失・所要 Eb/N0・要求余裕）は `Decibel`。要求余裕はどちらの解析も入力の直下（`required_margin_db`）。dB の換算は `sat_units::{ratio_to_db, db_to_ratio}`、閉じる仰角の探索は `sat_astro::math::bisect`。回線バジェットと送信量で共有 |
 | 複数局のパスの集計 | `sat_analysis::comm::passes` | 検出は `sat_astro::ground::find_passes` だけ。ここは標本の取り方を検査して探す窓にし（`search_window` → `SearchWindow`。β を当てた軌道）、局をまとめて AOS 順に並べ、開始からの秒の区間・日の窓に直す（`find_all_passes`・`pass_interval`・`union_sorted`・`day_windows`）。可視と送信量で共有 |
 | 熱ネットワークの解法 | `sat_analysis::thermal::network` | 型（`ThermalNetwork` ほか）。`ThermalMounts::links` が取付から並列伝導・節点対ごとの放射結合を作る。`ThermalModeLoads::evaluate` が `modes::evaluate` で単体平均電力と警告を求める。節点の熱容量と動作範囲のまとめ（`ThermalNode::{heat_capacity, operating}`）・熱収支・微分・安定な刻みの目安。定常解の Newton 法は `network::newton`（線形ソルバーは `sat_astro::math::solve_dense`）、初期値 `INITIAL_GUESS_K`（290 K。初期値はこれだけ）。定常・非定常で共有 |
@@ -241,6 +245,8 @@
 | `charge_efficiency` / `discharge_efficiency` | Dimensionless | — | | battery |
 | `area` | Area | m^2, cm^2 | | solar_panel, panel |
 | `cell_efficiency` / `packing_factor` / `eol_factor` | Dimensionless | — | | solar_panel |
+| `cell_voltage` | Voltage | V | | solar_panel（直並列の任意入力） |
+| `cell_current` | ElectricCurrent | A, mA | | solar_panel（直並列の任意入力） |
 | `normal` | Dimensionless（ベクトル、部品座標） | — | | solar_panel, panel |
 | `max_momentum` | AngularMomentum | N*m*s, mN*m*s | | reaction_wheel |
 | `max_torque` | Torque | N*m, mN*m | | reaction_wheel |
@@ -278,6 +284,8 @@
 
 | 日時 | 変更 | 理由 |
 |---|---|---|
+| 2026-11-13 | `power.sizing` と電源の設定・射影・KPI、セル電圧・電流属性を追加。最長蝕・負荷・発電モデルは既存の正本を共有 | 電源の必要面積・容量を解析の出力として比較するため（#7） |
+| 2026-11-13 | ミッション期間・季節刻み、軌道の β と本影・半影の季節解析・KPI・共通グラフ、代表標本から SetCase を作る CLI / HTTP / GUI とパリティ・往復見本を追加 | #3 |
 | 2026-11-13 | 前提条件を conditions/ に分離し mission/ を #9 用に予約。解析の所属を AnalysisArea（系／条件の話題）にし、CLI・API・web・KPI の区分と URL を更新 | #74 |
 | 2026-11-12 | #6: 継続時間・蝕・稼働台数・冗長を追加。台数評価は sat-analysis::modes、検査は model::check::modes、C&DH のレートを mode_rates に分離 | 電力・データ量・発熱で同じ台数を使う |
 | 2026-11-11 | 電力収支の `EnergyBalanceCaseResult.energy_margin_per_orbit` を Option にし、1 周未満は `energy_margin_over_span` に期間の収支を返して周回の収支判定を Warning とする。表示欄を日英で追加 | 解析期間全体の収支を 1 周あたりの余裕として出していたため（#47） |

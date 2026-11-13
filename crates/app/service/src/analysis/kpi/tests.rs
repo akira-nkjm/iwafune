@@ -54,7 +54,7 @@ fn every_kpi_comes_from_exactly_one_analysis() {
                 .all(|d| !d.label.is_empty() && !d.label_en.is_empty())
         );
     }
-    assert_eq!(seen.len(), 22, "KpiKey のすべての値が表にある");
+    assert_eq!(seen.len(), 27, "KpiKey のすべての値が表にある");
 }
 
 /// 判定を数える KPI: 数と OK でない数、塗りは OK の割合（手で数えた 9 件中 4 件）。
@@ -157,4 +157,24 @@ fn missing_or_foreign_outputs_give_no_values() {
         )
         .is_empty()
     );
+}
+
+#[test]
+fn sizing_kpis_have_independent_verdicts() {
+    let mut sap = check(Verdict::Violation);
+    sap.key = "sap_margin".into();
+    let mut battery = check(Verdict::Ok);
+    battery.key = "battery_margin".into();
+    // 出力が型に戻せなくても、定義と判定は独立して表示できる。
+    let out = kpis(
+        "power.sizing",
+        Some(&json!({})),
+        &[sap, battery],
+        KpiContext::default(),
+    );
+    assert_eq!(out.len(), 2);
+    assert_eq!(out[0].key, KpiKey::SapMargin);
+    assert_eq!(out[0].verdict, Some(Verdict::Violation));
+    assert_eq!(out[1].key, KpiKey::BatteryMargin);
+    assert_eq!(out[1].verdict, Some(Verdict::Ok));
 }

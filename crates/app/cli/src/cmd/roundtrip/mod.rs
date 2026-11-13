@@ -154,6 +154,7 @@ fn every_op_survives_to_cli_and_back() {
     let ws = workspace();
     let all: Vec<Op> = [
         samples::view_ops(),
+        samples::eclipse_cases(),
         part_ops(),
         def_ops(),
         system_ops(),

@@ -1,5 +1,5 @@
 //! 太陽電池の発電モデル。**日照時（`power.solar_sunlit`）・軌道上（`power.orbit_generation`）・
-//! 収支（`power.energy_balance`）の 3 つの解析はこのモデルだけを使う。**
+//! 収支（`power.energy_balance`）・逆算（`power.sizing`）はこのモデルだけを使う。**
 //!
 //! パネル 1 枚の発電（バス側）:
 //! `P = Φ · A · η_cell · f_pack · η_conv · f_life · max(0, n̂·ŝ) · ν`
@@ -147,6 +147,14 @@ impl SolarArray {
                 p.power(flux, solar_incidence(normal, sun, sunlit), life) * conv
             })
             .collect()
+    }
+
+    /// 全パネルに真上から当たるときの発電の合計（バス側）[W]。姿勢による実効の入射係数の基準。
+    pub fn normal_incidence_power(&self, flux: Qty<Irradiance>, life: SolarLife) -> Qty<Power> {
+        let conv = self.conversion_efficiency();
+        self.panels
+            .iter()
+            .fold(Qty::ZERO, |sum, p| sum + p.power(flux, 1.0, life) * conv)
     }
 
     /// 時系列の 1 点でのパネルごとの発電（バス側）[W]。太陽方向・日照率・太陽距離はサンプルから取る。

@@ -15,6 +15,16 @@ export const conditionsJa = {
     conditionsSettings: "前提条件の設定",
     conditionsSettingsCaption: "キーが conditions. で始まる設定",
     noConditionsSettings: "conditions/ の設定がありません",
+    eclipseSeries: "β と蝕の季節変動",
+    eclipseApproximation:
+      "各標本日の1周では太陽位置を固定。蝕は本影と半影の合計、半影の系列は本影を含まない時間です。極値は標本日の中から選びます。",
+    createEclipseCase: "このケースを作る",
+    eclipseLongest: "最長蝕の日",
+    eclipseBetaMin: "β 最小の日",
+    caseId: "新しいケースの ID",
+    caseMode: "モード（任意）",
+    noCaseMode: "指定しない",
+    eclipseCaseDescription: "条件を再解析してケースを作ります。β と選んだ日付を保存します。",
     visibilityPerStation: "地上局ごとの可視",
   },
 };

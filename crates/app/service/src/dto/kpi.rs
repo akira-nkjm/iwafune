@@ -11,6 +11,12 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum KpiKey {
+    /// 季節の最長蝕（本影と半影の合計）。
+    LongestEclipse,
+    /// 季節の β の最小値。
+    BetaMin,
+    /// 季節の β の最大値。
+    BetaMax,
     /// バジェットのモード（ケースのモード、無ければ成長余裕込みの合計が最大のモード）の消費電力
     ModeLoad,
     /// 軌道平均の発電
@@ -19,6 +25,10 @@ pub enum KpiKey {
     OrbitBalance,
     /// 最大 DoD（ケースのうち最大）
     MaxDod,
+    /// SAP 面積の余裕。
+    SapMargin,
+    /// 電池容量の余裕。
+    BatteryMargin,
     /// RW のアンロード間隔
     UnloadInterval,
     /// RW の最大角運動量

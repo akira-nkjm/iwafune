@@ -55,6 +55,7 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
         .route("/ops/from_text", post(edit::op_from_text))
         .route("/ops/unset_from_text", post(edit::op_unset_from_text))
         .route("/ops/from_command", post(edit::ops_from_command))
+        .route("/ops/case_from_eclipse", post(edit::case_from_eclipse))
         .route("/units", get(units::catalog))
         .route("/units/parse", post(units::parse))
         .route("/units/format", post(units::format))

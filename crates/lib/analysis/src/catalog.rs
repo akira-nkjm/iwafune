@@ -30,6 +30,7 @@ registry!(
     power::SolarSunlit,
     power::OrbitGeneration,
     power::EnergyBalance,
+    power::Sizing,
     aocs::RwUnloading,
     aocs::UnloadTime,
     aocs::SensorFov,
@@ -42,6 +43,7 @@ registry!(
     structure::MassProperties,
     structure::StaticLoad,
     structure::ModalEstimate,
+    crate::orbit::EclipseSeason,
 );
 
 /// 型付き入力で登録済み解析を実行する。動的実行と budget が共有する入口。

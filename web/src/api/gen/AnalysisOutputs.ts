@@ -3,6 +3,7 @@ import type { ModeLoadOutput } from "./ModeLoadOutput";
 import type { SolarSunlitOutput } from "./SolarSunlitOutput";
 import type { OrbitGenerationOutput } from "./OrbitGenerationOutput";
 import type { EnergyBalanceOutput } from "./EnergyBalanceOutput";
+import type { SizingOutput } from "./SizingOutput";
 import type { RwUnloadingOutput } from "./RwUnloadingOutput";
 import type { UnloadTimeOutput } from "./UnloadTimeOutput";
 import type { SensorFovOutput } from "./SensorFovOutput";
@@ -15,11 +16,13 @@ import type { ThermalTransientOutput } from "./ThermalTransientOutput";
 import type { MassPropertiesOutput } from "./MassPropertiesOutput";
 import type { StaticLoadOutput } from "./StaticLoadOutput";
 import type { ModalEstimateOutput } from "./ModalEstimateOutput";
+import type { EclipseSeasonOutput } from "./EclipseSeasonOutput";
 export type AnalysisOutputs = {
   "power.mode_load": ModeLoadOutput;
   "power.solar_sunlit": SolarSunlitOutput;
   "power.orbit_generation": OrbitGenerationOutput;
   "power.energy_balance": EnergyBalanceOutput;
+  "power.sizing": SizingOutput;
   "aocs.rw_unloading": RwUnloadingOutput;
   "aocs.unload_time": UnloadTimeOutput;
   "aocs.sensor_fov": SensorFovOutput;
@@ -32,4 +35,5 @@ export type AnalysisOutputs = {
   "structure.mass_properties": MassPropertiesOutput;
   "structure.static_load": StaticLoadOutput;
   "structure.modal_estimate": ModalEstimateOutput;
+  "orbit.eclipse_season": EclipseSeasonOutput;
 };

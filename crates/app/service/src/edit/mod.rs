@@ -7,6 +7,7 @@
 //! | `catalog` | `fune catalog set|unset` |
 //! | `command` | 名詞のコマンドの引数（[`command_ops`]。`fune net set|unset`・`fune part place`・`fune mode set|unset`） |
 //! | `defs` | `fune attr add`・`fune kind add` |
+//! | `eclipse` | 季節解析の代表標本から新しい解析ケースの SetCase を作る |
 //! | `place` | 機体座標での配置（`fune part place --body-pos`・`POST /parts/{id}/place_body`） |
 
 use crate::diff;
@@ -21,6 +22,7 @@ use std::path::Path;
 mod catalog;
 mod command;
 mod defs;
+mod eclipse;
 mod place;
 mod text;
 
@@ -28,6 +30,7 @@ pub use command::{
     command_ops, duty_from_text, mode_duration_op, mode_set_op, net_set_ops, net_unset_op, place_op,
 };
 pub use defs::{attr_add_op, kind_add_op, port_template_from_text};
+pub use eclipse::case_from_eclipse_op;
 pub use fune_ops::{to_cli, to_cli_script};
 pub use place::{place_body, place_body_op};
 pub use text::{
