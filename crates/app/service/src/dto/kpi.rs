@@ -67,6 +67,16 @@ pub enum KpiKey {
     MinSafetyMargin,
     /// 最低の固有振動数
     MinFrequency,
+    /// マヌーバの遷移の時間（マヌーバのうち最長）
+    LongestTransfer,
+    /// マージン込みの ΔV
+    DvWithMargin,
+    /// 積む推薬（マージンと残る分込み）
+    LoadedPropellant,
+    /// タンクの容積の余裕（推薬のうち最小）
+    TankVolumeMargin,
+    /// 総インパルスの定格に対する余裕（スラスタのうち最小）
+    ImpulseMargin,
 }
 
 /// KPI の定義（`GET /analyses` の `AnalysisEntry.kpis`。結果が届く前に名前を並べるのに使う）。

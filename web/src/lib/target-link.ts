@@ -30,6 +30,10 @@ export function targetLink(
     case "mode":
     case "modes":
       return paths.modes();
+    case "maneuver":
+      return paths.maneuver(target.id);
+    case "maneuvers":
+      return paths.maneuvers();
     case "net":
     case "harness":
     case "view":

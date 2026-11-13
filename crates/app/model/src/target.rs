@@ -9,7 +9,7 @@
 //! | 部品の属性・フィールド、設定 | `RW_X.mass`・`RW_X.power.on`・`RW_X.count`・`analysis.power.dod_max` |
 //! | 部品のポート・取付・姿勢 | `RW_X.PWR`・`RW_X.mount`・`RW_X.pose`・`PANEL_MZ.mount_points.RW_SLOT_1` |
 //! | どれかの部品（役割で絞る） | `<部品>.power`・`<solar_panel>`・`<obc>.storage_capacity` |
-//! | モード・ネット・ハーネス・ケース | `modes.NOMINAL.TRX`・`nets.P12V.rail`・`harness.H1.length`・`cases.HOT.beta` |
+//! | モード・ネット・ハーネス・ケース・マヌーバ | `modes.NOMINAL.TRX`・`nets.P12V.rail`・`harness.H1.length`・`cases.HOT.beta`・`maneuvers.RAISE.thruster` |
 //! | カタログ品・定義・図・出典 | `local/rw_10mNms.mass`・`mass`・`reaction_wheel`・`view.electrical.POWER`・`sources.em_test` |
 
 use crate::path::{AttrPath, ParamPath, PortRef, SettingPath};
@@ -47,12 +47,16 @@ pub enum Target {
     Mode { id: String, part: Option<String> },
     /// 運用モードの全体（1 つも無いとき）
     Modes,
+    /// マヌーバの全体（1 つも無いとき）
+    Maneuvers,
     /// ネット（`field` はネットのキー。`rail`・`source` など）
     Net { id: String, field: Option<String> },
     /// ハーネス区間（`field` は `from`・`to`・`length` など）
     Harness { id: String, field: Option<String> },
     /// 解析ケース（`field` は `beta` など）
     Case { id: String, field: Option<String> },
+    /// マヌーバ（`field` は `thruster`・`target.altitude` など）
+    Maneuver { id: String, field: Option<String> },
     /// カタログ品（`attr` があれば、その品の属性）
     Catalog { id: String, attr: Option<AttrPath> },
     /// 属性定義（`defs/attribute/<id>.toml`）
@@ -128,6 +132,14 @@ impl Target {
     /// 解析ケース（`field` があればそのキー。`cases.HOT.beta`）。
     pub fn case(id: impl Into<String>, field: Option<&str>) -> Self {
         Target::Case {
+            id: id.into(),
+            field: field.map(str::to_owned),
+        }
+    }
+
+    /// マヌーバ（`field` があればそのキー。`maneuvers.RAISE.thruster`）。
+    pub fn maneuver(id: impl Into<String>, field: Option<&str>) -> Self {
+        Target::Maneuver {
             id: id.into(),
             field: field.map(str::to_owned),
         }
@@ -219,12 +231,16 @@ impl fmt::Display for Target {
             }
             Target::Mode { id, part } => with_tail(f, format_args!("modes.{id}"), part.as_deref()),
             Target::Modes => f.write_str("modes"),
+            Target::Maneuvers => f.write_str("maneuvers"),
             Target::Net { id, field } => with_tail(f, format_args!("nets.{id}"), field.as_deref()),
             Target::Harness { id, field } => {
                 with_tail(f, format_args!("harness.{id}"), field.as_deref())
             }
             Target::Case { id, field } => {
                 with_tail(f, format_args!("cases.{id}"), field.as_deref())
+            }
+            Target::Maneuver { id, field } => {
+                with_tail(f, format_args!("maneuvers.{id}"), field.as_deref())
             }
             Target::Catalog { id, attr: None } => f.write_str(id),
             Target::Catalog { id, attr: Some(a) } => write!(f, "{id}.{a}"),
@@ -308,6 +324,10 @@ mod tests {
                     field: some("beta"),
                 },
                 "cases.HOT.beta",
+            ),
+            (
+                Target::maneuver("RAISE", Some("thruster")),
+                "maneuvers.RAISE.thruster",
             ),
             (
                 Target::Catalog {

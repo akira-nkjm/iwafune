@@ -3,7 +3,7 @@ use crate::Rational;
 use crate::typed::Dimension as TypedDimension;
 use crate::typed::{
     AbsorbedDose, AccelerationNoiseDensity, Angle, AngularMomentum, AngularRandomWalk, Area,
-    Dimensionless, ElectricCharge, Force, Frequency, Length, MassDensity, Pressure,
+    Dimensionless, ElectricCharge, Force, Frequency, Impulse, Length, MassDensity, Pressure,
     SpecificHeatCapacity, SquareRootFrequency, SquareRootTime, ThermalConductance, Velocity,
     Voltage,
 };
@@ -358,4 +358,15 @@ fn magnitude_parses_alone_only() {
             "{input} must be rejected"
         );
     }
+}
+
+#[test]
+fn impulse_units_parse_as_newton_seconds() {
+    for input in ["N*s", "mN*s", "uN*s", "kN*s", "kg*m/s"] {
+        assert_eq!(dimension_of(input), Impulse::DIM, "{input}");
+    }
+    close(parse_unit("mN*s").unwrap().scale(), 1.0e-3);
+    assert_eq!(parse_dimension("Impulse"), Ok(Impulse::DIM));
+    // 角運動量（N·m·s）とは次元が違う
+    assert_ne!(Impulse::DIM, AngularMomentum::DIM);
 }

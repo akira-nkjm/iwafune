@@ -26,6 +26,8 @@ enum_text! {
         Heater = "heater",
         Panel = "panel",
         Structure = "structure",
+        PropulsionThruster = "propulsion_thruster",
+        PropellantTank = "propellant_tank",
     }
 }
 
@@ -33,5 +35,6 @@ enum_text! {
 pub const STATE_OFF: &str = "off";
 
 /// スラスタ（role = thruster）の噴射している状態。モードでこの状態にある時間の割合だけ噴射するとみなす
-/// （推力誤差の擾乱）。組み込みの種別 thruster の語彙にあることは `builtin` のテストで確かめる。
+/// （推力誤差の擾乱）。推進系のスラスタ（role = propulsion_thruster）の噴射中の消費電力もこの状態の値。
+/// 組み込みの種別 thruster・propulsion_thruster の語彙にあることは `builtin` のテストで確かめる。
 pub const STATE_THRUSTER_FIRING: &str = "on";

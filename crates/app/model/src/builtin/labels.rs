@@ -37,7 +37,7 @@ pub struct Labels {
     #[serde(default)]
     pub section: BTreeMap<String, Label>,
     /// 列挙の型（`maturity`・`net_kind`・`source_kind`・`distribution`・`evidence`・`origin`・`severity`・`attitude_law`・
-    /// `propagator`・`link_direction`・`uncertainty_side`・`value_type`・`budget_kind`）→ 値 → 表示名
+    /// `propagator`・`link_direction`・`uncertainty_side`・`value_type`・`budget_kind`・`maneuver_category`・`maneuver_method`）→ 値 → 表示名
     #[serde(default, rename = "enum")]
     pub enums: BTreeMap<String, BTreeMap<String, Label>>,
     /// 列挙の型 → 値を選択肢に並べる順（`enum` の同じ型の値をすべて並べる。無い型は値の綴りの順）

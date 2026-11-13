@@ -30,6 +30,11 @@ const LABELLED: &[(&str, &[&str])] = &[
     ("link_direction", LinkDirection::NAMES),
     ("uncertainty_side", UncertaintySide::NAMES),
     ("value_type", ValueType::NAMES),
+    (
+        "maneuver_category",
+        fune_model::design::ManeuverCategory::NAMES,
+    ),
+    ("maneuver_method", fune_model::design::ManeuverMethod::NAMES),
 ];
 
 #[test]

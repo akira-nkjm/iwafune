@@ -109,11 +109,13 @@ mod tests {
 
     #[test]
     fn thruster_vocabulary_has_the_firing_state() {
-        let thruster = kinds()
-            .values()
-            .find(|k| k.role == Some(Role::Thruster))
-            .unwrap();
-        assert!(thruster.states.iter().any(|s| s == STATE_THRUSTER_FIRING));
+        for role in [Role::Thruster, Role::PropulsionThruster] {
+            let thruster = kinds().values().find(|k| k.role == Some(role)).unwrap();
+            assert!(
+                thruster.states.iter().any(|s| s == STATE_THRUSTER_FIRING),
+                "{role}"
+            );
+        }
     }
 
     #[test]

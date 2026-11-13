@@ -1,5 +1,5 @@
 //! 出典の検査: 出典の欄の形（日付・SHA-256）、値とカタログ品（`source`・`datasheet`）からの出典の参照、
-//! 書き込めないカタログ（共有カタログ）の品が公開できない出典を使っていないか（docs/model.md §7.7）。
+//! 書き込めないカタログ（共有カタログ）の品が公開できない出典を使っていないか（docs/model.md §7.8）。
 
 use super::Ctx;
 use crate::design::{EntityKey, split_catalog_ref};

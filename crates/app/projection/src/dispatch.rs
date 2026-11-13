@@ -3,7 +3,7 @@
 
 use crate::context::Context;
 use crate::missing::MissingInputs;
-use crate::{aocs, cdh, comm, power, structure, thermal};
+use crate::{aocs, cdh, comm, power, propulsion, structure, thermal};
 use sat_analysis::spec::Analysis;
 use sat_analysis::{
     aocs as aaocs, cdh as acdh, comm as acomm, power as apower, structure as astructure,
@@ -137,6 +137,10 @@ table!(
     astructure::StaticLoad => Some(structure::static_load),
     astructure::ModalEstimate => Some(structure::modal_estimate),
     sat_analysis::orbit::EclipseSeason => Some(crate::orbit::eclipse_season),
+    sat_analysis::propulsion::Maneuvers => Some(propulsion::maneuvers),
+    sat_analysis::propulsion::DvBudget => Some(propulsion::dv_budget),
+    sat_analysis::propulsion::Propellant => Some(propulsion::maneuvers),
+    sat_analysis::propulsion::ThrusterUsage => Some(propulsion::maneuvers),
 );
 
 #[cfg(test)]

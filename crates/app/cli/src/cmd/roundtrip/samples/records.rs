@@ -217,6 +217,26 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         Op::RemoveSource { id: s("ds_x") },
         Op::SetHarness { harness },
         Op::RemoveHarness { id: s("H_X") },
+        Op::CreateManeuver {
+            maneuver: maneuver(
+                "MV_X",
+                json!({ "category": "insertion", "method": "low_thrust",
+                "thruster": "RW_X", "target": { "altitude": { "value": 600.0, "unit": "km" } } }),
+            ),
+        },
+        Op::SetManeuver {
+            maneuver: maneuver(
+                "MV_Y",
+                json!({ "label": "離脱 \"試験\"", "category": "deorbit",
+                "method": "finite_burn", "thruster": "RW_X", "after": "MV_X",
+                "via_altitude": { "value": 20000.0, "unit": "km" },
+                "target": { "perigee_altitude": { "value": -50.0, "unit": "km" },
+                    "apogee_altitude": { "value": 600.0, "unit": "km" },
+                    "inclination": { "value": 97.5, "unit": "deg" } },
+                "constraints": { "sunlit_only": false, "mode": "NOMINAL" } }),
+            ),
+        },
+        Op::RemoveManeuver { id: s("MV_X") },
         Op::SetSetting {
             path: s("analysis.common.default_case"),
             value: Some(SettingValue::Text(s("hot_imaging"))),
@@ -242,4 +262,11 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
             value: None,
         },
     ]
+}
+
+/// JSON の中身と ID からマヌーバを作る。
+fn maneuver(id: &str, body: serde_json::Value) -> fune_service::dto::Maneuver {
+    let mut m: fune_service::dto::Maneuver = serde_json::from_value(body).unwrap();
+    m.id = id.into();
+    m
 }

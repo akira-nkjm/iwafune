@@ -21,6 +21,7 @@ export const tones = [
   "green",
   "orange",
   "violet",
+  "magenta",
 ] as const;
 export type Tone = (typeof tones)[number];
 
@@ -36,6 +37,7 @@ const CAT: Record<Tone, { fill: string; ink: string }> = {
   green: { fill: "#3c9a50", ink: "#2a7438" },
   orange: { fill: "#d9701f", ink: "#9c4a0a" },
   violet: { fill: "#7a5cc2", ink: "#5f42a6" },
+  magenta: { fill: "#b04a96", ink: "#8e2f78" },
 };
 
 /** 字の色（紺）。線と影はこの色に透明度を付けたもの */
@@ -157,6 +159,7 @@ export const toneBg: Record<Tone, string> = {
   green: "bg-cat-green",
   orange: "bg-cat-orange",
   violet: "bg-cat-violet",
+  magenta: "bg-cat-magenta",
 };
 
 export const toneText: Record<Tone, string> = {
@@ -170,6 +173,7 @@ export const toneText: Record<Tone, string> = {
   green: "text-cat-green-ink",
   orange: "text-cat-orange-ink",
   violet: "text-cat-violet-ink",
+  magenta: "text-cat-magenta-ink",
 };
 
 export const toneBorder: Record<Tone, string> = {
@@ -183,6 +187,7 @@ export const toneBorder: Record<Tone, string> = {
   green: "border-cat-green",
   orange: "border-cat-orange",
   violet: "border-cat-violet",
+  magenta: "border-cat-magenta",
 };
 
 /** 淡い地 + 濃い字のバッジ */
@@ -197,6 +202,7 @@ export const toneSoft: Record<Tone, string> = {
   green: "bg-cat-green/12 text-cat-green-ink ring-cat-green/30",
   orange: "bg-cat-orange/12 text-cat-orange-ink ring-cat-orange/30",
   violet: "bg-cat-violet/12 text-cat-violet-ink ring-cat-violet/30",
+  magenta: "bg-cat-magenta/12 text-cat-magenta-ink ring-cat-magenta/30",
 };
 
 /** 系列の色を順番に選ぶ（グラフの線など） */

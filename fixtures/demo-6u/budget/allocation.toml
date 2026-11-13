@@ -4,25 +4,27 @@ limit         = { value = 12.0, unit = "kg" }  # 6U の上限（CDS rev.14）
 system_margin = 0.1
 
 [mass.alloc]
-aocs      = { value = 1.6, unit = "kg" }
-cdh       = { value = 0.2, unit = "kg" }
-comm      = { value = 0.5, unit = "kg" }
-payload   = { value = 1.2, unit = "kg" }
-power     = { value = 2.0, unit = "kg" }
-structure = { value = 1.8, unit = "kg" }
-thermal   = { value = 0.05, unit = "kg" }
+aocs       = { value = 1.6, unit = "kg" }
+cdh        = { value = 0.2, unit = "kg" }
+comm       = { value = 0.5, unit = "kg" }
+payload    = { value = 1.2, unit = "kg" }
+power      = { value = 2.0, unit = "kg" }
+propulsion = { value = 0.8, unit = "kg" }
+structure  = { value = 1.8, unit = "kg" }
+thermal    = { value = 0.05, unit = "kg" }
 
 [power]
 limit         = { value = 24.0, unit = "W" }  # 太陽指向時の軌道平均の発電見込み
 system_margin = 0.15
 
 [power.alloc]
-aocs    = { value = 6.0, unit = "W" }
-cdh     = { value = 1.0, unit = "W" }
-comm    = { value = 3.0, unit = "W" }
-payload = { value = 4.5, unit = "W" }
-power   = { value = 1.0, unit = "W" }
-thermal = { value = 1.5, unit = "W" }
+aocs       = { value = 6.0, unit = "W" }
+cdh        = { value = 1.0, unit = "W" }
+comm       = { value = 3.0, unit = "W" }
+payload    = { value = 4.5, unit = "W" }
+power      = { value = 1.0, unit = "W" }
+propulsion = { value = 1.0, unit = "W" }
+thermal    = { value = 1.5, unit = "W" }
 
 [data]
 limit         = { value = 8.0, unit = "GB" }  # OBC のストレージ

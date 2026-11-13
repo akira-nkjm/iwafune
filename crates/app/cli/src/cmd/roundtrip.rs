@@ -127,6 +127,9 @@ fn covers(op: &Op) -> &'static str {
         Op::RemoveSource { .. } => "RemoveSource",
         Op::SetHarness { .. } => "SetHarness",
         Op::RemoveHarness { .. } => "RemoveHarness",
+        Op::CreateManeuver { .. } => "CreateManeuver",
+        Op::SetManeuver { .. } => "SetManeuver",
+        Op::RemoveManeuver { .. } => "RemoveManeuver",
         Op::SetViewLayout { .. } => "SetViewLayout",
         Op::SetViewEdge { .. } => "SetViewEdge",
         Op::UnsetViewEdge { .. } => "UnsetViewEdge",
@@ -169,5 +172,5 @@ fn every_op_survives_to_cli_and_back() {
     }
     seen.sort_unstable();
     seen.dedup();
-    assert_eq!(seen.len(), 40, "見本の無い Op の種類があります: {seen:?}");
+    assert_eq!(seen.len(), 43, "見本の無い Op の種類があります: {seen:?}");
 }

@@ -17,6 +17,7 @@
 //! | [`thermal`] | 熱: 多節点の定常・非定常 |
 //! | [`orbit`] | 軌道条件: β と1周の本影・半影の季節変動、極値と蝕なし期間 |
 //! | [`structure`] | 構造: 質量特性・準静的荷重・簡易固有振動数 |
+//! | [`propulsion`] | 推進: マヌーバ（インパルス・有限燃焼・低推力）・ΔV バジェット・推薬とタンク・スラスタの使い方 |
 
 pub mod aocs;
 pub mod budget;
@@ -27,6 +28,7 @@ pub mod modes;
 /// 軌道条件の解析（β と蝕の季節変動）。
 pub mod orbit;
 pub mod power;
+pub mod propulsion;
 pub mod spec;
 pub mod structure;
 pub mod thermal;

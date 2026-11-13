@@ -40,6 +40,10 @@ pub enum CommandText {
     AttrAdd(AttrAddText),
     /// `fune kind add <ID> --states off,on --required mass --port PWR=power`
     KindAdd(KindAddText),
+    /// `fune maneuver add <ID> --category … --method … --altitude "600 km" …`（同じ ID があれば拒む）
+    ManeuverAdd(super::ManeuverText),
+    /// `fune maneuver set <ID> …`（無ければ作り、あれば丸ごと置き換える）
+    ManeuverSet(super::ManeuverText),
 }
 
 /// `fune net set` の引数。旗を書いたフィールドだけを書く（宣言の順に 1 フィールド 1 つの `SetNetField`）。

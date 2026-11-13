@@ -54,7 +54,7 @@ fn every_kpi_comes_from_exactly_one_analysis() {
                 .all(|d| !d.label.is_empty() && !d.label_en.is_empty())
         );
     }
-    assert_eq!(seen.len(), 28, "KpiKey のすべての値が表にある");
+    assert_eq!(seen.len(), 33, "KpiKey のすべての値が表にある");
 }
 
 /// 判定を数える KPI: 数と OK でない数、塗りは OK の割合（手で数えた 9 件中 4 件）。

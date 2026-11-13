@@ -12,7 +12,7 @@ CLI・API・web は同じ区分を使い、KPI は系・話題ごとに表示す
 ## 1. 目的と範囲
 
 iwafune は小型衛星の概念設計のための道具である。部品の選定、質量・電力・データ量のバジェット、モードごとの消費電力、
-電源・AOCS・C&DH・通信・熱・構造の解析を、1 つの設計データの上で扱う。
+電源・AOCS・C&DH・通信・熱・構造・推進の解析を、1 つの設計データの上で扱う。
 
 - 設計データの正本は git で管理する TOML のディレクトリだけ。常駐のサーバーもデータベースも持たない。
 - 編集の手段は CLI（`fune`）と Web の GUI の 2 つで、できることは同じ。GUI は `fune gui` が手元で起動するサーバーから配信する。
@@ -33,6 +33,7 @@ iwafune は小型衛星の概念設計のための道具である。部品の選
 | `catalog/` | カタログ品（購入品などの値と出典） |
 | `defs/attribute/`・`defs/kind/` | プロジェクト独自の属性定義・種別定義（組み込みの定義は fune-model が持つ） |
 | `modes/`・`nets/`・`harness/` | 運用モード（部品 → 状態の表）、電気的なネット、ハーネスの区間 |
+| `maneuvers/` | マヌーバ（区分・計算の段階・スラスタ・前のマヌーバ・目標の軌道・制約。実行の順は `after`） |
 | `budget/` | 配分とマージンの方針 |
 | `conditions/`・`analysis/`・`cases/` | 軌道と地上局、系ごとの解析の設定、解析ケース |
 | `sources/` | 出典の台帳 |
@@ -126,6 +127,7 @@ Op は JSON にできる（`{ "op": "set_value", "part": "RW_X", ... }`）。TS 
 | 定義 | `CreateAttribute`・`CreateKind` |
 | モード・ネット | `CreateMode`・`RenameMode`・`SetModeStates`・`CreateNet`・`UpdateNet`・`SetNetField`・`RemoveNet` など |
 | ケース・出典・ハーネス | `SetCase`・`SetSource`・`SetHarness` と、それぞれの削除 |
+| マヌーバ | `CreateManeuver`・`SetManeuver`・`RemoveManeuver`（削除は後ろのマヌーバを前につなぎ直す） |
 | 図 | `SetViewLayout`・`SetViewEdge`・`UnsetViewEdge`・`ResetView` |
 | 設定 | `SetSetting`（`conditions/`・`analysis/`・`budget/` の値） |
 
@@ -148,7 +150,7 @@ CLI と HTTP は `fune-service` の同じ関数を呼ぶ。
 | Op の適用 | 編集の各コマンド、`fune apply ops.json` | `POST /ops` | `edit::apply` |
 | 打った値の文字列 → Op | `fune set`・`fune setting set`・`fune catalog set` | `POST /ops/from_text` | `edit::set_op` |
 | 消す先のパス → Op | `fune unset`・`fune setting unset`・`fune catalog unset` | `POST /ops/unset_from_text` | `edit::unset_op` |
-| 名詞のコマンドに打った引数 → Op | `fune net set|unset`・`fune part place`・`fune mode set|unset`・`fune attr add`・`fune kind add` | `POST /ops/from_command` | `edit::command_ops` |
+| 名詞のコマンドに打った引数 → Op | `fune net set|unset`・`fune part place`・`fune mode set|unset`・`fune attr add`・`fune kind add`・`fune maneuver add|set` | `POST /ops/from_command` | `edit::command_ops` |
 | 整形 | `fune fmt [--check]` | `POST /fmt` | `format::format_design` |
 
 - `fune set RW_X.mass "620 g"` の `"620 g"` を量・整数・ベクトル・状態ごとの値のどれとして読むかは、属性定義を見て service が決める。
@@ -207,7 +209,7 @@ HTTP の失敗は `{ "error": { "code", "message" }, "diagnostics": [...] }` で
 
 | パス | 内容 |
 |---|---|
-| `GET /project`・`/design`・`/parts`・`/parts/{id}`・`/values/{path}`・`/defs`・`/diagnostics` | 読み取り（概要と revision、設計全体、部品、1 つの値、定義、診断） |
+| `GET /project`・`/design`・`/parts`・`/parts/{id}`・`/values/{path}`・`/defs`・`/diagnostics`・`/maneuvers` | 読み取り（概要と revision、設計全体、部品、1 つの値、定義、診断、マヌーバの一覧（実行の順。`fune maneuver ls` と同じ）） |
 | `POST /ops`・`/ops/from_text`・`/ops/unset_from_text`・`/ops/from_command`・`/fmt` | 編集（§4.3） |
 | `POST /parts/{id}` | 保存していない編集（`ops`）を書き込まずに当てた部品（`GET` と同じ形。`fune part show --ops`） |
 | `POST /parts/{id}/place_body` | 機体座標での配置を、取付先に対する相対の `Place` に直して適用する |
@@ -221,8 +223,8 @@ HTTP の失敗は `{ "error": { "code", "message" }, "diagnostics": [...] }` で
 画面の部品は Tailwind CSS 4 と Radix、系統図は @xyflow/react（配置と配線は `features/diagram/` の自前の自動配置）、
 3D 配置は three・@react-three/fiber・@react-three/drei、グラフは Recharts。lint と整形は Biome、テストは Vitest。
 
-画面は概要（バジェットと診断）、部品、カタログ、系統図（給電・信号）、モード表、配置（左の部品のツリー・中央の 3D・右の配置の欄。部品の選択・取付・位置を画面全体の 3D で確認・編集し、質量特性があれば重心を表示）、定義（属性・種別・単位）、
-系ごとのページ（電源・AOCS・C&DH・通信・熱・構造・ミッション機器。ミッション機器の解析は未登録。構造の概要から配置ページへ移動できる。温度で塗った 3D は熱のページに残す）、軌道と地上局、解析ケース、診断、設定。
+画面は概要（バジェットと診断）、部品、カタログ、系統図（給電・信号）、モード表、マヌーバ（実行の順の一覧と、`fune maneuver add|set|rm` と同じ引数での追加・編集・削除。結果は推進系のページ）、配置（左の部品のツリー・中央の 3D・右の配置の欄。部品の選択・取付・位置を画面全体の 3D で確認・編集し、質量特性があれば重心を表示）、定義（属性・種別・単位）、
+系ごとのページ（電源・AOCS・C&DH・通信・熱・構造・ミッション機器・推進。推進は汎用の表示（KPI・判定・解析の表）。ミッション機器の解析は未登録。構造の概要から配置ページへ移動できる。温度で塗った 3D は熱のページに残す）、軌道と地上局、解析ケース、診断、設定。
 系のページはその系に関係する部品をその系の属性の列だけで並べてセルで編集でき、同じページに解析の結果を出す。
 系のタブは「概要（KPI と判定）・モード・部品・時系列・設定」（英語: Overview, Modes, Parts, Time series, Settings）。
 電源（#89 段 1）の概要はモードの判定付きチップと共通の日照／蝕切替、太陽電池 → バス → 各系・電池の流れ図を中心に置く。
@@ -281,6 +283,7 @@ Web は次のことをしない。
 | 通信 | `comm.link_budget`（回線バジェット） | `comm.visibility`（地上局の可視）、`comm.data_throughput`（データ送信量と蓄積） |
 | 熱 | `thermal.steady`（多節点の定常温度） | `thermal.transient`（多節点の非定常温度） |
 | 構造 | `structure.mass_properties`（質量特性）、`structure.static_load`（準静的荷重）、`structure.modal_estimate`（簡易固有振動数。FEM はしない） | — |
+| 推進 | `propulsion.maneuvers`（マヌーバごとの ΔV・噴射時間・推薬・前後の軌道）、`propulsion.dv_budget`（区分ごとの ΔV の内訳・合計・マージン、RCS のアンロードの ΔV）、`propulsion.propellant`（推薬のウェット・ドライとタンクの容積の余裕）、`propulsion.thruster_usage`（総インパルス・累積噴射時間・噴射回数と定格） | — |
 
 `fune analyze ls` と `GET /analyses` が同じ一覧を返す。
 
@@ -336,6 +339,7 @@ service は部品や解析の結果を項目に並べ、`budget/allocation.toml`
 | `geomag`・`atmosphere` | 地磁気（傾斜双極子）、大気密度（指数大気・NRLMSISE-00）、宇宙天気（F10.7・Ap）の日ごとの表 |
 | `ground` | 地上局の見通し角、パスの検出、地上軌跡 |
 | `attitude`・`illumination`・`timeline` | 姿勢則（太陽指向・地心指向・慣性固定）、面への太陽入射、軌道上の時系列 |
+| `rocket`・`transfer` | ロケット方程式（推薬 ⇄ ΔV・噴射時間）、軌道遷移の ΔV（近点・遠点の 2 回噴射とホーマン、平面変更、バイエリプティック、Edelbaum の低推力、有限燃焼の損失の Robbins の近似） |
 
 入力の仕様（`OrbitSpec`・`GroundStation` など）は型付きの量で受け、内部の関数は f64 の SI 値で受け渡す。
 設計データから解析に渡す軌道の伝搬は、二体＋J2 の永年項（既定）か二体だけ。

@@ -9,7 +9,8 @@ pub use nouns::{
     ModeCmd, NetArgs, NetCmd, NetSetArgs, PartCmd, PlaceArgs, SetArgs, SettingCmd, ViewCmd,
 };
 pub use records::{
-    CaseArgs, CaseCmd, CatalogCmd, HarnessArgs, HarnessCmd, PointArgs, SourceArgs, SourceCmd,
+    CaseArgs, CaseCmd, CatalogCmd, HarnessArgs, HarnessCmd, ManeuverArgs, ManeuverCmd, PointArgs,
+    SourceArgs, SourceCmd,
 };
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -140,6 +141,9 @@ pub enum Command {
     /// ハーネス区間（harness/）
     #[command(subcommand)]
     Harness(HarnessCmd),
+    /// マヌーバ（maneuvers/）
+    #[command(subcommand)]
+    Maneuver(ManeuverCmd),
     /// 図の配置（系統図のノードの位置）
     #[command(subcommand)]
     View(ViewCmd),

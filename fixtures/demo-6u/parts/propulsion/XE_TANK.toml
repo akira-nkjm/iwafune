@@ -1,0 +1,36 @@
+label    = "キセノンタンク（デモ）"
+kind     = "propellant_tank"
+maturity = "off_the_shelf"
+
+[mount]
+on    = "BUS_FRAME"
+point = "MTQ_BAY"
+
+[pose]
+position = { x = 0.0, y = 0.0, z = 60.0, unit = "mm" }
+
+[attr.mass]
+value       = 0.15
+unit        = "kg"
+from.source = "sys_judgement"
+
+[attr.tank_volume]
+value       = 0.08
+unit        = "L"
+from.source = "sys_judgement"
+
+[attr.propellant]
+value       = "xenon"
+from.source = "sys_judgement"
+
+[attr.propellant_density]
+value       = 1400.0
+unit        = "kg/m^3"
+from.source = "sys_judgement"
+
+[attr.size]
+x           = 60.0
+y           = 60.0
+z           = 80.0
+unit        = "mm"
+from.source = "sys_judgement"

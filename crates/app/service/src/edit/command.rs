@@ -1,6 +1,4 @@
-//! 名詞のコマンドに打った引数 → Op（`fune net set|unset`・`fune part place`・`fune mode set|unset`、`POST /ops/from_command`）。
-//! 入口は [`command_ops`]。CLI はコマンドごとの関数（[`net_set_ops`] など）を直接呼ぶが、中身は同じ。定義の作成
-//! （`fune attr add`・`fune kind add`）は `super::defs`。値の読み方は `super::text`（量・ベクトル・クォータニオン・一覧・`名前=値`）。
+//! 名詞のコマンドに打った引数 → Op（`fune net set|unset`・`fune part place`・`fune mode set|unset`、`POST /ops/from_command`）。入口は [`command_ops`]（CLI はコマンドごとの関数を直接呼ぶ）。定義は `super::defs`、マヌーバは `super::maneuver`、値の読み方は `super::text`。
 
 use super::text::{
     given, invalid, list_from_text, net_kind, pair_from_text, quantity_from_text,
@@ -40,6 +38,8 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
         }
         CommandText::AttrAdd(t) => vec![super::defs::attr_add_op(t)?],
         CommandText::KindAdd(t) => vec![super::defs::kind_add_op(t)?],
+        CommandText::ManeuverAdd(t) => vec![super::maneuver::maneuver_op(t, true)?],
+        CommandText::ManeuverSet(t) => vec![super::maneuver::maneuver_op(t, false)?],
     })
 }
 

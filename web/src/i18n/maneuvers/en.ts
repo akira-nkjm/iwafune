@@ -1,0 +1,60 @@
+import type { maneuversJa } from "./ja";
+
+/** Design / maneuvers (English) */
+export const maneuversEn: typeof maneuversJa = {
+  maneuvers: {
+    eyebrow: "Design",
+    title: "Maneuvers",
+    subtitle:
+      "maneuvers/<ID>.toml (execution order, method, target orbit). Results are on the propulsion page",
+    empty: "No maneuvers",
+    add: "Add maneuver",
+    edit: "Edit",
+    remove: "Remove",
+    results: "Open propulsion analyses",
+    order: "#",
+    id: "ID",
+    name: "Name",
+    category: "Category",
+    method: "Method",
+    thruster: "Thruster",
+    after: "After",
+    target: "Target orbit",
+    constraints: "Constraints (ignored at coarse levels)",
+    file: "File",
+    none: "None",
+    targetKeys: {
+      altitude: "Altitude (circular)",
+      perigee_altitude: "Perigee altitude",
+      apogee_altitude: "Apogee altitude",
+      inclination: "Inclination",
+    },
+    dialog: {
+      addTitle: "Add maneuver",
+      editTitle: (id: string) => `Edit maneuver ${id}`,
+      description:
+        'Typed quantities ("600 km", "97.8 deg") are read by the service exactly like fune maneuver add|set. Elements left blank keep the previous orbit.',
+      label: "Name",
+      altitude: "Target altitude (circular)",
+      perigeeAltitude: "Target perigee altitude",
+      apogeeAltitude: "Target apogee altitude",
+      inclination: "Target inclination",
+      viaAltitude: "Intermediate apogee altitude (bi-elliptic)",
+      sunlitOnly: "Fire in sunlight only",
+      mode: "Firing mode",
+      unset: "Not set",
+      yes: "Yes",
+      no: "No",
+      confirmAdd: "Add",
+      confirmEdit: "Save",
+      summaryAdd: (id: string) => `Add maneuver ${id}`,
+      summaryEdit: (id: string) => `Rewrite maneuver ${id}`,
+    },
+    removeDialog: {
+      title: (id: string) => `Remove maneuver ${id}`,
+      description: "Following maneuvers are relinked to the removed maneuver's predecessor.",
+      confirm: "Remove",
+      summary: (id: string) => `Remove maneuver ${id}`,
+    },
+  },
+};

@@ -21,6 +21,13 @@ pub async fn design(State(s): State<AppState>) -> Result<Json<DesignView>, ApiEr
     blocking(&s, query::design_view).await.map(Json)
 }
 
+/// GET `/maneuvers`（実行の順。`fune maneuver ls`）
+pub async fn maneuvers(
+    State(s): State<AppState>,
+) -> Result<Json<Vec<fune_service::dto::ManeuverView>>, ApiError> {
+    blocking(&s, query::maneuvers).await.map(Json)
+}
+
 /// GET `/parts?group=aocs&kind=reaction_wheel`
 pub async fn parts(
     State(s): State<AppState>,

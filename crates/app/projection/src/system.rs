@@ -17,6 +17,7 @@ pub fn to_analysis(system: AnalysisSystem) -> System {
         AnalysisSystem::Thermal => System::Thermal,
         AnalysisSystem::Structure => System::Structure,
         AnalysisSystem::Payload => System::Payload,
+        AnalysisSystem::Propulsion => System::Propulsion,
     }
 }
 
@@ -30,6 +31,7 @@ pub fn from_analysis(system: System) -> AnalysisSystem {
         System::Thermal => AnalysisSystem::Thermal,
         System::Structure => AnalysisSystem::Structure,
         System::Payload => AnalysisSystem::Payload,
+        System::Propulsion => AnalysisSystem::Propulsion,
     }
 }
 
