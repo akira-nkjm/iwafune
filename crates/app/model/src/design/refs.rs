@@ -71,6 +71,10 @@ pub enum RefSite {
     CommLink { link: String },
     /// 熱の節点に入れた部品（`analysis/thermal.toml` の `[nodes]` の `<節点> = [...]`）
     ThermalNode { node: String },
+    /// 外面の表面材を書いた部品（`analysis/thermal.toml` の `[surface.<部品>]` のキー）
+    ThermalSurface,
+    /// 発熱の場所を書いた部品（`analysis/thermal.toml` の `[heat_node]` のキー）
+    ThermalHeatNode,
     /// 図の配置のノード（`view/<図>.toml` の `[nodes]` のキー）
     ViewNode { view: String },
     /// 解析ケースのモード（`cases/<ケース>.toml` の `mode`）
@@ -163,6 +167,12 @@ impl Design {
                     .filter(|(_, parts)| parts.iter().any(|p| p == id))
                     .map(|(node, _)| RefSite::ThermalNode { node: node.clone() }),
             );
+            if thermal.surface.contains_key(id) {
+                out.push(RefSite::ThermalSurface);
+            }
+            if thermal.heat_node.contains_key(id) {
+                out.push(RefSite::ThermalHeatNode);
+            }
         }
         out
     }

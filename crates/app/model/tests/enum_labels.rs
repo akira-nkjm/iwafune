@@ -21,6 +21,10 @@ const LABELLED: &[(&str, &[&str])] = &[
     ("origin", Origin::NAMES),
     ("severity", Severity::NAMES),
     ("attitude_law", AttitudeLawKind::NAMES),
+    (
+        "thermal_preset",
+        fune_model::design::ThermalPresetKind::NAMES,
+    ),
     ("propagator", PropagatorKind::NAMES),
     ("link_direction", LinkDirection::NAMES),
     ("uncertainty_side", UncertaintySide::NAMES),

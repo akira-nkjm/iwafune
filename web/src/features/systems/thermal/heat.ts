@@ -11,7 +11,7 @@ export interface HeatMap {
   cells: Map<string, HeatCell>;
   min: number;
   max: number;
-  /** 範囲の端から何 K 以内を注意にするか（出力の range_warning_band。温度差 [K]） */
+  /** 範囲の端から何 K 以内を注意にするか（出力の margin.warning_band。温度差 [K]） */
   band: number | null;
 }
 
@@ -39,7 +39,7 @@ export function heatMapOf(output: ThermalSteadyOutput | null): HeatMap | null {
     }
   }
   if (cases.length === 0) return null;
-  const band = output.range_warning_band;
+  const band = output.margin.warning_band;
   return { cases, nodes, cells, min, max, band };
 }
 

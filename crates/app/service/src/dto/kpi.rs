@@ -57,7 +57,7 @@ pub enum KpiKey {
     MaxTemperature,
     /// 定常の最低温度（節点のうち最低）
     MinTemperature,
-    /// 動作範囲の判定（節点ごとの判定を数える）
+    /// 温度範囲（保管・動作・性能）の判定（節点と種類ごとの判定を数える）
     NodesInRange,
     /// 非定常の最高温度（節点のうち最高）
     TransientMaxTemperature,

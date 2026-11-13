@@ -198,6 +198,18 @@ label_en = "Nadir pointing"
 label    = "慣性固定"
 label_en = "Inertial"
 
+[enum.thermal_preset.hot]
+label    = "高温"
+label_en = "Hot"
+
+[enum.thermal_preset.cold]
+label    = "低温"
+label_en = "Cold"
+
+[enum.thermal_preset.safe_mode]
+label    = "セーフモード"
+label_en = "Safe mode"
+
 [enum.propagator.kepler]
 label    = "二体"
 label_en = "Kepler"

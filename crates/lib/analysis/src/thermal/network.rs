@@ -2,32 +2,27 @@
 //! **熱ネットワークの解法はここだけ。** `thermal.steady`（Newton 法の定常解）と `thermal.transient`（微分を `sat_astro::ode` で積分）が使う。
 //!
 //! 節点 i の熱収支: `C_i dT_i/dt = Q_i + Σ_j G_ij (T_j − T_i) + Σ_j σ R_ij (T_j⁴ − T_i⁴) − Σ_s ε_s σ A_s (T_i⁴ − T_space⁴)`。
-//! Q_i は外部入熱（吸収した太陽・アルベド・地球赤外）と内部発熱の和。`fixed_temperature` を持つ節点は境界（温度一定）。
+//! Q_i は外部入熱（吸収した太陽・アルベド・地球赤外）と内部発熱（`load`）の和。外面の α/ε は `surface` が表面材から求める。`fixed_temperature` を持つ節点は境界（温度一定）。
 
 use crate::spec::AnalysisError;
+use crate::thermal::range::ThermalRanges;
 use sat_astro::constants::SIGMA_SB;
 use sat_astro::math::Vec3;
-use sat_units::typed::{
-    Area, Mass, Power, Qty, SpecificHeatCapacity, Temperature, ThermalConductance,
-};
+use sat_units::typed::{Area, Mass, Qty, SpecificHeatCapacity, Temperature, ThermalConductance};
 use serde::{Deserialize, Serialize};
 
+mod load;
 mod mode_loads;
 mod mounts;
 mod newton;
+mod surface;
+pub use load::ThermalLoad;
 pub use mode_loads::{ThermalModeLoads, ThermalModePart};
 pub use mounts::ThermalMounts;
 pub use newton::INITIAL_GUESS_K;
+pub use surface::{ThermalCoating, ThermalSurface};
 
-/// 温度の範囲（動作範囲など）。
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct ThermalTempRange {
-    pub min: Qty<Temperature>,
-    pub max: Qty<Temperature>,
-}
-
-/// 節点に含まれる部品。熱容量と動作温度範囲は、部品からここで節点にまとめる。
+/// 節点に含まれる部品。熱容量と温度範囲は、部品からここで節点にまとめる。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThermalNodePart {
@@ -38,9 +33,10 @@ pub struct ThermalNodePart {
     #[serde(default = "crate::spec::default_count")]
     pub count: u32,
     pub specific_heat: Qty<SpecificHeatCapacity>,
-    /// 動作温度範囲（節点の範囲は部品の範囲の共通部分）
-    #[serde(default)]
-    pub operating: Option<ThermalTempRange>,
+    /// 保管・動作・性能の温度範囲（欄は `storage`・`operating`・`performance` を部品の直下に書く。
+    /// 節点の範囲は種類ごとに部品の範囲の共通部分）
+    #[serde(default, flatten)]
+    pub ranges: ThermalRanges,
 }
 
 /// 熱の節点。
@@ -66,15 +62,13 @@ impl ThermalNode {
             .sum()
     }
 
-    /// 動作温度範囲 = 範囲を持つ部品の範囲の共通部分（無ければ `None`。重ならなければ min > max になる）。
-    pub fn operating(&self) -> Option<ThermalTempRange> {
+    /// 種類ごとの温度範囲 = 範囲を持つ部品の範囲の共通部分（無い種類は `None`。重ならなければ min > max になる）。
+    pub fn ranges(&self) -> ThermalRanges {
         self.parts
             .iter()
-            .filter_map(|p| p.operating)
-            .reduce(|a, b| ThermalTempRange {
-                min: Qty::from_raw(a.min.value().max(b.min.value())),
-                max: Qty::from_raw(a.max.value().min(b.max.value())),
-            })
+            .map(|p| p.ranges)
+            .reduce(ThermalRanges::intersect)
+            .unwrap_or_default()
     }
 }
 
@@ -96,25 +90,6 @@ pub struct ThermalRadiativeLink {
     pub exchange_area: Qty<Area>,
 }
 
-/// 宇宙を向く外面（入熱を受け、宇宙へ放射する）。1 節点に複数の面を付けてよい。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct ThermalSurface {
-    pub id: String,
-    /// 面が属する節点
-    pub node: String,
-    pub area: Qty<Area>,
-    /// 外向きの法線（機体座標系。正規化して使う）
-    pub normal: Vec3,
-    /// 枚数（実効面積 = 面積 × 枚数。省略で 1、0 なら数えない）
-    #[serde(default = "crate::spec::default_count")]
-    pub count: u32,
-    /// 太陽光の吸収率 α
-    pub absorptivity: f64,
-    /// 赤外の放射率 ε
-    pub emissivity: f64,
-}
-
 /// 熱ネットワーク。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -129,41 +104,6 @@ pub struct ThermalNetwork {
     pub radiative: Vec<ThermalRadiativeLink>,
     #[serde(default)]
     pub surfaces: Vec<ThermalSurface>,
-}
-
-/// 節点への内部発熱の源（部品など）。発熱 = 消費電力 × `heat_fraction`（ここで計算する）。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct ThermalLoad {
-    /// 員数。power は単体値（省略時 1）。
-    #[serde(default = "crate::spec::default_count")]
-    pub count: u32,
-    /// 熱を出す節点
-    pub node: String,
-    /// 1 台あたりの消費電力（モードの平均も単体値）
-    pub power: Qty<Power>,
-    /// 消費電力のうち熱になる割合（0〜1）。省略時 1（すべて熱になる）
-    #[serde(default)]
-    pub heat_fraction: Option<f64>,
-}
-
-impl ThermalLoad {
-    /// 員数と熱になる割合を適用した内部発熱。検査と計算はここだけ。
-    pub fn dissipation(&self) -> Result<Qty<Power>, AnalysisError> {
-        let (p, f) = (self.power.value(), self.heat_fraction_or_all());
-        if !(p.is_finite() && f.is_finite() && (0.0..=1.0).contains(&f)) {
-            return Err(invalid(format!(
-                "節点 {} の発熱: 電力は有限、heat_fraction は 0〜1 にしてください",
-                self.node
-            )));
-        }
-        Ok(Qty::from_raw(p * f64::from(self.count) * f))
-    }
-
-    /// 熱になる割合（省略時 1）。
-    pub fn heat_fraction_or_all(&self) -> f64 {
-        self.heat_fraction.unwrap_or(1.0)
-    }
 }
 
 /// 添字に直した外面。
@@ -251,20 +191,17 @@ impl Compiled {
     }
 
     fn surface(&self, s: &ThermalSurface) -> Result<Surface, AnalysisError> {
-        let ok = s.area.value() >= 0.0
-            && (0.0..=1.0).contains(&s.absorptivity)
-            && (0.0..=1.0).contains(&s.emissivity);
-        let normal = s.normal.normalized();
-        match (ok, normal) {
+        let (alpha, eps) = s.optics()?;
+        match (s.area.value() >= 0.0, s.normal.normalized()) {
             (true, Some(normal)) => Ok(Surface {
                 node: self.index(&s.node)?,
                 area_m2: s.area.value() * f64::from(s.count),
                 normal,
-                alpha: s.absorptivity,
-                eps: s.emissivity,
+                alpha,
+                eps,
             }),
             _ => Err(invalid(format!(
-                "外面 {}: 面積は 0 以上、α と ε は 0〜1、法線は 0 でないベクトルにしてください",
+                "外面 {}: 面積は 0 以上、法線は 0 でないベクトルにしてください",
                 s.id
             ))),
         }
@@ -282,7 +219,7 @@ impl Compiled {
         self.ids.len()
     }
 
-    /// 内部発熱（消費電力 × `heat_fraction`）を節点ごとの配列 [W] にする。
+    /// 内部発熱（[`ThermalLoad::dissipation`]）を節点ごとの配列 [W] にする。
     pub fn loads(&self, loads: &[ThermalLoad]) -> Result<Vec<f64>, AnalysisError> {
         let mut q = vec![0.0; self.len()];
         for l in loads {

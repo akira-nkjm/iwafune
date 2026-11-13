@@ -150,6 +150,7 @@ mod tests {
                 count: 1,
                 node: "box".to_owned(),
                 power: Qty::from_raw(10.0),
+                rf_output: None,
                 heat_fraction: Some(1.0),
             }])
             .unwrap();
@@ -162,6 +163,7 @@ mod tests {
             count: 1,
             node: "box".to_owned(),
             power: Qty::from_raw(10.0),
+            rf_output: None,
             heat_fraction: Some(f),
         };
         let q = c.loads(&[half(0.5)]).unwrap();
@@ -184,8 +186,9 @@ mod tests {
                 area: Qty::from_raw(0.1),
                 normal: Vec3::X,
                 count: 1,
-                absorptivity: 0.5,
-                emissivity: 0.8,
+                absorptivity: Some(0.5),
+                emissivity: Some(0.8),
+                coatings: vec![],
             }],
         };
         let c = Compiled::new(&net).unwrap();

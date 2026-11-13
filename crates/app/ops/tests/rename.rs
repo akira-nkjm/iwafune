@@ -39,6 +39,24 @@ fn rename_part_updates_references() {
     assert!(check(d).iter().all(|x| !x.is_error()));
 }
 
+/// 表面材を書いた外面（`[surface.<部品>]` のキー）も部品の名前の変更で書き換わる。
+#[test]
+fn rename_part_updates_thermal_surface() {
+    let snap = snapshot();
+    let p = plan(
+        &snap,
+        &[Op::RenamePart {
+            id: "PANEL_PX".into(),
+            to: "PANEL_XP".into(),
+        }],
+    )
+    .unwrap();
+    let t = p.design.analysis.thermal.as_ref().unwrap();
+    assert!(t.surface.contains_key("PANEL_XP"));
+    assert!(!t.surface.contains_key("PANEL_PX"));
+    assert!(check(&p.design).iter().all(|x| !x.is_error()));
+}
+
 #[test]
 fn rename_assembly_moves_children() {
     let snap = snapshot();

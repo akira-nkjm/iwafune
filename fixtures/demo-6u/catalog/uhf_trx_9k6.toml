@@ -23,3 +23,6 @@ size              = { x = 90.0, y = 96.0, z = 15.0, unit = "mm" }
 off = { value = 0.0, unit = "W" }
 rx  = { value = 0.45, unit = "W" }
 tx  = { value = 3.8, unit = "W" }
+
+[attr.rf_output]
+tx = { value = 1.0, unit = "W" }

@@ -86,7 +86,7 @@ export const systemsJa = {
       comm: {
         description: "回線バジェット、地上局の可視時間、送信量と未送信データの蓄積",
       },
-      thermal: { description: "多節点の定常・非定常解析と、動作温度範囲との比較" },
+      thermal: { description: "多節点の定常・非定常解析と、保管・動作・性能の温度範囲との比較" },
       structure: {
         description: "質量特性、準静的荷重と簡易な固有振動数",
       },

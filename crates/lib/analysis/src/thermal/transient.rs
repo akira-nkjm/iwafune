@@ -9,12 +9,15 @@ use crate::spec::{
     System, Verdict,
 };
 use crate::thermal::network::{
-    Compiled, INITIAL_GUESS_K, ThermalLoad, ThermalModeLoads, ThermalNetwork, ThermalTempRange,
+    Compiled, INITIAL_GUESS_K, ThermalLoad, ThermalModeLoads, ThermalNetwork,
 };
 use crate::thermal::orbit_heat::{
     ThermalEnvironment, ThermalEnvironmentUsed, absorbed, mean_absorbed, timeline_geometry,
 };
-use crate::thermal::range::{RANGE_WARNING_BAND_K, range_check, range_verdict};
+use crate::thermal::range::{
+    ThermalMarginPolicy, ThermalMarginUsed, ThermalRangeMargin, range_checks, range_margins,
+    worst_verdict,
+};
 use sat_astro::ode::integrate;
 use sat_astro::timeline::TimelineSpec;
 use sat_astro::timeline::time_mean;
@@ -68,6 +71,9 @@ pub struct ThermalTransientInput {
     /// 積分の刻みの上限（既定は安定条件の目安だけで決める）
     #[serde(default)]
     pub max_step: Option<Qty<Time>>,
+    /// 解析マージンの方針（書かれていない値は解析の既定値）
+    #[serde(default)]
+    pub margin: ThermalMarginPolicy,
 }
 
 /// 節点ごとの最高・最低。
@@ -81,7 +87,9 @@ pub struct ThermalTransientNodeResult {
     /// 最低になった時刻（開始からの経過）
     pub time_of_min: Qty<Time>,
     pub time_of_max: Qty<Time>,
-    pub operating: Option<ThermalTempRange>,
+    /// 書かれている温度範囲（保管・動作・性能の順）と最低・最高の比較
+    pub ranges: Vec<ThermalRangeMargin>,
+    /// 範囲との比較のうち最も悪い判定（範囲が無ければ Ok）
     pub verdict: Verdict,
 }
 
@@ -95,9 +103,9 @@ pub struct ThermalTransientOutput {
     pub environment: ThermalEnvironmentUsed,
     /// 入力の節点の順
     pub nodes: Vec<ThermalTransientNodeResult>,
-    /// 動作範囲の端からこの幅以内を警告にした（`thermal::range::RANGE_WARNING_BAND_K`）
-    pub range_warning_band: Qty<Temperature>,
-    /// 動作範囲を持つ節点ごとの判定（key は `range:<node>`）
+    /// 使った解析マージン（不確かさと警告の幅）
+    pub margin: ThermalMarginUsed,
+    /// 温度範囲を持つ節点の種類ごとの判定（key は `range:<node>:<storage|operating|performance>`）
     pub checks: Vec<Check>,
 }
 
@@ -117,6 +125,8 @@ impl Analysis for ThermalTransient {
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         let net = Compiled::new(&input.network)?;
+        let margin = input.margin.used();
+        margin.validate()?;
         let phases = Phases::new(&net, &input.phases)?;
         let timeline = &input.timeline;
         let (t, geo) = timeline_geometry(timeline)?;
@@ -144,6 +154,7 @@ impl Analysis for ThermalTransient {
             &history,
             absorbed_total,
             input.environment.used(),
+            margin,
         );
         output.checks.extend(phases.checks);
         Ok(output)
@@ -280,6 +291,7 @@ fn build_output(
     history: &[Vec<f64>],
     absorbed_total: Vec<f64>,
     environment: ThermalEnvironmentUsed,
+    margin: ThermalMarginUsed,
 ) -> ThermalTransientOutput {
     let mut channels = Vec::with_capacity(network.nodes.len() + 1);
     let mut nodes = Vec::with_capacity(network.nodes.len());
@@ -289,6 +301,8 @@ fn build_output(
         let (i_min, min) = extreme(&values, |a, b| a < b);
         let (i_max, max) = extreme(&values, |a, b| a > b);
         let mean = time_mean(&t, &values);
+        let ranges = range_margins(min, max, &n.ranges(), &margin);
+        checks.extend(range_checks(&n.id, min, max, &ranges, &margin));
         nodes.push(ThermalTransientNodeResult {
             node: n.id.clone(),
             min: Qty::from_raw(min),
@@ -296,10 +310,9 @@ fn build_output(
             mean: Qty::from_raw(mean),
             time_of_min: Qty::from_raw(t.get(i_min).copied().unwrap_or(0.0)),
             time_of_max: Qty::from_raw(t.get(i_max).copied().unwrap_or(0.0)),
-            operating: n.operating(),
-            verdict: range_verdict(min, max, n.operating()),
+            verdict: worst_verdict(&ranges),
+            ranges,
         });
-        checks.extend(range_check(&n.id, min, max, n.operating()));
         channels.push(
             Channel::of::<Temperature>(&n.id, ChannelKind::NodeTemperature, values).about(&n.id),
         );
@@ -313,7 +326,7 @@ fn build_output(
         series: Series { t, channels },
         environment,
         nodes,
-        range_warning_band: Qty::from_raw(RANGE_WARNING_BAND_K),
+        margin,
         checks,
     }
 }
