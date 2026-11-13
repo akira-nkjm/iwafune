@@ -74,8 +74,10 @@ fn assemble(
             }
         }
     }
+    let verdicts = presentation::worst_verdicts(&modes);
     PowerPageView {
         modes,
+        verdicts,
         analyses,
         parts,
     }

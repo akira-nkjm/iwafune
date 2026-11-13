@@ -15,41 +15,43 @@ function segmentStyle(s: PowerBudgetSegment) {
 }
 
 /**
- * モードごとに、日照中（または蝕中）の電力の行き先を 1 本の積み上げ棒で並べる。目盛りは全モードで共通。
- * 行を押すとそのモードを選ぶ（判定のバーなどがそのモードに切り替わる）。
+ * モードごとに、日照中（または蝕中）の電力の行き先を 1 本の積み上げ棒で並べる（並び・絞り込みは呼び手）。
+ * 目盛りは全モードで共通（幅は API の fraction）。`thin` はモードが多いときの細い行
  */
 export function PowerBudget({
   modes,
   eclipse,
-  selected,
-  onSelect,
+  thin = false,
 }: {
   modes: PowerModeView[];
   eclipse: boolean;
-  selected: string | undefined;
-  onSelect: (id: string) => void;
+  thin?: boolean;
 }) {
   const t = useT().systems.power;
   const legend = new Map<string, PowerBudgetSegment>();
   return (
-    <div className="space-y-1.5">
+    <div className={thin ? "space-y-0.5" : "space-y-1.5"}>
       {modes.map((m) => {
         const budget = eclipse ? m.eclipse : m.sunlit;
         for (const s of budget?.segments ?? [])
           legend.set(s.kind === "load" ? `load:${s.system}` : s.kind, s);
         return (
-          <button
+          <div
             key={m.id}
-            type="button"
-            onClick={() => onSelect(m.id)}
-            aria-pressed={m.id === selected}
             className={cn(
-              "grid w-full grid-cols-[minmax(0,7rem)_minmax(0,1fr)_4.5rem] items-center gap-3 rounded-control px-2 py-1.5 text-left text-xs hover:bg-panel-2",
-              m.id === selected && "bg-accent-tint",
+              "grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_4.5rem] items-center gap-3 px-2 text-xs",
+              thin ? "py-0.5" : "py-1.5",
             )}
           >
-            <span className="truncate font-medium">{nodeName(m)}</span>
-            <span className="flex h-4 overflow-hidden rounded-[5px] bg-panel-2">
+            <span className="truncate font-medium" title={m.id}>
+              {nodeName(m)}
+            </span>
+            <span
+              className={cn(
+                "flex overflow-hidden rounded-[5px] bg-panel-2",
+                thin ? "h-2.5" : "h-4",
+              )}
+            >
               {budget?.segments.map((s) => (
                 <span
                   key={`${s.kind}:${s.system ?? ""}`}
@@ -62,7 +64,7 @@ export function PowerBudget({
             <span className="num text-right text-ink-3">
               {budget ? quantityText(budget.supply) : t.unavailable}
             </span>
-          </button>
+          </div>
         );
       })}
       <div className="flex flex-wrap gap-x-3 gap-y-1 px-2 pt-2 text-ink-3 text-xs">

@@ -16,6 +16,7 @@ import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { TablePanel } from "@/kit/table/TablePanel";
 import { systemTitle } from "@/lib/design";
 import { AocsModes } from "./aocs/AocsModes";
+import { PowerModes } from "./power/PowerModes";
 import { PowerOverview } from "./power/PowerOverview";
 import { PowerParts } from "./power/PowerParts";
 import { PowerSeries } from "./power/PowerSeries";
@@ -53,6 +54,7 @@ export function SystemTabs({
     if (tab === "results") return <PowerOverview page={powerPage} design={design} />;
     if (tab === "breakdown" && design) return <PowerParts page={powerPage} defs={design.defs} />;
     if (tab === "series") return <PowerSeries page={powerPage} />;
+    if (tab === "modes") return <PowerModes page={powerPage} />;
   }
   if (tab === "modes")
     return design && hasModes(system) ? (

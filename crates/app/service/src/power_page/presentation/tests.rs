@@ -59,52 +59,83 @@ fn budget_by_hand_keeps_power_and_shares_one_scale_across_modes() {
 }
 
 #[test]
-fn bullet_positions_and_missing_orbit_are_explicit() {
-    let dod = bullet::<Fraction>(
+fn verdict_meter_is_ratio_to_limit_and_signed_when_limit_is_zero() {
+    // DoD 0.2 / 上限 0.4 = 50 %: メーターは 0〜150 % なので塗りは 50/150、限界の線は 100/150
+    let dod = verdict_view::<Fraction>(
         "dod",
         label("DoD", "DoD"),
         Some(0.2),
         0.4,
-        false,
+        PowerLimitKind::AtMost,
         Some(Verdict::Ok),
     );
-    // 比は 0〜100 % に固定: 20 % は 20、上限 40 % は 40
-    assert!((dod.marker.unwrap() - 20.0).abs() < 1e-10);
-    assert!((dod.band_end - 40.0).abs() < 1e-10);
-    assert_eq!(dod.band_start, 0.0);
-    assert_eq!(dod.origin, 0.0);
-    // 設計 2990・必要 5090（面積）: 目盛りは 5090 × 1.15 まで
-    let area = bullet::<sat_units::typed::Area>(
+    assert!((dod.fill_end - 100.0 * 0.5 / 1.5).abs() < 1e-10);
+    assert!((dod.limit_at - 100.0 / 1.5).abs() < 1e-10);
+    assert_eq!(dod.fill_start, 0.0);
+    assert!(dod.note.label.contains("上限の"));
+    // 面積 2990 / 必要 5090 = 58.7 %
+    let area = verdict_view::<sat_units::typed::Area>(
         "area",
         label("面積", "Area"),
         Some(2990.0),
         5090.0,
-        true,
+        PowerLimitKind::AtLeast,
         Some(Verdict::Violation),
     );
-    assert!((area.marker.unwrap() - 100.0 * 2990.0 / (5090.0 * 1.15)).abs() < 1e-10);
-    assert!((area.limit_marker - 100.0 / 1.15).abs() < 1e-10);
-    let margin = bullet::<Energy>(
+    assert!((area.fill_end - 100.0 * (2990.0 / 5090.0) / 1.5).abs() < 1e-10);
+    assert!(area.note.label_en.contains("of required"));
+    // 収支 −10（限界 0）: 0 を中央に、左へ伸ばす。|v|×1.15 が端
+    let margin = verdict_view::<Energy>(
         "margin",
         label("収支", "Margin"),
         Some(-10.0),
         0.0,
-        true,
+        PowerLimitKind::AtLeast,
         Some(Verdict::Violation),
     );
-    assert_eq!(margin.limit_marker, 50.0);
-    assert_eq!(margin.origin, 50.0);
-    assert!(margin.marker.unwrap() < margin.band_start);
-    let missing = bullet::<Energy>(
+    assert_eq!(margin.limit_at, 50.0);
+    assert_eq!(margin.fill_end, 50.0);
+    assert!((margin.fill_start - (50.0 - 50.0 / 1.15)).abs() < 1e-10);
+    assert!(margin.note.label.contains("不足"));
+    let missing = verdict_view::<Energy>(
         "margin",
         label("収支", "Margin"),
         None,
         0.0,
-        true,
+        PowerLimitKind::AtLeast,
         Some(Verdict::Warning),
     );
-    assert!(missing.marker.is_none());
     assert!(missing.value.is_none());
+    assert_eq!(missing.fill_end, 0.0);
+}
+
+#[test]
+fn worst_verdict_prefers_violation_then_the_larger_shortfall() {
+    let view = |id: &str, area: f64, verdict| PowerModeView {
+        id: id.into(),
+        label: id.into(),
+        verdict: Some(verdict),
+        sunlit: None,
+        eclipse: None,
+        bars: vec![verdict_view::<sat_units::typed::Area>(
+            "area",
+            label("面積", "Area"),
+            Some(area),
+            100.0,
+            PowerLimitKind::AtLeast,
+            Some(verdict),
+        )],
+        charts: Vec::new(),
+    };
+    let modes = vec![
+        view("A", 150.0, Verdict::Ok),
+        view("B", 80.0, Verdict::Violation),
+        view("C", 60.0, Verdict::Violation),
+    ];
+    let worst = worst_verdicts(&modes);
+    assert_eq!(worst.len(), 1);
+    // 違反のうち、必要に対する割合が小さい C
+    assert_eq!(worst[0].mode.as_deref(), Some("C"));
 }
 
 #[test]
@@ -247,10 +278,10 @@ fn sizing_builder_keeps_design_and_required_values_and_analysis_verdicts() {
     assert_eq!(area.value.as_ref().unwrap().si, 3.0);
     assert_eq!(area.limit.si, 2.0);
     assert_eq!(area.verdict, Some(Verdict::Ok));
-    assert!(area.marker.unwrap() > area.limit_marker);
+    assert!(area.fill_end > area.limit_at);
     let capacity = &mode.bars[1];
     assert_eq!(capacity.value.as_ref().unwrap().si, 100.0);
     assert_eq!(capacity.limit.si, 120.0);
     assert_eq!(capacity.verdict, Some(Verdict::Violation));
-    assert!(capacity.marker.unwrap() < capacity.band_start);
+    assert!(capacity.fill_end < capacity.limit_at);
 }

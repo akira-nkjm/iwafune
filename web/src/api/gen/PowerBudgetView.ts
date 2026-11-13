@@ -10,4 +10,8 @@ export type PowerBudgetView = {
 /**
  * 供給（日照: 太陽電池の日照中の平均発電、蝕: 電池からの放電）
  */
-supply: QuantityView, segments: Array<PowerBudgetSegment>, };
+supply: QuantityView, 
+/**
+ * 「余裕の少ない順」に並べるときの値（小さいほど余裕が少ない）。日照は余り − 不足 [W]、蝕は −放電 [W]
+ */
+order: number, segments: Array<PowerBudgetSegment>, };

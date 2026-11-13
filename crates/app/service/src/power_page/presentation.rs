@@ -90,20 +90,20 @@ fn balance(input: &EnergyBalanceInput, out: &EnergyBalanceOutput, json: &Value) 
                 sunlit: None,
                 eclipse: None,
                 bars: vec![
-                    bullet::<Fraction>(
+                    verdict_view::<Fraction>(
                         "dod",
                         label("最大 DoD", "Maximum DoD"),
                         Some(case.max_dod.value()),
                         out.dod_limit.value(),
-                        false,
+                        PowerLimitKind::AtMost,
                         check(&case.checks, "dod"),
                     ),
-                    bullet::<Energy>(
+                    verdict_view::<Energy>(
                         "energy_balance",
                         label("1 周のエネルギー余裕", "Energy margin per orbit"),
                         case.energy_margin_per_orbit.map(|v| v.value()),
                         0.0,
-                        true,
+                        PowerLimitKind::AtLeast,
                         check(&case.checks, "energy_balance"),
                     ),
                 ],
@@ -141,22 +141,22 @@ fn sizing(out: &SizingOutput) -> PowerPageView {
                 sunlit: None,
                 eclipse: None,
                 bars: vec![
-                    bullet::<Area>(
+                    verdict_view::<Area>(
                         "area",
                         label("太陽電池の面積", "Solar Cells area"),
                         Some(out.design_area.value()),
                         m.required_area.value(),
-                        true,
+                        PowerLimitKind::AtLeast,
                         out.mode_checks
                             .get(&m.id)
                             .and_then(|c| check(c, "sap_margin")),
                     ),
-                    bullet::<Energy>(
+                    verdict_view::<Energy>(
                         "capacity",
                         label("電池容量", "Battery capacity"),
                         Some(out.design_capacity.value()),
                         m.required_capacity.value(),
-                        true,
+                        PowerLimitKind::AtLeast,
                         out.mode_checks
                             .get(&m.id)
                             .and_then(|c| check(c, "battery_margin")),
@@ -173,43 +173,111 @@ fn check(checks: &[Check], key: &str) -> Option<Verdict> {
     checks.iter().find(|c| c.key == key).map(|c| c.verdict)
 }
 
-/// 判定のバーの表示位置（0〜100）。比（DoD など）は 0〜100 % に固定し、ほかは設計値と限界の大きい方の 1.15 倍まで。
-/// 負の値があるときは 0 を中央に置く。`origin` は 0 の位置（設計値の棒はそこから伸ばす）。
-fn bullet<K: NamedKind>(
+/// メーターの右端（限界・必要値の何倍まで描くか）。限界の線はその 1/1.5 の位置になる。
+const METER_SPAN: f64 = 1.5;
+
+/// 判定 1 つ。限界が 0 でない量はメーターを「限界に対する割合」（0〜150 %）で描き、
+/// 限界が 0 の量（1 周の収支など）は 0 を中央に置いた符号つきのメーターにする。
+pub(super) fn verdict_view<K: NamedKind>(
     key: &str,
     label: AnalysisLabel,
     value: Option<f64>,
     limit: f64,
-    minimum: bool,
+    kind: PowerLimitKind,
     verdict: Option<Verdict>,
-) -> PowerBulletView {
-    let ratio = K::name() == Fraction::name();
-    let extent = if ratio {
-        1.0_f64.max(value.unwrap_or(0.0).abs())
-    } else {
-        value
-            .unwrap_or(limit)
-            .abs()
-            .max(limit.abs())
-            .max(f64::EPSILON)
-            * 1.15
+) -> PowerVerdictView {
+    let fmt = |v: f64| crate::units::quantity_auto(v, K::name()).display;
+    let pct = |r: f64| crate::units::quantity_auto(r, Fraction::name()).display;
+    let (fill_start, fill_end, limit_at, note, badness) = match value {
+        None => (
+            0.0,
+            0.0,
+            100.0 / METER_SPAN,
+            self::label("—", "—"),
+            f64::NEG_INFINITY,
+        ),
+        Some(v) if limit.abs() > f64::EPSILON => {
+            let r = v / limit;
+            let end = (r / METER_SPAN).clamp(0.0, 1.0) * 100.0;
+            let note = match kind {
+                PowerLimitKind::AtMost => self::label(
+                    &format!("上限の {}", pct(r)),
+                    &format!("{} of limit", pct(r)),
+                ),
+                PowerLimitKind::AtLeast => self::label(
+                    &format!("必要の {}", pct(r)),
+                    &format!("{} of required", pct(r)),
+                ),
+            };
+            let badness = if kind == PowerLimitKind::AtMost {
+                r
+            } else {
+                -r
+            };
+            (0.0, end, 100.0 / METER_SPAN, note, badness)
+        }
+        Some(v) => {
+            // 限界が 0: 0 を中央に、|v| の 1.15 倍を端にする
+            let span = (v.abs() * 1.15).max(f64::EPSILON);
+            let pos = (50.0 + v / span * 50.0).clamp(0.0, 100.0);
+            let note = if v < 0.0 {
+                self::label(
+                    &format!("{} 不足", fmt(-v)),
+                    &format!("short by {}", fmt(-v)),
+                )
+            } else {
+                self::label(
+                    &format!("{} の余裕", fmt(v)),
+                    &format!("{} to spare", fmt(v)),
+                )
+            };
+            (pos.min(50.0), pos.max(50.0), 50.0, note, -v)
+        }
     };
-    let negative = value.is_some_and(|v| v < 0.0) || limit < 0.0;
-    let low = if negative { -extent } else { 0.0 };
-    let position = |v: f64| ((v - low) / (extent - low) * 100.0).clamp(0.0, 100.0);
-    let limit_marker = position(limit);
-    PowerBulletView {
+    PowerVerdictView {
         key: key.into(),
         label,
         value: value.map(|v| crate::units::quantity_auto(v, K::name())),
         limit: crate::units::quantity_auto(limit, K::name()),
         verdict,
-        band_start: if minimum { limit_marker } else { position(0.0) },
-        band_end: if minimum { 100.0 } else { limit_marker },
-        marker: value.map(position),
-        limit_marker,
-        origin: position(0.0),
+        kind,
+        mode: None,
+        note,
+        fill_start,
+        fill_end,
+        limit_at,
+        badness,
     }
+}
+
+/// 判定ごとに全モードの最悪をとる（違反 → 警告 → OK の順、同じなら悪さの大きいもの）。並びは最初に出た順。
+pub(super) fn worst_verdicts(modes: &[PowerModeView]) -> Vec<PowerVerdictView> {
+    let severity = |v: Option<Verdict>| match v {
+        Some(Verdict::Violation) => 3,
+        Some(Verdict::Warning) => 2,
+        Some(Verdict::Ok) => 1,
+        None => 0,
+    };
+    let mut out: Vec<PowerVerdictView> = Vec::new();
+    for mode in modes {
+        for bar in &mode.bars {
+            let candidate = PowerVerdictView {
+                mode: Some(mode.id.clone()),
+                ..bar.clone()
+            };
+            match out.iter_mut().find(|b| b.key == bar.key) {
+                Some(best) => {
+                    let worse = (severity(candidate.verdict), candidate.badness)
+                        > (severity(best.verdict), best.badness);
+                    if worse {
+                        *best = candidate;
+                    }
+                }
+                None => out.push(candidate),
+            }
+        }
+    }
+    out
 }
 
 #[cfg(test)]

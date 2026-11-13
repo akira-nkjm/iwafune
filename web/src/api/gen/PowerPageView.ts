@@ -2,6 +2,7 @@
 import type { PowerAnalysisView } from "./PowerAnalysisView";
 import type { PowerModeView } from "./PowerModeView";
 import type { PowerPartsGroup } from "./PowerPartsGroup";
+import type { PowerVerdictView } from "./PowerVerdictView";
 
 /**
  * ケースに対する電源ページ全体の表示。
@@ -11,6 +12,10 @@ export type PowerPageView = {
  * 全解析を統合したモードごとの表示。
  */
 modes: Array<PowerModeView>, 
+/**
+ * 判定ごとに全モードの最悪をとったもの（概要に出す）
+ */
+verdicts: Array<PowerVerdictView>, 
 /**
  * データを見る・不足入力・設定に使う元の解析と表示名。
  */

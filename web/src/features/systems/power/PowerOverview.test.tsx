@@ -5,16 +5,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   AnalysisRunResult,
   PowerBudgetView,
-  PowerBulletView,
   PowerModeView,
   PowerPageView,
+  PowerVerdictView,
 } from "@/api/types";
 import { setLang } from "@/i18n";
 import { qv } from "@/test/fixture";
-import { PowerBudget } from "./PowerBudget";
-import { PowerBullet } from "./PowerBullet";
-import { PowerControls } from "./PowerControls";
+import { PowerModes } from "./PowerModes";
 import { PowerOverview } from "./PowerOverview";
+import { PowerVerdictCard } from "./PowerVerdictCard";
 
 // SSR has a fixed Japanese hydration snapshot; emulate the client's selected dictionary here.
 vi.mock("@/i18n", async (importOriginal) => {
@@ -22,20 +21,22 @@ vi.mock("@/i18n", async (importOriginal) => {
   return { ...actual, useT: actual.getT };
 });
 
-const bar: PowerBulletView = {
+const bar: PowerVerdictView = {
   key: "dod",
   label: { label: "最大 DoD", label_en: "Maximum DoD" },
   value: qv(20, "%", "Fraction", 0.2),
   limit: qv(40, "%", "Fraction", 0.4),
   verdict: "ok",
-  band_start: 0,
-  band_end: 80,
-  marker: 40,
-  limit_marker: 80,
-  origin: 0,
+  kind: "at_most",
+  mode: "nominal",
+  note: { label: "上限の 50.0 %", label_en: "50.0 % of limit" },
+  fill_start: 0,
+  fill_end: 33.3,
+  limit_at: 66.7,
 };
 const budget: PowerBudgetView = {
   supply: qv(60, "W", "Power"),
+  order: 30,
   segments: [
     {
       kind: "load",
@@ -81,6 +82,7 @@ const result: AnalysisRunResult = {
 };
 const page: PowerPageView = {
   modes,
+  verdicts: [bar],
   parts: [],
   analyses: [
     {
@@ -118,47 +120,27 @@ afterEach(() => setLang("ja"));
 
 describe("power overview", () => {
   it("draws one bar per mode with API widths and labels in both languages", () => {
-    const render = () =>
-      renderToStaticMarkup(
-        <PowerBudget modes={modes} eclipse={false} selected={modes[0]?.id} onSelect={() => {}} />,
-      );
+    const render = () => renderToStaticMarkup(<PowerModes page={page} />);
     const ja = render();
     expect(ja).toContain("width:50%");
     expect(ja).toContain("60 W");
     expect(ja).toContain("余り（シャント）");
-    expect(ja).toContain('aria-pressed="true"');
+    expect(ja).toContain("余裕の少ない順");
     setLang("en");
     const en = render();
     expect(en).toContain("Surplus (shunt)");
     expect(en).not.toContain("SAP");
   });
-  it("uses returned bar positions and keeps unavailable margins explicit", () => {
-    const html = renderToStaticMarkup(<PowerBullet item={bar} />);
-    // 設計値の棒は 0（origin）から marker まで、限界の点線は limit_marker
-    expect(html).toContain('width="40"');
-    expect(html).toContain('x1="80"');
-    expect(html).toContain("20 %");
-    expect(html).toContain("40 %");
+  it("shows the verdict as a ratio meter with the worst mode", () => {
+    const html = renderToStaticMarkup(<PowerVerdictCard item={bar} modeName="Nominal" />);
+    expect(html).toContain("width:33.3%");
+    expect(html).toContain("left:calc(66.7% - 1px)");
+    expect(html).toContain("上限の 50.0 %");
+    expect(html).toContain("最悪 Nominal");
     const missing = renderToStaticMarkup(
-      <PowerBullet item={{ ...bar, value: null, marker: null, verdict: "warning" }} />,
+      <PowerVerdictCard item={{ ...bar, value: null, verdict: "warning" }} />,
     );
     expect(missing).toContain("データなし");
-    expect(missing).not.toContain('x1="40"');
-  });
-  it("shows mode verdicts and the same accessible lighting switch as the matrix", () => {
-    const html = renderToStaticMarkup(
-      <PowerControls
-        modes={modes}
-        selected="nominal"
-        onSelect={() => {}}
-        eclipse
-        onLighting={() => {}}
-      />,
-    );
-    expect(html).toContain("Nominal");
-    expect(html).toContain('aria-pressed="true"');
-    expect(html).toContain("bg-pos");
-    expect(html).toContain("蝕");
   });
   it("keeps analysis tables in a collapsed data section with an outline", () => {
     const html = overview();
@@ -167,7 +149,7 @@ describe("power overview", () => {
     expect(html).toContain('<details class="mt-3">');
     expect(html).not.toContain("<details open");
     expect(html).toContain("最大 DoD");
-    expect(html).toContain('id="power-budget"');
+    expect(html).toContain('id="power-verdicts"');
     expect(html).not.toContain("<circle");
     setLang("en");
     expect(overview()).toContain("View data");

@@ -11,6 +11,8 @@ use std::collections::BTreeMap;
 /// 幅を決める前の棒（電力は W）。
 pub(super) struct RawBudget {
     supply: f64,
+    /// 余裕の少ない順に並べる値（日照: 余り − 不足、蝕: −放電）
+    order: f64,
     segments: Vec<(PowerBudgetKind, Option<System>, AnalysisLabel, f64)>,
 }
 
@@ -78,7 +80,23 @@ pub(super) fn collect(
         }
         case.sunlit_average_generation.value()
     };
-    RawBudget { supply, segments }
+    let watts = |kind: PowerBudgetKind| {
+        segments
+            .iter()
+            .filter(|s| s.0 == kind)
+            .map(|s| s.3)
+            .sum::<f64>()
+    };
+    let order = if eclipse {
+        -supply
+    } else {
+        watts(PowerBudgetKind::Shunt) - watts(PowerBudgetKind::Deficit)
+    };
+    RawBudget {
+        supply,
+        order,
+        segments,
+    }
 }
 
 /// 系の表示名（組み込みの語彙）。系でなければグループ名のまま。
@@ -106,6 +124,7 @@ pub(super) fn finish(raws: Vec<Option<RawBudget>>) -> Vec<Option<PowerBudgetView
         .map(|raw| {
             raw.map(|raw| PowerBudgetView {
                 supply: crate::units::quantity_auto(raw.supply, Power::name()),
+                order: raw.order,
                 segments: raw
                     .segments
                     .into_iter()

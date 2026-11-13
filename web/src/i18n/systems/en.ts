@@ -9,13 +9,21 @@ export const systemsEn: typeof systemsJa = {
         "Where the sunlit-average generation goes: subsystems, battery charge and surplus. One scale for all modes; click a row to select that mode.",
       budgetEclipseCaption:
         "Power drawn from the battery by each subsystem during eclipse. One scale for all modes.",
+      upperLimit: "limit",
+      required: "required",
+      worstMode: (m: string) => `Worst: ${m}`,
+      verdictsCaption:
+        "Worst value across all modes. The vertical line is the limit or requirement (100 %); color shows the verdict.",
+      order: "Order",
+      orderTight: "Least margin first",
+      orderDefined: "Defined order",
+      showAll: (n: number) => `Show all (${n})`,
+      showFewer: "Show fewer",
       verdicts: "Verdicts",
       mode: "Mode",
       unavailable: "Unavailable",
       design: "Design",
       limit: "Limit / required",
-      barLegend:
-        "Pale band: allowed range · Bar: design (colored by verdict) · Dotted: limit / required",
       outline: "On this page",
       data: "View data",
     },

@@ -9,6 +9,8 @@ use ts_rs::TS;
 pub struct PowerPageView {
     /// 全解析を統合したモードごとの表示。
     pub modes: Vec<PowerModeView>,
+    /// 判定ごとに全モードの最悪をとったもの（概要に出す）
+    pub verdicts: Vec<PowerVerdictView>,
     /// データを見る・不足入力・設定に使う元の解析と表示名。
     pub analyses: Vec<PowerAnalysisView>,
     /// 役割別の部品と表示属性。
@@ -23,7 +25,7 @@ pub struct PowerModeView {
     pub verdict: Option<Verdict>,
     pub sunlit: Option<PowerBudgetView>,
     pub eclipse: Option<PowerBudgetView>,
-    pub bars: Vec<PowerBulletView>,
+    pub bars: Vec<PowerVerdictView>,
     pub charts: Vec<PowerChartView>,
 }
 
@@ -33,6 +35,8 @@ pub struct PowerModeView {
 pub struct PowerBudgetView {
     /// 供給（日照: 太陽電池の日照中の平均発電、蝕: 電池からの放電）
     pub supply: QuantityView,
+    /// 「余裕の少ない順」に並べるときの値（小さいほど余裕が少ない）。日照は余り − 不足 [W]、蝕は −放電 [W]
+    pub order: f64,
     pub segments: Vec<PowerBudgetSegment>,
 }
 
@@ -61,20 +65,38 @@ pub enum PowerBudgetKind {
     Deficit,
 }
 
-/// 許容帯と設計値・限界のマーカー（位置は 0〜100）。
+/// 判定 1 つ。メーターは「限界・必要値に対する割合」で、位置はすべて 0〜100（サービスが計算する）。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct PowerBulletView {
+pub struct PowerVerdictView {
     pub key: String,
     pub label: AnalysisLabel,
     pub value: Option<QuantityView>,
     pub limit: QuantityView,
     pub verdict: Option<Verdict>,
-    pub band_start: f64,
-    pub band_end: f64,
-    pub marker: Option<f64>,
-    pub limit_marker: f64,
-    /// 0 の位置（設計値の棒はここから `marker` まで伸ばす）
-    pub origin: f64,
+    pub kind: PowerLimitKind,
+    /// 全モードの最悪をとったときの、そのモード（モードごとの値では None）
+    pub mode: Option<String>,
+    /// 「上限の 143 %」「必要の 59 %」「8.70 Wh 不足」など
+    pub note: AnalysisLabel,
+    /// メーターの塗りの始まりと終わり
+    pub fill_start: f64,
+    pub fill_end: f64,
+    /// 限界・必要値の線の位置
+    pub limit_at: f64,
+    /// 悪さ（大きいほど悪い）。最悪のモードを選ぶのに使い、表示しない
+    #[serde(skip)]
+    #[ts(skip)]
+    pub badness: f64,
+}
+
+/// 限界の向き。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum PowerLimitKind {
+    /// 限界以下なら OK（DoD）
+    AtMost,
+    /// 必要値以上なら OK（面積・容量・収支）
+    AtLeast,
 }
 
 /// 共通の横軸・同期カーソルを使うグラフの定義。
