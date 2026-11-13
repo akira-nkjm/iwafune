@@ -70,9 +70,8 @@ const FEATURE_EDGES: &[(&str, &str, &str)] = &[
     (
         "systems",
         "layout3d/LazyLayout3D",
-        "構造と熱の追加の表示（3D 配置）",
+        "熱の追加の表示（温度で塗った 3D）",
     ),
-    ("systems", "layout3d/scene", "3D 配置の座標の型（重心の点）"),
 ];
 
 /// 行の中の、引用符の直後に来るページの URL の接頭辞を探す。

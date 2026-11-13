@@ -1,3 +1,4 @@
+import { loadLayout3D } from "@/features/layout3d/LazyLayout3D";
 import { preloadSystem } from "@/features/systems/preload";
 import { isSystemItem, type NavItemKey } from "@/lib/nav";
 import { lazyPage as page, quietly } from "@/shell/lazy-page";
@@ -28,6 +29,10 @@ export const pages = {
   modes: page(
     () => import("@/features/modes/ModesPage"),
     (m) => m.ModesPage,
+  ),
+  layout: page(
+    () => import("@/features/layout3d/LayoutPage"),
+    (m) => m.LayoutPage,
   ),
   defs: page(
     () => import("@/features/defs/DefsPage"),
@@ -66,6 +71,7 @@ function preloadItem(key: NavItemKey): void {
     return;
   }
   quietly(pages[key].load());
+  if (key === "layout") quietly(loadLayout3D());
 }
 
 /** 先読みの計画。大きなチャンク（系統図の React Flow）は空き時間には読まない（ホバーで読む） */

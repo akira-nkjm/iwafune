@@ -34,7 +34,7 @@ export const systemsJa = {
       },
       thermal: { description: "多節点の定常・非定常解析と、動作温度範囲との比較" },
       structure: {
-        description: "3D 配置、質量特性、準静的荷重と簡易な固有振動数",
+        description: "質量特性、準静的荷重と簡易な固有振動数",
       },
     },
     // KPI の名前は API（`KpiDef.label`・`label_en`）。ここは判定を数える KPI の数の文と、塗りの比の根拠（`FillBasis`）の文
@@ -79,6 +79,7 @@ export const systemsJa = {
     thermal3dLegend: "各節点の最高温度（節点 ID = 部品 ID のもの）",
     layout3d: {
       title: "3D 配置",
+      pageHint: "部品を選び、取付・位置・姿勢を確認・編集します。",
       parts: (n: number) => `${n} 部品`,
       unplacedCount: (n: number) => ` · 未配置 ${n}`,
       com: " · 赤い点 = 重心",

@@ -1,4 +1,5 @@
 import {
+  Box,
   Boxes,
   Cpu,
   FileWarning,
@@ -59,7 +60,8 @@ export const paths = {
   catalogItem: (id: string) => itemPath(paths.catalog(), id),
   diagram: () => "/design/diagram",
   modes: () => "/design/modes",
-  defs: (tab?: DefsTab) => (tab ? `/design/defs/${tab}` : "/design/defs"),
+  layout: () => "/design/layout",
+  defs: (tab?: DefsTab) => (tab ? `/project/defs/${tab}` : "/project/defs"),
   /** 系のページ。`tab` が無ければ結果のタブ、`kase` があればその解析ケースで開く */
   system: (system: System, at: { tab?: string | null; kase?: string | null } = {}) =>
     withSearch(at.tab ? `/systems/${system}/${at.tab}` : `/systems/${system}`, {
@@ -124,7 +126,7 @@ export const nav = (systems: readonly System[]): NavSection[] => [
       { to: paths.catalog(), key: "catalog", icon: Library },
       { to: paths.diagram(), key: "diagram", icon: Network },
       { to: paths.modes(), key: "modes", icon: Table2 },
-      { to: paths.defs(), key: "defs", icon: Ruler },
+      { to: paths.layout(), key: "layout", icon: Box },
     ],
   },
   {
@@ -151,6 +153,7 @@ export const nav = (systems: readonly System[]): NavSection[] => [
     items: [
       { to: paths.diagnostics(), key: "diagnostics", icon: FileWarning },
       { to: paths.settings(), key: "settings", icon: Settings },
+      { to: paths.defs(), key: "defs", icon: Ruler },
     ],
   },
 ];
