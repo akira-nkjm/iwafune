@@ -37,18 +37,40 @@ section      = "power"
 [heat_fraction]
 label       = "発熱の割合"
 label_en    = "Heat fraction"
-description = "消費電力のうち発熱になる割合"
+description = "消費電力のうち発熱になる割合。書けば RF 出力より優先する（書かなければ発熱 = 消費電力 − RF 出力）"
 type        = "scalar"
 dimension   = "Dimensionless"
 units       = [""]
 min         = 0.0
 max         = 1.0
-default     = 1.0
 section     = "thermal"
+
+[rf_output]
+label        = "RF 出力（発熱にならない電力）"
+label_en     = "RF output (not dissipated as heat)"
+description  = "状態ごとにアンテナから出ていく電力。熱解析の発熱は消費電力からこれを引く（回線計算の送信電力は tx_power）"
+type         = "scalar"
+by_state     = true
+dimension    = "Power"
+units        = ["W", "mW"]
+display_unit = "W"
+min          = 0.0
+section      = "thermal"
 
 [temp_op]
 label        = "動作温度範囲"
 label_en     = "Operating temperature range"
+description  = "機能を維持する温度範囲"
+type         = "range"
+dimension    = "Temperature"
+units        = ["degC", "K"]
+display_unit = "degC"
+section      = "thermal"
+
+[temp_perf]
+label        = "性能温度範囲"
+label_en     = "Performance temperature range"
+description  = "仕様の性能を満たす温度範囲（ふつう動作温度範囲の内側）"
 type         = "range"
 dimension    = "Temperature"
 units        = ["degC", "K"]
@@ -56,8 +78,9 @@ display_unit = "degC"
 section      = "thermal"
 
 [temp_survival]
-label        = "非動作温度範囲"
-label_en     = "Survival temperature range"
+label        = "保管温度範囲（非動作）"
+label_en     = "Storage (non-operating) temperature range"
+description  = "電源を切っていても壊れない温度範囲"
 type         = "range"
 dimension    = "Temperature"
 units        = ["degC", "K"]

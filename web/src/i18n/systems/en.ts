@@ -88,7 +88,8 @@ export const systemsEn: typeof systemsJa = {
         description: "Link budget, ground station contact time, downlink volume and backlog",
       },
       thermal: {
-        description: "Multi-node steady and transient analysis against operating ranges",
+        description:
+          "Multi-node steady and transient analysis against storage, operating and performance ranges",
       },
       structure: {
         description: "Mass properties, quasi-static loads and simple natural frequencies",

@@ -4,6 +4,7 @@
 //! モードや部品の ID を参照する箇所（`mode_share` のキー・`law` のキー・`nodes` の値など）は `check` が検査し、
 //! 名前の変更（RenamePart・RenameMode）で一緒に書き換わる。
 
+use crate::design::thermal_settings::ThermalSettings;
 use crate::enum_text::enum_text;
 use crate::path::SettingPath;
 use crate::value::{Quantity, Quaternion, Vector3};
@@ -262,51 +263,6 @@ pub struct CommSettings {
     /// 回線の名前 → 設定
     #[serde(default, rename = "link", skip_serializing_if = "BTreeMap::is_empty")]
     pub links: BTreeMap<String, CommLinkSettings>,
-}
-
-/// 熱の環境条件 1 つ（`[case.<名前>]`）。
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-pub struct ThermalCaseSettings {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
-    /// この条件で使うモード
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mode: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub solar_flux: Option<Quantity>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub albedo: Option<f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub earth_ir: Option<Quantity>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub beta: Option<Quantity>,
-}
-
-/// 熱の解析（`analysis/thermal.toml`）。
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-pub struct ThermalSettings {
-    /// 取付ごとの既定の接触熱コンダクタンス
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub contact_conductance: Option<Quantity>,
-    /// 節点間の既定の輻射結合（ε と面積の積）
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub radiative_coupling: Option<Quantity>,
-    /// 非定常解析の初期温度
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub initial_temperature: Option<Quantity>,
-    /// 非定常解析の時間刻み
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub time_step: Option<Quantity>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub orbits: Option<u32>,
-    /// 環境条件の名前 → 条件
-    #[serde(default, rename = "case", skip_serializing_if = "BTreeMap::is_empty")]
-    pub cases: BTreeMap<String, ThermalCaseSettings>,
-    /// 節点の名前 → まとめる部品の ID
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub nodes: BTreeMap<String, Vec<String>>,
 }
 
 /// 材料の物性（`[material.<名前>]`）。

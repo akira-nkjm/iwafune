@@ -3,7 +3,7 @@
 
 use super::Ctx;
 use super::settings::{Scope, scope};
-use crate::design::{AnalysisSystem, CommLinkSettings, Design, SettingEntry, ThermalSettings};
+use crate::design::{AnalysisSystem, CommLinkSettings, Design, SettingEntry};
 
 /// `analysis/` の全体。`entries` は `Design::setting_entries`。
 pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
@@ -30,7 +30,7 @@ pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
     check_aocs(ctx);
     check_cdh(ctx);
     check_comm(ctx);
-    check_thermal(ctx);
+    super::settings_thermal::check_thermal(ctx);
 }
 
 fn mode_exists(design: &Design, mode: &str) -> bool {
@@ -195,51 +195,6 @@ fn check_link(
                     link.band
                 ),
             );
-        }
-    }
-}
-
-fn check_thermal(ctx: &mut Ctx) {
-    let design = ctx.design;
-    let Some(t) = &design.analysis.thermal else {
-        return;
-    };
-    let mut s = scope(ctx, AnalysisSystem::Thermal.setting_path());
-    for (name, case) in &t.cases {
-        let n = name.as_str();
-        if let Some(mode) = &case.mode {
-            let exists = mode_exists(design, mode);
-            s.reference(
-                &["case", n, "mode"],
-                exists,
-                "ref.mode",
-                format!("モード `{mode}`"),
-            );
-        }
-        s.fraction(&["case", n, "albedo"], case.albedo);
-    }
-    check_nodes(&mut s, design, t);
-}
-
-/// 節点の部品の参照と、1 つの部品が 2 つの節点に入っていないか。
-fn check_nodes(s: &mut Scope, design: &Design, t: &ThermalSettings) {
-    let mut owner: std::collections::BTreeMap<&str, &str> = std::collections::BTreeMap::new();
-    for (node, parts) in &t.nodes {
-        for part in parts {
-            let exists = design.parts.contains_key(part.as_str());
-            s.reference(
-                &["nodes", node],
-                exists,
-                "ref.part",
-                format!("部品 `{part}`"),
-            );
-            if let Some(other) = owner.insert(part.as_str(), node.as_str()) {
-                s.error(
-                    &["nodes", node],
-                    "thermal.node_overlap",
-                    format!("部品 `{part}` が節点 `{other}` と `{node}` の両方にあります"),
-                );
-            }
         }
     }
 }

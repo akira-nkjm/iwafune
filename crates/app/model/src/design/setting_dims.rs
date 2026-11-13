@@ -177,6 +177,10 @@ setting_quantities! {
     THERMAL_INITIAL_TEMPERATURE: Temperature = Analysis["thermal", "initial_temperature"];
     /// 非定常の刻み
     THERMAL_TIME_STEP: Time = Analysis["thermal", "time_step"];
+    /// 予測温度の不確かさ（`[margin]`。温度差なので K で書く）
+    THERMAL_MARGIN_UNCERTAINTY: Temperature = Analysis["thermal", "margin", "uncertainty"];
+    /// 温度範囲の端の警告の幅（温度差）
+    THERMAL_MARGIN_WARNING_BAND: Temperature = Analysis["thermal", "margin", "warning_band"];
     /// 環境条件の太陽光の強さ（`[case.<条件>]`）
     THERMAL_CASE_SOLAR_FLUX: Irradiance = Analysis["thermal", "case", ANY, "solar_flux"];
     /// 環境条件の地球赤外

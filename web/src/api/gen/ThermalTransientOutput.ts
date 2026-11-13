@@ -2,6 +2,7 @@
 import type { Check } from "./Check";
 import type { Series } from "./Series";
 import type { ThermalEnvironmentUsed } from "./ThermalEnvironmentUsed";
+import type { ThermalMarginUsed } from "./ThermalMarginUsed";
 import type { ThermalTransientNodeResult } from "./ThermalTransientNodeResult";
 
 /**
@@ -21,10 +22,10 @@ environment: ThermalEnvironmentUsed,
  */
 nodes: Array<ThermalTransientNodeResult>, 
 /**
- * 動作範囲の端からこの幅以内を警告にした（`thermal::range::RANGE_WARNING_BAND_K`）
+ * 使った解析マージン（不確かさと警告の幅）
  */
-range_warning_band: number, 
+margin: ThermalMarginUsed, 
 /**
- * 動作範囲を持つ節点ごとの判定（key は `range:<node>`）
+ * 温度範囲を持つ節点の種類ごとの判定（key は `range:<node>:<storage|operating|performance>`）
  */
 checks: Array<Check>, };

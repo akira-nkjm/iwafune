@@ -2,7 +2,7 @@
 import type { ThermalTempRange } from "./ThermalTempRange";
 
 /**
- * 節点に含まれる部品。熱容量と動作温度範囲は、部品からここで節点にまとめる。
+ * 節点に含まれる部品。熱容量と温度範囲は、部品からここで節点にまとめる。
  */
 export type ThermalNodePart = { id: string, 
 /**
@@ -14,6 +14,14 @@ mass: number,
  */
 count: number, specific_heat: number, 
 /**
- * 動作温度範囲（節点の範囲は部品の範囲の共通部分）
+ * 保管（非動作）の範囲
  */
-operating: ThermalTempRange | null, };
+storage: ThermalTempRange | null, 
+/**
+ * 動作の範囲
+ */
+operating: ThermalTempRange | null, 
+/**
+ * 性能の範囲
+ */
+performance: ThermalTempRange | null, };

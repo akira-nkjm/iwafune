@@ -6,7 +6,7 @@
 label    = "機器（共通）"
 label_en = "Component (common)"
 required = ["mass"]
-optional = ["size", "temp_op", "temp_survival", "specific_heat", "heat_fraction", "absorptivity", "emissivity", "hk_rate"]
+optional = ["size", "temp_op", "temp_perf", "temp_survival", "specific_heat", "heat_fraction", "absorptivity", "emissivity", "hk_rate"]
 
 [obc]
 label    = "オンボードコンピュータ"
@@ -115,7 +115,7 @@ extends  = "component"
 role     = "transceiver"
 states   = ["off", "rx", "tx"]
 required = ["power", "tx_power", "frequency_down", "data_rate_down"]
-optional = ["frequency_up", "data_rate_up", "antenna_gain", "noise_temperature"]
+optional = ["frequency_up", "data_rate_up", "antenna_gain", "noise_temperature", "rf_output"]
 
 [antenna]
 label    = "アンテナ"
