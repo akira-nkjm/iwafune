@@ -5,9 +5,9 @@
 //! 区間の境目は標本の刻みで丸める（刻みの間は線形補間）。
 
 use super::case::{balance, duty_of, mode_loads};
-use super::{
-    Context, EnergyBalanceCaseResult, EnergyBalanceEvaluation, EnergyBalanceInput, mode_generation,
-};
+use super::context::mode_generation;
+use super::{Context, EnergyBalanceCaseResult, EnergyBalanceEvaluation, EnergyBalanceInput};
+use crate::power::battery::BatteryTrace;
 use crate::spec::{AnalysisError, ensure_positive};
 use sat_units::typed::{Power, Qty, Time};
 use serde::{Deserialize, Serialize};
@@ -53,8 +53,10 @@ pub(super) fn validate(input: &EnergyBalanceInput) -> Result<f64, AnalysisError>
     Ok(cycle)
 }
 
-/// 並びで回す（並びが空なら None）。
-pub(super) fn evaluate(ctx: &Context) -> Result<Option<EnergyBalanceSequence>, AnalysisError> {
+/// 並びで回す（並びが空なら None）。電池の積分（`trace`）も返す（時系列の逆算が刻みごとの増分を使う）。
+pub(super) fn evaluate(
+    ctx: &Context,
+) -> Result<Option<(EnergyBalanceSequence, BatteryTrace)>, AnalysisError> {
     let input = ctx.input;
     if input.sequence.is_empty() {
         return Ok(None);
@@ -76,7 +78,7 @@ pub(super) fn evaluate(ctx: &Context) -> Result<Option<EnergyBalanceSequence>, A
     let (load, generation) = along_sequence(ctx, &columns, cycle);
     let means = (lit_mean(ctx, &load, true), lit_mean(ctx, &load, false));
     let mixed = ctx.with_generation(generation);
-    let mut result = balance(
+    let (mut result, trace) = balance(
         &mixed,
         (SEQUENCE_ID, SEQUENCE_LABEL),
         means,
@@ -86,11 +88,12 @@ pub(super) fn evaluate(ctx: &Context) -> Result<Option<EnergyBalanceSequence>, A
     );
     result.evaluation = EnergyBalanceEvaluation::Sequence;
     result.duty = duty_of(input, input.sequence.iter().map(|s| s.mode.as_str()));
-    Ok(Some(EnergyBalanceSequence {
+    let sequence = EnergyBalanceSequence {
         cycle: Qty::from_raw(cycle),
         segments: input.sequence.clone(),
         balance: result,
-    }))
+    };
+    Ok(Some((sequence, trace)))
 }
 
 /// 標本ごとの負荷と発電の列。`columns[i]` は並びの `i` 番目の区間のモードの値。
