@@ -140,6 +140,20 @@ pub struct AttitudeLawSetting {
     pub orientation: Option<Quaternion>,
 }
 
+impl AttitudeLawSetting {
+    /// 欄の名前 → 値の形の見本（まだ書かれていない欄を文字列から読むときの型だけに使う。既定値ではない）。
+    pub fn field_shape(field: &str) -> Option<crate::value::SettingValue> {
+        use crate::value::SettingValue;
+        match field {
+            "axis" | "secondary" | "along_track" => {
+                Some(SettingValue::Vector(Vector3::unitless(0.0, 0.0, 0.0)))
+            }
+            "orientation" => Some(SettingValue::Quaternion(Quaternion::IDENTITY)),
+            _ => None,
+        }
+    }
+}
+
 /// AOCS の解析（`analysis/aocs.toml`）。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]

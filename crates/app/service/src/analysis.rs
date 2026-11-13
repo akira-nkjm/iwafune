@@ -21,7 +21,7 @@ use std::collections::BTreeMap;
 pub use fune_projection::system::area_key;
 
 mod channels;
-mod checks;
+pub(crate) mod checks;
 mod dims;
 mod kpi;
 pub mod labels;

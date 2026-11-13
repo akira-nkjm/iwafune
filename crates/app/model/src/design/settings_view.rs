@@ -5,7 +5,7 @@
 
 use super::Design;
 use crate::path::{SettingPath, SettingScope};
-use crate::value::{SettingValue, quantity_from_json, vector_from_json};
+use crate::value::{SettingValue, quantity_from_json, quaternion_from_json, vector_from_json};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value as Json};
 use ts_rs::TS;
@@ -97,6 +97,9 @@ impl Design {
 fn leaf(v: &Json) -> Option<Option<SettingValue>> {
     if let Some(q) = quantity_from_json(v) {
         return Some(Some(SettingValue::Quantity(q)));
+    }
+    if let Some(q) = quaternion_from_json(v) {
+        return Some(Some(SettingValue::Quaternion(q)));
     }
     if let Some(vec) = vector_from_json(v) {
         return Some(Some(SettingValue::Vector(vec)));

@@ -2,6 +2,31 @@ import type { systemsJa } from "./ja";
 
 export const systemsEn: typeof systemsJa = {
   systems: {
+    aocsModes: {
+      empty: "No modes",
+      maxDuration: "Max duration",
+      devices: "Devices",
+      primary: "Primary",
+      secondary: "Secondary",
+      axisDiagram: "Body axis toward its target",
+      noLaw: "No attitude law",
+      unknownState: "Unassigned state",
+      count: (active: number, total: number) => `${active} / ${total} active`,
+      momentum: "Momentum and unloading",
+      perOrbit: "Momentum accumulation / orbit",
+      perDay: "Unloads / day",
+      unloadTime: "MTQ unload time",
+      sensorFov: "Sensor FoV / exclusion angles",
+      basis:
+        "Evaluated with each mode’s attitude and default-case orbit conditions. Device and sensor analysis selection matches the standard analyses.",
+      fields: {
+        law: "Attitude law",
+        axis: "Primary body axis",
+        secondary: "Secondary body axis",
+        along_track: "Along-track body axis",
+        orientation: "Body → ECI (w x y z)",
+      },
+    },
     eyebrow: "Subsystem analysis",
     unknown: (s: string) => `Unknown system: ${s}`,
     defaultDerivedCase: (name: string) => `Default for analyses requiring a condition: ${name}`,

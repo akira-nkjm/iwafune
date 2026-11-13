@@ -181,6 +181,7 @@ pub fn setting_from_text(
         Some(SettingValue::Bool(_)) => SettingValue::Bool(t.parse().map_err(|_| syntax())?),
         Some(SettingValue::Quantity(_)) => SettingValue::Quantity(quantity_from_text(t)?),
         Some(SettingValue::Vector(_)) => SettingValue::Vector(parse_vector(t)?),
+        Some(SettingValue::Quaternion(_)) => SettingValue::Quaternion(parse_quaternion(t)?),
         Some(SettingValue::List(_)) => SettingValue::List(list_from_text(t)),
         Some(SettingValue::Text(_)) => SettingValue::Text(t.to_owned()),
         None => guess_setting(t),
@@ -345,6 +346,7 @@ mod tests {
                 unit: Some("m".into()),
                 frame: None,
             }),
+            SettingValue::Quaternion(Quaternion::IDENTITY),
             SettingValue::List(vec!["TOKYO_GS".into(), "OKINAWA".into()]),
         ];
         for s in &settings {

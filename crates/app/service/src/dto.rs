@@ -4,6 +4,7 @@
 //! |---|---|
 //! | `common` | 量の表示・診断・エラーの本文 |
 //! | `units` | 単位の一覧と解析 |
+//! | `aocs_modes` | AOCS の姿勢・役割別機器・モード別解析のカード |
 //! | `analysis` | 解析の一覧と実行 |
 //! | `design` | 設計データの表示（プロジェクト・部品・モード表・ネット・定義・設定） |
 //! | `catalog` | カタログ品の表示（値・パス・使っている部品） |
@@ -14,6 +15,8 @@
 //! | `kpi` | KPI（系の代表値・判定・塗りの比・判定の数え方）と塗りの比 |
 //! | `data` | 外部データ（DE440）の状態 |
 
+mod aocs_modes;
+pub use aocs_modes::*;
 mod analysis;
 mod budget;
 mod catalog;

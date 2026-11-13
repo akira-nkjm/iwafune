@@ -92,6 +92,14 @@ role     = "gyro"
 states   = ["off", "on"]
 required = ["power"]
 
+[magnetometer]
+label    = "磁気センサ"
+label_en = "Magnetometer"
+extends  = "component"
+role     = "magnetometer"
+states   = ["off", "on"]
+optional = ["power"]
+
 [gps]
 label    = "GPS 受信機"
 label_en = "GPS receiver"

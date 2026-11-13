@@ -374,13 +374,13 @@ pub struct SystemModesView {
     pub modes: Vec<SystemModeView>,
 }
 
-/// 1 モードの系別表示。姿勢則は AOCS のみ、数値はほかの系。
+/// 1 モードの系別表示。AOCS は専用カード、数値の行列はほかの系。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct SystemModeView {
     pub id: String,
     pub sunlit: ModeValuesView,
     pub eclipse: ModeValuesView,
-    pub attitude_law: Option<fune_model::design::AttitudeLawKind>,
+    pub aocs: Option<super::AocsModeView>,
 }
 
 /// 部品別の値と合計・収支。未割り当てや不足は None、警告は verdict に反映。

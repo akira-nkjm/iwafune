@@ -128,9 +128,16 @@ const UNLOAD_FIELD_ORBITS: u32 = 1;
 
 /// `aocs.rw_unloading`
 pub fn rw_unloading(ctx: &Context<'_>) -> Result<RwUnloadingInput, MissingInputs> {
+    rw_unloading_for_mode(ctx, timeline::case_mode_id(ctx).as_deref())
+}
+
+/// 明示したモードの姿勢則で RW を評価する入力。ケースの軌道条件は保持する。
+pub fn rw_unloading_for_mode(
+    ctx: &Context<'_>,
+    mode: Option<&str>,
+) -> Result<RwUnloadingInput, MissingInputs> {
     let mut m = MissingInputs::new();
-    let mode = timeline::case_mode_id(ctx);
-    let t = timeline::timeline(ctx, mode.as_deref(), timeline::DEFAULT_ORBITS, &mut m);
+    let t = timeline::timeline(ctx, mode, timeline::DEFAULT_ORBITS, &mut m);
     let wheels = wheels(ctx, &mut m);
     let sc = spacecraft(ctx, &mut m);
     m.finish(|| {
@@ -211,9 +218,16 @@ fn thrusters(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<UnloadTimeThruster
 
 /// `aocs.sensor_fov`: 視線（boresight）を持つセンサ。
 pub fn sensor_fov(ctx: &Context<'_>) -> Result<SensorFovInput, MissingInputs> {
+    sensor_fov_for_mode(ctx, timeline::case_mode_id(ctx).as_deref())
+}
+
+/// 明示したモードの姿勢則で視野を評価する入力。センサの選択は通常の解析と同じ。
+pub fn sensor_fov_for_mode(
+    ctx: &Context<'_>,
+    mode: Option<&str>,
+) -> Result<SensorFovInput, MissingInputs> {
     let mut m = MissingInputs::new();
-    let mode = timeline::case_mode_id(ctx);
-    let t = timeline::timeline(ctx, mode.as_deref(), SENSOR_FOV_ORBITS, &mut m);
+    let t = timeline::timeline(ctx, mode, SENSOR_FOV_ORBITS, &mut m);
     let angle =
         |p: &fune_model::resolve::ResolvedPart, a: &str| p.scalar(a).map(Qty::<Angle>::from_raw);
     let sensors: Vec<SensorFovSensor> = ctx

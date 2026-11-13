@@ -66,7 +66,10 @@ it("モードの見方を持つ系だけにモードタブの中身を出す", (
       </QueryClientProvider>,
     );
     if (system === "structure" || system === "payload" || system === "comm") expect(html).toBe("");
-    else {
+    else if (system === "aocs") {
+      expect(html).toContain(getT().common.loading);
+      expect(html).not.toContain(getT().modes.matrixTitle);
+    } else {
       expect(html).toContain(getT().modes.matrixTitle);
       expect(html).toContain(getT().modes.sunlit);
       expect(html).toContain(getT().modes.eclipseView);
