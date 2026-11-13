@@ -19,7 +19,8 @@
 //! | [`atmosphere`] | 大気密度（指数大気・NRLMSISE-00）、宇宙天気（F10.7・Ap）の日ごとの表と太陽活動のプリセット |
 //! | [`ground`] | 地上局・見通し角・パスの検出・地上軌跡・斜距離（中心天体の半径） |
 //! | [`attitude`] | 姿勢則（太陽指向・地心指向・慣性固定）→ 機体姿勢 |
-//! | [`rocket`] | ロケット方程式（推薬 ⇄ ΔV、有効排気速度）。換算はこれだけ |
+//! | [`rocket`] | ロケット方程式（推薬 ⇄ ΔV、有効排気速度、噴射時間）。換算はこれだけ |
+//! | [`transfer`] | 軌道遷移の ΔV（ホーマン・平面変更・バイエリプティック・Edelbaum の低推力・有限燃焼の損失の近似）。遷移の式はこれだけ |
 //! | [`illumination`] | 面への太陽入射（cos 則と日陰）。電源と熱で共有する |
 //! | [`timeline`] | 軌道上の時系列（時刻・位置・速度・太陽方向・日陰・機体姿勢）をまとめて作る。区間の抽出 |
 //!
@@ -43,6 +44,7 @@ pub mod rocket;
 pub mod shadow;
 pub mod time;
 pub mod timeline;
+pub mod transfer;
 
 /// sat-astro のエラー。
 #[derive(Debug, thiserror::Error)]

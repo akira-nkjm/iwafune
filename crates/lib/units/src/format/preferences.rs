@@ -202,4 +202,9 @@ pub(super) const PREFERENCES: &[Preference] = &[
         "Gy",
         &[("mGy", 1.0), ("Gy", 1.0), ("kGy", 1.0)],
     ),
+    pref(
+        "Impulse",
+        "N*s",
+        &[("uN*s", 1.0), ("mN*s", 1.0), ("N*s", 1.0), ("kN*s", 1.0)],
+    ),
 ];

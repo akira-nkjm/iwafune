@@ -54,6 +54,8 @@ pub struct DesignView {
     pub defs: DefsView,
     pub settings: Vec<SettingView>,
     pub cases: Vec<CaseView>,
+    /// マヌーバ（実行の順）
+    pub maneuvers: Vec<super::ManeuverView>,
     /// 出典の台帳（`sources/<ID>.toml`）
     pub sources: Vec<Source>,
     /// カタログ品（`"local/rw_10mNms"` の順。値は部品と同じ形で、パスと使っている部品も品の中に）

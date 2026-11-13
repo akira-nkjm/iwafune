@@ -11,6 +11,8 @@ import {
   Network,
   Orbit,
   Radio,
+  Rocket,
+  Route,
   Ruler,
   Settings,
   Sun,
@@ -68,6 +70,8 @@ export const paths = {
   diagram: () => "/design/diagram",
   modes: () => "/design/modes",
   layout: () => "/design/layout",
+  maneuvers: () => "/design/maneuvers",
+  maneuver: (id: string) => itemPath(paths.maneuvers(), id),
   defs: (tab?: DefsTab) => (tab ? `/project/defs/${tab}` : "/project/defs"),
   /** 系のページ。`tab` が無ければ結果のタブ、`kase` があればその解析ケースで開く */
   system: (system: System, at: { tab?: string | null; kase?: string | null } = {}) =>
@@ -104,6 +108,7 @@ const systemIcons: Record<System, LucideIcon> = {
   thermal: Thermometer,
   structure: Layers3,
   payload: Telescope,
+  propulsion: Rocket,
 };
 
 /** ナビの項目の表示名。系の語彙は API の labels.section から引く。 */
@@ -134,6 +139,7 @@ export const nav = (systems: readonly System[]): NavSection[] => [
       { to: paths.diagram(), key: "diagram", icon: Network },
       { to: paths.modes(), key: "modes", icon: Table2 },
       { to: paths.layout(), key: "layout", icon: Box },
+      { to: paths.maneuvers(), key: "maneuvers", icon: Route },
     ],
   },
   {

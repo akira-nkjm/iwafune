@@ -4,6 +4,7 @@ max_duration = { value = 90.0, unit = "min" }
 
 [states]
 CAM     = { state = "off" }
+EPT     = { state = "off" }
 GPS     = { state = "on" }
 HTR_BAT = { state = "off", duty = { on = 0.2 } }
 HTR_CAM = { state = "off", duty = { on = 0.2 } }

@@ -7,6 +7,8 @@ describe("系の色", () => {
     expect(systemTone("power")).toBe("green");
     expect(systemTone("comm")).toBe("gold");
     expect(systemTone("payload")).toBe("rose");
+    // 推進系は判定の色（青緑・金・赤）と紛れない色
+    expect(systemTone("propulsion")).toBe("magenta");
     expect(systemTone(null)).toBe("gray");
     expect(systemTone(undefined)).toBe("gray");
   });

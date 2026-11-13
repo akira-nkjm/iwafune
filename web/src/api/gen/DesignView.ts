@@ -5,6 +5,7 @@ import type { DefsView } from "./DefsView";
 import type { DiagnosticView } from "./DiagnosticView";
 import type { EvidenceSource } from "./EvidenceSource";
 import type { HarnessView } from "./HarnessView";
+import type { ManeuverView } from "./ManeuverView";
 import type { ModeTable } from "./ModeTable";
 import type { NetView } from "./NetView";
 import type { PartRow } from "./PartRow";
@@ -21,6 +22,10 @@ export type DesignView = { project: ProjectInfo,
  * 製品ツリー（機能の階層）。親から子の順
  */
 tree: Array<TreeNode>, parts: Array<PartRow>, modes: ModeTable, nets: Array<NetView>, harnesses: Array<HarnessView>, defs: DefsView, settings: Array<SettingView>, cases: Array<CaseView>, 
+/**
+ * マヌーバ（実行の順）
+ */
+maneuvers: Array<ManeuverView>, 
 /**
  * 出典の台帳（`sources/<ID>.toml`）
  */

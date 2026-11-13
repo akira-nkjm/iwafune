@@ -298,8 +298,8 @@ fn mode_display_order_preserves_analysis_values() {
 }
 
 /// 姿勢変更の時間: 角度と要求は `analysis/aocs.toml`、慣性は質量特性、ホイールは RW の部品から。
-/// デモ（I_xx = 0.0959 kg·m²、RW 10 mN·m·s × 0.8・1 mN·m、90°）は x 軸が最悪で台形:
-/// t = θ I / h + h / τ = (π/2)(0.0959)/0.008 + 8 = 26.8 s。
+/// デモ（I_xx = 0.109 kg·m²（推進系の部品込み）、RW 10 mN·m·s × 0.8・1 mN·m、90°）は x 軸が最悪で台形:
+/// t = θ I / h + h / τ = (π/2)(0.1094)/0.008 + 8 = 29.5 s。
 #[test]
 fn slew_time_projects_settings_inertia_and_wheels() {
     use sat_analysis::spec::Analysis;
@@ -317,5 +317,5 @@ fn slew_time_projects_settings_inertia_and_wheels() {
     let expect = std::f64::consts::FRAC_PI_2 * ixx / 0.008 + 8.0;
     assert_eq!(out.worst.label, "x");
     assert!((out.worst.time.value() - expect).abs() < 1e-9);
-    assert!((out.worst.time.value() - 26.8).abs() < 0.05);
+    assert!((out.worst.time.value() - 29.5).abs() < 0.05);
 }

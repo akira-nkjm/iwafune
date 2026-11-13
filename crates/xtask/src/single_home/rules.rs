@@ -130,6 +130,16 @@ pub(super) const RULES: &[(&str, &[&str], &str)] = &[
         "太陽同期傾斜角",
     ),
     ("fn beta_angle", &["crates/lib/astro/src/orbit.rs"], "β 角"),
+    (
+        "fn delta_v(",
+        &["crates/lib/astro/src/rocket.rs"],
+        "ロケット方程式",
+    ),
+    (
+        "fn edelbaum(",
+        &["crates/lib/astro/src/transfer.rs"],
+        "軌道遷移の式",
+    ),
     // 区間の抽出
     (
         "fn windows(",

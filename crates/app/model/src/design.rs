@@ -5,6 +5,7 @@
 //! | `part` | Part・Group・NodeRef・Mount・Pose・PortBinding・CatalogItem |
 //! | `defs` | AttributeDef・KindDef・BudgetKind・NetKind |
 //! | `system` | Mode・Net・Harness・Case・Source |
+//! | `maneuver` | マヌーバ（区分・計算の段階・目標の軌道・制約）と実行の順（`Design::ordered_maneuvers`） |
 //! | `budget` | 配分とマージン方針 |
 //! | `project` | `fune.toml` |
 //! | `conditions` / `analysis` | `conditions/`・`analysis/` の型付きの設定。解析の系の一覧 `AnalysisSystem` |
@@ -19,6 +20,7 @@ pub mod analysis;
 pub mod budget;
 pub mod conditions;
 pub mod defs;
+pub mod maneuver;
 pub mod net;
 pub mod part;
 pub mod project;
@@ -34,6 +36,7 @@ pub use analysis::*;
 pub use budget::*;
 pub use conditions::*;
 pub use defs::*;
+pub use maneuver::*;
 pub use part::*;
 pub use project::*;
 pub use refs::{HarnessEnd, NetEnd, RefSite, Referent};
@@ -91,6 +94,8 @@ pub struct Design {
     pub nets: BTreeMap<Id<Net>, Net>,
     pub harnesses: BTreeMap<Id<Harness>, Harness>,
     pub cases: BTreeMap<Id<Case>, Case>,
+    /// マヌーバ（`maneuvers/<ID>.toml`。実行の順は [`Design::ordered_maneuvers`]）
+    pub maneuvers: BTreeMap<Id<Maneuver>, Maneuver>,
     pub sources: BTreeMap<Id<Source>, Source>,
     pub conditions: ConditionsSettings,
     pub analysis: AnalysisSettings,

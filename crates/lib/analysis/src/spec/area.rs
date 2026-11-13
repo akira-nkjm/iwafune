@@ -14,6 +14,7 @@ pub enum System {
     Thermal,
     Structure,
     Payload,
+    Propulsion,
 }
 
 /// 前提条件の解析の話題。綴り・表示名は model と projection の対応で一致を確かめる。

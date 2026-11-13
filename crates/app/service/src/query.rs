@@ -5,11 +5,13 @@
 //! |---|---|
 //! | `views` | Design → 製品ツリー・モード表・ネット・ハーネス・定義・ケース |
 //! | `parts` | 部品の行・1 部品の全情報・1 つの値 |
+//! | `maneuvers` | マヌーバ（実行の順・目標の要素・編集の欄の初期値） |
 //! | `catalog` | カタログ品（値・パス・使っている部品・書き換えられるか） |
 //! | `values` | 解決済みの値・書かれた量 → 表示用の型 |
 //! | `settings` | 設定 → キーと値の一覧、設定・バジェットと系の対応 |
 
 mod catalog;
+pub(crate) mod maneuvers;
 mod parts;
 pub(crate) mod settings;
 pub(crate) mod values;
@@ -76,11 +78,17 @@ pub fn design_view(ws: &Workspace) -> Result<DesignView> {
         defs: views::defs(d),
         settings: settings::settings(d),
         cases: views::cases(d),
+        maneuvers: maneuvers::maneuvers(d),
         sources: d.sources.values().cloned().collect(),
         catalog: catalog::list(d),
         views: d.views.values().cloned().collect(),
         diagnostics: s.diagnostics.clone(),
     })
+}
+
+/// マヌーバの一覧（実行の順。`GET /maneuvers`・`fune maneuver ls`）。
+pub fn maneuvers(ws: &Workspace) -> Result<Vec<crate::dto::ManeuverView>> {
+    Ok(maneuvers::maneuvers(&ws.snapshot()?.design))
 }
 
 /// 部品の一覧（`GET /parts`）。

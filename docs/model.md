@@ -109,6 +109,7 @@ flowchart LR
 | Net | 電気的な接続（論理） | `nets/<ID>.toml` | 種類（power / data / rf）、レール電圧、供給元ポート、電流制限、プロトコル |
 | Harness | ケーブル区間（物理） | `harness/<ID>.toml` | 両端のポート、通すネット、線材、芯数、長さ |
 | Case | 解析ケース | `cases/<ID>.toml` | モードまたはモード時系列、不確かさのどちら側を読むか、軌道、姿勢則、環境条件、期間 |
+| Maneuver | マヌーバ | `maneuvers/<ID>.toml` | 区分（ΔV バジェットの行）、計算の段階、スラスタ、前のマヌーバ、目標の軌道、細かい段階だけの制約（§7.7） |
 | Source | 出典の台帳 | `sources/<ID>.toml` | 種類（datasheet / measured / analysis / judgement / placeholder）、参照先、日付、記入者 |
 | Requirement | 要求（軽量） | `requirements/<ID>.toml` | 文、対象の量、制約、「全モード・全ケースで」などの量化。正式な判定は外部の検証ツールに書き出す |
 | Table | 表データ | `tables/<ID>.csv` + `tables/<ID>.toml` | 曲線や特性表。列ごとの単位は TOML 側で宣言 |
@@ -701,6 +702,38 @@ from.note   = "3D 配置からの概算"
 「電力の担当者が 1 ファイルでモードの全体を確認できること」を優先して、モードの側に置く。
 行は ID 順に並べるので、隣り合う ID を 2 本のブランチで同時に足さない限り、git は自動でマージできる。
 
+### 7.7 maneuvers/: 1 マヌーバ 1 ファイル
+
+推進系の解析が共有する入力（モードの表と同じ位置づけ）。ID はファイル名。
+
+```toml
+# maneuvers/RAISE.toml
+label    = "軌道上昇 550 → 600 km"
+category = "insertion"   # insertion / station_keeping / unloading / deorbit / other（ΔV バジェットの行）
+method   = "low_thrust"  # impulsive / finite_burn / low_thrust（推力を入れた数値伝搬 propagated は別の Issue）
+thruster = "EPT"         # スラスタの部品（推力・比推力・噴射中の消費電力は部品から）
+after    = "LEOP"        # 前のマヌーバ（任意。マヌーバでない ID は今は最初のマヌーバとして扱う）
+
+[target]                 # 変えたい要素だけ（書かない要素は前の軌道のまま）
+altitude    = { value = 600.0, unit = "km" }   # 円軌道。perigee_altitude・apogee_altitude と一緒には書かない
+inclination = { value = 97.8, unit = "deg" }
+
+[constraints]            # 細かい段階（数値伝搬）でだけ効く。粗い段階の解析は無視したことを結果に書く
+sunlit_only = true
+mode        = "THRUST"
+```
+
+- 書ける目標の要素は `altitude`・`perigee_altitude`・`apogee_altitude`・`inclination`（RAAN の変化はまだ扱わない）。
+  `via_altitude`（最上位）を書くと、インパルス・有限燃焼はその高度を中間の遠地点にしたバイエリプティック遷移で計算する。
+- 実行の順は `after` でつなぐ。正本は `Design::ordered_maneuvers`（`after` の無いものを ID 順に始点にし、後ろにつながるものを続ける）。
+  循環は `check` の error（`maneuver.cycle`）。
+- 最初の軌道は前提条件の軌道（`conditions/orbit.toml`）。乾燥質量は `analysis/propulsion.toml` の `dry_mass`、無ければ部品の質量特性の総質量。
+- `analysis/propulsion.toml` の `dv_margin`（既定 10 %）・`residual_fraction`（残る推薬、既定 3 %）。既定値は sat-analysis（`propulsion::input`）が持つ。
+- 参照の検査: スラスタは部品（無ければ error、役割が `propulsion_thruster`・`thruster` でなければ warning）、制約のモードはモード。
+  名前の変更（RenamePart・RenameMode）で一緒に書き換わる。マヌーバを消すと、後ろのマヌーバは消したマヌーバの前につなぎ直す。
+- 書き方: 最上位の値のあと、`[target]`・`[constraints]` を見出しの表で書き、中の量は `{ value, unit }`
+  （`fune_store::write::records::MANEUVER_SECTIONS`）。編集は `fune maneuver add|set|rm`（GUI も同じ引数を `POST /ops/from_command` に送る）。
+
 ## 8. 配分とマージン方針（budget/）
 
 配分はサブシステムのディレクトリに分散させず、1 つのファイルにまとめる。
@@ -1019,6 +1052,7 @@ my-sat-design/
 ├── analysis/common.toml         # 共通の解析設定
 ├── mission/                     # #9 用の予約ディレクトリ（今は読まない）
 ├── cases/<ID>.toml
+├── maneuvers/<ID>.toml          # マヌーバ（§7.7）
 ├── sources/<ID>.toml
 ├── requirements/<ID>.toml
 ├── tables/<ID>.csv  tables/<ID>.toml

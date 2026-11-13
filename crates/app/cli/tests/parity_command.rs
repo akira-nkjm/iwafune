@@ -178,7 +178,7 @@ fn gui_definitions_match_cli() {
             vec![
                 "kind",
                 "add",
-                "propellant_tank",
+                "pressurant_tank",
                 "--role",
                 "thruster",
                 "--states",
@@ -188,7 +188,7 @@ fn gui_definitions_match_cli() {
                 "--port",
                 "PWR=power",
             ],
-            json!({ "command": "kind_add", "id": "propellant_tank", "role": "thruster",
+            json!({ "command": "kind_add", "id": "pressurant_tank", "role": "thruster",
                 "states": "off, on", "required": "mass, tank_pressure", "ports": ["PWR=power"] }),
         ),
     ];

@@ -223,6 +223,10 @@ impl Decoder<'_> {
                 v.id = Id::new(id);
                 g.sources.insert(Id::new(id), v);
             }),
+            FileRole::Maneuver(id) => self.read_into(path, |g, mut v: d::Maneuver| {
+                v.id = Id::new(id);
+                g.maneuvers.insert(Id::new(id), v);
+            }),
             FileRole::Conditions(name) => self.read_conditions(path, name),
             FileRole::Ground(id) => self.read_into(path, |g, mut v: d::GroundStationSettings| {
                 v.id = id.clone();
@@ -261,6 +265,7 @@ impl Decoder<'_> {
             AnalysisSystem::Thermal => self.design.analysis.thermal = self.parse(path),
             AnalysisSystem::Structure => self.design.analysis.structure = self.parse(path),
             AnalysisSystem::Payload => self.design.analysis.payload = self.parse(path),
+            AnalysisSystem::Propulsion => self.design.analysis.propulsion = self.parse(path),
         }
     }
 }
@@ -275,6 +280,7 @@ fn file_id(role: &FileRole) -> Option<&str> {
         | FileRole::Harness(id)
         | FileRole::Case(id)
         | FileRole::Source(id)
+        | FileRole::Maneuver(id)
         | FileRole::Ground(id)
         | FileRole::View(id) => Some(id),
         _ => None,

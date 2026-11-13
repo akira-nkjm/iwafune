@@ -1,0 +1,73 @@
+label    = "電気推進スラスタ（デモ）"
+kind     = "propulsion_thruster"
+maturity = "modified"
+
+[mount]
+on    = "BUS_FRAME"
+point = "FACE_MZ"
+
+[pose]
+position = { x = 0.0, y = 60.0, z = 30.0, unit = "mm" }
+
+[attr.mass]
+value       = 0.4
+unit        = "kg"
+from.source = "sys_judgement"
+
+[attr.thrust]
+value       = 1.2
+unit        = "mN"
+from.source = "sys_judgement"
+
+[attr.isp]
+value       = 1200.0
+unit        = "s"
+from.source = "sys_judgement"
+
+[attr.power]
+off.value           = 0.0
+off.unit            = "W"
+off.from.source     = "sys_judgement"
+standby.value       = 2.0
+standby.unit        = "W"
+standby.from.source = "sys_judgement"
+on.value            = 30.0
+on.unit             = "W"
+on.from.source      = "sys_judgement"
+
+[attr.propellant]
+value       = "xenon"
+from.source = "sys_judgement"
+
+[attr.min_impulse_bit]
+value       = 0.05
+unit        = "mN*s"
+from.source = "sys_judgement"
+
+[attr.rated_total_impulse]
+value       = 2500.0
+unit        = "N*s"
+from.source = "sys_judgement"
+
+[attr.rated_firing_time]
+value       = 2000.0
+unit        = "h"
+from.source = "sys_judgement"
+
+[attr.rated_firings]
+value       = 5000.0
+unit        = ""
+from.source = "sys_judgement"
+
+[attr.direction]
+x           = 0.0
+y           = 0.0
+z           = -1.0
+from.source = "sys_judgement"
+
+[attr.size]
+x           = 90.0
+y           = 90.0
+z           = 60.0
+unit        = "mm"
+from.source = "sys_judgement"

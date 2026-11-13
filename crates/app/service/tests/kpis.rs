@@ -45,13 +45,13 @@ fn demo_kpis_show_the_same_values_as_before() {
         (
             "aocs.rw_unloading",
             &[
-                (KpiKey::UnloadInterval, "16.2 h"),
-                (KpiKey::PeakMomentum, "2.38 mN·m·s"),
+                (KpiKey::UnloadInterval, "16.1 h"),
+                (KpiKey::PeakMomentum, "2.31 mN·m·s"),
             ],
         ),
         ("aocs.unload_time", &[(KpiKey::MtqUnloadTime, "25.4 min")]),
         ("aocs.sensor_fov", &[(KpiKey::SensorIntrusion, "100 %")]),
-        ("aocs.slew_time", &[(KpiKey::SlewTime, "26.8 s")]),
+        ("aocs.slew_time", &[(KpiKey::SlewTime, "29.5 s")]),
         (
             "cdh.data_budget",
             &[
@@ -83,16 +83,33 @@ fn demo_kpis_show_the_same_values_as_before() {
         ),
         (
             "structure.mass_properties",
-            &[(KpiKey::TotalMass, "5.00 kg")],
+            &[(KpiKey::TotalMass, "5.55 kg")],
         ),
         // 取付ごとの最小の余裕（比）。以前は次元を引けずに無次元の 11.2 と出ていた
         (
             "structure.static_load",
-            &[(KpiKey::MinSafetyMargin, "1124 %")],
+            &[(KpiKey::MinSafetyMargin, "1003 %")],
         ),
         (
             "structure.modal_estimate",
             &[(KpiKey::MinFrequency, "74.8 Hz")],
+        ),
+        // 推進系（デモの電気推進スラスタで 550 → 600 km の低推力の上昇と、近地点 250 km への離脱）
+        (
+            "propulsion.maneuvers",
+            &[(KpiKey::LongestTransfer, "35.3 h")],
+        ),
+        ("propulsion.dv_budget", &[(KpiKey::DvWithMargin, "138 m/s")]),
+        (
+            "propulsion.propellant",
+            &[
+                (KpiKey::LoadedPropellant, "67.2 g"),
+                (KpiKey::TankVolumeMargin, "66.6 %"),
+            ],
+        ),
+        (
+            "propulsion.thruster_usage",
+            &[(KpiKey::ImpulseMargin, "226 %")],
         ),
     ];
     for (id, want) in expected {
@@ -143,7 +160,8 @@ fn demo_verdicts_fills_and_tallies() {
     );
     let fill = mass.fill.unwrap();
     assert_eq!(fill.basis, FillBasis::UsedOverLimit);
-    assert!((fill.ratio - 5.6374 / 12.0).abs() < 1e-9);
+    // 推進系の部品（EPT 0.40 kg × 1.10・XE_TANK 0.15 kg × 1.05）の分だけ以前の 5.6374 kg から増えた
+    assert!((fill.ratio - 6.2349 / 12.0).abs() < 1e-9);
     let power = budget::budget(&ws, BudgetKind::Power, &BudgetRequest::default()).unwrap();
     assert!(
         power

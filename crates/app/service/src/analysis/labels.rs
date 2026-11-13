@@ -181,6 +181,8 @@ fn modal_kind(k: ModalEstimateKind) -> AnalysisLabel {
     }
 }
 
+mod propulsion;
+
 fn link_closure(kind: &str) -> Option<AnalysisLabel> {
     // 内部タグの列挙はタグの値だけを見る（中身の量は dims で整形する）
     let probe = match kind {
@@ -221,6 +223,10 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
         "DataThroughputLinkClosure" => link_closure(value),
+        "DvCategory" => parse(value).map(propulsion::category),
+        "TransferMethod" => parse(value).map(propulsion::method),
+        "ManeuverNote" => parse(value).map(propulsion::note),
+        "UnloadingNote" => parse(value).map(propulsion::unloading),
         _ => None,
     }
 }
@@ -257,6 +263,11 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         K::TotalMass => label("総質量", "Total mass"),
         K::MinSafetyMargin => label("最小の安全余裕（MS）", "Minimum margin of safety"),
         K::MinFrequency => label("最低の固有振動数", "Lowest natural frequency"),
+        K::LongestTransfer => label("最長の遷移時間", "Longest transfer time"),
+        K::DvWithMargin => label("ΔV（マージン込み）", "Delta-V (with margin)"),
+        K::LoadedPropellant => label("積む推薬", "Loaded propellant"),
+        K::TankVolumeMargin => label("タンクの容積の余裕", "Tank volume margin"),
+        K::ImpulseMargin => label("総インパルスの余裕", "Total impulse margin"),
     }
 }
 
@@ -323,6 +334,11 @@ mod tests {
         assert!(value_label("SlewProfile", "trapezoidal").is_some());
         assert!(value_label("SlewAssumption", "eigen_axis_rest_to_rest").is_some());
         assert!(value_label("String", "RW_X").is_none());
+        assert_eq!(
+            value_label("DvCategory", "deorbit").unwrap().label_en,
+            "Deorbit"
+        );
+        assert!(value_label("UnloadingNote", "no_rcs").is_some());
         let (l, m) = span_check(SpanFallback::OrbitMeanOverSpan);
         assert_eq!(l.label, "解析期間");
         assert!(m.label.contains("全期間の平均") && m.label_en.contains("whole span"));

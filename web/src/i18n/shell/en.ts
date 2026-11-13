@@ -16,6 +16,7 @@ export const shellEn: typeof shellJa = {
       diagram: "System diagram",
       modes: "Modes",
       layout: "Layout",
+      maneuvers: "Maneuvers",
       defs: "Units & definitions",
       orbit: "Orbit & stations",
       cases: "Analysis cases",

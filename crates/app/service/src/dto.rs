@@ -13,6 +13,7 @@
 //! | `value` | 値の表示（部品・カタログ品・設定で共有） |
 //! | `edit` | Op の適用と、人が打った文字列（`SetText`・`UnsetText`） |
 //! | `command` | 名詞のコマンドに打った引数（`CommandText`。`fune net set`・`fune part place`・`fune mode set` など） |
+//! | `maneuver` | マヌーバの表示（`ManeuverView`）と `fune maneuver add\|set` の引数（`ManeuverText`） |
 //! | `budget` | 質量・電力・データ量のバジェット |
 //! | `kpi` | KPI（系の代表値・判定・塗りの比・判定の数え方）と塗りの比 |
 //! | `data` | 外部データ（DE440）の状態 |
@@ -32,7 +33,9 @@ mod edit;
 mod format;
 pub use format::{FormatDesignRequest, FormatDesignResult};
 mod kpi;
+mod maneuver;
 pub use kpi::{FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView};
+pub use maneuver::{ManeuverTargetView, ManeuverText, ManeuverView};
 mod power_page;
 pub use power_page::*;
 mod units;
@@ -66,8 +69,9 @@ pub use edit::{
 };
 pub use fune_model::design::PartField;
 pub use fune_model::design::{
-    AttributeDef, Case, CatalogField, CatalogItem, Harness, KindDef, Net, NetField, NetKind, Pose,
-    Source, SourceKind, UncertaintySide,
+    AttributeDef, Case, CatalogField, CatalogItem, Harness, KindDef, Maneuver, ManeuverCategory,
+    ManeuverConstraints, ManeuverMethod, ManeuverTarget, Net, NetField, NetKind, Pose, Source,
+    SourceKind, UncertaintySide,
 };
 pub use fune_model::design::{BudgetKind, StateAssign};
 pub use fune_model::design::{ViewEdge, ViewLayout, ViewNode, ViewPortSide};

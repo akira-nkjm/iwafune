@@ -65,6 +65,7 @@ typed_dimensions![
     Conductance,
     MagneticFlux,
     AbsorbedDose,
+    Impulse,
 ];
 
 /// 型レベルのエイリアス名と綴りが対応しない別名。既存データが使っているので受け続ける。

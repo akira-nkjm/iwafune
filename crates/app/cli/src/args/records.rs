@@ -1,4 +1,4 @@
-//! 解析ケース・出典・ハーネスのサブコマンド（`fune case …`・`fune source …`・`fune harness …`）。
+//! 解析ケース・出典・ハーネス・マヌーバのサブコマンド（`fune case …`・`fune source …`・`fune harness …`・`fune maneuver …`）。
 //! 綴りは `fune_ops::to_cli` と同じにする。`set` は無ければ作り、あれば丸ごと置き換える。
 
 use super::EditOpts;
@@ -132,6 +132,66 @@ pub struct HarnessArgs {
     pub length: Option<String>,
     #[arg(long)]
     pub label: Option<String>,
+    #[command(flatten)]
+    pub edit: EditOpts,
+}
+
+/// `fune maneuver …`
+#[derive(Debug, Subcommand)]
+pub enum ManeuverCmd {
+    /// マヌーバの一覧（実行の順）
+    Ls,
+    /// マヌーバを足す（同じ ID があれば拒む）
+    Add(ManeuverArgs),
+    /// マヌーバを書く（無ければ作り、あれば丸ごと置き換える）
+    Set(ManeuverArgs),
+    /// マヌーバを消す（後ろのマヌーバは消したマヌーバの前につなぎ直す）
+    Rm {
+        id: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+}
+
+/// `fune maneuver add|set`（旗は `fune_service::dto::ManeuverText` と 1 対 1）
+#[derive(Debug, Args)]
+pub struct ManeuverArgs {
+    pub id: String,
+    /// insertion / station_keeping / unloading / deorbit / other
+    #[arg(long)]
+    pub category: String,
+    /// impulsive / finite_burn / low_thrust
+    #[arg(long)]
+    pub method: String,
+    #[arg(long)]
+    pub label: Option<String>,
+    /// スラスタの部品
+    #[arg(long)]
+    pub thruster: Option<String>,
+    /// 前のマヌーバ
+    #[arg(long)]
+    pub after: Option<String>,
+    /// バイエリプティック遷移の中間の遠地点の高度（例: `"20000 km"`）
+    #[arg(long)]
+    pub via_altitude: Option<String>,
+    /// 目標の円軌道の高度（例: `"600 km"`）
+    #[arg(long)]
+    pub altitude: Option<String>,
+    /// 目標の近地点の高度
+    #[arg(long, allow_hyphen_values = true)]
+    pub perigee_altitude: Option<String>,
+    /// 目標の遠地点の高度
+    #[arg(long)]
+    pub apogee_altitude: Option<String>,
+    /// 目標の傾斜角（例: `"97.8 deg"`）
+    #[arg(long)]
+    pub inclination: Option<String>,
+    /// 日照中だけ噴射する（true / false。粗い段階の解析では使わない）
+    #[arg(long)]
+    pub sunlit_only: Option<String>,
+    /// 噴射するモード（粗い段階の解析では使わない）
+    #[arg(long)]
+    pub mode: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }

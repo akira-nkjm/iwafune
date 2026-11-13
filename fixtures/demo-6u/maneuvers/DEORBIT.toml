@@ -1,0 +1,8 @@
+label    = "廃棄（近地点を 250 km へ下げる）"
+category = "deorbit"
+method   = "impulsive"
+thruster = "EPT"
+after    = "RAISE"
+
+[target]
+perigee_altitude = { value = 250.0, unit = "km" }
