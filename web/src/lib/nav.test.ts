@@ -1,10 +1,19 @@
 import type { RouteConfigEntry } from "@react-router/dev/routes";
 import { describe, expect, it } from "vitest";
+import type { System } from "@/api/types";
 import { en } from "@/i18n/en";
 import { ja } from "@/i18n/ja";
 import routes from "@/routes";
 import { fixture } from "@/test/fixture";
-import { isSystemItem, nav, navItemTitle, paths } from "./nav";
+import {
+  diagramHiddenSystems,
+  isSystemItem,
+  nav,
+  navItemTitle,
+  paths,
+  SEARCH,
+  withDiagramHiddenSystems,
+} from "./nav";
 
 /** routes.ts のルートの形（`design/components/:id?`）→ 道筋に合うかの正規表現 */
 function patterns(entries: readonly RouteConfigEntry[]): RegExp[] {
@@ -115,5 +124,36 @@ describe("isSystemItem", () => {
     );
     expect(systems).toEqual(fixture.defs.systems);
     expect(systems.every((s) => isSystemItem(s))).toBe(true);
+  });
+});
+
+describe("系統図の URL の表示状態", () => {
+  it("指定なしは構造だけを隠す。未知の系を無視し API にない系を作らない", () => {
+    expect([...diagramHiddenSystems(new URLSearchParams(), fixture.defs.systems)]).toEqual([
+      "structure",
+    ]);
+    expect([...diagramHiddenSystems(new URLSearchParams(), ["thermal"])]).toEqual([]);
+    expect([
+      ...diagramHiddenSystems(
+        new URLSearchParams("hidden-system=unknown&hidden-system=thermal&hidden-system=thermal"),
+        fixture.defs.systems,
+      ),
+    ]).toEqual(["thermal"]);
+  });
+  it("複数の系と全非表示を再読み込みでき、他の検索部分を保つ", () => {
+    for (const hidden of [
+      new Set<System>(["thermal", "aocs"]),
+      new Set(fixture.defs.systems),
+      new Set<System>(),
+    ]) {
+      const original = new URLSearchParams("view=tree&other=keep");
+      const next = withDiagramHiddenSystems(original, hidden);
+      expect(
+        diagramHiddenSystems(new URLSearchParams(next.toString()), fixture.defs.systems),
+      ).toEqual(hidden);
+      expect(next.get("view")).toBe("tree");
+      expect(next.get("other")).toBe("keep");
+      expect(original.has(SEARCH.diagramHiddenSystem)).toBe(false);
+    }
   });
 });
