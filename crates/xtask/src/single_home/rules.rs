@@ -223,7 +223,7 @@ pub(super) const RULES: &[(&str, &[&str], &str)] = &[
     ),
     (
         "fn apply_changes",
-        &["crates/app/store/src/write/mod.rs"],
+        &["crates/app/store/src/write.rs"],
         "変更の列をファイルの集合に当てる処理",
     ),
 ];

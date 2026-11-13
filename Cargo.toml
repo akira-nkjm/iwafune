@@ -15,6 +15,8 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
+# モジュールは `x.rs` と `x/y.rs` で書き、`mod.rs` を使わない（CONTRIBUTING.md）
+mod_module_files = "deny"
 
 # 外部依存の版はここだけで決める。各 crate は `dep = { workspace = true }` で参照する。
 [workspace.dependencies]

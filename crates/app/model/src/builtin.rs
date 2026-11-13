@@ -17,9 +17,9 @@ use std::collections::BTreeMap;
 use std::sync::OnceLock;
 
 /// 組み込みの属性定義（TOML の原文）。
-pub const ATTRIBUTES_TOML: &str = include_str!("attributes.toml");
+pub const ATTRIBUTES_TOML: &str = include_str!("builtin/attributes.toml");
 /// 組み込みの種別定義（TOML の原文）。
-pub const KINDS_TOML: &str = include_str!("kinds.toml");
+pub const KINDS_TOML: &str = include_str!("builtin/kinds.toml");
 
 /// 全機器の継承元の種別 ID。
 pub const BASE_KIND: &str = "component";

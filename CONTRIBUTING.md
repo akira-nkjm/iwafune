@@ -43,6 +43,7 @@ Web の禁止事項（`fetch(` は API クライアントだけ、数の整形�
 ## コーディング規約
 
 - Rust: edition 2024、stable の最新。`cargo fmt` と `cargo clippy --all-targets -- -D warnings` を通す。
+- モジュールは `x.rs` と `x/y.rs` で書き、`mod.rs` を使わない（clippy の `mod_module_files` で検出。結合テストの共有の `tests/common/mod.rs` だけは例外）。
 - エラーはライブラリでは `thiserror`、バイナリでは `anyhow`。ライブラリのコードで `unwrap` / `expect` を使わない（テストは可）。
 - 公開する型・関数には `///` で説明を書く（日本語）。各 crate の lib.rs の先頭に、持っているモジュールと責務を書く。
 - 解析の関数には手計算や文献値と比べるテストを最低 1 つ付ける。リファクタリングではデモの解析結果の数値が変わらないことを確かめる。
