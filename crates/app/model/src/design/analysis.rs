@@ -84,9 +84,12 @@ pub struct PowerSettings {
     /// 軌道平均で各モードにいる時間の割合（モード ID → 割合。合計 1）
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub mode_share: BTreeMap<String, f64>,
-    /// 時系列の解析で使うモードの並び（1 周回分。繰り返す）
+    /// 時系列の解析で使うモードの並び（1 周回分。繰り返す）。`power.energy_balance` が並びで回す収支に使う
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sequence: Vec<ModeSegment>,
+    /// 最長継続時間の評価で下に敷く基本のモード（モード ID）。省略時は並びの最初の区間のモード
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_mode: Option<String>,
 }
 
 /// 電源の逆算設定（`analysis/power.toml` の `[sizing]`）。

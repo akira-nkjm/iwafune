@@ -10,4 +10,9 @@ export type EnergyBalanceCase = { id: string, label: string, load: EnergyBalance
  * このケースの姿勢則（モードごとに姿勢が違うとき）。省略時は `timeline.attitude`。
  * 与えると、軌道・期間・刻み・β はそのままで姿勢則だけを替えた時系列で発電を求める
  */
-attitude: AttitudeLaw | null, };
+attitude: AttitudeLaw | null, 
+/**
+ * モードの最長継続時間（負荷が 1 つのモードのときだけ使う）。与えると判定は基本のモードの上で
+ * この時間だけ続けたときの最悪で行う（[`EnergyBalanceCaseResult::by_max_duration`]）。省略時は連続で評価
+ */
+max_duration: number | null, };

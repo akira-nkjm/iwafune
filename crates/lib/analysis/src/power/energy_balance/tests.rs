@@ -7,6 +7,7 @@ use crate::power::testkit::{leo_timeline, sun_pointing_z};
 use crate::spec::Verdict;
 use sat_astro::attitude::AttitudeLaw;
 use sat_astro::math::Vec3;
+use std::collections::BTreeMap;
 
 #[test]
 fn eclipse_drop_by_hand() {
@@ -57,6 +58,9 @@ fn input(panels: Vec<SolarPanel>, cases: Vec<EnergyBalanceCase>) -> EnergyBalanc
         loads: ModeLoadInput::default(),
         load_growth: LoadGrowth::Included,
         cases,
+        sequence: Vec::new(),
+        base_mode: None,
+        mode_attitudes: BTreeMap::new(),
     }
 }
 
@@ -68,6 +72,7 @@ fn constant(id: &str, watts: f64) -> EnergyBalanceCase {
             power: Qty::from_raw(watts),
         },
         attitude: None,
+        max_duration: None,
     }
 }
 
@@ -196,6 +201,7 @@ fn sunlit_and_eclipse_modes() {
                 eclipse_mode: "SAFE".to_owned(),
             },
             attitude: None,
+            max_duration: None,
         }],
     );
     i.loads = ModeLoadInput {
@@ -363,4 +369,5 @@ fn eclipse_assignment_reaches_balance_loads() {
     assert_eq!(eclipse.value(), 5.0);
 }
 
+mod operation;
 mod page_outputs;

@@ -7,7 +7,7 @@
 //! | [`mode_load`] | `power.mode_load` モード別消費電力（収支もモードの負荷をここで求める） |
 //! | [`solar_sunlit`] | `power.solar_sunlit` 日照時の発電 |
 //! | [`orbit_generation`] | `power.orbit_generation` 軌道上の発電 |
-//! | [`energy_balance`] | `power.energy_balance` 電力収支と DoD |
+//! | [`energy_balance`] | `power.energy_balance` 電力収支と DoD（連続・最長継続時間・モードの並び） |
 //! | [`sizing`] | `power.sizing` SAP 面積・電池容量の逆算 |
 
 pub mod battery;

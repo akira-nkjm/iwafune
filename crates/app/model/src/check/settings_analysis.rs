@@ -109,6 +109,14 @@ fn check_power(ctx: &mut Ctx) {
             format!("モード `{}`", seg.mode),
         );
     }
+    if let Some(mode) = &p.base_mode {
+        s.reference(
+            &["base_mode"],
+            mode_exists(design, mode),
+            "ref.mode",
+            format!("モード `{mode}`"),
+        );
+    }
 }
 
 fn check_aocs(ctx: &mut Ctx) {

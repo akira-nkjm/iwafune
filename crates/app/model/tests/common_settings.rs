@@ -96,3 +96,28 @@ fn mode_population_errors_are_design_errors() {
         );
     }
 }
+
+/// 電源の基本のモード（`analysis.power.base_mode`）は既存のモードを指す。
+#[test]
+fn power_base_mode_must_name_a_mode() {
+    use fune_model::design::{Mode, PowerSettings};
+    let mut design = Design::default();
+    design.analysis.power = Some(PowerSettings {
+        base_mode: Some("NOMINAL".to_owned()),
+        ..Default::default()
+    });
+    let target = Some(Target::from(SettingPath::analysis(&["power", "base_mode"])));
+    let errors = |d: &Design| {
+        fune_model::check(d)
+            .into_iter()
+            .filter(|x| x.severity == Severity::Error && x.code == "ref.mode" && x.target == target)
+            .count()
+    };
+    assert_eq!(errors(&design), 1);
+    let mode = Mode {
+        id: "NOMINAL".into(),
+        ..Default::default()
+    };
+    design.modes.insert(mode.id.clone(), mode);
+    assert_eq!(errors(&design), 0);
+}

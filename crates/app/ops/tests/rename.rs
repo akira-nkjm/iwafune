@@ -347,3 +347,29 @@ fn rename_part_updates_eclipse_rows() {
     assert!(m.eclipse.contains_key("HTR_NEW"));
     assert!(!m.eclipse.contains_key("HTR_BAT"));
 }
+
+#[test]
+fn rename_mode_updates_the_power_base_mode() {
+    use fune_model::design::{RefSite, Referent};
+    use fune_model::value::SettingValue;
+    let snap = snapshot();
+    let set = Op::SetSetting {
+        path: "analysis.power.base_mode".into(),
+        value: Some(SettingValue::Text("NOMINAL".into())),
+    };
+    let p = plan(&snap, std::slice::from_ref(&set)).unwrap();
+    assert!(
+        p.design
+            .references(Referent::Mode("NOMINAL"))
+            .contains(&RefSite::PowerBaseMode)
+    );
+    let rename = Op::RenameMode {
+        id: "NOMINAL".into(),
+        to: "CRUISE".into(),
+    };
+    let p = plan(&snap, &[set, rename]).unwrap();
+    let power = p.design.analysis.power.as_ref().unwrap();
+    assert_eq!(power.base_mode.as_deref(), Some("CRUISE"));
+    assert!(power.sequence.iter().all(|s| s.mode != "NOMINAL"));
+    assert!(check(&p.design).iter().all(|x| !x.is_error()));
+}

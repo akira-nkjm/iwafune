@@ -179,6 +179,7 @@ fn rename_at(
         | RefSite::CaseMode { .. }
         | RefSite::PowerModeShare
         | RefSite::PowerSequence { .. }
+        | RefSite::PowerBaseMode
         | RefSite::AttitudeLaw
         | RefSite::ThermalCaseMode { .. } => rename_setting_at(edits, site, names),
         RefSite::PortNet { .. }
@@ -267,6 +268,7 @@ fn rename_setting_at(
             }
             Ok(())
         }),
+        RefSite::PowerBaseMode => set_top(edits, &power(), "base_mode", to),
         RefSite::AttitudeLaw => rename_in(
             edits,
             &layout::analysis_file(AnalysisSystem::Aocs),

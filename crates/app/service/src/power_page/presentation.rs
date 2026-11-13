@@ -93,7 +93,12 @@ fn balance(input: &EnergyBalanceInput, out: &EnergyBalanceOutput, json: &Value) 
                     verdict_view::<Fraction>(
                         "dod",
                         label("最大 DoD", "Maximum DoD"),
-                        Some(case.max_dod.value()),
+                        // 判定と同じ運用の値（最長継続時間で評価したときはその値）
+                        Some(
+                            case.by_max_duration
+                                .as_ref()
+                                .map_or(case.max_dod.value(), |d| d.max_dod.value()),
+                        ),
                         out.dod_limit.value(),
                         PowerLimitKind::AtMost,
                         check(&case.checks, "dod"),
@@ -101,7 +106,10 @@ fn balance(input: &EnergyBalanceInput, out: &EnergyBalanceOutput, json: &Value) 
                     verdict_view::<Energy>(
                         "energy_balance",
                         label("1 周のエネルギー余裕", "Energy margin per orbit"),
-                        case.energy_margin_per_orbit.map(|v| v.value()),
+                        case.by_max_duration
+                            .as_ref()
+                            .map_or(case.energy_margin_per_orbit, |d| d.energy_margin_per_orbit)
+                            .map(|v| v.value()),
                         0.0,
                         PowerLimitKind::AtLeast,
                         check(&case.checks, "energy_balance"),

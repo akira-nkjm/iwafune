@@ -194,7 +194,7 @@ pub struct Mode {
     pub label: String,
     pub description: Option<String>,
     pub states: BTreeMap<Id<Part>, StateAssign>,
-    pub max_duration: Option<Quantity>,    // 時間の次元。0.3.0 では解析には使わない
+    pub max_duration: Option<Quantity>,    // 時間の次元。power.energy_balance の判定に使う（§5.1）
     pub eclipse: BTreeMap<Id<Part>, StateAssign>, // 書いた部品だけ蝕時に置換
 }
 /// 基本の状態と、ほかの状態で過ごす時間の割合。割合の残りは基本の状態。
@@ -305,6 +305,42 @@ projection の `case_policy::effective_case` が明示ケースを優先する�
 判定文に期間の収支を添える。回り切った周回があれば `energy_margin_over_span` は `null`。
 期間不足の目印 `span_fallback = orbit_mean_over_span` は引き続き返す。
 KPI の電力収支は別の量である平均電力（`orbit_average_balance`、電池の効率を含まない）を使う。
+
+電力収支の運用は 3 通りある。ケースの欄（`max_dod`・`orbit_average_balance`・`orbits`・`series` など）は
+どれも**解析期間ずっと続けた**ときの値のまま。判定（`checks` の `dod`・`energy_balance`・`depleted`）をどの運用で
+評価したかはケースの `evaluation` に書く。
+
+- **連続**（`continuous`）: 最長継続時間の無いモード・一定の負荷。最長継続時間があっても基本のモードが無ければ
+  `no_base_mode`、そのモード自身が基本のモードなら `base_mode` とし、どちらも連続で判定する。
+- **最長継続時間**（`max_duration`）: モードの `max_duration` があれば、基本のモード（`analysis.power.base_mode`、
+  無ければ `[[sequence]]` の最初の区間のモード）を回し続け、その上でこのモードを最長継続時間だけ 1 回続ける。
+  開始は 1 周の中で標本ごとにずらし、窓から後の最小 SOC が最も低い開始を最悪とする。ずらす 1 周は解析期間の終わりから
+  「周期 + 最長継続時間 + 周期」前から始まる 1 周（前で定常に近づき、後ろで 1 周の回復を見る。足りなければ期間の始め）。
+  結果はケースの `by_max_duration`: `max_dod`（解析期間全体の最小 SOC から。判定に使う）・`max_dod_from_start`（窓から後だけ）・
+  `best_max_dod`（最良の開始）・`base_max_dod`（基本のモードだけ）・`worst_start`・`worst_start_in_orbit`・
+  `eclipse_overlap`・`orbit_average_balance` と `energy_margin_per_orbit`（窓の立ち上がりから 1 周。1 周に 1 回入れたとき）。
+  窓は標本の刻みで丸め、窓の中の標本に負荷とそのモードの姿勢則の発電を使う。
+- **モードの並び**（`sequence`）: `[[sequence]]` を繰り返して解析期間を覆い、解析の開始からの経過を 1 周期で割った余りが
+  入る区間のモードの負荷（日照・日陰、蝕の上書きは `mode_load` の評価のまま）と姿勢則の発電で積分する。結果は出力の
+  `sequence.balance`（ケースと同じ形。`load_sunlit`・`load_eclipse` は日照中・日陰中の標本の平均）で、運用を通しての
+  DoD・最小 SOC・周回ごとの収支（`orbits`）と判定を持つ。並びが無ければ `sequence = null`。
+
+duty（状態の時間割合）はどの運用でも平均の消費電力にして一定にかける（周回内の時間分布は扱わない）。使うモードに
+duty があればケースと並びの `duty = averaged` で示す。KPI の最大 DoD・軌道平均の収支（最悪）は、各ケースの判定に使った
+運用の値（`by_max_duration` があればそちら）と並びの値から選ぶ。
+
+```toml
+# analysis/power.toml（並びと基本のモード）
+base_mode = "NOMINAL"   # 省略時は並びの最初の区間のモード
+
+[[sequence]]
+mode     = "NOMINAL"
+duration = { value = 76.0, unit = "min" }
+
+[[sequence]]
+mode     = "DOWNLINK"
+duration = { value = 9.6, unit = "min" }
+```
 
 解析ケースの `mode` が指定されているときは、そのモードの `[law.<mode>]` が必要で、別のモードの姿勢則では代用しない。
 モードが未指定なら、姿勢則が 1 件だけのときに限り使う。0 件または複数なら不足入力として停止する。
@@ -514,7 +550,8 @@ HTR = { state = "on" }
   warm は `spare_state`、種別の語彙の `standby`、`idle` の順で選ぶ。予備状態が決まらない場合、語彙に無い場合は error。
 - `[eclipse]` は、書いた部品の割り当て全体を蝕時だけ置換する（`active`・`duty` などの欄を個別に継承しない）。
   書かなかった部品は `[states]` を使う。`[states]` に無い上書き先は未指定と同様に warning とし、解析には足さない。
-- `max_duration` は時間の次元を検査し、CLI の一覧と GUI のモード見出しに表示する。0.3.0 では解析期間やモードの時間割合に影響しない。
+- `max_duration` は時間の次元を検査し、CLI の一覧と GUI のモード見出しに表示する。`power.energy_balance` は、このモードを
+  基本のモードの上で最長継続時間だけ続けたときで判定する（§5.1）。解析期間やモードの時間割合（`mode_share`）には影響しない。
 - 台数の評価は `sat_analysis::modes::counted_states` だけ。電力は「稼働台 × 状態の平均電力 + 予備台 × 予備状態の電力」。
   `power.mode_load.total` は日照時、`total_eclipse` は蝕時（成長込みはそれぞれ `*_with_growth`）。
   `power.energy_balance` はこの日照時・蝕時の負荷を使う。C&DH は日照時の割り当てで同じ台数を数える。

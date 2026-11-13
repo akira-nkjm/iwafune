@@ -194,7 +194,11 @@ fn inverse_design_satisfies_energy_balance() {
                     mode: "NOMINAL".into(),
                 },
                 attitude: None,
+                max_duration: None,
             }],
+            sequence: Vec::new(),
+            base_mode: None,
+            mode_attitudes: Default::default(),
         })
         .unwrap();
         let case = &out.cases[0];

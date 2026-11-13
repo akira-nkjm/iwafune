@@ -3,6 +3,7 @@
 //!
 //! - 値: 解析ごとに出力を型に戻し（下の `kpi_table!`）、欄を引く。並び（ケース・センサ・回線・節点など）は
 //!   KPI ごとに最大か最小（最悪の側）を選ぶ。次元は型から（`sat_units::typed::NamedKind`）。
+//!   電力収支はケースの判定に使った運用の値（最長継続時間で評価したケースは `by_max_duration`）とモードの並びから選ぶ。
 //! - 判定: 判定の対象の KPI は解析の判定（`checks` の最悪）。対象でない KPI（発生量・可視時間など）は null。
 //! - 塗りの比: 値そのものが比の KPI（DoD・余裕）は値、判定を数える KPI は OK の割合。
 //! - 判定の数え方: 判定を数える KPI（節点の動作範囲）は、解析の判定の数と OK でない数。
@@ -160,11 +161,25 @@ fn mode_load(o: &power::ModeLoadOutput, ctx: Ctx<'_>) -> Option<Measured> {
 fn orbit_generation(o: &power::OrbitGenerationOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.orbit_average)
 }
+/// 判定に使った運用での電力収支の結果: 最長継続時間で評価したケースはその値、ほかは連続の値。並びがあれば並びも入れる。
+fn judged_balances(
+    o: &power::EnergyBalanceOutput,
+) -> impl Iterator<Item = (Qty<sat_units::typed::Power>, Fraction)> + '_ {
+    let cases = o.cases.iter().map(|c| match &c.by_max_duration {
+        Some(d) => (d.orbit_average_balance, d.max_dod),
+        None => (c.orbit_average_balance, c.max_dod),
+    });
+    let sequence = o
+        .sequence
+        .iter()
+        .map(|s| (s.balance.orbit_average_balance, s.balance.max_dod));
+    cases.chain(sequence)
+}
 fn orbit_balance(o: &power::EnergyBalanceOutput, _: Ctx<'_>) -> Option<Measured> {
-    smallest(o.cases.iter().map(|c| c.orbit_average_balance))
+    smallest(judged_balances(o).map(|(b, _)| b))
 }
 fn max_dod(o: &power::EnergyBalanceOutput, _: Ctx<'_>) -> Option<Measured> {
-    largest(o.cases.iter().map(|c| c.max_dod))
+    largest(judged_balances(o).map(|(_, d)| d))
 }
 fn sap_margin(o: &power::SizingOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.sap_margin?)
