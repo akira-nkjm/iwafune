@@ -46,6 +46,16 @@ pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
     print_missing(&r.missing, out);
     print_kpis(&r.kpis, out);
     print_checks(&r.checks, out);
+    if let Some(v) = &r.space_weather {
+        let fetched = v.fetched_at.as_deref().unwrap_or("取得日時の記録なし");
+        println!(
+            "{}",
+            out.dim(format!(
+                "宇宙天気の表: {}〜{}（取得 {fetched}、SHA-256 {}）",
+                v.first_date, v.last_date, v.sha256
+            ))
+        );
+    }
     super::output_tables::print(&r, out);
     if r.status == AnalysisRunStatus::Ok {
         println!("{}", out.dim("全体の結果は --json で出せます"));

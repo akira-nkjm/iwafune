@@ -45,6 +45,7 @@ registry!(
     structure::StaticLoad,
     structure::ModalEstimate,
     crate::orbit::EclipseSeason,
+    crate::orbit::OrbitDecay,
     propulsion::Maneuvers,
     propulsion::DvBudget,
     propulsion::Propellant,

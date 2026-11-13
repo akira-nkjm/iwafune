@@ -110,6 +110,10 @@ pub struct AnalysisRunResult {
     pub missing: Vec<MissingInput>,
     /// 解析が失敗したときの理由
     pub error: Option<String>,
+    /// 入力に使った宇宙天気の表の版（日付で引いた宇宙天気を使った解析だけ。使わなければ欄を出さない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub space_weather: Option<super::data::SpaceWeatherVersion>,
 }
 
 /// 解析の実行の状態。

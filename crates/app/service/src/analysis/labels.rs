@@ -56,6 +56,7 @@ pub fn channel_label(kind: ChannelKind, subject: Option<&str>) -> AnalysisLabel 
         K::NodeTemperature => label(s, s),
         K::AbsorbedHeat => label("外部入熱", "Absorbed heat"),
         K::Backlog => label("未送信データ", "Backlog"),
+        K::Altitude => label("高度", "Altitude"),
     }
 }
 
@@ -181,6 +182,7 @@ fn modal_kind(k: ModalEstimateKind) -> AnalysisLabel {
     }
 }
 
+mod orbit;
 mod propulsion;
 
 fn link_closure(kind: &str) -> Option<AnalysisLabel> {
@@ -223,6 +225,10 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
         "DataThroughputLinkClosure" => link_closure(value),
+        "SolarActivity" => parse(value).map(orbit::solar_activity),
+        "WeatherSource" => parse(value).map(orbit::weather_source),
+        "DragAreaSource" => parse(value).map(orbit::drag_area_source),
+        "DecayCondition" => orbit::decay_condition(value),
         "DvCategory" => parse(value).map(propulsion::category),
         "TransferMethod" => parse(value).map(propulsion::method),
         "ManeuverNote" => parse(value).map(propulsion::note),
@@ -238,6 +244,12 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         K::LongestEclipse => label("最長蝕の時間", "Longest eclipse duration"),
         K::BetaMin => label("β の範囲（最小）", "Beta range (minimum)"),
         K::BetaMax => label("β の範囲（最大）", "Beta range (maximum)"),
+        K::OrbitLifetime => label("軌道寿命（最短の条件）", "Orbital lifetime (shortest)"),
+        K::DecayPerDay => label("1 日の高度低下（最大）", "Altitude decay per day (max)"),
+        K::StationKeepingDeltaV => label(
+            "軌道維持の ΔV / 年（最大）",
+            "Station-keeping delta-v per year (max)",
+        ),
         K::ModeLoad => label("モードの消費電力（バジェット）", "Mode load (budget)"),
         K::OrbitGeneration => label("軌道平均の発電", "Orbit-average generation"),
         K::OrbitBalance => label("軌道平均の収支（最悪）", "Orbit-average balance (worst)"),
@@ -334,6 +346,9 @@ mod tests {
         assert!(value_label("SlewProfile", "trapezoidal").is_some());
         assert!(value_label("SlewAssumption", "eigen_axis_rest_to_rest").is_some());
         assert!(value_label("String", "RW_X").is_none());
+        let high = value_label("SolarActivity", "high").unwrap();
+        assert_eq!(high.label_en, "High solar activity");
+        assert!(value_label("DecayCondition", "dated").is_some());
         assert_eq!(
             value_label("DvCategory", "deorbit").unwrap().label_en,
             "Deorbit"

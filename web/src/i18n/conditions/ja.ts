@@ -26,5 +26,12 @@ export const conditionsJa = {
     noCaseMode: "指定しない",
     eclipseCaseDescription: "条件を再解析してケースを作ります。β と選んだ日付を保存します。",
     visibilityPerStation: "地上局ごとの可視",
+    decaySeries: "高度の推移",
+    decayApproximation:
+      "1 周で平均した抗力（NRLMSISE-00）を積分した近円軌道の見積もりです。プリセットは太陽活動を全期間で一定にした条件、dated は宇宙天気の表から日付で引いた条件です。",
+    decayWeatherTable: (first: string, last: string, fetched: string) =>
+      `宇宙天気の表 ${first}〜${last}（取得 ${fetched}）を使いました。表の外は中程度のプリセットです。`,
+    decayNoWeatherTable:
+      "宇宙天気の表が無いので、プリセットの条件だけです（設定の外部データから取得できます）。",
   },
 };

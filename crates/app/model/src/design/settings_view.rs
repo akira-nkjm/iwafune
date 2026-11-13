@@ -23,13 +23,11 @@ impl Design {
         let to = |v: Result<Json, serde_json::Error>| v.unwrap_or(Json::Null);
         match scope {
             SettingScope::Conditions => {
-                // 未入力の期間と任意の季節刻みも設定の表に出す。値の既定値は付けない。
+                // 未入力の期間と任意の季節刻み・高度低下の設定も設定の表に出す。値の既定値は付けない。
                 let mut conditions = self.conditions.clone();
-                conditions
-                    .orbit
-                    .get_or_insert_default()
-                    .eclipse_season
-                    .get_or_insert_default();
+                let orbit = conditions.orbit.get_or_insert_default();
+                orbit.eclipse_season.get_or_insert_default();
+                orbit.decay.get_or_insert_default();
                 let mut v = to(serde_json::to_value(&conditions));
                 // 地上局の `id` はファイル名で決まるので設定の値ではない。
                 if let Some(ground) = v.get_mut("ground").and_then(Json::as_object_mut) {

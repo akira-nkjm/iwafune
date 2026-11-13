@@ -99,6 +99,18 @@ setting_quantities! {
     ORBIT_DURATION: Time = Conditions["orbit", "duration"];
     /// 季節解析の標本の間隔
     ORBIT_ECLIPSE_SEASON_STEP: Time = Conditions["orbit", "eclipse_season", "step"];
+    /// 高度低下の積分の期間の上限（`[decay]`）
+    ORBIT_DECAY_SPAN: Time = Conditions["orbit", "decay", "span"];
+    /// 再突入とみなす高度
+    ORBIT_DECAY_REENTRY_ALTITUDE: Length = Conditions["orbit", "decay", "reentry_altitude"];
+    /// 抗力の面積
+    ORBIT_DECAY_DRAG_AREA: Area = Conditions["orbit", "decay", "drag_area"];
+    /// 軌道維持の高度の帯
+    ORBIT_DECAY_BAND: Length = Conditions["orbit", "decay", "band"];
+    /// 寿命の上限（廃棄の要求）
+    ORBIT_DECAY_MAX_LIFETIME: Time = Conditions["orbit", "decay", "max_lifetime"];
+    /// 軌道維持に使える推薬
+    ORBIT_DECAY_PROPELLANT: Mass = Conditions["orbit", "decay", "propellant"];
     /// 軌道の高度（`conditions/orbit.toml`）
     ORBIT_ALTITUDE: Length = Conditions["orbit", "altitude"];
     /// 軌道長半径

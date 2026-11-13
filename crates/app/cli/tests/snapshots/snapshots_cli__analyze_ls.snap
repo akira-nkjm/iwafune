@@ -23,6 +23,7 @@ expression: text
  structure    structure.static_load       準静的荷重               定常     設計から組立
  structure    structure.modal_estimate    簡易固有振動数           定常     設計から組立
  orbit        orbit.eclipse_season        β と蝕の季節変動         時系列   設計から組立
+ orbit        orbit.decay                 高度低下と軌道維持       時系列   設計から組立
  propulsion   propulsion.maneuvers        マヌーバ                 定常     設計から組立
  propulsion   propulsion.dv_budget        ΔV バジェット            定常     設計から組立
  propulsion   propulsion.propellant       推薬とタンク             定常     設計から組立
