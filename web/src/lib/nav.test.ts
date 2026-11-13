@@ -1,8 +1,10 @@
 import type { RouteConfigEntry } from "@react-router/dev/routes";
 import { describe, expect, it } from "vitest";
+import { en } from "@/i18n/en";
+import { ja } from "@/i18n/ja";
 import routes from "@/routes";
 import { fixture } from "@/test/fixture";
-import { isSystemItem, nav, paths } from "./nav";
+import { isSystemItem, nav, navItemTitle, paths } from "./nav";
 
 /** routes.ts のルートの形（`design/components/:id?`）→ 道筋に合うかの正規表現 */
 function patterns(entries: readonly RouteConfigEntry[]): RegExp[] {
@@ -28,6 +30,33 @@ const matches = (url: string) => {
 };
 
 describe("paths", () => {
+  it("配置は設計のモードの次にあり、日英の表示名と専用ルートを持つ", () => {
+    const items = nav(fixture.defs.systems).find((s) => s.id === "design")?.items ?? [];
+    const modes = items.findIndex((i) => i.key === "modes");
+    const layout = items[modes + 1];
+    expect(layout?.key).toBe("layout");
+    expect(layout?.to).toBe(paths.layout());
+    expect(paths.layout()).toBe("/design/layout");
+    expect(matches(paths.layout())).toBe(true);
+    expect(routes[0]?.children?.find((r) => r.path === "design/layout")?.file).toBe(
+      "routes/layout3d.tsx",
+    );
+    expect(isSystemItem("layout")).toBe(false);
+    if (!layout) throw new Error("missing layout nav item");
+    expect(navItemTitle(layout, ja)).toBe("配置");
+    expect(navItemTitle(layout, en)).toBe("Layout");
+  });
+
+  it("単位と定義はプロジェクトの設定の下にある", () => {
+    const sections = nav(fixture.defs.systems);
+    const design = sections.find((s) => s.id === "design")?.items ?? [];
+    const project = sections.find((s) => s.id === "project")?.items ?? [];
+    expect(design.some((i) => i.key === "defs")).toBe(false);
+    expect(project.map((i) => i.key)).toEqual(["diagnostics", "settings", "defs"]);
+    expect(paths.defs()).toBe("/project/defs");
+    expect(matches(paths.defs("attributes"))).toBe(true);
+  });
+
   it("前提条件の URL と解析区分の開き先", () => {
     expect(paths.orbit()).toBe("/conditions/orbit");
     expect(paths.cases()).toBe("/conditions/cases");

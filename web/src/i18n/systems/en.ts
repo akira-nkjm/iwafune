@@ -33,8 +33,7 @@ export const systemsEn: typeof systemsJa = {
         description: "Multi-node steady and transient analysis against operating ranges",
       },
       structure: {
-        description:
-          "3D layout, mass properties, quasi-static loads and simple natural frequencies",
+        description: "Mass properties, quasi-static loads and simple natural frequencies",
       },
     },
     kpiTally: (checked: number, flagged: number) =>
@@ -79,6 +78,7 @@ export const systemsEn: typeof systemsJa = {
     thermal3dLegend: "Max temperature per node (nodes whose ID matches a part ID)",
     layout3d: {
       title: "3D layout",
+      pageHint: "Select parts to inspect and edit their mounts, positions and orientations.",
       parts: (n: number) => `${n} parts`,
       unplacedCount: (n: number) => ` · ${n} unplaced`,
       com: " · red dot = center of mass",
