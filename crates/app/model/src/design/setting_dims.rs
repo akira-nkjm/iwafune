@@ -139,6 +139,10 @@ setting_quantities! {
     GROUND_LINE_LOSS: Dimensionless = Conditions["ground", ANY, "link", ANY, "line_loss"];
     /// 電源のモードの並びの区間の長さ（`analysis/power.toml` の `[[sequence]]`）
     POWER_SEQUENCE_DURATION: Time = Analysis["power", "sequence", ANY, "duration"];
+    /// サイジングのバス電圧。
+    POWER_SIZING_BUS_VOLTAGE: Voltage = Analysis["power", "sizing", "bus_voltage"];
+    /// サイジングの太陽距離。
+    POWER_SIZING_SUN_DISTANCE: Length = Analysis["power", "sizing", "sun_distance"];
     /// 空力の圧力中心 − 重心（`analysis/aocs.toml`。ベクトル）
     AOCS_CP_OFFSET_AERO: Length = Analysis["aocs", "cp_offset_aero"];
     /// 太陽輻射圧の圧力中心 − 重心（ベクトル）

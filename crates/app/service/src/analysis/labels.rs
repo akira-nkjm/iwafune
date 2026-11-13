@@ -176,6 +176,8 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         K::OrbitGeneration => label("軌道平均の発電", "Orbit-average generation"),
         K::OrbitBalance => label("軌道平均の収支（最悪）", "Orbit-average balance (worst)"),
         K::MaxDod => label("最大 DoD", "Max DoD"),
+        K::SapMargin => label("SAP の余裕", "SAP margin"),
+        K::BatteryMargin => label("バッテリーの余裕", "Battery margin"),
         K::UnloadInterval => label("アンロード間隔", "Unload interval"),
         K::PeakMomentum => label("最大角運動量", "Peak momentum"),
         K::MtqUnloadTime => label("MTQ のアンロード時間", "MTQ unload time"),

@@ -66,6 +66,9 @@ pub struct CommonSettings {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct PowerSettings {
+    /// 逆算サイジングの任意の上書き。省略値は sat-analysis が持つ。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sizing: Option<PowerSizingSettings>,
     /// 許容する最大放電深度（0〜1）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dod_max: Option<f64>,
@@ -84,6 +87,20 @@ pub struct PowerSettings {
     /// 時系列の解析で使うモードの並び（1 周回分。繰り返す）
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sequence: Vec<ModeSegment>,
+}
+
+/// 電源の逆算設定（`analysis/power.toml` の `[sizing]`）。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PowerSizingSettings {
+    pub sunlit_efficiency: Option<f64>,
+    pub eclipse_efficiency: Option<f64>,
+    pub battery_efficiency: Option<f64>,
+    pub annual_degradation: Option<f64>,
+    pub inherent_degradation: Option<f64>,
+    pub battery_strings: Option<u32>,
+    pub bus_voltage: Option<Quantity>,
+    pub sun_distance: Option<Quantity>,
 }
 
 /// モードの時系列の 1 区間。

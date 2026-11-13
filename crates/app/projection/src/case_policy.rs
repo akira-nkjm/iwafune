@@ -5,6 +5,7 @@ use sat_analysis::aocs::rw_unloading::RwUnloading;
 use sat_analysis::aocs::sensor_fov::SensorFov;
 use sat_analysis::power::energy_balance::EnergyBalance;
 use sat_analysis::power::orbit_generation::OrbitGeneration;
+use sat_analysis::power::sizing::Sizing;
 use sat_analysis::spec::Analysis;
 use sat_analysis::thermal::transient::ThermalTransient;
 
@@ -15,7 +16,7 @@ pub enum CaseSource {
     Explicit,
     /// 解析全体に適用する既定ケース。
     Default,
-    /// 電力収支の上段の姿勢則だけに使う既定ケース。
+    /// 電力収支・逆算サイジングの上段の姿勢則だけに使う既定ケース。
     DefaultAttitude,
 }
 
@@ -39,7 +40,7 @@ pub fn effective_case<'a>(
     }
     let source = if DEFAULT_CASE_ANALYSES.contains(&id) {
         CaseSource::Default
-    } else if id == EnergyBalance::ID {
+    } else if id == EnergyBalance::ID || id == Sizing::ID {
         CaseSource::DefaultAttitude
     } else {
         return (None, None);

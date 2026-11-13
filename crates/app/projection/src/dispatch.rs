@@ -122,6 +122,7 @@ table!(
     apower::SolarSunlit => Some(power::solar_sunlit),
     apower::OrbitGeneration => Some(power::orbit_generation),
     apower::EnergyBalance => Some(power::energy_balance),
+    apower::Sizing => Some(power::sizing),
     aaocs::RwUnloading => Some(aocs::rw_unloading),
     aaocs::UnloadTime => Some(aocs::unload_time),
     aaocs::SensorFov => Some(aocs::sensor_fov),

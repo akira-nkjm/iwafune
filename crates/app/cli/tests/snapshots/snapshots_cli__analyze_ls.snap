@@ -8,6 +8,7 @@ expression: text
  power       power.solar_sunlit          日照時の発電             定常     設計から組立
  power       power.orbit_generation      軌道上の発電             時系列   設計から組立
  power       power.energy_balance        電力収支と DoD           時系列   設計から組立
+ power       power.sizing                電源の逆算サイジング     定常     設計から組立
  aocs        aocs.rw_unloading           RW アンロード頻度        時系列   設計から組立
  aocs        aocs.unload_time            アンロードにかかる時間   定常     設計から組立
  aocs        aocs.sensor_fov             センサ FoV と禁止角      時系列   設計から組立

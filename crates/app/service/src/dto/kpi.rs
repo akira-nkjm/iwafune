@@ -25,6 +25,10 @@ pub enum KpiKey {
     OrbitBalance,
     /// 最大 DoD（ケースのうち最大）
     MaxDod,
+    /// SAP 面積の余裕。
+    SapMargin,
+    /// 電池容量の余裕。
+    BatteryMargin,
     /// RW のアンロード間隔
     UnloadInterval,
     /// RW の最大角運動量

@@ -40,7 +40,7 @@ label_en = "Solar panel"
 extends  = "component"
 role     = "solar_panel"
 required = ["area", "cell_efficiency", "normal"]
-optional = ["packing_factor", "eol_factor"]
+optional = ["packing_factor", "eol_factor", "cell_voltage", "cell_current"]
 
 [reaction_wheel]
 label    = "リアクションホイール"

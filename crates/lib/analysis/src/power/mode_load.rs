@@ -3,7 +3,7 @@
 //! 部品ごとの「状態 → 消費電力」の表と、モードごとの状態の割り当て（[`crate::modes`]）から、
 //! モードごとの平均消費電力を部品別に集計する。割り当ての無い部品や、使う状態の電力が無い部品は
 //! **0 W とみなさず**、合計から外して警告に出す。成長余裕は部品ごとの割合（0.2 = +20 %）。
-//! 電力収支（`power.energy_balance`）もモードの負荷を [`evaluate_mode`] で求める。
+//! 電力収支（`power.energy_balance`）・逆算（`power.sizing`）もモードの負荷を [`evaluate_mode`] で求める。
 
 use crate::modes::{self, ModeDef, StateValues, UnlistedParts};
 use crate::spec::{

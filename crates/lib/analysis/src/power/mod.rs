@@ -8,11 +8,13 @@
 //! | [`solar_sunlit`] | `power.solar_sunlit` 日照時の発電 |
 //! | [`orbit_generation`] | `power.orbit_generation` 軌道上の発電 |
 //! | [`energy_balance`] | `power.energy_balance` 電力収支と DoD |
+//! | [`sizing`] | `power.sizing` SAP 面積・電池容量の逆算 |
 
 pub mod battery;
 pub mod energy_balance;
 pub mod mode_load;
 pub mod orbit_generation;
+pub mod sizing;
 pub mod solar;
 pub mod solar_sunlit;
 #[cfg(test)]
@@ -21,4 +23,5 @@ pub(crate) mod testkit;
 pub use energy_balance::{EnergyBalance, EnergyBalanceInput, EnergyBalanceOutput};
 pub use mode_load::{ModeLoad, ModeLoadInput, ModeLoadOutput};
 pub use orbit_generation::{OrbitGeneration, OrbitGenerationInput, OrbitGenerationOutput};
+pub use sizing::{Sizing, SizingInput, SizingOutput};
 pub use solar_sunlit::{SolarSunlit, SolarSunlitInput, SolarSunlitOutput};
