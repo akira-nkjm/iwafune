@@ -60,6 +60,13 @@ describe("paths", () => {
   });
 });
 
+describe("nav", () => {
+  it("ナビの項目はすべて違うアイコンを使う", () => {
+    const icons = nav(fixture.defs.systems).flatMap((s) => s.items.map((i) => i.icon));
+    expect(new Set(icons).size).toBe(icons.length);
+  });
+});
+
 describe("isSystemItem", () => {
   it("API が返した系の一覧と順序に従う", () => {
     const systems = [...fixture.defs.systems].reverse();

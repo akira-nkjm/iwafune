@@ -14,6 +14,7 @@ import {
   Settings,
   Sun,
   Table2,
+  Telescope,
   Thermometer,
   Workflow,
 } from "lucide-react";
@@ -94,7 +95,7 @@ const systemIcons: Record<System, LucideIcon> = {
   comm: Radio,
   thermal: Thermometer,
   structure: Layers3,
-  payload: Boxes,
+  payload: Telescope,
 };
 
 /** ナビの項目の表示名。系の語彙は API の labels.section から引く。 */
