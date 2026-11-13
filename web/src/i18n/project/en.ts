@@ -17,6 +17,7 @@ export const projectEn: typeof projectJa = {
       missing: "Missing",
       fetching: "Fetching…",
       fetch: "Fetch",
+      fetchedAt: (at: string) => `fetched ${at}`,
     },
     projectPanel: "Project",
     name: "Name",

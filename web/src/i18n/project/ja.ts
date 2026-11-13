@@ -17,6 +17,8 @@ export const projectJa = {
       missing: "未取得",
       fetching: "取得中…",
       fetch: "取得",
+      /** 取得した日時（毎日更新される宇宙天気の表など。API の `DataItem.fetched_at`） */
+      fetchedAt: (at: string) => `取得 ${at}`,
     },
     projectPanel: "プロジェクト",
     name: "名前",
