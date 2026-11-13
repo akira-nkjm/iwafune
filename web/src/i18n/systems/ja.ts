@@ -6,8 +6,6 @@ export const systemsJa = {
     eyebrow: "系の解析",
     unknown: (s: string) => `知らない系です: ${s}`,
     defaultDerivedCase: (name: string) => `条件選択が必要な解析の既定: ${name}`,
-    defaultAttitude:
-      "電力収支: 上段の時系列の姿勢則だけ既定ケースから選択。各モードの収支はそのモードの姿勢則で計算。",
     caseLabel: "解析ケース",
     defaultCase: "自動（必要な解析だけ既定）",
     recompute: "再計算",
