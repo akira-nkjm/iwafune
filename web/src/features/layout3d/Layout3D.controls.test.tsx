@@ -9,6 +9,10 @@ const state = vi.hoisted(() => ({
   axes: true,
   opacity: 0.3,
   selected: null as string | null,
+  hidden: new Set<string>() as ReadonlySet<string>,
+  helpers: null as Record<string, boolean> | null,
+  focus: undefined as unknown,
+  browser: vi.fn(),
   toggle: (_value: boolean) => {},
   slide: (_value: number) => {},
   scene: vi.fn(),
@@ -37,6 +41,27 @@ vi.mock("react", async (original) => ({
           state.selected = v;
         },
       ];
+    if (initial instanceof Set)
+      return [
+        state.hidden,
+        (v: ReadonlySet<string>) => {
+          state.hidden = v;
+        },
+      ];
+    if (initial && typeof initial === "object" && "grid" in initial)
+      return [
+        state.helpers ?? initial,
+        (v: Record<string, boolean>) => {
+          state.helpers = v;
+        },
+      ];
+    if (initial === undefined)
+      return [
+        state.focus,
+        (v: unknown) => {
+          state.focus = typeof v === "function" ? v(state.focus) : v;
+        },
+      ];
     return [initial, vi.fn()];
   },
 }));
@@ -55,6 +80,12 @@ vi.mock("@/kit/selection/Switch", () => ({
 vi.mock("@/kit/forms/RangeInput", () => ({
   RangeInput: ({ onChange }: { onChange: typeof state.slide }) => {
     state.slide = onChange;
+    return null;
+  },
+}));
+vi.mock("./LayoutBrowser", () => ({
+  LayoutBrowser: (props: unknown) => {
+    state.browser(props);
     return null;
   },
 }));
@@ -90,7 +121,11 @@ beforeEach(() => {
   state.axes = true;
   state.opacity = DEFAULT_STRUCTURE_OPACITY;
   state.selected = null;
+  state.hidden = new Set();
+  state.helpers = null;
+  state.focus = undefined;
   state.scene.mockClear();
+  state.browser.mockClear();
 });
 afterEach(() => setLang("ja"));
 
@@ -122,4 +157,51 @@ it("スライダーの変更を場面に渡し、選んだ部品を編集対象�
     });
     expect(html).toContain(getT().systems.layout3d.placementOf(design.parts[0]!.id));
   }
+});
+
+type BrowserProps = {
+  selected: string | null;
+  onSelect: (id: string) => void;
+  onHidden: (hidden: Set<string>) => void;
+};
+type SceneProps = { boxes: { id: string }[]; selected: string | null; focus: unknown };
+
+it("ツリーで隠した部品は場面に渡さず、ツリーで押した部品は選んで視点を寄せる", () => {
+  const id = design.parts[0]!.id;
+  render();
+  const browser = () => state.browser.mock.lastCall![0] as BrowserProps;
+  const scene = () => state.scene.mock.lastCall![0] as SceneProps;
+  expect(scene().boxes.map((b) => b.id)).toEqual([id]);
+  browser().onHidden(new Set([id]));
+  render();
+  expect(scene().boxes).toEqual([]);
+  browser().onHidden(new Set());
+  browser().onSelect(id);
+  render();
+  expect(scene()).toMatchObject({ selected: id, focus: { id, n: 1 } });
+  expect(browser().selected).toBe(id);
+  browser().onSelect(id);
+  render();
+  expect(scene().focus).toEqual({ id, n: 2 });
+});
+
+it("3D で選んだ部品はツリーでも選ばれ、視点は動かさない", () => {
+  const id = design.parts[0]!.id;
+  render();
+  (state.scene.mock.lastCall![0] as { onSelect: (id: string) => void }).onSelect(id);
+  render();
+  expect((state.browser.mock.lastCall![0] as BrowserProps).selected).toBe(id);
+  expect((state.scene.mock.lastCall![0] as SceneProps).focus).toBeNull();
+});
+
+it("座標の表示の切り替えを場面に渡す", () => {
+  const L = getT().systems.layout3d;
+  const html = render();
+  for (const key of ["origin", "grid", "gizmo"] as const) expect(html).toContain(L.helper[key]);
+  expect(state.scene.mock.lastCall?.[0]).toMatchObject({
+    helpers: { origin: true, grid: true, gizmo: true },
+  });
+  state.helpers = { origin: false, grid: true, gizmo: false };
+  render();
+  expect(state.scene.mock.lastCall?.[0]).toMatchObject({ helpers: state.helpers });
 });

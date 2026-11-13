@@ -1,4 +1,4 @@
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useId, useMemo, useState } from "react";
 import { usePlaceBody } from "@/api/ops";
 import type { DesignView } from "@/api/types";
 import { PlacementSection } from "@/features/components/detail/PlacementSection";
@@ -13,8 +13,11 @@ import { Chip } from "@/kit/selection/Chip";
 import { Segmented } from "@/kit/selection/Segmented";
 import { Switch } from "@/kit/selection/Switch";
 import { cn } from "@/lib/cn";
+import { HelperToggles } from "./HelperToggles";
+import { LayoutBrowser } from "./LayoutBrowser";
 import { Scene3D, type SceneEdit, type TransformMode } from "./Scene3D";
 import { axesOf, boxesOf, DEFAULT_STRUCTURE_OPACITY, type V3 } from "./scene";
+import { DEFAULT_SCENE_HELPERS, type FocusRequest, type SceneHelpers } from "./visibility";
 
 /** 移動のスナップ（選択肢の値は名前。刻み [m] は表から引く。選んだ文字列を数として読まない） */
 const SNAPS = [
@@ -23,6 +26,9 @@ const SNAPS = [
   { value: "10mm", label: "10 mm", step: 0.01 },
 ] as const;
 const DEFAULT_SNAP = SNAPS[1];
+
+/** 最初は隠した部品が無い */
+const NONE_HIDDEN: ReadonlySet<string> = new Set();
 
 /** 構造の配置の編集: 箱を選んで動かし、離すと Place を 1 回送る。重心の点も出す */
 interface PlacementProps {
@@ -118,7 +124,7 @@ function HeatLayout3D({ design, colorOf }: HeatProps) {
   );
 }
 
-/** 2 つの用途で共通の中身: 見出しの帯・3D の場面・右のインスペクタ（選んだ部品の配置と未配置の部品） */
+/** 2 つの用途で共通の中身: 見出しの帯・（配置のページでは左の部品のツリー）・3D の場面・右のインスペクタ */
 function Layout3DFrame({
   design,
   title,
@@ -139,7 +145,7 @@ function Layout3DFrame({
   /** 見出しの右端の操作と、箱を動かす編集（配置の編集だけ） */
   tools?: ReactNode;
   edit?: SceneEdit;
-  /** 配置ページでは残りの画面高を使う。熱の追加表示は既存の高さ */
+  /** 配置ページ: 残りの画面高を使い、部品のツリー・表示の切り替え・構造の不透明度を出す。熱の追加表示は既存の高さ */
   fill?: boolean;
 }) {
   const L = useT().systems.layout3d;
@@ -147,8 +153,20 @@ function Layout3DFrame({
   const [showAxes, setShowAxes] = useState(true);
   const opacityId = useId();
   const [structureOpacity, setStructureOpacity] = useState(DEFAULT_STRUCTURE_OPACITY);
-  const { boxes, unplaced, dimensions } = boxesOf(design, colorOf);
-  const part = design.parts.find((p) => p.id === selected) ?? null;
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(NONE_HIDDEN);
+  const [helpers, setHelpers] = useState<SceneHelpers>(DEFAULT_SCENE_HELPERS);
+  const [focus, setFocus] = useState<FocusRequest | undefined>(undefined);
+  const { boxes, unplaced, dimensions } = useMemo(
+    () => boxesOf(design, colorOf),
+    [design, colorOf],
+  );
+  const placed = useMemo(() => new Set(boxes.map((b) => b.id)), [boxes]);
+  const shown = boxes.filter((b) => !hidden.has(b.id));
+  // ツリーで押した部品は選び、視点を寄せる（3D で押したときは選ぶだけ）
+  const pick = (id: string) => {
+    setSelected(id);
+    setFocus((old) => ({ id, n: (old?.n ?? 0) + 1 }));
+  };
   return (
     <Panel
       pad={false}
@@ -171,6 +189,7 @@ function Layout3DFrame({
           <Switch value={showAxes} onChange={setShowAxes}>
             {L.axes}
           </Switch>
+          {fill && <HelperToggles value={helpers} onChange={setHelpers} />}
           {fill && (
             <label
               htmlFor={opacityId}
@@ -194,16 +213,33 @@ function Layout3DFrame({
       </div>
       <div
         className={cn(
-          "grid min-w-0 grid-cols-1 grid-rows-[minmax(240px,1fr)_auto] overflow-y-auto @min-[700px]:grid-cols-[minmax(0,1fr)_minmax(0,340px)] @min-[700px]:grid-rows-1",
-          fill ? "min-h-0 flex-1" : "h-[460px]",
+          "grid min-w-0 grid-cols-1 overflow-y-auto",
+          fill
+            ? "min-h-0 flex-1 grid-rows-[minmax(240px,1fr)_auto_auto] @min-[700px]:grid-cols-[minmax(0,240px)_minmax(0,1fr)] @min-[700px]:grid-rows-[minmax(240px,1fr)_auto] @min-[1100px]:grid-cols-[minmax(0,260px)_minmax(0,1fr)_minmax(0,320px)] @min-[1100px]:grid-rows-1"
+            : "h-[460px] grid-rows-[minmax(240px,1fr)_auto] @min-[700px]:grid-cols-[minmax(0,1fr)_minmax(0,340px)] @min-[700px]:grid-rows-1",
         )}
       >
-        <div className="relative min-h-[240px] min-w-0">
+        {fill && (
+          <aside
+            aria-label={L.browser}
+            className="order-2 h-72 min-h-0 min-w-0 overflow-hidden border-line border-t @min-[700px]:order-none @min-[700px]:h-auto @min-[700px]:border-t-0 @min-[700px]:border-r"
+          >
+            <LayoutBrowser
+              design={design}
+              placed={placed}
+              selected={selected}
+              onSelect={pick}
+              hidden={hidden}
+              onHidden={setHidden}
+            />
+          </aside>
+        )}
+        <div className="relative order-1 min-h-[240px] min-w-0 @min-[700px]:order-none">
           {boxes.length === 0 ? (
             <Empty className="m-auto">{L.empty}</Empty>
           ) : (
             <Scene3D
-              boxes={boxes}
+              boxes={shown}
               dimensions={dimensions}
               selected={selected}
               onSelect={setSelected}
@@ -211,6 +247,8 @@ function Layout3DFrame({
               axes={showAxes ? axesOf(design) : null}
               edit={edit}
               structureOpacity={fill ? structureOpacity : undefined}
+              helpers={helpers}
+              focus={focus ?? null}
             />
           )}
           {showAxes && (
@@ -219,34 +257,68 @@ function Layout3DFrame({
             </p>
           )}
         </div>
-        <aside className="min-w-0 overflow-y-auto border-line border-t p-3 wrap-anywhere @min-[700px]:border-t-0 @min-[700px]:border-l">
-          {part ? (
-            <DetailSection title={L.placementOf(part.id)}>
-              <PlacementSection
-                key={`${part.id}-${design.project.revision}`}
-                design={design}
-                part={part}
-              />
-            </DetailSection>
-          ) : (
-            <div className="space-y-2 text-xs">
-              <p className="text-ink-3">{L.hint}</p>
-              {unplaced.length > 0 && (
-                <div>
-                  <p className="mb-1 font-medium text-ink-2">{L.unplaced}</p>
-                  <ul className="flex flex-wrap gap-1">
-                    {unplaced.map((id) => (
-                      <li key={id}>
-                        <Chip onSelect={() => setSelected(id)}>{id}</Chip>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+        <Inspector
+          design={design}
+          selected={selected}
+          onSelect={pick}
+          unplaced={unplaced}
+          className={cn(
+            "order-3 @min-[700px]:order-none",
+            fill
+              ? "@min-[700px]:col-span-2 @min-[1100px]:col-span-1 @min-[1100px]:border-t-0 @min-[1100px]:border-l"
+              : "@min-[700px]:border-t-0 @min-[700px]:border-l",
           )}
-        </aside>
+        />
       </div>
     </Panel>
+  );
+}
+
+/** 右（狭い幅では下）のインスペクタ: 選んだ部品の配置の欄か、操作の案内と未配置の部品 */
+function Inspector({
+  design,
+  selected,
+  onSelect,
+  unplaced,
+  className,
+}: {
+  design: DesignView;
+  selected: string | null;
+  onSelect: (id: string) => void;
+  unplaced: string[];
+  className?: string;
+}) {
+  const L = useT().systems.layout3d;
+  const part = design.parts.find((p) => p.id === selected) ?? null;
+  return (
+    <aside
+      className={cn("min-w-0 overflow-y-auto border-line border-t p-3 wrap-anywhere", className)}
+    >
+      {part ? (
+        <DetailSection title={L.placementOf(part.id)}>
+          <PlacementSection
+            key={`${part.id}-${design.project.revision}`}
+            design={design}
+            part={part}
+          />
+        </DetailSection>
+      ) : (
+        <div className="space-y-2 text-xs">
+          <p className="text-ink-3">{L.hint}</p>
+          {unplaced.length > 0 && (
+            <div>
+              <p className="mb-1 font-medium text-ink-2">{L.unplaced}</p>
+              <ul className="flex flex-wrap gap-1">
+                {unplaced.map((id) => (
+                  <li key={id}>
+                    <Chip onSelect={() => onSelect(id)}>{id}</Chip>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </aside>
   );
 }

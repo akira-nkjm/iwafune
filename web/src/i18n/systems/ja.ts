@@ -109,6 +109,12 @@ export const systemsJa = {
     thermal3d: "温度で塗った 3D",
     thermal3dLegend: "各節点の最高温度（節点 ID = 部品 ID のもの）",
     layout3d: {
+      browser: "部品のツリー",
+      showAll: "すべて表示",
+      show: (name: string) => `${name} を表示`,
+      hide: (name: string) => `${name} を隠す`,
+      helpers: "座標の表示",
+      helper: { origin: "原点の軸", grid: "格子", gizmo: "隅の軸" },
       pageHint: "部品を選び、取付・位置・姿勢を確認・編集します。",
       parts: (n: number) => `${n} 部品`,
       unplacedCount: (n: number) => ` · 未配置 ${n}`,

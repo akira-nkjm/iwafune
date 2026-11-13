@@ -58,6 +58,11 @@ const FEATURE_EDGES: &[(&str, &str, &str)] = &[
         "3D 配置で選んだ部品の配置の欄を出す",
     ),
     (
+        "layout3d",
+        "components/list/PartsTree",
+        "配置のページの左に、部品のページと同じ製品ツリーを出す",
+    ),
+    (
         "conditions",
         "project/SettingsTable",
         "前提条件の設定を、設定のページと同じ表で出す",
