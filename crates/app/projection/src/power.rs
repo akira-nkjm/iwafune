@@ -8,7 +8,7 @@ use fune_model::Target;
 use fune_model::builtin::Role;
 use fune_model::design::AnalysisSystem;
 use sat_analysis::power::energy_balance::{
-    EnergyBalanceBattery, EnergyBalanceCase, EnergyBalanceLoad, LoadGrowth,
+    EnergyBalance, EnergyBalanceBattery, EnergyBalanceCase, EnergyBalanceLoad, LoadGrowth,
 };
 use sat_analysis::power::mode_load::ModeLoadPart;
 use sat_analysis::power::solar::{SolarArray, SolarLife, SolarPanel};
@@ -16,7 +16,12 @@ use sat_analysis::power::solar_sunlit::{SolarSunlitCase, SolarSunlitSun};
 use sat_analysis::power::{
     EnergyBalanceInput, ModeLoadInput, OrbitGenerationInput, SolarSunlitInput,
 };
+use sat_analysis::spec::Analysis;
+use sat_astro::timeline::TimelineSpec;
 use sat_units::typed::{Area, Energy, Power, Voltage};
+
+mod sizing;
+pub use sizing::sizing;
 
 /// `power.mode_load`
 pub fn mode_load(ctx: &Context<'_>) -> Result<ModeLoadInput, MissingInputs> {
@@ -137,15 +142,7 @@ pub fn energy_balance(ctx: &Context<'_>) -> Result<EnergyBalanceInput, MissingIn
     let array = solar_array(ctx, &mut m);
     let loads = mode_load_input(ctx, &mut m);
     let mode = timeline::case_mode_id(ctx);
-    // 既定ケースから借りるのは上段の姿勢則のモードだけ。β・周回数などは元の ctx を使う。
-    let (attitude_case, _) = crate::case_policy::effective_case(
-        Some(ctx.design),
-        "power.energy_balance",
-        ctx.case.map(|c| c.id.as_str()),
-    );
-    let attitude_ctx = Context::new(ctx.design, ctx.resolved, attitude_case)?;
-    let attitude_mode = timeline::case_mode_id(&attitude_ctx);
-    let t = timeline::timeline(ctx, attitude_mode.as_deref(), power_orbits(ctx), &mut m);
+    let t = attitude_timeline(ctx, EnergyBalance::ID, &mut m)?;
     let batteries = batteries(ctx, &mut m);
     let cases: Vec<EnergyBalanceCase> = ctx
         .design
@@ -172,6 +169,38 @@ pub fn energy_balance(ctx: &Context<'_>) -> Result<EnergyBalanceInput, MissingIn
             cases,
         })
     })
+}
+
+/// 電力収支と逆算の上段の時系列。既定ケースから借りるのは姿勢則のモードだけで、β・周回数などは元の ctx を使う。
+fn attitude_timeline(
+    ctx: &Context<'_>,
+    analysis: &str,
+    m: &mut MissingInputs,
+) -> Result<Option<TimelineSpec>, MissingInputs> {
+    let (attitude_case, _) = crate::case_policy::effective_case(
+        Some(ctx.design),
+        analysis,
+        ctx.case.map(|c| c.id.as_str()),
+    );
+    let attitude_ctx = Context::new(ctx.design, ctx.resolved, attitude_case)?;
+    let attitude_mode = timeline::case_mode_id(&attitude_ctx);
+    Ok(timeline::timeline(
+        ctx,
+        attitude_mode.as_deref(),
+        power_orbits(ctx),
+        m,
+    ))
+}
+
+/// モードごとの姿勢則（書かれているモードだけ）。
+fn mode_law_map(
+    ctx: &Context<'_>,
+) -> std::collections::BTreeMap<String, sat_astro::attitude::AttitudeLaw> {
+    ctx.design
+        .modes
+        .values()
+        .filter_map(|md| Some((md.id.to_string(), mode_law(ctx, md.id.as_str())?)))
+        .collect()
 }
 
 fn power_orbits(ctx: &Context<'_>) -> u32 {

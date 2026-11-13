@@ -2,6 +2,16 @@
 
 /// (探す文字列, 許すパスの接尾辞の一覧, 台帳での機能名)
 pub(super) const RULES: &[(&str, &[&str], &str)] = &[
+    (
+        "struct Sizing",
+        &["crates/lib/analysis/src/power/sizing.rs"],
+        "電源の逆算サイジングの型",
+    ),
+    (
+        "fn smad_requirements",
+        &["crates/lib/analysis/src/power/sizing/calculate.rs"],
+        "電源の逆算サイジングの式",
+    ),
     // 積分器
     ("fn rk4", &["crates/lib/astro/src/ode.rs"], "積分器"),
     ("struct Dop853", &["crates/lib/astro/src/ode.rs"], "積分器"),

@@ -118,6 +118,7 @@ kpi_table! {
     power::ModeLoad { ModeLoad => mode_load }
     power::OrbitGeneration { OrbitGeneration => orbit_generation }
     power::EnergyBalance { OrbitBalance => orbit_balance, MaxDod => max_dod }
+    power::Sizing { SapMargin => sap_margin, BatteryMargin => battery_margin }
     aocs::RwUnloading { UnloadInterval => unload_interval, PeakMomentum => peak_momentum }
     aocs::UnloadTime { MtqUnloadTime => mtq_unload_time }
     aocs::SensorFov { SensorIntrusion => sensor_intrusion }
@@ -163,6 +164,12 @@ fn orbit_balance(o: &power::EnergyBalanceOutput, _: Ctx<'_>) -> Option<Measured>
 }
 fn max_dod(o: &power::EnergyBalanceOutput, _: Ctx<'_>) -> Option<Measured> {
     largest(o.cases.iter().map(|c| c.max_dod))
+}
+fn sap_margin(o: &power::SizingOutput, _: Ctx<'_>) -> Option<Measured> {
+    one(o.sap_margin?)
+}
+fn battery_margin(o: &power::SizingOutput, _: Ctx<'_>) -> Option<Measured> {
+    one(o.battery_margin?)
 }
 fn unload_interval(o: &aocs::RwUnloadingOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.unload_interval?)
@@ -241,7 +248,9 @@ struct Rule {
 fn rule(key: KpiKey) -> Rule {
     use KpiKey as K;
     let (judged, fill, tally) = match key {
-        K::MaxDod | K::StorageMargin => (true, Fill::Value, false),
+        K::MaxDod | K::StorageMargin | K::SapMargin | K::BatteryMargin => {
+            (true, Fill::Value, false)
+        }
         K::NodesInRange => (true, Fill::OkShare, true),
         K::OrbitBalance
         | K::UnloadInterval
@@ -306,7 +315,17 @@ pub(crate) fn kpis(
     };
     measure(id, output, ctx)
         .into_iter()
-        .map(|(key, value)| view(key, value, verdict, tally))
+        .map(|(key, value)| {
+            let check_key = match key {
+                KpiKey::SapMargin => Some("sap_margin"),
+                KpiKey::BatteryMargin => Some("battery_margin"),
+                _ => None,
+            };
+            let verdict = check_key.map_or(verdict, |key| {
+                Verdict::worst(checks.iter().filter(|c| c.key == key).map(|c| c.verdict))
+            });
+            view(key, value, verdict, tally)
+        })
         .collect()
 }
 

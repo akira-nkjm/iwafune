@@ -199,6 +199,28 @@ min         = 0.0
 max         = 1.0
 section     = "power"
 
+[cell_voltage]
+label        = "セル電圧"
+label_en     = "Cell voltage"
+description  = "直並列サイジングに使う寿命初期の動作電圧"
+type         = "scalar"
+dimension    = "Voltage"
+units        = ["V"]
+display_unit = "V"
+min          = 0.0
+section      = "power"
+
+[cell_current]
+label        = "セル電流"
+label_en     = "Cell current"
+description  = "直並列サイジングに使う寿命初期の動作電流"
+type         = "scalar"
+dimension    = "ElectricCurrent"
+units        = ["A", "mA"]
+display_unit = "A"
+min          = 0.0
+section      = "power"
+
 [normal]
 label       = "面の法線"
 label_en    = "Surface normal"

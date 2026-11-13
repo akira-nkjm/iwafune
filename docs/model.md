@@ -336,6 +336,71 @@ CLI と画面は同じ `SetSetting` を使う。例: `fune setting set analysis.
 default_case = "hot_imaging"
 ```
 
+### 5.5 電源の逆算サイジング（`power.sizing`）
+
+電源の系に属する定常解析。SAP と電池の必要量を出力し、部品の属性への書き戻しはしない。
+入力は軌道・`conditions.orbit.duration`・電力を持つ部品とモード・`solar_panel`（法線つき）と `battery` の部品・姿勢則・電源設定。
+部品・軌道・期間・モード・姿勢則・`analysis.power.dod_max` が足りなければ不足入力を返す。
+明示した解析ケースにモードがあればそのモード、無ければ全モードをそれぞれ逆算し、
+必要面積が最大のモード（`area_mode`）と必要容量が最大のモード（`capacity_mode`）で決める。
+成長余裕・員数・冗長・蝕の上書きは `power.mode_load` の集計を共有する。
+割り当てや電力値の不足を含むモードでは要求を過小評価しないよう解析を止める。
+
+最長蝕は `orbit.eclipse_season` を同じ軌道・期間・季節刻みで呼ぶ（本影と半影の合計）。
+日照時間は軌道周期から最長蝕を引き、寿命はミッション期間を Julian year に換算する。
+太陽距離は 1 AU に限り、太陽定数は sat-astro の値を使う。1 AU 以外は未対応の入力エラー。
+地球の太陽距離の季節変動はこの近似では扱わない。
+
+`Pd`・`Pe` を日照・蝕の負荷、`Td`・`Te` をその時間とすると、必要発電は
+`(Pe*Te/Xe + Pd*Td/Xd)/Td`。必要 SAP 面積はこれを EOL の単位面積あたり発電で割る。
+発電は既存の `solar` モデルで計算し、`cell_efficiency`・`packing_factor`・`eol_factor` を部品ごとに使う。
+入射は `power.energy_balance` と同じ時系列・SAP・モードごとの姿勢則（`analysis.aocs.law.<モード>`、無ければ上段の姿勢則）で
+`power.orbit_generation` を回し、日照中の平均発電を全パネルに真上から当たるときの発電で割った入射係数として掛ける
+（太陽光の強さは 1 AU に固定し、変換効率は Xd で数えるので時系列には入れない）。
+さらに `(1-annual_degradation)^lifetime_years`・`inherent_degradation` を掛ける。
+SMAD の式は日照中の発電を平均で扱うので、日照中に発電が負荷を下回る姿勢（地心指向の固定パネルなど）では
+日照中にも電池から出す分を数えず、面積と容量を過小評価する。その場合は逆算した値を `power.energy_balance` で確かめる。
+異なるパネルが混在するときは、現在の面積配分を保って拡大縮小する設計を仮定する。
+経年・固有の劣化を既存の `eol_factor` に含めた設計では、追加の劣化を重ねないよう上書きする。
+
+1 組の必要電池容量は `Pe*Te/(dod_max*N*Xbattery)`、合計容量はその N 倍。
+既存の集中電池モデルと同様に設計容量は全部品の容量の合計、DoD と放電効率は先頭の電池から取る。
+面積と容量は部品の員数を含む。余裕は `spec::ratio_margin`、判定は `ratio_margin_verdict`（警告幅 0）。
+負荷や蝕が 0 で要求が 0 なら余裕は null（判定 OK）。
+
+出力 `SizingOutput` は必要発電・面積・電池容量（合計と1組）・設計面積/容量・両余裕・決めたモード・モードごとの逆算（入射係数を含む）・日照/蝕の負荷と時間・
+最長蝕の標本（日付付き）・使用した仮定 `used`・判定を持つ。電源ページの KPI は「SAP の余裕」「バッテリーの余裕」。
+任意の `cell_voltage`・`cell_current` と `sizing.bus_voltage` が揃えば、直列数はバス電圧/セル電圧、
+並列数は必要電流/EOL のセル電流をそれぞれ切り上げる。異種セルの混在や属性不足では直並列を出さない。
+電圧の温度変化・劣化は扱わず、電流に EOL・経年・固有劣化と面積を決めたモードの入射係数を適用する。
+
+上書きは `analysis/power.toml` の `[sizing]`。すべて任意で、既定値は解析が持つ。
+
+| 設定 | 省略時 |
+|---|---|
+| `sunlit_efficiency`（Xd） | `analysis.power.conversion_efficiency` があればその値、無ければ 0.8 |
+| `eclipse_efficiency`（Xe） | 0.6（SAP から蝕の負荷までの経路全体） |
+| `battery_efficiency`（Xbattery） | 先頭の電池の `discharge_efficiency`（その省略時は既存モデルの 1） |
+| `annual_degradation` | 0（追加の経年劣化なし） |
+| `inherent_degradation` | 1（追加の固有劣化なし） |
+| `battery_strings`（N） | 1 |
+| `bus_voltage` | なし（直並列を出さない） |
+| `sun_distance` | 1 AU |
+
+部品の `packing_factor`・`eol_factor` の省略時は既存の発電モデルと同じく 1。
+DoD・セル効率・面積・電池容量にサイジング固有の既定値は設けない。
+
+```toml
+# analysis/power.toml
+dod_max = 0.3
+
+[sizing]
+sunlit_efficiency = 0.8
+eclipse_efficiency = 0.6
+annual_degradation = 0.02
+bus_voltage = { value = 28.0, unit = "V" }
+```
+
 ## 6. 製品ツリーと取付
 
 ### 6.1 2 つの階層

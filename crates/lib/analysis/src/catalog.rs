@@ -30,6 +30,7 @@ registry!(
     power::SolarSunlit,
     power::OrbitGeneration,
     power::EnergyBalance,
+    power::Sizing,
     aocs::RwUnloading,
     aocs::UnloadTime,
     aocs::SensorFov,
