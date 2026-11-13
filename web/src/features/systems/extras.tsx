@@ -1,12 +1,9 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router";
 import { dimOf, EACH } from "@/analysis/output";
 import { analysisOutput } from "@/api/analysis-output";
 import type { AnalysisState } from "@/api/queries";
 import type { AnalysisOutputs, DesignView, System } from "@/api/types";
 import { LazyLayout3D } from "@/features/layout3d/LazyLayout3D";
-import { getT } from "@/i18n";
-import { paths } from "@/lib/nav";
 import { heatHex, toneHex } from "@/lib/tone";
 import { hasExtras } from "./preload";
 import type { SystemTab } from "./SystemTabs";
@@ -25,7 +22,7 @@ function outputOf<K extends keyof AnalysisOutputs>(
 }
 
 /**
- * 系ごとの追加の表示（構造: 配置へのリンク、熱: 節点温度の表と温度で塗った 3D）。大きなチャンクは `preload.ts` の
+ * 系ごとの追加の表示（熱: 節点温度の表と温度で塗った 3D）。大きなチャンクは `preload.ts` の
  * `EXTRA_CHUNKS`（ナビの先読みと共通）で、下の分岐はその系をちょうど覆う（型で確かめる）。
  */
 export function systemExtras(
@@ -34,15 +31,6 @@ export function systemExtras(
   states: readonly AnalysisState[],
 ): Partial<Record<SystemTab, ReactNode>> {
   if (!design) return {};
-  if (system === "structure") {
-    return {
-      results: (
-        <Link to={paths.layout()} className="text-accent text-sm hover:underline">
-          {getT().nav.items.layout} →
-        </Link>
-      ),
-    };
-  }
   if (!hasExtras(system)) return {};
   if (system === "thermal") {
     const map = heatMapOf(outputOf(states, "thermal.steady"));

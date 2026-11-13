@@ -45,6 +45,8 @@ export const diagramJa = {
     detachSummary: (ports: string) => `${ports} を切り離す`,
     mergedDetach: "まとめた辺は、ネットのインスペクタから 1 本ずつ切り離してください",
     toolbar: {
+      systems: "表示する系",
+      hiddenConnections: "隠したカードに接する線も隠します。残る線はつなぎ替えません。",
       layers: "層",
       power: "給電",
       signal: "信号",

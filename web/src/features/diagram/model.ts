@@ -1,8 +1,9 @@
-import type { DesignView, NetView, PartRow, Role } from "@/api/types";
+import type { DesignView, NetView, PartRow, Role, System } from "@/api/types";
 import { nodeName, systemTree } from "@/lib/design";
 import { systemTone } from "@/lib/systems";
 import { type Tone, toneHex, uiHex } from "@/lib/tone";
 import { type Layer, layerOf, type PowerCategory, powerCategories } from "./power";
+import { visibleModel } from "./visibility";
 
 /**
  * 系統図の表示モデル。設計（部品・製品ツリー・ネット）から、サブシステムの枠・部品のカード・辺を組み立てる。
@@ -17,6 +18,7 @@ export interface DiagramOptions {
    * 2 つの言語を並べると見出しが長くなり、読みにくいので 1 つにする。省くと `"ja"`。
    */
   lang?: "ja" | "en";
+  hiddenSystems?: ReadonlySet<System>;
 }
 
 export interface DiagramContainer {
@@ -113,7 +115,9 @@ function buildCards(design: DesignView, merge: boolean): CardIndex {
   const buckets = new Map<string, PartRow[]>();
   for (const p of design.parts.toSorted((a, b) => a.id.localeCompare(b.id))) {
     const key =
-      merge && p.catalog && !isAssembly(p.id) ? `${p.parent ?? ""}#${signature(p)}` : `one#${p.id}`;
+      merge && p.catalog && !isAssembly(p.id)
+        ? `${p.system ?? ""}#${p.parent ?? ""}#${signature(p)}`
+        : `one#${p.id}`;
     buckets.set(key, [...(buckets.get(key) ?? []), p]);
   }
   const cardOfPart = new Map<string, string>();
@@ -270,7 +274,7 @@ export function buildModel(design: DesignView, opts: DiagramOptions): DiagramMod
     ).values(),
   ].sort((a, b) => a.order - b.order);
 
-  return {
+  const model: DiagramModel = {
     containers,
     cards: cards.map((c) => ({
       ...c,
@@ -280,6 +284,7 @@ export function buildModel(design: DesignView, opts: DiagramOptions): DiagramMod
     edges,
     legend,
   };
+  return opts.hiddenSystems ? visibleModel(model, design, opts.hiddenSystems) : model;
 }
 
 /** 同じ 2 枚のカードの間の、同じプロトコル（電源は同じ系統）の辺を 1 本にまとめて「×N」にする */

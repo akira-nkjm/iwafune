@@ -171,7 +171,7 @@
 | 画面の枠・ナビゲーション | `web/src/shell/`（ナビは `sidebar/`、ブランドの作図は `brand/`） | shell はページの中身（`features/`）を import しない（`xtask::web_pages`）。ページから要るもの（先読みの計画）は `routes/` から `Frame` に渡す |
 | ページの URL（組み立て・ID の encode・検索部分の名前） | `web/src/lib/nav.ts` の `paths`・`itemPath`・`SEARCH` | **ページの URL を作るのはここだけ**（`xtask::web_pages` が `/design/…`・`/systems/…`・`/conditions/…`・`/project/…` の直書きを検査する）。部品・カタログ品の ID と解析ケースは encode する。検索部分の名前（`view`・`new`・`case`）は `SEARCH`（`useDetailRoute`・系のページが読む）。ルートの形は `routes.ts` で、作る URL がどれもルートに当たることは `nav.test.ts` が確かめる。サイドバーの並び（`nav`）も `paths` で作る（系の項目は `system` を持ち、先読みの計画は `isSystemItem` で系の項目かを見る）。概要の KPI カードの開き先は `paths.area`（解析の `area`）・`paths.system`（バジェットの `system`） |
 | ページの登録と遅れた読み込み・先読み（ルート単位の分割・待つ間の骨組み・ナビのホバーと空き時間の先読み） | `web/src/routes/pages.ts`（`pages`・`preloadPlan`）、`web/src/shell/{preload.ts,lazy-page.ts,LazyRoute.tsx}` | `routes/` のモジュールは `LazyRoute` でページの本体を描き、`clientLoader`（`loadOnNavigate`）で本体を読み始めるだけ（読み終わっていれば待たずに描く。Suspense の 300 ms の間引きを避ける）。何を先に読むか（`PreloadPlan`: ナビの項目ごとの `item` と空き時間の `idle`）は `routes/pages.ts` が決め、`routes/layout.tsx` が `Frame` の `preload` に渡す（ナビは `usePreloadPlan`）。shell の `preload.ts` はホバーの待ち（`preloadHandlers`、React Router の `prefetch="intent"`）と、最初のデータを取り終えたあとの空き時間に読む仕組み（`preloadIdlePages`）だけを持つ。待つ間の骨組みは `kit/feedback/Loading.tsx` の `SkeletonPage`。系の解析と追加の表示のチャンクの先読みは `features/systems/preload.ts` の `preloadSystem`（解析は `api/queries.ts` の `prefetchSystemAnalyses`）。大きなライブラリは使う所で遅れて読む（three.js は `features/layout3d/LazyLayout3D.tsx`、recharts は `SystemTabs` の時系列タブ） |
-| 系のページの追加の表示を持つ系とそのチャンク | `web/src/features/systems/preload.ts` の `EXTRA_CHUNKS`・`hasExtras`（型 `ExtraSystem`） | **大きなチャンクを使う追加の表示を持つ系はここだけ**（熱の温度で塗った 3D は three.js）。`extras.tsx` の `systemExtras` は軽い構造の配置リンクを返したあと、この系だけを分岐し、型で突き合わせる（覆っていなければ `satisfies never` で止まる）。ナビの先読みは表示の本体（extras.tsx）を読まずにこの軽いモジュールだけを読む |
+| 系のページの追加の表示を持つ系とそのチャンク | `web/src/features/systems/preload.ts` の `EXTRA_CHUNKS`・`hasExtras`（型 `ExtraSystem`） | **大きなチャンクを使う追加の表示を持つ系はここだけ**（熱の温度で塗った 3D は three.js）。`extras.tsx` の `systemExtras` はこの系だけを分岐し、型で突き合わせる（覆っていなければ `satisfies never` で止まる）。ナビの先読みは表示の本体（extras.tsx）を読まずにこの軽いモジュールだけを読む |
 | ロゴ（マーク・名前と説明文の字形・並べ方）と README・ファビコンの SVG | `web/src/shell/brand/{brand-art,brand-glyphs,brand-svg}.ts`・`BrandMark.tsx`・`BrandWordmark.tsx` | 字形はヒラギノ角ゴシック（名前 W6・説明文 W4）を輪郭にしたもの（フォントそのものは入れない）。配色は `lib/tone.ts` の `brandHex`・`brandInkHex`。SVG は `pnpm -C web brand` で書き出し、テストが一致を検査する |
 | ファイル階層のツリー表示・構築・絞り込み | `web/src/kit/tree/Tree.tsx`・`web/src/kit/selection/ViewSwitch.tsx`・`web/src/kit/tree/tree-nodes.ts`、各ページの `*Tree.tsx` | 部品の親子・カタログの階層、表とツリーの表示の切替（`ViewSwitch` は URL を読まず、`useDetailRoute` の `view`・`setView` を `value`・`onChange` で受け取る）、ARIA キーボード操作 |
 | 一覧と詳細の表示面・ツリー列幅・詳細の欄の幅 | `web/src/kit/list-detail/{DetailLayout,DetailDialog,TreePane}.tsx`・`tree-width.ts`・`use-detail-route.ts` | 全幅表のモーダル、可変幅ツリー、カードの一覧の横の可変幅の詳細（`wideList`・`DETAIL_WIDTH`）、URL 選択と幅保存 |
@@ -183,6 +183,8 @@
 | 入力欄（見た目・検索・確定） | `web/src/kit/forms/{TextInput,SearchInput,CommitInput}.tsx`・`search.ts` | **入力欄の見た目（高さ・角丸・枠・フォーカスの輪）は `TextInput` だけ**（`size` は `md`・`sm`。量の欄 `quantity/QuantityInput` も使う）。検索欄は `SearchInput`、絞り込みの規則は `matchesSearch`。欄を離れたとき（Enter でも）に確定する欄は `CommitInput`（`value`・`onCommit`。変わっていなければ呼ばない。Escape で戻す。`allowEmpty={false}` で空を戻す）。素の `<input>` を features に書かない |
 | 量の表示と入力欄 | `web/src/quantity/` | 単位の解析は `/units/parse` に問い合わせる。入力欄の初期値の文字列（`quantityInputText`・`vectorInputText`・`numbersInputText`。API の数をそのまま並べる）は `format.ts` |
 | 属性の値の表示と編集（部品・カタログ品で共通） | `web/src/quantity/{AttrValueEditor.tsx,attr-mode.ts}`、送り口は `web/src/api/ops.ts` の `useAttrEdit` | **属性の値の欄はここだけ**（部品の詳細・系のページの表・カタログ品の詳細）。編集できるかは属性定義の `value_type`・`by_state` だけで決める（`attrEditMode`: スカラー・状態ごと・表示だけ）。打った文字列とパラメーターパスをそのまま `useSetText`・`useUnsetText` に渡し、Web は `set_value` などの Op を組み立てない |
+| 3D の部品の透過表示 | `web/src/features/layout3d/scene.ts`・`Scene3D.tsx`・`Layout3D.tsx` | API の system が structure の箱を配置ページで半透明にし、選択した箱は不透明。既定の不透明度と材質の指定は scene.ts、操作は Layout3D。 |
+| 不透明度などの連続値の入力 | `web/src/kit/forms/RangeInput.tsx` | ネイティブ range の数値と onChange。既存の入力欄と同じフォーカス・アクセント。 |
 | 設計の配置ページ | `web/src/features/layout3d/LayoutPage.tsx`・`web/src/routes/layout3d.tsx` | 設計ナビのモードの次。`LazyLayout3D` の placement を残りの画面高で表示し、`structure.mass_properties` の重心を渡す。取付・位置の編集は既存の Layout3D と PlacementSection。熱の heat 表示は熱ページに残す |
 | 各ページ | `web/src/features/<ページ>/` | |
 | モードの行列（状態の切替・セル・時間割合・矢印キー・系別の値） | `web/src/features/modes/matrix/`・`web/src/features/modes/draft/` | 定義ページは全ての状態付き部品を表示し、単体の電力レベル列だけを参考に残す。追加・名前・継続時間の編集は定義ページだけ。系のタブは同じ `ModesMatrix`・`ModesTable`・`ModeCell`・`matrixGroups` を使い、セルの値・足もとの合計・判定は `SystemModesView`（`query::system_modes`、`POST /systems/{system}/modes`）。電源は成長余裕込みの合計と設計上限による日照・蝕の収支、C&DH は圧縮・パケット化前の発生レート、熱は節点内の部品の発熱、AOCS は姿勢則。下書きは全画面で `draft.ts`・`useModeDraftLoad`・`useCommandOps`（`fune mode set|unset` の引数）→ Op を使い、保存前の同じ Op で系別の値を問い合わせる。`MatrixCell` は状態・語彙・位置と系別の `QuantityView`、`ModeBudgetRows` は API の値を並べるだけ。日照／蝕の上書きと継承も同じ下書き・保存経路。 |
@@ -204,6 +206,7 @@
 | 製品ツリーのノードとモード・解析ケースの表示名（言語ごと） | `web/src/lib/design.ts` の `nodeName` / `nodeLabel` / `idWithName` | 英語は ID、日本語は表示名（無ければ ID）。選択肢の「ID（表示名）」は `idWithName`（系のページの解析ケースの選択肢も）。系統図の枠・一覧・表・モードの行列の見出し・部品詳細のモード・検索が使う。解析の系の表示名は `systemTitle`（`labels.section`。系のページと解析ケースのページ） |
 | 「主（補足）」の表示（ID と表示名・名前と種類など） | `web/src/lib/design.ts` の `withNote` | **ID と名前を並べるのはここだけ**。括弧の書き方は i18n の `common.withNote`（日本語は全角、英語は半角）。補足が無いか主と同じなら主だけ。`idWithName`・`defWithId`・`useEnumOptions`・ポートの接続先・カタログ品の候補・次元の SI 単位・変わるファイルの一覧が使う |
 | 属性・種別の定義と表示名の引き当て（言語ごと） | `web/src/lib/design.ts` の `attrDef` / `attrLabel` / `kindDef` / `kindLabel` / `defName` / `defWithId` | **`defs.attributes`・`defs.kinds` を ID で探して名前にするのはここだけ**。`label_en` があれば英語で使う（`localized`）。定義が無ければ ID。選択肢の「ID（表示名）」は `defWithId` |
+| 系統図の系別表示フィルター | `web/src/features/diagram/visibility.ts`・`DiagramSystems.tsx`、`web/src/lib/nav.ts` の `diagramHiddenSystems`・`withDiagramHiddenSystems` | 一覧は DefsView.systems。既定で構造を隠し、URL の hidden-system（繰り返し可、空は全表示）に保存。カードと接続線を隠し、残る線はつなぎ替えない。空の枠は除き、隠れた組立品の子は可視の祖先に置く |
 | 系統図の表示モデル・線の飛び越し | `web/src/features/diagram/{model,power}.ts`・`web/src/features/diagram/canvas/{jumps,line-store}.ts` | 位置は表示だけ。手で動かした位置は `set_view_layout` |
 | 型レベル次元の定義 | `sat_units::dimensions` | typed・parse・unit が共有。typed の公開名は再公開で維持 |
 | 診断の位置 | `fune_model::diagnostic::Loc` | design::Loc・source_map::Loc は再公開 |
@@ -291,6 +294,7 @@
 |---|---|---|
 | 2026-11-13 | 電源専用表示を独立した service/API/query に集約し、汎用解析結果・設計 DTO から電源専用欄を削除 | #89 段 1 レビュー対応 |
 | 2026-11-13 | 電源の概要・部品・時系列を専用表示にし、流れ・判定バー・チャートの表示 DTO と日英の名称を追加 | #89 段 1 |
+| 2026-11-13 | 配置の凡例をビュー内に移し、編集欄を縦に配置。構造の透過操作と選択時の不透明表示を追加し、構造の系名と概要を整理 | #96 |
 | 2026-11-13 | AOCS のモードを姿勢則・役割別機器・モード姿勢での解析・最長時間のカードに変更。magnetometer を組み込み役割に追加。SetText で未設定の姿勢軸・クォータニオンも編集可能に | #91 |
 | 2026-11-13 | 設計に配置ページを追加し、構造の概要の 3D をリンクに変更。配置は画面高を使い、質量特性の重心を表示。熱の温度 3D は維持 | #90 |
 | 2026-11-13 | 系別のモード DTO と共通行列のモードタブ、電源の蝕の部品別値を追加。定義ページから収支を移す | #78 |
@@ -325,3 +329,4 @@
 | 2026-11-11 | 共通の列ソートと部品表の全列比較・SI 抽出・見出しの操作と検査を追加 | 部品表を昇順・降順・元の順に並べ替えるため（#60） |
 | 2026-11-12 | Role と STATE_OFF を builtin に集約。種別・解決済み部品・診断対象・DTO・Web を Role 型にし、xtask で役割・停止状態の直書きを拒む | 役割と停止状態の綴りを 1 か所にするため（#54） |
 | 2026-11-13 | モード行列に日照／蝕の切替と共通の下書き編集を統合し、別の蝕編集欄を廃止 | 蝕の上書きを同じ行列で編集するため（#76） |
+| 2026-11-13 | 系統図に API の系一覧を使う表示トグルと URL の状態、表示モデルのフィルターを追加 | 構造などの部品を隠して接続を見やすくするため（#97） |
