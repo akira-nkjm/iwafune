@@ -6,4 +6,8 @@ import type { Verdict } from "./Verdict";
 /**
  * 許容帯と設計値・限界のマーカー（位置は 0〜100）。
  */
-export type PowerBulletView = { key: string, label: AnalysisLabel, value: QuantityView | null, limit: QuantityView, verdict: Verdict | null, band_start: number, band_end: number, marker: number | null, limit_marker: number, };
+export type PowerBulletView = { key: string, label: AnalysisLabel, value: QuantityView | null, limit: QuantityView, verdict: Verdict | null, band_start: number, band_end: number, marker: number | null, limit_marker: number, 
+/**
+ * 0 の位置（設計値の棒はここから `marker` まで伸ばす）
+ */
+origin: number, };

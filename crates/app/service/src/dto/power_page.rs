@@ -73,6 +73,8 @@ pub struct PowerBulletView {
     pub band_end: f64,
     pub marker: Option<f64>,
     pub limit_marker: f64,
+    /// 0 の位置（設計値の棒はここから `marker` まで伸ばす）
+    pub origin: f64,
 }
 
 /// 共通の横軸・同期カーソルを使うグラフの定義。

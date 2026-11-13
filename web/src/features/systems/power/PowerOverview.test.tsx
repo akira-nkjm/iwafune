@@ -32,6 +32,7 @@ const bar: PowerBulletView = {
   band_end: 80,
   marker: 40,
   limit_marker: 80,
+  origin: 0,
 };
 const budget: PowerBudgetView = {
   supply: qv(60, "W", "Power"),
@@ -133,8 +134,9 @@ describe("power overview", () => {
   });
   it("uses returned bar positions and keeps unavailable margins explicit", () => {
     const html = renderToStaticMarkup(<PowerBullet item={bar} />);
-    expect(html).toContain('x1="40"');
-    expect(html).toContain('x2="80"');
+    // 設計値の棒は 0（origin）から marker まで、限界の点線は limit_marker
+    expect(html).toContain('width="40"');
+    expect(html).toContain('x1="80"');
     expect(html).toContain("20 %");
     expect(html).toContain("40 %");
     const missing = renderToStaticMarkup(

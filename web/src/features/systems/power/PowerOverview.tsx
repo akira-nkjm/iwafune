@@ -60,7 +60,7 @@ export function PowerOverview({ page, design }: { page: PowerPageView; design?: 
         </section>
         <section id="power-verdicts" className="scroll-mt-6">
           <Panel>
-            <PanelHeader title={t.verdicts} />
+            <PanelHeader title={t.verdicts} caption={t.barLegend} />
             <div className="grid gap-3 md:grid-cols-2">
               {mode?.bars.map((bar) => (
                 <PowerBullet key={bar.key} item={bar} />

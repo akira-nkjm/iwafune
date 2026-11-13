@@ -14,7 +14,7 @@ export const systemsJa = {
       unavailable: "データなし",
       design: "設計値",
       limit: "限界／必要量",
-      barLegend: "帯: 許容範囲 · 実線: 設計値 · 破線: 限界／必要量",
+      barLegend: "薄い帯: 許容範囲 · 棒: 設計値（色は判定） · 点線: 限界／必要量",
       outline: "このページの目次",
       data: "データを見る",
     },

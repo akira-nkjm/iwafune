@@ -68,9 +68,22 @@ fn bullet_positions_and_missing_orbit_are_explicit() {
         false,
         Some(Verdict::Ok),
     );
-    assert!((dod.marker.unwrap() - 100.0 * 0.2 / 0.48).abs() < 1e-10);
-    assert!((dod.band_end - 100.0 * 0.4 / 0.48).abs() < 1e-10);
+    // 比は 0〜100 % に固定: 20 % は 20、上限 40 % は 40
+    assert!((dod.marker.unwrap() - 20.0).abs() < 1e-10);
+    assert!((dod.band_end - 40.0).abs() < 1e-10);
     assert_eq!(dod.band_start, 0.0);
+    assert_eq!(dod.origin, 0.0);
+    // 設計 2990・必要 5090（面積）: 目盛りは 5090 × 1.15 まで
+    let area = bullet::<sat_units::typed::Area>(
+        "area",
+        label("面積", "Area"),
+        Some(2990.0),
+        5090.0,
+        true,
+        Some(Verdict::Violation),
+    );
+    assert!((area.marker.unwrap() - 100.0 * 2990.0 / (5090.0 * 1.15)).abs() < 1e-10);
+    assert!((area.limit_marker - 100.0 / 1.15).abs() < 1e-10);
     let margin = bullet::<Energy>(
         "margin",
         label("収支", "Margin"),
@@ -80,6 +93,7 @@ fn bullet_positions_and_missing_orbit_are_explicit() {
         Some(Verdict::Violation),
     );
     assert_eq!(margin.limit_marker, 50.0);
+    assert_eq!(margin.origin, 50.0);
     assert!(margin.marker.unwrap() < margin.band_start);
     let missing = bullet::<Energy>(
         "margin",

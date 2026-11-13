@@ -173,6 +173,8 @@ fn check(checks: &[Check], key: &str) -> Option<Verdict> {
     checks.iter().find(|c| c.key == key).map(|c| c.verdict)
 }
 
+/// 判定のバーの表示位置（0〜100）。比（DoD など）は 0〜100 % に固定し、ほかは設計値と限界の大きい方の 1.15 倍まで。
+/// 負の値があるときは 0 を中央に置く。`origin` は 0 の位置（設計値の棒はそこから伸ばす）。
 fn bullet<K: NamedKind>(
     key: &str,
     label: AnalysisLabel,
@@ -181,13 +183,18 @@ fn bullet<K: NamedKind>(
     minimum: bool,
     verdict: Option<Verdict>,
 ) -> PowerBulletView {
-    let extent = value
-        .unwrap_or(limit)
-        .abs()
-        .max(limit.abs())
-        .max(f64::EPSILON)
-        * 1.2;
-    let negative = value.is_some_and(|v| v < 0.0);
+    let ratio = K::name() == Fraction::name();
+    let extent = if ratio {
+        1.0_f64.max(value.unwrap_or(0.0).abs())
+    } else {
+        value
+            .unwrap_or(limit)
+            .abs()
+            .max(limit.abs())
+            .max(f64::EPSILON)
+            * 1.15
+    };
+    let negative = value.is_some_and(|v| v < 0.0) || limit < 0.0;
     let low = if negative { -extent } else { 0.0 };
     let position = |v: f64| ((v - low) / (extent - low) * 100.0).clamp(0.0, 100.0);
     let limit_marker = position(limit);
@@ -197,10 +204,11 @@ fn bullet<K: NamedKind>(
         value: value.map(|v| crate::units::quantity_auto(v, K::name())),
         limit: crate::units::quantity_auto(limit, K::name()),
         verdict,
-        band_start: if minimum { limit_marker } else { 0.0 },
+        band_start: if minimum { limit_marker } else { position(0.0) },
         band_end: if minimum { 100.0 } else { limit_marker },
         marker: value.map(position),
         limit_marker,
+        origin: position(0.0),
     }
 }
 

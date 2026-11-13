@@ -28,37 +28,39 @@ export function PowerBullet({ item }: { item: PowerBulletView }) {
         className="h-6 w-full"
       >
         <title>{`${title}: ${item.value?.display ?? t.unavailable}; ${t.limit}: ${item.limit.display}`}</title>
-        <line x1={0} x2={100} y1={6} y2={6} stroke="var(--color-panel-2)" strokeWidth={5} />
-        <line
-          x1={item.band_start}
-          x2={item.band_end}
-          y1={6}
-          y2={6}
-          stroke="var(--color-pos)"
-          strokeOpacity={0.3}
-          strokeWidth={5}
+        {/* 地: 目盛りの全体、薄い帯: 許容の範囲 */}
+        <rect x={0} y={3} width={100} height={6} rx={1} fill="var(--color-panel-2)" />
+        <rect
+          x={item.band_start}
+          y={3}
+          width={Math.max(0, item.band_end - item.band_start)}
+          height={6}
+          fill="var(--color-pos)"
+          fillOpacity={0.14}
         />
+        {/* 設計値の棒（0 から伸ばす。色は判定） */}
+        {item.marker !== null && (
+          <rect
+            x={Math.min(item.origin, item.marker)}
+            y={4.5}
+            width={Math.abs(item.marker - item.origin)}
+            height={3}
+            rx={0.6}
+            fill={item.verdict === "violation" ? "var(--color-neg)" : "var(--color-pos)"}
+          />
+        )}
+        {/* 限界・必要値 */}
         <line
           x1={item.limit_marker}
           x2={item.limit_marker}
-          y1={1}
-          y2={11}
-          stroke="var(--color-ink-3)"
-          strokeWidth={0.4}
-          strokeDasharray="1 1"
+          y1={0.5}
+          y2={11.5}
+          stroke="var(--color-ink)"
+          strokeWidth={0.5}
+          strokeDasharray="1.2 0.8"
+          vectorEffect="non-scaling-stroke"
         />
-        {item.marker !== null && (
-          <line
-            x1={item.marker}
-            x2={item.marker}
-            y1={0}
-            y2={12}
-            stroke="var(--color-accent)"
-            strokeWidth={0.8}
-          />
-        )}
       </svg>
-      <p className="text-2xs text-ink-3">{t.barLegend}</p>
     </div>
   );
 }

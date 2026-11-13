@@ -14,7 +14,8 @@ export const systemsEn: typeof systemsJa = {
       unavailable: "Unavailable",
       design: "Design",
       limit: "Limit / required",
-      barLegend: "Band: allowed range · Solid: design · Dashed: limit / required",
+      barLegend:
+        "Pale band: allowed range · Bar: design (colored by verdict) · Dotted: limit / required",
       outline: "On this page",
       data: "View data",
     },
