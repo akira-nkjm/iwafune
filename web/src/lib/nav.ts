@@ -28,8 +28,14 @@ import { systemTitle } from "./design";
  * - `view`: 一覧と詳細のページの表示方法
  * - `adding`: 追加ダイアログを開いているか（値は `"1"`）
  * - `case`: 系のページの解析ケース
+ * - `diagramHiddenSystem`: 系統図で隠す系（繰り返し可、空は全表示）
  */
-export const SEARCH = { view: "view", adding: "new", case: "case" } as const;
+export const SEARCH = {
+  view: "view",
+  adding: "new",
+  case: "case",
+  diagramHiddenSystem: "hidden-system",
+} as const;
 
 /** 一覧のページの URL の下に、1 つのものの ID を足す（ID は encode する。受け取る側は React Router が decode した値を使う） */
 export function itemPath(base: string, id: string): string {
@@ -164,4 +170,27 @@ export const nav = (systems: readonly System[]): NavSection[] => [
  */
 export function isSystemItem(key: NavItemKey): key is NavItemKey & System {
   return Object.hasOwn(systemIcons, key);
+}
+
+/** 系統図で隠す系。指定なしは構造を隠す。空の指定は全表示。未知の系は無視する。 */
+export function diagramHiddenSystems(
+  params: URLSearchParams,
+  systems: readonly System[],
+): ReadonlySet<System> {
+  const values = params.has(SEARCH.diagramHiddenSystem)
+    ? params.getAll(SEARCH.diagramHiddenSystem)
+    : ["structure"];
+  return new Set(systems.filter((system) => values.includes(system)));
+}
+
+/** 系統図の表示状態だけを書き換える。空の指定も残し、再読み込みで既定に戻らないようにする。 */
+export function withDiagramHiddenSystems(
+  params: URLSearchParams,
+  hidden: ReadonlySet<System>,
+): URLSearchParams {
+  const next = new URLSearchParams(params);
+  next.delete(SEARCH.diagramHiddenSystem);
+  for (const system of hidden) next.append(SEARCH.diagramHiddenSystem, system);
+  if (hidden.size === 0) next.set(SEARCH.diagramHiddenSystem, "");
+  return next;
 }

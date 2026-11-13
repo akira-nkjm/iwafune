@@ -47,6 +47,9 @@ export const diagramEn: typeof diagramJa = {
     detachSummary: (ports: string) => `Disconnect ${ports}`,
     mergedDetach: "Merged lines must be disconnected one by one from the net inspector",
     toolbar: {
+      systems: "Visible subsystems",
+      hiddenConnections:
+        "Lines touching hidden cards are hidden too. Remaining lines keep their original endpoints.",
       layers: "Layers",
       power: "Power",
       signal: "Signal",

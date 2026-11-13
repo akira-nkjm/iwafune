@@ -203,6 +203,7 @@
 | 製品ツリーのノードとモード・解析ケースの表示名（言語ごと） | `web/src/lib/design.ts` の `nodeName` / `nodeLabel` / `idWithName` | 英語は ID、日本語は表示名（無ければ ID）。選択肢の「ID（表示名）」は `idWithName`（系のページの解析ケースの選択肢も）。系統図の枠・一覧・表・モードの行列の見出し・部品詳細のモード・検索が使う。解析の系の表示名は `systemTitle`（`labels.section`。系のページと解析ケースのページ） |
 | 「主（補足）」の表示（ID と表示名・名前と種類など） | `web/src/lib/design.ts` の `withNote` | **ID と名前を並べるのはここだけ**。括弧の書き方は i18n の `common.withNote`（日本語は全角、英語は半角）。補足が無いか主と同じなら主だけ。`idWithName`・`defWithId`・`useEnumOptions`・ポートの接続先・カタログ品の候補・次元の SI 単位・変わるファイルの一覧が使う |
 | 属性・種別の定義と表示名の引き当て（言語ごと） | `web/src/lib/design.ts` の `attrDef` / `attrLabel` / `kindDef` / `kindLabel` / `defName` / `defWithId` | **`defs.attributes`・`defs.kinds` を ID で探して名前にするのはここだけ**。`label_en` があれば英語で使う（`localized`）。定義が無ければ ID。選択肢の「ID（表示名）」は `defWithId` |
+| 系統図の系別表示フィルター | `web/src/features/diagram/visibility.ts`・`DiagramSystems.tsx`、`web/src/lib/nav.ts` の `diagramHiddenSystems`・`withDiagramHiddenSystems` | 一覧は DefsView.systems。既定で構造を隠し、URL の hidden-system（繰り返し可、空は全表示）に保存。カードと接続線を隠し、残る線はつなぎ替えない。空の枠は除き、隠れた組立品の子は可視の祖先に置く |
 | 系統図の表示モデル・線の飛び越し | `web/src/features/diagram/{model,power}.ts`・`web/src/features/diagram/canvas/{jumps,line-store}.ts` | 位置は表示だけ。手で動かした位置は `set_view_layout` |
 | 型レベル次元の定義 | `sat_units::dimensions` | typed・parse・unit が共有。typed の公開名は再公開で維持 |
 | 診断の位置 | `fune_model::diagnostic::Loc` | design::Loc・source_map::Loc は再公開 |
@@ -322,3 +323,4 @@
 | 2026-11-11 | 共通の列ソートと部品表の全列比較・SI 抽出・見出しの操作と検査を追加 | 部品表を昇順・降順・元の順に並べ替えるため（#60） |
 | 2026-11-12 | Role と STATE_OFF を builtin に集約。種別・解決済み部品・診断対象・DTO・Web を Role 型にし、xtask で役割・停止状態の直書きを拒む | 役割と停止状態の綴りを 1 か所にするため（#54） |
 | 2026-11-13 | モード行列に日照／蝕の切替と共通の下書き編集を統合し、別の蝕編集欄を廃止 | 蝕の上書きを同じ行列で編集するため（#76） |
+| 2026-11-13 | 系統図に API の系一覧を使う表示トグルと URL の状態、表示モデルのフィルターを追加 | 構造などの部品を隠して接続を見やすくするため（#97） |

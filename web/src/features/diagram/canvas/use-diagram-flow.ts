@@ -1,6 +1,6 @@
 import { type Edge, type Node, useEdgesState, useNodesState } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { DesignView, ViewNodePos, ViewPortSide } from "@/api/types";
+import type { DesignView, System, ViewNodePos, ViewPortSide } from "@/api/types";
 import { getT, useLang } from "@/i18n";
 import { savedLayout, snap, viewId } from "../editing/saved";
 import { useViewEdits, VIEW } from "../editing/view-history";
@@ -44,18 +44,20 @@ export function useDiagramModel(
   d: DesignView | undefined,
   layers: ReadonlySet<Layer>,
   merge: boolean,
+  hiddenSystems: ReadonlySet<System>,
 ) {
   const lang = useLang();
   const model = useStableModel(
     useMemo(
-      () => (d ? buildModel(d, { layers, mergeSiblings: merge, lang }) : null),
-      [d, layers, merge, lang],
+      () => (d ? buildModel(d, { layers, mergeSiblings: merge, lang, hiddenSystems }) : null),
+      [d, layers, merge, lang, hiddenSystems],
     ),
   );
   const full = useStableModel(
     useMemo(
-      () => (d ? buildModel(d, { layers: ALL_LAYERS, mergeSiblings: merge, lang }) : null),
-      [d, merge, lang],
+      () =>
+        d ? buildModel(d, { layers: ALL_LAYERS, mergeSiblings: merge, lang, hiddenSystems }) : null,
+      [d, merge, lang, hiddenSystems],
     ),
   );
   const [plan, setPlan] = useState<{ full: DiagramModel; plan: LayoutPlan } | null>(null);
