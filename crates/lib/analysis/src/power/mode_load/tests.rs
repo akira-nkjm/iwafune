@@ -174,3 +174,33 @@ fn invalid_population_is_rejected() {
     i.modes[0].assignments[0].spare_state = Some("on".into());
     assert_eq!(evaluate_mode(&i, &i.modes[0]).unwrap().total.value(), 40.0);
 }
+
+#[test]
+fn eclipse_parts_population_duty_growth_and_inheritance_by_hand() {
+    let mut input = input();
+    input.parts[1].count = 2;
+    input.modes[0].eclipse = vec![assign("TRX", "rx", &[("tx", 0.25)])];
+    let mode = evaluate_mode(&input, &input.modes[0]).unwrap();
+    let trx = mode.parts.iter().find(|p| p.part == "TRX").unwrap();
+    // 日照 2 × (2 × 0.9 + 10 × 0.1) = 5.6 W、蝕 2 × (2 × 0.75 + 10 × 0.25) = 8 W
+    assert!((trx.mean.unwrap().value() - 5.6).abs() < 1e-12);
+    assert_eq!(trx.mean_eclipse.unwrap().value(), 8.0);
+    assert!((trx.mean_eclipse_with_growth.unwrap().value() - 9.6).abs() < 1e-12);
+    let obc = mode.parts.iter().find(|p| p.part == "OBC").unwrap();
+    assert_eq!(obc.mean_eclipse, obc.mean);
+    assert_eq!(obc.mean_eclipse_with_growth, obc.mean_with_growth);
+}
+
+#[test]
+fn missing_eclipse_value_is_preserved_per_part() {
+    // 蝕の上書きで値の無い状態にした部品は、蝕の値だけ None（日照の値は残す）
+    let mut input = input();
+    input.modes[0].eclipse = vec![assign("TRX", "missing", &[])];
+    let mode = evaluate_mode(&input, &input.modes[0]).unwrap();
+    let trx = mode.parts.iter().find(|p| p.part == "TRX").unwrap();
+    assert!(trx.mean.is_some());
+    assert_eq!(trx.mean_eclipse, None);
+    input.modes[0].eclipse.clear();
+    let inherited = evaluate_mode(&input, &input.modes[0]).unwrap();
+    assert!(inherited.parts.iter().all(|p| p.mean == p.mean_eclipse));
+}

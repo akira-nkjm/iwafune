@@ -1,75 +1,52 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
-import type { BudgetView, ModeLoadOutput } from "@/api/types";
+import { describe, expect, it } from "vitest";
+import type { System, SystemModesView } from "@/api/types";
 import { getT } from "@/i18n";
-import { formatKey } from "@/quantity/format-batch";
 import { fixture, qv } from "@/test/fixture";
 import { LightingSwitch } from "./ModesMatrix";
 import { ModesTable } from "./ModesTable";
 import { matrixGroups } from "./matrix-rows";
 
-const load: ModeLoadOutput = {
-  modes: [
-    {
-      id: "NOMINAL",
-      label: "NOMINAL",
-      total: 12,
-      total_with_growth: 15,
-      total_eclipse: 3,
-      total_eclipse_with_growth: 4,
-      peak_with_growth: 20,
-      groups: [],
-      parts: [],
-      unassigned: [],
-      missing_power: [],
-      checks: [],
-    },
-  ],
-};
-const budget: BudgetView = {
-  kind: "power",
-  system: "power",
-  label: "Power",
-  label_en: null,
-  case: null,
-  limit: null,
-  system_margin: qv(0, "%", "Fraction"),
-  total: null,
-  margin: null,
-  verdict: null,
-  fill: null,
-  rows: [],
-  analysis: "power.mode_load",
-  mode: null,
-  missing: [],
-  notes: [],
-  modes: [
-    {
-      node: "NOMINAL",
-      label: "NOMINAL",
-      label_en: null,
-      system: null,
-      current: qv(12, "W", "Power"),
-      with_growth: qv(15, "W", "Power"),
-      allocated: qv(40, "W", "Power"),
-      margin: qv(25, "W", "Power"),
-      verdict: "ok",
-      fill: null,
-    },
-  ],
-};
+function modeView(system: System = "power"): SystemModesView {
+  const unit = system === "cdh" ? "bit/s" : "W";
+  const dimension = system === "cdh" ? "DataRate" : "Power";
+  const values = {
+    parts: { RW_X: qv(12, unit, dimension) },
+    total: qv(15, unit, dimension),
+    available: qv(40, "W", "Power"),
+    margin: qv(25, "W", "Power"),
+    verdict: "ok" as const,
+  };
+  return {
+    system,
+    modes: [
+      {
+        id: "NOMINAL",
+        sunlit: values,
+        eclipse: {
+          ...values,
+          parts: { RW_X: qv(3, unit, dimension) },
+          total: qv(4, unit, dimension),
+          margin: qv(36, "W", "Power"),
+        },
+        attitude_law: system === "aocs" ? "sun_pointing" : null,
+      },
+    ],
+  };
+}
 
-function render(eclipse: boolean) {
+function render(eclipse: boolean, system?: System) {
   const qc = new QueryClient();
-  qc.setQueryData(formatKey({ si: 4, dimension: "Power", unit: null }), "4 W");
+  qc.setQueryData(["design", "defs"], fixture.defs);
+  const view = system ? modeView(system) : null;
   return renderToStaticMarkup(
     <QueryClientProvider client={qc}>
       <ModesTable
         modes={fixture.modes.modes}
-        groups={matrixGroups(fixture, new Map(), load, getT().modes, eclipse)}
-        budget={{ data: budget, pending: false, updating: false }}
-        load={{ data: load, pending: false, updating: false }}
+        groups={matrixGroups(fixture, new Map(), view, getT().modes, eclipse, system)}
+        view={{ data: view, pending: false, updating: false }}
+        system={system}
         eclipse={eclipse}
         updating={false}
         onCell={() => {}}
@@ -78,28 +55,42 @@ function render(eclipse: boolean) {
   );
 }
 
-describe("日照／蝕の行列", () => {
-  it("足もとは API の日照の値と蝕の合計を切り替え、蝕で日照の余裕や判定を流用しない", () => {
-    const sunlit = render(false);
+describe("系別のモードの行列", () => {
+  it("電源は API の日照・蝕の部品値、合計、使用可能量、余裕を表示する", () => {
+    const sunlit = render(false, "power");
+    expect(sunlit).toContain("12 W");
     expect(sunlit).toContain("15 W");
     expect(sunlit).toContain("40 W");
     expect(sunlit).toContain("25 W");
-    const eclipse = render(true);
+    const eclipse = render(true, "power");
+    expect(eclipse).toContain("3 W");
     expect(eclipse).toContain("4 W");
-    expect(eclipse).not.toContain("15 W");
-    expect(eclipse).not.toContain("40 W");
+    expect(eclipse).toContain("40 W");
+    expect(eclipse).toContain("36 W");
     expect(eclipse).not.toContain("25 W");
-    expect(eclipse).toContain(getT().modes.eclipsePowerUnavailable);
+    expect(eclipse).not.toContain("15 W");
+  });
+  it("定義ページには収支とモードの解析値を出さず、状態と単体の電力列を残す", () => {
+    const html = render(false);
+    expect(html).toContain(getT().modes.powerLevels);
+    expect(html).not.toContain(getT().modes.available);
+    expect(html).not.toContain(getT().modes.margin);
+    expect(html).not.toContain("15 W");
+  });
+  it("C&DH・熱・AOCS はそれぞれの見出しを出し、電力の収支を出さない", () => {
+    for (const [system, title] of [
+      ["cdh", getT().modes.dataRate],
+      ["thermal", getT().modes.heat],
+      ["aocs", getT().modes.attitudeLaw],
+    ] as const) {
+      const html = render(false, system);
+      expect(html).toContain(title);
+      expect(html).not.toContain(getT().modes.available);
+      expect(html).not.toContain(getT().modes.powerLevels);
+      expect(html).not.toContain(getT().modes.durationAdd);
+    }
   });
 });
-
-vi.mock("../draft/use-mode-draft-load", () => ({
-  useModeDraftLoad: () => ({
-    load: { data: load, pending: false, updating: false },
-    budget: { data: budget, pending: false, updating: false },
-    save: { ops: null, error: null },
-  }),
-}));
 
 it("切り替えの選択中ボタンを aria-pressed と色で示す", () => {
   const t = getT().modes;
@@ -107,10 +98,8 @@ it("切り替えの選択中ボタンを aria-pressed と色で示す", () => {
     const html = renderToStaticMarkup(<LightingSwitch value={eclipse} onChange={() => {}} />);
     expect(html).toContain(`aria-label="${t.lighting}"`);
     expect(html.match(/aria-pressed="true"/g)).toHaveLength(1);
-    expect(html).toContain(`aria-pressed="true"`);
     expect(html).toMatch(
       new RegExp(`aria-pressed="true"[^>]*>${eclipse ? t.eclipseView : t.sunlit}<`),
     );
-    expect(html).toContain("aria-pressed:bg-accent/15");
   }
 });

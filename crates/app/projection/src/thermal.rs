@@ -171,7 +171,11 @@ fn network(ctx: &Context<'_>, s: &ThermalSettings, m: &mut MissingInputs) -> The
 }
 
 /// モードでの内部発熱の源（部品の平均電力と heat_fraction。掛け算は解析の中）。
-fn loads(ctx: &Context<'_>, s: &ThermalSettings, mode: Option<&str>) -> Option<ThermalModeLoads> {
+pub fn loads(
+    ctx: &Context<'_>,
+    s: &ThermalSettings,
+    mode: Option<&str>,
+) -> Option<ThermalModeLoads> {
     let mode = mode.and_then(|id| ctx.design.modes.get(id))?;
     let parts = node_of(s)
         .iter()

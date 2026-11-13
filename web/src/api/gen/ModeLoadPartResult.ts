@@ -18,6 +18,14 @@ mean: number | null,
  */
 mean_with_growth: number | null, 
 /**
+ * 蝕時の平均消費電力（不足なら None）。
+ */
+mean_eclipse: number | null, 
+/**
+ * 蝕時の成長余裕込みの平均消費電力。
+ */
+mean_eclipse_with_growth: number | null, 
+/**
  * 適用した成長余裕（0.2 = +20 %）
  */
 growth_margin: number, 

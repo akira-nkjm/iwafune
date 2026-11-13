@@ -28,6 +28,11 @@ const FEATURE_IMPORTERS: &[&str] = &["web/src/features/", "web/src/routes/"];
 /// ほかに要るときは、共通の場所へ移すか、ここに理由付きで足す。
 const FEATURE_EDGES: &[(&str, &str, &str)] = &[
     (
+        "systems",
+        "modes/matrix/ModesMatrix",
+        "系別のモード表示が定義ページと同じ行列・下書き・保存を使う",
+    ),
+    (
         "components",
         "modes/matrix/matrix",
         "部品の詳細のモードの欄が、モード表のセルの文字と同じ読み方を使う",

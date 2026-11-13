@@ -11,8 +11,9 @@ export const systemsEn: typeof systemsJa = {
     defaultCase: "Automatic (default where needed)",
     recompute: "Recompute",
     tabs: {
-      results: "Results",
-      breakdown: "Breakdown",
+      results: "Overview",
+      modes: "Modes",
+      breakdown: "Parts",
       settings: "Settings",
       series: "Time series",
     },

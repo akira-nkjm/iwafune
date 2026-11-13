@@ -8,6 +8,8 @@ export const keys = {
   part: (id: string, opsJson = "") =>
     opsJson ? (["design", "part", id, opsJson] as const) : (["design", "part", id] as const),
   defs: ["design", "defs"] as const,
+  systemModes: (system: string, opsJson: string) =>
+    ["design", "system_modes", system, opsJson] as const,
   diagnostics: ["diagnostics"] as const,
   units: (dimension?: string | null) => ["units", dimension ?? null] as const,
   parse: (input: string, dimension: string | null) => ["units", "parse", input, dimension] as const,

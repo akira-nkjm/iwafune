@@ -5,6 +5,7 @@ import { collectSeries, collectTables } from "@/analysis/output";
 import { ResultTable } from "@/analysis/ResultTable";
 import type { AnalysisState } from "@/api/queries";
 import type { AnalysisEntry, DesignView, System } from "@/api/types";
+import { SystemModes } from "@/features/modes/matrix/ModesMatrix";
 import { SettingsTable } from "@/features/project/SettingsTable";
 import { useT } from "@/i18n";
 import { analysisTitle } from "@/i18n/analysis-names";
@@ -21,7 +22,7 @@ const SeriesChart = lazy(() =>
   import("@/analysis/SeriesChart").then((m) => ({ default: m.SeriesChart })),
 );
 
-export type SystemTab = "results" | "breakdown" | "settings" | "series";
+export type SystemTab = "results" | "modes" | "breakdown" | "settings" | "series";
 
 /** 系のページのタブの中身（結果・内訳・設定・時系列）。extra は系ごとの追加の表示（熱の温度表、構造の 3D など） */
 export function SystemTabs({
@@ -42,6 +43,10 @@ export function SystemTabs({
   noAnalyses?: boolean;
 }) {
   const dict = useT();
+  if (tab === "modes")
+    return design && hasModes(system) ? (
+      <SystemModes key={system} design={design} system={system} />
+    ) : null;
   if (tab === "results")
     return (
       <>
@@ -144,4 +149,9 @@ export function SystemTabs({
       {extra?.series}
     </>
   );
+}
+
+/** モードの見方を持つ系だけにタブを出す。系の一覧・並びは API が持つ。 */
+export function hasModes(system: System): boolean {
+  return system === "power" || system === "cdh" || system === "thermal" || system === "aocs";
 }

@@ -27,6 +27,7 @@
 
 | 機能 | 置き場所 | 備考 |
 |---|---|---|
+| 系別のモード表示 | `fune_service::system_modes`（DTO は `dto::design`）、`fune_projection::{cdh,thermal}`・既存のモード評価、`web/src/features/modes/matrix/` | 定義は設計のモードだけ。系のタブは同じ下書き・保存を使い、値・合計・判定は Rust が返す。電源の蝕の部品別値は `power::mode_load`。C&DH の部品射影は `cdh::data_parts`、欠損付きレートは `data_budget::mode_part_rates`。熱は `thermal::loads`・`ThermalModeLoads::evaluate_parts`・`ThermalLoad::dissipation`（熱変換の唯一の場所）を共用。 |
 | モードの表示順・並び替え | `Design::ordered_modes`（model::design::project）・`Project.modes`・`fune_ops::op::{Op::MoveMode, ModePosition}`・`plan::others`・`store::write::project`・`service::edit::command` | fune.toml の `[modes] order`。検査は model::check::modes、正規化は store の format_files と共用。CLI mode move と Web ModeHeaderMenu は CommandText::ModeMove を共用 |
 | 解析の区分・前提条件の話題 | `sat_analysis::spec::{AnalysisArea, ConditionTopic}`（葉の `spec::area` から再公開）・`fune_model::design::ConditionTopic` | 区分は系または条件の話題。model ⇄ analysis の話題の対応と区分のキーは `fune_projection::system`。話題の設定は `design::conditions`、対応する条件のファイル内に置く |
 | β の季節変動・1 周の本影と半影の集計 | `sat_analysis::orbit::eclipse_season`・`fune_projection::orbit` | 季節の入力は軌道・ミッション期間・任意の刻み（β の指定なし）。周回内は既存の時刻格子と states_at を使い太陽を固定。円錐影・伝搬・β は sat-astro。季節の刻みの既定値は解析。設定は `conditions/orbit.toml` |
@@ -181,7 +182,7 @@
 | 量の表示と入力欄 | `web/src/quantity/` | 単位の解析は `/units/parse` に問い合わせる。入力欄の初期値の文字列（`quantityInputText`・`vectorInputText`・`numbersInputText`。API の数をそのまま並べる）は `format.ts` |
 | 属性の値の表示と編集（部品・カタログ品で共通） | `web/src/quantity/{AttrValueEditor.tsx,attr-mode.ts}`、送り口は `web/src/api/ops.ts` の `useAttrEdit` | **属性の値の欄はここだけ**（部品の詳細・系のページの表・カタログ品の詳細）。編集できるかは属性定義の `value_type`・`by_state` だけで決める（`attrEditMode`: スカラー・状態ごと・表示だけ）。打った文字列とパラメーターパスをそのまま `useSetText`・`useUnsetText` に渡し、Web は `set_value` などの Op を組み立てない |
 | 各ページ | `web/src/features/<ページ>/` | |
-| モードの行列（状態の切替・セルの表示・時間割合の編集・セルの間の矢印キーの移動・足もとの合計と余裕） | `web/src/features/modes/matrix/`・`web/src/features/modes/draft/` | 取得・変換・表示を分ける: 下書きを Op にして電力とバジェットを問い合わせるのは `useModeDraftLoad`、モード表・下書き・出力 → サブシステムごとの行（`MatrixGroup`）は `matrixGroups`（純粋な関数）、`ModesTable` と `ModeBudgetRows` は受け取った行と値を並べるだけ（`ModesMatrix` がつなぐ）。セルは `MatrixCell` 1 つ（部品・モード・状態の語彙・値・文言・電力・塗りの段階・行列の中の位置 `at`）と `onCell(セル, 新しい値)` で描き（`ModeCell`）、矢印キーの移動は行列の側の `MatrixFocus`（`matrix-focus.tsx`。セルは `useCellFocus(at)` の `ref`・`onKeyDown` を付けるだけ）。セルの電力は power.mode_load の出力、セルの文字はモード表の `cells`（状態）と `shares`（割合の `%`。API の整形）を `matrix.ts` の `savedCellText` が i18n（`modes.cellShare`・`cellWithShares`）で並べたもの。足もとの合計・使用可能電力・余裕と判定は `BudgetView.modes`（`fune_service::budget` が全体と同じ `budget_rollup` と判定で作る）。下書き（`draft.ts`）は打った時間割合の文字列のまま持ち、`draftCommand` で `fune mode set|unset` の引数にして `useCommandOps` で Op にする（下書きを当てた計算と保存で共通）。日照／蝕の切替は `ModesMatrix`。蝕の上書きも `draft.ts` の同じ下書き・保存で `ModeCellText.eclipse` を通す。蝕の合計は `ModeLoadMode.total_eclipse_with_growth` を整形 API で表示（部品別電力・使用可能電力・余裕・判定は蝕の API 値が無いため未表示）。 |
+| モードの行列（状態の切替・セル・時間割合・矢印キー・系別の値） | `web/src/features/modes/matrix/`・`web/src/features/modes/draft/` | 定義ページは全ての状態付き部品を表示し、単体の電力レベル列だけを参考に残す。追加・名前・継続時間の編集は定義ページだけ。系のタブは同じ `ModesMatrix`・`ModesTable`・`ModeCell`・`matrixGroups` を使い、セルの値・足もとの合計・判定は `SystemModesView`（`query::system_modes`、`POST /systems/{system}/modes`）。電源は成長余裕込みの合計と設計上限による日照・蝕の収支、C&DH は圧縮・パケット化前の発生レート、熱は節点内の部品の発熱、AOCS は姿勢則。下書きは全画面で `draft.ts`・`useModeDraftLoad`・`useCommandOps`（`fune mode set|unset` の引数）→ Op を使い、保存前の同じ Op で系別の値を問い合わせる。`MatrixCell` は状態・語彙・位置と系別の `QuantityView`、`ModeBudgetRows` は API の値を並べるだけ。日照／蝕の上書きと継承も同じ下書き・保存経路。 |
 | Op の送信・dry_run・無効化・トースト（CLI としてコピー） | `web/src/api/ops.ts` | Op を送るのはここの `useApplyOps` だけ。打った文字列の編集は `useSetText`（`/ops/from_text`）・`useUnsetText`（`/ops/unset_from_text`）で、`item` を渡すとカタログ品。属性の値の欄は `useAttrEdit`（要約の文言も）、部品のフィールドの欄（`features/components/detail/BasicSection.tsx`）は `PartRow.field_paths` のパスで `useSetText`・`useUnsetText`。確定前に dry_run を見せるダイアログは `useTextOp` で打った文字列を Op にしてから `OpDialog` に渡す。名詞のコマンドの引数（ネットのレール・配置・モード表・属性と種別の作成）は `useCommandText`（`/ops/from_command` のあと `/ops`）・`useCommandOps`（Op にするだけ。ダイアログと下書き）。属性の作成の引数は `features/components/parameters/param-ops.ts` の `attrAddCommand`（定義ページとパラメーター追加で共通）。キーは `web/src/api/keys.ts` だけで作る。トーストのバジェットの変化は API の `DefsView.budget_kinds` の種類のうち、編集の前に読んであったもの |
 | Op の確定前のプレビューと編集ダイアログの共通形 | `web/src/ops/` | `OpPreview`（dry_run の CLI・差分）、`OpDialog`、ID の変更の `RenameDialog`（部品・カタログ品・モード。`opsFor(新しい ID)` と `onDone(新しい ID)`） |
 | shadcn/ui のプリミティブ | `web/src/ui/` | shadcn/ui から取り込んだもの。見た目の小物は `kit/` |
@@ -285,6 +286,7 @@
 
 | 日時 | 変更 | 理由 |
 |---|---|---|
+| 2026-11-13 | 系別のモード DTO と共通行列のモードタブ、電源の蝕の部品別値を追加。定義ページから収支を移す | #78 |
 | 2026-11-13 | モードの表示順を fune.toml に保存し、model の共通順序関数・MoveMode・CLI/HTTP 共通コマンド・行列の左右移動を追加 | #84 |
 | 2026-11-13 | `power.sizing` と電源の設定・射影・KPI、セル電圧・電流属性を追加。最長蝕・負荷・発電モデルは既存の正本を共有 | 電源の必要面積・容量を解析の出力として比較するため（#7） |
 | 2026-11-13 | ミッション期間・季節刻み、軌道の β と本影・半影の季節解析・KPI・共通グラフ、代表標本から SetCase を作る CLI / HTTP / GUI とパリティ・往復見本を追加 | #3 |

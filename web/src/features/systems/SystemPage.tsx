@@ -14,9 +14,9 @@ import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { systemExtras } from "./extras";
 import { SystemHeaderActions } from "./SystemHeaderActions";
-import { type SystemTab, SystemTabs } from "./SystemTabs";
+import { hasModes, type SystemTab, SystemTabs } from "./SystemTabs";
 
-const TABS: SystemTab[] = ["results", "breakdown", "settings", "series"];
+const TABS: SystemTab[] = ["results", "modes", "breakdown", "series", "settings"];
 
 function isTab(s: string | undefined): s is SystemTab {
   return TABS.some((t) => t === s);
@@ -79,7 +79,8 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
     () => new Map<string, AnalysisEntry>(catalog.entries.map((e) => [e.info.id, e])),
     [catalog.entries],
   );
-  const tab: SystemTab = isTab(rawTab) ? rawTab : "results";
+  const tab: SystemTab =
+    isTab(rawTab) && (rawTab !== "modes" || hasModes(system)) ? rawTab : "results";
   return (
     <>
       <PageHeader
@@ -105,7 +106,7 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
         <AnalysisKpis entries={catalog.entries} states={states} loading={catalog.loading} />
       </div>
       <PageTabs
-        tabs={TABS.map((k) => ({
+        tabs={TABS.filter((k) => k !== "modes" || hasModes(system)).map((k) => ({
           to: paths.system(system, { tab: k === "results" ? null : k, kase }),
           label: t.systems.tabs[k],
         }))}

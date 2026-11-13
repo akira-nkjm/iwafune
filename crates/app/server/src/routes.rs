@@ -44,6 +44,7 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
     let api = Router::new()
         .route("/project", get(design::project))
         .route("/design", get(design::design))
+        .route("/system_modes/{system}", post(design::system_modes))
         .route("/parts", get(design::parts))
         .route("/parts/{id}", get(design::part).post(design::part_with))
         .route("/parts/{id}/place_body", post(edit::place_body))

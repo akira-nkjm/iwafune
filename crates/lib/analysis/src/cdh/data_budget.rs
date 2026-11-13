@@ -254,6 +254,7 @@ fn validate(input: &DataBudgetInput) -> Result<(f64, Params), AnalysisError> {
 
 mod mode_rates;
 use mode_rates::mode_rates;
+pub use mode_rates::{ModePartRates, mode_part_rates};
 
 fn build_output(
     input: &DataBudgetInput,

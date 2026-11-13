@@ -41,11 +41,56 @@ pub struct ThermalModeLoads {
     pub parts: Vec<ThermalModePart>,
 }
 
+/// 部品 ID と内部発熱（不足は None）の一覧。
+pub type ModePartHeat = Vec<(String, Option<Qty<Power>>)>;
+
 impl ThermalModeLoads {
     /// 単体平均電力と員数を渡す。不足・未割り当ては modes の警告を返して合計から除く。
     /// 熱節点の対象外の部品の割り当ては、この解析では未知部品としない（[`UnlistedParts::Ignore`]）。
     pub fn evaluate(&self) -> Result<(Vec<ThermalLoad>, Vec<Check>), AnalysisError> {
-        let ev = evaluate(
+        let ev = self.evaluation()?;
+        let loads = self
+            .parts
+            .iter()
+            .zip(&ev.means)
+            .filter_map(|(p, (_, mean))| {
+                Some(ThermalLoad {
+                    node: p.node.clone(),
+                    count: 1,
+                    power: Qty::from_raw((*mean)?),
+                    heat_fraction: p.heat_fraction,
+                })
+            })
+            .collect();
+        Ok((loads, ev.checks("消費電力")))
+    }
+    /// 部品別の内部発熱（不足は None）と警告。モード表示も同じ評価を使う。
+    pub fn evaluate_parts(&self) -> Result<(ModePartHeat, Vec<Check>), AnalysisError> {
+        let ev = self.evaluation()?;
+        let parts = self
+            .parts
+            .iter()
+            .zip(&ev.means)
+            .map(|(p, (_, mean))| {
+                let heat = mean
+                    .map(|power| {
+                        ThermalLoad {
+                            node: p.node.clone(),
+                            count: 1,
+                            power: Qty::from_raw(power),
+                            heat_fraction: p.heat_fraction,
+                        }
+                        .dissipation()
+                    })
+                    .transpose()?;
+                Ok((p.id.clone(), heat))
+            })
+            .collect::<Result<_, AnalysisError>>()?;
+        Ok((parts, ev.checks("消費電力")))
+    }
+
+    fn evaluation(&self) -> Result<crate::modes::ModeEvaluation, AnalysisError> {
+        evaluate(
             &self.mode,
             self.parts.iter().map(|p| p.id.as_str()),
             UnlistedParts::Ignore,
@@ -64,21 +109,7 @@ impl ThermalModeLoads {
                 let p = self.parts.iter().find(|p| p.id == id)?;
                 p.power.get(state).map(Qty::value)
             },
-        )?;
-        let loads = self
-            .parts
-            .iter()
-            .zip(&ev.means)
-            .filter_map(|(p, (_, mean))| {
-                Some(ThermalLoad {
-                    node: p.node.clone(),
-                    count: 1,
-                    power: Qty::from_raw((*mean)?),
-                    heat_fraction: p.heat_fraction,
-                })
-            })
-            .collect();
-        Ok((loads, ev.checks("消費電力")))
+        )
     }
 }
 
