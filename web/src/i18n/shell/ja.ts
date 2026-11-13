@@ -5,7 +5,7 @@ export const shellJa = {
       top: "概要",
       design: "設計",
       systems: "系の解析",
-      mission: "ミッション",
+      conditions: "前提条件",
       project: "プロジェクト",
     },
     items: {

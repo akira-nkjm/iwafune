@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useParams, useSearchParams } from "react-router";
+import { AnalysisKpis } from "@/analysis/AnalysisKpis";
 import { useAnalyses, useDesign, useSystemAnalyses } from "@/api/queries";
 import type { AnalysisEntry, System } from "@/api/types";
 import { useT } from "@/i18n";
@@ -13,7 +14,6 @@ import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { systemExtras } from "./extras";
 import { SystemHeaderActions } from "./SystemHeaderActions";
-import { SystemKpis } from "./SystemKpis";
 import { type SystemTab, SystemTabs } from "./SystemTabs";
 
 const TABS: SystemTab[] = ["results", "breakdown", "settings", "series"];
@@ -66,7 +66,7 @@ export function SystemPage() {
 
 /**
  * 1 つの系のページ。共通の型: 上にケースの選択と主要 KPI、下にタブ（結果・内訳・設定・時系列）。
- * その系の解析は GET /analyses の info.system から引く。
+ * その系の解析は GET /analyses の info.area から引く。
  */
 function SystemView({ system, design }: { system: System; design: DesignQuery }) {
   const t = useT();
@@ -102,7 +102,7 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
         {states.some((s) => s.result?.case_source === "default_attitude") && (
           <p className="text-sm text-muted-foreground">{t.systems.defaultAttitude}</p>
         )}
-        <SystemKpis entries={catalog.entries} states={states} loading={catalog.loading} />
+        <AnalysisKpis entries={catalog.entries} states={states} loading={catalog.loading} />
       </div>
       <PageTabs
         tabs={TABS.map((k) => ({

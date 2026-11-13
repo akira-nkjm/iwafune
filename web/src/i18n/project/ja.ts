@@ -26,7 +26,7 @@ export const projectJa = {
     revision: "リビジョン",
     schema: "スキーマの版",
     groups: {
-      mission: { title: "ミッション", caption: "mission/ — 軌道・地上局・期間" },
+      conditions: { title: "前提条件", caption: "conditions/ — 軌道・地上局・期間" },
       analysis: { title: "解析", caption: "analysis/ — 各系の解析の設定" },
       budget: { title: "バジェット", caption: "budget/ — 配分・マージン方針" },
     },

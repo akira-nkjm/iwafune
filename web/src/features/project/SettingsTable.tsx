@@ -11,7 +11,7 @@ import { EditableQuantity } from "@/quantity/EditableQuantity";
 import { quantityInputText } from "@/quantity/format";
 
 /**
- * 設定（`mission/`・`analysis/`・`budget/` の値）の表。セルで直接編集し、打った文字列をそのまま送る
+ * 設定（`conditions/`・`analysis/`・`budget/` の値）の表。セルで直接編集し、打った文字列をそのまま送る
  * （値の型は `fune set` と同じく service が決める）。量は入力欄が /units/parse で検査する。
  */
 export function SettingsTable({

@@ -60,10 +60,10 @@ impl<'a> Context<'a> {
         self.design.modes.values().map(mode_def).collect()
     }
 
-    /// 軌道（`mission/orbit.toml`）。
+    /// 軌道（`conditions/orbit.toml`）。
     pub fn orbit(&self, m: &mut MissingInputs) -> Option<OrbitSpec> {
-        let Some(o) = self.design.mission.orbit.as_ref() else {
-            m.push(orbit(&[]), "軌道の設定（mission/orbit.toml）");
+        let Some(o) = self.design.conditions.orbit.as_ref() else {
+            m.push(orbit(&[]), "軌道の設定（conditions/orbit.toml）");
             return None;
         };
         let epoch = match o.epoch.as_deref().map(Epoch::parse) {
@@ -143,11 +143,11 @@ impl<'a> Context<'a> {
 
     /// 地上局（`ids` が空なら全局）。
     pub fn stations(&self, ids: &[String], m: &mut MissingInputs) -> Vec<GroundStation> {
-        let ground = &self.design.mission.ground;
+        let ground = &self.design.conditions.ground;
         if ground.is_empty() {
             m.push(
-                SettingPath::mission(&["ground"]),
-                "地上局（mission/ground/<ID>.toml）",
+                SettingPath::conditions(&["ground"]),
+                "地上局（conditions/ground/<ID>.toml）",
             );
         }
         let chosen: Vec<&String> = if ids.is_empty() {
@@ -159,7 +159,7 @@ impl<'a> Context<'a> {
             .into_iter()
             .filter_map(|id| {
                 let Some(g) = ground.get(id) else {
-                    let target = SettingPath::mission(&["ground", id]);
+                    let target = SettingPath::conditions(&["ground", id]);
                     m.push(target, "地上局の設定がありません");
                     return None;
                 };
@@ -264,9 +264,9 @@ pub fn mode_def(mode: &Mode) -> ModeDef {
     }
 }
 
-/// `mission.orbit.<…>`（`mission/orbit.toml` のキー）。
+/// `conditions.orbit.<…>`（`conditions/orbit.toml` のキー）。
 fn orbit(keys: &[&str]) -> SettingPath {
-    SettingPath::mission(&["orbit"]).child(keys)
+    SettingPath::conditions(&["orbit"]).child(keys)
 }
 
 /// 降交点地方時（`"10:30"`）→ RAAN（読み方は `fune_model::value::parse_clock_hours`、換算は sat-astro）。

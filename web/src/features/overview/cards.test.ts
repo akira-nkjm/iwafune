@@ -28,7 +28,7 @@ const kpi = (key: KpiKey, rest: Partial<KpiView>): KpiView => ({
 const slot = (system: System, k: KpiView, loading = false): KpiSlot => ({
   def: { key: k.key, label: k.label, label_en: k.label_en },
   analysis: `${system}.x`,
-  system,
+  area: { kind: "system", value: system },
   kpi: loading ? null : k,
   loading,
 });

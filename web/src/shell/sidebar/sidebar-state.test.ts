@@ -42,8 +42,8 @@ describe("サイドバーの開閉", () => {
   it("区分の開閉も保存される", () => {
     const s = memory();
     expect(readClosedSections(s)).toEqual([]);
-    writeClosedSections(["mission"], s);
-    expect(readClosedSections(s)).toEqual(["mission"]);
+    writeClosedSections(["conditions"], s);
+    expect(readClosedSections(s)).toEqual(["conditions"]);
   });
 
   it("保存先が使えなくても例外を出さず、既定（開いている）で動く", () => {

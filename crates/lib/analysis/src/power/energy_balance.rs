@@ -8,8 +8,8 @@ pub use super::battery::EnergyBalanceBattery;
 use super::mode_load::ModeLoadInput;
 use super::solar::{SolarArray, SolarLife, SolarProfile};
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series, SpanFallback,
-    System, orbit_mean, orbit_ranges, span_fallback, time_fraction,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series,
+    SpanFallback, System, orbit_mean, orbit_ranges, span_fallback, time_fraction,
 };
 use sat_astro::attitude::AttitudeLaw;
 use sat_astro::timeline::{self, TimelineSpec};
@@ -159,7 +159,7 @@ pub struct EnergyBalance;
 impl Analysis for EnergyBalance {
     const ID: &'static str = "power.energy_balance";
     const TITLE: &'static str = "電力収支と DoD";
-    const SYSTEM: System = System::Power;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Power);
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;
     const DESCRIPTION: &'static str = "モードごとの軌道平均収支・充放電・日陰での DoD・SOC の推移";
     const TITLE_EN: &'static str = "Energy balance and DoD";

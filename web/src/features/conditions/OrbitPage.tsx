@@ -1,7 +1,8 @@
 import { AnalysisCard } from "@/analysis/AnalysisCard";
+import { AnalysisKpis } from "@/analysis/AnalysisKpis";
 import { ResultTable } from "@/analysis/ResultTable";
 import { analysisOutput } from "@/api/analysis-output";
-import { useAnalyses, useDesign } from "@/api/queries";
+import { useAnalyses, useConditionAnalyses, useDesign } from "@/api/queries";
 import type { SettingView } from "@/api/types";
 import { SettingsTable } from "@/features/project/SettingsTable";
 import { useT } from "@/i18n";
@@ -14,10 +15,10 @@ import { TablePanel } from "@/kit/table/TablePanel";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 
-/** ミッション / 軌道と地上局: ミッションの設定（API の `scope`）と、地上局ごとの可視（comm.visibility） */
+/** 前提条件 / 軌道と地上局: 前提条件の設定（API の `scope`）と、地上局ごとの可視（comm.visibility） */
 export function OrbitPage() {
   const t = useT();
-  const m = t.mission;
+  const m = t.conditions;
   const design = useDesign();
   const [vis] = useAnalyses(["comm.visibility"], null);
   const d = design.data;
@@ -36,8 +37,9 @@ export function OrbitPage() {
             </>
           }
         >
-          {(d) => <MissionSettings settings={d.settings} />}
+          {(d) => <ConditionsSettings settings={d.settings} />}
         </QueryState>
+        <OrbitAnalyses />
         {stations.length > 0 && (
           <TablePanel title={m.visibilityPerStation} caption="comm.visibility">
             <ResultTable
@@ -54,22 +56,22 @@ export function OrbitPage() {
   );
 }
 
-/** ミッションの設定（API の `scope` が mission のもの）を、まとまり（`group`）ごとの表に */
-function MissionSettings({ settings }: { settings: readonly SettingView[] }) {
-  const m = useT().mission;
-  const mission = settings.filter((s) => s.scope === "mission");
-  const groups = [...new Set(mission.map((s) => s.group))];
+/** 前提条件の設定（API の `scope` が conditions のもの）を、まとまり（`group`）ごとの表に */
+function ConditionsSettings({ settings }: { settings: readonly SettingView[] }) {
+  const m = useT().conditions;
+  const conditions = settings.filter((s) => s.scope === "conditions");
+  const groups = [...new Set(conditions.map((s) => s.group))];
   if (groups.length === 0)
     return (
       <Panel>
-        <PanelHeader title={m.missionSettings} caption={m.missionSettingsCaption} />
-        <Empty>{m.noMissionSettings}</Empty>
+        <PanelHeader title={m.conditionsSettings} caption={m.conditionsSettingsCaption} />
+        <Empty>{m.noConditionsSettings}</Empty>
       </Panel>
     );
   return (
     <div className="grid gap-4 xl:grid-cols-2">
       {groups.map((g) => {
-        const list = mission.filter((s) => s.group === g);
+        const list = conditions.filter((s) => s.group === g);
         const label = list.find((s) => s.field === "label");
         return (
           <TablePanel
@@ -82,5 +84,26 @@ function MissionSettings({ settings }: { settings: readonly SettingView[] }) {
         );
       })}
     </div>
+  );
+}
+
+/** 軌道の話題の解析はカタログから引く。未登録なら何も表示しない。 */
+function OrbitAnalyses() {
+  const catalog = useConditionAnalyses("orbit");
+  const states = useAnalyses(catalog.ids, null);
+  const design = useDesign().data;
+  if (catalog.entries.length === 0) return null;
+  return (
+    <>
+      <AnalysisKpis entries={catalog.entries} states={states} loading={catalog.loading} />
+      {states.map((state) => (
+        <AnalysisCard
+          key={state.id}
+          state={state}
+          entry={catalog.entries.find((e) => e.info.id === state.id)}
+          design={design}
+        />
+      ))}
+    </>
   );
 }

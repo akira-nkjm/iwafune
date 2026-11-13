@@ -1,6 +1,6 @@
-//! ミッションの入力（`mission/`）: 軌道・地上局・打ち上げ条件。serde の形がそのままファイルの形。
+//! 前提条件の入力（`conditions/`）: 軌道・地上局・打ち上げ条件。serde の形がそのままファイルの形。
 //!
-//! 値はすべて任意（`Option`）。足りない入力は projection が `mission.orbit.altitude` のようなパスで列挙する。
+//! 値はすべて任意（`Option`）。足りない入力は projection が `conditions.orbit.altitude` のようなパスで列挙する。
 
 use crate::enum_text::enum_text;
 use crate::value::Quantity;
@@ -8,14 +8,14 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
 
-/// `mission/` 全体。
+/// `conditions/` 全体。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
-pub struct MissionSettings {
-    /// `mission/orbit.toml`
+pub struct ConditionsSettings {
+    /// `conditions/orbit.toml`
     pub orbit: Option<OrbitSettings>,
-    /// `mission/ground/<ID>.toml`
+    /// `conditions/ground/<ID>.toml`
     pub ground: BTreeMap<String, GroundStationSettings>,
-    /// `mission/launch.toml`
+    /// `conditions/launch.toml`
     pub launch: Option<LaunchSettings>,
 }
 
@@ -30,7 +30,7 @@ enum_text! {
     }
 }
 
-/// 軌道（`mission/orbit.toml`）。円軌道は `altitude`、一般の軌道は `semi_major_axis` 以下の要素で書く。
+/// 軌道（`conditions/orbit.toml`）。円軌道は `altitude`、一般の軌道は `semi_major_axis` 以下の要素で書く。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct OrbitSettings {
@@ -65,7 +65,7 @@ pub struct OrbitSettings {
     pub mean_anomaly: Option<Quantity>,
 }
 
-/// 地上局（`mission/ground/<ID>.toml`）。
+/// 地上局（`conditions/ground/<ID>.toml`）。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct GroundStationSettings {
@@ -109,7 +109,7 @@ pub struct GroundLinkSettings {
     pub line_loss: Option<Quantity>,
 }
 
-/// 打ち上げ条件（`mission/launch.toml`）。
+/// 打ち上げ条件（`conditions/launch.toml`）。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct LaunchSettings {
@@ -135,4 +135,33 @@ pub struct LaunchSettings {
     /// 安全率（終局）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub safety_factor_ultimate: Option<f64>,
+}
+
+enum_text! {
+    /// 前提条件の解析の話題。解析ライブラリとの綴りは projection で照合する。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+    pub enum ConditionTopic: "前提条件の話題" {
+        Orbit = "orbit",
+    }
+}
+
+impl ConditionTopic {
+    /// 話題の設定ファイル全体のパス（その中に解析ごとの表を置く）。
+    pub fn setting_path(self) -> crate::path::SettingPath {
+        crate::path::SettingPath::conditions(&[self.as_str()])
+    }
+
+    /// 日本語の表示名。
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Orbit => "軌道",
+        }
+    }
+
+    /// 英語の表示名。
+    pub fn label_en(self) -> &'static str {
+        match self {
+            Self::Orbit => "Orbit",
+        }
+    }
 }

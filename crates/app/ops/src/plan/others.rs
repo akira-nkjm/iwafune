@@ -179,7 +179,7 @@ fn set_setting(edits: &mut Edits, text: &str, value: Option<&SettingValue>) -> R
         path::parse(text).map_err(|e| OpError::invalid(e.to_string()))?
     else {
         return Err(OpError::invalid(format!(
-            "`{text}` は設定のパスではありません（mission. / analysis. / budget. で始めます）"
+            "`{text}` は設定のパスではありません（conditions. / analysis. / budget. で始めます）"
         )));
     };
     let (file, keys) = layout::setting_location(&setting)?;

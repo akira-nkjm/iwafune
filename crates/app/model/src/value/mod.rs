@@ -244,7 +244,7 @@ pub enum ValueError {
     Type(String),
 }
 
-/// 設定（`mission/`・`analysis/`・`budget/`）の 1 つの値。`SetSetting` の Op と store の書き込みが共有する。
+/// 設定（`conditions/`・`analysis/`・`budget/`）の 1 つの値。`SetSetting` の Op と store の書き込みが共有する。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum SettingValue {

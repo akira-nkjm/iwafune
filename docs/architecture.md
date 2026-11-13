@@ -4,6 +4,11 @@
 設計データの形とファイル形式は [model.md](model.md)、機能ごとの置き場所は [architecture/registry.md](architecture/registry.md)（構成台帳）、
 開発の規則は [CONTRIBUTING.md](../CONTRIBUTING.md)、これから入れる機能は [roadmap.md](roadmap.md) と GitHub の Issue にある。
 
+前提条件（軌道・地上局・打ち上げ条件）は `conditions/`。`mission/` は将来の #9 用の予約ディレクトリで現在は読まない。
+解析の所属は `sat_analysis::spec::AnalysisArea`（系 `System` または前提条件の話題 `Condition`）。
+話題の設定は条件のファイル内に置き、具体的な型は #3 で追加する（[model.md §1.1](model.md#11-前提条件と解析の区分)）。
+CLI・API・web は同じ区分を使い、KPI は系・話題ごとに表示する。web の前提条件の KPI は空なら表示しない。
+
 ## 1. 目的と範囲
 
 iwafune は小型衛星の概念設計のための道具である。部品の選定、質量・電力・データ量のバジェット、モードごとの消費電力、
@@ -29,7 +34,7 @@ iwafune は小型衛星の概念設計のための道具である。部品の選
 | `defs/attribute/`・`defs/kind/` | プロジェクト独自の属性定義・種別定義（組み込みの定義は fune-model が持つ） |
 | `modes/`・`nets/`・`harness/` | 運用モード（部品 → 状態の表）、電気的なネット、ハーネスの区間 |
 | `budget/` | 配分とマージンの方針 |
-| `mission/`・`analysis/`・`cases/` | 軌道と地上局、系ごとの解析の設定、解析ケース |
+| `conditions/`・`analysis/`・`cases/` | 軌道と地上局、系ごとの解析の設定、解析ケース |
 | `sources/` | 出典の台帳 |
 | `view/` | 系統図の配置など、見た目だけの情報 |
 | `.fune/` | 書き込みロックなどの作業ファイル。`fune init` が `.gitignore` に入れる |
@@ -122,7 +127,7 @@ Op は JSON にできる（`{ "op": "set_value", "part": "RW_X", ... }`）。TS 
 | モード・ネット | `CreateMode`・`RenameMode`・`SetModeStates`・`CreateNet`・`UpdateNet`・`SetNetField`・`RemoveNet` など |
 | ケース・出典・ハーネス | `SetCase`・`SetSource`・`SetHarness` と、それぞれの削除 |
 | 図 | `SetViewLayout`・`SetViewEdge`・`UnsetViewEdge`・`ResetView` |
-| 設定 | `SetSetting`（`mission/`・`analysis/`・`budget/` の値） |
+| 設定 | `SetSetting`（`conditions/`・`analysis/`・`budget/` の値） |
 
 すべての Op とその意味は `crates/app/ops/src/op.rs` にある。
 
@@ -273,7 +278,7 @@ Web は次のことをしない。
 1. 設計を読み、Resolved を作る（`ops` があれば書き込まずに当てる）。
 2. fune-projection が解析ケース（`cases/<ID>.toml`。省略すると既定）を含む文脈から、その解析の `Input` を組み立てる。
    解析 ID と射影の対応は `fune_projection::dispatch` の 1 か所にある。
-3. 足りない入力があれば解析を呼ばずに `missing_inputs` を返す。`missing_inputs` は足りないものをパラメーターのパス（`RW_X.max_momentum`・`mission.orbit.altitude`）と理由で表し、
+3. 足りない入力があれば解析を呼ばずに `missing_inputs` を返す。`missing_inputs` は足りないものをパラメーターのパス（`RW_X.max_momentum`・`conditions.orbit.altitude`）と理由で表し、
    見つかった分をすべて並べる。
 4. `sat_analysis::catalog::run_json` で解析を実行する。
 5. service が出力の量ごとの次元（JSON Pointer → 次元名）と語彙の値（列挙）の表示名を集め、時系列に表示名と表示単位を付け、

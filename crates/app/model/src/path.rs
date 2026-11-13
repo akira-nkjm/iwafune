@@ -5,8 +5,8 @@
 //! | `RW_X.mass` | 部品 RW_X の属性 mass |
 //! | `RW_X.power.on` | 状態ごとの属性 power の状態 on のセル |
 //! | `RW_X.label` | 部品のフィールド（[`PartFieldName`]） |
-//! | `mission.orbit.altitude` | `mission/orbit.toml` の `altitude` |
-//! | `mission.ground.TOKYO_GS.min_elevation` | `mission/ground/TOKYO_GS.toml` の `min_elevation` |
+//! | `conditions.orbit.altitude` | `conditions/orbit.toml` の `altitude` |
+//! | `conditions.ground.TOKYO_GS.min_elevation` | `conditions/ground/TOKYO_GS.toml` の `min_elevation` |
 //! | `analysis.power.dod_max` | `analysis/power.toml` の `dod_max` |
 //! | `budget.mass.limit`・`budget.policy.growth.new` | `budget/allocation.toml`・`budget/policy.toml` |
 //!
@@ -26,7 +26,7 @@ enum_text! {
     /// 設定の置き場所の種類。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
     pub enum SettingScope: "設定の置き場所" {
-        Mission = "mission",
+        Conditions = "conditions",
         Analysis = "analysis",
         Budget = "budget",
     }
@@ -43,7 +43,7 @@ pub struct SettingPath {
 }
 
 impl SettingPath {
-    /// 種類と区切りの列から作る（`SettingPath::new(SettingScope::Mission, &["orbit", "altitude"])`）。
+    /// 種類と区切りの列から作る（`SettingPath::new(SettingScope::Conditions, &["orbit", "altitude"])`）。
     pub fn new(scope: SettingScope, segments: &[&str]) -> Self {
         Self {
             scope,
@@ -51,9 +51,9 @@ impl SettingPath {
         }
     }
 
-    /// `mission.<…>`。
-    pub fn mission(segments: &[&str]) -> Self {
-        Self::new(SettingScope::Mission, segments)
+    /// `conditions.<…>`。
+    pub fn conditions(segments: &[&str]) -> Self {
+        Self::new(SettingScope::Conditions, segments)
     }
 
     /// `analysis.<…>`。

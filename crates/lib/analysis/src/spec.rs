@@ -6,19 +6,8 @@
 use sat_units::typed::{Fraction, NamedKind};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
-/// 解析が属する系。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-#[serde(rename_all = "snake_case")]
-pub enum System {
-    Power,
-    Aocs,
-    Cdh,
-    Comm,
-    Thermal,
-    Structure,
-    Payload,
-}
+mod area;
+pub use area::{AnalysisArea, ConditionTopic, System};
 
 /// 定常か時系列か。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,7 +27,7 @@ pub struct AnalysisInfo {
     pub title: String,
     /// 英語の題名（GUI の英語表示）
     pub title_en: String,
-    pub system: System,
+    pub area: AnalysisArea,
     pub kind: AnalysisKind,
     pub description: String,
     /// 英語の説明（GUI の英語表示）
@@ -47,10 +36,10 @@ pub struct AnalysisInfo {
 
 /// すべての解析が実装する trait。
 pub trait Analysis {
-    /// 例: `"power.energy_balance"`（`<系>.<名前>`）
+    /// 例: `"power.energy_balance"`（`<区分のキー>.<名前>`）
     const ID: &'static str;
     const TITLE: &'static str;
-    const SYSTEM: System;
+    const AREA: AnalysisArea;
     const KIND: AnalysisKind;
     const DESCRIPTION: &'static str;
     /// 英語の題名と説明（GUI の英語表示）
@@ -68,7 +57,7 @@ pub trait Analysis {
             id: Self::ID.to_owned(),
             title: Self::TITLE.to_owned(),
             title_en: Self::TITLE_EN.to_owned(),
-            system: Self::SYSTEM,
+            area: Self::AREA,
             kind: Self::KIND,
             description: Self::DESCRIPTION.to_owned(),
             description_en: Self::DESCRIPTION_EN.to_owned(),

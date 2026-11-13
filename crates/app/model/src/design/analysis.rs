@@ -188,7 +188,7 @@ pub struct CommLinkSettings {
     pub direction: LinkDirection,
     /// 衛星側の送受信機（部品 ID）
     pub part: String,
-    /// 地上局側の帯域（`mission/ground/<ID>.toml` の `[link.<名前>]`）
+    /// 地上局側の帯域（`conditions/ground/<ID>.toml` の `[link.<名前>]`）
     pub band: String,
     /// 変調方式（表示用）
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -213,7 +213,7 @@ pub struct CommLinkSettings {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct CommSettings {
-    /// 使う地上局（`mission/ground/<ID>`）
+    /// 使う地上局（`conditions/ground/<ID>`）
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub stations: Vec<String>,
     /// 回線余裕の判定のしきい値（dB）

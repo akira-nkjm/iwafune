@@ -2,11 +2,11 @@
 import { catalogEn } from "./catalog/en";
 import { commonEn } from "./common/en";
 import { componentsEn } from "./components/en";
+import { conditionsEn } from "./conditions/en";
 import { defsEn } from "./defs/en";
 import { diagramEn } from "./diagram/en";
 import { fieldsEn } from "./fields/en";
 import type { Dict } from "./ja";
-import { missionEn } from "./mission/en";
 import { modesEn } from "./modes/en";
 import { overviewEn } from "./overview/en";
 import { projectEn } from "./project/en";
@@ -25,5 +25,5 @@ export const en: Dict = {
   ...fieldsEn,
   ...overviewEn,
   ...projectEn,
-  ...missionEn,
+  ...conditionsEn,
 };

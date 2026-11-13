@@ -249,7 +249,7 @@ pub enum Op {
         view: String,
     },
     // ---- 設定
-    /// `mission/`・`analysis/`・`budget/` の値（`path` は `analysis.power.dod_max` の形。None なら消す）。
+    /// `conditions/`・`analysis/`・`budget/` の値（`path` は `analysis.power.dod_max` の形。None なら消す）。
     SetSetting {
         path: String,
         #[serde(default)]

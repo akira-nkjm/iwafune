@@ -70,7 +70,7 @@ export function overviewCards(o: Dict["overview"], s: OverviewSources): Overview
       tone: verdictTone[slot?.kpi?.verdict ?? "ok"],
       footer: rest.footer ?? "",
       footerRight: rest.footerRight ?? "",
-      to: slot ? paths.system(slot.system) : paths.overview(),
+      to: slot ? paths.area(slot.area) : paths.overview(),
       loading: slot?.loading ?? true,
     };
   };

@@ -10,7 +10,7 @@ export type MissingInput = {
  */
 part: string | null, 
 /**
- * 表示用のパス（対象の `Display`。例: `"RW_X.max_momentum"`、`"mission.orbit.altitude"`、`"<部品>.power"`）
+ * 表示用のパス（対象の `Display`。例: `"RW_X.max_momentum"`、`"conditions.orbit.altitude"`、`"<部品>.power"`）
  */
 path: string, 
 /**

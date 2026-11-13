@@ -6,7 +6,7 @@ export const shellEn: typeof shellJa = {
       top: "Overview",
       design: "Design",
       systems: "Subsystems",
-      mission: "Mission",
+      conditions: "Conditions",
       project: "Project",
     },
     items: {

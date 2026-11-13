@@ -5,8 +5,9 @@
 
 use super::solar::{SolarArray, SolarLife, SolarProfile, eclipses};
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Channel, ChannelKind, Series, SpanFallback, System,
-    longest_window, masked_time_mean, orbit_mean, orbit_ranges, span_fallback, time_fraction,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Series,
+    SpanFallback, System, longest_window, masked_time_mean, orbit_mean, orbit_ranges,
+    span_fallback, time_fraction,
 };
 use sat_astro::timeline::{self, TimelineSpec, Window};
 use sat_units::typed::{Energy, Fraction, Power, Qty, Time};
@@ -74,7 +75,7 @@ pub struct OrbitGeneration;
 impl Analysis for OrbitGeneration {
     const ID: &'static str = "power.orbit_generation";
     const TITLE: &'static str = "軌道上の発電";
-    const SYSTEM: System = System::Power;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Power);
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;
     const DESCRIPTION: &'static str = "軌道 1〜N 周の発電電力と日陰の時系列";
     const TITLE_EN: &'static str = "Orbital power generation";

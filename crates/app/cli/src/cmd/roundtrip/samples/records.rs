@@ -210,11 +210,11 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
             value: Some(SettingValue::Integer(4)),
         },
         Op::SetSetting {
-            path: s("mission.orbit.arg_perigee"),
+            path: s("conditions.orbit.arg_perigee"),
             value: Some(SettingValue::Quantity(Quantity::new(-5.0, "deg"))),
         },
         Op::SetSetting {
-            path: s("mission.orbit.altitude"),
+            path: s("conditions.orbit.altitude"),
             value: Some(SettingValue::Quantity(Quantity::new(500.0, "km"))),
         },
         Op::SetSetting {

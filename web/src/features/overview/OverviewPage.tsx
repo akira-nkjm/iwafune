@@ -6,6 +6,7 @@ import { withNote } from "@/lib/design";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { BudgetPanel } from "./BudgetPanel";
+import type { OverviewCard } from "./cards";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
 import { useOverviewCards } from "./use-overview-cards";
 
@@ -13,9 +14,8 @@ import { useOverviewCards } from "./use-overview-cards";
 export function OverviewPage() {
   const t = useT();
   const o = t.overview;
-  const navigate = useNavigate();
   const d = useDesign().data;
-  const cards = useOverviewCards();
+  const { cards, conditions } = useOverviewCards();
   const c = d?.project.counts;
   return (
     <>
@@ -26,22 +26,13 @@ export function OverviewPage() {
         }
       />
       <PageBody>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
-          {cards.map((x) => (
-            <KpiCard
-              key={x.key}
-              label={x.label}
-              value={x.value}
-              ratio={x.fill?.ratio ?? null}
-              barLabel={x.fill ? withNote(x.label, t.systems.kpiFill[x.fill.basis]) : undefined}
-              tone={x.tone}
-              footer={x.footer}
-              footerRight={x.footerRight}
-              loading={x.loading}
-              onClick={() => navigate(x.to)}
-            />
-          ))}
-        </div>
+        <OverviewKpis cards={cards} />
+        {conditions.length > 0 && (
+          <section>
+            <h2 className="mb-3 text-sm font-medium">{t.conditions.eyebrow}</h2>
+            <OverviewKpis cards={conditions} />
+          </section>
+        )}
         <div className="grid gap-4 xl:grid-cols-2">
           <BudgetPanel kind="mass" />
           <BudgetPanel kind="power" />
@@ -49,5 +40,29 @@ export function OverviewPage() {
         <DiagnosticsPanel />
       </PageBody>
     </>
+  );
+}
+
+/** API の KPI を表示し、解析区分のページへ開く。 */
+function OverviewKpis({ cards }: { cards: readonly OverviewCard[] }) {
+  const t = useT();
+  const navigate = useNavigate();
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
+      {cards.map((x) => (
+        <KpiCard
+          key={x.key}
+          label={x.label}
+          value={x.value}
+          ratio={x.fill?.ratio ?? null}
+          barLabel={x.fill ? withNote(x.label, t.systems.kpiFill[x.fill.basis]) : undefined}
+          tone={x.tone}
+          footer={x.footer}
+          footerRight={x.footerRight}
+          loading={x.loading}
+          onClick={() => navigate(x.to)}
+        />
+      ))}
+    </div>
   );
 }

@@ -24,7 +24,7 @@ fn classifies_files() {
         }
     );
     assert_eq!(
-        classify("mission/ground/TOKYO_GS.toml", &cat),
+        classify("conditions/ground/TOKYO_GS.toml", &cat),
         FileRole::Ground("TOKYO_GS".into())
     );
     assert_eq!(
@@ -52,9 +52,9 @@ fn maps_setting_paths_to_files() {
         Some(("analysis/power.toml".into(), vec!["dod_max".into()]))
     );
     assert_eq!(
-        setting_location(&p("mission.ground.TOKYO_GS.min_elevation")).ok(),
+        setting_location(&p("conditions.ground.TOKYO_GS.min_elevation")).ok(),
         Some((
-            "mission/ground/TOKYO_GS.toml".into(),
+            "conditions/ground/TOKYO_GS.toml".into(),
             vec!["min_elevation".into()]
         ))
     );
@@ -67,4 +67,31 @@ fn maps_setting_paths_to_files() {
     );
     assert!(setting_location(&p("analysis.nope.x")).is_err());
     assert!(setting_location(&p("analysis.attitude.law")).is_err());
+}
+
+/// 旧配置は予約ディレクトリとして無視し、話題の解析ファイルは認めない。
+#[test]
+fn conditions_replace_the_reserved_mission_directory() {
+    let cat = [];
+    for path in [
+        "mission/orbit.toml",
+        "mission/launch.toml",
+        "mission/ground/GS.toml",
+    ] {
+        assert_eq!(classify(path, &cat), FileRole::Reserved);
+    }
+    assert_eq!(
+        classify("conditions/orbit.toml", &cat),
+        FileRole::Conditions("orbit".into())
+    );
+    assert_eq!(
+        classify("conditions/launch.toml", &cat),
+        FileRole::Conditions("launch".into())
+    );
+    assert_eq!(classify("analysis/orbit.toml", &cat), FileRole::Other);
+    // 古い区分 `mission` は設定のパスとして読まない（部品のパスなどとして読まれる）
+    assert!(!matches!(
+        fune_model::path::parse("mission.orbit.altitude"),
+        Ok(fune_model::path::ParamPath::Setting(_))
+    ));
 }

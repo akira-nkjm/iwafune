@@ -10,7 +10,7 @@
 use crate::budget::{BudgetItem, counted_total};
 use crate::spec::quantity_text;
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Check, System, Verdict, ratio_margin,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict, ratio_margin,
     ratio_margin_verdict,
 };
 use sat_astro::math::bisect;
@@ -140,7 +140,7 @@ pub struct ModalEstimate;
 impl Analysis for ModalEstimate {
     const ID: &'static str = "structure.modal_estimate";
     const TITLE: &'static str = "簡易固有振動数";
-    const SYSTEM: System = System::Structure;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Structure);
     const KIND: AnalysisKind = AnalysisKind::Steady;
     const DESCRIPTION: &'static str = "簡易モデルでの一次固有振動数と要求との比較";
     const TITLE_EN: &'static str = "Natural frequency estimate";

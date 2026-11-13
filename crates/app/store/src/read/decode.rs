@@ -223,10 +223,10 @@ impl Decoder<'_> {
                 v.id = Id::new(id);
                 g.sources.insert(Id::new(id), v);
             }),
-            FileRole::Mission(name) => self.read_mission(path, name),
+            FileRole::Conditions(name) => self.read_conditions(path, name),
             FileRole::Ground(id) => self.read_into(path, |g, mut v: d::GroundStationSettings| {
                 v.id = id.clone();
-                g.mission.ground.insert(id.clone(), v);
+                g.conditions.ground.insert(id.clone(), v);
             }),
             FileRole::Analysis(system) => self.read_analysis(path, *system),
             FileRole::CommonAnalysis => self.design.analysis.common = self.parse(path),
@@ -244,10 +244,10 @@ impl Decoder<'_> {
         }
     }
 
-    fn read_mission(&mut self, path: &str, name: &str) {
+    fn read_conditions(&mut self, path: &str, name: &str) {
         match name {
-            "orbit" => self.design.mission.orbit = self.parse(path),
-            "launch" => self.design.mission.launch = self.parse(path),
+            "orbit" => self.design.conditions.orbit = self.parse(path),
+            "launch" => self.design.conditions.launch = self.parse(path),
             _ => {}
         }
     }

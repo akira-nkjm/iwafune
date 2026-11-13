@@ -10,7 +10,7 @@ const entry = (id: string, system: System, keys: KpiKey[]): AnalysisEntry => ({
     id,
     title: id,
     title_en: id,
-    system,
+    area: { kind: "system", value: system },
     kind: "steady",
     description: "",
     description_en: "",
@@ -60,6 +60,12 @@ const entries = [
 ];
 
 describe("kpiSlots", () => {
+  it("前提条件の KPI は話題の区分を保つ", () => {
+    const topic = entry("orbit.example", "power", ["mode_load"]);
+    topic.info.area = { kind: "condition", value: "orbit" };
+    const [slot] = kpiSlots([topic], []);
+    expect(slot?.area).toEqual({ kind: "condition", value: "orbit" });
+  });
   it("解析の一覧の順に KPI を並べ、値は結果の kpis をキーで引く", () => {
     const slots = kpiSlots(entries, [
       state("power.mode_load", [view("mode_load", "17.4 W")]),
@@ -68,7 +74,7 @@ describe("kpiSlots", () => {
     expect(slots.map((s) => s.def.key)).toEqual(["mode_load", "orbit_balance", "max_dod"]);
     expect(slots[0]).toMatchObject({
       analysis: "power.mode_load",
-      system: "power",
+      area: { kind: "system", value: "power" },
       loading: false,
     });
     expect(slots[0]?.kpi?.value?.display).toBe("17.4 W");

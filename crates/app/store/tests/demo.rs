@@ -170,7 +170,7 @@ fn every_setting_maps_to_its_file_and_line() {
     );
     assert!(matches!(
         snap.design
-            .setting(&p("mission.ground.TOKYO_GS.link.uhf.antenna_gain")),
+            .setting(&p("conditions.ground.TOKYO_GS.link.uhf.antenna_gain")),
         Some(SettingValue::Quantity(_))
     ));
     assert_eq!(

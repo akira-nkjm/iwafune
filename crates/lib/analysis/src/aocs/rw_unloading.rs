@@ -10,8 +10,8 @@
 use super::disturbance::{DisturbanceKind, DisturbanceSpacecraft, DisturbanceTorques};
 use super::wheels::{RwWheel, WheelSet, usable_momentum_fraction};
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Check, Series, SpanFallback, System, orbit_ranges,
-    ratio_margin, span_fallback,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, Series, SpanFallback, System,
+    orbit_ranges, ratio_margin, span_fallback,
 };
 use sat_astro::constants::SECONDS_PER_DAY;
 use sat_astro::math::Vec3;
@@ -120,7 +120,7 @@ pub struct RwUnloading;
 impl Analysis for RwUnloading {
     const ID: &'static str = "aocs.rw_unloading";
     const TITLE: &'static str = "RW アンロード頻度";
-    const SYSTEM: System = System::Aocs;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Aocs);
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;
     const DESCRIPTION: &'static str = "擾乱トルクから蓄積角運動量とアンロード間隔を求める";
     const TITLE_EN: &'static str = "RW unloading frequency";

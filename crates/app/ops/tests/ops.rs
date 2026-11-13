@@ -184,7 +184,7 @@ fn settings_and_nets() {
             value: Some(SettingValue::Number(0.25)),
         },
         Op::SetSetting {
-            path: "mission.orbit.altitude".into(),
+            path: "conditions.orbit.altitude".into(),
             value: Some(SettingValue::Quantity(Quantity::new(600.0, "km"))),
         },
         Op::CreateNet {
@@ -208,7 +208,7 @@ fn settings_and_nets() {
     );
     assert_eq!(
         p.design
-            .mission
+            .conditions
             .orbit
             .as_ref()
             .unwrap()
@@ -226,7 +226,7 @@ fn settings_and_nets() {
         Some("P3V3_PL".into())
     );
     let bad = Op::SetSetting {
-        path: "mission.orbit.altitude".into(),
+        path: "conditions.orbit.altitude".into(),
         value: Some(SettingValue::Quantity(Quantity::new(600.0, "kg"))),
     };
     assert!(matches!(plan(&snap, &[bad]), Err(OpError::Rejected { .. })));

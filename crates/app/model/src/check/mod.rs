@@ -50,7 +50,7 @@ pub fn check(design: &Design) -> Vec<Diagnostic> {
     views::check_views(&mut ctx);
     budget::check_budget(&mut ctx);
     let entries = design.setting_entries();
-    settings::check_mission(&mut ctx, &entries);
+    settings::check_conditions(&mut ctx, &entries);
     settings_analysis::check_analysis(&mut ctx, &entries);
     settings::check_materials(&mut ctx);
     ctx.out

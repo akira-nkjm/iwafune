@@ -11,8 +11,8 @@ use crate::comm::passes::{
     SearchWindow, day_windows, find_all_passes, pass_interval, search_window,
 };
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series, System, Verdict,
-    ensure_fraction, ensure_non_negative, ensure_positive, ratio_margin,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series,
+    System, Verdict, ensure_fraction, ensure_non_negative, ensure_positive, ratio_margin,
 };
 use backlog::Backlog;
 use sat_astro::constants::SECONDS_PER_DAY;
@@ -153,7 +153,7 @@ pub struct DataThroughput;
 impl Analysis for DataThroughput {
     const ID: &'static str = "comm.data_throughput";
     const TITLE: &'static str = "データ送信量と蓄積";
-    const SYSTEM: System = System::Comm;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Comm);
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;
     const DESCRIPTION: &'static str = "1 日の送信可能量と発生量、未送信データの蓄積";
     const TITLE_EN: &'static str = "Downlink capacity and backlog";

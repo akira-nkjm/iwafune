@@ -6,15 +6,15 @@ import { Loading, SkeletonBlock } from "@/kit/feedback/Loading";
 import { StatStrip } from "@/kit/metrics/StatStrip";
 
 /**
- * 系のページ上部の主要 KPI。並び・名前・値は API（解析の一覧の `kpis` と、結果の `kpis`）で、ここは並べるだけ。
+ * 系・前提条件のページ上部の主要 KPI。並び・名前・値は API（解析の一覧の `kpis` と、結果の `kpis`）で、ここは並べるだけ。
  * 解析の一覧を待つ間は帯のスケルトン、結果を待つ間は値のスケルトン。
  */
-export function SystemKpis({
+export function AnalysisKpis({
   entries,
   states,
   loading,
 }: {
-  /** この系の解析（一覧の順） */
+  /** この区分の解析（一覧の順） */
   entries: readonly AnalysisEntry[];
   states: readonly AnalysisState[];
   /** 解析の一覧を待っている */

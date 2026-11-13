@@ -8,8 +8,8 @@
 
 use crate::spec::quantity_text;
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_non_negative,
-    ensure_positive, ratio_margin, ratio_margin_verdict,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict,
+    ensure_non_negative, ensure_positive, ratio_margin, ratio_margin_verdict,
 };
 use sat_astro::constants::G0;
 use sat_units::typed::{Dimensionless, Force, Fraction, Length, Mass, Qty, Torque};
@@ -135,7 +135,7 @@ pub struct StaticLoad;
 impl Analysis for StaticLoad {
     const ID: &'static str = "structure.static_load";
     const TITLE: &'static str = "準静的荷重";
-    const SYSTEM: System = System::Structure;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Structure);
     const KIND: AnalysisKind = AnalysisKind::Steady;
     const DESCRIPTION: &'static str = "打上げの準静的加速度による取付部の荷重と余裕";
     const TITLE_EN: &'static str = "Quasi-static loads";

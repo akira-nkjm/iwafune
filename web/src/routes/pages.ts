@@ -38,11 +38,11 @@ export const pages = {
     (m) => m.SystemPage,
   ),
   orbit: page(
-    () => import("@/features/mission/OrbitPage"),
+    () => import("@/features/conditions/OrbitPage"),
     (m) => m.OrbitPage,
   ),
   cases: page(
-    () => import("@/features/mission/CasesPage"),
+    () => import("@/features/conditions/CasesPage"),
     (m) => m.CasesPage,
   ),
   diagnostics: page(

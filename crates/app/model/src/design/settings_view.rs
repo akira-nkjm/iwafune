@@ -1,4 +1,4 @@
-//! 型付きの設定（`mission/`・`analysis/`・`budget/`）を、パラメーターのパス記法（`analysis.power.dod_max`）で読む。
+//! 型付きの設定（`conditions/`・`analysis/`・`budget/`）を、パラメーターのパス記法（`analysis.power.dod_max`）で読む。
 //!
 //! キーは serde の名前（= ファイルのキー）そのもの。`budget` は `mass`・`power`・`data`（`budget/allocation.toml`）と
 //! `policy`（`budget/policy.toml`）に分ける（パス → ファイルの対応は `fune_store::layout::setting_location` が持つ）。
@@ -22,8 +22,8 @@ impl Design {
     pub fn settings_json(&self, scope: SettingScope) -> Json {
         let to = |v: Result<Json, serde_json::Error>| v.unwrap_or(Json::Null);
         match scope {
-            SettingScope::Mission => {
-                let mut v = to(serde_json::to_value(&self.mission));
+            SettingScope::Conditions => {
+                let mut v = to(serde_json::to_value(&self.conditions));
                 // 地上局の `id` はファイル名で決まるので設定の値ではない。
                 if let Some(ground) = v.get_mut("ground").and_then(Json::as_object_mut) {
                     for station in ground.values_mut().filter_map(Json::as_object_mut) {
@@ -72,7 +72,7 @@ impl Design {
     pub fn setting_entries(&self) -> Vec<SettingEntry> {
         let mut out = Vec::new();
         for scope in [
-            SettingScope::Mission,
+            SettingScope::Conditions,
             SettingScope::Analysis,
             SettingScope::Budget,
         ] {

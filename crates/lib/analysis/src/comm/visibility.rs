@@ -5,7 +5,7 @@ use crate::comm::passes::{
     SearchWindow, day_windows, find_all_passes, overlap_s, pass_interval, search_window,
     union_sorted,
 };
-use crate::spec::{Analysis, AnalysisError, AnalysisKind, System};
+use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, System};
 use sat_astro::ground::{GroundPass, GroundStation};
 use sat_astro::time::Epoch;
 use sat_astro::timeline::OrbitSampling;
@@ -74,7 +74,7 @@ pub struct Visibility;
 impl Analysis for Visibility {
     const ID: &'static str = "comm.visibility";
     const TITLE: &'static str = "地上局の可視";
-    const SYSTEM: System = System::Comm;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Comm);
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;
     const DESCRIPTION: &'static str = "地上局ごとのパス（AOS・LOS・最大仰角・時間）";
     const TITLE_EN: &'static str = "Ground station visibility";

@@ -1,7 +1,7 @@
 //! 熱（定常）（`thermal.steady`）。ケース（高温・低温など）ごとに節点温度の定常解を求め、動作温度範囲と比べる。
 //! 解法は [`crate::thermal::network`]、入熱は [`crate::thermal::orbit_heat`]。
 
-use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, Verdict};
+use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict};
 use crate::thermal::network::{
     Compiled, INITIAL_GUESS_K, ThermalLoad, ThermalModeLoads, ThermalNetwork, ThermalTempRange,
 };
@@ -101,7 +101,7 @@ pub struct ThermalSteady;
 impl Analysis for ThermalSteady {
     const ID: &'static str = "thermal.steady";
     const TITLE: &'static str = "熱（定常）";
-    const SYSTEM: System = System::Thermal;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Thermal);
     const KIND: AnalysisKind = AnalysisKind::Steady;
     const DESCRIPTION: &'static str = "多節点モデルの定常温度（最高・最低ケース）";
     const TITLE_EN: &'static str = "Thermal (steady state)";
