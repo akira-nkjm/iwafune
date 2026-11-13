@@ -11,8 +11,8 @@ import type { MatrixCell, OnCell } from "./matrix-rows";
 
 /**
  * モード表の 1 セル。クリックでオン・オフを切り替え、右クリック・D キー・右上の小さなボタンで、
- * 状態（idle・peak など）とほかの状態の時間割合を編集する（ポップオーバー）。数字はそのモードでのその部品の平均消費電力
- * （power.mode_load。下書きがあれば、それを書き込まずに当てて計算した値）。矢印キーの移動は行列の側（`MatrixFocus`）。
+ * 状態（idle・peak など）とほかの状態の時間割合を編集する（ポップオーバー）。数字はその系が返す部品別の量
+ * （下書きがあれば、それを書き込まずに当てて計算した値）。矢印キーの移動は行列の側（`MatrixFocus`）。
  */
 export function ModeCell({
   cell,
@@ -27,7 +27,10 @@ export function ModeCell({
   const [editing, setEditing] = useState(false);
   const focus = useCellFocus(cell.at);
   const { part, mode, states, value, changed } = cell;
-  const formatted = useFormatted(cell.power, "Power");
+  const formatted =
+    useFormatted(cell.quantity?.si ?? null, cell.quantity?.dimension ?? "Dimensionless") ??
+    cell.quantity?.display ??
+    null;
   const symbol = cellSymbol(value);
   const lit = symbol !== "—";
   const change = (next: CellText | null) => onCell(cell, next);

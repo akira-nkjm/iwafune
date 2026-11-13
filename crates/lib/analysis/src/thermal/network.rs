@@ -148,6 +148,18 @@ pub struct ThermalLoad {
 }
 
 impl ThermalLoad {
+    /// 員数と熱になる割合を適用した内部発熱。検査と計算はここだけ。
+    pub fn dissipation(&self) -> Result<Qty<Power>, AnalysisError> {
+        let (p, f) = (self.power.value(), self.heat_fraction_or_all());
+        if !(p.is_finite() && f.is_finite() && (0.0..=1.0).contains(&f)) {
+            return Err(invalid(format!(
+                "節点 {} の発熱: 電力は有限、heat_fraction は 0〜1 にしてください",
+                self.node
+            )));
+        }
+        Ok(Qty::from_raw(p * f64::from(self.count) * f))
+    }
+
     /// 熱になる割合（省略時 1）。
     pub fn heat_fraction_or_all(&self) -> f64 {
         self.heat_fraction.unwrap_or(1.0)
@@ -274,14 +286,7 @@ impl Compiled {
     pub fn loads(&self, loads: &[ThermalLoad]) -> Result<Vec<f64>, AnalysisError> {
         let mut q = vec![0.0; self.len()];
         for l in loads {
-            let (p, f) = (l.power.value(), l.heat_fraction_or_all());
-            if !(p.is_finite() && f.is_finite() && (0.0..=1.0).contains(&f)) {
-                return Err(invalid(format!(
-                    "節点 {} の発熱: 電力は有限、heat_fraction は 0〜1 にしてください",
-                    l.node
-                )));
-            }
-            q[self.index(&l.node)?] += p * f64::from(l.count) * f;
+            q[self.index(&l.node)?] += l.dissipation()?.value();
         }
         Ok(q)
     }

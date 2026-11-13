@@ -11,7 +11,13 @@ export const systemsJa = {
     caseLabel: "解析ケース",
     defaultCase: "自動（必要な解析だけ既定）",
     recompute: "再計算",
-    tabs: { results: "結果", breakdown: "内訳", settings: "設定", series: "時系列" },
+    tabs: {
+      results: "概要",
+      modes: "モード",
+      breakdown: "部品",
+      settings: "設定",
+      series: "時系列",
+    },
     specs: {
       payload: { description: "ミッション機器（解析はまだありません）" },
       power: {

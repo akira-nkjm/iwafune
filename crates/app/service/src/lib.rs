@@ -14,6 +14,7 @@
 //! | `units` | 単位の一覧・入力文字列の解析 |
 //! | `analysis` | 解析の一覧・実行・KPI（代表値・判定・塗りの比） |
 //! | `budget` | 質量・電力・データ量のバジェット |
+//! | `system_modes` | 系ごとのモードの見方（電源・C&DH・熱・AOCS の値・合計・判定） |
 //! | `data` | 外部データ（DE440）の取得・状態・読み込み（ユーザーごとのキャッシュ） |
 //! | `diff` | 変更前後の本文 → unified diff |
 //! | `error` | サービスのエラー（HTTP の状態と CLI の終了コードに写せる分類） |
@@ -27,6 +28,7 @@ pub mod edit;
 pub mod error;
 pub mod preview;
 pub mod query;
+pub mod system_modes;
 pub mod units;
 pub mod workspace;
 

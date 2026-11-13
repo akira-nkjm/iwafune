@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { DesignView, ModeLoadOutput, PartRow } from "@/api/types";
+import type { DesignView, PartRow, SystemModesView } from "@/api/types";
 import { modesJa } from "@/i18n/modes/ja";
 import { fixture, qv } from "@/test/fixture";
 import { cellOf, draftCommand, type ModeDraft, withCell } from "../draft/draft";
 import { toggleCell, unassignedCells } from "./matrix";
 import { matrixGroups } from "./matrix-rows";
 
-/** 送受信機にも状態ごとの電力を持たせた設計（PCDU は電力が無いので行列に出ない） */
+/** 送受信機にも状態ごとの電力を持たせた設計（定義では電力が無い PCDU も表示する） */
 function design(): DesignView {
   const parts = fixture.parts.map((p): PartRow => {
     const base = p.values.tx_power;
@@ -24,40 +24,37 @@ function design(): DesignView {
   return { ...fixture, parts };
 }
 
-function load(mean: number): ModeLoadOutput {
-  const part = {
-    part: "TRX",
-    label: "TRX",
-    group: "comm",
-    states: [],
-    mean,
-    mean_with_growth: mean,
-    growth_margin: 0,
-    spare_power: null,
+function load(mean: number): SystemModesView {
+  const values = {
+    parts: { TRX: qv(mean, "W", "Power") },
+    total: null,
+    available: null,
+    margin: null,
+    verdict: null,
   };
-  const mode = {
-    id: "NOMINAL",
-    label: "定常",
-    total: mean,
-    total_eclipse: mean,
-    total_eclipse_with_growth: mean,
-    total_with_growth: mean,
-    peak_with_growth: mean,
-    groups: [],
-    parts: [part],
-    unassigned: [],
-    missing_power: [],
-    checks: [],
+  return {
+    system: "power",
+    modes: [
+      {
+        id: "NOMINAL",
+        sunlit: values,
+        eclipse: {
+          ...values,
+          parts: { TRX: qv(1, "W", "Power") },
+        },
+        attitude_law: null,
+      },
+    ],
   };
-  return { modes: [mode] };
 }
 
 describe("matrixGroups", () => {
-  it("電力を使う部品だけを、サブシステムごとに ID の順で並べ、セルの位置の行を通しで振る", () => {
+  it("定義では電力を持たない部品も、サブシステムごとに ID の順で並べ、セルの位置の行を通しで振る", () => {
     const groups = matrixGroups(design(), new Map(), null, modesJa.modes);
     expect(groups.map((g) => [g.group, g.label, g.rows.map((r) => r.part)])).toEqual([
       ["aocs", "AOCS", ["RW_X"]],
       ["comm", "通信", ["TRX"]],
+      ["power", "電源", ["PCDU"]],
     ]);
     // 系の見出しの行をまたいでも、矢印キーで上下に動けるよう行の番号は通し
     const at = groups.flatMap((g) => g.rows.flatMap((r) => r.cells.map((c) => c.at)));
@@ -66,6 +63,8 @@ describe("matrixGroups", () => {
       { row: 0, column: 1 },
       { row: 1, column: 0 },
       { row: 1, column: 1 },
+      { row: 2, column: 0 },
+      { row: 2, column: 1 },
     ]);
   });
 
@@ -92,10 +91,10 @@ describe("matrixGroups", () => {
       value: { state: "rx", duty: { tx: "0.1" } },
       display: "rx（tx 10 %）",
       changed: false,
-      power: 2.3,
+      quantity: { si: 2.3, dimension: "Power" },
       shade: 1,
     });
-    expect(safe).toMatchObject({ value: null, display: undefined, power: null, shade: -1 });
+    expect(safe).toMatchObject({ value: null, display: undefined, quantity: null, shade: -1 });
   });
 
   it("下書きのセルは下書きの値で、変えた印を付ける", () => {
@@ -122,12 +121,16 @@ it("日照／蝕で状態を切り替え、上書きしたセルだけを示す�
   let draft = withCell(d.modes, new Map(), "NOMINAL", "TRX", { state: "tx", duty: {} }, true);
   const sunlit = matrixGroups(d, draft, load(2.3), modesJa.modes)[1]?.rows[0]?.cells[0];
   const eclipse = matrixGroups(d, draft, load(2.3), modesJa.modes, true)[1]?.rows[0];
-  expect(sunlit).toMatchObject({ value: { state: "rx" }, override: false, power: 2.3 });
+  expect(sunlit).toMatchObject({
+    value: { state: "rx" },
+    override: false,
+    quantity: { si: 2.3, dimension: "Power" },
+  });
   expect(eclipse?.cells[0]).toMatchObject({
     value: { state: "tx" },
     override: true,
     eclipse: true,
-    power: null,
+    quantity: { si: 1, dimension: "Power" },
   });
   expect(eclipse?.cells[1]).toMatchObject({ value: null, override: false, eclipse: true });
   draft = withCell(d.modes, draft, "NOMINAL", "TRX", { state: "off", duty: {} });
@@ -178,5 +181,48 @@ it("保存済みの蝕のセルを表示し、解除した直後は日照の整�
     display: "rx（tx 10 %）",
     override: false,
     changed: true,
+  });
+});
+
+it("系別セルは API の次元を保持し、同じ mode_set の下書きで編集する", () => {
+  const view: SystemModesView = {
+    system: "cdh",
+    modes: [
+      {
+        id: "NOMINAL",
+        attitude_law: null,
+        sunlit: {
+          parts: { TRX: qv(8, "kbit/s", "DataRate") },
+          total: null,
+          available: null,
+          margin: null,
+          verdict: "ok",
+        },
+        eclipse: {
+          parts: { TRX: qv(2, "kbit/s", "DataRate") },
+          total: null,
+          available: null,
+          margin: null,
+          verdict: "ok",
+        },
+      },
+    ],
+  };
+  const cell = matrixGroups(design(), new Map(), view, modesJa.modes, true, "cdh")[0]?.rows[0]
+    ?.cells[0];
+  expect(cell?.quantity?.dimension).toBe("DataRate");
+  expect(cell?.quantity?.display).toBe("2 kbit/s");
+  if (!cell) throw new Error("missing cell");
+  const draft = withCell(
+    design().modes,
+    new Map(),
+    cell.mode,
+    cell.part,
+    toggleCell(cell.states, cell.value),
+    true,
+  );
+  expect(draftCommand(design().modes, draft)).toMatchObject({
+    command: "mode_set",
+    cells: [{ part: "TRX", mode: "NOMINAL", eclipse: true }],
   });
 });

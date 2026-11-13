@@ -25,6 +25,8 @@ import type {
   PartViewRequest,
   ProjectInfo,
   RunAnalysisRequest,
+  System,
+  SystemModesView,
   UnitsCatalog,
 } from "./types";
 
@@ -39,6 +41,16 @@ export const q = {
   project: () =>
     queryOptions({ queryKey: keys.project, queryFn: () => api<ProjectInfo>("/project") }),
   design: () => queryOptions({ queryKey: keys.design, queryFn: () => api<DesignView>("/design") }),
+  systemModes: (system: System, ops: readonly Op[] = []) =>
+    queryOptions({
+      queryKey: keys.systemModes(system, JSON.stringify(ops)),
+      queryFn: () =>
+        api<SystemModesView>(`/system_modes/${seg(system)}`, {
+          method: "POST",
+          body: { ops: [...ops] } satisfies PartViewRequest,
+        }),
+      placeholderData: keepPreviousData,
+    }),
   /** 1 部品。`ops` を渡すと、保存していない編集を書き込まずに当てた設計の部品（`POST /parts/{id}`） */
   part: (id: string, ops: readonly Op[] = []) => {
     const json = ops.length > 0 ? JSON.stringify(ops) : "";

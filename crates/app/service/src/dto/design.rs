@@ -366,3 +366,30 @@ pub struct ValueAnswer {
     /// `state` を指定したときのその状態の値
     pub selected: Option<QuantityView>,
 }
+
+/// 系別のモード表示。状態の定義・編集は ModeTable と共通。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SystemModesView {
+    pub system: sat_analysis::spec::System,
+    pub modes: Vec<SystemModeView>,
+}
+
+/// 1 モードの系別表示。姿勢則は AOCS のみ、数値はほかの系。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SystemModeView {
+    pub id: String,
+    pub sunlit: ModeValuesView,
+    pub eclipse: ModeValuesView,
+    pub attitude_law: Option<fune_model::design::AttitudeLawKind>,
+}
+
+/// 部品別の値と合計・収支。未割り当てや不足は None、警告は verdict に反映。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct ModeValuesView {
+    pub parts: BTreeMap<String, Option<QuantityView>>,
+    pub total: Option<QuantityView>,
+    /// 電源の配分上限からシステム余裕を引いた値。日照・蝕とも同じ設計上限。
+    pub available: Option<QuantityView>,
+    pub margin: Option<QuantityView>,
+    pub verdict: Option<sat_analysis::spec::Verdict>,
+}

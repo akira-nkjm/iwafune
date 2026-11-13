@@ -43,6 +43,7 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         CheckReport,
         ProjectInfo,
         DesignView,
+        SystemModesView,
         PartView,
         PartViewRequest,
         PartsQuery,

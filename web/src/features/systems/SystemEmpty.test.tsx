@@ -49,3 +49,27 @@ describe("解析がない系", () => {
     }
   });
 });
+
+it("モードの見方を持つ系だけにモードタブの中身を出す", () => {
+  for (const system of [
+    "power",
+    "cdh",
+    "thermal",
+    "aocs",
+    "structure",
+    "payload",
+    "comm",
+  ] as const) {
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={new QueryClient()}>
+        <SystemTabs tab="modes" system={system} design={fixture} states={[]} entries={new Map()} />
+      </QueryClientProvider>,
+    );
+    if (system === "structure" || system === "payload" || system === "comm") expect(html).toBe("");
+    else {
+      expect(html).toContain(getT().modes.matrixTitle);
+      expect(html).toContain(getT().modes.sunlit);
+      expect(html).toContain(getT().modes.eclipseView);
+    }
+  }
+});

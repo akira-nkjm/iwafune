@@ -120,6 +120,10 @@ pub struct ModeLoadPartResult {
     pub mean: Option<Qty<Power>>,
     /// 成長余裕込みの平均消費電力
     pub mean_with_growth: Option<Qty<Power>>,
+    /// 蝕時の平均消費電力（不足なら None）。
+    pub mean_eclipse: Option<Qty<Power>>,
+    /// 蝕時の成長余裕込みの平均消費電力。
+    pub mean_eclipse_with_growth: Option<Qty<Power>>,
     /// 適用した成長余裕（0.2 = +20 %）
     pub growth_margin: Fraction,
     /// 予備機の常時負荷（予備があるとき、states の末尾）。
@@ -196,10 +200,19 @@ pub fn evaluate_mode(input: &ModeLoadInput, mode: &ModeDef) -> Result<ModeLoadMo
     if mode.eclipse.is_empty() {
         sun.total_eclipse = sun.total;
         sun.total_eclipse_with_growth = sun.total_with_growth;
+        for part in &mut sun.parts {
+            part.mean_eclipse = part.mean;
+            part.mean_eclipse_with_growth = part.mean_with_growth;
+        }
     } else {
         let eclipse = evaluate_sunlit(input, &mode.in_eclipse())?;
         sun.total_eclipse = eclipse.total;
         sun.total_eclipse_with_growth = eclipse.total_with_growth;
+        for part in &mut sun.parts {
+            let value = eclipse.parts.iter().find(|p| p.part == part.part);
+            part.mean_eclipse = value.and_then(|p| p.mean);
+            part.mean_eclipse_with_growth = value.and_then(|p| p.mean_with_growth);
+        }
         for check in eclipse.checks {
             if !sun
                 .checks
@@ -300,6 +313,8 @@ fn part_result(
         states: states.clone(),
         mean,
         mean_with_growth: mean.map(|m| m * (1.0 + growth)),
+        mean_eclipse: None,
+        mean_eclipse_with_growth: None,
         growth_margin: Fraction::new(growth),
         spare_power: if assignment.active.is_some_and(|n| n < part.count) {
             states.last().and_then(|s: &ModeLoadStateShare| s.power)

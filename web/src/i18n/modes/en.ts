@@ -19,8 +19,10 @@ export const modesEn: typeof modesJa = {
     sameAsSunlit: "Same as sunlit",
     eclipseOverride: "Eclipse override",
     restoreSunlit: "Restore sunlit state",
-    eclipsePowerUnavailable:
-      "Eclipse available power, margin, verdict and per-part power are unavailable.",
+    states: "States",
+    attitudeLaw: "Attitude law",
+    dataRate: "Generation rate (before compression and packetization)",
+    heat: "Internal heat dissipation",
     matrixTitle: "Component × mode",
     hint: "Click to switch on and off. Right-click or press D to pick a state and edit duty.",
     powerLevels: "Power levels (per unit)",
@@ -29,7 +31,7 @@ export const modesEn: typeof modesJa = {
     legendOff: "— Off",
     available: "Available",
     margin: "Margin (after system reserve)",
-    draftApplied: "Power, totals and margins include this draft (not saved yet).",
+    draftApplied: "System values, totals and margins include this draft (not saved yet).",
     cellLabel: (part: string, mode: string, state: string, power: string) =>
       `${part} in ${mode}: ${state}, ${power}`,
     cellShare: (state: string, share: string) => `${state} ${share}`,

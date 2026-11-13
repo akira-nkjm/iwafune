@@ -243,7 +243,7 @@ fn si(x: &fune_model::value::Quantity) -> Option<f64> {
 }
 
 /// 配分の上限（SI）とシステム余裕（比。配分が無ければ 0）。
-fn allocated(design: &Design, kind: BudgetKind) -> (Option<f64>, f64) {
+pub(crate) fn allocated(design: &Design, kind: BudgetKind) -> (Option<f64>, f64) {
     let alloc = design.budget.allocation.get(kind);
     (
         alloc.and_then(|a| a.limit.as_ref()).and_then(si),

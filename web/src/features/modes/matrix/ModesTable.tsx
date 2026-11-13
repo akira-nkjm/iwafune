@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import type { BudgetView, ModeHeader, ModeLoadOutput } from "@/api/types";
+import type { ModeHeader, System, SystemModesView } from "@/api/types";
 import { useT } from "@/i18n";
 import { SystemDot } from "@/kit/SystemDot";
 import { cn } from "@/lib/cn";
@@ -21,8 +21,8 @@ import type { MatrixGroup, MatrixRow, OnCell } from "./matrix-rows";
 export function ModesTable({
   modes,
   groups,
-  budget,
-  load,
+  view,
+  system,
   eclipse,
   updating,
   onCell,
@@ -30,11 +30,10 @@ export function ModesTable({
   /** 列（モード）の見出し */
   modes: ModeHeader[];
   eclipse: boolean;
-  load: DraftComputed<ModeLoadOutput | null>;
+  view: DraftComputed<SystemModesView | null>;
+  system?: System;
   /** サブシステムごとの部品の行（`matrixGroups`） */
   groups: MatrixGroup[];
-  /** 足もとの合計・使用可能電力・余裕（下書きを当てた値） */
-  budget: DraftComputed<BudgetView | undefined>;
   /** セルの電力を下書きで問い合わせている間（前の数字を薄くして出しておく） */
   updating: boolean;
   /** セルを書き換えたとき（下書きにする） */
@@ -54,7 +53,7 @@ export function ModesTable({
             {tm.part}
           </th>
           <th scope="col" className={`${STICKY.head} min-w-36 px-3 py-3 text-right font-medium`}>
-            {tm.powerLevels}
+            {!system || system === "power" ? tm.powerLevels : tm.states}
           </th>
           {modes.map((m, index) => (
             <th
@@ -64,12 +63,14 @@ export function ModesTable({
               className={`${STICKY.head} min-w-32 px-2 py-3 font-normal`}
             >
               <div className="flex items-center justify-center gap-1">
-                <ModeName mode={m} />
-                <ModeHeaderMenu
-                  mode={m}
-                  previous={modes[index - 1]?.id}
-                  next={modes[index + 1]?.id}
-                />
+                <ModeName mode={m} definitions={!system} />
+                {!system && (
+                  <ModeHeaderMenu
+                    mode={m}
+                    previous={modes[index - 1]?.id}
+                    next={modes[index + 1]?.id}
+                  />
+                )}
               </div>
             </th>
           ))}
@@ -102,21 +103,23 @@ export function ModesTable({
           ))}
         </MatrixFocus>
       </tbody>
-      <tfoot className={`${STICKY.foot} bg-panel-2`}>
-        <ModeBudgetRows modes={modes} budget={budget} load={load} eclipse={eclipse} />
-      </tfoot>
+      {system && (
+        <tfoot className={`${STICKY.foot} bg-panel-2`}>
+          <ModeBudgetRows modes={modes} view={view} eclipse={eclipse} system={system} />
+        </tfoot>
+      )}
     </table>
   );
 }
 
 /** 列見出しのモードの名前と最長継続時間。日本語は設計に書いた表示名の下に ID、英語（と表示名が無いとき）は ID だけ */
-function ModeName({ mode }: { mode: ModeHeader }) {
+function ModeName({ mode, definitions }: { mode: ModeHeader; definitions: boolean }) {
   const name = nodeName(mode);
   return (
     <div>
       <div className="font-medium text-ink">{name}</div>
       {name !== mode.id && <div className="font-mono text-[10px] text-ink-4">{mode.id}</div>}
-      <ModeDuration mode={mode} />
+      {definitions && <ModeDuration mode={mode} />}
     </div>
   );
 }

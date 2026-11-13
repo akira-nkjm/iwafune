@@ -47,8 +47,9 @@ pub use data::{DataItem, DataStatus};
 pub use design::PartViewRequest;
 pub use design::{
     AttrSection, AttributeDefView, CaseView, DefsView, DesignCounts, DesignView, HarnessView,
-    KindDefView, ModeHeader, ModeRow, ModeTable, MountView, NetView, PartRow, PartView, PartsQuery,
-    PortView, ProjectInfo, SettingView, TreeNode, TreeNodeKind, ValueAnswer, ValueQuery,
+    KindDefView, ModeHeader, ModeRow, ModeTable, ModeValuesView, MountView, NetView, PartRow,
+    PartView, PartsQuery, PortView, ProjectInfo, SettingView, SystemModeView, SystemModesView,
+    TreeNode, TreeNodeKind, ValueAnswer, ValueQuery,
 };
 pub use edit::{
     ApplyRequest, ApplyResult, ChangedFile, FileChangeKind, InitResult, PlaceBodyRequest, SetText,

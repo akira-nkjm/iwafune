@@ -18,7 +18,10 @@ export const modesJa = {
     sameAsSunlit: "日照時と同じ",
     eclipseOverride: "蝕の上書き",
     restoreSunlit: "日照時に戻す",
-    eclipsePowerUnavailable: "蝕時の使用可能電力・余裕・判定・部品別電力は未提供です。",
+    states: "状態",
+    attitudeLaw: "姿勢則",
+    dataRate: "発生レート（圧縮・パケット化前）",
+    heat: "内部発熱",
     matrixTitle: "部品 × モード",
     hint: "クリックでオン・オフを切り替え。右クリックか D キーで状態と時間割合を編集",
     powerLevels: "電力レベル（単体）",
@@ -27,7 +30,8 @@ export const modesJa = {
     legendOff: "— オフ",
     available: "使用可能電力",
     margin: "余裕（システム余裕確保後）",
-    draftApplied: "電力・合計・余裕は、この下書きを当てて計算した値です（まだ保存していません）",
+    draftApplied:
+      "各系の値・合計・余裕は、この下書きを当てて計算した値です（まだ保存していません）",
     cellLabel: (part: string, mode: string, state: string, power: string) =>
       `${part}、${mode}: ${state}、${power}`,
     /** セルの文言の部品: ほかの状態 1 つとその時間の割合（割合の `%` は API の整形 `ModeRow.shares`） */
