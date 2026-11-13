@@ -8,7 +8,11 @@ import type { SizingUsed } from "./SizingUsed";
 /**
  * 必要量と現在値の比較。容量は N 組の合計を返す。面積は `area_mode`、容量は `capacity_mode` で決まる。
  */
-export type SizingOutput = { required_generation: number, required_area: number, required_capacity: number, required_capacity_per_string: number, design_area: number, design_capacity: number, sap_margin: number | null, battery_margin: number | null, strings: SizingStrings | null, 
+export type SizingOutput = { 
+/**
+ * モードごとの面積・容量の判定。
+ */
+mode_checks: { [key in string]: Array<Check> }, required_generation: number, required_area: number, required_capacity: number, required_capacity_per_string: number, design_area: number, design_capacity: number, sap_margin: number | null, battery_margin: number | null, strings: SizingStrings | null, 
 /**
  * 必要面積が最大のモード
  */

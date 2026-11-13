@@ -16,6 +16,8 @@ export const keys = {
   analyses: ["analyses"] as const,
   /** すべての解析の結果（下の `analysis` の先頭。設計の編集と天体の暦の読み込みで無効化する） */
   analysisResults: ["analysis"] as const,
+  /** 電源ページも解析の編集・暦の取得で無効化する。 */
+  powerPage: (kase: string | null) => ["analysis", "power_page", kase] as const,
   /** 解析の結果。`opsJson` は保存していない編集（下書き）を当てて計算したもの（空なら保存済みの設計） */
   analysis: (id: string, kase: string | null, opsJson = "") =>
     opsJson ? (["analysis", id, kase, opsJson] as const) : (["analysis", id, kase] as const),

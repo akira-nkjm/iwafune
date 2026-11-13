@@ -2,6 +2,19 @@ import type { systemsJa } from "./ja";
 
 export const systemsEn: typeof systemsJa = {
   systems: {
+    power: {
+      verdicts: "Verdicts",
+      mode: "Mode",
+      unavailable: "Unavailable",
+      flow: "Energy flow",
+      flowCaption:
+        "Sunlit-average generation and bus-side mean charge/discharge. Line width is proportional to power.",
+      design: "Design",
+      limit: "Limit / required",
+      barLegend: "Band: allowed range · Solid: design · Dashed: limit / required",
+      outline: "On this page",
+      data: "View data",
+    },
     aocsModes: {
       empty: "No modes",
       maxDuration: "Max duration",

@@ -241,3 +241,32 @@ fn optional_strings_and_mode_selection() {
     i.loads.modes[0].assignments.clear();
     assert!(Sizing::run(&i).is_err());
 }
+
+#[test]
+fn per_mode_checks_compare_hand_checkable_requirements() {
+    // モード A は必要 2 m²・120 J、設計は 3 m²・100 J → 面積 OK、容量不足。
+    // モード B は必要 4 m²・80 J → 面積不足、容量 OK。
+    let mode = |id: &str, area, capacity| SizingMode {
+        id: id.into(),
+        sunlit_load: Qty::from_raw(30.0),
+        eclipse_load: Qty::from_raw(15.0),
+        incidence_factor: Fraction::new(1.0),
+        required_generation: Qty::from_raw(60.0),
+        required_area: Qty::from_raw(area),
+        required_capacity: Qty::from_raw(capacity),
+    };
+    let checks = mode_checks(
+        &[mode("A", 2.0, 120.0), mode("B", 4.0, 80.0)],
+        Qty::from_raw(3.0),
+        Qty::from_raw(100.0),
+    );
+    use crate::spec::Verdict::{Ok, Violation};
+    assert_eq!(
+        checks["A"].iter().map(|c| c.verdict).collect::<Vec<_>>(),
+        [Ok, Violation]
+    );
+    assert_eq!(
+        checks["B"].iter().map(|c| c.verdict).collect::<Vec<_>>(),
+        [Violation, Ok]
+    );
+}

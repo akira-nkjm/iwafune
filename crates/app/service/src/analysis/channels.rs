@@ -61,7 +61,7 @@ fn fix(map: &mut serde_json::Map<String, Value>) {
 }
 
 /// 値の大きさに合う一次式の表示単位と倍率（表示値 = SI × 倍率）。affine・対数なら SI の組立単位にする。
-fn linear_unit(peak: f64, dim: &str) -> Option<(String, f64)> {
+pub(crate) fn linear_unit(peak: f64, dim: &str) -> Option<(String, f64)> {
     let chosen = format_quantity(peak, dim).ok()?.unit;
     let unit = parse_unit(&chosen).ok()?;
     if unit.is_linear() && !unit.is_affine() {

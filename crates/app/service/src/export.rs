@@ -67,6 +67,8 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         FormatRequest,
         FormatResponse,
         DisplaySeries,
+        PowerPageView,
+        PowerPageQuery,
         AnalysisEntry,
         RunAnalysisRequest,
         AnalysisRunResult,

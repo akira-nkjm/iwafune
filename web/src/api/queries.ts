@@ -23,6 +23,7 @@ import type {
   PartRow,
   PartView,
   PartViewRequest,
+  PowerPageView,
   ProjectInfo,
   RunAnalysisRequest,
   System,
@@ -38,6 +39,12 @@ export const queryClient = new QueryClient({
 
 /** 読み取りの queryOptions（画面は useQuery(q.xxx()) で使う） */
 export const q = {
+  powerPage: (kase: string | null) =>
+    queryOptions({
+      queryKey: keys.powerPage(kase),
+      queryFn: () => api<PowerPageView>(kase ? `/power_page?case=${seg(kase)}` : "/power_page"),
+      staleTime: 30_000,
+    }),
   project: () =>
     queryOptions({ queryKey: keys.project, queryFn: () => api<ProjectInfo>("/project") }),
   design: () => queryOptions({ queryKey: keys.design, queryFn: () => api<DesignView>("/design") }),
@@ -122,6 +129,11 @@ export function useDesign() {
   return useQuery(q.design());
 }
 
+/** ケースの電源ページ全体。3 タブが同じ取得結果を共有する。 */
+export function usePowerPage(kase: string | null, enabled = true) {
+  return useQuery({ ...q.powerPage(kase), enabled });
+}
+
 /**
  * 保存していない編集（ops）を書き込まずに当てた部品（`POST /parts/{id}`）。ops が null か空なら問い合わせない。
  * 打つ間は 250 ms 待ってから問い合わせる。同じ編集で定義を作る属性のパスを、その部品の `paths` から引くのに使う
@@ -148,6 +160,7 @@ export function useDraftPart(
 
 /** 解析を計算し直す（設計の編集の後は api/ops.ts が自動で無効化する。これは「再計算」ボタン用） */
 export function recomputeAnalyses(ids: readonly string[], kase: string | null): void {
+  void queryClient.invalidateQueries({ queryKey: keys.powerPage(kase) });
   for (const id of ids) void queryClient.invalidateQueries({ queryKey: keys.analysis(id, kase) });
 }
 
@@ -202,6 +215,10 @@ export function useSystemAnalyses(system: string | null) {
 export async function prefetchSystemAnalyses(system: string): Promise<void> {
   try {
     const entries = await queryClient.fetchQuery(q.analyses());
+    if (system === "power") {
+      await queryClient.prefetchQuery(q.powerPage(null));
+      return;
+    }
     await Promise.all(
       systemEntries(entries, system).map((e) =>
         queryClient.prefetchQuery(q.analysis(e.info.id, null)),

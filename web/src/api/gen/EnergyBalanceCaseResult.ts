@@ -20,7 +20,23 @@ load_eclipse: number,
  */
 orbit_average_generation: number, 
 /**
- * 軌道平均の負荷
+ * このケースの姿勢則での日照中の平均発電。
+ */
+sunlit_average_generation: number, 
+/**
+ * 日照中のバス側平均充電電力。
+ */
+sunlit_average_charge: number, 
+/**
+ * 日照中のバス側平均放電電力。
+ */
+sunlit_average_discharge: number, 
+/**
+ * 日照中のバス側平均シャント電力。
+ */
+sunlit_average_shunt: number, 
+/**
+ * 軌道平均の負荷。
  */
 orbit_average_load: number, 
 /**

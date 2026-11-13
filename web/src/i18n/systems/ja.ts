@@ -3,6 +3,18 @@ import type { FillBasis } from "@/api/types";
 /** 系の解析のページの文言（日本語） */
 export const systemsJa = {
   systems: {
+    power: {
+      verdicts: "判定",
+      mode: "モード",
+      unavailable: "データなし",
+      flow: "電力の流れ",
+      flowCaption: "日照中の平均発電とバス側の平均充放電。線の太さは電力に比例します。",
+      design: "設計値",
+      limit: "限界／必要量",
+      barLegend: "帯: 許容範囲 · 実線: 設計値 · 破線: 限界／必要量",
+      outline: "このページの目次",
+      data: "データを見る",
+    },
     aocsModes: {
       empty: "モードがありません",
       maxDuration: "最長継続時間",

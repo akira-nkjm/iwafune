@@ -65,10 +65,11 @@ fn info_of(ws: &Workspace, s: &Snapshot) -> ProjectInfo {
 pub fn design_view(ws: &Workspace) -> Result<DesignView> {
     let s = ws.snapshot()?;
     let d = &s.design;
+    let parts = parts::list(d, &s.resolved, &PartsQuery::default());
     Ok(DesignView {
         project: info_of(ws, &s),
         tree: views::tree(d),
-        parts: parts::list(d, &s.resolved, &PartsQuery::default()),
+        parts,
         modes: views::mode_table(d),
         nets: views::nets(d),
         harnesses: views::harnesses(d),

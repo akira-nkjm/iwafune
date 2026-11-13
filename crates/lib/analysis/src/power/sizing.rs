@@ -92,7 +92,7 @@ pub struct SizingMode {
     pub required_capacity: Qty<Energy>,
 }
 
-/// 同じセルを使う場合の SAP 全体の直並列数。
+/// 同じセルを使う場合の太陽電池全体の直並列数。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct SizingStrings {
@@ -105,6 +105,8 @@ pub struct SizingStrings {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct SizingOutput {
+    /// モードごとの面積・容量の判定。
+    pub mode_checks: BTreeMap<String, Vec<Check>>,
     pub required_generation: Qty<Power>,
     pub required_area: Qty<Area>,
     pub required_capacity: Qty<Energy>,
@@ -138,7 +140,7 @@ impl Analysis for Sizing {
     const TITLE_EN: &'static str = "Power sizing";
     const AREA: AnalysisArea = AnalysisArea::System(System::Power);
     const KIND: AnalysisKind = AnalysisKind::Steady;
-    const DESCRIPTION: &'static str = "最長蝕とモード負荷から SAP 面積と電池容量を逆算する";
+    const DESCRIPTION: &'static str = "最長蝕とモード負荷から太陽電池の面積と電池容量を逆算する";
     const DESCRIPTION_EN: &'static str =
         "Required solar array area and battery capacity from worst eclipse and mode loads";
     type Input = SizingInput;
@@ -153,6 +155,7 @@ impl Analysis for Sizing {
         let td = input.season.orbit.period_s() - te;
         let (design_area, array) = design(input)?;
         let modes = modes::evaluate(input, &array, &used, &loads, td, te)?;
+        let mode_checks = mode_checks(&modes, design_area, battery.capacity);
         let area = modes::governing(&modes, |m| m.required_area.value());
         let capacity = modes::governing(&modes, |m| m.required_capacity.value());
         let sap_margin = ratio_margin(design_area.value(), area.required_area.value());
@@ -160,7 +163,7 @@ impl Analysis for Sizing {
             ratio_margin(battery.capacity.value(), capacity.required_capacity.value());
         checks.push(margin_check::<Area>(
             "sap_margin",
-            "SAP の余裕",
+            "太陽電池の余裕",
             sap_margin,
             design_area.value(),
             area.required_area.value(),
@@ -174,6 +177,7 @@ impl Analysis for Sizing {
         ));
         let generation = area.required_generation;
         Ok(SizingOutput {
+            mode_checks,
             required_generation: generation,
             required_area: area.required_area,
             required_capacity: capacity.required_capacity,
@@ -201,6 +205,38 @@ impl Analysis for Sizing {
             checks,
         })
     }
+}
+
+/// 各モードの必要量を同じ面積・容量の基準で比較する。
+fn mode_checks(
+    modes: &[SizingMode],
+    area: Qty<Area>,
+    capacity: Qty<Energy>,
+) -> BTreeMap<String, Vec<Check>> {
+    modes
+        .iter()
+        .map(|m| {
+            (
+                m.id.clone(),
+                vec![
+                    margin_check::<Area>(
+                        "sap_margin",
+                        "太陽電池の余裕",
+                        ratio_margin(area.value(), m.required_area.value()),
+                        area.value(),
+                        m.required_area.value(),
+                    ),
+                    margin_check::<Energy>(
+                        "battery_margin",
+                        "電池の余裕",
+                        ratio_margin(capacity.value(), m.required_capacity.value()),
+                        capacity.value(),
+                        m.required_capacity.value(),
+                    ),
+                ],
+            )
+        })
+        .collect()
 }
 
 mod calculate;

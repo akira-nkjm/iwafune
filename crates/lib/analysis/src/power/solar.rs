@@ -172,6 +172,8 @@ pub fn total(powers: &[Qty<Power>]) -> Qty<Power> {
 /// 時系列に沿った発電（軌道上の発電と電力収支で共有する）。値は SI の生の f64 [W]（時系列の内側）。
 #[derive(Debug, Clone)]
 pub struct SolarProfile {
+    /// 共通の影の判定による蝕区間。
+    pub eclipses: Vec<Window>,
     /// 元期からの経過 [s]
     pub t: Vec<f64>,
     /// 日照率
@@ -193,6 +195,7 @@ impl SolarProfile {
             }
         }
         Self {
+            eclipses: eclipses(samples),
             t: samples.iter().map(|s| s.t_s).collect(),
             sunlit: samples.iter().map(|s| s.sunlit).collect(),
             lit: samples.iter().map(is_sunlit).collect(),

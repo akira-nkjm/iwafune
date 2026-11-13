@@ -3,12 +3,18 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import type { DisplayChannel as Channel, DisplaySeries as Series } from "@/api/types";
+import type {
+  DisplayChannel as Channel,
+  PowerChartView,
+  DisplaySeries as Series,
+} from "@/api/types";
 import { localized, useT } from "@/i18n";
 import { toneAt, toneHex } from "@/lib/tone";
 import { numText } from "@/quantity/chart";
@@ -29,7 +35,17 @@ function chartData(series: Series, channels: readonly Channel[]) {
 }
 
 /** 系列を API の表示単位ごとに分ける。横軸は元期からの経過秒。 */
-export function SeriesChart({ series, title }: { series: Series; title?: string }) {
+export function SeriesChart({
+  series,
+  title,
+  timeline,
+  syncId,
+}: {
+  series: Series;
+  title?: string;
+  timeline?: PowerChartView;
+  syncId?: string;
+}) {
   const tr = useT();
   const groups = new Map<string, Channel[]>();
   for (const c of series.channels)
@@ -43,7 +59,13 @@ export function SeriesChart({ series, title }: { series: Series; title?: string 
             {channels.map((c) => localized(c.label, c.label_en)).join(tr.systems.seriesSep)}
             {tr.systems.seriesUnit(unit || "—")}
           </figcaption>
-          <SeriesPlot series={series} channels={channels} unit={unit} />
+          <SeriesPlot
+            series={series}
+            channels={channels}
+            unit={unit}
+            timeline={timeline}
+            syncId={syncId}
+          />
         </figure>
       ))}
     </div>
@@ -54,10 +76,14 @@ function SeriesPlot({
   series,
   channels,
   unit,
+  timeline,
+  syncId,
 }: {
   series: Series;
   channels: readonly Channel[];
   unit: string;
+  timeline?: PowerChartView;
+  syncId?: string;
 }) {
   const tr = useT();
   return (
@@ -65,10 +91,43 @@ function SeriesPlot({
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={chartData(series, channels)}
+          syncId={syncId}
+          syncMethod="value"
           margin={{ top: 4, right: 12, bottom: 0, left: 0 }}
         >
           <CartesianGrid stroke="var(--color-line)" vertical={false} />
-          {chartAxes(tr.systems.elapsed)}
+          {chartAxes(
+            tr.systems.elapsed,
+            timeline?.domain,
+            timeline ? !timeline.show_time_axis : false,
+          )}
+          {timeline?.bands.map((band) => (
+            <ReferenceArea
+              key={`${band.start}:${band.eclipse}`}
+              x1={band.start}
+              x2={band.end}
+              fill={band.eclipse ? "var(--color-ink-4)" : toneHex[toneAt(band.mode_index)]}
+              fillOpacity={band.eclipse ? 0.15 : 0.06}
+              label={{
+                value: band.label,
+                position: "insideTop",
+                fontSize: 9,
+                fill: "var(--color-ink-3)",
+              }}
+            />
+          ))}
+          {timeline?.reference !== null && timeline?.reference !== undefined && (
+            <ReferenceLine
+              y={timeline.reference}
+              stroke="var(--color-warn)"
+              strokeDasharray="4 3"
+              label={
+                timeline.reference_label
+                  ? localized(timeline.reference_label.label, timeline.reference_label.label_en)
+                  : undefined
+              }
+            />
+          )}
           <Tooltip
             formatter={(v) => (typeof v === "number" ? `${numText(v)} ${unit}` : String(v))}
             labelFormatter={(v) => `t = ${typeof v === "number" ? numText(v) : String(v)} s`}
@@ -96,13 +155,14 @@ function SeriesPlot({
   );
 }
 
-function chartAxes(elapsed: string) {
+function chartAxes(elapsed: string, domain?: [number, number], hide = false) {
   return [
     <XAxis
       key="t"
+      hide={hide}
       dataKey="t"
       type="number"
-      domain={["dataMin", "dataMax"]}
+      domain={domain ?? ["dataMin", "dataMax"]}
       tickFormatter={(v: number) => numText(v)}
       tick={{ fontSize: 11, fill: "var(--color-ink-3)" }}
       label={{
