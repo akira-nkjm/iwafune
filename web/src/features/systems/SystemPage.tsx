@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { useParams, useSearchParams } from "react-router";
-import { AnalysisKpis } from "@/analysis/AnalysisKpis";
 import { useAnalyses, useDesign, useSystemAnalyses } from "@/api/queries";
 import type { AnalysisEntry, System } from "@/api/types";
 import { useT } from "@/i18n";
@@ -65,7 +64,7 @@ export function SystemPage() {
 }
 
 /**
- * 1 つの系のページ。共通の型: 上にケースの選択と主要 KPI、下にタブ（結果・内訳・設定・時系列）。
+ * 1 つの系のページ。共通の型: 上にケースの選択、下にタブ（結果・内訳・設定・時系列）。
  * その系の解析は GET /analyses の info.area から引く。
  */
 function SystemView({ system, design }: { system: System; design: DesignQuery }) {
@@ -99,12 +98,9 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
           />
         }
       />
-      <div className="px-6 pb-3">
-        {states.some((s) => s.result?.case_source === "default_attitude") && (
-          <p className="text-sm text-muted-foreground">{t.systems.defaultAttitude}</p>
-        )}
-        <AnalysisKpis entries={catalog.entries} states={states} loading={catalog.loading} />
-      </div>
+      {states.some((s) => s.result?.case_source === "default_attitude") && (
+        <p className="px-6 pb-3 text-muted-foreground text-sm">{t.systems.defaultAttitude}</p>
+      )}
       <PageTabs
         tabs={TABS.filter((k) => k !== "modes" || hasModes(system)).map((k) => ({
           to: paths.system(system, { tab: k === "results" ? null : k, kase }),
