@@ -17,9 +17,17 @@ import type {
 } from "@/api/types";
 import { localized, useT } from "@/i18n";
 import { toneAt, toneHex } from "@/lib/tone";
-import { numText } from "@/quantity/chart";
+import { NumText, numText } from "@/quantity/chart";
 
 /** 標本を表示だけ間引く。表示値は API の display_scale を掛ける。 */
+/** 同じグラフの線すべての絶対値の最大（表示単位）。ツールチップで丸めの残り（10⁻¹⁶ など）を 0 と出すのに使う */
+function peakOf(channels: readonly Channel[]): number {
+  return channels.reduce(
+    (m, c) => c.values.reduce((n, v) => Math.max(n, Math.abs(v * c.display_scale)), m),
+    0,
+  );
+}
+
 function chartData(series: Series, channels: readonly Channel[]) {
   const step = Math.max(1, Math.ceil(series.t.length / 1500));
   const data: Record<string, number>[] = [];
@@ -89,6 +97,7 @@ function SeriesPlot({
   syncId?: string;
 }) {
   const tr = useT();
+  const peak = peakOf(channels);
   return (
     <div className="h-56">
       <ResponsiveContainer width="100%" height="100%">
@@ -104,21 +113,17 @@ function SeriesPlot({
             timeline?.domain,
             timeline ? !timeline.show_time_axis : false,
           )}
-          {timeline?.bands.map((band) => (
-            <ReferenceArea
-              key={`${band.start}:${band.eclipse}`}
-              x1={band.start}
-              x2={band.end}
-              fill={band.eclipse ? "var(--color-ink-4)" : toneHex[toneAt(band.mode_index)]}
-              fillOpacity={band.eclipse ? 0.15 : 0.06}
-              label={{
-                value: band.label,
-                position: "insideTop",
-                fontSize: 9,
-                fill: "var(--color-ink-3)",
-              }}
-            />
-          ))}
+          {timeline?.bands
+            .filter((band) => band.eclipse)
+            .map((band) => (
+              <ReferenceArea
+                key={`${band.start}:${band.eclipse}`}
+                x1={band.start}
+                x2={band.end}
+                fill="var(--color-ink-4)"
+                fillOpacity={0.15}
+              />
+            ))}
           {timeline?.reference !== null && timeline?.reference !== undefined && (
             <ReferenceLine
               y={timeline.reference}
@@ -132,7 +137,15 @@ function SeriesPlot({
             />
           )}
           <Tooltip
-            formatter={(v) => (typeof v === "number" ? `${numText(v)} ${unit}` : String(v))}
+            formatter={(v) =>
+              typeof v === "number" ? (
+                <>
+                  <NumText value={v} peak={peak} /> {unit}
+                </>
+              ) : (
+                String(v)
+              )
+            }
             labelFormatter={(v) => `t = ${typeof v === "number" ? numText(v) : String(v)} s`}
             contentStyle={{
               fontSize: 12,

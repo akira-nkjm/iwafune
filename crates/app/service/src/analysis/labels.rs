@@ -29,7 +29,7 @@ pub fn channel_label(kind: ChannelKind, subject: Option<&str>) -> AnalysisLabel 
         K::Beta => label("β 角", "Beta angle"),
         K::UmbraDuration => label("本影の時間", "Umbra duration"),
         K::PenumbraDuration => label("半影の時間", "Penumbra duration"),
-        K::Generation => label("発電電力", "Generated power"),
+        K::Generation => label("発電の合計", "Total generation"),
         K::Sunlit => label("日照率", "Sunlit fraction"),
         K::PanelGeneration => label(format!("{s} の発電"), format!("{s} generation")),
         K::Load => label("消費電力", "Load"),

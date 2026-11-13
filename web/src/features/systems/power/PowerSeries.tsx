@@ -26,6 +26,7 @@ export function PowerSeries({ page }: { page: PowerPageView }) {
   return (
     <div className="space-y-5">
       <PowerControls modes={modes} selected={mode?.id} onSelect={setSelected} />
+      <BandLegend charts={charts} eclipseLabel={t.modes.eclipseView} />
       {charts.length === 0 ? (
         <Empty>{t.systems.noSeries}</Empty>
       ) : (
@@ -48,6 +49,23 @@ export function PowerSeries({ page }: { page: PowerPageView }) {
           ))}
         </PowerOutline>
       )}
+    </div>
+  );
+}
+
+/** グラフの帯の凡例（蝕だけ。モードは上の選択で 1 つに決まるので帯にしない） */
+function BandLegend({
+  charts,
+  eclipseLabel,
+}: {
+  charts: PowerPageView["modes"][number]["charts"];
+  eclipseLabel: string;
+}) {
+  if (!charts.some((c) => c.bands.some((b) => b.eclipse))) return null;
+  return (
+    <div className="flex items-center gap-1.5 text-ink-3 text-xs">
+      <span aria-hidden="true" className="inline-block size-2.5 rounded-sm bg-ink-4/40" />
+      {eclipseLabel}
     </div>
   );
 }
