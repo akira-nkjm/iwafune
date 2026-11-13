@@ -4,16 +4,16 @@ import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type {
   AnalysisRunResult,
+  PowerBudgetView,
   PowerBulletView,
-  PowerFlowView,
   PowerModeView,
   PowerPageView,
 } from "@/api/types";
 import { setLang } from "@/i18n";
 import { qv } from "@/test/fixture";
+import { PowerBudget } from "./PowerBudget";
 import { PowerBullet } from "./PowerBullet";
 import { PowerControls } from "./PowerControls";
-import { PowerFlow } from "./PowerFlow";
 import { PowerOverview } from "./PowerOverview";
 
 // SSR has a fixed Japanese hydration snapshot; emulate the client's selected dictionary here.
@@ -33,34 +33,31 @@ const bar: PowerBulletView = {
   marker: 40,
   limit_marker: 80,
 };
-const flow: PowerFlowView = {
-  height: 240,
-  nodes: [
+const budget: PowerBudgetView = {
+  supply: qv(60, "W", "Power"),
+  segments: [
     {
-      id: "solar",
-      label: { label: "太陽電池", label_en: "Solar Cells" },
-      system: "power",
-      x: 100,
-      y: 120,
-      value: qv(60, "W", "Power"),
+      kind: "load",
+      system: "comm",
+      label: { label: "通信", label_en: "Communication" },
+      value: qv(30, "W", "Power"),
+      fraction: 0.5,
     },
     {
-      id: "comm",
-      label: { label: "通信", label_en: "Communication" },
-      system: "comm",
-      x: 650,
-      y: 120,
+      kind: "shunt",
+      system: null,
+      label: { label: "余り（シャント）", label_en: "Surplus (shunt)" },
       value: qv(30, "W", "Power"),
+      fraction: 0.5,
     },
   ],
-  edges: [{ x1: 160, y1: 120, x2: 570, y2: 120, width: 11, system: "comm" }],
 };
 const modes: PowerModeView[] = [
   {
     id: "nominal",
     label: "Nominal",
     verdict: "ok",
-    sunlit: flow,
+    sunlit: budget,
     eclipse: null,
     bars: [bar],
     charts: [],
@@ -119,14 +116,19 @@ function overview() {
 afterEach(() => setLang("ja"));
 
 describe("power overview", () => {
-  it("renders API values, subsystem-colored widths and Solar Cells in both languages", () => {
-    const ja = renderToStaticMarkup(<PowerFlow flow={flow} />);
-    expect(ja).toContain("太陽電池");
+  it("draws one bar per mode with API widths and labels in both languages", () => {
+    const render = () =>
+      renderToStaticMarkup(
+        <PowerBudget modes={modes} eclipse={false} selected={modes[0]?.id} onSelect={() => {}} />,
+      );
+    const ja = render();
+    expect(ja).toContain("width:50%");
     expect(ja).toContain("60 W");
-    expect(ja).toContain('stroke-width="11"');
+    expect(ja).toContain("余り（シャント）");
+    expect(ja).toContain('aria-pressed="true"');
     setLang("en");
-    const en = renderToStaticMarkup(<PowerFlow flow={flow} />);
-    expect(en).toContain("Solar Cells");
+    const en = render();
+    expect(en).toContain("Surplus (shunt)");
     expect(en).not.toContain("SAP");
   });
   it("uses returned bar positions and keeps unavailable margins explicit", () => {
@@ -163,7 +165,7 @@ describe("power overview", () => {
     expect(html).toContain('<details class="mt-3">');
     expect(html).not.toContain("<details open");
     expect(html).toContain("最大 DoD");
-    expect(html).toContain('id="power-flow"');
+    expect(html).toContain('id="power-budget"');
     expect(html).not.toContain("<circle");
     setLang("en");
     expect(overview()).toContain("View data");

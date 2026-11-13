@@ -8,8 +8,8 @@ use sat_analysis::spec::{Check, Verdict};
 use sat_units::typed::{Area, Energy, Fraction, NamedKind};
 use serde_json::Value;
 
+mod budget;
 mod charts;
-mod flow;
 
 pub(super) fn label(ja: &str, en: &str) -> AnalysisLabel {
     AnalysisLabel {
@@ -60,7 +60,9 @@ pub(super) fn build(
 }
 
 fn balance(input: &EnergyBalanceInput, out: &EnergyBalanceOutput, json: &Value) -> PowerPageView {
-    let modes = out
+    let mut sunlit = Vec::new();
+    let mut eclipse = Vec::new();
+    let mut modes: Vec<PowerModeView> = out
         .cases
         .iter()
         .enumerate()
@@ -75,12 +77,8 @@ fn balance(input: &EnergyBalanceInput, out: &EnergyBalanceOutput, json: &Value) 
                 })
                 .unwrap_or(&case.id);
             let loads = out.mode_loads.modes.iter().find(|m| m.id == mode_id);
-            let (sunlit, eclipse) = loads.map_or((None, None), |loads| {
-                (
-                    Some(flow::build(loads, case, false, input.load_growth)),
-                    Some(flow::build(loads, case, true, input.load_growth)),
-                )
-            });
+            sunlit.push(loads.map(|l| budget::collect(l, case, false, input.load_growth)));
+            eclipse.push(loads.map(|l| budget::collect(l, case, true, input.load_growth)));
             PowerModeView {
                 id: mode_id.into(),
                 label: if case.label.is_empty() {
@@ -89,8 +87,8 @@ fn balance(input: &EnergyBalanceInput, out: &EnergyBalanceOutput, json: &Value) 
                     case.label.clone()
                 },
                 verdict: Verdict::worst(case.checks.iter().map(|c| c.verdict)),
-                sunlit,
-                eclipse,
+                sunlit: None,
+                eclipse: None,
                 bars: vec![
                     bullet::<Fraction>(
                         "dod",
@@ -113,6 +111,15 @@ fn balance(input: &EnergyBalanceInput, out: &EnergyBalanceOutput, json: &Value) 
             }
         })
         .collect();
+    // 幅は同じ照明条件の全モードで共通の目盛り
+    for ((mode, s), e) in modes
+        .iter_mut()
+        .zip(budget::finish(sunlit))
+        .zip(budget::finish(eclipse))
+    {
+        mode.sunlit = s;
+        mode.eclipse = e;
+    }
     PowerPageView {
         modes,
         ..Default::default()

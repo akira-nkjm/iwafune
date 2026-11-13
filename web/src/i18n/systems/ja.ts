@@ -4,11 +4,14 @@ import type { FillBasis } from "@/api/types";
 export const systemsJa = {
   systems: {
     power: {
+      budgetSunlit: "日照中の電力の行き先",
+      budgetEclipse: "蝕中の電力（電池から）",
+      budgetSunlitCaption:
+        "日照中の平均発電がどこへ行くか（各系・電池への充電・余り）。目盛りは全モードで共通。行を押すとそのモードを選びます。",
+      budgetEclipseCaption: "蝕中に電池から各系へ出す電力。目盛りは全モードで共通。",
       verdicts: "判定",
       mode: "モード",
       unavailable: "データなし",
-      flow: "電力の流れ",
-      flowCaption: "日照中の平均発電とバス側の平均充放電。線の太さは電力に比例します。",
       design: "設計値",
       limit: "限界／必要量",
       barLegend: "帯: 許容範囲 · 実線: 設計値 · 破線: 限界／必要量",

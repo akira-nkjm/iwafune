@@ -21,40 +21,44 @@ pub struct PowerModeView {
     pub id: String,
     pub label: String,
     pub verdict: Option<Verdict>,
-    pub sunlit: Option<PowerFlowView>,
-    pub eclipse: Option<PowerFlowView>,
+    pub sunlit: Option<PowerBudgetView>,
+    pub eclipse: Option<PowerBudgetView>,
     pub bars: Vec<PowerBulletView>,
     pub charts: Vec<PowerChartView>,
 }
 
-/// 流れ図（座標は表示用の固定座標系）。
+/// 日照中（または蝕中）の電力の行き先を 1 本の積み上げ棒にした表示。
+/// 幅 `fraction` は、同じ照明条件（日照・蝕）の全モードで共通の最大に対する割合（0〜1）。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct PowerFlowView {
-    pub height: f64,
-    pub nodes: Vec<PowerFlowNode>,
-    pub edges: Vec<PowerFlowEdge>,
+pub struct PowerBudgetView {
+    /// 供給（日照: 太陽電池の日照中の平均発電、蝕: 電池からの放電）
+    pub supply: QuantityView,
+    pub segments: Vec<PowerBudgetSegment>,
 }
 
-/// 流れ図の端点と量。
+/// 棒の 1 区間。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct PowerFlowNode {
-    pub id: String,
+pub struct PowerBudgetSegment {
+    pub kind: PowerBudgetKind,
+    /// 負荷のとき、その系（色に使う）
+    pub system: Option<System>,
     pub label: AnalysisLabel,
-    pub system: Option<System>,
-    pub x: f64,
-    pub y: f64,
-    pub value: Option<QuantityView>,
+    pub value: QuantityView,
+    pub fraction: f64,
 }
 
-/// 流れ図の矢印。太さは同じ図内で電力に比例する。
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct PowerFlowEdge {
-    pub x1: f64,
-    pub y1: f64,
-    pub x2: f64,
-    pub y2: f64,
-    pub width: f64,
-    pub system: Option<System>,
+/// 区間の種類。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum PowerBudgetKind {
+    /// 系の消費
+    Load,
+    /// 電池への充電
+    Charge,
+    /// 余り（シャントで捨てる分）
+    Shunt,
+    /// 不足（日照中なのに電池から出す分）
+    Deficit,
 }
 
 /// 許容帯と設計値・限界のマーカー（位置は 0〜100）。

@@ -3,12 +3,15 @@ import type { systemsJa } from "./ja";
 export const systemsEn: typeof systemsJa = {
   systems: {
     power: {
+      budgetSunlit: "Where sunlit power goes",
+      budgetEclipse: "Eclipse power (from battery)",
+      budgetSunlitCaption:
+        "Where the sunlit-average generation goes: subsystems, battery charge and surplus. One scale for all modes; click a row to select that mode.",
+      budgetEclipseCaption:
+        "Power drawn from the battery by each subsystem during eclipse. One scale for all modes.",
       verdicts: "Verdicts",
       mode: "Mode",
       unavailable: "Unavailable",
-      flow: "Energy flow",
-      flowCaption:
-        "Sunlit-average generation and bus-side mean charge/discharge. Line width is proportional to power.",
       design: "Design",
       limit: "Limit / required",
       barLegend: "Band: allowed range · Solid: design · Dashed: limit / required",

@@ -10,9 +10,9 @@ import { analysisTitle } from "@/i18n/analysis-names";
 import { Empty } from "@/kit/feedback/Empty";
 import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
+import { PowerBudget } from "./PowerBudget";
 import { PowerBullet } from "./PowerBullet";
 import { PowerControls } from "./PowerControls";
-import { PowerFlow } from "./PowerFlow";
 import { PowerOutline } from "./PowerOutline";
 
 /** 電源の概要。表示値と判定はサービスの専用 DTO、詳細は元の解析表。 */
@@ -22,9 +22,8 @@ export function PowerOverview({ page, design }: { page: PowerPageView; design?: 
   const [eclipse, setEclipse] = useState(false);
   const modes = page.modes;
   const mode = modes.find((m) => m.id === selected) ?? modes[0];
-  const flow = eclipse ? mode?.eclipse : mode?.sunlit;
   const items = [
-    { id: "power-flow", label: t.flow },
+    { id: "power-budget", label: eclipse ? t.budgetEclipse : t.budgetSunlit },
     { id: "power-verdicts", label: t.verdicts },
     ...page.analyses.map((a) => ({
       id: a.result.id,
@@ -41,10 +40,22 @@ export function PowerOverview({ page, design }: { page: PowerPageView; design?: 
         onLighting={setEclipse}
       />
       <PowerOutline items={items}>
-        <section id="power-flow" className="scroll-mt-6">
+        <section id="power-budget" className="scroll-mt-6">
           <Panel>
-            <PanelHeader title={t.flow} />
-            {flow ? <PowerFlow flow={flow} /> : <Empty>{t.unavailable}</Empty>}
+            <PanelHeader
+              title={eclipse ? t.budgetEclipse : t.budgetSunlit}
+              caption={eclipse ? t.budgetEclipseCaption : t.budgetSunlitCaption}
+            />
+            {modes.length > 0 ? (
+              <PowerBudget
+                modes={modes}
+                eclipse={eclipse}
+                selected={mode?.id}
+                onSelect={setSelected}
+              />
+            ) : (
+              <Empty>{t.unavailable}</Empty>
+            )}
           </Panel>
         </section>
         <section id="power-verdicts" className="scroll-mt-6">

@@ -27,50 +27,35 @@ fn fixture() -> (ModeLoadMode, EnergyBalanceCaseResult) {
 }
 
 #[test]
-fn flow_by_hand_preserves_power_and_proportional_widths() {
+fn budget_by_hand_keeps_power_and_shares_one_scale_across_modes() {
+    use sat_analysis::power::energy_balance::LoadGrowth;
     let (loads, case) = fixture();
-    let sun = flow::build(
-        &loads,
-        &case,
-        false,
-        sat_analysis::power::energy_balance::LoadGrowth::Included,
-    );
-    let value = |id: &str| {
-        sun.nodes
-            .iter()
-            .find(|n| n.id == id)
-            .unwrap()
-            .value
-            .as_ref()
-            .unwrap()
-            .si
-    };
-    assert_eq!(value("source"), 60.0);
-    assert_eq!(
-        value("cdh") + value("comm") + value("charge") + value("shunt"),
-        60.0
-    );
-    assert_eq!(sun.edges[0].width, 22.0);
-    assert_eq!(sun.edges[2].width, sun.edges[1].width * 2.0);
-    assert_eq!(sun.nodes[0].label.label_en, "Solar Cells");
-    let eclipse = flow::build(
+    // 2 モード分（同じ値）を並べ、同じ目盛りで幅を付ける
+    let sun = budget::finish(vec![
+        Some(budget::collect(&loads, &case, false, LoadGrowth::Included)),
+        Some(budget::collect(&loads, &case, false, LoadGrowth::Included)),
+    ]);
+    let s = sun[0].as_ref().unwrap();
+    assert_eq!(s.supply.si, 60.0);
+    // 系の消費 + 充電 + 余り = 日照中の発電 60 W
+    assert_eq!(s.segments.iter().map(|g| g.value.si).sum::<f64>(), 60.0);
+    // いちばん長い棒の幅の合計は 1、各区間は電力に比例
+    assert!((s.segments.iter().map(|g| g.fraction).sum::<f64>() - 1.0).abs() < 1e-12);
+    for g in &s.segments {
+        assert!((g.fraction - g.value.si / 60.0).abs() < 1e-12);
+    }
+    let kinds: Vec<_> = s.segments.iter().map(|g| g.kind).collect();
+    assert_eq!(kinds.first(), Some(&PowerBudgetKind::Load));
+    assert!(kinds.contains(&PowerBudgetKind::Charge));
+    let eclipse = budget::finish(vec![Some(budget::collect(
         &loads,
         &case,
         true,
-        sat_analysis::power::energy_balance::LoadGrowth::Included,
-    );
-    assert_eq!(eclipse.nodes[0].label.label_en, "Battery");
-    assert_eq!(
-        eclipse
-            .nodes
-            .iter()
-            .filter_map(|n| n.value.as_ref())
-            .skip(1)
-            .map(|v| v.si)
-            .sum::<f64>(),
-        15.0
-    );
-    assert!(!eclipse.nodes.iter().any(|n| n.id == "charge"));
+        LoadGrowth::Included,
+    ))]);
+    let e = eclipse[0].as_ref().unwrap();
+    assert_eq!(e.segments.iter().map(|g| g.value.si).sum::<f64>(), 15.0);
+    assert!(e.segments.iter().all(|g| g.kind == PowerBudgetKind::Load));
 }
 
 #[test]
