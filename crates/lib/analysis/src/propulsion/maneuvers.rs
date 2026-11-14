@@ -3,13 +3,15 @@
 //! 公称の値（ΔV のマージンも残る推薬も見込まない）。初期質量は乾燥質量 + 使う推薬。マージン込みの推薬は
 //! `propulsion.propellant`、区分ごとの合計とマージンは `propulsion.dv_budget`。
 
+use super::flight::Flight;
 use super::input::{DvCategory, PropulsionInput, TransferMethod};
 pub use super::plan::ManeuverNote;
 use super::plan::Orbit;
 use super::sequence::{Leg, Options, Sequence, run};
 use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict};
 use sat_astro::ephem::CentralBody;
-use sat_units::typed::{Angle, Length, Mass, Power, Qty, Time, Velocity};
+use sat_astro::force::thrust::ThrustSteering;
+use sat_units::typed::{Angle, Fraction, Length, Mass, Power, Qty, Time, Velocity};
 use serde::{Deserialize, Serialize};
 
 /// 地球以外の中心天体（地球のときは中心天体の欄を書かない）。
@@ -62,6 +64,35 @@ pub struct ManeuverBurn {
     pub burn_time: Option<Qty<Time>>,
 }
 
+/// 数値伝搬（`propagated`）のマヌーバの伝搬の結果。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct ManeuverPropagation {
+    /// 噴射の始め（最初の軌道の元期からの経過）
+    pub start: Qty<Time>,
+    /// 始めから目標に着くまでの時間（日照だけ・デューティで噴かない時間を含む）
+    pub duration: Qty<Time>,
+    /// 噴いた時間の合計
+    pub firing_time: Qty<Time>,
+    /// 噴いた時間 / 時間
+    pub firing_fraction: Fraction,
+    /// 伝搬で積んだ ΔV（`∫ F/m dt`）
+    pub delta_v: Qty<Velocity>,
+    /// 伝搬で使った推薬（伝搬に使った質量から）
+    pub propellant: Qty<Mass>,
+    /// 伝搬に使った始めの質量（公称の列の見積もり）
+    pub mass_before: Qty<Mass>,
+    /// 終わりの平均の高度・傾斜角・離心率
+    pub final_altitude: Qty<Length>,
+    pub final_inclination: Qty<Angle>,
+    pub final_eccentricity: f64,
+    /// 上限の時間までに目標に着いたか
+    pub reached: bool,
+    pub sunlit_only: bool,
+    pub duty: Fraction,
+    pub steering: ThrustSteering,
+}
+
 /// マヌーバ 1 つの結果。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -89,6 +120,9 @@ pub struct ManeuverResult {
     pub firing_power: Option<Qty<Power>>,
     /// 書かれているが粗い段階では効かないので無視した制約のキー
     pub ignored_constraints: Vec<String>,
+    /// 数値伝搬の結果（`propagated` のときだけ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub propagation: Option<ManeuverPropagation>,
     pub notes: Vec<ManeuverNote>,
     pub checks: Vec<Check>,
 }
@@ -110,8 +144,37 @@ pub struct ManeuversOutput {
     pub final_orbit: ManeuverOrbit,
 }
 
+/// 数値伝搬の結果 → 表示用の値。
+fn propagation(central: CentralBody, leg: &Leg<'_>, f: &Flight) -> ManeuverPropagation {
+    let a = &f.arc;
+    let end = a.samples.last();
+    let t = &leg.maneuver.thrust;
+    ManeuverPropagation {
+        start: Qty::from_raw(f.start_s),
+        duration: Qty::from_raw(a.duration_s),
+        firing_time: Qty::from_raw(a.firing_time_s),
+        firing_fraction: Fraction::new(if a.duration_s > 0.0 {
+            a.firing_time_s / a.duration_s
+        } else {
+            0.0
+        }),
+        delta_v: Qty::from_raw(a.delta_v_m_s),
+        propellant: Qty::from_raw(a.propellant_kg),
+        mass_before: Qty::from_raw(f.mass_before_kg),
+        final_altitude: Qty::from_raw(
+            end.map_or(0.0, |s| s.mean_semi_major_axis_m) - central.radius_m(),
+        ),
+        final_inclination: Qty::from_raw(end.map_or(0.0, |s| s.inclination_rad)),
+        final_eccentricity: end.map_or(0.0, |s| s.eccentricity),
+        reached: a.reached,
+        sunlit_only: t.sunlit_only,
+        duty: Fraction::new(t.duty.map_or(1.0, Fraction::value)),
+        steering: t.steering,
+    }
+}
+
 /// 区間 1 つ → 結果（ΔV のマージンを含まない公称の値）。
-pub(super) fn result(leg: &Leg<'_>) -> ManeuverResult {
+pub(super) fn result(leg: &Leg<'_>, flight: Option<&Flight>) -> ManeuverResult {
     let m = leg.maneuver;
     let checks = if leg.notes.contains(&ManeuverNote::FiniteBurnTooLong) {
         vec![Check::new(
@@ -153,6 +216,7 @@ pub(super) fn result(leg: &Leg<'_>) -> ManeuverResult {
         mass_after: Qty::from_raw(leg.mass_after_kg),
         firing_power: leg.thruster.and_then(|t| t.firing_power),
         ignored_constraints: m.ignored_constraints.clone(),
+        propagation: flight.map(|f| propagation(leg.planned.to.central, leg, f)),
         notes: leg.notes.clone(),
         checks,
     }
@@ -172,15 +236,20 @@ impl Analysis for Maneuvers {
     const TITLE_EN: &'static str = "Maneuvers";
     const AREA: AnalysisArea = AnalysisArea::System(System::Propulsion);
     const KIND: AnalysisKind = AnalysisKind::Steady;
-    const DESCRIPTION: &'static str = "マヌーバを順に方式（インパルス・有限燃焼・低推力）で計算し、ΔV・噴射時間・推薬・前後の軌道を出す";
-    const DESCRIPTION_EN: &'static str = "Computes each maneuver in order by its method (impulsive, finite burn, low thrust): delta-V, burn time, propellant and the orbits before and after";
+    const DESCRIPTION: &'static str = "マヌーバを順に方式（インパルス・有限燃焼・低推力・数値伝搬）で計算し、ΔV・噴射時間・推薬・前後の軌道を出す";
+    const DESCRIPTION_EN: &'static str = "Computes each maneuver in order by its method (impulsive, finite burn, low thrust, propagated): delta-V, burn time, propellant and the orbits before and after";
 
     type Input = PropulsionInput;
     type Output = ManeuversOutput;
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         let seq = nominal(input)?;
-        let maneuvers: Vec<ManeuverResult> = seq.legs.iter().map(result).collect();
+        let maneuvers: Vec<ManeuverResult> = seq
+            .legs
+            .iter()
+            .enumerate()
+            .map(|(i, l)| result(l, seq.flights.get(i).and_then(Option::as_ref)))
+            .collect();
         Ok(ManeuversOutput {
             total_delta_v: Qty::from_raw(seq.legs.iter().map(|l| l.delta_v_m_s).sum()),
             total_propellant: Qty::from_raw(seq.used_propellant_kg()),

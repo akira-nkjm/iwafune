@@ -164,8 +164,12 @@ pub enum ChannelKind {
     AbsorbedHeat,
     /// 未送信データ
     Backlog,
-    /// 軌道の高度（高度低下の推移）
+    /// 軌道の高度（高度低下の推移・マヌーバの順の軌道の推移）
     Altitude,
+    /// 軌道の傾斜角（マヌーバの順の軌道の推移）
+    Inclination,
+    /// 機体の質量（推薬を使うと減る）
+    Mass,
 }
 
 impl Channel {

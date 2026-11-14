@@ -270,6 +270,15 @@ pub(super) fn given(text: &Option<String>) -> Option<&str> {
     text.as_deref().map(str::trim).filter(|t| !t.is_empty())
 }
 
+/// 時間割合（`"0.1"`。モードの duty・マヌーバのデューティ）。範囲と合計は設計の検査（`fune_model::check`）が見る。
+pub(super) fn fraction_from_text(text: &str) -> Result<f64> {
+    text.trim()
+        .parse::<f64>()
+        .ok()
+        .filter(|f| f.is_finite())
+        .ok_or_else(|| invalid(format!("時間割合は数（0〜1）で書きます: {text}")))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

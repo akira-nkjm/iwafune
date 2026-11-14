@@ -28,6 +28,7 @@ fn maneuver(id: &str, after: Option<&str>) -> Maneuver {
         constraints: ManeuverConstraints {
             sunlit_only: None,
             mode: Some("NOMINAL".into()),
+            ..ManeuverConstraints::default()
         },
     }
 }

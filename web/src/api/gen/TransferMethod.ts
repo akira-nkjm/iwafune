@@ -3,4 +3,4 @@
 /**
  * 遷移の計算の段階。綴りは設計データの `method` と同じ。
  */
-export type TransferMethod = "impulsive" | "finite_burn" | "low_thrust";
+export type TransferMethod = "impulsive" | "finite_burn" | "low_thrust" | "propagated";

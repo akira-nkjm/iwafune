@@ -25,6 +25,8 @@ const FIELDS: &[(&str, &str)] = &[
     ("inclination", "target.inclination"),
     ("sunlit_only", "constraints.sunlit_only"),
     ("mode", "constraints.mode"),
+    ("duty", "constraints.duty"),
+    ("steering", "constraints.steering"),
 ];
 
 /// マヌーバの一覧（実行の順）。
@@ -99,5 +101,7 @@ pub(crate) fn maneuver_text(m: &Maneuver) -> ManeuverText {
         inclination: q(&t.inclination),
         sunlit_only: m.constraints.sunlit_only.map(|b| b.to_string()),
         mode: m.constraints.mode.as_ref().map(ToString::to_string),
+        duty: m.constraints.duty.map(|d| d.to_string()),
+        steering: m.constraints.steering.map(|s| s.as_str().to_owned()),
     }
 }

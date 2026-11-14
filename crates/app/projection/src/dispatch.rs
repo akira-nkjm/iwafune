@@ -142,6 +142,9 @@ table!(
     sat_analysis::propulsion::DvBudget => Some(propulsion::dv_budget),
     sat_analysis::propulsion::Propellant => Some(propulsion::maneuvers),
     sat_analysis::propulsion::ThrusterUsage => Some(propulsion::maneuvers),
+    sat_analysis::propulsion::OrbitHistoryAnalysis => Some(propulsion::maneuvers),
+    sat_analysis::propulsion::PropellantMassProperties => Some(propulsion::mass_properties),
+    apower::ThrustBalance => Some(power::thrust_balance),
 );
 
 #[cfg(test)]

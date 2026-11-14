@@ -28,12 +28,22 @@ enum_text! {
 }
 
 enum_text! {
-    /// マヌーバの計算の段階（推力を入れた数値伝搬 `propagated` は別の Issue）。
+    /// マヌーバの計算の段階（`propagated` は推力を入れた数値伝搬で、`[constraints]` が効く）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
     pub enum ManeuverMethod: "マヌーバの計算の段階" {
         Impulsive = "impulsive",
         FiniteBurn = "finite_burn",
         LowThrust = "low_thrust",
+        Propagated = "propagated",
+    }
+}
+
+enum_text! {
+    /// 推力の向きの決まり（`propagated` だけで効く）。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+    pub enum ManeuverSteering: "推力の向き" {
+        Tangential = "tangential",
+        Inertial = "inertial",
     }
 }
 
@@ -92,6 +102,12 @@ pub struct ManeuverConstraints {
     /// 噴射するモード
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mode: Option<Id<Mode>>,
+    /// デューティ（噴いてよい時間のうち噴く割合、0 より大きく 1 以下。省略で 1）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub duty: Option<f64>,
+    /// 推力の向き（省略で接線方向）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub steering: Option<ManeuverSteering>,
 }
 
 impl ManeuverConstraints {
@@ -105,6 +121,8 @@ impl ManeuverConstraints {
         [
             ("sunlit_only", self.sunlit_only.is_some()),
             ("mode", self.mode.is_some()),
+            ("duty", self.duty.is_some()),
+            ("steering", self.steering.is_some()),
         ]
         .into_iter()
         .filter_map(|(k, set)| set.then_some(k))

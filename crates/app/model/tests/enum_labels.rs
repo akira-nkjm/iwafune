@@ -40,6 +40,10 @@ const LABELLED: &[(&str, &[&str])] = &[
     ),
     ("maneuver_method", fune_model::design::ManeuverMethod::NAMES),
     ("central_body", fune_model::design::CentralBodyKind::NAMES),
+    (
+        "maneuver_steering",
+        fune_model::design::ManeuverSteering::NAMES,
+    ),
 ];
 
 #[test]

@@ -277,13 +277,13 @@ Web は次のことをしない。
 
 | 系 | 定常 | 時系列 |
 |---|---|---|
-| 電源 | `power.mode_load`（モード別消費電力）、`power.solar_sunlit`（日照時の発電） | `power.orbit_generation`（軌道上の発電）、`power.energy_balance`（電力収支と DoD） |
+| 電源 | `power.mode_load`（モード別消費電力）、`power.solar_sunlit`（日照時の発電） | `power.orbit_generation`（軌道上の発電）、`power.energy_balance`（電力収支と DoD）、`power.thrust_balance`（数値伝搬のマヌーバの噴射中の電力収支） |
 | AOCS | `aocs.unload_time`（MTQ・RCS でのアンロードにかかる時間）、`aocs.slew_time`（RW での姿勢変更にかかる時間） | `aocs.rw_unloading`（擾乱トルク（推力誤差を含む）と RW のアンロード頻度、RCS で捨てる 1 日の推薬と ΔV 換算）、`aocs.sensor_fov`（センサの FoV と禁止角） |
 | C&DH | `cdh.data_budget`（データ量とストレージ） | — |
 | 通信 | `comm.link_budget`（回線バジェット） | `comm.visibility`（地上局の可視）、`comm.data_throughput`（データ送信量と蓄積） |
 | 熱 | `thermal.steady`（多節点の定常温度） | `thermal.transient`（多節点の非定常温度） |
 | 構造 | `structure.mass_properties`（質量特性）、`structure.static_load`（準静的荷重）、`structure.modal_estimate`（簡易固有振動数。FEM はしない） | — |
-| 推進 | `propulsion.maneuvers`（マヌーバごとの ΔV・噴射時間・推薬・前後の軌道）、`propulsion.dv_budget`（区分ごとの ΔV の内訳・合計・マージン、RCS のアンロードの ΔV）、`propulsion.propellant`（推薬のウェット・ドライとタンクの容積の余裕）、`propulsion.thruster_usage`（総インパルス・累積噴射時間・噴射回数と定格） | — |
+| 推進 | `propulsion.maneuvers`（マヌーバごとの ΔV・噴射時間・推薬・前後の軌道）、`propulsion.dv_budget`（区分ごとの ΔV の内訳・合計・マージン、RCS のアンロードの ΔV）、`propulsion.propellant`（推薬のウェット・ドライとタンクの容積の余裕）、`propulsion.thruster_usage`（総インパルス・累積噴射時間・噴射回数と定格）、`propulsion.mass_properties`（推薬を積んだとき・使ったあとの質量と重心） | `propulsion.orbit_history`（マヌーバの順の軌道の推移。数値伝搬のマヌーバは推力を入れた伝搬の高度・傾斜角・質量） |
 
 `fune analyze ls` と `GET /analyses` が同じ一覧を返す。
 

@@ -74,6 +74,7 @@ fn sso_year_and_solar_precession() {
         orbit: o.clone(),
         duration: Qty::from_raw(365.25 * DEFAULT_STEP_S),
         step: None,
+        maneuvers: None,
     })
     .unwrap();
     assert_eq!(result.points.len(), 367); // 始点、365日、端数の終点
@@ -116,6 +117,7 @@ fn lunar_orbit_eclipse_season() {
         orbit: o,
         duration: Qty::from_raw(365.0 * 86_400.0),
         step: Some(Qty::from_raw(5.0 * 86_400.0)),
+        maneuvers: None,
     })
     .unwrap();
     let longest = year.max_eclipse_duration.value();
@@ -134,6 +136,7 @@ fn invalid_inputs_and_heliocentric_are_rejected() {
         orbit: orbit(),
         duration: Qty::from_raw(1.0),
         step: None,
+        maneuvers: None,
     };
     input.orbit.central = CentralBody::Sun;
     assert!(EclipseSeason::run(&input).is_err());

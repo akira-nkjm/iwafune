@@ -153,6 +153,9 @@ kpi_table! {
         TankVolumeMargin => propulsion::tank_volume_margin,
     }
     sat_analysis::propulsion::ThrusterUsage { ImpulseMargin => propulsion::impulse_margin }
+    sat_analysis::propulsion::OrbitHistoryAnalysis { ManeuversEnd => propulsion::maneuvers_end }
+    sat_analysis::propulsion::PropellantMassProperties { ComShift => propulsion::com_shift }
+    power::ThrustBalance { ThrustMaxDod => propulsion::thrust_max_dod }
 }
 
 type Ctx<'a> = KpiContext<'a>;
@@ -270,6 +273,7 @@ fn rule(key: KpiKey) -> Rule {
     use KpiKey as K;
     let (judged, fill, tally) = match key {
         K::MaxDod
+        | K::ThrustMaxDod
         | K::StorageMargin
         | K::SapMargin
         | K::BatteryMargin
@@ -304,7 +308,9 @@ fn rule(key: KpiKey) -> Rule {
         | K::ContactPerDay
         | K::LongestTransfer
         | K::DvWithMargin
-        | K::LoadedPropellant => (false, Fill::None, false),
+        | K::LoadedPropellant
+        | K::ManeuversEnd
+        | K::ComShift => (false, Fill::None, false),
     };
     Rule {
         judged,

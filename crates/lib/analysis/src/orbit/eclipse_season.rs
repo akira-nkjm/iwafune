@@ -1,6 +1,8 @@
 //! β と蝕の季節変動。各標本日の1周では太陽位置を固定し、中心天体（地球・月・惑星。半径は `CentralBody::radius_m`）の
 //! 円錐影を集計する。月周回で地球に隠される（月食）時間は数えない。
+//! 数値伝搬のマヌーバがあれば、標本日の軌道はマヌーバの順の軌道の推移（`propulsion::orbit_history`）から引く。
 
+use crate::propulsion::{OrbitHistory, PropulsionInput, orbit_history};
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, ConditionTopic,
     Series, ensure_positive, time_fraction,
@@ -26,6 +28,10 @@ pub struct EclipseSeasonInput {
     pub duration: Qty<Time>,
     /// 省略時は1日。
     pub step: Option<Qty<Time>>,
+    /// マヌーバ（数値伝搬のマヌーバがあるときだけ projection が渡す）。あれば各標本日の軌道を
+    /// マヌーバの順の軌道の推移（`propulsion::orbit_history`）から引く
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maneuvers: Option<PropulsionInput>,
 }
 
 /// 日付付きの標本（半影は本影を含まない部分の時間）。
@@ -56,6 +62,9 @@ pub struct EclipseSeasonOutput {
     pub shadow_step: Qty<Time>,
     /// 1 周中の太陽位置を標本日の位置に固定する近似。
     pub fixed_sun_per_orbit: bool,
+    /// 標本日の軌道を変えたマヌーバ（実行の順。マヌーバの推移を使わなければ空）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub maneuvers: Vec<String>,
     pub series: Series,
 }
 
@@ -85,14 +94,28 @@ impl Analysis for EclipseSeason {
         let step = input.step.map_or(DEFAULT_STEP_S, |q| q.value());
         let times = sample_times(input.duration.value(), step)?;
         // 日ごとの1周を積み上げる。時刻格子・伝搬・太陽・影は既存の正本を使う。
-        let points = times
-            .iter()
-            .map(|&t| point(&input.orbit, t))
-            .collect::<Result<Vec<_>, _>>()?;
-        summarize(points, times, step)
+        let history = match &input.maneuvers {
+            Some(p) => orbit_history(p)?,
+            None => OrbitHistory::constant(input.orbit.clone()),
+        };
+        let mut used = Vec::new();
+        let mut points = Vec::with_capacity(times.len());
+        for &t in &times {
+            let (seg, dt) = history.locate(t)?;
+            if let Some(id) = &seg.maneuver
+                && !used.contains(id)
+            {
+                used.push(id.clone());
+            }
+            points.push(point(&seg.orbit, dt)?);
+        }
+        let mut out = summarize(points, times, step)?;
+        out.maneuvers = used;
+        Ok(out)
     }
 }
 
+/// 軌道 `orbit` の元期から `t` 秒後の標本日（時刻は区間の軌道の元期から）。
 fn point(orbit: &OrbitSpec, t: f64) -> Result<EclipseSeasonPoint, AnalysisError> {
     let epoch = orbit.epoch.plus_seconds(t);
     let sun = orbit.central.relative_position_m(Body::Sun, epoch);
@@ -167,6 +190,7 @@ fn summarize(
         step: Qty::from_raw(step),
         shadow_step: Qty::from_raw(SHADOW_STEP_S),
         fixed_sun_per_orbit: true,
+        maneuvers: Vec::new(),
         series: Series { t: times, channels },
         points,
     })

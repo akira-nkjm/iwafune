@@ -3,6 +3,7 @@
 use crate::aocs::RwUnloadingInput;
 use crate::spec::{AnalysisError, ensure_fraction, ensure_positive};
 use sat_astro::ephem::CentralBody;
+use sat_astro::force::thrust::ThrustSteering;
 use sat_astro::orbit::OrbitSpec;
 use sat_units::typed::{
     Angle, Force, Fraction, Impulse, Length, Mass, MassDensity, Power, Qty, Time, Volume,
@@ -22,6 +23,16 @@ pub const TANK_MARGIN_WARNING: f64 = 0.10;
 
 /// 定格（総インパルス・累積噴射時間・噴射回数）に対する余裕がこれ未満なら警告。
 pub const RATING_MARGIN_WARNING: f64 = 0.25;
+
+/// 推力を入れた数値伝搬（`propagated`）の制御の刻みの既定値 [s]。噴射の有無と面外の向きをこの刻みで決める
+/// （LEO の 1 周 ~95 分の 1/100 程度。日照の境目の誤差は 1 回あたりこの刻み以内）。
+pub const DEFAULT_CONTROL_STEP_S: f64 = 60.0;
+
+/// 数値伝搬の上限の時間を、Edelbaum の見積もり（噴き続けた時間）の何倍にするか（日照だけ・デューティの分を割ったうえで）。
+pub const PROPAGATION_TIME_FACTOR: f64 = 3.0;
+
+/// 日照中だけ噴くときに上限の時間に掛ける倍率（LEO で日照は 1 周の 6 割前後なので、その逆数より大きい 2）。
+pub const SUNLIT_ONLY_TIME_FACTOR: f64 = 2.0;
 
 /// ΔV の区分（内訳表の行）。綴りは設計データの `category` と同じ（projection の対応とテストで一致を確かめる）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -62,6 +73,8 @@ pub enum TransferMethod {
     FiniteBurn,
     /// 電気推進の連続噴射（Edelbaum の式）
     LowThrust,
+    /// 推力を入れた数値伝搬（日照だけ・デューティ・推力の向きが効く）
+    Propagated,
 }
 
 /// 目標の軌道（変えたい要素だけ。書かない要素は前の軌道のまま）。`body` を書くと、その天体を回る軌道への
@@ -102,9 +115,49 @@ pub struct ManeuverInput {
     /// バイエリプティック遷移の中間の遠地点の高度（インパルス・有限燃焼のときだけ使う）
     #[serde(default)]
     pub via_altitude: Option<Qty<Length>>,
-    /// 書かれているが粗い段階では効かない制約のキー（`sunlit_only`・`mode`。結果に無視したことを書く）
+    /// 書かれているが粗い段階では効かない制約のキー（`sunlit_only`・`mode` など。結果に無視したことを書く）
     #[serde(default)]
     pub ignored_constraints: Vec<String>,
+    /// 数値伝搬（`propagated`）で効く制約
+    #[serde(default, skip_serializing_if = "ThrustConstraints::is_default")]
+    pub thrust: ThrustConstraints,
+}
+
+/// 数値伝搬（`propagated`）で効く制約。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct ThrustConstraints {
+    /// 日照中だけ噴射する（日照の判定は `spec::SUNLIT_THRESHOLD`）
+    #[serde(default)]
+    pub sunlit_only: bool,
+    /// 噴射するモード（電力収支 `power.thrust_balance` が使う）
+    #[serde(default)]
+    pub mode: Option<String>,
+    /// デューティ（省略で 1）
+    #[serde(default)]
+    pub duty: Option<Fraction>,
+    /// 推力の向き（既定は接線方向）
+    #[serde(default)]
+    pub steering: ThrustSteering,
+}
+
+impl ThrustConstraints {
+    /// 何も書かれていないか（入力の JSON に書かない）。
+    pub fn is_default(&self) -> bool {
+        self == &Self::default()
+    }
+
+    /// デューティ（既定値込み。0 より大きく 1 以下でなければ誤り）。
+    pub fn duty(&self) -> Result<f64, AnalysisError> {
+        let d = self.duty.map_or(1.0, Fraction::value);
+        if d > 0.0 && d <= 1.0 {
+            Ok(d)
+        } else {
+            Err(AnalysisError::InvalidInput(format!(
+                "デューティは 0 より大きく 1 以下にしてください（{d}）"
+            )))
+        }
+    }
 }
 
 /// 推進系のスラスタ 1 本。

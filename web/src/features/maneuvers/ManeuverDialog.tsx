@@ -33,6 +33,7 @@ export function ManeuverDialog({
   const categories = useEnumOptions("maneuver_category");
   const methods = useEnumOptions("maneuver_method");
   const bodies = useEnumOptions("central_body");
+  const steerings = useEnumOptions("maneuver_steering");
   const made = useCommandOps(maneuverCommand(text, adding));
   const error = useOpCheck(made.ops).error ?? made.error;
   const set = (key: keyof ManeuverText, value: string) => setText((s) => ({ ...s, [key]: value }));
@@ -120,6 +121,8 @@ export function ManeuverDialog({
           td.mode,
           design.modes.modes.map((m) => ({ value: m.id, label: m.id })),
         )}
+        {input("duty", td.duty, "0.5")}
+        {select("steering", td.steering, steerings)}
       </div>
     </OpDialog>
   );

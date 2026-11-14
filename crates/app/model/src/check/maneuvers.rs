@@ -17,6 +17,7 @@ pub(super) fn check_maneuvers(ctx: &mut Ctx) {
         check_thruster(ctx, design, m, &entity);
         check_after(ctx, design, m, &entity);
         check_target(ctx, m, &entity);
+        check_duty(ctx, m, &entity);
         if let Some(mode) = &m.constraints.mode
             && !design.modes.contains_key(mode.as_str())
         {
@@ -28,6 +29,21 @@ pub(super) fn check_maneuvers(ctx: &mut Ctx) {
                 format!("モード `{mode}` がありません"),
             );
         }
+    }
+}
+
+/// デューティは 0 より大きく 1 以下。
+fn check_duty(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
+    if let Some(d) = m.constraints.duty
+        && !(d > 0.0 && d <= 1.0)
+    {
+        ctx.error(
+            "maneuver.duty",
+            entity,
+            &["constraints", "duty"],
+            Some(Target::maneuver(m.id.as_str(), Some("constraints.duty"))),
+            format!("デューティは 0 より大きく 1 以下にしてください（{d}）"),
+        );
     }
 }
 
@@ -155,13 +171,19 @@ fn check_target(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
         if let Some((sev, code, msg)) = check_quantity_dimension(q, "Length") {
             ctx.report(sev, code, entity, &["via_altitude"], target(), msg);
         }
-        if m.method == ManeuverMethod::LowThrust {
+        if matches!(
+            m.method,
+            ManeuverMethod::LowThrust | ManeuverMethod::Propagated
+        ) {
             ctx.warning(
                 "maneuver.via_ignored",
                 entity,
                 &["via_altitude"],
                 target(),
-                "low_thrust では via_altitude（バイエリプティック遷移）を使いません",
+                format!(
+                    "{} では via_altitude（バイエリプティック遷移）を使いません",
+                    m.method
+                ),
             );
         }
     }

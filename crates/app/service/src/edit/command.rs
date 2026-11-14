@@ -1,8 +1,8 @@
 //! 名詞のコマンドに打った引数 → Op（`fune net set|unset`・`fune part place`・`fune mode set|unset`、`POST /ops/from_command`）。入口は [`command_ops`]（CLI はコマンドごとの関数を直接呼ぶ）。定義は `super::defs`、マヌーバは `super::maneuver`、値の読み方は `super::text`。
 
 use super::text::{
-    given, invalid, list_from_text, net_kind, pair_from_text, quantity_from_text,
-    quaternion_from_text, vector_from_text,
+    fraction_from_text, given, invalid, list_from_text, net_kind, pair_from_text,
+    quantity_from_text, quaternion_from_text, vector_from_text,
 };
 use crate::dto::{CommandText, ModeCellText, ModeSetText, NetSetText, NetUnsetText, PlaceText};
 use crate::error::Result;
@@ -167,15 +167,6 @@ fn mode_cell(c: &ModeCellText) -> Result<ModeCell> {
             .map(str::to_owned),
         eclipse: c.eclipse,
     })
-}
-
-/// 時間割合（`"0.1"`）。範囲と合計は設計の検査（`fune_model::check`）が見る。
-fn fraction_from_text(text: &str) -> Result<f64> {
-    text.trim()
-        .parse::<f64>()
-        .ok()
-        .filter(|f| f.is_finite())
-        .ok_or_else(|| invalid(format!("時間割合は数（0〜1）で書きます: {text}")))
 }
 
 /// `--duty tx=0.1,rx=0.2` → 状態 → 打った割合（`ModeCellText.duty`）。一覧は `list_from_text`、組は `pair_from_text`。

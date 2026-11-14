@@ -44,6 +44,8 @@ export const maneuversEn: typeof maneuversJa = {
       viaAltitude: "Intermediate apogee altitude (bi-elliptic)",
       sunlitOnly: "Fire in sunlight only",
       mode: "Firing mode",
+      duty: "Duty (propagated only)",
+      steering: "Thrust direction (propagated only)",
       unset: "Not set",
       yes: "Yes",
       no: "No",

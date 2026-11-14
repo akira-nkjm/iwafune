@@ -1,7 +1,7 @@
 //! `fune maneuver add|set` に打った引数 → `CreateManeuver`・`SetManeuver`（`POST /ops/from_command` の `maneuver_add`・
 //! `maneuver_set`）。**マヌーバの旗の読み方はここだけ**（逆の向き = 編集の欄の初期値は `query::maneuvers::maneuver_text`）。
 
-use super::text::{given, invalid, quantity_from_text};
+use super::text::{fraction_from_text, given, invalid, quantity_from_text};
 use crate::dto::ManeuverText;
 use crate::error::Result;
 use fune_model::design::{Maneuver, ManeuverConstraints, ManeuverTarget};
@@ -56,6 +56,10 @@ fn maneuver_of(t: &ManeuverText) -> Result<Maneuver> {
         constraints: ManeuverConstraints {
             sunlit_only: flag(&t.sunlit_only)?,
             mode: owned(&t.mode).map(Into::into),
+            duty: given(&t.duty).map(fraction_from_text).transpose()?,
+            steering: given(&t.steering)
+                .map(|s| s.trim().parse().map_err(invalid))
+                .transpose()?,
         },
     })
 }
@@ -74,6 +78,8 @@ mod tests {
             altitude: Some("600 km".into()),
             inclination: Some(" 97.8 deg".into()),
             sunlit_only: Some("true".into()),
+            duty: Some("0.5".into()),
+            steering: Some("inertial".into()),
             after: Some(String::new()),
             body: Some("moon".into()),
             ..ManeuverText::default()
@@ -87,6 +93,11 @@ mod tests {
         };
         assert_eq!(maneuver.target.altitude, Some(Quantity::new(600.0, "km")));
         assert_eq!(maneuver.constraints.sunlit_only, Some(true));
+        assert_eq!(maneuver.constraints.duty, Some(0.5));
+        assert_eq!(
+            maneuver.constraints.steering,
+            Some(fune_model::design::ManeuverSteering::Inertial)
+        );
         // 空の文字列は書かない
         assert_eq!(maneuver.after, None);
         let back = maneuver_op(&maneuver_text(&maneuver), true).unwrap();
@@ -100,6 +111,12 @@ mod tests {
         assert!(maneuver_op(&t, false).is_err());
         let mut t = text();
         t.sunlit_only = Some("yes".into());
+        assert!(maneuver_op(&t, false).is_err());
+        let mut t = text();
+        t.duty = Some("half".into());
+        assert!(maneuver_op(&t, false).is_err());
+        let mut t = text();
+        t.steering = Some("sideways".into());
         assert!(maneuver_op(&t, false).is_err());
         let mut t = text();
         t.altitude = Some("six hundred".into());

@@ -806,7 +806,7 @@ from.note   = "3D 配置からの概算"
 # maneuvers/RAISE.toml
 label    = "軌道上昇 550 → 600 km"
 category = "insertion"   # insertion / station_keeping / unloading / deorbit / other（ΔV バジェットの行）
-method   = "low_thrust"  # impulsive / finite_burn / low_thrust（推力を入れた数値伝搬 propagated は別の Issue）
+method   = "propagated"  # impulsive / finite_burn / low_thrust / propagated（推力を入れた数値伝搬）
 thruster = "EPT"         # スラスタの部品（推力・比推力・噴射中の消費電力は部品から）
 after    = "LEOP"        # 前のマヌーバ（任意。マヌーバでない ID は今は最初のマヌーバとして扱う）
 
@@ -814,9 +814,11 @@ after    = "LEOP"        # 前のマヌーバ（任意。マヌーバでない I
 altitude    = { value = 600.0, unit = "km" }   # 円軌道。perigee_altitude・apogee_altitude と一緒には書かない
 inclination = { value = 97.8, unit = "deg" }
 
-[constraints]            # 細かい段階（数値伝搬）でだけ効く。粗い段階の解析は無視したことを結果に書く
-sunlit_only = true
-mode        = "THRUST"
+[constraints]            # 数値伝搬（propagated）でだけ効く。ほかの段階の解析は無視したことを結果に書く
+sunlit_only = true       # 日照中だけ噴く（日照率 0.5 以上）
+mode        = "THRUST"   # 噴射中のモード（power.thrust_balance が電力収支を回す）
+duty        = 0.8        # 噴いてよい時間のうち噴く割合（0 < duty ≤ 1、省略で 1）
+steering    = "tangential"  # tangential（速度の向き。傾斜角も変えるなら Edelbaum の偏揺れ角）/ inertial（始めの向きに固定）
 ```
 
 - 書ける目標の要素は `body`・`altitude`・`perigee_altitude`・`apogee_altitude`・`inclination`（RAAN の変化はまだ扱わない）。
@@ -835,6 +837,13 @@ mode        = "THRUST"
 - `analysis/propulsion.toml` の `dv_margin`（既定 10 %）・`residual_fraction`（残る推薬、既定 3 %）。既定値は sat-analysis（`propulsion::input`）が持つ。
 - 参照の検査: スラスタは部品（無ければ error、役割が `propulsion_thruster`・`thruster` でなければ warning）、制約のモードはモード。
   名前の変更（RenamePart・RenameMode）で一緒に書き換わる。マヌーバを消すと、後ろのマヌーバは消したマヌーバの前につなぎ直す。
+- `propagated` は推力を入れて軌道を伝搬する（`sat_astro::orbit::propagate_powered`。力は最初の軌道の伝搬の方法に合わせ、
+  質量は推薬の流量で減る）。目標の平均の長半径と傾斜角に着くまで噴き、ΔV・時間・噴いた時間・推薬・終わりの軌道を出す
+  （`propulsion.maneuvers` の `propagation`）。スラスタが要る（無ければ不足の入力）。近地点・遠地点の目標は、低推力と同じく長半径の円で近似する。
+- マヌーバは最初の軌道の元期に始め、次のマヌーバは前のマヌーバの終わりに続けて始める（待ちの時間はフェーズ #9 で足す）。
+  この順の「いつ・どの軌道にいるか」は `propulsion.orbit_history`。数値伝搬のマヌーバがあると、`orbit.eclipse_season`
+  （と、それを使う `power.sizing`）は標本日の軌道をこの推移から引く（無ければ最初の軌道のまま）。
+- `propulsion.mass_properties` は推薬を積んだとき（寿命初期）と使ったあと（寿命末期）の質量・重心（推薬はタンクの部品の重心の点質量）。
 - 書き方: 最上位の値のあと、`[target]`・`[constraints]` を見出しの表で書き、中の量は `{ value, unit }`
   （`fune_store::write::records::MANEUVER_SECTIONS`）。編集は `fune maneuver add|set|rm`（GUI も同じ引数を `POST /ops/from_command` に送る）。
 ### 7.8 sources/: 出典の台帳と、値の出典

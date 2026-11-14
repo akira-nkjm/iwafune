@@ -78,7 +78,8 @@ maturity = ["off_the_shelf", "modified", "new"]
 redundancy = ["none", "cold", "warm"]
 severity = ["error", "warning", "info"]
 maneuver_category = ["insertion", "station_keeping", "unloading", "deorbit", "other"]
-maneuver_method = ["impulsive", "finite_burn", "low_thrust"]
+maneuver_method = ["impulsive", "finite_burn", "low_thrust", "propagated"]
+maneuver_steering = ["tangential", "inertial"]
 central_body = ["earth", "moon", "sun", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]
 distribution = ["public", "on_request", "restricted"]
 
@@ -419,3 +420,14 @@ label_en = "Uranus"
 [enum.central_body.neptune]
 label    = "海王星"
 label_en = "Neptune"
+[enum.maneuver_method.propagated]
+label    = "数値伝搬"
+label_en = "Propagated"
+
+[enum.maneuver_steering.tangential]
+label    = "接線方向"
+label_en = "Tangential"
+
+[enum.maneuver_steering.inertial]
+label    = "慣性固定"
+label_en = "Inertial"

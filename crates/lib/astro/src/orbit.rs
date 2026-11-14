@@ -3,18 +3,23 @@
 //!
 //! 平均要素の J2 永年変化率は Vallado（*Fundamentals of Astrodynamics and Applications*, 4th ed.）eq. 9-41
 //! に従う。数値伝搬（[`Propagator::Numerical`]）は [`numerical`] にあり、[`crate::force`] の加速度を
-//! [`crate::ode::Dop853`] で積分する（Cowell 法）。
+//! [`crate::ode::Dop853`] で積分する（Cowell 法）。推力を入れた伝搬（[`propagate_powered`]）は `powered` にあり、
+//! 同じ積分器と力モデルに推力の項（[`crate::force::thrust`]）と質量を足す。平均の長半径（J2 の短周期項を引く）は `mean`。
 
 mod analytic;
 mod beta;
 mod local_time;
+mod mean;
 mod numerical;
+mod powered;
 pub use crate::kepler::{perifocal_to_eci, solve_kepler};
 pub use crate::state::OrbitState;
 
 pub use analytic::{j2_secular_rates, j2_secular_rates_about};
 pub use beta::{beta_angle_rad, raan_for_beta};
 pub use local_time::{ltan_from_raan, raan_from_ltan, raan_from_ltdn};
+pub use mean::{mean_semi_major_axis_m, orbit_averaged_elements, osculating_state_from_mean};
+pub use powered::{PoweredArc, PoweredSample, PoweredTarget, ThrustArc, propagate_powered};
 
 use crate::AstroError;
 use crate::constants::{J2_EARTH, MU_EARTH, R_EARTH, SUN_MEAN_MOTION};

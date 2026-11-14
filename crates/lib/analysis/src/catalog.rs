@@ -31,6 +31,7 @@ registry!(
     power::OrbitGeneration,
     power::EnergyBalance,
     power::Sizing,
+    power::ThrustBalance,
     aocs::RwUnloading,
     aocs::UnloadTime,
     aocs::SensorFov,
@@ -50,6 +51,8 @@ registry!(
     propulsion::DvBudget,
     propulsion::Propellant,
     propulsion::ThrusterUsage,
+    propulsion::OrbitHistoryAnalysis,
+    propulsion::PropellantMassProperties,
 );
 
 /// 型付き入力で登録済み解析を実行する。動的実行と budget が共有する入口。
