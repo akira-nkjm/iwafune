@@ -10,13 +10,14 @@ import {
 } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
-import type { Mesh } from "three";
+import type { Mesh, Object3D } from "three";
 import { ArrowHelper, Color, Vector3 } from "three";
 import { palette, toneHex, uiHex } from "@/lib/tone";
 import {
   type Axis3D,
   type Box3D,
   boxMaterial,
+  pickBox,
   type Q4,
   type sceneDimensions,
   type V3,
@@ -79,6 +80,7 @@ export function Scene3D({
   home?: number;
 }) {
   const [target, setTarget] = useState<Mesh | null>(null);
+  const ids = new Set(boxes.map((b) => b.id));
   return (
     // demand: 何かが変わったとき（カメラの操作・箱の移動・props の変更）だけ描き直す。
     // 既定の always は止まっている間も毎フレーム描き、ページ全体の操作を重くする
@@ -124,7 +126,13 @@ export function Scene3D({
             quaternion={[b.orientation[1], b.orientation[2], b.orientation[3], b.orientation[0]]}
             onClick={(e) => {
               e.stopPropagation();
-              onSelect(b.id);
+              // 光線上の当たり（近い順）を箱の ID に直す。縁の線などの子は親の箱（name = 部品の ID）へ
+              const hits = e.intersections.flatMap((hit) => {
+                let o: Object3D | null = hit.object;
+                while (o && !ids.has(o.name)) o = o.parent;
+                return o ? [o.name] : [];
+              });
+              onSelect(pickBox(hits, boxes, selected, structureOpacity) ?? b.id);
             }}
           >
             <boxGeometry args={b.size} />
