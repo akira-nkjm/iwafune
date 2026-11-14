@@ -13,8 +13,6 @@ pub struct PowerPageView {
     pub verdicts: Vec<PowerVerdictView>,
     /// データを見る・不足入力・設定に使う元の解析と表示名。
     pub analyses: Vec<PowerAnalysisView>,
-    /// 役割別の部品と表示属性。
-    pub parts: Vec<PowerPartsGroup>,
 }
 
 /// 選択するモードと、そのモードの表示。
@@ -121,15 +119,6 @@ pub struct PowerChartBand {
     pub eclipse: bool,
     pub mode_index: usize,
     pub label: String,
-}
-
-/// 部品タブの役割と属性の定義。
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct PowerPartsGroup {
-    pub key: String,
-    pub label: AnalysisLabel,
-    pub parts: Vec<super::PartRow>,
-    pub attributes: Vec<String>,
 }
 
 /// 電源ページが収集した元の解析結果と定義。

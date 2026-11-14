@@ -40,27 +40,18 @@ fn whole_page_collects_unchanged_analysis_results_and_merges_modes() {
             ["dod", "energy_balance", "area", "capacity"]
         );
         assert_eq!(mode.charts.len(), 3);
-        assert_eq!(page.parts.len(), 3);
-        assert!(page.parts.iter().all(|g| !g.parts.is_empty()));
-        assert!(
-            page.parts[1]
-                .parts
-                .iter()
-                .all(|p| p.role == Some(fune_model::builtin::Role::SolarPanel))
-        );
     }
 }
 
 #[test]
-fn missing_analyses_still_return_parts_and_raw_missing_inputs() {
+fn missing_analyses_still_return_raw_missing_inputs() {
     let ws = demo();
     let mut page = power_page(&ws, None).unwrap();
     for analysis in &mut page.analyses {
         analysis.result.output = None;
         analysis.result.status = crate::dto::AnalysisRunStatus::MissingInputs;
     }
-    let page = assemble(page.analyses, page.parts);
+    let page = assemble(page.analyses);
     assert!(page.modes.is_empty());
-    assert_eq!(page.parts.len(), 3);
     assert_eq!(page.analyses.len(), 4);
 }

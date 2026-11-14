@@ -15,7 +15,9 @@ import { PowerVerdictCard } from "./PowerVerdictCard";
 
 /** 電源の概要。表示値と判定はサービスの専用 DTO、詳細は元の解析表。 */
 export function PowerOverview({ page, design }: { page: PowerPageView; design?: DesignView }) {
-  const t = useT().systems.power;
+  const dict = useT();
+  const t = dict.systems.power;
+  const dataLabel = dict.systems.data;
   const modeName = (id: string | null) => {
     const m = page.modes.find((x) => x.id === id);
     return m ? nodeName(m) : (id ?? undefined);
@@ -53,7 +55,7 @@ export function PowerOverview({ page, design }: { page: PowerPageView; design?: 
                 {result.error && <p className="text-neg-ink text-sm">{result.error}</p>}
                 <MissingList design={design} missing={result?.missing ?? []} />
                 <details className="mt-3">
-                  <summary className="cursor-pointer text-sm text-ink-3">{t.data}</summary>
+                  <summary className="cursor-pointer text-sm text-ink-3">{dataLabel}</summary>
                   <div className="mt-3 space-y-4">
                     <ChecksList checks={result?.checks ?? []} />
                     {tables.map((table) => (
