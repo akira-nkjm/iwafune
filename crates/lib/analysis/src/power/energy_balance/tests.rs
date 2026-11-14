@@ -342,7 +342,7 @@ fn battery_combination_by_hand() {
     b.capacity = Qty::from_raw(180_000.0);
     b.voltage = Qty::from_raw(16.0);
     b.charge_efficiency = Some(0.8);
-    let total = EnergyBalanceBattery::combine(&[a, b]).unwrap();
+    let total = EnergyBalanceBattery::combine(&[a, b]).unwrap().battery;
     assert_eq!(total.capacity.value(), 540_000.0); // 100 Wh + 50 Wh
     assert_eq!(total.voltage.value(), 8.0); // 先頭の公称電圧
     assert_eq!(total.charge_eff(), 0.9);

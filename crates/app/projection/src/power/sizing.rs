@@ -56,9 +56,12 @@ pub fn sizing(ctx: &Context<'_>) -> Result<SizingInput, MissingInputs> {
             "指定モードがありません",
         );
     }
+    // 設計寿命はミッション期間（`conditions.orbit.duration`）。季節の解析の期間も同じ設定から作るので同じ値
+    let design_life = season.as_ref().map(|s| s.duration);
     m.finish(|| {
         Some(SizingInput {
             season: season?,
+            design_life,
             timeline: timeline?,
             mode_laws: mode_law_map(ctx),
             loads,
