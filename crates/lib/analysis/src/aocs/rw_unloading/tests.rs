@@ -64,7 +64,7 @@ fn spacecraft(inertia: Mat3) -> DisturbanceSpacecraft {
         inertia,
         aero: None,
         srp: None,
-        residual_dipole: Vec3::ZERO,
+        residual_dipole: None,
         atmosphere: Default::default(),
         density_scale: None,
         thrust: None,
@@ -99,7 +99,7 @@ fn srp_on_sun_pointing_accumulates_secularly() {
     // 太陽方向は 1 周ではほぼ慣性固定なので、1 周の永年成分 ≈ |τ| × 日照時間。
     let mut sc = spacecraft(Mat3::diagonal(Vec3::new(0.05, 0.05, 0.05)));
     sc.srp = Some(DisturbanceSurface {
-        cp_offset: Vec3::new(0.05, 0.0, 0.0),
+        cp_offset: Some(Vec3::new(0.05, 0.0, 0.0)),
         coefficient_area: Qty::from_raw(0.1),
     });
     let i = input(sc, sun_pointing_z());
@@ -181,7 +181,7 @@ fn aero_on_nadir_pointing_accumulates_about_orbit_normal() {
     // y は慣性空間で向きが変わらないので、1 周の永年成分 ≈ 空力トルクの平均 × 周期。
     let mut sc = spacecraft(Mat3::diagonal(Vec3::new(0.05, 0.05, 0.05)));
     sc.aero = Some(DisturbanceSurface {
-        cp_offset: Vec3::new(0.0, 0.0, 0.02),
+        cp_offset: Some(Vec3::new(0.0, 0.0, 0.02)),
         coefficient_area: Qty::from_raw(2.2 * 0.03),
     });
     let out = RwUnloading::run(&input(sc, nadir_pointing_z())).unwrap();

@@ -8,6 +8,6 @@ import type { TimelineSpec } from "./TimelineSpec";
  */
 export type OrbitGenerationInput = { timeline: TimelineSpec, array: SolarArray, 
 /**
- * 時系列と平均に使う寿命の時点（省略時 EOL）。BOL・EOL の軌道平均はどちらも出す
+ * 時系列と平均に使う寿命の時点（省略時 EOL。[`SolarLife::default`]）。BOL・EOL の軌道平均はどちらも出す
  */
-life: SolarLife, };
+life: SolarLife | null, };

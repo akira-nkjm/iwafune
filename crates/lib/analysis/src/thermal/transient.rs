@@ -25,13 +25,19 @@ use sat_units::typed::{Power, Qty, Temperature, Time};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+/// 長さが書かれていない発熱の区間の長さ [s]。1 日。区間が 1 つだけなら周期で平均した発熱はその区間の発熱で、
+/// この長さは結果に効かない（複数の区間があるときは各区間の長さを書く）。
+pub const DEFAULT_PHASE_DURATION_S: f64 = sat_astro::constants::SECONDS_PER_DAY;
+
 /// 内部発熱の 1 区間（例: モード 1 つ）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThermalHeatPhase {
     /// 例: モードの ID
     pub label: String,
-    pub duration: Qty<Time>,
+    /// 区間の長さ。省略時は [`DEFAULT_PHASE_DURATION_S`]（区間が 1 つなら発熱は一定で、長さは結果に効かない）
+    #[serde(default)]
+    pub duration: Option<Qty<Time>>,
     #[serde(default)]
     pub loads: Vec<ThermalLoad>,
     /// モード発熱。未割り当て・値不足は出力 checks に警告。
@@ -190,13 +196,14 @@ impl Phases {
         let mut end = 0.0;
         let mut checks = Vec::new();
         for (i, p) in phases.iter().enumerate() {
-            if p.duration.value().is_nan() || p.duration.value() <= 0.0 {
+            let duration = p.duration.map_or(DEFAULT_PHASE_DURATION_S, |d| d.value());
+            if duration.is_nan() || duration <= 0.0 {
                 return Err(AnalysisError::InvalidInput(format!(
                     "発熱の区間 {} の長さは正にしてください",
                     p.label
                 )));
             }
-            end += p.duration.value();
+            end += duration;
             let mut loads = p.loads.clone();
             if let Some(mode) = &p.mode_loads {
                 let (mode_loads, warnings) = mode.evaluate()?;

@@ -29,7 +29,7 @@ pub(super) fn mode_loads(
             checks.push(c);
         }
     }
-    Ok(match input.load_growth {
+    Ok(match input.load_growth() {
         LoadGrowth::Included => (r.total_with_growth, r.total_eclipse_with_growth),
         LoadGrowth::Excluded => (r.total, r.total_eclipse),
     })
@@ -291,7 +291,7 @@ fn case_series(ctx: &Context, load: Vec<f64>, soc: Vec<f64>, trace: &BatteryTrac
             Channel::of::<Power>(
                 format!("panel:{}", panel.id),
                 ChannelKind::PanelGeneration,
-                ctx.profile.panel(i, ctx.input.life),
+                ctx.profile.panel(i, ctx.input.life()),
             )
             .about(&panel.id),
         );

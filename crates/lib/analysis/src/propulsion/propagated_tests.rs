@@ -11,7 +11,7 @@ use sat_units::typed::Qty;
 fn raise(method: TransferMethod, sunlit_only: bool) -> ManeuverInput {
     let mut m = maneuver("RAISE", DvCategory::Insertion, method, 450.0);
     m.thruster = Some("EP".to_owned());
-    m.thrust.sunlit_only = sunlit_only;
+    m.thrust.sunlit_only = Some(sunlit_only);
     m
 }
 

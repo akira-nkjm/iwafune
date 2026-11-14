@@ -59,7 +59,7 @@ fn input(base: Option<&str>) -> EnergyBalanceInput {
             solar_flux: Some(Qty::from_raw(1361.0)),
             conversion_efficiency: None,
         },
-        life: SolarLife::Bol,
+        life: Some(SolarLife::Bol),
         batteries: vec![EnergyBalanceBattery {
             capacity: Qty::from_raw(360_000.0),
             voltage: Qty::from_raw(8.0),
@@ -72,9 +72,9 @@ fn input(base: Option<&str>) -> EnergyBalanceInput {
         loads: ModeLoadInput {
             parts: vec![part("OBC", 2.0), part("EPT", 30.0)],
             modes: vec![mode("BASE", &["OBC"]), mode("THRUST", &["OBC", "EPT"])],
-            default_growth_margin: 0.0,
+            default_growth_margin: Some(0.0),
         },
-        load_growth: LoadGrowth::Included,
+        load_growth: Some(LoadGrowth::Included),
         cases: Vec::new(),
         sequence: Vec::new(),
         base_mode: base.map(str::to_owned),
@@ -86,7 +86,7 @@ fn thrust(sunlit_only: bool, duty: Option<f64>) -> ThrustLoad {
     ThrustLoad {
         maneuver: "RAISE".to_owned(),
         mode: "THRUST".to_owned(),
-        sunlit_only,
+        sunlit_only: Some(sunlit_only),
         duty: duty.map(Fraction::new),
     }
 }

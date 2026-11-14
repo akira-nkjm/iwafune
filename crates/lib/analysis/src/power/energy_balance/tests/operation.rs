@@ -61,7 +61,7 @@ fn loads() -> ModeLoadInput {
                 vec![set("OBC", "off", &[("on", 0.5)]), set("CAM", "off", &[])],
             ),
         ],
-        default_growth_margin: 0.0,
+        default_growth_margin: Some(0.0),
     }
 }
 

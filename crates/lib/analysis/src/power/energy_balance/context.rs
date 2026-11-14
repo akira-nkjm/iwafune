@@ -36,7 +36,7 @@ pub(super) fn law_generation(
     match input.mode_attitudes.get(mode) {
         None => Ok(None),
         Some(law) => Ok(Some(
-            profile(input, &with_law(input, law))?.total(input.life),
+            profile(input, &with_law(input, law))?.total(input.life()),
         )),
     }
 }
@@ -78,7 +78,7 @@ impl<'a> Context<'a> {
         period_s: f64,
     ) -> Self {
         Self {
-            generation: profile.total(input.life),
+            generation: profile.total(input.life()),
             ranges: orbit_ranges(&profile.t, period_s),
             input,
             battery,
