@@ -128,6 +128,8 @@ pub struct PowerChartBand {
 pub struct PowerAnalysisView {
     pub entry: super::AnalysisEntry,
     pub result: super::AnalysisRunResult,
+    /// 概要の解析の表の行（主な結果・判定のまとまり・開いたときの棒グラフ・隠す表。`power_page::overview`）
+    pub overview: super::AnalysisOverview,
 }
 
 /// 電源ページの問い合わせ。省略時のケース解決は既存の解析入口に委ねる。

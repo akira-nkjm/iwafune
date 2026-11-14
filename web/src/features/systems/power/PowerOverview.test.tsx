@@ -102,6 +102,7 @@ const page: PowerPageView = {
         projectable: true,
         kpis: [],
       },
+      overview: { main: [], checks: [], chart: null, hidden_tables: [] },
     },
   ],
 };
@@ -142,16 +143,18 @@ describe("power overview", () => {
     );
     expect(missing).toContain("データなし");
   });
-  it("keeps analysis tables in a collapsed data section with an outline", () => {
+  it("puts the verdicts above a table of analyses with collapsed rows and an outline", () => {
     const html = overview();
-    expect(html).toContain("データを見る");
     expect(html).toContain("このページの目次");
-    expect(html).toContain('<details class="mt-3">');
-    expect(html).not.toContain("<details open");
-    expect(html).toContain("最大 DoD");
     expect(html).toContain('id="power-verdicts"');
+    expect(html).toContain('id="power-analyses"');
+    expect(html).toContain("最大 DoD");
+    expect(html).toContain("主な結果");
+    expect(html).toContain("収支");
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).not.toContain("データを見る");
     expect(html).not.toContain("<circle");
     setLang("en");
-    expect(overview()).toContain("View data");
+    expect(overview()).toContain("Analyses");
   });
 });

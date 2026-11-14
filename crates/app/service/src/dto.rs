@@ -19,6 +19,7 @@
 //! | `maneuver` | マヌーバの表示（`ManeuverView`）と `fune maneuver add\|set` の引数（`ManeuverText`） |
 //! | `budget` | 質量・電力・データ量のバジェット |
 //! | `kpi` | KPI（系の代表値・判定・塗りの比・判定の数え方）と塗りの比 |
+//! | `overview` | 系の概要の解析の表の行（主な結果・判定のまとまり・小さな棒グラフ・隠す表） |
 //! | `data` | 外部データ（DE440）の状態 |
 
 mod aocs_modes;
@@ -44,6 +45,10 @@ mod kpi;
 mod maneuver;
 pub use kpi::{FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView};
 pub use maneuver::{ManeuverTargetView, ManeuverText, ManeuverView};
+mod overview;
+pub use overview::{
+    AnalysisOverview, OverviewBar, OverviewChart, OverviewCheckGroup, OverviewReference,
+};
 mod pose;
 pub use pose::{BodyPoseView, MountPointView, MountView, PoseQuantities};
 mod power_page;
