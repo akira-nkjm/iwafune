@@ -80,5 +80,10 @@ pub(super) fn verdicts(input: &RwUnloadingInput, o: &RwUnloadingOutput) -> Vec<C
             format!("要求 {} 以上", quantity_text::<Time>(req.value())),
         ));
     }
+    checks.extend(
+        input
+            .spacecraft
+            .environment_check(input.timeline.orbit().central),
+    );
     checks
 }

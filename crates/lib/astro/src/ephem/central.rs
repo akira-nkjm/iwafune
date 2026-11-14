@@ -82,6 +82,29 @@ mod tests {
         assert_eq!(CentralBody::Mars.nominal_sun_distance_m(), None);
     }
 
+    /// 大気・磁場のモデルは地球だけ。月は「無い」（0 が正しい）、火星・木星などは「有るがモデルが無い」。
+    #[test]
+    fn environment_models_distinguish_absent_from_missing() {
+        use crate::body::EnvironmentModel::{Absent, Modelled, NotModelled};
+        assert_eq!(CentralBody::Earth.atmosphere_model(), Modelled);
+        assert_eq!(CentralBody::Earth.magnetic_field_model(), Modelled);
+        assert_eq!(CentralBody::Moon.atmosphere_model(), Absent);
+        assert_eq!(CentralBody::Moon.magnetic_field_model(), Absent);
+        assert_eq!(CentralBody::Mars.atmosphere_model(), NotModelled);
+        assert_eq!(CentralBody::Mars.magnetic_field_model(), Absent);
+        assert_eq!(CentralBody::Venus.atmosphere_model(), NotModelled);
+        assert_eq!(CentralBody::Jupiter.magnetic_field_model(), NotModelled);
+        assert_eq!(CentralBody::Sun.atmosphere_model(), NotModelled);
+    }
+
+    #[test]
+    fn sun_direction_is_undefined_for_the_sun() {
+        let e = Epoch { j2000_s: 8.6e8 };
+        assert!(crate::ephem::sun_direction_from(CentralBody::Sun, e).is_none());
+        let s = crate::ephem::sun_direction_from(CentralBody::Moon, e).expect("向き");
+        assert!((s.norm() - 1.0).abs() < 1e-12);
+    }
+
     #[test]
     fn moon_velocity_is_about_one_km_per_second() {
         let v = CentralBody::Moon

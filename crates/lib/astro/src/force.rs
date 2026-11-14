@@ -13,8 +13,8 @@ pub mod thrust;
 pub use gravity::EGM96_MAX_DEGREE;
 pub use solid_tide::solid_tide_eci;
 pub use terms::{
-    drag_eci, drag_force, j2_perturbation, point_mass, relative_wind_eci, relativity_eci, srp_eci,
-    srp_pressure, third_body_eci, zonal_j2,
+    drag_force, earth_drag_eci, earth_relative_wind_eci, earth_srp_eci, j2_perturbation,
+    point_mass, relativity_eci, srp_pressure, third_body_eci, zonal_j2,
 };
 
 use crate::AstroError;
@@ -209,7 +209,7 @@ pub fn acceleration_breakdown_about(
         ));
     }
     if let Some(drag) = config.drag.as_ref().filter(|_| earth) {
-        out.push((ForceTerm::Drag, drag_eci(drag, epoch, state)));
+        out.push((ForceTerm::Drag, earth_drag_eci(drag, epoch, state)));
     }
     if config.solid_tide && earth {
         out.push((ForceTerm::SolidTide, solid_tide_eci(epoch, r)));

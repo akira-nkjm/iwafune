@@ -72,11 +72,11 @@ fn srp_points_away_from_sun_and_vanishes_in_shadow() {
         area_to_mass: 0.01,
     };
     let lit = s_hat * (R_EARTH + 550e3);
-    let a = srp_eci(&p, lit, r_sun);
+    let a = earth_srp_eci(&p, lit, r_sun);
     let expected = SOLAR_CONSTANT / C_LIGHT * 1.5 * 0.01 * (AU / (r_sun - lit).norm()).powi(2);
     assert!((a.norm() / expected - 1.0).abs() < 1e-12);
     assert!(a.dot(s_hat) < 0.0);
-    assert_eq!(srp_eci(&p, -lit, r_sun), Vec3::ZERO);
+    assert_eq!(earth_srp_eci(&p, -lit, r_sun), Vec3::ZERO);
 }
 
 #[test]
@@ -87,7 +87,7 @@ fn drag_opposes_relative_velocity() {
         atmosphere: AtmosphereModel::Exponential,
     };
     let s = leo();
-    let a = drag_eci(&d, epoch(), &s);
+    let a = earth_drag_eci(&d, epoch(), &s);
     assert!(a.dot(s.v_eci) < 0.0);
     // 550 km: ρ ≈ 3.2e-13、v_rel ≈ 7.1 km/s → |a| ≈ 0.5·ρ·Cd·A/m·v² ≈ 1.8e-7 m/s²
     assert!(a.norm() > 1e-7 && a.norm() < 3e-7, "{}", a.norm());
@@ -282,5 +282,5 @@ fn srp_pressure_and_relative_wind() {
     // 赤道上の静止点（地球と一緒に回る）は風 0
     let r = Vec3::new(R_EARTH + 400e3, 0.0, 0.0);
     let v = Vec3::new(0.0, crate::constants::OMEGA_EARTH * r.x, 0.0);
-    assert!(relative_wind_eci(r, v).norm() < 1e-9);
+    assert!(earth_relative_wind_eci(r, v).norm() < 1e-9);
 }
