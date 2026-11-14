@@ -17,7 +17,7 @@ fn sunlit_means_by_hand_include_charge_shunt_and_discharge() {
     for (start_soc, expected_charge, expected_shunt) in [(1.0, 0.0, 30.0), (0.5, 30.0, 0.0)] {
         let mut i = input(vec![pz_panel()], vec![constant("nominal", 30.0)]);
         i.batteries[0].initial_soc = Some(start_soc);
-        let battery = EnergyBalanceBattery::combine(&i.batteries).unwrap();
+        let battery = EnergyBalanceBattery::combine(&i.batteries).unwrap().battery;
         let p = profile(&i);
         let ctx = Context::new(&i, &battery, &p, 100.0);
         let (case, _) = evaluate_case(&ctx, &i.cases[0]).unwrap();
@@ -28,7 +28,7 @@ fn sunlit_means_by_hand_include_charge_shunt_and_discharge() {
     }
     // 発電が負荷に足りない日照標本: 20 W − 30 W → バス側放電 10 W。
     let i = input(vec![pz_panel()], vec![constant("nominal", 30.0)]);
-    let battery = EnergyBalanceBattery::combine(&i.batteries).unwrap();
+    let battery = EnergyBalanceBattery::combine(&i.batteries).unwrap().battery;
     let mut p = profile(&i);
     p.panel_bol[0] = vec![20.0, 20.0, 0.0];
     let (case, _) = evaluate_case(&Context::new(&i, &battery, &p, 100.0), &i.cases[0]).unwrap();
@@ -58,7 +58,7 @@ fn output_limits_mode_loads_and_eclipses_by_hand() {
         .collect();
     // 日照率 0.5 は日照。蝕は t=20,30 s の二標本 → 区間 20..30 s。
     let p = SolarProfile::build(&i.array, &samples);
-    let battery = EnergyBalanceBattery::combine(&i.batteries).unwrap();
+    let battery = EnergyBalanceBattery::combine(&i.batteries).unwrap().battery;
     let out = Context::new(&i, &battery, &p, 100.0).output(
         vec![],
         None,
@@ -75,4 +75,30 @@ fn output_limits_mode_loads_and_eclipses_by_hand() {
     assert_eq!(out.eclipses[0].start.value(), 20.0);
     assert_eq!(out.eclipses[0].end.value(), 30.0);
     assert_eq!(out.eclipses[0].duration.value(), 10.0);
+}
+
+/// 電池の電圧が違うときだけ、不一致の注意がすべてのケースの `checks` の先頭に 1 つずつ載る。
+#[test]
+fn unequal_batteries_put_a_warning_on_every_case() {
+    let mut i = input(Vec::new(), vec![constant("a", 5.0), constant("b", 9.5)]);
+    let first = EnergyBalance::run(&i).unwrap();
+    assert!(
+        first
+            .cases
+            .iter()
+            .all(|c| c.checks.iter().all(|k| k.key != "battery_mismatch"))
+    );
+    let mut other = i.batteries[0].clone();
+    other.voltage = Qty::from_raw(16.0);
+    i.batteries.push(other);
+    let out = EnergyBalance::run(&i).unwrap();
+    for case in &out.cases {
+        let n = case
+            .checks
+            .iter()
+            .filter(|k| k.key == "battery_mismatch")
+            .count();
+        assert_eq!(n, 1, "{}", case.id);
+        assert_eq!(case.checks[0].key, "battery_mismatch");
+    }
 }

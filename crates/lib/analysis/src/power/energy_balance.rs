@@ -259,7 +259,9 @@ impl Analysis for EnergyBalance {
     type Output = EnergyBalanceOutput;
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
-        let battery = EnergyBalanceBattery::combine(&input.batteries)?;
+        let combined = EnergyBalanceBattery::combine(&input.batteries)?;
+        let mismatch = combined.mismatch_check();
+        let battery = combined.battery;
         input.array.validate()?;
         super::mode_load::validate(&input.loads)?;
         sequence::validate(input)?;
@@ -281,7 +283,16 @@ impl Analysis for EnergyBalance {
             duration::apply(case_ctx, c, base.as_ref(), &mut result)?;
             cases.push(result);
         }
-        let sequence = sequence::evaluate(&ctx)?.map(|(s, _)| s);
+        let mut sequence = sequence::evaluate(&ctx)?.map(|(s, _)| s);
+        // 電池の値の不一致は、結果のどの欄にも効くので、すべてのケースと並びの判定に載せる
+        if let Some(c) = &mismatch {
+            for case in &mut cases {
+                case.checks.insert(0, c.clone());
+            }
+            if let Some(s) = &mut sequence {
+                s.balance.checks.insert(0, c.clone());
+            }
+        }
         Ok(ctx.output(
             cases,
             sequence,

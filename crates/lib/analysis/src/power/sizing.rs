@@ -30,6 +30,15 @@ pub struct SizingCell {
     pub current: Qty<ElectricCurrent>,
 }
 
+/// 日照経路の効率 Xd の既定値（SAP からバスまでの経路。SMAD 型の必要発電の式 `(Pe·Te/Xe + Pd·Td/Xd)/Td` の係数）。
+/// 教科書的な概算値。経路の方式（直接エネルギー転送か最大電力点追従か）は仮定せず、
+/// 設計の値（`analysis.power.conversion_efficiency` など）があればそれを使う。
+pub const DEFAULT_SUNLIT_EFFICIENCY: f64 = 0.8;
+
+/// 蝕経路の効率 Xe の既定値（SAP から電池を通って蝕中の負荷に届くまでの経路全体。同じ式の係数）。
+/// 教科書的な概算値。日照経路の効率と同様に、設計の値があればそれを使う。
+pub const DEFAULT_ECLIPSE_EFFICIENCY: f64 = 0.6;
+
 /// 任意のモデル上書き。省略値の正本は `used`。
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -46,6 +55,19 @@ pub struct SizingOptions {
     pub sun_distance: Option<Qty<Length>>,
 }
 
+impl SizingOptions {
+    /// 日照経路の効率 Xd（省略時 [`DEFAULT_SUNLIT_EFFICIENCY`]）。
+    pub fn sunlit_eff(&self) -> f64 {
+        self.sunlit_efficiency.unwrap_or(DEFAULT_SUNLIT_EFFICIENCY)
+    }
+
+    /// 蝕経路の効率 Xe（省略時 [`DEFAULT_ECLIPSE_EFFICIENCY`]）。
+    pub fn eclipse_eff(&self) -> f64 {
+        self.eclipse_efficiency
+            .unwrap_or(DEFAULT_ECLIPSE_EFFICIENCY)
+    }
+}
+
 /// 軌道と期間・発電を評価する時系列と姿勢・全モードまたは指定モード・設計の部品と上書き。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -58,6 +80,9 @@ pub struct SizingInput {
     pub mode_laws: BTreeMap<String, AttitudeLaw>,
     pub loads: ModeLoadInput,
     pub mode: Option<String>,
+    /// 設計寿命（経年劣化 `(1 − 年あたりの劣化率)^寿命` の寿命）。省略時は `season.duration`（季節の走査の期間）を寿命とみなす
+    #[serde(default)]
+    pub design_life: Option<Qty<Time>>,
     /// 設計の SAP（法線つき）。変換効率は日照経路の効率 Xd で数えるのでここでは使わない
     pub array: SolarArray,
     #[serde(default)]
@@ -85,6 +110,9 @@ pub struct SizingUsed {
     pub annual_degradation: f64,
     pub inherent_degradation: f64,
     pub lifetime_years: f64,
+    /// `lifetime_years` をどこから取ったか
+    #[serde(default)]
+    pub lifetime_source: SizingLifetimeSource,
     pub life_factor: f64,
     pub dod_max: Fraction,
     pub battery_strings: u32,
@@ -119,6 +147,18 @@ pub struct SizingMode {
     /// 時系列の容量 / SMAD の容量
     #[serde(default)]
     pub capacity_ratio: Option<Fraction>,
+}
+
+/// 経年劣化の寿命の出どころ。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "snake_case")]
+pub enum SizingLifetimeSource {
+    /// 季節の走査の期間（`season.duration`）。設計寿命の入力が無いとき
+    #[default]
+    SeasonSpan,
+    /// 設計寿命の入力（`design_life`）
+    DesignLife,
 }
 
 /// KPI と判定に使った必要量の求め方。
@@ -215,9 +255,12 @@ impl Analysis for Sizing {
     type Output = SizingOutput;
 
     fn run(input: &SizingInput) -> Result<SizingOutput, AnalysisError> {
-        let battery = EnergyBalanceBattery::combine(&input.batteries)?;
+        let combined = EnergyBalanceBattery::combine(&input.batteries)?;
+        let mismatch = combined.mismatch_check();
+        let battery = combined.battery;
         let used = used(input, &battery)?;
-        let SizingLoads { loads, mut checks } = loads(input)?;
+        let loads = loads(input)?;
+        let mut checks: Vec<Check> = mismatch.into_iter().collect();
         let season = EclipseSeason::run(&input.season)?;
         let (period, te) = (
             input.season.orbit.period_s(),
@@ -270,7 +313,7 @@ mod calculate;
 mod judge;
 mod modes;
 mod series;
-use calculate::{SizingLoads, design, loads, used};
+use calculate::{design, loads, used};
 use judge::{choose, margin_checks, mode_checks, smad_strings, smad_totals};
 pub use series::{AREA_TOLERANCE, SizingSeriesTarget, SizingTimeSeries, worst_season};
 
