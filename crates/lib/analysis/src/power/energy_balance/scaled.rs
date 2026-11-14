@@ -39,7 +39,7 @@ pub struct ScaledBalance<'a> {
 impl<'a> ScaledBalance<'a> {
     /// 入力を検査し、姿勢則ごとの時系列を作る。
     pub fn new(input: &'a EnergyBalanceInput) -> Result<Self, AnalysisError> {
-        let battery = EnergyBalanceBattery::combine(&input.batteries)?;
+        let battery = EnergyBalanceBattery::combine(&input.batteries)?.battery;
         input.array.validate()?;
         crate::power::mode_load::validate(&input.loads)?;
         sequence::validate(input)?;

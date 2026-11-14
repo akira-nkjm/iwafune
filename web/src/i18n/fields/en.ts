@@ -29,6 +29,8 @@ const labels: Record<string, string> = {
   annual_degradation: "Annual degradation",
   inherent_degradation: "Inherent degradation factor",
   lifetime_years: "Lifetime in Julian years",
+  lifetime_source: "Lifetime source",
+  design_life: "Design life",
   life_factor: "Lifetime degradation factor",
   dod_max: "Allowed DoD",
   battery_strings: "Battery strings",

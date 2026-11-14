@@ -317,6 +317,7 @@ export type * from "./SharedCatalogStatus";
 export type * from "./SizingBasis";
 export type * from "./SizingCell";
 export type * from "./SizingInput";
+export type * from "./SizingLifetimeSource";
 export type * from "./SizingMode";
 export type * from "./SizingOptions";
 export type * from "./SizingOutput";

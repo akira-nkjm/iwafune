@@ -553,12 +553,12 @@ default_case = "hot_imaging"
 入射は `power.energy_balance` と同じ時系列・SAP・モードごとの姿勢則（`analysis.aocs.law.<モード>`、無ければ上段の姿勢則）で
 `power.orbit_generation` を回し、日照中の平均発電を全パネルに真上から当たるときの発電で割った入射係数として掛ける
 （太陽光の強さは 1 AU に固定し、変換効率は Xd で数えるので時系列には入れない）。
-さらに `(1-annual_degradation)^lifetime_years`・`inherent_degradation` を掛ける。
+さらに `(1-annual_degradation)^lifetime_years`・`inherent_degradation` を掛ける。寿命は入力の設計寿命 `design_life`（射影は `conditions.orbit.duration` を渡す）で、無ければ季節の走査の期間。どちらを使ったかは `used.lifetime_source`。
 異なるパネルが混在するときは、現在の面積配分を保って拡大縮小する設計を仮定する。
 経年・固有の劣化を既存の `eol_factor` に含めた設計では、追加の劣化を重ねないよう上書きする。
 
 1 組の必要電池容量は `Pe*Te/(dod_max*N*Xbattery)`、合計容量はその N 倍。
-既存の集中電池モデルと同様に設計容量は全部品の容量の合計、DoD と放電効率は先頭の電池から取る。
+既存の集中電池モデルと同様に設計容量は全部品の容量の合計、DoD と放電効率は先頭の電池から取る。電圧・効率・初期 SOC・DoD が電池どうしで違うときは、結果が部品の並び順で変わるので warning `battery_mismatch` を出す（電力収支は各ケースの `checks`、サイジングは `checks`）。
 面積と容量は部品の員数を含む。余裕は `spec::ratio_margin`、判定は `ratio_margin_verdict`（警告幅 0）。
 負荷や蝕が 0 で要求が 0 なら余裕は null（判定 OK）。
 
@@ -603,8 +603,8 @@ SMAD に対する比 `area_ratio`・`capacity_ratio`）、日照/蝕の時間、
 
 | 設定 | 省略時 |
 |---|---|
-| `sunlit_efficiency`（Xd） | `analysis.power.conversion_efficiency` があればその値、無ければ 0.8 |
-| `eclipse_efficiency`（Xe） | 0.6（SAP から蝕の負荷までの経路全体） |
+| `sunlit_efficiency`（Xd） | `analysis.power.conversion_efficiency` があればその値、無ければ 0.8（教科書的な概算値。`DEFAULT_SUNLIT_EFFICIENCY`） |
+| `eclipse_efficiency`（Xe） | 0.6（SAP から蝕の負荷までの経路全体。教科書的な概算値。`DEFAULT_ECLIPSE_EFFICIENCY`） |
 | `battery_efficiency`（Xbattery） | 先頭の電池の `discharge_efficiency`（その省略時は既存モデルの 1） |
 | `annual_degradation` | 0（追加の経年劣化なし） |
 | `inherent_degradation` | 1（追加の固有劣化なし） |
