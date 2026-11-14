@@ -9,6 +9,8 @@
 //! - 乾燥質量は `analysis.propulsion.dry_mass`、無ければ部品の質量特性の総質量（structure の射影）。
 //! - スラスタは役割 `propulsion_thruster` の部品と、マヌーバが指す部品。タンクは役割 `propellant_tank` の部品。
 //! - 噴射中の消費電力は部品の `power` の噴射の状態（`STATE_THRUSTER_FIRING`）の値。
+//! - 推進系が有るか（[`present`]）は、マヌーバか推進系の部品（`propulsion_thruster`・`propellant_tank`）があるか。
+//!   質量のバジェットの推薬と高度低下の軌道維持が同じ判断を使う。
 //! - マージンなどの既定値は持たない（解析が持つ）。区分と計算の段階は model ⇄ analysis の対応で写す。
 
 use crate::context::Context;
@@ -89,6 +91,16 @@ pub fn model_method(m: TransferMethod) -> ManeuverMethod {
 /// `propulsion.maneuvers`・`propulsion.propellant`・`propulsion.thruster_usage`（アンロードを含めない）。
 pub fn maneuvers(ctx: &Context<'_>) -> Result<PropulsionInput, MissingInputs> {
     input(ctx, false)
+}
+
+/// 推進系が有るか: マヌーバか、推進系の部品（役割 `propulsion_thruster`・`propellant_tank`）がある。
+/// 無ければ推薬を数えない（質量のバジェットの推薬・高度低下の軌道維持）。有れば推進系の入力が要る。
+pub fn present(ctx: &Context<'_>) -> bool {
+    !ctx.design.maneuvers.is_empty()
+        || by_role(ctx, Role::PropulsionThruster)
+            .chain(by_role(ctx, Role::PropellantTank))
+            .next()
+            .is_some()
 }
 
 /// `propulsion.dv_budget`（RCS でのアンロードの ΔV を含める）。

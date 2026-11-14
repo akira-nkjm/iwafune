@@ -4,7 +4,7 @@ use super::weather::{DecayCondition, DecayWeatherSummary};
 use crate::spec::Series;
 use sat_astro::atmosphere::space_weather::DatedSpaceWeather;
 use sat_astro::time::Epoch;
-use sat_units::typed::{Area, Length, MassDensity, Qty, Time, Velocity};
+use sat_units::typed::{Area, Length, Mass, MassDensity, Qty, Time, Velocity};
 use serde::{Deserialize, Serialize};
 
 /// 抗力の面積の出所。
@@ -36,7 +36,11 @@ pub struct DecayUsed {
     pub station_keeping_span: Qty<Time>,
     /// 軌道維持の高度の帯（無ければ連続して打ち消す）
     pub band: Option<Qty<Length>>,
-    /// 推薬をすべて使ったときの ΔV（ロケット方程式。推進系が無ければ `None`）
+    /// 軌道維持に使える推薬（推進系の解析 `propulsion.propellant` の使える推薬。推進系が無ければ `None`）
+    pub propellant: Option<Qty<Mass>>,
+    /// 比推力を取ったスラスタ（推進系のスラスタのうち最も低い比推力。推進系が無ければ `None`）
+    pub thruster: Option<String>,
+    /// 使える推薬をすべて使ったときの ΔV（ロケット方程式。推進系が無ければ `None`）
     pub propulsion_delta_v: Option<Qty<Velocity>>,
     /// 1 周の標本の数
     pub orbit_samples: u32,

@@ -56,7 +56,7 @@ pub use analysis::{
     AnalysisCaseSource, AnalysisEntry, AnalysisInputSource, AnalysisRunResult, AnalysisRunStatus,
     CheckView, RunAnalysisRequest,
 };
-pub use budget::{BudgetRequest, BudgetRow, BudgetView};
+pub use budget::{BudgetPropellant, BudgetRequest, BudgetRow, BudgetTotal, BudgetView};
 pub use catalog::{CatalogItemView, CatalogSourceView};
 pub use command::{
     AttrAddText, CaseFromEclipseRequest, CommandText, EclipseCaseAt, KindAddText, ModeCellText,

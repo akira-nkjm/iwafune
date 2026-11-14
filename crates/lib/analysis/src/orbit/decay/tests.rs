@@ -1,5 +1,9 @@
 use super::simulate::{self, Model};
 use super::*;
+use crate::propulsion::{
+    DvCategory, ManeuverInput, OrbitTarget, PropellantTank, PropulsionThruster, ThrustConstraints,
+    TransferMethod,
+};
 use crate::spec::Verdict;
 use sat_astro::atmosphere::{AtmosphereModel, density_exponential_kg_m3};
 use sat_astro::constants::{MU_EARTH, OMEGA_EARTH, R_EARTH};
@@ -172,21 +176,71 @@ fn dated_weather_matches_the_same_preset() {
     assert!(case(&o, "low").weather_sources.is_none());
 }
 
-/// 推薬の寿命は、推薬をすべて使った ΔV（ロケット方程式）を 1 年の ΔV で割ったもの。判定はミッション期間と比べる。
+/// 4 kg の機体の推進系: 化学推進 1 N・220 s、500 → 520 km のインパルスの上昇 1 つ、1 L のタンク。
+fn propulsion(orbit: &OrbitSpec, dry_kg: f64) -> PropulsionInput {
+    PropulsionInput {
+        initial_orbit: orbit.clone(),
+        dry_mass: Qty::from_raw(dry_kg),
+        thrusters: vec![PropulsionThruster {
+            id: "PROP".into(),
+            thrust: Qty::from_raw(1.0),
+            isp: Qty::from_raw(220.0),
+            propellant: None,
+            min_impulse_bit: None,
+            rated_total_impulse: None,
+            rated_firing_time: None,
+            rated_firings: None,
+            firing_power: None,
+        }],
+        tanks: vec![PropellantTank {
+            id: "TANK".into(),
+            volume: Qty::from_raw(1e-3),
+            propellant: None,
+            density: Some(Qty::from_raw(1000.0)),
+        }],
+        maneuvers: vec![ManeuverInput {
+            id: "RAISE".into(),
+            category: DvCategory::Insertion,
+            method: TransferMethod::Impulsive,
+            thruster: Some("PROP".into()),
+            target: OrbitTarget {
+                altitude: Some(Qty::from_raw(520e3)),
+                ..OrbitTarget::default()
+            },
+            via_altitude: None,
+            ignored_constraints: Vec::new(),
+            thrust: ThrustConstraints::default(),
+        }],
+        dv_margin: None,
+        residual_fraction: None,
+        unloading: None,
+        unloading_note: None,
+    }
+}
+
+/// 軌道維持の推薬は推進系の解析（`propulsion.propellant`）の使える推薬。噴射前の質量を推薬を積んだ質量にすると、
+/// 使える推薬を使い切った ΔV は `v_e ln(m_wet / (m_wet − m_usable)) = 1.1 × ホーマンの ΔV`（設計の ΔV。マージン 10 %）に戻る。
+/// 推薬の寿命はそれを 1 年の ΔV で割ったもの。判定はミッション期間と比べる。
 #[test]
 fn propellant_life_and_checks() {
     let mut input = cubesat_3u(500e3);
     input.span = Some(Qty::from_raw(3.0 * YEAR_S));
     input.mission_duration = Some(Qty::from_raw(2.0 * YEAR_S));
     input.max_lifetime = Some(Qty::from_raw(25.0 * YEAR_S));
-    input.propulsion = Some(DecayPropulsion {
-        thruster: "PROP".into(),
-        isp: Qty::from_raw(220.0),
-        propellant: Qty::from_raw(0.1),
-    });
+    let p = propulsion(&input.orbit, 4.0);
+    let usable = crate::propulsion::Propellant::run(&p)
+        .unwrap()
+        .usable_propellant
+        .value();
+    input.propulsion = Some(p);
+    let hohmann = sat_astro::transfer::hohmann(MU_EARTH, R_EARTH + 500e3, R_EARTH + 520e3)
+        .unwrap()
+        .total_m_s();
+    let capacity = 1.1 * hohmann;
     let o = OrbitDecay::run(&input).unwrap();
-    let capacity = delta_v(exhaust_velocity(220.0), 4.0, 0.1).unwrap();
-    assert!((o.used.propulsion_delta_v.unwrap().value() - capacity).abs() < 1e-9);
+    assert!((o.used.propulsion_delta_v.unwrap().value() - capacity).abs() < 1e-6);
+    assert!((o.used.propellant.unwrap().value() - usable).abs() < 1e-12);
+    assert_eq!(o.used.thruster.as_deref(), Some("PROP"));
     for c in &o.cases {
         let sk = &c.station_keeping;
         let life = sk.propellant_life.unwrap().value();
@@ -230,12 +284,11 @@ fn invalid_inputs_are_errors() {
     i = cubesat_3u(500e3);
     i.body_size = None;
     assert!(OrbitDecay::run(&i).is_err());
+    // 推進系の解析が通らなければ（比推力が 0）高度低下も誤り
     i = cubesat_3u(500e3);
-    i.propulsion = Some(DecayPropulsion {
-        thruster: "P".into(),
-        isp: Qty::from_raw(200.0),
-        propellant: Qty::from_raw(5.0),
-    });
+    let mut p = propulsion(&i.orbit, 4.0);
+    p.thrusters[0].isp = Qty::ZERO;
+    i.propulsion = Some(p);
     assert!(OrbitDecay::run(&i).is_err());
 }
 
