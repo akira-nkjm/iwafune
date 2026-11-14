@@ -1,12 +1,9 @@
-//! 解析のカード。行は解析の KPI（`analysis::kpi`。定義の順に [`MAX_OUTPUTS`] まで）で、名前は KPI の表示名、値は KPI の表示
+//! 解析のカード。行は解析の主な結果（`analysis::overview::main_kpis`。KPI を定義の順に 3 つまで。概要の解析の表と同じ）で、名前は KPI の表示名、値は KPI の表示
 //! （判定を数える KPI は数の文）、判定は KPI の判定。どの系の解析でも同じ組み立て（解析ごとの分岐を書かない）。
 //! 定常か時系列かの印と説明は解析の登録（`AnalysisInfo`）から。
 
 use crate::dto::{AnalysisEntry, AnalysisRunResult, FlowNode, FlowNodeKind, FlowRow, KpiView};
 use sat_analysis::spec::AnalysisArea;
-
-/// 解析のカードに出す主な出力の数の上限。
-pub(super) const MAX_OUTPUTS: usize = 3;
 
 /// 解析のカード（行は KPI）。
 pub(super) fn node(e: &AnalysisEntry, r: &AnalysisRunResult) -> FlowNode {
@@ -21,7 +18,10 @@ pub(super) fn node(e: &AnalysisEntry, r: &AnalysisRunResult) -> FlowNode {
             AnalysisArea::Condition(_) => None,
         },
         target: None,
-        rows: r.kpis.iter().take(MAX_OUTPUTS).map(row).collect(),
+        rows: crate::analysis::overview::main_kpis(&r.kpis)
+            .iter()
+            .map(row)
+            .collect(),
         analysis: Some(e.info.id.clone()),
         verdict: r.verdict,
         status: Some(r.status),

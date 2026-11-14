@@ -7,6 +7,7 @@
 //! | [`labels`] | 解析の出力の語彙の表示名（日本語・英語） |
 //! | `checks` | 出力の中の判定を集める（期間不足の注意は語彙から作る） |
 //! | `kpi` | KPI（代表値の選び方・判定・塗りの比・判定の数え方） |
+//! | `overview` | 系の概要の解析の表の行（主な結果の選び方・判定の文の持ち主ごとのまとまり） |
 //! | `weather` | 高度低下の入力に宇宙天気の表から日付で引いた列を足し、使った表の版を返す |
 
 use crate::dto::{
@@ -26,6 +27,7 @@ pub(crate) mod checks;
 mod dims;
 mod kpi;
 pub mod labels;
+pub(crate) mod overview;
 mod weather;
 
 /// 解析の一覧（`GET /analyses`）。

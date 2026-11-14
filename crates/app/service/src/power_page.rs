@@ -3,6 +3,7 @@
 //! | モジュール | 責務 |
 //! |---|---|
 //! | `presentation` | 解析出力から流れ・ブレットバー・グラフの表示定義へ |
+//! | `overview` | 概要の解析の表の行（解析ごとの小さな棒グラフ・解析をまたいで同じ表） |
 //!
 //! 解析の一覧は電源のフロー図と同じ（`flow::flow_analyses`）。フロー図（`PowerPageView.flow`）はいったん画面・CLI・HTTP
 //! から外したので組み立てず null（#154。`crate::flow::flow` は残してある）。
@@ -10,15 +11,24 @@ use crate::dto::{PowerAnalysisView, PowerModeView, PowerPageView};
 use crate::{Result, Workspace};
 use sat_analysis::spec::System;
 
+mod overview;
 mod presentation;
 
 /// 指定ケースの電源ページ全体を返す。ケース省略時も各解析と同じ規則で解決する。
 /// 解析の不足入力・失敗は元の結果として返し、得られた解析だけで表示を組み立てる。
 pub fn power_page(ws: &Workspace, case: Option<&str>) -> Result<PowerPageView> {
     let ids = crate::flow::flow_analyses(System::Power).unwrap_or_default();
-    let analyses = crate::flow::run_all(ws, ids, case)?
+    let runs = crate::flow::run_all(ws, ids, case)?;
+    let results: Vec<_> = runs.iter().map(|(_, r)| r).collect();
+    let overviews = overview::overviews(&results);
+    let analyses = runs
         .into_iter()
-        .map(|(entry, result)| PowerAnalysisView { entry, result })
+        .zip(overviews)
+        .map(|((entry, result), overview)| PowerAnalysisView {
+            entry,
+            result,
+            overview,
+        })
         .collect();
     let mut page = assemble(analyses);
     let snapshot = ws.snapshot()?;

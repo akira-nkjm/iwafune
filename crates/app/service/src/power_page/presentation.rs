@@ -1,11 +1,13 @@
 //! 電源ページの表示用集約。物理値は解析出力から読み、位置と表示文字列を添える。
 use crate::dto::*;
 use sat_analysis::power::{
-    energy_balance::{EnergyBalanceInput, EnergyBalanceLoad, EnergyBalanceOutput},
+    energy_balance::{
+        EnergyBalanceCaseResult, EnergyBalanceInput, EnergyBalanceLoad, EnergyBalanceOutput,
+    },
     sizing::SizingOutput,
 };
 use sat_analysis::spec::{Check, Verdict};
-use sat_units::typed::{Area, Energy, Fraction, NamedKind};
+use sat_units::typed::{Area, Energy, Fraction, NamedKind, Qty};
 use serde_json::Value;
 
 mod budget;
@@ -90,19 +92,7 @@ fn balance(input: &EnergyBalanceInput, out: &EnergyBalanceOutput, json: &Value) 
                 sunlit: None,
                 eclipse: None,
                 bars: vec![
-                    verdict_view::<Fraction>(
-                        "dod",
-                        label("最大 DoD", "Maximum DoD"),
-                        // 判定と同じ運用の値（最長継続時間で評価したときはその値）
-                        Some(
-                            case.by_max_duration
-                                .as_ref()
-                                .map_or(case.max_dod.value(), |d| d.max_dod.value()),
-                        ),
-                        out.dod_limit.value(),
-                        PowerLimitKind::AtMost,
-                        check(&case.checks, "dod"),
-                    ),
+                    dod_bar(case, out.dod_limit),
                     verdict_view::<Energy>(
                         "energy_balance",
                         label("1 周のエネルギー余裕", "Energy margin per orbit"),
@@ -150,26 +140,8 @@ fn sizing(out: &SizingOutput) -> PowerPageView {
                 sunlit: None,
                 eclipse: None,
                 bars: vec![
-                    verdict_view::<Area>(
-                        "area",
-                        label("太陽電池の面積", "Solar Cells area"),
-                        Some(out.design_area.value()),
-                        area.value(),
-                        PowerLimitKind::AtLeast,
-                        out.mode_checks
-                            .get(&m.id)
-                            .and_then(|c| check(c, "sap_margin")),
-                    ),
-                    verdict_view::<Energy>(
-                        "capacity",
-                        label("電池容量", "Battery capacity"),
-                        Some(out.design_capacity.value()),
-                        capacity.value(),
-                        PowerLimitKind::AtLeast,
-                        out.mode_checks
-                            .get(&m.id)
-                            .and_then(|c| check(c, "battery_margin")),
-                    ),
+                    area_bar(out, area, out.mode_checks.get(&m.id)),
+                    capacity_bar(out, capacity, out.mode_checks.get(&m.id)),
                 ],
                 charts: Vec::new(),
             })
@@ -180,6 +152,54 @@ fn sizing(out: &SizingOutput) -> PowerPageView {
 
 fn check(checks: &[Check], key: &str) -> Option<Verdict> {
     checks.iter().find(|c| c.key == key).map(|c| c.verdict)
+}
+
+/// 電力収支のケース 1 つの最大 DoD と上限。値は判定と同じ運用の値（最長継続時間で評価したときはその値）。
+pub(super) fn dod_bar(case: &EnergyBalanceCaseResult, limit: Fraction) -> PowerVerdictView {
+    verdict_view::<Fraction>(
+        "dod",
+        label("最大 DoD", "Maximum DoD"),
+        Some(
+            case.by_max_duration
+                .as_ref()
+                .map_or(case.max_dod.value(), |d| d.max_dod.value()),
+        ),
+        limit.value(),
+        PowerLimitKind::AtMost,
+        check(&case.checks, "dod"),
+    )
+}
+
+/// 太陽電池の面積の今と必要（`required`）。判定は `checks` の `sap_margin`。
+pub(super) fn area_bar(
+    out: &SizingOutput,
+    required: Qty<Area>,
+    checks: Option<&Vec<Check>>,
+) -> PowerVerdictView {
+    verdict_view::<Area>(
+        "area",
+        label("太陽電池の面積", "Solar Cells area"),
+        Some(out.design_area.value()),
+        required.value(),
+        PowerLimitKind::AtLeast,
+        checks.and_then(|c| check(c, "sap_margin")),
+    )
+}
+
+/// 電池容量の今と必要（`required`）。判定は `checks` の `battery_margin`。
+pub(super) fn capacity_bar(
+    out: &SizingOutput,
+    required: Qty<Energy>,
+    checks: Option<&Vec<Check>>,
+) -> PowerVerdictView {
+    verdict_view::<Energy>(
+        "capacity",
+        label("電池容量", "Battery capacity"),
+        Some(out.design_capacity.value()),
+        required.value(),
+        PowerLimitKind::AtLeast,
+        checks.and_then(|c| check(c, "battery_margin")),
+    )
 }
 
 /// メーターの右端（限界・必要値の何倍まで描くか）。限界の線はその 1/1.5 の位置になる。
