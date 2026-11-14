@@ -4,7 +4,11 @@ import type { LinkBudgetDirection } from "./LinkBudgetDirection";
 /**
  * 1 回線の結果（dB の値はすべて電力比の 10 log10）。
  */
-export type LinkBudgetLinkResult = { name: string, direction: LinkBudgetDirection, 
+export type LinkBudgetLinkResult = { name: string, 
+/**
+ * 相手の地上局の ID（入力の `station`）
+ */
+station: string, direction: LinkBudgetDirection, 
 /**
  * 斜距離
  */
@@ -25,6 +29,10 @@ extra_loss_db: number,
  * 受信系の G/T [dB/K]
  */
 g_over_t_dbk: number, 
+/**
+ * G/T が地上局などの与えられた値か（`false` なら利得・損失・雑音温度から求めた値）
+ */
+g_over_t_given: boolean, 
 /**
  * C/N0 [dBHz]
  */

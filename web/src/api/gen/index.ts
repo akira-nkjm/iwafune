@@ -78,6 +78,8 @@ export type * from "./DataThroughputLink";
 export type * from "./DataThroughputLinkClosure";
 export type * from "./DataThroughputOutput";
 export type * from "./DataThroughputPass";
+export type * from "./DataThroughputStationClosure";
+export type * from "./DataThroughputStationLink";
 export type * from "./DatedSpaceWeather";
 export type * from "./DecayCase";
 export type * from "./DecayCondition";

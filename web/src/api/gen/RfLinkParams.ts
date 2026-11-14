@@ -33,6 +33,11 @@ rx_loss_db: number | null,
  */
 system_noise_temperature: number, 
 /**
+ * 受信系の G/T [dB/K]（与えれば `rx_gain_db`・`rx_loss_db`・`system_noise_temperature` から求めた G/T の代わりに使う。
+ * 両方あるときはこちらを優先し、結果の `g_over_t_given` で分かる）
+ */
+rx_g_over_t_dbk: number | null, 
+/**
  * 大気・降雨の損失 [dB]。省略時 0
  */
 atmospheric_loss_db: number | null, 
