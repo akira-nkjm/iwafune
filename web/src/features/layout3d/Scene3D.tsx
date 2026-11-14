@@ -135,8 +135,8 @@ export function Scene3D({
               const hits = e.intersections
                 .map((hit) => hit.object.name)
                 .filter((name) => ids.has(name));
-              const picked = pickBox(hits, selected);
-              if (picked) onSelect(picked);
+              // 箱の面に当たらなければ（縁の線などに当たっただけなら）、何も無い所を押したのと同じく選択を外す
+              onSelect(pickBox(hits, selected));
             }}
           >
             <boxGeometry args={b.size} />
