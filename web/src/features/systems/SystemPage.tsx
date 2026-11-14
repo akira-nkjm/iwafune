@@ -13,14 +13,13 @@ import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { systemExtras } from "./extras";
 import { SystemHeaderActions } from "./SystemHeaderActions";
-import { hasFlow, hasModes, type SystemTab, SystemTabs } from "./SystemTabs";
+import { hasModes, type SystemTab, SystemTabs } from "./SystemTabs";
 
-const TABS: SystemTab[] = ["results", "modes", "flow", "series", "settings"];
+const TABS: SystemTab[] = ["results", "modes", "series", "settings"];
 
 /** 系にそのタブがあるか（モードの見方・フロー図は持つ系だけ） */
 function shows(system: System, tab: SystemTab): boolean {
   if (tab === "modes") return hasModes(system);
-  if (tab === "flow") return hasFlow(system);
   return true;
 }
 

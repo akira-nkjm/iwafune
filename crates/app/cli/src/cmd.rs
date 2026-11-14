@@ -14,7 +14,6 @@
 //! | `edit` | Op の列の適用と結果の表示・init |
 //! | `units` | units ls/parse/format |
 //! | `analyze` | analyze・budget |
-//! | `flow` | flow（解析のフロー図のカードとつながり） |
 //! | `gui` | gui |
 //! | `data` | data status/fetch |
 
@@ -24,7 +23,6 @@ mod common;
 mod data;
 mod defs;
 mod edit;
-mod flow;
 mod gui;
 mod maneuvers;
 mod nets;
@@ -60,7 +58,6 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
         Command::Budget { kind, case, ops } => {
             analyze::budget(&open(g)?, kind, case.as_deref(), ops.as_deref(), out)
         }
-        Command::Flow { system, case } => flow::run(&open(g)?, system, case.as_deref(), out),
         Command::Fmt { check } => {
             let result = fune_service::format::format_design(
                 &open(g)?,

@@ -4,8 +4,8 @@
 //! |---|---|
 //! | `presentation` | 解析出力から流れ・ブレットバー・グラフの表示定義へ |
 //!
-//! 解析の一覧は電源のフロー図と同じ（`flow::flow_analyses`）。フロー図（`PowerPageView.flow`）は `crate::flow` が
-//! 同じ解析の結果から作る（`GET /flow/power` と同じもの）。
+//! 解析の一覧は電源のフロー図と同じ（`flow::flow_analyses`）。フロー図（`PowerPageView.flow`）はいったん画面・CLI・HTTP
+//! から外したので組み立てず null（#154。`crate::flow::flow` は残してある）。
 use crate::dto::{PowerAnalysisView, PowerModeView, PowerPageView};
 use crate::{Result, Workspace};
 use sat_analysis::spec::System;
@@ -22,12 +22,7 @@ pub fn power_page(ws: &Workspace, case: Option<&str>) -> Result<PowerPageView> {
         .collect();
     let mut page = assemble(analyses);
     let snapshot = ws.snapshot()?;
-    let shown: Vec<_> = page
-        .analyses
-        .iter()
-        .map(|a| (&a.entry, &a.result))
-        .collect();
-    page.flow = crate::flow::flow(&snapshot, case, &shown);
+    // フロー図（`crate::flow::flow`）はいったん画面から外したので組み立てない（`PowerPageView.flow` は null。#154）
     // モードは設計の表示順（fune.toml の `[modes] order`）に並べる。一覧に無いものは後ろ
     let order: Vec<String> = snapshot
         .design
