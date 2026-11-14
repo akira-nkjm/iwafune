@@ -6,8 +6,16 @@ use crate::spec::{Check, Verdict, quantity_text};
 use sat_units::typed::Time;
 
 /// すべての判定（書かれた要求があるものだけ）。
-pub(super) fn checks(input: &OrbitDecayInput, used: &DecayUsed, cases: &[DecayCase]) -> Vec<Check> {
+pub(super) fn checks(
+    input: &OrbitDecayInput,
+    used: &DecayUsed,
+    cases: &[DecayCase],
+    undetermined: Option<&[String]>,
+) -> Vec<Check> {
     let mut out = Vec::new();
+    if let Some(names) = undetermined {
+        out.push(thruster_check(names));
+    }
     let e = input.orbit.elements.eccentricity;
     if e > NEAR_CIRCULAR_ECCENTRICITY {
         out.push(Check::new(
@@ -29,6 +37,20 @@ pub(super) fn checks(input: &OrbitDecayInput, used: &DecayUsed, cases: &[DecayCa
         out.push(disposal_check(used, cases, max.value()));
     }
     out
+}
+
+/// 推薬が複数あり、軌道維持に使うスラスタを決められないという注意。
+fn thruster_check(names: &[String]) -> Check {
+    Check::new(
+        "station_keeping_thruster",
+        "軌道維持のスラスタ",
+        Verdict::Warning,
+        format!(
+            "推薬が複数（{}）あり、軌道維持に使うスラスタを決められないので、推薬で保てる ΔV と期間を求めていません。\
+             区分を軌道維持（station_keeping）にしてスラスタを書いたマヌーバを足してください",
+            names.join("、")
+        ),
+    )
 }
 
 /// 寿命の下限 [s]（再突入しなければ期間の上限）。
