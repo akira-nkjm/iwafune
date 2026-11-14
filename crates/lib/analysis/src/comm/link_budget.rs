@@ -30,6 +30,8 @@ pub enum LinkBudgetDirection {
 pub struct LinkBudgetLink {
     /// 回線の名前（例: `"UHF down"`）
     pub name: String,
+    /// 相手の地上局の ID（回線 × 地上局の組ごとに 1 行）
+    pub station: String,
     pub direction: LinkBudgetDirection,
     /// 送受信端と経路の RF パラメーター（tx は送信側、rx は受信側）
     pub rf: RfLinkParams,
@@ -68,6 +70,8 @@ impl LinkBudgetInput {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct LinkBudgetLinkResult {
     pub name: String,
+    /// 相手の地上局の ID（入力の `station`）
+    pub station: String,
     pub direction: LinkBudgetDirection,
     /// 斜距離
     pub slant_range: Qty<Length>,
@@ -79,6 +83,8 @@ pub struct LinkBudgetLinkResult {
     pub extra_loss_db: Decibel,
     /// 受信系の G/T [dB/K]
     pub g_over_t_dbk: DecibelPerKelvin,
+    /// G/T が地上局などの与えられた値か（`false` なら利得・損失・雑音温度から求めた値）
+    pub g_over_t_given: bool,
     /// C/N0 [dBHz]
     pub c_over_n0_dbhz: DecibelHertz,
     /// Eb/N0 [dB]
@@ -98,7 +104,7 @@ pub struct LinkBudgetOutput {
     pub links: Vec<LinkBudgetLinkResult>,
     /// 判定に使った要求余裕 [dB]（入力が無ければ既定値）
     pub required_margin_db: Decibel,
-    /// 回線ごとの余裕の判定（key は `margin:<name>`）
+    /// 回線 × 地上局の組ごとの余裕の判定（key は `margin:<name>@<局>`）
     pub checks: Vec<Check>,
 }
 
@@ -154,12 +160,14 @@ fn evaluate(
     let eb_n0 = eb_over_n0_db(eval.c_over_n0_dbhz, rate);
     Ok(LinkBudgetLinkResult {
         name: link.name.clone(),
+        station: link.station.clone(),
         direction: link.direction,
         slant_range: Qty::from_raw(range),
         eirp_dbw: (eval.eirp_dbw).into(),
         fspl_db: (eval.fspl_db).into(),
         extra_loss_db: (eval.extra_loss_db).into(),
         g_over_t_dbk: (eval.g_over_t_dbk).into(),
+        g_over_t_given: eval.g_over_t_given,
         c_over_n0_dbhz: (eval.c_over_n0_dbhz).into(),
         eb_n0_db: (eb_n0).into(),
         required_eb_n0_db: link.required_eb_n0_db,
@@ -173,9 +181,10 @@ fn evaluate(
 }
 
 fn margin_check(result: &LinkBudgetLinkResult, required: Decibel) -> Check {
+    let pair = format!("{}@{}", result.name, result.station);
     Check::new(
-        &format!("margin:{}", result.name),
-        &format!("{} の回線余裕", result.name),
+        &format!("margin:{pair}"),
+        &format!("{pair} の回線余裕"),
         margin_verdict(result.margin_db.value(), required.value()),
         format!(
             "余裕 {}（要求 {} 以上）",
@@ -189,6 +198,7 @@ fn margin_check(result: &LinkBudgetLinkResult, required: Decibel) -> Check {
 mod tests {
     use super::*;
     use crate::spec::Verdict;
+    use sat_units::typed::DecibelPerKelvin;
 
     fn db(v: f64) -> Decibel {
         Decibel::new(v)
@@ -197,6 +207,7 @@ mod tests {
     fn uhf_down() -> LinkBudgetLink {
         LinkBudgetLink {
             name: "UHF down".to_owned(),
+            station: "A".to_owned(),
             direction: LinkBudgetDirection::Downlink,
             rf: RfLinkParams {
                 frequency: Qty::from_raw(437.0e6),
@@ -206,6 +217,7 @@ mod tests {
                 rx_gain_db: db(12.0),
                 rx_loss_db: Some(db(0.0)),
                 system_noise_temperature: Qty::from_raw(500.0),
+                rx_g_over_t_dbk: None,
                 atmospheric_loss_db: Some(db(0.5)),
                 polarization_loss_db: Some(db(3.0)),
                 pointing_loss_db: Some(db(0.5)),
@@ -282,5 +294,88 @@ mod tests {
         };
         assert!((range(CentralBody::Moon) - 2115.5e3).abs() < 0.5e3);
         assert!((range(CentralBody::Earth) - 3709.0e3).abs() < 0.5e3);
+    }
+
+    /// 地上局 2 つ × 下り回線 2 本（UHF 437 MHz / S 帯 2.2 GHz）の 4 組がすべて結果と判定に出る。
+    /// 手計算（高度 1000 km・仰角 90° の斜距離 1000 km）:
+    /// - UHF: FSPL 145.25 dB。局 A（G = 12 dBi, T = 500 K）の余裕は 13.54 dB（上のテストと同じ）。
+    ///   局 B（G = 6 dBi）は G/T が 6 dB 下がるので 7.54 dB。
+    /// - S 帯（2.2 GHz）: FSPL = 145.25 + 20 log10(2200/437) = 145.25 + 14.04 = 159.29 dB。
+    ///   局 A の余裕は UHF から (−14.04 dB) = −0.50 dB、局 B は −6.50 dB。
+    ///
+    /// 余裕 3 dB を要求するので、UHF の 2 組は ok、S 帯の 2 組は violation。
+    #[test]
+    fn every_link_and_station_pair_is_evaluated() {
+        let mut links = Vec::new();
+        for (name, freq) in [("UHF down", 437.0e6), ("S down", 2.2e9)] {
+            for (station, gain) in [("A", 12.0), ("B", 6.0)] {
+                let mut l = uhf_down();
+                l.name = name.to_owned();
+                l.station = station.to_owned();
+                l.rf.frequency = Qty::from_raw(freq);
+                l.rf.rx_gain_db = db(gain);
+                links.push(l);
+            }
+        }
+        let out = LinkBudget::run(&LinkBudgetInput {
+            links,
+            required_margin_db: None,
+        })
+        .unwrap();
+        let margins: Vec<(String, f64)> = out
+            .links
+            .iter()
+            .map(|r| {
+                let st = &r.station;
+                (format!("{}@{st}", r.name), r.margin_db.value())
+            })
+            .collect();
+        let expect = [
+            ("UHF down@A", 13.54),
+            ("UHF down@B", 7.54),
+            ("S down@A", -0.50),
+            ("S down@B", -6.50),
+        ];
+        assert_eq!(margins.len(), 4);
+        for ((got_name, got), (name, want)) in margins.iter().zip(expect) {
+            assert_eq!(got_name, name);
+            assert!((got - want).abs() < 0.05, "{name}: {got}");
+        }
+        let verdicts: Vec<_> = out
+            .checks
+            .iter()
+            .map(|c| (c.key.as_str(), c.verdict))
+            .collect();
+        assert_eq!(
+            verdicts,
+            [
+                ("margin:UHF down@A", Verdict::Ok),
+                ("margin:UHF down@B", Verdict::Ok),
+                ("margin:S down@A", Verdict::Violation),
+                ("margin:S down@B", Verdict::Violation),
+            ]
+        );
+        assert!(out.checks[2].label.contains("S down@A"));
+    }
+
+    /// 与えた G/T を使う。−10 dB/K（導出値 −14.99 dB/K より 4.99 dB 高い）なら余裕も 4.99 dB 増えて 18.53 dB。
+    #[test]
+    fn given_g_over_t_is_used_and_reported() {
+        let run = |g_t: Option<f64>| {
+            let mut l = uhf_down();
+            l.rf.rx_g_over_t_dbk = g_t.map(DecibelPerKelvin::new);
+            LinkBudget::run(&LinkBudgetInput {
+                links: vec![l],
+                required_margin_db: None,
+            })
+            .unwrap()
+            .links
+            .remove(0)
+        };
+        let (derived, given) = (run(None), run(Some(-10.0)));
+        assert!(!derived.g_over_t_given && given.g_over_t_given);
+        assert_eq!(given.g_over_t_dbk.value(), -10.0);
+        assert!((given.margin_db.value() - 18.53).abs() < 0.03);
+        assert!((given.margin_db.value() - derived.margin_db.value() - 4.99).abs() < 0.01);
     }
 }
