@@ -20,6 +20,7 @@ function modeView(system: System = "power"): SystemModesView {
   };
   return {
     system,
+    missing: [],
     modes: [
       {
         id: "NOMINAL",

@@ -11,6 +11,7 @@ import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { VerdictPill } from "@/kit/status/VerdictPill";
 import { verdictTone } from "@/kit/status/verdict-tone";
 import { MassTotals, PropellantRow } from "./BudgetPropellant";
+import { BudgetUncountedNote } from "./BudgetUncounted";
 import { wetTotal } from "./cards";
 
 /**
@@ -84,6 +85,7 @@ export function BudgetPanel({ kind }: { kind: BudgetKind }) {
         ))}
         {v.propellant && <PropellantRow propellant={v.propellant} design={design.data} />}
       </ul>
+      <BudgetUncountedNote uncounted={v.uncounted} />
       {v.notes.length > 0 && (
         <ul className="mt-3 space-y-0.5 text-[11px] text-ink-3">
           {v.notes.map((n) => (

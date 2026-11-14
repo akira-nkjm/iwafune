@@ -34,6 +34,7 @@ function load(mean: number): SystemModesView {
   };
   return {
     system: "power",
+    missing: [],
     modes: [
       {
         id: "NOMINAL",
@@ -187,6 +188,7 @@ it("保存済みの蝕のセルを表示し、解除した直後は日照の整�
 it("系別セルは API の次元を保持し、同じ mode_set の下書きで編集する", () => {
   const view: SystemModesView = {
     system: "cdh",
+    missing: [],
     modes: [
       {
         id: "NOMINAL",

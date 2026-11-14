@@ -164,6 +164,19 @@ fn eclipse_overrides_only_the_heater() {
 }
 
 #[test]
+fn eclipse_override_without_normal_assignment_is_not_added() {
+    // 仕様（docs/model.md §7.2）: 通常の割り当てが無い部品の蝕の上書きは解析に足さない（検査の warning で知らせる）。
+    // RW 3 台 × 10 W = 30 W は日照も蝕も同じで、HTR（蝕だけ on、5 W）は蝕の負荷に入らない
+    let mut i = redundant_input(modes::Redundancy::Cold);
+    i.parts
+        .push(part("HTR", "TCS", &[("off", 0.0), ("on", 5.0)], Some(0.0)));
+    i.modes[0].eclipse.push(assign("HTR", "on", &[]));
+    let m = evaluate_mode(&i, &i.modes[0]).unwrap();
+    assert_eq!(m.total.value(), 30.0);
+    assert_eq!(m.total_eclipse.value(), 30.0);
+}
+
+#[test]
 fn invalid_population_is_rejected() {
     let mut i = redundant_input(modes::Redundancy::Warm);
     i.modes[0].assignments[0].active = Some(5);

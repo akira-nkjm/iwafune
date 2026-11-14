@@ -26,10 +26,7 @@ pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem
     let mut out = Vec::new();
     for p in ctx.resolved.parts.values() {
         // 1 個あたりの質量と員数を渡す（員数を掛けるのは解析）。
-        let Some(mass) = ctx.scalar(p, "mass") else {
-            if p.attr.contains_key("mass") {
-                m.push(Target::attr(&p.id, "mass"), "部品の質量");
-            }
+        let Some(mass) = crate::parts::mass_or_missing(ctx, p, m) else {
             continue;
         };
         let (position, orientation) = pose::body_pose(ctx.resolved, &p.id)
@@ -105,14 +102,14 @@ fn load_factor(
 }
 
 /// 準静的荷重の項目（質量を持つ部品。取付の根の取付先は `LV`）。
-fn load_items(ctx: &Context<'_>) -> Vec<StaticLoadItem> {
+fn load_items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<StaticLoadItem> {
     ctx.resolved
         .parts
         .values()
         .filter_map(|p| {
             Some(StaticLoadItem {
                 id: p.id.clone(),
-                mass: Qty::from_raw(ctx.scalar(p, "mass")?),
+                mass: Qty::from_raw(crate::parts::mass_or_missing(ctx, p, m)?),
                 count: crate::parts::count_of(p),
                 mount: p
                     .mount
@@ -166,7 +163,7 @@ pub fn static_load(ctx: &Context<'_>) -> Result<StaticLoadInput, MissingInputs> 
         launch.and_then(|l| load_factor(l.load_axial.as_ref(), &dims::LAUNCH_LOAD_AXIAL, &mut m));
     let lateral = launch
         .and_then(|l| load_factor(l.load_lateral.as_ref(), &dims::LAUNCH_LOAD_LATERAL, &mut m));
-    let items = load_items(ctx);
+    let items = load_items(ctx, &mut m);
     let interfaces = interfaces(ctx, &items, &mut m);
     let safety_factor = launch.and_then(|l| l.safety_factor_yield);
     m.finish(|| {
@@ -235,7 +232,7 @@ fn panel(
     );
     let mut sides = size?;
     sides.sort_by(|a, b| b.total_cmp(a));
-    let mounted = mounted_on(ctx, &p.id);
+    let mounted = mounted_on(ctx, &p.id, m);
     Some(ModalEstimatePanel {
         id: p.id.clone(),
         length_a: Qty::from_raw(sides[0]),
@@ -280,7 +277,7 @@ pub fn modal_estimate(ctx: &Context<'_>) -> Result<ModalEstimateInput, MissingIn
 }
 
 /// パネルに載る部品（1 個あたりの質量と員数。合計は解析が求める）。
-fn mounted_on(ctx: &Context<'_>, panel: &str) -> Vec<ModalEstimateMounted> {
+fn mounted_on(ctx: &Context<'_>, panel: &str, m: &mut MissingInputs) -> Vec<ModalEstimateMounted> {
     ctx.resolved
         .parts
         .values()
@@ -288,7 +285,7 @@ fn mounted_on(ctx: &Context<'_>, panel: &str) -> Vec<ModalEstimateMounted> {
         .filter_map(|c| {
             Some(ModalEstimateMounted {
                 id: c.id.clone(),
-                mass: Qty::from_raw(ctx.scalar(c, "mass")?),
+                mass: Qty::from_raw(crate::parts::mass_or_missing(ctx, c, m)?),
                 count: crate::parts::count_of(c),
             })
         })

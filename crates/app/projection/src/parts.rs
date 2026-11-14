@@ -147,6 +147,16 @@ pub fn total_mass(ctx: &Context<'_>, p: &ResolvedPart) -> Option<f64> {
     ctx.scalar(p, "mass").map(|m| extensive(p, m))
 }
 
+/// 1 個あたりの質量 [kg]。`mass` を書いてあるのに値が読めない部品は不足入力に記録する
+/// （`mass` をまったく書かない部品は質量を持たない部品として、記録せずに `None`）。質量特性・荷重・固有振動の項目で共有する。
+pub fn mass_or_missing(ctx: &Context<'_>, p: &ResolvedPart, m: &mut MissingInputs) -> Option<f64> {
+    let mass = ctx.scalar(p, "mass");
+    if mass.is_none() && p.attr.contains_key("mass") {
+        m.push(Target::attr(&p.id, "mass"), "部品の質量");
+    }
+    mass
+}
+
 /// 設計の員数（0 は未指定と同じく 1）。解析入力の count と示量の合計で共有する。
 pub fn count_of(p: &ResolvedPart) -> u32 {
     p.count.max(1)

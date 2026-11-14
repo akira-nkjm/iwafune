@@ -58,7 +58,21 @@ pub struct BudgetView {
     pub mode: Option<String>,
     /// 足りない入力（解析の `missing` と同じ形）。空でなければ合計と行は無い
     pub missing: Vec<MissingInput>,
+    /// 値が無くて合計に数えなかった部品（質量なら `mass` が無い部品、電力ならモードの割り当てが無いか電力の値が無い部品）。
+    /// 合計・判定は数えた部品だけの値で、これらを 0 とみなしてはいない。`missing`（解析の入力が足りず合計が無い）とは別
+    pub uncounted: Vec<BudgetUncounted>,
     pub notes: Vec<String>,
+}
+
+/// バジェットに数えなかった部品 1 件（`BudgetView.uncounted`）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct BudgetUncounted {
+    /// 部品 ID
+    pub part: String,
+    /// 表示名（無ければ ID）
+    pub label: String,
+    /// 数えなかったモードの ID（電力のとき。質量・データ量は空）
+    pub modes: Vec<String>,
 }
 
 /// バジェットの 1 行。
