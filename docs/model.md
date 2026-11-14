@@ -877,6 +877,7 @@ by           = "system-lead"
   二重に持つことになるのでやめた。無い出典の ID を指すと `ref.source` の error。古い書き方（`datasheet` に URL・パスを直接書く）は読めるまま
   `source.datasheet_location` の warning にして、出典へ移すよう促す（既存のカタログを壊さないため）。`source`（出典を書いていない値に当てる
   既定の出典）と同じ出典を指してよい。GUI は指した出典の `ref` が Web の URL なら、データシートの欄の横に開くリンクを出す（API の `datasheet_link`）。
+- 共有カタログ（§12）の出典は `<カタログ名>/<ID>`（`lab/ds_rw10`）で参照する。共有カタログの品の中の参照には読み込みで出所が付く。
 - 公開できない（`restricted`）資料の値は、衛星をまたいで共有するカタログに入れない。共有カタログ（§12。`[[catalog]] git = …`）の品が
   `source`・`datasheet`・値の `from.source` で `restricted` の出典を指すと error にする。カタログが書き込めるかの判定は
   `CatalogSource::local_dir`（`path = …` の出所だけが書き込める）の 1 か所。このプロジェクトの中のカタログ（`path = …`）の品は対象にしない。
@@ -1165,7 +1166,7 @@ power = { x = 20, y = 20 }
 ```
 my-sat-design/
 ├── fune.toml                    # プロジェクト設定・共有カタログ・TOML の版
-├── catalog.lock                 # 共有カタログの固定 commit
+├── catalog.lock                 # 共有カタログの固定 commit（§12.2。git で管理する）
 ├── budget/
 │   ├── allocation.toml          # 配分（システム担当）
 │   └── policy.toml              # 成長余裕・不確かさの既定幅・ハーネスの見込み
@@ -1208,7 +1209,7 @@ my-sat-design/
 ├── results/<名前>/               # pin した解析結果だけ
 ├── exports/                     # 他ツールへの書き出し
 ├── .github/CODEOWNERS
-└── .fune/                       # gitignore: キャッシュ、runs/
+└── .fune/                       # gitignore: キャッシュ（共有カタログは .fune/catalogs/。§12.3）、runs/
 ```
 
 `CODEOWNERS` の例（担当者名は仮）を示す。
@@ -1235,7 +1236,7 @@ order = ["NOMINAL", "MISSION", "DOWNLINK", "SAFE"]  # 省略時は ID 順
 
 [[catalog]]
 name = "lab"
-git  = "https://git.example.com/example-lab/parts-catalog"   # 架空の例
+git  = "https://example.com/catalog.git"   # 架空の例（§12）
 rev  = "v2026.11"
 
 [[catalog]]
@@ -1329,17 +1330,91 @@ point = "CELL_AREA"
 
 ## 12. 共有カタログ
 
-カタログは衛星をまたいで使い回す資産なので、チームで共有するリポジトリ（例: `example-org/component-catalog`）に置き、
+カタログは衛星をまたいで使い回す資産なので、チームで共有するリポジトリ（例: `example-org/parts-catalog`）に置き、
 各衛星のリポジトリからは版を固定して読み取り専用で参照する（`catalog.lock` に commit を記録）。
 参照は `lab/rw_18mNms` のように出所付きで書き、同じ名前の衝突を防ぐ。
 カタログの値を直したいときは、共有リポジトリに PR を出すか、その衛星の Part で上書きする（上書きは由来付きで残る）。
+
+### 12.1 共有カタログのリポジトリ
+
+共有カタログのリポジトリの直下の `catalog/<ID>.toml`（品）と `sources/<ID>.toml`（出典）を読む。形はこのプロジェクトの
+`catalog/`・`sources/` と同じ（§7.8）。ほかのファイル（`fune.toml`・README など）は読まない。共有カタログのリポジトリ自体を
+fune のプロジェクト（`[[catalog]] name = "local" path = "catalog"`）にして、そこで `fune check`・`fune fmt --check` を回してよい。
+品が使う属性・種別は組み込みのもの（またはこのプロジェクトの `defs/` にあるもの）にする（共有カタログの `defs/` は読まない）。
+
+### 12.2 fune.toml と catalog.lock
+
+```toml
+# fune.toml
+[[catalog]]
+name = "lab"
+git  = "https://example.com/catalog.git"   # git が取れる URL（https・ssh・file://）
+rev  = "main"                              # ブランチ・タグ・commit。省略すると既定のブランチ
+```
+
+```toml
+# catalog.lock（fune catalog fetch・fune catalog update が書く。git で管理する）
+[[catalog]]
+name   = "lab"
+git    = "https://example.com/catalog.git"
+rev    = "main"
+commit = "0123456789abcdef0123456789abcdef01234567"
+```
+
+lock は fune.toml の共有カタログ（`git = …`）ごとに、取得したときの `git`・`rev` と、`rev` を解決した commit を持つ。
+読み込みは lock の commit だけを見る（`rev` がブランチでも、lock を上げるまで中身は変わらない）。
+
+### 12.3 取得・更新とキャッシュ
+
+| コマンド（HTTP） | すること |
+|---|---|
+| `fune catalog fetch`（`POST /catalog/fetch`） | lock が fune.toml と合っていれば lock の commit を取得する（commit は動かさない）。lock に無い・`git`・`rev` が違う共有カタログは `rev` を解決して lock に書く。fune.toml に無い lock の記録は外す |
+| `fune catalog fetch --locked`（`{ "locked": true }`） | lock を書き換えない。lock が無い・fune.toml と違えば失敗する（CI 向け） |
+| `fune catalog update <名前>`（`POST /catalog/update`） | その共有カタログの lock を `rev` の今の commit に上げる。変わった品と値（`attr.mass: 150 g → 160 g`）を返す |
+
+取得は git のコマンドで行い、認証は手元の git の設定（資格情報の保存・SSH の鍵）に任せる（端末では聞き返さない）。
+取得したものはプロジェクトの `.fune/catalogs/` に置く（`.fune/` は git で管理しない。`fune init` が `.gitignore` に書く）。
+
+```
+.fune/catalogs/<名前>/repo.git/        # 取得元の写し（bare）
+.fune/catalogs/<名前>/<commit>/catalog/<ID>.toml
+.fune/catalogs/<名前>/<commit>/sources/<ID>.toml
+```
+
+commit ごとのディレクトリは中身を揃えてから置く（一時ディレクトリ → 名前の変更）ので、あれば完全なものとして読む。
+lock の commit がキャッシュにあれば、取得元に繋がらなくても読める。衛星のリポジトリの CI では
+`fune catalog fetch --locked` の後に `fune check` を回す（README の「Shared catalogs in CI」）。
+
+### 12.4 読み込みと参照
+
+- 品は `<名前>/<ID>`（`lab/rw_18mNms`）で入る。部品の `catalog`・`candidates` からこの ID で参照する。
+- **共有カタログの出典は `<名前>/<ID>`（`lab/ds_rw10`）で参照する。** プロジェクトの出典の ID は `/` を含まないので衝突しない。
+  共有カタログの品の中の参照（`source`・`datasheet`・値の `from.source`）は、そのリポジトリの中の ID（`ds_rw10`）のまま書き、
+  読み込みで出所を付ける（`lab/ds_rw10`）。このプロジェクトの部品の値からも `from.source = "lab/ds_rw10"` で参照できる。
+  `datasheet` に URL・パスを直接書いた古い形は出所を付けずに残す（`source.datasheet_location` の warning）。
+- 共有の品と出典は読み取り専用（`CatalogItemView.editable`・`SourceView.editable` が false。fune-ops も書き込みを拒む）。
+  書き込めるかの判定は `CatalogSource::local_dir` の 1 か所（共有カタログかは `CatalogSource::shared_git`・`Design::shared_catalog_of`）。
+- 共有の品が公開できない（`distribution = "restricted"`）出典を使うと error（`source.restricted`。§7.8）。
+- 診断の位置はキャッシュの中のファイル（`.fune/catalogs/lab/<commit>/catalog/rw_18mNms.toml`）。
+
+### 12.5 検査
+
+| コード | 重さ | 場合 | 次にすること（文に書く） |
+|---|---|---|---|
+| `catalog.not_locked` | error | 共有カタログが catalog.lock に無い | `fune catalog fetch` |
+| `catalog.lock_mismatch` | error | lock の `git`・`rev` が fune.toml と違う | `fune catalog update <名前>` |
+| `catalog.not_fetched` | error | lock の commit がキャッシュに無い | `fune catalog fetch` |
+| `catalog.lock_unused` | warning | lock の記録が fune.toml の共有カタログに無い | `fune catalog fetch`（lock から外す） |
+
+状態（`ready`・`not_locked`・`lock_mismatch`・`not_fetched`）の判定は `Design::shared_catalog_statuses` だけで、検査と
+GUI のカタログのページ（lock の commit と状態・取得のボタン。`ProjectInfo.catalogs[].shared`）が使う。
 
 ## 13. 未決事項
 
 | # | 問い | 既定案 |
 |---|---|---|
 | M1 | 物理的な組立品を「同名のファイル＋ディレクトリ」で表す規則でよいか | よい。特別なファイル名（`_assembly.toml`）は使わない |
-| M2 | 共有カタログを最初から分けるか | 最初は `catalog/` に置き、2 機目が出た時点で共有リポジトリに切り出す |
+| M2 | 共有カタログを最初から分けるか | 最初は `catalog/` に置き、2 機目が出た時点で共有リポジトリに切り出す（読み込みは §12） |
 | M3 | 員数（count）と個別 Part の使い分け | 個別の姿勢・配線が要るものは個別 Part。同じ状態で動く機器の組は count、予備との台数配分は active と redundancy |
 | M4 | Range と Uncertain の区別 | 動作温度範囲のような「仕様の範囲」は Range、値のばらつきは Uncertain |
 | M5 | モードの表に書かれていない部品の扱い | 「未指定」の警告。kind に既定の状態は持たせない（暗黙の 0 W を作らないため） |

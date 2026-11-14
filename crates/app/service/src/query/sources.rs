@@ -12,6 +12,7 @@ pub(crate) fn sources(design: &Design) -> Vec<SourceView> {
         .map(|s| SourceView {
             link: s.web_link().map(str::to_owned),
             file: file_of(design, EntityKey::Source(s.id.to_string())),
+            editable: design.shared_catalog_of(s.id.as_str()).is_none(),
             source: s.clone(),
         })
         .collect()

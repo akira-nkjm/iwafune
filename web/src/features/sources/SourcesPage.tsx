@@ -20,7 +20,7 @@ import { SourceDialog } from "./SourceDialog";
 /** 編集のダイアログの対象（新しい出典は null） */
 type Editing = { source: EvidenceSource | null } | null;
 
-/** プロジェクト / 出典: sources/ の一覧。参照先が Web の URL ならリンクで開け、各行から書き直せる */
+/** プロジェクト / 出典: sources/ の一覧。参照先が Web の URL ならリンクで開け、各行から書き直せる（共有カタログの出典は読み取り専用） */
 export function SourcesPage() {
   const t = useT();
   const m = t.sources;
@@ -126,14 +126,20 @@ export function SourcesTable({
               {s.file}
             </Td>
             <Td>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                aria-label={`${m.edit}: ${s.id}`}
-                onClick={() => onEdit(s)}
-              >
-                <Pencil />
-              </Button>
+              {s.editable ? (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={`${m.edit}: ${s.id}`}
+                  onClick={() => onEdit(s)}
+                >
+                  <Pencil />
+                </Button>
+              ) : (
+                <span className="text-ink-4 text-xs" title={m.sharedHint}>
+                  {m.shared}
+                </span>
+              )}
             </Td>
           </tr>
         ))}

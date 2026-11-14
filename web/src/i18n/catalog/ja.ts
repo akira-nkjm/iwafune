@@ -61,5 +61,20 @@ export const catalogJa = {
     summaryCreate: (id: string) => `カタログ品 ${id} を作る`,
     summaryRename: (a: string, b: string) => `${a} → ${b}`,
     summaryRemove: (id: string) => `カタログ品 ${id} を削除`,
+    shared: {
+      title: "共有カタログ",
+      ready: "catalog.lock の commit を読み込んでいます。共有の品は読み取り専用です。",
+      needed: "取得が必要です。取得するか、CLI で fune catalog fetch を実行してください。",
+      fetch: "取得",
+      fetching: "取得中…",
+      rev: (rev: string) => `rev ${rev}`,
+      noCommit: "commit なし",
+      hint: {
+        not_locked: "catalog.lock に記録がありません（取得すると記録します）",
+        lock_mismatch:
+          "fune.toml の git・rev が lock と違います（fune catalog update で合わせます）",
+        not_fetched: "lock の commit がまだ取得されていません",
+      },
+    },
   },
 };

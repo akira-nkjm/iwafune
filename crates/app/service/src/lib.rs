@@ -17,6 +17,7 @@
 //! | `budget` | 質量・電力・データ量のバジェット |
 //! | `system_modes` | 系ごとのモードの見方（電源・C&DH・熱・AOCS の値・合計・判定） |
 //! | `data` | 外部データ（DE440・宇宙天気）の取得・状態・読み込み（ユーザーごとのキャッシュ）、日付からの宇宙天気 |
+//! | `shared_catalog` | 共有カタログ（`[[catalog]] git = …`）の取得・更新（git の CLI。プロジェクトの `.fune/catalogs/` のキャッシュと `catalog.lock`） |
 //! | `diff` | 変更前後の本文 → unified diff |
 //! | `error` | サービスのエラー（HTTP の状態と CLI の終了コードに写せる分類） |
 
@@ -30,6 +31,7 @@ pub mod error;
 pub mod power_page;
 pub mod preview;
 pub mod query;
+pub mod shared_catalog;
 pub mod system_modes;
 pub mod units;
 pub mod workspace;

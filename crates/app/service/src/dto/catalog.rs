@@ -1,7 +1,7 @@
 //! カタログ品の表示用の型（`GET /design` の `catalog`、`fune catalog ls|show`）。
 
 use super::ValueView;
-use fune_model::design::{Maturity, NetKind};
+use fune_model::design::{Maturity, NetKind, SharedCatalogStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
@@ -14,6 +14,8 @@ pub struct CatalogSourceView {
     /// このプロジェクトの中（`path = …`）なら true。共有カタログ（`git = …`）は読み取り専用で false。
     /// 判定は `fune_model::design::CatalogSource::local_dir`（品の `editable` と同じ）
     pub editable: bool,
+    /// 共有カタログ（`git = …`）なら、lock の commit と読み込みの状態（判定は `Design::shared_catalog_statuses`）
+    pub shared: Option<SharedCatalogStatus>,
 }
 
 /// カタログ品 1 つ。値は部品の値と同じ形（`ValueView`）で、表示文字列は service が作る。

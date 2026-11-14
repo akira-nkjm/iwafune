@@ -6,6 +6,8 @@ export const sourcesJa = {
     empty: "出典がありません",
     add: "出典を追加",
     edit: "編集",
+    shared: "共有",
+    sharedHint: "共有カタログの出典は読み取り専用です（共有カタログのリポジトリで直します）",
     id: "ID",
     kind: "種類",
     label: "名前",

@@ -150,6 +150,22 @@ label_en = "On request"
 label    = "公開不可（NDA など）"
 label_en = "Restricted (NDA etc.)"
 
+[enum.shared_catalog_state.ready]
+label    = "読み込み済み"
+label_en = "Loaded"
+
+[enum.shared_catalog_state.not_locked]
+label    = "lock が無い"
+label_en = "Not locked"
+
+[enum.shared_catalog_state.lock_mismatch]
+label    = "lock が fune.toml と違う"
+label_en = "Lock differs from fune.toml"
+
+[enum.shared_catalog_state.not_fetched]
+label    = "未取得"
+label_en = "Not fetched"
+
 [enum.evidence.placeholder]
 label    = "仮置き"
 label_en = "Placeholder"

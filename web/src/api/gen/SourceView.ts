@@ -11,9 +11,14 @@ export type SourceView = {
  */
 link: string | null, 
 /**
- * 台帳のファイル（`sources/<ID>.toml`）
+ * 台帳のファイル（`sources/<ID>.toml`。共有カタログの出典はキャッシュの中のファイル）
  */
-file: string, id: string, kind: SourceKind, label?: string | null, 
+file: string, 
+/**
+ * このプロジェクトの出典なら true。共有カタログの出典（`<カタログ名>/<ID>`）は読み取り専用で false
+ * （判定は `Design::shared_catalog_of`）
+ */
+editable: boolean, id: string, kind: SourceKind, label?: string | null, 
 /**
  * 参照先（URL・リポジトリ内のパス・文書番号など）。データシートの場所はここだけに書く
  * （カタログ品の `datasheet` はこの出典の ID を指す）

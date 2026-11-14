@@ -10,7 +10,7 @@
 //! | `nets` | net の編集の引数 → Op |
 //! | `defs` | attr add・kind add の引数 → Op |
 //! | `records` | case・source・harness・catalog・part point の引数 → Op |
-//! | `catalog` | catalog ls/show |
+//! | `catalog` | catalog ls/show/fetch/update |
 //! | `edit` | Op の列の適用と結果の表示・init |
 //! | `units` | units ls/parse/format |
 //! | `analyze` | analyze・budget |

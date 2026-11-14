@@ -7,15 +7,18 @@
 //! | `profile` | TOML プロファイル（§10.2）に沿わない書き方の検出（1.1 の構文・整数の物理量） |
 //! | `decode` | ファイル群 → Design（設定・定義・モード・ネットなど） |
 //! | `tree` | 部品・カタログ品のファイルと、ディレクトリの規則による製品ツリー |
+//! | `shared` | 共有カタログ（`catalog.lock` の commit のキャッシュ）の走査と、出所付きの品・出典としての読み込み |
 
 mod decode;
 mod files;
 mod profile;
+mod shared;
 mod spans;
 mod tree;
 
 pub use decode::decode;
 pub use files::{FileSet, scan};
+pub use shared::parse_lock;
 pub use spans::LineIndex;
 
 use crate::error::StoreError;
