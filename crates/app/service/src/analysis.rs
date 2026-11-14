@@ -25,7 +25,7 @@ pub use fune_projection::system::area_key;
 pub(crate) mod channels;
 pub(crate) mod checks;
 mod dims;
-mod kpi;
+pub(crate) mod kpi;
 pub mod labels;
 pub(crate) mod overview;
 mod weather;

@@ -323,6 +323,10 @@ label_en = "Range"
 label    = "表"
 label_en = "Table"
 
+[role_other]
+label = "その他"
+label_en = "Other"
+
 [role_system]
 obc = "cdh"
 pcdu = "power"

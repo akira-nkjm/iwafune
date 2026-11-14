@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { AocsAnalysisState, AocsModeView, QuantityView } from "@/api/types";
-import { useT } from "@/i18n";
+import { localized, useT } from "@/i18n";
 import { Pill } from "@/kit/status/Pill";
 import { VerdictPill } from "@/kit/status/VerdictPill";
 import { quantityText } from "@/quantity/format";
@@ -88,7 +88,18 @@ export function ModeAnalysis({ item }: { item: AocsModeView }) {
       </div>
       <div>
         <AnalysisState title={t.unloadTime} state={item.unloading} />
-        <p className="mt-1 font-mono text-xs">{quantityText(item.mtq_unload_time)}</p>
+        {item.unload_times.length === 0 ? (
+          <p className="mt-1 font-mono text-xs">{quantityText(null)}</p>
+        ) : (
+          <ul className="mt-1 space-y-0.5 font-mono text-xs">
+            {item.unload_times.map((u) => (
+              <li key={u.means}>
+                <span className="text-ink-3">{localized(u.label, u.label_en)}</span>{" "}
+                {quantityText(u.time)}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       <AnalysisState title={t.sensorFov} state={item.sensor_fov} />
     </section>

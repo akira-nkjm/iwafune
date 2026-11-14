@@ -50,6 +50,17 @@ pub fn by_role<'a>(
         .filter(move |p| p.role == Some(role))
 }
 
+/// 系（`ResolvedPart.system`。置き場所の最上位の系 → 種別の役割の系）が `system` の部品（ID 順）。
+pub fn in_system<'a>(
+    ctx: &'a Context<'_>,
+    system: fune_model::design::AnalysisSystem,
+) -> impl Iterator<Item = &'a ResolvedPart> + 'a {
+    ctx.resolved
+        .parts
+        .values()
+        .filter(move |p| p.system == Some(system))
+}
+
 /// 属性が設定されている部品（ID 順）。
 pub fn with_attr<'a>(
     ctx: &'a Context<'_>,

@@ -19,6 +19,8 @@ export type * from "./AocsDeviceState";
 export type * from "./AocsDeviceView";
 export type * from "./AocsLawField";
 export type * from "./AocsModeView";
+export type * from "./AocsUnloadMeans";
+export type * from "./AocsUnloadTime";
 export type * from "./ApplyRequest";
 export type * from "./ApplyResult";
 export type * from "./AtmosphereModel";

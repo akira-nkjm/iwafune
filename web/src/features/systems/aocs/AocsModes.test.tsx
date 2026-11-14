@@ -59,7 +59,7 @@ const item: AocsModeView = {
   eclipse_devices: [],
   momentum_per_orbit: qv(7.25, "mN m s", "AngularMomentum"),
   unloads_per_day: qv(3.5, "", "Dimensionless"),
-  mtq_unload_time: qv(120, "s", "Time"),
+  unload_times: [{ means: "mtq", label: "MTQ", label_en: "MTQ", time: qv(120, "s", "Time") }],
   rw: ok,
   unloading: ok,
   sensor_fov: { ...ok, verdict: "warning" },
@@ -140,6 +140,37 @@ describe("AOCS mode cards", () => {
     expect(html).toContain("opacity-50");
     expect(html).toContain(getT().systems.aocsModes.unknownState);
     expect(html).toContain(getT().systems.aocsModes.sensorFov);
+  });
+  it("lists the unload time of every means the analysis produced, with the means label from the API", () => {
+    const rcs = {
+      means: "rcs" as const,
+      label: "RCS（最悪の向き）",
+      label_en: "RCS (worst direction)",
+      time: qv(40, "s", "Time"),
+    };
+    const html = render({ ...item, unload_times: [rcs] }, "ja", "details");
+    expect(html).toContain("RCS（最悪の向き）");
+    expect(html).toContain("40 s");
+    expect(html).not.toContain("120 s");
+    const both = render({ ...item, unload_times: [...item.unload_times, rcs] }, "en", "details");
+    expect(both).toContain("RCS (worst direction)");
+    expect(both).toContain("120 s");
+    expect(both).toContain("40 s");
+    const none = render({ ...item, unload_times: [] }, "ja", "details");
+    expect(none).not.toContain("120 s");
+  });
+  it("shows the group of parts without a role (role null) as a chip", () => {
+    const other = {
+      role: null,
+      label: "その他",
+      label_en: "Other",
+      active_count: 1,
+      total_count: 1,
+      devices: [],
+    };
+    const html = render({ ...item, devices: [...item.devices, other] });
+    expect(html).toContain("その他");
+    expect(render({ ...item, devices: [other] }, "en")).toContain("Other");
   });
   it("keeps the axis diagram and SetText editing fields in the law editor", () => {
     const html = render(item, "ja", "editor");

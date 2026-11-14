@@ -334,6 +334,7 @@ export const fixture: DesignView = {
     ),
     kinds: [],
     labels: {
+      role_other: null,
       role_system: { pcdu: "power", reaction_wheel: "aocs", transceiver: "comm" },
       section_order: [],
       state: {},

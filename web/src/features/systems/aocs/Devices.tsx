@@ -16,7 +16,7 @@ export function DeviceChips({ groups }: { groups: AocsDeviceGroup[] }) {
         const idle = group.active_count === 0;
         return (
           <li
-            key={group.role}
+            key={group.role ?? "other"}
             title={t.count(group.active_count, group.total_count)}
             data-idle={idle || undefined}
             className={cn(
@@ -56,7 +56,7 @@ export function Devices({
       </div>
       <div className="space-y-2">
         {(eclipse ? eclipseGroups : groups).map((group) => (
-          <div key={group.role} className="text-xs">
+          <div key={group.role ?? "other"} className="text-xs">
             <div className="mb-1 flex justify-between gap-2 text-ink-3">
               <span>{localized(group.label, group.label_en)}</span>
               <span>{t.count(group.active_count, group.total_count)}</span>

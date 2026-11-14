@@ -5,4 +5,8 @@ import type { Role } from "./Role";
 /**
  * 役割ごとの機器。台数と状態は counted_states で評価済み。
  */
-export type AocsDeviceGroup = { role: Role, label: string, label_en: string | null, active_count: number, total_count: number, devices: Array<AocsDeviceView>, };
+export type AocsDeviceGroup = { 
+/**
+ * 役割（役割の無い種別の部品をまとめた「その他」は None）
+ */
+role: Role | null, label: string, label_en: string | null, active_count: number, total_count: number, devices: Array<AocsDeviceView>, };

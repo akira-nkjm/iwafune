@@ -91,7 +91,7 @@ pub struct AnalysisRunResult {
     pub checks: Vec<CheckView>,
     /// 判定が無ければ null。
     pub verdict: Option<sat_analysis::spec::Verdict>,
-    /// この解析の KPI（`AnalysisEntry.kpis` と同じ並び。出力が無ければ空）。代表値の選び方・判定・塗りの比は
+    /// この解析の KPI（`AnalysisEntry.kpis` と同じ並び。出力が無ければ空。設計が持たない手段の KPI だけは値が無ければ外れる）。代表値の選び方・判定・塗りの比は
     /// `fune_service::analysis::kpi` が決める
     pub kpis: Vec<KpiView>,
     /// 実際に使った入力（`input_type` の形）
