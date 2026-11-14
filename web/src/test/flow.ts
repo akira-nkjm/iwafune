@@ -36,6 +36,9 @@ export function flowNode(
     analysis: kind === "analysis" ? id : null,
     verdict: null,
     status: kind === "analysis" ? "ok" : null,
+    analysis_kind: kind === "analysis" ? "time_series" : null,
+    description: kind === "analysis" ? `${id} の説明` : null,
+    description_en: kind === "analysis" ? `About ${id}` : null,
     members: [],
     ...extra,
   };

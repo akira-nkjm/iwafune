@@ -1,16 +1,17 @@
-//! カードと行の表示。部品は `parts`、設定は `query::settings::setting_view`、書かれた量は
-//! `query::values::authored_quantity`、解析の主な出力は KPI（`AnalysisRunResult.kpis`。電源のページは
-//! `power_page::outputs` で差し替える）。表示の文字列はどれも `sat_units::format`（service の `units`）で作ったもの。
-//! 設定とケースの欄の表示名は `fune_model::builtin::{setting_label, labels}`。
+//! 部品・設定・モード・ケースのカードと行の表示。部品は `parts`、設定は `query::settings::setting_view`、書かれた量は
+//! `query::values::authored_quantity`（解析のカードは `analysis`）。数と量の表示の文字列はどれも `sat_units::format`
+//! （service の `units`）で作ったもの。設定とケースの欄の表示名は `fune_model::builtin::{setting_label, labels}`、
+//! 設定の列挙と真偽の値の表示名は `fune_model::builtin::setting_enums::setting_value_label`（日英）。
 
 use super::cards::CardKey;
-use crate::dto::{AnalysisEntry, AnalysisRunResult, FlowNode, FlowNodeKind, FlowRow};
+use super::text::Bilingual;
+use crate::dto::{FlowNode, FlowNodeKind, FlowRow};
 use crate::query::values::authored_quantity;
 use crate::workspace::Snapshot;
 use fune_model::Target;
+use fune_model::builtin::setting_enums::setting_value_label;
 use fune_model::builtin::{labels, setting_label};
 use fune_model::path::SettingPath;
-use sat_analysis::spec::AnalysisArea;
 use std::collections::BTreeMap;
 
 /// 読んだ行の ID → カードに出した行の ID（設定の表は子ごとの行に分ける）。
@@ -46,46 +47,6 @@ pub(super) fn card(s: &Snapshot, key: &CardKey, rows: &[(String, Target)]) -> (F
     (node, shown)
 }
 
-/// 解析のカード（行は KPI）。
-pub(super) fn analysis(e: &AnalysisEntry, r: &AnalysisRunResult) -> FlowNode {
-    let rows = r
-        .kpis
-        .iter()
-        .map(|k| FlowRow {
-            id: serde_json::to_value(k.key)
-                .ok()
-                .and_then(|v| v.as_str().map(str::to_owned))
-                .unwrap_or_default(),
-            label: k.label.clone(),
-            label_en: k.label_en.clone(),
-            display: k.value.as_ref().map(|v| v.display.clone()),
-            set: k.value.is_some(),
-            derived: false,
-            display_en: None,
-            varies: None,
-            verdict: k.verdict,
-            target: None,
-        })
-        .collect();
-    FlowNode {
-        id: super::analysis_node_id(&e.info.id),
-        kind: FlowNodeKind::Analysis,
-        label: e.info.title.clone(),
-        label_en: e.info.title_en.clone(),
-        sub: Some(e.info.id.clone()),
-        system: match e.info.area {
-            AnalysisArea::System(s) => Some(s),
-            AnalysisArea::Condition(_) => None,
-        },
-        target: None,
-        rows,
-        analysis: Some(e.info.id.clone()),
-        verdict: r.verdict,
-        status: Some(r.status),
-        members: Vec::new(),
-    }
-}
-
 fn node(
     key: &CardKey,
     kind: FlowNodeKind,
@@ -104,11 +65,15 @@ fn node(
         analysis: None,
         verdict: None,
         status: None,
+        analysis_kind: None,
+        description: None,
+        description_en: None,
         members: Vec::new(),
     }
 }
 
-fn row(id: &str, label: (String, String), display: Option<String>, target: &Target) -> FlowRow {
+fn row(id: &str, label: (String, String), display: Option<Bilingual>, target: &Target) -> FlowRow {
+    let (display, display_en) = display.map_or((None, None), |d| (Some(d.ja), d.en));
     FlowRow {
         id: id.to_owned(),
         set: display.is_some(),
@@ -116,7 +81,7 @@ fn row(id: &str, label: (String, String), display: Option<String>, target: &Targ
         label_en: label.1,
         display,
         derived: false,
-        display_en: None,
+        display_en,
         varies: None,
         verdict: None,
         target: Some(target.clone()),
@@ -209,15 +174,31 @@ fn setting_rows(s: &Snapshot, row_id: &str, target: &Target) -> Vec<FlowRow> {
 }
 
 /// 設定の葉の表示を「 · 」でつなぐ（文字の値を先に。書かれていない葉は飛ばし、どれも無ければ None）。
-fn joined(s: &Snapshot, entries: &[fune_model::design::SettingEntry]) -> Option<String> {
+/// 列挙の欄の文字と真偽の値は表示名（日英）、ほかは表示の文字列のまま。
+fn joined(s: &Snapshot, entries: &[fune_model::design::SettingEntry]) -> Option<Bilingual> {
     let mut views: Vec<_> = entries
         .iter()
-        .map(|e| crate::query::settings::setting_view(&s.design, e))
-        .filter(|v| v.display.is_some())
+        .map(|e| (e, crate::query::settings::setting_view(&s.design, e)))
+        .filter(|(_, v)| v.display.is_some())
         .collect();
-    views.sort_by_key(|v| !matches!(v.value, crate::dto::ValueData::Text { .. }));
-    let parts: Vec<String> = views.into_iter().filter_map(|v| v.display).collect();
-    (!parts.is_empty()).then(|| parts.join(" · "))
+    views.sort_by_key(|(_, v)| !matches!(v.value, crate::dto::ValueData::Text { .. }));
+    let (ja, en): (Vec<String>, Vec<String>) = views
+        .into_iter()
+        .filter_map(|(e, v)| {
+            let label = e
+                .value
+                .as_ref()
+                .and_then(|value| setting_value_label(&e.path, value));
+            match label {
+                Some(l) => Some((
+                    l.label.clone(),
+                    l.label_en.clone().unwrap_or_else(|| l.label.clone()),
+                )),
+                None => v.display.map(|d| (d.clone(), d)),
+            }
+        })
+        .unzip();
+    (!ja.is_empty()).then(|| Bilingual::of(ja.join(" · "), en.join(" · ")))
 }
 
 /// 軌道の周期（書かれた軌道から sat-astro が求める。軌道が組み立てられなければ出さない）。
@@ -246,7 +227,7 @@ fn mode_row(s: &Snapshot, id: &str, target: &Target) -> FlowRow {
         .unwrap_or_else(|| id.to_owned());
     let duration = mode
         .and_then(|m| m.max_duration.as_ref())
-        .map(|q| authored_quantity(q, Some("Time")).display);
+        .map(|q| Bilingual::same(authored_quantity(q, Some("Time")).display));
     let mut r = row(id, (label, id.to_owned()), duration, target);
     r.set = mode.is_some();
     r
@@ -276,6 +257,7 @@ fn case_row(s: &Snapshot, id: &str, field: &str, target: &Target) -> FlowRow {
         "orbits" => c.orbits.map(|n| crate::units::number_text(f64::from(n))),
         _ => None,
     });
+    let display = display.map(Bilingual::same);
     let label = labels().case_field.get(field).map_or_else(
         || (field.to_owned(), field.to_owned()),
         |l| {

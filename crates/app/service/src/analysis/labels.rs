@@ -256,6 +256,7 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         ),
         K::ModeLoad => label("モードの消費電力（バジェット）", "Mode load (budget)"),
         K::OrbitGeneration => label("軌道平均の発電", "Orbit-average generation"),
+        K::SunlitFraction => label("日照率", "Sunlit fraction"),
         K::OrbitBalance => label("軌道平均の収支（最悪）", "Orbit-average balance (worst)"),
         K::MaxDod => label("最大 DoD", "Max DoD"),
         K::SapMargin => label("太陽電池の余裕", "Solar Cells margin"),

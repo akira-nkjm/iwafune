@@ -35,7 +35,8 @@ mod design;
 mod edit;
 mod flow;
 pub use flow::{
-    FlowEdge, FlowEdgeKind, FlowFold, FlowMember, FlowNode, FlowNodeKind, FlowRow, FlowView,
+    FlowEdge, FlowEdgeKind, FlowFold, FlowMember, FlowNode, FlowNodeKind, FlowQuery, FlowRow,
+    FlowView,
 };
 mod format;
 pub use format::{FormatDesignRequest, FormatDesignResult};

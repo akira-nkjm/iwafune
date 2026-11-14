@@ -28,14 +28,18 @@ pub struct SettingDimension {
 impl SettingDimension {
     /// パスがこの形に当たるか。
     pub fn matches(&self, path: &SettingPath) -> bool {
-        path.scope == self.scope
-            && path.segments.len() == self.pattern.len()
-            && self
-                .pattern
-                .iter()
-                .zip(&path.segments)
-                .all(|(p, s)| *p == ANY || p == s)
+        pattern_matches(self.scope, self.pattern, path)
     }
+}
+
+/// パスが形（`scope` と、[`ANY`] を含む区切りの並び）に当たるか。**設定のパスの形の当て方はここだけ**（次元の表と列挙の表が使う）。
+pub fn pattern_matches(scope: SettingScope, pattern: &[&str], path: &SettingPath) -> bool {
+    path.scope == scope
+        && path.segments.len() == pattern.len()
+        && pattern
+            .iter()
+            .zip(&path.segments)
+            .all(|(p, s)| *p == ANY || p == s)
 }
 
 /// 設定の量 1 つの欄（パスの形と次元の型 `D`）。射影はこれを渡して `Qty<D>` に読む。

@@ -127,10 +127,7 @@ pub fn ls(out: &Out) -> anyhow::Result<u8> {
     }
     let mut t = out.table(&["区分", "ID", "名前", "種類", "入力"]);
     for e in &entries {
-        let kind = match e.info.kind {
-            AnalysisKind::Steady => "定常",
-            AnalysisKind::TimeSeries => "時系列",
-        };
+        let kind = kind_text(e.info.kind);
         t.row(vec![
             C::Text(fune_service::analysis::area_key(e.info.area).to_owned()),
             C::Strong(e.info.id.clone()),
@@ -190,7 +187,16 @@ fn row_name(r: &BudgetRow) -> String {
         .unwrap_or_else(|| "（その他）".to_owned())
 }
 
-fn verdict_cell(v: Verdict) -> C {
+/// 解析の種類の言い方（`analyze ls` と `flow`）。
+pub(super) fn kind_text(kind: AnalysisKind) -> &'static str {
+    match kind {
+        AnalysisKind::Steady => "定常",
+        AnalysisKind::TimeSeries => "時系列",
+    }
+}
+
+/// 判定の印のセル（KPI・バジェット・フロー図）。
+pub(super) fn verdict_cell(v: Verdict) -> C {
     match v {
         Verdict::Ok => C::Verdict("✔".into(), true),
         Verdict::Warning => C::Text("⚠".into()),

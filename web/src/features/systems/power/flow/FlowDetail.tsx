@@ -10,7 +10,7 @@ import { PropertyList } from "@/kit/detail/PropertyList";
 import { PropertyRow } from "@/kit/detail/PropertyRow";
 import { VerdictPill } from "@/kit/status/VerdictPill";
 import { systemTone } from "@/lib/systems";
-import { RowValue } from "./FlowCard";
+import { KindMark, RowValue } from "./FlowCard";
 
 /**
  * フロー図で選んだカードの詳細（右の欄。読むだけ）: 全部の値（解析は主な出力と判定の文・足りない入力）と、つながる
@@ -52,6 +52,12 @@ export function FlowDetail({
         />
       }
     >
+      {node.description && (
+        <div className="flex items-start gap-2 px-0.5 text-ink-2 text-xs">
+          {node.analysis_kind && <KindMark kind={node.analysis_kind} />}
+          <p>{localized(node.description, node.description_en)}</p>
+        </div>
+      )}
       <Values node={node} />
       {node.members.length > 0 && (
         <DetailSection title={t.memberList}>

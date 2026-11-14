@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import type { AnalysisRunResult, CheckView } from "@/api/types";
+import { setLang } from "@/i18n";
 import { flowNode, flowRow, smallFlow } from "@/test/flow";
 import { flowEdges, flowNodes } from "./elements";
 import { FlowCard, FlowFoldCard, RowValue } from "./FlowCard";
@@ -124,6 +125,52 @@ describe("FlowCard", () => {
     expect(out).toContain("text-pos-ink");
   });
 
+  it("解析のカードは定常か時系列かの印と説明の 1 行（全文は title）。英語では英語の説明", () => {
+    const node = flowNode("analysis:gen", "analysis", [flowRow("orbit_generation", "28.3 W")], {
+      analysis_kind: "steady",
+      description: "とても長い解析の説明",
+      description_en: "A long description",
+    });
+    const props = nodeProps("analysis:gen", {
+      node,
+      shown: shownRows(node),
+      emphasis: "normal" as const,
+      rows: new Set<string>(),
+      selected: false,
+      onRowHover: () => {},
+    });
+    const ja = html(<FlowCard {...props} />);
+    expect(ja).toContain("定常");
+    expect(ja).toContain('title="とても長い解析の説明"');
+    expect(ja).toContain("truncate");
+    setLang("en");
+    try {
+      const en = html(<FlowCard {...props} />);
+      expect(en).toContain("Steady");
+      expect(en).toContain('title="A long description"');
+    } finally {
+      setLang("ja");
+    }
+    const timeSeries = html(
+      <FlowCard
+        {...props}
+        data={{ ...props.data, node: { ...node, analysis_kind: "time_series" } }}
+      />,
+    );
+    expect(timeSeries).toContain("時系列");
+  });
+
+  it("値は言語で選ぶ（範囲の記号・列挙の表示名は API の display / display_en）", () => {
+    const row = flowRow("area", "30.2 cm²〜827 cm²", { display_en: "30.2 cm² – 827 cm²" });
+    expect(html(<RowValue row={row} />)).toContain("〜");
+    setLang("en");
+    try {
+      expect(html(<RowValue row={row} />)).toContain("30.2 cm² – 827 cm²");
+    } finally {
+      setLang("ja");
+    }
+  });
+
   it("「ほか N 件」のカードは隠した数、開いていれば「畳む」", () => {
     const closed = html(
       <FlowFoldCard
@@ -176,6 +223,22 @@ describe("flowNodes / flowEdges", () => {
     const folded = edges.find((e) => e.source === "fold:0");
     expect(folded?.sourceHandle).toBe("out");
   });
+
+  it("載せて離すと、線はどれも最初と同じ見た目に戻る（カード・行・線のどれを載せても）", () => {
+    const before = flowEdges(laid.edges, null);
+    expect(before.some((e) => e.style?.opacity === 0.15)).toBe(false);
+    const hovers = [
+      { kind: "card", id: "analysis:balance" },
+      { kind: "row", card: "part:SP", row: "area" },
+      { kind: "edge", id: "analysis:load>analysis:balance" },
+    ] as const;
+    for (const hover of hovers) {
+      const during = flowEdges(laid.edges, focusOf(laid.edges, hover));
+      expect(during.some((e) => e.style?.opacity === 0.15)).toBe(true);
+      const after = flowEdges(laid.edges, focusOf(laid.edges, null));
+      expect(after).toEqual(before);
+    }
+  });
 });
 
 describe("FlowDetail", () => {
@@ -216,6 +279,9 @@ describe("FlowDetail", () => {
     expect(out).toContain("読む値のカード");
     expect(out).toContain("part:SP の名前");
     expect(out).toContain("結果を使う解析");
+    // 説明の全文と定常か時系列かの印
+    expect(out).toContain("analysis:balance の説明");
+    expect(out).toContain("時系列");
   });
 
   it("値のカードは全部の値と、読む解析", () => {

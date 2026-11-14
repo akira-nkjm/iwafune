@@ -3,7 +3,9 @@ use crate::power_page::power_page;
 use crate::workspace::Workspace;
 use std::path::Path;
 
-fn demo_flow() -> FlowView {
+mod enum_rows;
+
+pub(super) fn demo_flow() -> FlowView {
     let ws =
         Workspace::open(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u"))
             .unwrap();
@@ -207,10 +209,11 @@ fn parts_of_one_role_read_the_same_way_share_a_card() {
         .iter()
         .find(|r| r.id == "packing_factor")
         .unwrap();
-    assert!(
-        packing.display.as_deref().unwrap().contains(" – "),
-        "{packing:?}"
-    );
+    // 範囲の記号は日本語は「〜」、英語は「–」（値の整形は同じ）
+    let ja = packing.display.as_deref().unwrap();
+    let en = packing.display_en.as_deref().unwrap();
+    assert!(ja.contains('〜') && !ja.contains('–'), "{packing:?}");
+    assert_eq!(en, ja.replace('〜', " – "));
     let efficiency = solar
         .rows
         .iter()
@@ -259,38 +262,101 @@ fn setting_and_case_rows_use_display_names() {
     );
 }
 
-/// 解析のカードは名前付きの主な出力（2〜3 行）と判定。
+/// 解析のカードの行は KPI（定義の順に 3 つまで。名前は KPI の表示名、値は KPI の表示、判定は KPI の判定）。
 #[test]
-fn analysis_cards_show_named_main_outputs() {
-    let flow = demo_flow();
-    for n in flow
-        .nodes
-        .iter()
-        .filter(|n| n.kind == FlowNodeKind::Analysis)
-    {
-        assert!((2..=3).contains(&n.rows.len()), "{}: {:?}", n.id, n.rows);
-        assert!(n.rows.iter().all(|r| r.display.is_some()));
+fn analysis_cards_show_kpis_in_their_defined_order() {
+    let ws =
+        Workspace::open(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u"))
+            .unwrap();
+    for case in [None, Some("hot_imaging")] {
+        let flow = crate::flow::system_flow(&ws, sat_analysis::spec::System::Power, case).unwrap();
+        for n in flow
+            .nodes
+            .iter()
+            .filter(|n| n.kind == FlowNodeKind::Analysis)
+        {
+            let id = n.analysis.as_deref().unwrap();
+            let r = crate::analysis::run_analysis(
+                &ws,
+                id,
+                &crate::dto::RunAnalysisRequest {
+                    case: case.map(str::to_owned),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            let want: Vec<(&str, &str, Option<&str>)> = r
+                .kpis
+                .iter()
+                .take(3)
+                .map(|k| {
+                    (
+                        k.label.as_str(),
+                        k.label_en.as_str(),
+                        k.value.as_ref().map(|v| v.display.as_str()),
+                    )
+                })
+                .collect();
+            let got: Vec<(&str, &str, Option<&str>)> = n
+                .rows
+                .iter()
+                .map(|r| (r.label.as_str(), r.label_en.as_str(), r.display.as_deref()))
+                .collect();
+            assert_eq!(got, want, "{id}");
+            let verdicts: Vec<_> = r.kpis.iter().take(3).map(|k| k.verdict).collect();
+            assert_eq!(
+                n.rows.iter().map(|r| r.verdict).collect::<Vec<_>>(),
+                verdicts
+            );
+            assert!(n.description.as_deref().is_some_and(|d| !d.is_empty()));
+            assert!(n.analysis_kind.is_some());
+        }
     }
+    // デモ（ケース無し）の電源の解析のカードの名前と値
+    let flow = demo_flow();
+    let rows = |id: &str| -> Vec<(String, String)> {
+        let n = flow
+            .nodes
+            .iter()
+            .find(|n| n.id == format!("analysis:{id}"))
+            .unwrap();
+        n.rows
+            .iter()
+            .map(|r| (r.label.clone(), r.display.clone().unwrap_or_default()))
+            .collect()
+    };
+    let names = |id: &str| rows(id).into_iter().map(|(l, _)| l).collect::<Vec<_>>();
+    assert_eq!(names("power.mode_load"), ["モードの消費電力（バジェット）"]);
+    assert_eq!(
+        names("power.orbit_generation"),
+        ["軌道平均の発電", "日照率"]
+    );
+    assert_eq!(
+        names("power.energy_balance"),
+        ["軌道平均の収支（最悪）", "最大 DoD"]
+    );
+    assert_eq!(
+        names("power.sizing"),
+        ["太陽電池の余裕", "バッテリーの余裕"]
+    );
+    let generation = rows("power.orbit_generation");
+    assert!(generation[0].1.ends_with(" W"), "{generation:?}");
+    assert!(generation[1].1.ends_with(" %"), "{generation:?}");
     let balance = flow
         .nodes
         .iter()
         .find(|n| n.id == "analysis:power.energy_balance")
         .unwrap();
     let dod = balance.rows.iter().find(|r| r.id == "max_dod").unwrap();
-    assert!(dod.display.as_deref().unwrap().contains(" / "));
+    assert!(dod.display.as_deref().unwrap().ends_with(" %"));
     assert!(dod.verdict.is_some());
-}
-
-/// 言語で変わる値は英語の表示も持つ（モードの名前は英語では ID）。
-#[test]
-fn mode_names_in_outputs_follow_the_language() {
-    let flow = demo_flow();
     let load = flow
         .nodes
         .iter()
         .find(|n| n.id == "analysis:power.mode_load")
         .unwrap();
-    let max = load.rows.iter().find(|r| r.id == "max_mode").unwrap();
-    assert!(max.display.as_deref().unwrap().contains("ダウンリンク"));
-    assert!(max.display_en.as_deref().unwrap().ends_with("· DOWNLINK"));
+    assert_eq!(
+        load.analysis_kind,
+        Some(sat_analysis::spec::AnalysisKind::Steady)
+    );
 }

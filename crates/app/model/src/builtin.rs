@@ -1,9 +1,11 @@
 //! 組み込みの属性定義・種別定義（registry §3 の語彙）。中身は同じディレクトリの TOML を埋め込む。
 //!
-//! 表示名（日本語・英語）は `label` / `label_en`、状態・系・列挙の表示名は [`labels`]。
+//! 表示名（日本語・英語）は `label` / `label_en`、状態・系・列挙の表示名は [`labels`]。設定の列挙の欄と、設定の値の
+//! 表示名（列挙の文字・真偽）は [`setting_enums`]。
 //! 形はプロジェクト独自の `defs/attribute/<id>.toml`・`defs/kind/<id>.toml` と同じ（serde の derive が唯一の解釈）。
 
 mod labels;
+pub mod setting_enums;
 
 pub use crate::role::{Role, STATE_OFF, STATE_THRUSTER_FIRING};
 

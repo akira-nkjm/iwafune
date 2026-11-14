@@ -43,6 +43,9 @@ export function flowNodes(
       position: { x: c.x, y: c.y },
       width: c.width,
       height: c.height,
+      // 大きさは置き方で決まっている。`measured` を渡さないと、React Flow はノードを作り直すたび（載せる・選ぶたび）に
+      // 測った端子の位置を捨て（`parseHandles`）、測り直すまで線を描けない（載せて離すと線が消えたままになる）
+      measured: { width: c.width, height: c.height },
       draggable: false,
       connectable: false,
     };

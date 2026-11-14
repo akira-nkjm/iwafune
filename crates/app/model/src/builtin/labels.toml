@@ -223,6 +223,14 @@ label_en = "Warning"
 label    = "情報"
 label_en = "Info"
 
+[enum.bool.true]
+label    = "はい"
+label_en = "Yes"
+
+[enum.bool.false]
+label    = "いいえ"
+label_en = "No"
+
 [enum.attitude_law.sun_pointing]
 label    = "太陽指向"
 label_en = "Sun pointing"

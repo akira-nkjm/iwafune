@@ -3,20 +3,31 @@
 //! 中で結果を使う解析（`sat_analysis::catalog::uses`）と、射影が別の解析の結果を読んだもの（`Target::Analysis`）。
 //! **つながりを手で書かない**（どの系の解析でも同じ組み立て）。カードの置き方は Web が決める。
 //!
+//! 系のフロー図（[`system_flow`]。`GET /flow/{system}`・`fune flow <系>`）は、系の解析（[`flow_analyses`]）を回して組み立てる。
+//! 電源のページ（`PowerPageView.flow`）は同じ解析の結果から [`flow`] を呼ぶ（解析を 2 回回さない）。
+//!
 //! | モジュール | 責務 |
 //! |---|---|
 //! | `cards` | 読んだ対象 → どのカードのどの行か |
-//! | `rows` | カードと行の表示（部品の値・設定・モード・ケース・解析の主な出力） |
+//! | `rows` | 部品以外のカードと行の表示（設定・モード・ケース） |
+//! | `analysis` | 解析のカード（行は KPI。定常か時系列かと説明） |
+//! | `text` | 言語で変わる値の表示（列挙の表示名・範囲の「〜」と「–」） |
 //! | `group` | 部品をまとめる（同じ役割で、同じ属性を同じ解析が読む部品を 1 枚に） |
 //! | `parts` | 部品のカードと行（まとめたカードの値は範囲か、値の違う部品の数） |
 //! | `fold` | 畳める部品のまとまりと並び（同じ値を同じ解析が読む部品が多いとき） |
 
-use crate::dto::{AnalysisEntry, AnalysisRunResult, FlowEdge, FlowEdgeKind, FlowNode, FlowView};
+use crate::dto::{
+    AnalysisEntry, AnalysisRunResult, FlowEdge, FlowEdgeKind, FlowNode, FlowView,
+    RunAnalysisRequest,
+};
 use crate::workspace::Snapshot;
+use crate::{Result, ServiceError, Workspace};
 use cards::CardKey;
 use fune_model::Target;
+use sat_analysis::spec::System;
 use std::collections::{BTreeMap, BTreeSet};
 
+mod analysis;
 mod cards;
 mod fold;
 mod group;
@@ -24,6 +35,68 @@ mod parts;
 mod rows;
 #[cfg(test)]
 mod tests;
+mod text;
+
+/// 電源のフロー図の解析（並びは解析のカードの並び）。
+const POWER: &[&str] = &[
+    "power.mode_load",
+    "power.orbit_generation",
+    "power.energy_balance",
+    "power.sizing",
+];
+
+/// 系のフロー図に並べる解析（フロー図がまだ無い系は None）。**系ごとのフロー図の解析の一覧はここだけ**（電源のページも使う）。
+pub(crate) fn flow_analyses(system: System) -> Option<&'static [&'static str]> {
+    match system {
+        System::Power => Some(POWER),
+        _ => None,
+    }
+}
+
+/// 系のフロー図（`GET /flow/{system}?case=…`、`fune flow <系>`）。系の解析を回し（ケースの解決は解析の実行と同じ）、
+/// その結果から組み立てる。フロー図がまだ無い系は入力の誤り。
+pub fn system_flow(ws: &Workspace, system: System, case: Option<&str>) -> Result<FlowView> {
+    let ids = flow_analyses(system).ok_or_else(|| {
+        let ready: Vec<&str> = fune_model::design::AnalysisSystem::ALL
+            .iter()
+            .map(|s| fune_projection::system::to_analysis(*s))
+            .filter(|s| flow_analyses(*s).is_some())
+            .map(crate::query::system_id)
+            .collect();
+        ServiceError::InvalidInput(format!(
+            "系 {} のフロー図はまだありません（フロー図のある系: {}）",
+            crate::query::system_id(system),
+            ready.join(", ")
+        ))
+    })?;
+    let analyses = run_all(ws, ids, case)?;
+    let shown: Vec<_> = analyses.iter().map(|(e, r)| (e, r)).collect();
+    Ok(flow(&ws.snapshot()?, case, &shown))
+}
+
+/// 解析を並びの順に回す（不足入力・失敗は結果のまま返す）。電源のページとフロー図が使う。
+pub(crate) fn run_all(
+    ws: &Workspace,
+    ids: &[&str],
+    case: Option<&str>,
+) -> Result<Vec<(AnalysisEntry, AnalysisRunResult)>> {
+    let req = RunAnalysisRequest {
+        case: case.map(str::to_owned),
+        ..Default::default()
+    };
+    let catalog = crate::analysis::analysis_catalog()?;
+    ids.iter()
+        .map(|id| {
+            let entry = catalog
+                .iter()
+                .find(|e| e.info.id == *id)
+                .cloned()
+                .ok_or_else(|| ServiceError::not_found("解析", *id))?;
+            let result = crate::analysis::run_analysis(ws, id, &req)?;
+            Ok((entry, result))
+        })
+        .collect()
+}
 
 /// 解析の一覧（並びは解析のカードの並び）から、その解析が読んだ値と解析どうしのつながりの図を作る。
 /// `case` は解析の実行と同じ明示のケース（省略時の選び方も同じ）。
@@ -76,7 +149,7 @@ pub(crate) fn flow(
         view.nodes.push(node);
     }
     view.nodes
-        .extend(analyses.iter().map(|(e, r)| rows::analysis(e, r)));
+        .extend(analyses.iter().map(|(e, r)| analysis::node(e, r)));
     for (from, to) in &uses {
         if ids.contains(&from.as_str()) && ids.contains(&to.as_str()) {
             edges.push(result_edge(from, to));
