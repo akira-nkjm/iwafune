@@ -141,25 +141,14 @@ export function boxesOf(
 }
 
 /**
- * クリックの光線が当たった箱（近い順の ID）から選ぶ部品。透けて描いている構造（選んでいない構造で、不透明度 < 1）は
- * 中の部品を包んでいるので飛ばし、最初の構造以外の箱を選ぶ。構造以外に当たりが無ければ最初の当たり。
+ * クリックの光線が当たった箱（近い順の ID）から選ぶ部品。いちばん手前を選ぶ。選んでいる部品が当たりの中にあれば、
+ * その次（奥）を選ぶ（最後なら手前に戻る）。外板の中の部品は、同じ所をもう一度押して選ぶ（CAD の奥への選択と同じ）。
  */
-export function pickBox(
-  hits: readonly string[],
-  boxes: readonly Box3D[],
-  selected: string | null,
-  structureOpacity?: number,
-): string | null {
-  const byId = new Map(boxes.map((b) => [b.id, b]));
-  const seeThrough = (id: string) => {
-    return (
-      byId.get(id)?.structure === true &&
-      id !== selected &&
-      structureOpacity !== undefined &&
-      structureOpacity < 1
-    );
-  };
-  return hits.find((id) => !seeThrough(id)) ?? hits[0] ?? null;
+export function pickBox(hits: readonly string[], selected: string | null): string | null {
+  const unique = [...new Set(hits)];
+  if (unique.length === 0) return null;
+  const at = selected === null ? -1 : unique.indexOf(selected);
+  return unique[(at + 1) % unique.length] ?? null;
 }
 
 /** 配置では構造の内側が見える不透明度を既定にする。 */

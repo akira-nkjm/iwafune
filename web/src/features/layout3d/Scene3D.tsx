@@ -132,7 +132,7 @@ export function Scene3D({
                 while (o && !ids.has(o.name)) o = o.parent;
                 return o ? [o.name] : [];
               });
-              onSelect(pickBox(hits, boxes, selected, structureOpacity) ?? b.id);
+              onSelect(pickBox(hits, selected) ?? b.id);
             }}
           >
             <boxGeometry args={b.size} />

@@ -6,7 +6,6 @@ import { toneHex } from "@/lib/tone";
 import { fixture } from "@/test/fixture";
 import {
   axesOf,
-  type Box3D,
   boundsOf,
   boxesOf,
   boxMaterial,
@@ -181,27 +180,13 @@ describe("構造の透過表示", () => {
 });
 
 describe("クリックで選ぶ部品", () => {
-  const box = (id: string, structure: boolean): Box3D => ({
-    id,
-    position: [0, 0, 0],
-    orientation: [1, 0, 0, 0],
-    size: [1, 1, 1],
-    color: "",
-    sized: true,
-    structure,
-    fixed: false,
-  });
-  const boxes = [box("FRAME", true), box("PANEL", true), box("RW", false)];
-
-  it("透けた構造は飛ばして中の部品を選び、構造しか無ければ構造を選ぶ", () => {
-    expect(pickBox(["PANEL", "FRAME", "RW"], boxes, null, 0.3)).toBe("RW");
-    expect(pickBox(["PANEL", "FRAME"], boxes, null, 0.3)).toBe("PANEL");
-  });
-
-  it("構造が不透明か、選んでいる構造（不透明に描く）なら最初の当たり", () => {
-    expect(pickBox(["PANEL", "RW"], boxes, null, 1)).toBe("PANEL");
-    expect(pickBox(["PANEL", "RW"], boxes, null, undefined)).toBe("PANEL");
-    expect(pickBox(["PANEL", "RW"], boxes, "PANEL", 0.3)).toBe("PANEL");
-    expect(pickBox([], boxes, null, 0.3)).toBeNull();
+  it("いちばん手前を選び、選んでいる部品を押すと奥へ順に移り、最後は手前に戻る", () => {
+    const hits = ["PANEL", "PANEL", "FRAME", "RW"];
+    expect(pickBox(hits, null)).toBe("PANEL");
+    expect(pickBox(hits, "PANEL")).toBe("FRAME");
+    expect(pickBox(hits, "FRAME")).toBe("RW");
+    expect(pickBox(hits, "RW")).toBe("PANEL");
+    expect(pickBox(hits, "OTHER")).toBe("PANEL");
+    expect(pickBox([], null)).toBeNull();
   });
 });
