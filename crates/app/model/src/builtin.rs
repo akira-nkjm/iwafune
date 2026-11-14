@@ -7,7 +7,7 @@
 mod labels;
 pub mod setting_enums;
 
-pub use crate::role::{Role, STATE_OFF, STATE_THRUSTER_FIRING};
+pub use crate::role::{Role, STATE_MAIN, STATE_OFF, STATE_THRUSTER_FIRING};
 
 pub use labels::{
     DEFAULT_SECTION, LABELS_TOML, Label, Labels, enum_label, labels, role_label, sections,

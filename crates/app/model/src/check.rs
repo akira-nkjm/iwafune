@@ -24,6 +24,7 @@ mod values;
 mod views;
 
 pub use defs::attribute_def_problems;
+pub use modes::WARM_SPARE_DEFAULT_STATES;
 
 /// 割合の合計を 1 とみなす許容差（デューティ比・モードの時間割合・熱の表面材の面積割合）。解析の側の `sat_analysis::modes::DUTY_TOLERANCE` と
 /// 同じ値にする（fune-model は sat-analysis に依存できないので、fune-projection のテストが一致を確かめる）。

@@ -10,7 +10,7 @@ import type {
 } from "@/api/types";
 import { kindLabel, nodeLabel, partById } from "@/lib/design";
 import { type CellText, cellOf, draftKey, type ModeDraft } from "../draft/draft";
-import { type CellWords, powerLevels, savedCellText } from "./matrix";
+import { type CellWords, powerLevels, type StateRoles, savedCellText } from "./matrix";
 import type { CellAt } from "./matrix-focus";
 
 /** 行列の 1 セルに出すもの（`ModeCell` はこれ 1 つで描く） */
@@ -20,8 +20,10 @@ export interface MatrixCell {
   savedDuty?: StateAssign["duty"];
   mode: string;
   part: string;
-  /** 部品の状態の語彙（セルの切り替えとポップオーバー） */
+  /** 部品の状態の語彙（ポップオーバー） */
   states: string[];
+  /** 停止の状態と主な状態（セルの切り替えと記号。API の `ModeRow`） */
+  roles: StateRoles;
   /** 下書きがあれば下書きのセル、無ければ保存済みのセル（未指定は null） */
   value: CellText | null;
   /** 保存済みのセルの文言（`savedCellText`）。そのモードに書かれていなければ undefined */
@@ -88,6 +90,7 @@ function cellsOf(
       mode: m.id,
       part: row.part,
       states: row.states,
+      roles: { off_state: row.off_state, main_state: row.main_state },
       value,
       display:
         sourceEclipse || draft.get(m.id)?.has(row.part)
@@ -131,7 +134,7 @@ export function matrixGroups(
   rows.forEach((row, index) => {
     const group = groupOf(row);
     const part = parts.get(row.part);
-    const levels = powerLevels(part);
+    const levels = powerLevels(part, row.main_state);
     const quantity = (mode: string) => {
       const values = view?.modes.find((m) => m.id === mode);
       return (eclipse ? values?.eclipse : values?.sunlit)?.parts[row.part] ?? null;

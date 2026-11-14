@@ -15,6 +15,14 @@ kind: string | null,
  */
 states: Array<string>, 
 /**
+ * 停止の状態（語彙にある `off`。無ければ null。セルの切り替えと記号に使う。選び方は `query::views::stop_and_main_states`）
+ */
+off_state: string | null, 
+/**
+ * 主な「オン」の状態（語彙に `on` があればそれ、無ければ停止以外の最初の状態、無ければ null）
+ */
+main_state: string | null, 
+/**
  * モード ID → 状態（そのモードの表に書かれていなければ無い）
  */
 cells: { [key in string]: StateAssign }, 

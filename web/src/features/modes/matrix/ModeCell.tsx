@@ -26,12 +26,12 @@ export function ModeCell({
   const t = useT().modes;
   const [editing, setEditing] = useState(false);
   const focus = useCellFocus(cell.at);
-  const { part, mode, states, value, changed } = cell;
+  const { part, mode, states, roles, value, changed } = cell;
   const formatted =
     useFormatted(cell.quantity?.si ?? null, cell.quantity?.dimension ?? "Dimensionless") ??
     cell.quantity?.display ??
     null;
-  const symbol = cellSymbol(value);
+  const symbol = cellSymbol(value, roles.off_state);
   const lit = symbol !== "—";
   const change = (next: CellText | null) => onCell(cell, next);
   const openEditor = (event: KeyboardEvent | MouseEvent) => {
@@ -57,7 +57,7 @@ export function ModeCell({
               formatted ?? "—",
             )}${cell.eclipse ? ` · ${cell.override ? t.eclipseOverride : t.sameAsSunlit}` : ""}`}
             aria-keyshortcuts="D"
-            onClick={() => change(toggleCell(states, value))}
+            onClick={() => change(toggleCell(roles, value))}
             onContextMenu={openEditor}
             onKeyDown={onKeyDown}
             className={cn(
@@ -105,7 +105,7 @@ export function ModeCell({
 /** セルの 2 行目: 状態の名前と時間割合（オン・オフだけのときは出さない） */
 function CellDetail({ cell }: { cell: MatrixCell }) {
   const t = useT().modes.cell;
-  const { value, display, changed } = cell;
+  const { value, display, changed, roles } = cell;
   if (!value)
     return (
       <span className={cn("text-[10px]", cell.eclipse ? "text-ink-4" : "text-warn-ink")}>
@@ -123,8 +123,8 @@ function CellDetail({ cell }: { cell: MatrixCell }) {
       </span>
     );
   }
-  if (!cell.eclipse && duty.length === 0 && (value.state === "on" || value.state === "off"))
-    return null;
+  const plain = value.state === roles.main_state || value.state === roles.off_state;
+  if (!cell.eclipse && duty.length === 0 && plain) return null;
   // 下書きのセルはサーバーの整形が無いので、打った値をそのまま見せる
   const text = display ?? [value.state, ...duty.map(([s, f]) => `${s} ${f}`)].join(" · ");
   return <span className="max-w-full truncate text-[10px] opacity-80">{text}</span>;

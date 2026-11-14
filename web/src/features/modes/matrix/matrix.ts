@@ -27,40 +27,37 @@ export function unassignedCells(table: ModeTable): number {
   return table.rows.reduce((n, r) => n + table.modes.filter((m) => !r.cells[m.id]).length, 0);
 }
 
-/** セルを押してオンにするときの状態:語彙に `on` があれば on、無ければ off 以外の最初の状態（送受信機なら rx） */
-export function mainState(states: readonly string[]): string | null {
-  if (states.includes("on")) return "on";
-  return states.find((s) => s !== "off") ?? null;
-}
+/** 部品の停止の状態と主な「オン」の状態（API の `ModeRow.off_state`・`main_state`。状態の名前はここで決めない） */
+export type StateRoles = Pick<ModeRow, "off_state" | "main_state">;
 
 /**
- * セルを押したときの次の状態。オフ（未指定・off。時間割合があっても）なら主な状態へ、それ以外なら off へ。
+ * セルを押したときの次の状態。停止（未指定・停止の状態。時間割合があっても）なら主な状態へ、それ以外なら停止の状態へ。
  * 時間割合は前の状態に対するものなので持ち越さない。ほかの状態（idle・peak など）はポップオーバーで選ぶ。
- * 語彙に off が無ければオンのまま。
+ * 停止の状態が無い種別は、押してもオンのまま。
  */
-export function toggleCell(states: readonly string[], cell: CellText | null): CellText | null {
-  const off = !cell || cell.state === "off";
-  const next = off ? mainState(states) : states.includes("off") ? "off" : cell.state;
+export function toggleCell(roles: StateRoles, cell: CellText | null): CellText | null {
+  const stopped = !cell || cell.state === roles.off_state;
+  const next = stopped ? roles.main_state : (roles.off_state ?? cell.state);
   return next ? { ...cell, state: next, duty: {} } : cell;
 }
 
-/** セルの記号: ◐ 間欠（ほかの状態の時間割合がある）、● オン（off 以外）、— オフ・未指定 */
-export function cellSymbol(cell: CellText | null): "●" | "◐" | "—" {
+/** セルの記号: ◐ 間欠（ほかの状態の時間割合がある）、● オン（停止の状態以外）、— 停止・未指定 */
+export function cellSymbol(cell: CellText | null, offState: string | null): "●" | "◐" | "—" {
   if (!cell) return "—";
   if (Object.keys(cell.duty).length > 0) return "◐";
-  return cell.state === "off" ? "—" : "●";
+  return cell.state === offState ? "—" : "●";
 }
 
 /**
  * 部品の状態ごとの電力（API の量）を小さい順に。「電力レベル」の列と、セルの濃さの段階に使う
- * （並べるだけで、値の計算はしない）。電力が 1 つの値なら `on` の 1 段だけ。
+ * （並べるだけで、値の計算はしない）。電力が 1 つの値なら主な状態（`mainState`）の 1 段だけ（主な状態が無ければ段なし）。
  */
-export function powerLevels(part: PartRow | undefined) {
+export function powerLevels(part: PartRow | undefined, mainState: string | null) {
   const value = part?.values.power?.value;
   if (value?.type === "by_state") {
     return Object.entries(value.states).sort(([, a], [, b]) => a.si - b.si);
   }
-  if (value?.type === "scalar") return [["on", value.nominal] as const];
+  if (value?.type === "scalar" && mainState) return [[mainState, value.nominal] as const];
   return [];
 }
 
