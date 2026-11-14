@@ -8,7 +8,7 @@
 //! | `ops` | 編集のコマンドの引数 → Op の列（`nouns`・`records` の組み立てを呼ぶ） |
 //! | `nouns` | part・mode・setting・view の編集の引数 → Op |
 //! | `nets` | net の編集の引数 → Op |
-//! | `defs` | attr add・kind add の引数 → Op |
+//! | `defs` | attr/kind の add・replace・rm の引数 → Op |
 //! | `records` | case・source・harness・catalog・part point の引数 → Op |
 //! | `catalog` | catalog ls/show/fetch/update |
 //! | `edit` | Op の列の適用と結果の表示・init |

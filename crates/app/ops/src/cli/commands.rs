@@ -114,8 +114,12 @@ fn place(
 /// 定義・モード・ネット・図・設定の Op のコマンド。
 pub(super) fn other_op(op: &Op) -> Vec<String> {
     match op {
-        Op::CreateAttribute { def } => vec![super::defs::attr_add(def)],
-        Op::CreateKind { def } => vec![super::defs::kind_add(def)],
+        Op::CreateAttribute { def } => vec![super::defs::attr_cmd("add", def)],
+        Op::UpdateAttribute { def } => vec![super::defs::attr_cmd("replace", def)],
+        Op::DeleteAttribute { id } => vec![Cmd::new(&["fune", "attr", "rm", id]).done()],
+        Op::CreateKind { def } => vec![super::defs::kind_cmd("add", def)],
+        Op::UpdateKind { def } => vec![super::defs::kind_cmd("replace", def)],
+        Op::DeleteKind { id } => vec![Cmd::new(&["fune", "kind", "rm", id]).done()],
         Op::CreateMode {
             id,
             label,

@@ -229,6 +229,16 @@ fn every_op_has_a_cli_form() {
         Op::CreateAttribute {
             def: fune_model::builtin::attributes()["mass"].clone(),
         },
+        Op::UpdateKind {
+            def: fune_model::builtin::kinds()["heater"].clone(),
+        },
+        Op::UpdateAttribute {
+            def: fune_model::builtin::attributes()["mass"].clone(),
+        },
+        Op::DeleteKind {
+            id: "heater".into(),
+        },
+        Op::DeleteAttribute { id: "mass".into() },
         Op::SetSetting {
             path: "analysis.cdh.storage_margin".into(),
             value: None,

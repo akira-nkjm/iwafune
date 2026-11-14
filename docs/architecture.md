@@ -124,7 +124,7 @@ Op は JSON にできる（`{ "op": "set_value", "part": "RW_X", ... }`）。TS 
 |---|---|
 | 部品 | `CreatePart`・`RemovePart`・`RenamePart`・`RenameGroup`・`MovePart`・`SetValue`・`UnsetValue`・`SetField`・`Place`・`SetPort`・`SetMountPoint` |
 | カタログ品 | `CreateCatalogItem`・`SetCatalogValue`・`UnsetCatalogValue`・`SetCatalogField`・`RenameCatalogItem`・`RemoveCatalogItem` |
-| 定義 | `CreateAttribute`・`CreateKind` |
+| 定義 | `CreateAttribute`・`UpdateAttribute`・`DeleteAttribute`・`CreateKind`・`UpdateKind`・`DeleteKind`（組み込みの定義は書き換えも削除もできない。使われている定義の削除は拒む） |
 | モード・ネット | `CreateMode`・`RenameMode`・`SetModeStates`・`CreateNet`・`UpdateNet`・`SetNetField`・`RemoveNet` など |
 | ケース・出典・ハーネス | `SetCase`・`SetSource`・`SetHarness` と、それぞれの削除 |
 | マヌーバ | `CreateManeuver`・`SetManeuver`・`RemoveManeuver`（削除は後ろのマヌーバを前につなぎ直す） |
@@ -150,7 +150,7 @@ CLI と HTTP は `fune-service` の同じ関数を呼ぶ。
 | Op の適用 | 編集の各コマンド、`fune apply ops.json` | `POST /ops` | `edit::apply` |
 | 打った値の文字列 → Op | `fune set`・`fune setting set`・`fune catalog set` | `POST /ops/from_text` | `edit::set_op` |
 | 消す先のパス → Op | `fune unset`・`fune setting unset`・`fune catalog unset` | `POST /ops/unset_from_text` | `edit::unset_op` |
-| 名詞のコマンドに打った引数 → Op | `fune net set|unset`・`fune part place`・`fune mode set|unset`・`fune attr add`・`fune kind add`・`fune maneuver add|set` | `POST /ops/from_command` | `edit::command_ops` |
+| 名詞のコマンドに打った引数 → Op | `fune net set|unset`・`fune part place`・`fune mode set|unset`・`fune attr add|replace`・`fune kind add|replace`・`fune maneuver add|set` | `POST /ops/from_command` | `edit::command_ops` |
 | 整形 | `fune fmt [--check]` | `POST /fmt` | `format::format_design` |
 
 - `fune set RW_X.mass "620 g"` の `"620 g"` を量・整数・ベクトル・状態ごとの値のどれとして読むかは、属性定義を見て service が決める。
@@ -378,6 +378,7 @@ NRLMSISE-00 の F10.7・Ap を日付で引くための表（CelesTrak の SW-All
 | モジュールの循環 | crate の中のモジュール同士が循環していないか |
 | 台帳 | すべての crate が [registry.md](architecture/registry.md) に載っているか |
 | 1 か所だけ | 台帳で置き場所を決めた定義（積分器、μ や地球半径などの定数、影、座標変換、単位の解析、解析の登録など）が、ほかのファイルに無いか（`crates/xtask/src/single_home.rs`） |
+| 書き込みの入口 | 設計ファイルを書く `write::commit` を呼ぶのが store と ops だけか（Op を通さない例外は `fmt` と `catalog.lock` の取り込みで、許可リストに理由を書く。`crates/xtask/src/store_writes.rs`） |
 | Web の規則 | `fetch(`・数の整形・問い合わせの無効化・色の直書き・負の字間（`tracking-tight`）が、決めた場所の外に無いか |
 | 言語 | Python のファイルが無いか（言語は Rust と TypeScript だけ） |
 | ファイルの長さ | 400 行を超えるファイルを警告する（係数表などのデータは除く） |

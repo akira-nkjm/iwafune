@@ -12,9 +12,17 @@ pub enum AttrCmd {
     Ls,
     /// 属性定義を足す（次元と許可単位を検査する）
     Add(AttrAddArgs),
+    /// 属性定義を丸ごと置き換える（旗は `add` と同じ。プロジェクト独自の定義だけ）
+    Replace(AttrAddArgs),
+    /// 属性定義を消す（種別が挙げているか、部品・カタログ品が値を書いていれば拒む）
+    Rm {
+        id: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
 }
 
-/// `fune attr add`
+/// `fune attr add|replace`
 #[derive(Debug, Args)]
 pub struct AttrAddArgs {
     pub id: String,
@@ -71,9 +79,17 @@ pub enum KindCmd {
     Ls,
     /// 種別定義を足す
     Add(KindAddArgs),
+    /// 種別定義を丸ごと置き換える（旗は `add` と同じ。プロジェクト独自の定義だけ）
+    Replace(KindAddArgs),
+    /// 種別定義を消す（部品・カタログ品が使っているか、ほかの種別が継承していれば拒む）
+    Rm {
+        id: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
 }
 
-/// `fune kind add`
+/// `fune kind add|replace`
 #[derive(Debug, Args)]
 pub struct KindAddArgs {
     pub id: String,

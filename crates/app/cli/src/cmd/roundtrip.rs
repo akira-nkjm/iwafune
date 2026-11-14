@@ -111,6 +111,10 @@ fn covers(op: &Op) -> &'static str {
         Op::SetMountPoint { .. } => "SetMountPoint",
         Op::CreateAttribute { .. } => "CreateAttribute",
         Op::CreateKind { .. } => "CreateKind",
+        Op::UpdateAttribute { .. } => "UpdateAttribute",
+        Op::UpdateKind { .. } => "UpdateKind",
+        Op::DeleteAttribute { .. } => "DeleteAttribute",
+        Op::DeleteKind { .. } => "DeleteKind",
         Op::CreateMode { .. } => "CreateMode",
         Op::RemoveMode { .. } => "RemoveMode",
         Op::RenameMode { .. } => "RenameMode",
@@ -172,5 +176,5 @@ fn every_op_survives_to_cli_and_back() {
     }
     seen.sort_unstable();
     seen.dedup();
-    assert_eq!(seen.len(), 43, "見本の無い Op の種類があります: {seen:?}");
+    assert_eq!(seen.len(), 47, "見本の無い Op の種類があります: {seen:?}");
 }
