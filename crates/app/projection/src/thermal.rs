@@ -124,8 +124,8 @@ fn environment(
             if c.albedo.is_none() {
                 m.push(at("albedo"), format!("中心天体 {body:?} のアルベド"));
             }
-            if c.earth_ir.is_none() {
-                m.push(at("earth_ir"), format!("中心天体 {body:?} の赤外放射"));
+            if c.planet_ir.is_none() {
+                m.push(at("planet_ir"), format!("中心天体 {body:?} の赤外放射"));
             }
         }
         if c.preset.is_some() && c.solar_flux.is_none() && body.nominal_sun_distance_m().is_none() {
@@ -142,7 +142,12 @@ fn environment(
             m,
         ),
         albedo: c.albedo.map(Fraction::new),
-        earth_ir: setting_opt(&dims::THERMAL_CASE_EARTH_IR, &[id], c.earth_ir.as_ref(), m),
+        planet_ir: setting_opt(
+            &dims::THERMAL_CASE_PLANET_IR,
+            &[id],
+            c.planet_ir.as_ref(),
+            m,
+        ),
         space_temperature: None,
     }
 }

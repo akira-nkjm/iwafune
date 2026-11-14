@@ -124,8 +124,9 @@ fn demo_kpis_show_the_same_values_as_before() {
     }
 }
 
-/// 概要のカードに使う判定・塗りの比・判定の数え方。判定は解析の判定（節点と温度範囲の種類の組 13 件のうち 10 件が、
-/// 不確かさ 5 K を含めて範囲の外か端）。
+/// 概要のカードに使う判定・塗りの比・判定の数え方。判定は解析の判定（節点と温度範囲の種類の組 13 件のうち 8 件が、
+/// 不確かさ 5 K を含めて範囲の外か端。温度範囲はケースのモードでの部品の電源の状態で選ぶので、電源を切るモードの
+/// CAM の動作・性能の範囲は違反にならない）。
 #[test]
 fn demo_verdicts_fills_and_tallies() {
     let ws = demo();
@@ -144,10 +145,10 @@ fn demo_verdicts_fills_and_tallies() {
         range.tally,
         Some(KpiTally {
             checked: 13,
-            flagged: 10
+            flagged: 8
         })
     );
-    assert!((range.fill.unwrap().ratio - 3.0 / 13.0).abs() < 1e-12);
+    assert!((range.fill.unwrap().ratio - 5.0 / 13.0).abs() < 1e-12);
     // 判定の対象でない KPI（発生量・角運動量）は判定を持たない
     assert!(kpis(&ws, "cdh.data_budget", None)[0].verdict.is_none());
     assert!(kpis(&ws, "aocs.rw_unloading", None)[1].verdict.is_none());

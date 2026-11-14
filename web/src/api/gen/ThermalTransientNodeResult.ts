@@ -11,7 +11,7 @@ export type ThermalTransientNodeResult = { node: string, min: number, max: numbe
  */
 time_of_min: number, time_of_max: number, 
 /**
- * 書かれている温度範囲（保管・動作・性能の順）と最低・最高の比較
+ * 温度範囲（保管・動作・性能の順。区間のモードがあれば部品の電源の状態で選ぶ）と最低・最高の比較
  */
 ranges: Array<ThermalRangeMargin>, 
 /**

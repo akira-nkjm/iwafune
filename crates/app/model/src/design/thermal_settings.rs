@@ -25,7 +25,7 @@ enum_text! {
 pub struct ThermalCaseSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
-    /// 最悪ケースのプリセット（書かれていない太陽光・アルベド・地球赤外に解析の値を使う）
+    /// 最悪ケースのプリセット（書かれていない太陽光・アルベド・中心天体の赤外に解析の値を使う）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub preset: Option<ThermalPresetKind>,
     /// この条件で使うモード
@@ -35,8 +35,9 @@ pub struct ThermalCaseSettings {
     pub solar_flux: Option<Quantity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub albedo: Option<f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub earth_ir: Option<Quantity>,
+    /// 中心天体の一律の赤外放射（古い名前 `earth_ir` も読む。store が warning にし、`fune fmt` が書き換える）
+    #[serde(default, alias = "earth_ir", skip_serializing_if = "Option::is_none")]
+    pub planet_ir: Option<Quantity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub beta: Option<Quantity>,
 }

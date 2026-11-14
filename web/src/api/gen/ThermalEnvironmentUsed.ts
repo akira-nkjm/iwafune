@@ -20,7 +20,7 @@ albedo: number,
 /**
  * 中心天体の一律の赤外放射（地方時で変わるモデルなら `None`。そのときは `night_ir`）
  */
-earth_ir: number | null, space_temperature: number, 
+planet_ir: number | null, space_temperature: number, 
 /**
  * 地方時で変わる赤外放射（月）の夜側の値。昼側は `(1 − アルベド)·太陽光·cos θ`（θ は直下点の太陽天頂角）
  */

@@ -26,7 +26,7 @@ pub struct ThermalEnvironment {
     pub albedo: Option<Fraction>,
     /// 中心天体の赤外放射（一律の値。既定は天体ごとで、月は直下点の地方時で変わる。`thermal::planet`）
     #[serde(default)]
-    pub earth_ir: Option<Qty<Irradiance>>,
+    pub planet_ir: Option<Qty<Irradiance>>,
     /// 宇宙の背景温度（既定 [`DEFAULT_SPACE_TEMPERATURE_K`]）
     #[serde(default)]
     pub space_temperature: Option<Qty<Temperature>>,
@@ -85,11 +85,11 @@ impl ThermalEnvironment {
             .or_else(|| defaults.map(|d| d.albedo))
             .ok_or_else(|| missing(central, "アルベド", "albedo"))?;
         let ir = self
-            .earth_ir
+            .planet_ir
             .or_else(|| earth_preset.map(ThermalPreset::earth_ir))
             .map(|q| PlanetIr::Uniform(q.value()))
             .or_else(|| defaults.map(|d| d.ir))
-            .ok_or_else(|| missing(central, "赤外放射", "earth_ir"))?;
+            .ok_or_else(|| missing(central, "赤外放射", "planet_ir"))?;
         Ok(ResolvedEnvironment {
             solar_flux_w_m2,
             albedo,
@@ -101,7 +101,7 @@ impl ThermalEnvironment {
     /// 使った値（中心天体 `central` に合わせて既定値を埋めたもの）。出力に返す。
     pub fn used(&self, central: CentralBody) -> Result<ThermalEnvironmentUsed, AnalysisError> {
         let r = self.resolve(central)?;
-        let (earth_ir, night_ir) = match r.ir {
+        let (planet_ir, night_ir) = match r.ir {
             PlanetIr::Uniform(v) => (Some(Qty::from_raw(v)), None),
             PlanetIr::LocalTime { night_w_m2 } => (None, Some(Qty::from_raw(night_w_m2))),
         };
@@ -109,7 +109,7 @@ impl ThermalEnvironment {
             preset: self.preset,
             solar_flux: r.solar_flux_w_m2.map(Qty::from_raw),
             albedo: Fraction::new(r.albedo),
-            earth_ir,
+            planet_ir,
             space_temperature: self.space_temperature(),
             night_ir,
         })
@@ -127,7 +127,7 @@ pub struct ThermalEnvironmentUsed {
     /// 中心天体のアルベド
     pub albedo: Fraction,
     /// 中心天体の一律の赤外放射（地方時で変わるモデルなら `None`。そのときは `night_ir`）
-    pub earth_ir: Option<Qty<Irradiance>>,
+    pub planet_ir: Option<Qty<Irradiance>>,
     pub space_temperature: Qty<Temperature>,
     /// 地方時で変わる赤外放射（月）の夜側の値。昼側は `(1 − アルベド)·太陽光·cos θ`（θ は直下点の太陽天頂角）
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -139,7 +139,7 @@ pub struct ThermalEnvironmentUsed {
 mod tests {
     use super::*;
 
-    /// プリセットは書かれていない値だけを埋める（地球）: 高温にアルベド 0.3 を書くと、太陽光 1414・地球赤外 258 は
+    /// プリセットは書かれていない値だけを埋める（地球）: 高温にアルベド 0.3 を書くと、太陽光 1414・赤外 258 は
     /// プリセット、アルベドは書いた 0.3。
     #[test]
     fn preset_fills_unwritten_values() {
@@ -151,7 +151,7 @@ mod tests {
         let used = env.used(CentralBody::Earth).unwrap();
         assert_eq!(used.solar_flux.map(Qty::value), Some(1414.0));
         assert_eq!(used.albedo.value(), 0.3);
-        assert_eq!(used.earth_ir.map(Qty::value), Some(258.0));
+        assert_eq!(used.planet_ir.map(Qty::value), Some(258.0));
         assert!(used.night_ir.is_none());
     }
 
@@ -165,7 +165,7 @@ mod tests {
         let used = env.used(CentralBody::Moon).unwrap();
         assert_eq!(used.solar_flux.map(Qty::value), Some(1414.0));
         assert_eq!(used.albedo.value(), 0.12);
-        assert!(used.earth_ir.is_none());
+        assert!(used.planet_ir.is_none());
         assert!((used.night_ir.unwrap().value() - 5.387).abs() < 1e-2);
     }
 
@@ -175,13 +175,13 @@ mod tests {
         let mut env = ThermalEnvironment::default();
         assert!(env.used(CentralBody::Mars).is_err());
         env.albedo = Some(Fraction::new(0.25));
-        env.earth_ir = Some(Qty::from_raw(110.0));
+        env.planet_ir = Some(Qty::from_raw(110.0));
         assert!(env.used(CentralBody::Mars).is_ok());
         env.preset = Some(ThermalPreset::Cold);
         assert!(env.used(CentralBody::Mars).is_err());
         env.solar_flux = Some(Qty::from_raw(586.0));
         let used = env.used(CentralBody::Mars).unwrap();
         assert_eq!(used.albedo.value(), 0.25);
-        assert_eq!(used.earth_ir.map(Qty::value), Some(110.0));
+        assert_eq!(used.planet_ir.map(Qty::value), Some(110.0));
     }
 }

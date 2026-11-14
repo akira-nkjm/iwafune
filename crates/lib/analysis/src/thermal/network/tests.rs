@@ -9,6 +9,8 @@ pub(crate) fn node(id: &str, fixed: Option<f64>) -> ThermalNode {
             count: 1,
             specific_heat: Qty::from_raw(900.0),
             ranges: ThermalRanges::default(),
+            redundancy: crate::modes::Redundancy::None,
+            states: Vec::new(),
         }],
         fixed_temperature: fixed.map(Qty::from_raw),
     }
@@ -59,6 +61,8 @@ fn node_aggregates_parts() {
             operating: range(253.0, 358.0),
             ..ThermalRanges::default()
         },
+        redundancy: crate::modes::Redundancy::None,
+        states: Vec::new(),
     });
     assert!((n.heat_capacity() - 2050.0).abs() < 1e-9);
     let r = n.ranges().operating.unwrap();

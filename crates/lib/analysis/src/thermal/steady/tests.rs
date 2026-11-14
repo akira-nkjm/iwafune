@@ -135,7 +135,7 @@ fn orbit_average_cube() {
     let env = |flux: f64, albedo: f64, ir: f64| ThermalEnvironment {
         solar_flux: Some(Qty::from_raw(flux)),
         albedo: Some(Fraction::new(albedo)),
-        earth_ir: Some(Qty::from_raw(ir)),
+        planet_ir: Some(Qty::from_raw(ir)),
         space_temperature: Some(Qty::from_raw(0.0)),
         preset: None,
     };
