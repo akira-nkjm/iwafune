@@ -222,7 +222,7 @@ impl<'a> Walker<'a> {
         let ve = thruster.exhaust_velocity()?;
         let thrust = thruster.thrust.value();
         let duty = m.thrust.duty()?;
-        let sun = if m.thrust.sunlit_only {
+        let sun = if m.thrust.sunlit_only() {
             SUNLIT_ONLY_TIME_FACTOR
         } else {
             1.0
@@ -232,7 +232,7 @@ impl<'a> Walker<'a> {
             thrust_n: thrust,
             exhaust_velocity_m_s: ve,
             steering: m.thrust.steering,
-            min_sunlit_factor: m.thrust.sunlit_only.then_some(SUNLIT_THRESHOLD),
+            min_sunlit_factor: m.thrust.sunlit_only().then_some(SUNLIT_THRESHOLD),
             duty,
             control_step_s: DEFAULT_CONTROL_STEP_S,
             max_duration_s: (estimate * PROPAGATION_TIME_FACTOR * sun / duty).max(SECONDS_PER_DAY),

@@ -49,7 +49,7 @@ fn input() -> ModeLoadInput {
             ],
             eclipse: Vec::new(),
         }],
-        default_growth_margin: 0.2,
+        default_growth_margin: Some(0.2),
     }
 }
 
@@ -123,7 +123,7 @@ fn redundant_input(redundancy: modes::Redundancy) -> ModeLoadInput {
             assignments: vec![assignment],
             eclipse: vec![],
         }],
-        default_growth_margin: 0.0,
+        default_growth_margin: Some(0.0),
     }
 }
 
@@ -203,4 +203,14 @@ fn missing_eclipse_value_is_preserved_per_part() {
     input.modes[0].eclipse.clear();
     let inherited = evaluate_mode(&input, &input.modes[0]).unwrap();
     assert!(inherited.parts.iter().all(|p| p.mean == p.mean_eclipse));
+}
+
+/// 成長余裕の既定値を書かなければ `DEFAULT_GROWTH_MARGIN`（0）、書けばその値。
+#[test]
+fn default_growth_margin_is_applied_by_the_analysis() {
+    let mut input = ModeLoadInput::default();
+    assert_eq!(input.default_growth_margin(), DEFAULT_GROWTH_MARGIN);
+    assert_eq!(DEFAULT_GROWTH_MARGIN, 0.0);
+    input.default_growth_margin = Some(0.2);
+    assert_eq!(input.default_growth_margin(), 0.2);
 }

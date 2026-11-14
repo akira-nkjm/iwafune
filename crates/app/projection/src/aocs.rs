@@ -62,11 +62,11 @@ fn spacecraft(
     let s = settings(ctx);
     // ベクトルの設定（パスは設定の次元の表の欄から。単位どおりに SI へ直す）
     let v = |x: Option<&fune_model::value::Vector3>, path: SettingPath, m: &mut MissingInputs| {
-        x.and_then(|x| vec_si(x, path, m)).unwrap_or(Vec3::ZERO)
+        x.and_then(|x| vec_si(x, path, m))
     };
     let size = reference_box(ctx, m);
     let surface =
-        |coef: Option<f64>, cp: Vec3| Some(DisturbanceSurface::from_box(size?, coef?, cp));
+        |coef: Option<f64>, cp: Option<Vec3>| Some(DisturbanceSurface::from_box(size?, coef?, cp));
     let aero_cp = v(
         s.and_then(|s| s.cp_offset_aero.as_ref()),
         dims::AOCS_CP_OFFSET_AERO.at(&[]),
@@ -144,7 +144,7 @@ pub fn rw_unloading_for_mode(
     mode: Option<&str>,
 ) -> Result<RwUnloadingInput, MissingInputs> {
     let mut m = MissingInputs::new();
-    let t = timeline::timeline(ctx, mode, timeline::DEFAULT_ORBITS, &mut m);
+    let t = timeline::timeline(ctx, mode, None, &mut m);
     let wheels = wheels(ctx, &mut m);
     let thrusters = thrust::thrusters(ctx, &mut m);
     let summary = structure::summary(ctx, &mut m);
@@ -184,7 +184,7 @@ pub fn unload_time(ctx: &Context<'_>) -> Result<UnloadTimeInput, MissingInputs> 
             })
         })
         .collect();
-    let field_sampling = timeline::orbits_sampling(ctx, UNLOAD_FIELD_ORBITS, &mut m);
+    let field_sampling = timeline::orbits_sampling_of(ctx, Some(UNLOAD_FIELD_ORBITS), &mut m);
     let thrusters = thrust::thrusters(ctx, &mut m);
     let center_of_mass = if thrusters.is_empty() {
         None
@@ -222,7 +222,7 @@ pub fn sensor_fov_for_mode(
     mode: Option<&str>,
 ) -> Result<SensorFovInput, MissingInputs> {
     let mut m = MissingInputs::new();
-    let t = timeline::timeline(ctx, mode, SENSOR_FOV_ORBITS, &mut m);
+    let t = timeline::timeline(ctx, mode, Some(SENSOR_FOV_ORBITS), &mut m);
     let angle = |p: &fune_model::resolve::ResolvedPart, a: &str| {
         ctx.scalar(p, a).map(Qty::<Angle>::from_raw)
     };

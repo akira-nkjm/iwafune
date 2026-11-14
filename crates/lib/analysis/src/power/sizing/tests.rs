@@ -56,7 +56,7 @@ fn input() -> SizingInput {
                 assignments: vec![assignment("on")],
                 eclipse: vec![assignment("eclipse")],
             }],
-            default_growth_margin: 0.0,
+            default_growth_margin: Some(0.0),
         },
         mode: None,
         array: sap(1.0, Vec3::Z),

@@ -24,11 +24,19 @@ pub struct ThrustLoad {
     pub maneuver: String,
     /// 噴射中のモード
     pub mode: String,
+    /// 日照中だけ噴射する。省略は噴射を日照に限らない（`false`）。結果の `sunlit_only` に載る
     #[serde(default)]
-    pub sunlit_only: bool,
+    pub sunlit_only: Option<bool>,
     /// デューティ（省略で 1）
     #[serde(default)]
     pub duty: Option<Fraction>,
+}
+
+impl ThrustLoad {
+    /// 日照中だけ噴射するか（省略は `false`）。
+    pub fn sunlit_only(&self) -> bool {
+        self.sunlit_only.unwrap_or(false)
+    }
 }
 
 /// 噴射中の電力収支の入力。
@@ -93,7 +101,7 @@ fn balance_input(
     let mut run = input.clone();
     run.cases.clear();
     run.sequence.clear();
-    let block = !t.sunlit_only && duty < 1.0;
+    let block = !t.sunlit_only() && duty < 1.0;
     if block {
         let period = input.timeline.orbit().period_s();
         run.sequence = vec![
@@ -107,7 +115,7 @@ fn balance_input(
             },
         ];
     } else {
-        let load = if t.sunlit_only {
+        let load = if t.sunlit_only() {
             EnergyBalanceLoad::SunlitEclipse {
                 sunlit_mode: t.mode.clone(),
                 eclipse_mode: base.to_owned(),
@@ -140,7 +148,7 @@ fn evaluate(
             t.maneuver
         )));
     }
-    let needs_base = t.sunlit_only || duty < 1.0;
+    let needs_base = t.sunlit_only() || duty < 1.0;
     let base = needs_base.then(|| base_mode(input)).flatten();
     if needs_base && base.is_none() {
         return Err(AnalysisError::InvalidInput(format!(
@@ -148,7 +156,7 @@ fn evaluate(
             t.maneuver
         )));
     }
-    let note = match (t.sunlit_only, duty < 1.0) {
+    let note = match (t.sunlit_only(), duty < 1.0) {
         (true, true) => Some(ThrustBalanceNote::DutyAsFullSunlit),
         (false, true) => Some(ThrustBalanceNote::DutyAsBlockPerOrbit),
         _ => None,
@@ -170,7 +178,7 @@ fn evaluate(
         maneuver: t.maneuver.clone(),
         mode: t.mode.clone(),
         base_mode: base,
-        sunlit_only: t.sunlit_only,
+        sunlit_only: t.sunlit_only(),
         duty: Fraction::new(duty),
         note,
         balance,

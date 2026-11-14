@@ -319,6 +319,9 @@ pub fn ensure_non_negative(name: &str, v: f64) -> Result<(), AnalysisError> {
     }
 }
 
+mod sampling;
+pub use sampling::{DEFAULT_ORBITS, daily_sampling, orbit_count, orbits_sampling};
+
 mod orbit;
 pub use orbit::{
     SUNLIT_THRESHOLD, SpanFallback, is_sunlit, longest_window, masked_time_mean, orbit_mean,

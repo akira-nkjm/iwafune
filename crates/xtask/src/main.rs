@@ -6,6 +6,7 @@
 //! - ファイルの長さ: 400 行を超える Rust / TS のファイルを警告する（CONTRIBUTING.md の目安）
 //! - 言語: Python のファイルが無いか（言語は Rust と TS だけ）
 //! - ファイル名: 同じディレクトリで大文字・小文字だけ違う名前が無いか（[`file_names`]。macOS で import が取り違える）
+//! - projection にモデル化の既定値を書かない: `const DEFAULT_…` と値の直書きの `unwrap_or(`（[`projection_defaults`]）
 //! - 1 機能 1 か所: 台帳で決めた定義が別のファイルに現れていないか（[`single_home`]）
 //! - Web の文字列の分解: ID やパスを `/`・`.` で分けていないか（[`web_strings`]）
 //! - Web の色の直書き: hex・色の名前（`white` など）・`color-mix(` が `lib/tone.ts` の外に無いか（[`web_colors`]）
@@ -14,6 +15,7 @@
 
 mod file_names;
 mod module_cycles;
+mod projection_defaults;
 mod single_home;
 mod web_colors;
 mod web_pages;
@@ -94,6 +96,7 @@ fn check() -> Result<()> {
     let files = source_files(&meta.workspace_root)?;
     file_names::check(&meta.workspace_root, &files, &mut errors);
     single_home::check(&meta.workspace_root, &files, &mut errors);
+    projection_defaults::check(&meta.workspace_root, &files, &mut errors);
     web_strings::check(&meta.workspace_root, &files, &mut errors);
     web_colors::check(&meta.workspace_root, &files, &mut errors);
     web_pages::check(&meta.workspace_root, &files, &mut errors);
