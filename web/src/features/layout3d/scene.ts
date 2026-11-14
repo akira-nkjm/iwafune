@@ -155,13 +155,25 @@ export function pickBox(hits: readonly string[], selected: string | null): strin
 export const DEFAULT_STRUCTURE_OPACITY = 0.3;
 
 /** 材質は透過モードを固定し、スライダー操作でシェーダーを作り直さない。透過した箱は奥行きを遮らない。 */
-export function boxMaterial(box: Box3D, selected: boolean, structureOpacity?: number) {
-  const opacity = selected
+/** 選んだ部品があるとき、ほかの部品の不透明度に掛ける比（選んだ部品を目立たせる） */
+export const DIMMED_OPACITY_RATIO = 0.25;
+
+/**
+ * 箱の材質。`dimmed` はほかの部品が選ばれているとき（不透明度を `DIMMED_OPACITY_RATIO` 倍に下げる）。
+ */
+export function boxMaterial(
+  box: Box3D,
+  selected: boolean,
+  structureOpacity?: number,
+  dimmed = false,
+) {
+  const base = selected
     ? 1
     : box.structure && structureOpacity !== undefined
       ? structureOpacity
       : box.sized
         ? 0.85
         : 0.45;
+  const opacity = dimmed && !selected ? base * DIMMED_OPACITY_RATIO : base;
   return { color: box.color, transparent: true, opacity, depthWrite: opacity === 1 };
 }

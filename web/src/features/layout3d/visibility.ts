@@ -28,8 +28,8 @@ export const SCENE_HELPERS = ["origin", "grid", "gizmo"] as const;
 export type SceneHelper = (typeof SCENE_HELPERS)[number];
 export type SceneHelpers = Record<SceneHelper, boolean>;
 
-/** 既定ではすべて出す */
-export const DEFAULT_SCENE_HELPERS: SceneHelpers = { origin: true, grid: true, gizmo: true };
+/** 既定では画面隅の軸だけ出す（原点の軸と地面の格子は、必要なときに出す） */
+export const DEFAULT_SCENE_HELPERS: SceneHelpers = { origin: false, grid: false, gizmo: true };
 
 /** 3D の視点を部品に寄せる依頼。同じ部品を続けて押しても寄せ直すよう、押した回数 `n` を持つ */
 export interface FocusRequest {
