@@ -26,7 +26,6 @@ pub fn modes_with_law(ctx: &Context<'_>) -> Vec<String> {
     match case_mode_id(ctx) {
         Some(id) => vec![id],
         None => ctx
-            .design
             .ordered_modes()
             .into_iter()
             .filter(|mode| laws.contains_key(mode.id.as_str()))
@@ -88,5 +87,8 @@ fn sampling(
 pub fn case_beta(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<Qty<Angle>> {
     let case = ctx.case?;
     let target = Target::case(case.id.as_str(), Some("beta"));
+    if case.beta.is_some() {
+        ctx.note(target.clone());
+    }
     qty_opt::<Angle>(case.beta.as_ref(), target, m)
 }

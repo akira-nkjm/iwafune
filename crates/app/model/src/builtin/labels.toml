@@ -431,3 +431,198 @@ label_en = "Tangential"
 [enum.maneuver_steering.inertial]
 label    = "慣性固定"
 label_en = "Inertial"
+
+# [setting."<設定のパス>"]: 設定のファイル（まとまり）とキーの表示名。無いパスはいちばん長い親の表示名に残りのキーを添える
+# [case_field.<欄>]: 解析ケースの欄の表示名
+
+[setting."conditions.orbit"]
+label    = "軌道"
+label_en = "Orbit"
+
+[setting."conditions.orbit.epoch"]
+label    = "元期"
+label_en = "Epoch"
+
+[setting."conditions.orbit.central"]
+label    = "中心天体"
+label_en = "Central body"
+
+[setting."conditions.orbit.altitude"]
+label    = "高度"
+label_en = "Altitude"
+
+[setting."conditions.orbit.semi_major_axis"]
+label    = "軌道長半径"
+label_en = "Semi-major axis"
+
+[setting."conditions.orbit.inclination"]
+label    = "軌道傾斜角"
+label_en = "Inclination"
+
+[setting."conditions.orbit.sun_synchronous"]
+label    = "太陽同期"
+label_en = "Sun-synchronous"
+
+[setting."conditions.orbit.eccentricity"]
+label    = "離心率"
+label_en = "Eccentricity"
+
+[setting."conditions.orbit.raan"]
+label    = "昇交点赤経"
+label_en = "RAAN"
+
+[setting."conditions.orbit.ltdn"]
+label    = "降交点地方時"
+label_en = "LTDN"
+
+[setting."conditions.orbit.arg_perigee"]
+label    = "近地点引数"
+label_en = "Argument of perigee"
+
+[setting."conditions.orbit.mean_anomaly"]
+label    = "平均近点角"
+label_en = "Mean anomaly"
+
+[setting."conditions.orbit.propagator"]
+label    = "軌道の伝搬"
+label_en = "Propagator"
+
+[setting."conditions.orbit.duration"]
+label    = "ミッション期間"
+label_en = "Mission duration"
+
+[setting."conditions.orbit.eclipse_season"]
+label    = "蝕の季節変動"
+label_en = "Eclipse season"
+
+[setting."conditions.orbit.eclipse_season.step"]
+label    = "季節の標本間隔"
+label_en = "Season sampling step"
+
+[setting."conditions.orbit.decay"]
+label    = "高度低下"
+label_en = "Orbit decay"
+
+[setting."conditions.ground"]
+label    = "地上局"
+label_en = "Ground stations"
+
+[setting."analysis.common"]
+label    = "共通の解析設定"
+label_en = "Common analysis settings"
+
+[setting."analysis.power"]
+label    = "電源の設定"
+label_en = "Power settings"
+
+[setting."analysis.power.dod_max"]
+label    = "許容 DoD"
+label_en = "Allowed DoD"
+
+[setting."analysis.power.initial_soc"]
+label    = "初期 SOC"
+label_en = "Initial SOC"
+
+[setting."analysis.power.conversion_efficiency"]
+label    = "電力変換効率"
+label_en = "Conversion efficiency"
+
+[setting."analysis.power.orbits"]
+label    = "解く周回数"
+label_en = "Orbits to solve"
+
+[setting."analysis.power.base_mode"]
+label    = "基本のモード"
+label_en = "Base mode"
+
+[setting."analysis.power.sequence"]
+label    = "モードの並び"
+label_en = "Mode sequence"
+
+[setting."analysis.power.mode_share"]
+label    = "モードの時間割合"
+label_en = "Mode time share"
+
+[setting."analysis.power.sizing"]
+label    = "逆算サイジング"
+label_en = "Sizing"
+
+[setting."analysis.power.sizing.sunlit_efficiency"]
+label    = "日照経路の効率"
+label_en = "Sunlit path efficiency"
+
+[setting."analysis.power.sizing.eclipse_efficiency"]
+label    = "蝕経路の効率"
+label_en = "Eclipse path efficiency"
+
+[setting."analysis.power.sizing.battery_efficiency"]
+label    = "電池の効率"
+label_en = "Battery efficiency"
+
+[setting."analysis.power.sizing.annual_degradation"]
+label    = "年あたりの劣化率"
+label_en = "Annual degradation"
+
+[setting."analysis.power.sizing.inherent_degradation"]
+label    = "固有の劣化係数"
+label_en = "Inherent degradation"
+
+[setting."analysis.power.sizing.battery_strings"]
+label    = "電池の組数"
+label_en = "Battery strings"
+
+[setting."analysis.power.sizing.bus_voltage"]
+label    = "バス電圧"
+label_en = "Bus voltage"
+
+[setting."analysis.power.sizing.sun_distance"]
+label    = "太陽距離"
+label_en = "Sun distance"
+
+[setting."analysis.aocs"]
+label    = "AOCS の設定"
+label_en = "AOCS settings"
+
+[setting."analysis.aocs.law"]
+label    = "姿勢則"
+label_en = "Attitude law"
+
+[setting."analysis.cdh"]
+label    = "C&DH の設定"
+label_en = "C&DH settings"
+
+[setting."analysis.comm"]
+label    = "通信の設定"
+label_en = "Communication settings"
+
+[setting."analysis.thermal"]
+label    = "熱の設定"
+label_en = "Thermal settings"
+
+[setting."analysis.structure"]
+label    = "構造の設定"
+label_en = "Structure settings"
+
+[setting."analysis.propulsion"]
+label    = "推進の設定"
+label_en = "Propulsion settings"
+
+[case_field.mode]
+label    = "モード"
+label_en = "Mode"
+
+[case_field.beta]
+label    = "β 角"
+label_en = "Beta angle"
+
+[case_field.orbits]
+label    = "周回数"
+label_en = "Orbits"
+
+[case_field.side]
+label    = "ばらつきの側"
+label_en = "Uncertainty side"
+
+[case_field.thermal_case]
+label    = "熱の環境条件"
+label_en = "Thermal case"

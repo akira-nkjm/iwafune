@@ -223,6 +223,22 @@ fn project(
     })
 }
 
+/// 解析の射影が読んだもの（部品の属性・設定・モード・ケース。`fune_projection::ReadLog`）。ケースは
+/// [`run_analysis`] と同じ規則で選ぶ。入力を組み立てられなくても、そこまでに読んだものを返す。
+pub(crate) fn read_targets(
+    snapshot: &crate::workspace::Snapshot,
+    id: &str,
+    explicit: Option<&str>,
+) -> std::collections::BTreeSet<fune_model::Target> {
+    let (case, _) = effective_case(Some(snapshot), id, explicit);
+    let log = fune_projection::ReadLog::new();
+    if let Ok(ctx) = Context::new(&snapshot.design, &snapshot.resolved, case.as_deref()) {
+        // 入力の組み立ての成否は解析の実行（run_analysis）が返す。ここは読んだものだけを使う
+        let _ = project_json(id, &ctx.with_reads(Some(&log)));
+    }
+    log.into_targets()
+}
+
 /// JSON Merge Patch（RFC 7396）。
 fn merge_patch(mut target: Value, patch: &Value) -> Value {
     let Value::Object(p) = patch else {

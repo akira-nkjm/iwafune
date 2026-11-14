@@ -45,6 +45,9 @@ pub trait Analysis {
     /// 英語の題名と説明（GUI の英語表示）
     const TITLE_EN: &'static str;
     const DESCRIPTION_EN: &'static str;
+    /// 計算の中で結果を使う（中で回す）ほかの解析の ID。中で `X::run` を呼ぶ解析・同じ計算を倍率を変えて回す解析は
+    /// ここにその ID を書く（解析どうしのつながりの表示に使う。`catalog::uses`）
+    const USES: &'static [&'static str] = &[];
 
     type Input: Serialize + DeserializeOwned;
     type Output: Serialize;

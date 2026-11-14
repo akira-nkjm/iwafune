@@ -31,11 +31,7 @@ fn system_modes_of(
             modes: aocs::views(s)?,
         });
     }
-    let ctx = fune_projection::Context {
-        design: &s.design,
-        resolved: &s.resolved,
-        case: None,
-    };
+    let ctx = fune_projection::Context::bare(&s.design, &s.resolved);
     let mut modes = Vec::new();
     if !matches!(system, System::Power | System::Cdh | System::Thermal) {
         return Err(crate::error::ServiceError::InvalidInput(

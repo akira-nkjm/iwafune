@@ -66,9 +66,9 @@ fn node_part(
         );
         return None;
     };
-    let mass = p.scalar("mass")?;
+    let mass = ctx.scalar(p, "mass")?;
     let c = m.need(
-        p.scalar("specific_heat"),
+        ctx.scalar(p, "specific_heat"),
         Target::attr(pid, "specific_heat"),
         "比熱（熱の節点の熱容量）",
     )?;
@@ -77,15 +77,15 @@ fn node_part(
         mass: Qty::from_raw(mass),
         count: crate::parts::count_of(p),
         specific_heat: Qty::from_raw(c),
-        ranges: ranges(p),
+        ranges: ranges(ctx, p),
         redundancy: crate::parts::redundancy(p),
         states: p.states.clone(),
     })
 }
 
 /// 部品の 3 種の温度範囲（書かれていない種類は `None`）。
-fn ranges(p: &ResolvedPart) -> ThermalRanges {
-    let range = |attr: &str| match p.value(attr) {
+fn ranges(ctx: &Context<'_>, p: &ResolvedPart) -> ThermalRanges {
+    let range = |attr: &str| match ctx.attr(p, attr) {
         Some(SiValue::Range { min, max }) => Some(ThermalTempRange {
             min: Qty::from_raw(*min),
             max: Qty::from_raw(*max),
@@ -140,13 +140,13 @@ fn surfaces(ctx: &Context<'_>, s: &ThermalSettings, m: &mut MissingInputs) -> Ve
     let node = node_of(s);
     let mut out = Vec::new();
     for p in ctx.resolved.parts.values() {
-        let (Some(n), Some(area)) = (node.get(p.id.as_str()), p.scalar("area")) else {
+        let (Some(n), Some(area)) = (node.get(p.id.as_str()), ctx.scalar(p, "area")) else {
             continue;
         };
         let coatings = coatings(s, &p.id, m);
         let (absorptivity, emissivity) = match &coatings {
             Some(_) => (None, None),
-            None => match (p.scalar("absorptivity"), p.scalar("emissivity")) {
+            None => match (ctx.scalar(p, "absorptivity"), ctx.scalar(p, "emissivity")) {
                 (Some(a), Some(e)) => (Some(a), Some(e)),
                 _ => continue,
             },

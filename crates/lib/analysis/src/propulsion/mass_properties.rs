@@ -93,6 +93,7 @@ fn split(
 
 impl Analysis for PropellantMassProperties {
     const ID: &'static str = "propulsion.mass_properties";
+    const USES: &'static [&'static str] = &[crate::propulsion::Propellant::ID];
     const TITLE: &'static str = "推薬による質量特性の変化";
     const TITLE_EN: &'static str = "Mass properties with propellant";
     const AREA: AnalysisArea = AnalysisArea::System(System::Propulsion);

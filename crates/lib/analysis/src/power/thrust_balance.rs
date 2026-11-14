@@ -179,6 +179,7 @@ fn evaluate(
 
 impl Analysis for ThrustBalance {
     const ID: &'static str = "power.thrust_balance";
+    const USES: &'static [&'static str] = &[EnergyBalance::ID];
     const TITLE: &'static str = "噴射中の電力収支";
     const TITLE_EN: &'static str = "Energy balance while thrusting";
     const AREA: AnalysisArea = AnalysisArea::System(System::Power);

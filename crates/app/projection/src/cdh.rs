@@ -28,7 +28,7 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
         .filter_map(|p| {
             Some(DataBudgetStorage {
                 part: p.id.clone(),
-                capacity: Qty::from_raw(p.scalar("storage_capacity")?),
+                capacity: Qty::from_raw(ctx.scalar(p, "storage_capacity")?),
                 count: crate::parts::count_of(p),
             })
         })
@@ -100,8 +100,8 @@ pub fn data_parts(ctx: &Context<'_>) -> Vec<DataBudgetPart> {
             count: crate::parts::count_of(p),
             redundancy: crate::parts::redundancy(p),
             states: p.states.clone(),
-            hk_rate: state_values(p, "hk_rate").unwrap_or_default(),
-            mission_rate: state_values(p, "mission_rate").unwrap_or_default(),
+            hk_rate: state_values(ctx, p, "hk_rate").unwrap_or_default(),
+            mission_rate: state_values(ctx, p, "mission_rate").unwrap_or_default(),
         })
         .collect()
 }

@@ -2,6 +2,7 @@
 
 use crate::missing::MissingInputs;
 use crate::quantity::{setting, setting_opt};
+use crate::reads::ReadLog;
 use fune_model::Target;
 use fune_model::design::CentralBodyKind;
 use fune_model::design::setting_dims as dims;
@@ -34,15 +35,61 @@ pub fn central_body(c: CentralBodyKind) -> CentralBody {
     }
 }
 
-/// 射影の文脈。
+/// 射影の文脈。部品の属性・設定・モード・ケースの読み出しは、読んだものを記録できるよう文脈の入口（部品の属性は
+/// `parts` の `Context::attr`・`scalar`・`vec3`、設定は `setting`、ほかは `orbit`・`modes` など。記録は `note`）を通す。
 pub struct Context<'a> {
     pub design: &'a Design,
     pub resolved: &'a Resolved,
     /// 選んだ解析ケース（無ければケース未選択）
     pub case: Option<&'a Case>,
+    /// 読んだものの記録先（無ければ記録しない）
+    reads: Option<&'a ReadLog>,
 }
 
 impl<'a> Context<'a> {
+    /// ケースを選ばない文脈。
+    pub fn bare(design: &'a Design, resolved: &'a Resolved) -> Self {
+        Self {
+            design,
+            resolved,
+            case: None,
+            reads: None,
+        }
+    }
+
+    /// 読んだものを `reads` に記録する文脈にする。
+    pub fn with_reads(mut self, reads: Option<&'a ReadLog>) -> Self {
+        self.reads = reads;
+        self
+    }
+
+    /// 記録先（同じ記録先で別のケースの文脈を作るとき）。
+    pub fn reads(&self) -> Option<&'a ReadLog> {
+        self.reads
+    }
+
+    /// 読んだ対象を記録する。**読み出しの記録はすべてここを通る。**
+    pub fn note(&self, target: impl Into<Target>) {
+        if let Some(log) = self.reads {
+            log.push(target.into());
+        }
+    }
+
+    /// 設定の値を読む（`path` を記録して `value` をそのまま返す）。
+    pub fn setting<T>(&self, path: SettingPath, value: T) -> T {
+        self.note(path);
+        value
+    }
+
+    /// 表示順のモード（読んだものとして各モードを記録する）。
+    pub fn ordered_modes(&self) -> Vec<&'a Mode> {
+        let modes = self.design.ordered_modes();
+        for m in &modes {
+            self.note(Target::mode(m.id.as_str(), None));
+        }
+        modes
+    }
+
     /// ケースの ID から文脈を作る。ケースが無ければ不足入力。
     pub fn new(
         design: &'a Design,
@@ -64,22 +111,21 @@ impl<'a> Context<'a> {
             design,
             resolved,
             case,
+            reads: None,
         })
     }
 
     /// ケースが指すモード（無ければ None）。
     pub fn case_mode(&self) -> Option<&'a Mode> {
-        let id = self.case?.mode.as_ref()?;
+        let case = self.case?;
+        let id = case.mode.as_ref()?;
+        self.note(Target::case(case.id.as_str(), Some("mode")));
         self.design.modes.get(id.as_str())
     }
 
     /// 全モードを解析の形に。
     pub fn modes(&self) -> Vec<ModeDef> {
-        self.design
-            .ordered_modes()
-            .into_iter()
-            .map(mode_def)
-            .collect()
+        self.ordered_modes().into_iter().map(mode_def).collect()
     }
 
     /// 軌道（`conditions/orbit.toml`）。
@@ -88,6 +134,15 @@ impl<'a> Context<'a> {
             m.push(orbit(&[]), "軌道の設定（conditions/orbit.toml）");
             return None;
         };
+        for key in [
+            "epoch",
+            "central",
+            "eccentricity",
+            "arg_perigee",
+            "mean_anomaly",
+        ] {
+            self.note(orbit(&[key]));
+        }
         let epoch = match o.epoch.as_deref().map(Epoch::parse) {
             Some(Ok(e)) => Some(e),
             Some(Err(e)) => {
@@ -101,6 +156,11 @@ impl<'a> Context<'a> {
         };
         let central = o.central.map_or(CentralBody::Earth, central_body);
         let a = self.semi_major_axis(o, central, m);
+        self.note(orbit(&[if o.inclination.is_some() {
+            "inclination"
+        } else {
+            "sun_synchronous"
+        }]));
         let inc = match (o.inclination.as_ref(), o.sun_synchronous, a) {
             (Some(q), _, _) => setting(&dims::ORBIT_INCLINATION, &[], Some(q), "", m),
             (None, Some(true), Some(a)) => {
@@ -119,6 +179,11 @@ impl<'a> Context<'a> {
         };
         // 書かれていない要素は None のまま渡す（慣例の値は `OrbitElements::with_defaults` が持つ）。
         // RAAN は LTDN からも求める。外側の None は「求められない」（不足として記録済み）。
+        self.note(orbit(&[if o.ltdn.is_some() && o.raan.is_none() {
+            "ltdn"
+        } else {
+            "raan"
+        }]));
         let raan = match (o.raan.as_ref(), o.ltdn.as_deref(), epoch) {
             (Some(q), _, _) => setting(&dims::ORBIT_RAAN, &[], Some(q), "", m).map(Some),
             (None, Some(text), Some(epoch)) => raan_from_ltdn(epoch, text, m).map(Some),
@@ -127,6 +192,7 @@ impl<'a> Context<'a> {
         };
         let argp = setting_opt(&dims::ORBIT_ARG_PERIGEE, &[], o.arg_perigee.as_ref(), m);
         let ma = setting_opt(&dims::ORBIT_MEAN_ANOMALY, &[], o.mean_anomaly.as_ref(), m);
+        self.note(orbit(&["propagator"]));
         let propagator = match o.propagator {
             Some(fune_model::design::PropagatorKind::Kepler) => Propagator::Kepler,
             _ => Propagator::default(),
@@ -144,6 +210,7 @@ impl<'a> Context<'a> {
         m: &mut MissingInputs,
     ) -> Option<Qty<Length>> {
         if o.semi_major_axis.is_some() {
+            self.note(orbit(&["semi_major_axis"]));
             return setting(
                 &dims::ORBIT_SEMI_MAJOR_AXIS,
                 &[],
@@ -152,6 +219,7 @@ impl<'a> Context<'a> {
                 m,
             );
         }
+        self.note(orbit(&["altitude"]));
         let alt = setting(
             &dims::ORBIT_ALTITUDE,
             &[],
@@ -181,6 +249,7 @@ impl<'a> Context<'a> {
         chosen
             .into_iter()
             .filter_map(|id| {
+                self.note(SettingPath::conditions(&["ground", id]));
                 let Some(g) = ground.get(id) else {
                     let target = SettingPath::conditions(&["ground", id]);
                     m.push(target, "地上局の設定がありません");
@@ -218,9 +287,15 @@ impl<'a> Context<'a> {
             None if l.len() == 1 => l.values().next(),
             None => None,
         });
+        let law = AnalysisSystem::Aocs.setting_path().child(&["law"]);
+        let key = match (mode, found.is_some()) {
+            (Some(id), _) => Some(id),
+            (None, true) => laws.and_then(|l| l.keys().next()).map(String::as_str),
+            (None, false) => None,
+        };
+        self.note(key.map_or_else(|| law.clone(), |id| law.child(&[id])));
         let Some(setting) = found else {
             // モード未指定なら姿勢則の表を、指定済みならそのモードの欄を示す。
-            let law = AnalysisSystem::Aocs.setting_path().child(&["law"]);
             let target = mode.map_or_else(|| law.clone(), |id| law.child(&[id]));
             m.push(
                 target,

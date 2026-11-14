@@ -22,7 +22,7 @@ export function DetailPane({ header, children }: { header: ReactNode; children: 
 /**
  * 詳細の見出し。左に名前（`title`。等幅・太字）とその前後の印（`leading`・`trailing`）、下に補足（`subtitle`）、
  * 右に操作（`actions`。`DetailAction` など）と、`onClose` があれば閉じるボタン。`tone` を渡すと、系統図のカードと
- * 同じサブシステム色の淡い地と左の色の線にする
+ * 同じサブシステム色の淡い地と左の色の線にする。名前が ID でなく表示名なら `mono={false}`（ふつうの字形）
  */
 export function DetailHeader({
   title,
@@ -32,6 +32,7 @@ export function DetailHeader({
   actions,
   tone,
   onClose,
+  mono = true,
 }: {
   title: string;
   leading?: ReactNode;
@@ -40,6 +41,8 @@ export function DetailHeader({
   actions?: ReactNode;
   tone?: Tone;
   onClose?: () => void;
+  /** 名前を等幅にするか（ID を出すとき。既定） */
+  mono?: boolean;
 }) {
   const t = useT().common;
   return (
@@ -53,7 +56,7 @@ export function DetailHeader({
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           {leading}
-          <h2 className="truncate font-mono font-semibold text-[15px]">{title}</h2>
+          <h2 className={cn("truncate font-semibold text-[15px]", mono && "font-mono")}>{title}</h2>
           {trailing}
         </div>
         {subtitle && <p className="mt-0.5 truncate text-ink-3 text-xs">{subtitle}</p>}

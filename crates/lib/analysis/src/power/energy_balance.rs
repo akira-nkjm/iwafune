@@ -236,6 +236,7 @@ pub struct EnergyBalance;
 
 impl Analysis for EnergyBalance {
     const ID: &'static str = "power.energy_balance";
+    const USES: &'static [&'static str] = &[super::mode_load::ModeLoad::ID];
     const TITLE: &'static str = "電力収支と DoD";
     const AREA: AnalysisArea = AnalysisArea::System(System::Power);
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;

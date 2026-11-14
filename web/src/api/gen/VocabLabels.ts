@@ -30,4 +30,12 @@ enum: { [key in string]: { [key in string]: VocabLabel } },
 /**
  * 列挙の型 → 値を選択肢に並べる順（`enum` の同じ型の値をすべて並べる。無い型は値の綴りの順）
  */
-enum_order: { [key in string]: Array<string> }, };
+enum_order: { [key in string]: Array<string> }, 
+/**
+ * 設定のパス（`conditions.orbit`・`analysis.power.dod_max`）→ 表示名。引き当ては [`setting_label`]
+ */
+setting: { [key in string]: VocabLabel }, 
+/**
+ * 解析ケースの欄（`mode`・`beta`・`orbits` …）→ 表示名
+ */
+case_field: { [key in string]: VocabLabel }, };

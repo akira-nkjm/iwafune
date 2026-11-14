@@ -34,8 +34,8 @@ pub fn wheels(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<RwWheel> {
         .filter_map(|p| {
             let why = "リアクションホイールの値";
             let axis = direction_body(ctx, p, "spin_axis", "回転軸（部品座標）", m);
-            let h = parts::part_qty::<AngularMomentum>(p, "max_momentum", why, m);
-            let t = parts::part_qty::<Torque>(p, "max_torque", why, m);
+            let h = parts::part_qty::<AngularMomentum>(ctx, p, "max_momentum", why, m);
+            let t = parts::part_qty::<Torque>(ctx, p, "max_torque", why, m);
             Some(RwWheel {
                 id: p.id.clone(),
                 axis: axis?,
@@ -115,7 +115,7 @@ pub(crate) fn reference_box(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<
             return None;
         }
     };
-    let [x, y, z] = root.vec3("size")?;
+    let [x, y, z] = ctx.vec3(root, "size")?;
     Some(Vec3::new(x, y, z))
 }
 
@@ -175,6 +175,7 @@ pub fn unload_time(ctx: &Context<'_>) -> Result<UnloadTimeInput, MissingInputs> 
                 id: p.id.clone(),
                 axis: direction_body(ctx, p, "axis", "双極子の向き（部品座標）", &mut m)?,
                 max_dipole: parts::part_qty::<MagneticDipoleMoment>(
+                    ctx,
                     p,
                     "max_dipole",
                     "MTQ の値",
@@ -222,8 +223,9 @@ pub fn sensor_fov_for_mode(
 ) -> Result<SensorFovInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let t = timeline::timeline(ctx, mode, SENSOR_FOV_ORBITS, &mut m);
-    let angle =
-        |p: &fune_model::resolve::ResolvedPart, a: &str| p.scalar(a).map(Qty::<Angle>::from_raw);
+    let angle = |p: &fune_model::resolve::ResolvedPart, a: &str| {
+        ctx.scalar(p, a).map(Qty::<Angle>::from_raw)
+    };
     let sensors: Vec<SensorFovSensor> = ctx
         .resolved
         .parts

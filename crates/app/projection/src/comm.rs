@@ -112,9 +112,9 @@ fn rf_params(
         ("frequency_up", "data_rate_up")
     };
     let why = "送受信機の値";
-    let frequency = crate::parts::part_qty::<Frequency>(part, freq_attr, why, m);
-    let rate = crate::parts::part_qty::<DataRate>(part, rate_attr, why, m);
-    let sat_gain = sat_gain_db(part, m);
+    let frequency = crate::parts::part_qty::<Frequency>(ctx, part, freq_attr, why, m);
+    let rate = crate::parts::part_qty::<DataRate>(ctx, part, rate_attr, why, m);
+    let sat_gain = sat_gain_db(ctx, part, m);
     let ground_gain = m.need(
         db(ground.antenna_gain.as_ref()),
         dims::GROUND_ANTENNA_GAIN.at(&at),
@@ -122,7 +122,7 @@ fn rf_params(
     );
     let sat_loss = db(link.line_loss.as_ref());
     let ground_loss = db(ground.line_loss.as_ref());
-    let (tx_power, noise) = power_and_noise(part, ground, &at, down, m);
+    let (tx_power, noise) = power_and_noise(ctx, part, ground, &at, down, m);
     let (sat_gain, ground_gain) = (sat_gain?, ground_gain?);
     let (tx_gain_db, rx_gain_db, tx_loss_db, rx_loss_db) = if down {
         (sat_gain, ground_gain, sat_loss, ground_loss)
@@ -147,6 +147,7 @@ fn rf_params(
 
 /// 送信電力（送信側）と雑音温度（受信側）。下りは衛星が送信、上りは地上局が送信。`at` は (地上局, 帯域)。
 fn power_and_noise(
+    ctx: &Context<'_>,
     part: &ResolvedPart,
     ground: &fune_model::design::GroundLinkSettings,
     at: &[&str],
@@ -157,7 +158,7 @@ fn power_and_noise(
     if down {
         let noise = ground.noise_temperature.as_ref();
         (
-            crate::parts::part_qty::<Power>(part, "tx_power", why, m),
+            crate::parts::part_qty::<Power>(ctx, part, "tx_power", why, m),
             setting(
                 &dims::GROUND_NOISE_TEMPERATURE,
                 at,
@@ -170,15 +171,15 @@ fn power_and_noise(
         let power = ground.tx_power.as_ref();
         (
             setting(&dims::GROUND_TX_POWER, at, power, "地上局の送信電力", m),
-            crate::parts::part_qty::<Temperature>(part, "noise_temperature", why, m),
+            crate::parts::part_qty::<Temperature>(ctx, part, "noise_temperature", why, m),
         )
     }
 }
 
 /// 衛星側のアンテナ利得 [dB]（送受信機の `antenna_gain`。解決済みの値は線形の比なので dB に戻す）。
-fn sat_gain_db(part: &ResolvedPart, m: &mut MissingInputs) -> Option<Decibel> {
+fn sat_gain_db(ctx: &Context<'_>, part: &ResolvedPart, m: &mut MissingInputs) -> Option<Decibel> {
     let ratio = m.need(
-        part.scalar("antenna_gain"),
+        ctx.scalar(part, "antenna_gain"),
         Target::attr(&part.id, "antenna_gain"),
         "衛星側のアンテナ利得",
     );
@@ -237,7 +238,13 @@ pub fn data_throughput(ctx: &Context<'_>) -> Result<DataThroughputInput, Missing
     let down = m.need(down, comm(&["link"]), "下りの回線（direction = \"down\"）");
     let rate = down.and_then(|(_, l)| {
         let part = ctx.resolved.parts.get(l.part.as_str())?;
-        crate::parts::part_qty::<DataRate>(part, "data_rate_down", "下りのデータレート", &mut m)
+        crate::parts::part_qty::<DataRate>(
+            ctx,
+            part,
+            "data_rate_down",
+            "下りのデータレート",
+            &mut m,
+        )
     });
     let link = match (down, stations.first()) {
         (Some((name, l)), Some(st)) => {

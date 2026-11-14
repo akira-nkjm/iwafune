@@ -10,6 +10,16 @@ macro_rules! registry {
             vec![$(<$t as Analysis>::info()),+]
         }
 
+        /// 解析が計算の中で結果を使うほかの解析の ID（`Analysis::USES`）。未知の ID は空。
+        pub fn uses(id: &str) -> &'static [&'static str] {
+            $(
+                if id == <$t as Analysis>::ID {
+                    return <$t as Analysis>::USES;
+                }
+            )+
+            &[]
+        }
+
         /// ID で解析を選び、JSON の入力で実行して JSON の出力を返す（CLI と HTTP が使う）。
         pub fn run_json(id: &str, input: serde_json::Value) -> Result<serde_json::Value, AnalysisError> {
             $(
@@ -61,4 +71,39 @@ pub fn run_typed<A: Analysis>(input: &A::Input) -> Result<A::Output, AnalysisErr
         return Err(AnalysisError::Unknown(A::ID.to_owned()));
     }
     A::run(input)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 使う解析（`Analysis::USES`）はどれも登録済みで、自分自身を含まず、循環しない。
+    #[test]
+    fn uses_are_registered_and_acyclic() {
+        let ids: Vec<String> = catalog().into_iter().map(|i| i.id).collect();
+        fn reaches(from: &str, to: &str, depth: usize) -> bool {
+            depth > 0
+                && uses(from)
+                    .iter()
+                    .any(|u| *u == to || reaches(u, to, depth - 1))
+        }
+        for id in &ids {
+            for u in uses(id) {
+                assert!(ids.iter().any(|x| x == u), "{id} が使う {u} は未登録です");
+            }
+            assert!(
+                !reaches(id, id, ids.len()),
+                "{id} の使う解析が循環しています"
+            );
+        }
+        assert_eq!(
+            uses("power.sizing"),
+            &[
+                "orbit.eclipse_season",
+                "power.mode_load",
+                "power.orbit_generation",
+                "power.energy_balance"
+            ]
+        );
+    }
 }

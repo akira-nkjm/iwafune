@@ -22,11 +22,8 @@ fn every_mode_matches_the_same_law_as_case_attitude() {
     for card in cards.modes {
         let mut case = default.clone();
         case.mode = Some(card.id.clone().into());
-        let ctx = fune_projection::Context {
-            design: &s.design,
-            resolved: &s.resolved,
-            case: Some(&case),
-        };
+        let mut ctx = fune_projection::Context::bare(&s.design, &s.resolved);
+        ctx.case = Some(&case);
         let rw =
             run_typed::<RwUnloading>(&fune_projection::aocs::rw_unloading(&ctx).unwrap()).unwrap();
         let fov =
