@@ -22,6 +22,11 @@ pub fn place_body_op(
         .parts
         .get(id)
         .ok_or_else(|| ServiceError::not_found("部品", id))?;
+    if rp.mount.is_none() && s.resolved.is_mount_root(id) {
+        return Err(ServiceError::InvalidInput(format!(
+            "部品 `{id}` は取付の根（機体座標の原点）なので、機体座標では動かせません"
+        )));
+    }
     let unit = fune_model::design::position_unit(position);
     let si = |v: f64| to_si(v, unit).map_err(|e| ServiceError::InvalidInput(e.to_string()));
     let p_body = Vec3::new(si(position.x)?, si(position.y)?, si(position.z)?);

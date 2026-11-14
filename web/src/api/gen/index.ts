@@ -33,6 +33,7 @@ export type * from "./AttributeDef";
 export type * from "./AttributeDefView";
 export type * from "./Authored";
 export type * from "./Body";
+export type * from "./BodyPoseView";
 export type * from "./BudgetKind";
 export type * from "./BudgetRequest";
 export type * from "./BudgetRow";

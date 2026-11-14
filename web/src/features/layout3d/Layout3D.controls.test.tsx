@@ -116,8 +116,11 @@ const design = {
         position: [0, 0, 0] as [number, number, number],
         authored_position: null,
         orientation: [1, 0, 0, 0] as [number, number, number, number],
-        body_position: [0, 0, 0] as [number, number, number],
-        body_orientation: [1, 0, 0, 0] as [number, number, number, number],
+      },
+      body: {
+        position: [0, 0, 0] as [number, number, number],
+        orientation: [1, 0, 0, 0] as [number, number, number, number],
+        root: false,
       },
     },
   ],

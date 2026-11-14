@@ -49,6 +49,7 @@ fn demo_loads_without_errors_or_warnings() {
     assert!((rw.scalar("max_momentum").unwrap() - 0.010).abs() < 1e-12);
     assert!((rw.at_state("power", "peak").unwrap().value - 3.2).abs() < 1e-12);
     assert_eq!(resolved.mount_root("RW_X"), Some("BUS_FRAME"));
+    assert!(resolved.is_mount_root("BUS_FRAME") && !resolved.is_mount_root("RW_X"));
     assert_eq!(resolved.pose_chain("RW_X").len(), 4);
 }
 

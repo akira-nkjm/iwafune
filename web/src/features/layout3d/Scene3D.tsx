@@ -159,7 +159,7 @@ export function Scene3D({
           <meshBasicMaterial color={toneHex.red} depthTest={false} />
         </mesh>
       )}
-      {edit && target && selected && (
+      {edit && target && selected && !boxes.find((b) => b.id === selected)?.fixed && (
         <TransformControls
           object={target}
           mode={edit.mode}
