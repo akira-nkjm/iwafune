@@ -30,6 +30,24 @@ enum_text! {
     }
 }
 
+enum_text! {
+    /// 軌道の中心天体（`sat_astro::ephem::CentralBody` に射影する。μ・半径・環境の値は sat-astro と解析が持つ）。
+    /// マヌーバの目標の天体（`target.body`）にも使う。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+    pub enum CentralBodyKind: "中心天体" {
+        Earth = "earth",
+        Moon = "moon",
+        Sun = "sun",
+        Mercury = "mercury",
+        Venus = "venus",
+        Mars = "mars",
+        Jupiter = "jupiter",
+        Saturn = "saturn",
+        Uranus = "uranus",
+        Neptune = "neptune",
+    }
+}
+
 /// 軌道（`conditions/orbit.toml`）。円軌道は `altitude`、一般の軌道は `semi_major_axis` 以下の要素で書く。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -41,6 +59,9 @@ pub struct OrbitSettings {
     pub epoch: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub propagator: Option<PropagatorKind>,
+    /// 中心天体（省略時は地球）。高度はこの天体の赤道半径から数える
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub central: Option<CentralBodyKind>,
     /// 円軌道の高度
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub altitude: Option<Quantity>,

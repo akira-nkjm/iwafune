@@ -187,6 +187,9 @@ pub struct ManeuverArgs {
     /// バイエリプティック遷移の中間の遠地点の高度（例: `"20000 km"`）
     #[arg(long)]
     pub via_altitude: Option<String>,
+    /// 目標の中心天体（例: `moon`・`mars`。天体間の遷移になり、高度はその天体から）
+    #[arg(long)]
+    pub body: Option<String>,
     /// 目標の円軌道の高度（例: `"600 km"`）
     #[arg(long)]
     pub altitude: Option<String>,

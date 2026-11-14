@@ -5,6 +5,7 @@
  */
 export type SizingOptions = { sunlit_efficiency: number | null, eclipse_efficiency: number | null, battery_efficiency: number | null, annual_degradation: number | null, inherent_degradation: number | null, battery_strings: number | null, bus_voltage: number | null, 
 /**
- * 省略時は 1 AU。1 AU 以外は未対応。
+ * 省略時は中心天体の太陽距離の慣例値（地球・月は 1 AU。`CentralBody::nominal_sun_distance_m`）。
+ * それ以外の天体では書く。発電は太陽光の強さ SOLAR_CONSTANT·(1 AU/d)² で比例する
  */
 sun_distance: number | null, };

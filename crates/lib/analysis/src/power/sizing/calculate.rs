@@ -46,12 +46,16 @@ pub(super) fn used(
     battery: &EnergyBalanceBattery,
 ) -> Result<SizingUsed, AnalysisError> {
     let o = &input.options;
-    let distance = o.sun_distance.unwrap_or(Qty::from_raw(AU));
-    if distance.value() != AU {
-        return Err(AnalysisError::InvalidInput(
-            "太陽距離は 1 AU だけに対応しています".into(),
-        ));
-    }
+    let central = input.season.orbit.central;
+    let distance = o
+        .sun_distance
+        .or_else(|| central.nominal_sun_distance_m().map(Qty::from_raw))
+        .ok_or_else(|| {
+            AnalysisError::InvalidInput(format!(
+                "中心天体 {central:?} の太陽距離の慣例値はありません。sun_distance を書いてください"
+            ))
+        })?;
+    ensure_positive("太陽距離", distance.value())?;
     let lifetime_years = sat_units::parse_unit("yr")
         .map_err(|e| AnalysisError::InvalidInput(e.to_string()))?
         .from_si(input.season.duration.value());
@@ -150,8 +154,12 @@ pub(super) fn loads(input: &SizingInput) -> Result<SizingLoads, AnalysisError> {
 }
 
 /// 設計の SAP 面積と、逆算に使う SAP。
-/// 変換効率は日照経路の効率 Xd で数え、太陽光の強さは 1 AU に固定する（入射係数を幾何だけにする）。
-pub(super) fn design(input: &SizingInput) -> Result<(Qty<Area>, SolarArray), AnalysisError> {
+/// 変換効率は日照経路の効率 Xd で数え、太陽光の強さは太陽距離 `used.sun_distance` に固定する
+/// （`sat_astro::illumination::solar_flux_w_m2`。入射係数を幾何だけにする）。
+pub(super) fn design(
+    input: &SizingInput,
+    used: &SizingUsed,
+) -> Result<(Qty<Area>, SolarArray), AnalysisError> {
     if input.array.panels.is_empty() {
         return Err(AnalysisError::InvalidInput(
             "太陽電池パネルがありません".into(),
@@ -159,7 +167,7 @@ pub(super) fn design(input: &SizingInput) -> Result<(Qty<Area>, SolarArray), Ana
     }
     input.array.validate()?;
     let mut array = input.array.clone();
-    array.solar_flux = Some(input.array.flux(None));
+    array.solar_flux = Some(input.array.flux(Some(used.sun_distance.value())));
     array.conversion_efficiency = None;
     let area = array.panels.iter().map(|p| p.area.value()).sum::<f64>();
     ensure_positive("設計の SAP 面積", area)?;

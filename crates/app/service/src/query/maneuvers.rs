@@ -18,6 +18,7 @@ const FIELDS: &[(&str, &str)] = &[
     ("thruster", "thruster"),
     ("after", "after"),
     ("via_altitude", "via_altitude"),
+    ("body", "target.body"),
     ("altitude", "target.altitude"),
     ("perigee_altitude", "target.perigee_altitude"),
     ("apogee_altitude", "target.apogee_altitude"),
@@ -46,6 +47,7 @@ fn view(design: &Design, m: &Maneuver, order: u32) -> ManeuverView {
         method: m.method,
         thruster: m.thruster.as_ref().map(ToString::to_string),
         after: m.after.clone(),
+        body: m.target.body,
         via_altitude: m
             .via_altitude
             .as_ref()
@@ -90,6 +92,7 @@ pub(crate) fn maneuver_text(m: &Maneuver) -> ManeuverText {
         thruster: m.thruster.as_ref().map(ToString::to_string),
         after: m.after.clone(),
         via_altitude: q(&m.via_altitude),
+        body: t.body.map(|b| b.as_str().to_owned()),
         altitude: q(&t.altitude),
         perigee_altitude: q(&t.perigee_altitude),
         apogee_altitude: q(&t.apogee_altitude),

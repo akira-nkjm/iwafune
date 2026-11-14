@@ -291,3 +291,89 @@ fn thruster_usage_against_ratings() {
     assert_eq!(ep.firings, 0);
     assert!(ep.checks.is_empty());
 }
+
+/// 月の高度 100 km の円軌道へ（目標の天体 `body = moon`）: 400 km の LEO から TLI と LOI の 2 回噴射
+/// （`sat_astro::transfer::patched_conic` と同じ値。TLI ≈ 3.1 km/s・LOI ≈ 0.82 km/s）。
+/// そのあとのマヌーバは月のまわりで計算する（μ は月。100 → 50 km の近月点下げ）。
+#[test]
+fn transfer_to_the_moon_then_maneuver_about_the_moon() {
+    use sat_astro::constants::R_MOON;
+    use sat_astro::ephem::CentralBody;
+    use sat_astro::transfer::{Apsides, apse_transfer, patched_conic};
+    let tli = ManeuverInput {
+        target: OrbitTarget {
+            body: Some(CentralBody::Moon),
+            altitude: Some(Qty::from_raw(100e3)),
+            ..OrbitTarget::default()
+        },
+        ..maneuver("TLI", DvCategory::Insertion, TransferMethod::Impulsive, 0.0)
+    };
+    let lower = ManeuverInput {
+        target: OrbitTarget {
+            perigee_altitude: Some(Qty::from_raw(50e3)),
+            ..OrbitTarget::default()
+        },
+        ..maneuver("LOWER", DvCategory::Other, TransferMethod::Impulsive, 0.0)
+    };
+    let mut i = input(vec![tli, lower]);
+    i.thrusters[0].isp = Qty::from_raw(320.0);
+    let out = Maneuvers::run(&i).unwrap();
+    let [a, b] = [&out.maneuvers[0], &out.maneuvers[1]];
+    let llo = Apsides::circular(R_MOON + 100e3);
+    let pc = patched_conic(
+        CentralBody::Earth,
+        Apsides::circular(R_EARTH + 400e3),
+        CentralBody::Moon,
+        Some(llo),
+    )
+    .unwrap();
+    close(a.delta_v.value(), pc.total_m_s(), 1e-9);
+    close(a.burns[0].delta_v.value() / 1e3, 3.1, 0.05);
+    close(a.burns[1].delta_v.value() / 1e3, 0.82, 0.02);
+    assert_eq!(a.burns[0].central, None);
+    assert_eq!(a.burns[1].central, Some(CentralBody::Moon));
+    close(a.burns[1].altitude.value(), 100e3, 1e-6);
+    assert!(a.burns[1].v_inf.is_some() && a.notes.contains(&ManeuverNote::PatchedConic));
+    assert_eq!(a.after.central, Some(CentralBody::Moon));
+    close(a.after.perigee_altitude.value(), 100e3, 1e-6);
+    close(a.transfer_time.unwrap().value(), pc.transfer_time_s, 1e-6);
+    let down = apse_transfer(
+        CentralBody::Moon.gm(),
+        llo,
+        Apsides::new(R_MOON + 50e3, R_MOON + 100e3),
+        0.0,
+    )
+    .unwrap();
+    close(b.delta_v.value(), down.total_m_s(), 1e-9);
+    assert_eq!(out.final_orbit.central, Some(CentralBody::Moon));
+    // ΔV バジェットにも入る（投入の区分）
+    let budget = DvBudget::run(&i).unwrap();
+    let insertion: f64 = budget
+        .rows
+        .iter()
+        .filter(|r| r.category == DvCategory::Insertion)
+        .map(|r| r.delta_v.value())
+        .sum();
+    close(insertion, pc.total_m_s(), 1e-6);
+}
+
+/// 天体間の遷移は低推力では計算せず、捕獲の軌道を書かなければ止まる。
+#[test]
+fn interbody_transfer_needs_impulsive_and_a_capture_orbit() {
+    use sat_astro::ephem::CentralBody;
+    let mut m = maneuver(
+        "TMI",
+        DvCategory::Insertion,
+        TransferMethod::LowThrust,
+        300.0,
+    );
+    m.target.body = Some(CentralBody::Mars);
+    assert!(Maneuvers::run(&input(vec![m.clone()])).is_err());
+    m.method = TransferMethod::Impulsive;
+    m.target.altitude = None;
+    assert!(Maneuvers::run(&input(vec![m.clone()])).is_err());
+    m.target.altitude = Some(Qty::from_raw(300e3));
+    let out = Maneuvers::run(&input(vec![m])).unwrap();
+    // 400 km の LEO からの火星遷移の出発は ≈ 3.6 km/s（Curtis Example 8.4 は 300 km から 3.59 km/s）
+    close(out.maneuvers[0].burns[0].delta_v.value() / 1e3, 3.6, 0.05);
+}

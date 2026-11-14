@@ -88,14 +88,54 @@ fn sso_year_and_solar_precession() {
     }
 }
 
+/// 月の高度 100 km の極軌道（Kepler）。β = 0 の円柱影の手計算は
+/// `acos(√(h² + 2Rh)/(R + h))/π × 周期 = 0.3945 × 7 068 s ≈ 2 788 s（約 46 分）`（R = 1 737.4 km）。
+/// 軌道の法線は ECI の −y（RAAN 0 の極軌道）なので、1 年の β の最大は 90° − 黄道傾斜角 ≈ 66.6°（太陽は黄道上）で、
+/// 蝕が無くなる `asin(R/(R+h)) ≈ 71°` には届かない。
 #[test]
-fn invalid_inputs_and_non_earth_are_rejected() {
+fn lunar_orbit_eclipse_season() {
+    use sat_astro::constants::R_MOON;
+    let epoch = Epoch::parse("2027-04-01T00:00:00Z").unwrap();
+    let mut o = OrbitSpec::circular_about(
+        CentralBody::Moon,
+        epoch,
+        Qty::from_raw(100e3),
+        Qty::from_raw(90_f64.to_radians()),
+        Qty::ZERO,
+    );
+    o.propagator = Propagator::Kepler;
+    let (h, a) = (100e3_f64, R_MOON + 100e3);
+    let hand =
+        ((h * h + 2.0 * R_MOON * h).sqrt() / a).acos() / core::f64::consts::PI * o.period_s();
+    assert!((hand - 2_788.0).abs() < 5.0, "{hand}");
+    let s0 = o.state_at(0.0).unwrap();
+    let sun = s0.r_eci / a * AU;
+    let (umbra, _) = shadow_durations(&o, 0.0, sun, ShadowModel::Cylindrical).unwrap();
+    assert!((umbra - hand).abs() <= 2.0 * SHADOW_STEP_S, "{umbra}");
+    let year = EclipseSeason::run(&EclipseSeasonInput {
+        orbit: o,
+        duration: Qty::from_raw(365.0 * 86_400.0),
+        step: Some(Qty::from_raw(5.0 * 86_400.0)),
+    })
+    .unwrap();
+    let longest = year.max_eclipse_duration.value();
+    assert!(
+        longest <= hand + 60.0 && longest > hand - 120.0,
+        "{longest}"
+    );
+    assert_eq!(year.eclipse_free_samples, 0);
+    let beta_max = year.beta_max.beta.value().to_degrees();
+    assert!((beta_max - 66.6).abs() < 1.5, "{beta_max}");
+}
+
+#[test]
+fn invalid_inputs_and_heliocentric_are_rejected() {
     let mut input = EclipseSeasonInput {
         orbit: orbit(),
         duration: Qty::from_raw(1.0),
         step: None,
     };
-    input.orbit.central = CentralBody::Moon;
+    input.orbit.central = CentralBody::Sun;
     assert!(EclipseSeason::run(&input).is_err());
     input.orbit.central = CentralBody::Earth;
     for bad in [0.0, -1.0, f64::NAN, f64::INFINITY] {

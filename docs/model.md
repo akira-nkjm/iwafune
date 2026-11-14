@@ -35,6 +35,11 @@ API の `AnalysisInfo.area` は `{ "kind": "system", "value": "power" }` また�
 設定キーは `conditions.orbit.eclipse_season.<欄>`）。`analysis/orbit.toml` は作らない。
 話題の設定位置は `ConditionTopic::setting_path()` で引く。型付きの設定は未知の表・キーを受け入れない。
 
+`conditions/orbit.toml` の `central` は軌道の中心天体（`earth`・`moon`・`sun`・`mercury`・`venus`・`mars`・`jupiter`・`saturn`・
+`uranus`・`neptune`。省略時は地球。表示名は labels.toml の `central_body`）。高度はこの天体の赤道半径から数え、μ・半径・J2・暦は
+`sat_astro::ephem::CentralBody` が持つ（projection の `context::central_body` が写す）。太陽同期（`sun_synchronous`）は地球だけで、
+地球以外に書くと `check` の error（`setting.central`）。
+
 `conditions/orbit.toml` の `duration` はミッション期間（時間の量、キー `conditions.orbit.duration`）。
 `[eclipse_season]` の任意の `step` も時間の量（キー `conditions.orbit.eclipse_season.step`）。
 読み書きは既存の条件ファイルの経路、次元の検査と projection は `setting_dims` の共通の表を使う。
@@ -54,7 +59,8 @@ step = { value = 1, unit = "day" }
 各標本の1周では太陽位置を固定し、既存の軌道伝搬と円錐影を5秒間隔で標本化する。
 本影（光の割合 0）と、本影を含まない半影（0 より大きく1未満）の時間は、既存の時間割合の台形則で集計する。
 境界の時間精度は各境界で標本間隔程度。短い蝕・半影は標本間に隠れることがある。
-地球以外の中心天体は未対応のエラー。月による遮蔽（月の影）は後回しとし、含めない。
+影は中心天体の球（半径 `CentralBody::radius_m`。`shadow::central_shadow_factor`）で、太陽の位置は中心天体から見たもの。
+月周回で地球に隠される時間（月食）と、地球周回で月に隠される時間は含めない。太陽を中心天体とする軌道は β・蝕が無いので入力エラー。
 
 出力 `points` は日付（UTC）・β [rad]・本影 [s]・半影 [s] の列、`series` は同じ値のグラフ用の系列。
 `longest` と `max_eclipse_duration` は本影と半影の合計が最大の標本と時間、
@@ -398,7 +404,21 @@ duration = { value = 9.6, unit = "min" }
 解析ケース自体が未選択の場合は `analysis.thermal.case` を示す。条件が 0 件でも停止する。
 `thermal.steady` は引き続きすべての熱条件を解析する。
 両解析とも、熱条件の `beta` がある場合だけ解析ケースの β を上書きし、省略時はケースの β を保持する。
-軌道の中心天体が地球以外なら、地球の形態係数・アルベド・赤外放射を用いる熱環境は未対応のため入力エラーで停止する。
+外面の入熱は太陽・中心天体のアルベド・中心天体の赤外放射で、形態係数は中心天体の半径で求める（`illumination::body_view_factor`）。
+アルベドと赤外放射の既定値は天体ごと（`sat_analysis::thermal::planet`）:
+
+| 天体 | アルベド | 赤外放射 |
+|---|---|---|
+| 地球 | 0.30 | 一律 237 W/m² |
+| 月 | 0.12 | 直下点の太陽天頂角 θ で変わる: 昼側 `(1 − A)·S·cos θ`（直下点 ≈ 390 K）、夜側 `0.95 σ (100 K)⁴ ≈ 5.4 W/m²` |
+| それ以外 | なし（環境条件に `albedo`・`earth_ir` を書く。無ければ projection の不足入力） | |
+
+環境条件の `earth_ir` は中心天体の一律の赤外放射の上書き（名前は地球のときのまま。月で書くと地方時のモデルの代わりに使う）。
+太陽光の強さを書かなければ時刻ごとの太陽距離から `illumination::solar_flux_w_m2`（`SOLAR_CONSTANT·(1 AU/d)²`）で求める。
+プリセットの太陽光（1 AU の近日点・遠日点）は地球・月だけ、プリセットのアルベド・赤外（LEO の代表値）は地球だけに使い、
+それ以外の天体でプリセットを書くなら `solar_flux` も書く（不足入力）。使った値は出力の `environment`
+（月は `earth_ir` が null で、夜側の値 `night_ir`）。地球周回で月から受けるアルベド・赤外は扱わない（地球の数万分の 1 以下）。
+太陽を中心天体とする熱解析は入力エラー。
 
 #### 温度範囲（3 種）と判定
 
@@ -556,9 +576,10 @@ SMAD に対する比 `area_ratio`・`capacity_ratio`）、日照/蝕の時間、
 | `inherent_degradation` | 1（追加の固有劣化なし） |
 | `battery_strings`（N） | 1 |
 | `bus_voltage` | なし（直並列を出さない） |
-| `sun_distance` | 1 AU |
+| `sun_distance` | 中心天体の太陽距離の慣例値（地球・月は 1 AU。`CentralBody::nominal_sun_distance_m`）。それ以外の天体は不足入力 |
 
-部品の `packing_factor`・`eol_factor` の省略時は既存の発電モデルと同じく 1。
+太陽光の強さは `sun_distance` で `illumination::solar_flux_w_m2` から求め（流束の式はそこだけ）、SMAD と時系列の逆算の両方に使う
+（2 AU なら 1/4 で、必要面積は 4 倍）。部品の `packing_factor`・`eol_factor` の省略時は既存の発電モデルと同じく 1。
 DoD・セル効率・面積・電池容量にサイジング固有の既定値は設けない。
 
 ```toml
@@ -798,7 +819,15 @@ sunlit_only = true
 mode        = "THRUST"
 ```
 
-- 書ける目標の要素は `altitude`・`perigee_altitude`・`apogee_altitude`・`inclination`（RAAN の変化はまだ扱わない）。
+- 書ける目標の要素は `body`・`altitude`・`perigee_altitude`・`apogee_altitude`・`inclination`（RAAN の変化はまだ扱わない）。
+- `body`（中心天体の綴り）が前の軌道の中心天体と違えば、天体間の遷移をパッチドコニックで計算する
+  （`sat_astro::transfer::patched_conic`。`method` は `impulsive` か `finite_burn`）。天体の軌道は円で同じ面とみなし、
+  間をホーマン遷移でつなぐ。出発は前の軌道の近点で（地球 → 月なら遷移楕円の近点の噴射、地球 → 火星なら双曲線の脱出）、
+  捕獲は目標の軌道（`altitude` か `perigee_altitude`・`apogee_altitude`。高度は `body` の半径から。書かなければ `check` の error）の近点で噴射する。
+  親子（地球 ⇄ 月）と同じ親を回る天体どうし（地球 ⇄ 火星）だけで、月 → 火星は途中の天体のマヌーバに分ける。
+  傾斜角の変更・打ち上げの窓（会合の時期）は数えない（注記 `plane_change_ignored`・`patched_conic`）。そのあとのマヌーバは目標の天体のまわりで計算する。
+  出力の噴射と軌道には地球以外の中心天体 `central` と双曲線超過速度 `v_inf` が付く。
+  日付を決めた遷移の両端の速度は `sat_astro::transfer::lambert`（Lambert の問題）で解けるが、マヌーバからはまだ使わない。
   `via_altitude`（最上位）を書くと、インパルス・有限燃焼はその高度を中間の遠地点にしたバイエリプティック遷移で計算する。
 - 実行の順は `after` でつなぐ。正本は `Design::ordered_maneuvers`（`after` の無いものを ID 順に始点にし、後ろにつながるものを続ける）。
   循環は `check` の error（`maneuver.cycle`）。

@@ -29,6 +29,16 @@ pub fn sizing(ctx: &Context<'_>) -> Result<SizingInput, MissingInputs> {
     let array = solar_array(ctx, &mut m);
     let batteries = batteries(ctx, &mut m);
     let options = options(ctx, &mut m);
+    // 太陽距離の慣例値（地球・月は 1 AU）が無い中心天体では太陽距離を書く（発電の強さが決まらない）
+    if let Some(central) = season.as_ref().map(|s| s.orbit.central)
+        && options.sun_distance.is_none()
+        && central.nominal_sun_distance_m().is_none()
+    {
+        m.push(
+            dims::POWER_SIZING_SUN_DISTANCE.at(&[]),
+            format!("中心天体 {central:?} の太陽距離"),
+        );
+    }
     let mode = crate::timeline::case_mode_id(ctx);
     let max_durations = ctx
         .design

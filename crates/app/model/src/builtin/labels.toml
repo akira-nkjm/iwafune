@@ -79,6 +79,7 @@ redundancy = ["none", "cold", "warm"]
 severity = ["error", "warning", "info"]
 maneuver_category = ["insertion", "station_keeping", "unloading", "deorbit", "other"]
 maneuver_method = ["impulsive", "finite_burn", "low_thrust"]
+central_body = ["earth", "moon", "sun", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]
 distribution = ["public", "on_request", "restricted"]
 
 [enum.maturity.off_the_shelf]
@@ -362,3 +363,43 @@ label_en = "Finite burn"
 [enum.maneuver_method.low_thrust]
 label    = "低推力"
 label_en = "Low thrust"
+
+[enum.central_body.earth]
+label    = "地球"
+label_en = "Earth"
+
+[enum.central_body.moon]
+label    = "月"
+label_en = "Moon"
+
+[enum.central_body.sun]
+label    = "太陽"
+label_en = "Sun"
+
+[enum.central_body.mercury]
+label    = "水星"
+label_en = "Mercury"
+
+[enum.central_body.venus]
+label    = "金星"
+label_en = "Venus"
+
+[enum.central_body.mars]
+label    = "火星"
+label_en = "Mars"
+
+[enum.central_body.jupiter]
+label    = "木星"
+label_en = "Jupiter"
+
+[enum.central_body.saturn]
+label    = "土星"
+label_en = "Saturn"
+
+[enum.central_body.uranus]
+label    = "天王星"
+label_en = "Uranus"
+
+[enum.central_body.neptune]
+label    = "海王星"
+label_en = "Neptune"

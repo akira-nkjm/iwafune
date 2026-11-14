@@ -2,6 +2,7 @@
 
 use crate::aocs::RwUnloadingInput;
 use crate::spec::{AnalysisError, ensure_fraction, ensure_positive};
+use sat_astro::ephem::CentralBody;
 use sat_astro::orbit::OrbitSpec;
 use sat_units::typed::{
     Angle, Force, Fraction, Impulse, Length, Mass, MassDensity, Power, Qty, Time, Volume,
@@ -55,7 +56,7 @@ impl DvCategory {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(rename_all = "snake_case")]
 pub enum TransferMethod {
-    /// インパルスの噴射（ホーマン・平面変更・バイエリプティック）
+    /// インパルスの噴射（ホーマン・平面変更・バイエリプティック・天体間のパッチドコニック）
     Impulsive,
     /// 化学推進の有限燃焼（インパルスの ΔV に重力・向きの損失の近似を足す）
     FiniteBurn,
@@ -63,10 +64,15 @@ pub enum TransferMethod {
     LowThrust,
 }
 
-/// 目標の軌道（変えたい要素だけ。書かない要素は前の軌道のまま）。
+/// 目標の軌道（変えたい要素だけ。書かない要素は前の軌道のまま）。`body` を書くと、その天体を回る軌道への
+/// パッチドコニックの遷移（`sat_astro::transfer::patched_conic`）になり、高度はその天体の半径から数える。
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct OrbitTarget {
+    /// 目標の中心天体（前の軌道の中心天体と違えば天体間の遷移。書かなければ同じ天体）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub body: Option<CentralBody>,
     /// 円軌道の高度（近地点と遠地点の両方）
     #[serde(default)]
     pub altitude: Option<Qty<Length>>,

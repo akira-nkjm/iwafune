@@ -101,6 +101,16 @@ pub(super) fn check_conditions(ctx: &mut Ctx, entries: &[SettingEntry]) {
 }
 
 fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
+    let non_earth = o
+        .central
+        .is_some_and(|c| c != crate::design::CentralBodyKind::Earth);
+    if non_earth && o.sun_synchronous == Some(true) {
+        s.error(
+            &["sun_synchronous"],
+            "setting.central",
+            "太陽同期の傾斜角は地球周回だけで求めます（inclination を書きます）".into(),
+        );
+    }
     if o.eccentricity.is_some_and(|e| !(0.0..1.0).contains(&e)) {
         s.error(
             &["eccentricity"],

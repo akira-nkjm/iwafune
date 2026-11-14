@@ -24,6 +24,7 @@ export const maneuversEn: typeof maneuversJa = {
     file: "File",
     none: "None",
     targetKeys: {
+      body: "Target body",
       altitude: "Altitude (circular)",
       perigee_altitude: "Perigee altitude",
       apogee_altitude: "Apogee altitude",
@@ -35,6 +36,7 @@ export const maneuversEn: typeof maneuversJa = {
       description:
         'Typed quantities ("600 km", "97.8 deg") are read by the service exactly like fune maneuver add|set. Elements left blank keep the previous orbit.',
       label: "Name",
+      body: "Target body (transfer between bodies; altitudes from that body)",
       altitude: "Target altitude (circular)",
       perigeeAltitude: "Target perigee altitude",
       apogeeAltitude: "Target apogee altitude",

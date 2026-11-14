@@ -2,7 +2,7 @@
 //! `fune maneuver add|set` に打った引数（`CommandText::ManeuverAdd`・`ManeuverSet`。読み方は `edit::maneuver`）。
 
 use super::QuantityView;
-use fune_model::design::{ManeuverCategory, ManeuverMethod};
+use fune_model::design::{CentralBodyKind, ManeuverCategory, ManeuverMethod};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
@@ -25,6 +25,8 @@ pub struct ManeuverText {
     pub after: Option<String>,
     /// バイエリプティック遷移の中間の遠地点の高度（`"20000 km"`）
     pub via_altitude: Option<String>,
+    /// 目標の中心天体（`moon`・`mars` など。書くと天体間の遷移で、高度はその天体から）
+    pub body: Option<String>,
     /// 目標の円軌道の高度（`"600 km"`）
     pub altitude: Option<String>,
     pub perigee_altitude: Option<String>,
@@ -57,6 +59,8 @@ pub struct ManeuverView {
     pub method: ManeuverMethod,
     pub thruster: Option<String>,
     pub after: Option<String>,
+    /// 目標の中心天体（天体間の遷移。書かなければ同じ天体のまわり）
+    pub body: Option<CentralBodyKind>,
     pub via_altitude: Option<QuantityView>,
     /// 書かれた目標の要素（宣言の順）
     pub target: Vec<ManeuverTargetView>,

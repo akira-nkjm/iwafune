@@ -12,6 +12,8 @@ pub const OMEGA_EARTH: f64 = 7.292_115_146_7e-5;
 pub const R_SUN: f64 = 6.957e8;
 /// 月の半径 [m]
 pub const R_MOON: f64 = 1.7374e6;
+/// 地球のまわりの月の軌道の長半径 [m]（平均距離。NASA GSFC Moon Fact Sheet の 384 400 km）
+pub const A_MOON: f64 = 3.844e8;
 /// 天文単位 [m]
 pub const AU: f64 = 1.495_978_707e11;
 /// 光速 [m/s]

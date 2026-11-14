@@ -12,19 +12,29 @@ use sat_astro::ephem::CentralBody;
 use sat_units::typed::{Angle, Length, Mass, Power, Qty, Time, Velocity};
 use serde::{Deserialize, Serialize};
 
-/// マヌーバの前後の軌道（高度と傾斜角）。
+/// 地球以外の中心天体（地球のときは中心天体の欄を書かない）。
+fn non_earth(c: CentralBody) -> Option<CentralBody> {
+    (c != CentralBody::Earth).then_some(c)
+}
+
+/// マヌーバの前後の軌道（中心天体・高度と傾斜角）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ManeuverOrbit {
+    /// 中心天体（地球なら `None` で書かない。高度はこの天体の半径から）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub central: Option<CentralBody>,
     pub perigee_altitude: Qty<Length>,
     pub apogee_altitude: Qty<Length>,
     pub inclination: Qty<Angle>,
 }
 
 impl ManeuverOrbit {
-    pub(super) fn of(central: CentralBody, o: &Orbit) -> Self {
-        let h = |r: f64| Qty::from_raw(r - central.radius_m());
+    pub(super) fn of(o: &Orbit) -> Self {
+        let h = |r: f64| Qty::from_raw(r - o.central.radius_m());
         Self {
+            central: non_earth(o.central),
             perigee_altitude: h(o.apsides.periapsis_m),
             apogee_altitude: h(o.apsides.apoapsis_m),
             inclination: Qty::from_raw(o.inclination_rad),
@@ -36,7 +46,15 @@ impl ManeuverOrbit {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ManeuverBurn {
-    /// 噴射する位置の高度
+    /// 噴射する中心天体（地球なら `None` で書かない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub central: Option<CentralBody>,
+    /// 双曲線超過速度（天体間の遷移の脱出・捕獲だけ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub v_inf: Option<Qty<Velocity>>,
+    /// 噴射する位置の高度（`central` の半径から）
     pub altitude: Qty<Length>,
     /// ΔV（有限燃焼なら損失込み）
     pub delta_v: Qty<Velocity>,
@@ -93,7 +111,7 @@ pub struct ManeuversOutput {
 }
 
 /// 区間 1 つ → 結果（ΔV のマージンを含まない公称の値）。
-pub(super) fn result(central: CentralBody, leg: &Leg<'_>) -> ManeuverResult {
+pub(super) fn result(leg: &Leg<'_>) -> ManeuverResult {
     let m = leg.maneuver;
     let checks = if leg.notes.contains(&ManeuverNote::FiniteBurnTooLong) {
         vec![Check::new(
@@ -113,15 +131,17 @@ pub(super) fn result(central: CentralBody, leg: &Leg<'_>) -> ManeuverResult {
         category: m.category,
         method: m.method,
         thruster: m.thruster.clone(),
-        before: ManeuverOrbit::of(central, &leg.planned.from),
-        after: ManeuverOrbit::of(central, &leg.planned.to),
+        before: ManeuverOrbit::of(&leg.planned.from),
+        after: ManeuverOrbit::of(&leg.planned.to),
         delta_v: Qty::from_raw(leg.delta_v_m_s),
         ideal_delta_v: Qty::from_raw(leg.ideal_delta_v_m_s),
         burns: leg
             .burns
             .iter()
             .map(|b| ManeuverBurn {
-                altitude: Qty::from_raw(b.radius_m - central.radius_m()),
+                central: non_earth(b.site.central),
+                v_inf: b.site.v_inf_m_s.map(Qty::from_raw),
+                altitude: Qty::from_raw(b.radius_m - b.site.central.radius_m()),
                 delta_v: Qty::from_raw(b.delta_v_m_s),
                 burn_time: b.burn_time_s.map(Qty::from_raw),
             })
@@ -159,16 +179,15 @@ impl Analysis for Maneuvers {
     type Output = ManeuversOutput;
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
-        let central = input.initial_orbit.central;
         let seq = nominal(input)?;
-        let maneuvers: Vec<ManeuverResult> = seq.legs.iter().map(|l| result(central, l)).collect();
+        let maneuvers: Vec<ManeuverResult> = seq.legs.iter().map(result).collect();
         Ok(ManeuversOutput {
             total_delta_v: Qty::from_raw(seq.legs.iter().map(|l| l.delta_v_m_s).sum()),
             total_propellant: Qty::from_raw(seq.used_propellant_kg()),
             dry_mass: input.dry_mass,
             initial_mass: Qty::from_raw(seq.initial_mass_kg),
-            initial_orbit: ManeuverOrbit::of(central, &Orbit::of(&input.initial_orbit)?),
-            final_orbit: ManeuverOrbit::of(central, &seq.final_orbit),
+            initial_orbit: ManeuverOrbit::of(&Orbit::of(&input.initial_orbit)?),
+            final_orbit: ManeuverOrbit::of(&seq.final_orbit),
             maneuvers,
         })
     }

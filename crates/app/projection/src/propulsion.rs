@@ -128,6 +128,7 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
     };
     let t = &x.target;
     let target = OrbitTarget {
+        body: t.body.map(crate::context::central_body),
         altitude: q("target.altitude", t.altitude.as_ref(), m),
         perigee_altitude: q("target.perigee_altitude", t.perigee_altitude.as_ref(), m),
         apogee_altitude: q("target.apogee_altitude", t.apogee_altitude.as_ref(), m),

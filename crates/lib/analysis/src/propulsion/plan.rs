@@ -4,12 +4,17 @@
 //! - 目標の軌道は、書いた要素だけを前の軌道から変える（`altitude` は近地点と遠地点の両方）。
 //! - インパルス・有限燃焼: 2 回噴射の遷移（中間の遠地点を書けばバイエリプティック）。平面変更は遠い方の噴射に合わせる。
 //! - 低推力: Edelbaum の式（円軌道どうし。円でなければ長半径の円で近似したと注記する）。
+//! - 目標に別の天体（`target.body`）を書いたとき: パッチドコニックの遷移（`sat_astro::transfer::patched_conic`。
+//!   出発の軌道の近点で脱出し、目標の天体を回る軌道の近点で捕獲する）。軌道は中心天体ごと持つ。
 
 use super::input::{ManeuverInput, OrbitTarget, TransferMethod};
 use crate::spec::AnalysisError;
 use sat_astro::ephem::CentralBody;
 use sat_astro::orbit::OrbitSpec;
-use sat_astro::transfer::{Apsides, ImpulsiveTransfer, apse_transfer, bi_elliptic, edelbaum};
+use sat_astro::transfer::{
+    Apsides, ImpulsiveBurn, ImpulsiveTransfer, apse_transfer, bi_elliptic, edelbaum, patched_conic,
+};
+use sat_units::typed::{Length, Qty};
 use serde::{Deserialize, Serialize};
 
 /// 離心率がこれを超える軌道は、低推力の円軌道の近似から外れるとみなす。
@@ -30,11 +35,16 @@ pub enum ManeuverNote {
     NoThruster,
     /// 有限燃焼の噴射が軌道の半周を超えるので、損失を見込まずインパルスの ΔV を使った
     FiniteBurnTooLong,
+    /// 別の天体へのパッチドコニックの遷移（天体の円軌道どうしのホーマン遷移。打ち上げの窓は見ない）で計算した
+    PatchedConic,
+    /// 天体間の遷移では軌道面の変更（傾斜角）の ΔV を数えない
+    PlaneChangeIgnored,
 }
 
-/// 軌道（近地点・遠地点の半径と傾斜角）。
+/// 軌道（中心天体・近地点と遠地点の半径・傾斜角）。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct Orbit {
+    pub central: CentralBody,
     pub apsides: Apsides,
     pub inclination_rad: f64,
 }
@@ -44,6 +54,7 @@ impl Orbit {
     pub fn of(spec: &OrbitSpec) -> Result<Self, AnalysisError> {
         let el = spec.kepler_elements()?;
         Ok(Self {
+            central: spec.central,
             apsides: Apsides::new(el.a_m * (1.0 - el.e), el.a_m * (1.0 + el.e)),
             inclination_rad: el.i_rad,
         })
@@ -55,8 +66,8 @@ impl Orbit {
     }
 
     /// 目標の要素を当てた軌道。
-    fn with_target(self, central: CentralBody, t: &OrbitTarget) -> Self {
-        let r = |h: sat_units::typed::Qty<sat_units::typed::Length>| central.radius_m() + h.value();
+    fn with_target(self, t: &OrbitTarget) -> Self {
+        let r = |h: Qty<Length>| self.central.radius_m() + h.value();
         let (mut rp, mut ra) = (self.apsides.periapsis_m, self.apsides.apoapsis_m);
         if let Some(h) = t.altitude {
             (rp, ra) = (r(h), r(h));
@@ -68,6 +79,7 @@ impl Orbit {
             ra = r(h);
         }
         Self {
+            central: self.central,
             apsides: Apsides::new(rp, ra),
             inclination_rad: t.inclination.map_or(self.inclination_rad, |i| i.value()),
         }
@@ -83,22 +95,42 @@ pub(super) enum Ideal {
     LowThrust(f64),
 }
 
+/// 噴射する場所（中心天体と、双曲線の超過速度）。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(super) struct BurnSite {
+    pub central: CentralBody,
+    /// 双曲線超過速度 [m/s]（天体間の遷移の脱出・捕獲だけ）
+    pub v_inf_m_s: Option<f64>,
+}
+
 /// 1 つのマヌーバの前後の軌道と理想の ΔV。
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct Planned {
     pub from: Orbit,
     pub to: Orbit,
     pub ideal: Ideal,
+    /// 噴射ごとの場所（インパルスは `ideal` の噴射と同じ順、低推力は 1 つ）
+    pub sites: Vec<BurnSite>,
     pub notes: Vec<ManeuverNote>,
 }
 
+impl Planned {
+    /// `i` 番目の噴射の場所（無ければ出発の軌道の中心天体）。
+    pub fn site(&self, i: usize) -> BurnSite {
+        self.sites.get(i).copied().unwrap_or(BurnSite {
+            central: self.from.central,
+            v_inf_m_s: None,
+        })
+    }
+}
+
 /// 軌道 `from` からマヌーバ `m` を行う計画。
-pub(super) fn plan(
-    central: CentralBody,
-    from: Orbit,
-    m: &ManeuverInput,
-) -> Result<Planned, AnalysisError> {
-    let to = from.with_target(central, &m.target);
+pub(super) fn plan(from: Orbit, m: &ManeuverInput) -> Result<Planned, AnalysisError> {
+    if let Some(body) = m.target.body.filter(|b| *b != from.central) {
+        return interbody(from, body, m);
+    }
+    let central = from.central;
+    let to = from.with_target(&m.target);
     let angle = (to.inclination_rad - from.inclination_rad).abs();
     let mu = central.gm();
     let mut notes = Vec::new();
@@ -132,6 +164,66 @@ pub(super) fn plan(
         from,
         to,
         ideal,
+        sites: Vec::new(),
+        notes,
+    })
+}
+
+/// 別の天体 `body` を回る軌道へのパッチドコニックの遷移。捕獲の軌道は `altitude`（円）か
+/// `perigee_altitude`（と `apogee_altitude`）で、高度は `body` の半径から数える。
+fn interbody(from: Orbit, body: CentralBody, m: &ManeuverInput) -> Result<Planned, AnalysisError> {
+    let invalid = |why: &str| AnalysisError::InvalidInput(format!("マヌーバ {}: {why}", m.id));
+    if m.method == TransferMethod::LowThrust {
+        return Err(invalid(
+            "天体間の遷移は impulsive か finite_burn で計算します（low_thrust は未対応）",
+        ));
+    }
+    let t = &m.target;
+    let r = |h: Qty<Length>| body.radius_m() + h.value();
+    let (rp, ra) = match (t.altitude, t.perigee_altitude) {
+        (Some(h), _) => (r(h), r(h)),
+        (None, Some(p)) => (r(p), t.apogee_altitude.map_or(r(p), r)),
+        (None, None) => {
+            return Err(invalid(
+                "目標の天体を回る軌道（altitude か perigee_altitude）を書いてください",
+            ));
+        }
+    };
+    let capture = Apsides::new(rp, ra);
+    let pc = patched_conic(from.central, from.apsides, body, Some(capture))?;
+    let mut notes = vec![ManeuverNote::PatchedConic];
+    if m.via_altitude.is_some() {
+        notes.push(ManeuverNote::ViaAltitudeIgnored);
+    }
+    if t.inclination.is_some() {
+        notes.push(ManeuverNote::PlaneChangeIgnored);
+    }
+    let legs = std::iter::once(pc.departure).chain(pc.arrival);
+    let (burns, sites): (Vec<_>, Vec<_>) = legs
+        .map(|b| {
+            let burn = ImpulsiveBurn {
+                radius_m: b.radius_m,
+                delta_v_m_s: b.delta_v_m_s,
+            };
+            let site = BurnSite {
+                central: b.central,
+                v_inf_m_s: b.v_inf_m_s,
+            };
+            (burn, site)
+        })
+        .unzip();
+    Ok(Planned {
+        from,
+        to: Orbit {
+            central: body,
+            apsides: capture,
+            inclination_rad: t.inclination.map_or(from.inclination_rad, |i| i.value()),
+        },
+        ideal: Ideal::Impulsive(ImpulsiveTransfer {
+            burns,
+            coast_s: pc.transfer_time_s,
+        }),
+        sites,
         notes,
     })
 }

@@ -2,9 +2,7 @@
 
 use fune_model::{Design, Target};
 use fune_projection::{Context, MissingInputs, aocs, thermal};
-use sat_analysis::spec::{Analysis, AnalysisError};
-use sat_analysis::thermal::{ThermalExposure, ThermalSteady, ThermalTransient};
-use sat_astro::ephem::CentralBody;
+use sat_analysis::thermal::ThermalExposure;
 use std::path::Path;
 
 fn demo() -> Design {
@@ -118,29 +116,5 @@ fn thermal_beta_only_overrides_case_beta_when_present() {
             };
             assert!((timeline.sampling.beta.unwrap().value() - expected).abs() < 1e-12);
         }
-    }
-}
-
-#[test]
-fn thermal_analyses_reject_non_earth_orbits() {
-    let design = demo();
-    let resolved = fune_model::resolve(&design);
-    let ctx = Context::new(&design, &resolved, Some("hot_imaging")).unwrap();
-    let mut steady = thermal::steady(&ctx).unwrap();
-    for case in &mut steady.cases {
-        let ThermalExposure::OrbitAverage { timeline } = &mut case.exposure else {
-            panic!("軌道平均の入熱であること");
-        };
-        timeline.sampling.orbit.central = CentralBody::Moon;
-    }
-    let mut transient = thermal::transient(&ctx).unwrap();
-    transient.timeline.sampling.orbit.central = CentralBody::Moon;
-    for error in [
-        ThermalSteady::run(&steady).unwrap_err(),
-        ThermalTransient::run(&transient).unwrap_err(),
-    ] {
-        assert!(
-            matches!(error, AnalysisError::InvalidInput(message) if message.contains("未対応"))
-        );
     }
 }

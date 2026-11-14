@@ -151,6 +151,12 @@ function ManeuverRow({
       </Td>
       <Td>
         <span className="flex flex-col gap-0.5">
+          {m.body && (
+            <span>
+              <span className="text-ink-3">{t.targetKeys.body}</span>{" "}
+              {label("central_body", m.body)}
+            </span>
+          )}
           {m.target.map((x) => (
             <span key={x.key}>
               <span className="text-ink-3">{t.targetKeys[x.key] ?? x.key}</span> {x.value.display}

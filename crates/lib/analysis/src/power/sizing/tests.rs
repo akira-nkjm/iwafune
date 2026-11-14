@@ -4,6 +4,7 @@ use crate::modes::{ModeDef, StateAssignment, StateValues};
 use crate::power::mode_load::ModeLoadPart;
 use crate::power::solar::SolarPanel;
 use crate::power::testkit::{leo, leo_timeline, nadir_pointing_z, sun_pointing_z};
+use sat_astro::constants::AU;
 use sat_astro::math::Vec3;
 use std::collections::BTreeMap;
 
@@ -167,12 +168,35 @@ fn incidence_follows_the_attitude() {
     assert!((on.smad.required_area.value() * k - o.smad.required_area.value()).abs() < 1e-9);
 }
 
+/// 太陽光の強さは (1 AU/d)² に比例するので、2 AU では SMAD の必要面積が 4 倍（入射係数・容量は変わらない）。
+/// 太陽距離の慣例値の無い中心天体（火星）では sun_distance を書かないと止まる。
 #[test]
-fn rejects_unsupported_distance_missing_parts_and_invalid_options() {
+fn sun_distance_scales_the_required_area() {
+    let base = Sizing::run(&input()).unwrap();
+    let mut far = input();
+    far.options.sun_distance = Some(Qty::from_raw(2.0 * AU));
+    let far = Sizing::run(&far).unwrap();
+    let ratio = far.smad.required_area.value() / base.smad.required_area.value();
+    assert!((ratio - 4.0).abs() < 1e-9, "{ratio}");
+    assert_eq!(
+        far.smad.required_capacity.value(),
+        base.smad.required_capacity.value()
+    );
+    assert_eq!(far.used.sun_distance.value(), 2.0 * AU);
+    assert_eq!(base.used.sun_distance.value(), AU);
+    let mut mars = input();
+    mars.season.orbit.central = sat_astro::ephem::CentralBody::Mars;
+    assert!(
+        Sizing::run(&mars)
+            .unwrap_err()
+            .to_string()
+            .contains("sun_distance")
+    );
+}
+
+#[test]
+fn rejects_missing_parts_and_invalid_options() {
     let mut i = input();
-    i.options.sun_distance = Some(Qty::from_raw(2.0 * AU));
-    assert!(Sizing::run(&i).unwrap_err().to_string().contains("1 AU"));
-    i.options.sun_distance = None;
     i.array.panels.clear();
     assert!(Sizing::run(&i).is_err());
     i = input();

@@ -26,6 +26,10 @@ after?: string | null,
  */
 via_altitude?: string | null, 
 /**
+ * 目標の中心天体（`moon`・`mars` など。書くと天体間の遷移で、高度はその天体から）
+ */
+body?: string | null, 
+/**
  * 目標の円軌道の高度（`"600 km"`）
  */
 altitude?: string | null, perigee_altitude?: string | null, apogee_altitude?: string | null, 

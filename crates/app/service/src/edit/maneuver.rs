@@ -44,6 +44,10 @@ fn maneuver_of(t: &ManeuverText) -> Result<Maneuver> {
         after: owned(&t.after),
         via_altitude: quantity(&t.via_altitude)?,
         target: ManeuverTarget {
+            body: given(&t.body)
+                .map(|b| b.trim().parse())
+                .transpose()
+                .map_err(invalid)?,
             altitude: quantity(&t.altitude)?,
             perigee_altitude: quantity(&t.perigee_altitude)?,
             apogee_altitude: quantity(&t.apogee_altitude)?,
@@ -71,6 +75,7 @@ mod tests {
             inclination: Some(" 97.8 deg".into()),
             sunlit_only: Some("true".into()),
             after: Some(String::new()),
+            body: Some("moon".into()),
             ..ManeuverText::default()
         }
     }
@@ -98,6 +103,9 @@ mod tests {
         assert!(maneuver_op(&t, false).is_err());
         let mut t = text();
         t.altitude = Some("six hundred".into());
+        assert!(maneuver_op(&t, false).is_err());
+        let mut t = text();
+        t.body = Some("pluto".into());
         assert!(maneuver_op(&t, false).is_err());
     }
 }

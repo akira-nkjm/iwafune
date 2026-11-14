@@ -44,6 +44,14 @@ pub(super) fn note(n: ManeuverNote) -> AnalysisLabel {
             "噴射が軌道の半周を超えるので、損失を見込まずインパルスの ΔV を使った",
             "The burn exceeds half an orbit, so the impulsive delta-V is used without losses",
         ),
+        ManeuverNote::PatchedConic => label(
+            "天体間の遷移をパッチドコニック（天体の円軌道どうしのホーマン遷移）で計算した（打ち上げの窓は見ない）",
+            "Computed as a patched-conic transfer (Hohmann between circular body orbits; launch windows are not considered)",
+        ),
+        ManeuverNote::PlaneChangeIgnored => label(
+            "天体間の遷移では傾斜角の変更の ΔV を数えない",
+            "Inclination change delta-V is not counted for transfers between bodies",
+        ),
     }
 }
 

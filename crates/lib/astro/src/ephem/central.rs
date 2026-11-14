@@ -2,13 +2,24 @@
 //!
 //! 軌道の位置・速度は中心天体からの相対ベクトルで、**向きは J2000 平均赤道（ECI）のまま**（原点だけ動かす）。
 
-use super::{Body, position_eci_m};
+use super::{Body, planets, position_eci_m};
 pub use crate::body::CentralBody;
+use crate::constants::A_MOON;
 #[cfg(test)]
 use crate::constants::*;
 use crate::math::Vec3;
 use crate::time::Epoch;
 impl CentralBody {
+    /// 親の天体（[`CentralBody::parent`]）を回る軌道の長半径 [m]。月は [`A_MOON`]、地球と惑星は
+    /// Standish の表の J2000 の長半径。太陽は `None`。パッチドコニックの遷移は円軌道とみなしてこれを使う。
+    pub fn orbit_radius_m(self) -> Option<f64> {
+        match self {
+            CentralBody::Sun => None,
+            CentralBody::Moon => Some(A_MOON),
+            other => planets::semi_major_axis_m(other.as_body()),
+        }
+    }
+
     /// 地心から中心天体への位置（ECI）[m]。地球は 0。
     pub fn position_eci_m(self, epoch: Epoch) -> Vec3 {
         self.as_body()
@@ -43,6 +54,19 @@ mod tests {
         assert_eq!(e.j2(), J2_EARTH);
         assert_eq!(e.position_eci_m(Epoch { j2000_s: 0.0 }), Vec3::ZERO);
         assert_eq!(CentralBody::default(), CentralBody::Earth);
+    }
+
+    #[test]
+    fn orbit_radii_and_parents() {
+        let au = |b: CentralBody| b.orbit_radius_m().expect("半径") / AU;
+        assert!((au(CentralBody::Earth) - 1.0).abs() < 1e-5);
+        assert!((au(CentralBody::Mars) - 1.5237).abs() < 1e-4);
+        assert_eq!(CentralBody::Moon.orbit_radius_m(), Some(A_MOON));
+        assert_eq!(CentralBody::Sun.orbit_radius_m(), None);
+        assert_eq!(CentralBody::Moon.parent(), Some(CentralBody::Earth));
+        assert_eq!(CentralBody::Mars.parent(), Some(CentralBody::Sun));
+        assert_eq!(CentralBody::Moon.nominal_sun_distance_m(), Some(AU));
+        assert_eq!(CentralBody::Mars.nominal_sun_distance_m(), None);
     }
 
     #[test]

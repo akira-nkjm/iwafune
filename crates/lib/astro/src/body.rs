@@ -90,6 +90,25 @@ impl CentralBody {
         }
     }
 
+    /// 親の天体（この天体が回っている天体）。月は地球、地球と惑星は太陽、太陽は `None`。
+    /// パッチドコニックの遷移（`transfer::patched_conic`）が親子・兄弟の関係を引く。
+    pub fn parent(self) -> Option<CentralBody> {
+        match self {
+            CentralBody::Sun => None,
+            CentralBody::Moon => Some(CentralBody::Earth),
+            _ => Some(CentralBody::Sun),
+        }
+    }
+
+    /// 設計で使う太陽距離の慣例値 [m]: 地球と月（地球と同じ日心距離）は 1 AU。それ以外は `None`
+    /// （日心距離の変化が大きいので、解析が太陽距離か太陽光の強さを入力として求める）。
+    pub fn nominal_sun_distance_m(self) -> Option<f64> {
+        match self {
+            CentralBody::Earth | CentralBody::Moon => Some(AU),
+            _ => None,
+        }
+    }
+
     /// J2（[`CentralBody::radius_m`] を基準半径とする）。
     pub fn j2(self) -> f64 {
         match self {

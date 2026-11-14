@@ -8,7 +8,7 @@
 //! - スラスタの無いマヌーバは ΔV だけを求め、質量を変えない。
 
 use super::input::{ManeuverInput, PropulsionInput, PropulsionThruster, TransferMethod};
-use super::plan::{Ideal, ManeuverNote, Orbit, Planned, plan};
+use super::plan::{BurnSite, Ideal, ManeuverNote, Orbit, Planned, plan};
 use crate::spec::{AnalysisError, ensure_positive};
 use sat_astro::ephem::CentralBody;
 use sat_astro::orbit::mean_motion_rad_s;
@@ -24,6 +24,9 @@ const MASS_TOLERANCE: f64 = 1e-12;
 /// 噴射 1 回。
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(super) struct Burn {
+    /// 噴射する場所（中心天体と双曲線超過速度）
+    pub site: BurnSite,
+    /// 噴射する位置の半径 [m]（`site.central` の中心から）
     pub radius_m: f64,
     /// 損失込みの ΔV [m/s]（倍率を掛ける前）
     pub delta_v_m_s: f64,
@@ -101,12 +104,11 @@ type Step<'a> = (&'a ManeuverInput, Option<&'a PropulsionThruster>, Planned);
 
 /// マヌーバの計画を順に作る（最後の軌道も返す）。
 fn plans(input: &PropulsionInput) -> Result<(Vec<Step<'_>>, Orbit), AnalysisError> {
-    let central = input.initial_orbit.central;
     let mut orbit = Orbit::of(&input.initial_orbit)?;
     let mut out = Vec::with_capacity(input.maneuvers.len());
     for m in &input.maneuvers {
         let thruster = input.thruster_of(m)?;
-        let p = plan(central, orbit, m)?;
+        let p = plan(orbit, m)?;
         orbit = p.to;
         out.push((m, thruster, p));
     }
@@ -117,12 +119,11 @@ fn plans(input: &PropulsionInput) -> Result<(Vec<Step<'_>>, Orbit), AnalysisErro
 pub(super) fn run(input: &PropulsionInput, opts: Options) -> Result<Sequence<'_>, AnalysisError> {
     let dry = input.dry_mass.value();
     ensure_positive("乾燥質量", dry)?;
-    let central = input.initial_orbit.central;
     let (plans, final_orbit) = plans(input)?;
     let r = opts.residual_fraction;
     let mut m0 = dry;
     for _ in 0..MAX_ITERATIONS {
-        let legs = forward(central, &plans, m0, opts.dv_scale)?;
+        let legs = forward(&plans, m0, opts.dv_scale)?;
         let end = legs.last().map_or(m0, |l| l.mass_after_kg);
         let target = (dry + r * m0) / (1.0 + r);
         if (end - target).abs() <= MASS_TOLERANCE * m0 {
@@ -148,16 +149,11 @@ pub(super) fn run(input: &PropulsionInput, opts: Options) -> Result<Sequence<'_>
 }
 
 /// 初期質量 `m0` から順に当てる。
-fn forward<'a>(
-    central: CentralBody,
-    plans: &[Step<'a>],
-    m0: f64,
-    dv_scale: f64,
-) -> Result<Vec<Leg<'a>>, AnalysisError> {
+fn forward<'a>(plans: &[Step<'a>], m0: f64, dv_scale: f64) -> Result<Vec<Leg<'a>>, AnalysisError> {
     let mut mass = m0;
     let mut legs = Vec::with_capacity(plans.len());
     for (m, thruster, planned) in plans {
-        let leg = apply(central, m, *thruster, planned, mass, dv_scale)?;
+        let leg = apply(m, *thruster, planned, mass, dv_scale)?;
         mass = leg.mass_after_kg;
         legs.push(leg);
     }
@@ -173,7 +169,6 @@ struct Engine {
 
 /// 1 つのマヌーバを質量 `mass` から当てる。
 fn apply<'a>(
-    central: CentralBody,
     m: &'a ManeuverInput,
     thruster: Option<&'a PropulsionThruster>,
     planned: &Planned,
@@ -209,27 +204,30 @@ fn apply<'a>(
     match &planned.ideal {
         Ideal::Impulsive(t) => {
             let finite = m.method == TransferMethod::FiniteBurn;
-            for b in &t.burns {
+            for (i, b) in t.burns.iter().enumerate() {
                 let mass = leg.mass_after_kg;
-                let dv = burn_dv(central, b.radius_m, b.delta_v_m_s, finite, engine, mass)
-                    .unwrap_or_else(|| {
-                        leg.notes.push(ManeuverNote::FiniteBurnTooLong);
-                        b.delta_v_m_s
-                    });
+                let site = planned.site(i);
+                let dv = burn_dv(
+                    site.central,
+                    b.radius_m,
+                    b.delta_v_m_s,
+                    finite,
+                    engine,
+                    mass,
+                )
+                .unwrap_or_else(|| {
+                    leg.notes.push(ManeuverNote::FiniteBurnTooLong);
+                    b.delta_v_m_s
+                });
                 leg.ideal_delta_v_m_s += b.delta_v_m_s;
-                fire(&mut leg, engine, b.radius_m, dv, dv_scale)?;
+                fire(&mut leg, engine, (site, b.radius_m), dv, dv_scale)?;
             }
             leg.transfer_time_s = Some(impulsive_time(t.coast_s, &leg.burns, finite));
         }
         Ideal::LowThrust(dv) => {
             leg.ideal_delta_v_m_s = *dv;
-            fire(
-                &mut leg,
-                engine,
-                planned.from.apsides.semi_major_axis_m(),
-                *dv,
-                dv_scale,
-            )?;
+            let at = (planned.site(0), planned.from.apsides.semi_major_axis_m());
+            fire(&mut leg, engine, at, *dv, dv_scale)?;
             leg.transfer_time_s = leg.burn_time_s;
         }
     }
@@ -259,13 +257,14 @@ fn burn_dv(
 fn fire(
     leg: &mut Leg<'_>,
     engine: Option<Engine>,
-    radius_m: f64,
+    (site, radius_m): (BurnSite, f64),
     dv: f64,
     dv_scale: f64,
 ) -> Result<(), AnalysisError> {
     leg.delta_v_m_s += dv;
     let Some(e) = engine else {
         leg.burns.push(Burn {
+            site,
             radius_m,
             delta_v_m_s: dv,
             burn_time_s: None,
@@ -284,6 +283,7 @@ fn fire(
     leg.propellant_kg = Some(leg.propellant_kg.unwrap_or(0.0) + mp);
     leg.burn_time_s = Some(leg.burn_time_s.unwrap_or(0.0) + t);
     leg.burns.push(Burn {
+        site,
         radius_m,
         delta_v_m_s: dv,
         burn_time_s: Some(t),

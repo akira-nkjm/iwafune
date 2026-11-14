@@ -60,6 +60,7 @@ fn enum_text_matches_serde_names() {
     same_as_serde::<fune_model::design::ThermalPresetKind>();
     same_as_serde::<LinkDirection>();
     same_as_serde::<PropagatorKind>();
+    same_as_serde::<fune_model::design::CentralBodyKind>();
     same_as_serde::<Severity>();
     same_as_serde::<Origin>();
     same_as_serde::<Evidence>();

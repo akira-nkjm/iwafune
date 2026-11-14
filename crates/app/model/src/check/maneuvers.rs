@@ -1,5 +1,5 @@
 //! マヌーバ（`maneuvers/<ID>.toml`）の検査: スラスタ・前のマヌーバ・制約のモードの参照、実行の順の循環、
-//! 目標の軌道の量の次元と書き方、計算の段階に要るもの。
+//! 目標の軌道の量の次元と書き方（天体間の遷移の捕獲の軌道）、計算の段階に要るもの。
 
 use super::Ctx;
 use super::values::check_quantity_dimension;
@@ -128,6 +128,27 @@ fn check_target(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
             Some(Target::maneuver(id, Some("target.altitude"))),
             "altitude（円軌道）と perigee_altitude・apogee_altitude は一緒に書けません",
         );
+    }
+    if t.body.is_some() {
+        let target = || Some(Target::maneuver(id, Some("target.body")));
+        if t.altitude.is_none() && t.perigee_altitude.is_none() {
+            ctx.error(
+                "maneuver.body_orbit",
+                entity,
+                &["target", "body"],
+                target(),
+                "目標の天体を回る軌道（altitude か perigee_altitude）を書いてください",
+            );
+        }
+        if m.method == ManeuverMethod::LowThrust {
+            ctx.error(
+                "maneuver.body_method",
+                entity,
+                &["method"],
+                target(),
+                "天体間の遷移は impulsive か finite_burn で計算します",
+            );
+        }
     }
     if let Some(q) = &m.via_altitude {
         let target = || Some(Target::maneuver(id, Some("via_altitude")));

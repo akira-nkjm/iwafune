@@ -13,7 +13,6 @@ use crate::spec::{
     ensure_non_negative, ensure_positive, quantity_text, ratio_margin_verdict,
 };
 use sat_astro::attitude::AttitudeLaw;
-use sat_astro::constants::AU;
 use sat_astro::timeline::TimelineSpec;
 use sat_units::typed::{
     Area, ElectricCurrent, Energy, Fraction, Length, Power, Qty, Time, Voltage,
@@ -42,7 +41,8 @@ pub struct SizingOptions {
     pub inherent_degradation: Option<f64>,
     pub battery_strings: Option<u32>,
     pub bus_voltage: Option<Qty<Voltage>>,
-    /// 省略時は 1 AU。1 AU 以外は未対応。
+    /// 省略時は中心天体の太陽距離の慣例値（地球・月は 1 AU。`CentralBody::nominal_sun_distance_m`）。
+    /// それ以外の天体では書く。発電は太陽光の強さ SOLAR_CONSTANT·(1 AU/d)² で比例する
     pub sun_distance: Option<Qty<Length>>,
 }
 
@@ -218,7 +218,7 @@ impl Analysis for Sizing {
             season.max_eclipse_duration.value(),
         );
         let td = period - te;
-        let (design_area, array) = design(input)?;
+        let (design_area, array) = design(input, &used)?;
         let mut modes = modes::evaluate(input, &array, &used, &loads, td, te)?;
         let smad = smad_totals(&modes, design_area, battery.capacity);
         let series = series::evaluate(
