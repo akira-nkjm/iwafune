@@ -131,6 +131,7 @@ mod maneuver_tests {
             constraints: ManeuverConstraints {
                 sunlit_only: Some(true),
                 mode: None,
+                ..ManeuverConstraints::default()
             },
         };
         let path = "maneuvers/RAISE.toml";

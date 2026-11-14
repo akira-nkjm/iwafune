@@ -4,6 +4,7 @@ import type { DvCategory } from "./DvCategory";
 import type { ManeuverBurn } from "./ManeuverBurn";
 import type { ManeuverNote } from "./ManeuverNote";
 import type { ManeuverOrbit } from "./ManeuverOrbit";
+import type { ManeuverPropagation } from "./ManeuverPropagation";
 import type { TransferMethod } from "./TransferMethod";
 
 /**
@@ -37,4 +38,8 @@ firing_power: number | null,
 /**
  * 書かれているが粗い段階では効かないので無視した制約のキー
  */
-ignored_constraints: Array<string>, notes: Array<ManeuverNote>, checks: Array<Check>, };
+ignored_constraints: Array<string>, 
+/**
+ * 数値伝搬の結果（`propagated` のときだけ）
+ */
+propagation?: ManeuverPropagation | null, notes: Array<ManeuverNote>, checks: Array<Check>, };

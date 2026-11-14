@@ -16,7 +16,7 @@ pub struct ManeuverText {
     pub id: String,
     /// `insertion` / `station_keeping` / `unloading` / `deorbit` / `other`
     pub category: String,
-    /// `impulsive` / `finite_burn` / `low_thrust`
+    /// `impulsive` / `finite_burn` / `low_thrust` / `propagated`
     pub method: String,
     pub label: Option<String>,
     /// スラスタの部品 ID
@@ -37,6 +37,10 @@ pub struct ManeuverText {
     pub sunlit_only: Option<String>,
     /// 噴射するモード
     pub mode: Option<String>,
+    /// デューティ（`"0.5"`。0 より大きく 1 以下）
+    pub duty: Option<String>,
+    /// 推力の向き（`tangential` / `inertial`）
+    pub steering: Option<String>,
 }
 
 /// 目標の軌道の要素 1 つ。

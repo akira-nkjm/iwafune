@@ -83,6 +83,12 @@ pub enum KpiKey {
     TankVolumeMargin,
     /// 総インパルスの定格に対する余裕（スラスタのうち最小）
     ImpulseMargin,
+    /// 最後のマヌーバが終わる時刻（最初の軌道の元期から）
+    ManeuversEnd,
+    /// 寿命初期から末期への重心の移動
+    ComShift,
+    /// 噴射中の最大 DoD（数値伝搬のマヌーバのうち最大）
+    ThrustMaxDod,
 }
 
 /// KPI の定義（`GET /analyses` の `AnalysisEntry.kpis`。結果が届く前に名前を並べるのに使う）。

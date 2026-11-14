@@ -30,11 +30,20 @@ pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingIn
             .and_then(|s| s.step.as_ref()),
         &mut m,
     );
+    // 数値伝搬のマヌーバがあるときだけ、標本日の軌道をマヌーバの順の推移から引く（無ければ結果を変えない）
+    let maneuvers = if crate::propulsion::has_propagated(ctx) {
+        crate::propulsion::maneuvers(ctx)
+            .map_err(|e| m.extend(e))
+            .ok()
+    } else {
+        None
+    };
     m.finish(|| {
         Some(EclipseSeasonInput {
             orbit: orbit?,
             duration: duration?,
             step,
+            maneuvers,
         })
     })
 }

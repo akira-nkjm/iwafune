@@ -21,4 +21,8 @@ eclipse_free_duration: number, step: number, shadow_step: number,
 /**
  * 1 周中の太陽位置を標本日の位置に固定する近似。
  */
-fixed_sun_per_orbit: boolean, series: Series, };
+fixed_sun_per_orbit: boolean, 
+/**
+ * 標本日の軌道を変えたマヌーバ（実行の順。マヌーバの推移を使わなければ空）
+ */
+maneuvers?: Array<string>, series: Series, };

@@ -140,6 +140,8 @@ fn maneuver_text(a: &ManeuverArgs) -> ManeuverText {
         inclination: a.inclination.clone(),
         sunlit_only: a.sunlit_only.clone(),
         mode: a.mode.clone(),
+        duty: a.duty.clone(),
+        steering: a.steering.clone(),
     }
 }
 

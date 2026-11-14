@@ -57,6 +57,8 @@ pub fn channel_label(kind: ChannelKind, subject: Option<&str>) -> AnalysisLabel 
         K::AbsorbedHeat => label("外部入熱", "Absorbed heat"),
         K::Backlog => label("未送信データ", "Backlog"),
         K::Altitude => label("高度", "Altitude"),
+        K::Inclination => label("傾斜角", "Inclination"),
+        K::Mass => label("質量", "Mass"),
     }
 }
 
@@ -232,6 +234,8 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "DvCategory" => parse(value).map(propulsion::category),
         "TransferMethod" => parse(value).map(propulsion::method),
         "ManeuverNote" => parse(value).map(propulsion::note),
+        "ThrustSteering" => parse(value).map(propulsion::steering),
+        "ThrustBalanceNote" => parse(value).map(propulsion::thrust_balance_note),
         "UnloadingNote" => parse(value).map(propulsion::unloading),
         _ => None,
     }
@@ -280,6 +284,12 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         K::LoadedPropellant => label("積む推薬", "Loaded propellant"),
         K::TankVolumeMargin => label("タンクの容積の余裕", "Tank volume margin"),
         K::ImpulseMargin => label("総インパルスの余裕", "Total impulse margin"),
+        K::ManeuversEnd => label("マヌーバが終わる時刻", "Maneuvers end"),
+        K::ComShift => label(
+            "推薬による重心の移動",
+            "Center-of-mass shift from propellant",
+        ),
+        K::ThrustMaxDod => label("噴射中の最大 DoD", "Max DoD while thrusting"),
     }
 }
 

@@ -1,5 +1,9 @@
-//! 推進系の射影: `propulsion.maneuvers`・`propulsion.dv_budget`・`propulsion.propellant`・`propulsion.thruster_usage`
-//! （4 つとも同じ入力 `PropulsionInput`。RCS のアンロードは ΔV バジェットだけが使う）。
+//! 推進系の射影: `propulsion.maneuvers`・`propulsion.dv_budget`・`propulsion.propellant`・`propulsion.thruster_usage`・
+//! `propulsion.orbit_history`（同じ入力 `PropulsionInput`。RCS のアンロードは ΔV バジェットだけが使う）と
+//! `propulsion.mass_properties`（質量特性の入力も足す）。
+//!
+//! - 数値伝搬（`propagated`）のマヌーバは `[constraints]` を `ThrustConstraints` に写し、無視した制約にしない。
+//!   スラスタが無ければ不足の入力にする。
 //!
 //! - 軌道は前提条件の軌道（`conditions/orbit.toml`）、マヌーバは `Design::ordered_maneuvers` の実行の順。
 //! - 乾燥質量は `analysis.propulsion.dry_mass`、無ければ部品の質量特性の総質量（structure の射影）。
@@ -15,12 +19,13 @@ use crate::{aocs, structure};
 use fune_model::Target;
 use fune_model::builtin::{Role, STATE_THRUSTER_FIRING};
 use fune_model::design::setting_dims as dims;
-use fune_model::design::{Maneuver, ManeuverCategory, ManeuverMethod};
+use fune_model::design::{Maneuver, ManeuverCategory, ManeuverMethod, ManeuverSteering};
 use fune_model::resolve::{ResolvedPart, SiValue};
 use sat_analysis::propulsion::{
-    DvCategory, ManeuverInput, OrbitTarget, PropellantTank, PropulsionInput, PropulsionThruster,
-    TransferMethod, UnloadingInput, UnloadingNote,
+    DvCategory, ManeuverInput, OrbitTarget, PropellantMassInput, PropellantTank, PropulsionInput,
+    PropulsionThruster, ThrustConstraints, TransferMethod, UnloadingInput, UnloadingNote,
 };
+use sat_astro::force::thrust::ThrustSteering;
 use sat_units::typed::{Force, Fraction, Impulse, MassDensity, Power, Qty, Time, Volume};
 
 /// 設計の区分 → 解析の区分。
@@ -40,6 +45,23 @@ pub fn method(m: ManeuverMethod) -> TransferMethod {
         ManeuverMethod::Impulsive => TransferMethod::Impulsive,
         ManeuverMethod::FiniteBurn => TransferMethod::FiniteBurn,
         ManeuverMethod::LowThrust => TransferMethod::LowThrust,
+        ManeuverMethod::Propagated => TransferMethod::Propagated,
+    }
+}
+
+/// 設計の推力の向き → 解析の推力の向き。
+pub fn steering(s: ManeuverSteering) -> ThrustSteering {
+    match s {
+        ManeuverSteering::Tangential => ThrustSteering::Tangential,
+        ManeuverSteering::Inertial => ThrustSteering::Inertial,
+    }
+}
+
+/// 解析の推力の向き → 設計の推力の向き（表示名は設計の語彙 `maneuver_steering`）。
+pub fn model_steering(s: ThrustSteering) -> ManeuverSteering {
+    match s {
+        ThrustSteering::Tangential => ManeuverSteering::Tangential,
+        ThrustSteering::Inertial => ManeuverSteering::Inertial,
     }
 }
 
@@ -60,6 +82,7 @@ pub fn model_method(m: TransferMethod) -> ManeuverMethod {
         TransferMethod::Impulsive => ManeuverMethod::Impulsive,
         TransferMethod::FiniteBurn => ManeuverMethod::FiniteBurn,
         TransferMethod::LowThrust => ManeuverMethod::LowThrust,
+        TransferMethod::Propagated => ManeuverMethod::Propagated,
     }
 }
 
@@ -138,6 +161,14 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
             m,
         ),
     };
+    let propagated = x.method == ManeuverMethod::Propagated;
+    if propagated && x.thruster.is_none() {
+        m.push(
+            Target::maneuver(id, Some("thruster")),
+            "数値伝搬（propagated）にはスラスタ（thruster）が要ります",
+        );
+        return None;
+    }
     if let Some(p) = &x.thruster
         && !ctx.resolved.parts.contains_key(p.as_str())
     {
@@ -154,12 +185,54 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
         thruster: x.thruster.as_ref().map(|p| p.to_string()),
         target,
         via_altitude: q("via_altitude", x.via_altitude.as_ref(), m),
-        ignored_constraints: x
-            .constraints
-            .keys()
-            .into_iter()
-            .map(str::to_owned)
-            .collect(),
+        ignored_constraints: if propagated {
+            Vec::new()
+        } else {
+            x.constraints
+                .keys()
+                .into_iter()
+                .map(str::to_owned)
+                .collect()
+        },
+        thrust: if propagated {
+            thrust_constraints(x)
+        } else {
+            ThrustConstraints::default()
+        },
+    })
+}
+
+/// 数値伝搬で効く制約（`[constraints]`）。
+fn thrust_constraints(x: &Maneuver) -> ThrustConstraints {
+    let c = &x.constraints;
+    ThrustConstraints {
+        sunlit_only: c.sunlit_only.unwrap_or(false),
+        mode: c.mode.as_ref().map(ToString::to_string),
+        duty: c.duty.map(Fraction::new),
+        steering: c.steering.map_or(ThrustSteering::default(), steering),
+    }
+}
+
+/// 数値伝搬のマヌーバがあるか（あればほかの解析がマヌーバの順の軌道の推移を使う）。
+pub fn has_propagated(ctx: &Context<'_>) -> bool {
+    ctx.design
+        .maneuvers
+        .values()
+        .any(|x| x.method == ManeuverMethod::Propagated)
+}
+
+/// `propulsion.mass_properties`（乾燥の部品の質量特性の入力と推進系の入力）。
+pub fn mass_properties(ctx: &Context<'_>) -> Result<PropellantMassInput, MissingInputs> {
+    let mut m = MissingInputs::new();
+    let structure = structure::mass_properties(ctx)
+        .map_err(|e| m.extend(e))
+        .ok();
+    let propulsion = maneuvers(ctx).map_err(|e| m.extend(e)).ok();
+    m.finish(|| {
+        Some(PropellantMassInput {
+            structure: structure?,
+            propulsion: propulsion?,
+        })
     })
 }
 
@@ -286,5 +359,9 @@ mod tests {
             assert_eq!(model_method(method(*x)), *x);
         }
         assert_eq!(DvCategory::ALL.len(), ManeuverCategory::ALL.len());
+        for s in ManeuverSteering::ALL {
+            assert_eq!(serde_json::to_value(steering(*s)).unwrap(), s.as_str());
+            assert_eq!(model_steering(steering(*s)), *s);
+        }
     }
 }

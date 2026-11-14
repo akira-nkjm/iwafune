@@ -6,7 +6,13 @@
 //!   平均運動は `√(μ / r³)`（その半径の円軌道）。
 //! - 初期質量（ウェット）は、最後に残る質量が「乾燥質量 + 残る推薬（使う推薬 × 残る割合）」になるまで繰り返して決める。
 //! - スラスタの無いマヌーバは ΔV だけを求め、質量を変えない。
+//! - 数値伝搬（`propagated`）のマヌーバがあれば、まず Edelbaum の見積もりで公称の列を作ってマヌーバの前の質量を決め、
+//!   その質量で推力を入れて伝搬し（`flight`）、伝搬の ΔV・時間・終わりの軌道で計画を置き換えて列を作り直す。
+//!   推薬は伝搬の ΔV からロケット方程式で求める（質量が伝搬と同じなら伝搬の推薬と一致する）。
+//! - 軌道の推移（`history`）は列を作ったあとに 1 回歩いて作る。
 
+use super::flight::{Flight, LegStep, walk};
+use super::history::OrbitHistory;
 use super::input::{ManeuverInput, PropulsionInput, PropulsionThruster, TransferMethod};
 use super::plan::{BurnSite, Ideal, ManeuverNote, Orbit, Planned, plan};
 use crate::spec::{AnalysisError, ensure_positive};
@@ -62,9 +68,29 @@ pub(super) struct Sequence<'a> {
     pub dry_mass_kg: f64,
     /// 最後のマヌーバのあとの軌道（マヌーバが無ければ初期の軌道）
     pub final_orbit: Orbit,
+    /// マヌーバの順の軌道の推移
+    pub history: OrbitHistory,
+    /// 数値伝搬の結果（`legs` と同じ並び。数値伝搬でないマヌーバは None）
+    pub flights: Vec<Option<Flight>>,
 }
 
-impl Sequence<'_> {
+impl<'a> Sequence<'a> {
+    /// 軌道の推移を歩くための値（区間ごと）。
+    fn steps(&self) -> Vec<LegStep<'a>> {
+        self.legs
+            .iter()
+            .map(|l| LegStep {
+                maneuver: l.maneuver,
+                thruster: l.thruster,
+                to: l.planned.to,
+                ideal_delta_v_m_s: l.ideal_delta_v_m_s,
+                mass_before_kg: l.mass_before_kg,
+                mass_after_kg: l.propellant_kg.map(|_| l.mass_after_kg),
+                transfer_time_s: l.transfer_time_s,
+            })
+            .collect()
+    }
+
     /// 使う推薬 [kg]（スラスタのあるマヌーバの合計）。
     pub fn used_propellant_kg(&self) -> f64 {
         self.legs.iter().filter_map(|l| l.propellant_kg).sum()
@@ -102,24 +128,60 @@ impl Options {
 /// マヌーバ 1 つの計画（マヌーバ・スラスタ・前後の軌道と理想の ΔV）。
 type Step<'a> = (&'a ManeuverInput, Option<&'a PropulsionThruster>, Planned);
 
-/// マヌーバの計画を順に作る（最後の軌道も返す）。
-fn plans(input: &PropulsionInput) -> Result<(Vec<Step<'_>>, Orbit), AnalysisError> {
+/// マヌーバの計画を順に作る（最後の軌道も返す）。数値伝搬の結果 `flights` があれば、その ΔV・時間・終わりの軌道で置き換える。
+fn plans<'a>(
+    input: &'a PropulsionInput,
+    flights: &[Option<Flight>],
+) -> Result<(Vec<Step<'a>>, Orbit), AnalysisError> {
     let mut orbit = Orbit::of(&input.initial_orbit)?;
     let mut out = Vec::with_capacity(input.maneuvers.len());
-    for m in &input.maneuvers {
+    for (i, m) in input.maneuvers.iter().enumerate() {
         let thruster = input.thruster_of(m)?;
-        let p = plan(orbit, m)?;
+        let mut p = plan(orbit, m)?;
+        if let Some(f) = flights.get(i).and_then(Option::as_ref) {
+            p.ideal = Ideal::Propagated {
+                delta_v_m_s: f.arc.delta_v_m_s,
+                duration_s: f.arc.duration_s,
+            };
+            p.to = f.end_orbit;
+            if !f.arc.reached {
+                p.notes.push(ManeuverNote::PropagationNotReached);
+            }
+        }
         orbit = p.to;
         out.push((m, thruster, p));
     }
     Ok((out, orbit))
 }
 
-/// マヌーバの列を当てる。初期質量は乾燥質量と残る推薬に合うまで繰り返して決める。
+/// マヌーバの列を当てる（数値伝搬のマヌーバがあれば 2 回。モジュールの説明）。
 pub(super) fn run(input: &PropulsionInput, opts: Options) -> Result<Sequence<'_>, AnalysisError> {
+    let propagated = input
+        .maneuvers
+        .iter()
+        .any(|m| m.method == TransferMethod::Propagated);
+    let mut seq = if propagated {
+        let first = iterate(input, plans(input, &[])?, Options::NOMINAL)?;
+        let (_, flights) = walk(input, &first.steps(), None)?;
+        let mut seq = iterate(input, plans(input, &flights)?, opts)?;
+        seq.flights = flights;
+        seq
+    } else {
+        iterate(input, plans(input, &[])?, opts)?
+    };
+    let (history, _) = walk(input, &seq.steps(), Some(&seq.flights))?;
+    seq.history = history;
+    Ok(seq)
+}
+
+/// 計画の列を当てる。初期質量は乾燥質量と残る推薬に合うまで繰り返して決める。
+fn iterate<'a>(
+    input: &'a PropulsionInput,
+    (plans, final_orbit): (Vec<Step<'a>>, Orbit),
+    opts: Options,
+) -> Result<Sequence<'a>, AnalysisError> {
     let dry = input.dry_mass.value();
     ensure_positive("乾燥質量", dry)?;
-    let (plans, final_orbit) = plans(input)?;
     let r = opts.residual_fraction;
     let mut m0 = dry;
     for _ in 0..MAX_ITERATIONS {
@@ -133,6 +195,8 @@ pub(super) fn run(input: &PropulsionInput, opts: Options) -> Result<Sequence<'_>
                 final_mass_kg: end,
                 dry_mass_kg: dry,
                 final_orbit,
+                history: OrbitHistory::constant(input.initial_orbit.clone()),
+                flights: Vec::new(),
             });
         }
         if !(end > 0.0 && end.is_finite()) {
@@ -229,6 +293,15 @@ fn apply<'a>(
             let at = (planned.site(0), planned.from.apsides.semi_major_axis_m());
             fire(&mut leg, engine, at, *dv, dv_scale)?;
             leg.transfer_time_s = leg.burn_time_s;
+        }
+        Ideal::Propagated {
+            delta_v_m_s,
+            duration_s,
+        } => {
+            leg.ideal_delta_v_m_s = *delta_v_m_s;
+            let at = (planned.site(0), planned.from.apsides.semi_major_axis_m());
+            fire(&mut leg, engine, at, *delta_v_m_s, dv_scale)?;
+            leg.transfer_time_s = Some(*duration_s);
         }
     }
     leg.notes.dedup();

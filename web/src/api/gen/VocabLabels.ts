@@ -24,7 +24,7 @@ state: { [key in string]: VocabLabel },
 section: { [key in string]: VocabLabel }, 
 /**
  * 列挙の型（`maturity`・`net_kind`・`source_kind`・`distribution`・`evidence`・`origin`・`severity`・`attitude_law`・
- * `propagator`・`link_direction`・`uncertainty_side`・`value_type`・`budget_kind`・`maneuver_category`・`maneuver_method`・`central_body`）→ 値 → 表示名
+ * `propagator`・`link_direction`・`uncertainty_side`・`value_type`・`budget_kind`・`maneuver_category`・`maneuver_method`・`central_body`・`maneuver_steering`）→ 値 → 表示名
  */
 enum: { [key in string]: { [key in string]: VocabLabel } }, 
 /**

@@ -29,6 +29,7 @@ fn input() -> SizingInput {
             orbit: leo(),
             duration: Qty::from_raw(86400.0),
             step: None,
+            maneuvers: None,
         },
         timeline: leo_timeline(sun_pointing_z(), 2.0, 10.0),
         mode_laws: BTreeMap::new(),

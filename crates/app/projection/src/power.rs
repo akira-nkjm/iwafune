@@ -24,7 +24,9 @@ use sat_astro::timeline::TimelineSpec;
 use sat_units::typed::{Area, Energy, Power, Time, Voltage};
 
 mod sizing;
+mod thrust;
 pub use sizing::sizing;
+pub use thrust::thrust_balance;
 
 /// `power.mode_load`
 pub fn mode_load(ctx: &Context<'_>) -> Result<ModeLoadInput, MissingInputs> {

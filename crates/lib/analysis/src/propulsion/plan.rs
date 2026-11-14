@@ -6,6 +6,7 @@
 //! - 低推力: Edelbaum の式（円軌道どうし。円でなければ長半径の円で近似したと注記する）。
 //! - 目標に別の天体（`target.body`）を書いたとき: パッチドコニックの遷移（`sat_astro::transfer::patched_conic`。
 //!   出発の軌道の近点で脱出し、目標の天体を回る軌道の近点で捕獲する）。軌道は中心天体ごと持つ。
+//! - 数値伝搬: 最初は低推力と同じ見積もり。伝搬の結果（[`Ideal::Propagated`]）で `sequence` が置き換える。
 
 use super::input::{ManeuverInput, OrbitTarget, TransferMethod};
 use crate::spec::AnalysisError;
@@ -39,6 +40,8 @@ pub enum ManeuverNote {
     PatchedConic,
     /// 天体間の遷移では軌道面の変更（傾斜角）の ΔV を数えない
     PlaneChangeIgnored,
+    /// 数値伝搬が上限の時間までに目標に届かなかった（届いたところまでの値）
+    PropagationNotReached,
 }
 
 /// 軌道（中心天体・近地点と遠地点の半径・傾斜角）。
@@ -60,7 +63,16 @@ impl Orbit {
         })
     }
 
-    fn eccentricity(&self) -> f64 {
+    /// 中心天体と長半径・離心率・傾斜角から（伝搬の終わりの平均の長半径など）。
+    pub fn from_elements(central: CentralBody, a_m: f64, e: f64, inclination_rad: f64) -> Self {
+        Self {
+            central,
+            apsides: Apsides::new(a_m * (1.0 - e), a_m * (1.0 + e)),
+            inclination_rad,
+        }
+    }
+
+    pub(super) fn eccentricity(&self) -> f64 {
         let (p, a) = (self.apsides.periapsis_m, self.apsides.apoapsis_m);
         (a - p) / (a + p)
     }
@@ -93,6 +105,8 @@ pub(super) enum Ideal {
     Impulsive(ImpulsiveTransfer),
     /// 低推力の連続噴射の ΔV [m/s]
     LowThrust(f64),
+    /// 推力を入れた数値伝搬で求めた ΔV [m/s] と遷移の時間 [s]
+    Propagated { delta_v_m_s: f64, duration_s: f64 },
 }
 
 /// 噴射する場所（中心天体と、双曲線の超過速度）。
@@ -143,7 +157,8 @@ pub(super) fn plan(from: Orbit, m: &ManeuverInput) -> Result<Planned, AnalysisEr
             }
             None => Ideal::Impulsive(apse_transfer(mu, from.apsides, to.apsides, angle)?),
         },
-        TransferMethod::LowThrust => {
+        // 数値伝搬も最初は Edelbaum で見積もる（質量の見積もりに使い、伝搬の結果で置き換える。`sequence`）
+        TransferMethod::LowThrust | TransferMethod::Propagated => {
             if m.via_altitude.is_some() {
                 notes.push(ManeuverNote::ViaAltitudeIgnored);
             }
@@ -173,9 +188,12 @@ pub(super) fn plan(from: Orbit, m: &ManeuverInput) -> Result<Planned, AnalysisEr
 /// `perigee_altitude`（と `apogee_altitude`）で、高度は `body` の半径から数える。
 fn interbody(from: Orbit, body: CentralBody, m: &ManeuverInput) -> Result<Planned, AnalysisError> {
     let invalid = |why: &str| AnalysisError::InvalidInput(format!("マヌーバ {}: {why}", m.id));
-    if m.method == TransferMethod::LowThrust {
+    if matches!(
+        m.method,
+        TransferMethod::LowThrust | TransferMethod::Propagated
+    ) {
         return Err(invalid(
-            "天体間の遷移は impulsive か finite_burn で計算します（low_thrust は未対応）",
+            "天体間の遷移は impulsive か finite_burn で計算します（low_thrust・propagated は未対応）",
         ));
     }
     let t = &m.target;

@@ -83,6 +83,7 @@ fn maneuver_cmd(verb: &str, m: &Maneuver) -> String {
     let q = |x: &Option<fune_model::value::Quantity>| x.as_ref().map(quantity_to_text);
     let t = &m.target;
     let sunlit = m.constraints.sunlit_only.map(|b| b.to_string());
+    let duty = m.constraints.duty.map(|d| d.to_string());
     Cmd::new(&["fune", "maneuver", verb, m.id.as_str()])
         .flag("category", Some(m.category.as_str()))
         .flag("method", Some(m.method.as_str()))
@@ -97,5 +98,7 @@ fn maneuver_cmd(verb: &str, m: &Maneuver) -> String {
         .flag("inclination", q(&t.inclination).as_deref())
         .flag("sunlit-only", sunlit.as_deref())
         .flag("mode", m.constraints.mode.as_ref().map(|x| x.as_str()))
+        .flag("duty", duty.as_deref())
+        .flag("steering", m.constraints.steering.map(|s| s.as_str()))
         .done()
 }

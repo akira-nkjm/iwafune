@@ -10,7 +10,7 @@ export type ManeuverText = { id: string,
  */
 category: string, 
 /**
- * `impulsive` / `finite_burn` / `low_thrust`
+ * `impulsive` / `finite_burn` / `low_thrust` / `propagated`
  */
 method: string, label?: string | null, 
 /**
@@ -44,4 +44,12 @@ sunlit_only?: string | null,
 /**
  * 噴射するモード
  */
-mode?: string | null, };
+mode?: string | null, 
+/**
+ * デューティ（`"0.5"`。0 より大きく 1 以下）
+ */
+duty?: string | null, 
+/**
+ * 推力の向き（`tangential` / `inertial`）
+ */
+steering?: string | null, };

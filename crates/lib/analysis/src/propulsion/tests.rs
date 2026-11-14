@@ -29,7 +29,12 @@ fn thruster(id: &str, thrust: f64, isp: f64) -> PropulsionThruster {
     }
 }
 
-fn maneuver(id: &str, category: DvCategory, method: TransferMethod, alt_km: f64) -> ManeuverInput {
+pub(super) fn maneuver(
+    id: &str,
+    category: DvCategory,
+    method: TransferMethod,
+    alt_km: f64,
+) -> ManeuverInput {
     ManeuverInput {
         id: id.to_owned(),
         category,
@@ -41,11 +46,12 @@ fn maneuver(id: &str, category: DvCategory, method: TransferMethod, alt_km: f64)
         },
         via_altitude: None,
         ignored_constraints: Vec::new(),
+        thrust: ThrustConstraints::default(),
     }
 }
 
 /// 高度 400 km・傾斜角 97° の円軌道、乾燥質量 10 kg、化学推進 1 N・220 s、1 L のタンク（1000 kg/m³）。
-fn input(maneuvers: Vec<ManeuverInput>) -> PropulsionInput {
+pub(super) fn input(maneuvers: Vec<ManeuverInput>) -> PropulsionInput {
     let epoch = Epoch::parse("2027-04-01T00:00:00Z").unwrap();
     PropulsionInput {
         initial_orbit: OrbitSpec::circular(
@@ -70,7 +76,7 @@ fn input(maneuvers: Vec<ManeuverInput>) -> PropulsionInput {
     }
 }
 
-fn raise() -> ManeuverInput {
+pub(super) fn raise() -> ManeuverInput {
     maneuver(
         "RAISE",
         DvCategory::Insertion,

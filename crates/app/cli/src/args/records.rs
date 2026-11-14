@@ -173,7 +173,7 @@ pub struct ManeuverArgs {
     /// insertion / station_keeping / unloading / deorbit / other
     #[arg(long)]
     pub category: String,
-    /// impulsive / finite_burn / low_thrust
+    /// impulsive / finite_burn / low_thrust / propagated
     #[arg(long)]
     pub method: String,
     #[arg(long)]
@@ -208,6 +208,12 @@ pub struct ManeuverArgs {
     /// 噴射するモード（粗い段階の解析では使わない）
     #[arg(long)]
     pub mode: Option<String>,
+    /// デューティ（噴いてよい時間のうち噴く割合。propagated だけ）
+    #[arg(long)]
+    pub duty: Option<String>,
+    /// 推力の向き（tangential / inertial。propagated だけ）
+    #[arg(long)]
+    pub steering: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }

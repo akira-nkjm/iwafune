@@ -2,10 +2,12 @@
 
 use super::label;
 use crate::dto::AnalysisLabel;
-use fune_projection::propulsion::{model_category, model_method};
+use fune_projection::propulsion::{model_category, model_method, model_steering};
+use sat_analysis::power::thrust_balance::ThrustBalanceNote;
 use sat_analysis::propulsion::{DvCategory, ManeuverNote, TransferMethod, UnloadingNote};
+use sat_astro::force::thrust::ThrustSteering;
 
-/// 設計の語彙（`maneuver_category`・`maneuver_method`）の表示名。**区分と計算の段階の表示名は labels.toml だけ**。
+/// 設計の語彙（`maneuver_category`・`maneuver_method`・`maneuver_steering`）の表示名。**区分と計算の段階の表示名は labels.toml だけ**。
 fn vocab(ty: &str, value: &str) -> AnalysisLabel {
     let l = fune_model::builtin::enum_label(ty, value);
     label(
@@ -20,6 +22,23 @@ pub(super) fn category(c: DvCategory) -> AnalysisLabel {
 
 pub(super) fn method(m: TransferMethod) -> AnalysisLabel {
     vocab("maneuver_method", model_method(m).as_str())
+}
+
+pub(super) fn steering(s: ThrustSteering) -> AnalysisLabel {
+    vocab("maneuver_steering", model_steering(s).as_str())
+}
+
+pub(super) fn thrust_balance_note(n: ThrustBalanceNote) -> AnalysisLabel {
+    match n {
+        ThrustBalanceNote::DutyAsFullSunlit => label(
+            "日照中だけ噴くデューティを、日照中ずっと噴くとみなした（保守側）",
+            "The duty while sunlit is treated as firing through the whole sunlit arc (conservative)",
+        ),
+        ThrustBalanceNote::DutyAsBlockPerOrbit => label(
+            "デューティの分を 1 周の中でまとめて噴くとみなした（保守側）",
+            "The duty is treated as one firing block per orbit (conservative)",
+        ),
+    }
 }
 
 pub(super) fn note(n: ManeuverNote) -> AnalysisLabel {
@@ -39,6 +58,10 @@ pub(super) fn note(n: ManeuverNote) -> AnalysisLabel {
         ManeuverNote::NoThruster => label(
             "スラスタが無いので ΔV だけを求めた（推薬・噴射時間は求めない）",
             "No thruster, so only the delta-V is computed (no propellant or burn time)",
+        ),
+        ManeuverNote::PropagationNotReached => label(
+            "数値伝搬が上限の時間までに目標に届かなかった（届いたところまでの値）",
+            "The propagation did not reach the target within the time limit (values up to where it got)",
         ),
         ManeuverNote::FiniteBurnTooLong => label(
             "噴射が軌道の半周を超えるので、損失を見込まずインパルスの ΔV を使った",

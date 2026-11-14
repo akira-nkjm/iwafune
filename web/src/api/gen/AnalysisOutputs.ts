@@ -23,6 +23,9 @@ import type { ManeuversOutput } from "./ManeuversOutput";
 import type { DvBudgetOutput } from "./DvBudgetOutput";
 import type { PropellantOutput } from "./PropellantOutput";
 import type { ThrusterUsageOutput } from "./ThrusterUsageOutput";
+import type { OrbitHistoryOutput } from "./OrbitHistoryOutput";
+import type { PropellantMassOutput } from "./PropellantMassOutput";
+import type { ThrustBalanceOutput } from "./ThrustBalanceOutput";
 export type AnalysisOutputs = {
   "power.mode_load": ModeLoadOutput;
   "power.solar_sunlit": SolarSunlitOutput;
@@ -48,4 +51,7 @@ export type AnalysisOutputs = {
   "propulsion.dv_budget": DvBudgetOutput;
   "propulsion.propellant": PropellantOutput;
   "propulsion.thruster_usage": ThrusterUsageOutput;
+  "propulsion.orbit_history": OrbitHistoryOutput;
+  "propulsion.mass_properties": PropellantMassOutput;
+  "power.thrust_balance": ThrustBalanceOutput;
 };

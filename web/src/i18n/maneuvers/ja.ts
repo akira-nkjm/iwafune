@@ -41,6 +41,8 @@ export const maneuversJa = {
       viaAltitude: "中間の遠地点高度（バイエリプティック）",
       sunlitOnly: "日照中だけ噴射",
       mode: "噴射するモード",
+      duty: "デューティ（数値伝搬だけ）",
+      steering: "推力の向き（数値伝搬だけ）",
       unset: "指定しない",
       yes: "する",
       no: "しない",
