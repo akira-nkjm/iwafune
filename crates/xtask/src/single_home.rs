@@ -49,7 +49,7 @@ fn check_rule(
 }
 
 /// テスト以外の部分（テストのファイルは None、それ以外は最初の `#[cfg(test)]` より前）。
-fn production_text<'a>(rel: &str, text: &'a str) -> Option<&'a str> {
+pub(crate) fn production_text<'a>(rel: &str, text: &'a str) -> Option<&'a str> {
     let name = rel.rsplit('/').next().unwrap_or(rel);
     let test_file = rel.contains("/tests/")
         || rel.starts_with("crates/app/cli/src/cmd/roundtrip/")

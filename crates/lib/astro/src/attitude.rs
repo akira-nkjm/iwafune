@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 pub const DEFAULT_PRIMARY_AXIS: Vec3 = Vec3::Z;
 /// 姿勢則で副軸（速度方向を含む）を省略した場合の機体 +X 軸。
 pub const DEFAULT_SECONDARY_AXIS: Vec3 = Vec3::X;
+/// 慣性固定の姿勢則で向きを省略した場合の機体 → 慣性系の回転（恒等 = 機体軸が慣性軸に一致）。
+pub const DEFAULT_INERTIAL_ORIENTATION: Quat = Quat::IDENTITY;
 
 /// 姿勢則。軸はすべて機体座標系の単位ベクトル。
 #[derive(Debug, Clone, Serialize, Deserialize)]

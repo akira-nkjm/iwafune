@@ -13,7 +13,9 @@ use fune_model::path::SettingPath;
 use fune_model::resolve::Resolved;
 use fune_model::value::{Quaternion, Vector3};
 use sat_analysis::modes::{ModeDef, StateAssignment};
-use sat_astro::attitude::{AttitudeLaw, DEFAULT_PRIMARY_AXIS, DEFAULT_SECONDARY_AXIS};
+use sat_astro::attitude::{
+    AttitudeLaw, DEFAULT_INERTIAL_ORIENTATION, DEFAULT_PRIMARY_AXIS, DEFAULT_SECONDARY_AXIS,
+};
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
 use sat_astro::math::{Quat, Vec3};
@@ -214,7 +216,10 @@ pub(crate) fn law_of(s: &AttitudeLawSetting) -> AttitudeLaw {
             along_track: v(&s.along_track, DEFAULT_SECONDARY_AXIS),
         },
         AttitudeLawKind::Inertial => AttitudeLaw::Inertial {
-            q_body_to_eci: s.orientation.as_ref().map_or(Quat::IDENTITY, quat),
+            q_body_to_eci: s
+                .orientation
+                .as_ref()
+                .map_or(DEFAULT_INERTIAL_ORIENTATION, quat),
         },
     }
 }

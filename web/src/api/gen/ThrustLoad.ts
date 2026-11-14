@@ -7,7 +7,11 @@ export type ThrustLoad = { maneuver: string,
 /**
  * 噴射中のモード
  */
-mode: string, sunlit_only: boolean, 
+mode: string, 
+/**
+ * 日照中だけ噴射する。省略は噴射を日照に限らない（`false`）。結果の `sunlit_only` に載る
+ */
+sunlit_only: boolean | null, 
 /**
  * デューティ（省略で 1）
  */

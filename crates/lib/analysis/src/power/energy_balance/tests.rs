@@ -53,10 +53,10 @@ fn input(panels: Vec<SolarPanel>, cases: Vec<EnergyBalanceCase>) -> EnergyBalanc
             solar_flux: Some(Qty::from_raw(1361.0)),
             conversion_efficiency: None,
         },
-        life: SolarLife::Bol,
+        life: Some(SolarLife::Bol),
         batteries: vec![battery_100wh()],
         loads: ModeLoadInput::default(),
-        load_growth: LoadGrowth::Included,
+        load_growth: Some(LoadGrowth::Included),
         cases,
         sequence: Vec::new(),
         base_mode: None,
@@ -210,7 +210,7 @@ fn sunlit_and_eclipse_modes() {
             mode("MIS", vec![on("OBC"), on("CAM")]),
             mode("SAFE", vec![on("OBC")]),
         ],
-        default_growth_margin: 0.0,
+        default_growth_margin: Some(0.0),
     };
     let c = &EnergyBalance::run(&i).unwrap().cases[0];
     assert!((c.load_sunlit.value() - 10.0).abs() < 1e-12);

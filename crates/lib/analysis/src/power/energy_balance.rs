@@ -29,17 +29,17 @@ use std::collections::BTreeMap;
 pub struct EnergyBalanceInput {
     pub timeline: TimelineSpec,
     pub array: SolarArray,
-    /// 発電を評価する寿命の時点（省略時 EOL）
+    /// 発電を評価する寿命の時点（省略時 EOL。[`SolarLife::default`]）
     #[serde(default)]
-    pub life: SolarLife,
+    pub life: Option<SolarLife>,
     /// 個別電池（空はエラー）。容量合計・先頭電圧/効率の規則は combine。
     pub batteries: Vec<EnergyBalanceBattery>,
     /// 部品とモード（`power.mode_load` と同じ入力）。モードで負荷を指定するケースが使う
     #[serde(default)]
     pub loads: ModeLoadInput,
-    /// モードの消費電力に成長余裕を含めるか（省略時は含める）
+    /// モードの消費電力に成長余裕を含めるか（省略時は含める。[`LoadGrowth::default`]）
     #[serde(default)]
-    pub load_growth: LoadGrowth,
+    pub load_growth: Option<LoadGrowth>,
     pub cases: Vec<EnergyBalanceCase>,
     /// モードの並び（1 周期分。繰り返して解析期間を覆う）。空なら並びの収支を出さない
     #[serde(default)]
@@ -50,6 +50,18 @@ pub struct EnergyBalanceInput {
     /// モードごとの姿勢則（並びと基本のモードの発電に使う）。無いモードは `timeline.attitude`
     #[serde(default)]
     pub mode_attitudes: BTreeMap<String, AttitudeLaw>,
+}
+
+impl EnergyBalanceInput {
+    /// 発電を評価する寿命の時点（省略時は [`SolarLife::default`]）。出力の `life` に載る。
+    pub fn life(&self) -> SolarLife {
+        self.life.unwrap_or_default()
+    }
+
+    /// 成長余裕の扱い（省略時は [`LoadGrowth::default`] = 含める）。
+    pub fn load_growth(&self) -> LoadGrowth {
+        self.load_growth.unwrap_or_default()
+    }
 }
 
 /// モードの消費電力に成長余裕を含めるか。
@@ -287,7 +299,7 @@ impl Context<'_> {
     ) -> EnergyBalanceOutput {
         let p = self.profile;
         EnergyBalanceOutput {
-            life: self.input.life,
+            life: self.input.life(),
             mode_loads,
             dod_limit: Fraction::new(self.battery.dod_limit),
             min_allowed_soc: Fraction::new(1.0 - self.battery.dod_limit),

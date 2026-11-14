@@ -127,9 +127,9 @@ pub struct ManeuverInput {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThrustConstraints {
-    /// 日照中だけ噴射する（日照の判定は `spec::SUNLIT_THRESHOLD`）
+    /// 日照中だけ噴射する（日照の判定は `spec::SUNLIT_THRESHOLD`）。省略は噴射を日照に限らない
     #[serde(default)]
-    pub sunlit_only: bool,
+    pub sunlit_only: Option<bool>,
     /// 噴射するモード（電力収支 `power.thrust_balance` が使う）
     #[serde(default)]
     pub mode: Option<String>,
@@ -145,6 +145,11 @@ impl ThrustConstraints {
     /// 何も書かれていないか（入力の JSON に書かない）。
     pub fn is_default(&self) -> bool {
         self == &Self::default()
+    }
+
+    /// 日照中だけ噴射するか（省略は `false` = 日照に限らない）。出力の `sunlit_only` に載る。
+    pub fn sunlit_only(&self) -> bool {
+        self.sunlit_only.unwrap_or(false)
     }
 
     /// デューティ（既定値込み。0 より大きく 1 以下でなければ誤り）。

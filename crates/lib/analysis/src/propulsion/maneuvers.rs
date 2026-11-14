@@ -167,7 +167,7 @@ fn propagation(central: CentralBody, leg: &Leg<'_>, f: &Flight) -> ManeuverPropa
         final_inclination: Qty::from_raw(end.map_or(0.0, |s| s.inclination_rad)),
         final_eccentricity: end.map_or(0.0, |s| s.eccentricity),
         reached: a.reached,
-        sunlit_only: t.sunlit_only,
+        sunlit_only: t.sunlit_only(),
         duty: Fraction::new(t.duty.map_or(1.0, Fraction::value)),
         steering: t.steering,
     }

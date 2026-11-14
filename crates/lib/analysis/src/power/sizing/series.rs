@@ -272,10 +272,10 @@ fn balance_input(
     Ok(EnergyBalanceInput {
         timeline,
         array: input.array.clone(),
-        life: SolarLife::Eol,
+        life: Some(SolarLife::Eol),
         batteries: vec![probe],
         loads: input.loads.clone(),
-        load_growth: LoadGrowth::Included,
+        load_growth: Some(LoadGrowth::Included),
         cases,
         sequence: if input.mode.is_none() {
             input.sequence.clone()

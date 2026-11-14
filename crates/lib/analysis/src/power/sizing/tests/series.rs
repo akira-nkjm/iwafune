@@ -36,10 +36,10 @@ fn balance(i: &SizingInput, o: &SizingOutput, area: f64, capacity: f64) -> Energ
     EnergyBalance::run(&EnergyBalanceInput {
         timeline: worst_season(&i.timeline, &o.longest),
         array,
-        life: SolarLife::Eol,
+        life: Some(SolarLife::Eol),
         batteries: vec![battery],
         loads: i.loads.clone(),
-        load_growth: LoadGrowth::Included,
+        load_growth: Some(LoadGrowth::Included),
         cases,
         sequence: i.sequence.clone(),
         base_mode: i.base_mode.clone(),

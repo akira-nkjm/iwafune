@@ -39,7 +39,7 @@ impl<'a> Context<'a> {
                 None
             }
         };
-        let central = o.central.map_or(CentralBody::Earth, central_body);
+        let central = o.central.map(central_body).unwrap_or_default();
         let a = self.semi_major_axis(o, central, m);
         self.note(orbit(&[if o.inclination.is_some() {
             "inclination"

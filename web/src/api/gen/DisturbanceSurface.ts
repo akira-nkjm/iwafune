@@ -6,9 +6,9 @@ import type { Vec3 } from "./Vec3";
  */
 export type DisturbanceSurface = { 
 /**
- * 圧力中心 − 重心 [m]（機体座標系）
+ * 圧力中心 − 重心 [m]（機体座標系）。省略時は [`DEFAULT_CP_OFFSET`]（0 = 重心に一致しトルクが出ない）
  */
-cp_offset: Vec3, 
+cp_offset: Vec3 | null, 
 /**
  * 係数 × 面積（空力は Cd·A、太陽輻射圧は Cr·A）
  */
