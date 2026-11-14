@@ -195,8 +195,8 @@ setting_quantities! {
     THERMAL_MARGIN_WARNING_BAND: Temperature = Analysis["thermal", "margin", "warning_band"];
     /// 環境条件の太陽光の強さ（`[case.<条件>]`）
     THERMAL_CASE_SOLAR_FLUX: Irradiance = Analysis["thermal", "case", ANY, "solar_flux"];
-    /// 環境条件の地球赤外
-    THERMAL_CASE_EARTH_IR: Irradiance = Analysis["thermal", "case", ANY, "earth_ir"];
+    /// 環境条件の中心天体の赤外放射（一律）
+    THERMAL_CASE_PLANET_IR: Irradiance = Analysis["thermal", "case", ANY, "planet_ir"];
     /// 環境条件の β 角
     THERMAL_CASE_BETA: Angle = Analysis["thermal", "case", ANY, "beta"];
     /// 締結 1 本の許容せん断荷重（`analysis/structure.toml`）

@@ -15,8 +15,8 @@ use crate::thermal::orbit_heat::{
     ThermalEnvironment, ThermalEnvironmentUsed, absorbed, mean_absorbed, timeline_geometry,
 };
 use crate::thermal::range::{
-    ThermalMarginPolicy, ThermalMarginUsed, ThermalRangeMargin, range_checks, range_margins,
-    worst_verdict,
+    ThermalMarginPolicy, ThermalMarginUsed, ThermalNodeRange, ThermalRangeMargin, range_checks,
+    range_margins, worst_verdict,
 };
 use sat_astro::ode::integrate;
 use sat_astro::timeline::TimelineSpec;
@@ -87,7 +87,7 @@ pub struct ThermalTransientNodeResult {
     /// 最低になった時刻（開始からの経過）
     pub time_of_min: Qty<Time>,
     pub time_of_max: Qty<Time>,
-    /// 書かれている温度範囲（保管・動作・性能の順）と最低・最高の比較
+    /// 温度範囲（保管・動作・性能の順。区間のモードがあれば部品の電源の状態で選ぶ）と最低・最高の比較
     pub ranges: Vec<ThermalRangeMargin>,
     /// 範囲との比較のうち最も悪い判定（範囲が無ければ Ok）
     pub verdict: Verdict,
@@ -150,8 +150,20 @@ impl Analysis for ThermalTransient {
             let f = |_: f64, x: &Vec<f64>| net.derivative(x, &q, space_k);
             temps = integrate(f, t[i], temps, t_next, dt, |_, _| {});
         }
+        let modes: Vec<_> = input
+            .phases
+            .iter()
+            .map(|p| p.mode_loads.as_ref().map(|l| &l.mode))
+            .collect();
+        let ranges = input
+            .network
+            .nodes
+            .iter()
+            .map(|n| n.ranges_in(&modes))
+            .collect::<Result<Vec<_>, _>>()?;
         let mut output = build_output(
             &input.network,
+            &ranges,
             t,
             &history,
             absorbed_total,
@@ -287,8 +299,10 @@ fn step_s(net: &Compiled, input: &ThermalTransientInput, temps: &[f64]) -> f64 {
     stable.min(limit).min(timeline).max(MIN_STEP_S)
 }
 
+/// 出力を組み立てる。`ranges` は節点ごとの温度範囲（`ThermalNode::ranges_in`。入力の節点の順）。
 fn build_output(
     network: &ThermalNetwork,
+    ranges: &[Vec<ThermalNodeRange>],
     t: Vec<f64>,
     history: &[Vec<f64>],
     absorbed_total: Vec<f64>,
@@ -303,8 +317,8 @@ fn build_output(
         let (i_min, min) = extreme(&values, |a, b| a < b);
         let (i_max, max) = extreme(&values, |a, b| a > b);
         let mean = time_mean(&t, &values);
-        let ranges = range_margins(min, max, &n.ranges(), &margin);
-        checks.extend(range_checks(&n.id, min, max, &ranges, &margin));
+        let ranges = range_margins(min, max, &ranges[i], &margin);
+        checks.extend(range_checks(&n.id, &ranges, &margin));
         nodes.push(ThermalTransientNodeResult {
             node: n.id.clone(),
             min: Qty::from_raw(min),

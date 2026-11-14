@@ -15,6 +15,7 @@ mod load;
 mod mode_loads;
 mod mounts;
 mod newton;
+mod ranges;
 mod surface;
 pub use load::ThermalLoad;
 pub use mode_loads::{ThermalModeLoads, ThermalModePart};
@@ -34,9 +35,15 @@ pub struct ThermalNodePart {
     pub count: u32,
     pub specific_heat: Qty<SpecificHeatCapacity>,
     /// 保管・動作・性能の温度範囲（欄は `storage`・`operating`・`performance` を部品の直下に書く。
-    /// 節点の範囲は種類ごとに部品の範囲の共通部分）
+    /// 節点の範囲は種類ごとに部品の範囲の共通部分。モードのあるケースは電源の状態で選ぶ（`ranges_in`））
     #[serde(default, flatten)]
     pub ranges: ThermalRanges,
+    /// 冗長の方式（モードでの電源の状態を数える）
+    #[serde(default)]
+    pub redundancy: crate::modes::Redundancy,
+    /// 種別の状態の語彙（warm の予備状態を選ぶ）
+    #[serde(default)]
+    pub states: Vec<String>,
 }
 
 /// 熱の節点。
@@ -62,7 +69,8 @@ impl ThermalNode {
             .sum()
     }
 
-    /// 種類ごとの温度範囲 = 範囲を持つ部品の範囲の共通部分（無い種類は `None`。重ならなければ min > max になる）。
+    /// 種類ごとの温度範囲 = 範囲を持つ部品の範囲の共通部分（モードによらない。無い種類は `None`。重ならなければ min > max
+    /// になる）。モードのあるケースの判定は [`Self::ranges_in`]。
     pub fn ranges(&self) -> ThermalRanges {
         self.parts
             .iter()

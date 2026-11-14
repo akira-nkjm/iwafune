@@ -4,6 +4,7 @@
 //! - インライン表は 1 行（TOML 1.1 の複数行のインライン表は 1.0 の書き方に直す）。文字列は基本形の引用
 //! - 出典の付いた値は 1 行 1 要素（[`crate::profile::spread_rows`]。見出しの表かドット付きキー）
 //! - ID をキーにする表（[`SORTED_TABLES`]）は ID 順
+//! - 名前の変わったキーを新しい名前にする（[`crate::profile::renamed`]）
 //! - 表ごとに `=` を揃える。コメントは残す。末尾は改行 1 つ
 
 use crate::error::StoreError;
@@ -20,6 +21,7 @@ pub const SORTED_TABLES: &[&str] = &["states", "eclipse", "alloc", "mode_share",
 /// 本文を正規形に整える。
 pub fn format_text(path: &str, text: &str) -> Result<String, StoreError> {
     let mut doc = parse(path, text)?;
+    crate::profile::renamed::rename_keys(path, doc.as_table_mut());
     normalize_table(doc.as_table_mut(), "", 0, integer_keys(path));
     Ok(finish(doc))
 }

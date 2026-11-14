@@ -1,9 +1,10 @@
 //! TOML の共通プロファイル処理（read・write・format から使う）。
 //!
-//! 出典の付いた値の 1 行 1 要素の形（docs/model.md §10.2 の 3）は [`sourced`]。
+//! 出典の付いた値の 1 行 1 要素の形（docs/model.md §10.2 の 3）は [`sourced`]、名前の変わったキーの書き換えは [`renamed`]。
 use crate::error::StoreError;
 use toml_edit::{DocumentMut, Item, Key, Table};
 
+pub mod renamed;
 mod sourced;
 pub use sourced::{MAX_HEADER_DEPTH, hide_empty_header, is_sourced, lay_out, spread_rows};
 /// 整数のまま書くキー（ID・員数・回数）。

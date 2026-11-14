@@ -9,8 +9,8 @@ use crate::thermal::orbit_heat::{
     ThermalEnvironment, ThermalEnvironmentUsed, ThermalExposure, exposure_absorbed,
 };
 use crate::thermal::range::{
-    ThermalMarginPolicy, ThermalMarginUsed, ThermalRangeMargin, range_checks, range_margins,
-    worst_verdict,
+    ThermalMarginPolicy, ThermalMarginUsed, ThermalRangeMargin, envelope_margins, range_checks,
+    range_margins, worst_verdict,
 };
 use sat_units::typed::{Power, Qty, Temperature};
 use serde::{Deserialize, Serialize};
@@ -53,7 +53,7 @@ pub struct ThermalSteadyNodeResult {
     pub absorbed: Qty<Power>,
     /// 内部発熱（`ThermalLoad::dissipation` の合計）
     pub internal: Qty<Power>,
-    /// 書かれている温度範囲（保管・動作・性能の順）との比較
+    /// 温度範囲（保管・動作・性能の順。モードがあれば部品の電源の状態で選ぶ）との比較
     pub ranges: Vec<ThermalRangeMargin>,
     /// 範囲との比較のうち最も悪い判定（範囲が無ければ Ok）
     pub verdict: Verdict,
@@ -83,7 +83,8 @@ pub struct ThermalSteadyEnvelope {
     pub min_case: String,
     pub max: Qty<Temperature>,
     pub max_case: String,
-    /// 書かれている温度範囲（保管・動作・性能の順）と全ケースの最低・最高の比較
+    /// 種類ごとの全ケースの比較（その範囲を当てたケースのうち、下限・上限の側で余裕の最も小さいもの。
+    /// 範囲がケースで変わらなければ全ケースの最低・最高と範囲の比較）
     pub ranges: Vec<ThermalRangeMargin>,
     /// 範囲との比較のうち最も悪い判定（範囲が無ければ Ok）
     pub verdict: Verdict,
@@ -144,7 +145,7 @@ impl Analysis for ThermalSteady {
         let envelope = envelope(&input.network, &cases, &margin);
         let mut checks: Vec<Check> = envelope
             .iter()
-            .flat_map(|e| range_checks(&e.node, e.min.value(), e.max.value(), &e.ranges, &margin))
+            .flat_map(|e| range_checks(&e.node, &e.ranges, &margin))
             .collect();
         checks.extend(warnings);
         Ok(ThermalSteadyOutput {
@@ -170,23 +171,24 @@ fn solve_case(
         case.environment.space_temperature().value(),
         INITIAL_GUESS_K,
     )?;
+    let modes = [case.mode_loads.as_ref().map(|l| &l.mode)];
     let nodes = network
         .nodes
         .iter()
         .enumerate()
         .map(|(i, n)| {
             let t = sol.temps[i];
-            let ranges = range_margins(t, t, &n.ranges(), margin);
-            ThermalSteadyNodeResult {
+            let ranges = range_margins(t, t, &n.ranges_in(&modes)?, margin);
+            Ok(ThermalSteadyNodeResult {
                 node: n.id.clone(),
                 temperature: Qty::from_raw(t),
                 absorbed: Qty::from_raw(absorbed[i]),
                 internal: Qty::from_raw(internal[i]),
                 verdict: worst_verdict(&ranges),
                 ranges,
-            }
+            })
         })
-        .collect();
+        .collect::<Result<_, AnalysisError>>()?;
     Ok(ThermalSteadyCaseResult {
         id: case.id.clone(),
         label: case.label.clone(),
@@ -217,7 +219,8 @@ fn envelope(
                     .find(|c| temp(c) == t)
                     .map_or(String::new(), |c| c.id.clone())
             };
-            let ranges = range_margins(lo, hi, &n.ranges(), margin);
+            let ranges =
+                envelope_margins(cases.iter().map(|c| c.nodes[i].ranges.as_slice()), margin);
             ThermalSteadyEnvelope {
                 node: n.id.clone(),
                 min: Qty::from_raw(lo),

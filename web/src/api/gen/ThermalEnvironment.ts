@@ -20,7 +20,7 @@ albedo: number | null,
 /**
  * 中心天体の赤外放射（一律の値。既定は天体ごとで、月は直下点の地方時で変わる。`thermal::planet`）
  */
-earth_ir: number | null, 
+planet_ir: number | null, 
 /**
  * 宇宙の背景温度（既定 [`DEFAULT_SPACE_TEMPERATURE_K`]）
  */

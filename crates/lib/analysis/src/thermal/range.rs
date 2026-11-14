@@ -3,9 +3,12 @@
 //!
 //! 判定は「予測の最低 − 不確かさ」と「予測の最高 + 不確かさ」を範囲と比べる。範囲を外れれば違反、
 //! 端から警告の幅以内なら警告（`spec::margin_verdict`）。範囲の種類ごとに 1 つの判定（key は `range:<節点>:<種類>`）を出す。
+//!
+//! モードのあるケースでは、部品のそのモードでの電源の状態（`modes::power_states`）で当てる範囲を選ぶ
+//! （[`ThermalRangeKind::applies`]: オフの部品は保管だけ、オンの部品は動作と性能）。外した部品は判定文（`checks`）に書く。
 
-use crate::spec::quantity_text;
-use crate::spec::{Check, Verdict, margin_verdict};
+use crate::modes::PowerStates;
+use crate::spec::{Verdict, margin_verdict};
 use sat_units::typed::{Qty, Temperature};
 use serde::{Deserialize, Serialize};
 
@@ -67,6 +70,55 @@ impl ThermalRangeKind {
             Self::Performance => "性能範囲",
         }
     }
+
+    /// モードでの電源の状態 `s` の部品にこの種類の範囲を当てるか。保管はオフの時間がある部品、動作と性能はオンの時間が
+    /// ある部品（duty や予備機で両方あれば 3 種すべて）。**範囲の選び方はここだけ。**
+    pub fn applies(self, s: PowerStates) -> bool {
+        match self {
+            Self::Storage => s.off,
+            Self::Operating | Self::Performance => s.on,
+        }
+    }
+}
+
+/// 部品のモードでの電源（判定から外した理由）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "snake_case")]
+pub enum ThermalPowerState {
+    /// オン（保管の範囲から外した）
+    On,
+    /// オフ（動作・性能の範囲から外した）
+    Off,
+}
+
+impl ThermalPowerState {
+    fn noun(self) -> &'static str {
+        match self {
+            Self::On => "電源オン",
+            Self::Off => "電源オフ",
+        }
+    }
+}
+
+/// モードでの電源の状態で、ある種類の温度範囲の判定から外した部品。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct ThermalRangeExclusion {
+    /// 部品 ID
+    pub part: String,
+    /// モードの ID
+    pub mode: String,
+    /// そのモードでの電源
+    pub power_state: ThermalPowerState,
+}
+
+/// 節点の 1 種類の温度範囲（当てる部品の範囲の共通部分）と、電源の状態で外した部品。
+#[derive(Debug, Clone, PartialEq)]
+pub struct ThermalNodeRange {
+    pub kind: ThermalRangeKind,
+    pub range: ThermalTempRange,
+    pub excluded: Vec<ThermalRangeExclusion>,
 }
 
 /// 部品（または節点）の 3 種の温度範囲。書かれていない種類は `None`（判定しない）。
@@ -174,7 +226,7 @@ impl ThermalMarginUsed {
 }
 
 /// 1 種類の温度範囲との比較。
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThermalRangeMargin {
     pub kind: ThermalRangeKind,
@@ -185,27 +237,85 @@ pub struct ThermalRangeMargin {
     pub margin_high: Qty<Temperature>,
     /// 不確かさを含めた判定
     pub verdict: Verdict,
+    /// モードでの電源の状態でこの範囲から外した部品（モードの無いケースでは空）
+    #[serde(default)]
+    pub excluded: Vec<ThermalRangeExclusion>,
 }
 
-/// 最低 `lo`・最高 `hi` [K] を書かれている種類の範囲と比べる（[`ThermalRangeKind::ALL`] の順）。
+impl ThermalRangeMargin {
+    /// 余裕から比べた予測の最低・最高 [K]（`range.min + margin_low`・`range.max − margin_high`）。
+    fn predicted(&self) -> (f64, f64) {
+        (
+            self.range.min.value() + self.margin_low.value(),
+            self.range.max.value() - self.margin_high.value(),
+        )
+    }
+}
+
+/// 余裕 `low`・`high` [K] からの 1 つの比較（判定は不確かさを引いてから）。
+fn judged(
+    kind: ThermalRangeKind,
+    range: ThermalTempRange,
+    (low, high): (f64, f64),
+    excluded: Vec<ThermalRangeExclusion>,
+    margin: &ThermalMarginUsed,
+) -> ThermalRangeMargin {
+    let u = margin.uncertainty.value();
+    ThermalRangeMargin {
+        kind,
+        range,
+        margin_low: Qty::from_raw(low),
+        margin_high: Qty::from_raw(high),
+        verdict: margin_verdict((low - u).min(high - u), margin.warning_band.value()),
+        excluded,
+    }
+}
+
+/// 最低 `lo`・最高 `hi` [K] を節点の範囲（`ThermalNode::ranges_in`。[`ThermalRangeKind::ALL`] の順）と比べる。
 pub(crate) fn range_margins(
     lo: f64,
     hi: f64,
-    ranges: &ThermalRanges,
+    ranges: &[ThermalNodeRange],
     margin: &ThermalMarginUsed,
 ) -> Vec<ThermalRangeMargin> {
-    let u = margin.uncertainty.value();
     ranges
         .iter()
-        .map(|(kind, r)| {
-            let (low, high) = (lo - r.min.value(), r.max.value() - hi);
-            ThermalRangeMargin {
-                kind,
-                range: r,
-                margin_low: Qty::from_raw(low),
-                margin_high: Qty::from_raw(high),
-                verdict: margin_verdict((low - u).min(high - u), margin.warning_band.value()),
-            }
+        .map(|r| {
+            let low_high = (lo - r.range.min.value(), r.range.max.value() - hi);
+            judged(r.kind, r.range, low_high, r.excluded.clone(), margin)
+        })
+        .collect()
+}
+
+/// ケースごとの比較（`per_case`）を種類ごとにまとめる（定常の全ケースの判定）。種類はその範囲を当てたケースだけで見て、
+/// 下限の側は下限までの余裕が最も小さいケース、上限の側は上限までの余裕が最も小さいケースの範囲と余裕を使う
+/// （範囲がケースで変わらなければ、全ケースの最低・最高を範囲と比べるのと同じ）。外した部品は両方のケースの分。
+pub(crate) fn envelope_margins<'a>(
+    per_case: impl Iterator<Item = &'a [ThermalRangeMargin]> + Clone,
+    margin: &ThermalMarginUsed,
+) -> Vec<ThermalRangeMargin> {
+    ThermalRangeKind::ALL
+        .into_iter()
+        .filter_map(|kind| {
+            let of_kind = per_case.clone().flatten().filter(|m| m.kind == kind);
+            let by = |f: fn(&ThermalRangeMargin) -> f64| {
+                of_kind.clone().min_by(|a, b| f(a).total_cmp(&f(b)))
+            };
+            let low = by(|m| m.margin_low.value())?;
+            let high = by(|m| m.margin_high.value())?;
+            let range = ThermalTempRange {
+                min: low.range.min,
+                max: high.range.max,
+            };
+            let mut excluded = low.excluded.clone();
+            excluded.extend(
+                high.excluded
+                    .iter()
+                    .filter(|e| !low.excluded.contains(e))
+                    .cloned(),
+            );
+            let low_high = (low.margin_low.value(), high.margin_high.value());
+            Some(judged(kind, range, low_high, excluded, margin))
         })
         .collect()
 }
@@ -215,149 +325,10 @@ pub(crate) fn worst_verdict(margins: &[ThermalRangeMargin]) -> Verdict {
     Verdict::worst(margins.iter().map(|m| m.verdict)).unwrap_or(Verdict::Ok)
 }
 
-/// 種類ごとの判定（key は `range:<節点>:<種類>`）。温度の表示は sat-units に委譲する。
-pub(crate) fn range_checks(
-    node: &str,
-    lo: f64,
-    hi: f64,
-    margins: &[ThermalRangeMargin],
-    margin: &ThermalMarginUsed,
-) -> Vec<Check> {
-    let t = quantity_text::<Temperature>;
-    let u = margin.uncertainty.value();
-    margins
-        .iter()
-        .map(|m| {
-            let predicted = if u > 0.0 {
-                format!(
-                    "{}〜{}、不確かさ込み {}〜{}",
-                    t(lo),
-                    t(hi),
-                    t(lo - u),
-                    t(hi + u)
-                )
-            } else {
-                format!("{}〜{}", t(lo), t(hi))
-            };
-            Check::new(
-                &format!("range:{node}:{}", m.kind.key()),
-                &format!("{node} の温度（{}）", m.kind.noun()),
-                m.verdict,
-                format!(
-                    "{predicted}（{} {}〜{}）",
-                    m.kind.noun(),
-                    t(m.range.min.value()),
-                    t(m.range.max.value())
-                ),
-            )
-        })
-        .collect()
-}
+mod checks;
+#[cfg(test)]
+use checks::excluded_text;
+pub(crate) use checks::range_checks;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn range(min: f64, max: f64) -> ThermalTempRange {
-        ThermalTempRange {
-            min: Qty::from_raw(min),
-            max: Qty::from_raw(max),
-        }
-    }
-
-    fn verdicts(
-        lo: f64,
-        hi: f64,
-        ranges: &ThermalRanges,
-        margin: ThermalMarginPolicy,
-    ) -> Vec<Verdict> {
-        range_margins(lo, hi, ranges, &margin.used())
-            .iter()
-            .map(|m| m.verdict)
-            .collect()
-    }
-
-    /// 動作範囲 270〜320 K: 280〜300 K は端から 10 K 離れて Ok、316 K は上端まで 4 K（< 5 K）で警告、
-    /// 321 K は超過。範囲が無ければ比較も判定文も無く、全体の判定は Ok。
-    #[test]
-    fn verdict_by_distance_to_the_ends() {
-        let r = ThermalRanges {
-            operating: Some(range(270.0, 320.0)),
-            ..ThermalRanges::default()
-        };
-        let p = ThermalMarginPolicy::default();
-        assert_eq!(verdicts(280.0, 300.0, &r, p), [Verdict::Ok]);
-        assert_eq!(verdicts(280.0, 316.0, &r, p), [Verdict::Warning]);
-        assert_eq!(verdicts(280.0, 321.0, &r, p), [Verdict::Violation]);
-        assert_eq!(verdicts(268.0, 300.0, &r, p), [Verdict::Violation]);
-        let none = range_margins(0.0, 1.0e4, &ThermalRanges::default(), &p.used());
-        assert!(none.is_empty());
-        assert_eq!(worst_verdict(&none), Verdict::Ok);
-        let m = range_margins(280.0, 316.0, &r, &p.used());
-        let checks = range_checks("box", 280.0, 316.0, &m, &p.used());
-        assert_eq!(checks[0].key, "range:box:operating");
-        assert!((m[0].margin_low.value() - 10.0).abs() < 1e-12);
-        assert!((m[0].margin_high.value() - 4.0).abs() < 1e-12);
-    }
-
-    /// 保管 250〜340 K・動作 270〜320 K・性能 285〜305 K に 280〜300 K を当てる: 保管は端から 30 K（Ok）、
-    /// 動作は 10 K（Ok）、性能は下端を 5 K 下回る（違反）。不確かさ 8 K を足すと動作は 2 K（< 5 K）で警告、
-    /// 保管は 22 K で Ok のまま。警告の幅を 25 K にすると保管も警告。
-    #[test]
-    fn three_ranges_and_uncertainty_by_hand() {
-        let r = ThermalRanges {
-            storage: Some(range(250.0, 340.0)),
-            operating: Some(range(270.0, 320.0)),
-            performance: Some(range(285.0, 305.0)),
-        };
-        use Verdict::{Ok, Violation, Warning};
-        let none = ThermalMarginPolicy::default();
-        assert_eq!(verdicts(280.0, 300.0, &r, none), [Ok, Ok, Violation]);
-        let u8 = ThermalMarginPolicy {
-            uncertainty: Some(Qty::from_raw(8.0)),
-            warning_band: None,
-        };
-        assert_eq!(verdicts(280.0, 300.0, &r, u8), [Ok, Warning, Violation]);
-        let wide = ThermalMarginPolicy {
-            warning_band: Some(Qty::from_raw(25.0)),
-            ..u8
-        };
-        assert_eq!(
-            verdicts(280.0, 300.0, &r, wide),
-            [Warning, Warning, Violation]
-        );
-        let m = range_margins(280.0, 300.0, &r, &u8.used());
-        let keys: Vec<String> = range_checks("n", 280.0, 300.0, &m, &u8.used())
-            .into_iter()
-            .map(|c| c.key)
-            .collect();
-        assert_eq!(
-            keys,
-            [
-                "range:n:storage",
-                "range:n:operating",
-                "range:n:performance"
-            ]
-        );
-        assert_eq!(worst_verdict(&m), Violation);
-    }
-
-    /// 種類ごとの共通部分: 片方にしか無い種類はその範囲のまま。
-    #[test]
-    fn ranges_intersect_per_kind() {
-        let a = ThermalRanges {
-            operating: Some(range(233.0, 343.0)),
-            storage: Some(range(223.0, 353.0)),
-            performance: None,
-        };
-        let b = ThermalRanges {
-            operating: Some(range(253.0, 358.0)),
-            storage: None,
-            performance: Some(range(273.0, 303.0)),
-        };
-        let c = a.intersect(b);
-        assert_eq!(c.operating, Some(range(253.0, 343.0)));
-        assert_eq!(c.storage, a.storage);
-        assert_eq!(c.performance, b.performance);
-    }
-}
+mod tests;

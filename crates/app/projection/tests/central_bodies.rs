@@ -31,7 +31,7 @@ fn about(body: CentralBodyKind) -> Design {
     for c in t.cases.values_mut() {
         c.solar_flux = None;
         c.albedo = None;
-        c.earth_ir = None;
+        c.planet_ir = None;
     }
     d
 }
@@ -49,7 +49,7 @@ fn lunar_orbit_thermal_and_eclipse_use_lunar_environment() {
     let (hot, cold) = (case("hot"), case("cold"));
     for c in [hot, cold] {
         assert_eq!(c.environment.albedo.value(), 0.12);
-        assert!(c.environment.earth_ir.is_none());
+        assert!(c.environment.planet_ir.is_none());
         assert!((c.environment.night_ir.unwrap().value() - 5.387).abs() < 1e-2);
     }
     assert_eq!(hot.environment.solar_flux.unwrap().value(), 1414.0);
@@ -90,7 +90,7 @@ fn mars_orbit_requires_environment_values() {
         .iter()
         .filter_map(|m| m.target.as_ref().map(ToString::to_string))
         .collect();
-    for key in ["albedo", "earth_ir", "solar_flux"] {
+    for key in ["albedo", "planet_ir", "solar_flux"] {
         let path = format!("analysis.thermal.case.hot.{key}");
         assert!(missing.contains(&path), "{path}: {missing:?}");
     }

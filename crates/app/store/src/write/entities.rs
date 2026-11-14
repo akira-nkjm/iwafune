@@ -190,11 +190,14 @@ pub fn set_setting(
     keys: &[String],
     value: Option<&SettingValue>,
 ) -> Result<(), StoreError> {
+    // 古い名前のキーを打っても新しい名前に書き、ファイルに残る古い名前も先に書き換える（両方の名前にしない）
+    let keys = crate::profile::renamed::current_keys(file, keys);
     let Some((last, parents)) = keys.split_last() else {
         return Err(StoreError::edit(file, "キーが空です"));
     };
     let item = value.map(setting_item);
     edits.edit_or_create(file, |doc| {
+        crate::profile::renamed::rename_keys(file, doc.as_table_mut());
         let mut table: &mut Table = doc.as_table_mut();
         for (i, key) in parents.iter().enumerate() {
             if let Some(Item::Value(Value::InlineTable(inline))) = table.get_mut(key) {

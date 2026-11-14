@@ -7,7 +7,8 @@ import type { Verdict } from "./Verdict";
  */
 export type ThermalSteadyEnvelope = { node: string, min: number, min_case: string, max: number, max_case: string, 
 /**
- * 書かれている温度範囲（保管・動作・性能の順）と全ケースの最低・最高の比較
+ * 種類ごとの全ケースの比較（その範囲を当てたケースのうち、下限・上限の側で余裕の最も小さいもの。
+ * 範囲がケースで変わらなければ全ケースの最低・最高と範囲の比較）
  */
 ranges: Array<ThermalRangeMargin>, 
 /**

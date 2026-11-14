@@ -7,7 +7,7 @@ describe("熱の温度表", () => {
     preset: null,
     solar_flux: null,
     albedo: 0.3,
-    earth_ir: 237,
+    planet_ir: 237,
     space_temperature: 3,
   };
   const out: ThermalSteadyOutput = {

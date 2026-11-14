@@ -15,7 +15,7 @@ absorbed: number,
  */
 internal: number, 
 /**
- * 書かれている温度範囲（保管・動作・性能の順）との比較
+ * 温度範囲（保管・動作・性能の順。モードがあれば部品の電源の状態で選ぶ）との比較
  */
 ranges: Array<ThermalRangeMargin>, 
 /**

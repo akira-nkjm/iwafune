@@ -1,4 +1,4 @@
-//! 熱ネットワークの射影: 節点（部品の質量・比熱・3 種の温度範囲）、取付の熱結合、外面（面積・法線・α/ε か表面材）。
+//! 熱ネットワークの射影: 節点（部品の質量・比熱・3 種の温度範囲・電源の状態を数える冗長と語彙）、取付の熱結合、外面（面積・法線・α/ε か表面材）。
 //! 範囲の共通部分・表面材の混ぜ方・熱結合の計算は sat-analysis が行う。ここは部品と設定の値を集めるだけ。
 
 use super::{node_of, thermal};
@@ -52,7 +52,7 @@ fn nodes(ctx: &Context<'_>, s: &ThermalSettings, m: &mut MissingInputs) -> Vec<T
         .collect()
 }
 
-/// 節点に入る部品 1 つ（1 個あたりの質量・比熱と員数）。
+/// 節点に入る部品 1 つ（1 個あたりの質量・比熱と員数、モードでの電源の状態を数える冗長の方式と語彙）。
 fn node_part(
     ctx: &Context<'_>,
     node: &str,
@@ -78,6 +78,8 @@ fn node_part(
         count: crate::parts::count_of(p),
         specific_heat: Qty::from_raw(c),
         ranges: ranges(p),
+        redundancy: crate::parts::redundancy(p),
+        states: p.states.clone(),
     })
 }
 
