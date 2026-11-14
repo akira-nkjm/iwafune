@@ -9,6 +9,7 @@ import {
 import { Focus, Map as MapIcon, Maximize, ZoomIn, ZoomOut } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
 import { useT } from "@/i18n";
+import { keepsPromotedLayerResolution } from "@/lib/browser";
 import { cn } from "@/lib/cn";
 import { inkVeil, uiHex } from "@/lib/tone";
 import type { DiagramSelection } from "../DiagramInspector";
@@ -186,20 +187,24 @@ function useWheelZoom() {
  * 拡大・移動が止まって SHARPEN_AFTER たったら、図を今の拡大率で描き直させる。Chromium 系のブラウザは、動かしている間の
  * 図を拡大前の解像度の絵のまま引き伸ばし、止まっても描き直さないことがある（文字や線がガサガサになる）。動かしている
  * 間は will-change: transform で 1 枚の絵として速く動かし、止まったら外して今の拡大率で描き直させる。
+ * Safari（WebKit）は絵にした要素を外しても絵の解像度のまま引き伸ばすので、絵にしない（2D の transform は絵にせず描く）。
  */
 function useSharpAfterMove() {
   const domNode = useStore((s) => s.domNode);
   const timer = useRef<number | undefined>(undefined);
   const viewport = () => domNode?.querySelector<HTMLElement>(".react-flow__viewport") ?? null;
   useEffect(() => () => window.clearTimeout(timer.current), []);
+  const promote = !keepsPromotedLayerResolution();
   useOnViewportChange({
     onStart: () => {
       window.clearTimeout(timer.current);
+      if (!promote) return;
       const v = viewport();
       if (v) v.style.willChange = "transform";
     },
     onEnd: () => {
       window.clearTimeout(timer.current);
+      if (!promote) return;
       timer.current = window.setTimeout(() => {
         const v = viewport();
         if (v) v.style.willChange = "auto";
