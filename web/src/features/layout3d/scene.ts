@@ -33,6 +33,38 @@ export interface Axis3D {
   dir: V3;
 }
 
+/** 視野の円錐の不透明度（中の部品が透けて見える薄さ） */
+export const FOV_OPACITY = 0.08;
+
+/** 視野の円錐（部品座標の視線の向きと半角）。部品の子として描く */
+export interface Fov3D {
+  part: string;
+  /** 部品座標の視線の向き（長さ 1） */
+  dir: V3;
+  /** 視野の半角 [rad] */
+  halfAngle: number;
+}
+
+/** 円錐を描く半角の上限 [rad]。これより広い視野は上限で描く（半球に近い円錐は平らになり形が読めないため） */
+export const FOV_DRAW_MAX = (80 * Math.PI) / 180;
+
+/** 視線（`boresight`）と視野の半角（`fov_half_angle`）を両方持つ部品の視野 */
+export function fovsOf(design: DesignView): Fov3D[] {
+  const out: Fov3D[] = [];
+  for (const p of design.parts) {
+    if (!p.body) continue;
+    const dir = p.values.boresight?.value;
+    const half = p.values.fov_half_angle?.value;
+    if (dir?.type !== "vector" || half?.type !== "scalar") continue;
+    const d = new Vector3(...dir.si);
+    const angle = half.nominal.si;
+    if (d.lengthSq() === 0 || !(angle > 0)) continue;
+    d.normalize();
+    out.push({ part: p.id, dir: [d.x, d.y, d.z], halfAngle: Math.min(angle, FOV_DRAW_MAX) });
+  }
+  return out;
+}
+
 /** 方向属性を部品の子として描く矢印にする。座標変換は親 mesh に任せる */
 export function axesOf(design: DesignView): Axis3D[] {
   const out: Axis3D[] = [];
@@ -57,6 +89,7 @@ export const SCENE_RATIOS = {
   arrowHead: 0.06,
   arrowWidth: 0.035,
   comRadius: 0.012,
+  fovLength: 0.3,
   axes: 0.5,
   grid: 6,
   gridCell: 0.05,

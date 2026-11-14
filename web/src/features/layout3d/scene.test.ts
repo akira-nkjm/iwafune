@@ -11,6 +11,8 @@ import {
   boxMaterial,
   DEFAULT_STRUCTURE_OPACITY,
   DIMMED_OPACITY_RATIO,
+  FOV_DRAW_MAX,
+  fovsOf,
   pickBox,
 } from "./scene";
 
@@ -194,5 +196,46 @@ describe("クリックで選ぶ部品", () => {
     expect(pickBox(hits, "RW")).toBe("PANEL");
     expect(pickBox(hits, "OTHER")).toBe("PANEL");
     expect(pickBox([], null)).toBeNull();
+  });
+});
+
+describe("視野の円錐", () => {
+  const body: PartRow["body"] = { position: [0, 0, 0], orientation: [1, 0, 0, 0], root: false };
+  const withFov = (deg: number): PartRow => ({
+    ...base,
+    body,
+    values: {
+      ...base.values,
+      boresight: {
+        ...(base.values.mass as PartRow["values"][string]),
+        attr: "boresight",
+        value: { type: "vector", x: 0, y: 0, z: 2, unit: "", si: [0, 0, 2], frame: null },
+      },
+      fov_half_angle: {
+        ...(base.values.mass as PartRow["values"][string]),
+        attr: "fov_half_angle",
+        value: {
+          type: "scalar",
+          nominal: {
+            value: deg,
+            unit: "deg",
+            si: (deg * Math.PI) / 180,
+            dimension: "Angle",
+            display: "",
+          },
+          min: null,
+          max: null,
+        },
+      },
+    },
+  });
+
+  it("視線と半角を持つ部品だけを、長さ 1 の向きと半角 [rad] にする。広すぎる視野は上限で描く", () => {
+    const [f] = fovsOf({ ...fixture, parts: [withFov(10)] });
+    expect(f?.dir).toEqual([0, 0, 1]);
+    expect(f?.halfAngle).toBeCloseTo((10 * Math.PI) / 180);
+    expect(fovsOf({ ...fixture, parts: [withFov(89)] })[0]?.halfAngle).toBe(FOV_DRAW_MAX);
+    expect(fovsOf({ ...fixture, parts: [{ ...withFov(10), body: null }] })).toEqual([]);
+    expect(fovsOf(fixture)).toEqual([]);
   });
 });

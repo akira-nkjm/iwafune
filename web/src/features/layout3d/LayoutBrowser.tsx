@@ -1,11 +1,11 @@
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Focus } from "lucide-react";
 import type { DesignView, PartRow } from "@/api/types";
 import { PartsTree } from "@/features/components/list/PartsTree";
 import { useT } from "@/i18n";
 import { type TreeNode, treeItems } from "@/kit/tree/tree-nodes";
 import { cn } from "@/lib/cn";
 import { nodeLabel } from "@/lib/design";
-import { toggleHidden, type Visibility, visibilityOf } from "./visibility";
+import { isIsolated, isolate, toggleHidden, type Visibility, visibilityOf } from "./visibility";
 
 /**
  * 配置のページの左の部品のツリー（CAD のブラウザー）。部品のページと同じ製品ツリー（`PartsTree`）に、
@@ -52,15 +52,27 @@ export function LayoutBrowser({
           onSelect={onSelect}
           folderLabel={folderLabel}
           compact
-          renderActions={(node) => (
-            <EyeToggle
-              node={node}
-              label={node.item ? node.label : folderLabel(node.label)}
-              placed={placed}
-              hidden={hidden}
-              onHidden={onHidden}
-            />
-          )}
+          renderActions={(node) => {
+            const label = node.item ? node.label : folderLabel(node.label);
+            return (
+              <span className="flex items-center">
+                <IsolateToggle
+                  node={node}
+                  label={label}
+                  placed={placed}
+                  hidden={hidden}
+                  onHidden={onHidden}
+                />
+                <EyeToggle
+                  node={node}
+                  label={label}
+                  placed={placed}
+                  hidden={hidden}
+                  onHidden={onHidden}
+                />
+              </span>
+            );
+          }}
         />
       </div>
     </div>
@@ -103,6 +115,48 @@ function EyeToggle({
       )}
     >
       {state === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
+    </button>
+  );
+}
+
+/**
+ * 行の「この部品だけ表示」（フォルダーは子孫だけ）。押すとほかの描ける部品を隠し、その組だけが見えている間に押すと
+ * すべて表示に戻す。3D に描ける部品が無い行には出さない
+ */
+function IsolateToggle({
+  node,
+  label: name,
+  placed,
+  hidden,
+  onHidden,
+}: {
+  node: TreeNode<PartRow>;
+  label: string;
+  placed: ReadonlySet<string>;
+  hidden: ReadonlySet<string>;
+  onHidden: (hidden: Set<string>) => void;
+}) {
+  const L = useT().systems.layout3d;
+  const ids = treeItems(node)
+    .map((p) => p.id)
+    .filter((id) => placed.has(id));
+  if (ids.length === 0) return <span aria-hidden="true" className="size-6" />;
+  const all = [...placed];
+  const isolated = isIsolated(hidden, all, ids);
+  const label = isolated ? L.isolated : L.isolate(name);
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={isolated}
+      title={label}
+      onClick={() => onHidden(isolate(hidden, all, ids))}
+      className={cn(
+        "flex size-6 items-center justify-center rounded-control hover:bg-panel-2 hover:text-ink",
+        isolated ? "text-accent-ink" : "text-ink-3",
+      )}
+    >
+      <Focus size={14} />
     </button>
   );
 }
