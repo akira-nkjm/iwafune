@@ -1,15 +1,12 @@
 //! 軌道条件の解析（季節解析・高度低下）。既定値や物理計算を持たず、条件ファイル・部品から写す。
-use crate::parts::{by_role, part_qty};
 use crate::quantity::{setting, setting_opt};
 use crate::{Context, MissingInputs};
-use fune_model::Target;
-use fune_model::builtin::Role;
 use fune_model::design::OrbitDecaySettings;
 use fune_model::design::setting_dims as dims;
 use fune_model::value::Quantity;
 use sat_analysis::orbit::EclipseSeasonInput;
-use sat_analysis::orbit::decay::{DecayPropulsion, OrbitDecayInput};
-use sat_units::typed::{Area, Length, Mass, Qty, Time};
+use sat_analysis::orbit::decay::OrbitDecayInput;
+use sat_units::typed::{Area, Length, Qty, Time};
 
 /// 軌道・ミッション期間・任意の季節刻み。
 pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingInputs> {
@@ -49,7 +46,8 @@ pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingIn
 }
 
 /// `orbit.decay`: 軌道・機体の質量（部品）・外形（構体の `size`）・抗力係数（`analysis.aocs.drag_coefficient`）・
-/// ミッション期間と `[decay]` の任意の設定。宇宙天気の表から引いた列は service が足す（ここは表を読まない）。
+/// ミッション期間と `[decay]` の任意の設定。軌道維持の推進系は推進系の解析と同じ入力（`propulsion::maneuvers`。
+/// 推進系が無ければ付けず、有れば足りない入力も並べる）。宇宙天気の表から引いた列は service が足す（ここは表を読まない）。
 pub fn decay(ctx: &Context<'_>) -> Result<OrbitDecayInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let orbit = ctx.orbit(&mut m);
@@ -75,7 +73,13 @@ pub fn decay(ctx: &Context<'_>) -> Result<OrbitDecayInput, MissingInputs> {
         }
     };
     let mass = crate::structure::summary(ctx, &mut m).map(|s| s.total_mass);
-    let propulsion = s.propellant.and_then(|p| propulsion(ctx, p, &mut m));
+    let propulsion = if crate::propulsion::present(ctx) {
+        crate::propulsion::maneuvers(ctx)
+            .map_err(|e| m.extend(e))
+            .ok()
+    } else {
+        None
+    };
     let drag_coefficient = ctx
         .design
         .analysis
@@ -107,7 +111,6 @@ struct DecaySettings {
     drag_area: Option<Qty<Area>>,
     band: Option<Qty<Length>>,
     max_lifetime: Option<Qty<Time>>,
-    propellant: Option<Qty<Mass>>,
 }
 
 impl DecaySettings {
@@ -134,42 +137,6 @@ impl DecaySettings {
                 q(|s| s.max_lifetime.as_ref()),
                 m,
             ),
-            propellant: setting_opt(
-                &dims::ORBIT_DECAY_PROPELLANT,
-                &[],
-                q(|s| s.propellant.as_ref()),
-                m,
-            ),
         }
     }
-}
-
-/// 推薬を書いたときの推進系: 比推力はスラスタ（role = thruster）のうち最も低いもの（保守側）。
-fn propulsion(
-    ctx: &Context<'_>,
-    propellant: Qty<Mass>,
-    m: &mut MissingInputs,
-) -> Option<DecayPropulsion> {
-    let thrusters: Vec<_> = by_role(ctx, Role::Thruster)
-        .filter_map(|p| {
-            Some((
-                p.id.to_string(),
-                part_qty::<Time>(p, "isp", "スラスタの比推力", m)?,
-            ))
-        })
-        .collect();
-    let lowest = thrusters
-        .into_iter()
-        .min_by(|a, b| a.1.value().total_cmp(&b.1.value()));
-    if lowest.is_none() {
-        m.push(
-            Target::any_of_roles(&[Role::Thruster], None),
-            "軌道維持の推薬を書いたときはスラスタ（role = thruster）の比推力が要ります",
-        );
-    }
-    lowest.map(|(thruster, isp)| DecayPropulsion {
-        thruster,
-        isp,
-        propellant,
-    })
 }

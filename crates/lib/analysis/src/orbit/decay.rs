@@ -9,9 +9,12 @@
 //! 高度はおよそ 180〜1000 km（1 周の平均が意味を持つ範囲。再突入の直前の数日は粗い）。抗力の面積は一定
 //! （姿勢・パネルの向きの変化は面積の与え方で見込む）。推力による高度の変化は ΔV の積算としてだけ扱う。
 //!
+//! **軌道維持の推薬**: 推進系の解析（`propulsion.propellant`）の使える推薬（[`propellant`]）。推薬の量をここで持たない。
+//!
 //! **太陽活動の条件**: ECSS-E-ST-10-04C の長期のプリセット（低・中・高）を全期間で一定にしたものと、
 //! 宇宙天気の表から日付で引いた列（[`DecayWeatherSchedule`]。呼び出し側が表から引いて入力に入れる）。
 
+mod propellant;
 mod rates;
 mod simulate;
 mod weather;
@@ -23,16 +26,16 @@ pub use weather::{
     DecayWeatherSummary, WEATHER_STEP_S, dated_schedule,
 };
 
+use crate::propulsion::PropulsionInput;
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check,
-    ConditionTopic, Series, ensure_non_negative, ensure_positive,
+    ConditionTopic, Series, ensure_positive,
 };
 use sat_astro::atmosphere::space_weather::{DatedSpaceWeather, SolarActivity};
 use sat_astro::constants::{SECONDS_PER_DAY, SECONDS_PER_JULIAN_CENTURY};
 use sat_astro::ephem::CentralBody;
 use sat_astro::math::Vec3;
 use sat_astro::orbit::{OrbitSpec, altitude_from_semi_major_axis};
-use sat_astro::rocket::{delta_v, exhaust_velocity};
 use sat_units::typed::{Area, Length, Mass, MassDensity, Qty, Time, Velocity};
 use serde::{Deserialize, Serialize};
 use simulate::{DecayTrack, HoldTrack, Model};
@@ -85,8 +88,9 @@ pub struct OrbitDecayInput {
     pub band: Option<Qty<Length>>,
     /// 寿命の上限（廃棄の要求。例: 25 年）
     pub max_lifetime: Option<Qty<Time>>,
-    /// 軌道維持に使う推進系（無ければ推薬の寿命を求めない）
-    pub propulsion: Option<DecayPropulsion>,
+    /// 軌道維持に使う推進系（推進系の解析と同じ入力。使える推薬は `propulsion.propellant` が決める。
+    /// 無ければ推薬の寿命を求めない）
+    pub propulsion: Option<PropulsionInput>,
     /// 宇宙天気の表から日付で引いた列（無ければプリセットだけ）
     #[serde(default)]
     pub dated_weather: Option<DecayWeatherSchedule>,
@@ -97,18 +101,6 @@ impl OrbitDecayInput {
     pub fn span_s(&self) -> f64 {
         self.span.map_or(DEFAULT_SPAN_S, |q| q.value())
     }
-}
-
-/// 軌道維持に使う推進系。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct DecayPropulsion {
-    /// 使うスラスタ（比推力を取った部品）
-    pub thruster: String,
-    /// 比推力
-    pub isp: Qty<Time>,
-    /// 軌道維持に使える推薬
-    pub propellant: Qty<Mass>,
 }
 
 /// 高度低下の解析の出力。
@@ -211,7 +203,10 @@ fn used_values(input: &OrbitDecayInput) -> Result<DecayUsed, AnalysisError> {
     if let Some(b) = input.band {
         ensure_positive("軌道維持の高度の帯", b.value())?;
     }
-    let propulsion_delta_v = propulsion_delta_v(input)?;
+    let sk = match &input.propulsion {
+        Some(p) => propellant::capacity(p)?,
+        None => None,
+    };
     Ok(DecayUsed {
         drag_coefficient,
         drag_area,
@@ -220,7 +215,9 @@ fn used_values(input: &OrbitDecayInput) -> Result<DecayUsed, AnalysisError> {
         reentry_altitude: Qty::from_raw(reentry),
         station_keeping_span: Qty::from_raw(station_keeping_span),
         band: input.band,
-        propulsion_delta_v,
+        propellant: sk.as_ref().map(|c| c.propellant),
+        thruster: sk.as_ref().map(|c| c.thruster.clone()),
+        propulsion_delta_v: sk.map(|c| c.delta_v),
         orbit_samples: ORBIT_SAMPLES as u32,
         max_step: Qty::from_raw(MAX_STEP_S),
         weather_step: input
@@ -252,20 +249,6 @@ fn reentry_altitude(input: &OrbitDecayInput) -> Result<f64, AnalysisError> {
         ));
     }
     Ok(reentry)
-}
-
-/// 推薬をすべて使ったときの ΔV（ロケット方程式。推進系が無ければ `None`）。
-fn propulsion_delta_v(input: &OrbitDecayInput) -> Result<Option<Qty<Velocity>>, AnalysisError> {
-    let Some(p) = &input.propulsion else {
-        return Ok(None);
-    };
-    ensure_positive("比推力", p.isp.value())?;
-    ensure_non_negative("推薬", p.propellant.value())?;
-    let ve = exhaust_velocity(p.isp.value());
-    let dv = delta_v(ve, input.mass.value(), p.propellant.value()).ok_or_else(|| {
-        AnalysisError::InvalidInput("推薬は機体の質量より小さくしてください".into())
-    })?;
-    Ok(Some(Qty::from_raw(dv)))
 }
 
 /// 箱（辺 `size` [m]）がどの向きも同じ確率でとるときの平均の投影面積 [m²]。

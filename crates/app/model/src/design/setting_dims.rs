@@ -109,8 +109,6 @@ setting_quantities! {
     ORBIT_DECAY_BAND: Length = Conditions["orbit", "decay", "band"];
     /// 寿命の上限（廃棄の要求）
     ORBIT_DECAY_MAX_LIFETIME: Time = Conditions["orbit", "decay", "max_lifetime"];
-    /// 軌道維持に使える推薬
-    ORBIT_DECAY_PROPELLANT: Mass = Conditions["orbit", "decay", "propellant"];
     /// 軌道の高度（`conditions/orbit.toml`）
     ORBIT_ALTITUDE: Length = Conditions["orbit", "altitude"];
     /// 軌道長半径
