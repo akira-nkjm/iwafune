@@ -4,7 +4,17 @@ import type { PartRow } from "@/api/types";
 import { systemTone } from "@/lib/systems";
 import { toneHex } from "@/lib/tone";
 import { bodyAt, fixture, mountAt } from "@/test/fixture";
-import { axesOf, boundsOf, boxesOf, boxMaterial, DEFAULT_STRUCTURE_OPACITY } from "./scene";
+import {
+  axesOf,
+  boundsOf,
+  boxesOf,
+  boxMaterial,
+  DEFAULT_STRUCTURE_OPACITY,
+  DIMMED_OPACITY_RATIO,
+  FOV_DRAW_MAX,
+  fovsOf,
+  pickBox,
+} from "./scene";
 
 const base = fixture.parts[0]!;
 
@@ -145,7 +155,65 @@ describe("構造の透過表示", () => {
       expect(boxMaterial(box, true, opacity)).toMatchObject({ opacity: 1, depthWrite: true });
     }
     expect(boxMaterial(box, false).opacity).toBe(0.45);
+    // ほかの部品が選ばれているときは淡く、選んだ部品は不透明のまま
+    expect(boxMaterial(box, false, undefined, true).opacity).toBeCloseTo(
+      0.45 * DIMMED_OPACITY_RATIO,
+    );
+    expect(boxMaterial(box, true, 0.3, true).opacity).toBe(1);
     expect(boxMaterial({ ...box, sized: true }, false).opacity).toBe(0.85);
     expect(boxMaterial({ ...box, structure: false }, true, 0).opacity).toBe(1);
+  });
+});
+
+describe("クリックで選ぶ部品", () => {
+  it("いちばん手前を選び、選んでいる部品を押すと奥へ順に移り、最後は手前に戻る", () => {
+    const hits = ["PANEL", "PANEL", "FRAME", "RW"];
+    expect(pickBox(hits, null)).toBe("PANEL");
+    expect(pickBox(hits, "PANEL")).toBe("FRAME");
+    expect(pickBox(hits, "FRAME")).toBe("RW");
+    expect(pickBox(hits, "RW")).toBe("PANEL");
+    expect(pickBox(hits, "OTHER")).toBe("PANEL");
+    expect(pickBox([], null)).toBeNull();
+  });
+});
+
+describe("視野の円錐", () => {
+  const body: PartRow["body"] = bodyAt([0, 0, 0], [1, 0, 0, 0]);
+  const withFov = (deg: number): PartRow => ({
+    ...base,
+    body,
+    values: {
+      ...base.values,
+      boresight: {
+        ...(base.values.mass as PartRow["values"][string]),
+        attr: "boresight",
+        value: { type: "vector", x: 0, y: 0, z: 2, unit: "", si: [0, 0, 2], frame: null },
+      },
+      fov_half_angle: {
+        ...(base.values.mass as PartRow["values"][string]),
+        attr: "fov_half_angle",
+        value: {
+          type: "scalar",
+          nominal: {
+            value: deg,
+            unit: "deg",
+            si: (deg * Math.PI) / 180,
+            dimension: "Angle",
+            display: "",
+          },
+          min: null,
+          max: null,
+        },
+      },
+    },
+  });
+
+  it("視線と半角を持つ部品だけを、長さ 1 の向きと半角 [rad] にする。広すぎる視野は上限で描く", () => {
+    const [f] = fovsOf({ ...fixture, parts: [withFov(10)] });
+    expect(f?.dir).toEqual([0, 0, 1]);
+    expect(f?.halfAngle).toBeCloseTo((10 * Math.PI) / 180);
+    expect(fovsOf({ ...fixture, parts: [withFov(89)] })[0]?.halfAngle).toBe(FOV_DRAW_MAX);
+    expect(fovsOf({ ...fixture, parts: [{ ...withFov(10), body: null }] })).toEqual([]);
+    expect(fovsOf(fixture)).toEqual([]);
   });
 });

@@ -90,7 +90,7 @@ export function NavSectionList({
                     )}
                   >
                     <Icon size={16} strokeWidth={1.6} className="shrink-0" />
-                    <span className={railFade(rail)}>{name}</span>
+                    <span className={cn("text-box-cap", railFade(rail))}>{name}</span>
                   </NavLink>
                 </RailTip>
               </li>
