@@ -34,15 +34,15 @@ station_keeping_span: number,
  */
 band: number | null, 
 /**
- * 軌道維持に使える推薬（推進系の解析 `propulsion.propellant` の使える推薬。推進系が無ければ `None`）
+ * 軌道維持に使える推薬（推進系の解析 `propulsion.propellant` の値から。推進系が無いか、軌道維持のスラスタを決められなければ `None`）
  */
 propellant: number | null, 
 /**
- * 比推力を取ったスラスタ（推進系のスラスタのうち最も低い比推力。推進系が無ければ `None`）
+ * 比推力を取ったスラスタ（軌道維持のマヌーバのスラスタ、無ければ推薬が 1 種類のときの最も低い比推力。決められなければ `None`）
  */
 thruster: string | null, 
 /**
- * 使える推薬をすべて使ったときの ΔV（ロケット方程式。推進系が無ければ `None`）
+ * 使える推薬をすべて使ったときの ΔV（ロケット方程式。`propellant` が無ければ `None`）
  */
 propulsion_delta_v: number | null, 
 /**
