@@ -11,7 +11,8 @@ import { ChecksList } from "./ChecksList";
 import { FieldValue } from "./FieldValue";
 import { fieldLabel } from "./fields";
 import { MissingList } from "./MissingList";
-import { collectScalars, groupScalars } from "./output";
+import { collectScalars, collectTables, groupScalars } from "./output";
+import { ResultTable } from "./ResultTable";
 
 const statusTone = { ok: "pos", missing_inputs: "warn", failed: "neg" } as const;
 
@@ -31,6 +32,7 @@ export function AnalysisCard({
   const r = state.result;
   const output = r?.output;
   const scalars = output ? collectScalars(output) : [];
+  const tables = output ? collectTables(output) : [];
   const checks = state.result?.checks ?? [];
   return (
     <Panel>
@@ -94,6 +96,19 @@ export function AnalysisCard({
                 </div>
               ))}
             </div>
+          )}
+          {tables.length > 0 && (
+            <details>
+              <summary className="cursor-pointer text-ink-3 text-xs">{t.systems.data}</summary>
+              <div className="mt-3 space-y-4">
+                {tables.map((table) => (
+                  <div key={table.path} className="overflow-auto">
+                    <h3 className="mb-2 font-medium text-sm">{fieldLabel(table.key)}</h3>
+                    <ResultTable rows={table.rows} at={table.at} dims={r.dims} labels={r.labels} />
+                  </div>
+                ))}
+              </div>
+            </details>
           )}
         </div>
       ) : null}

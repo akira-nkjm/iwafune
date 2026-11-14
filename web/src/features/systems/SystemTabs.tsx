@@ -1,8 +1,6 @@
 import { lazy, type ReactNode, Suspense } from "react";
 import { AnalysisCard } from "@/analysis/AnalysisCard";
-import { fieldLabel } from "@/analysis/fields";
-import { collectSeries, collectTables } from "@/analysis/output";
-import { ResultTable } from "@/analysis/ResultTable";
+import { collectSeries } from "@/analysis/output";
 import type { AnalysisState } from "@/api/queries";
 import type { AnalysisEntry, DesignView, PowerPageView, System } from "@/api/types";
 import { SystemModes } from "@/features/modes/matrix/ModesMatrix";
@@ -10,7 +8,7 @@ import { SettingsTable } from "@/features/project/SettingsTable";
 import { useT } from "@/i18n";
 import { analysisTitle } from "@/i18n/analysis-names";
 import { Empty } from "@/kit/feedback/Empty";
-import { Loading, SkeletonBlock, SkeletonTable } from "@/kit/feedback/Loading";
+import { Loading, SkeletonBlock } from "@/kit/feedback/Loading";
 import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { TablePanel } from "@/kit/table/TablePanel";
@@ -18,18 +16,16 @@ import { systemTitle } from "@/lib/design";
 import { AocsModes } from "./aocs/AocsModes";
 import { PowerModes } from "./power/PowerModes";
 import { PowerOverview } from "./power/PowerOverview";
-import { PowerParts } from "./power/PowerParts";
 import { PowerSeries } from "./power/PowerSeries";
-import { SystemPartsTable } from "./SystemPartsTable";
 
 /** グラフ（recharts）は時系列のタブを開いたときだけ読む。系のページの最初のチャンクを小さくするため */
 const SeriesChart = lazy(() =>
   import("@/analysis/SeriesChart").then((m) => ({ default: m.SeriesChart })),
 );
 
-export type SystemTab = "results" | "modes" | "breakdown" | "settings" | "series";
+export type SystemTab = "results" | "modes" | "settings" | "series";
 
-/** 系のページのタブの中身（結果・内訳・設定・時系列）。extra は系ごとの追加の表示（熱の温度表、構造の 3D など） */
+/** 系のページのタブの中身（結果・モード・設定・時系列）。extra は系ごとの追加の表示（熱の温度表、構造の 3D など） */
 export function SystemTabs({
   tab,
   powerPage,
@@ -52,7 +48,6 @@ export function SystemTabs({
   const dict = useT();
   if (system === "power" && powerPage) {
     if (tab === "results") return <PowerOverview page={powerPage} design={design} />;
-    if (tab === "breakdown" && design) return <PowerParts page={powerPage} defs={design.defs} />;
     if (tab === "series") return <PowerSeries page={powerPage} />;
     if (tab === "modes") return <PowerModes page={powerPage} />;
   }
@@ -74,38 +69,6 @@ export function SystemTabs({
             <AnalysisCard key={s.id} state={s} entry={entries.get(s.id)} design={design} />
           ))}
         </div>
-      </>
-    );
-  if (tab === "breakdown")
-    return (
-      <>
-        <TablePanel title={dict.systems.partsAttrs} caption={dict.systems.partsAttrsCaption}>
-          {design ? (
-            <SystemPartsTable design={design} system={system} />
-          ) : (
-            <Loading>
-              <SkeletonTable rows={6} cols={5} />
-            </Loading>
-          )}
-        </TablePanel>
-        {extra?.breakdown}
-        {states.map((s) => {
-          const tables = s.result?.output ? collectTables(s.result.output) : [];
-          return tables.map((t) => (
-            <TablePanel
-              key={`${s.id}:${t.path}`}
-              title={`${analysisTitle(entries.get(s.id)?.info, s.id)} — ${fieldLabel(t.key)}`}
-              caption={<span className="font-mono">{`${s.id} · ${t.path}`}</span>}
-            >
-              <ResultTable
-                rows={t.rows}
-                at={t.at}
-                dims={s.result?.dims}
-                labels={s.result?.labels}
-              />
-            </TablePanel>
-          ));
-        })}
       </>
     );
   if (tab === "settings") {

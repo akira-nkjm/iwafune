@@ -83,7 +83,6 @@ const result: AnalysisRunResult = {
 const page: PowerPageView = {
   modes,
   verdicts: [bar],
-  parts: [],
   analyses: [
     {
       result,

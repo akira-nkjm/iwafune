@@ -25,7 +25,6 @@ export const systemsEn: typeof systemsJa = {
       design: "Design",
       limit: "Limit / required",
       outline: "On this page",
-      data: "View data",
     },
     aocsModes: {
       empty: "No modes",
@@ -69,7 +68,6 @@ export const systemsEn: typeof systemsJa = {
     tabs: {
       results: "Overview",
       modes: "Modes",
-      breakdown: "Parts",
       settings: "Settings",
       series: "Time series",
     },
@@ -116,14 +114,9 @@ export const systemsEn: typeof systemsJa = {
     steady: "Steady",
     timeSeries: "Time series",
     missing: (n: number) => `Missing inputs (${n})`,
+    data: "View data",
     openBreakdown: "Show breakdown",
     elapsed: "Elapsed [s]",
-    partsAttrs: "Parts × this subsystem's attributes",
-    partsAttrsCaption:
-      "Click a cell to edit it directly (SetValue). Per-state values open to edit each state",
-    noParts: "No parts relate to this subsystem",
-    part: "Part",
-    kind: "Kind",
     settingsTitle: (system: string) => `${system} settings`,
     settingsCaption: (files: string) => `Settings in ${files}`,
     noSettings: "No settings for this subsystem yet (Project / Settings lists every setting)",

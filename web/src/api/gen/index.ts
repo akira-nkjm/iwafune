@@ -248,7 +248,6 @@ export type * from "./PowerLimitKind";
 export type * from "./PowerModeView";
 export type * from "./PowerPageQuery";
 export type * from "./PowerPageView";
-export type * from "./PowerPartsGroup";
 export type * from "./PowerVerdictView";
 export type * from "./ProjectInfo";
 export type * from "./Propagator";

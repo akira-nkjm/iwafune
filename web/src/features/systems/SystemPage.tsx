@@ -15,7 +15,7 @@ import { systemExtras } from "./extras";
 import { SystemHeaderActions } from "./SystemHeaderActions";
 import { hasModes, type SystemTab, SystemTabs } from "./SystemTabs";
 
-const TABS: SystemTab[] = ["results", "modes", "breakdown", "series", "settings"];
+const TABS: SystemTab[] = ["results", "modes", "series", "settings"];
 
 function isTab(s: string | undefined): s is SystemTab {
   return TABS.some((t) => t === s);

@@ -89,7 +89,7 @@ describe("paths", () => {
       paths.catalogItem("local/rw"),
       paths.defs("attributes"),
       paths.defs("kinds"),
-      paths.system("power", { tab: "breakdown", kase: "hot" }),
+      paths.system("power", { tab: "series", kase: "hot" }),
     ];
     for (const url of urls) expect(matches(url), url).toBe(true);
     expect(matches("/design/nowhere")).toBe(false);

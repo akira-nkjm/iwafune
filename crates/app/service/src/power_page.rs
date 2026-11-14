@@ -3,11 +3,9 @@
 //! | モジュール | 責務 |
 //! |---|---|
 //! | `presentation` | 解析出力から流れ・ブレットバー・グラフの表示定義へ |
-//! | `parts` | 役割ごとの部品と表示属性 |
-use crate::dto::{PartsQuery, PowerAnalysisView, PowerModeView, PowerPageView, RunAnalysisRequest};
-use crate::{Result, Workspace, analysis, query};
+use crate::dto::{PowerAnalysisView, PowerModeView, PowerPageView, RunAnalysisRequest};
+use crate::{Result, Workspace, analysis};
 
-mod parts;
 mod presentation;
 
 const ANALYSES: &[&str] = &[
@@ -37,8 +35,7 @@ pub fn power_page(ws: &Workspace, case: Option<&str>) -> Result<PowerPageView> {
             Ok(PowerAnalysisView { entry, result })
         })
         .collect::<Result<Vec<_>>>()?;
-    let parts = parts::groups(&query::list_parts(ws, &PartsQuery::default())?);
-    let mut page = assemble(analyses, parts);
+    let mut page = assemble(analyses);
     // モードは設計の表示順（fune.toml の `[modes] order`）に並べる。一覧に無いものは後ろ
     let order: Vec<String> = ws
         .snapshot()?
@@ -56,10 +53,7 @@ pub fn power_page(ws: &Workspace, case: Option<&str>) -> Result<PowerPageView> {
     Ok(page)
 }
 
-fn assemble(
-    analyses: Vec<PowerAnalysisView>,
-    parts: Vec<crate::dto::PowerPartsGroup>,
-) -> PowerPageView {
+fn assemble(analyses: Vec<PowerAnalysisView>) -> PowerPageView {
     let mut modes: Vec<PowerModeView> = Vec::new();
     let mut orbital = Vec::new();
     for analysis in &analyses {
@@ -94,7 +88,6 @@ fn assemble(
         modes,
         verdicts,
         analyses,
-        parts,
     }
 }
 
