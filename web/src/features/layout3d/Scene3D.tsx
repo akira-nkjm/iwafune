@@ -32,6 +32,9 @@ const AXIS_COLOR: Record<Axis3D["attr"], string> = {
   direction: toneHex.navy,
 };
 
+/** 押してから離すまでにこれより動いたらドラッグ（視点の操作）とみなし、クリックにしない [px] */
+const CLICK_SLOP_PX = 4;
+
 export type TransformMode = "translate" | "rotate";
 
 /** 箱を動かす編集（構造の配置）。操作の種類・並進のスナップと、離したときに 1 回呼ぶ `onPlace` */
@@ -80,6 +83,11 @@ export function Scene3D({
   home?: number;
 }) {
   const [target, setTarget] = useState<Mesh | null>(null);
+  // 押したときの画面の位置（離したときに動いていればドラッグ）
+  const pressed = useRef<{ x: number; y: number } | null>(null);
+  const dragged = (e: MouseEvent) =>
+    pressed.current !== null &&
+    Math.hypot(e.clientX - pressed.current.x, e.clientY - pressed.current.y) > CLICK_SLOP_PX;
   // TransformControls を掴んだときの位置・姿勢（離したときに動いたかを比べる）
   const grabbed = useRef<{ p: Vector3; q: Quaternion } | null>(null);
   const ids = new Set(boxes.map((b) => b.id));
@@ -97,7 +105,12 @@ export function Scene3D({
         near: dimensions.near,
         far: dimensions.far,
       }}
-      onPointerMissed={() => onSelect(null)}
+      onPointerDown={(e) => {
+        pressed.current = { x: e.clientX, y: e.clientY };
+      }}
+      onPointerMissed={(e) => {
+        if (!dragged(e)) onSelect(null);
+      }}
       style={{ background: "var(--color-panel-2)" }}
     >
       <ambientLight intensity={0.7} />
@@ -130,6 +143,8 @@ export function Scene3D({
             quaternion={[b.orientation[1], b.orientation[2], b.orientation[3], b.orientation[0]]}
             onClick={(e) => {
               e.stopPropagation();
+              // 視点を回す・動かすドラッグの終わりはクリックとして扱わない（選択が奥へ移ったり外れたりしないように）
+              if (dragged(e.nativeEvent)) return;
               // 光線上の当たり（近い順）のうち、箱の面（name = 部品の ID の mesh）に当たったものだけを数える。
               // 縁の線・軸の矢印の線は three の既定では 1 m 以内を通れば当たりになり、離れた部品を拾うため
               const hits = e.intersections

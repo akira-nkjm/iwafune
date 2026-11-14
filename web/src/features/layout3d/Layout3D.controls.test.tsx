@@ -211,7 +211,7 @@ it("座標の表示の切り替えを場面に渡す", () => {
   const html = render();
   for (const key of ["origin", "grid", "gizmo"] as const) expect(html).toContain(L.helper[key]);
   expect(state.scene.mock.lastCall?.[0]).toMatchObject({
-    helpers: { origin: true, grid: true, gizmo: true },
+    helpers: { origin: false, grid: false, gizmo: true },
   });
   state.helpers = { origin: false, grid: true, gizmo: false };
   render();
