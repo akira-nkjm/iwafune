@@ -31,6 +31,6 @@ async fn whole_page_has_case_resolved_analyses_and_power_data() {
             assert_eq!(analysis["result"], direct);
         }
         assert!(!page["modes"].as_array().unwrap().is_empty());
-        assert_eq!(page["parts"].as_array().unwrap().len(), 3);
+        assert!(page.get("parts").is_none());
     }
 }
