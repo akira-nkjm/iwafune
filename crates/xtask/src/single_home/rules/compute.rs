@@ -221,4 +221,15 @@ pub(in crate::single_home) const RULES: &[Rule] = &[
         &["crates/lib/astro/src/rocket.rs"],
         "推薬の質量流量",
     ),
+    // 固定軸 X → Y → Z の回転角 ⇄ クォータニオン
+    (
+        "fn from_fixed_xyz",
+        &["crates/lib/astro/src/math/euler.rs"],
+        "回転角 ⇄ クォータニオン",
+    ),
+    (
+        "fn to_fixed_xyz",
+        &["crates/lib/astro/src/math/euler.rs"],
+        "回転角 ⇄ クォータニオン",
+    ),
 ];

@@ -1,8 +1,7 @@
 //! 部品の表示（一覧の行・1 部品の全情報・1 つの値）。
 
 use crate::dto::{
-    AttrSection, BodyPoseView, DiagnosticView, MountView, PartRow, PartView, PartsQuery, PortView,
-    ValueAnswer, ValueQuery,
+    AttrSection, DiagnosticView, PartRow, PartView, PartsQuery, PortView, ValueAnswer, ValueQuery,
 };
 use crate::error::{Result, ServiceError};
 use crate::query::values::value_view;
@@ -13,33 +12,10 @@ use fune_model::id::Id;
 use fune_model::path::{ParamPath, parse};
 use fune_model::resolve::{Resolved, ResolvedPart};
 
-/// 機体座標での位置・姿勢。取付のある部品と、取付の根（ほかの部品の取付の連鎖の終わり）だけ。
-fn body_pose_view(resolved: &Resolved, rp: &ResolvedPart) -> Option<BodyPoseView> {
-    let root = rp.mount.is_none() && resolved.is_mount_root(&rp.id);
-    if rp.mount.is_none() && !root {
-        return None;
-    }
-    // 解決済みの部品なら必ず求まる（`body_pose` が None になるのは部品が無いときだけ）
-    let (p, q) = fune_projection::pose::body_pose(resolved, &rp.id)?;
-    Some(BodyPoseView {
-        position: [p.x, p.y, p.z],
-        orientation: [q.w, q.x, q.y, q.z],
-        root,
-    })
-}
-
 /// 部品の一覧の 1 行。
 pub(crate) fn part_row(design: &Design, resolved: &Resolved, rp: &ResolvedPart) -> PartRow {
     let part = design.parts.get(rp.id.as_str());
-    let mount = rp.mount.as_ref().map(|m| MountView {
-        on: m.on.clone(),
-        point: m.point.clone(),
-        position: m.pose.position,
-        authored_position: part
-            .and_then(|p| p.pose.as_ref())
-            .and_then(|p| p.position.clone()),
-        orientation: m.pose.orientation,
-    });
+    let unit = super::pose::position_unit(design, part);
     PartRow {
         paths: crate::query::views::parameter_paths(design, &rp.id, &rp.states),
         field_paths: crate::query::views::field_paths(&rp.id),
@@ -66,8 +42,9 @@ pub(crate) fn part_row(design: &Design, resolved: &Resolved, rp: &ResolvedPart) 
                 net: p.net.clone(),
             })
             .collect(),
-        mount,
-        body: body_pose_view(resolved, rp),
+        mount: super::pose::mount_view(part, rp, &unit),
+        mount_points: super::pose::mount_points(part),
+        body: super::pose::body_pose_view(resolved, rp, &unit),
         states: rp.states.clone(),
         file: file_of(design, EntityKey::Part(rp.id.clone())),
         // 置き場所の区間はディレクトリの規約（`fune_store::layout`）が親の連鎖から作る（パスの文字列は分解しない）

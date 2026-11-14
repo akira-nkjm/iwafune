@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { PartRow } from "@/api/types";
 import { systemTone } from "@/lib/systems";
 import { toneHex } from "@/lib/tone";
-import { fixture } from "@/test/fixture";
+import { bodyAt, fixture, mountAt } from "@/test/fixture";
 import { axesOf, boundsOf, boxesOf, boxMaterial, DEFAULT_STRUCTURE_OPACITY } from "./scene";
 
 const base = fixture.parts[0]!;
@@ -19,7 +19,7 @@ describe("3D 配置", () => {
     const root: PartRow = {
       ...base,
       id: "FRAME",
-      body: { position: [0, 0, 0], orientation: [1, 0, 0, 0], root: true },
+      body: bodyAt([0, 0, 0], [1, 0, 0, 0], true),
     };
     const { boxes, unplaced } = boxesOf({ ...fixture, parts: [root] });
     expect(unplaced).toEqual([]);
@@ -32,14 +32,8 @@ describe("方向ベクトルの矢印", () => {
     const s = Math.SQRT1_2;
     const p: PartRow = {
       ...base,
-      mount: {
-        on: "BUS_FRAME",
-        point: null,
-        position: [0, 0, 0],
-        authored_position: null,
-        orientation: [s, s, 0, 0],
-      },
-      body: { position: [0.1, 0, 0], orientation: [s, s, 0, 0], root: false },
+      mount: mountAt("BUS_FRAME", [0, 0, 0], [s, s, 0, 0]),
+      body: bodyAt([0.1, 0, 0], [s, s, 0, 0]),
       values: {
         ...base.values,
         spin_axis: {
@@ -60,14 +54,8 @@ describe("方向ベクトルの矢印", () => {
 // 外形と表示寸法の比例は CubeSat（0.1 m）と 1 m 級で同じ。
 describe("外形に対する表示寸法", () => {
   function designAt(scale: number) {
-    const mount = {
-      on: "body",
-      point: null,
-      position: [0, 0, 0] as [number, number, number],
-      authored_position: null,
-      orientation: [1, 0, 0, 0] as [number, number, number, number],
-    };
-    const body: PartRow["body"] = { position: [0, 0, 0], orientation: [1, 0, 0, 0], root: false };
+    const mount = mountAt("body");
+    const body: PartRow["body"] = bodyAt([0, 0, 0], [1, 0, 0, 0]);
     const sized: PartRow = {
       ...base,
       id: "sized",
@@ -120,11 +108,7 @@ describe("外形に対する表示寸法", () => {
 
   it("回転した箱の外形も含め、未寸法だけでも有限の寸法にする", () => {
     const design = designAt(1);
-    design.parts[0]!.body = {
-      position: [0, 0, 0],
-      orientation: [Math.SQRT1_2, 0, 0, Math.SQRT1_2],
-      root: false,
-    };
+    design.parts[0]!.body = bodyAt([0, 0, 0], [Math.SQRT1_2, 0, 0, Math.SQRT1_2]);
     const b = boundsOf(boxesOf(design).boxes).getSize(new Vector3());
     expect(b.x).toBeCloseTo(0.5);
     expect(b.y).toBeCloseTo(1);
@@ -135,14 +119,8 @@ describe("外形に対する表示寸法", () => {
 });
 
 describe("構造の透過表示", () => {
-  const mount: NonNullable<PartRow["mount"]> = {
-    on: "",
-    point: null,
-    position: [0, 0, 0],
-    authored_position: null,
-    orientation: [1, 0, 0, 0],
-  };
-  const body: PartRow["body"] = { position: [0, 0, 0], orientation: [1, 0, 0, 0], root: false };
+  const mount: NonNullable<PartRow["mount"]> = mountAt("");
+  const body: PartRow["body"] = bodyAt([0, 0, 0], [1, 0, 0, 0]);
 
   it("名前・親によらず API の system が構造の部品だけを透過対象にする", () => {
     const parts: PartRow[] = [

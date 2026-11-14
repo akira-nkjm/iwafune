@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getT, setLang } from "@/i18n";
-import { fixture } from "@/test/fixture";
+import { bodyAt, fixture, mountAt } from "@/test/fixture";
 import { Layout3D } from "./Layout3D";
 import { DEFAULT_STRUCTURE_OPACITY } from "./scene";
 
@@ -110,18 +110,8 @@ const design = {
     {
       ...fixture.parts[0]!,
       system: "structure" as const,
-      mount: {
-        on: "",
-        point: null,
-        position: [0, 0, 0] as [number, number, number],
-        authored_position: null,
-        orientation: [1, 0, 0, 0] as [number, number, number, number],
-      },
-      body: {
-        position: [0, 0, 0] as [number, number, number],
-        orientation: [1, 0, 0, 0] as [number, number, number, number],
-        root: false,
-      },
+      mount: mountAt(""),
+      body: bodyAt([0, 0, 0], [1, 0, 0, 0]),
     },
   ],
 };

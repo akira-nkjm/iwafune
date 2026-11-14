@@ -1,10 +1,9 @@
-//! 名詞のコマンドに打った引数 → Op（`fune net set|unset`・`fune part place`・`fune mode set|unset`、`POST /ops/from_command`）。入口は [`command_ops`]（CLI はコマンドごとの関数を直接呼ぶ）。定義は `super::defs`、マヌーバは `super::maneuver`、値の読み方は `super::text`。
+//! 名詞のコマンドに打った引数 → Op（`fune net set|unset`・`fune part place`・`fune mode set|unset`、`POST /ops/from_command`）。入口は [`command_ops`]（CLI はコマンドごとの関数を直接呼ぶ）。定義は `super::defs`、マヌーバは `super::maneuver`、配置は `super::place`、値の読み方は `super::text`。
 
 use super::text::{
-    fraction_from_text, given, invalid, list_from_text, net_kind, pair_from_text,
-    quantity_from_text, quaternion_from_text, vector_from_text,
+    fraction_from_text, invalid, list_from_text, net_kind, pair_from_text, quantity_from_text,
 };
-use crate::dto::{CommandText, ModeCellText, ModeSetText, NetSetText, NetUnsetText, PlaceText};
+use crate::dto::{CommandText, ModeCellText, ModeSetText, NetSetText, NetUnsetText};
 use crate::error::Result;
 use fune_model::design::{NetField, NetFieldName};
 use fune_model::path::PortRef;
@@ -16,7 +15,7 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
     Ok(match t {
         CommandText::NetSet(t) => net_set_ops(t)?,
         CommandText::NetUnset(t) => vec![net_unset_op(t)?],
-        CommandText::PartPlace(t) => vec![place_op(t)?],
+        CommandText::PartPlace(t) => vec![super::place::place_op(t)?],
         CommandText::ModeMove {
             id,
             before,
@@ -104,20 +103,6 @@ fn net_field(name: NetFieldName, text: Option<&str>) -> Result<NetField> {
         NetFieldName::Protocol => NetField::Protocol(owned),
         NetFieldName::Bitrate => NetField::Bitrate(quantity()?),
         NetFieldName::Master => NetField::Master(port()?),
-    })
-}
-
-/// `fune part place` → `Place`（取付と、取付点に対する位置・姿勢を丸ごと置き換える）。取付先が無ければ機体の根。
-pub fn place_op(t: &PlaceText) -> Result<Op> {
-    let on = given(&t.on);
-    Ok(Op::Place {
-        part: t.part.trim().to_owned(),
-        on: on.map(str::to_owned),
-        point: on.and(given(&t.point)).map(str::to_owned),
-        position: given(&t.position).map(vector_from_text).transpose()?,
-        orientation: given(&t.orientation)
-            .map(quaternion_from_text)
-            .transpose()?,
     })
 }
 
@@ -338,54 +323,5 @@ mod tests {
             cells: vec![cell(Some(" "), &[])],
         };
         assert!(mode_set_op(&blank).is_err());
-    }
-
-    /// 配置: 位置・姿勢の文字列は `fune part place --position` と同じ読み方。取付先が空なら機体の根で、取付点も書かない。
-    #[test]
-    fn place_reads_vector_and_quaternion_text() {
-        let t = PlaceText {
-            part: "RW_X".into(),
-            on: Some("PANEL_MZ".into()),
-            point: Some("RW_SLOT_X".into()),
-            position: Some("0 0 12 mm".into()),
-            orientation: Some("1 0 0 0".into()),
-        };
-        let Op::Place {
-            on,
-            point,
-            position,
-            orientation,
-            ..
-        } = place_op(&t).unwrap()
-        else {
-            panic!()
-        };
-        assert_eq!(
-            (on.as_deref(), point.as_deref()),
-            (Some("PANEL_MZ"), Some("RW_SLOT_X"))
-        );
-        let p = position.unwrap();
-        assert_eq!((p.z, p.unit.as_deref()), (12.0, Some("mm")));
-        assert_eq!(orientation.unwrap().w, 1.0);
-        let root = PlaceText {
-            on: Some(" ".into()),
-            position: Some(String::new()),
-            ..t.clone()
-        };
-        let Op::Place {
-            on,
-            point,
-            position,
-            ..
-        } = place_op(&root).unwrap()
-        else {
-            panic!()
-        };
-        assert_eq!((on, point, position), (None, None, None));
-        let bad = PlaceText {
-            position: Some("0 0 mm".into()),
-            ..t
-        };
-        assert!(place_op(&bad).is_err());
     }
 }

@@ -92,6 +92,10 @@ pub struct PlaceText {
     pub position: Option<String>,
     /// 取付点に対する姿勢のクォータニオン（`"1 0 0 0"`、w x y z。`edit::quaternion_from_text`）。省略か空なら書かない
     pub orientation: Option<String>,
+    /// 取付点に対する姿勢の X・Y・Z 軸まわりの回転角（`"0 90 0 deg"`。固定軸で X → Y → Z の順。`edit::rotation_from_text`）。
+    /// 省略か空なら書かない。`orientation` と両方は書けない
+    #[serde(default)]
+    pub rotation: Option<String>,
 }
 
 /// モード表のセルの編集（`fune mode set|unset` の引数の列）。

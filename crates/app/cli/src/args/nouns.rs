@@ -122,8 +122,12 @@ pub struct PlaceArgs {
     /// 姿勢のクォータニオン（`"1 0 0 0"`、w x y z）
     #[arg(long, allow_hyphen_values = true)]
     pub orientation: Option<String>,
+    /// 姿勢の X・Y・Z 軸まわりの回転角（例: `"0 90 0 deg"`。取付点の座標軸のまわりに X → Y → Z の順に回す）。
+    /// ファイルには四元数で書く。`--orientation` とは一緒に使えない
+    #[arg(long, allow_hyphen_values = true, conflicts_with = "orientation")]
+    pub rotation: Option<String>,
     /// 機体座標での位置（例: `"30 0 -100 mm"`）。取付先・取付点はそのままで、相対位置・姿勢に直して書く
-    #[arg(long, allow_hyphen_values = true, conflicts_with_all = ["on", "point", "root", "position", "orientation"])]
+    #[arg(long, allow_hyphen_values = true, conflicts_with_all = ["on", "point", "root", "position", "orientation", "rotation"])]
     pub body_pos: Option<String>,
     /// 機体座標での姿勢（部品 → 機体、`"w x y z"`）。`--body-pos` と使う
     #[arg(long, allow_hyphen_values = true, requires = "body_pos")]
