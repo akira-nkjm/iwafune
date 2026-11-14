@@ -11,12 +11,13 @@ import {
 import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
 import type { Mesh } from "three";
-import { ArrowHelper, Color, Vector3 } from "three";
+import { ArrowHelper, Color, type Quaternion, Vector3 } from "three";
 import { palette, toneHex, uiHex } from "@/lib/tone";
 import {
   type Axis3D,
   type Box3D,
   boxMaterial,
+  pickBox,
   type Q4,
   type sceneDimensions,
   type V3,
@@ -79,6 +80,9 @@ export function Scene3D({
   home?: number;
 }) {
   const [target, setTarget] = useState<Mesh | null>(null);
+  // TransformControls を掴んだときの位置・姿勢（離したときに動いたかを比べる）
+  const grabbed = useRef<{ p: Vector3; q: Quaternion } | null>(null);
+  const ids = new Set(boxes.map((b) => b.id));
   return (
     // demand: 何かが変わったとき（カメラの操作・箱の移動・props の変更）だけ描き直す。
     // 既定の always は止まっている間も毎フレーム描き、ページ全体の操作を重くする
@@ -124,7 +128,13 @@ export function Scene3D({
             quaternion={[b.orientation[1], b.orientation[2], b.orientation[3], b.orientation[0]]}
             onClick={(e) => {
               e.stopPropagation();
-              onSelect(b.id);
+              // 光線上の当たり（近い順）のうち、箱の面（name = 部品の ID の mesh）に当たったものだけを数える。
+              // 縁の線・軸の矢印の線は three の既定では 1 m 以内を通れば当たりになり、離れた部品を拾うため
+              const hits = e.intersections
+                .map((hit) => hit.object.name)
+                .filter((name) => ids.has(name));
+              const picked = pickBox(hits, selected);
+              if (picked) onSelect(picked);
             }}
           >
             <boxGeometry args={b.size} />
@@ -161,9 +171,16 @@ export function Scene3D({
           translationSnap={edit.snap}
           rotationSnap={Math.PI / 12}
           size={0.7}
+          onMouseDown={() => {
+            grabbed.current = { p: target.position.clone(), q: target.quaternion.clone() };
+          }}
           onMouseUp={() => {
             const p = target.position;
             const q = target.quaternion;
+            const from = grabbed.current;
+            grabbed.current = null;
+            // 掴んで離しただけ（動いていない）なら書かない。押すだけで配置の変更が保存されないように
+            if (from?.p.equals(p) && from.q.equals(q)) return;
             edit.onPlace(selected, [p.x, p.y, p.z], [q.w, q.x, q.y, q.z]);
           }}
         />

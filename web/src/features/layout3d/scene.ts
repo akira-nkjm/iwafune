@@ -140,6 +140,17 @@ export function boxesOf(
   return { boxes, unplaced, dimensions };
 }
 
+/**
+ * クリックの光線が当たった箱（近い順の ID）から選ぶ部品。いちばん手前を選ぶ。選んでいる部品が当たりの中にあれば、
+ * その次（奥）を選ぶ（最後なら手前に戻る）。外板の中の部品は、同じ所をもう一度押して選ぶ（CAD の奥への選択と同じ）。
+ */
+export function pickBox(hits: readonly string[], selected: string | null): string | null {
+  const unique = [...new Set(hits)];
+  if (unique.length === 0) return null;
+  const at = selected === null ? -1 : unique.indexOf(selected);
+  return unique[(at + 1) % unique.length] ?? null;
+}
+
 /** 配置では構造の内側が見える不透明度を既定にする。 */
 export const DEFAULT_STRUCTURE_OPACITY = 0.3;
 

@@ -4,7 +4,14 @@ import type { PartRow } from "@/api/types";
 import { systemTone } from "@/lib/systems";
 import { toneHex } from "@/lib/tone";
 import { fixture } from "@/test/fixture";
-import { axesOf, boundsOf, boxesOf, boxMaterial, DEFAULT_STRUCTURE_OPACITY } from "./scene";
+import {
+  axesOf,
+  boundsOf,
+  boxesOf,
+  boxMaterial,
+  DEFAULT_STRUCTURE_OPACITY,
+  pickBox,
+} from "./scene";
 
 const base = fixture.parts[0]!;
 
@@ -169,5 +176,17 @@ describe("構造の透過表示", () => {
     expect(boxMaterial(box, false).opacity).toBe(0.45);
     expect(boxMaterial({ ...box, sized: true }, false).opacity).toBe(0.85);
     expect(boxMaterial({ ...box, structure: false }, true, 0).opacity).toBe(1);
+  });
+});
+
+describe("クリックで選ぶ部品", () => {
+  it("いちばん手前を選び、選んでいる部品を押すと奥へ順に移り、最後は手前に戻る", () => {
+    const hits = ["PANEL", "PANEL", "FRAME", "RW"];
+    expect(pickBox(hits, null)).toBe("PANEL");
+    expect(pickBox(hits, "PANEL")).toBe("FRAME");
+    expect(pickBox(hits, "FRAME")).toBe("RW");
+    expect(pickBox(hits, "RW")).toBe("PANEL");
+    expect(pickBox(hits, "OTHER")).toBe("PANEL");
+    expect(pickBox([], null)).toBeNull();
   });
 });
