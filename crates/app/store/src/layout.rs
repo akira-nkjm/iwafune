@@ -31,6 +31,14 @@ pub const ANALYSIS_DIR: &str = "analysis";
 pub const COMMON_ANALYSIS_FILE: &str = "analysis/common.toml";
 /// 内部の作業ディレクトリ（ロック・キャッシュ）。
 pub const WORK_DIR: &str = ".fune";
+/// 共有カタログの固定（`[[catalog]] git = …` の解決した commit。`fune catalog fetch`・`update` が書き、git で管理する）。
+pub const LOCK_FILE: &str = "catalog.lock";
+/// 共有カタログのキャッシュの置き場所（作業ディレクトリの下。`<名前>/repo.git` と `<名前>/<commit>/`）。
+pub const SHARED_CATALOG_ROOT: &str = ".fune/catalogs";
+/// 共有カタログのリポジトリのうち読むディレクトリ（`catalog/<ID>.toml` が品、`sources/<ID>.toml` が出典）。
+pub const SHARED_CATALOG_DIRS: &[&str] = &[SHARED_ITEMS_DIR, SOURCES_DIR];
+/// 共有カタログのリポジトリの品のディレクトリ。
+pub const SHARED_ITEMS_DIR: &str = "catalog";
 /// 読まないディレクトリ。
 pub const IGNORED_DIRS: &[&str] = &["results", "exports", "target", "node_modules"];
 /// 図の配置（見た目だけ。`view/<名前>.toml`）。
@@ -300,6 +308,23 @@ pub fn catalog_location(design: &Design, reference: &str) -> CatalogLocation {
         },
         None => CatalogLocation::Unknown,
     }
+}
+
+/// 共有カタログの commit の中身を置くディレクトリ（ルートからの相対パス。`.fune/catalogs/<名前>/<commit>`）。
+pub fn shared_catalog_dir(name: &str, commit: &str) -> String {
+    format!("{SHARED_CATALOG_ROOT}/{name}/{commit}")
+}
+
+/// 共有カタログの取得元の写し（bare リポジトリ。`.fune/catalogs/<名前>/repo.git`）。
+pub fn shared_catalog_mirror(name: &str) -> String {
+    format!("{SHARED_CATALOG_ROOT}/{name}/repo.git")
+}
+
+/// キャッシュのパスに使える名前と commit か（名前は ID の規則、commit は 16 進数。`..` などでキャッシュの外を指さない）。
+pub fn is_cache_key(name: &str, commit: &str) -> bool {
+    fune_model::id::validate_entity_id(name).is_ok()
+        && (7..=64).contains(&commit.len())
+        && commit.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
 /// 設定のパス → (ファイル, ファイル内のキーの列)。

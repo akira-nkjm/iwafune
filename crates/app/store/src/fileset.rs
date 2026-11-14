@@ -1,9 +1,14 @@
 //! 読み書き・revision の共有ファイル集合。
 use std::collections::BTreeMap;
 /// 相対パス（`/` 区切り）→ 本文。
+///
+/// 共有カタログのキャッシュ（`.fune/catalogs/<名前>/<commit>/` の `catalog/`・`sources/`）は書き込まない別の層
+/// （[`FileSet::shared`]）に持つ。列挙・変更の差分・整形は追跡ファイルだけを見る。
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FileSet {
     files: BTreeMap<String, String>,
+    /// 共有カタログの名前 → そのキャッシュのファイル（キャッシュのディレクトリからの相対パス → 本文）
+    shared: BTreeMap<String, FileSet>,
 }
 
 impl FileSet {
@@ -50,5 +55,15 @@ impl FileSet {
     /// 空か。
     pub fn is_empty(&self) -> bool {
         self.files.is_empty()
+    }
+
+    /// 共有カタログのキャッシュを読んだものとして置く（読み取り専用の層）。
+    pub fn insert_shared(&mut self, name: impl Into<String>, files: FileSet) {
+        self.shared.insert(name.into(), files);
+    }
+
+    /// 共有カタログのキャッシュ（名前の順。名前, キャッシュのディレクトリからの相対パス → 本文）。
+    pub fn shared(&self) -> impl Iterator<Item = (&str, &FileSet)> {
+        self.shared.iter().map(|(k, v)| (k.as_str(), v))
     }
 }

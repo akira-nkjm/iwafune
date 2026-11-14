@@ -18,6 +18,10 @@ const LABELLED: &[(&str, &[&str])] = &[
     ("budget_kind", BudgetKind::NAMES),
     ("source_kind", SourceKind::NAMES),
     ("distribution", fune_model::design::Distribution::NAMES),
+    (
+        "shared_catalog_state",
+        fune_model::design::SharedCatalogState::NAMES,
+    ),
     ("evidence", Evidence::NAMES),
     ("origin", Origin::NAMES),
     ("severity", Severity::NAMES),

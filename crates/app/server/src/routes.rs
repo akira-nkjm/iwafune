@@ -8,8 +8,10 @@
 //! | `analyses` | `/analyses` `/analyses/{id}` `/budgets/{kind}` |
 //! | `power_page` | `/power_page` |
 //! | `data` | `/data/status` `/data/{id}/fetch` |
+//! | `catalog` | `/catalog/fetch` `/catalog/update`（共有カタログ） |
 
 mod analyses;
+mod catalog;
 mod data;
 mod design;
 mod edit;
@@ -73,6 +75,8 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
         .route("/data/status", get(data::status))
         .route("/data/space_weather", get(data::space_weather))
         .route("/data/{id}/fetch", post(data::fetch))
+        .route("/catalog/fetch", post(catalog::fetch))
+        .route("/catalog/update", post(catalog::update))
         .fallback(api_not_found);
     Router::new()
         .nest("/api/v1", api)

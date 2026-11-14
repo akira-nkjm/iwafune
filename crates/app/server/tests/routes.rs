@@ -110,7 +110,7 @@ async fn project_and_design() {
     // 書き込めるカタログの出所（Web が置き先の名前を書かずに選ぶ）
     assert_eq!(
         p["catalogs"],
-        json!([{ "name": "local", "editable": true }])
+        json!([{ "name": "local", "editable": true, "shared": null }])
     );
     let (s, d) = call(&r, "GET", "/api/v1/design", None).await;
     assert_eq!(s, StatusCode::OK);

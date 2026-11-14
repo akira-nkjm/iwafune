@@ -2,7 +2,7 @@
 
 use crate::error::StoreError;
 pub use crate::fileset::FileSet;
-use crate::layout::{IGNORED_DIRS, WORK_DIR};
+use crate::layout::{IGNORED_DIRS, LOCK_FILE, WORK_DIR};
 use std::fs;
 use std::path::Path;
 
@@ -10,9 +10,16 @@ use std::path::Path;
 const TRACKED_EXTENSIONS: &[&str] = &["toml", "csv"];
 
 /// プロジェクトのルートから追跡ファイルを読む（`.` で始まる名前・作業ディレクトリ・`results/` などは飛ばす）。
+/// ルートの `catalog.lock` も追跡ファイルとして読み、その commit の共有カタログのキャッシュを読み取り専用の層に読む。
 pub fn scan(root: &Path) -> Result<FileSet, StoreError> {
     let mut set = FileSet::new();
     walk(root, "", &mut set)?;
+    let lock = root.join(LOCK_FILE);
+    if lock.is_file() {
+        let text = fs::read_to_string(&lock).map_err(|e| StoreError::io(&lock, e))?;
+        set.insert(LOCK_FILE, text);
+    }
+    super::shared::scan_cache(root, &mut set)?;
     Ok(set)
 }
 

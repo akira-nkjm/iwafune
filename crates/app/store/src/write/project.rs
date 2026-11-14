@@ -1,12 +1,12 @@
-//! プロジェクトのファイル（`fune.toml`・`budget/allocation.toml`・`budget/policy.toml`）の新しい本文の正規形。
+//! プロジェクトのファイル（`fune.toml`・`budget/allocation.toml`・`budget/policy.toml`・`catalog.lock`）の新しい本文の正規形。
 //! `fune init` の雛形もここで書き出す（手で TOML を組み立てない）。
 
 use super::entities::{quantity, serde_text};
 use crate::codec::float;
 use crate::error::StoreError;
-use crate::layout::{POLICY_FILE, PROJECT_FILE};
+use crate::layout::{LOCK_FILE, POLICY_FILE, PROJECT_FILE};
 use crate::profile as format;
-use fune_model::design::{Allocations, BudgetPolicy, Project};
+use fune_model::design::{Allocations, BudgetPolicy, CatalogLock, Project};
 use toml_edit::{DocumentMut, Item, Table};
 
 /// 新しい `fune.toml`（serde の形のまま）。
@@ -31,6 +31,20 @@ pub fn new_allocation_text(allocations: &Allocations) -> String {
         doc.insert(kind.as_str(), Item::Table(table));
     }
     format::finish(doc)
+}
+
+/// lock の先頭の注記。
+const LOCK_HEADER: &str = "# fune catalog fetch・fune catalog update が書きます（手で編集しない）。git で管理してください。\n";
+
+/// `catalog.lock` の本文（先頭の注記と、serde の形のままの `[[catalog]]`）。記録が無ければ注記だけ。
+pub fn catalog_lock_text(lock: &CatalogLock) -> Result<String, StoreError> {
+    let body = serde_text(LOCK_FILE, lock)?;
+    let body = body.trim_start_matches('\n');
+    Ok(if body.trim().is_empty() {
+        LOCK_HEADER.to_owned()
+    } else {
+        format!("{LOCK_HEADER}\n{body}")
+    })
 }
 
 /// 新しい `budget/policy.toml`（serde の形のまま）。
