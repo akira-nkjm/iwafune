@@ -151,7 +151,7 @@ function Layout3DFrame({
 }) {
   const L = useT().systems.layout3d;
   const [selected, setSelected] = useState<string | null>(null);
-  const [showAxes, setShowAxes] = useState(true);
+  const [showAxes, setShowAxes] = useState(false);
   const opacityId = useId();
   const [structureOpacity, setStructureOpacity] = useState(DEFAULT_STRUCTURE_OPACITY);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NONE_HIDDEN);
