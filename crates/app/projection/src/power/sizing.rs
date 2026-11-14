@@ -1,7 +1,7 @@
 //! 電源サイジングへの写し替え。最長蝕の計算は解析に渡す。SAP と姿勢則は電力収支と同じものを渡す。
 use super::{
-    attitude_timeline, base_mode, batteries, max_duration, mode_law_map, mode_load_input, sequence,
-    solar_array,
+    attitude_timeline, base_mode, batteries, max_duration, mode_law_map, mode_load_input,
+    power_key, sequence, solar_array,
 };
 use crate::parts::by_role;
 use crate::quantity::setting_opt;
@@ -41,7 +41,6 @@ pub fn sizing(ctx: &Context<'_>) -> Result<SizingInput, MissingInputs> {
     }
     let mode = crate::timeline::case_mode_id(ctx);
     let max_durations = ctx
-        .design
         .ordered_modes()
         .into_iter()
         .filter(|md| mode.as_ref().is_none_or(|id| md.id.as_str() == id))
@@ -81,8 +80,8 @@ fn cells(ctx: &Context<'_>) -> Vec<SizingCell> {
         .filter_map(|p| {
             Some(SizingCell {
                 panel: p.id.clone(),
-                voltage: Qty::from_raw(p.scalar("cell_voltage")?),
-                current: Qty::from_raw(p.scalar("cell_current")?),
+                voltage: Qty::from_raw(ctx.scalar(p, "cell_voltage")?),
+                current: Qty::from_raw(ctx.scalar(p, "cell_current")?),
             })
         })
         .collect()
@@ -91,10 +90,26 @@ fn cells(ctx: &Context<'_>) -> Vec<SizingCell> {
 fn options(ctx: &Context<'_>, m: &mut MissingInputs) -> SizingOptions {
     let power = ctx.design.analysis.power.as_ref();
     let s = power.and_then(|p| p.sizing.as_ref());
+    // 書かれていなければ解析の既定値を使う欄も、読んだものとして記録する
+    let key = |k: &str| ctx.note(power_key(&["sizing", k]));
+    for k in [
+        "sunlit_efficiency",
+        "eclipse_efficiency",
+        "battery_efficiency",
+        "annual_degradation",
+        "inherent_degradation",
+        "battery_strings",
+        "bus_voltage",
+        "sun_distance",
+    ] {
+        key(k);
+    }
+    let sunlit = s.and_then(|s| s.sunlit_efficiency);
+    if sunlit.is_none() {
+        ctx.note(power_key(&["conversion_efficiency"]));
+    }
     SizingOptions {
-        sunlit_efficiency: s
-            .and_then(|s| s.sunlit_efficiency)
-            .or_else(|| power.and_then(|p| p.conversion_efficiency)),
+        sunlit_efficiency: sunlit.or_else(|| power.and_then(|p| p.conversion_efficiency)),
         eclipse_efficiency: s.and_then(|s| s.eclipse_efficiency),
         battery_efficiency: s.and_then(|s| s.battery_efficiency),
         annual_degradation: s.and_then(|s| s.annual_degradation),

@@ -119,6 +119,7 @@ pub struct OrbitDecay;
 
 impl Analysis for OrbitDecay {
     const ID: &'static str = "orbit.decay";
+    const USES: &'static [&'static str] = &[crate::propulsion::Propellant::ID];
     const TITLE: &'static str = "高度低下と軌道維持";
     const TITLE_EN: &'static str = "Drag decay and station keeping";
     const AREA: AnalysisArea = AnalysisArea::Condition(ConditionTopic::Orbit);

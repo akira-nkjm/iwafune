@@ -13,6 +13,8 @@ pub struct PowerPageView {
     pub verdicts: Vec<PowerVerdictView>,
     /// データを見る・不足入力・設定に使う元の解析と表示名。
     pub analyses: Vec<PowerAnalysisView>,
+    /// 解析が読む部品・条件・設定と解析どうしのつながり（「フロー」タブ。`fune_service::flow`）
+    pub flow: super::FlowView,
 }
 
 /// 選択するモードと、そのモードの表示。

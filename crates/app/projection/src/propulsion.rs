@@ -249,8 +249,8 @@ pub fn mass_properties(ctx: &Context<'_>) -> Result<PropellantMassInput, Missing
 }
 
 /// 噴射の状態の消費電力（状態ごとの値ならその状態、スカラーならその値）。
-fn firing_power(p: &ResolvedPart) -> Option<Qty<Power>> {
-    match p.value("power")? {
+fn firing_power(ctx: &Context<'_>, p: &ResolvedPart) -> Option<Qty<Power>> {
+    match ctx.attr(p, "power")? {
         SiValue::ByState(map) => map
             .get(STATE_THRUSTER_FIRING)
             .map(|v| Qty::from_raw(v.value)),
@@ -260,8 +260,8 @@ fn firing_power(p: &ResolvedPart) -> Option<Qty<Power>> {
 }
 
 /// 名前（列挙の値）の属性。
-fn name_of(p: &ResolvedPart, attr: &str) -> Option<String> {
-    match p.value(attr)? {
+fn name_of(ctx: &Context<'_>, p: &ResolvedPart, attr: &str) -> Option<String> {
+    match ctx.attr(p, attr)? {
         SiValue::Enum(s) | SiValue::Text(s) => Some(s.clone()),
         _ => None,
     }
@@ -283,22 +283,24 @@ fn thrusters(
         .filter(|p| p.role == Some(Role::PropulsionThruster) || referenced.contains(&p.id.as_str()))
         .filter_map(|p| {
             let why = "推進系のスラスタの値";
-            let thrust = parts::part_qty::<Force>(p, "thrust", why, m);
-            let isp = parts::part_qty::<Time>(p, "isp", why, m);
-            let rated_firings = p
-                .scalar("rated_firings")
+            let thrust = parts::part_qty::<Force>(ctx, p, "thrust", why, m);
+            let isp = parts::part_qty::<Time>(ctx, p, "isp", why, m);
+            let rated_firings = ctx
+                .scalar(p, "rated_firings")
                 .filter(|n| n.is_finite() && *n >= 0.0)
                 .map(|n| n.round().min(f64::from(u32::MAX)) as u32);
             Some(PropulsionThruster {
                 id: p.id.clone(),
                 thrust: thrust?,
                 isp: isp?,
-                propellant: name_of(p, "propellant"),
-                min_impulse_bit: p.scalar("min_impulse_bit").map(Qty::<Impulse>::from_raw),
-                rated_total_impulse: p.scalar("rated_total_impulse").map(Qty::from_raw),
-                rated_firing_time: p.scalar("rated_firing_time").map(Qty::from_raw),
+                propellant: name_of(ctx, p, "propellant"),
+                min_impulse_bit: ctx
+                    .scalar(p, "min_impulse_bit")
+                    .map(Qty::<Impulse>::from_raw),
+                rated_total_impulse: ctx.scalar(p, "rated_total_impulse").map(Qty::from_raw),
+                rated_firing_time: ctx.scalar(p, "rated_firing_time").map(Qty::from_raw),
                 rated_firings,
-                firing_power: firing_power(p),
+                firing_power: firing_power(ctx, p),
             })
         })
         .collect()
@@ -308,13 +310,13 @@ fn thrusters(
 fn tanks(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<PropellantTank> {
     by_role(ctx, Role::PropellantTank)
         .filter_map(|p| {
-            let volume = parts::part_qty::<Volume>(p, "tank_volume", "タンクの容積", m)?;
+            let volume = parts::part_qty::<Volume>(ctx, p, "tank_volume", "タンクの容積", m)?;
             Some(PropellantTank {
                 id: p.id.clone(),
                 volume,
-                propellant: name_of(p, "propellant"),
-                density: p
-                    .scalar("propellant_density")
+                propellant: name_of(ctx, p, "propellant"),
+                density: ctx
+                    .scalar(p, "propellant_density")
                     .map(Qty::<MassDensity>::from_raw),
             })
         })

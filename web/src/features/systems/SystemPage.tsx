@@ -13,9 +13,16 @@ import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { systemExtras } from "./extras";
 import { SystemHeaderActions } from "./SystemHeaderActions";
-import { hasModes, type SystemTab, SystemTabs } from "./SystemTabs";
+import { hasFlow, hasModes, type SystemTab, SystemTabs } from "./SystemTabs";
 
-const TABS: SystemTab[] = ["results", "modes", "series", "settings"];
+const TABS: SystemTab[] = ["results", "modes", "flow", "series", "settings"];
+
+/** 系にそのタブがあるか（モードの見方・フロー図は持つ系だけ） */
+function shows(system: System, tab: SystemTab): boolean {
+  if (tab === "modes") return hasModes(system);
+  if (tab === "flow") return hasFlow(system);
+  return true;
+}
 
 function isTab(s: string | undefined): s is SystemTab {
   return TABS.some((t) => t === s);
@@ -89,8 +96,7 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
     () => new Map<string, AnalysisEntry>(catalog.entries.map((e) => [e.info.id, e])),
     [catalog.entries],
   );
-  const tab: SystemTab =
-    isTab(rawTab) && (rawTab !== "modes" || hasModes(system)) ? rawTab : "results";
+  const tab: SystemTab = isTab(rawTab) && shows(system, rawTab) ? rawTab : "results";
   const tabs = (d: NonNullable<DesignQuery["data"]>, page?: PowerPageView) => (
     <SystemTabs
       tab={tab}
@@ -122,7 +128,7 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
         }
       />
       <PageTabs
-        tabs={TABS.filter((k) => k !== "modes" || hasModes(system)).map((k) => ({
+        tabs={TABS.filter((k) => shows(system, k)).map((k) => ({
           to: paths.system(system, { tab: k === "results" ? null : k, kase }),
           label: t.systems.tabs[k],
         }))}

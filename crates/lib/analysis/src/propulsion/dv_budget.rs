@@ -74,6 +74,7 @@ pub struct DvBudget;
 
 impl Analysis for DvBudget {
     const ID: &'static str = "propulsion.dv_budget";
+    const USES: &'static [&'static str] = &[crate::aocs::RwUnloading::ID];
     const TITLE: &'static str = "ΔV バジェット";
     const TITLE_EN: &'static str = "Delta-V budget";
     const AREA: AnalysisArea = AnalysisArea::System(System::Propulsion);

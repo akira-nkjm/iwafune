@@ -198,6 +198,12 @@ pub struct SizingOutput {
 pub struct Sizing;
 impl Analysis for Sizing {
     const ID: &'static str = "power.sizing";
+    const USES: &'static [&'static str] = &[
+        EclipseSeason::ID,
+        ModeLoad::ID,
+        super::OrbitGeneration::ID,
+        super::EnergyBalance::ID,
+    ];
     const TITLE: &'static str = "電源の逆算サイジング";
     const TITLE_EN: &'static str = "Power sizing";
     const AREA: AnalysisArea = AnalysisArea::System(System::Power);

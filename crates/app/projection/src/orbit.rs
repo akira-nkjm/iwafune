@@ -13,6 +13,8 @@ pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingIn
     let mut m = MissingInputs::new();
     let orbit = ctx.orbit(&mut m);
     let o = ctx.design.conditions.orbit.as_ref();
+    ctx.note(dims::ORBIT_DURATION.at(&[]));
+    ctx.note(dims::ORBIT_ECLIPSE_SEASON_STEP.at(&[]));
     let duration = setting(
         &dims::ORBIT_DURATION,
         &[],

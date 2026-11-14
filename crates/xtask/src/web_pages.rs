@@ -29,6 +29,11 @@ const FEATURE_IMPORTERS: &[&str] = &["web/src/features/", "web/src/routes/"];
 const FEATURE_EDGES: &[(&str, &str, &str)] = &[
     (
         "systems",
+        "diagram/canvas/DiagramZoom",
+        "電源のフロー図が、系統図と同じ拡大・縮小の操作（ボタン・キー・ホイール）を使う",
+    ),
+    (
+        "systems",
         "modes/matrix/ModesMatrix",
         "系別のモード表示が定義ページと同じ行列・下書き・保存を使う",
     ),

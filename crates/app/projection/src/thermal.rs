@@ -67,9 +67,9 @@ pub fn loads(
                 count: crate::parts::count_of(p),
                 redundancy: crate::parts::redundancy(p),
                 states: p.states.clone(),
-                power: state_values::<Power>(p, "power")?,
-                rf_output: state_values::<Power>(p, "rf_output").unwrap_or_default(),
-                heat_fraction: p.scalar("heat_fraction"),
+                power: state_values::<Power>(ctx, p, "power")?,
+                rf_output: state_values::<Power>(ctx, p, "rf_output").unwrap_or_default(),
+                heat_fraction: ctx.scalar(p, "heat_fraction"),
             })
         })
         .collect();

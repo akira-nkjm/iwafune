@@ -16,8 +16,8 @@ pub(super) fn thrusters(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<Thruste
     by_role(ctx, Role::Thruster)
         .filter_map(|p| {
             let why = "スラスタの値";
-            let thrust = parts::part_qty::<Force>(p, "thrust", why, m);
-            let isp = parts::part_qty::<Time>(p, "isp", why, m);
+            let thrust = parts::part_qty::<Force>(ctx, p, "thrust", why, m);
+            let isp = parts::part_qty::<Time>(ctx, p, "isp", why, m);
             let direction = direction_body(ctx, p, "direction", "推力の向き（部品座標）", m);
             let (position, _) = crate::pose::body_pose(ctx.resolved, &p.id)?;
             Some(Thruster {

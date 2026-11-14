@@ -26,7 +26,7 @@ pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem
     let mut out = Vec::new();
     for p in ctx.resolved.parts.values() {
         // 1 個あたりの質量と員数を渡す（員数を掛けるのは解析）。
-        let Some(mass) = p.scalar("mass") else {
+        let Some(mass) = ctx.scalar(p, "mass") else {
             if p.attr.contains_key("mass") {
                 m.push(Target::attr(&p.id, "mass"), "部品の質量");
             }
@@ -39,7 +39,7 @@ pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem
             mass: Qty::from_raw(mass),
             count: crate::parts::count_of(p),
             position,
-            size: p.vec3("size").map(|s| Vec3::new(s[0], s[1], s[2])),
+            size: ctx.vec3(p, "size").map(|s| Vec3::new(s[0], s[1], s[2])),
             orientation: Some(orientation),
             inertia: None,
         });
@@ -112,7 +112,7 @@ fn load_items(ctx: &Context<'_>) -> Vec<StaticLoadItem> {
         .filter_map(|p| {
             Some(StaticLoadItem {
                 id: p.id.clone(),
-                mass: Qty::from_raw(p.scalar("mass")?),
+                mass: Qty::from_raw(ctx.scalar(p, "mass")?),
                 count: crate::parts::count_of(p),
                 mount: p
                     .mount
@@ -194,7 +194,7 @@ fn panel(
     p: &fune_model::resolve::ResolvedPart,
     m: &mut MissingInputs,
 ) -> Option<ModalEstimatePanel> {
-    let Some(SiValue::Enum(name)) = p.value("material") else {
+    let Some(SiValue::Enum(name)) = ctx.attr(p, "material") else {
         m.push(Target::attr(&p.id, "material"), "パネルの材料");
         return None;
     };
@@ -208,11 +208,11 @@ fn panel(
         "材料の物性",
     )?;
     let size = m.need(
-        p.vec3("size"),
+        ctx.vec3(p, "size"),
         Target::attr(&p.id, "size"),
         "パネルの外形（2 辺）",
     );
-    let thickness = crate::parts::part_qty::<Length>(p, "thickness", "パネルの板厚", m);
+    let thickness = crate::parts::part_qty::<Length>(ctx, p, "thickness", "パネルの板厚", m);
     let at = [name.as_str()];
     let e = setting(
         &dims::MATERIAL_YOUNGS_MODULUS,
@@ -288,7 +288,7 @@ fn mounted_on(ctx: &Context<'_>, panel: &str) -> Vec<ModalEstimateMounted> {
         .filter_map(|c| {
             Some(ModalEstimateMounted {
                 id: c.id.clone(),
-                mass: Qty::from_raw(c.scalar("mass")?),
+                mass: Qty::from_raw(ctx.scalar(c, "mass")?),
                 count: crate::parts::count_of(c),
             })
         })

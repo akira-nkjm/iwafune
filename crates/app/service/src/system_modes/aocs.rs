@@ -27,11 +27,7 @@ pub(super) fn mode_view(s: &Snapshot, mode: &str) -> Result<AocsModeView> {
     let (case, _) =
         fune_projection::case_policy::effective_case(Some(&s.design), RwUnloading::ID, None);
     let ctx = Context::new(&s.design, &s.resolved, case);
-    let empty = Context {
-        design: &s.design,
-        resolved: &s.resolved,
-        case: None,
-    };
+    let empty = Context::bare(&s.design, &s.resolved);
     let context = ctx.as_ref().unwrap_or(&empty);
     let mode_def = context
         .modes()

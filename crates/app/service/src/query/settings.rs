@@ -5,7 +5,7 @@
 use crate::dto::{QuantityView, SettingView, ValueData};
 use crate::query::values::{authored_quantity, display_of};
 use crate::units::number_text;
-use fune_model::design::{AnalysisSystem, BudgetKind, Design};
+use fune_model::design::{AnalysisSystem, BudgetKind, Design, SettingEntry};
 use fune_model::path::{SettingPath, SettingScope};
 use fune_model::value::SettingValue;
 use fune_model::value::units::to_si;
@@ -15,29 +15,39 @@ use sat_analysis::spec::System;
 pub(crate) fn settings(design: &Design) -> Vec<SettingView> {
     design
         .setting_entries()
-        .into_iter()
-        .map(|e| {
-            let value = e.value.as_ref().map_or(ValueData::Unset, value_data);
-            let keys = fune_store::layout::setting_location(&e.path)
-                .map(|(_, keys)| keys)
-                .unwrap_or_default();
-            let group = SettingPath {
-                scope: e.path.scope,
-                segments: e.path.segments[..e.path.segments.len().saturating_sub(keys.len())]
-                    .to_vec(),
-            };
-            SettingView {
-                scope: e.path.scope,
-                system: setting_system(&e.path),
-                group: group.to_string(),
-                field: keys.join("."),
-                key: e.path.to_string(),
-                display: display_of(&value),
-                value,
-                file: fune_store::layout::locate_setting(design, &e.path).map(|l| l.file),
-            }
-        })
+        .iter()
+        .map(|e| setting_view(design, e))
         .collect()
+}
+
+/// 設定の葉 1 つを表示用に。
+pub(crate) fn setting_view(design: &Design, e: &SettingEntry) -> SettingView {
+    let value = e.value.as_ref().map_or(ValueData::Unset, value_data);
+    let (group, keys, _) = split_setting(&e.path);
+    SettingView {
+        scope: e.path.scope,
+        system: setting_system(&e.path),
+        group: group.to_string(),
+        field: keys.join("."),
+        key: e.path.to_string(),
+        display: display_of(&value),
+        value,
+        file: fune_store::layout::locate_setting(design, &e.path).map(|l| l.file),
+    }
+}
+
+/// 設定のパス → 設定ファイルごとのまとまり（`conditions.orbit` など）・ファイルの中のキー・ファイル（相対パス）。
+/// ファイルに対応しないパスは、まとまりがパス全体でキーが空、ファイルが None。
+pub(crate) fn split_setting(path: &SettingPath) -> (SettingPath, Vec<String>, Option<String>) {
+    let (file, keys) = match fune_store::layout::setting_location(path) {
+        Ok((file, keys)) => (Some(file), keys),
+        Err(_) => (None, Vec::new()),
+    };
+    let group = SettingPath {
+        scope: path.scope,
+        segments: path.segments[..path.segments.len().saturating_sub(keys.len())].to_vec(),
+    };
+    (group, keys, file)
 }
 
 /// 設定を見せる系。**設定と系の対応はここだけ**（Web の系のページはこの欄で選ぶ）。

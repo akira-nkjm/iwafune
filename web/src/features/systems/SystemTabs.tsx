@@ -22,8 +22,12 @@ import { PowerSeries } from "./power/PowerSeries";
 const SeriesChart = lazy(() =>
   import("@/analysis/SeriesChart").then((m) => ({ default: m.SeriesChart })),
 );
+/** フロー図（@xyflow/react）は電源のフローのタブを開いたときだけ読む */
+const PowerFlow = lazy(() =>
+  import("./power/flow/PowerFlow").then((m) => ({ default: m.PowerFlow })),
+);
 
-export type SystemTab = "results" | "modes" | "settings" | "series";
+export type SystemTab = "results" | "modes" | "settings" | "series" | "flow";
 
 /** 系のページのタブの中身（結果・モード・設定・時系列）。extra は系ごとの追加の表示（熱の温度表、構造の 3D など） */
 export function SystemTabs({
@@ -50,6 +54,18 @@ export function SystemTabs({
     if (tab === "results") return <PowerOverview page={powerPage} design={design} />;
     if (tab === "series") return <PowerSeries page={powerPage} />;
     if (tab === "modes") return <PowerModes page={powerPage} />;
+    if (tab === "flow")
+      return (
+        <Suspense
+          fallback={
+            <Loading>
+              <SkeletonBlock className="h-[520px] w-full" />
+            </Loading>
+          }
+        >
+          <PowerFlow page={powerPage} design={design} />
+        </Suspense>
+      );
   }
   if (tab === "modes")
     return design && hasModes(system) ? (
@@ -129,6 +145,11 @@ export function SystemTabs({
       {extra?.series}
     </>
   );
+}
+
+/** フロー図のタブを持つ系（今は電源だけ。図は API の `PowerPageView.flow`） */
+export function hasFlow(system: System): boolean {
+  return system === "power";
 }
 
 /** モードの見方を持つ系だけにタブを出す。系の一覧・並びは API が持つ。 */

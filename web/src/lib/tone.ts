@@ -122,7 +122,9 @@ export const toneInkHex: Record<Tone, string> = Object.fromEntries(
 export const uiHex = {
   ink: palette.ink,
   ink3: palette["ink-3"],
+  ink4: palette["ink-4"],
   tick: palette.tick,
+  accent: palette.accent,
 } as const;
 
 /**
