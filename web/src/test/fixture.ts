@@ -1,11 +1,14 @@
 import type {
   AttributeDefView,
+  BodyPoseView,
   DesignView,
+  MountView,
   NetKind,
   NetView,
   PartRow,
   PortRef,
   PortView,
+  PoseQuantities,
   QuantityView,
   Role,
   ValueData,
@@ -15,6 +18,39 @@ import type {
 /** テスト用の小さな設計（GET /design の形）。表示文字列は service が作る想定の値を手で入れてある */
 export function qv(value: number, unit: string, dimension: string, si = value): QuantityView {
   return { value, unit, si, dimension, display: unit ? `${value} ${unit}` : String(value) };
+}
+
+type Xyz = [number, number, number];
+type Wxyz = [number, number, number, number];
+
+/** 位置・姿勢の表示（原点・恒等。位置は m、角度は度） */
+export function zeroPose(): PoseQuantities {
+  const len = qv(0, "m", "Length");
+  const deg = { ...qv(0, "deg", "Angle"), display: "0°" };
+  return { position: [len, len, len], rotation: [deg, deg, deg] };
+}
+
+/** 取付（取付点なし・書かれた位置と姿勢なし。表示は原点・恒等） */
+export function mountAt(
+  on: string,
+  position: Xyz = [0, 0, 0],
+  orientation: Wxyz = [1, 0, 0, 0],
+): MountView {
+  return {
+    on,
+    point: null,
+    position,
+    authored_position: null,
+    orientation,
+    authored_orientation: null,
+    point_pose: zeroPose(),
+    relative: zeroPose(),
+  };
+}
+
+/** 機体座標の位置・姿勢（表示は原点・恒等） */
+export function bodyAt(position: Xyz, orientation: Wxyz, root = false): BodyPoseView {
+  return { position, orientation, root, quantities: zeroPose() };
 }
 
 function val(attr: string, value: ValueData, display: string): ValueView {
@@ -58,6 +94,7 @@ function part(
     values: Object.fromEntries(values.map((v) => [v.attr, v])),
     ports,
     mount: null,
+    mount_points: [],
     body: null,
     states,
     file: `parts/${group}/${id}.toml`,

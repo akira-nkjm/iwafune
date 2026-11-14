@@ -39,7 +39,7 @@ mod maneuver;
 pub use kpi::{FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView};
 pub use maneuver::{ManeuverTargetView, ManeuverText, ManeuverView};
 mod pose;
-pub use pose::{BodyPoseView, MountView};
+pub use pose::{BodyPoseView, MountPointView, MountView, PoseQuantities};
 mod power_page;
 pub use power_page::*;
 mod shared_catalog;

@@ -5,6 +5,7 @@
 //! |---|---|
 //! | `views` | Design → 製品ツリー・モード表・ネット・ハーネス・定義・ケース |
 //! | `parts` | 部品の行・1 部品の全情報・1 つの値 |
+//! | `pose` | 部品の配置の表示（取付・取付点・機体座標の位置と姿勢の角度。位置は 1 部品で同じ単位） |
 //! | `maneuvers` | マヌーバ（実行の順・目標の要素・編集の欄の初期値） |
 //! | `catalog` | カタログ品（値・パス・使っている部品・書き換えられるか） |
 //! | `sources` | 出典の台帳（Web のリンク・ファイル）とデータシートのリンク |
@@ -14,6 +15,7 @@
 pub(crate) mod catalog;
 pub(crate) mod maneuvers;
 mod parts;
+mod pose;
 pub(crate) mod settings;
 mod sources;
 pub(crate) mod values;

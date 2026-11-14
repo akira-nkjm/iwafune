@@ -128,17 +128,19 @@ impl Quat {
                 z: 0.25 * s,
             }
         };
-        let q = q.normalized();
-        // スカラー部を非負にそろえる（同じ回転の 2 つの表現のうち片方に決める）。
-        if q.w < 0.0 {
+        q.normalized().with_nonnegative_w()
+    }
+    /// スカラー部を非負にそろえる（同じ回転の 2 つの表現のうち片方に決める）。
+    pub fn with_nonnegative_w(self) -> Self {
+        if self.w < 0.0 {
             Self {
-                w: -q.w,
-                x: -q.x,
-                y: -q.y,
-                z: -q.z,
+                w: -self.w,
+                x: -self.x,
+                y: -self.y,
+                z: -self.z,
             }
         } else {
-            q
+            self
         }
     }
     pub fn to_matrix(self) -> Mat3 {

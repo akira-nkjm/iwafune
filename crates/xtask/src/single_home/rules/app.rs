@@ -57,4 +57,10 @@ pub(in crate::single_home) const RULES: &[Rule] = &[
         &["crates/app/store/src/write.rs"],
         "変更の列をファイルの集合に当てる処理",
     ),
+    // 配置の姿勢の角度の読み方（`--rotation`・GUI の X・Y・Z の欄）
+    (
+        "fn rotation_from_text",
+        &["crates/app/service/src/edit/place.rs"],
+        "姿勢の角度の文字列の読み方",
+    ),
 ];

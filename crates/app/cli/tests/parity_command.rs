@@ -55,7 +55,7 @@ fn gui_net_field_edits_match_cli() {
     assert!(p12v.contains("12.2") && !p12v.contains("limit"), "{p12v}");
 }
 
-/// 部品の配置の欄（取付先・取付点・位置・姿勢）と `fune part place`。位置・姿勢は打った文字列のまま送る。
+/// 部品の配置の欄（取付先・取付点・位置・姿勢の四元数か角度）と `fune part place`。位置・姿勢は打った文字列のまま送る。
 /// 取付先が空なら機体の根（`--root`）で、取付点の欄は書かない。
 #[test]
 fn gui_placement_matches_cli() {
@@ -80,6 +80,22 @@ fn gui_placement_matches_cli() {
             json!({ "command": "part_place", "part": "CAM", "on": "PANEL_PZ", "point": "CAM_PORT",
                 "position": "0 -55 -90 mm", "orientation": "1 0 0 0" }),
         ),
+        // 姿勢の角度（GUI の X・Y・Z の欄を並べた文字列）。四元数にして書く
+        (
+            vec![
+                "part",
+                "place",
+                "SS_PX",
+                "--on",
+                "PANEL_PX",
+                "--point",
+                "SS",
+                "--rotation",
+                "0 90 -30 deg",
+            ],
+            json!({ "command": "part_place", "part": "SS_PX", "on": "PANEL_PX", "point": "SS",
+                "position": "", "orientation": null, "rotation": "0 90 -30 deg" }),
+        ),
         (
             vec!["part", "place", "RW_X", "--root", "--position", "10 0 0 mm"],
             json!({ "command": "part_place", "part": "RW_X", "on": "", "point": "RW_SLOT_X",
@@ -93,6 +109,12 @@ fn gui_placement_matches_cli() {
         assert_eq!(ops[0]["op"], "place", "{ops:?}");
         assert_same_files(&cli_root, &http_root, &cli.join(" "));
     }
+    let ss = std::fs::read_to_string(http_root.join("parts/aocs/SS_PX.toml")).unwrap();
+    // 手計算: qz(−30°)·qy(90°) = (cos15°cos45°, sin15°sin45°, cos15°sin45°, −sin15°cos45°)
+    assert!(
+        ss.contains("w = 0.683013") && ss.contains("x = 0.183013") && ss.contains("z = -0.183013"),
+        "{ss}"
+    );
     let cam = std::fs::read_to_string(http_root.join("parts/payload/CAM.toml")).unwrap();
     assert!(
         cam.contains("-55.0") && cam.contains("unit = \"mm\""),

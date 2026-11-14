@@ -2,8 +2,8 @@
 //! ファイルの分け方に関係なく、画面が見たい単位（部品・モード表・ネット）にまとめる。
 
 use super::{
-    BodyPoseView, CatalogItemView, CatalogSourceView, DiagnosticCounts, DiagnosticView, MountView,
-    QuantityView, ValueData, ValueView,
+    BodyPoseView, CatalogItemView, CatalogSourceView, DiagnosticCounts, DiagnosticView,
+    MountPointView, MountView, QuantityView, ValueData, ValueView,
 };
 use fune_model::builtin::{Labels, Role};
 use fune_model::design::{Maturity, StateAssign, ViewLayout};
@@ -113,6 +113,8 @@ pub struct PartRow {
     pub values: BTreeMap<String, ValueView>,
     pub ports: Vec<PortView>,
     pub mount: Option<MountView>,
+    /// 自分に他の部品を付ける点（名前の順。GUI の配置の欄は取付先のこの一覧から取付点を選ぶ）
+    pub mount_points: Vec<MountPointView>,
     /// 機体座標での位置・姿勢（取付のある部品と、取付の根。どちらでもない未配置の部品は null）
     pub body: Option<BodyPoseView>,
     /// 機器の状態の語彙（kind から）

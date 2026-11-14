@@ -9,7 +9,7 @@
 //! | `defs` | `fune attr add`・`fune kind add` |
 //! | `eclipse` | 季節解析の代表標本から新しい解析ケースの SetCase を作る |
 //! | `maneuver` | `fune maneuver add\|set` の引数（[`maneuver_op`]。逆の向きは `query::maneuvers`） |
-//! | `place` | 機体座標での配置（`fune part place --body-pos`・`POST /parts/{id}/place_body`） |
+//! | `place` | `fune part place` の取付・位置・姿勢（[`place_op`]。姿勢の角度 `--rotation` は [`rotation_from_text`]）と、機体座標での配置（`--body-pos`・`POST /parts/{id}/place_body`） |
 
 use crate::diff;
 use crate::dto::{ApplyRequest, ApplyResult, ChangedFile, FileChangeKind, InitResult};
@@ -30,13 +30,13 @@ mod text;
 
 pub use command::{
     command_ops, duty_from_text, mode_duration_op, mode_move_op, mode_set_op, net_set_ops,
-    net_unset_op, place_op,
+    net_unset_op,
 };
 pub use defs::{attr_add_op, kind_add_op, port_template_from_text};
 pub use eclipse::case_from_eclipse_op;
 pub use fune_ops::{to_cli, to_cli_script};
 pub use maneuver::maneuver_op;
-pub use place::{place_body, place_body_op};
+pub use place::{place_body, place_body_op, place_op, rotation_from_text};
 pub use text::{
     SetText, UnsetText, list_from_text, maturity, net_kind, pair_from_text, points_from_text,
     quantity_from_text, quaternion_from_text, vector_from_text, xy_from_text,

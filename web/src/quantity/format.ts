@@ -31,6 +31,19 @@ export function vectorInputText(v: Pick<Vector3, "x" | "y" | "z" | "unit">): str
   return v.unit ? `${xyz} ${v.unit}` : xyz;
 }
 
+/** 3 成分の量（位置の X・Y・Z）を `(a, b, c)` に並べる（文字は service の display のまま） */
+export function vectorText(qs: readonly QuantityView[]): string {
+  return `(${qs.map((q) => q.display).join(", ")})`;
+}
+
+/** 座標軸の名前（X・Y・Z の成分の並び） */
+export const AXES = ["X", "Y", "Z"] as const;
+
+/** 固定軸 X・Y・Z まわりの角度を `X 0° · Y 90° · Z 0°` に並べる（文字は service の display のまま） */
+export function rotationText(qs: readonly QuantityView[]): string {
+  return qs.map((q, i) => `${AXES[i] ?? ""} ${q.display}`).join(" · ");
+}
+
 /** 状態ごとの値から 1 つの状態を引く */
 export function stateValue(v: ValueView | null | undefined, state: string): QuantityView | null {
   if (v?.value.type !== "by_state") return null;
