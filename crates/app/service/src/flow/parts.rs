@@ -1,7 +1,9 @@
 //! 部品のカードと行。値は `query::values::value_view`。まとめたカード（`group`）の行は、部品の値がどれも同じならその値、
-//! スカラーで違えば範囲（最小 – 最大。`units::quantity_auto`）、それ以外は「値を持つ部品の数」（`FlowRow.varies`）。
+//! スカラーで違えば範囲（最小〜最大。英語は「–」。値の表示は `units::quantity_auto`）、それ以外は「値を持つ部品の数」
+//! （`FlowRow.varies`）。
 
 use super::cards::CardKey;
+use super::text::Bilingual;
 use crate::dto::{FlowMember, FlowNode, FlowNodeKind, FlowRow, ValueData};
 use crate::query::values::value_view;
 use crate::workspace::Snapshot;
@@ -55,6 +57,9 @@ pub(super) fn node(s: &Snapshot, key: &CardKey, ids: &[String]) -> FlowNode {
         analysis: None,
         verdict: None,
         status: None,
+        analysis_kind: None,
+        description: None,
+        description_en: None,
         members: if ids.len() > 1 { members } else { Vec::new() },
     }
 }
@@ -72,6 +77,7 @@ pub(super) fn row(s: &Snapshot, ids: &[String], attr: &str, target: &Target) -> 
         .filter_map(crate::query::values::display_of)
         .collect();
     let (display, varies) = combined(&values, &displays, ids.len());
+    let (display, display_en) = display.map_or((None, None), |d| (Some(d.ja), d.en));
     let def = s.design.attribute(attr);
     FlowRow {
         id: attr.to_owned(),
@@ -82,7 +88,7 @@ pub(super) fn row(s: &Snapshot, ids: &[String], attr: &str, target: &Target) -> 
         set: !displays.is_empty(),
         display,
         derived: false,
-        display_en: None,
+        display_en,
         varies,
         verdict: None,
         target: (ids.len() == 1).then(|| target.clone()),
@@ -94,12 +100,12 @@ fn combined(
     values: &[ValueData],
     displays: &[String],
     members: usize,
-) -> (Option<String>, Option<u32>) {
+) -> (Option<Bilingual>, Option<u32>) {
     let Some(first) = displays.first() else {
         return (None, None);
     };
     if displays.len() == members && displays.iter().all(|d| d == first) {
-        return (Some(first.clone()), None);
+        return (Some(Bilingual::of(first.clone(), first.clone())), None);
     }
     let scalars: Vec<(f64, &str)> = values
         .iter()
@@ -119,7 +125,7 @@ fn combined(
             .map(|(v, _)| *v)
             .fold(f64::NEG_INFINITY, f64::max);
         let shown = |v: f64| crate::units::quantity_auto(v, dim.unwrap_or_default()).display;
-        return (Some(format!("{} – {}", shown(lo), shown(hi))), None);
+        return (Some(Bilingual::range(&shown(lo), &shown(hi))), None);
     }
     (None, u32::try_from(displays.len()).ok())
 }

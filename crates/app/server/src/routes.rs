@@ -7,6 +7,7 @@
 //! | `units` | `/units` `/units/parse` `/units/format` |
 //! | `analyses` | `/analyses` `/analyses/{id}` `/budgets/{kind}` |
 //! | `power_page` | `/power_page` |
+//! | `flow` | `/flow/{system}` |
 //! | `data` | `/data/status` `/data/{id}/fetch` |
 //! | `catalog` | `/catalog/fetch` `/catalog/update`（共有カタログ） |
 
@@ -15,6 +16,7 @@ mod catalog;
 mod data;
 mod design;
 mod edit;
+mod flow;
 mod power_page;
 mod units;
 
@@ -66,6 +68,7 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
         .route("/units/parse", post(units::parse))
         .route("/units/format", post(units::format))
         .route("/power_page", get(power_page::get))
+        .route("/flow/{system}", get(flow::get))
         .route("/analyses", get(analyses::catalog))
         .route("/analyses/{id}", post(analyses::run))
         .route(

@@ -1,5 +1,6 @@
 use super::*;
-use crate::dto::AnalysisCaseSource;
+use crate::analysis;
+use crate::dto::{AnalysisCaseSource, RunAnalysisRequest};
 use std::path::Path;
 
 fn demo() -> Workspace {
@@ -12,7 +13,7 @@ fn whole_page_collects_unchanged_analysis_results_and_merges_modes() {
     let ws = demo();
     for case in [None, Some("hot_imaging")] {
         let page = power_page(&ws, case).unwrap();
-        assert_eq!(page.analyses.len(), ANALYSES.len());
+        assert_eq!(page.analyses.len(), 4);
         for analysis in &page.analyses {
             let direct = analysis::run_analysis(
                 &ws,

@@ -121,10 +121,13 @@ kpi_table! {
         DecayPerDay => orbit::decay_per_day,
         StationKeepingDeltaV => orbit::station_keeping_delta_v,
     }
-    power::ModeLoad { ModeLoad => mode_load }
-    power::OrbitGeneration { OrbitGeneration => orbit_generation }
-    power::EnergyBalance { OrbitBalance => orbit_balance, MaxDod => max_dod }
-    power::Sizing { SapMargin => sap_margin, BatteryMargin => battery_margin }
+    power::ModeLoad { ModeLoad => power_kpi::mode_load }
+    power::OrbitGeneration {
+        OrbitGeneration => power_kpi::orbit_generation,
+        SunlitFraction => power_kpi::sunlit_fraction,
+    }
+    power::EnergyBalance { OrbitBalance => power_kpi::orbit_balance, MaxDod => power_kpi::max_dod }
+    power::Sizing { SapMargin => power_kpi::sap_margin, BatteryMargin => power_kpi::battery_margin }
     aocs::RwUnloading { UnloadInterval => unload_interval, PeakMomentum => peak_momentum }
     aocs::UnloadTime { MtqUnloadTime => mtq_unload_time }
     aocs::SensorFov { SensorIntrusion => sensor_intrusion }
@@ -160,38 +163,6 @@ kpi_table! {
 
 type Ctx<'a> = KpiContext<'a>;
 
-fn mode_load(o: &power::ModeLoadOutput, ctx: Ctx<'_>) -> Option<Measured> {
-    one(crate::budget::budget_mode(o, ctx.case_mode)?.total_with_growth)
-}
-fn orbit_generation(o: &power::OrbitGenerationOutput, _: Ctx<'_>) -> Option<Measured> {
-    one(o.orbit_average)
-}
-/// 判定に使った運用での電力収支の結果: 最長継続時間で評価したケースはその値、ほかは連続の値。並びがあれば並びも入れる。
-fn judged_balances(
-    o: &power::EnergyBalanceOutput,
-) -> impl Iterator<Item = (Qty<sat_units::typed::Power>, Fraction)> + '_ {
-    let cases = o.cases.iter().map(|c| match &c.by_max_duration {
-        Some(d) => (d.orbit_average_balance, d.max_dod),
-        None => (c.orbit_average_balance, c.max_dod),
-    });
-    let sequence = o
-        .sequence
-        .iter()
-        .map(|s| (s.balance.orbit_average_balance, s.balance.max_dod));
-    cases.chain(sequence)
-}
-fn orbit_balance(o: &power::EnergyBalanceOutput, _: Ctx<'_>) -> Option<Measured> {
-    smallest(judged_balances(o).map(|(b, _)| b))
-}
-fn max_dod(o: &power::EnergyBalanceOutput, _: Ctx<'_>) -> Option<Measured> {
-    largest(judged_balances(o).map(|(_, d)| d))
-}
-fn sap_margin(o: &power::SizingOutput, _: Ctx<'_>) -> Option<Measured> {
-    one(o.sap_margin?)
-}
-fn battery_margin(o: &power::SizingOutput, _: Ctx<'_>) -> Option<Measured> {
-    one(o.battery_margin?)
-}
 fn unload_interval(o: &aocs::RwUnloadingOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.unload_interval?)
 }
@@ -302,6 +273,7 @@ fn rule(key: KpiKey) -> Rule {
         | K::StationKeepingDeltaV
         | K::ModeLoad
         | K::OrbitGeneration
+        | K::SunlitFraction
         | K::PeakMomentum
         | K::DataPerDay
         | K::StorageRequired
@@ -394,6 +366,7 @@ fn view(
 }
 
 mod orbit;
+mod power_kpi;
 mod propulsion;
 
 #[cfg(test)]

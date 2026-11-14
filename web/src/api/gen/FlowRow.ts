@@ -11,11 +11,12 @@ export type FlowRow = {
  */
 id: string, label: string, label_en: string, 
 /**
- * 値の表示文字列（`sat_units::format` で作ったもの）。null は表示する値が無い（`set` で未設定かを見る）
+ * 値の表示文字列（数と量は `sat_units::format` で作ったもの。列挙の値は表示名、範囲は「〜」）。null は表示する値が無い
+ * （`set` で未設定かを見る）
  */
 display: string | null, 
 /**
- * 英語の表示文字列（言語で変わる値だけ。null なら `display` を使う）
+ * 英語の表示文字列（言語で変わる値だけ。列挙の表示名・範囲の「–」など。null なら `display` を使う）
  */
 display_en: string | null, 
 /**

@@ -25,6 +25,8 @@ export const MAX_ROWS = 6;
 /** カードの寸法 [px]（見出し・行の高さ・幅） */
 export const SIZE = {
   header: 40,
+  /** 解析のカードの見出し（題名・ID と定常か時系列かの印・説明 1 行） */
+  analysisHeader: 56,
   row: 19,
   pad: 6,
   fold: 30,
@@ -117,8 +119,13 @@ function rowKeys(node: FlowNode, shown: ShownRow[]): Map<string, string> {
   );
 }
 
-function cardHeight(rows: number): number {
-  return SIZE.header + Math.max(rows, 1) * SIZE.row + SIZE.pad;
+/** カードの見出しの高さ（解析のカードは説明の 1 行の分だけ高い） */
+export function headerHeight(node: FlowNode): number {
+  return node.kind === "analysis" ? SIZE.analysisHeader : SIZE.header;
+}
+
+function cardHeight(node: FlowNode, rows: number): number {
+  return headerHeight(node) + Math.max(rows, 1) * SIZE.row + SIZE.pad;
 }
 
 function widthOf(column: Column): number {
@@ -171,7 +178,7 @@ export function layoutFlow(view: FlowView, expanded: ReadonlySet<string>): FlowL
       x: 0,
       y: 0,
       width,
-      height: cardHeight(rows.length),
+      height: cardHeight(node, rows.length),
     });
     const fold = after.get(node.id);
     if (fold) {

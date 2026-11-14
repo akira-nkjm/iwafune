@@ -2,9 +2,16 @@
 //! 作る（つながりは射影が読んだもの `fune_projection::ReadLog` と、解析が中で使う解析 `sat_analysis::catalog::uses` から）。
 //! カードの置き方（位置）は Web が決める。
 use fune_model::Target;
-use sat_analysis::spec::{System, Verdict};
+use sat_analysis::spec::{AnalysisKind, System, Verdict};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+
+/// フロー図の問い合わせ（`GET /flow/{system}?case=…`、`fune flow <系> --case …`）。省略時のケース解決は解析の実行と同じ。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(default)]
+pub struct FlowQuery {
+    pub case: Option<String>,
+}
 
 /// フロー図全体。
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
@@ -55,6 +62,11 @@ pub struct FlowNode {
     pub verdict: Option<Verdict>,
     /// 解析のカードだけ: 実行の状態
     pub status: Option<crate::dto::AnalysisRunStatus>,
+    /// 解析のカードだけ: 定常か時系列か（解析の登録の `AnalysisInfo.kind`）
+    pub analysis_kind: Option<AnalysisKind>,
+    /// 解析のカードだけ: 解析の説明（解析の登録の `AnalysisInfo.description` / `description_en`）
+    pub description: Option<String>,
+    pub description_en: Option<String>,
     /// 部品をまとめたカードの部品（同じ役割で、同じ属性を同じ解析が読む部品。1 部品のカードは空）
     pub members: Vec<FlowMember>,
 }
@@ -74,9 +86,10 @@ pub struct FlowRow {
     pub id: String,
     pub label: String,
     pub label_en: String,
-    /// 値の表示文字列（`sat_units::format` で作ったもの）。null は表示する値が無い（`set` で未設定かを見る）
+    /// 値の表示文字列（数と量は `sat_units::format` で作ったもの。列挙の値は表示名、範囲は「〜」）。null は表示する値が無い
+    /// （`set` で未設定かを見る）
     pub display: Option<String>,
-    /// 英語の表示文字列（言語で変わる値だけ。null なら `display` を使う）
+    /// 英語の表示文字列（言語で変わる値だけ。列挙の表示名・範囲の「–」など。null なら `display` を使う）
     pub display_en: Option<String>,
     /// 値が書かれているか（false なら解析の既定値を使う、または足りない）
     pub set: bool,

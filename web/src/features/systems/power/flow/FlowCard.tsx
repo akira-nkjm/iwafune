@@ -1,6 +1,6 @@
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { ChevronDown, ChevronUp } from "lucide-react";
-import type { FlowNode, FlowRow, Verdict } from "@/api/types";
+import type { AnalysisKind, FlowNode, FlowRow, Verdict } from "@/api/types";
 import { localized, useT } from "@/i18n";
 import { VerdictPill } from "@/kit/status/VerdictPill";
 import { verdictTone } from "@/kit/status/verdict-tone";
@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
 import { withNote } from "@/lib/design";
 import { systemTone } from "@/lib/systems";
 import { toneBorder, toneTint } from "@/lib/tone";
-import { rowCenter, rowHandle, type ShownRow, SIZE } from "./layout";
+import { headerHeight, rowCenter, rowHandle, type ShownRow, SIZE } from "./layout";
 
 /** 強調の状態（何も載せていない・強調・薄く） */
 export type Emphasis = "normal" | "focus" | "dim";
@@ -68,13 +68,14 @@ export function FlowCard({ data, width, height }: NodeProps<FlowCardType>) {
     >
       <div
         className="flex items-start justify-between gap-2 rounded-t-[8.5px] px-2.5 pt-1.5"
-        style={{ height: SIZE.header - 4, background: toneTint(tone, "card") }}
+        style={{ height: headerHeight(node) - 4, background: toneTint(tone, "card") }}
       >
         <div className="min-w-0">
           <div className="truncate font-bold text-[12.5px] leading-tight">
             {localized(node.label, node.label_en)}
           </div>
           <Sub node={node} />
+          <Description node={node} />
         </div>
         {analysis && node.verdict && <VerdictPill verdict={node.verdict} />}
       </div>
@@ -91,14 +92,14 @@ export function FlowCard({ data, width, height }: NodeProps<FlowCardType>) {
             type="source"
             position={Position.Right}
             className={HANDLE}
-            style={{ top: SIZE.header / 2 - 6 }}
+            style={{ top: SIZE.analysisHeader / 2 - 6 }}
           />
           <Handle
             id="res-in"
             type="target"
             position={Position.Right}
             className={HANDLE}
-            style={{ top: SIZE.header / 2 + 6 }}
+            style={{ top: SIZE.analysisHeader / 2 + 6 }}
           />
         </>
       )}
@@ -117,12 +118,38 @@ export function FlowCard({ data, width, height }: NodeProps<FlowCardType>) {
   );
 }
 
-/** 見出しの補足（1 部品は ID、まとめたカードは部品の数） */
+/** 見出しの補足（1 部品は ID、まとめたカードは部品の数、解析は ID と定常か時系列かの印） */
 function Sub({ node }: { node: FlowNode }) {
   const t = useT().systems.flow;
   const text = node.members.length > 0 ? t.members(node.members.length) : node.sub;
-  if (!text) return null;
-  return <div className="truncate font-mono text-[10px] text-ink-3 leading-tight">{text}</div>;
+  if (!text && !node.analysis_kind) return null;
+  return (
+    <div className="flex min-w-0 items-center gap-1.5 leading-tight">
+      {text && <span className="truncate font-mono text-[10px] text-ink-3">{text}</span>}
+      {node.analysis_kind && <KindMark kind={node.analysis_kind} />}
+    </div>
+  );
+}
+
+/** 定常か時系列かの印（解析のカードと詳細の欄） */
+export function KindMark({ kind }: { kind: AnalysisKind }) {
+  const t = useT().systems;
+  return (
+    <span className="shrink-0 rounded-chip border border-line px-1 text-[9.5px] text-ink-3 leading-[14px]">
+      {kind === "steady" ? t.steady : t.timeSeries}
+    </span>
+  );
+}
+
+/** 解析の説明の 1 行（長ければ切る。全文は載せたときの表示と詳細の欄） */
+function Description({ node }: { node: FlowNode }) {
+  if (!node.description) return null;
+  const text = localized(node.description, node.description_en);
+  return (
+    <div className="mt-0.5 truncate text-[10px] text-ink-3 leading-tight" title={text}>
+      {text}
+    </div>
+  );
 }
 
 function CardRow({

@@ -136,6 +136,7 @@ export type * from "./FlowFold";
 export type * from "./FlowMember";
 export type * from "./FlowNode";
 export type * from "./FlowNodeKind";
+export type * from "./FlowQuery";
 export type * from "./FlowRow";
 export type * from "./FlowView";
 export type * from "./ForceConfig";

@@ -3,42 +3,23 @@
 //! | モジュール | 責務 |
 //! |---|---|
 //! | `presentation` | 解析出力から流れ・ブレットバー・グラフの表示定義へ |
-//! | `outputs` | フロー図の解析のカードの主な出力（名前付きの 2〜3 行） |
 //!
-//! フロー図（`PowerPageView.flow`）は `crate::flow` が同じ解析の一覧から作る。
-use crate::dto::{PowerAnalysisView, PowerModeView, PowerPageView, RunAnalysisRequest};
-use crate::{Result, Workspace, analysis};
+//! 解析の一覧は電源のフロー図と同じ（`flow::flow_analyses`）。フロー図（`PowerPageView.flow`）は `crate::flow` が
+//! 同じ解析の結果から作る（`GET /flow/power` と同じもの）。
+use crate::dto::{PowerAnalysisView, PowerModeView, PowerPageView};
+use crate::{Result, Workspace};
+use sat_analysis::spec::System;
 
-mod outputs;
 mod presentation;
-
-const ANALYSES: &[&str] = &[
-    "power.mode_load",
-    "power.orbit_generation",
-    "power.energy_balance",
-    "power.sizing",
-];
 
 /// 指定ケースの電源ページ全体を返す。ケース省略時も各解析と同じ規則で解決する。
 /// 解析の不足入力・失敗は元の結果として返し、得られた解析だけで表示を組み立てる。
 pub fn power_page(ws: &Workspace, case: Option<&str>) -> Result<PowerPageView> {
-    let req = RunAnalysisRequest {
-        case: case.map(str::to_owned),
-        ..Default::default()
-    };
-    let catalog = analysis::analysis_catalog()?;
-    let analyses = ANALYSES
-        .iter()
-        .map(|id| {
-            let entry = catalog
-                .iter()
-                .find(|e| e.info.id == *id)
-                .cloned()
-                .ok_or_else(|| crate::ServiceError::not_found("解析", *id))?;
-            let result = analysis::run_analysis(ws, id, &req)?;
-            Ok(PowerAnalysisView { entry, result })
-        })
-        .collect::<Result<Vec<_>>>()?;
+    let ids = crate::flow::flow_analyses(System::Power).unwrap_or_default();
+    let analyses = crate::flow::run_all(ws, ids, case)?
+        .into_iter()
+        .map(|(entry, result)| PowerAnalysisView { entry, result })
+        .collect();
     let mut page = assemble(analyses);
     let snapshot = ws.snapshot()?;
     let shown: Vec<_> = page
@@ -47,15 +28,6 @@ pub fn power_page(ws: &Workspace, case: Option<&str>) -> Result<PowerPageView> {
         .map(|a| (&a.entry, &a.result))
         .collect();
     page.flow = crate::flow::flow(&snapshot, case, &shown);
-    for node in &mut page.flow.nodes {
-        let result = page
-            .analyses
-            .iter()
-            .find(|a| Some(&a.result.id) == node.analysis.as_ref());
-        if let Some(rows) = result.and_then(|a| outputs::rows(&a.result)) {
-            node.rows = rows;
-        }
-    }
     // モードは設計の表示順（fune.toml の `[modes] order`）に並べる。一覧に無いものは後ろ
     let order: Vec<String> = snapshot
         .design

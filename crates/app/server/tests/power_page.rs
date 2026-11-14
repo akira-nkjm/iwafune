@@ -67,3 +67,24 @@ async fn power_page_returns_the_flow_graph() {
     // ケースを選べば、ケースのカードがそのケースの読んだ値を持つ
     assert!(nodes.iter().any(|n| n["id"] == "case:hot_imaging"));
 }
+
+/// 系のフロー図の API は電源のページのフロー図と同じもの。フロー図の無い系は 400。
+#[tokio::test]
+async fn flow_endpoint_matches_the_power_page_flow() {
+    let (_tmp, router) = demo_router();
+    for (page, flow) in [
+        ("/api/v1/power_page", "/api/v1/flow/power"),
+        (
+            "/api/v1/power_page?case=hot_imaging",
+            "/api/v1/flow/power?case=hot_imaging",
+        ),
+    ] {
+        let (status, p) = call(&router, "GET", page, None).await;
+        assert_eq!(status, StatusCode::OK);
+        let (status, f) = call(&router, "GET", flow, None).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(p["flow"], f, "{flow}");
+    }
+    let (status, _) = call(&router, "GET", "/api/v1/flow/aocs", None).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+}

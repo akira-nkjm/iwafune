@@ -34,7 +34,11 @@ fn demo_kpis_show_the_same_values_as_before() {
         ("power.mode_load", &[(KpiKey::ModeLoad, "17.4 W")]),
         (
             "power.orbit_generation",
-            &[(KpiKey::OrbitGeneration, "28.3 W")],
+            // #147 で日照率を足した（軌道 1 周の日照の時間の割合）
+            &[
+                (KpiKey::OrbitGeneration, "28.3 W"),
+                (KpiKey::SunlitFraction, "78.4 %"),
+            ],
         ),
         // #106 から、最長継続時間を持つモード（撮像・ダウンリンク）は定常の上でその時間だけ続けたときで、
         // モードの並びも入れて選ぶ（以前はダウンリンクを丸 1 日続けた -5.09 W・100 %）

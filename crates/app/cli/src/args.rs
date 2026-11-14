@@ -168,6 +168,14 @@ pub enum Command {
         #[arg(long)]
         ops: Option<PathBuf>,
     },
+    /// 解析のフロー図（解析が読む値と解析どうしのつながり。例: `fune flow power --case hot_imaging`）
+    Flow {
+        /// 系（例: power）
+        system: String,
+        /// 解析ケースの ID（cases/<ID>.toml）。省略時は解析の実行と同じ規則で選ぶ
+        #[arg(long)]
+        case: Option<String>,
+    },
     /// 外部データ（DE440 の暦表）
     #[command(subcommand)]
     Data(DataCmd),

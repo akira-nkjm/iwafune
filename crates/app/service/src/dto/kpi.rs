@@ -27,6 +27,8 @@ pub enum KpiKey {
     ModeLoad,
     /// 軌道平均の発電
     OrbitGeneration,
+    /// 日照率（軌道 1 周のうち日照の時間の割合）
+    SunlitFraction,
     /// 軌道平均の電力収支（ケースのうち最悪）
     OrbitBalance,
     /// 最大 DoD（ケースのうち最大）
