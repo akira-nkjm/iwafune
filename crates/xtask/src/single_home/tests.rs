@@ -29,7 +29,13 @@ fn analysis_display_conversions_are_rejected_only_in_production() {
 /// 列挙の綴り・値の文字列の書式は model の 1 か所だけ（サブモジュールの `value/text/write.rs` も許す）。
 #[test]
 fn spelling_and_text_format_have_one_home() {
-    let rule = |needle: &str| RULES.iter().find(|r| r.0 == needle).unwrap();
+    let rule = |needle: &str| {
+        SHARED
+            .iter()
+            .flat_map(|rules| rules.iter())
+            .find(|r| r.0 == needle)
+            .unwrap()
+    };
     let mut errors = Vec::new();
     let enum_str = rule("fn enum_str");
     check_rule(
