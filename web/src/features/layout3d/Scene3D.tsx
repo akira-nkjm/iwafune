@@ -153,12 +153,7 @@ export function Scene3D({
           </mesh>
         ))}
       </Bounds>
-      {com && (
-        <mesh position={com} renderOrder={10}>
-          <sphereGeometry args={[dimensions.comRadius, 16, 16]} />
-          <meshBasicMaterial color={toneHex.red} depthTest={false} />
-        </mesh>
-      )}
+      {com && <CenterOfMass position={com} radius={dimensions.comRadius} />}
       {edit && target && selected && !boxes.find((b) => b.id === selected)?.fixed && (
         <TransformControls
           object={target}
@@ -222,4 +217,28 @@ function HomeView({ home, position }: { home: number; position: V3 }) {
     invalidate();
   }, [home, bounds, invalidate, x, y, z]);
   return null;
+}
+
+/** 重心の記号の 8 分割（経度 4 × 緯度 2）。隣り合う区画が白と黒になるよう互い違いに塗る */
+const COM_OCTANTS = [0, 1, 2, 3].flatMap((i) =>
+  [0, 1].map((j) => ({ i, j, dark: (i + j) % 2 === 0 })),
+);
+
+/**
+ * 重心の記号（CAD の重心マーク）: 球を 8 つに分けて白と黒を互い違いに塗る。部品に隠れても見えるよう奥行きの判定をしない。
+ */
+function CenterOfMass({ position, radius }: { position: V3; radius: number }) {
+  return (
+    // 球の極（three の球は Y 軸）を機体の +Z に向け、白黒の境目の 1 本を水平にする
+    <group position={position} rotation={[Math.PI / 2, 0, 0]}>
+      {COM_OCTANTS.map(({ i, j, dark }) => (
+        <mesh key={`${i}-${j}`} renderOrder={10}>
+          <sphereGeometry
+            args={[radius, 12, 8, (i * Math.PI) / 2, Math.PI / 2, (j * Math.PI) / 2, Math.PI / 2]}
+          />
+          <meshBasicMaterial color={dark ? uiHex.ink : palette.inverse} depthTest={false} />
+        </mesh>
+      ))}
+    </group>
+  );
 }

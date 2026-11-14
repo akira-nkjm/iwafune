@@ -142,7 +142,7 @@ export const systemsEn: typeof systemsJa = {
       pageHint: "Select parts to inspect and edit their mounts, positions and orientations.",
       parts: (n: number) => `${n} parts`,
       unplacedCount: (n: number) => ` · ${n} unplaced`,
-      com: " · red dot = center of mass",
+      com: " · black-and-white ball = center of mass",
       operation: "Operation",
       translate: "Move",
       rotate: "Rotate",

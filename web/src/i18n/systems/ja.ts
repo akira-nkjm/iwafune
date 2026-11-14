@@ -139,7 +139,7 @@ export const systemsJa = {
       pageHint: "部品を選び、取付・位置・姿勢を確認・編集します。",
       parts: (n: number) => `${n} 部品`,
       unplacedCount: (n: number) => ` · 未配置 ${n}`,
-      com: " · 赤い点 = 重心",
+      com: " · 白黒の球 = 重心",
       operation: "操作",
       translate: "移動",
       rotate: "回転",

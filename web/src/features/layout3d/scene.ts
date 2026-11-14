@@ -56,7 +56,7 @@ export const SCENE_RATIOS = {
   arrow: 0.25,
   arrowHead: 0.06,
   arrowWidth: 0.035,
-  comRadius: 0.025,
+  comRadius: 0.012,
   axes: 0.5,
   grid: 6,
   gridCell: 0.05,
