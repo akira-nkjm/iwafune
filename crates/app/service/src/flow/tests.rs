@@ -1,6 +1,6 @@
 use crate::dto::{FlowEdgeKind, FlowNodeKind, FlowView};
-use crate::power_page::power_page;
 use crate::workspace::Workspace;
+use sat_analysis::spec::System;
 use std::path::Path;
 
 mod enum_rows;
@@ -9,7 +9,7 @@ pub(super) fn demo_flow() -> FlowView {
     let ws =
         Workspace::open(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u"))
             .unwrap();
-    power_page(&ws, None).unwrap().flow
+    super::system_flow(&ws, System::Power, None).unwrap()
 }
 
 fn targets_of(flow: &FlowView, node: &str, row: &str) -> Vec<String> {
