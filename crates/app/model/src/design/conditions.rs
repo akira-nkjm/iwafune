@@ -124,8 +124,9 @@ pub struct OrbitDecaySettings {
     /// 寿命の上限（時間。廃棄の要求）。
     #[serde(default)]
     pub max_lifetime: Option<Quantity>,
-    /// 軌道維持に使える推薬（質量。比推力はスラスタの部品から）。
-    #[serde(default)]
+    /// 以前の軌道維持の推薬（質量）。**使わない**（軌道維持の推薬は推進系の解析 `propulsion.propellant` の使える推薬）。
+    /// 古い設計を読めるように残し、書かれていれば `check` が外すよう warning（`setting.moved`）を出す。新しく書かない。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub propellant: Option<Quantity>,
 }
 

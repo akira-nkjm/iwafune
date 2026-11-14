@@ -128,6 +128,14 @@ fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
             "降交点の地方時は `HH:MM` で書きます".into(),
         );
     }
+    // 以前の書き方（軌道維持の推薬を `[decay]` に書く）は壊さずに警告して、推進系へ移すよう促す
+    if o.decay.as_ref().is_some_and(|d| d.propellant.is_some()) {
+        s.warning(
+            &["decay", "propellant"],
+            "setting.moved",
+            "軌道維持の推薬は推進系の解析（propulsion.propellant）の使える推薬を使うので、この値は使いません。推進系の部品（propellant_tank・propulsion_thruster）とマヌーバ（maneuvers/）で推薬を決め、`fune setting unset conditions.orbit.decay.propellant` で外してください".into(),
+        );
+    }
 }
 
 /// 部品・カタログ品の `material` が `analysis/structure.toml` の材料にあるか。
