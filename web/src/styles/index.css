@@ -174,6 +174,14 @@
   border-radius: 1px;
 }
 
+/*
+ * 字面の箱を大文字の高さとベースラインで切り詰める。Noto Sans JP の行の箱は字面より上下に広く、アイコンと
+ * items-center で並べると字面の中心がずれるため（和文の字面の中心も大文字の中心とほぼ同じ高さ）
+ */
+@utility text-box-cap {
+  text-box: trim-both cap alphabetic;
+}
+
 @utility no-scrollbar {
   scrollbar-width: none;
 }
