@@ -1,6 +1,6 @@
 import "@xyflow/react/dist/style.css";
-import { Background, Panel as FlowPanel, ReactFlow } from "@xyflow/react";
-import { useMemo, useState } from "react";
+import { Background, Panel as FlowPanel, ReactFlow, useReactFlow } from "@xyflow/react";
+import { useEffect, useMemo, useState } from "react";
 import type { DesignView, PowerPageView } from "@/api/types";
 import { DiagramZoom, ZOOM_RANGE } from "@/features/diagram/canvas/DiagramZoom";
 import { useT } from "@/i18n";
@@ -67,7 +67,7 @@ export function PowerFlow({ page, design }: { page: PowerPageView; design?: Desi
             }}
             onPaneClick={() => setSelected(null)}
             fitView
-            fitViewOptions={{ padding: 0.03, maxZoom: 1 }}
+            fitViewOptions={FIT}
             panOnScroll
             zoomActivationKeyCode={["Meta", "Control"]}
             minZoom={ZOOM_RANGE.min}
@@ -75,7 +75,8 @@ export function PowerFlow({ page, design }: { page: PowerPageView; design?: Desi
             proOptions={{ hideAttribution: true }}
           >
             <Background gap={20} size={1} color="var(--color-tick)" />
-            <FlowPanel position="top-left">
+            <RefitOnResize key={chosen ? "open" : "closed"} />
+            <FlowPanel position="bottom-right">
               <Legend />
             </FlowPanel>
             <DiagramZoom
@@ -102,6 +103,23 @@ export function PowerFlow({ page, design }: { page: PowerPageView; design?: Desi
       )}
     </div>
   );
+}
+
+/** 欄を開け閉めしてから合わせ直すまでの時間 [ms] */
+const REFIT_AFTER = 60;
+
+/** 図の見せ方（fitView と同じ余白・上限） */
+const FIT = { padding: 0.03, maxZoom: 1 } as const;
+
+/** 右の詳細の欄を開け閉めして図の幅が変わったら、全体を見る位置に合わせ直す（開け閉めで `key` を変えて付け直す） */
+function RefitOnResize() {
+  const { fitView } = useReactFlow();
+  useEffect(() => {
+    // 欄の幅が図の大きさ（React Flow が ResizeObserver で測る）に反映された後で合わせる
+    const timer = window.setTimeout(() => void fitView({ ...FIT, duration: 200 }), REFIT_AFTER);
+    return () => window.clearTimeout(timer);
+  }, [fitView]);
+  return null;
 }
 
 /** 線の凡例（値の線は実線、解析の結果の線は破線） */

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { AnalysisRunResult, CheckView } from "@/api/types";
 import { flowNode, flowRow, smallFlow } from "@/test/flow";
 import { flowEdges, flowNodes } from "./elements";
-import { FlowCard, FlowFoldCard } from "./FlowCard";
+import { FlowCard, FlowFoldCard, RowValue } from "./FlowCard";
 import { FlowDetail } from "./FlowDetail";
 import { focusOf } from "./focus";
 import { layoutFlow, shownRows } from "./layout";
@@ -265,5 +265,42 @@ describe("FlowDetail", () => {
     expect(out).toContain("2 部品");
     expect(out).toContain("未設定 1 件（解析の既定値を使う）");
     expect(out).not.toContain(">eol_factor<");
+  });
+  it("名前は表示名の字形で、部品の一覧は ID を 1 回（表示名が ID と同じなら ID だけ）", () => {
+    const node = flowNode("parts:A+B", "part", [flowRow("area", "1 m²")], {
+      label: "太陽電池パネル",
+      members: [
+        { id: "A", label: "A の名前", label_en: "A" },
+        { id: "B", label: "B", label_en: "B" },
+      ],
+    });
+    const out = html(
+      <FlowDetail
+        node={node}
+        result={undefined}
+        from={[]}
+        to={[]}
+        design={undefined}
+        onSelect={() => {}}
+        onClose={() => {}}
+      />,
+    );
+    expect(out).toMatch(/<h2 class="truncate font-semibold text-\[15px\]">太陽電池パネル<\/h2>/);
+    expect(out.match(/>B</g)).toHaveLength(1);
+    expect(out).toContain("A の名前");
+  });
+});
+
+describe("RowValue", () => {
+  it("英語の表示があれば英語の画面ではそれを出す", async () => {
+    const { setLang } = await import("@/i18n");
+    const row = flowRow("max_mode", "17 W · ダウンリンク", { display_en: "17 W · DOWNLINK" });
+    setLang("en");
+    try {
+      expect(html(<RowValue row={row} />)).toContain("17 W · DOWNLINK");
+    } finally {
+      setLang("ja");
+    }
+    expect(html(<RowValue row={row} />)).toContain("ダウンリンク");
   });
 });

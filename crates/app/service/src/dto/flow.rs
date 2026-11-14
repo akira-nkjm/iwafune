@@ -76,6 +76,8 @@ pub struct FlowRow {
     pub label_en: String,
     /// 値の表示文字列（`sat_units::format` で作ったもの）。null は表示する値が無い（`set` で未設定かを見る）
     pub display: Option<String>,
+    /// 英語の表示文字列（言語で変わる値だけ。null なら `display` を使う）
+    pub display_en: Option<String>,
     /// 値が書かれているか（false なら解析の既定値を使う、または足りない）
     pub set: bool,
     /// 書かれた値から求めた値か（軌道の周期など。解析が読んだ値ではないので、つながりを持たない）

@@ -15,6 +15,10 @@ id: string, label: string, label_en: string,
  */
 display: string | null, 
 /**
+ * 英語の表示文字列（言語で変わる値だけ。null なら `display` を使う）
+ */
+display_en: string | null, 
+/**
  * 値が書かれているか（false なら解析の既定値を使う、または足りない）
  */
 set: boolean, 

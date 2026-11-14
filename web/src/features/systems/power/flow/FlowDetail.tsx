@@ -46,6 +46,7 @@ export function FlowDetail({
           title={localized(node.label, node.label_en)}
           subtitle={node.members.length > 0 ? t.members(node.members.length) : node.sub}
           tone={tone}
+          mono={false}
           trailing={node.verdict ? <VerdictPill verdict={node.verdict} /> : undefined}
           onClose={onClose}
         />
@@ -56,9 +57,7 @@ export function FlowDetail({
         <DetailSection title={t.memberList}>
           <PropertyList>
             {node.members.map((m) => (
-              <PropertyRow key={m.id} label={<span className="font-mono">{m.id}</span>}>
-                <span className="text-ink-2">{localized(m.label, m.label_en)}</span>
-              </PropertyRow>
+              <MemberRow key={m.id} id={m.id} name={localized(m.label, m.label_en)} />
             ))}
           </PropertyList>
         </DetailSection>
@@ -124,6 +123,16 @@ function Values({ node }: { node: FlowNode }) {
         </DetailSection>
       )}
     </>
+  );
+}
+
+/** 部品の一覧の 1 行: ID（等幅）と、ID と違えば表示名 */
+function MemberRow({ id, name }: { id: string; name: string }) {
+  return (
+    <div className="flex items-baseline gap-3 px-3 py-1 text-xs">
+      <span className="shrink-0 font-mono text-ink">{id}</span>
+      {name !== id && <span className="min-w-0 truncate text-ink-2">{name}</span>}
+    </div>
   );
 }
 

@@ -7,6 +7,7 @@ export function flowRow(id: string, display: string | null, extra: Partial<FlowR
     label: id,
     label_en: id,
     display,
+    display_en: null,
     set: display !== null,
     derived: false,
     varies: null,

@@ -280,3 +280,17 @@ fn analysis_cards_show_named_main_outputs() {
     assert!(dod.display.as_deref().unwrap().contains(" / "));
     assert!(dod.verdict.is_some());
 }
+
+/// 言語で変わる値は英語の表示も持つ（モードの名前は英語では ID）。
+#[test]
+fn mode_names_in_outputs_follow_the_language() {
+    let flow = demo_flow();
+    let load = flow
+        .nodes
+        .iter()
+        .find(|n| n.id == "analysis:power.mode_load")
+        .unwrap();
+    let max = load.rows.iter().find(|r| r.id == "max_mode").unwrap();
+    assert!(max.display.as_deref().unwrap().contains("ダウンリンク"));
+    assert!(max.display_en.as_deref().unwrap().ends_with("· DOWNLINK"));
+}

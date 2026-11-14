@@ -82,6 +82,7 @@ pub(super) fn row(s: &Snapshot, ids: &[String], attr: &str, target: &Target) -> 
         set: !displays.is_empty(),
         display,
         derived: false,
+        display_en: None,
         varies,
         verdict: None,
         target: (ids.len() == 1).then(|| target.clone()),

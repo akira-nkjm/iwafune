@@ -165,7 +165,8 @@ function CardRow({
 /** 値（まとめたカードで部品ごとに違えば部品の数、書かれていなければ「未設定」） */
 export function RowValue({ row }: { row: FlowRow }) {
   const t = useT().systems.flow;
-  if (!row.display) {
+  const display = row.display ? localized(row.display, row.display_en) : null;
+  if (!display) {
     const text = row.varies ? t.varies(row.varies) : row.set ? "—" : t.unset;
     return <span className="text-ink-4">{text}</span>;
   }
@@ -176,9 +177,9 @@ export function RowValue({ row }: { row: FlowRow }) {
         row.derived && "text-ink-3 italic",
         valueTone(row.verdict),
       )}
-      title={row.derived ? withNote(row.display, t.derived) : row.display}
+      title={row.derived ? withNote(display, t.derived) : display}
     >
-      {row.display}
+      {display}
     </span>
   );
 }

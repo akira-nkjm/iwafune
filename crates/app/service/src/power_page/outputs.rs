@@ -85,15 +85,16 @@ pub(super) fn rows(r: &AnalysisRunResult) -> Option<Vec<FlowRow>> {
     })
 }
 
-/// モードの消費の最大と最小（成長余裕込み。どのモードか添える）。
+/// モードの消費の最大と最小（成長余裕込み。どのモードか添える。モードの名前は日本語は表示名、英語は ID）。
 fn mode_load(o: ModeLoadOutput) -> Vec<FlowRow> {
-    let named = |m: &sat_analysis::power::mode_load::ModeLoadMode| {
-        let name = if m.label.is_empty() { &m.id } else { &m.label };
-        format!(
-            "{} · {name}",
-            quantity_auto(m.total_with_growth.value(), "Power").display
-        )
-    };
+    let named =
+        |id: &str, title: (&str, &str), m: &sat_analysis::power::mode_load::ModeLoadMode| {
+            let power = quantity_auto(m.total_with_growth.value(), "Power").display;
+            let ja = if m.label.is_empty() { &m.id } else { &m.label };
+            let mut r = row(id, title, format!("{power} · {ja}"), None);
+            r.display_en = Some(format!("{power} · {}", m.id));
+            r
+        };
     let by = |a: &&sat_analysis::power::mode_load::ModeLoadMode,
               b: &&sat_analysis::power::mode_load::ModeLoadMode| {
         a.total_with_growth
@@ -102,20 +103,10 @@ fn mode_load(o: ModeLoadOutput) -> Vec<FlowRow> {
     };
     let mut rows = Vec::new();
     if let Some(m) = o.modes.iter().max_by(by) {
-        rows.push(row(
-            "max_mode",
-            ("最大のモード", "Highest mode"),
-            named(m),
-            None,
-        ));
+        rows.push(named("max_mode", ("最大のモード", "Highest mode"), m));
     }
     if let Some(m) = o.modes.iter().min_by(by) {
-        rows.push(row(
-            "min_mode",
-            ("最小のモード", "Lowest mode"),
-            named(m),
-            None,
-        ));
+        rows.push(named("min_mode", ("最小のモード", "Lowest mode"), m));
     }
     rows
 }
@@ -133,6 +124,7 @@ fn row(id: &str, (ja, en): (&str, &str), display: String, verdict: Option<Verdic
         display: Some(display),
         set: true,
         derived: false,
+        display_en: None,
         varies: None,
         verdict,
         target: None,
