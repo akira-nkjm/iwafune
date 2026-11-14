@@ -204,23 +204,22 @@ function FocusOn({ focus }: { focus: FocusRequest | null }) {
 }
 
 /**
- * ホームポジション: カメラを初めの位置（`position`。向きはここから原点を見る向き）へ戻し、表示中の部品の全体が
- * 収まる距離まで引く（注視点も全体の中心へ。`Bounds` が OrbitControls の注視点を合わせる）。
+ * ホームポジション: 今の視点から、初めの向き（`position` から原点を見る向き）で表示中の部品の全体が収まる位置へ、
+ * 約 1 秒かけて滑らかに動かす（位置は補間、向きは球面補間。`Bounds` が終わりに OrbitControls の注視点も全体の中心へ合わせる）。
  */
 function HomeView({ home, position }: { home: number; position: V3 }) {
   const bounds = useBounds();
-  const camera = useThree((state) => state.camera);
   const invalidate = useThree((state) => state.invalidate);
   const done = useRef(home);
   const [x, y, z] = position;
   useEffect(() => {
     if (!bounds || done.current === home) return;
     done.current = home;
-    camera.position.set(x, y, z);
-    camera.up.set(0, 0, 1);
-    camera.lookAt(0, 0, 0);
-    bounds.refresh().clip().fit();
+    const { center, distance } = bounds.refresh().clip().getSize();
+    const direction = new Vector3(x, y, z).normalize();
+    const goal = center.clone().addScaledVector(direction, distance);
+    bounds.moveTo(goal).lookAt({ target: center, up: [0, 0, 1] });
     invalidate();
-  }, [home, bounds, camera, invalidate, x, y, z]);
+  }, [home, bounds, invalidate, x, y, z]);
   return null;
 }
