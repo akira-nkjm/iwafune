@@ -327,7 +327,7 @@ pub fn is_cache_key(name: &str, commit: &str) -> bool {
         && commit.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
-/// 設定のパス → (ファイル, ファイル内のキーの列)。
+/// 設定のパス → (ファイル, ファイル内のキーの列)。区切りが空のパス・ファイルに当たらないパス・キーが空になるパスは `StoreError::SettingPath`。
 pub fn setting_location(path: &SettingPath) -> Result<(String, Vec<String>), StoreError> {
     let bad = || StoreError::SettingPath {
         path: path.to_string(),
@@ -338,9 +338,12 @@ pub fn setting_location(path: &SettingPath) -> Result<(String, Vec<String>), Sto
             let id = s.get(1).ok_or_else(bad)?;
             (format!("{GROUND_DIR}/{id}.toml"), &s[2.min(s.len())..])
         }
-        SettingScope::Conditions if CONDITIONS_FILES.contains(&s[0].as_str()) => {
-            (format!("{CONDITIONS_DIR}/{}.toml", s[0]), &s[1..])
-        }
+        SettingScope::Conditions => match s.split_first() {
+            Some((file, rest)) if CONDITIONS_FILES.contains(&file.as_str()) => {
+                (format!("{CONDITIONS_DIR}/{file}.toml"), rest)
+            }
+            _ => return Err(bad()),
+        },
         SettingScope::Analysis if s.first().map(String::as_str) == Some(ANALYSIS_COMMON) => {
             (COMMON_ANALYSIS_FILE.to_string(), &s[1..])
         }
@@ -348,9 +351,11 @@ pub fn setting_location(path: &SettingPath) -> Result<(String, Vec<String>), Sto
             Some(Ok(system)) => (analysis_file(system), &s[1..]),
             _ => return Err(bad()),
         },
-        SettingScope::Budget if s[0] == "policy" => (POLICY_FILE.to_string(), &s[1..]),
-        SettingScope::Budget => (ALLOCATION_FILE.to_string(), &s[..]),
-        _ => return Err(bad()),
+        SettingScope::Budget => match s.split_first() {
+            Some((head, rest)) if head == "policy" => (POLICY_FILE.to_string(), rest),
+            Some(_) => (ALLOCATION_FILE.to_string(), &s[..]),
+            None => return Err(bad()),
+        },
     };
     if keys.is_empty() {
         return Err(bad());

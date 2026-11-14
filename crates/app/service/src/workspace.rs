@@ -78,6 +78,8 @@ pub(crate) fn store_error(e: fune_store::StoreError) -> ServiceError {
         StoreError::NotAProject { start } => ServiceError::ProjectNotFound(start),
         StoreError::Locked { lock } => ServiceError::Locked(lock),
         StoreError::AlreadyExists { path } => ServiceError::AlreadyExists { what: path },
+        // 打たれたパスの誤り（入力の誤り。サーバーの故障ではない）
+        e @ StoreError::SettingPath { .. } => ServiceError::InvalidInput(e.to_string()),
         other => ServiceError::Store(other.to_string()),
     }
 }
