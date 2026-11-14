@@ -57,6 +57,7 @@ export function Scene3D({
   structureOpacity,
   helpers = DEFAULT_SCENE_HELPERS,
   focus = null,
+  home = 0,
 }: {
   boxes: Box3D[];
   dimensions: ReturnType<typeof sceneDimensions>;
@@ -74,6 +75,8 @@ export function Scene3D({
   helpers?: SceneHelpers;
   /** 視点を寄せる部品（ツリーで押したとき。描いていない部品なら何もしない） */
   focus?: FocusRequest | null;
+  /** ホームポジションに戻す依頼（押した回数。0 は依頼なし）。増えるたびに初めの向きへ戻し、全体が収まるまで引く */
+  home?: number;
 }) {
   const [target, setTarget] = useState<Mesh | null>(null);
   return (
@@ -108,6 +111,10 @@ export function Scene3D({
       {helpers.origin && <axesHelper args={[dimensions.axes]} />}
       <Bounds fit clip margin={1.3}>
         <FocusOn focus={focus} />
+        <HomeView
+          home={home}
+          position={[dimensions.cameraX, dimensions.cameraY, dimensions.cameraZ]}
+        />
         {boxes.map((b) => (
           <mesh
             key={b.id}
@@ -193,5 +200,26 @@ function FocusOn({ focus }: { focus: FocusRequest | null }) {
     // frameloop="demand" では、動かし始めを描き直しの依頼で起こす
     invalidate();
   }, [focus, bounds, scene, invalidate]);
+  return null;
+}
+
+/**
+ * ホームポジション: 今の視点から、初めの向き（`position` から原点を見る向き）で表示中の部品の全体が収まる位置へ、
+ * 約 1 秒かけて滑らかに動かす（位置は補間、向きは球面補間。`Bounds` が終わりに OrbitControls の注視点も全体の中心へ合わせる）。
+ */
+function HomeView({ home, position }: { home: number; position: V3 }) {
+  const bounds = useBounds();
+  const invalidate = useThree((state) => state.invalidate);
+  const done = useRef(home);
+  const [x, y, z] = position;
+  useEffect(() => {
+    if (!bounds || done.current === home) return;
+    done.current = home;
+    const { center, distance } = bounds.refresh().clip().getSize();
+    const direction = new Vector3(x, y, z).normalize();
+    const goal = center.clone().addScaledVector(direction, distance);
+    bounds.moveTo(goal).lookAt({ target: center, up: [0, 0, 1] });
+    invalidate();
+  }, [home, bounds, invalidate, x, y, z]);
   return null;
 }

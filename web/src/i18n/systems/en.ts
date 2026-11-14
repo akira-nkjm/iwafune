@@ -144,6 +144,7 @@ export const systemsEn: typeof systemsJa = {
       show: (name: string) => `Show ${name}`,
       hide: (name: string) => `Hide ${name}`,
       helpers: "Coordinate helpers",
+      home: "Home view (reset the camera)",
       helper: { origin: "Origin axes", grid: "Grid", gizmo: "Corner axes" },
       pageHint: "Select parts to inspect and edit their mounts, positions and orientations.",
       parts: (n: number) => `${n} parts`,

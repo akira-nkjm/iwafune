@@ -12,6 +12,7 @@ const state = vi.hoisted(() => ({
   hidden: new Set<string>() as ReadonlySet<string>,
   helpers: null as Record<string, boolean> | null,
   focus: undefined as unknown,
+  home: 0,
   browser: vi.fn(),
   toggle: (_value: boolean) => {},
   slide: (_value: number) => {},
@@ -53,6 +54,13 @@ vi.mock("react", async (original) => ({
         state.helpers ?? initial,
         (v: Record<string, boolean>) => {
           state.helpers = v;
+        },
+      ];
+    if (initial === 0)
+      return [
+        state.home,
+        (v: unknown) => {
+          state.home = typeof v === "function" ? v(state.home) : (v as number);
         },
       ];
     if (initial === undefined)
@@ -124,6 +132,7 @@ beforeEach(() => {
   state.hidden = new Set();
   state.helpers = null;
   state.focus = undefined;
+  state.home = 0;
   state.scene.mockClear();
   state.browser.mockClear();
 });
@@ -205,3 +214,16 @@ it("座標の表示の切り替えを場面に渡す", () => {
   render();
   expect(state.scene.mock.lastCall?.[0]).toMatchObject({ helpers: state.helpers });
 });
+
+it.each(["ja", "en"] as const)(
+  "%s: ホームポジションのボタンを出し、押した回数を場面に渡す",
+  (lang) => {
+    setLang(lang);
+    const label = getT().systems.layout3d.home;
+    expect(render()).toContain(`aria-label="${label}"`);
+    expect(state.scene.mock.lastCall?.[0]).toMatchObject({ home: 0 });
+    state.home = 2;
+    render();
+    expect(state.scene.mock.lastCall?.[0]).toMatchObject({ home: 2 });
+  },
+);

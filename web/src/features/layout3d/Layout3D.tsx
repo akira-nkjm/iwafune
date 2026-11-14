@@ -1,3 +1,4 @@
+import { House } from "lucide-react";
 import { type ReactNode, useId, useMemo, useState } from "react";
 import { usePlaceBody } from "@/api/ops";
 import type { DesignView } from "@/api/types";
@@ -156,6 +157,7 @@ function Layout3DFrame({
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NONE_HIDDEN);
   const [helpers, setHelpers] = useState<SceneHelpers>(DEFAULT_SCENE_HELPERS);
   const [focus, setFocus] = useState<FocusRequest | undefined>(undefined);
+  const [home, setHome] = useState(0);
   const { boxes, unplaced, dimensions } = useMemo(
     () => boxesOf(design, colorOf),
     [design, colorOf],
@@ -249,7 +251,19 @@ function Layout3DFrame({
               structureOpacity={fill ? structureOpacity : undefined}
               helpers={helpers}
               focus={focus ?? null}
+              home={home}
             />
+          )}
+          {boxes.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setHome((n) => n + 1)}
+              aria-label={L.home}
+              title={L.home}
+              className="absolute top-3 right-3 inline-flex size-8 items-center justify-center rounded-control border border-line bg-panel/90 text-ink-2 hover:bg-panel hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              <House className="size-4" aria-hidden />
+            </button>
           )}
           {showAxes && (
             <p className="pointer-events-none absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-control bg-panel/90 px-2 py-1 text-ink-3 text-xs">
