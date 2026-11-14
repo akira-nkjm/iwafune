@@ -8,6 +8,9 @@ export const sourcesEn: typeof sourcesJa = {
     empty: "No sources",
     add: "Add source",
     edit: "Edit",
+    shared: "Shared",
+    sharedHint:
+      "Sources of a shared catalog are read-only (fix them in the shared catalog repository)",
     id: "ID",
     kind: "Kind",
     label: "Name",

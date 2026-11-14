@@ -167,13 +167,24 @@ pub struct PointArgs {
     pub edit: EditOpts,
 }
 
-/// `fune catalog …`（このプロジェクトのカタログ品）
+/// `fune catalog …`（カタログ品。編集できるのはこのプロジェクトのカタログ品だけ。共有カタログは取得と更新）
 #[derive(Debug, Subcommand)]
 pub enum CatalogCmd {
     /// カタログ品の一覧
     Ls,
     /// 1 品の内容
     Show { id: String },
+    /// 共有カタログ（`[[catalog]] git = …`）を取得して `.fune/` に置き、commit を catalog.lock に記録する
+    Fetch {
+        /// catalog.lock を書き換えない（lock が無い・fune.toml と違えば失敗する。CI 向け）
+        #[arg(long)]
+        locked: bool,
+    },
+    /// 共有カタログの lock を `rev` の今の commit に上げ、変わった品と値を出す
+    Update {
+        /// 共有カタログの名前（fune.toml の `[[catalog]]` の `name`）
+        name: String,
+    },
     /// カタログ品を足す（`--from-part` で部品の値を写す）
     Add {
         /// 出所付きの ID（例: `local/rw_30mNms`）

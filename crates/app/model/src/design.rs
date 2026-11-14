@@ -8,6 +8,7 @@
 //! | `source` | Source・SourceKind・Distribution（出典の台帳） |
 //! | `budget` | 配分とマージン方針 |
 //! | `project` | `fune.toml` |
+//! | `shared_catalog` | 共有カタログの固定（`catalog.lock`）と読み込みの状態の判定（`Design::shared_catalog_statuses`） |
 //! | `conditions` / `analysis` | `conditions/`・`analysis/` の型付きの設定。解析の系の一覧 `AnalysisSystem` |
 //! | `thermal_settings` | 熱の解析の設定（`analysis/thermal.toml`。環境条件・プリセット・解析マージン・表面材・発熱の場所） |
 //! | `refs` | 参照の索引（ある ID をどのエンティティのどのキーが持っているか。`Design::references`） |
@@ -26,6 +27,7 @@ pub mod project;
 pub mod refs;
 pub mod setting_dims;
 pub mod settings_view;
+pub mod shared_catalog;
 pub mod source;
 pub mod source_map;
 pub mod system;
@@ -40,6 +42,7 @@ pub use part::*;
 pub use project::*;
 pub use refs::{HarnessEnd, NetEnd, RefSite, Referent};
 pub use settings_view::SettingEntry;
+pub use shared_catalog::{CatalogLock, LockedCatalog, SharedCatalogState, SharedCatalogStatus};
 pub use source_map::{EntityKey, Loc, SourceMap};
 pub use system::*;
 pub use thermal_settings::*;
@@ -49,7 +52,7 @@ use crate::chain::chain;
 use crate::diagnostic::Diagnostic;
 use crate::id::Id;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use ts_rs::TS;
 
 /// 追跡ファイルの (path, bytes) の BLAKE3（store が計算する）。楽観ロックに使う。
@@ -98,6 +101,10 @@ pub struct Design {
     pub analysis: AnalysisSettings,
     /// 図の配置（`view/<名前>.toml`。見た目だけ）
     pub views: BTreeMap<String, ViewLayout>,
+    /// `catalog.lock`（無ければ None。共有カタログの固定した commit）
+    pub catalog_lock: Option<CatalogLock>,
+    /// lock の commit のキャッシュ（`.fune/catalogs/`）を読んだ共有カタログの名前
+    pub fetched_catalogs: BTreeSet<String>,
     pub revision: Revision,
     /// 読み込みのときに見つかった問題（構文・型の誤り。該当エンティティは読み飛ばされている）
     pub load_diagnostics: Vec<Diagnostic>,

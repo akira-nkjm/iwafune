@@ -5,7 +5,7 @@ use super::net::Net;
 use crate::enum_text::enum_text;
 pub use crate::field_names::{CatalogFieldName, PartFieldName};
 use crate::id::Id;
-pub use crate::path::split_catalog_ref;
+pub use crate::path::{catalog_ref, split_catalog_ref};
 use crate::value::{Authored, Quaternion, Value, Vector3};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

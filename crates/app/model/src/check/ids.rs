@@ -4,6 +4,7 @@
 //! |---|---|
 //! | 部品とグループ（同じ名前空間） | `validate_node_id`（パスの予約語も禁止） |
 //! | モード・ネット・ハーネス・解析ケース・出典 | `validate_entity_id` |
+//! | 共有カタログの出典（カタログごと。`<カタログ名>/<ID>` の ID の部分） | `validate_entity_id` |
 //! | カタログ品（出所ごと。`<出所>/<ID>` の ID の部分） | `validate_entity_id` |
 
 use super::Ctx;
@@ -53,16 +54,32 @@ pub(super) fn check_ids(ctx: &mut Ctx) {
         (id.clone(), EntityKey::Case(id), target)
     });
     namespace(ctx, cases.collect(), validate_entity_id);
-    let sources = design.sources.keys().map(|id| {
-        let id = id.to_string();
-        (
-            id.clone(),
-            EntityKey::Source(id.clone()),
-            Target::Source { id },
-        )
-    });
-    namespace(ctx, sources.collect(), validate_entity_id);
+    check_source_ids(ctx);
     check_catalog_ids(ctx);
+}
+
+/// 出典の ID。プロジェクトの出典と、共有カタログの出典（`<カタログ名>/<ID>`。カタログごとの名前空間で、ID の部分を検査する）。
+fn check_source_ids(ctx: &mut Ctx) {
+    let design = ctx.design;
+    let mut spaces: std::collections::BTreeMap<&str, Vec<Entry>> = Default::default();
+    for id in design.sources.keys() {
+        let full = id.to_string();
+        let (space, local) = match design.shared_catalog_of(&full) {
+            Some(c) => (
+                c.name.as_str(),
+                split_catalog_ref(&full).map_or(full.clone(), |(_, i)| i.to_owned()),
+            ),
+            None => ("", full.clone()),
+        };
+        spaces.entry(space).or_default().push((
+            local,
+            EntityKey::Source(full.clone()),
+            Target::Source { id: full },
+        ));
+    }
+    for entries in spaces.into_values() {
+        namespace(ctx, entries, validate_entity_id);
+    }
 }
 
 /// カタログ品の ID（出所ごとの名前空間）。

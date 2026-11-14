@@ -157,7 +157,10 @@ pub fn catalog<'a>(ws: &fune_service::Workspace, c: &'a CatalogCmd) -> Built<'a>
             },
             opts,
         )),
-        CatalogCmd::Ls | CatalogCmd::Show { .. } => None,
+        CatalogCmd::Ls
+        | CatalogCmd::Show { .. }
+        | CatalogCmd::Fetch { .. }
+        | CatalogCmd::Update { .. } => None,
     })
 }
 

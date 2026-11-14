@@ -10,6 +10,7 @@
 //! | `power_page` | 電源ページの流れ・判定バー・グラフ・部品の表示定義 |
 //! | `design` | 設計データの表示（プロジェクト・部品・モード表・ネット・定義・設定） |
 //! | `catalog` | カタログ品の表示（値・パス・使っている部品） |
+//! | `shared_catalog` | 共有カタログの取得・更新の入出力（lock の commit・変わった品と値） |
 //! | `source` | 出典の台帳の表示（リンク・ファイル） |
 //! | `value` | 値の表示（部品・カタログ品・設定で共有） |
 //! | `edit` | Op の適用と、人が打った文字列（`SetText`・`UnsetText`） |
@@ -36,6 +37,11 @@ mod kpi;
 pub use kpi::{FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView};
 mod power_page;
 pub use power_page::*;
+mod shared_catalog;
+pub use shared_catalog::{
+    CatalogFetchRequest, CatalogItemChange, CatalogItemChangeKind, CatalogSyncEntry,
+    CatalogSyncResult, CatalogUpdateRequest, CatalogValueChange,
+};
 mod source;
 pub use source::SourceView;
 mod units;
@@ -72,7 +78,7 @@ pub use fune_model::design::{
     AttributeDef, Case, CatalogField, CatalogItem, Distribution, Harness, KindDef, Net, NetField,
     NetKind, Pose, Source, SourceKind, UncertaintySide,
 };
-pub use fune_model::design::{BudgetKind, StateAssign};
+pub use fune_model::design::{BudgetKind, SharedCatalogState, SharedCatalogStatus, StateAssign};
 pub use fune_model::design::{ViewEdge, ViewLayout, ViewNode, ViewPortSide};
 pub use fune_model::path::PortRef;
 pub use fune_model::resolve::{Evidence, Origin};

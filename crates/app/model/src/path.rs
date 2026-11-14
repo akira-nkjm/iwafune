@@ -250,10 +250,16 @@ impl std::str::FromStr for PortRef {
     }
 }
 
-/// `"local/rw_10mNms"` → (`"local"`, `"rw_10mNms"`)。
+/// `"local/rw_10mNms"` → (`"local"`, `"rw_10mNms"`)。共有カタログの出典の参照（`"lab/ds_rw"`。docs/model.md §12）も同じ形で分ける。
 pub fn split_catalog_ref(reference: &str) -> Option<(&str, &str)> {
     let (source, id) = reference.split_once('/')?;
     (!source.is_empty() && !id.is_empty() && !id.contains('/')).then_some((source, id))
+}
+
+/// 出所付きの参照（`<カタログ名>/<ID>`）を作る。カタログ品の ID と、共有カタログの出典の ID（docs/model.md §12）の両方に使う。
+/// **出所付きの参照の組み立てはここだけ**（分けるのは [`split_catalog_ref`]）。
+pub fn catalog_ref(catalog: &str, id: &str) -> String {
+    format!("{catalog}/{id}")
 }
 
 #[cfg(test)]

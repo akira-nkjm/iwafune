@@ -10,7 +10,7 @@
 //! | `values` | 解決済みの値・書かれた量 → 表示用の型 |
 //! | `settings` | 設定 → キーと値の一覧、設定・バジェットと系の対応 |
 
-mod catalog;
+pub(crate) mod catalog;
 mod parts;
 pub(crate) mod settings;
 mod sources;

@@ -24,16 +24,19 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         ),
         Op::SetSource { source } => {
             let id = source.id.as_str();
+            writable_source(design, id)?;
             set_id(design.sources.keys().map(|k| k.as_str()), id, "出典")?;
             Ok(write_record(edits, &layout::source_file(id), source)?)
         }
-        Op::RemoveSource { id } => remove(
-            edits,
-            design.sources.contains_key(id.as_str()),
-            &layout::source_file(id),
-            "出典",
-            id,
-        ),
+        Op::RemoveSource { id } => writable_source(design, id).and_then(|()| {
+            remove(
+                edits,
+                design.sources.contains_key(id.as_str()),
+                &layout::source_file(id),
+                "出典",
+                id,
+            )
+        }),
         Op::SetHarness { harness } => {
             let id = harness.id.as_str();
             set_id(design.harnesses.keys().map(|k| k.as_str()), id, "ハーネス")?;
@@ -47,6 +50,17 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             id,
         ),
         _ => Err(OpError::invalid("この Op はここでは扱いません")),
+    }
+}
+
+/// 共有カタログの出典（`<カタログ名>/<ID>`）は読み取り専用（共有カタログのリポジトリで直す）。
+fn writable_source(design: &Design, id: &str) -> Result<(), OpError> {
+    match design.shared_catalog_of(id) {
+        Some(c) => Err(OpError::invalid(format!(
+            "出典 `{id}` は共有カタログ `{}` の出典なので、このプロジェクトからは書き換えられません。共有カタログのリポジトリに PR を出してください",
+            c.name
+        ))),
+        None => Ok(()),
     }
 }
 

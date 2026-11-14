@@ -9,7 +9,9 @@ use fune_model::resolve::resolve_catalog_item;
 use fune_store::layout::{CatalogLocation, catalog_location};
 
 /// カタログの出所の一覧（fune.toml の `[[catalog]]` の順）。書き込めるかは品の `editable` と同じ判定。
+/// 共有カタログには lock の commit と読み込みの状態（`Design::shared_catalog_statuses`）を付ける。
 pub(crate) fn sources(design: &Design) -> Vec<CatalogSourceView> {
+    let mut statuses = design.shared_catalog_statuses();
     design
         .project
         .catalogs
@@ -17,6 +19,10 @@ pub(crate) fn sources(design: &Design) -> Vec<CatalogSourceView> {
         .map(|c| CatalogSourceView {
             name: c.name.clone(),
             editable: c.local_dir().is_some(),
+            shared: statuses
+                .iter()
+                .position(|s| s.name == c.name)
+                .map(|i| statuses.remove(i)),
         })
         .collect()
 }
@@ -31,7 +37,7 @@ pub(crate) fn list(design: &Design) -> Vec<CatalogItemView> {
 }
 
 /// カタログ品 1 つ。書き換えられるか（`editable`）は fune-ops と同じ `catalog_location` で決める。
-fn item_view(design: &Design, item: &CatalogItem) -> CatalogItemView {
+pub(crate) fn item_view(design: &Design, item: &CatalogItem) -> CatalogItemView {
     let (scope, name) = split_catalog_ref(&item.id).unwrap_or(("", item.id.as_str()));
     let states = design.kind_states(item.kind.as_str()).to_vec();
     CatalogItemView {

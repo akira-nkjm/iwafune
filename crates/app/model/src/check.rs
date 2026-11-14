@@ -2,13 +2,14 @@
 //!
 //! | 重さ | 例 |
 //! |---|---|
-//! | error | 単位の解析・次元の不一致、値の型（状態の軸）の不一致、存在しない ID の参照、取付の循環、ID の規則と重複、図の線の経路の形 |
+//! | error | 単位の解析・次元の不一致、値の型（状態の軸）の不一致、存在しない ID の参照、取付の循環、ID の規則と重複、図の線の経路の形、共有カタログの lock・キャッシュの欠け |
 //! | warning | 必須の属性の欠け（Unset）、許可単位の外、値域の外、モードの表に無い部品、配分の超過 |
-//! | info | 参考（共有カタログを読んでいない など） |
+//! | info | 参考 |
 //!
 //! 編集（fune-ops の計画）は、適用後にここで新しく増えた error があれば拒む。ops に検証の規則の写しを持たない。
 
 mod budget;
+mod catalogs;
 mod defs;
 mod ids;
 mod modes;
@@ -45,6 +46,7 @@ pub fn check(design: &Design) -> Vec<Diagnostic> {
     ids::check_ids(&mut ctx);
     parts::check_parts(&mut ctx);
     parts::check_catalog(&mut ctx);
+    catalogs::check_shared_catalogs(&mut ctx);
     modes::check_modes(&mut ctx);
     system::check_nets(&mut ctx);
     system::check_harnesses(&mut ctx);

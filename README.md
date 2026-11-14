@@ -132,6 +132,32 @@ Each release publishes the CLI as `ghcr.io/akira-nkjm/fune:<version>` (and `:lat
 package's "Manage Actions access"; its workflow then uses the image as a job container with its own
 `GITHUB_TOKEN` (`permissions: packages: read`) and runs `fune check`.
 
+### Shared catalogs in CI
+
+A satellite repository can read catalog items from a shared catalog repository (`[[catalog]] git = …` in
+`fune.toml`, see [docs/model.md §12](docs/model.md)). The commit is pinned in `catalog.lock`, which is committed,
+and the fetched files are cached under `.fune/` (ignored by git). In CI, fetch the locked commit first, then check:
+
+```yaml
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container: ghcr.io/akira-nkjm/fune:latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      # Only for a private catalog repository: let git authenticate with a token that can read it.
+      - run: git config --global url."https://x-access-token:${{ secrets.CATALOG_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      - run: fune catalog fetch --locked   # fails if catalog.lock is missing or does not match fune.toml
+      - run: fune check
+```
+
+`fune catalog fetch --locked` never rewrites `catalog.lock`; run `fune catalog fetch` (or `fune catalog update <name>`
+to move to the newest commit of `rev`) locally and commit the lock. fune calls the `git` command, so authentication
+is whatever your git configuration provides (credential helper, SSH keys); the image includes `git`.
+
 ## Documentation
 
 The design documents are written in Japanese.

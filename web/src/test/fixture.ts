@@ -92,7 +92,7 @@ export const fixture: DesignView = {
     schema: 2,
     counts: { parts: 3, groups: 3, modes: 2, nets: 2, harnesses: 0, cases: 0 },
     diagnostics: { errors: 0, warnings: 1, infos: 0 },
-    catalogs: [{ name: "local", editable: true }],
+    catalogs: [{ name: "local", editable: true, shared: null }],
   },
   tree: [
     {

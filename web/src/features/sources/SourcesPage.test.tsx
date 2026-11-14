@@ -14,6 +14,7 @@ const base: SourceView = {
   retrieved: "2026-10-15",
   sha256: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
   distribution: "restricted",
+  editable: true,
 };
 
 function render(sources: SourceView[]): string {
@@ -37,5 +38,11 @@ describe("出典の表", () => {
     expect(html).toContain("docs/datasheets/rw.pdf");
     expect(html).toContain("Rev. C");
     expect(html).toContain("2026-10-15");
+  });
+
+  it("共有カタログの出典（API の editable が false）には編集のボタンを出さない", () => {
+    const html = render([base, { ...base, id: "lab/ds_rw", editable: false }]);
+    expect(html.match(/aria-label="[^"]*: ds_web"/g)?.length).toBe(1);
+    expect(html).not.toContain(': lab/ds_rw"');
   });
 });

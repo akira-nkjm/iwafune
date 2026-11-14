@@ -2,7 +2,8 @@
 //! 書き込めないカタログ（共有カタログ）の品が公開できない出典を使っていないか（docs/model.md §7.7）。
 
 use super::Ctx;
-use crate::design::{EntityKey, split_catalog_ref};
+use crate::design::EntityKey;
+use crate::design::source::is_location;
 use crate::path::{AttrPath, ParamPath};
 use crate::target::Target;
 use crate::value::{Authored, Value, is_calendar_date};
@@ -152,8 +153,9 @@ fn check_refs(ctx: &mut Ctx, uses: &[SourceUse]) {
             continue;
         }
         let keys: Vec<&str> = u.keys.iter().map(String::as_str).collect();
+        let shared = ctx.design.shared_catalog_of(u.source);
         // 以前の書き方（datasheet に URL・パスを直接書く）は壊さずに警告して、出典へ移すよう促す
-        if u.datasheet && is_legacy_location(u.source) {
+        if u.datasheet && shared.is_none() && is_location(u.source) {
             ctx.warning(
                 "source.datasheet_location",
                 &u.entity,
@@ -166,7 +168,12 @@ fn check_refs(ctx: &mut Ctx, uses: &[SourceUse]) {
             );
             continue;
         }
-        let message = if u.datasheet {
+        let message = if let Some(c) = shared {
+            format!(
+                "出典 `{}` が共有カタログ `{}` の sources/ にありません（共有カタログの出典は `<カタログ名>/<ID>` で参照します）",
+                u.source, c.name
+            )
+        } else if u.datasheet {
             format!(
                 "データシートの出典 `{}` が sources/ にありません（datasheet には出典の ID を書き、URL・パスはその出典の ref に書きます）",
                 u.source
@@ -184,21 +191,11 @@ fn check_refs(ctx: &mut Ctx, uses: &[SourceUse]) {
     }
 }
 
-/// 出典の ID ではなく、URL・パス（以前の datasheet の書き方）に見えるか。出典の ID は `/` と `:` を含まない。
-fn is_legacy_location(text: &str) -> bool {
-    text.contains('/') || text.contains(':') || text.contains('\\')
-}
-
 /// 書き込めないカタログ（共有カタログ）の品が、公開できない（`distribution = "restricted"`）出典を使っていないか。
 fn check_restricted(ctx: &mut Ctx, uses: &[SourceUse]) {
     let design = ctx.design;
-    let shared = |item: &str| {
-        split_catalog_ref(item)
-            .and_then(|(name, _)| design.project.catalogs.iter().find(|c| c.name == name))
-            .is_some_and(|c| c.local_dir().is_none())
-    };
     for u in uses {
-        let Some(item) = u.item.filter(|i| shared(i)) else {
+        let Some(item) = u.item.filter(|i| design.shared_catalog_of(i).is_some()) else {
             continue;
         };
         if !design

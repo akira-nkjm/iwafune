@@ -100,3 +100,10 @@ impl Source {
         self.distribution == Some(Distribution::Restricted)
     }
 }
+
+/// 出典の ID ではなく、URL・パス（以前のカタログ品の `datasheet` の書き方）に見えるか。出典の ID は `:`・`\\` を含まず、
+/// `/` を含むのは共有カタログの出典の出所付きの参照（`<カタログ名>/<ID>`。`Design::shared_catalog_of` で見分ける）だけ。
+/// 読み込み（共有カタログの品の参照に出所を付けるか）と検査（`source.datasheet_location`）が使う。
+pub fn is_location(text: &str) -> bool {
+    text.contains('/') || text.contains(':') || text.contains('\\')
+}

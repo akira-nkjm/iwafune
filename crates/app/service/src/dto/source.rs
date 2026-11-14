@@ -12,6 +12,9 @@ pub struct SourceView {
     pub source: Source,
     /// 参照先が Web の URL なら、その URL（GUI のリンク。判定は `fune_model::design::Source::web_link`）
     pub link: Option<String>,
-    /// 台帳のファイル（`sources/<ID>.toml`）
+    /// 台帳のファイル（`sources/<ID>.toml`。共有カタログの出典はキャッシュの中のファイル）
     pub file: String,
+    /// このプロジェクトの出典なら true。共有カタログの出典（`<カタログ名>/<ID>`）は読み取り専用で false
+    /// （判定は `Design::shared_catalog_of`）
+    pub editable: bool,
 }

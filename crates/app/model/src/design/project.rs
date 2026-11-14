@@ -55,7 +55,8 @@ fn default_toml() -> String {
     "1.0".to_string()
 }
 
-/// カタログの出所（`[[catalog]]`）。`path` ならリポジトリ内、`git` なら共有リポジトリ（まだ読まない）。
+/// カタログの出所（`[[catalog]]`）。`path` ならリポジトリ内（書き込める）、`git` なら共有リポジトリ（読み取り専用。
+/// `catalog.lock` の commit を `.fune/` のキャッシュから読む。docs/model.md §12）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct CatalogSource {
@@ -71,7 +72,7 @@ pub struct CatalogSource {
 impl CatalogSource {
     /// 書き換えられる（このプロジェクトの中の `[[catalog]] path = …`）なら、そのディレクトリ。共有カタログ（`git = …`）は None。
     /// **カタログの出所が書き換えられるかの判定はここだけ**（store の `catalog_location`・fune-ops・service の一覧・
-    /// 公開できない出典の検査が使う）。
+    /// 公開できない出典の検査・共有カタログの判定 [`CatalogSource::shared_git`] が使う）。
     pub fn local_dir(&self) -> Option<&str> {
         self.path.as_deref()
     }

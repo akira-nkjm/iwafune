@@ -224,6 +224,16 @@ fn shared_catalog_items_are_read_only() {
             maturity: None,
             copy_from_part: None,
         },
+        // 共有カタログの出典（`lab/<ID>`）も読み取り専用
+        Op::RemoveSource {
+            id: "lab/ds_rw".into(),
+        },
+        Op::SetSource {
+            source: fune_model::design::Source::new(
+                "lab/ds_rw",
+                fune_model::design::SourceKind::Datasheet,
+            ),
+        },
     ] {
         match plan(&shared, &[op]) {
             Err(OpError::Invalid { message }) => assert!(
