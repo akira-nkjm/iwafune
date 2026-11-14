@@ -1,5 +1,7 @@
 //! 解析ケースの文脈: 設計・解決済みの値・ケースと、どの解析でも使う入力（軌道・地上局・姿勢則・モード）の組み立て。
 
+mod orbit;
+
 use crate::missing::MissingInputs;
 use crate::quantity::{setting, setting_opt};
 use crate::reads::ReadLog;
@@ -15,9 +17,6 @@ use sat_astro::attitude::{AttitudeLaw, DEFAULT_PRIMARY_AXIS, DEFAULT_SECONDARY_A
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
 use sat_astro::math::{Quat, Vec3};
-use sat_astro::orbit::{DEFAULT_ECCENTRICITY, OrbitElements, OrbitSpec, Propagator};
-use sat_astro::time::Epoch;
-use sat_units::typed::{Angle, Length, Qty};
 
 /// 設計の中心天体 → sat-astro の中心天体（μ・半径・暦・環境の値は sat-astro と解析が持つ）。
 pub fn central_body(c: CentralBodyKind) -> CentralBody {
@@ -126,110 +125,6 @@ impl<'a> Context<'a> {
     /// 全モードを解析の形に。
     pub fn modes(&self) -> Vec<ModeDef> {
         self.ordered_modes().into_iter().map(mode_def).collect()
-    }
-
-    /// 軌道（`conditions/orbit.toml`）。
-    pub fn orbit(&self, m: &mut MissingInputs) -> Option<OrbitSpec> {
-        let Some(o) = self.design.conditions.orbit.as_ref() else {
-            m.push(orbit(&[]), "軌道の設定（conditions/orbit.toml）");
-            return None;
-        };
-        for key in [
-            "epoch",
-            "central",
-            "eccentricity",
-            "arg_perigee",
-            "mean_anomaly",
-        ] {
-            self.note(orbit(&[key]));
-        }
-        let epoch = match o.epoch.as_deref().map(Epoch::parse) {
-            Some(Ok(e)) => Some(e),
-            Some(Err(e)) => {
-                m.push(orbit(&["epoch"]), format!("元期を解釈できません（{e}）"));
-                None
-            }
-            None => {
-                m.push(orbit(&["epoch"]), "軌道の元期（ISO 8601）");
-                None
-            }
-        };
-        let central = o.central.map_or(CentralBody::Earth, central_body);
-        let a = self.semi_major_axis(o, central, m);
-        self.note(orbit(&[if o.inclination.is_some() {
-            "inclination"
-        } else {
-            "sun_synchronous"
-        }]));
-        let inc = match (o.inclination.as_ref(), o.sun_synchronous, a) {
-            (Some(q), _, _) => setting(&dims::ORBIT_INCLINATION, &[], Some(q), "", m),
-            (None, Some(true), Some(a)) => {
-                Some(Qty::from_raw(sat_astro::orbit::sso_inclination_rad(
-                    a.value(),
-                    o.eccentricity.unwrap_or(DEFAULT_ECCENTRICITY),
-                )))
-            }
-            _ => setting(
-                &dims::ORBIT_INCLINATION,
-                &[],
-                None,
-                "傾斜角（または sun_synchronous = true）",
-                m,
-            ),
-        };
-        // 書かれていない要素は None のまま渡す（慣例の値は `OrbitElements::with_defaults` が持つ）。
-        // RAAN は LTDN からも求める。外側の None は「求められない」（不足として記録済み）。
-        self.note(orbit(&[if o.ltdn.is_some() && o.raan.is_none() {
-            "ltdn"
-        } else {
-            "raan"
-        }]));
-        let raan = match (o.raan.as_ref(), o.ltdn.as_deref(), epoch) {
-            (Some(q), _, _) => setting(&dims::ORBIT_RAAN, &[], Some(q), "", m).map(Some),
-            (None, Some(text), Some(epoch)) => raan_from_ltdn(epoch, text, m).map(Some),
-            (None, Some(_), None) => None,
-            (None, None, _) => Some(None),
-        };
-        let argp = setting_opt(&dims::ORBIT_ARG_PERIGEE, &[], o.arg_perigee.as_ref(), m);
-        let ma = setting_opt(&dims::ORBIT_MEAN_ANOMALY, &[], o.mean_anomaly.as_ref(), m);
-        self.note(orbit(&["propagator"]));
-        let propagator = match o.propagator {
-            Some(fune_model::design::PropagatorKind::Kepler) => Propagator::Kepler,
-            _ => Propagator::default(),
-        };
-        let elements = OrbitElements::with_defaults(a?, inc?, o.eccentricity, raan?, argp, ma);
-        let mut spec = OrbitSpec::new(epoch?, elements, propagator);
-        spec.central = central;
-        Some(spec)
-    }
-
-    fn semi_major_axis(
-        &self,
-        o: &fune_model::design::OrbitSettings,
-        central: CentralBody,
-        m: &mut MissingInputs,
-    ) -> Option<Qty<Length>> {
-        if o.semi_major_axis.is_some() {
-            self.note(orbit(&["semi_major_axis"]));
-            return setting(
-                &dims::ORBIT_SEMI_MAJOR_AXIS,
-                &[],
-                o.semi_major_axis.as_ref(),
-                "",
-                m,
-            );
-        }
-        self.note(orbit(&["altitude"]));
-        let alt = setting(
-            &dims::ORBIT_ALTITUDE,
-            &[],
-            o.altitude.as_ref(),
-            "軌道の高度（または semi_major_axis）",
-            m,
-        )?;
-        Some(Qty::from_raw(
-            sat_astro::orbit::semi_major_axis_from_altitude(central, alt.value()),
-        ))
     }
 
     /// 地上局（`ids` が空なら全局）。
@@ -359,29 +254,6 @@ pub fn mode_def(mode: &Mode) -> ModeDef {
         label: mode.label.clone().unwrap_or_else(|| mode.id.to_string()),
         assignments: assignments(&mode.states),
         eclipse: assignments(&mode.eclipse),
-    }
-}
-
-/// `conditions.orbit.<…>`（`conditions/orbit.toml` のキー）。
-fn orbit(keys: &[&str]) -> SettingPath {
-    SettingPath::conditions(&["orbit"]).child(keys)
-}
-
-/// 降交点地方時（`"10:30"`）→ RAAN（読み方は `fune_model::value::parse_clock_hours`、換算は sat-astro）。
-fn raan_from_ltdn(epoch: Epoch, text: &str, m: &mut MissingInputs) -> Option<Qty<Angle>> {
-    let Some(hours) = fune_model::value::parse_clock_hours(text) else {
-        m.push(
-            orbit(&["ltdn"]),
-            "降交点地方時は \"HH:MM\" で書いてください",
-        );
-        return None;
-    };
-    match sat_astro::orbit::raan_from_ltdn(epoch, hours) {
-        Ok(rad) => Some(Qty::from_raw(rad)),
-        Err(e) => {
-            m.push(orbit(&["ltdn"]), format!("RAAN に換算できません（{e}）"));
-            None
-        }
     }
 }
 
