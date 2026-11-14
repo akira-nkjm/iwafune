@@ -79,10 +79,8 @@ fn assemble(analyses: Vec<PowerAnalysisView>) -> PowerPageView {
             }
         }
     }
-    let verdicts = presentation::worst_verdicts(&modes);
     PowerPageView {
         modes,
-        verdicts,
         analyses,
         flow: Default::default(),
     }
@@ -97,7 +95,6 @@ fn merge_mode(mode: &mut PowerModeView, incoming: PowerModeView) {
     if incoming.eclipse.is_some() {
         mode.eclipse = incoming.eclipse;
     }
-    mode.bars.extend(incoming.bars);
     if !incoming.charts.is_empty() {
         mode.charts = incoming.charts;
     }

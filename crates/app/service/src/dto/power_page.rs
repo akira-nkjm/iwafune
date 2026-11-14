@@ -9,8 +9,6 @@ use ts_rs::TS;
 pub struct PowerPageView {
     /// 全解析を統合したモードごとの表示。
     pub modes: Vec<PowerModeView>,
-    /// 判定ごとに全モードの最悪をとったもの（概要に出す）
-    pub verdicts: Vec<PowerVerdictView>,
     /// データを見る・不足入力・設定に使う元の解析と表示名。
     pub analyses: Vec<PowerAnalysisView>,
     /// 解析が読む部品・条件・設定と解析どうしのつながり（「フロー」タブ。`fune_service::flow`）
@@ -25,7 +23,6 @@ pub struct PowerModeView {
     pub verdict: Option<Verdict>,
     pub sunlit: Option<PowerBudgetView>,
     pub eclipse: Option<PowerBudgetView>,
-    pub bars: Vec<PowerVerdictView>,
     pub charts: Vec<PowerChartView>,
 }
 
@@ -74,8 +71,6 @@ pub struct PowerVerdictView {
     pub limit: QuantityView,
     pub verdict: Option<Verdict>,
     pub kind: PowerLimitKind,
-    /// 全モードの最悪をとったときの、そのモード（モードごとの値では None）
-    pub mode: Option<String>,
     /// 「上限の 143 %」「必要の 59 %」「8.70 Wh 不足」など
     pub note: AnalysisLabel,
     /// メーターの塗りの始まりと終わり
@@ -83,10 +78,6 @@ pub struct PowerVerdictView {
     pub fill_end: f64,
     /// 限界・必要値の線の位置
     pub limit_at: f64,
-    /// 悪さ（大きいほど悪い）。最悪のモードを選ぶのに使い、表示しない
-    #[serde(skip)]
-    #[ts(skip)]
-    pub badness: f64,
 }
 
 /// 限界の向き。

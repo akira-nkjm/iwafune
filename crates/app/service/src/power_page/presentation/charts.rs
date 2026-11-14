@@ -148,7 +148,6 @@ pub(super) fn orbital(json: &Value) -> Option<PowerPageView> {
             verdict: None,
             sunlit: None,
             eclipse: None,
-            bars: Vec::new(),
             charts: vec![PowerChartView {
                 id: "generation".into(),
                 label: label("太陽電池の発電", "Solar Cells generation"),

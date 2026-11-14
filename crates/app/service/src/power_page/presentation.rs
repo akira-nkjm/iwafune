@@ -45,7 +45,6 @@ pub(super) fn build(
                         verdict: Verdict::worst(m.checks.iter().map(|c| c.verdict)),
                         sunlit: None,
                         eclipse: None,
-                        bars: Vec::new(),
                         charts: Vec::new(),
                     })
                     .collect(),
@@ -91,20 +90,6 @@ fn balance(input: &EnergyBalanceInput, out: &EnergyBalanceOutput, json: &Value) 
                 verdict: Verdict::worst(case.checks.iter().map(|c| c.verdict)),
                 sunlit: None,
                 eclipse: None,
-                bars: vec![
-                    dod_bar(case, out.dod_limit),
-                    verdict_view::<Energy>(
-                        "energy_balance",
-                        label("1 周のエネルギー余裕", "Energy margin per orbit"),
-                        case.by_max_duration
-                            .as_ref()
-                            .map_or(case.energy_margin_per_orbit, |d| d.energy_margin_per_orbit)
-                            .map(|v| v.value()),
-                        0.0,
-                        PowerLimitKind::AtLeast,
-                        check(&case.checks, "energy_balance"),
-                    ),
-                ],
                 charts: charts::build(out, json, index, mode_id),
             }
         })
@@ -129,8 +114,7 @@ fn sizing(out: &SizingOutput) -> PowerPageView {
         modes: out
             .modes
             .iter()
-            .map(|m| (m, m.required(out.basis)))
-            .map(|(m, (area, capacity))| PowerModeView {
+            .map(|m| PowerModeView {
                 id: m.id.clone(),
                 label: m.id.clone(),
                 verdict: out
@@ -139,10 +123,6 @@ fn sizing(out: &SizingOutput) -> PowerPageView {
                     .and_then(|c| Verdict::worst(c.iter().map(|c| c.verdict))),
                 sunlit: None,
                 eclipse: None,
-                bars: vec![
-                    area_bar(out, area, out.mode_checks.get(&m.id)),
-                    capacity_bar(out, capacity, out.mode_checks.get(&m.id)),
-                ],
                 charts: Vec::new(),
             })
             .collect(),
@@ -217,14 +197,8 @@ pub(super) fn verdict_view<K: NamedKind>(
 ) -> PowerVerdictView {
     let fmt = |v: f64| crate::units::quantity_auto(v, K::name()).display;
     let pct = |r: f64| crate::units::quantity_auto(r, Fraction::name()).display;
-    let (fill_start, fill_end, limit_at, note, badness) = match value {
-        None => (
-            0.0,
-            0.0,
-            100.0 / METER_SPAN,
-            self::label("—", "—"),
-            f64::NEG_INFINITY,
-        ),
+    let (fill_start, fill_end, limit_at, note) = match value {
+        None => (0.0, 0.0, 100.0 / METER_SPAN, self::label("—", "—")),
         Some(v) if limit.abs() > f64::EPSILON => {
             let r = v / limit;
             let end = (r / METER_SPAN).clamp(0.0, 1.0) * 100.0;
@@ -238,12 +212,7 @@ pub(super) fn verdict_view<K: NamedKind>(
                     &format!("{} of required", pct(r)),
                 ),
             };
-            let badness = if kind == PowerLimitKind::AtMost {
-                r
-            } else {
-                -r
-            };
-            (0.0, end, 100.0 / METER_SPAN, note, badness)
+            (0.0, end, 100.0 / METER_SPAN, note)
         }
         Some(v) => {
             // 限界が 0: 0 を中央に、|v| の 1.15 倍を端にする
@@ -260,7 +229,7 @@ pub(super) fn verdict_view<K: NamedKind>(
                     &format!("{} to spare", fmt(v)),
                 )
             };
-            (pos.min(50.0), pos.max(50.0), 50.0, note, -v)
+            (pos.min(50.0), pos.max(50.0), 50.0, note)
         }
     };
     PowerVerdictView {
@@ -270,43 +239,11 @@ pub(super) fn verdict_view<K: NamedKind>(
         limit: crate::units::quantity_auto(limit, K::name()),
         verdict,
         kind,
-        mode: None,
         note,
         fill_start,
         fill_end,
         limit_at,
-        badness,
     }
-}
-
-/// 判定ごとに全モードの最悪をとる（違反 → 警告 → OK の順、同じなら悪さの大きいもの）。並びは最初に出た順。
-pub(super) fn worst_verdicts(modes: &[PowerModeView]) -> Vec<PowerVerdictView> {
-    let severity = |v: Option<Verdict>| match v {
-        Some(Verdict::Violation) => 3,
-        Some(Verdict::Warning) => 2,
-        Some(Verdict::Ok) => 1,
-        None => 0,
-    };
-    let mut out: Vec<PowerVerdictView> = Vec::new();
-    for mode in modes {
-        for bar in &mode.bars {
-            let candidate = PowerVerdictView {
-                mode: Some(mode.id.clone()),
-                ..bar.clone()
-            };
-            match out.iter_mut().find(|b| b.key == bar.key) {
-                Some(best) => {
-                    let worse = (severity(candidate.verdict), candidate.badness)
-                        > (severity(best.verdict), best.badness);
-                    if worse {
-                        *best = candidate;
-                    }
-                }
-                None => out.push(candidate),
-            }
-        }
-    }
-    out
 }
 
 #[cfg(test)]

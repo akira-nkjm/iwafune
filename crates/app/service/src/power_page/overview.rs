@@ -200,7 +200,7 @@ fn sizing(out: &SizingOutput) -> OverviewChart {
     }
 }
 
-/// 判定のメーター（上段の判定と同じ位置の計算）を棒 1 本にする。位置は 0〜100 → 0〜1。
+/// 判定のメーター（`presentation::verdict_view` の位置の計算）を棒 1 本にする。位置は 0〜100 → 0〜1。
 fn meter(key: &str, l: AnalysisLabel, v: PowerVerdictView) -> OverviewBar {
     let reference = match v.kind {
         PowerLimitKind::AtMost => label("上限", "Limit"),

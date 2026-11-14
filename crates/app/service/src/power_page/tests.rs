@@ -36,10 +36,6 @@ fn whole_page_collects_unchanged_analysis_results_and_merges_modes() {
         }
         let mode = page.modes.iter().find(|m| m.sunlit.is_some()).unwrap();
         assert!(mode.eclipse.is_some());
-        assert_eq!(
-            mode.bars.iter().map(|b| b.key.as_str()).collect::<Vec<_>>(),
-            ["dod", "energy_balance", "area", "capacity"]
-        );
         assert_eq!(mode.charts.len(), 3);
     }
 }
