@@ -238,6 +238,15 @@ impl Resolved {
         (!parts.cycled() && last.mount.is_none()).then_some(last.id.as_str())
     }
 
+    /// 取付の根か（取付先を持たず、ほかの部品の取付の連鎖がここで終わる）。
+    pub fn is_mount_root(&self, part: &str) -> bool {
+        self.parts.get(part).is_some_and(|p| p.mount.is_none())
+            && self
+                .parts
+                .values()
+                .any(|p| p.mount.is_some() && self.mount_root(&p.id) == Some(part))
+    }
+
     /// 部品から取付先をたどる連鎖（自分 → 取付先 → … の順。循環すればそこで止まる）。
     fn mount_chain<'a>(
         &'a self,

@@ -2,7 +2,7 @@
 import type { Vector3 } from "./Vector3";
 
 /**
- * 取付先と、機体座標での位置・姿勢（取付のある部品だけ）。
+ * 取付先と、取付点に対する位置・姿勢（取付のある部品だけ）。
  */
 export type MountView = { 
 /**
@@ -24,12 +24,4 @@ authored_position: Vector3 | null,
 /**
  * 取付点に対する相対姿勢 `[w, x, y, z]`（書かれていなければ恒等）
  */
-orientation: [number, number, number, number], 
-/**
- * 機体座標での位置 [m]（取付の連鎖をたどったもの）
- */
-body_position: [number, number, number], 
-/**
- * 機体座標での姿勢 `[w, x, y, z]`
- */
-body_orientation: [number, number, number, number], };
+orientation: [number, number, number, number], };

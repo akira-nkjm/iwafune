@@ -8,7 +8,7 @@ export type Q4 = [number, number, number, number];
 
 export interface Box3D {
   id: string;
-  /** 機体座標の位置 [m]（API の body_position） */
+  /** 機体座標の位置 [m]（API の `PartRow.body`） */
   position: V3;
   /** 機体座標の姿勢 [w, x, y, z] */
   orientation: Q4;
@@ -18,6 +18,8 @@ export interface Box3D {
   sized: boolean;
   /** API が返した系で構造を判別する（名前や ID から推測しない）。 */
   structure: boolean;
+  /** 取付の根（機体座標の原点。3D で掴んで動かさない） */
+  fixed: boolean;
 }
 
 /** 部品座標の方向ベクトルを持つ属性（RW のスピン軸・MTQ の軸・パネルの法線・センサの視線・推力の向き） */
@@ -111,21 +113,22 @@ export function boxesOf(
   const boxes: Box3D[] = [];
   const unplaced: string[] = [];
   for (const p of design.parts) {
-    // 取付のある部品だけを置く（取付があれば機体座標の位置・姿勢は必ず API が返す）
-    const m = p.mount;
-    if (!m) {
+    // 機体座標の位置・姿勢がある部品（取付のある部品と取付の根。API が決める）だけを置く
+    const body = p.body;
+    if (!body) {
       unplaced.push(p.id);
       continue;
     }
     const size = sizeOf(p);
     boxes.push({
       id: p.id,
-      position: m.body_position,
-      orientation: m.body_orientation,
+      position: body.position,
+      orientation: body.orientation,
       size: size ?? [0, 0, 0],
       color: colorOf?.(p.id) ?? toneHex[systemTone(p.system)],
       sized: size !== null,
       structure: p.system === "structure",
+      fixed: body.root,
     });
   }
   const bounds = boundsOf(boxes);

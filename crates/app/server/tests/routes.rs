@@ -343,7 +343,7 @@ async fn place_body_converts_to_mount_local() {
     );
     let (_, after) = call(&r, "GET", "/api/v1/parts/RW_X", None).await;
     assert_eq!(after["part"]["mount"]["on"], on, "取付先は変えない");
-    let p = after["part"]["mount"]["body_position"].as_array().unwrap();
+    let p = after["part"]["body"]["position"].as_array().unwrap();
     for (got, want) in p.iter().zip([0.010, -0.020, 0.030]) {
         assert!((got.as_f64().unwrap() - want).abs() < 1e-6, "{p:?}");
     }

@@ -151,7 +151,7 @@ fn place_by_body_position() {
     assert!(v["cli"][0].as_str().unwrap().contains("--on"), "{v}");
     let part = stdout(&["-C", r, "--json", "part", "show", "RW_X"]);
     let p: serde_json::Value = serde_json::from_str(&part).unwrap();
-    let pos = p["part"]["mount"]["body_position"].as_array().unwrap();
+    let pos = p["part"]["body"]["position"].as_array().unwrap();
     for (got, want) in pos.iter().zip([0.010, -0.020, 0.030]) {
         assert!((got.as_f64().unwrap() - want).abs() < 1e-6, "{pos:?}");
     }

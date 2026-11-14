@@ -2,12 +2,11 @@
 //! ファイルの分け方に関係なく、画面が見たい単位（部品・モード表・ネット）にまとめる。
 
 use super::{
-    CatalogItemView, CatalogSourceView, DiagnosticCounts, DiagnosticView, QuantityView, ValueData,
-    ValueView,
+    BodyPoseView, CatalogItemView, CatalogSourceView, DiagnosticCounts, DiagnosticView, MountView,
+    QuantityView, ValueData, ValueView,
 };
 use fune_model::builtin::{Labels, Role};
 use fune_model::design::{Maturity, StateAssign, ViewLayout};
-use fune_model::value::Vector3;
 use fune_ops::Op;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -114,6 +113,8 @@ pub struct PartRow {
     pub values: BTreeMap<String, ValueView>,
     pub ports: Vec<PortView>,
     pub mount: Option<MountView>,
+    /// 機体座標での位置・姿勢（取付のある部品と、取付の根。どちらでもない未配置の部品は null）
+    pub body: Option<BodyPoseView>,
     /// 機器の状態の語彙（kind から）
     pub states: Vec<String>,
     /// 部品ファイル（ルートからの相対パス）
@@ -164,25 +165,6 @@ pub struct AttrSection {
 pub struct PortView {
     pub id: String,
     pub net: Option<String>,
-}
-
-/// 取付先と、機体座標での位置・姿勢（取付のある部品だけ）。
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct MountView {
-    /// 取付先の部品
-    pub on: String,
-    /// 取付点（書かれていなければ取付先の原点）
-    pub point: Option<String>,
-    /// 取付点に対する相対位置 [m]（書かれていなければ原点）
-    pub position: [f64; 3],
-    /// 取付点に対する相対位置の書かれたまま（値と単位）。GUI はこの単位で見せて送る（ファイルの単位を保つ。CLI で同じ単位を打つのと同じ）
-    pub authored_position: Option<Vector3>,
-    /// 取付点に対する相対姿勢 `[w, x, y, z]`（書かれていなければ恒等）
-    pub orientation: [f64; 4],
-    /// 機体座標での位置 [m]（取付の連鎖をたどったもの）
-    pub body_position: [f64; 3],
-    /// 機体座標での姿勢 `[w, x, y, z]`
-    pub body_orientation: [f64; 4],
 }
 
 /// 部品 × モードの表。列は fune.toml の表示順（未指定のモードは後ろに ID 順）。

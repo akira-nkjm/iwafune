@@ -14,6 +14,17 @@ describe("3D 配置", () => {
     expect(boxes).toEqual([]);
     expect(unplaced).toEqual(["RW_X", "PCDU", "TRX"]);
   });
+
+  it("取付の根は取付が無くても API の body で原点に置き、動かさない印を付ける", () => {
+    const root: PartRow = {
+      ...base,
+      id: "FRAME",
+      body: { position: [0, 0, 0], orientation: [1, 0, 0, 0], root: true },
+    };
+    const { boxes, unplaced } = boxesOf({ ...fixture, parts: [root] });
+    expect(unplaced).toEqual([]);
+    expect(boxes[0]).toMatchObject({ id: "FRAME", position: [0, 0, 0], fixed: true });
+  });
 });
 
 describe("方向ベクトルの矢印", () => {
@@ -27,9 +38,8 @@ describe("方向ベクトルの矢印", () => {
         position: [0, 0, 0],
         authored_position: null,
         orientation: [s, s, 0, 0],
-        body_position: [0.1, 0, 0],
-        body_orientation: [s, s, 0, 0],
       },
+      body: { position: [0.1, 0, 0], orientation: [s, s, 0, 0], root: false },
       values: {
         ...base.values,
         spin_axis: {
@@ -56,13 +66,13 @@ describe("外形に対する表示寸法", () => {
       position: [0, 0, 0] as [number, number, number],
       authored_position: null,
       orientation: [1, 0, 0, 0] as [number, number, number, number],
-      body_position: [0, 0, 0] as [number, number, number],
-      body_orientation: [1, 0, 0, 0] as [number, number, number, number],
     };
+    const body: PartRow["body"] = { position: [0, 0, 0], orientation: [1, 0, 0, 0], root: false };
     const sized: PartRow = {
       ...base,
       id: "sized",
       mount,
+      body,
       values: {
         size: {
           ...base.values.mass!,
@@ -83,6 +93,7 @@ describe("外形に対する表示寸法", () => {
       ...base,
       id: "unsized",
       mount,
+      body,
       values: {},
       system: "payload",
       parent: "aocs",
@@ -109,7 +120,11 @@ describe("外形に対する表示寸法", () => {
 
   it("回転した箱の外形も含め、未寸法だけでも有限の寸法にする", () => {
     const design = designAt(1);
-    design.parts[0]!.mount!.body_orientation = [Math.SQRT1_2, 0, 0, Math.SQRT1_2];
+    design.parts[0]!.body = {
+      position: [0, 0, 0],
+      orientation: [Math.SQRT1_2, 0, 0, Math.SQRT1_2],
+      root: false,
+    };
     const b = boundsOf(boxesOf(design).boxes).getSize(new Vector3());
     expect(b.x).toBeCloseTo(0.5);
     expect(b.y).toBeCloseTo(1);
@@ -126,14 +141,13 @@ describe("構造の透過表示", () => {
     position: [0, 0, 0],
     authored_position: null,
     orientation: [1, 0, 0, 0],
-    body_position: [0, 0, 0],
-    body_orientation: [1, 0, 0, 0],
   };
+  const body: PartRow["body"] = { position: [0, 0, 0], orientation: [1, 0, 0, 0], root: false };
 
   it("名前・親によらず API の system が構造の部品だけを透過対象にする", () => {
     const parts: PartRow[] = [
-      { ...base, id: "internal", system: "structure", parent: "power", mount },
-      { ...base, id: "PANEL_FRAME", system: "power", parent: "structure", mount },
+      { ...base, id: "internal", system: "structure", parent: "power", mount, body },
+      { ...base, id: "PANEL_FRAME", system: "power", parent: "structure", mount, body },
     ];
     const { boxes } = boxesOf({ ...fixture, parts });
     expect(boxes.map((b) => b.structure)).toEqual([true, false]);
@@ -142,7 +156,8 @@ describe("構造の透過表示", () => {
   });
 
   it("不透明度を連続して変えても透過モードは一定で、選択中は常に不透明", () => {
-    const box = boxesOf({ ...fixture, parts: [{ ...base, system: "structure", mount }] }).boxes[0]!;
+    const box = boxesOf({ ...fixture, parts: [{ ...base, system: "structure", mount, body }] })
+      .boxes[0]!;
     for (const opacity of [0, 0.15, 0.3, 0.75, 1]) {
       expect(boxMaterial(box, false, opacity)).toMatchObject({
         transparent: true,

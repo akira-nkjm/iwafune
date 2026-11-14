@@ -99,10 +99,10 @@ export function PlacementSection({ design, part }: { design: DesignView; part: P
       </Field>
       <Field className="px-3 py-2 wrap-anywhere" label={t.bodyFrame}>
         <span className="min-w-0 font-mono text-[11.5px] text-ink-3 wrap-anywhere">
-          {m ? (
+          {part.body ? (
             <>
               (
-              {m.body_position.map((v, i) => (
+              {part.body.position.map((v, i) => (
                 <span key={["x", "y", "z"][i]}>
                   {i > 0 && ", "}
                   <Formatted si={v} dimension="Length" unit={unit} fallback={String(v)} />

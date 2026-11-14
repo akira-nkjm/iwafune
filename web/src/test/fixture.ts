@@ -58,6 +58,7 @@ function part(
     values: Object.fromEntries(values.map((v) => [v.attr, v])),
     ports,
     mount: null,
+    body: null,
     states,
     file: `parts/${group}/${id}.toml`,
     dir: [group],
