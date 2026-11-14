@@ -159,6 +159,19 @@ async fn parts_list_filter_and_detail() {
     assert_eq!(e["error"]["code"], "not_found");
 }
 
+/// カタログ品 1 件（ID は `/` を含む）。無ければ 404 の `not_found`。
+#[tokio::test]
+async fn catalog_item_and_not_found() {
+    let (_tmp, r) = demo_router();
+    let (s, item) = call(&r, "GET", "/api/v1/catalog/local/rw_10mNms", None).await;
+    assert_eq!(s, StatusCode::OK, "{item}");
+    assert_eq!(item["id"], "local/rw_10mNms");
+    assert_eq!(item["kind"], "reaction_wheel");
+    let (s, e) = call(&r, "GET", "/api/v1/catalog/local/nope", None).await;
+    assert_eq!(s, StatusCode::NOT_FOUND, "{e}");
+    assert_eq!(e["error"]["code"], "not_found");
+}
+
 #[tokio::test]
 async fn value_defs_and_diagnostics() {
     let (_tmp, r) = demo_router();

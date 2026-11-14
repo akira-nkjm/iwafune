@@ -345,6 +345,7 @@ export type * from "./SourceExcerpt";
 export type * from "./SourceKind";
 export type * from "./SourceView";
 export type * from "./SpaceWeatherLookup";
+export type * from "./SpaceWeatherQuery";
 export type * from "./SpaceWeatherVersion";
 export type * from "./SpanFallback";
 export type * from "./SrpParams";

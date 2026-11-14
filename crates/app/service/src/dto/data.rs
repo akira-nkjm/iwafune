@@ -57,6 +57,15 @@ pub struct SpaceWeatherVersion {
     pub last_date: String,
 }
 
+/// 宇宙天気の問い合わせ（`GET /data/space_weather?date=2003-10-29&activity=moderate`。CLI は `fune data space-weather <日付> --activity`）。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SpaceWeatherQuery {
+    /// ISO 8601 の元期（日付だけでも可）
+    pub date: String,
+    /// 表の範囲の外で使う太陽活動（`low`・`moderate`・`high`）
+    pub activity: Option<String>,
+}
+
 /// 日付で引いた宇宙天気（`GET /data/space_weather`、`fune data space-weather`）。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct SpaceWeatherLookup {

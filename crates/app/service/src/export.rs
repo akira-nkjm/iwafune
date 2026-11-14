@@ -41,6 +41,7 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         DataStatus,
         DataItem,
         SpaceWeatherLookup,
+        SpaceWeatherQuery,
         SpaceWeatherVersion,
         ErrorEnvelope,
         QuantityView,

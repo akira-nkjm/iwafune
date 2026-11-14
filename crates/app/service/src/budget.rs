@@ -15,7 +15,7 @@ use fune_projection::{Context, MissingInputs};
 use sat_analysis::budget::{BudgetItem, BudgetRollup, budget_rollup};
 use sat_analysis::power::mode_load::{ModeLoadMode, ModeLoadOutput};
 use sat_analysis::spec::Verdict;
-
+pub mod failure;
 mod propellant;
 mod uncounted;
 
