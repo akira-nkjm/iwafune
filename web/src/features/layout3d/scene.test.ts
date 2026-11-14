@@ -10,6 +10,7 @@ import {
   boxesOf,
   boxMaterial,
   DEFAULT_STRUCTURE_OPACITY,
+  DIMMED_OPACITY_RATIO,
   pickBox,
 } from "./scene";
 
@@ -174,6 +175,11 @@ describe("構造の透過表示", () => {
       expect(boxMaterial(box, true, opacity)).toMatchObject({ opacity: 1, depthWrite: true });
     }
     expect(boxMaterial(box, false).opacity).toBe(0.45);
+    // ほかの部品が選ばれているときは淡く、選んだ部品は不透明のまま
+    expect(boxMaterial(box, false, undefined, true).opacity).toBeCloseTo(
+      0.45 * DIMMED_OPACITY_RATIO,
+    );
+    expect(boxMaterial(box, true, 0.3, true).opacity).toBe(1);
     expect(boxMaterial({ ...box, sized: true }, false).opacity).toBe(0.85);
     expect(boxMaterial({ ...box, structure: false }, true, 0).opacity).toBe(1);
   });

@@ -83,6 +83,8 @@ export function Scene3D({
   // TransformControls を掴んだときの位置・姿勢（離したときに動いたかを比べる）
   const grabbed = useRef<{ p: Vector3; q: Quaternion } | null>(null);
   const ids = new Set(boxes.map((b) => b.id));
+  // 選んだ部品があれば、ほかの部品を淡く描く
+  const dimmed = (id: string) => selected !== null && ids.has(selected) && id !== selected;
   return (
     // demand: 何かが変わったとき（カメラの操作・箱の移動・props の変更）だけ描き直す。
     // 既定の always は止まっている間も毎フレーム描き、ページ全体の操作を重くする
@@ -138,9 +140,11 @@ export function Scene3D({
             }}
           >
             <boxGeometry args={b.size} />
-            <meshStandardMaterial {...boxMaterial(b, b.id === selected, structureOpacity)} />
+            <meshStandardMaterial
+              {...boxMaterial(b, b.id === selected, structureOpacity, dimmed(b.id))}
+            />
             <Edges
-              color={b.id === selected ? uiHex.ink : uiHex.ink3}
+              color={b.id === selected ? uiHex.ink : dimmed(b.id) ? uiHex.tick : uiHex.ink3}
               lineWidth={b.id === selected ? 2 : 1}
             />
             {axes
