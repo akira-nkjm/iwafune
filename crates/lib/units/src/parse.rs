@@ -1,5 +1,7 @@
 //! 単位式と次元名の文字列解析。
 //!
+//! SI 接頭辞の表と、接頭辞を付けてよい単位の規則は `prefix`（完全一致の記号が先で、`kkg`・`kh` などは拒否）。
+//!
 //! [`parse_unit`] は SI 接頭辞付きの記号を `*`（乗算）・`/`（除算）・`^`（冪）で
 //! つないだ式（`N*m`、`W/K`、`kg/m^3`、`m^-3`）を左から右へ畳み込む。括弧は入れ子にでき、
 //! 括弧の外では従来どおり左結合（`W/K*s` は `(W/K)*s`）。空文字列は無次元。affine 単位（`degC`/`degF`）
@@ -24,21 +26,10 @@
 
 use crate::{Dimension, Rational, Unit, UnitError, named_unit};
 
-const PREFIXES: [(&str, f64); 9] = [
-    ("G", 1e9),
-    ("M", 1e6),
-    ("k", 1e3),
-    ("c", 1e-2),
-    ("m", 1e-3),
-    ("µ", 1e-6),
-    ("u", 1e-6),
-    ("n", 1e-9),
-    ("p", 1e-12),
-];
-
 const DIMENSIONLESS_UNIT: Unit = Unit::new(Dimension::DIMENSIONLESS, 1.0, 0.0);
 
 mod names;
+mod prefix;
 
 pub(crate) use names::dimension_name_eq;
 pub use names::{named_dimensions, parse_dimension};
@@ -269,37 +260,34 @@ fn parse_exponent(source: &str) -> Result<i8, UnitError> {
     Ok(if negative { -magnitude } else { magnitude })
 }
 
-/// 接頭辞付きの記号 1 個を解析する。
+/// 接頭辞付きの記号 1 個を解析する。接頭辞の表と付けてよい単位の規則は `prefix`。
 fn parse_symbol(symbol: &str) -> Result<Unit, UnitError> {
     if let Some(unit) = named_unit(symbol) {
         return Ok(unit);
     }
 
-    let mut index = 0;
-    while index < PREFIXES.len() {
-        let (prefix, factor) = PREFIXES[index];
-        if let Some(rest) = symbol.strip_prefix(prefix) {
-            let unit = named_unit(rest).ok_or(UnitError::UnknownUnit)?;
-            // `krad` は放射線分野では 1000 rad（= 10 Gy、旧吸収線量単位）。角度の
-            // キロラジアンとして黙って通すと TID 耐性が角度になるので、倍率 > 1 は拒否する。
-            if rest == "rad" && factor > 1.0 {
-                return Err(UnitError::AmbiguousRadian);
-            }
-            // affine 単位(温度の degC/degF 等)への接頭辞付与は物理的に無意味
-            // ("mdegC" など)。算術と同じく拒否し、offset を黙って保持しない。
-            if unit.is_affine() {
-                return Err(UnitError::AffineInArithmetic);
-            }
-            // 対数単位への接頭辞("kdB" 等)も同じく無意味。with_scale は基準値を
-            // 変えてしまい、別の単位を黙って作るので拒否する。
-            if unit.is_logarithmic() {
-                return Err(UnitError::LogarithmicInArithmetic);
-            }
-            return Ok(unit.with_scale(factor));
-        }
-        index += 1;
+    let (prefix, factor, rest) = prefix::split_prefix(symbol).ok_or(UnitError::UnknownUnit)?;
+    let unit = named_unit(rest).ok_or(UnitError::UnknownUnit)?;
+    // `krad` は放射線分野では 1000 rad（= 10 Gy、旧吸収線量単位）。角度の
+    // キロラジアンとして黙って通すと TID 耐性が角度になるので、倍率 > 1 は拒否する。
+    if rest == "rad" && factor > 1.0 {
+        return Err(UnitError::AmbiguousRadian);
     }
-    Err(UnitError::UnknownUnit)
+    // affine 単位(温度の degC/degF 等)への接頭辞付与は物理的に無意味
+    // ("mdegC" など)。算術と同じく拒否し、offset を黙って保持しない。
+    if unit.is_affine() {
+        return Err(UnitError::AffineInArithmetic);
+    }
+    // 対数単位への接頭辞("kdB" 等)も同じく無意味。with_scale は基準値を
+    // 変えてしまい、別の単位を黙って作るので拒否する。
+    if unit.is_logarithmic() {
+        return Err(UnitError::LogarithmicInArithmetic);
+    }
+    // `kkg`・`mmAh`・`kh` のような、接頭辞を付けない単位への接頭辞（規則は `prefix`）。
+    if !prefix::accepts_prefix(prefix, rest) {
+        return Err(UnitError::UnknownUnit);
+    }
+    Ok(unit.with_scale(factor))
 }
 
 #[cfg(test)]

@@ -46,7 +46,7 @@
 | Web の系別の表示ツリー・置き場所の選択肢 | `web/src/lib/design.ts::{systemTree, parentOptions}` | API の部品の system で直下の部品も系にまとめる。置き場所は API の系一覧と構造のノードを使う |
 | 3D の外形と表示寸法 | `web/src/features/layout3d/scene.ts` | 回転込みの Bounds の最大辺に対する比。箱・矢印・重心・軸・グリッド・カメラの寸法を共有 |
 |---|---|---|
-| 単位文字列の解析・次元 | `sat_units::parse_unit` / `Unit` / `Dimension` / `named_dimensions` | ここ以外で単位文字列を解析しない |
+| 単位文字列の解析・次元 | `sat_units::parse_unit` / `Unit` / `Dimension` / `named_dimensions` | ここ以外で単位文字列を解析しない。SI 接頭辞の表と、接頭辞を付けてよい単位の規則は `sat_units::parse::prefix`（`T`・`G`・`M`・`k`・`h`・`c`・`m`・`µ`・`u`・`n`・`p`・`f`。完全一致の記号が先で、`kkg`・`mmAh`・`kh` は拒否、`h`（ヘクト）は `hPa`・`hL` だけ） |
 | dB ⇄ 比 | `sat_units::{ratio_to_db, db_to_ratio, apply_db_gain}` | **dB の換算はここだけ**（回線計算もこれを使う） |
 | JSON に書いた量の次元 | `sat_units::take_last_dimension` | `Qty` の `Serialize` が記録する（スレッドごと）。トルクの出力欄は `#[serde(serialize_with = "sat_units::typed::TorqueKind::serialize")]` で種類を記録する。次元の検査（N·m = J）と JSON の数値は変えず、Energy の表示も維持する |
 | 次元の表示名 | `sat_units::format::dimension_label` | 名前が無ければ SI の組立単位の式 |
@@ -414,3 +414,4 @@
 | 2026-11-15 | 軌道の `propagator` を `kepler`・`j2` は写し替え、`numerical` は使わず J2 のままにして、`check` の warning `setting.not_applied` で知らせるようにした。ケースの `side`（nominal 以外）も同じ warning（`fune_model::check::{settings, system}`、docs/model.md §1.1・§5.1） | 書けるのに解析に効かない設定が黙って無視されていたため（#162） |
 | 2026-11-15 | 通信の解析を複数の地上局・複数の下り回線に対応: 回線バジェットは回線 × 地上局の全組を計算（`LinkBudgetLink.station`・結果と判定の key `margin:<回線>@<局>`）、送信量は局ごとの回線の条件 `station_links` と局ごとの閉じ方 `station_closures`（`data_throughput/closure.rs`）、数えない下り回線を `other_downlinks` と判定 `downlinks_not_counted`（Ok）で知らせ、帯域の設定を持たない局は回線余裕の組にせず送信量では `stations_without_band` で残す。地上局の `g_over_t` を `RfLinkParams.rx_g_over_t_dbk` として下りの受信側に渡す（結果に `g_over_t_given`） | 2 局目・2 本目の下り・`g_over_t` が黙って計算に入らなかったため（#160） |
 | 2026-11-15 | 状態名の前提を見えるようにした: 噴射の状態 `on` の無いスラスタの種別は検査 `def.thruster_firing_state`（warning）、warm の予備の既定の状態を `WARM_SPARE_DEFAULT_STATES` に（model と analysis の一致は projection のテスト）、モード表の行に停止の状態・主な状態（`ModeRow.off_state`・`main_state`。`query::views::stop_and_main_states`）を足し、Web は `on`・`off` を書かない | 状態の語彙は種別ごとに自由なのに、決まった名前を前提にした箇所が黙って結果を変えていたため（#163） |
+| 2026-11-15 | 単位の接頭辞に `T`・`h`・`f` を足し、接頭辞を付けてよい単位を絞った（`parse/prefix.rs`。`kkg`・`mmAh`・`k1`・`kh` などは `UnknownUnit`）。表示単位の段に年（2 年以上）・TB・THz・AU（0.1 AU 以上）・秒角（0.01° 未満）・秒角毎秒（0.01 deg/s 未満）を足した（`format/preferences.rs`） | 小型の低軌道に合わせた表で、`TB`・`THz`・`hPa` が書けず、15 年の寿命や秒角の指向精度が読みにくい桁になっていたため（#173） |
