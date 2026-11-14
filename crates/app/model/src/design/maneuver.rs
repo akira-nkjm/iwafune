@@ -4,6 +4,7 @@
 //! 目標の軌道（`[target]`）は変えたい要素だけを書く。`[constraints]` は細かい段階（数値伝搬）でだけ効き、
 //! 粗い段階の解析は無視したことを結果に書く。
 
+use super::conditions::CentralBodyKind;
 use super::part::Part;
 use super::system::Mode;
 use crate::Design;
@@ -37,10 +38,14 @@ enum_text! {
 }
 
 /// 目標の軌道（変えたい要素だけ）。`altitude` は円軌道（近地点と遠地点の両方）で、`perigee_altitude`・`apogee_altitude` と一緒には書かない。
+/// `body` を書くとその天体を回る軌道への遷移（パッチドコニック）で、高度はその天体の半径から数える。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 #[ts(rename = "ManeuverTargetOrbit")]
 pub struct ManeuverTarget {
+    /// 目標の中心天体（前の軌道と違えば天体間の遷移）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub body: Option<CentralBodyKind>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub altitude: Option<Quantity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

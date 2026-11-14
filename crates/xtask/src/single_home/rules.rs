@@ -140,6 +140,26 @@ pub(super) const RULES: &[(&str, &[&str], &str)] = &[
         &["crates/lib/astro/src/transfer.rs"],
         "軌道遷移の式",
     ),
+    (
+        "fn patched_conic(",
+        &["crates/lib/astro/src/transfer.rs"],
+        "遷移の式",
+    ),
+    (
+        "fn lambert(",
+        &["crates/lib/astro/src/transfer.rs"],
+        "遷移の式",
+    ),
+    (
+        "fn body_view_factor(",
+        &["crates/lib/astro/src/illumination.rs"],
+        "形態係数",
+    ),
+    (
+        "fn planet_environment(",
+        &["crates/lib/analysis/src/thermal"],
+        "天体の熱環境",
+    ),
     // 区間の抽出
     (
         "fn windows(",

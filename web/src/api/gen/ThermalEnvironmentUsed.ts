@@ -12,4 +12,16 @@ preset: ThermalPreset | null,
 /**
  * 太陽光の強さ（`None` なら時刻ごとの太陽との距離から求めた）
  */
-solar_flux: number | null, albedo: number, earth_ir: number, space_temperature: number, };
+solar_flux: number | null, 
+/**
+ * 中心天体のアルベド
+ */
+albedo: number, 
+/**
+ * 中心天体の一律の赤外放射（地方時で変わるモデルなら `None`。そのときは `night_ir`）
+ */
+earth_ir: number | null, space_temperature: number, 
+/**
+ * 地方時で変わる赤外放射（月）の夜側の値。昼側は `(1 − アルベド)·太陽光·cos θ`（θ は直下点の太陽天頂角）
+ */
+night_ir?: number, };

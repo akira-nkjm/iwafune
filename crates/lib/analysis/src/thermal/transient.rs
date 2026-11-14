@@ -129,6 +129,8 @@ impl Analysis for ThermalTransient {
         margin.validate()?;
         let phases = Phases::new(&net, &input.phases)?;
         let timeline = &input.timeline;
+        let central = timeline.orbit().central;
+        let env = input.environment.resolve(central)?;
         let (t, geo) = timeline_geometry(timeline)?;
         let space_k = input.environment.space_temperature().value();
         let mut temps = initial(&net, input, timeline, &phases)?;
@@ -137,7 +139,7 @@ impl Analysis for ThermalTransient {
         let mut absorbed_total = Vec::with_capacity(t.len());
         for i in 0..t.len() {
             history.push(temps.clone());
-            let q_ext = absorbed(&net, &input.environment, &geo[i]);
+            let q_ext = absorbed(&net, &env, &geo[i]);
             absorbed_total.push(q_ext.iter().sum());
             let Some(&t_next) = t.get(i + 1) else { break };
             let q: Vec<f64> = q_ext
@@ -153,7 +155,7 @@ impl Analysis for ThermalTransient {
             t,
             &history,
             absorbed_total,
-            input.environment.used(),
+            input.environment.used(central)?,
             margin,
         );
         output.checks.extend(phases.checks);

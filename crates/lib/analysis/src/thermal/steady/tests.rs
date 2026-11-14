@@ -47,6 +47,7 @@ fn input() -> ThermalSteadyInput {
                 sun_dir_body: Some(Vec3::X),
                 nadir_body: None,
                 altitude: Qty::from_raw(500.0e3),
+                central: sat_astro::ephem::CentralBody::Earth,
             },
             loads: vec![ThermalLoad {
                 count: 1,

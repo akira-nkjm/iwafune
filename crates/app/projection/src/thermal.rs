@@ -15,12 +15,14 @@ use fune_model::design::{AnalysisSystem, ThermalCaseSettings, ThermalPresetKind,
 use fune_model::path::SettingPath;
 use network::network;
 use sat_analysis::thermal::network::{ThermalModeLoads, ThermalModePart};
+use sat_analysis::thermal::planet::planet_environment;
 use sat_analysis::thermal::steady::ThermalSteadyCase;
 use sat_analysis::thermal::transient::{ThermalHeatPhase, ThermalInitial};
 use sat_analysis::thermal::{
     ThermalEnvironment, ThermalExposure, ThermalMarginPolicy, ThermalPreset, ThermalSteadyInput,
     ThermalTransientInput,
 };
+use sat_astro::ephem::CentralBody;
 use sat_units::typed::{Fraction, Power, Qty};
 use std::collections::BTreeMap;
 
@@ -107,8 +109,29 @@ fn margin(s: &ThermalSettings, m: &mut MissingInputs) -> ThermalMarginPolicy {
     }
 }
 
-/// 環境条件 `id`（`[case.<id>]`）の入熱の環境。
-fn environment(id: &str, c: &ThermalCaseSettings, m: &mut MissingInputs) -> ThermalEnvironment {
+/// 環境条件 `id`（`[case.<id>]`）の入熱の環境。中心天体の環境の既定値を解析が持たなければ
+/// （`sat_analysis::thermal::planet`）、アルベドと赤外放射を不足入力にする。太陽距離の慣例値の無い天体では、
+/// プリセットの 1 AU の太陽光を使えないので太陽光の強さも求める。
+fn environment(
+    id: &str,
+    c: &ThermalCaseSettings,
+    central: Option<CentralBody>,
+    m: &mut MissingInputs,
+) -> ThermalEnvironment {
+    if let Some(body) = central {
+        let at = |key: &str| thermal(&["case", id, key]);
+        if planet_environment(body).is_none() {
+            if c.albedo.is_none() {
+                m.push(at("albedo"), format!("中心天体 {body:?} のアルベド"));
+            }
+            if c.earth_ir.is_none() {
+                m.push(at("earth_ir"), format!("中心天体 {body:?} の赤外放射"));
+            }
+        }
+        if c.preset.is_some() && c.solar_flux.is_none() && body.nominal_sun_distance_m().is_none() {
+            m.push(at("solar_flux"), "太陽光の強さ（プリセットの値は 1 AU）");
+        }
+    }
     // 書かれていない値は None のまま渡す（既定値は解析が持つ）
     ThermalEnvironment {
         preset: c.preset.map(preset),
@@ -143,7 +166,7 @@ pub fn steady(ctx: &Context<'_>) -> Result<ThermalSteadyInput, MissingInputs> {
         cases.push(ThermalSteadyCase {
             id: id.clone(),
             label: c.label.clone().unwrap_or_else(|| id.clone()),
-            environment: environment(id, c, &mut m),
+            environment: environment(id, c, Some(t.orbit().central), &mut m),
             exposure: ThermalExposure::OrbitAverage { timeline: t },
             loads: Vec::new(),
             mode_loads: loads(ctx, s, mode),
@@ -223,7 +246,8 @@ pub fn transient(ctx: &Context<'_>) -> Result<ThermalTransientInput, MissingInpu
         Some(temperature) => ThermalInitial::Uniform { temperature },
         None => ThermalInitial::OrbitAverageSteady,
     };
-    let environment = environment(id, c, &mut m);
+    let central = t.as_ref().map(|t| t.orbit().central);
+    let environment = environment(id, c, central, &mut m);
     let margin = margin(s, &mut m);
     let phases = vec![ThermalHeatPhase {
         label: mode.unwrap_or("").to_owned(),

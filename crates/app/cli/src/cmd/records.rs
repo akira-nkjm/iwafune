@@ -133,6 +133,7 @@ fn maneuver_text(a: &ManeuverArgs) -> ManeuverText {
         thruster: a.thruster.clone(),
         after: a.after.clone(),
         via_altitude: a.via_altitude.clone(),
+        body: a.body.clone(),
         altitude: a.altitude.clone(),
         perigee_altitude: a.perigee_altitude.clone(),
         apogee_altitude: a.apogee_altitude.clone(),

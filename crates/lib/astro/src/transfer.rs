@@ -1,5 +1,5 @@
-//! 中心天体まわりの軌道遷移の ΔV。**遷移の式（ホーマン・平面変更・バイエリプティック・Edelbaum の低推力・
-//! 有限燃焼の損失の近似）はここだけ**（ΔV の解析が使う。推薬との換算は [`crate::rocket`]）。
+//! 軌道遷移の ΔV。**遷移の式（ホーマン・平面変更・バイエリプティック・Edelbaum の低推力・
+//! 有限燃焼の損失の近似・パッチドコニック・Lambert の問題）はここだけ**（ΔV の解析が使う。推薬との換算は [`crate::rocket`]）。
 //!
 //! - 軌道は近点・遠点の半径の組（[`Apsides`]）で表す。近点線は揃っているとみなし、噴射は近点か遠点で接線方向に行う。
 //! - インパルスの 2 回噴射（[`apse_transfer`]）: 出発の軌道の近点（または遠点）から、目標の軌道の遠点（または近点）までの
@@ -11,11 +11,20 @@
 //! - 有限燃焼（[`finite_burn`]）: 向きを固定した噴射が弧 `Φ = n t_b` を掃く間、推力の進行方向の成分だけが効くとして
 //!   `Δv_有限 = Δv_インパルス · (Φ/2) / sin(Φ/2)`（Robbins, AIAA Journal 4(8), 1966。小さい弧で `1 + Φ²/24`）。
 //!
+//! - 中心天体を替える遷移（[`patched_conic`]）: 天体の円軌道どうしのホーマン遷移と、出発・到着の双曲線の近点の噴射
+//!   （パッチドコニック。地球 → 月・地球 → 火星など。[`patched`]）。
+//! - Lambert の問題（[`lambert()`]）: 2 点と飛行時間から両端の速度（普遍変数。[`lambert`] モジュール）。
+//!
 //! 値は SI（m・m/s・s・rad・kg・N）。重力定数 `mu` は中心天体のもの [m³/s²]。
 
 use crate::AstroError;
 use crate::rocket::{burn_time, propellant_for};
 use core::f64::consts::PI;
+
+pub mod lambert;
+pub mod patched;
+pub use lambert::{LambertSolution, lambert};
+pub use patched::{PatchedBurn, PatchedConic, patched_conic};
 
 /// ΔV がこれ以下の噴射は数えない [m/s]（同じ軌道どうしの丸めの誤差）。
 const NEGLIGIBLE_DV_M_S: f64 = 1e-9;
@@ -343,5 +352,7 @@ pub fn finite_burn(
     ))
 }
 
+#[cfg(test)]
+mod interplanetary_tests;
 #[cfg(test)]
 mod tests;

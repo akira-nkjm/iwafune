@@ -1,12 +1,13 @@
-//! β と蝕の季節変動。各標本日の1周では太陽位置を固定し、円錐影を集計する。
+//! β と蝕の季節変動。各標本日の1周では太陽位置を固定し、中心天体（地球・月・惑星。半径は `CentralBody::radius_m`）の
+//! 円錐影を集計する。月周回で地球に隠される（月食）時間は数えない。
 
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, ConditionTopic,
     Series, ensure_positive, time_fraction,
 };
-use sat_astro::ephem::{Body, CentralBody, position_eci_m};
+use sat_astro::ephem::{Body, CentralBody};
 use sat_astro::orbit::{OrbitSpec, beta_angle_rad};
-use sat_astro::shadow::{ShadowModel, earth_shadow_factor};
+use sat_astro::shadow::{ShadowModel, central_shadow_factor};
 use sat_astro::time::Epoch;
 use sat_astro::timeline::sample_times;
 use sat_units::typed::{Angle, Qty, Time};
@@ -75,9 +76,9 @@ impl Analysis for EclipseSeason {
     type Output = EclipseSeasonOutput;
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
-        if input.orbit.central != CentralBody::Earth {
+        if input.orbit.central == CentralBody::Sun {
             return Err(AnalysisError::InvalidInput(
-                "地球以外の季節解析は未対応です".into(),
+                "太陽を中心天体とする軌道には β と蝕の季節変動がありません".into(),
             ));
         }
         ensure_positive("duration", input.duration.value())?;
@@ -94,7 +95,7 @@ impl Analysis for EclipseSeason {
 
 fn point(orbit: &OrbitSpec, t: f64) -> Result<EclipseSeasonPoint, AnalysisError> {
     let epoch = orbit.epoch.plus_seconds(t);
-    let sun = position_eci_m(Body::Sun, epoch);
+    let sun = orbit.central.relative_position_m(Body::Sun, epoch);
     let (umbra, penumbra) = shadow_durations(orbit, t, sun, ShadowModel::Conical)?;
     Ok(EclipseSeasonPoint {
         epoch,
@@ -117,7 +118,7 @@ fn shadow_durations(
     let states = orbit.states_at(&offsets)?;
     let light: Vec<_> = states
         .iter()
-        .map(|s| earth_shadow_factor(s.r_eci, sun, model))
+        .map(|s| central_shadow_factor(orbit.central, s.r_eci, sun, model))
         .collect();
     let umbra: Vec<_> = light.iter().map(|&f| f <= 0.0).collect();
     let penumbra: Vec<_> = light.iter().map(|&f| f > 0.0 && f < 1.0).collect();

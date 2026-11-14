@@ -190,7 +190,7 @@ fn solve_case(
     Ok(ThermalSteadyCaseResult {
         id: case.id.clone(),
         label: case.label.clone(),
-        environment: case.environment.used(),
+        environment: case.environment.used(case.exposure.central())?,
         nodes,
         iterations: sol.iterations,
         residual: Qty::from_raw(sol.residual_w),

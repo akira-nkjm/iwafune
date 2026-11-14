@@ -3,6 +3,7 @@
 use crate::missing::MissingInputs;
 use crate::quantity::{setting, setting_opt};
 use fune_model::Target;
+use fune_model::design::CentralBodyKind;
 use fune_model::design::setting_dims as dims;
 use fune_model::design::{AnalysisSystem, AttitudeLawKind, AttitudeLawSetting, Case, Design, Mode};
 use fune_model::path::SettingPath;
@@ -10,11 +11,28 @@ use fune_model::resolve::Resolved;
 use fune_model::value::{Quaternion, Vector3};
 use sat_analysis::modes::{ModeDef, StateAssignment};
 use sat_astro::attitude::{AttitudeLaw, DEFAULT_PRIMARY_AXIS, DEFAULT_SECONDARY_AXIS};
+use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
 use sat_astro::math::{Quat, Vec3};
 use sat_astro::orbit::{DEFAULT_ECCENTRICITY, OrbitElements, OrbitSpec, Propagator};
 use sat_astro::time::Epoch;
 use sat_units::typed::{Angle, Length, Qty};
+
+/// 設計の中心天体 → sat-astro の中心天体（μ・半径・暦・環境の値は sat-astro と解析が持つ）。
+pub fn central_body(c: CentralBodyKind) -> CentralBody {
+    match c {
+        CentralBodyKind::Earth => CentralBody::Earth,
+        CentralBodyKind::Moon => CentralBody::Moon,
+        CentralBodyKind::Sun => CentralBody::Sun,
+        CentralBodyKind::Mercury => CentralBody::Mercury,
+        CentralBodyKind::Venus => CentralBody::Venus,
+        CentralBodyKind::Mars => CentralBody::Mars,
+        CentralBodyKind::Jupiter => CentralBody::Jupiter,
+        CentralBodyKind::Saturn => CentralBody::Saturn,
+        CentralBodyKind::Uranus => CentralBody::Uranus,
+        CentralBodyKind::Neptune => CentralBody::Neptune,
+    }
+}
 
 /// 射影の文脈。
 pub struct Context<'a> {
@@ -81,7 +99,8 @@ impl<'a> Context<'a> {
                 None
             }
         };
-        let a = self.semi_major_axis(o, m);
+        let central = o.central.map_or(CentralBody::Earth, central_body);
+        let a = self.semi_major_axis(o, central, m);
         let inc = match (o.inclination.as_ref(), o.sun_synchronous, a) {
             (Some(q), _, _) => setting(&dims::ORBIT_INCLINATION, &[], Some(q), "", m),
             (None, Some(true), Some(a)) => {
@@ -113,12 +132,15 @@ impl<'a> Context<'a> {
             _ => Propagator::default(),
         };
         let elements = OrbitElements::with_defaults(a?, inc?, o.eccentricity, raan?, argp, ma);
-        Some(OrbitSpec::new(epoch?, elements, propagator))
+        let mut spec = OrbitSpec::new(epoch?, elements, propagator);
+        spec.central = central;
+        Some(spec)
     }
 
     fn semi_major_axis(
         &self,
         o: &fune_model::design::OrbitSettings,
+        central: CentralBody,
         m: &mut MissingInputs,
     ) -> Option<Qty<Length>> {
         if o.semi_major_axis.is_some() {
@@ -138,10 +160,7 @@ impl<'a> Context<'a> {
             m,
         )?;
         Some(Qty::from_raw(
-            sat_astro::orbit::semi_major_axis_from_altitude(
-                sat_astro::ephem::CentralBody::Earth,
-                alt.value(),
-            ),
+            sat_astro::orbit::semi_major_axis_from_altitude(central, alt.value()),
         ))
     }
 
@@ -287,6 +306,20 @@ fn raan_from_ltdn(epoch: Epoch, text: &str, m: &mut MissingInputs) -> Option<Qty
         Err(e) => {
             m.push(orbit(&["ltdn"]), format!("RAAN に換算できません（{e}）"));
             None
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 中心天体の綴り（fune-model）と sat-astro の綴りが一致する。
+    #[test]
+    fn central_body_spellings_match_sat_astro() {
+        for &kind in CentralBodyKind::ALL {
+            let model = serde_json::to_value(kind).unwrap();
+            assert_eq!(model, serde_json::to_value(central_body(kind)).unwrap());
         }
     }
 }

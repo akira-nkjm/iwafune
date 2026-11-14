@@ -32,6 +32,7 @@ export function ManeuverDialog({
   const [text, setText] = useState<ManeuverText>(initial);
   const categories = useEnumOptions("maneuver_category");
   const methods = useEnumOptions("maneuver_method");
+  const bodies = useEnumOptions("central_body");
   const made = useCommandOps(maneuverCommand(text, adding));
   const error = useOpCheck(made.ops).error ?? made.error;
   const set = (key: keyof ManeuverText, value: string) => setText((s) => ({ ...s, [key]: value }));
@@ -104,6 +105,7 @@ export function ManeuverDialog({
           t.after,
           others.map((m) => ({ value: m.id, label: m.id })),
         )}
+        {select("body", td.body, bodies)}
         {input("altitude", td.altitude, "600 km")}
         {input("inclination", td.inclination, "97.8 deg")}
         {input("perigee_altitude", td.perigeeAltitude, "250 km")}

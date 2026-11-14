@@ -50,6 +50,7 @@ export type * from "./CatalogSyncResult";
 export type * from "./CatalogUpdateRequest";
 export type * from "./CatalogValueChange";
 export type * from "./CentralBody";
+export type * from "./CentralBodyKind";
 export type * from "./ChangedFile";
 export type * from "./Channel";
 export type * from "./ChannelKind";

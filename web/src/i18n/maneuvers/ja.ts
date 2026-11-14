@@ -21,6 +21,7 @@ export const maneuversJa = {
     file: "ファイル",
     none: "なし",
     targetKeys: {
+      body: "目標の天体",
       altitude: "高度（円）",
       perigee_altitude: "近地点高度",
       apogee_altitude: "遠地点高度",
@@ -32,6 +33,7 @@ export const maneuversJa = {
       description:
         '打った量（"600 km"・"97.8 deg"）は CLI の fune maneuver add|set と同じ読み方で service が読みます。書かない要素は前の軌道のまま。',
       label: "表示名",
+      body: "目標の天体（天体間の遷移。高度はその天体から）",
       altitude: "目標の高度（円軌道）",
       perigeeAltitude: "目標の近地点高度",
       apogeeAltitude: "目標の遠地点高度",

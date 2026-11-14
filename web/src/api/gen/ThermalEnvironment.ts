@@ -2,11 +2,11 @@
 import type { ThermalPreset } from "./ThermalPreset";
 
 /**
- * 熱環境（高温・低温のケースで値を変える）。書かれていない値はプリセット、それも無ければ解析の既定値（取り出しはメソッド）。
+ * 熱環境（高温・低温のケースで値を変える）。書かれていない値はプリセット、それも無ければ中心天体の既定値。
  */
 export type ThermalEnvironment = { 
 /**
- * 最悪ケースのプリセット（書かれていない太陽光・アルベド・地球赤外に使う。`thermal::preset`）
+ * 最悪ケースのプリセット（書かれていない太陽光・アルベド・赤外に使う。`thermal::preset`）
  */
 preset: ThermalPreset | null, 
 /**
@@ -14,11 +14,11 @@ preset: ThermalPreset | null,
  */
 solar_flux: number | null, 
 /**
- * 地球のアルベド（既定 `sat_astro::constants::EARTH_ALBEDO`）
+ * 中心天体のアルベド（既定は天体ごと。`thermal::planet`）
  */
 albedo: number | null, 
 /**
- * 地球の赤外放射（既定 `sat_astro::constants::EARTH_IR`）
+ * 中心天体の赤外放射（一律の値。既定は天体ごとで、月は直下点の地方時で変わる。`thermal::planet`）
  */
 earth_ir: number | null, 
 /**
