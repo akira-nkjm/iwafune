@@ -17,7 +17,7 @@ import { cn } from "@/lib/cn";
 import { HelperToggles } from "./HelperToggles";
 import { LayoutBrowser } from "./LayoutBrowser";
 import { Scene3D, type SceneEdit, type TransformMode } from "./Scene3D";
-import { axesOf, boxesOf, DEFAULT_STRUCTURE_OPACITY, type V3 } from "./scene";
+import { axesOf, boxesOf, DEFAULT_STRUCTURE_OPACITY, fovsOf, type V3 } from "./scene";
 import { DEFAULT_SCENE_HELPERS, type FocusRequest, type SceneHelpers } from "./visibility";
 
 /** 移動のスナップ（選択肢の値は名前。刻み [m] は表から引く。選んだ文字列を数として読まない） */
@@ -151,7 +151,7 @@ function Layout3DFrame({
 }) {
   const L = useT().systems.layout3d;
   const [selected, setSelected] = useState<string | null>(null);
-  const [showAxes, setShowAxes] = useState(true);
+  const [showAxes, setShowAxes] = useState(false);
   const opacityId = useId();
   const [structureOpacity, setStructureOpacity] = useState(DEFAULT_STRUCTURE_OPACITY);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NONE_HIDDEN);
@@ -163,6 +163,7 @@ function Layout3DFrame({
     [design, colorOf],
   );
   const placed = useMemo(() => new Set(boxes.map((b) => b.id)), [boxes]);
+  const fovs = useMemo(() => fovsOf(design), [design]);
   const shown = boxes.filter((b) => !hidden.has(b.id));
   // ツリーで押した部品は選び、視点を寄せる（3D で押したときは選ぶだけ）
   const pick = (id: string) => {
@@ -252,6 +253,7 @@ function Layout3DFrame({
               helpers={helpers}
               focus={focus ?? null}
               home={home}
+              fovs={fovs}
             />
           )}
           {boxes.length > 0 && (

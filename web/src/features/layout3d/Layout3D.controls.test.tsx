@@ -21,7 +21,7 @@ const state = vi.hoisted(() => ({
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
   useState: (initial: unknown) => {
-    if (initial === true)
+    if (initial === false)
       return [
         state.axes,
         (v: boolean) => {

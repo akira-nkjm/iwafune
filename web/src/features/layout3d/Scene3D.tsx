@@ -11,12 +11,14 @@ import {
 import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useRef, useState } from "react";
 import type { Mesh } from "three";
-import { ArrowHelper, Color, type Quaternion, Vector3 } from "three";
+import { ArrowHelper, Color, DoubleSide, Quaternion, Vector3 } from "three";
 import { palette, toneHex, uiHex } from "@/lib/tone";
 import {
   type Axis3D,
   type Box3D,
   boxMaterial,
+  FOV_OPACITY,
+  type Fov3D,
   pickBox,
   type Q4,
   type sceneDimensions,
@@ -62,6 +64,7 @@ export function Scene3D({
   helpers = DEFAULT_SCENE_HELPERS,
   focus = null,
   home = 0,
+  fovs = [],
 }: {
   boxes: Box3D[];
   dimensions: ReturnType<typeof sceneDimensions>;
@@ -79,6 +82,8 @@ export function Scene3D({
   helpers?: SceneHelpers;
   /** 視点を寄せる部品（ツリーで押したとき。描いていない部品なら何もしない） */
   focus?: FocusRequest | null;
+  /** 視野の円錐（`helpers.fov` のときだけ描く） */
+  fovs?: Fov3D[];
   /** ホームポジションに戻す依頼（押した回数。0 は依頼なし）。増えるたびに初めの向きへ戻し、全体が収まるまで引く */
   home?: number;
 }) {
@@ -182,6 +187,20 @@ export function Scene3D({
           </mesh>
         ))}
       </Bounds>
+      {/* 視野は全体を収める範囲（Bounds）に入れない（広い円錐で機体が小さく映らないように）。部品の位置・姿勢に置く */}
+      {helpers.fov &&
+        fovs.map((f) => {
+          const b = boxes.find((x) => x.id === f.part);
+          return b ? (
+            <group
+              key={f.part}
+              position={b.position}
+              quaternion={[b.orientation[1], b.orientation[2], b.orientation[3], b.orientation[0]]}
+            >
+              <FovCone fov={f} length={dimensions.fovLength} color={b.color} />
+            </group>
+          ) : null;
+        })}
       {com && <CenterOfMass position={com} radius={dimensions.comRadius} />}
       {edit && target && selected && !boxes.find((b) => b.id === selected)?.fixed && (
         <TransformControls
@@ -276,5 +295,29 @@ function CenterOfMass({ position, radius }: { position: V3; radius: number }) {
         </mesh>
       ))}
     </group>
+  );
+}
+
+const UP = new Vector3(0, 1, 0);
+
+/**
+ * 視野の円錐（部品の位置・姿勢の group の子。部品座標。色は部品の箱と同じ）。頂点を部品の原点に、底を視線の向きに置く。three の円錐は +Y が頂点なので、
+ * +Y を視線の逆向きに回し、中心を視線の向きに高さの半分ずらす。クリックの当たりには数えない。
+ */
+function FovCone({ fov, length, color }: { fov: Fov3D; length: number; color: string }) {
+  const dir = new Vector3(...fov.dir);
+  const center = dir.clone().multiplyScalar(length / 2);
+  const rotation = new Quaternion().setFromUnitVectors(UP, dir.clone().negate());
+  return (
+    <mesh position={center} quaternion={rotation} raycast={() => null}>
+      <coneGeometry args={[length * Math.tan(fov.halfAngle), length, 32, 1, true]} />
+      <meshBasicMaterial
+        color={color}
+        transparent
+        opacity={FOV_OPACITY}
+        depthWrite={false}
+        side={DoubleSide}
+      />
+    </mesh>
   );
 }
