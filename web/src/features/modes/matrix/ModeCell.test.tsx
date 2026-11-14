@@ -13,6 +13,7 @@ const base: MatrixCell = {
   mode: "NOMINAL",
   part: "TRX",
   states: ["off", "rx", "tx"],
+  roles: { off_state: "off", main_state: "rx" },
   value: { state: "rx", duty: { tx: "0.1" } },
   display: "rx（tx 10 %）",
   changed: false,

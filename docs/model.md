@@ -178,7 +178,7 @@ flowchart LR
 
 - 種別の `role` は `fune_model::builtin::Role`（`enum_text!`）の値。綴りは `builtin/role.rs` の 1 か所で定義し、未知の役割は serde の読み込みで拒む。省略時は継承元の役割、継承元にも無ければ役割なし。独自の種別 ID は自由だが、役割の語彙は追加しない。
 - 役割の表示名は対応する組み込み種別の日英名。`labels.role_system` は Role をキーに全役割の系を持つ（系に属さない対応は `None` と明示）。API の役割は TS の `Role` 型で返し、Web のアイコン表は全役割を網羅する。
-- 状態の語彙は種別ごとに自由に定義する。慣例の停止状態だけは `fune_model::builtin::STATE_OFF` を使い、既定状態を選ぶ処理でもこの定数を参照する（列挙型にはしない）。
+- 状態の語彙は種別ごとに自由に定義する。慣例の停止状態だけは `fune_model::builtin::STATE_OFF` を使い、既定状態を選ぶ処理でもこの定数を参照する（列挙型にはしない）。スラスタの役割の種別は噴射の状態 `STATE_THRUSTER_FIRING`（`on`）を語彙に持つ慣例で、無ければ `fune check` が warning（`def.thruster_firing_state`）を出す。
 
 ## 4. Rust の型（Design 層）
 
@@ -737,7 +737,7 @@ HTR = { state = "on" }
 
 - `active` は `count` 以下。省略は全台。明示するには `redundancy = "cold"` または `"warm"` が必要。
 - 稼働台は `state` と `duty` に従い、残りの台は常時予備の状態にいる。cold の予備は組み込みの停止状態 `STATE_OFF`。
-  warm は `spare_state`、種別の語彙の `standby`、`idle` の順で選ぶ。予備状態が決まらない場合、語彙に無い場合は error。
+  warm は `spare_state`、種別の語彙の `standby`、`idle` の順（`WARM_SPARE_DEFAULT_STATES`）で選ぶ。予備状態が決まらない場合、語彙に無い場合は error。
 - `[eclipse]` は、書いた部品の割り当て全体を蝕時だけ置換する（`active`・`duty` などの欄を個別に継承しない）。
   書かなかった部品は `[states]` を使う。`[states]` に無い上書き先は未指定と同様に warning とし、解析には足さない。
 - `max_duration` は時間の次元を検査し、CLI の一覧と GUI のモード見出しに表示する。`power.energy_balance` は、このモードを

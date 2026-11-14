@@ -285,6 +285,10 @@ pub enum Redundancy {
 /// `fune_model::builtin::STATE_OFF` と一致することを projection のテストで確かめる。
 pub const OFF_STATE: &str = "off";
 
+/// warm の予備機の既定の状態（語彙にある最初のもの。`spare_state` が無いとき）。sat-analysis は fune-model を見られないので値を持ち、
+/// `fune_model::check::modes::WARM_SPARE_DEFAULT_STATES` と一致することを projection のテストで確かめる。
+pub const WARM_SPARE_DEFAULT_STATES: [&str; 2] = ["standby", "idle"];
+
 /// 稼働台・予備台を評価する部品の情報。
 #[derive(Debug, Clone, Copy)]
 pub struct Population<'a> {
@@ -326,7 +330,7 @@ pub fn counted_states(
                 .spare_state
                 .as_deref()
                 .or_else(|| {
-                    ["standby", "idle"]
+                    WARM_SPARE_DEFAULT_STATES
                         .into_iter()
                         .find(|s| p.states.iter().any(|v| v == s))
                 })

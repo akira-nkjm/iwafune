@@ -166,6 +166,37 @@ fn check_kind(ctx: &mut Ctx, kind: &KindDef) {
             );
         }
     }
+    check_thruster_firing_state(ctx, kind, &entity, path);
+}
+
+/// スラスタの役割（thruster・propulsion_thruster）の種別の語彙に噴射の状態 [`builtin::STATE_THRUSTER_FIRING`] が無ければ warning。
+/// 噴射中の電力と推力誤差の擾乱はこの綴りの状態から読むので、無いと黙って 0 になる。
+fn check_thruster_firing_state(
+    ctx: &mut Ctx,
+    kind: &KindDef,
+    entity: &EntityKey,
+    path: Option<Target>,
+) {
+    let design = ctx.design;
+    let id = kind.id.as_str();
+    let is_thruster = matches!(
+        design.kind_role(id),
+        Some(crate::role::Role::Thruster | crate::role::Role::PropulsionThruster)
+    );
+    let states = design.kind_states(id);
+    if is_thruster && !states.iter().any(|s| s == builtin::STATE_THRUSTER_FIRING) {
+        ctx.warning(
+            "def.thruster_firing_state",
+            entity,
+            &["states"],
+            path,
+            format!(
+                "スラスタの種別 `{id}` の状態に `{}` がありません。噴射中の電力と推力誤差の擾乱は状態 `{}` から読むので、このままでは 0 になります",
+                builtin::STATE_THRUSTER_FIRING,
+                builtin::STATE_THRUSTER_FIRING
+            ),
+        );
+    }
 }
 
 #[cfg(test)]
@@ -214,5 +245,40 @@ mod tests {
         for id in builtin::attributes().keys() {
             assert_eq!(field_name_clash(id.as_str()), None, "{id}");
         }
+    }
+
+    /// 噴射の状態 `on` の無いスラスタの種別は warning（組み込み・継承で `on` があるものは出ない）。
+    #[test]
+    fn thruster_kind_without_firing_state_is_warned() {
+        let kind = |id: &str, states: &[&str], extends: Option<&str>| {
+            let mut k = builtin::kinds()["thruster"].clone();
+            k.id = Id::new(id);
+            k.states = states.iter().map(|s| s.to_string()).collect();
+            k.extends = extends.map(Id::new);
+            k.role = extends.is_none().then_some(crate::role::Role::Thruster);
+            k
+        };
+        let mut design = Design::default();
+        for k in [
+            kind("burner", &["off", "fire"], None),
+            kind("burner_ok", &["off", "on"], None),
+            kind("burner_child", &[], Some("burner")),
+        ] {
+            design.kinds.insert(k.id.clone(), k);
+        }
+        let found: Vec<_> = crate::check::check(&design)
+            .into_iter()
+            .filter(|d| d.code == "def.thruster_firing_state")
+            .collect();
+        let ids: Vec<_> = found
+            .iter()
+            .map(|d| match &d.target {
+                Some(Target::KindDef { id }) => id.clone(),
+                other => panic!("対象が種別定義ではありません: {other:?}"),
+            })
+            .collect();
+        assert_eq!(ids, ["burner", "burner_child"]);
+        assert!(found.iter().all(|d| d.severity == Severity::Warning));
+        assert!(found[0].message.contains("`on`"), "{}", found[0].message);
     }
 }

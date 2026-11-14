@@ -9,6 +9,15 @@ fn analysis_off_state_is_the_off_state() {
     );
 }
 
+/// warm の予備機の既定の状態は、解析と検査で同じ並び。
+#[test]
+fn warm_spare_default_states_agree() {
+    assert_eq!(
+        sat_analysis::modes::WARM_SPARE_DEFAULT_STATES,
+        fune_model::check::WARM_SPARE_DEFAULT_STATES
+    );
+}
+
 /// 出典の日付の形の判定（`fune_model::value::is_calendar_date`）は、暦の正本（`sat_astro::time::Epoch::parse`）が
 /// 日付だけの文字列を受けるかと一致する（うるう年・月末・形の誤り）。
 #[test]

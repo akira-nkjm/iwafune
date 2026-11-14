@@ -81,6 +81,17 @@ pub(crate) fn tree(design: &Design) -> Vec<TreeNode> {
     nodes
 }
 
+/// 種別の語彙から、停止の状態と主な「オン」の状態を選ぶ（`(off_state, main_state)`）。
+/// 停止は語彙にある `off`（無ければ None）。主なオンは語彙にある `on`、無ければ停止以外の最初の状態、それも無ければ None。
+/// モード表の切り替え・記号が使う（Web は状態の名前を知らない）。
+pub(crate) fn stop_and_main_states(states: &[String]) -> (Option<String>, Option<String>) {
+    let has = |name: &str| states.iter().find(|s| s.as_str() == name).cloned();
+    let off = has(builtin::STATE_OFF);
+    let main = has(builtin::STATE_MAIN)
+        .or_else(|| states.iter().find(|s| Some(*s) != off.as_ref()).cloned());
+    (off, main)
+}
+
 /// 部品 × モードの表。
 pub(crate) fn mode_table(design: &Design) -> ModeTable {
     let modes = design
@@ -111,10 +122,14 @@ pub(crate) fn mode_table(design: &Design) -> ModeTable {
                         .map(|a| (m.id.to_string(), a.clone()))
                 })
                 .collect();
+            let states = design.part_states(p).to_vec();
+            let (off_state, main_state) = stop_and_main_states(&states);
             ModeRow {
                 part: p.id.to_string(),
                 kind: design.part_kind_id(p).map(str::to_owned),
-                states: design.part_states(p).to_vec(),
+                states,
+                off_state,
+                main_state,
                 shares: cells
                     .iter()
                     .filter(|(_, c)| !c.duty.is_empty())
@@ -347,5 +362,24 @@ mod tests {
         let labels: Vec<String> = nets(&design).into_iter().map(|n| n.label).collect();
         assert_eq!(labels, ["N1", "バス"]);
         assert_eq!(harnesses(&design)[0].label, "H1");
+    }
+
+    fn pick(states: &[&str]) -> (Option<String>, Option<String>) {
+        let states: Vec<String> = states.iter().map(|s| s.to_string()).collect();
+        stop_and_main_states(&states)
+    }
+
+    /// 停止は `off`、主なオンは `on`（無ければ停止以外の最初）。どちらも無い語彙・空の語彙は None。
+    #[test]
+    fn stop_and_main_states_follow_the_vocabulary() {
+        let some = |s: &str| Some(s.to_string());
+        assert_eq!(
+            pick(&["off", "idle", "on", "peak"]),
+            (some("off"), some("on"))
+        );
+        assert_eq!(pick(&["rx", "tx", "off"]), (some("off"), some("rx")));
+        assert_eq!(pick(&["active", "idle"]), (None, some("active")));
+        assert_eq!(pick(&["off"]), (some("off"), None));
+        assert_eq!(pick(&[]), (None, None));
     }
 }
