@@ -111,6 +111,15 @@ fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
             "太陽同期の傾斜角は地球周回だけで求めます（inclination を書きます）".into(),
         );
     }
+    if o.propagator == Some(crate::design::PropagatorKind::Numerical) {
+        s.warning(
+            &["propagator"],
+            "setting.not_applied",
+            "propagator = \"numerical\" は解析に使いません。力モデルの既定が無いので、時系列の解析は J2 の永年項（j2）で伝搬します。\
+             kepler か j2 を選ぶと、その伝搬で解析します（数値伝搬は要素を接触要素として読むため、同じ数値でも j2 とは別の軌道です）"
+                .into(),
+        );
+    }
     if o.eccentricity.is_some_and(|e| !(0.0..1.0).contains(&e)) {
         s.error(
             &["eccentricity"],

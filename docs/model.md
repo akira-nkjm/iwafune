@@ -40,6 +40,11 @@ API の `AnalysisInfo.area` は `{ "kind": "system", "value": "power" }` また�
 `sat_astro::ephem::CentralBody` が持つ（projection の `context::central_body` が写す）。太陽同期（`sun_synchronous`）は地球だけで、
 地球以外に書くと `check` の error（`setting.central`）。
 
+`propagator` は軌道の伝搬（`kepler`・`j2`・`numerical`。省略は `j2`）。projection は `kepler` と `j2` を `sat_astro::orbit::Propagator` に
+そのまま写す。`numerical` は解析に**使わない**: 数値伝搬の力モデル（抗力・太陽輻射圧は機体の値が要る）の慣例の既定が sat-astro に無く、
+projection は既定を作らないので、時系列の解析は J2 の永年項（`j2`）で伝搬する。書くと `check` が warning（`setting.not_applied`）で知らせる
+（`numerical` は要素を接触要素として読むため、同じ数値でも `j2` とは別の軌道になる）。`orbit.decay` は伝搬の種類を使わず、自前の積分で高度低下を求める。
+
 `conditions/orbit.toml` の `duration` はミッション期間（時間の量、キー `conditions.orbit.duration`）。
 `[eclipse_season]` の任意の `step` も時間の量（キー `conditions.orbit.eclipse_season.step`）。
 読み書きは既存の条件ファイルの経路、次元の検査と projection は `setting_dims` の共通の表を使う。
@@ -353,6 +358,10 @@ projection の `case_policy::effective_case` が明示ケースを優先する�
 この場合は `case = null`、`case_source = default_attitude` とする。既定ケースの β・周回数・side などは適用しない。
 既定ケースがなければ、姿勢則が唯一の場合だけ上段にも使い、複数なら不足入力にする。
 明示ケースがあれば、従来どおりそのケースのモードと条件を使う。
+
+ケースの `side`（`nominal`・`min`・`max`）は書けて保存されるが、**まだ解析に使わない**。どの解析も値の nominal を読み、
+値の不確かさの min / max（`SiScalar.min`・`max`）は解析に渡さない。`nominal` 以外を書くと `check` が情報（info。`setting.not_applied`）として知らせる。
+使うには、「どの値のどちら側を読むか」（質量は max、発電量は min のように、値ごとに保守側が違う）の規則を決める必要がある。
 
 電力収支の各ケースの `energy_margin_per_orbit` は、回り切った周回ごとのエネルギー余裕の最小値
 （電池の効率込み、容量の上下限で切る前、周期へ換算済み）。回り切った周回が無ければ `null` とし、
