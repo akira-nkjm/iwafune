@@ -2,6 +2,7 @@
 import type { BudgetKind } from "./BudgetKind";
 import type { BudgetPropellant } from "./BudgetPropellant";
 import type { BudgetRow } from "./BudgetRow";
+import type { BudgetUncounted } from "./BudgetUncounted";
 import type { FillRatio } from "./FillRatio";
 import type { MissingInput } from "./MissingInput";
 import type { QuantityView } from "./QuantityView";
@@ -78,4 +79,9 @@ mode: string | null,
 /**
  * 足りない入力（解析の `missing` と同じ形）。空でなければ合計と行は無い
  */
-missing: Array<MissingInput>, notes: Array<string>, };
+missing: Array<MissingInput>, 
+/**
+ * 値が無くて合計に数えなかった部品（質量なら `mass` が無い部品、電力ならモードの割り当てが無いか電力の値が無い部品）。
+ * 合計・判定は数えた部品だけの値で、これらを 0 とみなしてはいない。`missing`（解析の入力が足りず合計が無い）とは別
+ */
+uncounted: Array<BudgetUncounted>, notes: Array<string>, };

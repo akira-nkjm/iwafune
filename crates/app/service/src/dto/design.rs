@@ -362,6 +362,8 @@ pub struct ValueAnswer {
 pub struct SystemModesView {
     pub system: sat_analysis::spec::System,
     pub modes: Vec<SystemModeView>,
+    /// 表を作るのに足りなかった入力（解析の `missing` と同じ形。電力の表で、消費電力を持つ部品や運用モードが無いとき）
+    pub missing: Vec<fune_projection::MissingInput>,
 }
 
 /// 1 モードの系別表示。AOCS は専用カード、数値の行列はほかの系。

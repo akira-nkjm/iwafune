@@ -29,17 +29,18 @@ fn system_modes_of(
         return Ok(SystemModesView {
             system,
             modes: aocs::views(s)?,
+            missing: Vec::new(),
         });
     }
     let ctx = fune_projection::Context::bare(&s.design, &s.resolved);
     let mut modes = Vec::new();
+    let mut missing = fune_projection::MissingInputs::new();
     if !matches!(system, System::Power | System::Cdh | System::Thermal) {
         return Err(crate::error::ServiceError::InvalidInput(
             "この系にはモード表示がありません".into(),
         ));
     }
     if system == System::Power {
-        let mut missing = fune_projection::MissingInputs::new();
         let input = fune_projection::power::mode_load_input(&ctx, &mut missing);
         let out = sat_analysis::catalog::run_typed::<sat_analysis::power::ModeLoad>(&input)
             .map_err(mode_analysis_error)?;
@@ -60,7 +61,11 @@ fn system_modes_of(
     } else {
         modes = matrix_modes(&ctx, system)?;
     }
-    Ok(SystemModesView { system, modes })
+    Ok(SystemModesView {
+        system,
+        modes,
+        missing: missing.into_vec(),
+    })
 }
 
 fn matrix_modes(

@@ -44,6 +44,8 @@ export const overviewEn: typeof overviewJa = {
       `The propulsion analysis failed, so propellant is not counted: ${msg}`,
     budgetOther: "(other)",
     budgetOtherTitle: "Parts without a system or part allocation",
+    budgetUncounted: (count: number, names: string) =>
+      `${count} part(s) without a value are not in the total (not treated as 0): ${names}`,
     note: (n: string) => `• ${n}`,
   },
 };

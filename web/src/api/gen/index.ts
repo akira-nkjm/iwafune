@@ -42,6 +42,7 @@ export type * from "./BudgetPropellant";
 export type * from "./BudgetRequest";
 export type * from "./BudgetRow";
 export type * from "./BudgetTotal";
+export type * from "./BudgetUncounted";
 export type * from "./BudgetView";
 export type * from "./CaseFromEclipseRequest";
 export type * from "./CaseView";

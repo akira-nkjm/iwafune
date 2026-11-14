@@ -51,6 +51,7 @@ const budget = (rest: Partial<BudgetView>): BudgetView => ({
   analysis: "budget",
   mode: null,
   missing: [],
+  uncounted: [],
   notes: [],
   ...rest,
 });
