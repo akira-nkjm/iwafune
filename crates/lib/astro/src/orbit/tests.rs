@@ -1,4 +1,5 @@
 use super::*;
+use crate::constants::{MU_EARTH, R_EARTH};
 use crate::force::{ForceConfig, GravityModel};
 
 fn deg(v: f64) -> Qty<Angle> {

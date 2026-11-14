@@ -105,3 +105,31 @@ fn mars_orbit_requires_environment_values() {
         "{sizing:?}"
     );
 }
+
+/// 地球以外の中心天体で `sun_synchronous = true`・`ltdn` を使うと、地球の値を黙って入れず、
+/// `sun_synchronous`・`ltdn` を不足入力として名指しする。地球は従来どおり値が入る。
+#[test]
+fn non_earth_sun_synchronous_and_ltdn_are_reported_not_earths_value() {
+    let paths = |body: CentralBodyKind| -> Vec<String> {
+        let mut d = about(body);
+        let o = d.conditions.orbit.as_mut().expect("軌道");
+        o.sun_synchronous = Some(true);
+        o.inclination = None;
+        o.raan = None;
+        o.ltdn = Some("10:30".into());
+        let resolved = fune_model::resolve(&d);
+        let ctx = Context::new(&d, &resolved, Some("hot_imaging")).unwrap();
+        let mut m = fune_projection::MissingInputs::new();
+        let spec = ctx.orbit(&mut m);
+        assert_eq!(spec.is_some(), m.is_empty());
+        m.into_vec().iter().map(|x| x.path.clone()).collect()
+    };
+    for body in [CentralBodyKind::Moon, CentralBodyKind::Mars] {
+        let missing = paths(body);
+        for key in ["sun_synchronous", "ltdn"] {
+            let path = format!("conditions.orbit.{key}");
+            assert!(missing.contains(&path), "{body:?}: {missing:?}");
+        }
+    }
+    assert!(paths(CentralBodyKind::Earth).is_empty());
+}
