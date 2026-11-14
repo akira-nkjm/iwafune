@@ -3,4 +3,4 @@
 /**
  * 回線が閉じるか（`link` を与えたときの、回線余裕を満たす最低仰角）。
  */
-export type DataThroughputLinkClosure = { "kind": "not_evaluated" } | { "kind": "closes_above", min_elevation: number, } | { "kind": "never_closes" };
+export type DataThroughputLinkClosure = { "kind": "not_evaluated" } | { "kind": "closes_above", min_elevation: number, } | { "kind": "never_closes" } | { "kind": "no_band_settings" };

@@ -192,6 +192,7 @@ fn link_closure(kind: &str) -> Option<AnalysisLabel> {
     let probe = match kind {
         "not_evaluated" => DataThroughputLinkClosure::NotEvaluated,
         "never_closes" => DataThroughputLinkClosure::NeverCloses,
+        "no_band_settings" => DataThroughputLinkClosure::NoBandSettings,
         "closes_above" => DataThroughputLinkClosure::ClosesAbove {
             min_elevation: sat_units::typed::Qty::ZERO,
         },
@@ -203,6 +204,10 @@ fn link_closure(kind: &str) -> Option<AnalysisLabel> {
             label("この仰角より上で閉じる", "Closes above this elevation")
         }
         DataThroughputLinkClosure::NeverCloses => label("天頂でも閉じない", "Never closes"),
+        DataThroughputLinkClosure::NoBandSettings => label(
+            "この帯域の設定が地上局に無い（数えない）",
+            "No settings for this band (not counted)",
+        ),
     })
 }
 
