@@ -109,4 +109,16 @@ impl Ctx<'_> {
     ) {
         self.report(Severity::Warning, code, entity, keys, target, message);
     }
+
+    /// info（情報）を足す。結果の判定には影響しない。
+    pub fn info(
+        &mut self,
+        code: &str,
+        entity: &EntityKey,
+        keys: &[&str],
+        target: Option<Target>,
+        message: impl Into<String>,
+    ) {
+        self.report(Severity::Info, code, entity, keys, target, message);
+    }
 }

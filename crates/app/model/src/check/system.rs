@@ -2,7 +2,7 @@
 
 use super::Ctx;
 use super::values::check_quantity_dimension;
-use crate::design::{EntityKey, NetKind};
+use crate::design::{EntityKey, NetKind, UncertaintySide};
 use crate::path::PortRef;
 use crate::target::Target;
 use crate::value::Quantity;
@@ -166,6 +166,18 @@ pub(super) fn check_cases(ctx: &mut Ctx) {
                 &["thermal_case"],
                 Some(Target::case(case.id.as_str(), None)),
                 format!("熱の環境条件 `{tc}` が analysis/thermal.toml にありません"),
+            );
+        }
+        if case
+            .side
+            .is_some_and(|side| side != UncertaintySide::Nominal)
+        {
+            ctx.info(
+                "setting.not_applied",
+                &entity,
+                &["side"],
+                Some(Target::case(case.id.as_str(), Some("side"))),
+                "side（min / max）はまだ解析に使いません。どの解析も値の nominal を読みます（値の不確かさの min / max は解析に渡していません）",
             );
         }
         check_dim(

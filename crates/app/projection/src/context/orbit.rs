@@ -4,6 +4,7 @@
 use super::{Context, central_body};
 use crate::missing::MissingInputs;
 use crate::quantity::{setting, setting_opt};
+use fune_model::design::PropagatorKind;
 use fune_model::design::setting_dims as dims;
 use fune_model::path::SettingPath;
 use sat_astro::ephem::CentralBody;
@@ -78,8 +79,10 @@ impl<'a> Context<'a> {
         let ma = setting_opt(&dims::ORBIT_MEAN_ANOMALY, &[], o.mean_anomaly.as_ref(), m);
         self.note(orbit(&["propagator"]));
         let propagator = match o.propagator {
-            Some(fune_model::design::PropagatorKind::Kepler) => Propagator::Kepler,
-            _ => Propagator::default(),
+            Some(PropagatorKind::Kepler) => Propagator::Kepler,
+            Some(PropagatorKind::J2) => Propagator::J2,
+            // 数値伝搬は力モデルの既定が無いので使わない（検証が `setting.not_applied` で知らせる）
+            Some(PropagatorKind::Numerical) | None => Propagator::default(),
         };
         let elements = OrbitElements::with_defaults(a?, inc?, o.eccentricity, raan?, argp, ma);
         let mut spec = OrbitSpec::new(epoch?, elements, propagator);
