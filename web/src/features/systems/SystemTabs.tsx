@@ -17,6 +17,7 @@ import { AocsModes } from "./aocs/AocsModes";
 import { PowerModes } from "./power/PowerModes";
 import { PowerOverview } from "./power/PowerOverview";
 import { PowerSeries } from "./power/PowerSeries";
+import { SystemOverview } from "./SystemOverview";
 
 /** グラフ（recharts）は時系列のタブを開いたときだけ読む。系のページの最初のチャンクを小さくするため */
 const SeriesChart = lazy(() =>
@@ -26,7 +27,10 @@ const SeriesChart = lazy(() =>
 
 export type SystemTab = "results" | "modes" | "settings" | "series";
 
-/** 系のページのタブの中身（結果・モード・設定・時系列）。extra は系ごとの追加の表示（熱の温度表、構造の 3D など） */
+/**
+ * 系のページのタブの中身（結果・モード・設定・時系列）。extra は系ごとの追加の表示（熱の温度表と 3D）。
+ * 結果のタブは、熱だけ解析のカードの並びで、ほかの系は解析の表（電源は `PowerOverview`、ほかは `SystemOverview`）。
+ */
 export function SystemTabs({
   tab,
   powerPage,
@@ -65,11 +69,16 @@ export function SystemTabs({
       <>
         {noAnalyses && <Empty>{dict.systems.noAnalyses}</Empty>}
         {extra?.results}
-        <div className="grid gap-4 xl:grid-cols-2">
-          {states.map((s) => (
-            <AnalysisCard key={s.id} state={s} entry={entries.get(s.id)} design={design} />
-          ))}
-        </div>
+        {system === "thermal" ? (
+          // 熱は節点温度の表・3D（`extra`）と解析のカードのまま
+          <div className="grid gap-4 xl:grid-cols-2">
+            {states.map((s) => (
+              <AnalysisCard key={s.id} state={s} entry={entries.get(s.id)} design={design} />
+            ))}
+          </div>
+        ) : (
+          <SystemOverview states={states} entries={entries} design={design} />
+        )}
       </>
     );
   if (tab === "settings") {

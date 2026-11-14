@@ -43,6 +43,7 @@ const result = (id: string, kpis: KpiView[]): AnalysisRunResult => ({
   labels: {},
   missing: [],
   error: null,
+  overview: { main: [], checks: [], chart: null, hidden_tables: [] },
 });
 
 const state = (id: string, kpis: KpiView[] | null): AnalysisState => ({

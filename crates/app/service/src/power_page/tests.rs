@@ -24,9 +24,21 @@ fn whole_page_collects_unchanged_analysis_results_and_merges_modes() {
                 },
             )
             .unwrap();
-            let json = serde_json::to_value(&analysis.result).unwrap();
+            // 結果は解析の入口と同じ。概要の行だけは電源の棒グラフと隠す表が足される（主な結果と判定のまとまりは同じ）
+            let without_overview = |r: &crate::dto::AnalysisRunResult| {
+                let mut json = serde_json::to_value(r).unwrap();
+                json.as_object_mut().unwrap().remove("overview");
+                json
+            };
+            let json = without_overview(&analysis.result);
             assert!(json.get("power_page").is_none());
-            assert_eq!(json, serde_json::to_value(direct).unwrap());
+            assert_eq!(json, without_overview(&direct));
+            assert_eq!(analysis.result.overview.main, direct.overview.main);
+            let scopes = |r: &crate::dto::AnalysisRunResult| -> Vec<_> {
+                r.overview.checks.iter().map(|g| g.scope.clone()).collect()
+            };
+            assert_eq!(scopes(&analysis.result), scopes(&direct));
+            assert!(direct.overview.chart.is_none() && direct.overview.hidden_tables.is_empty());
             if case.is_some() {
                 assert_eq!(
                     analysis.result.case_source,

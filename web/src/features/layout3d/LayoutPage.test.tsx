@@ -42,6 +42,7 @@ const mass: AnalysisRunResult = {
   labels: {},
   missing: [],
   error: null,
+  overview: { main: [], checks: [], chart: null, hidden_tables: [] },
 };
 
 describe("LayoutPage", () => {

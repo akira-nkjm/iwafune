@@ -28,7 +28,19 @@ async fn whole_page_has_case_resolved_analyses_and_power_data() {
             .await;
             assert_eq!(status, StatusCode::OK);
             assert!(direct.get("power_page").is_none());
-            assert_eq!(analysis["result"], direct);
+            // 結果は汎用の解析 API と同じ。概要の行だけは電源の棒グラフと隠す表が足される（主な結果は同じ）
+            let mut page_result = analysis["result"].clone();
+            let mut direct = direct;
+            let page_overview = page_result
+                .as_object_mut()
+                .unwrap()
+                .remove("overview")
+                .unwrap();
+            let direct_overview = direct.as_object_mut().unwrap().remove("overview").unwrap();
+            assert_eq!(page_result, direct);
+            assert_eq!(page_overview["main"], direct_overview["main"]);
+            assert!(direct_overview["chart"].is_null());
+            assert!(!page_overview["chart"].is_null());
         }
         assert!(!page["modes"].as_array().unwrap().is_empty());
         assert!(page.get("parts").is_none());

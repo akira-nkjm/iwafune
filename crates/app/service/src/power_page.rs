@@ -18,17 +18,11 @@ mod presentation;
 /// 解析の不足入力・失敗は元の結果として返し、得られた解析だけで表示を組み立てる。
 pub fn power_page(ws: &Workspace, case: Option<&str>) -> Result<PowerPageView> {
     let ids = crate::flow::flow_analyses(System::Power).unwrap_or_default();
-    let runs = crate::flow::run_all(ws, ids, case)?;
-    let results: Vec<_> = runs.iter().map(|(_, r)| r).collect();
-    let overviews = overview::overviews(&results);
+    let mut runs = crate::flow::run_all(ws, ids, case)?;
+    overview::add_charts(&mut runs);
     let analyses = runs
         .into_iter()
-        .zip(overviews)
-        .map(|((entry, result), overview)| PowerAnalysisView {
-            entry,
-            result,
-            overview,
-        })
+        .map(|(entry, result)| PowerAnalysisView { entry, result })
         .collect();
     let mut page = assemble(analyses);
     let snapshot = ws.snapshot()?;
