@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { smallFlow } from "@/test/flow";
-import { FOLD_SHOWN, foldEdges, layoutFlow, rowCenter, SIZE } from "./layout";
+import { flowNode, flowRow, inputEdge, smallFlow } from "@/test/flow";
+import {
+  FOLD_SHOWN,
+  foldEdges,
+  layoutFlow,
+  MAX_ROWS,
+  MORE_ROW,
+  rowCenter,
+  SIZE,
+  shownRows,
+  UNSET_ROW,
+} from "./layout";
 
 describe("layoutFlow", () => {
   it("部品・条件と設定・解析の 3 列に、API の並びのまま上から積む", () => {
@@ -60,5 +70,36 @@ describe("foldEdges", () => {
     expect(all).toHaveLength(view.edges.length);
     expect(all[0]).toMatchObject({ source: "part:SP", sourceRow: "area" });
     expect(all.find((e) => e.kind === "result")?.sourceRow).toBeNull();
+  });
+});
+
+describe("shownRows", () => {
+  const many = flowNode("setting:orbit", "setting", [
+    ...["a", "b", "c", "d", "e", "f", "g", "h"].map((id) => flowRow(id, `${id} の値`)),
+    flowRow("x", null),
+    flowRow("y", null),
+  ]);
+
+  it("書かれた値を上限まで出し、残りは「ほか N 件」、書かれていない値は「未設定 N 件」にまとめる", () => {
+    const rows = shownRows(many);
+    expect(rows).toHaveLength(MAX_ROWS + 1);
+    expect(rows.slice(0, MAX_ROWS - 1).map((r) => r.key)).toEqual(["a", "b", "c", "d", "e"]);
+    expect(rows[MAX_ROWS - 1]).toMatchObject({ kind: "more", key: MORE_ROW, count: 3 });
+    expect(rows[MAX_ROWS]).toMatchObject({ kind: "unset", key: UNSET_ROW, count: 2 });
+  });
+
+  it("上限以内なら全部の書かれた値", () => {
+    const few = flowNode("p", "part", [flowRow("a", "1"), flowRow("b", "2")]);
+    expect(shownRows(few).map((r) => r.kind)).toEqual(["row", "row"]);
+  });
+
+  it("隠した行の線はまとめた行から、同じ終点への線は 1 本", () => {
+    const view = {
+      nodes: [many, flowNode("analysis:a", "analysis", [flowRow("o", "1")])],
+      edges: ["a", "g", "h", "x", "y"].map((r) => inputEdge("setting:orbit", r, "analysis:a")),
+      folds: [],
+    };
+    const laid = layoutFlow(view, new Set());
+    expect(laid.edges.map((e) => e.sourceRow).sort()).toEqual(["a", MORE_ROW, UNSET_ROW].sort());
   });
 });

@@ -9,6 +9,7 @@ export function flowRow(id: string, display: string | null, extra: Partial<FlowR
     display,
     set: display !== null,
     derived: false,
+    varies: null,
     verdict: null,
     target: null,
     ...extra,
@@ -34,6 +35,7 @@ export function flowNode(
     analysis: kind === "analysis" ? id : null,
     verdict: null,
     status: kind === "analysis" ? "ok" : null,
+    members: [],
     ...extra,
   };
 }

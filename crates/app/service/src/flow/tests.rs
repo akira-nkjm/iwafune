@@ -66,7 +66,7 @@ fn solar_panel_and_battery_rows_go_to_the_analyses_that_read_them() {
         "normal",
     ] {
         assert_eq!(
-            targets_of(&flow, "part:SP_PX", attr),
+            targets_of(&flow, "parts:CELLS+SP_MX+SP_MY+SP_PX+SP_PY", attr),
             gen_bal_size,
             "{attr}"
         );
@@ -75,7 +75,11 @@ fn solar_panel_and_battery_rows_go_to_the_analyses_that_read_them() {
         targets_of(&flow, "part:BAT", "capacity"),
         ["analysis:power.energy_balance", "analysis:power.sizing"]
     );
-    let sp = flow.nodes.iter().find(|n| n.id == "part:SP_PX").unwrap();
+    let sp = flow
+        .nodes
+        .iter()
+        .find(|n| n.id == "parts:CELLS+SP_MX+SP_MY+SP_PX+SP_PY")
+        .unwrap();
     assert_eq!(sp.kind, FlowNodeKind::Part);
     assert!(
         sp.rows
@@ -87,7 +91,10 @@ fn solar_panel_and_battery_rows_go_to_the_analyses_that_read_them() {
         .iter()
         .find(|n| n.id == "setting:analysis.power")
         .unwrap();
-    assert_eq!(power.label, "analysis/power.toml");
+    assert_eq!(
+        (power.label.as_str(), power.sub.as_deref()),
+        ("電源の設定", Some("analysis/power.toml"))
+    );
     assert_eq!(
         targets_of(&flow, "setting:analysis.power", "dod_max"),
         ["analysis:power.energy_balance", "analysis:power.sizing"]
@@ -147,17 +154,27 @@ fn many_loads_fold_in_order_of_power() {
     let s = ws.snapshot().unwrap();
     let fold = flow.folds.first().expect("負荷のまとまり");
     assert!(fold.nodes.len() >= 5);
-    let peak = |node: &str| {
-        let id = node.trim_start_matches("part:");
-        let p = s.resolved.parts.get(id).unwrap();
-        let max = match p.value("power") {
-            Some(fune_model::resolve::SiValue::ByState(m)) => {
-                m.values().map(|v| v.value).fold(0.0, f64::max)
-            }
-            Some(fune_model::resolve::SiValue::Scalar(v)) => v.value,
-            _ => 0.0,
+    // まとめたカードは部品の合計（1 部品のカードは補足が部品 ID）
+    let peak = |node: &str| -> f64 {
+        let n = flow.nodes.iter().find(|n| n.id == node).unwrap();
+        let ids: Vec<String> = if n.members.is_empty() {
+            n.sub.clone().into_iter().collect()
+        } else {
+            n.members.iter().map(|m| m.id.clone()).collect()
         };
-        max * f64::from(p.count.max(1))
+        ids.iter()
+            .map(|id| {
+                let p = s.resolved.parts.get(id.as_str()).unwrap();
+                let max = match p.value("power") {
+                    Some(fune_model::resolve::SiValue::ByState(m)) => {
+                        m.values().map(|v| v.value).fold(0.0, f64::max)
+                    }
+                    Some(fune_model::resolve::SiValue::Scalar(v)) => v.value,
+                    _ => 0.0,
+                };
+                max * f64::from(p.count.max(1))
+            })
+            .sum()
     };
     for w in fold.nodes.windows(2) {
         assert!(peak(&w[0]) >= peak(&w[1]), "{} < {}", w[0], w[1]);
@@ -167,6 +184,99 @@ fn many_loads_fold_in_order_of_power() {
         !fold
             .nodes
             .iter()
-            .any(|n| n == "part:SP_PX" || n == "part:BAT")
+            .any(|n| n.contains("SP_PX") || n == "part:BAT")
     );
+}
+
+/// 同じ役割で同じ読まれ方の部品は 1 枚にまとめ、部品ごとに違う値は範囲か「違う部品の数」で出す。
+#[test]
+fn parts_of_one_role_read_the_same_way_share_a_card() {
+    let flow = demo_flow();
+    let solar = flow
+        .nodes
+        .iter()
+        .find(|n| n.id == "parts:CELLS+SP_MX+SP_MY+SP_PX+SP_PY")
+        .unwrap();
+    assert_eq!(
+        (solar.label.as_str(), solar.label_en.as_str()),
+        ("太陽電池パネル", "Solar panel")
+    );
+    assert_eq!(solar.members.len(), 5);
+    let packing = solar
+        .rows
+        .iter()
+        .find(|r| r.id == "packing_factor")
+        .unwrap();
+    assert!(
+        packing.display.as_deref().unwrap().contains(" – "),
+        "{packing:?}"
+    );
+    let efficiency = solar
+        .rows
+        .iter()
+        .find(|r| r.id == "cell_efficiency")
+        .unwrap();
+    assert_eq!(efficiency.display.as_deref(), Some("0.295"));
+    let trx = flow
+        .nodes
+        .iter()
+        .find(|n| n.id == "parts:STX+UHF_TRX")
+        .unwrap();
+    let power = &trx.rows[0];
+    assert_eq!((power.display.as_deref(), power.varies), (None, Some(2)));
+    // 1 部品のカードは部品の名前と ID
+    let bat = flow.nodes.iter().find(|n| n.id == "part:BAT").unwrap();
+    assert_eq!(bat.sub.as_deref(), Some("BAT"));
+    assert!(bat.members.is_empty());
+}
+
+/// 設定・ケースの行の名前は語彙の表示名（キーの綴りのままにしない）。
+#[test]
+fn setting_and_case_rows_use_display_names() {
+    let flow = demo_flow();
+    for n in flow.nodes.iter().filter(|n| n.kind != FlowNodeKind::Part) {
+        assert!(!n.label.contains('/'), "{}", n.label);
+        for r in &n.rows {
+            assert!(
+                !r.label.contains('_') && !r.label.contains('.'),
+                "{}: {}",
+                n.id,
+                r.label
+            );
+        }
+    }
+    let orbit = flow
+        .nodes
+        .iter()
+        .find(|n| n.id == "setting:conditions.orbit")
+        .unwrap();
+    assert_eq!(orbit.label, "軌道");
+    assert!(
+        orbit
+            .rows
+            .iter()
+            .any(|r| r.label == "近地点引数" && r.label_en == "Argument of perigee")
+    );
+}
+
+/// 解析のカードは名前付きの主な出力（2〜3 行）と判定。
+#[test]
+fn analysis_cards_show_named_main_outputs() {
+    let flow = demo_flow();
+    for n in flow
+        .nodes
+        .iter()
+        .filter(|n| n.kind == FlowNodeKind::Analysis)
+    {
+        assert!((2..=3).contains(&n.rows.len()), "{}: {:?}", n.id, n.rows);
+        assert!(n.rows.iter().all(|r| r.display.is_some()));
+    }
+    let balance = flow
+        .nodes
+        .iter()
+        .find(|n| n.id == "analysis:power.energy_balance")
+        .unwrap();
+    let dod = balance.rows.iter().find(|r| r.id == "max_dod").unwrap();
+    assert!(dod.display.as_deref().unwrap().contains(" / "));
+    assert!(dod.verdict.is_some());
 }

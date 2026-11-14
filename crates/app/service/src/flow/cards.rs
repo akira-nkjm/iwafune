@@ -1,4 +1,4 @@
-//! 読んだ対象 → どのカードのどの行か。部品の属性は部品のカード、設定は設定ファイルのカード（`query::settings::split_setting`）、
+//! 読んだ対象 → どのカードのどの行か。部品の属性は部品のカード（まとめるのは `group`）、設定は設定ファイルのカード（`query::settings::split_setting`）、
 //! モードはモードのカード、ケースのフィールドはケースのカード。
 
 use fune_model::Target;
@@ -7,7 +7,8 @@ use fune_model::path::{ParamPath, SettingPath};
 /// カードの鍵（並びは部品 → 設定 → モード → ケース）。
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) enum CardKey {
-    Part(String),
+    /// 部品（1 つか、同じ役割で同じ読まれ方の部品をまとめたもの。ID 順）
+    Part(Vec<String>),
     /// 設定ファイルのまとまり（`conditions.orbit`）とファイル（`conditions/orbit.toml`）
     Setting(SettingPath, String),
     Modes,
@@ -18,7 +19,8 @@ impl CardKey {
     /// カードの ID（図の中で一意。Web は分解しない）。
     pub(super) fn node_id(&self) -> String {
         match self {
-            CardKey::Part(id) => format!("part:{id}"),
+            CardKey::Part(ids) if ids.len() == 1 => format!("part:{}", ids[0]),
+            CardKey::Part(ids) => format!("parts:{}", ids.join("+")),
             CardKey::Setting(p, _) => format!("setting:{p}"),
             CardKey::Modes => "modes".to_owned(),
             CardKey::Case(id) => format!("case:{id}"),
@@ -30,10 +32,10 @@ impl CardKey {
 pub(super) fn locate(t: &Target) -> Option<(CardKey, String)> {
     match t {
         Target::Param(ParamPath::Attr { part, attr, .. }) => {
-            Some((CardKey::Part(part.clone()), attr.clone()))
+            Some((CardKey::Part(vec![part.clone()]), attr.clone()))
         }
         Target::Param(ParamPath::Field { part, field }) => {
-            Some((CardKey::Part(part.clone()), field.clone()))
+            Some((CardKey::Part(vec![part.clone()]), field.clone()))
         }
         Target::Param(ParamPath::Setting(path)) => {
             let (group, keys, file) = crate::query::settings::split_setting(path);
@@ -68,7 +70,7 @@ mod tests {
         let area = Target::attr("SP_PX", "area");
         assert_eq!(
             locate(&area),
-            Some((CardKey::Part("SP_PX".to_owned()), "area".to_owned()))
+            Some((CardKey::Part(vec!["SP_PX".to_owned()]), "area".to_owned()))
         );
         assert_eq!(
             locate(&Target::Analysis {

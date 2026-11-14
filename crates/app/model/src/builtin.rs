@@ -8,7 +8,8 @@ mod labels;
 pub use crate::role::{Role, STATE_OFF, STATE_THRUSTER_FIRING};
 
 pub use labels::{
-    DEFAULT_SECTION, LABELS_TOML, Label, Labels, enum_label, labels, sections, state_label,
+    DEFAULT_SECTION, LABELS_TOML, Label, Labels, enum_label, labels, role_label, sections,
+    setting_label, state_label,
 };
 
 use crate::design::{AttributeDef, KindDef};

@@ -3,11 +3,13 @@
 //! | モジュール | 責務 |
 //! |---|---|
 //! | `presentation` | 解析出力から流れ・ブレットバー・グラフの表示定義へ |
+//! | `outputs` | フロー図の解析のカードの主な出力（名前付きの 2〜3 行） |
 //!
 //! フロー図（`PowerPageView.flow`）は `crate::flow` が同じ解析の一覧から作る。
 use crate::dto::{PowerAnalysisView, PowerModeView, PowerPageView, RunAnalysisRequest};
 use crate::{Result, Workspace, analysis};
 
+mod outputs;
 mod presentation;
 
 const ANALYSES: &[&str] = &[
@@ -45,6 +47,15 @@ pub fn power_page(ws: &Workspace, case: Option<&str>) -> Result<PowerPageView> {
         .map(|a| (&a.entry, &a.result))
         .collect();
     page.flow = crate::flow::flow(&snapshot, case, &shown);
+    for node in &mut page.flow.nodes {
+        let result = page
+            .analyses
+            .iter()
+            .find(|a| Some(&a.result.id) == node.analysis.as_ref());
+        if let Some(rows) = result.and_then(|a| outputs::rows(&a.result)) {
+            node.rows = rows;
+        }
+    }
     // モードは設計の表示順（fune.toml の `[modes] order`）に並べる。一覧に無いものは後ろ
     let order: Vec<String> = snapshot
         .design

@@ -133,6 +133,7 @@ export type * from "./FiringThruster";
 export type * from "./FlowEdge";
 export type * from "./FlowEdgeKind";
 export type * from "./FlowFold";
+export type * from "./FlowMember";
 export type * from "./FlowNode";
 export type * from "./FlowNodeKind";
 export type * from "./FlowRow";

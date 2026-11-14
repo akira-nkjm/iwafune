@@ -55,6 +55,16 @@ pub struct FlowNode {
     pub verdict: Option<Verdict>,
     /// 解析のカードだけ: 実行の状態
     pub status: Option<crate::dto::AnalysisRunStatus>,
+    /// 部品をまとめたカードの部品（同じ役割で、同じ属性を同じ解析が読む部品。1 部品のカードは空）
+    pub members: Vec<FlowMember>,
+}
+
+/// まとめたカードの部品 1 つ。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct FlowMember {
+    pub id: String,
+    pub label: String,
+    pub label_en: String,
 }
 
 /// カードの行 1 つ（部品の属性・設定のキー・モード・解析の主な出力）。
@@ -70,6 +80,8 @@ pub struct FlowRow {
     pub set: bool,
     /// 書かれた値から求めた値か（軌道の周期など。解析が読んだ値ではないので、つながりを持たない）
     pub derived: bool,
+    /// まとめたカードで、部品ごとに値が違い 1 つの表示にできないとき: 値を持つ部品の数（`display` は null）
+    pub varies: Option<u32>,
     /// 解析の出力の行だけ: 判定
     pub verdict: Option<Verdict>,
     /// 値の対象（部品の属性・設定のキーなど）

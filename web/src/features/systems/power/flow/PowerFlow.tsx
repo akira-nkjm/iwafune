@@ -1,12 +1,11 @@
 import "@xyflow/react/dist/style.css";
-import { Background, ReactFlow } from "@xyflow/react";
+import { Background, Panel as FlowPanel, ReactFlow } from "@xyflow/react";
 import { useMemo, useState } from "react";
 import type { DesignView, PowerPageView } from "@/api/types";
 import { DiagramZoom, ZOOM_RANGE } from "@/features/diagram/canvas/DiagramZoom";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
 import { Panel } from "@/kit/panel/Panel";
-import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { flowEdges, flowNodes } from "./elements";
 import { FlowCard, FlowFoldCard, FlowHeading } from "./FlowCard";
 import { FlowDetail } from "./FlowDetail";
@@ -47,11 +46,8 @@ export function PowerFlow({ page, design }: { page: PowerPageView; design?: Desi
   const near = chosen ? neighbours(all, chosen.id) : { from: [], to: [] };
   const byId = (ids: string[]) => page.flow.nodes.filter((n) => ids.includes(n.id));
   return (
-    <div className="flex h-[calc(100vh-232px)] min-h-[520px] gap-3">
+    <div className="flex h-[calc(100dvh-196px)] min-h-[640px] gap-3">
       <Panel pad={false} className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <div className="px-4 pt-3">
-          <PanelHeader title={t.title} caption={t.caption} right={<Legend />} />
-        </div>
         <div className="min-h-0 flex-1">
           <ReactFlow
             nodes={nodes}
@@ -71,7 +67,7 @@ export function PowerFlow({ page, design }: { page: PowerPageView; design?: Desi
             }}
             onPaneClick={() => setSelected(null)}
             fitView
-            fitViewOptions={{ padding: 0.08 }}
+            fitViewOptions={{ padding: 0.03, maxZoom: 1 }}
             panOnScroll
             zoomActivationKeyCode={["Meta", "Control"]}
             minZoom={ZOOM_RANGE.min}
@@ -79,6 +75,9 @@ export function PowerFlow({ page, design }: { page: PowerPageView; design?: Desi
             proOptions={{ hideAttribution: true }}
           >
             <Background gap={20} size={1} color="var(--color-tick)" />
+            <FlowPanel position="top-left">
+              <Legend />
+            </FlowPanel>
             <DiagramZoom
               selected={selected ? { kind: "card", id: selected } : null}
               edges={edges}
@@ -109,7 +108,10 @@ export function PowerFlow({ page, design }: { page: PowerPageView; design?: Desi
 function Legend() {
   const t = useT().systems.flow;
   return (
-    <div className="flex items-center gap-3 text-[11px] text-ink-3">
+    <div
+      className="flex items-center gap-3 rounded-control border border-line bg-panel/90 px-2 py-1 text-[11px] text-ink-3 shadow-panel"
+      title={t.caption}
+    >
       <span className="flex items-center gap-1.5">
         <span className="inline-block h-px w-5 bg-ink-4" />
         {t.legendInput}

@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
 import { withNote } from "@/lib/design";
 import { systemTone } from "@/lib/systems";
 import { toneBorder, toneTint } from "@/lib/tone";
-import { rowCenter, rowHandle, SIZE } from "./layout";
+import { rowCenter, rowHandle, type ShownRow, SIZE } from "./layout";
 
 /** 強調の状態（何も載せていない・強調・薄く） */
 export type Emphasis = "normal" | "focus" | "dim";
@@ -16,8 +16,10 @@ export type Emphasis = "normal" | "focus" | "dim";
 export type FlowCardType = Node<
   {
     node: FlowNode;
+    /** カードに出す行（`layout.ts` の `shownRows`） */
+    shown: ShownRow[];
     emphasis: Emphasis;
-    /** 強調する行の ID */
+    /** 強調する行の鍵 */
     rows: ReadonlySet<string>;
     selected: boolean;
     onRowHover: (row: string | null) => void;
@@ -72,17 +74,13 @@ export function FlowCard({ data, width, height }: NodeProps<FlowCardType>) {
           <div className="truncate font-bold text-[12.5px] leading-tight">
             {localized(node.label, node.label_en)}
           </div>
-          {node.sub && (
-            <div className="truncate font-mono text-[10px] text-ink-3 leading-tight">
-              {node.sub}
-            </div>
-          )}
+          <Sub node={node} />
         </div>
         {analysis && node.verdict && <VerdictPill verdict={node.verdict} />}
       </div>
       <ul className="pt-1">
-        {node.rows.map((r) => (
-          <CardRow key={r.id} row={r} focused={data.rows.has(r.id)} onHover={data.onRowHover} />
+        {data.shown.map((r) => (
+          <CardRow key={r.key} row={r} focused={data.rows.has(r.key)} onHover={data.onRowHover} />
         ))}
       </ul>
       {analysis && (
@@ -105,13 +103,13 @@ export function FlowCard({ data, width, height }: NodeProps<FlowCardType>) {
         </>
       )}
       {!analysis &&
-        node.rows.map((r, i) => (
+        data.shown.map((r, i) => (
           <Handle
-            key={r.id}
-            id={rowHandle(r.id)}
+            key={r.key}
+            id={rowHandle(r.key)}
             type="source"
             position={Position.Right}
-            className={r.derived ? HIDDEN : HANDLE}
+            className={r.kind === "row" && r.row.derived ? HIDDEN : HANDLE}
             style={{ top: Math.min(rowCenter(i), (height ?? 0) - 4) }}
           />
         ))}
@@ -119,17 +117,30 @@ export function FlowCard({ data, width, height }: NodeProps<FlowCardType>) {
   );
 }
 
+/** 見出しの補足（1 部品は ID、まとめたカードは部品の数） */
+function Sub({ node }: { node: FlowNode }) {
+  const t = useT().systems.flow;
+  const text = node.members.length > 0 ? t.members(node.members.length) : node.sub;
+  if (!text) return null;
+  return <div className="truncate font-mono text-[10px] text-ink-3 leading-tight">{text}</div>;
+}
+
 function CardRow({
   row,
   focused,
   onHover,
 }: {
-  row: FlowRow;
+  row: ShownRow;
   focused: boolean;
   onHover: (row: string | null) => void;
 }) {
   const t = useT().systems.flow;
-  const label = localized(row.label, row.label_en);
+  const label =
+    row.kind === "row"
+      ? localized(row.row.label, row.row.label_en)
+      : row.kind === "more"
+        ? t.more(row.count)
+        : t.unsetSummary(row.count);
   return (
     <li
       className={cn(
@@ -137,27 +148,35 @@ function CardRow({
         focused && "bg-accent-tint",
       )}
       style={{ height: SIZE.row }}
-      onMouseEnter={() => onHover(row.id)}
+      onMouseEnter={() => onHover(row.key)}
       onMouseLeave={() => onHover(null)}
     >
-      <span className="truncate text-ink-2" title={label}>
+      <span
+        className={cn("truncate", row.kind === "row" ? "text-ink-2" : "text-ink-4 italic")}
+        title={label}
+      >
         {label}
       </span>
-      <RowValue row={row} unset={t.unset} derived={t.derived} />
+      {row.kind === "row" && <RowValue row={row.row} />}
     </li>
   );
 }
 
-function RowValue({ row, unset, derived }: { row: FlowRow; unset: string; derived: string }) {
-  if (!row.display) return <span className="text-ink-4">{row.set ? "—" : unset}</span>;
+/** 値（まとめたカードで部品ごとに違えば部品の数、書かれていなければ「未設定」） */
+export function RowValue({ row }: { row: FlowRow }) {
+  const t = useT().systems.flow;
+  if (!row.display) {
+    const text = row.varies ? t.varies(row.varies) : row.set ? "—" : t.unset;
+    return <span className="text-ink-4">{text}</span>;
+  }
   return (
     <span
       className={cn(
-        "max-w-[132px] truncate font-mono text-[10.5px]",
+        "max-w-[140px] truncate font-mono text-[10.5px]",
         row.derived && "text-ink-3 italic",
         valueTone(row.verdict),
       )}
-      title={row.derived ? withNote(row.display, derived) : row.display}
+      title={row.derived ? withNote(row.display, t.derived) : row.display}
     >
       {row.display}
     </span>

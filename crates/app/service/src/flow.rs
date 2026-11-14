@@ -7,6 +7,8 @@
 //! |---|---|
 //! | `cards` | 読んだ対象 → どのカードのどの行か |
 //! | `rows` | カードと行の表示（部品の値・設定・モード・ケース・解析の主な出力） |
+//! | `group` | 部品をまとめる（同じ役割で、同じ属性を同じ解析が読む部品を 1 枚に） |
+//! | `parts` | 部品のカードと行（まとめたカードの値は範囲か、値の違う部品の数） |
 //! | `fold` | 畳める部品のまとまりと並び（同じ値を同じ解析が読む部品が多いとき） |
 
 use crate::dto::{AnalysisEntry, AnalysisRunResult, FlowEdge, FlowEdgeKind, FlowNode, FlowView};
@@ -17,6 +19,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 mod cards;
 mod fold;
+mod group;
+mod parts;
 mod rows;
 #[cfg(test)]
 mod tests;
@@ -52,6 +56,7 @@ pub(crate) fn flow(
             cards.entry(card).or_default().push((row, t.clone()));
         }
     }
+    let cards = group::group_parts(&snapshot.resolved, cards, &readers);
     let mut view = FlowView::default();
     let mut edges = Vec::new();
     let (order, folds) = fold::order(&snapshot.resolved, &cards, &readers);

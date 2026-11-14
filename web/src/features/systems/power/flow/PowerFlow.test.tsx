@@ -9,7 +9,7 @@ import { flowEdges, flowNodes } from "./elements";
 import { FlowCard, FlowFoldCard } from "./FlowCard";
 import { FlowDetail } from "./FlowDetail";
 import { focusOf } from "./focus";
-import { layoutFlow } from "./layout";
+import { layoutFlow, shownRows } from "./layout";
 
 vi.mock("@/i18n", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/i18n")>();
@@ -57,6 +57,7 @@ describe("FlowCard", () => {
       <FlowCard
         {...nodeProps("part:SP", {
           node,
+          shown: shownRows(node),
           emphasis: "normal",
           rows: new Set<string>(),
           selected: false,
@@ -69,6 +70,29 @@ describe("FlowCard", () => {
     expect(out).toContain("800 cm²");
     expect(out).toContain("未設定");
     expect(out).toContain('data-handleid="row:area"');
+  });
+
+  it("まとめたカードは部品の数と、部品ごとに違う値の数", () => {
+    const node = flowNode("parts:A+B", "part", [flowRow("power", null, { set: true, varies: 2 })], {
+      members: [
+        { id: "A", label: "A の名前", label_en: "A" },
+        { id: "B", label: "B の名前", label_en: "B" },
+      ],
+    });
+    const out = html(
+      <FlowCard
+        {...nodeProps("parts:A+B", {
+          node,
+          shown: shownRows(node),
+          emphasis: "normal",
+          rows: new Set<string>(),
+          selected: false,
+          onRowHover: () => {},
+        })}
+      />,
+    );
+    expect(out).toContain("2 部品");
+    expect(out).toContain("2 部品で異なる");
   });
 
   it("解析のカードは判定のバッジと入口・結果の出入口を持ち、薄くするときは透かす", () => {
@@ -84,6 +108,7 @@ describe("FlowCard", () => {
       <FlowCard
         {...nodeProps("analysis:balance", {
           node,
+          shown: shownRows(node),
           emphasis: "dim",
           rows: new Set(["max_dod"]),
           selected: true,
@@ -212,5 +237,33 @@ describe("FlowDetail", () => {
     expect(out).toContain("未設定");
     expect(out).toContain("この値を読む解析");
     expect(out).not.toContain("判定");
+  });
+  it("まとめたカードは部品の一覧、書かれていない値は数だけ（開くまで行を出さない）", () => {
+    const node = flowNode(
+      "parts:A+B",
+      "part",
+      [flowRow("area", "1 – 2 m²"), flowRow("eol_factor", null)],
+      {
+        members: [
+          { id: "A", label: "A の名前", label_en: "A" },
+          { id: "B", label: "B の名前", label_en: "B" },
+        ],
+      },
+    );
+    const out = html(
+      <FlowDetail
+        node={node}
+        result={undefined}
+        from={[]}
+        to={[]}
+        design={undefined}
+        onSelect={() => {}}
+        onClose={() => {}}
+      />,
+    );
+    expect(out).toContain("B の名前");
+    expect(out).toContain("2 部品");
+    expect(out).toContain("未設定 1 件（解析の既定値を使う）");
+    expect(out).not.toContain(">eol_factor<");
   });
 });

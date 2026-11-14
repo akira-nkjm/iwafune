@@ -1,12 +1,14 @@
-//! カードと行の表示。部品の値は `query::values::value_view`、設定は `query::settings::setting_view`、書かれた量は
-//! `query::values::authored_quantity`、解析の主な出力は KPI（`AnalysisRunResult.kpis`）。表示の文字列はどれも
-//! `sat_units::format`（service の `units`）で作ったもの。
+//! カードと行の表示。部品は `parts`、設定は `query::settings::setting_view`、書かれた量は
+//! `query::values::authored_quantity`、解析の主な出力は KPI（`AnalysisRunResult.kpis`。電源のページは
+//! `power_page::outputs` で差し替える）。表示の文字列はどれも `sat_units::format`（service の `units`）で作ったもの。
+//! 設定とケースの欄の表示名は `fune_model::builtin::{setting_label, labels}`。
 
 use super::cards::CardKey;
 use crate::dto::{AnalysisEntry, AnalysisRunResult, FlowNode, FlowNodeKind, FlowRow};
-use crate::query::values::{authored_quantity, value_view};
+use crate::query::values::authored_quantity;
 use crate::workspace::Snapshot;
 use fune_model::Target;
+use fune_model::builtin::{labels, setting_label};
 use fune_model::path::SettingPath;
 use sat_analysis::spec::AnalysisArea;
 use std::collections::BTreeMap;
@@ -17,7 +19,7 @@ pub(super) type Shown = BTreeMap<String, Vec<String>>;
 /// カード 1 枚と、読んだ行がどの行に出たか。
 pub(super) fn card(s: &Snapshot, key: &CardKey, rows: &[(String, Target)]) -> (FlowNode, Shown) {
     let mut node = match key {
-        CardKey::Part(id) => part_node(s, id),
+        CardKey::Part(ids) => super::parts::node(s, key, ids),
         CardKey::Setting(group, file) => setting_node(group, file),
         CardKey::Modes => node(
             key,
@@ -30,7 +32,7 @@ pub(super) fn card(s: &Snapshot, key: &CardKey, rows: &[(String, Target)]) -> (F
     let mut shown = Shown::new();
     for (row, target) in rows {
         let made = match key {
-            CardKey::Part(id) => vec![part_row(s, id, row, target)],
+            CardKey::Part(ids) => vec![super::parts::row(s, ids, row, target)],
             CardKey::Setting(..) => setting_rows(s, row, target),
             CardKey::Modes => vec![mode_row(s, row, target)],
             CardKey::Case(id) => vec![case_row(s, id, row, target)],
@@ -59,6 +61,7 @@ pub(super) fn analysis(e: &AnalysisEntry, r: &AnalysisRunResult) -> FlowNode {
             display: k.value.as_ref().map(|v| v.display.clone()),
             set: k.value.is_some(),
             derived: false,
+            varies: None,
             verdict: k.verdict,
             target: None,
         })
@@ -78,6 +81,7 @@ pub(super) fn analysis(e: &AnalysisEntry, r: &AnalysisRunResult) -> FlowNode {
         analysis: Some(e.info.id.clone()),
         verdict: r.verdict,
         status: Some(r.status),
+        members: Vec::new(),
     }
 }
 
@@ -99,6 +103,7 @@ fn node(
         analysis: None,
         verdict: None,
         status: None,
+        members: Vec::new(),
     }
 }
 
@@ -110,51 +115,58 @@ fn row(id: &str, label: (String, String), display: Option<String>, target: &Targ
         label_en: label.1,
         display,
         derived: false,
+        varies: None,
         verdict: None,
         target: Some(target.clone()),
     }
 }
 
-fn part_node(s: &Snapshot, id: &str) -> FlowNode {
-    let key = CardKey::Part(id.to_owned());
-    let p = s.resolved.parts.get(id);
-    let label = p
-        .and_then(|p| p.label.clone())
-        .unwrap_or_else(|| id.to_owned());
+/// 設定のカード（名前は設定のまとまりの表示名、補足はファイル）。
+fn setting_node(group: &SettingPath, file: &str) -> FlowNode {
+    let (ja, en) = setting_label(group)
+        .filter(|(_, rest)| rest.is_empty())
+        .map_or_else(
+            || (file.to_owned(), file.to_owned()),
+            |(l, _)| {
+                (
+                    l.label.clone(),
+                    l.label_en.clone().unwrap_or_else(|| l.label.clone()),
+                )
+            },
+        );
     let mut n = node(
-        &key,
-        FlowNodeKind::Part,
-        (&label, id),
-        Some(Target::Part { id: id.to_owned() }),
+        &CardKey::Setting(group.clone(), file.to_owned()),
+        FlowNodeKind::Setting,
+        (&ja, &en),
+        Some(group.clone().into()),
     );
-    n.sub = p.and_then(|p| p.kind.clone());
-    n.system = p
-        .and_then(|p| p.system)
-        .map(fune_projection::system::to_analysis);
+    n.sub = Some(file.to_owned());
     n
 }
 
-fn part_row(s: &Snapshot, part: &str, attr: &str, target: &Target) -> FlowRow {
-    let display = s
-        .resolved
-        .parts
-        .get(part)
-        .and_then(|p| p.attr.get(attr))
-        .and_then(|rv| value_view(attr, rv).display);
-    let def = s.design.attribute(attr);
-    let label = def.map_or_else(|| attr.to_owned(), |d| d.label.clone());
-    let label_en = def
-        .and_then(|d| d.label_en.clone())
-        .unwrap_or_else(|| attr.to_owned());
-    row(attr, (label, label_en), display, target)
-}
-
-fn setting_node(group: &SettingPath, file: &str) -> FlowNode {
-    node(
-        &CardKey::Setting(group.clone(), file.to_owned()),
-        FlowNodeKind::Setting,
-        (file, file),
-        Some(group.clone().into()),
+/// 設定のキーの表示名（`setting_label`。親の表示名に残りのキーを添えるとき、番号は 1 から）。
+fn setting_row_label(path: &SettingPath) -> (String, String) {
+    let Some((l, rest)) = setting_label(path) else {
+        let key = path.segments.last().cloned().unwrap_or_default();
+        return (key.clone(), key);
+    };
+    let rest: Vec<String> = rest
+        .iter()
+        .map(|k| {
+            k.parse::<usize>()
+                .map_or_else(|_| k.clone(), |i| (i + 1).to_string())
+        })
+        .collect();
+    let with = |base: &str| {
+        if rest.is_empty() {
+            base.to_owned()
+        } else {
+            format!("{base} {}", rest.join(" "))
+        }
+    };
+    (
+        with(&l.label),
+        with(l.label_en.as_deref().unwrap_or(&l.label)),
     )
 }
 
@@ -171,14 +183,9 @@ fn setting_rows(s: &Snapshot, row_id: &str, target: &Target) -> Vec<FlowRow> {
         .collect();
     let depth = path.segments.len();
     let nested = entries.iter().any(|e| e.path.segments.len() > depth + 1);
-    let label = |id: &str| (id.to_owned(), id.to_owned());
     if !nested {
-        return vec![row(
-            row_id,
-            label(row_id),
-            joined(s, &entries, depth),
-            target,
-        )];
+        let label = setting_row_label(path);
+        return vec![row(row_id, label, joined(s, &entries), target)];
     }
     // 子の並びは書かれた順（モードの並びは区間の順）
     let mut children: Vec<(String, Vec<_>)> = Vec::new();
@@ -193,30 +200,21 @@ fn setting_rows(s: &Snapshot, row_id: &str, target: &Target) -> Vec<FlowRow> {
         .into_iter()
         .map(|(child, es)| {
             let id = format!("{row_id}.{child}");
-            row(&id, label(&id), joined(s, &es, depth + 1), target)
+            let label = setting_row_label(&path.child(&[child.as_str()]));
+            row(&id, label, joined(s, &es), target)
         })
         .collect()
 }
 
-/// 設定の葉の表示をつなぐ。読んだパスそのものの葉は値だけ、その下の葉は「キー: 値」（深さ `depth` より下のキー）。
-/// 書かれていない葉は飛ばし、どれも無ければ None。
-fn joined(
-    s: &Snapshot,
-    entries: &[fune_model::design::SettingEntry],
-    depth: usize,
-) -> Option<String> {
-    let parts: Vec<String> = entries
+/// 設定の葉の表示を「 · 」でつなぐ（文字の値を先に。書かれていない葉は飛ばし、どれも無ければ None）。
+fn joined(s: &Snapshot, entries: &[fune_model::design::SettingEntry]) -> Option<String> {
+    let mut views: Vec<_> = entries
         .iter()
-        .filter_map(|e| {
-            let shown = crate::query::settings::setting_view(&s.design, e).display?;
-            let key = e.path.segments.get(depth..).unwrap_or_default().join(".");
-            Some(if key.is_empty() {
-                shown
-            } else {
-                format!("{key}: {shown}")
-            })
-        })
+        .map(|e| crate::query::settings::setting_view(&s.design, e))
+        .filter(|v| v.display.is_some())
         .collect();
+    views.sort_by_key(|v| !matches!(v.value, crate::dto::ValueData::Text { .. }));
+    let parts: Vec<String> = views.into_iter().filter_map(|v| v.display).collect();
     (!parts.is_empty()).then(|| parts.join(" · "))
 }
 
@@ -232,6 +230,7 @@ fn orbit_period(s: &Snapshot) -> Option<FlowRow> {
         display: Some(q.display),
         set: true,
         derived: true,
+        varies: None,
         verdict: None,
         target: None,
     })
@@ -274,5 +273,14 @@ fn case_row(s: &Snapshot, id: &str, field: &str, target: &Target) -> FlowRow {
         "orbits" => c.orbits.map(|n| crate::units::number_text(f64::from(n))),
         _ => None,
     });
-    row(field, (field.to_owned(), field.to_owned()), display, target)
+    let label = labels().case_field.get(field).map_or_else(
+        || (field.to_owned(), field.to_owned()),
+        |l| {
+            (
+                l.label.clone(),
+                l.label_en.clone().unwrap_or_else(|| l.label.clone()),
+            )
+        },
+    );
+    row(field, label, display, target)
 }

@@ -64,6 +64,7 @@ export function flowNodes(
       type: "flowCard",
       data: {
         node: c.node,
+        shown: c.rows,
         emphasis: emphasisOf(focus, c.id),
         rows: focus?.rows.get(c.id) ?? EMPTY,
         selected: selected === c.id,

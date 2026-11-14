@@ -23,6 +23,10 @@ set: boolean,
  */
 derived: boolean, 
 /**
+ * まとめたカードで、部品ごとに値が違い 1 つの表示にできないとき: 値を持つ部品の数（`display` は null）
+ */
+varies: number | null, 
+/**
  * 解析の出力の行だけ: 判定
  */
 verdict: Verdict | null, 

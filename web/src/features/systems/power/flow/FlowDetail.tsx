@@ -1,3 +1,5 @@
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { useState } from "react";
 import { ChecksList } from "@/analysis/ChecksList";
 import { MissingList } from "@/analysis/MissingList";
 import type { AnalysisRunResult, DesignView, FlowNode, FlowRow } from "@/api/types";
@@ -7,9 +9,8 @@ import { DetailSection } from "@/kit/detail/DetailSection";
 import { PropertyList } from "@/kit/detail/PropertyList";
 import { PropertyRow } from "@/kit/detail/PropertyRow";
 import { VerdictPill } from "@/kit/status/VerdictPill";
-import { cn } from "@/lib/cn";
-import { withNote } from "@/lib/design";
 import { systemTone } from "@/lib/systems";
+import { RowValue } from "./FlowCard";
 
 /**
  * フロー図で選んだカードの詳細（右の欄。読むだけ）: 全部の値（解析は主な出力と判定の文・足りない入力）と、つながる
@@ -43,26 +44,25 @@ export function FlowDetail({
       header={
         <DetailHeader
           title={localized(node.label, node.label_en)}
-          subtitle={node.sub}
+          subtitle={node.members.length > 0 ? t.members(node.members.length) : node.sub}
           tone={tone}
           trailing={node.verdict ? <VerdictPill verdict={node.verdict} /> : undefined}
           onClose={onClose}
         />
       }
     >
-      <DetailSection title={analysis ? t.outputs : t.values}>
-        {node.rows.length === 0 ? (
-          <p className="px-0.5 text-ink-3 text-xs">{t.noOutputs}</p>
-        ) : (
+      <Values node={node} />
+      {node.members.length > 0 && (
+        <DetailSection title={t.memberList}>
           <PropertyList>
-            {node.rows.map((r) => (
-              <PropertyRow key={r.id} label={localized(r.label, r.label_en)} title={r.id}>
-                <RowText row={r} unset={t.unset} derived={t.derived} />
+            {node.members.map((m) => (
+              <PropertyRow key={m.id} label={<span className="font-mono">{m.id}</span>}>
+                <span className="text-ink-2">{localized(m.label, m.label_en)}</span>
               </PropertyRow>
             ))}
           </PropertyList>
-        )}
-      </DetailSection>
+        </DetailSection>
+      )}
       {result && result.checks.length > 0 && (
         <DetailSection title={t.checks}>
           <ChecksList checks={result.checks} />
@@ -90,17 +90,55 @@ export function FlowDetail({
   );
 }
 
-function RowText({ row, unset, derived }: { row: FlowRow; unset: string; derived: string }) {
-  if (!row.display) return <span className="text-ink-4">{row.set ? "—" : unset}</span>;
+/** 値の一覧。書かれた値（解析は主な出力）を全部と、書かれていない値（既定値を使う）は開いて見る */
+function Values({ node }: { node: FlowNode }) {
+  const t = useT().systems.flow;
+  const [open, setOpen] = useState(false);
+  const set = node.rows.filter((r) => r.set);
+  const unset = node.rows.filter((r) => !r.set);
   return (
-    <span className={cn("font-mono text-[11.5px]", row.derived && "text-ink-3 italic")}>
-      {row.derived ? withNote(row.display, derived) : row.display}
-      {row.verdict && (
-        <span className="ml-2 align-middle">
-          <VerdictPill verdict={row.verdict} />
-        </span>
+    <>
+      <DetailSection title={node.kind === "analysis" ? t.outputs : t.values}>
+        {set.length === 0 ? (
+          <p className="px-0.5 text-ink-3 text-xs">{t.noOutputs}</p>
+        ) : (
+          <Rows rows={set} />
+        )}
+      </DetailSection>
+      {unset.length > 0 && (
+        <DetailSection
+          title={t.unsetSection(unset.length)}
+          right={
+            <button
+              type="button"
+              onClick={() => setOpen(!open)}
+              aria-expanded={open}
+              className="flex items-center gap-0.5 text-[11.5px] text-accent-ink hover:underline"
+            >
+              {open ? <ChevronUp size={12} aria-hidden /> : <ChevronDown size={12} aria-hidden />}
+              {open ? t.fewer : t.showAll}
+            </button>
+          }
+        >
+          {open && <Rows rows={unset} />}
+        </DetailSection>
       )}
-    </span>
+    </>
+  );
+}
+
+function Rows({ rows }: { rows: FlowRow[] }) {
+  return (
+    <PropertyList>
+      {rows.map((r) => (
+        <PropertyRow key={r.id} label={localized(r.label, r.label_en)}>
+          <span className="flex items-center gap-2">
+            <RowValue row={r} />
+            {r.verdict && <VerdictPill verdict={r.verdict} />}
+          </span>
+        </PropertyRow>
+      ))}
+    </PropertyList>
   );
 }
 

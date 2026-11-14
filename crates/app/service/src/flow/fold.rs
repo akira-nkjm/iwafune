@@ -2,6 +2,7 @@
 //! （電源の負荷の電力など）、その値の大きい順（状態ごとの値は全状態の最大。× 員数）に並べる。ほかの部品は ID 順で前に置く。
 
 use super::cards::CardKey;
+use super::group::{Signature, signature};
 use crate::dto::FlowFold;
 use fune_model::Target;
 use fune_model::resolve::{Resolved, SiValue};
@@ -9,8 +10,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 /// まとまりにする部品の数の下限。
 const FOLD_MIN: usize = 5;
-
-type Signature = (Vec<String>, BTreeSet<String>);
 
 /// カードの並び（部品 → 設定 → モード → ケース）と、畳める部品のまとまり。
 pub(super) fn order(
@@ -59,37 +58,33 @@ pub(super) fn order(
     (order, folds)
 }
 
-/// 部品のカードの読まれ方（行の ID と、それを読む解析）。
-fn signature(rows: &[(String, Target)], readers: &BTreeMap<Target, BTreeSet<String>>) -> Signature {
-    let ids = rows.iter().map(|(r, _)| r.clone()).collect();
-    let by = rows
-        .iter()
-        .flat_map(|(_, t)| readers.get(t).into_iter().flatten().cloned())
-        .collect();
-    (ids, by)
-}
-
-/// 並べる重み: 読む属性（1 つ）の値（状態ごとの値は全状態の最大）× 員数。
+/// 並べる重み: 読む属性（1 つ）の値（状態ごとの値は全状態の最大）× 員数の、カードの部品の合計。
 fn weight(
     resolved: &Resolved,
     key: &CardKey,
     cards: &BTreeMap<CardKey, Vec<(String, Target)>>,
 ) -> f64 {
-    let CardKey::Part(id) = key else {
+    let CardKey::Part(ids) = key else {
         return 0.0;
     };
-    let Some(p) = resolved.parts.get(id.as_str()) else {
-        return 0.0;
-    };
-    let largest = cards
+    let attrs: Vec<&str> = cards
         .get(key)
         .into_iter()
         .flatten()
-        .filter_map(|(attr, _)| match p.value(attr)? {
-            SiValue::Scalar(s) => Some(s.value),
-            SiValue::ByState(m) => m.values().map(|v| v.value).reduce(f64::max),
-            _ => None,
+        .map(|(a, _)| a.as_str())
+        .collect();
+    ids.iter()
+        .filter_map(|id| resolved.parts.get(id.as_str()))
+        .map(|p| {
+            let largest = attrs
+                .iter()
+                .filter_map(|attr| match p.value(attr)? {
+                    SiValue::Scalar(s) => Some(s.value),
+                    SiValue::ByState(m) => m.values().map(|v| v.value).reduce(f64::max),
+                    _ => None,
+                })
+                .fold(0.0, f64::max);
+            fune_projection::parts::extensive(p, largest)
         })
-        .fold(0.0, f64::max);
-    fune_projection::parts::extensive(p, largest)
+        .sum()
 }
