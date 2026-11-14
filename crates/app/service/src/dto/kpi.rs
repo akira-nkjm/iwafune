@@ -17,6 +17,12 @@ pub enum KpiKey {
     BetaMin,
     /// 季節の β の最大値。
     BetaMax,
+    /// 軌道寿命（太陽活動の条件のうち最短。期間の上限までに再突入しなければ値なし）
+    OrbitLifetime,
+    /// 元期の 1 日あたりの高度低下（条件のうち最大）
+    DecayPerDay,
+    /// 高度を保つ 1 年あたりの ΔV（条件のうち最大）
+    StationKeepingDeltaV,
     /// バジェットのモード（ケースのモード、無ければ成長余裕込みの合計が最大のモード）の消費電力
     ModeLoad,
     /// 軌道平均の発電
@@ -67,6 +73,16 @@ pub enum KpiKey {
     MinSafetyMargin,
     /// 最低の固有振動数
     MinFrequency,
+    /// マヌーバの遷移の時間（マヌーバのうち最長）
+    LongestTransfer,
+    /// マージン込みの ΔV
+    DvWithMargin,
+    /// 積む推薬（マージンと残る分込み）
+    LoadedPropellant,
+    /// タンクの容積の余裕（推薬のうち最小）
+    TankVolumeMargin,
+    /// 総インパルスの定格に対する余裕（スラスタのうち最小）
+    ImpulseMargin,
 }
 
 /// KPI の定義（`GET /analyses` の `AnalysisEntry.kpis`。結果が届く前に名前を並べるのに使う）。

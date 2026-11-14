@@ -5,6 +5,7 @@ import type { AnalysisRunStatus } from "./AnalysisRunStatus";
 import type { CheckView } from "./CheckView";
 import type { KpiView } from "./KpiView";
 import type { MissingInput } from "./MissingInput";
+import type { SpaceWeatherVersion } from "./SpaceWeatherVersion";
 import type { Verdict } from "./Verdict";
 
 /**
@@ -48,4 +49,8 @@ missing: Array<MissingInput>,
 /**
  * 解析が失敗したときの理由
  */
-error: string | null, };
+error: string | null, 
+/**
+ * 入力に使った宇宙天気の表の版（日付で引いた宇宙天気を使った解析だけ。使わなければ欄を出さない）
+ */
+space_weather?: SpaceWeatherVersion, };

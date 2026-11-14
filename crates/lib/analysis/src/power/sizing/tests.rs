@@ -1,11 +1,8 @@
 //! 手計算、および逆算した設計を既存の電力収支へ渡す比較。
 use super::*;
 use crate::modes::{ModeDef, StateAssignment, StateValues};
-use crate::power::energy_balance::{
-    EnergyBalance, EnergyBalanceCase, EnergyBalanceInput, EnergyBalanceLoad, LoadGrowth,
-};
 use crate::power::mode_load::ModeLoadPart;
-use crate::power::solar::{SolarLife, SolarPanel};
+use crate::power::solar::SolarPanel;
 use crate::power::testkit::{leo, leo_timeline, nadir_pointing_z, sun_pointing_z};
 use sat_astro::math::Vec3;
 use std::collections::BTreeMap;
@@ -79,6 +76,9 @@ fn input() -> SizingInput {
             bus_voltage: Some(Qty::from_raw(28.0)),
             ..Default::default()
         },
+        max_durations: BTreeMap::new(),
+        sequence: Vec::new(),
+        base_mode: None,
     }
 }
 
@@ -111,7 +111,7 @@ fn smad_by_hand() {
     assert!((power - 175.0).abs() < 1e-12);
     assert!((area - 0.9875848908518454).abs() < 1e-12);
     assert!((capacity - 400000.0).abs() < 1e-9);
-    let strings = strings(&i, &u, power, cos30).unwrap().unwrap();
+    let strings = calculate::strings(&i, &u, power, cos30).unwrap().unwrap();
     assert_eq!(strings.series_count, 14);
     assert_eq!(strings.parallel_count, 26);
     assert!((strings.required_current.value() - 6.25).abs() < 1e-12);
@@ -122,6 +122,7 @@ fn shared_season_and_inverse_margins() {
     let mut i = input();
     i.options.battery_strings = Some(2);
     let o = Sizing::run(&i).unwrap();
+    assert_eq!(o.basis, SizingBasis::TimeSeries);
     assert_eq!(
         o.required_capacity_per_string.value() * 2.0,
         o.required_capacity.value()
@@ -129,14 +130,16 @@ fn shared_season_and_inverse_margins() {
     let season = EclipseSeason::run(&i.season).unwrap();
     assert_eq!(o.eclipse_duration, season.max_eclipse_duration);
     assert_eq!(o.longest.epoch, season.longest.epoch);
-    assert_eq!(o.sunlit_load.value(), 100.0);
-    assert_eq!(o.eclipse_load.value(), 60.0);
+    assert_eq!(o.smad.sunlit_load.value(), 100.0);
+    assert_eq!(o.smad.eclipse_load.value(), 60.0);
+    // 設計を必要量ちょうどにすると余裕は 0（時系列の面積は単位面積あたりの発電から求めるので設計の面積によらない）。
     let mut exact = i.clone();
     exact.array.panels[0].area = o.required_area;
     exact.batteries[0].capacity = o.required_capacity;
     let result = Sizing::run(&exact).unwrap();
-    assert!(result.sap_margin.unwrap().value().abs() < 1e-12);
-    assert!(result.battery_margin.unwrap().value().abs() < 1e-12);
+    assert!(result.sap_margin.unwrap().value().abs() < 2.0 * AREA_TOLERANCE);
+    assert!(result.battery_margin.unwrap().value().abs() < 1e-3);
+    assert!(result.smad.sap_margin.is_some());
     assert_eq!(result.used.sunlit_efficiency, 0.8);
     assert_eq!(result.used.eclipse_efficiency, 0.6);
     assert_eq!(result.used.battery_efficiency, 0.9);
@@ -153,7 +156,7 @@ fn incidence_follows_the_attitude() {
     tilted.array = sap(1.0, Vec3::new(t.sin(), 0.0, t.cos()));
     let ot = Sizing::run(&tilted).unwrap();
     assert!((ot.modes[0].incidence_factor.value() - 0.5).abs() < 1e-9);
-    assert!((ot.required_area.value() / o.required_area.value() - 2.0).abs() < 1e-9);
+    assert!((ot.smad.required_area.value() / o.smad.required_area.value() - 2.0).abs() < 1e-9);
     // モードの姿勢則は上段の姿勢則を替える。地心指向で天頂を向く面は日照中の平均の入射が 1 より小さい。
     let mut nadir = input();
     nadir.array = sap(1.0, -Vec3::Z);
@@ -161,50 +164,7 @@ fn incidence_follows_the_attitude() {
     let on = Sizing::run(&nadir).unwrap();
     let k = on.modes[0].incidence_factor.value();
     assert!(k > 0.3 && k < 0.7, "{k}");
-    assert!((on.required_area.value() * k - o.required_area.value()).abs() < 1e-9);
-}
-
-#[test]
-fn inverse_design_satisfies_energy_balance() {
-    // 日照中の発電が一定（太陽指向）なら、逆算した面積・容量を同じ姿勢則の電力収支に渡して収支と DoD が成り立つ。
-    // 日照中に発電が負荷を下回る姿勢では SMAD の平均の式が過小評価するので、収支で確かめる（docs/model.md）。
-    {
-        let (law, n) = (sun_pointing_z(), Vec3::Z);
-        let mut i = input();
-        i.array = sap(1.0, n);
-        i.timeline.attitude = law.clone();
-        let sized = Sizing::run(&i).unwrap();
-        let mut timeline = leo_timeline(law, 2.0, 1.0);
-        timeline.shadow = sat_astro::shadow::ShadowModel::Conical;
-        let mut battery = i.batteries[0].clone();
-        battery.capacity = sized.required_capacity;
-        let mut array = sap(sized.required_area.value(), n);
-        array.conversion_efficiency = Some(sized.used.sunlit_efficiency);
-        let out = EnergyBalance::run(&EnergyBalanceInput {
-            timeline,
-            array,
-            life: SolarLife::Eol,
-            batteries: vec![battery],
-            loads: i.loads,
-            load_growth: LoadGrowth::Included,
-            cases: vec![EnergyBalanceCase {
-                id: "NOMINAL".into(),
-                label: String::new(),
-                load: EnergyBalanceLoad::Mode {
-                    mode: "NOMINAL".into(),
-                },
-                attitude: None,
-                max_duration: None,
-            }],
-            sequence: Vec::new(),
-            base_mode: None,
-            mode_attitudes: Default::default(),
-        })
-        .unwrap();
-        let case = &out.cases[0];
-        assert!(case.energy_margin_per_orbit.unwrap().value() >= 0.0);
-        assert!(case.max_dod.value() <= sized.used.dod_max.value());
-    }
+    assert!((on.smad.required_area.value() * k - o.smad.required_area.value()).abs() < 1e-9);
 }
 
 #[test]
@@ -233,11 +193,11 @@ fn optional_strings_and_mode_selection() {
     high.eclipse = vec![assignment("on")];
     i.loads.modes.push(high);
     let worst = Sizing::run(&i).unwrap();
-    assert_eq!(worst.eclipse_load.value(), 100.0);
+    assert_eq!(worst.smad.eclipse_load.value(), 100.0);
     i.mode = Some("NOMINAL".into());
     i.cells.clear();
     let selected = Sizing::run(&i).unwrap();
-    assert_eq!(selected.eclipse_load.value(), 60.0);
+    assert_eq!(selected.smad.eclipse_load.value(), 60.0);
     assert!(selected.strings.is_none());
     i.mode = Some("missing".into());
     assert!(Sizing::run(&i).is_err());
@@ -258,9 +218,14 @@ fn per_mode_checks_compare_hand_checkable_requirements() {
         required_generation: Qty::from_raw(60.0),
         required_area: Qty::from_raw(area),
         required_capacity: Qty::from_raw(capacity),
+        series_area: None,
+        series_capacity: None,
+        area_ratio: None,
+        capacity_ratio: None,
     };
     let checks = mode_checks(
         &[mode("A", 2.0, 120.0), mode("B", 4.0, 80.0)],
+        SizingBasis::Smad,
         Qty::from_raw(3.0),
         Qty::from_raw(100.0),
     );
@@ -274,3 +239,5 @@ fn per_mode_checks_compare_hand_checkable_requirements() {
         [Violation, Ok]
     );
 }
+
+mod series;

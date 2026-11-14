@@ -1,4 +1,4 @@
-//! 出典の台帳（`sources/<ID>.toml`。docs/model.md §7.7）。
+//! 出典の台帳（`sources/<ID>.toml`。docs/model.md §7.8）。
 //!
 //! serde の形がそのままファイルの形（`id` はファイル名から決まるので書かない）。欄の形（日付・sha256）の検査は
 //! `crate::check` の `sources` が持つ。

@@ -482,3 +482,70 @@ label_en    = "Material"
 description = "analysis/structure.toml の [material.<名前>] の名前"
 type        = "enum"
 section     = "structure"
+
+[propellant]
+label       = "推薬"
+label_en    = "Propellant"
+description = "推薬の名前（スラスタとタンクで同じ名前を書く）"
+type        = "enum"
+section     = "propulsion"
+
+[propellant_density]
+label        = "推薬の密度"
+label_en     = "Propellant density"
+type         = "scalar"
+dimension    = "MassDensity"
+units        = ["kg/m^3", "g/cm^3"]
+display_unit = "kg/m^3"
+min          = 0.0
+section      = "propulsion"
+
+[tank_volume]
+label        = "タンク容積"
+label_en     = "Tank volume"
+description  = "推薬を入れられる容積"
+type         = "scalar"
+dimension    = "Volume"
+units        = ["L", "mL", "m^3"]
+display_unit = "L"
+min          = 0.0
+section      = "propulsion"
+
+[min_impulse_bit]
+label        = "最小インパルスビット"
+label_en     = "Minimum impulse bit"
+type         = "scalar"
+dimension    = "Impulse"
+units        = ["mN*s", "uN*s", "N*s"]
+display_unit = "mN*s"
+min          = 0.0
+section      = "propulsion"
+
+[rated_total_impulse]
+label        = "定格の総インパルス"
+label_en     = "Rated total impulse"
+type         = "scalar"
+dimension    = "Impulse"
+units        = ["N*s", "kN*s"]
+display_unit = "N*s"
+min          = 0.0
+section      = "propulsion"
+
+[rated_firing_time]
+label        = "定格の累積噴射時間"
+label_en     = "Rated cumulative firing time"
+type         = "scalar"
+dimension    = "Time"
+units        = ["h", "s"]
+display_unit = "h"
+min          = 0.0
+section      = "propulsion"
+
+[rated_firings]
+label        = "定格の噴射回数"
+label_en     = "Rated firing count"
+type         = "scalar"
+dimension    = "Dimensionless"
+units        = [""]
+min          = 0.0
+section      = "propulsion"

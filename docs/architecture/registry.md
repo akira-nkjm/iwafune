@@ -12,7 +12,7 @@
 | crate | 場所 | 責務 | 依存してよい内部 crate |
 |---|---|---|---|
 | `sat-units` | crates/lib/units | 単位・次元・量の唯一の正本 | なし |
-| `sat-astro` | crates/lib/astro | 数学・積分器・時刻・天体・力モデル・軌道・食・地球・地磁気・大気・地上局・姿勢則・入射・時系列・ロケット方程式 | sat-units |
+| `sat-astro` | crates/lib/astro | 数学・積分器・時刻・天体・力モデル・軌道・食・地球・地磁気・大気・地上局・姿勢則・入射・時系列・ロケット方程式・軌道遷移 | sat-units |
 | `sat-analysis` | crates/lib/analysis | 各系の解析（Input → Output の純粋な関数） | sat-units, sat-astro |
 | `fune-model` | crates/app/model | 設計データの型・組み込みの語彙・解決・検証 | sat-units |
 | `fune-store` | crates/app/store | ディレクトリ ⇄ Design（toml_edit）・revision・ロック | fune-model |
@@ -32,6 +32,7 @@
 | モードの表示順・並び替え | `Design::ordered_modes`（model::design::project）・`Project.modes`・`fune_ops::op::{Op::MoveMode, ModePosition}`・`plan::others`・`store::write::project`・`service::edit::command` | fune.toml の `[modes] order`。検査は model::check::modes、正規化は store の format_files と共用。CLI mode move と Web ModeHeaderMenu は CommandText::ModeMove を共用 |
 | 解析の区分・前提条件の話題 | `sat_analysis::spec::{AnalysisArea, ConditionTopic}`（葉の `spec::area` から再公開）・`fune_model::design::ConditionTopic` | 区分は系または条件の話題。model ⇄ analysis の話題の対応と区分のキーは `fune_projection::system`。話題の設定は `design::conditions`、対応する条件のファイル内に置く |
 | β の季節変動・1 周の本影と半影の集計 | `sat_analysis::orbit::eclipse_season`・`fune_projection::orbit` | 季節の入力は軌道・ミッション期間・任意の刻み（β の指定なし）。周回内は既存の時刻格子と states_at を使い太陽を固定。円錐影・伝搬・β は sat-astro。季節の刻みの既定値は解析。設定は `conditions/orbit.toml` |
+| 大気抵抗による高度低下・軌道寿命・軌道維持の ΔV | `sat_analysis::orbit::decay`（`rates`・`simulate`・`weather`・`checks`・`output`）・`fune_projection::orbit::decay`・`fune_service::analysis::weather` | 太陽活動の条件（ECSS のプリセット低・中・高と、宇宙天気の表から日付で引いた列 `DecayWeatherSchedule`）ごとに、1 周の平均の `da/dt = 2a²/μ ⟨v · a_D⟩` を RK4（`sat_astro::ode::rk4_step`）で積分する。1 周の位置は `OrbitSpec::states_at`、相対風と抗力の式は `force::{relative_wind_eci, drag_force}`、密度は `atmosphere::density_kg_m3`、周回平均は `spec::orbit_mean`、RAAN の歳差は `orbit::j2_secular_rates`、推薬の ΔV は `sat_astro::rocket`。モデル化の既定値（Cd 2.2・期間 25 年・再突入 120 km・1 周 12 点・刻み・表を引く間隔 27 日）は解析。抗力係数は `analysis.aocs.drag_coefficient`、外形は `aocs::reference_box`（空力トルクと共有）、設定は `conditions/orbit.toml` の `[decay]`。表から列を引いて入力に足し、使った表の版を `AnalysisRunResult.space_weather` に残すのは service の `analysis::weather`。軌道維持の `StationKeeping.delta_v_per_year` は ΔV バジェット（#1）が使える出力 |
 | 季節解析からケースを作る | `fune_service::edit::eclipse` | CLI / HTTP 共通で `SetCase` Op を作る。日付は description に保存 |
 | 電源ページの表示定義・流れ・判定バー・部品の役割 | `fune_service::power_page`・`dto::power_page`・`dto::display`（表示の葉の型）・`power_page::parts`、`web/src/features/systems/power/` | `GET /power_page?case=…` が既存の service 解析入口を呼び、全解析・モードごとの流れ／判定／グラフ・部品を 1 DTO に集約。汎用の解析結果・設計 DTO に電源専用の欄を持たせない。日照平均と許容 SOC は energy_balance の解析出力。蝕区間は `power::solar::SolarProfile` が共通の影判定で返す。流れの太さ・帯・位置・グラフのチャンネル定義は Rust。Web は表示・選択・目次だけ。 |
 | Web の時系列グラフ | `web/src/analysis/SeriesChart.tsx` | 系・条件の解析で共有する。表示単位は service が付加 |
@@ -95,12 +96,19 @@
 | スラスタ 1 本の値と重心まわりのトルク | `sat_analysis::aocs::thrusters`（`Thruster`・`Thruster::torque_about`・`thruster_torques`） | **`τ = (r − r_cm) × F d̂` はここだけ**。RCS でのアンロード（`unload_time::rcs`）・推力誤差の擾乱・RCS で捨てる 1 日の推薬が共有。射影は `fune_projection::aocs::thrust`（噴射の割合はモードで `fune_model::role::STATE_THRUSTER_FIRING` にいる時間の割合） |
 | RCS で捨てる 1 日の推薬と ΔV 換算 | `sat_analysis::aocs::rw_unloading::rcs`（入力 `RwUnloadingInput.rcs`、出力 `RwUnloadingOutput.rcs_unloading`） | 1 日の角運動量 = 1 周の永年成分 × 1 日の周回数。推薬は `unload_time::rcs_unload`（機体 ±x・±y・±z の最悪）、ΔV 換算は `sat_astro::rocket::delta_v`。ΔV バジェット（#1）はこの値に日数を掛けて使う。スラスタが無ければ欄を出さない |
 | 姿勢変更にかかる時間 | `sat_analysis::aocs::slew_time`（`aocs.slew_time`）・`fune_projection::aocs::slew_time` | 静止から静止の固定軸まわりの回転を三角形／台形の角速度で。トルク・角運動量は `WheelSet::capacity_along`、使ってよい割合は `wheels`、慣性は質量特性。角度は設定 `analysis.aocs.slew_angle`（必須）、要求は `max_slew_time`（任意） |
-| ロケット方程式（推薬 ⇄ ΔV） | `sat_astro::rocket`（`exhaust_velocity`・`delta_v`） | **換算はここだけ**（アンロードの ΔV 換算と、今後の ΔV バジェット） |
+| ロケット方程式（推薬 ⇄ ΔV） | `sat_astro::rocket`（`exhaust_velocity`・`delta_v`・`propellant_for`・`burn_time`） | **換算はここだけ**（アンロードの ΔV 換算と、推進系の解析） |
+| 軌道遷移の ΔV | `sat_astro::transfer`（`apse_transfer`・`hohmann`・`bi_elliptic`・`plane_change_m_s`・`combined_burn_m_s`・`edelbaum`・`finite_burn`・`finite_burn_factor`） | **遷移の式はここだけ**。近点・遠点の 2 回噴射（円 → 円はホーマン）、平面変更は遠い方の噴射に合わせる。低推力は Edelbaum、有限燃焼は Robbins の倍率 `(Φ/2)/sin(Φ/2)` |
+| 推進系の解析 | `sat_analysis::propulsion`（`input`・`plan`・`sequence`・`maneuvers`・`dv_budget`・`propellant`・`thruster_usage`） | 4 つの解析が同じ入力 `PropulsionInput`。マヌーバを順に、質量を減らしながら当てる（`sequence`。初期質量は乾燥質量に合うまで繰り返す）。ΔV のマージン 10 %・残る推薬 3 %・余裕の警告の幅は `input` の定数。RCS のアンロードの ΔV は `aocs::RwUnloading` の 1 日の換算 × ミッション期間 |
+| マヌーバ | `fune_model::design::maneuver`（`Maneuver`・`ManeuverCategory`・`ManeuverMethod`・`ManeuverTarget`・`ManeuverConstraints`・`Design::ordered_maneuvers`）・`check::maneuvers`・`store::layout::maneuver_file`・`store::write::records::{write_record_with_sections, MANEUVER_SECTIONS}`・`fune_ops::Op::{CreateManeuver, SetManeuver, RemoveManeuver}`・`plan::records`・`cli::records` | `maneuvers/<ID>.toml`。実行の順は `after` で決め、`ordered_maneuvers` だけが並べる。参照（スラスタ・制約のモード）は `design::refs` の `ManeuverThruster`・`ManeuverMode`。削除は後ろのマヌーバを前につなぎ直す |
+| マヌーバの編集と一覧 | `fune_service::edit::maneuver`（`maneuver_op`）・`query::maneuvers`（`maneuvers`・`maneuver_text`）・`dto::maneuver`（`ManeuverText`・`ManeuverView`）・`CommandText::{ManeuverAdd, ManeuverSet}`・`GET /maneuvers`・`fune maneuver add\|set\|rm\|ls`・`web/src/features/maneuvers/` | 打った量・真偽を読むのは service だけ（GUI も `POST /ops/from_command`）。編集の欄の初期値は API の `ManeuverView.text` |
+| 推進系の射影 | `fune_projection::propulsion`（`maneuvers`・`dv_budget`・`category`・`method`・`model_category`・`model_method`） | スラスタは役割 `propulsion_thruster` とマヌーバが指す部品、タンクは `propellant_tank`。噴射中の消費電力は `STATE_THRUSTER_FIRING` の値。区分と計算の段階の model ⇄ analysis の対応とテスト |
+| 推進系の KPI と語彙 | `fune_service::analysis::kpi::propulsion`・`analysis::labels::propulsion` | 区分と計算の段階の表示名は labels.toml の `maneuver_category`・`maneuver_method` だけ（解析の列挙は対応で引く） |
+| `fune analyze` の出力の表 | `fune_cli::cmd::output_tables` | どの配列・欄・見出しを並べるかだけ。セルは結果の `labels` と `dims`（整形は service の `units::quantity_auto`） |
 | RW の組への配分（擬似逆行列）と容量 | `sat_analysis::aocs::wheels` | `RwWheel`・`WheelSet::{distribute, capacity_along}`・使ってよい割合 `usable_momentum_fraction`（既定 `DEFAULT_USABLE_MOMENTUM_FRACTION` = 0.8。既定値はここだけ）。台数・配置は任意 |
 | 太陽電池の発電モデル | `sat_analysis::power::solar` | `SolarPanel`・`SolarArray::{panel_powers, sample_powers}`・時系列 `SolarProfile`（日照中かは `lit`。判定は `spec::is_sunlit`）・`eclipses`（`timeline::shadow_windows` に `spec::SUNLIT_THRESHOLD`）。日照時・軌道上・収支・逆算で共有 |
-| 電源の逆算サイジング | `sat_analysis::power::sizing`・`fune_projection::power::sizing` | SMAD の必要発電・SAP 面積・電池容量・直並列。季節解析は `orbit::EclipseSeason`、負荷は `mode_load`、入射は `orbit_generation` の日照中の平均（姿勢則とモードごとの上書きは `power.energy_balance` と同じ。時系列は `fune_projection::power::attitude_timeline`）、発電は `solar` を再利用。既定値は解析、写し替えは projection。部品への書き戻しはしない |
-| 電池の充放電の積分 | `sat_analysis::power::battery` | `simulate`（`ode::rk4_linear_step` で積分、容量で切る、シャント）。電力収支が使う。`power::battery::EnergyBalanceBattery::combine` が電池容量を合計し、電圧・効率は先頭を採用 |
-| 電力収支の運用（連続・最長継続時間・モードの並び） | `sat_analysis::power::energy_balance::{case, duration, sequence, verdict}`・`fune_projection::power::energy_balance` | ケースは連続で積分（`case::balance` が電池の積分・周回の集計を 1 か所で持つ）。最長継続時間を持つモードは基本のモード（`analysis.power.base_mode`、無ければ並びの最初）の上で 1 回続け、開始を 1 周の標本ごとにずらした最悪で判定を差し替える（`duration`）。並びは繰り返して負荷と姿勢則を切り替える（`sequence`）。判定の文と上限の許容は `verdict` だけ。duty は平均のまま（`modes::ModeDef::uses_duty` で印を出す）。KPI は判定に使った運用の値から `fune_service::analysis::kpi` が選ぶ |
+| 電源の逆算サイジング | `sat_analysis::power::sizing`（`series`・`judge`）・`fune_projection::power::sizing` | SMAD の必要発電・SAP 面積・電池容量・直並列（参考値 `smad`）と、時系列の逆算（`series`。KPI と判定はこちら、できなければ SMAD。`basis`）。季節解析は `orbit::EclipseSeason`、負荷は `mode_load`、SMAD の入射は `orbit_generation` の日照中の平均（姿勢則とモードごとの上書きは `power.energy_balance` と同じ。時系列は `fune_projection::power::attitude_timeline`）、発電は `solar` を再利用。時系列の逆算は最長蝕の日付と β で `energy_balance::ScaledBalance`（運用・電池の積分・周回の収支は電力収支のもの）を倍率を変えて回し、容量は `battery::required_capacity`。最長継続時間・並び・基本のモードは電力収支と同じ射影。既定値は解析、写し替えは projection。部品への書き戻しはしない |
+| 電池の充放電の積分 | `sat_analysis::power::battery` | `simulate`（`ode::rk4_linear_step` で積分、容量で切る、シャント）。電力収支が使う。その逆（増分から DoD が上限に収まる最小の容量を閉じた形で）は `required_capacity`（`power.sizing` の時系列の逆算）。`power::battery::EnergyBalanceBattery::combine` が電池容量を合計し、電圧・効率は先頭を採用 |
+| 電力収支の運用（連続・最長継続時間・モードの並び） | `sat_analysis::power::energy_balance::{case, context, duration, scaled, sequence, verdict}`・`fune_projection::power::energy_balance` | ケースは連続で積分（`case::balance` が電池の積分・周回の集計を 1 か所で持つ）。最長継続時間を持つモードは基本のモード（`analysis.power.base_mode`、無ければ並びの最初）の上で 1 回続け、開始を 1 周の標本ごとにずらした最悪で判定を差し替える（`duration`）。並びは繰り返して負荷と姿勢則を切り替える（`sequence`）。判定の文と上限の許容は `verdict` だけ。姿勢則ごとの時系列と発電の倍率は `context`。発電に倍率をかけて同じ運用を繰り返し評価する入口は `scaled::ScaledBalance`（時系列は 1 回だけ作る。`power.sizing` の時系列の逆算が使う）。duty は平均のまま（`modes::ModeDef::uses_duty` で印を出す）。KPI は判定に使った運用の値から `fune_service::analysis::kpi` が選ぶ |
 | モードの消費電力の集計 | `sat_analysis::power::mode_load::evaluate_mode` | `power.mode_load`・`power.energy_balance`・`power.sizing` で共有（平均と警告は `modes::evaluate`）。台数と予備状態は `modes::counted_states`、日照と蝕を別々に評価 |
 | 回線計算の部品（FSPL・EIRP・Eb/N0） | `sat_analysis::comm::link` | `RfLinkParams::{evaluate, eb_n0_margin_db, min_elevation_for_margin}`（斜距離は `sat_astro::ground::slant_range_m` に中心天体の半径を渡す）・`fspl_db`・`eirp_dbw`・`g_over_t_dbk`・`c_over_n0_dbhz`・`eb_over_n0_db`・`max_data_rate_bps`・要求余裕 `required_margin`（既定 `DEFAULT_REQUIRED_MARGIN`。既定値はここだけ）。入力の dB（利得・損失・所要 Eb/N0・要求余裕）は `Decibel`。要求余裕はどちらの解析も入力の直下（`required_margin_db`）。dB の換算は `sat_units::{ratio_to_db, db_to_ratio}`、閉じる仰角の探索は `sat_astro::math::bisect`。回線バジェットと送信量で共有 |
 | 複数局のパスの集計 | `sat_analysis::comm::passes` | 検出は `sat_astro::ground::find_passes` だけ。ここは標本の取り方を検査して探す窓にし（`search_window` → `SearchWindow`。β を当てた軌道）、局をまとめて AOS 順に並べ、開始からの秒の区間・日の窓に直す（`find_all_passes`・`pass_interval`・`union_sorted`・`day_windows`）。可視と送信量で共有 |
@@ -120,7 +128,7 @@
 | 参照の索引（ある ID をどのエンティティのどのキーが持っているか） | `fune_model::design::refs`（`Design::references`・`Referent`・`RefSite`・`NetEnd`・`HarnessEnd`） | **参照の所在の知識はここだけ**。名前の変更と削除で消す行（`fune_store::write::refs` は索引の参照元を書き換えるだけ）、カタログ品の削除の拒否（`Design::catalog_users`）、使っている部品の一覧（`Design::catalog_part_users`。`CatalogItemView.users`）が同じ索引を引く。配分のキーは `BudgetKind` で持つ（種類の並びを直書きしない）。図の配置のキーは部品とグループの両方の参照元 |
 | 設定の量の次元の表（設定のパスの形 → 次元） | `fune_model::design::setting_dims`（`SettingQuantity<D>`・`TYPED`・`UNTYPED`・`setting_dimension`） | **設定（`conditions/`・`analysis/`）の量の次元はここだけ**。検査は `check::settings` の `Scope::dimensions` が葉ごとに表を引き、射影は欄の定数（`ORBIT_ALTITUDE` など）を `fune_projection::quantity::{setting, setting_opt}` に渡して `Qty<D>` に読む（型が表から決まる）。次元名と型の一致は表のテスト。配分の次元は `BudgetKind::dimension`（射影の型との一致は `fune_projection::quantity` のテスト）。ケース・ネット・ハーネスの量の次元は検査にある |
 | 書かれたままの量・値の型・出典 | `fune_model::value` | 値の出典 `Provenance` は `source`・`at`（資料の中の位置）・`note`。打った出典から作るのは `Provenance::from_parts` だけ（service の `SetText::provenance` が通す） |
-| 出典の台帳の型（種類・配布の区分・版・取得日・SHA-256） | `fune_model::design::source`（`Source`・`SourceKind`・`Distribution`。`design` から再公開） | 参照先を Web の URL とみなすかの判定は `Source::web_link` だけ（service の `SourceView.link`・`CatalogItemView.datasheet_link`）、公開できないかは `Source::is_restricted`。カタログ品の `datasheet` は出典の ID（docs/model.md §7.7） |
+| 出典の台帳の型（種類・配布の区分・版・取得日・SHA-256） | `fune_model::design::source`（`Source`・`SourceKind`・`Distribution`。`design` から再公開） | 参照先を Web の URL とみなすかの判定は `Source::web_link` だけ（service の `SourceView.link`・`CatalogItemView.datasheet_link`）、公開できないかは `Source::is_restricted`。カタログ品の `datasheet` は出典の ID（docs/model.md §7.8） |
 | 出典の検査（日付・SHA-256 の形、値とカタログ品からの参照、共有カタログの品の公開できない出典） | `fune_model::check::sources` | `source.date`・`source.sha256`・`ref.source`（`datasheet` も）・`source.restricted`。書き込めないカタログかは `CatalogSource::local_dir` |
 | 暦の日付の形（`YYYY-MM-DD`） | `fune_model::value::is_calendar_date` | fune-model は sat-astro に依存しないので形の判定だけを持つ。暦の正本 `sat_astro::time::Epoch::parse` と判定が一致することを fune-projection の `tests/shared_values.rs` が確かめる |
 | 単位の窓口（app 側） | `fune_model::value::units` | 単位文字列の解析・次元の検査・SI 換算・次元の表示名（`dimension_label`）。中身は sat-units。projection の SI 換算は `Quantity::si_as` |
@@ -280,8 +288,8 @@
 | `max_torque` | Torque | N*m, mN*m | | reaction_wheel |
 | `spin_axis` / `axis` | Dimensionless（ベクトル、部品座標） | — | | reaction_wheel, magnetorquer |
 | `max_dipole` | MagneticDipoleMoment | A*m^2 | | magnetorquer |
-| `thrust` | Force | N, mN | | thruster |
-| `isp` | Time | s | | thruster |
+| `thrust` | Force | N, mN | | thruster, propulsion_thruster |
+| `isp` | Time | s | | thruster, propulsion_thruster |
 | `direction` | Dimensionless（ベクトル、部品座標） | — | | thruster |
 | `boresight` | Dimensionless（ベクトル、部品座標） | — | | star_tracker, sun_sensor, camera, antenna |
 | `fov_half_angle` | Angle | deg | | センサ類 |
@@ -295,8 +303,16 @@
 | `setpoint` | Temperature（範囲） | degC | | heater |
 | `thickness` | Length | mm | | panel |
 | `material` | 列挙 | — | | panel |
+| `propellant` | 列挙（名前） | — | | propulsion_thruster, propellant_tank（同じ名前のスラスタとタンクを突き合わせる） |
+| `propellant_density` | MassDensity | kg/m^3, g/cm^3 | | propellant_tank |
+| `tank_volume` | Volume | L, mL, m^3 | | propellant_tank |
+| `min_impulse_bit` | Impulse | mN*s, uN*s, N*s | | propulsion_thruster |
+| `rated_total_impulse` | Impulse | N*s, kN*s | | propulsion_thruster |
+| `rated_firing_time` | Time | h, s | | propulsion_thruster |
+| `rated_firings` | Dimensionless | — | | propulsion_thruster（回数） |
 
-種別（kind）の role: `obc` `pcdu` `battery` `solar_panel` `reaction_wheel` `magnetorquer` `thruster` `star_tracker` `sun_sensor` `gyro` `gps` `transceiver` `antenna` `camera` `heater` `panel` `structure`。
+種別（kind）の role: `obc` `pcdu` `battery` `solar_panel` `reaction_wheel` `magnetorquer` `thruster` `star_tracker` `sun_sensor` `gyro` `gps` `transceiver` `antenna` `camera` `heater` `panel` `structure` `propulsion_thruster` `propellant_tank`。
+推進系のスラスタ（`propulsion_thruster`）は AOCS の RCS（`thruster`）と別の役割にし、AOCS の解析（推力誤差・RCS のアンロード）には入れない。噴射中の消費電力は `power` の `on`（`STATE_THRUSTER_FIRING`）。
 機器の状態の語彙は kind ごとに持つ（例: 多くは `off` / `on`、transceiver は `off` / `rx` / `tx`、reaction_wheel は `off` / `idle` / `on` / `peak`）。
 
 ## 4. 名前の規則
@@ -312,6 +328,9 @@
 
 | 日時 | 変更 | 理由 |
 |---|---|---|
+| 2026-11-14 | `orbit.decay`（大気抵抗による高度低下・軌道寿命・軌道維持の ΔV と推薬の寿命、KPI `OrbitLifetime`・`DecayPerDay`・`StationKeepingDeltaV`、時系列の種類 `Altitude`）を追加。設定 `conditions.orbit.decay.{span, reentry_altitude, drag_area, band, max_lifetime, propellant}`、解析の結果の `space_weather`（使った宇宙天気の表の版。使わない解析では欄を出さない）、太陽活動・値の出所・面積の出所の表示名を足した。`aocs::reference_box` を高度低下と共有した | 太陽活動の条件ごとの寿命と軌道維持の ΔV を、日付の宇宙天気と使った版つきで出すため（#4） |
+| 2026-11-14 | 系 `propulsion`（部品の置き場所 `parts/propulsion/`、色 `magenta`、ナビのアイコン `Rocket`）と、マヌーバのエンティティ `maneuvers/<ID>.toml`（型・読み書き・検査・`CreateManeuver`・`SetManeuver`・`RemoveManeuver`・`fune maneuver add\|set\|rm\|ls`・`GET /maneuvers`・`CommandText::{ManeuverAdd, ManeuverSet}`・設計のマヌーバのページ）を追加。推進系の役割 `propulsion_thruster`・`propellant_tank` と属性（推薬・密度・タンク容積・最小インパルスビット・定格の総インパルス・累積噴射時間・噴射回数）、次元 `Impulse`（N·s）、遷移の式 `sat_astro::transfer`、解析 `propulsion.maneuvers`・`propulsion.dv_budget`・`propulsion.propellant`・`propulsion.thruster_usage` と KPI、`fune analyze` の出力の表（`cmd::output_tables`）を足した | ΔV の内訳表とマージン・推薬とタンクの余裕を、インパルスと低推力の両方のマヌーバで出すため（#1） |
+| 2026-11-14 | `power.sizing` に時系列の逆算（`series`・`time_series`。最長蝕の日付と β で、電力収支と同じ運用の 1 周の収支 ≥ 0 の最小面積を二分法、容量は `battery::required_capacity` の閉じた形）を追加し、KPI と判定をそちらにした（`basis`、SMAD の値は `smad` とモードの欄に残す）。電力収支に倍率つきの入口 `energy_balance::ScaledBalance`（文脈は `context`）を切り出し、入力に最長継続時間・並び・基本のモードを足した | 日照中に発電が負荷を下回る姿勢で SMAD の式が面積と容量を少なく見ていたため（#83） |
 | 2026-11-14 | `power.energy_balance` にモードの並びの収支（`sequence`）と最長継続時間の評価（ケースの `by_max_duration`・`evaluation`）、duty の扱い（`duty`）を追加。設定 `analysis.power.base_mode`（参照・改名・検査）を追加。KPI の最大 DoD・収支は判定に使った運用の値と並びから選ぶ | 短いモードを解析期間ずっと続けた計算で判定していたため（#106） |
 | 2026-11-14 | `aocs.slew_time`（姿勢変更の時間、設定 `slew_angle`・`max_slew_time`、KPI `SlewTime`）を追加。推力誤差を擾乱の種類 `thrust` に足し（モードで噴射するスラスタ。噴射の状態は `role::STATE_THRUSTER_FIRING`）、RW アンロード頻度に RCS で捨てる 1 日の推薬と ΔV 換算を足した。スラスタの値とトルクを `aocs::thrusters` に切り出し（TS の `UnloadTimeThruster` は `Thruster` に改名）、ロケット方程式を `sat_astro::rocket` に置いた | 姿勢の章の定型の表（姿勢変更時間・推力誤差・アンロードの ΔV）を解析で出すため（#12） |
 | 2026-11-13 | 電源専用表示を独立した service/API/query に集約し、汎用解析結果・設計 DTO から電源専用欄を削除 | #89 段 1 レビュー対応 |

@@ -4,6 +4,7 @@ import {
   Box,
   Camera,
   Cpu,
+  Cylinder,
   Disc3,
   Flame,
   type LucideIcon,
@@ -42,6 +43,8 @@ const ICONS: Record<Role, LucideIcon> = {
   antenna: Antenna,
   heater: Flame,
   thruster: Rocket,
+  propulsion_thruster: Rocket,
+  propellant_tank: Cylinder,
   structure: Box,
   panel: Square,
 };

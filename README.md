@@ -18,7 +18,7 @@
 
 iwafune is a workbench for the conceptual design of small satellites. The design lives in a git-friendly
 directory of TOML files. You edit it from either the `fune` CLI or a web GUI, and run analyses for power,
-AOCS, C&DH, communications, thermal and structure on the same data.
+AOCS, C&DH, communications, thermal, structure and propulsion on the same data.
 
 > The name comes from Ama-no-Iwafune, the rock boat said to have carried Nigihayahi down from the heavens.
 > The logo is its hull.
@@ -42,6 +42,7 @@ AOCS, C&DH, communications, thermal and structure on the same data.
 | Communications | Link budget · ground-station visibility · downlink throughput |
 | Thermal | Steady-state and transient multi-node |
 | Structure | Mass properties · quasi-static loads · simple modal estimate |
+| Propulsion | Maneuvers (impulsive · finite burn · low thrust) · delta-V budget with margin · propellant and tank margin · thruster usage against ratings |
 
 Each analysis takes typed SI inputs built from the design, returns typed outputs with pass/warning/violation
 checks, and lists any inputs that are still missing.

@@ -92,8 +92,8 @@ fn spacecraft(
     }
 }
 
-/// 取付の根の部品（構体）の外形を渡す。面積の近似は解析が行う。
-fn reference_box(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<Vec3> {
+/// 取付の根の部品（構体）の外形を渡す。面積の近似は解析が行う（空力・太陽輻射圧トルクと高度低下が共有する）。
+pub(crate) fn reference_box(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<Vec3> {
     let roots: Vec<_> = ctx
         .resolved
         .parts

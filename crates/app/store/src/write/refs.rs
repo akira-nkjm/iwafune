@@ -188,7 +188,9 @@ fn rename_at(
         | RefSite::HarnessNet { .. }
         | RefSite::PartCatalog { .. }
         | RefSite::PartCandidate { .. }
-        | RefSite::HarnessWire { .. } => rename_value_at(edits, design, site, names),
+        | RefSite::HarnessWire { .. }
+        | RefSite::ManeuverThruster { .. }
+        | RefSite::ManeuverMode { .. } => rename_value_at(edits, design, site, names),
     }
 }
 
@@ -306,6 +308,16 @@ fn rename_value_at(
         RefSite::HarnessWire { harness } => {
             set_top(edits, &layout::harness_file(harness), "wire", to)
         }
+        RefSite::ManeuverThruster { maneuver } => {
+            set_top(edits, &layout::maneuver_file(maneuver), "thruster", to)
+        }
+        RefSite::ManeuverMode { maneuver } => set_in(
+            edits,
+            &layout::maneuver_file(maneuver),
+            &["constraints"],
+            "mode",
+            to,
+        ),
         _ => Ok(()),
     }
 }

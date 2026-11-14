@@ -55,6 +55,12 @@ pub(super) fn check_ids(ctx: &mut Ctx) {
     });
     namespace(ctx, cases.collect(), validate_entity_id);
     check_source_ids(ctx);
+    let maneuvers = design.maneuvers.keys().map(|id| {
+        let id = id.to_string();
+        let target = Target::maneuver(&id, None);
+        (id.clone(), EntityKey::Maneuver(id), target)
+    });
+    namespace(ctx, maneuvers.collect(), validate_entity_id);
     check_catalog_ids(ctx);
 }
 

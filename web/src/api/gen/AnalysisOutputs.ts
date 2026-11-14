@@ -18,6 +18,11 @@ import type { MassPropertiesOutput } from "./MassPropertiesOutput";
 import type { StaticLoadOutput } from "./StaticLoadOutput";
 import type { ModalEstimateOutput } from "./ModalEstimateOutput";
 import type { EclipseSeasonOutput } from "./EclipseSeasonOutput";
+import type { OrbitDecayOutput } from "./OrbitDecayOutput";
+import type { ManeuversOutput } from "./ManeuversOutput";
+import type { DvBudgetOutput } from "./DvBudgetOutput";
+import type { PropellantOutput } from "./PropellantOutput";
+import type { ThrusterUsageOutput } from "./ThrusterUsageOutput";
 export type AnalysisOutputs = {
   "power.mode_load": ModeLoadOutput;
   "power.solar_sunlit": SolarSunlitOutput;
@@ -38,4 +43,9 @@ export type AnalysisOutputs = {
   "structure.static_load": StaticLoadOutput;
   "structure.modal_estimate": ModalEstimateOutput;
   "orbit.eclipse_season": EclipseSeasonOutput;
+  "orbit.decay": OrbitDecayOutput;
+  "propulsion.maneuvers": ManeuversOutput;
+  "propulsion.dv_budget": DvBudgetOutput;
+  "propulsion.propellant": PropellantOutput;
+  "propulsion.thruster_usage": ThrusterUsageOutput;
 };

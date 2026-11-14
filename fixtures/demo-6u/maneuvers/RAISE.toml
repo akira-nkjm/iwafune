@@ -1,0 +1,10 @@
+label    = "軌道上昇 550 → 600 km"
+category = "insertion"
+method   = "low_thrust"
+thruster = "EPT"
+
+[target]
+altitude = { value = 600.0, unit = "km" }
+
+[constraints]
+sunlit_only = true

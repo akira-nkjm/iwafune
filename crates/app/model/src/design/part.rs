@@ -162,7 +162,7 @@ pub struct CatalogItem {
     pub manufacturer: Option<String>,
     pub part_number: Option<String>,
     pub maturity: Option<Maturity>,
-    /// データシートの出典の ID（`sources/<ID>`）。URL・版・sha256 はその出典に書く（docs/model.md §7.7）
+    /// データシートの出典の ID（`sources/<ID>`）。URL・版・sha256 はその出典に書く（docs/model.md §7.8）
     pub datasheet: Option<String>,
     /// 出典を書いていない値に当てる既定の出典（`sources/<ID>`）
     pub source: Option<String>,

@@ -24,9 +24,11 @@ mod data;
 mod defs;
 mod edit;
 mod gui;
+mod maneuvers;
 mod nets;
 mod nouns;
 mod ops;
+mod output_tables;
 mod parts;
 mod read;
 mod records;
@@ -100,6 +102,7 @@ fn read_more(command: &Command, ws: &Workspace, out: &Out) -> anyhow::Result<Opt
         Command::Case(c) => read::case(ws, c, out),
         Command::Source(c) => read::source(ws, c, out),
         Command::Harness(c) => read::harness(ws, c, out),
+        Command::Maneuver(c) => maneuvers::ls(ws, c, out),
         Command::Catalog(c) => catalog::read(ws, c, out),
         _ => Ok(None),
     }

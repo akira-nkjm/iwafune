@@ -1,7 +1,7 @@
 //! 解析の一覧と ID による動的な実行。**解析の登録はここだけで行う。** 新しい解析を足したら下の一覧に 1 行足す。
 
 use crate::spec::{Analysis, AnalysisError, AnalysisInfo};
-use crate::{aocs, cdh, comm, power, structure, thermal};
+use crate::{aocs, cdh, comm, power, propulsion, structure, thermal};
 
 macro_rules! registry {
     ($($t:path),+ $(,)?) => {
@@ -45,6 +45,11 @@ registry!(
     structure::StaticLoad,
     structure::ModalEstimate,
     crate::orbit::EclipseSeason,
+    crate::orbit::OrbitDecay,
+    propulsion::Maneuvers,
+    propulsion::DvBudget,
+    propulsion::Propellant,
+    propulsion::ThrusterUsage,
 );
 
 /// 型付き入力で登録済み解析を実行する。動的実行と budget が共有する入口。

@@ -26,7 +26,8 @@ impl Mirror {
 
     /// `rev`（ブランチ・タグ・commit。None は既定のブランチ）を取得元から取り、解決した commit（完全な形）を返す。
     pub(super) fn resolve(&self, url: &str, rev: Option<&str>) -> Result<String> {
-        let target = rev.unwrap_or("HEAD");
+        let url = operand(url)?;
+        let target = operand(rev.unwrap_or("HEAD"))?;
         match self.run(&["fetch", "--quiet", "--no-tags", "--force", url, target]) {
             Ok(_) => self.commit_of("FETCH_HEAD"),
             // commit を直に取れない取得元もあるので、ブランチとタグをまとめて取ってから引く
@@ -40,6 +41,8 @@ impl Mirror {
 
     /// commit が写しに無ければ取得元から取る。
     pub(super) fn ensure(&self, url: &str, commit: &str) -> Result<()> {
+        let url = operand(url)?;
+        let commit = operand(commit)?;
         if self.commit_of(commit).is_ok() {
             return Ok(());
         }
@@ -58,6 +61,7 @@ impl Mirror {
 
     /// commit の中の `dir` の直下のファイル（`<dir>/<名前>`, 本文）。ディレクトリが無ければ空。
     pub(super) fn files_in(&self, commit: &str, dir: &str) -> Result<Vec<(String, Vec<u8>)>> {
+        let commit = operand(commit)?;
         let listing = self.run(&["ls-tree", "-z", commit, "--", &format!("{dir}/")])?;
         let mut blobs: Vec<(String, String)> = Vec::new();
         for entry in listing.split(|b| *b == 0).filter(|e| !e.is_empty()) {
@@ -86,6 +90,7 @@ impl Mirror {
     }
 
     fn commit_of(&self, rev: &str) -> Result<String> {
+        let rev = operand(rev)?;
         let out = self.run(&[
             "rev-parse",
             "--verify",
@@ -105,6 +110,17 @@ impl Mirror {
     fn run(&self, args: &[&str]) -> Result<Vec<u8>> {
         git(Some(&self.dir), args, None)
     }
+}
+
+/// fune.toml・catalog.lock から来た取得元・rev・commit を git に渡せるか。`-` で始まるものは git がオプションと読むので断る
+/// （`--upload-pack=…` などで手元のコマンドを動かされないように）。
+fn operand(value: &str) -> Result<&str> {
+    if value.starts_with('-') {
+        return Err(ServiceError::Data(format!(
+            "`{value}` は `-` で始まるので git に渡せません（共有カタログの git・rev・commit）"
+        )));
+    }
+    Ok(value)
 }
 
 /// 16 進数の commit（短縮を含む）に見えるか。
@@ -199,5 +215,6 @@ mod tests {
         assert_eq!(parts, [b"abc".to_vec(), Vec::new(), b"x\n".to_vec()]);
         assert!(split_batch(b"aaa blob 9\nabc\n").is_err());
         assert!(looks_like_commit("0123abc") && !looks_like_commit("v1.0"));
+        assert!(operand("--upload-pack=touch x").is_err() && operand("file:///r").is_ok());
     }
 }

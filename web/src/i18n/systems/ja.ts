@@ -74,6 +74,10 @@ export const systemsJa = {
     },
     specs: {
       payload: { description: "ミッション機器（解析はまだありません）" },
+      propulsion: {
+        description:
+          "マヌーバの ΔV と ΔV バジェット、推薬とタンクの余裕、スラスタの定格に対する使い方",
+      },
       power: {
         description: "モード別の消費電力、発電、軌道上の収支とバッテリーの DoD",
       },

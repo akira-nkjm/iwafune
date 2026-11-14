@@ -115,7 +115,12 @@ macro_rules! kpi_table {
 }
 
 kpi_table! {
-    sat_analysis::orbit::EclipseSeason { LongestEclipse => longest_eclipse, BetaMin => beta_min, BetaMax => beta_max }
+    sat_analysis::orbit::EclipseSeason { LongestEclipse => orbit::longest_eclipse, BetaMin => orbit::beta_min, BetaMax => orbit::beta_max }
+    sat_analysis::orbit::OrbitDecay {
+        OrbitLifetime => orbit::orbit_lifetime,
+        DecayPerDay => orbit::decay_per_day,
+        StationKeepingDeltaV => orbit::station_keeping_delta_v,
+    }
     power::ModeLoad { ModeLoad => mode_load }
     power::OrbitGeneration { OrbitGeneration => orbit_generation }
     power::EnergyBalance { OrbitBalance => orbit_balance, MaxDod => max_dod }
@@ -141,19 +146,16 @@ kpi_table! {
     structure::MassProperties { TotalMass => total_mass }
     structure::StaticLoad { MinSafetyMargin => min_safety_margin }
     structure::ModalEstimate { MinFrequency => min_frequency }
+    sat_analysis::propulsion::Maneuvers { LongestTransfer => propulsion::longest_transfer }
+    sat_analysis::propulsion::DvBudget { DvWithMargin => propulsion::dv_with_margin }
+    sat_analysis::propulsion::Propellant {
+        LoadedPropellant => propulsion::loaded_propellant,
+        TankVolumeMargin => propulsion::tank_volume_margin,
+    }
+    sat_analysis::propulsion::ThrusterUsage { ImpulseMargin => propulsion::impulse_margin }
 }
 
 type Ctx<'a> = KpiContext<'a>;
-
-fn longest_eclipse(o: &sat_analysis::orbit::EclipseSeasonOutput, _: Ctx<'_>) -> Option<Measured> {
-    one(o.max_eclipse_duration)
-}
-fn beta_min(o: &sat_analysis::orbit::EclipseSeasonOutput, _: Ctx<'_>) -> Option<Measured> {
-    one(o.beta_min.beta)
-}
-fn beta_max(o: &sat_analysis::orbit::EclipseSeasonOutput, _: Ctx<'_>) -> Option<Measured> {
-    one(o.beta_max.beta)
-}
 
 fn mode_load(o: &power::ModeLoadOutput, ctx: Ctx<'_>) -> Option<Measured> {
     one(crate::budget::budget_mode(o, ctx.case_mode)?.total_with_growth)
@@ -267,11 +269,15 @@ struct Rule {
 fn rule(key: KpiKey) -> Rule {
     use KpiKey as K;
     let (judged, fill, tally) = match key {
-        K::MaxDod | K::StorageMargin | K::SapMargin | K::BatteryMargin => {
-            (true, Fill::Value, false)
-        }
+        K::MaxDod
+        | K::StorageMargin
+        | K::SapMargin
+        | K::BatteryMargin
+        | K::TankVolumeMargin
+        | K::ImpulseMargin => (true, Fill::Value, false),
         K::NodesInRange => (true, Fill::OkShare, true),
         K::OrbitBalance
+        | K::OrbitLifetime
         | K::UnloadInterval
         | K::MtqUnloadTime
         | K::SensorIntrusion
@@ -288,12 +294,17 @@ fn rule(key: KpiKey) -> Rule {
         K::LongestEclipse
         | K::BetaMin
         | K::BetaMax
+        | K::DecayPerDay
+        | K::StationKeepingDeltaV
         | K::ModeLoad
         | K::OrbitGeneration
         | K::PeakMomentum
         | K::DataPerDay
         | K::StorageRequired
-        | K::ContactPerDay => (false, Fill::None, false),
+        | K::ContactPerDay
+        | K::LongestTransfer
+        | K::DvWithMargin
+        | K::LoadedPropellant => (false, Fill::None, false),
     };
     Rule {
         judged,
@@ -339,6 +350,8 @@ pub(crate) fn kpis(
             let check_key = match key {
                 KpiKey::SapMargin => Some("sap_margin"),
                 KpiKey::BatteryMargin => Some("battery_margin"),
+                KpiKey::TankVolumeMargin => Some("tank_volume"),
+                KpiKey::ImpulseMargin => Some("total_impulse"),
                 _ => None,
             };
             let verdict = check_key.map_or(verdict, |key| {
@@ -373,6 +386,9 @@ fn view(
         tally,
     }
 }
+
+mod orbit;
+mod propulsion;
 
 #[cfg(test)]
 mod tests;
