@@ -10,10 +10,8 @@ describe("マヌーバの欄 → fune maneuver add|set の引数", () => {
     expect(maneuverCommand(text, false)?.command).toBe("maneuver_set");
   });
 
-  it("スラスタの選択肢は役割で選ぶ（API の role）", () => {
-    const parts = fixture.parts.map((p, i) =>
-      i === 0 ? { ...p, role: "propulsion_thruster" as const } : { ...p, role: null },
-    );
+  it("スラスタの選択肢は API の maneuver_thruster で選ぶ（役割は見ない）", () => {
+    const parts = fixture.parts.map((p, i) => ({ ...p, maneuver_thruster: i === 0 }));
     const options = thrusterOptions({ ...fixture, parts });
     expect(options.map((o) => o.value)).toEqual([parts[0]?.id]);
   });
