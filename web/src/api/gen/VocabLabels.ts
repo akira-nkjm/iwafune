@@ -11,6 +11,10 @@ export type VocabLabels = {
  */
 role_system: { [key in Role]?: string | null }, 
 /**
+ * 種別に役割の無い部品をまとめたグループの表示名（機器の一覧の「その他」）
+ */
+role_other: VocabLabel | null, 
+/**
  * 画面で系（section）を並べる順
  */
 section_order: Array<string>, 

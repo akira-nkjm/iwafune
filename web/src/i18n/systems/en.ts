@@ -77,7 +77,7 @@ export const systemsEn: typeof systemsJa = {
       momentum: "Momentum and unloading",
       perOrbit: "Momentum accumulation / orbit",
       perDay: "Unloads / day",
-      unloadTime: "MTQ unload time",
+      unloadTime: "Unload time",
       sensorFov: "Sensor FoV / exclusion angles",
       basis:
         "Evaluated with each mode’s attitude and default-case orbit conditions. Device and sensor analysis selection matches the standard analyses.",

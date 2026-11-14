@@ -54,7 +54,7 @@ fn every_kpi_comes_from_exactly_one_analysis() {
                 .all(|d| !d.label.is_empty() && !d.label_en.is_empty())
         );
     }
-    assert_eq!(seen.len(), 40, "KpiKey のすべての値が表にある");
+    assert_eq!(seen.len(), 41, "KpiKey のすべての値が表にある");
 }
 
 /// 判定を数える KPI: 数と OK でない数、塗りは OK の割合（手で数えた 9 件中 4 件）。
@@ -231,4 +231,80 @@ fn energy_balance_kpis_use_the_judged_operation() {
     let sequence =
         json!({"cycle": 5736.0, "segments": [], "balance": balance_case(0.22, 10.0, None)});
     assert_eq!(values(&output(sequence)), vec![10.0, 0.22]);
+}
+
+/// アンロード時間の出力（MTQ と RCS のどちらかか両方）。RCS の最悪の向きの時間は `rcs_time`（None は捨てられない向き）。
+pub(crate) fn unload_output(mtq_time: Option<f64>, rcs_time: Option<Option<f64>>) -> Value {
+    use sat_analysis::aocs::unload_time::rcs::{UnloadTimeRcs, UnloadTimeRcsResult};
+    use sat_analysis::aocs::unload_time::{
+        UnloadAssumption, UnloadTimeMtqResult, UnloadTimeOutput,
+    };
+    use sat_astro::math::Vec3;
+    fn t<D: Dimension>(v: f64) -> Qty<D> {
+        Qty::from_raw(v)
+    }
+    let rcs = rcs_time.map(|time| {
+        let worst = UnloadTimeRcsResult {
+            label: "+x".into(),
+            momentum_direction: Vec3::X,
+            torque: t(1.0e-3),
+            off_axis_torque: t(0.0),
+            net_force: t(0.0),
+            time: time.map(t),
+            propellant: None,
+            thrusters: vec!["T1".into()],
+        };
+        UnloadTimeRcs {
+            directions: vec![worst.clone()],
+            worst,
+            assumption: UnloadAssumption::RcsSimultaneousFiring,
+        }
+    });
+    let mtq = mtq_time.map(|time| UnloadTimeMtqResult {
+        mean_field: t(3.0e-5),
+        min_field: t(2.0e-5),
+        max_field: t(4.0e-5),
+        effective_dipole: t(0.2),
+        efficiency: Fraction::new(0.5),
+        torque: t(1.0e-6),
+        time: t(time),
+        orbits: None,
+        assumption: UnloadAssumption::MtqMeanField,
+    });
+    let out = UnloadTimeOutput {
+        momentum: t(1.0e-3),
+        usable_momentum_fraction: None,
+        mtq,
+        rcs,
+        checks: Vec::new(),
+    };
+    serde_json::to_value(out).unwrap()
+}
+
+/// アンロード時間の KPI は、解析が出した手段ごとに値を持つ（スラスタだけの設計でも空にならない）。
+#[test]
+fn unload_time_kpis_follow_the_means_the_analysis_produced() {
+    let values = |o: &Value| -> Vec<(KpiKey, Option<f64>)> {
+        kpis("aocs.unload_time", Some(o), &[], KpiContext::default())
+            .iter()
+            .map(|k| (k.key, k.value.as_ref().map(|v| v.si)))
+            .collect()
+    };
+    use KpiKey::{MtqUnloadTime as Mtq, RcsUnloadTime as Rcs};
+    // 持たない手段の KPI は出さない
+    assert_eq!(
+        values(&unload_output(Some(1500.0), None)),
+        [(Mtq, Some(1500.0))]
+    );
+    assert_eq!(
+        values(&unload_output(None, Some(Some(40.0)))),
+        [(Rcs, Some(40.0))]
+    );
+    assert_eq!(
+        values(&unload_output(Some(1500.0), Some(Some(40.0)))),
+        [(Mtq, Some(1500.0)), (Rcs, Some(40.0))]
+    );
+    // どちらも測れなければ先頭（MTQ）を「—」で残す（捨てられない向きだけがあるときも）
+    assert_eq!(values(&unload_output(None, Some(None))), [(Mtq, None)]);
+    assert_eq!(values(&unload_output(None, None)), [(Mtq, None)]);
 }

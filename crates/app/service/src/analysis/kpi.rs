@@ -129,7 +129,7 @@ kpi_table! {
     power::EnergyBalance { OrbitBalance => power_kpi::orbit_balance, MaxDod => power_kpi::max_dod }
     power::Sizing { SapMargin => power_kpi::sap_margin, BatteryMargin => power_kpi::battery_margin }
     aocs::RwUnloading { UnloadInterval => unload_interval, PeakMomentum => peak_momentum }
-    aocs::UnloadTime { MtqUnloadTime => mtq_unload_time }
+    aocs::UnloadTime { MtqUnloadTime => mtq_unload_time, RcsUnloadTime => rcs_unload_time }
     aocs::SensorFov { SensorIntrusion => sensor_intrusion }
     aocs::SlewTime { SlewTime => slew_time }
     cdh::DataBudget {
@@ -169,8 +169,14 @@ fn unload_interval(o: &aocs::RwUnloadingOutput, _: Ctx<'_>) -> Option<Measured> 
 fn peak_momentum(o: &aocs::RwUnloadingOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.peak_momentum)
 }
+/// MTQ でのアンロード時間（MTQ を評価していなければ None）。
 fn mtq_unload_time(o: &aocs::UnloadTimeOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.mtq.as_ref()?.time)
+}
+/// RCS でのアンロード時間（最悪の向き。スラスタを評価していないか、捨てられない向きがあれば None）。
+/// MTQ と RCS は別の手段で、解析の出力はどちらを使うかを持たないので、両方あれば 2 つの KPI として並べる。
+fn rcs_unload_time(o: &aocs::UnloadTimeOutput, _: Ctx<'_>) -> Option<Measured> {
+    one(o.rcs.as_ref()?.worst.time?)
 }
 fn slew_time(o: &aocs::SlewTimeOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.worst.time)
@@ -233,8 +239,11 @@ enum Fill {
     OkShare,
 }
 
-/// KPI ごとの扱い: 判定の対象か・塗りの比・判定を数えるか。
+/// KPI ごとの扱い: 判定の対象か・塗りの比・判定を数えるか・測れたときだけ出すか。
 struct Rule {
+    /// 結果に値が無ければ出さない（設計が持たない手段の KPI。MTQ・RCS のアンロード時間）。
+    /// ただし解析のすべての KPI が出ないときは先頭の 1 つを残す（行に「—」と判定を出すため）
+    when_measured: bool,
     judged: bool,
     fill: Fill,
     tally: bool,
@@ -255,6 +264,7 @@ fn rule(key: KpiKey) -> Rule {
         | K::OrbitLifetime
         | K::UnloadInterval
         | K::MtqUnloadTime
+        | K::RcsUnloadTime
         | K::SensorIntrusion
         | K::SlewTime
         | K::LinkMargin
@@ -288,6 +298,7 @@ fn rule(key: KpiKey) -> Rule {
         judged,
         fill,
         tally,
+        when_measured: matches!(key, K::MtqUnloadTime | K::RcsUnloadTime),
     }
 }
 
@@ -298,6 +309,7 @@ fn def(key: KpiKey) -> KpiDef {
         key,
         label: l.label,
         label_en: l.label_en,
+        when_measured: rule(key).when_measured,
     }
 }
 
@@ -322,7 +334,7 @@ pub(crate) fn kpis(
         flagged: u32::try_from(checks.iter().filter(|c| c.verdict != Verdict::Ok).count())
             .unwrap_or(u32::MAX),
     };
-    measure(id, output, ctx)
+    only_measured(measure(id, output, ctx))
         .into_iter()
         .map(|(key, value)| {
             let check_key = match key {
@@ -338,6 +350,15 @@ pub(crate) fn kpis(
             view(key, value, verdict, tally)
         })
         .collect()
+}
+
+/// 測れなかった「測れたときだけ出す」KPI を外す（すべて外れるなら先頭の 1 つを残す）。
+fn only_measured(all: Vec<(KpiKey, Option<Measured>)>) -> Vec<(KpiKey, Option<Measured>)> {
+    let keep = |(k, v): &(KpiKey, Option<Measured>)| v.is_some() || !rule(*k).when_measured;
+    if !all.iter().any(keep) {
+        return all.into_iter().take(1).collect();
+    }
+    all.into_iter().filter(keep).collect()
 }
 
 fn view(
@@ -370,4 +391,4 @@ mod power_kpi;
 mod propulsion;
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

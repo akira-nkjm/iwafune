@@ -38,8 +38,14 @@ fn every_mode_matches_the_same_law_as_case_attitude() {
         );
         assert_eq!(view.unloads_per_day.map(|q| q.si), rw.unloads_per_day);
         assert_eq!(
-            view.mtq_unload_time.map(|q| q.si),
-            unload.mtq.map(|m| m.time.value())
+            view.unload_times
+                .iter()
+                .map(|u| (u.means, u.time.si))
+                .collect::<Vec<_>>(),
+            [(
+                crate::dto::AocsUnloadMeans::Mtq,
+                unload.mtq.unwrap().time.value()
+            )]
         );
         assert_eq!(
             view.sensor_fov.verdict,
@@ -123,7 +129,7 @@ fn counted_devices_include_duty_cold_spares_off_and_unassigned() {
     let group = view
         .devices
         .iter()
-        .find(|g| g.role == Role::ReactionWheel)
+        .find(|g| g.role == Some(Role::ReactionWheel))
         .unwrap();
     let wheel = group.devices.iter().find(|d| d.part == "RW_X").unwrap();
     assert_eq!(wheel.active, Some(true));
@@ -157,7 +163,7 @@ fn unassigned_devices_are_unknown() {
     assert_eq!(
         view.devices
             .iter()
-            .find(|g| g.role == Role::ReactionWheel)
+            .find(|g| g.role == Some(Role::ReactionWheel))
             .unwrap()
             .devices
             .iter()
@@ -265,10 +271,82 @@ fn eclipse_devices_use_the_inherited_and_overridden_states() {
     let group = |groups: &[crate::dto::AocsDeviceGroup]| {
         groups
             .iter()
-            .find(|g| g.role == Role::ReactionWheel)
+            .find(|g| g.role == Some(Role::ReactionWheel))
             .map(|g| g.active_count)
             .unwrap()
     };
     assert_eq!(group(&view.devices), 3);
     assert_eq!(group(&view.eclipse_devices), 2);
+}
+
+/// 機器の一覧は AOCS の系に属する部品だけを役割別に並べる。ペイロードのカメラは出ず、役割の無い種別の部品は「その他」に入る。
+#[test]
+fn devices_are_the_parts_of_the_aocs_system_grouped_by_role_with_other_last() {
+    use fune_model::design::Part;
+    use fune_model::id::Id;
+    let mut d = demo().snapshot().unwrap().design;
+    let mut kind = fune_model::builtin::kinds()["gps"].clone();
+    kind.id = Id::new("sun_lidar");
+    kind.role = None;
+    kind.states = vec!["off".into(), "on".into()];
+    d.kinds.insert(kind.id.clone(), kind);
+    let mut part: Part = d.parts["GPS"].clone();
+    part.id = Id::new("LIDAR");
+    part.catalog = None;
+    part.kind = Some(Id::new("sun_lidar"));
+    d.parts.insert(part.id.clone(), part);
+    let s = Snapshot::of(d, Default::default());
+    let view = aocs::mode_view(&s, "NOMINAL").unwrap();
+    let roles: Vec<Option<Role>> = view.devices.iter().map(|g| g.role).collect();
+    assert_eq!(
+        roles,
+        [
+            Some(Role::StarTracker),
+            Some(Role::SunSensor),
+            Some(Role::Gps),
+            Some(Role::ReactionWheel),
+            Some(Role::Magnetorquer),
+            None,
+        ]
+    );
+    let all: Vec<&str> = view
+        .devices
+        .iter()
+        .flat_map(|g| g.devices.iter().map(|d| d.part.as_str()))
+        .collect();
+    assert!(!all.contains(&"CAM"), "{all:?}");
+    let other = view.devices.last().unwrap();
+    assert_eq!(
+        (other.label.as_str(), other.label_en.as_deref()),
+        ("その他", Some("Other"))
+    );
+    assert_eq!(
+        other
+            .devices
+            .iter()
+            .map(|d| d.part.as_str())
+            .collect::<Vec<_>>(),
+        ["LIDAR"]
+    );
+    // 見出しは役割の名前（`role_label`）
+    let gps = &view.devices[2];
+    assert_eq!(
+        gps.label,
+        fune_model::builtin::role_label(Role::Gps).unwrap().label
+    );
+    assert_eq!(view.eclipse_devices.len(), view.devices.len());
+}
+
+/// スラスタだけでアンロードする設計では、モードカードにも RCS の時間が出る（MTQ は出ない）。
+#[test]
+fn rcs_only_unloading_shows_on_the_card() {
+    let o: sat_analysis::aocs::UnloadTimeOutput = serde_json::from_value(
+        crate::analysis::kpi::tests::unload_output(None, Some(Some(40.0))),
+    )
+    .unwrap();
+    let times = aocs::unload_times(&o);
+    assert_eq!(times.len(), 1);
+    assert_eq!(times[0].means, crate::dto::AocsUnloadMeans::Rcs);
+    assert_eq!(times[0].time.si, 40.0);
+    assert_eq!(times[0].label, "RCS（最悪の向き）");
 }

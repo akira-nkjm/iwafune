@@ -2,9 +2,14 @@
 import type { AocsAnalysisState } from "./AocsAnalysisState";
 import type { AocsAttitudeView } from "./AocsAttitudeView";
 import type { AocsDeviceGroup } from "./AocsDeviceGroup";
+import type { AocsUnloadTime } from "./AocsUnloadTime";
 import type { QuantityView } from "./QuantityView";
 
 /**
  * 1 モードの姿勢・機器・解析。
  */
-export type AocsModeView = { attitude: AocsAttitudeView, devices: Array<AocsDeviceGroup>, eclipse_devices: Array<AocsDeviceGroup>, momentum_per_orbit: QuantityView | null, unloads_per_day: QuantityView | null, mtq_unload_time: QuantityView | null, rw: AocsAnalysisState, unloading: AocsAnalysisState, sensor_fov: AocsAnalysisState, };
+export type AocsModeView = { attitude: AocsAttitudeView, devices: Array<AocsDeviceGroup>, eclipse_devices: Array<AocsDeviceGroup>, momentum_per_orbit: QuantityView | null, unloads_per_day: QuantityView | null, 
+/**
+ * アンロード時間（解析が出した手段ごと。どちらも無ければ空）
+ */
+unload_times: Array<AocsUnloadTime>, rw: AocsAnalysisState, unloading: AocsAnalysisState, sensor_fov: AocsAnalysisState, };

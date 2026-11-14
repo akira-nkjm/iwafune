@@ -3,7 +3,7 @@
 //! **解析の出力の表示名はここだけ**（設計データの語彙は `fune_model::builtin::labels`）。列挙は型ごとに漏れなく
 //! `match` で書くので、解析に値が増えたら、ここが書かれるまでコンパイルが通らない。
 
-use crate::dto::{AnalysisLabel, KpiKey};
+use crate::dto::{AnalysisLabel, AocsUnloadMeans, KpiKey};
 use sat_analysis::aocs::disturbance::DisturbanceKind;
 use sat_analysis::aocs::sensor_fov::SensorFovTarget;
 use sat_analysis::aocs::slew_time::{SlewAssumption, SlewProfile};
@@ -98,6 +98,14 @@ fn unload_assumption(a: UnloadAssumption) -> AnalysisLabel {
             "−H 向きのトルク成分が正のスラスタをすべて同時に連続噴射する（オン・オフのみ）。H と直交するトルクと正味の推力は打ち消さずに残る",
             "All thrusters with a positive torque component along −H fire continuously at once (on/off only). Torque perpendicular to H and the net force are left uncancelled",
         ),
+    }
+}
+
+/// アンロードの手段の表示名（AOCS のモードカード）。
+pub fn unload_means(means: AocsUnloadMeans) -> AnalysisLabel {
+    match means {
+        AocsUnloadMeans::Mtq => label("MTQ", "MTQ"),
+        AocsUnloadMeans::Rcs => label("RCS（最悪の向き）", "RCS (worst direction)"),
     }
 }
 
@@ -269,6 +277,7 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         K::UnloadInterval => label("アンロード間隔", "Unload interval"),
         K::PeakMomentum => label("最大角運動量", "Peak momentum"),
         K::MtqUnloadTime => label("MTQ のアンロード時間", "MTQ unload time"),
+        K::RcsUnloadTime => label("RCS のアンロード時間", "RCS unload time"),
         K::SensorIntrusion => label("センサ侵入の割合（最大）", "Sensor intrusion (max)"),
         K::SlewTime => label("姿勢変更の時間（最悪の軸）", "Slew time (worst axis)"),
         K::DataPerDay => label("1 日の発生量", "Generated per day"),
