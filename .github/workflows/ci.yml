@@ -14,10 +14,12 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
 
+# Runner: the repository variable CI_RUNNER (for example `self-hosted`) picks where the jobs run; without it they
+# run on ubuntu-latest. release.yml and image.yml always use GitHub's runners (fixed OS for the image, macOS).
 jobs:
   # Which parts changed. Pull requests skip the jobs their change cannot affect; pushes to main and develop run everything.
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     outputs:
       rust: ${{ steps.filter.outputs.rust }}
       web: ${{ steps.filter.outputs.web }}
@@ -45,7 +47,7 @@ jobs:
 
   # Architecture checks (dependency direction, registry, languages, web rules). Always runs: it reads code, docs and web.
   architecture:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
@@ -60,7 +62,7 @@ jobs:
   rust:
     needs: [changes]
     if: needs.changes.outputs.rust == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
@@ -85,7 +87,7 @@ jobs:
   web:
     needs: [changes]
     if: needs.changes.outputs.web == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     defaults:
       run:
         working-directory: web
@@ -118,7 +120,7 @@ jobs:
   bundle:
     needs: [rust, web]
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
@@ -138,12 +140,13 @@ jobs:
           ./target/release/fune -C fixtures/demo-6u check
           ./target/release/fune -C fixtures/demo-6u part ls
           ./target/release/fune -C fixtures/demo-6u analyze power.mode_load --json > /dev/null
+      # Not the development port (8787): on a shared machine a running server would answer instead of this build.
       - name: smoke (HTTP)
         run: |
-          ./target/release/fune -C fixtures/demo-6u gui --no-open --port 8787 &
-          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8787/api/v1/project && break; sleep 1; done
-          curl -sf http://127.0.0.1:8787/api/v1/design > /dev/null
-          curl -sf http://127.0.0.1:8787/ | grep -qi '<html'
+          ./target/release/fune -C fixtures/demo-6u gui --no-open --port 18787 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:18787/api/v1/project && break; sleep 1; done
+          curl -sf http://127.0.0.1:18787/api/v1/design > /dev/null
+          curl -sf http://127.0.0.1:18787/ | grep -qi '<html'
       - uses: actions/upload-artifact@v7
         with:
           name: fune-linux-x64
