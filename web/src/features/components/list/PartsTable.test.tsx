@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { DiagnosticView, PartRow, ValueData, ValueView } from "@/api/types";
+import type { PartRow, ValueData, ValueView } from "@/api/types";
 import { getT } from "@/i18n";
 import { Th } from "@/kit/table/Th";
 import { useTableSort } from "@/kit/table/useTableSort";
@@ -51,6 +51,15 @@ const items: PartRow[] = ["part10", "Part2", "part2", "empty", "unset"].map((id,
   kind: i < 3 ? (i === 0 ? "kind10" : i === 1 ? "Kind2" : "kind2") : null,
   catalog: i < 3 ? (i === 0 ? "item10" : i === 1 ? "Item2" : "item2") : null,
   count: [10, 2, 2, 0, 1][i]!,
+  // 質量・電力の未設定も含めた件数（最後の部品は 1 + 2）
+  unset_count: [10, 2, 2, 0, 3][i]!,
+  diagnostics: [
+    { errors: 2, warnings: 0, infos: 0 },
+    { errors: 1, warnings: 0, infos: 0 },
+    { errors: 1, warnings: 1, infos: 0 },
+    { errors: 0, warnings: 0, infos: 0 },
+    { errors: 0, warnings: 1, infos: 0 },
+  ][i]!,
   values: {
     ...(quantities[i] ? { mass: quantities[i], power: quantities[i] } : {}),
     ...Object.fromEntries(
@@ -61,33 +70,7 @@ const items: PartRow[] = ["part10", "Part2", "part2", "empty", "unset"].map((id,
     ),
   },
 }));
-// 質量・電力の未設定も件数に含めた期待値を使う。
-function diagnostic(part: string, severity: DiagnosticView["severity"]): DiagnosticView {
-  return {
-    part,
-    severity,
-    path: null,
-    excerpt: null,
-    code: "test",
-    message: "test",
-    target: null,
-    file: null,
-    line: null,
-    column: null,
-  };
-}
-const design = {
-  ...fixture,
-  parts: items,
-  diagnostics: [
-    diagnostic("part10", "error"),
-    diagnostic("part10", "error"),
-    diagnostic("Part2", "error"),
-    diagnostic("part2", "error"),
-    diagnostic("part2", "warning"),
-    diagnostic("unset", "warning"),
-  ],
-};
+const design = { ...fixture, parts: items };
 const comparators = partsComparators(design);
 type Column = keyof typeof comparators;
 const cases: [Column, number[], number[]][] = [
