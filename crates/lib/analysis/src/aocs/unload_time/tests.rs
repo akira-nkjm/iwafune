@@ -183,3 +183,28 @@ fn momentum_from_wheels_by_hand() {
     i.wheels.clear();
     assert!(UnloadTime::run(&i).is_err());
 }
+
+/// 磁場のモデルが無い中心天体では、軌道から求める磁場で MTQ を評価せず、理由を言う。
+/// 月・火星は磁場が無い、木星は磁場のモデルが無い。直接与える磁場の大きさ（`Constant`）は従来どおり。
+#[test]
+fn mtq_field_from_orbit_is_rejected_without_a_field_model() {
+    use sat_astro::ephem::CentralBody;
+    let about = |body| {
+        let mut i = input();
+        let orbit = sat_astro::orbit::OrbitSpec::circular_about(
+            body,
+            leo().epoch,
+            Qty::from_raw(100e3),
+            Qty::from_raw(90f64.to_radians()),
+            Qty::from_raw(0.0),
+        );
+        let period = orbit.period_s();
+        i.field = Some(UnloadTimeField::Orbit {
+            sampling: OrbitSampling::new(orbit, Qty::from_raw(period), Qty::from_raw(30.0)),
+        });
+        UnloadTime::run(&i).unwrap_err().to_string()
+    };
+    assert!(about(CentralBody::Moon).contains("磁場が無い"));
+    assert!(about(CentralBody::Jupiter).contains("磁場のモデルがありません"));
+    assert!(UnloadTime::run(&input()).is_ok());
+}

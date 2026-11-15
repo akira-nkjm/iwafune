@@ -2,7 +2,7 @@
 //!
 //! - 指数大気 [`density_exponential_kg_m3`] — 指数大気（Vallado 表 8-4）。高度だけの静的モデル。
 //! - [`nrlmsise00`] モジュール — NRLMSISE-00（太陽活動・地磁気活動・季節・緯度経度・地方時に応答する）。
-//! - 入口 [`density_kg_m3`] — [`AtmosphereModel`] で選んで、ECI の位置と時刻から密度を求める入口。
+//! - 入口 [`earth_density_kg_m3`] — [`AtmosphereModel`] で選んで、ECI の位置と時刻から密度を求める入口。
 //!   時刻で変わる宇宙天気を渡すときは [`density_nrlmsise00_kg_m3`]。
 //! - [`space_weather`] モジュール — 宇宙天気（F10.7・Ap）の日ごとの表（CelesTrak SW-All）と日付からの引き方、太陽活動のプリセット。
 //!
@@ -30,11 +30,12 @@ pub enum AtmosphereModel {
     Nrlmsise00 { f107: f64, f107a: f64, ap: f64 },
 }
 
-/// 位置 `r_eci_m` [m]・時刻 `epoch` での大気密度 [kg/m³]。
+/// 地球の大気の、位置 `r_eci_m` [m]（地心）・時刻 `epoch` での密度 [kg/m³]。**地球が中心のときだけ**
+/// （中心天体を選ぶ入口は [`density_about_kg_m3`]）。
 ///
 /// 高度・緯度・経度は [`crate::earth::geodetic_from_eci`]（WGS84）で求める。NRLMSISE-00 の地方太陽時は
 /// 原典の推奨どおり `UT [h] + 経度 [deg]/15`（平均太陽時）にする（[`nrlmsise00::Nrlmsise00Input::from_geodetic`]）。
-pub fn density_kg_m3(model: &AtmosphereModel, r_eci_m: Vec3, epoch: Epoch) -> f64 {
+pub fn earth_density_kg_m3(model: &AtmosphereModel, r_eci_m: Vec3, epoch: Epoch) -> f64 {
     match *model {
         AtmosphereModel::Exponential => {
             let (_, _, alt) = geodetic_from_eci(r_eci_m, epoch);
@@ -71,8 +72,9 @@ pub fn density_nrlmsise00_kg_m3(
     nrlmsise00::evaluate(&input).total_mass_density_kg_m3
 }
 
-/// 中心天体 `central` のまわりの大気密度 [kg/m³]。大気のモデルは地球だけなので、ほかの中心天体では 0。
-/// `r_rel_m` は中心天体からの位置 [m]。
+/// 中心天体 `central` のまわりの大気密度 [kg/m³]。大気のモデルは地球だけなので、ほかの中心天体では 0 を返す。
+/// その 0 が「大気が無い」のか「大気はあるがモデルが無い」のかは [`CentralBody::atmosphere_model`] で分かる
+/// （解析は後者のとき 0 を結果として出さず、利用者に伝える）。`r_rel_m` は中心天体からの位置 [m]。
 pub fn density_about_kg_m3(
     central: CentralBody,
     model: &AtmosphereModel,
@@ -80,7 +82,7 @@ pub fn density_about_kg_m3(
     epoch: Epoch,
 ) -> f64 {
     match central {
-        CentralBody::Earth => density_kg_m3(model, r_rel_m, epoch),
+        CentralBody::Earth => earth_density_kg_m3(model, r_rel_m, epoch),
         _ => 0.0,
     }
 }
@@ -157,7 +159,7 @@ mod tests {
         use crate::earth::{ecef_to_eci, geodetic_to_ecef};
         let e = Epoch::parse("2027-04-01T12:00:00Z").expect("元期");
         let r = ecef_to_eci(geodetic_to_ecef(0.3, 1.0, 420e3), e);
-        let exp = density_kg_m3(&AtmosphereModel::Exponential, r, e);
+        let exp = earth_density_kg_m3(&AtmosphereModel::Exponential, r, e);
         assert!((exp / density_exponential_kg_m3(420e3) - 1.0).abs() < 1e-6);
         let quiet = AtmosphereModel::Nrlmsise00 {
             f107: 70.0,
@@ -169,7 +171,10 @@ mod tests {
             f107a: 250.0,
             ap: 15.0,
         };
-        let (rq, ra) = (density_kg_m3(&quiet, r, e), density_kg_m3(&active, r, e));
+        let (rq, ra) = (
+            earth_density_kg_m3(&quiet, r, e),
+            earth_density_kg_m3(&active, r, e),
+        );
         assert!(rq > 1e-13 && rq < 1e-11, "{rq}");
         // 太陽活動が高いと 400 km の密度は数倍になる
         assert!(ra / rq > 3.0, "{rq} → {ra}");
