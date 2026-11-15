@@ -90,6 +90,20 @@ pub fn design_view(ws: &Workspace) -> Result<DesignView> {
     })
 }
 
+/// カタログ品 1 つ（`GET /catalog/{id}`・`fune catalog show`）。無ければ [`ServiceError::NotFound`](crate::ServiceError)。
+pub fn catalog_item(ws: &Workspace, id: &str) -> Result<crate::dto::CatalogItemView> {
+    let d = ws.snapshot()?.design;
+    d.catalog
+        .get(id)
+        .map(|item| catalog::item_view(&d, item))
+        .ok_or_else(|| crate::ServiceError::not_found("カタログ品", id))
+}
+
+/// 図（`view/<id>.toml`）の配置（`fune view ls`。`GET /design` の `views` の 1 件）。まだ無い図は `None`（エラーにしない）。
+pub fn view_layout(ws: &Workspace, id: &str) -> Result<Option<crate::dto::ViewLayout>> {
+    Ok(ws.snapshot()?.design.views.get(id).cloned())
+}
+
 /// マヌーバの一覧（実行の順。`GET /maneuvers`・`fune maneuver ls`）。
 pub fn maneuvers(ws: &Workspace) -> Result<Vec<crate::dto::ManeuverView>> {
     Ok(maneuvers::maneuvers(&ws.snapshot()?.design))

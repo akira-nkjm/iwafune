@@ -280,8 +280,7 @@ pub fn view(ws: &Workspace, cmd: &crate::args::ViewCmd, out: &Out) -> Handled {
     let crate::args::ViewCmd::Ls { view } = cmd else {
         return Ok(None);
     };
-    let views = query::design_view(ws)?.views;
-    let layout = views.into_iter().find(|v| &v.id == view);
+    let layout = query::view_layout(ws, view)?;
     if out.json {
         out.json(&layout)?;
         return Ok(Some(0));
