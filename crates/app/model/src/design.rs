@@ -150,6 +150,19 @@ impl Design {
         self.kind_chain(kind).into_iter().find_map(|k| k.role)
     }
 
+    /// マヌーバのスラスタに選べる部品か（種別の役割（継承を含む）が `propulsion_thruster` か `thruster`）。
+    /// 検査（`maneuver.thruster_role`）と部品の一覧（`PartRow.maneuver_thruster`）が共有する唯一の判定
+    pub fn is_maneuver_thruster(&self, part: &Part) -> bool {
+        self.part_kind_id(part)
+            .and_then(|k| self.kind_role(k))
+            .is_some_and(|r| {
+                matches!(
+                    r,
+                    crate::role::Role::PropulsionThruster | crate::role::Role::Thruster
+                )
+            })
+    }
+
     /// Group か Part の ID が存在するか。
     pub fn node_exists(&self, id: &str) -> bool {
         self.parts.contains_key(id) || self.groups.contains_key(id)

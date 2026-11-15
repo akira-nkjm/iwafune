@@ -121,6 +121,19 @@ fn beta_angle_of_dawn_dusk_sso_is_large() {
     assert!(beta0.abs() < 2.0, "{beta0}");
 }
 
+/// 中心天体が太陽のとき、太陽の向きが決まらないので β 角と β からの RAAN は `Err`（任意の向きで答えない）。
+#[test]
+fn beta_angle_about_the_sun_is_an_error() {
+    let e = epoch();
+    let spec = OrbitSpec::circular_about(CentralBody::Sun, e, km(1.0e6), deg(30.0), deg(0.0));
+    let err = beta_angle_rad(&spec, e).unwrap_err().to_string();
+    assert!(err.contains("太陽"), "{err}");
+    assert!(raan_for_beta(&spec, e, 0.1).is_err());
+    // 月まわりは従来どおり値が出る
+    let moon = OrbitSpec::circular_about(CentralBody::Moon, e, km(100.0), deg(90.0), deg(0.0));
+    assert!(beta_angle_rad(&moon, e).is_ok());
+}
+
 #[test]
 fn numerical_point_mass_matches_kepler() {
     let mut spec = OrbitSpec::circular(epoch(), km(550.0), deg(97.6), deg(20.0));

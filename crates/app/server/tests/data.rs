@@ -42,3 +42,15 @@ async fn space_weather_lookup() {
     .await;
     assert_eq!(s, StatusCode::BAD_REQUEST, "{e}");
 }
+
+/// 問い合わせの形が違えば、axum の素の文ではなく `{error}` の JSON で 400 を返す（`date` が無い）。
+#[tokio::test]
+async fn space_weather_bad_query_is_error_envelope() {
+    let (_tmp, r) = demo_router();
+    let (s, e) = call(&r, "GET", "/api/v1/data/space_weather?activity=high", None).await;
+    assert_eq!(s, StatusCode::BAD_REQUEST, "{e}");
+    assert!(
+        e["error"]["code"].is_string() && e["error"]["message"].is_string(),
+        "{e}"
+    );
+}

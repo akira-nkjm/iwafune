@@ -103,6 +103,12 @@ pub struct PartRow {
     /// 種別（kind の無い部品は null）
     pub kind: Option<String>,
     pub role: Option<Role>,
+    /// マヌーバのスラスタに選べる部品か（`Design::is_maneuver_thruster`。検査と同じ判定）
+    pub maneuver_thruster: bool,
+    /// この部品を対象にした診断の件数（`DiagnosticView.part` が部品 ID のもの）
+    pub diagnostics: DiagnosticCounts,
+    /// 未設定の値（`values` のうち `origin` が `unset`）の数
+    pub unset_count: u32,
     /// 選択中のカタログ（例: `"local/rw_18mNms"`）
     pub catalog: Option<String>,
     pub candidates: Vec<String>,

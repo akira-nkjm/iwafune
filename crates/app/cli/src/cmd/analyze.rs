@@ -165,16 +165,10 @@ pub fn budget(
         },
     };
     let b = budget::budget(ws, budget::parse_kind(kind)?, &req)?;
-    let wet = match &b.propellant {
-        Some(BudgetPropellant::Counted { wet, .. }) => wet.verdict,
-        _ => None,
-    };
-    let failed = !b.missing.is_empty()
-        || b.verdict == Some(Verdict::Violation)
-        || wet == Some(Verdict::Violation);
+    let failed = budget::failure::fails(&b);
     if out.json {
         out.json(&b)?;
-        return Ok(u8::from(!b.missing.is_empty()));
+        return Ok(u8::from(failed));
     }
     print_budget(&b, out);
     Ok(u8::from(failed))

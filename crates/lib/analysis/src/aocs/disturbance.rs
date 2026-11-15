@@ -6,9 +6,9 @@
 //! | 種類 | 式 |
 //! |---|---|
 //! | 重力傾斜 | `τ = 3μ/|r|⁵ · r × (I r)`（`r` は中心天体 → 衛星、機体座標系。μ は中心天体のもの） |
-//! | 空力 | `F = −½ ρ (Cd·A) |v| v`（`sat_astro::force::drag_force`）、`τ = r_cp × F`（`v` は `sat_astro::force::relative_wind_eci`、ρ は `atmosphere::density_about_kg_m3`。地球以外は 0） |
+//! | 空力 | `F = −½ ρ (Cd·A) |v| v`（`sat_astro::force::drag_force`）、`τ = r_cp × F`（`v` は `sat_astro::force::earth_relative_wind_eci`、ρ は `atmosphere::density_about_kg_m3`。地球以外は 0。[`DisturbanceSpacecraft::environment_check`]） |
 //! | 太陽輻射圧 | `F = −P (Cr·A) ŝ`、`P = force::srp_pressure(太陽距離) · ν`、`τ = r_cp × F` |
-//! | 残留磁気 | `τ = m × B`（B は `geomag::field_about_eci_t`。地球以外は 0） |
+//! | 残留磁気 | `τ = m × B`（B は `geomag::field_about_eci_t`。地球以外は 0。同上） |
 //! | 推力誤差 | `τ = Σ f_i (r_i − r_cm) × F_i d̂_i`（推力の線と重心のずれ。[`super::thrusters`]）。`f_i` はモードで噴射している時間の割合で、機体座標系で一定の平均トルクとして足す |
 
 use super::thrusters::Thruster;
@@ -16,8 +16,9 @@ use crate::spec::{
     AnalysisError, ChannelKind, ensure_fraction, ensure_non_negative, ensure_positive,
 };
 use sat_astro::atmosphere::{AtmosphereModel, density_about_kg_m3};
+use sat_astro::body::EnvironmentModel;
 use sat_astro::ephem::CentralBody;
-use sat_astro::force::{drag_force, relative_wind_eci, srp_pressure};
+use sat_astro::force::{drag_force, earth_relative_wind_eci, srp_pressure};
 use sat_astro::geomag::field_about_eci_t;
 use sat_astro::math::{Mat3, Vec3};
 use sat_astro::timeline::TimelineSample;
@@ -232,7 +233,8 @@ impl DisturbanceSpacecraft {
     }
 
     /// 時系列の 1 点での擾乱トルク。`central` は軌道の中心天体（`TimelineSpec::orbit` の `central`）。
-    /// μ・磁場・大気は中心天体のもの（磁場と大気は地球だけにあり、ほかの中心天体では 0）。
+    /// μ・磁場・大気は中心天体のもの（磁場と大気のモデルは地球だけで、ほかの中心天体では空力・磁気トルクは 0。
+    /// 0 が正しいのかモデルが無いのかは [`DisturbanceSpacecraft::environment_check`] が伝える）。
     pub fn torques(&self, central: CentralBody, s: &TimelineSample) -> DisturbanceTorques {
         let r_body = s.to_body(s.r_eci);
         let b_eci = field_about_eci_t(central, s.r_eci, s.epoch);
@@ -247,10 +249,19 @@ impl DisturbanceSpacecraft {
                 .unwrap_or(Vec3::ZERO),
             ..Default::default()
         };
-        if let Some(surface) = &self.aero {
+        // 大気のモデルは地球だけ（ほかの天体は 0 のまま。理由は [`DisturbanceSpacecraft::environment_check`]）
+        let aero_surface = self
+            .aero
+            .as_ref()
+            .filter(|_| central.atmosphere_model() == EnvironmentModel::Modelled);
+        if let Some(surface) = aero_surface {
             let rho = density_about_kg_m3(central, &self.atmosphere, s.r_eci, s.epoch)
                 * self.density_scale();
-            out.aero = aero(surface, rho, s.to_body(relative_wind_eci(s.r_eci, s.v_eci)));
+            out.aero = aero(
+                surface,
+                rho,
+                s.to_body(earth_relative_wind_eci(s.r_eci, s.v_eci)),
+            );
         }
         if let Some(surface) = &self.srp {
             let pressure = srp_pressure(s.sun_distance_m) * s.sunlit.clamp(0.0, 1.0);
@@ -290,6 +301,8 @@ pub fn srp(surface: &DisturbanceSurface, pressure: f64, sun_dir_body: Vec3) -> V
 pub fn magnetic(dipole: Vec3, b_body: Vec3) -> Vec3 {
     dipole.cross(b_body)
 }
+
+mod environment;
 
 #[cfg(test)]
 mod tests {

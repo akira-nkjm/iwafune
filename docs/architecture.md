@@ -167,7 +167,32 @@ CLI と HTTP は `fune-service` の同じ関数を呼ぶ。
 - `fune apply` は GUI が送るのと同じ Op の JSON を受ける。スクリプトからの一括編集にも使える。
 - 書き込まずに編集を当ててみることもできる（`fune_service::preview`）。`POST /analyses/{id}`・`POST /budgets/{kind}`・`POST /parts/{id}` の `ops`、
   `fune analyze --ops`・`fune budget --ops`・`fune part show --ops` が、保存前の下書き（モード表の編集など）のまま解析・バジェット・部品の表示を作る。
-- 例外は `fune init` だけ。サーバーはプロジェクトの中でしか動かないので、HTTP には無い。
+- 例外は `fune init`（サーバーはプロジェクトの中でしか動かないので HTTP に無い）と `fune gui`（サーバーを起動するコマンド）だけ。
+
+HTTP の経路と CLI・service の対応（`crates/app/cli/tests/route_table.rs` が `routes.rs` と突き合わせる。経路を足したらここと表の定数を直す）。
+
+| HTTP | CLI | service の関数 |
+|---|---|---|
+| `GET /project` | `fune status` | `query::project_info` |
+| `GET /design` | `fune {net,mode,case,source,harness,setting,catalog} ls`・`fune view ls` | `query::design_view`（図 1 件は `query::view_layout`） |
+| `GET /maneuvers` | `fune maneuver ls` | `query::maneuvers` |
+| `GET /parts`・`GET`・`POST /parts/{id}` | `fune part ls`・`fune part show [--ops]` | `query::list_parts`・`query::part_view` |
+| `POST /parts/{id}/place_body` | `fune part place --body-pos` | `edit::place_body` |
+| `GET /values/{path}` | `fune get` | `query::get_value` |
+| `GET /defs` | `fune attr ls`・`fune kind ls` | `query::defs_view` |
+| `GET /diagnostics` | `fune check` | `query::check` |
+| `POST /fmt` | `fune fmt` | `format::format_design` |
+| `POST /ops` | `fune apply`（編集の各コマンド） | `edit::apply` |
+| `POST /ops/from_text`・`/ops/unset_from_text`・`/ops/from_command` | `fune set`・`fune unset`・名詞のコマンド | `edit::{set_op, unset_op, command_ops}` |
+| `POST /ops/case_from_eclipse` | `fune case from-eclipse` | `edit::case_from_eclipse_op` |
+| `GET /units`・`POST /units/parse`・`/units/format` | `fune units ls`・`parse`・`format` | `units::{units_catalog, parse_quantity, format_quantities}` |
+| `GET /analyses`・`POST /analyses/{id}` | `fune analyze ls`・`fune analyze <ID>` | `analysis::{analysis_catalog, run_analysis}` |
+| `GET`・`POST /budgets/{kind}` | `fune budget <種類>` | `budget::budget`（終了コードの判定は `budget::failure::fails`） |
+| `GET /data/status`・`/data/space_weather`・`POST /data/{id}/fetch` | `fune data status`・`space-weather`・`fetch` | `data::{data_status, space_weather::lookup, fetch}` |
+| `GET /catalog/{id}` | `fune catalog show` | `query::catalog_item` |
+| `POST /catalog/fetch`・`/catalog/update` | `fune catalog fetch`・`update` | `shared_catalog::{fetch, update}` |
+| `GET /power_page` | **まだ無い**（#158） | `power_page::power_page` |
+| `POST /system_modes/{system}` | **まだ無い**（#158） | `system_modes::system_modes` |
 
 テストで次の 2 つを確かめる。
 

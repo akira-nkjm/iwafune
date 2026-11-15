@@ -311,3 +311,16 @@ fn sun_synchronous_orbit_and_eccentricity_warning() {
     assert!(high.series.t.len() > 10);
     assert_eq!(high.series.channels[0].kind, ChannelKind::Altitude);
 }
+
+/// 大気のモデルは地球だけなので、地球以外の中心天体の高度低下は Earth の大気・自転で計算せずエラーにする
+/// （`rates` の地球専用の関数は、この入口の検査の後でしか呼ばれない）。
+#[test]
+fn non_earth_central_body_is_rejected_before_any_earth_only_function() {
+    use sat_astro::ephem::CentralBody;
+    for body in [CentralBody::Moon, CentralBody::Mars] {
+        let mut input = cubesat_3u(500e3);
+        input.orbit.central = body;
+        let err = OrbitDecay::run(&input).unwrap_err().to_string();
+        assert!(err.contains("地球以外の高度低下は未対応"), "{err}");
+    }
+}

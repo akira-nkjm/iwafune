@@ -121,7 +121,7 @@ impl Nrlmsise00Input {
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Nrlmsise00Output {
     /// 全質量密度 `[kg/m³]`。**異常酸素を含まない**（原典 `gtd7` の定義）。
-    /// 力モデル（[`crate::force::drag_eci`]）が使うのはこれ。
+    /// 力モデル（[`crate::force::earth_drag_eci`]）が使うのはこれ。
     pub total_mass_density_kg_m3: f64,
     /// He 数密度 `[m⁻³]`。
     pub he_m3: f64,

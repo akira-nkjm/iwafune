@@ -3,7 +3,7 @@
 //! - **捨てる量**: `momentum` を与えなければ、ホイールの最大角運動量の最大 × 使ってよい割合（既定 0.8）。
 //! - **MTQ**: 出せるトルクは `τ = η · m_eff · |B|`。`m_eff` は MTQ の組が機体のどの軸の向きにも出せる双極子の最小
 //!   （各機体軸 j について `Σ_i m_max,i |a_i·e_j|` を求め、その最小）。`|B|` は軌道に沿った磁場の大きさの時間平均
-//!   （`sat_astro::geomag::field_about_eci_t`、中心天体が地球以外なら 0。標本は `sat_astro::timeline::OrbitSampling`）。
+//!   （`sat_astro::geomag::field_about_eci_t`。磁場のモデルは地球だけで、ほかの中心天体の軌道ではエラー。標本は `sat_astro::timeline::OrbitSampling`）。
 //!   η は **双極子が B と直交する成分しかトルクにならず、B の向きが軌道上で変わることを見込んだ平均の有効率**で、
 //!   入力で与える（省略時 0.5。概算）。
 //! - **RCS**: スラスタの取付位置・推力の向きと重心から各スラスタのトルクを求め、捨てる向き（−ĥ）の成分が正の
@@ -16,6 +16,8 @@ use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_fraction,
     ensure_non_negative, ensure_positive,
 };
+use sat_astro::body::EnvironmentModel;
+use sat_astro::ephem::CentralBody;
 use sat_astro::geomag::field_about_eci_t;
 use sat_astro::math::Vec3;
 use sat_astro::timeline::{OrbitSampling, time_mean};
@@ -225,6 +227,20 @@ pub fn effective_dipole(mtqs: &[UnloadTimeMtq]) -> Result<f64, AnalysisError> {
 /// 地磁気の大きさの (平均, 最小, 最大) [T]。
 type FieldStats = (f64, f64, f64);
 
+/// 磁場のモデルが無い中心天体では、軌道から磁場を求められない（0 で計算して「MTQ のトルクが 0」と誤解させない）。
+fn ensure_field_model(central: CentralBody) -> Result<(), AnalysisError> {
+    let reason = match central.magnetic_field_model() {
+        EnvironmentModel::Modelled => return Ok(()),
+        EnvironmentModel::Absent => "この天体には磁場が無いので、MTQ では角運動量を捨てられません",
+        EnvironmentModel::NotModelled => {
+            "この天体の磁場のモデルがありません（地球の磁場だけを扱います）。磁場の大きさを直接与えてください"
+        }
+    };
+    Err(AnalysisError::InvalidInput(format!(
+        "{reason}（中心天体: {central:?}）"
+    )))
+}
+
 /// 地磁気の大きさの統計と軌道周期 [s]（軌道から求めたとき）。
 fn field_stats(field: &UnloadTimeField) -> Result<(FieldStats, Option<f64>), AnalysisError> {
     match field {
@@ -235,6 +251,7 @@ fn field_stats(field: &UnloadTimeField) -> Result<(FieldStats, Option<f64>), Ana
         UnloadTimeField::Orbit { sampling } => {
             // 磁場は位置だけで決まるので、姿勢則の要らない軌道の標本で求める（β の指定は RAAN に当てる）
             let central = sampling.orbit.central;
+            ensure_field_model(central)?;
             let points = sampling.states()?;
             let t: Vec<f64> = points.iter().map(|p| p.t_s).collect();
             let b: Vec<f64> = points
