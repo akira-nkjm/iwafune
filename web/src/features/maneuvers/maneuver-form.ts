@@ -14,9 +14,7 @@ export function maneuverCommand(text: ManeuverText, adding: boolean): CommandTex
   return adding ? { command: "maneuver_add", ...text } : { command: "maneuver_set", ...text };
 }
 
-/** スラスタに選べる部品（役割が推進系のスラスタか RCS のスラスタ。API の `PartRow.role` で選ぶ） */
+/** スラスタに選べる部品（選べるかは API の `PartRow.maneuver_thruster`。検査と同じ判定） */
 export function thrusterOptions(design: DesignView): { value: string; label: string }[] {
-  return design.parts
-    .filter((p) => p.role === "propulsion_thruster" || p.role === "thruster")
-    .map((p) => ({ value: p.id, label: p.id }));
+  return design.parts.filter((p) => p.maneuver_thruster).map((p) => ({ value: p.id, label: p.id }));
 }
