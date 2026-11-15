@@ -52,6 +52,17 @@ pub enum CentralBody {
     Neptune,
 }
 
+/// 中心天体で大気・磁場のモデルが使えるか。**0 を返す環境関数の 0 が「無い」のか「モデルが無い」のかを分ける。**
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnvironmentModel {
+    /// モデルがある（地球）
+    Modelled,
+    /// この天体には（この精度では）無い。0 が物理的に正しい（月の大気・磁場など）
+    Absent,
+    /// 天体には有るがモデルが無い。0 は正しくない（火星・金星の大気、木星の磁場など）
+    NotModelled,
+}
+
 impl CentralBody {
     /// 暦の天体（地球は暦の原点なので `None`）。
     pub fn as_body(self) -> Option<Body> {
@@ -106,6 +117,26 @@ impl CentralBody {
         match self {
             CentralBody::Earth | CentralBody::Moon => Some(AU),
             _ => None,
+        }
+    }
+
+    /// 大気のモデル（[`crate::atmosphere::density_about_kg_m3`]）が使えるか。地球だけがモデルを持つ。
+    /// 月・水星は大気が無い（水星の外気圏は無視できる）。それ以外は大気があるがモデルが無い。
+    pub fn atmosphere_model(self) -> EnvironmentModel {
+        match self {
+            CentralBody::Earth => EnvironmentModel::Modelled,
+            CentralBody::Moon | CentralBody::Mercury => EnvironmentModel::Absent,
+            _ => EnvironmentModel::NotModelled,
+        }
+    }
+
+    /// 磁場のモデル（[`crate::geomag::field_about_eci_t`]）が使えるか。地球だけがモデルを持つ。
+    /// 月・金星・火星は全球の双極子磁場が無い（火星の地殻磁場は無視する）。それ以外は磁場があるがモデルが無い。
+    pub fn magnetic_field_model(self) -> EnvironmentModel {
+        match self {
+            CentralBody::Earth => EnvironmentModel::Modelled,
+            CentralBody::Moon | CentralBody::Venus | CentralBody::Mars => EnvironmentModel::Absent,
+            _ => EnvironmentModel::NotModelled,
         }
     }
 

@@ -3,7 +3,7 @@
 
 use super::gravity;
 use super::{DragParams, GravityModel, SrpParams};
-use crate::atmosphere::density_kg_m3;
+use crate::atmosphere::earth_density_kg_m3;
 use crate::constants::{C_LIGHT, J2_EARTH, MU_EARTH, OMEGA_EARTH, R_EARTH};
 use crate::earth::{ecef_to_eci, eci_to_ecef};
 use crate::illumination::solar_flux_w_m2;
@@ -81,22 +81,23 @@ pub fn third_body_eci(gm: f64, r_body: Vec3, r_sat: Vec3) -> Vec3 {
     (d / dn.powi(3) - r_body / bn.powi(3)) * gm
 }
 
-/// 太陽輻射圧（キャノンボール、円錐影）。太陽から遠ざかる向き。
-pub fn srp_eci(p: &SrpParams, r_sat: Vec3, r_sun: Vec3) -> Vec3 {
+/// 太陽輻射圧（キャノンボール、地球の円錐影）。太陽から遠ざかる向き。**地球が中心のときだけ**（影が地球のもの。
+/// 中心天体を選ぶ力モデルは [`super::acceleration_breakdown_about`] が [`crate::shadow::central_shadow_factor`] で作る）。
+pub fn earth_srp_eci(p: &SrpParams, r_sat: Vec3, r_sun: Vec3) -> Vec3 {
     let nu = earth_shadow_factor(r_sat, r_sun, ShadowModel::Conical);
     srp_with_shadow(p, r_sat, r_sun, nu)
 }
 
-/// 大気抵抗（キャノンボール、大気は地球と共回転）。密度は [`crate::atmosphere::density_kg_m3`]。
+/// 大気抵抗（キャノンボール、大気は地球と共回転。**地球が中心のときだけ**）。密度は [`crate::atmosphere::earth_density_kg_m3`]。
 /// 加速度は [`drag_force`] に `Cd·A/m` を渡したもの。
-pub fn drag_eci(p: &DragParams, epoch: Epoch, state: &OrbitState) -> Vec3 {
-    let v_rel = relative_wind_eci(state.r_eci, state.v_eci);
-    let rho = density_kg_m3(&p.atmosphere, state.r_eci, epoch);
+pub fn earth_drag_eci(p: &DragParams, epoch: Epoch, state: &OrbitState) -> Vec3 {
+    let v_rel = earth_relative_wind_eci(state.r_eci, state.v_eci);
+    let rho = earth_density_kg_m3(&p.atmosphere, state.r_eci, epoch);
     drag_force(rho, p.cd * p.area_to_mass, v_rel)
 }
 
 /// 抗力 `F = −½ ρ (Cd·A) |v| v`。`rho` は大気密度 [kg/m³]、`cd_area` は抗力係数 × 面積 [m²]、
-/// `v_rel` は大気に対する速度 [m/s]（[`relative_wind_eci`] か、それを機体座標系に直したもの）。
+/// `v_rel` は大気に対する速度 [m/s]（[`earth_relative_wind_eci`] か、それを機体座標系に直したもの）。
 /// `cd_area` に `Cd·A/m` [m²/kg] を渡すと加速度 [m/s²]。**抗力の式はここだけ**（軌道の抗力と空力トルクで共有する）。
 pub fn drag_force(rho: f64, cd_area: f64, v_rel: Vec3) -> Vec3 {
     v_rel * (-0.5 * rho * cd_area * v_rel.norm())
@@ -122,6 +123,7 @@ pub fn srp_pressure(sun_distance_m: f64) -> f64 {
 }
 
 /// 地球と共回転する大気に対する衛星の速度（ECI）[m/s] = v − ω_E × r。抗力と空力トルクで共有する。
-pub fn relative_wind_eci(r_eci_m: Vec3, v_eci_m_s: Vec3) -> Vec3 {
+/// **地球が中心のときだけ**（`OMEGA_EARTH` と z 軸の自転軸を使う。ほかの天体では呼ばない）。
+pub fn earth_relative_wind_eci(r_eci_m: Vec3, v_eci_m_s: Vec3) -> Vec3 {
     v_eci_m_s - Vec3::new(0.0, 0.0, OMEGA_EARTH).cross(r_eci_m)
 }

@@ -71,7 +71,7 @@ fn info_of(ws: &Workspace, s: &Snapshot) -> ProjectInfo {
 pub fn design_view(ws: &Workspace) -> Result<DesignView> {
     let s = ws.snapshot()?;
     let d = &s.design;
-    let parts = parts::list(d, &s.resolved, &PartsQuery::default());
+    let parts = parts::list(d, &s.resolved, &s.diagnostics, &PartsQuery::default());
     Ok(DesignView {
         project: info_of(ws, &s),
         tree: views::tree(d),
@@ -112,7 +112,7 @@ pub fn maneuvers(ws: &Workspace) -> Result<Vec<crate::dto::ManeuverView>> {
 /// 部品の一覧（`GET /parts`）。
 pub fn list_parts(ws: &Workspace, q: &PartsQuery) -> Result<Vec<PartRow>> {
     let s = ws.snapshot()?;
-    Ok(parts::list(&s.design, &s.resolved, q))
+    Ok(parts::list(&s.design, &s.resolved, &s.diagnostics, q))
 }
 
 /// 1 部品の全情報（`GET /parts/{id}`・`fune part show`）。`req.ops` があれば、それを書き込まずに当てた設計で表示する
