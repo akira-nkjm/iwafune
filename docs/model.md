@@ -1,199 +1,199 @@
-# 設計モデルの構造とファイル形式
+# Design model structure and file formats
 
-設計データのモデルをどんな構造体で持つか、ファイルにどう置くかを書く。
+This document describes what structures hold the design-data model and how it is laid out in files.
 
-## 1. 結論
+## 1. Summary
 
-- **モデルは 4 つの層に分ける。** ファイル層 → Design（書かれたまま）→ Resolved（解決済み・SI・由来付き）→ Derived（計算結果）。
-  編集は Design に対して行い、解析は Resolved を読む。Derived は原則ファイルに保存しない（§9）。
-- **解析はモデルを知らない。** 解析ライブラリ側が「解析ごとの入力型」を定義し、fune-projection が Resolved からその型へ射影して渡す
-  （[architecture.md](architecture.md) §6.3）。足りない入力は「この解析には RW_X.max_momentum が要る」と名指しで返す。
-- **製品ツリーはディレクトリで表す。** 最上位は系の ID（`aocs` など）のディレクトリで、その下に組立品を入れ子にできる。`parts/` 直下の部品も許す。
-  自分の質量や取付先を持つ物理的な組立品は「部品ファイル＋同じ名前のディレクトリ」で表す（§6）。
-- **置き場所の原則**（§7）:
-  1 つの部品で完結する情報は部品ファイルに書く。複数の部品にまたがり、それ自体が名前や属性を持つもの（モード・ネット・ハーネス）は別ディレクトリにする。
-  所属は子が親を指す（部品のポートがネットを指す）。
-- **システム担当が決めるもの（配分・マージン方針）は `budget/` にまとめる**（§8）。サブシステムのディレクトリには置かない。
-- **ファイル形式は TOML。書き出しは 1.0 の範囲に留める**（§10）。表データは CSV、機械向けの交換は JSON。
-- **形式はコーデック層に閉じ込める。** model は TOML を知らず、store の `Codec` だけが知る。将来、形式を変えても model と解析に波及しない。
+- **The model is split into four layers.** File layer → Design (as written) → Resolved (resolved, in SI, with provenance) → Derived (computed results).
+  Edits are made against Design, and analyses read Resolved. Derived is not saved to files as a rule (§9).
+- **Analyses do not know the model.** The analysis library defines an input type for each analysis, and fune-projection projects Resolved onto that type and passes it in
+  ([architecture.md](architecture.md) §6.3). Missing inputs are reported by name, such as "this analysis needs RW_X.max_momentum".
+- **The product tree is expressed with directories.** The top level is a directory named by a subsystem ID (such as `aocs`), and assemblies can be nested below it. Parts directly under `parts/` are also allowed.
+  A physical assembly that has its own mass or mounting target is expressed as "a part file plus a directory of the same name" (§6).
+- **Placement principle** (§7):
+  Information that is complete within a single part goes in the part file. Things that span several parts and have their own names or attributes (modes, nets, harnesses) get their own directories.
+  Membership is expressed by the child pointing to the parent (a part's port points to a net).
+- **What the system lead decides (allocations and margin policy) is gathered in `budget/`** (§8). It is not placed in subsystem directories.
+- **The file format is TOML, and output is kept within TOML 1.0** (§10). Tabular data is CSV, and machine-oriented exchange uses JSON.
+- **Formats are confined to the codec layer.** The model does not know TOML; only the store's `Codec` does. Changing the format in the future does not ripple into the model or the analyses.
 
-### 1.1 前提条件と解析の区分
+### 1.1 Conditions and analysis categories
 
-前提条件は `conditions/orbit.toml`・`conditions/launch.toml`・`conditions/ground/<ID>.toml` に置く。
-設定の区分は `SettingScope::Conditions`（綴り `conditions`、表示名は「前提条件」／「Conditions」）。
-キーは `conditions.orbit.altitude`・`conditions.launch.<欄>`・`conditions.ground.<ID>.<欄>`。
-`mission/` は #9 のミッション・サクセスクライテリア・フェーズ用の予約ディレクトリで、現在は読み飛ばす。
-旧配置の軌道なども読まず、軌道の不足は既存の不足入力として返す。移行や旧キーの互換性は持たない。
+Conditions are placed in `conditions/orbit.toml`, `conditions/launch.toml` and `conditions/ground/<ID>.toml`.
+The settings category is `SettingScope::Conditions` (spelled `conditions`; the display name is "前提条件" / "Conditions").
+The keys are `conditions.orbit.altitude`, `conditions.launch.<field>` and `conditions.ground.<ID>.<field>`.
+`mission/` is a reserved directory for the mission, mission success criteria and phases (#9), and is currently skipped.
+Orbits and other items in the old layout are not read, and a missing orbit is reported as an existing missing input. There is no migration and no compatibility with old keys.
 
-解析の区分は `sat_analysis::spec::AnalysisArea`。`System(System)` と `Condition(ConditionTopic)` があり、
-最初の話題は `Orbit`（綴り `orbit`、表示名「軌道」／「Orbit」）。既存の 16 解析はすべて系の区分のままで、
-ID は `<区分のキー>.<解析名>`。話題と系のキーは重ならない。部品・バジェット・色・`parts/<系>/` は系のまま扱う。
-API の `AnalysisInfo.area` は `{ "kind": "system", "value": "power" }` または
-`{ "kind": "condition", "value": "orbit" }`。KPI は解析の区分に従って系／話題ごとに並べる。
+The analysis category is `sat_analysis::spec::AnalysisArea`. It has `System(System)` and `Condition(ConditionTopic)`,
+and the first topic is `Orbit` (spelled `orbit`; display name "軌道" / "Orbit"). All 16 existing analyses remain in the subsystem category,
+and their IDs are `<category key>.<analysis name>`. Topic keys and subsystem keys do not overlap. Parts, budgets, colors and `parts/<subsystem>/` are still handled by subsystem.
+The API's `AnalysisInfo.area` is `{ "kind": "system", "value": "power" }` or
+`{ "kind": "condition", "value": "orbit" }`. KPIs are arranged by subsystem or by topic according to the analysis category.
 
-話題の解析の設定はその条件のファイル内の表に置く（例: `conditions/orbit.toml` の `[eclipse_season]`、
-設定キーは `conditions.orbit.eclipse_season.<欄>`）。`analysis/orbit.toml` は作らない。
-話題の設定位置は `ConditionTopic::setting_path()` で引く。型付きの設定は未知の表・キーを受け入れない。
+The settings of a topic's analyses are placed in a table within that condition's file (for example, `[eclipse_season]` in `conditions/orbit.toml`;
+the setting key is `conditions.orbit.eclipse_season.<field>`). `analysis/orbit.toml` is not created.
+A topic's settings location is looked up with `ConditionTopic::setting_path()`. Typed settings do not accept unknown tables or keys.
 
-`conditions/orbit.toml` の `central` は軌道の中心天体（`earth`・`moon`・`sun`・`mercury`・`venus`・`mars`・`jupiter`・`saturn`・
-`uranus`・`neptune`。省略時は地球。表示名は labels.toml の `central_body`）。高度はこの天体の赤道半径から数え、μ・半径・J2・暦は
-`sat_astro::ephem::CentralBody` が持つ（projection の `context::central_body` が写す）。太陽同期（`sun_synchronous`）は地球だけで、
-地球以外に書くと `check` の error（`setting.central`）。
+`central` in `conditions/orbit.toml` is the central body of the orbit (`earth`, `moon`, `sun`, `mercury`, `venus`, `mars`, `jupiter`, `saturn`,
+`uranus`, `neptune`; Earth if omitted; the display name is `central_body` in labels.toml). Altitude is counted from this body's equatorial radius, and μ, radius, J2 and the ephemeris are held by
+`sat_astro::ephem::CentralBody` (projection's `context::central_body` maps them). Sun-synchronous (`sun_synchronous`) applies to Earth only;
+writing it for any other body is a `check` error (`setting.central`).
 
-`propagator` は軌道の伝搬（`kepler`・`j2`・`numerical`。省略は `j2`）。projection は `kepler` と `j2` を `sat_astro::orbit::Propagator` に
-そのまま写す。`numerical` は解析に**使わない**: 数値伝搬の力モデル（抗力・太陽輻射圧は機体の値が要る）の慣例の既定が sat-astro に無く、
-projection は既定を作らないので、時系列の解析は J2 の永年項（`j2`）で伝搬する。書くと `check` が warning（`setting.not_applied`）で知らせる
-（`numerical` は要素を接触要素として読むため、同じ数値でも `j2` とは別の軌道になる）。`orbit.decay` は伝搬の種類を使わず、自前の積分で高度低下を求める。
+`propagator` is the orbit propagation (`kepler`, `j2`, `numerical`; `j2` if omitted). Projection maps `kepler` and `j2` directly onto `sat_astro::orbit::Propagator`.
+`numerical` is **not used** by analyses: the force model of numerical propagation (drag and solar radiation pressure need values of the spacecraft) has no conventional default in sat-astro,
+and projection does not invent defaults, so time-series analyses propagate with the J2 secular terms (`j2`). Writing it makes `check` notify with a warning (`setting.not_applied`)
+(`numerical` reads the elements as osculating elements, so the same numbers give a different orbit from `j2`). `orbit.decay` does not use the propagator kind and finds the altitude decay with its own integration.
 
-`conditions/orbit.toml` の `duration` はミッション期間（時間の量、キー `conditions.orbit.duration`）。
-`[eclipse_season]` の任意の `step` も時間の量（キー `conditions.orbit.eclipse_season.step`）。
-読み書きは既存の条件ファイルの経路、次元の検査と projection は `setting_dims` の共通の表を使う。
-未入力の期間・刻みも設定の表に表示する。`duration` が無いと季節解析は不足入力となる。
+`duration` in `conditions/orbit.toml` is the mission duration (a time quantity, key `conditions.orbit.duration`).
+The optional `step` of `[eclipse_season]` is also a time quantity (key `conditions.orbit.eclipse_season.step`).
+Reading and writing go through the existing path for condition files, and dimension checking and projection use the common table in `setting_dims`.
+An unset duration and step are also shown in the settings table. Without `duration`, the season analysis reports a missing input.
 
 ```toml
-# conditions/orbit.toml（他の軌道要素と同じファイル）
+# conditions/orbit.toml (the same file as the other orbital elements)
 duration = { value = 1, unit = "yr" }
 
 [eclipse_season]
 step = { value = 1, unit = "day" }
 ```
 
-`orbit.eclipse_season` は `AnalysisArea::Condition(ConditionTopic::Orbit)`。
-入力は `OrbitSpec`・`duration`・任意の `step`。刻みの既定の1日は sat-analysis が持ち、projection は補わない。
-期間の始点・終点を含む標本ごとに、既存の `beta_angle_rad` で J2 の RAAN 歳差と太陽方向を考慮した β を求める。
-各標本の1周では太陽位置を固定し、既存の軌道伝搬と円錐影を5秒間隔で標本化する。
-本影（光の割合 0）と、本影を含まない半影（0 より大きく1未満）の時間は、既存の時間割合の台形則で集計する。
-境界の時間精度は各境界で標本間隔程度。短い蝕・半影は標本間に隠れることがある。
-影は中心天体の球（半径 `CentralBody::radius_m`。`shadow::central_shadow_factor`）で、太陽の位置は中心天体から見たもの。
-月周回で地球に隠される時間（月食）と、地球周回で月に隠される時間は含めない。太陽を中心天体とする軌道は β・蝕が無いので入力エラー。
+`orbit.eclipse_season` is `AnalysisArea::Condition(ConditionTopic::Orbit)`.
+Its inputs are `OrbitSpec`, `duration` and an optional `step`. The default step of 1 day is held by sat-analysis, and projection does not fill it in.
+For each sample including the start and end of the period, it finds β with the existing `beta_angle_rad`, taking the J2 RAAN precession and the Sun direction into account.
+Within one orbit of each sample the Sun position is fixed, and the existing orbit propagation and conical shadow are sampled at 5-second intervals.
+The durations of umbra (light fraction 0) and of penumbra not including umbra (greater than 0 and less than 1) are aggregated with the existing trapezoidal rule for time fractions.
+The time accuracy of the boundaries is about the sample interval at each boundary. Short eclipses and penumbrae can hide between samples.
+The shadow is cast by a sphere of the central body (radius `CentralBody::radius_m`; `shadow::central_shadow_factor`), and the Sun position is as seen from the central body.
+Time hidden by the Earth while orbiting the Moon (lunar eclipse) and time hidden by the Moon while orbiting the Earth are not included. An orbit with the Sun as central body has no β or eclipse, so it is an input error.
 
-出力 `points` は日付（UTC）・β [rad]・本影 [s]・半影 [s] の列、`series` は同じ値のグラフ用の系列。
-`longest` と `max_eclipse_duration` は本影と半影の合計が最大の標本と時間、
-`beta_min` / `beta_max` は符号付き β の極値とその標本。同じ極値は最初の日付を選ぶ。
-極値は標本の中で選び、日付間の真の極値を探索しない。
-`eclipse_free_samples` は蝕の無い標本の数（端数の終点も含む）、
-`eclipse_free_duration` は蝕なしフラグを季節の格子で台形積算した期間の推定値。
-季節の間隔 `step`、周回内の間隔 `shadow_step`、近似 `fixed_sun_per_orbit` も出す。
-判定は情報のみで checks は付けない。KPI は最長蝕と β の範囲の下端・上端を軌道の話題に並べる。
+The output `points` is a list of date (UTC), β [rad], umbra [s] and penumbra [s], and `series` is the same values as series for graphs.
+`longest` and `max_eclipse_duration` are the sample and duration with the largest sum of umbra and penumbra, and
+`beta_min` / `beta_max` are the extrema of signed β and their samples. For equal extrema, the first date is chosen.
+Extrema are chosen among the samples; the true extremum between dates is not searched for.
+`eclipse_free_samples` is the number of samples with no eclipse (including a fractional end point), and
+`eclipse_free_duration` is an estimate of the eclipse-free period obtained by trapezoidal integration of the no-eclipse flag over the season grid.
+It also outputs the season interval `step`, the in-orbit interval `shadow_step` and the approximation `fixed_sun_per_orbit`.
+The verdict is informational only and no checks are attached. The KPIs list the longest eclipse and the lower and upper ends of the β range under the orbit topic.
 
-`fune case from-eclipse <新しいID> --at longest|beta_min [--mode <モード>]` は
-service の `case_from_eclipse_op` で最新の条件を再解析し、既存の `SetCase` Op を作る。
-HTTP は `POST /ops/case_from_eclipse` に `{ "id": "season_longest", "at": "longest", "mode": null }` を送り、
-返る Op を通常の `POST /ops` で保存する。GUI の軌道ページもこの入口を使い、プレビュー・CLI 表示を共用する。
-ケースには β（rad）と任意のモードを保存する。ケースは元期の欄を持たないので、標本の日付は description に記録する。
-これは β の代表条件を再利用するケースであり、description の日付で後続の解析の元期を変えるものではない。
-既存 ID の上書き・未知のモードは拒否する。`to_cli` は値と日付を保持した `fune case set` を返す。
+`fune case from-eclipse <new ID> --at longest|beta_min [--mode <mode>]` re-analyzes the latest conditions with
+the service's `case_from_eclipse_op` and builds an existing `SetCase` Op.
+HTTP sends `{ "id": "season_longest", "at": "longest", "mode": null }` to `POST /ops/case_from_eclipse`
+and saves the returned Op with the ordinary `POST /ops`. The GUI's orbit page uses the same entry point, so the preview and the CLI output are shared.
+The case stores β (rad) and an optional mode. A case has no epoch field, so the sample's date is recorded in the description.
+This is a case that reuses a representative β condition; it does not change the epoch of later analyses through the date in the description.
+Overwriting an existing ID and unknown modes are rejected. `to_cli` returns a `fune case set` that keeps the value and the date.
 
-#### 大気抵抗による高度低下と軌道維持（`orbit.decay`）
+#### Altitude decay by atmospheric drag and orbit maintenance (`orbit.decay`)
 
-`orbit.decay` も `AnalysisArea::Condition(ConditionTopic::Orbit)`。設定は `conditions/orbit.toml` の `[decay]`（どれも任意。既定値は解析が持つ）。
+`orbit.decay` is also `AnalysisArea::Condition(ConditionTopic::Orbit)`. Its settings are `[decay]` in `conditions/orbit.toml` (all optional; the defaults are held by the analysis).
 
 ```toml
 [decay]
-span             = { value = 25, unit = "yr" }   # 積分の期間の上限（既定 25 年）
-reentry_altitude = { value = 120, unit = "km" }  # 再突入とみなす近地点の高度（既定 120 km）
-drag_area        = { value = 0.06, unit = "m^2" } # 抗力の面積（無ければ構体の外形の箱を向きでならした面積 = 表面積/4）
-band             = { value = 2, unit = "km" }    # 軌道維持の高度の帯（無ければ抗力を連続して打ち消す）
-max_lifetime     = { value = 25, unit = "yr" }   # 寿命の上限（廃棄の要求）
+span             = { value = 25, unit = "yr" }   # upper limit of the integration span (default 25 years)
+reentry_altitude = { value = 120, unit = "km" }  # perigee altitude regarded as reentry (default 120 km)
+drag_area        = { value = 0.06, unit = "m^2" } # drag area (if absent, the area of the structure's bounding box averaged over orientation = surface area / 4)
+band             = { value = 2, unit = "km" }    # altitude band for orbit maintenance (if absent, drag is cancelled continuously)
+max_lifetime     = { value = 25, unit = "yr" }   # upper limit of lifetime (disposal requirement)
 ```
 
-入力のほかの値は既存のものを使う: 軌道（`conditions/orbit.toml`。ケースの β は使わない）、質量（部品の質量特性の合計）、
-外形（構体の `size`。空力トルクと同じ `aocs::reference_box`）、抗力係数（`analysis.aocs.drag_coefficient`、無ければ 2.2）、
-ミッション期間（`duration`。寿命の判定と、軌道維持の ΔV を積算する期間。無ければ 1 年）。
-軌道維持の推薬は推進系の解析（`propulsion.propellant`、§7.7）の使える推薬（マージン込みで使う推薬）で、ここに推薬を書かない。
-比推力は推進系のスラスタのうち最も低いもの（保守側）、噴射前の質量は推薬を積んだ質量（`wet_mass`）。使った推薬とスラスタは結果の
-`used.propellant`・`used.thruster` に出る。推進系（マヌーバか推進系の部品）が無ければ推薬の寿命を求めず、有れば推進系の入力が要る
-（足りなければ高度低下も不足の入力）。以前の `[decay]` の `propellant` は読めるまま使わず、`check` が warning（`setting.moved`）で
-外すよう促す（`fune setting unset conditions.orbit.decay.propellant`）。
+Other input values use existing ones: the orbit (`conditions/orbit.toml`; the case β is not used), the mass (the sum of the parts' mass properties),
+the outer shape (the structure's `size`; the same `aocs::reference_box` as for aerodynamic torque), the drag coefficient (`analysis.aocs.drag_coefficient`, 2.2 if absent), and
+the mission duration (`duration`; the period used to judge lifetime and to accumulate the orbit-maintenance ΔV; 1 year if absent).
+The propellant for orbit maintenance is the usable propellant of the propulsion analysis (`propulsion.propellant`, §7.7) (the propellant used with margin included); the propellant is not written here.
+The specific impulse is the lowest among the propulsion subsystem's thrusters (conservative side), and the mass before firing is the mass with propellant loaded (`wet_mass`). The propellant and thruster used appear in the result's
+`used.propellant` and `used.thruster`. Without a propulsion subsystem (maneuvers or propulsion parts), the propellant lifetime is not computed; with one, the propulsion inputs are required
+(if they are missing, the altitude decay is also a missing input). The earlier `propellant` in `[decay]` is no longer read or used, and `check` urges removing it with a warning (`setting.moved`)
+(`fune setting unset conditions.orbit.decay.propellant`).
 
-**方法（周回平均の半解析）**: 長半径 `a` と RAAN を状態に、1 周の平均の長半径の変化率
-`da/dt = 2a²/μ ⟨v · a_D⟩`（Gauss の惑星方程式のエネルギーの式）を RK4 で積分する。`a_D` は NRLMSISE-00 の密度・
-共回転大気に対する相対速度・`Cd·A/m` の抗力の加速度で、1 周を等時間間隔の 12 点で標本化し台形則で平均する
-（24・48 点と 4 桁一致）。赤道の円軌道・高度だけの大気では King-Hele の `da/dt = −ρ (Cd·A/m) √(μa) (1 − ω_E a/v)²` に一致する
-（試験で確かめる）。RAAN は J2 の永年変化率で進める（太陽同期でない軌道では、昼側の大気の膨らみに対する軌道面の向きが変わる）。
-刻みは 1 刻みの高度低下 1 km 以下・10 分〜10 日で、宇宙天気の標本の境目で切る。再突入は近地点の高度が再突入の高度を下回った時刻（刻みの中は線形補間）。
-軌道維持の ΔV は進行方向の抗力を打ち消す推力 `−v̂ · a_D` の積分（帯があれば、帯の下端で元の高度へ瞬時に戻すまでの積分。1 次の近似で上げる ΔV に等しい）。
-推薬の寿命は使える推薬をすべて使った ΔV（`sat_astro::rocket`）を 1 年の ΔV で割ったもの。
+**Method (orbit-averaged semi-analytic)**: With the semi-major axis `a` and the RAAN as state, the orbit-averaged rate of change of the semi-major axis over one orbit,
+`da/dt = 2a²/μ ⟨v · a_D⟩` (the energy form of Gauss's planetary equations), is integrated with RK4. `a_D` is the drag acceleration from the NRLMSISE-00 density,
+the velocity relative to the co-rotating atmosphere, and `Cd·A/m`; one orbit is sampled at 12 equally spaced points and averaged with the trapezoidal rule
+(agreeing with 24 and 48 points to 4 digits). For a circular equatorial orbit with an altitude-only atmosphere it agrees with King-Hele's `da/dt = −ρ (Cd·A/m) √(μa) (1 − ω_E a/v)²`
+(confirmed by tests). The RAAN advances at the J2 secular rate (for orbits that are not sun-synchronous, the orientation of the orbital plane relative to the dayside atmospheric bulge changes).
+The step is at most 1 km of altitude decay per step and between 10 minutes and 10 days, and is cut at the boundaries of the space-weather samples. Reentry is the time when the perigee altitude falls below the reentry altitude (linearly interpolated within a step).
+The orbit-maintenance ΔV is the integral of the thrust `−v̂ · a_D` that cancels along-track drag (with a band, the integral until the orbit is returned instantly to the original altitude at the lower edge of the band; equal to the ΔV to raise it, to first-order approximation).
+The propellant lifetime is the ΔV obtained by using all the usable propellant (`sat_astro::rocket`) divided by the ΔV per year.
 
-**適用の範囲**: 近円軌道（離心率 0.01 を超えると注意を出す。離心率と近地点引数の変化は追わない）、高度およそ 180〜1000 km。
-面積・Cd は一定（姿勢やパネルの向きは面積の与え方で見込む）。1 周の平均は世界時の 1 日の変化を拾うので、刻みの違いで ΔV が 1% ほど揺れる。
+**Range of applicability**: near-circular orbits (a caution is issued above eccentricity 0.01; changes in eccentricity and argument of perigee are not tracked), altitude of roughly 180 to 1000 km.
+Area and Cd are constant (attitude and panel orientation are accounted for by how the area is given). The one-orbit average picks up the daily change in universal time, so ΔV fluctuates by about 1% depending on the step.
 
-**太陽活動の条件**: ECSS-E-ST-10-04C Table 6-3 の長期の値（低 F10.7 = 65・Ap = 0、中 140・15、高 250・45）を全期間で一定にした 3 条件と、
-宇宙天気の表（`fune data fetch space_weather`）があれば日付で引いた条件 `dated`。service が 27 日ごとに `space_weather_at` で引いた列を入力に足し、
-使った表の版（取得元・取得日時・SHA-256・範囲）を結果の `space_weather` に残す。表の外と欠けた値は中程度のプリセットで、
-F10.7 と Ap それぞれの出所の数と、予測値・プリセットを使い始めた日時を `weather_sources` に返す（表の月ごとの予測は Ap を持たない）。
+**Solar activity conditions**: three conditions that hold the long-term values of ECSS-E-ST-10-04C Table 6-3 constant over the whole period (low F10.7 = 65, Ap = 0; medium 140, 15; high 250, 45), plus,
+when a space-weather table is present (`fune data fetch space_weather`), the condition `dated` looked up by date. The service adds to the input a series looked up with `space_weather_at` every 27 days, and
+leaves the version of the table used (source, retrieval time, SHA-256, range) in the result's `space_weather`. Outside the table and for missing values the medium preset is used, and
+the number of sources for each of F10.7 and Ap, and the time at which forecast values or presets began to be used, are returned in `weather_sources` (the table's monthly forecasts have no Ap).
 
-**判定**: ミッション期間より早く再突入する条件があれば注意（軌道維持が要る）。寿命の上限は代表の条件（`dated`、無ければ中程度）で判定する
-（低いプリセットを何十年も保つのは太陽周期を無視した極端な仮定なので使わない）。積分の期間の中で再突入しなければ、期間が上限より短いときは注意。
-推薬の寿命がミッション期間に届かない条件があれば注意。KPI は最短の寿命・最大の 1 日の高度低下・最大の 1 年の軌道維持の ΔV。
+**Verdict**: a caution is issued if any condition reenters earlier than the mission duration (orbit maintenance is needed). The lifetime limit is judged with the representative condition (`dated`, or medium if absent)
+(keeping the low preset for decades is an extreme assumption that ignores the solar cycle, so it is not used). If it does not reenter within the integration span, a caution is issued when the span is shorter than the limit.
+A caution is issued if any condition has a propellant lifetime that does not reach the mission duration. The KPIs are the shortest lifetime, the largest one-day altitude decay and the largest one-year orbit-maintenance ΔV.
 
-**桁の確認（試験）**: 500 km の 3U CubeSat（4 kg・0.039 m²・Cd 2.2）の寿命は中程度で約 2.6 年・高で約 0.7 年（Oltrogge & Leveque, SSC11-VII-2, 2011 の
-500 km の 3U の 2〜10 年、NASA の CubeSat 101 の「500 km は数年」）。400 km は中程度で約 0.5 年。ISS 級（m/(Cd·A) ≈ 130 kg/m²・410 km・51.6°）は
-中程度で月に約 3 km、高で約 11 km（NASA の説明の「月に平均 2 km ほど」と同じ桁）。
+**Order-of-magnitude checks (tests)**: for a 3U CubeSat at 500 km (4 kg, 0.039 m², Cd 2.2), the lifetime is about 2.6 years for medium and about 0.7 years for high (Oltrogge & Leveque, SSC11-VII-2, 2011 gives
+2 to 10 years for a 3U at 500 km, and NASA's CubeSat 101 says "a few years at 500 km"). At 400 km it is about 0.5 years for medium. For an ISS-class case (m/(Cd·A) ≈ 130 kg/m², 410 km, 51.6°), the decay is
+about 3 km per month for medium and about 11 km for high (the same order as NASA's explanation of "about 2 km per month on average").
 
 
-## 2. 層の構成
+## 2. Layer structure
 
-| 層 | 中身 | 誰が作るか | 誰が使うか | 保存 |
+| Layer | Contents | Created by | Used by | Storage |
 |---|---|---|---|---|
-| ファイル層 | ファイルごとの `toml_edit::DocumentMut` と位置情報 | store（Codec） | store の書き込み | git の作業ツリー |
-| Design | 書かれたままの値（`0.62 kg`、`1.0 mN*m` は単位も書かれたまま）、出典、ファイル位置。型付き ID で正規化 | store の読み込み + 構造検査 | ops（編集の対象）、GUI の「元の値」表示 | ファイル層そのもの |
-| Resolved | カタログ・kind・上書きを重ねた各部品の値（SI）、値の出所（catalog / override / derived）、根拠の最弱値、取付をたどった機体座標、選択中の候補 | `resolve(&Design)`（純粋関数） | 解析への射影、GUI の表、check() | しない（毎回作り直す。数千件で数十 ms） |
-| Derived | 質量特性（総質量・重心・慣性）、バジェット、解析・SIM の結果 | budget、解析ライブラリ、SIM | GUI、CLI、PR コメント | 原則しない。出力先は §9 |
+| File layer | A `toml_edit::DocumentMut` per file, and position information | store (Codec) | the store's writes | the git working tree |
+| Design | Values as written (`0.62 kg`; `1.0 mN*m` keeps its unit as written), sources, file locations. Normalized with typed IDs | the store's read + structural checks | ops (the target of edits), the GUI's "original value" display | the file layer itself |
+| Resolved | Each part's values (SI) with catalog, kind and overrides layered, the origin of values (catalog / override / derived), the weakest evidence, body-frame coordinates obtained by following mounts, the selected candidate | `resolve(&Design)` (a pure function) | projection to analyses, GUI tables, check() | no (rebuilt each time; tens of ms for thousands of items) |
+| Derived | Mass properties (total mass, center of mass, inertia), budgets, analysis and SIM results | budget, the analysis library, SIM | GUI, CLI, PR comments | not as a rule. Output location in §9 |
 
 ```mermaid
 flowchart LR
-  F["ファイル層<br/>TOML / CSV"] -->|"Codec.read"| D["Design<br/>書かれたまま"]
-  D -->|"resolve()"| R["Resolved<br/>SI・由来付き"]
-  R -->|"project()"| I["解析ごとの入力型"]
-  I --> A["解析ライブラリ / SIM"]
-  A --> X["Derived<br/>バジェット・解析結果"]
-  O["Op（編集）"] -->|"plan / apply"| F
+  F["File layer<br/>TOML / CSV"] -->|"Codec.read"| D["Design<br/>as written"]
+  D -->|"resolve()"| R["Resolved<br/>SI, with provenance"]
+  R -->|"project()"| I["Per-analysis input types"]
+  I --> A["Analysis library / SIM"]
+  A --> X["Derived<br/>budgets, analysis results"]
+  O["Op (edit)"] -->|"plan / apply"| F
 ```
 
-## 3. エンティティ
+## 3. Entities
 
-| エンティティ | 役割 | ファイル | 主な中身 |
+| Entity | Role | File | Main contents |
 |---|---|---|---|
-| Project | プロジェクト全体の設定 | `fune.toml` | schema 版、書き出す TOML の版、共有カタログの参照 |
-| Allocation | 配分 | `budget/allocation.toml` | 質量・電力などの上限、システムマージン、系（または部品）ごとの配分 |
-| BudgetPolicy | マージン方針 | `budget/policy.toml` | 成熟度ごとの成長余裕、不確かさの既定幅、ハーネスの見込み |
-| AttributeDef | 量の種類（quantity kind） | `defs/attribute/<id>.toml` | 値の型、次元、許可単位、表示単位、値域、状態で引くか、どのバジェットに入るか |
-| KindDef | 部品の種別 | `defs/kind/<id>.toml` | 継承元、必須・任意の属性、機器の状態の語彙（off / standby / on …）、ポートの雛形、role |
-| CatalogItem | 購入品・設計品の定義（ElementDefinition） | 共有カタログ or `catalog/<id>.toml` | kind、型番、成熟度、タグ（`tags = ["flight_proven", "domestic"]`。製造元でも kind でもない自由な分類。空なら書かない。`fune catalog set <品> tags a,b`・`unset`。タグは空でなく、前後に空白と `,` を含まず、同じ品の中で重複しない）、属性値、ポートの値、形状、データシートの出典（出典の ID。§7.8） |
-| Group | 系・入れ子のフォルダ | `parts/` 以下の、同名ファイルを持たないディレクトリ（最上位は系 ID） | なし（系の表示名は組み込みの語彙、配分は `budget/allocation.toml`） |
-| Part | 製品ツリー上の使用（ElementUsage） | `parts/<…>/<ID>.toml` | 定義（catalog / kind）、トレード候補、員数・冗長、取付先と相対姿勢、上書き値、ポートの所属ネット |
-| Mode | 衛星の運用モード | `modes/<ID>.toml` | 継続時間、部品 → {状態, 時間割合, 稼働台数, 予備状態}、蝕の上書き |
-| Net | 電気的な接続（論理） | `nets/<ID>.toml` | 種類（power / data / rf）、レール電圧、供給元ポート、電流制限、プロトコル |
-| Harness | ケーブル区間（物理） | `harness/<ID>.toml` | 両端のポート、通すネット、線材、芯数、長さ |
-| Case | 解析ケース | `cases/<ID>.toml` | モードまたはモード時系列、不確かさのどちら側を読むか、軌道、姿勢則、環境条件、期間 |
-| Maneuver | マヌーバ | `maneuvers/<ID>.toml` | 区分（ΔV バジェットの行）、計算の段階、スラスタ、前のマヌーバ、目標の軌道、細かい段階だけの制約（§7.7） |
-| Source | 出典の台帳 | `sources/<ID>.toml` | 種類（datasheet / measured / analysis / judgement / placeholder）、参照先、日付、記入者 |
-| Source | 出典の台帳 | `sources/<ID>.toml` | 種類（datasheet / measured / analysis / judgement / placeholder）、参照先、資料の版・取得日・SHA-256・配布の区分、日付、記入者（§7.8） |
-| Requirement | 要求（軽量） | `requirements/<ID>.toml` | 文、対象の量、制約、「全モード・全ケースで」などの量化。正式な判定は外部の検証ツールに書き出す |
-| Table | 表データ | `tables/<ID>.csv` + `tables/<ID>.toml` | 曲線や特性表。列ごとの単位は TOML 側で宣言 |
-| View | 見た目だけの情報（Design の外） | `view/…` | 系統図の座標、3D のカメラ |
+| Project | Settings for the whole project | `fune.toml` | schema version, the TOML version to write, references to shared catalogs |
+| Allocation | Allocation | `budget/allocation.toml` | limits for mass, power and so on, system margin, allocation per subsystem (or per part) |
+| BudgetPolicy | Margin policy | `budget/policy.toml` | growth margin per maturity, default width of uncertainty, harness allowance |
+| AttributeDef | Quantity kind | `defs/attribute/<id>.toml` | value type, dimension, allowed units, display unit, value range, whether it is looked up by state, which budget it enters |
+| KindDef | Part kind | `defs/kind/<id>.toml` | parent kind, required and optional attributes, vocabulary of equipment states (off / standby / on …), port templates, role |
+| CatalogItem | Definition of a purchased or designed item (ElementDefinition) | shared catalog or `catalog/<id>.toml` | kind, model number, maturity, tags (`tags = ["flight_proven", "domestic"]`: a free classification that is neither manufacturer nor kind; omitted when empty; `fune catalog set <item> tags a,b` / `unset`; a tag is non-empty, has no leading or trailing whitespace and no `,`, and is not duplicated within the same item), attribute values, port values, shape, the datasheet source (a source ID; §7.8) |
+| Group | Subsystem or nested folder | a directory under `parts/` that has no same-named file (the top level is a subsystem ID) | none (the subsystem's display name is a built-in vocabulary entry; allocations are in `budget/allocation.toml`) |
+| Part | A use in the product tree (ElementUsage) | `parts/<…>/<ID>.toml` | definition (catalog / kind), trade candidates, count and redundancy, mounting target and relative attitude, override values, the nets the ports belong to |
+| Mode | The satellite's operating mode | `modes/<ID>.toml` | duration, part → {state, time fraction, active count, spare state}, eclipse override |
+| Net | Electrical connection (logical) | `nets/<ID>.toml` | kind (power / data / rf), rail voltage, source port, current limit, protocol |
+| Harness | Cable segment (physical) | `harness/<ID>.toml` | ports at both ends, the nets it carries, wire, number of cores, length |
+| Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, which side of the uncertainty to read, orbit, attitude law, environment conditions, period |
+| Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only (§7.7) |
+| Source | Ledger of sources | `sources/<ID>.toml` | kind (datasheet / measured / analysis / judgement / placeholder), reference, date, author |
+| Source | Ledger of sources | `sources/<ID>.toml` | kind (datasheet / measured / analysis / judgement / placeholder), reference, document version, retrieval date, SHA-256, distribution category, date, author (§7.8) |
+| Requirement | Requirement (lightweight) | `requirements/<ID>.toml` | statement, target quantity, constraint, quantification such as "in all modes and all cases". Formal verdicts are written out to external verification tools |
+| Table | Tabular data | `tables/<ID>.csv` + `tables/<ID>.toml` | curves and characteristic tables. Units per column are declared on the TOML side |
+| View | Presentation-only information (outside Design) | `view/…` | coordinates of the system diagram, the 3D camera |
 
-### 3.1 種別の役割と状態
+### 3.1 Roles and states of kinds
 
-- 種別の `role` は `fune_model::builtin::Role`（`enum_text!`）の値。綴りは `builtin/role.rs` の 1 か所で定義し、未知の役割は serde の読み込みで拒む。省略時は継承元の役割、継承元にも無ければ役割なし。独自の種別 ID は自由だが、役割の語彙は追加しない。
-- 役割の表示名は対応する組み込み種別の日英名。`labels.role_system` は Role をキーに全役割の系を持つ（系に属さない対応は `None` と明示）。API の役割は TS の `Role` 型で返し、Web のアイコン表は全役割を網羅する。
-- 状態の語彙は種別ごとに自由に定義する。慣例の停止状態だけは `fune_model::builtin::STATE_OFF` を使い、既定状態を選ぶ処理でもこの定数を参照する（列挙型にはしない）。スラスタの役割の種別は噴射の状態 `STATE_THRUSTER_FIRING`（`on`）を語彙に持つ慣例で、無ければ `fune check` が warning（`def.thruster_firing_state`）を出す。
+- A kind's `role` is a value of `fune_model::builtin::Role` (`enum_text!`). Its spelling is defined in one place, `builtin/role.rs`, and unknown roles are rejected when serde reads them. If omitted, the parent kind's role is used, and if the parent has none, there is no role. Custom kind IDs are free, but the vocabulary of roles is not extended.
+- A role's display name is the Japanese and English name of the corresponding built-in kind. `labels.role_system` holds the subsystem of every role, keyed by Role (correspondences that belong to no subsystem are made explicit as `None`). The API returns roles as the TS `Role` type, and the Web icon table covers all roles.
+- The vocabulary of states is defined freely per kind. Only the conventional stopped state uses `fune_model::builtin::STATE_OFF`, and the processing that chooses the default state also refers to this constant (it is not made an enum). The convention is that a kind with the thruster role has the firing state `STATE_THRUSTER_FIRING` (`on`) in its vocabulary; if it does not, `fune check` emits a warning (`def.thruster_firing_state`).
 
-## 4. Rust の型（Design 層）
+## 4. Rust types (Design layer)
 
 ```rust
-/// 型付き ID。ファイル名（またはディレクトリ名）の stem と一致し、全体で一意（大文字小文字を無視して比較）。
+/// Typed ID. Matches the stem of the file name (or directory name) and is unique overall (compared case-insensitively).
 pub struct Id<T> { name: SmolStr, _t: PhantomData<fn() -> T> }
 
-/// 書かれたままの設計。不変のスナップショットで、編集のたびに新しいものを作る。
+/// The design as written. An immutable snapshot; a new one is made on every edit.
 pub struct Design {
     pub project: Project,
-    pub budget: Budget,                                    // budget/allocation.toml と policy.toml
+    pub budget: Budget,                                    // budget/allocation.toml and policy.toml
     pub attributes: BTreeMap<Id<AttributeDef>, Arc<AttributeDef>>,
     pub kinds: BTreeMap<Id<KindDef>, Arc<KindDef>>,
-    pub catalog: BTreeMap<CatalogRef, Arc<CatalogItem>>,   // "lab/rw_18mNms" のように出所付き
-    pub groups: BTreeMap<Id<Group>, Group>,                // 同名ファイルを持たないディレクトリ
+    pub catalog: BTreeMap<CatalogRef, Arc<CatalogItem>>,   // with an origin, such as "lab/rw_18mNms"
+    pub groups: BTreeMap<Id<Group>, Group>,                // directories with no same-named file
     pub parts: BTreeMap<Id<Part>, Arc<Part>>,
     pub modes: BTreeMap<Id<Mode>, Arc<Mode>>,
     pub nets: BTreeMap<Id<Net>, Arc<Net>>,
@@ -202,38 +202,38 @@ pub struct Design {
     pub sources: BTreeMap<Id<Source>, Arc<Source>>,
     pub requirements: BTreeMap<Id<Requirement>, Arc<Requirement>>,
     pub tables: BTreeMap<Id<Table>, Arc<TableDecl>>,
-    pub revision: Revision,                                // 追跡ファイルの (path, bytes) の BLAKE3
+    pub revision: Revision,                                // BLAKE3 of the tracked files' (path, bytes)
 }
 
-/// 製品ツリーのノード。Group と Part の ID は同じ名前空間で一意。
+/// A node of the product tree. Group and Part IDs are unique within the same namespace.
 pub enum NodeRef { Group(Id<Group>), Part(Id<Part>) }
 
 pub struct Group {
-    pub parent: Option<NodeRef>,           // ディレクトリから決まる
+    pub parent: Option<NodeRef>,           // determined by the directory
 }
 
 pub struct Part {
-    pub parent: Option<NodeRef>,           // ディレクトリから決まる（ファイルには書かない）
+    pub parent: Option<NodeRef>,           // determined by the directory (not written in the file)
     pub def: PartDef,                      // Catalog(CatalogRef) | Kind(Id<KindDef>)
-    pub candidates: Vec<CatalogRef>,       // トレード候補。def の catalog が選択中の 1 つ
-    pub count: u32,                        // 員数。個別の姿勢や配線が要るなら別の Part にする
-    pub redundancy: Redundancy,            // none（既定）/ cold / warm
-    pub mount: Option<Mount>,              // 取付先の Part と取付点
-    pub pose: Option<Pose>,                // 取付点の座標系に対する相対位置・姿勢
-    pub mount_points: BTreeMap<Id<MountPoint>, Pose>,       // 自分に他の部品を付ける点
-    pub attr: BTreeMap<Id<AttributeDef>, Authored<Value>>,  // カタログ値への上書き
-    pub ports: BTreeMap<Id<Port>, PortBinding>,             // ポート → 所属ネット
+    pub candidates: Vec<CatalogRef>,       // trade candidates. The catalog in def is the selected one
+    pub count: u32,                        // count. If individual attitudes or wiring are needed, make them separate Parts
+    pub redundancy: Redundancy,            // none (default) / cold / warm
+    pub mount: Option<Mount>,              // the mounting target Part and mount point
+    pub pose: Option<Pose>,                // position and attitude relative to the mount point's frame
+    pub mount_points: BTreeMap<Id<MountPoint>, Pose>,       // points where other parts attach to this one
+    pub attr: BTreeMap<Id<AttributeDef>, Authored<Value>>,  // overrides of catalog values
+    pub ports: BTreeMap<Id<Port>, PortBinding>,             // port → the net it belongs to
     pub maturity: Option<Maturity>,        // off_the_shelf / modified / new
     pub loc: Loc,
 }
 
-/// 書かれた値と、その出典と位置。
+/// A written value, with its source and location.
 pub struct Authored<T> { pub value: T, pub from: Option<From>, pub loc: Loc }
 
-/// 値の型は AttributeDef が宣言し、読み込み時に一致を検査する。
+/// The value type is declared by AttributeDef, and the match is checked at load time.
 pub enum Value {
     Scalar(Uncertain<Quantity>),
-    ByState(BTreeMap<Id<State>, Uncertain<Quantity>>),   // 機器の状態ごと（電力・発熱など）
+    ByState(BTreeMap<Id<State>, Uncertain<Quantity>>),   // per equipment state (power, heat dissipation, etc.)
     Vec3 { x: f64, y: f64, z: f64, unit: UnitExpr, frame: FrameRef },
     Quat { w: f64, x: f64, y: f64, z: f64 },
     Tensor3 { m: [[f64; 3]; 3], unit: UnitExpr, frame: FrameRef },
@@ -244,25 +244,25 @@ pub enum Value {
     Table(Id<Table>),
 }
 
-/// 書かれたままの数値と単位。mN*m は mN*m のまま持ち、SI への換算は Resolved で行う。
+/// The number and unit as written. mN*m is kept as mN*m, and conversion to SI is done in Resolved.
 pub struct Quantity { pub number: f64, pub unit: UnitExpr }
 
-/// nominal と任意の不確かさ。どちら側を読むかは解析ケースが決める。
+/// A nominal value and optional uncertainty. Which side to read is decided by the analysis case.
 pub struct Uncertain<T> { pub nominal: T, pub min: Option<T>, pub max: Option<T> }
 
 pub struct Mode {
     pub label: String,
     pub description: Option<String>,
     pub states: BTreeMap<Id<Part>, StateAssign>,
-    pub max_duration: Option<Quantity>,    // 時間の次元。power.energy_balance の判定に使う（§5.1）
-    pub eclipse: BTreeMap<Id<Part>, StateAssign>, // 書いた部品だけ蝕時に置換
+    pub max_duration: Option<Quantity>,    // time dimension. Used for the verdict of power.energy_balance (§5.1)
+    pub eclipse: BTreeMap<Id<Part>, StateAssign>, // only the parts written here are replaced during eclipse
 }
-/// 基本の状態と、ほかの状態で過ごす時間の割合。割合の残りは基本の状態。
+/// The base state, and the fraction of time spent in other states. The remainder of the fractions is the base state.
 pub struct StateAssign {
     pub state: Id<State>,
     pub duty: BTreeMap<Id<State>, f64>,
-    pub active: Option<u32>,               // 省略は全台
-    pub spare_state: Option<String>,      // warm の予備状態の明示
+    pub active: Option<u32>,               // omitted means all units
+    pub spare_state: Option<String>,      // explicit spare state for warm redundancy
 }
 pub enum Redundancy { None, Cold, Warm }
 
@@ -271,7 +271,7 @@ pub struct PortBinding { pub net: Id<Net> }
 pub struct Net {
     pub kind: NetKind,                     // Power / Data / Rf
     pub label: Option<String>,
-    pub source: Option<PortRef>,           // 電源の供給元（"PCDU.OUT3"）
+    pub source: Option<PortRef>,           // the power source ("PCDU.OUT3")
     pub rail: Option<Authored<Quantity>>,
     pub limit: Option<Authored<Quantity>>,
     pub protocol: Option<Symbol>,
@@ -284,7 +284,7 @@ pub struct Harness {
     pub from: PortRef,
     pub to: PortRef,
     pub nets: Vec<Id<Net>>,
-    pub wire: CatalogRef,                  // 線材（単位長さ質量・抵抗）
+    pub wire: CatalogRef,                  // wire (mass and resistance per unit length)
     pub cores: u32,
     pub length: Authored<Quantity>,
 }
@@ -305,97 +305,97 @@ pub struct BudgetPolicy {
 }
 ```
 
-## 5. Rust の型（Resolved 層と解析への射影）
+## 5. Rust types (Resolved layer and projection to analyses)
 
 ```rust
 pub struct Resolved {
     pub parts: BTreeMap<Id<Part>, ResolvedPart>,
-    pub tree: Tree<NodeRef>,               // 製品ツリー（機能の階層）
-    pub mounts: Tree<Id<Part>>,            // 取付の階層（物理の階層）
-    pub diagnostics: Vec<Diagnostic>,      // severity・code・対象（Target）・ファイル位置
+    pub tree: Tree<NodeRef>,               // product tree (functional hierarchy)
+    pub mounts: Tree<Id<Part>>,            // mount hierarchy (physical hierarchy)
+    pub diagnostics: Vec<Diagnostic>,      // severity, code, target (Target), file location
 }
 
 pub struct ResolvedPart {
-    pub catalog: Option<CatalogRef>,       // 候補があるときは選択中のもの
+    pub catalog: Option<CatalogRef>,       // the selected one when there are candidates
     pub kind: Id<KindDef>,
     pub count: u32,
     pub attr: BTreeMap<Id<AttributeDef>, ResolvedValue>,
-    pub pose_body: Option<PoseSi>,         // 取付の連鎖をたどった機体座標
+    pub pose_body: Option<PoseSi>,         // body-frame coordinates obtained by following the chain of mounts
 }
 
 pub struct ResolvedValue {
-    pub value: Cell<SiValue>,              // 欠けていても Unset として持ち、エラーにしない
+    pub value: Cell<SiValue>,              // even if missing it is held as Unset and is not an error
     pub origin: Origin,                    // Catalog / Override / KindDefault / Derived
-    pub evidence: Evidence,                // 根拠の最弱値（placeholder が混ざれば placeholder）
+    pub evidence: Evidence,                // the weakest evidence (placeholder if any placeholder is mixed in)
     pub loc: Option<Loc>,
 }
 pub enum Cell<T> { Set(T), Unset }
 
-/// 解析ライブラリの入力型への射影。解析ライブラリは設計モデルに依存しない。
+/// Projection to the analysis library's input types. The analysis library does not depend on the design model.
 pub trait Project<I> {
     fn project(r: &Resolved, case: &CaseCtx) -> Result<I, MissingInputs>;
 }
-// 例: impl Project<rw_unloading::Input> for RwUnloadingProjection { … }
-// MissingInputs は対象（fune_model::Target）で返す。表示は "RW_X.max_momentum"・"<部品>.power" のようなパス
+// Example: impl Project<rw_unloading::Input> for RwUnloadingProjection { … }
+// MissingInputs is returned by target (fune_model::Target). It is displayed as a path such as "RW_X.max_momentum" or "<part>.power"
 ```
 
-- 編集の流れ: Op は Design のパス（`RW_X.attr.mass`）を対象にする。store が最小差分のファイル編集に変え、
-  書いたファイルだけ読み直して新しい Design を作り、Resolved を作り直す。
-- 計算のキャッシュ: Derived は入力の fingerprint をキーにメモ化する。数千件規模なら単純な全再計算で足りる。
-  遅くなったら incremental な計算フレームワーク（salsa など）を検討する。
+- Edit flow: an Op targets a path in Design (`RW_X.attr.mass`). The store turns it into a minimal-diff file edit,
+  re-reads only the files it wrote to build a new Design, and rebuilds Resolved.
+- Computation cache: Derived is memoized keyed by a fingerprint of the inputs. At the scale of thousands of items, simple full recomputation is enough.
+  If it becomes slow, consider an incremental computation framework (such as salsa).
 
-### 5.1 解析ケースの条件選択
+### 5.1 Condition selection for analysis cases
 
-projection の `case_policy::effective_case` が明示ケースを優先する。省略時に `analysis.common.default_case` を
-解析全体へ適用する対象は、同モジュールの宣言にある `power.orbit_generation`・`aocs.rw_unloading`・
-`aocs.sensor_fov`・`thermal.transient` のみ。それ以外はケース未選択のまま運用全体や全条件を解析する。
-既定の設定が存在しないケースを指すと検査エラーにする。
-実行結果の `case` は使ったケース ID、`case_source` は `explicit` / `default`（ケース未選択なら原則両方 null）。
-保存前の設定変更も同じ規則で解析に適用する。入力を丸ごと与える `given` には既定ケースを適用しない。
+Projection's `case_policy::effective_case` gives priority to an explicit case. The targets to which `analysis.common.default_case` is applied
+to the whole analysis when no case is given are only `power.orbit_generation`, `aocs.rw_unloading`,
+`aocs.sensor_fov` and `thermal.transient`, as declared in the same module. Everything else analyzes the whole operation or all conditions with no case selected.
+If the default setting points to a case that does not exist, it is a check error.
+The `case` in the run result is the case ID used, and `case_source` is `explicit` / `default` (when no case is selected, both are null as a rule).
+Setting changes not yet saved are applied to analyses by the same rule. The default case is not applied to `given`, which supplies the whole input.
 
-`power.energy_balance` はケース未指定なら全モードを 1 ケースずつ並べ、各ケースの姿勢則はそのモードの
-`analysis.aocs.law` を使う。上段の `timeline.attitude` だけは、同じ解決関数で引いた既定ケースのモードの姿勢則を使う。
-この場合は `case = null`、`case_source = default_attitude` とする。既定ケースの β・周回数・side などは適用しない。
-既定ケースがなければ、姿勢則が唯一の場合だけ上段にも使い、複数なら不足入力にする。
-明示ケースがあれば、従来どおりそのケースのモードと条件を使う。
+When no case is specified, `power.energy_balance` lists all modes one case at a time, and each case's attitude law uses that mode's
+`analysis.aocs.law`. Only the upper-level `timeline.attitude` uses the attitude law of the default case's mode, looked up by the same resolution function.
+In this situation `case = null` and `case_source = default_attitude`. The default case's β, orbit count, side and so on are not applied.
+If there is no default case, the attitude law is also used for the upper level only when it is unique; if there are several, it is a missing input.
+When an explicit case is given, that case's mode and conditions are used as before.
 
-ケースの `side`（`nominal`・`min`・`max`）は書けて保存されるが、**まだ解析に使わない**。どの解析も値の nominal を読み、
-値の不確かさの min / max（`SiScalar.min`・`max`）は解析に渡さない。`nominal` 以外を書くと `check` が情報（info。`setting.not_applied`）として知らせる。
-使うには、「どの値のどちら側を読むか」（質量は max、発電量は min のように、値ごとに保守側が違う）の規則を決める必要がある。
+The case's `side` (`nominal`, `min`, `max`) can be written and is saved, but is **not yet used by analyses**. Every analysis reads the nominal of a value,
+and the min / max of a value's uncertainty (`SiScalar.min`, `max`) are not passed to analyses. Writing anything other than `nominal` makes `check` notify with info (`setting.not_applied`).
+To use it, a rule is needed for "which side of which value to read" (the conservative side differs per value, such as max for mass and min for generated power).
 
-電力収支の各ケースの `energy_margin_per_orbit` は、回り切った周回ごとのエネルギー余裕の最小値
-（電池の効率込み、容量の上下限で切る前、周期へ換算済み）。回り切った周回が無ければ `null` とし、
-`energy_margin_over_span` に解析期間全体の収支を周期へ換算せず返す。この場合の周回の収支判定は Warning とし、
-判定文に期間の収支を添える。回り切った周回があれば `energy_margin_over_span` は `null`。
-期間不足の目印 `span_fallback = orbit_mean_over_span` は引き続き返す。
-KPI の電力収支は別の量である平均電力（`orbit_average_balance`、電池の効率を含まない）を使う。
+Each case's `energy_margin_per_orbit` in the power balance is the minimum energy margin over the completed orbits
+(including battery efficiency, before clipping by the capacity limits, already converted to a per-period value). If there is no completed orbit it is `null`,
+and `energy_margin_over_span` returns the balance over the whole analysis span without converting it to a per-period value. The orbit balance verdict in this case is Warning,
+and the period's balance is appended to the verdict text. If there are completed orbits, `energy_margin_over_span` is `null`.
+The marker for an insufficient span, `span_fallback = orbit_mean_over_span`, is still returned.
+The KPI's power balance uses the average power (`orbit_average_balance`, which does not include battery efficiency), which is a different quantity.
 
-電力収支の運用は 3 通りある。ケースの欄（`max_dod`・`orbit_average_balance`・`orbits`・`series` など）は
-どれも**解析期間ずっと続けた**ときの値のまま。判定（`checks` の `dod`・`energy_balance`・`depleted`）をどの運用で
-評価したかはケースの `evaluation` に書く。
+There are three ways of operating in the power balance. The case fields (`max_dod`, `orbit_average_balance`, `orbits`, `series` and so on)
+all remain the values for operating **continuously over the whole analysis span**. Which operation the verdicts (`dod`, `energy_balance`, `depleted` in `checks`)
+were evaluated under is written in the case's `evaluation`.
 
-- **連続**（`continuous`）: 最長継続時間の無いモード・一定の負荷。最長継続時間があっても基本のモードが無ければ
-  `no_base_mode`、そのモード自身が基本のモードなら `base_mode` とし、どちらも連続で判定する。
-- **最長継続時間**（`max_duration`）: モードの `max_duration` があれば、基本のモード（`analysis.power.base_mode`、
-  無ければ `[[sequence]]` の最初の区間のモード）を回し続け、その上でこのモードを最長継続時間だけ 1 回続ける。
-  開始は 1 周の中で標本ごとにずらし、窓から後の最小 SOC が最も低い開始を最悪とする。ずらす 1 周は解析期間の終わりから
-  「周期 + 最長継続時間 + 周期」前から始まる 1 周（前で定常に近づき、後ろで 1 周の回復を見る。足りなければ期間の始め）。
-  結果はケースの `by_max_duration`: `max_dod`（解析期間全体の最小 SOC から。判定に使う）・`max_dod_from_start`（窓から後だけ）・
-  `best_max_dod`（最良の開始）・`base_max_dod`（基本のモードだけ）・`worst_start`・`worst_start_in_orbit`・
-  `eclipse_overlap`・`orbit_average_balance` と `energy_margin_per_orbit`（窓の立ち上がりから 1 周。1 周に 1 回入れたとき）。
-  窓は標本の刻みで丸め、窓の中の標本に負荷とそのモードの姿勢則の発電を使う。
-- **モードの並び**（`sequence`）: `[[sequence]]` を繰り返して解析期間を覆い、解析の開始からの経過を 1 周期で割った余りが
-  入る区間のモードの負荷（日照・日陰、蝕の上書きは `mode_load` の評価のまま）と姿勢則の発電で積分する。結果は出力の
-  `sequence.balance`（ケースと同じ形。`load_sunlit`・`load_eclipse` は日照中・日陰中の標本の平均）で、運用を通しての
-  DoD・最小 SOC・周回ごとの収支（`orbits`）と判定を持つ。並びが無ければ `sequence = null`。
+- **Continuous** (`continuous`): a mode with no maximum duration, or a constant load. Even with a maximum duration, if there is no base mode it is
+  `no_base_mode`, and if the mode itself is the base mode it is `base_mode`; both are judged as continuous.
+- **Maximum duration** (`max_duration`): if the mode has `max_duration`, the base mode (`analysis.power.base_mode`,
+  or if absent the mode of the first segment of `[[sequence]]`) is run continuously, and on top of that this mode is run once for the maximum duration.
+  The start is shifted per sample within one orbit, and the start whose minimum SOC after the window is lowest is taken as the worst. The one orbit that is shifted is the orbit starting
+  "period + maximum duration + period" before the end of the analysis span (it approaches steady state before, and one orbit of recovery is observed after; if that is not enough, the start of the span).
+  The result is the case's `by_max_duration`: `max_dod` (from the minimum SOC over the whole analysis span; used for the verdict), `max_dod_from_start` (only after the window),
+  `best_max_dod` (the best start), `base_max_dod` (the base mode only), `worst_start`, `worst_start_in_orbit`,
+  `eclipse_overlap`, and `orbit_average_balance` and `energy_margin_per_orbit` (one orbit from the window's rise; when inserted once per orbit).
+  The window is rounded to the sample step, and the load and the power generation under that mode's attitude law are used for samples inside the window.
+- **Mode sequence** (`sequence`): `[[sequence]]` is repeated to cover the analysis span, and the integration uses the load of the mode of the segment into which the remainder falls
+  after dividing the elapsed time from the start of the analysis by one period (sunlit and eclipse, and eclipse overrides, are evaluated as in `mode_load`) and the generation under the attitude law. The result is the output's
+  `sequence.balance` (the same shape as a case; `load_sunlit` and `load_eclipse` are averages over the sunlit and eclipse samples), which holds the
+  DoD, minimum SOC, per-orbit balance (`orbits`) and verdicts over the whole operation. If there is no sequence, `sequence = null`.
 
-duty（状態の時間割合）はどの運用でも平均の消費電力にして一定にかける（周回内の時間分布は扱わない）。使うモードに
-duty があればケースと並びの `duty = averaged` で示す。KPI の最大 DoD・軌道平均の収支（最悪）は、各ケースの判定に使った
-運用の値（`by_max_duration` があればそちら）と並びの値から選ぶ。
+Duty (the time fraction of a state) is turned into an average power consumption and applied as a constant in every operation (the time distribution within an orbit is not handled). If a mode used
+has duty, it is indicated by `duty = averaged` on the case and the sequence. The KPI's maximum DoD and orbit-average balance (worst) are chosen from the values of the operation used for each case's verdict
+(`by_max_duration` if present) and the sequence's values.
 
 ```toml
-# analysis/power.toml（並びと基本のモード）
-base_mode = "NOMINAL"   # 省略時は並びの最初の区間のモード
+# analysis/power.toml (sequence and base mode)
+base_mode = "NOMINAL"   # if omitted, the mode of the first segment of the sequence
 
 [[sequence]]
 mode     = "NOMINAL"
@@ -406,215 +406,215 @@ mode     = "DOWNLINK"
 duration = { value = 9.6, unit = "min" }
 ```
 
-解析ケースの `mode` が指定されているときは、そのモードの `[law.<mode>]` が必要で、別のモードの姿勢則では代用しない。
-モードが未指定なら、姿勢則が 1 件だけのときに限り使う。0 件または複数なら不足入力として停止する。
+When an analysis case specifies a `mode`, that mode's `[law.<mode>]` is required, and the attitude law of a different mode is not substituted.
+If no mode is specified, an attitude law is used only when there is exactly one. With none or several, the analysis stops with a missing input.
 
-### 5.2 熱解析の条件
+### 5.2 Thermal analysis conditions
 
-`thermal.transient` は解析ケースの `thermal_case` で環境条件を選ぶ。省略時は熱条件が 1 件だけなら使い、
-複数なら解析ケースの `thermal_case` を不足入力として示す。選択した ID が存在しない場合も不足入力とする。
-解析ケース自体が未選択の場合は `analysis.thermal.case` を示す。条件が 0 件でも停止する。
-`thermal.steady` は引き続きすべての熱条件を解析する。
-両解析とも、熱条件の `beta` がある場合だけ解析ケースの β を上書きし、省略時はケースの β を保持する。
-外面の入熱は太陽・中心天体のアルベド・中心天体の赤外放射で、形態係数は中心天体の半径で求める（`illumination::body_view_factor`）。
-アルベドと赤外放射の既定値は天体ごと（`sat_analysis::thermal::planet`）:
+`thermal.transient` selects its environment condition with the analysis case's `thermal_case`. If omitted, it uses the thermal condition when there is exactly one,
+and when there are several it reports the analysis case's `thermal_case` as a missing input. A selected ID that does not exist is also a missing input.
+If no analysis case is selected at all, it reports `analysis.thermal.case`. It also stops when there are zero conditions.
+`thermal.steady` still analyzes all thermal conditions.
+For both analyses, the case's β is overridden only when the thermal condition has `beta`; if omitted, the case's β is kept.
+Heat input on the outer surface consists of the Sun, the central body's albedo and the central body's infrared emission, and view factors are found from the central body's radius (`illumination::body_view_factor`).
+The default albedo and infrared emission are per body (`sat_analysis::thermal::planet`):
 
-| 天体 | アルベド | 赤外放射 |
+| Body | Albedo | Infrared emission |
 |---|---|---|
-| 地球 | 0.30 | 一律 237 W/m² |
-| 月 | 0.12 | 直下点の太陽天頂角 θ で変わる: 昼側 `(1 − A)·S·cos θ`（直下点 ≈ 390 K）、夜側 `0.95 σ (100 K)⁴ ≈ 5.4 W/m²` |
-| それ以外 | なし（環境条件に `albedo`・`planet_ir` を書く。無ければ projection の不足入力） | |
+| Earth | 0.30 | uniform 237 W/m² |
+| Moon | 0.12 | varies with the solar zenith angle θ at the subsatellite point: dayside `(1 − A)·S·cos θ` (subsatellite point ≈ 390 K), nightside `0.95 σ (100 K)⁴ ≈ 5.4 W/m²` |
+| Others | none (write `albedo` and `planet_ir` in the environment condition; if absent, projection reports a missing input) | |
 
-環境条件の `planet_ir` は中心天体の一律の赤外放射の上書き（月で書くと地方時のモデルの代わりに使う）。
-古い名前 `earth_ir` も同じ値に読み、`toml.renamed_key` の warning を出す（`fune fmt` が `planet_ir` に書き換える。§10.2 の 9）。
-`body` は機体と紛れるので名前に使わない。
-太陽光の強さを書かなければ時刻ごとの太陽距離から `illumination::solar_flux_w_m2`（`SOLAR_CONSTANT·(1 AU/d)²`）で求める。
-プリセットの太陽光（1 AU の近日点・遠日点）は地球・月だけ、プリセットのアルベド・赤外（LEO の代表値）は地球だけに使い、
-それ以外の天体でプリセットを書くなら `solar_flux` も書く（不足入力）。使った値は出力の `environment`
-（月は `planet_ir` が null で、夜側の値 `night_ir`）。地球周回で月から受けるアルベド・赤外は扱わない（地球の数万分の 1 以下）。
-太陽を中心天体とする熱解析は入力エラー。
+The environment condition's `planet_ir` overrides the central body's uniform infrared emission (written for the Moon, it is used in place of the local-time model).
+The old name `earth_ir` is also read as the same value and produces a `toml.renamed_key` warning (`fune fmt` rewrites it to `planet_ir`; §10.2 item 9).
+`body` is not used as a name because it is confused with the spacecraft body.
+If the solar flux is not written, it is found from the Sun distance at each time with `illumination::solar_flux_w_m2` (`SOLAR_CONSTANT·(1 AU/d)²`).
+The preset solar flux (perihelion and aphelion at 1 AU) is used only for Earth and the Moon, and the preset albedo and infrared (representative LEO values) only for Earth,
+so if you write a preset for any other body you must also write `solar_flux` (otherwise a missing input). The values used are in the output's `environment`
+(for the Moon `planet_ir` is null, and the nightside value is `night_ir`). Albedo and infrared received from the Moon while orbiting Earth are not handled (a few tens of thousandths of Earth's or less).
+A thermal analysis with the Sun as the central body is an input error.
 
-#### 温度範囲（3 種）と判定
+#### Temperature ranges (three kinds) and verdicts
 
-部品の温度範囲は 3 種で、熱解析は種類ごとに判定する（key は `range:<節点>:<種類>`、節点の範囲は部品の範囲の種類ごとの共通部分。
-モードのあるケースでは当てる部品を電源の状態で選ぶ。下の表）。
+A part has three kinds of temperature range, and the thermal analysis judges each kind separately (the key is `range:<node>:<kind>`, and a node's range is the intersection of the parts' ranges for each kind.
+In cases with a mode, the parts to which a range applies are chosen by power state; see the table below).
 
-| 種類 | 属性 | 意味 |
+| Kind | Attribute | Meaning |
 |---|---|---|
-| `storage`（保管） | `temp_survival` | 電源を切っていても壊れない範囲（非動作） |
-| `operating`（動作） | `temp_op` | 機能を維持する範囲 |
-| `performance`（性能） | `temp_perf` | 仕様の性能を満たす範囲 |
+| `storage` | `temp_survival` | The range that does no damage even when powered off (non-operating) |
+| `operating` | `temp_op` | The range in which function is maintained |
+| `performance` | `temp_perf` | The range in which the specified performance is met |
 
-既存の属性はそのまま使う: これまでの唯一の判定だった `temp_op` は「動作」に、非動作の範囲の `temp_survival` は「保管」に当てる
-（ID は変えないので既存の設計はそのまま読める。`temp_survival` もこれから判定に使う）。性能の範囲は新しい `temp_perf`。
-どの範囲で判定するかは、熱のケースのモード（`[case.*] mode`。非定常は発熱の区間のモード）での部品の電源の状態で選ぶ:
+Existing attributes are used as they are: `temp_op`, which was the only one judged until now, is assigned to "operating", and `temp_survival`, the non-operating range, to "storage"
+(IDs are not changed, so existing designs can still be read. `temp_survival` is now also used for verdicts). The performance range is the new `temp_perf`.
+Which range to judge against is chosen by the part's power state in the thermal case's mode (`[case.*] mode`; for transient analysis, the mode of the heating segment):
 
-| モードでの部品の電源 | 当てる範囲 |
+| Part's power in the mode | Ranges applied |
 |---|---|
-| オフ（停止状態 `off` だけ） | 保管だけ |
-| オン（`off` 以外の状態だけ） | 動作と性能 |
-| 両方（duty で `off` と他の状態を行き来する、cold の予備機がある） | 3 種すべて |
-| 決まらない（モードの無いケース、モードに割り当ての無い部品（構体など）、員数 0） | 3 種すべて（これまでどおり） |
+| Off (only the stopped state `off`) | storage only |
+| On (only states other than `off`) | operating and performance |
+| Both (alternating between `off` and other states by duty, or a cold spare exists) | all three |
+| Undetermined (a case with no mode, a part with no assignment in the mode (such as the structure), or count 0) | all three (as before) |
 
-電源の状態の読み方はモード表と同じで、台数・予備機・duty を `sat_analysis::modes::counted_states` で数え、時間割合と台数が正の
-状態のうち `off` をオフ、それ以外をオンとする（`modes::power_states` だけ）。warm の予備機は予備状態なのでオン。
-範囲の選び方は `ThermalRangeKind::applies`、節点の範囲は種類ごとに、その種類を当てる部品の範囲の共通部分（`ThermalNode::ranges_in`）。
-当てる部品が無い種類は判定しない（例: どの部品も電源の入るモードの節点には保管の判定が無い）。非定常で発熱の区間が複数あれば、
-どれかの区間で当てる範囲は当てる。
+The way power states are read is the same as in the mode table: the count, spares and duty are counted with `sat_analysis::modes::counted_states`, and among the states
+whose time fraction and count are positive, `off` is treated as off and any other as on (`modes::power_states` only). A warm spare is in its spare state, so it is on.
+The range selection is `ThermalRangeKind::applies`, and a node's range is, for each kind, the intersection of the ranges of the parts to which that kind applies (`ThermalNode::ranges_in`).
+A kind with no part to apply is not judged (for example, a node whose parts are all powered in the mode has no storage verdict). In transient analysis with several heating segments,
+a range that applies in any segment is applied.
 
-判定の key は種類のまま（`range:<節点>:<種類>`）。電源の状態で外した部品は判定文に書き（「…（動作範囲 -25.0 °C〜60.0 °C。
-モード SAFE で電源オフの GPS・STX を除く）」）、比較の `excluded`（部品・モード・電源 `power_state`）にも返す。
-定常の全ケースの判定（`envelope`）は、種類ごとにその範囲を当てたケースだけで見て、下限の側は下限までの余裕が最も小さいケース、
-上限の側は上限までの余裕が最も小さいケースの範囲と余裕を使う（範囲がケースで変わらなければ、全ケースの最低・最高と範囲の比較と同じ）。
-判定文の予測の温度はその 2 つのケースの温度。
+The verdict key stays as the kind (`range:<node>:<kind>`). Parts excluded by power state are written in the verdict text ("… (operating range -25.0 °C to 60.0 °C.
+Excluding GPS and STX, powered off in mode SAFE)") and are also returned in the comparison's `excluded` (part, mode, power `power_state`).
+The verdict over all steady-state cases (`envelope`) looks, for each kind, only at the cases to which that range applied; for the lower side it uses the range and margin of the case with the smallest margin to the lower limit,
+and for the upper side those of the case with the smallest margin to the upper limit (if the range does not vary between cases, this is the same as comparing the minimum and maximum over all cases with the range).
+The predicted temperatures in the verdict text are the temperatures of those two cases.
 
-#### 解析マージンと最悪ケースのプリセット
+#### Analysis margin and worst-case presets
 
 ```toml
 # analysis/thermal.toml
 [margin]
-uncertainty  = { value = 5.0, unit = "K" }  # 予測温度の不確かさ（既定 0 K）
-warning_band = { value = 5.0, unit = "K" }  # 範囲の端からこの幅以内を警告（既定 5 K）
+uncertainty  = { value = 5.0, unit = "K" }  # uncertainty of the predicted temperature (default 0 K)
+warning_band = { value = 5.0, unit = "K" }  # warn within this width of a range edge (default 5 K)
 
 [case.hot]
 preset = "hot"        # hot / cold / safe_mode
 mode   = "MISSION"
 ```
 
-判定は「予測の最低 − 不確かさ」と「予測の最高 + 不確かさ」を範囲と比べ、外れれば violation、端から `warning_band` 以内なら warning。
-出力の余裕（`margin_low`・`margin_high`）は不確かさを引く前の値で、使った値は出力の `margin` に返す。温度差なので K で書く（degC は検査の誤り）。
+The verdict compares "predicted minimum − uncertainty" and "predicted maximum + uncertainty" with the range; outside it is a violation, and within `warning_band` of an edge it is a warning.
+The output margins (`margin_low`, `margin_high`) are the values before subtracting the uncertainty, and the values used are returned in the output's `margin`. It is a temperature difference, so write it in K (degC is a check error).
 
-プリセットは環境条件に書かれていない太陽光・アルベド・中心天体の赤外（`planet_ir`）を埋める（書いた値が優先。値は `sat_analysis::thermal::preset`）。
-`hot` は 1414 W/m²・0.35・258 W/m²、`cold` と `safe_mode` は 1322 W/m²・0.25・217 W/m²。`safe_mode` は低温の環境で、
-セーフモードの運用モード（`mode`）と組み合わせてヒーターだけで保温できるかを見るためのもの。
+A preset fills in the solar flux, albedo and central-body infrared (`planet_ir`) not written in the environment condition (written values take precedence; the values are in `sat_analysis::thermal::preset`).
+`hot` is 1414 W/m², 0.35 and 258 W/m²; `cold` and `safe_mode` are 1322 W/m², 0.25 and 217 W/m². `safe_mode` is a cold environment,
+meant to be combined with the safe-mode operating mode (`mode`) to see whether heaters alone can keep the spacecraft warm.
 
-#### 発熱
+#### Heat dissipation
 
-発熱は部品のモードの平均から `sat_analysis::thermal::network::load` が求める。優先の順に
-1. `heat_fraction` があれば 発熱 = 消費電力 × `heat_fraction`（RF 出力は見ない。これまでの上書き）、
-2. 無ければ 発熱 = 消費電力 − RF 出力（状態ごとの属性 `rf_output`。書いていない状態は 0）。
+Heat dissipation is found by `sat_analysis::thermal::network::load` from the part's mode average. In order of priority:
+1. If `heat_fraction` exists, heat dissipation = power consumption × `heat_fraction` (RF output is not considered; the override used so far),
+2. otherwise, heat dissipation = power consumption − RF output (the per-state attribute `rf_output`; a state not written is 0).
 
-`heat_fraction` の既定値 1 は外した（既定値で常に上書きになり RF 出力が効かなくなるため。書かなければ RF 出力の無い部品はこれまでどおり全部が熱）。
-回線計算の送信電力 `tx_power` は状態を持たないので、発熱には状態ごとの `rf_output` を別に書く。
-熱を出す節点は既定で部品の属する節点で、`[heat_node]` に `部品 = "節点"` を書くとその節点に置く（節点に入れていない部品も発熱の源になる）。
+The default value of 1 for `heat_fraction` was removed (a default would always act as an override and make RF output ineffective; if not written, a part with no RF output is all heat as before).
+The link-budget transmit power `tx_power` has no states, so the per-state `rf_output` is written separately for heat dissipation.
+The node that emits heat is by default the node the part belongs to, and writing `part = "node"` in `[heat_node]` places it on that node (a part not in any node can also be a heat source).
 
-#### 表面材
+#### Surface materials
 
 ```toml
 [coating.white_paint]
 absorptivity = 0.2
 emissivity   = 0.85
 
-[surface.PANEL_PX]  # 外面の部品 → 表面材 → 面積割合（合計 1）
+[surface.PANEL_PX]  # outer-surface part → surface material → area fraction (total 1)
 white_paint = 0.86
 black_paint = 0.14
 ```
 
-面の α/ε は面積割合の加重和（1 面は 1 節点で等温なので吸収も放射も面積に線形）。`[surface.<部品>]` を書いた部品は部品の
-`absorptivity`・`emissivity` を使わない。割合の合計が 1 でない・α/ε の欠けは検査の警告（1 つずつ書いていく途中でも書き込める）で、解析は入力の誤りで止まる。
+A face's α/ε is the area-fraction-weighted sum (one face is one isothermal node, so both absorption and emission are linear in area). A part with `[surface.<part>]` written does not use the part's
+`absorptivity` and `emissivity`. A fraction total other than 1 or a missing α/ε is a check warning (so it can be written partway through entering them one by one), and the analysis stops with an input error.
 
-### 5.3 姿勢解析の機体外形
+### 5.3 Outer shape for attitude analysis
 
-擾乱に使う機体外形は、`size` があり取付親のない部品が 1 個だけならその部品を使う。
-複数なら候補部品 ID を不足入力の文に示して停止し、ID 順には選ばない。0 個の場合の扱いは従来どおりとする。
+The outer shape used for disturbances is the part with `size` and no mount parent, if there is exactly one such part.
+If there are several, the analysis stops with the candidate part IDs shown in the missing-input message, and does not choose by ID order. The handling of zero is as before.
 
-### 5.4 共通解析設定
+### 5.4 Common analysis settings
 
-系の一覧は `AnalysisSystem` が正本で、API の `DefsView.systems` に同じ順で返す。`aocs` の表示名は日英とも AOCS、`payload` は日本語「ミッション機器」・英語「Payload」。Payload は解析を持たず、設定項目もまだない。古い系名 `attitude` は受け付けない。
+The list of subsystems is held by `AnalysisSystem`, and returned in the same order in the API's `DefsView.systems`. The display name of `aocs` is AOCS in both Japanese and English, and `payload` is "ミッション機器" in Japanese and "Payload" in English. Payload has no analyses and no settings yet. The old subsystem name `attitude` is not accepted.
 
-系に属さない設定は `analysis/common.toml` に置く。プロジェクトの設定一覧では scope は `analysis`、system は null。
-`default_case` は解析ケース ID の文字列。§5.1 の対象解析と電力収支の上段の姿勢則にだけ使い、省略時はケース未選択の扱いを維持する。
-CLI と画面は同じ `SetSetting` を使う。例: `fune setting set analysis.common.default_case hot_imaging`。
+Settings that belong to no subsystem are placed in `analysis/common.toml`. In the project's settings list, the scope is `analysis` and the system is null.
+`default_case` is an analysis case ID string. It is used only for the target analyses in §5.1 and the upper-level attitude law of the power balance; if omitted, the no-case-selected handling is kept.
+The CLI and the screen use the same `SetSetting`. Example: `fune setting set analysis.common.default_case hot_imaging`.
 
 ```toml
 # analysis/common.toml
 default_case = "hot_imaging"
 ```
 
-### 5.5 電源の逆算サイジング（`power.sizing`）
+### 5.5 Reverse-computed power sizing (`power.sizing`)
 
-電源の系に属する定常解析。SAP と電池の必要量を出力し、部品の属性への書き戻しはしない。
-入力は軌道・`conditions.orbit.duration`・電力を持つ部品とモード・`solar_panel`（法線つき）と `battery` の部品・姿勢則・電源設定。
-部品・軌道・期間・モード・姿勢則・`analysis.power.dod_max` が足りなければ不足入力を返す。
-明示した解析ケースにモードがあればそのモード、無ければ全モード（時系列の逆算ではモードの並びも）をそれぞれ逆算し、
-必要面積が最大の運用（`area_mode`）と必要容量が最大の運用（`capacity_mode`）で決める。
-時系列の逆算はモードの `max_duration`・`analysis.power.sequence`・`analysis.power.base_mode` を `power.energy_balance` と同じく使う。
-成長余裕・員数・冗長・蝕の上書きは `power.mode_load` の集計を共有する。
-割り当てや電力値の不足を含むモードでは要求を過小評価しないよう解析を止める。
+A steady-state analysis belonging to the Power subsystem. It outputs the required SAP and battery sizes and does not write back to part attributes.
+Its inputs are the orbit, `conditions.orbit.duration`, parts with power and modes, `solar_panel` (with normals) and `battery` parts, the attitude law and the power settings.
+If parts, orbit, duration, modes, attitude law or `analysis.power.dod_max` are missing, it returns a missing input.
+If the explicit analysis case has a mode, that mode is used; otherwise every mode (and, for the time-series reverse computation, the mode sequence as well) is reverse-computed in turn,
+and the result is decided by the operation with the largest required area (`area_mode`) and the operation with the largest required capacity (`capacity_mode`).
+The time-series reverse computation uses the mode's `max_duration`, `analysis.power.sequence` and `analysis.power.base_mode` in the same way as `power.energy_balance`.
+Growth margin, count, redundancy and eclipse overrides share the aggregation of `power.mode_load`.
+For a mode that includes missing assignments or power values, the analysis stops so as not to underestimate the requirement.
 
-最長蝕は `orbit.eclipse_season` を同じ軌道・期間・季節刻みで呼ぶ（本影と半影の合計）。
-日照時間は軌道周期から最長蝕を引き、寿命はミッション期間を Julian year に換算する。
-太陽距離は 1 AU に限り、太陽定数は sat-astro の値を使う。1 AU 以外は未対応の入力エラー。
-地球の太陽距離の季節変動はこの近似では扱わない。
+The longest eclipse calls `orbit.eclipse_season` with the same orbit, period and season step (the sum of umbra and penumbra).
+The sunlit time is the orbital period minus the longest eclipse, and the lifetime is the mission duration converted to Julian years.
+The Sun distance is limited to 1 AU, and the solar constant uses sat-astro's value. Anything other than 1 AU is an unsupported-input error.
+The seasonal variation of Earth's Sun distance is not handled in this approximation.
 
-`Pd`・`Pe` を日照・蝕の負荷、`Td`・`Te` をその時間とすると、必要発電は
-`(Pe*Te/Xe + Pd*Td/Xd)/Td`。必要 SAP 面積はこれを EOL の単位面積あたり発電で割る。
-発電は既存の `solar` モデルで計算し、`cell_efficiency`・`packing_factor`・`eol_factor` を部品ごとに使う。
-入射は `power.energy_balance` と同じ時系列・SAP・モードごとの姿勢則（`analysis.aocs.law.<モード>`、無ければ上段の姿勢則）で
-`power.orbit_generation` を回し、日照中の平均発電を全パネルに真上から当たるときの発電で割った入射係数として掛ける
-（太陽光の強さは 1 AU に固定し、変換効率は Xd で数えるので時系列には入れない）。
-さらに `(1-annual_degradation)^lifetime_years`・`inherent_degradation` を掛ける。寿命は入力の設計寿命 `design_life`（射影は `conditions.orbit.duration` を渡す）で、無ければ季節の走査の期間。どちらを使ったかは `used.lifetime_source`。
-異なるパネルが混在するときは、現在の面積配分を保って拡大縮小する設計を仮定する。
-経年・固有の劣化を既存の `eol_factor` に含めた設計では、追加の劣化を重ねないよう上書きする。
+With `Pd` and `Pe` as the sunlit and eclipse loads and `Td` and `Te` as their durations, the required generation is
+`(Pe*Te/Xe + Pd*Td/Xd)/Td`. The required SAP area is this divided by the EOL generation per unit area.
+Generation is computed with the existing `solar` model, using `cell_efficiency`, `packing_factor` and `eol_factor` for each part.
+The incidence is obtained by running `power.orbit_generation` with the same time series, SAPs and per-mode attitude law as `power.energy_balance` (`analysis.aocs.law.<mode>`, or the upper-level attitude law if absent),
+and multiplying by the incidence factor, which is the sunlit average generation divided by the generation when sunlight hits all panels head-on
+(the solar flux is fixed at 1 AU, and conversion efficiency is counted in Xd, so it is not put into the time series).
+It is further multiplied by `(1-annual_degradation)^lifetime_years` and `inherent_degradation`. The lifetime is the input design life `design_life` (projection passes `conditions.orbit.duration`), or if absent the period of the season scan. Which was used is in `used.lifetime_source`.
+When different panels are mixed, a design that scales up and down while keeping the current area allocation is assumed.
+For a design in which aging and inherent degradation are already included in the existing `eol_factor`, override them so that additional degradation is not stacked on top.
 
-1 組の必要電池容量は `Pe*Te/(dod_max*N*Xbattery)`、合計容量はその N 倍。
-既存の集中電池モデルと同様に設計容量は全部品の容量の合計、DoD と放電効率は先頭の電池から取る。電圧・効率・初期 SOC・DoD が電池どうしで違うときは、結果が部品の並び順で変わるので warning `battery_mismatch` を出す（電力収支もサイジングも出力の最上位の `checks` に 1 つだけ）。
-面積と容量は部品の員数を含む。余裕は `spec::ratio_margin`、判定は `ratio_margin_verdict`（警告幅 0）。
-負荷や蝕が 0 で要求が 0 なら余裕は null（判定 OK）。
+The required battery capacity of one set is `Pe*Te/(dod_max*N*Xbattery)`, and the total capacity is N times that.
+As in the existing lumped battery model, the design capacity is the sum of all parts' capacities, and DoD and discharge efficiency are taken from the first battery. If voltage, efficiency, initial SOC or DoD differ between batteries, the result would change with the order of parts, so a `battery_mismatch` warning is emitted (only one in the output's top-level `checks`, for both the power balance and sizing).
+Area and capacity include the parts' counts. The margin is `spec::ratio_margin`, and the verdict is `ratio_margin_verdict` (warning width 0).
+If the load or eclipse is 0 and the requirement is 0, the margin is null (verdict OK).
 
-SMAD の式は日照中の発電を平均の 1 つの値として扱うので、日照中に発電が負荷を下回る姿勢（地心指向の固定パネルなど）では
-日照中にも電池から出す分とその損失を数えず、面積と容量を少なく見る。そこで判定には次の時系列の逆算を使い、SMAD の値は
-手計算と比べられる参考値として残す。
+The SMAD formula treats sunlit generation as a single average value, so for an attitude in which sunlit generation falls below the load (such as fixed panels in nadir pointing),
+it does not count what is drawn from the battery even while sunlit, nor its losses, and underestimates area and capacity. The verdict therefore uses the following time-series reverse computation, and the SMAD values
+are kept as reference values that can be compared with hand calculations.
 
-**時系列の逆算。** `power.energy_balance` と同じ発電・電池・運用のモデルで、1 周の収支 ≥ 0 の最小の面積と、
-DoD が `dod_max` に収まる最小の容量を求める。
+**Time-series reverse computation.** With the same generation, battery and operation models as `power.energy_balance`, it finds the minimum area for which the balance over one orbit ≥ 0, and
+the minimum capacity for which DoD stays within `dod_max`.
 
-- 時系列は最長蝕の時期で回す: 上段の時系列（`power.energy_balance` と同じ姿勢則・期間・刻み）の日付と β を、
-  `orbit.eclipse_season` の `longest` の日付と β に替える。
-- 発電は SAP の変換効率・EOL を含む `power.energy_balance` のモデル（Xd・Xe・Xbattery は使わない）に、
-  `(1-annual_degradation)^lifetime_years`・`inherent_degradation` を掛けたもの。モードの姿勢則ごとに時系列を 1 回だけ作り、
-  面積との比（発電は面積に比例する。現在の面積配分を保つ）を掛けて使う。
-- 運用は `power.energy_balance` が判定に使うもの（`evaluation`）と同じ: 最長継続時間を持つモードは基本のモードの上で 1 回続けて
-  開始を周回内でずらした最悪、持たないモードと基本のモードは連続。全モードを逆算するときはモードの並び（`sequence`）も 1 つの運用として数える
-  （ケースでモードを選んだときは並びを使わない。基本のモードはどちらでも設定か並びの最初）。
-- 面積: 1 周の収支（電池の効率込み、容量の上下限で切る前）は面積に対して増えるので、SMAD の面積から上端を 2 倍ずつ探し、
-  区間の幅が上端の `1e-4`（`AREA_TOLERANCE`）以下になるまで二分法で詰める。収支ちょうど 0 以上の上端を採る。
-  最長継続時間の運用は最悪の開始が面積で変わることがあるので、上端の収支が許容差より大きく残ることがある。
-- 容量: 運用のうち最大の面積で各運用を回し、刻みごとのエネルギーの増分（容量によらない）から閉じた形で求める
-  （`battery::required_capacity`。満充電で切る積分では満充電からの不足が `max(初期の不足 − 累積, 峰 − 累積)` なので、
-  `容量 ≥ max(最深の下がり幅 / dod_max, 累積の最小の大きさ / (dod_max − (1 − 初期 SOC)))`）。最長継続時間の最悪の開始は
-  空にならない大きさの電池で満充電から選ぶ。初期 SOC だけで許容 DoD に届くときは容量を決められない。
-- 必要面積・容量は運用のうち最大のもの（`area_mode`・`capacity_mode`。並びなら `sequence`）。この面積と容量を最長蝕の時期の
-  `power.energy_balance` に渡すと、全運用で 1 周の収支 ≥ 0 かつ DoD ≤ `dod_max` になる。
-- 太陽指向（日照中の発電が一定）で SMAD の経路の効率を電力収支のモデルに揃える（Xd = 変換効率、Xe = 変換効率 × 充電効率 × 放電効率、
-  Xbattery = 放電効率）と、時系列の値と SMAD の値の差は蝕の長さの差（季節解析の円錐影と時系列の影）の分だけで、テストでは 1 % 以内。
-- 1 周に満たない時系列などで判定できないときは SMAD の値で判定し、`checks` に `time_series` の注意を出す（`basis` が `smad`）。
+- The time series is run at the time of the longest eclipse: the dates and β of the upper-level time series (the same attitude law, period and step as `power.energy_balance`) are replaced with
+  the date and β of `longest` of `orbit.eclipse_season`.
+- Generation is the `power.energy_balance` model including the SAP's conversion efficiency and EOL (Xd, Xe and Xbattery are not used), multiplied by
+  `(1-annual_degradation)^lifetime_years` and `inherent_degradation`. The time series is built only once per mode's attitude law and
+  used after multiplying by the ratio to the area (generation is proportional to area; the current area allocation is kept).
+- The operation is the same as the one `power.energy_balance` uses for its verdict (`evaluation`): a mode with a maximum duration is the worst case of running once on top of the base mode,
+  with the start shifted within the orbit, and modes without one and the base mode are continuous. When all modes are reverse-computed, the mode sequence (`sequence`) is also counted as one operation
+  (when a mode is chosen by the case, the sequence is not used. The base mode is the setting or the first of the sequence in either case).
+- Area: the balance over one orbit (including battery efficiency, before clipping by capacity limits) increases with area, so starting from the SMAD area the upper end is doubled until it brackets the solution,
+  then bisection narrows it until the interval width is at most `1e-4` of the upper end (`AREA_TOLERANCE`). The upper end whose balance is at least exactly 0 is taken.
+  For the maximum-duration operation the worst start can change with area, so the balance at the upper end can remain larger than the tolerance.
+- Capacity: each operation is run with the largest area among the operations, and the capacity is found in closed form from the per-step energy increments (independent of capacity)
+  (`battery::required_capacity`. In an integration clipped at full charge, the shortfall from full charge is `max(initial shortfall − cumulative, peak − cumulative)`, so
+  `capacity ≥ max(deepest drop / dod_max, smallest magnitude of cumulative / (dod_max − (1 − initial SOC)))`). The worst start of the maximum-duration operation is
+  chosen from full charge with a battery size that never empties. If the initial SOC alone reaches the allowed DoD, the capacity cannot be determined.
+- The required area and capacity are the largest among the operations (`area_mode`, `capacity_mode`; `sequence` for the sequence). Passing this area and capacity to `power.energy_balance` at the time of the longest eclipse
+  gives a balance over one orbit ≥ 0 and DoD ≤ `dod_max` in every operation.
+- For sun pointing (constant sunlit generation), if the efficiencies along the SMAD path are aligned with the power balance model (Xd = conversion efficiency, Xe = conversion efficiency × charge efficiency × discharge efficiency,
+  Xbattery = discharge efficiency), the difference between the time-series values and the SMAD values is only the difference in eclipse length (the conical shadow of the season analysis versus the shadow in the time series), and in tests it is within 1%.
+- When a verdict cannot be made, such as with a time series shorter than one orbit, the SMAD values are used for the verdict and a `time_series` caution is put in `checks` (`basis` is `smad`).
 
-出力 `SizingOutput` は判定に使った求め方 `basis`、その必要面積・電池容量（合計と1組）・余裕・決めた運用、設計面積/容量、
-SMAD の全体の値 `smad`（必要発電・面積・容量・余裕・決めたモード・日照/蝕の負荷）、時系列の逆算 `time_series`（回した日付と β・
-運用ごとの面積・その面積での 1 周の収支・容量・評価の回数）、モードごとの逆算 `modes`（入射係数、SMAD の値、時系列の値と
-SMAD に対する比 `area_ratio`・`capacity_ratio`）、日照/蝕の時間、最長蝕の標本（日付付き）、使用した仮定 `used`、判定を持つ。
-電源ページの KPI「SAP の余裕」「バッテリーの余裕」と判定の文は `basis` の値（判定の文の括弧に求め方を書く）。
-任意の `cell_voltage`・`cell_current` と `sizing.bus_voltage` が揃えば、直列数はバス電圧/セル電圧、
-並列数は必要電流/EOL のセル電流をそれぞれ切り上げる（必要電流は SMAD の必要発電から）。異種セルの混在や属性不足では直並列を出さない。
-電圧の温度変化・劣化は扱わず、電流に EOL・経年・固有劣化と面積を決めたモードの入射係数を適用する。
+The output `SizingOutput` holds the method used for the verdict, `basis`; its required area and battery capacity (total and per set), margin and the deciding operation; the design area and capacity;
+the overall SMAD values `smad` (required generation, area, capacity, margin, deciding mode, sunlit and eclipse loads); the time-series reverse computation `time_series` (the date and β used,
+the area per operation, the balance over one orbit at that area, the capacity, and the number of evaluations); the per-mode reverse computation `modes` (incidence factor, SMAD values, time-series values and
+the ratios to SMAD `area_ratio` and `capacity_ratio`); the sunlit and eclipse durations; the longest-eclipse sample (with date); the assumptions used `used`; and the verdict.
+The Power page's KPIs "SAP margin" and "Battery margin" and the verdict text follow the value of `basis` (the method is written in parentheses in the verdict text).
+If the optional `cell_voltage` and `cell_current` and `sizing.bus_voltage` are all given, the number in series is the bus voltage divided by the cell voltage,
+and the number in parallel is the required current divided by the EOL cell current, each rounded up (the required current is from the SMAD required generation). Mixed cell types or missing attributes produce no series-parallel layout.
+Temperature variation and degradation of voltage are not handled; to the current are applied EOL, aging and inherent degradation, and the incidence factor of the mode that decided the area.
 
-上書きは `analysis/power.toml` の `[sizing]`。すべて任意で、既定値は解析が持つ。
+Overrides are in `[sizing]` of `analysis/power.toml`. All are optional, and the defaults are held by the analysis.
 
-| 設定 | 省略時 |
+| Setting | When omitted |
 |---|---|
-| `sunlit_efficiency`（Xd） | `analysis.power.conversion_efficiency` があればその値、無ければ 0.8（教科書的な概算値。`DEFAULT_SUNLIT_EFFICIENCY`） |
-| `eclipse_efficiency`（Xe） | 0.6（SAP から蝕の負荷までの経路全体。教科書的な概算値。`DEFAULT_ECLIPSE_EFFICIENCY`） |
-| `battery_efficiency`（Xbattery） | 先頭の電池の `discharge_efficiency`（その省略時は既存モデルの 1） |
-| `annual_degradation` | 0（追加の経年劣化なし） |
-| `inherent_degradation` | 1（追加の固有劣化なし） |
-| `battery_strings`（N） | 1 |
-| `bus_voltage` | なし（直並列を出さない） |
-| `sun_distance` | 中心天体の太陽距離の慣例値（地球・月は 1 AU。`CentralBody::nominal_sun_distance_m`）。それ以外の天体は不足入力 |
+| `sunlit_efficiency` (Xd) | `analysis.power.conversion_efficiency` if present, otherwise 0.8 (a textbook rough value; `DEFAULT_SUNLIT_EFFICIENCY`) |
+| `eclipse_efficiency` (Xe) | 0.6 (the whole path from the SAP to the eclipse load; a textbook rough value; `DEFAULT_ECLIPSE_EFFICIENCY`) |
+| `battery_efficiency` (Xbattery) | the first battery's `discharge_efficiency` (1 in the existing model if that is omitted) |
+| `annual_degradation` | 0 (no additional aging degradation) |
+| `inherent_degradation` | 1 (no additional inherent degradation) |
+| `battery_strings` (N) | 1 |
+| `bus_voltage` | none (no series-parallel layout) |
+| `sun_distance` | the conventional Sun distance of the central body (1 AU for Earth and the Moon; `CentralBody::nominal_sun_distance_m`). For other bodies, a missing input |
 
-太陽光の強さは `sun_distance` で `illumination::solar_flux_w_m2` から求め（流束の式はそこだけ）、SMAD と時系列の逆算の両方に使う
-（2 AU なら 1/4 で、必要面積は 4 倍）。部品の `packing_factor`・`eol_factor` の省略時は既存の発電モデルと同じく 1。
-DoD・セル効率・面積・電池容量にサイジング固有の既定値は設けない。
+The solar flux is found from `illumination::solar_flux_w_m2` with `sun_distance` (the flux formula exists only there) and is used in both the SMAD and the time-series reverse computations
+(at 2 AU it is 1/4, and the required area is 4 times). When a part's `packing_factor` and `eol_factor` are omitted they are 1, as in the existing generation model.
+No sizing-specific defaults are provided for DoD, cell efficiency, area or battery capacity.
 
 ```toml
 # analysis/power.toml
@@ -627,76 +627,75 @@ annual_degradation = 0.02
 bus_voltage = { value = 28.0, unit = "V" }
 ```
 
-## 6. 製品ツリーと取付
+## 6. Product tree and mounting
 
-### 6.1 2 つの階層
+### 6.1 Two hierarchies
 
-部品には「どの系に属するか（機能）」と「どこに付いているか（物理）」の 2 つの親がある。
-RW は AOCS に属するが、物理的には -Z パネルに付いている。1 つの木で両方を表そうとすると、どちらかが歪む。
+A part has two parents: "which subsystem it belongs to (function)" and "where it is attached (physical)".
+An RW belongs to AOCS, but is physically attached to the -Z panel. Trying to express both with a single tree distorts one of them.
 
-- **製品ツリー（機能）** = `parts/` のディレクトリ構成。配分との比較とバジェットの集計に使う。
-- **取付の階層（物理）** = 各部品の `mount`（取付先の部品と取付点）。3D 配置、重心・慣性の計算、熱の接触に使う。
-- 位置は取付点に対する相対値だけを書く。パネルを動かせば、付いている部品も一緒に動く。機体座標は Resolved で導出する。
+- **Product tree (function)** = the directory structure of `parts/`. Used for comparison with allocations and for budget aggregation.
+- **Mount hierarchy (physical)** = each part's `mount` (the mounting target part and mount point). Used for 3D placement, center-of-mass and inertia computation, and thermal contact.
+- Positions are written only as values relative to the mount point. If you move a panel, the parts attached to it move too. Body-frame coordinates are derived in Resolved.
 
-### 6.2 ディレクトリの規則
+### 6.2 Directory rules
 
-規則は 1 つだけ。**ディレクトリだけならまとまり（Group）、同じ名前のファイルがあればそれ自身も部品（物理的な組立品）**。
+There is just one rule. **A directory alone is a grouping (Group); if a file with the same name exists, it is itself also a part (a physical assembly).**
 
 ```
 parts/
-├── aocs/              機能のまとまり: ディレクトリだけ（ファイル不要）
+├── aocs/              functional grouping: a directory only (no file needed)
 │   ├── RW_X.toml
 │   └── STT.toml
 └── power/
     ├── BAT.toml
-    ├── SAP_PX.toml    物理的な組立品: 普通の部品ファイル（質量・取付・取付点）
-    └── SAP_PX/        同じ名前のディレクトリ = SAP_PX の子部品
+    ├── SAP_PX.toml    physical assembly: an ordinary part file (mass, mount, mount points)
+    └── SAP_PX/        a directory of the same name = child parts of SAP_PX
         ├── CELLS.toml
         └── HINGE.toml
 ```
 
-- Group の ID はディレクトリ名。部品の ID と同じ名前空間で一意にする。
-- Group は質量も取付も持たない。最上位のディレクトリ名は `power`・`aocs`・`cdh`・`comm`・`thermal`・`structure`・`payload`。それ以外は `fune check` の error（使える ID を列挙）。入れ子の組立品・フォルダの ID は任意。
-- 部品の系は `Design::system_of` だけが決める。置き場所の最上位の系 → 種別の役割の系（`role_system`、継承を含む）→ `None`。`parts/` 直下の部品も許し、役割があれば系に属する。
-- 系の表示名は組み込みの語彙 `labels.section`（日英）。プロジェクトによる上書きはしない。API の `PartRow.system` は `System | null`、ツリーとバジェットの行も `system` と日英の表示名を返す。Web の色はこの系を `lib/systems.ts` の唯一の対応で引く（未所属は中立色）。配分は `budget/allocation.toml` に書く。
-- 物理的な組立品（`SAP_PX`）は自分の質量・取付先・取付点を持ち、子部品は `mount = { on = "SAP_PX", … }` で組立品に付く。
-  バジェットでは「組立品自身＋子部品の合計」がその組立品の質量になる。
-- 部品を別のまとまりへ移すとファイルの移動になり、git は rename として表示する。
-- `CODEOWNERS` でディレクトリごとにレビュー担当を決められる。
+- A Group's ID is its directory name. It must be unique within the same namespace as part IDs.
+- A Group has neither mass nor mounting. The top-level directory names are `power`, `aocs`, `cdh`, `comm`, `thermal`, `structure` and `payload`. Anything else is a `fune check` error (listing the IDs that can be used). IDs of nested assemblies and folders are arbitrary.
+- A part's subsystem is decided only by `Design::system_of`: the top-level subsystem of its location → the subsystem of the kind's role (`role_system`, including inheritance) → `None`. Parts directly under `parts/` are also allowed, and belong to a subsystem if they have a role.
+- A subsystem's display name is the built-in vocabulary `labels.section` (Japanese and English). It is not overridden by the project. The API's `PartRow.system` is `System | null`, and the tree and budget rows also return `system` and the Japanese and English display names. The Web's colors look this subsystem up through the single mapping in `lib/systems.ts` (those without a subsystem get the neutral color). Allocations are written in `budget/allocation.toml`.
+- A physical assembly (`SAP_PX`) has its own mass, mounting target and mount points, and child parts attach to the assembly with `mount = { on = "SAP_PX", … }`.
+  In the budget, "the assembly itself plus the sum of its child parts" is the assembly's mass.
+- Moving a part to another grouping moves the file, and git shows it as a rename.
+- `CODEOWNERS` can assign review owners per directory.
 
 ## 7. modes / nets / harness
 
-### 7.1 置き場所の原則
+### 7.1 Placement principle
 
-- **1 つの部品だけで完結する情報**（質量、ポートの所属先など）は部品ファイルに書く。
-- **複数の部品にまたがり、それ自体が名前や属性を持つもの**（モード、ネット、ハーネス）は別ディレクトリにする。
-- **参照は ID で行う。** 部品の ID は全体で一意なので、どのディレクトリからでも `RW_X` で指せる。
-- `nets/` と `harness/` は平らに並べる。ディレクトリが「親」の意味を持つのは `parts/` だけにする。
+- **Information complete within a single part** (mass, which net a port belongs to, and so on) is written in the part file.
+- **Things that span several parts and have their own names or attributes** (modes, nets, harnesses) get their own directories.
+- **References are by ID.** Part IDs are unique overall, so a part can be pointed to as `RW_X` from any directory.
+- `nets/` and `harness/` are laid out flat. Only `parts/` gives directories the meaning of "parent".
 
 ```
 my-sat-design/
-├── parts/      部品そのもの        ports で nets を指す
-├── modes/      運用モード          → parts を参照（部品 → 状態）
-├── nets/       電気的なつながり     ← parts の ports から参照される
-├── harness/    ケーブル区間（物理）  → parts のポートと nets を参照
-└── cases/      解析ケース          → modes を参照（モードの時系列）
+├── parts/      the parts themselves          ports point to nets
+├── modes/      operating modes               → refer to parts (part → state)
+├── nets/       electrical connections        ← referred to from parts' ports
+├── harness/    cable segments (physical)     → refer to parts' ports and nets
+└── cases/      analysis cases                → refer to modes (mode time series)
 ```
 
-### 7.2 modes/: 1 モード 1 ファイル、「部品 → 状態」の表
+### 7.2 modes/: one file per mode, a "part → state" table
 
-表示順は `fune.toml` の `[modes] order` に置く。一覧のモードを指定順、未指定のモードを後ろに ID 順で並べる。
-省略時は ID 順。存在しない ID は `check` の警告となる。正規形では実際の順が ID 順と同じなら `[modes]` を省く
-（存在しない ID がある一覧は警告を残すため保持する）。名前の変更は一覧も書き換え、削除は一覧から除く。追加は一覧があるとき末尾に足す。
+The display order is placed in `[modes] order` of `fune.toml`. Modes in the list come in the specified order, and unspecified modes follow in ID order.
+If omitted, ID order is used. An ID that does not exist yields a `check` warning. In canonical form, `[modes]` is omitted when the actual order equals ID order
+(a list containing a nonexistent ID is kept so that the warning remains). Renaming also rewrites the list, and deleting removes the mode from the list. Adding appends to the end when a list exists.
 
-`fune mode move <ID> --before <ID> | --after <ID> | --first | --last` で移動する。
-GUI の列見出しの「左へ移動」「右へ移動」も `POST /ops/from_command` の同じ service 関数を使う。
-表示順の正本は `Design::ordered_modes`。モード表・CLI の一覧・解析のモード列はこの順を使い、Web は並べ直さない。
-
+Move with `fune mode move <ID> --before <ID> | --after <ID> | --first | --last`.
+The GUI column headers' "Move left" and "Move right" also use the same service function through `POST /ops/from_command`.
+The source of truth for display order is `Design::ordered_modes`. The mode table, the CLI listing and the analyses' mode columns use this order, and the Web does not reorder.
 
 ```toml
 # modes/NOMINAL.toml
-label       = "定常"
-description = "地心指向で待機。通信は可視時のみ"
+label       = "Nominal"
+description = "Standby in nadir pointing. Communication only while visible"
 
 [states]
 BAT    = { state = "on" }
@@ -710,15 +709,15 @@ STT    = { state = "on" }
 TRX    = { state = "rx", duty = { tx = 0.1 } }
 ```
 
-- `state` はカタログ（kind）が定義する機器の状態から選ぶ。電力の値はカタログ側にあり、ここには書かない。
-- `duty = { tx = 0.1 }` は「周回の 10% は tx、残りは基本の状態（rx）」の意味。
-- モードの消費電力は「各部品の状態ごとの電力 × 時間割合」の合計として導出する。GUI では「部品 × モード」の表で編集する。
-- 表に書かれていない部品は 0 W にせず、「未指定」の警告を出す。
+- `state` is chosen from the equipment states defined by the catalog (kind). Power values live on the catalog side and are not written here.
+- `duty = { tx = 0.1 }` means "10% of the orbit in tx, the rest in the base state (rx)".
+- A mode's power consumption is derived as the sum of "each part's power per state × time fraction". In the GUI it is edited in a "part × mode" table.
+- A part not written in the table is not treated as 0 W; an "unspecified" warning is issued instead.
 
-部品の冗長とモードの稼働台数は次のように書く。
+Part redundancy and a mode's active count are written as follows.
 
 ```toml
-# parts/aocs/RW.toml（ほかの部品の欄は省略）
+# parts/aocs/RW.toml (fields of other parts omitted)
 count = 4
 redundancy = "warm"
 ```
@@ -735,29 +734,30 @@ HTR = { state = "off", duty = { on = 0.2 } }
 HTR = { state = "on" }
 ```
 
-- `active` は `count` 以下。省略は全台。明示するには `redundancy = "cold"` または `"warm"` が必要。
-- 稼働台は `state` と `duty` に従い、残りの台は常時予備の状態にいる。cold の予備は組み込みの停止状態 `STATE_OFF`。
-  warm は `spare_state`、種別の語彙の `standby`、`idle` の順（`WARM_SPARE_DEFAULT_STATES`）で選ぶ。予備状態が決まらない場合、語彙に無い場合は error。
-- `[eclipse]` は、書いた部品の割り当て全体を蝕時だけ置換する（`active`・`duty` などの欄を個別に継承しない）。
-  書かなかった部品は `[states]` を使う。`[states]` に無い上書き先は未指定と同様に warning とし、解析には足さない。
-- `max_duration` は時間の次元を検査し、CLI の一覧と GUI のモード見出しに表示する。`power.energy_balance` は、このモードを
-  基本のモードの上で最長継続時間だけ続けたときで判定する（§5.1）。解析期間やモードの時間割合（`mode_share`）には影響しない。
-- 台数の評価は `sat_analysis::modes::counted_states` だけ。電力は「稼働台 × 状態の平均電力 + 予備台 × 予備状態の電力」。
-  `power.mode_load.total` は日照時、`total_eclipse` は蝕時（成長込みはそれぞれ `*_with_growth`）。
-  `power.energy_balance` はこの日照時・蝕時の負荷を使う。C&DH は日照時の割り当てで同じ台数を数える。
-- 熱のモード負荷も同じ台数評価を使う。現段階は日照時の割り当てだけを使い、蝕の上書きによる発熱の変化と軌道平均は扱わない。
-- CLI は `fune set RW.redundancy warm`、`fune mode set NOMINAL RW on --active 3 --spare-state idle`、
-  `fune mode set NOMINAL HTR on --eclipse`。`fune mode unset NOMINAL HTR --eclipse` で日照時の割り当ての継承へ戻す。
-  `fune mode duration NOMINAL --max-duration "90 min"` で継続時間を書き、旗を省くと消す。
-  HTTP は既存の `/ops/from_text` と `/ops/from_command` を通して Op にする。
-- GUI はモード表のセルの編集欄で稼働台数・予備状態を変更し、「蝕の状態」の別欄で上書きを保存する。
-  部品詳細の基本欄で冗長方式を選び、モードの見出しで最長継続時間を編集する。
-### 7.3 nets/: 1 ネット 1 ファイル、ネット自身の性質だけ
+- `active` is at most `count`. Omitted means all units. To write it explicitly, `redundancy = "cold"` or `"warm"` is required.
+- Active units follow `state` and `duty`, and the remaining units are always in the spare state. A cold spare is in the built-in stopped state `STATE_OFF`.
+  A warm spare is chosen from `spare_state`, then the kind's vocabulary entry `standby`, then `idle` (`WARM_SPARE_DEFAULT_STATES`). If the spare state cannot be determined, or is not in the vocabulary, it is an error.
+- `[eclipse]` replaces the whole assignment of each part written there, during eclipse only (fields such as `active` and `duty` are not inherited individually).
+  Parts not written use `[states]`. An override target absent from `[states]` is a warning, as with unspecified, and is not added to the analysis.
+- `max_duration` is dimension-checked and shown in the CLI listing and the GUI's mode header. `power.energy_balance` judges by running this mode for the maximum duration
+  on top of the base mode (§5.1). It does not affect the analysis span or the mode's time fraction (`mode_share`).
+- Counts are evaluated only by `sat_analysis::modes::counted_states`. Power is "active units × the state's average power + spare units × the spare state's power".
+  `power.mode_load.total` is for sunlit, and `total_eclipse` for eclipse (with growth margin, `*_with_growth` respectively).
+  `power.energy_balance` uses these sunlit and eclipse loads. C&DH counts the same number of units from the sunlit assignment.
+- The thermal mode load uses the same count evaluation. At this stage it uses only the sunlit assignment, and changes in heat dissipation due to eclipse overrides and orbit averaging are not handled.
+- The CLI is `fune set RW.redundancy warm`, `fune mode set NOMINAL RW on --active 3 --spare-state idle`, and
+  `fune mode set NOMINAL HTR on --eclipse`. `fune mode unset NOMINAL HTR --eclipse` returns to inheriting the sunlit assignment.
+  `fune mode duration NOMINAL --max-duration "90 min"` writes the duration, and omitting the flag removes it.
+  HTTP turns these into Ops through the existing `/ops/from_text` and `/ops/from_command`.
+- In the GUI, the active count and spare state are changed in the edit field of a mode-table cell, and the override is saved in the separate "Eclipse state" field.
+  The redundancy scheme is chosen in the basic fields of the part detail, and the maximum duration is edited in the mode header.
+
+### 7.3 nets/: one file per net, only the net's own properties
 
 ```toml
 # nets/P12V_AOCS.toml
 kind   = "power"
-label  = "AOCS 12 V 系"
+label  = "AOCS 12 V rail"
 source = "PCDU.OUT3"
 rail   = { value = 12.0, unit = "V" }
 limit  = { value = 2.0, unit = "A" }
@@ -766,22 +766,22 @@ limit  = { value = 2.0, unit = "A" }
 ```toml
 # nets/CAN_BUS.toml
 kind     = "data"
-label    = "システム CAN"
+label    = "System CAN"
 protocol = "CAN"
 bitrate  = { value = 1.0, unit = "Mbit/s" }
 master   = "OBC.CAN1"
 ```
 
-どの部品がつながっているかはネット側に書かず、部品側のポートに書く。部品を足しても共有のファイルを書き換えないので、衝突が起きない。
-系統図は「ネット＋各部品のポート」から組み立てて描く。
+Which parts are connected is not written on the net side but on the ports of the parts. Adding a part does not rewrite a shared file, so no conflicts arise.
+The system diagram is built and drawn from "the nets plus each part's ports".
 
-- `source`・`master`（とハーネスの `from`・`to`）は `"部品.ポート"` の文字列で書き、読み込むときに `PortRef`（部品 ID とポート名）にする。
-  この形でなければ、そのファイルの形の誤り（`toml.schema`、行付き）としてファイルを読まない。部品やポートが無いことは `fune check` が検査する。
-- **戻り（GND）のネット**は、`kind = "power"` で `rail` が 0 のもの、または ID に `GND`・`RTN` の語（`_` で区切った語。大文字小文字を
-  無視）を含むもの（`fune_model::design::Net::is_return`）。系統図では GND の層に描く。表示名（`label`）は見ない。
+- `source` and `master` (and the harness's `from` and `to`) are written as a `"part.port"` string and become a `PortRef` (part ID and port name) when read.
+  If it is not in this form, the file is not read, as an error in the file's shape (`toml.schema`, with line number). Whether the part and port exist is checked by `fune check`.
+- A **return (GND) net** is one with `kind = "power"` and `rail` of 0, or one whose ID contains the word `GND` or `RTN` (words separated by `_`; case-insensitive)
+  (`fune_model::design::Net::is_return`). In the system diagram it is drawn in the GND layer. The display name (`label`) is not looked at.
 
 ```toml
-# parts/aocs/RW_X.toml（抜粋）
+# parts/aocs/RW_X.toml (excerpt)
 catalog = "lab/rw_18mNms"
 
 [ports.PWR]
@@ -791,11 +791,11 @@ net = "P12V_AOCS"
 net = "CAN_BUS"
 ```
 
-### 7.4 harness/: 1 区間 1 ファイル、物理的なケーブル
+### 7.4 harness/: one file per segment, the physical cable
 
 ```toml
 # harness/H_PCDU_RWX.toml
-label = "PCDU → RW_X 電源"
+label = "PCDU → RW_X power"
 from  = "PCDU.OUT3"
 to    = "RW_X.PWR"
 nets  = ["P12V_AOCS"]
@@ -806,88 +806,89 @@ cores = 2
 value       = 0.35
 unit        = "m"
 from.source = "layout_estimate"
-from.note   = "3D 配置からの概算"
+from.note   = "Rough estimate from the 3D layout"
 ```
 
-- ネットが「論理的なつながり」なのに対して、ハーネスは「実際の線」。1 本の束に複数のネットを通せる。
-- 質量（長さ × 線材の単位長さ質量 × 芯数）と電圧降下（電流 × 抵抗）を区間ごとに計算する。電流はモードの消費電力とレール電圧から出す。
-- 概念設計の初期にはハーネスのファイルを書かなくてよい。その間は `budget/policy.toml` の見込み割合で代用する。
+- Whereas a net is a "logical connection", a harness is the "actual wire". Several nets can be carried in one bundle.
+- Mass (length × the wire's mass per unit length × number of cores) and voltage drop (current × resistance) are computed per segment. The current is derived from the mode's power consumption and the rail voltage.
+- Early in conceptual design you do not have to write harness files. In the meantime, the allowance fraction in `budget/policy.toml` is used as a substitute.
 
-### 7.5 よくある操作で変わるファイル
+### 7.5 Files that change in common operations
 
-| 操作 | 変わるファイル |
+| Operation | Files that change |
 |---|---|
-| 部品を追加（RW_Z） | `parts/aocs/RW_Z.toml`（新規）と、各 `modes/*.toml` に 1 行ずつ |
-| モードを追加 | `modes/NEW.toml`（新規）だけ |
-| 部品をネットにつなぐ | その部品ファイルの `ports` に 1 行 |
-| ネットを新しく作る | `nets/X.toml`（新規）と、つなぐ部品の `ports` |
-| ハーネス区間を足す | `harness/X.toml`（新規）だけ |
-| 部品の名前を変える | 部品ファイルの移動と、参照している modes・harness・nets の `source` の書き換え（Rename の Op が一括で行う） |
-| 配分を付け替える | `budget/allocation.toml` だけ |
+| Add a part (RW_Z) | `parts/aocs/RW_Z.toml` (new), and one line in each `modes/*.toml` |
+| Add a mode | only `modes/NEW.toml` (new) |
+| Connect a part to a net | one line in that part file's `ports` |
+| Create a new net | `nets/X.toml` (new), and the `ports` of the parts to connect |
+| Add a harness segment | only `harness/X.toml` (new) |
+| Rename a part | moving the part file, and rewriting `source` in the modes, harnesses and nets that refer to it (the Rename Op does all of this at once) |
+| Reassign an allocation | only `budget/allocation.toml` |
 
-### 7.6 モードを「モードの側」に置くトレードオフ
+### 7.6 The trade-off of placing modes on the mode side
 
-部品を 1 つ足すと、モードの数だけファイルが 1 行ずつ変わる。逆に、部品ファイルに `[modes] NOMINAL = "on"` と書く方式にすると、
-モードを 1 つ足すたびに全部品のファイルが変わり、1 つのモードの全体像も 1 ファイルで見られなくなる。
-「電力の担当者が 1 ファイルでモードの全体を確認できること」を優先して、モードの側に置く。
-行は ID 順に並べるので、隣り合う ID を 2 本のブランチで同時に足さない限り、git は自動でマージできる。
+Adding one part changes one line in as many files as there are modes. Conversely, if each part file carried `[modes] NOMINAL = "on"`,
+adding one mode would change the files of all parts, and the whole picture of one mode could not be seen in a single file.
+Giving priority to "the power lead can check the whole of a mode in one file", modes are placed on the mode side.
+Lines are sorted in ID order, so git can merge automatically unless two branches add adjacent IDs at the same time.
 
-### 7.7 maneuvers/: 1 マヌーバ 1 ファイル
+### 7.7 maneuvers/: one file per maneuver
 
-推進系の解析が共有する入力（モードの表と同じ位置づけ）。ID はファイル名。
+Input shared by the propulsion analyses (positioned like the mode table). The ID is the file name.
 
 ```toml
 # maneuvers/RAISE.toml
-label    = "軌道上昇 550 → 600 km"
-category = "insertion"   # insertion / station_keeping / unloading / deorbit / other（ΔV バジェットの行）
-method   = "propagated"  # impulsive / finite_burn / low_thrust / propagated（推力を入れた数値伝搬）
-thruster = "EPT"         # スラスタの部品（推力・比推力・噴射中の消費電力は部品から）
-after    = "LEOP"        # 前のマヌーバ（任意。マヌーバでない ID は今は最初のマヌーバとして扱う）
+label    = "Orbit raise 550 → 600 km"
+category = "insertion"   # insertion / station_keeping / unloading / deorbit / other (a row of the ΔV budget)
+method   = "propagated"  # impulsive / finite_burn / low_thrust / propagated (numerical propagation with thrust)
+thruster = "EPT"         # the thruster part (thrust, specific impulse and power consumption while firing come from the part)
+after    = "LEOP"        # the preceding maneuver (optional. An ID that is not a maneuver is currently treated as the first maneuver)
 
-[target]                 # 変えたい要素だけ（書かない要素は前の軌道のまま）
-altitude    = { value = 600.0, unit = "km" }   # 円軌道。perigee_altitude・apogee_altitude と一緒には書かない
+[target]                 # only the elements to change (elements not written stay as in the previous orbit)
+altitude    = { value = 600.0, unit = "km" }   # circular orbit. Not written together with perigee_altitude or apogee_altitude
 inclination = { value = 97.8, unit = "deg" }
 
-[constraints]            # 数値伝搬（propagated）でだけ効く。ほかの段階の解析は無視したことを結果に書く
-sunlit_only = true       # 日照中だけ噴く（日照率 0.5 以上）
-mode        = "THRUST"   # 噴射中のモード（power.thrust_balance が電力収支を回す）
-duty        = 0.8        # 噴いてよい時間のうち噴く割合（0 < duty ≤ 1、省略で 1）
-steering    = "tangential"  # tangential（速度の向き。傾斜角も変えるなら Edelbaum の偏揺れ角）/ inertial（始めの向きに固定）
+[constraints]            # effective only for numerical propagation (propagated). The result records that analyses of other methods ignored them
+sunlit_only = true       # fire only while sunlit (sunlit fraction 0.5 or more)
+mode        = "THRUST"   # mode while firing (power.thrust_balance runs the power balance)
+duty        = 0.8        # fraction of the allowed firing time actually fired (0 < duty ≤ 1, 1 if omitted)
+steering    = "tangential"  # tangential (velocity direction. If inclination also changes, Edelbaum's yaw angle) / inertial (fixed to the initial direction)
 ```
 
-- 書ける目標の要素は `body`・`altitude`・`perigee_altitude`・`apogee_altitude`・`inclination`（RAAN の変化はまだ扱わない）。
-- `body`（中心天体の綴り）が前の軌道の中心天体と違えば、天体間の遷移をパッチドコニックで計算する
-  （`sat_astro::transfer::patched_conic`。`method` は `impulsive` か `finite_burn`）。天体の軌道は円で同じ面とみなし、
-  間をホーマン遷移でつなぐ。出発は前の軌道の近点で（地球 → 月なら遷移楕円の近点の噴射、地球 → 火星なら双曲線の脱出）、
-  捕獲は目標の軌道（`altitude` か `perigee_altitude`・`apogee_altitude`。高度は `body` の半径から。書かなければ `check` の error）の近点で噴射する。
-  親子（地球 ⇄ 月）と同じ親を回る天体どうし（地球 ⇄ 火星）だけで、月 → 火星は途中の天体のマヌーバに分ける。
-  傾斜角の変更・打ち上げの窓（会合の時期）は数えない（注記 `plane_change_ignored`・`patched_conic`）。そのあとのマヌーバは目標の天体のまわりで計算する。
-  出力の噴射と軌道には地球以外の中心天体 `central` と双曲線超過速度 `v_inf` が付く。
-  日付を決めた遷移の両端の速度は `sat_astro::transfer::lambert`（Lambert の問題）で解けるが、マヌーバからはまだ使わない。
-  `via_altitude`（最上位）を書くと、インパルス・有限燃焼はその高度を中間の遠地点にしたバイエリプティック遷移で計算する。
-- 実行の順は `after` でつなぐ。正本は `Design::ordered_maneuvers`（`after` の無いものを ID 順に始点にし、後ろにつながるものを続ける）。
-  循環は `check` の error（`maneuver.cycle`）。
-- 最初の軌道は前提条件の軌道（`conditions/orbit.toml`）。乾燥質量は `analysis/propulsion.toml` の `dry_mass`、無ければ部品の質量特性の総質量。
-- `analysis/propulsion.toml` の `dv_margin`（既定 10 %）・`residual_fraction`（残る推薬、既定 3 %）。既定値は sat-analysis（`propulsion::input`）が持つ。
-- 参照の検査: スラスタは部品（無ければ error、役割が `propulsion_thruster`・`thruster` でなければ warning）、制約のモードはモード。
-  名前の変更（RenamePart・RenameMode）で一緒に書き換わる。マヌーバを消すと、後ろのマヌーバは消したマヌーバの前につなぎ直す。
-- `propagated` は推力を入れて軌道を伝搬する（`sat_astro::orbit::propagate_powered`。力は最初の軌道の伝搬の方法に合わせ、
-  質量は推薬の流量で減る）。目標の平均の長半径と傾斜角に着くまで噴き、ΔV・時間・噴いた時間・推薬・終わりの軌道を出す
-  （`propulsion.maneuvers` の `propagation`）。スラスタが要る（無ければ不足の入力）。近地点・遠地点の目標は、低推力と同じく長半径の円で近似する。
-- マヌーバは最初の軌道の元期に始め、次のマヌーバは前のマヌーバの終わりに続けて始める（待ちの時間はフェーズ #9 で足す）。
-  この順の「いつ・どの軌道にいるか」は `propulsion.orbit_history`。数値伝搬のマヌーバがあると、`orbit.eclipse_season`
-  （と、それを使う `power.sizing`）は標本日の軌道をこの推移から引く（無ければ最初の軌道のまま）。
-- `propulsion.mass_properties` は推薬を積んだとき（寿命初期）と使ったあと（寿命末期）の質量・重心（推薬はタンクの部品の重心の点質量）。
-- 書き方: 最上位の値のあと、`[target]`・`[constraints]` を見出しの表で書き、中の量は `{ value, unit }`
-  （`fune_store::write::records::MANEUVER_SECTIONS`）。編集は `fune maneuver add|set|rm`（GUI も同じ引数を `POST /ops/from_command` に送る）。
-### 7.8 sources/: 出典の台帳と、値の出典
+- The target elements that can be written are `body`, `altitude`, `perigee_altitude`, `apogee_altitude` and `inclination` (changes in RAAN are not handled yet).
+- If `body` (the spelling of the central body) differs from the previous orbit's central body, the transfer between bodies is computed by patched conics
+  (`sat_astro::transfer::patched_conic`; `method` is `impulsive` or `finite_burn`). The bodies' orbits are regarded as circular and coplanar,
+  and are connected by a Hohmann transfer. Departure is at the periapsis of the previous orbit (for Earth → Moon, a burn at the periapsis of the transfer ellipse; for Earth → Mars, a hyperbolic escape),
+  and capture is a burn at the periapsis of the target orbit (`altitude`, or `perigee_altitude` and `apogee_altitude`; altitudes are from `body`'s radius; if not written, a `check` error).
+  Only parent-child pairs (Earth ⇄ Moon) and bodies orbiting the same parent (Earth ⇄ Mars) are supported; Moon → Mars is split into a maneuver at an intermediate body.
+  Inclination changes and launch windows (the timing of the encounter) are not counted (notes `plane_change_ignored` and `patched_conic`). Later maneuvers are computed around the target body.
+  The output's burns and orbits carry the non-Earth central body `central` and the hyperbolic excess velocity `v_inf`.
+  The velocities at both ends of a transfer with fixed dates can be solved with `sat_astro::transfer::lambert` (Lambert's problem), but maneuvers do not use it yet.
+  Writing `via_altitude` (top level) makes impulsive and finite-burn computations use a bi-elliptic transfer with that altitude as the intermediate apoapsis.
+- The execution order is linked by `after`. The source of truth is `Design::ordered_maneuvers` (those with no `after` start in ID order, followed by the ones linked after them).
+  A cycle is a `check` error (`maneuver.cycle`).
+- The first orbit is the conditions' orbit (`conditions/orbit.toml`). The dry mass is `dry_mass` in `analysis/propulsion.toml`, or if absent, the total mass of the parts' mass properties.
+- `dv_margin` (default 10 %) and `residual_fraction` (remaining propellant, default 3 %) in `analysis/propulsion.toml`. The defaults are held by sat-analysis (`propulsion::input`).
+- Reference checks: the thruster is a part (an error if absent, a warning if its role is not `propulsion_thruster` or `thruster`), and the constraint's mode is a mode.
+  They are rewritten together by renames (RenamePart, RenameMode). When a maneuver is deleted, the maneuvers after it are relinked to the one before the deleted maneuver.
+- `propagated` propagates the orbit with thrust applied (`sat_astro::orbit::propagate_powered`; the force matches the propagation method of the first orbit,
+  and the mass decreases with the propellant flow). It fires until reaching the target mean semi-major axis and inclination, and outputs ΔV, duration, firing time, propellant and the final orbit
+  (the `propagation` of `propulsion.maneuvers`). A thruster is required (otherwise a missing input). Perigee and apogee targets are approximated by a semi-major-axis circle, as with low thrust.
+- A maneuver starts at the epoch of the first orbit, and the next maneuver starts right after the end of the previous one (waiting time will be added in phase #9).
+  "When and in which orbit" for this order is given by `propulsion.orbit_history`. When there is a numerically propagated maneuver, `orbit.eclipse_season`
+  (and `power.sizing`, which uses it) looks up the orbit for each sample day from this history (if there is none, the first orbit is kept).
+- `propulsion.mass_properties` gives mass and center of mass with propellant loaded (beginning of life) and after use (end of life) (the propellant is a point mass at the tank part's center of mass).
+- How to write: after the top-level values, `[target]` and `[constraints]` are written as heading tables, and quantities inside are `{ value, unit }`
+  (`fune_store::write::records::MANEUVER_SECTIONS`). Edits use `fune maneuver add|set|rm` (the GUI sends the same arguments to `POST /ops/from_command`).
 
-値の根拠になる資料・試験・解析・判断を 1 つ 1 ファイルで書き、値の `from.source` とカタログ品の `source`・`datasheet` から ID で指す。
+### 7.8 sources/: the ledger of sources, and the source of a value
+
+Materials, tests, analyses and judgements that form the basis of a value are written one per file, and are pointed to by ID from a value's `from.source` and from a catalog item's `source` and `datasheet`.
 
 ```toml
 # sources/ds_rw10.toml
 kind         = "datasheet"
-label        = "RW 10 mNms データシート"
+label        = "RW 10 mNms datasheet"
 ref          = "https://example.com/datasheets/rw-10.pdf"
 revision     = "Rev. C"
 retrieved    = "2026-10-15"
@@ -896,47 +897,47 @@ distribution = "on_request"
 by           = "system-lead"
 ```
 
-| キー | 中身 | 検査（`fune check`） |
+| Key | Contents | Check (`fune check`) |
 |---|---|---|
-| `kind` | `placeholder` / `judgement` / `analysis` / `datasheet` / `measured`（根拠の強さの順） | 読み込みで綴りを検査 |
-| `label` | 表示名 | — |
-| `ref` | 参照先（URL・リポジトリ内のパス・文書番号）。`http://`・`https://` で始まれば GUI は新しいタブで開くリンクにする（判定は `Source::web_link` だけ） | — |
-| `revision` | 資料の版（`Rev. C`・`v1.4` など書かれたまま） | — |
-| `retrieved` | 資料を取得した日 | `YYYY-MM-DD` の暦にある日（`source.date`） |
-| `sha256` | 取得したファイル（PDF など）の SHA-256。ベンダーが版番号を変えずに差し替えたことに気づくため | 64 桁の 16 進数（`source.sha256`。大文字も可） |
-| `distribution` | 配布の区分: `public`（誰でも取れる）/ `on_request`（ベンダーに依頼して配られる）/ `restricted`（公開できない。NDA など） | 書き込めないカタログ（共有カタログ）の品が `restricted` の出典を使うと error（`source.restricted`） |
-| `date` | 試験・解析・判断をした日 | `YYYY-MM-DD` の暦にある日（`source.date`） |
-| `by` | 記入者 | — |
-| `note` | メモ | — |
+| `kind` | `placeholder` / `judgement` / `analysis` / `datasheet` / `measured` (in order of strength of evidence) | the spelling is checked when read |
+| `label` | display name | — |
+| `ref` | the reference (URL, path in the repository, document number). If it starts with `http://` or `https://`, the GUI makes it a link that opens in a new tab (decided only by `Source::web_link`) | — |
+| `revision` | version of the document (as written, such as `Rev. C` or `v1.4`) | — |
+| `retrieved` | the date the document was retrieved | a day that exists in the `YYYY-MM-DD` calendar (`source.date`) |
+| `sha256` | SHA-256 of the retrieved file (a PDF, etc.). To notice when a vendor replaced it without changing the version number | 64 hexadecimal digits (`source.sha256`; uppercase is also accepted) |
+| `distribution` | distribution category: `public` (anyone can get it) / `on_request` (distributed on request to the vendor) / `restricted` (cannot be made public; NDA, etc.) | an item in a non-writable catalog (a shared catalog) that uses a `restricted` source is an error (`source.restricted`) |
+| `date` | the date of the test, analysis or judgement | a day that exists in the `YYYY-MM-DD` calendar (`source.date`) |
+| `by` | author | — |
+| `note` | memo | — |
 
-新しいファイルは表の順に書く。既にあるファイルに欄を足すときは、ほかの記録（ケース・ハーネス）と同じく今の行を動かさずに末尾に足す
-（差分を小さくするため。`fune fmt` はキーを並べ替えない）。`fune source set` と GUI の出典のページは同じ Op `set_source` で書く。資料そのもの（PDF）はリポジトリに置かず、
-`ref` の URL で参照し、取得したものの SHA-256 を残す。
+A new file is written in the order of the table. When adding a field to an existing file, as with other records (cases, harnesses), it is appended at the end without moving the current lines
+(to keep diffs small; `fune fmt` does not reorder keys). `fune source set` and the GUI's sources page write with the same Op `set_source`. The material itself (the PDF) is not placed in the repository;
+it is referenced by the URL in `ref`, and the SHA-256 of what was retrieved is kept.
 
-- **値の出典** `from` は `source`（出典の ID）・`at`（資料の中の位置。`p.12 表 3` のようなページ・表・節を書かれたまま）・`note` の 3 つ。
-  出典の付いた値は 1 行 1 要素で、`from.source`・`from.at`・`from.note` の順に書く（§10.2 の 3）。CLI は `fune set … --source … --at … --note …`。
-- **カタログ品の `datasheet` は出典の ID を指す**（URL やパスを直接書かない）。データシートの場所・版・取得日・SHA-256・配布の区分は
-  出典の側の 1 か所だけに書き、カタログ品からは ID で参照する。前は `datasheet` に URL かパスを書いていたが、同じ情報を出典の `ref` と
-  二重に持つことになるのでやめた。無い出典の ID を指すと `ref.source` の error。古い書き方（`datasheet` に URL・パスを直接書く）は読めるまま
-  `source.datasheet_location` の warning にして、出典へ移すよう促す（既存のカタログを壊さないため）。`source`（出典を書いていない値に当てる
-  既定の出典）と同じ出典を指してよい。GUI は指した出典の `ref` が Web の URL なら、データシートの欄の横に開くリンクを出す（API の `datasheet_link`）。
-- 共有カタログ（§12）の出典は `<カタログ名>/<ID>`（`lab/ds_rw10`）で参照する。共有カタログの品の中の参照には読み込みで出所が付く。
-- 公開できない（`restricted`）資料の値は、衛星をまたいで共有するカタログに入れない。共有カタログ（§12。`[[catalog]] git = …`）の品が
-  `source`・`datasheet`・値の `from.source` で `restricted` の出典を指すと error にする。カタログが書き込めるかの判定は
-  `CatalogSource::local_dir`（`path = …` の出所だけが書き込める）の 1 か所。このプロジェクトの中のカタログ（`path = …`）の品は対象にしない。
+- **The source of a value**, `from`, has three keys: `source` (a source ID), `at` (the position within the material, such as page, table or section like `p.12 Table 3`, as written), and `note`.
+  A value with a source is written one element per line, in the order `from.source`, `from.at`, `from.note` (§10.2 item 3). The CLI is `fune set … --source … --at … --note …`.
+- **A catalog item's `datasheet` points to a source ID** (no URL or path is written directly). The datasheet's location, version, retrieval date, SHA-256 and distribution category are
+  written in one place only, on the source side, and catalog items refer to it by ID. Previously a URL or path was written in `datasheet`, but that duplicated the same information with the source's `ref`, so it was dropped.
+  Pointing to a source ID that does not exist is a `ref.source` error. The old form (a URL or path written directly in `datasheet`) is still readable but is made a
+  `source.datasheet_location` warning urging a move to a source (so as not to break existing catalogs). It may point to the same source as `source` (the default
+  source applied to values with no source written). If the pointed source's `ref` is a Web URL, the GUI shows a link that opens it next to the datasheet field (the API's `datasheet_link`).
+- Sources in a shared catalog (§12) are referred to as `<catalog name>/<ID>` (`lab/ds_rw10`). References inside a shared catalog item get their origin attached when read.
+- Values from materials that cannot be made public (`restricted`) are not put into catalogs shared across satellites. If an item of a shared catalog (§12; `[[catalog]] git = …`)
+  points to a `restricted` source through `source`, `datasheet` or a value's `from.source`, it is an error. Whether a catalog is writable is decided in one place,
+  `CatalogSource::local_dir` (only origins of the form `path = …` are writable). Items of catalogs inside this project (`path = …`) are not covered.
 
-## 8. 配分とマージン方針（budget/）
+## 8. Allocations and margin policy (budget/)
 
-配分はサブシステムのディレクトリに分散させず、1 つのファイルにまとめる。
+Allocations are gathered in a single file rather than scattered across subsystem directories.
 
-- 配分を決めるのはシステム担当、`parts/aocs/` を触るのは AOCS 担当で、持ち主が違う。`CODEOWNERS` でレビュー担当を分けられる。
-- 配分は一緒に動く。「AOCS に 0.2 kg 回して PAYLOAD を減らす」という変更が、ファイル 1 つ・差分 2 行で済む。
-- 合計の確認が 1 ファイルで済む。`check()` は「配分の合計 ≤ 上限 × (1 − システムマージン)」を検査し、超えたら warning を出す。
+- The system lead decides allocations, while the AOCS lead touches `parts/aocs/`; the owners differ. `CODEOWNERS` can assign review owners separately.
+- Allocations move together. A change such as "shift 0.2 kg to AOCS and reduce PAYLOAD" takes one file and two lines of diff.
+- The total can be checked in one file. `check()` verifies "total of allocations ≤ limit × (1 − system margin)" and emits a warning if exceeded.
 
 ```toml
 # budget/allocation.toml
 [mass]
-limit         = { value = 12.0, unit = "kg" }   # ロケット側の上限
+limit         = { value = 12.0, unit = "kg" }   # upper limit from the launcher side
 system_margin = 0.10
 
 [mass.alloc]
@@ -948,7 +949,7 @@ payload   = { value = 1.5, unit = "kg" }
 structure = { value = 2.3, unit = "kg" }
 
 [power]
-limit         = { value = 25.0, unit = "W" }    # 軌道平均の発電見込み
+limit         = { value = 25.0, unit = "W" }    # expected orbit-average generation
 system_margin = 0.15
 
 [power.alloc]
@@ -961,49 +962,48 @@ payload = { value = 5.0, unit = "W" }
 
 ```toml
 # budget/policy.toml
-[growth]                 # 成熟度ごとの成長余裕（質量・電力に掛ける）
+[growth]                 # growth margin per maturity (multiplied onto mass and power)
 off_the_shelf = 0.05
 modified      = 0.10
 new           = 0.20
 
-[uncertainty]            # 不確かさを書いていない値に当てる既定の幅（±）
+[uncertainty]            # default width (±) applied to values with no uncertainty written
 off_the_shelf = 0.03
 modified      = 0.10
 new           = 0.20
 
 [harness]
-allowance = 0.05         # harness/ が無い間、サブシステム質量に対して見込む割合
+allowance = 0.05         # fraction allowed for subsystem mass while harness/ does not exist
 ```
 
-配分のキーは系の ID か部品の ID。系のディレクトリがまだ無くても配分できる。組立品（`SAP_PX`）のような部品にも配分できるが、任意のフォルダの ID は受け付けない。
-集計は明示配分のある部品・最も近い祖先の組立品を優先し、それ以外は部品の系にまとめる（役割から決まる系も含む）。未所属は「その他」の行。種類ごとの配分だけを使い、別種類の配分先には影響されない。
-`limit` は省略できる。未設定の種類は `fune check` が warning「上限が未設定」を出し、上限に対する判定を行わず現状の合計を返す。`fune init` は質量上限を決めず、SAFE モードにも表示名を埋め込まない。
+An allocation key is a subsystem ID or a part ID. Allocation is possible even if the subsystem directory does not exist yet. Parts such as assemblies (`SAP_PX`) can also be allocated to, but IDs of arbitrary folders are not accepted.
+Aggregation gives priority to parts with an explicit allocation and to the nearest ancestor assembly, and otherwise gathers into the part's subsystem (including subsystems determined by role). Those without a subsystem go in the "Other" row. Only allocations of the same budget kind are used, and allocation targets of other kinds have no effect.
+`limit` may be omitted. For a kind with no limit set, `fune check` emits the warning "limit not set", does not judge against a limit, and returns the current total. `fune init` does not set a mass limit and does not embed a display name in the SAFE mode.
 
-**質量の推薬**: 質量のバジェット（`fune budget mass`・`GET /budgets/mass`・概要の質量のバジェット）は、部品の乾燥質量の行のあとに
-「推薬」の行を出す。値は推進系の解析 `propulsion.propellant` の積む推薬（マージン込みで使う分 + 残る分）だけから取り、成長余裕を掛けず、
-配分の行にもしない。合計は乾燥（`total`。部品だけ）と推薬込み（`propellant.wet.total` = 乾燥 + 推薬）の両方を出し、どちらも
-上限 × (1 − システムマージン) と比べる（判定は同じ `budget_rollup`）。推進系（マヌーバか、役割 `propulsion_thruster`・`propellant_tank` の部品）
-が無ければ行を出さず理由 `no_propulsion`、推進系の入力が足りなければ `missing`（足りない入力付き）、解析が通らなければ `failed` を返す
-（文言は CLI と Web）。`fune budget mass` は推薬込みが違反でも 1 で終わる。概要の質量余裕のカードは、推薬を数えたときは推薬込みの
-余裕・判定・塗りを出し、フッターに乾燥と推薬込みの両方の合計を添える。推進系の解析の乾燥質量（`analysis.propulsion.dry_mass`、無ければ部品の合計）は
-成長余裕を含まないので、推薬込みの合計は `propulsion.propellant` の `wet_mass` より成長余裕の分だけ大きい。
+**Propellant in the mass budget**: the mass budget (`fune budget mass`, `GET /budgets/mass`, and the mass budget in the overview) outputs a "Propellant" row
+after the rows of the parts' dry mass. Its value is taken only from the propellant loaded according to the propulsion analysis `propulsion.propellant` (the portion used with margin + the remaining portion), without applying growth margin,
+and is not made an allocation row. The totals give both dry (`total`; parts only) and with propellant (`propellant.wet.total` = dry + propellant), and both are compared with
+limit × (1 − system margin) (the verdict uses the same `budget_rollup`). If there is no propulsion subsystem (maneuvers, or parts with the role `propulsion_thruster` or `propellant_tank`), the row is not output and the reason `no_propulsion` is returned;
+if propulsion inputs are insufficient, `missing` (with the missing inputs); if the analysis fails, `failed` (the wording is in the CLI and Web). `fune budget mass` exits with 1 even if the with-propellant total violates. The overview's mass margin card, when propellant is counted, shows the with-propellant
+margin, verdict and fill, and adds both the dry and with-propellant totals in the footer. The dry mass in the propulsion analysis (`analysis.propulsion.dry_mass`, or the parts' total if absent)
+does not include growth margin, so the with-propellant total is larger than `propulsion.propellant`'s `wet_mass` by the growth margin.
 
-## 9. Derived の出力先
+## 9. Output destinations for Derived
 
-Derived は「保存しない」が基本。出力先は用途で分ける。
+The basic rule for Derived is "do not save". Output destinations differ by purpose.
 
-| 出力 | 場所 | git で管理するか | 用途 |
+| Output | Location | Tracked in git | Purpose |
 |---|---|---|---|
-| バジェット・質量特性など、すぐ計算できるもの | なし（メモリ上） | — | GUI・CLI の表示。毎回計算し直す |
-| 解析・SIM の実行結果 | `.fune/runs/<解析>/<ケース>/<fingerprint>/` | しない | キャッシュと、手での再実行 |
-| 残したい結果 | `results/<名前>/` | する | `fune results pin` で選んだものだけ。レビューや審査で見せる |
-| 他ツールへの書き出し | `exports/`（budget.json など） | する | 外部の検証ツールなどが読むファイル |
-| 審査用のまとめ（PDF など） | GitHub Release の添付 | リポジトリには入れない | `git tag pdr-2026-12` と `fune report` の出力 |
+| Things that can be computed immediately, such as budgets and mass properties | none (in memory) | — | GUI and CLI display. Recomputed every time |
+| Run results of analyses and SIM | `.fune/runs/<analysis>/<case>/<fingerprint>/` | no | cache, and manual re-runs |
+| Results to keep | `results/<name>/` | yes | only those chosen with `fune results pin`. Shown at reviews and design reviews |
+| Export to other tools | `exports/` (budget.json, etc.) | yes | files read by external verification tools and the like |
+| Summaries for reviews (PDF, etc.) | attachments to a GitHub Release | not put in the repository | `git tag pdr-2026-12` and the output of `fune report` |
 
 ```
 results/thermal-hot/
-├── manifest.toml        解析 ID・ケース・入力の fingerprint・元の commit・ツールの版・pin した人と日時
-├── result.json          スカラー値と系列の宣言（fune-tool/1）
+├── manifest.toml        analysis ID, case, input fingerprint, source commit, tool version, who pinned and when
+├── result.json          scalar values and declarations of series (fune-tool/1)
 └── series/temperature.csv
 ```
 
@@ -1015,54 +1015,55 @@ case        = "hot"
 fingerprint = "sha256:9f3c2a1e"
 source_rev  = "a1b2c3d"
 tool        = "git:example-org/thermal-tool@1e9af19"
-pinned_by   = "tanaka"
+pinned_by   = "system-lead"
 pinned_at   = 2026-11-06T10:30:00+09:00
 ```
 
-計算結果を全部はコミットしない理由は次のとおり。
+The reasons for not committing all computed results are as follows.
 
-- 入力はきれいにマージできても結果ファイルが衝突する（2 本のブランチがそれぞれ部品を足すと、質量の合計が両方で変わる）。
-- 入力と食い違った古い結果が残る。
-- 差分が数値の変化で埋まり、レビューしにくくなる。
+- Even when inputs merge cleanly, the result files conflict (if two branches each add a part, the total mass changes in both).
+- Stale results that disagree with the inputs remain.
+- Diffs are filled with numerical changes, making review difficult.
 
-PR では CI が両方のリビジョンで計算し直した変化量をコメントするので、結果をコミットしなくても差分は見られる。
-時間のかかる熱解析や、CI で動かせない外部ツールの結果だけを `results/` に pin する。pin した結果は入力の fingerprint を持つので、
-入力が変われば `fune check` が「この結果は古い」と警告する。大きな系列ファイルは Git LFS に置く。
+On a PR, CI recomputes on both revisions and comments the changes, so differences can be seen without committing results.
+Only the results of time-consuming thermal analyses and of external tools that CI cannot run are pinned in `results/`. A pinned result has the input fingerprint,
+so if the inputs change, `fune check` warns "this result is stale". Large series files are placed in Git LFS.
 
-## 10. ファイル形式
+## 10. File formats
 
-### 10.1 形式の比較
+### 10.1 Comparison of formats
 
-| 形式 | git の差分・マージ | 手編集 | GUI からの書式保存書き込み（Rust） | 入れ子・ツリー | スキーマ・エディタ支援 | 判定 |
+
+| Format | git diff and merge | Hand editing | Format-preserving writes from the GUI (Rust) | Nesting and trees | Schema and editor support | Verdict |
 |---|---|---|---|---|---|---|
-| **TOML** | ◎ 1 行 1 値 | ○ | ◎ toml_edit 0.25（cargo が使用） | △ 深い入れ子は読みにくい | ○ JSON Schema（Tombi / Taplo、`#:schema`） | **採用**。ツリーをディレクトリで表せば弱点に当たらない |
-| KDL v2 | ◎ | ○ | ◎ kdl 6.7（書式保存） | ◎ ノードの木がそのまま製品ツリーになる | △ JSON Schema が使えず、エディタ支援も少ない。Python 側の読み手が育っていない | 次点。入れ子でツリーを書きたくなったら再検討 |
-| YAML | ○ | ○（インデントや型推論の罠） | ✗ serde_yaml は deprecated、書式保存の書き込み手段がない | ◎ | ○ | 不採用 |
-| JSON | △ カンマと括弧で差分が汚れる | ✗ コメント不可 | ○ | ◎ | ◎ | 機械向けの交換・書き出し専用 |
-| 独自 DSL（SysML v2 風） | ◎ | ◎ | ✗ パーサー・整形・LSP・書式保存をすべて自作 | ◎ | ✗ 自作 | 不採用。将来の書き出し先としてのみ |
-| CSV | ○ 行単位 | ○ Excel で開ける | ○ | ✗ | △ | 表データ専用 |
-| SQLite / Dolt | ✗ / △ | ✗ | — | — | — | 不採用（理由は [architecture.md](architecture.md) §2.2） |
+| **TOML** | ◎ one value per line | ○ | ◎ toml_edit 0.25 (used by cargo) | △ deep nesting is hard to read | ○ JSON Schema (Tombi / Taplo, `#:schema`) | **Adopted.** Expressing the tree with directories avoids the weakness |
+| KDL v2 | ◎ | ○ | ◎ kdl 6.7 (format-preserving) | ◎ the node tree becomes the product tree as is | △ JSON Schema is unavailable and editor support is thin. Readers on the Python side are not mature | Runner-up. Reconsider if we want to write the tree by nesting |
+| YAML | ○ | ○ (traps in indentation and type inference) | ✗ serde_yaml is deprecated, and there is no format-preserving way to write | ◎ | ○ | Not adopted |
+| JSON | △ commas and brackets make diffs noisy | ✗ no comments | ○ | ◎ | ◎ | For machine exchange and export only |
+| Custom DSL (SysML v2 style) | ◎ | ◎ | ✗ parser, formatter, LSP and format-preserving writing would all be built in-house | ◎ | ✗ built in-house | Not adopted. Only as a future export target |
+| CSV | ○ line-based | ○ opens in Excel | ○ | ✗ | △ | For tabular data only |
+| SQLite / Dolt | ✗ / △ | ✗ | — | — | — | Not adopted (reasons in [architecture.md](architecture.md) §2.2) |
 
-### 10.2 TOML プロファイル
+### 10.2 TOML profile
 
-`fune fmt` と `fune check` で強制する書き方の規則。
+Writing rules enforced by `fune fmt` and `fune check`.
 
-1. 1 ファイル 1 エンティティ。ID はファイル名の stem で、全体で一意（大文字小文字を無視、Windows の予約名は不可、`_` で始めない）。
-   属性 ID には部品・カタログ品のフィールド名（`label`・`count`・`maturity` など。`fune_model::field_names::{PartFieldName, CatalogFieldName}`）を使わない
-   （パスの記法 `RW_X.label` で属性とフィールドを区別できないため。`fune check` の `def.reserved`、`fune attr add` も拒む）。
-2. 入れ子は 2 段まで。ツリーはディレクトリ、エンティティ間の関係は ID の参照で表す。
-   例外は出典の付いた値の行（3）のドット付きキー（`[attr.<名前>]` の下の `from.*`、状態ごとの値のセルの `<状態>.*`）だけ。
-3. インライン表は `{ value, unit }`、短いベクトル（`{ x, y, z, unit }`）、範囲（`{ min, max, unit }`）、1 行で収まる参照だけ。
-   状態や不確かさを持つ値は `[attr.<名前>]` の下に 1 行 1 セル。
-   **出典（`from`）の付いた値は 1 行 1 要素で書く。** 出典の無い値は 1 行のインライン表のまま。
-   切り替えは行の長さではなく出典の有無だけで決める（`note` を少し書き足しただけで形が変わり、差分が荒れるのを避ける）。
-   - 属性（`[attr]` の行）とファイルの最上位の値（ハーネスの `length` など）は、値の見出しの表（`[attr.<名前>]`・`[length]`）の下に
-     `value`・`unit`（範囲は `min`・`max`、ベクトルは `x`・`y`・`z`）を 1 行ずつ、出典はドット付きキー `from.source`・`from.at`・`from.note` で書く。
-   - 状態ごとの値のセルに出典が付くときは、`[attr.<名前>]` の下にセルの名前のドット付きキー（`on.value`・`on.unit`・`on.from.source`）で書く
-     （`[attr.power.on]` は 3 段になるので使わない）。出典の無いセルは今の 1 行のまま、同じ表に並ぶ。
-   - 見出しの表は親の表の値の行の後ろに置く（TOML の決まり）。親の表に値の行が残らなければ親の見出し（`[attr]`）は書かない。
-   - 表の `=` は、ドット付きキーの行も含めて表ごとに揃える。
-   - 読み込みはどちらの形（古い 1 行のインライン表、見出しの表・ドット付きキー）も同じ値になる。`fune fmt` が今の形に直す。
+1. One entity per file. The ID is the file name's stem and is unique overall (case-insensitive, Windows reserved names not allowed, must not start with `_`).
+   Attribute IDs must not use the field names of parts and catalog items (`label`, `count`, `maturity` and so on; `fune_model::field_names::{PartFieldName, CatalogFieldName}`)
+   (because the path notation `RW_X.label` could not tell an attribute from a field. `def.reserved` in `fune check`, and `fune attr add` also refuses them).
+2. Nesting is at most two levels. Trees are expressed by directories, and relationships between entities by ID references.
+   The only exception is the dotted keys of the value rows with a source (3) (`from.*` under `[attr.<name>]`, and `<state>.*` in a per-state value's cells).
+3. Inline tables are only for `{ value, unit }`, short vectors (`{ x, y, z, unit }`), ranges (`{ min, max, unit }`), and references that fit on one line.
+   Values with states or uncertainty go one cell per line under `[attr.<name>]`.
+   **A value with a source (`from`) is written one element per line.** A value with no source stays a one-line inline table.
+   The switch is decided only by whether a source exists, not by line length (to avoid the form changing and the diff getting noisy just because a short `note` was added).
+   - Attributes (rows of `[attr]`) and values at the top level of a file (such as a harness's `length`) are written under a heading table for the value (`[attr.<name>]`, `[length]`) with
+     `value` and `unit` (`min` and `max` for ranges, `x`, `y` and `z` for vectors) one per line, and the source in the dotted keys `from.source`, `from.at` and `from.note`.
+   - When a source is attached to a per-state value's cell, it is written under `[attr.<name>]` with dotted keys named after the cell (`on.value`, `on.unit`, `on.from.source`)
+     (`[attr.power.on]` would be three levels, so it is not used). Cells with no source stay as the current one-liners and sit in the same table.
+   - A heading table is placed after the value rows of its parent table (a TOML rule). If no value rows remain in the parent table, the parent's heading (`[attr]`) is not written.
+   - The `=` signs are aligned per table, including the dotted-key rows.
+   - Reading gives the same value from either form (the old one-line inline table, or heading tables and dotted keys). `fune fmt` rewrites to the current form.
 
    ```toml
    [attr]
@@ -1081,59 +1082,59 @@ PR では CI が両方のリビジョンで計算し直した変化量をコメ�
    on.unit        = "W"
    on.from.source = "sys_judgement"
    ```
-4. 物理量の数値は常に float で書く（`0` ではなく `0.0`）。整数は ID・員数（`count`・`active`）・回数だけ。
-5. 書き出しは TOML 1.0 の範囲（§10.3）。
-6. 曲線・特性表・時系列は CSV に置き、列の単位は対になる TOML で宣言する。
-7. 計算結果は書かない（§9）。
-8. 先頭に `#:schema` を置き、VS Code（Even Better TOML / Tombi）で補完と検証を効かせる。
-9. 名前の変わったキーは古い名前も同じ値に読み、`toml.renamed_key` の warning で移行を促す。`fune fmt`（と、そのファイルへの `fune set`）が
-   新しい名前に書き換える（行の位置・値・コメントはそのまま。`=` は揃え直す）。`fune set` に古い名前を打っても新しい名前に書く。対応は `fune_store::profile::renamed` の 1 か所。今あるのは
-   `analysis/thermal.toml` の `[case.*] earth_ir` → `planet_ir` だけ（§5.2）。
+4. Numerical values of physical quantities are always written as floats (`0.0`, not `0`). Integers are only for IDs, counts (`count`, `active`) and numbers of times.
+5. Output stays within TOML 1.0 (§10.3).
+6. Curves, characteristic tables and time series go in CSV, and the units of the columns are declared in the paired TOML.
+7. Computed results are not written (§9).
+8. Put `#:schema` at the top so that completion and validation work in VS Code (Even Better TOML / Tombi).
+9. A renamed key is also read from its old name with the same value, and a `toml.renamed_key` warning urges migration. `fune fmt` (and `fune set` on that file) rewrites it to
+   the new name (the line position, value and comments are kept; `=` is realigned). Typing the old name into `fune set` also writes the new name. The mapping is in one place, `fune_store::profile::renamed`. At present the only entry is
+   `[case.*] earth_ir` → `planet_ir` in `analysis/thermal.toml` (§5.2).
 
-### 10.3 TOML の版
+### 10.3 TOML versions
 
-TOML 1.1.0 は 2025 年 12 月に正式化されたが、**書き出しは 1.0 の範囲に留める**。1.1 を使わないと決めたのではなく、読み手が揃うまで待つ。
+TOML 1.1.0 was finalized in December 2025, but **output is kept within TOML 1.0**. This is not a decision never to use 1.1; we wait until readers catch up.
 
-**理由 1: 読み手がまだ揃っていない。** 設計データはアプリ以外（外部の検証ツール、Python のスクリプトやノートブック、エディタ）も読む。
-1 つでも 1.0 にしか対応しない読み手があれば、1.1 の構文を書いた時点でその読み手では読めなくなる。
+**Reason 1: readers have not caught up yet.** Design data is also read by things other than the app (external verification tools, Python scripts and notebooks, editors).
+If even one reader supports only 1.0, writing 1.1 syntax makes the data unreadable for that reader.
 
-| 読み手 | TOML 1.1 | 確認方法（2026-11-06） |
+| Reader | TOML 1.1 | How confirmed (2026-11-06) |
 |---|---|---|
-| Rust（`toml` 1.2.0、`toml_edit` 0.25.18） | 対応 | crate の版表記 `+spec-1.1.0` |
-| Python 3.15 の `tomllib` | 対応（3.15 で追加） | Python のドキュメント |
-| Python 3.14 以前の `tomllib` | **非対応** | Python 3.14.4 で、複数行のインライン表がエラーになることを確認 |
-| `tomli` | 2.4.0 から対応 | CHANGELOG |
-| `tomlkit` | 0.15.0 から読める。0.15.2 は 1.0 のパーサーでも読めるよう、書き出しを 1.0 の範囲にしている | CHANGELOG |
-| Taplo（VS Code の Even Better TOML が使用） | おそらく非対応（最新の 0.10.0 は 2025-05 公開で、1.1 の正式化より前） | crates.io の版 |
+| Rust (`toml` 1.2.0, `toml_edit` 0.25.18) | supported | the crate's version notation `+spec-1.1.0` |
+| Python 3.15 `tomllib` | supported (added in 3.15) | Python documentation |
+| Python 3.14 and earlier `tomllib` | **not supported** | confirmed on Python 3.14.4 that a multi-line inline table is an error |
+| `tomli` | supported from 2.4.0 | CHANGELOG |
+| `tomlkit` | readable from 0.15.0. 0.15.2 keeps its output within 1.0 so that 1.0 parsers can read it | CHANGELOG |
+| Taplo (used by VS Code's Even Better TOML) | probably not supported (the latest 0.10.0 was published in 2025-05, before 1.1 was finalized) | the version on crates.io |
 
-Python で読む道具は 3.14 以前の `tomllib` で動いていることが多く、3.14 の `tomllib` は 1.0 しか読めない。
+Tools that read in Python often run on `tomllib` of 3.14 or earlier, and 3.14's `tomllib` can read only 1.0.
 
-**理由 2: 今回の書き方では、1.1 で得られるものが小さい。**
+**Reason 2: with the current way of writing, 1.1 brings little.**
 
-| 1.1 の新機能 | 今回のファイル形式での効き目 |
+| New feature in 1.1 | Effect on this file format |
 |---|---|
-| インライン表を複数行に分けられる（末尾のカンマも可） | 1.0 でもサブテーブルにすれば 1 行 1 項目で書けるので、差分の読みやすさは変わらない。同じ内容を 2 通りに書けると整形の正規形がぶれる |
-| `\e`・`\xHH` のエスケープ | 設計データでは使わない |
-| 日時の秒を省略できる | 省略できなくても困らない |
+| Inline tables can be split across lines (trailing commas also allowed) | In 1.0 too, sub-tables let us write one item per line, so the readability of diffs does not change. If the same content can be written two ways, the formatter's canonical form wobbles |
+| `\e` and `\xHH` escapes | Not used in design data |
+| Seconds can be omitted from times | Not being able to omit them is no problem |
 
-**運用:**
+**Operation:**
 
-- 書くとき: アプリと `fune fmt` は 1.0 の範囲だけで出力する。
-- 読むとき: アプリは 1.1 も読めるが、手で 1.1 の構文を書くと Python 3.14 の読み手では読めなくなる。`fune check` が警告し、`fune fmt` が 1.0 の書き方に直す。
-- 切り替える時期: Python で読む道具の実行環境（CI のイメージを含む）が 3.15 以上に揃い、エディタも 1.1 に対応したら。
-  `fune.toml` の `[project] toml = "1.0"` を `"1.1"` に変えれば出力を切り替えられるようにしておく。
+- When writing: the app and `fune fmt` output only within 1.0.
+- When reading: the app can also read 1.1, but if someone writes 1.1 syntax by hand, readers on Python 3.14 can no longer read it. `fune check` warns, and `fune fmt` rewrites it to the 1.0 form.
+- When to switch: when the runtime environments of Python-based tools (including CI images) are all 3.15 or later and editors support 1.1.
+  We keep it so that output can be switched by changing `[project] toml = "1.0"` in `fune.toml` to `"1.1"`.
 
-### 10.4 系統図の表示データ
+### 10.4 Display data for the system diagram
 
-`view/electrical.toml` は解析に影響しない。`[nodes]` は部品・グループの ID から、親からの相対の整数座標
-（`x`, `y`, 任意の `w`, `h`）への表。`[edge]` は手で引いた線の経路で、線を指すキーから `ViewEdge` への表。
-`points` は画面の絶対座標の整数 `[x, y]` の配列（2 点以上）で、隣り合う点は水平か垂直に並ぶ。
-`source_side`・`target_side`（省略可、`left` / `right` / `top` / `bottom`）は端子をカードのどの側に出すか、
-`source_offset`・`target_offset`（省略可、整数 [px]）はその側の上の位置（左か上の角からの距離。省略なら端子の
-並びで決まる位置）を表す。どれも表示だけを変え、部品・ネット・解析の入力は変わらない。座標と位置は整数のまま書く
-（`fune fmt` も小数にしない）。GUI では線を選んで両端の丸をドラッグすると、その端をカードの縁の好きな位置へ付け替えられる。
-手で引いた経路の端のカードをあとから動かしたときは、描くときにその端から側の外へ短い足を出して経路の続きへつなぎ直す
-（保存した経路は変えない）。
+`view/electrical.toml` does not affect analyses. `[nodes]` is a table from part and group IDs to integer coordinates relative to the parent
+(`x`, `y`, and optional `w`, `h`). `[edge]` is the route of hand-drawn lines, a table from keys that point to a line to `ViewEdge`.
+`points` is an array of integer `[x, y]` absolute screen coordinates (two or more points), and adjacent points are aligned horizontally or vertically.
+`source_side` and `target_side` (optional; `left` / `right` / `top` / `bottom`) say on which side of the card the terminal comes out, and
+`source_offset` and `target_offset` (optional; integer [px]) give the position along that side (the distance from the left or top corner; if omitted, the position
+determined by the order of terminals). All of them change only the display, and the inputs of parts, nets and analyses do not change. Coordinates and positions are written as integers
+(`fune fmt` does not turn them into decimals either). In the GUI, selecting a line and dragging the circle at either end lets you reattach that end to any position on the card's edge.
+When a card at the end of a hand-drawn route is moved afterwards, drawing adds a short leg out of that end, beyond the side, to reconnect to the continuation of the route
+(the saved route is not changed).
 
 ```toml
 [nodes]
@@ -1143,93 +1144,92 @@ power = { x = 20, y = 20 }
 "P12V:PCDU.OUT3>RW_X.PWR" = { points = [[100, 80], [400, 80], [400, 200]], target_side = "top", target_offset = 40 }
 ```
 
-線を指すキーは `ネット:始点の端子>終点の端子`。端子は `部品.ポート`、ジャンクション（中心の無いネットの分岐）は
-`(ネット)`、同じ 2 枚のカードの間をまとめた線はネットを `+` でつなぐ（`P5V+P12V:…`）。向きは図の線の向き
-（電源は供給元から、データはマスターから。供給元の書かれていない電源の母線は配電へ向かう）。
-キーはネットと端子だけで決まり、自動配置の順番や座標を含まないので、並べ直しても同じ線を指す。
-同種をまとめたカードの端子は、まとめた部品のうち ID がいちばん小さいものの名前を使う。
+The key that points to a line is `net:start terminal>end terminal`. A terminal is `part.port`, a junction (a branch of a net that has no center) is
+`(net)`, and a line that bundles the same two cards joins the nets with `+` (`P5V+P12V:…`). The direction is the direction of the line in the diagram
+(for power, from the source; for data, from the master; a power bus with no source written goes toward distribution).
+The key is determined only by the nets and terminals and contains neither the order of the automatic layout nor coordinates, so it points to the same line even after reordering.
+For terminals of a card that groups items of the same kind, the name of the part with the smallest ID among the grouped parts is used.
 
-保存した位置と経路は自動配置より優先する。`SetViewEdge` / `UnsetViewEdge` は 1 本の経路を書く・消す、
-`ResetView` はその図の `[nodes]` と `[edge]` を両方消す。CLI のコマンドは
-`fune view edge-set electrical <キー> --points "x,y x,y …" [--source-side …] [--target-side …] [--source-offset …] [--target-offset …]`、
-`fune view edge-reset electrical <キー>`、`fune view reset electrical`。
+Saved positions and routes take priority over the automatic layout. `SetViewEdge` / `UnsetViewEdge` write and delete a single route, and
+`ResetView` deletes both `[nodes]` and `[edge]` for that diagram. The CLI commands are
+`fune view edge-set electrical <key> --points "x,y x,y …" [--source-side …] [--target-side …] [--source-offset …] [--target-offset …]`,
+`fune view edge-reset electrical <key>`, and `fune view reset electrical`.
 
-自動配置の条件は次のとおり（`web/src/features/diagram/layout/`。部品の ID・名前・役割は見ない）。
+The conditions for the automatic layout are as follows (`web/src/features/diagram/layout/`; part IDs, names and roles are not looked at).
 
-- 枠の見出しは表示の言語の名前だけ（系は API の組み込みの語彙の日英名、組立品や入れ子は設計の表示名。無ければ ID）。
-- 列や層は決めない（電源の枠を左端に置く、といった決まりも置かない）。いちばん外の枠（サブシステム）を縦横の格子の
-  升目に、カードを枠の中の格子に置く。枠の中のすき間は横 56・縦 48 px で、線が通れる幅にする。枠の中をカードの
-  縦 1 列（行 > 列 + 1）や横 1 行（列 > 2 × 行 + 1）に並べる形は使わない（図全体が列に見えるため）。
-- 位置は、表示している層にかかわらず全部の層（給電・信号・GND）の線で決める。層を切り替えても枠・カード・端子の
-  位置は変わらず、表示する層の線だけを引き直す。
-- 置き方は探索で決める。線でよくつながる枠から順に、見積もりがいちばん小さくなる升目へ置き、そのあと升目の入れ替え・
-  枠の中のカードの入れ替え・枠の中の列の数の変更を、見積もりが下がらなくなるまで繰り返す。見積もりは
-  「（線の両端のカードの中心の距離（縦 + 横）の合計 + 300 px × 交差の見込み + 200 px × ほかのカードを横切る見込み）×（1 + 全体の縦横比のずれ + 0.8 × 枠の
-  縦横比のずれの平均）」。式の「全体」は線の無い枠を下か右に置いたあとの形。交差の見込みは、カードの中心どうしを直線で結んだ
-  ときにほかのネットの線と交わる組の数と、1 枚のカードから出る別々のネットの相手がカードの周りで入り組む数（同じ
-  ネットのひと続きの数 − ネットの数）の和。ほかのカードを横切る見込みは、両端のカードの中心を縦横の 2 区間（横に出てから
-  縦、縦に出てから横）で結んだとき、どちらでも両端以外のカードの上を通る線の数（横に並べたカードの奥のカードの線が
-  手前のカードを回り込む並べ方を嫌う）。格子の形（1〜4 行）ごとに 1 つずつ候補を作る（`layout-estimate.ts`）。
-- 詰め: 升目に置いた枠を、横・縦の順に線の相手のほうへ寄せる（相手と揃う位置の中央値）。同じ帯にある枠とは並びの
-  順を守り、64 px 以上のすき間を空ける。升目の大きさで空いていた余分なすき間と線の長さが縮み、枠どうしは近づきすぎない。
-- 端子の上下左右の側は、線の相手（の平均）がカードの外のどちらにいちばん離れているかで選ぶ。同じ側の端子は相手の
-  位置の順に並べ（左右の側は 24 px、上下の側は端子の名前が重ならない間隔）、端子の数に合わせてカードを大きくする。
-  何本も線が出る端子（バス）で、相手が端子の側の反対側（カードの裏）にいる線は、相手のいる側に分かれ口を作って
-  そこから出す（同じ端子なので端の名前も同じ。カードを大回りして裏の端子へ戻る線を作らない）。分かれ口も端子と同じく
-  側の上に並べ、手で端を付け替えた線では手で決めた位置を優先する。
-- 線は 8 px の格子の上の直交の経路探索（A*）で引く。カードと枠の見出しの文字は通らず、カードの横を通る線は縁から
-  16 px 以上離れる（端子の出口だけはその端子の線が通る）。費用は 1 格子 1 に、折れ 10、ほかのネットの線との交差 30、ほかのネットの線と平行に重なる所 400（実際には通らない）、
-  ほかのネットの線のすぐ隣を平行に走る所 1.5、ほかのネットの線の上で折れる所 40、両端の入っていない枠の中 0.4、
-  枠の縁（とその内外 1 格子）に沿って走る所 3。同じネットの線の上は 0.9 で、幹を共有して枝分かれする。全部の線を
-  引いたあと、1 本ずつ外して引き直す。経路の両端は端子の点（React Flow が線をつなぐ、端子の外向きの縁）。
-- 見積もりの小さい 6 つの候補に（全部の層の）線を引き、「20 × 経路の見つからない線の数 + 0.5 × 線の交差の数 + 4 ×
-  重なりの数 + 8 × 縦横比のずれ（比の対数の差）+ 0.4 × 折れの数 + 線の総延長 / 図の対角線」がいちばん小さいものを使う
-  （同じ端子・同じネットの線どうしは交差にも重なりにも数えない）。毎回同じ結果になる。交差は少ないほうがよいが、折れと
-  長さほどは重く見ない（交差には飛び越しを描くので読める）。
-- 端子の選び直し: 選んだ候補の線を全部引いたうえで、端子ごとに次の案を作り、その端子の線だけを引き直した費用（ほかの
-  線はそのまま）が下がるものを残す（`layout-refine.ts`）。
-  - 側: ほかの 3 つの側の、同じカードのほかの端子と重ならない位置のうち線の相手にいちばん近い所から出す（空きが無ければ
-    並んだ端子のすぐ外側。端子が増えるとカードは大きくなるので、それを見越す）
-  - 位置: 端子を出てすぐ横へずれてまた外へ向かう線（段）を、段の分だけ端子を側の上でずらしてまっすぐにする
-  案は得の大きい順に 6 つまで 1 つずつ試し、全体の費用が下がる案だけを採る。採った案があれば案を出し直し、4 回まで
-  繰り返す（ある端子を動かすと別の端子が動ける空きができるため。例: OBC の SPW1 を下へ移すと LVDS1 が左へ移れる）。
-  端子の側は相手の中心の方向で決めるが、実際の線は間のカードや同じネットの幹を回るので、選び直したほうが線が短く、
-  折れが少なくなることがある。
-- 線の無い枠（構体など）は 3 列の格子にして、図の下か右のうち全体が 16:10 に近くなる方に置く。
-- 線のラベル（プロトコル名）は同じ端子から出る同じプロトコルの線に 1 つだけ付け、線の脇でカード・枠の見出し・
-  ほかのラベル・線と重ならない場所に置く。
-- 端子の名前はカードの外の線の脇に置く（上下の側は線の右、左右の側は線の上）。上下の側の端子は、いちばん長い名前が
-  隣の線に届かない間隔で並べる（側の上の位置を選び直したときも、この間隔より近づけない）。
-- 交差には飛び越し（半円）を描く。水平の線がほかのネットの垂直の線をまたぐ所に入れる。手で引いた線や、カードを
-  動かしてつなぎ直した線にも入れる（各線の描いている経路を `line-store.ts` で分け合う）。
-- 手で動かして保存した位置は自動配置より優先する（保存した枠の大きさが、自動配置で並べた中身より小さいときは中身に
-  合わせて広げる）。「位置を自動に戻す」のボタンは保存した枠とカードの位置を消して自動で並べた位置に戻す（手で引いた線の経路は
-  残し、端はカードに付いていく）。「位置と線を自動に戻す」は位置と線の経路を両方消す（`ResetView`）。
-- 拡大・縮小は 10%〜1000%。左下の欄に、いまの倍率（押すと 100%）、全体を見る、選んだカード・線に寄る、全体図（ミニマップ）
-  の表示があり、キーでは + / − で拡大・縮小、0 で全体、1 で 100%、F で選んだものに寄る（`DiagramZoom.tsx`）。
-  マウスはホイールで上下、Shift + ホイールで左右に動かし、Ctrl / ⌘ + ホイールでカーソルの位置を中心に 1 目盛り 1.2 倍ずつ
-  拡大・縮小する（トラックパッドのピンチはそのまま拡大・縮小）。
-- 配置の編集（位置・線の経路・端の付け替え・上の 2 つのボタン）は、⌘Z / Ctrl+Z で元に戻し、⇧⌘Z / Ctrl+Y でやり直せる
-  （ツールバーのボタンでも）。編集する前の配置から戻す Op（`SetViewLayout` / `SetViewEdge` / `UnsetViewEdge`）を作って
-  覚えておき、戻すときは普通の編集として送る。覚えるのはそのタブで行った最近の 100 回まで。
-- デモの表示モデルの写し（`web/src/test/diagram-model.ts`）で、カードが重ならないこと・枠どうしが近づきすぎないこと・
-  列に並ばないこと・直交で両端が端子の点であること・ほかのネットの線と重ならないこと・自分のカードの真裏を回り込まないこと・
-  層を切り替えても位置が同じこと・毎回同じになることをテストする。
+- A frame's heading is only the name in the display language (for subsystems, the Japanese and English names from the API's built-in vocabulary; for assemblies and nested ones, the design's display name; if absent, the ID).
+- No columns or layers are fixed (and no rule such as placing the Power frame at the left edge). The outermost frames (subsystems) are placed in the cells of a
+  vertical and horizontal grid, and cards in a grid inside the frame. The gaps inside a frame are 56 px horizontally and 48 px vertically, wide enough for lines to pass. Arrangements that line the cards in a frame
+  in a single column (rows > columns + 1) or a single row (columns > 2 × rows + 1) are not used (the whole diagram would look like columns).
+- Positions are decided with the lines of all layers (power, signal, GND), regardless of the layer being displayed. Switching layers does not change the positions of frames, cards and terminals;
+  only the lines of the displayed layer are redrawn.
+- The placement is decided by search. Starting from the frame most strongly connected by lines, each is placed in the cell with the smallest estimate, and then swapping cells,
+  swapping cards within a frame and changing the number of columns in a frame are repeated until the estimate stops decreasing. The estimate is
+  "(sum over lines of the distance between the centers of the cards at both ends (vertical + horizontal) + 300 px × expected crossings + 200 px × expected passes across other cards) × (1 + deviation of the whole's aspect ratio + 0.8 × mean deviation of the frames'
+  aspect ratios)". "The whole" in the formula is the shape after placing frames with no lines below or to the right. The expected crossings are the sum of the number of pairs that cross another net's line
+  when the card centers are joined by straight lines, and the number of tangles around a card among the counterparts of different nets leaving one card (the number of runs of the same
+  net − the number of nets). The expected passes across other cards is the number of lines that pass over a card other than the two ends in both of the two vertical-and-horizontal routes joining the centers of the end cards (go out horizontally and then
+  vertically, or vertically and then horizontally) (this dislikes arrangements in which the line of a card behind in a horizontal row has to go around the card in front). One candidate is made for each grid shape (1 to 4 rows) (`layout-estimate.ts`).
+- Compaction: frames placed in cells are pulled toward their line counterparts, horizontally and then vertically (the median of positions aligned with the counterparts). Frames in the same band keep their
+  order and leave a gap of at least 64 px. Extra gaps left by the cell sizes and line lengths shrink, and frames do not come too close to each other.
+- The side (top, bottom, left, right) of a terminal is chosen by where the counterpart (average) of its lines lies farthest outside the card. Terminals on the same side are lined up in the order of their counterparts' positions
+  (24 px on left and right sides; on top and bottom sides, a spacing at which the terminal names do not overlap), and the card is enlarged to fit the number of terminals.
+  For a terminal from which many lines come out (a bus), lines whose counterpart is on the opposite side of the card (behind it) get a branch point on the counterpart's side
+  and come out from there (it is the same terminal, so the end name is the same. This avoids lines that go around the card to return to a terminal behind it). Branch points are lined up
+  on the side like terminals, and for lines whose ends were reattached by hand, the manually chosen position takes priority.
+- Lines are drawn with orthogonal route search (A*) on an 8 px grid. They do not pass through cards or the text of frame headings, and a line passing beside a card stays at least
+  16 px from its edge (only the terminal's exit is passed by that terminal's line). The costs are 1 per grid cell, 10 per bend, 30 for crossing another net's line, 400 where it runs overlapping another net's line in parallel (in practice never taken),
+  1.5 where it runs right beside another net's line in parallel, 40 where it bends on another net's line, 0.4 inside a frame containing neither end, and
+  3 where it runs along a frame's edge (and one grid cell inside and outside it). On a line of the same net it is 0.9, so branches share a trunk. After drawing all lines,
+  they are removed and redrawn one at a time. The route's ends are the terminal points (the outward edge of the terminal, where React Flow connects lines).
+- Lines (of all layers) are drawn for the 6 candidates with the smallest estimates, and the one with the smallest "20 × number of lines with no route found + 0.5 × number of line crossings + 4 ×
+  number of overlaps + 8 × aspect-ratio deviation (difference of the log of the ratio) + 0.4 × number of bends + total line length / the diagram's diagonal" is used
+  (lines of the same terminal or the same net are not counted as crossings or overlaps). The result is the same every time. Fewer crossings are better, but they are not weighed as heavily as bends and
+  length (crossings are drawn with hops, so they remain readable).
+- Reselecting terminals: with all lines of the chosen candidate drawn, the next proposal is made for each terminal, and those that lower the cost of redrawing only that terminal's lines (other
+  lines unchanged) are kept (`layout-refine.ts`).
+  - Side: from the other three sides, the terminal comes out at the position closest to its line counterpart that does not overlap other terminals of the same card (if none is free,
+    just outside the lined-up terminals; the card grows as terminals increase, so this is anticipated)
+  - Position: a line that leaves the terminal, shifts sideways and heads outward again (a step) is straightened by shifting the terminal along the side by the step
+  Proposals are tried one at a time, up to 6, in order of largest gain, and only those that lower the total cost are adopted. If any were adopted, proposals are generated again, repeating up to 4 times
+  (because moving one terminal can open space for another to move. Example: moving the OBC's SPW1 down lets LVDS1 move left).
+  The side of a terminal is decided by the direction of the counterpart's center, but actual lines go around cards in between and around the trunk of the same net, so reselecting can make lines shorter
+  with fewer bends.
+- Frames with no lines (such as the structure) are made a 3-column grid and placed below or to the right of the diagram, whichever brings the whole closer to 16:10.
+- A line's label (protocol name) is attached only once to lines of the same protocol coming from the same terminal, and is placed beside the line where it does not overlap cards, frame headings,
+  other labels or lines.
+- Terminal names are placed beside the line outside the card (to the right of the line for top and bottom sides, above the line for left and right sides). Terminals on the top and bottom sides are lined up at a spacing at which the longest name
+  does not reach the adjacent line (and are not brought closer than this spacing when the position along the side is reselected).
+- Crossings are drawn with hops (semicircles), placed where a horizontal line passes over another net's vertical line. They are also put on hand-drawn lines and on lines reconnected after moving a card
+  (the route each line draws is shared through `line-store.ts`).
+- Positions saved by manual moves take priority over the automatic layout (if a saved frame's size is smaller than its contents arranged automatically, it is widened to fit the contents).
+  The "Reset positions to automatic" button erases the saved frame and card positions and returns them to the automatically arranged positions (the routes of hand-drawn lines are
+  kept, and their ends follow the cards). "Reset positions and lines to automatic" erases both positions and line routes (`ResetView`).
+- Zoom is 10% to 1000%. The box at the lower left shows the current scale (clicking it gives 100%), fit to view, focus on the selected card or line, and an overview map
+  (minimap); by key, + / − zoom in and out, 0 fits the whole, 1 gives 100%, and F focuses on the selection (`DiagramZoom.tsx`).
+  With the mouse, the wheel scrolls vertically, Shift + wheel scrolls horizontally, and Ctrl / ⌘ + wheel zooms in and out around the cursor position by 1.2 times per notch
+  (a trackpad pinch zooms in and out directly).
+- Layout edits (positions, line routes, reattaching ends, and the two buttons above) can be undone with ⌘Z / Ctrl+Z and redone with ⇧⌘Z / Ctrl+Y
+  (also with the toolbar buttons). The Op that restores from the layout before the edit (`SetViewLayout` / `SetViewEdge` / `UnsetViewEdge`) is built and
+  remembered, and undoing sends it as an ordinary edit. Only the most recent 100 operations made in that tab are remembered.
+- A copy of the demo's display model (`web/src/test/diagram-model.ts`) is used to test that cards do not overlap, that frames do not come too close to each other,
+  that they are not lined up in columns, that routes are orthogonal with both ends at terminal points, that they do not overlap other nets' lines, that a line does not go around directly behind its own card,
+  that positions are the same when layers are switched, and that results are the same every time.
 
-## 11. ディレクトリ構成（schema v2）
+## 11. Directory layout (schema v2)
 
 ```
 my-sat-design/
-├── fune.toml                    # プロジェクト設定・共有カタログ・TOML の版
-├── catalog.lock                 # 共有カタログの固定 commit（§12.2。git で管理する）
+├── fune.toml                    # project settings, shared catalogs, TOML version
+├── catalog.lock                 # pinned commits of shared catalogs (§12.2. Tracked in git)
 ├── budget/
-│   ├── allocation.toml          # 配分（システム担当）
-│   └── policy.toml              # 成長余裕・不確かさの既定幅・ハーネスの見込み
+│   ├── allocation.toml          # allocations (system lead)
+│   └── policy.toml              # growth margin, default width of uncertainty, harness allowance
 ├── defs/
 │   ├── attribute/<id>.toml
 │   └── kind/<id>.toml
-├── catalog/<id>.toml            # このプロジェクト固有のカタログ
-├── parts/                       # 製品ツリー = ディレクトリ
+├── catalog/<id>.toml            # catalog specific to this project
+├── parts/                       # product tree = directories
 │   ├── aocs/
 │   │   ├── RW_X.toml
 │   │   ├── RW_Y.toml
@@ -1238,36 +1238,36 @@ my-sat-design/
 │   ├── power/
 │   │   ├── BAT.toml
 │   │   ├── PCDU.toml
-│   │   ├── SAP_PX.toml          # 物理的な組立品
+│   │   ├── SAP_PX.toml          # physical assembly
 │   │   └── SAP_PX/
 │   │       ├── CELLS.toml
 │   │       └── HINGE.toml
 │   └── structure/
 │       ├── BUS_FRAME.toml
-│       └── PANEL_MZ.toml        # 取付点を持つ構体部品
+│       └── PANEL_MZ.toml        # structure part with mount points
 ├── modes/<ID>.toml
 ├── nets/<ID>.toml
 ├── harness/<ID>.toml
-├── conditions/                  # 前提条件
-│   ├── orbit.toml               # 軌道と軌道の話題の解析設定
-│   ├── launch.toml              # 打ち上げ条件
-│   └── ground/<ID>.toml         # 地上局
-├── analysis/<系>.toml           # 系ごとの解析設定（話題のファイルは作らない）
-├── analysis/common.toml         # 共通の解析設定
-├── mission/                     # #9 用の予約ディレクトリ（今は読まない）
+├── conditions/                  # conditions
+│   ├── orbit.toml               # orbit and analysis settings for the orbit topic
+│   ├── launch.toml              # launch conditions
+│   └── ground/<ID>.toml         # ground stations
+├── analysis/<subsystem>.toml    # analysis settings per subsystem (no files for topics)
+├── analysis/common.toml         # common analysis settings
+├── mission/                     # reserved directory for #9 (not read for now)
 ├── cases/<ID>.toml
-├── maneuvers/<ID>.toml          # マヌーバ（§7.7）
+├── maneuvers/<ID>.toml          # maneuvers (§7.7)
 ├── sources/<ID>.toml
 ├── requirements/<ID>.toml
 ├── tables/<ID>.csv  tables/<ID>.toml
 ├── view/
-├── results/<名前>/               # pin した解析結果だけ
-├── exports/                     # 他ツールへの書き出し
+├── results/<name>/               # only pinned analysis results
+├── exports/                     # export to other tools
 ├── .github/CODEOWNERS
-└── .fune/                       # gitignore: キャッシュ（共有カタログは .fune/catalogs/。§12.3）、runs/
+└── .fune/                       # gitignored: cache (shared catalogs are in .fune/catalogs/. §12.3), runs/
 ```
 
-`CODEOWNERS` の例（担当者名は仮）を示す。
+An example of `CODEOWNERS` (the owner names are placeholders):
 
 ```
 /budget/        @system-lead
@@ -1276,7 +1276,7 @@ my-sat-design/
 /parts/power/     @power-lead
 ```
 
-### サンプル
+### Samples
 
 `fune.toml`
 
@@ -1284,14 +1284,14 @@ my-sat-design/
 [project]
 name   = "my-sat"
 schema = 2
-toml   = "1.0"              # 書き出す TOML の版
+toml   = "1.0"              # TOML version to write
 
 [modes]
-order = ["NOMINAL", "MISSION", "DOWNLINK", "SAFE"]  # 省略時は ID 順
+order = ["NOMINAL", "MISSION", "DOWNLINK", "SAFE"]  # ID order if omitted
 
 [[catalog]]
 name = "lab"
-git  = "https://example.com/catalog.git"   # 架空の例（§12）
+git  = "https://example.com/catalog.git"   # a fictional example (§12)
 rev  = "v2026.11"
 
 [[catalog]]
@@ -1318,7 +1318,7 @@ orientation = { w = 1.0, x = 0.0, y = 0.0, z = 0.0 }
 value       = 0.62
 unit        = "kg"
 from.source = "em_test_2026_10"
-from.note   = "EM 実測"
+from.note   = "EM measurement"
 
 [ports.PWR]
 net = "P12V_AOCS"
@@ -1347,7 +1347,7 @@ position    = { x = 30.0, y = 0.0, z = 5.0, unit = "mm" }
 orientation = { w = 1.0, x = 0.0, y = 0.0, z = 0.0 }
 ```
 
-`parts/power/SAP_PX.toml`（物理的な組立品）
+`parts/power/SAP_PX.toml` (a physical assembly)
 
 ```toml
 kind     = "solar_wing"
@@ -1357,7 +1357,7 @@ maturity = "new"
 value       = 0.18
 unit        = "kg"
 from.source = "cad_2026_09"
-from.note   = "基板と構造のみ"
+from.note   = "Substrate and structure only"
 
 [mount]
 on    = "PANEL_PX"
@@ -1372,7 +1372,7 @@ position    = { x = 0.0, y = 120.0, z = 2.0, unit = "mm" }
 orientation = { w = 1.0, x = 0.0, y = 0.0, z = 0.0 }
 ```
 
-`parts/power/SAP_PX/CELLS.toml`（組立品の子部品）
+`parts/power/SAP_PX/CELLS.toml` (a child part of the assembly)
 
 ```toml
 catalog = "lab/triple_junction_cell"
@@ -1383,32 +1383,32 @@ on    = "SAP_PX"
 point = "CELL_AREA"
 ```
 
-## 12. 共有カタログ
+## 12. Shared catalogs
 
-カタログは衛星をまたいで使い回す資産なので、チームで共有するリポジトリ（例: `example-org/parts-catalog`）に置き、
-各衛星のリポジトリからは版を固定して読み取り専用で参照する（`catalog.lock` に commit を記録）。
-参照は `lab/rw_18mNms` のように出所付きで書き、同じ名前の衝突を防ぐ。
-カタログの値を直したいときは、共有リポジトリに PR を出すか、その衛星の Part で上書きする（上書きは由来付きで残る）。
+Catalogs are assets reused across satellites, so they are placed in a repository shared by the team (for example, `example-org/parts-catalog`),
+and each satellite's repository references them read-only with the version pinned (the commit is recorded in `catalog.lock`).
+References are written with an origin, such as `lab/rw_18mNms`, to prevent clashes between identical names.
+To correct a catalog value, either open a PR to the shared repository or override it in that satellite's Part (the override is kept with its provenance).
 
-### 12.1 共有カタログのリポジトリ
+### 12.1 The shared catalog repository
 
-共有カタログのリポジトリの直下の `catalog/<ID>.toml`（品）と `sources/<ID>.toml`（出典）を読む。形はこのプロジェクトの
-`catalog/`・`sources/` と同じ（§7.8）。ほかのファイル（`fune.toml`・README など）は読まない。共有カタログのリポジトリ自体を
-fune のプロジェクト（`[[catalog]] name = "local" path = "catalog"`）にして、そこで `fune check`・`fune fmt --check` を回してよい。
-品が使う属性・種別は組み込みのもの（またはこのプロジェクトの `defs/` にあるもの）にする（共有カタログの `defs/` は読まない）。
+The shared catalog repository's `catalog/<ID>.toml` (items) and `sources/<ID>.toml` (sources) directly under its root are read. Their shape is the same as this project's
+`catalog/` and `sources/` (§7.8). Other files (`fune.toml`, README and so on) are not read. The shared catalog repository itself can be made
+a fune project (`[[catalog]] name = "local" path = "catalog"`), and `fune check` and `fune fmt --check` can be run there.
+The attributes and kinds that items use must be built-in ones (or ones in this project's `defs/`) (the shared catalog's `defs/` is not read).
 
-### 12.2 fune.toml と catalog.lock
+### 12.2 fune.toml and catalog.lock
 
 ```toml
 # fune.toml
 [[catalog]]
 name = "lab"
-git  = "https://example.com/catalog.git"   # git が取れる URL（https・ssh・file://）
-rev  = "main"                              # ブランチ・タグ・commit。省略すると既定のブランチ
+git  = "https://example.com/catalog.git"   # a URL git can fetch (https, ssh, file://)
+rev  = "main"                              # branch, tag or commit. If omitted, the default branch
 ```
 
 ```toml
-# catalog.lock（fune catalog fetch・fune catalog update が書く。git で管理する）
+# catalog.lock (written by fune catalog fetch and fune catalog update. Tracked in git)
 [[catalog]]
 name   = "lab"
 git    = "https://example.com/catalog.git"
@@ -1416,80 +1416,80 @@ rev    = "main"
 commit = "0123456789abcdef0123456789abcdef01234567"
 ```
 
-lock は fune.toml の共有カタログ（`git = …`）ごとに、取得したときの `git`・`rev` と、`rev` を解決した commit を持つ。
-読み込みは lock の commit だけを見る（`rev` がブランチでも、lock を上げるまで中身は変わらない）。
+For each shared catalog (`git = …`) in fune.toml, the lock holds the `git` and `rev` at the time of fetching, and the commit that `rev` resolved to.
+Loading looks only at the lock's commit (even if `rev` is a branch, the contents do not change until the lock is advanced).
 
-### 12.3 足す・外す・取得・更新とキャッシュ
+### 12.3 Adding, removing, fetching, updating, and the cache
 
-| コマンド（HTTP） | すること |
+| Command (HTTP) | What it does |
 |---|---|
-| `fune catalog source add <名前> --git <URL> [--rev <rev>]`（`POST /ops/from_command` `{ "command": "catalog_source_add", … }` → `POST /ops`。Op は `add_catalog_source`） | fune.toml の `[[catalog]]` の後ろに共有カタログを 1 つ足す（正規形で書く）。名前は ID の規則に従い、既にあるカタログ（`path` の `local` も。大文字小文字の違いだけでも）と重ならないこと。`git` は空にできない。**取得はしない**（続けて `fune catalog fetch`。それまでは `catalog.not_locked`）。GUI はカタログのページの「共有カタログを足す」 |
-| `fune catalog source rm <名前>`（`POST /ops` の `remove_catalog_source`） | fune.toml から共有カタログを外す。外せるのは `git = …` のものだけで、このプロジェクトのカタログ（`path = …`）は外さない。部品の `catalog`・`candidates`・ハーネスの `wire` がその品（`<名前>/…`）を参照していれば、参照している部品とハーネスを挙げて拒む。catalog.lock は書き換えず、記録は次の `fune catalog fetch` が外す（それまでは `catalog.lock_unused` の warning）。`.fune/` のキャッシュは残る |
-| `fune catalog fetch`（`POST /catalog/fetch`） | lock が fune.toml と合っていれば lock の commit を取得する（commit は動かさない）。lock に無い・`git`・`rev` が違う共有カタログは `rev` を解決して lock に書く。fune.toml に無い lock の記録は外す |
-| `fune catalog fetch --locked`（`{ "locked": true }`） | lock を書き換えない。lock が無い・fune.toml と違えば失敗する（CI 向け） |
-| `fune catalog update <名前>`（`POST /catalog/update`） | その共有カタログの lock を `rev` の今の commit に上げる。変わった品と値（`attr.mass: 150 g → 160 g`）を返す |
+| `fune catalog source add <name> --git <URL> [--rev <rev>]` (`POST /ops/from_command` `{ "command": "catalog_source_add", … }` → `POST /ops`. The Op is `add_catalog_source`) | Adds one shared catalog after the `[[catalog]]` entries in fune.toml (written in canonical form). The name follows the ID rules and must not collide with an existing catalog (including `local` with `path`; even a difference only in letter case collides). `git` cannot be empty. **It does not fetch** (follow with `fune catalog fetch`; until then, `catalog.not_locked`). In the GUI it is "Add shared catalog" on the catalog page |
+| `fune catalog source rm <name>` (`remove_catalog_source` via `POST /ops`) | Removes a shared catalog from fune.toml. Only those with `git = …` can be removed; this project's own catalog (`path = …`) is not removed. If a part's `catalog` or `candidates`, or a harness's `wire`, refers to an item of it (`<name>/…`), it is refused, listing the referring parts and harnesses. catalog.lock is not rewritten, and the next `fune catalog fetch` removes the record (until then, a `catalog.lock_unused` warning). The cache under `.fune/` remains |
+| `fune catalog fetch` (`POST /catalog/fetch`) | If the lock matches fune.toml, fetches the lock's commit (the commit is not moved). For a shared catalog absent from the lock or whose `git` or `rev` differs, it resolves `rev` and writes it to the lock. Lock records absent from fune.toml are removed |
+| `fune catalog fetch --locked` (`{ "locked": true }`) | Does not rewrite the lock. Fails if there is no lock or it differs from fune.toml (for CI) |
+| `fune catalog update <name>` (`POST /catalog/update`) | Advances that shared catalog's lock to the current commit of `rev`. Returns the items and values that changed (`attr.mass: 150 g → 160 g`) |
 
-取得は git のコマンドで行い、認証は手元の git の設定（資格情報の保存・SSH の鍵）に任せる（端末では聞き返さない）。
-取得したものはプロジェクトの `.fune/catalogs/` に置く（`.fune/` は git で管理しない。`fune init` が `.gitignore` に書く）。
+Fetching is done with git commands, and authentication is left to the local git configuration (credential storage, SSH keys) (no prompting on a terminal).
+What is fetched is placed in the project's `.fune/catalogs/` (`.fune/` is not tracked in git; `fune init` writes it to `.gitignore`).
 
 ```
-.fune/catalogs/<名前>/repo.git/        # 取得元の写し（bare）
-.fune/catalogs/<名前>/<commit>/catalog/<ID>.toml
-.fune/catalogs/<名前>/<commit>/sources/<ID>.toml
+.fune/catalogs/<name>/repo.git/        # copy of the fetch source (bare)
+.fune/catalogs/<name>/<commit>/catalog/<ID>.toml
+.fune/catalogs/<name>/<commit>/sources/<ID>.toml
 ```
 
-commit ごとのディレクトリは中身を揃えてから置く（一時ディレクトリ → 名前の変更）ので、あれば完全なものとして読む。
-lock の commit がキャッシュにあれば、取得元に繋がらなくても読める。衛星のリポジトリの CI では
-`fune catalog fetch --locked` の後に `fune check` を回す（README の「Shared catalogs in CI」）。
+The directory for each commit is put in place only after its contents are complete (temporary directory → rename), so one that exists is read as complete.
+If the lock's commit is in the cache, it can be read even without a connection to the fetch source. In the CI of a satellite's repository,
+run `fune catalog fetch --locked` followed by `fune check` (README's "Shared catalogs in CI").
 
-### 12.4 読み込みと参照
+### 12.4 Loading and references
 
-- 品は `<名前>/<ID>`（`lab/rw_18mNms`）で入る。部品の `catalog`・`candidates` からこの ID で参照する。
-- **共有カタログの出典は `<名前>/<ID>`（`lab/ds_rw10`）で参照する。** プロジェクトの出典の ID は `/` を含まないので衝突しない。
-  共有カタログの品の中の参照（`source`・`datasheet`・値の `from.source`）は、そのリポジトリの中の ID（`ds_rw10`）のまま書き、
-  読み込みで出所を付ける（`lab/ds_rw10`）。このプロジェクトの部品の値からも `from.source = "lab/ds_rw10"` で参照できる。
-  `datasheet` に URL・パスを直接書いた古い形は出所を付けずに残す（`source.datasheet_location` の warning）。
-- 共有の品と出典は読み取り専用（`CatalogItemView.editable`・`SourceView.editable` が false。fune-ops も書き込みを拒む）。
-  書き込めるかの判定は `CatalogSource::local_dir` の 1 か所（共有カタログかは `CatalogSource::shared_git`・`Design::shared_catalog_of`）。
-- 共有の品が公開できない（`distribution = "restricted"`）出典を使うと error（`source.restricted`。§7.8）。
-- 診断の位置はキャッシュの中のファイル（`.fune/catalogs/lab/<commit>/catalog/rw_18mNms.toml`）。
+- Items come in as `<name>/<ID>` (`lab/rw_18mNms`). Parts' `catalog` and `candidates` refer to them by this ID.
+- **A shared catalog's sources are referred to as `<name>/<ID>` (`lab/ds_rw10`).** The project's source IDs do not contain `/`, so they do not collide.
+  References inside a shared catalog item (`source`, `datasheet`, and a value's `from.source`) are written with the ID within that repository (`ds_rw10`) as is,
+  and the origin is attached when loading (`lab/ds_rw10`). The values of this project's parts can also refer to it with `from.source = "lab/ds_rw10"`.
+  The old form with a URL or path written directly in `datasheet` is kept without an origin attached (a `source.datasheet_location` warning).
+- Shared items and sources are read-only (`CatalogItemView.editable` and `SourceView.editable` are false; fune-ops also refuses writes).
+  Whether something is writable is decided in one place, `CatalogSource::local_dir` (whether a catalog is shared is `CatalogSource::shared_git` and `Design::shared_catalog_of`).
+- If a shared item uses a source that cannot be made public (`distribution = "restricted"`), it is an error (`source.restricted`; §7.8).
+- A diagnostic's location is the file in the cache (`.fune/catalogs/lab/<commit>/catalog/rw_18mNms.toml`).
 
-### 12.5 検査
+### 12.5 Checks
 
-| コード | 重さ | 場合 | 次にすること（文に書く） |
+| Code | Severity | Case | Next step (written in the message) |
 |---|---|---|---|
-| `catalog.not_locked` | error | 共有カタログが catalog.lock に無い | `fune catalog fetch` |
-| `catalog.lock_mismatch` | error | lock の `git`・`rev` が fune.toml と違う | `fune catalog update <名前>` |
-| `catalog.not_fetched` | error | lock の commit がキャッシュに無い | `fune catalog fetch` |
-| `catalog.lock_unused` | warning | lock の記録が fune.toml の共有カタログに無い | `fune catalog fetch`（lock から外す） |
+| `catalog.not_locked` | error | the shared catalog is not in catalog.lock | `fune catalog fetch` |
+| `catalog.lock_mismatch` | error | the lock's `git` or `rev` differs from fune.toml | `fune catalog update <name>` |
+| `catalog.not_fetched` | error | the lock's commit is not in the cache | `fune catalog fetch` |
+| `catalog.lock_unused` | warning | a lock record is not among fune.toml's shared catalogs | `fune catalog fetch` (removes it from the lock) |
 
-状態（`ready`・`not_locked`・`lock_mismatch`・`not_fetched`）の判定は `Design::shared_catalog_statuses` だけで、検査と
-GUI のカタログのページ（lock の commit と状態・取得のボタン。`ProjectInfo.catalogs[].shared`）が使う。
+The status (`ready`, `not_locked`, `lock_mismatch`, `not_fetched`) is determined only by `Design::shared_catalog_statuses`, and is used by the checks and by
+the GUI's catalog page (the lock's commit and status, and the fetch button; `ProjectInfo.catalogs[].shared`).
 
-## 13. 未決事項
+## 13. Open questions
 
-| # | 問い | 既定案 |
+| # | Question | Default proposal |
 |---|---|---|
-| M1 | 物理的な組立品を「同名のファイル＋ディレクトリ」で表す規則でよいか | よい。特別なファイル名（`_assembly.toml`）は使わない |
-| M2 | 共有カタログを最初から分けるか | 最初は `catalog/` に置き、2 機目が出た時点で共有リポジトリに切り出す（読み込みは §12） |
-| M3 | 員数（count）と個別 Part の使い分け | 個別の姿勢・配線が要るものは個別 Part。同じ状態で動く機器の組は count、予備との台数配分は active と redundancy |
-| M4 | Range と Uncertain の区別 | 動作温度範囲のような「仕様の範囲」は Range、値のばらつきは Uncertain |
-| M5 | モードの表に書かれていない部品の扱い | 「未指定」の警告。kind に既定の状態は持たせない（暗黙の 0 W を作らないため） |
-| M6 | TOML 1.1 に切り替える時期 | Python の実行環境が 3.15 以上に揃い、エディタが対応した時点 |
+| M1 | Is the rule of expressing a physical assembly as "a file plus a directory of the same name" acceptable? | Yes. No special file name (`_assembly.toml`) is used |
+| M2 | Should shared catalogs be separated from the start? | Initially place them in `catalog/`, and split them out into a shared repository when a second spacecraft appears (loading is in §12) |
+| M3 | When to use count versus individual Parts | Those needing individual attitude or wiring are individual Parts. A set of equipment operating in the same state is a count; the number of units split against spares is active and redundancy |
+| M4 | The distinction between Range and Uncertain | A "specification range", like an operating temperature range, is a Range; scatter in a value is Uncertain |
+| M5 | Handling of parts not written in a mode's table | An "unspecified" warning. A kind does not carry a default state (so as not to create an implicit 0 W) |
+| M6 | When to switch to TOML 1.1 | When Python runtime environments are all 3.15 or later and editors support it |
 
-## 14. 実装との差分
+## 14. Differences from the implementation
 
-実装（fune-model / fune-store / fune-ops）は本書に沿っているが、次の点が異なる。API の正確な形は各 crate の型と `///` の説明にある。
+The implementation (fune-model / fune-store / fune-ops) follows this document, but differs in the following points. The exact shape of the API is in each crate's types and `///` documentation.
 
-| 本書 | 実装 | 理由 |
+| This document | Implementation | Reason |
 |---|---|---|
-| `Authored<Quantity>` と `Quantity { number, unit }` | `Quantity { value, unit, from }` | ファイルと API の形を揃えるため |
-| `Value` の enum | `{ type, data }` のタグ付き enum | TS の型生成に合わせるため |
-| エンティティを `Arc` で保持し、位置を値に持つ | 素の map で保持し、行の位置は別の `SourceMap` に持つ | 単純さのため |
-| kind は継承を持たない | 組み込みの kind は基底の kind `component` を継承する | 共通属性（質量・外形・温度範囲）を一度だけ書くため |
-| error の診断があると編集できない | 編集で **新しく** error が増える Op だけを拒否する | 既存の error があっても直す編集はできるようにするため |
-| 取付の連鎖を model で合成する | model は連鎖を未合成のまま渡し、projection が sat-astro の Quat で合成する | fune-model が sat-astro に依存しないため |
-| ID はファイル名から（ファイルに書かない） | 同じ。加えて JSON の Op ではペイロードの `id` を受け取り、ファイルに `id` があってファイル名と違えば `id.mismatch` | GUI と `fune apply` から新規作成できるようにするため |
-| 属性の既定値 | 組み込みの属性に `default` を持てる（例: 比熱 900 J/(kg·K)）。既定値から解決した値は出所 `kind_default`・根拠 `placeholder` | 仮値であることを画面で示すため |
+| `Authored<Quantity>` and `Quantity { number, unit }` | `Quantity { value, unit, from }` | To match the shape of files and the API |
+| The `Value` enum | A tagged enum of the form `{ type, data }` | To suit TS type generation |
+| Entities held in `Arc`, with locations in the values | Held in plain maps, with row locations kept in a separate `SourceMap` | For simplicity |
+| Kinds have no inheritance | Built-in kinds inherit from the base kind `component` | To write common attributes (mass, outer shape, temperature range) only once |
+| Editing is impossible while there are error diagnostics | Only Ops that add **new** errors through the edit are rejected | So that edits fixing things remain possible even when existing errors are present |
+| The mount chain is composed in model | model passes the chain on uncomposed, and projection composes it with sat-astro's Quat | So that fune-model does not depend on sat-astro |
+| The ID comes from the file name (not written in the file) | Same. In addition, a JSON Op accepts the payload's `id`, and if the file has an `id` that differs from the file name, `id.mismatch` | So that new items can be created from the GUI and `fune apply` |
+| Attribute default values | Built-in attributes can have a `default` (for example, specific heat 900 J/(kg·K)). A value resolved from a default has origin `kind_default` and evidence `placeholder` | To show on screen that it is a provisional value |
 
-まだ読み込んでいないもの: #9 用の `mission/`、`requirements/` と `tables/`（ディレクトリは認識する）。`#:schema` の見出し行はまだ書き出していない。
+Not yet loaded: `mission/` for #9, `requirements/` and `tables/` (the directories are recognized). The `#:schema` heading line is not yet written out.

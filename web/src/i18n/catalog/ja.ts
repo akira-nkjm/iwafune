@@ -83,6 +83,7 @@ export const catalogJa = {
     summaryRemove: (id: string) => `カタログ品 ${id} を削除`,
     shared: {
       title: "共有カタログ",
+      neededCount: (n: number) => `${n} 件が取得待ち`,
       ready: "catalog.lock の commit を読み込んでいます。共有の品は読み取り専用です。",
       needed: "取得が必要です。取得するか、CLI で fune catalog fetch を実行してください。",
       fetch: "取得",
