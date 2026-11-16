@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { PartRow } from "@/api/types";
+import type { PartRow, System } from "@/api/types";
 import {
   ancestorKeys,
   catalogTree,
@@ -53,6 +53,9 @@ describe("catalogTree", () => {
     unset: "未設定",
     kind: (id: string) => `K:${id}`,
     maturity: (v: string) => `M:${v}`,
+    system: (id: string) => `S:${id}`,
+    noTags: "タグなし",
+    unassigned: "系なし",
   };
   const kinds = [
     { id: "device", parent: null },
@@ -66,7 +69,9 @@ describe("catalogTree", () => {
     manufacturer: string | null = null,
     maturity: "new" | "modified" | null = null,
     scope = "local",
-  ) => ({ id, scope, name: id, kind, manufacturer, maturity });
+    tags: string[] = [],
+    system: System | null = null,
+  ) => ({ id, scope, name: id, kind, manufacturer, maturity, tags, system });
   const items = [
     item("local-bat", "battery", "Acme", "new"),
     item("lab-rw", "wheel", "Acme", null, "lab"),
@@ -112,6 +117,30 @@ describe("catalogTree", () => {
     const nodes = tree("maturity");
     expect(nodes.map((n) => n.label)).toEqual(["M:new", "未設定"]);
     expect(treeCount(nodes[1]!)).toBe(2);
+  });
+
+  it("tag: 複数のタグを持つ品は各タグの下に出る。タグ無しは「タグなし」で末尾", () => {
+    const tagged = [
+      item("a", "wheel", null, null, "local", ["x", "y"]),
+      item("b", "wheel", null, null, "local", []),
+      item("c", "wheel", null, null, "local", ["y", "y"]),
+    ];
+    const nodes = catalogTree(tagged, "tag", kinds, labels);
+    expect(nodes.map((n) => n.label)).toEqual(["x", "y", "タグなし"]);
+    expect(nodes.map((n) => treeItems(n).map((i) => i.id))).toEqual([["a"], ["a", "c"], ["b"]]);
+    const keys = nodes.flatMap((n) => n.children.map((c) => c.key));
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it("system: 系の表示名のフォルダー。系の無い品は「系なし」で末尾", () => {
+    const systemed = [
+      item("a", "component"),
+      item("b", "wheel", null, null, "local", [], "aocs"),
+      item("c", "battery", null, null, "local", [], "power"),
+    ];
+    const nodes = catalogTree(systemed, "system", kinds, labels);
+    expect(nodes.map((n) => n.label)).toEqual(["S:aocs", "S:power", "系なし"]);
+    expect(treeItems(nodes[2]!).map((i) => i.id)).toEqual(["a"]);
   });
 
   it("フォルダーの key は分け方ごとに一意（区切りの文字を含む値でも混ざらない）", () => {

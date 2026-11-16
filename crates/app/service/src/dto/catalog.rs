@@ -32,6 +32,8 @@ pub struct CatalogItemView {
     /// このプロジェクトのカタログ（`[[catalog]] path = …`）の品なら true。共有カタログ（`git = …`）の品は読み取り専用で false
     pub editable: bool,
     pub kind: String,
+    /// 品の系（種別の役割 → 系。役割の無い種別は null。部品の `PartRow.system` と同じ型で、判定は `Design::kind_system`）
+    pub system: Option<sat_analysis::spec::System>,
     pub label: Option<String>,
     /// 英語の表示名
     pub label_en: Option<String>,

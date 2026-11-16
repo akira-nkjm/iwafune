@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import { useEnumLabel } from "@/api/labels";
-import type { CatalogItemView, DesignView } from "@/api/types";
+import type { CatalogItemView, DesignView, System } from "@/api/types";
 import { useT } from "@/i18n";
 import { Tree } from "@/kit/tree/Tree";
 import { type CatalogGrouping, catalogTree, filterTree } from "@/kit/tree/tree-nodes";
-import { kindLabel } from "@/lib/design";
+import { kindLabel, systemTitle } from "@/lib/design";
 import { itemLabel } from "./catalog";
 
 /** カタログ品を `grouping` の分け方でまとめたツリー。同じツリーで検索の一致まで展開する（`PartsTree` と同じ形の Props）。 */
@@ -33,11 +33,14 @@ export function CatalogTree({
       unset: t.notSet,
       kind: (id: string) => kindLabel(design.defs, id),
       maturity: (value: string) => enumLabel("maturity", value),
+      system: (id: System) => systemTitle(id, design.defs),
+      noTags: t.noTags,
+      unassigned: t.unassigned,
     };
     return filterTree(catalogTree(all, grouping, design.defs.kinds, labels), (item) =>
       ids.has(item.id),
     );
-  }, [all, items, grouping, design.defs, t.notSet, enumLabel]);
+  }, [all, items, grouping, design.defs, t.notSet, t.noTags, t.unassigned, enumLabel]);
   return (
     <Tree
       nodes={tree.nodes}

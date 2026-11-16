@@ -98,6 +98,7 @@ const catalog: CatalogItemView = {
   dir: [],
   editable: true,
   kind: "wheel",
+  system: null,
   label: null,
   label_en: null,
   manufacturer: null,
