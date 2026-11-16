@@ -7,7 +7,7 @@ use fune_service::dto::{
     BudgetRow, BudgetUncounted, BudgetView, KpiView, MissingInput, QuantityView,
     RunAnalysisRequest, Verdict,
 };
-use fune_service::{Workspace, analysis, budget};
+use fune_service::{Workspace, analysis, budget, query};
 
 /// `fune analyze <id> [--case X] [--input in.json] [--ops ops.json]`
 pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
@@ -88,7 +88,11 @@ fn print_kpis(kpis: &[KpiView], out: &Out) {
             (None, None) => C::Dim("—".into()),
         };
         let mark = k.verdict.map_or(C::Dim(String::new()), verdict_cell);
-        t.row(vec![mark, C::Strong(k.label.clone()), value]);
+        t.row(vec![
+            mark,
+            C::Strong(query::english(&k.label, Some(&k.label_en)).to_owned()),
+            value,
+        ]);
     }
     t.print();
 }
@@ -109,8 +113,8 @@ fn print_checks(checks: &[fune_service::dto::CheckView], out: &Out) {
         t.row(vec![
             mark,
             C::Text(c.scope.clone().unwrap_or_default()),
-            C::Text(c.label.clone()),
-            C::Dim(c.message.clone()),
+            C::Text(query::english(&c.label, c.label_en.as_deref()).to_owned()),
+            C::Dim(query::english(&c.message, c.message_en.as_deref()).to_owned()),
         ]);
     }
     t.print();
@@ -130,7 +134,7 @@ pub fn ls(out: &Out) -> anyhow::Result<u8> {
         t.row(vec![
             C::Text(fune_service::analysis::area_key(e.info.area).to_owned()),
             C::Strong(e.info.id.clone()),
-            C::Text(e.info.title.clone()),
+            C::Text(query::english(&e.info.title, Some(&e.info.title_en)).to_owned()),
             C::Text(kind.to_owned()),
             C::Verdict(
                 if e.projectable {
@@ -175,7 +179,8 @@ pub fn budget(
 /// 配分の行の名前（「その他」の行は service が null で返すので、ここで文言を付ける）。
 fn row_name(r: &BudgetRow) -> String {
     r.label
-        .clone()
+        .as_deref()
+        .map(|l| query::english(l, r.label_en.as_deref()).to_owned())
         .or_else(|| r.node.clone())
         .unwrap_or_else(|| "(other)".to_owned())
 }
@@ -226,7 +231,10 @@ fn print_budget(b: &BudgetView, out: &Out) {
         .as_ref()
         .map(|m| format!("  mode {m}"))
         .unwrap_or_default();
-    out.heading(&format!("{} budget", b.label));
+    out.heading(&format!(
+        "{} budget",
+        query::english(&b.label, b.label_en.as_deref())
+    ));
     println!("{}", out.dim(format!("{}{case}{mode}", b.analysis)));
     let Some(total) = &b.total else {
         out.fail(format!("Missing inputs ({})", b.missing.len()));
@@ -291,7 +299,7 @@ fn print_uncounted(list: &[BudgetUncounted], out: &Out) {
             let name = if u.label == u.part {
                 u.part.clone()
             } else {
-                format!("{}（{}）", u.part, u.label)
+                format!("{} ({})", u.part, u.label)
             };
             if u.modes.is_empty() {
                 name

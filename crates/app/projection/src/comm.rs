@@ -31,11 +31,7 @@ use sat_units::typed::{
 
 fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a CommSettings> {
     let s = ctx.design.analysis.comm.as_ref();
-    m.need(
-        s,
-        comm(&[]),
-        "Communication analysis settings (analysis/comm.toml)",
-    )
+    m.need(s, comm(&[]), "Comm analysis settings (analysis/comm.toml)")
 }
 
 /// `analysis.comm.<…>`（`analysis/comm.toml` のキー）。
@@ -238,13 +234,7 @@ fn power_and_noise(
     } else {
         let power = ground.tx_power.as_ref();
         (
-            setting(
-                &dims::GROUND_TX_POWER,
-                at,
-                power,
-                "Ground station transmit power",
-                m,
-            ),
+            setting(&dims::GROUND_TX_POWER, at, power, "Ground TX power", m),
             crate::parts::part_qty::<Temperature>(ctx, part, "noise_temperature", why, m),
         )
     }
@@ -268,11 +258,7 @@ fn ground_link<'a>(
 ) -> Option<&'a fune_model::design::GroundLinkSettings> {
     let g: Option<&GroundStationSettings> = ctx.design.conditions.ground.get(station);
     let l = g.and_then(|g| g.links.get(band));
-    m.need(
-        l,
-        ground_band(station, band),
-        "Ground station performance in this band",
-    )
+    m.need(l, ground_band(station, band), "Ground band performance")
 }
 
 /// 円軌道の高度（`conditions.orbit.altitude`、無ければ長半径 − 中心天体の半径）と中心天体（斜距離に半径を使う）。

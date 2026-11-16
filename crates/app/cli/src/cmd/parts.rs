@@ -112,7 +112,11 @@ fn part_show(ws: &Workspace, id: &str, req: &PartViewRequest, out: &Out) -> anyh
         .unwrap_or_else(|| format!("kind {}", r.kind.as_deref().unwrap_or_default()));
     println!("{}", out.dim(format!("{def}  ×{}  {}", r.count, r.file)));
     for section in &p.sections {
-        let mut t = out.table(&[section.label.as_str(), "Value", "Source"]);
+        let mut t = out.table(&[
+            query::english(&section.label, section.label_en.as_deref()),
+            "Value",
+            "Source",
+        ]);
         t = t.numeric(&[1]);
         for attr in &section.attrs {
             if let Some(v) = r.values.get(attr) {

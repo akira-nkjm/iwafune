@@ -4,6 +4,7 @@
 
 use crate::output::{C, Out};
 use fune_service::dto::AnalysisRunResult;
+use fune_service::query;
 use serde_json::Value;
 
 /// 表 1 つ: 解析 ID・配列の場所（JSON Pointer。`""` は出力の最上位を 1 行にする）・（欄, 見出し）の列。
@@ -61,7 +62,7 @@ const TABLES: &[Table] = &[
 /// 結果の 1 つの値の文字列（語彙の表示名・整形した量・文字列・一覧）。
 fn cell(r: &AnalysisRunResult, pointer: &str, value: &Value) -> C {
     if let Some(l) = r.labels.get(pointer) {
-        return C::Text(l.label.clone());
+        return C::Text(query::english(&l.label, Some(&l.label_en)).to_owned());
     }
     match (value, r.dims.get(pointer)) {
         (Value::Number(n), Some(dim)) => {

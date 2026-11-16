@@ -391,12 +391,10 @@ fn every_op_round_trips_through_json() {
 
 /// 目標の軌道と制約を持つマヌーバ。
 fn maneuver() -> fune_model::design::Maneuver {
-    let mut m: fune_model::design::Maneuver = serde_json::from_value(serde_json::json!({
-        "label": "軌道上昇", "category": "insertion", "method": "low_thrust", "thruster": "EPT",
-        "after": "LEOP", "target": { "altitude": { "value": 600.0, "unit": "km" } },
+    serde_json::from_value(serde_json::json!({
+        "id": "RAISE", "label": "軌道上昇", "category": "insertion", "method": "low_thrust",
+        "thruster": "EPT", "after": "LEOP", "target": { "altitude": { "value": 600.0, "unit": "km" } },
         "constraints": { "sunlit_only": true, "mode": "THRUST" }
     }))
-    .unwrap();
-    m.id = "RAISE".into();
-    m
+    .unwrap()
 }
