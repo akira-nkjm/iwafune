@@ -130,7 +130,11 @@ fn spellings_valid_before_keep_their_meaning() {
     for &(spelling, scale, si) in BEFORE {
         let unit = parse_unit(spelling).unwrap_or_else(|e| panic!("{spelling}: {e:?}"));
         let reference = parse_unit(si).unwrap_or_else(|e| panic!("{si}: {e:?}"));
-        assert_eq!(unit.dimension(), reference.dimension(), "{spelling} の次元");
+        assert_eq!(
+            unit.dimension(),
+            reference.dimension(),
+            "dimension of {spelling}"
+        );
         assert!(close(unit.scale(), scale), "{spelling}: {}", unit.scale());
     }
 }
@@ -186,7 +190,7 @@ fn prefixes_are_refused_where_they_make_no_sense() {
         assert_eq!(
             parse_unit(spelling),
             Err(UnitError::UnknownUnit),
-            "{spelling} は拒否する"
+            "{spelling} must be rejected"
         );
     }
     // affine・対数・大きな rad は従来どおり専用のエラー
@@ -199,10 +203,16 @@ fn prefixes_are_refused_where_they_make_no_sense() {
 #[test]
 fn no_prefix_list_names_only_known_symbols() {
     for symbol in NO_PREFIX {
-        assert!(NAMED_UNIT_SYMBOLS.contains(symbol), "{symbol} は表に無い");
+        assert!(
+            NAMED_UNIT_SYMBOLS.contains(symbol),
+            "{symbol} is not in the table"
+        );
     }
     for symbol in HECTO_UNITS {
-        assert!(NAMED_UNIT_SYMBOLS.contains(symbol), "{symbol} は表に無い");
+        assert!(
+            NAMED_UNIT_SYMBOLS.contains(symbol),
+            "{symbol} is not in the table"
+        );
         assert!(!NO_PREFIX.contains(symbol), "{symbol}");
     }
 }

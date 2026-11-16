@@ -59,7 +59,7 @@ mod tests {
     use super::*;
 
     fn epoch() -> Epoch {
-        Epoch::parse("2027-04-01T00:00:00Z").expect("元期")
+        Epoch::parse("2027-04-01T00:00:00Z").expect("epoch")
     }
 
     /// 変分の大きさは 1e-8 級（月が支配的。ΔC̄20 の振幅は ~1e-8）。
@@ -83,7 +83,7 @@ mod tests {
     fn tide_under_the_moon_points_inward() {
         let e = epoch();
         // 太陽の寄与も入るので、月の方向の動径成分が正であることだけを見る。
-        let moon_dir = position_eci_m(Body::Moon, e).normalized().expect("非ゼロ");
+        let moon_dir = position_eci_m(Body::Moon, e).normalized().expect("nonzero");
         let r = moon_dir * (R_EARTH + 550e3);
         let a = solid_tide_eci(e, r);
         assert!(a.dot(moon_dir) < 0.0, "{a:?}");

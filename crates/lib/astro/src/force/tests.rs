@@ -2,7 +2,7 @@ use super::*;
 use crate::constants::{AU, C_LIGHT, GM_MOON, R_EARTH, SOLAR_CONSTANT};
 
 fn epoch() -> Epoch {
-    Epoch::parse("2027-04-01T00:00:00Z").expect("元期")
+    Epoch::parse("2027-04-01T00:00:00Z").expect("epoch")
 }
 
 fn leo() -> OrbitState {
@@ -53,7 +53,7 @@ fn j2_model_matches_egm96_zonal_degree_two() {
 fn moon_third_body_tidal_magnitude() {
     // 月の潮汐加速度の大きさ ~ 2 μ r / d³ ≈ 1e-6 m/s²（月の方向では 2 次の項で 3 % ほど大きい）
     let r_moon = position_eci_m(Body::Moon, epoch());
-    let r = r_moon.normalized().expect("非ゼロ") * (R_EARTH + 550e3);
+    let r = r_moon.normalized().expect("nonzero") * (R_EARTH + 550e3);
     let a = third_body_eci(GM_MOON, r_moon, r);
     let expected = 2.0 * GM_MOON * r.norm() / r_moon.norm().powi(3);
     assert!(
@@ -66,7 +66,7 @@ fn moon_third_body_tidal_magnitude() {
 #[test]
 fn srp_points_away_from_sun_and_vanishes_in_shadow() {
     let r_sun = position_eci_m(Body::Sun, epoch());
-    let s_hat = r_sun.normalized().expect("非ゼロ");
+    let s_hat = r_sun.normalized().expect("nonzero");
     let p = SrpParams {
         cr: 1.5,
         area_to_mass: 0.01,
@@ -224,7 +224,7 @@ fn relativity_matches_circular_closed_form() {
     let v = (MU_EARTH / r).sqrt();
     let state = OrbitState {
         r_eci: s.r_eci,
-        v_eci: s.v_eci.normalized().expect("非ゼロ") * v,
+        v_eci: s.v_eci.normalized().expect("nonzero") * v,
     };
     let a = relativity_eci(MU_EARTH, &state);
     let expected = 3.0 * MU_EARTH * MU_EARTH / (C_LIGHT * C_LIGHT * r.powi(3));
@@ -265,8 +265,8 @@ fn full_force_model_propagates() {
         forces: full_config(),
     };
     let t = 2.0 * spec.period_s();
-    let s = spec.state_at(t).expect("数値伝搬");
-    let j2 = reference.state_at(t).expect("J2 の数値伝搬");
+    let s = spec.state_at(t).expect("numerical propagation");
+    let j2 = reference.state_at(t).expect("J2 numerical propagation");
     // 同じ初期状態の J2 だけの数値伝搬との差は、2 周で高次の重力場などの分（数 km 以内）。
     // 注: J2 永年項の伝搬（平均要素）と比べると、平均要素と接触要素の違いで 2 周 ~180 km ずれる。
     let d = (s.r_eci - j2.r_eci).norm();

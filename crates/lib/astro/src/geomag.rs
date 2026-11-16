@@ -46,7 +46,7 @@ mod tests {
     use crate::earth::{ecef_to_eci, geodetic_to_ecef};
 
     fn epoch() -> Epoch {
-        Epoch::parse("2027-04-01T00:00:00Z").expect("元期")
+        Epoch::parse("2027-04-01T00:00:00Z").expect("epoch")
     }
 
     #[test]
@@ -71,7 +71,7 @@ mod tests {
         for i in 0..36 {
             let lat = f64::from(i) * 10.0 - 175.0;
             let p = ecef_to_eci(geodetic_to_ecef(0.0, lat.to_radians(), 550e3), epoch());
-            let b = dipole_field_eci_t(p.normalized().expect("非ゼロ") * r, epoch()).norm();
+            let b = dipole_field_eci_t(p.normalized().expect("nonzero") * r, epoch()).norm();
             assert!(b > 18e-6 && b < 52e-6, "{b}");
         }
         assert_eq!(dipole_field_eci_t(Vec3::ZERO, epoch()), Vec3::ZERO);

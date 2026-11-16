@@ -50,10 +50,10 @@ pub mod transfer;
 #[derive(Debug, thiserror::Error)]
 pub enum AstroError {
     /// 入力が物理的に不正（負の長半径、離心率 ≥ 1 など）。
-    #[error("入力が不正です: {0}")]
+    #[error("Invalid input: {0}")]
     InvalidInput(String),
     /// 時刻の文字列を解釈できない。
-    #[error("時刻を解釈できません: {0}")]
+    #[error("Cannot parse time: {0}")]
     InvalidEpoch(String),
 }
 
