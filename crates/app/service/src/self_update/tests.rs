@@ -22,7 +22,7 @@ impl Host for FakeHost {
             .ok_or_else(|| ServiceError::Data(format!("Cannot fetch {url}: 404")))
     }
 
-    fn download(&self, url: &str, to: &Path) -> Result<()> {
+    fn download(&self, url: &str, to: &Path, _progress: bool) -> Result<()> {
         let bytes = self
             .files
             .get(url)
@@ -114,7 +114,7 @@ fn assert_untouched(f: &Fixture) {
 #[test]
 fn check_reports_a_newer_release() {
     let f = fixture("0.5.1");
-    let c = check_with(&f.ctx, &host("0.5.2", "0.5.2"), None).unwrap();
+    let c = check_with(&f.ctx, &host("0.5.2", "0.5.2"), None, &mut |_| {}).unwrap();
     assert_eq!((c.current.as_str(), c.latest.as_str()), ("0.5.1", "0.5.2"));
     assert!(c.available && !c.ahead && !c.explicit);
     assert_eq!(c.asset, "fune-0.5.2-x86_64-linux-gnu.tar.gz");
@@ -128,7 +128,7 @@ fn check_reports_a_newer_release() {
 #[test]
 fn update_replaces_the_executable() {
     let f = fixture("0.5.1");
-    let out = update_with(&f.ctx, &host("0.5.2", "0.5.2"), None).unwrap();
+    let out = update_with(&f.ctx, &host("0.5.2", "0.5.2"), None, false, &mut |_| {}).unwrap();
     assert_eq!(out.replaced.as_deref(), Some(f.ctx.exe.to_str().unwrap()));
     let version = system::SystemHost.run_version(&f.ctx.exe).unwrap();
     assert_eq!(version.trim(), "fune 0.5.2");
@@ -139,7 +139,7 @@ fn update_replaces_the_executable() {
 #[test]
 fn already_latest_does_nothing() {
     let f = fixture("0.5.2");
-    let out = update_with(&f.ctx, &host("0.5.2", "0.5.2"), None).unwrap();
+    let out = update_with(&f.ctx, &host("0.5.2", "0.5.2"), None, false, &mut |_| {}).unwrap();
     assert!(!out.check.available && !out.check.ahead);
     assert!(out.replaced.is_none());
     assert_untouched(&f);
@@ -149,10 +149,10 @@ fn already_latest_does_nothing() {
 fn a_development_build_is_left_alone_unless_a_version_is_given() {
     let f = fixture("0.5.1");
     let h = host("0.5.0", "0.5.0");
-    let out = update_with(&f.ctx, &h, None).unwrap();
+    let out = update_with(&f.ctx, &h, None, false, &mut |_| {}).unwrap();
     assert!(out.check.ahead && !out.check.available && out.replaced.is_none());
     assert_untouched(&f);
-    let out = update_with(&f.ctx, &h, Some("0.5.0")).unwrap();
+    let out = update_with(&f.ctx, &h, Some("0.5.0"), false, &mut |_| {}).unwrap();
     assert!(out.check.explicit && out.replaced.is_some());
     let v = system::SystemHost.run_version(&f.ctx.exe).unwrap();
     assert_eq!(v.trim(), "fune 0.5.0");
@@ -168,7 +168,7 @@ fn checksum_mismatch_replaces_nothing() {
         sum,
         format!("{}  fune-0.5.2-x86_64-linux-gnu.tar.gz\n", "0".repeat(64)).into_bytes(),
     );
-    let e = update_with(&f.ctx, &h, None).unwrap_err();
+    let e = update_with(&f.ctx, &h, None, false, &mut |_| {}).unwrap_err();
     assert!(e.to_string().contains("does not match"), "{e}");
     assert_untouched(&f);
 }
@@ -176,7 +176,7 @@ fn checksum_mismatch_replaces_nothing() {
 #[test]
 fn wrong_reported_version_replaces_nothing() {
     let f = fixture("0.5.1");
-    let e = update_with(&f.ctx, &host("0.5.2", "0.5.3"), None).unwrap_err();
+    let e = update_with(&f.ctx, &host("0.5.2", "0.5.3"), None, false, &mut |_| {}).unwrap_err();
     assert!(e.to_string().contains("instead of 'fune 0.5.2'"), "{e}");
     assert_untouched(&f);
 }
@@ -185,15 +185,15 @@ fn wrong_reported_version_replaces_nothing() {
 fn bad_versions_and_answers_are_errors() {
     let f = fixture("0.5.1");
     let h = host("0.5.2", "0.5.2");
-    assert!(check_with(&f.ctx, &h, Some("0.5")).is_err());
-    assert!(check_with(&f.ctx, &h, Some("0.5.2-rc1")).is_err());
+    assert!(check_with(&f.ctx, &h, Some("0.5"), &mut |_| {}).is_err());
+    assert!(check_with(&f.ctx, &h, Some("0.5.2-rc1"), &mut |_| {}).is_err());
     let mut bad = host("0.5.2", "0.5.2");
     bad.files.extend([latest_json("nightly")]);
-    assert!(check_with(&f.ctx, &bad, None).is_err());
+    assert!(check_with(&f.ctx, &bad, None, &mut |_| {}).is_err());
     let none = FakeHost {
         files: BTreeMap::new(),
     };
-    let e = check_with(&f.ctx, &none, None).unwrap_err();
+    let e = check_with(&f.ctx, &none, None, &mut |_| {}).unwrap_err();
     assert!(e.to_string().contains("--version"), "{e}");
 }
 
@@ -204,10 +204,105 @@ fn an_unwritable_directory_is_explained() {
     let f = fixture("0.5.1");
     std::fs::set_permissions(f.dir.path(), std::fs::Permissions::from_mode(0o555)).unwrap();
     let denied = std::fs::create_dir(f.dir.path().join("probe")).is_err();
-    let r = update_with(&f.ctx, &host("0.5.2", "0.5.2"), None);
+    let r = update_with(&f.ctx, &host("0.5.2", "0.5.2"), None, false, &mut |_| {});
     std::fs::set_permissions(f.dir.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
     if denied {
         let e = r.unwrap_err();
         assert!(e.to_string().contains("cannot write"), "{e}");
     }
+}
+
+/// `update_with` を実行して、報告された段階を集める。
+fn update_steps(
+    f: &Fixture,
+    h: &FakeHost,
+    requested: Option<&str>,
+) -> (Result<UpdateOutcome>, Vec<Step>) {
+    let mut steps = Vec::new();
+    let r = update_with(&f.ctx, h, requested, false, &mut |s| steps.push(s));
+    (r, steps)
+}
+
+fn downloading(version: &str) -> Step {
+    Step::Downloading {
+        asset: format!("fune-{version}-x86_64-linux-gnu.tar.gz"),
+        version: version.to_owned(),
+    }
+}
+
+#[test]
+fn an_update_reports_every_step_in_order() {
+    let f = fixture("0.5.1");
+    let (r, steps) = update_steps(&f, &host("0.5.2", "0.5.2"), None);
+    r.unwrap();
+    let path = f.ctx.exe.display().to_string();
+    assert_eq!(
+        steps,
+        [
+            Step::CheckingLatest,
+            downloading("0.5.2"),
+            Step::Verifying,
+            Step::Unpacking,
+            Step::Replacing { path },
+        ]
+    );
+}
+
+#[test]
+fn up_to_date_stops_after_the_lookup() {
+    let f = fixture("0.5.2");
+    let (r, steps) = update_steps(&f, &host("0.5.2", "0.5.2"), None);
+    r.unwrap();
+    assert_eq!(steps, [Step::CheckingLatest]);
+}
+
+#[test]
+fn check_reports_only_the_lookup_and_a_given_version_skips_it() {
+    let f = fixture("0.5.1");
+    let mut steps = Vec::new();
+    check_with(&f.ctx, &host("0.5.2", "0.5.2"), None, &mut |s| {
+        steps.push(s)
+    })
+    .unwrap();
+    assert_eq!(steps, [Step::CheckingLatest]);
+    steps.clear();
+    check_with(&f.ctx, &host("0.5.2", "0.5.2"), Some("0.5.2"), &mut |s| {
+        steps.push(s);
+    })
+    .unwrap();
+    assert!(steps.is_empty());
+    let (r, steps) = update_steps(&f, &host("0.5.0", "0.5.0"), Some("0.5.0"));
+    r.unwrap();
+    assert_eq!(steps.first(), Some(&downloading("0.5.0")));
+    assert!(!steps.contains(&Step::CheckingLatest));
+}
+
+#[test]
+fn a_failure_stops_the_steps_there() {
+    let f = fixture("0.5.1");
+    let (r, steps) = update_steps(&f, &host("0.5.2", "0.5.3"), None);
+    r.unwrap_err();
+    assert_eq!(
+        steps,
+        [
+            Step::CheckingLatest,
+            downloading("0.5.2"),
+            Step::Verifying,
+            Step::Unpacking,
+        ]
+    );
+    assert_untouched(&f);
+}
+
+#[test]
+fn a_missing_release_is_explained() {
+    let f = fixture("0.5.1");
+    let (r, steps) = update_steps(&f, &host("0.5.2", "0.5.2"), Some("9.9.9"));
+    let e = r.unwrap_err().to_string();
+    assert!(
+        e.contains("Release 9.9.9 was not found (see https://github.com/o/r/releases)"),
+        "{e}"
+    );
+    assert_eq!(steps, [downloading("9.9.9")]);
+    assert_untouched(&f);
 }

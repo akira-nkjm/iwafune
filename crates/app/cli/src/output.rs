@@ -48,6 +48,16 @@ impl Out {
         );
     }
 
+    /// 進行の行。標準エラーに出す（標準出力の結果や JSON と混ざらない）。
+    pub fn status(&self, msg: impl std::fmt::Display) {
+        eprintln!("{msg}");
+    }
+
+    /// 標準エラーが端末か（進捗バーを出してよいか）。
+    pub fn stderr_is_terminal(&self) -> bool {
+        std::io::stderr().is_terminal()
+    }
+
     /// 警告の行（⚠）。標準エラーに出す。
     pub fn warn(&self, msg: impl std::fmt::Display) {
         eprintln!(

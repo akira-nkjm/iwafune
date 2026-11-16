@@ -107,7 +107,7 @@ pub(super) fn item(dir: &Path) -> Result<DataItem> {
 /// 表と取得の記録（取得日時・SHA-256）を置き換える。
 pub(super) fn fetch(tmp: &Path, dir: &Path) -> Result<()> {
     let downloaded = tmp.join(FILE);
-    crate::fetch::download(SOURCE_URL, &downloaded)?;
+    crate::fetch::download(SOURCE_URL, &downloaded, false)?;
     let bytes = std::fs::read(&downloaded).map_err(|e| io_error(&downloaded, e))?;
     SpaceWeatherTable::from_csv_bytes(&bytes).map_err(|e| {
         ServiceError::Data(format!(
