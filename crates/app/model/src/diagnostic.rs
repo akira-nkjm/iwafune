@@ -8,7 +8,7 @@ use ts_rs::TS;
 enum_text! {
     /// 診断の重さ。error は書き込みを拒む（新たに増える場合）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
-    pub enum Severity: "診断の重さ" {
+    pub enum Severity: "diagnostic severity" {
         Error = "error",
         Warning = "warning",
         Info = "info",

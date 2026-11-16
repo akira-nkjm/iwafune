@@ -27,7 +27,7 @@ pub(super) fn check_budget(ctx: &mut Ctx) {
                 &EntityKey::Allocation,
                 &[kind.as_str(), "limit"],
                 budget_target(&[kind.as_str(), "limit"]),
-                format!("{} の上限が未設定です", kind.as_str()),
+                format!("The limit of {} is not set", kind.as_str()),
             );
         }
         if let Some(alloc) = design.budget.allocation.get(*kind) {
@@ -44,7 +44,7 @@ pub(super) fn check_budget(ctx: &mut Ctx) {
             &EntityKey::Policy,
             &["harness", "allowance"],
             budget_target(&["policy", "harness", "allowance"]),
-            "ハーネスの見込み割合は 0〜1 にします",
+            "The harness allowance fraction must be from 0 to 1",
         );
     }
 }
@@ -62,7 +62,7 @@ fn check_factors(ctx: &mut Ctx, factors: &MaturityFactors, key: &str) {
                 &EntityKey::Policy,
                 &[key, name],
                 budget_target(&["policy", key, name]),
-                "係数は 0〜1 にします",
+                "The factor must be from 0 to 1",
             );
         }
     }
@@ -87,7 +87,7 @@ fn check_allocation(ctx: &mut Ctx, kind: BudgetKind, alloc: &Allocation) {
             &entity,
             &[name, "system_margin"],
             budget_target(&[name, "system_margin"]),
-            "システムマージンは 0 以上 1 未満にします",
+            "The system margin must be at least 0 and less than 1",
         );
     }
     let mut total = 0.0;
@@ -102,7 +102,7 @@ fn check_allocation(ctx: &mut Ctx, kind: BudgetKind, alloc: &Allocation) {
                 &entity,
                 &keys,
                 path.clone(),
-                format!("配分先 `{node}` は系の ID にも部品にもありません"),
+                format!("Allocation target `{node}` is neither a subsystem ID nor a part"),
             );
         }
         match check_quantity_dimension(q, dim) {
@@ -120,7 +120,7 @@ fn check_allocation(ctx: &mut Ctx, kind: BudgetKind, alloc: &Allocation) {
             &entity,
             &[name, "alloc"],
             budget_target(&[name, "alloc"]),
-            format!("配分の合計 {total} が上限 × (1 − マージン) = {available}（SI）を超えています"),
+            format!("The allocation total {total} exceeds limit × (1 − margin) = {available} (SI)"),
         );
     }
 }

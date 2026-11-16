@@ -55,7 +55,7 @@ enum_text! {
     /// 値の出所。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
     #[ts(rename = "AttrOrigin")]
-    pub enum Origin: "値の出所" {
+    pub enum Origin: "value origin" {
         Catalog = "catalog",
         Override = "override",
         /// 属性定義の既定値
@@ -68,7 +68,7 @@ enum_text! {
 enum_text! {
     /// 根拠の強さ（弱い順）。値の根拠は出典（`sources/<ID>`）の種類から決まる。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-    pub enum Evidence: "根拠の強さ" {
+    pub enum Evidence: "evidence strength" {
         Placeholder = "placeholder",
         /// 出典が書かれていない
         Unsourced = "unsourced",

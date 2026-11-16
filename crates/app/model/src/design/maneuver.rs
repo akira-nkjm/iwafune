@@ -18,7 +18,7 @@ use ts_rs::TS;
 enum_text! {
     /// ΔV の区分（ΔV バジェットの行）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
-    pub enum ManeuverCategory: "マヌーバの区分" {
+    pub enum ManeuverCategory: "maneuver category" {
         Insertion = "insertion",
         StationKeeping = "station_keeping",
         Unloading = "unloading",
@@ -30,7 +30,7 @@ enum_text! {
 enum_text! {
     /// マヌーバの計算の段階（`propagated` は推力を入れた数値伝搬で、`[constraints]` が効く）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
-    pub enum ManeuverMethod: "マヌーバの計算の段階" {
+    pub enum ManeuverMethod: "maneuver calculation method" {
         Impulsive = "impulsive",
         FiniteBurn = "finite_burn",
         LowThrust = "low_thrust",
@@ -41,7 +41,7 @@ enum_text! {
 enum_text! {
     /// 推力の向きの決まり（`propagated` だけで効く）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
-    pub enum ManeuverSteering: "推力の向き" {
+    pub enum ManeuverSteering: "thrust steering" {
         Tangential = "tangential",
         Inertial = "inertial",
     }

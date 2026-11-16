@@ -120,11 +120,11 @@ fn analysis_settings_fields_are_the_analysis_systems() {
 fn unknown_text_names_the_choices() {
     assert_eq!(
         "middle".parse::<ViewPortSide>().unwrap_err().to_string(),
-        "`middle` は端子の側ではありません（left / right / top / bottom）"
+        "`middle` is not a valid terminal side (left / right / top / bottom)"
     );
     assert_eq!(
         "Mass".parse::<BudgetKind>().unwrap_err().to_string(),
-        "`Mass` はバジェットの種類ではありません（mass / power / data）"
+        "`Mass` is not a valid budget kind (mass / power / data)"
     );
 }
 

@@ -74,7 +74,7 @@ impl ViewEdge {
 enum_text! {
     /// カードの端子を出す側。設計ファイルと CLI での書き方（`left` など）は [`ViewPortSide::as_str`] だけで決める。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-    pub enum ViewPortSide: "端子の側" {
+    pub enum ViewPortSide: "terminal side" {
         Left = "left",
         Right = "right",
         Top = "top",

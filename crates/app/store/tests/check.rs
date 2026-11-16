@@ -104,7 +104,7 @@ fn port_refs_are_read_as_structure() {
         .find(|x| x.code == "toml.schema")
         .expect("schema error");
     assert_eq!(schema.line, Some(2));
-    assert!(schema.message.contains("部品.ポート"), "{schema:?}");
+    assert!(schema.message.contains("part.port"), "{schema:?}");
     let mut set = FileSet::new();
     set.insert("fune.toml", PROJECT);
     set.insert(

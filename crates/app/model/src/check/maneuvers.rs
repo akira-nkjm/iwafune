@@ -22,7 +22,7 @@ pub(super) fn check_maneuvers(ctx: &mut Ctx) {
                 &entity,
                 &["constraints", "mode"],
                 Some(Target::maneuver(m.id.as_str(), Some("constraints.mode"))),
-                format!("モード `{mode}` がありません"),
+                format!("Mode `{mode}` is not defined"),
             );
         }
     }
@@ -38,7 +38,7 @@ fn check_duty(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
             entity,
             &["constraints", "duty"],
             Some(Target::maneuver(m.id.as_str(), Some("constraints.duty"))),
-            format!("デューティは 0 より大きく 1 以下にしてください（{d}）"),
+            format!("Duty must be greater than 0 and at most 1 ({d})"),
         );
     }
 }
@@ -54,7 +54,7 @@ fn check_thruster(ctx: &mut Ctx, design: &Design, m: &Maneuver, entity: &EntityK
                 &["method"],
                 target(),
                 format!(
-                    "{} の計算にはスラスタ（thruster）が要ります（ΔV だけを求めます）",
+                    "The {} calculation needs a thruster. Only ΔV is computed",
                     m.method
                 ),
             );
@@ -67,7 +67,7 @@ fn check_thruster(ctx: &mut Ctx, design: &Design, m: &Maneuver, entity: &EntityK
             entity,
             &["thruster"],
             target(),
-            format!("部品 `{t}` がありません"),
+            format!("Part `{t}` is not defined"),
         );
         return;
     };
@@ -77,9 +77,7 @@ fn check_thruster(ctx: &mut Ctx, design: &Design, m: &Maneuver, entity: &EntityK
             entity,
             &["thruster"],
             target(),
-            format!(
-                "部品 `{t}` はスラスタ（role = propulsion_thruster か thruster）ではありません"
-            ),
+            format!("Part `{t}` is not a thruster (role = propulsion_thruster or thruster)"),
         );
     }
 }
@@ -96,7 +94,7 @@ fn check_after(ctx: &mut Ctx, design: &Design, m: &Maneuver, entity: &EntityKey)
             entity,
             &["after"],
             target(),
-            format!("前のマヌーバ `{after}` がありません（フェーズはまだ扱わないので、最初のマヌーバとして扱います）"),
+            format!("Previous maneuver `{after}` is not defined. Phases are not handled yet, so this is treated as the first maneuver"),
         );
         return;
     }
@@ -111,7 +109,10 @@ fn check_after(ctx: &mut Ctx, design: &Design, m: &Maneuver, entity: &EntityKey)
                 entity,
                 &["after"],
                 target(),
-                format!("マヌーバ `{}` の after をたどると自分に戻ります", m.id),
+                format!(
+                    "Following `after` from maneuver `{}` leads back to itself",
+                    m.id
+                ),
             );
             return;
         }
@@ -137,7 +138,7 @@ fn check_target(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
             entity,
             &["target", "altitude"],
             Some(Target::maneuver(id, Some("target.altitude"))),
-            "altitude（円軌道）と perigee_altitude・apogee_altitude は一緒に書けません",
+            "altitude (circular orbit) cannot be combined with perigee_altitude or apogee_altitude",
         );
     }
     if t.body.is_some() {
@@ -148,7 +149,7 @@ fn check_target(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
                 entity,
                 &["target", "body"],
                 target(),
-                "目標の天体を回る軌道（altitude か perigee_altitude）を書いてください",
+                "Specify an orbit around the target body (altitude or perigee_altitude)",
             );
         }
         if m.method == ManeuverMethod::LowThrust {
@@ -157,7 +158,7 @@ fn check_target(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
                 entity,
                 &["method"],
                 target(),
-                "天体間の遷移は impulsive か finite_burn で計算します",
+                "Transfers between bodies are computed with impulsive or finite_burn",
             );
         }
     }
@@ -176,7 +177,7 @@ fn check_target(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
                 &["via_altitude"],
                 target(),
                 format!(
-                    "{} では via_altitude（バイエリプティック遷移）を使いません",
+                    "{} does not use via_altitude (bi-elliptic transfer)",
                     m.method
                 ),
             );

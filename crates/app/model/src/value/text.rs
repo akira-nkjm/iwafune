@@ -90,7 +90,7 @@ pub fn value_from_text(text: &str, value_type: ValueType) -> Result<Value, Value
         ValueType::Text => Ok(Value::Text(text.to_string())),
         ValueType::Table => Ok(Value::Table(text.to_string())),
         ValueType::Tensor3 => Err(ValueError::Type(
-            "テンソルは文字列から入力できません（JSON で渡してください）".to_string(),
+            "Cannot enter a tensor as text (pass it as JSON)".to_string(),
         )),
     }
 }
@@ -103,7 +103,7 @@ fn parse_range(text: &str) -> Result<RangeValue, ValueError> {
     let (max, unit) = parse_number_unit(right)?;
     if !left_unit.is_empty() && left_unit != unit {
         return Err(ValueError::Syntax(format!(
-            "{text}（範囲の両端の単位をそろえてください）"
+            "{text} (both ends of the range must use the same unit)"
         )));
     }
     Ok(RangeValue { min, max, unit })

@@ -48,7 +48,7 @@ fn missing_inputs_of_an_empty_design_name_no_parts() {
     let resolved = fune_model::resolve(&design);
     let missing = missing_of(&design, &resolved, None);
     assert_parts_exist(&design, &missing);
-    let power = missing.iter().find(|m| m.path == "<部品>.power");
+    let power = missing.iter().find(|m| m.path == "<part>.power");
     assert_eq!(
         power.and_then(|m| m.target.clone()),
         Some(Target::any_part("power"))

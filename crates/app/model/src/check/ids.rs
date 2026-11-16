@@ -131,7 +131,7 @@ fn namespace(ctx: &mut Ctx, entries: Vec<Entry>, rule: fn(&str) -> Result<(), Id
             entity,
             &[],
             Some(target.clone()),
-            format!("ID `{id}` が `{other}` と重複しています（大文字小文字を無視して比較）"),
+            format!("ID `{id}` duplicates `{other}` (compared ignoring case)"),
         );
     }
 }

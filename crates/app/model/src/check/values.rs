@@ -20,10 +20,12 @@ pub fn check_value_against(def: &AttributeDef, value: &Value, states: &[String])
         for state in cells.keys() {
             if !states.iter().any(|s| s == state) {
                 let message = if states.is_empty() {
-                    format!("状態 `{state}` の値がありますが、この部品の種別は状態を持ちません")
+                    format!(
+                        "A value is given for state `{state}`, but this part's kind has no states"
+                    )
                 } else {
                     format!(
-                        "状態 `{state}` はこの部品の種別にありません（{}）",
+                        "State `{state}` is not in this part's kind ({})",
                         states.join(" / ")
                     )
                 };
@@ -50,7 +52,7 @@ fn type_finding(def: &AttributeDef, value: &Value) -> Option<Finding> {
             Severity::Error,
             "value.axis_mismatch",
             format!(
-                "状態ごとの値が書かれていますが、属性 `{}` は状態で引きません",
+                "Per-state values are given, but attribute `{}` is not looked up by state",
                 def.id
             ),
         ));
@@ -62,7 +64,7 @@ fn type_finding(def: &AttributeDef, value: &Value) -> Option<Finding> {
         Severity::Error,
         "value.type_mismatch",
         format!(
-            "属性 `{}` の値の型は {:?} ですが {:?} が書かれています",
+            "The value type of attribute `{}` is {:?}, but {:?} is given",
             def.id, def.value_type, found
         ),
     ))
@@ -103,7 +105,7 @@ fn unit_findings(def: &AttributeDef, unit: &str) -> Vec<Finding> {
             Severity::Error,
             "unit.dimension",
             format!(
-                "単位 `{unit}` は {} ですが、属性 `{}` は {} です",
+                "Unit `{unit}` is {}, but attribute `{}` is {}",
                 dimension_label(info.dimension),
                 def.id,
                 dimension_label(want)
@@ -116,7 +118,7 @@ fn unit_findings(def: &AttributeDef, unit: &str) -> Vec<Finding> {
             Severity::Warning,
             "unit.not_allowed",
             format!(
-                "単位 `{unit}` は属性 `{}` の許可単位（{}）にありません",
+                "Unit `{unit}` is not among the allowed units of attribute `{}` ({})",
                 def.id,
                 def.units.join(", ")
             ),
@@ -149,7 +151,9 @@ fn shape_findings(def: &AttributeDef, value: &Value) -> Vec<Finding> {
                 out.push((
                     Severity::Error,
                     "value.range_inverted",
-                    format!("範囲の下限 {min} が上限 {max} より大きい（SI）"),
+                    format!(
+                        "The range lower bound {min} is greater than the upper bound {max} (SI)"
+                    ),
                 ));
             }
         }
@@ -163,7 +167,7 @@ fn shape_findings(def: &AttributeDef, value: &Value) -> Vec<Finding> {
                 Severity::Error,
                 "enum.unknown",
                 format!(
-                    "`{s}` は属性 `{}` の語彙（{}）にありません",
+                    "`{s}` is not in the vocabulary of attribute `{}` ({})",
                     def.id,
                     def.symbols.join(", ")
                 ),
@@ -183,7 +187,7 @@ fn domain(def: &AttributeDef, v: f64) -> Option<Finding> {
             Severity::Warning,
             "value.out_of_domain",
             format!(
-                "値 {v}（SI）が属性 `{}` の値域 [{}, {}] の外です",
+                "Value {v} (SI) is outside the range of attribute `{}`: [{}, {}]",
                 def.id,
                 def.min.map_or("-∞".into(), |m| m.to_string()),
                 def.max.map_or("∞".into(), |m| m.to_string())
@@ -199,7 +203,7 @@ fn uncertainty(out: &mut Vec<Finding>, s: &crate::resolve::SiScalar) {
         out.push((
             Severity::Warning,
             "value.uncertainty_order",
-            "不確かさの min ≤ value ≤ max になっていません".to_string(),
+            "The uncertainty does not satisfy min ≤ value ≤ max".to_string(),
         ));
     }
 }
@@ -210,13 +214,13 @@ fn direction(v: &[f64; 3]) -> Option<Finding> {
         Some((
             Severity::Error,
             "vector.zero",
-            "方向ベクトルが 0 です".to_string(),
+            "The direction vector is 0".to_string(),
         ))
     } else if (norm - 1.0).abs() > super::UNIT_NORM_TOLERANCE {
         Some((
             Severity::Warning,
             "vector.not_unit",
-            format!("方向ベクトルの大きさが 1 ではありません（{norm:.4}）"),
+            format!("The direction vector does not have norm 1 ({norm:.4})"),
         ))
     } else {
         None
@@ -235,7 +239,7 @@ pub fn check_quantity_dimension(q: &Quantity, spec: &str) -> Option<Finding> {
             Severity::Error,
             "unit.dimension",
             format!(
-                "単位 `{}` は {} ですが {spec} が必要です",
+                "Unit `{}` is {}, but {spec} is required",
                 q.unit,
                 unit_info(&q.unit).map_or_else(|_| "?".into(), |i| dimension_label(i.dimension))
             ),

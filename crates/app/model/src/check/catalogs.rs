@@ -31,7 +31,7 @@ pub(super) fn check_shared_catalogs(ctx: &mut Ctx) {
             &["catalog"],
             None,
             format!(
-                "catalog.lock の `{}` は fune.toml の共有カタログ（[[catalog]] git = …）にありません。`fune catalog fetch` を実行すると lock から外します",
+                "`{}` in catalog.lock is not a shared catalog in fune.toml ([[catalog]] git = …). Run `fune catalog fetch` to remove it from the lock",
                 unused.name
             ),
         );
@@ -46,7 +46,7 @@ fn problem(ctx: &Ctx, s: &SharedCatalogStatus) -> Option<(&'static str, String)>
         SharedCatalogState::NotLocked => (
             "catalog.not_locked",
             format!(
-                "共有カタログ `{name}` の commit が catalog.lock にありません。`fune catalog fetch` を実行して取得し、catalog.lock をコミットしてください"
+                "The commit of shared catalog `{name}` is not in catalog.lock. Run `fune catalog fetch` to fetch it, then commit catalog.lock"
             ),
         ),
         SharedCatalogState::LockMismatch => {
@@ -59,14 +59,14 @@ fn problem(ctx: &Ctx, s: &SharedCatalogStatus) -> Option<(&'static str, String)>
                     format!(
                         "{} @ {}",
                         l.git,
-                        l.rev.as_deref().unwrap_or("既定のブランチ")
+                        l.rev.as_deref().unwrap_or("default branch")
                     )
                 })
                 .unwrap_or_default();
             (
                 "catalog.lock_mismatch",
                 format!(
-                    "共有カタログ `{name}` の git・rev が catalog.lock の記録（{locked}）と違います。`fune catalog update {name}` を実行して lock を合わせてください"
+                    "The git and rev of shared catalog `{name}` differ from the record in catalog.lock ({locked}). Run `fune catalog update {name}` to update the lock"
                 ),
             )
         }
@@ -76,7 +76,7 @@ fn problem(ctx: &Ctx, s: &SharedCatalogStatus) -> Option<(&'static str, String)>
             (
                 "catalog.not_fetched",
                 format!(
-                    "共有カタログ `{name}` の commit `{short}` がまだ取得されていません（.fune/ のキャッシュに無い）。`fune catalog fetch` を実行してください"
+                    "Commit `{short}` of shared catalog `{name}` has not been fetched (not in the .fune/ cache). Run `fune catalog fetch`"
                 ),
             )
         }

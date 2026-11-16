@@ -14,7 +14,7 @@ pub(super) fn check_modes(ctx: &mut Ctx) {
                 &EntityKey::Project,
                 &["modes", "order"],
                 Some(Target::Modes),
-                format!("表示順のモード `{id}` がありません"),
+                format!("Mode `{id}` in the display order is not defined"),
             );
         }
     }
@@ -36,7 +36,7 @@ pub(super) fn check_modes(ctx: &mut Ctx) {
                     &entity,
                     &["eclipse", part_id.as_str()],
                     Some(Target::mode(mode.id.as_str(), Some(part_id.as_str()))),
-                    "蝕の上書き先が states にありません",
+                    "The eclipse override target is not in states",
                 );
             }
         }
@@ -51,7 +51,7 @@ pub(super) fn check_modes(ctx: &mut Ctx) {
                     &["states"],
                     Some(Target::mode(mode.id.as_str(), Some(part.id.as_str()))),
                     format!(
-                        "モード `{}` に部品 `{}` の状態がありません（0 W とはみなしません）",
+                        "Mode `{}` has no state for part `{}` (this is not treated as 0 W)",
                         mode.id, part.id
                     ),
                 );
@@ -73,7 +73,7 @@ fn check_mode_row(
     let keys = [section, part_id];
     let path = Some(Target::mode(mode.id.as_str(), Some(part_id)));
     let Some(part) = design.parts.get(part_id) else {
-        let message = format!("モード `{}` の部品 `{part_id}` がありません", mode.id);
+        let message = format!("Part `{part_id}` of mode `{}` is not defined", mode.id);
         ctx.error("ref.part", entity, &keys, path, message);
         return;
     };
@@ -82,7 +82,7 @@ fn check_mode_row(
     for state in std::iter::once(&assign.state).chain(assign.duty.keys()) {
         if !states.iter().any(|s| s == state) {
             let message = format!(
-                "`{part_id}` の状態 `{state}` は種別にありません（{}）",
+                "State `{state}` of `{part_id}` is not in the kind ({})",
                 states.join(" / ")
             );
             ctx.error("state.unknown", entity, &keys, path.clone(), message);
@@ -93,8 +93,9 @@ fn check_mode_row(
         || assign.duty.values().any(|d| !(0.0..=1.0).contains(d))
         || total > 1.0 + super::SHARE_TOLERANCE
     {
-        let message =
-            format!("`{part_id}` の時間割合は 0〜1 で、合計 1 以下にします（合計 {total}）");
+        let message = format!(
+            "The time shares of `{part_id}` must be from 0 to 1 and add up to at most 1 (total {total})"
+        );
         ctx.error("mode.duty", entity, &keys, path, message);
     }
 }
@@ -115,12 +116,12 @@ fn check_population(
     use crate::design::Redundancy;
     let mut error = |code, message| ctx.error(code, entity, keys, path.clone(), message);
     if a.active.is_some_and(|n| n > part.count) {
-        error("mode.active", "active は count 以下にします");
+        error("mode.active", "active must be at most count");
     }
     if a.active.is_some() && part.redundancy == Redundancy::None {
         error(
             "mode.redundancy",
-            "active には cold または warm の redundancy が必要です",
+            "active requires redundancy of cold or warm",
         );
     }
     if a.active.unwrap_or(part.count) < part.count {
@@ -135,10 +136,16 @@ fn check_population(
         };
         match spare {
             Some(s) if states.iter().any(|v| v == s) => {}
-            _ => error("mode.spare_state", "予備の状態が種別の語彙から決まりません"),
+            _ => error(
+                "mode.spare_state",
+                "The spare state cannot be determined from the kind's vocabulary",
+            ),
         }
     }
     if a.spare_state.as_ref().is_some_and(|s| !states.contains(s)) {
-        error("mode.spare_state", "spare_state は種別の語彙から選びます");
+        error(
+            "mode.spare_state",
+            "spare_state must be chosen from the kind's vocabulary",
+        );
     }
 }
