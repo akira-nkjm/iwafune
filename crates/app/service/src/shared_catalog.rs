@@ -49,7 +49,7 @@ fn sync(ws: &Workspace, target: Option<&str>, locked: bool) -> Result<CatalogSyn
             .iter()
             .any(|c| c.name == name && c.shared_git().is_some())
     {
-        return Err(ServiceError::not_found("共有カタログ", name));
+        return Err(ServiceError::not_found("shared catalog", name));
     }
     let old = design.catalog_lock.clone().unwrap_or_default();
     let mut lock = CatalogLock::default();
@@ -128,7 +128,7 @@ fn write_lock(
     }
     if locked {
         return Err(ServiceError::InvalidInput(
-            "catalog.lock が fune.toml と合わないので、--locked では書き換えません。`fune catalog fetch` を実行して catalog.lock をコミットしてください".into(),
+            "catalog.lock does not match fune.toml, so --locked will not rewrite it. Run `fune catalog fetch` and commit catalog.lock".into(),
         ));
     }
     let change = FileChange {
@@ -142,7 +142,7 @@ fn write_lock(
 
 fn not_locked(name: &str) -> ServiceError {
     ServiceError::InvalidInput(format!(
-        "共有カタログ `{name}` の catalog.lock が無いか fune.toml と違うので、--locked では取得できません。`fune catalog fetch` を実行して catalog.lock をコミットしてください"
+        "catalog.lock for shared catalog `{name}` is missing or does not match fune.toml, so --locked cannot fetch it. Run `fune catalog fetch` and commit catalog.lock"
     ))
 }
 
@@ -150,7 +150,7 @@ fn not_locked(name: &str) -> ServiceError {
 fn named(name: &str, e: ServiceError) -> ServiceError {
     match e {
         ServiceError::Data(message) => {
-            ServiceError::Data(format!("共有カタログ `{name}`: {message}"))
+            ServiceError::Data(format!("Shared catalog `{name}`: {message}"))
         }
         other => other,
     }

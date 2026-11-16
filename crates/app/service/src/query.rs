@@ -96,7 +96,7 @@ pub fn catalog_item(ws: &Workspace, id: &str) -> Result<crate::dto::CatalogItemV
     d.catalog
         .get(id)
         .map(|item| catalog::item_view(&d, item))
-        .ok_or_else(|| crate::ServiceError::not_found("カタログ品", id))
+        .ok_or_else(|| crate::ServiceError::not_found("catalog item", id))
 }
 
 /// 図（`view/<id>.toml`）の配置（`fune view ls`。`GET /design` の `views` の 1 件）。まだ無い図は `None`（エラーにしない）。

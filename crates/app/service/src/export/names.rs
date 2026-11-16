@@ -51,7 +51,7 @@ impl TypeVisitor for NameCheck<'_> {
             Some((_, other)) if generic_base(other) == generic_base(rust) => return,
             Some((_, other)) => {
                 self.duplicates
-                    .push(format!("{} ({other} と {rust})", dep.ts_name));
+                    .push(format!("{} ({other} and {rust})", dep.ts_name));
                 return;
             }
             None => {

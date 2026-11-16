@@ -37,7 +37,7 @@ fn system_modes_of(
     let mut missing = fune_projection::MissingInputs::new();
     if !matches!(system, System::Power | System::Cdh | System::Thermal) {
         return Err(crate::error::ServiceError::InvalidInput(
-            "この系にはモード表示がありません".into(),
+            "This subsystem has no mode view".into(),
         ));
     }
     if system == System::Power {

@@ -17,7 +17,7 @@ fn item_path(item: &str, path: &str) -> Result<AttrPath> {
     match parse_catalog_attr(path) {
         Ok((owner, p)) if owner == item => Ok(p),
         Ok((owner, _)) => Err(invalid(format!(
-            "`{path}` はカタログ品 `{owner}` のパスです（編集する品は `{item}`）"
+            "`{path}` is a path of catalog item `{owner}` (the item being edited is `{item}`)"
         ))),
         Err(_) => AttrPath::parse(path).map_err(invalid),
     }
@@ -73,9 +73,9 @@ pub(super) fn catalog_unset_op(item: &str, path: &str) -> Result<Op> {
 fn catalog_field(name: CatalogFieldName, text: Option<&str>) -> Result<CatalogField> {
     let owned = text.map(str::to_owned);
     Ok(match name {
-        CatalogFieldName::Kind => {
-            CatalogField::Kind(owned.ok_or_else(|| invalid("カタログ品の kind は消せません"))?)
-        }
+        CatalogFieldName::Kind => CatalogField::Kind(
+            owned.ok_or_else(|| invalid("Cannot unset the kind of a catalog item"))?,
+        ),
         CatalogFieldName::Label => CatalogField::Label(owned),
         CatalogFieldName::LabelEn => CatalogField::LabelEn(owned),
         CatalogFieldName::Manufacturer => CatalogField::Manufacturer(owned),

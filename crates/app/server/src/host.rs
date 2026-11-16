@@ -85,7 +85,7 @@ pub async fn check(policy: Arc<HostPolicy>, req: Request, next: Next) -> Respons
         Some(h) if !policy.allows(&h) => ApiError::new(
             StatusCode::FORBIDDEN,
             "host_not_allowed",
-            format!("Host `{h}` からの要求は受け付けません（`fune gui --allow-host <名前>` で許可できます）"),
+            format!("Requests from Host `{h}` are not accepted (allow it with `fune gui --allow-host <name>`)"),
         )
         .into_response(),
         _ => next.run(req).await,

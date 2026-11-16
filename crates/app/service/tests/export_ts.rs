@@ -5,6 +5,6 @@ use std::path::Path;
 #[test]
 fn export_ts() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../web/src/api/gen");
-    let files = fune_service::dto::export_ts(&dir).expect("TS を書き出せること");
+    let files = fune_service::dto::export_ts(&dir).expect("TS types can be written");
     assert!(files.iter().any(|f| f.ends_with("index.ts")));
 }
