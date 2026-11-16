@@ -1,5 +1,5 @@
 kind         = "camera"
-label        = "マルチスペクトルカメラ 5 m 級"
+label        = "Multispectral camera, 5 m class"
 manufacturer = "Example Optics"
 part_number  = "MSC-5"
 maturity     = "new"

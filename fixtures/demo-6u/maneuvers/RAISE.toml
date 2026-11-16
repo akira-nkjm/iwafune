@@ -1,4 +1,4 @@
-label    = "軌道上昇 550 → 600 km"
+label    = "Orbit raise 550 → 600 km"
 category = "insertion"
 method   = "low_thrust"
 thruster = "EPT"

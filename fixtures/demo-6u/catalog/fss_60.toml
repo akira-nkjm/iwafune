@@ -1,5 +1,5 @@
 kind         = "sun_sensor"
-label        = "精太陽センサ（視野 ±60°）"
+label        = "Fine sun sensor (FoV ±60°)"
 manufacturer = "Example Optics"
 part_number  = "FSS-60"
 maturity     = "off_the_shelf"

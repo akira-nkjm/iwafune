@@ -1,5 +1,5 @@
 kind  = "wire"
-label = "AWG24 PTFE 被覆線"
+label = "AWG24 PTFE-insulated wire"
 
 [attr]
 linear_density        = { value = 3.2, unit = "g/m" }

@@ -1,4 +1,4 @@
-label    = "キセノンタンク（デモ）"
+label    = "Xenon tank (demo)"
 kind     = "propellant_tank"
 maturity = "off_the_shelf"
 

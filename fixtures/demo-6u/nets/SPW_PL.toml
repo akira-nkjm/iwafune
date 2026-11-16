@@ -1,5 +1,5 @@
 kind     = "data"
-label    = "ミッションデータ（SpaceWire）"
+label    = "Mission data (SpaceWire)"
 protocol = "SpaceWire"
 bitrate  = { value = 100.0, unit = "Mbit/s" }
 master   = "OBC.SPW1"

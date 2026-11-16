@@ -1,5 +1,5 @@
 kind         = "gps"
-label        = "GPS L1 受信機（アンテナ込み）"
+label        = "GPS L1 receiver (antenna included)"
 manufacturer = "Example Nav"
 part_number  = "GPS-L1"
 maturity     = "modified"

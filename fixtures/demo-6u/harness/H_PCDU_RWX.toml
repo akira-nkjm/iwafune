@@ -1,4 +1,4 @@
-label = "PCDU → RW_X 電源"
+label = "PCDU → RW_X power"
 from  = "PCDU.OUT3"
 to    = "RW_X.PWR"
 nets  = ["P12V"]
@@ -9,4 +9,4 @@ cores = 2
 value       = 0.35
 unit        = "m"
 from.source = "cad_2026_09"
-from.note   = "3D 配置からの概算"
+from.note   = "Estimated from the 3D layout"

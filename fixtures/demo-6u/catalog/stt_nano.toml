@@ -1,5 +1,5 @@
 kind         = "star_tracker"
-label        = "小型スタートラッカ"
+label        = "Compact star tracker"
 manufacturer = "Example Optics"
 part_number  = "ST-NANO"
 maturity     = "off_the_shelf"

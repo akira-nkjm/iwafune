@@ -247,7 +247,7 @@ fn other_ops() -> Vec<Op> {
         sha256: Some("ab".repeat(32)),
         distribution: Some(Distribution::OnRequest),
         date: Some("2027-01-20".into()),
-        by: Some("tanaka".into()),
+        by: Some("test-team".into()),
         note: None,
     };
     let harness = Harness {

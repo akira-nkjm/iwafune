@@ -1,6 +1,5 @@
-# プロジェクト独自の属性（線材の単位長さ質量）。次元は許可単位から決まる（kg/m）
-label        = "単位長さ質量"
-label_en     = "Linear density"
+# Project-specific attribute (mass per unit length of a wire). The dimension follows from the allowed units (kg/m)
+label        = "Linear density"
 type         = "scalar"
 units        = ["g/m", "kg/m"]
 display_unit = "g/m"

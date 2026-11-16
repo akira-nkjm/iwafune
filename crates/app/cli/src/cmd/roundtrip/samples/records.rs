@@ -201,7 +201,7 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         sha256: Some("0123456789abcdef".repeat(4)),
         distribution: Some(Distribution::OnRequest),
         date: Some(s("2026-10-01")),
-        by: Some(s("tanaka")),
+        by: Some(s("test-team")),
         note: Some(s("rev B")),
     };
     let harness = Harness {

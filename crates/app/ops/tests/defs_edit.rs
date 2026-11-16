@@ -49,6 +49,7 @@ fn update_attribute_rewrites_exactly_that_file() {
     let snap = snapshot();
     let mut def = demo_attr();
     def.label = "線材の単位長さ質量".into();
+    def.label_en = Some("Linear density".into());
     let op = Op::UpdateAttribute { def };
     let p = plan(&snap, std::slice::from_ref(&op)).unwrap();
     assert_eq!(p.changes.len(), 1);
@@ -106,8 +107,7 @@ fn update_kind_rewrites_exactly_that_file() {
     assert!(after.contains("label_en = \"Wire stock\""), "{after}");
     assert_eq!(format_text(&p.changes[0].path, after).unwrap(), after);
     assert!(
-        to_cli(&op)[0]
-            .starts_with("fune kind replace wire --label \"線材\" --label-en \"Wire stock\"")
+        to_cli(&op)[0].starts_with("fune kind replace wire --label Wire --label-en \"Wire stock\"")
     );
 }
 

@@ -1,5 +1,5 @@
 kind  = "datasheet"
-label = "各社データシート（2026 年版）"
+label = "Vendor datasheets (2026 edition)"
 ref   = "docs/datasheets/"
 date  = "2026-08-01"
-by    = "tanaka"
+by    = "procurement-team"

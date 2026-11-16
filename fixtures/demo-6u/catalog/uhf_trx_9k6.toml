@@ -1,5 +1,5 @@
 kind         = "transceiver"
-label        = "UHF 送受信機 9600 bps（アンテナ込み）"
+label        = "UHF transceiver, 9600 bps (antenna included)"
 manufacturer = "Example Radio"
 part_number  = "UTRX-96"
 maturity     = "off_the_shelf"

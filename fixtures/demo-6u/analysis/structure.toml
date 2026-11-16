@@ -1,4 +1,4 @@
-fastener_allowable = { value = 1500.0, unit = "N" }  # M3 ねじ 1 本の許容せん断荷重
+fastener_allowable = { value = 1500.0, unit = "N" }  # Allowable shear load of one M3 screw
 
 [material.al6061_t6]
 label                = "A6061-T6"
@@ -10,7 +10,7 @@ ultimate_strength    = { value = 310.0, unit = "MPa" }
 thermal_conductivity = { value = 167.0, unit = "W/(m*K)" }
 
 [material.cfrp_qi]
-label                = "CFRP 擬似等方積層"
+label                = "CFRP quasi-isotropic laminate"
 density              = { value = 1600.0, unit = "kg/m^3" }
 youngs_modulus       = { value = 50.0, unit = "GPa" }
 poisson_ratio        = 0.3
