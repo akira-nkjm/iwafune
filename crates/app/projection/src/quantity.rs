@@ -100,7 +100,7 @@ pub fn vec_si(
     match (conv(v.x), conv(v.y), conv(v.z)) {
         (Ok(x), Ok(y), Ok(z)) => Some(sat_astro::math::Vec3::new(x, y, z)),
         _ => {
-            m.push(target, format!("単位 `{unit}` を解釈できません"));
+            m.push(target, format!("Cannot parse unit `{unit}`"));
             None
         }
     }

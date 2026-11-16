@@ -34,7 +34,10 @@ pub fn decode_value(raw: &toml::Value, hint: Option<ValueType>) -> Result<Author
         toml::Value::Boolean(b) => Ok(Authored::bare(Value::Bool(*b))),
         toml::Value::String(s) => Ok(Authored::bare(text_value(s, hint))),
         toml::Value::Table(t) => decode_table(t, hint),
-        other => Err(format!("{} は属性の値に書けません", other.type_str())),
+        other => Err(format!(
+            "{} cannot be written as an attribute value",
+            other.type_str()
+        )),
     }
 }
 
@@ -51,10 +54,7 @@ fn number(raw: &toml::Value) -> Result<f64, String> {
         toml::Value::Float(f) => Ok(*f),
         #[allow(clippy::cast_precision_loss)]
         toml::Value::Integer(i) => Ok(*i as f64),
-        other => Err(format!(
-            "数値が要るところに {} があります",
-            other.type_str()
-        )),
+        other => Err(format!("Expected a number but found {}", other.type_str())),
     }
 }
 
@@ -63,14 +63,17 @@ fn opt_number(t: &TomlTable, key: &str) -> Result<Option<f64>, String> {
 }
 
 fn req_number(t: &TomlTable, key: &str) -> Result<f64, String> {
-    opt_number(t, key)?.ok_or_else(|| format!("`{key}` がありません"))
+    opt_number(t, key)?.ok_or_else(|| format!("`{key}` is missing"))
 }
 
 fn opt_string(t: &TomlTable, key: &str) -> Result<Option<String>, String> {
     match t.get(key) {
         None => Ok(None),
         Some(toml::Value::String(s)) => Ok(Some(s.clone())),
-        Some(other) => Err(format!("`{key}` は文字列にします（{}）", other.type_str())),
+        Some(other) => Err(format!(
+            "`{key}` must be a string (found {})",
+            other.type_str()
+        )),
     }
 }
 
@@ -86,7 +89,10 @@ fn provenance(t: &TomlTable) -> Result<Option<Provenance>, String> {
 
 fn only_keys(t: &TomlTable, allowed: &[&str]) -> Result<(), String> {
     match t.keys().find(|k| !allowed.contains(&k.as_str())) {
-        Some(k) => Err(format!("キー `{k}` は使えません（{}）", allowed.join(", "))),
+        Some(k) => Err(format!(
+            "Key `{k}` is not allowed (allowed: {})",
+            allowed.join(", ")
+        )),
         None => Ok(()),
     }
 }
@@ -156,15 +162,15 @@ fn tensor(t: &TomlTable) -> Result<Tensor3, String> {
     let rows = t
         .get("m")
         .and_then(toml::Value::as_array)
-        .ok_or("`m` は 3×3 の配列にします")?;
+        .ok_or("`m` must be a 3×3 array")?;
     let mut m = [[0.0; 3]; 3];
     if rows.len() != 3 {
-        return Err("`m` は 3×3 の配列にします".into());
+        return Err("`m` must be a 3×3 array".into());
     }
     for (row, raw) in m.iter_mut().zip(rows) {
-        let cells = raw.as_array().ok_or("`m` は 3×3 の配列にします")?;
+        let cells = raw.as_array().ok_or("`m` must be a 3×3 array")?;
         if cells.len() != 3 {
-            return Err("`m` は 3×3 の配列にします".into());
+            return Err("`m` must be a 3×3 array".into());
         }
         for (cell, v) in row.iter_mut().zip(cells) {
             *cell = number(v)?;
@@ -180,13 +186,13 @@ fn tensor(t: &TomlTable) -> Result<Tensor3, String> {
 /// 状態ごとの値（キーが状態、値がスカラー）。
 fn by_state(t: &TomlTable) -> Result<Value, String> {
     if t.is_empty() {
-        return Err("空の表は値になりません".into());
+        return Err("An empty table is not a value".into());
     }
     let mut cells = BTreeMap::new();
     for (state, raw) in t {
         let cell = match raw {
             toml::Value::Table(c) => Authored {
-                value: scalar(c).map_err(|e| format!("状態 `{state}`: {e}"))?,
+                value: scalar(c).map_err(|e| format!("State `{state}`: {e}"))?,
                 from: provenance(c)?,
             },
             toml::Value::Float(_) | toml::Value::Integer(_) => {
@@ -194,7 +200,7 @@ fn by_state(t: &TomlTable) -> Result<Value, String> {
             }
             other => {
                 return Err(format!(
-                    "状態 `{state}` の値に {} は書けません",
+                    "{} cannot be written as a value of state `{state}`",
                     other.type_str()
                 ));
             }

@@ -326,7 +326,10 @@ fn rename_group_rejects_a_taken_or_missing_name() {
             to: "cdh".into(),
         }],
     );
-    assert!(taken.is_err(), "大文字小文字を無視して重なる名前は使えない");
+    assert!(
+        taken.is_err(),
+        "a name that clashes ignoring letter case must be rejected"
+    );
     let missing = plan(
         &snap,
         &[Op::RenameGroup {

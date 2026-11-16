@@ -193,7 +193,7 @@ pub fn set_setting(
     // 古い名前のキーを打っても新しい名前に書き、ファイルに残る古い名前も先に書き換える（両方の名前にしない）
     let keys = crate::profile::renamed::current_keys(file, keys);
     let Some((last, parents)) = keys.split_last() else {
-        return Err(StoreError::edit(file, "キーが空です"));
+        return Err(StoreError::edit(file, "The key is empty"));
     };
     let item = value.map(setting_item);
     edits.edit_or_create(file, |doc| {
@@ -213,7 +213,7 @@ pub fn set_setting(
             });
             table = entry
                 .as_table_mut()
-                .ok_or_else(|| StoreError::edit(file, format!("`{key}` は表ではありません")))?;
+                .ok_or_else(|| StoreError::edit(file, format!("`{key}` is not a table")))?;
         }
         set_opt(table, last, item);
         let path: Vec<&str> = parents.iter().map(String::as_str).collect();
@@ -228,7 +228,7 @@ fn set_in_inline(
     item: Option<Item>,
 ) -> Result<(), String> {
     let Some((first, rest)) = keys.split_first() else {
-        return Err("キーが空です".into());
+        return Err("The key is empty".into());
     };
     if rest.is_empty() {
         match item.and_then(|i| i.into_value().ok()) {
@@ -243,7 +243,7 @@ fn set_in_inline(
     }
     match inline.get_mut(first) {
         Some(Value::InlineTable(t)) => set_in_inline(t, rest, item),
-        _ => Err(format!("`{first}` はインライン表ではありません")),
+        _ => Err(format!("`{first}` is not an inline table")),
     }
 }
 

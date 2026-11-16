@@ -91,7 +91,7 @@ impl Decoder<'_> {
                 "toml.schema",
                 LOCK_FILE,
                 None,
-                format!("{message}（`fune catalog fetch` で作り直せます）"),
+                format!("{message} (rebuild it with `fune catalog fetch`)"),
             ),
         }
     }

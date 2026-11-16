@@ -19,7 +19,7 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
     if parts.is_empty() {
         m.push(
             Target::any_part("hk_rate"),
-            "HK・ミッションデータのレートを持つ部品がありません",
+            "No part with an HK or mission data rate",
         );
     }
     let mode_shares = mode_shares(ctx, &mut m);
@@ -36,7 +36,7 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
     if storage.is_empty() {
         m.push(
             Target::any_of_roles(&[Role::Obc], Some("storage_capacity")),
-            "搭載ストレージの容量（role = obc の部品）",
+            "Onboard storage capacity (part with role = obc)",
         );
     }
     let s = ctx.design.analysis.cdh.as_ref();
@@ -44,7 +44,7 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
         &dims::CDH_RETENTION,
         &[],
         s.and_then(|s| s.retention.as_ref()),
-        "地上に降ろすまで保持する期間",
+        "Retention period until downlink",
         &mut m,
     );
     m.finish(|| {
@@ -82,7 +82,7 @@ pub fn mode_shares(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<DataBudgetMo
         _ => {
             m.push(
                 AnalysisSystem::Power.setting_path().child(&["mode_share"]),
-                "軌道平均で各モードにいる時間の割合",
+                "Fraction of time in each mode, orbit-averaged",
             );
             Vec::new()
         }

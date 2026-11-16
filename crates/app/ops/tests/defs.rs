@@ -75,7 +75,7 @@ fn create_attribute_rejects_field_names() {
             Err(OpError::Invalid { message }) => {
                 assert!(message.contains("フィールド名"), "{id}: {message}");
             }
-            other => panic!("{id} の属性が作れてしまう: {other:?}"),
+            other => panic!("attribute `{id}` was created: {other:?}"),
         }
     }
 }

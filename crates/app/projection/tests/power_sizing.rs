@@ -22,8 +22,8 @@ fn reports_missing_parts_orbit_and_modes() {
             .iter()
             .any(|m| m.path == "conditions.orbit.duration")
     );
-    assert!(missing.iter().any(|m| m.reason.contains("太陽電池")));
-    assert!(missing.iter().any(|m| m.reason.contains("電池")));
+    assert!(missing.iter().any(|m| m.reason.contains("solar panel")));
+    assert!(missing.iter().any(|m| m.reason.contains("battery")));
     assert!(missing.iter().any(|m| m.path == "modes"));
 }
 

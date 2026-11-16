@@ -29,7 +29,7 @@ pub fn thrust_balance(ctx: &Context<'_>) -> Result<ThrustBalanceInput, MissingIn
     if thrusts.is_empty() {
         m.push(
             Target::Maneuvers,
-            "噴射のモード（constraints.mode）を書いた数値伝搬（method = propagated）のマヌーバがありません",
+            "No maneuver with numerical propagation (method = propagated) that names a burn mode (constraints.mode)",
         );
     }
     let balance = energy_balance(ctx).map_err(|e| m.extend(e)).ok();
