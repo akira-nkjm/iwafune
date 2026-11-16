@@ -23,6 +23,7 @@ mod system;
 mod values;
 mod views;
 
+pub use catalogs::FETCH_STATE_CODES;
 pub use defs::attribute_def_problems;
 pub use modes::WARM_SPARE_DEFAULT_STATES;
 

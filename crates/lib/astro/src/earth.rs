@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn eci_ecef_round_trip_and_gmst_rotation() {
-        let e = Epoch::parse("2027-04-01T03:00:00Z").expect("元期");
+        let e = Epoch::parse("2027-04-01T03:00:00Z").expect("epoch");
         let v = Vec3::new(7.0e6, -1.2e6, 3.3e5);
         let back = ecef_to_eci(eci_to_ecef(v, e), e);
         assert!((back - v).norm() < 1e-6);

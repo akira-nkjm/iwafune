@@ -77,7 +77,7 @@ mod tests {
 
     #[test]
     fn bisect_finds_root() {
-        let r = bisect(|x| x * x - 2.0, 0.0, 2.0, 1e-12, 200).expect("根");
+        let r = bisect(|x| x * x - 2.0, 0.0, 2.0, 1e-12, 200).expect("root");
         assert!((r - 2f64.sqrt()).abs() < 1e-11);
         assert_eq!(bisect(|x| x - 1.0, 1.0, 3.0, 1e-9, 100), Some(1.0));
         assert!(bisect(|x| x * x + 1.0, -1.0, 1.0, 1e-9, 100).is_none());

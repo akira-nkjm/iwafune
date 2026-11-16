@@ -152,6 +152,7 @@ fn rename_sites(
         | Referent::Mode(id)
         | Referent::Net(id)
         | Referent::Catalog(id)
+        | Referent::CatalogSource(id)
         | Referent::Kind(id)
         | Referent::Attribute(id) => id,
     };

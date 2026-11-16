@@ -41,6 +41,7 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
         CommandText::KindReplace(t) => vec![super::defs::kind_replace_op(t)?],
         CommandText::ManeuverAdd(t) => vec![super::maneuver::maneuver_op(t, true)?],
         CommandText::ManeuverSet(t) => vec![super::maneuver::maneuver_op(t, false)?],
+        CommandText::CatalogSourceAdd(t) => vec![super::catalog::catalog_source_add_op(t)],
     })
 }
 

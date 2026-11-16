@@ -168,10 +168,9 @@ impl OrbitSpec {
     pub fn state_at(&self, t_s: f64) -> Result<OrbitState, AstroError> {
         match &self.propagator {
             Propagator::Kepler | Propagator::J2 => Ok(analytic::Analytic::new(self)?.state_at(t_s)),
-            Propagator::Numerical { .. } => self
-                .states_at(&[t_s])?
-                .pop()
-                .ok_or_else(|| AstroError::InvalidInput("数値伝搬の結果が空です".into())),
+            Propagator::Numerical { .. } => self.states_at(&[t_s])?.pop().ok_or_else(|| {
+                AstroError::InvalidInput("Numerical propagation returned no result".into())
+            }),
         }
     }
     /// 昇順の時刻列 `times_s`（元期からの秒）での状態をまとめて求める（数値伝搬は 1 回の積分で密出力を使う）。
@@ -219,18 +218,18 @@ impl OrbitSpec {
         .all(|v| v.is_finite());
         if !finite {
             return Err(AstroError::InvalidInput(
-                "軌道要素に有限でない値があります".into(),
+                "Orbital elements contain a non-finite value".into(),
             ));
         }
         if el.a_m <= 0.0 {
             return Err(AstroError::InvalidInput(format!(
-                "長半径は正にしてください（{} m）",
+                "Semi-major axis must be positive ({} m)",
                 el.a_m
             )));
         }
         if !(0.0..1.0).contains(&el.e) {
             return Err(AstroError::InvalidInput(format!(
-                "離心率は 0 以上 1 未満にしてください（{}）",
+                "Eccentricity must be at least 0 and less than 1 ({})",
                 el.e
             )));
         }
@@ -286,7 +285,7 @@ pub fn osculating_elements(state: &OrbitState, mu: f64) -> Result<KeplerElements
     let h = r.cross(v);
     let energy = 0.5 * v.norm_squared() - mu / rn;
     if energy.is_nan() || energy >= 0.0 || rn <= 0.0 {
-        return Err(AstroError::InvalidInput("楕円軌道ではありません".into()));
+        return Err(AstroError::InvalidInput("Not an elliptical orbit".into()));
     }
     let a = -mu / (2.0 * energy);
     let e_vec = v.cross(h) / mu - r / rn;
@@ -347,7 +346,7 @@ pub fn sso_inclination_about_rad(
 ) -> Result<f64, AstroError> {
     let Some(sun_n) = central.sun_mean_motion_rad_s() else {
         return Err(AstroError::InvalidInput(
-            "この中心天体には太陽同期軌道を定義できません（太陽を回る年が無い）".into(),
+            "Sun-synchronous orbit is undefined for this central body (it has no year around the Sun)".into(),
         ));
     };
     let a = semi_major_axis_m;
@@ -356,7 +355,7 @@ pub fn sso_inclination_about_rad(
     let cos_i = -sun_n / (1.5 * n * central.j2() * (central.radius_m() / p).powi(2));
     if cos_i.abs() > 1.0 || !cos_i.is_finite() {
         return Err(AstroError::InvalidInput(
-            "この長半径では太陽同期の傾斜角がありません".into(),
+            "No sun-synchronous inclination exists for this semi-major axis".into(),
         ));
     }
     Ok(cos_i.acos())

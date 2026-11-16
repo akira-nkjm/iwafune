@@ -155,7 +155,9 @@ impl Powered<'_> {
         NUMERICAL_INTEGRATOR
             .integrate_at(f, t, *y, &[t + h])?
             .pop()
-            .ok_or_else(|| AstroError::InvalidInput("推力を入れた伝搬の結果が空です".into()))
+            .ok_or_else(|| {
+                AstroError::InvalidInput("Propagation with thrust returned no result".into())
+            })
     }
 
     fn value(&self, goal: Goal, y: &Y) -> Result<f64, AstroError> {
@@ -204,7 +206,7 @@ fn check(arc: &ThrustArc, mass0: f64) -> Result<(), AstroError> {
         Ok(())
     } else {
         Err(AstroError::InvalidInput(
-            "推力・排気速度・質量・制御の刻み・上限の時間は正、デューティは 0 より大きく 1 以下にしてください".into(),
+            "Thrust, exhaust velocity, mass, control step and time limit must be positive, and duty must be greater than 0 and at most 1".into(),
         ))
     }
 }
@@ -293,7 +295,7 @@ impl Progress {
         }
         if self.y[6] <= 0.0 {
             return Err(AstroError::InvalidInput(
-                "推薬を使い切って質量が 0 以下になりました".into(),
+                "Propellant ran out and the mass became 0 or less".into(),
             ));
         }
         Ok(())
