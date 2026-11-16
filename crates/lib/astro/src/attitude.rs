@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn sun_pointing_aligns_axis_and_secondary() {
         let s = leo_state();
-        let sun = Vec3::new(0.3, 0.9, -0.2).normalized().expect("非ゼロ");
+        let sun = Vec3::new(0.3, 0.9, -0.2).normalized().expect("nonzero");
         let law = AttitudeLaw::SunPointing {
             axis: Vec3::Z,
             secondary: Vec3::Y,
@@ -117,7 +117,7 @@ mod tests {
         // 副軸は主軸に直交したまま、軌道法線に最も近い向き
         let y = q.rotate(Vec3::Y);
         let n = s.orbit_normal();
-        let n_perp = (n - sun * n.dot(sun)).normalized().expect("非平行");
+        let n_perp = (n - sun * n.dot(sun)).normalized().expect("non-parallel");
         close(y, n_perp);
     }
 
@@ -141,8 +141,8 @@ mod tests {
             along_track: Vec3::X,
         };
         let q = body_to_eci(&law, &s, Vec3::X);
-        close(q.rotate(Vec3::Z), -s.r_eci.normalized().expect("非ゼロ"));
-        close(q.rotate(Vec3::X), s.v_eci.normalized().expect("非ゼロ"));
+        close(q.rotate(Vec3::Z), -s.r_eci.normalized().expect("nonzero"));
+        close(q.rotate(Vec3::X), s.v_eci.normalized().expect("nonzero"));
     }
 
     #[test]

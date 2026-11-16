@@ -168,7 +168,7 @@ fn excluded_parts_text_groups_modes() {
     ]);
     assert_eq!(
         text,
-        "。モード NOMINAL・MISSION で電源オフの STX を除く。モード SAFE で電源オフの GPS・STX を除く。モード SAFE で電源オンの OBC を除く"
+        ". Excludes powered-off STX in mode NOMINAL, MISSION. Excludes powered-off GPS, STX in mode SAFE. Excludes powered-on OBC in mode SAFE"
     );
     assert!(excluded_text(&[]).is_empty());
 }

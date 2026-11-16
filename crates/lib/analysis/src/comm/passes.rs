@@ -26,7 +26,8 @@ pub fn search_window(sampling: &OrbitSampling) -> Result<SearchWindow, AnalysisE
     let (span_s, step_s) = (sampling.span.value(), sampling.step.value());
     if !(span_s > 0.0 && step_s > 0.0 && step_s <= span_s) {
         return Err(AnalysisError::InvalidInput(
-            "期間と刻みは正で、刻みは期間以下にしてください".to_owned(),
+            "Duration and step must be positive, and the step must not exceed the duration"
+                .to_owned(),
         ));
     }
     let orbit = sampling.resolved_orbit()?;
@@ -47,7 +48,7 @@ pub fn find_all_passes(
     step_s: f64,
 ) -> Result<Vec<GroundPass>, AnalysisError> {
     if stations.is_empty() {
-        return Err(AnalysisError::InvalidInput("地上局がありません".to_owned()));
+        return Err(AnalysisError::InvalidInput("No ground stations".to_owned()));
     }
     let mut all = Vec::new();
     for station in stations {

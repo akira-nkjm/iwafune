@@ -89,7 +89,7 @@ impl ThermalModeLoads {
                 (p.id.clone(), load)
             })
             .collect();
-        Ok((loads, power.checks("消費電力")))
+        Ok((loads, power.checks("power")))
     }
 
     fn evaluation(

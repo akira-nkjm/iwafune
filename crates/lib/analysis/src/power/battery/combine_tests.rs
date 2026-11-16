@@ -34,7 +34,11 @@ fn differing_voltage_is_named_in_a_warning() {
     let check = total.mismatch_check().unwrap();
     assert_eq!(check.key, "battery_mismatch");
     assert_eq!(check.verdict, Verdict::Warning);
-    assert!(check.message.contains("公称電圧"), "{}", check.message);
+    assert!(
+        check.message.contains("Nominal voltage"),
+        "{}",
+        check.message
+    );
     assert!(check.message.contains('8'), "{}", check.message);
     // 先頭の値を使う（並びを替えると 16 V になる）
     assert_eq!(total.battery.voltage.value(), 8.0);
@@ -75,5 +79,9 @@ fn differing_efficiency_prints_the_first_value_as_a_quantity() {
         .unwrap()
         .mismatch_check()
         .unwrap();
-    assert!(check.message.contains("充電効率"), "{}", check.message);
+    assert!(
+        check.message.contains("Charge efficiency"),
+        "{}",
+        check.message
+    );
 }

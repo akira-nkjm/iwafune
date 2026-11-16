@@ -199,7 +199,7 @@ impl Phases {
             let duration = p.duration.map_or(DEFAULT_PHASE_DURATION_S, |d| d.value());
             if duration.is_nan() || duration <= 0.0 {
                 return Err(AnalysisError::InvalidInput(format!(
-                    "発熱の区間 {} の長さは正にしてください",
+                    "Heat interval {} must have a positive length",
                     p.label
                 )));
             }
@@ -277,7 +277,7 @@ fn initial(
     };
     if t.iter().any(|x| x.is_nan() || *x <= 0.0) {
         return Err(AnalysisError::InvalidInput(
-            "初期温度は正にしてください".to_owned(),
+            "Initial temperature must be positive".to_owned(),
         ));
     }
     for (ti, f) in t.iter_mut().zip(&net.fixed) {

@@ -229,24 +229,24 @@ fn validate(input: &DataBudgetInput) -> Result<(f64, Params), AnalysisError> {
         compression: input.compression_ratio(),
         hk_factor: 1.0 + input.hk_overhead(),
     };
-    ensure_positive("ストレージ容量の合計", p.storage_bits)?;
-    ensure_fraction("ストレージに残す割合", p.reserve.value())?;
+    ensure_positive("Total storage capacity", p.storage_bits)?;
+    ensure_fraction("Fraction of storage to keep free", p.reserve.value())?;
     // 1 だと使える量が 0 になる（バジェットのシステム余裕と同じ範囲）
     if p.reserve.value() >= 1.0 {
         return Err(AnalysisError::InvalidInput(
-            "ストレージに残す割合は 1 未満にします".to_owned(),
+            "Fraction of storage to keep free must be less than 1".to_owned(),
         ));
     }
-    ensure_non_negative("保持期間", input.retention.value())?;
-    ensure_non_negative("圧縮率", p.compression)?;
-    ensure_non_negative("HK の余分", p.hk_factor - 1.0)?;
+    ensure_non_negative("Retention period", input.retention.value())?;
+    ensure_non_negative("Compression ratio", p.compression)?;
+    ensure_non_negative("HK overhead", p.hk_factor - 1.0)?;
     for s in &input.mode_shares {
-        ensure_fraction(&format!("モード {} の割合", s.mode), s.fraction)?;
+        ensure_fraction(&format!("Fraction of mode {}", s.mode), s.fraction)?;
     }
     let sum: f64 = input.mode_shares.iter().map(|s| s.fraction).sum();
     if sum > 1.0 + DUTY_TOLERANCE {
         return Err(AnalysisError::InvalidInput(
-            "モードの割合の合計が 1 を超えています".to_owned(),
+            "The mode fractions add up to more than 1".to_owned(),
         ));
     }
     Ok((sum, p))
@@ -318,25 +318,25 @@ fn summary_checks(
     if share_sum < 1.0 - DUTY_TOLERANCE {
         checks.push(Check::new(
             "mode_shares",
-            "モードの割合",
+            "Mode fractions",
             Verdict::Warning,
             format!(
-                "モードの割合の合計が {}（残りはデータを出さない時間とみなします）",
+                "Mode fractions add up to {} (the rest is treated as time without data output)",
                 quantity_text::<Fraction>(share_sum)
             ),
         ));
     }
     // 警告の幅 = 容量の余裕の要求値（残す割合から）。必要量が容量の (1 − 残す割合) 倍を超えると警告、容量を超えると違反
     let required = required_capacity_margin(reserve);
-    let shown = margin.map_or("必要量 0".to_owned(), |m| {
+    let shown = margin.map_or("required 0".to_owned(), |m| {
         quantity_text::<Fraction>(m.value())
     });
     checks.push(Check::new(
         "storage_margin",
-        "ストレージ余裕",
+        "Storage margin",
         ratio_margin_verdict(margin, required),
         format!(
-            "容量の余裕 {shown}（要求 {} 以上 = 容量の {} を残す）",
+            "Capacity margin {shown} (required at least {} = keep {} of capacity free)",
             quantity_text::<Fraction>(required.value()),
             quantity_text::<Fraction>(reserve.value())
         ),
@@ -353,7 +353,7 @@ fn summary_checks(
             &items,
             limit,
             "downlink",
-            "1 日の送信可能量と発生量",
+            "Daily downlink volume and generated data",
         )?);
     }
     Ok(checks)

@@ -321,6 +321,9 @@ fn non_earth_central_body_is_rejected_before_any_earth_only_function() {
         let mut input = cubesat_3u(500e3);
         input.orbit.central = body;
         let err = OrbitDecay::run(&input).unwrap_err().to_string();
-        assert!(err.contains("地球以外の高度低下は未対応"), "{err}");
+        assert!(
+            err.contains("Altitude decay is not supported for bodies other than Earth"),
+            "{err}"
+        );
     }
 }

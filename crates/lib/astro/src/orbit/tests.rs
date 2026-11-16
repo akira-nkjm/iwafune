@@ -11,7 +11,7 @@ fn km(v: f64) -> Qty<Length> {
 }
 
 fn epoch() -> Epoch {
-    Epoch::parse("2027-04-01T00:00:00Z").expect("元期")
+    Epoch::parse("2027-04-01T00:00:00Z").expect("epoch")
 }
 
 #[test]
@@ -46,13 +46,13 @@ fn circular_orbit_state_has_constant_radius_and_speed() {
     let a = R_EARTH + 550e3;
     let v_circ = (MU_EARTH / a).sqrt();
     for t in [0.0, 1000.0, 5000.0, 86_400.0] {
-        let s = spec.state_at(t).expect("状態");
+        let s = spec.state_at(t).expect("state");
         assert!((s.r_eci.norm() - a).abs() < 1e-6);
         assert!((s.v_eci.norm() - v_circ).abs() < 1e-9);
         assert!(s.r_eci.dot(s.v_eci).abs() < 1e-3);
     }
     // 元期は昇交点（z = 0、z 方向の速度が正）
-    let s0 = spec.state_at(0.0).expect("状態");
+    let s0 = spec.state_at(0.0).expect("state");
     assert!(s0.r_eci.z.abs() < 1e-6 && s0.v_eci.z > 0.0);
 }
 
@@ -63,8 +63,8 @@ fn kepler_returns_after_one_period() {
     spec.elements.arg_perigee = deg(40.0);
     spec.elements.mean_anomaly = deg(123.0);
     spec.propagator = Propagator::Kepler;
-    let s0 = spec.state_at(0.0).expect("状態");
-    let s1 = spec.state_at(spec.period_s()).expect("状態");
+    let s0 = spec.state_at(0.0).expect("state");
+    let s1 = spec.state_at(spec.period_s()).expect("state");
     assert!((s0.r_eci - s1.r_eci).norm() < 1e-4);
 }
 
@@ -79,7 +79,7 @@ fn elements_state_round_trip() {
         mean_anomaly_rad: 4.0,
     };
     let s = elements_to_state(&el, MU_EARTH);
-    let back = osculating_elements(&s, MU_EARTH).expect("楕円");
+    let back = osculating_elements(&s, MU_EARTH).expect("ellipse");
     assert!((back.a_m - el.a_m).abs() < 1e-4);
     assert!((back.e - el.e).abs() < 1e-12);
     assert!((back.i_rad - el.i_rad).abs() < 1e-12);
@@ -91,7 +91,7 @@ fn elements_state_round_trip() {
 #[test]
 fn j2_drifts_raan_westward_for_prograde() {
     let spec = OrbitSpec::circular(epoch(), km(400.0), deg(51.6), deg(0.0));
-    let el = spec.mean_elements_at(86_400.0).expect("要素");
+    let el = spec.mean_elements_at(86_400.0).expect("elements");
     // ISS: ≈ −5.0°/日
     let d = (el.raan_rad - TAU).to_degrees();
     assert!((d + 5.0).abs() < 0.2, "{d}");
@@ -110,7 +110,7 @@ fn invalid_elements_are_rejected() {
 #[test]
 fn beta_angle_of_dawn_dusk_sso_is_large() {
     // 春分の頃、太陽はほぼ +x。RAAN = 90°（LTAN 18:00）の SSO は軌道面法線が太陽を向き β ≈ 60〜90°。
-    let e = Epoch::parse("2027-03-21T00:00:00Z").expect("元期");
+    let e = Epoch::parse("2027-03-21T00:00:00Z").expect("epoch");
     let i = sso_inclination_rad(R_EARTH + 550e3, 0.0);
     let spec = OrbitSpec::circular(e, km(550.0), Qty::from_raw(i), deg(90.0));
     let beta = beta_angle_rad(&spec, e).expect("β").to_degrees().abs();
@@ -127,7 +127,7 @@ fn beta_angle_about_the_sun_is_an_error() {
     let e = epoch();
     let spec = OrbitSpec::circular_about(CentralBody::Sun, e, km(1.0e6), deg(30.0), deg(0.0));
     let err = beta_angle_rad(&spec, e).unwrap_err().to_string();
-    assert!(err.contains("太陽"), "{err}");
+    assert!(err.contains("Sun"), "{err}");
     assert!(raan_for_beta(&spec, e, 0.1).is_err());
     // 月まわりは従来どおり値が出る
     let moon = OrbitSpec::circular_about(CentralBody::Moon, e, km(100.0), deg(90.0), deg(0.0));
@@ -144,12 +144,12 @@ fn numerical_point_mass_matches_kepler() {
     spec.propagator = Propagator::Numerical {
         forces: ForceConfig::gravity_only(GravityModel::PointMass),
     };
-    let numerical = spec.states_at(&times).expect("数値伝搬");
+    let numerical = spec.states_at(&times).expect("numerical propagation");
     for (k, n) in kepler.iter().zip(numerical.iter()) {
         let d = (k.r_eci - n.r_eci).norm();
-        assert!(d < 0.05, "位置の差 {d} m");
+        assert!(d < 0.05, "position difference {d} m");
     }
-    let one = spec.state_at(times[10]).expect("1 点");
+    let one = spec.state_at(times[10]).expect("one point");
     assert!((one.r_eci - kepler[10].r_eci).norm() < 0.05);
 }
 
@@ -162,15 +162,15 @@ fn numerical_j2_raan_drift_matches_secular_rate() {
         forces: ForceConfig::gravity_only(GravityModel::J2),
     };
     let t = 86_400.0;
-    let s = spec_num.state_at(t).expect("数値伝搬");
+    let s = spec_num.state_at(t).expect("numerical propagation");
     let n = s.orbit_normal();
     let raan_num = n.x.atan2(-n.y);
-    let raan_sec = spec_j2.mean_elements_at(t).expect("要素").raan_rad;
+    let raan_sec = spec_j2.mean_elements_at(t).expect("elements").raan_rad;
     let diff =
         (raan_num - raan_sec + core::f64::consts::PI).rem_euclid(TAU) - core::f64::consts::PI;
     assert!(
         diff.to_degrees().abs() < 0.03,
-        "RAAN の差 {}°",
+        "RAAN difference {} deg",
         diff.to_degrees()
     );
 }
@@ -184,7 +184,7 @@ fn raan_for_beta_round_trips_with_beta_angle() {
         let mut spec = OrbitSpec::circular(e, km(550.0), Qty::from_raw(i), deg(0.0));
         spec.propagator = propagator.clone();
         for beta_deg in [-60.0, -20.0, 0.0, 15.0, 45.0, 62.0] {
-            let raan = raan_for_beta(&spec, at, f64::to_radians(beta_deg)).expect("届く β");
+            let raan = raan_for_beta(&spec, at, f64::to_radians(beta_deg)).expect("reachable beta");
             spec.elements.raan = Qty::from_raw(raan);
             let beta = beta_angle_rad(&spec, at).expect("β").to_degrees();
             assert!(

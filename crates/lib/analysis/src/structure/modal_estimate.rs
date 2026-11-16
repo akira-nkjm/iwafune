@@ -173,9 +173,7 @@ impl Analysis for ModalEstimate {
             }
         }
         if results.is_empty() {
-            return Err(AnalysisError::InvalidInput(
-                "パネルも梁もありません".to_owned(),
-            ));
+            return Err(AnalysisError::InvalidInput("No panels or beams".to_owned()));
         }
         let checks = results.iter().filter_map(check).collect();
         Ok(ModalEstimateOutput { results, checks })
@@ -202,16 +200,16 @@ fn result(
 fn check(r: &ModalEstimateResult) -> Option<Check> {
     let req = r.required?;
     let kind = match r.kind {
-        ModalEstimateKind::Panel => ("panel", "パネル"),
-        ModalEstimateKind::BeamLateral => ("lateral", "横"),
-        ModalEstimateKind::BeamAxial => ("axial", "機軸"),
+        ModalEstimateKind::Panel => ("panel", "panel"),
+        ModalEstimateKind::BeamLateral => ("lateral", "lateral"),
+        ModalEstimateKind::BeamAxial => ("axial", "axial"),
     };
     Some(Check::new(
         &format!("{}:{}", kind.0, r.id),
-        &format!("{} の一次固有振動数（{}）", r.id, kind.1),
+        &format!("{} first natural frequency ({})", r.id, kind.1),
         r.verdict,
         format!(
-            "{}（要求 {} 以上）",
+            "{} (required at least {})",
             quantity_text::<Frequency>(r.frequency.value()),
             quantity_text::<Frequency>(req.value())
         ),
@@ -220,7 +218,7 @@ fn check(r: &ModalEstimateResult) -> Option<Check> {
 
 fn invalid(id: &str) -> AnalysisError {
     AnalysisError::InvalidInput(format!(
-        "{id}: 寸法・剛性・質量は正（ポアソン比は 0〜0.5）にしてください"
+        "{id}: dimensions, stiffness and mass must be positive (Poisson's ratio 0 to 0.5)"
     ))
 }
 

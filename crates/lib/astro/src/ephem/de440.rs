@@ -77,25 +77,25 @@ impl core::fmt::Debug for De440 {
 }
 
 fn invalid(msg: &str) -> AstroError {
-    AstroError::InvalidInput(format!("DE440 のデータが不正です: {msg}"))
+    AstroError::InvalidInput(format!("Invalid DE440 data: {msg}"))
 }
 
 fn read<const N: usize>(bytes: &[u8], at: usize) -> Result<[u8; N], AstroError> {
     bytes
         .get(at..at + N)
         .and_then(|s| s.try_into().ok())
-        .ok_or_else(|| invalid("途中で終わっています"))
+        .ok_or_else(|| invalid("truncated"))
 }
 
 impl De440 {
     /// `de440.bin` の中身から作る。形式・版・長さが合わなければ `InvalidInput`。
     pub fn from_bytes(bytes: Vec<u8>) -> Result<De440, AstroError> {
         if bytes.get(..8) != Some(MAGIC.as_slice()) {
-            return Err(invalid("先頭が DE440BIN ではありません"));
+            return Err(invalid("does not start with DE440BIN"));
         }
         let u32_at = |at: usize| read::<4>(&bytes, at).map(u32::from_le_bytes);
         if u32_at(8)? != FORMAT_VERSION {
-            return Err(invalid("形式の版が違います"));
+            return Err(invalid("unsupported format version"));
         }
         let count = u32_at(12)? as usize;
         let mut offset = HEADER_BYTES + count * DESCRIPTOR_BYTES;
@@ -120,7 +120,7 @@ impl De440 {
                 && seg.interval_s > 0.0
                 && seg.init_s.is_finite();
             if !ok {
-                return Err(invalid("区間の記述子が不正です"));
+                return Err(invalid("invalid interval descriptor"));
             }
             offset += seg.components * seg.n_intervals * seg.row_bytes();
             span = (span.0.max(seg.init_s), span.1.min(seg.end_s()));
@@ -131,7 +131,7 @@ impl De440 {
             segments.insert(key, seg);
         }
         if offset != bytes.len() {
-            return Err(invalid("長さが記述子と合いません"));
+            return Err(invalid("length does not match the descriptor"));
         }
         Ok(De440 {
             bytes,

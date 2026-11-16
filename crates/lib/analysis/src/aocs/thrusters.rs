@@ -39,14 +39,17 @@ impl Thruster {
     /// 値を調べ、重心 `center_of_mass` [m] まわりのトルクと推力を返す。推力・比推力が正でないか、向きがゼロなら `InvalidInput`。
     pub fn torque_about(&self, center_of_mass: Vec3) -> Result<ThrusterTorque, AnalysisError> {
         let (f, isp) = (self.thrust.value(), self.isp.value());
-        ensure_positive(&format!("スラスタ {} の推力", self.id), f)?;
-        ensure_positive(&format!("スラスタ {} の比推力", self.id), isp)?;
+        ensure_positive(&format!("Thruster {} thrust", self.id), f)?;
+        ensure_positive(&format!("Thruster {} specific impulse", self.id), isp)?;
         let d = self
             .direction
             .normalized()
             .filter(|_| self.position.norm().is_finite() && center_of_mass.norm().is_finite())
             .ok_or_else(|| {
-                AnalysisError::InvalidInput(format!("スラスタ {} の位置・向きが不正です", self.id))
+                AnalysisError::InvalidInput(format!(
+                    "Thruster {} position or direction is invalid",
+                    self.id
+                ))
             })?;
         let force = d * f;
         Ok(ThrusterTorque {

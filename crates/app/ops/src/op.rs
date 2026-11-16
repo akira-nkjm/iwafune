@@ -148,6 +148,20 @@ pub enum Op {
         from: String,
         to: String,
     },
+    // ---- カタログの出所（fune.toml の `[[catalog]]`）
+    /// 共有カタログ（`[[catalog]] name = … git = … rev = …`）を足す。取得はしない（`fune catalog fetch`）。
+    /// 名前は ID の規則に従い、既にあるカタログ（`path` のものも）と重ならないこと。`git` は空にできない。
+    AddCatalogSource {
+        name: String,
+        git: String,
+        #[serde(default)]
+        rev: Option<String>,
+    },
+    /// 共有カタログを外す（`git = …` のものだけ。部品・ハーネスがその品を参照していれば拒む）。
+    /// catalog.lock の記録は次の `fune catalog fetch` が外す。
+    RemoveCatalogSource {
+        name: String,
+    },
     // ---- 定義
     /// 属性定義を足す（次元と許可単位を検査する）。
     CreateAttribute {

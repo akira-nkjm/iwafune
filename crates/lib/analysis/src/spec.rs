@@ -71,11 +71,11 @@ pub trait Analysis {
 /// 解析のエラー。
 #[derive(Debug, thiserror::Error)]
 pub enum AnalysisError {
-    #[error("入力が不正です: {0}")]
+    #[error("Invalid input: {0}")]
     InvalidInput(String),
-    #[error("未知の解析です: {0}")]
+    #[error("Unknown analysis: {0}")]
     Unknown(String),
-    #[error("入力の JSON を解釈できません: {0}")]
+    #[error("Cannot parse the input JSON: {0}")]
     Json(String),
     #[error(transparent)]
     Astro(#[from] sat_astro::AstroError),
@@ -292,7 +292,7 @@ pub fn ensure_fraction(name: &str, v: f64) -> Result<(), AnalysisError> {
         Ok(())
     } else {
         Err(AnalysisError::InvalidInput(format!(
-            "{name} は 0〜1 にしてください（{v}）"
+            "{name} must be within 0 to 1 ({v})"
         )))
     }
 }
@@ -303,7 +303,7 @@ pub fn ensure_positive(name: &str, v: f64) -> Result<(), AnalysisError> {
         Ok(())
     } else {
         Err(AnalysisError::InvalidInput(format!(
-            "{name} は正の値にしてください（{v}）"
+            "{name} must be positive ({v})"
         )))
     }
 }
@@ -314,7 +314,7 @@ pub fn ensure_non_negative(name: &str, v: f64) -> Result<(), AnalysisError> {
         Ok(())
     } else {
         Err(AnalysisError::InvalidInput(format!(
-            "{name} は 0 以上にしてください（{v}）"
+            "{name} must be 0 or more ({v})"
         )))
     }
 }

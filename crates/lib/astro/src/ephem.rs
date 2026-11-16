@@ -28,7 +28,7 @@ static DE440: OnceLock<De440> = OnceLock::new();
 pub fn install_de440(table: De440) -> Result<(), AstroError> {
     DE440
         .set(table)
-        .map_err(|_| AstroError::InvalidInput("DE440 はすでに登録されています".into()))
+        .map_err(|_| AstroError::InvalidInput("DE440 is already registered".into()))
 }
 
 /// 天体の位置の出所。
@@ -209,7 +209,7 @@ mod tests {
     /// 黄緯 ≈ 0、距離 0.99760775 AU。of date → J2000 に回して方向を比べる。
     #[test]
     fn sun_matches_meeus_example_25b() {
-        let e = Epoch::parse("1992-10-13T00:00:00Z").expect("元期");
+        let e = Epoch::parse("1992-10-13T00:00:00Z").expect("epoch");
         let r = sun_position_eci_m(e);
         let dist_au = r.norm() / AU;
         assert!((dist_au - 0.997_607_75).abs() < 1e-5, "{dist_au}");
@@ -217,27 +217,27 @@ mod tests {
         let ecl = Vec3::new(l.cos(), l.sin(), 0.0);
         let expected = of_date_to_j2000(ecliptic_to_equatorial(ecl, mean_obliquity_rad(e)), e);
         let err = deg_between(r, expected);
-        assert!(err < 0.002, "太陽の方向の誤差 {err}°");
+        assert!(err < 0.002, "sun direction error {err} deg");
     }
 
     /// Meeus 例 47.a: 1992-04-12 0h TD の月 λ = 133.162655°, β = −3.229126°, Δ = 368409.7 km（of date、章動なし）。
     #[test]
     fn moon_matches_meeus_example_47a() {
-        let e = Epoch::parse("1992-04-12T00:00:00Z").expect("元期");
+        let e = Epoch::parse("1992-04-12T00:00:00Z").expect("epoch");
         let r = moon_position_eci_m(e);
         assert!((r.norm() / 1e3 - 368_409.7).abs() < 1.0, "{}", r.norm());
         let (l, b) = (133.162_655_f64.to_radians(), (-3.229_126_f64).to_radians());
         let ecl = Vec3::new(b.cos() * l.cos(), b.cos() * l.sin(), b.sin());
         let expected = of_date_to_j2000(ecliptic_to_equatorial(ecl, mean_obliquity_rad(e)), e);
         let err = deg_between(r, expected);
-        assert!(err < 1e-3, "月の方向の誤差 {err}°");
+        assert!(err < 1e-3, "moon direction error {err} deg");
     }
 
     /// 春分（2027-03-20 20:25 UTC）の太陽は of date の黄経 0。J2000 系では歳差（27.2 年 × 50.29″ ≈ 0.380°）の分だけ
     /// 黄経が負にずれ、赤緯 ≈ asin(sin ε · sin(−0.380°)) ≈ −0.00264 rad になる。
     #[test]
     fn sun_near_equinox_is_on_x_axis() {
-        let e = Epoch::parse("2027-03-20T20:25:00Z").expect("元期");
+        let e = Epoch::parse("2027-03-20T20:25:00Z").expect("epoch");
         let s = sun_direction_eci(e);
         assert!((s.z + 0.002_64).abs() < 5e-4, "{s:?}");
         assert!(deg_between(s, Vec3::X) < 0.5, "{s:?}");
@@ -246,7 +246,7 @@ mod tests {
     /// テストでは DE440 を登録しない（プロセス全体の状態なので、並列のほかのテストに効いてしまう）。
     #[test]
     fn analytic_is_used_without_de440() {
-        let e = Epoch::parse("2027-04-01T00:00:00Z").expect("元期");
+        let e = Epoch::parse("2027-04-01T00:00:00Z").expect("epoch");
         assert_eq!(source_at(e), EphemerisSource::Analytic);
         assert_eq!(
             position_eci_m(Body::Moon, e),

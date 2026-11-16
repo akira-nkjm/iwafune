@@ -157,7 +157,7 @@ impl<'a> Track<'a> {
         let lat = station.latitude.value();
         if !min_el.is_finite() || lat.is_nan() || lat.abs() > core::f64::consts::FRAC_PI_2 {
             return Err(AstroError::InvalidInput(format!(
-                "地上局 {} の緯度・最低仰角が不正です",
+                "Ground station {} has an invalid latitude or minimum elevation",
                 station.id
             )));
         }

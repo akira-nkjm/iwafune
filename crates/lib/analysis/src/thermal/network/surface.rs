@@ -59,30 +59,32 @@ impl ThermalSurface {
                 let mut sum = (0.0, 0.0, 0.0);
                 for c in &self.coatings {
                     if !(unit(c.area_fraction) && unit(c.absorptivity) && unit(c.emissivity)) {
-                        return Err(self.invalid("表面材の面積割合・α・ε は 0〜1"));
+                        return Err(
+                            self.invalid("coating area fractions, α and ε must be within 0 to 1")
+                        );
                     }
                     sum.0 += c.area_fraction;
                     sum.1 += c.area_fraction * c.absorptivity;
                     sum.2 += c.area_fraction * c.emissivity;
                 }
                 if (sum.0 - 1.0).abs() > DUTY_TOLERANCE {
-                    return Err(self.invalid("表面材の面積割合の合計は 1"));
+                    return Err(self.invalid("coating area fractions must sum to 1"));
                 }
                 (sum.1, sum.2)
             }
             _ => {
-                return Err(self.invalid("α と ε の両方か、表面材（coatings）のどちらか一方だけ"));
+                return Err(self.invalid("give either both α and ε or coatings, not both"));
             }
         };
         if unit(alpha) && unit(eps) {
             Ok((alpha, eps))
         } else {
-            Err(self.invalid("α と ε は 0〜1"))
+            Err(self.invalid("α and ε must be within 0 to 1"))
         }
     }
 
     fn invalid(&self, rule: &str) -> AnalysisError {
-        AnalysisError::InvalidInput(format!("外面 {}: {rule}にしてください", self.id))
+        AnalysisError::InvalidInput(format!("Surface {}: {rule}", self.id))
     }
 }
 

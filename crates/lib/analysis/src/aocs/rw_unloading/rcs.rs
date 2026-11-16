@@ -48,10 +48,10 @@ pub(super) fn per_day(
     secular_per_orbit: f64,
     period_s: f64,
 ) -> Result<(RwUnloadingRcs, Option<Check>), AnalysisError> {
-    ensure_positive("機体の質量", input.mass.value())?;
+    ensure_positive("Spacecraft mass", input.mass.value())?;
     if input.thrusters.is_empty() {
         return Err(AnalysisError::InvalidInput(
-            "RCS でのアンロードにはスラスタが要ります".to_owned(),
+            "RCS unloading requires thrusters".to_owned(),
         ));
     }
     let h_day = secular_per_orbit * SECONDS_PER_DAY / period_s;
@@ -63,10 +63,10 @@ pub(super) fn per_day(
     let check = worst.time.is_none().then(|| {
         Check::new(
             "rcs_direction",
-            "RCS で捨てられる向き",
+            "Directions RCS can unload",
             Verdict::Violation,
             format!(
-                "{} 向きの角運動量を捨てるトルクを出せるスラスタがありません",
+                "No thruster can produce torque to dump momentum along {}",
                 worst.label
             ),
         )

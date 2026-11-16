@@ -22,7 +22,7 @@ pub(super) fn evaluate(
     let normal_density = reference / area * used.life_factor * used.inherent_degradation;
     if !(normal_density.is_finite() && normal_density > 0.0) {
         return Err(AnalysisError::InvalidInput(
-            "EOL の単位面積あたり発電が正ではありません".into(),
+            "EOL generation per unit area is not positive".into(),
         ));
     }
     loads
@@ -31,7 +31,7 @@ pub(super) fn evaluate(
             let k = sunlit_average(input, array, &l.id)? / reference;
             if k <= 0.0 {
                 return Err(AnalysisError::InvalidInput(format!(
-                    "モード {} の姿勢では日照中の発電がありません",
+                    "The attitude of mode {} generates no power in sunlight",
                     l.id
                 )));
             }

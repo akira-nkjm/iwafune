@@ -41,10 +41,10 @@ fn verdict_helpers() {
     assert_eq!(margin_verdict(0.1, 0.2), Verdict::Warning);
     assert_eq!(margin_verdict(0.2, 0.2), Verdict::Ok);
     assert_eq!(margin_verdict(f64::NAN, 0.2), Verdict::Violation);
-    assert!(ensure_fraction("効率", 0.5).is_ok());
-    assert!(ensure_fraction("効率", 1.5).is_err());
-    assert!(ensure_positive("容量", 0.0).is_err());
-    assert!(ensure_positive("容量", f64::INFINITY).is_err());
+    assert!(ensure_fraction("efficiency", 0.5).is_ok());
+    assert!(ensure_fraction("efficiency", 1.5).is_err());
+    assert!(ensure_positive("capacity", 0.0).is_err());
+    assert!(ensure_positive("capacity", f64::INFINITY).is_err());
 }
 
 /// 比の余裕 = 能力 / 要求 − 1: 200 N を 1.25 × 68.65 N で受けると 200 / 85.81 − 1 = 1.331。

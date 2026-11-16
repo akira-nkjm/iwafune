@@ -131,7 +131,7 @@ fn sequence_of_two_alternating_modes_by_hand() {
     assert!(b.load_eclipse.value() > 9.5 && b.load_eclipse.value() < 19.0);
     let dod = b.checks.iter().find(|c| c.key == "dod").unwrap();
     assert!(
-        dod.message.contains("モードの並びに沿って"),
+        dod.message.contains("along the mode sequence"),
         "{}",
         dod.message
     );
@@ -198,7 +198,8 @@ fn modes_without_a_base_or_being_the_base_stay_continuous() {
     assert!(out.cases[0].by_max_duration.is_none());
     let dod = out.cases[0].checks.iter().find(|c| c.key == "dod").unwrap();
     assert!(
-        dod.message.contains("解析期間ずっと続けたとき"),
+        dod.message
+            .contains("when sustained over the whole analysis span"),
         "{}",
         dod.message
     );

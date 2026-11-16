@@ -212,17 +212,17 @@ pub const MAX_SAMPLES: usize = 5_000_000;
 pub fn sample_times(span_s: f64, step_s: f64) -> Result<Vec<f64>, AstroError> {
     if !(step_s > 0.0 && step_s.is_finite()) {
         return Err(AstroError::InvalidInput(format!(
-            "刻みは正の有限値にしてください（{step_s} s）"
+            "Step must be a positive finite value ({step_s} s)"
         )));
     }
     if !(span_s >= 0.0 && span_s.is_finite()) {
         return Err(AstroError::InvalidInput(format!(
-            "期間は 0 以上の有限値にしてください（{span_s} s）"
+            "Span must be a finite value of 0 or more ({span_s} s)"
         )));
     }
     if span_s / step_s + 2.0 > MAX_SAMPLES as f64 {
         return Err(AstroError::InvalidInput(format!(
-            "標本が多すぎます（期間 {span_s} s / 刻み {step_s} s）"
+            "Too many samples (span {span_s} s / step {step_s} s)"
         )));
     }
     Ok(crate::ode::step_offsets(span_s, step_s))

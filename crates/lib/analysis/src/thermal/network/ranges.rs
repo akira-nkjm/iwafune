@@ -173,7 +173,7 @@ mod tests {
         assert!(
             checks[0]
                 .message
-                .contains("モード SAFE で電源オンの OBC を除く"),
+                .contains("Excludes powered-on OBC in mode SAFE"),
             "{}",
             checks[0].message
         );
@@ -181,7 +181,7 @@ mod tests {
         assert!(
             checks[1]
                 .message
-                .contains("モード SAFE で電源オフの CAM を除く"),
+                .contains("Excludes powered-off CAM in mode SAFE"),
             "{}",
             checks[1].message
         );
@@ -192,7 +192,7 @@ mod tests {
                 &margin
             )
             .iter()
-            .all(|c| !c.message.contains("除く"))
+            .all(|c| !c.message.contains("Excludes"))
         );
     }
 

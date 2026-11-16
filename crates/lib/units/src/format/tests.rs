@@ -10,13 +10,14 @@ fn text(si: f64, dim: &str) -> String {
 #[test]
 fn every_preferred_unit_parses_with_matching_dimension() {
     for p in PREFERENCES {
-        let dim = parse_dimension(p.name).unwrap_or_else(|_| panic!("{} は次元名ではない", p.name));
+        let dim = parse_dimension(p.name)
+            .unwrap_or_else(|_| panic!("{} is not a dimension name", p.name));
         assert_eq!(canonical_dimension_name(p.name), Some(p.name), "{}", p.name);
         for symbol in p.units.iter().map(|(u, _)| *u).chain([p.base]) {
             let unit = parse_unit(symbol).unwrap_or_else(|e| panic!("{symbol}: {e:?}"));
             assert!(
                 unit.dimension().is_compatible_with(dim),
-                "{symbol} は {} でない",
+                "{symbol} is not {}",
                 p.name
             );
         }
@@ -26,7 +27,11 @@ fn every_preferred_unit_parses_with_matching_dimension() {
             .iter()
             .map(|(u, _)| parse_unit(u).expect(u).scale())
             .collect();
-        assert!(scales.windows(2).all(|w| w[0] < w[1]), "{} の並び", p.name);
+        assert!(
+            scales.windows(2).all(|w| w[0] < w[1]),
+            "{} ordering",
+            p.name
+        );
     }
 }
 
@@ -94,7 +99,7 @@ fn dimensionless_and_fallback() {
     assert_eq!(power_expr, "m^2*kg/s^3");
     assert!(
         parse_unit(&power_expr)
-            .expect("式")
+            .expect("expression")
             .dimension()
             .is_compatible_with(Power::DIM)
     );
@@ -131,7 +136,7 @@ fn display_units_lists_candidates() {
 #[test]
 fn dimension_label_names_or_expresses() {
     assert_eq!(dimension_label(Power::DIM), "Power");
-    let odd = Power::DIM.try_mul(Power::DIM).expect("次元");
+    let odd = Power::DIM.try_mul(Power::DIM).expect("dimension");
     assert_eq!(dimension_label(odd), si_unit_expression(odd));
     assert!(parse_unit(&dimension_label(odd)).is_ok());
 }

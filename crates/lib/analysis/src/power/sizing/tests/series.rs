@@ -105,7 +105,7 @@ fn sun_pointing_matches_hand_calculation_and_smad() {
     assert!(
         o.checks
             .iter()
-            .any(|c| c.key == "sap_margin" && c.message.contains("時系列の逆算"))
+            .any(|c| c.key == "sap_margin" && c.message.contains("time-series sizing"))
     );
 }
 

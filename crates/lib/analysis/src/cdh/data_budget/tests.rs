@@ -49,13 +49,13 @@ fn input() -> DataBudgetInput {
         modes: vec![
             ModeDef {
                 id: "NOM".to_owned(),
-                label: "通常".to_owned(),
+                label: "Nominal".to_owned(),
                 assignments: vec![assign("OBC", "on", &[]), assign("CAM", "off", &[])],
                 eclipse: Vec::new(),
             },
             ModeDef {
                 id: "OBS".to_owned(),
-                label: "観測".to_owned(),
+                label: "Observation".to_owned(),
                 assignments: vec![
                     assign("OBC", "on", &[]),
                     assign("CAM", "off", &[("on", 0.5)]),

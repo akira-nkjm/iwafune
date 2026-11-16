@@ -4,7 +4,10 @@ use super::*;
 use crate::constants::{MU_EARTH, R_EARTH};
 
 fn close(a: f64, b: f64, tol: f64) {
-    assert!((a - b).abs() <= tol, "{a} と {b} の差が {tol} を超えます");
+    assert!(
+        (a - b).abs() <= tol,
+        "difference between {a} and {b} exceeds {tol}"
+    );
 }
 
 /// LEO 400 → 550 km のホーマン遷移。手計算:

@@ -157,7 +157,7 @@ mod tests {
             let y = R_EARTH - 40e3 + f64::from(i) * 20.0;
             let nu = earth_shadow_factor(Vec3::new(x, y, 0.0), SUN, ShadowModel::Conical);
             assert!((0.0..=1.0).contains(&nu));
-            assert!(nu + 1e-12 >= prev, "単調でない");
+            assert!(nu + 1e-12 >= prev, "not monotonic");
             saw_partial |= nu > 0.01 && nu < 0.99;
             prev = nu;
         }
