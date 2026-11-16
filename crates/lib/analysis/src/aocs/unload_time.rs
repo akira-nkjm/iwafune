@@ -173,9 +173,7 @@ impl Analysis for UnloadTime {
             None
         } else {
             let com = input.center_of_mass.ok_or_else(|| {
-                AnalysisError::InvalidInput(
-                    "RCS の評価には重心（center_of_mass）が要ります".to_owned(),
-                )
+                AnalysisError::InvalidInput("RCS evaluation requires center_of_mass".to_owned())
             })?;
             Some(rcs_unload(
                 h,
@@ -205,7 +203,7 @@ impl Analysis for UnloadTime {
 /// 捨てる角運動量 [N·m·s] と、ホイールから求めたときに使った割合。入力に無ければ、ホイールの最大角運動量の最大 × 使ってよい割合。
 fn dump_momentum(input: &UnloadTimeInput) -> Result<(f64, Option<Fraction>), AnalysisError> {
     if let Some(h) = input.momentum {
-        ensure_non_negative("捨てる角運動量", h.value())?;
+        ensure_non_negative("Momentum to dump", h.value())?;
         return Ok((h.value(), None));
     }
     let usable = usable_momentum_fraction(input.usable_momentum_fraction)?;
@@ -216,10 +214,10 @@ fn dump_momentum(input: &UnloadTimeInput) -> Result<(f64, Option<Fraction>), Ana
         .fold(f64::NAN, f64::max);
     if !max.is_finite() {
         return Err(AnalysisError::InvalidInput(
-            "捨てる角運動量（momentum）かホイール（wheels）が要ります".to_owned(),
+            "Either momentum to dump (momentum) or wheels is required".to_owned(),
         ));
     }
-    ensure_non_negative("ホイールの最大角運動量", max)?;
+    ensure_non_negative("Wheel max angular momentum", max)?;
     Ok((max * usable.value(), Some(usable)))
 }
 
@@ -227,9 +225,9 @@ fn dump_momentum(input: &UnloadTimeInput) -> Result<(f64, Option<Fraction>), Ana
 pub fn effective_dipole(mtqs: &[UnloadTimeMtq]) -> Result<f64, AnalysisError> {
     let mut axes = Vec::with_capacity(mtqs.len());
     for m in mtqs {
-        ensure_non_negative(&format!("MTQ {} の最大双極子", m.id), m.max_dipole.value())?;
+        ensure_non_negative(&format!("MTQ {} max dipole", m.id), m.max_dipole.value())?;
         let a = m.axis.normalized().ok_or_else(|| {
-            AnalysisError::InvalidInput(format!("MTQ {} の軸がゼロベクトルです", m.id))
+            AnalysisError::InvalidInput(format!("MTQ {} axis is a zero vector", m.id))
         })?;
         axes.push((a, m.max_dipole.value()));
     }
@@ -255,7 +253,7 @@ fn field_stats(field: &UnloadTimeField) -> Result<(FieldStats, Option<f64>), Ana
             if MtqFieldReason::of(central).is_some() {
                 // `run` が先に外すので通らない（磁場を 0 として計算しないための守り）
                 return Err(AnalysisError::InvalidInput(format!(
-                    "この天体の磁場は扱えません（中心天体: {central:?}）"
+                    "The magnetic field of this body is not supported (central body: {central:?})"
                 )));
             }
             let points = sampling.states()?;
@@ -266,7 +264,7 @@ fn field_stats(field: &UnloadTimeField) -> Result<(FieldStats, Option<f64>), Ana
                 .collect();
             if b.is_empty() {
                 return Err(AnalysisError::InvalidInput(
-                    "地磁気の時系列が空です".to_owned(),
+                    "The geomagnetic time series is empty".to_owned(),
                 ));
             }
             let mean = time_mean(&t, &b);
@@ -279,18 +277,16 @@ fn field_stats(field: &UnloadTimeField) -> Result<(FieldStats, Option<f64>), Ana
 
 fn mtq_result(input: &UnloadTimeInput, h: f64) -> Result<UnloadTimeMtqResult, AnalysisError> {
     let eta = input.mtq_efficiency();
-    ensure_fraction("MTQ の有効率", eta.value())?;
-    ensure_positive("MTQ の有効率", eta.value())?;
+    ensure_fraction("MTQ effectiveness", eta.value())?;
+    ensure_positive("MTQ effectiveness", eta.value())?;
     let field = input.field.as_ref().ok_or_else(|| {
-        AnalysisError::InvalidInput("MTQ の評価には地磁気（field）が要ります".to_owned())
+        AnalysisError::InvalidInput("MTQ evaluation requires the magnetic field (field)".to_owned())
     })?;
     let ((mean, min, max), period) = field_stats(field)?;
     let m_eff = effective_dipole(&input.magnetorquers)?;
     let torque = eta.value() * m_eff * mean;
     if torque <= 0.0 {
-        return Err(AnalysisError::InvalidInput(
-            "MTQ のトルクが 0 です".to_owned(),
-        ));
+        return Err(AnalysisError::InvalidInput("MTQ torque is 0".to_owned()));
     }
     let time = h / torque;
     Ok(UnloadTimeMtqResult {
@@ -317,10 +313,10 @@ fn verdicts(
     {
         checks.push(Check::new(
             "rcs_direction",
-            "RCS で捨てられる向き",
+            "Directions RCS can unload",
             Verdict::Violation,
             format!(
-                "{} 向きの角運動量を捨てるトルクを出せるスラスタがありません",
+                "No thruster can produce torque to dump momentum along {}",
                 r.worst.label
             ),
         ));
@@ -330,7 +326,7 @@ fn verdicts(
     };
     let mut check = |key: &str, label: &str, time: Option<Qty<Time>>| {
         let v = Verdict::from_ok(time.is_some_and(|t| t <= req));
-        let shown = time.map_or("捨てられない".to_owned(), |t| {
+        let shown = time.map_or("cannot unload".to_owned(), |t| {
             quantity_text::<Time>(t.value())
         });
         checks.push(Check::new(
@@ -338,18 +334,18 @@ fn verdicts(
             label,
             v,
             format!(
-                "{shown}（要求 {} 以内）",
+                "{shown} (required within {})",
                 quantity_text::<Time>(req.value())
             ),
         ));
     };
     if let Some(m) = mtq {
-        check("mtq_time", "MTQ でのアンロード時間", Some(m.time));
+        check("mtq_time", "Unload time with MTQ", Some(m.time));
     }
     if let Some(r) = rcs {
         check(
             "rcs_time",
-            "RCS でのアンロード時間（最悪の向き）",
+            "Unload time with RCS (worst direction)",
             r.worst.time,
         );
     }

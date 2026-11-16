@@ -76,7 +76,7 @@ impl ThrustDisturbance {
         let mut total = Vec3::ZERO;
         for f in &self.firing {
             let share = f.firing_fraction.value();
-            ensure_fraction(&format!("スラスタ {} の噴射の割合", f.thruster.id), share)?;
+            ensure_fraction(&format!("Thruster {} burn fraction", f.thruster.id), share)?;
             total += f.thruster.torque_about(self.center_of_mass)?.torque * share;
         }
         Ok(total)
@@ -195,15 +195,15 @@ impl DisturbanceSpacecraft {
     /// 値が物理的にありうるかを調べる。
     pub fn validate(&self) -> Result<(), AnalysisError> {
         for i in 0..3 {
-            ensure_positive("慣性テンソルの対角成分", self.inertia.m[i][i])?;
+            ensure_positive("Inertia tensor diagonal", self.inertia.m[i][i])?;
         }
         if !self.inertia.m.iter().flatten().all(|v| v.is_finite()) {
             return Err(AnalysisError::InvalidInput(
-                "慣性テンソルが有限ではありません".to_owned(),
+                "Inertia tensor is not finite".to_owned(),
             ));
         }
-        ensure_non_negative("大気密度の倍率", self.density_scale())?;
-        for (name, s) in [("空力の Cd·A", &self.aero), ("SRP の Cr·A", &self.srp)] {
+        ensure_non_negative("Atmospheric density scale", self.density_scale())?;
+        for (name, s) in [("Aerodynamic Cd·A", &self.aero), ("SRP Cr·A", &self.srp)] {
             if let Some(s) = s {
                 ensure_non_negative(name, s.coefficient_area.value())?;
             }

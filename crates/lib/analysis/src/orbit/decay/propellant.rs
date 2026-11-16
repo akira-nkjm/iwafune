@@ -72,14 +72,16 @@ pub(super) fn capacity(p: &PropulsionInput) -> Result<StationKeeper, AnalysisErr
     let Some((thruster, used)) = found else {
         return Ok(StationKeeper::Undetermined(propellant_names(&out)));
     };
-    ensure_positive("比推力", thruster.isp.value())?;
+    ensure_positive("Specific impulse", thruster.isp.value())?;
     let dv = delta_v(
         exhaust_velocity(thruster.isp.value()),
         out.wet_mass.value(),
         used,
     )
     .ok_or_else(|| {
-        AnalysisError::InvalidInput("推進系の推薬と質量から ΔV を求められません".into())
+        AnalysisError::InvalidInput(
+            "Cannot compute ΔV from the propulsion system propellant and mass".into(),
+        )
     })?;
     Ok(StationKeeper::Found(Capacity {
         thruster: thruster.id.clone(),
@@ -119,7 +121,7 @@ fn candidate<'a>(
         .filter(|t| group.contains(&t.id.as_str()))
         .min_by(|a, b| a.isp.value().total_cmp(&b.isp.value()))
         .map(|t| (t, used))
-        .ok_or_else(|| AnalysisError::InvalidInput("軌道維持のスラスタが見つかりません".into()))
+        .ok_or_else(|| AnalysisError::InvalidInput("No station-keeping thruster found".into()))
 }
 
 /// 推薬の名前の並び（スラスタを持つ組。名前が無ければスラスタの ID）。
@@ -130,7 +132,7 @@ fn propellant_names(out: &PropellantOutput) -> Vec<String> {
         .map(|g| {
             g.propellant
                 .clone()
-                .unwrap_or_else(|| g.thrusters.join("・"))
+                .unwrap_or_else(|| g.thrusters.join(", "))
         })
         .collect()
 }

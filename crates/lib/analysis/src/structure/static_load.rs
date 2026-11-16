@@ -196,13 +196,11 @@ impl StaticLoadInput {
 
 fn validate(input: &StaticLoadInput) -> Result<(), AnalysisError> {
     if input.cases.is_empty() {
-        return Err(AnalysisError::InvalidInput(
-            "荷重のケースがありません".to_owned(),
-        ));
+        return Err(AnalysisError::InvalidInput("No load cases".to_owned()));
     }
-    ensure_positive("安全率", input.safety_factor())?;
+    ensure_positive("Safety factor", input.safety_factor())?;
     for it in &input.items {
-        ensure_non_negative(&format!("部品 {} の質量", it.id), it.mass.value())?;
+        ensure_non_negative(&format!("Mass of part {}", it.id), it.mass.value())?;
     }
     Ok(())
 }
@@ -230,7 +228,7 @@ fn carried_masses(items: &[StaticLoadItem]) -> Result<BTreeMap<&str, f64>, Analy
             hops += 1;
             if hops > items.len() {
                 return Err(AnalysisError::InvalidInput(format!(
-                    "部品 {} の取付が輪になっています",
+                    "The mounting of part {} forms a loop",
                     it.id
                 )));
             }
@@ -295,16 +293,16 @@ fn interface_check(input: &StaticLoadInput, m: &StaticLoadMountResult) -> Option
     input.interfaces.iter().find(|i| i.mount == m.mount)?;
     let text = if let Some(worst) = m.min_margin {
         format!(
-            "最小の安全余裕 MS = {}（安全率 {}）",
+            "Minimum margin of safety MS = {} (safety factor {})",
             quantity_text::<Fraction>(worst.value()),
             quantity_text::<Dimensionless>(input.safety_factor())
         )
     } else {
-        "許容値がありません".to_owned()
+        "No allowable values".to_owned()
     };
     Some(Check::new(
         &format!("interface:{}", m.mount),
-        &format!("{} の取付部", m.mount),
+        &format!("{} mount", m.mount),
         m.verdict,
         text,
     ))

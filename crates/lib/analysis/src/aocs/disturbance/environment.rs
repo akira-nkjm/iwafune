@@ -20,27 +20,35 @@ impl DisturbanceSpacecraft {
         let mut note = |torque: &str, cause: &str, model: EnvironmentModel| match model {
             EnvironmentModel::Modelled => {}
             EnvironmentModel::Absent => {
-                lines.push(format!("{torque}はこの天体では 0（{cause}が無い）"));
+                lines.push(format!("{torque} is 0 for this body (no {cause})"));
             }
             EnvironmentModel::NotModelled => {
                 verdict = Verdict::Warning;
                 lines.push(format!(
-                    "{torque}は含めていません（この天体には{cause}があるが、そのモデルが無い。0 ではなく、結果は過小評価になりえます）"
+                    "{torque} is not included (this body has {cause} but there is no model for it; it is not 0, so the result may be an underestimate)"
                 ));
             }
         };
         if self.aero.is_some() {
-            note("空力トルク", "大気", central.atmosphere_model());
+            note(
+                "Aerodynamic torque",
+                "atmosphere",
+                central.atmosphere_model(),
+            );
         }
         if self.residual_dipole().norm() > 0.0 {
-            note("磁気トルク", "磁場", central.magnetic_field_model());
+            note(
+                "Magnetic torque",
+                "magnetic field",
+                central.magnetic_field_model(),
+            );
         }
         (!lines.is_empty()).then(|| {
             Check::new(
                 "environment_models",
-                "大気・磁場のモデル",
+                "Atmosphere and magnetic field models",
                 verdict,
-                lines.join("。"),
+                lines.join(". "),
             )
         })
     }
@@ -72,11 +80,11 @@ mod tests {
     #[test]
     fn moon_is_ok_and_earth_has_no_note() {
         let sc = spacecraft(true, true);
-        let c = sc.environment_check(CentralBody::Moon).expect("注記");
+        let c = sc.environment_check(CentralBody::Moon).expect("note");
         assert_eq!(c.verdict, Verdict::Ok);
         assert_eq!(
             c.message,
-            "空力トルクはこの天体では 0（大気が無い）。磁気トルクはこの天体では 0（磁場が無い）"
+            "Aerodynamic torque is 0 for this body (no atmosphere). Magnetic torque is 0 for this body (no magnetic field)"
         );
         assert!(sc.environment_check(CentralBody::Earth).is_none());
     }
@@ -86,23 +94,23 @@ mod tests {
     #[test]
     fn missing_models_warn_instead_of_claiming_zero() {
         let sc = spacecraft(true, true);
-        let mars = sc.environment_check(CentralBody::Mars).expect("注記");
+        let mars = sc.environment_check(CentralBody::Mars).expect("note");
         assert_eq!(mars.verdict, Verdict::Warning);
         assert!(
             mars.message.starts_with(
-                "空力トルクは含めていません（この天体には大気があるが、そのモデルが無い"
+                "Aerodynamic torque is not included (this body has atmosphere but there is no model for it"
             )
         );
         assert!(
             mars.message
-                .ends_with("磁気トルクはこの天体では 0（磁場が無い）")
+                .ends_with("Magnetic torque is 0 for this body (no magnetic field)")
         );
-        let jupiter = sc.environment_check(CentralBody::Jupiter).expect("注記");
+        let jupiter = sc.environment_check(CentralBody::Jupiter).expect("note");
         assert_eq!(jupiter.verdict, Verdict::Warning);
         assert!(
             jupiter
                 .message
-                .contains("磁気トルクは含めていません（この天体には磁場があるが")
+                .contains("Magnetic torque is not included (this body has magnetic field but")
         );
     }
 
@@ -116,7 +124,10 @@ mod tests {
         );
         let c = spacecraft(true, false)
             .environment_check(CentralBody::Moon)
-            .expect("注記");
-        assert_eq!(c.message, "空力トルクはこの天体では 0（大気が無い）");
+            .expect("note");
+        assert_eq!(
+            c.message,
+            "Aerodynamic torque is 0 for this body (no atmosphere)"
+        );
     }
 }

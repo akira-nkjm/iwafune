@@ -189,16 +189,16 @@ impl Analysis for ModeLoad {
 
 /// 部品の ID の重複と成長余裕の値を調べる（電力収支も使う）。
 pub(crate) fn validate(input: &ModeLoadInput) -> Result<(), AnalysisError> {
-    ensure_non_negative("成長余裕の既定値", input.default_growth_margin())?;
+    ensure_non_negative("Default growth margin", input.default_growth_margin())?;
     for (i, p) in input.parts.iter().enumerate() {
         if input.parts[..i].iter().any(|q| q.id == p.id) {
             return Err(AnalysisError::InvalidInput(format!(
-                "部品 ID {} が重複しています",
+                "Part ID {} is duplicated",
                 p.id
             )));
         }
         if let Some(g) = p.growth_margin {
-            ensure_non_negative(&format!("部品 {} の成長余裕", p.id), g)?;
+            ensure_non_negative(&format!("Growth margin of part {}", p.id), g)?;
         }
     }
     Ok(())
@@ -258,7 +258,7 @@ fn evaluate_sunlit(input: &ModeLoadInput, mode: &ModeDef) -> Result<ModeLoadMode
                 state: state.clone(),
             })
             .collect(),
-        checks: ev.checks("消費電力"),
+        checks: ev.checks("power"),
     };
     for (part, (_, mean)) in input.parts.iter().zip(&ev.means) {
         let Some(assignment) = mode.assignment(&part.id) else {

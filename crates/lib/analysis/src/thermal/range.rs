@@ -65,9 +65,9 @@ impl ThermalRangeKind {
     /// 判定文に入れる範囲の呼び名（判定文は日本語。他の解析の判定文と同じ）。
     fn noun(self) -> &'static str {
         match self {
-            Self::Storage => "保管範囲",
-            Self::Operating => "動作範囲",
-            Self::Performance => "性能範囲",
+            Self::Storage => "storage range",
+            Self::Operating => "operating range",
+            Self::Performance => "performance range",
         }
     }
 
@@ -95,8 +95,8 @@ pub enum ThermalPowerState {
 impl ThermalPowerState {
     fn noun(self) -> &'static str {
         match self {
-            Self::On => "電源オン",
-            Self::Off => "電源オフ",
+            Self::On => "powered-on",
+            Self::Off => "powered-off",
         }
     }
 }
@@ -219,7 +219,7 @@ impl ThermalMarginUsed {
             Ok(())
         } else {
             Err(crate::spec::AnalysisError::InvalidInput(
-                "解析マージンの不確かさと警告の幅は 0 以上にしてください".to_owned(),
+                "Analysis margin uncertainty and warning width must be 0 or more".to_owned(),
             ))
         }
     }

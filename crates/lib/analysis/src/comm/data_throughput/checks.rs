@@ -16,9 +16,9 @@ pub(super) fn checks(
     if closure == DataThroughputLinkClosure::NeverCloses {
         out.push(Check::new(
             "link_closes",
-            "回線",
+            "Link",
             Verdict::Violation,
-            "天頂でも要求の回線余裕を満たしません",
+            "Does not meet the required link margin even at zenith",
         ));
     } else {
         // 閉じる局が 1 つでもあれば全体は続くが、閉じない局は数えていないことを知らせる。
@@ -26,10 +26,10 @@ pub(super) fn checks(
             if c.closure == DataThroughputLinkClosure::NeverCloses {
                 out.push(Check::new(
                     &format!("link_closes:{}", c.station),
-                    &format!("回線（{}）", c.station),
+                    &format!("Link ({})", c.station),
                     Verdict::Warning,
                     format!(
-                        "{} では天頂でも要求の回線余裕を満たさないので、送信量に数えていません",
+                        "{} does not meet the required link margin even at zenith, so it is not counted in the downlink volume",
                         c.station
                     ),
                 ));
@@ -45,14 +45,14 @@ pub(super) fn checks(
     let generated = input.generated_per_day.value();
     out.extend(at_most(
         "capacity",
-        "送信可能量と発生量",
+        "Downlink volume and generated data",
         generated,
         capacity_per_day,
     )?);
     if let Some(cap) = input.storage_capacity {
         out.extend(at_most(
             "storage",
-            "未送信データとストレージ",
+            "Backlog and storage",
             max_backlog,
             cap.value(),
         )?);
@@ -66,14 +66,14 @@ fn other_downlinks_check(input: &DataThroughputInput) -> Option<Check> {
     if input.other_downlinks.is_empty() {
         return None;
     }
-    let counted = input.downlink.as_deref().unwrap_or("先頭の下り回線");
+    let counted = input.downlink.as_deref().unwrap_or("first downlink");
     Some(Check::new(
         "downlinks_not_counted",
-        "送信量に数えない下り回線",
+        "Downlinks not counted",
         Verdict::Ok,
         format!(
-            "送信量に数えた下り回線: {counted}。数えていない下り回線: {}。どの回線がミッションデータを運ぶかを設計データがまだ言えないので、名前順の先頭の下り回線を使っています（足し合わせていません）",
-            input.other_downlinks.join("、")
+            "Counted downlink: {counted}. Downlinks not counted: {}. The design data cannot yet say which link carries mission data, so the first downlink in name order is used (links are not summed)",
+            input.other_downlinks.join(", ")
         ),
     ))
 }

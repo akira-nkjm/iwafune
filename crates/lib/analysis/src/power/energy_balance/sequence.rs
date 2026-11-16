@@ -36,9 +36,9 @@ pub struct EnergyBalanceSequence {
 
 /// 並びの ID と表示名。
 const SEQUENCE_ID: &str = "sequence";
-const SEQUENCE_LABEL: &str = "モードの並び";
+const SEQUENCE_LABEL: &str = "Mode sequence";
 /// 並びの判定の括弧書き。
-const SEQUENCE_BASIS: &str = "モードの並びに沿って回したとき";
+const SEQUENCE_BASIS: &str = "when run along the mode sequence";
 
 /// モードの (日照中, 日陰中) の負荷と、そのモードの姿勢則での発電の列。
 type ModeColumns = ((Qty<Power>, Qty<Power>), Vec<f64>);
@@ -47,7 +47,7 @@ type ModeColumns = ((Qty<Power>, Qty<Power>), Vec<f64>);
 pub(super) fn validate(input: &EnergyBalanceInput) -> Result<f64, AnalysisError> {
     let mut cycle = 0.0;
     for s in &input.sequence {
-        ensure_positive("モードの並びの区間の長さ", s.duration.value())?;
+        ensure_positive("Mode sequence interval length", s.duration.value())?;
         cycle += s.duration.value();
     }
     Ok(cycle)

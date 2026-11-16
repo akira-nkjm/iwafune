@@ -156,14 +156,16 @@ fn rw_unloading_about_other_bodies_states_the_environment_models() {
     let moon = note(&run(CentralBodyKind::Moon)).expect("月の注記");
     assert_eq!(moon.verdict, Verdict::Ok);
     assert!(
-        moon.message.contains("空力トルクはこの天体では 0"),
+        moon.message
+            .contains("Aerodynamic torque is 0 for this body"),
         "{}",
         moon.message
     );
     let mars = note(&run(CentralBodyKind::Mars)).expect("火星の注記");
     assert_eq!(mars.verdict, Verdict::Warning);
     assert!(
-        mars.message.contains("大気があるが、そのモデルが無い"),
+        mars.message
+            .contains("this body has atmosphere but there is no model for it"),
         "{}",
         mars.message
     );
@@ -203,5 +205,5 @@ fn eclipse_season_about_the_sun_is_an_error() {
     let ctx = Context::new(&design, &resolved, Some("hot_imaging")).unwrap();
     let input = orbit::eclipse_season(&ctx).unwrap();
     let err = EclipseSeason::run(&input).unwrap_err().to_string();
-    assert!(err.contains("太陽を中心天体とする軌道"), "{err}");
+    assert!(err.contains("An orbit around the Sun"), "{err}");
 }

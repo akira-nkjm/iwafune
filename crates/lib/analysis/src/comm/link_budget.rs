@@ -124,7 +124,7 @@ impl Analysis for LinkBudget {
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         if input.links.is_empty() {
-            return Err(AnalysisError::InvalidInput("回線がありません".to_owned()));
+            return Err(AnalysisError::InvalidInput("No links".to_owned()));
         }
         let mut links = Vec::with_capacity(input.links.len());
         let mut checks = Vec::with_capacity(input.links.len());
@@ -151,7 +151,7 @@ fn evaluate(
     let altitude = link.altitude.value();
     if !(rate > 0.0 && altitude > 0.0) {
         return Err(AnalysisError::InvalidInput(format!(
-            "{}: データレートと高度は正の値にしてください",
+            "{}: data rate and altitude must be positive",
             link.name
         )));
     }
@@ -184,10 +184,10 @@ fn margin_check(result: &LinkBudgetLinkResult, required: Decibel) -> Check {
     let pair = format!("{}@{}", result.name, result.station);
     Check::new(
         &format!("margin:{pair}"),
-        &format!("{pair} の回線余裕"),
+        &format!("{pair} link margin"),
         margin_verdict(result.margin_db.value(), required.value()),
         format!(
-            "余裕 {}（要求 {} 以上）",
+            "Margin {} (required at least {})",
             quantity_text::<Decibel>(result.margin_db.value()),
             quantity_text::<Decibel>(required.value())
         ),

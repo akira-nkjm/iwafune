@@ -131,7 +131,7 @@ fn half_orbit_reports_span_balance_without_judging_per_orbit_margin() {
         assert_eq!(
             check.message,
             format!(
-                "解析期間が 1 周に満たないため 1 周あたりの余裕を判定できない（解析期間の収支は {}、電池の効率込み）",
+                "The analysis span is shorter than one orbit, so the per-orbit margin cannot be judged (balance over the span is {}, including battery efficiency)",
                 crate::spec::quantity_text::<Energy>(expected)
             )
         );

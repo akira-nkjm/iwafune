@@ -89,7 +89,7 @@ pub(super) fn lit_load(lit: &[bool], sun: Qty<Power>, ecl: Qty<Power>) -> Vec<f6
 }
 
 /// 連続で回したときの判定の括弧書き。
-const CONTINUOUS_BASIS: &str = "解析期間ずっと続けたとき";
+const CONTINUOUS_BASIS: &str = "when sustained over the whole analysis span";
 
 /// 1 ケースを解析期間ずっと続けたとして評価する（最長継続時間の評価は [`super::duration`] が上書きする）。
 /// 電池の積分（`trace`）も返す（時系列の逆算が刻みごとの増分を使う）。

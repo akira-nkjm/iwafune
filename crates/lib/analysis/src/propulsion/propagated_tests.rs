@@ -95,7 +95,7 @@ fn orbit_history_follows_the_propagated_raise() {
     let alt = &out.series.channels[0].values;
     assert!(
         alt.windows(2).all(|w| w[1] >= w[0] - 50.0),
-        "高度は上がり続ける"
+        "altitude keeps rising"
     );
     // 3 日の季節: 2 日目以降の標本日は 450 km の軌道（周期が長い）
     let season = |maneuvers| {

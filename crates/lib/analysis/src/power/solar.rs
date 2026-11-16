@@ -76,13 +76,13 @@ impl SolarPanel {
     }
 
     fn validate(&self) -> Result<(), AnalysisError> {
-        let name = |what: &str| format!("太陽電池パネル {} の{what}", self.id);
-        ensure_non_negative(&name("面積"), self.area.value())?;
-        ensure_fraction(&name("セル効率"), self.cell_efficiency)?;
-        ensure_fraction(&name("実装率"), self.packing())?;
-        ensure_fraction(&name("EOL 係数"), self.eol())?;
+        let name = |what: &str| format!("Solar panel {} {what}", self.id);
+        ensure_non_negative(&name("area"), self.area.value())?;
+        ensure_fraction(&name("cell efficiency"), self.cell_efficiency)?;
+        ensure_fraction(&name("packing factor"), self.packing())?;
+        ensure_fraction(&name("EOL factor"), self.eol())?;
         if self.normal.normalized().is_none() {
-            return Err(AnalysisError::InvalidInput(name("法線がゼロベクトルです")));
+            return Err(AnalysisError::InvalidInput(name("normal is a zero vector")));
         }
         Ok(())
     }
@@ -100,15 +100,15 @@ impl SolarPanel {
 impl SolarArray {
     /// パネルの値が物理的にありうるかを調べる（パネルが 0 枚でもよい。その場合の発電は 0）。
     pub fn validate(&self) -> Result<(), AnalysisError> {
-        ensure_fraction("変換効率", self.conversion_efficiency())?;
+        ensure_fraction("Conversion efficiency", self.conversion_efficiency())?;
         if let Some(flux) = self.solar_flux {
-            ensure_non_negative("太陽光の強さ", flux.value())?;
+            ensure_non_negative("Solar flux", flux.value())?;
         }
         for (i, p) in self.panels.iter().enumerate() {
             p.validate()?;
             if self.panels[..i].iter().any(|q| q.id == p.id) {
                 return Err(AnalysisError::InvalidInput(format!(
-                    "太陽電池パネルの ID {} が重複しています",
+                    "Solar panel ID {} is duplicated",
                     p.id
                 )));
             }

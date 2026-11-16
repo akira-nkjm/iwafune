@@ -111,21 +111,21 @@ fn group(
     let density = tanks.iter().find_map(|t| t.density);
     let required_volume = density.map(|rho| required / rho.value());
     let margin = required_volume.and_then(|v| ratio_margin(tank_volume, v));
-    let name = propellant.as_deref().unwrap_or("推薬");
+    let name = propellant.as_deref().unwrap_or("propellant");
     let mut checks = Vec::new();
     if required > 0.0 && tanks.is_empty() {
         checks.push(Check::new(
             "tank",
-            "タンク",
+            "Tank",
             Verdict::Violation,
-            format!("{name} を入れるタンクがありません"),
+            format!("No tank holds {name}"),
         ));
     } else if required > 0.0 && density.is_none() {
         checks.push(Check::new(
             "density",
-            "推薬の密度",
+            "Propellant density",
             Verdict::Warning,
-            format!("{name} の密度が無いので、タンクの容積を判定しません"),
+            format!("No density for {name}, so tank volume is not checked"),
         ));
     } else if let (Some(v), false) = (required_volume, tanks.is_empty()) {
         let verdict = margin.map_or(Verdict::Ok, |m| {
@@ -133,10 +133,10 @@ fn group(
         });
         checks.push(Check::new(
             "tank_volume",
-            "タンクの容積",
+            "Tank volume",
             verdict,
             format!(
-                "{name} の必要 {} / タンク {}",
+                "{name}: needs {} / tank {}",
                 quantity_text::<Volume>(v),
                 quantity_text::<Volume>(tank_volume)
             ),
@@ -242,11 +242,11 @@ fn evaluate(
     if !without.is_empty() {
         checks.push(Check::new(
             "thruster",
-            "マヌーバのスラスタ",
+            "Maneuver thrusters",
             Verdict::Warning,
             format!(
-                "スラスタが無いので推薬を求めていないマヌーバがあります（{}）",
-                without.join("、")
+                "Propellant is not computed for maneuvers without a thruster ({})",
+                without.join(", ")
             ),
         ));
     }

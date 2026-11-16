@@ -140,14 +140,14 @@ pub fn mass_properties(
             .is_none_or(|s| s.x >= 0.0 && s.y >= 0.0 && s.z >= 0.0);
         if !(it.total_mass() >= 0.0 && size_ok) {
             return Err(AnalysisError::InvalidInput(format!(
-                "部品 {}: 質量と外形は 0 以上にしてください",
+                "Part {}: mass and dimensions must be 0 or more",
                 it.id
             )));
         }
     }
     let total: f64 = items.iter().map(MassPropertiesItem::total_mass).sum();
     if total.is_nan() || total <= 0.0 {
-        return Err(AnalysisError::InvalidInput("総質量が 0 です".to_owned()));
+        return Err(AnalysisError::InvalidInput("Total mass is 0".to_owned()));
     }
     let com = items
         .iter()
@@ -211,7 +211,12 @@ fn checks(
             .iter()
             .map(|it| BudgetItem::counted(it.id.clone(), it.mass.value(), it.count))
             .collect();
-        out.extend(limit_check::<Mass>(&rows, max.value(), "mass", "総質量")?);
+        out.extend(limit_check::<Mass>(
+            &rows,
+            max.value(),
+            "mass",
+            "Total mass",
+        )?);
     }
     if let Some(b) = &input.com_box {
         let d = s.center_of_mass - b.center;
@@ -220,10 +225,10 @@ fn checks(
             && d.z.abs() <= b.half_extent.z;
         out.push(Check::new(
             "center_of_mass",
-            "重心の位置",
+            "Centre of mass position",
             Verdict::from_ok(inside),
             format!(
-                "中心からのずれ ({}, {}, {})、許容 (±{}, ±{}, ±{})",
+                "Offset from centre ({}, {}, {}), allowed (±{}, ±{}, ±{})",
                 quantity_text::<Length>(d.x),
                 quantity_text::<Length>(d.y),
                 quantity_text::<Length>(d.z),

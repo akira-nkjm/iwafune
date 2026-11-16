@@ -148,12 +148,12 @@ impl Compiled {
     /// 入力を検査して添字に直す。
     pub fn new(net: &ThermalNetwork) -> Result<Self, AnalysisError> {
         if net.nodes.is_empty() {
-            return Err(invalid("熱の節点がありません".to_owned()));
+            return Err(invalid("No thermal nodes".to_owned()));
         }
         let ids: Vec<String> = net.nodes.iter().map(|n| n.id.clone()).collect();
         for (i, id) in ids.iter().enumerate() {
             if ids[..i].contains(id) {
-                return Err(invalid(format!("熱の節点 {id} が重複しています")));
+                return Err(invalid(format!("Thermal node {id} is duplicated")));
             }
         }
         let mut c = Self {
@@ -170,7 +170,7 @@ impl Compiled {
             let fixed = n.fixed_temperature.map(Qty::value);
             if !(cap > 0.0 || fixed.is_some()) || fixed.is_some_and(|t| t.is_nan() || t <= 0.0) {
                 return Err(invalid(format!(
-                    "節点 {}: 部品の質量 × 員数 × 比熱の合計は正、固定温度は正の値にしてください",
+                    "Node {}: the sum of part mass × count × specific heat must be positive, and a fixed temperature must be positive",
                     n.id
                 )));
             }
@@ -209,7 +209,7 @@ impl Compiled {
                 eps,
             }),
             _ => Err(invalid(format!(
-                "外面 {}: 面積は 0 以上、法線は 0 でないベクトルにしてください",
+                "Surface {}: area must be 0 or more and the normal must be a non-zero vector",
                 s.id
             ))),
         }
@@ -220,7 +220,7 @@ impl Compiled {
         self.ids
             .iter()
             .position(|x| x == id)
-            .ok_or_else(|| invalid(format!("熱の節点 {id} がありません")))
+            .ok_or_else(|| invalid(format!("Thermal node {id} does not exist")))
     }
 
     pub fn len(&self) -> usize {
@@ -293,9 +293,7 @@ fn nonneg(v: f64, a: &str, b: &str) -> Result<f64, AnalysisError> {
     if v.is_finite() && v >= 0.0 {
         Ok(v)
     } else {
-        Err(invalid(format!(
-            "{a}–{b} の結合は 0 以上の値にしてください"
-        )))
+        Err(invalid(format!("Coupling {a}–{b} must be 0 or more")))
     }
 }
 

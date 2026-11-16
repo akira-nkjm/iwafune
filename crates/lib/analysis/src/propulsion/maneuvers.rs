@@ -179,10 +179,10 @@ pub(super) fn result(leg: &Leg<'_>, flight: Option<&Flight>) -> ManeuverResult {
     let checks = if leg.notes.contains(&ManeuverNote::FiniteBurnTooLong) {
         vec![Check::new(
             "finite_burn_arc",
-            "有限燃焼の近似",
+            "Finite-burn approximation",
             Verdict::Warning,
             format!(
-                "{} の噴射が軌道の半周を超えるので、損失を見込めません（method を low_thrust にしてください）",
+                "The burn of {} exceeds half an orbit, so losses cannot be estimated (set method to low_thrust)",
                 m.id
             ),
         )]
