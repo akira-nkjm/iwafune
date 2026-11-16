@@ -89,7 +89,7 @@ pub struct Harness {
 enum_text! {
     /// 不確かさのどちら側を読むか。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-    pub enum UncertaintySide: "不確かさの側" {
+    pub enum UncertaintySide: "uncertainty side" {
         Nominal = "nominal",
         Min = "min",
         Max = "max",

@@ -7,9 +7,9 @@ use ts_rs::{Config, TS};
 /// TS の書き出しのエラー。
 #[derive(Debug, thiserror::Error)]
 pub enum ExportError {
-    #[error("TS の型を書き出せません: {0}")]
+    #[error("Cannot write the TS types: {0}")]
     Ts(#[from] ts_rs::ExportError),
-    #[error("TS の型名が重複しています（registry.md §4）: {0}")]
+    #[error("Duplicate TS type names (registry.md §4): {0}")]
     DuplicateNames(String),
     #[error("{path}: {source}")]
     Io {
@@ -138,7 +138,7 @@ fn clear_ts_files(dir: &Path) -> Result<(), ExportError> {
 fn write_index(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
     let files = ts_files(dir)?;
     let mut text = String::from(
-        "// 生成物です。手で編集しないでください（`cargo test -p fune-service export_ts` で作り直す）。\n",
+        "// Generated file. Do not edit by hand (regenerate with `cargo test -p fune-service export_ts`).\n",
     );
     for path in &files {
         if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {

@@ -1,5 +1,5 @@
 kind         = "transceiver"
-label        = "S バンド送信機 2 Mbps（パッチアンテナ込み）"
+label        = "S-band transmitter, 2 Mbps (patch antenna included)"
 manufacturer = "Example Radio"
 part_number  = "STX-2M"
 maturity     = "modified"
@@ -17,7 +17,7 @@ size           = { x = 90.0, y = 96.0, z = 15.0, unit = "mm" }
 
 [attr.power]
 off = { value = 0.0, unit = "W" }
-rx  = { value = 0.6, unit = "W" }  # 待機（送信準備）
+rx  = { value = 0.6, unit = "W" }  # Standby (transmit preparation)
 tx  = { value = 9.5, unit = "W" }
 
 [attr.rf_output]

@@ -7,7 +7,9 @@ use std::path::Path;
 
 fn demo() -> fune_model::Design {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u");
-    fune_store::load(&root).expect("デモを読めること").design
+    fune_store::load(&root)
+        .expect("the demo should load")
+        .design
 }
 
 /// 温度範囲は 保管 = `temp_survival`、動作 = `temp_op`、性能 = `temp_perf` から読む（BAT のカタログ品は 3 種とも持つ）。
@@ -110,7 +112,7 @@ fn node_part_without_mass_is_reported_as_missing() {
     let resolved = fune_model::resolve(&design);
     let ctx = Context::new(&design, &resolved, None).unwrap();
     let Err(missing) = fune_projection::thermal::steady(&ctx) else {
-        panic!("質量の無い部品があるのに入力が組み立てられた");
+        panic!("the input was built although a part has no mass");
     };
     assert!(missing.into_vec().iter().any(|m| m.path == "BAT.mass"));
 }

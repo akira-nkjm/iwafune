@@ -1,8 +1,10 @@
 //! カタログ品の編集の文字列 → Op（`fune catalog set local/rw_10mNms mass "620 g"` → `SetCatalogValue` など）。
 //! 入口は `edit::{set_op, unset_op}`（`SetText.item`・`UnsetText.item` があるときここに振り分ける）。
 //! 属性の値の読み方は部品と同じ（`text::attr_value`）。フィールド名（`fune_model::design::CatalogFieldName`）は `SetCatalogField` にする。
+//! 共有カタログの出所を足す引数（`fune catalog source add`）→ `AddCatalogSource` も持つ（[`catalog_source_add_op`]）。
 
-use super::text::{AttrSlot, SetText, attr_value, invalid, maturity};
+use super::text::{AttrSlot, SetText, attr_value, given, invalid, list_from_text, maturity};
+use crate::dto::CatalogSourceAddText;
 use crate::error::Result;
 use crate::workspace::Workspace;
 use fune_model::design::{CatalogField, CatalogFieldName};
@@ -15,7 +17,7 @@ fn item_path(item: &str, path: &str) -> Result<AttrPath> {
     match parse_catalog_attr(path) {
         Ok((owner, p)) if owner == item => Ok(p),
         Ok((owner, _)) => Err(invalid(format!(
-            "`{path}` はカタログ品 `{owner}` のパスです（編集する品は `{item}`）"
+            "`{path}` is a path of catalog item `{owner}` (the item being edited is `{item}`)"
         ))),
         Err(_) => AttrPath::parse(path).map_err(invalid),
     }
@@ -71,17 +73,28 @@ pub(super) fn catalog_unset_op(item: &str, path: &str) -> Result<Op> {
 fn catalog_field(name: CatalogFieldName, text: Option<&str>) -> Result<CatalogField> {
     let owned = text.map(str::to_owned);
     Ok(match name {
-        CatalogFieldName::Kind => {
-            CatalogField::Kind(owned.ok_or_else(|| invalid("カタログ品の kind は消せません"))?)
-        }
+        CatalogFieldName::Kind => CatalogField::Kind(
+            owned.ok_or_else(|| invalid("Cannot unset the kind of a catalog item"))?,
+        ),
         CatalogFieldName::Label => CatalogField::Label(owned),
         CatalogFieldName::LabelEn => CatalogField::LabelEn(owned),
         CatalogFieldName::Manufacturer => CatalogField::Manufacturer(owned),
         CatalogFieldName::PartNumber => CatalogField::PartNumber(owned),
+        CatalogFieldName::Tags => CatalogField::Tags(text.map(list_from_text).unwrap_or_default()),
         CatalogFieldName::Datasheet => CatalogField::Datasheet(owned),
         CatalogFieldName::Source => CatalogField::Source(owned),
         CatalogFieldName::Maturity => CatalogField::Maturity(text.map(maturity).transpose()?),
     })
+}
+
+/// `fune catalog source add <名前> --git <URL> [--rev <rev>]` → `AddCatalogSource`。**この引数の読み方はここだけ**
+/// （前後の空白を除き、空の `rev` は省いたのと同じ）。名前の規則・重複・空の URL は適用のときに fune-ops が拒む。
+pub fn catalog_source_add_op(t: &CatalogSourceAddText) -> Op {
+    Op::AddCatalogSource {
+        name: t.name.trim().to_owned(),
+        git: t.git.trim().to_owned(),
+        rev: given(&t.rev).map(str::to_owned),
+    }
 }
 
 #[cfg(test)]
@@ -104,6 +117,17 @@ mod tests {
         }
         assert!(catalog_field(CatalogFieldName::Kind, None).is_err());
         assert!(catalog_field(CatalogFieldName::Maturity, Some("brand_new")).is_err());
+    }
+
+    /// タグはカンマ区切り（空白を除き、空の語は捨てる）。書いた順を保ち、消すと空になる。
+    #[test]
+    fn tags_are_read_as_a_comma_list_in_written_order() {
+        let tags = |text| catalog_field(CatalogFieldName::Tags, text).unwrap();
+        assert_eq!(
+            tags(Some("flight_proven, 国産 ,,b")),
+            CatalogField::Tags(vec!["flight_proven".into(), "国産".into(), "b".into()])
+        );
+        assert_eq!(tags(None), CatalogField::Tags(vec![]));
     }
 
     #[test]
@@ -133,5 +157,26 @@ mod tests {
         ));
         // 別の品のパスは拒む
         assert!(catalog_unset_op(item, "local/obc_m7.mass").is_err());
+    }
+
+    /// 共有カタログを足す引数: 前後の空白を除き、空の rev は省いたのと同じ（CLI と GUI の欄の両方がここを通る）。
+    #[test]
+    fn catalog_source_text_trims_and_drops_an_empty_rev() {
+        let text = |rev: Option<&str>| CatalogSourceAddText {
+            name: " lab ".into(),
+            git: " https://example.com/catalog.git\n".into(),
+            rev: rev.map(str::to_owned),
+        };
+        let op = |rev: Option<&str>| Op::AddCatalogSource {
+            name: "lab".into(),
+            git: "https://example.com/catalog.git".into(),
+            rev: rev.map(str::to_owned),
+        };
+        assert_eq!(
+            catalog_source_add_op(&text(Some(" main "))),
+            op(Some("main"))
+        );
+        assert_eq!(catalog_source_add_op(&text(Some("  "))), op(None));
+        assert_eq!(catalog_source_add_op(&text(None)), op(None));
     }
 }

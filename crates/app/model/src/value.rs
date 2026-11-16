@@ -228,7 +228,7 @@ enum_text! {
     /// 値の型（AttributeDef の `type`）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
     #[ts(rename = "AttrValueType")]
-    pub enum ValueType: "値の型" {
+    pub enum ValueType: "value type" {
         Scalar = "scalar",
         Vec3 = "vec3",
         Quat = "quat",
@@ -244,19 +244,19 @@ enum_text! {
 /// 値・単位の解析と検査のエラー。
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum ValueError {
-    #[error("単位 `{unit}` を解析できません: {reason}")]
+    #[error("Cannot parse unit `{unit}`: {reason}")]
     Unit { unit: String, reason: String },
-    #[error("次元が合いません: `{unit}` は {found} ですが {expected} が必要です")]
+    #[error("Dimension mismatch: `{unit}` is {found}, but {expected} is required")]
     Dimension {
         unit: String,
         expected: String,
         found: String,
     },
-    #[error("次元名 `{0}` を知りません")]
+    #[error("Unknown dimension name `{0}`")]
     UnknownDimension(String),
-    #[error("値 `{0}` を読めません")]
+    #[error("Cannot read value `{0}`")]
     Syntax(String),
-    #[error("値の型が違います: {0}")]
+    #[error("Wrong value type: {0}")]
     Type(String),
 }
 

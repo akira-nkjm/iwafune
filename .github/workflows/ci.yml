@@ -141,7 +141,7 @@ jobs:
           ./target/release/fune -C fixtures/demo-6u check
           ./target/release/fune -C fixtures/demo-6u part ls
           ./target/release/fune -C fixtures/demo-6u analyze power.mode_load --json > /dev/null
-      # Not the development port (8787): on a shared machine a running server would answer instead of this build.
+      # Not the default port (3000): on a shared machine a running server would answer instead of this build.
       - name: smoke (HTTP)
         run: |
           ./target/release/fune -C fixtures/demo-6u gui --no-open --port 18787 &

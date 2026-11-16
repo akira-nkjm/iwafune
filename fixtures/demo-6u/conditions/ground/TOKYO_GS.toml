@@ -1,17 +1,17 @@
-label         = "東京の地上局（例）"
+label         = "Tokyo ground station (example)"
 latitude      = { value = 35.7126, unit = "deg" }
 longitude     = { value = 139.7620, unit = "deg" }
 altitude      = { value = 40.0, unit = "m" }
 min_elevation = { value = 10.0, unit = "deg" }
 
 [link.uhf]
-antenna_gain      = { value = 14.0, unit = "dBi" }  # 八木 2 列
+antenna_gain      = { value = 14.0, unit = "dBi" }  # Two Yagi arrays
 noise_temperature = { value = 600.0, unit = "K" }
 tx_power          = { value = 50.0, unit = "W" }
 line_loss         = { value = 2.0, unit = "dB" }
 
 [link.s_band]
-antenna_gain      = { value = 33.0, unit = "dBi" }  # 3 m パラボラ
+antenna_gain      = { value = 33.0, unit = "dBi" }  # 3 m parabolic dish
 noise_temperature = { value = 250.0, unit = "K" }
-g_over_t          = { value = 9.0, unit = "dB" }  # dB/K（sat-units は dB/K を式にできないので dB で書く）
+g_over_t          = { value = 9.0, unit = "dB" }  # dB/K (sat-units cannot express dB/K as a formula, so it is written in dB)
 line_loss         = { value = 1.0, unit = "dB" }

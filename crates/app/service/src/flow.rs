@@ -64,7 +64,7 @@ pub fn system_flow(ws: &Workspace, system: System, case: Option<&str>) -> Result
             .map(crate::query::system_id)
             .collect();
         ServiceError::InvalidInput(format!(
-            "系 {} のフロー図はまだありません（フロー図のある系: {}）",
+            "No flow diagram for subsystem {} yet (subsystems with one: {})",
             crate::query::system_id(system),
             ready.join(", ")
         ))
@@ -91,7 +91,7 @@ pub(crate) fn run_all(
                 .iter()
                 .find(|e| e.info.id == *id)
                 .cloned()
-                .ok_or_else(|| ServiceError::not_found("解析", *id))?;
+                .ok_or_else(|| ServiceError::not_found("analysis", *id))?;
             let result = crate::analysis::run_analysis(ws, id, &req)?;
             Ok((entry, result))
         })

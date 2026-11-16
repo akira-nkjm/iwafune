@@ -144,7 +144,7 @@ fn evaluate(
     let duty = t.duty.map_or(1.0, Fraction::value);
     if !(duty > 0.0 && duty <= 1.0) {
         return Err(AnalysisError::InvalidInput(format!(
-            "マヌーバ {} のデューティは 0 より大きく 1 以下にしてください（{duty}）",
+            "Duty of maneuver {} must be greater than 0 and at most 1 ({duty})",
             t.maneuver
         )));
     }
@@ -152,7 +152,7 @@ fn evaluate(
     let base = needs_base.then(|| base_mode(input)).flatten();
     if needs_base && base.is_none() {
         return Err(AnalysisError::InvalidInput(format!(
-            "マヌーバ {} の噴かない間の負荷に、電力収支の基本のモードが要ります",
+            "The load of maneuver {} while not firing requires the base mode of the energy balance",
             t.maneuver
         )));
     }
@@ -168,7 +168,7 @@ fn evaluate(
         (false, _, Some(c)) => c,
         _ => {
             return Err(AnalysisError::InvalidInput(
-                "電力収支の結果がありません".into(),
+                "No energy balance result".into(),
             ));
         }
     };

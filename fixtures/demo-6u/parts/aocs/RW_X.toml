@@ -8,7 +8,7 @@ point = "RW_SLOT_X"
 value       = 0.152
 unit        = "kg"
 from.source = "em_test_2026_10"
-from.note   = "EM 実測"
+from.note   = "EM measurement"
 
 [ports.PWR]
 net = "P12V"

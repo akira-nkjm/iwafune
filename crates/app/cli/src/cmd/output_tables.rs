@@ -4,6 +4,7 @@
 
 use crate::output::{C, Out};
 use fune_service::dto::AnalysisRunResult;
+use fune_service::query;
 use serde_json::Value;
 
 /// 表 1 つ: 解析 ID・配列の場所（JSON Pointer。`""` は出力の最上位を 1 行にする）・（欄, 見出し）の列。
@@ -18,19 +19,19 @@ const TABLES: &[Table] = &[
         "propulsion.dv_budget",
         "/rows",
         &[
-            ("category", "区分"),
+            ("category", "Category"),
             ("delta_v", "ΔV"),
-            ("share", "割合"),
-            ("maneuvers", "マヌーバ"),
+            ("share", "Share"),
+            ("maneuvers", "Maneuvers"),
         ],
     ),
     (
         "propulsion.dv_budget",
         "",
         &[
-            ("total", "合計"),
-            ("margin", "マージン"),
-            ("total_with_margin", "マージン込み"),
+            ("total", "Total"),
+            ("margin", "Margin"),
+            ("total_with_margin", "With margin"),
         ],
     ),
     (
@@ -38,22 +39,22 @@ const TABLES: &[Table] = &[
         "/maneuvers",
         &[
             ("id", "ID"),
-            ("method", "方式"),
+            ("method", "Method"),
             ("delta_v", "ΔV"),
-            ("burn_time", "噴射時間"),
-            ("transfer_time", "遷移時間"),
-            ("propellant", "推薬"),
+            ("burn_time", "Burn time"),
+            ("transfer_time", "Transfer time"),
+            ("propellant", "Propellant"),
         ],
     ),
     (
         "propulsion.propellant",
         "",
         &[
-            ("dry_mass", "ドライ"),
-            ("usable_propellant", "使う推薬"),
-            ("residual_propellant", "残る推薬"),
-            ("loaded_propellant", "積む推薬"),
-            ("wet_mass", "ウェット"),
+            ("dry_mass", "Dry"),
+            ("usable_propellant", "Usable propellant"),
+            ("residual_propellant", "Residual propellant"),
+            ("loaded_propellant", "Loaded propellant"),
+            ("wet_mass", "Wet"),
         ],
     ),
 ];
@@ -61,7 +62,7 @@ const TABLES: &[Table] = &[
 /// 結果の 1 つの値の文字列（語彙の表示名・整形した量・文字列・一覧）。
 fn cell(r: &AnalysisRunResult, pointer: &str, value: &Value) -> C {
     if let Some(l) = r.labels.get(pointer) {
-        return C::Text(l.label.clone());
+        return C::Text(query::english(&l.label, Some(&l.label_en)).to_owned());
     }
     match (value, r.dims.get(pointer)) {
         (Value::Number(n), Some(dim)) => {

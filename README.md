@@ -56,7 +56,14 @@ Each release attaches the `fune` binary with the GUI embedded:
 | `fune-<version>-x86_64-linux-gnu.tar.gz` | x86_64 Linux with glibc 2.39 or later (Ubuntu 24.04 or newer, including WSL) |
 | `fune-<version>-universal-apple-darwin.tar.gz` | macOS on Apple Silicon and Intel |
 
-With the GitHub CLI signed in (`gh auth login`) to an account that can read this repository:
+With [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), which downloads the release binary instead of
+building it:
+
+```bash
+cargo binstall --git https://github.com/akira-nkjm/iwafune fune-cli
+```
+
+Or download the release by hand, with the GitHub CLI or from the Releases page:
 
 ```bash
 gh release download --repo akira-nkjm/iwafune --pattern 'fune-*-x86_64-linux-gnu.tar.gz*'
@@ -71,6 +78,12 @@ Gatekeeper until you run `xattr -d com.apple.quarantine fune`.
 
 Then run `fune gui` in a design directory (one with `fune.toml`), or `fune init` to start one.
 `fune data fetch de440` downloads the optional DE440 ephemeris the same way, and `fune data fetch space_weather` downloads the CelesTrak space weather table (F10.7, Ap) into the user cache. On other platforms, build from source.
+
+### Updating
+
+`fune self-update` replaces the running binary with the latest release. `fune self-update --check` only reports the current and latest versions, and `fune self-update --version 0.5.2` installs exactly that version (an older one too).
+It downloads the archive with `curl`, verifies its SHA-256, checks that the new binary reports the expected version, and then swaps it in, so it needs write access to the directory holding `fune`.
+With cargo-binstall, running the install command again also works. If `fune` came from another package manager, update it with that instead.
 
 ## Quick start
 
@@ -137,7 +150,10 @@ package's "Manage Actions access"; its workflow then uses the image as a job con
 
 A satellite repository can read catalog items from a shared catalog repository (`[[catalog]] git = …` in
 `fune.toml`, see [docs/model.md §12](docs/model.md)). The commit is pinned in `catalog.lock`, which is committed,
-and the fetched files are cached under `.fune/` (ignored by git). In CI, fetch the locked commit first, then check:
+and the fetched files are cached under `.fune/` (ignored by git). Add one with
+`fune catalog source add <name> --git <url> [--rev <rev>]` (or from the catalog page of the GUI), then run
+`fune catalog fetch` and commit `fune.toml` and `catalog.lock`; `fune catalog source rm <name>` removes it again
+(refused while parts use its items). In CI, fetch the locked commit first, then check:
 
 ```yaml
 jobs:

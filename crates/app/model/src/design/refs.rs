@@ -11,12 +11,13 @@
 //! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode` |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets` |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire` |
+//! | カタログ（`[[catalog]]` の名前。出所を外すのを拒むためだけ。書き換えはしない） | 部品の `catalog`・`candidates`・ハーネスの `wire` のうち `<名前>/…` のもの |
 //! | 種別（プロジェクト独自の定義の削除を拒むためだけ。書き換えはしない） | 部品とカタログ品の `kind`・種別の `extends` |
 //! | 属性（同上） | 種別の `required` / `optional`・部品とカタログ品の属性の値 |
 
 use super::{BudgetKind, Design};
 use crate::enum_text::enum_text;
-use crate::path::PortRef;
+use crate::path::{PortRef, split_catalog_ref};
 use serde::{Deserialize, Serialize};
 
 /// 参照される ID。
@@ -28,6 +29,8 @@ pub enum Referent<'a> {
     Net(&'a str),
     /// カタログ品の参照（`"local/rw_10mNms"`）
     Catalog(&'a str),
+    /// カタログの名前（`[[catalog]]` の `name`。その出所の品の参照すべて。外すのを拒むための索引）
+    CatalogSource(&'a str),
     /// 種別の ID（定義の削除を拒むための索引。名前の変更はしない）
     Kind(&'a str),
     /// 属性の ID（同上）
@@ -37,7 +40,7 @@ pub enum Referent<'a> {
 enum_text! {
     /// ネットのポートの参照を持つキー（`nets/<ネット>.toml`）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-    pub enum NetEnd: "ネットの端" {
+    pub enum NetEnd: "net end" {
         Source = "source",
         Master = "master",
     }
@@ -46,7 +49,7 @@ enum_text! {
 enum_text! {
     /// ハーネスの端のキー（`harness/<区間>.toml`）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-    pub enum HarnessEnd: "ハーネスの端" {
+    pub enum HarnessEnd: "harness end" {
         From = "from",
         To = "to",
     }
@@ -131,7 +134,10 @@ impl Design {
             Referent::Group(id) => self.group_refs(id),
             Referent::Mode(id) => self.mode_refs(id),
             Referent::Net(id) => self.net_refs(id),
-            Referent::Catalog(reference) => self.catalog_refs(reference),
+            Referent::Catalog(reference) => self.catalog_refs(|r| r == reference),
+            Referent::CatalogSource(name) => {
+                self.catalog_refs(|r| split_catalog_ref(r).is_some_and(|(s, _)| s == name))
+            }
             Referent::Kind(id) => self.kind_refs(id),
             Referent::Attribute(id) => self.attribute_refs(id),
         }
@@ -310,22 +316,23 @@ impl Design {
         out
     }
 
-    /// 部品ごとに（ID 順）選択中 → 候補、そのあとハーネス。
-    fn catalog_refs(&self, reference: &str) -> Vec<RefSite> {
+    /// カタログ品の参照のうち `hit` に当たるもの。部品ごとに（ID 順）選択中 → 候補、そのあとハーネス。
+    /// カタログの名前（`Referent::CatalogSource`）は品が読めていない（共有カタログを取得していない）ときも参照の文字列で探す。
+    fn catalog_refs(&self, hit: impl Fn(&str) -> bool) -> Vec<RefSite> {
         let mut out = Vec::new();
         for p in self.parts.values() {
             let part = || p.id.to_string();
-            if p.catalog.as_deref() == Some(reference) {
+            if p.catalog.as_deref().is_some_and(&hit) {
                 out.push(RefSite::PartCatalog { part: part() });
             }
-            if p.candidates.iter().any(|c| c == reference) {
+            if p.candidates.iter().any(|c| hit(c)) {
                 out.push(RefSite::PartCandidate { part: part() });
             }
         }
         out.extend(
             self.harnesses
                 .values()
-                .filter(|h| h.wire.as_deref() == Some(reference))
+                .filter(|h| h.wire.as_deref().is_some_and(&hit))
                 .map(|h| RefSite::HarnessWire {
                     harness: h.id.to_string(),
                 }),

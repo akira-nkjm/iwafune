@@ -1,5 +1,5 @@
 kind     = "data"
-label    = "システム CAN"
+label    = "System CAN"
 protocol = "CAN"
 bitrate  = { value = 1.0, unit = "Mbit/s" }
 master   = "OBC.CAN1"

@@ -60,22 +60,19 @@ fn node_part(
     m: &mut MissingInputs,
 ) -> Option<ThermalNodePart> {
     let Some(p) = ctx.resolved.parts.get(pid) else {
-        m.push(
-            thermal(&["nodes", node]),
-            format!("部品 {pid} がありません"),
-        );
+        m.push(thermal(&["nodes", node]), format!("Part {pid} not found"));
         return None;
     };
     // 質量も比熱も、無ければ不足入力に記録する（片方が無くてももう片方を調べる）
     let mass = m.need(
         ctx.scalar(p, "mass"),
         Target::attr(pid, "mass"),
-        "質量（熱の節点の熱容量）",
+        "Mass (heat capacity of the thermal node)",
     );
     let c = m.need(
         ctx.scalar(p, "specific_heat"),
         Target::attr(pid, "specific_heat"),
-        "比熱（熱の節点の熱容量）",
+        "Specific heat (heat capacity of the thermal node)",
     );
     Some(ThermalNodePart {
         id: pid.to_owned(),
@@ -111,7 +108,7 @@ fn links(ctx: &Context<'_>, s: &ThermalSettings, m: &mut MissingInputs) -> Optio
         &dims::THERMAL_CONTACT_CONDUCTANCE,
         &[],
         s.contact_conductance.as_ref(),
-        "取付の接触熱コンダクタンス",
+        "Contact thermal conductance of the mount",
         m,
     );
     let r = setting_opt(
@@ -158,7 +155,7 @@ fn surfaces(ctx: &Context<'_>, s: &ThermalSettings, m: &mut MissingInputs) -> Ve
                 _ => continue,
             },
         };
-        let Some(normal) = direction_body(ctx, p, "normal", "外面の法線（部品座標）", m)
+        let Some(normal) = direction_body(ctx, p, "normal", "Outer-surface normal (part frame)", m)
         else {
             continue;
         };
@@ -187,7 +184,7 @@ fn coatings(s: &ThermalSettings, part: &str, m: &mut MissingInputs) -> Option<Ve
         let Some((absorptivity, emissivity)) = optics else {
             m.push(
                 thermal(&["coating", id]),
-                "表面材の absorptivity と emissivity",
+                "Surface material absorptivity and emissivity",
             );
             continue;
         };

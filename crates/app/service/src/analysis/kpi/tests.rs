@@ -46,7 +46,7 @@ fn every_kpi_comes_from_exactly_one_analysis() {
     let mut seen = std::collections::HashSet::new();
     for info in sat_analysis::catalog::catalog() {
         for key in keys(&info.id) {
-            assert!(seen.insert(*key), "{key:?} が 2 つの解析にある");
+            assert!(seen.insert(*key), "{key:?} is in two analyses");
         }
         let defs = defs(&info.id);
         assert!(
@@ -54,7 +54,7 @@ fn every_kpi_comes_from_exactly_one_analysis() {
                 .all(|d| !d.label.is_empty() && !d.label_en.is_empty())
         );
     }
-    assert_eq!(seen.len(), 41, "KpiKey のすべての値が表にある");
+    assert_eq!(seen.len(), 41, "every KpiKey value is in the table");
 }
 
 /// 判定を数える KPI: 数と OK でない数、塗りは OK の割合（手で数えた 9 件中 4 件）。

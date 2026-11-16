@@ -62,7 +62,7 @@ fn rating(
         key,
         label,
         verdict,
-        format!("使う量 {} / 定格 {}", text(used), text(rated)),
+        format!("Used {} / rated {}", text(used), text(rated)),
     ));
     margin
 }
@@ -114,7 +114,7 @@ fn row(t: &PropulsionThruster, seq: &Sequence<'_>) -> ThrusterUsageRow {
     let mut checks = Vec::new();
     let impulse_margin = rating(
         "total_impulse",
-        "総インパルス",
+        "Total impulse",
         t.rated_total_impulse.map(Qty::value),
         impulse,
         quantity_text::<Impulse>,
@@ -122,7 +122,7 @@ fn row(t: &PropulsionThruster, seq: &Sequence<'_>) -> ThrusterUsageRow {
     );
     let firing_time_margin = rating(
         "firing_time",
-        "累積噴射時間",
+        "Cumulative burn time",
         t.rated_firing_time.map(Qty::value),
         time,
         quantity_text::<Time>,
@@ -130,10 +130,10 @@ fn row(t: &PropulsionThruster, seq: &Sequence<'_>) -> ThrusterUsageRow {
     );
     let firings_margin = rating(
         "firings",
-        "噴射回数",
+        "Number of burns",
         t.rated_firings.map(f64::from),
         f64::from(firings),
-        |n| format!("{n} 回"),
+        |n| n.to_string(),
         &mut checks,
     );
     ThrusterUsageRow {

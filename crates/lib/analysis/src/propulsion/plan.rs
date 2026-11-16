@@ -187,13 +187,13 @@ pub(super) fn plan(from: Orbit, m: &ManeuverInput) -> Result<Planned, AnalysisEr
 /// 別の天体 `body` を回る軌道へのパッチドコニックの遷移。捕獲の軌道は `altitude`（円）か
 /// `perigee_altitude`（と `apogee_altitude`）で、高度は `body` の半径から数える。
 fn interbody(from: Orbit, body: CentralBody, m: &ManeuverInput) -> Result<Planned, AnalysisError> {
-    let invalid = |why: &str| AnalysisError::InvalidInput(format!("マヌーバ {}: {why}", m.id));
+    let invalid = |why: &str| AnalysisError::InvalidInput(format!("Maneuver {}: {why}", m.id));
     if matches!(
         m.method,
         TransferMethod::LowThrust | TransferMethod::Propagated
     ) {
         return Err(invalid(
-            "天体間の遷移は impulsive か finite_burn で計算します（low_thrust・propagated は未対応）",
+            "Transfers between bodies are computed with impulsive or finite_burn (low_thrust and propagated are not supported)",
         ));
     }
     let t = &m.target;
@@ -203,7 +203,7 @@ fn interbody(from: Orbit, body: CentralBody, m: &ManeuverInput) -> Result<Planne
         (None, Some(p)) => (r(p), t.apogee_altitude.map_or(r(p), r)),
         (None, None) => {
             return Err(invalid(
-                "目標の天体を回る軌道（altitude か perigee_altitude）を書いてください",
+                "Specify an orbit around the target body (altitude or perigee_altitude)",
             ));
         }
     };

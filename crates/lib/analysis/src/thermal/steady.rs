@@ -120,7 +120,7 @@ impl Analysis for ThermalSteady {
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         if input.cases.is_empty() {
-            return Err(AnalysisError::InvalidInput("ケースがありません".to_owned()));
+            return Err(AnalysisError::InvalidInput("No cases".to_owned()));
         }
         let net = Compiled::new(&input.network)?;
         let margin = input.margin.used();

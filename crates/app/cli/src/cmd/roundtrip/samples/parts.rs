@@ -16,7 +16,7 @@ fn tree_ops() -> Vec<Op> {
             catalog: Some(s("local/rw_10mNms")),
             kind: None,
             count: Some(2),
-            label: Some(s("予備 RW")),
+            label: Some(s("Spare RW")),
             mode_state: Some(s("off")),
         },
         Op::CreatePart {
@@ -54,8 +54,8 @@ fn value_ops() -> Vec<Op> {
     .unwrap();
     let from = Some(Provenance {
         source: Some(s("em_test_2026_10")),
-        at: Some(s("TR-EM 表 4")),
-        note: Some(s("EM 実測 \"v2\"")),
+        at: Some(s("TR-EM table 4")),
+        note: Some(s("EM measurement \"v2\"")),
     });
     vec![
         Op::SetValue {
@@ -120,7 +120,7 @@ fn unset_and_field_ops() -> Vec<Op> {
         },
         Op::SetField {
             part: s("RW_X"),
-            field: PartField::Label(Some(s("X 軸 RW"))),
+            field: PartField::Label(Some(s("X-axis RW"))),
         },
         Op::SetField {
             part: s("RW_X"),

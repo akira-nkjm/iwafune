@@ -331,6 +331,6 @@ fn unreachable_remote_is_an_error_but_cached_commits_still_load() {
     assert!(!kept.lock_changed);
     let err =
         shared_catalog::update(&ws, &CatalogUpdateRequest { name: "lab".into() }).unwrap_err();
-    assert!(err.to_string().contains("共有カタログ `lab`"), "{err}");
+    assert!(err.to_string().contains("Shared catalog `lab`"), "{err}");
     assert_eq!(state(&ws), Some(SharedCatalogState::Ready));
 }

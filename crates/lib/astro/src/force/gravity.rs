@@ -189,7 +189,7 @@ mod tests {
     use crate::constants::J2_EARTH;
 
     fn table() -> &'static GravityTable {
-        egm96().expect("EGM96 を解釈できる")
+        egm96().expect("EGM96 parses")
     }
 
     #[test]
@@ -236,7 +236,10 @@ mod tests {
     #[test]
     fn high_degree_terms_are_small_and_converge() {
         let t = table();
-        let r = Vec3::new(3.0e6, 5.2e6, 3.4e6).normalized().expect("非ゼロ") * 6.93e6;
+        let r = Vec3::new(3.0e6, 5.2e6, 3.4e6)
+            .normalized()
+            .expect("nonzero")
+            * 6.93e6;
         let a = |n: usize| t.acceleration_ecef(r, n, n, 0);
         let d_high = (a(70) - a(2)).norm();
         assert!(d_high > 1e-6 && d_high < 1e-3, "{d_high}");

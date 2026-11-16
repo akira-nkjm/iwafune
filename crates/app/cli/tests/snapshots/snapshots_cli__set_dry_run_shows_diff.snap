@@ -12,10 +12,10 @@ expression: text
 -value       = 0.152
 -unit        = "kg"
 -from.source = "em_test_2026_10"
--from.note   = "EM 実測"
+-from.note   = "EM measurement"
 +[attr]
 +mass = { value = 650.0, unit = "g" }
  
  [ports.PWR]
  net = "P12V"
-✔ dry-run: 1 ファイルが変わります（書き込んでいません）
+✔ dry-run: 1 files would change (nothing written)

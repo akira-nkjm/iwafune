@@ -33,6 +33,8 @@ fn name(op: &Op) -> &'static str {
         Op::SetCatalogField { .. } => "SetCatalogField",
         Op::RemoveCatalogItem { .. } => "RemoveCatalogItem",
         Op::RenameCatalogItem { .. } => "RenameCatalogItem",
+        Op::AddCatalogSource { .. } => "AddCatalogSource",
+        Op::RemoveCatalogSource { .. } => "RemoveCatalogSource",
         Op::CreateAttribute { .. } => "CreateAttribute",
         Op::CreateKind { .. } => "CreateKind",
         Op::UpdateAttribute { .. } => "UpdateAttribute",
@@ -204,6 +206,10 @@ fn catalog_ops() -> Vec<Op> {
             item: "local/rw_10mNms".into(),
             field: CatalogField::PartNumber(Some("RW-10B".into())),
         },
+        Op::SetCatalogField {
+            item: "local/rw_10mNms".into(),
+            field: CatalogField::Tags(vec!["flight_proven".into(), "国産".into()]),
+        },
         Op::RemoveCatalogItem {
             id: "local/rw_30mNms".into(),
         },
@@ -211,6 +217,8 @@ fn catalog_ops() -> Vec<Op> {
             from: "local/rw_10mNms".into(),
             to: "local/rw_10mNms_b".into(),
         },
+        serde_json::from_str(r#"{"op":"add_catalog_source","name":"a","git":"g"}"#).unwrap(),
+        Op::RemoveCatalogSource { name: "lab".into() },
     ]
 }
 
@@ -239,7 +247,7 @@ fn other_ops() -> Vec<Op> {
         sha256: Some("ab".repeat(32)),
         distribution: Some(Distribution::OnRequest),
         date: Some("2027-01-20".into()),
-        by: Some("tanaka".into()),
+        by: Some("test-team".into()),
         note: None,
     };
     let harness = Harness {
@@ -369,7 +377,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 47, "見本の無い Op の種類があります: {seen:?}");
+    assert_eq!(seen.len(), 49, "some op kinds have no sample: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =
@@ -383,12 +391,10 @@ fn every_op_round_trips_through_json() {
 
 /// 目標の軌道と制約を持つマヌーバ。
 fn maneuver() -> fune_model::design::Maneuver {
-    let mut m: fune_model::design::Maneuver = serde_json::from_value(serde_json::json!({
-        "label": "軌道上昇", "category": "insertion", "method": "low_thrust", "thruster": "EPT",
-        "after": "LEOP", "target": { "altitude": { "value": 600.0, "unit": "km" } },
+    serde_json::from_value(serde_json::json!({
+        "id": "RAISE", "label": "軌道上昇", "category": "insertion", "method": "low_thrust",
+        "thruster": "EPT", "after": "LEOP", "target": { "altitude": { "value": 600.0, "unit": "km" } },
         "constraints": { "sunlit_only": true, "mode": "THRUST" }
     }))
-    .unwrap();
-    m.id = "RAISE".into();
-    m
+    .unwrap()
 }

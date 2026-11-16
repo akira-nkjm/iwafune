@@ -17,10 +17,8 @@ pub fn mode_part_rates(
     parts: &[DataBudgetPart],
 ) -> Result<(ModePartRates, Vec<Check>), AnalysisError> {
     let kinds: [(&str, &str, Pick); 2] = [
-        ("hk", "HK レート", |p| &p.hk_rate),
-        ("mission", "ミッションデータのレート", |p| {
-            &p.mission_rate
-        }),
+        ("hk", "HK rate", |p| &p.hk_rate),
+        ("mission", "Mission data rate", |p| &p.mission_rate),
     ];
     let mut rates = vec![[Some(0.0); 2]; parts.len()];
     let mut checks = Vec::new();

@@ -15,15 +15,15 @@ use ts_rs::{Config, TS, TypeVisitor};
 /// 射影のエラー。
 #[derive(Debug, thiserror::Error)]
 pub enum ProjectionError {
-    #[error("未知の解析です: {0}")]
+    #[error("Unknown analysis: {0}")]
     UnknownAnalysis(String),
     #[error("{0}")]
     Missing(MissingInputs),
     #[error(
-        "{0} は設計データからの入力の組み立てが未実装です（入力を JSON で与えれば実行できます）"
+        "Building the input of {0} from design data is not implemented (it can run with a JSON input)"
     )]
     NotImplemented(String),
-    #[error("入力を JSON にできません: {0}")]
+    #[error("Cannot convert the input to JSON: {0}")]
     Json(String),
 }
 
@@ -157,7 +157,7 @@ mod tests {
         for info in sat_analysis::catalog::catalog() {
             assert!(
                 rows.contains(&info.id.as_str()),
-                "{} の射影の行がありません",
+                "{} has no projection row",
                 info.id
             );
         }

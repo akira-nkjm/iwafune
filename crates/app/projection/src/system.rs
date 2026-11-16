@@ -103,7 +103,7 @@ mod tests {
             let system = area_key(info.area);
             assert!(
                 info.id.starts_with(&format!("{system}.")),
-                "{} の系は {system}",
+                "the subsystem of {} is {system}",
                 info.id
             );
         }

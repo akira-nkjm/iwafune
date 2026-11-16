@@ -22,10 +22,10 @@ pub(super) fn verdicts(limit: f64, j: &Judged, basis: &str) -> Vec<Check> {
     let mut checks = vec![
         Check::new(
             "dod",
-            "DoD の上限",
+            "DoD limit",
             Verdict::from_ok(dod_ok),
             format!(
-                "最大 DoD {}（上限 {}、{basis}）",
+                "Max DoD {} (limit {}, {basis})",
                 quantity_text::<Fraction>(j.max_dod),
                 quantity_text::<Fraction>(limit)
             ),
@@ -35,9 +35,11 @@ pub(super) fn verdicts(limit: f64, j: &Judged, basis: &str) -> Vec<Check> {
     if j.depleted {
         checks.push(Check::new(
             "depleted",
-            "電池切れ",
+            "Battery depleted",
             Verdict::Violation,
-            format!("電池が空になり、負荷をまかなえない時間があります（{basis}）"),
+            format!(
+                "The battery runs empty and the load cannot be supplied for some time ({basis})"
+            ),
         ));
     }
     checks
@@ -48,21 +50,21 @@ fn energy_balance_check(j: &Judged, basis: &str) -> Check {
         Some(margin) => (
             Verdict::from_ok(margin.value() >= 0.0),
             format!(
-                "1 周あたりのエネルギー余裕 {}（電池の効率込み、{basis}）",
+                "Energy margin per orbit {} (including battery efficiency, {basis})",
                 quantity_text::<Energy>(margin.value())
             ),
         ),
         None => (
             Verdict::Warning,
             format!(
-                "解析期間が 1 周に満たないため 1 周あたりの余裕を判定できない{}",
+                "The analysis span is shorter than one orbit, so the per-orbit margin cannot be judged{}",
                 j.margin_over_span
                     .map_or_else(String::new, |margin| format!(
-                        "（解析期間の収支は {}、電池の効率込み）",
+                        " (balance over the span is {}, including battery efficiency)",
                         quantity_text::<Energy>(margin.value())
                     ))
             ),
         ),
     };
-    Check::new("energy_balance", "周回の電力収支", verdict, message)
+    Check::new("energy_balance", "Orbital energy balance", verdict, message)
 }

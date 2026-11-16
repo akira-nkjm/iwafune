@@ -1,4 +1,4 @@
-label = "OBC → カメラ（SpaceWire）"
+label = "OBC → camera (SpaceWire)"
 from  = "OBC.SPW1"
 to    = "CAM.DATA"
 nets  = ["SPW_PL"]

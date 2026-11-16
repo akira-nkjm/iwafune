@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// 対象を名指しできない不足（入力の組み立ての内部の誤り）の表示。
-const INTERNAL: &str = "(内部)";
+const INTERNAL: &str = "(internal)";
 
 /// 足りない入力 1 件。
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
@@ -82,7 +82,7 @@ impl MissingInputs {
             Some(v) => Ok(v),
             None => {
                 let mut m = self;
-                let reason = "入力を組み立てられませんでした".to_owned();
+                let reason = "The input could not be built".to_owned();
                 m.0.push(MissingInput::new(None, reason));
                 Err(m)
             }
@@ -100,6 +100,6 @@ impl MissingInputs {
 impl std::fmt::Display for MissingInputs {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let paths: Vec<&str> = self.0.iter().map(|m| m.path.as_str()).collect();
-        write!(f, "不足入力: {}", paths.join(", "))
+        write!(f, "Missing inputs: {}", paths.join(", "))
     }
 }

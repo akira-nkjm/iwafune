@@ -14,13 +14,13 @@ use crate::time::Epoch;
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum SpaceWeatherParseError {
     /// 見出しに要る列が無い（CSV でない内容を含む）。
-    #[error("宇宙天気の表の見出しに {0} の列がありません")]
+    #[error("Space weather table header has no {0} column")]
     MissingColumn(&'static str),
     /// ある行を読めない。
-    #[error("宇宙天気の表の {line} 行目を読めません: {reason}")]
+    #[error("Cannot read line {line} of the space weather table: {reason}")]
     Row { line: usize, reason: String },
     /// 日付の行が 1 つも無い。
-    #[error("宇宙天気の表に日付の行がありません")]
+    #[error("Space weather table has no date rows")]
     Empty,
 }
 
@@ -75,7 +75,7 @@ pub(super) fn parse(bytes: &[u8]) -> Result<Vec<SpaceWeatherDay>, SpaceWeatherPa
         if let Some(prev) = days.last()
             && prev.day_number >= day.day_number
         {
-            return Err(row_error("日付が前の行より後になっていません".into()));
+            return Err(row_error("Date is not after the previous row".into()));
         }
         days.push(day);
     }
@@ -93,7 +93,7 @@ fn parse_row(c: &Columns, line: &str) -> Result<SpaceWeatherDay, String> {
         if s.is_empty() {
             return Ok(None);
         }
-        let v: f64 = s.parse().map_err(|_| format!("数ではありません: {s:?}"))?;
+        let v: f64 = s.parse().map_err(|_| format!("not a number: {s:?}"))?;
         Ok((v.is_finite() && v >= 0.0).then_some(v))
     };
     let ap_3h = match c.ap_3h {
@@ -119,9 +119,9 @@ fn parse_row(c: &Columns, line: &str) -> Result<SpaceWeatherDay, String> {
 /// `YYYY-MM-DD` → 日の番号。
 fn date(s: &str) -> Result<i64, String> {
     if s.len() != 10 {
-        return Err(format!("日付ではありません: {s:?}"));
+        return Err(format!("not a date: {s:?}"));
     }
-    let epoch = Epoch::parse(s).map_err(|_| format!("日付ではありません: {s:?}"))?;
+    let epoch = Epoch::parse(s).map_err(|_| format!("not a date: {s:?}"))?;
     Ok(epoch.day_number_and_seconds().0)
 }
 
@@ -131,6 +131,6 @@ fn qualifier(s: &str) -> Result<FluxQualifier, String> {
         "INT" => Ok(FluxQualifier::Interpolated),
         "PRD" => Ok(FluxQualifier::DailyPredicted),
         "PRM" => Ok(FluxQualifier::MonthlyPredicted),
-        _ => Err(format!("F10.7_DATA_TYPE が分かりません: {s:?}")),
+        _ => Err(format!("unknown F10.7_DATA_TYPE: {s:?}")),
     }
 }

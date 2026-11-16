@@ -113,7 +113,7 @@ fn energy_balance_shows_dod_per_case_against_the_limit() {
     // 判定と同じ運用の値: DOWNLINK は最長継続時間で評価した 15.1 %（連続なら 100 %）
     let downlink = bars.iter().find(|b| b.key == "DOWNLINK").unwrap();
     assert_eq!(downlink.value.as_ref().unwrap().display, "15.1 %");
-    assert_eq!(downlink.label.label, "ダウンリンク");
+    assert_eq!(downlink.label.label, "Downlink");
 }
 
 #[test]
@@ -121,9 +121,15 @@ fn energy_balance_checks_are_labelled_with_their_case() {
     for (case, scopes) in [
         (
             None,
-            vec!["定常", "撮像", "ダウンリンク", "セーフ", "モードの並び"],
+            vec![
+                "Nominal",
+                "Imaging",
+                "Downlink",
+                "Safe mode",
+                "Mode sequence",
+            ],
         ),
-        (Some("hot_imaging"), vec!["撮像", "モードの並び"]),
+        (Some("hot_imaging"), vec!["Imaging", "Mode sequence"]),
     ] {
         let page = page(case);
         let groups = &of(&page, "power.energy_balance").checks;

@@ -98,7 +98,7 @@ pub(super) fn attr_value(ws: &Workspace, attr: &str, slot: AttrSlot, t: &SetText
     let def = snapshot
         .design
         .attribute(attr)
-        .ok_or_else(|| ServiceError::not_found("属性定義", attr))?;
+        .ok_or_else(|| ServiceError::not_found("attribute definition", attr))?;
     let value_type = match slot {
         AttrSlot::StateCell => ValueType::Scalar,
         AttrSlot::Whole => def.value_type,
@@ -124,7 +124,7 @@ fn with_bounds(mut s: Scalar, t: &SetText) -> Result<Scalar> {
         let (v, unit) = parse_number_unit(text).map_err(invalid)?;
         if !unit.is_empty() && unit != s.unit {
             return Err(invalid(format!(
-                "--min / --max の単位は値と同じ {} にしてください",
+                "The unit of --min / --max must be the same as the value: {}",
                 s.unit
             )));
         }
@@ -147,7 +147,7 @@ fn field_value(field: &str, text: Option<&str>) -> Result<PartField> {
             Some(t) => t
                 .trim()
                 .parse()
-                .map_err(|_| invalid(format!("員数は整数で書きます: {t}")))?,
+                .map_err(|_| invalid(format!("Count must be an integer: {t}")))?,
             None => 1,
         }),
         PartFieldName::Redundancy => {
@@ -164,7 +164,7 @@ fn field_value(field: &str, text: Option<&str>) -> Result<PartField> {
 pub fn maturity(text: &str) -> Result<Maturity> {
     text.parse().map_err(|_| {
         invalid(format!(
-            "成熟度は off_the_shelf / modified / new です: {text}"
+            "Maturity must be off_the_shelf / modified / new: {text}"
         ))
     })
 }
@@ -202,7 +202,7 @@ fn attitude_field_type(path: &SettingPath) -> Option<SettingValue> {
 pub fn vector_from_text(text: &str) -> Result<Vector3> {
     match value_from_text(text, ValueType::Vec3).map_err(invalid)? {
         Value::Vec3(v) => Ok(v),
-        _ => Err(invalid(format!("ベクトルとして読めません: {text}"))),
+        _ => Err(invalid(format!("Cannot read as a vector: {text}"))),
     }
 }
 
@@ -210,7 +210,7 @@ pub fn vector_from_text(text: &str) -> Result<Vector3> {
 pub fn quaternion_from_text(text: &str) -> Result<Quaternion> {
     match value_from_text(text, ValueType::Quat).map_err(invalid)? {
         Value::Quat(q) => Ok(q),
-        _ => Err(invalid(format!("クォータニオンとして読めません: {text}"))),
+        _ => Err(invalid(format!("Cannot read as a quaternion: {text}"))),
     }
 }
 
@@ -243,7 +243,11 @@ pub fn pair_from_text(text: &str) -> Option<(String, String)> {
 
 /// 図の上の位置・大きさ（`"420,120"`、整数の X,Y）。`fune view set --pos|--size`・`fune view edge-set --points` の 1 点。
 pub fn xy_from_text(text: &str) -> Result<(i32, i32)> {
-    let bad = || invalid(format!("X,Y の整数の組で書きます（例: 420,120）: {text}"));
+    let bad = || {
+        invalid(format!(
+            "Give a pair of integers X,Y (for example 420,120): {text}"
+        ))
+    };
     let (x, y) = text.split_once(',').ok_or_else(bad)?;
     Ok((
         x.trim().parse().map_err(|_| bad())?,
@@ -262,7 +266,7 @@ pub fn points_from_text(text: &str) -> Result<Vec<[i32; 2]>> {
 pub fn net_kind(text: &str) -> Result<NetKind> {
     text.trim()
         .parse()
-        .map_err(|_| invalid(format!("ネットの種類は power / data / rf です: {text}")))
+        .map_err(|_| invalid(format!("Net kind must be power / data / rf: {text}")))
 }
 
 /// 書いた旗・欄の文字列（前後の空白を除く）。省略か空なら None（GUI の空の欄は CLI で旗を書かないのと同じ）。
@@ -276,7 +280,11 @@ pub(super) fn fraction_from_text(text: &str) -> Result<f64> {
         .parse::<f64>()
         .ok()
         .filter(|f| f.is_finite())
-        .ok_or_else(|| invalid(format!("時間割合は数（0〜1）で書きます: {text}")))
+        .ok_or_else(|| {
+            invalid(format!(
+                "Duty fraction must be a number from 0 to 1: {text}"
+            ))
+        })
 }
 
 #[cfg(test)]
@@ -292,7 +300,7 @@ mod tests {
         );
         assert_eq!(field_value("count", None).unwrap(), PartField::Count(1));
         let e = field_value("count", Some("1.5")).unwrap_err().to_string();
-        assert!(e.contains("員数は整数"), "{e}");
+        assert!(e.contains("Count must be an integer"), "{e}");
         assert_eq!(
             field_value("candidates", Some(" local/a, local/b ,")).unwrap(),
             PartField::Candidates(vec!["local/a".into(), "local/b".into()])

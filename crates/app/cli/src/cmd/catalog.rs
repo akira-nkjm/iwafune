@@ -1,8 +1,8 @@
 //! `fune catalog ls|show`（カタログ品を読む）と `fune catalog fetch|update`（共有カタログの取得と更新）。
-//! 編集は `records::catalog`。
+//! 編集は `records::catalog`。編集のあとの案内（`fune catalog source add|rm` の次にすること）は [`after_edit`]。
 
 use super::common::Handled;
-use crate::args::CatalogCmd;
+use crate::args::{CatalogCmd, CatalogSourceCmd, EditOpts};
 use crate::output::{C, Out};
 use fune_service::dto::{
     CatalogFetchRequest, CatalogItemChangeKind, CatalogSyncResult, CatalogUpdateRequest,
@@ -36,7 +36,7 @@ pub fn read(ws: &Workspace, cmd: &CatalogCmd, out: &Out) -> Handled {
             return Ok(Some(0));
         }
         out.heading(&item.id);
-        let mut t = out.table(&["属性", "値"]);
+        let mut t = out.table(&["Attribute", "Value"]);
         for (attr, v) in &item.values {
             let value = super::common::value_text(v.display.as_deref());
             t.row(vec![C::Text(attr.clone()), C::Text(value)]);
@@ -53,7 +53,7 @@ pub fn read(ws: &Workspace, cmd: &CatalogCmd, out: &Out) -> Handled {
         return Ok(Some(0));
     }
     let mut t = out
-        .table(&["ID", "種別", "名前", "型番", "属性"])
+        .table(&["ID", "Kind", "Name", "Model", "Attributes"])
         .numeric(&[4]);
     for i in &items {
         t.row(vec![
@@ -74,17 +74,14 @@ fn show_sync(r: &CatalogSyncResult, out: &Out) -> anyhow::Result<()> {
         return out.json(r);
     }
     if r.catalogs.is_empty() {
-        println!(
-            "{}",
-            out.dim("共有カタログ（[[catalog]] git = …）はありません")
-        );
+        println!("{}", out.dim("No shared catalogs ([[catalog]] git = …)"));
         return Ok(());
     }
     let short = |c: &str| c.get(..SHORT_COMMIT).unwrap_or(c).to_owned();
-    let mut t = out.table(&["カタログ", "git", "rev", "commit", "前の commit"]);
+    let mut t = out.table(&["Catalog", "git", "rev", "commit", "Previous commit"]);
     for c in &r.catalogs {
         let previous = match c.previous.as_deref() {
-            Some(p) if p == c.commit => C::Dim("（同じ）".into()),
+            Some(p) if p == c.commit => C::Dim("(same)".into()),
             Some(p) => C::Text(short(p)),
             None => C::Dim("—".into()),
         };
@@ -110,9 +107,31 @@ fn show_sync(r: &CatalogSyncResult, out: &Out) -> anyhow::Result<()> {
         }
     }
     if r.lock_changed {
-        out.ok("catalog.lock を書き換えました（コミットしてください）");
+        out.ok("Rewrote catalog.lock (commit it)");
     } else {
-        out.ok("catalog.lock は変わりません");
+        out.ok("catalog.lock is unchanged");
     }
     Ok(())
+}
+
+/// 共有カタログを足した・外したあとの案内（足すだけでは取得しない。外しても lock の記録は次の fetch まで残る）。
+/// `--json` と `--dry-run` では出さない。
+pub fn after_edit(cmd: &CatalogCmd, opts: &EditOpts, out: &Out) {
+    let CatalogCmd::Source(source) = cmd else {
+        return;
+    };
+    if out.json || opts.dry_run {
+        return;
+    }
+    let text = match source {
+        CatalogSourceCmd::Add { name, .. } => format!(
+            "Added shared catalog `{name}` to fune.toml (not fetched yet). Run `fune catalog fetch`, then commit catalog.lock"
+        ),
+        CatalogSourceCmd::Rm { name, .. } => {
+            format!(
+                "Any `{name}` entry in catalog.lock is dropped by the next `fune catalog fetch`"
+            )
+        }
+    };
+    println!("{}", out.dim(text));
 }

@@ -97,7 +97,7 @@ pub fn rcs_unload(
     let cases: Vec<(String, Vec3)> = match direction {
         Some(d) => {
             let h = d.normalized().ok_or_else(|| {
-                AnalysisError::InvalidInput("角運動量の向きがゼロベクトルです".to_owned())
+                AnalysisError::InvalidInput("Momentum direction is a zero vector".to_owned())
             })?;
             vec![("given".to_owned(), h)]
         }
@@ -123,7 +123,7 @@ pub fn rcs_unload(
         .iter()
         .max_by(|a, b| key(a).total_cmp(&key(b)))
         .cloned()
-        .ok_or_else(|| AnalysisError::InvalidInput("評価する方向がありません".to_owned()))?;
+        .ok_or_else(|| AnalysisError::InvalidInput("No directions to evaluate".to_owned()))?;
     Ok(UnloadTimeRcs {
         directions,
         worst,

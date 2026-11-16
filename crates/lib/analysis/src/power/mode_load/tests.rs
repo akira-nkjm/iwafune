@@ -40,7 +40,7 @@ fn input() -> ModeLoadInput {
         ],
         modes: vec![ModeDef {
             id: "NOMINAL".to_owned(),
-            label: "通常".to_owned(),
+            label: "Nominal".to_owned(),
             assignments: vec![
                 assign("OBC", "on", &[]),
                 assign("TRX", "rx", &[("tx", 0.1)]),

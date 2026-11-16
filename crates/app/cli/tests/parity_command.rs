@@ -37,8 +37,10 @@ fn gui_net_field_edits_match_cli() {
         ),
         // いくつかの旗（宣言の順に 1 フィールド 1 つの Op）
         (
-            vec!["net", "set", "P5V", "--limit", "1.5 A", "--label", "5 V 系"],
-            json!({ "command": "net_set", "net": "P5V", "label": "5 V 系", "limit": "1.5 A" }),
+            vec![
+                "net", "set", "P5V", "--limit", "1.5 A", "--label", "5 V rail",
+            ],
+            json!({ "command": "net_set", "net": "P5V", "label": "5 V rail", "limit": "1.5 A" }),
         ),
         (
             vec!["net", "unset", "P12V", "limit"],
@@ -181,14 +183,14 @@ fn gui_definitions_match_cli() {
                 "add",
                 "tank_pressure",
                 "--label",
-                "タンク圧",
+                "Tank pressure",
                 "--dimension",
                 "Pressure",
                 "--units",
                 "Pa,kPa",
                 "--by-state",
             ],
-            json!({ "command": "attr_add", "id": "tank_pressure", "label": "タンク圧",
+            json!({ "command": "attr_add", "id": "tank_pressure", "label": "Tank pressure",
                 "dimension": "Pressure", "units": ["Pa", "kPa"], "by_state": true }),
         ),
         (

@@ -7,23 +7,23 @@ use clap::{Args, Subcommand};
 /// `fune set`
 #[derive(Debug, Args)]
 pub struct SetArgs {
-    /// パス（`RW_X.mass`・`RW_X.power.on`・`RW_X.label`・`analysis.power.dod_max`）
+    /// Path (`RW_X.mass`, `RW_X.power.on`, `RW_X.label`, `analysis.power.dod_max`)
     pub path: String,
-    /// 値（例: `"620 g"`・`"-20 .. 60 degC"`・`"0 0 1"`）
+    /// Value (e.g. `"620 g"`, `"-20 .. 60 degC"`, `"0 0 1"`)
     #[arg(allow_hyphen_values = true)]
     pub value: String,
-    /// 出典 ID（sources/）
+    /// Source ID (sources/)
     #[arg(long)]
     pub source: Option<String>,
-    /// 資料の中の位置（例: `"p.12 表 3"`）
+    /// Location in the document (e.g. `"p.12 table 3"`)
     #[arg(long)]
     pub at: Option<String>,
     #[arg(long)]
     pub note: Option<String>,
-    /// 不確かさの下限（例: `"1 W"`）
+    /// Lower bound of the uncertainty (e.g. `"1 W"`)
     #[arg(long, allow_hyphen_values = true)]
     pub min: Option<String>,
-    /// 不確かさの上限
+    /// Upper bound of the uncertainty
     #[arg(long, allow_hyphen_values = true)]
     pub max: Option<String>,
     #[command(flatten)]
@@ -33,47 +33,47 @@ pub struct SetArgs {
 /// `fune part …`
 #[derive(Debug, Subcommand)]
 pub enum PartCmd {
-    /// 部品の一覧
+    /// List parts
     Ls {
         #[arg(long)]
         group: Option<String>,
         #[arg(long)]
         kind: Option<String>,
     },
-    /// 1 部品の全情報
+    /// Show everything about one part
     Show {
         id: String,
-        /// 保存していない編集（Op の配列の JSON ファイル、`-` で標準入力）を書き込まずに当てて表示する
+        /// Apply unsaved edits (a JSON file of Ops, or `-` for stdin) without writing, then show
         #[arg(long)]
         ops: Option<std::path::PathBuf>,
     },
-    /// 部品を追加する（`--catalog` か `--kind`）
+    /// Add a part (`--catalog` or `--kind`)
     Add {
         id: String,
         #[arg(long)]
         catalog: Option<String>,
         #[arg(long)]
         kind: Option<String>,
-        /// 置く系（または組立品）。無ければ parts/ の直下
+        /// Subsystem (or assembly) to place it in; directly under parts/ if omitted
         #[arg(long)]
         group: Option<String>,
         #[arg(long)]
         count: Option<u32>,
         #[arg(long)]
         label: Option<String>,
-        /// 各モードに足す行の状態（既定は off）
+        /// State of the row added to each mode (default off)
         #[arg(long)]
         mode_state: Option<String>,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 部品を消す
+    /// Remove a part
     Rm {
         id: String,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 部品を別の系・組立品に移す（`--root` で parts/ の直下）
+    /// Move a part to another subsystem or assembly (`--root` for directly under parts/)
     Mv {
         id: String,
         #[arg(required_unless_present = "root")]
@@ -83,23 +83,23 @@ pub enum PartCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 部品の名前を変える（参照も書き換える）
+    /// Rename a part (references are rewritten too)
     Rename {
         id: String,
         to: String,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 入れ子のフォルダの名前を変える（図の配置の参照も書き換える。最上位は系 ID のみ）
+    /// Rename a nested folder (diagram layout references are rewritten too; at the top level, subsystem IDs only)
     RenameGroup {
         id: String,
         to: String,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 取付先と相対位置・姿勢を決める
+    /// Set the mount target and the relative position and attitude
     Place(PlaceArgs),
-    /// 取付点（ほかの部品を付ける点）を書く・消す
+    /// Write or remove a mount point (where other parts attach)
     Point(super::records::PointArgs),
 }
 
@@ -107,29 +107,29 @@ pub enum PartCmd {
 #[derive(Debug, Args)]
 pub struct PlaceArgs {
     pub id: String,
-    /// 取付先の部品
+    /// Part to mount on
     #[arg(long, required_unless_present_any = ["root", "body_pos"])]
     pub on: Option<String>,
-    /// 取付点
+    /// Mount point
     #[arg(long)]
     pub point: Option<String>,
-    /// 取付を外して機体の根にする
+    /// Unmount and make the part a root of the vehicle
     #[arg(long, conflicts_with_all = ["on", "point"])]
     pub root: bool,
-    /// 位置（例: `"0 0 12 mm"`）
+    /// Position (e.g. `"0 0 12 mm"`)
     #[arg(long, allow_hyphen_values = true)]
     pub position: Option<String>,
-    /// 姿勢のクォータニオン（`"1 0 0 0"`、w x y z）
+    /// Attitude quaternion (`"1 0 0 0"`, w x y z)
     #[arg(long, allow_hyphen_values = true)]
     pub orientation: Option<String>,
-    /// 姿勢の X・Y・Z 軸まわりの回転角（例: `"0 90 0 deg"`。取付点の座標軸のまわりに X → Y → Z の順に回す）。
-    /// ファイルには四元数で書く。`--orientation` とは一緒に使えない
+    /// Attitude as rotation angles about the X, Y and Z axes (e.g. `"0 90 0 deg"`; applied about the mount point's axes in the order X, Y, Z).
+    /// Written to the file as a quaternion. Cannot be combined with `--orientation`
     #[arg(long, allow_hyphen_values = true, conflicts_with = "orientation")]
     pub rotation: Option<String>,
-    /// 機体座標での位置（例: `"30 0 -100 mm"`）。取付先・取付点はそのままで、相対位置・姿勢に直して書く
+    /// Position in vehicle coordinates (e.g. `"30 0 -100 mm"`); the mount target and point stay as they are, and the result is written as a relative position and attitude
     #[arg(long, allow_hyphen_values = true, conflicts_with_all = ["on", "point", "root", "position", "orientation", "rotation"])]
     pub body_pos: Option<String>,
-    /// 機体座標での姿勢（部品 → 機体、`"w x y z"`）。`--body-pos` と使う
+    /// Attitude in vehicle coordinates (part to vehicle, `"w x y z"`); use with `--body-pos`
     #[arg(long, allow_hyphen_values = true, requires = "body_pos")]
     pub body_rot: Option<String>,
     #[command(flatten)]
@@ -139,11 +139,11 @@ pub struct PlaceArgs {
 /// `fune mode …`
 #[derive(Debug, Subcommand)]
 pub enum ModeCmd {
-    /// モードの一覧
+    /// List modes
     Ls,
-    /// 部品 × モードの表
+    /// Table of parts by mode
     Table,
-    /// モードを足す（`--from` でほかのモードの表を写す）
+    /// Add a mode (`--from` copies the table of another mode)
     Add {
         id: String,
         #[arg(long)]
@@ -155,20 +155,20 @@ pub enum ModeCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// モードを消す
+    /// Remove a mode
     Rm {
         id: String,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// モードの名前を変える
+    /// Rename a mode
     Rename {
         id: String,
         to: String,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// モードの表示順を変える
+    /// Change the display order of a mode
     Move {
         id: String,
         #[arg(long, group = "mode_position")]
@@ -182,7 +182,7 @@ pub enum ModeCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// モードの最長継続時間を書く（例: `fune mode duration NOMINAL --max-duration "90 min"`。旗を省くと消す）
+    /// Write the maximum duration of a mode (e.g. `fune mode duration NOMINAL --max-duration "90 min"`; omit the flag to remove it)
     Duration {
         mode: String,
         #[arg(long)]
@@ -190,12 +190,12 @@ pub enum ModeCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// モードでの部品の状態を決める（例: `fune mode set NOMINAL TRX rx --duty tx=0.1`）
+    /// Set the state of a part in a mode (e.g. `fune mode set NOMINAL TRX rx --duty tx=0.1`)
     Set {
         mode: String,
         part: String,
         state: String,
-        /// ほかの状態の時間割合（`状態=割合`、カンマ区切り）
+        /// Time fractions of the other states (`state=fraction`, comma-separated)
         #[arg(long)]
         duty: Option<String>,
         #[arg(long)]
@@ -207,7 +207,7 @@ pub enum ModeCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// モードの表から部品の行を消す
+    /// Remove a part's row from the mode table
     Unset {
         mode: String,
         part: String,
@@ -218,7 +218,7 @@ pub enum ModeCmd {
     },
 }
 
-/// `fune net add|set` の引数。
+/// Arguments of `fune net add|set`.
 #[derive(Debug, Args)]
 pub struct NetArgs {
     pub id: String,
@@ -227,28 +227,28 @@ pub struct NetArgs {
     pub kind: String,
     #[arg(long)]
     pub label: Option<String>,
-    /// 供給元のポート（`PCDU.OUT3`）
+    /// Source port (`PCDU.OUT3`)
     #[arg(long)]
     pub source: Option<String>,
-    /// レール電圧（例: `"12 V"`）
+    /// Rail voltage (e.g. `"12 V"`)
     #[arg(long)]
     pub rail: Option<String>,
-    /// 電流制限（例: `"2 A"`）
+    /// Current limit (e.g. `"2 A"`)
     #[arg(long)]
     pub limit: Option<String>,
     #[arg(long)]
     pub protocol: Option<String>,
-    /// ビットレート（例: `"1 Mbit/s"`）
+    /// Bit rate (e.g. `"1 Mbit/s"`)
     #[arg(long)]
     pub bitrate: Option<String>,
-    /// バスのマスター（`OBC.CAN1`）
+    /// Bus master (`OBC.CAN1`)
     #[arg(long)]
     pub master: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }
 
-/// `fune net set` の引数（指定した旗ごとに 1 つ書く）。
+/// Arguments of `fune net set` (one per flag given).
 #[derive(Debug, Args)]
 pub struct NetSetArgs {
     pub id: String,
@@ -276,36 +276,36 @@ pub struct NetSetArgs {
 /// `fune net …`
 #[derive(Debug, Subcommand)]
 pub enum NetCmd {
-    /// ネットの一覧
+    /// List nets
     Ls,
-    /// ネットを足す
+    /// Add a net
     Add(NetArgs),
-    /// ネットのフィールドを書く（指定した旗だけ。例: `fune net set P5V --rail "5.1 V"`）
+    /// Write net fields (only the flags given; e.g. `fune net set P5V --rail "5.1 V"`)
     Set(NetSetArgs),
-    /// ネットのフィールドを消す（例: `fune net unset P5V limit`）
+    /// Remove net fields (e.g. `fune net unset P5V limit`)
     Unset {
         id: String,
-        /// label・source・rail・limit・protocol・bitrate・master
+        /// label, source, rail, limit, protocol, bitrate, master
         field: String,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// ネットの性質を丸ごと置き換える（書かなかった旗は消える）
+    /// Replace the properties of a net entirely (flags not given are removed)
     Replace(NetArgs),
-    /// ネットを消す
+    /// Remove a net
     Rm {
         id: String,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 部品のポートをネットにつなぐ（例: `fune net connect RW_X.PWR P12V_AOCS`）
+    /// Connect a part's port to a net (e.g. `fune net connect RW_X.PWR P12V_AOCS`)
     Connect {
         port: String,
         net: String,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 部品のポートをネットから外す
+    /// Disconnect a part's port from a net
     Disconnect {
         port: String,
         #[command(flatten)]
@@ -316,9 +316,9 @@ pub enum NetCmd {
 /// `fune setting …`
 #[derive(Debug, Subcommand)]
 pub enum SettingCmd {
-    /// 設定の一覧
+    /// List settings
     Ls,
-    /// 設定を変える（例: `fune setting set analysis.power.dod_max 0.3`）
+    /// Change a setting (e.g. `fune setting set analysis.power.dod_max 0.3`)
     Set {
         key: String,
         #[arg(allow_hyphen_values = true)]
@@ -326,7 +326,7 @@ pub enum SettingCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 設定を消す
+    /// Remove a setting
     Unset {
         key: String,
         #[command(flatten)]
@@ -334,61 +334,61 @@ pub enum SettingCmd {
     },
 }
 
-/// `fune view …`（系統図などの配置。見た目だけ）
+/// `fune view ...` (layout of the system diagram and the like; appearance only)
 #[derive(Debug, Subcommand)]
 pub enum ViewCmd {
-    /// 線の経路を手で決める（例: `fune view edge-set electrical "P5V:PCDU.OUT2>CAM.PWR" --points "100,80 400,80 400,200"`）
+    /// Set the route of a line by hand (e.g. `fune view edge-set electrical "P5V:PCDU.OUT2>CAM.PWR" --points "100,80 400,80 400,200"`)
     EdgeSet {
         view: String,
-        /// 線を指すキー（`ネット:始点の端子>終点の端子`。docs/model.md §10.4）
+        /// Key that identifies the line (`net:start port>end port`; docs/model.md §10.4)
         key: String,
-        /// 折れ線の点（`x,y` を空白で区切る。隣り合う点は水平か垂直）
+        /// Polyline points (`x,y` separated by spaces; adjacent points must be horizontal or vertical)
         #[arg(long, allow_hyphen_values = true)]
         points: String,
-        /// 始点の端子を出す側（left / right / top / bottom）
+        /// Side the start port leaves from (left / right / top / bottom)
         #[arg(long)]
         source_side: Option<fune_service::dto::ViewPortSide>,
-        /// 終点の端子を出す側
+        /// Side the end port leaves from
         #[arg(long)]
         target_side: Option<fune_service::dto::ViewPortSide>,
-        /// 始点の端子の位置（その側の左か上の角からの距離 [px]。省略なら端子の並びで決まる位置）
+        /// Position of the start port (distance in px from the left or top corner of that side; if omitted, set by the port order)
         #[arg(long)]
         source_offset: Option<i32>,
-        /// 終点の端子の位置
+        /// Position of the end port
         #[arg(long)]
         target_offset: Option<i32>,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 線の経路を自動配置に戻す
+    /// Reset the route of a line to automatic layout
     EdgeReset {
         view: String,
         key: String,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 図の手で決めた位置と線の経路をすべて消し、自動配置に戻す
+    /// Remove all hand-set positions and line routes of a diagram and return to automatic layout
     Reset {
         view: String,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 図のノードの位置の一覧
+    /// List node positions of a diagram
     Ls { view: String },
-    /// ノードの位置（と大きさ）を決める（例: `fune view set electrical RW_X --pos 420,120`）
+    /// Set the position (and size) of a node (e.g. `fune view set electrical RW_X --pos 420,120`)
     Set {
         view: String,
         id: String,
-        /// 位置 `X,Y`（整数）
+        /// Position `X,Y` (integers)
         #[arg(long, allow_hyphen_values = true)]
         pos: String,
-        /// 大きさ `W,H`（整数）
+        /// Size `W,H` (integers)
         #[arg(long)]
         size: Option<String>,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// ノードを図から消す
+    /// Remove a node from the diagram
     Rm {
         view: String,
         id: String,

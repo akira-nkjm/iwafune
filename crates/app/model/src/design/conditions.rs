@@ -23,7 +23,7 @@ enum_text! {
     /// 軌道の伝搬方法。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
     #[ts(rename = "OrbitPropagatorKind")]
-    pub enum PropagatorKind: "軌道の伝搬方法" {
+    pub enum PropagatorKind: "orbit propagation method" {
         Kepler = "kepler",
         J2 = "j2",
         Numerical = "numerical",
@@ -34,7 +34,7 @@ enum_text! {
     /// 軌道の中心天体（`sat_astro::ephem::CentralBody` に射影する。μ・半径・環境の値は sat-astro と解析が持つ）。
     /// マヌーバの目標の天体（`target.body`）にも使う。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
-    pub enum CentralBodyKind: "中心天体" {
+    pub enum CentralBodyKind: "central body" {
         Earth = "earth",
         Moon = "moon",
         Sun = "sun",
@@ -205,7 +205,7 @@ pub struct LaunchSettings {
 enum_text! {
     /// 前提条件の解析の話題。解析ライブラリとの綴りは projection で照合する。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-    pub enum ConditionTopic: "前提条件の話題" {
+    pub enum ConditionTopic: "condition topic" {
         Orbit = "orbit",
     }
 }

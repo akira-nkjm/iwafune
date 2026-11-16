@@ -33,7 +33,7 @@ pub fn cache_dir() -> Result<PathBuf> {
         .map(|h| PathBuf::from(h).join(".cache/iwafune/data"))
         .ok_or_else(|| {
             ServiceError::Data(
-                "キャッシュの場所が決められません（HOME も XDG_CACHE_HOME も無い）".into(),
+                "Cannot decide the cache location (neither HOME nor XDG_CACHE_HOME is set)".into(),
             )
         })
 }
@@ -56,7 +56,7 @@ pub fn fetch(id: &str) -> Result<DataStatus> {
     let run: fn(&Path, &Path) -> Result<()> = match id {
         _ if id == de440::DE440.id => de440::fetch,
         space_weather::ID => space_weather::fetch,
-        _ => return Err(ServiceError::not_found("データ", id)),
+        _ => return Err(ServiceError::not_found("data", id)),
     };
     std::fs::create_dir_all(&dir).map_err(|e| io_error(&dir, e))?;
     let tmp = dir.join(format!(".download-{}", std::process::id()));
@@ -67,12 +67,12 @@ pub fn fetch(id: &str) -> Result<DataStatus> {
     data_status()
 }
 
-fn sha256_file(path: &Path) -> Result<String> {
+pub(crate) fn sha256_file(path: &Path) -> Result<String> {
     let bytes = std::fs::read(path).map_err(|e| io_error(path, e))?;
     Ok(sha256_hex(&bytes))
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     digest.iter().map(|b| format!("{b:02x}")).collect()
 }

@@ -21,7 +21,7 @@ pub fn qty<D: Dimension>(
     match si::<D>(q) {
         Ok(v) => Some(v),
         Err(e) => {
-            m.push(target, format!("{reason}（{e}）"));
+            m.push(target, format!("{reason} ({e})"));
             None
         }
     }
@@ -100,7 +100,7 @@ pub fn vec_si(
     match (conv(v.x), conv(v.y), conv(v.z)) {
         (Ok(x), Ok(y), Ok(z)) => Some(sat_astro::math::Vec3::new(x, y, z)),
         _ => {
-            m.push(target, format!("単位 `{unit}` を解釈できません"));
+            m.push(target, format!("Cannot parse unit `{unit}`"));
             None
         }
     }

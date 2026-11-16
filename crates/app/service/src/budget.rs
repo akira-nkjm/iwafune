@@ -348,7 +348,7 @@ fn header(design: &Design, kind: BudgetKind, case: Option<String>) -> BudgetView
     let label = fune_model::builtin::enum_label("budget_kind", &key);
     let mut notes = Vec::new();
     if design.budget.allocation.get(kind).is_none() {
-        notes.push(format!("budget/allocation.toml に [{key}] がありません"));
+        notes.push(format!("budget/allocation.toml has no [{key}]"));
     }
     BudgetView {
         kind,

@@ -1,4 +1,4 @@
-label    = "電気推進スラスタ（デモ）"
+label    = "Electric propulsion thruster (demo)"
 kind     = "propulsion_thruster"
 maturity = "modified"
 

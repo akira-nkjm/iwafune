@@ -138,7 +138,7 @@ impl RfLinkParams {
             || finite.iter().any(|v| !v.is_finite())
         {
             return Err(AnalysisError::InvalidInput(format!(
-                "{what}: 周波数・送信電力・雑音温度は正、利得と損失は有限の値にしてください"
+                "{what}: frequency, transmit power and noise temperature must be positive; gain and loss must be finite"
             )));
         }
         Ok(())

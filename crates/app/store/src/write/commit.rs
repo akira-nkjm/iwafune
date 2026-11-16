@@ -49,12 +49,12 @@ pub fn commit(root: &Path, changes: &[FileChange]) -> Result<(), StoreError> {
                 cleanup(&backups);
             }
             return Err(fail(format!(
-                "{} を反映できませんでした: {error}（{}）",
+                "Could not apply {}: {error} ({})",
                 target.display(),
                 if restored {
-                    "変更前に戻しました"
+                    "rolled back to the previous state"
                 } else {
-                    "戻せませんでした。.*.bak から戻してください"
+                    "could not roll back; restore from the .*.bak files"
                 }
             )));
         }
@@ -79,7 +79,7 @@ fn prepare(changes: &[FileChange], targets: &[PathBuf]) -> Result<Vec<PathBuf>, 
         if let Err(error) = written {
             cleanup(&tmps);
             let _ = fs::remove_file(&tmp);
-            return Err(fail(format!("{} を書けません: {error}", tmp.display())));
+            return Err(fail(format!("Cannot write {}: {error}", tmp.display())));
         }
         tmps.push(tmp);
     }
@@ -97,7 +97,7 @@ fn back_up(targets: &[PathBuf]) -> Result<Vec<PathBuf>, StoreError> {
         if let Err(error) = fs::copy(target, &backup) {
             cleanup(&backups);
             return Err(fail(format!(
-                "{} を退避できません: {error}",
+                "Cannot back up {}: {error}",
                 target.display()
             )));
         }

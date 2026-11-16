@@ -42,7 +42,7 @@ fn check_rule(
 ) {
     if text.contains(needle) && !allowed.iter().any(|a| is_allowed(rel, a)) {
         errors.push(format!(
-            "{rel}: `{needle}` が見つかりました。{what}は {} だけに置きます（registry.md）",
+            "{rel}: found `{needle}`; {what} is defined only in {} (registry.md)",
             allowed.join(", ")
         ));
     }

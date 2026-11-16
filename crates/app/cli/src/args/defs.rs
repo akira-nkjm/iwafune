@@ -4,17 +4,17 @@
 use super::EditOpts;
 use clap::{Args, Subcommand};
 
-/// `fune attr …`（引数の構造体なので、列挙の大きさの差は気にしない）
+/// `fune attr ...` (an argument struct, so the size difference between variants does not matter)
 #[derive(Debug, Subcommand)]
 #[allow(clippy::large_enum_variant)]
 pub enum AttrCmd {
-    /// 属性定義の一覧
+    /// List attribute definitions
     Ls,
-    /// 属性定義を足す（次元と許可単位を検査する）
+    /// Add an attribute definition (checks the dimension and allowed units)
     Add(AttrAddArgs),
-    /// 属性定義を丸ごと置き換える（旗は `add` と同じ。プロジェクト独自の定義だけ）
+    /// Replace an attribute definition entirely (same flags as `add`; project-specific definitions only)
     Replace(AttrAddArgs),
-    /// 属性定義を消す（種別が挙げているか、部品・カタログ品が値を書いていれば拒む）
+    /// Remove an attribute definition (refused if a kind lists it or a part or catalog item has a value for it)
     Rm {
         id: String,
         #[command(flatten)]
@@ -28,60 +28,60 @@ pub struct AttrAddArgs {
     pub id: String,
     #[arg(long)]
     pub label: Option<String>,
-    /// 英語の表示名
+    /// English display name
     #[arg(long)]
     pub label_en: Option<String>,
     #[arg(long)]
     pub description: Option<String>,
-    /// 値の型（scalar・vec3・quat・tensor3・enum・bool・text・range・table。既定 scalar）
+    /// Value type (scalar, vec3, quat, tensor3, enum, bool, text, range, table; default scalar)
     #[arg(long = "type", default_value = "scalar")]
     pub value_type: String,
-    /// 状態ごとに値を持つか
+    /// Whether the value is held per state
     #[arg(long)]
     pub by_state: bool,
     #[arg(long)]
     pub dimension: Option<String>,
-    /// 許可する単位（カンマ区切り。例: `"A*m^2"`）
+    /// Allowed units (comma-separated; e.g. `"A*m^2"`)
     #[arg(long)]
     pub units: Option<String>,
     #[arg(long)]
     pub display_unit: Option<String>,
-    /// 値域の下限（SI の数値。読むのは service）
+    /// Lower bound of the range (SI number; read by the service)
     #[arg(long, allow_negative_numbers = true)]
     pub min: Option<String>,
-    /// 値域の上限（SI の数値）
+    /// Upper bound of the range (SI number)
     #[arg(long, allow_negative_numbers = true)]
     pub max: Option<String>,
-    /// 既定値（SI の数値）
+    /// Default value (SI number)
     #[arg(long, allow_negative_numbers = true)]
     pub default: Option<String>,
-    /// 列挙の語彙（カンマ区切り）
+    /// Enum vocabulary (comma-separated)
     #[arg(long)]
     pub symbols: Option<String>,
-    /// どのバジェットに入るか（mass / power / data）
+    /// Which budget it belongs to (mass / power / data)
     #[arg(long)]
     pub budget: Option<String>,
-    /// 方向ベクトル（単位ベクトルであるべきもの）
+    /// Direction vector (should be a unit vector)
     #[arg(long)]
     pub unit_vector: bool,
-    /// 画面で並べる系（basic・mass・power・thermal・aocs・comm・cdh・structure）
+    /// Subsystem it is listed under on screen (basic, mass, power, thermal, aocs, comm, cdh, structure)
     #[arg(long)]
     pub section: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }
 
-/// `fune kind …`（引数の構造体なので、列挙の大きさの差は気にしない）
+/// `fune kind ...` (an argument struct, so the size difference between variants does not matter)
 #[derive(Debug, Subcommand)]
 #[allow(clippy::large_enum_variant)]
 pub enum KindCmd {
-    /// 種別定義の一覧
+    /// List kind definitions
     Ls,
-    /// 種別定義を足す
+    /// Add a kind definition
     Add(KindAddArgs),
-    /// 種別定義を丸ごと置き換える（旗は `add` と同じ。プロジェクト独自の定義だけ）
+    /// Replace a kind definition entirely (same flags as `add`; project-specific definitions only)
     Replace(KindAddArgs),
-    /// 種別定義を消す（部品・カタログ品が使っているか、ほかの種別が継承していれば拒む）
+    /// Remove a kind definition (refused if a part or catalog item uses it or another kind inherits it)
     Rm {
         id: String,
         #[command(flatten)]
@@ -95,7 +95,7 @@ pub struct KindAddArgs {
     pub id: String,
     #[arg(long)]
     pub label: Option<String>,
-    /// 英語の表示名
+    /// English display name
     #[arg(long)]
     pub label_en: Option<String>,
     #[arg(long)]
@@ -104,16 +104,16 @@ pub struct KindAddArgs {
     pub extends: Option<String>,
     #[arg(long)]
     pub role: Option<String>,
-    /// 機器の状態（カンマ区切り。例: `"off,on"`）
+    /// Equipment states (comma-separated; e.g. `"off,on"`)
     #[arg(long)]
     pub states: Option<String>,
-    /// 必須の属性（カンマ区切り）
+    /// Required attributes (comma-separated)
     #[arg(long)]
     pub required: Option<String>,
-    /// 任意の属性（カンマ区切り）
+    /// Optional attributes (comma-separated)
     #[arg(long)]
     pub optional: Option<String>,
-    /// ポートの雛形 `名前=power|data|rf`（繰り返し指定できる）
+    /// Port template `name=power|data|rf` (repeatable)
     #[arg(long = "port", value_name = "NAME=KIND")]
     pub ports: Vec<String>,
     #[command(flatten)]

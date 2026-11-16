@@ -5,7 +5,9 @@ use std::path::Path;
 
 fn demo() -> (fune_model::Design, fune_model::Resolved) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u");
-    let design = fune_store::load(&root).expect("デモを読めること").design;
+    let design = fune_store::load(&root)
+        .expect("the demo should load")
+        .design;
     let resolved = fune_model::resolve(&design);
     (design, resolved)
 }

@@ -12,7 +12,7 @@ use ts_rs::TS;
 enum_text! {
     /// 最悪ケースのプリセット（`sat_analysis::thermal::ThermalPreset` に射影する。値は解析が持つ）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-    pub enum ThermalPresetKind: "熱の最悪ケースのプリセット" {
+    pub enum ThermalPresetKind: "thermal worst-case preset" {
         Hot = "hot",
         Cold = "cold",
         SafeMode = "safe_mode",

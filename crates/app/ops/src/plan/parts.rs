@@ -23,7 +23,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         }
         Op::RenameGroup { id, to } => {
             if !design.groups.keys().any(|g| g.as_str() == id) {
-                return Err(OpError::not_found(format!("グループ `{id}`")));
+                return Err(OpError::not_found(format!("Group `{id}`")));
             }
             new_node_id(design, to)?;
             Ok(refs::rename_group(edits, design, id, to)?)
@@ -63,7 +63,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             validate_local_name(point).map_err(|e| OpError::invalid(e.to_string()))?;
             Ok(wpart::set_mount_point(edits, &file, point, pose.as_ref())?)
         }
-        _ => Err(OpError::invalid("部品の Op ではありません")),
+        _ => Err(OpError::invalid("Not a part op")),
     }
 }
 
@@ -79,7 +79,7 @@ fn create_part_op(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpE
         mode_state,
     } = op
     else {
-        return Err(OpError::invalid("CreatePart ではありません"));
+        return Err(OpError::invalid("Not a CreatePart op"));
     };
     let mut part = Part::new(id.as_str());
     part.catalog = catalog.clone();
@@ -99,7 +99,7 @@ fn place_op(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> 
         orientation,
     } = op
     else {
-        return Err(OpError::invalid("Place ではありません"));
+        return Err(OpError::invalid("Not a Place op"));
     };
     let file = existing_file(design, part)?;
     let mount = on.as_ref().map(|on| Mount {
@@ -115,7 +115,7 @@ fn place_op(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> 
 
 /// 部品のファイル（無ければ NotFound）。
 pub(super) fn existing_file(design: &Design, id: &str) -> Result<String, OpError> {
-    layout::part_file(design, id).ok_or_else(|| OpError::not_found(format!("部品 `{id}`")))
+    layout::part_file(design, id).ok_or_else(|| OpError::not_found(format!("Part `{id}`")))
 }
 
 /// 新しいノード（部品・グループ）の ID として使えるか（規則と、大文字小文字を無視した一意性 `id::clash`）。
@@ -199,7 +199,7 @@ fn remove_part(edits: &mut Edits, design: &Design, id: &str) -> Result<(), OpErr
         .collect();
     if !children.is_empty() {
         return Err(OpError::invalid(format!(
-            "部品 `{id}` は子部品（{}）を持つ組立品なので消せません。先に子部品を消すか移してください",
+            "Part `{id}` is an assembly with child parts ({}) and cannot be deleted. Delete or move the children first",
             children.join(", ")
         )));
     }
@@ -222,7 +222,7 @@ fn move_part(
                 .is_some_and(|t| design.ancestors(&t).contains(&node));
         if into_self {
             return Err(OpError::invalid(format!(
-                "部品 `{id}` を自分の下へは移せません"
+                "Cannot move part `{id}` under itself"
             )));
         }
     }
@@ -250,7 +250,7 @@ fn set_value(
     let part = design
         .parts
         .get(part_id)
-        .ok_or_else(|| OpError::not_found(format!("部品 `{part_id}`")))?;
+        .ok_or_else(|| OpError::not_found(format!("Part `{part_id}`")))?;
     let target = AttrTarget {
         file: &file,
         current: part.attr.get(attr).map(|a| &a.value),

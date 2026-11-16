@@ -157,7 +157,7 @@ mod tests {
     #[test]
     fn model_selection_from_eci_position() {
         use crate::earth::{ecef_to_eci, geodetic_to_ecef};
-        let e = Epoch::parse("2027-04-01T12:00:00Z").expect("元期");
+        let e = Epoch::parse("2027-04-01T12:00:00Z").expect("epoch");
         let r = ecef_to_eci(geodetic_to_ecef(0.3, 1.0, 420e3), e);
         let exp = earth_density_kg_m3(&AtmosphereModel::Exponential, r, e);
         assert!((exp / density_exponential_kg_m3(420e3) - 1.0).abs() < 1e-6);

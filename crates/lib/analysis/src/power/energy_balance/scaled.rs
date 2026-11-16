@@ -84,7 +84,7 @@ impl<'a> ScaledBalance<'a> {
     pub fn case(&self, index: usize, scale: f64) -> Result<ScaledJudgement, AnalysisError> {
         let c =
             self.input.cases.get(index).ok_or_else(|| {
-                AnalysisError::InvalidInput(format!("ケース {index} がありません"))
+                AnalysisError::InvalidInput(format!("Case {index} does not exist"))
             })?;
         let main = self.context(&self.main, scale);
         let own = self

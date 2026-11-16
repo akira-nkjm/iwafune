@@ -8,7 +8,7 @@ use sat_analysis::orbit::EclipseSeasonInput;
 use sat_analysis::orbit::decay::OrbitDecayInput;
 use sat_units::typed::{Area, Length, Qty, Time};
 
-/// 軌道・ミッション期間・任意の季節刻み。
+/// 軌道・Mission duration・任意の季節刻み。
 pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let orbit = ctx.orbit(&mut m);
@@ -19,7 +19,7 @@ pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingIn
         &dims::ORBIT_DURATION,
         &[],
         o.and_then(|o| o.duration.as_ref()),
-        "ミッション期間",
+        "Mission duration",
         &mut m,
     );
     let step = setting_opt(
@@ -48,7 +48,7 @@ pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingIn
 }
 
 /// `orbit.decay`: 軌道・機体の質量（部品）・外形（構体の `size`）・抗力係数（`analysis.aocs.drag_coefficient`）・
-/// ミッション期間と `[decay]` の任意の設定。軌道維持の推進系は推進系の解析と同じ入力（`propulsion::maneuvers`。
+/// Mission durationと `[decay]` の任意の設定。軌道維持の推進系は推進系の解析と同じ入力（`propulsion::maneuvers`。
 /// 推進系が無ければ付けず、有れば足りない入力も並べる）。宇宙天気の表から引いた列は service が足す（ここは表を読まない）。
 pub fn decay(ctx: &Context<'_>) -> Result<OrbitDecayInput, MissingInputs> {
     let mut m = MissingInputs::new();
@@ -68,7 +68,7 @@ pub fn decay(ctx: &Context<'_>) -> Result<OrbitDecayInput, MissingInputs> {
             if size.is_none() {
                 m.push(
                     dims::ORBIT_DECAY_DRAG_AREA.at(&[]),
-                    "抗力の面積（または構体の外形 size）",
+                    "Drag area (or body outline size)",
                 );
             }
             size

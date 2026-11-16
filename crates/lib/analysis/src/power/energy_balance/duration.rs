@@ -93,7 +93,7 @@ pub(super) fn apply(
     let (EnergyBalanceLoad::Mode { mode }, Some(d)) = (&case.load, case.max_duration) else {
         return Ok(None);
     };
-    ensure_positive("モードの最長継続時間", d.value())?;
+    ensure_positive("Longest mode duration", d.value())?;
     let Some(base) = base else {
         result.evaluation = EnergyBalanceEvaluation::NoBaseMode;
         return Ok(None);
@@ -107,7 +107,7 @@ pub(super) fn apply(
         return Ok(None);
     };
     let basis = format!(
-        "基本のモード {} の上で最長継続時間 {} だけ続けたとき（開始は周回内の最悪）",
+        "when the base mode {} is sustained on top for the longest duration of {} (worst start within the orbit)",
         base.id,
         quantity_text::<Time>(d.value())
     );

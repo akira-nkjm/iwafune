@@ -7,7 +7,9 @@ use std::path::Path;
 
 fn demo() -> Design {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u");
-    fune_store::load(&root).expect("デモを読めること").design
+    fune_store::load(&root)
+        .expect("the demo should load")
+        .design
 }
 
 #[test]
@@ -23,7 +25,7 @@ fn multiple_root_boxes_are_ambiguous() {
         m.target == Some(Target::any_part("size"))
             && m.reason.contains("BUS_FRAME")
             && m.reason.contains("OTHER_ROOT")
-            && m.reason.contains("曖昧")
+            && m.reason.contains("ambiguous")
     }));
 }
 
@@ -112,7 +114,7 @@ fn thermal_beta_only_overrides_case_beta_when_present() {
         assert!((transient.timeline.sampling.beta.unwrap().value() - expected).abs() < 1e-12);
         for case in thermal::steady(&ctx).unwrap().cases {
             let ThermalExposure::OrbitAverage { timeline } = case.exposure else {
-                panic!("軌道平均の入熱であること");
+                panic!("expected an orbit-averaged heat input");
             };
             assert!((timeline.sampling.beta.unwrap().value() - expected).abs() < 1e-12);
         }

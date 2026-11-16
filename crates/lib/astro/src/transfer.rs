@@ -68,7 +68,7 @@ impl Apsides {
             Ok(())
         } else {
             Err(AstroError::InvalidInput(format!(
-                "軌道の半径は正の有限値にしてください（{} m・{} m）",
+                "Orbit radii must be positive finite values ({} m, {} m)",
                 self.periapsis_m, self.apoapsis_m
             )))
         }
@@ -138,7 +138,7 @@ fn check_mu(mu: f64) -> Result<(), AstroError> {
         Ok(())
     } else {
         Err(AstroError::InvalidInput(format!(
-            "重力定数は正にしてください（{mu}）"
+            "Gravitational parameter must be positive ({mu})"
         )))
     }
 }
@@ -233,7 +233,7 @@ pub fn bi_elliptic(
     to.check()?;
     if !(via_m.is_finite() && via_m >= from.apoapsis_m.max(to.apoapsis_m)) {
         return Err(AstroError::InvalidInput(format!(
-            "バイエリプティック遷移の中間の遠点（{via_m} m）は出発・目標の遠点以上にしてください"
+            "Intermediate apoapsis of the bi-elliptic transfer ({via_m} m) must be at least the departure and target apoapsis"
         )));
     }
     let (r1, r2) = (from.periapsis_m, to.periapsis_m);
@@ -320,7 +320,7 @@ pub fn finite_burn(
 ) -> Result<FiniteBurn, AstroError> {
     let invalid = || {
         AstroError::InvalidInput(format!(
-            "有限燃焼の入力が不正です（ΔV {impulsive_m_s} m/s・推力 {thrust_n} N・排気速度 {exhaust_velocity_m_s} m/s・質量 {initial_mass_kg} kg）"
+            "Invalid finite burn input (delta-v {impulsive_m_s} m/s, thrust {thrust_n} N, exhaust velocity {exhaust_velocity_m_s} m/s, mass {initial_mass_kg} kg)"
         ))
     };
     let mut dv = impulsive_m_s;
@@ -330,7 +330,7 @@ pub fn finite_burn(
         let arc = mean_motion_rad_s * t;
         if !arc.is_finite() || arc > FINITE_BURN_MAX_ARC_RAD {
             return Err(AstroError::InvalidInput(format!(
-                "噴射が軌道の半周を超えます（弧 {:.0}°）。有限燃焼の近似は使えません",
+                "Burn exceeds half an orbit (arc {:.0} deg); the finite burn approximation is not applicable",
                 arc.to_degrees()
             )));
         }
@@ -348,7 +348,7 @@ pub fn finite_burn(
         dv = next;
     }
     Err(AstroError::InvalidInput(
-        "有限燃焼の ΔV が収束しません".to_owned(),
+        "Finite burn delta-v did not converge".to_owned(),
     ))
 }
 

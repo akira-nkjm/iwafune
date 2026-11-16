@@ -9,27 +9,27 @@ use serde_json::json;
 use std::collections::BTreeMap;
 
 pub(in super::super) fn def_ops() -> Vec<Op> {
-    let mut attr: AttributeDef = serde_json::from_value(json!({ "label": "最大双極子", "label_en": "Max dipole",
+    let mut attr: AttributeDef = serde_json::from_value(json!({ "label": "Max dipole label", "label_en": "Max dipole",
         "type": "scalar", "by_state": true, "dimension": "MagneticDipoleMoment", "units": ["A*m^2", "mA*m^2"],
         "display_unit": "A*m^2" })).unwrap();
     attr.id = "max_dipole2".into();
     let mut kind: KindDef = serde_json::from_value(
-        json!({ "label": "線材", "label_en": "Wire", "extends": "component",
+        json!({ "label": "Wire label", "label_en": "Wire", "extends": "component",
         "states": ["off", "on"], "required": ["mass"], "optional": ["power"] }),
     )
     .unwrap();
     kind.id = "wire2".into();
-    let mut full: AttributeDef = serde_json::from_value(json!({ "label": "取付面温度", "label_en": "Interface temperature",
-        "description": "取付面の温度（\"推定\"）", "type": "scalar", "by_state": false, "dimension": "Temperature",
+    let mut full: AttributeDef = serde_json::from_value(json!({ "label": "Interface temperature label", "label_en": "Interface temperature",
+        "description": "Interface temperature (\"estimated\")", "type": "scalar", "by_state": false, "dimension": "Temperature",
         "units": ["degC", "K"], "display_unit": "degC", "min": -40.5, "max": 358.15, "default": 293.15,
         "budget": "power", "unit_vector": true, "section": "thermal" })).unwrap();
     full.id = "if_temp".into();
-    let mut sym: AttributeDef = serde_json::from_value(json!({ "label": "仕上げ", "type": "enum",
+    let mut sym: AttributeDef = serde_json::from_value(json!({ "label": "Finish", "type": "enum",
         "symbols": ["black", "white", "mli"], "min": -1.0 }))
     .unwrap();
     sym.id = "finish".into();
-    let mut ported: KindDef = serde_json::from_value(json!({ "label": "電源分配器", "label_en": "PDU",
-        "description": "-12 V も出す", "extends": "component", "role": "pcdu", "states": ["off", "on"],
+    let mut ported: KindDef = serde_json::from_value(json!({ "label": "PDU label", "label_en": "PDU",
+        "description": "also outputs -12 V", "extends": "component", "role": "pcdu", "states": ["off", "on"],
         "required": ["mass", "power"], "optional": ["voltage"],
         "ports": { "IN": "power", "OUT1": "power", "CAN": "data", "ANT": "rf" } })).unwrap();
     ported.id = "pdu2".into();
@@ -50,7 +50,7 @@ pub(in super::super) fn def_ops() -> Vec<Op> {
 
 pub(in super::super) fn system_ops() -> Vec<Op> {
     let mut net = Net::new("P5V_X", NetKind::Power);
-    net.label = Some(s("5 V 系"));
+    net.label = Some(s("5 V rail"));
     net.source = Some(PortRef::new("PCDU", "OUT1"));
     net.rail = Some(Quantity::new(5.0, "V"));
     net.limit = Some(Quantity::new(2.0, "A"));
@@ -73,8 +73,8 @@ pub(in super::super) fn system_ops() -> Vec<Op> {
     vec![
         Op::CreateMode {
             id: s("DETUMBLE"),
-            label: Some(s("デタンブル")),
-            description: Some(s("分離直後")),
+            label: Some(s("Detumble")),
+            description: Some(s("Right after separation")),
             copy_from: Some(s("SAFE")),
         },
         Op::RemoveMode { id: s("DOWNLINK") },
@@ -188,20 +188,20 @@ pub(in super::super) fn view_ops() -> Vec<Op> {
 }
 
 pub(in super::super) fn record_ops() -> Vec<Op> {
-    let mut case: Case = serde_json::from_value(json!({ "label": "最悪の日陰", "description": "β 0",
+    let mut case: Case = serde_json::from_value(json!({ "label": "Worst-case eclipse", "description": "β 0",
         "mode": "NOMINAL", "side": "max", "thermal_case": "cold", "beta": { "value": 0.0, "unit": "deg" }, "orbits": 5 })).unwrap();
     case.id = "eclipse_worst".into();
     let source = Source {
         id: "ds_x".into(),
         kind: SourceKind::Datasheet,
-        label: Some(s("データシート")),
+        label: Some(s("Datasheet")),
         reference: Some(s("https://example.com/ds.pdf")),
         revision: Some(s("Rev. B")),
         retrieved: Some(s("2026-10-02")),
         sha256: Some("0123456789abcdef".repeat(4)),
         distribution: Some(Distribution::OnRequest),
         date: Some(s("2026-10-01")),
-        by: Some(s("tanaka")),
+        by: Some(s("test-team")),
         note: Some(s("rev B")),
     };
     let harness = Harness {
@@ -233,7 +233,7 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         Op::SetManeuver {
             maneuver: maneuver(
                 "MV_Y",
-                json!({ "label": "離脱 \"試験\"", "category": "deorbit",
+                json!({ "label": "Deorbit \"test\"", "category": "deorbit",
                 "method": "finite_burn", "thruster": "RW_X", "after": "MV_X",
                 "via_altitude": { "value": 20000.0, "unit": "km" },
                 "target": { "perigee_altitude": { "value": -50.0, "unit": "km" },

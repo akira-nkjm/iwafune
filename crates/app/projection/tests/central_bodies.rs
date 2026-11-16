@@ -15,13 +15,15 @@ use std::path::Path;
 
 fn demo() -> Design {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u");
-    fune_store::load(&root).expect("デモを読めること").design
+    fune_store::load(&root)
+        .expect("the demo should load")
+        .design
 }
 
 /// 中心天体 `body` の高度 100 km の極軌道（太陽同期・LTDN は外す）。熱の環境条件の値は書かず、プリセットだけにする。
 fn about(body: CentralBodyKind) -> Design {
     let mut d = demo();
-    let o = d.conditions.orbit.as_mut().expect("軌道");
+    let o = d.conditions.orbit.as_mut().expect("orbit");
     o.central = Some(body);
     o.altitude = Some(Quantity::new(100.0, "km"));
     o.sun_synchronous = None;
@@ -29,7 +31,7 @@ fn about(body: CentralBodyKind) -> Design {
     o.inclination = Some(Quantity::new(90.0, "deg"));
     o.raan = Some(Quantity::new(0.0, "deg"));
     o.duration = Some(Quantity::new(30.0, "d"));
-    let t = d.analysis.thermal.as_mut().expect("熱の設定");
+    let t = d.analysis.thermal.as_mut().expect("thermal settings");
     for c in t.cases.values_mut() {
         c.solar_flux = None;
         c.albedo = None;
@@ -114,7 +116,7 @@ fn mars_orbit_requires_environment_values() {
 fn non_earth_sun_synchronous_and_ltdn_are_reported_not_earths_value() {
     let paths = |body: CentralBodyKind| -> Vec<String> {
         let mut d = about(body);
-        let o = d.conditions.orbit.as_mut().expect("軌道");
+        let o = d.conditions.orbit.as_mut().expect("orbit");
         o.sun_synchronous = Some(true);
         o.inclination = None;
         o.raan = None;
@@ -153,17 +155,19 @@ fn rw_unloading_about_other_bodies_states_the_environment_models() {
             .find(|c| c.key == "environment_models")
             .cloned()
     };
-    let moon = note(&run(CentralBodyKind::Moon)).expect("月の注記");
+    let moon = note(&run(CentralBodyKind::Moon)).expect("note for the Moon");
     assert_eq!(moon.verdict, Verdict::Ok);
     assert!(
-        moon.message.contains("空力トルクはこの天体では 0"),
+        moon.message
+            .contains("Aerodynamic torque is 0 for this body"),
         "{}",
         moon.message
     );
-    let mars = note(&run(CentralBodyKind::Mars)).expect("火星の注記");
+    let mars = note(&run(CentralBodyKind::Mars)).expect("note for Mars");
     assert_eq!(mars.verdict, Verdict::Warning);
     assert!(
-        mars.message.contains("大気があるが、そのモデルが無い"),
+        mars.message
+            .contains("this body has atmosphere but there is no model for it"),
         "{}",
         mars.message
     );
@@ -203,5 +207,5 @@ fn eclipse_season_about_the_sun_is_an_error() {
     let ctx = Context::new(&design, &resolved, Some("hot_imaging")).unwrap();
     let input = orbit::eclipse_season(&ctx).unwrap();
     let err = EclipseSeason::run(&input).unwrap_err().to_string();
-    assert!(err.contains("太陽を中心天体とする軌道"), "{err}");
+    assert!(err.contains("An orbit around the Sun"), "{err}");
 }

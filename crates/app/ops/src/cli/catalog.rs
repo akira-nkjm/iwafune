@@ -1,9 +1,11 @@
-//! カタログ品の Op のコマンド（`fune catalog add|set|unset|rm|rename`）。
+//! カタログ品の Op のコマンド（`fune catalog add|set|unset|rm|rename`）と、カタログの出所の Op のコマンド
+//! （`fune catalog source add|rm`）。
 
 use super::commands::value_cmds;
 use super::text::Cmd;
 use crate::op::Op;
 use fune_model::design::CatalogField;
+use fune_model::value::list_to_text;
 
 /// カタログ品の Op のコマンド。該当しなければ None。
 pub(super) fn catalog_op(op: &Op) -> Option<Vec<String>> {
@@ -49,6 +51,15 @@ pub(super) fn catalog_op(op: &Op) -> Option<Vec<String>> {
         Op::RenameCatalogItem { from, to } => {
             vec![Cmd::new(&["fune", "catalog", "rename", from, to]).done()]
         }
+        Op::AddCatalogSource { name, git, rev } => vec![
+            Cmd::new(&["fune", "catalog", "source", "add", name])
+                .flag("git", Some(git))
+                .flag("rev", rev.as_deref())
+                .done(),
+        ],
+        Op::RemoveCatalogSource { name } => {
+            vec![Cmd::new(&["fune", "catalog", "source", "rm", name]).done()]
+        }
         _ => return None,
     })
 }
@@ -57,6 +68,7 @@ fn field_cmd(item: &str, field: &CatalogField) -> String {
     let text: Option<String> = match field {
         CatalogField::Kind(k) => Some(k.clone()),
         CatalogField::Maturity(m) => m.map(|m| m.as_str().to_string()),
+        CatalogField::Tags(t) => (!t.is_empty()).then(|| list_to_text(t)),
         CatalogField::Label(v)
         | CatalogField::LabelEn(v)
         | CatalogField::Manufacturer(v)

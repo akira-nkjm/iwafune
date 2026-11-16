@@ -43,7 +43,7 @@ pub struct Group {
 enum_text! {
     /// 成熟度（成長余裕と不確かさの既定幅を決める）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
-    pub enum Maturity: "成熟度" {
+    pub enum Maturity: "maturity" {
         OffTheShelf = "off_the_shelf",
         Modified = "modified",
         New = "new",
@@ -53,7 +53,7 @@ enum_text! {
 enum_text! {
     /// 予備機の運用方式。
     #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
-    pub enum Redundancy: "冗長" {
+    pub enum Redundancy: "redundancy" {
         #[default]
         None = "none",
         Cold = "cold",
@@ -162,6 +162,9 @@ pub struct CatalogItem {
     pub manufacturer: Option<String>,
     pub part_number: Option<String>,
     pub maturity: Option<Maturity>,
+    /// 自由なタグ（製造元でも種別でもない分類。例: `flight_proven`）。書いた順に持ち、空ならファイルに書かない
+    #[serde(default)]
+    pub tags: Vec<String>,
     /// データシートの出典の ID（`sources/<ID>`）。URL・版・sha256 はその出典に書く（docs/model.md §7.8）
     pub datasheet: Option<String>,
     /// 出典を書いていない値に当てる既定の出典（`sources/<ID>`）
@@ -230,6 +233,7 @@ pub enum CatalogField {
     Manufacturer(Option<String>),
     PartNumber(Option<String>),
     Maturity(Option<Maturity>),
+    Tags(Vec<String>),
     Datasheet(Option<String>),
     Source(Option<String>),
 }
@@ -244,6 +248,7 @@ impl CatalogField {
             CatalogField::Manufacturer(_) => CatalogFieldName::Manufacturer,
             CatalogField::PartNumber(_) => CatalogFieldName::PartNumber,
             CatalogField::Maturity(_) => CatalogFieldName::Maturity,
+            CatalogField::Tags(_) => CatalogFieldName::Tags,
             CatalogField::Datasheet(_) => CatalogFieldName::Datasheet,
             CatalogField::Source(_) => CatalogFieldName::Source,
         }
@@ -263,6 +268,7 @@ impl CatalogField {
             CatalogFieldName::Manufacturer => CatalogField::Manufacturer(item.manufacturer.clone()),
             CatalogFieldName::PartNumber => CatalogField::PartNumber(item.part_number.clone()),
             CatalogFieldName::Maturity => CatalogField::Maturity(item.maturity),
+            CatalogFieldName::Tags => CatalogField::Tags(item.tags.clone()),
             CatalogFieldName::Datasheet => CatalogField::Datasheet(item.datasheet.clone()),
             CatalogFieldName::Source => CatalogField::Source(item.source.clone()),
         }

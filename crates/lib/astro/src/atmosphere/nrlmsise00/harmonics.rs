@@ -156,10 +156,7 @@ impl State {
                 // 原典はここで p[24] を 1e-4 未満なら書き換えるが、同梱の係数表では
                 // どの p でも p[24] >= 0.05 なので発火しない（[`super::coeffs`] を変えたら
                 // ここを見直すこと）。
-                debug_assert!(
-                    p[24] >= 1.0E-4,
-                    "p[24] のクランプが必要な係数表になっている"
-                );
+                debug_assert!(p[24] >= 1.0E-4, "coefficient table requires clamping p[24]");
                 self.apt = sg0(exp1, p, ap);
                 if sw[9] != 0.0 {
                     t[8] = self.apt
@@ -289,7 +286,7 @@ impl State {
         // （パラメータセットの取り違え検出）。同梱の表はすべて 2.0 なので読むだけでよい。
         debug_assert!(
             (p[99] - 2.0).abs() < f64::EPSILON,
-            "glob7s に渡す係数表のパラメータセットが 2 でない"
+            "parameter set of the coefficient table passed to glob7s is not 2"
         );
 
         let mut t = [0.0_f64; 14];

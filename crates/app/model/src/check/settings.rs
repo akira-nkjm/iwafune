@@ -54,7 +54,7 @@ impl Scope<'_, '_> {
 
     pub fn fraction(&mut self, keys: &[&str], v: Option<f64>) {
         if v.is_some_and(|v| !(0.0..=1.0).contains(&v)) {
-            self.error(keys, "setting.range", "0〜1 の値にします".into());
+            self.error(keys, "setting.range", "Must be a value from 0 to 1".into());
         }
     }
 
@@ -70,7 +70,7 @@ impl Scope<'_, '_> {
 
     pub fn reference(&mut self, keys: &[&str], exists: bool, code: &str, what: String) {
         if !exists {
-            self.error(keys, code, format!("{what} がありません"));
+            self.error(keys, code, format!("{what} is not defined"));
         }
     }
 }
@@ -108,15 +108,15 @@ fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
         s.error(
             &["sun_synchronous"],
             "setting.central",
-            "太陽同期の傾斜角は地球周回だけで求めます（inclination を書きます）".into(),
+            "The sun-synchronous inclination is computed for Earth orbits only. Set inclination instead".into(),
         );
     }
     if o.propagator == Some(crate::design::PropagatorKind::Numerical) {
         s.warning(
             &["propagator"],
             "setting.not_applied",
-            "propagator = \"numerical\" は解析に使いません。力モデルの既定が無いので、時系列の解析は J2 の永年項（j2）で伝搬します。\
-             kepler か j2 を選ぶと、その伝搬で解析します（数値伝搬は要素を接触要素として読むため、同じ数値でも j2 とは別の軌道です）"
+            "propagator = \"numerical\" is not used by the analyses. There is no default force model, so time-series analyses propagate with the J2 secular terms (j2). \
+             Choose kepler or j2 to analyze with that propagation (numerical propagation reads the elements as osculating elements, so the same numbers give a different orbit than j2)"
                 .into(),
         );
     }
@@ -124,7 +124,7 @@ fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
         s.error(
             &["eccentricity"],
             "setting.range",
-            "離心率は 0 以上 1 未満にします".into(),
+            "Eccentricity must be at least 0 and less than 1".into(),
         );
     }
     if o.ltdn
@@ -134,7 +134,7 @@ fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
         s.error(
             &["ltdn"],
             "setting.format",
-            "降交点の地方時は `HH:MM` で書きます".into(),
+            "The local time of the descending node must be written as `HH:MM`".into(),
         );
     }
     // 以前の書き方（軌道維持の推薬を `[decay]` に書く）は壊さずに警告して、推進系へ移すよう促す
@@ -142,7 +142,7 @@ fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
         s.warning(
             &["decay", "propellant"],
             "setting.moved",
-            "軌道維持の推薬は推進系の解析（propulsion.propellant）の使える推薬を使うので、この値は使いません。推進系の部品（propellant_tank・propulsion_thruster）とマヌーバ（maneuvers/）で推薬を決め、`fune setting unset conditions.orbit.decay.propellant` で外してください".into(),
+            "Orbit-keeping propellant uses the propellants available to the propulsion analysis (propulsion.propellant), so this value is not used. Set the propellant with propulsion parts (propellant_tank, propulsion_thruster) and maneuvers (maneuvers/), then remove it with `fune setting unset conditions.orbit.decay.propellant`".into(),
         );
     }
 }
@@ -179,7 +179,7 @@ pub(super) fn check_materials(ctx: &mut Ctx) {
                 &entity,
                 &["attr", "material"],
                 Some(target),
-                format!("材料 `{m}` が analysis/structure.toml の [material.*] にありません"),
+                format!("Material `{m}` is not in [material.*] of analysis/structure.toml"),
             );
         }
     }

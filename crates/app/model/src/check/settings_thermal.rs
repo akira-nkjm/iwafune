@@ -22,7 +22,7 @@ pub(super) fn check_thermal(ctx: &mut Ctx) {
                 &["case", n, "mode"],
                 exists,
                 "ref.mode",
-                format!("モード `{mode}`"),
+                format!("Mode `{mode}`"),
             );
         }
         s.fraction(&["case", n, "albedo"], case.albedo);
@@ -48,7 +48,7 @@ fn check_difference(s: &mut Scope, key: &str, q: Option<&Quantity>) {
             &["margin", key],
             "thermal.difference_unit",
             format!(
-                "温度差は {TEMPERATURE_DIFFERENCE_UNIT} で書きます（`{}` は使えません）",
+                "Temperature differences must be written in {TEMPERATURE_DIFFERENCE_UNIT} (`{}` cannot be used)",
                 q.unit
             ),
         );
@@ -56,7 +56,7 @@ fn check_difference(s: &mut Scope, key: &str, q: Option<&Quantity>) {
         s.error(
             &["margin", key],
             "setting.range",
-            "0 以上の値にします".into(),
+            "Must be a value of at least 0".into(),
         );
     }
 }
@@ -71,13 +71,13 @@ fn check_nodes(s: &mut Scope, design: &Design, t: &ThermalSettings) {
                 &["nodes", node],
                 exists,
                 "ref.part",
-                format!("部品 `{part}`"),
+                format!("Part `{part}`"),
             );
             if let Some(other) = owner.insert(part.as_str(), node.as_str()) {
                 s.error(
                     &["nodes", node],
                     "thermal.node_overlap",
-                    format!("部品 `{part}` が節点 `{other}` と `{node}` の両方にあります"),
+                    format!("Part `{part}` is in both node `{other}` and node `{node}`"),
                 );
             }
         }
@@ -94,7 +94,7 @@ fn check_surfaces(s: &mut Scope, design: &Design, t: &ThermalSettings) {
             s.warning(
                 &["coating", id],
                 "thermal.coating_optics",
-                format!("表面材 `{id}` には absorptivity と emissivity の両方を書きます"),
+                format!("Coating `{id}` must have both absorptivity and emissivity"),
             );
         }
     }
@@ -104,7 +104,7 @@ fn check_surfaces(s: &mut Scope, design: &Design, t: &ThermalSettings) {
             &["surface", part],
             exists,
             "ref.part",
-            format!("部品 `{part}`"),
+            format!("Part `{part}`"),
         );
         for (coating, f) in coatings {
             let exists = t.coating.contains_key(coating);
@@ -112,7 +112,7 @@ fn check_surfaces(s: &mut Scope, design: &Design, t: &ThermalSettings) {
                 &["surface", part, coating],
                 exists,
                 "ref.coating",
-                format!("表面材 `{coating}`（[coating.<名前>]）"),
+                format!("Coating `{coating}` ([coating.<name>])"),
             );
             s.fraction(&["surface", part, coating], Some(*f));
         }
@@ -121,7 +121,9 @@ fn check_surfaces(s: &mut Scope, design: &Design, t: &ThermalSettings) {
             s.warning(
                 &["surface", part],
                 "thermal.coating_share",
-                format!("部品 `{part}` の表面材の面積割合の合計は 1 にします（いまは {sum}）"),
+                format!(
+                    "The coating area shares of part `{part}` must add up to 1 (currently {sum})"
+                ),
             );
         }
     }
@@ -135,14 +137,14 @@ fn check_heat_nodes(s: &mut Scope, design: &Design, t: &ThermalSettings) {
             &["heat_node", part],
             exists,
             "ref.part",
-            format!("部品 `{part}`"),
+            format!("Part `{part}`"),
         );
         let exists = t.nodes.contains_key(node);
         s.reference(
             &["heat_node", part],
             exists,
             "ref.thermal_node",
-            format!("熱の節点 `{node}`（[nodes]）"),
+            format!("Thermal node `{node}` ([nodes])"),
         );
     }
 }

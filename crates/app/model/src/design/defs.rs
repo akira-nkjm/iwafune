@@ -14,7 +14,7 @@ use ts_rs::TS;
 enum_text! {
     /// どのバジェットに入るか。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
-    pub enum BudgetKind: "バジェットの種類" {
+    pub enum BudgetKind: "budget kind" {
         Mass = "mass",
         Power = "power",
         Data = "data",
@@ -35,7 +35,7 @@ impl BudgetKind {
 enum_text! {
     /// ネットの種類。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-    pub enum NetKind: "ネットの種類" {
+    pub enum NetKind: "net kind" {
         Power = "power",
         Data = "data",
         Rf = "rf",

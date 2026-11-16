@@ -94,11 +94,14 @@ mod tests {
     fn unnamed_dimension_falls_back_to_si_expression() {
         let d = <Power as crate::typed::Dimension>::DIM
             .try_mul(<Length as crate::typed::Dimension>::DIM)
-            .expect("次元");
+            .expect("dimension");
         record(d);
-        let name = take_last_dimension().expect("記録した");
+        let name = take_last_dimension().expect("recorded");
         assert_eq!(name, "m^3*kg/s^3");
         record(d);
-        assert!(core::ptr::eq(take_last_dimension().expect("2 回目"), name));
+        assert!(core::ptr::eq(
+            take_last_dimension().expect("second time"),
+            name
+        ));
     }
 }

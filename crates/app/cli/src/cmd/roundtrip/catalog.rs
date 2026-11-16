@@ -49,6 +49,8 @@ pub(super) fn catalog_ops() -> Vec<Op> {
         },
         field(CatalogField::Manufacturer(Some(s("Acme")))),
         field(CatalogField::LabelEn(None)),
+        field(CatalogField::Tags(vec![s("flight_proven"), s("domestic")])),
+        field(CatalogField::Tags(vec![])),
         field(CatalogField::Kind(s("reaction_wheel"))),
         field(serde_json::from_value(json!({ "field": "maturity", "value": "modified" })).unwrap()),
         Op::RemoveCatalogItem {
@@ -58,5 +60,16 @@ pub(super) fn catalog_ops() -> Vec<Op> {
             from: s("local/rw_10mNms"),
             to: s("local/rw_12mNms"),
         },
+        Op::AddCatalogSource {
+            name: s("lab"),
+            git: s("https://example.com/catalog.git"),
+            rev: Some(s("v1.2")),
+        },
+        Op::AddCatalogSource {
+            name: s("team"),
+            git: s("file:///srv/git/catalog.git"),
+            rev: None,
+        },
+        Op::RemoveCatalogSource { name: s("lab") },
     ]
 }

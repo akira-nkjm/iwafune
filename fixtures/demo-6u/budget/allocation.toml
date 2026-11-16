@@ -1,6 +1,6 @@
-# 配分（系の担当）。キーは系か部品の ID
+# Allocation (subsystem owners). Keys are subsystem or part IDs
 [mass]
-limit         = { value = 12.0, unit = "kg" }  # 6U の上限（CDS rev.14）
+limit         = { value = 12.0, unit = "kg" }  # 6U limit (CDS rev.14)
 system_margin = 0.1
 
 [mass.alloc]
@@ -14,7 +14,7 @@ structure  = { value = 1.8, unit = "kg" }
 thermal    = { value = 0.05, unit = "kg" }
 
 [power]
-limit         = { value = 24.0, unit = "W" }  # 太陽指向時の軌道平均の発電見込み
+limit         = { value = 24.0, unit = "W" }  # Expected orbit-average generation when sun-pointing
 system_margin = 0.15
 
 [power.alloc]
@@ -27,7 +27,7 @@ propulsion = { value = 1.0, unit = "W" }
 thermal    = { value = 1.5, unit = "W" }
 
 [data]
-limit         = { value = 8.0, unit = "GB" }  # OBC のストレージ
+limit         = { value = 8.0, unit = "GB" }  # OBC storage
 system_margin = 0.2
 
 [data.alloc]

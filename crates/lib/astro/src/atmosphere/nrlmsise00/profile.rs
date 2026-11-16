@@ -89,7 +89,7 @@ fn spline(x: &[f64], y: &[f64], yp1: f64, ypn: f64, y2: &mut [f64]) {
     let n = x.len();
     debug_assert!(
         (2..=5).contains(&n),
-        "スプラインのノード数は 5 以下を仮定している"
+        "spline node count is assumed to be 5 or fewer"
     );
     let mut u = [0.0_f64; 5];
 

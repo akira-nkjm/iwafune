@@ -1,6 +1,6 @@
-# 三接合セル 1 枚（展開パドルは員数で数える）
+# One triple-junction cell (deployable paddles are counted by quantity)
 kind         = "solar_panel"
-label        = "三接合セル 30 cm²"
+label        = "Triple-junction cell, 30 cm²"
 manufacturer = "Example Solar"
 part_number  = "TJ-30"
 maturity     = "off_the_shelf"

@@ -42,7 +42,7 @@ pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem
         });
     }
     if out.is_empty() {
-        m.push(Target::any_part("mass"), "質量を持つ部品がありません");
+        m.push(Target::any_part("mass"), "No part with a mass");
     }
     out
 }
@@ -76,7 +76,7 @@ pub fn summary(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<MassPropertie
         Ok(s) => Some(s),
         Err(e) => {
             let target = Target::any_part("mass");
-            m.push(target, format!("質量特性を求められません（{e}）"));
+            m.push(target, format!("Cannot compute the mass properties ({e})"));
             None
         }
     }
@@ -93,7 +93,7 @@ fn load_factor(
     key: &SettingQuantity<Acceleration>,
     m: &mut MissingInputs,
 ) -> Option<f64> {
-    let q = m.need(q, key.at(&[]), "準静的荷重（g0）")?;
+    let q = m.need(q, key.at(&[]), "Quasi-static load (g0)")?;
     if q.unit.is_empty() {
         return Some(q.value);
     }
@@ -157,7 +157,7 @@ pub fn static_load(ctx: &Context<'_>) -> Result<StaticLoadInput, MissingInputs> 
     let launch = m.need(
         launch,
         self::launch(&[]),
-        "打ち上げ条件（conditions/launch.toml）",
+        "Launch conditions (conditions/launch.toml)",
     );
     let axial =
         launch.and_then(|l| load_factor(l.load_axial.as_ref(), &dims::LAUNCH_LOAD_AXIAL, &mut m));
@@ -167,10 +167,7 @@ pub fn static_load(ctx: &Context<'_>) -> Result<StaticLoadInput, MissingInputs> 
     let interfaces = interfaces(ctx, &items, &mut m);
     let safety_factor = launch.and_then(|l| l.safety_factor_yield);
     m.finish(|| {
-        let label = launch?
-            .label
-            .clone()
-            .unwrap_or_else(|| "打ち上げ".to_owned());
+        let label = launch?.label.clone().unwrap_or_else(|| "Launch".to_owned());
         Some(StaticLoadInput {
             items,
             cases: vec![StaticLoadCase {
@@ -192,7 +189,7 @@ fn panel(
     m: &mut MissingInputs,
 ) -> Option<ModalEstimatePanel> {
     let Some(SiValue::Enum(name)) = ctx.attr(p, "material") else {
-        m.push(Target::attr(&p.id, "material"), "パネルの材料");
+        m.push(Target::attr(&p.id, "material"), "Panel material");
         return None;
     };
     let mp = AnalysisSystem::Structure
@@ -202,33 +199,33 @@ fn panel(
     let mat = m.need(
         materials.and_then(|ms| ms.get(name.as_str())),
         mp.clone(),
-        "材料の物性",
+        "Material properties",
     )?;
     let size = m.need(
         ctx.vec3(p, "size"),
         Target::attr(&p.id, "size"),
-        "パネルの外形（2 辺）",
+        "Panel outline (2 edges)",
     );
-    let thickness = crate::parts::part_qty::<Length>(ctx, p, "thickness", "パネルの板厚", m);
+    let thickness = crate::parts::part_qty::<Length>(ctx, p, "thickness", "Panel thickness", m);
     let at = [name.as_str()];
     let e = setting(
         &dims::MATERIAL_YOUNGS_MODULUS,
         &at,
         mat.youngs_modulus.as_ref(),
-        "ヤング率",
+        "Young's modulus",
         m,
     );
     let rho = setting(
         &dims::MATERIAL_DENSITY,
         &at,
         mat.density.as_ref(),
-        "密度",
+        "Density",
         m,
     );
     let nu = m.need(
         mat.poisson_ratio,
         mp.child(&["poisson_ratio"]),
-        "ポアソン比",
+        "Poisson's ratio",
     );
     let mut sides = size?;
     sides.sort_by(|a, b| b.total_cmp(a));

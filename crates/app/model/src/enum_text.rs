@@ -18,7 +18,7 @@ pub trait EnumText: Copy + Sized + 'static {
 
 /// 綴りがその列挙のどの値でもない（`FromStr` の誤り）。
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("`{text}` は{what}ではありません（{choices}）")]
+#[error("`{text}` is not a valid {what} ({choices})")]
 pub struct EnumTextError {
     /// 読めなかった文字列
     pub text: String,

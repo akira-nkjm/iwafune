@@ -5,21 +5,21 @@
 pub enum StoreError {
     #[error("{path}: {message}")]
     Io { path: String, message: String },
-    #[error("{start} から上にプロジェクト（fune.toml）が見つかりません")]
+    #[error("No project (fune.toml) found at or above {start}")]
     NotAProject { start: String },
-    #[error("{path} は既にあります")]
+    #[error("{path} already exists")]
     AlreadyExists { path: String },
-    #[error("{path} がありません")]
+    #[error("{path} not found")]
     Missing { path: String },
-    #[error("{file}: TOML を読めません: {message}")]
+    #[error("{file}: cannot read TOML: {message}")]
     Toml { file: String, message: String },
-    #[error("{file}: 編集できません: {message}")]
+    #[error("{file}: cannot edit: {message}")]
     Edit { file: String, message: String },
-    #[error("設定のパス `{path}` はどのファイルにも対応しません")]
+    #[error("Setting path `{path}` does not map to any file")]
     SettingPath { path: String },
-    #[error("ほかのプロセスが書き込み中です（{lock}）")]
+    #[error("Another process is writing ({lock})")]
     Locked { lock: String },
-    #[error("書き込みに失敗しました: {message}")]
+    #[error("Write failed: {message}")]
     Commit { message: String },
 }
 

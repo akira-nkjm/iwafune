@@ -260,7 +260,7 @@ mod tests {
             for b in &all[i + 1..] {
                 assert!(
                     !(a.scope == b.scope && a.pattern == b.pattern),
-                    "{:?} が 2 回あります",
+                    "{:?} appears twice",
                     a.pattern
                 );
             }

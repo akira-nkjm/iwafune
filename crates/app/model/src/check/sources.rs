@@ -34,7 +34,7 @@ fn check_source_fields(ctx: &mut Ctx) {
                 &entity,
                 &["sha256"],
                 target(),
-                format!("sha256 は 64 桁の 16 進数にします（`{hash}`）"),
+                format!("sha256 must be 64 hexadecimal digits (`{hash}`)"),
             );
         }
         for (key, date) in [("date", &source.date), ("retrieved", &source.retrieved)] {
@@ -46,7 +46,7 @@ fn check_source_fields(ctx: &mut Ctx) {
                     &entity,
                     &[key],
                     target(),
-                    format!("{key} は `2026-10-15` の形の日付にします（`{date}`）"),
+                    format!("{key} must be a date like `2026-10-15` (`{date}`)"),
                 );
             }
         }
@@ -162,7 +162,7 @@ fn check_refs(ctx: &mut Ctx, uses: &[SourceUse]) {
                 &keys,
                 Some(u.target.clone()),
                 format!(
-                    "datasheet に URL・パス `{}` を直接書いています。出典（sources/）を作って ref に URL を書き、datasheet にはその出典の ID を書いてください",
+                    "datasheet holds the URL or path `{}` directly. Create a source (sources/), put the URL in its ref, and put the source ID in datasheet",
                     u.source
                 ),
             );
@@ -170,16 +170,16 @@ fn check_refs(ctx: &mut Ctx, uses: &[SourceUse]) {
         }
         let message = if let Some(c) = shared {
             format!(
-                "出典 `{}` が共有カタログ `{}` の sources/ にありません（共有カタログの出典は `<カタログ名>/<ID>` で参照します）",
+                "Source `{}` is not in sources/ of shared catalog `{}` (sources of a shared catalog are referenced as `<catalog name>/<ID>`)",
                 u.source, c.name
             )
         } else if u.datasheet {
             format!(
-                "データシートの出典 `{}` が sources/ にありません（datasheet には出典の ID を書き、URL・パスはその出典の ref に書きます）",
+                "The datasheet source `{}` is not in sources/ (put the source ID in datasheet and the URL or path in that source's ref)",
                 u.source
             )
         } else {
-            format!("出典 `{}` が sources/ にありません", u.source)
+            format!("Source `{}` is not in sources/", u.source)
         };
         ctx.error(
             "ref.source",
@@ -212,7 +212,7 @@ fn check_restricted(ctx: &mut Ctx, uses: &[SourceUse]) {
             &keys,
             Some(u.target.clone()),
             format!(
-                "共有カタログの品 `{item}` が公開できない出典 `{}`（distribution = \"restricted\"）を使っています",
+                "Shared catalog item `{item}` uses source `{}` that cannot be published (distribution = \"restricted\")",
                 u.source
             ),
         );

@@ -15,10 +15,10 @@ use sat_units::typed::{Force, Fraction, Time};
 pub(super) fn thrusters(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<Thruster> {
     by_role(ctx, Role::Thruster)
         .filter_map(|p| {
-            let why = "スラスタの値";
+            let why = "Thruster values";
             let thrust = parts::part_qty::<Force>(ctx, p, "thrust", why, m);
             let isp = parts::part_qty::<Time>(ctx, p, "isp", why, m);
-            let direction = direction_body(ctx, p, "direction", "推力の向き（部品座標）", m);
+            let direction = direction_body(ctx, p, "direction", "Thrust direction (part frame)", m);
             let (position, _) = crate::pose::body_pose(ctx.resolved, &p.id)?;
             Some(Thruster {
                 id: p.id.clone(),
@@ -67,7 +67,7 @@ pub(super) fn disturbance(
                 Err(e) => {
                     m.push(
                         Target::mode(def.id.as_str(), Some(&t.id)),
-                        format!("モード {} のスラスタの状態の割り当て（{e}）", def.id),
+                        format!("Thruster state assignment of mode {} ({e})", def.id),
                     );
                     return None;
                 }

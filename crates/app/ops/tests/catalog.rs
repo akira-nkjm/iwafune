@@ -74,6 +74,29 @@ fn catalog_values_and_fields_change_one_line() {
         to_cli(&field),
         vec!["fune catalog set local/rw_10mNms part_number RW-10B"]
     );
+    let tags = Op::SetCatalogField {
+        item: "local/rw_10mNms".into(),
+        field: CatalogField::Tags(vec!["qualified".into(), "domestic".into()]),
+    };
+    // 見本の品はすでに別のタグを持つ。書き換えたあとのファイルに新しい並びがある
+    let planned = plan(&snap, std::slice::from_ref(&tags)).unwrap();
+    let after = planned.changes[0].after.as_deref().unwrap_or("");
+    assert!(
+        after.contains("tags         = [\"qualified\", \"domestic\"]"),
+        "{after}"
+    );
+    assert_eq!(
+        to_cli(&tags),
+        vec!["fune catalog set local/rw_10mNms tags qualified,domestic"]
+    );
+    let no_tags = Op::SetCatalogField {
+        item: "local/rw_10mNms".into(),
+        field: CatalogField::Tags(vec![]),
+    };
+    assert_eq!(
+        to_cli(&no_tags),
+        vec!["fune catalog unset local/rw_10mNms tags"]
+    );
     let unset = Op::UnsetCatalogValue {
         item: "local/rw_10mNms".into(),
         attr: "hk_rate".into(),
@@ -237,7 +260,7 @@ fn shared_catalog_items_are_read_only() {
     ] {
         match plan(&shared, &[op]) {
             Err(OpError::Invalid { message }) => assert!(
-                message.contains("共有カタログ") && message.contains("PR"),
+                message.contains("shared catalog") && message.contains("PR"),
                 "{message}"
             ),
             other => panic!("{other:?}"),

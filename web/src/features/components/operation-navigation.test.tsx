@@ -102,6 +102,8 @@ const catalog: CatalogItemView = {
   manufacturer: null,
   part_number: null,
   maturity: null,
+  tags: [],
+  tags_text: "",
   datasheet: null,
   datasheet_link: null,
   source: null,

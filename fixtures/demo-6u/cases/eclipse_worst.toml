@@ -1,5 +1,5 @@
-label        = "日陰最長（β = 0°）"
-description  = "定常モードで日陰が最も長い条件。消費電力は上振れ側を読む"
+label        = "Worst-case eclipse (β = 0°)"
+description  = "Longest eclipse in nominal mode. Read power consumption on the high side"
 mode         = "NOMINAL"
 side         = "max"
 beta         = { value = 0.0, unit = "deg" }

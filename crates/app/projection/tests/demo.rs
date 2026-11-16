@@ -6,7 +6,7 @@ use std::path::Path;
 
 fn demo() -> (fune_model::Design, fune_model::Resolved) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u");
-    let snap = fune_store::load(&root).expect("デモを読めること");
+    let snap = fune_store::load(&root).expect("the demo should load");
     let mut design = snap.design;
     design.analysis.common = Some(CommonSettings {
         default_case: Some("hot_imaging".to_owned()),

@@ -14,7 +14,7 @@ fn station(lat_deg: f64, lon_deg: f64, min_el_deg: f64) -> GroundStation {
 }
 
 fn epoch() -> Epoch {
-    Epoch::parse("2027-04-01T00:00:00Z").expect("元期")
+    Epoch::parse("2027-04-01T00:00:00Z").expect("epoch")
 }
 
 #[test]
@@ -44,7 +44,7 @@ fn equatorial_passes_match_closed_form() {
         Qty::from_raw(0.0),
     );
     orbit.propagator = Propagator::Kepler;
-    let passes = find_passes(&gs, &orbit, epoch(), 86_400.0, 30.0).expect("パス");
+    let passes = find_passes(&gs, &orbit, epoch(), 86_400.0, 30.0).expect("passes");
     let r = R_EARTH + 550e3;
     let n = (MU_EARTH / r.powi(3)).sqrt();
     let lambda = (R_EARTH / r).acos();
@@ -59,7 +59,7 @@ fn equatorial_passes_match_closed_form() {
         let d = p.duration.value();
         assert!(
             (d - expected).abs() < 1.0,
-            "長さ {d} s（期待 {expected} s）"
+            "duration {d} s (expected {expected} s)"
         );
         assert!(p.max_elevation.value().to_degrees() > 89.5);
         assert!(p.aos.j2000_s < p.tca.j2000_s && p.tca.j2000_s < p.los.j2000_s);
@@ -78,8 +78,8 @@ fn sso_passes_over_tokyo_are_plausible() {
         Qty::from_raw(i),
         Qty::from_raw(1.0),
     );
-    let coarse = find_passes(&gs, &orbit, epoch(), 86_400.0, 60.0).expect("パス");
-    let fine = find_passes(&gs, &orbit, epoch(), 86_400.0, 10.0).expect("パス");
+    let coarse = find_passes(&gs, &orbit, epoch(), 86_400.0, 60.0).expect("passes");
+    let fine = find_passes(&gs, &orbit, epoch(), 86_400.0, 10.0).expect("passes");
     assert!((3..=8).contains(&coarse.len()), "{}", coarse.len());
     assert_eq!(coarse.len(), fine.len());
     for (c, f) in coarse.iter().zip(fine.iter()) {

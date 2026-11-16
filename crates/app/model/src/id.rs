@@ -157,15 +157,17 @@ const WINDOWS_RESERVED: &[&str] = &[
 /// ID の規則に反した理由。
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum IdError {
-    #[error("ID が空です")]
+    #[error("ID is empty")]
     Empty,
-    #[error("ID `{0}` は `_` で始められません")]
+    #[error("ID `{0}` cannot start with `_`")]
     LeadingUnderscore(String),
-    #[error("ID `{0}` に使えない文字があります（英数字・`_`・`-` だけ。先頭は英字）")]
+    #[error(
+        "ID `{0}` contains characters that are not allowed (only letters, digits, `_` and `-`; must start with a letter)"
+    )]
     InvalidChar(String),
-    #[error("ID `{0}` は Windows の予約名です")]
+    #[error("ID `{0}` is a reserved Windows name")]
     WindowsReserved(String),
-    #[error("ID `{0}` は予約語です")]
+    #[error("ID `{0}` is a reserved word")]
     Reserved(String),
 }
 

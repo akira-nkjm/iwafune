@@ -21,33 +21,31 @@ pub enum ErrorKind {
 /// fune-service のエラー。
 #[derive(Debug, thiserror::Error)]
 pub enum ServiceError {
-    #[error(
-        "プロジェクトが見つかりません: {0}（fune.toml のあるディレクトリを -C で指定してください）"
-    )]
+    #[error("Project not found: {0} (pass the directory containing fune.toml with -C)")]
     ProjectNotFound(String),
-    #[error("{what}が見つかりません: {id}")]
+    #[error("{what} not found: {id}")]
     NotFound { what: &'static str, id: String },
-    #[error("入力が不正です: {0}")]
+    #[error("Invalid input: {0}")]
     InvalidInput(String),
-    #[error("{what} は既にあります")]
+    #[error("{what} already exists")]
     AlreadyExists { what: String },
-    #[error("単位を解釈できません: {input}（{reason}）")]
+    #[error("Cannot parse unit: {input} ({reason})")]
     Unit { input: String, reason: String },
-    #[error("検証エラーがあるため書き込みませんでした（{} 件）", .diagnostics.len())]
+    #[error("Nothing was written because of validation errors ({})", .diagnostics.len())]
     Validation { diagnostics: Vec<DiagnosticView> },
-    #[error(
-        "revision が一致しません（指定 {expected}、現在 {actual}）。読み直してからやり直してください"
-    )]
+    #[error("Revision mismatch (given {expected}, current {actual}). Reload and try again")]
     Conflict { expected: String, actual: String },
-    #[error("解析を実行できません: {0}")]
+    #[error("Cannot run the analysis: {0}")]
     Analysis(String),
-    #[error("設計データを読み書きできません: {0}")]
+    #[error("Cannot read or write the design data: {0}")]
     Store(String),
-    #[error("ほかのプロセスが書き込み中です（{0}）。しばらくしてからやり直してください")]
+    #[error("Another process is writing ({0}). Try again in a moment")]
     Locked(String),
-    #[error("外部データ: {0}")]
+    #[error("External data: {0}")]
     Data(String),
-    #[error("内部エラー: {0}")]
+    #[error("Cannot update fune: {0}")]
+    SelfUpdate(String),
+    #[error("Internal error: {0}")]
     Internal(String),
 }
 
@@ -61,9 +59,11 @@ impl ServiceError {
             Self::Conflict { .. } | Self::Locked(_) | Self::AlreadyExists { .. } => {
                 ErrorKind::Conflict
             }
-            Self::Analysis(_) | Self::Store(_) | Self::Data(_) | Self::Internal(_) => {
-                ErrorKind::Internal
-            }
+            Self::Analysis(_)
+            | Self::Store(_)
+            | Self::Data(_)
+            | Self::SelfUpdate(_)
+            | Self::Internal(_) => ErrorKind::Internal,
         }
     }
 
@@ -81,6 +81,7 @@ impl ServiceError {
             Self::Analysis(_) => "analysis_failed",
             Self::Store(_) => "store_error",
             Self::Data(_) => "data_error",
+            Self::SelfUpdate(_) => "self_update_failed",
             Self::Internal(_) => "internal",
         }
     }

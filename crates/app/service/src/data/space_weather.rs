@@ -12,7 +12,6 @@ use sat_astro::atmosphere::space_weather::{SolarActivity, SpaceWeatherTable, spa
 use sat_astro::time::Epoch;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use std::process::Command;
 use std::sync::Arc;
 
 /// データの ID（`fune data fetch space_weather`、`POST /data/space_weather/fetch`）。
@@ -108,10 +107,12 @@ pub(super) fn item(dir: &Path) -> Result<DataItem> {
 /// 表と取得の記録（取得日時・SHA-256）を置き換える。
 pub(super) fn fetch(tmp: &Path, dir: &Path) -> Result<()> {
     let downloaded = tmp.join(FILE);
-    download(&downloaded)?;
+    crate::fetch::download(SOURCE_URL, &downloaded)?;
     let bytes = std::fs::read(&downloaded).map_err(|e| io_error(&downloaded, e))?;
     SpaceWeatherTable::from_csv_bytes(&bytes).map_err(|e| {
-        ServiceError::Data(format!("取得したものが宇宙天気の表ではありません（{e}）"))
+        ServiceError::Data(format!(
+            "The downloaded data is not a space-weather table ({e})"
+        ))
     })?;
     let record = FetchRecord {
         source_url: SOURCE_URL.to_owned(),
@@ -126,23 +127,6 @@ pub(super) fn fetch(tmp: &Path, dir: &Path) -> Result<()> {
     std::fs::rename(&downloaded, &target).map_err(|e| io_error(&target, e))?;
     let record_path = dir.join(RECORD);
     std::fs::rename(&record_tmp, &record_path).map_err(|e| io_error(&record_path, e))
-}
-
-fn download(target: &Path) -> Result<()> {
-    let output = Command::new("curl")
-        .args(["--fail", "--silent", "--show-error", "--location"])
-        .args(["--max-time", "300", "--output"])
-        .arg(target)
-        .arg(SOURCE_URL)
-        .output()
-        .map_err(|e| ServiceError::Data(format!("curl を起動できません: {e}")))?;
-    if !output.status.success() {
-        return Err(ServiceError::Data(format!(
-            "{SOURCE_URL} を取得できません: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        )));
-    }
-    Ok(())
 }
 
 /// 日付から宇宙天気を引く（`GET /data/space_weather?date=…&activity=…`、`fune data space-weather <日付>`）。
@@ -172,7 +156,7 @@ fn parse_activity(text: Option<&str>) -> Result<SolarActivity> {
     };
     serde_json::from_value(serde_json::Value::String(text.to_ascii_lowercase())).map_err(|_| {
         ServiceError::InvalidInput(format!(
-            "太陽活動は low・moderate・high のどれかです: {text}"
+            "Solar activity must be low, moderate or high: {text}"
         ))
     })
 }

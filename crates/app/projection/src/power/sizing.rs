@@ -36,7 +36,7 @@ pub fn sizing(ctx: &Context<'_>) -> Result<SizingInput, MissingInputs> {
     {
         m.push(
             dims::POWER_SIZING_SUN_DISTANCE.at(&[]),
-            format!("中心天体 {central:?} の太陽距離"),
+            format!("Sun distance of central body {central:?}"),
         );
     }
     let mode = crate::timeline::case_mode_id(ctx);
@@ -53,7 +53,7 @@ pub fn sizing(ctx: &Context<'_>) -> Result<SizingInput, MissingInputs> {
     {
         m.push(
             Target::case(case.id.as_str(), Some("mode")),
-            "指定モードがありません",
+            "The specified mode does not exist",
         );
     }
     // 設計寿命はミッション期間（`conditions.orbit.duration`）。季節の解析の期間も同じ設定から作るので同じ値

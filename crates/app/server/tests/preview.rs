@@ -143,5 +143,5 @@ async fn draft_part_has_paths_of_new_attributes_and_writes_nothing() {
     let (s, e) = call(&r, "POST", "/api/v1/parts/RW_X", Some(body)).await;
     assert!(s.is_client_error(), "{s} {e}");
     let message = e["error"]["message"].as_str().unwrap_or_default();
-    assert!(message.contains("フィールド名"), "{e}");
+    assert!(message.contains("field name"), "{e}");
 }

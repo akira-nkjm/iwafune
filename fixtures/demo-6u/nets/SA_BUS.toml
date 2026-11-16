@@ -1,2 +1,2 @@
 kind  = "power"
-label = "太陽電池 → PCDU（MPPT 入力）"
+label = "Solar array → PCDU (MPPT input)"

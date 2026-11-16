@@ -2,16 +2,16 @@
 
 use super::common::{Built, list};
 use crate::args::{
-    CaseArgs, CaseCmd, CatalogCmd, HarnessArgs, HarnessCmd, ManeuverArgs, ManeuverCmd, SourceArgs,
-    SourceCmd,
+    CaseArgs, CaseCmd, CatalogCmd, CatalogSourceCmd, HarnessArgs, HarnessCmd, ManeuverArgs,
+    ManeuverCmd, SourceArgs, SourceCmd,
 };
-use fune_service::dto::{Case, Harness, ManeuverText, Op, Source};
+use fune_service::dto::{Case, CatalogSourceAddText, Harness, ManeuverText, Op, Source};
 use fune_service::edit;
 
 /// serde の綴り（snake_case）から列挙を読む。
 fn enum_of<T: std::str::FromStr>(text: &str, what: &str) -> anyhow::Result<T> {
     text.parse()
-        .map_err(|_| anyhow::anyhow!("{what} として読めません: {text}"))
+        .map_err(|_| anyhow::anyhow!("cannot read as {what}: {text}"))
 }
 
 /// `fune case set|rm`
@@ -33,7 +33,7 @@ fn case_of(a: &CaseArgs) -> anyhow::Result<Case> {
         "orbits": a.orbits,
     });
     let mut case: Case = serde_json::from_value(value)
-        .map_err(|e| anyhow::anyhow!("解析ケースを作れません: {e}"))?;
+        .map_err(|e| anyhow::anyhow!("Cannot create the analysis case: {e}"))?;
     case.id = a.id.as_str().into();
     case.beta = a
         .beta
@@ -62,7 +62,7 @@ fn source_of(a: &SourceArgs) -> anyhow::Result<Source> {
         id: a.id.as_str().into(),
         kind: enum_of(
             &a.kind,
-            "出典の種類（placeholder / judgement / analysis / datasheet / measured）",
+            "source kind (placeholder / judgement / analysis / datasheet / measured)",
         )?,
         label: a.label.clone(),
         reference: a.reference.clone(),
@@ -72,7 +72,7 @@ fn source_of(a: &SourceArgs) -> anyhow::Result<Source> {
         distribution: a
             .distribution
             .as_deref()
-            .map(|d| enum_of(d, "配布の区分（public / on_request / restricted）"))
+            .map(|d| enum_of(d, "distribution class (public / on_request / restricted)"))
             .transpose()?,
         date: a.date.clone(),
         by: a.by.clone(),
@@ -145,7 +145,7 @@ fn maneuver_text(a: &ManeuverArgs) -> ManeuverText {
     }
 }
 
-/// `fune catalog add|set|unset|rm|rename`
+/// `fune catalog add|set|unset|rm|rename|source add|source rm`
 pub fn catalog<'a>(ws: &fune_service::Workspace, c: &'a CatalogCmd) -> Built<'a> {
     Ok(match c {
         CatalogCmd::Add {
@@ -191,11 +191,34 @@ pub fn catalog<'a>(ws: &fune_service::Workspace, c: &'a CatalogCmd) -> Built<'a>
             },
             opts,
         )),
+        CatalogCmd::Source(c) => Some(catalog_source(c)),
         CatalogCmd::Ls
         | CatalogCmd::Show { .. }
         | CatalogCmd::Fetch { .. }
         | CatalogCmd::Update { .. } => None,
     })
+}
+
+/// `fune catalog source add|rm` → `AddCatalogSource`（引数の読み方は service）・`RemoveCatalogSource`。
+fn catalog_source(c: &CatalogSourceCmd) -> (Op, &crate::args::EditOpts) {
+    match c {
+        CatalogSourceCmd::Add {
+            name,
+            git,
+            rev,
+            edit: opts,
+        } => (
+            edit::catalog_source_add_op(&CatalogSourceAddText {
+                name: name.clone(),
+                git: git.clone(),
+                rev: rev.clone(),
+            }),
+            opts,
+        ),
+        CatalogSourceCmd::Rm { name, edit: opts } => {
+            (Op::RemoveCatalogSource { name: name.clone() }, opts)
+        }
+    }
 }
 
 /// `fune catalog set <品> <パス> <値>` → `SetCatalogValue` か `SetCatalogField`。
@@ -215,7 +238,7 @@ fn catalog_set<'a>(
         edit: opts,
     } = c
     else {
-        anyhow::bail!("catalog set ではありません");
+        anyhow::bail!("not a catalog set");
     };
     let text = edit::SetText {
         item: Some(id.clone()),

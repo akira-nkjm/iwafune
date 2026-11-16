@@ -1,5 +1,5 @@
-label        = "ダウンリンク"
-description  = "地上局の可視中に S バンドでミッションデータを降ろす"
+label        = "Downlink"
+description  = "Downlink mission data over S-band while a ground station is visible"
 max_duration = { value = 15.0, unit = "min" }
 
 [states]

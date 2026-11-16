@@ -33,7 +33,7 @@ pub fn findings(path: &str, doc: &toml_edit::Document<String>) -> Vec<ProfileFin
             "toml.renamed_key",
             line,
             format!(
-                "`{}` は `{}` に名前が変わりました（古い名前も読みます。`fune fmt` で書き換えます）",
+                "`{}` was renamed to `{}` (the old name is still read; `fune fmt` rewrites it)",
                 rule.old, rule.new
             ),
         ));
@@ -59,7 +59,7 @@ fn walk_value(key: &str, value: &Value, w: &Walk, out: &mut Vec<ProfileFinding>)
             Severity::Info,
             "toml.integer",
             line(value),
-            format!("`{key}` は物理量なので float で書きます（`0` ではなく `0.0`）"),
+            format!("`{key}` is a physical quantity, so write it as a float (`0.0`, not `0`)"),
         )),
         Value::InlineTable(t) => {
             let multiline = t
@@ -72,7 +72,7 @@ fn walk_value(key: &str, value: &Value, w: &Walk, out: &mut Vec<ProfileFinding>)
                     "toml.v11",
                     line(value),
                     format!(
-                        "`{key}` の複数行のインライン表は TOML 1.1 の書き方です（Python 3.14 以前の tomllib では読めません）"
+                        "A multi-line inline table for `{key}` is TOML 1.1 syntax (Python tomllib before 3.14 cannot read it)"
                     ),
                 ));
             }

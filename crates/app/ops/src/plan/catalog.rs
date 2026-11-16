@@ -52,7 +52,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         }
         Op::RemoveCatalogItem { id } => remove(edits, design, id),
         Op::RenameCatalogItem { from, to } => rename(edits, design, from, to),
-        _ => Err(OpError::invalid("カタログ品の Op ではありません")),
+        _ => Err(OpError::invalid("Not a catalog item op")),
     }
 }
 
@@ -68,9 +68,7 @@ fn full_ref(design: &Design, text: &str) -> Result<String, OpError> {
         .find(|c| c.local_dir().is_some())
         .map(|c| format!("{}/{text}", c.name))
         .ok_or_else(|| {
-            OpError::invalid(
-                "fune.toml にこのプロジェクトのカタログ（[[catalog]] path = …）がありません",
-            )
+            OpError::invalid("fune.toml has no catalog for this project ([[catalog]] path = …)")
         })
 }
 
@@ -79,11 +77,11 @@ fn writable_file(design: &Design, reference: &str) -> Result<String, OpError> {
     match catalog_location(design, reference) {
         CatalogLocation::Local { file } => Ok(file),
         CatalogLocation::Shared { source } => Err(OpError::invalid(format!(
-            "`{reference}` は共有カタログ `{source}` の品なので、このプロジェクトからは書き換えられません。\
-             部品で値を上書きする（fune set <部品>.<属性> …）か、共有カタログのリポジトリに PR を出してください"
+            "`{reference}` is an item of shared catalog `{source}`, so it cannot be edited from this project. \
+             Override the value on a part (fune set <part>.<attribute> …) or open a PR on the shared catalog repository"
         ))),
         CatalogLocation::Unknown => Err(OpError::invalid(format!(
-            "`{reference}` は `<カタログ名>/<ID>` の形で、カタログ名は fune.toml の [[catalog]] にあるものにします"
+            "`{reference}` must be `<catalog>/<id>`, and the catalog must be one in [[catalog]] of fune.toml"
         ))),
     }
 }
@@ -94,7 +92,7 @@ fn existing(design: &Design, text: &str) -> Result<(String, String), OpError> {
     // 共有カタログの品は読み込まれていなくても「読み取り専用」と答える（NotFound より先に）。
     let file = writable_file(design, &reference)?;
     if !design.catalog.contains_key(&reference) {
-        return Err(OpError::not_found(format!("カタログ品 `{reference}`")));
+        return Err(OpError::not_found(format!("Catalog item `{reference}`")));
     }
     Ok((reference, file))
 }
@@ -102,9 +100,8 @@ fn existing(design: &Design, text: &str) -> Result<(String, String), OpError> {
 /// 新しいカタログ品の参照として使えるか（ID の規則と、同じカタログの中での大文字小文字を無視した一意性）。
 fn new_ref(design: &Design, text: &str) -> Result<(String, String), OpError> {
     let reference = full_ref(design, text)?;
-    let (source, id) = split_catalog_ref(&reference).ok_or_else(|| {
-        OpError::invalid(format!("`{reference}` は `<カタログ名>/<ID>` の形にします"))
-    })?;
+    let (source, id) = split_catalog_ref(&reference)
+        .ok_or_else(|| OpError::invalid(format!("`{reference}` must be `<catalog>/<id>`")))?;
     validate_entity_id(id).map_err(|e| OpError::invalid(e.to_string()))?;
     let same_source = design
         .catalog
@@ -112,7 +109,7 @@ fn new_ref(design: &Design, text: &str) -> Result<(String, String), OpError> {
         .filter_map(|k| split_catalog_ref(k).filter(|(s, _)| *s == source))
         .map(|(_, i)| i);
     if clash(same_source, id).is_some() {
-        return Err(OpError::exists(format!("カタログ品 `{reference}`")));
+        return Err(OpError::exists(format!("Catalog item `{reference}`")));
     }
     let file = writable_file(design, &reference)?;
     Ok((reference, file))
@@ -128,11 +125,11 @@ fn create(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> {
         copy_from_part,
     } = op
     else {
-        return Err(OpError::invalid("CreateCatalogItem ではありません"));
+        return Err(OpError::invalid("Not a CreateCatalogItem op"));
     };
     let (reference, file) = new_ref(design, id)?;
     if design.kind(kind).is_none() {
-        return Err(OpError::not_found(format!("種別 `{kind}`")));
+        return Err(OpError::not_found(format!("Kind `{kind}`")));
     }
     let mut item = CatalogItem {
         id: reference,
@@ -142,6 +139,7 @@ fn create(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> {
         manufacturer: None,
         part_number: None,
         maturity: *maturity,
+        tags: Vec::new(),
         datasheet: None,
         source: None,
         attr: BTreeMap::new(),
@@ -158,10 +156,10 @@ fn promote(design: &Design, part_id: &str, item: &mut CatalogItem) -> Result<(),
     let part = design
         .parts
         .get(part_id)
-        .ok_or_else(|| OpError::not_found(format!("部品 `{part_id}`")))?;
+        .ok_or_else(|| OpError::not_found(format!("Part `{part_id}`")))?;
     let resolved = resolve(design);
     let Some(rp) = resolved.parts.get(part_id) else {
-        return Err(OpError::not_found(format!("部品 `{part_id}`")));
+        return Err(OpError::not_found(format!("Part `{part_id}`")));
     };
     for (attr, value) in &rp.attr {
         let written = matches!(value.origin, Origin::Catalog | Origin::Override);
@@ -197,7 +195,7 @@ fn remove(edits: &mut Edits, design: &Design, id: &str) -> Result<(), OpError> {
     let users = design.catalog_users(&reference);
     if !users.is_empty() {
         return Err(OpError::invalid(format!(
-            "カタログ品 `{reference}` は {} から参照されているので消せません。先に参照を付け替えてください",
+            "Catalog item `{reference}` is referenced by {} and cannot be deleted. Re-point the references first",
             users.join(", ")
         )));
     }

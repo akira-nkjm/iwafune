@@ -53,11 +53,11 @@ pub enum BatteryField {
 impl BatteryField {
     fn label(self) -> &'static str {
         match self {
-            Self::Voltage => "公称電圧",
-            Self::ChargeEfficiency => "充電効率",
-            Self::DischargeEfficiency => "放電効率",
-            Self::InitialSoc => "初期 SOC",
-            Self::DodLimit => "DoD の上限",
+            Self::Voltage => "Nominal voltage",
+            Self::ChargeEfficiency => "Charge efficiency",
+            Self::DischargeEfficiency => "Discharge efficiency",
+            Self::InitialSoc => "Initial SOC",
+            Self::DodLimit => "DoD limit",
         }
     }
 }
@@ -91,14 +91,14 @@ impl CombinedBattery {
             .iter()
             .map(|f| format!("{} {}", f.label(), value(*f)))
             .collect::<Vec<_>>()
-            .join("、");
+            .join(", ");
         Some(Check::new(
             "battery_mismatch",
-            "電池の値の不一致",
+            "Battery value mismatch",
             Verdict::Warning,
             format!(
-                "電池の値が揃っていません。集中電池モデルは先頭の電池の値（{fields}）を全体に使い、\
-                 並び順で結果が変わります"
+                "Battery values differ. The lumped battery model uses the first battery's values ({fields}) for all, \
+                 so the result depends on the order"
             ),
         ))
     }
@@ -112,7 +112,7 @@ impl EnergyBalanceBattery {
     pub fn combine(batteries: &[Self]) -> Result<CombinedBattery, AnalysisError> {
         let first = batteries
             .first()
-            .ok_or_else(|| AnalysisError::InvalidInput("電池がありません".to_owned()))?;
+            .ok_or_else(|| AnalysisError::InvalidInput("No battery".to_owned()))?;
         let mut total = first.clone();
         total.capacity = Qty::ZERO;
         let mut charge_limit = Some(Qty::ZERO);
@@ -162,19 +162,19 @@ impl EnergyBalanceBattery {
 }
 
 fn validate_battery(b: &EnergyBalanceBattery) -> Result<(), AnalysisError> {
-    ensure_positive("電池の容量", b.capacity.value())?;
-    ensure_positive("電池の電圧", b.voltage.value())?;
+    ensure_positive("Battery capacity", b.capacity.value())?;
+    ensure_positive("Battery voltage", b.voltage.value())?;
     for (name, v) in [
-        ("電池の充電効率", b.charge_eff()),
-        ("電池の放電効率", b.discharge_eff()),
+        ("Battery charge efficiency", b.charge_eff()),
+        ("Battery discharge efficiency", b.discharge_eff()),
     ] {
         ensure_fraction(name, v)?;
         ensure_positive(name, v)?;
     }
-    ensure_fraction("初期 SOC", b.start_soc())?;
-    ensure_fraction("DoD の上限", b.dod_limit)?;
+    ensure_fraction("Initial SOC", b.start_soc())?;
+    ensure_fraction("DoD limit", b.dod_limit)?;
     if let Some(p) = b.max_charge_power {
-        ensure_non_negative("充電電力の上限", p.value())?;
+        ensure_non_negative("Charge power limit", p.value())?;
     }
     Ok(())
 }

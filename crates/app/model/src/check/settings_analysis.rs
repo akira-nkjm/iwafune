@@ -22,7 +22,7 @@ pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
             &["default_case"],
             design.cases.contains_key(id),
             "ref.case",
-            format!("解析ケース `{id}`"),
+            format!("Analysis case `{id}`"),
         );
     }
     check_power(ctx);
@@ -72,7 +72,7 @@ fn check_power_sizing(ctx: &mut Ctx) {
         s.error(
             &["sizing", "battery_strings"],
             "setting.range",
-            "電池の組数は正にしてください".into(),
+            "The number of battery strings must be positive".into(),
         );
     }
 }
@@ -92,7 +92,7 @@ fn check_power(ctx: &mut Ctx) {
             &keys,
             mode_exists(design, mode),
             "ref.mode",
-            format!("モード `{mode}`"),
+            format!("Mode `{mode}`"),
         );
         s.fraction(&keys, Some(*share));
     }
@@ -102,13 +102,13 @@ fn check_power(ctx: &mut Ctx) {
         s.error(
             &["mode_share"],
             "setting.share_sum",
-            format!("モードの割合の合計が 1 を超えています（{total}）"),
+            format!("The mode shares add up to more than 1 ({total})"),
         );
     } else if !p.mode_share.is_empty() && total < 1.0 - super::SHARE_TOLERANCE {
         s.warning(
             &["mode_share"],
             "setting.share_sum",
-            format!("モードの割合の合計が 1 未満です（{total}）。足りない時間はデータを出さないとみなします"),
+            format!("The mode shares add up to less than 1 ({total}). The missing time is treated as no data output"),
         );
     }
     for seg in &p.sequence {
@@ -117,7 +117,7 @@ fn check_power(ctx: &mut Ctx) {
             &["sequence"],
             exists,
             "ref.mode",
-            format!("モード `{}`", seg.mode),
+            format!("Mode `{}`", seg.mode),
         );
     }
     if let Some(mode) = &p.base_mode {
@@ -125,7 +125,7 @@ fn check_power(ctx: &mut Ctx) {
             &["base_mode"],
             mode_exists(design, mode),
             "ref.mode",
-            format!("モード `{mode}`"),
+            format!("Mode `{mode}`"),
         );
     }
 }
@@ -140,12 +140,7 @@ fn check_aocs(ctx: &mut Ctx) {
     s.fraction(&["unload_dipole_fraction"], a.unload_dipole_fraction);
     for mode in a.law.keys() {
         let exists = mode_exists(design, mode);
-        s.reference(
-            &["law", mode],
-            exists,
-            "ref.mode",
-            format!("モード `{mode}`"),
-        );
+        s.reference(&["law", mode], exists, "ref.mode", format!("Mode `{mode}`"));
     }
 }
 
@@ -171,7 +166,7 @@ fn check_comm(ctx: &mut Ctx) {
             &["stations"],
             exists,
             "ref.station",
-            format!("地上局 `{station}`（conditions/ground/）"),
+            format!("Ground station `{station}` (conditions/ground/)"),
         );
     }
     for (name, link) in &c.links {
@@ -191,7 +186,7 @@ fn check_link(
         &["link", name, "part"],
         exists,
         "ref.part",
-        format!("部品 `{}`", link.part),
+        format!("Part `{}`", link.part),
     );
     for station in stations {
         let Some(g) = design.conditions.ground.get(station) else {
@@ -202,7 +197,7 @@ fn check_link(
                 &["link", name, "band"],
                 "ref.band",
                 format!(
-                    "地上局 `{station}` に帯域 `{}` の性能がありません",
+                    "Ground station `{station}` has no performance for band `{}`",
                     link.band
                 ),
             );

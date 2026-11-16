@@ -126,10 +126,10 @@ impl Analysis for SlewTime {
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         let theta = input.angle.value();
-        ensure_positive("姿勢変更の角度", theta)?;
+        ensure_positive("Slew angle", theta)?;
         if theta > PI + HALF_TURN_TOLERANCE {
             return Err(AnalysisError::InvalidInput(
-                "姿勢変更の角度は 180° 以下にしてください（固有軸まわりの回転は 180° を超えない）"
+                "Slew angle must be at most 180° (a rotation about the eigenaxis does not exceed 180°)"
                     .to_owned(),
             ));
         }
@@ -156,7 +156,7 @@ impl Analysis for SlewTime {
             .iter()
             .max_by(|a, b| a.time.value().total_cmp(&b.time.value()))
             .cloned()
-            .ok_or_else(|| AnalysisError::InvalidInput("評価する軸がありません".to_owned()))?;
+            .ok_or_else(|| AnalysisError::InvalidInput("No axes to evaluate".to_owned()))?;
         let checks = verdicts(input.required_time, &worst);
         Ok(SlewTimeOutput {
             angle: input.angle,
@@ -174,7 +174,7 @@ fn axes(given: Option<Vec3>) -> Result<Vec<(String, Vec3)>, AnalysisError> {
     match given {
         Some(a) => {
             let e = a.normalized().ok_or_else(|| {
-                AnalysisError::InvalidInput("回転軸がゼロベクトルです".to_owned())
+                AnalysisError::InvalidInput("Rotation axis is a zero vector".to_owned())
             })?;
             Ok(vec![("given".to_owned(), e)])
         }
@@ -188,7 +188,7 @@ fn axes(given: Option<Vec3>) -> Result<Vec<(String, Vec3)>, AnalysisError> {
 /// 軸 `e`（単位ベクトル）まわりの慣性モーメント `eᵀ I e` [kg·m²]。正でなければ `InvalidInput`。
 fn axis_inertia(inertia: &Mat3, e: Vec3) -> Result<f64, AnalysisError> {
     let i = e.dot(inertia.mul_vec(e));
-    ensure_positive("軸まわりの慣性モーメント", i)?;
+    ensure_positive("Moment of inertia about the axis", i)?;
     Ok(i)
 }
 
@@ -243,10 +243,10 @@ fn verdicts(required: Option<Qty<Time>>, worst: &SlewTimeAxis) -> Vec<Check> {
     };
     vec![Check::new(
         "slew_time",
-        "姿勢変更の時間（最悪の軸）",
+        "Slew time (worst axis)",
         Verdict::from_ok(worst.time <= req),
         format!(
-            "{}（要求 {} 以内）",
+            "{} (required within {})",
             quantity_text::<Time>(worst.time.value()),
             quantity_text::<Time>(req.value())
         ),

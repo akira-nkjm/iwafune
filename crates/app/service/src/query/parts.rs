@@ -114,7 +114,7 @@ pub(crate) fn view(
     let rp = resolved
         .parts
         .get(id)
-        .ok_or_else(|| ServiceError::not_found("部品", id))?;
+        .ok_or_else(|| ServiceError::not_found("part", id))?;
     let part = part_row(design, resolved, diagnostics, rp);
     // 系の順と見出しは `fune_model::builtin::sections`、属性の系は `Design::attribute_section`。
     let mut sections: Vec<AttrSection> = fune_model::builtin::sections()
@@ -167,25 +167,24 @@ pub(crate) fn get_value(resolved: &Resolved, path: &str, q: &ValueQuery) -> Resu
     let parsed = parse(path).map_err(|e| ServiceError::InvalidInput(e.to_string()))?;
     let ParamPath::Attr { part, attr, state } = parsed else {
         return Err(ServiceError::InvalidInput(format!(
-            "部品の属性のパスではありません: {path}（設定は `fune setting ls`）"
+            "Not a part attribute path: {path} (for settings, see `fune setting ls`)"
         )));
     };
     let rp = resolved
         .parts
         .get(part.as_str())
-        .ok_or_else(|| ServiceError::not_found("部品", part.as_str()))?;
+        .ok_or_else(|| ServiceError::not_found("part", part.as_str()))?;
     let rv = rp
         .attr
         .get(&attr)
-        .ok_or_else(|| ServiceError::not_found("属性", format!("{part}.{attr}")))?;
+        .ok_or_else(|| ServiceError::not_found("attribute", format!("{part}.{attr}")))?;
     let state = state.or_else(|| q.state.clone());
     let selected = match &state {
         None => None,
         Some(s) => {
-            let v =
-                rv.value.get().and_then(|v| v.at_state(s)).ok_or_else(|| {
-                    ServiceError::not_found("状態の値", format!("{part}.{attr}.{s}"))
-                })?;
+            let v = rv.value.get().and_then(|v| v.at_state(s)).ok_or_else(|| {
+                ServiceError::not_found("state value", format!("{part}.{attr}.{s}"))
+            })?;
             Some(quantity_auto(
                 v.value,
                 rv.dimension.as_deref().unwrap_or("Dimensionless"),

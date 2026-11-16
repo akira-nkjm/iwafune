@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 enum_text! {
     /// 部品のフィールド名（`RW_X.label`。正規の順: label → description → catalog → kind → candidates → count → maturity）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-    pub enum PartFieldName: "部品のフィールド" {
+    pub enum PartFieldName: "part field" {
         Label = "label",
         Description = "description",
         Catalog = "catalog",
@@ -26,13 +26,14 @@ enum_text! {
 enum_text! {
     /// カタログ品のフィールド名（`fune catalog set <品> <フィールド>`）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-    pub enum CatalogFieldName: "カタログ品のフィールド" {
+    pub enum CatalogFieldName: "catalog item field" {
         Kind = "kind",
         Label = "label",
         LabelEn = "label_en",
         Manufacturer = "manufacturer",
         PartNumber = "part_number",
         Maturity = "maturity",
+        Tags = "tags",
         Datasheet = "datasheet",
         Source = "source",
     }
@@ -41,7 +42,7 @@ enum_text! {
 enum_text! {
     /// ネットのフィールド名（`nets/<ID>.toml` のキー・`fune net set --<フィールド>`・`NetView.field_paths` のキー）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-    pub enum NetFieldName: "ネットのフィールド" {
+    pub enum NetFieldName: "net field" {
         Kind = "kind",
         Label = "label",
         Source = "source",

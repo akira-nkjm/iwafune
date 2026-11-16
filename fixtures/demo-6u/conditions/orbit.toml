@@ -1,4 +1,4 @@
-# 太陽同期円軌道 550 km（降交点地方時 10:30）。傾斜角は高度から求める（sun_synchronous）
+# Sun-synchronous circular orbit at 550 km (descending-node local time 10:30). Inclination is derived from altitude (sun_synchronous)
 label           = "SSO 550 km / LTDN 10:30"
 epoch           = "2027-04-01T00:00:00Z"
 propagator      = "j2"

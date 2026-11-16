@@ -1,5 +1,5 @@
 kind         = "pcdu"
-label        = "PCDU（6U 用、MPPT 4 系統）"
+label        = "PCDU for 6U (4 MPPT channels)"
 manufacturer = "Example Power"
 part_number  = "PCDU-6U"
 maturity     = "off_the_shelf"

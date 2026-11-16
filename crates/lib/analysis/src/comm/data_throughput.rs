@@ -218,10 +218,13 @@ impl Analysis for DataThroughput {
 }
 
 fn validate(input: &DataThroughputInput) -> Result<(), AnalysisError> {
-    ensure_positive("ダウンリンクのレート", input.downlink_rate.value())?;
-    ensure_fraction("パスのうち使える割合", input.usable_pass_fraction().value())?;
-    ensure_non_negative("1 日の発生量", input.generated_per_day.value())?;
-    ensure_non_negative("開始時の未送信データ", input.initial_backlog().value())?;
+    ensure_positive("Downlink rate", input.downlink_rate.value())?;
+    ensure_fraction(
+        "Usable fraction of passes",
+        input.usable_pass_fraction().value(),
+    )?;
+    ensure_non_negative("Generated data per day", input.generated_per_day.value())?;
+    ensure_non_negative("Initial backlog", input.initial_backlog().value())?;
     for s in &input.station_links {
         s.link.rf.validate("downlink")?;
     }

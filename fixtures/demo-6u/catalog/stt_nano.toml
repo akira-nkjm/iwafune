@@ -1,9 +1,10 @@
 kind         = "star_tracker"
-label        = "小型スタートラッカ"
+label        = "Compact star tracker"
 manufacturer = "Example Optics"
 part_number  = "ST-NANO"
 maturity     = "off_the_shelf"
 source       = "ds_vendor"
+tags         = ["domestic", "candidate"]
 
 [attr]
 mass            = { value = 280.0, unit = "g" }

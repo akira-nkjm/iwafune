@@ -1,5 +1,5 @@
 kind   = "power"
-label  = "3.3 V 系（OBC・センサ）"
+label  = "3.3 V rail (OBC, sensors)"
 source = "PCDU.OUT1"
 rail   = { value = 3.3, unit = "V" }
 limit  = { value = 2.0, unit = "A" }

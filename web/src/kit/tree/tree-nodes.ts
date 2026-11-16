@@ -55,20 +55,93 @@ export function partsTree<T extends Pick<PartRow, "id" | "parent" | "dir" | "sys
   return roots;
 }
 
-/** カタログ名（API の `scope`）ごとにまとめる。カタログ名の無い品は kind でまとめる。ID は分解しない。 */
-export function catalogTree<T extends Pick<CatalogItemView, "id" | "scope" | "name" | "kind">>(
+/** カタログのツリーの分け方（`catalog` はカタログ名、`kind` は種別定義の親子、ほかは値ごと） */
+export const CATALOG_GROUPINGS = ["catalog", "manufacturer", "kind", "maturity"] as const;
+export type CatalogGrouping = (typeof CATALOG_GROUPINGS)[number];
+
+/** フォルダーの見出しを作る側（Web は表示名を持たない。呼び手が API の定義から渡す） */
+export type CatalogTreeLabels = {
+  /** 値が無い品を入れるフォルダーの見出し */
+  unset: string;
+  /** 種別の表示名 */
+  kind: (id: string) => string;
+  /** 成熟度の表示名 */
+  maturity: (value: string) => string;
+};
+
+/** 分け方の 1 段。`id` が null の段は「未設定」。フォルダーの key は段の id の並びから作る（文字列は分解しない） */
+type Step = { id: string | null; label: string };
+
+type CatalogTreeItem = Pick<
+  CatalogItemView,
+  "id" | "scope" | "name" | "kind" | "manufacturer" | "maturity"
+>;
+
+/** `kind` の祖先から自身までの種別 ID（根から順。定義に無い種別は自身だけ。循環は打ち切る） */
+function kindChain(kinds: ReadonlyMap<string, string | null>, kind: string): string[] {
+  const chain = [kind];
+  let parent = kinds.get(kind) ?? null;
+  while (parent && !chain.includes(parent)) {
+    chain.unshift(parent);
+    parent = kinds.get(parent) ?? null;
+  }
+  return chain;
+}
+
+function groupPath(
+  item: CatalogTreeItem,
+  by: CatalogGrouping,
+  kinds: ReadonlyMap<string, string | null>,
+  labels: CatalogTreeLabels,
+): Step[] {
+  const unset: Step = { id: null, label: labels.unset };
+  const plain = (value: string | null | undefined, label = value): Step =>
+    value ? { id: value, label: label ?? value } : unset;
+  switch (by) {
+    case "catalog":
+      return [plain(item.scope)];
+    case "manufacturer":
+      return [plain(item.manufacturer), plain(item.kind, labels.kind(item.kind))];
+    case "kind":
+      return item.kind
+        ? kindChain(kinds, item.kind).map((k) => ({ id: k, label: labels.kind(k) }))
+        : [unset];
+    case "maturity":
+      return [plain(item.maturity, item.maturity && labels.maturity(item.maturity))];
+  }
+}
+
+/**
+ * カタログ品を `by` の分け方でフォルダーにまとめる。値の無い品は「未設定」のフォルダー（根では末尾）。
+ * `kind` は種別定義の親子（`kinds` の `parent`）を入れ子のフォルダーにする。フォルダーの key は段の値の並びの JSON で一意。
+ */
+export function catalogTree<T extends CatalogTreeItem>(
   items: readonly T[],
+  by: CatalogGrouping,
+  kinds: readonly { id: string; parent: string | null }[],
+  labels: CatalogTreeLabels,
 ): TreeNode<T>[] {
   const roots: TreeNode<T>[] = [];
+  const parents = new Map(kinds.map((k) => [k.id, k.parent]));
+  const unsetKeys = new Set<string>();
   for (const item of items) {
-    folder(roots, [item.scope || item.kind]).push({
-      key: `item/${item.id}`,
-      label: item.name || item.id,
-      item,
-      children: [],
-    });
+    let children = roots;
+    const ids: (string | null)[] = [];
+    for (const step of groupPath(item, by, parents, labels)) {
+      ids.push(step.id);
+      const key = `folder/${JSON.stringify(ids)}`;
+      let node = children.find((n) => n.key === key);
+      if (!node) {
+        node = { key, label: step.label, children: [] };
+        children.push(node);
+        if (step.id === null) unsetKeys.add(key);
+      }
+      children = node.children;
+    }
+    children.push({ key: `item/${item.id}`, label: item.name || item.id, item, children: [] });
   }
-  return roots;
+  const rank = (node: TreeNode<T>) => (unsetKeys.has(node.key) ? 1 : 0);
+  return roots.sort((a, b) => rank(a) - rank(b));
 }
 
 /** 一致する項目と祖先を残し、結果までの経路を自動展開する。 */
