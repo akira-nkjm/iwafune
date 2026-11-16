@@ -51,19 +51,19 @@ fn synthetic() -> Vec<u8> {
 
 #[test]
 fn parses_and_evaluates_synthetic_table() {
-    let t = De440::from_bytes(synthetic()).expect("合成の表");
+    let t = De440::from_bytes(synthetic()).expect("synthetic table");
     assert_eq!(t.span_s(), (-86_400.0, 86_400.0));
     // 区間 1 の中央（x = 0）: 時刻は TDB なので、TT − TDB 補正の分だけ x が 0 からずれる
     let e = Epoch {
         j2000_s: 43_200.0 - (tt_to_tdb_s(43_200.0) - 43_200.0),
     };
     assert!(t.covers(e));
-    let moon = t.geocentric_position_m(body_id::MOON, e).expect("月");
+    let moon = t.geocentric_position_m(body_id::MOON, e).expect("moon");
     // 月 = (EMB→月) − (EMB→地球) = (−3.8e5 − 4600, 1e3·x, 0) km、x ≈ 0
     assert!((moon.x - (-3.8e5 - 4600.0) * 1e3).abs() < 1e-3, "{moon:?}");
     assert!(moon.y.abs() < 1e-3);
     // 太陽 = (SSB→太陽) − (SSB→EMB) − (EMB→地球)。z は c0 = 1000 km、x は −(1e8 + 10x + 0.5(2x²−1)) − 4600
-    let sun = t.geocentric_position_m(body_id::SUN, e).expect("太陽");
+    let sun = t.geocentric_position_m(body_id::SUN, e).expect("sun");
     assert!((sun.z - 1.0e6).abs() < 1e-6);
     assert!(
         (sun.x - (-(1.0e8 - 0.5) - 4600.0) * 1e3).abs() < 1.0,
@@ -96,21 +96,21 @@ fn rejects_malformed_bytes() {
 /// 実データ（環境変数 SAT_ASTRO_DE440 のパス）を読み、解析式と比べる。
 /// `SAT_ASTRO_DE440=/path/de440.bin cargo test -p sat-astro -- --ignored de440` で実行する。
 #[test]
-#[ignore = "実データの de440.bin（20.7 MB）が要る"]
+#[ignore = "needs the real de440.bin (20.7 MB)"]
 fn real_table_agrees_with_analytic_series() {
     let Ok(path) = std::env::var("SAT_ASTRO_DE440") else {
         return;
     };
-    let bytes = std::fs::read(path).expect("de440.bin を読めない");
-    let t = De440::from_bytes(bytes).expect("実データ");
-    let e = Epoch::parse("2027-04-01T00:00:00Z").expect("元期");
+    let bytes = std::fs::read(path).expect("cannot read de440.bin");
+    let t = De440::from_bytes(bytes).expect("real data");
+    let e = Epoch::parse("2027-04-01T00:00:00Z").expect("epoch");
     assert!(t.covers(e));
     for (body, id, max_deg, max_rel) in [
         (Body::Sun, body_id::SUN, 0.001, 1e-4),
         (Body::Moon, body_id::MOON, 0.01, 1e-3),
         (Body::Jupiter, body_id::JUPITER_BARYCENTER, 0.5, 0.01),
     ] {
-        let de = t.geocentric_position_m(id, e).expect("期間内");
+        let de = t.geocentric_position_m(id, e).expect("within range");
         let an = analytic_position_eci_m(body, e);
         let ang = de.angle_to(an).to_degrees();
         let rel = (de.norm() / an.norm() - 1.0).abs();

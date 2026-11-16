@@ -241,7 +241,7 @@ mod tests {
 
     #[test]
     fn j2000_is_noon_on_2000_01_01() {
-        let e = Epoch::parse("2000-01-01T12:00:00Z").expect("解釈");
+        let e = Epoch::parse("2000-01-01T12:00:00Z").expect("parse");
         assert_eq!(e.j2000_s, 0.0);
         assert_eq!(e.to_iso(), "2000-01-01T12:00:00Z");
     }
@@ -258,18 +258,18 @@ mod tests {
             assert_eq!(e.to_iso(), s);
         }
         // 2027-04-01 00:00 は J2000（2000-01-01 12:00）から 9951.5 日。
-        let e = Epoch::parse("2027-04-01T00:00:00Z").expect("解釈");
+        let e = Epoch::parse("2027-04-01T00:00:00Z").expect("parse");
         assert!((e.j2000_s - 9_951.5 * 86_400.0).abs() < 1e-6);
-        assert_eq!(Epoch::parse("2027-04-01").expect("日付のみ"), e);
+        assert_eq!(Epoch::parse("2027-04-01").expect("date only"), e);
     }
 
     #[test]
     fn day_of_year_and_seconds_of_day() {
-        let e = Epoch::parse("2000-06-20T08:03:20Z").expect("元期");
+        let e = Epoch::parse("2000-06-20T08:03:20Z").expect("epoch");
         assert_eq!(e.day_of_year_and_seconds(), (172, 29_000.0));
-        let e = Epoch::parse("2027-01-01T00:00:00Z").expect("元期");
+        let e = Epoch::parse("2027-01-01T00:00:00Z").expect("epoch");
         assert_eq!(e.day_of_year_and_seconds(), (1, 0.0));
-        let e = Epoch::parse("2024-12-31T23:59:59Z").expect("元期");
+        let e = Epoch::parse("2024-12-31T23:59:59Z").expect("epoch");
         assert_eq!(e.day_of_year_and_seconds(), (366, 86_399.0));
     }
 
@@ -277,7 +277,7 @@ mod tests {
     fn day_numbers_round_trip_through_the_calendar() {
         assert_eq!(Epoch::day_number_of(2000, 1, 1), 0);
         assert_eq!(Epoch::day_number_of(1999, 12, 31), -1);
-        let e = Epoch::parse("2003-10-29T07:30:00Z").expect("元期");
+        let e = Epoch::parse("2003-10-29T07:30:00Z").expect("epoch");
         let (day, sec) = e.day_number_and_seconds();
         assert_eq!(day, Epoch::day_number_of(2003, 10, 29));
         assert_eq!(sec, 27_000.0);
@@ -305,7 +305,7 @@ mod tests {
         let g0 = Epoch { j2000_s: 0.0 }.gmst_rad().to_degrees();
         assert!((g0 - 280.460_618_37).abs() < 1e-6, "{g0}");
         // Vallado 例 3-5: 1992-08-20 12:14:00 UT1 → GMST = 152.578787810°
-        let e = Epoch::parse("1992-08-20T12:14:00Z").expect("解釈");
+        let e = Epoch::parse("1992-08-20T12:14:00Z").expect("parse");
         let g = e.gmst_rad().to_degrees();
         assert!((g - 152.578_787_81).abs() < 1e-4, "{g}");
     }

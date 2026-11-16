@@ -31,11 +31,11 @@ const FORECAST_2026: &str = "\
 ";
 
 fn table(rows: &str) -> SpaceWeatherTable {
-    SpaceWeatherTable::from_csv_bytes(format!("{HEADER}\r\n{rows}").as_bytes()).expect("表")
+    SpaceWeatherTable::from_csv_bytes(format!("{HEADER}\r\n{rows}").as_bytes()).expect("table")
 }
 
 fn at(s: &str) -> Epoch {
-    Epoch::parse(s).expect("元期")
+    Epoch::parse(s).expect("epoch")
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn reads_the_published_columns() {
     let c = t.coverage();
     assert_eq!(c.first, Epoch::day_number_of(2003, 10, 26));
     assert_eq!(c.last_observed, Some(Epoch::day_number_of(2003, 11, 1)));
-    assert_eq!(c.last, c.last_observed.expect("実績"));
+    assert_eq!(c.last, c.last_observed.expect("observed"));
 }
 
 /// 2003-10-30 07:30 UT: F10.7 は前日（10-29）の 291.7、81 日平均は当日の中心平均、Ap は当日の 191。

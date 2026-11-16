@@ -144,7 +144,10 @@ package's "Manage Actions access"; its workflow then uses the image as a job con
 
 A satellite repository can read catalog items from a shared catalog repository (`[[catalog]] git = …` in
 `fune.toml`, see [docs/model.md §12](docs/model.md)). The commit is pinned in `catalog.lock`, which is committed,
-and the fetched files are cached under `.fune/` (ignored by git). In CI, fetch the locked commit first, then check:
+and the fetched files are cached under `.fune/` (ignored by git). Add one with
+`fune catalog source add <name> --git <url> [--rev <rev>]` (or from the catalog page of the GUI), then run
+`fune catalog fetch` and commit `fune.toml` and `catalog.lock`; `fune catalog source rm <name>` removes it again
+(refused while parts use its items). In CI, fetch the locked commit first, then check:
 
 ```yaml
 jobs:

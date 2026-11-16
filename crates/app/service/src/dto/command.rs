@@ -48,6 +48,21 @@ pub enum CommandText {
     ManeuverAdd(super::ManeuverText),
     /// `fune maneuver set <ID> …`（無ければ作り、あれば丸ごと置き換える）
     ManeuverSet(super::ManeuverText),
+    /// `fune catalog source add <名前> --git <URL> [--rev <rev>]`（fune.toml に共有カタログを足す。取得はしない）
+    CatalogSourceAdd(CatalogSourceAddText),
+}
+
+/// `fune catalog source add` の引数。前後の空白は除き、空の `rev` は省いたのと同じ（既定のブランチ）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(default)]
+#[ts(optional_fields = nullable)]
+pub struct CatalogSourceAddText {
+    /// カタログの名前（品は `<名前>/<ID>` で入る）
+    pub name: String,
+    /// 取得元の git の URL（https・ssh・file://）
+    pub git: String,
+    /// ブランチ・タグ・commit
+    pub rev: Option<String>,
 }
 
 /// `fune net set` の引数。旗を書いたフィールドだけを書く（宣言の順に 1 フィールド 1 つの `SetNetField`）。

@@ -8,7 +8,10 @@ use crate::orbit::{elements_to_state, mean_motion_rad_s, osculating_elements};
 use crate::state::OrbitState;
 
 fn close(a: f64, b: f64, tol: f64) {
-    assert!((a - b).abs() <= tol, "{a} と {b} の差が {tol} を超えます");
+    assert!(
+        (a - b).abs() <= tol,
+        "difference between {a} and {b} exceeds {tol}"
+    );
 }
 
 /// 地球 → 火星のホーマン遷移（Curtis, *Orbital Mechanics for Engineering Students*, 3rd ed., Example 8.3・8.4）:
