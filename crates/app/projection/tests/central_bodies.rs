@@ -5,7 +5,7 @@ use fune_model::Design;
 use fune_model::design::CentralBodyKind;
 use fune_model::value::Quantity;
 use fune_projection::{Context, aocs, orbit, power, thermal};
-use sat_analysis::aocs::unload_time::MtqFieldGap;
+use sat_analysis::aocs::unload_time::{MtqFieldGap, MtqFieldReason};
 use sat_analysis::aocs::{RwUnloading, UnloadTime};
 use sat_analysis::orbit::EclipseSeason;
 use sat_analysis::spec::{Analysis, Verdict};
@@ -183,7 +183,14 @@ fn unload_time_about_other_bodies_leaves_out_the_mtq_with_a_reason() {
     };
     let moon = run(CentralBodyKind::Moon);
     assert!(moon.mtq.is_none());
-    assert_eq!(moon.mtq_field_gap, Some(MtqFieldGap::Absent));
+    // デモにスラスタは無いので、RCS で足りない
+    assert_eq!(
+        moon.mtq_field_gap,
+        Some(MtqFieldGap {
+            reason: MtqFieldReason::Absent,
+            covered_by_rcs: false,
+        })
+    );
     let earth = run(CentralBodyKind::Earth);
     assert!(earth.mtq.is_some() && earth.mtq_field_gap.is_none());
 }

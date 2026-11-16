@@ -21,6 +21,6 @@ usable_momentum_fraction: number | null,
  */
 mtq: UnloadTimeMtqResult | null, 
 /**
- * MTQ を中心天体の磁場で評価できなかった理由（評価したか MTQ が無ければ `None`）
+ * MTQ を中心天体の磁場で評価できなかった理由と、RCS で足りるか（評価したか MTQ が無ければ `None`）
  */
 mtq_field_gap: MtqFieldGap | null, rcs: UnloadTimeRcs | null, checks: Array<Check>, };

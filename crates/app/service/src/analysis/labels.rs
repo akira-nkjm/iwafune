@@ -7,7 +7,7 @@ use crate::dto::{AnalysisLabel, AocsUnloadMeans, KpiKey};
 use sat_analysis::aocs::disturbance::DisturbanceKind;
 use sat_analysis::aocs::sensor_fov::SensorFovTarget;
 use sat_analysis::aocs::slew_time::{SlewAssumption, SlewProfile};
-use sat_analysis::aocs::unload_time::{MtqFieldGap, UnloadAssumption};
+use sat_analysis::aocs::unload_time::{MtqFieldGap, MtqFieldReason, UnloadAssumption};
 use sat_analysis::comm::data_throughput::DataThroughputLinkClosure;
 use sat_analysis::comm::link_budget::LinkBudgetDirection;
 use sat_analysis::power::energy_balance::{EnergyBalanceDuty, EnergyBalanceEvaluation};
@@ -102,17 +102,35 @@ fn unload_assumption(a: UnloadAssumption) -> AnalysisLabel {
     }
 }
 
-fn mtq_field_gap(g: MtqFieldGap) -> AnalysisLabel {
-    match g {
-        MtqFieldGap::Absent => label(
+fn mtq_field_reason(r: MtqFieldReason) -> AnalysisLabel {
+    match r {
+        MtqFieldReason::Absent => label(
             "中心天体に全球の磁場が無いので、MTQ では角運動量を捨てられません",
             "The central body has no global magnetic field, so the magnetorquers cannot unload momentum",
         ),
-        MtqFieldGap::NotModelled => label(
+        MtqFieldReason::NotModelled => label(
             "中心天体の磁場のモデルが無い（地球の磁場だけを扱う）ので、MTQ でのアンロードを評価していません",
             "There is no magnetic field model for the central body (only Earth's field is modelled), so magnetorquer unloading is not evaluated",
         ),
     }
+}
+
+/// MTQ を評価できなかったことの文。RCS がすべての向きを捨てられるなら、アンロードは RCS で行うと添える。
+fn mtq_field_gap(g: MtqFieldGap) -> AnalysisLabel {
+    let reason = mtq_field_reason(g.reason);
+    if !g.covered_by_rcs {
+        return reason;
+    }
+    label(
+        format!(
+            "{}。RCS がすべての向きの角運動量を捨てられるので、アンロードは RCS で行います",
+            reason.label
+        ),
+        format!(
+            "{}. RCS can unload momentum in every direction, so unloading is done by RCS",
+            reason.label_en
+        ),
+    )
 }
 
 /// MTQ を中心天体の磁場で評価できなかったことの判定（key `mtq_field_model`）の項目名と文。
@@ -263,7 +281,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "DisturbanceKind" => parse(value).map(disturbance),
         "SensorFovTarget" => parse(value).map(sensor_target),
         "UnloadAssumption" => parse(value).map(unload_assumption),
-        "MtqFieldGap" => parse(value).map(mtq_field_gap),
+        "MtqFieldReason" => parse(value).map(mtq_field_reason),
         "SlewProfile" => parse(value).map(slew_profile),
         "SlewAssumption" => parse(value).map(slew_assumption),
         "SpanFallback" => parse(value).map(span_fallback),

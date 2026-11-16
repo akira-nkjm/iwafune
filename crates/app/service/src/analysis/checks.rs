@@ -172,26 +172,40 @@ mod tests {
         assert!(collect_checks(Some(&json!({"span_fallback": null}))).is_empty());
     }
 
-    /// MTQ を評価できなかった理由は、解析の判定に依らず語彙の日本語と英語で判定にする（磁場が無ければ違反）。
+    /// MTQ を評価できなかった理由は、解析の判定に依らず語彙の日本語と英語で判定にする。判定は解析が決める
+    /// （磁場が無ければ違反、モデルが無ければ注意、RCS がすべての向きを捨てられれば OK で、文に RCS で行うと添える）。
     #[test]
     fn mtq_field_gap_becomes_a_check_in_both_languages() {
         use sat_analysis::spec::Verdict;
-        let checks = collect_checks(Some(&json!({"mtq_field_gap": "absent", "checks": []})));
-        assert_eq!(checks.len(), 1);
-        let c = &checks[0];
+        let gap = |reason: &str, covered: bool| {
+            let output = json!({"mtq_field_gap": {"reason": reason, "covered_by_rcs": covered}, "checks": []});
+            let checks = collect_checks(Some(&output));
+            assert_eq!(checks.len(), 1);
+            checks[0].clone()
+        };
+        let c = gap("absent", false);
         assert_eq!(
             (c.key.as_str(), c.at.as_str()),
             ("mtq_field_model", "/mtq_field_gap")
         );
         assert_eq!(c.verdict, Verdict::Violation);
         assert!(c.message.contains("磁場が無い"));
+        assert!(!c.message.contains("RCS"));
         assert!(
             c.message_en
                 .as_deref()
                 .is_some_and(|m| m.contains("no global magnetic field"))
         );
-        let other = collect_checks(Some(&json!({"mtq_field_gap": "not_modelled"})));
-        assert_eq!(other[0].verdict, Verdict::Warning);
+        assert_eq!(gap("not_modelled", false).verdict, Verdict::Warning);
+        let covered = gap("absent", true);
+        assert_eq!(covered.verdict, Verdict::Ok);
+        assert!(covered.message.contains("RCS で行います"));
+        assert!(
+            covered
+                .message_en
+                .as_deref()
+                .is_some_and(|m| m.contains("done by RCS"))
+        );
         assert!(collect_checks(Some(&json!({"mtq_field_gap": null}))).is_empty());
     }
 }
