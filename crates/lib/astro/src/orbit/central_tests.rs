@@ -2,11 +2,14 @@
 
 use super::*;
 use crate::attitude::AttitudeLaw;
-use crate::constants::R_MOON;
+use crate::constants::{
+    J2_EARTH, MU_EARTH, R_EARTH, R_MARS, R_MOON, SECONDS_PER_DAY, SUN_MEAN_MOTION,
+};
 use crate::ephem::orientation::pole_eci;
 use crate::force::{ForceConfig, ForceTerm, GravityModel, acceleration_breakdown_about};
 use crate::shadow::ShadowModel;
 use crate::timeline::{TimelineSpec, build, mean_sunlit};
+use core::f64::consts::TAU;
 
 fn epoch() -> Epoch {
     Epoch::parse("2027-04-01T00:00:00Z").expect("元期")
@@ -217,4 +220,67 @@ fn environment_models_are_zero_away_from_earth() {
             epoch()
         ) > 1e-13
     );
+}
+
+/// 地球の太陽同期傾斜角は従来の地球専用の式と同じ値（教科書: 500〜800 km で 97.4〜98.6°）。
+#[test]
+fn earth_sso_matches_the_earth_formula() {
+    for alt in [500e3, 550e3, 800e3] {
+        let a = R_EARTH + alt;
+        let n = mean_motion_rad_s(MU_EARTH, a);
+        let cos_i = -SUN_MEAN_MOTION / (1.5 * n * J2_EARTH * (R_EARTH / a).powi(2));
+        let i = sso_inclination_about_rad(CentralBody::Earth, a, 0.0).expect("地球");
+        assert_eq!(i, cos_i.acos());
+        assert_eq!(i, sso_inclination_rad(a, 0.0));
+        assert!(
+            (97.4..98.7).contains(&i.to_degrees()),
+            "{alt}: {}",
+            i.to_degrees()
+        );
+    }
+}
+
+/// 火星の太陽同期軌道（高度 400 km の円軌道）を手計算と比べる。
+///
+/// a = R + h = 3 396.19 + 400 = 3 796.19 km、μ = 4.282837e13 m³/s²、J2 = 1.96045e-3。
+/// n = √(μ/a³) = 8.848e-4 rad/s、(R/a)² = 0.80034。
+/// 火星の公転周期 686.98 日 → 太陽を回る平均運動 2π/(686.98·86400) = 1.0586e-7 rad/s。
+/// cos i = −n☉ / (1.5 n J2 (R/a)²) = −1.0586e-7 / 2.0824e-6 = −0.05084 → i = 92.91°。
+/// （公表されている火星の太陽同期軌道は 400 km 付近で約 93°。）
+#[test]
+fn mars_sso_inclination_by_hand_calculation() {
+    let a = R_MARS + 400e3;
+    let i = sso_inclination_about_rad(CentralBody::Mars, a, 0.0).expect("火星");
+    assert!((i.to_degrees() - 92.91).abs() < 0.05, "{}°", i.to_degrees());
+    // 日心の平均運動は周期 686.98 日と 0.1 % 以内で合う
+    let n_sun = CentralBody::Mars.sun_mean_motion_rad_s().expect("火星の年");
+    let by_period = TAU / (686.98 * SECONDS_PER_DAY);
+    assert!((n_sun / by_period - 1.0).abs() < 1e-3);
+}
+
+/// 太陽と月は太陽同期軌道を定義できない。長半径が大きすぎるときも誤差でなく Err。
+#[test]
+fn sso_rejects_unsupported_bodies_and_unreachable_orbits() {
+    for body in [CentralBody::Sun, CentralBody::Moon] {
+        assert!(sso_inclination_about_rad(body, body.radius_m() + 100e3, 0.0).is_err());
+    }
+    assert!(sso_inclination_about_rad(CentralBody::Mars, R_MARS * 30.0, 0.0).is_err());
+}
+
+/// 地方時 → RAAN は地球だけ。地球は従来の関数と同じ値、ほかは Err。
+#[test]
+fn local_time_raan_is_earth_only() {
+    let e = epoch();
+    assert_eq!(
+        raan_from_ltdn_about(CentralBody::Earth, e, 10.5).expect("地球"),
+        raan_from_ltdn(e, 10.5).expect("地球")
+    );
+    assert_eq!(
+        raan_from_ltan_about(CentralBody::Earth, e, 22.5).expect("地球"),
+        raan_from_ltan(e, 22.5).expect("地球")
+    );
+    for body in [CentralBody::Moon, CentralBody::Mars, CentralBody::Sun] {
+        assert!(raan_from_ltan_about(body, e, 10.5).is_err());
+        assert!(raan_from_ltdn_about(body, e, 10.5).is_err());
+    }
 }

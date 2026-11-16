@@ -67,7 +67,9 @@ pub use analysis::{
     AnalysisCaseSource, AnalysisEntry, AnalysisInputSource, AnalysisRunResult, AnalysisRunStatus,
     CheckView, RunAnalysisRequest,
 };
-pub use budget::{BudgetPropellant, BudgetRequest, BudgetRow, BudgetTotal, BudgetView};
+pub use budget::{
+    BudgetPropellant, BudgetRequest, BudgetRow, BudgetTotal, BudgetUncounted, BudgetView,
+};
 pub use catalog::{CatalogItemView, CatalogSourceView};
 pub use command::{
     AttrAddText, CaseFromEclipseRequest, CommandText, EclipseCaseAt, KindAddText, ModeCellText,
@@ -77,7 +79,7 @@ pub use common::{
     CheckReport, DiagnosticCounts, DiagnosticView, ErrorEnvelope, ErrorInfo, QuantityView,
     SourceExcerpt,
 };
-pub use data::{DataItem, DataStatus, SpaceWeatherLookup, SpaceWeatherVersion};
+pub use data::{DataItem, DataStatus, SpaceWeatherLookup, SpaceWeatherQuery, SpaceWeatherVersion};
 pub use design::PartViewRequest;
 pub use design::{
     AttrSection, AttributeDefView, CaseView, DefsView, DesignCounts, DesignView, HarnessView,

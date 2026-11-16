@@ -49,7 +49,7 @@ fn input() -> ModeLoadInput {
             ],
             eclipse: Vec::new(),
         }],
-        default_growth_margin: 0.2,
+        default_growth_margin: Some(0.2),
     }
 }
 
@@ -123,7 +123,7 @@ fn redundant_input(redundancy: modes::Redundancy) -> ModeLoadInput {
             assignments: vec![assignment],
             eclipse: vec![],
         }],
-        default_growth_margin: 0.0,
+        default_growth_margin: Some(0.0),
     }
 }
 
@@ -161,6 +161,19 @@ fn eclipse_overrides_only_the_heater() {
     let m = evaluate_mode(&i, &i.modes[0]).unwrap();
     assert_eq!(m.total.value(), 30.0);
     assert_eq!(m.total_eclipse.value(), 35.0);
+}
+
+#[test]
+fn eclipse_override_without_normal_assignment_is_not_added() {
+    // 仕様（docs/model.md §7.2）: 通常の割り当てが無い部品の蝕の上書きは解析に足さない（検査の warning で知らせる）。
+    // RW 3 台 × 10 W = 30 W は日照も蝕も同じで、HTR（蝕だけ on、5 W）は蝕の負荷に入らない
+    let mut i = redundant_input(modes::Redundancy::Cold);
+    i.parts
+        .push(part("HTR", "TCS", &[("off", 0.0), ("on", 5.0)], Some(0.0)));
+    i.modes[0].eclipse.push(assign("HTR", "on", &[]));
+    let m = evaluate_mode(&i, &i.modes[0]).unwrap();
+    assert_eq!(m.total.value(), 30.0);
+    assert_eq!(m.total_eclipse.value(), 30.0);
 }
 
 #[test]
@@ -203,4 +216,14 @@ fn missing_eclipse_value_is_preserved_per_part() {
     input.modes[0].eclipse.clear();
     let inherited = evaluate_mode(&input, &input.modes[0]).unwrap();
     assert!(inherited.parts.iter().all(|p| p.mean == p.mean_eclipse));
+}
+
+/// 成長余裕の既定値を書かなければ `DEFAULT_GROWTH_MARGIN`（0）、書けばその値。
+#[test]
+fn default_growth_margin_is_applied_by_the_analysis() {
+    let mut input = ModeLoadInput::default();
+    assert_eq!(input.default_growth_margin(), DEFAULT_GROWTH_MARGIN);
+    assert_eq!(DEFAULT_GROWTH_MARGIN, 0.0);
+    input.default_growth_margin = Some(0.2);
+    assert_eq!(input.default_growth_margin(), 0.2);
 }

@@ -3,7 +3,7 @@ use super::*;
 use crate::aocs::disturbance::{DisturbanceSurface, FiringThruster, ThrustDisturbance};
 use crate::aocs::thrusters::Thruster;
 use crate::power::testkit::{leo_timeline, nadir_pointing_z, sun_pointing_z};
-use crate::spec::ChannelKind;
+use crate::spec::{ChannelKind, Verdict};
 use sat_astro::constants::C_LIGHT;
 use sat_astro::constants::G0;
 use sat_astro::math::Mat3;
@@ -64,7 +64,7 @@ fn spacecraft(inertia: Mat3) -> DisturbanceSpacecraft {
         inertia,
         aero: None,
         srp: None,
-        residual_dipole: Vec3::ZERO,
+        residual_dipole: None,
         atmosphere: Default::default(),
         density_scale: None,
         thrust: None,
@@ -99,7 +99,7 @@ fn srp_on_sun_pointing_accumulates_secularly() {
     // 太陽方向は 1 周ではほぼ慣性固定なので、1 周の永年成分 ≈ |τ| × 日照時間。
     let mut sc = spacecraft(Mat3::diagonal(Vec3::new(0.05, 0.05, 0.05)));
     sc.srp = Some(DisturbanceSurface {
-        cp_offset: Vec3::new(0.05, 0.0, 0.0),
+        cp_offset: Some(Vec3::new(0.05, 0.0, 0.0)),
         coefficient_area: Qty::from_raw(0.1),
     });
     let i = input(sc, sun_pointing_z());
@@ -181,7 +181,7 @@ fn aero_on_nadir_pointing_accumulates_about_orbit_normal() {
     // y は慣性空間で向きが変わらないので、1 周の永年成分 ≈ 空力トルクの平均 × 周期。
     let mut sc = spacecraft(Mat3::diagonal(Vec3::new(0.05, 0.05, 0.05)));
     sc.aero = Some(DisturbanceSurface {
-        cp_offset: Vec3::new(0.0, 0.0, 0.02),
+        cp_offset: Some(Vec3::new(0.0, 0.0, 0.02)),
         coefficient_area: Qty::from_raw(2.2 * 0.03),
     });
     let out = RwUnloading::run(&input(sc, nadir_pointing_z())).unwrap();
@@ -318,4 +318,44 @@ fn rcs_without_a_direction_is_a_violation() {
         .find(|c| c.key == "rcs_direction")
         .unwrap();
     assert_eq!(check.verdict, crate::spec::Verdict::Violation);
+}
+
+/// 中心天体 `body` の高度 100 km の極軌道に直した入力。空力の面と残留磁気を与えて、大気・磁場の扱いを見る。
+fn about_body(body: sat_astro::ephem::CentralBody) -> RwUnloadingInput {
+    let mut sc = spacecraft(Mat3::diagonal(Vec3::new(0.05, 0.05, 0.05)));
+    sc.aero = Some(DisturbanceSurface {
+        cp_offset: Some(Vec3::new(0.05, 0.0, 0.0)),
+        coefficient_area: Qty::from_raw(0.1),
+    });
+    sc.residual_dipole = Some(Vec3::new(0.1, 0.0, 0.0));
+    let mut i = input(sc, nadir_pointing_z());
+    let mut orbit = i.timeline.orbit().clone();
+    orbit = sat_astro::orbit::OrbitSpec::circular_about(
+        body,
+        orbit.epoch,
+        Qty::from_raw(100e3),
+        Qty::from_raw(90f64.to_radians()),
+        Qty::from_raw(0.0),
+    );
+    i.timeline = TimelineSpec::new(
+        orbit.clone(),
+        nadir_pointing_z(),
+        Qty::from_raw(orbit.period_s() * 2.0),
+        Qty::from_raw(30.0),
+    );
+    i
+}
+
+/// 月: 空力・磁気トルクは 0 で、それが正しい理由（大気・磁場が無い）を `Ok` の判定で伝える。
+/// 地球では判定を足さない（デモの出力を変えない）。判定の文言の場合分けは `disturbance/environment.rs` のテスト。
+#[test]
+fn moon_states_zero_aero_and_magnetic_torque_in_the_checks() {
+    let moon = RwUnloading::run(&about_body(sat_astro::ephem::CentralBody::Moon)).unwrap();
+    let key = |k| moon.disturbances.iter().find(|d| d.key == k).unwrap();
+    assert_eq!(key(DisturbanceKind::Aero).peak.value(), 0.0);
+    assert_eq!(key(DisturbanceKind::Magnetic).peak.value(), 0.0);
+    let c = moon.checks.iter().find(|c| c.key == "environment_models");
+    assert_eq!(c.expect("注記").verdict, Verdict::Ok);
+    let earth = RwUnloading::run(&about_body(sat_astro::ephem::CentralBody::Earth)).unwrap();
+    assert!(earth.checks.iter().all(|c| c.key != "environment_models"));
 }

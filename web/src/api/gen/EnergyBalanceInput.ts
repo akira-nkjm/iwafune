@@ -14,9 +14,9 @@ import type { TimelineSpec } from "./TimelineSpec";
  */
 export type EnergyBalanceInput = { timeline: TimelineSpec, array: SolarArray, 
 /**
- * 発電を評価する寿命の時点（省略時 EOL）
+ * 発電を評価する寿命の時点（省略時 EOL。[`SolarLife::default`]）
  */
-life: SolarLife, 
+life: SolarLife | null, 
 /**
  * 個別電池（空はエラー）。容量合計・先頭電圧/効率の規則は combine。
  */
@@ -26,9 +26,9 @@ batteries: Array<EnergyBalanceBattery>,
  */
 loads: ModeLoadInput, 
 /**
- * モードの消費電力に成長余裕を含めるか（省略時は含める）
+ * モードの消費電力に成長余裕を含めるか（省略時は含める。[`LoadGrowth::default`]）
  */
-load_growth: LoadGrowth, cases: Array<EnergyBalanceCase>, 
+load_growth: LoadGrowth | null, cases: Array<EnergyBalanceCase>, 
 /**
  * モードの並び（1 周期分。繰り返して解析期間を覆う）。空なら並びの収支を出さない
  */

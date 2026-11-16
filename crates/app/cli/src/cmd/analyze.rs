@@ -4,7 +4,8 @@ use crate::args::AnalyzeArgs;
 use crate::output::{C, Out};
 use fune_service::dto::{
     AnalysisInputSource, AnalysisKind, AnalysisRunStatus, BudgetPropellant, BudgetRequest,
-    BudgetRow, BudgetView, KpiView, MissingInput, QuantityView, RunAnalysisRequest, Verdict,
+    BudgetRow, BudgetUncounted, BudgetView, KpiView, MissingInput, QuantityView,
+    RunAnalysisRequest, Verdict,
 };
 use fune_service::{Workspace, analysis, budget};
 
@@ -164,16 +165,10 @@ pub fn budget(
         },
     };
     let b = budget::budget(ws, budget::parse_kind(kind)?, &req)?;
-    let wet = match &b.propellant {
-        Some(BudgetPropellant::Counted { wet, .. }) => wet.verdict,
-        _ => None,
-    };
-    let failed = !b.missing.is_empty()
-        || b.verdict == Some(Verdict::Violation)
-        || wet == Some(Verdict::Violation);
+    let failed = budget::failure::fails(&b);
     if out.json {
         out.json(&b)?;
-        return Ok(u8::from(!b.missing.is_empty()));
+        return Ok(u8::from(failed));
     }
     print_budget(&b, out);
     Ok(u8::from(failed))
@@ -281,9 +276,37 @@ fn print_budget(b: &BudgetView, out: &Out) {
     if let Some(p) = &b.propellant {
         print_propellant(p, out);
     }
+    print_uncounted(&b.uncounted, out);
     for n in &b.notes {
         out.warn(n);
     }
+}
+
+/// 値が無くて合計に数えなかった部品（0 とはみなしていない）。電力は数えなかったモードも添える。
+fn print_uncounted(list: &[BudgetUncounted], out: &Out) {
+    if list.is_empty() {
+        return;
+    }
+    let names: Vec<String> = list
+        .iter()
+        .map(|u| {
+            let name = if u.label == u.part {
+                u.part.clone()
+            } else {
+                format!("{}（{}）", u.part, u.label)
+            };
+            if u.modes.is_empty() {
+                name
+            } else {
+                format!("{name} [{}]", u.modes.join(", "))
+            }
+        })
+        .collect();
+    out.warn(format!(
+        "値が無いので合計に数えていない部品（{} 件、0 とはみなしていません）: {}",
+        list.len(),
+        names.join(", ")
+    ));
 }
 
 /// 推薬込みの合計か、推薬を数えなかった理由（文言はここで付ける）。

@@ -71,7 +71,7 @@ fn info_of(ws: &Workspace, s: &Snapshot) -> ProjectInfo {
 pub fn design_view(ws: &Workspace) -> Result<DesignView> {
     let s = ws.snapshot()?;
     let d = &s.design;
-    let parts = parts::list(d, &s.resolved, &PartsQuery::default());
+    let parts = parts::list(d, &s.resolved, &s.diagnostics, &PartsQuery::default());
     Ok(DesignView {
         project: info_of(ws, &s),
         tree: views::tree(d),
@@ -90,6 +90,20 @@ pub fn design_view(ws: &Workspace) -> Result<DesignView> {
     })
 }
 
+/// カタログ品 1 つ（`GET /catalog/{id}`・`fune catalog show`）。無ければ [`ServiceError::NotFound`](crate::ServiceError)。
+pub fn catalog_item(ws: &Workspace, id: &str) -> Result<crate::dto::CatalogItemView> {
+    let d = ws.snapshot()?.design;
+    d.catalog
+        .get(id)
+        .map(|item| catalog::item_view(&d, item))
+        .ok_or_else(|| crate::ServiceError::not_found("カタログ品", id))
+}
+
+/// 図（`view/<id>.toml`）の配置（`fune view ls`。`GET /design` の `views` の 1 件）。まだ無い図は `None`（エラーにしない）。
+pub fn view_layout(ws: &Workspace, id: &str) -> Result<Option<crate::dto::ViewLayout>> {
+    Ok(ws.snapshot()?.design.views.get(id).cloned())
+}
+
 /// マヌーバの一覧（実行の順。`GET /maneuvers`・`fune maneuver ls`）。
 pub fn maneuvers(ws: &Workspace) -> Result<Vec<crate::dto::ManeuverView>> {
     Ok(maneuvers::maneuvers(&ws.snapshot()?.design))
@@ -98,7 +112,7 @@ pub fn maneuvers(ws: &Workspace) -> Result<Vec<crate::dto::ManeuverView>> {
 /// 部品の一覧（`GET /parts`）。
 pub fn list_parts(ws: &Workspace, q: &PartsQuery) -> Result<Vec<PartRow>> {
     let s = ws.snapshot()?;
-    Ok(parts::list(&s.design, &s.resolved, q))
+    Ok(parts::list(&s.design, &s.resolved, &s.diagnostics, q))
 }
 
 /// 1 部品の全情報（`GET /parts/{id}`・`fune part show`）。`req.ops` があれば、それを書き込まずに当てた設計で表示する

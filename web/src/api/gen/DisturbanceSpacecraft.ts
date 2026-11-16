@@ -22,9 +22,9 @@ aero: DisturbanceSurface | null,
  */
 srp: DisturbanceSurface | null, 
 /**
- * 残留磁気モーメント [A·m²]（機体座標系）
+ * 残留磁気モーメント [A·m²]（機体座標系）。省略時は [`DEFAULT_RESIDUAL_DIPOLE`]（0 = 磁気トルクを考えない）
  */
-residual_dipole: Vec3, 
+residual_dipole: Vec3 | null, 
 /**
  * 大気モデル（省略時は指数大気）
  */

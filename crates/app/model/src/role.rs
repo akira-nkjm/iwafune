@@ -34,7 +34,12 @@ enum_text! {
 /// 慣例の停止状態。状態の語彙そのものは種別ごとに自由に定義する。
 pub const STATE_OFF: &str = "off";
 
+/// 慣例の主な「オン」の状態。モード表でセルを押してオンにするときの状態に使う（語彙に無ければ停止以外の最初の状態。
+/// 選び方は `fune_service::query::views::stop_and_main_states` だけ）。
+pub const STATE_MAIN: &str = "on";
+
 /// スラスタ（role = thruster）の噴射している状態。モードでこの状態にある時間の割合だけ噴射するとみなす
 /// （推力誤差の擾乱）。推進系のスラスタ（role = propulsion_thruster）の噴射中の消費電力もこの状態の値。
-/// 組み込みの種別 thruster・propulsion_thruster の語彙にあることは `builtin` のテストで確かめる。
+/// 組み込みの種別 thruster・propulsion_thruster の語彙にあることは `builtin` のテストで確かめ、独自の種別で語彙に無いものは
+/// 検査（`def.thruster_firing_state`）が warning にする。
 pub const STATE_THRUSTER_FIRING: &str = "on";

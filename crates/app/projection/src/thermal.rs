@@ -23,7 +23,7 @@ use sat_analysis::thermal::{
     ThermalTransientInput,
 };
 use sat_astro::ephem::CentralBody;
-use sat_units::typed::{Fraction, Power, Qty};
+use sat_units::typed::{Fraction, Power};
 use std::collections::BTreeMap;
 
 fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a ThermalSettings> {
@@ -162,7 +162,7 @@ pub fn steady(ctx: &Context<'_>) -> Result<ThermalSteadyInput, MissingInputs> {
     let mut cases = Vec::new();
     for (id, c) in &s.cases {
         let mode = c.mode.as_deref();
-        let Some(mut t) = timeline::timeline(ctx, mode, 1, &mut m) else {
+        let Some(mut t) = timeline::timeline(ctx, mode, Some(1), &mut m) else {
             continue;
         };
         if c.beta.is_some() {
@@ -226,13 +226,7 @@ pub fn transient(ctx: &Context<'_>) -> Result<ThermalTransientInput, MissingInpu
         return Err(m);
     };
     let mode = c.mode.as_deref();
-    let t = timeline::timeline(
-        ctx,
-        mode,
-        s.orbits.unwrap_or(timeline::DEFAULT_ORBITS),
-        &mut m,
-    )
-    .map(|mut t| {
+    let t = timeline::timeline(ctx, mode, s.orbits, &mut m).map(|mut t| {
         if c.beta.is_some() {
             t.sampling.beta = setting_opt(&dims::THERMAL_CASE_BETA, &[id], c.beta.as_ref(), &mut m);
         }
@@ -256,7 +250,7 @@ pub fn transient(ctx: &Context<'_>) -> Result<ThermalTransientInput, MissingInpu
     let margin = margin(s, &mut m);
     let phases = vec![ThermalHeatPhase {
         label: mode.unwrap_or("").to_owned(),
-        duration: Qty::from_raw(sat_astro::constants::SECONDS_PER_DAY),
+        duration: None,
         loads: Vec::new(),
         mode_loads: loads(ctx, s, mode),
     }];

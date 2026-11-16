@@ -27,6 +27,8 @@ const labels: Record<string, string> = {
   annual_degradation: "年あたりの劣化率",
   inherent_degradation: "固有の劣化係数",
   lifetime_years: "寿命年数（Julian year）",
+  lifetime_source: "寿命の出どころ",
+  design_life: "設計寿命",
   life_factor: "経年劣化係数",
   dod_max: "許容 DoD",
   battery_strings: "電池の組数",

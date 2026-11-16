@@ -3,12 +3,8 @@
 
 use super::Ctx;
 use super::values::check_quantity_dimension;
-use crate::builtin::Role;
 use crate::design::{Design, EntityKey, Maneuver, ManeuverMethod, ManeuverTarget};
 use crate::target::Target;
-
-/// スラスタとして使える部品の役割。
-const THRUSTER_ROLES: [Role; 2] = [Role::PropulsionThruster, Role::Thruster];
 
 pub(super) fn check_maneuvers(ctx: &mut Ctx) {
     let design = ctx.design;
@@ -75,8 +71,7 @@ fn check_thruster(ctx: &mut Ctx, design: &Design, m: &Maneuver, entity: &EntityK
         );
         return;
     };
-    let role = design.part_kind_id(part).and_then(|k| design.kind_role(k));
-    if !role.is_some_and(|r| THRUSTER_ROLES.contains(&r)) {
+    if !design.is_maneuver_thruster(part) {
         ctx.warning(
             "maneuver.thruster_role",
             entity,

@@ -34,6 +34,7 @@ function load(mean: number): SystemModesView {
   };
   return {
     system: "power",
+    missing: [],
     modes: [
       {
         id: "NOMINAL",
@@ -151,7 +152,7 @@ it("蝕のセルをクリックで切り替えると、表示中の継承状態�
     new Map(),
     cell.mode,
     cell.part,
-    toggleCell(cell.states, cell.value),
+    toggleCell(cell.roles, cell.value),
     true,
   );
   expect(draftCommand(d.modes, draft)).toMatchObject({ cells: [{ state: "off", eclipse: true }] });
@@ -187,6 +188,7 @@ it("保存済みの蝕のセルを表示し、解除した直後は日照の整�
 it("系別セルは API の次元を保持し、同じ mode_set の下書きで編集する", () => {
   const view: SystemModesView = {
     system: "cdh",
+    missing: [],
     modes: [
       {
         id: "NOMINAL",
@@ -218,7 +220,7 @@ it("系別セルは API の次元を保持し、同じ mode_set の下書きで�
     new Map(),
     cell.mode,
     cell.part,
-    toggleCell(cell.states, cell.value),
+    toggleCell(cell.roles, cell.value),
     true,
   );
   expect(draftCommand(design().modes, draft)).toMatchObject({

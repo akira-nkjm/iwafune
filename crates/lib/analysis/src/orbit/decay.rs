@@ -9,7 +9,8 @@
 //! 高度はおよそ 180〜1000 km（1 周の平均が意味を持つ範囲。再突入の直前の数日は粗い）。抗力の面積は一定
 //! （姿勢・パネルの向きの変化は面積の与え方で見込む）。推力による高度の変化は ΔV の積算としてだけ扱う。
 //!
-//! **軌道維持の推薬**: 推進系の解析（`propulsion.propellant`）の使える推薬（[`propellant`]）。推薬の量をここで持たない。
+//! **軌道維持の推薬**: 推進系の解析（`propulsion.propellant`）の値から、軌道維持のマヌーバのスラスタと推薬（無ければ推薬が 1 種類のときだけ全量。
+//! 推薬をまたいで換算しない。[`propellant`]）。推薬の量をここで持たない。
 //!
 //! **太陽活動の条件**: ECSS-E-ST-10-04C の長期のプリセット（低・中・高）を全期間で一定にしたものと、
 //! 宇宙天気の表から日付で引いた列（[`DecayWeatherSchedule`]。呼び出し側が表から引いて入力に入れる）。
@@ -130,7 +131,7 @@ impl Analysis for OrbitDecay {
     type Output = OrbitDecayOutput;
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
-        let used = used_values(input)?;
+        let (used, undetermined) = used_values(input)?;
         let cd_a_over_m = used.drag_coefficient * used.drag_area.value() / input.mass.value();
         let mut conditions: Vec<(DecayCondition, Weather<'_>, DatedSpaceWeather)> = PRESETS
             .iter()
@@ -162,7 +163,7 @@ impl Analysis for OrbitDecay {
                 run_case(input, &used, &model, condition, initial)
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let checks = checks::checks(input, &used, &cases);
+        let checks = checks::checks(input, &used, &cases, undetermined.as_deref());
         Ok(OrbitDecayOutput {
             cases,
             used,
@@ -171,8 +172,8 @@ impl Analysis for OrbitDecay {
     }
 }
 
-/// 既定値を当てた値と、入力の検査。
-fn used_values(input: &OrbitDecayInput) -> Result<DecayUsed, AnalysisError> {
+/// 既定値を当てた値と、入力の検査。軌道維持のスラスタを決められないときは、その推薬の名前も返す。
+fn used_values(input: &OrbitDecayInput) -> Result<(DecayUsed, Option<Vec<String>>), AnalysisError> {
     if input.orbit.central != CentralBody::Earth {
         return Err(AnalysisError::InvalidInput(
             "地球以外の高度低下は未対応です".into(),
@@ -204,11 +205,13 @@ fn used_values(input: &OrbitDecayInput) -> Result<DecayUsed, AnalysisError> {
     if let Some(b) = input.band {
         ensure_positive("軌道維持の高度の帯", b.value())?;
     }
-    let sk = match &input.propulsion {
-        Some(p) => propellant::capacity(p)?,
-        None => None,
+    let (sk, note) = match input.propulsion.as_ref().map(propellant::capacity) {
+        Some(Ok(propellant::StationKeeper::Found(c))) => (Some(c), None),
+        Some(Ok(propellant::StationKeeper::Undetermined(names))) => (None, Some(names)),
+        Some(Ok(propellant::StationKeeper::NoThruster)) | None => (None, None),
+        Some(Err(e)) => return Err(e),
     };
-    Ok(DecayUsed {
+    let used = DecayUsed {
         drag_coefficient,
         drag_area,
         area_source,
@@ -225,7 +228,8 @@ fn used_values(input: &OrbitDecayInput) -> Result<DecayUsed, AnalysisError> {
             .dated_weather
             .as_ref()
             .map(|_| Qty::from_raw(WEATHER_STEP_S)),
-    })
+    };
+    Ok((used, note))
 }
 
 /// 再突入とみなす高度 [m]（既定値を当てる）。初期の近地点がそれより上か確かめる。
@@ -357,5 +361,7 @@ fn altitude_series(track: &DecayTrack) -> Series {
     }
 }
 
+#[cfg(test)]
+mod station_keeping_tests;
 #[cfg(test)]
 mod tests;

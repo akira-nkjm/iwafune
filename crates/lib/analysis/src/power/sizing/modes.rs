@@ -67,7 +67,7 @@ fn sunlit_average(
     let out = OrbitGeneration::run(&OrbitGenerationInput {
         timeline,
         array: array.clone(),
-        life: SolarLife::Eol,
+        life: Some(SolarLife::Eol),
     })?;
     Ok(out.sunlit_average.value())
 }

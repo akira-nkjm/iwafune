@@ -151,7 +151,9 @@ fn rename_sites(
         | Referent::Group(id)
         | Referent::Mode(id)
         | Referent::Net(id)
-        | Referent::Catalog(id) => id,
+        | Referent::Catalog(id)
+        | Referent::Kind(id)
+        | Referent::Attribute(id) => id,
     };
     for site in design.references(referent) {
         rename_at(edits, design, &site, (from, to), moved)?;
@@ -191,6 +193,13 @@ fn rename_at(
         | RefSite::HarnessWire { .. }
         | RefSite::ManeuverThruster { .. }
         | RefSite::ManeuverMode { .. } => rename_value_at(edits, design, site, names),
+        // 定義の名前の変更は Op に無い（索引は削除を拒むためだけ）
+        RefSite::PartKind { .. }
+        | RefSite::CatalogKind { .. }
+        | RefSite::KindExtends { .. }
+        | RefSite::KindAttribute { .. }
+        | RefSite::PartAttribute { .. }
+        | RefSite::CatalogAttribute { .. } => Ok(()),
     }
 }
 

@@ -8,7 +8,7 @@ import { Th } from "@/kit/table/Th";
 import { type SortHeaderProps, useTableSort } from "@/kit/table/useTableSort";
 import { attrOf, systemTitle } from "@/lib/design";
 import { valueText } from "@/quantity/format";
-import { partDiagnostics, partsComparators, unsetCount } from "./parts-sort";
+import { partsComparators } from "./parts-sort";
 
 /** 部品の一覧（密な表）。行を選ぶと右のパネルに詳細を出す */
 export function PartsTable({
@@ -23,8 +23,7 @@ export function PartsTable({
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
-  const diagsByPart = partDiagnostics(design);
-  const { rows, headerProps } = useTableSort(items, partsComparators(design, diagsByPart));
+  const { rows, headerProps } = useTableSort(items, partsComparators(design));
   return (
     <DataTable stickyHead className="h-full" head={<PartsTableHead headerProps={headerProps} />}>
       {rows.map((p) => (
@@ -34,7 +33,6 @@ export function PartsTable({
           design={design}
           selected={selected === p.id}
           onSelect={() => onSelect(p.id)}
-          diags={diagsByPart.get(p.id)}
         />
       ))}
     </DataTable>
@@ -46,18 +44,15 @@ function PartTableRow({
   design,
   selected,
   onSelect,
-  diags,
 }: {
   p: PartRow;
   design: DesignView;
   selected: boolean;
   onSelect: () => void;
-  diags?: { errors: number; warns: number };
 }) {
   const mass = attrOf(p, "mass");
   const power = attrOf(p, "power");
-  const unset = unsetCount(p);
-  const { errors, warns } = diags ?? { errors: 0, warns: 0 };
+  const unset = p.unset_count;
   return (
     <SelectableRow key={p.id} selected={selected} onSelect={onSelect}>
       <Td>
@@ -82,7 +77,7 @@ function PartTableRow({
         {unset}
       </Td>
       <Td align="right">
-        <DiagnosticCount errors={errors} warns={warns} />
+        <DiagnosticCount errors={p.diagnostics.errors} warns={p.diagnostics.warnings} />
       </Td>
     </SelectableRow>
   );

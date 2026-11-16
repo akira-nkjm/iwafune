@@ -99,6 +99,10 @@ fn check_mode_row(
     }
 }
 
+/// warm の予備機の既定の状態（語彙にある最初のもの）。sat-analysis の `modes::WARM_SPARE_DEFAULT_STATES` と同じ値
+/// （sat-analysis は fune-model を見られないので、一致は fune-projection のテストで確かめる）。
+pub const WARM_SPARE_DEFAULT_STATES: [&str; 2] = ["standby", "idle"];
+
 fn check_population(
     ctx: &mut Ctx,
     entity: &EntityKey,
@@ -124,7 +128,7 @@ fn check_population(
             Redundancy::None => None,
             Redundancy::Cold => Some(crate::builtin::STATE_OFF),
             Redundancy::Warm => a.spare_state.as_deref().or_else(|| {
-                ["standby", "idle"]
+                WARM_SPARE_DEFAULT_STATES
                     .into_iter()
                     .find(|s| states.iter().any(|v| v == s))
             }),

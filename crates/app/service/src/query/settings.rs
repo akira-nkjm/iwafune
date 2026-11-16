@@ -122,3 +122,27 @@ fn value_data(v: &SettingValue) -> ValueData {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 区切りが空の設定パスでも panic せず、ファイルに対応しないパスとして返す。
+    #[test]
+    fn empty_setting_path_has_no_file() {
+        for scope in [
+            SettingScope::Conditions,
+            SettingScope::Analysis,
+            SettingScope::Budget,
+        ] {
+            let path = SettingPath {
+                scope,
+                segments: Vec::new(),
+            };
+            let (group, keys, file) = split_setting(&path);
+            assert_eq!(group, path);
+            assert!(keys.is_empty() && file.is_none(), "{scope:?}");
+            assert!(setting_system(&path).is_none());
+        }
+    }
+}

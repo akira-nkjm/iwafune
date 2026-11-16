@@ -7,7 +7,7 @@
 //!   推薬が 1 種類だけならそれとみなす。
 //! - RCS でのアンロードの推薬は含めない（`aocs.rw_unloading` が 1 日の推薬を出す）。
 
-use super::input::{PropulsionInput, TANK_MARGIN_WARNING};
+use super::input::{DvCategory, PropulsionInput, TANK_MARGIN_WARNING};
 use super::sequence::{Options, Sequence, run};
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict, margin_verdict,
@@ -158,6 +158,27 @@ fn group(
 /// 推薬の質量（ウェット・ドライ）とタンクの容積の余裕。
 pub struct Propellant;
 
+/// 区分ごとに、スラスタが使う推薬（[`Propellant::run_for_category`]）。
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct ThrusterPropellant {
+    /// スラスタの ID
+    pub thruster: String,
+    /// そのスラスタのマヌーバが使う推薬（マージン込み）
+    pub propellant: Qty<Mass>,
+}
+
+impl Propellant {
+    /// [`Analysis::run`] と同じ出力に加えて、指定した区分のマヌーバがスラスタごとに使う推薬 [kg]
+    /// （マージン込み。出力の `usable_propellant` と同じ設計値の列から取る。スラスタを名指すマヌーバだけ。
+    /// 同じスラスタは 1 つにまとめ、並びは入力のスラスタの順）。
+    pub(crate) fn run_for_category(
+        input: &PropulsionInput,
+        category: DvCategory,
+    ) -> Result<(PropellantOutput, Vec<ThrusterPropellant>), AnalysisError> {
+        evaluate(input, Some(category))
+    }
+}
+
 impl Analysis for Propellant {
     const ID: &'static str = "propulsion.propellant";
     const TITLE: &'static str = "推薬とタンク";
@@ -171,41 +192,77 @@ impl Analysis for Propellant {
     type Output = PropellantOutput;
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
-        let opts = Options::design(input)?;
-        let nominal = super::maneuvers::nominal(input)?;
-        let seq = run(input, opts)?;
-        let usable = seq.used_propellant_kg();
-        let residual = seq.residual_kg();
-        let without: Vec<String> = seq
-            .legs
-            .iter()
-            .filter(|l| l.thruster.is_none())
-            .map(|l| l.maneuver.id.clone())
-            .collect();
-        let mut checks = Vec::new();
-        if !without.is_empty() {
-            checks.push(Check::new(
-                "thruster",
-                "マヌーバのスラスタ",
-                Verdict::Warning,
-                format!(
-                    "スラスタが無いので推薬を求めていないマヌーバがあります（{}）",
-                    without.join("、")
-                ),
-            ));
-        }
-        Ok(PropellantOutput {
-            dry_mass: input.dry_mass,
-            nominal_propellant: Qty::from_raw(nominal.used_propellant_kg()),
-            usable_propellant: Qty::from_raw(usable),
-            residual_propellant: Qty::from_raw(residual),
-            loaded_propellant: Qty::from_raw(usable + residual),
-            wet_mass: Qty::from_raw(seq.initial_mass_kg),
-            dv_margin: Fraction::new(opts.dv_scale - 1.0),
-            residual_fraction: Fraction::new(opts.residual_fraction),
-            groups: groups(input, &seq, opts.residual_fraction),
-            maneuvers_without_thruster: without,
-            checks,
-        })
+        evaluate(input, None).map(|(out, _)| out)
     }
+}
+
+/// 区分 `category` のマヌーバがスラスタごとに使う推薬 [kg]（スラスタを名指すマヌーバだけ）。
+fn used_by_thruster(
+    input: &PropulsionInput,
+    seq: &Sequence<'_>,
+    category: DvCategory,
+) -> Vec<ThrusterPropellant> {
+    input
+        .thrusters
+        .iter()
+        .filter_map(|t| {
+            let legs: Vec<_> = seq
+                .legs
+                .iter()
+                .filter(|l| {
+                    l.maneuver.category == category && l.thruster.is_some_and(|x| x.id == t.id)
+                })
+                .collect();
+            let kg = legs.iter().filter_map(|l| l.propellant_kg).sum();
+            (!legs.is_empty()).then(|| ThrusterPropellant {
+                thruster: t.id.clone(),
+                propellant: Qty::from_raw(kg),
+            })
+        })
+        .collect()
+}
+
+/// 推薬の解析の本体。`category` があれば、その区分のマヌーバがスラスタごとに使う推薬も返す。
+fn evaluate(
+    input: &PropulsionInput,
+    category: Option<DvCategory>,
+) -> Result<(PropellantOutput, Vec<ThrusterPropellant>), AnalysisError> {
+    let opts = Options::design(input)?;
+    let nominal = super::maneuvers::nominal(input)?;
+    let seq = run(input, opts)?;
+    let usable = seq.used_propellant_kg();
+    let residual = seq.residual_kg();
+    let without: Vec<String> = seq
+        .legs
+        .iter()
+        .filter(|l| l.thruster.is_none())
+        .map(|l| l.maneuver.id.clone())
+        .collect();
+    let mut checks = Vec::new();
+    if !without.is_empty() {
+        checks.push(Check::new(
+            "thruster",
+            "マヌーバのスラスタ",
+            Verdict::Warning,
+            format!(
+                "スラスタが無いので推薬を求めていないマヌーバがあります（{}）",
+                without.join("、")
+            ),
+        ));
+    }
+    let by_category = category.map_or_else(Vec::new, |c| used_by_thruster(input, &seq, c));
+    let out = PropellantOutput {
+        dry_mass: input.dry_mass,
+        nominal_propellant: Qty::from_raw(nominal.used_propellant_kg()),
+        usable_propellant: Qty::from_raw(usable),
+        residual_propellant: Qty::from_raw(residual),
+        loaded_propellant: Qty::from_raw(usable + residual),
+        wet_mass: Qty::from_raw(seq.initial_mass_kg),
+        dv_margin: Fraction::new(opts.dv_scale - 1.0),
+        residual_fraction: Fraction::new(opts.residual_fraction),
+        groups: groups(input, &seq, opts.residual_fraction),
+        maneuvers_without_thruster: without,
+        checks,
+    };
+    Ok((out, by_category))
 }

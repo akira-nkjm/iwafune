@@ -10,7 +10,11 @@ export type LinkBudgetLink = {
 /**
  * 回線の名前（例: `"UHF down"`）
  */
-name: string, direction: LinkBudgetDirection, 
+name: string, 
+/**
+ * 相手の地上局の ID（回線 × 地上局の組ごとに 1 行）
+ */
+station: string, direction: LinkBudgetDirection, 
 /**
  * 送受信端と経路の RF パラメーター（tx は送信側、rx は受信側）
  */

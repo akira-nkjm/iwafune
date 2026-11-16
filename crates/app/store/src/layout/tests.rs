@@ -69,6 +69,26 @@ fn maps_setting_paths_to_files() {
     assert!(setting_location(&p("analysis.attitude.law")).is_err());
 }
 
+/// 区切りが空の設定パスは、どの範囲でも panic せずエラーにする（HTTP の入力から届きうる）。
+#[test]
+fn empty_setting_paths_are_errors() {
+    for scope in [
+        SettingScope::Conditions,
+        SettingScope::Analysis,
+        SettingScope::Budget,
+    ] {
+        let path = SettingPath {
+            scope,
+            segments: Vec::new(),
+        };
+        assert!(
+            matches!(setting_location(&path), Err(StoreError::SettingPath { .. })),
+            "{scope:?}"
+        );
+        assert!(locate_setting(&Design::default(), &path).is_none());
+    }
+}
+
 /// 旧配置は予約ディレクトリとして無視し、話題の解析ファイルは認めない。
 #[test]
 fn conditions_replace_the_reserved_mission_directory() {

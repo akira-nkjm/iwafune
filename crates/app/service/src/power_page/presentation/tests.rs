@@ -143,9 +143,9 @@ fn builder_returns_selected_mode_values_bands_and_soc_limit() {
             conversion_efficiency: None,
         },
         batteries: Vec::new(),
-        life: SolarLife::Bol,
+        life: Some(SolarLife::Bol),
         loads: Default::default(),
-        load_growth: LoadGrowth::Included,
+        load_growth: Some(LoadGrowth::Included),
         cases: vec![EnergyBalanceCase {
             max_duration: None,
             id: "nominal".into(),

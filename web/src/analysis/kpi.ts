@@ -27,13 +27,24 @@ export function kpiSlots(
 ): KpiSlot[] {
   return entries.flatMap((e) => {
     const state = states.find((s) => s.id === e.info.id);
-    return e.kpis.map((def) => ({
-      def,
-      analysis: e.info.id,
-      area: e.info.area,
-      kpi: state?.result?.kpis.find((k) => k.key === def.key) ?? null,
-      loading: state?.loading ?? true,
-    }));
+    const delivered = state?.result?.kpis ?? [];
+    return (
+      e.kpis
+        // 結果が届いていて、測れたときだけ出す KPI（設計が持たない手段）が無いときは並べない
+        .filter(
+          (def) =>
+            !def.when_measured ||
+            delivered.length === 0 ||
+            delivered.some((k) => k.key === def.key),
+        )
+        .map((def) => ({
+          def,
+          analysis: e.info.id,
+          area: e.info.area,
+          kpi: delivered.find((k) => k.key === def.key) ?? null,
+          loading: state?.loading ?? true,
+        }))
+    );
   });
 }
 

@@ -27,6 +27,9 @@ pub struct Labels {
     /// role → 解析の系（None は系に属さないと明示）。
     #[serde(default)]
     pub role_system: BTreeMap<Role, Option<String>>,
+    /// 種別に役割の無い部品をまとめたグループの表示名（機器の一覧の「その他」）
+    #[serde(default)]
+    pub role_other: Option<Label>,
     /// 画面で系（section）を並べる順
     #[serde(default)]
     pub section_order: Vec<String>,
@@ -90,6 +93,14 @@ pub fn setting_label(path: &crate::path::SettingPath) -> Option<(&'static Label,
         };
         let label = labels().setting.get(&parent.to_string())?;
         Some((label, path.segments[n..].to_vec()))
+    })
+}
+
+/// 役割の無い部品をまとめたグループの表示名（「その他」）。
+pub fn role_other_label() -> Label {
+    labels().role_other.clone().unwrap_or_else(|| Label {
+        label: "その他".to_owned(),
+        label_en: Some("Other".to_owned()),
     })
 }
 

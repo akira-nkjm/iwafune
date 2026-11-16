@@ -56,18 +56,23 @@ pub(super) fn used(
             ))
         })?;
     ensure_positive("太陽距離", distance.value())?;
+    let (life, lifetime_source) = match input.design_life {
+        Some(life) => (life, SizingLifetimeSource::DesignLife),
+        None => (input.season.duration, SizingLifetimeSource::SeasonSpan),
+    };
     let lifetime_years = sat_units::parse_unit("yr")
         .map_err(|e| AnalysisError::InvalidInput(e.to_string()))?
-        .from_si(input.season.duration.value());
+        .from_si(life.value());
     let annual = o.annual_degradation.unwrap_or(0.0);
     ensure_fraction("年あたりの劣化率", annual)?;
     let u = SizingUsed {
-        sunlit_efficiency: o.sunlit_efficiency.unwrap_or(0.8),
-        eclipse_efficiency: o.eclipse_efficiency.unwrap_or(0.6),
+        sunlit_efficiency: o.sunlit_eff(),
+        eclipse_efficiency: o.eclipse_eff(),
         battery_efficiency: o.battery_efficiency.unwrap_or(battery.discharge_eff()),
         annual_degradation: annual,
         inherent_degradation: o.inherent_degradation.unwrap_or(1.0),
         lifetime_years,
+        lifetime_source,
         life_factor: (1.0 - annual).powf(lifetime_years),
         dod_max: Fraction::new(battery.dod_limit),
         battery_strings: o.battery_strings.unwrap_or(1),
@@ -114,19 +119,13 @@ pub(super) struct ModeLoads {
     pub eclipse: f64,
 }
 
-/// 対象モードの負荷と、その判定。
-pub(super) struct SizingLoads {
-    pub loads: Vec<ModeLoads>,
-    pub checks: Vec<Check>,
-}
-
-pub(super) fn loads(input: &SizingInput) -> Result<SizingLoads, AnalysisError> {
+/// 逆算の対象モードの負荷。値が不足するモードがあれば入力エラー（判定は出さない）。
+pub(super) fn loads(input: &SizingInput) -> Result<Vec<ModeLoads>, AnalysisError> {
     if input.loads.parts.is_empty() {
         return Err(AnalysisError::InvalidInput("負荷の部品がありません".into()));
     }
     let modes = ModeLoad::run(&input.loads)?.modes;
     let mut loads = Vec::new();
-    let mut checks = Vec::new();
     for m in modes
         .iter()
         .filter(|m| input.mode.as_ref().is_none_or(|id| *id == m.id))
@@ -145,12 +144,11 @@ pub(super) fn loads(input: &SizingInput) -> Result<SizingLoads, AnalysisError> {
             sunlit: m.total_with_growth.value(),
             eclipse: m.total_eclipse_with_growth.value(),
         });
-        checks.extend(m.checks.clone());
     }
     if loads.is_empty() {
         return Err(AnalysisError::InvalidInput("対象モードがありません".into()));
     }
-    Ok(SizingLoads { loads, checks })
+    Ok(loads)
 }
 
 /// 設計の SAP 面積と、逆算に使う SAP。

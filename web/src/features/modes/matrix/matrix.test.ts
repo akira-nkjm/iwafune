@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { modesEn } from "@/i18n/modes/en";
 import { modesJa } from "@/i18n/modes/ja";
 import { fixture } from "@/test/fixture";
-import { cellSymbol, mainState, savedCellText, toggleCell } from "./matrix";
+import { cellSymbol, type StateRoles, savedCellText, toggleCell } from "./matrix";
 
 describe("保存済みのセルの文言", () => {
   const row = (part: string) => {
@@ -21,14 +21,14 @@ describe("保存済みのセルの文言", () => {
 });
 
 describe("セルを押したときの切り替え", () => {
-  const wheel = ["off", "idle", "on", "peak"];
-  it("オフなら on へ（語彙の並びで idle が先でも）、オンなら off へ", () => {
+  const wheel: StateRoles = { off_state: "off", main_state: "on" };
+  it("停止なら主な状態へ、それ以外なら停止の状態へ", () => {
     expect(toggleCell(wheel, { state: "off", duty: {} })).toEqual({ state: "on", duty: {} });
     expect(toggleCell(wheel, null)).toEqual({ state: "on", duty: {} });
     expect(toggleCell(wheel, { state: "on", duty: {} })).toEqual({ state: "off", duty: {} });
     expect(toggleCell(wheel, { state: "peak", duty: {} })).toEqual({ state: "off", duty: {} });
   });
-  it("時間割合は持ち越さない（間欠のオフを押すとオン）", () => {
+  it("時間割合は持ち越さない（間欠の停止を押すとオン）", () => {
     expect(toggleCell(wheel, { state: "off", duty: { on: "0.2" } })).toEqual({
       state: "on",
       duty: {},
@@ -38,20 +38,35 @@ describe("セルを押したときの切り替え", () => {
       duty: {},
     });
   });
-  it("on が無い語彙は off 以外の最初の状態。off が無ければオンのまま。語彙が空なら変えない", () => {
-    expect(mainState(["off", "rx", "tx"])).toBe("rx");
-    expect(toggleCell(["off", "rx", "tx"], null)?.state).toBe("rx");
-    expect(toggleCell(["active"], { state: "active", duty: {} })?.state).toBe("active");
-    expect(toggleCell([], null)).toBeNull();
+  it("主な状態が on でない種別は、API の主な状態へ切り替える", () => {
+    const trx: StateRoles = { off_state: "off", main_state: "rx" };
+    expect(toggleCell(trx, null)?.state).toBe("rx");
+    expect(toggleCell(trx, { state: "rx", duty: {} })?.state).toBe("off");
+  });
+  it("停止の状態の名前が off でない種別は、その名前で切り替える", () => {
+    const halt: StateRoles = { off_state: "halt", main_state: "run" };
+    expect(toggleCell(halt, { state: "halt", duty: {} })?.state).toBe("run");
+    expect(toggleCell(halt, { state: "off", duty: {} })?.state).toBe("halt");
+  });
+  it("停止の状態が無い種別は、押してもオンのまま。語彙が空なら変えない", () => {
+    const always: StateRoles = { off_state: null, main_state: "active" };
+    expect(toggleCell(always, { state: "active", duty: {} })?.state).toBe("active");
+    expect(toggleCell(always, null)?.state).toBe("active");
+    expect(toggleCell({ off_state: null, main_state: null }, null)).toBeNull();
   });
 });
 
 describe("セルの記号", () => {
-  it("時間割合があれば間欠、off と未指定は横線", () => {
-    expect(cellSymbol({ state: "on", duty: {} })).toBe("●");
-    expect(cellSymbol({ state: "off", duty: { on: "0.2" } })).toBe("◐");
-    expect(cellSymbol({ state: "off", duty: {} })).toBe("—");
-    expect(cellSymbol(null)).toBe("—");
+  it("時間割合があれば間欠、停止の状態と未指定は横線", () => {
+    expect(cellSymbol({ state: "on", duty: {} }, "off")).toBe("●");
+    expect(cellSymbol({ state: "off", duty: { on: "0.2" } }, "off")).toBe("◐");
+    expect(cellSymbol({ state: "off", duty: {} }, "off")).toBe("—");
+    expect(cellSymbol(null, "off")).toBe("—");
+  });
+  it("停止の状態の名前が off でなければ、その名前だけが横線。停止の状態が無ければいつもオン", () => {
+    expect(cellSymbol({ state: "halt", duty: {} }, "halt")).toBe("—");
+    expect(cellSymbol({ state: "off", duty: {} }, "halt")).toBe("●");
+    expect(cellSymbol({ state: "off", duty: {} }, null)).toBe("●");
   });
 });
 

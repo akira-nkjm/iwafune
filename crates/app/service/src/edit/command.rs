@@ -36,7 +36,9 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
             vec![mode_duration_op(mode, duration.as_deref())?]
         }
         CommandText::AttrAdd(t) => vec![super::defs::attr_add_op(t)?],
+        CommandText::AttrReplace(t) => vec![super::defs::attr_replace_op(t)?],
         CommandText::KindAdd(t) => vec![super::defs::kind_add_op(t)?],
+        CommandText::KindReplace(t) => vec![super::defs::kind_replace_op(t)?],
         CommandText::ManeuverAdd(t) => vec![super::maneuver::maneuver_op(t, true)?],
         CommandText::ManeuverSet(t) => vec![super::maneuver::maneuver_op(t, false)?],
     })

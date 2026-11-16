@@ -56,9 +56,10 @@ fn input() -> SizingInput {
                 assignments: vec![assignment("on")],
                 eclipse: vec![assignment("eclipse")],
             }],
-            default_growth_margin: 0.0,
+            default_growth_margin: Some(0.0),
         },
         mode: None,
+        design_life: None,
         array: sap(1.0, Vec3::Z),
         cells: vec![SizingCell {
             panel: "SAP".into(),
@@ -265,4 +266,5 @@ fn per_mode_checks_compare_hand_checkable_requirements() {
     );
 }
 
+mod assumptions;
 mod series;

@@ -6,9 +6,9 @@
 //! | 種類 | 式 |
 //! |---|---|
 //! | 重力傾斜 | `τ = 3μ/|r|⁵ · r × (I r)`（`r` は中心天体 → 衛星、機体座標系。μ は中心天体のもの） |
-//! | 空力 | `F = −½ ρ (Cd·A) |v| v`（`sat_astro::force::drag_force`）、`τ = r_cp × F`（`v` は `sat_astro::force::relative_wind_eci`、ρ は `atmosphere::density_about_kg_m3`。地球以外は 0） |
+//! | 空力 | `F = −½ ρ (Cd·A) |v| v`（`sat_astro::force::drag_force`）、`τ = r_cp × F`（`v` は `sat_astro::force::earth_relative_wind_eci`、ρ は `atmosphere::density_about_kg_m3`。地球以外は 0。[`DisturbanceSpacecraft::environment_check`]） |
 //! | 太陽輻射圧 | `F = −P (Cr·A) ŝ`、`P = force::srp_pressure(太陽距離) · ν`、`τ = r_cp × F` |
-//! | 残留磁気 | `τ = m × B`（B は `geomag::field_about_eci_t`。地球以外は 0） |
+//! | 残留磁気 | `τ = m × B`（B は `geomag::field_about_eci_t`。地球以外は 0。同上） |
 //! | 推力誤差 | `τ = Σ f_i (r_i − r_cm) × F_i d̂_i`（推力の線と重心のずれ。[`super::thrusters`]）。`f_i` はモードで噴射している時間の割合で、機体座標系で一定の平均トルクとして足す |
 
 use super::thrusters::Thruster;
@@ -16,8 +16,9 @@ use crate::spec::{
     AnalysisError, ChannelKind, ensure_fraction, ensure_non_negative, ensure_positive,
 };
 use sat_astro::atmosphere::{AtmosphereModel, density_about_kg_m3};
+use sat_astro::body::EnvironmentModel;
 use sat_astro::ephem::CentralBody;
-use sat_astro::force::{drag_force, relative_wind_eci, srp_pressure};
+use sat_astro::force::{drag_force, earth_relative_wind_eci, srp_pressure};
 use sat_astro::geomag::field_about_eci_t;
 use sat_astro::math::{Mat3, Vec3};
 use sat_astro::timeline::TimelineSample;
@@ -36,9 +37,9 @@ pub struct DisturbanceSpacecraft {
     /// 太陽輻射圧の面（Cr·A と圧力中心）。省略時は SRP トルクを 0 とする
     #[serde(default)]
     pub srp: Option<DisturbanceSurface>,
-    /// 残留磁気モーメント [A·m²]（機体座標系）
+    /// 残留磁気モーメント [A·m²]（機体座標系）。省略時は [`DEFAULT_RESIDUAL_DIPOLE`]（0 = 磁気トルクを考えない）
     #[serde(default)]
-    pub residual_dipole: Vec3,
+    pub residual_dipole: Option<Vec3>,
     /// 大気モデル（省略時は指数大気）
     #[serde(default)]
     pub atmosphere: AtmosphereModel,
@@ -86,16 +87,28 @@ impl ThrustDisturbance {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct DisturbanceSurface {
-    /// 圧力中心 − 重心 [m]（機体座標系）
-    pub cp_offset: Vec3,
+    /// 圧力中心 − 重心 [m]（機体座標系）。省略時は [`DEFAULT_CP_OFFSET`]（0 = 重心に一致しトルクが出ない）
+    #[serde(default)]
+    pub cp_offset: Option<Vec3>,
     /// 係数 × 面積（空力は Cd·A、太陽輻射圧は Cr·A）
     pub coefficient_area: Qty<Area>,
 }
 
+/// 残留磁気モーメントが書かれていないときの値 [A·m²]。0（機器の残留磁気を見込まない）。
+pub const DEFAULT_RESIDUAL_DIPOLE: Vec3 = Vec3::ZERO;
+
+/// 圧力中心 − 重心が書かれていないときの値 [m]。0（圧力中心を重心に置く。空力・太陽輻射圧のトルクは 0）。
+pub const DEFAULT_CP_OFFSET: Vec3 = Vec3::ZERO;
+
 impl DisturbanceSurface {
+    /// 圧力中心 − 重心 [m]（省略時は [`DEFAULT_CP_OFFSET`]）。
+    pub fn cp_offset(&self) -> Vec3 {
+        self.cp_offset.unwrap_or(DEFAULT_CP_OFFSET)
+    }
+
     /// 箱の最大の面を受圧面積とするキャノンボール近似。
     /// size は SI の箱の辺 [m]、coefficient は Cd または Cr。
-    pub fn from_box(size: Vec3, coefficient: f64, cp_offset: Vec3) -> Self {
+    pub fn from_box(size: Vec3, coefficient: f64, cp_offset: Option<Vec3>) -> Self {
         let area = (size.x * size.y).max(size.y * size.z).max(size.x * size.z);
         Self {
             cp_offset,
@@ -209,19 +222,25 @@ impl DisturbanceSpacecraft {
             .collect()
     }
 
+    /// 残留磁気モーメント [A·m²]（省略時は [`DEFAULT_RESIDUAL_DIPOLE`]）。
+    pub fn residual_dipole(&self) -> Vec3 {
+        self.residual_dipole.unwrap_or(DEFAULT_RESIDUAL_DIPOLE)
+    }
+
     /// 大気密度に掛ける倍率（省略時 1 = モデルのまま）。
     pub fn density_scale(&self) -> f64 {
         self.density_scale.unwrap_or(1.0)
     }
 
     /// 時系列の 1 点での擾乱トルク。`central` は軌道の中心天体（`TimelineSpec::orbit` の `central`）。
-    /// μ・磁場・大気は中心天体のもの（磁場と大気は地球だけにあり、ほかの中心天体では 0）。
+    /// μ・磁場・大気は中心天体のもの（磁場と大気のモデルは地球だけで、ほかの中心天体では空力・磁気トルクは 0。
+    /// 0 が正しいのかモデルが無いのかは [`DisturbanceSpacecraft::environment_check`] が伝える）。
     pub fn torques(&self, central: CentralBody, s: &TimelineSample) -> DisturbanceTorques {
         let r_body = s.to_body(s.r_eci);
         let b_eci = field_about_eci_t(central, s.r_eci, s.epoch);
         let mut out = DisturbanceTorques {
             gravity_gradient: gravity_gradient(&self.inertia, r_body, central.gm()),
-            magnetic: magnetic(self.residual_dipole, s.to_body(b_eci)),
+            magnetic: magnetic(self.residual_dipole(), s.to_body(b_eci)),
             // 値は validate で調べてある（不正なら 0 にせず、解析の前にエラーになる）
             thrust: self
                 .thrust
@@ -230,10 +249,19 @@ impl DisturbanceSpacecraft {
                 .unwrap_or(Vec3::ZERO),
             ..Default::default()
         };
-        if let Some(surface) = &self.aero {
+        // 大気のモデルは地球だけ（ほかの天体は 0 のまま。理由は [`DisturbanceSpacecraft::environment_check`]）
+        let aero_surface = self
+            .aero
+            .as_ref()
+            .filter(|_| central.atmosphere_model() == EnvironmentModel::Modelled);
+        if let Some(surface) = aero_surface {
             let rho = density_about_kg_m3(central, &self.atmosphere, s.r_eci, s.epoch)
                 * self.density_scale();
-            out.aero = aero(surface, rho, s.to_body(relative_wind_eci(s.r_eci, s.v_eci)));
+            out.aero = aero(
+                surface,
+                rho,
+                s.to_body(earth_relative_wind_eci(s.r_eci, s.v_eci)),
+            );
         }
         if let Some(surface) = &self.srp {
             let pressure = srp_pressure(s.sun_distance_m) * s.sunlit.clamp(0.0, 1.0);
@@ -257,7 +285,7 @@ pub fn gravity_gradient(inertia: &Mat3, r_body: Vec3, mu: f64) -> Vec3 {
 /// 抗力は `sat_astro::force::drag_force`。
 pub fn aero(surface: &DisturbanceSurface, rho: f64, v_rel_body: Vec3) -> Vec3 {
     let force = drag_force(rho, surface.coefficient_area.value(), v_rel_body);
-    surface.cp_offset.cross(force)
+    surface.cp_offset().cross(force)
 }
 
 /// 太陽輻射圧トルク [N·m]。`pressure` は日照率込みの輻射圧 [N/m²]、`sun_dir_body` は機体 → 太陽の方向。
@@ -266,13 +294,15 @@ pub fn srp(surface: &DisturbanceSurface, pressure: f64, sun_dir_body: Vec3) -> V
         return Vec3::ZERO;
     };
     let force = sun * (-pressure * surface.coefficient_area.value());
-    surface.cp_offset.cross(force)
+    surface.cp_offset().cross(force)
 }
 
 /// 残留磁気トルク [N·m]。`dipole` [A·m²]、`b_body` は磁束密度 [T]（どちらも機体座標系）。
 pub fn magnetic(dipole: Vec3, b_body: Vec3) -> Vec3 {
     dipole.cross(b_body)
 }
+
+mod environment;
 
 #[cfg(test)]
 mod tests {
@@ -282,9 +312,12 @@ mod tests {
     #[test]
     fn box_surface_by_hand() {
         // 2 × 3 × 4 m の箱: 最大面 12 m²、Cd = 2 → 24 m²。
-        let s = DisturbanceSurface::from_box(Vec3::new(2.0, 3.0, 4.0), 2.0, Vec3::X);
+        let s = DisturbanceSurface::from_box(Vec3::new(2.0, 3.0, 4.0), 2.0, Some(Vec3::X));
         assert_eq!(s.coefficient_area.value(), 24.0);
-        assert_eq!(s.cp_offset, Vec3::X);
+        assert_eq!(s.cp_offset(), Vec3::X);
+        // 圧力中心を書かなければ重心（0）
+        let s = DisturbanceSurface::from_box(Vec3::new(2.0, 3.0, 4.0), 2.0, None);
+        assert_eq!(s.cp_offset(), Vec3::ZERO);
     }
 
     fn close(a: f64, b: f64, tol: f64) -> bool {
@@ -311,7 +344,7 @@ mod tests {
         // ρ = 1e-12、Cd·A = 0.1 m²、v = 7.5 km/s（+x）、CP が +y に 1 cm
         // F = −½·1e-12·0.1·7500² = −2.8125e-6 N（x）、τ = r × F = (0, 0.01, 0) × (F, 0, 0) = (0, 0, −0.01 F)
         let s = DisturbanceSurface {
-            cp_offset: Vec3::new(0.0, 0.01, 0.0),
+            cp_offset: Some(Vec3::new(0.0, 0.01, 0.0)),
             coefficient_area: Qty::from_raw(0.1),
         };
         let tau = aero(&s, 1e-12, Vec3::new(7500.0, 0.0, 0.0));
@@ -322,7 +355,7 @@ mod tests {
     fn srp_and_magnetic_by_hand() {
         // P = 1361/c = 4.54e-6 N/m²、Cr·A = 0.1 m²、太陽 +x、CP が +z に 2 cm
         let s = DisturbanceSurface {
-            cp_offset: Vec3::new(0.0, 0.0, 0.02),
+            cp_offset: Some(Vec3::new(0.0, 0.0, 0.02)),
             coefficient_area: Qty::from_raw(0.1),
         };
         let p = 1361.0 / C_LIGHT;

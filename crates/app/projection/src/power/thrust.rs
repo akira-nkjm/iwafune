@@ -21,7 +21,7 @@ pub fn thrust_balance(ctx: &Context<'_>) -> Result<ThrustBalanceInput, MissingIn
             Some(ThrustLoad {
                 maneuver: x.id.to_string(),
                 mode: x.constraints.mode.as_ref()?.to_string(),
-                sunlit_only: x.constraints.sunlit_only.unwrap_or(false),
+                sunlit_only: x.constraints.sunlit_only,
                 duty: x.constraints.duty.map(Fraction::new),
             })
         })

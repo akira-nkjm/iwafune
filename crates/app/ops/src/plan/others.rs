@@ -1,12 +1,10 @@
-//! 定義・モード・ネット・設定の Op の解釈（前提の確認 → store の編集）。
+//! モード・ネット・図・設定の Op の解釈（前提の確認 → store の編集）。
 
 use crate::error::OpError;
 use crate::op::{ModeCell, ModePosition, Op, ViewNodePos};
 use fune_model::Design;
-use fune_model::builtin;
-use fune_model::check::attribute_def_problems;
-use fune_model::design::{AttributeDef, KindDef, Mode, Net, StateAssign, ViewNode};
-use fune_model::id::{Id, clash, validate_entity_id, validate_local_name};
+use fune_model::design::{Mode, Net, StateAssign, ViewNode};
+use fune_model::id::{Id, clash, validate_entity_id};
 use fune_model::path::{self, ParamPath};
 use fune_model::value::SettingValue;
 use fune_store::Edits;
@@ -15,8 +13,6 @@ use fune_store::write::{entities, project::set_mode_order, refs};
 
 pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> {
     match op {
-        Op::CreateAttribute { def } => create_attribute(edits, design, def),
-        Op::CreateKind { def } => create_kind(edits, design, def),
         Op::CreateMode {
             id,
             label,
@@ -153,30 +149,6 @@ fn set_view(
         &rows,
         remove,
     )?)
-}
-
-fn create_attribute(edits: &mut Edits, design: &Design, def: &AttributeDef) -> Result<(), OpError> {
-    let id = def.id.as_str();
-    if design.attribute(id).is_some() {
-        return Err(OpError::exists(format!("属性 `{id}`")));
-    }
-    let problems = attribute_def_problems(def);
-    if !problems.is_empty() {
-        let text: Vec<String> = problems.into_iter().map(|(_, m)| m).collect();
-        return Err(OpError::invalid(text.join(" / ")));
-    }
-    let file = layout::attribute_file(id);
-    Ok(edits.create(&file, entities::new_attribute_text(&file, def)?)?)
-}
-
-fn create_kind(edits: &mut Edits, design: &Design, def: &KindDef) -> Result<(), OpError> {
-    let id = def.id.as_str();
-    validate_local_name(id).map_err(|e| OpError::invalid(e.to_string()))?;
-    if design.kind(id).is_some() || builtin::is_builtin_kind(id) {
-        return Err(OpError::exists(format!("種別 `{id}`")));
-    }
-    let file = layout::kind_file(id);
-    Ok(edits.create(&file, entities::new_kind_text(&file, def)?)?)
 }
 
 fn remove_net(edits: &mut Edits, design: &Design, id: &str) -> Result<(), OpError> {
