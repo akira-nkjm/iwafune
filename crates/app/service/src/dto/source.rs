@@ -14,6 +14,9 @@ pub struct SourceView {
     pub link: Option<String>,
     /// 台帳のファイル（`sources/<ID>.toml`。共有カタログの出典はキャッシュの中のファイル）
     pub file: String,
+    /// 置かれているディレクトリ（`sources/` からの名前の列。直下なら空。共有カタログの出典はキャッシュの `sources/` から。
+    /// 置き場所だけで、ID・参照には入らない）
+    pub dir: Vec<String>,
     /// このプロジェクトの出典なら true。共有カタログの出典（`<カタログ名>/<ID>`）は読み取り専用で false
     /// （判定は `Design::shared_catalog_of`）
     pub editable: bool,

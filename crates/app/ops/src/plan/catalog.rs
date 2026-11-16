@@ -2,6 +2,7 @@
 //! 共有カタログ（`git = …`）の品は読み取り専用（部品での上書きか、共有カタログへの PR を案内する）。
 
 use super::attr::{AttrTarget, unset_attr, write_attr};
+use super::subdir::{move_file, parse_dir};
 use crate::error::OpError;
 use crate::op::Op;
 use fune_model::design::{CatalogItem, Maturity, split_catalog_ref};
@@ -10,9 +11,7 @@ use fune_model::resolve::Origin;
 use fune_model::value::Authored;
 use fune_model::{Design, resolve};
 use fune_store::Edits;
-use fune_store::layout::{
-    CatalogLocation, catalog_item_dir, catalog_item_path, catalog_location, parse_catalog_dir,
-};
+use fune_store::layout::{CatalogLocation, catalog_item_dir, catalog_location, file_in_dir};
 use fune_store::write::{catalog as wcatalog, refs};
 use std::collections::BTreeMap;
 
@@ -116,7 +115,7 @@ fn new_ref(design: &Design, text: &str, dir: &[String]) -> Result<(String, Strin
         return Err(OpError::exists(format!("Catalog item `{reference}`")));
     }
     let (_, base) = writable(design, &reference)?;
-    let file = catalog_item_path(&base, dir, id);
+    let file = file_in_dir(&base, dir, id);
     Ok((reference, file))
 }
 
@@ -133,10 +132,7 @@ fn create(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> {
     else {
         return Err(OpError::invalid("Not a CreateCatalogItem op"));
     };
-    let dirs = match dir {
-        Some(text) => parse_catalog_dir(text).map_err(OpError::invalid)?,
-        None => Vec::new(),
-    };
+    let dirs = parse_dir(dir.as_deref())?;
     let (reference, file) = new_ref(design, id, &dirs)?;
     if design.kind(kind).is_none() {
         return Err(OpError::not_found(format!("Kind `{kind}`")));
@@ -235,15 +231,8 @@ fn rename(edits: &mut Edits, design: &Design, from: &str, to: &str) -> Result<()
 /// カタログ品を別のディレクトリへ移す（ID は変わらないので、参照は書き換えない）。
 fn mv(edits: &mut Edits, design: &Design, item: &str, dir: &str) -> Result<(), OpError> {
     let (reference, file) = existing(design, item)?;
-    let dirs = parse_catalog_dir(dir).map_err(OpError::invalid)?;
     let (_, base) = writable(design, &reference)?;
     let (_, id) = split_catalog_ref(&reference)
         .ok_or_else(|| OpError::invalid(format!("`{reference}` must be `<catalog>/<id>`")))?;
-    let target = catalog_item_path(&base, &dirs, id);
-    if target == file {
-        return Err(OpError::invalid(format!(
-            "`{reference}` is already in `{dir}`"
-        )));
-    }
-    Ok(edits.rename(&file, &target)?)
+    move_file(edits, &format!("`{reference}`"), &file, &base, id, dir)
 }

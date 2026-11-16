@@ -70,6 +70,15 @@ pub enum SourceCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// Move a source to another directory of `sources/` (the ID and references do not change)
+    Mv {
+        id: String,
+        /// Directory relative to `sources/` (e.g. `datasheets` or `a/b`); `.` is `sources/` itself
+        #[arg(value_name = "DIR")]
+        target: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
 }
 
 /// `fune source set`
@@ -103,6 +112,11 @@ pub struct SourceArgs {
     pub by: Option<String>,
     #[arg(long)]
     pub note: Option<String>,
+    /// Directory to put a new source in, relative to `sources/` (e.g. `datasheets` or `a/b`; default: `sources/` itself).
+    /// An existing source stays where it is (a different directory is refused; use `fune source mv`).
+    /// Not `--dir`: that is the global project location (`-C`)
+    #[arg(long)]
+    pub subdir: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }

@@ -3,6 +3,7 @@
 use super::views::file_of;
 use crate::dto::SourceView;
 use fune_model::design::{Design, EntityKey};
+use fune_store::layout::source_dir;
 
 /// 出典の一覧（`DesignView.sources`）。
 pub(crate) fn sources(design: &Design) -> Vec<SourceView> {
@@ -12,6 +13,7 @@ pub(crate) fn sources(design: &Design) -> Vec<SourceView> {
         .map(|s| SourceView {
             link: s.web_link().map(str::to_owned),
             file: file_of(design, EntityKey::Source(s.id.to_string())),
+            dir: source_dir(design, s.id.as_str()),
             editable: design.shared_catalog_of(s.id.as_str()).is_none(),
             source: s.clone(),
         })

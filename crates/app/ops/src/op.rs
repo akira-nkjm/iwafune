@@ -116,7 +116,7 @@ pub enum Op {
         maturity: Option<Maturity>,
         #[serde(default)]
         copy_from_part: Option<String>,
-        /// 置くディレクトリ（カタログのディレクトリからの相対。`a/b`。省けばカタログの直下。読み方は `fune_store::layout::parse_catalog_dir`）
+        /// 置くディレクトリ（カタログのディレクトリからの相対。`a/b`。省けばカタログの直下。読み方は `fune_store::layout::parse_subdir`）
         #[serde(default)]
         #[ts(optional = nullable)]
         dir: Option<String>,
@@ -255,11 +255,21 @@ pub enum Op {
         id: String,
     },
     /// 出典を書く（`source.id` が対象）。値から参照されている出典は消せない（検証で拒む）。
+    /// `dir`（`sources/` からの相対。`a/b`。省けば直下。読み方は `fune_store::layout::parse_subdir`）は新しい出典の置き場所
+    /// で、既にある出典は今のファイルに書く（今と違う `dir` は拒む。移すのは `MoveSource`）。
     SetSource {
         source: Source,
+        #[serde(default)]
+        #[ts(optional = nullable)]
+        dir: Option<String>,
     },
     RemoveSource {
         id: String,
+    },
+    /// 出典を別のディレクトリへ移す（`dir` は `sources/` からの相対。`.` なら直下）。ID・参照は変わらない。
+    MoveSource {
+        id: String,
+        dir: String,
     },
     /// ハーネス区間を書く（`harness.id` が対象）。
     SetHarness {
