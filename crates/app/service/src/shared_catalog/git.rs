@@ -59,10 +59,10 @@ impl Mirror {
         })
     }
 
-    /// commit の中の `dir` の直下のファイル（`<dir>/<名前>`, 本文）。ディレクトリが無ければ空。
+    /// commit の中の `dir` の下のファイル（ディレクトリの下も。`<dir>/<パス>`, 本文）。ディレクトリが無ければ空。
     pub(super) fn files_in(&self, commit: &str, dir: &str) -> Result<Vec<(String, Vec<u8>)>> {
         let commit = operand(commit)?;
-        let listing = self.run(&["ls-tree", "-z", commit, "--", &format!("{dir}/")])?;
+        let listing = self.run(&["ls-tree", "-r", "-z", commit, "--", &format!("{dir}/")])?;
         let mut blobs: Vec<(String, String)> = Vec::new();
         for entry in listing.split(|b| *b == 0).filter(|e| !e.is_empty()) {
             let entry = String::from_utf8_lossy(entry);

@@ -145,7 +145,7 @@ fn maneuver_text(a: &ManeuverArgs) -> ManeuverText {
     }
 }
 
-/// `fune catalog add|set|unset|rm|rename|source add|source rm`
+/// `fune catalog add|set|unset|rm|rename|mv|source add|source rm`
 pub fn catalog<'a>(ws: &fune_service::Workspace, c: &'a CatalogCmd) -> Built<'a> {
     Ok(match c {
         CatalogCmd::Add {
@@ -155,6 +155,7 @@ pub fn catalog<'a>(ws: &fune_service::Workspace, c: &'a CatalogCmd) -> Built<'a>
             label_en,
             maturity,
             from_part,
+            subdir,
             edit: opts,
         } => Some((
             Op::CreateCatalogItem {
@@ -164,6 +165,7 @@ pub fn catalog<'a>(ws: &fune_service::Workspace, c: &'a CatalogCmd) -> Built<'a>
                 label_en: label_en.clone(),
                 maturity: maturity.as_deref().map(edit::maturity).transpose()?,
                 copy_from_part: from_part.clone(),
+                dir: subdir.clone(),
             },
             opts,
         )),
@@ -188,6 +190,17 @@ pub fn catalog<'a>(ws: &fune_service::Workspace, c: &'a CatalogCmd) -> Built<'a>
             Op::RenameCatalogItem {
                 from: from.clone(),
                 to: to.clone(),
+            },
+            opts,
+        )),
+        CatalogCmd::Mv {
+            id,
+            target,
+            edit: opts,
+        } => Some((
+            Op::MoveCatalogItem {
+                item: id.clone(),
+                dir: target.clone(),
             },
             opts,
         )),

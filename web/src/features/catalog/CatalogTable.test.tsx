@@ -10,6 +10,7 @@ const item: CatalogItemView = {
   id: "local/rw_10mNms",
   scope: "local",
   name: "rw_10mNms",
+  dir: [],
   editable: true,
   kind: "reaction_wheel",
   label: null,

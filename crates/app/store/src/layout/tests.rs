@@ -20,6 +20,29 @@ fn classifies_files() {
         classify("catalog/rw.toml", &cat),
         FileRole::Catalog {
             source: "local".into(),
+            dirs: vec![],
+            id: "rw".into()
+        }
+    );
+    // ディレクトリの下も品（ID はファイル名。ディレクトリは置き場所だけ）
+    assert_eq!(
+        classify("catalog/vendor_a/wheels/rw.toml", &cat),
+        FileRole::Catalog {
+            source: "local".into(),
+            dirs: vec!["vendor_a".into(), "wheels".into()],
+            id: "rw".into()
+        }
+    );
+    // 入れ子のカタログのディレクトリは、深い方が先
+    let nested = vec![
+        ("a".to_string(), "catalog".to_string()),
+        ("b".to_string(), "catalog/b".to_string()),
+    ];
+    assert_eq!(
+        classify("catalog/b/rw.toml", &nested),
+        FileRole::Catalog {
+            source: "b".into(),
+            dirs: vec![],
             id: "rw".into()
         }
     );
@@ -114,4 +137,20 @@ fn conditions_replace_the_reserved_mission_directory() {
         fune_model::path::parse("mission.orbit.altitude"),
         Ok(fune_model::path::ParamPath::Setting(_))
     ));
+}
+
+#[test]
+fn catalog_dirs_are_parsed_with_the_id_rules() {
+    assert_eq!(parse_catalog_dir("."), Ok(vec![]));
+    assert_eq!(
+        parse_catalog_dir("vendor_a/rw-x"),
+        Ok(vec!["vendor_a".to_string(), "rw-x".to_string()])
+    );
+    for bad in ["", "a//b", "../x", "a/", "/a", "1a", "a.b", "con", "_a"] {
+        assert!(parse_catalog_dir(bad).is_err(), "{bad}");
+    }
+    assert_eq!(
+        catalog_item_path("catalog", &["a".into(), "b".into()], "rw"),
+        "catalog/a/b/rw.toml"
+    );
 }

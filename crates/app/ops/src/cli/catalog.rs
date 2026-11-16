@@ -1,4 +1,4 @@
-//! カタログ品の Op のコマンド（`fune catalog add|set|unset|rm|rename`）と、カタログの出所の Op のコマンド
+//! カタログ品の Op のコマンド（`fune catalog add|set|unset|rm|rename|mv`）と、カタログの出所の Op のコマンド
 //! （`fune catalog source add|rm`）。
 
 use super::commands::value_cmds;
@@ -17,6 +17,7 @@ pub(super) fn catalog_op(op: &Op) -> Option<Vec<String>> {
             label_en,
             maturity,
             copy_from_part,
+            dir,
         } => vec![
             Cmd::new(&["fune", "catalog", "add", id])
                 .flag("kind", Some(kind))
@@ -24,6 +25,7 @@ pub(super) fn catalog_op(op: &Op) -> Option<Vec<String>> {
                 .flag("label-en", label_en.as_deref())
                 .flag("maturity", maturity.map(|m| m.as_str()))
                 .flag("from-part", copy_from_part.as_deref())
+                .flag("subdir", dir.as_deref())
                 .done(),
         ],
         Op::SetCatalogValue {
@@ -50,6 +52,9 @@ pub(super) fn catalog_op(op: &Op) -> Option<Vec<String>> {
         Op::RemoveCatalogItem { id } => vec![Cmd::new(&["fune", "catalog", "rm", id]).done()],
         Op::RenameCatalogItem { from, to } => {
             vec![Cmd::new(&["fune", "catalog", "rename", from, to]).done()]
+        }
+        Op::MoveCatalogItem { item, dir } => {
+            vec![Cmd::new(&["fune", "catalog", "mv", item, dir]).done()]
         }
         Op::AddCatalogSource { name, git, rev } => vec![
             Cmd::new(&["fune", "catalog", "source", "add", name])

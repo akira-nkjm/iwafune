@@ -20,6 +20,10 @@ scope: string,
  */
 name: string, 
 /**
+ * 置かれているディレクトリ（カタログのディレクトリからの名前の列。直下なら空。置き場所だけで、ID・参照には入らない）
+ */
+dir: Array<string>, 
+/**
  * このプロジェクトのカタログ（`[[catalog]] path = …`）の品なら true。共有カタログ（`git = …`）の品は読み取り専用で false
  */
 editable: boolean, kind: string, label: string | null, 

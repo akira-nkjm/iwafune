@@ -1,6 +1,7 @@
 //! ディレクトリの規約（どのエンティティがどこに置かれるか。docs/model.md §6・§11）。
 //!
 //! - `parts/` の下のディレクトリは、同じ名前のファイルが無ければ Group、あればその部品（物理的な組立品）の子。
+//! - `catalog/`（`[[catalog]] path = …`）の下のディレクトリは置き場所だけ（ID はファイル名。`layout::catalog`）。
 //! - `nets/`・`harness/`・`modes/` などは平らに並べる。ディレクトリが親の意味を持つのは `parts/` だけ。
 //! - `.` で始まる名前・`.fune/`・`results/`・`exports/` は読まない。`view/` は見た目だけの情報（整数の座標）。
 
@@ -54,8 +55,10 @@ pub enum FileRole {
     Policy,
     Attribute(String),
     Kind(String),
+    /// `dirs` はカタログのディレクトリからのディレクトリの列（置き場所だけで、ID にも参照にも入らない）
     Catalog {
         source: String,
+        dirs: Vec<String>,
         id: String,
     },
     /// `dirs` は `parts/` からのディレクトリの列
@@ -99,13 +102,8 @@ pub fn classify(rel: &str, catalogs: &[(String, String)]) -> FileRole {
         POLICY_FILE => return FileRole::Policy,
         _ => {}
     }
-    for (name, dir) in catalogs {
-        if let Some(id) = flat_child(stem_path, dir) {
-            return FileRole::Catalog {
-                source: name.clone(),
-                id,
-            };
-        }
+    if let Some(role) = catalog_role(stem_path, catalogs) {
+        return role;
     }
     if let Some(name) = flat_child(stem_path, ANALYSIS_DIR) {
         return name
@@ -165,7 +163,7 @@ pub fn entity_key(role: &FileRole) -> Option<EntityKey> {
         FileRole::Policy => EntityKey::Policy,
         FileRole::Attribute(id) => EntityKey::Attribute(id.clone()),
         FileRole::Kind(id) => EntityKey::Kind(id.clone()),
-        FileRole::Catalog { source, id } => EntityKey::Catalog(format!("{source}/{id}")),
+        FileRole::Catalog { source, id, .. } => EntityKey::Catalog(format!("{source}/{id}")),
         FileRole::Part { id, .. } => EntityKey::Part(id.clone()),
         FileRole::Mode(id) => EntityKey::Mode(id.clone()),
         FileRole::Net(id) => EntityKey::Net(id.clone()),
@@ -190,7 +188,7 @@ pub fn file_target(role: &FileRole) -> Option<Target> {
         FileRole::Policy => SettingPath::budget(&["policy"]).into(),
         FileRole::Attribute(id) => Target::AttributeDef { id: id.clone() },
         FileRole::Kind(id) => Target::KindDef { id: id.clone() },
-        FileRole::Catalog { source, id } => Target::Catalog {
+        FileRole::Catalog { source, id, .. } => Target::Catalog {
             id: format!("{source}/{id}"),
             attr: None,
         },
@@ -281,35 +279,6 @@ pub fn view_file(name: &str) -> String {
     format!("{VIEW_DIR}/{name}.toml")
 }
 
-/// カタログ品の置き場所。
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CatalogLocation {
-    /// このプロジェクトの中（`[[catalog]] path = …`）。書き換えられる
-    Local { file: String },
-    /// 共有カタログ（`[[catalog]] git = …`）。読み取り専用
-    Shared { source: String },
-    /// `<カタログ名>/<ID>` の形でない、またはカタログ名が fune.toml に無い
-    Unknown,
-}
-
-/// カタログ品の参照（`"local/rw_10mNms"`）→ 置き場所。
-pub fn catalog_location(design: &Design, reference: &str) -> CatalogLocation {
-    let Some((source, id)) = fune_model::design::split_catalog_ref(reference) else {
-        return CatalogLocation::Unknown;
-    };
-    match design.project.catalogs.iter().find(|c| c.name == source) {
-        Some(c) => match c.local_dir() {
-            Some(path) => CatalogLocation::Local {
-                file: format!("{}/{id}.toml", path.trim_end_matches('/')),
-            },
-            None => CatalogLocation::Shared {
-                source: source.to_string(),
-            },
-        },
-        None => CatalogLocation::Unknown,
-    }
-}
-
 /// 共有カタログの commit の中身を置くディレクトリ（ルートからの相対パス。`.fune/catalogs/<名前>/<commit>`）。
 pub fn shared_catalog_dir(name: &str, commit: &str) -> String {
     format!("{SHARED_CATALOG_ROOT}/{name}/{commit}")
@@ -369,6 +338,12 @@ pub fn locate_setting(design: &Design, path: &SettingPath) -> Option<fune_model:
     let keys: Vec<&str> = keys.iter().map(String::as_str).collect();
     Some(design.source_map.locate_in_file(&file, &keys))
 }
+
+mod catalog;
+use catalog::catalog_role;
+pub use catalog::{
+    CatalogLocation, catalog_item_dir, catalog_item_path, catalog_location, parse_catalog_dir,
+};
 
 #[cfg(test)]
 mod tests;

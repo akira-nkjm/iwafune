@@ -27,6 +27,8 @@ pub struct CatalogItemView {
     pub scope: String,
     /// カタログの中の名前（例: `"rw_10mNms"`）
     pub name: String,
+    /// 置かれているディレクトリ（カタログのディレクトリからの名前の列。直下なら空。置き場所だけで、ID・参照には入らない）
+    pub dir: Vec<String>,
     /// このプロジェクトのカタログ（`[[catalog]] path = …`）の品なら true。共有カタログ（`git = …`）の品は読み取り専用で false
     pub editable: bool,
     pub kind: String,
