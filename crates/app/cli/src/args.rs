@@ -83,8 +83,9 @@ pub enum Command {
     /// the IP given to --host unless it is 0.0.0.0, and names added with --allow-host.
     /// Example (over a VPN): fune gui --host 0.0.0.0 --allow-host 100.64.0.1 --no-open
     Gui {
-        #[arg(long, default_value_t = 8787)]
-        port: u16,
+        /// Port to listen on (default 3000; when it is in use and --port is not given, the next free port is used)
+        #[arg(long)]
+        port: Option<u16>,
         /// Address to listen on (default 127.0.0.1; 0.0.0.0 for all interfaces)
         #[arg(long, default_value = "127.0.0.1")]
         host: String,

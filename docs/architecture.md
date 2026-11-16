@@ -220,7 +220,7 @@ Missing input is not an error, so both analyses and budgets return 200 with `mis
 
 `fune gui` starts the server inside the same binary and opens the browser.
 
-- By default it listens on `127.0.0.1:8787`. This can be changed with `--port`, `--host` and `--no-open`. There is no authentication.
+- By default it listens on `127.0.0.1:3000` and opens `http://localhost:3000/`; when that port is in use and `--port` is not given, it uses the next free port. This can be changed with `--port`, `--host` and `--no-open`. There is no authentication.
 - The API is under `/api/v1`. A handler only reads the arguments, calls service, and turns the result into JSON. File I/O and analyses are moved to another thread with `spawn_blocking`.
 - Host allowlist: because the API can write design files, a request whose Host header is not in the allowlist is rejected with 403 (`host_not_allowed`) (a DNS rebinding defense).
   The allowed ones are `localhost`, `127.0.0.1` and `[::1]` (any port), the IP given with `--host` (except `0.0.0.0`), and the names added with `--allow-host`.
@@ -294,7 +294,7 @@ The following features each have a single fixed home (xtask verifies them).
 | Color values | `src/lib/tone.ts` (the colors in `index.css` are generated with `pnpm -C web tokens`. A test checks contrast) |
 
 Text goes in the Japanese and English dictionaries (`src/i18n/`). A test checks that the two dictionaries have the same entries.
-During development, `pnpm -C web dev` (port 5173) proxies `/api` to `127.0.0.1:8787`, where `fune gui --no-open` runs (this can be changed with `FUNE_API`).
+During development, `pnpm -C web dev` (port 5173) proxies `/api` to `127.0.0.1:3000`, where `fune gui --no-open` runs (this can be changed with `FUNE_API`).
 
 ## 6. Analyses
 
