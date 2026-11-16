@@ -50,6 +50,9 @@ pub(crate) fn item_view(design: &Design, item: &CatalogItem) -> CatalogItemView 
             CatalogLocation::Local { .. }
         ),
         kind: item.kind.to_string(),
+        system: design
+            .kind_system(item.kind.as_str())
+            .map(fune_projection::system::to_analysis),
         label: item.label.clone(),
         label_en: item.label_en.clone(),
         manufacturer: item.manufacturer.clone(),
@@ -75,6 +78,7 @@ pub(crate) fn item_view(design: &Design, item: &CatalogItem) -> CatalogItemView 
 mod tests {
     use super::*;
     use fune_model::design::CatalogSource;
+    use sat_analysis::spec::System;
 
     /// 出所の一覧の「書き込めるか」は、品の `editable`（`catalog_location`）と同じ判定で、fune.toml の順に並ぶ。
     #[test]
@@ -109,5 +113,27 @@ mod tests {
             );
             assert_eq!(local, editable, "{name}");
         }
+    }
+
+    /// 品の系は種別の役割の系。継承した役割も辿り、役割の無い種別（`component`）は系を持たない。
+    #[test]
+    fn item_system_follows_the_kind_role_through_inheritance() {
+        let mut design = Design::default();
+        let custom: fune_model::design::KindDef = serde_json::from_value(serde_json::json!({
+            "id": "big_wheel", "label": "Big wheel", "extends": "reaction_wheel"
+        }))
+        .expect("kind");
+        design.kinds.insert(custom.id.clone(), custom);
+        let system_of = |kind: &str| {
+            let item: CatalogItem = serde_json::from_value(serde_json::json!({
+                "id": format!("local/{kind}"), "kind": kind, "attr": {}, "ports": {}
+            }))
+            .expect("item");
+            item_view(&design, &item).system
+        };
+        assert_eq!(system_of("reaction_wheel"), Some(System::Aocs));
+        assert_eq!(system_of("battery"), Some(System::Power));
+        assert_eq!(system_of("big_wheel"), Some(System::Aocs));
+        assert_eq!(system_of("component"), None);
     }
 }

@@ -12,6 +12,7 @@ const item: CatalogItemView = {
   name: "rw_10mNms",
   editable: true,
   kind: "reaction_wheel",
+  system: "aocs",
   label: null,
   label_en: null,
   manufacturer: null,

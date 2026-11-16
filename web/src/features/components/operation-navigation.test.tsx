@@ -97,6 +97,7 @@ const catalog: CatalogItemView = {
   scope: "local",
   editable: true,
   kind: "wheel",
+  system: null,
   label: null,
   label_en: null,
   manufacturer: null,
