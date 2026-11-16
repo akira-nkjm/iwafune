@@ -1,4 +1,4 @@
-label        = "低温（セーフ）"
+label        = "Cold (safe mode)"
 mode         = "SAFE"
 side         = "min"
 thermal_case = "cold"

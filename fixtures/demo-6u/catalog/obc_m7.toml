@@ -1,5 +1,5 @@
 kind         = "obc"
-label        = "OBC（Cortex-M7）"
+label        = "OBC (Cortex-M7)"
 manufacturer = "Example Avionics"
 part_number  = "OBC-M7"
 maturity     = "modified"

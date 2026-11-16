@@ -12,7 +12,7 @@ expression: text
 -value       = 0.152
 -unit        = "kg"
 -from.source = "em_test_2026_10"
--from.note   = "EM 実測"
+-from.note   = "EM measurement"
 +[attr]
 +mass = { value = 650.0, unit = "g" }
  

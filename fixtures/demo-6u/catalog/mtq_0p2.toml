@@ -1,5 +1,5 @@
 kind         = "magnetorquer"
-label        = "磁気トルカ 0.2 A·m² 級"
+label        = "Magnetorquer, 0.2 A·m² class"
 manufacturer = "Example Space"
 part_number  = "MTQ-02"
 maturity     = "off_the_shelf"

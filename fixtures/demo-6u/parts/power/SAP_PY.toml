@@ -1,6 +1,6 @@
-# 展開パドル（物理的な組立品）。+Y 面のヒンジから +Y 方向に展開し、セルは +X を向く。子部品は SAP_PY/ の下
+# Deployable paddle (a physical assembly). Deploys in +Y from the hinge on the +Y face; the cells face +X. Child parts are under SAP_PY/
 kind     = "structure"
-label    = "展開太陽電池パドル（+Y）"
+label    = "Deployable solar paddle (+Y)"
 maturity = "new"
 
 [mount]
@@ -23,4 +23,4 @@ material      = "cfrp_qi"
 value       = 0.18
 unit        = "kg"
 from.source = "cad_2026_09"
-from.note   = "基板・ヒンジ・保持機構"
+from.note   = "Substrate, hinges, holding mechanism"

@@ -1,5 +1,5 @@
 kind     = "heater"
-label    = "バッテリヒータ"
+label    = "Battery heater"
 maturity = "off_the_shelf"
 
 [mount]

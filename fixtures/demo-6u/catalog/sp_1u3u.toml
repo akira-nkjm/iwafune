@@ -1,5 +1,5 @@
 kind     = "solar_panel"
-label    = "太陽電池パネル 1U×3U（三接合 8 セル）"
+label    = "Solar panel 1U×3U (8 triple-junction cells)"
 maturity = "modified"
 source   = "ds_vendor"
 

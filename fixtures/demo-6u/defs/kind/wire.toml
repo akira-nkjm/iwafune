@@ -1,5 +1,4 @@
-# 線材（ハーネスの wire が指すカタログ品の種別）。機器ではないので component を継承しない
-label    = "線材"
-label_en = "Wire"
+# Wire (kind of the catalog item a harness wire refers to). Not equipment, so it does not inherit component
+label    = "Wire"
 required = ["linear_density", "resistance_per_length"]
 optional = ["temp_op"]

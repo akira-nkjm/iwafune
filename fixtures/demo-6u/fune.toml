@@ -1,7 +1,7 @@
-# IWAFUNE 6U（デモ）— 設計データの例（schema v2。docs/model.md §11）
+# IWAFUNE 6U (demo): an example of design data (schema v2; docs/model.md §11)
 [project]
 name   = "iwafune-6u-demo"
-label  = "IWAFUNE 6U（デモ）"
+label  = "IWAFUNE 6U (demo)"
 schema = 2
 toml   = "1.0"
 

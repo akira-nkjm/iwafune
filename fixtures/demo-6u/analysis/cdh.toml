@@ -1,4 +1,4 @@
-retention         = { value = 3.0, unit = "d" }  # 降ろすまで保持する期間
+retention         = { value = 3.0, unit = "d" }  # How long data is kept until downlinked
 storage_margin    = 0.2
 compression_ratio = 0.5
 packet_overhead   = 0.1

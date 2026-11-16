@@ -1,4 +1,4 @@
-# 地心指向で +Z が地心方向。視線は +Z
+# In nadir pointing, +Z points to the Earth centre. The boresight is +Z
 catalog = "local/cam_ms_5m"
 
 [mount]
