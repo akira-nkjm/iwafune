@@ -80,7 +80,7 @@ fn sources_and_harnesses() {
         date: Some("2027-01-20".into()),
         ..Source::new("tvac_2027_01", SourceKind::Measured)
     };
-    let p = plan(&snap, &[Op::SetSource { source }]).unwrap();
+    let p = plan(&snap, &[Op::SetSource { source, dir: None }]).unwrap();
     assert!(
         p.changes[0]
             .after
@@ -215,6 +215,7 @@ fn every_op_has_a_cli_form() {
         },
         Op::SetSource {
             source: d.sources["tbd"].clone(),
+            dir: None,
         },
         Op::RemoveSource { id: "tbd".into() },
         Op::SetHarness {

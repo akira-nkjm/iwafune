@@ -373,3 +373,26 @@ fn fetch_reads_items_in_directories() {
     assert_eq!(item.dir, ["vendor_a", "wheels"]);
     assert!(!item.editable);
 }
+
+/// 共有カタログの出典もディレクトリの下にあっても取得して読める（ID はファイル名。`SourceView.dir` が置き場所）。
+#[test]
+fn fetch_reads_sources_in_directories() {
+    let tmp = tempfile::tempdir().unwrap();
+    let repo = tmp.path().join("catalog-repo");
+    catalog_repo(&repo);
+    std::fs::create_dir_all(repo.join("sources/docs/vendor")).unwrap();
+    let to = "sources/docs/vendor/ds_vendor.toml";
+    std::fs::rename(repo.join("sources/ds_vendor.toml"), repo.join(to)).unwrap();
+    git(&repo, &["add", "-A"]);
+    git(&repo, &["commit", "-q", "-m", "move sources"]);
+    let ws = project(tmp.path(), &repo, "main");
+    shared_catalog::fetch(&ws, &CatalogFetchRequest::default()).unwrap();
+    let head = git(&repo, &["rev-parse", "HEAD"]);
+    let cached = ws.root().join(format!(".fune/catalogs/lab/{head}/{to}"));
+    assert!(cached.is_file());
+    assert_eq!(state(&ws), Some(SharedCatalogState::Ready));
+    let view = query::design_view(&ws).unwrap();
+    let id = "lab/ds_vendor";
+    let source = view.sources.iter().find(|s| s.source.id == id.into());
+    assert_eq!(source.unwrap().dir, ["docs", "vendor"]);
+}

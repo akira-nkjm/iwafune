@@ -12,6 +12,7 @@
 //! | `records` | 解析ケース・出典・ハーネスの Op |
 //! | `catalog` | カタログ品の Op（このプロジェクトの `catalog/` だけ） |
 //! | `catalog_source` | カタログの出所の Op（fune.toml の共有カタログ `[[catalog]] git = …` を足す・外す） |
+//! | `subdir` | ディレクトリの下に置けるエンティティ（カタログ品・出典）の Op に共通の計画（ディレクトリを選ぶ・移す） |
 //! | `attr` | 属性の値の書き込み（部品とカタログ品で共有） |
 
 mod attr;
@@ -21,6 +22,7 @@ mod defs;
 mod others;
 mod parts;
 mod records;
+mod subdir;
 
 use crate::error::OpError;
 use crate::op::Op;
@@ -139,6 +141,7 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::RemoveCase { .. }
         | Op::SetSource { .. }
         | Op::RemoveSource { .. }
+        | Op::MoveSource { .. }
         | Op::SetHarness { .. }
         | Op::RemoveHarness { .. }
         | Op::CreateManeuver { .. }

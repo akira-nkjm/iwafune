@@ -219,8 +219,20 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         Op::RemoveCase {
             id: s("eclipse_worst"),
         },
-        Op::SetSource { source },
+        Op::SetSource {
+            source: source.clone(),
+            dir: Some(s("datasheets/rw")),
+        },
+        Op::SetSource { source, dir: None },
         Op::RemoveSource { id: s("ds_x") },
+        Op::MoveSource {
+            id: s("ds_x"),
+            dir: s("datasheets"),
+        },
+        Op::MoveSource {
+            id: s("ds_x"),
+            dir: s("."),
+        },
         Op::SetHarness { harness },
         Op::RemoveHarness { id: s("H_X") },
         Op::CreateManeuver {

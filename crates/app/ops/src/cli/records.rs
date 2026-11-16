@@ -11,8 +11,9 @@ pub(super) fn record_op(op: &Op) -> Option<Vec<String>> {
         Op::SetMountPoint { part, point, pose } => mount_point(part, point, pose.as_ref()),
         Op::SetCase { case } => case_cmd(case),
         Op::RemoveCase { id } => Cmd::new(&["fune", "case", "rm", id]).done(),
-        Op::SetSource { source } => source_cmd(source),
+        Op::SetSource { source, dir } => source_cmd(source, dir.as_deref()),
         Op::RemoveSource { id } => Cmd::new(&["fune", "source", "rm", id]).done(),
+        Op::MoveSource { id, dir } => Cmd::new(&["fune", "source", "mv", id, dir]).done(),
         Op::SetHarness { harness } => harness_cmd(harness),
         Op::RemoveHarness { id } => Cmd::new(&["fune", "harness", "rm", id]).done(),
         Op::CreateManeuver { maneuver } => maneuver_cmd("add", maneuver),
@@ -48,7 +49,7 @@ fn case_cmd(case: &Case) -> String {
         .done()
 }
 
-fn source_cmd(source: &Source) -> String {
+fn source_cmd(source: &Source, dir: Option<&str>) -> String {
     Cmd::new(&["fune", "source", "set", source.id.as_str()])
         .flag("kind", Some(source.kind.as_str()))
         .flag("label", source.label.as_deref())
@@ -60,6 +61,7 @@ fn source_cmd(source: &Source) -> String {
         .flag("date", source.date.as_deref())
         .flag("by", source.by.as_deref())
         .flag("note", source.note.as_deref())
+        .flag("subdir", dir)
         .done()
 }
 

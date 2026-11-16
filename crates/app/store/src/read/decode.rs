@@ -246,10 +246,9 @@ impl Decoder<'_> {
                 v.id = Id::new(id);
                 g.cases.insert(Id::new(id), v);
             }),
-            FileRole::Source(id) => self.read_into(path, |g, mut v: d::Source| {
-                v.id = Id::new(id);
-                g.sources.insert(Id::new(id), v);
-            }),
+            FileRole::Source { dirs, id } => {
+                let _ = self.read_source(path, id, dirs);
+            }
             FileRole::Maneuver(id) => self.read_into(path, |g, mut v: d::Maneuver| {
                 v.id = Id::new(id);
                 g.maneuvers.insert(Id::new(id), v);
@@ -306,7 +305,7 @@ fn file_id(role: &FileRole) -> Option<&str> {
         | FileRole::Net(id)
         | FileRole::Harness(id)
         | FileRole::Case(id)
-        | FileRole::Source(id)
+        | FileRole::Source { id, .. }
         | FileRole::Maneuver(id)
         | FileRole::Ground(id)
         | FileRole::View(id) => Some(id),

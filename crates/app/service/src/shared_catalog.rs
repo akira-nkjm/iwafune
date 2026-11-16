@@ -2,8 +2,8 @@
 //! docs/model.md §12。
 //!
 //! 「外部データのキャッシュ」の例外として、ここだけがプロジェクトの `.fune/catalogs/` に書く（git で管理しない）:
-//! 取得元の写し `<名前>/repo.git`（bare）と、commit ごとの中身 `<名前>/<commit>/`（`catalog/`・`sources/` の直下の
-//! `.toml` だけ）。読むのは fune-store（`catalog.lock` の commit のキャッシュ）。`catalog.lock` は store の書き込みで書く。
+//! 取得元の写し `<名前>/repo.git`（bare）と、commit ごとの中身 `<名前>/<commit>/`（`catalog/`・`sources/` の下の
+//! `.toml` だけ。ディレクトリの下も）。読むのは fune-store（`catalog.lock` の commit のキャッシュ）。`catalog.lock` は store の書き込みで書く。
 //!
 //! | モジュール | 中身 |
 //! |---|---|

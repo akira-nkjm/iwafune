@@ -3,7 +3,7 @@
 
 use super::git::{Mirror, io_error};
 use crate::error::{Result, ServiceError};
-use fune_store::layout::{SHARED_CATALOG_DIRS, SHARED_ITEMS_DIR, is_cache_key, shared_catalog_dir};
+use fune_store::layout::{SHARED_CATALOG_DIRS, is_cache_key, is_cacheable, shared_catalog_dir};
 use std::path::{Path, PathBuf};
 
 /// commit の中身がキャッシュにあるか。
@@ -11,7 +11,7 @@ pub(super) fn exists(root: &Path, name: &str, commit: &str) -> bool {
     is_cache_key(name, commit) && root.join(shared_catalog_dir(name, commit)).is_dir()
 }
 
-/// commit の `catalog/`（ディレクトリの下も）・`sources/`（直下だけ）の `.toml` をキャッシュに置く（既にあれば何もしない）。
+/// commit の `catalog/`・`sources/`（どちらもディレクトリの下も）の `.toml` をキャッシュに置く（既にあれば何もしない）。
 pub(super) fn extract(root: &Path, name: &str, mirror: &Mirror, commit: &str) -> Result<()> {
     if !is_cache_key(name, commit) {
         return Err(ServiceError::Data(format!(
@@ -39,14 +39,8 @@ fn write_all(tmp: &Path, mirror: &Mirror, commit: &str) -> Result<()> {
             let Some(file) = path.strip_prefix(&format!("{sub}/")) else {
                 continue;
             };
-            // 出典は平ら。品はディレクトリの下も（`.` で始まる名前は読まない）
-            let nested_ok = *sub == SHARED_ITEMS_DIR;
-            if !file.ends_with(".toml")
-                || (file.contains('/') && !nested_ok)
-                || file
-                    .split('/')
-                    .any(|seg| seg.is_empty() || seg.starts_with('.'))
-            {
+            // 品も出典もディレクトリの下まで置く（条件は `layout::is_cacheable`）
+            if !is_cacheable(file) {
                 continue;
             }
             let target = tmp.join(sub).join(file);
