@@ -18,9 +18,9 @@ fn records() -> Vec<Record> {
         .map(|line| {
             let f: Vec<f64> = line
                 .split_whitespace()
-                .map(|t| t.parse::<f64>().expect("数値"))
+                .map(|t| t.parse::<f64>().expect("number"))
                 .collect();
-            assert_eq!(f.len(), 21, "列数: {line}");
+            assert_eq!(f.len(), 21, "column count: {line}");
             let geomagnetic = if f[9] == 1.0 {
                 GeomagneticActivity::ThreeHourlyAp([100.0; 7])
             } else {
@@ -59,16 +59,16 @@ fn reproduces_the_reference_output_of_the_original_implementation() {
             d[0], d[1], d[2], d[3], d[4], d[5], d[6], d[7], d[8], t_inf, t_alt,
         ];
         for (i, (&got, &want)) in actual.iter().zip(r.expected.iter()).enumerate() {
-            assert!(got.is_finite(), "case {case} 量 {i}: {got}");
+            assert!(got.is_finite(), "case {case} quantity {i}: {got}");
             if want == 0.0 {
-                assert_eq!(got, 0.0, "case {case} 量 {i}");
+                assert_eq!(got, 0.0, "case {case} quantity {i}");
                 continue;
             }
             compared += 1;
             let rel = (got - want).abs() / want.abs();
             assert!(
                 rel <= RELATIVE_TOLERANCE,
-                "case {case} 量 {i}: {got:e} vs {want:e}（{rel:e}）"
+                "case {case} quantity {i}: {got:e} vs {want:e} ({rel:e})"
             );
         }
     }

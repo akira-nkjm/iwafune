@@ -43,7 +43,7 @@ pub fn ground_track(
         CentralBody::Moon => selenographic_from_eci,
         other => {
             return Err(AstroError::InvalidInput(format!(
-                "{other:?} の地上軌跡は求められません（自転のモデルがありません）"
+                "Ground track is not available for {other:?} (no rotation model)"
             )));
         }
     };
@@ -82,7 +82,7 @@ mod tests {
     use sat_units::typed::Qty;
 
     fn epoch() -> Epoch {
-        Epoch::parse("2027-04-01T00:00:00Z").expect("元期")
+        Epoch::parse("2027-04-01T00:00:00Z").expect("epoch")
     }
 
     #[test]
@@ -93,7 +93,7 @@ mod tests {
             Qty::from_raw(51.6_f64.to_radians()),
             Qty::from_raw(0.0),
         );
-        let track = ground_track(&orbit, epoch(), orbit.period_s(), 10.0).expect("軌跡");
+        let track = ground_track(&orbit, epoch(), orbit.period_s(), 10.0).expect("track");
         let max_lat = track.iter().fold(0.0_f64, |m, p| m.max(p.lat_rad.abs()));
         // 測地緯度は地心緯度より少し大きい（51.6° で +0.2° 程度）
         assert!(
@@ -118,7 +118,7 @@ mod tests {
         );
         orbit.propagator = crate::orbit::Propagator::Kepler;
         let period = orbit.period_s();
-        let track = ground_track(&orbit, epoch(), period, period / 4.0).expect("軌跡");
+        let track = ground_track(&orbit, epoch(), period, period / 4.0).expect("track");
         let d = (track[4].lon_rad - track[0].lon_rad).to_degrees();
         let shift = (d + 540.0).rem_euclid(360.0) - 180.0;
         let expected = -(OMEGA_EARTH * period).to_degrees();

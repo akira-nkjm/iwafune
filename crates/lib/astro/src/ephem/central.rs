@@ -71,7 +71,7 @@ mod tests {
 
     #[test]
     fn orbit_radii_and_parents() {
-        let au = |b: CentralBody| b.orbit_radius_m().expect("半径") / AU;
+        let au = |b: CentralBody| b.orbit_radius_m().expect("radius") / AU;
         assert!((au(CentralBody::Earth) - 1.0).abs() < 1e-5);
         assert!((au(CentralBody::Mars) - 1.5237).abs() < 1e-4);
         assert_eq!(CentralBody::Moon.orbit_radius_m(), Some(A_MOON));
@@ -101,7 +101,7 @@ mod tests {
     fn sun_direction_is_undefined_for_the_sun() {
         let e = Epoch { j2000_s: 8.6e8 };
         assert!(crate::ephem::sun_direction_from(CentralBody::Sun, e).is_none());
-        let s = crate::ephem::sun_direction_from(CentralBody::Moon, e).expect("向き");
+        let s = crate::ephem::sun_direction_from(CentralBody::Moon, e).expect("direction");
         assert!((s.norm() - 1.0).abs() < 1e-12);
     }
 

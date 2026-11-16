@@ -10,7 +10,7 @@ fn every_listed_symbol_resolves() {
     for symbol in NAMED_UNIT_SYMBOLS {
         assert!(
             named_unit(symbol).is_some(),
-            "NAMED_UNIT_SYMBOLS に載っている {symbol} を named_unit が知らない"
+            "named_unit does not know {symbol}, which is listed in NAMED_UNIT_SYMBOLS"
         );
     }
 }
@@ -21,7 +21,7 @@ fn the_symbol_list_has_no_duplicates() {
     for (index, symbol) in NAMED_UNIT_SYMBOLS.iter().enumerate() {
         assert!(
             !NAMED_UNIT_SYMBOLS[index + 1..].contains(symbol),
-            "{symbol} が 2 度出ている"
+            "{symbol} appears twice"
         );
     }
 }
