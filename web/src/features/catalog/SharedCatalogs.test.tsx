@@ -15,8 +15,11 @@ function render(catalogs: CatalogSourceView[]): string {
 const commit = "0123456789abcdef0123456789abcdef01234567";
 
 describe("共有カタログの lock の状態", () => {
-  it("共有カタログが無ければ何も出さない", () => {
-    expect(render([{ name: "local", editable: true, shared: null }])).toBe("");
+  it("共有カタログが無ければ、足すボタンと説明だけを出す（取得のボタンは出さない）", () => {
+    const html = render([{ name: "local", editable: true, shared: null }]);
+    expect(html).toContain("共有カタログを足す");
+    expect(html).toContain("共有カタログはありません");
+    expect(html).not.toContain("取得</button>");
   });
 
   it("commit と状態（API の判定）を出し、取得が要るものには次にすることを添える", () => {
@@ -49,5 +52,8 @@ describe("共有カタログの lock の状態", () => {
     expect(html).toContain("rev v1");
     expect(html).toContain("catalog.lock に記録がありません");
     expect(html).toContain("<button");
+    // 共有カタログごとに外すボタン（確認のダイアログを開く）
+    expect(html).toContain('aria-label="lab を外す"');
+    expect(html).toContain('aria-label="team を外す"');
   });
 });

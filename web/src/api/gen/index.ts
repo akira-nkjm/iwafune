@@ -51,6 +51,7 @@ export type * from "./CatalogField";
 export type * from "./CatalogItemChange";
 export type * from "./CatalogItemChangeKind";
 export type * from "./CatalogItemView";
+export type * from "./CatalogSourceAddText";
 export type * from "./CatalogSourceView";
 export type * from "./CatalogSyncEntry";
 export type * from "./CatalogSyncResult";

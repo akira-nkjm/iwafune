@@ -1,4 +1,4 @@
-import type { CatalogItemView, ProjectInfo } from "@/api/types";
+import type { CatalogItemView, CommandText, ProjectInfo } from "@/api/types";
 import { localized } from "@/i18n";
 
 /** カタログ品の表示名（表示の言語の名前。無ければ ID） */
@@ -17,4 +17,16 @@ export function writableCatalogs(project: Pick<ProjectInfo, "catalogs">): string
  */
 export function catalogItemId(scope: string, name: string): string {
   return `${scope}/${name}`;
+}
+
+/**
+ * 共有カタログを足すダイアログの欄 → `fune catalog source add` と同じ打った引数（`POST /ops/from_command`）。
+ * 名前か URL が空なら送らない（null）。前後の空白・空の rev の読み方と、名前の規則・重複は service が持つ
+ */
+export function sharedCatalogAddCommand(
+  name: string,
+  git: string,
+  rev: string,
+): CommandText | null {
+  return name.trim() && git.trim() ? { command: "catalog_source_add", name, git, rev } : null;
 }

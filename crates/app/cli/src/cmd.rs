@@ -10,7 +10,7 @@
 //! | `nets` | net の編集の引数 → Op |
 //! | `defs` | attr/kind の add・replace・rm の引数 → Op |
 //! | `records` | case・source・harness・catalog・part point の引数 → Op |
-//! | `catalog` | catalog ls/show/fetch/update |
+//! | `catalog` | catalog ls/show/fetch/update と、catalog source add/rm のあとの案内 |
 //! | `edit` | Op の列の適用と結果の表示・init |
 //! | `units` | units ls/parse/format |
 //! | `analyze` | analyze・budget |
@@ -81,10 +81,14 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
             if let Some(code) = read_more(command, &ws, out)? {
                 return Ok(code);
             }
-            match ops::edit_of(&ws, command)? {
-                Some(e) => edit::run_ops(&ws, e.ops, e.opts, out),
-                None => anyhow::bail!("このコマンドはここでは扱いません"),
+            let Some(e) = ops::edit_of(&ws, command)? else {
+                anyhow::bail!("このコマンドはここでは扱いません");
+            };
+            let code = edit::run_ops(&ws, e.ops, e.opts, out)?;
+            if let Command::Catalog(c) = command {
+                catalog::after_edit(c, e.opts, out);
             }
+            Ok(code)
         }
     }
 }

@@ -189,6 +189,7 @@ fn lock_text_round_trips() {
     );
     let empty = catalog_lock_text(&CatalogLock::default()).unwrap();
     assert_eq!(parse_lock(&empty).unwrap(), CatalogLock::default());
+    assert!(!empty.contains("catalog ="), "{empty}");
     assert!(parse_lock("[[catalog]]\nname = \"x\"\n").is_err());
 }
 

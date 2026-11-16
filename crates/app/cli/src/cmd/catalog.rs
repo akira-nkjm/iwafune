@@ -1,8 +1,8 @@
 //! `fune catalog ls|show`（カタログ品を読む）と `fune catalog fetch|update`（共有カタログの取得と更新）。
-//! 編集は `records::catalog`。
+//! 編集は `records::catalog`。編集のあとの案内（`fune catalog source add|rm` の次にすること）は [`after_edit`]。
 
 use super::common::Handled;
-use crate::args::CatalogCmd;
+use crate::args::{CatalogCmd, CatalogSourceCmd, EditOpts};
 use crate::output::{C, Out};
 use fune_service::dto::{
     CatalogFetchRequest, CatalogItemChangeKind, CatalogSyncResult, CatalogUpdateRequest,
@@ -115,4 +115,24 @@ fn show_sync(r: &CatalogSyncResult, out: &Out) -> anyhow::Result<()> {
         out.ok("catalog.lock は変わりません");
     }
     Ok(())
+}
+
+/// 共有カタログを足した・外したあとの案内（足すだけでは取得しない。外しても lock の記録は次の fetch まで残る）。
+/// `--json` と `--dry-run` では出さない。
+pub fn after_edit(cmd: &CatalogCmd, opts: &EditOpts, out: &Out) {
+    let CatalogCmd::Source(source) = cmd else {
+        return;
+    };
+    if out.json || opts.dry_run {
+        return;
+    }
+    let text = match source {
+        CatalogSourceCmd::Add { name, .. } => format!(
+            "共有カタログ `{name}` を fune.toml に足しました（まだ取得していません）。`fune catalog fetch` で取得し、catalog.lock をコミットしてください"
+        ),
+        CatalogSourceCmd::Rm { name, .. } => {
+            format!("catalog.lock に `{name}` の記録があれば、次の `fune catalog fetch` で外れます")
+        }
+    };
+    println!("{}", out.dim(text));
 }

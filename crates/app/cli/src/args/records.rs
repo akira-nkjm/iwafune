@@ -313,4 +313,31 @@ pub enum CatalogCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// カタログの出所（fune.toml の `[[catalog]]`）。足せる・外せるのは共有カタログ（`git = …`）だけ
+    #[command(subcommand)]
+    Source(CatalogSourceCmd),
+}
+
+/// `fune catalog source …`（fune.toml の共有カタログ `[[catalog]] name = … git = … rev = …`）
+#[derive(Debug, Subcommand)]
+pub enum CatalogSourceCmd {
+    /// 共有カタログを fune.toml に足す（取得はしない。続けて `fune catalog fetch`）
+    Add {
+        /// カタログの名前（品は `<名前>/<ID>` で入る）
+        name: String,
+        /// 取得元の git の URL（https・ssh・file://）
+        #[arg(long)]
+        git: String,
+        /// ブランチ・タグ・commit（省略すると既定のブランチ）
+        #[arg(long)]
+        rev: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// 共有カタログを fune.toml から外す（部品・ハーネスがその品を使っていれば拒む。catalog.lock の記録は次の fetch で外れる）
+    Rm {
+        name: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
 }

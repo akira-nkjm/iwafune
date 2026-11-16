@@ -145,6 +145,8 @@ fn covers(op: &Op) -> &'static str {
         Op::SetCatalogField { .. } => "SetCatalogField",
         Op::RemoveCatalogItem { .. } => "RemoveCatalogItem",
         Op::RenameCatalogItem { .. } => "RenameCatalogItem",
+        Op::AddCatalogSource { .. } => "AddCatalogSource",
+        Op::RemoveCatalogSource { .. } => "RemoveCatalogSource",
     }
 }
 
@@ -176,5 +178,5 @@ fn every_op_survives_to_cli_and_back() {
     }
     seen.sort_unstable();
     seen.dedup();
-    assert_eq!(seen.len(), 47, "見本の無い Op の種類があります: {seen:?}");
+    assert_eq!(seen.len(), 49, "見本の無い Op の種類があります: {seen:?}");
 }

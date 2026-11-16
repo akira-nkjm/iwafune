@@ -1419,10 +1419,12 @@ commit = "0123456789abcdef0123456789abcdef01234567"
 lock は fune.toml の共有カタログ（`git = …`）ごとに、取得したときの `git`・`rev` と、`rev` を解決した commit を持つ。
 読み込みは lock の commit だけを見る（`rev` がブランチでも、lock を上げるまで中身は変わらない）。
 
-### 12.3 取得・更新とキャッシュ
+### 12.3 足す・外す・取得・更新とキャッシュ
 
 | コマンド（HTTP） | すること |
 |---|---|
+| `fune catalog source add <名前> --git <URL> [--rev <rev>]`（`POST /ops/from_command` `{ "command": "catalog_source_add", … }` → `POST /ops`。Op は `add_catalog_source`） | fune.toml の `[[catalog]]` の後ろに共有カタログを 1 つ足す（正規形で書く）。名前は ID の規則に従い、既にあるカタログ（`path` の `local` も。大文字小文字の違いだけでも）と重ならないこと。`git` は空にできない。**取得はしない**（続けて `fune catalog fetch`。それまでは `catalog.not_locked`）。GUI はカタログのページの「共有カタログを足す」 |
+| `fune catalog source rm <名前>`（`POST /ops` の `remove_catalog_source`） | fune.toml から共有カタログを外す。外せるのは `git = …` のものだけで、このプロジェクトのカタログ（`path = …`）は外さない。部品の `catalog`・`candidates`・ハーネスの `wire` がその品（`<名前>/…`）を参照していれば、参照している部品とハーネスを挙げて拒む。catalog.lock は書き換えず、記録は次の `fune catalog fetch` が外す（それまでは `catalog.lock_unused` の warning）。`.fune/` のキャッシュは残る |
 | `fune catalog fetch`（`POST /catalog/fetch`） | lock が fune.toml と合っていれば lock の commit を取得する（commit は動かさない）。lock に無い・`git`・`rev` が違う共有カタログは `rev` を解決して lock に書く。fune.toml に無い lock の記録は外す |
 | `fune catalog fetch --locked`（`{ "locked": true }`） | lock を書き換えない。lock が無い・fune.toml と違えば失敗する（CI 向け） |
 | `fune catalog update <名前>`（`POST /catalog/update`） | その共有カタログの lock を `rev` の今の commit に上げる。変わった品と値（`attr.mass: 150 g → 160 g`）を返す |
