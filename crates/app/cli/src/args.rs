@@ -172,6 +172,19 @@ pub enum Command {
     /// External data (DE440 ephemeris)
     #[command(subcommand)]
     Data(DataCmd),
+    /// Replace this fune binary with the latest release (or a given version)
+    ///
+    /// Downloads the release archive from GitHub, verifies its SHA-256, checks that the new binary reports the expected
+    /// version, and swaps it in place of the running binary. Needs curl and tar. Works outside a project.
+    #[command(disable_version_flag = true)]
+    SelfUpdate {
+        /// Only report the current and latest versions; change nothing
+        #[arg(long)]
+        check: bool,
+        /// Install exactly this version (major.minor.patch), even if it is older or the same as the current one
+        #[arg(long, value_name = "VERSION")]
+        version: Option<String>,
+    },
     /// Apply Op JSON (the same form the GUI uses)
     Apply {
         /// JSON file of an array of Ops (`-` for stdin)

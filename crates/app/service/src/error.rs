@@ -43,6 +43,8 @@ pub enum ServiceError {
     Locked(String),
     #[error("External data: {0}")]
     Data(String),
+    #[error("Cannot update fune: {0}")]
+    SelfUpdate(String),
     #[error("Internal error: {0}")]
     Internal(String),
 }
@@ -57,9 +59,11 @@ impl ServiceError {
             Self::Conflict { .. } | Self::Locked(_) | Self::AlreadyExists { .. } => {
                 ErrorKind::Conflict
             }
-            Self::Analysis(_) | Self::Store(_) | Self::Data(_) | Self::Internal(_) => {
-                ErrorKind::Internal
-            }
+            Self::Analysis(_)
+            | Self::Store(_)
+            | Self::Data(_)
+            | Self::SelfUpdate(_)
+            | Self::Internal(_) => ErrorKind::Internal,
         }
     }
 
@@ -77,6 +81,7 @@ impl ServiceError {
             Self::Analysis(_) => "analysis_failed",
             Self::Store(_) => "store_error",
             Self::Data(_) => "data_error",
+            Self::SelfUpdate(_) => "self_update_failed",
             Self::Internal(_) => "internal",
         }
     }

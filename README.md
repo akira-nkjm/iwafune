@@ -79,6 +79,12 @@ Gatekeeper until you run `xattr -d com.apple.quarantine fune`.
 Then run `fune gui` in a design directory (one with `fune.toml`), or `fune init` to start one.
 `fune data fetch de440` downloads the optional DE440 ephemeris the same way, and `fune data fetch space_weather` downloads the CelesTrak space weather table (F10.7, Ap) into the user cache. On other platforms, build from source.
 
+### Updating
+
+`fune self-update` replaces the running binary with the latest release. `fune self-update --check` only reports the current and latest versions, and `fune self-update --version 0.5.2` installs exactly that version (an older one too).
+It downloads the archive with `curl`, verifies its SHA-256, checks that the new binary reports the expected version, and then swaps it in, so it needs write access to the directory holding `fune`.
+With cargo-binstall, running the install command again also works. If `fune` came from another package manager, update it with that instead.
+
 ## Quick start
 
 To build from source: Rust 1.99 or later (edition 2024), Node.js 24 or later, pnpm.

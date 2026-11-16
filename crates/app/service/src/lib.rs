@@ -19,6 +19,8 @@
 //! | `system_modes` | 系ごとのモードの見方（電源・C&DH・熱・AOCS の値・合計・判定） |
 //! | `data` | 外部データ（DE440・宇宙天気）の取得・状態・読み込み（ユーザーごとのキャッシュ）、日付からの宇宙天気 |
 //! | `shared_catalog` | 共有カタログ（`[[catalog]] git = …`）の取得・更新（git の CLI。プロジェクトの `.fune/catalogs/` のキャッシュと `catalog.lock`） |
+//! | `fetch` | 外部からの取得（`curl`。HTTPS だけ。宇宙天気と `self_update` が使う） |
+//! | `self_update` | `fune self-update`（最新のリリースの確認と、実行中の `fune` の置き換え。CLI だけ） |
 //! | `diff` | 変更前後の本文 → unified diff |
 //! | `error` | サービスのエラー（HTTP の状態と CLI の終了コードに写せる分類） |
 
@@ -29,10 +31,12 @@ pub mod diff;
 pub mod dto;
 pub mod edit;
 pub mod error;
+pub(crate) mod fetch;
 pub mod flow;
 pub mod power_page;
 pub mod preview;
 pub mod query;
+pub mod self_update;
 pub mod shared_catalog;
 pub mod system_modes;
 pub mod units;

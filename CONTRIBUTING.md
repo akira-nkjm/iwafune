@@ -16,7 +16,7 @@ and upcoming features are in [docs/roadmap.md](docs/roadmap.md) and GitHub Issue
 4. **Keep the dependency direction.** `crates/lib/*` must not depend on `crates/app/*`. Modules inside a crate must not form cycles either (split the shared part out into a leaf module).
 5. **Parity between the CLI and the GUI.** Every operation is built as a `fune-service` function and called from both the CLI and HTTP. The interpretation of strings a person types (such as the value type for `fune set`) is
    also owned by the service, and the GUI goes through the same function (`POST /ops/from_text`). The same edit made through the CLI and through HTTP must produce files that are byte-for-byte identical (parity test).
-   The only exception is `fune init` (the server only runs inside a project, so it is not available over HTTP).
+   The only exceptions are `fune init` (the server only runs inside a project, so it is not available over HTTP) and `fune self-update` (it replaces the CLI binary itself, which a server cannot do for the person running it).
    Writes to design files also go only through Ops (only store and ops call `fune_store::write::commit`). The exceptions are `fune fmt` (rewriting into canonical form) and importing a shared catalog (the derived `catalog.lock`); `cargo xtask check` verifies these two.
 
 `cargo xtask check` mechanically verifies: the dependency direction, module cycles, the registry, the "single home" rule (`crates/xtask/src/single_home.rs`),
