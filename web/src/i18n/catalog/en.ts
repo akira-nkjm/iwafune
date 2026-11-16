@@ -82,6 +82,7 @@ export const catalogEn: typeof catalogJa = {
     summaryRemove: (id: string) => `Delete catalog item ${id}`,
     shared: {
       title: "Shared catalogs",
+      neededCount: (n: number) => `${n} need fetching`,
       ready: "The commits in catalog.lock are loaded. Shared items are read-only.",
       needed: "Fetching is needed. Fetch here, or run fune catalog fetch on the CLI.",
       fetch: "Fetch",
