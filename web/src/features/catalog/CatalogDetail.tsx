@@ -4,10 +4,14 @@ import { useT } from "@/i18n";
 import { DetailAction, DetailHeader, DetailPane } from "@/kit/detail/DetailPane";
 import { DetailSection } from "@/kit/detail/DetailSection";
 import { useDialogs } from "@/kit/detail/use-dialogs";
+import { RoleIcon } from "@/kit/RoleIcon";
 import { ChipLink } from "@/kit/selection/Chip";
+import { Pill } from "@/kit/status/Pill";
+import { kindDef, kindLabel } from "@/lib/design";
 import { paths } from "@/lib/nav";
 import { OpDialog } from "@/ops/OpDialog";
 import { CatalogFields } from "./CatalogFields";
+import { CatalogInherited } from "./CatalogInherited";
 import { CatalogValues } from "./CatalogValues";
 import { itemLabel } from "./catalog";
 import { RenameCatalogDialog } from "./RenameCatalogDialog";
@@ -31,7 +35,9 @@ export function CatalogDetail({
       header={
         <DetailHeader
           title={item.id}
-          subtitle={`${itemLabel(item)} · ${item.kind}`}
+          leading={<RoleIcon role={kindDef(design.defs, item.kind)?.role} className="text-ink-3" />}
+          trailing={readOnly && <Pill dot={false}>{item.scope}</Pill>}
+          subtitle={`${itemLabel(item)} · ${kindLabel(design.defs, item.kind)}`}
           actions={
             readOnly ? null : (
               <>
@@ -62,7 +68,8 @@ export function CatalogDetail({
       <DetailSection title={t.catalog.values}>
         <CatalogValues defs={design.defs} item={item} />
       </DetailSection>
-      <DetailSection title={t.catalog.usedBy}>
+      <CatalogInherited item={item} />
+      <DetailSection title={t.catalog.usedByCount(users.length)}>
         {users.length === 0 ? (
           <p className="px-1 text-ink-3 text-xs">{t.catalog.notUsed}</p>
         ) : (

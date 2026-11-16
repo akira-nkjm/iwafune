@@ -159,7 +159,7 @@ impl ThrustConstraints {
             Ok(d)
         } else {
             Err(AnalysisError::InvalidInput(format!(
-                "デューティは 0 より大きく 1 以下にしてください（{d}）"
+                "Duty must be greater than 0 and at most 1 ({d})"
             )))
         }
     }
@@ -195,8 +195,11 @@ pub struct PropulsionThruster {
 impl PropulsionThruster {
     /// 推力と比推力が正か調べ、有効排気速度 [m/s] を返す。
     pub(super) fn exhaust_velocity(&self) -> Result<f64, AnalysisError> {
-        ensure_positive(&format!("スラスタ {} の推力", self.id), self.thrust.value())?;
-        ensure_positive(&format!("スラスタ {} の比推力", self.id), self.isp.value())?;
+        ensure_positive(&format!("Thruster {} thrust", self.id), self.thrust.value())?;
+        ensure_positive(
+            &format!("Thruster {} specific impulse", self.id),
+            self.isp.value(),
+        )?;
         Ok(sat_astro::rocket::exhaust_velocity(self.isp.value()))
     }
 }
@@ -269,7 +272,7 @@ impl PropulsionInput {
     /// ΔV のマージン（既定値込み）。
     pub fn dv_margin(&self) -> Result<f64, AnalysisError> {
         let m = self.dv_margin.map_or(DEFAULT_DV_MARGIN, Fraction::value);
-        crate::spec::ensure_non_negative("ΔV のマージン", m)?;
+        crate::spec::ensure_non_negative("ΔV margin", m)?;
         Ok(m)
     }
 
@@ -278,7 +281,7 @@ impl PropulsionInput {
         let r = self
             .residual_fraction
             .map_or(DEFAULT_RESIDUAL_FRACTION, Fraction::value);
-        ensure_fraction("残る推薬の割合", r)?;
+        ensure_fraction("Remaining propellant fraction", r)?;
         Ok(r)
     }
 
@@ -295,10 +298,7 @@ impl PropulsionInput {
             .find(|t| &t.id == id)
             .map(Some)
             .ok_or_else(|| {
-                AnalysisError::InvalidInput(format!(
-                    "マヌーバ {} のスラスタ {id} がありません",
-                    m.id
-                ))
+                AnalysisError::InvalidInput(format!("Maneuver {} has no thruster {id}", m.id))
             })
     }
 }

@@ -233,19 +233,19 @@ pub fn validate_about(central: CentralBody, config: &ForceConfig) -> Result<(), 
             || config.solid_tide;
         if earth_only {
             return Err(AstroError::InvalidInput(format!(
-                "EGM96・大気抵抗・固体潮汐は地球が中心のときだけ使えます（中心: {central:?}）"
+                "EGM96, drag and solid tides are only available when Earth is the central body (central: {central:?})"
             )));
         }
     }
     if let GravityModel::Harmonics { degree, order } = config.gravity {
         if degree > EGM96_MAX_DEGREE || order > degree {
             return Err(AstroError::InvalidInput(format!(
-                "重力場の次数・位数は 0 ≤ 位数 ≤ 次数 ≤ {EGM96_MAX_DEGREE} にしてください（{degree}×{order}）"
+                "Gravity field degree and order must satisfy 0 <= order <= degree <= {EGM96_MAX_DEGREE} ({degree}x{order})"
             )));
         }
         if gravity::egm96().is_none() {
             return Err(AstroError::InvalidInput(
-                "EGM96 の係数表を読めません".into(),
+                "Cannot read the EGM96 coefficient table".into(),
             ));
         }
     }
@@ -254,14 +254,14 @@ pub fn validate_about(central: CentralBody, config: &ForceConfig) -> Result<(), 
         && !(ok(s.cr) && ok(s.area_to_mass))
     {
         return Err(AstroError::InvalidInput(
-            "SRP の Cr・面積質量比は 0 以上にしてください".into(),
+            "SRP Cr and area-to-mass ratio must be 0 or more".into(),
         ));
     }
     if let Some(d) = &config.drag
         && !(ok(d.cd) && ok(d.area_to_mass) && atmosphere_ok(&d.atmosphere))
     {
         return Err(AstroError::InvalidInput(
-            "抵抗の Cd・面積質量比は 0 以上にしてください".into(),
+            "Drag Cd and area-to-mass ratio must be 0 or more".into(),
         ));
     }
     Ok(())

@@ -119,7 +119,7 @@ impl BudgetRollup {
             label,
             verdict,
             format!(
-                "成長余裕込み {} / 使ってよい量 {}（上限 {} × (1 − システム余裕 {})）",
+                "With growth margin {} / usable {} (limit {} × (1 − system margin {}))",
                 quantity_text::<K>(self.total_with_growth),
                 quantity_text::<K>(allowed),
                 quantity_text::<K>(limit),
@@ -135,26 +135,26 @@ pub fn budget_rollup(
     limit: Option<f64>,
     system_margin: f64,
 ) -> Result<BudgetRollup, AnalysisError> {
-    ensure_fraction("システム余裕", system_margin)?;
+    ensure_fraction("System margin", system_margin)?;
     // 1 だと使える量が 0 になる（設計の検査 `fune check` の budget.margin と同じ範囲）
     if system_margin >= 1.0 {
         return Err(AnalysisError::InvalidInput(
-            "システム余裕は 1 未満にします".to_owned(),
+            "System margin must be less than 1".to_owned(),
         ));
     }
     if let Some(l) = limit {
-        ensure_non_negative("バジェットの上限", l)?;
+        ensure_non_negative("Budget limit", l)?;
     }
     let mut rows = Vec::with_capacity(items.len());
     let mut by_group: Vec<BudgetGroup> = Vec::new();
     for it in items {
         if !it.value.is_finite() {
             return Err(AnalysisError::InvalidInput(format!(
-                "{} の値が有限ではありません",
+                "Value of {} is not finite",
                 it.id
             )));
         }
-        ensure_non_negative(&format!("{} の成長余裕", it.id), it.growth)?;
+        ensure_non_negative(&format!("Growth margin of {}", it.id), it.growth)?;
         let total = it.value * f64::from(it.count);
         let row = BudgetRollupRow {
             id: it.id.clone(),
@@ -242,7 +242,7 @@ mod tests {
         let over = budget_rollup(&items, Some(0.65), 0.1).unwrap();
         assert_eq!(over.verdict, Some(Verdict::Violation));
         assert_eq!(
-            over.check::<Mass>("mass", "質量").unwrap().verdict,
+            over.check::<Mass>("mass", "Mass").unwrap().verdict,
             Verdict::Violation
         );
     }

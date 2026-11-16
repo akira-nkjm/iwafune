@@ -101,13 +101,13 @@ pub(super) fn evaluate(
         let start = basis.smad.get(i).map_or(guess, |m| m.required_area.value());
         match minimum_area(|a| scaled.case(i, a * per_area), start)? {
             Ok(f) => found.push((l.id.clone(), f)),
-            Err(reason) => return Ok(Err(format!("モード {}: {reason}", l.id))),
+            Err(reason) => return Ok(Err(format!("Mode {}: {reason}", l.id))),
         }
     }
     if !eb.sequence.is_empty() {
         match minimum_area(|a| sequence(&scaled, a * per_area), guess)? {
             Ok(f) => found.push((SEQUENCE_TARGET.to_owned(), f)),
-            Err(reason) => return Ok(Err(format!("モードの並び: {reason}"))),
+            Err(reason) => return Ok(Err(format!("Mode sequence: {reason}"))),
         }
     }
     capacities(&scaled, basis, found, per_area, degradation)
@@ -122,7 +122,7 @@ fn capacities(
     degradation: f64,
 ) -> Result<Result<SizingTimeSeries, String>, AnalysisError> {
     let Some((area_target, area)) = governing(found.iter().map(|(id, f)| (id, f.area))) else {
-        return Ok(Err("逆算する運用がありません".into()));
+        return Ok(Err("No operation to size against".into()));
     };
     let (soc, dod) = (basis.battery.start_soc(), basis.used.dod_max.value());
     let mut targets = Vec::with_capacity(found.len());
@@ -134,7 +134,7 @@ fn capacities(
         };
         let Some(capacity) = battery::required_capacity(&judged.delta, soc, dod) else {
             return Ok(Err(format!(
-                "{id}: 初期 SOC だけで許容 DoD に届くため容量を決められません"
+                "{id}: the initial SOC alone reaches the allowed DoD, so the capacity cannot be determined"
             )));
         };
         targets.push(SizingSeriesTarget {
@@ -174,7 +174,7 @@ fn governing<'a>(values: impl Iterator<Item = (&'a String, f64)>) -> Option<(Str
 fn sequence(scaled: &ScaledBalance, scale: f64) -> Result<ScaledJudgement, AnalysisError> {
     scaled
         .sequence(scale)?
-        .ok_or_else(|| AnalysisError::InvalidInput("モードの並びがありません".into()))
+        .ok_or_else(|| AnalysisError::InvalidInput("No mode sequence".into()))
 }
 
 /// 二分法で見つけた最小の面積。
@@ -191,7 +191,8 @@ fn minimum_area(
     judge: impl Fn(f64) -> Result<ScaledJudgement, AnalysisError>,
     start: f64,
 ) -> Result<Result<Found, String>, AnalysisError> {
-    const NO_ORBIT: &str = "解析期間に回り切った周回が無く、1 周の収支を判定できません";
+    const NO_ORBIT: &str =
+        "No complete orbit in the analysis span, so the per-orbit balance cannot be judged";
     let mut evaluations = 1;
     let zero = judge(0.0)?;
     let Some(m0) = zero.margin else {
@@ -214,7 +215,7 @@ fn minimum_area(
             Some(m) if m >= 0.0 => break (m, j.evaluation),
             Some(_) if evaluations > MAX_DOUBLINGS => {
                 return Ok(Err(
-                    "面積を増やしても 1 周の収支が 0 以上になりません".into()
+                    "The per-orbit balance does not reach 0 even with more area".into(),
                 ));
             }
             Some(_) => (lo, hi) = (hi, hi * 2.0),

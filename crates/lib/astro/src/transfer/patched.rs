@@ -69,7 +69,7 @@ fn ellipse(mu: f64, r1: f64, r2: f64) -> (f64, f64, f64) {
 
 fn radius_of(body: CentralBody) -> Result<f64, AstroError> {
     body.orbit_radius_m()
-        .ok_or_else(|| AstroError::InvalidInput(format!("{body:?} は他の天体を回っていません")))
+        .ok_or_else(|| AstroError::InvalidInput(format!("{body:?} does not orbit another body")))
 }
 
 /// 中心天体 `from` の軌道 `departure` から、天体 `to` の軌道 `capture`（`None` なら捕獲しない）へのパッチドコニックの遷移。
@@ -89,7 +89,9 @@ pub fn patched_conic(
         to_child(from, departure, to, capture)
     } else if from.parent() == Some(to) {
         let capture = capture.ok_or_else(|| {
-            AstroError::InvalidInput("親の天体へ戻る遷移には到着の軌道が要ります".to_owned())
+            AstroError::InvalidInput(
+                "A transfer back to the parent body requires an arrival orbit".to_owned(),
+            )
         })?;
         to_parent(from, departure, to, capture)
     } else if let (Some(p), true) = (from.parent(), from.parent() == to.parent()) {
@@ -113,7 +115,7 @@ pub fn patched_conic(
         })
     } else {
         Err(AstroError::InvalidInput(format!(
-            "{from:?} から {to:?} への遷移は親子か同じ親を回る天体どうしだけです（途中の天体のマヌーバに分けてください）"
+            "Transfer from {from:?} to {to:?} is only supported between parent and child or bodies orbiting the same parent (split it into maneuvers at intermediate bodies)"
         )))
     }
 }
@@ -139,7 +141,7 @@ fn to_child(
     let (rp, r_body) = (departure.periapsis_m, radius_of(to)?);
     if rp >= r_body {
         return Err(AstroError::InvalidInput(
-            "出発の軌道が目標の天体の軌道より外にあります".to_owned(),
+            "The departure orbit is outside the target body's orbit".to_owned(),
         ));
     }
     let (v_p, v_a, tof) = ellipse(mu, rp, r_body);
@@ -168,7 +170,7 @@ fn to_parent(
     let (r_body, rp) = (radius_of(from)?, capture.periapsis_m);
     if rp >= r_body {
         return Err(AstroError::InvalidInput(
-            "到着の軌道が出発の天体の軌道より外にあります".to_owned(),
+            "The arrival orbit is outside the departure body's orbit".to_owned(),
         ));
     }
     let (v_a, v_p, tof) = ellipse(mu, r_body, rp);

@@ -30,12 +30,14 @@ import { systemTitle } from "./design";
  * URL の検索部分の名前。ページが読み（`useDetailRoute`・系のページ）、下の `paths` が書く。
  * - `view`: 一覧と詳細のページの表示方法
  * - `adding`: 追加ダイアログを開いているか（値は `"1"`）
+ * - `group`: カタログのツリーの分け方
  * - `case`: 系のページの解析ケース
  * - `diagramHiddenSystem`: 系統図で隠す系（繰り返し可、空は全表示）
  */
 export const SEARCH = {
   view: "view",
   adding: "new",
+  group: "group",
   case: "case",
   diagramHiddenSystem: "hidden-system",
 } as const;

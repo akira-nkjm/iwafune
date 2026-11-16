@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { CatalogItemView } from "@/api/types";
+import { fixture } from "@/test/fixture";
 import { CatalogFields } from "./CatalogFields";
 import { CatalogTable } from "./CatalogTable";
 
@@ -32,7 +33,7 @@ describe("カタログ品のタグ", () => {
   it("一覧にタグの列を出し、タグを小さなピルで並べる", () => {
     const html = renderToStaticMarkup(
       <QueryClientProvider client={new QueryClient()}>
-        <CatalogTable items={[item]} selected={null} onSelect={() => {}} />
+        <CatalogTable design={fixture} items={[item]} selected={null} onSelect={() => {}} />
       </QueryClientProvider>,
     );
     expect(html).toContain("flight_proven");

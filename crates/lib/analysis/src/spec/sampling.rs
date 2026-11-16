@@ -47,7 +47,7 @@ mod tests {
             None,
         );
         OrbitSpec::new(
-            Epoch::parse("2027-01-01T00:00:00Z").expect("元期"),
+            Epoch::parse("2027-01-01T00:00:00Z").expect("epoch"),
             elements,
             Propagator::Kepler,
         )

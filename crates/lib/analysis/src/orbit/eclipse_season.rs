@@ -87,7 +87,7 @@ impl Analysis for EclipseSeason {
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         if input.orbit.central == CentralBody::Sun {
             return Err(AnalysisError::InvalidInput(
-                "太陽を中心天体とする軌道には β と蝕の季節変動がありません".into(),
+                "An orbit around the Sun has no β or eclipse seasons".into(),
             ));
         }
         ensure_positive("duration", input.duration.value())?;
@@ -162,7 +162,7 @@ fn summarize(
 ) -> Result<EclipseSeasonOutput, AnalysisError> {
     let first = points
         .first()
-        .ok_or_else(|| AnalysisError::InvalidInput("標本がありません".into()))?;
+        .ok_or_else(|| AnalysisError::InvalidInput("No samples".into()))?;
     let (mut longest, mut beta_min, mut beta_max) = (first, first, first);
     for p in &points {
         if eclipse(p) > eclipse(longest) {

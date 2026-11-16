@@ -49,13 +49,13 @@ pub(super) fn verdicts(input: &RwUnloadingInput, o: &RwUnloadingOutput) -> Vec<C
     let zero_interval = o.unload_interval.is_some_and(|i| i.value() <= 0.0);
     checks.push(Check::new(
         "momentum_capacity",
-        "角運動量の容量",
+        "Momentum capacity",
         Verdict::from_ok(!zero_interval),
         if zero_interval {
-            "周期成分だけで使える角運動量を超えます".to_owned()
+            "The periodic component alone exceeds the usable momentum".to_owned()
         } else {
             format!(
-                "周期成分は容量の {}",
+                "Periodic component is {} of capacity",
                 quantity_text::<Fraction>(o.cyclic_amplitude.value() / o.capacity.value())
             )
         },
@@ -63,10 +63,10 @@ pub(super) fn verdicts(input: &RwUnloadingInput, o: &RwUnloadingOutput) -> Vec<C
     if let Some(m) = o.min_torque_margin {
         checks.push(Check::new(
             "torque_margin",
-            "トルクの余裕",
+            "Torque margin",
             ratio_margin_verdict(Some(m), TORQUE_MARGIN_WARNING_BAND),
             format!(
-                "余裕（最大トルク / 必要トルク − 1）{}",
+                "Margin (max torque / required torque − 1) {}",
                 quantity_text::<Fraction>(m.value())
             ),
         ));
@@ -75,9 +75,9 @@ pub(super) fn verdicts(input: &RwUnloadingInput, o: &RwUnloadingOutput) -> Vec<C
         let ok = o.unload_interval.is_none_or(|i| i >= req);
         checks.push(Check::new(
             "unload_interval",
-            "アンロード間隔の要求",
+            "Unload interval requirement",
             Verdict::from_ok(ok),
-            format!("要求 {} 以上", quantity_text::<Time>(req.value())),
+            format!("Required at least {}", quantity_text::<Time>(req.value())),
         ));
     }
     checks.extend(

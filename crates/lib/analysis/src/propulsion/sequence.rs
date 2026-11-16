@@ -181,7 +181,7 @@ fn iterate<'a>(
     opts: Options,
 ) -> Result<Sequence<'a>, AnalysisError> {
     let dry = input.dry_mass.value();
-    ensure_positive("乾燥質量", dry)?;
+    ensure_positive("Dry mass", dry)?;
     let r = opts.residual_fraction;
     let mut m0 = dry;
     for _ in 0..MAX_ITERATIONS {
@@ -208,7 +208,8 @@ fn iterate<'a>(
         }
     }
     Err(AnalysisError::InvalidInput(
-        "推薬の質量が収束しません（ΔV が排気速度に対して大きすぎます）".to_owned(),
+        "The propellant mass does not converge (ΔV is too large for the exhaust velocity)"
+            .to_owned(),
     ))
 }
 
@@ -346,7 +347,7 @@ fn fire(
     };
     let invalid = || {
         AnalysisError::InvalidInput(format!(
-            "マヌーバ {} の推薬を求められません",
+            "Cannot compute the propellant for maneuver {}",
             leg.maneuver.id
         ))
     };

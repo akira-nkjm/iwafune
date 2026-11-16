@@ -25,13 +25,13 @@ fn hand_calculated_tree() {
         cases: vec![
             StaticLoadCase {
                 id: "a".to_owned(),
-                label: "機軸".to_owned(),
+                label: "axial".to_owned(),
                 axial: 7.0,
                 lateral: 1.0,
             },
             StaticLoadCase {
                 id: "l".to_owned(),
-                label: "横".to_owned(),
+                label: "lateral".to_owned(),
                 axial: 2.0,
                 lateral: 3.0,
             },

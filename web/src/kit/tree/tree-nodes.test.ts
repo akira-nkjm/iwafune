@@ -49,23 +49,87 @@ describe("partsTree", () => {
 });
 
 describe("catalogTree", () => {
-  it("groups items by the catalog name from the API and separates folder keys from item IDs", () => {
-    const nodes = catalogTree([
-      { id: "local/bat_2s2p", scope: "local", name: "bat_2s2p", kind: "battery" },
-      { id: "lab/rw", scope: "lab", name: "rw", kind: "wheel" },
-    ]);
+  const labels = {
+    unset: "未設定",
+    kind: (id: string) => `K:${id}`,
+    maturity: (v: string) => `M:${v}`,
+  };
+  const kinds = [
+    { id: "device", parent: null },
+    { id: "actuator", parent: "device" },
+    { id: "wheel", parent: "actuator" },
+    { id: "battery", parent: "device" },
+  ];
+  const item = (
+    id: string,
+    kind: string,
+    manufacturer: string | null = null,
+    maturity: "new" | "modified" | null = null,
+    scope = "local",
+  ) => ({ id, scope, name: id, kind, manufacturer, maturity });
+  const items = [
+    item("local-bat", "battery", "Acme", "new"),
+    item("lab-rw", "wheel", "Acme", null, "lab"),
+    item("lab-gyro", "gyro", null, null, "lab"),
+  ];
+  const tree = (by: Parameters<typeof catalogTree>[1]) => catalogTree(items, by, kinds, labels);
+
+  it("catalog: カタログ名（scope）ごと。フォルダーの key は品の key と別", () => {
+    const nodes = tree("catalog");
     expect(nodes.map((n) => n.label)).toEqual(["local", "lab"]);
-    expect(nodes[0]!.children[0]!.label).toBe("bat_2s2p");
+    expect(nodes[0]!.children[0]!.label).toBe("local-bat");
     expect(nodes[0]!.key).not.toBe(nodes[0]!.children[0]!.key);
   });
-  it("groups items without a catalog name by kind", () => {
-    const nodes = catalogTree([
-      { id: "bat", scope: "", name: "bat", kind: "battery" },
-      { id: "bat2", scope: "", name: "bat2", kind: "battery" },
-      { id: "rw", scope: "", name: "rw", kind: "wheel" },
-    ]);
-    expect(nodes.map((n) => n.label)).toEqual(["battery", "wheel"]);
+
+  it("manufacturer: メーカー → 種別。メーカー無しは未設定で末尾", () => {
+    const nodes = catalogTree([items[2]!, items[0]!, items[1]!], "manufacturer", kinds, labels);
+    expect(nodes.map((n) => n.label)).toEqual(["Acme", "未設定"]);
+    expect(nodes[0]!.children.map((n) => n.label)).toEqual(["K:battery", "K:wheel"]);
+    expect(nodes[1]!.children[0]!.label).toBe("K:gyro");
     expect(treeCount(nodes[0]!)).toBe(2);
+  });
+
+  it("kind: 種別定義の親子を入れ子にし、品は自身の種別の下。定義の無い種別は単独", () => {
+    const nodes = tree("kind");
+    expect(nodes.map((n) => n.label)).toEqual(["K:device", "K:gyro"]);
+    const device = nodes[0]!;
+    expect(device.children.map((n) => n.label)).toEqual(["K:battery", "K:actuator"]);
+    const actuator = device.children[1]!;
+    expect(actuator.children[0]!.label).toBe("K:wheel");
+    expect(actuator.children[0]!.children[0]!.item?.id).toBe("lab-rw");
+  });
+
+  it("kind: 親の循環で止まらない", () => {
+    const cyclic = [
+      { id: "a", parent: "b" },
+      { id: "b", parent: "a" },
+    ];
+    const nodes = catalogTree([item("x-1", "a")], "kind", cyclic, labels);
+    expect(treeItems(nodes[0]!)).toHaveLength(1);
+  });
+
+  it("maturity: 表示名のフォルダー。成熟度無しは未設定", () => {
+    const nodes = tree("maturity");
+    expect(nodes.map((n) => n.label)).toEqual(["M:new", "未設定"]);
+    expect(treeCount(nodes[1]!)).toBe(2);
+  });
+
+  it("フォルダーの key は分け方ごとに一意（区切りの文字を含む値でも混ざらない）", () => {
+    const a = catalogTree(
+      [item("p-1", "wheel", "a/b"), item("p-2", "wheel", "a")],
+      "manufacturer",
+      kinds,
+      labels,
+    );
+    const keys: string[] = [];
+    const walk = (ns: typeof a) => {
+      for (const n of ns) {
+        keys.push(n.key);
+        walk(n.children);
+      }
+    };
+    walk(a);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });
 

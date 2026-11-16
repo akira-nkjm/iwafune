@@ -4,12 +4,15 @@ import { useDesign } from "@/api/queries";
 import type { DesignView } from "@/api/types";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { SearchInput } from "@/kit/forms/SearchInput";
 import { matchesSearch } from "@/kit/forms/search";
 import { ListDetailPage } from "@/kit/list-detail/ListDetailPage";
 import { type DetailRoute, useDetailRoute } from "@/kit/list-detail/use-detail-route";
-import { ViewSwitch } from "@/kit/selection/ViewSwitch";
-import { paths } from "@/lib/nav";
+import { PageTabs } from "@/kit/selection/PageTabs";
+import { CATALOG_GROUPINGS, type CatalogGrouping } from "@/kit/tree/tree-nodes";
+import { kindLabel } from "@/lib/design";
+import { paths, SEARCH } from "@/lib/nav";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
 import { CatalogDetail } from "./CatalogDetail";
@@ -18,13 +21,22 @@ import { CatalogTree } from "./CatalogTree";
 import { CreateCatalogDialog } from "./CreateCatalogDialog";
 import { itemLabel } from "./catalog";
 import { SharedCatalogs } from "./SharedCatalogs";
+import { useCatalogGrouping } from "./use-catalog-grouping";
+
+/** 表示方法（タブ）。表はモーダル、ツリーはサイドパネルに詳細を出す。タブを足すときはここと `CatalogTabs` の見出しに足す */
+const VIEWS = ["tree", "table"] as const;
+
+/** 一覧の絞り込み（検索の文字列・カタログ名・種別。空は絞らない） */
+type Filters = { search: string; catalog: string; kind: string };
+const NO_FILTERS: Filters = { search: "", catalog: "", kind: "" };
 
 /** カタログも同じ URL 選択で、表ではモーダル・ツリーではサイドパネルを開く。一覧の上に共有カタログの lock の状態を出す。 */
 export function CatalogPage() {
   const t = useT();
   const design = useDesign();
-  const route = useDetailRoute(paths.catalog());
-  const [search, setSearch] = useState("");
+  const route = useDetailRoute(paths.catalog(), VIEWS);
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [grouping, setGrouping] = useCatalogGrouping();
   return (
     <>
       <ListDetailPage
@@ -34,17 +46,19 @@ export function CatalogPage() {
         header={
           <CatalogHeader
             design={design.data}
-            view={route.view}
-            onView={route.setView}
-            search={search}
-            onSearch={setSearch}
+            filters={filters}
+            onFilters={setFilters}
+            tree={route.tree}
+            grouping={grouping}
+            onGrouping={setGrouping}
             onAdd={() => route.setAdding(true)}
           />
         }
+        tabs={<CatalogTabs view={route.view} grouping={grouping} />}
         list={(d) => (
           <>
             <SharedCatalogs catalogs={d.project.catalogs} />
-            <CatalogList design={d} search={search} route={route} />
+            <CatalogList design={d} filters={filters} grouping={grouping} route={route} />
           </>
         )}
         detail={(d, id) => {
@@ -60,7 +74,7 @@ export function CatalogPage() {
           open
           onOpenChange={route.setAdding}
           onDone={(id) => {
-            setSearch("");
+            setFilters(NO_FILTERS);
             route.select(id);
           }}
         />
@@ -71,21 +85,31 @@ export function CatalogPage() {
 
 function CatalogHeader({
   design,
-  view,
-  onView,
-  search,
-  onSearch,
+  filters,
+  onFilters,
+  tree,
+  grouping,
+  onGrouping,
   onAdd,
 }: {
   design?: DesignView;
-  /** 表示方法（`useDetailRoute` の `view`・`setView`） */
-  view: string;
-  onView: (view: string) => void;
-  search: string;
-  onSearch: (value: string) => void;
+  filters: Filters;
+  onFilters: (filters: Filters) => void;
+  /** ツリーの表示か（分け方の選択はツリーだけに出す） */
+  tree: boolean;
+  grouping: CatalogGrouping;
+  onGrouping: (grouping: CatalogGrouping) => void;
   onAdd: () => void;
 }) {
   const t = useT();
+  // 種別の選択肢は、カタログに出てくる種別だけ（表示名で並べる）
+  const kinds = useMemo(() => {
+    if (!design) return [];
+    const ids = [...new Set(design.catalog.map((c) => c.kind))];
+    return ids
+      .map((value) => ({ value, label: kindLabel(design.defs, value) }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [design]);
   return (
     <PageHeader
       eyebrow={t.nav.sections.design}
@@ -100,8 +124,36 @@ function CatalogHeader({
       }
       actions={
         <>
-          <ViewSwitch value={view} onChange={onView} />
-          <SearchInput label={t.catalog.search} value={search} onChange={onSearch} />
+          <SearchInput
+            label={t.catalog.search}
+            value={filters.search}
+            onChange={(search) => onFilters({ ...filters, search })}
+          />
+          <NativeSelect
+            aria-label={t.catalog.catalogFilter}
+            value={filters.catalog}
+            onChange={(e) => onFilters({ ...filters, catalog: e.target.value })}
+            placeholder={t.catalog.allCatalogs}
+            options={(design?.project.catalogs ?? []).map((c) => ({
+              value: c.name,
+              label: c.name,
+            }))}
+          />
+          <NativeSelect
+            aria-label={t.catalog.kindFilter}
+            value={filters.kind}
+            onChange={(e) => onFilters({ ...filters, kind: e.target.value })}
+            placeholder={t.catalog.allKinds}
+            options={kinds}
+          />
+          {tree && (
+            <NativeSelect
+              aria-label={t.catalog.groupBy}
+              value={grouping}
+              onChange={(e) => onGrouping(e.target.value as CatalogGrouping)}
+              options={CATALOG_GROUPINGS.map((g) => ({ value: g, label: t.catalog.groupings[g] }))}
+            />
+          )}
           <Button onClick={onAdd} disabled={!design}>
             <Plus size={14} />
             {t.catalog.add}
@@ -112,30 +164,48 @@ function CatalogHeader({
   );
 }
 
+/** タブを切り替えてもツリーの分け方（`?group=`）は残す */
+function CatalogTabs({ view, grouping }: { view: string; grouping: CatalogGrouping }) {
+  const t = useT().catalog;
+  const label = { tree: t.tabTree, table: t.tabTable };
+  const to = (v: string) =>
+    `?${new URLSearchParams({ [SEARCH.view]: v, [SEARCH.group]: grouping })}`;
+  return <PageTabs tabs={VIEWS.map((v) => ({ to: to(v), label: label[v], active: view === v }))} />;
+}
+
 function CatalogList({
   design,
-  search,
+  filters,
+  grouping,
   route,
 }: {
   design: DesignView;
-  search: string;
+  filters: Filters;
+  grouping: CatalogGrouping;
   route: DetailRoute;
 }) {
   const t = useT();
+  const { search, catalog, kind } = filters;
   const items = useMemo(
-    () => design.catalog.filter((c) => matchesSearch(search, [c.id, c.kind, itemLabel(c)])),
-    [design.catalog, search],
+    () =>
+      design.catalog.filter(
+        (c) =>
+          (!catalog || c.scope === catalog) &&
+          (!kind || c.kind === kind) &&
+          matchesSearch(search, [c.id, c.kind, kindLabel(design.defs, c.kind), itemLabel(c)]),
+      ),
+    [design.catalog, design.defs, search, catalog, kind],
   );
   if (!items.length) return <Empty>{t.catalog.empty}</Empty>;
+  const props = { design, items, selected: route.selected, onSelect: route.select };
   if (route.tree)
     return (
       <CatalogTree
-        key={search}
+        key={JSON.stringify([search, catalog, kind])}
         all={design.catalog}
-        items={items}
-        selected={route.selected}
-        onSelect={route.select}
+        grouping={grouping}
+        {...props}
       />
     );
-  return <CatalogTable items={items} selected={route.selected} onSelect={route.select} />;
+  return <CatalogTable {...props} />;
 }

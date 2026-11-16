@@ -150,7 +150,7 @@ CLI と HTTP は `fune-service` の同じ関数を呼ぶ。
 | Op の適用 | 編集の各コマンド、`fune apply ops.json` | `POST /ops` | `edit::apply` |
 | 打った値の文字列 → Op | `fune set`・`fune setting set`・`fune catalog set` | `POST /ops/from_text` | `edit::set_op` |
 | 消す先のパス → Op | `fune unset`・`fune setting unset`・`fune catalog unset` | `POST /ops/unset_from_text` | `edit::unset_op` |
-| 名詞のコマンドに打った引数 → Op | `fune net set|unset`・`fune part place`・`fune mode set|unset`・`fune attr add|replace`・`fune kind add|replace`・`fune maneuver add|set` | `POST /ops/from_command` | `edit::command_ops` |
+| 名詞のコマンドに打った引数 → Op | `fune net set|unset`・`fune part place`・`fune mode set|unset`・`fune attr add|replace`・`fune kind add|replace`・`fune maneuver add|set`・`fune catalog source add` | `POST /ops/from_command` | `edit::command_ops` |
 | 整形 | `fune fmt [--check]` | `POST /fmt` | `format::format_design` |
 
 - `fune set RW_X.mass "620 g"` の `"620 g"` を量・整数・ベクトル・状態ごとの値のどれとして読むかは、属性定義を見て service が決める。

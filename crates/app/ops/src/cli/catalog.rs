@@ -1,4 +1,5 @@
-//! カタログ品の Op のコマンド（`fune catalog add|set|unset|rm|rename`）。
+//! カタログ品の Op のコマンド（`fune catalog add|set|unset|rm|rename`）と、カタログの出所の Op のコマンド
+//! （`fune catalog source add|rm`）。
 
 use super::commands::value_cmds;
 use super::text::Cmd;
@@ -49,6 +50,15 @@ pub(super) fn catalog_op(op: &Op) -> Option<Vec<String>> {
         Op::RemoveCatalogItem { id } => vec![Cmd::new(&["fune", "catalog", "rm", id]).done()],
         Op::RenameCatalogItem { from, to } => {
             vec![Cmd::new(&["fune", "catalog", "rename", from, to]).done()]
+        }
+        Op::AddCatalogSource { name, git, rev } => vec![
+            Cmd::new(&["fune", "catalog", "source", "add", name])
+                .flag("git", Some(git))
+                .flag("rev", rev.as_deref())
+                .done(),
+        ],
+        Op::RemoveCatalogSource { name } => {
+            vec![Cmd::new(&["fune", "catalog", "source", "rm", name]).done()]
         }
         _ => return None,
     })

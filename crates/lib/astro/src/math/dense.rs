@@ -64,7 +64,7 @@ mod tests {
         let b: Vec<f64> = (0..3)
             .map(|r| (0..3).map(|c| a[r * 3 + c] * x_true[c]).sum())
             .collect();
-        let x = solve_dense(a, b).expect("正則");
+        let x = solve_dense(a, b).expect("regular");
         for (got, want) in x.iter().zip(x_true.iter()) {
             assert!((got - want).abs() < 1e-12, "{got} vs {want}");
         }
@@ -96,7 +96,7 @@ mod tests {
         let b: Vec<f64> = (0..n)
             .map(|r| (0..n).map(|c| a[r * n + c] * x_true[c]).sum())
             .collect();
-        let x = solve_dense(a, b).expect("正則");
+        let x = solve_dense(a, b).expect("regular");
         assert!(
             x.iter()
                 .zip(x_true.iter())

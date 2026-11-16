@@ -89,11 +89,14 @@ mod tests {
         }
         for id in &ids {
             for u in uses(id) {
-                assert!(ids.iter().any(|x| x == u), "{id} が使う {u} は未登録です");
+                assert!(
+                    ids.iter().any(|x| x == u),
+                    "{id} uses {u}, which is not registered"
+                );
             }
             assert!(
                 !reaches(id, id, ids.len()),
-                "{id} の使う解析が循環しています"
+                "the analyses used by {id} form a cycle"
             );
         }
         assert_eq!(

@@ -33,6 +33,8 @@ fn name(op: &Op) -> &'static str {
         Op::SetCatalogField { .. } => "SetCatalogField",
         Op::RemoveCatalogItem { .. } => "RemoveCatalogItem",
         Op::RenameCatalogItem { .. } => "RenameCatalogItem",
+        Op::AddCatalogSource { .. } => "AddCatalogSource",
+        Op::RemoveCatalogSource { .. } => "RemoveCatalogSource",
         Op::CreateAttribute { .. } => "CreateAttribute",
         Op::CreateKind { .. } => "CreateKind",
         Op::UpdateAttribute { .. } => "UpdateAttribute",
@@ -215,6 +217,8 @@ fn catalog_ops() -> Vec<Op> {
             from: "local/rw_10mNms".into(),
             to: "local/rw_10mNms_b".into(),
         },
+        serde_json::from_str(r#"{"op":"add_catalog_source","name":"a","git":"g"}"#).unwrap(),
+        Op::RemoveCatalogSource { name: "lab".into() },
     ]
 }
 
@@ -373,7 +377,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 47, "見本の無い Op の種類があります: {seen:?}");
+    assert_eq!(seen.len(), 49, "見本の無い Op の種類があります: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =

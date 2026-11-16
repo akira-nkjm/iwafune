@@ -126,7 +126,7 @@ impl ModeDef {
         for (i, a) in self.assignments.iter().enumerate() {
             if self.assignments[..i].iter().any(|b| b.part == a.part) {
                 return Err(AnalysisError::InvalidInput(format!(
-                    "モード {} で部品 {} が 2 回割り当てられています",
+                    "Part {1} is assigned twice in mode {0}",
                     self.id, a.part
                 )));
             }
@@ -156,23 +156,25 @@ impl StateAssignment {
     /// 割合の合計は 1。`duty` の値が 0〜1 の外・有限でない・合計が 1 を超える・基本の状態を `duty` にも書いた場合はエラー。
     pub fn fractions(&self) -> Result<Vec<(String, f64)>, AnalysisError> {
         let invalid = |why: String| {
-            AnalysisError::InvalidInput(format!("部品 {} の状態の割り当て: {why}", self.part))
+            AnalysisError::InvalidInput(format!("State assignment of part {}: {why}", self.part))
         };
         if self.duty.contains_key(&self.state) {
             return Err(invalid(format!(
-                "基本の状態 {} を duty にも書いています",
+                "Base state {} is also listed in duty",
                 self.state
             )));
         }
         let mut sum = 0.0;
         for (state, &f) in &self.duty {
             if !f.is_finite() || !(0.0..=1.0).contains(&f) {
-                return Err(invalid(format!("状態 {state} の割合 {f} が 0〜1 の外です")));
+                return Err(invalid(format!(
+                    "Fraction {f} of state {state} is outside 0 to 1"
+                )));
             }
             sum += f;
         }
         if sum > 1.0 + DUTY_TOLERANCE {
-            return Err(invalid(format!("duty の合計 {sum} が 1 を超えています")));
+            return Err(invalid(format!("The duty total {sum} exceeds 1")));
         }
         let mut out = Vec::with_capacity(self.duty.len() + 1);
         out.push((self.state.clone(), (1.0 - sum).max(0.0)));
@@ -205,7 +207,7 @@ pub fn find_mode<'a>(modes: &'a [ModeDef], id: &str) -> Result<&'a ModeDef, Anal
     modes
         .iter()
         .find(|m| m.id == id)
-        .ok_or_else(|| AnalysisError::InvalidInput(format!("モード {id} の定義がありません")))
+        .ok_or_else(|| AnalysisError::InvalidInput(format!("Mode {id} is not defined")))
 }
 
 /// 1 モードの評価（部品ごとの時間平均と、合計から除いた部品）。
@@ -235,7 +237,7 @@ impl ModeEvaluation {
         let mut push = |key: &str, label: &str, what: &str, list: Vec<String>| {
             if !list.is_empty() {
                 let msg = format!(
-                    "モード {} で{what}（合計に入れていません）: {}",
+                    "Mode {}: {what} (not included in the total): {}",
                     self.mode,
                     list.join(", ")
                 );
@@ -244,8 +246,8 @@ impl ModeEvaluation {
         };
         push(
             "unassigned",
-            "状態の割り当てが無い部品",
-            "状態が決まっていない部品があります",
+            "Parts without a state assignment",
+            "Some parts have no state assigned",
             self.unassigned.clone(),
         );
         let missing = self
@@ -255,14 +257,14 @@ impl ModeEvaluation {
             .collect();
         push(
             "missing_value",
-            &format!("{value_label}が無い状態"),
-            &format!("{value_label}が無い状態があります"),
+            &format!("States without {value_label}"),
+            &format!("Some states have no {value_label}"),
             missing,
         );
         push(
             "unknown_part",
-            "部品の一覧に無い割り当て",
-            "一覧に無い部品が割り当てられています",
+            "Assignments to unknown parts",
+            "Parts not in the part list are assigned",
             self.unknown_parts.clone(),
         );
         out
@@ -302,19 +304,19 @@ pub fn counted_states(
     a: &StateAssignment,
     p: Population<'_>,
 ) -> Result<Vec<(String, f64, u32)>, AnalysisError> {
-    let invalid = |why: &str| AnalysisError::InvalidInput(format!("部品 {}: {why}", a.part));
+    let invalid = |why: &str| AnalysisError::InvalidInput(format!("Part {}: {why}", a.part));
     if a.spare_state
         .as_ref()
         .is_some_and(|s| !p.states.contains(s))
     {
-        return Err(invalid("spare_state が種別の語彙にありません"));
+        return Err(invalid("spare_state is not in the kind vocabulary"));
     }
     let active = a.active.unwrap_or(p.count);
     if active > p.count {
-        return Err(invalid("active が count を超えています"));
+        return Err(invalid("active exceeds count"));
     }
     if a.active.is_some() && matches!(p.redundancy, Redundancy::None) {
-        return Err(invalid("active には redundancy が必要です"));
+        return Err(invalid("active requires redundancy"));
     }
     let mut out: Vec<_> = a
         .fractions()?
@@ -324,7 +326,7 @@ pub fn counted_states(
     let spare = p.count - active;
     if spare > 0 {
         let state = match p.redundancy {
-            Redundancy::None => return Err(invalid("予備機に redundancy がありません")),
+            Redundancy::None => return Err(invalid("The spare unit has no redundancy")),
             Redundancy::Cold => OFF_STATE,
             Redundancy::Warm => a
                 .spare_state
@@ -334,10 +336,10 @@ pub fn counted_states(
                         .into_iter()
                         .find(|s| p.states.iter().any(|v| v == s))
                 })
-                .ok_or_else(|| invalid("warm の予備状態が決まりません"))?,
+                .ok_or_else(|| invalid("The warm spare state is undetermined"))?,
         };
         if !p.states.iter().any(|s| s == state) {
-            return Err(invalid("予備状態が種別の語彙にありません"));
+            return Err(invalid("The spare state is not in the kind vocabulary"));
         }
         out.push((state.to_owned(), 1.0, spare));
     }

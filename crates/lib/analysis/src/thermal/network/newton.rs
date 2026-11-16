@@ -73,7 +73,7 @@ impl Compiled {
             }
             let dt = solve_dense(jac, rhs).ok_or_else(|| {
                 invalid(
-                    "熱の逃げ道（宇宙への放射面か固定温度の節点）が無い節点があります".to_owned(),
+                    "Some nodes have no heat path out (a radiating surface to space or a fixed-temperature node)".to_owned(),
                 )
             })?;
             let max_step = dt.iter().fold(0.0_f64, |m, x| m.max(x.abs()));
@@ -96,7 +96,9 @@ impl Compiled {
                 }
             }
         }
-        Err(invalid("定常解が収束しません".to_owned()))
+        Err(invalid(
+            "The steady-state solution does not converge".to_owned(),
+        ))
     }
 
     /// 境界節点を除いた熱収支の残差の最大 [W]。

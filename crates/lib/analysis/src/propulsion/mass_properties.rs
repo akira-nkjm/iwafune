@@ -122,9 +122,9 @@ impl Analysis for PropellantMassProperties {
                     || {
                         checks.push(Check::new(
                             "tank_position",
-                            "タンクの位置",
+                            "Tank position",
                             Verdict::Warning,
-                            format!("タンク {id} の部品が質量特性に無いので、推薬を乾燥の重心に置きました"),
+                            format!("Tank {id} part is not in the mass properties, so the propellant was placed at the dry centre of mass"),
                         ));
                         dry.center_of_mass
                     },

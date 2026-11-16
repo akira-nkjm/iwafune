@@ -181,23 +181,26 @@ impl Analysis for SensorFov {
 fn validate(s: &SensorFovSensor) -> Result<(), AnalysisError> {
     if s.boresight.normalized().is_none() {
         return Err(AnalysisError::InvalidInput(format!(
-            "センサ {} の視線がゼロベクトルです",
+            "Sensor {} boresight is a zero vector",
             s.id
         )));
     }
     let angles = [
-        ("視野の半角", s.fov_half_angle),
-        ("太陽の禁止角", s.exclusion_sun),
-        ("地球の禁止角", s.exclusion_earth),
-        ("月の禁止角", s.exclusion_moon),
+        ("FoV half angle", s.fov_half_angle),
+        ("Sun exclusion angle", s.exclusion_sun),
+        ("Earth exclusion angle", s.exclusion_earth),
+        ("Moon exclusion angle", s.exclusion_moon),
     ];
     for (what, a) in angles {
         if let Some(a) = a {
-            ensure_non_negative(&format!("センサ {} の{what}", s.id), a.value())?;
+            ensure_non_negative(&format!("Sensor {} {what}", s.id), a.value())?;
         }
     }
     if let Some(f) = s.max_intrusion_fraction {
-        ensure_fraction(&format!("センサ {} の侵入の割合の上限", s.id), f.value())?;
+        ensure_fraction(
+            &format!("Sensor {} intrusion fraction limit", s.id),
+            f.value(),
+        )?;
     }
     Ok(())
 }
@@ -291,25 +294,27 @@ fn evaluate_sensor(
 
 fn verdict(s: &SensorFovSensor, r: &SensorFovResult) -> Check {
     let key = format!("intrusion:{}", s.id);
-    let label = format!("{} の禁止角", s.id);
+    let label = format!("{} exclusion angle", s.id);
     let pct = quantity_text::<Fraction>(r.intrusion_fraction.value());
     let (v, msg) = match s.max_intrusion_fraction {
         Some(max) if r.intrusion_fraction <= max => (
             Verdict::Ok,
             format!(
-                "侵入 {pct}（上限 {}）",
+                "Intrusion {pct} (limit {})",
                 quantity_text::<Fraction>(max.value())
             ),
         ),
         Some(max) => (
             Verdict::Violation,
             format!(
-                "侵入 {pct}（上限 {}）",
+                "Intrusion {pct} (limit {})",
                 quantity_text::<Fraction>(max.value())
             ),
         ),
-        None if r.intrusion_fraction.value() > 0.0 => (Verdict::Warning, format!("侵入 {pct}")),
-        None => (Verdict::Ok, "侵入なし".to_owned()),
+        None if r.intrusion_fraction.value() > 0.0 => {
+            (Verdict::Warning, format!("Intrusion {pct}"))
+        }
+        None => (Verdict::Ok, "No intrusion".to_owned()),
     };
     Check::new(&key, &label, v, msg)
 }

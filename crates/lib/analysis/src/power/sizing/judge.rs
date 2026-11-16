@@ -9,8 +9,8 @@ use sat_units::typed::{Area, Energy, Fraction, Qty};
 use std::collections::BTreeMap;
 
 /// 面積と容量の余裕の判定のキーと表示名。
-const SAP: (&str, &str) = ("sap_margin", "太陽電池の余裕");
-const BATTERY: (&str, &str) = ("battery_margin", "バッテリーの余裕");
+const SAP: (&str, &str) = ("sap_margin", "Solar cell margin");
+const BATTERY: (&str, &str) = ("battery_margin", "Battery margin");
 
 impl SizingMode {
     /// `basis` の求め方での必要面積と必要容量（時系列の値が無ければ SMAD の値）。
@@ -29,8 +29,8 @@ impl SizingBasis {
     /// 判定の文の括弧書き。
     pub(super) fn note(self) -> &'static str {
         match self {
-            Self::TimeSeries => "時系列の逆算",
-            Self::Smad => "SMAD の式",
+            Self::TimeSeries => "time-series sizing",
+            Self::Smad => "SMAD formula",
         }
     }
 }
@@ -117,9 +117,9 @@ pub(super) fn margin_checks(
 fn series_unavailable(reason: &str) -> Check {
     Check::new(
         "time_series",
-        "時系列の逆算",
+        "time-series sizing",
         crate::spec::Verdict::Warning,
-        format!("時系列の逆算ができないため SMAD の式で判定します（{reason}）"),
+        format!("Time-series sizing is not possible, so the SMAD formula is used ({reason})"),
     )
 }
 
@@ -182,7 +182,7 @@ pub(super) fn mode_checks(
                         note,
                     ),
                     margin_check::<Energy>(
-                        ("battery_margin", "電池の余裕"),
+                        ("battery_margin", "Battery margin"),
                         margin(capacity.value(), need_capacity.value()),
                         capacity.value(),
                         need_capacity.value(),
