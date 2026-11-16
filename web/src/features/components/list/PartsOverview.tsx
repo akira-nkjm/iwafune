@@ -1,17 +1,12 @@
 import type { DesignView, PartRow, TreeNode } from "@/api/types";
 import { useLang, useT } from "@/i18n";
+import { CARD_WIDTH, CardGrid, NestedBoxes } from "@/kit/cards/CardGrid";
+import { GroupBox } from "@/kit/cards/GroupBox";
+import { ItemCard } from "@/kit/cards/ItemCard";
 import { Packed } from "@/kit/Packed";
-import { RoleIcon } from "@/kit/RoleIcon";
-import { cn } from "@/lib/cn";
 import { kindLabel, nodeName, systemTree } from "@/lib/design";
 import { systemTone } from "@/lib/systems";
-import { type Tone, toneHex, toneInkHex, toneText, toneTint } from "@/lib/tone";
-
-/** カード 1 枚の幅 [px] */
-const CARD_WIDTH = 216;
-
-/** 枠の中のカードの列の数（1〜2 枚はその数、3〜6 枚は 2 列、それより多ければ 3 列） */
-const columnsFor = (n: number) => (n <= 2 ? Math.max(1, n) : n <= 6 ? 2 : 3);
+import type { Tone } from "@/lib/tone";
 
 /**
  * コンポーネントの「一覧」のタブ: サブシステム（Group）の枠ごとに部品のカードを並べる（製品ツリーの形のまま）。
@@ -106,106 +101,47 @@ function Box({
   const assembly = node?.node === "part";
   const row = node ? ctx.rows.get(node.id) : undefined;
   const tone: Tone = node ? systemTone(row?.system ?? node.system) : "gray";
-  const heading = (
-    <>
-      <span
-        className="size-2.5 shrink-0 rounded-full"
-        style={{ background: toneHex[tone] }}
-        aria-hidden
-      />
-      <span className="text-ink-3">
-        {assembly ? td.overviewAssembly : node ? td.overviewSubsystem : ""}
-      </span>
-      <span className={cn("font-medium", toneText[tone])}>
-        {title ?? (node ? ctx.nameOf(node) : "")}
-      </span>
-    </>
-  );
+  const prefix = assembly ? td.overviewAssembly : node ? td.overviewSubsystem : "";
   return (
-    <section
-      className={cn(
-        "rounded-[14px] border border-line p-4",
-        nested ? "bg-panel-2/60" : "bg-panel/70 shadow-panel",
-        assembly && ctx.selected === node?.id && "ring-2 ring-accent",
-      )}
+    <GroupBox
+      tone={tone}
+      prefix={prefix}
+      title={title ?? (node ? ctx.nameOf(node) : "")}
+      nested={nested}
+      selected={assembly && ctx.selected === node?.id}
+      onSelectHeading={assembly && node ? () => ctx.onSelect(node.id) : undefined}
     >
-      {assembly && node ? (
-        <button
-          type="button"
-          className="mb-3 flex items-center gap-2 rounded text-[13px] hover:underline"
-          onClick={(e) => {
-            e.stopPropagation();
-            ctx.onSelect(node.id);
-          }}
-        >
-          {heading}
-        </button>
-      ) : (
-        <h3 className="mb-3 flex items-center gap-2 text-[13px]">{heading}</h3>
-      )}
       {cards.length > 0 && (
-        <div
-          className="grid gap-5"
-          style={{ gridTemplateColumns: `repeat(${columnsFor(cards.length)}, ${CARD_WIDTH}px)` }}
-        >
+        <CardGrid count={cards.length}>
           {cards.map((n) => {
             const r = ctx.rows.get(n.id);
             return r ? <PartCard key={n.id} row={r} ctx={ctx} /> : null;
           })}
-        </div>
+        </CardGrid>
       )}
       {inner.length > 0 && (
-        <div className={cn("flex flex-wrap items-start gap-4", cards.length > 0 && "mt-4")}>
+        <NestedBoxes afterCards={cards.length > 0}>
           {inner.map((n) => (
             <Box key={n.id} node={n} ctx={ctx} nested />
           ))}
-        </div>
+        </NestedBoxes>
       )}
-    </section>
+    </GroupBox>
   );
 }
 
 function PartCard({ row, ctx }: { row: PartRow; ctx: Ctx }) {
-  const tone = systemTone(row.system);
-  const stacked = row.count > 1;
   return (
-    <div className="relative" style={{ width: CARD_WIDTH }}>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          ctx.onSelect(row.id);
-        }}
-        title={row.catalog ?? row.kind ?? undefined}
-        className={cn(
-          "flex w-full items-center gap-3 rounded-[12px] border border-line bg-panel px-3 py-2.5 text-left transition-colors hover:border-line-strong",
-          ctx.selected === row.id && "ring-2 ring-accent ring-offset-1",
-        )}
-        style={{
-          boxShadow: stacked
-            ? "4px 4px 0 -1px var(--color-panel), 4px 4px 0 0 var(--color-line-strong), 8px 8px 0 -1px var(--color-panel), 8px 8px 0 0 var(--color-line)"
-            : undefined,
-        }}
-      >
-        <span
-          className="flex size-10 shrink-0 items-center justify-center rounded-full"
-          style={{
-            background: toneTint(tone, "icon"),
-            color: toneInkHex[tone],
-          }}
-        >
-          <RoleIcon role={row.role} size={20} />
-        </span>
-        <span className="min-w-0">
-          <span className="block truncate text-[11.5px] text-ink-3">{ctx.kindName(row.kind)}</span>
-          <span className="block truncate font-medium text-[14px] text-ink">{row.id}</span>
-        </span>
-      </button>
-      {stacked && (
-        <span className="num absolute -top-2.5 -right-2.5 flex size-7 items-center justify-center rounded-full border border-line bg-panel text-[12px] text-ink-2 shadow-panel">
-          {row.count}
-        </span>
-      )}
-    </div>
+    <ItemCard
+      role={row.role}
+      tone={systemTone(row.system)}
+      caption={ctx.kindName(row.kind)}
+      name={row.id}
+      count={row.count}
+      title={row.catalog ?? row.kind ?? undefined}
+      selected={ctx.selected === row.id}
+      onSelect={() => ctx.onSelect(row.id)}
+      width={CARD_WIDTH}
+    />
   );
 }
