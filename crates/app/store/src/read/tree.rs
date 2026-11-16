@@ -7,7 +7,7 @@ use fune_model::Severity;
 use fune_model::design::{
     CatalogItem, Group, Maturity, Mount, NetKind, NodeRef, Part, PortBinding, Pose,
 };
-use fune_model::id::Id;
+use fune_model::id::{Id, validate_entity_id};
 use fune_model::value::{Authored, Value};
 use serde::Deserialize;
 use std::collections::BTreeMap;
@@ -91,9 +91,32 @@ impl Decoder<'_> {
         out
     }
 
-    pub(super) fn read_catalog(&mut self, path: &str, reference: &str) {
+    /// カタログ品のファイル 1 つ。`dirs` はカタログのディレクトリからのディレクトリの列（置き場所だけ）。
+    /// ディレクトリ名は ID の規則に従い、同じ ID が 2 つのファイルにあれば 2 つ目を誤りにする。
+    pub(super) fn read_catalog(&mut self, path: &str, reference: &str, dirs: &[String]) -> bool {
+        for dir in dirs {
+            if let Err(e) = validate_entity_id(dir) {
+                self.diag(
+                    Severity::Error,
+                    "id.invalid",
+                    path,
+                    None,
+                    format!("Catalog directory `{dir}`: {e}"),
+                );
+            }
+        }
+        if self.design.catalog.contains_key(reference) {
+            self.diag(
+                Severity::Error,
+                "id.duplicate",
+                path,
+                None,
+                format!("Catalog item `{reference}` is also defined in another file"),
+            );
+            return false;
+        }
         let Some(doc) = self.parse::<CatalogDoc>(path) else {
-            return;
+            return false;
         };
         let attr = self.read_attrs(path, doc.attr);
         let item = CatalogItem {
@@ -111,6 +134,7 @@ impl Decoder<'_> {
             ports: doc.ports,
         };
         self.design.catalog.insert(reference.to_string(), item);
+        true
     }
 
     pub(super) fn read_part(&mut self, path: &str, dirs: &[String], id: &str) {

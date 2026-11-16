@@ -60,7 +60,10 @@ pub fn decode(files: &FileSet) -> Design {
         .filter_map(|(role, path)| Some((*path, layout::file_target(role)?)))
         .collect();
     for (role, path) in roles {
-        if let Some(entity) = layout::entity_key(&role) {
+        // 同じ ID が 2 つのファイルにあれば 1 つ目を位置とし、2 つ目は読み込みで誤りにする
+        if let Some(entity) = layout::entity_key(&role)
+            && d.design.source_map.file_of(&entity).is_none()
+        {
             d.design.source_map.insert_file(entity, path);
         }
         d.read_file(&role, path);
@@ -223,7 +226,9 @@ impl Decoder<'_> {
                 v.id = Id::new(id);
                 g.kinds.insert(Id::new(id), v);
             }),
-            FileRole::Catalog { source, id } => self.read_catalog(path, &format!("{source}/{id}")),
+            FileRole::Catalog { source, dirs, id } => {
+                let _ = self.read_catalog(path, &format!("{source}/{id}"), dirs);
+            }
             FileRole::Part { dirs, id } => self.read_part(path, dirs, id),
             FileRole::Mode(id) => self.read_into(path, |g, mut v: d::Mode| {
                 v.id = Id::new(id);

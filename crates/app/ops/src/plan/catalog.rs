@@ -10,7 +10,9 @@ use fune_model::resolve::Origin;
 use fune_model::value::Authored;
 use fune_model::{Design, resolve};
 use fune_store::Edits;
-use fune_store::layout::{CatalogLocation, catalog_location};
+use fune_store::layout::{
+    CatalogLocation, catalog_item_dir, catalog_item_path, catalog_location, parse_catalog_dir,
+};
 use fune_store::write::{catalog as wcatalog, refs};
 use std::collections::BTreeMap;
 
@@ -52,6 +54,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         }
         Op::RemoveCatalogItem { id } => remove(edits, design, id),
         Op::RenameCatalogItem { from, to } => rename(edits, design, from, to),
+        Op::MoveCatalogItem { item, dir } => mv(edits, design, item, dir),
         _ => Err(OpError::invalid("Not a catalog item op")),
     }
 }
@@ -72,10 +75,10 @@ fn full_ref(design: &Design, text: &str) -> Result<String, OpError> {
         })
 }
 
-/// 書き換えられるカタログ品のファイル。
-fn writable_file(design: &Design, reference: &str) -> Result<String, OpError> {
+/// 書き換えられるカタログ品の（ファイル, カタログのディレクトリ）。
+fn writable(design: &Design, reference: &str) -> Result<(String, String), OpError> {
     match catalog_location(design, reference) {
-        CatalogLocation::Local { file } => Ok(file),
+        CatalogLocation::Local { file, base } => Ok((file, base)),
         CatalogLocation::Shared { source } => Err(OpError::invalid(format!(
             "`{reference}` is an item of shared catalog `{source}`, so it cannot be edited from this project. \
              Override the value on a part (fune set <part>.<attribute> …) or open a PR on the shared catalog repository"
@@ -90,15 +93,16 @@ fn writable_file(design: &Design, reference: &str) -> Result<String, OpError> {
 fn existing(design: &Design, text: &str) -> Result<(String, String), OpError> {
     let reference = full_ref(design, text)?;
     // 共有カタログの品は読み込まれていなくても「読み取り専用」と答える（NotFound より先に）。
-    let file = writable_file(design, &reference)?;
+    let (file, _) = writable(design, &reference)?;
     if !design.catalog.contains_key(&reference) {
         return Err(OpError::not_found(format!("Catalog item `{reference}`")));
     }
     Ok((reference, file))
 }
 
-/// 新しいカタログ品の参照として使えるか（ID の規則と、同じカタログの中での大文字小文字を無視した一意性）。
-fn new_ref(design: &Design, text: &str) -> Result<(String, String), OpError> {
+/// 新しいカタログ品の（参照, ファイル）。ファイルは `dir`（カタログのディレクトリからの名前の列）の下。
+/// 参照として使えるか（ID の規則と、同じカタログの中での大文字小文字を無視した一意性）を確かめる。
+fn new_ref(design: &Design, text: &str, dir: &[String]) -> Result<(String, String), OpError> {
     let reference = full_ref(design, text)?;
     let (source, id) = split_catalog_ref(&reference)
         .ok_or_else(|| OpError::invalid(format!("`{reference}` must be `<catalog>/<id>`")))?;
@@ -111,7 +115,8 @@ fn new_ref(design: &Design, text: &str) -> Result<(String, String), OpError> {
     if clash(same_source, id).is_some() {
         return Err(OpError::exists(format!("Catalog item `{reference}`")));
     }
-    let file = writable_file(design, &reference)?;
+    let (_, base) = writable(design, &reference)?;
+    let file = catalog_item_path(&base, dir, id);
     Ok((reference, file))
 }
 
@@ -123,11 +128,16 @@ fn create(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> {
         label_en,
         maturity,
         copy_from_part,
+        dir,
     } = op
     else {
         return Err(OpError::invalid("Not a CreateCatalogItem op"));
     };
-    let (reference, file) = new_ref(design, id)?;
+    let dirs = match dir {
+        Some(text) => parse_catalog_dir(text).map_err(OpError::invalid)?,
+        None => Vec::new(),
+    };
+    let (reference, file) = new_ref(design, id, &dirs)?;
     if design.kind(kind).is_none() {
         return Err(OpError::not_found(format!("Kind `{kind}`")));
     }
@@ -205,11 +215,35 @@ fn remove(edits: &mut Edits, design: &Design, id: &str) -> Result<(), OpError> {
 
 fn rename(edits: &mut Edits, design: &Design, from: &str, to: &str) -> Result<(), OpError> {
     let (from_ref, from_file) = existing(design, from)?;
-    let (to_ref, to_file) = new_ref(design, to)?;
+    // 同じカタログの中の名前の変更はディレクトリを変えない
+    let same_dir = split_catalog_ref(&from_ref).map(|(s, _)| s)
+        == split_catalog_ref(&full_ref(design, to)?).map(|(s, _)| s);
+    let dirs = if same_dir {
+        catalog_item_dir(design, &from_ref)
+    } else {
+        Vec::new()
+    };
+    let (to_ref, to_file) = new_ref(design, to, &dirs)?;
     Ok(refs::rename_catalog(
         edits,
         design,
         (&from_ref, &from_file),
         (&to_ref, &to_file),
     )?)
+}
+
+/// カタログ品を別のディレクトリへ移す（ID は変わらないので、参照は書き換えない）。
+fn mv(edits: &mut Edits, design: &Design, item: &str, dir: &str) -> Result<(), OpError> {
+    let (reference, file) = existing(design, item)?;
+    let dirs = parse_catalog_dir(dir).map_err(OpError::invalid)?;
+    let (_, base) = writable(design, &reference)?;
+    let (_, id) = split_catalog_ref(&reference)
+        .ok_or_else(|| OpError::invalid(format!("`{reference}` must be `<catalog>/<id>`")))?;
+    let target = catalog_item_path(&base, &dirs, id);
+    if target == file {
+        return Err(OpError::invalid(format!(
+            "`{reference}` is already in `{dir}`"
+        )));
+    }
+    Ok(edits.rename(&file, &target)?)
 }

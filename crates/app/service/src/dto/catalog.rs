@@ -27,9 +27,13 @@ pub struct CatalogItemView {
     pub scope: String,
     /// カタログの中の名前（例: `"rw_10mNms"`）
     pub name: String,
+    /// 置かれているディレクトリ（カタログのディレクトリからの名前の列。直下なら空。置き場所だけで、ID・参照には入らない）
+    pub dir: Vec<String>,
     /// このプロジェクトのカタログ（`[[catalog]] path = …`）の品なら true。共有カタログ（`git = …`）の品は読み取り専用で false
     pub editable: bool,
     pub kind: String,
+    /// 品の系（種別の役割 → 系。役割の無い種別は null。部品の `PartRow.system` と同じ型で、判定は `Design::kind_system`）
+    pub system: Option<sat_analysis::spec::System>,
     pub label: Option<String>,
     /// 英語の表示名
     pub label_en: Option<String>,

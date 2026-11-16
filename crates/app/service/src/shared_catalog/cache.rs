@@ -3,7 +3,7 @@
 
 use super::git::{Mirror, io_error};
 use crate::error::{Result, ServiceError};
-use fune_store::layout::{SHARED_CATALOG_DIRS, is_cache_key, shared_catalog_dir};
+use fune_store::layout::{SHARED_CATALOG_DIRS, SHARED_ITEMS_DIR, is_cache_key, shared_catalog_dir};
 use std::path::{Path, PathBuf};
 
 /// commit の中身がキャッシュにあるか。
@@ -11,7 +11,7 @@ pub(super) fn exists(root: &Path, name: &str, commit: &str) -> bool {
     is_cache_key(name, commit) && root.join(shared_catalog_dir(name, commit)).is_dir()
 }
 
-/// commit の `catalog/`・`sources/` の直下の `.toml` をキャッシュに置く（既にあれば何もしない）。
+/// commit の `catalog/`（ディレクトリの下も）・`sources/`（直下だけ）の `.toml` をキャッシュに置く（既にあれば何もしない）。
 pub(super) fn extract(root: &Path, name: &str, mirror: &Mirror, commit: &str) -> Result<()> {
     if !is_cache_key(name, commit) {
         return Err(ServiceError::Data(format!(
@@ -39,12 +39,19 @@ fn write_all(tmp: &Path, mirror: &Mirror, commit: &str) -> Result<()> {
             let Some(file) = path.strip_prefix(&format!("{sub}/")) else {
                 continue;
             };
-            if !file.ends_with(".toml") || file.contains('/') || file.starts_with('.') {
+            // 出典は平ら。品はディレクトリの下も（`.` で始まる名前は読まない）
+            let nested_ok = *sub == SHARED_ITEMS_DIR;
+            if !file.ends_with(".toml")
+                || (file.contains('/') && !nested_ok)
+                || file
+                    .split('/')
+                    .any(|seg| seg.is_empty() || seg.starts_with('.'))
+            {
                 continue;
             }
-            let dir = tmp.join(sub);
-            std::fs::create_dir_all(&dir).map_err(|e| io_error(&dir, &e))?;
-            let target = dir.join(file);
+            let target = tmp.join(sub).join(file);
+            let dir = target.parent().unwrap_or(tmp);
+            std::fs::create_dir_all(dir).map_err(|e| io_error(dir, &e))?;
             std::fs::write(&target, bytes).map_err(|e| io_error(&target, &e))?;
         }
     }

@@ -130,7 +130,8 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::UnsetCatalogValue { .. }
         | Op::SetCatalogField { .. }
         | Op::RemoveCatalogItem { .. }
-        | Op::RenameCatalogItem { .. } => catalog::interpret(edits, design, op),
+        | Op::RenameCatalogItem { .. }
+        | Op::MoveCatalogItem { .. } => catalog::interpret(edits, design, op),
         Op::AddCatalogSource { .. } | Op::RemoveCatalogSource { .. } => {
             catalog_source::interpret(edits, design, op)
         }

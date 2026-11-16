@@ -7,7 +7,7 @@ use fune_model::design::{CatalogItem, Design};
 use fune_model::path::split_catalog_ref;
 use fune_model::resolve::resolve_catalog_item;
 use fune_model::value::list_to_text;
-use fune_store::layout::{CatalogLocation, catalog_location};
+use fune_store::layout::{CatalogLocation, catalog_item_dir, catalog_location};
 
 /// カタログの出所の一覧（fune.toml の `[[catalog]]` の順）。書き込めるかは品の `editable` と同じ判定。
 /// 共有カタログには lock の commit と読み込みの状態（`Design::shared_catalog_statuses`）を付ける。
@@ -45,11 +45,15 @@ pub(crate) fn item_view(design: &Design, item: &CatalogItem) -> CatalogItemView 
         id: item.id.clone(),
         scope: scope.to_owned(),
         name: name.to_owned(),
+        dir: catalog_item_dir(design, &item.id),
         editable: matches!(
             catalog_location(design, &item.id),
             CatalogLocation::Local { .. }
         ),
         kind: item.kind.to_string(),
+        system: design
+            .kind_system(item.kind.as_str())
+            .map(fune_projection::system::to_analysis),
         label: item.label.clone(),
         label_en: item.label_en.clone(),
         manufacturer: item.manufacturer.clone(),
@@ -75,6 +79,7 @@ pub(crate) fn item_view(design: &Design, item: &CatalogItem) -> CatalogItemView 
 mod tests {
     use super::*;
     use fune_model::design::CatalogSource;
+    use sat_analysis::spec::System;
 
     /// 出所の一覧の「書き込めるか」は、品の `editable`（`catalog_location`）と同じ判定で、fune.toml の順に並ぶ。
     #[test]
@@ -109,5 +114,27 @@ mod tests {
             );
             assert_eq!(local, editable, "{name}");
         }
+    }
+
+    /// 品の系は種別の役割の系。継承した役割も辿り、役割の無い種別（`component`）は系を持たない。
+    #[test]
+    fn item_system_follows_the_kind_role_through_inheritance() {
+        let mut design = Design::default();
+        let custom: fune_model::design::KindDef = serde_json::from_value(serde_json::json!({
+            "id": "big_wheel", "label": "Big wheel", "extends": "reaction_wheel"
+        }))
+        .expect("kind");
+        design.kinds.insert(custom.id.clone(), custom);
+        let system_of = |kind: &str| {
+            let item: CatalogItem = serde_json::from_value(serde_json::json!({
+                "id": format!("local/{kind}"), "kind": kind, "attr": {}, "ports": {}
+            }))
+            .expect("item");
+            item_view(&design, &item).system
+        };
+        assert_eq!(system_of("reaction_wheel"), Some(System::Aocs));
+        assert_eq!(system_of("battery"), Some(System::Power));
+        assert_eq!(system_of("big_wheel"), Some(System::Aocs));
+        assert_eq!(system_of("component"), None);
     }
 }

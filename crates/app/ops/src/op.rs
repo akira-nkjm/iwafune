@@ -116,6 +116,10 @@ pub enum Op {
         maturity: Option<Maturity>,
         #[serde(default)]
         copy_from_part: Option<String>,
+        /// 置くディレクトリ（カタログのディレクトリからの相対。`a/b`。省けばカタログの直下。読み方は `fune_store::layout::parse_catalog_dir`）
+        #[serde(default)]
+        #[ts(optional = nullable)]
+        dir: Option<String>,
     },
     /// カタログ品の属性の値を書く（`state` があれば状態ごとの値の 1 セル）。
     SetCatalogValue {
@@ -147,6 +151,11 @@ pub enum Op {
     RenameCatalogItem {
         from: String,
         to: String,
+    },
+    /// カタログ品を別のディレクトリへ移す（`dir` はカタログのディレクトリからの相対。`.` ならカタログの直下）。ID・参照は変わらない。
+    MoveCatalogItem {
+        item: String,
+        dir: String,
     },
     // ---- カタログの出所（fune.toml の `[[catalog]]`）
     /// 共有カタログ（`[[catalog]] name = … git = … rev = …`）を足す。取得はしない（`fune catalog fetch`）。

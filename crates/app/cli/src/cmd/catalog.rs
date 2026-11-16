@@ -53,11 +53,16 @@ pub fn read(ws: &Workspace, cmd: &CatalogCmd, out: &Out) -> Handled {
         return Ok(Some(0));
     }
     let mut t = out
-        .table(&["ID", "Kind", "Name", "Model", "Attributes"])
-        .numeric(&[4]);
+        .table(&["ID", "Subsystem", "Kind", "Name", "Model", "Attributes"])
+        .numeric(&[5]);
     for i in &items {
         t.row(vec![
             C::Strong(i.id.clone()),
+            C::Text(
+                i.system
+                    .map(|s| query::system_id(s).to_owned())
+                    .unwrap_or_default(),
+            ),
             C::Text(i.kind.clone()),
             C::Text(i.label.clone().unwrap_or_default()),
             C::Dim(i.part_number.clone().unwrap_or_default()),

@@ -334,3 +334,42 @@ fn unreachable_remote_is_an_error_but_cached_commits_still_load() {
     assert!(err.to_string().contains("Shared catalog `lab`"), "{err}");
     assert_eq!(state(&ws), Some(SharedCatalogState::Ready));
 }
+
+/// 共有カタログの品がディレクトリの下にあっても取得して読める（ID はファイル名。API の `dir` はその置き場所）。
+#[test]
+fn fetch_reads_items_in_directories() {
+    let tmp = tempfile::tempdir().unwrap();
+    let repo = tmp.path().join("catalog-repo");
+    catalog_repo(&repo);
+    let nested = repo.join("catalog/vendor_a/wheels");
+    std::fs::create_dir_all(&nested).unwrap();
+    std::fs::rename(
+        repo.join("catalog/rw_10mNms.toml"),
+        nested.join("rw_10mNms.toml"),
+    )
+    .unwrap();
+    git(&repo, &["add", "-A"]);
+    git(&repo, &["commit", "-q", "-m", "move into directories"]);
+    let ws = project(tmp.path(), &repo, "main");
+    shared_catalog::fetch(&ws, &CatalogFetchRequest::default()).unwrap();
+    let head = git(&repo, &["rev-parse", "HEAD"]);
+    assert!(
+        ws.root()
+            .join(format!(
+                ".fune/catalogs/lab/{head}/catalog/vendor_a/wheels/rw_10mNms.toml"
+            ))
+            .is_file()
+    );
+    assert_eq!(state(&ws), Some(SharedCatalogState::Ready));
+    let demo = Workspace::open(fixture()).unwrap();
+    let errors = |w: &Workspace| query::check(w).unwrap().counts.errors;
+    assert_eq!(errors(&ws), errors(&demo));
+    let view = query::design_view(&ws).unwrap();
+    let item = view
+        .catalog
+        .iter()
+        .find(|c| c.id == "lab/rw_10mNms")
+        .unwrap();
+    assert_eq!(item.dir, ["vendor_a", "wheels"]);
+    assert!(!item.editable);
+}

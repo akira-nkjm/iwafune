@@ -18,6 +18,16 @@ pub(super) fn catalog_ops() -> Vec<Op> {
             label_en: Some(s("30 mNms wheel")),
             maturity: serde_json::from_value(json!("off_the_shelf")).unwrap(),
             copy_from_part: Some(s("RW_X")),
+            dir: Some(s("vendor_a/rw")),
+        },
+        Op::CreateCatalogItem {
+            id: s("local/rw_40mNms"),
+            kind: s("reaction_wheel"),
+            label: None,
+            label_en: None,
+            maturity: None,
+            copy_from_part: None,
+            dir: None,
         },
         Op::SetCatalogValue {
             item: item.clone(),
@@ -59,6 +69,14 @@ pub(super) fn catalog_ops() -> Vec<Op> {
         Op::RenameCatalogItem {
             from: s("local/rw_10mNms"),
             to: s("local/rw_12mNms"),
+        },
+        Op::MoveCatalogItem {
+            item: s("local/rw_10mNms"),
+            dir: s("vendor_a"),
+        },
+        Op::MoveCatalogItem {
+            item: s("local/rw_10mNms"),
+            dir: s("."),
         },
         Op::AddCatalogSource {
             name: s("lab"),
