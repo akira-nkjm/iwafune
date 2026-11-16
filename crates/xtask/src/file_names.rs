@@ -25,9 +25,9 @@ pub fn check(root: &Path, files: &[PathBuf], errors: &mut Vec<String>) {
     for ((dir, _), names) in seen {
         if names.len() > 1 {
             errors.push(format!(
-                "{} に大文字・小文字だけ違う名前があります: {}（macOS では拡張子なしの import が取り違える）",
+                "{} has names that differ only in case: {} (extensionless imports are mixed up on macOS)",
                 dir.display(),
-                names.join("・")
+                names.join(", ")
             ));
         }
     }

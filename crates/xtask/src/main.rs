@@ -15,6 +15,7 @@
 //!   （[`web_pages`]）
 //! - Web の役割名の比較: 部品の役割を文字列と比べて決めていないか（[`web_roles`]）
 
+mod english_text;
 mod file_names;
 mod module_cycles;
 mod projection_defaults;
@@ -87,7 +88,7 @@ fn main() -> Result<()> {
     let task = std::env::args().nth(1).unwrap_or_default();
     match task.as_str() {
         "check" => check(),
-        _ => bail!("使い方: cargo xtask check"),
+        _ => bail!("usage: cargo xtask check"),
     }
 }
 
@@ -98,6 +99,7 @@ fn check() -> Result<()> {
     check_registry(&meta, &mut errors)?;
     check_languages(&meta.workspace_root, &mut errors)?;
     let files = source_files(&meta.workspace_root)?;
+    english_text::check(&meta.workspace_root, &files, &mut errors);
     file_names::check(&meta.workspace_root, &files, &mut errors);
     single_home::check(&meta.workspace_root, &files, &mut errors);
     projection_defaults::check(&meta.workspace_root, &files, &mut errors);
@@ -109,13 +111,13 @@ fn check() -> Result<()> {
     module_cycles::check(&meta.workspace_root, &mut errors)?;
     warn_long_files(&meta.workspace_root)?;
     if errors.is_empty() {
-        println!("xtask check: OK（{} crate）", meta.packages.len());
+        println!("xtask check: OK ({} crates)", meta.packages.len());
         Ok(())
     } else {
         for e in &errors {
             eprintln!("error: {e}");
         }
-        bail!("xtask check: {} 件の違反", errors.len())
+        bail!("xtask check: {} violation(s)", errors.len())
     }
 }
 
@@ -123,14 +125,14 @@ fn metadata() -> Result<Metadata> {
     let out = Command::new(env!("CARGO"))
         .args(["metadata", "--format-version", "1", "--no-deps"])
         .output()
-        .context("cargo metadata を実行できません")?;
+        .context("cannot run cargo metadata")?;
     if !out.status.success() {
         bail!(
-            "cargo metadata が失敗しました: {}",
+            "cargo metadata failed: {}",
             String::from_utf8_lossy(&out.stderr)
         );
     }
-    serde_json::from_slice(&out.stdout).context("cargo metadata の出力を解釈できません")
+    serde_json::from_slice(&out.stdout).context("cannot parse the output of cargo metadata")
 }
 
 fn check_dependencies(meta: &Metadata, errors: &mut Vec<String>) {
@@ -139,7 +141,7 @@ fn check_dependencies(meta: &Metadata, errors: &mut Vec<String>) {
     for pkg in &meta.packages {
         let Some(ok) = allowed.get(pkg.name.as_str()) else {
             errors.push(format!(
-                "crate `{}` が依存ルール（xtask の ALLOWED）に登録されていません",
+                "crate `{}` is not registered in the dependency rules (ALLOWED in xtask)",
                 pkg.name
             ));
             continue;
@@ -149,7 +151,7 @@ fn check_dependencies(meta: &Metadata, errors: &mut Vec<String>) {
             let is_dev = dep.kind.as_deref() == Some("dev");
             if internal && !is_dev && !ok.contains(&dep.name.as_str()) {
                 errors.push(format!(
-                    "`{}` は `{}` に依存してはいけません（CONTRIBUTING.md の「依存の向き」）",
+                    "`{}` must not depend on `{}` (dependency direction in CONTRIBUTING.md)",
                     pkg.name, dep.name
                 ));
             }
@@ -160,11 +162,11 @@ fn check_dependencies(meta: &Metadata, errors: &mut Vec<String>) {
 fn check_registry(meta: &Metadata, errors: &mut Vec<String>) -> Result<()> {
     let path = meta.workspace_root.join("docs/architecture/registry.md");
     let text = std::fs::read_to_string(&path)
-        .with_context(|| format!("{} を読めません", path.display()))?;
+        .with_context(|| format!("cannot read {}", path.display()))?;
     for pkg in &meta.packages {
         if pkg.name != "xtask" && !text.contains(&format!("`{}`", pkg.name)) {
             errors.push(format!(
-                "crate `{}` が構成台帳（registry.md）に載っていません",
+                "crate `{}` is not listed in the registry (registry.md)",
                 pkg.name
             ));
         }
@@ -176,7 +178,7 @@ fn check_languages(root: &Path, errors: &mut Vec<String>) -> Result<()> {
     for file in source_files(root)? {
         if file.extension().is_some_and(|e| e == "py") {
             errors.push(format!(
-                "Python のファイルがあります: {}（言語は Rust と TS だけ）",
+                "Python file found: {} (only Rust and TS are used)",
                 file.display()
             ));
         }
@@ -199,7 +201,7 @@ fn warn_long_files(root: &Path) -> Result<()> {
             .unwrap_or(0);
         if lines > MAX_LINES {
             println!(
-                "warning: {} は {lines} 行です（目安 {MAX_LINES} 行）",
+                "warning: {} has {lines} lines (guideline: {MAX_LINES})",
                 file.display()
             );
         }

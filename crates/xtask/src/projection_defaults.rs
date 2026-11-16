@@ -17,7 +17,7 @@ const SCOPE: &str = "crates/app/projection/src/";
 const ALLOWED: &[(&str, &str, &str)] = &[(
     "case_policy.rs",
     "DEFAULT_CASE_ANALYSES",
-    "既定ケースが要る解析の ID の一覧（ケースの選び方の宣言で、解析の値ではない）",
+    "IDs of analyses that need a default case (a declaration of how cases are chosen, not an analysis value)",
 )];
 
 /// 値の直書きとみなす `unwrap_or(` / `map_or(` の最初の引数の書き出し。
@@ -64,7 +64,7 @@ fn violations(rel: &str, code: &str) -> Vec<String> {
                 .any(|(path, allowed, _)| rel.ends_with(path) && *allowed == name)
             {
                 out.push(format!(
-                    "{rel}:{}: `const {name}` が見つかりました。モデル化の既定値は解析（sat-analysis）が持ち、projection は書かれた値（無ければ None）を渡します",
+                    "{rel}:{}: found `const {name}`; modelling defaults belong to the analysis (sat-analysis), and projection passes on the written value (None if absent)",
                     n + 1
                 ));
             }
@@ -73,7 +73,7 @@ fn violations(rel: &str, code: &str) -> Vec<String> {
             for rest in trimmed.split(call).skip(1) {
                 if starts_literal(rest) {
                     out.push(format!(
-                        "{rel}:{}: `{call}` の既定値の直書きが見つかりました。モデル化の既定値は解析（sat-analysis）が持ち、projection は None のまま渡します",
+                        "{rel}:{}: found a hard-coded default in `{call}`; modelling defaults belong to the analysis (sat-analysis), and projection passes None on",
                         n + 1
                     ));
                 }

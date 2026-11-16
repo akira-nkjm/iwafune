@@ -4,7 +4,7 @@
 use super::EditOpts;
 use clap::{Args, Subcommand};
 
-/// `fune attr …`（引数の構造体なので、列挙の大きさの差は気にしない）
+/// `fune attr ...` (an argument struct, so the size difference between variants does not matter)
 #[derive(Debug, Subcommand)]
 #[allow(clippy::large_enum_variant)]
 pub enum AttrCmd {
@@ -71,7 +71,7 @@ pub struct AttrAddArgs {
     pub edit: EditOpts,
 }
 
-/// `fune kind …`（引数の構造体なので、列挙の大きさの差は気にしない）
+/// `fune kind ...` (an argument struct, so the size difference between variants does not matter)
 #[derive(Debug, Subcommand)]
 #[allow(clippy::large_enum_variant)]
 pub enum KindCmd {

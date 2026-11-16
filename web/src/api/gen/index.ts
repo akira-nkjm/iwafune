@@ -1,4 +1,4 @@
-// 生成物です。手で編集しないでください（`cargo test -p fune-service export_ts` で作り直す）。
+// Generated file. Do not edit by hand (regenerate with `cargo test -p fune-service export_ts`).
 export type * from "./AnalysisArea";
 export type * from "./AnalysisCase";
 export type * from "./AnalysisCaseSource";

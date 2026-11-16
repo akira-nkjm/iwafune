@@ -166,7 +166,7 @@ pub enum ManeuverCmd {
     },
 }
 
-/// `fune maneuver add|set`（旗は `fune_service::dto::ManeuverText` と 1 対 1）
+/// `fune maneuver add|set` (the flags map one to one to `fune_service::dto::ManeuverText`)
 #[derive(Debug, Args)]
 pub struct ManeuverArgs {
     pub id: String,
@@ -218,7 +218,7 @@ pub struct ManeuverArgs {
     pub edit: EditOpts,
 }
 
-/// `fune part point`（取付点）
+/// `fune part point` (mounting point)
 #[derive(Debug, Args)]
 pub struct PointArgs {
     pub part: String,
@@ -236,7 +236,7 @@ pub struct PointArgs {
     pub edit: EditOpts,
 }
 
-/// `fune catalog …`（カタログ品。編集できるのはこのプロジェクトのカタログ品だけ。共有カタログは取得と更新）
+/// `fune catalog ...` (catalog items; only this project's own catalog items can be edited; shared catalogs are fetched and updated)
 #[derive(Debug, Subcommand)]
 pub enum CatalogCmd {
     /// List catalog items
@@ -318,7 +318,7 @@ pub enum CatalogCmd {
     Source(CatalogSourceCmd),
 }
 
-/// `fune catalog source …`（fune.toml の共有カタログ `[[catalog]] name = … git = … rev = …`）
+/// `fune catalog source ...` (the shared catalogs of fune.toml: `[[catalog]] name = ... git = ... rev = ...`)
 #[derive(Debug, Subcommand)]
 pub enum CatalogSourceCmd {
     /// Add a shared catalog to fune.toml (does not fetch; run `fune catalog fetch` next)

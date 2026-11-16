@@ -30,57 +30,57 @@ const FEATURE_EDGES: &[(&str, &str, &str)] = &[
     (
         "systems",
         "diagram/canvas/DiagramZoom",
-        "電源のフロー図が、系統図と同じ拡大・縮小の操作（ボタン・キー・ホイール）を使う",
+        "the power flow diagram uses the same zoom controls (buttons, keys, wheel) as the system diagram",
     ),
     (
         "systems",
         "modes/matrix/ModesMatrix",
-        "系別のモード表示が定義ページと同じ行列・下書き・保存を使う",
+        "the per-system mode view uses the same matrix, draft and save as the definitions page",
     ),
     (
         "components",
         "modes/matrix/matrix",
-        "部品の詳細のモードの欄が、モード表のセルの文字と同じ読み方を使う",
+        "the mode field in the part detail reads cell text the same way as the mode table",
     ),
     (
         "defs",
         "components/parameters/NewAttributeFields",
-        "属性の作成の欄を、部品のパラメーター追加と共有する",
+        "the attribute creation fields are shared with adding a part parameter",
     ),
     (
         "defs",
         "components/parameters/param-ops",
-        "属性の作成の引数（`attrAddCommand`）を、部品のパラメーター追加と共有する",
+        "the attribute creation arguments (`attrAddCommand`) are shared with adding a part parameter",
     ),
     (
         "diagram",
         "components/detail/PartDetail",
-        "系統図の詳細に部品の詳細を出す",
+        "the system diagram detail shows the part detail",
     ),
     (
         "layout3d",
         "components/detail/PlacementSection",
-        "3D 配置で選んだ部品の配置の欄を出す",
+        "the 3D layout shows the placement fields of the selected part",
     ),
     (
         "layout3d",
         "components/list/PartsTree",
-        "配置のページの左に、部品のページと同じ製品ツリーを出す",
+        "the layout page shows the same product tree as the parts page on its left",
     ),
     (
         "conditions",
         "project/SettingsTable",
-        "前提条件の設定を、設定のページと同じ表で出す",
+        "the condition settings use the same table as the settings page",
     ),
     (
         "systems",
         "project/SettingsTable",
-        "系の設定を、設定のページと同じ表で出す",
+        "the system settings use the same table as the settings page",
     ),
     (
         "systems",
         "layout3d/LazyLayout3D",
-        "熱の追加の表示（温度で塗った 3D）",
+        "the extra thermal view (3D painted by temperature)",
     ),
 ];
 
@@ -144,7 +144,7 @@ fn problems(rel: &str, text: &str) -> Vec<String> {
     for (n, line) in text.lines().enumerate() {
         if !urls_allowed && let Some(prefix) = page_url(line) {
             out.push(format!(
-                "{rel}:{}: ページの URL（`{prefix}…`）を直書きしています。URL は {URL_HOME} の `paths` で作ります（ID の encode もそこ）",
+                "{rel}:{}: hard-coded page URL (`{prefix}...`). Build URLs with `paths` in {URL_HOME} (IDs are encoded there too)",
                 n + 1
             ));
         }
@@ -153,12 +153,12 @@ fn problems(rel: &str, text: &str) -> Vec<String> {
         }
         if !features_allowed {
             out.push(format!(
-                "{rel}:{}: `@/features/` を import しています。ページの中身に依存してよいのは features/ と routes/ だけです（shell へはページの登録 routes/pages.ts から渡す）",
+                "{rel}:{}: imports `@/features/`. Only features/ and routes/ may depend on page contents (pass things to the shell from the page registration routes/pages.ts)",
                 n + 1
             ));
         } else if let Some((from, target)) = unlisted_edge(rel, line) {
             out.push(format!(
-                "{rel}:{}: ページの中身どうしの import（features/{from} → features/{target}）です。いくつものページで使うものは共通の場所（analysis/・kit/・lib/・api/ など）に移すか、xtask の web_pages.rs の FEATURE_EDGES に理由付きで足します",
+                "{rel}:{}: import between page contents (features/{from} -> features/{target}). Move what several pages use to a shared place (analysis/, kit/, lib/, api/, ...) or add it with a reason to FEATURE_EDGES in web_pages.rs of xtask",
                 n + 1
             ));
         }
@@ -218,7 +218,7 @@ mod tests {
         let shared = "import { AnalysisCard } from \"@/features/systems/AnalysisCard\";";
         let errs = problems("web/src/features/conditions/OrbitPage.tsx", shared);
         assert_eq!(errs.len(), 1);
-        assert!(errs[0].contains("features/conditions → features/systems/AnalysisCard"));
+        assert!(errs[0].contains("features/conditions -> features/systems/AnalysisCard"));
         let listed = "import { SettingsTable } from \"@/features/project/SettingsTable\";";
         assert!(problems("web/src/features/conditions/OrbitPage.tsx", listed).is_empty());
         let own = "import { heatMapOf } from \"@/features/systems/thermal/heat\";";

@@ -15,34 +15,34 @@ pub(super) const RUST_RULES: &[(&str, &[&str], &str)] = &[
     (
         "by_role(ctx, \"",
         &["crates/app/model/src/role.rs"],
-        "部品の役割（`Role`）",
+        "part roles (`Role`)",
     ),
     (
         "any_of_roles(&[\"",
         &["crates/app/model/src/role.rs"],
-        "診断対象の役割（`Role`）",
+        "roles of diagnosed parts (`Role`)",
     ),
     (
         "SENSOR_ROLES: &[&str]",
         &["crates/app/model/src/role.rs"],
-        "センサの役割（`Role`）",
+        "sensor roles (`Role`)",
     ),
     (
         "fn system_of(",
         &["crates/app/model/src/part_system.rs"],
-        "部品の系の決定",
+        "deciding the system of a part",
     ),
     // 解析の系の一覧（`fune_model::design::AnalysisSystem`。`ALL`・`NAMES` を使う）
     (
         "\"power\", \"aocs\"",
         &["crates/app/model/src/design/analysis.rs"],
-        "解析の系の一覧（`AnalysisSystem`）",
+        "the list of analysis systems (`AnalysisSystem`)",
     ),
     // バジェットの種類の一覧（`BudgetKind::ALL`）
     (
         "\"mass\", \"power\", \"data\"",
         &["crates/app/model/src/design/defs.rs"],
-        "バジェットの種類の一覧（`BudgetKind`）",
+        "the list of budget kinds (`BudgetKind`)",
     ),
 ];
 
@@ -51,53 +51,69 @@ pub(super) const WEB_RULES: &[(&str, &[&str], &str)] = &[
     (
         "function systemTone(",
         &["web/src/lib/systems.ts"],
-        "系の色",
+        "system colours",
     ),
     (
         "const SCENE_RATIOS",
         &["web/src/features/layout3d/scene.ts"],
-        "3D の外形に対する表示寸法の比",
+        "the display size ratio against the 3D outline",
     ),
     (
         "function systemTree(",
         &["web/src/lib/design.ts"],
-        "系別の表示ツリー",
+        "the per-system display tree",
     ),
     (
         "function parentOptions(",
         &["web/src/lib/design.ts"],
-        "部品の置き場所の選択肢",
+        "the choices for where a part is placed",
     ),
-    ("Intl.NumberFormat", &["web/src/quantity/"], "数の表示"),
+    (
+        "Intl.NumberFormat",
+        &["web/src/quantity/"],
+        "number display",
+    ),
     // HTTP の呼び出しは API クライアントだけ
-    ("fetch(", &["web/src/api/client.ts"], "API クライアント"),
+    ("fetch(", &["web/src/api/client.ts"], "the API client"),
     // 問い合わせの無効化は API 層だけ（編集の後に何を読み直すかを 1 か所で決める）
-    ("invalidateQueries", &["web/src/api/"], "問い合わせの無効化"),
+    ("invalidateQueries", &["web/src/api/"], "query invalidation"),
     // 数の桁の整形は量の表示だけ（単位と桁はサーバーの sat_units::format が選ぶ）
-    ("toPrecision(", &["web/src/quantity/"], "数の整形"),
-    ("toExponential(", &["web/src/quantity/"], "数の整形"),
-    ("toFixed(", &["web/src/quantity/"], "数の整形"),
+    ("toPrecision(", &["web/src/quantity/"], "number formatting"),
+    (
+        "toExponential(",
+        &["web/src/quantity/"],
+        "number formatting",
+    ),
+    ("toFixed(", &["web/src/quantity/"], "number formatting"),
     // 読み込み中の表示は kit/feedback/Loading のスケルトンだけ（`Loading` で包み、画面読み上げにも伝える）
     (
         "@/ui/skeleton",
         &["web/src/kit/feedback/Loading.tsx"],
-        "スケルトン（読み込み中の表示）",
+        "skeletons (loading display)",
     ),
     // 系とバジェットの種類の一覧と並びは API（`DefsView.systems`・`budget_kinds`）。Web に写しを書かない
     (
         "\"power\", \"aocs\"",
         &["web/src/test/"],
-        "解析の系の一覧（API の `DefsView.systems`）",
+        "the list of analysis systems (the API's `DefsView.systems`)",
     ),
     (
         "\"mass\", \"power\", \"data\"",
         &["web/src/test/"],
-        "バジェットの種類の一覧（API の `DefsView.budget_kinds`）",
+        "the list of budget kinds (the API's `DefsView.budget_kinds`)",
     ),
     // 負の字間は欧文を半角のつまった字にする（Noto Sans JP の欧文が詰まって読みにくい）。使わない
-    ("tracking-tight", &["web/src/ui/"], "負の字間"),
-    ("tracking-tighter", &["web/src/ui/"], "負の字間"),
-    ("tracking-[-", &["web/src/ui/"], "負の字間"),
+    (
+        "tracking-tight",
+        &["web/src/ui/"],
+        "negative letter-spacing",
+    ),
+    (
+        "tracking-tighter",
+        &["web/src/ui/"],
+        "negative letter-spacing",
+    ),
+    ("tracking-[-", &["web/src/ui/"], "negative letter-spacing"),
 ];
 
 /// テスト以外のコードにだけ適用する規則（テストは手計算の値を直接書いてよい）。
@@ -109,7 +125,7 @@ pub(super) const PROD_RULES: &[(&str, &[&str], &str)] = &[
             "crates/lib/analysis/src/modes.rs",
             "web/",
         ],
-        "慣例の停止状態（`STATE_OFF`）",
+        "the conventional off state (`STATE_OFF`)",
     ),
     // 解析の表示換算を禁止する。現在の production の出現は全て判定文の換算。
     (
@@ -120,7 +136,7 @@ pub(super) const PROD_RULES: &[(&str, &[&str], &str)] = &[
             "crates/app/",
             "web/",
         ],
-        "J → Wh の表示換算（sat-units）",
+        "the J to Wh display conversion (sat-units)",
     ),
     (
         "* 100.0",
@@ -130,11 +146,15 @@ pub(super) const PROD_RULES: &[(&str, &[&str], &str)] = &[
             "crates/app/",
             "web/",
         ],
-        "比 → % の表示換算（sat-units）",
+        "the ratio to % display conversion (sat-units)",
     ),
-    ("fn to_db", &["crates/lib/units/src/"], "dB の換算"),
+    ("fn to_db", &["crates/lib/units/src/"], "dB conversion"),
     // 常用対数は dB の換算（`sat_units::ratio_to_db`）にだけ使う。テストは手計算の確かめに使ってよい
-    (".log10()", &["crates/lib/units/"], "dB の換算（常用対数）"),
+    (
+        ".log10()",
+        &["crates/lib/units/"],
+        "dB conversion (common logarithm)",
+    ),
     (
         "86_400",
         &[
@@ -142,27 +162,27 @@ pub(super) const PROD_RULES: &[(&str, &[&str], &str)] = &[
             "crates/lib/astro/src/time.rs",
             "crates/lib/units/src/",
         ],
-        "1 日の秒数（`SECONDS_PER_DAY`）",
+        "seconds per day (`SECONDS_PER_DAY`)",
     ),
     (
         "86400.0",
         &["crates/lib/astro/src/constants.rs"],
-        "1 日の秒数（`SECONDS_PER_DAY`）",
+        "seconds per day (`SECONDS_PER_DAY`)",
     ),
     (
         "R_EARTH +",
         &["crates/lib/astro/src/"],
-        "高度 → 半径の換算（`semi_major_axis_from_altitude`）",
+        "the altitude to radius conversion (`semi_major_axis_from_altitude`)",
     ),
     // 参照の所在（`Design::references`）。テストは期待値として書いてよい
     (
         "catalog.as_deref() == Some(",
         &["crates/app/model/src/design/refs.rs"],
-        "参照の索引",
+        "the reference index",
     ),
     (
         "wire.as_deref() == Some(",
         &["crates/app/model/src/design/refs.rs"],
-        "参照の索引",
+        "the reference index",
     ),
 ];

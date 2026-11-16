@@ -149,7 +149,7 @@ fn cell_text(state: &str, shares: Option<&BTreeMap<String, QuantityView>>) -> St
     if shares.is_empty() {
         state.to_owned()
     } else {
-        format!("{state}（{}）", shares.join("、"))
+        format!("{state} ({})", shares.join(", "))
     }
 }
 
