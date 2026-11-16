@@ -1,5 +1,5 @@
-# 準静的荷重と最低固有振動数（相乗りの一般的な要求の例）
-label                  = "H3 相乗り（仮）"
+# Quasi-static loads and minimum natural frequencies (an example of typical rideshare requirements)
+label                  = "Rideshare launch (provisional)"
 vehicle                = "H3"
 load_axial             = { value = 6.0, unit = "g0" }
 load_lateral           = { value = 2.0, unit = "g0" }

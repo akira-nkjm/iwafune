@@ -1,5 +1,5 @@
 kind         = "reaction_wheel"
-label        = "RW 10 mN·m·s 級"
+label        = "Reaction wheel, 10 mN·m·s class"
 manufacturer = "Example Space"
 part_number  = "RW-10"
 maturity     = "off_the_shelf"
@@ -27,7 +27,7 @@ peak = { value = 3.2, unit = "W" }
 value       = 10.0
 unit        = "mN*m*s"
 from.source = "ds_rw10"
-from.at     = "p.2 表 1"
+from.at     = "p.2 table 1"
 
 [ports]
 PWR  = "power"

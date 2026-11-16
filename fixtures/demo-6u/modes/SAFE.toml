@@ -1,5 +1,5 @@
-label       = "セーフ"
-description = "太陽指向で電力を確保。RW は止め、MTQ で B-dot。UHF ビーコンのみ"
+label       = "Safe mode"
+description = "Sun-pointing to secure power. RWs stopped, B-dot with MTQs. UHF beacon only"
 
 [states]
 CAM     = { state = "off" }

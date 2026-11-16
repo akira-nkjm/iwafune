@@ -1,6 +1,6 @@
-# ボディマウントの太陽電池パネル（2U×3U 面）。セルの面はパネル座標の +Z
+# Body-mounted solar panel (2U×3U face). The cell face is +Z in panel coordinates
 kind     = "solar_panel"
-label    = "太陽電池パネル 2U×3U（三接合 20 セル）"
+label    = "Solar panel 2U×3U (20 triple-junction cells)"
 maturity = "modified"
 source   = "ds_vendor"
 

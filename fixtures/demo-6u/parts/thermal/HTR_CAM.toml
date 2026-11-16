@@ -1,5 +1,5 @@
 kind     = "heater"
-label    = "カメラ光学系ヒータ"
+label    = "Camera optics heater"
 maturity = "off_the_shelf"
 
 [mount]

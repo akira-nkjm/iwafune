@@ -1,4 +1,4 @@
-label    = "廃棄（近地点を 250 km へ下げる）"
+label    = "Deorbit (lower perigee to 250 km)"
 category = "deorbit"
 method   = "impulsive"
 thruster = "EPT"

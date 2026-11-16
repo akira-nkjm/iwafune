@@ -1,4 +1,4 @@
 kind  = "judgement"
-label = "システム担当の見積り"
+label = "System team estimate"
 date  = "2026-11-01"
 by    = "system-lead"

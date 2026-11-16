@@ -1,4 +1,4 @@
-# 主構体。取付の根（機体座標 = この部品の座標系。原点は外形の中心、X 100 mm × Y 226 mm × Z 366 mm）
+# Primary structure. Root of the mounting tree (body frame = this part's frame; origin at the centre of the envelope, X 100 mm × Y 226 mm × Z 366 mm)
 kind     = "structure"
 maturity = "new"
 
