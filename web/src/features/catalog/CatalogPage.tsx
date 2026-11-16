@@ -20,7 +20,8 @@ import { CatalogTable } from "./CatalogTable";
 import { CatalogTree } from "./CatalogTree";
 import { CreateCatalogDialog } from "./CreateCatalogDialog";
 import { itemLabel } from "./catalog";
-import { SharedCatalogs } from "./SharedCatalogs";
+import { SharedCatalogsButton } from "./SharedCatalogsButton";
+import { neededCount, SharedCatalogsDialog, sharedOf } from "./SharedCatalogsDialog";
 import { useCatalogGrouping } from "./use-catalog-grouping";
 
 /** 表示方法（タブ）。表はモーダル、ツリーはサイドパネルに詳細を出す。タブを足すときはここと `CatalogTabs` の見出しに足す */
@@ -30,13 +31,15 @@ const VIEWS = ["tree", "table"] as const;
 type Filters = { search: string; catalog: string; kind: string };
 const NO_FILTERS: Filters = { search: "", catalog: "", kind: "" };
 
-/** カタログも同じ URL 選択で、表ではモーダル・ツリーではサイドパネルを開く。一覧の上に共有カタログの lock の状態を出す。 */
+/** カタログも同じ URL 選択で、表ではモーダル・ツリーではサイドパネルを開く。共有カタログの lock の状態は見出しのボタンからダイアログで見る。 */
 export function CatalogPage() {
   const t = useT();
   const design = useDesign();
   const route = useDetailRoute(paths.catalog(), VIEWS);
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [grouping, setGrouping] = useCatalogGrouping();
+  /** 共有カタログのダイアログを開いているか（ページの中だけの状態。URL には出さない） */
+  const [sharedOpen, setSharedOpen] = useState(false);
   return (
     <>
       <ListDetailPage
@@ -52,15 +55,11 @@ export function CatalogPage() {
             grouping={grouping}
             onGrouping={setGrouping}
             onAdd={() => route.setAdding(true)}
+            onShared={() => setSharedOpen(true)}
           />
         }
         tabs={<CatalogTabs view={route.view} grouping={grouping} />}
-        list={(d) => (
-          <>
-            <SharedCatalogs catalogs={d.project.catalogs} />
-            <CatalogList design={d} filters={filters} grouping={grouping} route={route} />
-          </>
-        )}
+        list={(d) => <CatalogList design={d} filters={filters} grouping={grouping} route={route} />}
         detail={(d, id) => {
           const item = d.catalog.find((c) => c.id === id);
           return item ? (
@@ -68,6 +67,13 @@ export function CatalogPage() {
           ) : null;
         }}
       />
+      {design.data && sharedOpen && (
+        <SharedCatalogsDialog
+          catalogs={design.data.project.catalogs}
+          open
+          onOpenChange={setSharedOpen}
+        />
+      )}
       {design.data && route.adding && (
         <CreateCatalogDialog
           design={design.data}
@@ -91,6 +97,7 @@ function CatalogHeader({
   grouping,
   onGrouping,
   onAdd,
+  onShared,
 }: {
   design?: DesignView;
   filters: Filters;
@@ -100,6 +107,8 @@ function CatalogHeader({
   grouping: CatalogGrouping;
   onGrouping: (grouping: CatalogGrouping) => void;
   onAdd: () => void;
+  /** 共有カタログのダイアログを開く */
+  onShared: () => void;
 }) {
   const t = useT();
   // 種別の選択肢は、カタログに出てくる種別だけ（表示名で並べる）
@@ -154,6 +163,11 @@ function CatalogHeader({
               options={CATALOG_GROUPINGS.map((g) => ({ value: g, label: t.catalog.groupings[g] }))}
             />
           )}
+          <SharedCatalogsButton
+            total={sharedOf(design?.project.catalogs ?? []).length}
+            needed={neededCount(design?.project.catalogs ?? [])}
+            onClick={onShared}
+          />
           <Button onClick={onAdd} disabled={!design}>
             <Plus size={14} />
             {t.catalog.add}
