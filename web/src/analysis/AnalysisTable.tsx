@@ -3,6 +3,7 @@ import { useId, useState } from "react";
 import type { AnalysisEntry, AnalysisOverview, AnalysisRunResult, DesignView } from "@/api/types";
 import { localized, useT } from "@/i18n";
 import { analysisTitle } from "@/i18n/analysis-names";
+import { Loading, SkeletonLines } from "@/kit/feedback/Loading";
 import { Pill } from "@/kit/status/Pill";
 import { VerdictPill } from "@/kit/status/VerdictPill";
 import { DataTable } from "@/kit/table/DataTable";
@@ -12,11 +13,21 @@ import { cn } from "@/lib/cn";
 import { AnalysisRowDetail } from "./AnalysisRowDetail";
 import { kpiText } from "./kpi";
 
-/** 解析の表の 1 行: 解析の定義・結果と、API が添えた概要（主な結果・判定のまとまり・棒グラフ・隠す表） */
+/** 解析の表の 1 行: 解析の定義と結果（行の中身は結果に API が添えた概要 `result.overview`） */
 export interface AnalysisTableItem {
   entry: AnalysisEntry;
   result: AnalysisRunResult;
-  overview: AnalysisOverview;
+}
+
+/** 結果がまだ無い解析の行（問い合わせ中、または問い合わせが失敗した。`error` が null なら読み込み中） */
+export interface PendingAnalysisItem {
+  id: string;
+  entry: AnalysisEntry | undefined;
+  error: string | null;
+}
+
+function isPending(item: AnalysisTableItem | PendingAnalysisItem): item is PendingAnalysisItem {
+  return !("result" in item);
 }
 
 /** 開いている行の ID の列で、`id` の開閉を入れ替える */
@@ -35,7 +46,8 @@ export function AnalysisTable({
   design,
   initialOpen = [],
 }: {
-  items: readonly AnalysisTableItem[];
+  /** 行の並び（結果の無い解析は読み込み中のスケルトンかエラーの行） */
+  items: readonly (AnalysisTableItem | PendingAnalysisItem)[];
   design?: DesignView;
   /** はじめから開いておく行（解析の ID） */
   initialOpen?: readonly string[];
@@ -54,15 +66,19 @@ export function AnalysisTable({
         </>
       }
     >
-      {items.map((item) => (
-        <AnalysisTableRow
-          key={item.result.id}
-          item={item}
-          design={design}
-          open={open.includes(item.result.id)}
-          onToggle={() => setOpen((o) => toggleOpen(o, item.result.id))}
-        />
-      ))}
+      {items.map((item) =>
+        isPending(item) ? (
+          <PendingRow key={item.id} item={item} />
+        ) : (
+          <AnalysisTableRow
+            key={item.result.id}
+            item={item}
+            design={design}
+            open={open.includes(item.result.id)}
+            onToggle={() => setOpen((o) => toggleOpen(o, item.result.id))}
+          />
+        ),
+      )}
     </DataTable>
   );
 }
@@ -84,7 +100,7 @@ export function AnalysisTableRow({
   const dict = useT();
   const t = dict.systems;
   const detailId = useId();
-  const { entry, result, overview } = item;
+  const { entry, result } = item;
   const missing = result.missing.length;
   return (
     <>
@@ -116,7 +132,7 @@ export function AnalysisTableRow({
           <Pill dot={false}>{entry.info.kind === "steady" ? t.steady : t.timeSeries}</Pill>
         </Td>
         <Td className="whitespace-normal">
-          <MainResults kpis={overview.main} />
+          <MainResults kpis={result.overview.main} />
         </Td>
         <Td>
           <RowVerdict result={result} />
@@ -132,11 +148,48 @@ export function AnalysisTableRow({
       {open && (
         <tr id={detailId}>
           <td colSpan={COLUMNS} className="px-3 pt-2 pb-4">
-            <AnalysisRowDetail result={result} overview={overview} design={design} />
+            <AnalysisRowDetail result={result} design={design} />
           </td>
         </tr>
       )}
     </>
+  );
+}
+
+/** 結果がまだ無い解析の行: 名前と ID、主な結果の欄に読み込み中のスケルトンか問い合わせのエラー（開けない） */
+function PendingRow({ item }: { item: PendingAnalysisItem }) {
+  const t = useT().systems;
+  return (
+    <tr>
+      <Td className="whitespace-normal">
+        <div className="pl-5 font-medium text-ink">{analysisTitle(item.entry?.info, item.id)}</div>
+        <div className="pl-5 font-mono text-2xs text-ink-3">{item.id}</div>
+      </Td>
+      <Td>
+        {item.entry && (
+          <Pill dot={false}>{item.entry.info.kind === "steady" ? t.steady : t.timeSeries}</Pill>
+        )}
+      </Td>
+      {item.error ? (
+        <>
+          <Td className="whitespace-normal">
+            <span className="text-neg-ink text-xs">{item.error}</span>
+          </Td>
+          <Td>
+            <Pill tone="neg">{t.status.error}</Pill>
+          </Td>
+          <Td align="right">
+            <span className="text-ink-3">—</span>
+          </Td>
+        </>
+      ) : (
+        <Td colSpan={COLUMNS - 2}>
+          <Loading>
+            <SkeletonLines lines={1} className="max-w-md" />
+          </Loading>
+        </Td>
+      )}
+    </tr>
   );
 }
 

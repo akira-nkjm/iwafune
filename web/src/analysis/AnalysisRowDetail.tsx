@@ -1,4 +1,4 @@
-import type { AnalysisOverview, AnalysisRunResult, DesignView } from "@/api/types";
+import type { AnalysisRunResult, DesignView } from "@/api/types";
 import { localized, useT } from "@/i18n";
 import { VerdictPill } from "@/kit/status/VerdictPill";
 import { ChecksList } from "./ChecksList";
@@ -17,17 +17,17 @@ export function isHiddenTable(table: Pick<FoundTable, "at">, hidden: readonly st
 /**
  * 解析の表の行を開いたところ: KPI の全部（名前・値・判定）・小さな棒グラフ・持ち主ごとの判定の文・足りない入力と、
  * 畳んだ「データを見る」（生の表。ほかの行と同じ表は API の `hidden_tables` で省く）。どの系の解析でも同じ形。
+ * 判定のまとまり・棒グラフ・隠す表は結果に API が添えた概要（`result.overview`）。
  */
 export function AnalysisRowDetail({
   result,
-  overview,
   design,
 }: {
   result: AnalysisRunResult;
-  overview: AnalysisOverview;
   design?: DesignView;
 }) {
   const dict = useT();
+  const overview = result.overview;
   const t = dict.systems.analysisTable;
   const tables = result.output
     ? collectTables(result.output).filter((x) => !isHiddenTable(x, overview.hidden_tables))

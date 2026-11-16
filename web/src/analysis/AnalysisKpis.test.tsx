@@ -73,6 +73,7 @@ const result: AnalysisRunResult = {
   labels: {},
   missing: [],
   error: null,
+  overview: { main: [], checks: [], chart: null, hidden_tables: [] },
 };
 
 const states: AnalysisState[] = [

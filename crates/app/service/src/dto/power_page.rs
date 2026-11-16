@@ -118,9 +118,8 @@ pub struct PowerChartBand {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct PowerAnalysisView {
     pub entry: super::AnalysisEntry,
+    /// 解析の結果。概要の解析の表の行（`overview`）には電源の棒グラフと隠す表が入っている（`power_page::overview`）
     pub result: super::AnalysisRunResult,
-    /// 概要の解析の表の行（主な結果・判定のまとまり・開いたときの棒グラフ・隠す表。`power_page::overview`）
-    pub overview: super::AnalysisOverview,
 }
 
 /// 電源ページの問い合わせ。省略時のケース解決は既存の解析入口に委ねる。

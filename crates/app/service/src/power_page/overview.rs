@@ -1,5 +1,6 @@
-//! 電源の概要の解析の表（`PowerAnalysisView.overview`）。主な結果と判定のまとまりは系に依らない
-//! `analysis::overview`、ここは電源の解析ごとの小さな棒グラフの選び方と、解析をまたいで同じ表だけを持つ。
+//! 電源の概要の解析の表の行（`AnalysisRunResult.overview`）に足すもの。主な結果と判定のまとまりは系に依らない
+//! `analysis::overview`（実行の結果を作るときに入る）、ここは電源の解析ごとの小さな棒グラフの選び方と、解析をまたいで
+//! 同じ表だけを持つ。
 //!
 //! | 解析 | 棒グラフ |
 //! |---|---|
@@ -11,7 +12,7 @@
 use super::presentation::{area_bar, capacity_bar, dod_bar, label};
 use crate::analysis::overview::{overview, share_of_largest};
 use crate::dto::{
-    AnalysisLabel, AnalysisOverview, AnalysisRunResult, OverviewBar, OverviewChart,
+    AnalysisEntry, AnalysisLabel, AnalysisOverview, AnalysisRunResult, OverviewBar, OverviewChart,
     OverviewReference, PowerLimitKind, PowerVerdictView,
 };
 use crate::units::quantity_auto;
@@ -40,12 +41,18 @@ const SAME_TABLES: &[(&str, &[&str], &str, &[&str])] = &[
     ),
 ];
 
-/// ページの解析の並びの順に、各解析の概要。
-pub(super) fn overviews(results: &[&AnalysisRunResult]) -> Vec<AnalysisOverview> {
-    results
-        .iter()
-        .map(|r| overview(r, chart(r), hidden_tables(r, results)))
-        .collect()
+/// 各解析の結果の概要（`overview`）に、電源の棒グラフと隠す表を入れる。
+pub(super) fn add_charts(runs: &mut [(AnalysisEntry, AnalysisRunResult)]) {
+    let added: Vec<AnalysisOverview> = {
+        let results: Vec<&AnalysisRunResult> = runs.iter().map(|(_, r)| r).collect();
+        results
+            .iter()
+            .map(|r| overview(r, chart(r), hidden_tables(r, &results)))
+            .collect()
+    };
+    for ((_, r), o) in runs.iter_mut().zip(added) {
+        r.overview = o;
+    }
 }
 
 /// 「データを見る」で隠す表（ほかの解析の行に同じ中身の表があるもの）。

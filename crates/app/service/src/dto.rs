@@ -6,6 +6,7 @@
 //! | `units` | 単位の一覧と解析 |
 //! | `aocs_modes` | AOCS の姿勢・役割別機器・モード別解析のカード |
 //! | `analysis` | 解析の一覧と実行 |
+//! | `check` | 解析の判定 1 つ（結果と概要の行で共有する葉の型） |
 //! | `display` | 解析表示の葉の型（名前・時系列） |
 //! | `power_page` | 電源ページの流れ・判定バー・グラフ・部品の表示定義 |
 //! | `flow` | 解析のフロー図（部品・条件と設定・解析のカードと、値 → 解析・解析 → 解析のつながり） |
@@ -25,6 +26,8 @@
 mod aocs_modes;
 pub use aocs_modes::*;
 mod analysis;
+mod check;
+pub use check::CheckView;
 mod display;
 pub use display::{AnalysisLabel, DisplayChannel, DisplaySeries};
 mod budget;
@@ -65,7 +68,7 @@ mod value;
 
 pub use analysis::{
     AnalysisCaseSource, AnalysisEntry, AnalysisInputSource, AnalysisRunResult, AnalysisRunStatus,
-    CheckView, RunAnalysisRequest,
+    RunAnalysisRequest,
 };
 pub use budget::{
     BudgetPropellant, BudgetRequest, BudgetRow, BudgetTotal, BudgetUncounted, BudgetView,

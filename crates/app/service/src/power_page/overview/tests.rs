@@ -15,6 +15,7 @@ fn of<'a>(page: &'a PowerPageView, id: &str) -> &'a AnalysisOverview {
         .iter()
         .find(|a| a.result.id == id)
         .unwrap()
+        .result
         .overview
 }
 
@@ -35,8 +36,13 @@ fn every_power_analysis_has_main_results_and_a_chart() {
         for a in &page.analyses {
             // 主な結果は結果の KPI の先頭（定義の順に 3 つまで）
             let n = a.result.kpis.len().min(3);
-            assert_eq!(a.overview.main, a.result.kpis[..n], "{}", a.result.id);
-            let chart = a.overview.chart.as_ref().unwrap();
+            assert_eq!(
+                a.result.overview.main,
+                a.result.kpis[..n],
+                "{}",
+                a.result.id
+            );
+            let chart = a.result.overview.chart.as_ref().unwrap();
             assert!(!chart.bars.is_empty(), "{}", a.result.id);
             for b in &chart.bars {
                 assert!((0.0..=1.0).contains(&b.fill), "{} {}", a.result.id, b.key);

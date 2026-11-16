@@ -1,6 +1,6 @@
 //! 解析の API の型。解析ごとの入出力の型は sat-analysis が定義し、そのまま TS に出す。
 
-use super::{AnalysisLabel, KpiDef, KpiView};
+use super::{AnalysisLabel, CheckView, KpiDef, KpiView};
 use fune_projection::MissingInput;
 use sat_analysis::spec::AnalysisInfo;
 use serde::{Deserialize, Serialize};
@@ -52,24 +52,6 @@ pub enum AnalysisInputSource {
     },
 }
 
-/// 解析の判定 1 つ。出力のあちこち（モードごと・ケースごとなど）にある判定を並べるので、どこにあったかを添える。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-pub struct CheckView {
-    /// 判定の種類（例: `"dod"`）。同じ解析の中でも、モードごとに同じ key が並ぶことがある
-    pub key: String,
-    pub label: String,
-    /// 英語の項目名（語彙から引いた判定だけ。null なら `label` を使う）
-    pub label_en: Option<String>,
-    pub verdict: sat_analysis::spec::Verdict,
-    pub message: String,
-    /// 英語の文（語彙から引いた判定だけ。null なら `message` を使う）
-    pub message_en: Option<String>,
-    /// 判定そのものの場所（出力の JSON Pointer。例: `"/cases/3/checks/1"`）。判定ごとに一意
-    pub at: String,
-    /// 判定の持ち主の名前（同じ階層の `label`、無ければ `id`。例: `"ダウンリンク"`）。出力の最上位なら null
-    pub scope: Option<String>,
-}
-
 /// 解析ケースの選択元。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -110,6 +92,9 @@ pub struct AnalysisRunResult {
     pub missing: Vec<MissingInput>,
     /// 解析が失敗したときの理由
     pub error: Option<String>,
+    /// 系の概要の解析の表の行（主な結果・判定のまとまり・開いたときの棒グラフ・隠す表）。主な結果と判定のまとまりは
+    /// `analysis::overview` が作り、棒グラフと隠す表は系ごとの組み立て（電源は `power_page::overview`）が足す。ほかは null と空
+    pub overview: super::AnalysisOverview,
     /// 入力に使った宇宙天気の表の版（日付で引いた宇宙天気を使った解析だけ。使わなければ欄を出さない）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]

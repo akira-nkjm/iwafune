@@ -228,3 +228,20 @@ fn catalog_lists_kpi_definitions() {
         ("最大 DoD", "Max DoD")
     );
 }
+
+/// 実行の結果は概要の解析の表の行を持つ: 主な結果は KPI の先頭（定義の順に 3 つまで）、判定の文は持ち主ごとに全部。
+/// 棒グラフと隠す表は系ごとの組み立て（電源のページ）だけが足すので、解析の入口では null と空。
+#[test]
+fn every_run_result_carries_its_overview_row() {
+    let ws = demo();
+    for entry in analysis::analysis_catalog().unwrap() {
+        let r =
+            analysis::run_analysis(&ws, &entry.info.id, &RunAnalysisRequest::default()).unwrap();
+        let n = r.kpis.len().min(3);
+        assert_eq!(r.overview.main, r.kpis[..n], "{}", r.id);
+        let grouped: usize = r.overview.checks.iter().map(|g| g.checks.len()).sum();
+        assert_eq!(grouped, r.checks.len(), "{}", r.id);
+        assert!(r.overview.chart.is_none(), "{}", r.id);
+        assert!(r.overview.hidden_tables.is_empty(), "{}", r.id);
+    }
+}

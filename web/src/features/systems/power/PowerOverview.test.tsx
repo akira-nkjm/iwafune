@@ -58,6 +58,7 @@ const result: AnalysisRunResult = {
   labels: {},
   missing: [],
   error: null,
+  overview: { main: [], checks: [], chart: null, hidden_tables: [] },
 };
 const page: PowerPageView = {
   modes,
@@ -80,7 +81,6 @@ const page: PowerPageView = {
         projectable: true,
         kpis: [],
       },
-      overview: { main: [], checks: [], chart: null, hidden_tables: [] },
     },
   ],
 };

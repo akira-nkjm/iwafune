@@ -29,6 +29,7 @@ const result: AnalysisRunResult = {
   kpis: [],
   missing: [],
   error: null,
+  overview: { main: [], checks: [], chart: null, hidden_tables: [] },
   dims: {},
   labels: {},
 };

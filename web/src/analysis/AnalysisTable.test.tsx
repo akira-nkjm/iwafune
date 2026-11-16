@@ -114,8 +114,8 @@ const item: AnalysisTableItem = {
     labels: {},
     missing: [],
     error: null,
+    overview,
   },
-  overview,
 };
 
 const missingItem: AnalysisTableItem = {
@@ -131,8 +131,8 @@ const missingItem: AnalysisTableItem = {
       { part: "BAT", path: "BAT.capacity", target: null, reason: "値がありません" },
       { part: "SAP", path: "SAP.area", target: null, reason: "値がありません" },
     ],
+    overview: { main: [], checks: [], chart: null, hidden_tables: [] },
   },
-  overview: { main: [], checks: [], chart: null, hidden_tables: [] },
 };
 
 function wrap(node: ReactNode) {

@@ -113,7 +113,7 @@ pub fn run_analysis(
             case_mode: outcome.case_mode.as_deref(),
         },
     );
-    Ok(AnalysisRunResult {
+    let mut result = AnalysisRunResult {
         checks,
         verdict,
         kpis,
@@ -128,7 +128,10 @@ pub fn run_analysis(
         dims: outcome.dims,
         labels: outcome.labels,
         space_weather: outcome.space_weather,
-    })
+        overview: crate::dto::AnalysisOverview::default(),
+    };
+    result.overview = overview::overview(&result, None, Vec::new());
+    Ok(result)
 }
 
 /// projection のケース選択を DTO に写す。上段の姿勢則専用の ID は全体に渡さない。
