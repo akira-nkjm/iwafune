@@ -1,4 +1,4 @@
-import type { CatalogItemView, PartRow } from "@/api/types";
+import type { CatalogItemView, PartRow, System } from "@/api/types";
 
 /** 表示専用の階層。item が無い節はフォルダー。 */
 export type TreeNode<T> = {
@@ -55,8 +55,18 @@ export function partsTree<T extends Pick<PartRow, "id" | "parent" | "dir" | "sys
   return roots;
 }
 
-/** カタログのツリーの分け方（`catalog` はカタログ名、`kind` は種別定義の親子、ほかは値ごと） */
-export const CATALOG_GROUPINGS = ["catalog", "manufacturer", "kind", "maturity"] as const;
+/**
+ * カタログのツリーの分け方（`catalog` はカタログ名、`kind` は種別定義の親子、`tag` はタグごと（複数のタグを持つ品は各タグの下）、
+ * `system` は API の `CatalogItemView.system`、ほかは値ごと）
+ */
+export const CATALOG_GROUPINGS = [
+  "catalog",
+  "manufacturer",
+  "kind",
+  "maturity",
+  "tag",
+  "system",
+] as const;
 export type CatalogGrouping = (typeof CATALOG_GROUPINGS)[number];
 
 /** フォルダーの見出しを作る側（Web は表示名を持たない。呼び手が API の定義から渡す） */
@@ -67,6 +77,12 @@ export type CatalogTreeLabels = {
   kind: (id: string) => string;
   /** 成熟度の表示名 */
   maturity: (value: string) => string;
+  /** 系の表示名（API の `DefsView` の系の名前） */
+  system: (id: System) => string;
+  /** タグの無い品を入れるフォルダーの見出し */
+  noTags: string;
+  /** 系の無い品（役割の無い種別）を入れるフォルダーの見出し */
+  unassigned: string;
 };
 
 /** 分け方の 1 段。`id` が null の段は「未設定」。フォルダーの key は段の id の並びから作る（文字列は分解しない） */
@@ -74,7 +90,7 @@ type Step = { id: string | null; label: string };
 
 type CatalogTreeItem = Pick<
   CatalogItemView,
-  "id" | "scope" | "name" | "kind" | "manufacturer" | "maturity"
+  "id" | "scope" | "name" | "kind" | "manufacturer" | "maturity" | "tags" | "system"
 >;
 
 /** `kind` の祖先から自身までの種別 ID（根から順。定義に無い種別は自身だけ。循環は打ち切る） */
@@ -86,6 +102,22 @@ function kindChain(kinds: ReadonlyMap<string, string | null>, kind: string): str
     parent = kinds.get(parent) ?? null;
   }
   return chain;
+}
+
+/** 品が入るフォルダーの経路（段の並び）の一覧。多くは 1 つで、`tag` は持つタグの数だけ（タグ無しは 1 つ） */
+function groupPaths(
+  item: CatalogTreeItem,
+  by: CatalogGrouping,
+  kinds: ReadonlyMap<string, string | null>,
+  labels: CatalogTreeLabels,
+): Step[][] {
+  if (by === "tag") {
+    const tags = [...new Set(item.tags)];
+    return tags.length
+      ? tags.map((tag) => [{ id: tag, label: tag }])
+      : [[{ id: null, label: labels.noTags }]];
+  }
+  return [groupPath(item, by, kinds, labels)];
 }
 
 function groupPath(
@@ -108,6 +140,14 @@ function groupPath(
         : [unset];
     case "maturity":
       return [plain(item.maturity, item.maturity && labels.maturity(item.maturity))];
+    case "system":
+      return [
+        item.system
+          ? { id: item.system, label: labels.system(item.system) }
+          : { id: null, label: labels.unassigned },
+      ];
+    case "tag":
+      return [];
   }
 }
 
@@ -125,20 +165,25 @@ export function catalogTree<T extends CatalogTreeItem>(
   const parents = new Map(kinds.map((k) => [k.id, k.parent]));
   const unsetKeys = new Set<string>();
   for (const item of items) {
-    let children = roots;
-    const ids: (string | null)[] = [];
-    for (const step of groupPath(item, by, parents, labels)) {
-      ids.push(step.id);
-      const key = `folder/${JSON.stringify(ids)}`;
-      let node = children.find((n) => n.key === key);
-      if (!node) {
-        node = { key, label: step.label, children: [] };
-        children.push(node);
-        if (step.id === null) unsetKeys.add(key);
+    const paths = groupPaths(item, by, parents, labels);
+    for (const path of paths) {
+      let children = roots;
+      const ids: (string | null)[] = [];
+      for (const step of path) {
+        ids.push(step.id);
+        const key = `folder/${JSON.stringify(ids)}`;
+        let node = children.find((n) => n.key === key);
+        if (!node) {
+          node = { key, label: step.label, children: [] };
+          children.push(node);
+          if (step.id === null) unsetKeys.add(key);
+        }
+        children = node.children;
       }
-      children = node.children;
+      // 複数のフォルダーに入る品は、フォルダーごとに key を分ける
+      const key = paths.length > 1 ? `item/${JSON.stringify(ids)}/${item.id}` : `item/${item.id}`;
+      children.push({ key, label: item.name || item.id, item, children: [] });
     }
-    children.push({ key: `item/${item.id}`, label: item.name || item.id, item, children: [] });
   }
   const rank = (node: TreeNode<T>) => (unsetKeys.has(node.key) ? 1 : 0);
   return roots.sort((a, b) => rank(a) - rank(b));

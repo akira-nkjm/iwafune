@@ -14,13 +14,19 @@ impl Design {
             .and_then(|n| n.id().parse().ok())
             .or_else(|| {
                 let part = self.parts.get(part)?;
-                let role = self.part_kind_id(part).and_then(|k| self.kind_role(k))?;
-                crate::builtin::labels()
-                    .role_system
-                    .get(&role)?
-                    .as_deref()?
-                    .parse()
-                    .ok()
+                self.kind_system(self.part_kind_id(part)?)
             })
+    }
+
+    /// 種別の系（種別の役割（継承を含む）の系。役割が無い、または役割に系が無ければ None）。
+    /// 部品の系（`system_of`）とカタログ品の系（`CatalogItemView.system`）が共有する唯一の判定
+    pub fn kind_system(&self, kind: &str) -> Option<AnalysisSystem> {
+        let role = self.kind_role(kind)?;
+        crate::builtin::labels()
+            .role_system
+            .get(&role)?
+            .as_deref()?
+            .parse()
+            .ok()
     }
 }
