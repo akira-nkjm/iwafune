@@ -1,9 +1,10 @@
 //! 解析ケース・出典・ハーネス・マヌーバの Op の解釈（ID の検査 → store の書き込み）。
 
+use super::subdir::{move_file, placed_file};
 use crate::error::OpError;
 use crate::op::Op;
 use fune_model::Design;
-use fune_model::design::Maneuver;
+use fune_model::design::{Maneuver, Source};
 use fune_model::id::{clash, validate_entity_id};
 use fune_store::Edits;
 use fune_store::layout;
@@ -23,21 +24,17 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             "Analysis case",
             id,
         ),
-        Op::SetSource { source } => {
-            let id = source.id.as_str();
-            writable_source(design, id)?;
-            set_id(design.sources.keys().map(|k| k.as_str()), id, "Source")?;
-            Ok(write_record(edits, &layout::source_file(id), source)?)
-        }
+        Op::SetSource { source, dir } => set_source(edits, design, source, dir.as_deref()),
         Op::RemoveSource { id } => writable_source(design, id).and_then(|()| {
             remove(
                 edits,
                 design.sources.contains_key(id.as_str()),
-                &layout::source_file(id),
+                &layout::source_file(design, id),
                 "Source",
                 id,
             )
         }),
+        Op::MoveSource { id, dir } => move_source(edits, design, id, dir),
         Op::SetHarness { harness } => {
             let id = harness.id.as_str();
             set_id(design.harnesses.keys().map(|k| k.as_str()), id, "Harness")?;
@@ -72,6 +69,48 @@ fn writable_source(design: &Design, id: &str) -> Result<(), OpError> {
         ))),
         None => Ok(()),
     }
+}
+
+/// 出典を書く。既にあれば今のファイルに、無ければ `dir`（`sources/` からの相対。省けば直下）の下に作る。
+fn set_source(
+    edits: &mut Edits,
+    design: &Design,
+    source: &Source,
+    dir: Option<&str>,
+) -> Result<(), OpError> {
+    let id = source.id.as_str();
+    writable_source(design, id)?;
+    set_id(design.sources.keys().map(|k| k.as_str()), id, "Source")?;
+    let current = design
+        .sources
+        .contains_key(id)
+        .then(|| layout::source_file(design, id));
+    let hint = format!("fune source mv {id} <DIR>");
+    let file = placed_file(
+        layout::SOURCES_DIR,
+        current.as_deref(),
+        dir,
+        id,
+        (&format!("Source `{id}`"), &hint),
+    )?;
+    Ok(write_record(edits, &file, source)?)
+}
+
+/// 出典を別のディレクトリへ移す（ID は変わらないので、参照は書き換えない）。
+fn move_source(edits: &mut Edits, design: &Design, id: &str, dir: &str) -> Result<(), OpError> {
+    writable_source(design, id)?;
+    if !design.sources.contains_key(id) {
+        return Err(OpError::not_found(format!("Source `{id}`")));
+    }
+    let file = layout::source_file(design, id);
+    move_file(
+        edits,
+        &format!("Source `{id}`"),
+        &file,
+        layout::SOURCES_DIR,
+        id,
+        dir,
+    )
 }
 
 fn set_maneuver(edits: &mut Edits, design: &Design, m: &Maneuver) -> Result<(), OpError> {

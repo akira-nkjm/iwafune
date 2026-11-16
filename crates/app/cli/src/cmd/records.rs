@@ -43,16 +43,28 @@ fn case_of(a: &CaseArgs) -> anyhow::Result<Case> {
     Ok(case)
 }
 
-/// `fune source set|rm`
+/// `fune source set|rm|mv`
 pub fn source(c: &SourceCmd) -> Built<'_> {
     Ok(match c {
         SourceCmd::Set(a) => Some((
             Op::SetSource {
                 source: source_of(a)?,
+                dir: a.subdir.clone(),
             },
             &a.edit,
         )),
         SourceCmd::Rm { id, edit } => Some((Op::RemoveSource { id: id.clone() }, edit)),
+        SourceCmd::Mv {
+            id,
+            target,
+            edit: opts,
+        } => Some((
+            Op::MoveSource {
+                id: id.clone(),
+                dir: target.clone(),
+            },
+            opts,
+        )),
         SourceCmd::Ls => None,
     })
 }

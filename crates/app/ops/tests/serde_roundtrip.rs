@@ -4,14 +4,18 @@
 use fune_model::Id;
 use fune_model::builtin;
 use fune_model::design::{
-    Case, CatalogField, Distribution, Harness, Maturity, Net, NetField, NetKind, PartField, Pose,
-    Source, SourceKind, UncertaintySide,
+    Case, CatalogField, Distribution, Harness, Maturity, NetField, PartField, Pose, Source,
+    SourceKind, UncertaintySide,
 };
 use fune_model::value::{
     Authored, Provenance, Quantity, Quaternion, Scalar, SettingValue, Value, Vector3,
 };
 use fune_ops::{ModeCell, Op, ViewNodePos};
 use std::collections::BTreeMap;
+
+#[path = "serde_roundtrip/samples.rs"]
+mod samples;
+use samples::{maneuver, net};
 
 /// 種類の名前（ワイルドカードを使わない。種類が増えたら見本を足す）。
 fn name(op: &Op) -> &'static str {
@@ -56,6 +60,7 @@ fn name(op: &Op) -> &'static str {
         Op::RemoveCase { .. } => "RemoveCase",
         Op::SetSource { .. } => "SetSource",
         Op::RemoveSource { .. } => "RemoveSource",
+        Op::MoveSource { .. } => "MoveSource",
         Op::SetHarness { .. } => "SetHarness",
         Op::RemoveHarness { .. } => "RemoveHarness",
         Op::CreateManeuver { .. } => "CreateManeuver",
@@ -96,14 +101,6 @@ fn by_state() -> Value {
         ("off".to_string(), cell(0.0)),
         ("on".to_string(), cell(1.2)),
     ]))
-}
-
-fn net() -> Net {
-    let mut n = Net::new("P5V_PL", NetKind::Power);
-    n.label = Some("5 V 系".into());
-    n.source = "PCDU.OUT2".parse().ok();
-    n.rail = Some(Quantity::new(5.0, "V"));
-    n
 }
 
 fn part_ops() -> Vec<Op> {
@@ -326,8 +323,15 @@ fn other_ops() -> Vec<Op> {
         Op::RemoveCase {
             id: "launch_day".into(),
         },
-        Op::SetSource { source },
+        Op::SetSource {
+            source,
+            dir: Some("datasheets".into()),
+        },
         Op::RemoveSource { id: "tvac".into() },
+        Op::MoveSource {
+            id: "tvac".into(),
+            dir: ".".into(),
+        },
         Op::SetHarness { harness },
         Op::RemoveHarness { id: "H_NEW".into() },
         Op::CreateManeuver {
@@ -383,7 +387,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 50, "some op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 51, "some op kinds have no sample: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =
@@ -393,14 +397,4 @@ fn every_op_round_trips_through_json() {
     let batch = serde_json::to_string(&ops).unwrap();
     let back: Vec<Op> = serde_json::from_str(&batch).unwrap();
     assert_eq!(back, ops);
-}
-
-/// 目標の軌道と制約を持つマヌーバ。
-fn maneuver() -> fune_model::design::Maneuver {
-    serde_json::from_value(serde_json::json!({
-        "id": "RAISE", "label": "軌道上昇", "category": "insertion", "method": "low_thrust",
-        "thruster": "EPT", "after": "LEOP", "target": { "altitude": { "value": 600.0, "unit": "km" } },
-        "constraints": { "sunlit_only": true, "mode": "THRUST" }
-    }))
-    .unwrap()
 }

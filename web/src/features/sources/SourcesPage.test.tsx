@@ -9,6 +9,7 @@ const base: SourceView = {
   kind: "datasheet",
   link: "https://example.com/rw.pdf",
   file: "sources/ds_web.toml",
+  dir: [],
   ref: "https://example.com/rw.pdf",
   revision: "Rev. C",
   retrieved: "2026-10-15",

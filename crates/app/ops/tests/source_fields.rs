@@ -36,6 +36,7 @@ fn a_new_source_writes_every_field_in_order_and_reads_back() {
         &snap,
         &[Op::SetSource {
             source: source.clone(),
+            dir: None,
         }],
     )
     .unwrap();
@@ -54,7 +55,7 @@ fn a_new_source_writes_every_field_in_order_and_reads_back() {
     );
     assert_eq!(p.design.sources["ds_rw_new"], source);
     assert_eq!(
-        to_cli(&Op::SetSource { source }),
+        to_cli(&Op::SetSource { source, dir: None }),
         vec![format!(
             "fune source set ds_rw_new --kind datasheet --label \"RW データシート\" --ref https://example.com/rw.pdf \
              --revision \"Rev. C\" --retrieved 2026-10-15 --sha256 {HASH} --distribution public --date 2026-10-01 \
@@ -76,7 +77,7 @@ fn malformed_hashes_and_dates_are_rejected() {
             ..full_source()
         },
     ] {
-        let p = plan(&snap, &[Op::SetSource { source }]);
+        let p = plan(&snap, &[Op::SetSource { source, dir: None }]);
         assert!(matches!(p, Err(OpError::Rejected { .. })), "{p:?}");
     }
 }

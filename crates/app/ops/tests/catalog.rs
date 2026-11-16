@@ -258,6 +258,7 @@ fn shared_catalog_items_are_read_only() {
                 "lab/ds_rw",
                 fune_model::design::SourceKind::Datasheet,
             ),
+            dir: None,
         },
     ] {
         match plan(&shared, &[op]) {

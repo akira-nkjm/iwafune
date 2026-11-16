@@ -91,9 +91,16 @@ impl Decoder<'_> {
         out
     }
 
-    /// カタログ品のファイル 1 つ。`dirs` はカタログのディレクトリからのディレクトリの列（置き場所だけ）。
-    /// ディレクトリ名は ID の規則に従い、同じ ID が 2 つのファイルにあれば 2 つ目を誤りにする。
-    pub(super) fn read_catalog(&mut self, path: &str, reference: &str, dirs: &[String]) -> bool {
+    /// ディレクトリの下に置けるエンティティ（カタログ品・出典）のファイル 1 つの置き場所の検査。
+    /// ディレクトリ名は ID の規則に従い、同じ ID が 2 つのファイルにあれば（`taken`）2 つ目を誤りにして false を返す。
+    /// `dir_label`・`entity` は診断の文面（`Catalog` / `Catalog item \`x\``）。
+    pub(super) fn check_location(
+        &mut self,
+        path: &str,
+        dirs: &[String],
+        (dir_label, entity): (&str, &str),
+        taken: bool,
+    ) -> bool {
         for dir in dirs {
             if let Err(e) = validate_entity_id(dir) {
                 self.diag(
@@ -101,18 +108,27 @@ impl Decoder<'_> {
                     "id.invalid",
                     path,
                     None,
-                    format!("Catalog directory `{dir}`: {e}"),
+                    format!("{dir_label} directory `{dir}`: {e}"),
                 );
             }
         }
-        if self.design.catalog.contains_key(reference) {
+        if taken {
             self.diag(
                 Severity::Error,
                 "id.duplicate",
                 path,
                 None,
-                format!("Catalog item `{reference}` is also defined in another file"),
+                format!("{entity} is also defined in another file"),
             );
+        }
+        !taken
+    }
+
+    /// カタログ品のファイル 1 つ。`dirs` はカタログのディレクトリからのディレクトリの列（置き場所だけ）。
+    pub(super) fn read_catalog(&mut self, path: &str, reference: &str, dirs: &[String]) -> bool {
+        let taken = self.design.catalog.contains_key(reference);
+        let labels = ("Catalog", &format!("Catalog item `{reference}`")[..]);
+        if !self.check_location(path, dirs, labels, taken) {
             return false;
         }
         let Some(doc) = self.parse::<CatalogDoc>(path) else {
@@ -134,6 +150,21 @@ impl Decoder<'_> {
             ports: doc.ports,
         };
         self.design.catalog.insert(reference.to_string(), item);
+        true
+    }
+
+    /// 出典のファイル 1 つ。`dirs` は `sources/` からのディレクトリの列（置き場所だけ）。
+    pub(super) fn read_source(&mut self, path: &str, id: &str, dirs: &[String]) -> bool {
+        let taken = self.design.sources.contains_key(id);
+        let labels = ("Source", &format!("Source `{id}`")[..]);
+        if !self.check_location(path, dirs, labels, taken) {
+            return false;
+        }
+        let Some(mut source) = self.parse::<fune_model::design::Source>(path) else {
+            return false;
+        };
+        source.id = Id::new(id);
+        self.design.sources.insert(Id::new(id), source);
         true
     }
 

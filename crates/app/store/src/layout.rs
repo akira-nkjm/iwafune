@@ -2,6 +2,7 @@
 //!
 //! - `parts/` の下のディレクトリは、同じ名前のファイルが無ければ Group、あればその部品（物理的な組立品）の子。
 //! - `catalog/`（`[[catalog]] path = …`）の下のディレクトリは置き場所だけ（ID はファイル名。`layout::catalog`）。
+//! - `sources/` の下のディレクトリも置き場所だけ（`layout::source`。置き場所の規則はカタログと同じ `layout::subdir`）。
 //! - `nets/`・`harness/`・`modes/` などは平らに並べる。ディレクトリが親の意味を持つのは `parts/` だけ。
 //! - `.` で始まる名前・`.fune/`・`results/`・`exports/` は読まない。`view/` は見た目だけの情報（整数の座標）。
 
@@ -70,7 +71,11 @@ pub enum FileRole {
     Net(String),
     Harness(String),
     Case(String),
-    Source(String),
+    /// `dirs` は `sources/` からのディレクトリの列（置き場所だけで、ID にも参照にも入らない）
+    Source {
+        dirs: Vec<String>,
+        id: String,
+    },
     Maneuver(String),
     /// `view/<名前>.toml`
     View(String),
@@ -105,19 +110,21 @@ pub fn classify(rel: &str, catalogs: &[(String, String)]) -> FileRole {
     if let Some(role) = catalog_role(stem_path, catalogs) {
         return role;
     }
+    if let Some((dirs, id)) = split_below(stem_path, SOURCES_DIR) {
+        return FileRole::Source { dirs, id };
+    }
     if let Some(name) = flat_child(stem_path, ANALYSIS_DIR) {
         return name
             .parse::<AnalysisSystem>()
             .map_or(FileRole::Other, FileRole::Analysis);
     }
-    let flat: [(&str, RoleOf); 10] = [
+    let flat: [(&str, RoleOf); 9] = [
         (ATTRIBUTE_DIR, FileRole::Attribute),
         (KIND_DIR, FileRole::Kind),
         (MODES_DIR, FileRole::Mode),
         (NETS_DIR, FileRole::Net),
         (HARNESS_DIR, FileRole::Harness),
         (CASES_DIR, FileRole::Case),
-        (SOURCES_DIR, FileRole::Source),
         (MANEUVERS_DIR, FileRole::Maneuver),
         (GROUND_DIR, FileRole::Ground),
         (VIEW_DIR, FileRole::View),
@@ -169,7 +176,7 @@ pub fn entity_key(role: &FileRole) -> Option<EntityKey> {
         FileRole::Net(id) => EntityKey::Net(id.clone()),
         FileRole::Harness(id) => EntityKey::Harness(id.clone()),
         FileRole::Case(id) => EntityKey::Case(id.clone()),
-        FileRole::Source(id) => EntityKey::Source(id.clone()),
+        FileRole::Source { id, .. } => EntityKey::Source(id.clone()),
         FileRole::Maneuver(id) => EntityKey::Maneuver(id.clone()),
         FileRole::View(id) => EntityKey::View(id.clone()),
         FileRole::Reserved => return None,
@@ -197,7 +204,7 @@ pub fn file_target(role: &FileRole) -> Option<Target> {
         FileRole::Net(id) => Target::net(id, None),
         FileRole::Harness(id) => Target::harness(id, None),
         FileRole::Case(id) => Target::case(id, None),
-        FileRole::Source(id) => Target::Source { id: id.clone() },
+        FileRole::Source { id, .. } => Target::Source { id: id.clone() },
         FileRole::Maneuver(id) => Target::maneuver(id, None),
         FileRole::View(id) => Target::view(id, None),
         FileRole::Conditions(id) => SettingPath::conditions(&[id]).into(),
@@ -258,9 +265,6 @@ pub fn harness_file(id: &str) -> String {
 }
 pub fn case_file(id: &str) -> String {
     format!("{CASES_DIR}/{id}.toml")
-}
-pub fn source_file(id: &str) -> String {
-    format!("{SOURCES_DIR}/{id}.toml")
 }
 pub fn maneuver_file(id: &str) -> String {
     format!("{MANEUVERS_DIR}/{id}.toml")
@@ -340,9 +344,13 @@ pub fn locate_setting(design: &Design, path: &SettingPath) -> Option<fune_model:
 }
 
 mod catalog;
+mod source;
+mod subdir;
 use catalog::catalog_role;
-pub use catalog::{
-    CatalogLocation, catalog_item_dir, catalog_item_path, catalog_location, parse_catalog_dir,
+pub use catalog::{CatalogLocation, catalog_item_dir, catalog_location};
+pub use source::{source_dir, source_file, source_path};
+pub use subdir::{
+    dir_below, dirs_text, file_in_dir, is_cacheable, parse_subdir, shared_sub_dir, split_below,
 };
 
 #[cfg(test)]
