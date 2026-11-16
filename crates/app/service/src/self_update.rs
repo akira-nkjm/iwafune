@@ -6,6 +6,7 @@
 //! | `version` | `major.minor.patch` の解析と数としての比較 |
 //! | `asset` | 成果物の名前・取得先・実行環境の選択・`.sha256` の読み方（**名前の規則はここだけ**） |
 //! | `install` | 取得 → SHA-256 の照合 → 展開 → 版の確認 → 置き換え（失敗しても何も置き換えず、一時ディレクトリを消す） |
+//! | `step` | 進行の報告（[`Step`]。表示は CLI） |
 //! | `system` | 本物の [`Host`]（`curl`・`tar`・実行中のバイナリの `--version`） |
 //!
 //! ネットワークとコマンドの実行は [`Host`] を通す。テストはこれを差し替えて、ネットワーク無しで確かめる。
@@ -13,10 +14,12 @@
 
 mod asset;
 mod install;
+mod step;
 mod system;
 mod version;
 
 pub use asset::{Platform, archive_name, dir_name, download_url, parse_sha256_file, repository};
+pub use step::{OnStep, Step};
 pub use version::Version;
 
 use crate::error::{Result, ServiceError};
@@ -27,8 +30,8 @@ use std::path::{Path, PathBuf};
 pub trait Host {
     /// `url` の本文を文字列で取る。
     fn fetch_text(&self, url: &str) -> Result<String>;
-    /// `url` を `to` に保存する。
-    fn download(&self, url: &str, to: &Path) -> Result<()>;
+    /// `url` を `to` に保存する。`progress` のときは進捗バーを出してよい（端末のときだけ CLI が求める）。
+    fn download(&self, url: &str, to: &Path, progress: bool) -> Result<()>;
     /// `.tar.gz` を `into` に展開する。
     fn extract(&self, archive: &Path, into: &Path) -> Result<()>;
     /// `binary --version` の出力（標準出力）。
@@ -94,20 +97,34 @@ pub struct UpdateOutcome {
 }
 
 /// 確かめる。`requested` は `--version` の値。
-pub fn check(requested: Option<&str>) -> Result<UpdateCheck> {
-    check_with(&Context::system()?, &system::SystemHost, requested)
+pub fn check(requested: Option<&str>, on_step: OnStep) -> Result<UpdateCheck> {
+    check_with(&Context::system()?, &system::SystemHost, requested, on_step)
 }
 
-/// 確かめて、新しければ置き換える。
-pub fn update(requested: Option<&str>) -> Result<UpdateOutcome> {
-    update_with(&Context::system()?, &system::SystemHost, requested)
+/// 確かめて、新しければ置き換える。`progress` は取得に進捗バーを出すか（端末のときだけ true にする）。
+pub fn update(requested: Option<&str>, progress: bool, on_step: OnStep) -> Result<UpdateOutcome> {
+    update_with(
+        &Context::system()?,
+        &system::SystemHost,
+        requested,
+        progress,
+        on_step,
+    )
 }
 
 /// [`check`]（前提と外部とのやり取りを渡す）。
-pub fn check_with(ctx: &Context, host: &dyn Host, requested: Option<&str>) -> Result<UpdateCheck> {
+pub fn check_with(
+    ctx: &Context,
+    host: &dyn Host,
+    requested: Option<&str>,
+    on_step: OnStep,
+) -> Result<UpdateCheck> {
     let latest = match requested {
         Some(text) => Version::parse(text)?,
-        None => latest_release(ctx, host)?,
+        None => {
+            on_step(Step::CheckingLatest);
+            latest_release(ctx, host)?
+        }
     };
     let explicit = requested.is_some();
     let file = archive_name(latest, ctx.platform);
@@ -127,8 +144,10 @@ pub fn update_with(
     ctx: &Context,
     host: &dyn Host,
     requested: Option<&str>,
+    progress: bool,
+    on_step: OnStep,
 ) -> Result<UpdateOutcome> {
-    let check = check_with(ctx, host, requested)?;
+    let check = check_with(ctx, host, requested, on_step)?;
     if !check.available {
         return Ok(UpdateOutcome {
             check,
@@ -136,7 +155,7 @@ pub fn update_with(
         });
     }
     let version = Version::parse(&check.latest)?;
-    let path = install::install(ctx, host, version)?;
+    let path = install::install(ctx, host, version, progress, on_step)?;
     Ok(UpdateOutcome {
         check,
         replaced: Some(path.display().to_string()),
