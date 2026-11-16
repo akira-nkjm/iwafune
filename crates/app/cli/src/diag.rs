@@ -44,7 +44,7 @@ fn to_report(view: &DiagnosticView) -> Report {
         _ => None,
     };
     let help = [
-        view.path.as_ref().map(|p| format!("パラメーター: {p}")),
+        view.path.as_ref().map(|p| format!("parameter: {p}")),
         location,
     ]
     .into_iter()
@@ -57,7 +57,7 @@ fn to_report(view: &DiagnosticView) -> Report {
     let Some((source, span)) = excerpt_source(view) else {
         return Report::new(diag);
     };
-    let label = view.path.clone().unwrap_or_else(|| "ここ".to_owned());
+    let label = view.path.clone().unwrap_or_else(|| "here".to_owned());
     diag = diag.with_label(LabeledSpan::new_with_span(Some(label), span));
     Report::new(diag).with_source_code(source)
 }

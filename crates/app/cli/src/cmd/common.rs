@@ -15,7 +15,7 @@ pub(crate) fn list(text: &Option<String>) -> Vec<String> {
 }
 
 /// 未設定の値の文言（service は `ValueData::Unset` と `display: null` の構造で返す）。
-pub(crate) const UNSET: &str = "未設定";
+pub(crate) const UNSET: &str = "not set";
 
 /// 値の表示文字列（未設定なら [`UNSET`]）。
 pub(crate) fn value_text(display: Option<&str>) -> String {

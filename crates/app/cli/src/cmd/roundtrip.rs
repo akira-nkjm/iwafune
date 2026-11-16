@@ -89,7 +89,7 @@ fn roundtrip(ws: &Workspace, op: &Op) {
         let cli = Cli::try_parse_from(&argv).unwrap_or_else(|e| panic!("{line}\n{e}"));
         let edit = edit_of(ws, &cli.command)
             .unwrap_or_else(|e| panic!("{line}\n{e:#}"))
-            .unwrap_or_else(|| panic!("{line} は編集のコマンドになりません"));
+            .unwrap_or_else(|| panic!("{line} does not become an edit command"));
         back.extend(edit.ops);
     }
     assert_eq!(merge(back), vec![op.clone()], "{:?}", to_cli(op));
@@ -178,5 +178,5 @@ fn every_op_survives_to_cli_and_back() {
     }
     seen.sort_unstable();
     seen.dedup();
-    assert_eq!(seen.len(), 49, "見本の無い Op の種類があります: {seen:?}");
+    assert_eq!(seen.len(), 49, "some Op kinds have no sample: {seen:?}");
 }

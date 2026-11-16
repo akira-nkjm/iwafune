@@ -18,4 +18,4 @@ expression: text
  
  [ports.PWR]
  net = "P12V"
-✔ dry-run: 1 ファイルが変わります（書き込んでいません）
+✔ dry-run: 1 files would change (nothing written)

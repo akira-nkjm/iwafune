@@ -36,7 +36,7 @@ pub fn read(ws: &Workspace, cmd: &CatalogCmd, out: &Out) -> Handled {
             return Ok(Some(0));
         }
         out.heading(&item.id);
-        let mut t = out.table(&["属性", "値"]);
+        let mut t = out.table(&["Attribute", "Value"]);
         for (attr, v) in &item.values {
             let value = super::common::value_text(v.display.as_deref());
             t.row(vec![C::Text(attr.clone()), C::Text(value)]);
@@ -53,7 +53,7 @@ pub fn read(ws: &Workspace, cmd: &CatalogCmd, out: &Out) -> Handled {
         return Ok(Some(0));
     }
     let mut t = out
-        .table(&["ID", "種別", "名前", "型番", "属性"])
+        .table(&["ID", "Kind", "Name", "Model", "Attributes"])
         .numeric(&[4]);
     for i in &items {
         t.row(vec![
@@ -74,17 +74,14 @@ fn show_sync(r: &CatalogSyncResult, out: &Out) -> anyhow::Result<()> {
         return out.json(r);
     }
     if r.catalogs.is_empty() {
-        println!(
-            "{}",
-            out.dim("共有カタログ（[[catalog]] git = …）はありません")
-        );
+        println!("{}", out.dim("No shared catalogs ([[catalog]] git = …)"));
         return Ok(());
     }
     let short = |c: &str| c.get(..SHORT_COMMIT).unwrap_or(c).to_owned();
-    let mut t = out.table(&["カタログ", "git", "rev", "commit", "前の commit"]);
+    let mut t = out.table(&["Catalog", "git", "rev", "commit", "Previous commit"]);
     for c in &r.catalogs {
         let previous = match c.previous.as_deref() {
-            Some(p) if p == c.commit => C::Dim("（同じ）".into()),
+            Some(p) if p == c.commit => C::Dim("(same)".into()),
             Some(p) => C::Text(short(p)),
             None => C::Dim("—".into()),
         };
@@ -110,9 +107,9 @@ fn show_sync(r: &CatalogSyncResult, out: &Out) -> anyhow::Result<()> {
         }
     }
     if r.lock_changed {
-        out.ok("catalog.lock を書き換えました（コミットしてください）");
+        out.ok("Rewrote catalog.lock (commit it)");
     } else {
-        out.ok("catalog.lock は変わりません");
+        out.ok("catalog.lock is unchanged");
     }
     Ok(())
 }
@@ -128,10 +125,12 @@ pub fn after_edit(cmd: &CatalogCmd, opts: &EditOpts, out: &Out) {
     }
     let text = match source {
         CatalogSourceCmd::Add { name, .. } => format!(
-            "共有カタログ `{name}` を fune.toml に足しました（まだ取得していません）。`fune catalog fetch` で取得し、catalog.lock をコミットしてください"
+            "Added shared catalog `{name}` to fune.toml (not fetched yet). Run `fune catalog fetch`, then commit catalog.lock"
         ),
         CatalogSourceCmd::Rm { name, .. } => {
-            format!("catalog.lock に `{name}` の記録があれば、次の `fune catalog fetch` で外れます")
+            format!(
+                "Any `{name}` entry in catalog.lock is dropped by the next `fune catalog fetch`"
+            )
         }
     };
     println!("{}", out.dim(text));

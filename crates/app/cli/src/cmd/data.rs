@@ -11,7 +11,7 @@ pub fn run(cmd: &DataCmd, out: &Out) -> anyhow::Result<u8> {
         DataCmd::Status => data::data_status()?,
         DataCmd::Fetch { id } => {
             let s = data::fetch(id)?;
-            out.ok(format!("{id} を取得し、SHA-256 を確かめました"));
+            out.ok(format!("Fetched {id} and verified its SHA-256"));
             s
         }
         DataCmd::SpaceWeather { date, activity } => {
@@ -29,20 +29,20 @@ fn show(s: &DataStatus, out: &Out) -> anyhow::Result<()> {
         return out.json(s);
     }
     let mut t = out
-        .table(&["ID", "状態", "大きさ", "読み込み", "場所"])
+        .table(&["ID", "State", "Size", "Loaded", "Location"])
         .numeric(&[2]);
     for item in &s.items {
         let state = match (item.present, item.verified) {
-            (false, _) => C::Dim("未取得".into()),
-            (true, Some(true)) => C::Verdict("✔ SHA-256 一致".into(), true),
-            (true, _) => C::Verdict("✖ SHA-256 不一致".into(), false),
+            (false, _) => C::Dim("not fetched".into()),
+            (true, Some(true)) => C::Verdict("✔ SHA-256 matches".into(), true),
+            (true, _) => C::Verdict("✖ SHA-256 mismatch".into(), false),
         };
         let size = item
             .size
             .as_ref()
             .map_or(C::Dim("—".into()), |q| C::Num(q.display.clone()));
         let installed = if item.installed {
-            C::Verdict("済".into(), true)
+            C::Verdict("yes".into(), true)
         } else {
             C::Dim(item.install_error.clone().unwrap_or_else(|| "—".into()))
         };
@@ -56,7 +56,7 @@ fn show(s: &DataStatus, out: &Out) -> anyhow::Result<()> {
     }
     t.print();
     for item in s.items.iter().filter(|i| !i.present) {
-        println!("{}", out.dim(format!("取得: fune data fetch {}", item.id)));
+        println!("{}", out.dim(format!("Fetch: fune data fetch {}", item.id)));
     }
     Ok(())
 }
@@ -69,14 +69,14 @@ fn show_weather(found: &SpaceWeatherLookup, out: &Out) -> anyhow::Result<()> {
     let w = &found.weather;
     let fallback = spelling(&found.fallback);
     let rows = [
-        ("F10.7（前日）", w.f107, spelling(&w.f107_source)),
-        ("F10.7（81 日平均）", w.f107a, spelling(&w.f107_source)),
-        ("Ap（日平均）", w.ap, spelling(&w.ap_source)),
+        ("F10.7 (previous day)", w.f107, spelling(&w.f107_source)),
+        ("F10.7 (81-day mean)", w.f107a, spelling(&w.f107_source)),
+        ("Ap (daily mean)", w.ap, spelling(&w.ap_source)),
     ];
-    let mut t = out.table(&["値", "", "出所"]).numeric(&[1]);
+    let mut t = out.table(&["Value", "", "Source"]).numeric(&[1]);
     for (label, value, from) in rows {
         let from = if from == "preset" {
-            format!("preset（{fallback}）")
+            format!("preset ({fallback})")
         } else {
             from
         };
@@ -91,9 +91,9 @@ fn show_weather(found: &SpaceWeatherLookup, out: &Out) -> anyhow::Result<()> {
         Some(v) => println!(
             "{}",
             out.dim(format!(
-                "表: {}（取得 {}、SHA-256 {}、実績 〜{}、予測 〜{}）",
+                "Table: {} (fetched {}, SHA-256 {}, observed to {}, predicted to {})",
                 v.source_url,
-                v.fetched_at.as_deref().unwrap_or("記録なし"),
+                v.fetched_at.as_deref().unwrap_or("not recorded"),
                 v.sha256,
                 v.last_observed_date.as_deref().unwrap_or("—"),
                 v.last_date
@@ -101,7 +101,7 @@ fn show_weather(found: &SpaceWeatherLookup, out: &Out) -> anyhow::Result<()> {
         ),
         None => println!(
             "{}",
-            out.dim("表がありません（取得: fune data fetch space_weather）")
+            out.dim("No table (fetch: fune data fetch space_weather)")
         ),
     }
     if let Some(e) = &found.load_error {

@@ -16,7 +16,7 @@ pub fn run(
 ) -> anyhow::Result<u8> {
     let host: IpAddr = host
         .parse()
-        .map_err(|_| anyhow::anyhow!("--host を IP アドレスとして解釈できません: {host}"))?;
+        .map_err(|_| anyhow::anyhow!("--host is not a valid IP address: {host}"))?;
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
@@ -31,30 +31,30 @@ pub fn run(
         } else {
             format!("http://{addr}/")
         };
-        out.ok(format!("GUI を起動しました: {url}"));
+        out.ok(format!("Started the GUI: {url}"));
         println!(
             "{}",
             out.dim(format!(
-                "プロジェクト: {}  （Ctrl-C で終了）",
+                "Project: {}  (Ctrl-C to quit)",
                 ws.root().display()
             ))
         );
         if !no_open && let Err(e) = open::that_detached(&url) {
             out.warn(format!(
-                "ブラウザを開けませんでした（{e}）。{url} を開いてください"
+                "Could not open the browser ({e}). Open {url} yourself"
             ));
         }
         if !allow_host.is_empty() {
             println!(
                 "{}",
                 out.dim(format!(
-                    "許可する Host: localhost と {}",
+                    "Allowed Host: localhost and {}",
                     allow_host.join(", ")
                 ))
             );
         }
         fune_server::serve(listener, ws, hosts).await?;
-        out.ok("終了しました");
+        out.ok("Stopped");
         anyhow::Ok(0)
     })
 }
