@@ -6,7 +6,7 @@ import { toneHex } from "@/lib/tone";
 
 /**
  * diagram-model.ts（デモの系統図の表示モデルの写し）を作り直す。表示モデル（features/diagram/model.ts）を変えたら実行する:
- *   curl -s http://127.0.0.1:8787/api/v1/design > /tmp/design.json   # fixtures/demo-6u を開いた fune gui
+ *   curl -s http://127.0.0.1:3000/api/v1/design > /tmp/design.json   # fixtures/demo-6u を開いた fune gui
  *   DESIGN_JSON=/tmp/design.json pnpm -C web exec vitest run src/test/diagram-model.gen.test.ts
  * DESIGN_JSON が無ければ何もしない（ふだんのテストでは飛ばす）。
  */

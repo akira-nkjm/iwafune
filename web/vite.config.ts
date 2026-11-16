@@ -10,8 +10,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    // `fune gui --no-open`（既定 8787。FUNE_API で変えられる）に API を任せる
-    proxy: { "/api": process.env.FUNE_API ?? "http://127.0.0.1:8787" },
+    // `fune gui --no-open`（既定 3000。FUNE_API で変えられる）に API を任せる
+    proxy: { "/api": process.env.FUNE_API ?? "http://127.0.0.1:3000" },
   },
   preview: { host: "127.0.0.1" },
   build: { chunkSizeWarningLimit: 2000 },
