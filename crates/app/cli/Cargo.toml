@@ -6,6 +6,24 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 license.workspace = true
+repository.workspace = true
+
+# cargo-binstall: install the release binary (GUI embedded) instead of building, e.g.
+# `cargo binstall --git https://github.com/akira-nkjm/iwafune fune-cli`. Asset names follow the release workflows.
+[package.metadata.binstall]
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-unknown-linux-gnu]
+pkg-url = "{ repo }/releases/download/v{ version }/fune-{ version }-x86_64-linux-gnu.tar.gz"
+bin-dir = "fune-{ version }-x86_64-linux-gnu/{ bin }{ binary-ext }"
+
+[package.metadata.binstall.overrides.aarch64-apple-darwin]
+pkg-url = "{ repo }/releases/download/v{ version }/fune-{ version }-universal-apple-darwin.tar.gz"
+bin-dir = "fune-{ version }-universal-apple-darwin/{ bin }{ binary-ext }"
+
+[package.metadata.binstall.overrides.x86_64-apple-darwin]
+pkg-url = "{ repo }/releases/download/v{ version }/fune-{ version }-universal-apple-darwin.tar.gz"
+bin-dir = "fune-{ version }-universal-apple-darwin/{ bin }{ binary-ext }"
 
 [lints]
 workspace = true
