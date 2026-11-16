@@ -14,7 +14,9 @@ pub fn ls(ws: &Workspace, cmd: &crate::args::ManeuverCmd, out: &Out) -> Handled 
         out.json(&maneuvers)?;
         return Ok(Some(0));
     }
-    let mut t = out.table(&["#", "ID", "名前", "区分", "方式", "スラスタ", "目標"]);
+    let mut t = out.table(&[
+        "#", "ID", "Name", "Category", "Method", "Thruster", "Target",
+    ]);
     for m in &maneuvers {
         let target: Vec<String> = m
             .target

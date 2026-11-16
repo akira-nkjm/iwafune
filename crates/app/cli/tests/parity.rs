@@ -44,13 +44,13 @@ fn part_edits() -> Vec<Edit> {
                 "--source",
                 "em_test_2026_10",
                 "--at",
-                "表 4",
+                "table 4",
                 "--note",
-                "EM 実測",
+                "EM measurement",
             ],
             ops: json!([{ "op": "set_value", "part": "RW_X", "attr": "mass",
                 "value": { "type": "scalar", "data": { "value": 650.0, "unit": "g" } },
-                "from": { "source": "em_test_2026_10", "at": "表 4", "note": "EM 実測" } }]),
+                "from": { "source": "em_test_2026_10", "at": "table 4", "note": "EM measurement" } }]),
         },
         Edit {
             name: "CreatePart",
@@ -161,9 +161,10 @@ fn def_edits() -> Vec<Edit> {
         Edit {
             name: "UpdateNet",
             cli: &[
-                "net", "replace", "P5V_X", "--kind", "power", "--label", "5 V 系", "--rail", "5 V",
+                "net", "replace", "P5V_X", "--kind", "power", "--label", "5 V rail", "--rail",
+                "5 V",
             ],
-            ops: json!([{ "op": "update_net", "net": { "id": "P5V_X", "kind": "power", "label": "5 V 系",
+            ops: json!([{ "op": "update_net", "net": { "id": "P5V_X", "kind": "power", "label": "5 V rail",
                 "rail": { "value": 5.0, "unit": "V" } } }]),
         },
         Edit {
@@ -188,10 +189,10 @@ fn case_edits() -> Vec<Edit> {
         Edit {
             name: "SetCase",
             cli: &[
-                "case", "set", "hot_new", "--label", "高温", "--mode", "MISSION", "--beta",
+                "case", "set", "hot_new", "--label", "Hot", "--mode", "MISSION", "--beta",
                 "60 deg", "--orbits", "3",
             ],
-            ops: json!([{ "op": "set_case", "case": { "id": "hot_new", "label": "高温", "mode": "MISSION",
+            ops: json!([{ "op": "set_case", "case": { "id": "hot_new", "label": "Hot", "mode": "MISSION",
                 "beta": { "value": 60.0, "unit": "deg" }, "orbits": 3 } }]),
         },
         Edit {
@@ -203,7 +204,7 @@ fn case_edits() -> Vec<Edit> {
                 "--kind",
                 "datasheet",
                 "--label",
-                "新しいデータシート",
+                "New datasheet",
                 "--ref",
                 "https://example.com/a.pdf",
                 "--revision",
@@ -216,7 +217,7 @@ fn case_edits() -> Vec<Edit> {
                 "on_request",
             ],
             ops: json!([{ "op": "set_source", "source": { "id": "ds_new", "kind": "datasheet",
-                "label": "新しいデータシート", "ref": "https://example.com/a.pdf", "revision": "Rev. C",
+                "label": "New datasheet", "ref": "https://example.com/a.pdf", "revision": "Rev. C",
                 "retrieved": "2026-10-15",
                 "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
                 "distribution": "on_request" } }]),
@@ -255,7 +256,7 @@ fn schema_edits() -> Vec<Edit> {
                 "add",
                 "max_dipole2",
                 "--label",
-                "最大双極子 2",
+                "Max dipole 2",
                 "--type",
                 "scalar",
                 "--dimension",
@@ -263,7 +264,7 @@ fn schema_edits() -> Vec<Edit> {
                 "--units",
                 "A*m^2",
             ],
-            ops: json!([{ "op": "create_attribute", "def": { "id": "max_dipole2", "label": "最大双極子 2",
+            ops: json!([{ "op": "create_attribute", "def": { "id": "max_dipole2", "label": "Max dipole 2",
                 "type": "scalar", "dimension": "MagneticDipoleMoment", "units": ["A*m^2"] } }]),
         },
         Edit {
@@ -273,13 +274,13 @@ fn schema_edits() -> Vec<Edit> {
                 "add",
                 "wire2",
                 "--label",
-                "線材 2",
+                "Wire 2",
                 "--states",
                 "off,on",
                 "--required",
                 "mass",
             ],
-            ops: json!([{ "op": "create_kind", "def": { "id": "wire2", "label": "線材 2",
+            ops: json!([{ "op": "create_kind", "def": { "id": "wire2", "label": "Wire 2",
                 "states": ["off", "on"], "required": ["mass"] } }]),
         },
     ]
@@ -303,7 +304,7 @@ fn cli_and_http_write_identical_files() {
     assert_ne!(
         before,
         snapshot_files(&cli_root),
-        "編集でファイルが変わっていません"
+        "the edit did not change the files"
     );
 }
 

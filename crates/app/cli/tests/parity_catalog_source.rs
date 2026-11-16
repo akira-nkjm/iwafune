@@ -87,12 +87,12 @@ fn add_and_remove_match_cli() {
     assert_eq!(
         std::fs::read(cli_root.join("fune.toml")).unwrap(),
         original,
-        "足して外すと元に戻る"
+        "adding then removing restores the original"
     );
     run_cli(&cli_root, &["fmt", "--check"]);
 }
 
-/// 足したあとは取得の案内を出す（足すだけでは取得しない）。
+/// 足したあとは取得の案内を出す（adding alone does not fetch）。
 #[test]
 fn add_prints_the_fetch_hint() {
     let (_t, root) = demo_copy();
@@ -114,7 +114,7 @@ fn add_prints_the_fetch_hint() {
     assert!(stdout.contains("fune catalog fetch"), "{stdout}");
     assert!(
         !root.join("catalog.lock").exists(),
-        "足すだけでは取得しない"
+        "adding alone does not fetch"
     );
 }
 

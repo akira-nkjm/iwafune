@@ -82,7 +82,7 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
                 return Ok(code);
             }
             let Some(e) = ops::edit_of(&ws, command)? else {
-                anyhow::bail!("このコマンドはここでは扱いません");
+                anyhow::bail!("this command is not handled here");
             };
             let code = edit::run_ops(&ws, e.ops, e.opts, out)?;
             if let Command::Catalog(c) = command {

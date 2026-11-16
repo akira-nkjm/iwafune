@@ -94,7 +94,7 @@ pub fn ops_from_file(file: &std::path::Path) -> anyhow::Result<Vec<Op>> {
         std::fs::read_to_string(file)?
     };
     serde_json::from_str(&text)
-        .map_err(|e| anyhow::anyhow!("{}: Op の配列として読めません: {e}", file.display()))
+        .map_err(|e| anyhow::anyhow!("{}: cannot read as an array of Ops: {e}", file.display()))
 }
 
 /// `fune part place <ID> --body-pos "x y z mm" [--body-rot "w x y z"]` → 機体座標から直した `Place`。

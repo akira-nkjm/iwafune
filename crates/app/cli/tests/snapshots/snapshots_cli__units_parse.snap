@@ -2,6 +2,6 @@
 source: crates/app/cli/tests/snapshots_cli.rs
 expression: "stdout(&[\"units\", \"parse\", \"18 mN*m*s\", \"--dimension\", \"AngularMomentum\"])"
 ---
- 入力          次元              SI             
+ Input         Dimension         SI             
 ────────────────────────────────────────────────
  18.0 mN·m·s   AngularMomentum   0.0180 m²·kg/s

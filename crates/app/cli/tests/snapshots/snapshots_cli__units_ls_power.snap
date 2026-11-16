@@ -2,9 +2,9 @@
 source: crates/app/cli/tests/snapshots_cli.rs
 expression: "stdout(&[\"units\", \"ls\", \"--dimension\", \"Power\"])"
 ---
- 記号   次元    SI 換算     種類 
-─────────────────────────────────
- W      Power      × 1.00        
- dBm    Power   × 0.00100   対数 
- dBW    Power      × 1.00   対数 
-3 単位
+ Symbol   Dimension   SI conversion   Kind        
+──────────────────────────────────────────────────
+ W        Power              × 1.00               
+ dBm      Power           × 0.00100   logarithmic 
+ dBW      Power              × 1.00   logarithmic 
+3 units

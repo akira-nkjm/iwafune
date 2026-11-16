@@ -24,12 +24,12 @@ fn ls(dimension: Option<String>, out: &Out) -> anyhow::Result<u8> {
         out.json(&catalog)?;
         return Ok(0);
     }
-    let mut t = out.table(&["記号", "次元", "SI 換算", "種類"]);
+    let mut t = out.table(&["Symbol", "Dimension", "SI conversion", "Kind"]);
     for u in &catalog.units {
         let kind = match u.mapping {
             UnitMapping::Linear => "",
             UnitMapping::Affine => "affine",
-            UnitMapping::Logarithmic => "対数",
+            UnitMapping::Logarithmic => "logarithmic",
         };
         let factor = if u.offset == 0.0 {
             format!("× {}", u.scale_text)
@@ -44,7 +44,7 @@ fn ls(dimension: Option<String>, out: &Out) -> anyhow::Result<u8> {
         ]);
     }
     t.print();
-    println!("{}", out.dim(format!("{} 単位", catalog.units.len())));
+    println!("{}", out.dim(format!("{} units", catalog.units.len())));
     Ok(0)
 }
 
@@ -58,7 +58,7 @@ fn parse(input: &str, dimension: Option<String>, out: &Out) -> anyhow::Result<u8
         return Ok(0);
     }
     let q = &r.quantity;
-    let mut t = out.table(&["入力", "次元", "SI"]);
+    let mut t = out.table(&["Input", "Dimension", "SI"]);
     t.row(vec![
         C::Num(q.display.clone()),
         C::Text(q.dimension.clone()),
@@ -84,7 +84,7 @@ fn format(values: &[f64], dimension: &str, unit: Option<&str>, out: &Out) -> any
         out.json(&r)?;
         return Ok(0);
     }
-    let mut t = out.table(&["SI", "表示"]).numeric(&[0, 1]);
+    let mut t = out.table(&["SI", "Display"]).numeric(&[0, 1]);
     for (si, f) in values.iter().zip(&r.items) {
         t.row(vec![C::Num(format!("{si:e}")), C::Num(f.display.clone())]);
     }

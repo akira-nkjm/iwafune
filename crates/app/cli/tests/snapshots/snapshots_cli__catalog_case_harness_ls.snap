@@ -2,31 +2,31 @@
 source: crates/app/cli/tests/snapshots_cli.rs
 expression: text
 ---
- ID                  種別             名前                                          型番       属性 
-────────────────────────────────────────────────────────────────────────────────────────────────────
- local/awg24_ptfe    wire             AWG24 PTFE 被覆線                                           3 
- local/bat_2s2p      battery          Li-ion 18650 2S2P                             BAT-2S2P     10 
- local/cam_ms_5m     camera           マルチスペクトルカメラ 5 m 級                 MSC-5        10 
- local/fss_60        sun_sensor       精太陽センサ（視野 ±60°）                     FSS-60        7 
- local/gps_l1        gps              GPS L1 受信機（アンテナ込み）                 GPS-L1        6 
- local/mtq_0p2       magnetorquer     磁気トルカ 0.2 A·m² 級                        MTQ-02        7 
- local/obc_m7        obc              OBC（Cortex-M7）                              OBC-M7        7 
- local/pcdu_6u       pcdu             PCDU（6U 用、MPPT 4 系統）                    PCDU-6U       7 
- local/rw_10mNms     reaction_wheel   RW 10 mN·m·s 級                               RW-10        10 
- local/sband_tx_2m   transceiver      S バンド送信機 2 Mbps（パッチアンテナ込み）   STX-2M       10 
- local/sp_1u3u       solar_panel      太陽電池パネル 1U×3U（三接合 8 セル）                      10 
- local/sp_2u3u       solar_panel      太陽電池パネル 2U×3U（三接合 20 セル）                     10 
- local/stt_nano      star_tracker     小型スタートラッカ                            ST-NANO      11 
- local/tj_cell_30    solar_panel      三接合セル 30 cm²                             TJ-30         7 
- local/uhf_trx_9k6   transceiver      UHF 送受信機 9600 bps（アンテナ込み）         UTRX-96      14 
+ ID                  Kind             Name                                          Model      Attributes 
+──────────────────────────────────────────────────────────────────────────────────────────────────────────
+ local/awg24_ptfe    wire             AWG24 PTFE 被覆線                                                 3 
+ local/bat_2s2p      battery          Li-ion 18650 2S2P                             BAT-2S2P           10 
+ local/cam_ms_5m     camera           マルチスペクトルカメラ 5 m 級                 MSC-5              10 
+ local/fss_60        sun_sensor       精太陽センサ（視野 ±60°）                     FSS-60              7 
+ local/gps_l1        gps              GPS L1 受信機（アンテナ込み）                 GPS-L1              6 
+ local/mtq_0p2       magnetorquer     磁気トルカ 0.2 A·m² 級                        MTQ-02              7 
+ local/obc_m7        obc              OBC（Cortex-M7）                              OBC-M7              7 
+ local/pcdu_6u       pcdu             PCDU（6U 用、MPPT 4 系統）                    PCDU-6U             7 
+ local/rw_10mNms     reaction_wheel   RW 10 mN·m·s 級                               RW-10              10 
+ local/sband_tx_2m   transceiver      S バンド送信機 2 Mbps（パッチアンテナ込み）   STX-2M             10 
+ local/sp_1u3u       solar_panel      太陽電池パネル 1U×3U（三接合 8 セル）                            10 
+ local/sp_2u3u       solar_panel      太陽電池パネル 2U×3U（三接合 20 セル）                           10 
+ local/stt_nano      star_tracker     小型スタートラッカ                            ST-NANO            11 
+ local/tj_cell_30    solar_panel      三接合セル 30 cm²                             TJ-30               7 
+ local/uhf_trx_9k6   transceiver      UHF 送受信機 9600 bps（アンテナ込み）         UTRX-96            14 
 
- ID              名前                 モード    ファイル                 
+ ID              Name                 Modes     File                     
 ─────────────────────────────────────────────────────────────────────────
  cold_safe       低温（セーフ）       SAFE      cases/cold_safe.toml     
  eclipse_worst   日陰最長（β = 0°）   NOMINAL   cases/eclipse_worst.toml 
  hot_imaging     高温（撮像）         MISSION   cases/hot_imaging.toml   
 
- ID           から        まで       ネット   長さ    
+ ID           From        To         Nets     Length  
 ──────────────────────────────────────────────────────
  H_OBC_CAM    OBC.SPW1    CAM.DATA   SPW_PL   0.280 m 
  H_PCDU_RWX   PCDU.OUT3   RW_X.PWR   P12V     0.350 m

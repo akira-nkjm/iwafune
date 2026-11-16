@@ -11,7 +11,7 @@ use fune_service::edit;
 /// serde の綴り（snake_case）から列挙を読む。
 fn enum_of<T: std::str::FromStr>(text: &str, what: &str) -> anyhow::Result<T> {
     text.parse()
-        .map_err(|_| anyhow::anyhow!("{what} として読めません: {text}"))
+        .map_err(|_| anyhow::anyhow!("cannot read as {what}: {text}"))
 }
 
 /// `fune case set|rm`
@@ -33,7 +33,7 @@ fn case_of(a: &CaseArgs) -> anyhow::Result<Case> {
         "orbits": a.orbits,
     });
     let mut case: Case = serde_json::from_value(value)
-        .map_err(|e| anyhow::anyhow!("解析ケースを作れません: {e}"))?;
+        .map_err(|e| anyhow::anyhow!("Cannot create the analysis case: {e}"))?;
     case.id = a.id.as_str().into();
     case.beta = a
         .beta
@@ -62,7 +62,7 @@ fn source_of(a: &SourceArgs) -> anyhow::Result<Source> {
         id: a.id.as_str().into(),
         kind: enum_of(
             &a.kind,
-            "出典の種類（placeholder / judgement / analysis / datasheet / measured）",
+            "source kind (placeholder / judgement / analysis / datasheet / measured)",
         )?,
         label: a.label.clone(),
         reference: a.reference.clone(),
@@ -72,7 +72,7 @@ fn source_of(a: &SourceArgs) -> anyhow::Result<Source> {
         distribution: a
             .distribution
             .as_deref()
-            .map(|d| enum_of(d, "配布の区分（public / on_request / restricted）"))
+            .map(|d| enum_of(d, "distribution class (public / on_request / restricted)"))
             .transpose()?,
         date: a.date.clone(),
         by: a.by.clone(),
@@ -238,7 +238,7 @@ fn catalog_set<'a>(
         edit: opts,
     } = c
     else {
-        anyhow::bail!("catalog set ではありません");
+        anyhow::bail!("not a catalog set");
     };
     let text = edit::SetText {
         item: Some(id.clone()),
