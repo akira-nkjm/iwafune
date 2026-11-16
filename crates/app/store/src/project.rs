@@ -99,7 +99,7 @@ fn template_design(name: &str) -> (Project, Allocations, BudgetPolicy, Mode) {
     let safe = Mode {
         id: Id::new("SAFE"),
         label: None,
-        description: Some("最小限の機器だけを動かす".to_owned()),
+        description: Some("Run only the minimum equipment".to_owned()),
         states: BTreeMap::new(),
 
         max_duration: None,
@@ -187,7 +187,7 @@ mod tests {
             ),
             (
                 "modes/SAFE.toml",
-                "description = \"最小限の機器だけを動かす\"\n\n[states]\n",
+                "description = \"Run only the minimum equipment\"\n\n[states]\n",
             ),
         ];
         assert_eq!(files.len(), expected.len(), "{:?}", files.keys());

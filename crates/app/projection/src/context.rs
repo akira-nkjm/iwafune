@@ -103,7 +103,10 @@ impl<'a> Context<'a> {
                 Some(c) => Some(c),
                 None => {
                     let mut m = MissingInputs::new();
-                    m.push(Target::case(id, None), "指定した解析ケースがありません");
+                    m.push(
+                        Target::case(id, None),
+                        "The specified analysis case does not exist",
+                    );
                     return Err(m);
                 }
             },
@@ -135,7 +138,7 @@ impl<'a> Context<'a> {
         if ground.is_empty() {
             m.push(
                 SettingPath::conditions(&["ground"]),
-                "地上局（conditions/ground/<ID>.toml）",
+                "Ground station (conditions/ground/<id>.toml)",
             );
         }
         let chosen: Vec<&String> = if ids.is_empty() {
@@ -149,19 +152,25 @@ impl<'a> Context<'a> {
                 self.note(SettingPath::conditions(&["ground", id]));
                 let Some(g) = ground.get(id) else {
                     let target = SettingPath::conditions(&["ground", id]);
-                    m.push(target, "地上局の設定がありません");
+                    m.push(target, "No ground station settings");
                     return None;
                 };
                 let at = [id.as_str()];
                 // 標高と最低仰角は書かれていなければ None（慣例の値は `GroundStation::with_defaults`）。
                 Some(GroundStation::with_defaults(
                     id.clone(),
-                    setting(&dims::GROUND_LATITUDE, &at, g.latitude.as_ref(), "緯度", m)?,
+                    setting(
+                        &dims::GROUND_LATITUDE,
+                        &at,
+                        g.latitude.as_ref(),
+                        "Latitude",
+                        m,
+                    )?,
                     setting(
                         &dims::GROUND_LONGITUDE,
                         &at,
                         g.longitude.as_ref(),
-                        "経度",
+                        "Longitude",
                         m,
                     )?,
                     setting_opt(&dims::GROUND_ALTITUDE, &at, g.altitude.as_ref(), m),
@@ -196,7 +205,7 @@ impl<'a> Context<'a> {
             let target = mode.map_or_else(|| law.clone(), |id| law.child(&[id]));
             m.push(
                 target,
-                "モードの姿勢則を一意に選べません。対象モードの姿勢則を指定してください",
+                "Cannot pick the attitude law of the mode uniquely. Specify the attitude law of the target mode",
             );
             return None;
         };

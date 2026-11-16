@@ -32,8 +32,8 @@ fn settings<'a>(ctx: &'a Context<'_>) -> Option<&'a fune_model::design::AocsSett
 pub fn wheels(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<RwWheel> {
     let out: Vec<RwWheel> = by_role(ctx, Role::ReactionWheel)
         .filter_map(|p| {
-            let why = "リアクションホイールの値";
-            let axis = direction_body(ctx, p, "spin_axis", "回転軸（部品座標）", m);
+            let why = "Reaction wheel values";
+            let axis = direction_body(ctx, p, "spin_axis", "Spin axis (part frame)", m);
             let h = parts::part_qty::<AngularMomentum>(ctx, p, "max_momentum", why, m);
             let t = parts::part_qty::<Torque>(ctx, p, "max_torque", why, m);
             Some(RwWheel {
@@ -47,7 +47,7 @@ pub fn wheels(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<RwWheel> {
     if out.is_empty() {
         m.push(
             Target::any_of_roles(&[Role::ReactionWheel], None),
-            "リアクションホイール（role = reaction_wheel）の部品がありません",
+            "No reaction wheel part (role = reaction_wheel)",
         );
     }
     out
@@ -108,8 +108,8 @@ pub(crate) fn reference_box(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<
             m.push(
                 Target::any_part("size"),
                 format!(
-                    "機体外形の候補が複数あり曖昧です（{}）。取付関係を指定してください",
-                    ids.join("、")
+                    "The body outline is ambiguous: several candidates ({}). Specify the mount relation",
+                    ids.join(", ")
                 ),
             );
             return None;
@@ -173,12 +173,12 @@ pub fn unload_time(ctx: &Context<'_>) -> Result<UnloadTimeInput, MissingInputs> 
         .filter_map(|p| {
             Some(UnloadTimeMtq {
                 id: p.id.clone(),
-                axis: direction_body(ctx, p, "axis", "双極子の向き（部品座標）", &mut m)?,
+                axis: direction_body(ctx, p, "axis", "Dipole direction (part frame)", &mut m)?,
                 max_dipole: parts::part_qty::<MagneticDipoleMoment>(
                     ctx,
                     p,
                     "max_dipole",
-                    "MTQ の値",
+                    "Magnetorquer values",
                     &mut m,
                 )?,
             })
@@ -234,7 +234,13 @@ pub fn sensor_fov_for_mode(
         .filter_map(|p| {
             Some(SensorFovSensor {
                 id: p.id.clone(),
-                boresight: direction_body(ctx, p, "boresight", "視線の向き（部品座標）", &mut m)?,
+                boresight: direction_body(
+                    ctx,
+                    p,
+                    "boresight",
+                    "Boresight direction (part frame)",
+                    &mut m,
+                )?,
                 fov_half_angle: angle(p, "fov_half_angle"),
                 exclusion_sun: angle(p, "exclusion_sun"),
                 exclusion_earth: angle(p, "exclusion_earth"),
@@ -246,7 +252,7 @@ pub fn sensor_fov_for_mode(
     if sensors.is_empty() {
         m.push(
             Target::any_of_roles(SENSOR_ROLES, Some("boresight")),
-            "視線を持つセンサ（role = star_tracker / sun_sensor / camera）がありません",
+            "No sensor with a boresight (role = star_tracker / sun_sensor / camera)",
         );
     }
     m.finish(|| {
@@ -267,7 +273,7 @@ pub fn slew_time(ctx: &Context<'_>) -> Result<SlewTimeInput, MissingInputs> {
         &dims::AOCS_SLEW_ANGLE,
         &[],
         s.and_then(|s| s.slew_angle.as_ref()),
-        "姿勢変更の角度",
+        "Slew angle",
         &mut m,
     );
     let required_time = setting_opt(

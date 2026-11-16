@@ -13,20 +13,20 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
     match op {
         Op::SetCase { case } => {
             let id = case.id.as_str();
-            set_id(design.cases.keys().map(|k| k.as_str()), id, "解析ケース")?;
+            set_id(design.cases.keys().map(|k| k.as_str()), id, "Analysis case")?;
             Ok(write_record(edits, &layout::case_file(id), case)?)
         }
         Op::RemoveCase { id } => remove(
             edits,
             design.cases.contains_key(id.as_str()),
             &layout::case_file(id),
-            "解析ケース",
+            "Analysis case",
             id,
         ),
         Op::SetSource { source } => {
             let id = source.id.as_str();
             writable_source(design, id)?;
-            set_id(design.sources.keys().map(|k| k.as_str()), id, "出典")?;
+            set_id(design.sources.keys().map(|k| k.as_str()), id, "Source")?;
             Ok(write_record(edits, &layout::source_file(id), source)?)
         }
         Op::RemoveSource { id } => writable_source(design, id).and_then(|()| {
@@ -34,32 +34,32 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
                 edits,
                 design.sources.contains_key(id.as_str()),
                 &layout::source_file(id),
-                "出典",
+                "Source",
                 id,
             )
         }),
         Op::SetHarness { harness } => {
             let id = harness.id.as_str();
-            set_id(design.harnesses.keys().map(|k| k.as_str()), id, "ハーネス")?;
+            set_id(design.harnesses.keys().map(|k| k.as_str()), id, "Harness")?;
             Ok(write_record(edits, &layout::harness_file(id), harness)?)
         }
         Op::RemoveHarness { id } => remove(
             edits,
             design.harnesses.contains_key(id.as_str()),
             &layout::harness_file(id),
-            "ハーネス",
+            "Harness",
             id,
         ),
         Op::CreateManeuver { maneuver } => {
             let id = maneuver.id.as_str();
             if design.maneuvers.contains_key(id) {
-                return Err(OpError::exists(format!("マヌーバ `{id}`")));
+                return Err(OpError::exists(format!("Maneuver `{id}`")));
             }
             set_maneuver(edits, design, maneuver)
         }
         Op::SetManeuver { maneuver } => set_maneuver(edits, design, maneuver),
         Op::RemoveManeuver { id } => remove_maneuver(edits, design, id),
-        _ => Err(OpError::invalid("この Op はここでは扱いません")),
+        _ => Err(OpError::invalid("This op is not handled here")),
     }
 }
 
@@ -67,7 +67,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
 fn writable_source(design: &Design, id: &str) -> Result<(), OpError> {
     match design.shared_catalog_of(id) {
         Some(c) => Err(OpError::invalid(format!(
-            "出典 `{id}` は共有カタログ `{}` の出典なので、このプロジェクトからは書き換えられません。共有カタログのリポジトリに PR を出してください",
+            "Source `{id}` belongs to shared catalog `{}`, so it cannot be edited from this project. Open a PR on the shared catalog repository",
             c.name
         ))),
         None => Ok(()),
@@ -76,7 +76,7 @@ fn writable_source(design: &Design, id: &str) -> Result<(), OpError> {
 
 fn set_maneuver(edits: &mut Edits, design: &Design, m: &Maneuver) -> Result<(), OpError> {
     let id = m.id.as_str();
-    set_id(design.maneuvers.keys().map(|k| k.as_str()), id, "マヌーバ")?;
+    set_id(design.maneuvers.keys().map(|k| k.as_str()), id, "Maneuver")?;
     let file = layout::maneuver_file(id);
     Ok(write_record_with_sections(
         edits,
@@ -89,7 +89,7 @@ fn set_maneuver(edits: &mut Edits, design: &Design, m: &Maneuver) -> Result<(), 
 /// マヌーバを消し、それを `after` にしていたマヌーバを、消したマヌーバの `after` につなぎ直す。
 fn remove_maneuver(edits: &mut Edits, design: &Design, id: &str) -> Result<(), OpError> {
     let Some(gone) = design.maneuvers.get(id) else {
-        return Err(OpError::not_found(format!("マヌーバ `{id}`")));
+        return Err(OpError::not_found(format!("Maneuver `{id}`")));
     };
     edits.remove(&layout::maneuver_file(id))?;
     for m in design
@@ -121,7 +121,7 @@ fn set_id<'a>(
     }
     match clash(existing, id) {
         Some(other) => Err(OpError::exists(format!(
-            "{what} `{id}`（`{other}` と大文字小文字だけが違います）"
+            "{what} `{id}` (differs from `{other}` only in letter case)"
         ))),
         None => Ok(()),
     }

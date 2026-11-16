@@ -152,7 +152,7 @@ pub fn total_mass(ctx: &Context<'_>, p: &ResolvedPart) -> Option<f64> {
 pub fn mass_or_missing(ctx: &Context<'_>, p: &ResolvedPart, m: &mut MissingInputs) -> Option<f64> {
     let mass = ctx.scalar(p, "mass");
     if mass.is_none() && p.attr.contains_key("mass") {
-        m.push(Target::attr(&p.id, "mass"), "部品の質量");
+        m.push(Target::attr(&p.id, "mass"), "Part mass");
     }
     mass
 }

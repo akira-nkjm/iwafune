@@ -123,7 +123,7 @@ impl Decoder<'_> {
                 "id.duplicate",
                 path,
                 None,
-                format!("部品 `{id}` は別のファイルにもあります"),
+                format!("Part `{id}` is also defined in another file"),
             );
             return;
         }

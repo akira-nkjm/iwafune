@@ -116,7 +116,7 @@ fn propellant_is_omitted_with_a_reason() {
         panic!("{:?}", no_maneuver.propellant);
     };
     assert!(
-        missing.iter().any(|m| m.reason.contains("マヌーバ")),
+        missing.iter().any(|m| m.reason.contains("Maneuver")),
         "{missing:?}"
     );
     for kind in [BudgetKind::Power, BudgetKind::Data] {

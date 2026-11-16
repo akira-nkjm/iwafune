@@ -51,10 +51,13 @@ pub fn mode_load_input(ctx: &Context<'_>, m: &mut MissingInputs) -> ModeLoadInpu
         })
         .collect();
     if parts.is_empty() {
-        m.push(Target::any_part("power"), "消費電力を持つ部品がありません");
+        m.push(
+            Target::any_part("power"),
+            "No part with a power consumption",
+        );
     }
     if ctx.design.modes.is_empty() {
-        m.push(Target::Modes, "運用モード（modes/<ID>.toml）");
+        m.push(Target::Modes, "Operating modes (modes/<id>.toml)");
     }
     ModeLoadInput {
         parts,
@@ -67,10 +70,16 @@ pub fn mode_load_input(ctx: &Context<'_>, m: &mut MissingInputs) -> ModeLoadInpu
 pub fn solar_array(ctx: &Context<'_>, m: &mut MissingInputs) -> SolarArray {
     let panels: Vec<SolarPanel> = by_role(ctx, Role::SolarPanel)
         .filter_map(|p| {
-            let why = "太陽電池パネルの値";
+            let why = "Solar panel values";
             let area = parts::extensive_qty::<Area>(ctx, p, "area", why, m);
             let eff = ratio(ctx, p, "cell_efficiency", why, m);
-            let normal = direction_body(ctx, p, "normal", "発電面の法線（部品座標）", m);
+            let normal = direction_body(
+                ctx,
+                p,
+                "normal",
+                "Generating-surface normal (part frame)",
+                m,
+            );
             Some(SolarPanel {
                 id: p.id.clone(),
                 area: area?,
@@ -84,7 +93,7 @@ pub fn solar_array(ctx: &Context<'_>, m: &mut MissingInputs) -> SolarArray {
     if panels.is_empty() {
         m.push(
             Target::any_of_roles(&[Role::SolarPanel], None),
-            "太陽電池パネル（kind の role = solar_panel）の部品がありません",
+            "No solar panel part (kind with role = solar_panel)",
         );
     }
     SolarArray {
@@ -115,7 +124,7 @@ pub fn solar_sunlit(ctx: &Context<'_>) -> Result<SolarSunlitInput, MissingInputs
     if modes.is_empty() {
         m.push(
             AnalysisSystem::Aocs.setting_path().child(&["law"]),
-            "姿勢則（モードごと）",
+            "Attitude law (per mode)",
         );
     }
     for mode in modes {
@@ -229,7 +238,7 @@ fn sequence(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceSegmen
                 &dims::POWER_SEQUENCE_DURATION,
                 &[index.as_str()],
                 Some(&s.duration),
-                "モードの並びの区間の長さ",
+                "Length of the mode sequence interval",
                 m,
             )?;
             Some(EnergyBalanceSegment {
@@ -291,16 +300,16 @@ fn batteries(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceBatte
     if cells.is_empty() {
         m.push(
             Target::any_of_roles(&[Role::Battery], None),
-            "電池（kind の role = battery）の部品がありません",
+            "No battery part (kind with role = battery)",
         );
         return Vec::new();
     }
-    let why = "電池の値";
+    let why = "Battery values";
     let settings = ctx.design.analysis.power.as_ref();
     let dod = m.need(
         ctx.setting(power_key(&["dod_max"]), settings.and_then(|s| s.dod_max)),
         power_key(&["dod_max"]),
-        "許容 DoD",
+        "Allowed DoD",
     );
     let initial_soc = ctx.setting(
         power_key(&["initial_soc"]),

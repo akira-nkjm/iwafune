@@ -166,7 +166,7 @@ impl Decoder<'_> {
                 "layout.no_project",
                 layout::PROJECT_FILE,
                 None,
-                "fune.toml がありません".into(),
+                "fune.toml not found".into(),
             );
             return;
         }
@@ -190,7 +190,7 @@ impl Decoder<'_> {
                 "id.mismatch",
                 path,
                 line,
-                format!("`id = {written}` がファイル名の ID `{expected}` と違います（ID はファイル名で決まります。`id` の行は消してください）"),
+                format!("`id = {written}` differs from the id in the file name, `{expected}` (the id comes from the file name; remove the `id` line)"),
             );
         }
     }
@@ -265,7 +265,7 @@ impl Decoder<'_> {
                 "layout.unknown_file",
                 path,
                 None,
-                "このファイルはディレクトリの規約（docs/model.md §11）のどこにも当たらないので読みません".into(),
+                "This file matches none of the directory conventions (docs/model.md §11), so it is ignored".into(),
             ),
         }
     }

@@ -169,7 +169,7 @@ fn refused_delete_changes_nothing() {
         .output()
         .unwrap();
     assert_eq!(out.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&out.stderr).contains("消せません"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("cannot be deleted"));
     let ws = fune_service::Workspace::open(&http_root).unwrap();
     let router = fune_server::router(std::sync::Arc::new(ws));
     let body = json!({ "ops": [{ "op": "delete_kind", "id": "wire" }] }).to_string();

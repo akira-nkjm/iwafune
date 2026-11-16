@@ -48,7 +48,11 @@ fn add_appends_a_shared_catalog_in_canonical_form() {
     let change = &p.changes[0];
     assert_eq!(change.path, "fune.toml");
     let after = change.after.as_deref().unwrap();
-    assert_eq!(format_text("fune.toml", after).unwrap(), after, "正規形");
+    assert_eq!(
+        format_text("fune.toml", after).unwrap(),
+        after,
+        "canonical form"
+    );
     let before = change.before.as_deref().unwrap();
     let added = "[[catalog]]\nname = \"lab\"\ngit  = \"https://example.com/catalog.git\"\nrev  = \"main\"\n";
     // 今の [[catalog]] の後ろ（[modes] より前）に入り、ほかの行（先頭のコメントも）はそのまま
@@ -82,22 +86,25 @@ fn add_refuses_bad_names_duplicates_and_empty_urls() {
     // 既にある名前（このプロジェクトのカタログ local も・大文字小文字の違いだけのものも）
     for name in ["local", "lab", "LAB"] {
         match plan(&snap, &[add(name, GIT, None)]) {
-            Err(OpError::AlreadyExists { what }) => assert!(what.contains("カタログ"), "{what}"),
+            Err(OpError::AlreadyExists { what }) => assert!(what.contains("Catalog"), "{what}"),
             other => panic!(
-                "{name}: AlreadyExists のはずが {:?}",
+                "{name}: expected AlreadyExists, got {:?}",
                 other.map(|p| p.changes)
             ),
         }
     }
     for (name, git, rev, needle) in [
-        ("a/b", GIT, None, "名前"),
-        ("", GIT, None, "名前"),
+        ("a/b", GIT, None, "catalog name"),
+        ("", GIT, None, "catalog name"),
         ("team", "  ", None, "git"),
         ("team", GIT, Some(""), "rev"),
     ] {
         match plan(&snap, &[add(name, git, rev)]) {
             Err(OpError::Invalid { message }) => assert!(message.contains(needle), "{message}"),
-            other => panic!("{name}: Invalid のはずが {:?}", other.map(|p| p.changes)),
+            other => panic!(
+                "{name}: expected Invalid, got {:?}",
+                other.map(|p| p.changes)
+            ),
         }
     }
 }
@@ -111,12 +118,12 @@ fn remove_restores_the_file_and_refuses_local_and_unknown_catalogs() {
     assert_eq!(
         p.changes[0].after.as_deref(),
         base.files.get("fune.toml"),
-        "足して外すと元のバイト列に戻る"
+        "adding then removing restores the original bytes"
     );
     assert_eq!(to_cli(&rm("lab")), ["fune catalog source rm lab"]);
     match plan(&snap, &[rm("local")]) {
         Err(OpError::Invalid { message }) => assert!(message.contains("path"), "{message}"),
-        other => panic!("Invalid のはずが {:?}", other.map(|p| p.changes)),
+        other => panic!("expected Invalid, got {:?}", other.map(|p| p.changes)),
     }
     assert!(matches!(
         plan(&snap, &[rm("nope")]),
@@ -147,9 +154,9 @@ fn remove_refuses_while_parts_or_harnesses_use_its_items() {
     let snap = with_files(&snap, files);
     match plan(&snap, &[rm("lab")]) {
         Err(OpError::Invalid { message }) => {
-            assert!(message.contains("部品 STT"), "{message}");
-            assert!(message.contains("ハーネス H_OBC_CAM"), "{message}");
+            assert!(message.contains("part STT"), "{message}");
+            assert!(message.contains("harness H_OBC_CAM"), "{message}");
         }
-        other => panic!("Invalid のはずが {:?}", other.map(|p| p.changes)),
+        other => panic!("expected Invalid, got {:?}", other.map(|p| p.changes)),
     }
 }

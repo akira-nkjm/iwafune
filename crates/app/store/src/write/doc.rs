@@ -122,7 +122,7 @@ pub fn table_mut<'a>(doc: &'a mut DocumentMut, path: &[&str]) -> Result<&'a mut 
         }
         table = entry.as_table_mut().ok_or_else(|| StoreError::Edit {
             file: String::new(),
-            message: format!("`{}` は表ではありません", path[..=i].join(".")),
+            message: format!("`{}` is not a table", path[..=i].join(".")),
         })?;
     }
     Ok(table)
