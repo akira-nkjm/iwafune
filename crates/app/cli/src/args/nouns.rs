@@ -15,6 +15,9 @@ pub struct SetArgs {
     /// 出典 ID（sources/）
     #[arg(long)]
     pub source: Option<String>,
+    /// 資料の中の位置（例: `"p.12 表 3"`）
+    #[arg(long)]
+    pub at: Option<String>,
     #[arg(long)]
     pub note: Option<String>,
     /// 不確かさの下限（例: `"1 W"`）
@@ -119,8 +122,12 @@ pub struct PlaceArgs {
     /// 姿勢のクォータニオン（`"1 0 0 0"`、w x y z）
     #[arg(long, allow_hyphen_values = true)]
     pub orientation: Option<String>,
+    /// 姿勢の X・Y・Z 軸まわりの回転角（例: `"0 90 0 deg"`。取付点の座標軸のまわりに X → Y → Z の順に回す）。
+    /// ファイルには四元数で書く。`--orientation` とは一緒に使えない
+    #[arg(long, allow_hyphen_values = true, conflicts_with = "orientation")]
+    pub rotation: Option<String>,
     /// 機体座標での位置（例: `"30 0 -100 mm"`）。取付先・取付点はそのままで、相対位置・姿勢に直して書く
-    #[arg(long, allow_hyphen_values = true, conflicts_with_all = ["on", "point", "root", "position", "orientation"])]
+    #[arg(long, allow_hyphen_values = true, conflicts_with_all = ["on", "point", "root", "position", "orientation", "rotation"])]
     pub body_pos: Option<String>,
     /// 機体座標での姿勢（部品 → 機体、`"w x y z"`）。`--body-pos` と使う
     #[arg(long, allow_hyphen_values = true, requires = "body_pos")]
@@ -161,6 +168,28 @@ pub enum ModeCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// モードの表示順を変える
+    Move {
+        id: String,
+        #[arg(long, group = "mode_position")]
+        before: Option<String>,
+        #[arg(long, group = "mode_position")]
+        after: Option<String>,
+        #[arg(long, group = "mode_position")]
+        first: bool,
+        #[arg(long, group = "mode_position")]
+        last: bool,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// モードの最長継続時間を書く（例: `fune mode duration NOMINAL --max-duration "90 min"`。旗を省くと消す）
+    Duration {
+        mode: String,
+        #[arg(long)]
+        max_duration: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// モードでの部品の状態を決める（例: `fune mode set NOMINAL TRX rx --duty tx=0.1`）
     Set {
         mode: String,
@@ -169,6 +198,12 @@ pub enum ModeCmd {
         /// ほかの状態の時間割合（`状態=割合`、カンマ区切り）
         #[arg(long)]
         duty: Option<String>,
+        #[arg(long)]
+        active: Option<String>,
+        #[arg(long)]
+        spare_state: Option<String>,
+        #[arg(long, default_value_t = false, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true")]
+        eclipse: bool,
         #[command(flatten)]
         edit: EditOpts,
     },
@@ -176,6 +211,8 @@ pub enum ModeCmd {
     Unset {
         mode: String,
         part: String,
+        #[arg(long, default_value_t = false, action = clap::ArgAction::Set, num_args = 0..=1, default_missing_value = "true")]
+        eclipse: bool,
         #[command(flatten)]
         edit: EditOpts,
     },

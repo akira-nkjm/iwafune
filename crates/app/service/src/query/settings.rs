@@ -1,11 +1,11 @@
-//! 設定（`mission/`・`analysis/`・`budget/`）→ キーと値の一覧（`analysis.power.dod_max = 0.3`）。
+//! 設定（`conditions/`・`analysis/`・`budget/`）→ キーと値の一覧（`analysis.power.dod_max = 0.3`）。
 //! 葉の列挙は `Design::setting_entries`、ファイルの位置は `fune_store::layout::locate_setting`。ここは表示用の型にするのと、
 //! 設定を見せる系の対応（[`system_of`]）だけ。
 
 use crate::dto::{QuantityView, SettingView, ValueData};
 use crate::query::values::{authored_quantity, display_of};
 use crate::units::number_text;
-use fune_model::design::{AnalysisSystem, BudgetKind, Design};
+use fune_model::design::{AnalysisSystem, BudgetKind, Design, SettingEntry};
 use fune_model::path::{SettingPath, SettingScope};
 use fune_model::value::SettingValue;
 use fune_model::value::units::to_si;
@@ -15,29 +15,39 @@ use sat_analysis::spec::System;
 pub(crate) fn settings(design: &Design) -> Vec<SettingView> {
     design
         .setting_entries()
-        .into_iter()
-        .map(|e| {
-            let value = e.value.as_ref().map_or(ValueData::Unset, value_data);
-            let keys = fune_store::layout::setting_location(&e.path)
-                .map(|(_, keys)| keys)
-                .unwrap_or_default();
-            let group = SettingPath {
-                scope: e.path.scope,
-                segments: e.path.segments[..e.path.segments.len().saturating_sub(keys.len())]
-                    .to_vec(),
-            };
-            SettingView {
-                scope: e.path.scope,
-                system: setting_system(&e.path),
-                group: group.to_string(),
-                field: keys.join("."),
-                key: e.path.to_string(),
-                display: display_of(&value),
-                value,
-                file: fune_store::layout::locate_setting(design, &e.path).map(|l| l.file),
-            }
-        })
+        .iter()
+        .map(|e| setting_view(design, e))
         .collect()
+}
+
+/// 設定の葉 1 つを表示用に。
+pub(crate) fn setting_view(design: &Design, e: &SettingEntry) -> SettingView {
+    let value = e.value.as_ref().map_or(ValueData::Unset, value_data);
+    let (group, keys, _) = split_setting(&e.path);
+    SettingView {
+        scope: e.path.scope,
+        system: setting_system(&e.path),
+        group: group.to_string(),
+        field: keys.join("."),
+        key: e.path.to_string(),
+        display: display_of(&value),
+        value,
+        file: fune_store::layout::locate_setting(design, &e.path).map(|l| l.file),
+    }
+}
+
+/// 設定のパス → 設定ファイルごとのまとまり（`conditions.orbit` など）・ファイルの中のキー・ファイル（相対パス）。
+/// ファイルに対応しないパスは、まとまりがパス全体でキーが空、ファイルが None。
+pub(crate) fn split_setting(path: &SettingPath) -> (SettingPath, Vec<String>, Option<String>) {
+    let (file, keys) = match fune_store::layout::setting_location(path) {
+        Ok((file, keys)) => (Some(file), keys),
+        Err(_) => (None, Vec::new()),
+    };
+    let group = SettingPath {
+        scope: path.scope,
+        segments: path.segments[..path.segments.len().saturating_sub(keys.len())].to_vec(),
+    };
+    (group, keys, file)
 }
 
 /// 設定を見せる系。**設定と系の対応はここだけ**（Web の系のページはこの欄で選ぶ）。
@@ -52,7 +62,7 @@ pub(crate) fn setting_system(path: &SettingPath) -> Option<System> {
             .ok()
             .map(fune_projection::system::to_analysis),
         SettingScope::Budget => Some(budget_system(first.parse::<BudgetKind>().ok()?)),
-        SettingScope::Mission => None,
+        SettingScope::Conditions => None,
     }
 }
 
@@ -89,6 +99,12 @@ fn value_data(v: &SettingValue) -> ValueData {
         SettingValue::Quantity(q) => scalar(authored_quantity(q, None)),
         SettingValue::Bool(b) => ValueData::Bool { value: *b },
         SettingValue::Text(s) => ValueData::Text { value: s.clone() },
+        SettingValue::Quaternion(q) => ValueData::Quat {
+            w: q.w,
+            x: q.x,
+            y: q.y,
+            z: q.z,
+        },
         SettingValue::List(items) => ValueData::Text {
             value: items.join(", "),
         },
@@ -103,6 +119,30 @@ fn value_data(v: &SettingValue) -> ValueData {
                 unit,
                 frame: vec.frame.clone(),
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 区切りが空の設定パスでも panic せず、ファイルに対応しないパスとして返す。
+    #[test]
+    fn empty_setting_path_has_no_file() {
+        for scope in [
+            SettingScope::Conditions,
+            SettingScope::Analysis,
+            SettingScope::Budget,
+        ] {
+            let path = SettingPath {
+                scope,
+                segments: Vec::new(),
+            };
+            let (group, keys, file) = split_setting(&path);
+            assert_eq!(group, path);
+            assert!(keys.is_empty() && file.is_none(), "{scope:?}");
+            assert!(setting_system(&path).is_none());
         }
     }
 }

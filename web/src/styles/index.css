@@ -87,6 +87,7 @@
   --color-cat-green: #3c9a50;
   --color-cat-orange: #d9701f;
   --color-cat-violet: #7a5cc2;
+  --color-cat-magenta: #b04a96;
   --color-cat-blue-ink: #1f63a0;
   --color-cat-gold-ink: #8a6400;
   --color-cat-teal-ink: #006d79;
@@ -97,6 +98,7 @@
   --color-cat-green-ink: #2a7438;
   --color-cat-orange-ink: #9c4a0a;
   --color-cat-violet-ink: #5f42a6;
+  --color-cat-magenta-ink: #8e2f78;
   --shadow-panel: 0 1px 2px rgba(6, 38, 84, 0.04), 0 1px 1px rgba(6, 38, 84, 0.02);
   --shadow-pop: 0 12px 32px rgba(6, 38, 84, 0.16), 0 2px 6px rgba(6, 38, 84, 0.06);
   /* colors:end */
@@ -113,6 +115,12 @@
   --text-md--line-height: 1.45;
 
   --spacing-sidebar: 232px;
+
+  /* 文字の太さ: Noto Sans JP（可変）が細く見えるので、Tailwind の段を全体に一段太くする（#92） */
+  --font-weight-normal: 500;
+  --font-weight-medium: 600;
+  --font-weight-semibold: 700;
+  --font-weight-bold: 800;
 
   /* shadcn/ui のトークンを上の値に束ねる */
   --color-background: var(--color-panel);
@@ -146,7 +154,7 @@
   }
   html,
   body {
-    @apply bg-app font-sans text-ink antialiased;
+    @apply bg-app font-sans font-normal text-ink antialiased;
   }
   * {
     @apply border-border outline-ring/50;
@@ -164,6 +172,14 @@
   min-width: 1px;
   height: 72%;
   border-radius: 1px;
+}
+
+/*
+ * 字面の箱を大文字の高さとベースラインで切り詰める。Noto Sans JP の行の箱は字面より上下に広く、アイコンと
+ * items-center で並べると字面の中心がずれるため（和文の字面の中心も大文字の中心とほぼ同じ高さ）
+ */
+@utility text-box-cap {
+  text-box: trim-both cap alphabetic;
 }
 
 @utility no-scrollbar {

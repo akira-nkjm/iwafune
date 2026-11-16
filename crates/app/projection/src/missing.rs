@@ -13,7 +13,7 @@ const INTERNAL: &str = "(内部)";
 pub struct MissingInput {
     /// 部品のファイルの中の入力ならその部品 ID（[`Target::part`]）。設定・解析ケース・「どれかの部品」は None。
     pub part: Option<String>,
-    /// 表示用のパス（対象の `Display`。例: `"RW_X.max_momentum"`、`"mission.orbit.altitude"`、`"<部品>.power"`）
+    /// 表示用のパス（対象の `Display`。例: `"RW_X.max_momentum"`、`"conditions.orbit.altitude"`、`"<部品>.power"`）
     pub path: String,
     /// 足りない入力の対象（構造）。None は対象を名指しできない内部の不足
     pub target: Option<Target>,

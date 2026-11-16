@@ -72,8 +72,10 @@ export function CommandSearch({ rail = false }: { rail?: boolean }) {
                   onSelect={() => go(it.to)}
                 >
                   <it.icon size={14} />
-                  {s.heading ? `${t.nav.sections[s.id]} / ` : ""}
-                  {navItemTitle(it, t, d?.defs)}
+                  <span className="text-box-cap">
+                    {s.heading ? `${t.nav.sections[s.id]} / ` : ""}
+                    {navItemTitle(it, t, d?.defs)}
+                  </span>
                 </CommandItem>
               )),
             )}

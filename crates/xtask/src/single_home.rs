@@ -6,7 +6,7 @@
 use std::path::Path;
 
 mod rules;
-use rules::{PROD_RULES, RULES, RUST_RULES, WEB_RULES};
+use rules::{PROD_RULES, RUST_RULES, SHARED, WEB_RULES};
 
 /// 違反を `errors` に積む。`files` はワークスペースのファイル一覧。色の直書きは [`crate::web_colors`] が見る。
 pub fn check(root: &Path, files: &[std::path::PathBuf], errors: &mut Vec<String>) {
@@ -21,11 +21,8 @@ pub fn check(root: &Path, files: &[std::path::PathBuf], errors: &mut Vec<String>
             continue;
         };
         let web = rel_s.starts_with("web/");
-        let rules = if web {
-            RULES.iter().chain(WEB_RULES)
-        } else {
-            RULES.iter().chain(RUST_RULES)
-        };
+        let shared = SHARED.iter().flat_map(|rules| rules.iter());
+        let rules = shared.chain(if web { WEB_RULES } else { RUST_RULES });
         for rule in rules {
             check_rule(&rel_s, &text, rule, errors);
         }
@@ -52,9 +49,10 @@ fn check_rule(
 }
 
 /// テスト以外の部分（テストのファイルは None、それ以外は最初の `#[cfg(test)]` より前）。
-fn production_text<'a>(rel: &str, text: &'a str) -> Option<&'a str> {
+pub(crate) fn production_text<'a>(rel: &str, text: &'a str) -> Option<&'a str> {
     let name = rel.rsplit('/').next().unwrap_or(rel);
     let test_file = rel.contains("/tests/")
+        || rel.starts_with("crates/app/cli/src/cmd/roundtrip/")
         || name == "tests.rs"
         || name.ends_with("_tests.rs")
         || name == "testkit.rs"

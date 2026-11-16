@@ -2,8 +2,8 @@
 
 use super::s;
 use fune_service::dto::{
-    AttributeDef, Case, Harness, KindDef, ModeCell, Net, NetField, NetKind, Op, PortRef, Quantity,
-    SettingValue, Source, SourceKind, ViewNodePos,
+    AttributeDef, Case, Distribution, Harness, KindDef, ModeCell, Net, NetField, NetKind, Op,
+    PortRef, Quantity, SettingValue, Source, SourceKind, ViewNodePos,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -15,7 +15,7 @@ pub(in super::super) fn def_ops() -> Vec<Op> {
     attr.id = "max_dipole2".into();
     let mut kind: KindDef = serde_json::from_value(
         json!({ "label": "線材", "label_en": "Wire", "extends": "component",
-        "role": "wire", "states": ["off", "on"], "required": ["mass"], "optional": ["power"] }),
+        "states": ["off", "on"], "required": ["mass"], "optional": ["power"] }),
     )
     .unwrap();
     kind.id = "wire2".into();
@@ -35,10 +35,16 @@ pub(in super::super) fn def_ops() -> Vec<Op> {
     ported.id = "pdu2".into();
     vec![
         Op::CreateAttribute { def: attr },
-        Op::CreateAttribute { def: full },
+        Op::CreateAttribute { def: full.clone() },
+        Op::UpdateAttribute { def: full },
         Op::CreateAttribute { def: sym },
+        Op::DeleteAttribute { id: s("finish") },
         Op::CreateKind { def: kind },
-        Op::CreateKind { def: ported },
+        Op::CreateKind {
+            def: ported.clone(),
+        },
+        Op::UpdateKind { def: ported },
+        Op::DeleteKind { id: s("wire2") },
     ]
 }
 
@@ -60,6 +66,9 @@ pub(in super::super) fn system_ops() -> Vec<Op> {
             .iter()
             .map(|(k, v)| (s(k), *v))
             .collect::<BTreeMap<_, _>>(),
+        active: None,
+        spare_state: None,
+        eclipse: false,
     };
     vec![
         Op::CreateMode {
@@ -73,10 +82,44 @@ pub(in super::super) fn system_ops() -> Vec<Op> {
             id: s("DOWNLINK"),
             to: s("DL"),
         },
+        Op::MoveMode {
+            id: s("SAFE"),
+            position: fune_service::dto::ModePosition::First,
+        },
+        Op::MoveMode {
+            id: s("SAFE"),
+            position: fune_service::dto::ModePosition::Last,
+        },
+        Op::MoveMode {
+            id: s("SAFE"),
+            position: fune_service::dto::ModePosition::Before(s("NOMINAL")),
+        },
+        Op::MoveMode {
+            id: s("SAFE"),
+            position: fune_service::dto::ModePosition::After(s("NOMINAL")),
+        },
+        Op::SetModeDuration {
+            mode: "NOMINAL".into(),
+            duration: Some(Quantity::new(90.0, "min")),
+        },
+        Op::SetModeDuration {
+            mode: "NOMINAL".into(),
+            duration: None,
+        },
         Op::SetModeStates {
             cells: vec![
                 cell("UHF_TRX", Some("rx"), &[("tx", 0.1)]),
                 cell("CAM", None, &[]),
+                ModeCell {
+                    active: Some(3),
+                    spare_state: Some(s("standby")),
+                    eclipse: true,
+                    ..cell("RW_X", Some("on"), &[])
+                },
+                ModeCell {
+                    eclipse: true,
+                    ..cell("CAM", None, &[])
+                },
             ],
         },
         Op::CreateNet { net },
@@ -153,6 +196,10 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         kind: SourceKind::Datasheet,
         label: Some(s("データシート")),
         reference: Some(s("https://example.com/ds.pdf")),
+        revision: Some(s("Rev. B")),
+        retrieved: Some(s("2026-10-02")),
+        sha256: Some("0123456789abcdef".repeat(4)),
+        distribution: Some(Distribution::OnRequest),
         date: Some(s("2026-10-01")),
         by: Some(s("tanaka")),
         note: Some(s("rev B")),
@@ -176,6 +223,26 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         Op::RemoveSource { id: s("ds_x") },
         Op::SetHarness { harness },
         Op::RemoveHarness { id: s("H_X") },
+        Op::CreateManeuver {
+            maneuver: maneuver(
+                "MV_X",
+                json!({ "category": "insertion", "method": "low_thrust",
+                "thruster": "RW_X", "target": { "altitude": { "value": 600.0, "unit": "km" } } }),
+            ),
+        },
+        Op::SetManeuver {
+            maneuver: maneuver(
+                "MV_Y",
+                json!({ "label": "離脱 \"試験\"", "category": "deorbit",
+                "method": "finite_burn", "thruster": "RW_X", "after": "MV_X",
+                "via_altitude": { "value": 20000.0, "unit": "km" },
+                "target": { "perigee_altitude": { "value": -50.0, "unit": "km" },
+                    "apogee_altitude": { "value": 600.0, "unit": "km" },
+                    "inclination": { "value": 97.5, "unit": "deg" } },
+                "constraints": { "sunlit_only": false, "mode": "NOMINAL" } }),
+            ),
+        },
+        Op::RemoveManeuver { id: s("MV_X") },
         Op::SetSetting {
             path: s("analysis.common.default_case"),
             value: Some(SettingValue::Text(s("hot_imaging"))),
@@ -189,11 +256,11 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
             value: Some(SettingValue::Integer(4)),
         },
         Op::SetSetting {
-            path: s("mission.orbit.arg_perigee"),
+            path: s("conditions.orbit.arg_perigee"),
             value: Some(SettingValue::Quantity(Quantity::new(-5.0, "deg"))),
         },
         Op::SetSetting {
-            path: s("mission.orbit.altitude"),
+            path: s("conditions.orbit.altitude"),
             value: Some(SettingValue::Quantity(Quantity::new(500.0, "km"))),
         },
         Op::SetSetting {
@@ -201,4 +268,11 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
             value: None,
         },
     ]
+}
+
+/// JSON の中身と ID からマヌーバを作る。
+fn maneuver(id: &str, body: serde_json::Value) -> fune_service::dto::Maneuver {
+    let mut m: fune_service::dto::Maneuver = serde_json::from_value(body).unwrap();
+    m.id = id.into();
+    m
 }

@@ -9,7 +9,11 @@ export type ThermalHeatPhase = {
 /**
  * 例: モードの ID
  */
-label: string, duration: number, loads: Array<ThermalLoad>, 
+label: string, 
+/**
+ * 区間の長さ。省略時は [`DEFAULT_PHASE_DURATION_S`]（区間が 1 つなら発熱は一定で、長さは結果に効かない）
+ */
+duration: number | null, loads: Array<ThermalLoad>, 
 /**
  * モード発熱。未割り当て・値不足は出力 checks に警告。
  */

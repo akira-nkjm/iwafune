@@ -1,5 +1,5 @@
 import type { AnalysisState } from "@/api/queries";
-import type { AnalysisEntry, KpiDef, KpiKey, KpiTally, KpiView, System } from "@/api/types";
+import type { AnalysisArea, AnalysisEntry, KpiDef, KpiKey, KpiTally, KpiView } from "@/api/types";
 
 /**
  * KPI を並べるための引き当て。**代表値の選び方・判定・塗りの比・判定の数え方は service が決める**
@@ -12,8 +12,8 @@ export interface KpiSlot {
   def: KpiDef;
   /** KPI を出す解析の ID */
   analysis: string;
-  /** その解析の系（開き先の系のページ） */
-  system: System;
+  /** その解析の区分（開き先のページ） */
+  area: AnalysisArea;
   /** 結果の KPI（まだ届いていないか、解析が出せなかったら null） */
   kpi: KpiView | null;
   /** 解析の結果を待っている */
@@ -27,13 +27,24 @@ export function kpiSlots(
 ): KpiSlot[] {
   return entries.flatMap((e) => {
     const state = states.find((s) => s.id === e.info.id);
-    return e.kpis.map((def) => ({
-      def,
-      analysis: e.info.id,
-      system: e.info.system,
-      kpi: state?.result?.kpis.find((k) => k.key === def.key) ?? null,
-      loading: state?.loading ?? true,
-    }));
+    const delivered = state?.result?.kpis ?? [];
+    return (
+      e.kpis
+        // 結果が届いていて、測れたときだけ出す KPI（設計が持たない手段）が無いときは並べない
+        .filter(
+          (def) =>
+            !def.when_measured ||
+            delivered.length === 0 ||
+            delivered.some((k) => k.key === def.key),
+        )
+        .map((def) => ({
+          def,
+          analysis: e.info.id,
+          area: e.info.area,
+          kpi: delivered.find((k) => k.key === def.key) ?? null,
+          loading: state?.loading ?? true,
+        }))
+    );
   });
 }
 

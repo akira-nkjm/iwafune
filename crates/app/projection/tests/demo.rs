@@ -94,102 +94,6 @@ fn unload_time_without_thrusters() {
     assert!(!input.magnetorquers.is_empty());
 }
 
-/// デモに -Z パネルのスラスタ THR_1（+Y 向き、質量 50 g）を足す Op。
-fn thruster_ops() -> Vec<fune_ops::Op> {
-    use fune_model::value::{Value, Vector3};
-    use fune_ops::Op;
-    let v = |t: &str, d: serde_json::Value| -> Value {
-        serde_json::from_value(serde_json::json!({ "type": t, "data": d })).unwrap()
-    };
-    let scalar = |value: f64, unit: &str| {
-        v(
-            "scalar",
-            serde_json::json!({ "value": value, "unit": unit }),
-        )
-    };
-    let set = |attr: &str, value: Value| Op::SetValue {
-        part: "THR_1".into(),
-        attr: attr.into(),
-        state: None,
-        value,
-        from: None,
-    };
-    vec![
-        Op::CreatePart {
-            id: "THR_1".into(),
-            group: Some("aocs".into()),
-            catalog: None,
-            kind: Some("thruster".into()),
-            count: None,
-            label: None,
-            mode_state: None,
-        },
-        set("mass", scalar(50.0, "g")),
-        set("thrust", scalar(10.0, "mN")),
-        set("isp", scalar(60.0, "s")),
-        set("direction", Value::Vec3(Vector3::unitless(0.0, 1.0, 0.0))),
-        Op::Place {
-            part: "THR_1".into(),
-            on: Some("PANEL_MZ".into()),
-            point: None,
-            position: Some(Vector3 {
-                x: 40.0,
-                y: 0.0,
-                z: 0.0,
-                unit: Some("mm".into()),
-                frame: None,
-            }),
-            orientation: None,
-        },
-    ]
-}
-
-/// スラスタを足すと、取付をたどった機体座標の位置・向きと、重心が入力に入る。
-#[test]
-fn unload_time_projects_thrusters_in_body_frame() {
-    use fune_ops::{ApplyOptions, apply};
-    use sat_astro::math::Vec3;
-    let tmp = tempfile::tempdir().unwrap();
-    let root = tmp.path().join("demo-6u");
-    copy_dir(
-        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u"),
-        &root,
-    );
-    apply(&root, &thruster_ops(), &ApplyOptions::default()).unwrap();
-    let snap = fune_store::load(&root).unwrap();
-    let resolved = fune_model::resolve(&snap.design);
-    let ctx = Context::new(&snap.design, &resolved, None).unwrap();
-    let input = fune_projection::aocs::unload_time(&ctx).unwrap();
-    let t = &input.thrusters[0];
-    let (origin, q) = fune_projection::pose::body_pose(&resolved, "PANEL_MZ").unwrap();
-    let expected = origin + q.rotate(Vec3::new(0.04, 0.0, 0.0));
-    assert!(
-        (t.position - expected).norm() < 1e-12,
-        "{:?} vs {expected:?}",
-        t.position
-    );
-    assert!((t.direction - q.rotate(Vec3::new(0.0, 1.0, 0.0))).norm() < 1e-12);
-    assert!((t.thrust.value() - 0.010).abs() < 1e-15);
-    assert!(input.center_of_mass.is_some());
-    let out =
-        sat_analysis::catalog::run_json("aocs.unload_time", serde_json::to_value(&input).unwrap())
-            .unwrap();
-    assert!(out["rcs"].is_object(), "{out}");
-}
-
-fn copy_dir(from: &Path, to: &Path) {
-    std::fs::create_dir_all(to).unwrap();
-    for entry in std::fs::read_dir(from).unwrap() {
-        let entry = entry.unwrap();
-        let target = to.join(entry.file_name());
-        if entry.file_type().unwrap().is_dir() {
-            copy_dir(&entry.path(), &target);
-        } else {
-            std::fs::copy(entry.path(), target).unwrap();
-        }
-    }
-}
-
 /// 割合の合計の許容差は、設計の検査（fune-model）と解析（sat-analysis）で同じ値にする。
 /// fune-model は sat-analysis に依存できないので、両方が見えるここで一致を確かめる。
 #[test]
@@ -289,4 +193,129 @@ fn energy_balance_default_only_selects_the_timeline_attitude() {
         fune_projection::power::energy_balance(&Context::new(&design, &resolved, None).unwrap())
             .unwrap_err();
     assert!(!missing.into_vec().is_empty());
+}
+
+/// 依存の向きで共有できない設計検査と解析の予備状態の規則を突き合わせる。
+#[test]
+fn mode_validation_and_analysis_agree_on_population() {
+    use fune_model::design::{Mode, Part, Redundancy, StateAssign};
+    use sat_analysis::modes::{Population, counted_states};
+    let (mut design, _) = demo();
+    let mut part = Part::new("TEST_RW");
+    part.kind = Some("reaction_wheel".into());
+    part.count = 4;
+    for (redundancy, active, spare) in [
+        (Redundancy::Cold, Some(3), None),
+        (Redundancy::Warm, Some(3), None),
+        (Redundancy::Warm, Some(3), Some("on")),
+        (Redundancy::Cold, Some(5), None),
+        (Redundancy::None, Some(3), None),
+        (Redundancy::Warm, Some(3), Some("unknown")),
+    ] {
+        part.redundancy = redundancy;
+        design.parts.insert(part.id.clone(), part.clone());
+        let mut a = StateAssign::new("on");
+        a.active = active;
+        a.spare_state = spare.map(str::to_owned);
+        let mode = Mode {
+            id: "TEST_MODE".into(),
+            states: [(part.id.clone(), a)].into(),
+            ..Default::default()
+        };
+        design.modes.insert(mode.id.clone(), mode.clone());
+        let states = design.part_states(&part);
+        let projected = fune_projection::context::mode_def(&mode);
+        let redundancy = match redundancy {
+            Redundancy::None => sat_analysis::modes::Redundancy::None,
+            Redundancy::Cold => sat_analysis::modes::Redundancy::Cold,
+            Redundancy::Warm => sat_analysis::modes::Redundancy::Warm,
+        };
+        let accepted = counted_states(
+            &projected.assignments[0],
+            Population {
+                count: 4,
+                redundancy,
+                states,
+            },
+        )
+        .is_ok();
+        let errors = fune_model::check(&design).iter().any(|d| {
+            d.severity == fune_model::Severity::Error
+                && d.target == Some(fune_model::Target::mode("TEST_MODE", Some("TEST_RW")))
+        });
+        assert_eq!(accepted, !errors, "{active:?} {spare:?}");
+    }
+    let a = sat_analysis::modes::StateAssignment {
+        part: "RW".into(),
+        state: "on".into(),
+        duty: Default::default(),
+        active: Some(3),
+        spare_state: None,
+    };
+    let states = [fune_model::builtin::STATE_OFF.to_owned(), "on".to_owned()];
+    let terms = counted_states(
+        &a,
+        Population {
+            count: 4,
+            redundancy: sat_analysis::modes::Redundancy::Cold,
+            states: &states,
+        },
+    )
+    .unwrap();
+    assert_eq!(terms.last().unwrap().0, fune_model::builtin::STATE_OFF);
+}
+
+/// 表示順を変えても消費電力の数値はモードごとに同じで、入力・出力の順だけが変わる。
+#[test]
+fn mode_display_order_preserves_analysis_values() {
+    let (mut design, resolved) = demo();
+    design.project.modes = Some(fune_model::design::ModeOrder {
+        order: ["NOMINAL", "MISSION", "DOWNLINK", "SAFE"]
+            .map(str::to_owned)
+            .to_vec(),
+    });
+    let run = |d: &fune_model::Design| {
+        let ctx = Context::new(d, &resolved, None).unwrap();
+        let input = project_json("power.mode_load", &ctx).unwrap();
+        sat_analysis::catalog::run_json("power.mode_load", input).unwrap()
+    };
+    let ordered = run(&design);
+    let modes = ordered["modes"].as_array().unwrap();
+    assert_eq!(
+        modes
+            .iter()
+            .map(|m| m["id"].as_str().unwrap())
+            .collect::<Vec<_>>(),
+        ["NOMINAL", "MISSION", "DOWNLINK", "SAFE"]
+    );
+    design.project.modes = None;
+    let mut sorted = ordered.clone();
+    sorted["modes"]
+        .as_array_mut()
+        .unwrap()
+        .sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+    assert_eq!(sorted, run(&design));
+}
+
+/// 姿勢変更の時間: 角度と要求は `analysis/aocs.toml`、慣性は質量特性、ホイールは RW の部品から。
+/// デモ（I_xx = 0.109 kg·m²（推進系の部品込み）、RW 10 mN·m·s × 0.8・1 mN·m、90°）は x 軸が最悪で台形:
+/// t = θ I / h + h / τ = (π/2)(0.1094)/0.008 + 8 = 29.5 s。
+#[test]
+fn slew_time_projects_settings_inertia_and_wheels() {
+    use sat_analysis::spec::Analysis;
+    let (design, resolved) = demo();
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let input = fune_projection::aocs::slew_time(&ctx).unwrap();
+    let mp = fune_projection::structure::summary(&ctx, &mut fune_projection::MissingInputs::new())
+        .unwrap();
+    assert_eq!(input.inertia, mp.inertia);
+    assert!((input.angle.value() - std::f64::consts::FRAC_PI_2).abs() < 1e-12);
+    assert_eq!(input.required_time.map(|t| t.value()), Some(120.0));
+    assert_eq!(input.wheels.len(), 3);
+    let out = sat_analysis::aocs::SlewTime::run(&input).unwrap();
+    let ixx = mp.inertia.m[0][0];
+    let expect = std::f64::consts::FRAC_PI_2 * ixx / 0.008 + 8.0;
+    assert_eq!(out.worst.label, "x");
+    assert!((out.worst.time.value() - expect).abs() < 1e-9);
+    assert!((out.worst.time.value() - 29.5).abs() < 0.05);
 }

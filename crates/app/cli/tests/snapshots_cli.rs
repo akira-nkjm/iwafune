@@ -32,7 +32,13 @@ fn units_ls_power() {
 
 #[test]
 fn analyze_ls() {
-    insta::assert_snapshot!(stdout(&["analyze", "ls"]));
+    // 表の行末の空白は表示の内容と分け、スナップショットでは正規化する。
+    let text = stdout(&["analyze", "ls"])
+        .lines()
+        .map(str::trim_end)
+        .collect::<Vec<_>>()
+        .join("\n");
+    insta::assert_snapshot!(text);
 }
 
 #[test]
@@ -88,7 +94,7 @@ fn check_points_at_the_toml_line() {
     let (_tmp, root) = demo_copy();
     let file = root.join("parts/aocs/RW_X.toml");
     let text = std::fs::read_to_string(&file).unwrap();
-    std::fs::write(&file, text.replace("unit = \"kg\"", "unit = \"furlong\"")).unwrap();
+    std::fs::write(&file, text.replace("\"kg\"", "\"furlong\"")).unwrap();
     let out = fune()
         .args(["-C", root.to_str().unwrap(), "check"])
         .output()
@@ -145,7 +151,7 @@ fn place_by_body_position() {
     assert!(v["cli"][0].as_str().unwrap().contains("--on"), "{v}");
     let part = stdout(&["-C", r, "--json", "part", "show", "RW_X"]);
     let p: serde_json::Value = serde_json::from_str(&part).unwrap();
-    let pos = p["part"]["mount"]["body_position"].as_array().unwrap();
+    let pos = p["part"]["body"]["position"].as_array().unwrap();
     for (got, want) in pos.iter().zip([0.010, -0.020, 0.030]) {
         assert!((got.as_f64().unwrap() - want).abs() < 1e-6, "{pos:?}");
     }

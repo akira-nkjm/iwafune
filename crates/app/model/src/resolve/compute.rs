@@ -57,16 +57,14 @@ fn resolve_part(design: &Design, part: &Part) -> ResolvedPart {
         parent: part.parent.clone(),
         system: design.system_of(part.id.as_str()),
         catalog: part.catalog.clone(),
-        role: kind
-            .as_deref()
-            .and_then(|k| design.kind_role(k))
-            .map(str::to_string),
+        role: kind.as_deref().and_then(|k| design.kind_role(k)),
         states: kind
             .as_deref()
             .map(|k| design.kind_states(k).to_vec())
             .unwrap_or_default(),
         kind,
         count: part.count,
+        redundancy: part.redundancy,
         maturity: part.maturity.or_else(|| catalog.and_then(|c| c.maturity)),
         attr,
         mount: resolve_mount(design, part),

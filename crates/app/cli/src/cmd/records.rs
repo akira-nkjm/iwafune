@@ -1,8 +1,11 @@
-//! 解析ケース・出典・ハーネス・取付点の引数 → Op（`fune case set` → `SetCase` など）。綴りは `fune_ops::to_cli` と対になる。
+//! 解析ケース・出典・ハーネス・マヌーバ・取付点の引数 → Op（`fune case set` → `SetCase` など）。綴りは `fune_ops::to_cli` と対になる。
 
 use super::common::{Built, list};
-use crate::args::{CaseArgs, CaseCmd, CatalogCmd, HarnessArgs, HarnessCmd, SourceArgs, SourceCmd};
-use fune_service::dto::{Case, Harness, Op, Source};
+use crate::args::{
+    CaseArgs, CaseCmd, CatalogCmd, HarnessArgs, HarnessCmd, ManeuverArgs, ManeuverCmd, SourceArgs,
+    SourceCmd,
+};
+use fune_service::dto::{Case, Harness, ManeuverText, Op, Source};
 use fune_service::edit;
 
 /// serde の綴り（snake_case）から列挙を読む。
@@ -16,7 +19,7 @@ pub fn case(c: &CaseCmd) -> Built<'_> {
     Ok(match c {
         CaseCmd::Set(a) => Some((Op::SetCase { case: case_of(a)? }, &a.edit)),
         CaseCmd::Rm { id, edit } => Some((Op::RemoveCase { id: id.clone() }, edit)),
-        CaseCmd::Ls => None,
+        CaseCmd::Ls | CaseCmd::FromEclipse { .. } => None,
     })
 }
 
@@ -63,6 +66,14 @@ fn source_of(a: &SourceArgs) -> anyhow::Result<Source> {
         )?,
         label: a.label.clone(),
         reference: a.reference.clone(),
+        revision: a.revision.clone(),
+        retrieved: a.retrieved.clone(),
+        sha256: a.sha256.clone(),
+        distribution: a
+            .distribution
+            .as_deref()
+            .map(|d| enum_of(d, "配布の区分（public / on_request / restricted）"))
+            .transpose()?,
         date: a.date.clone(),
         by: a.by.clone(),
         note: a.note.clone(),
@@ -101,6 +112,37 @@ fn harness_of(a: &HarnessArgs) -> anyhow::Result<Harness> {
             .map(edit::quantity_from_text)
             .transpose()?,
     })
+}
+
+/// `fune maneuver add|set|rm`（打った値を読むのは service の `edit::maneuver_op`）
+pub fn maneuver(c: &ManeuverCmd) -> Built<'_> {
+    Ok(match c {
+        ManeuverCmd::Add(a) => Some((edit::maneuver_op(&maneuver_text(a), true)?, &a.edit)),
+        ManeuverCmd::Set(a) => Some((edit::maneuver_op(&maneuver_text(a), false)?, &a.edit)),
+        ManeuverCmd::Rm { id, edit } => Some((Op::RemoveManeuver { id: id.clone() }, edit)),
+        ManeuverCmd::Ls => None,
+    })
+}
+
+fn maneuver_text(a: &ManeuverArgs) -> ManeuverText {
+    ManeuverText {
+        id: a.id.clone(),
+        category: a.category.clone(),
+        method: a.method.clone(),
+        label: a.label.clone(),
+        thruster: a.thruster.clone(),
+        after: a.after.clone(),
+        via_altitude: a.via_altitude.clone(),
+        body: a.body.clone(),
+        altitude: a.altitude.clone(),
+        perigee_altitude: a.perigee_altitude.clone(),
+        apogee_altitude: a.apogee_altitude.clone(),
+        inclination: a.inclination.clone(),
+        sunlit_only: a.sunlit_only.clone(),
+        mode: a.mode.clone(),
+        duty: a.duty.clone(),
+        steering: a.steering.clone(),
+    }
 }
 
 /// `fune catalog add|set|unset|rm|rename`
@@ -149,7 +191,10 @@ pub fn catalog<'a>(ws: &fune_service::Workspace, c: &'a CatalogCmd) -> Built<'a>
             },
             opts,
         )),
-        CatalogCmd::Ls | CatalogCmd::Show { .. } => None,
+        CatalogCmd::Ls
+        | CatalogCmd::Show { .. }
+        | CatalogCmd::Fetch { .. }
+        | CatalogCmd::Update { .. } => None,
     })
 }
 
@@ -163,6 +208,7 @@ fn catalog_set<'a>(
         path,
         value,
         source,
+        at,
         note,
         min,
         max,
@@ -176,6 +222,7 @@ fn catalog_set<'a>(
         path: path.clone(),
         value: value.clone(),
         source: source.clone(),
+        at: at.clone(),
         note: note.clone(),
         min: min.clone(),
         max: max.clone(),

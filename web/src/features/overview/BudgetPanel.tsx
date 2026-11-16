@@ -10,10 +10,15 @@ import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { VerdictPill } from "@/kit/status/VerdictPill";
 import { verdictTone } from "@/kit/status/verdict-tone";
+import { MassTotals, PropellantRow } from "./BudgetPropellant";
+import { BudgetUncountedNote } from "./BudgetUncounted";
+import { wetTotal } from "./cards";
 
 /**
  * バジェット 1 種類（配分と現状）。行ごとの目盛りバーは API の塗りの比（`BudgetRow.fill`。成長余裕込み / 配分）。
  * 入力が足りなければ、解析と同じく足りない入力（`missing`）を名指しする。
+ * 質量は推薬の行（推進系の解析の積む推薬）と、乾燥・推薬込みの両方の合計を出す。見出しの判定は推薬込みがあればそれ
+ * （打ち上げの質量。概要のカードと同じ）、無ければ乾燥。
  */
 export function BudgetPanel({ kind }: { kind: BudgetKind }) {
   const t = useT();
@@ -32,22 +37,39 @@ export function BudgetPanel({ kind }: { kind: BudgetKind }) {
       </Loading>
     );
   const v = b.data;
+  const wet = wetTotal(v.propellant);
+  const head = wet ? { verdict: wet.verdict, margin: wet.margin } : v;
   return (
     <Panel>
       <PanelHeader
         title={t.overview.budgetTitle(localized(v.label, v.label_en))}
         caption={`${v.analysis}${v.mode ? t.overview.budgetMode(v.mode) : ""}`}
         right={
-          v.verdict && (
+          head.verdict && (
             <VerdictPill
-              verdict={v.verdict}
-              text={v.margin ? t.overview.budgetMargin(v.margin.display) : undefined}
+              verdict={head.verdict}
+              text={head.margin ? t.overview.budgetMargin(head.margin.display) : undefined}
             />
           )
         }
       />
       <MissingList design={design.data} missing={v.missing} />
-      {v.total && (
+      {v.total && v.propellant && (
+        <div className="mb-3 space-y-1">
+          <MassTotals
+            dry={v.total}
+            dryVerdict={v.verdict}
+            dryMargin={v.margin}
+            propellant={v.propellant}
+          />
+          {v.limit && (
+            <span className="text-ink-3 text-xs">
+              {t.overview.budgetLimit(v.limit.display, v.system_margin.display)}
+            </span>
+          )}
+        </div>
+      )}
+      {v.total && !v.propellant && (
         <div className="mb-3 flex items-baseline gap-2">
           <span className="num font-semibold text-[20px]">{v.total.display}</span>
           {v.limit && (
@@ -61,7 +83,9 @@ export function BudgetPanel({ kind }: { kind: BudgetKind }) {
         {v.rows.map((r) => (
           <BudgetRowItem key={r.node ?? ""} row={r} />
         ))}
+        {v.propellant && <PropellantRow propellant={v.propellant} design={design.data} />}
       </ul>
+      <BudgetUncountedNote uncounted={v.uncounted} />
       {v.notes.length > 0 && (
         <ul className="mt-3 space-y-0.5 text-[11px] text-ink-3">
           {v.notes.map((n) => (

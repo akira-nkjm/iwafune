@@ -7,6 +7,7 @@ export const overviewEn: typeof overviewJa = {
       `${name} · ${parts} parts · ${modes} modes · ${nets} nets · ${cases} cases`,
     massMargin: "Mass margin",
     massTotal: (v: string) => `Total ${v}`,
+    massDryWet: (dry: string, wet: string) => `Dry ${dry} · wet ${wet}`,
     massBudget: "Mass budget",
     limit: (v: string) => `Limit ${v}`,
     powerBalance: "Power balance (orbit average, worst)",
@@ -33,8 +34,18 @@ export const overviewEn: typeof overviewJa = {
     budgetMode: (mode: string) => ` · mode ${mode}`,
     budgetMargin: (v: string) => `Margin ${v}`,
     budgetLimit: (limit: string, margin: string) => `/ limit ${limit} (system margin ${margin})`,
+    budgetDry: "Dry",
+    budgetWet: "Wet",
+    budgetPropellant: "Propellant",
+    propellantNone:
+      "No propulsion system (maneuvers or propulsion parts), so propellant is not counted",
+    propellantMissing: "Propulsion inputs are missing, so propellant is not counted",
+    propellantFailed: (msg: string) =>
+      `The propulsion analysis failed, so propellant is not counted: ${msg}`,
     budgetOther: "(other)",
     budgetOtherTitle: "Parts without a system or part allocation",
+    budgetUncounted: (count: number, names: string) =>
+      `${count} part(s) without a value are not in the total (not treated as 0): ${names}`,
     note: (n: string) => `• ${n}`,
   },
 };

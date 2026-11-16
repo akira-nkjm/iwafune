@@ -2,23 +2,21 @@
 
 use crate::error::StoreError;
 pub use crate::profile::parse;
+use crate::profile::row_key_len;
 use toml_edit::{DocumentMut, Item, Key, Table, Value};
 
 /// 表の中の `=` の揃え幅（すべての値の行が同じ幅で揃っていればその幅）。
+/// ドット付きキーの行（出典の付いた値）も全体の長さで数える。
 fn aligned_width(table: &Table) -> Option<usize> {
     let mut width = None;
-    for (name, item) in table.iter() {
-        if !item.is_value() {
-            continue;
-        }
-        let key = table.key(name)?;
+    for (path, _) in table.get_values() {
+        let key = path.last()?;
         let suffix = key
             .leaf_decor()
             .suffix()
             .and_then(|s| s.as_str())
             .unwrap_or(" ");
-        let repr = key.display_repr().len();
-        let w = repr + suffix.len();
+        let w = row_key_len(&path) + suffix.len();
         match width {
             None => width = Some(w),
             Some(prev) if prev == w => {}
@@ -30,10 +28,15 @@ fn aligned_width(table: &Table) -> Option<usize> {
 
 /// 新しいキーを、周りの行と `=` を揃えて足す。新しいキーが今の揃え幅より長ければ、表ごと揃え直す
 /// （`[pose]` に `orientation` を足すときなど。揃えないと `fune fmt --check` に通らない）。
+/// ドット付きキーの行の表（出典の付いた状態のセル）を足したときも表ごと揃え直す。
 pub fn insert_aligned(table: &mut Table, key: &str, item: Item) {
     let width = aligned_width(table);
     let is_value = item.is_value();
+    let is_dotted = item.as_table().is_some_and(Table::is_dotted);
     table.insert(key, item);
+    if is_dotted && width.is_some() {
+        crate::profile::align_rows(table);
+    }
     if !is_value {
         return;
     }
@@ -59,9 +62,37 @@ pub fn set(table: &mut Table, key: &str, item: Item) {
             *new.decor_mut() = old.decor().clone();
             *old = new;
         }
-        (Some(slot), item) => *slot = item,
+        (Some(Item::Table(old)), Item::Table(new)) if old.is_dotted() == new.is_dotted() => {
+            *old = new;
+        }
+        (Some(_), item) => replace_kind(table, key, item),
         (None, item) => insert_aligned(table, key, item),
     }
+}
+
+/// 行の種類を変える（値の行 ⇄ 見出しの表・ドット付きキー。出典を付けた・外したとき）。キーの位置は保ち、
+/// 揃っていた表は揃え直し、値の行が無くなった表の見出しは書かない。
+fn replace_kind(table: &mut Table, key: &str, item: Item) {
+    let aligned = aligned_width(table).is_some();
+    // 既にあるキーへの insert は位置を保ち、キーの装飾（揃えの空白）を消す。
+    table.insert(key, item);
+    if aligned {
+        crate::profile::align_rows(table);
+    }
+    crate::profile::hide_empty_header(table);
+}
+
+/// 行を消す（揃っていた表は残りの行で揃え直し、値の行が無くなった表の見出しは書かない。fmt と同じ形にする）。消したら true。
+pub fn remove_aligned(table: &mut Table, key: &str) -> bool {
+    let aligned = aligned_width(table).is_some();
+    if table.remove(key).is_none() {
+        return false;
+    }
+    if aligned {
+        crate::profile::align_rows(table);
+    }
+    crate::profile::hide_empty_header(table);
+    true
 }
 
 /// 値があれば置き換え、None なら消す。
@@ -260,6 +291,17 @@ mod tests {
             Item::Value(Value::from(2.0)),
         );
         assert_eq!(doc.to_string(), "position    = 1.0\norientation = 2.0\n");
+    }
+
+    #[test]
+    fn dotted_rows_count_in_the_width_and_removal_realigns() {
+        // 出典の付いたセル（`on.from.source`）の幅で揃えた表から、そのセルを消すと残りの行を揃え直す（fmt と同じ）。
+        let src = "off            = 0.0\non.value       = 1.0\non.from.source = \"x\"\n";
+        let mut doc = parse("t", src).unwrap();
+        insert_aligned(doc.as_table_mut(), "idle", Item::Value(Value::from(0.5)));
+        assert!(doc.to_string().ends_with("idle           = 0.5\n"), "{doc}");
+        assert!(remove_aligned(doc.as_table_mut(), "on"));
+        assert_eq!(doc.to_string(), "off  = 0.0\nidle = 0.5\n");
     }
 
     #[test]

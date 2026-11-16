@@ -54,12 +54,24 @@ impl Epoch {
     }
     /// UTC の年間通日（1 月 1 日 = 1）と、その日の 0 時からの秒。
     pub fn day_of_year_and_seconds(&self) -> (u16, f64) {
+        let (days, seconds) = self.day_number_and_seconds();
+        let (y, _, _) = civil_from_days(days + J2000_DAYS_FROM_UNIX);
+        let doy = days + J2000_DAYS_FROM_UNIX - days_from_civil(y, 1, 1) + 1;
+        (doy as u16, seconds)
+    }
+    /// UTC の日の番号（2000-01-01 = 0。日ごとの表を引く鍵）と、その日の 0 時からの秒。
+    pub fn day_number_and_seconds(&self) -> (i64, f64) {
         let since_midnight_2000 = self.j2000_s + HALF_DAY_S;
         let days = (since_midnight_2000 / SECONDS_PER_DAY).floor();
-        let seconds = since_midnight_2000 - days * SECONDS_PER_DAY;
-        let (y, _, _) = civil_from_days(days as i64 + J2000_DAYS_FROM_UNIX);
-        let doy = days as i64 + J2000_DAYS_FROM_UNIX - days_from_civil(y, 1, 1) + 1;
-        (doy as u16, seconds)
+        (days as i64, since_midnight_2000 - days * SECONDS_PER_DAY)
+    }
+    /// 暦の日付（UTC）の日の番号（2000-01-01 = 0）。
+    pub fn day_number_of(year: i64, month: u32, day: u32) -> i64 {
+        days_from_civil(year, month, day) - J2000_DAYS_FROM_UNIX
+    }
+    /// 日の番号（2000-01-01 = 0）→ (年, 月, 日)。
+    pub fn calendar_of_day_number(day_number: i64) -> (i64, u32, u32) {
+        civil_from_days(day_number + J2000_DAYS_FROM_UNIX)
     }
     /// 2 つの元期の差 `self − other` [s]。
     pub fn seconds_since(&self, other: Epoch) -> f64 {
@@ -259,6 +271,18 @@ mod tests {
         assert_eq!(e.day_of_year_and_seconds(), (1, 0.0));
         let e = Epoch::parse("2024-12-31T23:59:59Z").expect("元期");
         assert_eq!(e.day_of_year_and_seconds(), (366, 86_399.0));
+    }
+
+    #[test]
+    fn day_numbers_round_trip_through_the_calendar() {
+        assert_eq!(Epoch::day_number_of(2000, 1, 1), 0);
+        assert_eq!(Epoch::day_number_of(1999, 12, 31), -1);
+        let e = Epoch::parse("2003-10-29T07:30:00Z").expect("元期");
+        let (day, sec) = e.day_number_and_seconds();
+        assert_eq!(day, Epoch::day_number_of(2003, 10, 29));
+        assert_eq!(sec, 27_000.0);
+        assert_eq!(Epoch::calendar_of_day_number(day), (2003, 10, 29));
+        assert_eq!(Epoch::calendar_of_day_number(-1), (1999, 12, 31));
     }
 
     #[test]

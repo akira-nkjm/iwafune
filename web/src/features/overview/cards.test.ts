@@ -26,9 +26,9 @@ const kpi = (key: KpiKey, rest: Partial<KpiView>): KpiView => ({
 });
 
 const slot = (system: System, k: KpiView, loading = false): KpiSlot => ({
-  def: { key: k.key, label: k.label, label_en: k.label_en },
+  def: { key: k.key, label: k.label, label_en: k.label_en, when_measured: false },
   analysis: `${system}.x`,
-  system,
+  area: { kind: "system", value: system },
   kpi: loading ? null : k,
   loading,
 });
@@ -47,9 +47,11 @@ const budget = (rest: Partial<BudgetView>): BudgetView => ({
   fill: { ratio: 0.47, basis: "used_over_limit" },
   rows: [],
   modes: [],
+  propellant: null,
   analysis: "budget",
   mode: null,
   missing: [],
+  uncounted: [],
   notes: [],
   ...rest,
 });
@@ -156,6 +158,39 @@ describe("overviewCards", () => {
           : sources.kpi(key),
     });
     expect(allOk.find((c) => c.key === "nodes_in_range")?.value).toBe(o.allInRange);
+  });
+
+  it("推薬を数えた質量は推薬込みの余裕・判定・塗りを出し、フッターに乾燥と推薬込みの両方", () => {
+    const wet = overviewCards(o, {
+      ...sources,
+      mass: {
+        data: budget({
+          propellant: {
+            status: "counted",
+            analysis: "propulsion.propellant",
+            loaded: qty("67.2 g"),
+            wet: {
+              total: qty("5.71 kg"),
+              margin: qty("5.09 kg"),
+              verdict: "warning",
+              fill: { ratio: 0.48, basis: "used_over_limit" },
+            },
+          },
+        }),
+        pending: false,
+      },
+    });
+    expect(wet[0]).toMatchObject({
+      value: "5.09 kg",
+      tone: "warn",
+      fill: { ratio: 0.48 },
+      footer: o.massDryWet("5.64 kg", "5.71 kg"),
+    });
+    const none = overviewCards(o, {
+      ...sources,
+      mass: { data: budget({ propellant: { status: "no_propulsion" } }), pending: false },
+    });
+    expect(none[0]).toMatchObject({ value: "5.16 kg", footer: o.massTotal("5.64 kg") });
   });
 
   it("解析の一覧もバジェットも届く前は読み込み中で、開き先は概要", () => {

@@ -21,7 +21,8 @@ pub enum EntityKey {
     Harness(String),
     Case(String),
     Source(String),
-    /// 設定ファイル（`mission.orbit`・`mission.ground.<局の ID>`・`analysis.power` のパス）
+    Maneuver(String),
+    /// 設定ファイル（`conditions.orbit`・`conditions.ground.<局の ID>`・`analysis.power` のパス）
     Setting(SettingPath),
     /// 図の配置（`view/<名前>.toml`）
     View(String),

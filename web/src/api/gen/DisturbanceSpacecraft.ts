@@ -2,6 +2,7 @@
 import type { AtmosphereModel } from "./AtmosphereModel";
 import type { DisturbanceSurface } from "./DisturbanceSurface";
 import type { Mat3 } from "./Mat3";
+import type { ThrustDisturbance } from "./ThrustDisturbance";
 import type { Vec3 } from "./Vec3";
 
 /**
@@ -21,9 +22,9 @@ aero: DisturbanceSurface | null,
  */
 srp: DisturbanceSurface | null, 
 /**
- * 残留磁気モーメント [A·m²]（機体座標系）
+ * 残留磁気モーメント [A·m²]（機体座標系）。省略時は [`DEFAULT_RESIDUAL_DIPOLE`]（0 = 磁気トルクを考えない）
  */
-residual_dipole: Vec3, 
+residual_dipole: Vec3 | null, 
 /**
  * 大気モデル（省略時は指数大気）
  */
@@ -31,4 +32,8 @@ atmosphere: AtmosphereModel,
 /**
  * 大気密度に掛ける倍率（モデルの不確かさを見込む）。省略時 1
  */
-density_scale: number | null, };
+density_scale: number | null, 
+/**
+ * 推力誤差（噴射するスラスタ）。省略時は推力誤差のトルクを考えない（種類の一覧にも出さない）
+ */
+thrust?: ThrustDisturbance | null, };

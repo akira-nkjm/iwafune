@@ -1,9 +1,11 @@
 import { LayoutGrid, Redo2, RotateCcw, Undo2 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
 import { SkeletonCanvas } from "@/kit/feedback/Loading";
 import { QueryState } from "@/kit/feedback/QueryState";
+import { diagramHiddenSystems, withDiagramHiddenSystems } from "@/lib/nav";
 import { CanvasFrame } from "@/shell/CanvasFrame";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
@@ -11,6 +13,7 @@ import { DiagramCanvas } from "./canvas/DiagramCanvas";
 import { useDiagramFlow, useDiagramModel } from "./canvas/use-diagram-flow";
 import { DiagramInspector, type DiagramSelection } from "./DiagramInspector";
 import { DiagramLegend } from "./DiagramLegend";
+import { DiagramSystems } from "./DiagramSystems";
 import { DiagramToolbar } from "./DiagramToolbar";
 import { NewNetDialog } from "./editing/NewNetDialog";
 import { useDiagramConnect } from "./editing/use-diagram-connect";
@@ -51,7 +54,12 @@ export function DiagramPage() {
     });
   const [selected, setSelected] = useState<DiagramSelection>(null);
   const d = design.data;
-  const { model, layout } = useDiagramModel(d, layers, merge);
+  const [params, setParams] = useSearchParams();
+  const hiddenSystems = useMemo(
+    () => diagramHiddenSystems(params, d?.defs.systems ?? []),
+    [params, d?.defs.systems],
+  );
+  const { model, layout } = useDiagramModel(d, layers, merge, hiddenSystems);
   const flow = useDiagramFlow(d, model, layout);
   // ⌘Z・⇧⌘Z（Ctrl+Z・Ctrl+Y）で配置の編集を元に戻す・やり直す。戻す前に、手で動かした印と保存待ちの位置を捨てる
   const undo = () => {
@@ -89,6 +97,14 @@ export function DiagramPage() {
           <CanvasFrame
             toolbar={
               <>
+                <DiagramSystems
+                  defs={shown.design.defs}
+                  hidden={hiddenSystems}
+                  onChange={(hidden) => {
+                    setSelected(null);
+                    setParams((previous) => withDiagramHiddenSystems(previous, hidden));
+                  }}
+                />
                 <DiagramToolbar
                   layers={layers}
                   onLayers={setLayers}

@@ -30,7 +30,8 @@ describe("targetLink", () => {
     };
     expect(targetLink(setting, parts)).toBe("/project/settings");
     expect(targetLink({ kind: "mode", id: "NOMINAL", part: "TRX" }, parts)).toBe("/design/modes");
-    expect(targetLink({ kind: "case", id: "HOT", field: "beta" }, parts)).toBe("/mission/cases");
+    expect(targetLink({ kind: "case", id: "HOT", field: "beta" }, parts)).toBe("/conditions/cases");
+    expect(targetLink({ kind: "source", id: "ds_vendor" }, parts)).toBe("/project/sources");
   });
 
   it("部品の ID も URL に入れるときに符号化する", () => {

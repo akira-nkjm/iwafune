@@ -6,10 +6,10 @@
 //! - 部品のレートには、HK はパケットの余分 `(1 + hk_overhead)` を、ミッションデータは圧縮率 `compression_ratio` を掛ける。
 
 use crate::budget::{BudgetItem, counted_total, limit_check};
-use crate::modes::{DUTY_TOLERANCE, ModeDef, StateValues, UnlistedParts, evaluate, find_mode};
+use crate::modes::{DUTY_TOLERANCE, ModeDef, StateValues, find_mode};
 use crate::spec::quantity_text;
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_fraction,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_fraction,
     ensure_non_negative, ensure_positive, ratio_margin, ratio_margin_verdict,
 };
 use sat_astro::constants::SECONDS_PER_DAY;
@@ -26,6 +26,12 @@ pub struct DataBudgetPart {
     /// 員数。レートは単体値を渡す（省略時 1）。
     #[serde(default = "crate::spec::default_count")]
     pub count: u32,
+    /// 冗長の方式。
+    #[serde(default)]
+    pub redundancy: crate::modes::Redundancy,
+    /// 種別の状態の語彙（warm の予備状態を選ぶ）。
+    #[serde(default)]
+    pub states: Vec<String>,
     /// 部品の ID（モードの割り当ての `part` と同じ）
     pub id: String,
     /// HK（テレメトリ）のレート（1 台の状態ごと）
@@ -159,7 +165,7 @@ pub struct DataBudget;
 impl Analysis for DataBudget {
     const ID: &'static str = "cdh.data_budget";
     const TITLE: &'static str = "データ量とストレージ";
-    const SYSTEM: System = System::Cdh;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Cdh);
     const KIND: AnalysisKind = AnalysisKind::Steady;
     const DESCRIPTION: &'static str =
         "HK・ミッションデータの発生量と、保持が必要な量・ストレージ余裕";
@@ -246,48 +252,9 @@ fn validate(input: &DataBudgetInput) -> Result<(f64, Params), AnalysisError> {
     Ok((sum, p))
 }
 
-/// 部品のレートの種類（HK とミッションデータ）。
-type Pick = fn(&DataBudgetPart) -> &StateValues<DataRate>;
-
-/// モード中の部品ごとの [HK, ミッション] の平均レート [bit/s]（係数を掛ける前）と、合計から除いた部品の警告。
-/// 平均と除外の扱いは `modes::evaluate`。レートを持たない部品は渡さないので、モードにはあるがレートの一覧に
-/// 無い部品は C&DH では正常として警告にしない（[`UnlistedParts::Ignore`]）。
-fn mode_rates(
-    mode: &ModeDef,
-    parts: &[DataBudgetPart],
-) -> Result<(Vec<[f64; 2]>, Vec<Check>), AnalysisError> {
-    let kinds: [(&str, &str, Pick); 2] = [
-        ("hk", "HK レート", |p| &p.hk_rate),
-        ("mission", "ミッションデータのレート", |p| {
-            &p.mission_rate
-        }),
-    ];
-    let mut rates = vec![[0.0; 2]; parts.len()];
-    let mut checks = Vec::new();
-    for (k, (key, label, pick)) in kinds.into_iter().enumerate() {
-        let ids = parts
-            .iter()
-            .filter(|p| !pick(p).is_empty())
-            .map(|p| p.id.as_str());
-        let ev = evaluate(mode, ids, UnlistedParts::Ignore, |id, state| {
-            parts
-                .iter()
-                .find(|p| p.id == id)
-                .and_then(|p| pick(p).get(state))
-                .map(Qty::value)
-        })?;
-        for (id, mean) in &ev.means {
-            if let (Some(i), Some(m)) = (parts.iter().position(|p| &p.id == id), mean) {
-                rates[i][k] = *m * f64::from(parts[i].count);
-            }
-        }
-        checks.extend(ev.checks(label).into_iter().map(|mut c| {
-            c.key = format!("{key}:{}:{}", c.key, mode.id);
-            c
-        }));
-    }
-    Ok((rates, checks))
-}
+mod mode_rates;
+use mode_rates::mode_rates;
+pub use mode_rates::{ModePartRates, mode_part_rates};
 
 fn build_output(
     input: &DataBudgetInput,
@@ -394,3 +361,14 @@ fn summary_checks(
 
 #[cfg(test)]
 mod tests;
+
+impl DataBudgetPart {
+    /// 共通のモード評価に渡す員数と語彙。
+    pub fn population(&self) -> crate::modes::Population<'_> {
+        crate::modes::Population {
+            count: self.count,
+            redundancy: self.redundancy,
+            states: &self.states,
+        }
+    }
+}

@@ -3,16 +3,18 @@
 //! - **捨てる量**: `momentum` を与えなければ、ホイールの最大角運動量の最大 × 使ってよい割合（既定 0.8）。
 //! - **MTQ**: 出せるトルクは `τ = η · m_eff · |B|`。`m_eff` は MTQ の組が機体のどの軸の向きにも出せる双極子の最小
 //!   （各機体軸 j について `Σ_i m_max,i |a_i·e_j|` を求め、その最小）。`|B|` は軌道に沿った磁場の大きさの時間平均
-//!   （`sat_astro::geomag::field_about_eci_t`、中心天体が地球以外なら 0。標本は `sat_astro::timeline::OrbitSampling`）。
+//!   （`sat_astro::geomag::field_about_eci_t`。標本は `sat_astro::timeline::OrbitSampling`）。磁場のモデルは地球だけで、ほかの中心天体の
+//!   軌道では MTQ を評価せず（`mtq` は `None`）、理由と RCS で足りるかを `mtq_field_gap` に返す（[`MtqFieldGap`]。RCS の評価は続ける）。
 //!   η は **双極子が B と直交する成分しかトルクにならず、B の向きが軌道上で変わることを見込んだ平均の有効率**で、
 //!   入力で与える（省略時 0.5。概算）。
 //! - **RCS**: スラスタの取付位置・推力の向きと重心から各スラスタのトルクを求め、捨てる向き（−ĥ）の成分が正の
 //!   スラスタを同時に噴射する（[`rcs`]）。時間 `t = H / T`、推薬 `m = Σ F_i t / (Isp_i g₀)`。
 
+use super::thrusters::Thruster;
 use super::wheels::{RwWheel, usable_momentum_fraction};
 use crate::spec::quantity_text;
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_fraction,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_fraction,
     ensure_non_negative, ensure_positive,
 };
 use sat_astro::geomag::field_about_eci_t;
@@ -53,7 +55,7 @@ pub struct UnloadTimeInput {
     pub mtq_efficiency: Option<Fraction>,
     /// スラスタ（空なら RCS の評価をしない）
     #[serde(default)]
-    pub thrusters: Vec<UnloadTimeThruster>,
+    pub thrusters: Vec<Thruster>,
     /// 重心 [m]（機体座標系）。スラスタがあるときは必須
     #[serde(default)]
     pub center_of_mass: Option<Vec3>,
@@ -109,7 +111,11 @@ pub struct UnloadTimeOutput {
     pub momentum: Qty<AngularMomentum>,
     /// 捨てる量をホイールから求めたときに使った「使ってよい割合」（`momentum` を与えたときは `None`）
     pub usable_momentum_fraction: Option<Fraction>,
+    /// MTQ での結果（MTQ が無いか、中心天体の磁場で評価できなければ `None`）
     pub mtq: Option<UnloadTimeMtqResult>,
+    /// MTQ を中心天体の磁場で評価できなかった理由と、RCS で足りるか（評価したか MTQ が無ければ `None`）
+    #[serde(default)]
+    pub mtq_field_gap: Option<MtqFieldGap>,
     pub rcs: Option<UnloadTimeRcs>,
     pub checks: Vec<Check>,
 }
@@ -142,7 +148,7 @@ pub struct UnloadTime;
 impl Analysis for UnloadTime {
     const ID: &'static str = "aocs.unload_time";
     const TITLE: &'static str = "アンロードにかかる時間";
-    const SYSTEM: System = System::Aocs;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Aocs);
     const KIND: AnalysisKind = AnalysisKind::Steady;
     const DESCRIPTION: &'static str = "MTQ・RCS で所定の角運動量を捨てるのにかかる時間";
     const TITLE_EN: &'static str = "Momentum unloading time";
@@ -153,7 +159,12 @@ impl Analysis for UnloadTime {
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         let (h, usable) = dump_momentum(input)?;
-        let mtq = if input.magnetorquers.is_empty() {
+        let mtq_field_reason = if input.magnetorquers.is_empty() {
+            None
+        } else {
+            field_reason(input.field.as_ref())
+        };
+        let mtq = if input.magnetorquers.is_empty() || mtq_field_reason.is_some() {
             None
         } else {
             Some(mtq_result(input, h)?)
@@ -174,10 +185,17 @@ impl Analysis for UnloadTime {
             )?)
         };
         let checks = verdicts(input, mtq.as_ref(), rcs.as_ref());
+        // RCS がすべての向きを捨てられるなら（最悪の向きの時間がある）、MTQ を使えなくても問題ではない
+        let covered_by_rcs = rcs.as_ref().is_some_and(|r| r.worst.time.is_some());
+        let mtq_field_gap = mtq_field_reason.map(|reason| MtqFieldGap {
+            reason,
+            covered_by_rcs,
+        });
         Ok(UnloadTimeOutput {
             momentum: Qty::from_raw(h),
             usable_momentum_fraction: usable,
             mtq,
+            mtq_field_gap,
             rcs,
             checks,
         })
@@ -234,6 +252,12 @@ fn field_stats(field: &UnloadTimeField) -> Result<(FieldStats, Option<f64>), Ana
         UnloadTimeField::Orbit { sampling } => {
             // 磁場は位置だけで決まるので、姿勢則の要らない軌道の標本で求める（β の指定は RAAN に当てる）
             let central = sampling.orbit.central;
+            if MtqFieldReason::of(central).is_some() {
+                // `run` が先に外すので通らない（磁場を 0 として計算しないための守り）
+                return Err(AnalysisError::InvalidInput(format!(
+                    "この天体の磁場は扱えません（中心天体: {central:?}）"
+                )));
+            }
             let points = sampling.states()?;
             let t: Vec<f64> = points.iter().map(|p| p.t_s).collect();
             let b: Vec<f64> = points
@@ -332,8 +356,11 @@ fn verdicts(
     checks
 }
 
+mod field_gap;
+use field_gap::field_reason;
+pub use field_gap::{MTQ_FIELD_MODEL_CHECK, MtqFieldGap, MtqFieldReason};
 pub mod rcs;
-pub use rcs::{UnloadTimeRcs, UnloadTimeRcsResult, UnloadTimeThruster, rcs_unload};
+pub use rcs::{UnloadTimeRcs, UnloadTimeRcsResult, rcs_unload};
 
 #[cfg(test)]
 mod tests;

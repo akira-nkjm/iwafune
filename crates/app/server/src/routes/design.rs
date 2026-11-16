@@ -21,6 +21,13 @@ pub async fn design(State(s): State<AppState>) -> Result<Json<DesignView>, ApiEr
     blocking(&s, query::design_view).await.map(Json)
 }
 
+/// GET `/maneuvers`（実行の順。`fune maneuver ls`）
+pub async fn maneuvers(
+    State(s): State<AppState>,
+) -> Result<Json<Vec<fune_service::dto::ManeuverView>>, ApiError> {
+    blocking(&s, query::maneuvers).await.map(Json)
+}
+
 /// GET `/parts?group=aocs&kind=reaction_wheel`
 pub async fn parts(
     State(s): State<AppState>,
@@ -73,4 +80,18 @@ pub async fn defs(State(s): State<AppState>) -> Result<Json<DefsView>, ApiError>
 /// GET `/diagnostics`
 pub async fn diagnostics(State(s): State<AppState>) -> Result<Json<CheckReport>, ApiError> {
     blocking(&s, query::check).await.map(Json)
+}
+
+/// POST `/system_modes/{system}`: 保存していない編集も同じ経路で評価する。
+pub async fn system_modes(
+    State(s): State<AppState>,
+    Path(system): Path<String>,
+    ApiJson(req): ApiJson<PartViewRequest>,
+) -> Result<Json<fune_service::dto::SystemModesView>, ApiError> {
+    blocking(&s, move |ws| {
+        let system = fune_service::system_modes::parse_system(&system)?;
+        fune_service::system_modes::system_modes(ws, system, &req)
+    })
+    .await
+    .map(Json)
 }

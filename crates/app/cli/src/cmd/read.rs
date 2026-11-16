@@ -93,12 +93,18 @@ pub fn mode(ws: &Workspace, cmd: &ModeCmd, out: &Out) -> Handled {
         return Ok(Some(0));
     }
     if !table {
-        let mut t = out.table(&["ID", "名前", "説明"]);
+        let mut t = out.table(&["ID", "名前", "説明", "最長継続時間"]);
         for m in &modes.modes {
             t.row(vec![
                 C::Strong(m.id.clone()),
                 C::Text(m.label.clone()),
                 C::Dim(m.description.clone().unwrap_or_default()),
+                C::Text(
+                    m.max_duration
+                        .as_ref()
+                        .map(|q| q.display.clone())
+                        .unwrap_or_default(),
+                ),
             ]);
         }
         t.print();
@@ -112,7 +118,19 @@ pub fn mode(ws: &Workspace, cmd: &ModeCmd, out: &Out) -> Handled {
         for m in &modes.modes {
             cells.push(match row.cells.get(&m.id) {
                 None => C::Dim("未指定".into()),
-                Some(cell) => C::Text(cell_text(&cell.state, row.shares.get(&m.id))),
+                Some(cell) => {
+                    let mut text = cell_text(&cell.state, row.shares.get(&m.id));
+                    if let Some(n) = cell.active {
+                        text.push_str(&format!(" [active={n}]"));
+                    }
+                    if let Some(s) = &cell.spare_state {
+                        text.push_str(&format!(" [spare={s}]"));
+                    }
+                    if let Some(e) = row.eclipse_cells.get(&m.id) {
+                        text.push_str(&format!(" [eclipse={}]", e.state));
+                    }
+                    C::Text(text)
+                }
             });
         }
         t.row(cells);
@@ -216,7 +234,7 @@ pub fn kind(ws: &Workspace, cmd: &KindCmd, out: &Out) -> Handled {
     for k in &defs.kinds {
         t.row(vec![
             C::Strong(k.id.clone()),
-            C::Text(k.role.clone().unwrap_or_default()),
+            C::Text(k.role.map(|r| r.to_string()).unwrap_or_default()),
             C::Text(k.states.join(" / ")),
             C::Text(k.required.join(", ")),
             C::Dim(if k.builtin { "組み込み" } else { "defs/" }.into()),
@@ -262,8 +280,7 @@ pub fn view(ws: &Workspace, cmd: &crate::args::ViewCmd, out: &Out) -> Handled {
     let crate::args::ViewCmd::Ls { view } = cmd else {
         return Ok(None);
     };
-    let views = query::design_view(ws)?.views;
-    let layout = views.into_iter().find(|v| &v.id == view);
+    let layout = query::view_layout(ws, view)?;
     if out.json {
         out.json(&layout)?;
         return Ok(Some(0));
@@ -324,13 +341,18 @@ pub fn source(ws: &Workspace, cmd: &crate::args::SourceCmd, out: &Out) -> Handle
         out.json(&sources)?;
         return Ok(Some(0));
     }
-    let mut t = out.table(&["ID", "種類", "名前", "参照先", "日付"]);
-    for s in &sources {
+    let mut t = out.table(&["ID", "種類", "名前", "参照先", "版", "配布", "日付"]);
+    for s in sources.iter().map(|v| &v.source) {
+        let distribution = s
+            .distribution
+            .map(|d| query::enum_label("distribution", &d));
         t.row(vec![
             C::Strong(s.id.to_string()),
             C::Text(s.kind.as_str().to_owned()),
             C::Text(s.label.clone().unwrap_or_default()),
             C::Dim(s.reference.clone().unwrap_or_default()),
+            C::Dim(s.revision.clone().unwrap_or_default()),
+            C::Dim(distribution.unwrap_or_default()),
             C::Dim(s.date.clone().unwrap_or_default()),
         ]);
     }

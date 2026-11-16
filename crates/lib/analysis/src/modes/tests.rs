@@ -5,6 +5,8 @@ fn assign(state: &str, duty: &[(&str, f64)]) -> StateAssignment {
         part: "TRX".to_owned(),
         state: state.to_owned(),
         duty: duty.iter().map(|(s, f)| ((*s).to_owned(), *f)).collect(),
+        active: None,
+        spare_state: None,
     }
 }
 
@@ -62,6 +64,7 @@ fn duplicate_assignment_is_rejected() {
         id: "NOMINAL".to_owned(),
         label: "通常".to_owned(),
         assignments: vec![assign("rx", &[]), assign("tx", &[])],
+        eclipse: Vec::new(),
     };
     assert!(m.validate().is_err());
     assert!(m.assignment("TRX").is_some());
@@ -80,20 +83,36 @@ fn evaluate_excludes_unassigned_and_missing_with_warnings() {
                 part: "GPS".to_owned(),
                 state: "on".to_owned(),
                 duty: BTreeMap::new(),
+                active: None,
+                spare_state: None,
             },
             StateAssignment {
                 part: "HTR".to_owned(),
                 state: "on".to_owned(),
                 duty: BTreeMap::new(),
+                active: None,
+                spare_state: None,
             },
         ],
+        eclipse: Vec::new(),
     };
     let value = |part: &str, state: &str| match (part, state) {
         ("TRX", "rx") => Some(2.0),
         ("TRX", "tx") => Some(10.0),
         _ => None,
     };
-    let ev = evaluate(&mode, ["TRX", "CAM", "GPS"], UnlistedParts::Warn, value).unwrap();
+    let ev = evaluate(
+        &mode,
+        ["TRX", "CAM", "GPS"],
+        UnlistedParts::Warn,
+        |_| Population {
+            count: 1,
+            redundancy: Redundancy::None,
+            states: &[],
+        },
+        value,
+    )
+    .unwrap();
     assert!((ev.total() - 2.8).abs() < 1e-12);
     assert_eq!(ev.unassigned, vec!["CAM".to_owned()]);
     assert_eq!(ev.missing, vec![("GPS".to_owned(), "on".to_owned())]);
@@ -101,7 +120,18 @@ fn evaluate_excludes_unassigned_and_missing_with_warnings() {
     let keys: Vec<String> = ev.checks("消費電力").into_iter().map(|c| c.key).collect();
     assert_eq!(keys, ["unassigned", "missing_value", "unknown_part"]);
     // 一覧に無い部品を警告しない評価では unknown_part だけが消える
-    let quiet = evaluate(&mode, ["TRX", "CAM", "GPS"], UnlistedParts::Ignore, value).unwrap();
+    let quiet = evaluate(
+        &mode,
+        ["TRX", "CAM", "GPS"],
+        UnlistedParts::Ignore,
+        |_| Population {
+            count: 1,
+            redundancy: Redundancy::None,
+            states: &[],
+        },
+        value,
+    )
+    .unwrap();
     assert!(quiet.unknown_parts.is_empty());
     let keys: Vec<String> = quiet
         .checks("消費電力")
@@ -134,4 +164,31 @@ fn state_values_fall_back_to_the_default() {
     let parsed: StateValues<Power> = serde_json::from_str(r#"{"by_state": {"on": 2}}"#).unwrap();
     assert_eq!(parsed.get("on").map(Qty::value), Some(2.0));
     assert!(parsed.default.is_none());
+}
+
+#[test]
+fn spare_state_priority_and_zero_active_units() {
+    let states = ["off", "idle", "standby", "on"].map(str::to_owned);
+    let mut a = assign("on", &[]);
+    a.active = Some(0);
+    let population = Population {
+        count: 4,
+        redundancy: Redundancy::Warm,
+        states: &states,
+    };
+    assert_eq!(
+        counted_states(&a, population).unwrap().last().unwrap(),
+        &("standby".into(), 1.0, 4)
+    );
+    a.spare_state = Some("idle".into());
+    assert_eq!(
+        counted_states(&a, population).unwrap().last().unwrap().0,
+        "idle"
+    );
+    a.spare_state = None;
+    let cold = Population {
+        redundancy: Redundancy::Cold,
+        ..population
+    };
+    assert_eq!(counted_states(&a, cold).unwrap().last().unwrap().0, "off");
 }

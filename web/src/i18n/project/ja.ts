@@ -17,6 +17,8 @@ export const projectJa = {
       missing: "未取得",
       fetching: "取得中…",
       fetch: "取得",
+      /** 取得した日時（毎日更新される宇宙天気の表など。API の `DataItem.fetched_at`） */
+      fetchedAt: (at: string) => `取得 ${at}`,
     },
     projectPanel: "プロジェクト",
     name: "名前",
@@ -26,7 +28,7 @@ export const projectJa = {
     revision: "リビジョン",
     schema: "スキーマの版",
     groups: {
-      mission: { title: "ミッション", caption: "mission/ — 軌道・地上局・期間" },
+      conditions: { title: "前提条件", caption: "conditions/ — 軌道・地上局・期間" },
       analysis: { title: "解析", caption: "analysis/ — 各系の解析の設定" },
       budget: { title: "バジェット", caption: "budget/ — 配分・マージン方針" },
     },

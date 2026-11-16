@@ -4,6 +4,7 @@ use super::attr::{AttrTarget, unset_attr, write_attr};
 use crate::error::OpError;
 use crate::op::Op;
 use fune_model::Design;
+use fune_model::builtin::STATE_OFF;
 use fune_model::design::{Mount, NodeRef, Part, Pose, StateAssign};
 use fune_model::id::{Id, clash, validate_local_name, validate_node_id};
 use fune_model::value::Value;
@@ -170,7 +171,7 @@ fn create_part(
         .unwrap_or(&[]);
     let state = match mode_state {
         Some(s) => Some(s.to_string()),
-        None if states.iter().any(|s| s == "off") => Some("off".to_string()),
+        None if states.iter().any(|s| s == STATE_OFF) => Some(STATE_OFF.to_string()),
         None => states.first().cloned(),
     };
     if let Some(state) = state {
@@ -180,6 +181,7 @@ fn create_part(
                 edits,
                 &layout::mode_file(mode.as_str()),
                 part.id.as_str(),
+                false,
                 Some(&assign),
             )?;
         }

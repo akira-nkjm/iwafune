@@ -2,6 +2,8 @@
 
 use super::*;
 use crate::comm::passes::fixtures::{sso_orbit, tokyo};
+use crate::spec::Verdict;
+use sat_astro::ground::GroundStation as Station;
 
 #[test]
 fn backlog_hand_calculation() {
@@ -33,7 +35,10 @@ fn input() -> DataThroughputInput {
         generated_per_day: Qty::from_raw(50.0e6),
         initial_backlog: None,
         storage_capacity: Some(Qty::from_raw(8.0e9)),
-        link: None,
+        station_links: Vec::new(),
+        stations_without_band: Vec::new(),
+        downlink: None,
+        other_downlinks: Vec::new(),
         required_margin_db: None,
     }
 }
@@ -80,6 +85,7 @@ fn uhf() -> RfLinkParams {
         rx_gain_db: db(12.0),
         rx_loss_db: Some(db(0.0)),
         system_noise_temperature: Qty::from_raw(500.0),
+        rx_g_over_t_dbk: None,
         atmospheric_loss_db: Some(db(0.5)),
         polarization_loss_db: Some(db(3.0)),
         pointing_loss_db: Some(db(0.5)),
@@ -94,10 +100,13 @@ fn uhf() -> RfLinkParams {
 fn link_closure_raises_min_elevation() {
     let base = DataThroughput::run(&input()).unwrap();
     let mut with_link = input();
-    with_link.link = Some(DataThroughputLink {
-        rf: uhf(),
-        required_eb_n0_db: Decibel::new(20.0),
-    });
+    with_link.station_links = vec![DataThroughputStationLink {
+        station: "TKY".to_owned(),
+        link: DataThroughputLink {
+            rf: uhf(),
+            required_eb_n0_db: Decibel::new(20.0),
+        },
+    }];
     let out = DataThroughput::run(&with_link).unwrap();
     let DataThroughputLinkClosure::ClosesAbove { min_elevation } = out.link_closure else {
         panic!("{:?}", out.link_closure);
@@ -116,12 +125,128 @@ fn link_closure_raises_min_elevation() {
     assert_eq!(out.required_margin_db, Some(Decibel::new(3.0)));
 
     let mut never = with_link;
-    if let Some(link) = never.link.as_mut() {
-        link.required_eb_n0_db = Decibel::new(40.0);
+    if let Some(link) = never.station_links.first_mut() {
+        link.link.required_eb_n0_db = Decibel::new(40.0);
     }
     let out = DataThroughput::run(&never).unwrap();
     assert_eq!(out.link_closure, DataThroughputLinkClosure::NeverCloses);
     assert!(out.passes.is_empty());
     let c = out.checks.iter().find(|c| c.key == "link_closes").unwrap();
     assert_eq!(c.verdict, Verdict::Violation);
+}
+
+/// 東京とは経度の違う 2 局目（最低仰角 10°）。
+fn second_station() -> Station {
+    let mut st = tokyo();
+    st.id = "SVB".to_owned();
+    st.latitude = Qty::from_raw(78.2_f64.to_radians());
+    st.longitude = Qty::from_raw(15.4_f64.to_radians());
+    st
+}
+
+/// 2 局を渡すと両方のパスを数え、同時に見える時間は二重に数えない（割り当てた時間の合計 = 区間の和集合の長さ）。
+/// 高緯度の局が加わるので、東京だけより数える時間は増える。
+#[test]
+fn two_stations_are_counted_without_double_counting() {
+    let one = DataThroughput::run(&input()).unwrap();
+    let mut two_in = input();
+    two_in.stations.push(second_station());
+    let two = DataThroughput::run(&two_in).unwrap();
+    let stations: std::collections::BTreeSet<_> =
+        two.passes.iter().map(|p| p.station.as_str()).collect();
+    assert_eq!(stations.len(), 2, "{stations:?}");
+    let total = |o: &DataThroughputOutput| o.passes.iter().map(|p| p.assigned.value()).sum::<f64>();
+    assert!(total(&two) > total(&one));
+    let w = crate::comm::passes::search_window(&two_in.sampling).unwrap();
+    let mut spans: Vec<(f64, f64)> = two
+        .passes
+        .iter()
+        .map(|p| {
+            let at = |e: Epoch| (e.j2000_s - w.start.j2000_s).clamp(0.0, w.span_s);
+            (at(p.aos), at(p.los))
+        })
+        .collect();
+    spans.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let union: f64 = crate::comm::passes::union_sorted(&spans)
+        .iter()
+        .map(|(s, e)| e - s)
+        .sum();
+    assert!(
+        (total(&two) - union).abs() < 1e-6,
+        "{} vs {union}",
+        total(&two)
+    );
+}
+
+/// 局ごとの回線の条件: 東京は閉じる回線（所要 20 dB）、2 局目は閉じない回線（所要 40 dB）。
+/// 2 局目は数えず（警告で名前を出す）、全体の閉じ方は閉じる局のものになる。
+#[test]
+fn station_links_close_per_station() {
+    let mut i = input();
+    i.stations.push(second_station());
+    let link = |req: f64| DataThroughputLink {
+        rf: uhf(),
+        required_eb_n0_db: Decibel::new(req),
+    };
+    i.station_links = vec![
+        DataThroughputStationLink {
+            station: "TKY".to_owned(),
+            link: link(20.0),
+        },
+        DataThroughputStationLink {
+            station: "SVB".to_owned(),
+            link: link(40.0),
+        },
+    ];
+    let out = DataThroughput::run(&i).unwrap();
+    assert!(matches!(
+        out.link_closure,
+        DataThroughputLinkClosure::ClosesAbove { .. }
+    ));
+    assert_eq!(out.station_closures.len(), 2);
+    assert_eq!(
+        out.station_closures[1].closure,
+        DataThroughputLinkClosure::NeverCloses
+    );
+    assert!(out.passes.iter().all(|p| p.station == "TKY"));
+    let c = out
+        .checks
+        .iter()
+        .find(|c| c.key == "link_closes:SVB")
+        .unwrap();
+    assert_eq!(c.verdict, Verdict::Warning);
+    assert!(out.checks.iter().all(|c| c.key != "link_closes"));
+}
+
+/// 数えていない下り回線は判定（警告）で名前が分かる。足し合わせはしない。
+#[test]
+fn uncounted_downlinks_are_reported() {
+    let mut i = input();
+    i.downlink = Some("s_down".to_owned());
+    i.other_downlinks = vec!["uhf_down".to_owned()];
+    let out = DataThroughput::run(&i).unwrap();
+    let c = out
+        .checks
+        .iter()
+        .find(|c| c.key == "downlinks_not_counted")
+        .unwrap();
+    assert_eq!(c.verdict, Verdict::Ok);
+    assert!(c.message.contains("uhf_down") && c.message.contains("s_down"));
+    // 数える量は入力のレートのまま（回線を足し合わせていない）
+    let base = DataThroughput::run(&input()).unwrap();
+    assert_eq!(out.capacity_per_day.value(), base.capacity_per_day.value());
+}
+
+/// 帯域の設定が無い局は数えず、警告も出さず、`station_closures` に `no_band_settings` で残す。
+#[test]
+fn stations_without_the_band_are_listed_not_counted() {
+    let mut i = input();
+    i.stations_without_band = vec!["SVB".to_owned()];
+    let out = DataThroughput::run(&i).unwrap();
+    let last = out.station_closures.last().unwrap();
+    assert_eq!(last.station, "SVB");
+    assert_eq!(last.closure, DataThroughputLinkClosure::NoBandSettings);
+    assert!(out.passes.iter().all(|p| p.station == "TKY"));
+    assert!(out.checks.iter().all(|c| !c.key.starts_with("link_closes")));
+    assert_eq!(out.link_closure, DataThroughputLinkClosure::NotEvaluated);
 }

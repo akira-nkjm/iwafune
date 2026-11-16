@@ -5,7 +5,7 @@
 //! 交点の地方時 = 12 h + (Ω − α☉)·12/π。降交点は昇交点の反対側なので LTDN = LTAN ± 12 h。
 
 use crate::AstroError;
-use crate::ephem::sun_direction_eci;
+use crate::ephem::{CentralBody, sun_direction_eci};
 use crate::time::Epoch;
 use core::f64::consts::{PI, TAU};
 
@@ -27,14 +27,48 @@ fn sun_right_ascension(epoch: Epoch) -> f64 {
 
 /// 昇交点の地方時 `ltan_hours`（0〜24 h 未満）になる RAAN [rad]（0〜2π）。地球を回る軌道。
 pub fn raan_from_ltan(epoch: Epoch, ltan_hours: f64) -> Result<f64, AstroError> {
+    raan_from_ltan_about(CentralBody::Earth, epoch, ltan_hours)
+}
+
+/// 中心天体 `central` を回る軌道で、昇交点の地方時が `ltan_hours` になる RAAN [rad]（0〜2π）。
+///
+/// 対応するのは地球だけ。地球以外では、軌道の RAAN が ECI（J2000 平均赤道）基準なのに対して、
+/// その天体の地方時は天体自身の赤道で測るので、太陽の向きを ECI のまま使うと誤った値になる。
+/// そのため地球以外は `InvalidInput`（天体の赤道基準の RAAN を扱えるようにするまで）。
+pub fn raan_from_ltan_about(
+    central: CentralBody,
+    epoch: Epoch,
+    ltan_hours: f64,
+) -> Result<f64, AstroError> {
     check_hours("LTAN", ltan_hours)?;
+    require_earth(central)?;
     Ok((sun_right_ascension(epoch) + (ltan_hours - 12.0) * PI / 12.0).rem_euclid(TAU))
 }
 
 /// 降交点の地方時 `ltdn_hours`（0〜24 h 未満）になる RAAN [rad]（0〜2π）。LTAN = LTDN ± 12 h。
 pub fn raan_from_ltdn(epoch: Epoch, ltdn_hours: f64) -> Result<f64, AstroError> {
+    raan_from_ltdn_about(CentralBody::Earth, epoch, ltdn_hours)
+}
+
+/// 中心天体 `central` を回る軌道の、降交点の地方時 `ltdn_hours` に対する RAAN [rad]（対応天体は
+/// [`raan_from_ltan_about`] と同じ）。
+pub fn raan_from_ltdn_about(
+    central: CentralBody,
+    epoch: Epoch,
+    ltdn_hours: f64,
+) -> Result<f64, AstroError> {
     check_hours("LTDN", ltdn_hours)?;
-    raan_from_ltan(epoch, (ltdn_hours + 12.0) % 24.0)
+    raan_from_ltan_about(central, epoch, (ltdn_hours + 12.0) % 24.0)
+}
+
+fn require_earth(central: CentralBody) -> Result<(), AstroError> {
+    if central == CentralBody::Earth {
+        Ok(())
+    } else {
+        Err(AstroError::InvalidInput(
+            "地方時からの RAAN 換算は地球を回る軌道だけに対応しています（地球以外の RAAN は ECI 基準で、天体の赤道基準の地方時と合わない）".into(),
+        ))
+    }
 }
 
 /// RAAN `raan_rad` の昇交点の地方時 [h]（0〜24 h 未満）。

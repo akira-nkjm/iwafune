@@ -20,5 +20,6 @@ export function useFormatted(
     gcTime: 10 * 60_000,
     retry: false,
   });
-  return q.data ?? null;
+  // 値が無いときの問い合わせのキーは「0」と同じなので、ほかの値 0 の結果を使い回さないようにする
+  return enabled ? (q.data ?? null) : null;
 }

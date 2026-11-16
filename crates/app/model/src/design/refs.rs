@@ -6,11 +6,13 @@
 //!
 //! | 参照先 | 参照元（[`RefSite`]） |
 //! |---|---|
-//! | 部品 | モードの `[states]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part`・`analysis/thermal.toml` の `[nodes]`・図の `[nodes]` のキー |
+//! | 部品 | モードの `[states]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part`・`analysis/thermal.toml` の `[nodes]`・図の `[nodes]` のキー・マヌーバの `thruster` |
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
-//! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]` の `mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode` |
+//! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode` |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets` |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire` |
+//! | 種別（プロジェクト独自の定義の削除を拒むためだけ。書き換えはしない） | 部品とカタログ品の `kind`・種別の `extends` |
+//! | 属性（同上） | 種別の `required` / `optional`・部品とカタログ品の属性の値 |
 
 use super::{BudgetKind, Design};
 use crate::enum_text::enum_text;
@@ -26,6 +28,10 @@ pub enum Referent<'a> {
     Net(&'a str),
     /// カタログ品の参照（`"local/rw_10mNms"`）
     Catalog(&'a str),
+    /// 種別の ID（定義の削除を拒むための索引。名前の変更はしない）
+    Kind(&'a str),
+    /// 属性の ID（同上）
+    Attribute(&'a str),
 }
 
 enum_text! {
@@ -49,7 +55,7 @@ enum_text! {
 /// 参照元 1 つ。どのファイルのどのキーかは store（`layout`）が決める。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RefSite {
-    /// モードの表の行（`modes/<モード>.toml` の `[states]` のキー）
+    /// モードの表の行（`modes/<モード>.toml` の `[states]`・`[eclipse]` のキー）
     ModeRow { mode: String },
     /// ネットの供給元・マスター（値はポートの参照 `port`）
     NetPort {
@@ -71,6 +77,10 @@ pub enum RefSite {
     CommLink { link: String },
     /// 熱の節点に入れた部品（`analysis/thermal.toml` の `[nodes]` の `<節点> = [...]`）
     ThermalNode { node: String },
+    /// 外面の表面材を書いた部品（`analysis/thermal.toml` の `[surface.<部品>]` のキー）
+    ThermalSurface,
+    /// 発熱の場所を書いた部品（`analysis/thermal.toml` の `[heat_node]` のキー）
+    ThermalHeatNode,
     /// 図の配置のノード（`view/<図>.toml` の `[nodes]` のキー）
     ViewNode { view: String },
     /// 解析ケースのモード（`cases/<ケース>.toml` の `mode`）
@@ -79,6 +89,8 @@ pub enum RefSite {
     PowerModeShare,
     /// 電源のモードの並びの区間（`[[sequence]]` の `index` 番目の `mode`）
     PowerSequence { index: usize },
+    /// 電源の基本のモード（`analysis/power.toml` の `base_mode`）
+    PowerBaseMode,
     /// 姿勢則のキー（`analysis/aocs.toml` の `[law]`）
     AttitudeLaw,
     /// 熱の環境条件のモード（`analysis/thermal.toml` の `[case.<条件>].mode`）
@@ -93,6 +105,22 @@ pub enum RefSite {
     PartCandidate { part: String },
     /// ハーネスの線材（`wire`）
     HarnessWire { harness: String },
+    /// マヌーバのスラスタ（`maneuvers/<マヌーバ>.toml` の `thruster`）
+    ManeuverThruster { maneuver: String },
+    /// マヌーバの噴射するモード（`[constraints].mode`）
+    ManeuverMode { maneuver: String },
+    /// 部品の種別（`kind`）
+    PartKind { part: String },
+    /// カタログ品の種別（`kind`。`item` は `local/rw_10mNms` の形）
+    CatalogKind { item: String },
+    /// 種別の継承元（`extends`）
+    KindExtends { kind: String },
+    /// 種別が挙げる属性（`required`・`optional`）
+    KindAttribute { kind: String },
+    /// 部品が値を書いた属性（`[attr.<ID>]`）
+    PartAttribute { part: String },
+    /// カタログ品が値を書いた属性
+    CatalogAttribute { item: String },
 }
 
 impl Design {
@@ -104,6 +132,8 @@ impl Design {
             Referent::Mode(id) => self.mode_refs(id),
             Referent::Net(id) => self.net_refs(id),
             Referent::Catalog(reference) => self.catalog_refs(reference),
+            Referent::Kind(id) => self.kind_refs(id),
+            Referent::Attribute(id) => self.attribute_refs(id),
         }
     }
 
@@ -111,7 +141,7 @@ impl Design {
         let mut out: Vec<RefSite> = self
             .modes
             .values()
-            .filter(|m| m.states.contains_key(id))
+            .filter(|m| m.states.contains_key(id) || m.eclipse.contains_key(id))
             .map(|m| RefSite::ModeRow {
                 mode: m.id.to_string(),
             })
@@ -163,7 +193,21 @@ impl Design {
                     .filter(|(_, parts)| parts.iter().any(|p| p == id))
                     .map(|(node, _)| RefSite::ThermalNode { node: node.clone() }),
             );
+            if thermal.surface.contains_key(id) {
+                out.push(RefSite::ThermalSurface);
+            }
+            if thermal.heat_node.contains_key(id) {
+                out.push(RefSite::ThermalHeatNode);
+            }
         }
+        out.extend(
+            self.maneuvers
+                .values()
+                .filter(|m| m.thruster.as_ref().is_some_and(|t| t.as_str() == id))
+                .map(|m| RefSite::ManeuverThruster {
+                    maneuver: m.id.to_string(),
+                }),
+        );
         out
     }
 
@@ -208,6 +252,9 @@ impl Design {
                     .filter(|(_, s)| s.mode == id)
                     .map(|(index, _)| RefSite::PowerSequence { index }),
             );
+            if p.base_mode.as_deref() == Some(id) {
+                out.push(RefSite::PowerBaseMode);
+            }
         }
         if analysis
             .aocs
@@ -224,6 +271,19 @@ impl Design {
                     .map(|(case, _)| RefSite::ThermalCaseMode { case: case.clone() }),
             );
         }
+        out.extend(
+            self.maneuvers
+                .values()
+                .filter(|m| {
+                    m.constraints
+                        .mode
+                        .as_ref()
+                        .is_some_and(|x| x.as_str() == id)
+                })
+                .map(|m| RefSite::ManeuverMode {
+                    maneuver: m.id.to_string(),
+                }),
+        );
         out
     }
 
@@ -271,5 +331,63 @@ impl Design {
                 }),
         );
         out
+    }
+
+    /// 種別を使っているもの: 部品 → カタログ品 → 継承している種別の順。
+    fn kind_refs(&self, id: &str) -> Vec<RefSite> {
+        let parts = self
+            .parts
+            .values()
+            .filter(|p| p.kind.as_ref().is_some_and(|k| k.as_str() == id))
+            .map(|p| RefSite::PartKind {
+                part: p.id.to_string(),
+            });
+        let items = self
+            .catalog
+            .iter()
+            .filter(|(_, c)| c.kind.as_str() == id)
+            .map(|(reference, _)| RefSite::CatalogKind {
+                item: reference.to_string(),
+            });
+        let kinds = self
+            .kinds
+            .values()
+            .filter(|k| k.extends.as_ref().is_some_and(|e| e.as_str() == id))
+            .map(|k| RefSite::KindExtends {
+                kind: k.id.to_string(),
+            });
+        parts.chain(items).chain(kinds).collect()
+    }
+
+    /// 属性を使っているもの: 種別 → 部品 → カタログ品の順。種別はプロジェクト独自のものだけ
+    /// （組み込みの種別が挙げるのは組み込みの属性なので、プロジェクト独自の属性の削除には関わらない）。
+    fn attribute_refs(&self, id: &str) -> Vec<RefSite> {
+        let kinds = self
+            .kinds
+            .values()
+            .filter(|k| {
+                k.required
+                    .iter()
+                    .chain(&k.optional)
+                    .any(|a| a.as_str() == id)
+            })
+            .map(|k| RefSite::KindAttribute {
+                kind: k.id.to_string(),
+            });
+        let parts = self
+            .parts
+            .values()
+            .filter(|p| p.attr.contains_key(id))
+            .map(|p| RefSite::PartAttribute {
+                part: p.id.to_string(),
+            });
+        let items = self
+            .catalog
+            .iter()
+            .filter(|(_, c)| c.attr.contains_key(id))
+            .map(|(reference, _)| RefSite::CatalogAttribute {
+                item: reference.to_string(),
+            });
+        kinds.chain(parts).chain(items).collect()
     }
 }

@@ -9,16 +9,24 @@ label      = "高温（夏至・β 大）"
 mode       = "MISSION"
 solar_flux = { value = 1414.0, unit = "W/m^2" }
 albedo     = 0.35
-earth_ir   = { value = 258.0, unit = "W/m^2" }
+planet_ir  = { value = 258.0, unit = "W/m^2" }
 beta       = { value = 60.0, unit = "deg" }
+preset     = "hot"
 
 [case.cold]
 label      = "低温（冬至・β 0）"
 mode       = "SAFE"
 solar_flux = { value = 1322.0, unit = "W/m^2" }
 albedo     = 0.25
-earth_ir   = { value = 216.0, unit = "W/m^2" }
+planet_ir  = { value = 216.0, unit = "W/m^2" }
 beta       = { value = 0.0, unit = "deg" }
+preset     = "safe_mode"
+
+[case.cold_nominal]
+label  = "低温（通常運用・β 0）"
+preset = "cold"
+mode   = "NOMINAL"
+beta   = { value = 0.0, unit = "deg" }
 
 [nodes]  # 節点 → まとめる部品
 BAT      = ["BAT", "HTR_BAT"]
@@ -33,3 +41,20 @@ PANEL_PX = ["PANEL_PX", "SP_PX", "SS_PX"]
 PANEL_PY = ["PANEL_PY", "SP_PY", "SS_PY"]
 PANEL_PZ = ["PANEL_PZ"]
 SAP      = ["SAP_PY", "CELLS"]
+
+[margin]
+uncertainty = { value = 5.0, unit = "K" }
+
+[coating.white_paint]
+label        = "白色塗装"
+absorptivity = 0.2
+emissivity   = 0.85
+
+[coating.black_paint]
+label        = "黒色塗装"
+absorptivity = 0.92
+emissivity   = 0.86
+
+[surface.PANEL_PX]
+white_paint = 0.86
+black_paint = 0.14

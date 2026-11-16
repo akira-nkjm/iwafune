@@ -8,7 +8,7 @@ use crate::spec::{Channel, ChannelKind, Check, Series, Verdict, ratio_margin_ver
 use sat_astro::math::Vec3;
 use sat_units::typed::{AngularMomentum, Fraction, Time, TorqueKind};
 
-pub(super) fn series(input: &RwUnloadingInput, tr: &Trace) -> Series {
+pub(super) fn series(input: &RwUnloadingInput, kinds: &[DisturbanceKind], tr: &Trace) -> Series {
     let torque = |key: &str, kind: ChannelKind, f: &dyn Fn(&DisturbanceTorques) -> f64| {
         let v = tr.torques.iter().map(f).collect();
         Channel::of::<TorqueKind>(format!("torque:{key}"), kind, v)
@@ -17,10 +17,9 @@ pub(super) fn series(input: &RwUnloadingInput, tr: &Trace) -> Series {
         let v = tr.h_body.iter().map(f).collect();
         Channel::of::<AngularMomentum>(format!("momentum:{key}"), kind, v)
     };
-    let mut channels: Vec<Channel> = DisturbanceKind::ALL
+    let mut channels: Vec<Channel> = kinds
         .iter()
-        .enumerate()
-        .map(|(i, k)| torque(k.key(), k.channel(), &|d| d.by_kind()[i].norm()))
+        .map(|&k| torque(k.key(), k.channel(), &|d| d.of(k).norm()))
         .collect();
     channels.push(torque("total", ChannelKind::TotalDisturbanceTorque, &|d| {
         d.total().norm()
@@ -81,5 +80,10 @@ pub(super) fn verdicts(input: &RwUnloadingInput, o: &RwUnloadingOutput) -> Vec<C
             format!("要求 {} 以上", quantity_text::<Time>(req.value())),
         ));
     }
+    checks.extend(
+        input
+            .spacecraft
+            .environment_check(input.timeline.orbit().central),
+    );
     checks
 }

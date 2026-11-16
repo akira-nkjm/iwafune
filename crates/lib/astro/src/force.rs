@@ -1,17 +1,20 @@
-//! 軌道の力モデル（高次重力場・第三体・太陽輻射圧・大気抵抗・固体潮汐・相対論）。**力モデルはここだけ。**
+//! 軌道の力モデル（高次重力場・第三体・太陽輻射圧・大気抵抗・固体潮汐・相対論・推力）。**力モデルはここだけ。**
 //! 重力場の係数は `data/egm96_to70.txt`（70 次まで）を埋め込む。
 //!
 //! 項ごとの加速度は [`acceleration_breakdown`] が並べ、[`acceleration_eci`] はその和をとる（計算の道筋は 1 つ）。
+//! 推力（[`thrust`]）は状態（質量・積んだ ΔV）と噴射の有無に依るので、推力を入れた伝搬（`crate::orbit::powered`）が
+//! この和に足す。
 
 mod gravity;
 mod solid_tide;
 mod terms;
+pub mod thrust;
 
 pub use gravity::EGM96_MAX_DEGREE;
 pub use solid_tide::solid_tide_eci;
 pub use terms::{
-    drag_eci, drag_force, j2_perturbation, point_mass, relative_wind_eci, relativity_eci, srp_eci,
-    srp_pressure, third_body_eci, zonal_j2,
+    drag_force, earth_drag_eci, earth_relative_wind_eci, earth_srp_eci, j2_perturbation,
+    point_mass, relativity_eci, srp_pressure, third_body_eci, zonal_j2,
 };
 
 use crate::AstroError;
@@ -206,7 +209,7 @@ pub fn acceleration_breakdown_about(
         ));
     }
     if let Some(drag) = config.drag.as_ref().filter(|_| earth) {
-        out.push((ForceTerm::Drag, drag_eci(drag, epoch, state)));
+        out.push((ForceTerm::Drag, earth_drag_eci(drag, epoch, state)));
     }
     if config.solid_tide && earth {
         out.push((ForceTerm::SolidTide, solid_tide_eci(epoch, r)));

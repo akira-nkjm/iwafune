@@ -5,4 +5,4 @@
  *
  * 例: `state = "rx"`, `duty = {"tx": 0.1}` → rx 90 %・tx 10 %。
  */
-export type StateAssignment = { part: string, state: string, duty: { [key in string]: number }, };
+export type StateAssignment = { part: string, state: string, active: number | null, spare_state: string | null, duty: { [key in string]: number }, };

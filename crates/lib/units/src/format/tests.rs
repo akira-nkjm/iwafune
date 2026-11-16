@@ -182,3 +182,73 @@ fn decibel_kinds_format_existing_logarithmic_values() {
         }
     }
 }
+
+/// 時間: 日までは日、2 年（ユリウス年 365.25 d で 730.5 d）以上は年。
+#[test]
+fn time_switches_to_years_at_two_years() {
+    const YEAR: f64 = 365.25 * 86_400.0;
+    assert_eq!(text(15.0 * YEAR, "Time"), "15.0 yr");
+    assert_eq!(text(2.0 * YEAR, "Time"), "2.00 yr");
+    assert_eq!(text(1.99 * YEAR, "Time"), "727 d");
+    assert_eq!(text(YEAR, "Time"), "365 d");
+    assert_eq!(text(370.0 * 86_400.0, "Time"), "370 d");
+    assert_eq!(
+        format_quantity(25.0 * YEAR, "Time").expect("Time").unit,
+        "yr"
+    );
+}
+
+/// 情報量・周波数: TB・THz まで。1 つ下の単位との境界で切り替わる。
+#[test]
+fn information_and_frequency_reach_tera() {
+    assert_eq!(text(8.0 * 1.0e12, "Information"), "1.00 TB");
+    assert_eq!(text(8.0 * 999.0e9, "Information"), "999 GB");
+    assert_eq!(text(8.0 * 2.5e13, "Information"), "25.0 TB");
+    assert_eq!(text(1.0e12, "Frequency"), "1.00 THz");
+    assert_eq!(text(999.0e9, "Frequency"), "999 GHz");
+    assert_eq!(text(1.93e14, "Frequency"), "193 THz");
+}
+
+/// 長さ: 0.1 AU（約 1.5e7 km）以上だけ AU。静止軌道・月・L2 は km のまま。
+#[test]
+fn length_uses_au_only_for_interplanetary_distances() {
+    const AU: f64 = 149_597_870_700.0;
+    assert_eq!(text(AU, "Length"), "1.00 AU");
+    assert_eq!(text(5.2 * AU, "Length"), "5.20 AU");
+    assert_eq!(text(0.1 * AU, "Length"), "0.100 AU");
+    for (si, label) in [
+        (0.099 * AU, "just below 0.1 AU"),
+        (1.5e9, "L2"),
+        (3.844e8, "Moon"),
+        (4.2164e7, "GEO"),
+        (7.0e6, "LEO"),
+    ] {
+        let unit = format_quantity(si, "Length").expect(label).unit;
+        assert_eq!(unit, "km", "{label}");
+    }
+}
+
+/// 角度: 0.01° 以上は度、それより小さければ秒角（分角は使わない）。
+#[test]
+fn angle_uses_arcseconds_below_a_hundredth_of_a_degree() {
+    let deg = |d: f64| d.to_radians();
+    assert_eq!(text(deg(97.6), "Angle"), "97.6°");
+    assert_eq!(text(deg(0.05), "Angle"), "0.0500°");
+    assert_eq!(text(deg(0.01), "Angle"), "0.0100°");
+    assert_eq!(text(deg(-0.01), "Angle"), "-0.0100°");
+    assert_eq!(text(deg(0.005), "Angle"), "18.0 arcsec");
+    assert_eq!(text(deg(-0.005), "Angle"), "-18.0 arcsec");
+    assert_eq!(text(deg(1.0 / 3600.0), "Angle"), "1.00 arcsec");
+    assert_eq!(text(0.0, "Angle"), "0°");
+}
+
+/// 角速度: 0.01 deg/s 以上は deg/s、それより小さければ arcsec/s。
+#[test]
+fn angular_velocity_uses_arcseconds_per_second_below_a_hundredth_deg_per_s() {
+    let rate = |d: f64| d.to_radians();
+    assert_eq!(text(rate(1.5), "AngularVelocity"), "1.50 °/s");
+    assert_eq!(text(rate(0.01), "AngularVelocity"), "0.0100 °/s");
+    assert_eq!(text(rate(0.0099), "AngularVelocity"), "35.6 arcsec/s");
+    assert_eq!(text(rate(1.0 / 3600.0), "AngularVelocity"), "1.00 arcsec/s");
+    assert_eq!(text(0.0, "AngularVelocity"), "0 °/s");
+}

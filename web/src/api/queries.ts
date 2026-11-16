@@ -15,6 +15,7 @@ import type {
   BudgetRequest,
   BudgetView,
   CheckReport,
+  ConditionTopic,
   DataStatus,
   DefsView,
   DesignView,
@@ -22,8 +23,11 @@ import type {
   PartRow,
   PartView,
   PartViewRequest,
+  PowerPageView,
   ProjectInfo,
   RunAnalysisRequest,
+  System,
+  SystemModesView,
   UnitsCatalog,
 } from "./types";
 
@@ -35,9 +39,25 @@ export const queryClient = new QueryClient({
 
 /** 読み取りの queryOptions（画面は useQuery(q.xxx()) で使う） */
 export const q = {
+  powerPage: (kase: string | null) =>
+    queryOptions({
+      queryKey: keys.powerPage(kase),
+      queryFn: () => api<PowerPageView>(kase ? `/power_page?case=${seg(kase)}` : "/power_page"),
+      staleTime: 30_000,
+    }),
   project: () =>
     queryOptions({ queryKey: keys.project, queryFn: () => api<ProjectInfo>("/project") }),
   design: () => queryOptions({ queryKey: keys.design, queryFn: () => api<DesignView>("/design") }),
+  systemModes: (system: System, ops: readonly Op[] = []) =>
+    queryOptions({
+      queryKey: keys.systemModes(system, JSON.stringify(ops)),
+      queryFn: () =>
+        api<SystemModesView>(`/system_modes/${seg(system)}`, {
+          method: "POST",
+          body: { ops: [...ops] } satisfies PartViewRequest,
+        }),
+      placeholderData: keepPreviousData,
+    }),
   /** 1 部品。`ops` を渡すと、保存していない編集を書き込まずに当てた設計の部品（`POST /parts/{id}`） */
   part: (id: string, ops: readonly Op[] = []) => {
     const json = ops.length > 0 ? JSON.stringify(ops) : "";
@@ -109,6 +129,11 @@ export function useDesign() {
   return useQuery(q.design());
 }
 
+/** ケースの電源ページ全体。3 タブが同じ取得結果を共有する。 */
+export function usePowerPage(kase: string | null, enabled = true) {
+  return useQuery({ ...q.powerPage(kase), enabled });
+}
+
 /**
  * 保存していない編集（ops）を書き込まずに当てた部品（`POST /parts/{id}`）。ops が null か空なら問い合わせない。
  * 打つ間は 250 ms 待ってから問い合わせる。同じ編集で定義を作る属性のパスを、その部品の `paths` から引くのに使う
@@ -135,6 +160,7 @@ export function useDraftPart(
 
 /** 解析を計算し直す（設計の編集の後は api/ops.ts が自動で無効化する。これは「再計算」ボタン用） */
 export function recomputeAnalyses(ids: readonly string[], kase: string | null): void {
+  void queryClient.invalidateQueries({ queryKey: keys.powerPage(kase) });
   for (const id of ids) void queryClient.invalidateQueries({ queryKey: keys.analysis(id, kase) });
 }
 
@@ -170,9 +196,9 @@ export function useAnalyses(
   });
 }
 
-/** ある系の解析。系への所属は sat-analysis の info.system が正本 */
+/** ある系の解析。系への所属は sat-analysis の info.area が正本 */
 function systemEntries(entries: readonly AnalysisEntry[], system: string | null): AnalysisEntry[] {
-  return entries.filter((e) => e.info.system === system);
+  return entries.filter((e) => e.info.area.kind === "system" && e.info.area.value === system);
 }
 
 /** 解析の一覧（GET /analyses）から、ある系の解析（一覧の順）とその ID を引く */
@@ -189,6 +215,10 @@ export function useSystemAnalyses(system: string | null) {
 export async function prefetchSystemAnalyses(system: string): Promise<void> {
   try {
     const entries = await queryClient.fetchQuery(q.analyses());
+    if (system === "power") {
+      await queryClient.prefetchQuery(q.powerPage(null));
+      return;
+    }
     await Promise.all(
       systemEntries(entries, system).map((e) =>
         queryClient.prefetchQuery(q.analysis(e.info.id, null)),
@@ -197,4 +227,13 @@ export async function prefetchSystemAnalyses(system: string): Promise<void> {
   } catch {
     // 一覧が取れなかった。ページが同じ問い合わせをしてエラーを出す
   }
+}
+
+/** 前提条件の話題に属する解析（系の解析とは別の区分）。 */
+export function useConditionAnalyses(topic: ConditionTopic) {
+  const catalog = useQuery(q.analyses());
+  const entries = (catalog.data ?? []).filter(
+    (e) => e.info.area.kind === "condition" && e.info.area.value === topic,
+  );
+  return { entries, ids: entries.map((e) => e.info.id), loading: catalog.isPending };
 }

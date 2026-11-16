@@ -1,6 +1,6 @@
 //! Web のページの URL と、ページの中身（`features/`）への依存の検査。
 //!
-//! - ページの URL（`/design/…`・`/systems/…`・`/mission/…`・`/project/…`）を文字列で組み立てるのは
+//! - ページの URL（`/design/…`・`/systems/…`・`/conditions/…`・`/project/…`）を文字列で組み立てるのは
 //!   `web/src/lib/nav.ts` の `paths` だけ（ID の encode と、ルートの形との一致を 1 か所にする）。引用符の直後に
 //!   これらの接頭辞が来る書き方を違反にする。API の道筋（`/design`・`/parts/…` など）は区間が続かないか接頭辞が違うので見ない。
 //! - `@/features/` を import してよいのは、ページの中身（`features/`）どうしと、ページの登録（`routes/`）だけ。
@@ -16,7 +16,7 @@ use std::path::Path;
 use crate::web_strings::is_web_production;
 
 /// ページの URL の接頭辞（`routes.ts` の区分。概要の `/` は区間が無いので見ない）。
-const PAGE_PREFIXES: &[&str] = &["/design/", "/systems/", "/mission/", "/project/"];
+const PAGE_PREFIXES: &[&str] = &["/design/", "/systems/", "/conditions/", "/project/"];
 
 /// ページの URL を組み立ててよいファイル。
 const URL_HOME: &str = "web/src/lib/nav.ts";
@@ -27,6 +27,16 @@ const FEATURE_IMPORTERS: &[&str] = &["web/src/features/", "web/src/routes/"];
 /// ページの中身どうしの import で認めるもの（読む側の feature、読まれる側の `<feature>/<モジュール>`、理由）。
 /// ほかに要るときは、共通の場所へ移すか、ここに理由付きで足す。
 const FEATURE_EDGES: &[(&str, &str, &str)] = &[
+    (
+        "systems",
+        "diagram/canvas/DiagramZoom",
+        "電源のフロー図が、系統図と同じ拡大・縮小の操作（ボタン・キー・ホイール）を使う",
+    ),
+    (
+        "systems",
+        "modes/matrix/ModesMatrix",
+        "系別のモード表示が定義ページと同じ行列・下書き・保存を使う",
+    ),
     (
         "components",
         "modes/matrix/matrix",
@@ -53,9 +63,14 @@ const FEATURE_EDGES: &[(&str, &str, &str)] = &[
         "3D 配置で選んだ部品の配置の欄を出す",
     ),
     (
-        "mission",
+        "layout3d",
+        "components/list/PartsTree",
+        "配置のページの左に、部品のページと同じ製品ツリーを出す",
+    ),
+    (
+        "conditions",
         "project/SettingsTable",
-        "ミッションの設定を、設定のページと同じ表で出す",
+        "前提条件の設定を、設定のページと同じ表で出す",
     ),
     (
         "systems",
@@ -65,9 +80,8 @@ const FEATURE_EDGES: &[(&str, &str, &str)] = &[
     (
         "systems",
         "layout3d/LazyLayout3D",
-        "構造と熱の追加の表示（3D 配置）",
+        "熱の追加の表示（温度で塗った 3D）",
     ),
-    ("systems", "layout3d/scene", "3D 配置の座標の型（重心の点）"),
 ];
 
 /// 行の中の、引用符の直後に来るページの URL の接頭辞を探す。
@@ -202,11 +216,11 @@ mod tests {
     #[test]
     fn cross_feature_imports_must_be_listed() {
         let shared = "import { AnalysisCard } from \"@/features/systems/AnalysisCard\";";
-        let errs = problems("web/src/features/mission/OrbitPage.tsx", shared);
+        let errs = problems("web/src/features/conditions/OrbitPage.tsx", shared);
         assert_eq!(errs.len(), 1);
-        assert!(errs[0].contains("features/mission → features/systems/AnalysisCard"));
+        assert!(errs[0].contains("features/conditions → features/systems/AnalysisCard"));
         let listed = "import { SettingsTable } from \"@/features/project/SettingsTable\";";
-        assert!(problems("web/src/features/mission/OrbitPage.tsx", listed).is_empty());
+        assert!(problems("web/src/features/conditions/OrbitPage.tsx", listed).is_empty());
         let own = "import { heatMapOf } from \"@/features/systems/thermal/heat\";";
         assert!(problems("web/src/features/systems/extras.tsx", own).is_empty());
         assert!(problems("web/src/routes/pages.ts", shared).is_empty());

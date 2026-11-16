@@ -3,4 +3,4 @@
 /**
  * モード表の 1 セル。`state` が None なら行を消す。
  */
-export type ModeCell = { mode: string, part: string, state: string | null, duty: { [key in string]: number }, };
+export type ModeCell = { mode: string, part: string, state: string | null, duty: { [key in string]: number }, active: number | null, spare_state: string | null, eclipse: boolean, };

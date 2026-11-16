@@ -119,6 +119,8 @@ pub type __Conductance = Dim<NegativeTwo, NegativeOne, Three, Two, Zero, Zero, Z
 pub type __MagneticFlux = Dim<Two, One, NegativeTwo, NegativeOne, Zero, Zero, Zero, Zero, Zero>;
 #[doc(hidden)]
 pub type __AbsorbedDose = Dim<Two, Zero, NegativeTwo, Zero, Zero, Zero, Zero, Zero, Zero>;
+#[doc(hidden)]
+pub type __Impulse = Dim<One, One, NegativeOne, Zero, Zero, Zero, Zero, Zero, Zero>;
 
 /// Dimensionless quantity (for example `1`).
 pub type Dimensionless = __Dimensionless;
@@ -231,3 +233,5 @@ pub type MagneticFlux = __MagneticFlux;
 /// 次元が同一。次元検査はこれらを区別しない。線量当量用の別名は置かず、使い分けは単位の
 /// 綴りで担保する。
 pub type AbsorbedDose = __AbsorbedDose;
+/// Impulse (linear momentum) dimension (`M L T^-1`, for example `N*s`)。推進の総インパルス・最小インパルスビットに使う。
+pub type Impulse = __Impulse;

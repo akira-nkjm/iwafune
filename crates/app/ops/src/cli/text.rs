@@ -65,8 +65,11 @@ impl Cmd {
     }
     pub(super) fn from(self, from: Option<&Provenance>) -> Self {
         let source = from.and_then(|f| f.source.as_deref());
+        let at = from.and_then(|f| f.at.as_deref());
         let note = from.and_then(|f| f.note.as_deref());
-        self.flag("source", source).flag("note", note)
+        self.flag("source", source)
+            .flag("at", at)
+            .flag("note", note)
     }
     pub(super) fn done(self) -> String {
         self.0.join(" ")

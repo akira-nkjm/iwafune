@@ -20,15 +20,19 @@ pub use crate::dto::{SetText, UnsetText};
 /// カンマ区切りの一覧の読み方（定義は `fune_model::value::list_from_text`。CLI と名詞のコマンドはここから呼ぶ）。
 pub use fune_model::value::list_from_text;
 
+impl SetText {
+    /// 打った出典・位置・メモ → 値の出典（どれも無ければ付けない）。部品の値とカタログ品の値の両方がこれを通す。
+    pub fn provenance(&self) -> Option<Provenance> {
+        Provenance::from_parts(self.source.clone(), self.at.clone(), self.note.clone())
+    }
+}
+
 /// `fune set` → `SetValue`・`SetField`・`SetSetting` のどれか（`t.path` は部品か設定のパス）。
 pub(super) fn param_set_op(ws: &Workspace, t: &SetText) -> Result<Op> {
     match parse(&t.path).map_err(|e| ServiceError::InvalidInput(e.to_string()))? {
         ParamPath::Attr { part, attr, state } => {
             let value = attr_value(ws, &attr, AttrSlot::of(state.as_deref()), t)?;
-            let from = (t.source.is_some() || t.note.is_some()).then(|| Provenance {
-                source: t.source.clone(),
-                note: t.note.clone(),
-            });
+            let from = t.provenance();
             Ok(Op::SetValue {
                 part,
                 attr,
@@ -146,6 +150,9 @@ fn field_value(field: &str, text: Option<&str>) -> Result<PartField> {
                 .map_err(|_| invalid(format!("員数は整数で書きます: {t}")))?,
             None => 1,
         }),
+        PartFieldName::Redundancy => {
+            PartField::Redundancy(text.unwrap_or("none").parse().map_err(invalid)?)
+        }
         PartFieldName::Maturity => PartField::Maturity(text.map(maturity).transpose()?),
         PartFieldName::Candidates => {
             PartField::Candidates(text.map(list_from_text).unwrap_or_default())
@@ -165,11 +172,30 @@ pub fn maturity(text: &str) -> Result<Maturity> {
 /// 設定の値。今の値（`Design::setting`）の型に合わせ、書かれていなければ文字列から推し量る（`setting_from_text`）。
 fn setting_value(ws: &Workspace, path: &SettingPath, text: &SetText) -> Result<SettingValue> {
     let snapshot = snapshot_with(ws, &text.ops)?;
-    let like = snapshot.design.setting(path);
+    let like = snapshot
+        .design
+        .setting(path)
+        .or_else(|| attitude_field_type(path));
     setting_from_text(&text.value, like.as_ref()).map_err(|e| match like {
         Some(SettingValue::Quantity(_)) => quantity_error(text.value.trim(), e),
         _ => invalid(e),
     })
+}
+
+// 未設定でも、AOCS の姿勢則の軸と回転は文字列ではなく構造の値として読む（欄の形は model が持つ）。
+fn attitude_field_type(path: &SettingPath) -> Option<SettingValue> {
+    use fune_model::design::{AnalysisSystem, AttitudeLawSetting};
+    use fune_model::path::SettingScope;
+    let [system, table, _mode, field] = path.segments.as_slice() else {
+        return None;
+    };
+    if path.scope != SettingScope::Analysis
+        || system != AnalysisSystem::Aocs.as_str()
+        || table != "law"
+    {
+        return None;
+    }
+    AttitudeLawSetting::field_shape(field)
 }
 
 /// 文字列 → ベクトル（`"0 0 12 mm"`）。`fune part place --position` 用。
@@ -244,6 +270,15 @@ pub(super) fn given(text: &Option<String>) -> Option<&str> {
     text.as_deref().map(str::trim).filter(|t| !t.is_empty())
 }
 
+/// 時間割合（`"0.1"`。モードの duty・マヌーバのデューティ）。範囲と合計は設計の検査（`fune_model::check`）が見る。
+pub(super) fn fraction_from_text(text: &str) -> Result<f64> {
+    text.trim()
+        .parse::<f64>()
+        .ok()
+        .filter(|f| f.is_finite())
+        .ok_or_else(|| invalid(format!("時間割合は数（0〜1）で書きます: {text}")))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -275,6 +310,7 @@ mod tests {
         for &name in PartFieldName::ALL {
             let text = match name {
                 PartFieldName::Count => "3",
+                PartFieldName::Redundancy => "cold",
                 PartFieldName::Maturity => "new",
                 PartFieldName::Candidates => "local/a,local/b",
                 _ => "text",

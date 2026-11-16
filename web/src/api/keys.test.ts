@@ -14,6 +14,8 @@ describe("query keys", () => {
       keys.defs,
       keys.diagnostics,
       keys.analysis("power.mode_load", null),
+      keys.powerPage(null),
+      keys.powerPage("hot_imaging"),
       keys.budget("mass"),
     ];
     for (const k of affected) {
@@ -31,7 +33,11 @@ describe("query keys", () => {
   });
 
   it("解析の結果のキーはどれも analysisResults で始まる（天体の暦を読み込んだら読み直す）", () => {
-    for (const k of [keys.analysis("comm.visibility", null), keys.analysis("x", "hot", "[]")]) {
+    for (const k of [
+      keys.analysis("comm.visibility", null),
+      keys.analysis("x", "hot", "[]"),
+      keys.powerPage("hot"),
+    ]) {
       expect(startsWith(k, keys.analysisResults)).toBe(true);
     }
     expect(startsWith(keys.analyses, keys.analysisResults)).toBe(false);

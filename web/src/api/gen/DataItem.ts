@@ -6,7 +6,7 @@ import type { QuantityView } from "./QuantityView";
  */
 export type DataItem = { 
 /**
- * 例: `"de440"`
+ * 例: `"de440"`・`"space_weather"`
  */
 id: string, path: string, 
 /**
@@ -16,13 +16,17 @@ present: boolean,
 /**
  * 大きさ（ファイルが無ければ null。`display` は `"20.7 MB"`）
  */
-size: QuantityView | null, sha256_expected: string, 
+size: QuantityView | null, 
+/**
+ * 期待する SHA-256。DE440 は決めてある値、宇宙天気は取得したときに記録した値（記録が無ければ null）
+ */
+sha256_expected: string | null, 
 /**
  * SHA-256 が一致したか（ファイルが無ければ null）
  */
 verified: boolean | null, 
 /**
- * このプロセスで読み込んで解析に使える状態か
+ * このプロセスで読み込んで解析に使える状態か（宇宙天気は表として読めたか）
  */
 installed: boolean, 
 /**
@@ -30,6 +34,10 @@ installed: boolean,
  */
 install_error: string | null, 
 /**
- * 取得元（`gh release download …`）
+ * 取得元（`gh release download …`・URL）
  */
-source: string, };
+source: string, 
+/**
+ * 取得した日時（ISO 8601、UTC）。記録が無ければ null（DE440 は版が決まっているので記録しない）
+ */
+fetched_at: string | null, };

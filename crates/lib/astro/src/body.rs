@@ -52,6 +52,17 @@ pub enum CentralBody {
     Neptune,
 }
 
+/// 中心天体で大気・磁場のモデルが使えるか。**0 を返す環境関数の 0 が「無い」のか「モデルが無い」のかを分ける。**
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnvironmentModel {
+    /// モデルがある（地球）
+    Modelled,
+    /// この天体には（この精度では）無い。0 が物理的に正しい（月の大気・磁場など）
+    Absent,
+    /// 天体には有るがモデルが無い。0 は正しくない（火星・金星の大気、木星の磁場など）
+    NotModelled,
+}
+
 impl CentralBody {
     /// 暦の天体（地球は暦の原点なので `None`）。
     pub fn as_body(self) -> Option<Body> {
@@ -87,6 +98,45 @@ impl CentralBody {
             CentralBody::Saturn => R_SATURN,
             CentralBody::Uranus => R_URANUS,
             CentralBody::Neptune => R_NEPTUNE,
+        }
+    }
+
+    /// 親の天体（この天体が回っている天体）。月は地球、地球と惑星は太陽、太陽は `None`。
+    /// パッチドコニックの遷移（`transfer::patched_conic`）が親子・兄弟の関係を引く。
+    pub fn parent(self) -> Option<CentralBody> {
+        match self {
+            CentralBody::Sun => None,
+            CentralBody::Moon => Some(CentralBody::Earth),
+            _ => Some(CentralBody::Sun),
+        }
+    }
+
+    /// 設計で使う太陽距離の慣例値 [m]: 地球と月（地球と同じ日心距離）は 1 AU。それ以外は `None`
+    /// （日心距離の変化が大きいので、解析が太陽距離か太陽光の強さを入力として求める）。
+    pub fn nominal_sun_distance_m(self) -> Option<f64> {
+        match self {
+            CentralBody::Earth | CentralBody::Moon => Some(AU),
+            _ => None,
+        }
+    }
+
+    /// 大気のモデル（[`crate::atmosphere::density_about_kg_m3`]）が使えるか。地球だけがモデルを持つ。
+    /// 月・水星は大気が無い（水星の外気圏は無視できる）。それ以外は大気があるがモデルが無い。
+    pub fn atmosphere_model(self) -> EnvironmentModel {
+        match self {
+            CentralBody::Earth => EnvironmentModel::Modelled,
+            CentralBody::Moon | CentralBody::Mercury => EnvironmentModel::Absent,
+            _ => EnvironmentModel::NotModelled,
+        }
+    }
+
+    /// 磁場のモデル（[`crate::geomag::field_about_eci_t`]）が使えるか。地球だけがモデルを持つ。
+    /// 月・金星・火星は全球の双極子磁場が無い（火星の地殻磁場は無視する）。それ以外は磁場があるがモデルが無い。
+    pub fn magnetic_field_model(self) -> EnvironmentModel {
+        match self {
+            CentralBody::Earth => EnvironmentModel::Modelled,
+            CentralBody::Moon | CentralBody::Venus | CentralBody::Mars => EnvironmentModel::Absent,
+            _ => EnvironmentModel::NotModelled,
         }
     }
 

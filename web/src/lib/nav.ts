@@ -1,4 +1,6 @@
 import {
+  BookOpen,
+  Box,
   Boxes,
   Cpu,
   FileWarning,
@@ -10,14 +12,17 @@ import {
   Network,
   Orbit,
   Radio,
+  Rocket,
+  Route,
   Ruler,
   Settings,
   Sun,
   Table2,
+  Telescope,
   Thermometer,
   Workflow,
 } from "lucide-react";
-import type { DefsView, System } from "@/api/types";
+import type { AnalysisArea, DefsView, System } from "@/api/types";
 import type { Dict } from "@/i18n";
 import { systemTitle } from "./design";
 
@@ -26,8 +31,14 @@ import { systemTitle } from "./design";
  * - `view`: 一覧と詳細のページの表示方法
  * - `adding`: 追加ダイアログを開いているか（値は `"1"`）
  * - `case`: 系のページの解析ケース
+ * - `diagramHiddenSystem`: 系統図で隠す系（繰り返し可、空は全表示）
  */
-export const SEARCH = { view: "view", adding: "new", case: "case" } as const;
+export const SEARCH = {
+  view: "view",
+  adding: "new",
+  case: "case",
+  diagramHiddenSystem: "hidden-system",
+} as const;
 
 /** 一覧のページの URL の下に、1 つのものの ID を足す（ID は encode する。受け取る側は React Router が decode した値を使う） */
 export function itemPath(base: string, id: string): string {
@@ -59,16 +70,23 @@ export const paths = {
   catalogItem: (id: string) => itemPath(paths.catalog(), id),
   diagram: () => "/design/diagram",
   modes: () => "/design/modes",
-  defs: (tab?: DefsTab) => (tab ? `/design/defs/${tab}` : "/design/defs"),
+  layout: () => "/design/layout",
+  maneuvers: () => "/design/maneuvers",
+  maneuver: (id: string) => itemPath(paths.maneuvers(), id),
+  defs: (tab?: DefsTab) => (tab ? `/project/defs/${tab}` : "/project/defs"),
   /** 系のページ。`tab` が無ければ結果のタブ、`kase` があればその解析ケースで開く */
   system: (system: System, at: { tab?: string | null; kase?: string | null } = {}) =>
     withSearch(at.tab ? `/systems/${system}/${at.tab}` : `/systems/${system}`, {
       [SEARCH.case]: at.kase,
     }),
-  orbit: () => "/mission/orbit",
-  cases: () => "/mission/cases",
+  /** 解析の区分に対応するページ。 */
+  area: (area: AnalysisArea): string =>
+    area.kind === "system" ? paths.system(area.value) : paths.orbit(),
+  orbit: () => "/conditions/orbit",
+  cases: () => "/conditions/cases",
   diagnostics: () => "/project/diagnostics",
   settings: () => "/project/settings",
+  sources: () => "/project/sources",
 };
 
 export type NavItemKey = keyof Dict["nav"]["items"] | System;
@@ -91,7 +109,8 @@ const systemIcons: Record<System, LucideIcon> = {
   comm: Radio,
   thermal: Thermometer,
   structure: Layers3,
-  payload: Boxes,
+  payload: Telescope,
+  propulsion: Rocket,
 };
 
 /** ナビの項目の表示名。系の語彙は API の labels.section から引く。 */
@@ -121,7 +140,8 @@ export const nav = (systems: readonly System[]): NavSection[] => [
       { to: paths.catalog(), key: "catalog", icon: Library },
       { to: paths.diagram(), key: "diagram", icon: Network },
       { to: paths.modes(), key: "modes", icon: Table2 },
-      { to: paths.defs(), key: "defs", icon: Ruler },
+      { to: paths.layout(), key: "layout", icon: Box },
+      { to: paths.maneuvers(), key: "maneuvers", icon: Route },
     ],
   },
   {
@@ -135,7 +155,7 @@ export const nav = (systems: readonly System[]): NavSection[] => [
     })),
   },
   {
-    id: "mission",
+    id: "conditions",
     heading: true,
     items: [
       { to: paths.orbit(), key: "orbit", icon: Orbit },
@@ -148,6 +168,8 @@ export const nav = (systems: readonly System[]): NavSection[] => [
     items: [
       { to: paths.diagnostics(), key: "diagnostics", icon: FileWarning },
       { to: paths.settings(), key: "settings", icon: Settings },
+      { to: paths.defs(), key: "defs", icon: Ruler },
+      { to: paths.sources(), key: "sources", icon: BookOpen },
     ],
   },
 ];
@@ -157,4 +179,27 @@ export const nav = (systems: readonly System[]): NavSection[] => [
  */
 export function isSystemItem(key: NavItemKey): key is NavItemKey & System {
   return Object.hasOwn(systemIcons, key);
+}
+
+/** 系統図で隠す系。指定なしは構造を隠す。空の指定は全表示。未知の系は無視する。 */
+export function diagramHiddenSystems(
+  params: URLSearchParams,
+  systems: readonly System[],
+): ReadonlySet<System> {
+  const values = params.has(SEARCH.diagramHiddenSystem)
+    ? params.getAll(SEARCH.diagramHiddenSystem)
+    : ["structure"];
+  return new Set(systems.filter((system) => values.includes(system)));
+}
+
+/** 系統図の表示状態だけを書き換える。空の指定も残し、再読み込みで既定に戻らないようにする。 */
+export function withDiagramHiddenSystems(
+  params: URLSearchParams,
+  hidden: ReadonlySet<System>,
+): URLSearchParams {
+  const next = new URLSearchParams(params);
+  next.delete(SEARCH.diagramHiddenSystem);
+  for (const system of hidden) next.append(SEARCH.diagramHiddenSystem, system);
+  if (hidden.size === 0) next.set(SEARCH.diagramHiddenSystem, "");
+  return next;
 }

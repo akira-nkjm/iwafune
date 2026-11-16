@@ -102,7 +102,8 @@ pub fn forget_part(edits: &mut Edits, design: &Design, id: &str) -> Result<(), S
     for site in design.references(Referent::Part(id)) {
         match site {
             RefSite::ModeRow { mode } => {
-                super::entities::set_mode_row(edits, &layout::mode_file(&mode), id, None)?;
+                super::entities::set_mode_row(edits, &layout::mode_file(&mode), id, false, None)?;
+                super::entities::set_mode_row(edits, &layout::mode_file(&mode), id, true, None)?;
             }
             RefSite::Allocation { kind } => edits.edit(layout::ALLOCATION_FILE, |doc| {
                 if let Some(t) = table_opt(doc, &[kind.as_str(), "alloc"]) {
@@ -150,7 +151,9 @@ fn rename_sites(
         | Referent::Group(id)
         | Referent::Mode(id)
         | Referent::Net(id)
-        | Referent::Catalog(id) => id,
+        | Referent::Catalog(id)
+        | Referent::Kind(id)
+        | Referent::Attribute(id) => id,
     };
     for site in design.references(referent) {
         rename_at(edits, design, &site, (from, to), moved)?;
@@ -175,16 +178,28 @@ fn rename_at(
         | RefSite::ViewNode { .. } => rename_key_at(edits, design, site, names, moved),
         RefSite::CommLink { .. }
         | RefSite::ThermalNode { .. }
+        | RefSite::ThermalSurface
+        | RefSite::ThermalHeatNode
         | RefSite::CaseMode { .. }
         | RefSite::PowerModeShare
         | RefSite::PowerSequence { .. }
+        | RefSite::PowerBaseMode
         | RefSite::AttitudeLaw
         | RefSite::ThermalCaseMode { .. } => rename_setting_at(edits, site, names),
         RefSite::PortNet { .. }
         | RefSite::HarnessNet { .. }
         | RefSite::PartCatalog { .. }
         | RefSite::PartCandidate { .. }
-        | RefSite::HarnessWire { .. } => rename_value_at(edits, design, site, names),
+        | RefSite::HarnessWire { .. }
+        | RefSite::ManeuverThruster { .. }
+        | RefSite::ManeuverMode { .. } => rename_value_at(edits, design, site, names),
+        // 定義の名前の変更は Op に無い（索引は削除を拒むためだけ）
+        RefSite::PartKind { .. }
+        | RefSite::CatalogKind { .. }
+        | RefSite::KindExtends { .. }
+        | RefSite::KindAttribute { .. }
+        | RefSite::PartAttribute { .. }
+        | RefSite::CatalogAttribute { .. } => Ok(()),
     }
 }
 
@@ -198,7 +213,8 @@ fn rename_key_at(
 ) -> Result<(), StoreError> {
     match site {
         RefSite::ModeRow { mode } => {
-            rename_in(edits, &layout::mode_file(mode), &["states"], from, to)
+            rename_in(edits, &layout::mode_file(mode), &["states"], from, to)?;
+            rename_in(edits, &layout::mode_file(mode), &["eclipse"], from, to)
         }
         RefSite::NetPort { net, end, port } => set_top(
             edits,
@@ -253,6 +269,8 @@ fn rename_setting_at(
             }
             Ok(())
         }),
+        RefSite::ThermalSurface => rename_in(edits, &thermal(), &["surface"], from, to),
+        RefSite::ThermalHeatNode => rename_in(edits, &thermal(), &["heat_node"], from, to),
         RefSite::CaseMode { case } => set_top(edits, &layout::case_file(case), "mode", to),
         RefSite::PowerModeShare => rename_in(edits, &power(), &["mode_share"], from, to),
         RefSite::PowerSequence { index } => edits.edit(&power(), |doc| {
@@ -265,6 +283,7 @@ fn rename_setting_at(
             }
             Ok(())
         }),
+        RefSite::PowerBaseMode => set_top(edits, &power(), "base_mode", to),
         RefSite::AttitudeLaw => rename_in(
             edits,
             &layout::analysis_file(AnalysisSystem::Aocs),
@@ -298,6 +317,16 @@ fn rename_value_at(
         RefSite::HarnessWire { harness } => {
             set_top(edits, &layout::harness_file(harness), "wire", to)
         }
+        RefSite::ManeuverThruster { maneuver } => {
+            set_top(edits, &layout::maneuver_file(maneuver), "thruster", to)
+        }
+        RefSite::ManeuverMode { maneuver } => set_in(
+            edits,
+            &layout::maneuver_file(maneuver),
+            &["constraints"],
+            "mode",
+            to,
+        ),
         _ => Ok(()),
     }
 }

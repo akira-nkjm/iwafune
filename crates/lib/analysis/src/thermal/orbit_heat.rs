@@ -1,79 +1,23 @@
-//! 外面への入熱（太陽・アルベド・地球赤外）。`thermal.steady` と `thermal.transient` で共有する。
+//! 外面への入熱（太陽・中心天体のアルベドと赤外放射）。`thermal.steady` と `thermal.transient` で共有する。
 //!
-//! 入射の幾何は `sat_astro::illumination`（太陽の cos 則と日照率、地球の形態係数、太陽光の強さ）を使い、
+//! 入射の幾何は `sat_astro::illumination`（太陽の cos 則と日照率、中心天体の形態係数、太陽光の強さ）を使い、
 //! 軌道上の向きは `sat_astro::timeline` のサンプルから取る。ここでは吸収率・放射率を掛けて節点に配るだけ。
-//! アルベドは「形態係数 × max(0, 衛星の位置と太陽方向の cos)」で近似する（概念設計の精度）。
+//! アルベドは「形態係数 × max(0, 衛星の位置と太陽方向の cos)」で近似する（概念設計の精度）。天体の赤外放射は
+//! 同じ cos（直下点の太陽天頂角）で天体ごとのモデル（`thermal::planet`）から求める。環境の値は `thermal::environment`。
 
 use crate::spec::{AnalysisError, orbit_mean, orbit_ranges};
+use crate::thermal::environment::ResolvedEnvironment;
+pub use crate::thermal::environment::{
+    DEFAULT_SPACE_TEMPERATURE_K, ThermalEnvironment, ThermalEnvironmentUsed,
+};
 use crate::thermal::network::{Compiled, Surface};
-use sat_astro::constants::{EARTH_ALBEDO, EARTH_IR, SOLAR_CONSTANT};
 use sat_astro::ephem::CentralBody;
-use sat_astro::illumination::{earth_view_factor, solar_flux_w_m2, solar_incidence};
+use sat_astro::illumination::{body_view_factor, solar_flux_w_m2, solar_incidence};
 use sat_astro::math::Vec3;
 use sat_astro::orbit::semi_major_axis_from_altitude;
 use sat_astro::timeline::{TimelineSample, TimelineSpec, build};
-use sat_units::typed::{Fraction, Irradiance, Length, Qty, Temperature};
+use sat_units::typed::{Length, Qty};
 use serde::{Deserialize, Serialize};
-
-/// 熱環境（高温・低温のケースで値を変える）。書かれていない値は解析の既定値（取り出しはメソッド）。
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct ThermalEnvironment {
-    /// 太陽光の強さ（既定は太陽との距離から。高温ケースは 1414 W/m² などを与える）
-    #[serde(default)]
-    pub solar_flux: Option<Qty<Irradiance>>,
-    /// 地球のアルベド（既定 `sat_astro::constants::EARTH_ALBEDO`）
-    #[serde(default)]
-    pub albedo: Option<Fraction>,
-    /// 地球の赤外放射（既定 `sat_astro::constants::EARTH_IR`）
-    #[serde(default)]
-    pub earth_ir: Option<Qty<Irradiance>>,
-    /// 宇宙の背景温度（既定 [`DEFAULT_SPACE_TEMPERATURE_K`]）
-    #[serde(default)]
-    pub space_temperature: Option<Qty<Temperature>>,
-}
-
-/// 宇宙の背景温度の既定値 [K]。
-pub const DEFAULT_SPACE_TEMPERATURE_K: f64 = 3.0;
-
-impl ThermalEnvironment {
-    /// 地球のアルベド（省略時 `EARTH_ALBEDO`）。
-    pub fn albedo(&self) -> Fraction {
-        self.albedo.unwrap_or(Fraction::new(EARTH_ALBEDO))
-    }
-
-    /// 地球の赤外放射（省略時 `EARTH_IR`）。
-    pub fn earth_ir(&self) -> Qty<Irradiance> {
-        self.earth_ir.unwrap_or(Qty::from_raw(EARTH_IR))
-    }
-
-    /// 宇宙の背景温度（省略時 [`DEFAULT_SPACE_TEMPERATURE_K`]）。
-    pub fn space_temperature(&self) -> Qty<Temperature> {
-        self.space_temperature
-            .unwrap_or(Qty::from_raw(DEFAULT_SPACE_TEMPERATURE_K))
-    }
-
-    /// 使った値（既定値を埋めたもの）。出力に返す。
-    pub fn used(&self) -> ThermalEnvironmentUsed {
-        ThermalEnvironmentUsed {
-            solar_flux: self.solar_flux,
-            albedo: self.albedo(),
-            earth_ir: self.earth_ir(),
-            space_temperature: self.space_temperature(),
-        }
-    }
-}
-
-/// 解析に使った熱環境（既定値を埋めたもの）。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct ThermalEnvironmentUsed {
-    /// 太陽光の強さ（`None` なら時刻ごとの太陽との距離から求めた）
-    pub solar_flux: Option<Qty<Irradiance>>,
-    pub albedo: Fraction,
-    pub earth_ir: Qty<Irradiance>,
-    pub space_temperature: Qty<Temperature>,
-}
 
 /// 定常解析の入熱の与え方。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,15 +27,28 @@ pub enum ThermalExposure {
     /// 時系列の入熱の平均（完全な周回があればその範囲で平均する。1 周回以上の span で軌道平均）
     /// β 角を指定するときは `timeline` の `beta`（`sat_astro::timeline` が RAAN を置き換える）。
     OrbitAverage { timeline: TimelineSpec },
-    /// 向きを固定する（最悪の太陽方向など）。`sun_dir_body` が無ければ日陰、`nadir_body` が無ければ地球を見ない
+    /// 向きを固定する（最悪の太陽方向など）。`sun_dir_body` が無ければ日陰、`nadir_body` が無ければ中心天体を見ない
     Fixed {
         #[serde(default)]
         sun_dir_body: Option<Vec3>,
         #[serde(default)]
         nadir_body: Option<Vec3>,
-        /// 地球の形態係数とアルベドに使う高度
+        /// 中心天体の形態係数とアルベドに使う高度
         altitude: Qty<Length>,
+        /// 中心天体（既定は地球）。太陽光の強さを書かなければ天体の太陽距離の慣例値（1 AU）から求める
+        #[serde(default)]
+        central: CentralBody,
     },
+}
+
+impl ThermalExposure {
+    /// 入熱の中心天体。
+    pub fn central(&self) -> CentralBody {
+        match self {
+            Self::OrbitAverage { timeline } => timeline.orbit().central,
+            Self::Fixed { central, .. } => *central,
+        }
+    }
 }
 
 /// ある時刻の入熱の幾何（すべて機体座標系）。
@@ -103,7 +60,7 @@ pub(crate) struct Geometry {
     pub sunlit: f64,
     /// 太陽光の強さ [W/m²]（環境の既定値に使う）
     pub solar_flux_w_m2: f64,
-    /// 地心 → 衛星の位置 [m]。`None` なら地球を見ない
+    /// 中心天体 → 衛星の位置 [m]。`None` なら中心天体を見ない
     pub r_m: Option<Vec3>,
 }
 
@@ -120,21 +77,21 @@ impl Geometry {
 }
 
 /// 外面 1 枚の吸収熱 [W]。
-fn surface_absorbed(s: &Surface, env: &ThermalEnvironment, g: &Geometry) -> f64 {
-    let flux = env.solar_flux.map_or(g.solar_flux_w_m2, Qty::value);
+fn surface_absorbed(s: &Surface, env: &ResolvedEnvironment, g: &Geometry) -> f64 {
+    let flux = env.solar_flux_w_m2.unwrap_or(g.solar_flux_w_m2);
     let solar = s.alpha * flux * s.area_m2 * solar_incidence(s.normal, g.sun_dir, g.sunlit);
     let Some(r) = g.r_m else {
         return solar;
     };
-    let f = earth_view_factor(s.normal, r);
+    let f = body_view_factor(s.normal, r, env.body_radius_m);
     let cos_sun = r.normalized().map_or(0.0, |u| u.dot(g.sun_dir).max(0.0));
-    let albedo = s.alpha * flux * env.albedo().value() * f * cos_sun * s.area_m2;
-    let ir = s.eps * env.earth_ir().value() * f * s.area_m2;
+    let albedo = s.alpha * flux * env.albedo * f * cos_sun * s.area_m2;
+    let ir = s.eps * env.ir.emitted_w_m2(env.albedo, flux, cos_sun) * f * s.area_m2;
     solar + albedo + ir
 }
 
 /// 節点ごとの外部入熱 [W]。
-pub(crate) fn absorbed(net: &Compiled, env: &ThermalEnvironment, g: &Geometry) -> Vec<f64> {
+pub(crate) fn absorbed(net: &Compiled, env: &ResolvedEnvironment, g: &Geometry) -> Vec<f64> {
     let mut q = vec![0.0; net.len()];
     for s in &net.surfaces {
         q[s.node] += surface_absorbed(s, env, g);
@@ -146,9 +103,10 @@ pub(crate) fn absorbed(net: &Compiled, env: &ThermalEnvironment, g: &Geometry) -
 pub(crate) fn timeline_geometry(
     spec: &TimelineSpec,
 ) -> Result<(Vec<f64>, Vec<Geometry>), AnalysisError> {
-    if spec.orbit().central != CentralBody::Earth {
+    if spec.orbit().central == CentralBody::Sun {
         return Err(AnalysisError::InvalidInput(
-            "地球以外を中心天体とする熱解析は未対応です（地球の形態係数・アルベド・赤外放射を使用）".to_owned(),
+            "太陽を中心天体とする熱解析はできません（中心天体のアルベド・赤外放射の形を持ちません）"
+                .to_owned(),
         ));
     }
     let samples = build(spec)?;
@@ -165,9 +123,10 @@ pub(crate) fn mean_absorbed(
     env: &ThermalEnvironment,
     spec: &TimelineSpec,
 ) -> Result<Vec<f64>, AnalysisError> {
+    let env = env.resolve(spec.orbit().central)?;
     let (t, geo) = timeline_geometry(spec)?;
     let ranges = orbit_ranges(&t, spec.orbit().period_s());
-    let per_sample: Vec<Vec<f64>> = geo.iter().map(|g| absorbed(net, env, g)).collect();
+    let per_sample: Vec<Vec<f64>> = geo.iter().map(|g| absorbed(net, &env, g)).collect();
     Ok((0..net.len())
         .map(|i| {
             let v: Vec<f64> = per_sample.iter().map(|q| q[i]).collect();
@@ -188,19 +147,30 @@ pub(crate) fn exposure_absorbed(
             sun_dir_body,
             nadir_body,
             altitude,
+            central,
         } => {
+            let env = env.resolve(*central)?;
+            let flux = match (env.solar_flux_w_m2, central.nominal_sun_distance_m()) {
+                (Some(f), _) => f,
+                (None, Some(d)) => solar_flux_w_m2(d),
+                (None, None) => {
+                    return Err(AnalysisError::InvalidInput(format!(
+                        "中心天体 {central:?} の太陽距離の慣例値はありません。solar_flux を書いてください"
+                    )));
+                }
+            };
             let r = nadir_body
                 .and_then(Vec3::normalized)
-                .map(|n| -n * semi_major_axis_from_altitude(CentralBody::Earth, altitude.value()));
+                .map(|n| -n * semi_major_axis_from_altitude(*central, altitude.value()));
             let g = Geometry {
                 sun_dir: sun_dir_body
                     .and_then(Vec3::normalized)
                     .unwrap_or(Vec3::ZERO),
                 sunlit: if sun_dir_body.is_some() { 1.0 } else { 0.0 },
-                solar_flux_w_m2: SOLAR_CONSTANT,
+                solar_flux_w_m2: flux,
                 r_m: r,
             };
-            Ok(absorbed(net, env, &g))
+            Ok(absorbed(net, &env, &g))
         }
     }
 }
@@ -209,7 +179,8 @@ pub(crate) fn exposure_absorbed(
 mod tests {
     use super::*;
     use crate::thermal::network::{ThermalNetwork, ThermalSurface, tests::node};
-    use sat_astro::constants::R_EARTH;
+    use crate::thermal::preset::ThermalPreset;
+    use sat_astro::constants::{EARTH_IR, R_EARTH, R_MOON};
 
     fn plate(normal: Vec3) -> Compiled {
         Compiled::new(&ThermalNetwork {
@@ -223,24 +194,47 @@ mod tests {
                 area: Qty::from_raw(0.01),
                 normal,
                 count: 1,
-                absorptivity: 0.9,
-                emissivity: 0.8,
+                absorptivity: Some(0.9),
+                emissivity: Some(0.8),
+                coatings: vec![],
             }],
         })
         .unwrap()
+    }
+
+    fn fixed(
+        sun: Option<Vec3>,
+        nadir: Option<Vec3>,
+        h: f64,
+        central: CentralBody,
+    ) -> ThermalExposure {
+        ThermalExposure::Fixed {
+            sun_dir_body: sun,
+            nadir_body: nadir,
+            altitude: Qty::from_raw(h),
+            central,
+        }
     }
 
     /// 太陽に正対した 0.01 m² の面（α = 0.9、1361 W/m²）は 12.25 W を吸収する。地球は見ない。
     #[test]
     fn sun_facing_plate_without_earth() {
         let net = plate(Vec3::X);
-        let exposure = ThermalExposure::Fixed {
-            sun_dir_body: Some(Vec3::X),
-            nadir_body: None,
-            altitude: Qty::from_raw(500.0e3),
-        };
+        let exposure = fixed(Some(Vec3::X), None, 500.0e3, CentralBody::Earth);
         let q = exposure_absorbed(&net, &ThermalEnvironment::default(), &exposure).unwrap();
         assert!((q[0] - 0.9 * 1361.0 * 0.01).abs() < 1e-9);
+    }
+
+    /// 高温のプリセットの太陽光 1414 W/m²: 太陽に正対した面（α 0.9、0.01 m²）は 0.9·1414·0.01 W を吸収する。
+    #[test]
+    fn preset_solar_flux_is_used() {
+        let env = ThermalEnvironment {
+            preset: Some(ThermalPreset::Hot),
+            ..ThermalEnvironment::default()
+        };
+        let exposure = fixed(Some(Vec3::X), None, 500.0e3, CentralBody::Earth);
+        let q = exposure_absorbed(&plate(Vec3::X), &env, &exposure).unwrap();
+        assert!((q[0] - 0.9 * 1414.0 * 0.01).abs() < 1e-9);
     }
 
     /// 天底を向いた面は日陰でも地球赤外を受ける: ε·IR·A·sin²λ（sin λ = R/(R+h)）。
@@ -248,14 +242,42 @@ mod tests {
     fn nadir_plate_in_eclipse_gets_earth_ir() {
         let net = plate(Vec3::Z);
         let h = 500.0e3;
-        let exposure = ThermalExposure::Fixed {
-            sun_dir_body: None,
-            nadir_body: Some(Vec3::Z),
-            altitude: Qty::from_raw(h),
-        };
+        let exposure = fixed(None, Some(Vec3::Z), h, CentralBody::Earth);
         let q = exposure_absorbed(&net, &ThermalEnvironment::default(), &exposure).unwrap();
         let f = (R_EARTH / (R_EARTH + h)).powi(2);
         assert!((q[0] - 0.8 * EARTH_IR * 0.01 * f).abs() < 1e-9, "{}", q[0]);
+    }
+
+    /// 月の高度 100 km で天底を向いた面（α 0.9、ε 0.8、0.01 m²）の手計算。F = (1737.4/1837.4)² ≈ 0.894。
+    /// - 高温（直下点が正午、1414 W/m²）: アルベド 0.9·1414·0.12·F·A ≈ 1.365 W、赤外 0.8·(1 − 0.12)·1414·F·A ≈ 8.90 W、
+    ///   合計 ≈ 10.27 W（直下点 ≈ 390 K の放射）。
+    /// - 低温（夜側）: 赤外 0.8·(0.95 σ 100⁴)·F·A ≈ 0.0385 W だけ。
+    #[test]
+    fn lunar_nadir_plate_hot_and_cold() {
+        let net = plate(Vec3::Z);
+        let h = 100.0e3;
+        let f = (R_MOON / (R_MOON + h)).powi(2);
+        let hot = ThermalEnvironment {
+            preset: Some(ThermalPreset::Hot),
+            ..ThermalEnvironment::default()
+        };
+        let noon = fixed(Some(-Vec3::Z), Some(Vec3::Z), h, CentralBody::Moon);
+        let q = exposure_absorbed(&net, &hot, &noon).unwrap()[0];
+        let expected = 0.9 * 1414.0 * 0.12 * f * 0.01 + 0.8 * 0.88 * 1414.0 * f * 0.01;
+        assert!(
+            (q - expected).abs() < 1e-9 && (q - 10.27).abs() < 0.01,
+            "{q}"
+        );
+        let night = fixed(None, Some(Vec3::Z), h, CentralBody::Moon);
+        let cold = ThermalEnvironment {
+            preset: Some(ThermalPreset::Cold),
+            ..ThermalEnvironment::default()
+        };
+        let q = exposure_absorbed(&net, &cold, &night).unwrap()[0];
+        assert!((q - 0.0385).abs() < 1e-3, "{q}");
+        // 火星はアルベドと赤外を書かないと止まる
+        let mars = fixed(None, Some(Vec3::Z), h, CentralBody::Mars);
+        assert!(exposure_absorbed(&net, &ThermalEnvironment::default(), &mars).is_err());
     }
 
     /// `timeline` の `beta` を与えると元期の β 角がその値になり（RAAN の置き換えは `sat_astro::timeline`）、
@@ -337,8 +359,9 @@ pub(crate) mod fixtures {
                     area: Qty::from_raw(0.01),
                     normal,
                     count: 1,
-                    absorptivity: 0.6,
-                    emissivity: 0.8,
+                    absorptivity: Some(0.6),
+                    emissivity: Some(0.8),
+                    coatings: vec![],
                 })
                 .collect(),
         }

@@ -4,8 +4,8 @@
 //! 両方が見えるここで漏れの無い `match` で対応させ（どちらかに系を足すとここがコンパイルできない）、綴りの一致と
 //! 解析 ID の接頭辞をテストで確かめる。
 
-use fune_model::design::AnalysisSystem;
-use sat_analysis::spec::System;
+use fune_model::design::{AnalysisSystem, ConditionTopic};
+use sat_analysis::spec::{AnalysisArea, ConditionTopic as AnalysisConditionTopic, System};
 
 /// 設計の系 → 解析の系。
 pub fn to_analysis(system: AnalysisSystem) -> System {
@@ -17,6 +17,7 @@ pub fn to_analysis(system: AnalysisSystem) -> System {
         AnalysisSystem::Thermal => System::Thermal,
         AnalysisSystem::Structure => System::Structure,
         AnalysisSystem::Payload => System::Payload,
+        AnalysisSystem::Propulsion => System::Propulsion,
     }
 }
 
@@ -30,6 +31,29 @@ pub fn from_analysis(system: System) -> AnalysisSystem {
         System::Thermal => AnalysisSystem::Thermal,
         System::Structure => AnalysisSystem::Structure,
         System::Payload => AnalysisSystem::Payload,
+        System::Propulsion => AnalysisSystem::Propulsion,
+    }
+}
+
+/// 設計の話題 → 解析の話題。
+pub fn topic_to_analysis(topic: ConditionTopic) -> AnalysisConditionTopic {
+    match topic {
+        ConditionTopic::Orbit => AnalysisConditionTopic::Orbit,
+    }
+}
+
+/// 解析の話題 → 設計の話題。
+pub fn topic_from_analysis(topic: AnalysisConditionTopic) -> ConditionTopic {
+    match topic {
+        AnalysisConditionTopic::Orbit => ConditionTopic::Orbit,
+    }
+}
+
+/// 解析の区分のキー（解析 ID の接頭辞）。
+pub fn area_key(area: AnalysisArea) -> &'static str {
+    match area {
+        AnalysisArea::System(system) => from_analysis(system).as_str(),
+        AnalysisArea::Condition(topic) => topic_from_analysis(topic).as_str(),
     }
 }
 
@@ -55,7 +79,7 @@ mod tests {
         assert!(
             !sat_analysis::catalog::catalog()
                 .iter()
-                .any(|a| a.system == System::Payload)
+                .any(|a| a.area == AnalysisArea::System(System::Payload))
         );
         assert!(serde_json::from_str::<System>(r#""attitude""#).is_err());
         for id in [
@@ -70,18 +94,45 @@ mod tests {
         }
     }
 
-    /// 解析 ID は `<系>.<名前>` で、系はその解析の `System`（docs/architecture/registry.md §4）。
+    /// 解析 ID は `<区分のキー>.<名前>` で、区分はその解析の `AnalysisArea`（docs/architecture/registry.md §4）。
     #[test]
-    fn analysis_ids_start_with_their_system() {
+    fn analysis_ids_start_with_their_area() {
         let catalog = sat_analysis::catalog::catalog();
         assert!(!catalog.is_empty());
         for info in catalog {
-            let system = from_analysis(info.system);
+            let system = area_key(info.area);
             assert!(
                 info.id.starts_with(&format!("{system}.")),
                 "{} の系は {system}",
                 info.id
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod topic_tests {
+    use super::*;
+
+    #[test]
+    fn topics_roundtrip_and_do_not_collide_with_systems() {
+        for topic in ConditionTopic::ALL {
+            let analysis = topic_to_analysis(*topic);
+            assert_eq!(topic_from_analysis(analysis), *topic);
+            assert_eq!(serde_json::to_value(analysis).unwrap(), topic.as_str());
+            assert!(!AnalysisSystem::NAMES.contains(&topic.as_str()));
+            assert_eq!(
+                topic.setting_path().scope,
+                fune_model::path::SettingScope::Conditions
+            );
+            assert!(!topic.label().is_empty());
+            assert!(!topic.label_en().is_empty());
+        }
+        let area = AnalysisArea::Condition(AnalysisConditionTopic::Orbit);
+        assert_eq!(area_key(area), ConditionTopic::Orbit.as_str());
+        assert_eq!(
+            serde_json::to_value(area).unwrap(),
+            serde_json::json!({"kind": "condition", "value": "orbit"})
+        );
     }
 }

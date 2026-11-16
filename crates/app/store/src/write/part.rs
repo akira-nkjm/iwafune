@@ -2,7 +2,7 @@
 
 use super::Edits;
 use super::doc::{self, set, set_opt, string, strings, table_mut, table_opt};
-use crate::codec::{encode_quaternion, encode_scalar, encode_value, encode_vector};
+use crate::codec::{encode_cell, encode_quaternion, encode_value, encode_vector};
 use crate::error::StoreError;
 use crate::profile as format;
 use fune_model::design::{Mount, Part, PartField, PartFieldName, Pose};
@@ -32,6 +32,7 @@ fn pose_table(pose: &Pose) -> Table {
 }
 
 /// 表の中身を `desired` に合わせる（同じ値の行は触らない）。
+/// 出典の付いた値の表（ドット付きキーの行を持つ表）は、行を足したら `=` を揃え直す。
 pub fn sync_table(existing: &mut Table, desired: Table) {
     let keep: Vec<String> = desired.iter().map(|(k, _)| k.to_string()).collect();
     let stale: Vec<String> = existing
@@ -43,11 +44,30 @@ pub fn sync_table(existing: &mut Table, desired: Table) {
         existing.remove(&k);
     }
     for (k, v) in desired {
-        match (existing.get_mut(&k), v) {
-            (Some(Item::Table(old)), Item::Table(new)) => sync_table(old, new),
-            (_, v) => set(existing, &k, v),
-        }
+        put(existing, &k, v);
     }
+    realign_dotted(existing);
+}
+
+/// ドット付きキーの行のある表（出典の付いた値）の `=` を揃え直す。
+fn realign_dotted(table: &mut Table) {
+    let dotted_rows = table
+        .iter()
+        .any(|(_, item)| item.as_table().is_some_and(Table::is_dotted));
+    if dotted_rows && !table.is_dotted() {
+        format::align_rows(table);
+    }
+}
+
+/// 行を書く（表どうしなら中身を合わせ、そうでなければ置き換える）。
+fn put(table: &mut Table, key: &str, item: Item) {
+    match (table.get_mut(key), item) {
+        (Some(Item::Table(old)), Item::Table(new)) if old.is_dotted() == new.is_dotted() => {
+            sync_table(old, new);
+        }
+        (_, item) => set(table, key, item),
+    }
+    realign_dotted(table);
 }
 
 /// 部品ファイルの見出しの表の正規の順。
@@ -96,6 +116,8 @@ fn field_item(field: &PartField) -> Option<Item> {
         | PartField::Description(v)
         | PartField::Catalog(v)
         | PartField::Kind(v) => v.as_deref().map(string),
+        PartField::Redundancy(fune_model::design::Redundancy::None) => None,
+        PartField::Redundancy(r) => Some(string(r.as_str())),
         PartField::Count(1) => None,
         PartField::Count(n) => Some(Item::Value(i64::from(*n).into())),
         PartField::Maturity(m) => m.map(|m| string(m.as_str())),
@@ -163,10 +185,7 @@ pub fn set_attr(
 ) -> Result<(), StoreError> {
     edit_part(edits, file, |doc| {
         let table = table_mut(doc, &["attr"])?;
-        match (table.get_mut(attr), encode_value(value)) {
-            (Some(Item::Table(old)), Item::Table(new)) => sync_table(old, new),
-            (_, item) => set(table, attr, item),
-        }
+        put(table, attr, encode_value(value));
         Ok(())
     })
 }
@@ -181,11 +200,7 @@ pub fn set_attr_state(
 ) -> Result<(), StoreError> {
     edit_part(edits, file, |doc| {
         let table = table_mut(doc, &["attr", attr])?;
-        set(
-            table,
-            state,
-            Item::Value(encode_scalar(&cell.value, cell.from.as_ref())),
-        );
+        put(table, state, encode_cell(cell));
         Ok(())
     })
 }
@@ -200,9 +215,9 @@ pub fn unset_attr(
     edit_part(edits, file, |doc| {
         let removed = match state {
             Some(state) => {
-                table_opt(doc, &["attr", attr]).is_some_and(|t| t.remove(state).is_some())
+                table_opt(doc, &["attr", attr]).is_some_and(|t| doc::remove_aligned(t, state))
             }
-            None => table_opt(doc, &["attr"]).is_some_and(|t| t.remove(attr).is_some()),
+            None => table_opt(doc, &["attr"]).is_some_and(|t| doc::remove_aligned(t, attr)),
         };
         doc::drop_if_empty(doc, &["attr", attr]);
         doc::drop_if_empty(doc, &["attr"]);

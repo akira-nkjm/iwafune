@@ -104,3 +104,31 @@ fn a_new_net_file_writes_every_field_in_order_and_reads_back() {
     let design = read(&[("nets/CAN.toml", &text)]);
     assert_eq!(design.nets["CAN"], net);
 }
+
+#[test]
+fn mode_extensions_are_canonical_and_read_back() {
+    use fune_model::design::{Mode, Redundancy, StateAssign};
+    use fune_store::write::entities::new_mode_text;
+    let mut row = StateAssign::new("on");
+    row.active = Some(3);
+    row.spare_state = Some("standby".into());
+    let mut mode = Mode {
+        id: "TEST".into(),
+        max_duration: Some(Quantity::new(90.0, "min")),
+        ..Default::default()
+    };
+    mode.states.insert("RW".into(), row);
+    mode.eclipse.insert("RW".into(), StateAssign::new("off"));
+    let text = new_mode_text(&mode);
+    assert_eq!(
+        fune_store::format::format_text("modes/TEST.toml", &text).unwrap(),
+        text
+    );
+    let mut part = Part::new("RW");
+    part.count = 4;
+    part.redundancy = Redundancy::Warm;
+    let part_text = new_part_text(&part);
+    let design = read(&[("modes/TEST.toml", &text), ("parts/RW.toml", &part_text)]);
+    assert_eq!(design.modes["TEST"], mode);
+    assert_eq!(design.parts["RW"], part);
+}

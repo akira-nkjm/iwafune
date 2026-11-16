@@ -3,21 +3,27 @@
 //!
 //! 平均要素の J2 永年変化率は Vallado（*Fundamentals of Astrodynamics and Applications*, 4th ed.）eq. 9-41
 //! に従う。数値伝搬（[`Propagator::Numerical`]）は [`numerical`] にあり、[`crate::force`] の加速度を
-//! [`crate::ode::Dop853`] で積分する（Cowell 法）。
+//! [`crate::ode::Dop853`] で積分する（Cowell 法）。推力を入れた伝搬（[`propagate_powered`]）は `powered` にあり、
+//! 同じ積分器と力モデルに推力の項（[`crate::force::thrust`]）と質量を足す。平均の長半径（J2 の短周期項を引く）は `mean`。
 
 mod analytic;
 mod beta;
 mod local_time;
+mod mean;
 mod numerical;
+mod powered;
 pub use crate::kepler::{perifocal_to_eci, solve_kepler};
 pub use crate::state::OrbitState;
 
 pub use analytic::{j2_secular_rates, j2_secular_rates_about};
 pub use beta::{beta_angle_rad, raan_for_beta};
-pub use local_time::{ltan_from_raan, raan_from_ltan, raan_from_ltdn};
+pub use local_time::{
+    ltan_from_raan, raan_from_ltan, raan_from_ltan_about, raan_from_ltdn, raan_from_ltdn_about,
+};
+pub use mean::{mean_semi_major_axis_m, orbit_averaged_elements, osculating_state_from_mean};
+pub use powered::{PoweredArc, PoweredSample, PoweredTarget, ThrustArc, propagate_powered};
 
 use crate::AstroError;
-use crate::constants::{J2_EARTH, MU_EARTH, R_EARTH, SUN_MEAN_MOTION};
 use crate::ephem::CentralBody;
 use crate::math::Vec3;
 use crate::time::Epoch;
@@ -320,19 +326,40 @@ pub fn osculating_elements(state: &OrbitState, mu: f64) -> Result<KeplerElements
     })
 }
 
-/// 太陽同期軌道の傾斜角 [rad]（長半径 [m]・離心率から）。
-///
-/// J2 による RAAN の回転率が太陽の平均運動（360°/365.2422 日）に一致する傾斜角。
+/// 地球を回る太陽同期軌道の傾斜角 [rad]（[`sso_inclination_about_rad`] の地球版）。
 /// 成立しない（|cos i| > 1、長半径が大きすぎる）ときは NaN。
 pub fn sso_inclination_rad(semi_major_axis_m: f64, eccentricity: f64) -> f64 {
+    sso_inclination_about_rad(CentralBody::Earth, semi_major_axis_m, eccentricity)
+        .unwrap_or(f64::NAN)
+}
+
+/// 中心天体 `central` を回る太陽同期軌道の傾斜角 [rad]（**天体の赤道に対する**傾斜角）。
+///
+/// J2 による RAAN の回転率 `−1.5 n J2 (R/p)² cos i` が、その天体が太陽を回る平均運動
+/// （[`CentralBody::sun_mean_motion_rad_s`]）に一致する傾斜角。地球以外では要素の基準面（ECI の赤道）と
+/// 天体の赤道が違うので、返す値を `OrbitSpec` の傾斜角（ECI 基準）にそのまま入れてはいけない。
+/// 太陽と月（太陽を回る年が地球と同じで、モデルに独自の年が無い）は `InvalidInput`。
+/// 長半径が大きすぎて傾斜角が存在しないときも `InvalidInput`。
+pub fn sso_inclination_about_rad(
+    central: CentralBody,
+    semi_major_axis_m: f64,
+    eccentricity: f64,
+) -> Result<f64, AstroError> {
+    let Some(sun_n) = central.sun_mean_motion_rad_s() else {
+        return Err(AstroError::InvalidInput(
+            "この中心天体には太陽同期軌道を定義できません（太陽を回る年が無い）".into(),
+        ));
+    };
     let a = semi_major_axis_m;
     let p = a * (1.0 - eccentricity * eccentricity);
-    let n = mean_motion_rad_s(MU_EARTH, a);
-    let cos_i = -SUN_MEAN_MOTION / (1.5 * n * J2_EARTH * (R_EARTH / p).powi(2));
+    let n = mean_motion_rad_s(central.gm(), a);
+    let cos_i = -sun_n / (1.5 * n * central.j2() * (central.radius_m() / p).powi(2));
     if cos_i.abs() > 1.0 || !cos_i.is_finite() {
-        return f64::NAN;
+        return Err(AstroError::InvalidInput(
+            "この長半径では太陽同期の傾斜角がありません".into(),
+        ));
     }
-    cos_i.acos()
+    Ok(cos_i.acos())
 }
 
 #[cfg(test)]

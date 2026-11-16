@@ -41,6 +41,7 @@ fn part_field_names_match() {
             "kind",
             "candidates",
             "count",
+            "redundancy",
             "maturity"
         ]
     );

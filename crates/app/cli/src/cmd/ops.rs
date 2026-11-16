@@ -33,9 +33,26 @@ pub fn edit_of<'a>(ws: &Workspace, command: &'a Command) -> anyhow::Result<Optio
         Command::Kind(c) => one(defs::kind(c)?),
         Command::Setting(c) => one(nouns::setting(ws, c)?),
         Command::View(c) => one(nouns::view(c)?),
+        Command::Case(crate::args::CaseCmd::FromEclipse {
+            id,
+            at,
+            mode,
+            edit: opts,
+        }) => Some(Edit {
+            ops: vec![edit::case_from_eclipse_op(
+                ws,
+                &fune_service::dto::CaseFromEclipseRequest {
+                    id: id.clone(),
+                    at: serde_json::from_value(serde_json::Value::String(at.clone()))?,
+                    mode: mode.clone(),
+                },
+            )?],
+            opts,
+        }),
         Command::Case(c) => one(records::case(c)?),
         Command::Source(c) => one(records::source(c)?),
         Command::Harness(c) => one(records::harness(c)?),
+        Command::Maneuver(c) => one(records::maneuver(c)?),
         Command::Catalog(c) => one(records::catalog(ws, c)?),
         Command::Set(a) => {
             let text = SetText {
@@ -43,6 +60,7 @@ pub fn edit_of<'a>(ws: &Workspace, command: &'a Command) -> anyhow::Result<Optio
                 path: a.path.clone(),
                 value: a.value.clone(),
                 source: a.source.clone(),
+                at: a.at.clone(),
                 note: a.note.clone(),
                 min: a.min.clone(),
                 max: a.max.clone(),

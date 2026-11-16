@@ -14,6 +14,8 @@ use std::collections::BTreeMap;
 pub(super) struct Decoder<'f> {
     pub(super) design: Design,
     pub(super) files: &'f FileSet,
+    /// 共有カタログのキャッシュのファイル（ルートからの相対パス。読み取り専用）
+    pub(super) shared: FileSet,
     /// 部品 ID → `parts/` からのディレクトリの列
     pub(super) part_dirs: BTreeMap<String, Vec<String>>,
 }
@@ -23,10 +25,13 @@ pub fn decode(files: &FileSet) -> Design {
     let mut d = Decoder {
         design: Design::default(),
         files,
+        shared: FileSet::new(),
         part_dirs: BTreeMap::new(),
     };
+    d.collect_shared();
     d.index_spans();
     d.read_project();
+    d.read_lock();
     let catalogs: Vec<(String, String)> = d
         .design
         .project
@@ -60,6 +65,7 @@ pub fn decode(files: &FileSet) -> Design {
         }
         d.read_file(&role, path);
     }
+    d.read_shared();
     d.build_tree();
     for diag in &mut d.design.load_diagnostics {
         if diag.target.is_none() {
@@ -84,14 +90,29 @@ impl Decoder<'_> {
         self.design.load_diagnostics.push(diag);
     }
 
-    /// すべての TOML の構文を確かめ、キーの位置を索引にする。
+    /// 本文（追跡ファイルか、共有カタログのキャッシュのファイル）。
+    pub(super) fn text(&self, path: &str) -> Option<&str> {
+        self.files.get(path).or_else(|| self.shared.get(path))
+    }
+
+    /// すべての TOML の構文を確かめ、キーの位置を索引にする。書き方の検出（§10.2）は追跡ファイルだけ
+    /// （共有カタログのファイルはそのリポジトリの `fune fmt` が整える）。
     fn index_spans(&mut self) {
         let files = self.files;
-        for (path, text) in files.iter().filter(|(p, _)| p.ends_with(".toml")) {
+        let shared = std::mem::take(&mut self.shared);
+        let tracked = files.iter().map(|f| (f, true));
+        let cached = shared.iter().map(|f| (f, false));
+        for ((path, text), own) in tracked
+            .chain(cached)
+            .filter(|((p, _), _)| p.ends_with(".toml"))
+        {
             match toml_edit::Document::parse(text.to_string()) {
                 Ok(doc) => {
                     for (key, line, column) in spans::index(&doc) {
                         self.design.source_map.insert_key(path, key, line, column);
+                    }
+                    if !own {
+                        continue;
                     }
                     for (severity, code, line, message) in profile::findings(path, &doc) {
                         self.diag(severity, code, path, (line > 0).then_some(line), message);
@@ -111,11 +132,12 @@ impl Decoder<'_> {
                 }
             }
         }
+        self.shared = shared;
     }
 
     /// serde で読む。誤りは診断にして None。
     pub(super) fn parse<T: DeserializeOwned>(&mut self, path: &str) -> Option<T> {
-        let text = self.files.get(path)?;
+        let text = self.text(path)?;
         if toml_edit::Document::parse(text.to_string()).is_err() {
             return None; // 構文の誤りは index_spans が報告済み
         }
@@ -155,11 +177,7 @@ impl Decoder<'_> {
 
     /// ファイルに `id` が書かれていれば、ファイル名の ID と同じか確かめる（ID はファイル名が正）。
     fn check_id_field(&mut self, path: &str, expected: &str) {
-        let Some(table) = self
-            .files
-            .get(path)
-            .and_then(|t| t.parse::<toml::Table>().ok())
-        else {
+        let Some(table) = self.text(path).and_then(|t| t.parse::<toml::Table>().ok()) else {
             return;
         };
         let Some(written) = table.get("id") else {
@@ -178,7 +196,11 @@ impl Decoder<'_> {
     }
 
     /// serde で読んで Design に置く（誤りは診断にして読み飛ばす）。
-    fn read_into<T: DeserializeOwned>(&mut self, path: &str, put: impl FnOnce(&mut Design, T)) {
+    pub(super) fn read_into<T: DeserializeOwned>(
+        &mut self,
+        path: &str,
+        put: impl FnOnce(&mut Design, T),
+    ) {
         if let Some(v) = self.parse::<T>(path) {
             put(&mut self.design, v);
         }
@@ -223,10 +245,14 @@ impl Decoder<'_> {
                 v.id = Id::new(id);
                 g.sources.insert(Id::new(id), v);
             }),
-            FileRole::Mission(name) => self.read_mission(path, name),
+            FileRole::Maneuver(id) => self.read_into(path, |g, mut v: d::Maneuver| {
+                v.id = Id::new(id);
+                g.maneuvers.insert(Id::new(id), v);
+            }),
+            FileRole::Conditions(name) => self.read_conditions(path, name),
             FileRole::Ground(id) => self.read_into(path, |g, mut v: d::GroundStationSettings| {
                 v.id = id.clone();
-                g.mission.ground.insert(id.clone(), v);
+                g.conditions.ground.insert(id.clone(), v);
             }),
             FileRole::Analysis(system) => self.read_analysis(path, *system),
             FileRole::CommonAnalysis => self.design.analysis.common = self.parse(path),
@@ -244,10 +270,10 @@ impl Decoder<'_> {
         }
     }
 
-    fn read_mission(&mut self, path: &str, name: &str) {
+    fn read_conditions(&mut self, path: &str, name: &str) {
         match name {
-            "orbit" => self.design.mission.orbit = self.parse(path),
-            "launch" => self.design.mission.launch = self.parse(path),
+            "orbit" => self.design.conditions.orbit = self.parse(path),
+            "launch" => self.design.conditions.launch = self.parse(path),
             _ => {}
         }
     }
@@ -261,6 +287,7 @@ impl Decoder<'_> {
             AnalysisSystem::Thermal => self.design.analysis.thermal = self.parse(path),
             AnalysisSystem::Structure => self.design.analysis.structure = self.parse(path),
             AnalysisSystem::Payload => self.design.analysis.payload = self.parse(path),
+            AnalysisSystem::Propulsion => self.design.analysis.propulsion = self.parse(path),
         }
     }
 }
@@ -275,6 +302,7 @@ fn file_id(role: &FileRole) -> Option<&str> {
         | FileRole::Harness(id)
         | FileRole::Case(id)
         | FileRole::Source(id)
+        | FileRole::Maneuver(id)
         | FileRole::Ground(id)
         | FileRole::View(id) => Some(id),
         _ => None,

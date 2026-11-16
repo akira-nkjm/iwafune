@@ -19,10 +19,35 @@ pub enum CommandText {
     /// `fune mode set <モード> <部品> <状態> --duty tx=0.1`・`fune mode unset <モード> <部品>`。
     /// GUI のモード表は変えたセルをまとめて送り、1 つの `SetModeStates` になる
     ModeSet(ModeSetText),
+    /// `fune mode move <ID> --before|--after|--first|--last`。
+    ModeMove {
+        id: String,
+        #[serde(default)]
+        before: Option<String>,
+        #[serde(default)]
+        after: Option<String>,
+        #[serde(default)]
+        first: bool,
+        #[serde(default)]
+        last: bool,
+    },
+    /// モードの最長継続時間（null なら削除）。
+    ModeDuration {
+        mode: String,
+        duration: Option<String>,
+    },
     /// `fune attr add <ID> --dimension … --units …`
     AttrAdd(AttrAddText),
     /// `fune kind add <ID> --states off,on --required mass --port PWR=power`
     KindAdd(KindAddText),
+    /// `fune attr replace <ID> …`（`attr add` と同じ旗。既にある属性定義を丸ごと置き換える）
+    AttrReplace(AttrAddText),
+    /// `fune kind replace <ID> …`（`kind add` と同じ旗。既にある種別定義を丸ごと置き換える）
+    KindReplace(KindAddText),
+    /// `fune maneuver add <ID> --category … --method … --altitude "600 km" …`（同じ ID があれば拒む）
+    ManeuverAdd(super::ManeuverText),
+    /// `fune maneuver set <ID> …`（無ければ作り、あれば丸ごと置き換える）
+    ManeuverSet(super::ManeuverText),
 }
 
 /// `fune net set` の引数。旗を書いたフィールドだけを書く（宣言の順に 1 フィールド 1 つの `SetNetField`）。
@@ -71,6 +96,10 @@ pub struct PlaceText {
     pub position: Option<String>,
     /// 取付点に対する姿勢のクォータニオン（`"1 0 0 0"`、w x y z。`edit::quaternion_from_text`）。省略か空なら書かない
     pub orientation: Option<String>,
+    /// 取付点に対する姿勢の X・Y・Z 軸まわりの回転角（`"0 90 0 deg"`。固定軸で X → Y → Z の順。`edit::rotation_from_text`）。
+    /// 省略か空なら書かない。`orientation` と両方は書けない
+    #[serde(default)]
+    pub rotation: Option<String>,
 }
 
 /// モード表のセルの編集（`fune mode set|unset` の引数の列）。
@@ -91,6 +120,12 @@ pub struct ModeCellText {
     /// CLI の `--duty tx=0.1,rx=0.2` は `edit::duty_from_text` でこの形にする
     #[serde(default)]
     pub duty: BTreeMap<String, String>,
+    #[serde(default)]
+    pub active: Option<String>,
+    #[serde(default)]
+    pub spare_state: Option<String>,
+    #[serde(default)]
+    pub eclipse: bool,
 }
 
 /// `fune attr add` の引数。表示名を省くと ID、値の型を省くと scalar。
@@ -146,4 +181,21 @@ pub struct KindAddText {
     pub optional: Option<String>,
     /// ポートの雛形（`"PWR=power"` の列。`--port` の繰り返し。読み方は `edit::port_template_from_text`）
     pub ports: Vec<String>,
+}
+
+/// 季節解析のケースにする標本。
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum EclipseCaseAt {
+    Longest,
+    BetaMin,
+}
+
+/// `fune case from-eclipse` と HTTP が共有する要求。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CaseFromEclipseRequest {
+    pub id: String,
+    pub at: EclipseCaseAt,
+    #[serde(default)]
+    pub mode: Option<String>,
 }

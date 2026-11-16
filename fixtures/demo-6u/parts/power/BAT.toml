@@ -7,8 +7,11 @@ point = "BAT_BAY"
 [pose]
 position = { x = 0.0, y = 20.0, z = 40.0, unit = "mm" }
 
-[attr]
-mass = { value = 0.395, unit = "kg", from = { source = "em_test_2026_10", note = "EM 実測（ブラケット込み）" } }
+[attr.mass]
+value       = 0.395
+unit        = "kg"
+from.source = "em_test_2026_10"
+from.note   = "EM 実測（ブラケット込み）"
 
 [ports.PWR]
 net = "BAT_BUS"

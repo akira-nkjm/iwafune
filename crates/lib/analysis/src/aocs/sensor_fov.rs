@@ -11,8 +11,9 @@
 
 use crate::spec::quantity_text;
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series, System, Verdict,
-    ensure_fraction, ensure_non_negative, is_sunlit, longest_window, time_fraction,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series,
+    System, Verdict, ensure_fraction, ensure_non_negative, is_sunlit, longest_window,
+    time_fraction,
 };
 use sat_astro::ephem::{Body, CentralBody};
 use sat_astro::math::Vec3;
@@ -138,7 +139,7 @@ pub struct SensorFov;
 impl Analysis for SensorFov {
     const ID: &'static str = "aocs.sensor_fov";
     const TITLE: &'static str = "センサ FoV と禁止角";
-    const SYSTEM: System = System::Aocs;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Aocs);
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;
     const DESCRIPTION: &'static str = "センサの視野への太陽・地球・月の侵入を時系列で調べる";
     const TITLE_EN: &'static str = "Sensor FoV and exclusion angles";

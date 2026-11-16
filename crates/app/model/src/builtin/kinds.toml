@@ -6,7 +6,7 @@
 label    = "機器（共通）"
 label_en = "Component (common)"
 required = ["mass"]
-optional = ["size", "temp_op", "temp_survival", "specific_heat", "heat_fraction", "absorptivity", "emissivity", "hk_rate"]
+optional = ["size", "temp_op", "temp_perf", "temp_survival", "specific_heat", "heat_fraction", "absorptivity", "emissivity", "hk_rate"]
 
 [obc]
 label    = "オンボードコンピュータ"
@@ -40,7 +40,7 @@ label_en = "Solar panel"
 extends  = "component"
 role     = "solar_panel"
 required = ["area", "cell_efficiency", "normal"]
-optional = ["packing_factor", "eol_factor"]
+optional = ["packing_factor", "eol_factor", "cell_voltage", "cell_current"]
 
 [reaction_wheel]
 label    = "リアクションホイール"
@@ -92,6 +92,14 @@ role     = "gyro"
 states   = ["off", "on"]
 required = ["power"]
 
+[magnetometer]
+label    = "磁気センサ"
+label_en = "Magnetometer"
+extends  = "component"
+role     = "magnetometer"
+states   = ["off", "on"]
+optional = ["power"]
+
 [gps]
 label    = "GPS 受信機"
 label_en = "GPS receiver"
@@ -107,7 +115,7 @@ extends  = "component"
 role     = "transceiver"
 states   = ["off", "rx", "tx"]
 required = ["power", "tx_power", "frequency_down", "data_rate_down"]
-optional = ["frequency_up", "data_rate_up", "antenna_gain", "noise_temperature"]
+optional = ["frequency_up", "data_rate_up", "antenna_gain", "noise_temperature", "rf_output"]
 
 [antenna]
 label    = "アンテナ"
@@ -148,3 +156,20 @@ label_en = "Structure"
 extends  = "component"
 role     = "structure"
 optional = ["material"]
+
+[propulsion_thruster]
+label    = "推進系スラスタ"
+label_en = "Propulsion thruster"
+extends  = "component"
+role     = "propulsion_thruster"
+states   = ["off", "standby", "on"]
+required = ["power", "thrust", "isp"]
+optional = ["propellant", "min_impulse_bit", "rated_total_impulse", "rated_firing_time", "rated_firings", "direction"]
+
+[propellant_tank]
+label    = "推薬タンク"
+label_en = "Propellant tank"
+extends  = "component"
+role     = "propellant_tank"
+required = ["tank_volume", "propellant"]
+optional = ["propellant_density"]

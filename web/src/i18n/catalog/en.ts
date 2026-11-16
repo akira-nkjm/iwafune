@@ -27,6 +27,7 @@ export const catalogEn: typeof catalogJa = {
     partNumber: "Part number",
     maturity: "Maturity",
     datasheet: "Datasheet",
+    openDatasheet: "Open datasheet",
     source: "Source",
     addValue: "Add value",
     attr: "Attribute",
@@ -59,5 +60,19 @@ export const catalogEn: typeof catalogJa = {
     summaryCreate: (id: string) => `Create catalog item ${id}`,
     summaryRename: (a: string, b: string) => `${a} → ${b}`,
     summaryRemove: (id: string) => `Delete catalog item ${id}`,
+    shared: {
+      title: "Shared catalogs",
+      ready: "The commits in catalog.lock are loaded. Shared items are read-only.",
+      needed: "Fetching is needed. Fetch here, or run fune catalog fetch on the CLI.",
+      fetch: "Fetch",
+      fetching: "Fetching…",
+      rev: (rev: string) => `rev ${rev}`,
+      noCommit: "no commit",
+      hint: {
+        not_locked: "Not recorded in catalog.lock (fetching records it)",
+        lock_mismatch: "git or rev in fune.toml differs from the lock (run fune catalog update)",
+        not_fetched: "The locked commit has not been fetched yet",
+      },
+    },
   },
 };

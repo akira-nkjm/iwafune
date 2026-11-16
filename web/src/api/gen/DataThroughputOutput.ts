@@ -3,6 +3,7 @@ import type { Check } from "./Check";
 import type { DataThroughputDay } from "./DataThroughputDay";
 import type { DataThroughputLinkClosure } from "./DataThroughputLinkClosure";
 import type { DataThroughputPass } from "./DataThroughputPass";
+import type { DataThroughputStationClosure } from "./DataThroughputStationClosure";
 import type { Series } from "./Series";
 
 /**
@@ -10,11 +11,16 @@ import type { Series } from "./Series";
  */
 export type DataThroughputOutput = { 
 /**
- * 回線が閉じるか（`link` が無ければ `not_evaluated`）
+ * 回線が閉じるか（回線の条件が無ければ `not_evaluated`。局が複数のときは、どれかの局で閉じるなら最も低い仰角、
+ * どの局でも閉じなければ `never_closes`）
  */
 link_closure: DataThroughputLinkClosure, 
 /**
- * 使った回線余裕の要求値（`link` があるときだけ）
+ * 局ごとの回線が閉じる仰角（帯域の設定が無くて数えない局も `no_band_settings` で載せる）
+ */
+station_closures: Array<DataThroughputStationClosure>, 
+/**
+ * 使った回線余裕の要求値（`station_links` で回線を評価したとき、つまり `link_closure` が `not_evaluated` でないときだけ）
  */
 required_margin_db: number | null, 
 /**

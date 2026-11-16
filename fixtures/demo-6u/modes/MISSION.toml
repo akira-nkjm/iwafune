@@ -1,8 +1,10 @@
-label       = "撮像"
-description = "地心指向で撮像。目標上空で RW をピーク出力で使う"
+label        = "撮像"
+description  = "地心指向で撮像。目標上空で RW をピーク出力で使う"
+max_duration = { value = 10.0, unit = "min" }
 
 [states]
 CAM     = { state = "standby", duty = { on = 0.5 } }
+EPT     = { state = "off" }
 GPS     = { state = "on" }
 HTR_BAT = { state = "off", duty = { on = 0.1 } }
 HTR_CAM = { state = "off" }

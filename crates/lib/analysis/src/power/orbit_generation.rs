@@ -5,8 +5,9 @@
 
 use super::solar::{SolarArray, SolarLife, SolarProfile, eclipses};
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Channel, ChannelKind, Series, SpanFallback, System,
-    longest_window, masked_time_mean, orbit_mean, orbit_ranges, span_fallback, time_fraction,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Series,
+    SpanFallback, System, longest_window, masked_time_mean, orbit_mean, orbit_ranges,
+    span_fallback, time_fraction,
 };
 use sat_astro::timeline::{self, TimelineSpec, Window};
 use sat_units::typed::{Energy, Fraction, Power, Qty, Time};
@@ -18,9 +19,16 @@ use serde::{Deserialize, Serialize};
 pub struct OrbitGenerationInput {
     pub timeline: TimelineSpec,
     pub array: SolarArray,
-    /// 時系列と平均に使う寿命の時点（省略時 EOL）。BOL・EOL の軌道平均はどちらも出す
+    /// 時系列と平均に使う寿命の時点（省略時 EOL。[`SolarLife::default`]）。BOL・EOL の軌道平均はどちらも出す
     #[serde(default)]
-    pub life: SolarLife,
+    pub life: Option<SolarLife>,
+}
+
+impl OrbitGenerationInput {
+    /// 使う寿命の時点（省略時は [`SolarLife::default`]）。出力の `life` に載る。
+    pub fn life(&self) -> SolarLife {
+        self.life.unwrap_or_default()
+    }
 }
 
 /// 軌道上の発電の出力。
@@ -74,7 +82,7 @@ pub struct OrbitGeneration;
 impl Analysis for OrbitGeneration {
     const ID: &'static str = "power.orbit_generation";
     const TITLE: &'static str = "軌道上の発電";
-    const SYSTEM: System = System::Power;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Power);
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;
     const DESCRIPTION: &'static str = "軌道 1〜N 周の発電電力と日陰の時系列";
     const TITLE_EN: &'static str = "Orbital power generation";
@@ -99,7 +107,7 @@ fn summarize(
     eclipses: Vec<Window>,
     period_s: f64,
 ) -> OrbitGenerationOutput {
-    let life = input.life;
+    let life = input.life();
     let ranges = orbit_ranges(&profile.t, period_s);
     let gen_life = profile.total(life);
     let flags = &profile.lit;
@@ -140,7 +148,7 @@ fn generation_series(
     profile: &SolarProfile,
     gen_life: Vec<f64>,
 ) -> Series {
-    let life = input.life;
+    let life = input.life();
     let mut channels = vec![
         Channel::of::<Power>("generation", ChannelKind::Generation, gen_life),
         Channel::of::<Fraction>("sunlit", ChannelKind::Sunlit, profile.sunlit.clone()),
@@ -172,7 +180,7 @@ fn panel_shares(
         .iter()
         .enumerate()
         .map(|(i, p)| {
-            let avg = orbit_mean(&profile.t, &profile.panel(i, input.life), ranges);
+            let avg = orbit_mean(&profile.t, &profile.panel(i, input.life()), ranges);
             OrbitGenerationPanel {
                 id: p.id.clone(),
                 orbit_average: Qty::from_raw(avg),
@@ -214,7 +222,7 @@ mod tests {
         OrbitGenerationInput {
             timeline: leo_timeline(sun_pointing_z(), orbits, 10.0),
             array: array(),
-            life: SolarLife::Bol,
+            life: Some(SolarLife::Bol),
         }
     }
 

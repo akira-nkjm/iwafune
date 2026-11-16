@@ -4,10 +4,15 @@
 設計データの形とファイル形式は [model.md](model.md)、機能ごとの置き場所は [architecture/registry.md](architecture/registry.md)（構成台帳）、
 開発の規則は [CONTRIBUTING.md](../CONTRIBUTING.md)、これから入れる機能は [roadmap.md](roadmap.md) と GitHub の Issue にある。
 
+前提条件（軌道・地上局・打ち上げ条件）は `conditions/`。`mission/` は将来の #9 用の予約ディレクトリで現在は読まない。
+解析の所属は `sat_analysis::spec::AnalysisArea`（系 `System` または前提条件の話題 `Condition`）。
+話題の設定は条件のファイル内に置き、具体的な型は #3 で追加する（[model.md §1.1](model.md#11-前提条件と解析の区分)）。
+CLI・API・web は同じ区分を使い、KPI は系・話題ごとに表示する。web の前提条件の KPI は空なら表示しない。
+
 ## 1. 目的と範囲
 
 iwafune は小型衛星の概念設計のための道具である。部品の選定、質量・電力・データ量のバジェット、モードごとの消費電力、
-電源・AOCS・C&DH・通信・熱・構造の解析を、1 つの設計データの上で扱う。
+電源・AOCS・C&DH・通信・熱・構造・推進の解析を、1 つの設計データの上で扱う。
 
 - 設計データの正本は git で管理する TOML のディレクトリだけ。常駐のサーバーもデータベースも持たない。
 - 編集の手段は CLI（`fune`）と Web の GUI の 2 つで、できることは同じ。GUI は `fune gui` が手元で起動するサーバーから配信する。
@@ -28,8 +33,9 @@ iwafune は小型衛星の概念設計のための道具である。部品の選
 | `catalog/` | カタログ品（購入品などの値と出典） |
 | `defs/attribute/`・`defs/kind/` | プロジェクト独自の属性定義・種別定義（組み込みの定義は fune-model が持つ） |
 | `modes/`・`nets/`・`harness/` | 運用モード（部品 → 状態の表）、電気的なネット、ハーネスの区間 |
+| `maneuvers/` | マヌーバ（区分・計算の段階・スラスタ・前のマヌーバ・目標の軌道・制約。実行の順は `after`） |
 | `budget/` | 配分とマージンの方針 |
-| `mission/`・`analysis/`・`cases/` | 軌道と地上局、系ごとの解析の設定、解析ケース |
+| `conditions/`・`analysis/`・`cases/` | 軌道と地上局、系ごとの解析の設定、解析ケース |
 | `sources/` | 出典の台帳 |
 | `view/` | 系統図の配置など、見た目だけの情報 |
 | `.fune/` | 書き込みロックなどの作業ファイル。`fune init` が `.gitignore` に入れる |
@@ -118,11 +124,12 @@ Op は JSON にできる（`{ "op": "set_value", "part": "RW_X", ... }`）。TS 
 |---|---|
 | 部品 | `CreatePart`・`RemovePart`・`RenamePart`・`RenameGroup`・`MovePart`・`SetValue`・`UnsetValue`・`SetField`・`Place`・`SetPort`・`SetMountPoint` |
 | カタログ品 | `CreateCatalogItem`・`SetCatalogValue`・`UnsetCatalogValue`・`SetCatalogField`・`RenameCatalogItem`・`RemoveCatalogItem` |
-| 定義 | `CreateAttribute`・`CreateKind` |
+| 定義 | `CreateAttribute`・`UpdateAttribute`・`DeleteAttribute`・`CreateKind`・`UpdateKind`・`DeleteKind`（組み込みの定義は書き換えも削除もできない。使われている定義の削除は拒む） |
 | モード・ネット | `CreateMode`・`RenameMode`・`SetModeStates`・`CreateNet`・`UpdateNet`・`SetNetField`・`RemoveNet` など |
 | ケース・出典・ハーネス | `SetCase`・`SetSource`・`SetHarness` と、それぞれの削除 |
+| マヌーバ | `CreateManeuver`・`SetManeuver`・`RemoveManeuver`（削除は後ろのマヌーバを前につなぎ直す） |
 | 図 | `SetViewLayout`・`SetViewEdge`・`UnsetViewEdge`・`ResetView` |
-| 設定 | `SetSetting`（`mission/`・`analysis/`・`budget/` の値） |
+| 設定 | `SetSetting`（`conditions/`・`analysis/`・`budget/` の値） |
 
 すべての Op とその意味は `crates/app/ops/src/op.rs` にある。
 
@@ -143,7 +150,7 @@ CLI と HTTP は `fune-service` の同じ関数を呼ぶ。
 | Op の適用 | 編集の各コマンド、`fune apply ops.json` | `POST /ops` | `edit::apply` |
 | 打った値の文字列 → Op | `fune set`・`fune setting set`・`fune catalog set` | `POST /ops/from_text` | `edit::set_op` |
 | 消す先のパス → Op | `fune unset`・`fune setting unset`・`fune catalog unset` | `POST /ops/unset_from_text` | `edit::unset_op` |
-| 名詞のコマンドに打った引数 → Op | `fune net set|unset`・`fune part place`・`fune mode set|unset`・`fune attr add`・`fune kind add` | `POST /ops/from_command` | `edit::command_ops` |
+| 名詞のコマンドに打った引数 → Op | `fune net set|unset`・`fune part place`・`fune mode set|unset`・`fune attr add|replace`・`fune kind add|replace`・`fune maneuver add|set` | `POST /ops/from_command` | `edit::command_ops` |
 | 整形 | `fune fmt [--check]` | `POST /fmt` | `format::format_design` |
 
 - `fune set RW_X.mass "620 g"` の `"620 g"` を量・整数・ベクトル・状態ごとの値のどれとして読むかは、属性定義を見て service が決める。
@@ -160,7 +167,32 @@ CLI と HTTP は `fune-service` の同じ関数を呼ぶ。
 - `fune apply` は GUI が送るのと同じ Op の JSON を受ける。スクリプトからの一括編集にも使える。
 - 書き込まずに編集を当ててみることもできる（`fune_service::preview`）。`POST /analyses/{id}`・`POST /budgets/{kind}`・`POST /parts/{id}` の `ops`、
   `fune analyze --ops`・`fune budget --ops`・`fune part show --ops` が、保存前の下書き（モード表の編集など）のまま解析・バジェット・部品の表示を作る。
-- 例外は `fune init` だけ。サーバーはプロジェクトの中でしか動かないので、HTTP には無い。
+- 例外は `fune init`（サーバーはプロジェクトの中でしか動かないので HTTP に無い）と `fune gui`（サーバーを起動するコマンド）だけ。
+
+HTTP の経路と CLI・service の対応（`crates/app/cli/tests/route_table.rs` が `routes.rs` と突き合わせる。経路を足したらここと表の定数を直す）。
+
+| HTTP | CLI | service の関数 |
+|---|---|---|
+| `GET /project` | `fune status` | `query::project_info` |
+| `GET /design` | `fune {net,mode,case,source,harness,setting,catalog} ls`・`fune view ls` | `query::design_view`（図 1 件は `query::view_layout`） |
+| `GET /maneuvers` | `fune maneuver ls` | `query::maneuvers` |
+| `GET /parts`・`GET`・`POST /parts/{id}` | `fune part ls`・`fune part show [--ops]` | `query::list_parts`・`query::part_view` |
+| `POST /parts/{id}/place_body` | `fune part place --body-pos` | `edit::place_body` |
+| `GET /values/{path}` | `fune get` | `query::get_value` |
+| `GET /defs` | `fune attr ls`・`fune kind ls` | `query::defs_view` |
+| `GET /diagnostics` | `fune check` | `query::check` |
+| `POST /fmt` | `fune fmt` | `format::format_design` |
+| `POST /ops` | `fune apply`（編集の各コマンド） | `edit::apply` |
+| `POST /ops/from_text`・`/ops/unset_from_text`・`/ops/from_command` | `fune set`・`fune unset`・名詞のコマンド | `edit::{set_op, unset_op, command_ops}` |
+| `POST /ops/case_from_eclipse` | `fune case from-eclipse` | `edit::case_from_eclipse_op` |
+| `GET /units`・`POST /units/parse`・`/units/format` | `fune units ls`・`parse`・`format` | `units::{units_catalog, parse_quantity, format_quantities}` |
+| `GET /analyses`・`POST /analyses/{id}` | `fune analyze ls`・`fune analyze <ID>` | `analysis::{analysis_catalog, run_analysis}` |
+| `GET`・`POST /budgets/{kind}` | `fune budget <種類>` | `budget::budget`（終了コードの判定は `budget::failure::fails`） |
+| `GET /data/status`・`/data/space_weather`・`POST /data/{id}/fetch` | `fune data status`・`space-weather`・`fetch` | `data::{data_status, space_weather::lookup, fetch}` |
+| `GET /catalog/{id}` | `fune catalog show` | `query::catalog_item` |
+| `POST /catalog/fetch`・`/catalog/update` | `fune catalog fetch`・`update` | `shared_catalog::{fetch, update}` |
+| `GET /power_page` | **まだ無い**（#158） | `power_page::power_page` |
+| `POST /system_modes/{system}` | **まだ無い**（#158） | `system_modes::system_modes` |
 
 テストで次の 2 つを確かめる。
 
@@ -202,7 +234,7 @@ HTTP の失敗は `{ "error": { "code", "message" }, "diagnostics": [...] }` で
 
 | パス | 内容 |
 |---|---|
-| `GET /project`・`/design`・`/parts`・`/parts/{id}`・`/values/{path}`・`/defs`・`/diagnostics` | 読み取り（概要と revision、設計全体、部品、1 つの値、定義、診断） |
+| `GET /project`・`/design`・`/parts`・`/parts/{id}`・`/values/{path}`・`/defs`・`/diagnostics`・`/maneuvers` | 読み取り（概要と revision、設計全体、部品、1 つの値、定義、診断、マヌーバの一覧（実行の順。`fune maneuver ls` と同じ）） |
 | `POST /ops`・`/ops/from_text`・`/ops/unset_from_text`・`/ops/from_command`・`/fmt` | 編集（§4.3） |
 | `POST /parts/{id}` | 保存していない編集（`ops`）を書き込まずに当てた部品（`GET` と同じ形。`fune part show --ops`） |
 | `POST /parts/{id}/place_body` | 機体座標での配置を、取付先に対する相対の `Place` に直して適用する |
@@ -216,9 +248,34 @@ HTTP の失敗は `{ "error": { "code", "message" }, "diagnostics": [...] }` で
 画面の部品は Tailwind CSS 4 と Radix、系統図は @xyflow/react（配置と配線は `features/diagram/` の自前の自動配置）、
 3D 配置は three・@react-three/fiber・@react-three/drei、グラフは Recharts。lint と整形は Biome、テストは Vitest。
 
-画面は概要（バジェットと診断）、部品、カタログ、系統図（給電・信号）、モード表、定義（属性・種別・単位）、
-系ごとのページ（電源・AOCS・C&DH・通信・熱・構造・ミッション機器。ミッション機器の解析は未登録。構造のページに 3D 配置がある）、軌道と地上局、解析ケース、診断、設定。
+画面は概要（バジェットと診断）、部品、カタログ、系統図（給電・信号）、モード表、マヌーバ（実行の順の一覧と、`fune maneuver add|set|rm` と同じ引数での追加・編集・削除。結果は推進系のページ）、配置（左の部品のツリー・中央の 3D・右の配置の欄。部品の選択・取付・位置を画面全体の 3D で確認・編集し、質量特性があれば重心を表示）、定義（属性・種別・単位）、
+系ごとのページ（電源・AOCS・C&DH・通信・熱・構造・ミッション機器・推進。推進は汎用の表示（KPI・判定・解析の表）。ミッション機器の解析は未登録。構造の概要から配置ページへ移動できる。温度で塗った 3D は熱のページに残す）、軌道と地上局、解析ケース、診断、設定。
 系のページはその系に関係する部品をその系の属性の列だけで並べてセルで編集でき、同じページに解析の結果を出す。
+系のタブは「概要（KPI と判定）・モード・部品・時系列・設定」（英語: Overview, Modes, Parts, Time series, Settings）。
+電源（#89 段 1）の概要はモードの判定付きチップと共通の日照／蝕切替、太陽電池 → バス → 各系・電池の流れ図を中心に置く。
+日照の発電・充放電は選択モードの姿勢による平均値で、シャントと日照中の放電も表示する。SOC のリングは使わない。
+最大 DoD・周回のエネルギー余裕・太陽電池面積・電池容量は、許容帯と設計値・限界のブレットバーで表示する。
+細かい解析表と診断は各解析の「データを見る」に収納し、右の細い目次で節へ移動する。
+部品タブは負荷（状態別の単体電力）・太陽電池（面積・効率・法線）・電池（容量・電圧）を役割ごとに表示し、共通の属性編集を使う。
+時系列はモードを選び、発電と負荷・充放電とシャント・SOC を表示する。共通の時間領域・蝕とモードの帯・同期ホバーを使い、SOC に許容 DoD の線を引く。
+電力収支の上段の発電・日照と軌道発電を重複表示しない。右にグラフの目次を置く。
+表示定義は独立した `fune_service::power_page::power_page` が既存の解析入口を呼んで統合し、`GET /api/v1/power_page?case=…` で返す `PowerPageView`。汎用の解析結果・設計 DTO に電源専用欄を置かない。3 タブは `usePowerPage` の同じ query を使う。量・判定・比・マーカー位置・チャンネルの選択は Rust が返し、Web は描画と操作だけを持つ。
+他系は従来の汎用表示を使う。
+モードのタブは電源・C&DH・熱・AOCS に置く。電源は消費電力の行列と成長余裕込みの合計・使用可能電力・余裕・判定、
+C&DH は圧縮・パケット化前のデータ発生レート、熱は節点に属する部品の内部発熱、AOCS はモードごとのカードに主軸・副軸の図と姿勢則、役割別の機器・稼働台数・状態、最長継続時間を表示する。
+AOCS カードの運動量蓄積・アンロード頻度・MTQ アンロード時間・センサ視野判定は Rust で評価する。
+`fune_projection::aocs::{rw_unloading_for_mode,sensor_fov_for_mode}` にモードを明示し、
+既定ケースの軌道条件（β）を保って姿勢則だけを選ぶ。通常の解析のケース選択・入力・数値は変えない。
+機器は日照・蝕を切り替えられ、集計は `counted_states` を共用し、姿勢則・軸の編集は設定と同じ SetText の入口を通す。
+日照／蝕の値・合計・判定は `system_modes::system_modes`（`POST /system_modes/{system}`）が既存の射影・解析から返す。
+電源の使用可能電力はバジェットの配分上限からシステム余裕を引いた設計値で、日照・蝕とも同じ上限を使う（軌道上の発電や電池の瞬時能力とは別）。
+設計の「モード」は定義を編集する唯一の場所（追加・名前・継続時間・部品の状態・稼働台数・予備・蝕の上書き）。
+状態の選択の参考に単体の電力レベル列は残すが、セル内の解析値・合計・収支は各系のタブに置く。
+各系のセルの状態変更も同じ `draft.ts`・`useModeDraftLoad`・`fune mode set|unset` の引数 → Op → 保存を使う。
+系統図は API の `DefsView.systems` の系ごとに表示を切り替え、既定で構造を隠す。
+選択は `lib/nav.ts` を通じて URL の `hidden-system` に保存する（繰り返し可、空は全表示）。
+隠したカードに接する線と空の枠は描かず、残る線をつなぎ替えない。隠れた供給元・マスターの線も隠す。
+隠した組立品の可視の子は可視の祖先に置く。表示の変更は設計データを変更しない。
 URL は `src/routes.ts`、サイドバーの並びは `src/lib/nav.ts` にある。
 
 Web は次のことをしない。
@@ -245,12 +302,13 @@ Web は次のことをしない。
 
 | 系 | 定常 | 時系列 |
 |---|---|---|
-| 電源 | `power.mode_load`（モード別消費電力）、`power.solar_sunlit`（日照時の発電） | `power.orbit_generation`（軌道上の発電）、`power.energy_balance`（電力収支と DoD） |
-| AOCS | `aocs.unload_time`（MTQ・RCS でのアンロードにかかる時間） | `aocs.rw_unloading`（擾乱トルクと RW のアンロード頻度）、`aocs.sensor_fov`（センサの FoV と禁止角） |
+| 電源 | `power.mode_load`（モード別消費電力）、`power.solar_sunlit`（日照時の発電） | `power.orbit_generation`（軌道上の発電）、`power.energy_balance`（電力収支と DoD）、`power.thrust_balance`（数値伝搬のマヌーバの噴射中の電力収支） |
+| AOCS | `aocs.unload_time`（MTQ・RCS でのアンロードにかかる時間）、`aocs.slew_time`（RW での姿勢変更にかかる時間） | `aocs.rw_unloading`（擾乱トルク（推力誤差を含む）と RW のアンロード頻度、RCS で捨てる 1 日の推薬と ΔV 換算）、`aocs.sensor_fov`（センサの FoV と禁止角） |
 | C&DH | `cdh.data_budget`（データ量とストレージ） | — |
 | 通信 | `comm.link_budget`（回線バジェット） | `comm.visibility`（地上局の可視）、`comm.data_throughput`（データ送信量と蓄積） |
 | 熱 | `thermal.steady`（多節点の定常温度） | `thermal.transient`（多節点の非定常温度） |
 | 構造 | `structure.mass_properties`（質量特性）、`structure.static_load`（準静的荷重）、`structure.modal_estimate`（簡易固有振動数。FEM はしない） | — |
+| 推進 | `propulsion.maneuvers`（マヌーバごとの ΔV・噴射時間・推薬・前後の軌道）、`propulsion.dv_budget`（区分ごとの ΔV の内訳・合計・マージン、RCS のアンロードの ΔV）、`propulsion.propellant`（推薬のウェット・ドライとタンクの容積の余裕）、`propulsion.thruster_usage`（総インパルス・累積噴射時間・噴射回数と定格）、`propulsion.mass_properties`（推薬を積んだとき・使ったあとの質量と重心） | `propulsion.orbit_history`（マヌーバの順の軌道の推移。数値伝搬のマヌーバは推力を入れた伝搬の高度・傾斜角・質量） |
 
 `fune analyze ls` と `GET /analyses` が同じ一覧を返す。
 
@@ -273,7 +331,7 @@ Web は次のことをしない。
 1. 設計を読み、Resolved を作る（`ops` があれば書き込まずに当てる）。
 2. fune-projection が解析ケース（`cases/<ID>.toml`。省略すると既定）を含む文脈から、その解析の `Input` を組み立てる。
    解析 ID と射影の対応は `fune_projection::dispatch` の 1 か所にある。
-3. 足りない入力があれば解析を呼ばずに `missing_inputs` を返す。`missing_inputs` は足りないものをパラメーターのパス（`RW_X.max_momentum`・`mission.orbit.altitude`）と理由で表し、
+3. 足りない入力があれば解析を呼ばずに `missing_inputs` を返す。`missing_inputs` は足りないものをパラメーターのパス（`RW_X.max_momentum`・`conditions.orbit.altitude`）と理由で表し、
    見つかった分をすべて並べる。
 4. `sat_analysis::catalog::run_json` で解析を実行する。
 5. service が出力の量ごとの次元（JSON Pointer → 次元名）と語彙の値（列挙）の表示名を集め、時系列に表示名と表示単位を付け、
@@ -303,9 +361,10 @@ service は部品や解析の結果を項目に並べ、`budget/allocation.toml`
 | `force` | 重力場（EGM96、70 次まで。係数は埋め込み）、第三体、太陽輻射圧、大気抵抗、固体潮汐、相対論の補正 |
 | `shadow` | 影（円柱・円錐）。食の判定はこれだけ |
 | `earth`・`time` | ECI ⇄ ECEF、測地座標、歳差、元期と恒星時 |
-| `geomag`・`atmosphere` | 地磁気（傾斜双極子）、大気密度（指数大気・NRLMSISE-00） |
+| `geomag`・`atmosphere` | 地磁気（傾斜双極子）、大気密度（指数大気・NRLMSISE-00）、宇宙天気（F10.7・Ap）の日ごとの表 |
 | `ground` | 地上局の見通し角、パスの検出、地上軌跡 |
 | `attitude`・`illumination`・`timeline` | 姿勢則（太陽指向・地心指向・慣性固定）、面への太陽入射、軌道上の時系列 |
+| `rocket`・`transfer` | ロケット方程式（推薬 ⇄ ΔV・噴射時間）、軌道遷移の ΔV（近点・遠点の 2 回噴射とホーマン、平面変更、バイエリプティック、Edelbaum の低推力、有限燃焼の損失の Robbins の近似） |
 
 入力の仕様（`OrbitSpec`・`GroundStation` など）は型付きの量で受け、内部の関数は f64 の SI 値で受け渡す。
 設計データから解析に渡す軌道の伝搬は、二体＋J2 の永年項（既定）か二体だけ。
@@ -320,6 +379,20 @@ DE440 の暦表（`de440.bin`、約 20.7 MB。JPL DE440 を sat-astro が読む�
 - CLI とサーバーは起動時に一度だけキャッシュを読み、sat-astro に登録する。ファイルを読むのは `fune_service::data` で、sat-astro はバイト列を受け取るだけ。
 - 登録すると 1849〜2150 年は DE440 を使い、無ければ解析式を使う。今どちらを使うかは `fune data status`・`GET /data/status` で分かる。
 
+### 6.6 外部データ（宇宙天気）
+
+NRLMSISE-00 の F10.7・Ap を日付で引くための表（CelesTrak の SW-All、`SW-All.csv`、約 3 MB。1957 年からの実績、45 日先までの日ごとの予測、
+その先の月ごとの予測）。毎日更新されるので、git にもリリースにも入れず、取得の方式にする。
+
+- 取得は `fune data fetch space_weather`（GUI では設定のページ、HTTP では `POST /data/space_weather/fetch`）。中で `curl` を呼ぶ。
+  一時ディレクトリに落とし、表として読めることを確かめてから置き換える。取得元（URL）・取得日時・SHA-256 を `SW-All.json` に記録する。
+- 置き場所は DE440 と同じユーザーごとのキャッシュ。読むのは `fune_service::data::space_weather`（`loaded`）で、表の解釈と日付からの引き方は
+  `sat_astro::atmosphere::space_weather`（バイト列を受け取る）。
+- 日付から引くのは `fune data space-weather <日付> [--activity low|moderate|high]`・`GET /data/space_weather?date=…&activity=…`。
+  F10.7 は前日の観測値、81 日平均はその日の中心平均、Ap はその日の日平均（3 時間値が揃えば NRLMSISE-00 の 3 時間 Ap の履歴も）。
+  表の範囲の外や空欄は太陽活動のプリセット（ECSS-E-ST-10-04C Table 6-3 の長期の値）にし、値ごとの出所と、使った表の版
+  （取得日時・SHA-256・実績と予測の最後の日）を返す。解析はこの版を結果に残す。手で与えた F10.7・Ap（`AtmosphereModel::Nrlmsise00`）があればそちらが優先。
+
 ## 7. 機械的な検査
 
 `cargo xtask check`（`crates/xtask`）が構成の規則を検査し、違反があれば失敗する。
@@ -330,6 +403,7 @@ DE440 の暦表（`de440.bin`、約 20.7 MB。JPL DE440 を sat-astro が読む�
 | モジュールの循環 | crate の中のモジュール同士が循環していないか |
 | 台帳 | すべての crate が [registry.md](architecture/registry.md) に載っているか |
 | 1 か所だけ | 台帳で置き場所を決めた定義（積分器、μ や地球半径などの定数、影、座標変換、単位の解析、解析の登録など）が、ほかのファイルに無いか（`crates/xtask/src/single_home.rs`） |
+| 書き込みの入口 | 設計ファイルを書く `write::commit` を呼ぶのが store と ops だけか（Op を通さない例外は `fmt` と `catalog.lock` の取り込みで、許可リストに理由を書く。`crates/xtask/src/store_writes.rs`） |
 | Web の規則 | `fetch(`・数の整形・問い合わせの無効化・色の直書き・負の字間（`tracking-tight`）が、決めた場所の外に無いか |
 | 言語 | Python のファイルが無いか（言語は Rust と TypeScript だけ） |
 | ファイルの長さ | 400 行を超えるファイルを警告する（係数表などのデータは除く） |
@@ -368,3 +442,5 @@ CI（`.github/workflows/ci.yml`）は main・develop への push と PR で動�
 部品の最上位の区分は系（`parts/<系 ID>/`）。`Design::system_of` が置き場所 → 役割 → 未所属の順で決め、Resolved と API の `PartRow.system` に渡す。系とバジェットの表示名は組み込みの語彙（日英）、色は Web の `lib/systems.ts` の対応だけが持つ。配分のキーは系か部品の ID で、上限は任意（未設定を check が警告）。init は上限を決めない。
 
 3D は `features/layout3d/scene.ts` が回転込みの外形（Bounds）の最大辺から表示寸法を作る。仮の箱・方向の矢印・重心球・座標軸・グリッド・カメラは `SCENE_RATIOS` の比を共有する。形状も位置の広がりも無いときだけ表示用の基準を使う。編集のスナップはユーザーが選ぶ実寸、操作ハンドルと画面隅のギズモは画面に対する大きさ。
+
+配置のページは CAD のブラウザーのように、左に部品のページと同じ製品ツリー（`PartsTree`。`parts/` のフォルダーと組立品の親子）を出す。ツリーで部品を押すと 3D でも選び、視点をその部品の外形に寄せる（向きは保つ）。3D で選んだ部品はツリーでも選ばれ、閉じたフォルダーは開く。部品とフォルダーの目のアイコンで 3D の箱を出し入れし（フォルダーは子孫をまとめて）、操作の帯で原点の軸・地面の格子・画面隅の軸を出し入れする。どれもページの中の状態で、設計データにも URL にも書かない（表示寸法は隠した部品も含めた外形のまま）。幅が狭いと 3D・ツリー・配置の欄の順に縦に並び、中くらいの幅ではツリーと 3D を横に、配置の欄をその下に置く。

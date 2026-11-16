@@ -54,7 +54,7 @@ fn every_kpi_comes_from_exactly_one_analysis() {
                 .all(|d| !d.label.is_empty() && !d.label_en.is_empty())
         );
     }
-    assert_eq!(seen.len(), 22, "KpiKey のすべての値が表にある");
+    assert_eq!(seen.len(), 41, "KpiKey のすべての値が表にある");
 }
 
 /// 判定を数える KPI: 数と OK でない数、塗りは OK の割合（手で数えた 9 件中 4 件）。
@@ -156,5 +156,219 @@ fn missing_or_foreign_outputs_give_no_values() {
             KpiContext::default()
         )
         .is_empty()
+    );
+}
+
+#[test]
+fn sizing_kpis_have_independent_verdicts() {
+    let mut sap = check(Verdict::Violation);
+    sap.key = "sap_margin".into();
+    let mut battery = check(Verdict::Ok);
+    battery.key = "battery_margin".into();
+    // 出力が型に戻せなくても、定義と判定は独立して表示できる。
+    let out = kpis(
+        "power.sizing",
+        Some(&json!({})),
+        &[sap, battery],
+        KpiContext::default(),
+    );
+    assert_eq!(out.len(), 2);
+    assert_eq!(out[0].key, KpiKey::SapMargin);
+    assert_eq!(out[0].verdict, Some(Verdict::Violation));
+    assert_eq!(out[1].key, KpiKey::BatteryMargin);
+    assert_eq!(out[1].verdict, Some(Verdict::Ok));
+}
+
+/// 電力収支の 1 ケース（KPI が見る欄だけ意味のある値）。
+fn balance_case(dod: f64, balance: f64, duration: Option<(f64, f64)>) -> Value {
+    let series = json!({"t": [], "channels": []});
+    let duration = duration.map(|(dod, balance)| {
+        json!({
+            "base_mode": "NOMINAL", "max_duration": 900.0, "starts": 1, "worst_start": 0.0,
+            "worst_start_in_orbit": 0.0, "eclipse_overlap": 0.0, "min_soc": 1.0 - dod,
+            "max_dod": dod, "max_dod_from_start": dod, "best_max_dod": 0.0, "base_max_dod": 0.0,
+            "orbit_average_balance": balance, "energy_margin_per_orbit": null,
+            "depleted": false, "series": series,
+        })
+    });
+    json!({
+        "id": "M", "label": "", "load_sunlit": 0.0, "load_eclipse": 0.0,
+        "orbit_average_generation": 0.0, "orbit_average_load": 0.0,
+        "orbit_average_balance": balance, "energy_margin_per_orbit": null,
+        "energy_margin_over_span": null, "min_soc": 1.0 - dod, "max_dod": dod,
+        "max_eclipse_dod": 0.0, "final_soc": 1.0, "peak_charge_power": 0.0,
+        "peak_discharge_power": 0.0, "peak_discharge_current": 0.0, "orbits": [],
+        "series": series, "checks": [], "by_max_duration": duration,
+        "sunlit_average_generation": 0.0, "sunlit_average_charge": 0.0,
+        "sunlit_average_discharge": 0.0, "sunlit_average_shunt": 0.0,
+    })
+}
+
+/// 最長継続時間で評価したケースは連続の値ではなく `by_max_duration` の値を、並びがあれば並びも KPI に入れる。
+#[test]
+fn energy_balance_kpis_use_the_judged_operation() {
+    let output = |sequence: Value| {
+        json!({
+            "life": "eol", "period": 5736.0, "complete_orbits": 15, "span_fallback": null,
+            "orbit_average_generation": 20.0, "sunlit_fraction": 0.6,
+            "series": {"t": [], "channels": []},
+            "eclipses": [], "dod_limit": 0.3, "min_allowed_soc": 0.7,
+            "mode_loads": {"modes": []},
+            "cases": [
+                balance_case(0.14, 17.4, None),
+                balance_case(1.0, -5.09, Some((0.19, 12.0))),
+            ],
+            "sequence": sequence,
+        })
+    };
+    let values = |o: &Value| -> Vec<f64> {
+        kpis("power.energy_balance", Some(o), &[], KpiContext::default())
+            .iter()
+            .map(|k| k.value.as_ref().unwrap().si)
+            .collect()
+    };
+    assert_eq!(values(&output(Value::Null)), vec![12.0, 0.19]);
+    let sequence =
+        json!({"cycle": 5736.0, "segments": [], "balance": balance_case(0.22, 10.0, None)});
+    assert_eq!(values(&output(sequence)), vec![10.0, 0.22]);
+}
+
+/// アンロード時間の出力（MTQ と RCS のどちらかか両方）。RCS の最悪の向きの時間は `rcs_time`（None は捨てられない向き）。
+pub(crate) fn unload_output(mtq_time: Option<f64>, rcs_time: Option<Option<f64>>) -> Value {
+    use sat_analysis::aocs::unload_time::rcs::{UnloadTimeRcs, UnloadTimeRcsResult};
+    use sat_analysis::aocs::unload_time::{
+        UnloadAssumption, UnloadTimeMtqResult, UnloadTimeOutput,
+    };
+    use sat_astro::math::Vec3;
+    fn t<D: Dimension>(v: f64) -> Qty<D> {
+        Qty::from_raw(v)
+    }
+    let rcs = rcs_time.map(|time| {
+        let worst = UnloadTimeRcsResult {
+            label: "+x".into(),
+            momentum_direction: Vec3::X,
+            torque: t(1.0e-3),
+            off_axis_torque: t(0.0),
+            net_force: t(0.0),
+            time: time.map(t),
+            propellant: None,
+            thrusters: vec!["T1".into()],
+        };
+        UnloadTimeRcs {
+            directions: vec![worst.clone()],
+            worst,
+            assumption: UnloadAssumption::RcsSimultaneousFiring,
+        }
+    });
+    let mtq = mtq_time.map(|time| UnloadTimeMtqResult {
+        mean_field: t(3.0e-5),
+        min_field: t(2.0e-5),
+        max_field: t(4.0e-5),
+        effective_dipole: t(0.2),
+        efficiency: Fraction::new(0.5),
+        torque: t(1.0e-6),
+        time: t(time),
+        orbits: None,
+        assumption: UnloadAssumption::MtqMeanField,
+    });
+    let out = UnloadTimeOutput {
+        momentum: t(1.0e-3),
+        usable_momentum_fraction: None,
+        mtq,
+        mtq_field_gap: None,
+        rcs,
+        checks: Vec::new(),
+    };
+    serde_json::to_value(out).unwrap()
+}
+
+/// アンロード時間の KPI は、解析が出した手段ごとに値を持つ（スラスタだけの設計でも空にならない）。
+#[test]
+fn unload_time_kpis_follow_the_means_the_analysis_produced() {
+    let values = |o: &Value| -> Vec<(KpiKey, Option<f64>)> {
+        kpis("aocs.unload_time", Some(o), &[], KpiContext::default())
+            .iter()
+            .map(|k| (k.key, k.value.as_ref().map(|v| v.si)))
+            .collect()
+    };
+    use KpiKey::{MtqUnloadTime as Mtq, RcsUnloadTime as Rcs};
+    // 持たない手段の KPI は出さない
+    assert_eq!(
+        values(&unload_output(Some(1500.0), None)),
+        [(Mtq, Some(1500.0))]
+    );
+    assert_eq!(
+        values(&unload_output(None, Some(Some(40.0)))),
+        [(Rcs, Some(40.0))]
+    );
+    assert_eq!(
+        values(&unload_output(Some(1500.0), Some(Some(40.0)))),
+        [(Mtq, Some(1500.0)), (Rcs, Some(40.0))]
+    );
+    // どちらも測れず判定も無ければ先頭（MTQ）を「—」で残す
+    assert_eq!(values(&unload_output(None, Some(None))), [(Mtq, None)]);
+    assert_eq!(values(&unload_output(None, None)), [(Mtq, None)]);
+}
+
+/// 解析の出力から判定を集めて KPI を作る（実行の結果と同じ道筋）。
+fn judged_unload_kpis(o: &Value) -> Vec<(KpiKey, Option<f64>, Option<Verdict>)> {
+    let checks = crate::analysis::checks::collect_checks(Some(o));
+    kpis("aocs.unload_time", Some(o), &checks, KpiContext::default())
+        .iter()
+        .map(|k| (k.key, k.value.as_ref().map(|v| v.si), k.verdict))
+        .collect()
+}
+
+/// RCS だけの設計で、RCS が捨てられない向きがある: 時間は無いが、RCS の KPI が違反で残る（MTQ の KPI ではない）。
+#[test]
+fn rcs_only_design_shows_the_rcs_direction_violation() {
+    let mut o = unload_output(None, Some(None));
+    o["checks"] = json!([{
+        "key": "rcs_direction",
+        "label": "RCS で捨てられる向き",
+        "verdict": "violation",
+        "message": "",
+    }]);
+    assert_eq!(
+        judged_unload_kpis(&o),
+        [(KpiKey::RcsUnloadTime, None, Some(Verdict::Violation))]
+    );
+}
+
+/// 磁場の無い天体の MTQ: 時間は無いが、MTQ の KPI が `mtq_field_model` の判定で残る。RCS の値はそのまま。
+/// RCS がすべての向きを捨てられるなら判定は OK で、解析全体の判定（check の最悪）も MTQ で悪くならない。
+#[test]
+fn mtq_without_a_field_model_keeps_its_kpi_with_the_verdict() {
+    use KpiKey::{MtqUnloadTime as Mtq, RcsUnloadTime as Rcs};
+    let gap = |reason: &str, covered: bool| json!({"reason": reason, "covered_by_rcs": covered});
+    let mut only_mtq = unload_output(None, None);
+    only_mtq["mtq_field_gap"] = gap("absent", false);
+    assert_eq!(
+        judged_unload_kpis(&only_mtq),
+        [(Mtq, None, Some(Verdict::Violation))]
+    );
+    let mut covered = unload_output(None, Some(Some(40.0)));
+    covered["mtq_field_gap"] = gap("absent", true);
+    assert_eq!(
+        judged_unload_kpis(&covered),
+        [(Mtq, None, Some(Verdict::Ok)), (Rcs, Some(40.0), None)]
+    );
+    let checks = crate::analysis::checks::collect_checks(Some(&covered));
+    assert_eq!(
+        Verdict::worst(checks.iter().map(|c| c.verdict)),
+        Some(Verdict::Ok)
+    );
+    // RCS に捨てられない向きがある: MTQ の KPI は違反
+    let mut missing = unload_output(None, Some(None));
+    missing["mtq_field_gap"] = gap("absent", false);
+    assert_eq!(
+        judged_unload_kpis(&missing)[0],
+        (Mtq, None, Some(Verdict::Violation))
+    );
+    let mut jupiter = unload_output(None, None);
+    jupiter["mtq_field_gap"] = gap("not_modelled", false);
+    assert_eq!(
+        judged_unload_kpis(&jupiter),
+        [(Mtq, None, Some(Verdict::Warning))]
     );
 }

@@ -13,9 +13,11 @@ export function ModeCellForm({
   states,
   value,
   onChange,
+  clearLabel,
 }: {
   /** 部品の状態の語彙（基本の状態の選択肢と、時間割合の欄） */
   states: string[];
+  clearLabel?: string;
   /** 今のセル（未指定は null） */
   value: CellText | null;
   /** 状態・時間割合を変えたとき、未指定に戻したとき（null） */
@@ -26,13 +28,13 @@ export function ModeCellForm({
   // 基本の状態を変えたら、その状態の時間割合は意味が無くなるので消す
   const setState = (state: string) => {
     const duty = Object.entries(value?.duty ?? {}).filter(([s]) => s !== state);
-    onChange({ state, duty: Object.fromEntries(duty) });
+    onChange({ ...value, state, duty: Object.fromEntries(duty) });
   };
   const setDuty = (base: CellText, state: string, raw: string) => {
     const next = { ...base.duty };
     if (raw.trim() === "") delete next[state];
     else next[state] = raw;
-    onChange({ state: base.state, duty: next });
+    onChange({ ...base, duty: next });
   };
   return (
     <div className="space-y-3">
@@ -45,6 +47,27 @@ export function ModeCellForm({
       />
       {value && (
         <div className="space-y-2">
+          <label htmlFor={`${id}-active`} className="block text-xs">
+            {t.active}
+            <CommitInput
+              id={`${id}-active`}
+              label={t.active}
+              type="number"
+              min={0}
+              step={1}
+              value={value.active ?? ""}
+              onCommit={(active) => onChange({ ...value, active: active || null })}
+            />
+          </label>
+          <label htmlFor={`${id}-spare`} className="block text-xs">
+            {t.spareState}
+            <CommitInput
+              id={`${id}-spare`}
+              label={t.spareState}
+              value={value.spare_state ?? ""}
+              onCommit={(spare_state) => onChange({ ...value, spare_state: spare_state || null })}
+            />
+          </label>
           <p className="text-ink-2 text-xs">
             {t.dutyHelpBefore} <span className="font-mono">{value.state}</span>
             {t.dutyHelpAfter}
@@ -76,7 +99,7 @@ export function ModeCellForm({
             className="text-ink-3 text-xs underline"
             onClick={() => onChange(null)}
           >
-            {t.clear}
+            {clearLabel ?? t.clear}
           </button>
         </div>
       )}

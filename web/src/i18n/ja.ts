@@ -5,14 +5,16 @@
 import { catalogJa } from "./catalog/ja";
 import { commonJa } from "./common/ja";
 import { componentsJa } from "./components/ja";
+import { conditionsJa } from "./conditions/ja";
 import { defsJa } from "./defs/ja";
 import { diagramJa } from "./diagram/ja";
 import { fieldsJa } from "./fields/ja";
-import { missionJa } from "./mission/ja";
+import { maneuversJa } from "./maneuvers/ja";
 import { modesJa } from "./modes/ja";
 import { overviewJa } from "./overview/ja";
 import { projectJa } from "./project/ja";
 import { shellJa } from "./shell/ja";
+import { sourcesJa } from "./sources/ja";
 import { systemsJa } from "./systems/ja";
 
 export const ja = {
@@ -27,7 +29,9 @@ export const ja = {
   ...fieldsJa,
   ...overviewJa,
   ...projectJa,
-  ...missionJa,
+  ...conditionsJa,
+  ...maneuversJa,
+  ...sourcesJa,
 };
 
 export type Dict = typeof ja;

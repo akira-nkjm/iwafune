@@ -17,8 +17,9 @@ import { CatalogTable } from "./CatalogTable";
 import { CatalogTree } from "./CatalogTree";
 import { CreateCatalogDialog } from "./CreateCatalogDialog";
 import { itemLabel } from "./catalog";
+import { SharedCatalogs } from "./SharedCatalogs";
 
-/** カタログも同じ URL 選択で、表ではモーダル・ツリーではサイドパネルを開く。 */
+/** カタログも同じ URL 選択で、表ではモーダル・ツリーではサイドパネルを開く。一覧の上に共有カタログの lock の状態を出す。 */
 export function CatalogPage() {
   const t = useT();
   const design = useDesign();
@@ -40,7 +41,12 @@ export function CatalogPage() {
             onAdd={() => route.setAdding(true)}
           />
         }
-        list={(d) => <CatalogList design={d} search={search} route={route} />}
+        list={(d) => (
+          <>
+            <SharedCatalogs catalogs={d.project.catalogs} />
+            <CatalogList design={d} search={search} route={route} />
+          </>
+        )}
         detail={(d, id) => {
           const item = d.catalog.find((c) => c.id === id);
           return item ? (

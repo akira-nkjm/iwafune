@@ -1,29 +1,39 @@
 import { lazy, type ReactNode, Suspense } from "react";
 import { AnalysisCard } from "@/analysis/AnalysisCard";
-import { fieldLabel } from "@/analysis/fields";
-import { collectSeries, collectTables } from "@/analysis/output";
-import { ResultTable } from "@/analysis/ResultTable";
+import { collectSeries } from "@/analysis/output";
 import type { AnalysisState } from "@/api/queries";
-import type { AnalysisEntry, DesignView, System } from "@/api/types";
+import type { AnalysisEntry, DesignView, PowerPageView, System } from "@/api/types";
+import { SystemModes } from "@/features/modes/matrix/ModesMatrix";
 import { SettingsTable } from "@/features/project/SettingsTable";
 import { useT } from "@/i18n";
 import { analysisTitle } from "@/i18n/analysis-names";
 import { Empty } from "@/kit/feedback/Empty";
-import { Loading, SkeletonBlock, SkeletonTable } from "@/kit/feedback/Loading";
+import { Loading, SkeletonBlock } from "@/kit/feedback/Loading";
 import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { TablePanel } from "@/kit/table/TablePanel";
 import { systemTitle } from "@/lib/design";
-import { SystemPartsTable } from "./SystemPartsTable";
+import { AocsModes } from "./aocs/AocsModes";
+import { PowerModes } from "./power/PowerModes";
+import { PowerOverview } from "./power/PowerOverview";
+import { PowerSeries } from "./power/PowerSeries";
+import { SystemOverview } from "./SystemOverview";
 
 /** グラフ（recharts）は時系列のタブを開いたときだけ読む。系のページの最初のチャンクを小さくするため */
-const SeriesChart = lazy(() => import("./SeriesChart").then((m) => ({ default: m.SeriesChart })));
+const SeriesChart = lazy(() =>
+  import("@/analysis/SeriesChart").then((m) => ({ default: m.SeriesChart })),
+);
+/** フロー図（@xyflow/react）は電源のフローのタブを開いたときだけ読む */
 
-export type SystemTab = "results" | "breakdown" | "settings" | "series";
+export type SystemTab = "results" | "modes" | "settings" | "series";
 
-/** 系のページのタブの中身（結果・内訳・設定・時系列）。extra は系ごとの追加の表示（熱の温度表、構造の 3D など） */
+/**
+ * 系のページのタブの中身（結果・モード・設定・時系列）。extra は系ごとの追加の表示（熱の温度表と 3D）。
+ * 結果のタブは、熱だけ解析のカードの並びで、ほかの系は解析の表（電源は `PowerOverview`、ほかは `SystemOverview`）。
+ */
 export function SystemTabs({
   tab,
+  powerPage,
   system,
   design,
   states,
@@ -32,6 +42,7 @@ export function SystemTabs({
   noAnalyses = false,
 }: {
   tab: SystemTab;
+  powerPage?: PowerPageView;
   system: System;
   design: DesignView | undefined;
   states: AnalysisState[];
@@ -40,48 +51,34 @@ export function SystemTabs({
   noAnalyses?: boolean;
 }) {
   const dict = useT();
+  if (system === "power" && powerPage) {
+    if (tab === "results") return <PowerOverview page={powerPage} design={design} />;
+    if (tab === "series") return <PowerSeries page={powerPage} />;
+    if (tab === "modes") return <PowerModes page={powerPage} />;
+  }
+  if (tab === "modes")
+    return design && hasModes(system) ? (
+      system === "aocs" ? (
+        <AocsModes design={design} />
+      ) : (
+        <SystemModes key={system} design={design} system={system} />
+      )
+    ) : null;
   if (tab === "results")
     return (
       <>
         {noAnalyses && <Empty>{dict.systems.noAnalyses}</Empty>}
         {extra?.results}
-        <div className="grid gap-4 xl:grid-cols-2">
-          {states.map((s) => (
-            <AnalysisCard key={s.id} state={s} entry={entries.get(s.id)} design={design} />
-          ))}
-        </div>
-      </>
-    );
-  if (tab === "breakdown")
-    return (
-      <>
-        <TablePanel title={dict.systems.partsAttrs} caption={dict.systems.partsAttrsCaption}>
-          {design ? (
-            <SystemPartsTable design={design} system={system} />
-          ) : (
-            <Loading>
-              <SkeletonTable rows={6} cols={5} />
-            </Loading>
-          )}
-        </TablePanel>
-        {extra?.breakdown}
-        {states.map((s) => {
-          const tables = s.result?.output ? collectTables(s.result.output) : [];
-          return tables.map((t) => (
-            <TablePanel
-              key={`${s.id}:${t.path}`}
-              title={`${analysisTitle(entries.get(s.id)?.info, s.id)} — ${fieldLabel(t.key)}`}
-              caption={<span className="font-mono">{`${s.id} · ${t.path}`}</span>}
-            >
-              <ResultTable
-                rows={t.rows}
-                at={t.at}
-                dims={s.result?.dims}
-                labels={s.result?.labels}
-              />
-            </TablePanel>
-          ));
-        })}
+        {system === "thermal" ? (
+          // 熱は節点温度の表・3D（`extra`）と解析のカードのまま
+          <div className="grid gap-4 xl:grid-cols-2">
+            {states.map((s) => (
+              <AnalysisCard key={s.id} state={s} entry={entries.get(s.id)} design={design} />
+            ))}
+          </div>
+        ) : (
+          <SystemOverview states={states} entries={entries} design={design} />
+        )}
       </>
     );
   if (tab === "settings") {
@@ -142,4 +139,9 @@ export function SystemTabs({
       {extra?.series}
     </>
   );
+}
+
+/** モードの見方を持つ系だけにタブを出す。系の一覧・並びは API が持つ。 */
+export function hasModes(system: System): boolean {
+  return system === "power" || system === "cdh" || system === "thermal" || system === "aocs";
 }

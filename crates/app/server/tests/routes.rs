@@ -110,7 +110,7 @@ async fn project_and_design() {
     // 書き込めるカタログの出所（Web が置き先の名前を書かずに選ぶ）
     assert_eq!(
         p["catalogs"],
-        json!([{ "name": "local", "editable": true }])
+        json!([{ "name": "local", "editable": true, "shared": null }])
     );
     let (s, d) = call(&r, "GET", "/api/v1/design", None).await;
     assert_eq!(s, StatusCode::OK);
@@ -156,6 +156,19 @@ async fn parts_list_filter_and_detail() {
     assert!(part["sections"].is_array());
     let (s, e) = call(&r, "GET", "/api/v1/parts/NOPE", None).await;
     assert_eq!(s, StatusCode::NOT_FOUND);
+    assert_eq!(e["error"]["code"], "not_found");
+}
+
+/// カタログ品 1 件（ID は `/` を含む）。無ければ 404 の `not_found`。
+#[tokio::test]
+async fn catalog_item_and_not_found() {
+    let (_tmp, r) = demo_router();
+    let (s, item) = call(&r, "GET", "/api/v1/catalog/local/rw_10mNms", None).await;
+    assert_eq!(s, StatusCode::OK, "{item}");
+    assert_eq!(item["id"], "local/rw_10mNms");
+    assert_eq!(item["kind"], "reaction_wheel");
+    let (s, e) = call(&r, "GET", "/api/v1/catalog/local/nope", None).await;
+    assert_eq!(s, StatusCode::NOT_FOUND, "{e}");
     assert_eq!(e["error"]["code"], "not_found");
 }
 
@@ -253,16 +266,6 @@ async fn analyses_run_and_budgets() {
 }
 
 #[tokio::test]
-async fn data_status() {
-    let (_tmp, r) = demo_router();
-    let (s, d) = call(&r, "GET", "/api/v1/data/status", None).await;
-    assert_eq!(s, StatusCode::OK, "{d}");
-    assert_eq!(d["items"][0]["id"], "de440");
-    let (s, e) = call(&r, "POST", "/api/v1/data/nope/fetch", None).await;
-    assert_eq!(s, StatusCode::NOT_FOUND, "{e}");
-}
-
-#[tokio::test]
 async fn units_format_and_views() {
     let (_tmp, r) = demo_router();
     let body = json!({ "items": [
@@ -353,7 +356,7 @@ async fn place_body_converts_to_mount_local() {
     );
     let (_, after) = call(&r, "GET", "/api/v1/parts/RW_X", None).await;
     assert_eq!(after["part"]["mount"]["on"], on, "取付先は変えない");
-    let p = after["part"]["mount"]["body_position"].as_array().unwrap();
+    let p = after["part"]["body"]["position"].as_array().unwrap();
     for (got, want) in p.iter().zip([0.010, -0.020, 0.030]) {
         assert!((got.as_f64().unwrap() - want).abs() < 1e-6, "{p:?}");
     }

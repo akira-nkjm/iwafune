@@ -22,7 +22,14 @@ describe("Layout3D", () => {
 
   it("構造の配置の編集は、移動・回転とスナップの操作を出し、重心があれば印の説明を添える", () => {
     const html = render({ variant: "placement", design: fixture, com: [0, 0, 0.1] });
-    expect(html).toContain(L.title);
+    expect(html).not.toContain("<h2");
+    expect(html).toContain(L.parts(0));
+    expect(html).toContain(L.unplacedCount(fixture.parts.length));
+    expect(html).toContain(`aria-label="${L.structureOpacity}"`);
+    expect(html).toContain('type="range"');
+    expect(html).toContain('value="0.3"');
+    expect(html).toContain("flex min-h-0 flex-1 flex-col");
+    expect(html).not.toContain("h-[460px]");
     expect(html).toContain(`aria-label="${L.operation}"`);
     expect(html).toContain(`aria-label="${L.snap}"`);
     expect(html).toContain(L.com);
@@ -33,10 +40,12 @@ describe("Layout3D", () => {
     const t = getT().systems;
     const html = render({ variant: "heat", design: fixture, colorOf: () => "#000000" });
     expect(html).toContain(t.thermal3d);
+    expect(html).toContain("h-[460px]");
     expect(html).toContain(t.thermal3dLegend);
     expect(html).not.toContain(`aria-label="${L.operation}"`);
     expect(html).not.toContain(`aria-label="${L.snap}"`);
     expect(html).not.toContain(L.com);
+    expect(html).not.toContain(`aria-label="${L.structureOpacity}"`);
   });
 
   it("どちらも未配置の部品をインスペクタに並べる", () => {

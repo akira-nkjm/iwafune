@@ -3,10 +3,16 @@ import type { ThermalSteadyOutput } from "@/api/types";
 import { heatKey, heatMapOf, heatRatio } from "./heat";
 
 describe("熱の温度表", () => {
-  const environment = { solar_flux: null, albedo: 0.3, earth_ir: 237, space_temperature: 3 };
+  const environment = {
+    preset: null,
+    solar_flux: null,
+    albedo: 0.3,
+    planet_ir: 237,
+    space_temperature: 3,
+  };
   const out: ThermalSteadyOutput = {
     envelope: [],
-    range_warning_band: 5,
+    margin: { uncertainty: 0, warning_band: 5 },
     checks: [],
     cases: [
       {
@@ -21,8 +27,7 @@ describe("熱の温度表", () => {
             temperature: 320,
             absorbed: 0,
             internal: 0,
-            margin_low: null,
-            margin_high: null,
+            ranges: [],
             verdict: "warning",
           },
           {
@@ -30,8 +35,7 @@ describe("熱の温度表", () => {
             temperature: 300,
             absorbed: 0,
             internal: 0,
-            margin_low: null,
-            margin_high: null,
+            ranges: [],
             verdict: "ok",
           },
         ],
@@ -48,8 +52,7 @@ describe("熱の温度表", () => {
             temperature: 260,
             absorbed: 0,
             internal: 0,
-            margin_low: null,
-            margin_high: null,
+            ranges: [],
             verdict: "ok",
           },
         ],
@@ -64,6 +67,7 @@ describe("熱の温度表", () => {
     expect(m?.min).toBe(260);
     expect(m?.max).toBe(320);
     expect(heatRatio(290, m!)).toBeCloseTo(0.5);
+    expect(m?.band).toBe(5);
   });
   it("形が違えば null", () => {
     expect(heatMapOf({ ...out, cases: [] })).toBeNull();

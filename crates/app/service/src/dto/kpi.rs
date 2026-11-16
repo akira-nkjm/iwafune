@@ -11,22 +11,44 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
 pub enum KpiKey {
+    /// 季節の最長蝕（本影と半影の合計）。
+    LongestEclipse,
+    /// 季節の β の最小値。
+    BetaMin,
+    /// 季節の β の最大値。
+    BetaMax,
+    /// 軌道寿命（太陽活動の条件のうち最短。期間の上限までに再突入しなければ値なし）
+    OrbitLifetime,
+    /// 元期の 1 日あたりの高度低下（条件のうち最大）
+    DecayPerDay,
+    /// 高度を保つ 1 年あたりの ΔV（条件のうち最大）
+    StationKeepingDeltaV,
     /// バジェットのモード（ケースのモード、無ければ成長余裕込みの合計が最大のモード）の消費電力
     ModeLoad,
     /// 軌道平均の発電
     OrbitGeneration,
+    /// 日照率（軌道 1 周のうち日照の時間の割合）
+    SunlitFraction,
     /// 軌道平均の電力収支（ケースのうち最悪）
     OrbitBalance,
     /// 最大 DoD（ケースのうち最大）
     MaxDod,
+    /// SAP 面積の余裕。
+    SapMargin,
+    /// 電池容量の余裕。
+    BatteryMargin,
     /// RW のアンロード間隔
     UnloadInterval,
     /// RW の最大角運動量
     PeakMomentum,
     /// MTQ でのアンロード時間
     MtqUnloadTime,
+    /// RCS（スラスタ）でのアンロード時間（最悪の向き）
+    RcsUnloadTime,
     /// センサの禁止角への侵入の割合（センサのうち最大）
     SensorIntrusion,
+    /// 姿勢変更の時間（最悪の軸）
+    SlewTime,
     /// 1 日のデータ発生量
     DataPerDay,
     /// 必要なストレージ
@@ -45,7 +67,7 @@ pub enum KpiKey {
     MaxTemperature,
     /// 定常の最低温度（節点のうち最低）
     MinTemperature,
-    /// 動作範囲の判定（節点ごとの判定を数える）
+    /// 温度範囲（保管・動作・性能）の判定（節点と種類ごとの判定を数える）
     NodesInRange,
     /// 非定常の最高温度（節点のうち最高）
     TransientMaxTemperature,
@@ -55,6 +77,22 @@ pub enum KpiKey {
     MinSafetyMargin,
     /// 最低の固有振動数
     MinFrequency,
+    /// マヌーバの遷移の時間（マヌーバのうち最長）
+    LongestTransfer,
+    /// マージン込みの ΔV
+    DvWithMargin,
+    /// 積む推薬（マージンと残る分込み）
+    LoadedPropellant,
+    /// タンクの容積の余裕（推薬のうち最小）
+    TankVolumeMargin,
+    /// 総インパルスの定格に対する余裕（スラスタのうち最小）
+    ImpulseMargin,
+    /// 最後のマヌーバが終わる時刻（最初の軌道の元期から）
+    ManeuversEnd,
+    /// 寿命初期から末期への重心の移動
+    ComShift,
+    /// 噴射中の最大 DoD（数値伝搬のマヌーバのうち最大）
+    ThrustMaxDod,
 }
 
 /// KPI の定義（`GET /analyses` の `AnalysisEntry.kpis`。結果が届く前に名前を並べるのに使う）。
@@ -65,6 +103,8 @@ pub struct KpiDef {
     pub label: String,
     /// 英語の表示名
     pub label_en: String,
+    /// 結果に値も判定も無ければ並べない KPI（設計が持たない手段の KPI。ただし解析のすべての KPI が無いときは先頭の 1 つを残す）
+    pub when_measured: bool,
 }
 
 /// KPI 1 つの値（`AnalysisRunResult.kpis`）。

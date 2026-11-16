@@ -3,8 +3,8 @@
 //! JSON では `{ "op": "set_value", ... }` の形（`op` が種類）。
 
 use fune_model::design::{
-    AttributeDef, Case, CatalogField, Harness, KindDef, Maturity, Net, NetField, PartField, Pose,
-    Source,
+    AttributeDef, Case, CatalogField, Harness, KindDef, Maneuver, Maturity, Net, NetField,
+    PartField, Pose, Source,
 };
 use fune_model::value::{Provenance, Quaternion, SettingValue, Value, Vector3};
 use serde::{Deserialize, Serialize};
@@ -157,6 +157,22 @@ pub enum Op {
     CreateKind {
         def: KindDef,
     },
+    /// プロジェクト独自の属性定義を丸ごと置き換える（`def.id` が対象。組み込みは不可）。既存の値が合わなくなる編集は検査で拒む。
+    UpdateAttribute {
+        def: AttributeDef,
+    },
+    /// プロジェクト独自の種別定義を丸ごと置き換える（`def.id` が対象。組み込みは不可）。
+    UpdateKind {
+        def: KindDef,
+    },
+    /// プロジェクト独自の属性定義を消す（種別が挙げているか、部品・カタログ品が値を書いていれば拒む。組み込みは不可）。
+    DeleteAttribute {
+        id: String,
+    },
+    /// プロジェクト独自の種別定義を消す（部品・カタログ品が使っているか、ほかの種別が継承していれば拒む。組み込みは不可）。
+    DeleteKind {
+        id: String,
+    },
     // ---- モード
     /// モードを足す（`copy_from` があればその表を写す）。
     CreateMode {
@@ -175,6 +191,16 @@ pub enum Op {
     RenameMode {
         id: String,
         to: String,
+    },
+    /// モードを指定した相対位置へ移す。
+    MoveMode {
+        id: String,
+        position: ModePosition,
+    },
+    /// モードの最長継続時間（None で削除）。
+    SetModeDuration {
+        mode: String,
+        duration: Option<fune_model::value::Quantity>,
     },
     /// モード表のセルを一括で書く（GUI の表の編集）。
     SetModeStates {
@@ -197,7 +223,7 @@ pub enum Op {
     RemoveNet {
         id: String,
     },
-    // ---- 解析ケース・出典・ハーネス（無ければ作り、あれば変わった行だけを書き換える）
+    // ---- 解析ケース・出典・ハーネス・マヌーバ（無ければ作り、あれば変わった行だけを書き換える）
     /// 解析ケースを書く（`case.id` が対象）。
     SetCase {
         case: Case,
@@ -217,6 +243,18 @@ pub enum Op {
         harness: Harness,
     },
     RemoveHarness {
+        id: String,
+    },
+    /// マヌーバを足す（`maneuver.id` が対象。同じ ID があれば拒む）。
+    CreateManeuver {
+        maneuver: Maneuver,
+    },
+    /// マヌーバを書く（`maneuver.id` が対象。無ければ作り、あれば変わった行だけを書き換える）。
+    SetManeuver {
+        maneuver: Maneuver,
+    },
+    /// マヌーバを消す（ほかのマヌーバの `after` が指していれば、消したマヌーバの `after` につなぎ直す）。
+    RemoveManeuver {
         id: String,
     },
     // ---- 図の配置（見た目だけ）
@@ -244,7 +282,7 @@ pub enum Op {
         view: String,
     },
     // ---- 設定
-    /// `mission/`・`analysis/`・`budget/` の値（`path` は `analysis.power.dod_max` の形。None なら消す）。
+    /// `conditions/`・`analysis/`・`budget/` の値（`path` は `analysis.power.dod_max` の形。None なら消す）。
     SetSetting {
         path: String,
         #[serde(default)]
@@ -273,4 +311,24 @@ pub struct ModeCell {
     pub state: Option<String>,
     #[serde(default)]
     pub duty: BTreeMap<String, f64>,
+    #[serde(default)]
+    pub active: Option<u32>,
+    #[serde(default)]
+    pub spare_state: Option<String>,
+    #[serde(default)]
+    pub eclipse: bool,
+}
+
+/// モードの移動先。相対指定は CLI と GUI とで同じ意味を持つ。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ModePosition {
+    /// 指定モードの直前。
+    Before(String),
+    /// 指定モードの直後。
+    After(String),
+    /// 先頭。
+    First,
+    /// 末尾。
+    Last,
 }

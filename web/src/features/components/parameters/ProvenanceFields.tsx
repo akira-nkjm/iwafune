@@ -2,17 +2,24 @@ import { useT } from "@/i18n";
 import { Field } from "@/kit/forms/Field";
 import { TextInput } from "@/kit/forms/TextInput";
 
-/** 出典とメモ（任意）。打ったまま `SetText` の source・note に渡す（空なら付けない） */
+/** 打ったままの出典・資料の中の位置・メモ（空なら付けない） */
+export interface Provenance {
+  source: string;
+  at: string;
+  note: string;
+}
+
+/** 出典と資料の中の位置とメモ（任意）。打ったまま `SetText` の source・at・note に渡す */
 export function ProvenanceFields({
   value,
   onChange,
 }: {
-  value: { source: string; note: string };
-  onChange: (v: { source: string; note: string }) => void;
+  value: Provenance;
+  onChange: (v: Provenance) => void;
 }) {
   const tp = useT().components.param;
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-3 gap-3">
       <Field label={tp.source} htmlFor="param-source">
         <TextInput
           id="param-source"
@@ -20,6 +27,14 @@ export function ProvenanceFields({
           value={value.source}
           placeholder="em_test_2026_10"
           onChange={(e) => onChange({ ...value, source: e.target.value })}
+        />
+      </Field>
+      <Field label={tp.at} htmlFor="param-at">
+        <TextInput
+          id="param-at"
+          value={value.at}
+          placeholder={tp.atPlaceholder}
+          onChange={(e) => onChange({ ...value, at: e.target.value })}
         />
       </Field>
       <Field label={tp.note} htmlFor="param-note">

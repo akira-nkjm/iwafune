@@ -11,12 +11,14 @@ describe("カタログ", () => {
 
   it("書き込めるカタログは API の印のとおり、fune.toml の順に並べる", () => {
     const catalogs = [
-      { name: "shared", editable: false },
-      { name: "local", editable: true },
-      { name: "team", editable: true },
+      { name: "shared", editable: false, shared: null },
+      { name: "local", editable: true, shared: null },
+      { name: "team", editable: true, shared: null },
     ];
     expect(writableCatalogs({ catalogs })).toEqual(["local", "team"]);
-    expect(writableCatalogs({ catalogs: [{ name: "shared", editable: false }] })).toEqual([]);
+    expect(
+      writableCatalogs({ catalogs: [{ name: "shared", editable: false, shared: null }] }),
+    ).toEqual([]);
   });
 
   it("品の ID はカタログ名と名前から作る", () => {

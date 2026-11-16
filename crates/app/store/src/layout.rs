@@ -6,7 +6,7 @@
 
 use crate::error::StoreError;
 use fune_model::Target;
-use fune_model::design::{AnalysisSystem, CatalogSource, Design, EntityKey, NodeRef};
+use fune_model::design::{AnalysisSystem, Design, EntityKey, NodeRef};
 use fune_model::path::{ANALYSIS_COMMON, SettingPath, SettingScope};
 
 pub const PROJECT_FILE: &str = "fune.toml";
@@ -20,21 +20,31 @@ pub const NETS_DIR: &str = "nets";
 pub const HARNESS_DIR: &str = "harness";
 pub const CASES_DIR: &str = "cases";
 pub const SOURCES_DIR: &str = "sources";
-/// 規約にあるが まだ読まないディレクトリ（要求・表データ）。
-pub const RESERVED_DIRS: &[&str] = &["requirements", "tables"];
-pub const MISSION_DIR: &str = "mission";
-pub const GROUND_DIR: &str = "mission/ground";
+/// マヌーバ（`maneuvers/<ID>.toml`）。
+pub const MANEUVERS_DIR: &str = "maneuvers";
+/// 規約にあるが まだ読まないディレクトリ（#9 のミッション・要求・表データ）。
+pub const RESERVED_DIRS: &[&str] = &["mission", "requirements", "tables"];
+pub const CONDITIONS_DIR: &str = "conditions";
+pub const GROUND_DIR: &str = "conditions/ground";
 pub const ANALYSIS_DIR: &str = "analysis";
 /// 系に属さない解析の共通設定。
 pub const COMMON_ANALYSIS_FILE: &str = "analysis/common.toml";
 /// 内部の作業ディレクトリ（ロック・キャッシュ）。
 pub const WORK_DIR: &str = ".fune";
+/// 共有カタログの固定（`[[catalog]] git = …` の解決した commit。`fune catalog fetch`・`update` が書き、git で管理する）。
+pub const LOCK_FILE: &str = "catalog.lock";
+/// 共有カタログのキャッシュの置き場所（作業ディレクトリの下。`<名前>/repo.git` と `<名前>/<commit>/`）。
+pub const SHARED_CATALOG_ROOT: &str = ".fune/catalogs";
+/// 共有カタログのリポジトリのうち読むディレクトリ（`catalog/<ID>.toml` が品、`sources/<ID>.toml` が出典）。
+pub const SHARED_CATALOG_DIRS: &[&str] = &[SHARED_ITEMS_DIR, SOURCES_DIR];
+/// 共有カタログのリポジトリの品のディレクトリ。
+pub const SHARED_ITEMS_DIR: &str = "catalog";
 /// 読まないディレクトリ。
 pub const IGNORED_DIRS: &[&str] = &["results", "exports", "target", "node_modules"];
 /// 図の配置（見た目だけ。`view/<名前>.toml`）。
 pub const VIEW_DIR: &str = "view";
-/// `mission/` の直下のファイル。
-pub const MISSION_FILES: &[&str] = &["orbit", "launch"];
+/// `conditions/` の直下のファイル。
+pub const CONDITIONS_FILES: &[&str] = &["orbit", "launch"];
 
 /// ファイルの役割。
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,12 +68,13 @@ pub enum FileRole {
     Harness(String),
     Case(String),
     Source(String),
+    Maneuver(String),
     /// `view/<名前>.toml`
     View(String),
-    /// 規約にあるが まだ読まない（`requirements/`・`tables/`）
+    /// 規約にあるが まだ読まない（#9 用の `mission/`・`requirements/`・`tables/`）
     Reserved,
-    /// `mission/orbit.toml`・`mission/launch.toml`
-    Mission(String),
+    /// `conditions/orbit.toml`・`conditions/launch.toml`
+    Conditions(String),
     Ground(String),
     /// `analysis/<系>.toml`（系の一覧は [`AnalysisSystem`]）
     Analysis(AnalysisSystem),
@@ -101,7 +112,7 @@ pub fn classify(rel: &str, catalogs: &[(String, String)]) -> FileRole {
             .parse::<AnalysisSystem>()
             .map_or(FileRole::Other, FileRole::Analysis);
     }
-    let flat: [(&str, RoleOf); 9] = [
+    let flat: [(&str, RoleOf); 10] = [
         (ATTRIBUTE_DIR, FileRole::Attribute),
         (KIND_DIR, FileRole::Kind),
         (MODES_DIR, FileRole::Mode),
@@ -109,6 +120,7 @@ pub fn classify(rel: &str, catalogs: &[(String, String)]) -> FileRole {
         (HARNESS_DIR, FileRole::Harness),
         (CASES_DIR, FileRole::Case),
         (SOURCES_DIR, FileRole::Source),
+        (MANEUVERS_DIR, FileRole::Maneuver),
         (GROUND_DIR, FileRole::Ground),
         (VIEW_DIR, FileRole::View),
     ];
@@ -117,10 +129,10 @@ pub fn classify(rel: &str, catalogs: &[(String, String)]) -> FileRole {
             return make(id);
         }
     }
-    if let Some(id) = flat_child(stem_path, MISSION_DIR)
-        && MISSION_FILES.contains(&id.as_str())
+    if let Some(id) = flat_child(stem_path, CONDITIONS_DIR)
+        && CONDITIONS_FILES.contains(&id.as_str())
     {
-        return FileRole::Mission(id);
+        return FileRole::Conditions(id);
     }
     if RESERVED_DIRS
         .iter()
@@ -160,10 +172,11 @@ pub fn entity_key(role: &FileRole) -> Option<EntityKey> {
         FileRole::Harness(id) => EntityKey::Harness(id.clone()),
         FileRole::Case(id) => EntityKey::Case(id.clone()),
         FileRole::Source(id) => EntityKey::Source(id.clone()),
+        FileRole::Maneuver(id) => EntityKey::Maneuver(id.clone()),
         FileRole::View(id) => EntityKey::View(id.clone()),
         FileRole::Reserved => return None,
-        FileRole::Mission(id) => EntityKey::Setting(SettingPath::mission(&[id])),
-        FileRole::Ground(id) => EntityKey::Setting(SettingPath::mission(&["ground", id])),
+        FileRole::Conditions(id) => EntityKey::Setting(SettingPath::conditions(&[id])),
+        FileRole::Ground(id) => EntityKey::Setting(SettingPath::conditions(&["ground", id])),
         FileRole::Analysis(system) => EntityKey::Setting(system.setting_path()),
         FileRole::CommonAnalysis => EntityKey::Setting(SettingPath::analysis_common()),
         FileRole::Other => return None,
@@ -187,9 +200,10 @@ pub fn file_target(role: &FileRole) -> Option<Target> {
         FileRole::Harness(id) => Target::harness(id, None),
         FileRole::Case(id) => Target::case(id, None),
         FileRole::Source(id) => Target::Source { id: id.clone() },
+        FileRole::Maneuver(id) => Target::maneuver(id, None),
         FileRole::View(id) => Target::view(id, None),
-        FileRole::Mission(id) => SettingPath::mission(&[id]).into(),
-        FileRole::Ground(id) => SettingPath::mission(&["ground", id]).into(),
+        FileRole::Conditions(id) => SettingPath::conditions(&[id]).into(),
+        FileRole::Ground(id) => SettingPath::conditions(&["ground", id]).into(),
         FileRole::Analysis(system) => system.setting_path().into(),
         FileRole::CommonAnalysis => SettingPath::analysis_common().into(),
         FileRole::Project | FileRole::Reserved | FileRole::Other => return None,
@@ -250,6 +264,9 @@ pub fn case_file(id: &str) -> String {
 pub fn source_file(id: &str) -> String {
     format!("{SOURCES_DIR}/{id}.toml")
 }
+pub fn maneuver_file(id: &str) -> String {
+    format!("{MANEUVERS_DIR}/{id}.toml")
+}
 pub fn attribute_file(id: &str) -> String {
     format!("{ATTRIBUTE_DIR}/{id}.toml")
 }
@@ -275,19 +292,13 @@ pub enum CatalogLocation {
     Unknown,
 }
 
-/// カタログの出所が書き換えられる（このプロジェクトの中の `[[catalog]] path = …`）なら、そのディレクトリ。
-/// 共有カタログ（`git = …`）は None。**書き換えられるかの判定はここだけ**（`catalog_location`・fune-ops・service の一覧が使う）。
-pub fn local_catalog_dir(source: &CatalogSource) -> Option<&str> {
-    source.path.as_deref()
-}
-
 /// カタログ品の参照（`"local/rw_10mNms"`）→ 置き場所。
 pub fn catalog_location(design: &Design, reference: &str) -> CatalogLocation {
     let Some((source, id)) = fune_model::design::split_catalog_ref(reference) else {
         return CatalogLocation::Unknown;
     };
     match design.project.catalogs.iter().find(|c| c.name == source) {
-        Some(c) => match local_catalog_dir(c) {
+        Some(c) => match c.local_dir() {
             Some(path) => CatalogLocation::Local {
                 file: format!("{}/{id}.toml", path.trim_end_matches('/')),
             },
@@ -299,20 +310,40 @@ pub fn catalog_location(design: &Design, reference: &str) -> CatalogLocation {
     }
 }
 
-/// 設定のパス → (ファイル, ファイル内のキーの列)。
+/// 共有カタログの commit の中身を置くディレクトリ（ルートからの相対パス。`.fune/catalogs/<名前>/<commit>`）。
+pub fn shared_catalog_dir(name: &str, commit: &str) -> String {
+    format!("{SHARED_CATALOG_ROOT}/{name}/{commit}")
+}
+
+/// 共有カタログの取得元の写し（bare リポジトリ。`.fune/catalogs/<名前>/repo.git`）。
+pub fn shared_catalog_mirror(name: &str) -> String {
+    format!("{SHARED_CATALOG_ROOT}/{name}/repo.git")
+}
+
+/// キャッシュのパスに使える名前と commit か（名前は ID の規則、commit は 16 進数。`..` などでキャッシュの外を指さない）。
+pub fn is_cache_key(name: &str, commit: &str) -> bool {
+    fune_model::id::validate_entity_id(name).is_ok()
+        && (7..=64).contains(&commit.len())
+        && commit.bytes().all(|b| b.is_ascii_hexdigit())
+}
+
+/// 設定のパス → (ファイル, ファイル内のキーの列)。区切りが空のパス・ファイルに当たらないパス・キーが空になるパスは `StoreError::SettingPath`。
 pub fn setting_location(path: &SettingPath) -> Result<(String, Vec<String>), StoreError> {
     let bad = || StoreError::SettingPath {
         path: path.to_string(),
     };
     let s = &path.segments;
     let (file, keys) = match path.scope {
-        SettingScope::Mission if s.first().map(String::as_str) == Some("ground") => {
+        SettingScope::Conditions if s.first().map(String::as_str) == Some("ground") => {
             let id = s.get(1).ok_or_else(bad)?;
             (format!("{GROUND_DIR}/{id}.toml"), &s[2.min(s.len())..])
         }
-        SettingScope::Mission if MISSION_FILES.contains(&s[0].as_str()) => {
-            (format!("{MISSION_DIR}/{}.toml", s[0]), &s[1..])
-        }
+        SettingScope::Conditions => match s.split_first() {
+            Some((file, rest)) if CONDITIONS_FILES.contains(&file.as_str()) => {
+                (format!("{CONDITIONS_DIR}/{file}.toml"), rest)
+            }
+            _ => return Err(bad()),
+        },
         SettingScope::Analysis if s.first().map(String::as_str) == Some(ANALYSIS_COMMON) => {
             (COMMON_ANALYSIS_FILE.to_string(), &s[1..])
         }
@@ -320,9 +351,11 @@ pub fn setting_location(path: &SettingPath) -> Result<(String, Vec<String>), Sto
             Some(Ok(system)) => (analysis_file(system), &s[1..]),
             _ => return Err(bad()),
         },
-        SettingScope::Budget if s[0] == "policy" => (POLICY_FILE.to_string(), &s[1..]),
-        SettingScope::Budget => (ALLOCATION_FILE.to_string(), &s[..]),
-        _ => return Err(bad()),
+        SettingScope::Budget => match s.split_first() {
+            Some((head, rest)) if head == "policy" => (POLICY_FILE.to_string(), rest),
+            Some(_) => (ALLOCATION_FILE.to_string(), &s[..]),
+            None => return Err(bad()),
+        },
     };
     if keys.is_empty() {
         return Err(bad());

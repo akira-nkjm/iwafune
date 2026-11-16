@@ -4,8 +4,8 @@
 use fune_model::Id;
 use fune_model::builtin;
 use fune_model::design::{
-    Case, CatalogField, Harness, Maturity, Net, NetField, NetKind, PartField, Pose, Source,
-    SourceKind, UncertaintySide,
+    Case, CatalogField, Distribution, Harness, Maturity, Net, NetField, NetKind, PartField, Pose,
+    Source, SourceKind, UncertaintySide,
 };
 use fune_model::value::{
     Authored, Provenance, Quantity, Quaternion, Scalar, SettingValue, Value, Vector3,
@@ -35,9 +35,15 @@ fn name(op: &Op) -> &'static str {
         Op::RenameCatalogItem { .. } => "RenameCatalogItem",
         Op::CreateAttribute { .. } => "CreateAttribute",
         Op::CreateKind { .. } => "CreateKind",
+        Op::UpdateAttribute { .. } => "UpdateAttribute",
+        Op::UpdateKind { .. } => "UpdateKind",
+        Op::DeleteAttribute { .. } => "DeleteAttribute",
+        Op::DeleteKind { .. } => "DeleteKind",
         Op::CreateMode { .. } => "CreateMode",
         Op::RemoveMode { .. } => "RemoveMode",
         Op::RenameMode { .. } => "RenameMode",
+        Op::MoveMode { .. } => "MoveMode",
+        Op::SetModeDuration { .. } => "SetModeDuration",
         Op::SetModeStates { .. } => "SetModeStates",
         Op::CreateNet { .. } => "CreateNet",
         Op::UpdateNet { .. } => "UpdateNet",
@@ -49,6 +55,9 @@ fn name(op: &Op) -> &'static str {
         Op::RemoveSource { .. } => "RemoveSource",
         Op::SetHarness { .. } => "SetHarness",
         Op::RemoveHarness { .. } => "RemoveHarness",
+        Op::CreateManeuver { .. } => "CreateManeuver",
+        Op::SetManeuver { .. } => "SetManeuver",
+        Op::RemoveManeuver { .. } => "RemoveManeuver",
         Op::SetViewLayout { .. } => "SetViewLayout",
         Op::SetViewEdge { .. } => "SetViewEdge",
         Op::UnsetViewEdge { .. } => "UnsetViewEdge",
@@ -70,6 +79,7 @@ fn mm(x: f64, y: f64, z: f64) -> Vector3 {
 fn from() -> Option<Provenance> {
     Some(Provenance {
         source: Some("em_test_2026_10".into()),
+        at: Some("TR-EM 表 4".into()),
         note: Some("EM 実測".into()),
     })
 }
@@ -224,6 +234,10 @@ fn other_ops() -> Vec<Op> {
         kind: SourceKind::Measured,
         label: Some("TVAC".into()),
         reference: Some("TR-1".into()),
+        revision: Some("Rev. B".into()),
+        retrieved: Some("2027-01-21".into()),
+        sha256: Some("ab".repeat(32)),
+        distribution: Some(Distribution::OnRequest),
         date: Some("2027-01-20".into()),
         by: Some("tanaka".into()),
         note: None,
@@ -239,8 +253,24 @@ fn other_ops() -> Vec<Op> {
         length: Some(Quantity::new(0.3, "m")),
     };
     vec![
-        Op::CreateAttribute { def: attr },
-        Op::CreateKind { def: kind },
+        Op::CreateAttribute { def: attr.clone() },
+        Op::UpdateAttribute { def: attr },
+        Op::DeleteAttribute {
+            id: "max_torque_2".into(),
+        },
+        Op::CreateKind { def: kind.clone() },
+        Op::UpdateKind { def: kind },
+        Op::DeleteKind {
+            id: "film_heater".into(),
+        },
+        Op::MoveMode {
+            id: "SAFE".into(),
+            position: fune_ops::ModePosition::Before("NOMINAL".into()),
+        },
+        Op::SetModeDuration {
+            mode: "NOMINAL".into(),
+            duration: Some(Quantity::new(90.0, "min")),
+        },
         Op::CreateMode {
             id: "DEPLOY".into(),
             label: Some("展開".into()),
@@ -260,6 +290,9 @@ fn other_ops() -> Vec<Op> {
                 part: "UHF_TRX".into(),
                 state: Some("rx".into()),
                 duty: BTreeMap::from([("tx".to_string(), 0.05)]),
+                active: None,
+                spare_state: None,
+                eclipse: false,
             }],
         },
         Op::CreateNet { net: net() },
@@ -283,6 +316,13 @@ fn other_ops() -> Vec<Op> {
         Op::RemoveSource { id: "tvac".into() },
         Op::SetHarness { harness },
         Op::RemoveHarness { id: "H_NEW".into() },
+        Op::CreateManeuver {
+            maneuver: maneuver(),
+        },
+        Op::SetManeuver {
+            maneuver: maneuver(),
+        },
+        Op::RemoveManeuver { id: "RAISE".into() },
         Op::SetViewEdge {
             view: "electrical".into(),
             key: "P12V:PCDU.OUT1->RW_X.PWR".into(),
@@ -313,7 +353,7 @@ fn other_ops() -> Vec<Op> {
             remove: vec!["OLD".into()],
         },
         Op::SetSetting {
-            path: "mission.orbit.altitude".into(),
+            path: "conditions.orbit.altitude".into(),
             value: Some(SettingValue::Quantity(Quantity::new(550.0, "km"))),
         },
         Op::SetSetting {
@@ -329,7 +369,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 38, "見本の無い Op の種類があります: {seen:?}");
+    assert_eq!(seen.len(), 47, "見本の無い Op の種類があります: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =
@@ -339,4 +379,16 @@ fn every_op_round_trips_through_json() {
     let batch = serde_json::to_string(&ops).unwrap();
     let back: Vec<Op> = serde_json::from_str(&batch).unwrap();
     assert_eq!(back, ops);
+}
+
+/// 目標の軌道と制約を持つマヌーバ。
+fn maneuver() -> fune_model::design::Maneuver {
+    let mut m: fune_model::design::Maneuver = serde_json::from_value(serde_json::json!({
+        "label": "軌道上昇", "category": "insertion", "method": "low_thrust", "thruster": "EPT",
+        "after": "LEOP", "target": { "altitude": { "value": 600.0, "unit": "km" } },
+        "constraints": { "sunlit_only": true, "mode": "THRUST" }
+    }))
+    .unwrap();
+    m.id = "RAISE".into();
+    m
 }

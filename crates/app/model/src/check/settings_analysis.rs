@@ -3,7 +3,7 @@
 
 use super::Ctx;
 use super::settings::{Scope, scope};
-use crate::design::{AnalysisSystem, CommLinkSettings, Design, SettingEntry, ThermalSettings};
+use crate::design::{AnalysisSystem, CommLinkSettings, Design, SettingEntry};
 
 /// `analysis/` の全体。`entries` は `Design::setting_entries`。
 pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
@@ -26,14 +26,55 @@ pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
         );
     }
     check_power(ctx);
+    check_power_sizing(ctx);
     check_aocs(ctx);
     check_cdh(ctx);
     check_comm(ctx);
-    check_thermal(ctx);
+    super::settings_thermal::check_thermal(ctx);
+    check_propulsion(ctx);
+}
+
+fn check_propulsion(ctx: &mut Ctx) {
+    let design = ctx.design;
+    let Some(p) = &design.analysis.propulsion else {
+        return;
+    };
+    let mut s = scope(ctx, AnalysisSystem::Propulsion.setting_path());
+    s.fraction(&["dv_margin"], p.dv_margin);
+    s.fraction(&["residual_fraction"], p.residual_fraction);
 }
 
 fn mode_exists(design: &Design, mode: &str) -> bool {
     design.modes.contains_key(mode)
+}
+
+fn check_power_sizing(ctx: &mut Ctx) {
+    let Some(p) = ctx
+        .design
+        .analysis
+        .power
+        .as_ref()
+        .and_then(|p| p.sizing.as_ref())
+    else {
+        return;
+    };
+    let mut s = scope(ctx, AnalysisSystem::Power.setting_path());
+    for (key, value) in [
+        ("sunlit_efficiency", p.sunlit_efficiency),
+        ("eclipse_efficiency", p.eclipse_efficiency),
+        ("battery_efficiency", p.battery_efficiency),
+        ("annual_degradation", p.annual_degradation),
+        ("inherent_degradation", p.inherent_degradation),
+    ] {
+        s.fraction(&["sizing", key], value);
+    }
+    if p.battery_strings == Some(0) {
+        s.error(
+            &["sizing", "battery_strings"],
+            "setting.range",
+            "電池の組数は正にしてください".into(),
+        );
+    }
 }
 
 fn check_power(ctx: &mut Ctx) {
@@ -79,6 +120,14 @@ fn check_power(ctx: &mut Ctx) {
             format!("モード `{}`", seg.mode),
         );
     }
+    if let Some(mode) = &p.base_mode {
+        s.reference(
+            &["base_mode"],
+            mode_exists(design, mode),
+            "ref.mode",
+            format!("モード `{mode}`"),
+        );
+    }
 }
 
 fn check_aocs(ctx: &mut Ctx) {
@@ -117,12 +166,12 @@ fn check_comm(ctx: &mut Ctx) {
     };
     let mut s = scope(ctx, AnalysisSystem::Comm.setting_path());
     for station in &c.stations {
-        let exists = design.mission.ground.contains_key(station);
+        let exists = design.conditions.ground.contains_key(station);
         s.reference(
             &["stations"],
             exists,
             "ref.station",
-            format!("地上局 `{station}`（mission/ground/）"),
+            format!("地上局 `{station}`（conditions/ground/）"),
         );
     }
     for (name, link) in &c.links {
@@ -145,7 +194,7 @@ fn check_link(
         format!("部品 `{}`", link.part),
     );
     for station in stations {
-        let Some(g) = design.mission.ground.get(station) else {
+        let Some(g) = design.conditions.ground.get(station) else {
             continue;
         };
         if !g.links.contains_key(&link.band) {
@@ -157,51 +206,6 @@ fn check_link(
                     link.band
                 ),
             );
-        }
-    }
-}
-
-fn check_thermal(ctx: &mut Ctx) {
-    let design = ctx.design;
-    let Some(t) = &design.analysis.thermal else {
-        return;
-    };
-    let mut s = scope(ctx, AnalysisSystem::Thermal.setting_path());
-    for (name, case) in &t.cases {
-        let n = name.as_str();
-        if let Some(mode) = &case.mode {
-            let exists = mode_exists(design, mode);
-            s.reference(
-                &["case", n, "mode"],
-                exists,
-                "ref.mode",
-                format!("モード `{mode}`"),
-            );
-        }
-        s.fraction(&["case", n, "albedo"], case.albedo);
-    }
-    check_nodes(&mut s, design, t);
-}
-
-/// 節点の部品の参照と、1 つの部品が 2 つの節点に入っていないか。
-fn check_nodes(s: &mut Scope, design: &Design, t: &ThermalSettings) {
-    let mut owner: std::collections::BTreeMap<&str, &str> = std::collections::BTreeMap::new();
-    for (node, parts) in &t.nodes {
-        for part in parts {
-            let exists = design.parts.contains_key(part.as_str());
-            s.reference(
-                &["nodes", node],
-                exists,
-                "ref.part",
-                format!("部品 `{part}`"),
-            );
-            if let Some(other) = owner.insert(part.as_str(), node.as_str()) {
-                s.error(
-                    &["nodes", node],
-                    "thermal.node_overlap",
-                    format!("部品 `{part}` が節点 `{other}` と `{node}` の両方にあります"),
-                );
-            }
         }
     }
 }

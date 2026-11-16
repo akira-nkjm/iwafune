@@ -75,6 +75,16 @@ fn table_name(body: Body) -> &'static str {
     }
 }
 
+/// 地球（`body` が `None`）と惑星の日心軌道の長半径 [m]（表の J2000 の値）。太陽・月は `None`。
+pub(super) fn semi_major_axis_m(body: Option<Body>) -> Option<f64> {
+    let name = match body {
+        None => "Earth",
+        Some(Body::Sun | Body::Moon) => return None,
+        Some(b) => table_name(b),
+    };
+    elements(name).map(|e| e.at_j2000[0] * AU)
+}
+
 /// 惑星の地心位置（ECI = J2000 平均赤道）[m]。表に無いとき（埋め込みデータの破損）は NaN。
 pub(super) fn position_eci_m(body: Body, epoch: Epoch) -> Vec3 {
     let t = epoch.julian_centuries();

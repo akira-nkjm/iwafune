@@ -12,7 +12,9 @@
 //! | `pose` | 取付の連鎖 → 機体座標の位置・姿勢（sat-astro の Quat で合成。合成はここだけ） |
 //! | `quantity` | 書かれた量 → 型付きの SI 量（換算は sat-units） |
 //! | `missing` | 不足入力の型と収集 |
-//! | `power` `aocs` `cdh` `comm` `thermal` `structure` | 系ごとの射影 |
+//! | `reads` | 射影が読んだもの（部品の属性・設定・モード・ケース）の記録。記録の入口は `Context::note` だけ |
+//! | `power` `aocs` `cdh` `comm` `thermal` `structure` `propulsion` | 系ごとの射影 |
+//! | `orbit` | 軌道条件の解析の入力（季節解析: 軌道・期間・任意の刻み。高度低下: 軌道・質量・外形・抗力係数・`[decay]` の設定・推進系） |
 //! | `dispatch` | 解析 ID → 射影（入力の JSON）の対応表。実行は service（`sat_analysis::catalog::run_json`） |
 //! | `system` | 解析の系の対応（model の `AnalysisSystem` ⇄ sat-analysis の `System`）と一致のテスト |
 
@@ -23,10 +25,14 @@ pub mod comm;
 pub mod context;
 pub mod dispatch;
 pub mod missing;
+/// 軌道条件の解析（季節解析・高度低下）への写し替え。
+pub mod orbit;
 pub mod parts;
 pub mod pose;
 pub mod power;
+pub mod propulsion;
 pub mod quantity;
+pub mod reads;
 pub mod structure;
 pub mod system;
 pub mod thermal;
@@ -35,3 +41,4 @@ pub mod timeline;
 pub use context::Context;
 pub use dispatch::{Entry, OutputVisitor, ProjectionError, entries, project_json, visit_output};
 pub use missing::{MissingInput, MissingInputs};
+pub use reads::ReadLog;

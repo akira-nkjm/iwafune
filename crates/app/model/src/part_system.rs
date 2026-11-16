@@ -15,7 +15,12 @@ impl Design {
             .or_else(|| {
                 let part = self.parts.get(part)?;
                 let role = self.part_kind_id(part).and_then(|k| self.kind_role(k))?;
-                crate::builtin::labels().role_system.get(role)?.parse().ok()
+                crate::builtin::labels()
+                    .role_system
+                    .get(&role)?
+                    .as_deref()?
+                    .parse()
+                    .ok()
             })
     }
 }

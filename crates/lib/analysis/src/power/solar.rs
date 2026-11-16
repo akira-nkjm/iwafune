@@ -1,5 +1,5 @@
 //! 太陽電池の発電モデル。**日照時（`power.solar_sunlit`）・軌道上（`power.orbit_generation`）・
-//! 収支（`power.energy_balance`）の 3 つの解析はこのモデルだけを使う。**
+//! 収支（`power.energy_balance`）・逆算（`power.sizing`）はこのモデルだけを使う。**
 //!
 //! パネル 1 枚の発電（バス側）:
 //! `P = Φ · A · η_cell · f_pack · η_conv · f_life · max(0, n̂·ŝ) · ν`
@@ -149,6 +149,14 @@ impl SolarArray {
             .collect()
     }
 
+    /// 全パネルに真上から当たるときの発電の合計（バス側）[W]。姿勢による実効の入射係数の基準。
+    pub fn normal_incidence_power(&self, flux: Qty<Irradiance>, life: SolarLife) -> Qty<Power> {
+        let conv = self.conversion_efficiency();
+        self.panels
+            .iter()
+            .fold(Qty::ZERO, |sum, p| sum + p.power(flux, 1.0, life) * conv)
+    }
+
     /// 時系列の 1 点でのパネルごとの発電（バス側）[W]。太陽方向・日照率・太陽距離はサンプルから取る。
     pub fn sample_powers(&self, sample: &TimelineSample, life: SolarLife) -> Vec<Qty<Power>> {
         let flux = self.flux(Some(sample.sun_distance_m));
@@ -164,6 +172,8 @@ pub fn total(powers: &[Qty<Power>]) -> Qty<Power> {
 /// 時系列に沿った発電（軌道上の発電と電力収支で共有する）。値は SI の生の f64 [W]（時系列の内側）。
 #[derive(Debug, Clone)]
 pub struct SolarProfile {
+    /// 共通の影の判定による蝕区間。
+    pub eclipses: Vec<Window>,
     /// 元期からの経過 [s]
     pub t: Vec<f64>,
     /// 日照率
@@ -185,6 +195,7 @@ impl SolarProfile {
             }
         }
         Self {
+            eclipses: eclipses(samples),
             t: samples.iter().map(|s| s.t_s).collect(),
             sunlit: samples.iter().map(|s| s.sunlit).collect(),
             lit: samples.iter().map(is_sunlit).collect(),

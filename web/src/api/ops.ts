@@ -198,6 +198,7 @@ export function useSetText() {
         path,
         value,
         source: null,
+        at: null,
         note: null,
         min: null,
         max: null,
@@ -367,5 +368,24 @@ export function useTextOp(text: SetText | null): { op: Op | null; error: string 
   return {
     op: settled ? (query.data ?? null) : null,
     error: settled ? (query.error?.message ?? null) : null,
+  };
+}
+
+/** 季節解析から新しいケースの Op を作る。保存とプレビューは既存の Op の入口を使う。 */
+export function useEclipseCaseOp(id: string, at: string | null, mode: string) {
+  const qc = useQueryClient();
+  const revision = currentRevision(qc);
+  const now = at && id.trim() ? JSON.stringify({ id, at, mode: mode || null }) : "";
+  const json = useDebounced(now, 500);
+  const query = useQuery<Op, ApiError>({
+    queryKey: ["eclipse-case-op", revision, json],
+    queryFn: () => api<Op>("/ops/case_from_eclipse", { body: JSON.parse(json) }),
+    enabled: json.length > 0,
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  return {
+    ops: json === now && now && query.data ? [query.data] : null,
+    error: json === now ? query.error?.message : null,
   };
 }

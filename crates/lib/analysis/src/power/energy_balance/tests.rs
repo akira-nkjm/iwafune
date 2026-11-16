@@ -7,6 +7,7 @@ use crate::power::testkit::{leo_timeline, sun_pointing_z};
 use crate::spec::Verdict;
 use sat_astro::attitude::AttitudeLaw;
 use sat_astro::math::Vec3;
+use std::collections::BTreeMap;
 
 #[test]
 fn eclipse_drop_by_hand() {
@@ -52,11 +53,14 @@ fn input(panels: Vec<SolarPanel>, cases: Vec<EnergyBalanceCase>) -> EnergyBalanc
             solar_flux: Some(Qty::from_raw(1361.0)),
             conversion_efficiency: None,
         },
-        life: SolarLife::Bol,
+        life: Some(SolarLife::Bol),
         batteries: vec![battery_100wh()],
         loads: ModeLoadInput::default(),
-        load_growth: LoadGrowth::Included,
+        load_growth: Some(LoadGrowth::Included),
         cases,
+        sequence: Vec::new(),
+        base_mode: None,
+        mode_attitudes: BTreeMap::new(),
     }
 }
 
@@ -68,6 +72,7 @@ fn constant(id: &str, watts: f64) -> EnergyBalanceCase {
             power: Qty::from_raw(watts),
         },
         attitude: None,
+        max_duration: None,
     }
 }
 
@@ -170,16 +175,21 @@ fn sunlit_and_eclipse_modes() {
             by_state: [("on".to_owned(), Qty::from_raw(w))].into(),
         },
         growth_margin: Some(0.0),
+        redundancy: crate::modes::Redundancy::None,
+        states: Vec::new(),
     };
     let on = |p: &str| StateAssignment {
         part: p.to_owned(),
         state: "on".to_owned(),
         duty: Default::default(),
+        active: None,
+        spare_state: None,
     };
     let mode = |id: &str, a: Vec<StateAssignment>| ModeDef {
         id: id.to_owned(),
         label: String::new(),
         assignments: a,
+        eclipse: Vec::new(),
     };
     let mut i = input(
         vec![pz_panel()],
@@ -191,6 +201,7 @@ fn sunlit_and_eclipse_modes() {
                 eclipse_mode: "SAFE".to_owned(),
             },
             attitude: None,
+            max_duration: None,
         }],
     );
     i.loads = ModeLoadInput {
@@ -199,7 +210,7 @@ fn sunlit_and_eclipse_modes() {
             mode("MIS", vec![on("OBC"), on("CAM")]),
             mode("SAFE", vec![on("OBC")]),
         ],
-        default_growth_margin: 0.0,
+        default_growth_margin: Some(0.0),
     };
     let c = &EnergyBalance::run(&i).unwrap().cases[0];
     assert!((c.load_sunlit.value() - 10.0).abs() < 1e-12);
@@ -331,9 +342,32 @@ fn battery_combination_by_hand() {
     b.capacity = Qty::from_raw(180_000.0);
     b.voltage = Qty::from_raw(16.0);
     b.charge_efficiency = Some(0.8);
-    let total = EnergyBalanceBattery::combine(&[a, b]).unwrap();
+    let total = EnergyBalanceBattery::combine(&[a, b]).unwrap().battery;
     assert_eq!(total.capacity.value(), 540_000.0); // 100 Wh + 50 Wh
     assert_eq!(total.voltage.value(), 8.0); // 先頭の公称電圧
     assert_eq!(total.charge_eff(), 0.9);
     assert!(EnergyBalanceBattery::combine(&[]).is_err());
 }
+
+#[test]
+fn eclipse_assignment_reaches_balance_loads() {
+    use super::case::case_loads;
+    let loads: ModeLoadInput = serde_json::from_value(serde_json::json!({
+        "parts": [{"id":"HTR", "power":{"by_state":{"off":0,"on":5}}}],
+        "modes": [{"id":"HEAT","label":"", "assignments":[{"part":"HTR","state":"off"}],
+            "eclipse":[{"part":"HTR","state":"on"}]}]
+    }))
+    .unwrap();
+    let mut i = input(vec![pz_panel()], vec![]);
+    i.loads = loads;
+    let c: EnergyBalanceCase = serde_json::from_value(serde_json::json!({
+        "id":"test", "label":"", "load":{"kind":"mode","mode":"HEAT"}
+    }))
+    .unwrap();
+    let (sun, eclipse) = case_loads(&i, &c, &mut vec![]).unwrap();
+    assert_eq!(sun.value(), 0.0);
+    assert_eq!(eclipse.value(), 5.0);
+}
+
+mod operation;
+mod page_outputs;

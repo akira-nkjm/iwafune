@@ -13,17 +13,39 @@ use fune_model::value::ValueType;
 /// 表示名を持つ列挙（labels.toml の型の名前 → 値の綴りの一覧）。
 const LABELLED: &[(&str, &[&str])] = &[
     ("maturity", Maturity::NAMES),
+    // 真偽の値（設定の `true`・`false` の表示名。`builtin::setting_enums::setting_value_label`）
+    ("bool", &["false", "true"]),
+    ("redundancy", fune_model::design::Redundancy::NAMES),
     ("net_kind", NetKind::NAMES),
     ("budget_kind", BudgetKind::NAMES),
     ("source_kind", SourceKind::NAMES),
+    ("distribution", fune_model::design::Distribution::NAMES),
+    (
+        "shared_catalog_state",
+        fune_model::design::SharedCatalogState::NAMES,
+    ),
     ("evidence", Evidence::NAMES),
     ("origin", Origin::NAMES),
     ("severity", Severity::NAMES),
     ("attitude_law", AttitudeLawKind::NAMES),
+    (
+        "thermal_preset",
+        fune_model::design::ThermalPresetKind::NAMES,
+    ),
     ("propagator", PropagatorKind::NAMES),
     ("link_direction", LinkDirection::NAMES),
     ("uncertainty_side", UncertaintySide::NAMES),
     ("value_type", ValueType::NAMES),
+    (
+        "maneuver_category",
+        fune_model::design::ManeuverCategory::NAMES,
+    ),
+    ("maneuver_method", fune_model::design::ManeuverMethod::NAMES),
+    ("central_body", fune_model::design::CentralBodyKind::NAMES),
+    (
+        "maneuver_steering",
+        fune_model::design::ManeuverSteering::NAMES,
+    ),
 ];
 
 #[test]
@@ -62,6 +84,7 @@ fn sections_and_role_systems_name_analysis_systems() {
         );
     }
     for (role, system) in &l.role_system {
+        let Some(system) = system else { continue };
         assert!(
             system.parse::<AnalysisSystem>().is_ok(),
             "role_system.{role} = {system} は解析の系ではありません"

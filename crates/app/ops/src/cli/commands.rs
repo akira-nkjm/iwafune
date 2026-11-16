@@ -1,7 +1,7 @@
 //! Op ごとのコマンド。値の文字列は `fune_model::value` の書き方（`value_to_text`・`setting_to_text` など）で作る。
 
 use super::text::Cmd;
-use crate::op::{ModeCell, Op, ViewNodePos};
+use crate::op::{ModeCell, ModePosition, Op, ViewNodePos};
 use fune_model::design::{Net, NetField, NetFieldName, PartField};
 use fune_model::value::{
     Provenance, Scalar, Value, list_to_text, number_to_text, number_unit_to_text, quantity_to_text,
@@ -114,8 +114,12 @@ fn place(
 /// 定義・モード・ネット・図・設定の Op のコマンド。
 pub(super) fn other_op(op: &Op) -> Vec<String> {
     match op {
-        Op::CreateAttribute { def } => vec![super::defs::attr_add(def)],
-        Op::CreateKind { def } => vec![super::defs::kind_add(def)],
+        Op::CreateAttribute { def } => vec![super::defs::attr_cmd("add", def)],
+        Op::UpdateAttribute { def } => vec![super::defs::attr_cmd("replace", def)],
+        Op::DeleteAttribute { id } => vec![Cmd::new(&["fune", "attr", "rm", id]).done()],
+        Op::CreateKind { def } => vec![super::defs::kind_cmd("add", def)],
+        Op::UpdateKind { def } => vec![super::defs::kind_cmd("replace", def)],
+        Op::DeleteKind { id } => vec![Cmd::new(&["fune", "kind", "rm", id]).done()],
         Op::CreateMode {
             id,
             label,
@@ -130,6 +134,24 @@ pub(super) fn other_op(op: &Op) -> Vec<String> {
         ],
         Op::RemoveMode { id } => vec![Cmd::new(&["fune", "mode", "rm", id]).done()],
         Op::RenameMode { id, to } => vec![Cmd::new(&["fune", "mode", "rename", id, to]).done()],
+        Op::MoveMode { id, position } => vec![match position {
+            ModePosition::Before(anchor) => {
+                Cmd::new(&["fune", "mode", "move", id, "--before", anchor]).done()
+            }
+            ModePosition::After(anchor) => {
+                Cmd::new(&["fune", "mode", "move", id, "--after", anchor]).done()
+            }
+            ModePosition::First => Cmd::new(&["fune", "mode", "move", id, "--first"]).done(),
+            ModePosition::Last => Cmd::new(&["fune", "mode", "move", id, "--last"]).done(),
+        }],
+        Op::SetModeDuration { mode, duration } => vec![
+            Cmd::new(&["fune", "mode", "duration", mode])
+                .flag(
+                    "max-duration",
+                    duration.as_ref().map(quantity_to_text).as_deref(),
+                )
+                .done(),
+        ],
         Op::SetModeStates { cells } => cells.iter().map(mode_cell).collect(),
         Op::CreateNet { net } => vec![net_cmd("add", net)],
         Op::UpdateNet { net } => vec![net_cmd("replace", net)],
@@ -241,6 +263,7 @@ fn set_field(part: &str, field: &PartField) -> String {
         | PartField::Catalog(v)
         | PartField::Kind(v) => v.clone(),
         PartField::Count(n) => Some(n.to_string()),
+        PartField::Redundancy(r) => Some(r.as_str().to_string()),
         PartField::Maturity(m) => m.map(|m| m.as_str().to_string()),
         PartField::Candidates(c) => (!c.is_empty()).then(|| list_to_text(c)),
     };
@@ -262,9 +285,14 @@ fn mode_cell(cell: &ModeCell) -> String {
             });
             Cmd::new(&["fune", "mode", "set", &cell.mode, &cell.part, state])
                 .flag("duty", duty.as_deref())
+                .flag("active", cell.active.map(|n| n.to_string()).as_deref())
+                .flag("spare-state", cell.spare_state.as_deref())
+                .flag("eclipse", cell.eclipse.then_some("true"))
                 .done()
         }
-        None => Cmd::new(&["fune", "mode", "unset", &cell.mode, &cell.part]).done(),
+        None => Cmd::new(&["fune", "mode", "unset", &cell.mode, &cell.part])
+            .flag("eclipse", cell.eclipse.then_some("true"))
+            .done(),
     }
 }
 

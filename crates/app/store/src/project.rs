@@ -69,6 +69,7 @@ fn template_design(name: &str) -> (Project, Allocations, BudgetPolicy, Mode) {
             name: name.replace('"', ""),
             ..ProjectMeta::default()
         },
+        modes: None,
         catalogs: vec![CatalogSource {
             name: "local".to_owned(),
             path: Some("catalog".to_owned()),
@@ -100,6 +101,9 @@ fn template_design(name: &str) -> (Project, Allocations, BudgetPolicy, Mode) {
         label: None,
         description: Some("最小限の機器だけを動かす".to_owned()),
         states: BTreeMap::new(),
+
+        max_duration: None,
+        eclipse: Default::default(),
     };
     (project, allocations, policy, safe)
 }

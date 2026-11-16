@@ -1,20 +1,20 @@
 //! データ送信量と蓄積（`comm.data_throughput`）。パスごとの送信可能量、1 日の送信可能量と発生量、未送信データの推移。
 //!
 //! - 送信機は 1 台とみなし、複数局が同時に見える時間は先に始まったパスに割り当てる（二重に数えない）。
+//! - 下り回線は 1 本だけ数える（`downlink_rate` と局ごとの回線の条件 `station_links`）。ほかの下り回線は `other_downlinks` に名前だけ受け取り、数えていないと判定で知らせる。
 //! - パスのうち使える時間の割合は `usable_pass_fraction`（捕捉・コマンドの時間などを差し引く）。
-//! - `link` を与えると、回線余裕を満たす最低仰角（[`crate::comm::link`]）を局の最低仰角に重ねて、その上だけを数える。
+//! - `station_links` を与えると、回線余裕を満たす最低仰角（[`crate::comm::link`]）を局ごとに求め、その局の最低仰角に重ねて、その上だけを数える。
 //! - データは一様に発生し、パス中は「発生量 + 蓄積」を上限に送る。
 
-use crate::budget::{BudgetItem, limit_check};
 use crate::comm::link::{RfLinkParams, required_margin};
-use crate::comm::passes::{
-    SearchWindow, day_windows, find_all_passes, pass_interval, search_window,
-};
+use crate::comm::passes::{day_windows, find_all_passes, pass_interval, search_window};
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series, System, Verdict,
-    ensure_fraction, ensure_non_negative, ensure_positive, ratio_margin,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series,
+    System, ensure_fraction, ensure_non_negative, ensure_positive, ratio_margin,
 };
 use backlog::Backlog;
+use checks::checks;
+use closure::{station_closures, summarize, usable_stations};
 use sat_astro::constants::SECONDS_PER_DAY;
 use sat_astro::ground::GroundStation;
 use sat_astro::time::Epoch;
@@ -33,6 +33,15 @@ pub struct DataThroughputLink {
     pub rf: RfLinkParams,
     /// 所要 Eb/N0
     pub required_eb_n0_db: Decibel,
+}
+
+/// 局に専用の回線の条件（局ごとに地上側の利得などが違うとき）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct DataThroughputStationLink {
+    /// 地上局の ID（`stations` のどれか）
+    pub station: String,
+    pub link: DataThroughputLink,
 }
 
 /// データ送信量と蓄積の入力。
@@ -55,10 +64,19 @@ pub struct DataThroughputInput {
     /// 搭載ストレージの容量（与えると未送信データの最大と比べる）
     #[serde(default)]
     pub storage_capacity: Option<Qty<Information>>,
-    /// 回線の条件（与えると回線が閉じる仰角より上だけを数える）
+    /// 局ごとの回線の条件（与えた局は、回線が閉じる仰角より上だけを数える。与えない局は局の最低仰角だけで数える）
     #[serde(default)]
-    pub link: Option<DataThroughputLink>,
-    /// 要求する回線余裕（`link` があるときに使う。既定 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）
+    pub station_links: Vec<DataThroughputStationLink>,
+    /// 下り回線の帯域の設定が地上局に無いので数えない局の ID（`stations` には含めない。結果の `station_closures` に残す）
+    #[serde(default)]
+    pub stations_without_band: Vec<String>,
+    /// 送信量に数える下り回線の名前（表示用。`downlink_rate`・`station_links` はこの回線のもの）
+    #[serde(default)]
+    pub downlink: Option<String>,
+    /// 下り回線が複数あるとき、数えていない回線の名前（どの回線でデータを送るかを決める設定が無いため）
+    #[serde(default)]
+    pub other_downlinks: Vec<String>,
+    /// 要求する回線余裕（`station_links` があるときに使う。既定 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）
     #[serde(default)]
     pub required_margin_db: Option<Decibel>,
 }
@@ -81,7 +99,7 @@ impl DataThroughputInput {
     }
 }
 
-/// 回線が閉じるか（`link` を与えたときの、回線余裕を満たす最低仰角）。
+/// 回線が閉じるか（`station_links` で回線の条件を与えた局の、回線余裕を満たす最低仰角）。
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -92,6 +110,16 @@ pub enum DataThroughputLinkClosure {
     ClosesAbove { min_elevation: Qty<Angle> },
     /// 天頂でも要求の回線余裕を満たさない（送れない）
     NeverCloses,
+    /// 下り回線の帯域の設定が地上局に無い（その局は数えない。警告ではなく事実として残す）
+    NoBandSettings,
+}
+
+/// 局ごとの回線が閉じる仰角。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct DataThroughputStationClosure {
+    pub station: String,
+    pub closure: DataThroughputLinkClosure,
 }
 
 /// 1 パスの送信可能量。
@@ -127,9 +155,12 @@ pub struct DataThroughputDay {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct DataThroughputOutput {
-    /// 回線が閉じるか（`link` が無ければ `not_evaluated`）
+    /// 回線が閉じるか（回線の条件が無ければ `not_evaluated`。局が複数のときは、どれかの局で閉じるなら最も低い仰角、
+    /// どの局でも閉じなければ `never_closes`）
     pub link_closure: DataThroughputLinkClosure,
-    /// 使った回線余裕の要求値（`link` があるときだけ）
+    /// 局ごとの回線が閉じる仰角（帯域の設定が無くて数えない局も `no_band_settings` で載せる）
+    pub station_closures: Vec<DataThroughputStationClosure>,
+    /// 使った回線余裕の要求値（`station_links` で回線を評価したとき、つまり `link_closure` が `not_evaluated` でないときだけ）
     pub required_margin_db: Option<Decibel>,
     /// 使った「パスのうち送信に使える割合」（入力が無ければ既定値）
     pub usable_pass_fraction: Fraction,
@@ -153,7 +184,7 @@ pub struct DataThroughput;
 impl Analysis for DataThroughput {
     const ID: &'static str = "comm.data_throughput";
     const TITLE: &'static str = "データ送信量と蓄積";
-    const SYSTEM: System = System::Comm;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Comm);
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;
     const DESCRIPTION: &'static str = "1 日の送信可能量と発生量、未送信データの蓄積";
     const TITLE_EN: &'static str = "Downlink capacity and backlog";
@@ -165,21 +196,24 @@ impl Analysis for DataThroughput {
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         validate(input)?;
         let w = search_window(&input.sampling)?;
-        let closure = link_closure(input, &w)?;
-        let passes = match closure {
-            DataThroughputLinkClosure::NeverCloses => Vec::new(),
-            DataThroughputLinkClosure::NotEvaluated => {
-                find_all_passes(&w.orbit, &input.stations, w.start, w.span_s, w.step_s)?
-            }
-            DataThroughputLinkClosure::ClosesAbove { min_elevation } => {
-                let stations = raise_min_elevation(&input.stations, min_elevation);
-                find_all_passes(&w.orbit, &stations, w.start, w.span_s, w.step_s)?
-            }
+        let station_closures = station_closures(input, &w)?;
+        let closure = summarize(&station_closures);
+        let stations = usable_stations(input, &station_closures);
+        let passes = if stations.is_empty() {
+            Vec::new()
+        } else {
+            find_all_passes(&w.orbit, &stations, w.start, w.span_s, w.step_s)?
         };
         let rate = input.downlink_rate.value() * input.usable_pass_fraction().value();
         let (pass_results, intervals) = assign_passes(&passes, w.start, w.span_s, rate);
         let sim = simulate(input, w.start, w.span_s, rate, &intervals);
-        build_output(input, w.span_s, closure, pass_results, sim)
+        build_output(
+            input,
+            w.span_s,
+            (closure, station_closures),
+            pass_results,
+            sim,
+        )
     }
 }
 
@@ -188,49 +222,10 @@ fn validate(input: &DataThroughputInput) -> Result<(), AnalysisError> {
     ensure_fraction("パスのうち使える割合", input.usable_pass_fraction().value())?;
     ensure_non_negative("1 日の発生量", input.generated_per_day.value())?;
     ensure_non_negative("開始時の未送信データ", input.initial_backlog().value())?;
-    if let Some(link) = &input.link {
-        link.rf.validate("downlink")?;
+    for s in &input.station_links {
+        s.link.rf.validate("downlink")?;
     }
     Ok(())
-}
-
-/// 回線が閉じる最低仰角。`link` が無ければ [`DataThroughputLinkClosure::NotEvaluated`]。
-fn link_closure(
-    input: &DataThroughputInput,
-    w: &SearchWindow,
-) -> Result<DataThroughputLinkClosure, AnalysisError> {
-    let Some(link) = &input.link else {
-        return Ok(DataThroughputLinkClosure::NotEvaluated);
-    };
-    // 高度は平均（長半径 − 中心天体の半径）で代表させる。
-    let altitude = w.orbit.altitude_m();
-    if altitude <= 0.0 {
-        return Err(AnalysisError::InvalidInput("軌道の高度が負です".to_owned()));
-    }
-    let el = link.rf.min_elevation_for_margin(
-        w.orbit.central.radius_m(),
-        altitude,
-        input.downlink_rate.value(),
-        link.required_eb_n0_db,
-        input.required_margin_db(),
-    );
-    Ok(match el {
-        Some(e) => DataThroughputLinkClosure::ClosesAbove {
-            min_elevation: Qty::from_raw(e),
-        },
-        None => DataThroughputLinkClosure::NeverCloses,
-    })
-}
-
-fn raise_min_elevation(stations: &[GroundStation], min_el: Qty<Angle>) -> Vec<GroundStation> {
-    stations
-        .iter()
-        .map(|st| {
-            let mut st = st.clone();
-            st.min_elevation = Qty::from_raw(st.min_elevation.value().max(min_el.value()));
-            st
-        })
-        .collect()
 }
 
 /// パスに送信の時間を割り当てる（先に始まったパスが優先）。区間は開始からの秒。
@@ -308,7 +303,7 @@ fn simulate(
 fn build_output(
     input: &DataThroughputInput,
     span_s: f64,
-    closure: DataThroughputLinkClosure,
+    (closure, station_closures): (DataThroughputLinkClosure, Vec<DataThroughputStationClosure>),
     passes: Vec<DataThroughputPass>,
     sim: SimResult,
 ) -> Result<DataThroughputOutput, AnalysisError> {
@@ -316,11 +311,19 @@ fn build_output(
     let capacity_per_day = total_capacity / (span_s / SECONDS_PER_DAY);
     let generated = input.generated_per_day.value();
     let max_backlog = sim.backlog.points.iter().map(|p| p.1).fold(0.0, f64::max);
-    let checks = checks(input, closure, capacity_per_day, max_backlog)?;
+    let checks = checks(
+        input,
+        closure,
+        &station_closures,
+        capacity_per_day,
+        max_backlog,
+    )?;
     let (t, values): (Vec<f64>, Vec<f64>) = sim.backlog.points.iter().copied().unzip();
     Ok(DataThroughputOutput {
         link_closure: closure,
-        required_margin_db: input.link.as_ref().map(|_| input.required_margin_db()),
+        station_closures,
+        required_margin_db: (closure != DataThroughputLinkClosure::NotEvaluated)
+            .then(|| input.required_margin_db()),
         usable_pass_fraction: input.usable_pass_fraction(),
         passes,
         days: sim.days,
@@ -341,45 +344,9 @@ fn build_output(
     })
 }
 
-fn checks(
-    input: &DataThroughputInput,
-    closure: DataThroughputLinkClosure,
-    capacity_per_day: f64,
-    max_backlog: f64,
-) -> Result<Vec<Check>, AnalysisError> {
-    let mut out = Vec::new();
-    if closure == DataThroughputLinkClosure::NeverCloses {
-        out.push(Check::new(
-            "link_closes",
-            "回線",
-            Verdict::Violation,
-            "天頂でも要求の回線余裕を満たしません",
-        ));
-    }
-    // `value ≤ limit` の判定はバジェットの判定（`budget::limit_check`）を 1 行で使う。
-    let at_most = |key: &str, label: &str, value: f64, limit: f64| {
-        let row = [BudgetItem::counted(key, value, 1)];
-        limit_check::<Information>(&row, limit, key, label)
-    };
-    let generated = input.generated_per_day.value();
-    out.extend(at_most(
-        "capacity",
-        "送信可能量と発生量",
-        generated,
-        capacity_per_day,
-    )?);
-    if let Some(cap) = input.storage_capacity {
-        out.extend(at_most(
-            "storage",
-            "未送信データとストレージ",
-            max_backlog,
-            cap.value(),
-        )?);
-    }
-    Ok(out)
-}
-
 mod backlog;
+mod checks;
+mod closure;
 
 #[cfg(test)]
 mod tests;

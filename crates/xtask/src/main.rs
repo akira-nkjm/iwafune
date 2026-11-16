@@ -6,17 +6,23 @@
 //! - ファイルの長さ: 400 行を超える Rust / TS のファイルを警告する（CONTRIBUTING.md の目安）
 //! - 言語: Python のファイルが無いか（言語は Rust と TS だけ）
 //! - ファイル名: 同じディレクトリで大文字・小文字だけ違う名前が無いか（[`file_names`]。macOS で import が取り違える）
+//! - projection にモデル化の既定値を書かない: `const DEFAULT_…` と値の直書きの `unwrap_or(`（[`projection_defaults`]）
 //! - 1 機能 1 か所: 台帳で決めた定義が別のファイルに現れていないか（[`single_home`]）
+//! - 設計ファイルの書き込みの入口: `write::commit` を呼ぶのは store と ops だけ（例外は理由付きの許可リスト。[`store_writes`]）
 //! - Web の文字列の分解: ID やパスを `/`・`.` で分けていないか（[`web_strings`]）
 //! - Web の色の直書き: hex・色の名前（`white` など）・`color-mix(` が `lib/tone.ts` の外に無いか（[`web_colors`]）
 //! - Web のページ: ページの URL を `lib/nav.ts` の外で組み立てていないか、`features/` に shell などから依存していないか
 //!   （[`web_pages`]）
+//! - Web の役割名の比較: 部品の役割を文字列と比べて決めていないか（[`web_roles`]）
 
 mod file_names;
 mod module_cycles;
+mod projection_defaults;
 mod single_home;
+mod store_writes;
 mod web_colors;
 mod web_pages;
+mod web_roles;
 mod web_strings;
 
 use anyhow::{Context, Result, bail};
@@ -94,9 +100,12 @@ fn check() -> Result<()> {
     let files = source_files(&meta.workspace_root)?;
     file_names::check(&meta.workspace_root, &files, &mut errors);
     single_home::check(&meta.workspace_root, &files, &mut errors);
+    projection_defaults::check(&meta.workspace_root, &files, &mut errors);
+    store_writes::check(&meta.workspace_root, &files, &mut errors);
     web_strings::check(&meta.workspace_root, &files, &mut errors);
     web_colors::check(&meta.workspace_root, &files, &mut errors);
     web_pages::check(&meta.workspace_root, &files, &mut errors);
+    web_roles::check(&meta.workspace_root, &files, &mut errors);
     module_cycles::check(&meta.workspace_root, &mut errors)?;
     warn_long_files(&meta.workspace_root)?;
     if errors.is_empty() {

@@ -5,7 +5,7 @@ use super::net::Net;
 use crate::enum_text::enum_text;
 pub use crate::field_names::{CatalogFieldName, PartFieldName};
 use crate::id::Id;
-pub use crate::path::split_catalog_ref;
+pub use crate::path::{catalog_ref, split_catalog_ref};
 use crate::value::{Authored, Quaternion, Value, Vector3};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -47,6 +47,17 @@ enum_text! {
         OffTheShelf = "off_the_shelf",
         Modified = "modified",
         New = "new",
+    }
+}
+
+enum_text! {
+    /// 予備機の運用方式。
+    #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+    pub enum Redundancy: "冗長" {
+        #[default]
+        None = "none",
+        Cold = "cold",
+        Warm = "warm",
     }
 }
 
@@ -102,6 +113,8 @@ pub struct Part {
     pub candidates: Vec<CatalogRef>,
     /// 員数
     pub count: u32,
+    #[serde(default)]
+    pub redundancy: Redundancy,
     pub maturity: Option<Maturity>,
     pub mount: Option<Mount>,
     pub pose: Option<Pose>,
@@ -125,6 +138,7 @@ impl Part {
             kind: None,
             candidates: Vec::new(),
             count: 1,
+            redundancy: Redundancy::None,
             maturity: None,
             mount: None,
             pose: None,
@@ -148,7 +162,7 @@ pub struct CatalogItem {
     pub manufacturer: Option<String>,
     pub part_number: Option<String>,
     pub maturity: Option<Maturity>,
-    /// データシートの場所（URL かリポジトリ内のパス）
+    /// データシートの出典の ID（`sources/<ID>`）。URL・版・sha256 はその出典に書く（docs/model.md §7.8）
     pub datasheet: Option<String>,
     /// 出典を書いていない値に当てる既定の出典（`sources/<ID>`）
     pub source: Option<String>,
@@ -166,6 +180,7 @@ pub enum PartField {
     Catalog(Option<CatalogRef>),
     Kind(Option<String>),
     Count(u32),
+    Redundancy(Redundancy),
     Maturity(Option<Maturity>),
     Candidates(Vec<CatalogRef>),
 }
@@ -179,6 +194,7 @@ impl PartField {
             PartField::Catalog(_) => PartFieldName::Catalog,
             PartField::Kind(_) => PartFieldName::Kind,
             PartField::Count(_) => PartFieldName::Count,
+            PartField::Redundancy(_) => PartFieldName::Redundancy,
             PartField::Maturity(_) => PartFieldName::Maturity,
             PartField::Candidates(_) => PartFieldName::Candidates,
         }
@@ -198,6 +214,7 @@ impl PartField {
             PartFieldName::Kind => PartField::Kind(part.kind.as_ref().map(ToString::to_string)),
             PartFieldName::Candidates => PartField::Candidates(part.candidates.clone()),
             PartFieldName::Count => PartField::Count(part.count),
+            PartFieldName::Redundancy => PartField::Redundancy(part.redundancy),
             PartFieldName::Maturity => PartField::Maturity(part.maturity),
         }
     }

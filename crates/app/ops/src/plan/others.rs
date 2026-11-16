@@ -1,22 +1,18 @@
-//! 定義・モード・ネット・設定の Op の解釈（前提の確認 → store の編集）。
+//! モード・ネット・図・設定の Op の解釈（前提の確認 → store の編集）。
 
 use crate::error::OpError;
-use crate::op::{ModeCell, Op, ViewNodePos};
+use crate::op::{ModeCell, ModePosition, Op, ViewNodePos};
 use fune_model::Design;
-use fune_model::builtin;
-use fune_model::check::attribute_def_problems;
-use fune_model::design::{AttributeDef, KindDef, Mode, Net, StateAssign, ViewNode};
-use fune_model::id::{Id, clash, validate_entity_id, validate_local_name};
+use fune_model::design::{Mode, Net, StateAssign, ViewNode};
+use fune_model::id::{Id, clash, validate_entity_id};
 use fune_model::path::{self, ParamPath};
 use fune_model::value::SettingValue;
 use fune_store::Edits;
 use fune_store::layout;
-use fune_store::write::{entities, refs};
+use fune_store::write::{entities, project::set_mode_order, refs};
 
 pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> {
     match op {
-        Op::CreateAttribute { def } => create_attribute(edits, design, def),
-        Op::CreateKind { def } => create_kind(edits, design, def),
         Op::CreateMode {
             id,
             label,
@@ -26,12 +22,34 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         Op::RemoveMode { id } => {
             existing_mode(design, id)?;
             edits.remove(&layout::mode_file(id))?;
+            if let Some(modes) = &design.project.modes {
+                let order: Vec<_> = modes.order.iter().filter(|m| *m != id).cloned().collect();
+                set_mode_order(edits, &order)?;
+            }
             Ok(())
         }
         Op::RenameMode { id, to } => {
             existing_mode(design, id)?;
             new_flat_id(design.modes.keys().map(|k| k.as_str()), to, "モード")?;
-            Ok(refs::rename_mode(edits, design, id, to)?)
+            refs::rename_mode(edits, design, id, to)?;
+            if let Some(modes) = &design.project.modes {
+                let order: Vec<_> = modes
+                    .order
+                    .iter()
+                    .map(|m| if m == id { to.clone() } else { m.clone() })
+                    .collect();
+                set_mode_order(edits, &order)?;
+            }
+            Ok(())
+        }
+        Op::MoveMode { id, position } => move_mode(edits, design, id, position),
+        Op::SetModeDuration { mode, duration } => {
+            existing_mode(design, mode)?;
+            Ok(entities::set_mode_duration(
+                edits,
+                &layout::mode_file(mode),
+                duration.as_ref(),
+            )?)
         }
         Op::SetModeStates { cells } => cells.iter().try_for_each(|c| set_cell(edits, design, c)),
         Op::CreateNet { net } => {
@@ -133,30 +151,6 @@ fn set_view(
     )?)
 }
 
-fn create_attribute(edits: &mut Edits, design: &Design, def: &AttributeDef) -> Result<(), OpError> {
-    let id = def.id.as_str();
-    if design.attribute(id).is_some() {
-        return Err(OpError::exists(format!("属性 `{id}`")));
-    }
-    let problems = attribute_def_problems(def);
-    if !problems.is_empty() {
-        let text: Vec<String> = problems.into_iter().map(|(_, m)| m).collect();
-        return Err(OpError::invalid(text.join(" / ")));
-    }
-    let file = layout::attribute_file(id);
-    Ok(edits.create(&file, entities::new_attribute_text(&file, def)?)?)
-}
-
-fn create_kind(edits: &mut Edits, design: &Design, def: &KindDef) -> Result<(), OpError> {
-    let id = def.id.as_str();
-    validate_local_name(id).map_err(|e| OpError::invalid(e.to_string()))?;
-    if design.kind(id).is_some() || builtin::is_builtin_kind(id) {
-        return Err(OpError::exists(format!("種別 `{id}`")));
-    }
-    let file = layout::kind_file(id);
-    Ok(edits.create(&file, entities::new_kind_text(&file, def)?)?)
-}
-
 fn remove_net(edits: &mut Edits, design: &Design, id: &str) -> Result<(), OpError> {
     if !design.nets.contains_key(id) {
         return Err(OpError::not_found(format!("ネット `{id}`")));
@@ -171,7 +165,7 @@ fn set_setting(edits: &mut Edits, text: &str, value: Option<&SettingValue>) -> R
         path::parse(text).map_err(|e| OpError::invalid(e.to_string()))?
     else {
         return Err(OpError::invalid(format!(
-            "`{text}` は設定のパスではありません（mission. / analysis. / budget. で始めます）"
+            "`{text}` は設定のパスではありません（conditions. / analysis. / budget. で始めます）"
         )));
     };
     let (file, keys) = layout::setting_location(&setting)?;
@@ -229,8 +223,22 @@ fn create_mode(
         label: label.clone(),
         description: description.clone(),
         states,
+        max_duration: copy_from
+            .and_then(|src| design.modes.get(src))
+            .and_then(|m| m.max_duration.clone()),
+        eclipse: copy_from
+            .and_then(|src| design.modes.get(src))
+            .map(|m| m.eclipse.clone())
+            .unwrap_or_default(),
     };
-    Ok(edits.create(&layout::mode_file(id), entities::new_mode_text(&mode))?)
+    edits.create(&layout::mode_file(id), entities::new_mode_text(&mode))?;
+    if let Some(modes) = &design.project.modes {
+        let mut order = modes.order.clone();
+        order.retain(|m| m != id);
+        order.push(id.to_owned());
+        set_mode_order(edits, &order)?;
+    }
+    Ok(())
 }
 
 fn set_cell(edits: &mut Edits, design: &Design, cell: &ModeCell) -> Result<(), OpError> {
@@ -241,11 +249,14 @@ fn set_cell(edits: &mut Edits, design: &Design, cell: &ModeCell) -> Result<(), O
     let assign = cell.state.as_ref().map(|state| StateAssign {
         state: state.clone(),
         duty: cell.duty.clone(),
+        active: cell.active,
+        spare_state: cell.spare_state.clone(),
     });
     Ok(entities::set_mode_row(
         edits,
         &layout::mode_file(&cell.mode),
         &cell.part,
+        cell.eclipse,
         assign.as_ref(),
     )?)
 }
@@ -258,4 +269,49 @@ fn validate_view_edge(view: &str, key: &str) -> Result<(), OpError> {
         return Err(OpError::invalid("辺のキーが空です"));
     }
     Ok(())
+}
+
+/// いまの表示順から対象を抜き、移動先へ挿入する。
+fn move_mode(
+    edits: &mut Edits,
+    design: &Design,
+    id: &str,
+    position: &ModePosition,
+) -> Result<(), OpError> {
+    existing_mode(design, id)?;
+    if let ModePosition::Before(anchor) | ModePosition::After(anchor) = position {
+        existing_mode(design, anchor)?;
+        if anchor == id {
+            return Err(OpError::invalid("移動先には別のモードを指定します"));
+        }
+    }
+    let mut order: Vec<String> = design
+        .ordered_modes()
+        .iter()
+        .filter(|m| m.id.as_str() != id)
+        .map(|m| m.id.to_string())
+        .collect();
+    let at = match position {
+        ModePosition::First => 0,
+        ModePosition::Last => order.len(),
+        ModePosition::Before(anchor) | ModePosition::After(anchor) => {
+            let index = order
+                .iter()
+                .position(|m| m == anchor)
+                .ok_or_else(|| OpError::not_found(format!("モード `{anchor}`")))?;
+            index + usize::from(matches!(position, ModePosition::After(_)))
+        }
+    };
+    order.insert(at, id.to_owned());
+    // 手書きの欠けた参照は保存し、check の警告を維持する。
+    order.extend(
+        design
+            .project
+            .modes
+            .iter()
+            .flat_map(|m| &m.order)
+            .filter(|m| !design.modes.contains_key(m.as_str()))
+            .cloned(),
+    );
+    Ok(set_mode_order(edits, &order)?)
 }

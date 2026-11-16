@@ -17,6 +17,7 @@ export const projectEn: typeof projectJa = {
       missing: "Missing",
       fetching: "Fetching…",
       fetch: "Fetch",
+      fetchedAt: (at: string) => `fetched ${at}`,
     },
     projectPanel: "Project",
     name: "Name",
@@ -26,7 +27,7 @@ export const projectEn: typeof projectJa = {
     revision: "Revision",
     schema: "Schema version",
     groups: {
-      mission: { title: "Mission", caption: "mission/ — orbit, ground stations, period" },
+      conditions: { title: "Conditions", caption: "conditions/ — orbit, ground stations, period" },
       analysis: { title: "Analysis", caption: "analysis/ — settings of each subsystem analysis" },
       budget: { title: "Budget", caption: "budget/ — allocations and margin policy" },
     },

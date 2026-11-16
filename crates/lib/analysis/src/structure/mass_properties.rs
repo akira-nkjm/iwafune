@@ -6,7 +6,7 @@
 
 use crate::budget::{BudgetItem, limit_check};
 use crate::spec::quantity_text;
-use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, Verdict};
+use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict};
 use sat_astro::math::{Mat3, Quat, Vec3};
 use sat_units::typed::{Fraction, Length, Mass, Qty};
 use serde::{Deserialize, Serialize};
@@ -100,7 +100,7 @@ pub struct MassProperties;
 impl Analysis for MassProperties {
     const ID: &'static str = "structure.mass_properties";
     const TITLE: &'static str = "質量特性";
-    const SYSTEM: System = System::Structure;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Structure);
     const KIND: AnalysisKind = AnalysisKind::Steady;
     const DESCRIPTION: &'static str = "総質量・重心・慣性テンソル";
     const TITLE_EN: &'static str = "Mass properties";

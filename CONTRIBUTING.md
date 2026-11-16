@@ -17,6 +17,7 @@
 5. **CLI と GUI の対等性。** すべての操作は `fune-service` の関数として作り、CLI と HTTP の両方から呼ぶ。人が打った文字列の解釈（`fune set` の値の型など）も
    service が持ち、GUI も同じ関数を通す（`POST /ops/from_text`）。CLI と HTTP で同じ編集をするとファイルがバイト単位で一致すること（パリティテスト）。
    例外は `fune init`（サーバーはプロジェクトの中でしか動かないので HTTP に無い）だけ。
+   設計ファイルへの書き込みも Op だけを通す（`fune_store::write::commit` を呼ぶのは store と ops だけ）。例外は `fune fmt`（正規形への書き直し）と共有カタログの取り込み（派生の `catalog.lock`）の 2 つで、`cargo xtask check` が検査する。
 
 `cargo xtask check` が機械的に検査する: 依存の向き、モジュールの循環、台帳、「1 か所だけ」の規則（`crates/xtask/src/single_home.rs`）、
 Web の禁止事項（`fetch(` は API クライアントだけ、数の整形・`Intl.NumberFormat` は `web/src/quantity/` だけ、色の直書き（hex・`white` などの色の名前）と色の混ぜ方（`color-mix(`）は `lib/tone.ts` だけ（`index.css` の色は `pnpm -C web tokens` でそこから書き出す。`crates/xtask/src/web_colors.rs`）、
@@ -29,7 +30,7 @@ Web の禁止事項（`fetch(` は API クライアントだけ、数の整形�
 | crate | 責務 | してはいけないこと |
 |---|---|---|
 | `sat-units` | 単位・次元・量の唯一の正本。型付きの量（`Qty`）、表示の種類（`Fraction`・`Decibel*`）、量と単位の表示文字列（`format`） | — |
-| `sat-astro` | 数学、積分器、時刻、軌道、天体、食、地球、重力、地磁気、大気、地上局、姿勢則、時系列。慣例の既定値（`with_defaults` など） | 解析固有の判断、ファイル I/O（大きなデータはバイト列で受け取る） |
+| `sat-astro` | 数学、積分器、時刻、軌道、天体、食、地球、重力、地磁気、大気、地上局、姿勢則、時系列、ロケット方程式。慣例の既定値（`with_defaults` など） | 解析固有の判断、ファイル I/O（大きなデータはバイト列で受け取る） |
 | `sat-analysis` | 各系の解析と判定。入出力は型付きの SI 量。モデル化の既定値は解析が持つ（入力は `Option`） | `fune-*` への依存、I/O。判定文の数は `spec::quantity_text`（sat-units）だけで書く |
 | `fune-model` | 設計データの型、組み込みの属性・種別・語彙の表示名、解決（Resolved）、検証（check） | ファイル I/O |
 | `fune-store` | ディレクトリ ⇄ Design の読み書き（toml_edit、正規形 = `fune fmt`）、revision、ロック | 検証ロジック、物理計算 |
@@ -43,6 +44,7 @@ Web の禁止事項（`fetch(` は API クライアントだけ、数の整形�
 ## コーディング規約
 
 - Rust: edition 2024、stable の最新。`cargo fmt` と `cargo clippy --all-targets -- -D warnings` を通す。
+- モジュールは `x.rs` と `x/y.rs` で書き、`mod.rs` を使わない（clippy の `mod_module_files` で検出。結合テストの共有の `tests/common/mod.rs` だけは例外）。
 - エラーはライブラリでは `thiserror`、バイナリでは `anyhow`。ライブラリのコードで `unwrap` / `expect` を使わない（テストは可）。
 - 公開する型・関数には `///` で説明を書く（日本語）。各 crate の lib.rs の先頭に、持っているモジュールと責務を書く。
 - 解析の関数には手計算や文献値と比べるテストを最低 1 つ付ける。リファクタリングではデモの解析結果の数値が変わらないことを確かめる。

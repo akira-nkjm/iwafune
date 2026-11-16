@@ -15,7 +15,10 @@ fn definitions_references_and_paths_come_from_model() {
     for attr in &design.defs.attributes {
         assert_eq!(attr.section, snapshot.design.attribute_section(&attr.id));
     }
-    assert_eq!(design.defs.labels.role_system["reaction_wheel"], "aocs");
+    assert_eq!(
+        design.defs.labels.role_system[&fune_model::builtin::Role::ReactionWheel].as_deref(),
+        Some("aocs")
+    );
     let wheel = design.parts.iter().find(|p| p.id == "RW_X").unwrap();
     assert_eq!(wheel.paths["power"]["on"], "RW_X.power.on");
     assert_eq!(wheel.paths["mass"][""], "RW_X.mass");
@@ -94,14 +97,14 @@ fn ends_places_and_setting_groups_are_structured() {
         assert!(design.tree.iter().any(|n| &n.id == dir), "{dir}");
     }
     let setting = |key: &str| design.settings.iter().find(|s| s.key == key).unwrap();
-    let altitude = setting("mission.orbit.altitude");
+    let altitude = setting("conditions.orbit.altitude");
     assert_eq!(
         (
             altitude.scope,
             altitude.group.as_str(),
             altitude.field.as_str()
         ),
-        (SettingScope::Mission, "mission.orbit", "altitude")
+        (SettingScope::Conditions, "conditions.orbit", "altitude")
     );
     assert_eq!(altitude.system, None);
     assert_eq!(

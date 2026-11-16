@@ -1,3 +1,4 @@
+import { loadLayout3D } from "@/features/layout3d/LazyLayout3D";
 import { preloadSystem } from "@/features/systems/preload";
 import { isSystemItem, type NavItemKey } from "@/lib/nav";
 import { lazyPage as page, quietly } from "@/shell/lazy-page";
@@ -29,6 +30,14 @@ export const pages = {
     () => import("@/features/modes/ModesPage"),
     (m) => m.ModesPage,
   ),
+  layout: page(
+    () => import("@/features/layout3d/LayoutPage"),
+    (m) => m.LayoutPage,
+  ),
+  maneuvers: page(
+    () => import("@/features/maneuvers/ManeuversPage"),
+    (m) => m.ManeuversPage,
+  ),
   defs: page(
     () => import("@/features/defs/DefsPage"),
     (m) => m.DefsPage,
@@ -38,11 +47,11 @@ export const pages = {
     (m) => m.SystemPage,
   ),
   orbit: page(
-    () => import("@/features/mission/OrbitPage"),
+    () => import("@/features/conditions/OrbitPage"),
     (m) => m.OrbitPage,
   ),
   cases: page(
-    () => import("@/features/mission/CasesPage"),
+    () => import("@/features/conditions/CasesPage"),
     (m) => m.CasesPage,
   ),
   diagnostics: page(
@@ -52,6 +61,10 @@ export const pages = {
   settings: page(
     () => import("@/features/project/SettingsPage"),
     (m) => m.SettingsPage,
+  ),
+  sources: page(
+    () => import("@/features/sources/SourcesPage"),
+    (m) => m.SourcesPage,
   ),
 };
 
@@ -66,6 +79,7 @@ function preloadItem(key: NavItemKey): void {
     return;
   }
   quietly(pages[key].load());
+  if (key === "layout") quietly(loadLayout3D());
 }
 
 /** 先読みの計画。大きなチャンク（系統図の React Flow）は空き時間には読まない（ホバーで読む） */
@@ -76,11 +90,13 @@ export const preloadPlan: PreloadPlan = {
     pages.components,
     pages.catalog,
     pages.modes,
+    pages.maneuvers,
     pages.defs,
     pages.system,
     pages.orbit,
     pages.cases,
     pages.diagnostics,
     pages.settings,
+    pages.sources,
   ],
 };

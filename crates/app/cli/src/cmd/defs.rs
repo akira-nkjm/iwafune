@@ -1,16 +1,20 @@
-//! `fune attr add`・`fune kind add` の引数 → `CreateAttribute`・`CreateKind`。旗は定義のフィールドと 1 対 1。
+//! `fune attr add|replace|rm`・`fune kind add|replace|rm` の引数 → `CreateAttribute`|`UpdateAttribute`|`DeleteAttribute`・`CreateKind`|`UpdateKind`|`DeleteKind`。旗は定義のフィールドと 1 対 1。
 //! 引数は GUI の定義の作成と同じ打った引数の型（`AttrAddText`・`KindAddText`）にして、service の
 //! `edit::attr_add_op`・`kind_add_op` が読む（表示名の既定・数・一覧・ポートの雛形の読み方も service）。
 
 use super::common::{Built, list};
 use crate::args::{AttrAddArgs, AttrCmd, KindAddArgs, KindCmd};
-use fune_service::dto::{AttrAddText, KindAddText};
+use fune_service::dto::{AttrAddText, KindAddText, Op};
 use fune_service::edit;
 
-/// `fune attr add`
+/// `fune attr add|replace|rm`
 pub fn attr(c: &AttrCmd) -> Built<'_> {
-    let AttrCmd::Add(a) = c else { return Ok(None) };
-    Ok(Some((edit::attr_add_op(&attr_text(a))?, &a.edit)))
+    Ok(Some(match c {
+        AttrCmd::Add(a) => (edit::attr_add_op(&attr_text(a))?, &a.edit),
+        AttrCmd::Replace(a) => (edit::attr_replace_op(&attr_text(a))?, &a.edit),
+        AttrCmd::Rm { id, edit } => (Op::DeleteAttribute { id: id.clone() }, edit),
+        AttrCmd::Ls => return Ok(None),
+    }))
 }
 
 fn attr_text(a: &AttrAddArgs) -> AttrAddText {
@@ -34,10 +38,14 @@ fn attr_text(a: &AttrAddArgs) -> AttrAddText {
     }
 }
 
-/// `fune kind add`
+/// `fune kind add|replace|rm`
 pub fn kind(c: &KindCmd) -> Built<'_> {
-    let KindCmd::Add(a) = c else { return Ok(None) };
-    Ok(Some((edit::kind_add_op(&kind_text(a))?, &a.edit)))
+    Ok(Some(match c {
+        KindCmd::Add(a) => (edit::kind_add_op(&kind_text(a))?, &a.edit),
+        KindCmd::Replace(a) => (edit::kind_replace_op(&kind_text(a))?, &a.edit),
+        KindCmd::Rm { id, edit } => (Op::DeleteKind { id: id.clone() }, edit),
+        KindCmd::Ls => return Ok(None),
+    }))
 }
 
 fn kind_text(a: &KindAddArgs) -> KindAddText {
@@ -60,7 +68,6 @@ mod tests {
     use super::*;
     use crate::args::Cli;
     use clap::Parser;
-    use fune_service::dto::Op;
 
     fn attr_op(args: &[&str]) -> Op {
         let cli = Cli::try_parse_from(args).unwrap();

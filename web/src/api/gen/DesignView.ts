@@ -3,13 +3,14 @@ import type { CaseView } from "./CaseView";
 import type { CatalogItemView } from "./CatalogItemView";
 import type { DefsView } from "./DefsView";
 import type { DiagnosticView } from "./DiagnosticView";
-import type { EvidenceSource } from "./EvidenceSource";
 import type { HarnessView } from "./HarnessView";
+import type { ManeuverView } from "./ManeuverView";
 import type { ModeTable } from "./ModeTable";
 import type { NetView } from "./NetView";
 import type { PartRow } from "./PartRow";
 import type { ProjectInfo } from "./ProjectInfo";
 import type { SettingView } from "./SettingView";
+import type { SourceView } from "./SourceView";
 import type { TreeNode } from "./TreeNode";
 import type { ViewLayout } from "./ViewLayout";
 
@@ -22,9 +23,13 @@ export type DesignView = { project: ProjectInfo,
  */
 tree: Array<TreeNode>, parts: Array<PartRow>, modes: ModeTable, nets: Array<NetView>, harnesses: Array<HarnessView>, defs: DefsView, settings: Array<SettingView>, cases: Array<CaseView>, 
 /**
- * 出典の台帳（`sources/<ID>.toml`）
+ * マヌーバ（実行の順）
  */
-sources: Array<EvidenceSource>, 
+maneuvers: Array<ManeuverView>, 
+/**
+ * 出典の台帳（`sources/<ID>.toml`。ID 順）
+ */
+sources: Array<SourceView>, 
 /**
  * カタログ品（`"local/rw_10mNms"` の順。値は部品と同じ形で、パスと使っている部品も品の中に）
  */

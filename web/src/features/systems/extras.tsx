@@ -4,7 +4,6 @@ import { analysisOutput } from "@/api/analysis-output";
 import type { AnalysisState } from "@/api/queries";
 import type { AnalysisOutputs, DesignView, System } from "@/api/types";
 import { LazyLayout3D } from "@/features/layout3d/LazyLayout3D";
-import type { V3 } from "@/features/layout3d/scene";
 import { heatHex, toneHex } from "@/lib/tone";
 import { hasExtras } from "./preload";
 import type { SystemTab } from "./SystemTabs";
@@ -23,7 +22,7 @@ function outputOf<K extends keyof AnalysisOutputs>(
 }
 
 /**
- * 系ごとの追加の表示（構造: 3D 配置と重心、熱: 節点温度の表と温度で塗った 3D）。どの系が持つかは `preload.ts` の
+ * 系ごとの追加の表示（熱: 節点温度の表と温度で塗った 3D）。大きなチャンクは `preload.ts` の
  * `EXTRA_CHUNKS`（ナビの先読みと共通）で、下の分岐はその系をちょうど覆う（型で確かめる）。
  */
 export function systemExtras(
@@ -31,13 +30,8 @@ export function systemExtras(
   design: DesignView | undefined,
   states: readonly AnalysisState[],
 ): Partial<Record<SystemTab, ReactNode>> {
-  if (!design || !hasExtras(system)) return {};
-  if (system === "structure") {
-    const mp = outputOf(states, "structure.mass_properties");
-    const c = mp?.summary.center_of_mass;
-    const com: V3 | null = c ? [c.x, c.y, c.z] : null;
-    return { results: <LazyLayout3D variant="placement" design={design} com={com} /> };
-  }
+  if (!design) return {};
+  if (!hasExtras(system)) return {};
   if (system === "thermal") {
     const map = heatMapOf(outputOf(states, "thermal.steady"));
     if (!map) return {};

@@ -8,7 +8,7 @@ export type Q4 = [number, number, number, number];
 
 export interface Box3D {
   id: string;
-  /** 機体座標の位置 [m]（API の body_position） */
+  /** 機体座標の位置 [m]（API の `PartRow.body`） */
   position: V3;
   /** 機体座標の姿勢 [w, x, y, z] */
   orientation: Q4;
@@ -16,6 +16,10 @@ export interface Box3D {
   size: V3;
   color: string;
   sized: boolean;
+  /** API が返した系で構造を判別する（名前や ID から推測しない）。 */
+  structure: boolean;
+  /** 取付の根（機体座標の原点。3D で掴んで動かさない） */
+  fixed: boolean;
 }
 
 /** 部品座標の方向ベクトルを持つ属性（RW のスピン軸・MTQ の軸・パネルの法線・センサの視線・推力の向き） */
@@ -27,6 +31,38 @@ export interface Axis3D {
   part: string;
   /** 部品座標の向き（長さは表示のために 1 に揃える） */
   dir: V3;
+}
+
+/** 視野の円錐の不透明度（中の部品が透けて見える薄さ） */
+export const FOV_OPACITY = 0.08;
+
+/** 視野の円錐（部品座標の視線の向きと半角）。部品の子として描く */
+export interface Fov3D {
+  part: string;
+  /** 部品座標の視線の向き（長さ 1） */
+  dir: V3;
+  /** 視野の半角 [rad] */
+  halfAngle: number;
+}
+
+/** 円錐を描く半角の上限 [rad]。これより広い視野は上限で描く（半球に近い円錐は平らになり形が読めないため） */
+export const FOV_DRAW_MAX = (80 * Math.PI) / 180;
+
+/** 視線（`boresight`）と視野の半角（`fov_half_angle`）を両方持つ部品の視野 */
+export function fovsOf(design: DesignView): Fov3D[] {
+  const out: Fov3D[] = [];
+  for (const p of design.parts) {
+    if (!p.body) continue;
+    const dir = p.values.boresight?.value;
+    const half = p.values.fov_half_angle?.value;
+    if (dir?.type !== "vector" || half?.type !== "scalar") continue;
+    const d = new Vector3(...dir.si);
+    const angle = half.nominal.si;
+    if (d.lengthSq() === 0 || !(angle > 0)) continue;
+    d.normalize();
+    out.push({ part: p.id, dir: [d.x, d.y, d.z], halfAngle: Math.min(angle, FOV_DRAW_MAX) });
+  }
+  return out;
 }
 
 /** 方向属性を部品の子として描く矢印にする。座標変換は親 mesh に任せる */
@@ -52,7 +88,8 @@ export const SCENE_RATIOS = {
   arrow: 0.25,
   arrowHead: 0.06,
   arrowWidth: 0.035,
-  comRadius: 0.025,
+  comRadius: 0.012,
+  fovLength: 0.3,
   axes: 0.5,
   grid: 6,
   gridCell: 0.05,
@@ -109,20 +146,22 @@ export function boxesOf(
   const boxes: Box3D[] = [];
   const unplaced: string[] = [];
   for (const p of design.parts) {
-    // 取付のある部品だけを置く（取付があれば機体座標の位置・姿勢は必ず API が返す）
-    const m = p.mount;
-    if (!m) {
+    // 機体座標の位置・姿勢がある部品（取付のある部品と取付の根。API が決める）だけを置く
+    const body = p.body;
+    if (!body) {
       unplaced.push(p.id);
       continue;
     }
     const size = sizeOf(p);
     boxes.push({
       id: p.id,
-      position: m.body_position,
-      orientation: m.body_orientation,
+      position: body.position,
+      orientation: body.orientation,
       size: size ?? [0, 0, 0],
       color: colorOf?.(p.id) ?? toneHex[systemTone(p.system)],
       sized: size !== null,
+      structure: p.system === "structure",
+      fixed: body.root,
     });
   }
   const bounds = boundsOf(boxes);
@@ -132,4 +171,42 @@ export function boxesOf(
       box.size = [dimensions.defaultBox, dimensions.defaultBox, dimensions.defaultBox];
   }
   return { boxes, unplaced, dimensions };
+}
+
+/**
+ * クリックの光線が当たった箱（近い順の ID）から選ぶ部品。いちばん手前を選ぶ。選んでいる部品が当たりの中にあれば、
+ * その次（奥）を選ぶ（最後なら手前に戻る）。外板の中の部品は、同じ所をもう一度押して選ぶ（CAD の奥への選択と同じ）。
+ */
+export function pickBox(hits: readonly string[], selected: string | null): string | null {
+  const unique = [...new Set(hits)];
+  if (unique.length === 0) return null;
+  const at = selected === null ? -1 : unique.indexOf(selected);
+  return unique[(at + 1) % unique.length] ?? null;
+}
+
+/** 配置では構造の内側が見える不透明度を既定にする。 */
+export const DEFAULT_STRUCTURE_OPACITY = 0.3;
+
+/** 材質は透過モードを固定し、スライダー操作でシェーダーを作り直さない。透過した箱は奥行きを遮らない。 */
+/** 選んだ部品があるとき、ほかの部品の不透明度に掛ける比（選んだ部品を目立たせる） */
+export const DIMMED_OPACITY_RATIO = 0.25;
+
+/**
+ * 箱の材質。`dimmed` はほかの部品が選ばれているとき（不透明度を `DIMMED_OPACITY_RATIO` 倍に下げる）。
+ */
+export function boxMaterial(
+  box: Box3D,
+  selected: boolean,
+  structureOpacity?: number,
+  dimmed = false,
+) {
+  const base = selected
+    ? 1
+    : box.structure && structureOpacity !== undefined
+      ? structureOpacity
+      : box.sized
+        ? 0.85
+        : 0.45;
+  const opacity = dimmed && !selected ? base * DIMMED_OPACITY_RATIO : base;
+  return { color: box.color, transparent: true, opacity, depthWrite: opacity === 1 };
 }

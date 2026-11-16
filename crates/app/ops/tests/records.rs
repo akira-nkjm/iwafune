@@ -78,8 +78,7 @@ fn sources_and_harnesses() {
         label: Some("熱真空試験".into()),
         reference: Some("TR-TVAC-01".into()),
         date: Some("2027-01-20".into()),
-        by: None,
-        note: None,
+        ..Source::new("tvac_2027_01", SourceKind::Measured)
     };
     let p = plan(&snap, &[Op::SetSource { source }]).unwrap();
     assert!(
@@ -97,11 +96,26 @@ fn sources_and_harnesses() {
         }],
     );
     assert!(matches!(used, Err(OpError::Rejected { .. })));
+    // 出典の付いた長さは `[length]` の下に 1 行 1 要素なので、値だけを変えると 1 行だけが変わる。
     let mut h = snap.design.harnesses["H_PCDU_RWX"].clone();
+    if let Some(length) = h.length.as_mut() {
+        length.value = 0.42;
+    }
+    let p = plan(&snap, &[Op::SetHarness { harness: h.clone() }]).unwrap();
+    let (_, added) = one_line_change(&p);
+    assert_eq!(added, "value       = 0.42");
+    // 出典を外すと 1 行のインライン表に戻る（`=` の揃えも fmt と同じ）。
     h.length = Some(Quantity::new(0.42, "m"));
     let p = plan(&snap, &[Op::SetHarness { harness: h }]).unwrap();
-    let (_, added) = one_line_change(&p);
-    assert_eq!(added, "length = { value = 0.42, unit = \"m\" }");
+    let text = p.changes[0].after.as_deref().unwrap();
+    assert!(
+        text.ends_with("cores  = 2\nlength = { value = 0.42, unit = \"m\" }\n"),
+        "{text}"
+    );
+    assert_eq!(
+        fune_store::format::format_text(&p.changes[0].path, text).unwrap(),
+        text
+    );
     assert!(
         plan(
             &snap,
@@ -215,6 +229,16 @@ fn every_op_has_a_cli_form() {
         Op::CreateAttribute {
             def: fune_model::builtin::attributes()["mass"].clone(),
         },
+        Op::UpdateKind {
+            def: fune_model::builtin::kinds()["heater"].clone(),
+        },
+        Op::UpdateAttribute {
+            def: fune_model::builtin::attributes()["mass"].clone(),
+        },
+        Op::DeleteKind {
+            id: "heater".into(),
+        },
+        Op::DeleteAttribute { id: "mass".into() },
         Op::SetSetting {
             path: "analysis.cdh.storage_margin".into(),
             value: None,

@@ -7,7 +7,7 @@ import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { Button } from "@/ui/button";
 
-/** 外部データ（天体の暦など）の状態と取得。状態の検証はサービスが行い、ここは表示するだけ */
+/** 外部データ（天体の暦・宇宙天気の表）の状態と取得。状態の検証はサービスが行い、ここは表示するだけ */
 export function DataPanel() {
   const words = useT().project.data;
   const status = useQuery(q.dataStatus());
@@ -26,6 +26,9 @@ export function DataPanel() {
               <span className="font-mono">{item.id}</span>: {stateText(item, words)}{" "}
               {item.size?.display}
             </span>
+            {item.fetched_at && (
+              <span className="font-mono text-ink-3">{words.fetchedAt(item.fetched_at)}</span>
+            )}
             <Button
               variant="outline"
               size="xs"

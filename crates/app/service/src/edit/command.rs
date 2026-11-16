@@ -1,12 +1,9 @@
-//! 名詞のコマンドに打った引数 → Op（`fune net set|unset`・`fune part place`・`fune mode set|unset`、`POST /ops/from_command`）。
-//! 入口は [`command_ops`]。CLI はコマンドごとの関数（[`net_set_ops`] など）を直接呼ぶが、中身は同じ。定義の作成
-//! （`fune attr add`・`fune kind add`）は `super::defs`。値の読み方は `super::text`（量・ベクトル・クォータニオン・一覧・`名前=値`）。
+//! 名詞のコマンドに打った引数 → Op（`fune net set|unset`・`fune part place`・`fune mode set|unset`、`POST /ops/from_command`）。入口は [`command_ops`]（CLI はコマンドごとの関数を直接呼ぶ）。定義は `super::defs`、マヌーバは `super::maneuver`、配置は `super::place`、値の読み方は `super::text`。
 
 use super::text::{
-    given, invalid, list_from_text, net_kind, pair_from_text, quantity_from_text,
-    quaternion_from_text, vector_from_text,
+    fraction_from_text, invalid, list_from_text, net_kind, pair_from_text, quantity_from_text,
 };
-use crate::dto::{CommandText, ModeCellText, ModeSetText, NetSetText, NetUnsetText, PlaceText};
+use crate::dto::{CommandText, ModeCellText, ModeSetText, NetSetText, NetUnsetText};
 use crate::error::Result;
 use fune_model::design::{NetField, NetFieldName};
 use fune_model::path::PortRef;
@@ -18,10 +15,32 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
     Ok(match t {
         CommandText::NetSet(t) => net_set_ops(t)?,
         CommandText::NetUnset(t) => vec![net_unset_op(t)?],
-        CommandText::PartPlace(t) => vec![place_op(t)?],
+        CommandText::PartPlace(t) => vec![super::place::place_op(t)?],
+        CommandText::ModeMove {
+            id,
+            before,
+            after,
+            first,
+            last,
+        } => {
+            vec![mode_move_op(
+                id,
+                before.as_deref(),
+                after.as_deref(),
+                *first,
+                *last,
+            )?]
+        }
         CommandText::ModeSet(t) => vec![mode_set_op(t)?],
+        CommandText::ModeDuration { mode, duration } => {
+            vec![mode_duration_op(mode, duration.as_deref())?]
+        }
         CommandText::AttrAdd(t) => vec![super::defs::attr_add_op(t)?],
+        CommandText::AttrReplace(t) => vec![super::defs::attr_replace_op(t)?],
         CommandText::KindAdd(t) => vec![super::defs::kind_add_op(t)?],
+        CommandText::KindReplace(t) => vec![super::defs::kind_replace_op(t)?],
+        CommandText::ManeuverAdd(t) => vec![super::maneuver::maneuver_op(t, true)?],
+        CommandText::ManeuverSet(t) => vec![super::maneuver::maneuver_op(t, false)?],
     })
 }
 
@@ -89,20 +108,6 @@ fn net_field(name: NetFieldName, text: Option<&str>) -> Result<NetField> {
     })
 }
 
-/// `fune part place` → `Place`（取付と、取付点に対する位置・姿勢を丸ごと置き換える）。取付先が無ければ機体の根。
-pub fn place_op(t: &PlaceText) -> Result<Op> {
-    let on = given(&t.on);
-    Ok(Op::Place {
-        part: t.part.trim().to_owned(),
-        on: on.map(str::to_owned),
-        point: on.and(given(&t.point)).map(str::to_owned),
-        position: given(&t.position).map(vector_from_text).transpose()?,
-        orientation: given(&t.orientation)
-            .map(quaternion_from_text)
-            .transpose()?,
-    })
-}
-
 /// `fune mode set|unset` のセルの列 → 1 つの `SetModeStates`。
 pub fn mode_set_op(t: &ModeSetText) -> Result<Op> {
     if t.cells.is_empty() {
@@ -135,16 +140,20 @@ fn mode_cell(c: &ModeCellText) -> Result<ModeCell> {
         part: c.part.trim().to_owned(),
         state,
         duty,
+        active: c
+            .active
+            .as_deref()
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| s.trim().parse::<u32>().map_err(invalid))
+            .transpose()?,
+        spare_state: c
+            .spare_state
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned),
+        eclipse: c.eclipse,
     })
-}
-
-/// 時間割合（`"0.1"`）。範囲と合計は設計の検査（`fune_model::check`）が見る。
-fn fraction_from_text(text: &str) -> Result<f64> {
-    text.trim()
-        .parse::<f64>()
-        .ok()
-        .filter(|f| f.is_finite())
-        .ok_or_else(|| invalid(format!("時間割合は数（0〜1）で書きます: {text}")))
 }
 
 /// `--duty tx=0.1,rx=0.2` → 状態 → 打った割合（`ModeCellText.duty`）。一覧は `list_from_text`、組は `pair_from_text`。
@@ -156,6 +165,40 @@ pub fn duty_from_text(text: &str) -> Result<BTreeMap<String, String>> {
                 .ok_or_else(|| invalid(format!("--duty は 状態=割合 の形です: {pair}")))
         })
         .collect()
+}
+
+/// `fune mode duration` と HTTP で共有する量の読み方。
+pub fn mode_duration_op(mode: &str, duration: Option<&str>) -> Result<Op> {
+    Ok(Op::SetModeDuration {
+        mode: mode.trim().to_owned(),
+        duration: duration.map(quantity_from_text).transpose()?,
+    })
+}
+
+/// CLI と GUI の移動指定を同じ Op にする。移動先は必ず 1 つだけ指定する。
+pub fn mode_move_op(
+    id: &str,
+    before: Option<&str>,
+    after: Option<&str>,
+    first: bool,
+    last: bool,
+) -> Result<Op> {
+    use fune_ops::op::ModePosition;
+    let position = match (before, after, first, last) {
+        (Some(anchor), None, false, false) => ModePosition::Before(anchor.trim().to_owned()),
+        (None, Some(anchor), false, false) => ModePosition::After(anchor.trim().to_owned()),
+        (None, None, true, false) => ModePosition::First,
+        (None, None, false, true) => ModePosition::Last,
+        _ => {
+            return Err(invalid(
+                "--before / --after / --first / --last のどれか 1 つを指定します",
+            ));
+        }
+    };
+    Ok(Op::MoveMode {
+        id: id.trim().to_owned(),
+        position,
+    })
 }
 
 #[cfg(test)]
@@ -256,6 +299,9 @@ mod tests {
                 .iter()
                 .map(|(s, f)| ((*s).to_owned(), (*f).to_owned()))
                 .collect(),
+            active: None,
+            spare_state: None,
+            eclipse: false,
         };
         let op = mode_set_op(&ModeSetText {
             cells: vec![
@@ -279,54 +325,5 @@ mod tests {
             cells: vec![cell(Some(" "), &[])],
         };
         assert!(mode_set_op(&blank).is_err());
-    }
-
-    /// 配置: 位置・姿勢の文字列は `fune part place --position` と同じ読み方。取付先が空なら機体の根で、取付点も書かない。
-    #[test]
-    fn place_reads_vector_and_quaternion_text() {
-        let t = PlaceText {
-            part: "RW_X".into(),
-            on: Some("PANEL_MZ".into()),
-            point: Some("RW_SLOT_X".into()),
-            position: Some("0 0 12 mm".into()),
-            orientation: Some("1 0 0 0".into()),
-        };
-        let Op::Place {
-            on,
-            point,
-            position,
-            orientation,
-            ..
-        } = place_op(&t).unwrap()
-        else {
-            panic!()
-        };
-        assert_eq!(
-            (on.as_deref(), point.as_deref()),
-            (Some("PANEL_MZ"), Some("RW_SLOT_X"))
-        );
-        let p = position.unwrap();
-        assert_eq!((p.z, p.unit.as_deref()), (12.0, Some("mm")));
-        assert_eq!(orientation.unwrap().w, 1.0);
-        let root = PlaceText {
-            on: Some(" ".into()),
-            position: Some(String::new()),
-            ..t.clone()
-        };
-        let Op::Place {
-            on,
-            point,
-            position,
-            ..
-        } = place_op(&root).unwrap()
-        else {
-            panic!()
-        };
-        assert_eq!((on, point, position), (None, None, None));
-        let bad = PlaceText {
-            position: Some("0 0 mm".into()),
-            ..t
-        };
-        assert!(place_op(&bad).is_err());
     }
 }

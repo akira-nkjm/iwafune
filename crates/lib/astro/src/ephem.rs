@@ -102,11 +102,9 @@ pub fn sun_direction_eci(epoch: Epoch) -> Vec3 {
 }
 
 /// 中心天体 `central` から太陽への単位ベクトル（ECI）。地球なら [`sun_direction_eci`] と同じ。
-pub fn sun_direction_from(central: CentralBody, epoch: Epoch) -> Vec3 {
-    central
-        .relative_position_m(Body::Sun, epoch)
-        .normalized()
-        .unwrap_or(Vec3::X)
+/// 中心天体が太陽のときは向きが決まらないので `None`（任意の向きを作らない）。
+pub fn sun_direction_from(central: CentralBody, epoch: Epoch) -> Option<Vec3> {
+    central.relative_position_m(Body::Sun, epoch).normalized()
 }
 
 /// J2000 の黄道傾斜角 ε₀ [rad]。

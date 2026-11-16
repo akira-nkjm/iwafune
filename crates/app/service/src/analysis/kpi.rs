@@ -1,14 +1,17 @@
-//! KPI（系の代表値）。**どの値を代表にするか（最悪値の選び方）・判定・塗りの比・判定の数え方はここだけ。**
-//! CLI（`fune analyze`）と Web（系のページの数値帯・概要のカード）は、ここで作った `KpiView` を並べるだけにする。
+//! KPI（系・前提条件の話題の代表値）。**どの値を代表にするか（最悪値の選び方）・判定・塗りの比・判定の数え方はここだけ。**
+//! CLI（`fune analyze`）と Web（系・前提条件のページの数値帯・概要のカード）は、ここで作った `KpiView` を並べるだけにする。
 //!
 //! - 値: 解析ごとに出力を型に戻し（下の `kpi_table!`）、欄を引く。並び（ケース・センサ・回線・節点など）は
 //!   KPI ごとに最大か最小（最悪の側）を選ぶ。次元は型から（`sat_units::typed::NamedKind`）。
-//! - 判定: 判定の対象の KPI は解析の判定（`checks` の最悪）。対象でない KPI（発生量・可視時間など）は null。
+//!   電力収支はケースの判定に使った運用の値（最長継続時間で評価したケースは `by_max_duration`）とモードの並びから選ぶ。
+//! - 判定: 判定の対象の KPI は、対応する check（`rule::CheckMatch`。キーの完全一致か接頭辞）の最悪。対応する check が無ければ null、
+//!   対象でない KPI（発生量・可視時間など）も null。解析全体を代表する KPI（節点の動作範囲）だけが全 check の最悪。
 //! - 塗りの比: 値そのものが比の KPI（DoD・余裕）は値、判定を数える KPI は OK の割合。
 //! - 判定の数え方: 判定を数える KPI（節点の動作範囲）は、解析の判定の数と OK でない数。
 //!
 //! 表示名は `labels::kpi_label`。電力のモードの選び方はバジェットと同じ `budget::budget_mode`。
 
+use self::rule::{Fill, rule};
 use super::labels::kpi_label;
 use crate::dto::{CheckView, FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView};
 use crate::units::quantity_auto;
@@ -92,7 +95,7 @@ fn one<M: Measure>(value: M) -> Option<Measured> {
 
 macro_rules! kpi_table {
     ($($a:ty { $($key:ident => $f:path),+ $(,)? })+) => {
-        /// 解析が出す KPI のキー（系のページに並べる順）。KPI を出さない解析は空。
+        /// 解析が出す KPI のキー（所属する区分のページに並べる順）。KPI を出さない解析は空。
         fn keys(id: &str) -> &'static [KpiKey] {
             $(if id == <$a as Analysis>::ID {
                 return &[$(KpiKey::$key),+];
@@ -114,12 +117,23 @@ macro_rules! kpi_table {
 }
 
 kpi_table! {
-    power::ModeLoad { ModeLoad => mode_load }
-    power::OrbitGeneration { OrbitGeneration => orbit_generation }
-    power::EnergyBalance { OrbitBalance => orbit_balance, MaxDod => max_dod }
+    sat_analysis::orbit::EclipseSeason { LongestEclipse => orbit::longest_eclipse, BetaMin => orbit::beta_min, BetaMax => orbit::beta_max }
+    sat_analysis::orbit::OrbitDecay {
+        OrbitLifetime => orbit::orbit_lifetime,
+        DecayPerDay => orbit::decay_per_day,
+        StationKeepingDeltaV => orbit::station_keeping_delta_v,
+    }
+    power::ModeLoad { ModeLoad => power_kpi::mode_load }
+    power::OrbitGeneration {
+        OrbitGeneration => power_kpi::orbit_generation,
+        SunlitFraction => power_kpi::sunlit_fraction,
+    }
+    power::EnergyBalance { OrbitBalance => power_kpi::orbit_balance, MaxDod => power_kpi::max_dod }
+    power::Sizing { SapMargin => power_kpi::sap_margin, BatteryMargin => power_kpi::battery_margin }
     aocs::RwUnloading { UnloadInterval => unload_interval, PeakMomentum => peak_momentum }
-    aocs::UnloadTime { MtqUnloadTime => mtq_unload_time }
+    aocs::UnloadTime { MtqUnloadTime => mtq_unload_time, RcsUnloadTime => rcs_unload_time }
     aocs::SensorFov { SensorIntrusion => sensor_intrusion }
+    aocs::SlewTime { SlewTime => slew_time }
     cdh::DataBudget {
         DataPerDay => data_per_day,
         StorageRequired => storage_required,
@@ -137,30 +151,37 @@ kpi_table! {
     structure::MassProperties { TotalMass => total_mass }
     structure::StaticLoad { MinSafetyMargin => min_safety_margin }
     structure::ModalEstimate { MinFrequency => min_frequency }
+    sat_analysis::propulsion::Maneuvers { LongestTransfer => propulsion::longest_transfer }
+    sat_analysis::propulsion::DvBudget { DvWithMargin => propulsion::dv_with_margin }
+    sat_analysis::propulsion::Propellant {
+        LoadedPropellant => propulsion::loaded_propellant,
+        TankVolumeMargin => propulsion::tank_volume_margin,
+    }
+    sat_analysis::propulsion::ThrusterUsage { ImpulseMargin => propulsion::impulse_margin }
+    sat_analysis::propulsion::OrbitHistoryAnalysis { ManeuversEnd => propulsion::maneuvers_end }
+    sat_analysis::propulsion::PropellantMassProperties { ComShift => propulsion::com_shift }
+    power::ThrustBalance { ThrustMaxDod => propulsion::thrust_max_dod }
 }
 
 type Ctx<'a> = KpiContext<'a>;
 
-fn mode_load(o: &power::ModeLoadOutput, ctx: Ctx<'_>) -> Option<Measured> {
-    one(crate::budget::budget_mode(o, ctx.case_mode)?.total_with_growth)
-}
-fn orbit_generation(o: &power::OrbitGenerationOutput, _: Ctx<'_>) -> Option<Measured> {
-    one(o.orbit_average)
-}
-fn orbit_balance(o: &power::EnergyBalanceOutput, _: Ctx<'_>) -> Option<Measured> {
-    smallest(o.cases.iter().map(|c| c.orbit_average_balance))
-}
-fn max_dod(o: &power::EnergyBalanceOutput, _: Ctx<'_>) -> Option<Measured> {
-    largest(o.cases.iter().map(|c| c.max_dod))
-}
 fn unload_interval(o: &aocs::RwUnloadingOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.unload_interval?)
 }
 fn peak_momentum(o: &aocs::RwUnloadingOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.peak_momentum)
 }
+/// MTQ でのアンロード時間（MTQ を評価していなければ None）。
 fn mtq_unload_time(o: &aocs::UnloadTimeOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.mtq.as_ref()?.time)
+}
+/// RCS でのアンロード時間（最悪の向き。スラスタを評価していないか、捨てられない向きがあれば None）。
+/// MTQ と RCS は別の手段で、解析の出力はどちらを使うかを持たないので、両方あれば 2 つの KPI として並べる。
+fn rcs_unload_time(o: &aocs::UnloadTimeOutput, _: Ctx<'_>) -> Option<Measured> {
+    one(o.rcs.as_ref()?.worst.time?)
+}
+fn slew_time(o: &aocs::SlewTimeOutput, _: Ctx<'_>) -> Option<Measured> {
+    one(o.worst.time)
 }
 fn sensor_intrusion(o: &aocs::SensorFovOutput, _: Ctx<'_>) -> Option<Measured> {
     largest(o.sensors.iter().map(|s| s.intrusion_fraction))
@@ -209,56 +230,6 @@ fn counted_only<T>(_: &T, _: Ctx<'_>) -> Option<Measured> {
     None
 }
 
-/// 塗りの比の決め方。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Fill {
-    /// 塗らない
-    None,
-    /// 値そのもの（比の KPI）
-    Value,
-    /// OK の判定の割合（判定を数える KPI）
-    OkShare,
-}
-
-/// KPI ごとの扱い: 判定の対象か・塗りの比・判定を数えるか。
-struct Rule {
-    judged: bool,
-    fill: Fill,
-    tally: bool,
-}
-
-fn rule(key: KpiKey) -> Rule {
-    use KpiKey as K;
-    let (judged, fill, tally) = match key {
-        K::MaxDod | K::StorageMargin => (true, Fill::Value, false),
-        K::NodesInRange => (true, Fill::OkShare, true),
-        K::OrbitBalance
-        | K::UnloadInterval
-        | K::MtqUnloadTime
-        | K::SensorIntrusion
-        | K::LinkMargin
-        | K::DownlinkPerDay
-        | K::MaxBacklog
-        | K::MaxTemperature
-        | K::MinTemperature
-        | K::TransientMaxTemperature
-        | K::TotalMass
-        | K::MinSafetyMargin
-        | K::MinFrequency => (true, Fill::None, false),
-        K::ModeLoad
-        | K::OrbitGeneration
-        | K::PeakMomentum
-        | K::DataPerDay
-        | K::StorageRequired
-        | K::ContactPerDay => (false, Fill::None, false),
-    };
-    Rule {
-        judged,
-        fill,
-        tally,
-    }
-}
-
 /// KPI の定義（キーと表示名）。
 fn def(key: KpiKey) -> KpiDef {
     let l = kpi_label(key);
@@ -266,6 +237,7 @@ fn def(key: KpiKey) -> KpiDef {
         key,
         label: l.label,
         label_en: l.label_en,
+        when_measured: rule(key).when_measured,
     }
 }
 
@@ -284,16 +256,33 @@ pub(crate) fn kpis(
     let Some(output) = output else {
         return Vec::new();
     };
-    let verdict = Verdict::worst(checks.iter().map(|c| c.verdict));
     let tally = KpiTally {
         checked: u32::try_from(checks.len()).unwrap_or(u32::MAX),
         flagged: u32::try_from(checks.iter().filter(|c| c.verdict != Verdict::Ok).count())
             .unwrap_or(u32::MAX),
     };
-    measure(id, output, ctx)
+    let judged = measure(id, output, ctx)
         .into_iter()
-        .map(|(key, value)| view(key, value, verdict, tally))
+        .map(|(key, value)| (key, value, rule(key).checks.verdict(checks)))
+        .collect();
+    only_measured(judged)
+        .into_iter()
+        .map(|(key, value, verdict)| view(key, value, verdict, tally))
         .collect()
+}
+
+/// KPI の値と、対応する check の判定。
+type Judged = (KpiKey, Option<Measured>, Option<Verdict>);
+
+/// 値も判定も無い「測れたときだけ出す」KPI（設計が持たない手段）を外す（すべて外れるなら先頭の 1 つを残す）。
+/// 値が無くても判定があれば残す（RCS だけの設計で捨てられない向きがあるときの RCS の違反を、KPI の行に出すため）。
+fn only_measured(all: Vec<Judged>) -> Vec<Judged> {
+    let keep =
+        |(k, v, verdict): &Judged| v.is_some() || verdict.is_some() || !rule(*k).when_measured;
+    if !all.iter().any(keep) {
+        return all.into_iter().take(1).collect();
+    }
+    all.into_iter().filter(keep).collect()
 }
 
 fn view(
@@ -315,11 +304,18 @@ fn view(
         label: d.label,
         label_en: d.label_en,
         value: value.map(|v| quantity_auto(v.si, v.kind)),
-        verdict: if r.judged { verdict } else { None },
+        verdict: if r.checks.is_judged() { verdict } else { None },
         fill,
         tally,
     }
 }
 
+mod orbit;
+mod power_kpi;
+mod propulsion;
+mod rule;
+
 #[cfg(test)]
-mod tests;
+mod rule_tests;
+#[cfg(test)]
+pub(crate) mod tests;

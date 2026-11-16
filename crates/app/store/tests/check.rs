@@ -267,7 +267,7 @@ fn setting_dimensions_come_from_the_table() {
         Some("analysis.power.sequence.0.duration")
     );
     let ground = "latitude = { value = 35.0, unit = \"deg\" }\nlongitude = { value = 139.0, unit = \"m\" }\n\n[link.s]\ntx_power = { value = 1.0, unit = \"K\" }\n";
-    let d = diags(&[("mission/ground/GS.toml", ground)]);
+    let d = diags(&[("conditions/ground/GS.toml", ground)]);
     let paths: Vec<String> = d
         .iter()
         .filter(|x| x.code == "unit.dimension")
@@ -276,8 +276,8 @@ fn setting_dimensions_come_from_the_table() {
     assert_eq!(
         paths,
         [
-            "mission.ground.GS.link.s.tx_power",
-            "mission.ground.GS.longitude"
+            "conditions.ground.GS.link.s.tx_power",
+            "conditions.ground.GS.longitude"
         ]
     );
     let material = "[material.al]\nthermal_conductivity = { value = 1.0, unit = \"W\" }\n";

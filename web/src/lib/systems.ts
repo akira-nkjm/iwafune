@@ -10,6 +10,7 @@ const tones: Record<System, Tone> = {
   payload: "rose",
   thermal: "orange",
   structure: "violet",
+  propulsion: "magenta",
 };
 
 /** API が返す系の色。未所属は中立色。 */

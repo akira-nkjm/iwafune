@@ -6,19 +6,8 @@
 use sat_units::typed::{Fraction, NamedKind};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
-/// 解析が属する系。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-#[serde(rename_all = "snake_case")]
-pub enum System {
-    Power,
-    Aocs,
-    Cdh,
-    Comm,
-    Thermal,
-    Structure,
-    Payload,
-}
+mod area;
+pub use area::{AnalysisArea, ConditionTopic, System};
 
 /// 定常か時系列か。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,7 +27,7 @@ pub struct AnalysisInfo {
     pub title: String,
     /// 英語の題名（GUI の英語表示）
     pub title_en: String,
-    pub system: System,
+    pub area: AnalysisArea,
     pub kind: AnalysisKind,
     pub description: String,
     /// 英語の説明（GUI の英語表示）
@@ -47,15 +36,18 @@ pub struct AnalysisInfo {
 
 /// すべての解析が実装する trait。
 pub trait Analysis {
-    /// 例: `"power.energy_balance"`（`<系>.<名前>`）
+    /// 例: `"power.energy_balance"`（`<区分のキー>.<名前>`）
     const ID: &'static str;
     const TITLE: &'static str;
-    const SYSTEM: System;
+    const AREA: AnalysisArea;
     const KIND: AnalysisKind;
     const DESCRIPTION: &'static str;
     /// 英語の題名と説明（GUI の英語表示）
     const TITLE_EN: &'static str;
     const DESCRIPTION_EN: &'static str;
+    /// 計算の中で結果を使う（中で回す）ほかの解析の ID。中で `X::run` を呼ぶ解析・同じ計算を倍率を変えて回す解析は
+    /// ここにその ID を書く（解析どうしのつながりの表示に使う。`catalog::uses`）
+    const USES: &'static [&'static str] = &[];
 
     type Input: Serialize + DeserializeOwned;
     type Output: Serialize;
@@ -68,7 +60,7 @@ pub trait Analysis {
             id: Self::ID.to_owned(),
             title: Self::TITLE.to_owned(),
             title_en: Self::TITLE_EN.to_owned(),
-            system: Self::SYSTEM,
+            area: Self::AREA,
             kind: Self::KIND,
             description: Self::DESCRIPTION.to_owned(),
             description_en: Self::DESCRIPTION_EN.to_owned(),
@@ -119,6 +111,12 @@ pub struct Channel {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(rename_all = "snake_case")]
 pub enum ChannelKind {
+    /// 季節の β 角。
+    Beta,
+    /// 1 周の本影の時間。
+    UmbraDuration,
+    /// 1 周の半影の時間（本影を含まない）。
+    PenumbraDuration,
     /// 発電電力（パネルの合計）
     Generation,
     /// 日照率
@@ -143,6 +141,8 @@ pub enum ChannelKind {
     SrpTorque,
     /// 残留磁気トルク
     MagneticTorque,
+    /// 推力誤差のトルク（推力の線と重心のずれ）
+    ThrustTorque,
     /// 擾乱トルクの合計
     TotalDisturbanceTorque,
     /// 機体の角運動量の x 成分（機体座標系）
@@ -167,6 +167,12 @@ pub enum ChannelKind {
     AbsorbedHeat,
     /// 未送信データ
     Backlog,
+    /// 軌道の高度（高度低下の推移・マヌーバの順の軌道の推移）
+    Altitude,
+    /// 軌道の傾斜角（マヌーバの順の軌道の推移）
+    Inclination,
+    /// 機体の質量（推薬を使うと減る）
+    Mass,
 }
 
 impl Channel {
@@ -312,6 +318,9 @@ pub fn ensure_non_negative(name: &str, v: f64) -> Result<(), AnalysisError> {
         )))
     }
 }
+
+mod sampling;
+pub use sampling::{DEFAULT_ORBITS, daily_sampling, orbit_count, orbits_sampling};
 
 mod orbit;
 pub use orbit::{

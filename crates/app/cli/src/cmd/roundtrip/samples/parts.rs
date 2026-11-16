@@ -54,6 +54,7 @@ fn value_ops() -> Vec<Op> {
     .unwrap();
     let from = Some(Provenance {
         source: Some(s("em_test_2026_10")),
+        at: Some(s("TR-EM 表 4")),
         note: Some(s("EM 実測 \"v2\"")),
     });
     vec![
@@ -128,6 +129,10 @@ fn unset_and_field_ops() -> Vec<Op> {
         Op::SetField {
             part: s("RW_X"),
             field: PartField::Count(3),
+        },
+        Op::SetField {
+            part: s("RW_X"),
+            field: serde_json::from_value(json!({"field":"redundancy","value":"warm"})).unwrap(),
         },
         Op::SetField {
             part: s("RW_X"),

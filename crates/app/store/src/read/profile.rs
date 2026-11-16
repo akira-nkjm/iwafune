@@ -2,7 +2,7 @@
 //! （意味の検査は `fune_model::check`）。どれも `fune fmt` で直せる。
 
 use super::spans::LineIndex;
-use crate::profile::integer_keys;
+use crate::profile::{integer_keys, renamed};
 use fune_model::Severity;
 use toml_edit::{Item, Table, Value};
 
@@ -26,6 +26,18 @@ pub fn findings(path: &str, doc: &toml_edit::Document<String>) -> Vec<ProfileFin
     };
     let mut out = Vec::new();
     walk_table(doc.as_table(), &walk, &mut out);
+    for (key, rule) in renamed::old_keys(path, doc.as_table()) {
+        let line = key.span().map_or(0, |s| lines.position(s.start).0);
+        out.push((
+            Severity::Warning,
+            "toml.renamed_key",
+            line,
+            format!(
+                "`{}` は `{}` に名前が変わりました（古い名前も読みます。`fune fmt` で書き換えます）",
+                rule.old, rule.new
+            ),
+        ));
+    }
     out
 }
 

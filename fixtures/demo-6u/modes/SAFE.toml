@@ -3,6 +3,7 @@ description = "太陽指向で電力を確保。RW は止め、MTQ で B-dot。U
 
 [states]
 CAM     = { state = "off" }
+EPT     = { state = "off" }
 GPS     = { state = "off" }
 HTR_BAT = { state = "off", duty = { on = 0.4 } }
 HTR_CAM = { state = "off", duty = { on = 0.3 } }

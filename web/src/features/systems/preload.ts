@@ -3,12 +3,11 @@ import type { System } from "@/api/types";
 import { loadLayout3D } from "@/features/layout3d/LazyLayout3D";
 
 /**
- * 追加の表示（`extras.tsx` の `systemExtras`）を持つ系と、その表示が使う大きなチャンク（構造と熱の 3D 配置は three.js）。
- * **追加の表示を持つ系はここだけに書く**: `systemExtras` はこの系の分だけ分岐し、型（`ExtraSystem`）で突き合わせる。
+ * 大きなチャンクを使う追加の表示（`extras.tsx` の `systemExtras`）を持つ系と、そのチャンク（熱の温度で塗った 3D は three.js）。
+ * **大きなチャンクを使う系はここだけに書く**: `systemExtras` はこの系を型（`ExtraSystem`）で突き合わせる。
  * 表示の本体（extras.tsx）は大きいので、ナビの先読み（`routes/pages.ts`）はこちらの軽いモジュールだけを読む。
  */
 export const EXTRA_CHUNKS = {
-  structure: [loadLayout3D],
   thermal: [loadLayout3D],
 } as const satisfies Partial<Record<System, readonly (() => Promise<unknown>)[]>>;
 

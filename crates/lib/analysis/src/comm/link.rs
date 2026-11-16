@@ -9,7 +9,7 @@ use crate::spec::AnalysisError;
 use sat_astro::constants::{C_LIGHT, K_BOLTZMANN};
 use sat_astro::ground::slant_range_m;
 use sat_astro::math::bisect;
-use sat_units::typed::{Decibel, Frequency, Power, Qty, Temperature};
+use sat_units::typed::{Decibel, DecibelPerKelvin, Frequency, Power, Qty, Temperature};
 use sat_units::{db_to_ratio, ratio_to_db};
 use serde::{Deserialize, Serialize};
 use std::f64::consts::{FRAC_PI_2, PI};
@@ -48,6 +48,10 @@ pub struct RfLinkParams {
     pub rx_loss_db: Option<Decibel>,
     /// 受信系のシステム雑音温度
     pub system_noise_temperature: Qty<Temperature>,
+    /// 受信系の G/T [dB/K]（与えれば `rx_gain_db`・`rx_loss_db`・`system_noise_temperature` から求めた G/T の代わりに使う。
+    /// 両方あるときはこちらを優先し、結果の `g_over_t_given` で分かる）
+    #[serde(default)]
+    pub rx_g_over_t_dbk: Option<DecibelPerKelvin>,
     /// 大気・降雨の損失 [dB]。省略時 0
     #[serde(default)]
     pub atmospheric_loss_db: Option<Decibel>,
@@ -78,6 +82,8 @@ pub struct LinkEvaluation {
     pub extra_loss_db: f64,
     /// 受信系の G/T [dB/K]
     pub g_over_t_dbk: f64,
+    /// G/T が与えられた値か（`false` なら利得・損失・雑音温度から求めた値）
+    pub g_over_t_given: bool,
     /// C/N0 [dBHz]
     pub c_over_n0_dbhz: f64,
 }
@@ -126,6 +132,7 @@ impl RfLinkParams {
             self.rx_gain_db.value(),
             self.rx_loss(),
             self.extra_loss_db(),
+            self.rx_g_over_t_dbk.map_or(0.0, DecibelPerKelvin::value),
         ];
         if positive.iter().any(|v| !(v.is_finite() && *v > 0.0))
             || finite.iter().any(|v| !v.is_finite())
@@ -169,16 +176,22 @@ impl RfLinkParams {
         );
         let fspl = fspl_db(range_m, self.frequency.value());
         let extra = self.extra_loss_db();
-        let g_t = g_over_t_dbk(
-            self.rx_gain_db.value(),
-            self.rx_loss(),
-            self.system_noise_temperature.value(),
+        let g_t = self.rx_g_over_t_dbk.map_or_else(
+            || {
+                g_over_t_dbk(
+                    self.rx_gain_db.value(),
+                    self.rx_loss(),
+                    self.system_noise_temperature.value(),
+                )
+            },
+            DecibelPerKelvin::value,
         );
         LinkEvaluation {
             eirp_dbw: eirp,
             fspl_db: fspl,
             extra_loss_db: extra,
             g_over_t_dbk: g_t,
+            g_over_t_given: self.rx_g_over_t_dbk.is_some(),
             c_over_n0_dbhz: c_over_n0_dbhz(eirp, fspl + extra, g_t),
         }
     }
@@ -253,6 +266,7 @@ mod tests {
             rx_gain_db: Decibel::new(12.0),
             rx_loss_db: None,
             system_noise_temperature: Qty::from_raw(500.0),
+            rx_g_over_t_dbk: None,
             atmospheric_loss_db: None,
             polarization_loss_db: None,
             pointing_loss_db: None,
@@ -266,6 +280,35 @@ mod tests {
         // 閉じる仰角での余裕は要求ちょうど（斜距離は ground::slant_range_m）
         let at = rf.eb_n0_margin_db(slant_range_m(R_EARTH, 550.0e3, earth), 9600.0, db(20.0));
         assert!((at - 3.0).abs() < 1e-6, "{at}");
+    }
+
+    /// 与えた G/T は利得・雑音温度から求めた G/T の代わりに使う（両方あるときは与えた方）。
+    /// 手計算: 12 − 0 − 10 log10(500) = 12 − 26.99 = −14.99 dB/K。与えた −10 dB/K なら C/N0 は 4.99 dB 高い。
+    #[test]
+    fn given_g_over_t_replaces_the_derived_one() {
+        let mut rf = RfLinkParams {
+            frequency: Qty::from_raw(437.0e6),
+            tx_power: Qty::from_raw(1.0),
+            tx_gain_db: Decibel::new(0.0),
+            tx_loss_db: None,
+            rx_gain_db: Decibel::new(12.0),
+            rx_loss_db: None,
+            system_noise_temperature: Qty::from_raw(500.0),
+            rx_g_over_t_dbk: None,
+            atmospheric_loss_db: None,
+            polarization_loss_db: None,
+            pointing_loss_db: None,
+            other_loss_db: None,
+        };
+        let derived = rf.evaluate(1.0e6);
+        assert!((derived.g_over_t_dbk + 14.99).abs() < 0.01);
+        assert!(!derived.g_over_t_given);
+        rf.rx_g_over_t_dbk = Some(DecibelPerKelvin::new(-10.0));
+        let given = rf.evaluate(1.0e6);
+        assert_eq!(given.g_over_t_dbk, -10.0);
+        assert!(given.g_over_t_given);
+        let gain = given.c_over_n0_dbhz - derived.c_over_n0_dbhz;
+        assert!((gain - 4.99).abs() < 0.01, "{gain}");
     }
 
     #[test]

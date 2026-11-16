@@ -1,8 +1,8 @@
-//! 取付点・解析ケース・出典・ハーネスの Op のコマンド。
+//! 取付点・解析ケース・出典・ハーネス・マヌーバの Op のコマンド。
 
 use super::text::Cmd;
 use crate::op::Op;
-use fune_model::design::{Case, Harness, Pose, Source};
+use fune_model::design::{Case, Harness, Maneuver, Pose, Source};
 use fune_model::value::{list_to_text, quantity_to_text, quaternion_to_text, vector_to_text};
 
 /// 取付点・ケース・出典・ハーネスの Op のコマンド。該当しなければ None。
@@ -15,6 +15,9 @@ pub(super) fn record_op(op: &Op) -> Option<Vec<String>> {
         Op::RemoveSource { id } => Cmd::new(&["fune", "source", "rm", id]).done(),
         Op::SetHarness { harness } => harness_cmd(harness),
         Op::RemoveHarness { id } => Cmd::new(&["fune", "harness", "rm", id]).done(),
+        Op::CreateManeuver { maneuver } => maneuver_cmd("add", maneuver),
+        Op::SetManeuver { maneuver } => maneuver_cmd("set", maneuver),
+        Op::RemoveManeuver { id } => Cmd::new(&["fune", "maneuver", "rm", id]).done(),
         _ => return None,
     }])
 }
@@ -50,6 +53,10 @@ fn source_cmd(source: &Source) -> String {
         .flag("kind", Some(source.kind.as_str()))
         .flag("label", source.label.as_deref())
         .flag("ref", source.reference.as_deref())
+        .flag("revision", source.revision.as_deref())
+        .flag("retrieved", source.retrieved.as_deref())
+        .flag("sha256", source.sha256.as_deref())
+        .flag("distribution", source.distribution.map(|d| d.as_str()))
         .flag("date", source.date.as_deref())
         .flag("by", source.by.as_deref())
         .flag("note", source.note.as_deref())
@@ -68,5 +75,30 @@ fn harness_cmd(h: &Harness) -> String {
         .flag("cores", cores.as_deref())
         .flag("length", length.as_deref())
         .flag("label", h.label.as_deref())
+        .done()
+}
+
+/// `fune maneuver add|set <ID> --category … --method … --altitude "600 km" …`（旗は `fune_service` の `ManeuverText` と 1 対 1）。
+fn maneuver_cmd(verb: &str, m: &Maneuver) -> String {
+    let q = |x: &Option<fune_model::value::Quantity>| x.as_ref().map(quantity_to_text);
+    let t = &m.target;
+    let sunlit = m.constraints.sunlit_only.map(|b| b.to_string());
+    let duty = m.constraints.duty.map(|d| d.to_string());
+    Cmd::new(&["fune", "maneuver", verb, m.id.as_str()])
+        .flag("category", Some(m.category.as_str()))
+        .flag("method", Some(m.method.as_str()))
+        .flag("label", m.label.as_deref())
+        .flag("thruster", m.thruster.as_ref().map(|p| p.as_str()))
+        .flag("after", m.after.as_deref())
+        .flag("via-altitude", q(&m.via_altitude).as_deref())
+        .flag("body", t.body.map(|b| b.as_str()))
+        .flag("altitude", q(&t.altitude).as_deref())
+        .flag("perigee-altitude", q(&t.perigee_altitude).as_deref())
+        .flag("apogee-altitude", q(&t.apogee_altitude).as_deref())
+        .flag("inclination", q(&t.inclination).as_deref())
+        .flag("sunlit-only", sunlit.as_deref())
+        .flag("mode", m.constraints.mode.as_ref().map(|x| x.as_str()))
+        .flag("duty", duty.as_deref())
+        .flag("steering", m.constraints.steering.map(|s| s.as_str()))
         .done()
 }

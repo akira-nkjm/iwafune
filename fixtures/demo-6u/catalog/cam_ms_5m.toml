@@ -13,6 +13,7 @@ fov_half_angle = { value = 2.4, unit = "deg" }
 exclusion_sun  = { value = 30.0, unit = "deg" }
 temp_op        = { min = 0.0, max = 35.0, unit = "degC" }
 specific_heat  = { value = 850.0, unit = "J/(kg*K)" }
+temp_perf      = { min = 5.0, max = 30.0, unit = "degC" }
 
 [attr.power]
 off     = { value = 0.0, unit = "W" }

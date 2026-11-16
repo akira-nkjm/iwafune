@@ -3,4 +3,4 @@
 /**
  * 時系列の系列の種類。**表示名は持たない**（service の語彙が日本語と英語で引く）。解析ごとの系列もここに並べる。
  */
-export type ChannelKind = "generation" | "sunlit" | "panel_generation" | "load" | "soc" | "charge_power" | "discharge_power" | "shunt_power" | "gravity_gradient_torque" | "aero_torque" | "srp_torque" | "magnetic_torque" | "total_disturbance_torque" | "momentum_x" | "momentum_y" | "momentum_z" | "momentum_norm" | "wheel_momentum" | "sun_angle" | "earth_limb_angle" | "moon_angle" | "node_temperature" | "absorbed_heat" | "backlog";
+export type ChannelKind = "beta" | "umbra_duration" | "penumbra_duration" | "generation" | "sunlit" | "panel_generation" | "load" | "soc" | "charge_power" | "discharge_power" | "shunt_power" | "gravity_gradient_torque" | "aero_torque" | "srp_torque" | "magnetic_torque" | "thrust_torque" | "total_disturbance_torque" | "momentum_x" | "momentum_y" | "momentum_z" | "momentum_norm" | "wheel_momentum" | "sun_angle" | "earth_limb_angle" | "moon_angle" | "node_temperature" | "absorbed_heat" | "backlog" | "altitude" | "inclination" | "mass";

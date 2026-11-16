@@ -9,12 +9,19 @@
 //! | 範囲 | `{ min = -20.0, max = 60.0, unit = "degC" }` |
 //! | 列挙・文字列・真偽 | `"al6061"`・`true`（出典を付けるなら `{ value = "al6061", from = … }`） |
 //! | 表 | `{ table = "SA_IV" }` |
+//!
+//! 出典（`from`）の付いた値は 1 行 1 要素で書く（`[attr.mass]` の下に `value`・`unit`・`from.source`…、状態ごとの値の
+//! セルは `[attr.power]` の下に `on.value`・`on.from.source`…）。形は `crate::profile::lay_out` が決める。読み込みはどちらの形も同じ値になる。
 
+use crate::profile::lay_out;
 use fune_model::value::{
     Authored, Provenance, Quaternion, RangeValue, Scalar, Tensor3, Value, ValueType, Vector3,
 };
 use std::collections::BTreeMap;
 use toml_edit::{InlineTable, Item, Table};
+
+/// `[attr]` の見出しの段数（属性の行を置く表の深さ。状態ごとの値のセルは 1 段深い）。
+const ATTR_DEPTH: usize = 1;
 
 type TomlTable = toml::Table;
 
@@ -204,16 +211,25 @@ pub fn float(v: f64) -> toml_edit::Value {
     toml_edit::Value::from(v)
 }
 
-fn push_from(t: &mut InlineTable, from: Option<&Provenance>) {
+/// 出典の表（`{ source, at, note }` の順）。**`from` の表の書き出しはここだけ**（量の行も使う）。
+pub fn encode_from(from: &Provenance) -> InlineTable {
+    let mut f = InlineTable::new();
+    for (key, v) in [
+        ("source", &from.source),
+        ("at", &from.at),
+        ("note", &from.note),
+    ] {
+        if let Some(v) = v {
+            f.insert(key, v.as_str().into());
+        }
+    }
+    f
+}
+
+/// 出典があれば `from` を足す。
+pub fn push_from(t: &mut InlineTable, from: Option<&Provenance>) {
     if let Some(from) = from {
-        let mut f = InlineTable::new();
-        if let Some(s) = &from.source {
-            f.insert("source", s.as_str().into());
-        }
-        if let Some(n) = &from.note {
-            f.insert("note", n.as_str().into());
-        }
-        t.insert("from", toml_edit::Value::InlineTable(f));
+        t.insert("from", toml_edit::Value::InlineTable(encode_from(from)));
     }
 }
 
@@ -273,7 +289,15 @@ fn text(s: &str, from: Option<&Provenance>) -> toml_edit::Value {
     }
 }
 
-/// [`Value`] → ファイルの値。状態ごとの値は `[attr.<名前>]` の表になる。
+/// 状態ごとの値の 1 セル（`[attr.<名前>]` の 1 行。出典があればドット付きキーの行）。
+pub fn encode_cell(cell: &Authored<Scalar>) -> Item {
+    lay_out(
+        encode_scalar(&cell.value, cell.from.as_ref()),
+        ATTR_DEPTH + 1,
+    )
+}
+
+/// [`Value`] → ファイルの値（`[attr]` の 1 行）。状態ごとの値と出典の付いた値は `[attr.<名前>]` の表になる。
 pub fn encode_value(value: &Authored<Value>) -> Item {
     let from = value.from.as_ref();
     let v = match &value.value {
@@ -281,10 +305,7 @@ pub fn encode_value(value: &Authored<Value>) -> Item {
         Value::ByState(cells) => {
             let mut table = Table::new();
             for (state, cell) in cells {
-                table.insert(
-                    state,
-                    Item::Value(encode_scalar(&cell.value, cell.from.as_ref())),
-                );
+                table.insert(state, encode_cell(cell));
             }
             return Item::Table(table);
         }
@@ -329,66 +350,8 @@ pub fn encode_value(value: &Authored<Value>) -> Item {
             toml_edit::Value::InlineTable(t)
         }
     };
-    Item::Value(v)
+    lay_out(v, ATTR_DEPTH)
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn roundtrip(src: &str, hint: Option<ValueType>) -> Authored<Value> {
-        let doc: toml::Table = toml::from_str(&format!("v = {src}")).unwrap();
-        let value = decode_value(&doc["v"], hint).unwrap();
-        let encoded = encode_value(&value);
-        let mut out = toml_edit::DocumentMut::new();
-        out.insert("v", encoded);
-        let again: toml::Table = toml::from_str(&out.to_string()).unwrap();
-        assert_eq!(decode_value(&again["v"], hint).unwrap(), value, "{out}");
-        value
-    }
-
-    #[test]
-    fn values_round_trip() {
-        let s = roundtrip(
-            r#"{ value = 0.62, unit = "kg", from = { source = "x", note = "n" } }"#,
-            None,
-        );
-        assert!(matches!(s.value, Value::Scalar(Scalar { value, .. }) if value == 0.62));
-        assert!(matches!(roundtrip("0.6", None).value, Value::Scalar(_)));
-        assert!(matches!(
-            roundtrip(r#"{ value = 1.0, min = 0.8, max = 1.3, unit = "W" }"#, None).value,
-            Value::Scalar(Scalar { min: Some(_), .. })
-        ));
-        assert!(matches!(
-            roundtrip(
-                r#"{ on = { value = 1.0, unit = "W" }, off = { value = 0.0, unit = "W" } }"#,
-                None
-            )
-            .value,
-            Value::ByState(_)
-        ));
-        assert!(matches!(
-            roundtrip("{ x = 0.0, y = 0.0, z = 1.0 }", None).value,
-            Value::Vec3(_)
-        ));
-        assert!(matches!(
-            roundtrip("{ w = 1.0, x = 0.0, y = 0.0, z = 0.0 }", None).value,
-            Value::Quat(_)
-        ));
-        assert!(matches!(
-            roundtrip(r#"{ min = -20.0, max = 60.0, unit = "degC" }"#, None).value,
-            Value::Range(_)
-        ));
-        assert!(matches!(
-            roundtrip(r#""al6061""#, Some(ValueType::Enum)).value,
-            Value::Enum(_)
-        ));
-        assert!(matches!(roundtrip("true", None).value, Value::Bool(true)));
-    }
-
-    #[test]
-    fn rejects_unknown_keys() {
-        let doc: toml::Table = toml::from_str(r#"v = { value = 1.0, unti = "kg" }"#).unwrap();
-        assert!(decode_value(&doc["v"], None).is_err());
-    }
-}
+mod tests;

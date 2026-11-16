@@ -5,6 +5,7 @@ use crate::missing::MissingInputs;
 use crate::pose;
 use crate::quantity::{qty_opt, setting, setting_opt};
 use fune_model::Target;
+use fune_model::builtin::Role;
 use fune_model::design::setting_dims::{self as dims, SettingQuantity};
 use fune_model::design::{AnalysisSystem, BudgetKind};
 use fune_model::path::SettingPath;
@@ -25,10 +26,7 @@ pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem
     let mut out = Vec::new();
     for p in ctx.resolved.parts.values() {
         // 1 個あたりの質量と員数を渡す（員数を掛けるのは解析）。
-        let Some(mass) = p.scalar("mass") else {
-            if p.attr.contains_key("mass") {
-                m.push(Target::attr(&p.id, "mass"), "部品の質量");
-            }
+        let Some(mass) = crate::parts::mass_or_missing(ctx, p, m) else {
             continue;
         };
         let (position, orientation) = pose::body_pose(ctx.resolved, &p.id)
@@ -38,7 +36,7 @@ pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem
             mass: Qty::from_raw(mass),
             count: crate::parts::count_of(p),
             position,
-            size: p.vec3("size").map(|s| Vec3::new(s[0], s[1], s[2])),
+            size: ctx.vec3(p, "size").map(|s| Vec3::new(s[0], s[1], s[2])),
             orientation: Some(orientation),
             inertia: None,
         });
@@ -84,9 +82,9 @@ pub fn summary(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<MassPropertie
     }
 }
 
-/// `mission.launch.<…>`（`mission/launch.toml` のキー）。
+/// `conditions.launch.<…>`（`conditions/launch.toml` のキー）。
 fn launch(keys: &[&str]) -> SettingPath {
-    SettingPath::mission(&["launch"]).child(keys)
+    SettingPath::conditions(&["launch"]).child(keys)
 }
 
 /// 荷重倍数（`g0` の倍数）。単位が無ければそのまま、あれば `g0` に換算する（換算は sat-units）。
@@ -104,14 +102,14 @@ fn load_factor(
 }
 
 /// 準静的荷重の項目（質量を持つ部品。取付の根の取付先は `LV`）。
-fn load_items(ctx: &Context<'_>) -> Vec<StaticLoadItem> {
+fn load_items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<StaticLoadItem> {
     ctx.resolved
         .parts
         .values()
         .filter_map(|p| {
             Some(StaticLoadItem {
                 id: p.id.clone(),
-                mass: Qty::from_raw(p.scalar("mass")?),
+                mass: Qty::from_raw(crate::parts::mass_or_missing(ctx, p, m)?),
                 count: crate::parts::count_of(p),
                 mount: p
                     .mount
@@ -152,20 +150,20 @@ fn interfaces(
         .collect()
 }
 
-/// `structure.static_load`: 打ち上げ荷重（`mission/launch.toml`）で、取付の木をたどった取付部の荷重。
+/// `structure.static_load`: 打ち上げ荷重（`conditions/launch.toml`）で、取付の木をたどった取付部の荷重。
 pub fn static_load(ctx: &Context<'_>) -> Result<StaticLoadInput, MissingInputs> {
     let mut m = MissingInputs::new();
-    let launch = ctx.design.mission.launch.as_ref();
+    let launch = ctx.design.conditions.launch.as_ref();
     let launch = m.need(
         launch,
         self::launch(&[]),
-        "打ち上げ条件（mission/launch.toml）",
+        "打ち上げ条件（conditions/launch.toml）",
     );
     let axial =
         launch.and_then(|l| load_factor(l.load_axial.as_ref(), &dims::LAUNCH_LOAD_AXIAL, &mut m));
     let lateral = launch
         .and_then(|l| load_factor(l.load_lateral.as_ref(), &dims::LAUNCH_LOAD_LATERAL, &mut m));
-    let items = load_items(ctx);
+    let items = load_items(ctx, &mut m);
     let interfaces = interfaces(ctx, &items, &mut m);
     let safety_factor = launch.and_then(|l| l.safety_factor_yield);
     m.finish(|| {
@@ -193,7 +191,7 @@ fn panel(
     p: &fune_model::resolve::ResolvedPart,
     m: &mut MissingInputs,
 ) -> Option<ModalEstimatePanel> {
-    let Some(SiValue::Enum(name)) = p.value("material") else {
+    let Some(SiValue::Enum(name)) = ctx.attr(p, "material") else {
         m.push(Target::attr(&p.id, "material"), "パネルの材料");
         return None;
     };
@@ -207,11 +205,11 @@ fn panel(
         "材料の物性",
     )?;
     let size = m.need(
-        p.vec3("size"),
+        ctx.vec3(p, "size"),
         Target::attr(&p.id, "size"),
         "パネルの外形（2 辺）",
     );
-    let thickness = crate::parts::part_qty::<Length>(p, "thickness", "パネルの板厚", m);
+    let thickness = crate::parts::part_qty::<Length>(ctx, p, "thickness", "パネルの板厚", m);
     let at = [name.as_str()];
     let e = setting(
         &dims::MATERIAL_YOUNGS_MODULUS,
@@ -234,7 +232,7 @@ fn panel(
     );
     let mut sides = size?;
     sides.sort_by(|a, b| b.total_cmp(a));
-    let mounted = mounted_on(ctx, &p.id);
+    let mounted = mounted_on(ctx, &p.id, m);
     Some(ModalEstimatePanel {
         id: p.id.clone(),
         length_a: Qty::from_raw(sides[0]),
@@ -250,10 +248,10 @@ fn panel(
 /// `structure.modal_estimate`: 材料（`analysis.structure.material`）と外形・板厚を持つパネル（role = panel）。
 pub fn modal_estimate(ctx: &Context<'_>) -> Result<ModalEstimateInput, MissingInputs> {
     let mut m = MissingInputs::new();
-    let panels: Vec<ModalEstimatePanel> = crate::parts::by_role(ctx, "panel")
+    let panels: Vec<ModalEstimatePanel> = crate::parts::by_role(ctx, Role::Panel)
         .filter_map(|p| panel(ctx, p, &mut m))
         .collect();
-    let launch = ctx.design.mission.launch.as_ref();
+    let launch = ctx.design.conditions.launch.as_ref();
     let requirements = ModalEstimateRequirements {
         lateral: setting_opt(
             &dims::LAUNCH_MIN_FREQUENCY_LATERAL,
@@ -279,7 +277,7 @@ pub fn modal_estimate(ctx: &Context<'_>) -> Result<ModalEstimateInput, MissingIn
 }
 
 /// パネルに載る部品（1 個あたりの質量と員数。合計は解析が求める）。
-fn mounted_on(ctx: &Context<'_>, panel: &str) -> Vec<ModalEstimateMounted> {
+fn mounted_on(ctx: &Context<'_>, panel: &str, m: &mut MissingInputs) -> Vec<ModalEstimateMounted> {
     ctx.resolved
         .parts
         .values()
@@ -287,7 +285,7 @@ fn mounted_on(ctx: &Context<'_>, panel: &str) -> Vec<ModalEstimateMounted> {
         .filter_map(|c| {
             Some(ModalEstimateMounted {
                 id: c.id.clone(),
-                mass: Qty::from_raw(c.scalar("mass")?),
+                mass: Qty::from_raw(crate::parts::mass_or_missing(ctx, c, m)?),
                 count: crate::parts::count_of(c),
             })
         })

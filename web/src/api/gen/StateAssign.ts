@@ -3,4 +3,4 @@
 /**
  * 基本の状態と、ほかの状態で過ごす時間の割合（残りは基本の状態）。
  */
-export type StateAssign = { state: string, duty?: { [key in string]: number }, };
+export type StateAssign = { state: string, active?: number | null, spare_state?: string | null, duty?: { [key in string]: number }, };

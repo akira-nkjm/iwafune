@@ -4,6 +4,7 @@
 //! モードや部品の ID を参照する箇所（`mode_share` のキー・`law` のキー・`nodes` の値など）は `check` が検査し、
 //! 名前の変更（RenamePart・RenameMode）で一緒に書き換わる。
 
+use crate::design::thermal_settings::ThermalSettings;
 use crate::enum_text::enum_text;
 use crate::path::SettingPath;
 use crate::value::{Quantity, Quaternion, Vector3};
@@ -24,6 +25,7 @@ enum_text! {
         Thermal = "thermal",
         Structure = "structure",
         Payload = "payload",
+        Propulsion = "propulsion",
     }
 }
 
@@ -47,12 +49,29 @@ pub struct AnalysisSettings {
     pub structure: Option<StructureSettings>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub payload: Option<PayloadSettings>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub propulsion: Option<PropulsionSettings>,
 }
 
 /// ミッション機器の設定。現在は解析も設定項目も持たない。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct PayloadSettings {}
+
+/// 推進系の解析（`analysis/propulsion.toml`）。省略した値の既定は sat-analysis（`propulsion::input`）が持つ。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PropulsionSettings {
+    /// ΔV のマージン（合計 ΔV に対する割合。既定 10 %）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dv_margin: Option<f64>,
+    /// 使い切れずに残る推薬の割合（使う推薬に対する割合。既定 3 %）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub residual_fraction: Option<f64>,
+    /// 乾燥質量の上書き（省略時は部品の質量特性の総質量）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dry_mass: Option<Quantity>,
+}
 
 /// 系に属さない解析の共通設定（`analysis/common.toml`）。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
@@ -66,6 +85,9 @@ pub struct CommonSettings {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct PowerSettings {
+    /// 逆算サイジングの任意の上書き。省略値は sat-analysis が持つ。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sizing: Option<PowerSizingSettings>,
     /// 許容する最大放電深度（0〜1）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dod_max: Option<f64>,
@@ -81,9 +103,26 @@ pub struct PowerSettings {
     /// 軌道平均で各モードにいる時間の割合（モード ID → 割合。合計 1）
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub mode_share: BTreeMap<String, f64>,
-    /// 時系列の解析で使うモードの並び（1 周回分。繰り返す）
+    /// 時系列の解析で使うモードの並び（1 周回分。繰り返す）。`power.energy_balance` が並びで回す収支に使う
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sequence: Vec<ModeSegment>,
+    /// 最長継続時間の評価で下に敷く基本のモード（モード ID）。省略時は並びの最初の区間のモード
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_mode: Option<String>,
+}
+
+/// 電源の逆算設定（`analysis/power.toml` の `[sizing]`）。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PowerSizingSettings {
+    pub sunlit_efficiency: Option<f64>,
+    pub eclipse_efficiency: Option<f64>,
+    pub battery_efficiency: Option<f64>,
+    pub annual_degradation: Option<f64>,
+    pub inherent_degradation: Option<f64>,
+    pub battery_strings: Option<u32>,
+    pub bus_voltage: Option<Quantity>,
+    pub sun_distance: Option<Quantity>,
 }
 
 /// モードの時系列の 1 区間。
@@ -123,6 +162,20 @@ pub struct AttitudeLawSetting {
     pub orientation: Option<Quaternion>,
 }
 
+impl AttitudeLawSetting {
+    /// 欄の名前 → 値の形の見本（まだ書かれていない欄を文字列から読むときの型だけに使う。既定値ではない）。
+    pub fn field_shape(field: &str) -> Option<crate::value::SettingValue> {
+        use crate::value::SettingValue;
+        match field {
+            "axis" | "secondary" | "along_track" => {
+                Some(SettingValue::Vector(Vector3::unitless(0.0, 0.0, 0.0)))
+            }
+            "orientation" => Some(SettingValue::Quaternion(Quaternion::IDENTITY)),
+            _ => None,
+        }
+    }
+}
+
 /// AOCS の解析（`analysis/aocs.toml`）。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -148,6 +201,12 @@ pub struct AocsSettings {
     /// MTQ の磁気双極子のうちアンロードに使える割合
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub unload_dipole_fraction: Option<f64>,
+    /// 姿勢変更（`aocs.slew_time`）の角度（固有軸まわり、180° 以下）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub slew_angle: Option<Quantity>,
+    /// 姿勢変更の時間の要求上限（省略時は判定しない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_slew_time: Option<Quantity>,
     /// モード ID → 姿勢則
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub law: BTreeMap<String, AttitudeLawSetting>,
@@ -188,7 +247,7 @@ pub struct CommLinkSettings {
     pub direction: LinkDirection,
     /// 衛星側の送受信機（部品 ID）
     pub part: String,
-    /// 地上局側の帯域（`mission/ground/<ID>.toml` の `[link.<名前>]`）
+    /// 地上局側の帯域（`conditions/ground/<ID>.toml` の `[link.<名前>]`）
     pub band: String,
     /// 変調方式（表示用）
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -213,7 +272,7 @@ pub struct CommLinkSettings {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct CommSettings {
-    /// 使う地上局（`mission/ground/<ID>`）
+    /// 使う地上局（`conditions/ground/<ID>`）
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub stations: Vec<String>,
     /// 回線余裕の判定のしきい値（dB）
@@ -222,51 +281,6 @@ pub struct CommSettings {
     /// 回線の名前 → 設定
     #[serde(default, rename = "link", skip_serializing_if = "BTreeMap::is_empty")]
     pub links: BTreeMap<String, CommLinkSettings>,
-}
-
-/// 熱の環境条件 1 つ（`[case.<名前>]`）。
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-pub struct ThermalCaseSettings {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
-    /// この条件で使うモード
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub mode: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub solar_flux: Option<Quantity>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub albedo: Option<f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub earth_ir: Option<Quantity>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub beta: Option<Quantity>,
-}
-
-/// 熱の解析（`analysis/thermal.toml`）。
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-pub struct ThermalSettings {
-    /// 取付ごとの既定の接触熱コンダクタンス
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub contact_conductance: Option<Quantity>,
-    /// 節点間の既定の輻射結合（ε と面積の積）
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub radiative_coupling: Option<Quantity>,
-    /// 非定常解析の初期温度
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub initial_temperature: Option<Quantity>,
-    /// 非定常解析の時間刻み
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub time_step: Option<Quantity>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub orbits: Option<u32>,
-    /// 環境条件の名前 → 条件
-    #[serde(default, rename = "case", skip_serializing_if = "BTreeMap::is_empty")]
-    pub cases: BTreeMap<String, ThermalCaseSettings>,
-    /// 節点の名前 → まとめる部品の ID
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub nodes: BTreeMap<String, Vec<String>>,
 }
 
 /// 材料の物性（`[material.<名前>]`）。

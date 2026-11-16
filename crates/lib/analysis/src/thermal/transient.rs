@@ -5,15 +5,19 @@
 //! - 積分は `sat_astro::ode::integrate`（固定刻み RK4）。刻みは安定条件の目安と `max_step` の小さい方。
 
 use crate::spec::{
-    Analysis, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series, System, Verdict,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series,
+    System, Verdict,
 };
 use crate::thermal::network::{
-    Compiled, INITIAL_GUESS_K, ThermalLoad, ThermalModeLoads, ThermalNetwork, ThermalTempRange,
+    Compiled, INITIAL_GUESS_K, ThermalLoad, ThermalModeLoads, ThermalNetwork,
 };
 use crate::thermal::orbit_heat::{
     ThermalEnvironment, ThermalEnvironmentUsed, absorbed, mean_absorbed, timeline_geometry,
 };
-use crate::thermal::range::{RANGE_WARNING_BAND_K, range_check, range_verdict};
+use crate::thermal::range::{
+    ThermalMarginPolicy, ThermalMarginUsed, ThermalNodeRange, ThermalRangeMargin, range_checks,
+    range_margins, worst_verdict,
+};
 use sat_astro::ode::integrate;
 use sat_astro::timeline::TimelineSpec;
 use sat_astro::timeline::time_mean;
@@ -21,13 +25,19 @@ use sat_units::typed::{Power, Qty, Temperature, Time};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+/// 長さが書かれていない発熱の区間の長さ [s]。1 日。区間が 1 つだけなら周期で平均した発熱はその区間の発熱で、
+/// この長さは結果に効かない（複数の区間があるときは各区間の長さを書く）。
+pub const DEFAULT_PHASE_DURATION_S: f64 = sat_astro::constants::SECONDS_PER_DAY;
+
 /// 内部発熱の 1 区間（例: モード 1 つ）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThermalHeatPhase {
     /// 例: モードの ID
     pub label: String,
-    pub duration: Qty<Time>,
+    /// 区間の長さ。省略時は [`DEFAULT_PHASE_DURATION_S`]（区間が 1 つなら発熱は一定で、長さは結果に効かない）
+    #[serde(default)]
+    pub duration: Option<Qty<Time>>,
     #[serde(default)]
     pub loads: Vec<ThermalLoad>,
     /// モード発熱。未割り当て・値不足は出力 checks に警告。
@@ -67,6 +77,9 @@ pub struct ThermalTransientInput {
     /// 積分の刻みの上限（既定は安定条件の目安だけで決める）
     #[serde(default)]
     pub max_step: Option<Qty<Time>>,
+    /// 解析マージンの方針（書かれていない値は解析の既定値）
+    #[serde(default)]
+    pub margin: ThermalMarginPolicy,
 }
 
 /// 節点ごとの最高・最低。
@@ -80,7 +93,9 @@ pub struct ThermalTransientNodeResult {
     /// 最低になった時刻（開始からの経過）
     pub time_of_min: Qty<Time>,
     pub time_of_max: Qty<Time>,
-    pub operating: Option<ThermalTempRange>,
+    /// 温度範囲（保管・動作・性能の順。区間のモードがあれば部品の電源の状態で選ぶ）と最低・最高の比較
+    pub ranges: Vec<ThermalRangeMargin>,
+    /// 範囲との比較のうち最も悪い判定（範囲が無ければ Ok）
     pub verdict: Verdict,
 }
 
@@ -94,9 +109,9 @@ pub struct ThermalTransientOutput {
     pub environment: ThermalEnvironmentUsed,
     /// 入力の節点の順
     pub nodes: Vec<ThermalTransientNodeResult>,
-    /// 動作範囲の端からこの幅以内を警告にした（`thermal::range::RANGE_WARNING_BAND_K`）
-    pub range_warning_band: Qty<Temperature>,
-    /// 動作範囲を持つ節点ごとの判定（key は `range:<node>`）
+    /// 使った解析マージン（不確かさと警告の幅）
+    pub margin: ThermalMarginUsed,
+    /// 温度範囲を持つ節点の種類ごとの判定（key は `range:<node>:<storage|operating|performance>`）
     pub checks: Vec<Check>,
 }
 
@@ -106,7 +121,7 @@ pub struct ThermalTransient;
 impl Analysis for ThermalTransient {
     const ID: &'static str = "thermal.transient";
     const TITLE: &'static str = "熱（非定常）";
-    const SYSTEM: System = System::Thermal;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Thermal);
     const KIND: AnalysisKind = AnalysisKind::TimeSeries;
     const DESCRIPTION: &'static str = "軌道上の多節点モデルの温度の時間変化";
     const TITLE_EN: &'static str = "Thermal (transient)";
@@ -116,8 +131,12 @@ impl Analysis for ThermalTransient {
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         let net = Compiled::new(&input.network)?;
+        let margin = input.margin.used();
+        margin.validate()?;
         let phases = Phases::new(&net, &input.phases)?;
         let timeline = &input.timeline;
+        let central = timeline.orbit().central;
+        let env = input.environment.resolve(central)?;
         let (t, geo) = timeline_geometry(timeline)?;
         let space_k = input.environment.space_temperature().value();
         let mut temps = initial(&net, input, timeline, &phases)?;
@@ -126,7 +145,7 @@ impl Analysis for ThermalTransient {
         let mut absorbed_total = Vec::with_capacity(t.len());
         for i in 0..t.len() {
             history.push(temps.clone());
-            let q_ext = absorbed(&net, &input.environment, &geo[i]);
+            let q_ext = absorbed(&net, &env, &geo[i]);
             absorbed_total.push(q_ext.iter().sum());
             let Some(&t_next) = t.get(i + 1) else { break };
             let q: Vec<f64> = q_ext
@@ -137,12 +156,25 @@ impl Analysis for ThermalTransient {
             let f = |_: f64, x: &Vec<f64>| net.derivative(x, &q, space_k);
             temps = integrate(f, t[i], temps, t_next, dt, |_, _| {});
         }
+        let modes: Vec<_> = input
+            .phases
+            .iter()
+            .map(|p| p.mode_loads.as_ref().map(|l| &l.mode))
+            .collect();
+        let ranges = input
+            .network
+            .nodes
+            .iter()
+            .map(|n| n.ranges_in(&modes))
+            .collect::<Result<Vec<_>, _>>()?;
         let mut output = build_output(
             &input.network,
+            &ranges,
             t,
             &history,
             absorbed_total,
-            input.environment.used(),
+            input.environment.used(central)?,
+            margin,
         );
         output.checks.extend(phases.checks);
         Ok(output)
@@ -164,13 +196,14 @@ impl Phases {
         let mut end = 0.0;
         let mut checks = Vec::new();
         for (i, p) in phases.iter().enumerate() {
-            if p.duration.value().is_nan() || p.duration.value() <= 0.0 {
+            let duration = p.duration.map_or(DEFAULT_PHASE_DURATION_S, |d| d.value());
+            if duration.is_nan() || duration <= 0.0 {
                 return Err(AnalysisError::InvalidInput(format!(
                     "発熱の区間 {} の長さは正にしてください",
                     p.label
                 )));
             }
-            end += p.duration.value();
+            end += duration;
             let mut loads = p.loads.clone();
             if let Some(mode) = &p.mode_loads {
                 let (mode_loads, warnings) = mode.evaluate()?;
@@ -273,12 +306,15 @@ fn step_s(net: &Compiled, input: &ThermalTransientInput, temps: &[f64]) -> f64 {
     stable.min(limit).min(timeline).max(MIN_STEP_S)
 }
 
+/// 出力を組み立てる。`ranges` は節点ごとの温度範囲（`ThermalNode::ranges_in`。入力の節点の順）。
 fn build_output(
     network: &ThermalNetwork,
+    ranges: &[Vec<ThermalNodeRange>],
     t: Vec<f64>,
     history: &[Vec<f64>],
     absorbed_total: Vec<f64>,
     environment: ThermalEnvironmentUsed,
+    margin: ThermalMarginUsed,
 ) -> ThermalTransientOutput {
     let mut channels = Vec::with_capacity(network.nodes.len() + 1);
     let mut nodes = Vec::with_capacity(network.nodes.len());
@@ -288,6 +324,8 @@ fn build_output(
         let (i_min, min) = extreme(&values, |a, b| a < b);
         let (i_max, max) = extreme(&values, |a, b| a > b);
         let mean = time_mean(&t, &values);
+        let ranges = range_margins(min, max, &ranges[i], &margin);
+        checks.extend(range_checks(&n.id, &ranges, &margin));
         nodes.push(ThermalTransientNodeResult {
             node: n.id.clone(),
             min: Qty::from_raw(min),
@@ -295,10 +333,9 @@ fn build_output(
             mean: Qty::from_raw(mean),
             time_of_min: Qty::from_raw(t.get(i_min).copied().unwrap_or(0.0)),
             time_of_max: Qty::from_raw(t.get(i_max).copied().unwrap_or(0.0)),
-            operating: n.operating(),
-            verdict: range_verdict(min, max, n.operating()),
+            verdict: worst_verdict(&ranges),
+            ranges,
         });
-        checks.extend(range_check(&n.id, min, max, n.operating()));
         channels.push(
             Channel::of::<Temperature>(&n.id, ChannelKind::NodeTemperature, values).about(&n.id),
         );
@@ -312,7 +349,7 @@ fn build_output(
         series: Series { t, channels },
         environment,
         nodes,
-        range_warning_band: Qty::from_raw(RANGE_WARNING_BAND_K),
+        margin,
         checks,
     }
 }

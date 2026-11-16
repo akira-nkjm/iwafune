@@ -34,21 +34,29 @@ fn demo_kpis_show_the_same_values_as_before() {
         ("power.mode_load", &[(KpiKey::ModeLoad, "17.4 W")]),
         (
             "power.orbit_generation",
-            &[(KpiKey::OrbitGeneration, "28.3 W")],
+            // #147 で日照率を足した（軌道 1 周の日照の時間の割合）
+            &[
+                (KpiKey::OrbitGeneration, "28.3 W"),
+                (KpiKey::SunlitFraction, "78.4 %"),
+            ],
         ),
+        // #106 から、最長継続時間を持つモード（撮像・ダウンリンク）は定常の上でその時間だけ続けたときで、
+        // モードの並びも入れて選ぶ（以前はダウンリンクを丸 1 日続けた -5.09 W・100 %）
         (
             "power.energy_balance",
-            &[(KpiKey::OrbitBalance, "-5.09 W"), (KpiKey::MaxDod, "100 %")],
+            &[(KpiKey::OrbitBalance, "15.8 W"), (KpiKey::MaxDod, "15.1 %")],
         ),
         (
             "aocs.rw_unloading",
             &[
-                (KpiKey::UnloadInterval, "16.2 h"),
-                (KpiKey::PeakMomentum, "2.38 mN·m·s"),
+                (KpiKey::UnloadInterval, "16.1 h"),
+                (KpiKey::PeakMomentum, "2.31 mN·m·s"),
             ],
         ),
+        // #168 から RCS のアンロード時間も KPI にしたが、デモにスラスタは無いので出ない
         ("aocs.unload_time", &[(KpiKey::MtqUnloadTime, "25.4 min")]),
         ("aocs.sensor_fov", &[(KpiKey::SensorIntrusion, "100 %")]),
+        ("aocs.slew_time", &[(KpiKey::SlewTime, "29.5 s")]),
         (
             "cdh.data_budget",
             &[
@@ -69,27 +77,44 @@ fn demo_kpis_show_the_same_values_as_before() {
         (
             "thermal.steady",
             &[
-                (KpiKey::MaxTemperature, "50.5 °C"),
-                (KpiKey::MinTemperature, "-32.2 °C"),
+                (KpiKey::MaxTemperature, "48.9 °C"),
+                (KpiKey::MinTemperature, "-32.6 °C"),
                 (KpiKey::NodesInRange, "—"),
             ],
         ),
         (
             "thermal.transient",
-            &[(KpiKey::TransientMaxTemperature, "72.1 °C")],
+            &[(KpiKey::TransientMaxTemperature, "70.4 °C")],
         ),
         (
             "structure.mass_properties",
-            &[(KpiKey::TotalMass, "5.00 kg")],
+            &[(KpiKey::TotalMass, "5.55 kg")],
         ),
         // 取付ごとの最小の余裕（比）。以前は次元を引けずに無次元の 11.2 と出ていた
         (
             "structure.static_load",
-            &[(KpiKey::MinSafetyMargin, "1124 %")],
+            &[(KpiKey::MinSafetyMargin, "1003 %")],
         ),
         (
             "structure.modal_estimate",
             &[(KpiKey::MinFrequency, "74.8 Hz")],
+        ),
+        // 推進系（デモの電気推進スラスタで 550 → 600 km の低推力の上昇と、近地点 250 km への離脱）
+        (
+            "propulsion.maneuvers",
+            &[(KpiKey::LongestTransfer, "35.3 h")],
+        ),
+        ("propulsion.dv_budget", &[(KpiKey::DvWithMargin, "138 m/s")]),
+        (
+            "propulsion.propellant",
+            &[
+                (KpiKey::LoadedPropellant, "67.2 g"),
+                (KpiKey::TankVolumeMargin, "66.6 %"),
+            ],
+        ),
+        (
+            "propulsion.thruster_usage",
+            &[(KpiKey::ImpulseMargin, "226 %")],
         ),
     ];
     for (id, want) in expected {
@@ -104,14 +129,17 @@ fn demo_kpis_show_the_same_values_as_before() {
     }
 }
 
-/// 概要のカードに使う判定・塗りの比・判定の数え方。判定は解析の判定（9 件の節点のうち 4 件が範囲の外か端）。
+/// 概要のカードに使う判定・塗りの比・判定の数え方。判定は解析の判定（節点と温度範囲の種類の組 13 件のうち 8 件が、
+/// 不確かさ 5 K を含めて範囲の外か端。温度範囲はケースのモードでの部品の電源の状態で選ぶので、電源を切るモードの
+/// CAM の動作・性能の範囲は違反にならない）。
 #[test]
 fn demo_verdicts_fills_and_tallies() {
     let ws = demo();
     let eb = kpis(&ws, "power.energy_balance", None);
-    assert_eq!(eb[1].verdict, Some(Verdict::Violation));
+    assert_eq!(eb[1].verdict, Some(Verdict::Ok));
     let dod = eb[1].fill.unwrap();
-    assert_eq!((dod.ratio, dod.basis), (1.0, FillBasis::Value));
+    assert_eq!(dod.basis, FillBasis::Value);
+    assert!((dod.ratio - eb[1].value.as_ref().unwrap().si).abs() < 1e-12);
     let storage = &kpis(&ws, "cdh.data_budget", None)[2];
     assert_eq!(storage.fill.unwrap().ratio, 0.0, "負の余裕は 0 に寄せる");
     assert_eq!(storage.verdict, Some(Verdict::Violation));
@@ -121,11 +149,11 @@ fn demo_verdicts_fills_and_tallies() {
     assert_eq!(
         range.tally,
         Some(KpiTally {
-            checked: 9,
-            flagged: 4
+            checked: 13,
+            flagged: 8
         })
     );
-    assert!((range.fill.unwrap().ratio - 5.0 / 9.0).abs() < 1e-12);
+    assert!((range.fill.unwrap().ratio - 5.0 / 13.0).abs() < 1e-12);
     // 判定の対象でない KPI（発生量・角運動量）は判定を持たない
     assert!(kpis(&ws, "cdh.data_budget", None)[0].verdict.is_none());
     assert!(kpis(&ws, "aocs.rw_unloading", None)[1].verdict.is_none());
@@ -138,7 +166,8 @@ fn demo_verdicts_fills_and_tallies() {
     );
     let fill = mass.fill.unwrap();
     assert_eq!(fill.basis, FillBasis::UsedOverLimit);
-    assert!((fill.ratio - 5.6374 / 12.0).abs() < 1e-9);
+    // 推進系の部品（EPT 0.40 kg × 1.10・XE_TANK 0.15 kg × 1.05）の分だけ以前の 5.6374 kg から増えた
+    assert!((fill.ratio - 6.2349 / 12.0).abs() < 1e-9);
     let power = budget::budget(&ws, BudgetKind::Power, &BudgetRequest::default()).unwrap();
     assert!(
         power
@@ -198,4 +227,21 @@ fn catalog_lists_kpi_definitions() {
         (dod.label.as_str(), dod.label_en.as_str()),
         ("最大 DoD", "Max DoD")
     );
+}
+
+/// 実行の結果は概要の解析の表の行を持つ: 主な結果は KPI の先頭（定義の順に 3 つまで）、判定の文は持ち主ごとに全部。
+/// 棒グラフと隠す表は系ごとの組み立て（電源のページ）だけが足すので、解析の入口では null と空。
+#[test]
+fn every_run_result_carries_its_overview_row() {
+    let ws = demo();
+    for entry in analysis::analysis_catalog().unwrap() {
+        let r =
+            analysis::run_analysis(&ws, &entry.info.id, &RunAnalysisRequest::default()).unwrap();
+        let n = r.kpis.len().min(3);
+        assert_eq!(r.overview.main, r.kpis[..n], "{}", r.id);
+        let grouped: usize = r.overview.checks.iter().map(|g| g.checks.len()).sum();
+        assert_eq!(grouped, r.checks.len(), "{}", r.id);
+        assert!(r.overview.chart.is_none(), "{}", r.id);
+        assert!(r.overview.hidden_tables.is_empty(), "{}", r.id);
+    }
 }

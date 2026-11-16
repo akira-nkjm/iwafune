@@ -2,8 +2,9 @@
 //! ここは部品や解析の結果を `BudgetItem`（1 個あたりの値・員数・成長余裕）に並べ、配分（`budget/allocation.toml`）の行に割り当てるだけ。
 //! 成長余裕は `fune_projection::parts::growth`、表示名は `fune_model::builtin::enum_label("budget_kind", …)`。
 //! 入力が足りなければ、解析（`analysis::run_analysis`）と同じく `missing` に並べて返す（エラーにしない）。
+//! 質量の推薬（推進系の解析の積む推薬）と推薬込みの合計は [`propellant`]。
 
-use crate::dto::{BudgetKind, BudgetRequest, BudgetRow, BudgetView, FillRatio};
+use crate::dto::{BudgetKind, BudgetRequest, BudgetRow, BudgetUncounted, BudgetView, FillRatio};
 use crate::error::{Result, ServiceError};
 use crate::units::quantity_auto;
 use crate::workspace::{Snapshot, Workspace};
@@ -14,6 +15,9 @@ use fune_projection::{Context, MissingInputs};
 use sat_analysis::budget::{BudgetItem, BudgetRollup, budget_rollup};
 use sat_analysis::power::mode_load::{ModeLoadMode, ModeLoadOutput};
 use sat_analysis::spec::Verdict;
+pub mod failure;
+mod propellant;
+mod uncounted;
 
 /// バジェット（`GET`・`POST /budgets/{kind}`）。`req.ops` があれば書き込まずに当てた設計で、`req.case` があればそのケースで数える。
 /// 編集が通らなければ保存と同じエラー（検証なら診断付き）。入力が足りなければ `missing` に並べた表示を返す。
@@ -43,6 +47,9 @@ struct Counted {
     mode: Option<String>,
     /// 電力のモードごとの行
     modes: Vec<BudgetRow>,
+    /// 質量の推薬（質量のときだけ）
+    propellant: Option<propellant::Load>,
+    uncounted: Vec<BudgetUncounted>,
 }
 
 /// 数えられなかった理由。入力の不足は表示に載せ、解析の誤りはエラーにする。
@@ -70,13 +77,18 @@ fn analysis_error(e: sat_analysis::spec::AnalysisError) -> ServiceError {
 /// 種類ごとの部品の値と、電力のモードごとの行。
 fn count(s: &Snapshot, kind: BudgetKind, case: Option<&str>) -> Result<Counted, Uncounted> {
     let ctx = Context::new(&s.design, &s.resolved, case)?;
-    let plain = |items| Counted {
+    let plain = |items, uncounted| Counted {
         items,
         mode: None,
         modes: Vec::new(),
+        propellant: None,
+        uncounted,
     };
     Ok(match kind {
-        BudgetKind::Mass => plain(mass_items(s)),
+        BudgetKind::Mass => Counted {
+            propellant: Some(propellant::load(&ctx)),
+            ..plain(mass_items(s), uncounted::mass(s))
+        },
         BudgetKind::Power => {
             let out = mode_load(&ctx)?;
             let (items, mode) = power_items(s, &ctx, &out);
@@ -84,9 +96,11 @@ fn count(s: &Snapshot, kind: BudgetKind, case: Option<&str>) -> Result<Counted, 
                 items,
                 mode,
                 modes: power_modes(s, &out)?,
+                propellant: None,
+                uncounted: uncounted::power(s, &out),
             }
         }
-        BudgetKind::Data => plain(data_items(s, &ctx)?),
+        BudgetKind::Data => plain(data_items(s, &ctx)?, Vec::new()),
     })
 }
 
@@ -243,7 +257,7 @@ fn si(x: &fune_model::value::Quantity) -> Option<f64> {
 }
 
 /// 配分の上限（SI）とシステム余裕（比。配分が無ければ 0）。
-fn allocated(design: &Design, kind: BudgetKind) -> (Option<f64>, f64) {
+pub(crate) fn allocated(design: &Design, kind: BudgetKind) -> (Option<f64>, f64) {
     let alloc = design.budget.allocation.get(kind);
     (
         alloc.and_then(|a| a.limit.as_ref()).and_then(si),
@@ -350,9 +364,11 @@ fn header(design: &Design, kind: BudgetKind, case: Option<String>) -> BudgetView
         fill: None,
         rows: Vec::new(),
         modes: Vec::new(),
+        propellant: None,
         analysis: analysis_of(kind).to_owned(),
         mode: None,
         missing: Vec::new(),
+        uncounted: Vec::new(),
         notes,
     }
 }
@@ -373,7 +389,12 @@ fn fill(design: &Design, view: &mut BudgetView, counted: Counted) -> Result<()> 
         &counted.items,
         dim,
     )?;
+    view.propellant = counted
+        .propellant
+        .map(|load| propellant::view(load, &counted.items, limit, system_margin))
+        .transpose()?;
     view.modes = counted.modes;
+    view.uncounted = counted.uncounted;
     view.mode = counted.mode;
     Ok(())
 }

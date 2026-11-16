@@ -2,7 +2,7 @@
 
 use super::Edits;
 use super::doc::{self, set_opt, string, strings, table_mut};
-use crate::codec::{encode_vector, float};
+use crate::codec::{encode_quaternion, encode_vector, float, push_from};
 use crate::error::StoreError;
 use crate::profile as format;
 use fune_model::design::{
@@ -18,16 +18,7 @@ pub fn quantity(q: &Quantity) -> Item {
     let mut t = InlineTable::new();
     t.insert("value", float(q.value));
     t.insert("unit", q.unit.as_str().into());
-    if let Some(from) = &q.from {
-        let mut f = InlineTable::new();
-        if let Some(s) = &from.source {
-            f.insert("source", s.as_str().into());
-        }
-        if let Some(n) = &from.note {
-            f.insert("note", n.as_str().into());
-        }
-        t.insert("from", Value::InlineTable(f));
-    }
+    push_from(&mut t, q.from.as_ref());
     Item::Value(Value::InlineTable(t))
 }
 
@@ -35,6 +26,12 @@ pub fn quantity(q: &Quantity) -> Item {
 fn state_row(assign: &StateAssign) -> Item {
     let mut t = InlineTable::new();
     t.insert("state", assign.state.as_str().into());
+    if let Some(n) = assign.active {
+        t.insert("active", i64::from(n).into());
+    }
+    if let Some(s) = &assign.spare_state {
+        t.insert("spare_state", s.as_str().into());
+    }
     if !assign.duty.is_empty() {
         let mut duty = InlineTable::new();
         for (s, d) in &assign.duty {
@@ -59,11 +56,19 @@ pub fn new_mode_text(mode: &Mode) -> String {
     if let Some(d) = &mode.description {
         doc.insert("description", string(d));
     }
-    let mut states = Table::new();
-    for (part, assign) in &mode.states {
-        states.insert(part.as_str(), state_row(assign));
+    if let Some(q) = &mode.max_duration {
+        doc.insert("max_duration", quantity(q));
     }
-    doc.insert("states", Item::Table(states));
+    for (section, rows) in [("states", &mode.states), ("eclipse", &mode.eclipse)] {
+        if section == "eclipse" && rows.is_empty() {
+            continue;
+        }
+        let mut table = Table::new();
+        for (part, assign) in rows {
+            table.insert(part.as_str(), state_row(assign));
+        }
+        doc.insert(section, Item::Table(table));
+    }
     format::finish(doc)
 }
 
@@ -72,16 +77,22 @@ pub fn set_mode_row(
     edits: &mut Edits,
     file: &str,
     part: &str,
+    eclipse: bool,
     assign: Option<&StateAssign>,
 ) -> Result<(), StoreError> {
     edits.edit(file, |doc| {
-        let table = table_mut(doc, &["states"])?;
+        let section = if eclipse { "eclipse" } else { "states" };
+        let table = table_mut(doc, &[section])?;
         let sorted = is_sorted(table);
         let is_new = !table.contains_key(part);
         set_opt(table, part, assign.map(state_row));
         if sorted && is_new {
             table.sort_values();
         }
+        if eclipse {
+            doc::drop_if_empty(doc, &[section]);
+        }
+        doc::order_tables(doc, &["states", "eclipse"]);
         Ok(())
     })
 }
@@ -166,6 +177,7 @@ pub fn setting_item(value: &SettingValue) -> Item {
         SettingValue::Text(s) => string(s),
         SettingValue::Quantity(q) => quantity(q),
         SettingValue::Vector(v) => Item::Value(encode_vector(v, None)),
+        SettingValue::Quaternion(q) => Item::Value(encode_quaternion(q)),
         SettingValue::List(l) => strings(l.iter().map(String::as_str)),
     }
 }
@@ -178,20 +190,27 @@ pub fn set_setting(
     keys: &[String],
     value: Option<&SettingValue>,
 ) -> Result<(), StoreError> {
+    // 古い名前のキーを打っても新しい名前に書き、ファイルに残る古い名前も先に書き換える（両方の名前にしない）
+    let keys = crate::profile::renamed::current_keys(file, keys);
     let Some((last, parents)) = keys.split_last() else {
         return Err(StoreError::edit(file, "キーが空です"));
     };
     let item = value.map(setting_item);
     edits.edit_or_create(file, |doc| {
+        crate::profile::renamed::rename_keys(file, doc.as_table_mut());
         let mut table: &mut Table = doc.as_table_mut();
         for (i, key) in parents.iter().enumerate() {
             if let Some(Item::Value(Value::InlineTable(inline))) = table.get_mut(key) {
                 let rest = &keys[i + 1..];
                 return set_in_inline(inline, rest, item).map_err(|m| StoreError::edit(file, m));
             }
-            let entry = table
-                .entry(key)
-                .or_insert_with(|| Item::Table(Table::new()));
+            // 途中の表は暗黙（`[coating]` のような空の見出しを書かない）。値を入れる表だけ見出しを書く
+            let implicit = i + 1 < parents.len();
+            let entry = table.entry(key).or_insert_with(|| {
+                let mut t = Table::new();
+                t.set_implicit(implicit);
+                Item::Table(t)
+            });
             table = entry
                 .as_table_mut()
                 .ok_or_else(|| StoreError::edit(file, format!("`{key}` は表ではありません")))?;
@@ -318,6 +337,19 @@ pub fn reset_view(edits: &mut Edits, file: &str) -> Result<(), StoreError> {
     edits.edit_or_create(file, |doc| {
         doc.remove("nodes");
         doc.remove("edge");
+        Ok(())
+    })
+}
+
+/// モードの最長継続時間を書く（None で削除）。
+pub fn set_mode_duration(
+    edits: &mut Edits,
+    file: &str,
+    duration: Option<&Quantity>,
+) -> Result<(), StoreError> {
+    edits.edit(file, |doc| {
+        set_opt(doc.as_table_mut(), "max_duration", duration.map(quantity));
+        doc::order_tables(doc, &["states", "eclipse"]);
         Ok(())
     })
 }

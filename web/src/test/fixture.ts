@@ -1,12 +1,16 @@
 import type {
   AttributeDefView,
+  BodyPoseView,
   DesignView,
+  MountView,
   NetKind,
   NetView,
   PartRow,
   PortRef,
   PortView,
+  PoseQuantities,
   QuantityView,
+  Role,
   ValueData,
   ValueView,
 } from "@/api/types";
@@ -14,6 +18,39 @@ import type {
 /** テスト用の小さな設計（GET /design の形）。表示文字列は service が作る想定の値を手で入れてある */
 export function qv(value: number, unit: string, dimension: string, si = value): QuantityView {
   return { value, unit, si, dimension, display: unit ? `${value} ${unit}` : String(value) };
+}
+
+type Xyz = [number, number, number];
+type Wxyz = [number, number, number, number];
+
+/** 位置・姿勢の表示（原点・恒等。位置は m、角度は度） */
+export function zeroPose(): PoseQuantities {
+  const len = qv(0, "m", "Length");
+  const deg = { ...qv(0, "deg", "Angle"), display: "0°" };
+  return { position: [len, len, len], rotation: [deg, deg, deg] };
+}
+
+/** 取付（取付点なし・書かれた位置と姿勢なし。表示は原点・恒等） */
+export function mountAt(
+  on: string,
+  position: Xyz = [0, 0, 0],
+  orientation: Wxyz = [1, 0, 0, 0],
+): MountView {
+  return {
+    on,
+    point: null,
+    position,
+    authored_position: null,
+    orientation,
+    authored_orientation: null,
+    point_pose: zeroPose(),
+    relative: zeroPose(),
+  };
+}
+
+/** 機体座標の位置・姿勢（表示は原点・恒等） */
+export function bodyAt(position: Xyz, orientation: Wxyz, root = false): BodyPoseView {
+  return { position, orientation, root, quantities: zeroPose() };
 }
 
 function val(attr: string, value: ValueData, display: string): ValueView {
@@ -36,7 +73,7 @@ const scalar = (attr: string, q: QuantityView) =>
 function part(
   id: string,
   group: PartRow["system"] & string,
-  kind: string,
+  kind: Role,
   states: string[],
   values: ValueView[],
   ports: PortView[] = [],
@@ -49,13 +86,19 @@ function part(
     system: group,
     kind,
     role: kind,
+    maneuver_thruster: false,
+    diagnostics: { errors: 0, warnings: 0, infos: 0 },
+    unset_count: 0,
     catalog: null,
     candidates: [],
     count: 1,
+    redundancy: "none",
     maturity: "off_the_shelf",
     values: Object.fromEntries(values.map((v) => [v.attr, v])),
     ports,
     mount: null,
+    mount_points: [],
+    body: null,
     states,
     file: `parts/${group}/${id}.toml`,
     dir: [group],
@@ -90,7 +133,7 @@ export const fixture: DesignView = {
     schema: 2,
     counts: { parts: 3, groups: 3, modes: 2, nets: 2, harnesses: 0, cases: 0 },
     diagnostics: { errors: 0, warnings: 1, infos: 0 },
-    catalogs: [{ name: "local", editable: true }],
+    catalogs: [{ name: "local", editable: true, shared: null }],
   },
   tree: [
     {
@@ -194,29 +237,50 @@ export const fixture: DesignView = {
   ],
   modes: {
     modes: [
-      { id: "NOMINAL", label: "定常", description: null, file: "modes/NOMINAL.toml" },
-      { id: "SAFE", label: "セーフ", description: null, file: "modes/SAFE.toml" },
+      {
+        id: "NOMINAL",
+        label: "定常",
+        description: null,
+        max_duration: null,
+        file: "modes/NOMINAL.toml",
+      },
+      {
+        id: "SAFE",
+        label: "セーフ",
+        description: null,
+        max_duration: null,
+        file: "modes/SAFE.toml",
+      },
     ],
     rows: [
       {
         part: "RW_X",
         kind: "reaction_wheel",
         states: ["off", "idle", "on", "peak"],
+        off_state: "off",
+        main_state: "on",
         cells: { NOMINAL: { state: "on", duty: {} } },
+        eclipse_cells: {},
         shares: {},
       },
       {
         part: "PCDU",
         kind: "pcdu",
         states: ["off", "on"],
+        off_state: "off",
+        main_state: "on",
         cells: { NOMINAL: { state: "on", duty: {} }, SAFE: { state: "on", duty: {} } },
+        eclipse_cells: {},
         shares: {},
       },
       {
         part: "TRX",
         kind: "transceiver",
         states: ["off", "rx", "tx"],
+        off_state: "off",
+        main_state: "rx",
         cells: { NOMINAL: { state: "rx", duty: { tx: 0.1 } } },
+        eclipse_cells: {},
         shares: { NOMINAL: { tx: qv(10, "%", "Dimensionless", 0.1) } },
       },
     ],
@@ -273,6 +337,7 @@ export const fixture: DesignView = {
     ),
     kinds: [],
     labels: {
+      role_other: null,
       role_system: { pcdu: "power", reaction_wheel: "aocs", transceiver: "comm" },
       section_order: [],
       state: {},
@@ -283,12 +348,15 @@ export const fixture: DesignView = {
       },
       enum: {},
       enum_order: {},
+      setting: {},
+      case_field: {},
     },
-    systems: ["power", "aocs", "cdh", "comm", "thermal", "structure", "payload"],
+    systems: ["power", "aocs", "cdh", "comm", "thermal", "structure", "payload", "propulsion"],
     budget_kinds: ["mass", "power", "data"],
   },
   settings: [],
   cases: [],
+  maneuvers: [],
   views: [],
   sources: [],
   catalog: [],

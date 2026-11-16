@@ -466,7 +466,7 @@ dependencies = [
 
 [[package]]
 name = "fune-cli"
-version = "0.2.1"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -489,7 +489,7 @@ dependencies = [
 
 [[package]]
 name = "fune-model"
-version = "0.2.1"
+version = "0.5.0"
 dependencies = [
  "sat-units",
  "serde",
@@ -502,7 +502,7 @@ dependencies = [
 
 [[package]]
 name = "fune-ops"
-version = "0.2.1"
+version = "0.5.0"
 dependencies = [
  "fune-model",
  "fune-store",
@@ -515,7 +515,7 @@ dependencies = [
 
 [[package]]
 name = "fune-projection"
-version = "0.2.1"
+version = "0.5.0"
 dependencies = [
  "fune-model",
  "fune-ops",
@@ -532,7 +532,7 @@ dependencies = [
 
 [[package]]
 name = "fune-server"
-version = "0.2.1"
+version = "0.5.0"
 dependencies = [
  "axum",
  "fune-service",
@@ -550,7 +550,7 @@ dependencies = [
 
 [[package]]
 name = "fune-service"
-version = "0.2.1"
+version = "0.5.0"
 dependencies = [
  "fune-model",
  "fune-ops",
@@ -563,13 +563,14 @@ dependencies = [
  "serde_json",
  "sha2",
  "similar 3.2.1",
+ "tempfile",
  "thiserror",
  "ts-rs",
 ]
 
 [[package]]
 name = "fune-store"
-version = "0.2.1"
+version = "0.5.0"
 dependencies = [
  "blake3",
  "fune-model",
@@ -1268,7 +1269,7 @@ dependencies = [
 
 [[package]]
 name = "sat-analysis"
-version = "0.2.1"
+version = "0.5.0"
 dependencies = [
  "sat-astro",
  "sat-units",
@@ -1280,7 +1281,7 @@ dependencies = [
 
 [[package]]
 name = "sat-astro"
-version = "0.2.1"
+version = "0.5.0"
 dependencies = [
  "sat-units",
  "serde",
@@ -1291,7 +1292,7 @@ dependencies = [
 
 [[package]]
 name = "sat-units"
-version = "0.2.1"
+version = "0.5.0"
 dependencies = [
  "libm",
  "serde",
@@ -1992,7 +1993,7 @@ checksum = "3ad82d2a33cdc9674dc7465672f271e096168fcdbe0f799d9e6db8c5892679dc"
 
 [[package]]
 name = "xtask"
-version = "0.2.1"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "proc-macro2",

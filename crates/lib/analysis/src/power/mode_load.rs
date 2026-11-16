@@ -3,10 +3,12 @@
 //! 部品ごとの「状態 → 消費電力」の表と、モードごとの状態の割り当て（[`crate::modes`]）から、
 //! モードごとの平均消費電力を部品別に集計する。割り当ての無い部品や、使う状態の電力が無い部品は
 //! **0 W とみなさず**、合計から外して警告に出す。成長余裕は部品ごとの割合（0.2 = +20 %）。
-//! 電力収支（`power.energy_balance`）もモードの負荷を [`evaluate_mode`] で求める。
+//! 電力収支（`power.energy_balance`）・逆算（`power.sizing`）もモードの負荷を [`evaluate_mode`] で求める。
 
 use crate::modes::{self, ModeDef, StateValues, UnlistedParts};
-use crate::spec::{Analysis, AnalysisError, AnalysisKind, Check, System, ensure_non_negative};
+use crate::spec::{
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, ensure_non_negative,
+};
 use sat_units::typed::{Fraction, Power, Qty};
 use serde::{Deserialize, Serialize};
 
@@ -18,9 +20,20 @@ pub struct ModeLoadInput {
     pub parts: Vec<ModeLoadPart>,
     /// モード（部品ごとの状態の割り当て）
     pub modes: Vec<ModeDef>,
-    /// 部品に `growth_margin` が無いときの成長余裕（0.2 = +20 %）。省略時 0
+    /// 部品に `growth_margin` が無いときの成長余裕（0.2 = +20 %）。省略時は [`DEFAULT_GROWTH_MARGIN`]
     #[serde(default)]
-    pub default_growth_margin: f64,
+    pub default_growth_margin: Option<f64>,
+}
+
+/// 部品にも入力にも成長余裕が書かれていないときの成長余裕。余裕を見込まない（0 %）。
+/// 適用した値は出力の `parts[].growth_margin` に載る。
+pub const DEFAULT_GROWTH_MARGIN: f64 = 0.0;
+
+impl ModeLoadInput {
+    /// 部品に成長余裕が無いときの成長余裕（省略時は [`DEFAULT_GROWTH_MARGIN`]）。
+    pub fn default_growth_margin(&self) -> f64 {
+        self.default_growth_margin.unwrap_or(DEFAULT_GROWTH_MARGIN)
+    }
 }
 
 /// 電力を使う部品 1 つ。
@@ -37,7 +50,13 @@ pub struct ModeLoadPart {
     /// 員数。消費電力は単体値を渡し、解析が掛ける（省略時 1）
     #[serde(default = "crate::spec::default_count")]
     pub count: u32,
-    /// 1 台の状態ごとの消費電力（例: `{"by_state": {"off": 0, "on": 1.2}}`）
+    /// 冗長の方式。
+    #[serde(default)]
+    pub redundancy: crate::modes::Redundancy,
+    /// 種別の状態の語彙（warm の予備状態を選ぶ）。
+    #[serde(default)]
+    pub states: Vec<String>,
+    /// 1 台の状態ごとの消費電力（例: `{"by_state": {"idle": 0, "on": 1.2}}`）
     pub power: StateValues<Power>,
     /// 成長余裕（0.2 = +20 %）。省略時は `default_growth_margin`
     #[serde(default)]
@@ -45,9 +64,13 @@ pub struct ModeLoadPart {
 }
 
 impl ModeLoadPart {
-    /// 状態 `state` での部品の消費電力（単体値 × 員数）。表に無ければ `None`。
-    pub fn power_in(&self, state: &str) -> Option<Qty<Power>> {
-        self.power.get(state).map(|p| p * f64::from(self.count))
+    /// 共通のモード評価に渡す員数と語彙。
+    pub fn population(&self) -> crate::modes::Population<'_> {
+        crate::modes::Population {
+            count: self.count,
+            redundancy: self.redundancy,
+            states: &self.states,
+        }
     }
 }
 
@@ -66,6 +89,10 @@ pub struct ModeLoadMode {
     pub label: String,
     /// 平均消費電力の合計（成長余裕なし。値が揃った部品だけ）
     pub total: Qty<Power>,
+    /// 蝕時の消費電力（成長余裕なし）。
+    pub total_eclipse: Qty<Power>,
+    /// 蝕時の消費電力（成長余裕込み）。
+    pub total_eclipse_with_growth: Qty<Power>,
     /// 平均消費電力の合計（成長余裕込み）
     pub total_with_growth: Qty<Power>,
     /// 瞬時の最大（各部品がこのモードで使う状態の最大電力を同時に取ったとき、成長余裕込み）
@@ -104,8 +131,14 @@ pub struct ModeLoadPartResult {
     pub mean: Option<Qty<Power>>,
     /// 成長余裕込みの平均消費電力
     pub mean_with_growth: Option<Qty<Power>>,
+    /// 蝕時の平均消費電力（不足なら None）。
+    pub mean_eclipse: Option<Qty<Power>>,
+    /// 蝕時の成長余裕込みの平均消費電力。
+    pub mean_eclipse_with_growth: Option<Qty<Power>>,
     /// 適用した成長余裕（0.2 = +20 %）
     pub growth_margin: Fraction,
+    /// 予備機の常時負荷（予備があるとき、states の末尾）。
+    pub spare_power: Option<Qty<Power>>,
 }
 
 /// 1 状態の時間割合と電力。
@@ -133,7 +166,7 @@ pub struct ModeLoad;
 impl Analysis for ModeLoad {
     const ID: &'static str = "power.mode_load";
     const TITLE: &'static str = "モード別消費電力";
-    const SYSTEM: System = System::Power;
+    const AREA: AnalysisArea = AnalysisArea::System(System::Power);
     const KIND: AnalysisKind = AnalysisKind::Steady;
     const DESCRIPTION: &'static str =
         "モードごとの消費電力を部品別に集計する（デューティ比・成長余裕込み）";
@@ -156,7 +189,7 @@ impl Analysis for ModeLoad {
 
 /// 部品の ID の重複と成長余裕の値を調べる（電力収支も使う）。
 pub(crate) fn validate(input: &ModeLoadInput) -> Result<(), AnalysisError> {
-    ensure_non_negative("成長余裕の既定値", input.default_growth_margin)?;
+    ensure_non_negative("成長余裕の既定値", input.default_growth_margin())?;
     for (i, p) in input.parts.iter().enumerate() {
         if input.parts[..i].iter().any(|q| q.id == p.id) {
             return Err(AnalysisError::InvalidInput(format!(
@@ -174,23 +207,44 @@ pub(crate) fn validate(input: &ModeLoadInput) -> Result<(), AnalysisError> {
 /// 1 モードの消費電力を集計する（`power.energy_balance` もこれを使う）。
 /// 平均と、未割り当て・値の不足の扱いは [`crate::modes::evaluate`]（警告して合計から除く）。
 pub fn evaluate_mode(input: &ModeLoadInput, mode: &ModeDef) -> Result<ModeLoadMode, AnalysisError> {
-    let ev = modes::evaluate(
-        mode,
-        input.parts.iter().map(|p| p.id.as_str()),
-        UnlistedParts::Warn,
-        |part, state| {
-            input
-                .parts
+    let mut sun = evaluate_sunlit(input, mode)?;
+    if mode.eclipse.is_empty() {
+        sun.total_eclipse = sun.total;
+        sun.total_eclipse_with_growth = sun.total_with_growth;
+        for part in &mut sun.parts {
+            part.mean_eclipse = part.mean;
+            part.mean_eclipse_with_growth = part.mean_with_growth;
+        }
+    } else {
+        let eclipse = evaluate_sunlit(input, &mode.in_eclipse())?;
+        sun.total_eclipse = eclipse.total;
+        sun.total_eclipse_with_growth = eclipse.total_with_growth;
+        for part in &mut sun.parts {
+            let value = eclipse.parts.iter().find(|p| p.part == part.part);
+            part.mean_eclipse = value.and_then(|p| p.mean);
+            part.mean_eclipse_with_growth = value.and_then(|p| p.mean_with_growth);
+        }
+        for check in eclipse.checks {
+            if !sun
+                .checks
                 .iter()
-                .find(|p| p.id == part)
-                .and_then(|p| p.power_in(state))
-                .map(Qty::value)
-        },
-    )?;
+                .any(|c| c.key == check.key && c.message == check.message)
+            {
+                sun.checks.push(check);
+            }
+        }
+    }
+    Ok(sun)
+}
+
+fn evaluate_sunlit(input: &ModeLoadInput, mode: &ModeDef) -> Result<ModeLoadMode, AnalysisError> {
+    let ev = evaluate_parts(input, mode)?;
     let mut out = ModeLoadMode {
         id: mode.id.clone(),
         label: mode.label.clone(),
         total: Qty::ZERO,
+        total_eclipse: Qty::ZERO,
+        total_eclipse_with_growth: Qty::ZERO,
         total_with_growth: Qty::ZERO,
         peak_with_growth: Qty::ZERO,
         groups: Vec::new(),
@@ -210,12 +264,43 @@ pub fn evaluate_mode(input: &ModeLoadInput, mode: &ModeDef) -> Result<ModeLoadMo
         let Some(assignment) = mode.assignment(&part.id) else {
             continue;
         };
-        let growth = part.growth_margin.unwrap_or(input.default_growth_margin);
+        let growth = part.growth_margin.unwrap_or(input.default_growth_margin());
         let result = part_result(part, assignment, mean.map(Qty::<Power>::from_raw), growth)?;
         accumulate(&mut out, part, &result, growth);
         out.parts.push(result);
     }
     Ok(out)
+}
+
+fn evaluate_parts(
+    input: &ModeLoadInput,
+    mode: &ModeDef,
+) -> Result<modes::ModeEvaluation, AnalysisError> {
+    modes::evaluate(
+        mode,
+        input.parts.iter().map(|p| p.id.as_str()),
+        UnlistedParts::Warn,
+        |id| {
+            input
+                .parts
+                .iter()
+                .find(|p| p.id == id)
+                .map(ModeLoadPart::population)
+                .unwrap_or(modes::Population {
+                    count: 0,
+                    redundancy: modes::Redundancy::None,
+                    states: &[],
+                })
+        },
+        |part, state| {
+            input
+                .parts
+                .iter()
+                .find(|p| p.id == part)
+                .and_then(|p| p.power.get(state))
+                .map(Qty::value)
+        },
+    )
 }
 
 fn part_result(
@@ -224,11 +309,10 @@ fn part_result(
     mean: Option<Qty<Power>>,
     growth: f64,
 ) -> Result<ModeLoadPartResult, AnalysisError> {
-    let states = assignment
-        .fractions()?
+    let states: Vec<ModeLoadStateShare> = modes::counted_states(assignment, part.population())?
         .into_iter()
-        .map(|(state, fraction)| ModeLoadStateShare {
-            power: part.power_in(&state),
+        .map(|(state, fraction, count)| ModeLoadStateShare {
+            power: part.power.get(&state).map(|p| p * f64::from(count)),
             state,
             fraction: Fraction::new(fraction),
         })
@@ -237,10 +321,17 @@ fn part_result(
         part: part.id.clone(),
         label: part.label.clone(),
         group: part.group.clone(),
-        states,
+        states: states.clone(),
         mean,
         mean_with_growth: mean.map(|m| m * (1.0 + growth)),
+        mean_eclipse: None,
+        mean_eclipse_with_growth: None,
         growth_margin: Fraction::new(growth),
+        spare_power: if assignment.active.is_some_and(|n| n < part.count) {
+            states.last().and_then(|s: &ModeLoadStateShare| s.power)
+        } else {
+            None
+        },
     })
 }
 
@@ -251,13 +342,16 @@ fn accumulate(out: &mut ModeLoadMode, part: &ModeLoadPart, r: &ModeLoadPartResul
     };
     out.total = out.total + mean;
     out.total_with_growth = out.total_with_growth + mean_g;
+    let spare = r.spare_power;
     let peak = r
         .states
         .iter()
+        .take(r.states.len() - usize::from(spare.is_some()))
         .filter(|s| s.fraction.value() > 0.0)
         .filter_map(|s| s.power)
         .fold(Qty::<Power>::ZERO, |a, p| if p > a { p } else { a });
-    out.peak_with_growth = out.peak_with_growth + peak * (1.0 + growth);
+    out.peak_with_growth =
+        out.peak_with_growth + (peak + spare.unwrap_or(Qty::ZERO)) * (1.0 + growth);
     let idx = match out.groups.binary_search_by(|g| g.group.cmp(&part.group)) {
         Ok(i) => i,
         Err(i) => {

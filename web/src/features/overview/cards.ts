@@ -1,5 +1,12 @@
 import { type KpiSlot, kpiText } from "@/analysis/kpi";
-import type { BudgetView, FillRatio, KpiKey, KpiTally } from "@/api/types";
+import type {
+  BudgetPropellant,
+  BudgetTotal,
+  BudgetView,
+  FillRatio,
+  KpiKey,
+  KpiTally,
+} from "@/api/types";
 import type { Dict } from "@/i18n";
 import type { TickTone } from "@/kit/metrics/TickBar";
 import { verdictTone } from "@/kit/status/verdict-tone";
@@ -70,7 +77,7 @@ export function overviewCards(o: Dict["overview"], s: OverviewSources): Overview
       tone: verdictTone[slot?.kpi?.verdict ?? "ok"],
       footer: rest.footer ?? "",
       footerRight: rest.footerRight ?? "",
-      to: slot ? paths.system(slot.system) : paths.overview(),
+      to: slot ? paths.area(slot.area) : paths.overview(),
       loading: slot?.loading ?? true,
     };
   };
@@ -78,17 +85,7 @@ export function overviewCards(o: Dict["overview"], s: OverviewSources): Overview
     t.checked === 0 ? "—" : t.flagged === 0 ? o.allInRange : o.nodesToCheck(t.flagged);
   const { mass, power } = s;
   return [
-    {
-      key: "mass",
-      label: o.massMargin,
-      value: mass.data?.margin?.display ?? "—",
-      fill: mass.data?.fill ?? null,
-      tone: mass.data?.verdict ? verdictTone[mass.data.verdict] : "accent",
-      footer: mass.data?.total ? o.massTotal(mass.data.total.display) : o.massBudget,
-      footerRight: mass.data?.limit ? o.limit(mass.data.limit.display) : "",
-      to: mass.data ? paths.system(mass.data.system) : paths.overview(),
-      loading: mass.pending,
-    },
+    massCard(o, mass),
     kpiCard("orbit_balance", o.powerBalance, {
       fill: power.data?.fill ?? null,
       footer: power.data?.total ? o.consumption(power.data.total.display) : "",
@@ -107,4 +104,31 @@ export function overviewCards(o: Dict["overview"], s: OverviewSources): Overview
       footer: `${o.tempMax} ${text("max_temperature")} / ${o.tempMin} ${text("min_temperature")}`,
     }),
   ];
+}
+
+/** 推薬込み（wet）の合計（質量のバジェットが推薬を数えたときだけ） */
+export function wetTotal(p: BudgetPropellant | null | undefined): BudgetTotal | null {
+  return p?.status === "counted" ? p.wet : null;
+}
+
+/**
+ * 質量余裕のカード。推薬を数えたときは推薬込み（打ち上げの質量）の余裕・判定・塗りを出し、フッターに乾燥と推薬込みの
+ * 両方の合計を添える。数えていなければ乾燥の値（値と判定は API のものを並べるだけ）。
+ */
+function massCard(o: Dict["overview"], mass: BudgetState): OverviewCard {
+  const b = mass.data;
+  const wet = wetTotal(b?.propellant);
+  const verdict = wet ? wet.verdict : b?.verdict;
+  const dry = b?.total?.display;
+  return {
+    key: "mass",
+    label: o.massMargin,
+    value: (wet ? wet.margin : b?.margin)?.display ?? "—",
+    fill: (wet ? wet.fill : b?.fill) ?? null,
+    tone: verdict ? verdictTone[verdict] : "accent",
+    footer: dry ? (wet ? o.massDryWet(dry, wet.total.display) : o.massTotal(dry)) : o.massBudget,
+    footerRight: b?.limit ? o.limit(b.limit.display) : "",
+    to: b ? paths.system(b.system) : paths.overview(),
+    loading: mass.pending,
+  };
 }

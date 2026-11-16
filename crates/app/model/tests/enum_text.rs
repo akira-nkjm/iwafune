@@ -47,15 +47,21 @@ where
 
 #[test]
 fn enum_text_matches_serde_names() {
+    same_as_serde::<fune_model::builtin::Role>();
     same_as_serde::<Maturity>();
+    same_as_serde::<fune_model::design::Redundancy>();
     same_as_serde::<BudgetKind>();
     same_as_serde::<NetKind>();
     same_as_serde::<SourceKind>();
+    same_as_serde::<fune_model::design::Distribution>();
+    same_as_serde::<fune_model::design::SharedCatalogState>();
     same_as_serde::<UncertaintySide>();
     same_as_serde::<ViewPortSide>();
     same_as_serde::<AttitudeLawKind>();
+    same_as_serde::<fune_model::design::ThermalPresetKind>();
     same_as_serde::<LinkDirection>();
     same_as_serde::<PropagatorKind>();
+    same_as_serde::<fune_model::design::CentralBodyKind>();
     same_as_serde::<Severity>();
     same_as_serde::<Origin>();
     same_as_serde::<Evidence>();
@@ -65,8 +71,12 @@ fn enum_text_matches_serde_names() {
     same_as_serde::<CatalogFieldName>();
     same_as_serde::<NetFieldName>();
     same_as_serde::<AnalysisSystem>();
+    same_as_serde::<fune_model::design::ConditionTopic>();
     same_as_serde::<NetEnd>();
     same_as_serde::<HarnessEnd>();
+    same_as_serde::<fune_model::design::ManeuverCategory>();
+    same_as_serde::<fune_model::design::ManeuverMethod>();
+    same_as_serde::<fune_model::design::ManeuverSteering>();
 }
 
 /// `analysis/` の型の欄（serde の名前 = ファイル名）は、共通設定と解析の系から成る。
@@ -82,6 +92,7 @@ fn analysis_settings_fields_are_the_analysis_systems() {
         thermal: Some(Default::default()),
         structure: Some(Default::default()),
         payload: Some(Default::default()),
+        propulsion: Some(Default::default()),
     };
     let json = serde_json::to_value(&all).unwrap();
     let keys: Vec<&str> = json

@@ -27,6 +27,8 @@ pub(super) const PREFERENCES: &[Preference] = &[
             ("mm", 1.0),
             ("m", 1.0),
             ("km", 1.0),
+            // 地球周回では届かない遠さだけ（0.1 AU = 1.5e7 km 以上）。月・L2 までは km のまま。
+            ("AU", 0.1),
         ],
     ),
     pref(
@@ -45,6 +47,8 @@ pub(super) const PREFERENCES: &[Preference] = &[
             ("min", 2.0),
             ("h", 2.0),
             ("d", 2.0),
+            // 2 年（730 d）以上から。1 年前後の寿命は日で読む。年は IAU のユリウス年（365.25 d）。
+            ("yr", 2.0),
         ],
     ),
     pref(
@@ -59,11 +63,18 @@ pub(super) const PREFERENCES: &[Preference] = &[
         ],
     ),
     pref("Temperature", "degC", &[("degC", 1.0)]),
-    pref("Angle", "deg", &[("deg", 1.0)]),
+    // 度は 0.01° 以上。それより小さい指向精度を秒角で読む（分角は使わない）。
+    pref("Angle", "deg", &[("arcsec", 1.0), ("deg", 0.01)]),
     pref(
         "Information",
         "B",
-        &[("B", 1.0), ("kB", 1.0), ("MB", 1.0), ("GB", 1.0)],
+        &[
+            ("B", 1.0),
+            ("kB", 1.0),
+            ("MB", 1.0),
+            ("GB", 1.0),
+            ("TB", 1.0),
+        ],
     ),
     pref(
         "Frequency",
@@ -74,6 +85,7 @@ pub(super) const PREFERENCES: &[Preference] = &[
             ("kHz", 1.0),
             ("MHz", 1.0),
             ("GHz", 1.0),
+            ("THz", 1.0),
         ],
     ),
     pref(
@@ -86,7 +98,12 @@ pub(super) const PREFERENCES: &[Preference] = &[
         "m/s^2",
         &[("um/s^2", 1.0), ("mm/s^2", 1.0), ("m/s^2", 1.0)],
     ),
-    pref("AngularVelocity", "deg/s", &[("deg/s", 1.0)]),
+    // 0.01 deg/s（36 arcsec/s）未満だけ秒角毎秒で読む。分角毎秒は使わない。
+    pref(
+        "AngularVelocity",
+        "deg/s",
+        &[("arcsec/s", 1.0), ("deg/s", 0.01)],
+    ),
     pref(
         "Force",
         "N",
@@ -201,5 +218,10 @@ pub(super) const PREFERENCES: &[Preference] = &[
         "AbsorbedDose",
         "Gy",
         &[("mGy", 1.0), ("Gy", 1.0), ("kGy", 1.0)],
+    ),
+    pref(
+        "Impulse",
+        "N*s",
+        &[("uN*s", 1.0), ("mN*s", 1.0), ("N*s", 1.0), ("kN*s", 1.0)],
     ),
 ];

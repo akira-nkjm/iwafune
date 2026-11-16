@@ -30,8 +30,9 @@ pub fn dipole_field_eci_t(r_eci_m: Vec3, epoch: Epoch) -> Vec3 {
     (r_hat * (3.0 * m_hat.dot(r_hat)) - m_hat) * k
 }
 
-/// 中心天体 `central` のまわりの磁束密度（ECI）[T]。地球だけが磁場を持つモデルなので、ほかの中心天体では 0。
-/// `r_rel_m` は中心天体からの位置 [m]。
+/// 中心天体 `central` のまわりの磁束密度（ECI）[T]。磁場のモデルは地球だけなので、ほかの中心天体では 0 を返す。
+/// その 0 が「磁場が無い」のか「磁場はあるがモデルが無い」のかは [`CentralBody::magnetic_field_model`] で分かる
+/// （解析は後者のとき 0 を結果として出さず、利用者に伝える）。`r_rel_m` は中心天体からの位置 [m]。
 pub fn field_about_eci_t(central: CentralBody, r_rel_m: Vec3, epoch: Epoch) -> Vec3 {
     match central {
         CentralBody::Earth => dipole_field_eci_t(r_rel_m, epoch),

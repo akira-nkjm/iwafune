@@ -5,6 +5,7 @@ use crate::missing::MissingInputs;
 use crate::parts::{by_role, state_values};
 use crate::quantity::setting;
 use fune_model::Target;
+use fune_model::builtin::Role;
 use fune_model::design::AnalysisSystem;
 use fune_model::design::setting_dims as dims;
 use sat_analysis::cdh::DataBudgetInput;
@@ -14,18 +15,7 @@ use sat_units::typed::{Fraction, Qty};
 /// `cdh.data_budget`
 pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> {
     let mut m = MissingInputs::new();
-    let parts: Vec<DataBudgetPart> = ctx
-        .resolved
-        .parts
-        .values()
-        .filter(|p| p.value("hk_rate").is_some() || p.value("mission_rate").is_some())
-        .map(|p| DataBudgetPart {
-            id: p.id.clone(),
-            count: crate::parts::count_of(p),
-            hk_rate: state_values(p, "hk_rate").unwrap_or_default(),
-            mission_rate: state_values(p, "mission_rate").unwrap_or_default(),
-        })
-        .collect();
+    let parts = data_parts(ctx);
     if parts.is_empty() {
         m.push(
             Target::any_part("hk_rate"),
@@ -34,18 +24,18 @@ pub fn data_budget(ctx: &Context<'_>) -> Result<DataBudgetInput, MissingInputs> 
     }
     let mode_shares = mode_shares(ctx, &mut m);
     // 容量の合計（員数込み）は解析が求めるので、1 台あたりの容量と員数をそのまま渡す。
-    let storage: Vec<DataBudgetStorage> = by_role(ctx, "obc")
+    let storage: Vec<DataBudgetStorage> = by_role(ctx, Role::Obc)
         .filter_map(|p| {
             Some(DataBudgetStorage {
                 part: p.id.clone(),
-                capacity: Qty::from_raw(p.scalar("storage_capacity")?),
+                capacity: Qty::from_raw(ctx.scalar(p, "storage_capacity")?),
                 count: crate::parts::count_of(p),
             })
         })
         .collect();
     if storage.is_empty() {
         m.push(
-            Target::any_of_roles(&["obc"], Some("storage_capacity")),
+            Target::any_of_roles(&[Role::Obc], Some("storage_capacity")),
             "搭載ストレージの容量（role = obc の部品）",
         );
     }
@@ -97,4 +87,21 @@ pub fn mode_shares(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<DataBudgetMo
             Vec::new()
         }
     }
+}
+
+/// データを発生する部品の射影（モード表示とデータ量で共用）。
+pub fn data_parts(ctx: &Context<'_>) -> Vec<DataBudgetPart> {
+    ctx.resolved
+        .parts
+        .values()
+        .filter(|p| p.value("hk_rate").is_some() || p.value("mission_rate").is_some())
+        .map(|p| DataBudgetPart {
+            id: p.id.clone(),
+            count: crate::parts::count_of(p),
+            redundancy: crate::parts::redundancy(p),
+            states: p.states.clone(),
+            hk_rate: state_values(ctx, p, "hk_rate").unwrap_or_default(),
+            mission_rate: state_values(ctx, p, "mission_rate").unwrap_or_default(),
+        })
+        .collect()
 }

@@ -1,5 +1,6 @@
 //! 組み込みの語彙の表示名（日本語・英語）。機器の状態・属性の系・API の列挙の値。中身は `labels.toml`。
 
+use super::Role;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::sync::OnceLock;
@@ -23,9 +24,12 @@ pub struct Label {
 #[serde(deny_unknown_fields)]
 #[ts(rename = "VocabLabels")]
 pub struct Labels {
-    /// role → 解析の系。
+    /// role → 解析の系（None は系に属さないと明示）。
     #[serde(default)]
-    pub role_system: BTreeMap<String, String>,
+    pub role_system: BTreeMap<Role, Option<String>>,
+    /// 種別に役割の無い部品をまとめたグループの表示名（機器の一覧の「その他」）
+    #[serde(default)]
+    pub role_other: Option<Label>,
     /// 画面で系（section）を並べる順
     #[serde(default)]
     pub section_order: Vec<String>,
@@ -35,13 +39,20 @@ pub struct Labels {
     /// 属性の系（AttributeDef の `section`）
     #[serde(default)]
     pub section: BTreeMap<String, Label>,
-    /// 列挙の型（`maturity`・`net_kind`・`source_kind`・`evidence`・`origin`・`severity`・`attitude_law`・
-    /// `propagator`・`link_direction`・`uncertainty_side`・`value_type`・`budget_kind`）→ 値 → 表示名
+    /// 列挙の型（`maturity`・`net_kind`・`source_kind`・`distribution`・`evidence`・`origin`・`severity`・`attitude_law`・
+    /// `propagator`・`link_direction`・`uncertainty_side`・`value_type`・`budget_kind`・`maneuver_category`・`maneuver_method`・`central_body`・`maneuver_steering`、
+    /// 真偽の値 `bool`（`true`・`false`））→ 値 → 表示名
     #[serde(default, rename = "enum")]
     pub enums: BTreeMap<String, BTreeMap<String, Label>>,
     /// 列挙の型 → 値を選択肢に並べる順（`enum` の同じ型の値をすべて並べる。無い型は値の綴りの順）
     #[serde(default)]
     pub enum_order: BTreeMap<String, Vec<String>>,
+    /// 設定のパス（`conditions.orbit`・`analysis.power.dod_max`）→ 表示名。引き当ては [`setting_label`]
+    #[serde(default)]
+    pub setting: BTreeMap<String, Label>,
+    /// 解析ケースの欄（`mode`・`beta`・`orbits` …）→ 表示名
+    #[serde(default)]
+    pub case_field: BTreeMap<String, Label>,
 }
 
 /// 組み込みの表示名（埋め込みの TOML はテストで解析できることを保証している）。
@@ -72,6 +83,39 @@ pub fn state_label(state: &str) -> Option<&'static Label> {
     labels().state.get(state)
 }
 
+/// 設定のパスの表示名。パスそのものに無ければ、いちばん長い親の表示名と、その下の残りのキー
+/// （`analysis.aocs.law.NOMINAL` → 姿勢則と `["NOMINAL"]`）。親にも無ければ None。
+pub fn setting_label(path: &crate::path::SettingPath) -> Option<(&'static Label, Vec<String>)> {
+    (1..=path.segments.len()).rev().find_map(|n| {
+        let parent = crate::path::SettingPath {
+            scope: path.scope,
+            segments: path.segments[..n].to_vec(),
+        };
+        let label = labels().setting.get(&parent.to_string())?;
+        Some((label, path.segments[n..].to_vec()))
+    })
+}
+
+/// 役割の無い部品をまとめたグループの表示名（「その他」）。
+pub fn role_other_label() -> Label {
+    labels().role_other.clone().unwrap_or_else(|| Label {
+        label: "その他".to_owned(),
+        label_en: Some("Other".to_owned()),
+    })
+}
+
+/// 役割の表示名（その役割を持つ組み込みの種別の名前。`solar_panel` → 太陽電池パネル）。
+pub fn role_label(role: super::Role) -> Option<Label> {
+    let kind = super::kinds()
+        .values()
+        .filter(|k| k.role == Some(role))
+        .min_by_key(|k| k.id.as_str() != role.as_str())?;
+    Some(Label {
+        label: kind.label.clone(),
+        label_en: kind.label_en.clone(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -95,6 +139,26 @@ mod tests {
         assert_eq!(
             labels().enums["maturity"]["new"].label_en.as_deref(),
             Some("New")
+        );
+    }
+
+    #[test]
+    fn setting_labels_have_english_and_fall_back_to_the_parent() {
+        use crate::path::SettingPath;
+        for (key, l) in labels().setting.iter().chain(&labels().case_field) {
+            assert!(l.label_en.is_some(), "{key}");
+        }
+        let (dod, rest) = setting_label(&SettingPath::analysis(&["power", "dod_max"])).unwrap();
+        assert_eq!((dod.label.as_str(), rest.len()), ("許容 DoD", 0));
+        let (law, rest) =
+            setting_label(&SettingPath::analysis(&["aocs", "law", "NOMINAL"])).unwrap();
+        assert_eq!(
+            (law.label.as_str(), rest),
+            ("姿勢則", vec!["NOMINAL".to_owned()])
+        );
+        assert_eq!(
+            role_label(super::super::Role::SolarPanel).map(|l| l.label),
+            Some("太陽電池パネル".to_owned())
         );
     }
 

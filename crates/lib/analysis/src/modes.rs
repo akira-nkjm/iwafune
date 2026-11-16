@@ -2,7 +2,8 @@
 //!
 //! モードは「部品 ID → 状態（＋デューティ比）」の割り当ての集まり。部品は文字列の ID で識別し、
 //! 部品の中身（電力・データレートなど）はこのモジュールは知らない。値は呼び出し側が状態名から引く。
-//! 部品の状態ごとの値の表は [`StateValues`]（単体値。員数は各解析の部品の `count` に持たせて解析が掛ける）。
+//! 部品の状態ごとの値の表は [`StateValues`]（単体値。員数・冗長・語彙は `Population` で受け、`counted_states` だけが台数を数える）。
+//! モードでの電源のオン・オフ（熱の温度範囲の選び方）は [`power_states`]（`counted_states` の上に作る）。
 //!
 //! **方針（ここだけ）**: モードで状態が割り当てられていない部品と、使う状態の値が無い部品は、
 //! 0 とみなさず**警告して合計から除く**（[`evaluate`]・[`ModeEvaluation::checks`]）。
@@ -28,7 +29,7 @@ pub struct StateValues<D: Dimension> {
     /// 状態によらない値（`by_state` に無い状態に使う）
     #[serde(default)]
     pub default: Option<Qty<D>>,
-    /// 状態ごとの値（例: `{"off": 0, "on": 1.2}`）
+    /// 状態ごとの値（例: `{"idle": 0, "on": 1.2}`）
     #[serde(default)]
     pub by_state: BTreeMap<String, Qty<D>>,
 }
@@ -89,9 +90,32 @@ pub struct ModeDef {
     pub id: String,
     pub label: String,
     pub assignments: Vec<StateAssignment>,
+    #[serde(default)]
+    pub eclipse: Vec<StateAssignment>,
 }
 
 impl ModeDef {
+    /// 蝕の上書きを適用した独立のモード。
+    pub fn in_eclipse(&self) -> Self {
+        let mut out = self.clone();
+        for a in &self.eclipse {
+            if let Some(old) = out.assignments.iter_mut().find(|old| old.part == a.part) {
+                *old = a.clone();
+            }
+        }
+        out.eclipse.clear();
+        out
+    }
+
+    /// 時間割合（`duty`）が正の状態を持つ割り当てがあるか（蝕の上書きも見る）。
+    /// 値はどの解析でも時間平均として扱う（周回内の時間分布は持たない）。
+    pub fn uses_duty(&self) -> bool {
+        self.assignments
+            .iter()
+            .chain(&self.eclipse)
+            .any(|a| a.duty.values().any(|&f| f > 0.0))
+    }
+
     /// 部品 `part` の割り当て。無ければ `None`（呼び出し側は「0 とみなす」のではなく未割り当てとして扱う）。
     pub fn assignment(&self, part: &str) -> Option<&StateAssignment> {
         self.assignments.iter().find(|a| a.part == part)
@@ -119,6 +143,10 @@ impl ModeDef {
 pub struct StateAssignment {
     pub part: String,
     pub state: String,
+    #[serde(default)]
+    pub active: Option<u32>,
+    #[serde(default)]
+    pub spare_state: Option<String>,
     #[serde(default)]
     pub duty: BTreeMap<String, f64>,
 }
@@ -241,12 +269,88 @@ impl ModeEvaluation {
     }
 }
 
+/// 冗長の方式（設計層とは projection が対応させる）。
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[cfg_attr(feature = "ts", ts(rename = "ModeRedundancy"))]
+pub enum Redundancy {
+    #[default]
+    None,
+    Cold,
+    Warm,
+}
+
+/// 慣例の停止状態（cold の予備機の状態、電源の状態のオフ [`power_states`]）。sat-analysis は fune-model を見られないので値を持ち、
+/// `fune_model::builtin::STATE_OFF` と一致することを projection のテストで確かめる。
+pub const OFF_STATE: &str = "off";
+
+/// warm の予備機の既定の状態（語彙にある最初のもの。`spare_state` が無いとき）。sat-analysis は fune-model を見られないので値を持ち、
+/// `fune_model::check::modes::WARM_SPARE_DEFAULT_STATES` と一致することを projection のテストで確かめる。
+pub const WARM_SPARE_DEFAULT_STATES: [&str; 2] = ["standby", "idle"];
+
+/// 稼働台・予備台を評価する部品の情報。
+#[derive(Debug, Clone, Copy)]
+pub struct Population<'a> {
+    pub count: u32,
+    pub redundancy: Redundancy,
+    pub states: &'a [String],
+}
+
+/// 各状態の (状態名, 時間割合, 台数)。稼働台の duty と、常時その状態にいる予備を分ける。
+pub fn counted_states(
+    a: &StateAssignment,
+    p: Population<'_>,
+) -> Result<Vec<(String, f64, u32)>, AnalysisError> {
+    let invalid = |why: &str| AnalysisError::InvalidInput(format!("部品 {}: {why}", a.part));
+    if a.spare_state
+        .as_ref()
+        .is_some_and(|s| !p.states.contains(s))
+    {
+        return Err(invalid("spare_state が種別の語彙にありません"));
+    }
+    let active = a.active.unwrap_or(p.count);
+    if active > p.count {
+        return Err(invalid("active が count を超えています"));
+    }
+    if a.active.is_some() && matches!(p.redundancy, Redundancy::None) {
+        return Err(invalid("active には redundancy が必要です"));
+    }
+    let mut out: Vec<_> = a
+        .fractions()?
+        .into_iter()
+        .map(|(s, f)| (s, f, active))
+        .collect();
+    let spare = p.count - active;
+    if spare > 0 {
+        let state = match p.redundancy {
+            Redundancy::None => return Err(invalid("予備機に redundancy がありません")),
+            Redundancy::Cold => OFF_STATE,
+            Redundancy::Warm => a
+                .spare_state
+                .as_deref()
+                .or_else(|| {
+                    WARM_SPARE_DEFAULT_STATES
+                        .into_iter()
+                        .find(|s| p.states.iter().any(|v| v == s))
+                })
+                .ok_or_else(|| invalid("warm の予備状態が決まりません"))?,
+        };
+        if !p.states.iter().any(|s| s == state) {
+            return Err(invalid("予備状態が種別の語彙にありません"));
+        }
+        out.push((state.to_owned(), 1.0, spare));
+    }
+    Ok(out)
+}
+
 /// モード `mode` での部品 `parts`（ID）の時間平均を求める。`value_of(部品, 状態)` は状態の値（無ければ `None`）。
 /// 一覧に無い部品の割り当てを警告するかは `unlisted` で選ぶ。
-pub fn evaluate<'a>(
+pub fn evaluate<'a, 'p>(
     mode: &ModeDef,
     parts: impl IntoIterator<Item = &'a str>,
     unlisted: UnlistedParts,
+    population: impl Fn(&str) -> Population<'p>,
     value_of: impl Fn(&str, &str) -> Option<f64>,
 ) -> Result<ModeEvaluation, AnalysisError> {
     mode.validate()?;
@@ -261,15 +365,19 @@ pub fn evaluate<'a>(
             ev.means.push((part.to_owned(), None));
             continue;
         };
-        let lacking: Vec<String> = a
-            .fractions()?
-            .into_iter()
-            .filter(|(s, f)| *f > 0.0 && value_of(part, s).is_none())
-            .map(|(s, _)| s)
-            .collect();
-        let mean = a.weighted_mean(|s| value_of(part, s))?;
-        ev.missing
-            .extend(lacking.into_iter().map(|s| (part.to_owned(), s)));
+        let mut mean = Some(0.0);
+        for (state, fraction, count) in counted_states(a, population(part))? {
+            if fraction <= 0.0 || count == 0 {
+                continue;
+            }
+            match value_of(part, &state) {
+                Some(value) => mean = mean.map(|m| m + value * fraction * f64::from(count)),
+                None => {
+                    ev.missing.push((part.to_owned(), state));
+                    mean = None;
+                }
+            }
+        }
         ev.means.push((part.to_owned(), mean));
     }
     if unlisted == UnlistedParts::Warn {
@@ -282,6 +390,9 @@ pub fn evaluate<'a>(
     }
     Ok(ev)
 }
+
+mod power;
+pub use power::{PowerStates, power_states};
 
 #[cfg(test)]
 mod tests;

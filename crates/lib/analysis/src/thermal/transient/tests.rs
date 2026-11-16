@@ -27,6 +27,7 @@ fn first_order_cooling() {
             temperature: Qty::from_raw(350.0),
         },
         max_step: None,
+        margin: ThermalMarginPolicy::default(),
     };
     let out = ThermalTransient::run(&input).unwrap();
     let ch = &out.series.channels[1];
@@ -53,6 +54,7 @@ fn phases_cycle() {
             count: 1,
             node: "a".to_owned(),
             power: Qty::from_raw(w),
+            rf_output: None,
             heat_fraction: Some(1.0),
         }]
     };
@@ -62,13 +64,13 @@ fn phases_cycle() {
             ThermalHeatPhase {
                 mode_loads: None,
                 label: "A".to_owned(),
-                duration: Qty::from_raw(10.0),
+                duration: Some(Qty::from_raw(10.0)),
                 loads: load(1.0),
             },
             ThermalHeatPhase {
                 mode_loads: None,
                 label: "B".to_owned(),
-                duration: Qty::from_raw(30.0),
+                duration: Some(Qty::from_raw(30.0)),
                 loads: load(5.0),
             },
         ],
@@ -91,6 +93,7 @@ fn orbit_average_start_is_near_periodic() {
         count: 1,
         node: "cube".to_owned(),
         power: Qty::from_raw(2.0),
+        rf_output: None,
         heat_fraction: Some(1.0),
     }];
     let input = ThermalTransientInput {
@@ -100,11 +103,12 @@ fn orbit_average_start_is_near_periodic() {
         phases: vec![ThermalHeatPhase {
             mode_loads: None,
             label: "NOM".to_owned(),
-            duration: Qty::from_raw(1000.0),
+            duration: Some(Qty::from_raw(1000.0)),
             loads: loads.clone(),
         }],
         initial: ThermalInitial::OrbitAverageSteady,
         max_step: None,
+        margin: ThermalMarginPolicy::default(),
     };
     let out = ThermalTransient::run(&input).unwrap();
     let steady = crate::thermal::steady::ThermalSteady::run(&crate::thermal::ThermalSteadyInput {
@@ -117,6 +121,7 @@ fn orbit_average_start_is_near_periodic() {
             exposure: crate::thermal::ThermalExposure::OrbitAverage { timeline: tl },
             loads,
         }],
+        margin: ThermalMarginPolicy::default(),
     })
     .unwrap();
     let t_ss = steady.cases[0].nodes[0].temperature.value();
@@ -136,4 +141,38 @@ fn orbit_average_start_is_near_periodic() {
     // 入熱のチャンネルは日陰で地球赤外だけになる（0 より大きく、日照時より小さい）。
     let absorbed = &out.series.channels[1].values;
     assert!(absorbed.iter().all(|q| *q > 0.0));
+}
+
+/// 区間の長さを書かなければ既定（1 日）。区間が 1 つなら発熱は一定なので、長さを書いたときと結果が同じ。
+#[test]
+fn single_phase_duration_defaults_without_changing_the_result() {
+    let run = |duration: Option<Qty<Time>>| {
+        let loads = vec![ThermalLoad {
+            count: 1,
+            node: "cube".to_owned(),
+            power: Qty::from_raw(2.0),
+            rf_output: None,
+            heat_fraction: Some(1.0),
+        }];
+        ThermalTransient::run(&ThermalTransientInput {
+            network: cube(5.0),
+            timeline: leo_timeline(1.0, 30.0),
+            environment: ThermalEnvironment::default(),
+            phases: vec![ThermalHeatPhase {
+                mode_loads: None,
+                label: "NOM".to_owned(),
+                duration,
+                loads,
+            }],
+            initial: ThermalInitial::OrbitAverageSteady,
+            max_step: None,
+            margin: ThermalMarginPolicy::default(),
+        })
+        .unwrap()
+    };
+    let omitted = run(None);
+    let written = run(Some(Qty::from_raw(DEFAULT_PHASE_DURATION_S)));
+    assert_eq!(DEFAULT_PHASE_DURATION_S, 86_400.0);
+    assert_eq!(omitted.nodes[0].max, written.nodes[0].max);
+    assert_eq!(omitted.nodes[0].min, written.nodes[0].min);
 }

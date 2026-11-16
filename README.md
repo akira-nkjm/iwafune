@@ -18,7 +18,7 @@
 
 iwafune is a workbench for the conceptual design of small satellites. The design lives in a git-friendly
 directory of TOML files. You edit it from either the `fune` CLI or a web GUI, and run analyses for power,
-AOCS, C&DH, communications, thermal and structure on the same data.
+AOCS, C&DH, communications, thermal, structure and propulsion on the same data.
 
 > The name comes from Ama-no-Iwafune, the rock boat said to have carried Nigihayahi down from the heavens.
 > The logo is its hull.
@@ -27,7 +27,7 @@ AOCS, C&DH, communications, thermal and structure on the same data.
 
 |  |  |
 |---|---|
-| **Design data as files** | One entity per TOML file: parts, modes, nets, harness, budgets, mission, analysis settings and catalog items. Quantities carry units, and every value records where it came from (catalog, override or kind default) and what backs it (datasheet, measurement, placeholder…). |
+| **Design data as files** | One entity per TOML file: parts, modes, nets, harness, budgets, conditions, analysis settings and catalog items. Quantities carry units, and every value records where it came from (catalog, override or kind default) and what backs it (datasheet, measurement, placeholder…). |
 | **CLI and GUI as equals** | Every edit is an `Op`, and both front ends call the same service functions. A parity test checks that the same edit made from the CLI and from the HTTP API writes byte-identical files. |
 | **GUI** | Budgets overview, part table, mode matrix (ON/OFF and duty cycles), electrical system diagram (power and signal, overlaid or separate), editable 3D layout, and one page per subsystem. Japanese and English UI. |
 | **Orbit and environment** | Kepler/J2 and numerical propagation (DOP853), EGM96 gravity to degree 70, NRLMSISE-00, DE440 ephemerides (fetched on demand), central bodies other than Earth, solid tides, relativistic correction, ground track. |
@@ -42,6 +42,7 @@ AOCS, C&DH, communications, thermal and structure on the same data.
 | Communications | Link budget · ground-station visibility · downlink throughput |
 | Thermal | Steady-state and transient multi-node |
 | Structure | Mass properties · quasi-static loads · simple modal estimate |
+| Propulsion | Maneuvers (impulsive · finite burn · low thrust) · delta-V budget with margin · propellant and tank margin · thruster usage against ratings |
 
 Each analysis takes typed SI inputs built from the design, returns typed outputs with pass/warning/violation
 checks, and lists any inputs that are still missing.
@@ -69,7 +70,7 @@ The binary is not notarized: downloaded with `gh` it runs as is, but a copy down
 Gatekeeper until you run `xattr -d com.apple.quarantine fune`.
 
 Then run `fune gui` in a design directory (one with `fune.toml`), or `fune init` to start one.
-`fune data fetch de440` downloads the optional DE440 ephemeris the same way. On other platforms, build from source.
+`fune data fetch de440` downloads the optional DE440 ephemeris the same way, and `fune data fetch space_weather` downloads the CelesTrak space weather table (F10.7, Ap) into the user cache. On other platforms, build from source.
 
 ## Quick start
 
@@ -131,6 +132,32 @@ Each release publishes the CLI as `ghcr.io/akira-nkjm/fune:<version>` (and `:lat
 [image.yml](.github/workflows/image.yml). To let another repository pull it, add that repository under the
 package's "Manage Actions access"; its workflow then uses the image as a job container with its own
 `GITHUB_TOKEN` (`permissions: packages: read`) and runs `fune check`.
+
+### Shared catalogs in CI
+
+A satellite repository can read catalog items from a shared catalog repository (`[[catalog]] git = …` in
+`fune.toml`, see [docs/model.md §12](docs/model.md)). The commit is pinned in `catalog.lock`, which is committed,
+and the fetched files are cached under `.fune/` (ignored by git). In CI, fetch the locked commit first, then check:
+
+```yaml
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    container: ghcr.io/akira-nkjm/fune:latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      # Only for a private catalog repository: let git authenticate with a token that can read it.
+      - run: git config --global url."https://x-access-token:${{ secrets.CATALOG_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      - run: fune catalog fetch --locked   # fails if catalog.lock is missing or does not match fune.toml
+      - run: fune check
+```
+
+`fune catalog fetch --locked` never rewrites `catalog.lock`; run `fune catalog fetch` (or `fune catalog update <name>`
+to move to the newest commit of `rev`) locally and commit the lock. fune calls the `git` command, so authentication
+is whatever your git configuration provides (credential helper, SSH keys); the image includes `git`.
 
 ## Documentation
 

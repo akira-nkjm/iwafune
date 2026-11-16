@@ -3,14 +3,19 @@ import type { AnalysisState } from "@/api/queries";
 import type { AnalysisEntry, AnalysisRunResult, KpiKey, KpiView, System } from "@/api/types";
 import { analysesFor, kpiSlots, kpiText } from "./kpi";
 
-const def = (key: KpiKey) => ({ key, label: `名前 ${key}`, label_en: `Name ${key}` });
+const def = (key: KpiKey, when_measured = false) => ({
+  key,
+  label: `名前 ${key}`,
+  label_en: `Name ${key}`,
+  when_measured,
+});
 
 const entry = (id: string, system: System, keys: KpiKey[]): AnalysisEntry => ({
   info: {
     id,
     title: id,
     title_en: id,
-    system,
+    area: { kind: "system", value: system },
     kind: "steady",
     description: "",
     description_en: "",
@@ -18,7 +23,7 @@ const entry = (id: string, system: System, keys: KpiKey[]): AnalysisEntry => ({
   input_type: "",
   output_type: "",
   projectable: true,
-  kpis: keys.map(def),
+  kpis: keys.map((key) => def(key)),
 });
 
 const view = (key: KpiKey, display: string | null): KpiView => ({
@@ -43,6 +48,7 @@ const result = (id: string, kpis: KpiView[]): AnalysisRunResult => ({
   labels: {},
   missing: [],
   error: null,
+  overview: { main: [], checks: [], chart: null, hidden_tables: [] },
 });
 
 const state = (id: string, kpis: KpiView[] | null): AnalysisState => ({
@@ -60,6 +66,12 @@ const entries = [
 ];
 
 describe("kpiSlots", () => {
+  it("前提条件の KPI は話題の区分を保つ", () => {
+    const topic = entry("orbit.example", "power", ["mode_load"]);
+    topic.info.area = { kind: "condition", value: "orbit" };
+    const [slot] = kpiSlots([topic], []);
+    expect(slot?.area).toEqual({ kind: "condition", value: "orbit" });
+  });
   it("解析の一覧の順に KPI を並べ、値は結果の kpis をキーで引く", () => {
     const slots = kpiSlots(entries, [
       state("power.mode_load", [view("mode_load", "17.4 W")]),
@@ -68,12 +80,24 @@ describe("kpiSlots", () => {
     expect(slots.map((s) => s.def.key)).toEqual(["mode_load", "orbit_balance", "max_dod"]);
     expect(slots[0]).toMatchObject({
       analysis: "power.mode_load",
-      system: "power",
+      area: { kind: "system", value: "power" },
       loading: false,
     });
     expect(slots[0]?.kpi?.value?.display).toBe("17.4 W");
     // 結果を待っている解析の KPI は、値が無く読み込み中
     expect(slots[1]).toMatchObject({ kpi: null, loading: true });
+  });
+
+  it("測れたときだけ出す KPI は、結果が届いて値が無ければ並べない", () => {
+    const e = entry("aocs.unload_time", "aocs", []);
+    e.kpis = [def("mtq_unload_time", true), def("rcs_unload_time", true)];
+    const keys = (s: AnalysisState | null) =>
+      kpiSlots([e], s ? [s] : []).map((slot) => slot.def.key);
+    expect(keys(state("aocs.unload_time", [view("mtq_unload_time", "25.4 min")]))).toEqual([
+      "mtq_unload_time",
+    ]);
+    expect(keys(state("aocs.unload_time", null))).toEqual(["mtq_unload_time", "rcs_unload_time"]);
+    expect(keys(null)).toEqual(["mtq_unload_time", "rcs_unload_time"]);
   });
 
   it("結果に無いキーと、まだ状態の無い解析は値を持たない", () => {

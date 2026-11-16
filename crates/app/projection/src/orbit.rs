@@ -1,0 +1,144 @@
+//! 軌道条件の解析（季節解析・高度低下）。既定値や物理計算を持たず、条件ファイル・部品から写す。
+use crate::quantity::{setting, setting_opt};
+use crate::{Context, MissingInputs};
+use fune_model::design::OrbitDecaySettings;
+use fune_model::design::setting_dims as dims;
+use fune_model::value::Quantity;
+use sat_analysis::orbit::EclipseSeasonInput;
+use sat_analysis::orbit::decay::OrbitDecayInput;
+use sat_units::typed::{Area, Length, Qty, Time};
+
+/// 軌道・ミッション期間・任意の季節刻み。
+pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingInputs> {
+    let mut m = MissingInputs::new();
+    let orbit = ctx.orbit(&mut m);
+    let o = ctx.design.conditions.orbit.as_ref();
+    ctx.note(dims::ORBIT_DURATION.at(&[]));
+    ctx.note(dims::ORBIT_ECLIPSE_SEASON_STEP.at(&[]));
+    let duration = setting(
+        &dims::ORBIT_DURATION,
+        &[],
+        o.and_then(|o| o.duration.as_ref()),
+        "ミッション期間",
+        &mut m,
+    );
+    let step = setting_opt(
+        &dims::ORBIT_ECLIPSE_SEASON_STEP,
+        &[],
+        o.and_then(|o| o.eclipse_season.as_ref())
+            .and_then(|s| s.step.as_ref()),
+        &mut m,
+    );
+    // 数値伝搬のマヌーバがあるときだけ、標本日の軌道をマヌーバの順の推移から引く（無ければ結果を変えない）
+    let maneuvers = if crate::propulsion::has_propagated(ctx) {
+        crate::propulsion::maneuvers(ctx)
+            .map_err(|e| m.extend(e))
+            .ok()
+    } else {
+        None
+    };
+    m.finish(|| {
+        Some(EclipseSeasonInput {
+            orbit: orbit?,
+            duration: duration?,
+            step,
+            maneuvers,
+        })
+    })
+}
+
+/// `orbit.decay`: 軌道・機体の質量（部品）・外形（構体の `size`）・抗力係数（`analysis.aocs.drag_coefficient`）・
+/// ミッション期間と `[decay]` の任意の設定。軌道維持の推進系は推進系の解析と同じ入力（`propulsion::maneuvers`。
+/// 推進系が無ければ付けず、有れば足りない入力も並べる）。宇宙天気の表から引いた列は service が足す（ここは表を読まない）。
+pub fn decay(ctx: &Context<'_>) -> Result<OrbitDecayInput, MissingInputs> {
+    let mut m = MissingInputs::new();
+    let orbit = ctx.orbit(&mut m);
+    let o = ctx.design.conditions.orbit.as_ref();
+    let mission_duration = setting_opt(
+        &dims::ORBIT_DURATION,
+        &[],
+        o.and_then(|o| o.duration.as_ref()),
+        &mut m,
+    );
+    let s = DecaySettings::read(o.and_then(|o| o.decay.as_ref()), &mut m);
+    let body_size = match s.drag_area {
+        Some(_) => None,
+        None => {
+            let size = crate::aocs::reference_box(ctx, &mut m);
+            if size.is_none() {
+                m.push(
+                    dims::ORBIT_DECAY_DRAG_AREA.at(&[]),
+                    "抗力の面積（または構体の外形 size）",
+                );
+            }
+            size
+        }
+    };
+    let mass = crate::structure::summary(ctx, &mut m).map(|s| s.total_mass);
+    let propulsion = if crate::propulsion::present(ctx) {
+        crate::propulsion::maneuvers(ctx)
+            .map_err(|e| m.extend(e))
+            .ok()
+    } else {
+        None
+    };
+    let drag_coefficient = ctx
+        .design
+        .analysis
+        .aocs
+        .as_ref()
+        .and_then(|a| a.drag_coefficient);
+    m.finish(|| {
+        Some(OrbitDecayInput {
+            orbit: orbit?,
+            mass: mass?,
+            drag_area: s.drag_area,
+            body_size,
+            drag_coefficient,
+            mission_duration,
+            span: s.span,
+            reentry_altitude: s.reentry_altitude,
+            band: s.band,
+            max_lifetime: s.max_lifetime,
+            propulsion,
+            dated_weather: None,
+        })
+    })
+}
+
+/// `[decay]` の設定を型付きの量に読んだもの（書かれていなければ `None`）。
+struct DecaySettings {
+    span: Option<Qty<Time>>,
+    reentry_altitude: Option<Qty<Length>>,
+    drag_area: Option<Qty<Area>>,
+    band: Option<Qty<Length>>,
+    max_lifetime: Option<Qty<Time>>,
+}
+
+impl DecaySettings {
+    fn read(s: Option<&OrbitDecaySettings>, m: &mut MissingInputs) -> Self {
+        let q = |f: fn(&OrbitDecaySettings) -> Option<&Quantity>| s.and_then(f);
+        Self {
+            span: setting_opt(&dims::ORBIT_DECAY_SPAN, &[], q(|s| s.span.as_ref()), m),
+            reentry_altitude: setting_opt(
+                &dims::ORBIT_DECAY_REENTRY_ALTITUDE,
+                &[],
+                q(|s| s.reentry_altitude.as_ref()),
+                m,
+            ),
+            drag_area: setting_opt(
+                &dims::ORBIT_DECAY_DRAG_AREA,
+                &[],
+                q(|s| s.drag_area.as_ref()),
+                m,
+            ),
+            band: setting_opt(&dims::ORBIT_DECAY_BAND, &[], q(|s| s.band.as_ref()), m),
+            max_lifetime: setting_opt(
+                &dims::ORBIT_DECAY_MAX_LIFETIME,
+                &[],
+                q(|s| s.max_lifetime.as_ref()),
+                m,
+            ),
+        }
+    }
+}

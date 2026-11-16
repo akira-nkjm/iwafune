@@ -6,13 +6,25 @@ import {
   Grid,
   OrbitControls,
   TransformControls,
+  useBounds,
 } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
-import { useState } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import { useEffect, useRef, useState } from "react";
 import type { Mesh } from "three";
-import { ArrowHelper, Color, Vector3 } from "three";
+import { ArrowHelper, Color, DoubleSide, Quaternion, Vector3 } from "three";
 import { palette, toneHex, uiHex } from "@/lib/tone";
-import type { Axis3D, Box3D, Q4, sceneDimensions, V3 } from "./scene";
+import {
+  type Axis3D,
+  type Box3D,
+  boxMaterial,
+  FOV_OPACITY,
+  type Fov3D,
+  pickBox,
+  type Q4,
+  type sceneDimensions,
+  type V3,
+} from "./scene";
+import { DEFAULT_SCENE_HELPERS, type FocusRequest, type SceneHelpers } from "./visibility";
 
 const AXIS_COLOR: Record<Axis3D["attr"], string> = {
   spin_axis: toneHex.blue,
@@ -21,6 +33,9 @@ const AXIS_COLOR: Record<Axis3D["attr"], string> = {
   boresight: toneHex.red,
   direction: toneHex.navy,
 };
+
+/** 押してから離すまでにこれより動いたらドラッグ（視点の操作）とみなし、クリックにしない [px] */
+const CLICK_SLOP_PX = 4;
 
 export type TransformMode = "translate" | "rotate";
 
@@ -45,6 +60,11 @@ export function Scene3D({
   com,
   axes,
   edit,
+  structureOpacity,
+  helpers = DEFAULT_SCENE_HELPERS,
+  focus = null,
+  home = 0,
+  fovs = [],
 }: {
   boxes: Box3D[];
   dimensions: ReturnType<typeof sceneDimensions>;
@@ -56,8 +76,28 @@ export function Scene3D({
   axes?: Axis3D[] | null;
   /** 箱を動かせるとき（無ければ表示だけ） */
   edit?: SceneEdit;
+  /** 構造の不透明度。省略すると従来の熱の表示を保つ。 */
+  structureOpacity?: number;
+  /** 座標の表示（原点の軸・地面の格子・画面隅の軸）。省略するとすべて出す */
+  helpers?: SceneHelpers;
+  /** 視点を寄せる部品（ツリーで押したとき。描いていない部品なら何もしない） */
+  focus?: FocusRequest | null;
+  /** 視野の円錐（`helpers.fov` のときだけ描く） */
+  fovs?: Fov3D[];
+  /** ホームポジションに戻す依頼（押した回数。0 は依頼なし）。増えるたびに初めの向きへ戻し、全体が収まるまで引く */
+  home?: number;
 }) {
   const [target, setTarget] = useState<Mesh | null>(null);
+  // 押したときの画面の位置（離したときに動いていればドラッグ）
+  const pressed = useRef<{ x: number; y: number } | null>(null);
+  const dragged = (e: MouseEvent) =>
+    pressed.current !== null &&
+    Math.hypot(e.clientX - pressed.current.x, e.clientY - pressed.current.y) > CLICK_SLOP_PX;
+  // TransformControls を掴んだときの位置・姿勢（離したときに動いたかを比べる）
+  const grabbed = useRef<{ p: Vector3; q: Quaternion } | null>(null);
+  const ids = new Set(boxes.map((b) => b.id));
+  // 選んだ部品があれば、ほかの部品を淡く描く
+  const dimmed = (id: string) => selected !== null && ids.has(selected) && id !== selected;
   return (
     // demand: 何かが変わったとき（カメラの操作・箱の移動・props の変更）だけ描き直す。
     // 既定の always は止まっている間も毎フレーム描き、ページ全体の操作を重くする
@@ -70,38 +110,61 @@ export function Scene3D({
         near: dimensions.near,
         far: dimensions.far,
       }}
-      onPointerMissed={() => onSelect(null)}
+      onPointerDown={(e) => {
+        pressed.current = { x: e.clientX, y: e.clientY };
+      }}
+      onPointerMissed={(e) => {
+        if (!dragged(e)) onSelect(null);
+      }}
       style={{ background: "var(--color-panel-2)" }}
     >
       <ambientLight intensity={0.7} />
       <directionalLight position={[2, -3, 4]} intensity={1.2} />
-      <Grid
-        rotation={[Math.PI / 2, 0, 0]}
-        args={[dimensions.grid, dimensions.grid]}
-        cellSize={dimensions.gridCell}
-        sectionSize={dimensions.gridSection}
-        cellColor={uiHex.tick}
-        sectionColor={toneHex.gray}
-        fadeDistance={dimensions.gridFade}
-        infiniteGrid
-      />
-      <axesHelper args={[dimensions.axes]} />
+      {helpers.grid && (
+        <Grid
+          rotation={[Math.PI / 2, 0, 0]}
+          args={[dimensions.grid, dimensions.grid]}
+          cellSize={dimensions.gridCell}
+          sectionSize={dimensions.gridSection}
+          cellColor={uiHex.tick}
+          sectionColor={toneHex.gray}
+          fadeDistance={dimensions.gridFade}
+          infiniteGrid
+        />
+      )}
+      {helpers.origin && <axesHelper args={[dimensions.axes]} />}
       <Bounds fit clip margin={1.3}>
+        <FocusOn focus={focus} />
+        <HomeView
+          home={home}
+          position={[dimensions.cameraX, dimensions.cameraY, dimensions.cameraZ]}
+        />
         {boxes.map((b) => (
           <mesh
             key={b.id}
+            name={b.id}
             ref={b.id === selected ? setTarget : undefined}
             position={b.position}
             quaternion={[b.orientation[1], b.orientation[2], b.orientation[3], b.orientation[0]]}
             onClick={(e) => {
               e.stopPropagation();
-              onSelect(b.id);
+              // 視点を回す・動かすドラッグの終わりはクリックとして扱わない（選択が奥へ移ったり外れたりしないように）
+              if (dragged(e.nativeEvent)) return;
+              // 光線上の当たり（近い順）のうち、箱の面（name = 部品の ID の mesh）に当たったものだけを数える。
+              // 縁の線・軸の矢印の線は three の既定では 1 m 以内を通れば当たりになり、離れた部品を拾うため
+              const hits = e.intersections
+                .map((hit) => hit.object.name)
+                .filter((name) => ids.has(name));
+              // 箱の面に当たらなければ（縁の線などに当たっただけなら）、何も無い所を押したのと同じく選択を外す
+              onSelect(pickBox(hits, selected));
             }}
           >
             <boxGeometry args={b.size} />
-            <meshStandardMaterial color={b.color} transparent opacity={b.sized ? 0.85 : 0.45} />
+            <meshStandardMaterial
+              {...boxMaterial(b, b.id === selected, structureOpacity, dimmed(b.id))}
+            />
             <Edges
-              color={b.id === selected ? uiHex.ink : uiHex.ink3}
+              color={b.id === selected ? uiHex.ink : dimmed(b.id) ? uiHex.tick : uiHex.ink3}
               lineWidth={b.id === selected ? 2 : 1}
             />
             {axes
@@ -124,31 +187,137 @@ export function Scene3D({
           </mesh>
         ))}
       </Bounds>
-      {com && (
-        <mesh position={com} renderOrder={10}>
-          <sphereGeometry args={[dimensions.comRadius, 16, 16]} />
-          <meshBasicMaterial color={toneHex.red} depthTest={false} />
-        </mesh>
-      )}
-      {edit && target && selected && (
+      {/* 視野は全体を収める範囲（Bounds）に入れない（広い円錐で機体が小さく映らないように）。部品の位置・姿勢に置く */}
+      {helpers.fov &&
+        fovs.map((f) => {
+          const b = boxes.find((x) => x.id === f.part);
+          return b ? (
+            <group
+              key={f.part}
+              position={b.position}
+              quaternion={[b.orientation[1], b.orientation[2], b.orientation[3], b.orientation[0]]}
+            >
+              <FovCone fov={f} length={dimensions.fovLength} color={b.color} />
+            </group>
+          ) : null;
+        })}
+      {com && <CenterOfMass position={com} radius={dimensions.comRadius} />}
+      {edit && target && selected && !boxes.find((b) => b.id === selected)?.fixed && (
         <TransformControls
           object={target}
           mode={edit.mode}
           translationSnap={edit.snap}
           rotationSnap={Math.PI / 12}
           size={0.7}
+          onMouseDown={() => {
+            grabbed.current = { p: target.position.clone(), q: target.quaternion.clone() };
+          }}
           onMouseUp={() => {
             const p = target.position;
             const q = target.quaternion;
+            const from = grabbed.current;
+            grabbed.current = null;
+            // 掴んで離しただけ（動いていない）なら書かない。押すだけで配置の変更が保存されないように
+            if (from?.p.equals(p) && from.q.equals(q)) return;
             edit.onPlace(selected, [p.x, p.y, p.z], [q.w, q.x, q.y, q.z]);
           }}
         />
       )}
       {/* makeDefault: TransformControls を掴んでいる間は drei がカメラ操作を止める */}
       <OrbitControls makeDefault />
-      <GizmoHelper alignment="bottom-right" margin={[64, 64]}>
-        <GizmoViewport labelColor={palette.inverse} axisHeadScale={0.9} />
-      </GizmoHelper>
+      {helpers.gizmo && (
+        <GizmoHelper alignment="bottom-right" margin={[64, 64]}>
+          <GizmoViewport labelColor={palette.inverse} axisHeadScale={0.9} />
+        </GizmoHelper>
+      )}
     </Canvas>
+  );
+}
+
+/** 依頼された部品（mesh の name は部品の ID）の外形に視点を寄せる。向きは今のまま、距離と注視点だけを変える */
+function FocusOn({ focus }: { focus: FocusRequest | null }) {
+  const bounds = useBounds();
+  const scene = useThree((state) => state.scene);
+  const invalidate = useThree((state) => state.invalidate);
+  // 同じ依頼を 2 回寄せない（カメラ操作の付け替えで bounds が作り直されても、視点を戻さない）
+  const done = useRef<FocusRequest | null>(null);
+  useEffect(() => {
+    if (!focus || !bounds || done.current === focus) return;
+    done.current = focus;
+    const target = scene.getObjectByName(focus.id);
+    if (!target) return;
+    bounds.refresh(target).fit();
+    // frameloop="demand" では、動かし始めを描き直しの依頼で起こす
+    invalidate();
+  }, [focus, bounds, scene, invalidate]);
+  return null;
+}
+
+/**
+ * ホームポジション: 今の視点から、初めの向き（`position` から原点を見る向き）で表示中の部品の全体が収まる位置へ、
+ * 約 1 秒かけて滑らかに動かす（位置は補間、向きは球面補間。`Bounds` が終わりに OrbitControls の注視点も全体の中心へ合わせる）。
+ */
+function HomeView({ home, position }: { home: number; position: V3 }) {
+  const bounds = useBounds();
+  const invalidate = useThree((state) => state.invalidate);
+  const done = useRef(home);
+  const [x, y, z] = position;
+  useEffect(() => {
+    if (!bounds || done.current === home) return;
+    done.current = home;
+    const { center, distance } = bounds.refresh().clip().getSize();
+    const direction = new Vector3(x, y, z).normalize();
+    const goal = center.clone().addScaledVector(direction, distance);
+    bounds.moveTo(goal).lookAt({ target: center, up: [0, 0, 1] });
+    invalidate();
+  }, [home, bounds, invalidate, x, y, z]);
+  return null;
+}
+
+/** 重心の記号の 8 分割（経度 4 × 緯度 2）。隣り合う区画が白と黒になるよう互い違いに塗る */
+const COM_OCTANTS = [0, 1, 2, 3].flatMap((i) =>
+  [0, 1].map((j) => ({ i, j, dark: (i + j) % 2 === 0 })),
+);
+
+/**
+ * 重心の記号（CAD の重心マーク）: 球を 8 つに分けて白と黒を互い違いに塗る。部品に隠れても見えるよう奥行きの判定をしない。
+ */
+function CenterOfMass({ position, radius }: { position: V3; radius: number }) {
+  return (
+    // 球の極（three の球は Y 軸）を機体の +Z に向け、白黒の境目の 1 本を水平にする
+    <group position={position} rotation={[Math.PI / 2, 0, 0]}>
+      {COM_OCTANTS.map(({ i, j, dark }) => (
+        <mesh key={`${i}-${j}`} renderOrder={10}>
+          <sphereGeometry
+            args={[radius, 12, 8, (i * Math.PI) / 2, Math.PI / 2, (j * Math.PI) / 2, Math.PI / 2]}
+          />
+          <meshBasicMaterial color={dark ? uiHex.ink : palette.inverse} depthTest={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
+
+const UP = new Vector3(0, 1, 0);
+
+/**
+ * 視野の円錐（部品の位置・姿勢の group の子。部品座標。色は部品の箱と同じ）。頂点を部品の原点に、底を視線の向きに置く。three の円錐は +Y が頂点なので、
+ * +Y を視線の逆向きに回し、中心を視線の向きに高さの半分ずらす。クリックの当たりには数えない。
+ */
+function FovCone({ fov, length, color }: { fov: Fov3D; length: number; color: string }) {
+  const dir = new Vector3(...fov.dir);
+  const center = dir.clone().multiplyScalar(length / 2);
+  const rotation = new Quaternion().setFromUnitVectors(UP, dir.clone().negate());
+  return (
+    <mesh position={center} quaternion={rotation} raycast={() => null}>
+      <coneGeometry args={[length * Math.tan(fov.halfAngle), length, 32, 1, true]} />
+      <meshBasicMaterial
+        color={color}
+        transparent
+        opacity={FOV_OPACITY}
+        depthWrite={false}
+        side={DoubleSide}
+      />
+    </mesh>
   );
 }

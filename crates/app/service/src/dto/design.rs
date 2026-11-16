@@ -2,12 +2,11 @@
 //! ファイルの分け方に関係なく、画面が見たい単位（部品・モード表・ネット）にまとめる。
 
 use super::{
-    CatalogItemView, CatalogSourceView, DiagnosticCounts, DiagnosticView, QuantityView, ValueData,
-    ValueView,
+    BodyPoseView, CatalogItemView, CatalogSourceView, DiagnosticCounts, DiagnosticView,
+    MountPointView, MountView, QuantityView, ValueData, ValueView,
 };
-use fune_model::builtin::Labels;
-use fune_model::design::{Maturity, Source, StateAssign, ViewLayout};
-use fune_model::value::Vector3;
+use fune_model::builtin::{Labels, Role};
+use fune_model::design::{Maturity, StateAssign, ViewLayout};
 use fune_ops::Op;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -54,8 +53,10 @@ pub struct DesignView {
     pub defs: DefsView,
     pub settings: Vec<SettingView>,
     pub cases: Vec<CaseView>,
-    /// 出典の台帳（`sources/<ID>.toml`）
-    pub sources: Vec<Source>,
+    /// マヌーバ（実行の順）
+    pub maneuvers: Vec<super::ManeuverView>,
+    /// 出典の台帳（`sources/<ID>.toml`。ID 順）
+    pub sources: Vec<super::SourceView>,
     /// カタログ品（`"local/rw_10mNms"` の順。値は部品と同じ形で、パスと使っている部品も品の中に）
     pub catalog: Vec<CatalogItemView>,
     /// 図の配置（`view/<名前>.toml`。系統図のノードの位置）
@@ -101,16 +102,27 @@ pub struct PartRow {
     pub system: Option<sat_analysis::spec::System>,
     /// 種別（kind の無い部品は null）
     pub kind: Option<String>,
-    pub role: Option<String>,
+    pub role: Option<Role>,
+    /// マヌーバのスラスタに選べる部品か（`Design::is_maneuver_thruster`。検査と同じ判定）
+    pub maneuver_thruster: bool,
+    /// この部品を対象にした診断の件数（`DiagnosticView.part` が部品 ID のもの）
+    pub diagnostics: DiagnosticCounts,
+    /// 未設定の値（`values` のうち `origin` が `unset`）の数
+    pub unset_count: u32,
     /// 選択中のカタログ（例: `"local/rw_18mNms"`）
     pub catalog: Option<String>,
     pub candidates: Vec<String>,
     pub count: u32,
+    pub redundancy: fune_model::design::Redundancy,
     pub maturity: Option<Maturity>,
     /// 属性 ID → 解決済みの値
     pub values: BTreeMap<String, ValueView>,
     pub ports: Vec<PortView>,
     pub mount: Option<MountView>,
+    /// 自分に他の部品を付ける点（名前の順。GUI の配置の欄は取付先のこの一覧から取付点を選ぶ）
+    pub mount_points: Vec<MountPointView>,
+    /// 機体座標での位置・姿勢（取付のある部品と、取付の根。どちらでもない未配置の部品は null）
+    pub body: Option<BodyPoseView>,
     /// 機器の状態の語彙（kind から）
     pub states: Vec<String>,
     /// 部品ファイル（ルートからの相対パス）
@@ -163,26 +175,7 @@ pub struct PortView {
     pub net: Option<String>,
 }
 
-/// 取付先と、機体座標での位置・姿勢（取付のある部品だけ）。
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct MountView {
-    /// 取付先の部品
-    pub on: String,
-    /// 取付点（書かれていなければ取付先の原点）
-    pub point: Option<String>,
-    /// 取付点に対する相対位置 [m]（書かれていなければ原点）
-    pub position: [f64; 3],
-    /// 取付点に対する相対位置の書かれたまま（値と単位）。GUI はこの単位で見せて送る（ファイルの単位を保つ。CLI で同じ単位を打つのと同じ）
-    pub authored_position: Option<Vector3>,
-    /// 取付点に対する相対姿勢 `[w, x, y, z]`（書かれていなければ恒等）
-    pub orientation: [f64; 4],
-    /// 機体座標での位置 [m]（取付の連鎖をたどったもの）
-    pub body_position: [f64; 3],
-    /// 機体座標での姿勢 `[w, x, y, z]`
-    pub body_orientation: [f64; 4],
-}
-
-/// 部品 × モードの表。
+/// 部品 × モードの表。列は fune.toml の表示順（未指定のモードは後ろに ID 順）。
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 pub struct ModeTable {
     pub modes: Vec<ModeHeader>,
@@ -192,6 +185,7 @@ pub struct ModeTable {
 /// モードの列見出し。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ModeHeader {
+    pub max_duration: Option<QuantityView>,
     pub id: String,
     pub label: String,
     pub description: Option<String>,
@@ -206,8 +200,14 @@ pub struct ModeRow {
     pub kind: Option<String>,
     /// 選べる状態（kind の語彙）
     pub states: Vec<String>,
+    /// 停止の状態（語彙にある `off`。無ければ null。セルの切り替えと記号に使う。選び方は `query::views::stop_and_main_states`）
+    pub off_state: Option<String>,
+    /// 主な「オン」の状態（語彙に `on` があればそれ、無ければ停止以外の最初の状態、無ければ null）
+    pub main_state: Option<String>,
     /// モード ID → 状態（そのモードの表に書かれていなければ無い）
     pub cells: BTreeMap<String, StateAssign>,
+    /// 蝕の上書き（無ければ cells を継承）。
+    pub eclipse_cells: BTreeMap<String, StateAssign>,
     /// モード ID → そのセルのほかの状態の時間の割合（状態 → `%` の表示。`cells` の `duty` を sat-units で整形したもの）。
     /// 割合の無いセルは入れない。セルの文言（`rx（tx 10.0 %）` など）は CLI と Web が状態とこれから作る
     pub shares: BTreeMap<String, BTreeMap<String, QuantityView>>,
@@ -296,7 +296,7 @@ pub struct KindDefView {
     pub label: String,
     /// 英語の表示名（無ければ `label` を使う）
     pub label_en: Option<String>,
-    pub role: Option<String>,
+    pub role: Option<Role>,
     pub parent: Option<String>,
     pub states: Vec<String>,
     pub required: Vec<String>,
@@ -305,14 +305,14 @@ pub struct KindDefView {
     pub builtin: bool,
 }
 
-/// 設定 1 項目（`mission/`・`analysis/`・`budget/` の値）。
+/// 設定 1 項目（`conditions/`・`analysis/`・`budget/` の値）。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct SettingView {
-    /// 置き場所の種類（`mission` / `analysis` / `budget`。設定のページの区分）
+    /// 置き場所の種類（`conditions` / `analysis` / `budget`。設定のページの区分）
     pub scope: fune_model::path::SettingScope,
     /// この設定を見せる系（系のページの設定のタブ）。どの系にも属さなければ null
     pub system: Option<sat_analysis::spec::System>,
-    /// 設定ファイルごとの表示のまとまり（例: `"mission.orbit"`・`"mission.ground.<局の ID>"`。`key` = `<group>.<field>`）
+    /// 設定ファイルごとの表示のまとまり（例: `"conditions.orbit"`・`"conditions.ground.<局の ID>"`。`key` = `<group>.<field>`）
     pub group: String,
     /// ファイル内のキー（表示用。例: `"altitude"`）
     pub field: String,
@@ -361,4 +361,33 @@ pub struct ValueAnswer {
     pub value: ValueView,
     /// `state` を指定したときのその状態の値
     pub selected: Option<QuantityView>,
+}
+
+/// 系別のモード表示。状態の定義・編集は ModeTable と共通。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SystemModesView {
+    pub system: sat_analysis::spec::System,
+    pub modes: Vec<SystemModeView>,
+    /// 表を作るのに足りなかった入力（解析の `missing` と同じ形。電力の表で、消費電力を持つ部品や運用モードが無いとき）
+    pub missing: Vec<fune_projection::MissingInput>,
+}
+
+/// 1 モードの系別表示。AOCS は専用カード、数値の行列はほかの系。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct SystemModeView {
+    pub id: String,
+    pub sunlit: ModeValuesView,
+    pub eclipse: ModeValuesView,
+    pub aocs: Option<super::AocsModeView>,
+}
+
+/// 部品別の値と合計・収支。未割り当てや不足は None、警告は verdict に反映。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct ModeValuesView {
+    pub parts: BTreeMap<String, Option<QuantityView>>,
+    pub total: Option<QuantityView>,
+    /// 電源の配分上限からシステム余裕を引いた値。日照・蝕とも同じ設計上限。
+    pub available: Option<QuantityView>,
+    pub margin: Option<QuantityView>,
+    pub verdict: Option<sat_analysis::spec::Verdict>,
 }

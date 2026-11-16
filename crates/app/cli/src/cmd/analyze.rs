@@ -3,8 +3,9 @@
 use crate::args::AnalyzeArgs;
 use crate::output::{C, Out};
 use fune_service::dto::{
-    AnalysisInputSource, AnalysisKind, AnalysisRunStatus, BudgetRequest, BudgetRow, BudgetView,
-    KpiView, MissingInput, RunAnalysisRequest, Verdict,
+    AnalysisInputSource, AnalysisKind, AnalysisRunStatus, BudgetPropellant, BudgetRequest,
+    BudgetRow, BudgetUncounted, BudgetView, KpiView, MissingInput, QuantityView,
+    RunAnalysisRequest, Verdict,
 };
 use fune_service::{Workspace, analysis, budget};
 
@@ -46,6 +47,17 @@ pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
     print_missing(&r.missing, out);
     print_kpis(&r.kpis, out);
     print_checks(&r.checks, out);
+    if let Some(v) = &r.space_weather {
+        let fetched = v.fetched_at.as_deref().unwrap_or("取得日時の記録なし");
+        println!(
+            "{}",
+            out.dim(format!(
+                "宇宙天気の表: {}〜{}（取得 {fetched}、SHA-256 {}）",
+                v.first_date, v.last_date, v.sha256
+            ))
+        );
+    }
+    super::output_tables::print(&r, out);
     if r.status == AnalysisRunStatus::Ok {
         println!("{}", out.dim("全体の結果は --json で出せます"));
     }
@@ -109,17 +121,16 @@ fn print_checks(checks: &[fune_service::dto::CheckView], out: &Out) {
 /// `fune analyze ls`（プロジェクトが無くても使える）。
 pub fn ls(out: &Out) -> anyhow::Result<u8> {
     let entries = analysis::analysis_catalog()?;
+    // 並びは解析の一覧（catalog）のまま: 系の決まった順、そのあとに前提条件の話題
     if out.json {
         out.json(&entries)?;
         return Ok(0);
     }
-    let mut t = out.table(&["ID", "名前", "種類", "入力"]);
+    let mut t = out.table(&["区分", "ID", "名前", "種類", "入力"]);
     for e in &entries {
-        let kind = match e.info.kind {
-            AnalysisKind::Steady => "定常",
-            AnalysisKind::TimeSeries => "時系列",
-        };
+        let kind = kind_text(e.info.kind);
         t.row(vec![
+            C::Text(fune_service::analysis::area_key(e.info.area).to_owned()),
             C::Strong(e.info.id.clone()),
             C::Text(e.info.title.clone()),
             C::Text(kind.to_owned()),
@@ -138,7 +149,7 @@ pub fn ls(out: &Out) -> anyhow::Result<u8> {
     Ok(0)
 }
 
-/// `fune budget mass|power|data [--case HOT] [--ops ops.json]`。入力が足りないか判定が違反なら 1 で終わる。
+/// `fune budget mass|power|data [--case HOT] [--ops ops.json]`。入力が足りないか判定（質量は乾燥と推薬込み）が違反なら 1 で終わる。
 pub fn budget(
     ws: &Workspace,
     kind: &str,
@@ -154,10 +165,10 @@ pub fn budget(
         },
     };
     let b = budget::budget(ws, budget::parse_kind(kind)?, &req)?;
-    let failed = !b.missing.is_empty() || b.verdict == Some(Verdict::Violation);
+    let failed = budget::failure::fails(&b);
     if out.json {
         out.json(&b)?;
-        return Ok(u8::from(!b.missing.is_empty()));
+        return Ok(u8::from(failed));
     }
     print_budget(&b, out);
     Ok(u8::from(failed))
@@ -171,11 +182,38 @@ fn row_name(r: &BudgetRow) -> String {
         .unwrap_or_else(|| "（その他）".to_owned())
 }
 
-fn verdict_cell(v: Verdict) -> C {
+/// 解析の種類の言い方（`analyze ls` と `flow`）。
+pub(super) fn kind_text(kind: AnalysisKind) -> &'static str {
+    match kind {
+        AnalysisKind::Steady => "定常",
+        AnalysisKind::TimeSeries => "時系列",
+    }
+}
+
+/// 判定の印のセル（KPI・バジェット・フロー図）。
+pub(super) fn verdict_cell(v: Verdict) -> C {
     match v {
         Verdict::Ok => C::Verdict("✔".into(), true),
         Verdict::Warning => C::Text("⚠".into()),
         Verdict::Violation => C::Verdict("✖".into(), false),
+    }
+}
+
+fn opt_cell(q: &Option<QuantityView>) -> C {
+    q.as_ref()
+        .map_or(C::Dim("—".into()), |q| C::Num(q.display.clone()))
+}
+
+fn opt_text(q: &Option<QuantityView>) -> String {
+    q.as_ref().map_or("—".to_owned(), |q| q.display.clone())
+}
+
+/// 判定に合わせて 1 行を出す（判定が無ければ OK の色）。
+fn verdict_line(v: Option<Verdict>, line: String, out: &Out) {
+    match v.unwrap_or(Verdict::Ok) {
+        Verdict::Ok => out.ok(line),
+        Verdict::Warning => out.warn(line),
+        Verdict::Violation => out.fail(line),
     }
 }
 
@@ -200,39 +238,106 @@ fn print_budget(b: &BudgetView, out: &Out) {
     let mut t = out
         .table(&["", "行", "現状", "成長余裕込み", "配分", "余裕"])
         .numeric(&[2, 3, 4, 5]);
-    let opt = |q: &Option<fune_service::dto::QuantityView>| {
-        q.as_ref()
-            .map_or(C::Dim("—".into()), |q| C::Num(q.display.clone()))
-    };
     for r in &b.rows {
         t.row(vec![
             verdict_cell(r.verdict),
             C::Strong(row_name(r)),
             C::Num(r.current.display.clone()),
             C::Num(r.with_growth.display.clone()),
-            opt(&r.allocated),
-            opt(&r.margin),
+            opt_cell(&r.allocated),
+            opt_cell(&r.margin),
+        ]);
+    }
+    if let Some(BudgetPropellant::Counted { loaded, .. }) = &b.propellant {
+        // 推薬は成長余裕を掛けず、配分の行でもない
+        t.row(vec![
+            C::Text(String::new()),
+            C::Strong("推薬".into()),
+            C::Num(loaded.display.clone()),
+            C::Num(loaded.display.clone()),
+            C::Dim("—".into()),
+            C::Dim("—".into()),
         ]);
     }
     t.print();
-    let limit = b
-        .limit
-        .as_ref()
-        .map_or("—".to_owned(), |q| q.display.clone());
-    let margin = b
-        .margin
-        .as_ref()
-        .map_or("—".to_owned(), |q| q.display.clone());
+    let name = if b.propellant.is_some() {
+        "乾燥の合計"
+    } else {
+        "合計"
+    };
     let line = format!(
-        "合計 {}  上限 {limit}（システムマージン {}）  余裕 {margin}",
-        total.display, b.system_margin.display
+        "{name} {}  上限 {}（システムマージン {}）  余裕 {}",
+        total.display,
+        opt_text(&b.limit),
+        b.system_margin.display,
+        opt_text(&b.margin)
     );
-    match b.verdict.unwrap_or(Verdict::Ok) {
-        Verdict::Ok => out.ok(line),
-        Verdict::Warning => out.warn(line),
-        Verdict::Violation => out.fail(line),
+    verdict_line(b.verdict, line, out);
+    if let Some(p) = &b.propellant {
+        print_propellant(p, out);
     }
+    print_uncounted(&b.uncounted, out);
     for n in &b.notes {
         out.warn(n);
+    }
+}
+
+/// 値が無くて合計に数えなかった部品（0 とはみなしていない）。電力は数えなかったモードも添える。
+fn print_uncounted(list: &[BudgetUncounted], out: &Out) {
+    if list.is_empty() {
+        return;
+    }
+    let names: Vec<String> = list
+        .iter()
+        .map(|u| {
+            let name = if u.label == u.part {
+                u.part.clone()
+            } else {
+                format!("{}（{}）", u.part, u.label)
+            };
+            if u.modes.is_empty() {
+                name
+            } else {
+                format!("{name} [{}]", u.modes.join(", "))
+            }
+        })
+        .collect();
+    out.warn(format!(
+        "値が無いので合計に数えていない部品（{} 件、0 とはみなしていません）: {}",
+        list.len(),
+        names.join(", ")
+    ));
+}
+
+/// 推薬込みの合計か、推薬を数えなかった理由（文言はここで付ける）。
+fn print_propellant(p: &BudgetPropellant, out: &Out) {
+    match p {
+        BudgetPropellant::Counted { analysis, wet, .. } => verdict_line(
+            wet.verdict,
+            format!(
+                "推薬込みの合計 {}  余裕 {}  （推薬は {analysis}）",
+                wet.total.display,
+                opt_text(&wet.margin)
+            ),
+            out,
+        ),
+        BudgetPropellant::NoPropulsion => {
+            println!(
+                "{}",
+                out.dim("推進系（マヌーバ・推進系の部品）が無いので、推薬は数えていません")
+            );
+        }
+        BudgetPropellant::Missing { missing } => {
+            out.warn(format!(
+                "推進系の入力が足りないので、推薬は数えていません（{} 件）",
+                missing.len()
+            ));
+            print_missing(missing, out);
+        }
+        BudgetPropellant::Failed { message } => {
+            out.warn(format!(
+                "推進系の解析が通らないので、推薬は数えていません: {message}"
+            ));
+        }
     }
 }

@@ -1,7 +1,7 @@
 //! Web が文字列を自分で読んでいないかの検査。
 //!
 //! - ID やパスの分解（CONTRIBUTING.md の層の責務: `web/` は「文字列の分解による ID やパスの解釈」をしない。API が構造で返す）。
-//!   パスや ID の区切り（`/`・`.`）で分ける書き方と、`.` か `/` で終わる接頭辞で比べる書き方（`startsWith("mission.")`）を
+//!   パスや ID の区切り（`/`・`.`）で分ける書き方と、`.` か `/` で終わる接頭辞で比べる書き方（`startsWith("conditions.")`）を
 //!   違反にする。カンマ区切りの一覧（`split(",")`）や改行（`split("\n")`）は区切りが違うので見ない。
 //! - 数の読み取り（規則 5: 人が打った文字列の解釈は service が持つ）。`Number(…)`・`parseFloat(…)`・`.map(Number)` を
 //!   違反にする（入力欄の文字列は打ったまま `POST /ops/from_text`・`/ops/from_command` に送る。API の数は number で届く）。
@@ -47,7 +47,7 @@ fn number_reader(line: &str) -> Option<&'static str> {
     })
 }
 
-/// `.` か `/` で終わる文字列の接頭辞で比べるところ（`startsWith("mission.")`）を探す。
+/// `.` か `/` で終わる文字列の接頭辞で比べるところ（`startsWith("conditions.")`）を探す。
 fn prefix_match(line: &str) -> Option<&str> {
     for (i, _) in line.match_indices(".startsWith(") {
         let rest = &line[i + ".startsWith(".len()..];
@@ -122,8 +122,8 @@ mod tests {
         assert!(SPLITTERS.iter().any(|s| "a.split(\"/\")".contains(s)));
         assert!(SPLITTERS.iter().any(|s| "f.split(/[\\\\/]/)".contains(s)));
         assert_eq!(
-            prefix_match("s.key.startsWith(\"mission.\")"),
-            Some("mission.")
+            prefix_match("s.key.startsWith(\"conditions.\")"),
+            Some("conditions.")
         );
         assert_eq!(prefix_match("p.startsWith('parts/')"), Some("parts/"));
         assert_eq!(prefix_match("node.startsWith(\"junction:\")"), None);
