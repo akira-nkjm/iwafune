@@ -97,9 +97,9 @@ fn role_string(line: &str) -> Option<&'static str> {
         return None;
     }
     if role_comparison(line) {
-        Some("役割名の文字列との比較")
+        Some("a comparison with a role name string")
     } else if role_constant(line) {
-        Some("役割名の文字列の定数")
+        Some("a constant of a role name string")
     } else {
         None
     }
@@ -119,7 +119,7 @@ pub fn check(root: &Path, files: &[std::path::PathBuf], errors: &mut Vec<String>
         for (n, line) in text.lines().enumerate() {
             if let Some(what) = role_string(line) {
                 errors.push(format!(
-                    "{rel}:{}: {what}があります。役割（role）の意味で決める判定は API が返します（`PartRow.maneuver_thruster` のように service が載せる。CONTRIBUTING.md の層の責務）",
+                    "{rel}:{}: found {what}; judgements decided by the meaning of a role are returned by the API (service puts them in, like `PartRow.maneuver_thruster`; layer responsibilities in CONTRIBUTING.md)",
                     n + 1
                 ));
             }
@@ -148,7 +148,7 @@ mod tests {
     fn role_constants_are_found() {
         assert_eq!(
             role_string("const BATTERY_ROLE: Role = \"battery\";"),
-            Some("役割名の文字列の定数")
+            Some("a constant of a role name string")
         );
         assert!(role_string("const POWER_HUB_ROLE = \"pcdu\";").is_some());
     }

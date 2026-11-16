@@ -218,7 +218,7 @@ pub enum ModeCmd {
     },
 }
 
-/// `fune net add|set` の引数。
+/// Arguments of `fune net add|set`.
 #[derive(Debug, Args)]
 pub struct NetArgs {
     pub id: String,
@@ -248,7 +248,7 @@ pub struct NetArgs {
     pub edit: EditOpts,
 }
 
-/// `fune net set` の引数（指定した旗ごとに 1 つ書く）。
+/// Arguments of `fune net set` (one per flag given).
 #[derive(Debug, Args)]
 pub struct NetSetArgs {
     pub id: String,
@@ -285,7 +285,7 @@ pub enum NetCmd {
     /// Remove net fields (e.g. `fune net unset P5V limit`)
     Unset {
         id: String,
-        /// label・source・rail・limit・protocol・bitrate・master
+        /// label, source, rail, limit, protocol, bitrate, master
         field: String,
         #[command(flatten)]
         edit: EditOpts,
@@ -334,7 +334,7 @@ pub enum SettingCmd {
     },
 }
 
-/// `fune view …`（系統図などの配置。見た目だけ）
+/// `fune view ...` (layout of the system diagram and the like; appearance only)
 #[derive(Debug, Subcommand)]
 pub enum ViewCmd {
     /// Set the route of a line by hand (e.g. `fune view edge-set electrical "P5V:PCDU.OUT2>CAM.PWR" --points "100,80 400,80 400,200"`)

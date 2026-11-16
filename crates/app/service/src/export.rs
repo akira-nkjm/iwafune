@@ -138,7 +138,7 @@ fn clear_ts_files(dir: &Path) -> Result<(), ExportError> {
 fn write_index(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
     let files = ts_files(dir)?;
     let mut text = String::from(
-        "// 生成物です。手で編集しないでください（`cargo test -p fune-service export_ts` で作り直す）。\n",
+        "// Generated file. Do not edit by hand (regenerate with `cargo test -p fune-service export_ts`).\n",
     );
     for path in &files {
         if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {

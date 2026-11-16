@@ -49,18 +49,18 @@ fn code_problems(rel: &str, text: &str) -> Vec<String> {
     if !COLOR_ALLOWED.contains(&rel) {
         if let Some(color) = find_hex_color(text) {
             out.push(format!(
-                "{rel}: 色 `{color}` の直書きがあります。配色は {tone} だけに置きます（registry.md）"
+                "{rel}: hard-coded colour `{color}`; colours live only in {tone} (registry.md)"
             ));
         }
         if let Some(name) = find_color_name(text) {
             out.push(format!(
-                "{rel}: 色の名前 `{name}` の直書きがあります。地や字の色は {tone} の色（`palette` など）を使います"
+                "{rel}: hard-coded colour name `{name}`; use the colours of {tone} (such as `palette`) for backgrounds and text"
             ));
         }
     }
     if text.contains("color-mix(") && !MIX_ALLOWED.iter().any(|a| rel.starts_with(a)) {
         out.push(format!(
-            "{rel}: `color-mix(` が見つかりました。色の混ぜ方は {tone} の関数（`toneTint`・`heatHex` など）だけに置きます"
+            "{rel}: found `color-mix(`; colour mixing lives only in the functions of {tone} (such as `toneTint`, `heatHex`)"
         ));
     }
     out
@@ -87,7 +87,7 @@ fn check_css(rel: &str, text: &str, errors: &mut Vec<String>) {
             .or_else(|| find_color_name(line));
         if let Some(color) = color {
             errors.push(format!(
-                "{rel}:{}: 色 `{color}` の直書きがあります。色の値は {} に書き、pnpm -C web tokens で書き出します",
+                "{rel}:{}: hard-coded colour `{color}`; write colour values in {} and export them with pnpm -C web tokens",
                 n + 1,
                 COLOR_ALLOWED[0]
             ));

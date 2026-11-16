@@ -21,7 +21,7 @@ pub fn qty<D: Dimension>(
     match si::<D>(q) {
         Ok(v) => Some(v),
         Err(e) => {
-            m.push(target, format!("{reason}（{e}）"));
+            m.push(target, format!("{reason} ({e})"));
             None
         }
     }

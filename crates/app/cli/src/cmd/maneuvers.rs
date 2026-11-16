@@ -30,7 +30,7 @@ pub fn ls(ws: &Workspace, cmd: &crate::args::ManeuverCmd, out: &Out) -> Handled 
             C::Text(query::enum_label("maneuver_category", &m.category)),
             C::Text(query::enum_label("maneuver_method", &m.method)),
             C::Text(m.thruster.clone().unwrap_or_default()),
-            C::Dim(target.join("、")),
+            C::Dim(target.join(", ")),
         ]);
     }
     t.print();

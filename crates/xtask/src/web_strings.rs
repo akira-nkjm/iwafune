@@ -85,7 +85,7 @@ pub fn check(root: &Path, files: &[std::path::PathBuf], errors: &mut Vec<String>
         for (n, line) in text.lines().enumerate() {
             if !numbers_allowed && let Some(what) = number_reader(line) {
                 errors.push(format!(
-                    "{rel}:{}: `{what}` で文字列を数として読んでいます。入力欄の文字列は打ったまま API（`POST /ops/from_text`・`/ops/from_command`）に送り、service が読みます（CONTRIBUTING.md 規則 5）",
+                    "{rel}:{}: `{what}` reads a string as a number. Send the text of an input field as typed to the API (`POST /ops/from_text`, `/ops/from_command`) and let the service read it (CONTRIBUTING.md rule 5)",
                     n + 1
                 ));
             }
@@ -96,7 +96,7 @@ pub fn check(root: &Path, files: &[std::path::PathBuf], errors: &mut Vec<String>
                 .or_else(|| prefix_match(line).map(|p| format!(".startsWith(\"{p}\")")));
             if let Some(what) = found {
                 errors.push(format!(
-                    "{rel}:{}: `{what}` で文字列を分解しています。ID やパスは API の構造（PortRef・PartRow.dir・SettingView.scope など）を使います（CONTRIBUTING.md）",
+                    "{rel}:{}: `{what}` splits a string. Use the API structures (PortRef, PartRow.dir, SettingView.scope, ...) for IDs and paths (CONTRIBUTING.md)",
                     n + 1
                 ));
             }

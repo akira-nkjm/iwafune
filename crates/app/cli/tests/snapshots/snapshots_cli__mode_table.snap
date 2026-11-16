@@ -2,25 +2,25 @@
 source: crates/app/cli/tests/snapshots_cli.rs
 expression: "stdout(&[\"-C\", root.to_str().unwrap(), \"mode\", \"table\"])"
 ---
- Part      NOMINAL            MISSION                DOWNLINK           SAFE             
-─────────────────────────────────────────────────────────────────────────────────────────
- CAM       off                standby（on 50.0 %）   off                off              
- EPT       off                off                    off                off              
- GPS       on                 on                     on                 off              
- HTR_BAT   off（on 20.0 %）   off（on 10.0 %）       off（on 10.0 %）   off（on 40.0 %） 
- HTR_CAM   off（on 20.0 %）   off                    off（on 20.0 %）   off（on 30.0 %） 
- MTQ_X     off（on 20.0 %）   off                    off                off（on 50.0 %） 
- MTQ_Y     off（on 20.0 %）   off                    off                off（on 50.0 %） 
- MTQ_Z     off（on 20.0 %）   off                    off                off（on 50.0 %） 
- OBC       on                 on                     on                 on               
- PCDU      on                 on                     on                 on               
- RW_X      on                 on（peak 10.0 %）      on                 off              
- RW_Y      on                 on（peak 10.0 %）      on                 off              
- RW_Z      on                 on（peak 10.0 %）      on                 off              
- SS_MX     on                 on                     on                 on               
- SS_MY     on                 on                     on                 on               
- SS_PX     on                 on                     on                 on               
- SS_PY     on                 on                     on                 on               
- STT       on                 on                     on                 off              
- STX       off                off                    tx                 off              
- UHF_TRX   rx（tx 2.00 %）    rx                     rx（tx 10.0 %）    rx（tx 2.00 %）
+ Part      NOMINAL           MISSION               DOWNLINK          SAFE            
+─────────────────────────────────────────────────────────────────────────────────────
+ CAM       off               standby (on 50.0 %)   off               off             
+ EPT       off               off                   off               off             
+ GPS       on                on                    on                off             
+ HTR_BAT   off (on 20.0 %)   off (on 10.0 %)       off (on 10.0 %)   off (on 40.0 %) 
+ HTR_CAM   off (on 20.0 %)   off                   off (on 20.0 %)   off (on 30.0 %) 
+ MTQ_X     off (on 20.0 %)   off                   off               off (on 50.0 %) 
+ MTQ_Y     off (on 20.0 %)   off                   off               off (on 50.0 %) 
+ MTQ_Z     off (on 20.0 %)   off                   off               off (on 50.0 %) 
+ OBC       on                on                    on                on              
+ PCDU      on                on                    on                on              
+ RW_X      on                on (peak 10.0 %)      on                off             
+ RW_Y      on                on (peak 10.0 %)      on                off             
+ RW_Z      on                on (peak 10.0 %)      on                off             
+ SS_MX     on                on                    on                on              
+ SS_MY     on                on                    on                on              
+ SS_PX     on                on                    on                on              
+ SS_PY     on                on                    on                on              
+ STT       on                on                    on                off             
+ STX       off               off                   tx                off             
+ UHF_TRX   rx (tx 2.00 %)    rx                    rx (tx 10.0 %)    rx (tx 2.00 %)

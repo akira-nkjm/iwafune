@@ -14,11 +14,11 @@ const HOMES: &[&str] = &["crates/app/store/", "crates/app/ops/", "crates/xtask/"
 const EXCEPTIONS: &[(&str, &str)] = &[
     (
         "crates/app/service/src/format.rs",
-        "`fune fmt`: 設計の内容は変えず、全ファイルを正規形に書き直すだけ（編集ではない）",
+        "`fune fmt`: rewrites every file into canonical form without changing the design (not an edit)",
     ),
     (
         "crates/app/service/src/shared_catalog.rs",
-        "`fune catalog fetch`: 共有カタログの取得で決まる派生の `catalog.lock` だけを書く（設計の編集ではない）",
+        "`fune catalog fetch`: writes only the derived `catalog.lock` decided by fetching the shared catalogs (not a design edit)",
     ),
 ];
 
@@ -50,8 +50,8 @@ fn violation(rel: &str, text: &str) -> Option<String> {
     let prod = production_text(rel, text)?;
     calls_commit(prod).then(|| {
         format!(
-            "{rel}: `fune_store::write::commit` を呼んでいます。設計の編集は Op（fune-ops の apply）を通します。\
-             Op にしない書き込みは crates/xtask/src/store_writes.rs の EXCEPTIONS に理由付きで挙げます"
+            "{rel}: calls `fune_store::write::commit`. Design edits go through an Op (apply in fune-ops). \
+             Writes that are not Ops are listed with a reason in EXCEPTIONS of crates/xtask/src/store_writes.rs"
         )
     })
 }

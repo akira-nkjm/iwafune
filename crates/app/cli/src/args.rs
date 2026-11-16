@@ -26,7 +26,7 @@ pub struct Cli {
     pub command: Command,
 }
 
-/// どのコマンドにも付けられるオプション。
+/// Options available on every command.
 #[derive(Debug, Args)]
 pub struct GlobalOpts {
     /// Project location (the directory with fune.toml, or one below it)
@@ -46,7 +46,7 @@ pub struct GlobalOpts {
     pub color: ColorChoice,
 }
 
-/// 色の指定。
+/// Colour choice.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum ColorChoice {
     Auto,
@@ -54,7 +54,7 @@ pub enum ColorChoice {
     Never,
 }
 
-/// 編集系のコマンドに共通のオプション。
+/// Options shared by the editing commands.
 #[derive(Debug, Args, Default)]
 pub struct EditOpts {
     /// Show the diff of the files that would change, without writing
@@ -65,7 +65,7 @@ pub struct EditOpts {
     pub base_revision: Option<String>,
 }
 
-/// サブコマンド。
+/// Subcommands.
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// Create a new project
