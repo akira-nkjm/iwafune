@@ -8,7 +8,7 @@ import { itemPath, SEARCH } from "@/lib/nav";
  * - 選んだ ID は URL の末尾の区間（ルートの `:id?`。`routes.ts`）。React Router が decode した値をそのまま使う
  *   （重ねて decode しない。`%` を含む ID が壊れる）。`select` は `itemPath` で encode して URL を作る。
  * - 表示方法は `?view=`（`views` のどれか。無ければ先頭）。`tree` は詳細を横の欄に出す表示（表以外）か。
- *   切り替えは `setView`（選んだ ID はそのまま。`kit/selection/ViewSwitch` はこれを受け取り、URL を自分で読まない）。
+ *   切り替えは `setView`（選んだ ID はそのまま。ページのタブは `?view=` のリンクで切り替える）。
  * - 追加ダイアログは `?new=1`。選び直すと消す。検索部分の名前は `SEARCH`。
  */
 export function useDetailRoute(base: string, views: readonly string[] = ["table", "tree"]) {
