@@ -57,7 +57,7 @@ fn unequal_batteries_add_one_warning_to_sizing() {
         .filter(|c| c.key == "battery_mismatch")
         .collect();
     assert_eq!(found.len(), 1);
-    assert!(found[0].message.contains("公称電圧"));
+    assert!(found[0].message.contains("Nominal voltage"));
     // 同じ 2 つなら注意なし、容量は 2 倍
     let mut same = input();
     same.batteries.push(same.batteries[0].clone());

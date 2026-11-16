@@ -176,7 +176,7 @@ pub(super) fn decay(
     }
     if t < span {
         return Err(AnalysisError::InvalidInput(
-            "高度低下の積分が刻みの上限までに終わりません".into(),
+            "The altitude decay integration does not finish within the step limit".into(),
         ));
     }
     let h = model.altitude(x[0]);
@@ -244,6 +244,6 @@ pub(super) fn hold(
         }
     }
     Err(AnalysisError::InvalidInput(
-        "軌道維持の積分が刻みの上限までに終わりません".into(),
+        "The orbit maintenance integration does not finish within the step limit".into(),
     ))
 }

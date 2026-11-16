@@ -48,7 +48,7 @@ pub(crate) struct ResolvedEnvironment {
 
 fn missing(central: CentralBody, what: &str, key: &str) -> AnalysisError {
     AnalysisError::InvalidInput(format!(
-        "中心天体 {central:?} の{what}の既定値はありません。環境条件に {key} を書いてください"
+        "No default {what} for central body {central:?}. Set {key} in the environment conditions"
     ))
 }
 
@@ -73,7 +73,7 @@ impl ThermalEnvironment {
             }
             (None, Some(_)) => {
                 return Err(AnalysisError::InvalidInput(format!(
-                    "プリセットの太陽光は 1 AU の値なので、中心天体 {central:?} では solar_flux を書いてください"
+                    "The preset solar flux is the 1 AU value, so set solar_flux for central body {central:?}"
                 )));
             }
             (None, None) => None,
@@ -83,13 +83,13 @@ impl ThermalEnvironment {
             .or_else(|| earth_preset.map(ThermalPreset::albedo))
             .map(Fraction::value)
             .or_else(|| defaults.map(|d| d.albedo))
-            .ok_or_else(|| missing(central, "アルベド", "albedo"))?;
+            .ok_or_else(|| missing(central, "albedo", "albedo"))?;
         let ir = self
             .planet_ir
             .or_else(|| earth_preset.map(ThermalPreset::earth_ir))
             .map(|q| PlanetIr::Uniform(q.value()))
             .or_else(|| defaults.map(|d| d.ir))
-            .ok_or_else(|| missing(central, "赤外放射", "planet_ir"))?;
+            .ok_or_else(|| missing(central, "planet IR", "planet_ir"))?;
         Ok(ResolvedEnvironment {
             solar_flux_w_m2,
             albedo,

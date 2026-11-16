@@ -33,11 +33,15 @@ impl ThermalLoad {
         let p = self.power.value();
         let per_unit = match self.heat_fraction {
             Some(f) if p.is_finite() && f.is_finite() && (0.0..=1.0).contains(&f) => p * f,
-            Some(_) => return Err(self.invalid("電力は有限、heat_fraction は 0〜1")),
+            Some(_) => {
+                return Err(self.invalid("power must be finite and heat_fraction within 0 to 1"));
+            }
             None => {
                 let rf = self.rf_output.map_or(0.0, Qty::value);
                 if !(p.is_finite() && rf.is_finite() && (0.0..=p).contains(&rf)) {
-                    return Err(self.invalid("電力は有限、RF 出力は 0〜消費電力"));
+                    return Err(
+                        self.invalid("power must be finite and RF output within 0 to power")
+                    );
                 }
                 p - rf
             }
@@ -46,7 +50,7 @@ impl ThermalLoad {
     }
 
     fn invalid(&self, rule: &str) -> AnalysisError {
-        AnalysisError::InvalidInput(format!("節点 {} の発熱: {rule}にしてください", self.node))
+        AnalysisError::InvalidInput(format!("Node {} heat dissipation: {rule}", self.node))
     }
 }
 

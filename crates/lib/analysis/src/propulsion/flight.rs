@@ -84,7 +84,7 @@ impl<'a> Walker<'a> {
         let seg = self
             .segments
             .last()
-            .ok_or_else(|| AnalysisError::InvalidInput("軌道の推移が空です".into()))?;
+            .ok_or_else(|| AnalysisError::InvalidInput("The orbit history is empty".into()))?;
         Ok((&seg.orbit, self.t - seg.start.value()))
     }
 
@@ -215,7 +215,7 @@ impl<'a> Walker<'a> {
         let m = leg.maneuver;
         let thruster = leg.thruster.ok_or_else(|| {
             AnalysisError::InvalidInput(format!(
-                "マヌーバ {} の数値伝搬にはスラスタが要ります",
+                "Numerical propagation of maneuver {} requires a thruster",
                 m.id
             ))
         })?;

@@ -20,10 +20,10 @@ pub(super) fn checks(
     if e > NEAR_CIRCULAR_ECCENTRICITY {
         out.push(Check::new(
             "near_circular",
-            "近円軌道の前提",
+            "Near-circular orbit assumption",
             Verdict::Warning,
             format!(
-                "離心率 {e} は近円軌道の前提（{NEAR_CIRCULAR_ECCENTRICITY} 以下）を超えます。離心率の変化を追わないので寿命は粗い見積もりです"
+                "Eccentricity {e} exceeds the near-circular assumption ({NEAR_CIRCULAR_ECCENTRICITY} or less). Eccentricity changes are not tracked, so the lifetime is a rough estimate"
             ),
         ));
     }
@@ -43,12 +43,12 @@ pub(super) fn checks(
 fn thruster_check(names: &[String]) -> Check {
     Check::new(
         "station_keeping_thruster",
-        "軌道維持のスラスタ",
+        "Station-keeping thruster",
         Verdict::Warning,
         format!(
-            "推薬が複数（{}）あり、軌道維持に使うスラスタを決められないので、推薬で保てる ΔV と期間を求めていません。\
-             区分を軌道維持（station_keeping）にしてスラスタを書いたマヌーバを足してください",
-            names.join("、")
+            "There are several propellants ({}), so the station-keeping thruster cannot be chosen and the ΔV and duration the propellant can sustain are not computed. \
+             Add a maneuver with category station_keeping and a thruster",
+            names.join(", ")
         ),
     )
 }
@@ -68,14 +68,14 @@ fn mission_check(used: &DecayUsed, cases: &[DecayCase], mission: f64) -> Check {
         None => (
             Verdict::Ok,
             format!(
-                "どの条件でもミッション期間 {} のあいだ再突入しません",
+                "No condition re-enters within the mission duration of {}",
                 quantity_text::<Time>(mission)
             ),
         ),
         Some(c) if c.lifetime.is_some() => (
             Verdict::Warning,
             format!(
-                "条件 {} では {} で再突入し、ミッション期間 {} に届きません（軌道維持が要ります）",
+                "Condition {} re-enters after {} and does not reach the mission duration of {} (orbit maintenance is required)",
                 c.id,
                 quantity_text::<Time>(lower_bound(used, c)),
                 quantity_text::<Time>(mission)
@@ -84,7 +84,7 @@ fn mission_check(used: &DecayUsed, cases: &[DecayCase], mission: f64) -> Check {
         Some(_) => (
             Verdict::Warning,
             format!(
-                "積分の期間 {} がミッション期間 {} より短く、寿命を確かめられません",
+                "The integration span {} is shorter than the mission duration {}, so the lifetime cannot be confirmed",
                 quantity_text::<Time>(used.span.value()),
                 quantity_text::<Time>(mission)
             ),
@@ -92,7 +92,7 @@ fn mission_check(used: &DecayUsed, cases: &[DecayCase], mission: f64) -> Check {
     };
     Check::new(
         "lifetime_vs_mission",
-        "ミッション期間に対する軌道寿命",
+        "Orbit lifetime against mission duration",
         verdict,
         message,
     )
@@ -108,7 +108,7 @@ fn propellant_check(cases: &[DecayCase], mission: f64) -> Check {
         Some((c, life)) if life < mission => (
             Verdict::Warning,
             format!(
-                "条件 {} では推薬で高度を保てるのが {} で、ミッション期間 {} に届きません",
+                "Condition {} keeps altitude on propellant for {}, which does not reach the mission duration of {}",
                 c.id,
                 quantity_text::<Time>(life),
                 quantity_text::<Time>(mission)
@@ -117,12 +117,17 @@ fn propellant_check(cases: &[DecayCase], mission: f64) -> Check {
         _ => (
             Verdict::Ok,
             format!(
-                "どの条件でも推薬でミッション期間 {} のあいだ高度を保てます",
+                "Altitude can be held on propellant for the mission duration of {} in every condition",
                 quantity_text::<Time>(mission)
             ),
         ),
     };
-    Check::new("propellant_life", "軌道維持の推薬の寿命", verdict, message)
+    Check::new(
+        "propellant_life",
+        "Station-keeping propellant life",
+        verdict,
+        message,
+    )
 }
 
 /// 代表の条件で寿命の上限（廃棄の要求）を満たすか。上限までに積分が届かなければ注意。
@@ -138,9 +143,9 @@ fn disposal_check(used: &DecayUsed, cases: &[DecayCase], max: f64) -> Check {
     let Some(c) = representative else {
         return Check::new(
             "max_lifetime",
-            "寿命の上限",
+            "Lifetime limit",
             Verdict::Ok,
-            "条件がありません",
+            "No conditions",
         );
     };
     let life = lower_bound(used, c);
@@ -149,7 +154,7 @@ fn disposal_check(used: &DecayUsed, cases: &[DecayCase], max: f64) -> Check {
         Some(_) if life <= max => (
             Verdict::Ok,
             format!(
-                "条件 {} では {} で再突入し、上限 {max_text} 以内です",
+                "Condition {} re-enters after {}, within the limit of {max_text}",
                 c.id,
                 quantity_text::<Time>(life)
             ),
@@ -157,7 +162,7 @@ fn disposal_check(used: &DecayUsed, cases: &[DecayCase], max: f64) -> Check {
         Some(_) => (
             Verdict::Violation,
             format!(
-                "条件 {} では再突入まで {} かかり、上限 {max_text} を超えます",
+                "Condition {} takes {} to re-enter, exceeding the limit of {max_text}",
                 c.id,
                 quantity_text::<Time>(life)
             ),
@@ -165,7 +170,7 @@ fn disposal_check(used: &DecayUsed, cases: &[DecayCase], max: f64) -> Check {
         None if life >= max => (
             Verdict::Violation,
             format!(
-                "条件 {} では {} たっても再突入せず、上限 {max_text} を超えます",
+                "Condition {} does not re-enter even after {}, exceeding the limit of {max_text}",
                 c.id,
                 quantity_text::<Time>(life)
             ),
@@ -173,11 +178,11 @@ fn disposal_check(used: &DecayUsed, cases: &[DecayCase], max: f64) -> Check {
         None => (
             Verdict::Warning,
             format!(
-                "条件 {} では積分の期間 {} のうちに再突入せず、上限 {max_text} を満たすか確かめられません（期間を延ばしてください）",
+                "Condition {} does not re-enter within the integration span of {}, so the limit of {max_text} cannot be confirmed (extend the span)",
                 c.id,
                 quantity_text::<Time>(life)
             ),
         ),
     };
-    Check::new("max_lifetime", "寿命の上限", verdict, message)
+    Check::new("max_lifetime", "Lifetime limit", verdict, message)
 }

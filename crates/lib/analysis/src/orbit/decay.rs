@@ -176,12 +176,12 @@ impl Analysis for OrbitDecay {
 fn used_values(input: &OrbitDecayInput) -> Result<(DecayUsed, Option<Vec<String>>), AnalysisError> {
     if input.orbit.central != CentralBody::Earth {
         return Err(AnalysisError::InvalidInput(
-            "地球以外の高度低下は未対応です".into(),
+            "Altitude decay is not supported for bodies other than Earth".into(),
         ));
     }
-    ensure_positive("機体の質量", input.mass.value())?;
+    ensure_positive("Spacecraft mass", input.mass.value())?;
     let drag_coefficient = input.drag_coefficient.unwrap_or(DEFAULT_DRAG_COEFFICIENT);
-    ensure_positive("抗力係数", drag_coefficient)?;
+    ensure_positive("Drag coefficient", drag_coefficient)?;
     let (drag_area, area_source) = match (input.drag_area, input.body_size) {
         (Some(a), _) => (a, DragAreaSource::Given),
         (None, Some(size)) => (
@@ -190,20 +190,20 @@ fn used_values(input: &OrbitDecayInput) -> Result<(DecayUsed, Option<Vec<String>
         ),
         (None, None) => {
             return Err(AnalysisError::InvalidInput(
-                "抗力の面積か機体の外形が要ります".into(),
+                "Either a drag area or the spacecraft outline is required".into(),
             ));
         }
     };
-    ensure_positive("抗力の面積", drag_area.value())?;
+    ensure_positive("Drag area", drag_area.value())?;
     let span = input.span_s();
-    ensure_positive("積分の期間", span)?;
+    ensure_positive("Integration span", span)?;
     let reentry = reentry_altitude(input)?;
     let station_keeping_span = input
         .mission_duration
         .map_or(DEFAULT_STATION_KEEPING_SPAN_S, |q| q.value());
-    ensure_positive("ミッション期間", station_keeping_span)?;
+    ensure_positive("Mission duration", station_keeping_span)?;
     if let Some(b) = input.band {
-        ensure_positive("軌道維持の高度の帯", b.value())?;
+        ensure_positive("Station-keeping altitude band", b.value())?;
     }
     let (sk, note) = match input.propulsion.as_ref().map(propellant::capacity) {
         Some(Ok(propellant::StationKeeper::Found(c))) => (Some(c), None),
@@ -237,11 +237,11 @@ fn reentry_altitude(input: &OrbitDecayInput) -> Result<f64, AnalysisError> {
     let reentry = input
         .reentry_altitude
         .map_or(DEFAULT_REENTRY_ALTITUDE_M, |q| q.value());
-    ensure_positive("再突入の高度", reentry)?;
+    ensure_positive("Re-entry altitude", reentry)?;
     let e = input.orbit.elements.eccentricity;
     if !(0.0..1.0).contains(&e) {
         return Err(AnalysisError::InvalidInput(format!(
-            "離心率は 0 以上 1 未満にしてください（{e}）"
+            "Eccentricity must be 0 or more and less than 1 ({e})"
         )));
     }
     let perigee = altitude_from_semi_major_axis(
@@ -250,7 +250,7 @@ fn reentry_altitude(input: &OrbitDecayInput) -> Result<f64, AnalysisError> {
     );
     if perigee <= reentry {
         return Err(AnalysisError::InvalidInput(
-            "初期の近地点の高度が再突入の高度以下です".into(),
+            "The initial perigee altitude is at or below the re-entry altitude".into(),
         ));
     }
     Ok(reentry)

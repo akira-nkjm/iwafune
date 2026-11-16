@@ -20,21 +20,21 @@ pub(crate) fn range_checks(
             let (lo, hi) = m.predicted();
             let predicted = if u > 0.0 {
                 format!(
-                    "{}〜{}、不確かさ込み {}〜{}",
+                    "{} to {}, with uncertainty {} to {}",
                     t(lo),
                     t(hi),
                     t(lo - u),
                     t(hi + u)
                 )
             } else {
-                format!("{}〜{}", t(lo), t(hi))
+                format!("{} to {}", t(lo), t(hi))
             };
             Check::new(
                 &format!("range:{node}:{}", m.kind.key()),
-                &format!("{node} の温度（{}）", m.kind.noun()),
+                &format!("{node} temperature ({})", m.kind.noun()),
                 m.verdict,
                 format!(
-                    "{predicted}（{} {}〜{}{}）",
+                    "{predicted} ({} {} to {}{})",
                     m.kind.noun(),
                     t(m.range.min.value()),
                     t(m.range.max.value()),
@@ -70,10 +70,10 @@ pub(super) fn excluded_text(excluded: &[ThermalRangeExclusion]) -> String {
         .iter()
         .map(|(modes, power, parts)| {
             format!(
-                "。モード {} で{}の {} を除く",
-                modes.join("・"),
+                ". Excludes {1} {2} in mode {0}",
+                modes.join(", "),
                 power.noun(),
-                parts.join("・")
+                parts.join(", ")
             )
         })
         .collect()

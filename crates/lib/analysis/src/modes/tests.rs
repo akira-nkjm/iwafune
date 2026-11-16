@@ -62,7 +62,7 @@ fn weighted_mean_missing_value_is_none() {
 fn duplicate_assignment_is_rejected() {
     let m = ModeDef {
         id: "NOMINAL".to_owned(),
-        label: "通常".to_owned(),
+        label: "Nominal".to_owned(),
         assignments: vec![assign("rx", &[]), assign("tx", &[])],
         eclipse: Vec::new(),
     };
@@ -117,7 +117,7 @@ fn evaluate_excludes_unassigned_and_missing_with_warnings() {
     assert_eq!(ev.unassigned, vec!["CAM".to_owned()]);
     assert_eq!(ev.missing, vec![("GPS".to_owned(), "on".to_owned())]);
     assert_eq!(ev.unknown_parts, vec!["HTR".to_owned()]);
-    let keys: Vec<String> = ev.checks("消費電力").into_iter().map(|c| c.key).collect();
+    let keys: Vec<String> = ev.checks("power").into_iter().map(|c| c.key).collect();
     assert_eq!(keys, ["unassigned", "missing_value", "unknown_part"]);
     // 一覧に無い部品を警告しない評価では unknown_part だけが消える
     let quiet = evaluate(
@@ -133,11 +133,7 @@ fn evaluate_excludes_unassigned_and_missing_with_warnings() {
     )
     .unwrap();
     assert!(quiet.unknown_parts.is_empty());
-    let keys: Vec<String> = quiet
-        .checks("消費電力")
-        .into_iter()
-        .map(|c| c.key)
-        .collect();
+    let keys: Vec<String> = quiet.checks("power").into_iter().map(|c| c.key).collect();
     assert_eq!(keys, ["unassigned", "missing_value"]);
     assert!((quiet.total() - 2.8).abs() < 1e-12);
     assert!(find_mode(std::slice::from_ref(&mode), "NOMINAL").is_ok());

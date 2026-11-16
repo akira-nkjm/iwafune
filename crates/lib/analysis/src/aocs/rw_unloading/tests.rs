@@ -355,7 +355,7 @@ fn moon_states_zero_aero_and_magnetic_torque_in_the_checks() {
     assert_eq!(key(DisturbanceKind::Aero).peak.value(), 0.0);
     assert_eq!(key(DisturbanceKind::Magnetic).peak.value(), 0.0);
     let c = moon.checks.iter().find(|c| c.key == "environment_models");
-    assert_eq!(c.expect("注記").verdict, Verdict::Ok);
+    assert_eq!(c.expect("note").verdict, Verdict::Ok);
     let earth = RwUnloading::run(&about_body(sat_astro::ephem::CentralBody::Earth)).unwrap();
     assert!(earth.checks.iter().all(|c| c.key != "environment_models"));
 }

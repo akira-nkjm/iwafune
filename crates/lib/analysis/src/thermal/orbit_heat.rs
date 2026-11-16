@@ -105,13 +105,15 @@ pub(crate) fn timeline_geometry(
 ) -> Result<(Vec<f64>, Vec<Geometry>), AnalysisError> {
     if spec.orbit().central == CentralBody::Sun {
         return Err(AnalysisError::InvalidInput(
-            "太陽を中心天体とする熱解析はできません（中心天体のアルベド・赤外放射の形を持ちません）"
+            "Thermal analysis with the Sun as the central body is not supported (it has no albedo or planet IR form)"
                 .to_owned(),
         ));
     }
     let samples = build(spec)?;
     if samples.is_empty() {
-        return Err(AnalysisError::InvalidInput("時系列が空です".to_owned()));
+        return Err(AnalysisError::InvalidInput(
+            "The time series is empty".to_owned(),
+        ));
     }
     let t = samples.iter().map(|s| s.t_s).collect();
     Ok((t, samples.iter().map(Geometry::from_sample).collect()))
@@ -155,7 +157,7 @@ pub(crate) fn exposure_absorbed(
                 (None, Some(d)) => solar_flux_w_m2(d),
                 (None, None) => {
                     return Err(AnalysisError::InvalidInput(format!(
-                        "中心天体 {central:?} の太陽距離の慣例値はありません。solar_flux を書いてください"
+                        "No conventional Sun distance for central body {central:?}. Set solar_flux"
                     )));
                 }
             };

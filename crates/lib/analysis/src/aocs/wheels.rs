@@ -18,8 +18,8 @@ const NEGLIGIBLE_SHARE: f64 = 1e-15;
 /// 最大角運動量のうち使ってよい割合（入力 `given`、省略時 [`DEFAULT_USABLE_MOMENTUM_FRACTION`]）。0 より大きく 1 以下か調べる。
 pub fn usable_momentum_fraction(given: Option<Fraction>) -> Result<Fraction, AnalysisError> {
     let f = given.unwrap_or(DEFAULT_USABLE_MOMENTUM_FRACTION);
-    ensure_fraction("使える割合", f.value())?;
-    ensure_positive("使える割合", f.value())?;
+    ensure_fraction("Usable fraction", f.value())?;
+    ensure_positive("Usable fraction", f.value())?;
     Ok(f)
 }
 
@@ -50,15 +50,12 @@ impl WheelSet {
         let mut axes = Vec::with_capacity(wheels.len());
         for w in wheels {
             ensure_positive(
-                &format!("ホイール {} の最大角運動量", w.id),
+                &format!("Wheel {} max angular momentum", w.id),
                 w.max_momentum.value(),
             )?;
-            ensure_positive(
-                &format!("ホイール {} の最大トルク", w.id),
-                w.max_torque.value(),
-            )?;
+            ensure_positive(&format!("Wheel {} max torque", w.id), w.max_torque.value())?;
             let axis = w.axis.normalized().ok_or_else(|| {
-                AnalysisError::InvalidInput(format!("ホイール {} の軸がゼロベクトルです", w.id))
+                AnalysisError::InvalidInput(format!("Wheel {} axis is a zero vector", w.id))
             })?;
             axes.push(axis);
         }
@@ -67,7 +64,7 @@ impl WheelSet {
             .fold(Mat3::default(), |m, &a| m + Mat3::outer(a, a));
         let gram_inv = gram.inverse().ok_or_else(|| {
             AnalysisError::InvalidInput(
-                "ホイールの軸が 3 軸を張りません（3 台以上で、同じ平面に並ばない配置にしてください）"
+                "The wheel axes do not span 3 axes (use 3 or more wheels, not all in one plane)"
                     .to_owned(),
             )
         })?;

@@ -59,7 +59,7 @@ impl OrbitHistory {
         let seg = self
             .segments
             .get(i)
-            .ok_or_else(|| AnalysisError::InvalidInput("軌道の推移が空です".into()))?;
+            .ok_or_else(|| AnalysisError::InvalidInput("The orbit history is empty".into()))?;
         Ok((seg, t_s - seg.start.value()))
     }
 }

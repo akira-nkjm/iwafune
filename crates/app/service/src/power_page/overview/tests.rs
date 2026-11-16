@@ -121,9 +121,9 @@ fn energy_balance_checks_are_labelled_with_their_case() {
     for (case, scopes) in [
         (
             None,
-            vec!["定常", "撮像", "ダウンリンク", "セーフ", "モードの並び"],
+            vec!["定常", "撮像", "ダウンリンク", "セーフ", "Mode sequence"],
         ),
-        (Some("hot_imaging"), vec!["撮像", "モードの並び"]),
+        (Some("hot_imaging"), vec!["撮像", "Mode sequence"]),
     ] {
         let page = page(case);
         let groups = &of(&page, "power.energy_balance").checks;

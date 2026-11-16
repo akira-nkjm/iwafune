@@ -126,7 +126,7 @@ fn evaluate_case(
         SolarSunlitSun::Direction { sun_dir_body } => {
             if sun_dir_body.normalized().is_none() {
                 return Err(AnalysisError::InvalidInput(format!(
-                    "ケース {} の太陽方向がゼロベクトルです",
+                    "Sun direction of case {} is a zero vector",
                     case.id
                 )));
             }
@@ -219,7 +219,7 @@ mod tests {
             },
             cases: vec![SolarSunlitCase {
                 id: "sun_z".to_owned(),
-                label: "+Z 太陽指向".to_owned(),
+                label: "+Z Sun pointing".to_owned(),
                 sun: SolarSunlitSun::Direction { sun_dir_body: sun },
             }],
         }

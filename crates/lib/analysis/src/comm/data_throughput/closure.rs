@@ -31,7 +31,9 @@ pub(super) fn station_closures(
             None => DataThroughputLinkClosure::NotEvaluated,
             Some(link) => {
                 if altitude <= 0.0 {
-                    return Err(AnalysisError::InvalidInput("軌道の高度が負です".to_owned()));
+                    return Err(AnalysisError::InvalidInput(
+                        "Orbit altitude is negative".to_owned(),
+                    ));
                 }
                 let el = link.rf.min_elevation_for_margin(
                     w.orbit.central.radius_m(),

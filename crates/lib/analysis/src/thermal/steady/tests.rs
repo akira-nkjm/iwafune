@@ -37,7 +37,7 @@ fn input() -> ThermalSteadyInput {
         cases: vec![ThermalSteadyCase {
             mode_loads: None,
             id: "hot".to_owned(),
-            label: "高温".to_owned(),
+            label: "Hot".to_owned(),
             environment: ThermalEnvironment {
                 solar_flux: Some(Qty::from_raw(1400.0)),
                 space_temperature: Some(Qty::from_raw(0.0)),
