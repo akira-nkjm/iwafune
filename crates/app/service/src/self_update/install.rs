@@ -51,6 +51,9 @@ pub(super) fn install(
     let tmp = TempDir::create_beside(&ctx.exe)?;
     let file = archive_name(version, ctx.platform);
     let archive = tmp.0.join(&file);
+    // 小さなチェックサムを先に取る。その版のリリースが無ければここで分かり、進捗バーの取得を始めない
+    // （バーを出す取得は curl が自分の誤りをそのまま端末に書くので、無い版では二重に出てしまう）
+    let expected = fetch_checksum(ctx, host, version, &tmp.0, &file)?;
     on_step(Step::Downloading {
         asset: file.clone(),
         version: version.to_string(),
@@ -58,7 +61,7 @@ pub(super) fn install(
     host.download(&download_url(&ctx.repo, version, &file), &archive, progress)
         .map_err(|e| not_found_or(ctx, version, e))?;
     on_step(Step::Verifying);
-    verify_checksum(ctx, host, version, &tmp.0, &file)?;
+    verify_checksum(&archive, &file, &expected)?;
     on_step(Step::Unpacking);
     let new_binary = extract_binary(ctx, host, version, &tmp.0, &archive)?;
     check_version(host, &new_binary, version)?;
@@ -80,25 +83,30 @@ fn not_found_or(ctx: &Context, version: Version, e: ServiceError) -> ServiceErro
     e
 }
 
-/// アーカイブの SHA-256 を `.sha256` と照合する。
-fn verify_checksum(
+/// `.sha256` を取得して、アーカイブの期待する SHA-256 を返す。リリースが無ければその旨の誤り。
+fn fetch_checksum(
     ctx: &Context,
     host: &dyn Host,
     version: Version,
     tmp: &Path,
     file: &str,
-) -> Result<()> {
+) -> Result<String> {
     let sum_name = format!("{file}.sha256");
     let sum_path = tmp.join(&sum_name);
     host.download(
         &download_url(&ctx.repo, version, &sum_name),
         &sum_path,
         false,
-    )?;
+    )
+    .map_err(|e| not_found_or(ctx, version, e))?;
     let text = std::fs::read_to_string(&sum_path)
         .map_err(|e| err(format!("Cannot read {sum_name}: {e}")))?;
-    let expected = parse_sha256_file(&text, file)?;
-    let actual = sha256_file(&tmp.join(file))
+    parse_sha256_file(&text, file)
+}
+
+/// アーカイブの SHA-256 を、期待する値と照合する。
+fn verify_checksum(archive: &Path, file: &str, expected: &str) -> Result<()> {
+    let actual = sha256_file(archive)
         .map_err(|e| err(format!("Cannot read the downloaded archive: {e}")))?;
     if actual != expected {
         return Err(err(format!(
