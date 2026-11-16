@@ -11,6 +11,8 @@
 //! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode` |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets` |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire` |
+//! | 種別（プロジェクト独自の定義の削除を拒むためだけ。書き換えはしない） | 部品とカタログ品の `kind`・種別の `extends` |
+//! | 属性（同上） | 種別の `required` / `optional`・部品とカタログ品の属性の値 |
 
 use super::{BudgetKind, Design};
 use crate::enum_text::enum_text;
@@ -26,6 +28,10 @@ pub enum Referent<'a> {
     Net(&'a str),
     /// カタログ品の参照（`"local/rw_10mNms"`）
     Catalog(&'a str),
+    /// 種別の ID（定義の削除を拒むための索引。名前の変更はしない）
+    Kind(&'a str),
+    /// 属性の ID（同上）
+    Attribute(&'a str),
 }
 
 enum_text! {
@@ -103,6 +109,18 @@ pub enum RefSite {
     ManeuverThruster { maneuver: String },
     /// マヌーバの噴射するモード（`[constraints].mode`）
     ManeuverMode { maneuver: String },
+    /// 部品の種別（`kind`）
+    PartKind { part: String },
+    /// カタログ品の種別（`kind`。`item` は `local/rw_10mNms` の形）
+    CatalogKind { item: String },
+    /// 種別の継承元（`extends`）
+    KindExtends { kind: String },
+    /// 種別が挙げる属性（`required`・`optional`）
+    KindAttribute { kind: String },
+    /// 部品が値を書いた属性（`[attr.<ID>]`）
+    PartAttribute { part: String },
+    /// カタログ品が値を書いた属性
+    CatalogAttribute { item: String },
 }
 
 impl Design {
@@ -114,6 +132,8 @@ impl Design {
             Referent::Mode(id) => self.mode_refs(id),
             Referent::Net(id) => self.net_refs(id),
             Referent::Catalog(reference) => self.catalog_refs(reference),
+            Referent::Kind(id) => self.kind_refs(id),
+            Referent::Attribute(id) => self.attribute_refs(id),
         }
     }
 
@@ -311,5 +331,63 @@ impl Design {
                 }),
         );
         out
+    }
+
+    /// 種別を使っているもの: 部品 → カタログ品 → 継承している種別の順。
+    fn kind_refs(&self, id: &str) -> Vec<RefSite> {
+        let parts = self
+            .parts
+            .values()
+            .filter(|p| p.kind.as_ref().is_some_and(|k| k.as_str() == id))
+            .map(|p| RefSite::PartKind {
+                part: p.id.to_string(),
+            });
+        let items = self
+            .catalog
+            .iter()
+            .filter(|(_, c)| c.kind.as_str() == id)
+            .map(|(reference, _)| RefSite::CatalogKind {
+                item: reference.to_string(),
+            });
+        let kinds = self
+            .kinds
+            .values()
+            .filter(|k| k.extends.as_ref().is_some_and(|e| e.as_str() == id))
+            .map(|k| RefSite::KindExtends {
+                kind: k.id.to_string(),
+            });
+        parts.chain(items).chain(kinds).collect()
+    }
+
+    /// 属性を使っているもの: 種別 → 部品 → カタログ品の順。種別はプロジェクト独自のものだけ
+    /// （組み込みの種別が挙げるのは組み込みの属性なので、プロジェクト独自の属性の削除には関わらない）。
+    fn attribute_refs(&self, id: &str) -> Vec<RefSite> {
+        let kinds = self
+            .kinds
+            .values()
+            .filter(|k| {
+                k.required
+                    .iter()
+                    .chain(&k.optional)
+                    .any(|a| a.as_str() == id)
+            })
+            .map(|k| RefSite::KindAttribute {
+                kind: k.id.to_string(),
+            });
+        let parts = self
+            .parts
+            .values()
+            .filter(|p| p.attr.contains_key(id))
+            .map(|p| RefSite::PartAttribute {
+                part: p.id.to_string(),
+            });
+        let items = self
+            .catalog
+            .iter()
+            .filter(|(_, c)| c.attr.contains_key(id))
+            .map(|(reference, _)| RefSite::CatalogAttribute {
+                item: reference.to_string(),
+            });
+        kinds.chain(parts).chain(items).collect()
     }
 }

@@ -35,10 +35,16 @@ pub(in super::super) fn def_ops() -> Vec<Op> {
     ported.id = "pdu2".into();
     vec![
         Op::CreateAttribute { def: attr },
-        Op::CreateAttribute { def: full },
+        Op::CreateAttribute { def: full.clone() },
+        Op::UpdateAttribute { def: full },
         Op::CreateAttribute { def: sym },
+        Op::DeleteAttribute { id: s("finish") },
         Op::CreateKind { def: kind },
-        Op::CreateKind { def: ported },
+        Op::CreateKind {
+            def: ported.clone(),
+        },
+        Op::UpdateKind { def: ported },
+        Op::DeleteKind { id: s("wire2") },
     ]
 }
 

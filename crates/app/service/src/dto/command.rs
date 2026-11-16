@@ -40,6 +40,10 @@ pub enum CommandText {
     AttrAdd(AttrAddText),
     /// `fune kind add <ID> --states off,on --required mass --port PWR=power`
     KindAdd(KindAddText),
+    /// `fune attr replace <ID> …`（`attr add` と同じ旗。既にある属性定義を丸ごと置き換える）
+    AttrReplace(AttrAddText),
+    /// `fune kind replace <ID> …`（`kind add` と同じ旗。既にある種別定義を丸ごと置き換える）
+    KindReplace(KindAddText),
     /// `fune maneuver add <ID> --category … --method … --altitude "600 km" …`（同じ ID があれば拒む）
     ManeuverAdd(super::ManeuverText),
     /// `fune maneuver set <ID> …`（無ければ作り、あれば丸ごと置き換える）

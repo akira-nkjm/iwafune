@@ -7,13 +7,15 @@
 //! | モジュール | 中身 |
 //! |---|---|
 //! | `parts` | 部品の Op（追加・削除・名前・移動・値・フィールド・取付・ポート） |
-//! | `others` | 定義・モード・ネット・図・設定の Op |
+//! | `defs` | 定義（属性・種別）の Op（足す・置き換える・消す） |
+//! | `others` | モード・ネット・図・設定の Op |
 //! | `records` | 解析ケース・出典・ハーネスの Op |
 //! | `catalog` | カタログ品の Op（このプロジェクトの `catalog/` だけ） |
 //! | `attr` | 属性の値の書き込み（部品とカタログ品で共有） |
 
 mod attr;
 mod catalog;
+mod defs;
 mod others;
 mod parts;
 mod records;
@@ -112,6 +114,12 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::Place { .. }
         | Op::SetPort { .. }
         | Op::SetMountPoint { .. } => parts::interpret(edits, design, op),
+        Op::CreateAttribute { .. }
+        | Op::UpdateAttribute { .. }
+        | Op::DeleteAttribute { .. }
+        | Op::CreateKind { .. }
+        | Op::UpdateKind { .. }
+        | Op::DeleteKind { .. } => defs::interpret(edits, design, op),
         Op::CreateCatalogItem { .. }
         | Op::SetCatalogValue { .. }
         | Op::UnsetCatalogValue { .. }

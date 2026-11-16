@@ -8,6 +8,7 @@
 //! - ファイル名: 同じディレクトリで大文字・小文字だけ違う名前が無いか（[`file_names`]。macOS で import が取り違える）
 //! - projection にモデル化の既定値を書かない: `const DEFAULT_…` と値の直書きの `unwrap_or(`（[`projection_defaults`]）
 //! - 1 機能 1 か所: 台帳で決めた定義が別のファイルに現れていないか（[`single_home`]）
+//! - 設計ファイルの書き込みの入口: `write::commit` を呼ぶのは store と ops だけ（例外は理由付きの許可リスト。[`store_writes`]）
 //! - Web の文字列の分解: ID やパスを `/`・`.` で分けていないか（[`web_strings`]）
 //! - Web の色の直書き: hex・色の名前（`white` など）・`color-mix(` が `lib/tone.ts` の外に無いか（[`web_colors`]）
 //! - Web のページ: ページの URL を `lib/nav.ts` の外で組み立てていないか、`features/` に shell などから依存していないか
@@ -18,6 +19,7 @@ mod file_names;
 mod module_cycles;
 mod projection_defaults;
 mod single_home;
+mod store_writes;
 mod web_colors;
 mod web_pages;
 mod web_roles;
@@ -99,6 +101,7 @@ fn check() -> Result<()> {
     file_names::check(&meta.workspace_root, &files, &mut errors);
     single_home::check(&meta.workspace_root, &files, &mut errors);
     projection_defaults::check(&meta.workspace_root, &files, &mut errors);
+    store_writes::check(&meta.workspace_root, &files, &mut errors);
     web_strings::check(&meta.workspace_root, &files, &mut errors);
     web_colors::check(&meta.workspace_root, &files, &mut errors);
     web_pages::check(&meta.workspace_root, &files, &mut errors);

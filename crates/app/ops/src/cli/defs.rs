@@ -1,4 +1,4 @@
-//! 定義の Op のコマンド（`fune attr add`・`fune kind add`）。構造体のフィールドと旗は 1 対 1。
+//! 定義の Op のコマンド（`fune attr add|replace|rm`・`fune kind add|replace|rm`。`rm` は ID だけなので commands.rs）。構造体のフィールドと旗は 1 対 1。
 //!
 //! | フィールド | 旗 |
 //! |---|---|
@@ -20,11 +20,11 @@ fn list<S: AsRef<str>>(items: &[S]) -> Option<String> {
     (!items.is_empty()).then(|| list_to_text(items))
 }
 
-/// `fune attr add …`
-pub(super) fn attr_add(def: &AttributeDef) -> String {
+/// `fune attr add|replace <ID> …`（`replace` は丸ごとの置き換え。旗は `add` と同じ）
+pub(super) fn attr_cmd(verb: &str, def: &AttributeDef) -> String {
     let num = number_to_text;
     let (min, max, default) = (def.min.map(num), def.max.map(num), def.default.map(num));
-    Cmd::new(&["fune", "attr", "add", def.id.as_str()])
+    Cmd::new(&["fune", "attr", verb, def.id.as_str()])
         .flag("label", Some(&def.label))
         .flag("label-en", def.label_en.as_deref())
         .flag("description", def.description.as_deref())
@@ -43,8 +43,8 @@ pub(super) fn attr_add(def: &AttributeDef) -> String {
         .done()
 }
 
-/// `fune kind add …`
-pub(super) fn kind_add(def: &KindDef) -> String {
+/// `fune kind add|replace <ID> …`（`replace` は丸ごとの置き換え。旗は `add` と同じ）
+pub(super) fn kind_cmd(verb: &str, def: &KindDef) -> String {
     let ids = |v: &[fune_model::Id<AttributeDef>]| {
         list(&v.iter().map(|a| a.as_str()).collect::<Vec<_>>())
     };
@@ -53,7 +53,7 @@ pub(super) fn kind_add(def: &KindDef) -> String {
         .iter()
         .map(|(name, kind)| format!("{name}={}", kind.as_str()))
         .collect();
-    Cmd::new(&["fune", "kind", "add", def.id.as_str()])
+    Cmd::new(&["fune", "kind", verb, def.id.as_str()])
         .flag("label", Some(&def.label))
         .flag("label-en", def.label_en.as_deref())
         .flag("description", def.description.as_deref())
@@ -83,7 +83,7 @@ mod tests {
         def.budget = Some(BudgetKind::Power);
         def.unit_vector = true;
         assert_eq!(
-            attr_add(&def),
+            attr_cmd("add", &def),
             "fune attr add power --label 消費電力 --label-en \"Power consumption\" --description 消費電力 \
              --type scalar --by-state --dimension Power --units W,mW --display-unit W --min=-40 --max 1000 \
              --default 0.5 --symbols a,b --budget power --unit-vector --section power"
@@ -99,7 +99,7 @@ mod tests {
         def.ports.insert("PWR".into(), NetKind::Power);
         def.ports.insert("DATA".into(), NetKind::Data);
         assert_eq!(
-            kind_add(&def),
+            kind_cmd("add", &def),
             "fune kind add reaction_wheel --label \"リアクションホイール\" --label-en \"Reaction wheel\" \
              --description RW --extends component --role reaction_wheel --states off,idle,on,peak \
              --required power,max_momentum,max_torque,spin_axis --optional size --port DATA=data --port PWR=power"
