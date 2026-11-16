@@ -29,10 +29,7 @@ pub fn format_quantities(req: &FormatRequest) -> Result<FormatResponse> {
                     if u.dimension() != dimension_of(&item.dimension)? {
                         return Err(ServiceError::Unit {
                             input: unit.to_owned(),
-                            reason: format!(
-                                "{} 番目: 次元 {} の単位ではありません",
-                                i, item.dimension
-                            ),
+                            reason: format!("#{}: not a unit of dimension {}", i, item.dimension),
                         });
                     }
                     let name = dimension_label_preferring(u.dimension(), Some(&item.dimension));
@@ -47,7 +44,7 @@ pub fn format_quantities(req: &FormatRequest) -> Result<FormatResponse> {
                 .map(|(f, dimension)| view(item.si, f, dimension))
                 .map_err(|e| ServiceError::Unit {
                     input: item.dimension.clone(),
-                    reason: format!("{i} 番目: {e}"),
+                    reason: format!("#{i}: {e}"),
                 })
         })
         .collect::<Result<Vec<_>>>()?;
@@ -106,7 +103,7 @@ pub fn parse_quantity(req: &ParseQuantityRequest) -> Result<ParsedQuantity> {
             return Err(ServiceError::Unit {
                 input: req.input.clone(),
                 reason: format!(
-                    "次元が {expected} ではなく {} です",
+                    "Dimension is {} but {expected} is required",
                     sat_units::format::dimension_label(unit.dimension())
                 ),
             });
@@ -210,7 +207,8 @@ fn view(si: f64, f: FormattedQuantity, dimension: String) -> QuantityView {
 }
 
 fn dimension_of(name: &str) -> Result<Dimension> {
-    parse_dimension(name).map_err(|_| ServiceError::InvalidInput(format!("未知の次元です: {name}")))
+    parse_dimension(name)
+        .map_err(|_| ServiceError::InvalidInput(format!("Unknown dimension: {name}")))
 }
 
 fn unit_error(input: &str, e: sat_units::UnitError) -> ServiceError {

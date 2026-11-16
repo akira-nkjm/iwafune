@@ -34,7 +34,7 @@ impl ApiError {
         Self::new(
             StatusCode::NOT_FOUND,
             "route_not_found",
-            format!("API にこのパスはありません: {path}"),
+            format!("No such API path: {path}"),
         )
     }
 

@@ -54,7 +54,7 @@ impl Mirror {
         }
         self.commit_of(commit).map(|_| ()).map_err(|_| {
             ServiceError::Data(format!(
-                "catalog.lock の commit `{commit}` が取得元 {url} にありません"
+                "Commit `{commit}` in catalog.lock is not in the source {url}"
             ))
         })
     }
@@ -117,7 +117,7 @@ impl Mirror {
 fn operand(value: &str) -> Result<&str> {
     if value.starts_with('-') {
         return Err(ServiceError::Data(format!(
-            "`{value}` は `-` で始まるので git に渡せません（共有カタログの git・rev・commit）"
+            "Cannot pass `{value}` to git because it starts with `-` (shared catalog git, rev or commit)"
         )));
     }
     Ok(value)
@@ -130,7 +130,7 @@ fn looks_like_commit(rev: &str) -> bool {
 
 /// `cat-file --batch` の出力（`<oid> blob <大きさ>\n<本文>\n` の繰り返し）→ 本文の列。
 fn split_batch(out: &[u8]) -> Result<Vec<Vec<u8>>> {
-    let bad = || ServiceError::Data("git cat-file の出力を読めません".into());
+    let bad = || ServiceError::Data("Cannot read the output of git cat-file".into());
     let mut rest = out;
     let mut contents = Vec::new();
     while !rest.is_empty() {
@@ -163,11 +163,9 @@ fn git(dir: Option<&Path>, args: &[&str], stdin: Option<&[u8]>) -> Result<Vec<u8
         })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    let mut child = cmd.spawn().map_err(|e| {
-        ServiceError::Data(format!(
-            "git を実行できません（git をインストールしてください）: {e}"
-        ))
-    })?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| ServiceError::Data(format!("Cannot run git (install git): {e}")))?;
     // 出力を読みながら書く（大きな入力で出力の管が詰まって止まらないよう、書くのは別のスレッド）
     let writer = match (stdin, child.stdin.take()) {
         (Some(input), Some(mut pipe)) => {
@@ -178,17 +176,17 @@ fn git(dir: Option<&Path>, args: &[&str], stdin: Option<&[u8]>) -> Result<Vec<u8
     };
     let out = child
         .wait_with_output()
-        .map_err(|e| ServiceError::Data(format!("git の終わりを待てません: {e}")))?;
+        .map_err(|e| ServiceError::Data(format!("Cannot wait for git to finish: {e}")))?;
     if let Some(writer) = writer {
         writer
             .join()
-            .map_err(|_| ServiceError::Data("git に書けません".into()))?
-            .map_err(|e| ServiceError::Data(format!("git に書けません: {e}")))?;
+            .map_err(|_| ServiceError::Data("Cannot write to git".into()))?
+            .map_err(|e| ServiceError::Data(format!("Cannot write to git: {e}")))?;
     }
     if !out.status.success() {
         let stderr = String::from_utf8_lossy(&out.stderr);
         return Err(ServiceError::Data(format!(
-            "git {} に失敗しました: {}",
+            "git {} failed: {}",
             args.first().copied().unwrap_or_default(),
             stderr.trim()
         )));

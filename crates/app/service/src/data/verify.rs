@@ -82,7 +82,7 @@ mod tests {
         };
         assert!(cache.get_or_check(stamp(10, 1), || check(true)).unwrap());
         assert!(cache.get_or_check(stamp(10, 1), || check(false)).unwrap());
-        assert_eq!(calls.get(), 1, "同じ印なら確かめ直さない");
+        assert_eq!(calls.get(), 1, "the same stamp is not verified again");
         // 大きさか更新時刻が変われば確かめ直す
         assert!(!cache.get_or_check(stamp(11, 1), || check(false)).unwrap());
         assert!(cache.get_or_check(stamp(11, 2), || check(true)).unwrap());

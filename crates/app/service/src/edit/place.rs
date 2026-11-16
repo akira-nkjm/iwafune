@@ -20,7 +20,7 @@ pub fn place_op(t: &PlaceText) -> Result<Op> {
     let orientation = match (given(&t.orientation), given(&t.rotation)) {
         (Some(_), Some(_)) => {
             return Err(invalid(
-                "姿勢は --orientation（四元数）か --rotation（角度）のどちらか 1 つで書きます",
+                "Give the attitude with exactly one of --orientation (quaternion) or --rotation (angles)",
             ));
         }
         (Some(q), None) => Some(quaternion_from_text(q)?),
@@ -43,7 +43,7 @@ pub fn rotation_from_text(text: &str) -> Result<Quaternion> {
     let unit = v
         .unit
         .as_deref()
-        .ok_or_else(|| invalid(format!("角度の単位（deg か rad）を書きます: {text}")))?;
+        .ok_or_else(|| invalid(format!("Give the angle unit (deg or rad): {text}")))?;
     let unit = expect_dimension(unit, "Angle").map_err(invalid)?;
     let q = Quat::from_fixed_xyz([v.x, v.y, v.z].map(|a| unit.to_si(a)));
     Ok(Quaternion {
@@ -66,10 +66,10 @@ pub fn place_body_op(
         .resolved
         .parts
         .get(id)
-        .ok_or_else(|| ServiceError::not_found("部品", id))?;
+        .ok_or_else(|| ServiceError::not_found("part", id))?;
     if rp.mount.is_none() && s.resolved.is_mount_root(id) {
         return Err(ServiceError::InvalidInput(format!(
-            "部品 `{id}` は取付の根（機体座標の原点）なので、機体座標では動かせません"
+            "Cannot move part `{id}` in body coordinates because it is the mount root (the origin of body coordinates)"
         )));
     }
     let unit = fune_model::design::position_unit(position);
@@ -85,7 +85,7 @@ pub fn place_body_op(
     });
     let (p_local, q_local) =
         fune_projection::pose::body_to_mount_local(&s.resolved, id, p_body, q_body)
-            .ok_or_else(|| ServiceError::not_found("部品", id))?;
+            .ok_or_else(|| ServiceError::not_found("part", id))?;
     let authored = s.design.parts.get(id).and_then(|p| p.pose.as_ref());
     let file_unit = authored
         .and_then(|p| p.position.as_ref())

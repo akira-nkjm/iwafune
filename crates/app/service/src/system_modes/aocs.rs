@@ -90,7 +90,7 @@ fn mode_view_with(s: &Snapshot, mode: &str, shared: &ModeIndependent) -> Result<
         .modes()
         .into_iter()
         .find(|m| m.id == mode)
-        .ok_or_else(|| crate::error::ServiceError::not_found("モード", mode))?;
+        .ok_or_else(|| crate::error::ServiceError::not_found("mode", mode))?;
     let (rw_out, rw) = evaluate::<RwUnloading>(
         ctx.as_ref()
             .map_err(Clone::clone)

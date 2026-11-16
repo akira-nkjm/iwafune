@@ -45,7 +45,7 @@ fn in_source(source: &str, m: CheckMatch) -> bool {
             source.contains(&format!("\"{p}"))
                 || source.contains(&format!("\"{}\"", p.trim_end_matches(':')))
         }
-        _ => unreachable!("named() は Exact と Prefix だけ"),
+        _ => unreachable!("named() only handles Exact and Prefix"),
     }
 }
 
@@ -68,14 +68,17 @@ fn every_named_check_can_be_emitted_by_its_analysis() {
             for m in rule(*key).checks.named() {
                 assert!(
                     emitted_by_demo(m, &emitted) || in_source(&source, m),
-                    "{key:?}: 解析 {} に {m:?} の check が見つからない（キーが変わった？）",
+                    "{key:?}: analysis {} has no check {m:?} (did the key change?)",
                     info.id
                 );
                 checked += 1;
             }
         }
     }
-    assert!(checked >= 28, "名指しの数が減っている: {checked}");
+    assert!(
+        checked >= 28,
+        "the number of named checks dropped: {checked}"
+    );
 }
 
 /// 検査の道具が効いていること: 存在しないキーは見つからない。

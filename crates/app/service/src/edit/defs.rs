@@ -28,7 +28,7 @@ fn attr_def(t: &AttrAddText) -> Result<AttributeDef> {
         given(text)
             .map(|s| {
                 s.parse::<f64>()
-                    .map_err(|_| invalid(format!("{flag} は SI の数で書きます: {s}")))
+                    .map_err(|_| invalid(format!("{flag} must be a number in SI units: {s}")))
             })
             .transpose()
     };
@@ -56,8 +56,8 @@ fn attr_def(t: &AttrAddText) -> Result<AttributeDef> {
         "unit_vector": t.unit_vector,
         "section": given(&t.section),
     });
-    let mut def: AttributeDef =
-        serde_json::from_value(value).map_err(|e| invalid(format!("属性定義を作れません: {e}")))?;
+    let mut def: AttributeDef = serde_json::from_value(value)
+        .map_err(|e| invalid(format!("Cannot build the attribute definition: {e}")))?;
     def.id = id.into();
     Ok(def)
 }
@@ -93,8 +93,8 @@ fn kind_def(t: &KindAddText) -> Result<KindDef> {
         "optional": list(&t.optional),
         "ports": ports,
     });
-    let mut def: KindDef =
-        serde_json::from_value(value).map_err(|e| invalid(format!("種別定義を作れません: {e}")))?;
+    let mut def: KindDef = serde_json::from_value(value)
+        .map_err(|e| invalid(format!("Cannot build the kind definition: {e}")))?;
     def.id = id.into();
     Ok(def)
 }
@@ -102,7 +102,7 @@ fn kind_def(t: &KindAddText) -> Result<KindDef> {
 /// ポートの雛形（`"PWR=power"`）→ (ポート名, ネットの種類)。`fune kind add --port`。
 pub fn port_template_from_text(text: &str) -> Result<(String, NetKind)> {
     let (name, kind) = pair_from_text(text)
-        .ok_or_else(|| invalid(format!("--port は 名前=power|data|rf の形です: {text}")))?;
+        .ok_or_else(|| invalid(format!("--port must be name=power|data|rf: {text}")))?;
     Ok((name, net_kind(&kind)?))
 }
 

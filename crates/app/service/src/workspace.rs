@@ -93,7 +93,7 @@ pub(crate) fn op_error(ws: &Workspace, e: fune_ops::OpError) -> ServiceError {
             actual: actual.0,
         },
         OpError::NotFound { what } => ServiceError::NotFound {
-            what: "対象",
+            what: "target",
             id: what,
         },
         OpError::AlreadyExists { what } => ServiceError::AlreadyExists { what },

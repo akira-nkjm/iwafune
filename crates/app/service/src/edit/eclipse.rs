@@ -27,7 +27,7 @@ pub fn case_from_eclipse_op(ws: &Workspace, req: &CaseFromEclipseRequest) -> Res
     if let Some(mode) = &req.mode
         && !snap.design.modes.contains_key(mode.as_str())
     {
-        return Err(ServiceError::not_found("モード", mode));
+        return Err(ServiceError::not_found("mode", mode));
     }
     let ctx = Context::new(&snap.design, &snap.resolved, None)
         .map_err(|e| ServiceError::Analysis(e.to_string()))?;
