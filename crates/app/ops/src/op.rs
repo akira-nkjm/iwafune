@@ -157,6 +157,22 @@ pub enum Op {
     CreateKind {
         def: KindDef,
     },
+    /// プロジェクト独自の属性定義を丸ごと置き換える（`def.id` が対象。組み込みは不可）。既存の値が合わなくなる編集は検査で拒む。
+    UpdateAttribute {
+        def: AttributeDef,
+    },
+    /// プロジェクト独自の種別定義を丸ごと置き換える（`def.id` が対象。組み込みは不可）。
+    UpdateKind {
+        def: KindDef,
+    },
+    /// プロジェクト独自の属性定義を消す（種別が挙げているか、部品・カタログ品が値を書いていれば拒む。組み込みは不可）。
+    DeleteAttribute {
+        id: String,
+    },
+    /// プロジェクト独自の種別定義を消す（部品・カタログ品が使っているか、ほかの種別が継承していれば拒む。組み込みは不可）。
+    DeleteKind {
+        id: String,
+    },
     // ---- モード
     /// モードを足す（`copy_from` があればその表を写す）。
     CreateMode {

@@ -22,7 +22,7 @@ checks: Array<CheckView>,
  */
 verdict: Verdict | null, 
 /**
- * この解析の KPI（`AnalysisEntry.kpis` と同じ並び。出力が無ければ空）。代表値の選び方・判定・塗りの比は
+ * この解析の KPI（`AnalysisEntry.kpis` と同じ並び。出力が無ければ空。設計が持たない手段の KPI だけは値が無ければ外れる）。代表値の選び方・判定・塗りの比は
  * `fune_service::analysis::kpi` が決める
  */
 kpis: Array<KpiView>, 

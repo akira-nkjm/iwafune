@@ -22,6 +22,10 @@ timeline: TimelineSpec,
  */
 mode_laws: { [key in string]: AttitudeLaw }, loads: ModeLoadInput, mode: string | null, 
 /**
+ * 設計寿命（経年劣化 `(1 − 年あたりの劣化率)^寿命` の寿命）。省略時は `season.duration`（季節の走査の期間）を寿命とみなす
+ */
+design_life: number | null, 
+/**
  * 設計の SAP（法線つき）。変換効率は日照経路の効率 Xd で数えるのでここでは使わない
  */
 array: SolarArray, cells: Array<SizingCell>, batteries: Array<EnergyBalanceBattery>, options: SizingOptions, 

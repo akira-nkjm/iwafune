@@ -12,10 +12,30 @@ pub struct AocsModeView {
     pub eclipse_devices: Vec<AocsDeviceGroup>,
     pub momentum_per_orbit: Option<QuantityView>,
     pub unloads_per_day: Option<QuantityView>,
-    pub mtq_unload_time: Option<QuantityView>,
+    /// アンロード時間（解析が出した手段ごと。どちらも無ければ空）
+    pub unload_times: Vec<AocsUnloadTime>,
     pub rw: AocsAnalysisState,
     pub unloading: AocsAnalysisState,
     pub sensor_fov: AocsAnalysisState,
+}
+
+/// アンロードの手段。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum AocsUnloadMeans {
+    /// 磁気トルカ
+    Mtq,
+    /// スラスタ（RCS。最悪の向き）
+    Rcs,
+}
+
+/// 1 つの手段でのアンロード時間。表示名は API が返す。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct AocsUnloadTime {
+    pub means: AocsUnloadMeans,
+    pub label: String,
+    pub label_en: String,
+    pub time: QuantityView,
 }
 
 /// 解析の状態。入力不足や失敗を OK やゼロで埋めない。
@@ -54,7 +74,8 @@ pub struct AocsAxisView {
 /// 役割ごとの機器。台数と状態は counted_states で評価済み。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct AocsDeviceGroup {
-    pub role: Role,
+    /// 役割（役割の無い種別の部品をまとめた「その他」は None）
+    pub role: Option<Role>,
     pub label: String,
     pub label_en: Option<String>,
     pub active_count: u32,

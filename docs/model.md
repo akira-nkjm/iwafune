@@ -40,6 +40,11 @@ API の `AnalysisInfo.area` は `{ "kind": "system", "value": "power" }` また�
 `sat_astro::ephem::CentralBody` が持つ（projection の `context::central_body` が写す）。太陽同期（`sun_synchronous`）は地球だけで、
 地球以外に書くと `check` の error（`setting.central`）。
 
+`propagator` は軌道の伝搬（`kepler`・`j2`・`numerical`。省略は `j2`）。projection は `kepler` と `j2` を `sat_astro::orbit::Propagator` に
+そのまま写す。`numerical` は解析に**使わない**: 数値伝搬の力モデル（抗力・太陽輻射圧は機体の値が要る）の慣例の既定が sat-astro に無く、
+projection は既定を作らないので、時系列の解析は J2 の永年項（`j2`）で伝搬する。書くと `check` が warning（`setting.not_applied`）で知らせる
+（`numerical` は要素を接触要素として読むため、同じ数値でも `j2` とは別の軌道になる）。`orbit.decay` は伝搬の種類を使わず、自前の積分で高度低下を求める。
+
 `conditions/orbit.toml` の `duration` はミッション期間（時間の量、キー `conditions.orbit.duration`）。
 `[eclipse_season]` の任意の `step` も時間の量（キー `conditions.orbit.eclipse_season.step`）。
 読み書きは既存の条件ファイルの経路、次元の検査と projection は `setting_dims` の共通の表を使う。
@@ -173,7 +178,7 @@ flowchart LR
 
 - 種別の `role` は `fune_model::builtin::Role`（`enum_text!`）の値。綴りは `builtin/role.rs` の 1 か所で定義し、未知の役割は serde の読み込みで拒む。省略時は継承元の役割、継承元にも無ければ役割なし。独自の種別 ID は自由だが、役割の語彙は追加しない。
 - 役割の表示名は対応する組み込み種別の日英名。`labels.role_system` は Role をキーに全役割の系を持つ（系に属さない対応は `None` と明示）。API の役割は TS の `Role` 型で返し、Web のアイコン表は全役割を網羅する。
-- 状態の語彙は種別ごとに自由に定義する。慣例の停止状態だけは `fune_model::builtin::STATE_OFF` を使い、既定状態を選ぶ処理でもこの定数を参照する（列挙型にはしない）。
+- 状態の語彙は種別ごとに自由に定義する。慣例の停止状態だけは `fune_model::builtin::STATE_OFF` を使い、既定状態を選ぶ処理でもこの定数を参照する（列挙型にはしない）。スラスタの役割の種別は噴射の状態 `STATE_THRUSTER_FIRING`（`on`）を語彙に持つ慣例で、無ければ `fune check` が warning（`def.thruster_firing_state`）を出す。
 
 ## 4. Rust の型（Design 層）
 
@@ -353,6 +358,10 @@ projection の `case_policy::effective_case` が明示ケースを優先する�
 この場合は `case = null`、`case_source = default_attitude` とする。既定ケースの β・周回数・side などは適用しない。
 既定ケースがなければ、姿勢則が唯一の場合だけ上段にも使い、複数なら不足入力にする。
 明示ケースがあれば、従来どおりそのケースのモードと条件を使う。
+
+ケースの `side`（`nominal`・`min`・`max`）は書けて保存されるが、**まだ解析に使わない**。どの解析も値の nominal を読み、
+値の不確かさの min / max（`SiScalar.min`・`max`）は解析に渡さない。`nominal` 以外を書くと `check` が情報（info。`setting.not_applied`）として知らせる。
+使うには、「どの値のどちら側を読むか」（質量は max、発電量は min のように、値ごとに保守側が違う）の規則を決める必要がある。
 
 電力収支の各ケースの `energy_margin_per_orbit` は、回り切った周回ごとのエネルギー余裕の最小値
 （電池の効率込み、容量の上下限で切る前、周期へ換算済み）。回り切った周回が無ければ `null` とし、
@@ -544,12 +553,12 @@ default_case = "hot_imaging"
 入射は `power.energy_balance` と同じ時系列・SAP・モードごとの姿勢則（`analysis.aocs.law.<モード>`、無ければ上段の姿勢則）で
 `power.orbit_generation` を回し、日照中の平均発電を全パネルに真上から当たるときの発電で割った入射係数として掛ける
 （太陽光の強さは 1 AU に固定し、変換効率は Xd で数えるので時系列には入れない）。
-さらに `(1-annual_degradation)^lifetime_years`・`inherent_degradation` を掛ける。
+さらに `(1-annual_degradation)^lifetime_years`・`inherent_degradation` を掛ける。寿命は入力の設計寿命 `design_life`（射影は `conditions.orbit.duration` を渡す）で、無ければ季節の走査の期間。どちらを使ったかは `used.lifetime_source`。
 異なるパネルが混在するときは、現在の面積配分を保って拡大縮小する設計を仮定する。
 経年・固有の劣化を既存の `eol_factor` に含めた設計では、追加の劣化を重ねないよう上書きする。
 
 1 組の必要電池容量は `Pe*Te/(dod_max*N*Xbattery)`、合計容量はその N 倍。
-既存の集中電池モデルと同様に設計容量は全部品の容量の合計、DoD と放電効率は先頭の電池から取る。
+既存の集中電池モデルと同様に設計容量は全部品の容量の合計、DoD と放電効率は先頭の電池から取る。電圧・効率・初期 SOC・DoD が電池どうしで違うときは、結果が部品の並び順で変わるので warning `battery_mismatch` を出す（電力収支は各ケースの `checks`、サイジングは `checks`）。
 面積と容量は部品の員数を含む。余裕は `spec::ratio_margin`、判定は `ratio_margin_verdict`（警告幅 0）。
 負荷や蝕が 0 で要求が 0 なら余裕は null（判定 OK）。
 
@@ -594,8 +603,8 @@ SMAD に対する比 `area_ratio`・`capacity_ratio`）、日照/蝕の時間、
 
 | 設定 | 省略時 |
 |---|---|
-| `sunlit_efficiency`（Xd） | `analysis.power.conversion_efficiency` があればその値、無ければ 0.8 |
-| `eclipse_efficiency`（Xe） | 0.6（SAP から蝕の負荷までの経路全体） |
+| `sunlit_efficiency`（Xd） | `analysis.power.conversion_efficiency` があればその値、無ければ 0.8（教科書的な概算値。`DEFAULT_SUNLIT_EFFICIENCY`） |
+| `eclipse_efficiency`（Xe） | 0.6（SAP から蝕の負荷までの経路全体。教科書的な概算値。`DEFAULT_ECLIPSE_EFFICIENCY`） |
 | `battery_efficiency`（Xbattery） | 先頭の電池の `discharge_efficiency`（その省略時は既存モデルの 1） |
 | `annual_degradation` | 0（追加の経年劣化なし） |
 | `inherent_degradation` | 1（追加の固有劣化なし） |
@@ -728,7 +737,7 @@ HTR = { state = "on" }
 
 - `active` は `count` 以下。省略は全台。明示するには `redundancy = "cold"` または `"warm"` が必要。
 - 稼働台は `state` と `duty` に従い、残りの台は常時予備の状態にいる。cold の予備は組み込みの停止状態 `STATE_OFF`。
-  warm は `spare_state`、種別の語彙の `standby`、`idle` の順で選ぶ。予備状態が決まらない場合、語彙に無い場合は error。
+  warm は `spare_state`、種別の語彙の `standby`、`idle` の順（`WARM_SPARE_DEFAULT_STATES`）で選ぶ。予備状態が決まらない場合、語彙に無い場合は error。
 - `[eclipse]` は、書いた部品の割り当て全体を蝕時だけ置換する（`active`・`duty` などの欄を個別に継承しない）。
   書かなかった部品は `[states]` を使う。`[states]` に無い上書き先は未指定と同様に warning とし、解析には足さない。
 - `max_duration` は時間の次元を検査し、CLI の一覧と GUI のモード見出しに表示する。`power.energy_balance` は、このモードを

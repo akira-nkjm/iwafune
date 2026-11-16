@@ -1,5 +1,6 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
+import { MissingList } from "@/analysis/MissingList";
 import type { DesignView, System } from "@/api/types";
 import { useT } from "@/i18n";
 import { Reveal } from "@/kit/Reveal";
@@ -58,6 +59,11 @@ export function ModesMatrix({
           <p role="alert" className="p-3 text-neg-ink">
             {computed.error}
           </p>
+        )}
+        {computed.view.data && computed.view.data.missing.length > 0 && (
+          <div className="shrink-0 p-3">
+            <MissingList design={design} missing={computed.view.data.missing} />
+          </div>
         )}
         <div className="min-h-0 flex-1 scroll-pt-16 scroll-pb-36 scroll-pl-52 overflow-auto">
           <ModesTable

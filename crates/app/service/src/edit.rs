@@ -32,7 +32,9 @@ pub use command::{
     command_ops, duty_from_text, mode_duration_op, mode_move_op, mode_set_op, net_set_ops,
     net_unset_op,
 };
-pub use defs::{attr_add_op, kind_add_op, port_template_from_text};
+pub use defs::{
+    attr_add_op, attr_replace_op, kind_add_op, kind_replace_op, port_template_from_text,
+};
 pub use eclipse::case_from_eclipse_op;
 pub use fune_ops::{to_cli, to_cli_script};
 pub use maneuver::maneuver_op;

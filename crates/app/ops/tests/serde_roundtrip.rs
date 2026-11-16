@@ -35,6 +35,10 @@ fn name(op: &Op) -> &'static str {
         Op::RenameCatalogItem { .. } => "RenameCatalogItem",
         Op::CreateAttribute { .. } => "CreateAttribute",
         Op::CreateKind { .. } => "CreateKind",
+        Op::UpdateAttribute { .. } => "UpdateAttribute",
+        Op::UpdateKind { .. } => "UpdateKind",
+        Op::DeleteAttribute { .. } => "DeleteAttribute",
+        Op::DeleteKind { .. } => "DeleteKind",
         Op::CreateMode { .. } => "CreateMode",
         Op::RemoveMode { .. } => "RemoveMode",
         Op::RenameMode { .. } => "RenameMode",
@@ -249,8 +253,16 @@ fn other_ops() -> Vec<Op> {
         length: Some(Quantity::new(0.3, "m")),
     };
     vec![
-        Op::CreateAttribute { def: attr },
-        Op::CreateKind { def: kind },
+        Op::CreateAttribute { def: attr.clone() },
+        Op::UpdateAttribute { def: attr },
+        Op::DeleteAttribute {
+            id: "max_torque_2".into(),
+        },
+        Op::CreateKind { def: kind.clone() },
+        Op::UpdateKind { def: kind },
+        Op::DeleteKind {
+            id: "film_heater".into(),
+        },
         Op::MoveMode {
             id: "SAFE".into(),
             position: fune_ops::ModePosition::Before("NOMINAL".into()),
@@ -357,7 +369,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 43, "見本の無い Op の種類があります: {seen:?}");
+    assert_eq!(seen.len(), 47, "見本の無い Op の種類があります: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =

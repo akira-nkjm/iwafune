@@ -41,6 +41,8 @@ export const overviewJa = {
     propellantFailed: (msg: string) => `推進系の解析が通らないので、推薬は数えていません: ${msg}`,
     budgetOther: "（その他）",
     budgetOtherTitle: "系に属さず部品の配分も無い部品",
+    budgetUncounted: (count: number, names: string) =>
+      `値が無いので合計に数えていない部品（${count} 件、0 とはみなしていません）: ${names}`,
     note: (n: string) => `・${n}`,
   },
 };

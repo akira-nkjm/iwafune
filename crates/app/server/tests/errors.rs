@@ -80,3 +80,19 @@ async fn budget_follows_the_case_mode() {
     assert_ne!(default["mode"], "SAFE");
     assert!(default["missing"].as_array().unwrap().is_empty());
 }
+
+/// ファイルに当たらない設定のパスは、入力の誤り（400）で返す（500 にしない）。
+/// 区切りが空のパス（`analysis.` など）も同じ。
+#[tokio::test]
+async fn bad_setting_paths_are_400() {
+    let (_tmp, r) = demo_router();
+    let (_, before) = call(&r, "GET", "/api/v1/project", None).await;
+    for path in ["analysis.nope.x", "analysis.", "budget.", "conditions.", ""] {
+        let ops = json!([{ "op": "set_setting", "path": path, "value": null }]);
+        let (s, e) = call(&r, "POST", "/api/v1/ops", Some(json!({ "ops": ops }))).await;
+        assert_eq!(s, StatusCode::BAD_REQUEST, "`{path}`: {e}");
+        assert_eq!(e["error"]["code"], "invalid_input", "`{path}`: {e}");
+    }
+    let (_, after) = call(&r, "GET", "/api/v1/project", None).await;
+    assert_eq!(before["revision"], after["revision"]);
+}

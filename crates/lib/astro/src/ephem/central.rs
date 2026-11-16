@@ -4,9 +4,9 @@
 
 use super::{Body, planets, position_eci_m};
 pub use crate::body::CentralBody;
-use crate::constants::A_MOON;
 #[cfg(test)]
 use crate::constants::*;
+use crate::constants::{A_MOON, GM_SUN, SUN_MEAN_MOTION};
 use crate::math::Vec3;
 use crate::time::Epoch;
 impl CentralBody {
@@ -17,6 +17,19 @@ impl CentralBody {
             CentralBody::Sun => None,
             CentralBody::Moon => Some(A_MOON),
             other => planets::semi_major_axis_m(other.as_body()),
+        }
+    }
+
+    /// 中心天体が太陽を回る平均運動 [rad/s]（太陽同期軌道の「太陽」の追従率）。
+    /// 地球は [`SUN_MEAN_MOTION`]（恒星年でなく回帰年。従来の値）。惑星は日心軌道の長半径から
+    /// `√(GM☉/a³)`（惑星の質量は無視）。月（地球とともに太陽を回る）と太陽は `None`。
+    pub fn sun_mean_motion_rad_s(self) -> Option<f64> {
+        match self {
+            CentralBody::Earth => Some(SUN_MEAN_MOTION),
+            CentralBody::Moon | CentralBody::Sun => None,
+            other => other
+                .orbit_radius_m()
+                .map(|a| (GM_SUN / (a * a * a)).sqrt()),
         }
     }
 
@@ -67,6 +80,29 @@ mod tests {
         assert_eq!(CentralBody::Mars.parent(), Some(CentralBody::Sun));
         assert_eq!(CentralBody::Moon.nominal_sun_distance_m(), Some(AU));
         assert_eq!(CentralBody::Mars.nominal_sun_distance_m(), None);
+    }
+
+    /// 大気・磁場のモデルは地球だけ。月は「無い」（0 が正しい）、火星・木星などは「有るがモデルが無い」。
+    #[test]
+    fn environment_models_distinguish_absent_from_missing() {
+        use crate::body::EnvironmentModel::{Absent, Modelled, NotModelled};
+        assert_eq!(CentralBody::Earth.atmosphere_model(), Modelled);
+        assert_eq!(CentralBody::Earth.magnetic_field_model(), Modelled);
+        assert_eq!(CentralBody::Moon.atmosphere_model(), Absent);
+        assert_eq!(CentralBody::Moon.magnetic_field_model(), Absent);
+        assert_eq!(CentralBody::Mars.atmosphere_model(), NotModelled);
+        assert_eq!(CentralBody::Mars.magnetic_field_model(), Absent);
+        assert_eq!(CentralBody::Venus.atmosphere_model(), NotModelled);
+        assert_eq!(CentralBody::Jupiter.magnetic_field_model(), NotModelled);
+        assert_eq!(CentralBody::Sun.atmosphere_model(), NotModelled);
+    }
+
+    #[test]
+    fn sun_direction_is_undefined_for_the_sun() {
+        let e = Epoch { j2000_s: 8.6e8 };
+        assert!(crate::ephem::sun_direction_from(CentralBody::Sun, e).is_none());
+        let s = crate::ephem::sun_direction_from(CentralBody::Moon, e).expect("向き");
+        assert!((s.norm() - 1.0).abs() < 1e-12);
     }
 
     #[test]

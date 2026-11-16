@@ -43,6 +43,8 @@ pub enum KpiKey {
     PeakMomentum,
     /// MTQ でのアンロード時間
     MtqUnloadTime,
+    /// RCS（スラスタ）でのアンロード時間（最悪の向き）
+    RcsUnloadTime,
     /// センサの禁止角への侵入の割合（センサのうち最大）
     SensorIntrusion,
     /// 姿勢変更の時間（最悪の軸）
@@ -101,6 +103,8 @@ pub struct KpiDef {
     pub label: String,
     /// 英語の表示名
     pub label_en: String,
+    /// 結果に値が無ければ並べない KPI（設計が持たない手段の KPI。ただし解析のすべての KPI が無いときは先頭の 1 つを残す）
+    pub when_measured: bool,
 }
 
 /// KPI 1 つの値（`AnalysisRunResult.kpis`）。

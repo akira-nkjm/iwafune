@@ -14,7 +14,7 @@ fn epoch() -> Epoch {
     Epoch::parse("2027-04-01T00:00:00Z").unwrap()
 }
 
-fn circular(altitude_m: f64, inclination_deg: f64) -> OrbitSpec {
+pub(super) fn circular(altitude_m: f64, inclination_deg: f64) -> OrbitSpec {
     OrbitSpec::circular(
         epoch(),
         Qty::from_raw(altitude_m),
@@ -24,7 +24,7 @@ fn circular(altitude_m: f64, inclination_deg: f64) -> OrbitSpec {
 }
 
 /// 3U CubeSat（4 kg、10 × 10 × 34 cm を向きでならした面積 0.039 m²、Cd 2.2）。
-fn cubesat_3u(altitude_m: f64) -> OrbitDecayInput {
+pub(super) fn cubesat_3u(altitude_m: f64) -> OrbitDecayInput {
     OrbitDecayInput {
         orbit: circular(altitude_m, 97.4),
         mass: Qty::from_raw(4.0),
@@ -177,7 +177,7 @@ fn dated_weather_matches_the_same_preset() {
 }
 
 /// 4 kg の機体の推進系: 化学推進 1 N・220 s、500 → 520 km のインパルスの上昇 1 つ、1 L のタンク。
-fn propulsion(orbit: &OrbitSpec, dry_kg: f64) -> PropulsionInput {
+pub(super) fn propulsion(orbit: &OrbitSpec, dry_kg: f64) -> PropulsionInput {
     PropulsionInput {
         initial_orbit: orbit.clone(),
         dry_mass: Qty::from_raw(dry_kg),
@@ -271,7 +271,7 @@ fn tumbling_area_is_a_quarter_of_the_surface() {
     // 立方体の辺 1 m: 表面積 6 m² → 1.5 m²
     assert_eq!(tumbling_area(Vec3::new(1.0, 1.0, 1.0)), 1.5);
     let i = cubesat_3u(500e3);
-    let u = used_values(&i).unwrap();
+    let u = used_values(&i).unwrap().0;
     assert!((u.drag_area.value() - 0.039).abs() < 1e-12);
     assert_eq!(u.area_source, DragAreaSource::TumblingBox);
     assert_eq!(u.drag_coefficient, DEFAULT_DRAG_COEFFICIENT);
@@ -310,4 +310,17 @@ fn sun_synchronous_orbit_and_eccentricity_warning() {
     assert!(high.decay_first_year.value() > 0.0);
     assert!(high.series.t.len() > 10);
     assert_eq!(high.series.channels[0].kind, ChannelKind::Altitude);
+}
+
+/// 大気のモデルは地球だけなので、地球以外の中心天体の高度低下は Earth の大気・自転で計算せずエラーにする
+/// （`rates` の地球専用の関数は、この入口の検査の後でしか呼ばれない）。
+#[test]
+fn non_earth_central_body_is_rejected_before_any_earth_only_function() {
+    use sat_astro::ephem::CentralBody;
+    for body in [CentralBody::Moon, CentralBody::Mars] {
+        let mut input = cubesat_3u(500e3);
+        input.orbit.central = body;
+        let err = OrbitDecay::run(&input).unwrap_err().to_string();
+        assert!(err.contains("地球以外の高度低下は未対応"), "{err}");
+    }
 }

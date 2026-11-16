@@ -9,6 +9,9 @@ pub fn solar_incidence(normal: Vec3, sun_dir: Vec3, shadow_factor: f64) -> f64 {
 }
 
 /// 太陽からの距離 `sun_distance_m` [m] での太陽光の強さ [W/m²] = SOLAR_CONSTANT·(AU/d)²。
+///
+/// 距離が 0 以下（太陽の中心。物理的にありえず、呼び出し側は位置の大きさか 1 AU の慣例値しか渡さない）のときは
+/// 0 割りを避けて 1 AU の値 [`SOLAR_CONSTANT`] を返す。太陽が中心天体の軌道でも距離は軌道半径で正。
 pub fn solar_flux_w_m2(sun_distance_m: f64) -> f64 {
     if sun_distance_m <= 0.0 {
         return SOLAR_CONSTANT;
@@ -83,6 +86,15 @@ mod tests {
     fn flux_at_one_au_is_solar_constant() {
         assert!((solar_flux_w_m2(AU) - SOLAR_CONSTANT).abs() < 1e-9);
         assert!((solar_flux_w_m2(2.0 * AU) - SOLAR_CONSTANT / 4.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn non_positive_distance_falls_back_to_one_au_value() {
+        assert_eq!(solar_flux_w_m2(0.0), SOLAR_CONSTANT);
+        assert_eq!(solar_flux_w_m2(-1.0), SOLAR_CONSTANT);
+        // 太陽が中心天体の軌道でも距離は軌道半径で正（太陽までの距離が 0 になる標本は無い）
+        let r = 3.0e10;
+        assert!((solar_flux_w_m2(r) / SOLAR_CONSTANT - (AU / r).powi(2)).abs() < 1e-9);
     }
 
     #[test]

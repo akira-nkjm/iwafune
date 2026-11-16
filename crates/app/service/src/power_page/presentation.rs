@@ -78,8 +78,8 @@ fn balance(input: &EnergyBalanceInput, out: &EnergyBalanceOutput, json: &Value) 
                 })
                 .unwrap_or(&case.id);
             let loads = out.mode_loads.modes.iter().find(|m| m.id == mode_id);
-            sunlit.push(loads.map(|l| budget::collect(l, case, false, input.load_growth)));
-            eclipse.push(loads.map(|l| budget::collect(l, case, true, input.load_growth)));
+            sunlit.push(loads.map(|l| budget::collect(l, case, false, input.load_growth())));
+            eclipse.push(loads.map(|l| budget::collect(l, case, true, input.load_growth())));
             PowerModeView {
                 id: mode_id.into(),
                 label: if case.label.is_empty() {

@@ -10,11 +10,10 @@ use fune_model::builtin::Role;
 use fune_model::design::AnalysisSystem;
 use fune_model::design::setting_dims as dims;
 use sat_analysis::power::energy_balance::{
-    EnergyBalance, EnergyBalanceBattery, EnergyBalanceCase, EnergyBalanceLoad,
-    EnergyBalanceSegment, LoadGrowth,
+    EnergyBalance, EnergyBalanceBattery, EnergyBalanceCase, EnergyBalanceLoad, EnergyBalanceSegment,
 };
 use sat_analysis::power::mode_load::ModeLoadPart;
-use sat_analysis::power::solar::{SolarArray, SolarLife, SolarPanel};
+use sat_analysis::power::solar::{SolarArray, SolarPanel};
 use sat_analysis::power::solar_sunlit::{SolarSunlitCase, SolarSunlitSun};
 use sat_analysis::power::{
     EnergyBalanceInput, ModeLoadInput, OrbitGenerationInput, SolarSunlitInput,
@@ -60,7 +59,7 @@ pub fn mode_load_input(ctx: &Context<'_>, m: &mut MissingInputs) -> ModeLoadInpu
     ModeLoadInput {
         parts,
         modes: ctx.modes(),
-        default_growth_margin: 0.0,
+        default_growth_margin: None,
     }
 }
 
@@ -120,7 +119,7 @@ pub fn solar_sunlit(ctx: &Context<'_>) -> Result<SolarSunlitInput, MissingInputs
         );
     }
     for mode in modes {
-        if let Some(t) = timeline::timeline(ctx, Some(&mode), 1, &mut m) {
+        if let Some(t) = timeline::timeline(ctx, Some(&mode), Some(1), &mut m) {
             cases.push(SolarSunlitCase {
                 id: mode.clone(),
                 label: mode.clone(),
@@ -143,7 +142,7 @@ pub fn orbit_generation(ctx: &Context<'_>) -> Result<OrbitGenerationInput, Missi
         Some(OrbitGenerationInput {
             timeline: t?,
             array,
-            life: SolarLife::Eol,
+            life: None,
         })
     })
 }
@@ -177,10 +176,10 @@ pub fn energy_balance(ctx: &Context<'_>) -> Result<EnergyBalanceInput, MissingIn
         Some(EnergyBalanceInput {
             timeline: t?,
             array,
-            life: SolarLife::Eol,
+            life: None,
             batteries,
             loads,
-            load_growth: LoadGrowth::Included,
+            load_growth: None,
             cases,
             sequence,
             base_mode,
@@ -274,16 +273,16 @@ fn mode_law_map(
         .collect()
 }
 
-fn power_orbits(ctx: &Context<'_>) -> u32 {
+/// 電源の解析の周回数（ケース、なければ設定。どちらも無ければ `None` で、既定は解析）。
+fn power_orbits(ctx: &Context<'_>) -> Option<u32> {
     if let Some((case, orbits)) = ctx.case.and_then(|c| Some((c, c.orbits?))) {
         ctx.note(Target::case(case.id.as_str(), Some("orbits")));
-        return orbits;
+        return Some(orbits);
     }
     ctx.setting(
         power_key(&["orbits"]),
         ctx.design.analysis.power.as_ref().and_then(|p| p.orbits),
     )
-    .unwrap_or(timeline::DEFAULT_ORBITS)
 }
 
 /// 電池を個別に渡す。容量の集約規則は解析が持つ。

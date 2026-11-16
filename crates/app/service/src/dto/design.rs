@@ -103,6 +103,12 @@ pub struct PartRow {
     /// 種別（kind の無い部品は null）
     pub kind: Option<String>,
     pub role: Option<Role>,
+    /// マヌーバのスラスタに選べる部品か（`Design::is_maneuver_thruster`。検査と同じ判定）
+    pub maneuver_thruster: bool,
+    /// この部品を対象にした診断の件数（`DiagnosticView.part` が部品 ID のもの）
+    pub diagnostics: DiagnosticCounts,
+    /// 未設定の値（`values` のうち `origin` が `unset`）の数
+    pub unset_count: u32,
     /// 選択中のカタログ（例: `"local/rw_18mNms"`）
     pub catalog: Option<String>,
     pub candidates: Vec<String>,
@@ -194,6 +200,10 @@ pub struct ModeRow {
     pub kind: Option<String>,
     /// 選べる状態（kind の語彙）
     pub states: Vec<String>,
+    /// 停止の状態（語彙にある `off`。無ければ null。セルの切り替えと記号に使う。選び方は `query::views::stop_and_main_states`）
+    pub off_state: Option<String>,
+    /// 主な「オン」の状態（語彙に `on` があればそれ、無ければ停止以外の最初の状態、無ければ null）
+    pub main_state: Option<String>,
     /// モード ID → 状態（そのモードの表に書かれていなければ無い）
     pub cells: BTreeMap<String, StateAssign>,
     /// 蝕の上書き（無ければ cells を継承）。
@@ -358,6 +368,8 @@ pub struct ValueAnswer {
 pub struct SystemModesView {
     pub system: sat_analysis::spec::System,
     pub modes: Vec<SystemModeView>,
+    /// 表を作るのに足りなかった入力（解析の `missing` と同じ形。電力の表で、消費電力を持つ部品や運用モードが無いとき）
+    pub missing: Vec<fune_projection::MissingInput>,
 }
 
 /// 1 モードの系別表示。AOCS は専用カード、数値の行列はほかの系。

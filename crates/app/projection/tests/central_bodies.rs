@@ -4,9 +4,10 @@
 use fune_model::Design;
 use fune_model::design::CentralBodyKind;
 use fune_model::value::Quantity;
-use fune_projection::{Context, orbit, power, thermal};
+use fune_projection::{Context, aocs, orbit, power, thermal};
+use sat_analysis::aocs::{RwUnloading, UnloadTime};
 use sat_analysis::orbit::EclipseSeason;
-use sat_analysis::spec::Analysis;
+use sat_analysis::spec::{Analysis, Verdict};
 use sat_analysis::thermal::{ThermalSteady, ThermalTransient};
 use sat_astro::ephem::CentralBody;
 use std::path::Path;
@@ -104,4 +105,88 @@ fn mars_orbit_requires_environment_values() {
         sizing.contains(&"analysis.power.sizing.sun_distance".to_owned()),
         "{sizing:?}"
     );
+}
+
+/// 地球以外の中心天体で `sun_synchronous = true`・`ltdn` を使うと、地球の値を黙って入れず、
+/// `sun_synchronous`・`ltdn` を不足入力として名指しする。地球は従来どおり値が入る。
+#[test]
+fn non_earth_sun_synchronous_and_ltdn_are_reported_not_earths_value() {
+    let paths = |body: CentralBodyKind| -> Vec<String> {
+        let mut d = about(body);
+        let o = d.conditions.orbit.as_mut().expect("軌道");
+        o.sun_synchronous = Some(true);
+        o.inclination = None;
+        o.raan = None;
+        o.ltdn = Some("10:30".into());
+        let resolved = fune_model::resolve(&d);
+        let ctx = Context::new(&d, &resolved, Some("hot_imaging")).unwrap();
+        let mut m = fune_projection::MissingInputs::new();
+        let spec = ctx.orbit(&mut m);
+        assert_eq!(spec.is_some(), m.is_empty());
+        m.into_vec().iter().map(|x| x.path.clone()).collect()
+    };
+    for body in [CentralBodyKind::Moon, CentralBodyKind::Mars] {
+        let missing = paths(body);
+        for key in ["sun_synchronous", "ltdn"] {
+            let path = format!("conditions.orbit.{key}");
+            assert!(missing.contains(&path), "{body:?}: {missing:?}");
+        }
+    }
+    assert!(paths(CentralBodyKind::Earth).is_empty());
+}
+
+/// 月・火星のまわりで RW アンロード頻度を解くと、空力・磁気トルクが 0 になる理由が判定に出る
+/// （月は大気・磁場が無いので `Ok`、火星は大気のモデルが無いので `Warning`）。地球のデモでは判定を足さない。
+#[test]
+fn rw_unloading_about_other_bodies_states_the_environment_models() {
+    let run = |body: CentralBodyKind| {
+        let design = about(body);
+        let resolved = fune_model::resolve(&design);
+        let ctx = Context::new(&design, &resolved, Some("hot_imaging")).unwrap();
+        let input = aocs::rw_unloading(&ctx).unwrap();
+        RwUnloading::run(&input).unwrap()
+    };
+    let note = |o: &sat_analysis::aocs::RwUnloadingOutput| {
+        o.checks
+            .iter()
+            .find(|c| c.key == "environment_models")
+            .cloned()
+    };
+    let moon = note(&run(CentralBodyKind::Moon)).expect("月の注記");
+    assert_eq!(moon.verdict, Verdict::Ok);
+    assert!(
+        moon.message.contains("空力トルクはこの天体では 0"),
+        "{}",
+        moon.message
+    );
+    let mars = note(&run(CentralBodyKind::Mars)).expect("火星の注記");
+    assert_eq!(mars.verdict, Verdict::Warning);
+    assert!(
+        mars.message.contains("大気があるが、そのモデルが無い"),
+        "{}",
+        mars.message
+    );
+    assert!(note(&run(CentralBodyKind::Earth)).is_none());
+}
+
+/// 地球以外で磁場を軌道から求める MTQ のアンロード時間は、磁場が 0 の「トルクが 0」ではなく理由を言って失敗する。
+#[test]
+fn unload_time_about_other_bodies_names_the_missing_field_model() {
+    let design = about(CentralBodyKind::Moon);
+    let resolved = fune_model::resolve(&design);
+    let ctx = Context::new(&design, &resolved, Some("hot_imaging")).unwrap();
+    let input = aocs::unload_time(&ctx).unwrap();
+    let err = UnloadTime::run(&input).unwrap_err().to_string();
+    assert!(err.contains("磁場が無い"), "{err}");
+}
+
+/// 太陽が中心天体の軌道は、β と蝕の季節解析が（`beta_angle_rad` の前に）エラーで断る。
+#[test]
+fn eclipse_season_about_the_sun_is_an_error() {
+    let design = about(CentralBodyKind::Sun);
+    let resolved = fune_model::resolve(&design);
+    let ctx = Context::new(&design, &resolved, Some("hot_imaging")).unwrap();
+    let input = orbit::eclipse_season(&ctx).unwrap();
+    let err = EclipseSeason::run(&input).unwrap_err().to_string();
+    assert!(err.contains("太陽を中心天体とする軌道"), "{err}");
 }

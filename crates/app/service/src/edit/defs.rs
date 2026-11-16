@@ -1,4 +1,5 @@
-//! 定義の作成の打った引数 → Op（`fune attr add` → `CreateAttribute`、`fune kind add` → `CreateKind`。`POST /ops/from_command`）。
+//! 定義の作成・置き換えの打った引数 → Op（`fune attr add|replace` → `CreateAttribute`|`UpdateAttribute`、`fune kind add|replace` → `CreateKind`|`UpdateKind`。`POST /ops/from_command`）。
+//! 置き換えは丸ごとなので、旗を省いた項目は既定（表示名は ID など）に戻る。
 //! 表示名を省くと ID、値の型を省くと scalar（**定義を作るときの既定はここだけ**。GUI の定義の作成も同じ関数を通る）。
 //! 列挙の綴り（値の型・バジェット・ネットの種類）は定義の型の serde に任せる。
 
@@ -12,6 +13,16 @@ use std::collections::BTreeMap;
 
 /// `fune attr add <ID> …` → `CreateAttribute`（次元と許可単位の検査は適用のときの検証）。
 pub fn attr_add_op(t: &AttrAddText) -> Result<Op> {
+    Ok(Op::CreateAttribute { def: attr_def(t)? })
+}
+
+/// `fune attr replace <ID> …` → `UpdateAttribute`（旗は `add` と同じ。丸ごとの置き換え）。
+pub fn attr_replace_op(t: &AttrAddText) -> Result<Op> {
+    Ok(Op::UpdateAttribute { def: attr_def(t)? })
+}
+
+/// 打った引数 → 属性定義（**属性定義の打った引数の読み方はここだけ**）。
+fn attr_def(t: &AttrAddText) -> Result<AttributeDef> {
     let id = t.id.trim();
     let number = |flag: &str, text: &Option<String>| -> Result<Option<f64>> {
         given(text)
@@ -48,11 +59,21 @@ pub fn attr_add_op(t: &AttrAddText) -> Result<Op> {
     let mut def: AttributeDef =
         serde_json::from_value(value).map_err(|e| invalid(format!("属性定義を作れません: {e}")))?;
     def.id = id.into();
-    Ok(Op::CreateAttribute { def })
+    Ok(def)
 }
 
 /// `fune kind add <ID> …` → `CreateKind`。状態・属性の一覧は `list_from_text`、ポートの雛形は [`port_template_from_text`]。
 pub fn kind_add_op(t: &KindAddText) -> Result<Op> {
+    Ok(Op::CreateKind { def: kind_def(t)? })
+}
+
+/// `fune kind replace <ID> …` → `UpdateKind`（旗は `add` と同じ。丸ごとの置き換え）。
+pub fn kind_replace_op(t: &KindAddText) -> Result<Op> {
+    Ok(Op::UpdateKind { def: kind_def(t)? })
+}
+
+/// 打った引数 → 種別定義（**種別定義の打った引数の読み方はここだけ**）。
+fn kind_def(t: &KindAddText) -> Result<KindDef> {
     let id = t.id.trim();
     let list = |text: &Option<String>| text.as_deref().map(list_from_text).unwrap_or_default();
     let ports = t
@@ -75,7 +96,7 @@ pub fn kind_add_op(t: &KindAddText) -> Result<Op> {
     let mut def: KindDef =
         serde_json::from_value(value).map_err(|e| invalid(format!("種別定義を作れません: {e}")))?;
     def.id = id.into();
-    Ok(Op::CreateKind { def })
+    Ok(def)
 }
 
 /// ポートの雛形（`"PWR=power"`）→ (ポート名, ネットの種類)。`fune kind add --port`。

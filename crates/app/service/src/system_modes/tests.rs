@@ -128,3 +128,18 @@ fn missing_inputs_do_not_become_zero_or_ok() {
     assert!(empty.total.is_none());
     assert_eq!(empty.verdict, Some(Verdict::Warning));
 }
+
+/// 電力のモード表示は、表を作る入力の不足（運用モードが無い）を捨てずに返す。
+#[test]
+fn power_modes_return_missing_inputs() {
+    let mut s = snapshot();
+    assert!(
+        system_modes_of(&s, System::Power)
+            .unwrap()
+            .missing
+            .is_empty()
+    );
+    s.design.modes.clear();
+    let view = system_modes_of(&s, System::Power).unwrap();
+    assert!(view.missing.iter().any(|m| m.path.contains("modes")));
+}

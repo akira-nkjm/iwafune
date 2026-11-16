@@ -20,9 +20,20 @@ pub struct ModeLoadInput {
     pub parts: Vec<ModeLoadPart>,
     /// モード（部品ごとの状態の割り当て）
     pub modes: Vec<ModeDef>,
-    /// 部品に `growth_margin` が無いときの成長余裕（0.2 = +20 %）。省略時 0
+    /// 部品に `growth_margin` が無いときの成長余裕（0.2 = +20 %）。省略時は [`DEFAULT_GROWTH_MARGIN`]
     #[serde(default)]
-    pub default_growth_margin: f64,
+    pub default_growth_margin: Option<f64>,
+}
+
+/// 部品にも入力にも成長余裕が書かれていないときの成長余裕。余裕を見込まない（0 %）。
+/// 適用した値は出力の `parts[].growth_margin` に載る。
+pub const DEFAULT_GROWTH_MARGIN: f64 = 0.0;
+
+impl ModeLoadInput {
+    /// 部品に成長余裕が無いときの成長余裕（省略時は [`DEFAULT_GROWTH_MARGIN`]）。
+    pub fn default_growth_margin(&self) -> f64 {
+        self.default_growth_margin.unwrap_or(DEFAULT_GROWTH_MARGIN)
+    }
 }
 
 /// 電力を使う部品 1 つ。
@@ -178,7 +189,7 @@ impl Analysis for ModeLoad {
 
 /// 部品の ID の重複と成長余裕の値を調べる（電力収支も使う）。
 pub(crate) fn validate(input: &ModeLoadInput) -> Result<(), AnalysisError> {
-    ensure_non_negative("成長余裕の既定値", input.default_growth_margin)?;
+    ensure_non_negative("成長余裕の既定値", input.default_growth_margin())?;
     for (i, p) in input.parts.iter().enumerate() {
         if input.parts[..i].iter().any(|q| q.id == p.id) {
             return Err(AnalysisError::InvalidInput(format!(
@@ -253,7 +264,7 @@ fn evaluate_sunlit(input: &ModeLoadInput, mode: &ModeDef) -> Result<ModeLoadMode
         let Some(assignment) = mode.assignment(&part.id) else {
             continue;
         };
-        let growth = part.growth_margin.unwrap_or(input.default_growth_margin);
+        let growth = part.growth_margin.unwrap_or(input.default_growth_margin());
         let result = part_result(part, assignment, mean.map(Qty::<Power>::from_raw), growth)?;
         accumulate(&mut out, part, &result, growth);
         out.parts.push(result);

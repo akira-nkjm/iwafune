@@ -66,17 +66,22 @@ fn node_part(
         );
         return None;
     };
-    let mass = ctx.scalar(p, "mass")?;
+    // 質量も比熱も、無ければ不足入力に記録する（片方が無くてももう片方を調べる）
+    let mass = m.need(
+        ctx.scalar(p, "mass"),
+        Target::attr(pid, "mass"),
+        "質量（熱の節点の熱容量）",
+    );
     let c = m.need(
         ctx.scalar(p, "specific_heat"),
         Target::attr(pid, "specific_heat"),
         "比熱（熱の節点の熱容量）",
-    )?;
+    );
     Some(ThermalNodePart {
         id: pid.to_owned(),
-        mass: Qty::from_raw(mass),
+        mass: Qty::from_raw(mass?),
         count: crate::parts::count_of(p),
-        specific_heat: Qty::from_raw(c),
+        specific_heat: Qty::from_raw(c?),
         ranges: ranges(ctx, p),
         redundancy: crate::parts::redundancy(p),
         states: p.states.clone(),
@@ -146,6 +151,8 @@ fn surfaces(ctx: &Context<'_>, s: &ThermalSettings, m: &mut MissingInputs) -> Ve
         let coatings = coatings(s, &p.id, m);
         let (absorptivity, emissivity) = match &coatings {
             Some(_) => (None, None),
+            // α/ε を持たない部品は外面ではない（面積を持つだけの部品、例えばパネルの面に載る太陽電池は、
+            // 面を担うパネルの表面材で入熱を数える）。ここで不足入力にすると、外面でない部品まで止めてしまう
             None => match (ctx.scalar(p, "absorptivity"), ctx.scalar(p, "emissivity")) {
                 (Some(a), Some(e)) => (Some(a), Some(e)),
                 _ => continue,

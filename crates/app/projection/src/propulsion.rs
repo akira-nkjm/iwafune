@@ -218,7 +218,7 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
 fn thrust_constraints(x: &Maneuver) -> ThrustConstraints {
     let c = &x.constraints;
     ThrustConstraints {
-        sunlit_only: c.sunlit_only.unwrap_or(false),
+        sunlit_only: c.sunlit_only,
         mode: c.mode.as_ref().map(ToString::to_string),
         duty: c.duty.map(Fraction::new),
         steering: c.steering.map_or(ThrustSteering::default(), steering),

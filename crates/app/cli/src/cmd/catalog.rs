@@ -29,15 +29,8 @@ pub fn read(ws: &Workspace, cmd: &CatalogCmd, out: &Out) -> Handled {
         show_sync(&result, out)?;
         return Ok(Some(0));
     }
-    let items = match cmd {
-        CatalogCmd::Ls | CatalogCmd::Show { .. } => query::design_view(ws)?.catalog,
-        _ => return Ok(None),
-    };
     if let CatalogCmd::Show { id } = cmd {
-        let item = items
-            .into_iter()
-            .find(|i| &i.id == id)
-            .ok_or_else(|| anyhow::anyhow!("カタログ品がありません: {id}"))?;
+        let item = query::catalog_item(ws, id)?;
         if out.json {
             out.json(&item)?;
             return Ok(Some(0));
@@ -51,6 +44,10 @@ pub fn read(ws: &Workspace, cmd: &CatalogCmd, out: &Out) -> Handled {
         t.print();
         return Ok(Some(0));
     }
+    let CatalogCmd::Ls = cmd else {
+        return Ok(None);
+    };
+    let items = query::design_view(ws)?.catalog;
     if out.json {
         out.json(&items)?;
         return Ok(Some(0));

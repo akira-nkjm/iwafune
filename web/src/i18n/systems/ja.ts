@@ -70,7 +70,7 @@ export const systemsJa = {
       momentum: "運動量とアンロード",
       perOrbit: "運動量の蓄積 / 周回",
       perDay: "アンロード回数 / 日",
-      unloadTime: "MTQ アンロード時間",
+      unloadTime: "アンロード時間",
       sensorFov: "センサ視野・禁止角",
       basis:
         "各モードの姿勢則と既定ケースの軌道条件で評価。機器・センサの解析対象は通常解析と共通。",

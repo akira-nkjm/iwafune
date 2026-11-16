@@ -99,3 +99,18 @@ fn rf_output_and_heat_node() {
         .value();
     assert!((got - 7.5).abs() < 1e-9, "{got}");
 }
+
+/// 節点に入る部品の質量が無ければ、黙って節点から外さず不足入力に `<部品>.mass` を出す。
+#[test]
+fn node_part_without_mass_is_reported_as_missing() {
+    let mut design = demo();
+    let bat = design.parts.get_mut("BAT").unwrap();
+    bat.attr.remove("mass");
+    bat.catalog = None;
+    let resolved = fune_model::resolve(&design);
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let Err(missing) = fune_projection::thermal::steady(&ctx) else {
+        panic!("質量の無い部品があるのに入力が組み立てられた");
+    };
+    assert!(missing.into_vec().iter().any(|m| m.path == "BAT.mass"));
+}

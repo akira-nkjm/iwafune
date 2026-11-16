@@ -53,7 +53,7 @@ pub struct DiagnosticCounts {
 
 impl DiagnosticCounts {
     /// 診断の列から数える。
-    pub fn of(diagnostics: &[DiagnosticView]) -> Self {
+    pub fn of<'a>(diagnostics: impl IntoIterator<Item = &'a DiagnosticView>) -> Self {
         let mut c = Self::default();
         for d in diagnostics {
             match d.diagnostic.severity {

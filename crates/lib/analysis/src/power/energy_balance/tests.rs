@@ -53,10 +53,10 @@ fn input(panels: Vec<SolarPanel>, cases: Vec<EnergyBalanceCase>) -> EnergyBalanc
             solar_flux: Some(Qty::from_raw(1361.0)),
             conversion_efficiency: None,
         },
-        life: SolarLife::Bol,
+        life: Some(SolarLife::Bol),
         batteries: vec![battery_100wh()],
         loads: ModeLoadInput::default(),
-        load_growth: LoadGrowth::Included,
+        load_growth: Some(LoadGrowth::Included),
         cases,
         sequence: Vec::new(),
         base_mode: None,
@@ -210,7 +210,7 @@ fn sunlit_and_eclipse_modes() {
             mode("MIS", vec![on("OBC"), on("CAM")]),
             mode("SAFE", vec![on("OBC")]),
         ],
-        default_growth_margin: 0.0,
+        default_growth_margin: Some(0.0),
     };
     let c = &EnergyBalance::run(&i).unwrap().cases[0];
     assert!((c.load_sunlit.value() - 10.0).abs() < 1e-12);
@@ -342,7 +342,7 @@ fn battery_combination_by_hand() {
     b.capacity = Qty::from_raw(180_000.0);
     b.voltage = Qty::from_raw(16.0);
     b.charge_efficiency = Some(0.8);
-    let total = EnergyBalanceBattery::combine(&[a, b]).unwrap();
+    let total = EnergyBalanceBattery::combine(&[a, b]).unwrap().battery;
     assert_eq!(total.capacity.value(), 540_000.0); // 100 Wh + 50 Wh
     assert_eq!(total.voltage.value(), 8.0); // 先頭の公称電圧
     assert_eq!(total.charge_eff(), 0.9);

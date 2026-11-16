@@ -6,9 +6,9 @@ import type { ThrustSteering } from "./ThrustSteering";
  */
 export type ThrustConstraints = { 
 /**
- * 日照中だけ噴射する（日照の判定は `spec::SUNLIT_THRESHOLD`）
+ * 日照中だけ噴射する（日照の判定は `spec::SUNLIT_THRESHOLD`）。省略は噴射を日照に限らない
  */
-sunlit_only: boolean, 
+sunlit_only: boolean | null, 
 /**
  * 噴射するモード（電力収支 `power.thrust_balance` が使う）
  */

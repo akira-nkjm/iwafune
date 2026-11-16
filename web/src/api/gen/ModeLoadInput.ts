@@ -15,6 +15,6 @@ parts: Array<ModeLoadPart>,
  */
 modes: Array<ModeDef>, 
 /**
- * 部品に `growth_margin` が無いときの成長余裕（0.2 = +20 %）。省略時 0
+ * 部品に `growth_margin` が無いときの成長余裕（0.2 = +20 %）。省略時は [`DEFAULT_GROWTH_MARGIN`]
  */
-default_growth_margin: number, };
+default_growth_margin: number | null, };

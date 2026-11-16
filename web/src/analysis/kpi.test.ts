@@ -3,7 +3,12 @@ import type { AnalysisState } from "@/api/queries";
 import type { AnalysisEntry, AnalysisRunResult, KpiKey, KpiView, System } from "@/api/types";
 import { analysesFor, kpiSlots, kpiText } from "./kpi";
 
-const def = (key: KpiKey) => ({ key, label: `名前 ${key}`, label_en: `Name ${key}` });
+const def = (key: KpiKey, when_measured = false) => ({
+  key,
+  label: `名前 ${key}`,
+  label_en: `Name ${key}`,
+  when_measured,
+});
 
 const entry = (id: string, system: System, keys: KpiKey[]): AnalysisEntry => ({
   info: {
@@ -18,7 +23,7 @@ const entry = (id: string, system: System, keys: KpiKey[]): AnalysisEntry => ({
   input_type: "",
   output_type: "",
   projectable: true,
-  kpis: keys.map(def),
+  kpis: keys.map((key) => def(key)),
 });
 
 const view = (key: KpiKey, display: string | null): KpiView => ({
@@ -81,6 +86,18 @@ describe("kpiSlots", () => {
     expect(slots[0]?.kpi?.value?.display).toBe("17.4 W");
     // 結果を待っている解析の KPI は、値が無く読み込み中
     expect(slots[1]).toMatchObject({ kpi: null, loading: true });
+  });
+
+  it("測れたときだけ出す KPI は、結果が届いて値が無ければ並べない", () => {
+    const e = entry("aocs.unload_time", "aocs", []);
+    e.kpis = [def("mtq_unload_time", true), def("rcs_unload_time", true)];
+    const keys = (s: AnalysisState | null) =>
+      kpiSlots([e], s ? [s] : []).map((slot) => slot.def.key);
+    expect(keys(state("aocs.unload_time", [view("mtq_unload_time", "25.4 min")]))).toEqual([
+      "mtq_unload_time",
+    ]);
+    expect(keys(state("aocs.unload_time", null))).toEqual(["mtq_unload_time", "rcs_unload_time"]);
+    expect(keys(null)).toEqual(["mtq_unload_time", "rcs_unload_time"]);
   });
 
   it("結果に無いキーと、まだ状態の無い解析は値を持たない", () => {
