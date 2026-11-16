@@ -67,12 +67,12 @@ pub fn fetch(id: &str) -> Result<DataStatus> {
     data_status()
 }
 
-fn sha256_file(path: &Path) -> Result<String> {
+pub(crate) fn sha256_file(path: &Path) -> Result<String> {
     let bytes = std::fs::read(path).map_err(|e| io_error(path, e))?;
     Ok(sha256_hex(&bytes))
 }
 
-fn sha256_hex(bytes: &[u8]) -> String {
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     digest.iter().map(|b| format!("{b:02x}")).collect()
 }

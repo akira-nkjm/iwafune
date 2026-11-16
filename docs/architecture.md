@@ -166,7 +166,7 @@ The CLI and HTTP call the same functions of `fune-service`.
 - `fune apply` accepts the same Op JSON that the GUI sends. It can also be used for bulk edits from scripts.
 - You can also try an edit without writing it (`fune_service::preview`). The `ops` of `POST /analyses/{id}`, `POST /budgets/{kind}` and `POST /parts/{id}`,
   and `fune analyze --ops`, `fune budget --ops` and `fune part show --ops`, produce the analysis, budget or part view from the unsaved draft (such as an edit of the mode table).
-- The only exceptions are `fune init` (the server only runs inside a project, so it is not available over HTTP) and `fune gui` (the command that starts the server).
+- The only exceptions are `fune init` (the server only runs inside a project, so it is not available over HTTP), `fune gui` (the command that starts the server) and `fune self-update` (it replaces the CLI binary itself; implemented in `fune_service::self_update` and available outside a project).
 
 The correspondence between HTTP routes and the CLI and service (`crates/app/cli/tests/route_table.rs` checks it against `routes.rs`. When you add a route, fix this and the constant of that table).
 

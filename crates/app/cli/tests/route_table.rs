@@ -1,7 +1,8 @@
 //! HTTP の経路と CLI のコマンドの対応表（docs/architecture.md §4.3）。表が経路と食い違ったら落ちる:
 //! `crates/app/server/src/routes.rs` の経路はすべて表にあり、表の経路はすべて `routes.rs` にある。
 //! CLI のコマンドは実在する（`--help` が通る）。CLI の無い経路（`GAPS`）は #158 で埋めるまでの既知の欠け。
-//! 例外は `fune init`（サーバーはプロジェクトの中でしか動かない）と `fune gui`（サーバーを起動するコマンド）だけ。
+//! 例外は `fune init`（サーバーはプロジェクトの中でしか動かない）・`fune gui`（サーバーを起動するコマンド）・
+//! `fune self-update`（CLI のバイナリ自身を置き換える）だけ。
 
 mod common;
 
@@ -131,7 +132,7 @@ const GAPS: &[(&str, &str, &str)] = &[
 ];
 
 /// HTTP に無い CLI のコマンド。
-const CLI_ONLY: &[&str] = &["init", "gui"];
+const CLI_ONLY: &[&str] = &["init", "gui", "self-update"];
 
 /// `routes.rs` の `.route("<path>", get(..).post(..))` を `METHOD path` の集合にする。
 fn routes_in_source() -> BTreeSet<(String, String)> {

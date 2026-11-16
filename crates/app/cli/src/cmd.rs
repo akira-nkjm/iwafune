@@ -16,6 +16,7 @@
 //! | `analyze` | analyze・budget |
 //! | `gui` | gui |
 //! | `data` | data status/fetch |
+//! | `self_update` | self-update（実行中の `fune` の置き換え。プロジェクト不要） |
 
 mod analyze;
 mod catalog;
@@ -34,6 +35,7 @@ mod read;
 mod records;
 #[cfg(test)]
 mod roundtrip;
+mod self_update;
 mod units;
 
 use crate::args::{Cli, Command};
@@ -47,6 +49,7 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
     match &cli.command {
         Command::Units(c) => units::run(c, out),
         Command::Data(c) => data::run(c, out),
+        Command::SelfUpdate { check, version } => self_update::run(*check, version.as_deref(), out),
         Command::Gui {
             port,
             host,
