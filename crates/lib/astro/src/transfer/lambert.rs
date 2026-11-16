@@ -55,9 +55,11 @@ pub fn lambert(
     prograde: bool,
 ) -> Result<LambertSolution, AstroError> {
     let invalid =
-        |why: &str| AstroError::InvalidInput(format!("Lambert の問題を解けません（{why}）"));
+        |why: &str| AstroError::InvalidInput(format!("Cannot solve the Lambert problem ({why})"));
     if !(mu > 0.0 && tof_s > 0.0 && tof_s.is_finite()) {
-        return Err(invalid("重力定数と飛行時間は正にしてください"));
+        return Err(invalid(
+            "gravitational parameter and time of flight must be positive",
+        ));
     }
     let (r1, r2) = (r1_m.norm(), r2_m.norm());
     let cos_dnu = (r1_m.dot(r2_m) / (r1 * r2)).clamp(-1.0, 1.0);
@@ -68,7 +70,9 @@ pub fn lambert(
     }
     let a = dnu.sin() * (r1 * r2 / (1.0 - cos_dnu)).sqrt();
     if !a.is_finite() || a.abs() < 1e-12 * (r1 + r2) {
-        return Err(invalid("2 点の向きから軌道面が決まりません"));
+        return Err(invalid(
+            "the orbital plane is undetermined by the two position directions",
+        ));
     }
     let y = |z: f64| r1 + r2 + a * (z * stumpff_s(z) - 1.0) / stumpff_c(z).sqrt();
     let f = |z: f64, y: f64| {
@@ -90,7 +94,7 @@ pub fn lambert(
     }
     let yz = y(z);
     if yz.is_nan() || yz <= 0.0 || f(z, yz).abs() > 1e-6 * mu.sqrt() * tof_s {
-        return Err(invalid("普遍変数が収束しません"));
+        return Err(invalid("universal variable did not converge"));
     }
     let lf = 1.0 - yz / r1;
     let g = a * (yz / mu).sqrt();

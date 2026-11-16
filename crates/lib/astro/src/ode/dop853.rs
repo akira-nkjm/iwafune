@@ -181,7 +181,7 @@ fn initial_step<S: OdeState>(
 }
 
 fn not_finite(t: f64) -> AstroError {
-    AstroError::InvalidInput(format!("積分中に非有限の値が出ました（t = {t}）"))
+    AstroError::InvalidInput(format!("Non-finite value during integration (t = {t})"))
 }
 
 /// `t0` から昇順の `times` までを積分し、各時刻での密出力の値を返す。
@@ -221,7 +221,7 @@ pub(super) fn integrate_at<S: OdeState>(
         h = h.min(remaining);
         if 0.1 * h <= t.abs() * f64::EPSILON || h <= 0.0 {
             return Err(AstroError::InvalidInput(format!(
-                "DOP853 の刻みが小さくなりすぎました（t = {t}）"
+                "DOP853 step size became too small (t = {t})"
             )));
         }
         let (mut step, err) = try_step(cfg, f, t, &y, &k0, h)?;
@@ -257,7 +257,7 @@ pub(super) fn integrate_at<S: OdeState>(
             rejections += 1;
             if rejections > MAX_REJECTIONS {
                 return Err(AstroError::InvalidInput(format!(
-                    "DOP853 が許容誤差を満たせません（t = {t}）"
+                    "DOP853 cannot meet the tolerance (t = {t})"
                 )));
             }
             last_rejected = true;
@@ -265,20 +265,18 @@ pub(super) fn integrate_at<S: OdeState>(
         }
     }
     Err(AstroError::InvalidInput(format!(
-        "DOP853 の最大ステップ数 {} を超えました",
+        "DOP853 exceeded the maximum step count {}",
         cfg.max_steps
     )))
 }
 
 fn validate<S: OdeState>(cfg: &Dop853, t0: f64, x0: &S, times: &[f64]) -> Result<(), AstroError> {
     if !(cfg.rtol > 0.0 || cfg.atol > 0.0) || !cfg.rtol.is_finite() || !cfg.atol.is_finite() {
-        return Err(AstroError::InvalidInput(
-            "DOP853 の許容誤差が不正です".into(),
-        ));
+        return Err(AstroError::InvalidInput("Invalid DOP853 tolerance".into()));
     }
     if cfg.max_step.is_nan() || cfg.max_step <= 0.0 {
         return Err(AstroError::InvalidInput(
-            "DOP853 の最大刻みは正にしてください".into(),
+            "DOP853 maximum step must be positive".into(),
         ));
     }
     if !t0.is_finite() || !is_finite(x0) || times.iter().any(|t| !t.is_finite()) {
@@ -286,12 +284,12 @@ fn validate<S: OdeState>(cfg: &Dop853, t0: f64, x0: &S, times: &[f64]) -> Result
     }
     if times.windows(2).any(|w| w[1] < w[0]) {
         return Err(AstroError::InvalidInput(
-            "時刻列が昇順ではありません".into(),
+            "Time list is not in ascending order".into(),
         ));
     }
     if times.first().is_some_and(|&t| t < t0) {
         return Err(AstroError::InvalidInput(
-            "開始時刻より前の時刻があります".into(),
+            "Time list has a time before the start time".into(),
         ));
     }
     Ok(())
@@ -317,11 +315,11 @@ mod tests {
         };
         let out = cfg
             .integrate_at(f, 0.0, [1.0, 0.0, 0.0, 1.0], &times)
-            .expect("積分");
+            .expect("integration");
         for (t, x) in times.iter().zip(out.iter()) {
             let (s, c) = t.sin_cos();
             let e = ((x[0] - c).powi(2) + (x[1] - s).powi(2)).sqrt();
-            assert!(e < 1e-9, "t={t}: 誤差 {e}");
+            assert!(e < 1e-9, "t={t}: error {e}");
         }
     }
 
@@ -332,7 +330,7 @@ mod tests {
         let times: Vec<f64> = (0..200).map(|i| 0.0371 * i as f64).collect();
         let out = Dop853::default()
             .integrate_at(f, 0.0, vec![0.0, 1.0], &times)
-            .expect("積分");
+            .expect("integration");
         for (t, x) in times.iter().zip(out.iter()) {
             assert!(
                 (x[0] - t.sin()).abs() < 1e-8,
@@ -367,7 +365,7 @@ mod tests {
         let f = |_t: f64, x: &[f64; 1]| [x[0]];
         let out = Dop853::default()
             .integrate_at(f, 0.0, [1.0], &[5.0])
-            .expect("積分");
+            .expect("integration");
         assert!((out[0][0] / 5.0_f64.exp() - 1.0).abs() < 1e-9);
     }
 }

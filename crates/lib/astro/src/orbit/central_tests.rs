@@ -12,7 +12,7 @@ use crate::timeline::{TimelineSpec, build, mean_sunlit};
 use core::f64::consts::TAU;
 
 fn epoch() -> Epoch {
-    Epoch::parse("2027-04-01T00:00:00Z").expect("元期")
+    Epoch::parse("2027-04-01T00:00:00Z").expect("epoch")
 }
 
 fn lunar(inclination_deg: f64, propagator: Propagator) -> OrbitSpec {
@@ -34,7 +34,7 @@ fn lunar_period() {
     assert!((p - 117.8).abs() < 0.2, "{p}");
     let s = lunar(90.0, Propagator::Kepler)
         .state_at(1234.0)
-        .expect("状態");
+        .expect("state");
     assert!((s.r_eci.norm() - (R_MOON + 100e3)).abs() < 1e-6);
 }
 
@@ -43,15 +43,15 @@ fn lunar_period() {
 fn lunar_j2_precesses_about_the_lunar_pole() {
     let o = lunar(50.0, Propagator::J2);
     let pole = pole_eci(CentralBody::Moon, o.epoch);
-    let n0 = o.state_at(0.0).expect("状態").orbit_normal();
-    let n1 = o.state_at(60.0 * 86_400.0).expect("状態").orbit_normal();
+    let n0 = o.state_at(0.0).expect("state").orbit_normal();
+    let n1 = o.state_at(60.0 * 86_400.0).expect("state").orbit_normal();
     let (a0, a1) = (n0.angle_to(pole), n1.angle_to(pole));
     assert!((a0 - a1).abs() < 1e-9, "{a0} vs {a1}");
     assert!((n0.angle_to(Vec3::Z) - n1.angle_to(Vec3::Z)).abs() > 1e-3);
     // Kepler なら面は動かない
     let k = lunar(50.0, Propagator::Kepler);
-    let m0 = k.state_at(0.0).expect("状態").orbit_normal();
-    let m1 = k.state_at(60.0 * 86_400.0).expect("状態").orbit_normal();
+    let m0 = k.state_at(0.0).expect("state").orbit_normal();
+    let m1 = k.state_at(60.0 * 86_400.0).expect("state").orbit_normal();
     assert!(m0.angle_to(m1) < 1e-12);
 }
 
@@ -59,7 +59,7 @@ fn lunar_j2_precesses_about_the_lunar_pole() {
 #[test]
 fn earth_is_a_third_body_around_the_moon() {
     let o = lunar(90.0, Propagator::Kepler);
-    let s = o.state_at(0.0).expect("状態");
+    let s = o.state_at(0.0).expect("state");
     let parts = acceleration_breakdown_about(
         CentralBody::Moon,
         &ForceConfig::gravity_only(GravityModel::J2),
@@ -70,7 +70,7 @@ fn earth_is_a_third_body_around_the_moon() {
         .iter()
         .find(|(t, _)| *t == ForceTerm::EarthThirdBody)
         .map(|(_, a)| a.norm())
-        .expect("地球の項");
+        .expect("Earth term");
     let d = CentralBody::Moon.position_eci_m(epoch()).norm();
     let scale = 2.0 * MU_EARTH * s.r_eci.norm() / d.powi(3);
     assert!(
@@ -96,7 +96,7 @@ fn lunar_numerical_stays_close_to_kepler() {
     o.propagator = Propagator::Numerical {
         forces: ForceConfig::gravity_only(GravityModel::J2),
     };
-    let num = o.state_at(t).expect("数値伝搬");
+    let num = o.state_at(t).expect("numerical propagation");
     let d = (num.r_eci - kepler.r_eci).norm();
     assert!(d > 1.0 && d < 20e3, "{d} m");
 }
@@ -116,7 +116,7 @@ fn lunar_eclipse_fraction_at_beta_zero() {
     );
     spec.shadow = ShadowModel::Cylindrical;
     spec.sampling.beta = Some(Qty::from_raw(0.0));
-    let eclipse = 1.0 - mean_sunlit(&build(&spec).expect("時系列"));
+    let eclipse = 1.0 - mean_sunlit(&build(&spec).expect("timeline"));
     let (h, r) = (100e3, R_MOON + 100e3);
     let expected = ((h * h + 2.0 * R_MOON * h).sqrt() / r).acos() / core::f64::consts::PI;
     assert!(
@@ -129,7 +129,7 @@ fn lunar_eclipse_fraction_at_beta_zero() {
 fn lunar_ground_track_and_earth_passes() {
     use crate::ground::{GroundStation, find_passes, ground_track, look_angles};
     let o = lunar(90.0, Propagator::Kepler);
-    let track = ground_track(&o, epoch(), o.period_s(), 60.0).expect("月の地上軌跡");
+    let track = ground_track(&o, epoch(), o.period_s(), 60.0).expect("lunar ground track");
     let max_lat = track
         .iter()
         .fold(0.0_f64, |m, p| m.max(p.lat_rad.abs()))
@@ -152,7 +152,7 @@ fn lunar_ground_track_and_earth_passes() {
         altitude: Qty::from_raw(0.0),
         min_elevation: Qty::from_raw(5f64.to_radians()),
     };
-    let passes = find_passes(&gs, &o, epoch(), 2.0 * 86_400.0, 300.0).expect("パス");
+    let passes = find_passes(&gs, &o, epoch(), 2.0 * 86_400.0, 300.0).expect("passes");
     assert!(!passes.is_empty());
     let end = epoch().plus_seconds(2.0 * 86_400.0);
     for p in &passes {
@@ -179,7 +179,7 @@ fn central_defaults_to_earth_in_json() {
     let mut v = serde_json::to_value(&o).expect("JSON");
     assert_eq!(v["central"], "earth");
     v.as_object_mut().expect("object").remove("central");
-    let back: OrbitSpec = serde_json::from_value(v).expect("central なし");
+    let back: OrbitSpec = serde_json::from_value(v).expect("without central");
     assert_eq!(back.central, CentralBody::Earth);
 }
 
@@ -229,7 +229,7 @@ fn earth_sso_matches_the_earth_formula() {
         let a = R_EARTH + alt;
         let n = mean_motion_rad_s(MU_EARTH, a);
         let cos_i = -SUN_MEAN_MOTION / (1.5 * n * J2_EARTH * (R_EARTH / a).powi(2));
-        let i = sso_inclination_about_rad(CentralBody::Earth, a, 0.0).expect("地球");
+        let i = sso_inclination_about_rad(CentralBody::Earth, a, 0.0).expect("Earth");
         assert_eq!(i, cos_i.acos());
         assert_eq!(i, sso_inclination_rad(a, 0.0));
         assert!(
@@ -250,10 +250,12 @@ fn earth_sso_matches_the_earth_formula() {
 #[test]
 fn mars_sso_inclination_by_hand_calculation() {
     let a = R_MARS + 400e3;
-    let i = sso_inclination_about_rad(CentralBody::Mars, a, 0.0).expect("火星");
+    let i = sso_inclination_about_rad(CentralBody::Mars, a, 0.0).expect("Mars");
     assert!((i.to_degrees() - 92.91).abs() < 0.05, "{}°", i.to_degrees());
     // 日心の平均運動は周期 686.98 日と 0.1 % 以内で合う
-    let n_sun = CentralBody::Mars.sun_mean_motion_rad_s().expect("火星の年");
+    let n_sun = CentralBody::Mars
+        .sun_mean_motion_rad_s()
+        .expect("Mars year");
     let by_period = TAU / (686.98 * SECONDS_PER_DAY);
     assert!((n_sun / by_period - 1.0).abs() < 1e-3);
 }
@@ -272,12 +274,12 @@ fn sso_rejects_unsupported_bodies_and_unreachable_orbits() {
 fn local_time_raan_is_earth_only() {
     let e = epoch();
     assert_eq!(
-        raan_from_ltdn_about(CentralBody::Earth, e, 10.5).expect("地球"),
-        raan_from_ltdn(e, 10.5).expect("地球")
+        raan_from_ltdn_about(CentralBody::Earth, e, 10.5).expect("Earth"),
+        raan_from_ltdn(e, 10.5).expect("Earth")
     );
     assert_eq!(
-        raan_from_ltan_about(CentralBody::Earth, e, 22.5).expect("地球"),
-        raan_from_ltan(e, 22.5).expect("地球")
+        raan_from_ltan_about(CentralBody::Earth, e, 22.5).expect("Earth"),
+        raan_from_ltan(e, 22.5).expect("Earth")
     );
     for body in [CentralBody::Moon, CentralBody::Mars, CentralBody::Sun] {
         assert!(raan_from_ltan_about(body, e, 10.5).is_err());

@@ -33,7 +33,7 @@ pub fn beta_angle_rad(spec: &OrbitSpec, at: Epoch) -> Result<f64, AstroError> {
 fn central_sun_direction(central: CentralBody, at: Epoch) -> Result<Vec3, AstroError> {
     sun_direction_from(central, at).ok_or_else(|| {
         AstroError::InvalidInput(
-            "中心天体が太陽のときは、太陽の向きが決まらないので β 角を定義できません".into(),
+            "Beta angle is undefined when the Sun is the central body, because the Sun direction is not defined".into(),
         )
     })
 }
@@ -49,7 +49,7 @@ fn central_sun_direction(central: CentralBody, at: Epoch) -> Result<Vec3, AstroE
 pub fn raan_for_beta(spec: &OrbitSpec, at: Epoch, beta_rad: f64) -> Result<f64, AstroError> {
     let el = spec.kepler_elements()?;
     if !beta_rad.is_finite() {
-        return Err(AstroError::InvalidInput("β 角が有限ではありません".into()));
+        return Err(AstroError::InvalidInput("Beta angle is not finite".into()));
     }
     let s = central_sun_direction(spec.central, at)?;
     let (alpha, sin_dec) = (s.y.atan2(s.x), s.z.clamp(-1.0, 1.0));
@@ -59,7 +59,7 @@ pub fn raan_for_beta(spec: &OrbitSpec, at: Epoch, beta_rad: f64) -> Result<f64, 
     let k = (beta_rad.sin() - sin_dec * ci) / denom;
     if denom.abs() < 1e-12 || !k.is_finite() || k.abs() > 1.0 {
         return Err(AstroError::InvalidInput(format!(
-            "傾斜角 {:.3}° では β = {:.3}° に届きません",
+            "Beta = {:.3} deg is unreachable at inclination {:.3} deg",
             el.i_rad.to_degrees(),
             beta_rad.to_degrees()
         )));

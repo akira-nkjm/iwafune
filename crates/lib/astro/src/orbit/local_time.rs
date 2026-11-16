@@ -14,7 +14,7 @@ fn check_hours(name: &str, hours: f64) -> Result<(), AstroError> {
         Ok(())
     } else {
         Err(AstroError::InvalidInput(format!(
-            "{name} は 0 以上 24 未満の時刻 [h] にしてください（{hours}）"
+            "{name} must be a time in hours from 0 up to (not including) 24 ({hours})"
         )))
     }
 }
@@ -66,7 +66,7 @@ fn require_earth(central: CentralBody) -> Result<(), AstroError> {
         Ok(())
     } else {
         Err(AstroError::InvalidInput(
-            "地方時からの RAAN 換算は地球を回る軌道だけに対応しています（地球以外の RAAN は ECI 基準で、天体の赤道基準の地方時と合わない）".into(),
+            "RAAN conversion from local time only supports orbits around Earth (RAAN for other bodies is relative to ECI and does not match local time on the body's equator)".into(),
         ))
     }
 }
@@ -84,15 +84,15 @@ mod tests {
     use sat_units::typed::Qty;
 
     fn epoch() -> Epoch {
-        Epoch::parse("2027-04-01T00:00:00Z").expect("元期")
+        Epoch::parse("2027-04-01T00:00:00Z").expect("epoch")
     }
 
     #[test]
     fn noon_ltan_is_the_sun_right_ascension() {
-        let raan = raan_from_ltan(epoch(), 12.0).expect("12 時");
+        let raan = raan_from_ltan(epoch(), 12.0).expect("12 h");
         assert!((raan - sun_right_ascension(epoch()).rem_euclid(TAU)).abs() < 1e-12);
         // 6 時間ずれると 90°
-        let r18 = raan_from_ltan(epoch(), 18.0).expect("18 時");
+        let r18 = raan_from_ltan(epoch(), 18.0).expect("18 h");
         assert!(((r18 - raan).rem_euclid(TAU) - PI / 2.0).abs() < 1e-12);
     }
 
@@ -129,11 +129,11 @@ mod tests {
             Qty::from_raw(raan),
         );
         // 円軌道で近地点引数・平均近点角が 0 なので、元期の位置が昇交点
-        let r = orbit.state_at(0.0).expect("状態").r_eci;
+        let r = orbit.state_at(0.0).expect("state").r_eci;
         let node_ra = r.y.atan2(r.x);
         assert!((ltan_from_raan(e, node_ra) - 10.5).abs() < 1e-9);
         let t = 30.0 * crate::constants::SECONDS_PER_DAY;
-        let later = orbit.mean_elements_at(t).expect("要素").raan_rad;
+        let later = orbit.mean_elements_at(t).expect("elements").raan_rad;
         let ltan = ltan_from_raan(e.plus_seconds(t), later);
         assert!((ltan - 10.5).abs() < 0.25, "{ltan}");
     }

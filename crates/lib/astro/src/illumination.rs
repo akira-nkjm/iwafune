@@ -78,7 +78,7 @@ mod tests {
     fn incidence_is_cosine_and_clipped() {
         assert!((solar_incidence(Vec3::X, Vec3::X, 1.0) - 1.0).abs() < 1e-15);
         assert_eq!(solar_incidence(Vec3::X, -Vec3::X, 1.0), 0.0);
-        let s = Vec3::new(1.0, 1.0, 0.0).normalized().expect("非ゼロ");
+        let s = Vec3::new(1.0, 1.0, 0.0).normalized().expect("nonzero");
         assert!((solar_incidence(Vec3::X, s, 0.5) - 0.5 / 2.0_f64.sqrt()).abs() < 1e-15);
     }
 
@@ -124,7 +124,10 @@ mod tests {
             let n = Vec3::new(-theta.cos(), theta.sin(), 0.0);
             let f = earth_view_factor(n, r);
             assert!((f - prev).abs() < 5e-3, "θ={theta}: {prev} → {f}");
-            assert!(f <= prev + 1e-12, "単調減少でない θ={theta}");
+            assert!(
+                f <= prev + 1e-12,
+                "not monotonically decreasing, theta={theta}"
+            );
             prev = f;
         }
         // 側面（θ = 90°）の値: 550 km で ≈ 0.31（Howell の表と整合する大きさ）

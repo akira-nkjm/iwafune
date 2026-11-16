@@ -165,7 +165,7 @@ mod tests {
         let a = Mat3 {
             m: [[2.0, 1.0, 0.0], [0.0, 3.0, 1.0], [1.0, 0.0, 4.0]],
         };
-        let inv = a.inverse().expect("正則");
+        let inv = a.inverse().expect("regular");
         let id = a.mul(&inv);
         for i in 0..3 {
             for j in 0..3 {
