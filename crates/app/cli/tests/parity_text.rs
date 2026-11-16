@@ -329,6 +329,8 @@ fn catalog_sets() -> Vec<(Vec<&'static str>, Value)> {
         set("part_number", "RW-10B"),
         set("label_en", "RW 10 mNms class"),
         set("maturity", "modified"),
+        // タグ（カンマ区切りの一覧）
+        set("tags", "flight_proven, 国産"),
     ]
 }
 
@@ -349,6 +351,7 @@ fn unsets() -> Vec<(Vec<&'static str>, Value)> {
             json!({ "item": ITEM, "path": "local/rw_10mNms.power.peak" }),
         ),
         unset("datasheet"),
+        unset("tags"),
         (vec!["unset", "RW_X.mass"], json!({ "path": "RW_X.mass" })),
     ]
 }

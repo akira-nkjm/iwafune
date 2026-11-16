@@ -33,6 +33,7 @@ enum_text! {
         Manufacturer = "manufacturer",
         PartNumber = "part_number",
         Maturity = "maturity",
+        Tags = "tags",
         Datasheet = "datasheet",
         Source = "source",
     }

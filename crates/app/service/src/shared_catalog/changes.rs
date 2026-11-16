@@ -51,6 +51,10 @@ fn fields(design: &Design, item: &CatalogItem) -> BTreeMap<String, String> {
     put("manufacturer".into(), view.manufacturer);
     put("part_number".into(), view.part_number);
     put("maturity".into(), view.maturity.map(|m| m.to_string()));
+    put(
+        "tags".into(),
+        (!view.tags.is_empty()).then_some(view.tags_text),
+    );
     put("datasheet".into(), view.datasheet);
     put("source".into(), view.source);
     for (port, kind) in view.ports {

@@ -48,6 +48,8 @@ struct CatalogDoc {
     manufacturer: Option<String>,
     part_number: Option<String>,
     maturity: Option<Maturity>,
+    #[serde(default)]
+    tags: Vec<String>,
     datasheet: Option<String>,
     source: Option<String>,
     #[serde(default)]
@@ -102,6 +104,7 @@ impl Decoder<'_> {
             manufacturer: doc.manufacturer,
             part_number: doc.part_number,
             maturity: doc.maturity,
+            tags: doc.tags,
             datasheet: doc.datasheet,
             source: doc.source,
             attr,

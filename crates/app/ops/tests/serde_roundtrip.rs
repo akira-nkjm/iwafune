@@ -204,6 +204,10 @@ fn catalog_ops() -> Vec<Op> {
             item: "local/rw_10mNms".into(),
             field: CatalogField::PartNumber(Some("RW-10B".into())),
         },
+        Op::SetCatalogField {
+            item: "local/rw_10mNms".into(),
+            field: CatalogField::Tags(vec!["flight_proven".into(), "国産".into()]),
+        },
         Op::RemoveCatalogItem {
             id: "local/rw_30mNms".into(),
         },

@@ -6,6 +6,7 @@ use crate::query::views::parameter_paths;
 use fune_model::design::{CatalogItem, Design};
 use fune_model::path::split_catalog_ref;
 use fune_model::resolve::resolve_catalog_item;
+use fune_model::value::list_to_text;
 use fune_store::layout::{CatalogLocation, catalog_location};
 
 /// カタログの出所の一覧（fune.toml の `[[catalog]]` の順）。書き込めるかは品の `editable` と同じ判定。
@@ -54,6 +55,8 @@ pub(crate) fn item_view(design: &Design, item: &CatalogItem) -> CatalogItemView 
         manufacturer: item.manufacturer.clone(),
         part_number: item.part_number.clone(),
         maturity: item.maturity,
+        tags: item.tags.clone(),
+        tags_text: list_to_text(&item.tags),
         datasheet: item.datasheet.clone(),
         datasheet_link: super::sources::datasheet_link(design, item.datasheet.as_deref()),
         source: item.source.clone(),

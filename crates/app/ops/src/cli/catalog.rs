@@ -4,6 +4,7 @@ use super::commands::value_cmds;
 use super::text::Cmd;
 use crate::op::Op;
 use fune_model::design::CatalogField;
+use fune_model::value::list_to_text;
 
 /// カタログ品の Op のコマンド。該当しなければ None。
 pub(super) fn catalog_op(op: &Op) -> Option<Vec<String>> {
@@ -57,6 +58,7 @@ fn field_cmd(item: &str, field: &CatalogField) -> String {
     let text: Option<String> = match field {
         CatalogField::Kind(k) => Some(k.clone()),
         CatalogField::Maturity(m) => m.map(|m| m.as_str().to_string()),
+        CatalogField::Tags(t) => (!t.is_empty()).then(|| list_to_text(t)),
         CatalogField::Label(v)
         | CatalogField::LabelEn(v)
         | CatalogField::Manufacturer(v)
