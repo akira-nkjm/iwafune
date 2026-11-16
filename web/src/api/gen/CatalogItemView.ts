@@ -28,6 +28,14 @@ editable: boolean, kind: string, label: string | null,
  */
 label_en: string | null, manufacturer: string | null, part_number: string | null, maturity: Maturity | null, 
 /**
+ * タグ（書いた順）
+ */
+tags: Array<string>, 
+/**
+ * タグを `fune catalog set <品> tags <値>` に打つ形（カンマ区切り）にした文字列。GUI の欄に出す（読み方は service が持つ）
+ */
+tags_text: string, 
+/**
  * データシートの出典の ID（`sources/<ID>`。URL・版・sha256 はその出典にある）
  */
 datasheet: string | null, 

@@ -9,11 +9,18 @@ import { CommitInput } from "@/kit/forms/CommitInput";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 
 /** 文字列で書くフィールドの名前（`fune catalog set <品> <フィールド> <値>` のフィールド） */
-type TextField = "label" | "label_en" | "manufacturer" | "part_number" | "datasheet" | "source";
+type TextField =
+  | "label"
+  | "label_en"
+  | "manufacturer"
+  | "part_number"
+  | "tags"
+  | "datasheet"
+  | "source";
 
 /**
- * カタログ品の基本の欄（名前・英語名・メーカー・型番・成熟度・データシート・出典）。欄を離れると、打った文字列のまま
- * `fune catalog set` と同じ service の関数に渡す（空なら `fune catalog unset`）。データシートは出典の ID で、
+ * カタログ品の基本の欄（名前・英語名・メーカー・型番・タグ・成熟度・データシート・出典）。欄を離れると、打った文字列のまま
+ * `fune catalog set` と同じ service の関数に渡す（空なら `fune catalog unset`）。タグは API の `tags_text`（service が読む書式のカンマ区切り）をそのまま欄に出し、打った文字列を service に渡す。データシートは出典の ID で、
  * その出典の参照先が Web の URL なら（API の `datasheet_link`）横に開くリンクを出す
  */
 export function CatalogFields({ item }: { item: CatalogItemView }) {
@@ -32,6 +39,7 @@ export function CatalogFields({ item }: { item: CatalogItemView }) {
     { key: "label_en", label: t.catalog.labelEn, value: item.label_en },
     { key: "manufacturer", label: t.catalog.manufacturer, value: item.manufacturer },
     { key: "part_number", label: t.catalog.partNumber, value: item.part_number },
+    { key: "tags", label: t.catalog.tags, value: item.tags_text },
     { key: "datasheet", label: t.catalog.datasheet, value: item.datasheet },
     { key: "source", label: t.catalog.source, value: item.source },
   ];

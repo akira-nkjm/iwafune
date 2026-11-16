@@ -4,6 +4,7 @@ manufacturer = "Example Avionics"
 part_number  = "OBC-M7"
 maturity     = "modified"
 source       = "ds_vendor"
+tags         = ["flight_proven"]
 
 [attr]
 mass             = { value = 90.0, unit = "g" }

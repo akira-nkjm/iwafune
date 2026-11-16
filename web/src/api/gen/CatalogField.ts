@@ -4,4 +4,4 @@ import type { Maturity } from "./Maturity";
 /**
  * カタログ品の型付きのフィールド（`SetCatalogField` の Op と store の書き込みが共有する）。
  */
-export type CatalogField = { "field": "kind", "value": string } | { "field": "label", "value": string | null } | { "field": "label_en", "value": string | null } | { "field": "manufacturer", "value": string | null } | { "field": "part_number", "value": string | null } | { "field": "maturity", "value": Maturity | null } | { "field": "datasheet", "value": string | null } | { "field": "source", "value": string | null };
+export type CatalogField = { "field": "kind", "value": string } | { "field": "label", "value": string | null } | { "field": "label_en", "value": string | null } | { "field": "manufacturer", "value": string | null } | { "field": "part_number", "value": string | null } | { "field": "maturity", "value": Maturity | null } | { "field": "tags", "value": Array<string> } | { "field": "datasheet", "value": string | null } | { "field": "source", "value": string | null };

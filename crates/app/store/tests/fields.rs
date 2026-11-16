@@ -63,6 +63,7 @@ fn full_item() -> CatalogItem {
         manufacturer: Some("Acme".into()),
         part_number: Some("RW-1".into()),
         maturity: Some(Maturity::OffTheShelf),
+        tags: vec!["flight_proven".into(), "国産".into()],
         datasheet: Some("docs/rw.pdf".into()),
         source: Some("ds_rw".into()),
         attr: Default::default(),
@@ -77,7 +78,7 @@ fn a_new_catalog_file_writes_every_field_in_order_and_reads_back() {
     assert_eq!(
         text,
         "kind         = \"reaction_wheel\"\nlabel        = \"RW\"\nlabel_en     = \"Wheel\"\nmanufacturer = \"Acme\"\n\
-         part_number  = \"RW-1\"\nmaturity     = \"off_the_shelf\"\ndatasheet    = \"docs/rw.pdf\"\nsource       = \"ds_rw\"\n\n\
+         part_number  = \"RW-1\"\nmaturity     = \"off_the_shelf\"\ntags         = [\"flight_proven\", \"国産\"]\ndatasheet    = \"docs/rw.pdf\"\nsource       = \"ds_rw\"\n\n\
          [ports]\nPWR = \"power\"\n"
     );
     let design = read(&[("catalog/rw.toml", &text)]);

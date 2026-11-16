@@ -42,6 +42,7 @@ export function CatalogTable({
           <Th {...headerProps("maker")}>{t.colMaker}</Th>
           <Th {...headerProps("partNo")}>{t.colPartNo}</Th>
           <Th {...headerProps("maturity")}>{t.colMaturity}</Th>
+          <Th>{t.colTags}</Th>
           <Th align="right" {...headerProps("used")}>
             {t.colUsed}
           </Th>
@@ -69,6 +70,19 @@ export function CatalogTable({
             {c.part_number ?? "—"}
           </Td>
           <Td className="text-ink-3">{c.maturity ? label("maturity", c.maturity) : "—"}</Td>
+          <Td>
+            {c.tags.length > 0 ? (
+              <span className="flex flex-wrap gap-1">
+                {c.tags.map((tag) => (
+                  <Pill key={tag} dot={false}>
+                    {tag}
+                  </Pill>
+                ))}
+              </span>
+            ) : (
+              "—"
+            )}
+          </Td>
           <Td align="right">{c.users.length}</Td>
         </SelectableRow>
       ))}

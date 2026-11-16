@@ -142,6 +142,7 @@ fn create(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> {
         manufacturer: None,
         part_number: None,
         maturity: *maturity,
+        tags: Vec::new(),
         datasheet: None,
         source: None,
         attr: BTreeMap::new(),

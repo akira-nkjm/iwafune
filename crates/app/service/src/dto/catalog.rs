@@ -36,6 +36,10 @@ pub struct CatalogItemView {
     pub manufacturer: Option<String>,
     pub part_number: Option<String>,
     pub maturity: Option<Maturity>,
+    /// タグ（書いた順）
+    pub tags: Vec<String>,
+    /// タグを `fune catalog set <品> tags <値>` に打つ形（カンマ区切り）にした文字列。GUI の欄に出す（読み方は service が持つ）
+    pub tags_text: String,
     /// データシートの出典の ID（`sources/<ID>`。URL・版・sha256 はその出典にある）
     pub datasheet: Option<String>,
     /// データシートの出典の参照先が Web の URL なら、その URL（GUI のリンク）

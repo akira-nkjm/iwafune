@@ -57,6 +57,7 @@ fn catalog_field_names_match() {
         manufacturer: None,
         part_number: None,
         maturity: None,
+        tags: vec![],
         datasheet: None,
         source: None,
         attr: Default::default(),

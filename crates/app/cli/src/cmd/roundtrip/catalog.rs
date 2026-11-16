@@ -49,6 +49,8 @@ pub(super) fn catalog_ops() -> Vec<Op> {
         },
         field(CatalogField::Manufacturer(Some(s("Acme")))),
         field(CatalogField::LabelEn(None)),
+        field(CatalogField::Tags(vec![s("flight_proven"), s("国産")])),
+        field(CatalogField::Tags(vec![])),
         field(CatalogField::Kind(s("reaction_wheel"))),
         field(serde_json::from_value(json!({ "field": "maturity", "value": "modified" })).unwrap()),
         Op::RemoveCatalogItem {

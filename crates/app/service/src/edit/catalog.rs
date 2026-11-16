@@ -3,7 +3,7 @@
 //! 属性の値の読み方は部品と同じ（`text::attr_value`）。フィールド名（`fune_model::design::CatalogFieldName`）は `SetCatalogField` にする。
 //! 共有カタログの出所を足す引数（`fune catalog source add`）→ `AddCatalogSource` も持つ（[`catalog_source_add_op`]）。
 
-use super::text::{AttrSlot, SetText, attr_value, given, invalid, maturity};
+use super::text::{AttrSlot, SetText, attr_value, given, invalid, list_from_text, maturity};
 use crate::dto::CatalogSourceAddText;
 use crate::error::Result;
 use crate::workspace::Workspace;
@@ -80,6 +80,7 @@ fn catalog_field(name: CatalogFieldName, text: Option<&str>) -> Result<CatalogFi
         CatalogFieldName::LabelEn => CatalogField::LabelEn(owned),
         CatalogFieldName::Manufacturer => CatalogField::Manufacturer(owned),
         CatalogFieldName::PartNumber => CatalogField::PartNumber(owned),
+        CatalogFieldName::Tags => CatalogField::Tags(text.map(list_from_text).unwrap_or_default()),
         CatalogFieldName::Datasheet => CatalogField::Datasheet(owned),
         CatalogFieldName::Source => CatalogField::Source(owned),
         CatalogFieldName::Maturity => CatalogField::Maturity(text.map(maturity).transpose()?),
@@ -116,6 +117,17 @@ mod tests {
         }
         assert!(catalog_field(CatalogFieldName::Kind, None).is_err());
         assert!(catalog_field(CatalogFieldName::Maturity, Some("brand_new")).is_err());
+    }
+
+    /// タグはカンマ区切り（空白を除き、空の語は捨てる）。書いた順を保ち、消すと空になる。
+    #[test]
+    fn tags_are_read_as_a_comma_list_in_written_order() {
+        let tags = |text| catalog_field(CatalogFieldName::Tags, text).unwrap();
+        assert_eq!(
+            tags(Some("flight_proven, 国産 ,,b")),
+            CatalogField::Tags(vec!["flight_proven".into(), "国産".into(), "b".into()])
+        );
+        assert_eq!(tags(None), CatalogField::Tags(vec![]));
     }
 
     #[test]

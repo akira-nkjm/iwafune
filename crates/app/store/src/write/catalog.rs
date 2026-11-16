@@ -1,7 +1,7 @@
 //! カタログ品のファイル（`catalog/<ID>.toml`）の正規形とフィールドの書き込み。属性の値の行は [`super::part`] と同じ関数で書く。
 
 use super::Edits;
-use super::doc::{set_opt, string};
+use super::doc::{set_opt, string, strings};
 use crate::codec::encode_value;
 use crate::error::StoreError;
 use crate::profile as format;
@@ -13,6 +13,8 @@ fn field_item(field: &CatalogField) -> Option<Item> {
     match field {
         CatalogField::Kind(k) => Some(string(k)),
         CatalogField::Maturity(m) => m.map(|m| string(m.as_str())),
+        CatalogField::Tags(t) if t.is_empty() => None,
+        CatalogField::Tags(t) => Some(strings(t.iter().map(String::as_str))),
         CatalogField::Label(v)
         | CatalogField::LabelEn(v)
         | CatalogField::Manufacturer(v)

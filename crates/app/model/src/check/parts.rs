@@ -6,6 +6,7 @@ use crate::chain::chain;
 use crate::design::{EntityKey, Part, Pose, position_unit};
 use crate::path::{AttrPath, PortRef};
 use crate::target::Target;
+use crate::value::list_from_text;
 use crate::value::units::expect_dimension;
 
 /// 部品とグループ。
@@ -298,11 +299,38 @@ fn check_ports(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
     }
 }
 
+/// カタログ品のタグの検査。タグは `fune catalog set <品> tags <値>` の並びの書式でそのまま読み直せる文字列
+/// （空でない・前後に空白が無い・区切りの `,` を含まない）で、同じ品の中で重複しない。
+fn check_tags(ctx: &mut Ctx, entity: &EntityKey, tags: &[String]) {
+    for (i, tag) in tags.iter().enumerate() {
+        if list_from_text(tag).as_slice() != std::slice::from_ref(tag) {
+            ctx.error(
+                "catalog.tag_text",
+                entity,
+                &["tags"],
+                None,
+                format!(
+                    "タグ `{tag}` は使えません。空でなく、前後に空白が無く、`,` を含まない文字列にしてください"
+                ),
+            );
+        } else if tags[..i].contains(tag) {
+            ctx.error(
+                "catalog.tag_duplicate",
+                entity,
+                &["tags"],
+                None,
+                format!("タグ `{tag}` が重複しています。1 つにしてください"),
+            );
+        }
+    }
+}
+
 /// カタログ品（種別の参照と値）。属性 ID が部品のフィールド名と重なっていないかも見る。
 pub(super) fn check_catalog(ctx: &mut Ctx) {
     let design = ctx.design;
     for item in design.catalog.values() {
         let entity = EntityKey::Catalog(item.id.clone());
+        check_tags(ctx, &entity, &item.tags);
         if design.kind(item.kind.as_str()).is_none() {
             ctx.error(
                 "ref.kind",
