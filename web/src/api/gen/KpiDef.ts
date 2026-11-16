@@ -14,6 +14,6 @@ label: string,
  */
 label_en: string, 
 /**
- * 結果に値が無ければ並べない KPI（設計が持たない手段の KPI。ただし解析のすべての KPI が無いときは先頭の 1 つを残す）
+ * 結果に値も判定も無ければ並べない KPI（設計が持たない手段の KPI。ただし解析のすべての KPI が無いときは先頭の 1 つを残す）
  */
 when_measured: boolean, };

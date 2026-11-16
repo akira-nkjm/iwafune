@@ -1,7 +1,7 @@
 //! データ送信量と蓄積（`comm.data_throughput`）。パスごとの送信可能量、1 日の送信可能量と発生量、未送信データの推移。
 //!
 //! - 送信機は 1 台とみなし、複数局が同時に見える時間は先に始まったパスに割り当てる（二重に数えない）。
-//! - 下り回線は 1 本だけ数える（`downlink_rate` と `link`）。ほかの下り回線は `other_downlinks` に名前だけ受け取り、数えていないと判定で知らせる。
+//! - 下り回線は 1 本だけ数える（`downlink_rate` と局ごとの回線の条件 `station_links`）。ほかの下り回線は `other_downlinks` に名前だけ受け取り、数えていないと判定で知らせる。
 //! - パスのうち使える時間の割合は `usable_pass_fraction`（捕捉・コマンドの時間などを差し引く）。
 //! - `station_links` を与えると、回線余裕を満たす最低仰角（[`crate::comm::link`]）を局ごとに求め、その局の最低仰角に重ねて、その上だけを数える。
 //! - データは一様に発生し、パス中は「発生量 + 蓄積」を上限に送る。
@@ -70,13 +70,13 @@ pub struct DataThroughputInput {
     /// 下り回線の帯域の設定が地上局に無いので数えない局の ID（`stations` には含めない。結果の `station_closures` に残す）
     #[serde(default)]
     pub stations_without_band: Vec<String>,
-    /// 送信量に数える下り回線の名前（表示用。`downlink_rate`・`link` はこの回線のもの）
+    /// 送信量に数える下り回線の名前（表示用。`downlink_rate`・`station_links` はこの回線のもの）
     #[serde(default)]
     pub downlink: Option<String>,
     /// 下り回線が複数あるとき、数えていない回線の名前（どの回線でデータを送るかを決める設定が無いため）
     #[serde(default)]
     pub other_downlinks: Vec<String>,
-    /// 要求する回線余裕（`link` があるときに使う。既定 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）
+    /// 要求する回線余裕（`station_links` があるときに使う。既定 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）
     #[serde(default)]
     pub required_margin_db: Option<Decibel>,
 }
@@ -99,7 +99,7 @@ impl DataThroughputInput {
     }
 }
 
-/// 回線が閉じるか（`link` を与えたときの、回線余裕を満たす最低仰角）。
+/// 回線が閉じるか（`station_links` で回線の条件を与えた局の、回線余裕を満たす最低仰角）。
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -160,7 +160,7 @@ pub struct DataThroughputOutput {
     pub link_closure: DataThroughputLinkClosure,
     /// 局ごとの回線が閉じる仰角（帯域の設定が無くて数えない局も `no_band_settings` で載せる）
     pub station_closures: Vec<DataThroughputStationClosure>,
-    /// 使った回線余裕の要求値（`link` があるときだけ）
+    /// 使った回線余裕の要求値（`station_links` で回線を評価したとき、つまり `link_closure` が `not_evaluated` でないときだけ）
     pub required_margin_db: Option<Decibel>,
     /// 使った「パスのうち送信に使える割合」（入力が無ければ既定値）
     pub usable_pass_fraction: Fraction,

@@ -54,6 +54,7 @@ fn values_are_looked_up_by_type_and_spelling() {
         "Deorbit"
     );
     assert!(value_label("UnloadingNote", "no_rcs").is_some());
+    assert!(value_label("MtqFieldReason", "not_modelled").is_some());
     let (l, m) = span_check(SpanFallback::OrbitMeanOverSpan);
     assert_eq!(l.label, "解析期間");
     assert!(m.label.contains("全期間の平均") && m.label_en.contains("whole span"));

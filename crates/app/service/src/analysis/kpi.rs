@@ -261,18 +261,24 @@ pub(crate) fn kpis(
         flagged: u32::try_from(checks.iter().filter(|c| c.verdict != Verdict::Ok).count())
             .unwrap_or(u32::MAX),
     };
-    only_measured(measure(id, output, ctx))
+    let judged = measure(id, output, ctx)
         .into_iter()
-        .map(|(key, value)| {
-            let verdict = rule(key).checks.verdict(checks);
-            view(key, value, verdict, tally)
-        })
+        .map(|(key, value)| (key, value, rule(key).checks.verdict(checks)))
+        .collect();
+    only_measured(judged)
+        .into_iter()
+        .map(|(key, value, verdict)| view(key, value, verdict, tally))
         .collect()
 }
 
-/// 測れなかった「測れたときだけ出す」KPI を外す（すべて外れるなら先頭の 1 つを残す）。
-fn only_measured(all: Vec<(KpiKey, Option<Measured>)>) -> Vec<(KpiKey, Option<Measured>)> {
-    let keep = |(k, v): &(KpiKey, Option<Measured>)| v.is_some() || !rule(*k).when_measured;
+/// KPI の値と、対応する check の判定。
+type Judged = (KpiKey, Option<Measured>, Option<Verdict>);
+
+/// 値も判定も無い「測れたときだけ出す」KPI（設計が持たない手段）を外す（すべて外れるなら先頭の 1 つを残す）。
+/// 値が無くても判定があれば残す（RCS だけの設計で捨てられない向きがあるときの RCS の違反を、KPI の行に出すため）。
+fn only_measured(all: Vec<Judged>) -> Vec<Judged> {
+    let keep =
+        |(k, v, verdict): &Judged| v.is_some() || verdict.is_some() || !rule(*k).when_measured;
     if !all.iter().any(keep) {
         return all.into_iter().take(1).collect();
     }

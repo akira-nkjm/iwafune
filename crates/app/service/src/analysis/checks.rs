@@ -1,17 +1,23 @@
-//! 出力の中の判定（`checks`）を、出てきた順に平らに集める。期間不足（出力の `span_fallback`）は語彙から注意を作る。
+//! 出力の中の判定（`checks`）を、出てきた順に平らに集める。期間不足（出力の `span_fallback`）と、MTQ を中心天体の磁場で
+//! 評価できなかった理由（`mtq_field_gap`）は、語彙から判定を作る。
 
 use super::dims::pointer_token;
-use super::labels::span_check;
+use super::labels::{mtq_field_check, span_check};
 use crate::dto::CheckView;
+use sat_analysis::aocs::unload_time::{MTQ_FIELD_MODEL_CHECK, MtqFieldGap};
 use sat_analysis::spec::{Check, SpanFallback, Verdict};
 use serde_json::Value;
 
 /// 期間が 1 周に満たないときの代わりの集計を入れる欄（sat-analysis の出力）。
 const SPAN_FALLBACK: &str = "span_fallback";
 
+/// MTQ を中心天体の磁場で評価できなかった理由を入れる欄（`aocs.unload_time` の出力）。
+const MTQ_FIELD_GAP: &str = "mtq_field_gap";
+
 /// 出力の中の `checks` を、出てきた順に集める（`series` の中は見ない）。
 /// 場所（JSON Pointer）と、`checks` を持つオブジェクトの `label`（無ければ `id`）を添える。
 /// `span_fallback` があれば、その場所に期間不足の注意（key `span`、文は語彙の日本語と英語）を足す。
+/// `mtq_field_gap` があれば、その場所に判定（key [`MTQ_FIELD_MODEL_CHECK`]、判定は [`MtqFieldGap::verdict`]、文は語彙）を足す。
 pub fn collect_checks(output: Option<&Value>) -> Vec<CheckView> {
     let mut checks = Vec::new();
     if let Some(output) = output {
@@ -49,6 +55,12 @@ fn walk(value: &Value, at: &str, out: &mut Vec<CheckView>) {
                     {
                         out.push(span_view(f, here, scope.clone()));
                     }
+                } else if key == MTQ_FIELD_GAP {
+                    if let Ok(Some(g)) =
+                        serde_json::from_value::<Option<MtqFieldGap>>(child.clone())
+                    {
+                        out.push(mtq_field_view(g, here, scope.clone()));
+                    }
                 } else if key != "series" {
                     walk(child, &here, out);
                 }
@@ -71,6 +83,21 @@ fn span_view(f: SpanFallback, at: String, scope: Option<String>) -> CheckView {
         label: label.label,
         label_en: Some(label.label_en),
         verdict: Verdict::Warning,
+        message: message.label,
+        message_en: Some(message.label_en),
+        at,
+        scope,
+    }
+}
+
+/// MTQ を中心天体の磁場で評価できなかったことの判定。
+fn mtq_field_view(g: MtqFieldGap, at: String, scope: Option<String>) -> CheckView {
+    let (label, message) = mtq_field_check(g);
+    CheckView {
+        key: MTQ_FIELD_MODEL_CHECK.to_owned(),
+        label: label.label,
+        label_en: Some(label.label_en),
+        verdict: g.verdict(),
         message: message.label,
         message_en: Some(message.label_en),
         at,
@@ -143,5 +170,42 @@ mod tests {
                 .is_some_and(|m| m.contains("whole span"))
         );
         assert!(collect_checks(Some(&json!({"span_fallback": null}))).is_empty());
+    }
+
+    /// MTQ を評価できなかった理由は、解析の判定に依らず語彙の日本語と英語で判定にする。判定は解析が決める
+    /// （磁場が無ければ違反、モデルが無ければ注意、RCS がすべての向きを捨てられれば OK で、文に RCS で行うと添える）。
+    #[test]
+    fn mtq_field_gap_becomes_a_check_in_both_languages() {
+        use sat_analysis::spec::Verdict;
+        let gap = |reason: &str, covered: bool| {
+            let output = json!({"mtq_field_gap": {"reason": reason, "covered_by_rcs": covered}, "checks": []});
+            let checks = collect_checks(Some(&output));
+            assert_eq!(checks.len(), 1);
+            checks[0].clone()
+        };
+        let c = gap("absent", false);
+        assert_eq!(
+            (c.key.as_str(), c.at.as_str()),
+            ("mtq_field_model", "/mtq_field_gap")
+        );
+        assert_eq!(c.verdict, Verdict::Violation);
+        assert!(c.message.contains("磁場が無い"));
+        assert!(!c.message.contains("RCS"));
+        assert!(
+            c.message_en
+                .as_deref()
+                .is_some_and(|m| m.contains("no global magnetic field"))
+        );
+        assert_eq!(gap("not_modelled", false).verdict, Verdict::Warning);
+        let covered = gap("absent", true);
+        assert_eq!(covered.verdict, Verdict::Ok);
+        assert!(covered.message.contains("RCS で行います"));
+        assert!(
+            covered
+                .message_en
+                .as_deref()
+                .is_some_and(|m| m.contains("done by RCS"))
+        );
+        assert!(collect_checks(Some(&json!({"mtq_field_gap": null}))).is_empty());
     }
 }

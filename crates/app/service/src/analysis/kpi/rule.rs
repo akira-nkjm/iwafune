@@ -70,8 +70,9 @@ pub(super) enum Fill {
 
 /// KPI ごとの扱い。
 pub(super) struct Rule {
-    /// 結果に値が無ければ出さない（設計が持たない手段の KPI。MTQ・RCS のアンロード時間）。
-    /// ただし解析のすべての KPI が出ないときは先頭の 1 つを残す（行に「—」と判定を出すため）
+    /// 結果に値も判定も無ければ出さない（設計が持たない手段の KPI。MTQ・RCS のアンロード時間）。
+    /// 値が無くても判定があれば「—」と判定で出す（捨てられない向き・評価できない磁場）。
+    /// 解析のすべての KPI が出ないときは先頭の 1 つを残す（行に「—」を出すため）
     pub(super) when_measured: bool,
     /// 判定にする check。KPI が見せる量をちょうど判定する check だけを選ぶ（他の量の違反を巻き込まない）
     pub(super) checks: CheckMatch,
@@ -110,7 +111,12 @@ pub(super) fn rule(key: KpiKey) -> Rule {
             Fill::None,
             false,
         ),
-        K::MtqUnloadTime => (Exact("mtq_time"), Fill::None, false),
+        // 中心天体の磁場で評価できないとき（時間が無いとき）は `mtq_field_model`
+        K::MtqUnloadTime => (
+            OneOf(&[Exact("mtq_time"), Exact("mtq_field_model")]),
+            Fill::None,
+            false,
+        ),
         // 捨てられない向きがあるとき（時間が無いとき）は `rcs_direction`
         K::RcsUnloadTime => (
             OneOf(&[Exact("rcs_time"), Exact("rcs_direction")]),

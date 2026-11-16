@@ -239,3 +239,21 @@ fn invalid_sequence_and_duration_are_rejected() {
     i.base_mode = Some("NOPE".to_owned());
     assert!(EnergyBalance::run(&i).is_err());
 }
+
+/// 電池の値の不一致は、ケースと並びがあっても出力全体で 1 つだけ（判定を平らにしたときに重ならない）。
+#[test]
+fn battery_mismatch_appears_once_with_cases_and_a_sequence() {
+    let mut i = with_loads(input(
+        Vec::new(),
+        vec![mode_case("A", None), mode_case("B", None)],
+    ));
+    i.sequence = vec![segment("A", 600.0), segment("B", 300.0)];
+    let mut other = i.batteries[0].clone();
+    other.voltage = Qty::from_raw(16.0);
+    i.batteries.push(other);
+    let out = EnergyBalance::run(&i).unwrap();
+    assert!(out.sequence.is_some());
+    let json = serde_json::to_string(&out).unwrap();
+    assert_eq!(json.matches("\"battery_mismatch\"").count(), 1);
+    assert_eq!(out.checks[0].key, "battery_mismatch");
+}

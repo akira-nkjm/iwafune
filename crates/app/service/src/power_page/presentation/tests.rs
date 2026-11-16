@@ -201,6 +201,7 @@ fn builder_returns_selected_mode_values_bands_and_soc_limit() {
         },
         cases: vec![case],
         sequence: None,
+        checks: Vec::new(),
     };
     let mut json = serde_json::to_value(out).unwrap();
     crate::analysis::channels::fix_channels(&mut json);

@@ -558,7 +558,7 @@ default_case = "hot_imaging"
 経年・固有の劣化を既存の `eol_factor` に含めた設計では、追加の劣化を重ねないよう上書きする。
 
 1 組の必要電池容量は `Pe*Te/(dod_max*N*Xbattery)`、合計容量はその N 倍。
-既存の集中電池モデルと同様に設計容量は全部品の容量の合計、DoD と放電効率は先頭の電池から取る。電圧・効率・初期 SOC・DoD が電池どうしで違うときは、結果が部品の並び順で変わるので warning `battery_mismatch` を出す（電力収支は各ケースの `checks`、サイジングは `checks`）。
+既存の集中電池モデルと同様に設計容量は全部品の容量の合計、DoD と放電効率は先頭の電池から取る。電圧・効率・初期 SOC・DoD が電池どうしで違うときは、結果が部品の並び順で変わるので warning `battery_mismatch` を出す（電力収支もサイジングも出力の最上位の `checks` に 1 つだけ）。
 面積と容量は部品の員数を含む。余裕は `spec::ratio_margin`、判定は `ratio_margin_verdict`（警告幅 0）。
 負荷や蝕が 0 で要求が 0 なら余裕は null（判定 OK）。
 

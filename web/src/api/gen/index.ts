@@ -223,6 +223,8 @@ export type * from "./ModeTable";
 export type * from "./ModeValuesView";
 export type * from "./MountPointView";
 export type * from "./MountView";
+export type * from "./MtqFieldGap";
+export type * from "./MtqFieldReason";
 export type * from "./Net";
 export type * from "./NetField";
 export type * from "./NetKind";

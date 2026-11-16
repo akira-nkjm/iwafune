@@ -184,12 +184,21 @@ fn momentum_from_wheels_by_hand() {
     assert!(UnloadTime::run(&i).is_err());
 }
 
-/// 磁場のモデルが無い中心天体では、軌道から求める磁場で MTQ を評価せず、理由を言う。
-/// 月・火星は磁場が無い、木星は磁場のモデルが無い。直接与える磁場の大きさ（`Constant`）は従来どおり。
+/// 磁場のモデルが無い中心天体では、軌道から求める磁場で MTQ を評価せず（`mtq` は None）、理由と RCS で足りるかを
+/// `mtq_field_gap` に返す。解析はエラーにならず、RCS の結果は残る。月・火星は磁場が無い、木星は磁場のモデルが無い。
+/// 直接与える磁場の大きさ（`Constant`）は従来どおり。
 #[test]
-fn mtq_field_from_orbit_is_rejected_without_a_field_model() {
+fn mtq_is_left_out_without_a_field_model_and_rcs_remains() {
     use sat_astro::ephem::CentralBody;
-    let about = |body| {
+    #[derive(Clone, Copy)]
+    enum Rcs {
+        /// T1 だけ: +z の角運動量（−z のトルク）を捨てられる
+        Covers,
+        /// ±x・±y・±z で評価: T1 では捨てられない向きがある
+        MissesADirection,
+        None,
+    }
+    let about = |body, rcs: Rcs| {
         let mut i = input();
         let orbit = sat_astro::orbit::OrbitSpec::circular_about(
             body,
@@ -202,9 +211,55 @@ fn mtq_field_from_orbit_is_rejected_without_a_field_model() {
         i.field = Some(UnloadTimeField::Orbit {
             sampling: OrbitSampling::new(orbit, Qty::from_raw(period), Qty::from_raw(30.0)),
         });
-        UnloadTime::run(&i).unwrap_err().to_string()
+        match rcs {
+            Rcs::Covers => {}
+            Rcs::MissesADirection => i.momentum_direction = None,
+            Rcs::None => i.thrusters.clear(),
+        }
+        UnloadTime::run(&i).unwrap()
     };
-    assert!(about(CentralBody::Moon).contains("磁場が無い"));
-    assert!(about(CentralBody::Jupiter).contains("磁場のモデルがありません"));
-    assert!(UnloadTime::run(&input()).is_ok());
+    let gap = |reason, covered_by_rcs| {
+        Some(MtqFieldGap {
+            reason,
+            covered_by_rcs,
+        })
+    };
+    for body in [CentralBody::Moon, CentralBody::Mars] {
+        // RCS がすべての向きを捨てられる: MTQ を使えなくても問題ではない
+        let out = about(body, Rcs::Covers);
+        assert!(out.mtq.is_none(), "{body:?}");
+        assert_eq!(out.mtq_field_gap, gap(MtqFieldReason::Absent, true));
+        assert_eq!(out.mtq_field_gap.unwrap().verdict(), Verdict::Ok);
+        // RCS は従来どおり 0.01 / 1e-3 = 10 s
+        let rcs = out.rcs.as_ref().unwrap().worst.time.unwrap();
+        assert!((rcs.value() - 10.0).abs() < 1e-9);
+        assert!(out.checks.iter().all(|c| c.key != "mtq_time"));
+        assert!(out.checks.iter().any(|c| c.key == "rcs_time"));
+    }
+    // RCS に捨てられない向きがある: 磁場が無いので違反
+    let missing = about(CentralBody::Moon, Rcs::MissesADirection);
+    assert!(missing.checks.iter().any(|c| c.key == "rcs_direction"));
+    assert_eq!(missing.mtq_field_gap, gap(MtqFieldReason::Absent, false));
+    assert_eq!(missing.mtq_field_gap.unwrap().verdict(), Verdict::Violation);
+    // MTQ だけの設計でもエラーにせず、どちらの結果も無いまま理由を返す（違反）
+    let only_mtq = about(CentralBody::Moon, Rcs::None);
+    assert!(only_mtq.mtq.is_none() && only_mtq.rcs.is_none());
+    assert_eq!(only_mtq.mtq_field_gap, gap(MtqFieldReason::Absent, false));
+    assert_eq!(
+        only_mtq.mtq_field_gap.unwrap().verdict(),
+        Verdict::Violation
+    );
+    // 木星（モデルが無いだけ）: RCS が無ければ注意、RCS で足りれば問題ではない
+    let jupiter = about(CentralBody::Jupiter, Rcs::None);
+    assert_eq!(
+        jupiter.mtq_field_gap,
+        gap(MtqFieldReason::NotModelled, false)
+    );
+    assert_eq!(jupiter.mtq_field_gap.unwrap().verdict(), Verdict::Warning);
+    let covered = about(CentralBody::Jupiter, Rcs::Covers)
+        .mtq_field_gap
+        .unwrap();
+    assert_eq!(covered.verdict(), Verdict::Ok);
+    let earth = UnloadTime::run(&input()).unwrap();
+    assert!(earth.mtq.is_some() && earth.mtq_field_gap.is_none());
 }
