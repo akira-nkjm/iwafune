@@ -6,7 +6,7 @@ the development rules are in [CONTRIBUTING.md](../CONTRIBUTING.md), and upcoming
 
 Conditions (orbit, ground stations, launch conditions) are in `conditions/`. `mission/` is a directory reserved for the future #9 and is not read at present.
 An analysis belongs to `sat_analysis::spec::AnalysisArea` (either a subsystem, `System`, or a condition topic, `Condition`).
-The settings of a topic are placed inside the condition's file, and the concrete types will be added in #3 ([model.md §1.1](model.md#11-前提条件と解析の区分)).
+The settings of a topic are placed inside the condition's file, and the concrete types will be added in #3 ([model.md §1.1](model.md#11-conditions-and-analysis-categories)).
 The CLI, API and web use the same classification, and KPIs are shown per subsystem or topic. The web hides the KPIs of conditions when they are empty.
 
 ## 1. Purpose and scope
