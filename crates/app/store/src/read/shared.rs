@@ -1,6 +1,6 @@
 //! 共有カタログ（`[[catalog]] git = …`）の読み込み（docs/model.md §12）。
 //!
-//! - 走査: `catalog.lock` の commit ごとに、キャッシュ `.fune/catalogs/<名前>/<commit>/` の `catalog/`・`sources/` を
+//! - 走査: `catalog.lock` の commit ごとに、キャッシュ `.fune/catalogs/<名前>/<commit>/` の `catalog/`（ディレクトリの下も）・`sources/`（平ら）を
 //!   読み取り専用の層（[`FileSet::shared`]）に読む。キャッシュを作るのは fune-service（`fune catalog fetch`）。
 //! - 解釈: 品は `<名前>/<ID>`、出典も `<名前>/<ID>` の出所付きの ID で Design に入れ、品の中の出典の参照
 //!   （`source`・`datasheet`・値の `from.source`）にも同じ出所を付ける（プロジェクトの `sources/` と ID が衝突しない）。
@@ -37,15 +37,17 @@ pub(super) fn scan_cache(root: &Path, set: &mut FileSet) -> Result<(), StoreErro
         }
         let mut files = FileSet::new();
         for sub in SHARED_CATALOG_DIRS {
-            read_flat_toml(&dir.join(sub), sub, &mut files)?;
+            // 品（`catalog/`）はディレクトリの下も読む。出典（`sources/`）は平ら
+            read_toml(&dir.join(sub), sub, *sub == SHARED_ITEMS_DIR, &mut files)?;
         }
         set.insert_shared(entry.name.clone(), files);
     }
     Ok(())
 }
 
-/// ディレクトリの直下の `.toml` を `<rel>/<名前>.toml` として読む（無ければ何もしない）。
-fn read_flat_toml(dir: &Path, rel: &str, out: &mut FileSet) -> Result<(), StoreError> {
+/// ディレクトリの `.toml` を `<rel>/<名前>.toml` として読む（無ければ何もしない）。`nested` ならディレクトリの下も読む
+/// （`.` で始まる名前は飛ばす）。
+fn read_toml(dir: &Path, rel: &str, nested: bool, out: &mut FileSet) -> Result<(), StoreError> {
     let Ok(entries) = fs::read_dir(dir) else {
         return Ok(());
     };
@@ -53,11 +55,15 @@ fn read_flat_toml(dir: &Path, rel: &str, out: &mut FileSet) -> Result<(), StoreE
         let entry = entry.map_err(|e| StoreError::io(dir, e))?;
         let name = entry.file_name().to_string_lossy().into_owned();
         let path = entry.path();
-        if name.starts_with('.') || !name.ends_with(".toml") || !path.is_file() {
+        if name.starts_with('.') {
             continue;
         }
-        let text = fs::read_to_string(&path).map_err(|e| StoreError::io(&path, e))?;
-        out.insert(format!("{rel}/{name}"), text);
+        if nested && path.is_dir() {
+            read_toml(&path, &format!("{rel}/{name}"), nested, out)?;
+        } else if name.ends_with(".toml") && path.is_file() {
+            let text = fs::read_to_string(&path).map_err(|e| StoreError::io(&path, e))?;
+            out.insert(format!("{rel}/{name}"), text);
+        }
     }
     Ok(())
 }
@@ -123,10 +129,15 @@ impl Decoder<'_> {
         }
     }
 
-    /// キャッシュのファイル 1 つ（`catalog/<ID>.toml` か `sources/<ID>.toml`）。
+    /// キャッシュのファイル 1 つ（`catalog/[<ディレクトリ>/…]<ID>.toml` か `sources/<ID>.toml`）。
+    /// ID はファイル名で、ディレクトリは置き場所だけ。
     fn read_shared_file(&mut self, name: &str, dir: &str, rel: &str) {
         let Some((sub, file)) = rel.split_once('/') else {
             return;
+        };
+        let (dirs, file) = match file.rsplit_once('/') {
+            Some((d, f)) => (d.split('/').map(str::to_string).collect(), f),
+            None => (Vec::new(), file),
         };
         let Some(id) = file.strip_suffix(".toml") else {
             return;
@@ -134,14 +145,18 @@ impl Decoder<'_> {
         let path = format!("{dir}/{rel}");
         let reference = catalog_ref(name, id);
         if sub == SHARED_ITEMS_DIR {
-            self.design
-                .source_map
-                .insert_file(EntityKey::Catalog(reference.clone()), &path);
-            self.read_catalog(&path, &reference);
-            if let Some(item) = self.design.catalog.get_mut(&reference) {
+            let duplicate = self.design.catalog.contains_key(&reference);
+            if !duplicate {
+                self.design
+                    .source_map
+                    .insert_file(EntityKey::Catalog(reference.clone()), &path);
+            }
+            if self.read_catalog(&path, &reference, &dirs)
+                && let Some(item) = self.design.catalog.get_mut(&reference)
+            {
                 qualify_item(item, name);
             }
-        } else if sub == SOURCES_DIR {
+        } else if sub == SOURCES_DIR && dirs.is_empty() {
             self.design
                 .source_map
                 .insert_file(EntityKey::Source(reference.clone()), &path);

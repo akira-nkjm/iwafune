@@ -7,7 +7,7 @@ use fune_model::design::{CatalogItem, Design};
 use fune_model::path::split_catalog_ref;
 use fune_model::resolve::resolve_catalog_item;
 use fune_model::value::list_to_text;
-use fune_store::layout::{CatalogLocation, catalog_location};
+use fune_store::layout::{CatalogLocation, catalog_item_dir, catalog_location};
 
 /// カタログの出所の一覧（fune.toml の `[[catalog]]` の順）。書き込めるかは品の `editable` と同じ判定。
 /// 共有カタログには lock の commit と読み込みの状態（`Design::shared_catalog_statuses`）を付ける。
@@ -45,6 +45,7 @@ pub(crate) fn item_view(design: &Design, item: &CatalogItem) -> CatalogItemView 
         id: item.id.clone(),
         scope: scope.to_owned(),
         name: name.to_owned(),
+        dir: catalog_item_dir(design, &item.id),
         editable: matches!(
             catalog_location(design, &item.id),
             CatalogLocation::Local { .. }

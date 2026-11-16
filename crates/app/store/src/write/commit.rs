@@ -130,7 +130,7 @@ fn cleanup(paths: &[PathBuf]) {
     }
 }
 
-/// 削除・移動で空になった `parts/` の下のディレクトリを消す（git は空のディレクトリを持たないため）。
+/// 削除・移動で空になったディレクトリ（`parts/`・`catalog/` の下など）を消す（git は空のディレクトリを持たないため）。
 fn remove_empty_dirs(root: &Path, changes: &[FileChange]) {
     for change in changes.iter().filter(|c| c.after.is_none()) {
         let mut dir = root.join(&change.path);

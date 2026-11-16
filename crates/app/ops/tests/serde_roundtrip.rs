@@ -33,6 +33,7 @@ fn name(op: &Op) -> &'static str {
         Op::SetCatalogField { .. } => "SetCatalogField",
         Op::RemoveCatalogItem { .. } => "RemoveCatalogItem",
         Op::RenameCatalogItem { .. } => "RenameCatalogItem",
+        Op::MoveCatalogItem { .. } => "MoveCatalogItem",
         Op::AddCatalogSource { .. } => "AddCatalogSource",
         Op::RemoveCatalogSource { .. } => "RemoveCatalogSource",
         Op::CreateAttribute { .. } => "CreateAttribute",
@@ -189,6 +190,7 @@ fn catalog_ops() -> Vec<Op> {
             label_en: Some("RW 30".into()),
             maturity: Some(Maturity::OffTheShelf),
             copy_from_part: Some("RW_X".into()),
+            dir: None,
         },
         Op::SetCatalogValue {
             item: "local/rw_10mNms".into(),
@@ -216,6 +218,10 @@ fn catalog_ops() -> Vec<Op> {
         Op::RenameCatalogItem {
             from: "local/rw_10mNms".into(),
             to: "local/rw_10mNms_b".into(),
+        },
+        Op::MoveCatalogItem {
+            item: "local/rw_10mNms".into(),
+            dir: "vendor_a/rw".into(),
         },
         serde_json::from_str(r#"{"op":"add_catalog_source","name":"a","git":"g"}"#).unwrap(),
         Op::RemoveCatalogSource { name: "lab".into() },
@@ -377,7 +383,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 49, "some op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 50, "some op kinds have no sample: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =

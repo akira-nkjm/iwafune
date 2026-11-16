@@ -160,7 +160,7 @@ flowchart LR
 | BudgetPolicy | Margin policy | `budget/policy.toml` | growth margin per maturity, default width of uncertainty, harness allowance |
 | AttributeDef | Quantity kind | `defs/attribute/<id>.toml` | value type, dimension, allowed units, display unit, value range, whether it is looked up by state, which budget it enters |
 | KindDef | Part kind | `defs/kind/<id>.toml` | parent kind, required and optional attributes, vocabulary of equipment states (off / standby / on …), port templates, role |
-| CatalogItem | Definition of a purchased or designed item (ElementDefinition) | shared catalog or `catalog/<id>.toml` | kind, model number, maturity, tags (`tags = ["flight_proven", "domestic"]`: a free classification that is neither manufacturer nor kind; omitted when empty; `fune catalog set <item> tags a,b` / `unset`; a tag is non-empty, has no leading or trailing whitespace and no `,`, and is not duplicated within the same item), attribute values, port values, shape, the datasheet source (a source ID; §7.8) |
+| CatalogItem | Definition of a purchased or designed item (ElementDefinition) | shared catalog or `catalog/[<dir>/…]<id>.toml` (§11.1) | kind, model number, maturity, tags (`tags = ["flight_proven", "domestic"]`: a free classification that is neither manufacturer nor kind; omitted when empty; `fune catalog set <item> tags a,b` / `unset`; a tag is non-empty, has no leading or trailing whitespace and no `,`, and is not duplicated within the same item), attribute values, port values, shape, the datasheet source (a source ID; §7.8) |
 | Group | Subsystem or nested folder | a directory under `parts/` that has no same-named file (the top level is a subsystem ID) | none (the subsystem's display name is a built-in vocabulary entry; allocations are in `budget/allocation.toml`) |
 | Part | A use in the product tree (ElementUsage) | `parts/<…>/<ID>.toml` | definition (catalog / kind), trade candidates, count and redundancy, mounting target and relative attitude, override values, the nets the ports belong to |
 | Mode | The satellite's operating mode | `modes/<ID>.toml` | duration, part → {state, time fraction, active count, spare state}, eclipse override |
@@ -1228,7 +1228,7 @@ my-sat-design/
 ├── defs/
 │   ├── attribute/<id>.toml
 │   └── kind/<id>.toml
-├── catalog/<id>.toml            # catalog specific to this project
+├── catalog/<id>.toml            # catalog specific to this project (subdirectories allowed: catalog/<dir>/<id>.toml, §11.1)
 ├── parts/                       # product tree = directories
 │   ├── aocs/
 │   │   ├── RW_X.toml
@@ -1266,6 +1266,26 @@ my-sat-design/
 ├── .github/CODEOWNERS
 └── .fune/                       # gitignored: cache (shared catalogs are in .fune/catalogs/. §12.3), runs/
 ```
+
+### 11.1 Subdirectories of the catalog
+
+Items of this project's catalog (`[[catalog]] path = …`) can be placed in subdirectories (for example `catalog/vendor_a/rw_10mNms.toml`) to keep a large catalog tidy.
+The directories are read recursively, and the rules are:
+
+- **A directory is only a location.** The item ID stays the file name: `catalog/vendor_a/rw_10mNms.toml` is `local/rw_10mNms`, and a part still writes `catalog = "local/rw_10mNms"`.
+  Moving a file between directories changes no reference and no resolved value.
+- The same ID in two files of one catalog is an error `id.duplicate` that points at the second file (files are read in path order).
+- Directory names follow the ID rules (`validate_entity_id`: a letter first, then letters, digits, `_` and `-`; otherwise `id.invalid`). Unlike `parts/`, a directory has no meaning of its own (no group, no assembly).
+- `sources/` stays flat.
+- Editing an existing item (`fune catalog set`, `unset`, `rm`) writes to the file where it is, and `fune catalog rename` renames the file within its directory.
+  A directory that becomes empty is removed on write (git does not keep empty directories), as for `parts/`.
+- `fune catalog add <item> --kind <kind> [--subdir <DIR>]` creates the file under `<DIR>` (relative to the catalog directory; nested as `a/b`; omitted means the catalog root, the same output as before).
+  The option is `--subdir` because `--dir` is already the global project location (`-C`). In the Op it is `create_catalog_item.dir`.
+- `fune catalog mv <item> <DIR>` (Op `move_catalog_item`, `POST /ops`) moves an item to another directory of the same catalog; `.` is the catalog root.
+  It is refused if the item is already there, the name is invalid, or the item is in a shared catalog.
+- The API exposes the directory as structure: `CatalogItemView.dir` is the list of directory names below the catalog directory (empty at the root).
+  For an item of a shared catalog it is the list below the repository's `catalog/` (§12.1).
+- Diagnostics (`fune check`, `fune fmt --check`) point at the real file path.
 
 An example of `CODEOWNERS` (the owner names are placeholders):
 
@@ -1392,7 +1412,7 @@ To correct a catalog value, either open a PR to the shared repository or overrid
 
 ### 12.1 The shared catalog repository
 
-The shared catalog repository's `catalog/<ID>.toml` (items) and `sources/<ID>.toml` (sources) directly under its root are read. Their shape is the same as this project's
+The shared catalog repository's `catalog/` (items; subdirectories are read too, `catalog/<dir>/…/<ID>.toml`, and the ID is the file name, §11.1) and `sources/<ID>.toml` (sources; flat) directly under its root are read. Their shape is the same as this project's
 `catalog/` and `sources/` (§7.8). Other files (`fune.toml`, README and so on) are not read. The shared catalog repository itself can be made
 a fune project (`[[catalog]] name = "local" path = "catalog"`), and `fune check` and `fune fmt --check` can be run there.
 The attributes and kinds that items use must be built-in ones (or ones in this project's `defs/`) (the shared catalog's `defs/` is not read).
@@ -1434,7 +1454,7 @@ What is fetched is placed in the project's `.fune/catalogs/` (`.fune/` is not tr
 
 ```
 .fune/catalogs/<name>/repo.git/        # copy of the fetch source (bare)
-.fune/catalogs/<name>/<commit>/catalog/<ID>.toml
+.fune/catalogs/<name>/<commit>/catalog/[<dir>/…]<ID>.toml
 .fune/catalogs/<name>/<commit>/sources/<ID>.toml
 ```
 

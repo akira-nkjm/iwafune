@@ -130,6 +130,7 @@ fn create_from_a_part_and_remove() {
         label_en: None,
         maturity: Some(Maturity::Modified),
         copy_from_part: Some("RW_X".into()),
+        dir: None,
     };
     let p = plan(&snap, std::slice::from_ref(&create)).unwrap();
     assert_eq!(p.changes.len(), 1);
@@ -246,6 +247,7 @@ fn shared_catalog_items_are_read_only() {
             label_en: None,
             maturity: None,
             copy_from_part: None,
+            dir: None,
         },
         // 共有カタログの出典（`lab/<ID>`）も読み取り専用
         Op::RemoveSource {

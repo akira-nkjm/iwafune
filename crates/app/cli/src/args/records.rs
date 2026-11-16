@@ -269,6 +269,10 @@ pub enum CatalogCmd {
         maturity: Option<String>,
         #[arg(long)]
         from_part: Option<String>,
+        /// Directory to put the item in, relative to the catalog directory (e.g. `vendor_a` or `a/b`; default: the catalog root).
+        /// Not `--dir`: that is the global project location (`-C`)
+        #[arg(long)]
+        subdir: Option<String>,
         #[command(flatten)]
         edit: EditOpts,
     },
@@ -310,6 +314,15 @@ pub enum CatalogCmd {
     Rename {
         from: String,
         to: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Move a catalog item to another directory of the catalog (the ID and references do not change)
+    Mv {
+        id: String,
+        /// Directory relative to the catalog directory (e.g. `vendor_a` or `a/b`); `.` is the catalog root
+        #[arg(value_name = "DIR")]
+        target: String,
         #[command(flatten)]
         edit: EditOpts,
     },

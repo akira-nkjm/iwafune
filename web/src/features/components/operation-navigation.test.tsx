@@ -95,6 +95,7 @@ const catalog: CatalogItemView = {
   id: "local/old",
   name: "old",
   scope: "local",
+  dir: [],
   editable: true,
   kind: "wheel",
   system: null,
