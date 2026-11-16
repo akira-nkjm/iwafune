@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { catalogItemId, itemLabel, writableCatalogs } from "./catalog";
+import { catalogItemId, itemLabel, sharedCatalogAddCommand, writableCatalogs } from "./catalog";
 
 describe("カタログ", () => {
   it("表示名が無ければ ID を出す", () => {
@@ -23,5 +23,16 @@ describe("カタログ", () => {
 
   it("品の ID はカタログ名と名前から作る", () => {
     expect(catalogItemId("local", "rw_30mNms")).toBe("local/rw_30mNms");
+  });
+
+  it("共有カタログを足す欄は打った文字列のまま catalog_source_add にし、名前か URL が空なら送らない", () => {
+    expect(sharedCatalogAddCommand(" lab ", "https://example.com/catalog.git", "")).toEqual({
+      command: "catalog_source_add",
+      name: " lab ",
+      git: "https://example.com/catalog.git",
+      rev: "",
+    });
+    expect(sharedCatalogAddCommand("lab", "  ", "main")).toBeNull();
+    expect(sharedCatalogAddCommand("", "https://example.com/catalog.git", "main")).toBeNull();
   });
 });

@@ -4,6 +4,14 @@
 use super::Ctx;
 use crate::design::{EntityKey, SharedCatalogState, SharedCatalogStatus};
 
+/// 取得（`fune catalog fetch`・`update`）で直る状態の error のコード。設計の誤りではないので、編集の計画（fune-ops）は
+/// 新しく出ても編集を拒まない（共有カタログを足した直後は lock に記録が無い）。
+pub const FETCH_STATE_CODES: &[&str] = &[
+    "catalog.not_locked",
+    "catalog.lock_mismatch",
+    "catalog.not_fetched",
+];
+
 /// commit を表示するときの桁数。
 const SHORT_COMMIT: usize = 12;
 

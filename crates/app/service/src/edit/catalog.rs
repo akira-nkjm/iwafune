@@ -1,8 +1,10 @@
 //! カタログ品の編集の文字列 → Op（`fune catalog set local/rw_10mNms mass "620 g"` → `SetCatalogValue` など）。
 //! 入口は `edit::{set_op, unset_op}`（`SetText.item`・`UnsetText.item` があるときここに振り分ける）。
 //! 属性の値の読み方は部品と同じ（`text::attr_value`）。フィールド名（`fune_model::design::CatalogFieldName`）は `SetCatalogField` にする。
+//! 共有カタログの出所を足す引数（`fune catalog source add`）→ `AddCatalogSource` も持つ（[`catalog_source_add_op`]）。
 
-use super::text::{AttrSlot, SetText, attr_value, invalid, maturity};
+use super::text::{AttrSlot, SetText, attr_value, given, invalid, maturity};
+use crate::dto::CatalogSourceAddText;
 use crate::error::Result;
 use crate::workspace::Workspace;
 use fune_model::design::{CatalogField, CatalogFieldName};
@@ -84,6 +86,16 @@ fn catalog_field(name: CatalogFieldName, text: Option<&str>) -> Result<CatalogFi
     })
 }
 
+/// `fune catalog source add <名前> --git <URL> [--rev <rev>]` → `AddCatalogSource`。**この引数の読み方はここだけ**
+/// （前後の空白を除き、空の `rev` は省いたのと同じ）。名前の規則・重複・空の URL は適用のときに fune-ops が拒む。
+pub fn catalog_source_add_op(t: &CatalogSourceAddText) -> Op {
+    Op::AddCatalogSource {
+        name: t.name.trim().to_owned(),
+        git: t.git.trim().to_owned(),
+        rev: given(&t.rev).map(str::to_owned),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,5 +145,26 @@ mod tests {
         ));
         // 別の品のパスは拒む
         assert!(catalog_unset_op(item, "local/obc_m7.mass").is_err());
+    }
+
+    /// 共有カタログを足す引数: 前後の空白を除き、空の rev は省いたのと同じ（CLI と GUI の欄の両方がここを通る）。
+    #[test]
+    fn catalog_source_text_trims_and_drops_an_empty_rev() {
+        let text = |rev: Option<&str>| CatalogSourceAddText {
+            name: " lab ".into(),
+            git: " https://example.com/catalog.git\n".into(),
+            rev: rev.map(str::to_owned),
+        };
+        let op = |rev: Option<&str>| Op::AddCatalogSource {
+            name: "lab".into(),
+            git: "https://example.com/catalog.git".into(),
+            rev: rev.map(str::to_owned),
+        };
+        assert_eq!(
+            catalog_source_add_op(&text(Some(" main "))),
+            op(Some("main"))
+        );
+        assert_eq!(catalog_source_add_op(&text(Some("  "))), op(None));
+        assert_eq!(catalog_source_add_op(&text(None)), op(None));
     }
 }

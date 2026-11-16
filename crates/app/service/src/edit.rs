@@ -4,7 +4,7 @@
 //! | モジュール | 打った文字列 → Op |
 //! |---|---|
 //! | `text` | `fune set`・`fune unset`・`fune setting set|unset` のパスと値（[`set_op`]・[`unset_op`]）と、値の読み方 |
-//! | `catalog` | `fune catalog set|unset` |
+//! | `catalog` | `fune catalog set|unset`・`fune catalog source add`（[`catalog_source_add_op`]） |
 //! | `command` | 名詞のコマンドの引数（[`command_ops`]。`fune net set|unset`・`fune part place`・`fune mode set|unset`） |
 //! | `defs` | `fune attr add`・`fune kind add` |
 //! | `eclipse` | 季節解析の代表標本から新しい解析ケースの SetCase を作る |
@@ -28,6 +28,7 @@ mod maneuver;
 mod place;
 mod text;
 
+pub use catalog::catalog_source_add_op;
 pub use command::{
     command_ops, duty_from_text, mode_duration_op, mode_move_op, mode_set_op, net_set_ops,
     net_unset_op,

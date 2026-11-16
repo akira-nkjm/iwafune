@@ -2,7 +2,7 @@
 //!
 //! Op を 1 つずつ解釈して store の編集（[`fune_store::Edits`]）に変え、そのたびに Design を読み直す。
 //! 最後に適用前と適用後の `check` を比べ、新しく増えた error があれば [`OpError::Rejected`] で拒む
-//! （元からある error は編集を妨げない）。
+//! （元からある error と、取得で直る共有カタログの状態 [`fune_model::check::FETCH_STATE_CODES`] は編集を妨げない）。
 //!
 //! | モジュール | 中身 |
 //! |---|---|
@@ -11,10 +11,12 @@
 //! | `others` | モード・ネット・図・設定の Op |
 //! | `records` | 解析ケース・出典・ハーネスの Op |
 //! | `catalog` | カタログ品の Op（このプロジェクトの `catalog/` だけ） |
+//! | `catalog_source` | カタログの出所の Op（fune.toml の共有カタログ `[[catalog]] git = …` を足す・外す） |
 //! | `attr` | 属性の値の書き込み（部品とカタログ品で共有） |
 
 mod attr;
 mod catalog;
+mod catalog_source;
 mod defs;
 mod others;
 mod parts;
@@ -22,6 +24,7 @@ mod records;
 
 use crate::error::OpError;
 use crate::op::Op;
+use fune_model::check::FETCH_STATE_CODES;
 use fune_model::design::Revision;
 use fune_model::{Design, Diagnostic, check};
 use fune_store::read::design_of;
@@ -90,12 +93,14 @@ pub fn plan(snapshot: &Snapshot, ops: &[Op]) -> Result<Plan, OpError> {
 }
 
 /// 適用後に新しく増えた error（位置は比べない。編集で行がずれ、名前の変更でファイルも変わるため）。
+/// 取得で直る共有カタログの状態（共有カタログを足した直後の `catalog.not_locked` など）は数えない。
 fn new_errors(before: &[Diagnostic], after: &[Diagnostic]) -> Vec<Diagnostic> {
     let key = |d: &Diagnostic| (d.code.clone(), d.target.clone(), d.message.clone());
     let old: BTreeSet<_> = before.iter().filter(|d| d.is_error()).map(key).collect();
     after
         .iter()
-        .filter(|d| d.is_error() && !old.contains(&key(d)))
+        .filter(|d| d.is_error() && !FETCH_STATE_CODES.contains(&d.code.as_str()))
+        .filter(|d| !old.contains(&key(d)))
         .cloned()
         .collect()
 }
@@ -126,6 +131,9 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::SetCatalogField { .. }
         | Op::RemoveCatalogItem { .. }
         | Op::RenameCatalogItem { .. } => catalog::interpret(edits, design, op),
+        Op::AddCatalogSource { .. } | Op::RemoveCatalogSource { .. } => {
+            catalog_source::interpret(edits, design, op)
+        }
         Op::SetCase { .. }
         | Op::RemoveCase { .. }
         | Op::SetSource { .. }

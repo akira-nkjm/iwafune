@@ -9,8 +9,8 @@ pub use nouns::{
     ModeCmd, NetArgs, NetCmd, NetSetArgs, PartCmd, PlaceArgs, SetArgs, SettingCmd, ViewCmd,
 };
 pub use records::{
-    CaseArgs, CaseCmd, CatalogCmd, HarnessArgs, HarnessCmd, ManeuverArgs, ManeuverCmd, PointArgs,
-    SourceArgs, SourceCmd,
+    CaseArgs, CaseCmd, CatalogCmd, CatalogSourceCmd, HarnessArgs, HarnessCmd, ManeuverArgs,
+    ManeuverCmd, PointArgs, SourceArgs, SourceCmd,
 };
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
