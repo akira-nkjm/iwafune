@@ -5,6 +5,10 @@ on:
     branches: [main, develop]
   pull_request:
 
+# Jobs get read-only access to the repository unless they ask for more.
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   # Cancel superseded runs on pull requests only; every push to main runs to completion so the badge stays accurate.
