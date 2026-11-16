@@ -16,7 +16,7 @@ impl<'a> Context<'a> {
     /// 軌道（`conditions/orbit.toml`）。
     pub fn orbit(&self, m: &mut MissingInputs) -> Option<OrbitSpec> {
         let Some(o) = self.design.conditions.orbit.as_ref() else {
-            m.push(orbit(&[]), "軌道の設定（conditions/orbit.toml）");
+            m.push(orbit(&[]), "Orbit settings (conditions/orbit.toml)");
             return None;
         };
         for key in [
@@ -31,11 +31,11 @@ impl<'a> Context<'a> {
         let epoch = match o.epoch.as_deref().map(Epoch::parse) {
             Some(Ok(e)) => Some(e),
             Some(Err(e)) => {
-                m.push(orbit(&["epoch"]), format!("元期を解釈できません（{e}）"));
+                m.push(orbit(&["epoch"]), format!("Cannot parse the epoch ({e})"));
                 None
             }
             None => {
-                m.push(orbit(&["epoch"]), "軌道の元期（ISO 8601）");
+                m.push(orbit(&["epoch"]), "Orbit epoch (ISO 8601)");
                 None
             }
         };
@@ -58,7 +58,7 @@ impl<'a> Context<'a> {
                 &dims::ORBIT_INCLINATION,
                 &[],
                 None,
-                "傾斜角（または sun_synchronous = true）",
+                "Inclination (or sun_synchronous = true)",
                 m,
             ),
         };
@@ -111,7 +111,7 @@ impl<'a> Context<'a> {
             &dims::ORBIT_ALTITUDE,
             &[],
             o.altitude.as_ref(),
-            "軌道の高度（または semi_major_axis）",
+            "Orbit altitude (or semi_major_axis)",
             m,
         )?;
         Some(Qty::from_raw(
@@ -138,7 +138,7 @@ fn sun_sync_inclination(
     if central != CentralBody::Earth {
         m.push(
             orbit(&["sun_synchronous"]),
-            "太陽同期は地球を回る軌道だけに対応しています（傾斜角が ECI の赤道基準のため）。inclination を直接書いてください",
+            "Sun-synchronous is supported only for orbits around the Earth (the inclination is relative to the ECI equator). Write inclination directly",
         );
         return None;
     }
@@ -147,7 +147,7 @@ fn sun_sync_inclination(
         Err(e) => {
             m.push(
                 orbit(&["sun_synchronous"]),
-                format!("太陽同期の傾斜角を求められません（{e}）"),
+                format!("Cannot compute the sun-synchronous inclination ({e})"),
             );
             None
         }
@@ -164,14 +164,14 @@ fn raan_from_ltdn(
     let Some(hours) = fune_model::value::parse_clock_hours(text) else {
         m.push(
             orbit(&["ltdn"]),
-            "降交点地方時は \"HH:MM\" で書いてください",
+            "The local time of the descending node must be written as \"HH:MM\"",
         );
         return None;
     };
     match sat_astro::orbit::raan_from_ltdn_about(central, epoch, hours) {
         Ok(rad) => Some(Qty::from_raw(rad)),
         Err(e) => {
-            m.push(orbit(&["ltdn"]), format!("RAAN に換算できません（{e}）"));
+            m.push(orbit(&["ltdn"]), format!("Cannot convert to RAAN ({e})"));
             None
         }
     }

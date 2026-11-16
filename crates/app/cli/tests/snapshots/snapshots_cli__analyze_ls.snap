@@ -2,32 +2,32 @@
 source: crates/app/cli/tests/snapshots_cli.rs
 expression: text
 ---
- 区分         ID                           名前                       種類     入力
-────────────────────────────────────────────────────────────────────────────────────────────
- power        power.mode_load              モード別消費電力           定常     設計から組立
- power        power.solar_sunlit           日照時の発電               定常     設計から組立
- power        power.orbit_generation       軌道上の発電               時系列   設計から組立
- power        power.energy_balance         電力収支と DoD             時系列   設計から組立
- power        power.sizing                 電源の逆算サイジング       定常     設計から組立
- power        power.thrust_balance         噴射中の電力収支           時系列   設計から組立
- aocs         aocs.rw_unloading            RW アンロード頻度          時系列   設計から組立
- aocs         aocs.unload_time             アンロードにかかる時間     定常     設計から組立
- aocs         aocs.sensor_fov              センサ FoV と禁止角        時系列   設計から組立
- aocs         aocs.slew_time               姿勢変更にかかる時間       定常     設計から組立
- cdh          cdh.data_budget              データ量とストレージ       定常     設計から組立
- comm         comm.link_budget             回線バジェット             定常     設計から組立
- comm         comm.visibility              地上局の可視               時系列   設計から組立
- comm         comm.data_throughput         データ送信量と蓄積         時系列   設計から組立
- thermal      thermal.steady               熱（定常）                 定常     設計から組立
- thermal      thermal.transient            熱（非定常）               時系列   設計から組立
- structure    structure.mass_properties    質量特性                   定常     設計から組立
- structure    structure.static_load        準静的荷重                 定常     設計から組立
- structure    structure.modal_estimate     簡易固有振動数             定常     設計から組立
- orbit        orbit.eclipse_season         β と蝕の季節変動           時系列   設計から組立
- orbit        orbit.decay                  高度低下と軌道維持         時系列   設計から組立
- propulsion   propulsion.maneuvers         マヌーバ                   定常     設計から組立
- propulsion   propulsion.dv_budget         ΔV バジェット              定常     設計から組立
- propulsion   propulsion.propellant        推薬とタンク               定常     設計から組立
- propulsion   propulsion.thruster_usage    スラスタの使い方           定常     設計から組立
- propulsion   propulsion.orbit_history     軌道の推移                 時系列   設計から組立
- propulsion   propulsion.mass_properties   推薬による質量特性の変化   定常     設計から組立
+ Area         ID                           Name                              Kind          Input
+─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ power        power.mode_load              Mode power consumption            steady        built from design
+ power        power.solar_sunlit           Sunlit power generation           steady        built from design
+ power        power.orbit_generation       Orbital power generation          time series   built from design
+ power        power.energy_balance         Energy balance and DoD            time series   built from design
+ power        power.sizing                 Power sizing                      steady        built from design
+ power        power.thrust_balance         Energy balance while thrusting    time series   built from design
+ aocs         aocs.rw_unloading            RW unloading frequency            time series   built from design
+ aocs         aocs.unload_time             Momentum unloading time           steady        built from design
+ aocs         aocs.sensor_fov              Sensor FoV and exclusion angles   time series   built from design
+ aocs         aocs.slew_time               Slew time                         steady        built from design
+ cdh          cdh.data_budget              Data volume and storage           steady        built from design
+ comm         comm.link_budget             Link budget                       steady        built from design
+ comm         comm.visibility              Ground station visibility         time series   built from design
+ comm         comm.data_throughput         Downlink capacity and backlog     time series   built from design
+ thermal      thermal.steady               Thermal (steady state)            steady        built from design
+ thermal      thermal.transient            Thermal (transient)               time series   built from design
+ structure    structure.mass_properties    Mass properties                   steady        built from design
+ structure    structure.static_load        Quasi-static loads                steady        built from design
+ structure    structure.modal_estimate     Natural frequency estimate        steady        built from design
+ orbit        orbit.eclipse_season         Beta angle and eclipse seasons    time series   built from design
+ orbit        orbit.decay                  Drag decay and station keeping    time series   built from design
+ propulsion   propulsion.maneuvers         Maneuvers                         steady        built from design
+ propulsion   propulsion.dv_budget         Delta-V budget                    steady        built from design
+ propulsion   propulsion.propellant        Propellant and tanks              steady        built from design
+ propulsion   propulsion.thruster_usage    Thruster usage                    steady        built from design
+ propulsion   propulsion.orbit_history     Orbit history                     time series   built from design
+ propulsion   propulsion.mass_properties   Mass properties with propellant   steady        built from design

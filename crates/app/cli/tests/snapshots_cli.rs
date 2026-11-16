@@ -8,7 +8,7 @@ fn stdout(args: &[&str]) -> String {
     let out = fune().args(args).output().unwrap();
     assert!(
         out.status.success(),
-        "fune {args:?} が失敗しました: {}",
+        "fune {args:?} failed: {}",
         String::from_utf8_lossy(&out.stderr)
     );
     String::from_utf8(out.stdout).unwrap()

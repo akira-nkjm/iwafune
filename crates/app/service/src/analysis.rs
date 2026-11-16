@@ -37,7 +37,7 @@ pub fn analysis_catalog() -> Result<Vec<AnalysisEntry>> {
         .into_iter()
         .map(|info| {
             let row = rows.iter().find(|r| r.id == info.id).ok_or_else(|| {
-                ServiceError::Internal(format!("{} の射影の行がありません", info.id))
+                ServiceError::Internal(format!("No projection row for {}", info.id))
             })?;
             Ok(AnalysisEntry {
                 input_type: row.input_type.clone(),
@@ -95,7 +95,7 @@ pub fn run_analysis(
     req: &RunAnalysisRequest,
 ) -> Result<AnalysisRunResult> {
     if !sat_analysis::catalog::catalog().iter().any(|i| i.id == id) {
-        return Err(ServiceError::not_found("解析", id));
+        return Err(ServiceError::not_found("analysis", id));
     }
     let snapshot = match &req.source {
         AnalysisInputSource::Given { .. } => None,
@@ -165,7 +165,7 @@ fn run_inner(
         AnalysisInputSource::Given { input } => (input.clone(), None, None),
         source => {
             let snapshot = snapshot
-                .ok_or_else(|| ServiceError::Internal("解析用の設計がありません".to_owned()))?;
+                .ok_or_else(|| ServiceError::Internal("No design for the analysis".to_owned()))?;
             match project(snapshot, id, case) {
                 Ok(p) => match source {
                     AnalysisInputSource::Patched { patch } => {

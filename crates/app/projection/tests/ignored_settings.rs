@@ -9,16 +9,18 @@ use std::path::Path;
 
 fn demo() -> Design {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u");
-    fune_store::load(&root).expect("デモを読めること").design
+    fune_store::load(&root)
+        .expect("the demo should load")
+        .design
 }
 
 fn propagator_of(kind: PropagatorKind) -> Propagator {
     let mut design = demo();
-    design.conditions.orbit.as_mut().expect("軌道").propagator = Some(kind);
+    design.conditions.orbit.as_mut().expect("orbit").propagator = Some(kind);
     let resolved: Resolved = fune_model::resolve(&design);
     let ctx = Context::bare(&design, &resolved);
     ctx.orbit(&mut MissingInputs::new())
-        .expect("軌道")
+        .expect("orbit")
         .propagator
 }
 

@@ -25,7 +25,7 @@ fn check_port_ref(
             entity,
             &[key],
             path,
-            format!("部品 `{}` がありません", port.part),
+            format!("Part `{}` is not defined", port.part),
         );
         return;
     };
@@ -35,10 +35,7 @@ fn check_port_ref(
             entity,
             &[key],
             path,
-            format!(
-                "部品 `{}` にポート `{}` が書かれていません",
-                port.part, port.port
-            ),
+            format!("Part `{}` does not declare port `{}`", port.part, port.port),
         ),
         (Some(binding), Some(net)) if binding.net.as_ref().is_some_and(|n| n.as_str() != net) => {
             ctx.warning(
@@ -46,7 +43,7 @@ fn check_port_ref(
                 entity,
                 &[key],
                 path,
-                format!("ポート `{port}` はネット `{net}` に属していません"),
+                format!("Port `{port}` does not belong to net `{net}`"),
             );
         }
         _ => {}
@@ -91,7 +88,7 @@ pub(super) fn check_nets(ctx: &mut Ctx) {
                 &entity,
                 &["kind"],
                 Some(Target::net(id, None)),
-                "電源でないネットに rail / source が書かれています",
+                "rail / source is set on a net that is not a power net",
             );
         }
     }
@@ -114,7 +111,7 @@ pub(super) fn check_harnesses(ctx: &mut Ctx) {
                     &entity,
                     &["nets"],
                     Some(Target::harness(id, None)),
-                    format!("ネット `{net}` がありません"),
+                    format!("Net `{net}` is not defined"),
                 );
             }
         }
@@ -126,7 +123,7 @@ pub(super) fn check_harnesses(ctx: &mut Ctx) {
                 &entity,
                 &["wire"],
                 Some(Target::harness(id, None)),
-                format!("線材のカタログ品 `{wire}` がありません"),
+                format!("Wire catalog item `{wire}` is not defined"),
             );
         }
         check_dim(
@@ -153,7 +150,7 @@ pub(super) fn check_cases(ctx: &mut Ctx) {
                 &entity,
                 &["mode"],
                 Some(Target::case(case.id.as_str(), None)),
-                format!("モード `{mode}` がありません"),
+                format!("Mode `{mode}` is not defined"),
             );
         }
         let thermal = design.analysis.thermal.as_ref();
@@ -165,7 +162,7 @@ pub(super) fn check_cases(ctx: &mut Ctx) {
                 &entity,
                 &["thermal_case"],
                 Some(Target::case(case.id.as_str(), None)),
-                format!("熱の環境条件 `{tc}` が analysis/thermal.toml にありません"),
+                format!("Thermal environment `{tc}` is not in analysis/thermal.toml"),
             );
         }
         if case
@@ -177,7 +174,7 @@ pub(super) fn check_cases(ctx: &mut Ctx) {
                 &entity,
                 &["side"],
                 Some(Target::case(case.id.as_str(), Some("side"))),
-                "side（min / max）はまだ解析に使いません。どの解析も値の nominal を読みます（値の不確かさの min / max は解析に渡していません）",
+                "side (min / max) is not used by the analyses yet. Every analysis reads the nominal value (the min / max uncertainty of a value is not passed to the analyses)",
             );
         }
         check_dim(

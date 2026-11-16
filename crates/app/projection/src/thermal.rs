@@ -28,7 +28,11 @@ use std::collections::BTreeMap;
 
 fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a ThermalSettings> {
     let s = ctx.design.analysis.thermal.as_ref();
-    m.need(s, thermal(&[]), "熱の解析の設定（analysis/thermal.toml）")
+    m.need(
+        s,
+        thermal(&[]),
+        "Thermal analysis settings (analysis/thermal.toml)",
+    )
 }
 
 /// `analysis.thermal.<…>`（`analysis/thermal.toml` のキー）。
@@ -122,14 +126,20 @@ fn environment(
         let at = |key: &str| thermal(&["case", id, key]);
         if planet_environment(body).is_none() {
             if c.albedo.is_none() {
-                m.push(at("albedo"), format!("中心天体 {body:?} のアルベド"));
+                m.push(at("albedo"), format!("Albedo of central body {body:?}"));
             }
             if c.planet_ir.is_none() {
-                m.push(at("planet_ir"), format!("中心天体 {body:?} の赤外放射"));
+                m.push(
+                    at("planet_ir"),
+                    format!("Infrared emission of central body {body:?}"),
+                );
             }
         }
         if c.preset.is_some() && c.solar_flux.is_none() && body.nominal_sun_distance_m().is_none() {
-            m.push(at("solar_flux"), "太陽光の強さ（プリセットの値は 1 AU）");
+            m.push(
+                at("solar_flux"),
+                "Solar flux (the preset value is for 1 AU)",
+            );
         }
     }
     // 書かれていない値は None のまま渡す（既定値は解析が持つ）
@@ -178,7 +188,10 @@ pub fn steady(ctx: &Context<'_>) -> Result<ThermalSteadyInput, MissingInputs> {
         });
     }
     if s.cases.is_empty() {
-        m.push(thermal(&["case"]), "熱の環境条件（[case.<名前>]）");
+        m.push(
+            thermal(&["case"]),
+            "Thermal environment conditions ([case.<name>])",
+        );
     }
     let margin = margin(s, &mut m);
     m.finish(|| {
@@ -209,7 +222,7 @@ fn transient_case<'a>(
         );
         m.push(
             target,
-            "熱の環境条件を一意に選べません。存在する thermal_case を指定してください",
+            "Cannot pick the thermal environment conditions uniquely. Specify an existing thermal_case",
         );
     }
     chosen

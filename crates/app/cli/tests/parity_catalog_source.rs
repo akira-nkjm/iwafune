@@ -87,12 +87,12 @@ fn add_and_remove_match_cli() {
     assert_eq!(
         std::fs::read(cli_root.join("fune.toml")).unwrap(),
         original,
-        "足して外すと元に戻る"
+        "adding then removing restores the original"
     );
     run_cli(&cli_root, &["fmt", "--check"]);
 }
 
-/// 足したあとは取得の案内を出す（足すだけでは取得しない）。
+/// 足したあとは取得の案内を出す（adding alone does not fetch）。
 #[test]
 fn add_prints_the_fetch_hint() {
     let (_t, root) = demo_copy();
@@ -114,7 +114,7 @@ fn add_prints_the_fetch_hint() {
     assert!(stdout.contains("fune catalog fetch"), "{stdout}");
     assert!(
         !root.join("catalog.lock").exists(),
-        "足すだけでは取得しない"
+        "adding alone does not fetch"
     );
 }
 
@@ -132,7 +132,7 @@ fn refused_remove_changes_nothing() {
         .output()
         .unwrap();
     assert_eq!(out.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&out.stderr).contains("外せません"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("cannot be removed"));
     let ws = fune_service::Workspace::open(&http_root).unwrap();
     let router = fune_server::router(std::sync::Arc::new(ws));
     let body = json!({ "ops": [{ "op": "remove_catalog_source", "name": "local" }] }).to_string();

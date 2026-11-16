@@ -27,7 +27,7 @@ fn body_pose_covers_mounted_parts_and_the_mount_root() {
         .iter()
         .filter(|p| p.mount.is_none() && p.id != "BUS_FRAME")
     {
-        assert!(p.body.is_none(), "{} は未配置", p.id);
+        assert!(p.body.is_none(), "{} is not placed", p.id);
     }
     let err = fune_service::edit::place_body_op(
         &ws,
@@ -42,5 +42,5 @@ fn body_pose_covers_mounted_parts_and_the_mount_root() {
         None,
     )
     .unwrap_err();
-    assert!(err.to_string().contains("取付の根"));
+    assert!(err.to_string().contains("mount root"));
 }

@@ -377,7 +377,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 49, "見本の無い Op の種類があります: {seen:?}");
+    assert_eq!(seen.len(), 49, "some op kinds have no sample: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =
@@ -391,12 +391,10 @@ fn every_op_round_trips_through_json() {
 
 /// 目標の軌道と制約を持つマヌーバ。
 fn maneuver() -> fune_model::design::Maneuver {
-    let mut m: fune_model::design::Maneuver = serde_json::from_value(serde_json::json!({
-        "label": "軌道上昇", "category": "insertion", "method": "low_thrust", "thruster": "EPT",
-        "after": "LEOP", "target": { "altitude": { "value": 600.0, "unit": "km" } },
+    serde_json::from_value(serde_json::json!({
+        "id": "RAISE", "label": "軌道上昇", "category": "insertion", "method": "low_thrust",
+        "thruster": "EPT", "after": "LEOP", "target": { "altitude": { "value": 600.0, "unit": "km" } },
         "constraints": { "sunlit_only": true, "mode": "THRUST" }
     }))
-    .unwrap();
-    m.id = "RAISE".into();
-    m
+    .unwrap()
 }

@@ -260,7 +260,7 @@ fn shared_catalog_items_are_read_only() {
     ] {
         match plan(&shared, &[op]) {
             Err(OpError::Invalid { message }) => assert!(
-                message.contains("共有カタログ") && message.contains("PR"),
+                message.contains("shared catalog") && message.contains("PR"),
                 "{message}"
             ),
             other => panic!("{other:?}"),

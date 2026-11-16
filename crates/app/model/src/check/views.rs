@@ -18,7 +18,7 @@ pub(super) fn check_views(ctx: &mut Ctx) {
                     &["nodes", id.as_str()],
                     Some(Target::view(view.id.as_str(), Some(id.as_str()))),
                     format!(
-                        "図 `{}` のノード `{id}` は部品・グループ・ネットのどれでもありません",
+                        "Node `{id}` of diagram `{}` is not a part, group, or net",
                         view.id
                     ),
                 );
@@ -33,7 +33,7 @@ pub(super) fn check_views(ctx: &mut Ctx) {
                     &entity,
                     &keys,
                     target(),
-                    format!("線 `{key}` の経路は 2 点以上の直交線にしてください"),
+                    format!("The route of line `{key}` must be an orthogonal line with at least 2 points"),
                 );
             }
             if !edge.offsets_are_valid() {
@@ -43,7 +43,7 @@ pub(super) fn check_views(ctx: &mut Ctx) {
                     &keys,
                     target(),
                     format!(
-                        "線 `{key}` の端子の位置は 0 以上（側の左か上の角からの距離）にしてください"
+                        "The terminal position of line `{key}` must be at least 0 (distance from the left or top corner of the side)"
                     ),
                 );
             }

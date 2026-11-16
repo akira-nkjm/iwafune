@@ -29,7 +29,7 @@ pub fn status(ws: &Workspace, out: &Out) -> anyhow::Result<u8> {
     );
     let c = &p.counts;
     println!(
-        "部品 {}  グループ {}  モード {}  ネット {}  ハーネス {}  ケース {}",
+        "parts {}  groups {}  modes {}  nets {}  harnesses {}  cases {}",
         c.parts, c.groups, c.modes, c.nets, c.harnesses, c.cases
     );
     print_counts(out, p.diagnostics.errors, p.diagnostics.warnings);
@@ -53,9 +53,9 @@ pub fn check(ws: &Workspace, deny_warnings: bool, out: &Out) -> anyhow::Result<u
 
 fn print_counts(out: &Out, errors: u32, warnings: u32) {
     match (errors, warnings) {
-        (0, 0) => out.ok("検証: 問題はありません"),
-        (0, w) => out.warn(format!("検証: 警告 {w} 件")),
-        (e, w) => out.fail(format!("検証: エラー {e} 件、警告 {w} 件")),
+        (0, 0) => out.ok("Check: no problems"),
+        (0, w) => out.warn(format!("Check: {w} warnings")),
+        (e, w) => out.fail(format!("Check: {e} errors, {w} warnings")),
     }
 }
 
@@ -93,7 +93,7 @@ pub fn mode(ws: &Workspace, cmd: &ModeCmd, out: &Out) -> Handled {
         return Ok(Some(0));
     }
     if !table {
-        let mut t = out.table(&["ID", "名前", "説明", "最長継続時間"]);
+        let mut t = out.table(&["ID", "Name", "Description", "Max duration"]);
         for m in &modes.modes {
             t.row(vec![
                 C::Strong(m.id.clone()),
@@ -110,14 +110,14 @@ pub fn mode(ws: &Workspace, cmd: &ModeCmd, out: &Out) -> Handled {
         t.print();
         return Ok(Some(0));
     }
-    let mut headers = vec!["部品"];
+    let mut headers = vec!["Part"];
     headers.extend(modes.modes.iter().map(|m| m.id.as_str()));
     let mut t = out.table(&headers);
     for row in &modes.rows {
         let mut cells = vec![C::Strong(row.part.clone())];
         for m in &modes.modes {
             cells.push(match row.cells.get(&m.id) {
-                None => C::Dim("未指定".into()),
+                None => C::Dim("not specified".into()),
                 Some(cell) => {
                     let mut text = cell_text(&cell.state, row.shares.get(&m.id));
                     if let Some(n) = cell.active {
@@ -163,7 +163,7 @@ pub fn net(ws: &Workspace, cmd: &NetCmd, out: &Out) -> Handled {
         out.json(&nets)?;
         return Ok(Some(0));
     }
-    let mut t = out.table(&["ID", "種類", "供給元", "レール", "つながるポート"]);
+    let mut t = out.table(&["ID", "Kind", "Source", "Rail", "Connected ports"]);
     t = t.numeric(&[3]);
     for n in &nets {
         t.row(vec![
@@ -202,7 +202,7 @@ pub fn attr(ws: &Workspace, cmd: &AttrCmd, out: &Out) -> Handled {
         out.json(&defs.attributes)?;
         return Ok(Some(0));
     }
-    let mut t = out.table(&["ID", "次元", "単位", "状態で引く", "定義"]);
+    let mut t = out.table(&["ID", "Dimension", "Unit", "By state", "Definition"]);
     for a in &defs.attributes {
         t.row(vec![
             C::Strong(a.id.clone()),
@@ -213,7 +213,7 @@ pub fn attr(ws: &Workspace, cmd: &AttrCmd, out: &Out) -> Handled {
             ),
             C::Text(a.units.join(", ")),
             C::Text(if a.by_state { "✓" } else { "" }.into()),
-            C::Dim(if a.builtin { "組み込み" } else { "defs/" }.into()),
+            C::Dim(if a.builtin { "built-in" } else { "defs/" }.into()),
         ]);
     }
     t.print();
@@ -230,14 +230,14 @@ pub fn kind(ws: &Workspace, cmd: &KindCmd, out: &Out) -> Handled {
         out.json(&defs.kinds)?;
         return Ok(Some(0));
     }
-    let mut t = out.table(&["ID", "role", "状態", "必須の属性", "定義"]);
+    let mut t = out.table(&["ID", "role", "States", "Required attributes", "Definition"]);
     for k in &defs.kinds {
         t.row(vec![
             C::Strong(k.id.clone()),
             C::Text(k.role.map(|r| r.to_string()).unwrap_or_default()),
             C::Text(k.states.join(" / ")),
             C::Text(k.required.join(", ")),
-            C::Dim(if k.builtin { "組み込み" } else { "defs/" }.into()),
+            C::Dim(if k.builtin { "built-in" } else { "defs/" }.into()),
         ]);
     }
     t.print();
@@ -254,7 +254,7 @@ pub fn setting(ws: &Workspace, cmd: &SettingCmd, out: &Out) -> Handled {
         out.json(&settings)?;
         return Ok(Some(0));
     }
-    let mut t = out.table(&["キー", "値", "ファイル"]);
+    let mut t = out.table(&["Key", "Value", "File"]);
     t = t.numeric(&[1]);
     for s in &settings {
         let value = match (&s.value, &s.display) {
@@ -287,12 +287,12 @@ pub fn view(ws: &Workspace, cmd: &crate::args::ViewCmd, out: &Out) -> Handled {
     }
     let Some(layout) = layout else {
         out.warn(format!(
-            "図 {view} の配置はまだありません（view/{view}.toml）"
+            "No layout for diagram {view} yet (view/{view}.toml)"
         ));
         return Ok(Some(0));
     };
     let mut t = out
-        .table(&["ノード", "x", "y", "w", "h"])
+        .table(&["Node", "x", "y", "w", "h"])
         .numeric(&[1, 2, 3, 4]);
     let opt = |v: Option<i32>| v.map_or(C::Dim("—".into()), |v| C::Num(v.to_string()));
     for (id, n) in &layout.nodes {
@@ -318,7 +318,7 @@ pub fn case(ws: &Workspace, cmd: &crate::args::CaseCmd, out: &Out) -> Handled {
         out.json(&cases)?;
         return Ok(Some(0));
     }
-    let mut t = out.table(&["ID", "名前", "モード", "ファイル"]);
+    let mut t = out.table(&["ID", "Name", "Modes", "File"]);
     for c in &cases {
         t.row(vec![
             C::Strong(c.id.clone()),
@@ -341,7 +341,15 @@ pub fn source(ws: &Workspace, cmd: &crate::args::SourceCmd, out: &Out) -> Handle
         out.json(&sources)?;
         return Ok(Some(0));
     }
-    let mut t = out.table(&["ID", "種類", "名前", "参照先", "版", "配布", "日付"]);
+    let mut t = out.table(&[
+        "ID",
+        "Kind",
+        "Name",
+        "Reference",
+        "Revision",
+        "Distribution",
+        "Date",
+    ]);
     for s in sources.iter().map(|v| &v.source) {
         let distribution = s
             .distribution
@@ -371,7 +379,7 @@ pub fn harness(ws: &Workspace, cmd: &crate::args::HarnessCmd, out: &Out) -> Hand
         return Ok(Some(0));
     }
     let mut t = out
-        .table(&["ID", "から", "まで", "ネット", "長さ"])
+        .table(&["ID", "From", "To", "Nets", "Length"])
         .numeric(&[4]);
     for h in &harnesses {
         t.row(vec![

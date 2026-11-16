@@ -43,7 +43,7 @@ pub struct Group {
 enum_text! {
     /// 成熟度（成長余裕と不確かさの既定幅を決める）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
-    pub enum Maturity: "成熟度" {
+    pub enum Maturity: "maturity" {
         OffTheShelf = "off_the_shelf",
         Modified = "modified",
         New = "new",
@@ -53,7 +53,7 @@ enum_text! {
 enum_text! {
     /// 予備機の運用方式。
     #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
-    pub enum Redundancy: "冗長" {
+    pub enum Redundancy: "redundancy" {
         #[default]
         None = "none",
         Cold = "cold",

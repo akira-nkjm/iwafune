@@ -110,7 +110,7 @@ fn datasheet_and_default_source_must_name_a_source() {
     assert!(
         codes(&d, "ref.source")
             .iter()
-            .any(|m| m.contains("データシート"))
+            .any(|m| m.contains("The datasheet source"))
     );
     let item = "kind = \"reaction_wheel\"\ndatasheet = \"ds_rw\"\nsource = \"ds_rw\"\n";
     let d = check(&design(&[

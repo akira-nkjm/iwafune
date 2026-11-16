@@ -17,7 +17,7 @@ pub fn init(dir: &Path, name: &str, out: &Out) -> anyhow::Result<u8> {
         return Ok(0);
     }
     out.ok(format!(
-        "プロジェクト {} を作りました: {}",
+        "Created project {}: {}",
         r.project.name, r.project.root
     ));
     for f in &r.created {
@@ -47,16 +47,16 @@ fn print_apply(r: &ApplyResult, out: &Out) -> anyhow::Result<()> {
             out.diff(&f.diff);
         }
         out.ok(format!(
-            "dry-run: {} ファイルが変わります（書き込んでいません）",
+            "dry-run: {} files would change (nothing written)",
             r.changed.len()
         ));
     } else {
         for f in &r.changed {
             let mark = match f.change {
-                FileChangeKind::Created => "作成",
-                FileChangeKind::Modified => "変更",
-                FileChangeKind::Deleted => "削除",
-                FileChangeKind::Renamed => "移動",
+                FileChangeKind::Created => "created",
+                FileChangeKind::Modified => "modified",
+                FileChangeKind::Deleted => "deleted",
+                FileChangeKind::Renamed => "moved",
             };
             let from = f
                 .from
@@ -66,7 +66,7 @@ fn print_apply(r: &ApplyResult, out: &Out) -> anyhow::Result<()> {
             println!("  {} {from}{}", out.dim(mark), f.path);
         }
         out.ok(format!(
-            "{} ファイルを書き込みました  {}",
+            "Wrote {} files  {}",
             r.changed.len(),
             out.dim(format!("rev {}", short(&r.revision)))
         ));

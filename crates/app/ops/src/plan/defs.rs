@@ -20,7 +20,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         Op::CreateKind { def } => create_kind(edits, design, def),
         Op::UpdateKind { def } => update_kind(edits, design, def),
         Op::DeleteKind { id } => delete_kind(edits, design, id),
-        _ => Err(OpError::invalid("定義の Op ではありません")),
+        _ => Err(OpError::invalid("Not a definition op")),
     }
 }
 
@@ -36,7 +36,7 @@ fn check_attribute(def: &AttributeDef) -> Result<(), OpError> {
 fn create_attribute(edits: &mut Edits, design: &Design, def: &AttributeDef) -> Result<(), OpError> {
     let id = def.id.as_str();
     if design.attribute(id).is_some() {
-        return Err(OpError::exists(format!("属性 `{id}`")));
+        return Err(OpError::exists(format!("Attribute `{id}`")));
     }
     check_attribute(def)?;
     let file = layout::attribute_file(id);
@@ -48,22 +48,22 @@ fn own_attribute(design: &Design, id: &str, what: &str) -> Result<String, OpErro
     if design.attributes.contains_key(id) {
         Ok(layout::attribute_file(id))
     } else if builtin::is_builtin_attribute(id) {
-        Err(builtin_error("属性", id, what))
+        Err(builtin_error("attribute", id, what))
     } else {
-        Err(OpError::not_found(format!("属性 `{id}`")))
+        Err(OpError::not_found(format!("Attribute `{id}`")))
     }
 }
 
 fn update_attribute(edits: &mut Edits, design: &Design, def: &AttributeDef) -> Result<(), OpError> {
-    let file = own_attribute(design, def.id.as_str(), "書き換え")?;
+    let file = own_attribute(design, def.id.as_str(), "edit")?;
     check_attribute(def)?;
     edits.remove(&file)?;
     Ok(edits.create(&file, entities::new_attribute_text(&file, def)?)?)
 }
 
 fn delete_attribute(edits: &mut Edits, design: &Design, id: &str) -> Result<(), OpError> {
-    let file = own_attribute(design, id, "削除")?;
-    refuse_if_used("属性", id, design.references(Referent::Attribute(id)))?;
+    let file = own_attribute(design, id, "delete")?;
+    refuse_if_used("Attribute", id, design.references(Referent::Attribute(id)))?;
     edits.remove(&file)?;
     Ok(())
 }
@@ -72,7 +72,7 @@ fn create_kind(edits: &mut Edits, design: &Design, def: &KindDef) -> Result<(), 
     let id = def.id.as_str();
     validate_local_name(id).map_err(|e| OpError::invalid(e.to_string()))?;
     if design.kind(id).is_some() || builtin::is_builtin_kind(id) {
-        return Err(OpError::exists(format!("種別 `{id}`")));
+        return Err(OpError::exists(format!("Kind `{id}`")));
     }
     let file = layout::kind_file(id);
     Ok(edits.create(&file, entities::new_kind_text(&file, def)?)?)
@@ -83,28 +83,28 @@ fn own_kind(design: &Design, id: &str, what: &str) -> Result<String, OpError> {
     if design.kinds.contains_key(id) {
         Ok(layout::kind_file(id))
     } else if builtin::is_builtin_kind(id) {
-        Err(builtin_error("種別", id, what))
+        Err(builtin_error("kind", id, what))
     } else {
-        Err(OpError::not_found(format!("種別 `{id}`")))
+        Err(OpError::not_found(format!("Kind `{id}`")))
     }
 }
 
 fn update_kind(edits: &mut Edits, design: &Design, def: &KindDef) -> Result<(), OpError> {
-    let file = own_kind(design, def.id.as_str(), "書き換え")?;
+    let file = own_kind(design, def.id.as_str(), "edit")?;
     edits.remove(&file)?;
     Ok(edits.create(&file, entities::new_kind_text(&file, def)?)?)
 }
 
 fn delete_kind(edits: &mut Edits, design: &Design, id: &str) -> Result<(), OpError> {
-    let file = own_kind(design, id, "削除")?;
-    refuse_if_used("種別", id, design.references(Referent::Kind(id)))?;
+    let file = own_kind(design, id, "delete")?;
+    refuse_if_used("Kind", id, design.references(Referent::Kind(id)))?;
     edits.remove(&file)?;
     Ok(())
 }
 
 fn builtin_error(what: &str, id: &str, verb: &str) -> OpError {
     OpError::invalid(format!(
-        "{what} `{id}` は組み込みの定義なので{verb}できません（プロジェクト独自の定義だけが対象です）"
+        "Cannot {verb} built-in {what} `{id}` (only project-defined ones can be changed)"
     ))
 }
 
@@ -115,7 +115,7 @@ fn refuse_if_used(what: &str, id: &str, sites: Vec<RefSite>) -> Result<(), OpErr
         return Ok(());
     }
     Err(OpError::invalid(format!(
-        "{what} `{id}` は {} から使われているので消せません。先に使っている側を付け替えるか消してください",
+        "{what} `{id}` is used by {} and cannot be deleted. Re-point or delete the users first",
         users.join(", ")
     )))
 }
@@ -123,11 +123,11 @@ fn refuse_if_used(what: &str, id: &str, sites: Vec<RefSite>) -> Result<(), OpErr
 /// 定義を使っているものの呼び名（定義の索引の参照元だけ）。
 fn user_text(site: &RefSite) -> Option<String> {
     Some(match site {
-        RefSite::PartKind { part } | RefSite::PartAttribute { part } => format!("部品 {part}"),
+        RefSite::PartKind { part } | RefSite::PartAttribute { part } => format!("part {part}"),
         RefSite::CatalogKind { item } | RefSite::CatalogAttribute { item } => {
-            format!("カタログ品 {item}")
+            format!("catalog item {item}")
         }
-        RefSite::KindExtends { kind } | RefSite::KindAttribute { kind } => format!("種別 {kind}"),
+        RefSite::KindExtends { kind } | RefSite::KindAttribute { kind } => format!("kind {kind}"),
         _ => return None,
     })
 }

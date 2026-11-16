@@ -58,7 +58,7 @@ pub fn net_set_ops(t: &NetSetText) -> Result<Vec<Op>> {
         })
         .collect::<Result<Vec<_>>>()?;
     if ops.is_empty() {
-        return Err(invalid("書くフィールドの旗がありません（--rail など）"));
+        return Err(invalid("No field flag to write (such as --rail)"));
     }
     Ok(ops)
 }
@@ -97,7 +97,7 @@ fn net_field(name: NetFieldName, text: Option<&str>) -> Result<NetField> {
     let owned = text.map(str::to_owned);
     Ok(match name {
         NetFieldName::Kind => NetField::Kind(net_kind(
-            text.ok_or_else(|| invalid("ネットの kind は消せません"))?,
+            text.ok_or_else(|| invalid("Cannot unset the kind of a net"))?,
         )?),
         NetFieldName::Label => NetField::Label(owned),
         NetFieldName::Source => NetField::Source(port()?),
@@ -112,7 +112,7 @@ fn net_field(name: NetFieldName, text: Option<&str>) -> Result<NetField> {
 /// `fune mode set|unset` のセルの列 → 1 つの `SetModeStates`。
 pub fn mode_set_op(t: &ModeSetText) -> Result<Op> {
     if t.cells.is_empty() {
-        return Err(invalid("モード表のセルがありません"));
+        return Err(invalid("No mode-table cell given"));
     }
     let cells = t.cells.iter().map(mode_cell).collect::<Result<_>>()?;
     Ok(Op::SetModeStates { cells })
@@ -122,7 +122,7 @@ fn mode_cell(c: &ModeCellText) -> Result<ModeCell> {
     let state = c.state.as_deref().map(str::trim);
     if state == Some("") {
         return Err(invalid(format!(
-            "{} の {} の基本の状態が空です（行を消すときは `fune mode unset`）",
+            "The base state of {} for {} is empty (to remove the row, use `fune mode unset`)",
             c.mode, c.part
         )));
     }
@@ -163,7 +163,7 @@ pub fn duty_from_text(text: &str) -> Result<BTreeMap<String, String>> {
         .into_iter()
         .map(|pair| {
             pair_from_text(&pair)
-                .ok_or_else(|| invalid(format!("--duty は 状態=割合 の形です: {pair}")))
+                .ok_or_else(|| invalid(format!("--duty must be state=fraction: {pair}")))
         })
         .collect()
 }
@@ -192,7 +192,7 @@ pub fn mode_move_op(
         (None, None, false, true) => ModePosition::Last,
         _ => {
             return Err(invalid(
-                "--before / --after / --first / --last のどれか 1 つを指定します",
+                "Give exactly one of --before / --after / --first / --last",
             ));
         }
     };

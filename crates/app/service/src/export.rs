@@ -7,9 +7,9 @@ use ts_rs::{Config, TS};
 /// TS の書き出しのエラー。
 #[derive(Debug, thiserror::Error)]
 pub enum ExportError {
-    #[error("TS の型を書き出せません: {0}")]
+    #[error("Cannot write the TS types: {0}")]
     Ts(#[from] ts_rs::ExportError),
-    #[error("TS の型名が重複しています（registry.md §4）: {0}")]
+    #[error("Duplicate TS type names (registry.md §4): {0}")]
     DuplicateNames(String),
     #[error("{path}: {source}")]
     Io {

@@ -60,6 +60,6 @@ mod tests {
         .unwrap();
         assert_eq!(text, "from = \"PCDU.OUT3\"\nsource = \"PCDU.OUT3\"\n");
         let err = toml::from_str::<Doc>("from = \"PCDU\"\n").unwrap_err();
-        assert!(err.message().contains("部品.ポート"), "{err}");
+        assert!(err.message().contains("part.port"), "{err}");
     }
 }

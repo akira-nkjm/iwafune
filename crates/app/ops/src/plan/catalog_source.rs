@@ -14,7 +14,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
     match op {
         Op::AddCatalogSource { name, git, rev } => add(edits, design, name, git, rev.as_deref()),
         Op::RemoveCatalogSource { name } => remove(edits, design, name),
-        _ => Err(OpError::invalid("カタログの出所の Op ではありません")),
+        _ => Err(OpError::invalid("Not a catalog source op")),
     }
 }
 
@@ -25,20 +25,19 @@ fn add(
     git: &str,
     rev: Option<&str>,
 ) -> Result<(), OpError> {
-    validate_entity_id(name)
-        .map_err(|e| OpError::invalid(format!("カタログの名前が不正です: {e}")))?;
+    validate_entity_id(name).map_err(|e| OpError::invalid(format!("Invalid catalog name: {e}")))?;
     let names = design.project.catalogs.iter().map(|c| c.name.as_str());
     if let Some(existing) = clash(names, name) {
-        return Err(OpError::exists(format!("カタログ `{existing}`")));
+        return Err(OpError::exists(format!("Catalog `{existing}`")));
     }
     if git.trim().is_empty() {
         return Err(OpError::invalid(
-            "共有カタログの git（取得元の URL）が空です",
+            "The git URL of the shared catalog is empty",
         ));
     }
     if rev.is_some_and(|r| r.trim().is_empty()) {
         return Err(OpError::invalid(
-            "rev が空です（既定のブランチを使うなら rev を省いてください）",
+            "rev is empty (omit rev to use the default branch)",
         ));
     }
     let source = CatalogSource {
@@ -52,17 +51,17 @@ fn add(
 
 fn remove(edits: &mut Edits, design: &Design, name: &str) -> Result<(), OpError> {
     let Some(source) = design.project.catalogs.iter().find(|c| c.name == name) else {
-        return Err(OpError::not_found(format!("カタログ `{name}`")));
+        return Err(OpError::not_found(format!("Catalog `{name}`")));
     };
     if let Some(dir) = source.local_dir() {
         return Err(OpError::invalid(format!(
-            "カタログ `{name}` はこのプロジェクトのカタログ（path = \"{dir}\"）なので外せません（外せるのは共有カタログ git = … だけです）"
+            "Catalog `{name}` is this project's own catalog (path = \"{dir}\") and cannot be removed (only shared catalogs, git = …, can be removed)"
         )));
     }
     let users = users(design.references(Referent::CatalogSource(name)));
     if !users.is_empty() {
         return Err(OpError::invalid(format!(
-            "カタログ `{name}` の品は {} から使われているので外せません。先に使っている側を付け替えるか消してください",
+            "Items of catalog `{name}` are used by {} so it cannot be removed. Re-point or delete the users first",
             users.join(", ")
         )));
     }
@@ -76,9 +75,9 @@ fn users(sites: Vec<RefSite>) -> Vec<String> {
     for site in sites {
         let text = match site {
             RefSite::PartCatalog { part } | RefSite::PartCandidate { part } => {
-                format!("部品 {part}")
+                format!("part {part}")
             }
-            RefSite::HarnessWire { harness } => format!("ハーネス {harness}"),
+            RefSite::HarnessWire { harness } => format!("harness {harness}"),
             _ => continue,
         };
         if !out.contains(&text) {

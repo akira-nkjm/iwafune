@@ -30,7 +30,7 @@ pub(super) fn write_attr(
 ) -> Result<(), OpError> {
     if design.attribute(attr).is_none() {
         return Err(OpError::not_found(format!(
-            "属性 `{attr}` の定義（先に attr add で足してください）"
+            "Definition of attribute `{attr}` (add it with attr add first)"
         )));
     }
     let Some(state) = state else {
@@ -41,7 +41,7 @@ pub(super) fn write_attr(
         return Ok(wpart::set_attr(edits, target.file, attr, &authored)?);
     };
     let Value::Scalar(scalar) = value else {
-        return Err(OpError::invalid("状態ごとのセルにはスカラーを書きます"));
+        return Err(OpError::invalid("A per-state cell must hold a scalar"));
     };
     let cell = Authored {
         value: scalar.clone(),
@@ -67,7 +67,7 @@ pub(super) fn write_attr(
             Ok(wpart::set_attr(edits, target.file, attr, &value)?)
         }
         Some(_) => Err(OpError::invalid(format!(
-            "`{}.{attr}` は状態ごとの値にできない型です",
+            "`{}.{attr}` has a type that cannot vary by state",
             target.owner
         ))),
     }
@@ -84,6 +84,6 @@ pub(super) fn unset_attr(
     if wpart::unset_attr(edits, file, attr, state)? {
         Ok(())
     } else {
-        Err(OpError::not_found(format!("`{owner}.{attr}` の値")))
+        Err(OpError::not_found(format!("Value of `{owner}.{attr}`")))
     }
 }

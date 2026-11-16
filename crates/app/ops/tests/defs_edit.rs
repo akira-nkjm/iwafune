@@ -40,7 +40,7 @@ fn new_kind(id: &str, extends: Option<&str>) -> KindDef {
 fn message(result: Result<fune_ops::Plan, OpError>) -> String {
     match result {
         Err(OpError::Invalid { message }) => message,
-        other => panic!("Invalid のはずが {:?}", other.map(|p| p.changes)),
+        other => panic!("expected Invalid, got {:?}", other.map(|p| p.changes)),
     }
 }
 
@@ -162,10 +162,10 @@ fn delete_attribute_is_refused_while_used() {
         }],
     ));
     assert!(
-        text.contains("種別 wire") && text.contains("カタログ品 local/awg24_ptfe"),
+        text.contains("kind wire") && text.contains("catalog item local/awg24_ptfe"),
         "{text}"
     );
-    assert!(text.contains("消せません"), "{text}");
+    assert!(text.contains("cannot be deleted"), "{text}");
     // 部品が値を書いている
     let ops = [
         Op::CreateAttribute {
@@ -186,14 +186,14 @@ fn delete_attribute_is_refused_while_used() {
         },
     ];
     let text = message(plan(&snap, &ops));
-    assert!(text.contains("部品 RW_X"), "{text}");
+    assert!(text.contains("part RW_X"), "{text}");
 }
 
 #[test]
 fn delete_kind_is_refused_while_used() {
     let snap = snapshot();
     let text = message(plan(&snap, &[Op::DeleteKind { id: "wire".into() }]));
-    assert!(text.contains("カタログ品 local/awg24_ptfe"), "{text}");
+    assert!(text.contains("catalog item local/awg24_ptfe"), "{text}");
     let ops = [
         Op::CreateKind {
             def: new_kind("sail", None),
@@ -209,7 +209,7 @@ fn delete_kind_is_refused_while_used() {
         },
         Op::DeleteKind { id: "sail".into() },
     ];
-    assert!(message(plan(&snap, &ops)).contains("部品 SAIL"));
+    assert!(message(plan(&snap, &ops)).contains("part SAIL"));
     let ops = [
         Op::CreateKind {
             def: new_kind("base_kind", None),
@@ -221,7 +221,7 @@ fn delete_kind_is_refused_while_used() {
             id: "base_kind".into(),
         },
     ];
-    assert!(message(plan(&snap, &ops)).contains("種別 child_kind"));
+    assert!(message(plan(&snap, &ops)).contains("kind child_kind"));
 }
 
 #[test]
@@ -241,7 +241,7 @@ fn builtin_definitions_cannot_be_changed_or_deleted() {
     ];
     for op in ops {
         let text = message(plan(&snap, &[op]));
-        assert!(text.contains("組み込み"), "{text}");
+        assert!(text.contains("built-in"), "{text}");
     }
 }
 

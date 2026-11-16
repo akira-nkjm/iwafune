@@ -9,7 +9,9 @@ use std::path::Path;
 
 fn demo() -> Design {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u");
-    fune_store::load(&root).expect("デモを読めること").design
+    fune_store::load(&root)
+        .expect("the demo should load")
+        .design
 }
 
 /// すべての解析の不足入力（組み立てられた解析は飛ばす）。
@@ -34,7 +36,7 @@ fn assert_parts_exist(design: &Design, missing: &[MissingInput]) {
         if let Some(part) = &m.part {
             assert!(
                 design.parts.contains_key(part.as_str()),
-                "不足入力 `{}` の part `{part}` は設計にありません",
+                "missing input `{}` names part `{part}`, which is not in the design",
                 m.path
             );
         }
@@ -48,7 +50,7 @@ fn missing_inputs_of_an_empty_design_name_no_parts() {
     let resolved = fune_model::resolve(&design);
     let missing = missing_of(&design, &resolved, None);
     assert_parts_exist(&design, &missing);
-    let power = missing.iter().find(|m| m.path == "<部品>.power");
+    let power = missing.iter().find(|m| m.path == "<part>.power");
     assert_eq!(
         power.and_then(|m| m.target.clone()),
         Some(Target::any_part("power"))

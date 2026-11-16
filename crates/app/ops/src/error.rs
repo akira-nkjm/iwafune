@@ -9,21 +9,21 @@ use fune_store::StoreError;
 pub enum OpError {
     /// 読んだ後にほかで書き換えられた（`base_revision` が今の revision と違う）
     #[error(
-        "競合: 基準の revision {expected} が今の revision {actual} と違います（読み直してください）"
+        "Conflict: base revision {expected} differs from current revision {actual} (reload and retry)"
     )]
     Conflict {
         expected: Revision,
         actual: Revision,
     },
-    #[error("{what} がありません")]
+    #[error("{what} not found")]
     NotFound { what: String },
-    #[error("{what} は既にあります")]
+    #[error("{what} already exists")]
     AlreadyExists { what: String },
     /// Op の中身が不正（ID の規則・必須の項目の欠けなど）
     #[error("{message}")]
     Invalid { message: String },
     /// 適用後の設計に新しい error が出る
-    #[error("適用すると {} 件の error が出るので書き込みません", diagnostics.len())]
+    #[error("Not written: applying this would produce {} error(s)", diagnostics.len())]
     Rejected { diagnostics: Vec<Diagnostic> },
     #[error(transparent)]
     Store(#[from] StoreError),

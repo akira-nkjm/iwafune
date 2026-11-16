@@ -14,7 +14,7 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
         "GET",
         "/design",
         &["net", "ls"],
-        "query::design_view（`… ls` は各一覧、`view ls` は `query::view_layout`）",
+        "query::design_view (`… ls` lists each; `view ls` is `query::view_layout`)",
     ),
     ("GET", "/maneuvers", &["maneuver", "ls"], "query::maneuvers"),
     ("GET", "/parts", &["part", "ls"], "query::list_parts"),
@@ -164,12 +164,12 @@ fn every_route_is_in_the_table_or_the_gaps() {
         )
         .collect();
     let actual = routes_in_source();
-    assert!(actual.len() > 20, "経路を読めていません: {actual:?}");
+    assert!(actual.len() > 20, "could not read the routes: {actual:?}");
     let missing: Vec<_> = actual.difference(&documented).collect();
     let stale: Vec<_> = documented.difference(&actual).collect();
     assert!(
         missing.is_empty() && stale.is_empty(),
-        "表に無い経路: {missing:?} / routes.rs に無い表の経路: {stale:?}（docs/architecture.md §4.3 も直す）"
+        "routes missing from the table: {missing:?} / table routes missing from routes.rs: {stale:?} (also fix docs/architecture.md §4.3)"
     );
 }
 
@@ -179,12 +179,12 @@ fn every_cli_command_in_the_table_exists() {
         let out = common::fune().args(*words).arg("--help").output().unwrap();
         assert!(
             out.status.success(),
-            "{method} {path} の CLI `fune {}` がありません",
+            "{method} {path} has no CLI `fune {}`",
             words.join(" ")
         );
     }
     for name in CLI_ONLY {
         let out = common::fune().arg(name).arg("--help").output().unwrap();
-        assert!(out.status.success(), "fune {name} がありません");
+        assert!(out.status.success(), "fune {name} does not exist");
     }
 }

@@ -15,7 +15,7 @@ pub(super) fn exists(root: &Path, name: &str, commit: &str) -> bool {
 pub(super) fn extract(root: &Path, name: &str, mirror: &Mirror, commit: &str) -> Result<()> {
     if !is_cache_key(name, commit) {
         return Err(ServiceError::Data(format!(
-            "commit `{commit}` をキャッシュの名前にできません"
+            "Cannot use commit `{commit}` as a cache name"
         )));
     }
     if exists(root, name, commit) {

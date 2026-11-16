@@ -25,7 +25,7 @@ pub mod port_text;
 enum_text! {
     /// 設定の置き場所の種類。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
-    pub enum SettingScope: "設定の置き場所" {
+    pub enum SettingScope: "setting scope" {
         Conditions = "conditions",
         Analysis = "analysis",
         Budget = "budget",
@@ -125,10 +125,10 @@ impl fmt::Display for ParamPath {
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum PathError {
     #[error(
-        "パス `{0}` を読めません（例: `RW_X.mass`・`RW_X.power.on`・`analysis.power.dod_max`）"
+        "Cannot read path `{0}` (examples: `RW_X.mass`, `RW_X.power.on`, `analysis.power.dod_max`)"
     )]
     Syntax(String),
-    #[error("ポート `{0}` は `部品.ポート` の形で書きます（例: `RW_X.PWR`）")]
+    #[error("Port `{0}` must be written as `part.port` (example: `RW_X.PWR`)")]
     Port(String),
 }
 

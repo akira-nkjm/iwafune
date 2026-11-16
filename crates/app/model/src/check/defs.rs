@@ -25,16 +25,22 @@ pub fn attribute_def_problems(def: &AttributeDef) -> Vec<(&'static str, String)>
     if !needs_unit && (def.dimension.is_some() || !def.units.is_empty()) {
         out.push((
             "def.dimension",
-            format!("型 {:?} の属性に次元・単位は書けません", def.value_type),
+            format!(
+                "An attribute of type {:?} cannot have a dimension or units",
+                def.value_type
+            ),
         ));
     }
     if def.by_state && def.value_type != ValueType::Scalar {
-        out.push(("def.by_state", "状態ごとの値はスカラーだけです".to_string()));
+        out.push((
+            "def.by_state",
+            "Per-state values are only allowed for scalars".to_string(),
+        ));
     }
     match &def.dimension {
         Some(dim) => {
             if parse_dimension_name(dim).is_err() {
-                out.push(("def.dimension", format!("次元名 `{dim}` を知りません")));
+                out.push(("def.dimension", format!("Unknown dimension name `{dim}`")));
             } else {
                 for unit in def.units.iter().chain(def.display_unit.iter()) {
                     if let Err(e) = expect_dimension(unit, dim) {
@@ -50,7 +56,9 @@ pub fn attribute_def_problems(def: &AttributeDef) -> Vec<(&'static str, String)>
                     (Err(e), _) => out.push(("def.unit", e.to_string())),
                     (Ok(_), Some(Ok(false))) => out.push((
                         "def.unit",
-                        format!("許可単位 `{unit}` の次元が他の単位とそろっていません"),
+                        format!(
+                            "The dimension of allowed unit `{unit}` does not match the other units"
+                        ),
                     )),
                     _ => {}
                 }
@@ -58,7 +66,7 @@ pub fn attribute_def_problems(def: &AttributeDef) -> Vec<(&'static str, String)>
             if needs_unit && def.units.is_empty() {
                 out.push((
                     "def.dimension",
-                    "次元（dimension）か許可単位（units）を書いてください".to_string(),
+                    "Specify a dimension (dimension) or allowed units (units)".to_string(),
                 ));
             }
         }
@@ -71,8 +79,8 @@ pub fn attribute_def_problems(def: &AttributeDef) -> Vec<(&'static str, String)>
 /// 大文字小文字は無視する。
 fn field_name_clash(id: &str) -> Option<String> {
     let owners: Vec<&str> = [
-        (PartFieldName::NAMES, "部品"),
-        (CatalogFieldName::NAMES, "カタログ品"),
+        (PartFieldName::NAMES, "part"),
+        (CatalogFieldName::NAMES, "catalog item"),
     ]
     .into_iter()
     .filter(|(fields, _)| clash(fields.iter().copied(), id).is_some())
@@ -80,8 +88,8 @@ fn field_name_clash(id: &str) -> Option<String> {
     .collect();
     (!owners.is_empty()).then(|| {
         format!(
-            "属性 ID `{id}` は{}のフィールド名と同じです（パスの記法で属性とフィールドを区別できません）",
-            owners.join("・")
+            "Attribute ID `{id}` is the same as a field name of {} (path notation cannot tell the attribute from the field)",
+            owners.join(" and ")
         )
     })
 }
@@ -102,7 +110,10 @@ pub(super) fn check_defs(ctx: &mut Ctx) {
                 &entity,
                 &[],
                 target(),
-                format!("属性 `{}` は組み込みの定義と同じ ID です", def.id),
+                format!(
+                    "Attribute `{}` has the same ID as a built-in definition",
+                    def.id
+                ),
             );
         }
         for (code, message) in attribute_def_problems(def) {
@@ -127,7 +138,10 @@ fn check_kind(ctx: &mut Ctx, kind: &KindDef) {
             &entity,
             &[],
             path.clone(),
-            format!("種別 `{}` は組み込みの定義と同じ ID です", kind.id),
+            format!(
+                "Kind `{}` has the same ID as a built-in definition",
+                kind.id
+            ),
         );
     }
     if let Some(parent) = &kind.extends
@@ -138,7 +152,7 @@ fn check_kind(ctx: &mut Ctx, kind: &KindDef) {
             &entity,
             &["extends"],
             path.clone(),
-            format!("継承元の種別 `{parent}` がありません"),
+            format!("Parent kind `{parent}` is not defined"),
         );
     }
     let chain = design.kind_chain(kind.id.as_str());
@@ -152,7 +166,7 @@ fn check_kind(ctx: &mut Ctx, kind: &KindDef) {
             &entity,
             &["extends"],
             path.clone(),
-            "種別の継承が循環しています",
+            "Kind inheritance is circular",
         );
     }
     for attr in kind.required.iter().chain(&kind.optional) {
@@ -162,7 +176,7 @@ fn check_kind(ctx: &mut Ctx, kind: &KindDef) {
                 &entity,
                 &[],
                 path.clone(),
-                format!("属性 `{attr}` の定義がありません"),
+                format!("Attribute `{attr}` has no definition"),
             );
         }
     }
@@ -191,7 +205,7 @@ fn check_thruster_firing_state(
             &["states"],
             path,
             format!(
-                "スラスタの種別 `{id}` の状態に `{}` がありません。噴射中の電力と推力誤差の擾乱は状態 `{}` から読むので、このままでは 0 になります",
+                "Thruster kind `{id}` has no `{}` state. Power during a burn and the thrust-error disturbance are read from state `{}`, so both would be 0",
                 builtin::STATE_THRUSTER_FIRING,
                 builtin::STATE_THRUSTER_FIRING
             ),
@@ -228,15 +242,19 @@ mod tests {
             .iter()
             .map(|d| match &d.target {
                 Some(Target::AttributeDef { id }) => id.clone(),
-                other => panic!("対象が属性定義ではありません: {other:?}"),
+                other => panic!("target is not an attribute definition: {other:?}"),
             })
             .collect();
         assert_eq!(ids, ["Maturity", "count", "label", "part_number"]);
         assert!(reserved.iter().all(|d| d.severity == Severity::Error));
         let message = |i: usize| reserved[i].message.as_str();
-        assert!(message(0).contains("部品・カタログ品の"), "{}", message(0));
-        assert!(message(1).contains("は部品の"), "{}", message(1));
-        assert!(message(3).contains("はカタログ品の"), "{}", message(3));
+        assert!(
+            message(0).contains("part and catalog item"),
+            "{}",
+            message(0)
+        );
+        assert!(message(1).contains("of part"), "{}", message(1));
+        assert!(message(3).contains("of catalog item"), "{}", message(3));
     }
 
     /// 組み込みの属性もフィールド名と重ならない（検査はプロジェクト独自の定義だけを見るので、ここで確かめる）。
@@ -274,7 +292,7 @@ mod tests {
             .iter()
             .map(|d| match &d.target {
                 Some(Target::KindDef { id }) => id.clone(),
-                other => panic!("対象が種別定義ではありません: {other:?}"),
+                other => panic!("target is not a kind definition: {other:?}"),
             })
             .collect();
         assert_eq!(ids, ["burner", "burner_child"]);

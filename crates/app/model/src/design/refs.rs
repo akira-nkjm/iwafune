@@ -40,7 +40,7 @@ pub enum Referent<'a> {
 enum_text! {
     /// ネットのポートの参照を持つキー（`nets/<ネット>.toml`）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-    pub enum NetEnd: "ネットの端" {
+    pub enum NetEnd: "net end" {
         Source = "source",
         Master = "master",
     }
@@ -49,7 +49,7 @@ enum_text! {
 enum_text! {
     /// ハーネスの端のキー（`harness/<区間>.toml`）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-    pub enum HarnessEnd: "ハーネスの端" {
+    pub enum HarnessEnd: "harness end" {
         From = "from",
         To = "to",
     }

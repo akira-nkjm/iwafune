@@ -49,7 +49,7 @@ fn check_system_dirs(ctx: &mut Ctx) {
                 &EntityKey::Part(id.to_owned()),
                 &[],
                 Some(Target::Group { id: id.to_owned() }),
-                format!("parts/ の最上位ディレクトリ `{id}` は系の ID にします（{allowed}）"),
+                format!("Top-level directory `{id}` of parts/ must be a subsystem ID ({allowed})"),
             );
         }
     }
@@ -66,7 +66,7 @@ fn check_definition(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
             entity,
             &["catalog"],
             Some(Target::field(&id, "catalog")),
-            format!("カタログ品 `{reference}` がありません"),
+            format!("Catalog item `{reference}` is not defined"),
         );
     }
     if let Some(kind) = &part.kind {
@@ -76,7 +76,7 @@ fn check_definition(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                 entity,
                 &["kind"],
                 Some(Target::field(&id, "kind")),
-                format!("種別 `{kind}` がありません"),
+                format!("Kind `{kind}` is not defined"),
             );
         } else if let Some((_, Some(item))) = item
             && item.kind != *kind
@@ -87,7 +87,7 @@ fn check_definition(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                 &["kind"],
                 Some(Target::field(&id, "kind")),
                 format!(
-                    "種別 `{kind}` がカタログ品の種別 `{}` と違います",
+                    "Kind `{kind}` differs from the catalog item's kind `{}`",
                     item.kind
                 ),
             );
@@ -106,7 +106,7 @@ fn check_count_and_candidates(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
             entity,
             &[],
             Some(Target::Part { id: id.clone() }),
-            "部品に `catalog` も `kind` もありません",
+            "The part has neither `catalog` nor `kind`",
         );
     }
     for candidate in &part.candidates {
@@ -116,7 +116,7 @@ fn check_count_and_candidates(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                 entity,
                 &["candidates"],
                 Some(Target::field(&id, "candidates")),
-                format!("候補のカタログ品 `{candidate}` がありません"),
+                format!("Candidate catalog item `{candidate}` is not defined"),
             );
         }
     }
@@ -126,7 +126,7 @@ fn check_count_and_candidates(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
             entity,
             &["count"],
             Some(Target::field(&id, "count")),
-            "員数が 0 です",
+            "The count is 0",
         );
     }
 }
@@ -144,7 +144,7 @@ fn check_part_attrs(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                 entity,
                 &["attr", attr.as_str()],
                 path,
-                format!("属性 `{attr}` の定義がありません（defs/attribute/ に足せます）"),
+                format!("Attribute `{attr}` has no definition (add one in defs/attribute/)"),
             );
             continue;
         };
@@ -176,7 +176,7 @@ fn check_part_attrs(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                     entity,
                     &["attr"],
                     Some(Target::attr(&id, attr.as_str())),
-                    format!("必須の属性 `{attr}` が未設定です（種別 `{}`）", k.id),
+                    format!("Required attribute `{attr}` is not set (kind `{}`)", k.id),
                 );
             }
         }
@@ -195,7 +195,7 @@ fn check_mount(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                 entity,
                 &["mount", "on"],
                 target(),
-                format!("取付先の部品 `{}` がありません", mount.on),
+                format!("Mount target part `{}` is not defined", mount.on),
             ),
             Some(parent) => {
                 if let Some(point) = &mount.point
@@ -206,7 +206,7 @@ fn check_mount(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                         entity,
                         &["mount", "point"],
                         target(),
-                        format!("部品 `{}` に取付点 `{point}` がありません", mount.on),
+                        format!("Part `{}` has no mount point `{point}`", mount.on),
                     );
                 }
                 if mount_cycle(design, part) {
@@ -215,7 +215,7 @@ fn check_mount(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                         entity,
                         &["mount"],
                         target(),
-                        "取付の連鎖が循環しています",
+                        "The mount chain is circular",
                     );
                 }
             }
@@ -272,7 +272,7 @@ fn check_pose(ctx: &mut Ctx, entity: &EntityKey, id: &str, mount_point: Option<&
                 entity,
                 keys,
                 target(),
-                format!("姿勢のクォータニオンの大きさが 1 ではありません（{norm:.4}）"),
+                format!("The attitude quaternion does not have norm 1 ({norm:.4})"),
             );
         }
     }
@@ -293,7 +293,7 @@ fn check_ports(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
                     part: part.id.to_string(),
                     port: port.to_string(),
                 })),
-                format!("ネット `{net}` がありません"),
+                format!("Net `{net}` is not defined"),
             );
         }
     }
@@ -310,7 +310,7 @@ fn check_tags(ctx: &mut Ctx, entity: &EntityKey, tags: &[String]) {
                 &["tags"],
                 None,
                 format!(
-                    "タグ `{tag}` は使えません。空でなく、前後に空白が無く、`,` を含まない文字列にしてください"
+                    "Tag `{tag}` cannot be used. It must be non-empty, have no leading or trailing whitespace, and not contain `,`"
                 ),
             );
         } else if tags[..i].contains(tag) {
@@ -319,7 +319,7 @@ fn check_tags(ctx: &mut Ctx, entity: &EntityKey, tags: &[String]) {
                 entity,
                 &["tags"],
                 None,
-                format!("タグ `{tag}` が重複しています。1 つにしてください"),
+                format!("Tag `{tag}` is duplicated. Keep only one"),
             );
         }
     }
@@ -340,7 +340,7 @@ pub(super) fn check_catalog(ctx: &mut Ctx) {
                     id: item.id.clone(),
                     attr: None,
                 }),
-                format!("種別 `{}` がありません", item.kind),
+                format!("Kind `{}` is not defined", item.kind),
             );
             continue;
         }
@@ -365,7 +365,7 @@ pub(super) fn check_catalog(ctx: &mut Ctx) {
                     &entity,
                     &keys,
                     path,
-                    format!("属性 `{attr}` の定義がありません"),
+                    format!("Attribute `{attr}` has no definition"),
                 ),
             }
         }

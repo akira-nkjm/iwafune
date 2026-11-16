@@ -11,7 +11,7 @@ use ts_rs::TS;
 enum_text! {
     /// 出典の種類（根拠の強さの順: placeholder が最も弱い）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-    pub enum SourceKind: "出典の種類" {
+    pub enum SourceKind: "source kind" {
         Placeholder = "placeholder",
         Judgement = "judgement",
         Analysis = "analysis",
@@ -23,7 +23,7 @@ enum_text! {
 enum_text! {
     /// 資料の配布の区分（誰が資料を手に入れられるか）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-    pub enum Distribution: "配布の区分" {
+    pub enum Distribution: "distribution class" {
         /// 誰でも取れる（公開の Web ページなど）
         Public = "public",
         /// ベンダーに依頼して配られる

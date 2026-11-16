@@ -141,7 +141,11 @@ fn demo_verdicts_fills_and_tallies() {
     assert_eq!(dod.basis, FillBasis::Value);
     assert!((dod.ratio - eb[1].value.as_ref().unwrap().si).abs() < 1e-12);
     let storage = &kpis(&ws, "cdh.data_budget", None)[2];
-    assert_eq!(storage.fill.unwrap().ratio, 0.0, "負の余裕は 0 に寄せる");
+    assert_eq!(
+        storage.fill.unwrap().ratio,
+        0.0,
+        "a negative margin is clamped to 0"
+    );
     assert_eq!(storage.verdict, Some(Verdict::Violation));
     let link = &kpis(&ws, "comm.link_budget", None)[0];
     assert_eq!((link.verdict, link.fill), (Some(Verdict::Ok), None));
@@ -162,7 +166,7 @@ fn demo_verdicts_fills_and_tallies() {
     assert_eq!(
         mass.system,
         System::Structure,
-        "質量のバジェットは構造の系で見せる"
+        "the mass budget is shown under the structure subsystem"
     );
     let fill = mass.fill.unwrap();
     assert_eq!(fill.basis, FillBasis::UsedOverLimit);

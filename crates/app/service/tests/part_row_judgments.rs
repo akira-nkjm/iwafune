@@ -44,7 +44,7 @@ fn demo_rows_carry_the_counts_and_the_thruster_decision() {
     }
     assert!(
         rows.iter().any(|p| p.unset_count > 0),
-        "未設定のある部品がデモにある"
+        "the demo has a part with a not-set attribute"
     );
 }
 

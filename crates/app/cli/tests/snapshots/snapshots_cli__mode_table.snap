@@ -2,7 +2,7 @@
 source: crates/app/cli/tests/snapshots_cli.rs
 expression: "stdout(&[\"-C\", root.to_str().unwrap(), \"mode\", \"table\"])"
 ---
- 部品      NOMINAL            MISSION                DOWNLINK           SAFE             
+ Part      NOMINAL            MISSION                DOWNLINK           SAFE             
 ─────────────────────────────────────────────────────────────────────────────────────────
  CAM       off                standby（on 50.0 %）   off                off              
  EPT       off                off                    off                off              

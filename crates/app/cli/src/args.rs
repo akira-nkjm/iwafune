@@ -16,7 +16,7 @@ pub use records::{
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
 
-/// 衛星の設計データを CLI から読み書きし、解析を回す。
+/// Read and write satellite design data from the CLI and run analyses.
 #[derive(Debug, Parser)]
 #[command(name = "fune", version, about, propagate_version = true)]
 pub struct Cli {
@@ -29,7 +29,7 @@ pub struct Cli {
 /// どのコマンドにも付けられるオプション。
 #[derive(Debug, Args)]
 pub struct GlobalOpts {
-    /// プロジェクトの場所（fune.toml のあるディレクトリかその下）
+    /// Project location (the directory with fune.toml, or one below it)
     #[arg(
         short = 'C',
         long = "dir",
@@ -38,10 +38,10 @@ pub struct GlobalOpts {
         value_name = "DIR"
     )]
     pub dir: PathBuf,
-    /// 機械向けの JSON で出力する
+    /// Print machine-readable JSON
     #[arg(long, global = true)]
     pub json: bool,
-    /// 色を付けるか（NO_COLOR と端末でない出力では auto は無色）
+    /// Whether to use colour (auto is plain with NO_COLOR or when output is not a terminal)
     #[arg(long, global = true, value_enum, default_value_t = ColorChoice::Auto)]
     pub color: ColorChoice,
 }
@@ -57,10 +57,10 @@ pub enum ColorChoice {
 /// 編集系のコマンドに共通のオプション。
 #[derive(Debug, Args, Default)]
 pub struct EditOpts {
-    /// 書き込まずに、変更されるファイルの差分を表示する
+    /// Show the diff of the files that would change, without writing
     #[arg(long)]
     pub dry_run: bool,
-    /// この revision から変わっていたら書き込まない（競合で終了コード 3）
+    /// Do not write if the design has changed since this revision (exit code 3 on conflict)
     #[arg(long, value_name = "REV")]
     pub base_revision: Option<String>,
 }
@@ -68,112 +68,112 @@ pub struct EditOpts {
 /// サブコマンド。
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// 新しいプロジェクトを作る
+    /// Create a new project
     Init { name: String },
-    /// 設計データを検証する（エラーがあれば終了コード 1）
+    /// Check the design data (exit code 1 on errors)
     Check {
-        /// 警告もエラーとして扱う
+        /// Treat warnings as errors
         #[arg(long)]
         deny_warnings: bool,
     },
-    /// GUI（ローカルの HTTP サーバー）を起動してブラウザで開く
+    /// Start the GUI (a local HTTP server) and open it in the browser
     ///
-    /// API は設計ファイルを書けるので、Host ヘッダーが許可リストに無い要求は 403（host_not_allowed）で拒む
-    /// （DNS リバインディング対策）。許可するのは localhost・127.0.0.1・[::1]（ポートは問わない）、
-    /// --host に 0.0.0.0 以外を指定したときはその IP、--allow-host で足した名前。
-    /// 例（Tailscale 越し）: fune gui --host 0.0.0.0 --allow-host 100.64.0.1 --no-open
+    /// The API can write design files, so requests whose Host header is not on the allow list are rejected with 403 (host_not_allowed)
+    /// (a DNS rebinding defence). Allowed: localhost, 127.0.0.1, [::1] (any port),
+    /// the IP given to --host unless it is 0.0.0.0, and names added with --allow-host.
+    /// Example (over a VPN): fune gui --host 0.0.0.0 --allow-host 100.64.0.1 --no-open
     Gui {
         #[arg(long, default_value_t = 8787)]
         port: u16,
-        /// 待ち受けるアドレス（既定は 127.0.0.1。0.0.0.0 ですべてのインターフェース）
+        /// Address to listen on (default 127.0.0.1; 0.0.0.0 for all interfaces)
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
-        /// Host ヘッダーとして許可する名前か IP（繰り返し指定できる。例: 100.64.0.1、my-pc.tailnet.ts.net）
+        /// Name or IP to allow as the Host header (repeatable; e.g. 100.64.0.1, my-pc.example.net)
         #[arg(long = "allow-host", value_name = "NAME")]
         allow_host: Vec<String>,
-        /// ブラウザを開かない
+        /// Do not open the browser
         #[arg(long)]
         no_open: bool,
     },
-    /// プロジェクトの概要
+    /// Project overview
     Status,
-    /// 部品
+    /// Parts
     #[command(subcommand)]
     Part(PartCmd),
-    /// 値を設定する（例: `fune set RW_X.mass "620 g" --source em_test`）
+    /// Set a value (e.g. `fune set RW_X.mass "620 g" --source em_test`)
     Set(SetArgs),
-    /// 値を表示する（例: `fune get RW_X.power --state on`）
+    /// Show a value (e.g. `fune get RW_X.power --state on`)
     Get {
         path: String,
         #[arg(long)]
         state: Option<String>,
     },
-    /// 上書きした値を消してカタログの値に戻す
+    /// Remove an overridden value and revert to the catalog value
     Unset {
         path: String,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 属性定義
+    /// Attribute definitions
     #[command(subcommand)]
     Attr(AttrCmd),
-    /// 種別定義
+    /// Kind definitions
     #[command(subcommand)]
     Kind(KindCmd),
-    /// 運用モード
+    /// Operating modes
     #[command(subcommand)]
     Mode(ModeCmd),
-    /// ネット（電気的な接続）
+    /// Nets (electrical connections)
     #[command(subcommand)]
     Net(NetCmd),
-    /// 設定（conditions/・analysis/・budget/）
+    /// Settings (conditions/, analysis/, budget/)
     #[command(subcommand)]
     Setting(SettingCmd),
-    /// カタログ品（catalog/）
+    /// Catalog items (catalog/)
     #[command(subcommand)]
     Catalog(CatalogCmd),
-    /// 解析ケース（cases/）
+    /// Analysis cases (cases/)
     #[command(subcommand)]
     Case(CaseCmd),
-    /// 出典の台帳（sources/）
+    /// Source register (sources/)
     #[command(subcommand)]
     Source(SourceCmd),
-    /// ハーネス区間（harness/）
+    /// Harness segments (harness/)
     #[command(subcommand)]
     Harness(HarnessCmd),
-    /// マヌーバ（maneuvers/）
+    /// Maneuvers (maneuvers/)
     #[command(subcommand)]
     Maneuver(ManeuverCmd),
-    /// 図の配置（系統図のノードの位置）
+    /// Diagram layout (node positions of the system diagrams)
     #[command(subcommand)]
     View(ViewCmd),
-    /// 単位
+    /// Units
     #[command(subcommand)]
     Units(UnitsCmd),
-    /// 設計ファイルを整形する（`fune fmt`、`fune fmt --check`）
+    /// Format the design files (`fune fmt`, `fune fmt --check`)
     Fmt {
-        /// 書き換えずに、整形が要るファイルを報告する（あれば終了コード 1）
+        /// Report the files that need formatting without rewriting them (exit code 1 if any)
         #[arg(long)]
         check: bool,
     },
-    /// 解析（`fune analyze ls`、`fune analyze power.energy_balance`）
+    /// Run an analysis (`fune analyze ls`, `fune analyze power.energy_balance`)
     Analyze(AnalyzeArgs),
-    /// バジェット（mass / power / data）
+    /// Budgets (mass / power / data)
     Budget {
         kind: String,
-        /// 解析ケースの ID（cases/<ID>.toml）。電力はケースのモード、データ量はケースのモードだけで数える
+        /// Analysis case ID (cases/<ID>.toml); power and data volume are counted from the case's mode only
         #[arg(long)]
         case: Option<String>,
-        /// 保存していない編集（Op の配列の JSON ファイル、`-` で標準入力）を書き込まずに当てて数える
+        /// Apply unsaved edits (a JSON file of Ops, or `-` for stdin) without writing, then count
         #[arg(long)]
         ops: Option<PathBuf>,
     },
-    /// 外部データ（DE440 の暦表）
+    /// External data (DE440 ephemeris)
     #[command(subcommand)]
     Data(DataCmd),
-    /// Op の JSON（GUI と同じ形）を適用する
+    /// Apply Op JSON (the same form the GUI uses)
     Apply {
-        /// Op の配列の JSON ファイル（`-` で標準入力）
+        /// JSON file of an array of Ops (`-` for stdin)
         file: PathBuf,
         #[command(flatten)]
         edit: EditOpts,
@@ -183,25 +183,25 @@ pub enum Command {
 /// `fune units …`
 #[derive(Debug, Subcommand)]
 pub enum UnitsCmd {
-    /// 単位の一覧
+    /// List units
     Ls {
         #[arg(long)]
         dimension: Option<String>,
     },
-    /// 入力文字列を解析する（例: `fune units parse "18 mN*m*s"`）
+    /// Parse an input string (e.g. `fune units parse "18 mN*m*s"`)
     Parse {
         input: String,
         #[arg(long)]
         dimension: Option<String>,
     },
-    /// SI 値を表示用に整形する（例: `fune units format 2.213e10 --dimension Information`）
+    /// Format SI values for display (e.g. `fune units format 2.213e10 --dimension Information`)
     Format {
-        /// SI 値（複数可）
+        /// SI values (one or more)
         #[arg(required = true, allow_negative_numbers = true)]
         values: Vec<f64>,
         #[arg(long)]
         dimension: String,
-        /// 単位を指定する（例: `Mbit`）
+        /// Unit to use (e.g. `Mbit`)
         #[arg(long)]
         unit: Option<String>,
     },
@@ -210,15 +210,15 @@ pub enum UnitsCmd {
 /// `fune data …`
 #[derive(Debug, Subcommand)]
 pub enum DataCmd {
-    /// キャッシュにあるデータの状態
+    /// State of the cached data
     Status,
-    /// データを取得してキャッシュに置く（例: `fune data fetch de440`（gh が要る）・`fune data fetch space_weather`（curl が要る））
+    /// Fetch data into the cache (e.g. `fune data fetch de440` (needs gh), `fune data fetch space_weather` (needs curl))
     Fetch { id: String },
-    /// 日付から宇宙天気（F10.7・Ap）を引く（例: `fune data space-weather 2003-10-29`）
+    /// Look up space weather (F10.7, Ap) for a date (e.g. `fune data space-weather 2003-10-29`)
     SpaceWeather {
-        /// ISO 8601 の元期（日付だけでも可）
+        /// ISO 8601 epoch (a date alone is fine)
         date: String,
-        /// 表の範囲の外で使う太陽活動（low・moderate・high。省略時は moderate）
+        /// Solar activity to use outside the table range (low, moderate, high; default moderate)
         #[arg(long)]
         activity: Option<String>,
     },
@@ -227,15 +227,15 @@ pub enum DataCmd {
 /// `fune analyze`
 #[derive(Debug, Args)]
 pub struct AnalyzeArgs {
-    /// `ls` か解析 ID（例: `power.energy_balance`）
+    /// `ls` or an analysis ID (e.g. `power.energy_balance`)
     pub target: String,
-    /// 解析ケース
+    /// Analysis case
     #[arg(long)]
     pub case: Option<String>,
-    /// 入力を丸ごと与える JSON ファイル（設計データから組み立てない）
+    /// JSON file that supplies the whole input (not built from the design data)
     #[arg(long)]
     pub input: Option<PathBuf>,
-    /// 保存していない編集（Op の配列の JSON ファイル、`-` で標準入力）を書き込まずに当てて解析する
+    /// Apply unsaved edits (a JSON file of Ops, or `-` for stdin) without writing, then analyze
     #[arg(long)]
     pub ops: Option<PathBuf>,
 }

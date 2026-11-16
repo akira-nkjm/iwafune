@@ -73,7 +73,7 @@ pub fn run_cli(root: &Path, args: &[&str]) {
     let out = fune().arg("-C").arg(root).args(args).output().unwrap();
     assert!(
         out.status.success(),
-        "fune {args:?} が失敗しました:\n{}\n{}",
+        "fune {args:?} failed:\n{}\n{}",
         String::from_utf8_lossy(&out.stdout),
         String::from_utf8_lossy(&out.stderr)
     );
@@ -101,7 +101,7 @@ pub fn post_json(
         let bytes = to_bytes(res.into_body(), usize::MAX).await.unwrap();
         (status, String::from_utf8_lossy(&bytes).into_owned())
     });
-    assert_eq!(status, StatusCode::OK, "POST {uri} が失敗しました: {text}");
+    assert_eq!(status, StatusCode::OK, "POST {uri} failed: {text}");
     serde_json::from_str(&text).unwrap()
 }
 
@@ -119,7 +119,7 @@ pub fn get_json(rt: &tokio::runtime::Runtime, root: &Path, uri: &str) -> serde_j
         let bytes = to_bytes(res.into_body(), usize::MAX).await.unwrap();
         (status, String::from_utf8_lossy(&bytes).into_owned())
     });
-    assert_eq!(status, StatusCode::OK, "GET {uri} が失敗しました: {text}");
+    assert_eq!(status, StatusCode::OK, "GET {uri} failed: {text}");
     serde_json::from_str(&text).unwrap()
 }
 
@@ -129,11 +129,11 @@ pub fn assert_same_files(cli: &Path, http: &Path, after: &str) {
     let b = snapshot_files(http);
     let paths_a: Vec<&String> = a.keys().collect();
     let paths_b: Vec<&String> = b.keys().collect();
-    assert_eq!(paths_a, paths_b, "{after} の後でファイルの集合が違います");
+    assert_eq!(paths_a, paths_b, "the set of files differs after {after}");
     for (path, bytes) in &a {
         assert!(
             b.get(path) == Some(bytes),
-            "{after} の後で {path} が違います\n--- CLI\n{}\n--- HTTP\n{}",
+            "{path} differs after {after}\n--- CLI\n{}\n--- HTTP\n{}",
             String::from_utf8_lossy(bytes),
             String::from_utf8_lossy(&b[path])
         );

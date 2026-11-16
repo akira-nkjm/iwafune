@@ -28,7 +28,7 @@ fn flag(text: &Option<String>) -> Result<Option<bool>> {
         .map(|t| match t.trim() {
             "true" => Ok(true),
             "false" => Ok(false),
-            other => Err(invalid(format!("true か false にしてください（{other}）"))),
+            other => Err(invalid(format!("must be true or false ({other})"))),
         })
         .transpose()
 }
@@ -89,7 +89,7 @@ mod tests {
     #[test]
     fn typed_text_becomes_a_maneuver_and_back() {
         let Op::SetManeuver { maneuver } = maneuver_op(&text(), false).unwrap() else {
-            panic!("SetManeuver ではありません");
+            panic!("not SetManeuver");
         };
         assert_eq!(maneuver.target.altitude, Some(Quantity::new(600.0, "km")));
         assert_eq!(maneuver.constraints.sunlit_only, Some(true));

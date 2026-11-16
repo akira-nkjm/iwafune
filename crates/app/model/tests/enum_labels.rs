@@ -66,7 +66,7 @@ fn every_enum_value_has_a_label() {
     let mut types: Vec<&str> = LABELLED.iter().map(|(ty, _)| *ty).collect();
     types.sort_unstable();
     let listed: Vec<&str> = labels().enums.keys().map(String::as_str).collect();
-    assert_eq!(listed, types, "表示名の表にある列挙の型");
+    assert_eq!(listed, types, "enum types in the label table");
 }
 
 /// 系の表示名と並び（labels.toml の `[section.<系>]`・`section_order`）と、役割 → 系（`role_system`）は、
@@ -80,14 +80,14 @@ fn sections_and_role_systems_name_analysis_systems() {
         assert!(l.section.contains_key(name), "section.{name}");
         assert!(
             l.section_order.iter().any(|s| s == name),
-            "section_order に {name}"
+            "section_order has {name}"
         );
     }
     for (role, system) in &l.role_system {
         let Some(system) = system else { continue };
         assert!(
             system.parse::<AnalysisSystem>().is_ok(),
-            "role_system.{role} = {system} は解析の系ではありません"
+            "role_system.{role} = {system} is not an analysis subsystem"
         );
     }
     let mut order = l.section_order.clone();
@@ -95,6 +95,6 @@ fn sections_and_role_systems_name_analysis_systems() {
     let sections: Vec<String> = l.section.keys().cloned().collect();
     assert_eq!(
         order, sections,
-        "section_order はすべての区分を 1 回ずつ並べる"
+        "section_order lists every section exactly once"
     );
 }

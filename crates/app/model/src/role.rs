@@ -7,7 +7,7 @@ use ts_rs::TS;
 enum_text! {
     /// 解析が部品を見分ける役割。種別の継承で引き継ぐ。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
-    pub enum Role: "部品の役割" {
+    pub enum Role: "part role" {
         Obc = "obc",
         Pcdu = "pcdu",
         Battery = "battery",

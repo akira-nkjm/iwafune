@@ -10,10 +10,10 @@ use rust_embed::RustEmbed;
 #[allow_missing = true]
 struct Assets;
 
-const MISSING_BUILD: &str = "<!doctype html><html lang=\"ja\"><head><meta charset=\"utf-8\"><title>fune</title></head>\
+const MISSING_BUILD: &str = "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>fune</title></head>\
 <body style=\"font-family:sans-serif;padding:2rem\"><h1>fune</h1>\
-<p>GUI のビルド（web/dist）がありません。<code>pnpm -C web install &amp;&amp; pnpm -C web build</code> のあとで fune をビルドし直してください。</p>\
-<p>API は <a href=\"/api/v1/project\">/api/v1</a> で使えます。</p></body></html>";
+<p>The GUI build (web/dist) is missing. Run <code>pnpm -C web install &amp;&amp; pnpm -C web build</code>, then rebuild fune.</p>\
+<p>The API is available at <a href=\"/api/v1/project\">/api/v1</a>.</p></body></html>";
 
 /// `/api` 以外のすべての GET を受ける。
 pub async fn fallback(uri: Uri) -> Response {

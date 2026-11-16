@@ -165,7 +165,7 @@ fn catalog_items_share_the_part_value_view() {
     );
     assert!(
         item.editable,
-        "fune.toml の [[catalog]] path の品は書き換えられる"
+        "an item from a [[catalog]] path in fune.toml can be rewritten"
     );
     assert_eq!(item.users, ["RW_X", "RW_Y", "RW_Z"]);
     assert_eq!(item.paths["power"]["on"], "local/rw_10mNms.power.on");
@@ -176,7 +176,10 @@ fn catalog_items_share_the_part_value_view() {
         let (a, b) = (&item.values[attr], &wheel.values[attr]);
         assert_eq!(a.display, b.display, "{attr}");
         assert_eq!(a.origin, fune_service::dto::Origin::Catalog);
-        assert_eq!(a.evidence, b.evidence, "{attr}: 品の source が既定の出典");
+        assert_eq!(
+            a.evidence, b.evidence,
+            "{attr}: the item source is the default source"
+        );
         assert_eq!(a.file.as_deref(), Some("catalog/rw_10mNms.toml"));
     }
     // 部品が上書きした値（RW_X.mass）は品の値ではない

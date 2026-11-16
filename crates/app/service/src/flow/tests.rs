@@ -30,7 +30,7 @@ fn every_edge_connects_existing_cards_and_rows() {
     ids.sort();
     let before = ids.len();
     ids.dedup();
-    assert_eq!(ids.len(), before, "カードの ID が重複");
+    assert_eq!(ids.len(), before, "duplicate card IDs");
     for e in &flow.edges {
         let source = flow.nodes.iter().find(|n| n.id == e.source).unwrap();
         let target = flow.nodes.iter().find(|n| n.id == e.target).unwrap();
@@ -39,7 +39,7 @@ fn every_edge_connects_existing_cards_and_rows() {
             (FlowEdgeKind::Input, Some(row)) => {
                 assert!(source.rows.iter().any(|r| r.id == *row), "{}", e.id);
                 let r = source.rows.iter().find(|r| r.id == *row).unwrap();
-                assert!(!r.derived, "求めた値はつながりを持たない: {}", e.id);
+                assert!(!r.derived, "a derived value has no connection: {}", e.id);
             }
             (FlowEdgeKind::Result, None) => assert_eq!(source.kind, FlowNodeKind::Analysis),
             other => panic!("{}: {other:?}", e.id),
@@ -49,7 +49,7 @@ fn every_edge_connects_existing_cards_and_rows() {
     edge_ids.sort();
     let n = edge_ids.len();
     edge_ids.dedup();
-    assert_eq!(edge_ids.len(), n, "つながりの ID が重複");
+    assert_eq!(edge_ids.len(), n, "duplicate edge IDs");
 }
 
 #[test]
@@ -154,7 +154,7 @@ fn many_loads_fold_in_order_of_power() {
         Workspace::open(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u"))
             .unwrap();
     let s = ws.snapshot().unwrap();
-    let fold = flow.folds.first().expect("負荷のまとまり");
+    let fold = flow.folds.first().expect("load group");
     assert!(fold.nodes.len() >= 5);
     // まとめたカードは部品の合計（1 部品のカードは補足が部品 ID）
     let peak = |node: &str| -> f64 {

@@ -38,7 +38,16 @@ fn part_ls(ws: &Workspace, q: &PartsQuery, out: &Out) -> anyhow::Result<u8> {
         out.json(&rows)?;
         return Ok(0);
     }
-    let mut t = out.table(&["ID", "系", "種別", "定義", "数", "質量", "電力", "動作温度"]);
+    let mut t = out.table(&[
+        "ID",
+        "Subsystem",
+        "Kind",
+        "Definition",
+        "Count",
+        "Mass",
+        "Power",
+        "Operating temp",
+    ]);
     t = t.numeric(&[4, 5, 6]);
     for r in &rows {
         let mut cells = vec![
@@ -58,7 +67,7 @@ fn part_ls(ws: &Workspace, q: &PartsQuery, out: &Out) -> anyhow::Result<u8> {
         t.row(cells);
     }
     t.print();
-    println!("{}", out.dim(format!("{} 部品", rows.len())));
+    println!("{}", out.dim(format!("{} parts", rows.len())));
     Ok(0)
 }
 
@@ -103,7 +112,11 @@ fn part_show(ws: &Workspace, id: &str, req: &PartViewRequest, out: &Out) -> anyh
         .unwrap_or_else(|| format!("kind {}", r.kind.as_deref().unwrap_or_default()));
     println!("{}", out.dim(format!("{def}  ×{}  {}", r.count, r.file)));
     for section in &p.sections {
-        let mut t = out.table(&[section.label.as_str(), "値", "出所"]);
+        let mut t = out.table(&[
+            query::english(&section.label, section.label_en.as_deref()),
+            "Value",
+            "Source",
+        ]);
         t = t.numeric(&[1]);
         for attr in &section.attrs {
             if let Some(v) = r.values.get(attr) {
@@ -117,7 +130,7 @@ fn part_show(ws: &Workspace, id: &str, req: &PartViewRequest, out: &Out) -> anyh
         t.print();
     }
     if !r.ports.is_empty() {
-        let mut t = out.table(&["ポート", "ネット"]);
+        let mut t = out.table(&["Port", "Net"]);
         for port in &r.ports {
             t.row(vec![
                 C::Text(port.id.clone()),

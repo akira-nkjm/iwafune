@@ -73,9 +73,9 @@ fn create_attribute_rejects_field_names() {
         };
         match plan(&snap, &[op]) {
             Err(OpError::Invalid { message }) => {
-                assert!(message.contains("フィールド名"), "{id}: {message}");
+                assert!(message.contains("field name"), "{id}: {message}");
             }
-            other => panic!("{id} の属性が作れてしまう: {other:?}"),
+            other => panic!("attribute `{id}` was created: {other:?}"),
         }
     }
 }

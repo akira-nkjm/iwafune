@@ -34,7 +34,7 @@ pub fn new_allocation_text(allocations: &Allocations) -> String {
 }
 
 /// lock の先頭の注記。
-const LOCK_HEADER: &str = "# fune catalog fetch・fune catalog update が書きます（手で編集しない）。git で管理してください。\n";
+const LOCK_HEADER: &str = "# Written by fune catalog fetch and fune catalog update (do not edit by hand). Keep it under git.\n";
 
 /// `catalog.lock` の本文（先頭の注記と、serde の形のままの `[[catalog]]`）。記録が無ければ注記だけ。
 pub fn catalog_lock_text(lock: &CatalogLock) -> Result<String, StoreError> {
@@ -77,7 +77,7 @@ pub fn add_catalog_source(
         let array = entry.as_array_of_tables_mut().ok_or_else(|| {
             StoreError::edit(
                 PROJECT_FILE,
-                "`catalog` が [[catalog]] の表の並びではありません",
+                "`catalog` is not an array of [[catalog]] tables",
             )
         })?;
         array.push(table);

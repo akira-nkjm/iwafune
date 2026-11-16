@@ -7,11 +7,11 @@ use clap::{Args, Subcommand};
 /// `fune case …`
 #[derive(Debug, Subcommand)]
 pub enum CaseCmd {
-    /// 解析ケースの一覧
+    /// List analysis cases
     Ls,
-    /// 解析ケースを書く
+    /// Write an analysis case
     Set(CaseArgs),
-    /// 季節解析の代表日から解析ケースを作る
+    /// Create analysis cases from the representative days of a seasonal analysis
     FromEclipse {
         id: String,
         /// longest / beta_min
@@ -22,7 +22,7 @@ pub enum CaseCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 解析ケースを消す
+    /// Remove an analysis case
     Rm {
         id: String,
         #[command(flatten)]
@@ -38,19 +38,19 @@ pub struct CaseArgs {
     pub label: Option<String>,
     #[arg(long)]
     pub description: Option<String>,
-    /// 使うモード
+    /// Mode to use
     #[arg(long)]
     pub mode: Option<String>,
-    /// 不確かさのどちら側を読むか（nominal / min / max）
+    /// Which side of the uncertainty to read (nominal / min / max)
     #[arg(long)]
     pub side: Option<String>,
-    /// 熱の環境条件（`analysis.thermal` の `[case.<名前>]`）
+    /// Thermal environment (`[case.<name>]` in `analysis.thermal`)
     #[arg(long)]
     pub thermal_case: Option<String>,
-    /// β 角（例: `"60 deg"`）
+    /// Beta angle (e.g. `"60 deg"`)
     #[arg(long, allow_hyphen_values = true)]
     pub beta: Option<String>,
-    /// 時系列の周回数
+    /// Number of orbits for the time series
     #[arg(long)]
     pub orbits: Option<u32>,
     #[command(flatten)]
@@ -60,11 +60,11 @@ pub struct CaseArgs {
 /// `fune source …`
 #[derive(Debug, Subcommand)]
 pub enum SourceCmd {
-    /// 出典の一覧
+    /// List sources
     Ls,
-    /// 出典を書く
+    /// Write a source
     Set(Box<SourceArgs>),
-    /// 出典を消す（値から参照されていれば拒む）
+    /// Remove a source (refused if a value refers to it)
     Rm {
         id: String,
         #[command(flatten)]
@@ -81,22 +81,22 @@ pub struct SourceArgs {
     pub kind: String,
     #[arg(long)]
     pub label: Option<String>,
-    /// 参照先（URL・リポジトリ内のパス・文書番号）
+    /// Reference (URL, path in the repository, or document number)
     #[arg(long = "ref")]
     pub reference: Option<String>,
-    /// 資料の版（例: `"Rev. C"`）
+    /// Document revision (e.g. `"Rev. C"`)
     #[arg(long)]
     pub revision: Option<String>,
-    /// 資料を取得した日（`2026-10-15`）
+    /// Date the document was retrieved (`2026-10-15`)
     #[arg(long)]
     pub retrieved: Option<String>,
-    /// 取得したファイルの SHA-256（64 桁の 16 進数）
+    /// SHA-256 of the retrieved file (64 hex digits)
     #[arg(long)]
     pub sha256: Option<String>,
-    /// 配布の区分（public / on_request / restricted）
+    /// Distribution class (public / on_request / restricted)
     #[arg(long)]
     pub distribution: Option<String>,
-    /// 日付（試験・解析・判断をした日。`2026-10-15`）
+    /// Date (when the test, analysis or judgement was made, `2026-10-15`)
     #[arg(long)]
     pub date: Option<String>,
     #[arg(long)]
@@ -110,11 +110,11 @@ pub struct SourceArgs {
 /// `fune harness …`
 #[derive(Debug, Subcommand)]
 pub enum HarnessCmd {
-    /// ハーネスの一覧
+    /// List harness segments
     Ls,
-    /// ハーネス区間を書く
+    /// Write a harness segment
     Set(HarnessArgs),
-    /// ハーネス区間を消す
+    /// Remove a harness segment
     Rm {
         id: String,
         #[command(flatten)]
@@ -126,21 +126,21 @@ pub enum HarnessCmd {
 #[derive(Debug, Args)]
 pub struct HarnessArgs {
     pub id: String,
-    /// 一端のポート（`PCDU.OUT3`）
+    /// Port at one end (`PCDU.OUT3`)
     #[arg(long)]
     pub from: String,
-    /// もう一端のポート（`RW_X.PWR`）
+    /// Port at the other end (`RW_X.PWR`)
     #[arg(long)]
     pub to: String,
-    /// 通すネット（カンマ区切り）
+    /// Nets carried (comma-separated)
     #[arg(long)]
     pub nets: Option<String>,
-    /// 線材のカタログ品
+    /// Catalog item for the wire
     #[arg(long)]
     pub wire: Option<String>,
     #[arg(long)]
     pub cores: Option<u32>,
-    /// 長さ（例: `"0.35 m"`）
+    /// Length (e.g. `"0.35 m"`)
     #[arg(long)]
     pub length: Option<String>,
     #[arg(long)]
@@ -152,13 +152,13 @@ pub struct HarnessArgs {
 /// `fune maneuver …`
 #[derive(Debug, Subcommand)]
 pub enum ManeuverCmd {
-    /// マヌーバの一覧（実行の順）
+    /// List maneuvers (in execution order)
     Ls,
-    /// マヌーバを足す（同じ ID があれば拒む）
+    /// Add a maneuver (refused if the ID exists)
     Add(ManeuverArgs),
-    /// マヌーバを書く（無ければ作り、あれば丸ごと置き換える）
+    /// Write a maneuver (create it, or replace it entirely if it exists)
     Set(ManeuverArgs),
-    /// マヌーバを消す（後ろのマヌーバは消したマヌーバの前につなぎ直す）
+    /// Remove a maneuver (later maneuvers are re-linked to the one before it)
     Rm {
         id: String,
         #[command(flatten)]
@@ -178,40 +178,40 @@ pub struct ManeuverArgs {
     pub method: String,
     #[arg(long)]
     pub label: Option<String>,
-    /// スラスタの部品
+    /// Thruster part
     #[arg(long)]
     pub thruster: Option<String>,
-    /// 前のマヌーバ
+    /// Previous maneuver
     #[arg(long)]
     pub after: Option<String>,
-    /// バイエリプティック遷移の中間の遠地点の高度（例: `"20000 km"`）
+    /// Intermediate apoapsis altitude of a bi-elliptic transfer (e.g. `"20000 km"`)
     #[arg(long)]
     pub via_altitude: Option<String>,
-    /// 目標の中心天体（例: `moon`・`mars`。天体間の遷移になり、高度はその天体から）
+    /// Central body of the target (e.g. `moon`, `mars`; makes it a transfer between bodies, with altitudes measured from that body)
     #[arg(long)]
     pub body: Option<String>,
-    /// 目標の円軌道の高度（例: `"600 km"`）
+    /// Altitude of the target circular orbit (e.g. `"600 km"`)
     #[arg(long)]
     pub altitude: Option<String>,
-    /// 目標の近地点の高度
+    /// Target periapsis altitude
     #[arg(long, allow_hyphen_values = true)]
     pub perigee_altitude: Option<String>,
-    /// 目標の遠地点の高度
+    /// Target apoapsis altitude
     #[arg(long)]
     pub apogee_altitude: Option<String>,
-    /// 目標の傾斜角（例: `"97.8 deg"`）
+    /// Target inclination (e.g. `"97.8 deg"`)
     #[arg(long)]
     pub inclination: Option<String>,
-    /// 日照中だけ噴射する（true / false。粗い段階の解析では使わない）
+    /// Burn only in sunlight (true / false; not used by the coarse analysis)
     #[arg(long)]
     pub sunlit_only: Option<String>,
-    /// 噴射するモード（粗い段階の解析では使わない）
+    /// Mode in which to burn (not used by the coarse analysis)
     #[arg(long)]
     pub mode: Option<String>,
-    /// デューティ（噴いてよい時間のうち噴く割合。propagated だけ）
+    /// Duty (fraction of the allowed burn time spent burning; propagated only)
     #[arg(long)]
     pub duty: Option<String>,
-    /// 推力の向き（tangential / inertial。propagated だけ）
+    /// Thrust direction (tangential / inertial; propagated only)
     #[arg(long)]
     pub steering: Option<String>,
     #[command(flatten)]
@@ -223,13 +223,13 @@ pub struct ManeuverArgs {
 pub struct PointArgs {
     pub part: String,
     pub point: String,
-    /// 位置（例: `"30 0 5 mm"`）
+    /// Position (e.g. `"30 0 5 mm"`)
     #[arg(long, allow_hyphen_values = true)]
     pub position: Option<String>,
-    /// 姿勢のクォータニオン（`"1 0 0 0"`、w x y z）
+    /// Attitude quaternion (`"1 0 0 0"`, w x y z)
     #[arg(long, allow_hyphen_values = true)]
     pub orientation: Option<String>,
-    /// 取付点を消す
+    /// Remove the mount point
     #[arg(long, conflicts_with_all = ["position", "orientation"])]
     pub rm: bool,
     #[command(flatten)]
@@ -239,24 +239,24 @@ pub struct PointArgs {
 /// `fune catalog …`（カタログ品。編集できるのはこのプロジェクトのカタログ品だけ。共有カタログは取得と更新）
 #[derive(Debug, Subcommand)]
 pub enum CatalogCmd {
-    /// カタログ品の一覧
+    /// List catalog items
     Ls,
-    /// 1 品の内容
+    /// Show one catalog item
     Show { id: String },
-    /// 共有カタログ（`[[catalog]] git = …`）を取得して `.fune/` に置き、commit を catalog.lock に記録する
+    /// Fetch shared catalogs (`[[catalog]] git = …`) into `.fune/` and record the commit in catalog.lock
     Fetch {
-        /// catalog.lock を書き換えない（lock が無い・fune.toml と違えば失敗する。CI 向け）
+        /// Do not rewrite catalog.lock (fails if the lock is missing or differs from fune.toml; for CI)
         #[arg(long)]
         locked: bool,
     },
-    /// 共有カタログの lock を `rev` の今の commit に上げ、変わった品と値を出す
+    /// Move the shared catalog lock to the current commit of `rev` and show the items and values that changed
     Update {
-        /// 共有カタログの名前（fune.toml の `[[catalog]]` の `name`）
+        /// Name of the shared catalog (`name` in `[[catalog]]` of fune.toml)
         name: String,
     },
-    /// カタログ品を足す（`--from-part` で部品の値を写す）
+    /// Add a catalog item (`--from-part` copies the values of a part)
     Add {
-        /// 出所付きの ID（例: `local/rw_30mNms`）
+        /// ID with its origin (e.g. `local/rw_30mNms`)
         id: String,
         #[arg(long)]
         kind: String,
@@ -272,16 +272,16 @@ pub enum CatalogCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 属性の値かフィールドを書く（例: `fune catalog set local/rw_30mNms mass "0.9 kg"`）
+    /// Write an attribute value or a field (e.g. `fune catalog set local/rw_30mNms mass "0.9 kg"`)
     Set {
         id: String,
-        /// 属性（`mass`・`power.on`）かフィールド（`label`・`manufacturer` …）
+        /// Attribute (`mass`, `power.on`) or field (`label`, `manufacturer` …)
         path: String,
         #[arg(allow_hyphen_values = true)]
         value: String,
         #[arg(long)]
         source: Option<String>,
-        /// 資料の中の位置（例: `"p.12 表 3"`）
+        /// Location in the document (e.g. `"p.12 table 3"`)
         #[arg(long)]
         at: Option<String>,
         #[arg(long)]
@@ -293,27 +293,27 @@ pub enum CatalogCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 属性の値かフィールドを消す
+    /// Remove an attribute value or a field
     Unset {
         id: String,
         path: String,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// カタログ品を消す（参照されていれば拒む）
+    /// Remove a catalog item (refused if referenced)
     Rm {
         id: String,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// カタログ品の名前を変える（部品の catalog・candidates も書き換える）
+    /// Rename a catalog item (also rewrites `catalog` and `candidates` of parts)
     Rename {
         from: String,
         to: String,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// カタログの出所（fune.toml の `[[catalog]]`）。足せる・外せるのは共有カタログ（`git = …`）だけ
+    /// Catalog origins (`[[catalog]]` in fune.toml); only shared catalogs (`git = …`) can be added or removed
     #[command(subcommand)]
     Source(CatalogSourceCmd),
 }
@@ -321,20 +321,20 @@ pub enum CatalogCmd {
 /// `fune catalog source …`（fune.toml の共有カタログ `[[catalog]] name = … git = … rev = …`）
 #[derive(Debug, Subcommand)]
 pub enum CatalogSourceCmd {
-    /// 共有カタログを fune.toml に足す（取得はしない。続けて `fune catalog fetch`）
+    /// Add a shared catalog to fune.toml (does not fetch; run `fune catalog fetch` next)
     Add {
-        /// カタログの名前（品は `<名前>/<ID>` で入る）
+        /// Name of the catalog (items appear as `<name>/<ID>`)
         name: String,
-        /// 取得元の git の URL（https・ssh・file://）
+        /// Git URL to fetch from (https, ssh, file://)
         #[arg(long)]
         git: String,
-        /// ブランチ・タグ・commit（省略すると既定のブランチ）
+        /// Branch, tag or commit (default branch if omitted)
         #[arg(long)]
         rev: Option<String>,
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// 共有カタログを fune.toml から外す（部品・ハーネスがその品を使っていれば拒む。catalog.lock の記録は次の fetch で外れる）
+    /// Remove a shared catalog from fune.toml (refused if a part or harness uses its items; the catalog.lock entry is dropped on the next fetch)
     Rm {
         name: String,
         #[command(flatten)]

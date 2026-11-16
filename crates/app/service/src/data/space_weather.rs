@@ -111,7 +111,9 @@ pub(super) fn fetch(tmp: &Path, dir: &Path) -> Result<()> {
     download(&downloaded)?;
     let bytes = std::fs::read(&downloaded).map_err(|e| io_error(&downloaded, e))?;
     SpaceWeatherTable::from_csv_bytes(&bytes).map_err(|e| {
-        ServiceError::Data(format!("取得したものが宇宙天気の表ではありません（{e}）"))
+        ServiceError::Data(format!(
+            "The downloaded data is not a space-weather table ({e})"
+        ))
     })?;
     let record = FetchRecord {
         source_url: SOURCE_URL.to_owned(),
@@ -135,10 +137,10 @@ fn download(target: &Path) -> Result<()> {
         .arg(target)
         .arg(SOURCE_URL)
         .output()
-        .map_err(|e| ServiceError::Data(format!("curl を起動できません: {e}")))?;
+        .map_err(|e| ServiceError::Data(format!("Cannot start curl: {e}")))?;
     if !output.status.success() {
         return Err(ServiceError::Data(format!(
-            "{SOURCE_URL} を取得できません: {}",
+            "Cannot fetch {SOURCE_URL}: {}",
             String::from_utf8_lossy(&output.stderr).trim()
         )));
     }
@@ -172,7 +174,7 @@ fn parse_activity(text: Option<&str>) -> Result<SolarActivity> {
     };
     serde_json::from_value(serde_json::Value::String(text.to_ascii_lowercase())).map_err(|_| {
         ServiceError::InvalidInput(format!(
-            "太陽活動は low・moderate・high のどれかです: {text}"
+            "Solar activity must be low, moderate or high: {text}"
         ))
     })
 }

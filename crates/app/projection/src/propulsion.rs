@@ -125,7 +125,7 @@ fn input(ctx: &Context<'_>, with_unloading: bool) -> Result<PropulsionInput, Mis
     if ordered.is_empty() {
         m.push(
             Target::Maneuvers,
-            "マヌーバ（maneuvers/<ID>.toml）がありません",
+            "Maneuver (maneuvers/<id>.toml) not found",
         );
     }
     let maneuvers: Vec<ManeuverInput> = ordered
@@ -177,7 +177,7 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
     if propagated && x.thruster.is_none() {
         m.push(
             Target::maneuver(id, Some("thruster")),
-            "数値伝搬（propagated）にはスラスタ（thruster）が要ります",
+            "Numerical propagation (propagated) needs a thruster (thruster)",
         );
         return None;
     }
@@ -186,7 +186,7 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
     {
         m.push(
             Target::maneuver(id, Some("thruster")),
-            format!("マヌーバのスラスタ {p} の部品がありません"),
+            format!("Part {p}, the thruster of the maneuver, not found"),
         );
         return None;
     }
@@ -282,7 +282,7 @@ fn thrusters(
         .values()
         .filter(|p| p.role == Some(Role::PropulsionThruster) || referenced.contains(&p.id.as_str()))
         .filter_map(|p| {
-            let why = "推進系のスラスタの値";
+            let why = "Propulsion thruster values";
             let thrust = parts::part_qty::<Force>(ctx, p, "thrust", why, m);
             let isp = parts::part_qty::<Time>(ctx, p, "isp", why, m);
             let rated_firings = ctx
@@ -310,7 +310,7 @@ fn thrusters(
 fn tanks(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<PropellantTank> {
     by_role(ctx, Role::PropellantTank)
         .filter_map(|p| {
-            let volume = parts::part_qty::<Volume>(ctx, p, "tank_volume", "タンクの容積", m)?;
+            let volume = parts::part_qty::<Volume>(ctx, p, "tank_volume", "Tank volume", m)?;
             Some(PropellantTank {
                 id: p.id.clone(),
                 volume,

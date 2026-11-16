@@ -17,7 +17,7 @@ enum_text! {
     /// （`power.energy_balance`）と同じ。**系の一覧はここだけ**（store のファイルの規約・読み込み・参照の書き換えもこれを回す）。
     /// 解析の側の `sat_analysis::spec::System` は依存の向きで共有できないので、fune-projection（`system`）の対応とテストで一致を確かめる。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
-    pub enum AnalysisSystem: "解析の系" {
+    pub enum AnalysisSystem: "analysis subsystem" {
         Power = "power",
         Aocs = "aocs",
         Cdh = "cdh",
@@ -136,7 +136,7 @@ pub struct ModeSegment {
 enum_text! {
     /// 姿勢則の種類（sat_astro::attitude::AttitudeLaw に射影する）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-    pub enum AttitudeLawKind: "姿勢則の種類" {
+    pub enum AttitudeLawKind: "attitude law kind" {
         SunPointing = "sun_pointing",
         NadirPointing = "nadir_pointing",
         Inertial = "inertial",
@@ -234,7 +234,7 @@ enum_text! {
     /// 回線の向き。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
     #[ts(rename = "CommLinkDirection")]
-    pub enum LinkDirection: "回線の向き" {
+    pub enum LinkDirection: "link direction" {
         Down = "down",
         Up = "up",
     }

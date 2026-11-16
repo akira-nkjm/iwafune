@@ -219,7 +219,7 @@ impl fmt::Display for Target {
             } => write!(f, "{part}.mount_points.{point}"),
             Target::AnyPart { roles, attr } => {
                 let head = if roles.is_empty() {
-                    "部品".to_owned()
+                    "part".to_owned()
                 } else {
                     roles
                         .iter()
@@ -290,7 +290,7 @@ mod tests {
                 },
                 "PANEL_MZ.mount_points.RW_SLOT_1",
             ),
-            (Target::any_part("power"), "<部品>.power"),
+            (Target::any_part("power"), "<part>.power"),
             (Target::any_of_roles(&[Role::Battery], None), "<battery>"),
             (
                 Target::any_of_roles(&[Role::Obc], Some("storage_capacity")),

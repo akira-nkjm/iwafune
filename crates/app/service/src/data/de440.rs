@@ -75,12 +75,12 @@ fn download_and_verify(tmp: &Path, target: &Path) -> Result<()> {
         .output()
         .map_err(|e| {
             ServiceError::Data(format!(
-                "gh を起動できません（GitHub CLI を入れて `gh auth login` してください）: {e}"
+                "Cannot start gh (install the GitHub CLI and run `gh auth login`): {e}"
             ))
         })?;
     if !output.status.success() {
         return Err(ServiceError::Data(format!(
-            "gh release download が失敗しました: {}",
+            "gh release download failed: {}",
             String::from_utf8_lossy(&output.stderr).trim()
         )));
     }
@@ -88,7 +88,7 @@ fn download_and_verify(tmp: &Path, target: &Path) -> Result<()> {
     let digest = sha256_file(&downloaded)?;
     if digest != DE440.sha256 {
         return Err(ServiceError::Data(format!(
-            "SHA-256 が一致しません（期待 {}、実際 {digest}）",
+            "SHA-256 mismatch (expected {}, got {digest})",
             DE440.sha256
         )));
     }

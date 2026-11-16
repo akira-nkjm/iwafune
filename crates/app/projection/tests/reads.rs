@@ -9,7 +9,7 @@ use std::path::Path;
 
 fn demo() -> (fune_model::Design, fune_model::Resolved) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u");
-    let snap = fune_store::load(&root).expect("デモを読めること");
+    let snap = fune_store::load(&root).expect("the demo should load");
     let resolved = fune_model::resolve(&snap.design);
     (snap.design, resolved)
 }
@@ -45,7 +45,7 @@ fn orbit_generation_reads_solar_panel_values_and_orbit() {
     ] {
         assert!(
             r.contains(&Target::attr("SP_PX", attr)),
-            "SP_PX.{attr} を読んでいない: {r:?}"
+            "SP_PX.{attr} was not read: {r:?}"
         );
     }
     assert!(r.contains(&power(&["conversion_efficiency"])));
@@ -65,8 +65,8 @@ fn energy_balance_and_sizing_read_battery_capacity_and_power_settings() {
         }
         assert!(r.contains(&power(&["dod_max"])), "{id}: dod_max");
         assert!(r.contains(&power(&["sequence"])), "{id}: sequence");
-        assert!(r.contains(&Target::mode("NOMINAL", None)), "{id}: モード");
-        assert!(r.contains(&Target::attr("SP_PX", "area")), "{id}: パネル");
+        assert!(r.contains(&Target::mode("NOMINAL", None)), "{id}: mode");
+        assert!(r.contains(&Target::attr("SP_PX", "area")), "{id}: panel");
     }
     assert!(reads("power.sizing").contains(&orbit("duration")));
     assert!(!reads("power.energy_balance").contains(&orbit("duration")));

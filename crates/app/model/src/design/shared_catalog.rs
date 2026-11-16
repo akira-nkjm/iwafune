@@ -60,7 +60,7 @@ impl CatalogSource {
 enum_text! {
     /// 共有カタログの読み込みの状態。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-    pub enum SharedCatalogState: "共有カタログの状態" {
+    pub enum SharedCatalogState: "shared catalog state" {
         /// lock の commit のキャッシュを読んだ
         Ready = "ready",
         /// `catalog.lock` に記録が無い（`fune catalog fetch` が要る）

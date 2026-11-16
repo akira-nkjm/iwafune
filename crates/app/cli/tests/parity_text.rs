@@ -59,7 +59,10 @@ fn gui_text_edits_match_cli() {
     assert_eq!(result["case"], "hot_imaging");
     assert_eq!(result["case_source"], "default");
     let power = std::fs::read_to_string(http_root.join("analysis/power.toml")).unwrap();
-    assert!(power.contains("= 12\n"), "周回数は整数のまま書く:\n{power}");
+    assert!(
+        power.contains("= 12\n"),
+        "write the orbit count as an integer:\n{power}"
+    );
     let path = "analysis.power.dod_max";
     run_cli(&cli_root, &["setting", "unset", path]);
     let op = http_text(
@@ -114,18 +117,18 @@ fn part_text_edits() -> Vec<(Vec<&'static str>, &'static str, Value)> {
                 "--source",
                 "em_test_2026_10",
                 "--at",
-                "TR-EM 表 4",
+                "TR-EM table 4",
                 "--note",
-                "EM 実測",
+                "EM measurement",
             ],
             SET,
-            json!({ "path": "OBC.mass", "value": "0.09 kg", "source": "em_test_2026_10", "at": "TR-EM 表 4", "note": "EM 実測" }),
+            json!({ "path": "OBC.mass", "value": "0.09 kg", "source": "em_test_2026_10", "at": "TR-EM table 4", "note": "EM measurement" }),
         ),
         // 属性定義の型で読む値（ベクトル・範囲）
         set("OBC.size", "95 95 20 mm"),
         set("OBC.temp_op", "-30 .. 70 degC"),
         // フィールド（文字列・成熟度・員数）
-        set("RW_X.label", "X 軸 RW"),
+        set("RW_X.label", "X-axis RW"),
         set("RW_X.maturity", "modified"),
         set("RW_X.count", "2"),
         // 消す: 状態のセル・属性・フィールド
@@ -157,7 +160,7 @@ fn gui_part_text_edits_match_cli() {
         assert_same_files(&cli_root, &http_root, &cli.join(" "));
     }
     let trx = std::fs::read_to_string(http_root.join("parts/comm/UHF_TRX.toml")).unwrap();
-    assert!(!trx.contains("4.2"), "消したセルは残さない:\n{trx}");
+    assert!(!trx.contains("4.2"), "do not keep the removed cell:\n{trx}");
     let rw = std::fs::read_to_string(http_root.join("parts/aocs/RW_X.toml")).unwrap();
     assert!(rw.contains("count") && !rw.contains("label"), "{rw}");
 }
@@ -173,7 +176,7 @@ fn gui_part_field_edits_use_api_paths_and_match_cli() {
     let path = |field: &str| {
         view["part"]["field_paths"][field]
             .as_str()
-            .unwrap_or_else(|| panic!("field_paths に {field} がありません: {view}"))
+            .unwrap_or_else(|| panic!("field_paths has no {field}: {view}"))
             .to_owned()
     };
     let edits = [
@@ -184,7 +187,7 @@ fn gui_part_field_edits_use_api_paths_and_match_cli() {
         ("catalog", Some("local/uhf_trx_9k6")),
         ("count", Some("2")),
         ("maturity", Some("new")),
-        ("description", Some("S 帯の送信機")),
+        ("description", Some("S-band transmitter")),
         ("catalog", Some("local/sband_tx_2m")),
         ("candidates", None),
         ("count", None),
@@ -240,7 +243,7 @@ fn gui_new_attribute_with_value_matches_cli() {
             "add",
             "tank_pressure",
             "--label",
-            "タンク圧",
+            "Tank pressure",
             "--dimension",
             "Pressure",
             "--units",
@@ -253,7 +256,7 @@ fn gui_new_attribute_with_value_matches_cli() {
         &rt,
         &http_root,
         "/api/v1/ops/from_command",
-        json!({ "command": "attr_add", "id": "tank_pressure", "label": "タンク圧",
+        json!({ "command": "attr_add", "id": "tank_pressure", "label": "Tank pressure",
             "dimension": "Pressure", "units": ["Pa", "kPa"], "by_state": true }),
     );
     let create = made[0].clone();
@@ -314,9 +317,9 @@ fn catalog_sets() -> Vec<(Vec<&'static str>, Value)> {
                 "--source",
                 "ds_rw10",
                 "--at",
-                "p.2 表 1",
+                "p.2 table 1",
             ],
-            json!({ "item": ITEM, "path": "max_torque", "value": "1.1 mN*m", "source": "ds_rw10", "at": "p.2 表 1" }),
+            json!({ "item": ITEM, "path": "max_torque", "value": "1.1 mN*m", "source": "ds_rw10", "at": "p.2 table 1" }),
         ),
         // データシートは出典の ID
         set("datasheet", "ds_vendor"),
@@ -330,7 +333,7 @@ fn catalog_sets() -> Vec<(Vec<&'static str>, Value)> {
         set("label_en", "RW 10 mNms class"),
         set("maturity", "modified"),
         // タグ（カンマ区切りの一覧）
-        set("tags", "flight_proven, 国産"),
+        set("tags", "flight_proven, domestic"),
     ]
 }
 
@@ -378,7 +381,10 @@ fn gui_catalog_text_edits_match_cli() {
     let item = std::fs::read_to_string(http_root.join("catalog/rw_10mNms.toml")).unwrap();
     assert!(
         item.contains("min = 0.55") && item.contains("max = 0.8"),
-        "不確かさも書く:\n{item}"
+        "write the uncertainty too:\n{item}"
     );
-    assert!(!item.contains("hk_rate"), "消した値は残さない:\n{item}");
+    assert!(
+        !item.contains("hk_rate"),
+        "do not keep the removed value:\n{item}"
+    );
 }
