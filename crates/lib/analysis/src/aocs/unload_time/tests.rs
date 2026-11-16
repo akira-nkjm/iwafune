@@ -184,12 +184,13 @@ fn momentum_from_wheels_by_hand() {
     assert!(UnloadTime::run(&i).is_err());
 }
 
-/// 磁場のモデルが無い中心天体では、軌道から求める磁場で MTQ を評価せず、理由を言う。
-/// 月・火星は磁場が無い、木星は磁場のモデルが無い。直接与える磁場の大きさ（`Constant`）は従来どおり。
+/// 磁場のモデルが無い中心天体では、軌道から求める磁場で MTQ を評価せず（`mtq` は None）、理由を `mtq_field_gap` に返す。
+/// 解析はエラーにならず、RCS の結果は残る。月・火星は磁場が無い、木星は磁場のモデルが無い。
+/// 直接与える磁場の大きさ（`Constant`）は従来どおり。
 #[test]
-fn mtq_field_from_orbit_is_rejected_without_a_field_model() {
+fn mtq_is_left_out_without_a_field_model_and_rcs_remains() {
     use sat_astro::ephem::CentralBody;
-    let about = |body| {
+    let about = |body, thrusters: bool| {
         let mut i = input();
         let orbit = sat_astro::orbit::OrbitSpec::circular_about(
             body,
@@ -202,9 +203,29 @@ fn mtq_field_from_orbit_is_rejected_without_a_field_model() {
         i.field = Some(UnloadTimeField::Orbit {
             sampling: OrbitSampling::new(orbit, Qty::from_raw(period), Qty::from_raw(30.0)),
         });
-        UnloadTime::run(&i).unwrap_err().to_string()
+        if !thrusters {
+            i.thrusters.clear();
+        }
+        UnloadTime::run(&i).unwrap()
     };
-    assert!(about(CentralBody::Moon).contains("磁場が無い"));
-    assert!(about(CentralBody::Jupiter).contains("磁場のモデルがありません"));
-    assert!(UnloadTime::run(&input()).is_ok());
+    for body in [CentralBody::Moon, CentralBody::Mars] {
+        let out = about(body, true);
+        assert!(out.mtq.is_none(), "{body:?}");
+        assert_eq!(out.mtq_field_gap, Some(MtqFieldGap::Absent));
+        // RCS は従来どおり 0.01 / 1e-3 = 10 s
+        let rcs = out.rcs.as_ref().unwrap().worst.time.unwrap();
+        assert!((rcs.value() - 10.0).abs() < 1e-9);
+        assert!(out.checks.iter().all(|c| c.key != "mtq_time"));
+        assert!(out.checks.iter().any(|c| c.key == "rcs_time"));
+    }
+    assert_eq!(MtqFieldGap::Absent.verdict(), Verdict::Violation);
+    let jupiter = about(CentralBody::Jupiter, true);
+    assert_eq!(jupiter.mtq_field_gap, Some(MtqFieldGap::NotModelled));
+    assert_eq!(MtqFieldGap::NotModelled.verdict(), Verdict::Warning);
+    // MTQ だけの設計でもエラーにせず、どちらの結果も無いまま理由を返す
+    let only_mtq = about(CentralBody::Moon, false);
+    assert!(only_mtq.mtq.is_none() && only_mtq.rcs.is_none());
+    assert_eq!(only_mtq.mtq_field_gap, Some(MtqFieldGap::Absent));
+    let earth = UnloadTime::run(&input()).unwrap();
+    assert!(earth.mtq.is_some() && earth.mtq_field_gap.is_none());
 }

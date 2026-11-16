@@ -275,6 +275,7 @@ pub(crate) fn unload_output(mtq_time: Option<f64>, rcs_time: Option<Option<f64>>
         momentum: t(1.0e-3),
         usable_momentum_fraction: None,
         mtq,
+        mtq_field_gap: None,
         rcs,
         checks: Vec::new(),
     };
@@ -304,7 +305,50 @@ fn unload_time_kpis_follow_the_means_the_analysis_produced() {
         values(&unload_output(Some(1500.0), Some(Some(40.0)))),
         [(Mtq, Some(1500.0)), (Rcs, Some(40.0))]
     );
-    // どちらも測れなければ先頭（MTQ）を「—」で残す（捨てられない向きだけがあるときも）
+    // どちらも測れず判定も無ければ先頭（MTQ）を「—」で残す
     assert_eq!(values(&unload_output(None, Some(None))), [(Mtq, None)]);
     assert_eq!(values(&unload_output(None, None)), [(Mtq, None)]);
+}
+
+/// 解析の出力から判定を集めて KPI を作る（実行の結果と同じ道筋）。
+fn judged_unload_kpis(o: &Value) -> Vec<(KpiKey, Option<f64>, Option<Verdict>)> {
+    let checks = crate::analysis::checks::collect_checks(Some(o));
+    kpis("aocs.unload_time", Some(o), &checks, KpiContext::default())
+        .iter()
+        .map(|k| (k.key, k.value.as_ref().map(|v| v.si), k.verdict))
+        .collect()
+}
+
+/// RCS だけの設計で、RCS が捨てられない向きがある: 時間は無いが、RCS の KPI が違反で残る（MTQ の KPI ではない）。
+#[test]
+fn rcs_only_design_shows_the_rcs_direction_violation() {
+    let mut o = unload_output(None, Some(None));
+    o["checks"] = json!([{
+        "key": "rcs_direction",
+        "label": "RCS で捨てられる向き",
+        "verdict": "violation",
+        "message": "",
+    }]);
+    assert_eq!(
+        judged_unload_kpis(&o),
+        [(KpiKey::RcsUnloadTime, None, Some(Verdict::Violation))]
+    );
+}
+
+/// 磁場の無い天体の MTQ: 時間は無いが、MTQ の KPI が `mtq_field_model` の判定で残る。RCS の値はそのまま。
+#[test]
+fn mtq_without_a_field_model_keeps_its_kpi_with_the_verdict() {
+    use KpiKey::{MtqUnloadTime as Mtq, RcsUnloadTime as Rcs};
+    let mut only_mtq = unload_output(None, None);
+    only_mtq["mtq_field_gap"] = json!("absent");
+    assert_eq!(
+        judged_unload_kpis(&only_mtq),
+        [(Mtq, None, Some(Verdict::Violation))]
+    );
+    let mut both = unload_output(None, Some(Some(40.0)));
+    both["mtq_field_gap"] = json!("not_modelled");
+    assert_eq!(
+        judged_unload_kpis(&both),
+        [(Mtq, None, Some(Verdict::Warning)), (Rcs, Some(40.0), None)]
+    );
 }

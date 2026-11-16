@@ -5,6 +5,7 @@ use fune_model::Design;
 use fune_model::design::CentralBodyKind;
 use fune_model::value::Quantity;
 use fune_projection::{Context, aocs, orbit, power, thermal};
+use sat_analysis::aocs::unload_time::MtqFieldGap;
 use sat_analysis::aocs::{RwUnloading, UnloadTime};
 use sat_analysis::orbit::EclipseSeason;
 use sat_analysis::spec::{Analysis, Verdict};
@@ -169,15 +170,22 @@ fn rw_unloading_about_other_bodies_states_the_environment_models() {
     assert!(note(&run(CentralBodyKind::Earth)).is_none());
 }
 
-/// 地球以外で磁場を軌道から求める MTQ のアンロード時間は、磁場が 0 の「トルクが 0」ではなく理由を言って失敗する。
+/// 地球以外で磁場を軌道から求める MTQ のアンロード時間は、磁場が 0 の「トルクが 0」とせず、解析を失敗させずに
+/// MTQ の結果を外して理由（`mtq_field_gap`）を返す（月は磁場が無い）。
 #[test]
-fn unload_time_about_other_bodies_names_the_missing_field_model() {
-    let design = about(CentralBodyKind::Moon);
-    let resolved = fune_model::resolve(&design);
-    let ctx = Context::new(&design, &resolved, Some("hot_imaging")).unwrap();
-    let input = aocs::unload_time(&ctx).unwrap();
-    let err = UnloadTime::run(&input).unwrap_err().to_string();
-    assert!(err.contains("磁場が無い"), "{err}");
+fn unload_time_about_other_bodies_leaves_out_the_mtq_with_a_reason() {
+    let run = |body| {
+        let design = about(body);
+        let resolved = fune_model::resolve(&design);
+        let ctx = Context::new(&design, &resolved, Some("hot_imaging")).unwrap();
+        let input = aocs::unload_time(&ctx).unwrap();
+        UnloadTime::run(&input).unwrap()
+    };
+    let moon = run(CentralBodyKind::Moon);
+    assert!(moon.mtq.is_none());
+    assert_eq!(moon.mtq_field_gap, Some(MtqFieldGap::Absent));
+    let earth = run(CentralBodyKind::Earth);
+    assert!(earth.mtq.is_some() && earth.mtq_field_gap.is_none());
 }
 
 /// 太陽が中心天体の軌道は、β と蝕の季節解析が（`beta_angle_rad` の前に）エラーで断る。

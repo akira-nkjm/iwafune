@@ -139,6 +139,9 @@ pub struct EnergyBalanceOutput {
     /// モードの並びで回した収支（並びが無ければ None）
     #[serde(default)]
     pub sequence: Option<EnergyBalanceSequence>,
+    /// 結果全体にかかる判定（電池の値の不一致。ケースと並びの判定はそれぞれの `checks`）
+    #[serde(default)]
+    pub checks: Vec<Check>,
 }
 
 /// ケースの判定（`checks` の DoD・周回の収支・電池切れ）をどの運用で評価したか。
@@ -283,21 +286,15 @@ impl Analysis for EnergyBalance {
             duration::apply(case_ctx, c, base.as_ref(), &mut result)?;
             cases.push(result);
         }
-        let mut sequence = sequence::evaluate(&ctx)?.map(|(s, _)| s);
-        // 電池の値の不一致は、結果のどの欄にも効くので、すべてのケースと並びの判定に載せる
-        if let Some(c) = &mismatch {
-            for case in &mut cases {
-                case.checks.insert(0, c.clone());
-            }
-            if let Some(s) = &mut sequence {
-                s.balance.checks.insert(0, c.clone());
-            }
-        }
-        Ok(ctx.output(
+        let sequence = sequence::evaluate(&ctx)?.map(|(s, _)| s);
+        let mut out = ctx.output(
             cases,
             sequence,
             super::mode_load::ModeLoad::run(&input.loads)?,
-        ))
+        );
+        // 電池の値の不一致は結果のどの欄にも効くので、ケースごとではなく出力の最上位に 1 つだけ載せる
+        out.checks.extend(mismatch);
+        Ok(out)
     }
 }
 
@@ -333,6 +330,7 @@ impl Context<'_> {
             },
             cases,
             sequence,
+            checks: Vec::new(),
         }
     }
 }

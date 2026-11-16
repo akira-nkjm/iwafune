@@ -77,28 +77,27 @@ fn output_limits_mode_loads_and_eclipses_by_hand() {
     assert_eq!(out.eclipses[0].duration.value(), 10.0);
 }
 
-/// 電池の電圧が違うときだけ、不一致の注意がすべてのケースの `checks` の先頭に 1 つずつ載る。
+/// 電池の電圧が違うときだけ、不一致の注意が出力の最上位の `checks` に 1 つだけ載る（ケースや並びには重ねない）。
 #[test]
-fn unequal_batteries_put_a_warning_on_every_case() {
+fn unequal_batteries_put_one_warning_on_the_output() {
     let mut i = input(Vec::new(), vec![constant("a", 5.0), constant("b", 9.5)]);
     let first = EnergyBalance::run(&i).unwrap();
-    assert!(
-        first
-            .cases
-            .iter()
-            .all(|c| c.checks.iter().all(|k| k.key != "battery_mismatch"))
-    );
+    assert!(first.checks.is_empty());
     let mut other = i.batteries[0].clone();
     other.voltage = Qty::from_raw(16.0);
     i.batteries.push(other);
     let out = EnergyBalance::run(&i).unwrap();
-    for case in &out.cases {
-        let n = case
-            .checks
+    assert_eq!(out.cases.len(), 2);
+    assert_eq!(
+        out.checks
             .iter()
             .filter(|k| k.key == "battery_mismatch")
-            .count();
-        assert_eq!(n, 1, "{}", case.id);
-        assert_eq!(case.checks[0].key, "battery_mismatch");
-    }
+            .count(),
+        1
+    );
+    assert!(
+        out.cases
+            .iter()
+            .all(|c| c.checks.iter().all(|k| k.key != "battery_mismatch"))
+    );
 }

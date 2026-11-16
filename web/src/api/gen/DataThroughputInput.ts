@@ -40,7 +40,7 @@ station_links: Array<DataThroughputStationLink>,
  */
 stations_without_band: Array<string>, 
 /**
- * 送信量に数える下り回線の名前（表示用。`downlink_rate`・`link` はこの回線のもの）
+ * 送信量に数える下り回線の名前（表示用。`downlink_rate`・`station_links` はこの回線のもの）
  */
 downlink: string | null, 
 /**
@@ -48,6 +48,6 @@ downlink: string | null,
  */
 other_downlinks: Array<string>, 
 /**
- * 要求する回線余裕（`link` があるときに使う。既定 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）
+ * 要求する回線余裕（`station_links` があるときに使う。既定 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）
  */
 required_margin_db: number | null, };

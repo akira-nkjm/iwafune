@@ -20,7 +20,7 @@ link_closure: DataThroughputLinkClosure,
  */
 station_closures: Array<DataThroughputStationClosure>, 
 /**
- * 使った回線余裕の要求値（`link` があるときだけ）
+ * 使った回線余裕の要求値（`station_links` で回線を評価したとき、つまり `link_closure` が `not_evaluated` でないときだけ）
  */
 required_margin_db: number | null, 
 /**
