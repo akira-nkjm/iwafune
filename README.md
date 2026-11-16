@@ -56,7 +56,14 @@ Each release attaches the `fune` binary with the GUI embedded:
 | `fune-<version>-x86_64-linux-gnu.tar.gz` | x86_64 Linux with glibc 2.39 or later (Ubuntu 24.04 or newer, including WSL) |
 | `fune-<version>-universal-apple-darwin.tar.gz` | macOS on Apple Silicon and Intel |
 
-With the GitHub CLI signed in (`gh auth login`) to an account that can read this repository:
+With [cargo-binstall](https://github.com/cargo-bins/cargo-binstall), which downloads the release binary instead of
+building it:
+
+```bash
+cargo binstall --git https://github.com/akira-nkjm/iwafune fune-cli
+```
+
+Or download the release by hand, with the GitHub CLI or from the Releases page:
 
 ```bash
 gh release download --repo akira-nkjm/iwafune --pattern 'fune-*-x86_64-linux-gnu.tar.gz*'
