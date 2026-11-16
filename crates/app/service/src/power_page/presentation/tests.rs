@@ -110,35 +110,6 @@ fn verdict_meter_is_ratio_to_limit_and_signed_when_limit_is_zero() {
 }
 
 #[test]
-fn worst_verdict_prefers_violation_then_the_larger_shortfall() {
-    let view = |id: &str, area: f64, verdict| PowerModeView {
-        id: id.into(),
-        label: id.into(),
-        verdict: Some(verdict),
-        sunlit: None,
-        eclipse: None,
-        bars: vec![verdict_view::<sat_units::typed::Area>(
-            "area",
-            label("面積", "Area"),
-            Some(area),
-            100.0,
-            PowerLimitKind::AtLeast,
-            Some(verdict),
-        )],
-        charts: Vec::new(),
-    };
-    let modes = vec![
-        view("A", 150.0, Verdict::Ok),
-        view("B", 80.0, Verdict::Violation),
-        view("C", 60.0, Verdict::Violation),
-    ];
-    let worst = worst_verdicts(&modes);
-    assert_eq!(worst.len(), 1);
-    // 違反のうち、必要に対する割合が小さい C
-    assert_eq!(worst[0].mode.as_deref(), Some("C"));
-}
-
-#[test]
 fn builder_returns_selected_mode_values_bands_and_soc_limit() {
     use sat_analysis::power::{
         energy_balance::{EnergyBalanceCase, LoadGrowth},
@@ -242,8 +213,6 @@ fn builder_returns_selected_mode_values_bands_and_soc_limit() {
     let mode = &page.modes[0];
     assert_eq!(mode.id, "nominal");
     assert_eq!(mode.verdict, Some(Verdict::Ok));
-    assert_eq!(mode.bars[0].value.as_ref().unwrap().si, 0.2);
-    assert_eq!(mode.bars[1].value.as_ref().unwrap().si, 750.0);
     assert_eq!(mode.charts.len(), 3);
     assert_eq!(mode.charts[0].domain, [0.0, 20.0]);
     assert_eq!(mode.charts[0].series.channels.len(), 2);
@@ -286,12 +255,14 @@ fn sizing_builder_keeps_design_and_required_values_and_analysis_verdicts() {
     let page = build("power.sizing", None, Some(&json)).unwrap();
     let mode = &page.modes[0];
     assert_eq!(mode.verdict, Some(Verdict::Violation));
-    let area = &mode.bars[0];
+    let out: SizingOutput = serde_json::from_value(json).unwrap();
+    let checks = out.mode_checks.get("nominal");
+    let area = &area_bar(&out, out.required_area, checks);
     assert_eq!(area.value.as_ref().unwrap().si, 3.0);
     assert_eq!(area.limit.si, 2.0);
     assert_eq!(area.verdict, Some(Verdict::Ok));
     assert!(area.fill_end > area.limit_at);
-    let capacity = &mode.bars[1];
+    let capacity = &capacity_bar(&out, out.required_capacity, checks);
     assert_eq!(capacity.value.as_ref().unwrap().si, 100.0);
     assert_eq!(capacity.limit.si, 120.0);
     assert_eq!(capacity.verdict, Some(Verdict::Violation));

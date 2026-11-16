@@ -2,18 +2,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type {
-  AnalysisRunResult,
-  PowerBudgetView,
-  PowerModeView,
-  PowerPageView,
-  PowerVerdictView,
-} from "@/api/types";
+import type { AnalysisRunResult, PowerBudgetView, PowerModeView, PowerPageView } from "@/api/types";
 import { setLang } from "@/i18n";
 import { qv } from "@/test/fixture";
 import { PowerModes } from "./PowerModes";
 import { PowerOverview } from "./PowerOverview";
-import { PowerVerdictCard } from "./PowerVerdictCard";
 
 // SSR has a fixed Japanese hydration snapshot; emulate the client's selected dictionary here.
 vi.mock("@/i18n", async (importOriginal) => {
@@ -21,19 +14,6 @@ vi.mock("@/i18n", async (importOriginal) => {
   return { ...actual, useT: actual.getT };
 });
 
-const bar: PowerVerdictView = {
-  key: "dod",
-  label: { label: "最大 DoD", label_en: "Maximum DoD" },
-  value: qv(20, "%", "Fraction", 0.2),
-  limit: qv(40, "%", "Fraction", 0.4),
-  verdict: "ok",
-  kind: "at_most",
-  mode: "nominal",
-  note: { label: "上限の 50.0 %", label_en: "50.0 % of limit" },
-  fill_start: 0,
-  fill_end: 33.3,
-  limit_at: 66.7,
-};
 const budget: PowerBudgetView = {
   supply: qv(60, "W", "Power"),
   order: 30,
@@ -61,7 +41,6 @@ const modes: PowerModeView[] = [
     verdict: "ok",
     sunlit: budget,
     eclipse: null,
-    bars: [bar],
     charts: [],
   },
 ];
@@ -82,7 +61,6 @@ const result: AnalysisRunResult = {
 };
 const page: PowerPageView = {
   modes,
-  verdicts: [bar],
   flow: { nodes: [], edges: [], folds: [] },
   analyses: [
     {
@@ -132,23 +110,10 @@ describe("power overview", () => {
     expect(en).toContain("Surplus (shunt)");
     expect(en).not.toContain("SAP");
   });
-  it("shows the verdict as a ratio meter with the worst mode", () => {
-    const html = renderToStaticMarkup(<PowerVerdictCard item={bar} modeName="Nominal" />);
-    expect(html).toContain("width:33.3%");
-    expect(html).toContain("left:calc(66.7% - 1px)");
-    expect(html).toContain("上限の 50.0 %");
-    expect(html).toContain("最悪 Nominal");
-    const missing = renderToStaticMarkup(
-      <PowerVerdictCard item={{ ...bar, value: null, verdict: "warning" }} />,
-    );
-    expect(missing).toContain("データなし");
-  });
-  it("puts the verdicts above a table of analyses with collapsed rows and an outline", () => {
+  it("shows only the table of analyses with collapsed rows", () => {
     const html = overview();
-    expect(html).toContain("このページの目次");
-    expect(html).toContain('id="power-verdicts"');
-    expect(html).toContain('id="power-analyses"');
-    expect(html).toContain("最大 DoD");
+    expect(html).not.toContain("このページの目次");
+    expect(html).not.toContain("最大 DoD");
     expect(html).toContain("主な結果");
     expect(html).toContain("収支");
     expect(html).toContain('aria-expanded="false"');
