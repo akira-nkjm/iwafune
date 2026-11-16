@@ -1,73 +1,73 @@
-# 概念設計に向けたロードマップ
+# Roadmap toward conceptual design
 
-2026-11-06。過去の小型衛星の概念設計書（47 件）と計算シートの雛形を調べ、
-概念設計で繰り返し必要になっているのに、まだ無いものを優先度順に並べた。
-**各項目は GitHub の Issue #1〜#15（親 #16）で管理する。**
-件数は「47 件の設計書のうち、その項目を扱っていたもの」。
+2026-11-06. We surveyed past conceptual design reports for small satellites (47 of them) and the template of the calculation sheets, and listed in priority order
+what conceptual design repeatedly needs but does not exist yet.
+**Each item is managed as GitHub Issues #1 to #15 (parent #16).**
+The counts are "of the 47 design reports, how many dealt with that item".
 
-## 調査から分かったこと
+## What the survey showed
 
-- テーマの約半数が深宇宙・惑星・ラグランジュ点、約 1 割が月、約 3 割が地球周回。地球中心の軌道だけでは過半を扱えない。
-- 設計の実体は、年度をまたいで受け継がれている計算シートの雛形（コンポ選定・モード別電力・SAP/BAT・回線・外乱・構造・熱・表面特性）。
-  タブ間で同じ部品の値が食い違う、清書用のタブに手で転記する、といった問題があり、単一の正本・モード表・帳票の自動生成がそのまま対策になる。
-- 設計書の形式は LaTeX 30 件・Typst 6 件・Word 5 件・Google Docs 2 件。2025 年度は 4 チーム中 3 チームが Typst。
-- 試問で繰り返し指摘される点（蝕のときの電源解析が無い、マージン込みか不明、有効数字、表の通し番号、姿勢要求の種類の区別）は、
-  モデルの整合チェックと帳票のテンプレートで機械的に防げる。
+- About half of the themes are deep space, planets and Lagrange points, about 10% are the Moon, and about 30% are Earth orbit. Earth-centered orbits alone cannot cover the majority.
+- The substance of the design is a calculation-sheet template handed down across academic years (component selection, per-mode power, SAP/BAT, link, disturbances, structure, thermal, surface properties).
+  It has problems such as the same part's values disagreeing between tabs and values being transcribed by hand into a tab for the clean copy, and a single source of truth, a mode table and automatic generation of report tables are a direct remedy.
+- The formats of the design reports are 30 in LaTeX, 6 in Typst, 5 in Word and 2 in Google Docs. In 2025, 3 of the 4 teams used Typst.
+- The points raised repeatedly at the oral examinations (no power analysis during eclipse, unclear whether margins are included, significant figures, table numbering, distinguishing the kinds of attitude requirements)
+  can be prevented mechanically by consistency checks in the model and by report templates.
 
-## P1（次に入れる）
+## P1 (next to build)
 
-| # | 機能 | 根拠 |
+| # | Feature | Basis |
 |---|---|---|
-| 1 | ΔV バジェットと推進系（マヌーバ一覧、ロケット方程式、推進剤・タンク、推進系の種別と属性） | 39 件 |
-| 2 | 中心天体の一般化と解析的な遷移 ΔV（月・惑星・L 点、ホーマン・平面変更・パッチドコニック） | テーマの約 6 割 |
-| 3 | `orbit.eclipse`: β 角の季節変動とミッション期間中の最長蝕時間（電源・熱の最悪ケースを決める） | 31 件 |
-| 4 | 大気抵抗による高度低下と軌道維持の ΔV（太陽活動の条件別） | 34 件 |
-| 5 | ロケット・ディスペンサのカタログ（質量上限・包絡域・準静的荷重・剛性要求・分離時の角速度）と適合チェック | 32 件 |
-| 6 | モードの拡張（最長継続時間、日照・蝕の区別、姿勢則）と、同時稼働数・冗長（冷・温） | 雛形のすべての表に「同時稼働数」の列 |
-| 7 | 電源の逆算サイジング（必要な SAP 面積・電池容量）と太陽距離への対応 | 31 件 |
-| 8 | 回線計算の拡張（電波法の PFD 適合、ケースから決まる距離、深宇宙局） | 雛形に標準で入っている |
-| 9 | ミッション・サクセスクライテリア・フェーズ（ミッションシーケンス）のエンティティ | 45 件・31 件 |
-| 10 | 要求の拡張（根拠・出所・親子・配分先・検証方法）と要求適合表 | 系別設計書の構成 |
-| 11 | 熱の入力の整備（温度範囲を保管・動作・性能の 3 種に、発熱と消費電力の区別、面の表面材、マージン方針、最悪ケースのプリセット） | 表面特性表 28 件・許容温度表 17 件 |
-| 12 | 姿勢解析の拡張（姿勢変更時間、推力誤差による外乱、アンロードの ΔV と燃料） | 40 件 |
-| 13 | **文書の生成**: Typst のテンプレートに、モデルから作った表・図を差し込む。他の形式（LaTeX・Word・スライド）には表の断片を書き出す | 下記 |
-| 18 | 宇宙天気（F10.7・Ap）の実績値と予測値を日付で引く（#4 の前提。2026-11-06 に追加） | 大気抵抗の解析に必要 |
+| 1 | ΔV budget and propulsion subsystem (maneuver list, rocket equation, propellant and tanks, propulsion kinds and attributes) | 39 reports |
+| 2 | Generalized central bodies and analytical transfer ΔV (Moon, planets, L points; Hohmann, plane change, patched conic) | about 60% of themes |
+| 3 | `orbit.eclipse`: seasonal variation of the β angle and the longest eclipse over the mission lifetime (determines the worst case for power and thermal) | 31 reports |
+| 4 | Altitude decay from atmospheric drag and the ΔV for orbit maintenance (by solar activity condition) | 34 reports |
+| 5 | Catalog of launch vehicles and dispensers (mass limit, envelope, quasi-static load, stiffness requirement, angular rate at separation) and a compatibility check | 32 reports |
+| 6 | Extending modes (longest duration, sunlit and eclipse distinction, attitude law), plus the number simultaneously operating and redundancy (cold, warm) | every table in the template has a "simultaneously operating" column |
+| 7 | Inverse sizing of power (required SAP area and battery capacity) and support for distance from the Sun | 31 reports |
+| 8 | Extending the link calculation (PFD compliance under the Radio Act, distances determined by the case, deep space stations) | included as standard in the template |
+| 9 | Entities for the mission, success criteria and phases (mission sequence) | 45 and 31 reports |
+| 10 | Extending requirements (rationale, origin, parent and child, allocation target, verification method) and a requirements compliance table | structure of the subsystem design reports |
+| 11 | Preparing thermal inputs (temperature ranges in 3 kinds: storage, operating and performance; distinguishing heat dissipation from power consumption; surface materials of faces; margin policy; worst-case presets) | 28 surface property tables and 17 allowable temperature tables |
+| 12 | Extending attitude analysis (slew time, disturbances from thrust error, ΔV and fuel for unloading) | 40 reports |
+| 13 | **Document generation**: insert tables and figures built from the model into a Typst template. For other formats (LaTeX, Word, slides), write out table fragments | below |
+| 18 | Look up observed and predicted space weather values (F10.7, Ap) by date (a prerequisite of #4; added 2026-11-06) | needed for the atmospheric drag analysis |
 
-## P2（概念設計の質を上げる）
+## P2 (raise the quality of conceptual design)
 
-構成の状態（収納・展開・推進剤の残量）ごとの質量特性 / ランダム振動とハニカムパネルの強度 / 軌道寿命とデオービット /
-地上軌跡・カバレッジ・再訪時間 / 3D での視野遮蔽・迷光のチェック / トレードオフ表のエンティティ /
-カタログの拡張（TRL・ヘリテージ・価格・寿命）と材料カタログ / パラメトリックな初期サイジング /
-概念設計のチェックリストを診断ルールにする / 外部のペイロード解析を fune-tool/1 で受ける / 部品価格の集計 /
-重力場の高次化（70 次より多く。係数は DE440 と同じくリリースで配る。#17、2026-11-06 に追加）
+Mass properties per configuration state (stowed, deployed, remaining propellant) / random vibration and honeycomb panel strength /
+orbital lifetime and deorbit / ground tracks, coverage and revisit time / field-of-view occlusion and stray light checks in 3D / an entity for trade-off tables /
+extending the catalog (TRL, heritage, price, lifetime) and a materials catalog / parametric initial sizing /
+turning the conceptual design checklist into diagnostic rules / receiving external payload analyses through fune-tool/1 / aggregating part prices /
+higher-degree gravity field (beyond degree 70; the coefficients are distributed with a release, as with DE440. #17, added 2026-11-06)
 
-## P3（後回し）
+## P3 (later)
 
-CR3BP・ハロー軌道・軌道最適化 / 放射線（TID・SEE）/ 編隊飛行 / 誤差配分 / FMEA・コスト・スケジュール・法規・RTG
+CR3BP, halo orbits, orbit optimization / radiation (TID, SEE) / formation flying / error budgeting / FMEA, cost, schedule, regulations, RTG
 
-## 文書の生成の方針
+## Policy for document generation
 
-- **Typst を主軸にする。** 設計書を書く側でも使われ始めており、Rust の `typst` crate で iwafune に組み込める。
-  - `fune report build <ID>` が `exports/report/<ID>/data.json` と `figs/*.svg` を書き出し、プロセス内の Typst で PDF にする。
-  - テンプレートのパッケージに `#mass-table()` `#mode-power-table()` `#link-budget()` `#thermal-result()` などの関数を用意し、
-    本文は人が `.typ` で書いて生成した表を差し込む。
-  - 有効数字・単位・マージン込みかどうか・通し番号・出典の脚注をテンプレートで揃える。表の脚注にモデルの revision を出し、古い表が残らないようにする。
-- **他の形式には断片を書き出す**（LaTeX の booktabs、CSV、docx の表、PNG/SVG）。GUI のすべての表に「Typst / LaTeX / CSV / 画像としてコピー」を付ける（CLI と同じ機能）。
-- **文書の定義をモデルに入れる**（`reports/<ID>.toml`: 文書番号・版・改訂履歴・入れる表と図・テンプレート）。プリセットとして概念設計書、PDR、系別設計書を用意する。
-- 図面（CAD）は範囲外。iwafune からは BOM・面別の搭載機器・重心と慣性を CSV で渡し、将来は STEP / glTF で書き出す。
+- **Make Typst the main route.** It is starting to be used by the people who write design reports, and it can be embedded in iwafune with the Rust `typst` crate.
+  - `fune report build <ID>` writes `exports/report/<ID>/data.json` and `figs/*.svg`, and builds a PDF with Typst in the same process.
+  - The template package provides functions such as `#mass-table()`, `#mode-power-table()`, `#link-budget()` and `#thermal-result()`,
+    and people write the body in `.typ` and insert the generated tables.
+  - The template unifies significant figures, units, whether margins are included, numbering, and source footnotes. The model's revision is shown in the table footnote so that stale tables do not remain.
+- **For other formats, write out fragments** (LaTeX booktabs, CSV, docx tables, PNG/SVG). Every table in the GUI gets "Copy as Typst / LaTeX / CSV / image" (the same feature as the CLI).
+- **Put the document definition in the model** (`reports/<ID>.toml`: document number, version, revision history, the tables and figures to include, the template). Presets are provided for the conceptual design report, PDR and subsystem design reports.
+- Drawings (CAD) are out of scope. From iwafune we hand over the BOM, equipment per face, and center of mass and inertia as CSV, and in the future we will write out STEP / glTF.
 
-## データモデルに足りない項目（model.md への追加候補）
+## Items missing from the data model (candidates to add to model.md)
 
-ミッション（目的・意義・先行ミッションとの比較）、サクセスクライテリア、フェーズ、モードの継続時間と日照・蝕、
-同時稼働数と冗長、発熱の扱い（RF 出力分を除く）、温度範囲 3 種、要求の根拠と配分、ロケット・ディスペンサ、
-軌道のレッグとマヌーバ、推進系の属性、面の表面材、材料カタログ、構成の状態、トレードオフ、カタログの TRL・ヘリテージ・価格、
-地上局の運用制約、データ要求、文書のメタデータ、参考文献（出典の台帳から生成）。
+Mission (purpose, significance, comparison with precursor missions), success criteria, phases, mode duration and sunlit/eclipse,
+number simultaneously operating and redundancy, handling of heat dissipation (excluding the RF output), 3 kinds of temperature ranges, requirement rationale and allocation,
+launch vehicles and dispensers, orbit legs and maneuvers, propulsion attributes, surface materials of faces, a materials catalog, configuration states, trade-offs, catalog TRL, heritage and price,
+operational constraints of ground stations, data requirements, document metadata, references (generated from the source ledger).
 
-## アプリの機能として予定しているもの（まだ Issue にしていない）
+## App features planned (not yet made into Issues)
 
-- GUI の主な編集と解析の E2E テスト（Playwright）を作り、CI に入れる。
-- ファイルの監視と GUI への通知（外のエディタや CLI での編集に、GUI がすぐ追従する）。
-- ベースのブランチとの差分のページ（値とバジェットの変化）。
-- トレード候補（`candidates`）を並べて比べる表示。
-- 外部の解析ツールとの受け渡しの全般（入力と結果の形式、再実行の手順）。
-- 分離後の初期運用（電源投入 → 展開 → デタンブル → 太陽捕捉）を時間で追うシミュレーション。
+- Build end-to-end tests (Playwright) for the main GUI edits and analyses, and add them to CI.
+- File watching and notification to the GUI (so that the GUI follows edits made in an outside editor or the CLI right away).
+- A page showing the difference from the base branch (changes in values and budgets).
+- A view that lines up trade candidates (`candidates`) for comparison.
+- Handoff to and from external analysis tools in general (input and result formats, how to re-run).
+- A simulation that follows the initial operations after separation over time (power on → deployment → detumble → sun acquisition).
