@@ -1,7 +1,7 @@
 //! 置き換えの手順。どこで失敗しても実行中のバイナリには触れず、一時ディレクトリを消す。
 
 use super::asset::{archive_name, dir_name, download_url, parse_sha256_file};
-use super::{Context, Host, Version};
+use super::{Context, Host, OnStep, Step, Version};
 use crate::data::sha256_file;
 use crate::error::{Result, ServiceError};
 use std::path::{Path, PathBuf};
@@ -40,16 +40,44 @@ impl Drop for TempDir {
 }
 
 /// `version` を取得して検証し、実行中のバイナリを置き換える。置き換えたバイナリの場所を返す。
-pub(super) fn install(ctx: &Context, host: &dyn Host, version: Version) -> Result<PathBuf> {
+/// 各段階の始まりを `on_step` に伝える。`progress` は成果物の取得だけに効く（小さなチェックサムには出さない）。
+pub(super) fn install(
+    ctx: &Context,
+    host: &dyn Host,
+    version: Version,
+    progress: bool,
+    on_step: OnStep,
+) -> Result<PathBuf> {
     let tmp = TempDir::create_beside(&ctx.exe)?;
     let file = archive_name(version, ctx.platform);
     let archive = tmp.0.join(&file);
-    host.download(&download_url(&ctx.repo, version, &file), &archive)?;
+    on_step(Step::Downloading {
+        asset: file.clone(),
+        version: version.to_string(),
+    });
+    host.download(&download_url(&ctx.repo, version, &file), &archive, progress)
+        .map_err(|e| not_found_or(ctx, version, e))?;
+    on_step(Step::Verifying);
     verify_checksum(ctx, host, version, &tmp.0, &file)?;
+    on_step(Step::Unpacking);
     let new_binary = extract_binary(ctx, host, version, &tmp.0, &archive)?;
     check_version(host, &new_binary, version)?;
+    on_step(Step::Replacing {
+        path: ctx.exe.display().to_string(),
+    });
     replace(&new_binary, &ctx.exe)?;
     Ok(ctx.exe.clone())
+}
+
+/// 取得の失敗が 404 なら、リリースが無いことを伝える（そうでなければそのまま）。
+fn not_found_or(ctx: &Context, version: Version, e: ServiceError) -> ServiceError {
+    if e.to_string().contains("404") {
+        return err(format!(
+            "Release {version} was not found (see {}/releases)",
+            ctx.repo
+        ));
+    }
+    e
 }
 
 /// アーカイブの SHA-256 を `.sha256` と照合する。
@@ -62,7 +90,11 @@ fn verify_checksum(
 ) -> Result<()> {
     let sum_name = format!("{file}.sha256");
     let sum_path = tmp.join(&sum_name);
-    host.download(&download_url(&ctx.repo, version, &sum_name), &sum_path)?;
+    host.download(
+        &download_url(&ctx.repo, version, &sum_name),
+        &sum_path,
+        false,
+    )?;
     let text = std::fs::read_to_string(&sum_path)
         .map_err(|e| err(format!("Cannot read {sum_name}: {e}")))?;
     let expected = parse_sha256_file(&text, file)?;

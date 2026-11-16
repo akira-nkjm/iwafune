@@ -13,8 +13,8 @@ impl Host for SystemHost {
         crate::fetch::text(url)
     }
 
-    fn download(&self, url: &str, to: &Path) -> Result<()> {
-        crate::fetch::download(url, to)
+    fn download(&self, url: &str, to: &Path, progress: bool) -> Result<()> {
+        crate::fetch::download(url, to, progress)
     }
 
     fn extract(&self, archive: &Path, into: &Path) -> Result<()> {
