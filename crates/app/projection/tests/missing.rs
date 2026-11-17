@@ -57,6 +57,23 @@ fn missing_inputs_of_an_empty_design_name_no_parts() {
     );
 }
 
+/// 部品の無い設計では、どの解析も「入力の不足」になる（入力を組み立てて、解析の側で失敗させない）。
+#[test]
+fn every_analysis_reports_missing_inputs_on_an_empty_design() {
+    let design = Design::default();
+    let resolved = fune_model::resolve(&design);
+    let Ok(ctx) = Context::new(&design, &resolved, None) else {
+        panic!("an empty design should still give a context");
+    };
+    for e in entries() {
+        assert!(
+            matches!(project_json(e.id, &ctx), Err(ProjectionError::Missing(_))),
+            "`{}` should report missing inputs on an empty design",
+            e.id
+        );
+    }
+}
+
 /// 解析ケースの不足（無いケース・次元の違う β）は、部品 ID を持たない。
 #[test]
 fn missing_case_inputs_name_no_parts() {

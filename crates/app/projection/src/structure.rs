@@ -248,6 +248,13 @@ pub fn modal_estimate(ctx: &Context<'_>) -> Result<ModalEstimateInput, MissingIn
     let panels: Vec<ModalEstimatePanel> = crate::parts::by_role(ctx, Role::Panel)
         .filter_map(|p| panel(ctx, p, &mut m))
         .collect();
+    // 見積もる対象が 1 つも無い設計は、計算の失敗ではなく入力の不足として知らせる
+    if crate::parts::by_role(ctx, Role::Panel).next().is_none() {
+        m.push(
+            Target::any_of_roles(&[Role::Panel], None),
+            "No panel part (role = panel)",
+        );
+    }
     let launch = ctx.design.conditions.launch.as_ref();
     let requirements = ModalEstimateRequirements {
         lateral: setting_opt(
