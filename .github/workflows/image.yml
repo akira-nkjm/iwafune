@@ -60,7 +60,7 @@ jobs:
           path: web/dist
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.99"
+          toolchain: "1.100"
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --release -p fune-cli
       - name: the binary reports the version being released

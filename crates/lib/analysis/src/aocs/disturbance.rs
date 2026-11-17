@@ -194,8 +194,8 @@ impl DisturbanceTorques {
 impl DisturbanceSpacecraft {
     /// 値が物理的にありうるかを調べる。
     pub fn validate(&self) -> Result<(), AnalysisError> {
-        for i in 0..3 {
-            ensure_positive("Inertia tensor diagonal", self.inertia.m[i][i])?;
+        for (i, row) in self.inertia.m.iter().enumerate() {
+            ensure_positive("Inertia tensor diagonal", row[i])?;
         }
         if !self.inertia.m.iter().flatten().all(|v| v.is_finite()) {
             return Err(AnalysisError::InvalidInput(

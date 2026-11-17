@@ -108,7 +108,7 @@ fn role_string(line: &str) -> Option<&'static str> {
 /// 違反を `errors` に積む。`files` はワークスペースのファイル一覧。
 pub fn check(root: &Path, files: &[std::path::PathBuf], errors: &mut Vec<String>) {
     for file in files {
-        let rel = file.strip_prefix(root).unwrap_or(file);
+        let rel = file.trim_prefix(root);
         let rel = rel.to_string_lossy().replace('\\', "/");
         if !crate::web_strings::is_web_production(&rel) || ALLOWED.iter().any(|(f, _)| *f == rel) {
             continue;
