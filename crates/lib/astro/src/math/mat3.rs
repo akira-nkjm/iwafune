@@ -167,10 +167,10 @@ mod tests {
         };
         let inv = a.inverse().expect("regular");
         let id = a.mul(&inv);
-        for i in 0..3 {
-            for j in 0..3 {
+        for (i, row) in id.m.iter().enumerate() {
+            for (j, v) in row.iter().enumerate() {
                 let e = if i == j { 1.0 } else { 0.0 };
-                assert!((id.m[i][j] - e).abs() < 1e-14);
+                assert!((v - e).abs() < 1e-14);
             }
         }
         assert!(Mat3::default().inverse().is_none());
