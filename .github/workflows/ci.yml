@@ -18,13 +18,11 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: -D warnings
 
-# Runner: the repository variable CI_RUNNER (for example `self-hosted`) picks where the jobs run; without it they
-# run on ubuntu-latest. Pull requests from forks always run on ubuntu-latest, so code from outside the repository
-# never runs on a self-hosted machine. release.yml and image.yml always use GitHub's runners (fixed OS for the image, macOS).
+# Every job runs on GitHub's runners.
 jobs:
   # Which parts changed. Pull requests skip the jobs their change cannot affect; pushes to main and develop run everything.
   changes:
-    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-latest') || vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     outputs:
       rust: ${{ steps.filter.outputs.rust }}
       web: ${{ steps.filter.outputs.web }}
@@ -52,7 +50,7 @@ jobs:
 
   # Architecture checks (dependency direction, registry, languages, web rules). Always runs: it reads code, docs and web.
   architecture:
-    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-latest') || vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
@@ -67,7 +65,7 @@ jobs:
   rust:
     needs: [changes]
     if: needs.changes.outputs.rust == 'true'
-    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-latest') || vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
@@ -92,7 +90,7 @@ jobs:
   web:
     needs: [changes]
     if: needs.changes.outputs.web == 'true'
-    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-latest') || vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: web
@@ -125,7 +123,7 @@ jobs:
   bundle:
     needs: [rust, web]
     if: github.event_name == 'push'
-    runs-on: ${{ (github.event.pull_request.head.repo.fork && 'ubuntu-latest') || vars.CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
