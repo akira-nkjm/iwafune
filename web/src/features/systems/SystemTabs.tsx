@@ -143,5 +143,5 @@ export function SystemTabs({
 
 /** モードの見方を持つ系だけにタブを出す。系の一覧・並びは API が持つ。 */
 export function hasModes(system: System): boolean {
-  return system === "power" || system === "cdh" || system === "thermal" || system === "aocs";
+  return system === "aocs" || system === "cdh" || system === "power" || system === "thermal";
 }

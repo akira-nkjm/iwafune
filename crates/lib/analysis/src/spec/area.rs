@@ -7,14 +7,14 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(rename_all = "snake_case")]
 pub enum System {
-    Power,
     Aocs,
     Cdh,
     Comm,
-    Thermal,
-    Structure,
     Payload,
+    Power,
     Propulsion,
+    Structure,
+    Thermal,
 }
 
 /// 前提条件の解析の話題。綴り・表示名は model と projection の対応で一致を確かめる。

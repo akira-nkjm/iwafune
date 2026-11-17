@@ -103,7 +103,7 @@ fn mode_verdicts_and_missing_states_come_from_rust() {
         .next()
         .unwrap()
         .state = "missing".into();
-    for system in [System::Power, System::Cdh, System::Thermal] {
+    for system in [System::Cdh, System::Power, System::Thermal] {
         let view = system_modes_of(&s, system).unwrap();
         assert!(view.modes[0].sunlit.parts["TEST"].is_none());
         assert!(view.modes[0].sunlit.total.is_none());

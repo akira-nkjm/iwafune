@@ -105,14 +105,14 @@ export interface NavItem {
 
 /** 系のアイコンの対応。項目の一覧と順序は API が返す。 */
 const systemIcons: Record<System, LucideIcon> = {
-  power: Sun,
   aocs: Gauge,
   cdh: Cpu,
   comm: Radio,
-  thermal: Thermometer,
-  structure: Layers3,
   payload: Telescope,
+  power: Sun,
   propulsion: Rocket,
+  structure: Layers3,
+  thermal: Thermometer,
 };
 
 /** ナビの項目の表示名。系の語彙は API の labels.section から引く。 */

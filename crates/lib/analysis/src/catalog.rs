@@ -1,4 +1,4 @@
-//! 解析の一覧と ID による動的な実行。**解析の登録はここだけで行う。** 新しい解析を足したら下の一覧に 1 行足す。
+//! 解析の一覧と ID による動的な実行。**解析の登録はここだけで行う。** 新しい解析を足したら下の一覧に 1 行足す（系の綴り順。軌道は `orbit`）。
 
 use crate::spec::{Analysis, AnalysisError, AnalysisInfo};
 use crate::{aocs, cdh, comm, power, propulsion, structure, thermal};
@@ -36,12 +36,6 @@ macro_rules! registry {
 }
 
 registry!(
-    power::ModeLoad,
-    power::SolarSunlit,
-    power::OrbitGeneration,
-    power::EnergyBalance,
-    power::Sizing,
-    power::ThrustBalance,
     aocs::RwUnloading,
     aocs::UnloadTime,
     aocs::SensorFov,
@@ -50,19 +44,25 @@ registry!(
     comm::LinkBudget,
     comm::Visibility,
     comm::DataThroughput,
-    thermal::ThermalSteady,
-    thermal::ThermalTransient,
-    structure::MassProperties,
-    structure::StaticLoad,
-    structure::ModalEstimate,
     crate::orbit::EclipseSeason,
     crate::orbit::OrbitDecay,
+    power::ModeLoad,
+    power::SolarSunlit,
+    power::OrbitGeneration,
+    power::EnergyBalance,
+    power::Sizing,
+    power::ThrustBalance,
     propulsion::Maneuvers,
     propulsion::DvBudget,
     propulsion::Propellant,
     propulsion::ThrusterUsage,
     propulsion::OrbitHistoryAnalysis,
     propulsion::PropellantMassProperties,
+    structure::MassProperties,
+    structure::StaticLoad,
+    structure::ModalEstimate,
+    thermal::ThermalSteady,
+    thermal::ThermalTransient,
 );
 
 /// 型付き入力で登録済み解析を実行する。動的実行と budget が共有する入口。

@@ -92,10 +92,12 @@ fn skeletons_come_from_kit_loading() {
 /// Web は系とバジェットの種類の一覧を API から取り、写しを書かない（テストの補助のデータは除く）。
 #[test]
 fn web_takes_systems_and_budget_kinds_from_the_api() {
-    let systems = "export const systemOrder = [\"power\", \"aocs\", \"cdh\"];";
+    let systems = "export const systemOrder = [\"aocs\", \"cdh\", \"comm\"];";
+    let old_systems = "export const systemOrder = [\"power\", \"aocs\", \"cdh\"];";
     let kinds = "const DELTA_KINDS = [\"mass\", \"power\", \"data\"];";
     for (needle, line) in [
-        ("\"power\", \"aocs\"", systems),
+        ("\"aocs\", \"cdh\"", systems),
+        ("\"power\", \"aocs\"", old_systems),
         ("\"mass\", \"power\", \"data\"", kinds),
     ] {
         let rule = WEB_RULES.iter().find(|r| r.0 == needle).unwrap();
@@ -117,10 +119,10 @@ fn web_takes_systems_and_budget_kinds_from_the_api() {
 fn lists_and_reference_sites_have_one_home() {
     let rust = |needle: &str| RUST_RULES.iter().find(|r| r.0 == needle).unwrap();
     let mut errors = Vec::new();
-    let systems = rust("\"power\", \"aocs\"");
+    let systems = rust("\"aocs\", \"cdh\"");
     check_rule(
         "crates/app/store/src/layout.rs",
-        "&[\"power\", \"aocs\", \"cdh\"]",
+        "&[\"aocs\", \"cdh\", \"comm\"]",
         systems,
         &mut errors,
     );
@@ -128,7 +130,7 @@ fn lists_and_reference_sites_have_one_home() {
     errors.clear();
     check_rule(
         "crates/app/model/src/design/analysis.rs",
-        "&[\"power\", \"aocs\"]",
+        "&[\"aocs\", \"cdh\"]",
         systems,
         &mut errors,
     );

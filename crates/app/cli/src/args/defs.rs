@@ -64,7 +64,7 @@ pub struct AttrAddArgs {
     /// Direction vector (should be a unit vector)
     #[arg(long)]
     pub unit_vector: bool,
-    /// Subsystem it is listed under on screen (basic, mass, power, thermal, aocs, comm, cdh, structure)
+    /// Subsystem it is listed under on screen (basic, mass, aocs, cdh, comm, payload, power, propulsion, structure, thermal)
     #[arg(long)]
     pub section: Option<String>,
     #[command(flatten)]

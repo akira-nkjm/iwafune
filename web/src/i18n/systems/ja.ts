@@ -96,14 +96,6 @@ export const systemsJa = {
       flow: "フロー",
     },
     specs: {
-      payload: { description: "ミッション機器（解析はまだありません）" },
-      propulsion: {
-        description:
-          "マヌーバの ΔV と ΔV バジェット、推薬とタンクの余裕、スラスタの定格に対する使い方",
-      },
-      power: {
-        description: "モード別の消費電力、発電、軌道上の収支とバッテリーの DoD",
-      },
       aocs: {
         description: "RW のアンロード頻度、MTQ・RCS でのアンロード時間、センサの禁止角",
       },
@@ -113,10 +105,18 @@ export const systemsJa = {
       comm: {
         description: "回線バジェット、地上局の可視時間、送信量と未送信データの蓄積",
       },
-      thermal: { description: "多節点の定常・非定常解析と、保管・動作・性能の温度範囲との比較" },
+      payload: { description: "ミッション機器（解析はまだありません）" },
+      power: {
+        description: "モード別の消費電力、発電、軌道上の収支とバッテリーの DoD",
+      },
+      propulsion: {
+        description:
+          "マヌーバの ΔV と ΔV バジェット、推薬とタンクの余裕、スラスタの定格に対する使い方",
+      },
       structure: {
         description: "質量特性、準静的荷重と簡易な固有振動数",
       },
+      thermal: { description: "多節点の定常・非定常解析と、保管・動作・性能の温度範囲との比較" },
     },
     // KPI の名前は API（`KpiDef.label`・`label_en`）。ここは判定を数える KPI の数の文と、塗りの比の根拠（`FillBasis`）の文
     kpiTally: (checked: number, flagged: number) =>
