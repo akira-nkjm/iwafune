@@ -58,6 +58,7 @@ export const catalogJa = {
     value: "値",
     reset: "値を消す",
     noValues: "値がありません",
+    addToDesign: "部品として設計に追加",
     rename: "名前を変える",
     remove: "削除",
     renameTitle: (id: string) => `${id} の ID を変える`,

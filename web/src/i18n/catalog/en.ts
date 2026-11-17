@@ -59,6 +59,7 @@ export const catalogEn: typeof catalogJa = {
     value: "Value",
     reset: "Remove value",
     noValues: "No values",
+    addToDesign: "Add to design",
     rename: "Rename",
     remove: "Delete",
     renameTitle: (id: string) => `Rename ${id}`,
