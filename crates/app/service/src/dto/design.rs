@@ -145,7 +145,7 @@ pub struct PartViewRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct PartView {
     pub part: PartRow,
-    /// 系ごとの属性の並び（基本・質量・電源・熱・姿勢・通信…）
+    /// 系ごとの属性の並び（基本・質量・姿勢・C&DH・通信・ミッション機器・電源・推進・構造・熱）
     pub sections: Vec<AttrSection>,
     /// モード ID → その部品の状態
     pub modes: BTreeMap<String, StateAssign>,

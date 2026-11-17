@@ -35,7 +35,7 @@ fn system_modes_of(
     let ctx = fune_projection::Context::bare(&s.design, &s.resolved);
     let mut modes = Vec::new();
     let mut missing = fune_projection::MissingInputs::new();
-    if !matches!(system, System::Power | System::Cdh | System::Thermal) {
+    if !matches!(system, System::Cdh | System::Power | System::Thermal) {
         return Err(crate::error::ServiceError::InvalidInput(
             "This subsystem has no mode view".into(),
         ));

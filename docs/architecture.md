@@ -12,7 +12,7 @@ The CLI, API and web use the same classification, and KPIs are shown per subsyst
 ## 1. Purpose and scope
 
 iwafune is a tool for the conceptual design of small satellites. On top of a single set of design data, it handles part selection, mass, power and data budgets, per-mode power consumption,
-and analyses of power, AOCS, C&DH, communications, thermal, structure and propulsion.
+and analyses of AOCS, C&DH, communications, power, propulsion, structure and thermal.
 
 - The only source of truth for design data is a git-managed directory of TOML. There is no resident server and no database.
 - There are two ways to edit, the CLI (`fune`) and the Web GUI, and they can do the same things. The GUI is served by a server that `fune gui` starts locally.
@@ -248,7 +248,7 @@ UI components use Tailwind CSS 4 and Radix, the system diagram uses @xyflow/reac
 the 3D placement uses three, @react-three/fiber and @react-three/drei, and graphs use Recharts. Lint and formatting use Biome, and tests use Vitest.
 
 The screens are: overview (budgets and diagnostics), parts, catalog, system diagrams (power and signal), mode table, maneuvers (a list in execution order, and add, edit and delete with the same arguments as `fune maneuver add|set|rm`; the results are on the propulsion page), placement (the part tree on the left, 3D in the center, the placement fields on the right. Selecting, mounting and positioning parts are checked and edited in full-screen 3D, and the center of mass is shown if mass properties exist), definitions (attributes, kinds, units),
-per-subsystem pages (Power, AOCS, C&DH, Communications, Thermal, Structure, Mission equipment, Propulsion. Propulsion uses the generic display (KPIs, verdicts, analysis tables). Analyses for mission equipment are not registered yet. The structure overview links to the placement page. The 3D colored by temperature remains on the thermal page), orbit and ground stations, analysis cases, diagnostics, and settings.
+per-subsystem pages (AOCS, C&DH, Communications, Payload, Power, Propulsion, Structure, Thermal. Propulsion uses the generic display (KPIs, verdicts, analysis tables). Analyses for payload are not registered yet. The structure overview links to the placement page. The 3D colored by temperature remains on the thermal page), orbit and ground stations, analysis cases, diagnostics, and settings.
 A subsystem page lists the parts related to that subsystem using only that subsystem's attribute columns, lets you edit them in cells, and shows the analysis results on the same page.
 The subsystem tabs are "Overview (KPIs and verdicts), Modes, Parts, Time series, Settings" (in Japanese: 概要, モード, 部品, 時系列, 設定).
 The Power overview (#89 stage 1) is centered on chips with verdicts per mode, a common sunlit/eclipse toggle, and a flow diagram of solar cells → bus → each subsystem and the battery.
@@ -260,7 +260,7 @@ The time series selects a mode and shows generation and load, charge/discharge a
 Generation and sunlit in the upper section of the power balance are not shown again as orbit generation. The table of contents of the graphs is on the right.
 The display definition is `PowerPageView`, integrated by the independent `fune_service::power_page::power_page` calling the existing analysis entry points and returned by `GET /api/v1/power_page?case=…`. Power-specific fields are not placed in the generic analysis result or design DTOs. The 3 tabs use the same query of `usePowerPage`. Rust returns quantities, verdicts, ratios, marker positions and the channel selection, and the Web only draws and handles interaction.
 Other subsystems use the conventional generic display.
-A Modes tab is on Power, C&DH, Thermal and AOCS.
+A Modes tab is on AOCS, C&DH, Power and Thermal.
 Power shows the matrix of power consumption with the total including growth margin, available power, margin and verdict;
 C&DH shows the data generation rate before compression and packetization; Thermal shows the internal heat dissipation of the parts belonging to each node; AOCS shows, in a card per mode, a diagram of the primary and secondary axes with the attitude law, equipment by role with the number operating and state, and the longest duration.
 The momentum accumulation, unloading frequency, MTQ unloading time and sensor field-of-view verdict of the AOCS card are evaluated in Rust.
@@ -302,13 +302,13 @@ During development, `pnpm -C web dev` (port 5173) proxies `/api` to `127.0.0.1:3
 
 | Subsystem | Steady-state | Time series |
 |---|---|---|
-| Power | `power.mode_load` (power consumption per mode), `power.solar_sunlit` (generation while sunlit) | `power.orbit_generation` (on-orbit generation), `power.energy_balance` (power balance and DoD), `power.thrust_balance` (power balance during firing of numerically propagated maneuvers) |
 | AOCS | `aocs.unload_time` (time needed to unload with MTQ and RCS), `aocs.slew_time` (time needed to change attitude with RW) | `aocs.rw_unloading` (disturbance torque (including thrust error) and RW unloading frequency, daily propellant dumped by RCS and its ΔV equivalent), `aocs.sensor_fov` (sensor FoV and exclusion angles) |
 | C&DH | `cdh.data_budget` (data volume and storage) | — |
 | Communications | `comm.link_budget` (link budget) | `comm.visibility` (ground station visibility), `comm.data_throughput` (data transmitted and stored) |
-| Thermal | `thermal.steady` (multi-node steady-state temperature) | `thermal.transient` (multi-node transient temperature) |
-| Structure | `structure.mass_properties` (mass properties), `structure.static_load` (quasi-static load), `structure.modal_estimate` (simple natural frequency. No FEM) | — |
+| Power | `power.mode_load` (power consumption per mode), `power.solar_sunlit` (generation while sunlit) | `power.orbit_generation` (on-orbit generation), `power.energy_balance` (power balance and DoD), `power.thrust_balance` (power balance during firing of numerically propagated maneuvers) |
 | Propulsion | `propulsion.maneuvers` (ΔV, burn time, propellant and orbits before and after for each maneuver), `propulsion.dv_budget` (the breakdown, total and margin of ΔV by category, and the ΔV of RCS unloading), `propulsion.propellant` (wet and dry propellant and the volume margin of the tanks), `propulsion.thruster_usage` (total impulse, cumulative burn time, number of burns and the ratings), `propulsion.mass_properties` (mass and center of mass with propellant loaded and after use) | `propulsion.orbit_history` (the orbit history in maneuver order. For numerically propagated maneuvers, the altitude, inclination and mass of the propagation with thrust) |
+| Structure | `structure.mass_properties` (mass properties), `structure.static_load` (quasi-static load), `structure.modal_estimate` (simple natural frequency. No FEM) | — |
+| Thermal | `thermal.steady` (multi-node steady-state temperature) | `thermal.transient` (multi-node transient temperature) |
 
 `fune analyze ls` and `GET /analyses` return the same list.
 

@@ -1,6 +1,6 @@
 [package]
 name = "sat-analysis"
-description = "Satellite subsystem analyses (power, aocs, C&DH, communications, thermal, structure) with typed SI inputs and outputs"
+description = "Satellite subsystem analyses (AOCS, C&DH, communications, power, structure, thermal) with typed SI inputs and outputs"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

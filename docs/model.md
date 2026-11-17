@@ -656,7 +656,7 @@ parts/
 ```
 
 - A Group's ID is its directory name. It must be unique within the same namespace as part IDs.
-- A Group has neither mass nor mounting. The top-level directory names are `power`, `aocs`, `cdh`, `comm`, `thermal`, `structure` and `payload`. Anything else is a `fune check` error (listing the IDs that can be used). IDs of nested assemblies and folders are arbitrary.
+- A Group has neither mass nor mounting. The top-level directory names are `aocs`, `cdh`, `comm`, `payload`, `power`, `structure` and `thermal`. Anything else is a `fune check` error (listing the IDs that can be used). IDs of nested assemblies and folders are arbitrary.
 - A part's subsystem is decided only by `Design::system_of`: the top-level subsystem of its location → the subsystem of the kind's role (`role_system`, including inheritance) → `None`. Parts directly under `parts/` are also allowed, and belong to a subsystem if they have a role.
 - A subsystem's display name is the built-in vocabulary `labels.section` (Japanese and English). It is not overridden by the project. The API's `PartRow.system` is `System | null`, and the tree and budget rows also return `system` and the Japanese and English display names. The Web's colors look this subsystem up through the single mapping in `lib/systems.ts` (those without a subsystem get the neutral color). Allocations are written in `budget/allocation.toml`.
 - A physical assembly (`SAP_PX`) has its own mass, mounting target and mount points, and child parts attach to the assembly with `mount = { on = "SAP_PX", … }`.

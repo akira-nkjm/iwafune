@@ -34,6 +34,12 @@ pub(super) const RUST_RULES: &[(&str, &[&str], &str)] = &[
     ),
     // 解析の系の一覧（`fune_model::design::AnalysisSystem`。`ALL`・`NAMES` を使う）
     (
+        "\"aocs\", \"cdh\"",
+        &["crates/app/model/src/design/analysis.rs"],
+        "the list of analysis systems (`AnalysisSystem`)",
+    ),
+    // 並びを変える前の綴り（古い写しが紛れ込んでも見つける）
+    (
         "\"power\", \"aocs\"",
         &["crates/app/model/src/design/analysis.rs"],
         "the list of analysis systems (`AnalysisSystem`)",
@@ -92,6 +98,11 @@ pub(super) const WEB_RULES: &[(&str, &[&str], &str)] = &[
         "skeletons (loading display)",
     ),
     // 系とバジェットの種類の一覧と並びは API（`DefsView.systems`・`budget_kinds`）。Web に写しを書かない
+    (
+        "\"aocs\", \"cdh\"",
+        &["web/src/test/"],
+        "the list of analysis systems (the API's `DefsView.systems`)",
+    ),
     (
         "\"power\", \"aocs\"",
         &["web/src/test/"],
