@@ -208,6 +208,13 @@ export function treeCount<T>(node: TreeNode<T>): number {
   return (node.item ? 1 : 0) + node.children.reduce((sum, child) => sum + treeCount(child), 0);
 }
 
+/** 子を持つ節（開閉できる節）の key を全部の深さで集める（「すべて閉じる」の対象）。 */
+export function branchKeys<T>(nodes: readonly TreeNode<T>[]): string[] {
+  return nodes.flatMap((node) =>
+    node.children.length ? [node.key, ...branchKeys(node.children)] : [],
+  );
+}
+
 /** 節とその子孫の項目（フォルダーの表示・非表示などをまとめて切り替えるため）。 */
 export function treeItems<T>(node: TreeNode<T>): T[] {
   return [...(node.item ? [node.item] : []), ...node.children.flatMap(treeItems)];

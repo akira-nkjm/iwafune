@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { PartRow, System } from "@/api/types";
 import {
   ancestorKeys,
+  branchKeys,
   catalogTree,
   filterTree,
   partsTree,
@@ -205,5 +206,26 @@ describe("treeItems and ancestorKeys", () => {
     ]);
     expect(ancestorKeys(nodes, (p) => p.id === "RW")).toEqual([nodes[1]!.key]);
     expect(ancestorKeys(nodes, (p) => p.id === "NONE")).toEqual([]);
+  });
+});
+
+describe("branchKeys", () => {
+  it("collects every node that has children at every depth, not leaves", () => {
+    const nodes = partsTree([
+      part("BAT", ["power", "batteries"]),
+      part("CELL", ["other"], "BAT"),
+      part("RW", ["aocs"]),
+    ]);
+    expect(branchKeys(nodes)).toEqual([
+      "folder/power",
+      "folder/power/batteries",
+      "item/BAT",
+      "folder/aocs",
+    ]);
+  });
+  it("is empty for a flat list", () => {
+    expect(branchKeys([{ key: "item/A", label: "A", item: { id: "A" }, children: [] }])).toEqual(
+      [],
+    );
   });
 });
