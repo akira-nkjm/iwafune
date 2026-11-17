@@ -13,6 +13,10 @@ on:
   push:
     branches: [main]
 
+# Jobs get read-only access to the repository unless they ask for more.
+permissions:
+  contents: read
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false

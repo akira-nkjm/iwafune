@@ -303,6 +303,7 @@ fn a_missing_release_is_explained() {
         e.contains("Release 9.9.9 was not found (see https://github.com/o/r/releases)"),
         "{e}"
     );
-    assert_eq!(steps, [downloading("9.9.9")]);
+    // チェックサムの取得で分かるので、成果物の取得（進捗バー）は始まらない
+    assert_eq!(steps, []);
     assert_untouched(&f);
 }

@@ -1,6 +1,6 @@
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { useFetchCatalogs } from "@/api/catalog";
+import { useFetchCatalogs, useUpdateCatalog } from "@/api/catalog";
 import { useEnumLabel } from "@/api/labels";
 import type { CatalogSourceView, SharedCatalogState, SharedCatalogStatus } from "@/api/types";
 import { useT } from "@/i18n";
@@ -9,6 +9,7 @@ import { OpDialog } from "@/ops/OpDialog";
 import { Button } from "@/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog";
 import { AddSharedCatalogDialog } from "./AddSharedCatalogDialog";
+import { CatalogUpdateResult } from "./CatalogUpdateResult";
 
 /** 状態の色（読み込めていれば pos、取得が要れば warn） */
 const TONE: Record<SharedCatalogState, PillTone> = {
@@ -46,6 +47,8 @@ export function SharedCatalogsDialog({
   const m = t.catalog.shared;
   const label = useEnumLabel();
   const fetchCatalogs = useFetchCatalogs();
+  const update = useUpdateCatalog();
+  const busy = fetchCatalogs.isPending || update.isPending;
   const [adding, setAdding] = useState(false);
   /** 外す確認を開いている共有カタログの名前 */
   const [removing, setRemoving] = useState<string | null>(null);
@@ -53,7 +56,17 @@ export function SharedCatalogsDialog({
   const needed = neededCount(catalogs) > 0;
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          // 閉じたら更新の結果とエラーを消す
+          if (!next) {
+            update.reset();
+            fetchCatalogs.reset();
+          }
+          onOpenChange(next);
+        }}
+      >
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{m.title}</DialogTitle>
@@ -61,6 +74,7 @@ export function SharedCatalogsDialog({
               {shared.length === 0 ? m.none : needed ? m.needed : m.ready}
             </DialogDescription>
           </DialogHeader>
+          {shared.length > 0 && <p className="text-ink-3 text-xs">{m.explain}</p>}
           {shared.length > 0 && (
             <ul className="space-y-1.5">
               {shared.map((s) => (
@@ -79,9 +93,23 @@ export function SharedCatalogsDialog({
                   </span>
                   {s.state !== "ready" && <span className="text-ink-3">{m.hint[s.state]}</span>}
                   <Button
+                    variant="outline"
+                    size="xs"
+                    className="ml-auto"
+                    disabled={busy}
+                    aria-label={m.updateLabel(s.name)}
+                    title={m.updateLabel(s.name)}
+                    onClick={() => {
+                      fetchCatalogs.reset();
+                      update.mutate({ name: s.name });
+                    }}
+                  >
+                    <RefreshCw />
+                    {update.isPending && update.variables?.name === s.name ? m.updating : m.update}
+                  </Button>
+                  <Button
                     variant="ghost"
                     size="icon-xs"
-                    className="ml-auto"
                     aria-label={m.remove(s.name)}
                     title={m.remove(s.name)}
                     onClick={() => setRemoving(s.name)}
@@ -92,10 +120,13 @@ export function SharedCatalogsDialog({
               ))}
             </ul>
           )}
-          {fetchCatalogs.error && (
+          {(fetchCatalogs.error ?? update.error) && (
             <p role="alert" className="mt-2 text-neg-ink text-xs">
-              {fetchCatalogs.error.message}
+              {(fetchCatalogs.error ?? update.error)?.message}
             </p>
+          )}
+          {update.data && update.variables && (
+            <CatalogUpdateResult name={update.variables.name} result={update.data} />
           )}
           <div className="flex items-center gap-1.5">
             <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
@@ -106,8 +137,11 @@ export function SharedCatalogsDialog({
               <Button
                 variant="outline"
                 size="sm"
-                disabled={fetchCatalogs.isPending}
-                onClick={() => fetchCatalogs.mutate({ locked: false })}
+                disabled={busy}
+                onClick={() => {
+                  update.reset();
+                  fetchCatalogs.mutate({ locked: false });
+                }}
               >
                 {fetchCatalogs.isPending ? m.fetching : m.fetch}
               </Button>
