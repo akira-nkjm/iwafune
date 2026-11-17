@@ -96,14 +96,6 @@ export const systemsEn: typeof systemsJa = {
       flow: "Flow",
     },
     specs: {
-      payload: { description: "Mission equipment (no analyses yet)" },
-      propulsion: {
-        description:
-          "Maneuver delta-V and delta-V budget, propellant and tank margin, thruster usage against ratings",
-      },
-      power: {
-        description: "Load per mode, generation, orbit energy balance and battery DoD",
-      },
       aocs: {
         description: "RW unloading frequency, MTQ/RCS unload time and sensor exclusion angles",
       },
@@ -113,12 +105,20 @@ export const systemsEn: typeof systemsJa = {
       comm: {
         description: "Link budget, ground station contact time, downlink volume and backlog",
       },
-      thermal: {
+      payload: { description: "Payload (no analyses yet)" },
+      power: {
+        description: "Load per mode, generation, orbit energy balance and battery DoD",
+      },
+      propulsion: {
         description:
-          "Multi-node steady and transient analysis against storage, operating and performance ranges",
+          "Maneuver delta-V and delta-V budget, propellant and tank margin, thruster usage against ratings",
       },
       structure: {
         description: "Mass properties, quasi-static loads and simple natural frequencies",
+      },
+      thermal: {
+        description:
+          "Multi-node steady and transient analysis against storage, operating and performance ranges",
       },
     },
     kpiTally: (checked: number, flagged: number) =>

@@ -25,7 +25,7 @@ function modesFromTable(design: DesignView, id: string): Record<string, StateAss
 }
 
 /**
- * 1 部品の情報をすべてまとめた詳細（基本・質量・電源・熱・姿勢・通信・配置・接続・モード・診断）。
+ * 1 部品の情報をすべてまとめた詳細（基本・質量・姿勢・通信・電源・熱・配置・接続・モード・診断）。
  * GET /parts/{id} を読み、届くまでは /design の行から同じ形を作って出す。`onClose` があれば見出しの右端に閉じるボタン
  * を出す（一覧のタブの横の欄）。
  */

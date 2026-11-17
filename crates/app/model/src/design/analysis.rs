@@ -18,14 +18,14 @@ enum_text! {
     /// 解析の側の `sat_analysis::spec::System` は依存の向きで共有できないので、fune-projection（`system`）の対応とテストで一致を確かめる。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
     pub enum AnalysisSystem: "analysis subsystem" {
-        Power = "power",
         Aocs = "aocs",
         Cdh = "cdh",
         Comm = "comm",
-        Thermal = "thermal",
-        Structure = "structure",
         Payload = "payload",
+        Power = "power",
         Propulsion = "propulsion",
+        Structure = "structure",
+        Thermal = "thermal",
     }
 }
 
