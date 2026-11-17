@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, Folder } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown, Folder } from "lucide-react";
 import {
   type HTMLAttributes,
   type KeyboardEvent,
@@ -7,8 +7,10 @@ import {
   useRef,
   useState,
 } from "react";
+import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { ancestorKeys, type TreeNode, treeCount } from "./tree-nodes";
+import { Button } from "@/ui/button";
+import { ancestorKeys, branchKeys, type TreeNode, treeCount } from "./tree-nodes";
 
 type Row<T> = { node: TreeNode<T>; level: number; parent?: string; position: number; size: number };
 type TreeProps<T> = {
@@ -108,6 +110,11 @@ function useTree<T extends { id: string }>(props: TreeProps<T>) {
       else next.add(key);
       return next;
     });
+  // すべて開く／閉じる。絞り込み中（expanded あり）も同じ collapsed で動く:
+  // 開く = collapsed を空にして一致した枝をすべて出す、閉じる = 一致した枝も含めてすべて閉じる（最上位の行は残る）
+  const branches = branchKeys(props.nodes);
+  const expandAll = () => setCollapsed(new Set());
+  const collapseAll = () => setCollapsed(new Set(branches));
   const focus = (key?: string) => {
     if (key) refs.current.get(key)?.focus();
   };
@@ -132,7 +139,16 @@ function useTree<T extends { id: string }>(props: TreeProps<T>) {
       },
     };
   }
-  return { rows, open, attributes };
+  return {
+    rows,
+    open,
+    attributes,
+    branchCount: branches.length,
+    allOpen: collapsed.size === 0,
+    allClosed: branches.every((key) => collapsed.has(key)),
+    expandAll,
+    collapseAll,
+  };
 }
 
 function TreeChevron({ open, expandable }: { open: boolean; expandable: boolean }) {
@@ -204,6 +220,45 @@ function TreeRow<T extends { id: string }>({
   );
 }
 
+/** 「すべて開く」「すべて閉じる」。 */
+export function TreeToolbar({
+  allOpen,
+  allClosed,
+  onExpandAll,
+  onCollapseAll,
+}: {
+  allOpen: boolean;
+  allClosed: boolean;
+  onExpandAll: () => void;
+  onCollapseAll: () => void;
+}) {
+  const t = useT().common;
+  return (
+    <div className="flex shrink-0 items-center justify-end gap-0.5 border-line-soft border-b px-2 py-0.5">
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label={t.expandAll}
+        title={t.expandAll}
+        disabled={allOpen}
+        onClick={onExpandAll}
+      >
+        <ChevronsUpDown />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        aria-label={t.collapseAll}
+        title={t.collapseAll}
+        disabled={allClosed}
+        onClick={onCollapseAll}
+      >
+        <ChevronsDownUp />
+      </Button>
+    </div>
+  );
+}
+
 /**
  * 共通の単一選択ツリー。フォーカスと選択を分け、矢印・Home/End・Enter に対応。
  * 外から選ばれた項目（3D で選んだ部品など）は、祖先のフォルダーを開いて見える所まで送る。
@@ -211,16 +266,27 @@ function TreeRow<T extends { id: string }>({
 export function Tree<T extends { id: string }>(props: TreeProps<T>) {
   const tree = useTree(props);
   return (
-    <div role="tree" aria-label={props.label} className="h-full overflow-auto py-1">
-      {tree.rows.map((row, index) => (
-        <TreeRow
-          key={row.node.key}
-          row={row}
-          open={tree.open(row.node.key)}
-          attributes={tree.attributes(row, index)}
-          props={props}
+    <div className="flex h-full min-h-0 flex-col">
+      {/* フォルダー（子を持つ節）が無いツリーには出さない */}
+      {tree.branchCount > 0 && (
+        <TreeToolbar
+          allOpen={tree.allOpen}
+          allClosed={tree.allClosed}
+          onExpandAll={tree.expandAll}
+          onCollapseAll={tree.collapseAll}
         />
-      ))}
+      )}
+      <div role="tree" aria-label={props.label} className="min-h-0 flex-1 overflow-auto py-1">
+        {tree.rows.map((row, index) => (
+          <TreeRow
+            key={row.node.key}
+            row={row}
+            open={tree.open(row.node.key)}
+            attributes={tree.attributes(row, index)}
+            props={props}
+          />
+        ))}
+      </div>
     </div>
   );
 }

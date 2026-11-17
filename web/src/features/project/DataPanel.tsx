@@ -35,7 +35,9 @@ export function DataPanel() {
               disabled={fetchData.isPending}
               onClick={() => fetchData.mutate(item.id)}
             >
-              {fetchData.isPending ? words.fetching : words.fetch}
+              {fetchData.isPending && fetchData.variables === item.id
+                ? words.fetching
+                : words.fetch}
             </Button>
             {item.install_error && (
               <span role="alert" className="text-neg-ink">
