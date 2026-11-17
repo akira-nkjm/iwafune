@@ -96,6 +96,13 @@ describe("カタログ品の詳細", () => {
     expect(render(item())).not.toContain("読み取り専用");
   });
 
+  it("設計に追加する操作は、書き込めない共有カタログの品にも出す", () => {
+    expect(render(item())).toContain('aria-label="部品として設計に追加"');
+    const shared = render(item({ editable: false, scope: "lab", id: "lab/rw" }));
+    expect(shared).toContain('aria-label="部品として設計に追加"');
+    expect(shared).not.toContain("名前を変える");
+  });
+
   it("使っている部品を数と一緒にリンクで出す", () => {
     const html = render(item());
     expect(html).toContain("使っている部品（2）");

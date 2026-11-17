@@ -1,5 +1,7 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router";
 import type { CatalogItemView, DesignView } from "@/api/types";
+import { AddPartDialog } from "@/features/components/AddPartDialog";
 import { useT } from "@/i18n";
 import { DetailAction, DetailHeader, DetailPane } from "@/kit/detail/DetailPane";
 import { DetailSection } from "@/kit/detail/DetailSection";
@@ -29,7 +31,8 @@ export function CatalogDetail({
   const t = useT();
   const readOnly = !item.editable;
   const users = item.users;
-  const dialogs = useDialogs<"rename" | "remove">();
+  const dialogs = useDialogs<"rename" | "remove" | "addPart">();
+  const navigate = useNavigate();
   return (
     <DetailPane
       header={
@@ -39,20 +42,28 @@ export function CatalogDetail({
           trailing={readOnly && <Pill dot={false}>{item.scope}</Pill>}
           subtitle={`${itemLabel(item)} · ${kindLabel(design.defs, item.kind)}`}
           actions={
-            readOnly ? null : (
-              <>
-                <DetailAction
-                  icon={Pencil}
-                  label={t.catalog.rename}
-                  onClick={() => dialogs.show("rename")}
-                />
-                <DetailAction
-                  icon={Trash2}
-                  label={t.catalog.remove}
-                  onClick={() => dialogs.show("remove")}
-                />
-              </>
-            )
+            <>
+              {/* 使うだけなので、共有カタログの品（読み取り専用）にも出す */}
+              <DetailAction
+                icon={Plus}
+                label={t.catalog.addToDesign}
+                onClick={() => dialogs.show("addPart")}
+              />
+              {!readOnly && (
+                <>
+                  <DetailAction
+                    icon={Pencil}
+                    label={t.catalog.rename}
+                    onClick={() => dialogs.show("rename")}
+                  />
+                  <DetailAction
+                    icon={Trash2}
+                    label={t.catalog.remove}
+                    onClick={() => dialogs.show("remove")}
+                  />
+                </>
+              )}
+            </>
           }
         />
       }
@@ -82,6 +93,14 @@ export function CatalogDetail({
           </ul>
         )}
       </DetailSection>
+      {dialogs.current === "addPart" && (
+        <AddPartDialog
+          {...dialogs.props}
+          design={design}
+          initialCatalog={item.id}
+          onDone={(id) => navigate(paths.component(id))}
+        />
+      )}
       {dialogs.current === "rename" && (
         <RenameCatalogDialog
           {...dialogs.props}
