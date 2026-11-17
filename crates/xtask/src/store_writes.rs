@@ -25,11 +25,7 @@ const EXCEPTIONS: &[(&str, &str)] = &[
 /// 違反を `errors` に積む。
 pub fn check(root: &Path, files: &[PathBuf], errors: &mut Vec<String>) {
     for file in files {
-        let rel = file
-            .strip_prefix(root)
-            .unwrap_or(file)
-            .to_string_lossy()
-            .replace('\\', "/");
+        let rel = file.trim_prefix(root).to_string_lossy().replace('\\', "/");
         if !rel.starts_with("crates/") || !rel.ends_with(".rs") {
             continue;
         }

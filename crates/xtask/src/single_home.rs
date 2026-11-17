@@ -11,7 +11,7 @@ use rules::{PROD_RULES, RUST_RULES, SHARED, WEB_RULES};
 /// 違反を `errors` に積む。`files` はワークスペースのファイル一覧。色の直書きは [`crate::web_colors`] が見る。
 pub fn check(root: &Path, files: &[std::path::PathBuf], errors: &mut Vec<String>) {
     for file in files {
-        let rel = file.strip_prefix(root).unwrap_or(file);
+        let rel = file.trim_prefix(root);
         let rel_s = rel.to_string_lossy().replace('\\', "/");
         let is_code = rel_s.ends_with(".rs") || rel_s.ends_with(".ts") || rel_s.ends_with(".tsx");
         if !is_code || rel_s.starts_with("crates/xtask/") || rel_s.contains("/gen/") {

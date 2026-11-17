@@ -319,7 +319,7 @@ fn judge(found: &BTreeMap<String, Vec<Finding>>, allowed: &[(&str, &str)]) -> Ve
 pub fn check(root: &Path, files: &[PathBuf], errors: &mut Vec<String>) {
     let mut found: BTreeMap<String, Vec<Finding>> = BTreeMap::new();
     for file in files {
-        let rel = file.strip_prefix(root).unwrap_or(file);
+        let rel = file.trim_prefix(root);
         let rel = rel.to_string_lossy().replace('\\', "/");
         if !in_scope(&rel) {
             continue;

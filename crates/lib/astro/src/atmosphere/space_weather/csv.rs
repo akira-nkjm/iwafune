@@ -58,7 +58,7 @@ impl Columns {
 /// CSV のバイト列 → 日付の順の行。日付が増えていなければ誤り。
 pub(super) fn parse(bytes: &[u8]) -> Result<Vec<SpaceWeatherDay>, SpaceWeatherParseError> {
     let text = String::from_utf8_lossy(bytes);
-    let text = text.strip_prefix('\u{feff}').unwrap_or(&text);
+    let text = text.trim_prefix('\u{feff}');
     let mut lines = text
         .lines()
         .enumerate()

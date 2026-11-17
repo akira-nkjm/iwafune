@@ -243,7 +243,7 @@ fn parse_exponent(source: &str) -> Result<i8, UnitError> {
     }
     let (negative, digits) = match source.strip_prefix('-') {
         Some(rest) => (true, rest),
-        None => (false, source.strip_prefix('+').unwrap_or(source)),
+        None => (false, source.trim_prefix('+')),
     };
     // 3 桁までに制限すれば i8 の範囲検査だけで済む。
     if digits.is_empty() || digits.len() > 3 || !digits.bytes().all(|b| b.is_ascii_digit()) {
