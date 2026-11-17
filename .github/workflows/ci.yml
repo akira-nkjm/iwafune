@@ -57,7 +57,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.99"
+          toolchain: "1.100"
       - uses: Swatinem/rust-cache@v2
         with:
           # Pull requests read the develop cache but do not save their own (keeps the develop cache from being evicted).
@@ -72,7 +72,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.99"
+          toolchain: "1.100"
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
@@ -134,7 +134,7 @@ jobs:
           path: web/dist
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.99"
+          toolchain: "1.100"
       - uses: Swatinem/rust-cache@v2
         with:
           # Pull requests read the develop cache but do not save their own (keeps the develop cache from being evicted).

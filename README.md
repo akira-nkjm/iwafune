@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/akira-nkjm/iwafune/actions/workflows/ci.yml"><img src="https://github.com/akira-nkjm/iwafune/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI status"></a>
-  <img src="https://img.shields.io/badge/Rust-1.99-062654?logo=rust&logoColor=white" alt="Rust 1.99">
+  <img src="https://img.shields.io/badge/Rust-1.100-062654?logo=rust&logoColor=white" alt="Rust 1.100">
   <img src="https://img.shields.io/badge/React-19-3382c2?logo=react&logoColor=white" alt="React 19">
   <img src="https://img.shields.io/badge/design%20data-TOML%201.0-0097a7" alt="Design data in TOML 1.0">
 </p>
@@ -87,7 +87,7 @@ With cargo-binstall, running the install command again also works. If `fune` cam
 
 ## Quick start
 
-To build from source: Rust 1.99 or later (edition 2024), Node.js 24 or later, pnpm.
+To build from source: Rust 1.100 or later (edition 2024), Node.js 24 or later, pnpm.
 
 ```bash
 pnpm -C web install && pnpm -C web build                       # build the GUI (the fune binary serves web/dist)

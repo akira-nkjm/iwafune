@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 pub fn check(root: &Path, files: &[PathBuf], errors: &mut Vec<String>) {
     let mut seen: BTreeMap<(PathBuf, String), Vec<String>> = BTreeMap::new();
     for file in files {
-        let rel = file.strip_prefix(root).unwrap_or(file);
+        let rel = file.trim_prefix(root);
         let (Some(dir), Some(stem)) = (rel.parent(), rel.file_stem().and_then(|s| s.to_str()))
         else {
             continue;

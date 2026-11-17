@@ -21,7 +21,7 @@ const COLOR_NAMES: &[&str] = &["white", "black"];
 /// 違反を `errors` に積む。`files` はワークスペースのファイル一覧。
 pub fn check(root: &Path, files: &[std::path::PathBuf], errors: &mut Vec<String>) {
     for file in files {
-        let rel = file.strip_prefix(root).unwrap_or(file);
+        let rel = file.trim_prefix(root);
         let rel = rel.to_string_lossy().replace('\\', "/");
         let css = rel.starts_with("web/src/") && rel.ends_with(".css");
         let code = (rel.ends_with(".ts") || rel.ends_with(".tsx"))

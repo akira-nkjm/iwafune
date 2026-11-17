@@ -19,7 +19,7 @@ impl Version {
                 "Unsupported version '{text}' (expected major.minor.patch, such as 0.5.2)"
             ))
         };
-        let body = text.strip_prefix('v').unwrap_or(text);
+        let body = text.trim_prefix('v');
         let mut parts = body.split('.');
         let mut next = || -> Result<u64> {
             let p = parts.next().ok_or_else(bad)?;
