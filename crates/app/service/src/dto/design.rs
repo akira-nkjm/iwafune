@@ -255,6 +255,10 @@ pub struct NetView {
     pub kind: fune_model::design::NetKind,
     /// 戻り（GND）のネットか（判定は `fune_model::design::Net::is_return`。系統図の GND の層）
     pub is_return: bool,
+    /// 電源のネットの系統（電源以外は null。分類は `query::net_class::power_class`）。系統図の線の色と凡例が使う
+    pub power_class: Option<super::PowerClass>,
+    /// 星形の中心にするポート（無ければ null。選び方は `query::net_class::hub`）。系統図が線の向きを決めるのに使う
+    pub hub: Option<super::NetHub>,
     /// 表示名（無ければ ID）
     pub label: String,
     /// 供給元のポート（part = PCDU、port = OUT3）

@@ -10,6 +10,7 @@
 //! | `dto` | 画面と CLI 向けの表示用の型（部品の表示・量の表示など） |
 //! | `query` | 読み取りの関数（設計全体・部品・カタログ品・定義・診断） |
 //! | `edit` | 編集の関数（Op の適用と、人が打った文字列 → Op。CLI と GUI が同じ `set_op`・`unset_op`・`command_ops` を通す） |
+//! | `history` | 編集の取り消し・やり直し（`fune undo`・`fune redo`・`POST /undo`・`POST /redo`。履歴は `.fune/history.json`、適用は fune-ops） |
 //! | `preview` | 保存していない編集（Op の列）を書き込まずに当てた設計（下書きのまま解析・バジェットを見る） |
 //! | `units` | 単位の一覧・入力文字列の解析 |
 //! | `power_page` | 電源ページ全体の解析収集と表示用集約 |
@@ -33,6 +34,7 @@ pub mod edit;
 pub mod error;
 pub(crate) mod fetch;
 pub mod flow;
+pub mod history;
 pub mod power_page;
 pub mod preview;
 pub mod query;

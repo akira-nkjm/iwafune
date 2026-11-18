@@ -11,12 +11,14 @@
 //! | `format` | 正規形の整形（TOML 1.0 の範囲・キーの順序） |
 //! | `revision` | 追跡ファイルのハッシュ（楽観ロック用） |
 //! | `lock` | プロセス間の書き込みロック |
+//! | `journal` | 編集の履歴（`.fune/history.json`。変えたファイルの前後の中身と、取り消しの位置。保存と上限だけで、適用は fune-ops） |
 //!
 //! 検証はしない（`fune_model::check`）。読み込みで見つかった構文・形の誤りは `Design::load_diagnostics` に残す。
 
 pub mod codec;
 pub mod error;
 pub mod format;
+pub mod journal;
 pub mod layout;
 pub mod lock;
 pub mod project;

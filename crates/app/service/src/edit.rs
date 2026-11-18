@@ -97,7 +97,7 @@ pub fn apply(ws: &Workspace, req: &ApplyRequest) -> Result<ApplyResult> {
 }
 
 /// 変わったファイルの一覧（同じ本文の削除と新規の組は移動とみなす）。
-fn changed_files(changes: &[fune_store::FileChange]) -> Vec<ChangedFile> {
+pub(crate) fn changed_files(changes: &[fune_store::FileChange]) -> Vec<ChangedFile> {
     let mut out = Vec::new();
     let mut moved_from: Vec<&str> = Vec::new();
     for c in changes {

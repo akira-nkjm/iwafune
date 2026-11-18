@@ -106,10 +106,14 @@ function part(
 }
 
 function net(id: string, kind: NetKind, members: PortRef[], extra: Partial<NetView> = {}): NetView {
+  // 系統と中心は API が決める。ここでは、供給元・マスターが書かれていればそのポートを中心にする
+  const declared = kind === "power" ? extra.source : extra.master;
   return {
     id,
     kind,
     is_return: false,
+    power_class: kind === "power" ? (extra.rail ? "regulated" : "unregulated") : null,
+    hub: declared ? { port: declared, collects: false } : null,
     label: id,
     source: null,
     rail: null,

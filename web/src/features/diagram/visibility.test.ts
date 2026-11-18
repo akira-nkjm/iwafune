@@ -63,7 +63,7 @@ describe("系別の表示", () => {
     const design: DesignView = {
       ...fixture,
       parts: fixture.parts.map((p) => ({ ...p, role: null })),
-      nets: fixture.nets.map((n) => ({ ...n, source: null, master: null })),
+      nets: fixture.nets.map((n) => ({ ...n, source: null, master: null, hub: null })),
     };
     const model = build(design, ["power"]);
     expect(model.junctions.length).toBeGreaterThan(0);

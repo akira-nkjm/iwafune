@@ -33,6 +33,8 @@ pub const ANALYSIS_DIR: &str = "analysis";
 pub const COMMON_ANALYSIS_FILE: &str = "analysis/common.toml";
 /// 内部の作業ディレクトリ（ロック・キャッシュ）。
 pub const WORK_DIR: &str = ".fune";
+/// 編集の履歴（取り消し・やり直しのための、変えたファイルの前後の中身。作業ディレクトリの下で git の管理外）。
+pub const HISTORY_FILE: &str = ".fune/history.json";
 /// 共有カタログの固定（`[[catalog]] git = …` の解決した commit。`fune catalog fetch`・`update` が書き、git で管理する）。
 pub const LOCK_FILE: &str = "catalog.lock";
 /// 共有カタログのキャッシュの置き場所（作業ディレクトリの下。`<名前>/repo.git` と `<名前>/<commit>/`）。

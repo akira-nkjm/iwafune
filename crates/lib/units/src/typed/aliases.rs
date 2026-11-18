@@ -134,6 +134,12 @@ pub type Time = __Time;
 pub type ElectricCurrent = __ElectricCurrent;
 /// Thermodynamic-temperature dimension (for example `K`).
 pub type Temperature = __Temperature;
+/// Temperature-difference dimension (for example `K`).
+///
+/// **[`Temperature`] と次元が同一**（差は絶対温度と同じ SI の K）。同じ型のエイリアスなので取り違えはコンパイル時には弾けない。
+/// 違いは表示（絶対温度は `degC`、差は 273.15 を引かず `K`）だけで、`Qty<TemperatureDifference>` の欄は
+/// `TemperatureDifferenceKind::serialize` で種類を記録し、整形には `TemperatureDifferenceKind` を渡す。
+pub type TemperatureDifference = __Temperature;
 /// Amount-of-substance dimension (for example `mol`).
 pub type AmountOfSubstance = __AmountOfSubstance;
 /// Luminous-intensity dimension (for example `cd`).

@@ -5,10 +5,12 @@ use crate::dto::{
     ModeSegmentView, ModeSequenceView, ModeStartView, ModeTable, NetView, QuantityView, TreeNode,
     TreeNodeKind,
 };
+use crate::query::net_class;
 use crate::query::values::authored_quantity;
 use fune_model::builtin;
 use fune_model::design::{AnalysisSystem, BudgetKind, Design, EntityKey, NodeRef};
 use fune_model::path::PortRef;
+use fune_model::resolve::Resolved;
 use std::collections::BTreeMap;
 
 /// エンティティのファイル（ルートからの相対パス）。
@@ -193,7 +195,7 @@ fn start_view(r: &fune_model::design::StartRef) -> ModeStartView {
 }
 
 /// ネット（つながるポートは部品の ports から集める）。
-pub(crate) fn nets(design: &Design) -> Vec<NetView> {
+pub(crate) fn nets(design: &Design, resolved: &Resolved) -> Vec<NetView> {
     let mut members: BTreeMap<&str, Vec<PortRef>> = BTreeMap::new();
     for p in design.parts.values() {
         for (port, binding) in &p.ports {
@@ -208,29 +210,34 @@ pub(crate) fn nets(design: &Design) -> Vec<NetView> {
     design
         .nets
         .values()
-        .map(|n| NetView {
-            id: n.id.to_string(),
-            kind: n.kind,
-            is_return: n.is_return(),
-            label: n.label.clone().unwrap_or_else(|| n.id.to_string()),
-            source: n.source.clone(),
-            rail: n
-                .rail
-                .as_ref()
-                .map(|q| authored_quantity(q, Some("Voltage"))),
-            limit: n
-                .limit
-                .as_ref()
-                .map(|q| authored_quantity(q, Some("ElectricCurrent"))),
-            protocol: n.protocol.clone(),
-            bitrate: n
-                .bitrate
-                .as_ref()
-                .map(|q| authored_quantity(q, Some("DataRate"))),
-            master: n.master.clone(),
-            members: members.remove(n.id.as_str()).unwrap_or_default(),
-            field_paths: net_field_paths(n.id.as_str()),
-            file: file_of(design, EntityKey::Net(n.id.to_string())),
+        .map(|n| {
+            let members = members.remove(n.id.as_str()).unwrap_or_default();
+            NetView {
+                id: n.id.to_string(),
+                kind: n.kind,
+                is_return: n.is_return(),
+                power_class: net_class::power_class(n, &members, net_class::roles(resolved)),
+                hub: net_class::hub(n, &members, net_class::roles(resolved)),
+                label: n.label.clone().unwrap_or_else(|| n.id.to_string()),
+                source: n.source.clone(),
+                rail: n
+                    .rail
+                    .as_ref()
+                    .map(|q| authored_quantity(q, Some("Voltage"))),
+                limit: n
+                    .limit
+                    .as_ref()
+                    .map(|q| authored_quantity(q, Some("ElectricCurrent"))),
+                protocol: n.protocol.clone(),
+                bitrate: n
+                    .bitrate
+                    .as_ref()
+                    .map(|q| authored_quantity(q, Some("DataRate"))),
+                master: n.master.clone(),
+                members,
+                field_paths: net_field_paths(n.id.as_str()),
+                file: file_of(design, EntityKey::Net(n.id.to_string())),
+            }
         })
         .collect()
 }
@@ -400,7 +407,10 @@ mod tests {
         let harness: fune_model::design::Harness =
             serde_json::from_value(json!({ "id": "H1", "from": "A.P1", "to": "B.P2" })).unwrap();
         design.harnesses.insert(harness.id.clone(), harness);
-        let labels: Vec<String> = nets(&design).into_iter().map(|n| n.label).collect();
+        let labels: Vec<String> = nets(&design, &Resolved::default())
+            .into_iter()
+            .map(|n| n.label)
+            .collect();
         assert_eq!(labels, ["N1", "バス"]);
         assert_eq!(harnesses(&design)[0].label, "H1");
     }

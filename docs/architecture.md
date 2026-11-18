@@ -38,7 +38,7 @@ One entity is one file, and the file name is the ID.
 | `conditions/`, `analysis/`, `cases/` | Orbit and ground stations, per-subsystem analysis settings, analysis cases |
 | `sources/` | The ledger of sources |
 | `view/` | Information that is only appearance, such as the layout of the system diagram |
-| `.fune/` | Working files such as the write lock. `fune init` adds it to `.gitignore` |
+| `.fune/` | Working files such as the write lock and the edit history (`history.json`, §2.4). `fune init` adds it to `.gitignore` |
 
 How to write files, how values and units are expressed, and the relationships between entities are in [model.md](model.md).
 The demo design data is [fixtures/demo-6u](../fixtures/demo-6u).
@@ -70,6 +70,12 @@ Only fune-store reads and writes files.
 - A change spanning several files is written to temporary files and then swapped in with rename. If it fails midway, the files already replaced are restored before the error is returned.
 - The revision is the BLAKE3 of the tracked files (path and body). If the revision at read time differs from the current revision, nothing is written (optimistic locking).
 - Concurrent writes from other processes are prevented by `.fune/lock`.
+- **Edit history (undo and redo).** Every applied Op list (not a dry run) records the files it changed, with their contents before and after, in `.fune/history.json` (git-ignored; shared by the CLI and the GUI;
+  `fune_store::journal` keeps the file, the position and the limits). It keeps the last 100 edits and at most 32 MiB of file contents (the oldest are dropped first). `fune undo` and `fune redo` (`POST /undo`, `POST /redo`) write the recorded contents back
+  as one commit under the same lock and revision check as an edit (`fune_ops::history`): undo needs the current revision to equal the revision right after that edit, redo the one right before it. If the files were changed any other way since
+  (an editor, `git checkout`, `fune fmt`, `fune catalog fetch|update`), nothing is written and the command fails with a conflict. Files the edit created are removed, deleted files are restored, and renames are reversed.
+  A new edit clears the redo side. Undo and redo themselves are not new entries; they move the position. `fune fmt` and the catalog lock import are not Ops, so they are not recorded and cannot be undone.
+  `fune history` (`GET /history`) lists the entries.
 
 ### 2.5 Review with branches and PRs
 
@@ -152,6 +158,8 @@ The CLI and HTTP call the same functions of `fune-service`.
 | Path to remove → Op | `fune unset`, `fune setting unset`, `fune catalog unset` | `POST /ops/unset_from_text` | `edit::unset_op` |
 | Arguments typed into a noun command → Op | `fune net set|unset`, `fune part place`, `fune mode set|unset`, `fune attr add|replace`, `fune kind add|replace`, `fune maneuver add|set`, `fune catalog source add` | `POST /ops/from_command` | `edit::command_ops` |
 | Formatting | `fune fmt [--check]` | `POST /fmt` | `format::format_design` |
+| Undo / redo the last edit | `fune undo`, `fune redo` | `POST /undo`, `POST /redo` | `history::{undo, redo}` |
+| Edit history | `fune history` | `GET /history` | `history::view` |
 
 - Whether the `"620 g"` in `fune set RW_X.mass "620 g"` is read as a quantity, an integer, a vector or a per-state value is decided by the service by looking at the attribute definition.
   The GUI also turns the typed string into an Op with `/ops/from_text` and then sends it with `/ops`, so the interpretation does not split in two (the value fields of parts and catalog items,
@@ -181,6 +189,7 @@ The correspondence between HTTP routes and the CLI and service (`crates/app/cli/
 | `GET /defs` | `fune attr ls`, `fune kind ls` | `query::defs_view` |
 | `GET /diagnostics` | `fune check` | `query::check` |
 | `POST /fmt` | `fune fmt` | `format::format_design` |
+| `POST /undo`, `POST /redo`, `GET /history` | `fune undo`, `fune redo`, `fune history` | `history::{undo, redo, view}` |
 | `POST /ops` | `fune apply` (each edit command) | `edit::apply` |
 | `POST /ops/from_text`, `/ops/unset_from_text`, `/ops/from_command` | `fune set`, `fune unset`, noun commands | `edit::{set_op, unset_op, command_ops}` |
 | `POST /ops/case_from_eclipse` | `fune case from-eclipse` | `edit::case_from_eclipse_op` |
@@ -235,6 +244,7 @@ Missing input is not an error, so both analyses and budgets return 200 with `mis
 |---|---|
 | `GET /project`, `/design`, `/parts`, `/parts/{id}`, `/values/{path}`, `/defs`, `/diagnostics`, `/maneuvers` | Reads (overview and revision, the whole design, parts, one value, definitions, diagnostics, the list of maneuvers (in execution order; the same as `fune maneuver ls`)) |
 | `POST /ops`, `/ops/from_text`, `/ops/unset_from_text`, `/ops/from_command`, `/fmt` | Edits (§4.3) |
+| `POST /undo`, `POST /redo`, `GET /history` | Undo and redo the last edit, and the edit history (§2.4) |
 | `POST /parts/{id}` | A part with unsaved edits (`ops`) applied without writing (the same shape as `GET`. `fune part show --ops`) |
 | `POST /parts/{id}/place_body` | Converts a placement in body coordinates into a `Place` relative to the mount target and applies it |
 | `GET /units`, `POST /units/parse`, `/units/format` | The list of units, parsing of input (dimension and SI conversion), display strings of SI values |
@@ -403,7 +413,7 @@ and monthly predictions beyond that). Because it is updated every day, it is put
 | Module cycles | Whether modules inside a crate form cycles |
 | Registry | Whether every crate is listed in [registry.md](architecture/registry.md) |
 | Single home | Whether definitions whose home is fixed in the registry (integrators, constants such as μ and the Earth's radius, shadows, coordinate transforms, unit parsing, analysis registration, etc.) appear in no other file (`crates/xtask/src/single_home.rs`) |
-| Write entry point | Whether only store and ops call `write::commit`, which writes design files (the exceptions that do not go through an Op are `fmt` and the import of `catalog.lock`, with reasons written in an allowlist. `crates/xtask/src/store_writes.rs`) |
+| Write entry point | Whether only store and ops call `write::commit`, which writes design files (undo and redo are in `fune-ops`, replaying recorded Op results; the exceptions that do not go through an Op are `fmt` and the import of `catalog.lock`, with reasons written in an allowlist. `crates/xtask/src/store_writes.rs`) |
 | Web rules | Whether `fetch(`, number formatting, query invalidation, hard-coded colors and negative letter-spacing (`tracking-tight`) are absent outside the designated places |
 | Language | Whether there are no Python files (the only languages are Rust and TypeScript) |
 | File length | Warns about files over 400 lines (data such as coefficient tables excepted) |

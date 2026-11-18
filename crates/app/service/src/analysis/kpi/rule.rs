@@ -82,9 +82,11 @@ pub(super) struct Rule {
 
 use CheckMatch::{Any, Exact, OneOf, Prefix, Unjudged};
 
-/// 熱の温度範囲の判定（`range:<節点>:<種類>`）。1 つの判定が最低と最高の両側を見るので、
-/// 最高温度・最低温度・非定常の最高温度の KPI は同じ並びを使う（片側だけの判定は解析が出さない）。
-const THERMAL_RANGE: CheckMatch = Prefix("range:");
+/// 熱の温度範囲の判定は上限側（`range_high:<節点>:<種類>`）と下限側（`range_low:<節点>:<種類>`）に分かれる。
+/// 最高温度・非定常の最高温度の KPI は上限側、最低温度の KPI は下限側だけを見る（反対側の違反を巻き込まない）。
+/// 非定常の最低温度の KPI は無い（作るときは下限側を使う）。
+const THERMAL_HIGH: CheckMatch = Prefix("range_high:");
+const THERMAL_LOW: CheckMatch = Prefix("range_low:");
 
 pub(super) fn rule(key: KpiKey) -> Rule {
     use KpiKey as K;
@@ -129,9 +131,8 @@ pub(super) fn rule(key: KpiKey) -> Rule {
         // 1 日の送信可能量は「発生量 ≤ 送信可能量」の判定、最大の滞留は「滞留 ≤ ストレージ」の判定
         K::DownlinkPerDay => (Exact("capacity"), Fill::None, false),
         K::MaxBacklog => (Exact("storage"), Fill::None, false),
-        K::MaxTemperature | K::MinTemperature | K::TransientMaxTemperature => {
-            (THERMAL_RANGE, Fill::None, false)
-        }
+        K::MaxTemperature | K::TransientMaxTemperature => (THERMAL_HIGH, Fill::None, false),
+        K::MinTemperature => (THERMAL_LOW, Fill::None, false),
         K::TotalMass => (Exact("mass"), Fill::None, false),
         K::MinSafetyMargin => (Prefix("interface:"), Fill::None, false),
         K::MinFrequency => (
