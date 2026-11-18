@@ -5,7 +5,7 @@ use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::quantity::qty_opt;
 use fune_model::Target;
-use sat_analysis::spec::{daily_sampling, orbits_sampling};
+use sat_analysis::spec::{SamplingSpan, daily_sampling, sampling};
 use sat_astro::timeline::{OrbitSampling, TimelineSpec};
 use sat_units::typed::{Angle, Qty};
 
@@ -36,20 +36,30 @@ pub fn timeline(
     orbits: Option<u32>,
     m: &mut MissingInputs,
 ) -> Option<TimelineSpec> {
+    timeline_over(ctx, mode, SamplingSpan::Series(orbits), m)
+}
+
+/// 期間の取り方 `span`（解析が決める。履歴を見る期間か、1 周の平均か）の時系列の仕様（モードの姿勢則を使う）。
+pub fn timeline_over(
+    ctx: &Context<'_>,
+    mode: Option<&str>,
+    span: SamplingSpan,
+    m: &mut MissingInputs,
+) -> Option<TimelineSpec> {
     let orbit = ctx.orbit(m);
     let law = ctx.attitude_law(mode, m);
-    let sampling = with_case_beta(ctx, orbits_sampling(orbit?, orbits), m);
+    let sampling = with_case_beta(ctx, sampling(orbit?, span), m);
     Some(TimelineSpec::from_sampling(sampling, law?))
 }
 
-/// 軌道 `orbits` 周分の標本の取り方（β はケースの指定）。姿勢則の要らない集計（地磁気の平均）に使う。
-pub fn orbits_sampling_of(
+/// 期間の取り方 `span` の標本の取り方（β はケースの指定）。姿勢則の要らない集計（地磁気の平均）に使う。
+pub fn sampling_of(
     ctx: &Context<'_>,
-    orbits: Option<u32>,
+    span: SamplingSpan,
     m: &mut MissingInputs,
 ) -> Option<OrbitSampling> {
     let orbit = ctx.orbit(m)?;
-    Some(with_case_beta(ctx, orbits_sampling(orbit, orbits), m))
+    Some(with_case_beta(ctx, sampling(orbit, span), m))
 }
 
 /// 1 日分の標本の取り方（地上局の可視・送信量。β はケースの指定）。

@@ -17,7 +17,11 @@ eclipse_free_samples: number,
 /**
  * 季節の標本の蝕なしフラグを台形則で積算した期間（推定）。
  */
-eclipse_free_duration: number, step: number, shadow_step: number, 
+eclipse_free_duration: number, step: number, 
+/**
+ * 1 周内の影の標本間隔（入力の軌道の周期から。マヌーバで周期が変わる標本日はその軌道の周期から）
+ */
+shadow_step: number, 
 /**
  * 1 周中の太陽位置を標本日の位置に固定する近似。
  */
