@@ -1,9 +1,11 @@
-//! 変更計画を store で書き込む（ロック → 読み込み → revision の確認 → 計画 → 反映）。
+//! 変更計画を store で書き込む（ロック → 読み込み → revision の確認 → 計画 → 反映 → 履歴に控える）。
 
+use crate::cli::to_cli;
 use crate::error::OpError;
 use crate::op::Op;
 use crate::plan::{PlanSummary, plan};
 use fune_model::design::Revision;
+use fune_store::journal::{self, Journal};
 use fune_store::lock::ProjectLock;
 use fune_store::{commit, load};
 use serde::{Deserialize, Serialize};
@@ -34,6 +36,20 @@ pub struct ApplyOutcome {
     pub written: bool,
 }
 
+/// 反映した編集を履歴に控える（取り消し・やり直しの元。ロックを持って呼ぶ）。
+/// 履歴の保存に失敗しても編集は有効なまま進める。控えが古くなっても、取り消しは revision の確認で断られるので安全。
+fn record(root: &Path, ops: &[Op], planned: &crate::plan::Plan) {
+    let mut history = Journal::load(root);
+    history.record(journal::Entry {
+        cli: ops.iter().flat_map(to_cli).collect(),
+        at: journal::now(),
+        before: planned.base_revision.clone(),
+        after: planned.revision.clone(),
+        changes: planned.changes.clone(),
+    });
+    let _ = history.save(root);
+}
+
 /// Op の列をプロジェクトに適用する。
 pub fn apply(root: &Path, ops: &[Op], options: &ApplyOptions) -> Result<ApplyOutcome, OpError> {
     let _lock = ProjectLock::acquire(root, LOCK_WAIT)?;
@@ -50,6 +66,7 @@ pub fn apply(root: &Path, ops: &[Op], options: &ApplyOptions) -> Result<ApplyOut
     let written = !options.dry_run && !planned.changes.is_empty();
     if written {
         commit(root, &planned.changes)?;
+        record(root, ops, &planned);
     }
     Ok(ApplyOutcome {
         plan: PlanSummary::from(&planned),

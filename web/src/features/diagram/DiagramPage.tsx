@@ -1,6 +1,7 @@
 import { LayoutGrid, Redo2, RotateCcw, Undo2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
+import { onBeforeHistoryStep, useHistoryStep, useHistoryView } from "@/api/history";
 import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
 import { SkeletonCanvas } from "@/kit/feedback/Loading";
@@ -17,8 +18,7 @@ import { DiagramSystems } from "./DiagramSystems";
 import { DiagramToolbar } from "./DiagramToolbar";
 import { NewNetDialog } from "./editing/NewNetDialog";
 import { useDiagramConnect } from "./editing/use-diagram-connect";
-import { useUndoKeys } from "./editing/use-undo-keys";
-import { useViewEdits, useViewUndo } from "./editing/view-history";
+import { useViewEdits } from "./editing/view-edits";
 import type { Layer } from "./power";
 
 /**
@@ -35,7 +35,8 @@ export function DiagramPage() {
   const [layers, setLayers] = useState<ReadonlySet<Layer>>(new Set<Layer>(["power", "signal"]));
   const [merge, setMerge] = useState(true);
   const { editRoute } = useViewEdits();
-  const history = useViewUndo();
+  const history = useHistoryView();
+  const step = useHistoryStep();
   const [inspectorOpen, setInspectorOpen] = useState(() => {
     try {
       return localStorage.getItem("iwafune.diagram.inspector") !== "hidden";
@@ -61,16 +62,10 @@ export function DiagramPage() {
   );
   const { model, layout } = useDiagramModel(d, layers, merge, hiddenSystems);
   const flow = useDiagramFlow(d, model, layout);
-  // ⌘Z・⇧⌘Z（Ctrl+Z・Ctrl+Y）で配置の編集を元に戻す・やり直す。戻す前に、手で動かした印と保存待ちの位置を捨てる
-  const undo = () => {
-    flow.resetMoved();
-    history.undo();
-  };
-  const redo = () => {
-    flow.resetMoved();
-    history.redo();
-  };
-  useUndoKeys(undo, redo);
+  // 元に戻す・やり直すの前に、手で動かした印と保存待ちの位置を捨てる（保存した位置だけを描くように）。
+  // キー（⌘Z・⇧⌘Z。画面全体で受ける。shell/use-history-keys.ts）でもボタンでも同じ
+  const { resetMoved } = flow;
+  useEffect(() => onBeforeHistoryStep(resetMoved), [resetMoved]);
   const connect = useDiagramConnect(model);
   return (
     <>
@@ -116,8 +111,8 @@ export function DiagramPage() {
                   variant="outline"
                   title={td.undoTitle}
                   aria-label={td.undo}
-                  disabled={!history.canUndo}
-                  onClick={undo}
+                  disabled={!history?.can_undo || step.isPending}
+                  onClick={() => step.mutate("undo")}
                 >
                   <Undo2 size={13} />
                 </Button>
@@ -126,8 +121,8 @@ export function DiagramPage() {
                   variant="outline"
                   title={td.redoTitle}
                   aria-label={td.redo}
-                  disabled={!history.canRedo}
-                  onClick={redo}
+                  disabled={!history?.can_redo || step.isPending}
+                  onClick={() => step.mutate("redo")}
                 >
                   <Redo2 size={13} />
                 </Button>
