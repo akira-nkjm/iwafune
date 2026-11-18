@@ -29,11 +29,6 @@ const FEATURE_IMPORTERS: &[&str] = &["web/src/features/", "web/src/routes/"];
 const FEATURE_EDGES: &[(&str, &str, &str)] = &[
     (
         "systems",
-        "diagram/canvas/DiagramZoom",
-        "the power flow diagram uses the same zoom controls (buttons, keys, wheel) as the system diagram",
-    ),
-    (
-        "systems",
         "modes/matrix/ModesMatrix",
         "the per-system mode view uses the same matrix, draft and save as the definitions page",
     ),

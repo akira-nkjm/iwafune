@@ -127,6 +127,7 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
 /// CLI がまだ無い経路（#158）。埋めたら表へ移す。
 const GAPS: &[(&str, &str, &str)] = &[
     ("GET", "/power_page", "power_page::power_page"),
+    ("POST", "/power_page", "power_page::power_page_with"),
     (
         "POST",
         "/system_modes/{system}",

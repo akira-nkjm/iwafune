@@ -1,14 +1,15 @@
-//! 電源ページの表示用集約。物理値は解析出力から読み、位置と表示文字列を添える。
+//! 電源ページの表示用集約。物理値は型付きの解析の入力・出力から読み、位置と表示文字列を添える（JSON に書いて読み直さない）。
 use crate::dto::*;
 use sat_analysis::power::{
     energy_balance::{
         EnergyBalanceCaseResult, EnergyBalanceInput, EnergyBalanceLoad, EnergyBalanceOutput,
     },
+    mode_load::ModeLoadOutput,
+    orbit_generation::OrbitGenerationOutput,
     sizing::SizingOutput,
 };
 use sat_analysis::spec::{Check, Verdict};
 use sat_units::typed::{Area, Energy, Fraction, NamedKind, Qty};
-use serde_json::Value;
 
 mod budget;
 mod charts;
@@ -20,47 +21,36 @@ pub(super) fn label(ja: &str, en: &str) -> AnalysisLabel {
     }
 }
 
-pub(super) fn build(
-    id: &str,
-    input: Option<&Value>,
-    output: Option<&Value>,
-) -> Option<PowerPageView> {
-    let output = output?;
-    match id {
-        "power.energy_balance" => {
-            let out: EnergyBalanceOutput = serde_json::from_value(output.clone()).ok()?;
-            let input: EnergyBalanceInput = serde_json::from_value(input?.clone()).ok()?;
-            Some(balance(&input, &out, output))
-        }
-        "power.mode_load" => {
-            let out: sat_analysis::power::mode_load::ModeLoadOutput =
-                serde_json::from_value(output.clone()).ok()?;
-            Some(PowerPageView {
-                modes: out
-                    .modes
-                    .into_iter()
-                    .map(|m| PowerModeView {
-                        id: m.id.clone(),
-                        label: if m.label.is_empty() { m.id } else { m.label },
-                        verdict: Verdict::worst(m.checks.iter().map(|c| c.verdict)),
-                        sunlit: None,
-                        eclipse: None,
-                        charts: Vec::new(),
-                    })
-                    .collect(),
-                ..Default::default()
+/// 負荷の解析（`power.mode_load`）から、モードの並びと判定。
+pub(super) fn mode_load(out: &ModeLoadOutput) -> PowerPageView {
+    PowerPageView {
+        modes: out
+            .modes
+            .iter()
+            .map(|m| PowerModeView {
+                id: m.id.clone(),
+                label: if m.label.is_empty() {
+                    m.id.clone()
+                } else {
+                    m.label.clone()
+                },
+                verdict: Verdict::worst(m.checks.iter().map(|c| c.verdict)),
+                sunlit: None,
+                eclipse: None,
+                charts: Vec::new(),
             })
-        }
-        "power.orbit_generation" => charts::orbital(output),
-        "power.sizing" => {
-            let out: SizingOutput = serde_json::from_value(output.clone()).ok()?;
-            Some(sizing(&out))
-        }
-        _ => None,
+            .collect(),
+        ..Default::default()
     }
 }
 
-fn balance(input: &EnergyBalanceInput, out: &EnergyBalanceOutput, json: &Value) -> PowerPageView {
+/// 軌道発電の解析（`power.orbit_generation`）から、発電のグラフだけのモード（電力収支が使えないときの代わり）。
+pub(super) fn orbital(out: &OrbitGenerationOutput) -> PowerPageView {
+    charts::orbital(out)
+}
+
+/// 電力収支の解析（`power.energy_balance`）から、モードごとの積み上げ棒・判定・グラフ。
+pub(super) fn balance(input: &EnergyBalanceInput, out: &EnergyBalanceOutput) -> PowerPageView {
     let mut sunlit = Vec::new();
     let mut eclipse = Vec::new();
     let mut modes: Vec<PowerModeView> = out
@@ -90,7 +80,7 @@ fn balance(input: &EnergyBalanceInput, out: &EnergyBalanceOutput, json: &Value) 
                 verdict: Verdict::worst(case.checks.iter().map(|c| c.verdict)),
                 sunlit: None,
                 eclipse: None,
-                charts: charts::build(out, json, index, mode_id),
+                charts: charts::build(out, index, mode_id),
             }
         })
         .collect();
@@ -109,7 +99,8 @@ fn balance(input: &EnergyBalanceInput, out: &EnergyBalanceOutput, json: &Value) 
     }
 }
 
-fn sizing(out: &SizingOutput) -> PowerPageView {
+/// サイジングの解析（`power.sizing`）から、モードの並びと判定。
+pub(super) fn sizing(out: &SizingOutput) -> PowerPageView {
     PowerPageView {
         modes: out
             .modes

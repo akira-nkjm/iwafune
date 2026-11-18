@@ -46,8 +46,10 @@ pub(super) fn collect(
         .into_iter()
         .filter(|(_, p)| *p > 0.0)
         .map(|(id, p)| {
-            let system =
-                serde_json::from_value::<System>(serde_json::Value::String(id.clone())).ok();
+            let system = id
+                .parse::<fune_model::design::AnalysisSystem>()
+                .ok()
+                .map(fune_projection::system::to_analysis);
             (PowerBudgetKind::Load, system, system_label(system, &id), p)
         })
         .collect();

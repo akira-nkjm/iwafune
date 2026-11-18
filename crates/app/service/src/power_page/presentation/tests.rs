@@ -205,14 +205,7 @@ fn builder_returns_selected_mode_values_bands_and_soc_limit() {
         sequence: None,
         checks: Vec::new(),
     };
-    let mut json = serde_json::to_value(out).unwrap();
-    crate::analysis::channels::fix_channels(&mut json);
-    let page = build(
-        "power.energy_balance",
-        Some(&serde_json::to_value(input).unwrap()),
-        Some(&json),
-    )
-    .unwrap();
+    let page = balance(&input, &out);
     let mode = &page.modes[0];
     assert_eq!(mode.id, "nominal");
     assert_eq!(mode.verdict, Some(Verdict::Ok));
@@ -226,7 +219,9 @@ fn builder_returns_selected_mode_values_bands_and_soc_limit() {
     assert_eq!(mode.charts[2].reference, Some(60.0));
     assert!(mode.charts[2].show_time_axis);
     assert!(!mode.charts[0].show_time_axis);
-    assert!(build("thermal.steady", None, Some(&json)).is_none());
+    // 表示名と表示単位は出力の JSON に付く（`fix_channels`）ものと同じ（グラフは型のままの系列から付ける）
+    assert_eq!(mode.charts[0].series.channels[0].label, "発電の合計");
+    assert_eq!(mode.charts[0].series.channels[0].display_unit, "W");
 }
 
 #[test]
@@ -255,10 +250,10 @@ fn sizing_builder_keeps_design_and_required_values_and_analysis_verdicts() {
           "dod_max":0.4,"battery_strings":1,"sun_distance":149597870700.0,"panels":[]},
         "checks":[]
     });
-    let page = build("power.sizing", None, Some(&json)).unwrap();
+    let out: SizingOutput = serde_json::from_value(json).unwrap();
+    let page = sizing(&out);
     let mode = &page.modes[0];
     assert_eq!(mode.verdict, Some(Verdict::Violation));
-    let out: SizingOutput = serde_json::from_value(json).unwrap();
     let checks = out.mode_checks.get("nominal");
     let area = &area_bar(&out, out.required_area, checks);
     assert_eq!(area.value.as_ref().unwrap().si, 3.0);

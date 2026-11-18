@@ -1,23 +1,17 @@
 //! グラフのチャンネルと共通横軸・時間帯の表示定義。
 use super::label;
+use crate::analysis::channels::display_series;
 use crate::dto::*;
-use sat_analysis::power::energy_balance::EnergyBalanceOutput;
-use serde_json::Value;
+use sat_analysis::power::{
+    energy_balance::EnergyBalanceOutput, orbit_generation::OrbitGenerationOutput,
+};
 
-pub(super) fn build(
-    out: &EnergyBalanceOutput,
-    json: &Value,
-    index: usize,
-    mode: &str,
-) -> Vec<PowerChartView> {
-    let Some(series) = json
-        .get("cases")
-        .and_then(|v| v.get(index))
-        .and_then(|v| v.get("series"))
-        .and_then(|v| serde_json::from_value::<DisplaySeries>(v.clone()).ok())
-    else {
+/// 電力収支のケース `index`（モード `mode`）のグラフ。
+pub(super) fn build(out: &EnergyBalanceOutput, index: usize, mode: &str) -> Vec<PowerChartView> {
+    let Some(case) = out.cases.get(index) else {
         return Vec::new();
     };
+    let series = display_series(&case.series);
     let domain = [
         series.t.first().copied().unwrap_or(0.0),
         series.t.last().copied().unwrap_or(0.0),
@@ -107,10 +101,8 @@ pub(super) fn build(
 }
 
 /// 電力収支が未実行でも、軌道発電の結果だけで発電のグラフを表示できる。
-pub(super) fn orbital(json: &Value) -> Option<PowerPageView> {
-    let out: sat_analysis::power::orbit_generation::OrbitGenerationOutput =
-        serde_json::from_value(json.clone()).ok()?;
-    let mut series: DisplaySeries = serde_json::from_value(json.get("series")?.clone()).ok()?;
+pub(super) fn orbital(out: &OrbitGenerationOutput) -> PowerPageView {
+    let mut series = display_series(&out.series);
     series.channels.retain(|c| c.channel.key != "sunlit");
     let domain = [
         series.t.first().copied().unwrap_or(0.0),
@@ -137,7 +129,7 @@ pub(super) fn orbital(json: &Value) -> Option<PowerPageView> {
             label: String::new(),
         },
     );
-    Some(PowerPageView {
+    PowerPageView {
         modes: vec![PowerModeView {
             id: "orbit".into(),
             label: match out.life {
@@ -160,5 +152,5 @@ pub(super) fn orbital(json: &Value) -> Option<PowerPageView> {
             }],
         }],
         ..Default::default()
-    })
+    }
 }

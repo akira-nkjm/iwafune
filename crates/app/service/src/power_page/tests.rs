@@ -55,12 +55,19 @@ fn whole_page_collects_unchanged_analysis_results_and_merges_modes() {
 #[test]
 fn missing_analyses_still_return_raw_missing_inputs() {
     let ws = demo();
-    let mut page = power_page(&ws, None).unwrap();
-    for analysis in &mut page.analyses {
-        analysis.result.output = None;
-        analysis.result.status = crate::dto::AnalysisRunStatus::MissingInputs;
-    }
-    let page = assemble(page.analyses);
-    assert!(page.modes.is_empty());
-    assert_eq!(page.analyses.len(), 4);
+    let snapshot = ws.snapshot().unwrap();
+    let mut runs = Runs {
+        load: crate::analysis::run_typed_in(&snapshot, None).unwrap(),
+        orbit: crate::analysis::run_typed_in(&snapshot, None).unwrap(),
+        balance: crate::analysis::run_typed_in(&snapshot, None).unwrap(),
+        sizing: crate::analysis::run_typed_in(&snapshot, None).unwrap(),
+    };
+    assert!(!assemble(&runs).modes.is_empty());
+    // どの解析も出力が無い（不足入力・失敗）ときは、表示は空で、元の結果だけが返る
+    (runs.load.output, runs.load.input) = (None, None);
+    (runs.orbit.output, runs.orbit.input) = (None, None);
+    (runs.balance.output, runs.balance.input) = (None, None);
+    (runs.sizing.output, runs.sizing.input) = (None, None);
+    assert!(assemble(&runs).modes.is_empty());
+    assert_eq!(analyses(runs).unwrap().len(), 4);
 }

@@ -199,7 +199,7 @@ The correspondence between HTTP routes and the CLI and service (`crates/app/cli/
 | `GET /data/status`, `/data/space_weather`, `POST /data/{id}/fetch` | `fune data status`, `space-weather`, `fetch` | `data::{data_status, space_weather::lookup, fetch}` |
 | `GET /catalog/{id}` | `fune catalog show` | `query::catalog_item` |
 | `POST /catalog/fetch`, `/catalog/update` | `fune catalog fetch`, `update` | `shared_catalog::{fetch, update}` |
-| `GET /power_page` | **none yet** (#158) | `power_page::power_page` |
+| `GET` and `POST /power_page` | **none yet** (#158) | `power_page::{power_page, power_page_with}` |
 | `POST /system_modes/{system}` | **none yet** (#158) | `system_modes::system_modes` |
 
 Tests verify the following two things.
@@ -261,14 +261,14 @@ The screens are: overview (budgets and diagnostics), parts, catalog, system diag
 per-subsystem pages (AOCS, C&DH, Communications, Payload, Power, Propulsion, Structure, Thermal. Propulsion uses the generic display (KPIs, verdicts, analysis tables). Analyses for payload are not registered yet. The structure overview links to the placement page. The 3D colored by temperature remains on the thermal page), orbit and ground stations, analysis cases, diagnostics, and settings.
 A subsystem page lists the parts related to that subsystem using only that subsystem's attribute columns, lets you edit them in cells, and shows the analysis results on the same page.
 The subsystem tabs are "Overview (KPIs and verdicts), Modes, Parts, Time series, Settings" (in Japanese: 概要, モード, 部品, 時系列, 設定).
-The Power overview (#89 stage 1) is centered on chips with verdicts per mode, a common sunlit/eclipse toggle, and a flow diagram of solar cells → bus → each subsystem and the battery.
+The Power overview (#89 stage 1) is centered on chips with verdicts per mode, and a common sunlit/eclipse toggle.
 Sunlit generation and charge/discharge are averages based on the attitude of the selected mode, and shunt and discharge during sunlit are also shown. The SOC ring is not used.
 Maximum DoD, orbit energy margin, solar cell area and battery capacity are shown as bullet bars with the allowed band, the design value and the limit.
 Detailed analysis tables and diagnostics are put away under each analysis's "View data", and you move to a section with the narrow table of contents on the right.
 The Parts tab shows loads (per-state standalone power), solar cells (area, efficiency, normal) and batteries (capacity, voltage) by role, and uses the common attribute editing.
 The time series selects a mode and shows generation and load, charge/discharge and shunt, and SOC. It uses the common time domain, the bands of eclipse and mode, and synchronized hover, and draws the allowed DoD line on the SOC.
 Generation and sunlit in the upper section of the power balance are not shown again as orbit generation. The table of contents of the graphs is on the right.
-The display definition is `PowerPageView`, integrated by the independent `fune_service::power_page::power_page` calling the existing analysis entry points and returned by `GET /api/v1/power_page?case=…`. Power-specific fields are not placed in the generic analysis result or design DTOs. The 3 tabs use the same query of `usePowerPage`. Rust returns quantities, verdicts, ratios, marker positions and the channel selection, and the Web only draws and handles interaction.
+The display definition is `PowerPageView`, integrated by the independent `fune_service::power_page::power_page_with`, which runs the four Power analyses typed and returns `GET /api/v1/power_page?case=…` (and `POST /api/v1/power_page` with a draft `ops`). Power-specific fields are not placed in the generic analysis result or design DTOs. The 3 tabs use the same query of `usePowerPage`. Rust returns quantities, verdicts, ratios, marker positions and the channel selection, and the Web only draws and handles interaction.
 Other subsystems use the conventional generic display.
 A Modes tab is on AOCS, C&DH, Power and Thermal.
 Power shows the matrix of power consumption with the total including growth margin, available power, margin and verdict;
