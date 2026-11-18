@@ -35,6 +35,7 @@ function load(mean: number): SystemModesView {
   return {
     system: "power",
     missing: [],
+    summary: [],
     modes: [
       {
         id: "NOMINAL",
@@ -189,6 +190,7 @@ it("系別セルは API の次元を保持し、同じ mode_set の下書きで�
   const view: SystemModesView = {
     system: "cdh",
     missing: [],
+    summary: [],
     modes: [
       {
         id: "NOMINAL",

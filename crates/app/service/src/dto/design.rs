@@ -304,6 +304,8 @@ pub struct DefsView {
     pub systems: Vec<sat_analysis::spec::System>,
     /// バジェットの種類の一覧と並び（`fune_model::design::BudgetKind` の宣言の順。表示名は `labels.enum.budget_kind`）
     pub budget_kinds: Vec<fune_model::design::BudgetKind>,
+    /// モードの見方（`POST /system_modes/{system}`）を持つ系（`systems` の部分集合で、同じ並び。`system_modes::mode_systems`）
+    pub mode_systems: Vec<sat_analysis::spec::System>,
 }
 
 /// 属性定義。
@@ -408,6 +410,42 @@ pub struct SystemModesView {
     pub modes: Vec<SystemModeView>,
     /// 表を作るのに足りなかった入力（解析の `missing` と同じ形。電力の表で、消費電力を持つ部品や運用モードが無いとき）
     pub missing: Vec<fune_projection::MissingInput>,
+    /// 表の足もとに並べる合計・収支の行（上から順。どの行を出すかは系ごとに service が決める。数値の行列を持たない系は空）
+    pub summary: Vec<ModeSummaryRow>,
+}
+
+/// 系別のモード表の足もとの行 1 つ（値は `ModeValuesView` の `field`。文言は見出し `label` から Web が選ぶ）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ModeSummaryRow {
+    pub label: ModeSummaryLabel,
+    pub field: ModeSummaryField,
+    /// この行に判定（`ModeValuesView.verdict`）を添えるか
+    pub verdict: bool,
+}
+
+/// 足もとの行の見出しの種類。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ModeSummaryLabel {
+    /// 消費電力の合計（成長余裕込み）
+    Power,
+    /// データの発生レート（圧縮・パケット化前）
+    DataRate,
+    /// 内部発熱
+    Heat,
+    /// 使用可能電力
+    Available,
+    /// 余裕（システム余裕確保後）
+    Margin,
+}
+
+/// 足もとの行が読む `ModeValuesView` の欄。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ModeSummaryField {
+    Total,
+    Available,
+    Margin,
 }
 
 /// 1 モードの系別表示。AOCS は専用カード、数値の行列はほかの系。

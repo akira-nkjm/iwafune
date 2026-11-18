@@ -11,7 +11,7 @@
 //!
 //! 表示名は `labels::kpi_label`。電力のモードの選び方はバジェットと同じ `budget::budget_mode`。
 
-use self::rule::{Fill, rule};
+use self::rule::{Fill, overview, rule};
 use super::labels::kpi_label;
 use crate::dto::{CheckView, FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView};
 use crate::units::quantity_auto;
@@ -238,6 +238,7 @@ fn def(key: KpiKey) -> KpiDef {
         label: l.label,
         label_en: l.label_en,
         when_measured: rule(key).when_measured,
+        overview: overview(key),
     }
 }
 

@@ -2,7 +2,7 @@ import { lazy, type ReactNode, Suspense } from "react";
 import { AnalysisCard } from "@/analysis/AnalysisCard";
 import { collectSeries } from "@/analysis/output";
 import type { AnalysisState } from "@/api/queries";
-import type { AnalysisEntry, DesignView, PowerPageView, System } from "@/api/types";
+import type { AnalysisEntry, DefsView, DesignView, PowerPageView, System } from "@/api/types";
 import { SystemModes } from "@/features/modes/matrix/ModesMatrix";
 import { SettingsTable } from "@/features/project/SettingsTable";
 import { useT } from "@/i18n";
@@ -57,7 +57,7 @@ export function SystemTabs({
     if (tab === "modes") return <PowerModes page={powerPage} />;
   }
   if (tab === "modes")
-    return design && hasModes(system) ? (
+    return design && hasModes(system, design.defs) ? (
       system === "aocs" ? (
         <AocsModes design={design} />
       ) : (
@@ -141,7 +141,7 @@ export function SystemTabs({
   );
 }
 
-/** モードの見方を持つ系だけにタブを出す。系の一覧・並びは API が持つ。 */
-export function hasModes(system: System): boolean {
-  return system === "aocs" || system === "cdh" || system === "power" || system === "thermal";
+/** モードの見方を持つ系だけにタブを出す。どの系が持つかは API（`DefsView.mode_systems`）が返す。 */
+export function hasModes(system: System, defs: DefsView | undefined): boolean {
+  return defs?.mode_systems.includes(system) ?? false;
 }

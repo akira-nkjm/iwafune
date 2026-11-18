@@ -1,7 +1,7 @@
 //! KPI ごとの扱い（`Rule`）: どの check に結ぶか（判定の対象か）・塗りの比・判定を数えるか・測れたときだけ出すか。
 //! **KPI と解析の check の対応はここだけ。** check のキーは sat-analysis が決める（キーを変えると `rule_tests` が落ちる）。
 
-use crate::dto::{CheckView, KpiKey};
+use crate::dto::{CheckView, KpiKey, OverviewKpi};
 use sat_analysis::spec::Verdict;
 
 /// KPI の判定にする check の選び方（`CheckView.key` との照合）。
@@ -164,4 +164,28 @@ pub(super) fn rule(key: KpiKey) -> Rule {
         tally,
         when_measured: matches!(key, K::MtqUnloadTime | K::RcsUnloadTime),
     }
+}
+
+/// 概要のカード: 見出しにする KPI と、フッターに値を添える KPI。**概要に出す KPI の選び方と並びはここだけ**（web は一覧を持たない）。
+/// 並びは下の表の順（`OverviewKpi.order`）。測れない KPI のカードは web が出さない（値も判定も判定の数も無いとき）。
+const OVERVIEW: &[(KpiKey, &[KpiKey])] = &[
+    (KpiKey::OrbitBalance, &[]),
+    (KpiKey::MaxDod, &[]),
+    (KpiKey::UnloadInterval, &[KpiKey::PeakMomentum]),
+    (KpiKey::StorageMargin, &[KpiKey::DataPerDay]),
+    (KpiKey::LinkMargin, &[]),
+    (
+        KpiKey::NodesInRange,
+        &[KpiKey::MaxTemperature, KpiKey::MinTemperature],
+    ),
+    (KpiKey::DvWithMargin, &[KpiKey::LoadedPropellant]),
+];
+
+/// 概要のカードの見出しにする KPI なら、その並びとフッターの KPI。
+pub(super) fn overview(key: KpiKey) -> Option<OverviewKpi> {
+    let (order, (_, footer)) = OVERVIEW.iter().enumerate().find(|(_, (k, _))| *k == key)?;
+    Some(OverviewKpi {
+        order: u32::try_from(order).unwrap_or(u32::MAX),
+        footer: footer.to_vec(),
+    })
 }

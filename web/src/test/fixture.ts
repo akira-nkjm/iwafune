@@ -363,6 +363,7 @@ export const fixture: DesignView = {
     },
     systems: ["aocs", "cdh", "comm", "payload", "power", "propulsion", "structure", "thermal"],
     budget_kinds: ["mass", "power", "data"],
+    mode_systems: ["aocs", "cdh", "power", "thermal"],
   },
   settings: [],
   cases: [],

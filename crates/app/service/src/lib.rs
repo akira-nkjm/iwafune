@@ -17,6 +17,7 @@
 //! | `flow` | 解析のフロー図（射影が読んだ値 → 解析・解析 → 解析のつながり。`fune flow`・`GET /flow/{system}`・電源ページの「フロー」タブ） |
 //! | `analysis` | 解析の一覧・実行・KPI（代表値・判定・塗りの比） |
 //! | `budget` | 質量・電力・データ量のバジェット |
+//! | `mode_systems` | モードの見方を持つ系の一覧（`DefsView.mode_systems` と `system_modes` の対応判定の共通の置き場。ほかの module に依存しない） |
 //! | `system_modes` | 系ごとのモードの見方（電源・C&DH・熱・AOCS の値・合計・判定） |
 //! | `data` | 外部データ（DE440・宇宙天気）の取得・状態・読み込み（ユーザーごとのキャッシュ）、日付からの宇宙天気 |
 //! | `shared_catalog` | 共有カタログ（`[[catalog]] git = …`）の取得・更新（git の CLI。プロジェクトの `.fune/catalogs/` のキャッシュと `catalog.lock`） |
@@ -35,6 +36,7 @@ pub mod error;
 pub(crate) mod fetch;
 pub mod flow;
 pub mod history;
+pub mod mode_systems;
 pub mod power_page;
 pub mod preview;
 pub mod query;

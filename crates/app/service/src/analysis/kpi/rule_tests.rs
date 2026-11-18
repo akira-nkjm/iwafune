@@ -4,7 +4,7 @@
 //! デモで出る check はデモの実行で（動的なキーの接頭辞も含む）、デモが出さないキー（要求や上限を置かないと出ない判定、
 //! 設計が持たない手段の判定、噴射中の収支）は、解析の系のソース（テストを除く）の文字列に現れることで確かめる。
 
-use super::rule::{CheckMatch, rule};
+use super::rule::{CheckMatch, overview, rule};
 use super::*;
 use crate::Workspace;
 use crate::dto::{CheckView, RunAnalysisRequest};
@@ -230,4 +230,49 @@ fn per_item_checks_are_gathered_by_prefix() {
         verdicts_of("comm.link_budget", &unrelated),
         [(KpiKey::LinkMargin, None)]
     );
+}
+
+/// 概要のカードのフッターに添える KPI は、解析の一覧のどこかの解析が出す KPI（Web はそれらの解析も走らせて値を引く）。
+/// 見出しは設計に応じて 1 つ以上ある（推進の KPI を含む）。
+#[test]
+fn overview_footers_are_kpis_of_some_analysis() {
+    let catalog = crate::analysis::analysis_catalog().unwrap();
+    let all: Vec<KpiKey> = catalog
+        .iter()
+        .flat_map(|e| e.kpis.iter().map(|k| k.key))
+        .collect();
+    let mut headlines = Vec::new();
+    for entry in &catalog {
+        for def in &entry.kpis {
+            let Some(overview) = &def.overview else {
+                continue;
+            };
+            headlines.push(def.key);
+            for footer in &overview.footer {
+                assert!(
+                    all.contains(footer),
+                    "{}: footer {footer:?} of {:?} is not a KPI of any analysis",
+                    entry.info.id,
+                    def.key
+                );
+            }
+        }
+    }
+    assert!(headlines.contains(&KpiKey::DvWithMargin), "{headlines:?}");
+    assert!(headlines.contains(&KpiKey::OrbitBalance), "{headlines:?}");
+    // 並びは見出しごとに別（カードの順を一意に決める）で、電力収支が先頭
+    let mut orders: Vec<u32> = catalog
+        .iter()
+        .flat_map(|e| {
+            e.kpis
+                .iter()
+                .filter_map(|k| k.overview.as_ref().map(|o| o.order))
+        })
+        .collect();
+    orders.sort_unstable();
+    assert_eq!(
+        orders,
+        (0..u32::try_from(headlines.len()).unwrap()).collect::<Vec<_>>()
+    );
+    assert_eq!(overview(KpiKey::OrbitBalance).unwrap().order, 0);
 }

@@ -105,6 +105,18 @@ pub struct KpiDef {
     pub label_en: String,
     /// 結果に値も判定も無ければ並べない KPI（設計が持たない手段の KPI。ただし解析のすべての KPI が無いときは先頭の 1 つを残す）
     pub when_measured: bool,
+    /// 概要のカードの見出しにする KPI なら、その設定（どの KPI を出すか・並びは
+    /// `analysis::kpi::rule::overview`）。カードにしない KPI は null
+    pub overview: Option<OverviewKpi>,
+}
+
+/// 概要のカードの見出しにする KPI の設定。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+pub struct OverviewKpi {
+    /// カードの並び（小さいほど先。Web はこの順に並べる）
+    pub order: u32,
+    /// カードのフッターに値を添える KPI（表示の順。別の解析が出す KPI でもよい。Web はその解析も走らせる）
+    pub footer: Vec<KpiKey>,
 }
 
 /// KPI 1 つの値（`AnalysisRunResult.kpis`）。

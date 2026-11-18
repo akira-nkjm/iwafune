@@ -18,9 +18,19 @@ function modeView(system: System = "power"): SystemModesView {
     margin: qv(25, "W", "Power"),
     verdict: "ok" as const,
   };
+  // API の足もとの行（`system_modes::summary_rows`）と同じ
+  const summary: SystemModesView["summary"] =
+    system === "power"
+      ? [
+          { label: "power", field: "total", verdict: false },
+          { label: "available", field: "available", verdict: false },
+          { label: "margin", field: "margin", verdict: true },
+        ]
+      : [{ label: system === "cdh" ? "data_rate" : "heat", field: "total", verdict: true }];
   return {
     system,
     missing: [],
+    summary,
     modes: [
       {
         id: "NOMINAL",

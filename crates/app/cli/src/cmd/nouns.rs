@@ -171,7 +171,7 @@ pub fn mode(c: &ModeCmd) -> Built<'_> {
             })?,
             edit,
         ),
-        ModeCmd::Ls | ModeCmd::Table => return Ok(None),
+        ModeCmd::Ls | ModeCmd::Table | ModeCmd::View { .. } => return Ok(None),
     };
     Ok(Some((op, e)))
 }

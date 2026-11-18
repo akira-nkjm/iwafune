@@ -63,7 +63,7 @@ pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
 }
 
 /// 足りない入力の表（解析とバジェットで同じ形）。
-fn print_missing(missing: &[MissingInput], out: &Out) {
+pub(super) fn print_missing(missing: &[MissingInput], out: &Out) {
     if missing.is_empty() {
         return;
     }

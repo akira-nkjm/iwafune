@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { useAnalyses, useDesign, usePowerPage, useSystemAnalyses } from "@/api/queries";
-import type { AnalysisEntry, PowerPageView, System } from "@/api/types";
+import type { AnalysisEntry, DefsView, PowerPageView, System } from "@/api/types";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
 import { SkeletonPage, SkeletonPanel } from "@/kit/feedback/Loading";
@@ -18,8 +18,8 @@ import { hasModes, type SystemTab, SystemTabs } from "./SystemTabs";
 const TABS: SystemTab[] = ["results", "modes", "series", "settings"];
 
 /** 系にそのタブがあるか（モードの見方・フロー図は持つ系だけ） */
-function shows(system: System, tab: SystemTab): boolean {
-  if (tab === "modes") return hasModes(system);
+function shows(system: System, tab: SystemTab, defs: DefsView | undefined): boolean {
+  if (tab === "modes") return hasModes(system, defs);
   return true;
 }
 
@@ -95,7 +95,8 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
     () => new Map<string, AnalysisEntry>(catalog.entries.map((e) => [e.info.id, e])),
     [catalog.entries],
   );
-  const tab: SystemTab = isTab(rawTab) && shows(system, rawTab) ? rawTab : "results";
+  const tab: SystemTab =
+    isTab(rawTab) && shows(system, rawTab, design.data?.defs) ? rawTab : "results";
   const tabs = (d: NonNullable<DesignQuery["data"]>, page?: PowerPageView) => (
     <SystemTabs
       tab={tab}
@@ -127,7 +128,7 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
         }
       />
       <PageTabs
-        tabs={TABS.filter((k) => shows(system, k)).map((k) => ({
+        tabs={TABS.filter((k) => shows(system, k, design.data?.defs)).map((k) => ({
           to: paths.system(system, { tab: k === "results" ? null : k, kase }),
           label: t.systems.tabs[k],
         }))}

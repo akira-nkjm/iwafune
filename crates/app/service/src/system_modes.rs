@@ -7,6 +7,7 @@ mod devices;
 
 use crate::dto::PartViewRequest;
 use crate::error::Result;
+use crate::mode_systems::mode_systems;
 use crate::workspace::{Snapshot, Workspace};
 
 /// 系別のモード表示（POST /system_modes/{system}）。下書きは保存と同じ Op を書き込まずに当てる。
@@ -19,27 +20,50 @@ pub fn system_modes(
     system_modes_of(&s, system)
 }
 
+/// 表の足もとの行（系ごとの見せ方はここだけ。web は系の名前で選ばない）。
+/// 電源は合計・使用可能電力・余裕（判定は余裕の行）、C&DH と熱は合計 1 行（判定付き）、AOCS は専用のカードなので行なし。
+fn summary_rows(system: sat_analysis::spec::System) -> Vec<crate::dto::ModeSummaryRow> {
+    use crate::dto::{ModeSummaryField as F, ModeSummaryLabel as L, ModeSummaryRow};
+    use sat_analysis::spec::System;
+    let row = |label, field, verdict| ModeSummaryRow {
+        label,
+        field,
+        verdict,
+    };
+    match system {
+        System::Power => vec![
+            row(L::Power, F::Total, false),
+            row(L::Available, F::Available, false),
+            row(L::Margin, F::Margin, true),
+        ],
+        System::Cdh => vec![row(L::DataRate, F::Total, true)],
+        System::Thermal => vec![row(L::Heat, F::Total, true)],
+        _ => Vec::new(),
+    }
+}
+
 fn system_modes_of(
     s: &Snapshot,
     system: sat_analysis::spec::System,
 ) -> Result<crate::dto::SystemModesView> {
     use crate::dto::{SystemModeView, SystemModesView};
     use sat_analysis::spec::System;
+    if !mode_systems().contains(&system) {
+        return Err(crate::error::ServiceError::InvalidInput(
+            "This subsystem has no mode view".into(),
+        ));
+    }
     if system == System::Aocs {
         return Ok(SystemModesView {
             system,
             modes: aocs::views(s)?,
             missing: Vec::new(),
+            summary: summary_rows(system),
         });
     }
     let ctx = fune_projection::Context::bare(&s.design, &s.resolved);
     let mut modes = Vec::new();
     let mut missing = fune_projection::MissingInputs::new();
-    if !matches!(system, System::Cdh | System::Power | System::Thermal) {
-        return Err(crate::error::ServiceError::InvalidInput(
-            "This subsystem has no mode view".into(),
-        ));
-    }
     if system == System::Power {
         let input = fune_projection::power::mode_load_input(&ctx, &mut missing);
         let out = sat_analysis::catalog::run_typed::<sat_analysis::power::ModeLoad>(&input)
@@ -65,6 +89,7 @@ fn system_modes_of(
         system,
         modes,
         missing: missing.into_vec(),
+        summary: summary_rows(system),
     })
 }
 

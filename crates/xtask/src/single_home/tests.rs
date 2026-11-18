@@ -114,6 +114,26 @@ fn web_takes_systems_and_budget_kinds_from_the_api() {
     }
 }
 
+/// バジェットの種類を JSX の属性に直書きしない（`<BudgetPanel kind="mass" />`）。
+#[test]
+fn web_does_not_write_budget_kinds_in_jsx() {
+    for kind in ["mass", "power", "data"] {
+        let needle = format!("kind=\"{kind}\"");
+        let rule = WEB_RULES.iter().find(|r| r.0 == needle).unwrap();
+        let mut errors = Vec::new();
+        let line = format!("<BudgetPanel kind=\"{kind}\" />");
+        check_rule(
+            "web/src/features/overview/OverviewPage.tsx",
+            &line,
+            rule,
+            &mut errors,
+        );
+        assert_eq!(errors.len(), 1, "{kind}");
+        check_rule("web/src/test/fixture.ts", &line, rule, &mut errors);
+        assert_eq!(errors.len(), 1, "{kind}");
+    }
+}
+
 /// 系とバジェットの種類の一覧は model の列挙だけ。参照の所在は model の索引だけ（Rust のコードの規則）。
 #[test]
 fn lists_and_reference_sites_have_one_home() {
