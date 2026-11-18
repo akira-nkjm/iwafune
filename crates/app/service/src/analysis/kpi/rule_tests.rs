@@ -88,7 +88,7 @@ fn the_guard_rejects_unknown_keys() {
     assert!(in_source(&source, CheckMatch::Exact("sap_margin")));
     assert!(!in_source(&source, CheckMatch::Exact("sap_margins")));
     assert!(!emitted_by_demo(
-        CheckMatch::Prefix("range:"),
+        CheckMatch::Prefix("range_high:"),
         &["dod".to_owned()]
     ));
 }
@@ -173,23 +173,44 @@ fn data_throughput_kpis_follow_their_own_check() {
     );
 }
 
-/// 熱の判定は節点と範囲の種類ごとの 1 つで、最低と最高の両側を見る（片側だけの判定は解析が出さない）。
-/// 最高・最低の KPI は同じ判定の並びを使い、温度範囲でない判定には巻き込まれない。
+/// 熱の判定は節点・範囲の種類・側（上限・下限）ごとに出る。最高温度の KPI は上限側、最低温度の KPI は下限側だけを見て、
+/// 温度範囲でない判定には巻き込まれない。上限だけ超えても最低温度の KPI は OK のまま（逆も同じ）。
 #[test]
-fn thermal_kpis_use_the_range_checks_only() {
+fn thermal_kpis_look_at_their_own_side() {
     use KpiKey::{MaxTemperature, MinTemperature, NodesInRange};
-    let checks = [
-        checked("range:BAT:operating", Verdict::Warning),
-        checked("other", Verdict::Violation),
+    use Verdict::{Ok, Violation, Warning};
+    let high_only = [
+        checked("range_high:BAT:operating", Violation),
+        checked("range_low:BAT:operating", Ok),
+        checked("other", Warning),
     ];
     assert_eq!(
-        verdicts_of("thermal.steady", &checks),
+        verdicts_of("thermal.steady", &high_only),
         [
-            (MaxTemperature, Some(Verdict::Warning)),
-            (MinTemperature, Some(Verdict::Warning)),
+            (MaxTemperature, Some(Violation)),
+            (MinTemperature, Some(Ok)),
             // 解析全体を代表する KPI は全 check の最悪
-            (NodesInRange, Some(Verdict::Violation)),
+            (NodesInRange, Some(Violation)),
         ]
+    );
+    let low_only = [
+        checked("range_high:BAT:operating", Ok),
+        checked("range_low:BAT:operating", Warning),
+        checked("range_low:CAM:storage", Ok),
+    ];
+    assert_eq!(
+        verdicts_of("thermal.steady", &low_only),
+        [
+            (MaxTemperature, Some(Ok)),
+            (MinTemperature, Some(Warning)),
+            (NodesInRange, Some(Warning)),
+        ]
+    );
+    // 温度範囲の判定が無ければ KPI の判定は無い
+    let other = [checked("other", Violation)];
+    assert_eq!(
+        verdicts_of("thermal.steady", &other)[..2],
+        [(MaxTemperature, None), (MinTemperature, None)]
     );
 }
 

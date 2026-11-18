@@ -169,7 +169,8 @@ mod tests {
         let safe = mode("SAFE", "off");
         let m = range_margins(C0, C0, &n.ranges_in(&[Some(&safe)]).unwrap(), &margin);
         let checks = range_checks("ELEC", &m, &margin);
-        assert_eq!(checks[0].key, "range:ELEC:storage");
+        assert_eq!(checks[0].key, "range_high:ELEC:storage");
+        assert_eq!(checks[1].key, "range_low:ELEC:storage");
         assert!(
             checks[0]
                 .message
@@ -177,9 +178,9 @@ mod tests {
             "{}",
             checks[0].message
         );
-        assert_eq!(checks[1].key, "range:ELEC:operating");
+        assert_eq!(checks[2].key, "range_high:ELEC:operating");
         assert!(
-            checks[1]
+            checks[2]
                 .message
                 .contains("Excludes powered-off CAM in mode SAFE"),
             "{}",

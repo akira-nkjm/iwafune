@@ -77,6 +77,12 @@ export const shellEn: typeof shellJa = {
     conflictDetail: "Reloaded the latest design. Please try again.",
     failed: (summary: string) => `${summary}: failed`,
     network: (e: string) => `Cannot reach the server (${e})`,
+    undoSummary: (what: string) => `Undo: ${what}`,
+    redoSummary: (what: string) => `Redo: ${what}`,
+    nothingToUndo: "Nothing to undo",
+    nothingToRedo: "Nothing to redo",
+    stepFailed: (redo: boolean): string => (redo ? "Could not redo" : "Could not undo"),
+    lastEdit: "the last edit",
   },
   quantity: {
     edit: (label: string) => `Edit ${label}`,

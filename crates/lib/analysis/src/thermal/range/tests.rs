@@ -43,7 +43,11 @@ fn verdict_by_distance_to_the_ends() {
     assert_eq!(worst_verdict(&none), Verdict::Ok);
     let m = range_margins(280.0, 316.0, &all(&r), &p.used());
     let checks = range_checks("box", &m, &p.used());
-    assert_eq!(checks[0].key, "range:box:operating");
+    assert_eq!(checks[0].key, "range_high:box:operating");
+    assert_eq!(checks[1].key, "range_low:box:operating");
+    // 316 K は上限まで 4 K（警告）、下限まで 10 K（OK）: 判定は側ごとに分かれる
+    assert_eq!(checks[0].verdict, Verdict::Warning);
+    assert_eq!(checks[1].verdict, Verdict::Ok);
     assert!((m[0].margin_low.value() - 10.0).abs() < 1e-12);
     assert!((m[0].margin_high.value() - 4.0).abs() < 1e-12);
 }
@@ -82,9 +86,12 @@ fn three_ranges_and_uncertainty_by_hand() {
     assert_eq!(
         keys,
         [
-            "range:n:storage",
-            "range:n:operating",
-            "range:n:performance"
+            "range_high:n:storage",
+            "range_low:n:storage",
+            "range_high:n:operating",
+            "range_low:n:operating",
+            "range_high:n:performance",
+            "range_low:n:performance"
         ]
     );
     assert_eq!(worst_verdict(&m), Violation);
@@ -171,4 +178,30 @@ fn excluded_parts_text_groups_modes() {
         ". Excludes powered-off STX in mode NOMINAL, MISSION. Excludes powered-off GPS, STX in mode SAFE. Excludes powered-on OBC in mode SAFE"
     );
     assert!(excluded_text(&[]).is_empty());
+}
+
+/// 側ごとの判定: 動作範囲 270〜320 K に 280〜321 K（上限だけ 1 K 超過）を当てると、上限側は違反、下限側は
+/// 下限まで 10 K で OK。逆に 268〜300 K なら下限側だけ違反。不確かさ 8 K では下限側（280 K − 8 K → 余裕 2 K）だけ警告。
+#[test]
+fn each_side_is_judged_on_its_own() {
+    let r = ThermalRanges {
+        operating: Some(range(270.0, 320.0)),
+        ..ThermalRanges::default()
+    };
+    let sides = |lo: f64, hi: f64, p: ThermalMarginPolicy| -> (Verdict, Verdict) {
+        let used = p.used();
+        let c = range_checks("n", &range_margins(lo, hi, &all(&r), &used), &used);
+        (c[0].verdict, c[1].verdict)
+    };
+    let p = ThermalMarginPolicy::default();
+    assert_eq!(sides(280.0, 321.0, p), (Verdict::Violation, Verdict::Ok));
+    assert_eq!(sides(268.0, 300.0, p), (Verdict::Ok, Verdict::Violation));
+    let u8 = ThermalMarginPolicy {
+        uncertainty: Some(Qty::from_raw(8.0)),
+        warning_band: None,
+    };
+    assert_eq!(sides(280.0, 300.0, u8), (Verdict::Ok, Verdict::Warning));
+    // 範囲全体の判定は両側の悪いほう
+    let m = range_margins(280.0, 321.0, &all(&r), &p.used());
+    assert_eq!(m[0].verdict, Verdict::Violation);
 }

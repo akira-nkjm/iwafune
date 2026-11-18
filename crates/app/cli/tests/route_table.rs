@@ -51,6 +51,9 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
         &["case", "from-eclipse"],
         "edit::case_from_eclipse_op",
     ),
+    ("GET", "/history", &["history"], "history::view"),
+    ("POST", "/undo", &["undo"], "history::undo"),
+    ("POST", "/redo", &["redo"], "history::redo"),
     ("GET", "/units", &["units", "ls"], "units::units_catalog"),
     (
         "POST",

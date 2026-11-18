@@ -1,9 +1,6 @@
-import type { DesignView, NetView, PortRef, Role } from "@/api/types";
+import type { DesignView, NetView } from "@/api/types";
 import { getT } from "@/i18n";
 import { toneHex, toneInkHex, uiHex } from "@/lib/tone";
-
-const BATTERY_ROLE: Role = "battery";
-const SOLAR_PANEL_ROLE: Role = "solar_panel";
 
 /** 系統図の層（表示の切り替え） */
 export type Layer = "power" | "signal" | "gnd";
@@ -44,15 +41,10 @@ export function layerOf(n: NetView): Layer {
   return n.is_return ? "gnd" : "power";
 }
 
-function roleOf(design: DesignView, portRef: PortRef | null): Role | null {
-  if (!portRef) return null;
-  const part = portRef.part;
-  return design.parts.find((p) => p.id === part)?.role ?? null;
-}
-
 /**
  * 電源ネットの系統（凡例と線の色）。表示だけの分類で、設計データには書かない。
- * 戻り（GND）→ 供給元が電池 → 太陽電池がつながる → レール電圧ごと（無ければ非安定化バス）の順に決める。
+ * どの系統かは API の `NetView.power_class`（役割・戻り・レールから service が決める）。ここは色・凡例の並び・名前を
+ * 当てるだけで、安定化レールは電圧ごと（高い順）に色を分ける。
  */
 export function powerCategories(design: DesignView): Map<string, PowerCategory> {
   const out = new Map<string, PowerCategory>();
@@ -60,11 +52,23 @@ export function powerCategories(design: DesignView): Map<string, PowerCategory> 
   const rails: { net: NetView; si: number; display: string }[] = [];
   for (const n of design.nets) {
     if (n.kind !== "power") continue;
-    if (n.is_return) out.set(n.id, GND);
-    else if (roleOf(design, n.source) === BATTERY_ROLE) out.set(n.id, BATTERY);
-    else if (n.members.some((m) => roleOf(design, m) === SOLAR_PANEL_ROLE)) out.set(n.id, SOLAR);
-    else if (!n.rail) out.set(n.id, UNREG);
-    else rails.push({ net: n, si: n.rail.si, display: n.rail.display });
+    switch (n.power_class) {
+      case "return":
+        out.set(n.id, GND);
+        break;
+      case "battery":
+        out.set(n.id, BATTERY);
+        break;
+      case "solar":
+        out.set(n.id, SOLAR);
+        break;
+      case "regulated":
+        if (n.rail) rails.push({ net: n, si: n.rail.si, display: n.rail.display });
+        else out.set(n.id, UNREG);
+        break;
+      default:
+        out.set(n.id, UNREG);
+    }
   }
   const volts = [...new Set(rails.map((r) => r.display))].sort(
     (a, b) =>

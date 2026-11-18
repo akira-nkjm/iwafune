@@ -21,6 +21,7 @@
 //! | `budget` | 質量・電力・データ量のバジェット |
 //! | `kpi` | KPI（系の代表値・判定・塗りの比・判定の数え方）と塗りの比 |
 //! | `overview` | 系の概要の解析の表の行（主な結果・判定のまとまり・小さな棒グラフ・隠す表） |
+//! | `net_class` | ネットの分類（電源の系統・星形の中心） |
 //! | `data` | 外部データ（DE440）の状態 |
 
 mod aocs_modes;
@@ -43,6 +44,7 @@ pub use flow::{
     FlowView,
 };
 mod format;
+mod history;
 pub use format::{FormatDesignRequest, FormatDesignResult};
 mod kpi;
 mod maneuver;
@@ -53,6 +55,7 @@ pub use overview::{
     AnalysisOverview, OverviewBar, OverviewChart, OverviewCheckGroup, OverviewReference,
 };
 mod pose;
+pub use net_class::{NetHub, PowerClass};
 pub use pose::{BodyPoseView, MountPointView, MountView, PoseQuantities};
 mod power_page;
 pub use power_page::*;
@@ -63,12 +66,13 @@ pub use shared_catalog::{
 };
 mod source;
 pub use source::SourceView;
+mod net_class;
 mod units;
 mod value;
 
 pub use analysis::{
     AnalysisCaseSource, AnalysisEntry, AnalysisInputSource, AnalysisRunResult, AnalysisRunStatus,
-    RunAnalysisRequest,
+    PartHeat, RunAnalysisRequest,
 };
 pub use budget::{
     BudgetPropellant, BudgetRequest, BudgetRow, BudgetTotal, BudgetUncounted, BudgetView,
@@ -108,6 +112,7 @@ pub use fune_model::value::{Provenance, Quantity, Quaternion, SettingValue, Valu
 pub use fune_model::{Diagnostic, Severity};
 pub use fune_ops::{ModeCell, ModePosition, Op, ViewNodePos};
 pub use fune_projection::MissingInput;
+pub use history::{HistoryAction, HistoryEntryView, HistoryStepResult, HistoryView};
 pub use sat_analysis::spec::{
     AnalysisArea, AnalysisInfo, AnalysisKind, Channel, Check, ConditionTopic, Series, System,
     Verdict,

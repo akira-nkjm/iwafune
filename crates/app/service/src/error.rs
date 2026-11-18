@@ -35,6 +35,17 @@ pub enum ServiceError {
     Validation { diagnostics: Vec<DiagnosticView> },
     #[error("Revision mismatch (given {expected}, current {actual}). Reload and try again")]
     Conflict { expected: String, actual: String },
+    #[error("Nothing to {action}")]
+    NothingToStep { action: &'static str },
+    #[error(
+        "Cannot {action}: the design files changed outside the edit history since that edit \
+         (expected revision {expected}, found {actual}). Edits made by hand, by git, or by `fune fmt` / `fune catalog fetch` end the history at that point"
+    )]
+    HistoryConflict {
+        action: &'static str,
+        expected: String,
+        actual: String,
+    },
     #[error("Cannot run the analysis: {0}")]
     Analysis(String),
     #[error("Cannot read or write the design data: {0}")]
@@ -53,12 +64,15 @@ impl ServiceError {
     /// 分類。
     pub fn kind(&self) -> ErrorKind {
         match self {
-            Self::ProjectNotFound(_) | Self::NotFound { .. } => ErrorKind::NotFound,
+            Self::ProjectNotFound(_) | Self::NotFound { .. } | Self::NothingToStep { .. } => {
+                ErrorKind::NotFound
+            }
             Self::InvalidInput(_) | Self::Unit { .. } => ErrorKind::InvalidInput,
             Self::Validation { .. } => ErrorKind::Validation,
-            Self::Conflict { .. } | Self::Locked(_) | Self::AlreadyExists { .. } => {
-                ErrorKind::Conflict
-            }
+            Self::Conflict { .. }
+            | Self::HistoryConflict { .. }
+            | Self::Locked(_)
+            | Self::AlreadyExists { .. } => ErrorKind::Conflict,
             Self::Analysis(_)
             | Self::Store(_)
             | Self::Data(_)
@@ -77,6 +91,8 @@ impl ServiceError {
             Self::Unit { .. } => "unit_error",
             Self::Validation { .. } => "validation_failed",
             Self::Conflict { .. } => "revision_conflict",
+            Self::NothingToStep { .. } => "history_empty",
+            Self::HistoryConflict { .. } => "history_conflict",
             Self::Locked(_) => "locked",
             Self::Analysis(_) => "analysis_failed",
             Self::Store(_) => "store_error",

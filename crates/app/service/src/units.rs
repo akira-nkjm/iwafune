@@ -12,7 +12,7 @@ use sat_units::format::{
     display_units, format_dimension, format_in_unit, format_number, format_quantity,
     si_unit_expression,
 };
-use sat_units::typed::{NamedKind, TorqueKind};
+use sat_units::typed::{NamedKind, TemperatureDifferenceKind, TorqueKind};
 use sat_units::{Dimension, Unit, named_dimensions, parse_dimension, parse_unit};
 
 /// SI 値の一括整形（`POST /units/format`）。単位の指定が無ければ次元名から読みやすい単位を選ぶ（`sat_units::format`）。
@@ -54,16 +54,15 @@ pub fn format_quantities(req: &FormatRequest) -> Result<FormatResponse> {
 /// 単位の一覧（`GET /units`）。`query.dimension` を指定するとその次元の単位だけを返す。
 pub fn units_catalog(query: &UnitsQuery) -> Result<UnitsCatalog> {
     let wanted = query.dimension.as_deref().map(dimension_of).transpose()?;
-    let torque = query
+    // 同次元の別名（Torque は Energy、TemperatureDifference は Temperature と同次元）は、その名前と表示単位だけを返す。
+    let alias = query
         .dimension
         .as_deref()
         .and_then(canonical_dimension_name)
-        == Some(TorqueKind::name());
+        .filter(|n| [TorqueKind::name(), TemperatureDifferenceKind::name()].contains(n));
     let dimensions = named_dimensions()
         .iter()
-        .filter(|(name, d)| {
-            wanted.is_none_or(|w| w == *d) && (!torque || *name == TorqueKind::name())
-        })
+        .filter(|(name, d)| wanted.is_none_or(|w| w == *d) && alias.is_none_or(|a| *name == a))
         .map(|(name, d)| DimensionInfo {
             name: (*name).to_owned(),
             si_unit: si_unit_expression(*d),
@@ -72,14 +71,9 @@ pub fn units_catalog(query: &UnitsQuery) -> Result<UnitsCatalog> {
                 .unwrap_or_default(),
         })
         .collect();
-    // 同次元の Energy の単位を Torque の入力候補に混ぜない。候補の正本は sat-units。
-    let symbols: Vec<&str> = if torque {
-        display_units(TorqueKind::name())
-            .into_iter()
-            .flatten()
-            .collect()
-    } else {
-        sat_units::NAMED_UNIT_SYMBOLS.to_vec()
+    let symbols: Vec<&str> = match alias {
+        Some(a) => display_units(a).into_iter().flatten().collect(),
+        None => sat_units::NAMED_UNIT_SYMBOLS.to_vec(),
     };
     let units = symbols
         .iter()
@@ -269,6 +263,31 @@ mod tests {
         .unwrap();
         assert!(energy.units.iter().any(|u| u.symbol == "J"));
         assert!(energy.units.iter().any(|u| u.symbol == "Wh"));
+    }
+
+    /// 温度差の入力候補は K だけ（絶対温度の degC・degF を混ぜない）。Temperature は従来どおり。
+    #[test]
+    fn temperature_difference_input_candidates_are_kelvin_only() {
+        let delta = units_catalog(&UnitsQuery {
+            dimension: Some("TemperatureDifference".into()),
+        })
+        .unwrap();
+        assert_eq!(delta.dimensions.len(), 1);
+        assert_eq!(delta.dimensions[0].name, "TemperatureDifference");
+        let symbols: Vec<_> = delta.units.iter().map(|u| u.symbol.as_str()).collect();
+        assert_eq!(symbols, ["K"]);
+        let parsed = parse_quantity(&ParseQuantityRequest {
+            input: "5 K".into(),
+            dimension: Some("TemperatureDifference".into()),
+        })
+        .unwrap();
+        assert_eq!(parsed.quantity.si, 5.0);
+        assert_eq!(parsed.quantity.dimension, "TemperatureDifference");
+        let absolute = units_catalog(&UnitsQuery {
+            dimension: Some("Temperature".into()),
+        })
+        .unwrap();
+        assert!(absolute.units.iter().any(|u| u.symbol == "degC"));
     }
 
     #[test]
