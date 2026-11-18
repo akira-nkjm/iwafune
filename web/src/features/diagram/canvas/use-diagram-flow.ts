@@ -37,7 +37,8 @@ function useStableModel(built: DiagramModel | null): DiagramModel | null {
 /**
  * 表示モデルと自動配置。位置（枠・カード・端子）は全部の層の線を入れた表示モデルで決め（planLayout）、表示する
  * 層の線だけをその上に引く（drawLayout）。層を切り替えても位置は変わらず、線を引き直すだけ。位置の探索は軽くないので
- * 描画のあとに回し、終わるまでは layout が null（画面はスケルトン）。位置や線の経路を保存して設計を読み直しても、
+ * 描画のあとに回す。探している間は前の図を返し（`pending`）、最初の 1 回だけ layout が null（画面はスケルトン）。
+ * 位置や線の経路を保存して設計を読み直しても、
  * 表示モデルの中身が同じなら探索し直さない。
  */
 export function useDiagramModel(
@@ -70,7 +71,20 @@ export function useDiagramModel(
     () => (plan && model && plan.full === full ? drawLayout(plan.plan, model) : null),
     [plan, model, full],
   );
-  return { model, layout };
+  // 位置を探し直している間は、前にできた図（表示モデルと配置の組）をそのまま出す。図を消してスケルトンに戻すと、
+  // 表示を切り替えるたびに作り直したように見えるため。まだ一度もできていない最初だけ null（画面はスケルトン）
+  const last = useRef<{ model: DiagramModel; layout: DiagramLayout } | null>(null);
+  if (model && layout && (last.current?.model !== model || last.current.layout !== layout)) {
+    last.current = { model, layout };
+  }
+  const fresh = model !== null && layout !== null;
+  const shown = fresh ? { model, layout } : last.current;
+  return {
+    model: shown?.model ?? model,
+    layout: shown?.layout ?? null,
+    /** 前の図を出したまま、新しい位置を探している */
+    pending: !fresh && shown !== null,
+  };
 }
 
 /**
