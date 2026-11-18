@@ -1,5 +1,5 @@
 use super::*;
-use crate::typed::{Dimension as _, Energy, Power, Torque};
+use crate::typed::{Dimension as _, Energy, Power, Temperature, Torque};
 use alloc::vec::Vec;
 
 fn text(si: f64, dim: &str) -> String {
@@ -81,6 +81,20 @@ fn data_information_temperature() {
     assert_eq!(text(8.0 * 512.0, "Information"), "512 B");
     assert_eq!(text(293.15, "Temperature"), "20.0 °C");
     assert_eq!(text(233.15, "Temperature"), "-40.0 °C");
+    // 温度差は 273.15 を引かず K で出す: 5 K は 5 K（絶対温度の扱いなら 278.15 K = 5.00 °C や -268 °C になる）
+    assert_eq!(text(5.0, "TemperatureDifference"), "5.00 K");
+    assert_eq!(text(-2.5, "TemperatureDifference"), "-2.50 K");
+    assert_eq!(text(0.0, "TemperatureDifference"), "0 K");
+    assert_eq!(text(5.0, "temperature_difference"), "5.00 K");
+    // 次元だけからは Temperature（別名の選び方は `dimension_label_preferring`）
+    assert_eq!(
+        dimension_label_preferring(Temperature::DIM, Some("TemperatureDifference")),
+        "TemperatureDifference"
+    );
+    assert_eq!(
+        dimension_label_preferring(Temperature::DIM, None),
+        "Temperature"
+    );
     assert_eq!(format_in_unit(10.0, "K").expect("K").text, "10.0 K");
 }
 

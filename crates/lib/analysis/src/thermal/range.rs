@@ -9,7 +9,7 @@
 
 use crate::modes::PowerStates;
 use crate::spec::{Verdict, margin_verdict};
-use sat_units::typed::{Qty, Temperature};
+use sat_units::typed::{Qty, Temperature, TemperatureDifference};
 use serde::{Deserialize, Serialize};
 
 /// 範囲の端からこの幅 [K] 以内なら警告にする（解析マージンの方針の `warning_band` の既定値）。
@@ -172,22 +172,28 @@ impl ThermalRanges {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThermalMarginPolicy {
     /// 予測温度の不確かさ（最高に足し、最低から引いてから範囲と比べる。既定 [`DEFAULT_UNCERTAINTY_K`]）
-    #[serde(default)]
-    pub uncertainty: Option<Qty<Temperature>>,
+    #[serde(
+        default,
+        serialize_with = "sat_units::typed::TemperatureDifferenceKind::serialize_option"
+    )]
+    pub uncertainty: Option<Qty<TemperatureDifference>>,
     /// 範囲の端からこの幅以内を警告にする（既定 [`RANGE_WARNING_BAND_K`]）
-    #[serde(default)]
-    pub warning_band: Option<Qty<Temperature>>,
+    #[serde(
+        default,
+        serialize_with = "sat_units::typed::TemperatureDifferenceKind::serialize_option"
+    )]
+    pub warning_band: Option<Qty<TemperatureDifference>>,
 }
 
 impl ThermalMarginPolicy {
     /// 予測温度の不確かさ [K]（省略時 [`DEFAULT_UNCERTAINTY_K`]）。
-    pub fn uncertainty(&self) -> Qty<Temperature> {
+    pub fn uncertainty(&self) -> Qty<TemperatureDifference> {
         self.uncertainty
             .unwrap_or(Qty::from_raw(DEFAULT_UNCERTAINTY_K))
     }
 
     /// 警告の幅 [K]（省略時 [`RANGE_WARNING_BAND_K`]）。
-    pub fn warning_band(&self) -> Qty<Temperature> {
+    pub fn warning_band(&self) -> Qty<TemperatureDifference> {
         self.warning_band
             .unwrap_or(Qty::from_raw(RANGE_WARNING_BAND_K))
     }
@@ -206,9 +212,11 @@ impl ThermalMarginPolicy {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThermalMarginUsed {
     /// 予測温度の不確かさ（温度差 [K]）
-    pub uncertainty: Qty<Temperature>,
+    #[serde(serialize_with = "sat_units::typed::TemperatureDifferenceKind::serialize")]
+    pub uncertainty: Qty<TemperatureDifference>,
     /// 範囲の端からこの幅以内を警告にした（温度差 [K]。Web の温度表もこれを使う）
-    pub warning_band: Qty<Temperature>,
+    #[serde(serialize_with = "sat_units::typed::TemperatureDifferenceKind::serialize")]
+    pub warning_band: Qty<TemperatureDifference>,
 }
 
 impl ThermalMarginUsed {
@@ -232,9 +240,11 @@ pub struct ThermalRangeMargin {
     pub kind: ThermalRangeKind,
     pub range: ThermalTempRange,
     /// 下限からの余裕 T_min − min（不確かさを引く前。温度差）
-    pub margin_low: Qty<Temperature>,
+    #[serde(serialize_with = "sat_units::typed::TemperatureDifferenceKind::serialize")]
+    pub margin_low: Qty<TemperatureDifference>,
     /// 上限までの余裕 max − T_max（不確かさを足す前。温度差）
-    pub margin_high: Qty<Temperature>,
+    #[serde(serialize_with = "sat_units::typed::TemperatureDifferenceKind::serialize")]
+    pub margin_high: Qty<TemperatureDifference>,
     /// 不確かさを含めた判定
     pub verdict: Verdict,
     /// モードでの電源の状態でこの範囲から外した部品（モードの無いケースでは空）
