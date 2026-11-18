@@ -148,6 +148,8 @@ const labels: Record<string, string> = {
   base_max_dod: "Max DoD of base mode alone",
   depleted: "Battery depleted",
   cycle: "Sequence cycle",
+  origin: "Sequence start time",
+  timing: "How the start was decided",
   segments: "Sequence segments",
   balance: "Balance",
   sequence: "Mode sequence",

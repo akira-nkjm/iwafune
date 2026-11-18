@@ -3,13 +3,13 @@
 use crate::error::OpError;
 use crate::op::{ModeCell, ModePosition, Op, ViewNodePos};
 use fune_model::Design;
-use fune_model::design::{Mode, Net, StateAssign, ViewNode};
+use fune_model::design::{AnalysisSystem, Mode, ModeSegment, Net, StartRef, StateAssign, ViewNode};
 use fune_model::id::{Id, clash, validate_entity_id};
 use fune_model::path::{self, ParamPath};
 use fune_model::value::SettingValue;
 use fune_store::Edits;
 use fune_store::layout;
-use fune_store::write::{entities, project::set_mode_order, refs};
+use fune_store::write::{entities, project::set_mode_order, refs, sequences};
 
 pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> {
     match op {
@@ -51,6 +51,21 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
                 duration.as_ref(),
             )?)
         }
+        Op::SetModeTiming { mode, when, start } => {
+            existing_mode(design, mode)?;
+            Ok(sequences::set_mode_timing(
+                edits,
+                &layout::mode_file(mode),
+                *when,
+                start.as_ref(),
+            )?)
+        }
+        Op::SetSequence {
+            name,
+            anchor,
+            segments,
+        } => set_sequence(edits, design, name, anchor.as_ref(), segments),
+        Op::RemoveSequence { name } => remove_sequence(edits, design, name),
         Op::SetModeStates { cells } => cells.iter().try_for_each(|c| set_cell(edits, design, c)),
         Op::CreateNet { net } => {
             new_flat_id(
@@ -172,6 +187,46 @@ fn set_setting(edits: &mut Edits, text: &str, value: Option<&SettingValue>) -> R
     Ok(entities::set_setting(edits, &file, &keys, value)?)
 }
 
+/// 名前付きの並びを書く（名前は ID の規則。区間は 1 つ以上・モードは存在すること。長さの次元は検査が見る）。
+fn set_sequence(
+    edits: &mut Edits,
+    design: &Design,
+    name: &str,
+    anchor: Option<&StartRef>,
+    segments: &[ModeSegment],
+) -> Result<(), OpError> {
+    validate_entity_id(name).map_err(|e| OpError::invalid(e.to_string()))?;
+    if segments.is_empty() {
+        return Err(OpError::invalid(format!(
+            "Sequence `{name}` needs at least one segment"
+        )));
+    }
+    for s in segments {
+        existing_mode(design, &s.mode)?;
+    }
+    Ok(sequences::set_sequence(
+        edits,
+        &layout::analysis_file(AnalysisSystem::Power),
+        name,
+        anchor,
+        segments,
+    )?)
+}
+
+/// 名前付きの並びを消す。無ければ拒む。
+fn remove_sequence(edits: &mut Edits, design: &Design, name: &str) -> Result<(), OpError> {
+    let exists = design
+        .analysis
+        .power
+        .as_ref()
+        .is_some_and(|p| p.sequence(name).is_some());
+    if !exists {
+        return Err(OpError::not_found(format!("Sequence `{name}`")));
+    }
+    sequences::remove_sequence(edits, &layout::analysis_file(AnalysisSystem::Power), name)?;
+    Ok(())
+}
+
 fn existing_mode(design: &Design, id: &str) -> Result<(), OpError> {
     if design.modes.contains_key(id) {
         Ok(())
@@ -226,6 +281,12 @@ fn create_mode(
         max_duration: copy_from
             .and_then(|src| design.modes.get(src))
             .and_then(|m| m.max_duration.clone()),
+        when: copy_from
+            .and_then(|src| design.modes.get(src))
+            .and_then(|m| m.when),
+        start: copy_from
+            .and_then(|src| design.modes.get(src))
+            .and_then(|m| m.start.clone()),
         eclipse: copy_from
             .and_then(|src| design.modes.get(src))
             .map(|m| m.eclipse.clone())

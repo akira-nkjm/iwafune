@@ -2,7 +2,7 @@
 
 use super::text::Cmd;
 use crate::op::{ModeCell, ModePosition, Op, ViewNodePos};
-use fune_model::design::{Net, NetField, NetFieldName, PartField};
+use fune_model::design::{ModeWhen, Net, NetField, NetFieldName, PartField};
 use fune_model::value::{
     Provenance, Scalar, Value, list_to_text, number_to_text, number_unit_to_text, quantity_to_text,
     quaternion_to_text, setting_to_text, value_to_text, vector_to_text,
@@ -152,6 +152,46 @@ pub(super) fn other_op(op: &Op) -> Vec<String> {
                 )
                 .done(),
         ],
+        Op::SetModeTiming { mode, when, start } => vec![
+            Cmd::new(&["fune", "mode", "timing", mode])
+                .flag("when", when.map(ModeWhen::as_str))
+                .flag("start", start.as_ref().map(|s| s.from.as_str()))
+                .flag(
+                    "offset",
+                    start
+                        .as_ref()
+                        .and_then(|s| s.offset.as_ref())
+                        .map(quantity_to_text)
+                        .as_deref(),
+                )
+                .done(),
+        ],
+        Op::SetSequence {
+            name,
+            anchor,
+            segments,
+        } => {
+            let text = segments
+                .iter()
+                .map(|s| format!("{}={}", s.mode, quantity_to_text(&s.duration)))
+                .collect::<Vec<_>>()
+                .join(",");
+            vec![
+                Cmd::new(&["fune", "sequence", "set", name])
+                    .flag("segments", Some(&text))
+                    .flag("anchor", anchor.as_ref().map(|a| a.from.as_str()))
+                    .flag(
+                        "offset",
+                        anchor
+                            .as_ref()
+                            .and_then(|a| a.offset.as_ref())
+                            .map(quantity_to_text)
+                            .as_deref(),
+                    )
+                    .done(),
+            ]
+        }
+        Op::RemoveSequence { name } => vec![Cmd::new(&["fune", "sequence", "rm", name]).done()],
         Op::SetModeStates { cells } => cells.iter().map(mode_cell).collect(),
         Op::CreateNet { net } => vec![net_cmd("add", net)],
         Op::UpdateNet { net } => vec![net_cmd("replace", net)],

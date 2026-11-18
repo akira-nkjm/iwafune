@@ -59,6 +59,7 @@ fn input(panels: Vec<SolarPanel>, cases: Vec<EnergyBalanceCase>) -> EnergyBalanc
         load_growth: Some(LoadGrowth::Included),
         cases,
         sequence: Vec::new(),
+        sequence_timing: Default::default(),
         base_mode: None,
         mode_attitudes: BTreeMap::new(),
     }
@@ -73,6 +74,7 @@ fn constant(id: &str, watts: f64) -> EnergyBalanceCase {
         },
         attitude: None,
         max_duration: None,
+        timing: Default::default(),
     }
 }
 
@@ -202,6 +204,7 @@ fn sunlit_and_eclipse_modes() {
             },
             attitude: None,
             max_duration: None,
+            timing: Default::default(),
         }],
     );
     i.loads = ModeLoadInput {
@@ -371,3 +374,4 @@ fn eclipse_assignment_reaches_balance_loads() {
 
 mod operation;
 mod page_outputs;
+mod timing;

@@ -28,6 +28,8 @@ const LABELLED: &[(&str, &[&str])] = &[
     ("origin", Origin::NAMES),
     ("severity", Severity::NAMES),
     ("attitude_law", AttitudeLawKind::NAMES),
+    ("mode_when", fune_model::design::ModeWhen::NAMES),
+    ("start_from", fune_model::design::StartFrom::NAMES),
     (
         "thermal_preset",
         fune_model::design::ThermalPresetKind::NAMES,

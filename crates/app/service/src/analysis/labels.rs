@@ -10,7 +10,9 @@ use sat_analysis::aocs::slew_time::{SlewAssumption, SlewProfile};
 use sat_analysis::aocs::unload_time::{MtqFieldGap, MtqFieldReason, UnloadAssumption};
 use sat_analysis::comm::data_throughput::DataThroughputLinkClosure;
 use sat_analysis::comm::link_budget::LinkBudgetDirection;
-use sat_analysis::power::energy_balance::{EnergyBalanceDuty, EnergyBalanceEvaluation};
+use sat_analysis::power::energy_balance::{
+    DurationTiming, EnergyBalanceDuty, EnergyBalanceEvaluation,
+};
 use sat_analysis::power::sizing::SizingLifetimeSource;
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
@@ -210,10 +212,27 @@ fn energy_balance_evaluation(e: EnergyBalanceEvaluation) -> AnalysisLabel {
             "Run for the whole span (base mode)",
         ),
         E::MaxDuration => label(
-            "基本のモードの上で最長継続時間だけ続けたとき（開始は周回内の最悪）",
-            "Max duration on top of the base mode (worst start in the orbit)",
+            "基本のモードの上で最長継続時間だけ続けたとき（開始はモードの指定に従う。指定が無ければ周回内の最悪）",
+            "Max duration on top of the base mode (start follows the mode's timing; worst start in the orbit if none)",
         ),
         E::Sequence => label("モードの並びに沿って回したとき", "Along the mode sequence"),
+    }
+}
+
+fn duration_timing(t: DurationTiming) -> AnalysisLabel {
+    match t {
+        DurationTiming::Fixed => label(
+            "開始を指定（食の出入りからの位置）",
+            "Start fixed (relative to an eclipse event)",
+        ),
+        DurationTiming::Windowed => label(
+            "使う時間帯の中でずらした",
+            "Shifted within the allowed time window",
+        ),
+        DurationTiming::Unspecified => label(
+            "タイミング未指定（1 周の中の最悪）",
+            "Timing unspecified (worst start in the orbit)",
+        ),
     }
 }
 
@@ -290,6 +309,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "ModalEstimateKind" => parse(value).map(modal_kind),
         "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
+        "DurationTiming" => parse(value).map(duration_timing),
         "SizingLifetimeSource" => parse(value).map(sizing_lifetime_source),
         "DataThroughputLinkClosure" => link_closure(value),
         "SolarActivity" => parse(value).map(orbit::solar_activity),

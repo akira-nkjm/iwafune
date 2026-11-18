@@ -51,6 +51,9 @@ fn name(op: &Op) -> &'static str {
         Op::RenameMode { .. } => "RenameMode",
         Op::MoveMode { .. } => "MoveMode",
         Op::SetModeDuration { .. } => "SetModeDuration",
+        Op::SetModeTiming { .. } => "SetModeTiming",
+        Op::SetSequence { .. } => "SetSequence",
+        Op::RemoveSequence { .. } => "RemoveSequence",
         Op::SetModeStates { .. } => "SetModeStates",
         Op::CreateNet { .. } => "CreateNet",
         Op::UpdateNet { .. } => "UpdateNet",
@@ -282,6 +285,28 @@ fn other_ops() -> Vec<Op> {
             mode: "NOMINAL".into(),
             duration: Some(Quantity::new(90.0, "min")),
         },
+        Op::SetModeTiming {
+            mode: "MISSION".into(),
+            when: Some(fune_model::design::ModeWhen::Sunlit),
+            start: Some(fune_model::design::StartRef {
+                from: fune_model::design::StartFrom::EclipseExit,
+                offset: Some(Quantity::new(5.0, "min")),
+            }),
+        },
+        Op::SetSequence {
+            name: "imaging_day".into(),
+            anchor: Some(fune_model::design::StartRef {
+                from: fune_model::design::StartFrom::EclipseEntry,
+                offset: None,
+            }),
+            segments: vec![fune_model::design::ModeSegment {
+                mode: "NOMINAL".into(),
+                duration: Quantity::new(76.0, "min"),
+            }],
+        },
+        Op::RemoveSequence {
+            name: "imaging_day".into(),
+        },
         Op::CreateMode {
             id: "DEPLOY".into(),
             label: Some("展開".into()),
@@ -387,7 +412,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 51, "some op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 54, "some op kinds have no sample: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =

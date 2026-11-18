@@ -1,8 +1,9 @@
 //! Design → 表示用の型（製品ツリー・モード表・ネット・ハーネス・定義・ケース）。解決済みの値を使わないもの。
 
 use crate::dto::{
-    AttributeDefView, CaseView, DefsView, HarnessView, KindDefView, ModeHeader, ModeRow, ModeTable,
-    NetView, QuantityView, TreeNode, TreeNodeKind,
+    AttributeDefView, CaseView, DefsView, HarnessView, KindDefView, ModeHeader, ModeRow,
+    ModeSegmentView, ModeSequenceView, ModeStartView, ModeTable, NetView, QuantityView, TreeNode,
+    TreeNodeKind,
 };
 use crate::query::values::authored_quantity;
 use fune_model::builtin;
@@ -102,6 +103,8 @@ pub(crate) fn mode_table(design: &Design) -> ModeTable {
                 .max_duration
                 .as_ref()
                 .map(|q| authored_quantity(q, Some("Time"))),
+            when: m.when,
+            start: m.start.as_ref().map(start_view),
             id: m.id.to_string(),
             label: m.label.clone().unwrap_or_else(|| m.id.to_string()),
             description: m.description.clone(),
@@ -148,7 +151,45 @@ pub(crate) fn mode_table(design: &Design) -> ModeTable {
             }
         })
         .collect();
-    ModeTable { modes, rows }
+    let power = design.analysis.power.as_ref();
+    let sequences = power
+        .map(|p| {
+            p.sequence_names()
+                .into_iter()
+                .filter_map(|n| p.sequence(n))
+                .map(|s| ModeSequenceView {
+                    name: s.name.to_owned(),
+                    legacy: s.legacy,
+                    anchor: s.anchor.map(start_view),
+                    segments: s
+                        .segments
+                        .iter()
+                        .map(|g| ModeSegmentView {
+                            mode: g.mode.clone(),
+                            duration: authored_quantity(&g.duration, Some("Time")),
+                        })
+                        .collect(),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    ModeTable {
+        modes,
+        rows,
+        sequences,
+        active_sequence: power.and_then(|p| p.active_sequence_name().map(str::to_owned)),
+    }
+}
+
+/// 食の出入りからの位置の指定の表示用。
+fn start_view(r: &fune_model::design::StartRef) -> ModeStartView {
+    ModeStartView {
+        from: r.from,
+        offset: r
+            .offset
+            .as_ref()
+            .map(|q| authored_quantity(q, Some("Time"))),
+    }
 }
 
 /// ネット（つながるポートは部品の ports から集める）。

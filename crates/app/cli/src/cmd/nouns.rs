@@ -3,7 +3,7 @@
 //! （`fune part place`・`fune mode set|unset` は GUI と同じ打った引数の型にして渡す）。
 
 use super::common::Built;
-use crate::args::{EditOpts, ModeCmd, PartCmd, SettingCmd, ViewCmd};
+use crate::args::{EditOpts, ModeCmd, PartCmd, SequenceCmd, SettingCmd, ViewCmd};
 use fune_service::Workspace;
 use fune_service::dto::{ModeCellText, ModeSetText, Op, PlaceText, ViewNodePos};
 use fune_service::edit::{self, SetText, UnsetText};
@@ -123,6 +123,16 @@ pub fn mode(c: &ModeCmd) -> Built<'_> {
             max_duration,
             edit: e,
         } => (edit::mode_duration_op(mode, max_duration.as_deref())?, e),
+        ModeCmd::Timing {
+            mode,
+            when,
+            start,
+            offset,
+            edit: e,
+        } => (
+            edit::mode_timing_op(mode, when.as_deref(), start.as_deref(), offset.as_deref())?,
+            e,
+        ),
         ModeCmd::Set {
             mode,
             part,
@@ -162,6 +172,25 @@ pub fn mode(c: &ModeCmd) -> Built<'_> {
             edit,
         ),
         ModeCmd::Ls | ModeCmd::Table => return Ok(None),
+    };
+    Ok(Some((op, e)))
+}
+
+/// `fune sequence set|rm`
+pub fn sequence(c: &SequenceCmd) -> Built<'_> {
+    let (op, e) = match c {
+        SequenceCmd::Set {
+            name,
+            segments,
+            anchor,
+            offset,
+            edit,
+        } => (
+            edit::sequence_set_op(name, segments, anchor.as_deref(), offset.as_deref())?,
+            edit,
+        ),
+        SequenceCmd::Rm { name, edit } => (Op::RemoveSequence { name: name.clone() }, edit),
+        SequenceCmd::Ls => return Ok(None),
     };
     Ok(Some((op, e)))
 }

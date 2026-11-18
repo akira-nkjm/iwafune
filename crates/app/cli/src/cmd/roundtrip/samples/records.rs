@@ -2,8 +2,9 @@
 
 use super::s;
 use fune_service::dto::{
-    AttributeDef, Case, Distribution, Harness, KindDef, ModeCell, Net, NetField, NetKind, Op,
-    PortRef, Quantity, SettingValue, Source, SourceKind, ViewNodePos,
+    AttributeDef, Case, Distribution, Harness, KindDef, ModeCell, ModeSegment, ModeWhen, Net,
+    NetField, NetKind, Op, PortRef, Quantity, SettingValue, Source, SourceKind, StartFrom,
+    StartRef, ViewNodePos,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -105,6 +106,39 @@ pub(in super::super) fn system_ops() -> Vec<Op> {
         Op::SetModeDuration {
             mode: "NOMINAL".into(),
             duration: None,
+        },
+        Op::SetModeTiming {
+            mode: "MISSION".into(),
+            when: Some(ModeWhen::Sunlit),
+            start: Some(StartRef {
+                from: StartFrom::EclipseExit,
+                offset: Some(Quantity::new(5.0, "min")),
+            }),
+        },
+        Op::SetModeTiming {
+            mode: "MISSION".into(),
+            when: None,
+            start: None,
+        },
+        Op::SetSequence {
+            name: "imaging_day".into(),
+            anchor: Some(StartRef {
+                from: StartFrom::EclipseEntry,
+                offset: None,
+            }),
+            segments: vec![
+                ModeSegment {
+                    mode: "NOMINAL".into(),
+                    duration: Quantity::new(76.0, "min"),
+                },
+                ModeSegment {
+                    mode: "MISSION".into(),
+                    duration: Quantity::new(5.0, "min"),
+                },
+            ],
+        },
+        Op::RemoveSequence {
+            name: "imaging_day".into(),
         },
         Op::SetModeStates {
             cells: vec![

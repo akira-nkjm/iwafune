@@ -10,6 +10,7 @@ import { Button } from "@/ui/button";
 import { AddModeDialog } from "./AddModeDialog";
 import type { ModeDraft } from "./draft/draft";
 import { ModesMatrix } from "./matrix/ModesMatrix";
+import { SequencePanel } from "./SequencePanel";
 
 /**
  * 設計 / モード: 「部品 × モード」の表。ファイルは 1 モード 1 ファイルだが、ここでは表で見て一括で直す。
@@ -40,12 +41,15 @@ export function ModesPage() {
               </Button>
             </Empty>
           ) : (
-            <ModesMatrix
-              design={d}
-              draft={draft}
-              onDraft={setDraft}
-              onAdd={() => setAdding(true)}
-            />
+            <>
+              <SequencePanel table={d.modes} />
+              <ModesMatrix
+                design={d}
+                draft={draft}
+                onDraft={setDraft}
+                onAdd={() => setAdding(true)}
+              />
+            </>
           )
         }
       </QueryState>

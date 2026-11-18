@@ -255,6 +255,8 @@ pub struct Mode {
     pub description: Option<String>,
     pub states: BTreeMap<Id<Part>, StateAssign>,
     pub max_duration: Option<Quantity>,    // time dimension. Used for the verdict of power.energy_balance (§5.1)
+    pub when: Option<ModeWhen>,            // sunlit | eclipse | any: the period the longest-duration evaluation may place the mode in (§5.1)
+    pub start: Option<StartRef>,           // { from: eclipse_exit | eclipse_entry, offset }: fixes the start of that evaluation (§5.1)
     pub eclipse: BTreeMap<Id<Part>, StateAssign>, // only the parts written here are replaced during eclipse
 }
 /// The base state, and the fraction of time spent in other states. The remainder of the fractions is the base state.
@@ -378,16 +380,20 @@ were evaluated under is written in the case's `evaluation`.
   `no_base_mode`, and if the mode itself is the base mode it is `base_mode`; both are judged as continuous.
 - **Maximum duration** (`max_duration`): if the mode has `max_duration`, the base mode (`analysis.power.base_mode`,
   or if absent the mode of the first segment of `[[sequence]]`) is run continuously, and on top of that this mode is run once for the maximum duration.
-  The start is shifted per sample within one orbit, and the start whose minimum SOC after the window is lowest is taken as the worst. The one orbit that is shifted is the orbit starting
+  Where the window starts follows the mode's timing (`when`, `start`; see "Timing" below). With no timing, the start is shifted per sample within one orbit, and the start whose
+  minimum SOC after the window is lowest is taken as the worst. The one orbit that is shifted is the orbit starting
   "period + maximum duration + period" before the end of the analysis span (it approaches steady state before, and one orbit of recovery is observed after; if that is not enough, the start of the span).
-  The result is the case's `by_max_duration`: `max_dod` (from the minimum SOC over the whole analysis span; used for the verdict), `max_dod_from_start` (only after the window),
-  `best_max_dod` (the best start), `base_max_dod` (the base mode only), `worst_start`, `worst_start_in_orbit`,
+  The verdict uses the DoD **after the window starts** (`max_dod_from_start`) and a battery that runs empty after the window starts (`depleted`).
+  The initial transient of the analysis (the base mode alone, starting from `initial_soc`) is not part of this verdict; it is judged by the base mode's own continuous case.
+  The result is the case's `by_max_duration`: `timing` (how the start was decided: `fixed`, `windowed` or `unspecified`), `max_dod_from_start` (used for the verdict),
+  `max_dod` (from the minimum SOC over the whole analysis span, including the initial transient; reference),
+  `best_max_dod` (the best start, after the window), `base_max_dod` (the base mode only), `worst_start`, `worst_start_in_orbit`,
   `eclipse_overlap`, and `orbit_average_balance` and `energy_margin_per_orbit` (one orbit from the window's rise; when inserted once per orbit).
   The window is rounded to the sample step, and the load and the power generation under that mode's attitude law are used for samples inside the window.
-- **Mode sequence** (`sequence`): `[[sequence]]` is repeated to cover the analysis span, and the integration uses the load of the mode of the segment into which the remainder falls
-  after dividing the elapsed time from the start of the analysis by one period (sunlit and eclipse, and eclipse overrides, are evaluated as in `mode_load`) and the generation under the attitude law. The result is the output's
+- **Mode sequence** (`sequence`): the sequence in use (see "Named sequences" below; `[[sequence]]` in the old form) is repeated to cover the analysis span, and the integration uses the load of the mode of the segment into which the remainder falls
+  after dividing the elapsed time from the start of the sequence (the start of the analysis, or the sequence's anchor) by one period (sunlit and eclipse, and eclipse overrides, are evaluated as in `mode_load`) and the generation under the attitude law. The result is the output's
   `sequence.balance` (the same shape as a case; `load_sunlit` and `load_eclipse` are averages over the sunlit and eclipse samples), which holds the
-  DoD, minimum SOC, per-orbit balance (`orbits`) and verdicts over the whole operation. If there is no sequence, `sequence = null`.
+  DoD, minimum SOC, per-orbit balance (`orbits`) and verdicts over the whole operation, plus `name` (the sequence used; none for the old unnamed form), `cycle` and `origin` (the start time of the sequence). If there is no sequence, `sequence = null`.
 
 Duty (the time fraction of a state) is turned into an average power consumption and applied as a constant in every operation (the time distribution within an orbit is not handled). If a mode used
 has duty, it is indicated by `duty = averaged` on the case and the sequence. The KPI's maximum DoD and orbit-average balance (worst) are chosen from the values of the operation used for each case's verdict
@@ -397,7 +403,7 @@ has duty, it is indicated by `duty = averaged` on the case and the sequence. The
 # analysis/power.toml (sequence and base mode)
 base_mode = "NOMINAL"   # if omitted, the mode of the first segment of the sequence
 
-[[sequence]]
+[[sequence]]            # the old form: an unnamed sequence, read as the sequence named `default`
 mode     = "NOMINAL"
 duration = { value = 76.0, unit = "min" }
 
@@ -405,6 +411,51 @@ duration = { value = 76.0, unit = "min" }
 mode     = "DOWNLINK"
 duration = { value = 9.6, unit = "min" }
 ```
+
+**Named sequences.** Several sequences can be kept by name (for example nominal operation, an imaging day, a downlink burst) and one is used by the analyses.
+
+```toml
+# analysis/power.toml (named sequences)
+active_sequence = "imaging_day"   # the one the analyses use
+
+[sequences.imaging_day]
+anchor = { from = "eclipse_exit", offset = { value = 5.0, unit = "min" } }   # optional
+
+[[sequences.imaging_day.segments]]
+mode     = "NOMINAL"
+duration = { value = 76.0, unit = "min" }
+
+[[sequences.imaging_day.segments]]
+mode     = "MISSION"
+duration = { value = 10.0, unit = "min" }
+```
+
+- The sequence in use is `analysis.power.active_sequence`; if absent, `default` (the old `[[sequence]]`, or `[sequences.default]`), and if there is no such sequence, the first by name.
+  A name that does not exist is a check error (another sequence is never used silently). The sequence is chosen per analysis setting, not per analysis case.
+- The old form is still read as is (backward compatible) and is not rewritten by `fune fmt`. It cannot be written together with `[sequences.default]` (check error).
+  Writing `default` with `fune sequence set default …` migrates it to `[sequences.default]` and removes `[[sequence]]`.
+- `anchor` puts the start of the sequence at an eclipse event: `from` is `eclipse_exit` (sunlit again after an eclipse) or `eclipse_entry`, and `offset` (a time; negative means before; default 0).
+  The sequence starts at the first such event in the analysis span and repeats with its period (the sample step rounds the event). Without `anchor` it starts at the start of the analysis.
+  If the event does not occur in the span (for example no eclipse), the sequence starts at the start of the span and the sequence's `checks` carry a warning (`sequence_anchor`).
+- The CLI and the GUI edit them with Ops: `SetSequence` (writes one named sequence in full; `fune sequence set <name> --segments "NOMINAL=76 min,MISSION=10 min" --anchor eclipse_exit --offset "5 min"`),
+  `RemoveSequence` (`fune sequence rm`; also unsets `active_sequence` if it was the one removed), and `SetSetting` of `analysis.power.active_sequence`. The GUI's mode page lists the sequences and picks the one in use.
+  Editing the segments in the GUI is not available yet (use the CLI).
+
+**Timing of the longest-duration evaluation.** A mode with `max_duration` can say when it is used (`modes/<ID>.toml`):
+
+```toml
+max_duration = { value = 10.0, unit = "min" }
+when  = "sunlit"                                                  # sunlit | eclipse | any (default)
+start = { from = "eclipse_exit", offset = { value = 5.0, unit = "min" } }   # optional
+```
+
+- With `start`, the mode is evaluated only at that start (the first sample at or after the event time + offset, within the swept orbit): `by_max_duration.timing = fixed`.
+- With only `when = sunlit | eclipse`, the start is shifted only over starts whose whole window lies inside that period: `timing = windowed`.
+- With neither (`when = any` is the same as not writing it), today's search over every sample of one orbit is used and the verdict says so: `timing = unspecified`
+  (the verdict sentence reads "worst start within the orbit; timing unspecified").
+- If the timing cannot be honoured (the event does not occur in the swept orbit, or the window does not fit in any allowed window), the search falls back to the whole orbit and
+  a `timing` warning is added to the case's `checks`. A fixed start that is outside the mode's own `when` also warns. `when`/`start` on a mode with no `max_duration` is a check warning (`mode.timing_unused`).
+- `fune mode timing <mode> --when sunlit --start eclipse_exit --offset "5 min"` (no flags removes it; `SetModeTiming`). Dimension and spelling are checked like other settings.
 
 When an analysis case specifies a `mode`, that mode's `[law.<mode>]` is required, and the attitude law of a different mode is not substituted.
 If no mode is specified, an attitude law is used only when there is exactly one. With none or several, the analysis stops with a missing input.
@@ -538,7 +589,8 @@ Its inputs are the orbit, `conditions.orbit.duration`, parts with power and mode
 If parts, orbit, duration, modes, attitude law or `analysis.power.dod_max` are missing, it returns a missing input.
 If the explicit analysis case has a mode, that mode is used; otherwise every mode (and, for the time-series reverse computation, the mode sequence as well) is reverse-computed in turn,
 and the result is decided by the operation with the largest required area (`area_mode`) and the operation with the largest required capacity (`capacity_mode`).
-The time-series reverse computation uses the mode's `max_duration`, `analysis.power.sequence` and `analysis.power.base_mode` in the same way as `power.energy_balance`.
+The time-series reverse computation uses the mode's `max_duration` and timing (`when`, `start`), the sequence in use (`analysis.power.active_sequence`, `[[sequence]]`, `[sequences.<name>]`) and `analysis.power.base_mode` in the same way as `power.energy_balance`.
+The capacity is closed-form over the whole span of the judged operation (including the initial transient), so it is never smaller than the DoD after the window needs.
 Growth margin, count, redundancy and eclipse overrides share the aggregation of `power.mode_load`.
 For a mode that includes missing assignments or power values, the analysis stops so as not to underestimate the requirement.
 
@@ -739,6 +791,7 @@ HTR = { state = "on" }
   A warm spare is chosen from `spare_state`, then the kind's vocabulary entry `standby`, then `idle` (`WARM_SPARE_DEFAULT_STATES`). If the spare state cannot be determined, or is not in the vocabulary, it is an error.
 - `[eclipse]` replaces the whole assignment of each part written there, during eclipse only (fields such as `active` and `duty` are not inherited individually).
   Parts not written use `[states]`. An override target absent from `[states]` is a warning, as with unspecified, and is not added to the analysis.
+- `when` and `start` (timing of the longest-duration evaluation; §5.1) are optional; `start.offset` is dimension-checked as a time.
 - `max_duration` is dimension-checked and shown in the CLI listing and the GUI's mode header. `power.energy_balance` judges by running this mode for the maximum duration
   on top of the base mode (§5.1). It does not affect the analysis span or the mode's time fraction (`mode_share`).
 - Counts are evaluated only by `sat_analysis::modes::counted_states`. Power is "active units × the state's average power + spare units × the spare state's power".

@@ -142,7 +142,7 @@ pub(super) fn dod_bar(case: &EnergyBalanceCaseResult, limit: Fraction) -> PowerV
         Some(
             case.by_max_duration
                 .as_ref()
-                .map_or(case.max_dod.value(), |d| d.max_dod.value()),
+                .map_or(case.max_dod.value(), |d| d.max_dod_from_start.value()),
         ),
         limit.value(),
         PowerLimitKind::AtMost,

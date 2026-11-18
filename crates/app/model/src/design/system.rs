@@ -3,6 +3,7 @@
 //! serde の形がそのままファイルの形（`id` はファイル名から決まるので書かない）。
 
 use super::part::Part;
+use super::timing::{ModeWhen, StartRef};
 use crate::enum_text::enum_text;
 use crate::id::Id;
 use crate::path::{PortRef, port_text};
@@ -30,6 +31,12 @@ pub struct Mode {
     /// 最長継続時間。`power.energy_balance` は基本のモードの上でこの時間だけ続けたときで判定する。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_duration: Option<Quantity>,
+    /// 最長継続時間の評価でこのモードを使う時間帯（省略は `any`）。`start` が無ければ、窓がこの時間帯に入る範囲で開始をずらす。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub when: Option<ModeWhen>,
+    /// 最長継続時間の評価の開始の指定（食の出入り + オフセット）。あればその開始だけで評価する。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start: Option<StartRef>,
     /// 蝕の間だけの上書き。
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub eclipse: BTreeMap<Id<Part>, StateAssign>,

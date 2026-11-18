@@ -9,6 +9,7 @@ import { ModeBudgetRows } from "./ModeBudgetRows";
 import { ModeCell } from "./ModeCell";
 import { ModeDuration } from "./ModeDuration";
 import { ModeHeaderMenu } from "./ModeHeaderMenu";
+import { ModeTiming } from "./ModeTiming";
 import { STICKY } from "./matrix";
 import { MatrixFocus } from "./matrix-focus";
 import type { MatrixGroup, MatrixRow, OnCell } from "./matrix-rows";
@@ -120,6 +121,7 @@ function ModeName({ mode, definitions }: { mode: ModeHeader; definitions: boolea
       <div className="font-medium text-ink">{name}</div>
       {name !== mode.id && <div className="font-mono text-[10px] text-ink-4">{mode.id}</div>}
       {definitions && <ModeDuration mode={mode} />}
+      {definitions && mode.max_duration && <ModeTiming mode={mode} />}
     </div>
   );
 }

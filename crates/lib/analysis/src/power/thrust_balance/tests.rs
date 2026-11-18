@@ -77,6 +77,7 @@ fn input(base: Option<&str>) -> EnergyBalanceInput {
         load_growth: Some(LoadGrowth::Included),
         cases: Vec::new(),
         sequence: Vec::new(),
+        sequence_timing: Default::default(),
         base_mode: base.map(str::to_owned),
         mode_attitudes: BTreeMap::new(),
     }

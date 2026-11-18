@@ -228,8 +228,7 @@ fn energy_balance_kpis_use_the_judged_operation() {
             .collect()
     };
     assert_eq!(values(&output(Value::Null)), vec![12.0, 0.19]);
-    let sequence =
-        json!({"cycle": 5736.0, "segments": [], "balance": balance_case(0.22, 10.0, None)});
+    let sequence = json!({"cycle": 5736.0, "origin": 0.0, "segments": [], "balance": balance_case(0.22, 10.0, None)});
     assert_eq!(values(&output(sequence)), vec![10.0, 0.22]);
 }
 

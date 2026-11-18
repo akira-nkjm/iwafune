@@ -5,7 +5,7 @@ use super::text::{
 };
 use crate::dto::{CommandText, ModeCellText, ModeSetText, NetSetText, NetUnsetText};
 use crate::error::Result;
-use fune_model::design::{NetField, NetFieldName};
+use fune_model::design::{ModeSegment, ModeWhen, NetField, NetFieldName, StartFrom, StartRef};
 use fune_model::path::PortRef;
 use fune_ops::{ModeCell, Op};
 use std::collections::BTreeMap;
@@ -35,6 +35,31 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
         CommandText::ModeDuration { mode, duration } => {
             vec![mode_duration_op(mode, duration.as_deref())?]
         }
+        CommandText::ModeTiming {
+            mode,
+            when,
+            start,
+            offset,
+        } => vec![mode_timing_op(
+            mode,
+            when.as_deref(),
+            start.as_deref(),
+            offset.as_deref(),
+        )?],
+        CommandText::SequenceSet {
+            name,
+            segments,
+            anchor,
+            offset,
+        } => vec![sequence_set_op(
+            name,
+            segments,
+            anchor.as_deref(),
+            offset.as_deref(),
+        )?],
+        CommandText::SequenceRemove { name } => vec![Op::RemoveSequence {
+            name: name.trim().to_owned(),
+        }],
         CommandText::AttrAdd(t) => vec![super::defs::attr_add_op(t)?],
         CommandText::AttrReplace(t) => vec![super::defs::attr_replace_op(t)?],
         CommandText::KindAdd(t) => vec![super::defs::kind_add_op(t)?],
@@ -174,6 +199,73 @@ pub fn mode_duration_op(mode: &str, duration: Option<&str>) -> Result<Op> {
         mode: mode.trim().to_owned(),
         duration: duration.map(quantity_from_text).transpose()?,
     })
+}
+
+/// `fune mode timing` と HTTP で共有する時刻の指定の読み方（綴りは `ModeWhen`・`StartFrom` の `FromStr`）。
+pub fn mode_timing_op(
+    mode: &str,
+    when: Option<&str>,
+    start: Option<&str>,
+    offset: Option<&str>,
+) -> Result<Op> {
+    Ok(Op::SetModeTiming {
+        mode: mode.trim().to_owned(),
+        when: trimmed(when)
+            .map(|w| w.parse::<ModeWhen>().map_err(|e| invalid(e.to_string())))
+            .transpose()?,
+        start: start_from_text(start, offset, "--start")?,
+    })
+}
+
+/// `fune sequence set` と HTTP で共有する並びの読み方。区間は `モード=長さ` のカンマ区切り（1 つ以上）。
+pub fn sequence_set_op(
+    name: &str,
+    segments: &str,
+    anchor: Option<&str>,
+    offset: Option<&str>,
+) -> Result<Op> {
+    let segments = list_from_text(segments)
+        .into_iter()
+        .map(|pair| {
+            let (mode, duration) = pair_from_text(&pair)
+                .ok_or_else(|| invalid(format!("--segments must be mode=duration: {pair}")))?;
+            Ok(ModeSegment {
+                mode,
+                duration: quantity_from_text(&duration)?,
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+    if segments.is_empty() {
+        return Err(invalid("--segments needs at least one mode=duration"));
+    }
+    Ok(Op::SetSequence {
+        name: name.trim().to_owned(),
+        anchor: start_from_text(anchor, offset, "--anchor")?,
+        segments,
+    })
+}
+
+/// 基準（`eclipse_exit`・`eclipse_entry`）とオフセットの文字列 → 食の出入りからの指定。基準が無ければ None（オフセットだけは誤り）。
+fn start_from_text(
+    from: Option<&str>,
+    offset: Option<&str>,
+    flag: &str,
+) -> Result<Option<StartRef>> {
+    match (trimmed(from), trimmed(offset)) {
+        (None, None) => Ok(None),
+        (None, Some(_)) => Err(invalid(format!("--offset needs {flag}"))),
+        (Some(from), offset) => Ok(Some(StartRef {
+            from: from
+                .parse::<StartFrom>()
+                .map_err(|e| invalid(e.to_string()))?,
+            offset: offset.map(quantity_from_text).transpose()?,
+        })),
+    }
+}
+
+/// 旗の文字列（前後の空白を除く。空なら None）。
+fn trimmed(text: Option<&str>) -> Option<&str> {
+    text.map(str::trim).filter(|t| !t.is_empty())
 }
 
 /// CLI と GUI の移動指定を同じ Op にする。移動先は必ず 1 つだけ指定する。

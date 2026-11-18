@@ -6,7 +6,7 @@ use crate::codec::{encode_quaternion, encode_vector, float, push_from};
 use crate::error::StoreError;
 use crate::profile as format;
 use fune_model::design::{
-    AttributeDef, KindDef, Mode, Net, NetField, NetFieldName, StateAssign, ViewNode,
+    AttributeDef, KindDef, Mode, Net, NetField, NetFieldName, StartRef, StateAssign, ViewNode,
 };
 use fune_model::path::PortRef;
 use fune_model::value::{Quantity, SettingValue};
@@ -19,6 +19,16 @@ pub fn quantity(q: &Quantity) -> Item {
     t.insert("value", float(q.value));
     t.insert("unit", q.unit.as_str().into());
     push_from(&mut t, q.from.as_ref());
+    Item::Value(Value::InlineTable(t))
+}
+
+/// 食の出入りからの指定（`{ from = "eclipse_exit", offset = { value = 5.0, unit = "min" } }`）。
+pub fn start_ref(r: &StartRef) -> Item {
+    let mut t = InlineTable::new();
+    t.insert("from", r.from.as_str().into());
+    if let Some(Item::Value(v)) = r.offset.as_ref().map(quantity) {
+        t.insert("offset", v);
+    }
     Item::Value(Value::InlineTable(t))
 }
 
@@ -58,6 +68,12 @@ pub fn new_mode_text(mode: &Mode) -> String {
     }
     if let Some(q) = &mode.max_duration {
         doc.insert("max_duration", quantity(q));
+    }
+    if let Some(w) = mode.when {
+        doc.insert("when", string(w.as_str()));
+    }
+    if let Some(s) = &mode.start {
+        doc.insert("start", start_ref(s));
     }
     for (section, rows) in [("states", &mode.states), ("eclipse", &mode.eclipse)] {
         if section == "eclipse" && rows.is_empty() {

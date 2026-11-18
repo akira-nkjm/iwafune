@@ -41,10 +41,12 @@ fn demo_kpis_show_the_same_values_as_before() {
             ],
         ),
         // #106 から、最長継続時間を持つモード（撮像・ダウンリンク）は定常の上でその時間だけ続けたときで、
-        // モードの並びも入れて選ぶ（以前はダウンリンクを丸 1 日続けた -5.09 W・100 %）
+        // モードの並びも入れて選ぶ（以前はダウンリンクを丸 1 日続けた -5.09 W・100 %）。
+        // #138 から撮像は日照中だけ（`when = "sunlit"`）で、1 周の軌道平均の収支は 15.8 W → 15.0 W（最悪の撮像が日陰でなくなる）。
+        // 最大 DoD は継続時間の長いダウンリンク（指定なし）のまま
         (
             "power.energy_balance",
-            &[(KpiKey::OrbitBalance, "15.8 W"), (KpiKey::MaxDod, "15.1 %")],
+            &[(KpiKey::OrbitBalance, "15.0 W"), (KpiKey::MaxDod, "15.1 %")],
         ),
         (
             "aocs.rw_unloading",

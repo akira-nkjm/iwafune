@@ -5,6 +5,7 @@ import type { EnergyBalanceCase } from "./EnergyBalanceCase";
 import type { EnergyBalanceSegment } from "./EnergyBalanceSegment";
 import type { LoadGrowth } from "./LoadGrowth";
 import type { ModeLoadInput } from "./ModeLoadInput";
+import type { SequenceTiming } from "./SequenceTiming";
 import type { SolarArray } from "./SolarArray";
 import type { SolarLife } from "./SolarLife";
 import type { TimelineSpec } from "./TimelineSpec";
@@ -33,6 +34,10 @@ load_growth: LoadGrowth | null, cases: Array<EnergyBalanceCase>,
  * モードの並び（1 周期分。繰り返して解析期間を覆う）。空なら並びの収支を出さない
  */
 sequence: Array<EnergyBalanceSegment>, 
+/**
+ * 並びの名前と、日照・食に対する先頭の位置（[`timing`]）。省略時は無名で、解析の始めから数える
+ */
+sequence_timing: SequenceTiming, 
 /**
  * 最長継続時間の評価で下に敷く基本のモード。省略時は並びの最初の区間のモード（並びも無ければ連続で評価する）
  */

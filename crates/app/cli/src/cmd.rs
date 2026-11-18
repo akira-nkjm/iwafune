@@ -101,6 +101,7 @@ fn read_more(command: &Command, ws: &Workspace, out: &Out) -> anyhow::Result<Opt
     match command {
         Command::Part(c) => parts::part(ws, c, out),
         Command::Mode(c) => read::mode(ws, c, out),
+        Command::Sequence(c) => read::sequence(ws, c, out),
         Command::Net(c) => read::net(ws, c, out),
         Command::Attr(c) => read::attr(ws, c, out),
         Command::Kind(c) => read::kind(ws, c, out),

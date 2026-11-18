@@ -80,6 +80,8 @@ severity = ["error", "warning", "info"]
 maneuver_category = ["insertion", "station_keeping", "unloading", "deorbit", "other"]
 maneuver_method = ["impulsive", "finite_burn", "low_thrust", "propagated"]
 maneuver_steering = ["tangential", "inertial"]
+mode_when = ["any", "sunlit", "eclipse"]
+start_from = ["eclipse_exit", "eclipse_entry"]
 central_body = ["earth", "moon", "sun", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]
 distribution = ["public", "on_request", "restricted"]
 
@@ -242,6 +244,26 @@ label_en = "Nadir pointing"
 [enum.attitude_law.inertial]
 label    = "慣性固定"
 label_en = "Inertial"
+
+[enum.mode_when.any]
+label    = "指定なし"
+label_en = "Any time"
+
+[enum.mode_when.sunlit]
+label    = "日照中"
+label_en = "Sunlit"
+
+[enum.mode_when.eclipse]
+label    = "日陰中"
+label_en = "Eclipse"
+
+[enum.start_from.eclipse_exit]
+label    = "食明け"
+label_en = "Eclipse exit"
+
+[enum.start_from.eclipse_entry]
+label    = "食入り"
+label_en = "Eclipse entry"
 
 [enum.thermal_preset.hot]
 label    = "高温"
@@ -550,6 +572,14 @@ label_en = "Base mode"
 [setting."analysis.power.sequence"]
 label    = "モードの並び"
 label_en = "Mode sequence"
+
+[setting."analysis.power.sequences"]
+label    = "名前付きのモードの並び"
+label_en = "Named mode sequences"
+
+[setting."analysis.power.active_sequence"]
+label    = "使うモードの並び"
+label_en = "Sequence in use"
 
 [setting."analysis.power.mode_share"]
 label    = "モードの時間割合"
