@@ -14,6 +14,7 @@ use fune_model::design::setting_dims as dims;
 use fune_model::design::{AnalysisSystem, ThermalCaseSettings, ThermalPresetKind, ThermalSettings};
 use fune_model::path::SettingPath;
 use network::network;
+use sat_analysis::spec::SamplingSpan;
 use sat_analysis::thermal::network::{ThermalModeLoads, ThermalModePart};
 use sat_analysis::thermal::planet::planet_environment;
 use sat_analysis::thermal::steady::ThermalSteadyCase;
@@ -172,7 +173,8 @@ pub fn steady(ctx: &Context<'_>) -> Result<ThermalSteadyInput, MissingInputs> {
     let mut cases = Vec::new();
     for (id, c) in &s.cases {
         let mode = c.mode.as_deref();
-        let Some(mut t) = timeline::timeline(ctx, mode, Some(1), &mut m) else {
+        let Some(mut t) = timeline::timeline_over(ctx, mode, SamplingSpan::OrbitAverage, &mut m)
+        else {
             continue;
         };
         if c.beta.is_some() {

@@ -163,7 +163,7 @@ fn extrema_ties_and_eclipse_free_duration_by_hand() {
             penumbra: Qty::ZERO,
         })
         .collect();
-    let out = summarize(points, vec![0.0, 10.0, 20.0], 10.0).unwrap();
+    let out = summarize(points, vec![0.0, 10.0, 20.0], 10.0, SHADOW_STEP_S).unwrap();
     assert_eq!(out.longest.epoch, epoch.plus_seconds(10.0));
     assert_eq!(out.beta_min.epoch, epoch.plus_seconds(10.0));
     assert_eq!(out.beta_max.epoch, epoch.plus_seconds(20.0));
@@ -171,4 +171,23 @@ fn extrema_ties_and_eclipse_free_duration_by_hand() {
     assert_eq!(out.eclipse_free_samples, 1);
     // フラグ [1,0,0] の台形積算: (1+0)/2 ×10 + (0+0)/2 ×10 = 5秒。
     assert_eq!(out.eclipse_free_duration.value(), 5.0);
+}
+
+/// 影の標本間隔は周期の割合: 100 分（6000 s）までは従来の 5 s、静止軌道（86 164 s）は周期 / 1200（約 71.8 s）で
+/// 1 周は 1200 標本。550 km の軌道（周期約 5 700 s）は 5 s のまま。
+#[test]
+fn shadow_step_follows_the_period() {
+    assert_eq!(shadow_step_s(orbit().period_s()), SHADOW_STEP_S);
+    assert_eq!(shadow_step_s(6000.0), 5.0);
+    assert!((shadow_step_s(86_164.0) - 86_164.0 / 1200.0).abs() < 1e-12);
+    let geo = OrbitSpec::circular(
+        Epoch::parse("2027-04-01T00:00:00Z").unwrap(),
+        Qty::from_raw(35_786e3),
+        Qty::ZERO,
+        Qty::ZERO,
+    );
+    let n = sample_times(geo.period_s(), shadow_step_s(geo.period_s()))
+        .unwrap()
+        .len();
+    assert!((1200..=1202).contains(&n), "{n}");
 }
