@@ -10,7 +10,7 @@ use super::context::mode_generation;
 use super::timing::sequence_origin;
 use super::{Context, EnergyBalanceCaseResult, EnergyBalanceEvaluation, EnergyBalanceInput};
 use crate::power::battery::BatteryTrace;
-use crate::spec::{AnalysisError, Check, Verdict, ensure_positive};
+use crate::spec::{AnalysisError, Check, Verdict, ensure_positive, masked_time_mean};
 use sat_units::typed::{Power, Qty, Time};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -152,17 +152,8 @@ fn along_sequence(
     (load, generation)
 }
 
-/// 日照中（`lit`）か日陰中の標本の負荷の平均（標本が無ければ 0）。
+/// 日照中（`lit`）か日陰中の負荷の時間平均（台形則、`crate::spec::masked_time_mean`。その時間が無ければ 0）。
 fn lit_mean(ctx: &Context, load: &[f64], lit: bool) -> Qty<Power> {
-    let v: Vec<f64> = load
-        .iter()
-        .zip(&ctx.profile.lit)
-        .filter(|(_, l)| **l == lit)
-        .map(|(p, _)| *p)
-        .collect();
-    Qty::from_raw(if v.is_empty() {
-        0.0
-    } else {
-        v.iter().sum::<f64>() / v.len() as f64
-    })
+    let mask: Vec<bool> = ctx.profile.lit.iter().map(|&l| l == lit).collect();
+    Qty::from_raw(masked_time_mean(&ctx.profile.t, load, &mask).unwrap_or(0.0))
 }
