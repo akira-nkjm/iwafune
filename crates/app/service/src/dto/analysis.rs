@@ -95,6 +95,11 @@ pub struct AnalysisRunResult {
     /// 系の概要の解析の表の行（主な結果・判定のまとまり・開いたときの棒グラフ・隠す表）。主な結果と判定のまとまりは
     /// `analysis::overview` が作り、棒グラフと隠す表は系ごとの組み立て（電源は `power_page::overview`）が足す。ほかは null と空
     pub overview: super::AnalysisOverview,
+    /// 部品ごとの代表の温度（熱の定常解析だけ。それ以外は欄を出さない）。節点と部品の対応と代表の選び方は
+    /// `analysis::part_heat` が決める。Web は 3D の色に値を写すだけ
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub part_heat: Option<Vec<PartHeat>>,
     /// 入力に使った宇宙天気の表の版（日付で引いた宇宙天気を使った解析だけ。使わなければ欄を出さない）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -108,4 +113,19 @@ pub enum AnalysisRunStatus {
     Ok,
     MissingInputs,
     Failed,
+}
+
+/// 部品 1 つの代表の温度（熱の 3D の色）。代表は全ケースを通した節点の最高温度で、部品は節点の温度を共有する。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct PartHeat {
+    /// 部品の ID
+    pub part: String,
+    /// 部品の属する熱の節点の ID
+    pub node: String,
+    /// 代表の温度（全ケースの最高）
+    pub temperature: super::QuantityView,
+    /// 最高になったケースの ID
+    pub case: String,
+    /// 節点の温度範囲との比較のうち最も悪い判定（全ケース・全種類を通す）
+    pub verdict: sat_analysis::spec::Verdict,
 }

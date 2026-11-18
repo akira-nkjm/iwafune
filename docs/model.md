@@ -436,7 +436,7 @@ A thermal analysis with the Sun as the central body is an input error.
 
 #### Temperature ranges (three kinds) and verdicts
 
-A part has three kinds of temperature range, and the thermal analysis judges each kind separately (the key is `range:<node>:<kind>`, and a node's range is the intersection of the parts' ranges for each kind.
+A part has three kinds of temperature range, and the thermal analysis judges each kind separately (the keys are `range_high:<node>:<kind>` and `range_low:<node>:<kind>`, one per side, and a node's range is the intersection of the parts' ranges for each kind.
 In cases with a mode, the parts to which a range applies are chosen by power state; see the table below).
 
 | Kind | Attribute | Meaning |
@@ -462,7 +462,7 @@ The range selection is `ThermalRangeKind::applies`, and a node's range is, for e
 A kind with no part to apply is not judged (for example, a node whose parts are all powered in the mode has no storage verdict). In transient analysis with several heating segments,
 a range that applies in any segment is applied.
 
-The verdict key stays as the kind (`range:<node>:<kind>`). Parts excluded by power state are written in the verdict text ("… (operating range -25.0 °C to 60.0 °C.
+Each kind gets two verdicts, one for the upper side (`range_high:<node>:<kind>`, the predicted maximum plus the uncertainty against the upper limit) and one for the lower side (`range_low:<node>:<kind>`), so a KPI can look at only its own side (the maximum-temperature KPIs use the upper side and the minimum-temperature KPI the lower side; exceeding only the upper limit does not flag the minimum temperature). The comparison's own `verdict` is the worse of the two sides. Parts excluded by power state are written in the verdict text ("… (operating range -25.0 °C to 60.0 °C.
 Excluding GPS and STX, powered off in mode SAFE)") and are also returned in the comparison's `excluded` (part, mode, power `power_state`).
 The verdict over all steady-state cases (`envelope`) looks, for each kind, only at the cases to which that range applied; for the lower side it uses the range and margin of the case with the smallest margin to the lower limit,
 and for the upper side those of the case with the smallest margin to the upper limit (if the range does not vary between cases, this is the same as comparing the minimum and maximum over all cases with the range).

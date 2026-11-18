@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { ThermalSteadyOutput } from "@/api/types";
-import { heatKey, heatMapOf, heatRatio } from "./heat";
+import type { PartHeat, ThermalSteadyOutput } from "@/api/types";
+import { heatHex, toneHex } from "@/lib/tone";
+import { heatKey, heatMapOf, heatRatio, partHeatColors } from "./heat";
 
 describe("熱の温度表", () => {
   const environment = {
@@ -72,5 +73,20 @@ describe("熱の温度表", () => {
   it("形が違えば null", () => {
     expect(heatMapOf({ ...out, cases: [] })).toBeNull();
     expect(heatMapOf(null)).toBeNull();
+  });
+  it("3D の色は API の部品ごとの温度から引く（節点の名前と部品の ID は同じでなくてよい）", () => {
+    const m = heatMapOf(out)!;
+    const q = (si: number) => ({ si, display: "", unit: "K" }) as PartHeat["temperature"];
+    const colorOf = partHeatColors(
+      [
+        { part: "obc_a", node: "OBC", temperature: q(320), case: "hot", verdict: "warning" },
+        { part: "bat_1", node: "BAT", temperature: q(260), case: "cold", verdict: "ok" },
+      ],
+      m,
+    );
+    expect(colorOf("obc_a")).toBe(heatHex(1));
+    expect(colorOf("bat_1")).toBe(heatHex(0));
+    expect(colorOf("OBC")).toBe(toneHex.gray);
+    expect(partHeatColors(undefined, m)("obc_a")).toBe(toneHex.gray);
   });
 });

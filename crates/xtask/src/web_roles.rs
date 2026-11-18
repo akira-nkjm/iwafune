@@ -10,10 +10,7 @@
 use std::path::Path;
 
 /// 役割名の比較を許すファイルと理由。
-const ALLOWED: &[(&str, &str)] = &[
-    ("web/src/features/diagram/power.ts", "tracked in #172"),
-    ("web/src/features/diagram/model.ts", "tracked in #172"),
-];
+const ALLOWED: &[(&str, &str)] = &[];
 
 /// 識別子に使う文字。
 fn is_ident(c: char) -> bool {

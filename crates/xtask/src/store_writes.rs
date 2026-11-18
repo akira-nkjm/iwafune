@@ -7,7 +7,7 @@
 use crate::single_home::production_text;
 use std::path::{Path, PathBuf};
 
-/// `commit` を呼んでよい crate のディレクトリ（store 自身と、Op の適用）。
+/// `commit` を呼んでよい crate のディレクトリ（store 自身と、Op の適用・取り消し・やり直し）。
 const HOMES: &[&str] = &["crates/app/store/", "crates/app/ops/", "crates/xtask/"];
 
 /// Op を通さずに書いてよいファイルと理由。

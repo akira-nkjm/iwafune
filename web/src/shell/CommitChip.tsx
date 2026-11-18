@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { GitBranch, History } from "lucide-react";
+import { GitBranch, History, Redo2, Undo2 } from "lucide-react";
 import { Link } from "react-router";
 import { q } from "@/api/queries";
 import { useLang, useT } from "@/i18n";
@@ -81,6 +81,8 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
             {history.map((h) => (
               <li key={h.id} className="space-y-1 border-line-soft border-b px-3 py-2">
                 <div className="flex items-center gap-2 text-xs">
+                  {h.kind === "undo" && <Undo2 size={12} className="shrink-0 text-ink-3" />}
+                  {h.kind === "redo" && <Redo2 size={12} className="shrink-0 text-ink-3" />}
                   <span className="font-medium">{h.summary}</span>
                   <span className="ml-auto text-ink-4">{h.at.toLocaleTimeString(lang)}</span>
                 </div>
@@ -89,7 +91,7 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
                     {h.cli.join("\n")}
                   </pre>
                 )}
-                <CliCopyButton cli={h.cli} />
+                {h.cli.length > 0 && <CliCopyButton cli={h.cli} />}
               </li>
             ))}
           </ul>

@@ -1,12 +1,12 @@
-//! 温度範囲の比較の判定文（key `range:<節点>:<種類>`）。比較と判定は親の `thermal::range`、ここは文を作るだけ。
+//! 温度範囲の比較の判定文（key `range_high:<節点>:<種類>` と `range_low:<節点>:<種類>`）。比較と判定は親の `thermal::range`、ここは文を作るだけ。
 
 use super::ThermalMarginUsed;
-use super::{ThermalPowerState, ThermalRangeExclusion, ThermalRangeMargin};
+use super::{ThermalPowerState, ThermalRangeExclusion, ThermalRangeMargin, ThermalRangeSide};
 use crate::spec::{Check, quantity_text};
 use sat_units::typed::Temperature;
 
-/// 種類ごとの判定（key は `range:<節点>:<種類>`）。予測の最低・最高は比較の余裕から戻す。電源の状態で外した部品があれば
-/// 判定文に書く。温度の表示は sat-units に委譲する。
+/// 種類ごと・側ごとの判定（key は `range_high:<節点>:<種類>` と `range_low:<節点>:<種類>`。上限側、下限側の順）。
+/// 予測の最低・最高は比較の余裕から戻す。電源の状態で外した部品があれば判定文に書く。温度の表示は sat-units に委譲する。
 pub(crate) fn range_checks(
     node: &str,
     margins: &[ThermalRangeMargin],
@@ -14,35 +14,34 @@ pub(crate) fn range_checks(
 ) -> Vec<Check> {
     let t = quantity_text::<Temperature>;
     let u = margin.uncertainty.value();
-    margins
-        .iter()
-        .map(|m| {
-            let (lo, hi) = m.predicted();
-            let predicted = if u > 0.0 {
-                format!(
-                    "{} to {}, with uncertainty {} to {}",
-                    t(lo),
-                    t(hi),
-                    t(lo - u),
-                    t(hi + u)
-                )
-            } else {
-                format!("{} to {}", t(lo), t(hi))
+    let mut checks = Vec::new();
+    for m in margins {
+        let (lo, hi) = m.predicted();
+        for side in [ThermalRangeSide::High, ThermalRangeSide::Low] {
+            // 側ごとの予測値、不確かさを含めた値、当てた限界の値と呼び名
+            let (word, predicted, with_u, limit_word, limit) = match side {
+                ThermalRangeSide::High => ("maximum", hi, hi + u, "upper", m.range.max.value()),
+                ThermalRangeSide::Low => ("minimum", lo, lo - u, "lower", m.range.min.value()),
             };
-            Check::new(
-                &format!("range:{node}:{}", m.kind.key()),
-                &format!("{node} temperature ({})", m.kind.noun()),
-                m.verdict,
+            let value = if u > 0.0 {
+                format!("{word} {}, with uncertainty {}", t(predicted), t(with_u))
+            } else {
+                format!("{word} {}", t(predicted))
+            };
+            checks.push(Check::new(
+                &format!("{}:{node}:{}", side.key_prefix(), m.kind.key()),
+                &format!("{node} {word} temperature ({})", m.kind.noun()),
+                m.side_verdict(side, margin),
                 format!(
-                    "{predicted} ({} {} to {}{})",
+                    "{value} ({} {limit_word} limit {}{})",
                     m.kind.noun(),
-                    t(m.range.min.value()),
-                    t(m.range.max.value()),
+                    t(limit),
                     excluded_text(&m.excluded)
                 ),
-            )
-        })
-        .collect()
+            ));
+        }
+    }
+    checks
 }
 
 /// 外した部品の文（「。モード SAFE で電源オフの STX・UHF を除く」。無ければ空）。モードと電源の組ごとに部品をまとめ、

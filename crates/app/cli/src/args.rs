@@ -157,6 +157,12 @@ pub enum Command {
         #[arg(long)]
         check: bool,
     },
+    /// List the edit history that `fune undo` and `fune redo` use (oldest first)
+    History,
+    /// Undo the last edit (restores the files the edit changed; refused if they changed since)
+    Undo,
+    /// Redo the edit that was undone
+    Redo,
     /// Run an analysis (`fune analyze ls`, `fune analyze power.energy_balance`)
     Analyze(AnalyzeArgs),
     /// Budgets (mass / power / data)
