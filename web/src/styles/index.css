@@ -202,3 +202,21 @@
     animation: none;
   }
 }
+
+/* 読み直し中の帯（kit/feedback/Loading.tsx の Refreshing）。左から右へ流れ続ける。動きを減らす設定では止めて中央に置く */
+@keyframes refresh-slide {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+
+@utility refresh-bar {
+  animation: refresh-slide 1.1s ease-in-out infinite;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    transform: translateX(100%);
+  }
+}

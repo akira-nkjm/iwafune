@@ -30,6 +30,27 @@ export function Loading({ children, className }: { children: ReactNode; classNam
   );
 }
 
+/**
+ * 前の中身を出したまま読み直しているときの、上端の細い帯（動き続ける）。親は `relative` にする。
+ * `Loading` と同じく少し待ってから現れ、画面読み上げには「読み込み中…」を伝える。
+ */
+export function Refreshing({ className }: { className?: string }) {
+  const t = useT();
+  return (
+    <div
+      role="status"
+      aria-busy="true"
+      className={cn(
+        "loading-appear pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-accent-tint",
+        className,
+      )}
+    >
+      <span className="sr-only">{t.common.loading}</span>
+      <div aria-hidden="true" className="refresh-bar h-full w-1/3 rounded-full bg-accent" />
+    </div>
+  );
+}
+
 /** 形を決めたスケルトンの塊（KPI の数・図・チップなど。大きさと角丸は `className`） */
 export function SkeletonBlock({ className }: { className?: string }) {
   return <Skeleton className={className} />;

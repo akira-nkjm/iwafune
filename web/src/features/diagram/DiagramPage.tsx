@@ -4,8 +4,9 @@ import { useSearchParams } from "react-router";
 import { onBeforeHistoryStep, useHistoryStep, useHistoryView } from "@/api/history";
 import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
-import { SkeletonCanvas } from "@/kit/feedback/Loading";
+import { Refreshing, SkeletonCanvas } from "@/kit/feedback/Loading";
 import { QueryState } from "@/kit/feedback/QueryState";
+import { cn } from "@/lib/cn";
 import { diagramHiddenSystems, withDiagramHiddenSystems } from "@/lib/nav";
 import { CanvasFrame } from "@/shell/CanvasFrame";
 import { PageHeader } from "@/shell/PageHeader";
@@ -60,7 +61,7 @@ export function DiagramPage() {
     () => diagramHiddenSystems(params, d?.defs.systems ?? []),
     [params, d?.defs.systems],
   );
-  const { model, layout } = useDiagramModel(d, layers, merge, hiddenSystems);
+  const { model, layout, pending } = useDiagramModel(d, layers, merge, hiddenSystems);
   const flow = useDiagramFlow(d, model, layout);
   // 元に戻す・やり直すの前に、手で動かした印と保存待ちの位置を捨てる（保存した位置だけを描くように）。
   // キー（⌘Z・⇧⌘Z。画面全体で受ける。shell/use-history-keys.ts）でもボタンでも同じ
@@ -78,7 +79,8 @@ export function DiagramPage() {
             : undefined
         }
       />
-      {/* 設計から作った図（配置は空き時間に計算する）ができるまでは、図のスケルトン */}
+      {/* 設計から作った図（配置は空き時間に計算する）が最初にできるまでは、図のスケルトン。表示を切り替えて位置を
+          探し直す間は、前の図を薄くして残し、上端に読み込み中の帯を出す（useDiagramModel の pending） */}
       <QueryState
         query={{
           data: d && model && layout ? { design: d, model } : undefined,
@@ -165,18 +167,27 @@ export function DiagramPage() {
               ),
             }}
           >
-            <DiagramCanvas
-              nodes={flow.nodes}
-              edges={flow.edges}
-              selected={selected}
-              onSelect={setSelected}
-              onNodesChange={flow.onNodesChange}
-              onEdgesChange={flow.onEdgesChange}
-              onConnect={connect.onConnect}
-              onEdgesDelete={connect.onEdgesDelete}
-              onNodeDragStop={flow.onNodeDragStop}
-            />
-            <DiagramLegend categories={shown.model.legend} signal={layers.has("signal")} />
+            {pending && <Refreshing />}
+            <div
+              aria-busy={pending}
+              className={cn(
+                "absolute inset-0 transition-opacity duration-200 motion-reduce:transition-none",
+                pending && "pointer-events-none opacity-45",
+              )}
+            >
+              <DiagramCanvas
+                nodes={flow.nodes}
+                edges={flow.edges}
+                selected={selected}
+                onSelect={setSelected}
+                onNodesChange={flow.onNodesChange}
+                onEdgesChange={flow.onEdgesChange}
+                onConnect={connect.onConnect}
+                onEdgesDelete={connect.onEdgesDelete}
+                onNodeDragStop={flow.onNodeDragStop}
+              />
+              <DiagramLegend categories={shown.model.legend} signal={layers.has("signal")} />
+            </div>
           </CanvasFrame>
         )}
       </QueryState>
