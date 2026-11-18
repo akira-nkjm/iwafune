@@ -63,6 +63,8 @@ pub(super) const PREFERENCES: &[Preference] = &[
         ],
     ),
     pref("Temperature", "degC", &[("degC", 1.0)]),
+    // 温度差は 273.15 を引かずに K で読む（解析マージンの不確かさ・警告の幅など）。
+    pref("TemperatureDifference", "K", &[("K", 1.0)]),
     // 度は 0.01° 以上。それより小さい指向精度を秒角で読む（分角は使わない）。
     pref("Angle", "deg", &[("arcsec", 1.0), ("deg", 0.01)]),
     pref(

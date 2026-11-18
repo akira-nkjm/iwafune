@@ -23,6 +23,7 @@ typed_dimensions![
     Time,
     ElectricCurrent,
     Temperature,
+    TemperatureDifference,
     AmountOfSubstance,
     LuminousIntensity,
     Angle,
