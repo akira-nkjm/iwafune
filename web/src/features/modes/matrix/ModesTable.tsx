@@ -106,7 +106,7 @@ export function ModesTable({
       </tbody>
       {system && (
         <tfoot className={`${STICKY.foot} bg-panel-2`}>
-          <ModeBudgetRows modes={modes} view={view} eclipse={eclipse} system={system} />
+          <ModeBudgetRows modes={modes} view={view} eclipse={eclipse} />
         </tfoot>
       )}
     </table>

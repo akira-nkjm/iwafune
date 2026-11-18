@@ -143,3 +143,43 @@ fn power_modes_return_missing_inputs() {
     let view = system_modes_of(&s, System::Power).unwrap();
     assert!(view.missing.iter().any(|m| m.path.contains("modes")));
 }
+
+/// 対応する系は `mode_systems` だけで決まり、対応しない系は同じ一覧で断る。足もとの行は系ごとに service が決める。
+#[test]
+fn mode_systems_decide_support_and_summary_rows() {
+    use crate::dto::{ModeSummaryField as F, ModeSummaryLabel as L};
+    let s = snapshot();
+    assert_eq!(
+        mode_systems(),
+        [System::Aocs, System::Cdh, System::Power, System::Thermal]
+    );
+    for system in [
+        System::Comm,
+        System::Payload,
+        System::Propulsion,
+        System::Structure,
+    ] {
+        assert!(!mode_systems().contains(&system));
+        let error = system_modes_of(&s, system).unwrap_err();
+        assert!(error.to_string().contains("no mode view"), "{error}");
+    }
+    let rows = |system| {
+        system_modes_of(&s, system)
+            .unwrap()
+            .summary
+            .iter()
+            .map(|r| (r.label, r.field, r.verdict))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        rows(System::Power),
+        [
+            (L::Power, F::Total, false),
+            (L::Available, F::Available, false),
+            (L::Margin, F::Margin, true)
+        ]
+    );
+    assert_eq!(rows(System::Cdh), [(L::DataRate, F::Total, true)]);
+    assert_eq!(rows(System::Thermal), [(L::Heat, F::Total, true)]);
+    assert!(rows(System::Aocs).is_empty());
+}

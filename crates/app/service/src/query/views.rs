@@ -308,6 +308,7 @@ pub(crate) fn defs(design: &Design) -> DefsView {
             .map(|s| fune_projection::system::to_analysis(*s))
             .collect(),
         budget_kinds: BudgetKind::ALL.to_vec(),
+        mode_systems: crate::mode_systems::mode_systems(),
     }
 }
 

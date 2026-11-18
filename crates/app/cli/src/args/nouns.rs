@@ -143,6 +143,16 @@ pub enum ModeCmd {
     Ls,
     /// Table of parts by mode
     Table,
+    /// Per-mode values of one subsystem (power, cdh, thermal, aocs; sunlit and eclipse), as the GUI's mode view shows them
+    ///
+    /// Exit code 1 if an input is missing or a verdict is a violation.
+    View {
+        /// Subsystem ID (`fune mode view power`)
+        system: String,
+        /// Apply unsaved edits (a JSON file of Ops, or `-` for stdin) without writing, then compute
+        #[arg(long)]
+        ops: Option<std::path::PathBuf>,
+    },
     /// Add a mode (`--from` copies the table of another mode)
     Add {
         id: String,

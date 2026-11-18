@@ -199,12 +199,14 @@ The correspondence between HTTP routes and the CLI and service (`crates/app/cli/
 | `GET /data/status`, `/data/space_weather`, `POST /data/{id}/fetch` | `fune data status`, `space-weather`, `fetch` | `data::{data_status, space_weather::lookup, fetch}` |
 | `GET /catalog/{id}` | `fune catalog show` | `query::catalog_item` |
 | `POST /catalog/fetch`, `/catalog/update` | `fune catalog fetch`, `update` | `shared_catalog::{fetch, update}` |
-| `GET` and `POST /power_page` | **none yet** (#158) | `power_page::{power_page, power_page_with}` |
-| `POST /system_modes/{system}` | **none yet** (#158) | `system_modes::system_modes` |
+| `GET /power_page` | `fune power-page [--case]` | `power_page::power_page` |
+| `POST /power_page` | `fune power-page [--case] --ops` | `power_page::power_page_with` |
+| `POST /system_modes/{system}` | `fune mode view <system> [--ops]` | `system_modes::system_modes` |
 
 Tests verify the following two things.
 
 - When the same edit is made with the `fune` executable and with HTTP, the files are byte-for-byte identical (`crates/app/cli/tests/parity.rs`, `parity_text.rs`, `parity_command.rs`).
+- `--json` of `fune power-page` and `fune mode view` equals the HTTP JSON of the same route (`crates/app/cli/tests/parity_pages.rs`).
 - For every kind of Op, reading the `to_cli` string back with clap returns the original Op (`crates/app/cli/src/cmd/roundtrip/`).
   When you add a kind of Op, it does not compile until you add a sample.
 

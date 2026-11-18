@@ -10,7 +10,7 @@ import type { OverviewCard } from "./cards";
 import { DiagnosticsPanel } from "./DiagnosticsPanel";
 import { useOverviewCards } from "./use-overview-cards";
 
-/** 概要: 主要 KPI（質量余裕・電力収支・DoD・RW アンロード間隔・データ余裕・回線余裕・温度）と診断 */
+/** 概要: 主要 KPI（質量余裕と、API が概要に選んだ各系の KPI）・バジェット（種類は `DefsView.budget_kinds`）・診断 */
 export function OverviewPage() {
   const t = useT();
   const o = t.overview;
@@ -34,8 +34,9 @@ export function OverviewPage() {
           </section>
         )}
         <div className="grid gap-4 xl:grid-cols-2">
-          <BudgetPanel kind="mass" />
-          <BudgetPanel kind="power" />
+          {(d?.defs.budget_kinds ?? []).map((kind) => (
+            <BudgetPanel key={kind} kind={kind} />
+          ))}
         </div>
         <DiagnosticsPanel />
       </PageBody>

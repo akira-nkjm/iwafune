@@ -169,6 +169,15 @@ pub enum Command {
     Redo,
     /// Run an analysis (`fune analyze ls`, `fune analyze power.energy_balance`)
     Analyze(AnalyzeArgs),
+    /// The power page: per-mode power budgets and the analyses behind them (exit code 1 on a violation or a failed analysis)
+    PowerPage {
+        /// Analysis case ID (cases/<ID>.toml; default is resolved as in `fune analyze`)
+        #[arg(long)]
+        case: Option<String>,
+        /// Apply unsaved edits (a JSON file of Ops, or `-` for stdin) without writing, then build the page
+        #[arg(long)]
+        ops: Option<PathBuf>,
+    },
     /// Budgets (mass / power / data)
     Budget {
         kind: String,

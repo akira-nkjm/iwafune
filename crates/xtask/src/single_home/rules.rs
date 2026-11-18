@@ -113,6 +113,22 @@ pub(super) const WEB_RULES: &[(&str, &[&str], &str)] = &[
         &["web/src/test/"],
         "the list of budget kinds (the API's `DefsView.budget_kinds`)",
     ),
+    // バジェットの種類を JSX の属性に直書きしない（`<BudgetPanel kind="mass" />`）。概要は `DefsView.budget_kinds` を回す
+    (
+        "kind=\"mass\"",
+        &["web/src/test/"],
+        "a budget kind written in JSX (iterate the API's `DefsView.budget_kinds`)",
+    ),
+    (
+        "kind=\"power\"",
+        &["web/src/test/"],
+        "a budget kind written in JSX (iterate the API's `DefsView.budget_kinds`)",
+    ),
+    (
+        "kind=\"data\"",
+        &["web/src/test/"],
+        "a budget kind written in JSX (iterate the API's `DefsView.budget_kinds`)",
+    ),
     // 負の字間は欧文を半角のつまった字にする（Noto Sans JP の欧文が詰まって読みにくい）。使わない
     (
         "tracking-tight",

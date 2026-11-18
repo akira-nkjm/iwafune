@@ -54,6 +54,21 @@ export function analysesFor(entries: readonly AnalysisEntry[], keys: readonly Kp
 }
 
 /**
+ * 概要のカードに使う KPI のキー（見出しにする KPI と、そのフッターに添える KPI）。どれを使うかは API が決める
+ * （`KpiDef.overview`）。ここは解析の一覧から引くだけで、KPI のキーを書かない。
+ */
+export function overviewKeys(entries: readonly AnalysisEntry[]): KpiKey[] {
+  return entries.flatMap((e) =>
+    e.kpis.flatMap((k) => (k.overview ? [k.key, ...k.overview.footer] : [])),
+  );
+}
+
+/** KPI に見せるもの（値・判定・判定の数）が 1 つでもあるか。無ければ概要のカードは出さない */
+export function hasContent(kpi: KpiView | null): boolean {
+  return !!kpi && (kpi.value != null || kpi.verdict != null || (kpi.tally?.checked ?? 0) > 0);
+}
+
+/**
  * KPI の値の文字: 値があれば API の整形（`display`）、判定を数える KPI は `tally` の文（言い方は呼び手の i18n）、
  * どちらも無ければ「—」
  */

@@ -22,7 +22,9 @@ pub(super) fn check_parts(ctx: &mut Ctx) {
     }
 }
 
-/// 最上位ディレクトリは系の ID（parts/ 直下の部品は許す）。
+/// 最上位ディレクトリが系の ID でないとき（機構・ハーネスなどの組立品の置き場）は、info で知らせるだけにする。
+/// 「解析を持つ系」と「製品ツリーの最上位」は別の概念で、系を決めるのは `Design::system_of`（場所 → 役割 → なし）。
+/// 系でない最上位の下の部品は、役割から系が決まらなければ系なし（バジェットの「その他」の行）になる。
 fn check_system_dirs(ctx: &mut Ctx) {
     use crate::design::{AnalysisSystem, NodeRef};
     let design = ctx.design;
@@ -36,7 +38,7 @@ fn check_system_dirs(ctx: &mut Ctx) {
                 .cloned()
         })
         .collect();
-    let allowed = AnalysisSystem::ALL
+    let systems = AnalysisSystem::ALL
         .iter()
         .map(|s| s.as_str())
         .collect::<Vec<_>>()
@@ -44,12 +46,14 @@ fn check_system_dirs(ctx: &mut Ctx) {
     for root in roots {
         let id = root.id();
         if id.parse::<AnalysisSystem>().is_err() {
-            ctx.error(
+            ctx.info(
                 "part.system_dir",
                 &EntityKey::Part(id.to_owned()),
                 &[],
                 Some(Target::Group { id: id.to_owned() }),
-                format!("Top-level directory `{id}` of parts/ must be a subsystem ID ({allowed})"),
+                format!(
+                    "Top-level directory `{id}` of parts/ is not a subsystem ID ({systems}); its parts belong to a subsystem only through their kind's role"
+                ),
             );
         }
     }

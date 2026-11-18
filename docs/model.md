@@ -8,7 +8,7 @@ This document describes what structures hold the design-data model and how it is
   Edits are made against Design, and analyses read Resolved. Derived is not saved to files as a rule (§9).
 - **Analyses do not know the model.** The analysis library defines an input type for each analysis, and fune-projection projects Resolved onto that type and passes it in
   ([architecture.md](architecture.md) §6.3). Missing inputs are reported by name, such as "this analysis needs RW_X.max_momentum".
-- **The product tree is expressed with directories.** The top level is a directory named by a subsystem ID (such as `aocs`), and assemblies can be nested below it. Parts directly under `parts/` are also allowed.
+- **The product tree is expressed with directories.** The top level is usually a directory named by a subsystem ID (such as `aocs`), and assemblies can be nested below it. Parts directly under `parts/` and other top-level folders (such as `mechanism/`) are also allowed (see §6.2 on the two sets).
   A physical assembly that has its own mass or mounting target is expressed as "a part file plus a directory of the same name" (§6).
 - **Placement principle** (§7):
   Information that is complete within a single part goes in the part file. Things that span several parts and have their own names or attributes (modes, nets, harnesses) get their own directories.
@@ -161,7 +161,7 @@ flowchart LR
 | AttributeDef | Quantity kind | `defs/attribute/<id>.toml` | value type, dimension, allowed units, display unit, value range, whether it is looked up by state, which budget it enters |
 | KindDef | Part kind | `defs/kind/<id>.toml` | parent kind, required and optional attributes, vocabulary of equipment states (off / standby / on …), port templates, role |
 | CatalogItem | Definition of a purchased or designed item (ElementDefinition) | shared catalog or `catalog/[<dir>/…]<id>.toml` (§11.1) | kind, model number, maturity, tags (`tags = ["flight_proven", "domestic"]`: a free classification that is neither manufacturer nor kind; omitted when empty; `fune catalog set <item> tags a,b` / `unset`; a tag is non-empty, has no leading or trailing whitespace and no `,`, and is not duplicated within the same item), attribute values, port values, shape, the datasheet source (a source ID; §7.8) |
-| Group | Subsystem or nested folder | a directory under `parts/` that has no same-named file (the top level is a subsystem ID) | none (the subsystem's display name is a built-in vocabulary entry; allocations are in `budget/allocation.toml`) |
+| Group | Subsystem or nested folder | a directory under `parts/` that has no same-named file (the top level is usually a subsystem ID) | none (the subsystem's display name is a built-in vocabulary entry; allocations are in `budget/allocation.toml`) |
 | Part | A use in the product tree (ElementUsage) | `parts/<…>/<ID>.toml` | definition (catalog / kind), trade candidates, count and redundancy, mounting target and relative attitude, override values, the nets the ports belong to |
 | Mode | The satellite's operating mode | `modes/<ID>.toml` | duration, part → {state, time fraction, active count, spare state}, eclipse override |
 | Net | Electrical connection (logical) | `nets/<ID>.toml` | kind (power / data / rf), rail voltage, source port, current limit, protocol |
@@ -708,7 +708,8 @@ parts/
 ```
 
 - A Group's ID is its directory name. It must be unique within the same namespace as part IDs.
-- A Group has neither mass nor mounting. The top-level directory names are `aocs`, `cdh`, `comm`, `payload`, `power`, `structure` and `thermal`. Anything else is a `fune check` error (listing the IDs that can be used). IDs of nested assemblies and folders are arbitrary.
+- A Group has neither mass nor mounting. The subsystem directory names are `aocs`, `cdh`, `comm`, `payload`, `power`, `propulsion`, `structure` and `thermal`. Any other top-level folder (a mechanism or harness assembly, say) is allowed and only reported as an `info` diagnostic `part.system_dir` that lists the subsystem IDs.
+  **"Subsystems that own analyses" and "top-level folders of the product tree" are separate sets.** The first (`AnalysisSystem`, returned as `DefsView.systems`) is the key of analyses, settings, allocations and colors and is fixed in code; the second is free. The link between them is only `Design::system_of` (location, then the kind's role, then none): parts under a non-system top-level folder belong to a subsystem only through their role, and otherwise go to the "Other" row of a budget. IDs of nested assemblies and folders are arbitrary.
 - A part's subsystem is decided only by `Design::system_of`: the top-level subsystem of its location → the subsystem of the kind's role (`role_system`, including inheritance) → `None`. Parts directly under `parts/` are also allowed, and belong to a subsystem if they have a role.
 - A subsystem's display name is the built-in vocabulary `labels.section` (Japanese and English). It is not overridden by the project. The API's `PartRow.system` is `System | null`, and the tree and budget rows also return `system` and the Japanese and English display names. The Web's colors look this subsystem up through the single mapping in `lib/systems.ts` (those without a subsystem get the neutral color). Allocations are written in `budget/allocation.toml`.
 - A physical assembly (`SAP_PX`) has its own mass, mounting target and mount points, and child parts attach to the assembly with `mount = { on = "SAP_PX", … }`.
