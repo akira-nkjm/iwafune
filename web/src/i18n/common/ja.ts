@@ -2,6 +2,8 @@
 export const commonJa = {
   common: {
     resizeTree: "ツリーの幅を調整",
+    expandAll: "すべて開く",
+    collapseAll: "すべて閉じる",
     view: "表示方法",
     sortColumn: "昇順・降順・元の順に並べ替え",
     tableView: "表",

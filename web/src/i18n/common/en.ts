@@ -3,6 +3,8 @@ import type { commonJa } from "./ja";
 export const commonEn: typeof commonJa = {
   common: {
     resizeTree: "Resize tree column",
+    expandAll: "Expand all",
+    collapseAll: "Collapse all",
     view: "View",
     sortColumn: "Sort ascending, descending, then original order",
     tableView: "Table",

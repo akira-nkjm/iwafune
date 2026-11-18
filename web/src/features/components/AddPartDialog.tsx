@@ -1,23 +1,45 @@
 import { useState } from "react";
 import type { DesignView, Op } from "@/api/types";
-import { localized, useT } from "@/i18n";
+import { useT } from "@/i18n";
 import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
 import { Segmented } from "@/kit/selection/Segmented";
-import { defWithId, parentOptions, withNote } from "@/lib/design";
+import { defWithId, parentOptions } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
+import { CatalogPicker } from "./CatalogPicker";
+import { groupForSystem, pickOptions } from "./catalog-pick";
 
 type DefBy = "catalog" | "kind";
 
-/** コンポーネントの追加（CreatePart）。定義はカタログか種別のどちらか */
+/** 開いたときの定義の選び方・カタログの品・置き場（カタログの品から開いたときは、その品の系を置き場にする） */
+export function initialAddPart(
+  design: DesignView,
+  groups: readonly { value: string }[],
+  initialCatalog: string | null | undefined,
+  initialGroup: string | null | undefined,
+): { by: DefBy; catalog: string; group: string } {
+  const catalog = initialCatalog ?? "";
+  const system = design.catalog.find((c) => c.id === catalog)?.system;
+  return {
+    by: catalog !== "" || pickOptions(design).length > 0 ? "catalog" : "kind",
+    catalog,
+    group: initialGroup ?? groupForSystem(groups, system) ?? groups[0]?.value ?? "",
+  };
+}
+
+/**
+ * コンポーネントの追加（CreatePart）。定義はカタログか種別のどちらか。
+ * `initialCatalog` を渡すと、その品を選んだ状態で開く（ID は人が打つ。欄に合わせる）
+ */
 export function AddPartDialog({
   design,
   open,
   onOpenChange,
   onDone,
   initialGroup,
+  initialCatalog,
 }: {
   design: DesignView;
   open: boolean;
@@ -25,25 +47,29 @@ export function AddPartDialog({
   /** 作ったとき（新しい部品の ID） */
   onDone: (id: string) => void;
   initialGroup?: string | null;
+  /** 選んだ状態で開くカタログの品の ID */
+  initialCatalog?: string | null;
 }) {
   const t = useT();
   const ta = t.components.addPart;
   const [id, setId] = useState("");
   const groups = parentOptions(design);
-  // カタログの品（GET /design の catalog）と、部品が参照している品（共有カタログを含む）
-  const known = [
-    ...new Set([
-      ...design.catalog.map((c) => c.id),
-      ...design.parts.flatMap((p) => [...p.candidates, ...(p.catalog ? [p.catalog] : [])]),
-    ]),
-  ].sort();
-  const catalogLabel = new Map(
-    design.catalog.map((c) => [c.id, withNote(localized(c.label, c.label_en), c.kind)]),
-  );
-  const [group, setGroup] = useState(initialGroup ?? groups[0]?.value ?? "");
-  const [by, setBy] = useState<DefBy>(known.length > 0 ? "catalog" : "kind");
-  const [catalog, setCatalog] = useState("");
+  const options = pickOptions(design);
+  const init = initialAddPart(design, groups, initialCatalog, initialGroup);
+  const [group, setGroup] = useState(init.group);
+  // 置き場を人が選んだら、品を選び直しても上書きしない
+  const [groupTouched, setGroupTouched] = useState(false);
+  const [by, setBy] = useState<DefBy>(init.by);
+  const [catalog, setCatalog] = useState(init.catalog);
   const [kind, setKind] = useState("");
+  const pickCatalog = (next: string) => {
+    setCatalog(next);
+    const system = design.catalog.find((c) => c.id === next)?.system;
+    const target = groupForSystem(groups, system);
+    if (!groupTouched && target) setGroup(target);
+  };
+  // ID の欄の例（カタログの品の `name`。API が分けて返す）
+  const namePlaceholder = design.catalog.find((c) => c.id === catalog)?.name || "RW_Z";
 
   const defOk = by === "catalog" ? catalog !== "" : kind !== "";
   // ID の規則と重複はサーバー（dry_run）が検査する
@@ -84,7 +110,8 @@ export function AddPartDialog({
           mono
           value={id}
           invalid={!!idError}
-          placeholder="RW_Z"
+          placeholder={namePlaceholder}
+          autoFocus={!!initialCatalog}
           onChange={(e) => setId(e.target.value)}
         />
       </Field>
@@ -92,7 +119,10 @@ export function AddPartDialog({
         <NativeSelect
           id="add-part-group"
           value={group}
-          onChange={(e) => setGroup(e.target.value)}
+          onChange={(e) => {
+            setGroup(e.target.value);
+            setGroupTouched(true);
+          }}
           placeholder={ta.noGroup}
           options={groups}
         />
@@ -108,21 +138,7 @@ export function AddPartDialog({
           ]}
         />
         {by === "catalog" ? (
-          <>
-            <TextInput
-              aria-label={ta.catalog}
-              mono
-              list="add-part-catalogs"
-              value={catalog}
-              placeholder={known[0] ?? "local/rw_10mNms"}
-              onChange={(e) => setCatalog(e.target.value)}
-            />
-            <datalist id="add-part-catalogs">
-              {known.map((c) => (
-                <option key={c} value={c} label={catalogLabel.get(c)} />
-              ))}
-            </datalist>
-          </>
+          <CatalogPicker options={options} value={catalog} onChange={pickCatalog} />
         ) : (
           <NativeSelect
             aria-label={ta.kind}
