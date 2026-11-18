@@ -358,8 +358,6 @@ export const fixture: DesignView = {
       },
       enum: {},
       enum_order: {},
-      setting: {},
-      case_field: {},
     },
     systems: ["aocs", "cdh", "comm", "payload", "power", "propulsion", "structure", "thermal"],
     budget_kinds: ["mass", "power", "data"],

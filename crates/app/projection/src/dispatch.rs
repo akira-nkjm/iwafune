@@ -61,14 +61,38 @@ where
     }
 }
 
-fn to_json<A: Analysis>(ctx: &Context<'_>, p: Projector<A>) -> Result<Value, ProjectionError> {
+fn project_with<A: Analysis>(
+    ctx: &Context<'_>,
+    p: Projector<A>,
+) -> Result<A::Input, ProjectionError> {
     let project = p.ok_or_else(|| ProjectionError::NotImplemented(A::ID.to_owned()))?;
-    let input = project(ctx)?;
+    Ok(project(ctx)?)
+}
+
+fn to_json<A: Analysis>(ctx: &Context<'_>, p: Projector<A>) -> Result<Value, ProjectionError> {
+    let input = project_with::<A>(ctx, p)?;
     serde_json::to_value(input).map_err(|e| ProjectionError::Json(e.to_string()))
+}
+
+/// 表の行を持つ解析（型のまま入力を組み立てられる）。`table!` がすべての解析に実装する。
+pub trait Projects: Analysis {
+    /// 設計データから型付きの入力を組み立てる（`project_json` と同じ射影）。
+    fn project(ctx: &Context<'_>) -> Result<Self::Input, ProjectionError>;
+}
+
+/// 解析の型から入力を組み立てる（型のまま解析を回す呼び出し側用。表の行は `project_json` と同じ）。
+pub fn project_typed<A: Projects>(ctx: &Context<'_>) -> Result<A::Input, ProjectionError> {
+    A::project(ctx)
 }
 
 macro_rules! table {
     ($($a:ty => $p:expr),+ $(,)?) => {
+        $(impl Projects for $a {
+            fn project(ctx: &Context<'_>) -> Result<<$a as Analysis>::Input, ProjectionError> {
+                project_with::<$a>(ctx, $p)
+            }
+        })+
+
         /// 表のすべての行。
         pub fn entries() -> Vec<Entry> {
             vec![$(entry::<$a>($p)),+]

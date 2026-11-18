@@ -174,6 +174,9 @@ pub enum Command {
         /// Analysis case ID (cases/<ID>.toml; default is resolved as in `fune analyze`)
         #[arg(long)]
         case: Option<String>,
+        /// Apply unsaved edits (a JSON file of Ops, or `-` for stdin) without writing, then build the page
+        #[arg(long)]
+        ops: Option<PathBuf>,
     },
     /// Budgets (mass / power / data)
     Budget {

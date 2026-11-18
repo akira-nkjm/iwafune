@@ -9,10 +9,8 @@ use ts_rs::TS;
 pub struct PowerPageView {
     /// 全解析を統合したモードごとの表示。
     pub modes: Vec<PowerModeView>,
-    /// データを見る・不足入力・設定に使う元の解析と表示名。
+    /// データを見る・不足入力・設定に使う元の解析と表示名（電源の解析 4 つ。並びは負荷・軌道発電・電力収支・サイジング）。
     pub analyses: Vec<PowerAnalysisView>,
-    /// 解析が読む部品・条件・設定と解析どうしのつながり（「フロー」タブ。`fune_service::flow`）
-    pub flow: super::FlowView,
 }
 
 /// 選択するモードと、そのモードの表示。
@@ -122,9 +120,13 @@ pub struct PowerAnalysisView {
     pub result: super::AnalysisRunResult,
 }
 
-/// 電源ページの問い合わせ。省略時のケース解決は既存の解析入口に委ねる。
+/// 電源ページの問い合わせ（`GET /power_page?case=…`、`POST /power_page { case, ops }`）。省略時のケース解決は
+/// 既存の解析入口と同じ。バジェット（`BudgetRequest`）と同じ形でケースと下書きの `ops` を受ける。
 #[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
 #[serde(default)]
 pub struct PowerPageQuery {
+    /// 解析ケースの ID（`cases/<ID>.toml`）。省略時は各解析と同じ規則で決める
     pub case: Option<String>,
+    /// 保存していない編集。書き込まずに当てた設計で組み立てる（空なら保存済みの設計。`GET` と同じ）
+    pub ops: Vec<fune_ops::Op>,
 }

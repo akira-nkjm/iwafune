@@ -13,8 +13,7 @@
 //! | `history` | 編集の取り消し・やり直し（`fune undo`・`fune redo`・`POST /undo`・`POST /redo`。履歴は `.fune/history.json`、適用は fune-ops） |
 //! | `preview` | 保存していない編集（Op の列）を書き込まずに当てた設計（下書きのまま解析・バジェットを見る） |
 //! | `units` | 単位の一覧・入力文字列の解析 |
-//! | `power_page` | 電源ページ全体の解析収集と表示用集約 |
-//! | `flow` | 解析のフロー図（射影が読んだ値 → 解析・解析 → 解析のつながり。`fune flow`・`GET /flow/{system}`・電源ページの「フロー」タブ） |
+//! | `power_page` | 電源ページ全体（電源の解析 4 つを型付きで回し、モードごとの表示・概要の表の行を組み立てる） |
 //! | `analysis` | 解析の一覧・実行・KPI（代表値・判定・塗りの比） |
 //! | `budget` | 質量・電力・データ量のバジェット |
 //! | `mode_systems` | モードの見方を持つ系の一覧（`DefsView.mode_systems` と `system_modes` の対応判定の共通の置き場。ほかの module に依存しない） |
@@ -34,7 +33,6 @@ pub mod dto;
 pub mod edit;
 pub mod error;
 pub(crate) mod fetch;
-pub mod flow;
 pub mod history;
 pub mod mode_systems;
 pub mod power_page;

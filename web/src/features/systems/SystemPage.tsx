@@ -17,7 +17,7 @@ import { hasModes, type SystemTab, SystemTabs } from "./SystemTabs";
 
 const TABS: SystemTab[] = ["results", "modes", "series", "settings"];
 
-/** 系にそのタブがあるか（モードの見方・フロー図は持つ系だけ） */
+/** 系にそのタブがあるか（モードの見方は持つ系だけ） */
 function shows(system: System, tab: SystemTab, defs: DefsView | undefined): boolean {
   if (tab === "modes") return hasModes(system, defs);
   return true;

@@ -166,22 +166,9 @@ fn power_mode_values(
         )
     });
     let mut view = mode_values(parts, Power::name(), &mode.checks);
-    let (limit, margin) = crate::budget::allocated(design, crate::dto::BudgetKind::Power);
-    let items: Vec<_> = mode
-        .parts
-        .iter()
-        .filter_map(|p| {
-            let value = if eclipse { p.mean_eclipse } else { p.mean }?;
-            let mut item =
-                sat_analysis::budget::BudgetItem::counted(p.part.clone(), value.value(), 1);
-            item.growth = p.growth_margin.value();
-            Some(item)
-        })
-        .collect();
-    let result =
-        sat_analysis::budget::budget_rollup(&items, limit, margin).map_err(mode_analysis_error)?;
+    let result = crate::budget::mode_rollup(design, mode, eclipse)?;
     let q = |v| crate::units::quantity_auto(v, Power::name());
-    if !items.is_empty() {
+    if !result.rows.is_empty() {
         view.total = Some(q(result.total_with_growth));
     }
     view.available = result.allowed.map(q);

@@ -63,7 +63,9 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
         Command::Budget { kind, case, ops } => {
             analyze::budget(&open(g)?, kind, case.as_deref(), ops.as_deref(), out)
         }
-        Command::PowerPage { case } => pages::power_page(&open(g)?, case.as_deref(), out),
+        Command::PowerPage { case, ops } => {
+            pages::power_page(&open(g)?, case.as_deref(), ops.as_deref(), out)
+        }
         Command::Fmt { check } => {
             let result = fune_service::format::format_design(
                 &open(g)?,

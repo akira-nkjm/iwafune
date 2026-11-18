@@ -5,7 +5,7 @@ use super::analyze::{print_missing, verdict_cell};
 use crate::output::{C, Out};
 use fune_service::dto::{
     AnalysisRunStatus, ModeSummaryField, ModeSummaryLabel, ModeValuesView, PartViewRequest,
-    PowerBudgetView, QuantityView, SystemModeView, SystemModesView, Verdict,
+    PowerBudgetView, PowerPageQuery, QuantityView, SystemModeView, SystemModesView, Verdict,
 };
 use fune_service::{Workspace, power_page, system_modes};
 
@@ -17,9 +17,21 @@ fn supply(b: Option<&PowerBudgetView>) -> C {
     dash(b.map(|b| &b.supply))
 }
 
-/// `fune power-page [--case ID]`。違反のモードか、走らなかった解析があれば 1 で終わる。
-pub fn power_page(ws: &Workspace, case: Option<&str>, out: &Out) -> anyhow::Result<u8> {
-    let page = power_page::power_page(ws, case)?;
+/// `fune power-page [--case ID] [--ops FILE]`。違反のモードか、走らなかった解析があれば 1 で終わる。
+pub fn power_page(
+    ws: &Workspace,
+    case: Option<&str>,
+    ops: Option<&std::path::Path>,
+    out: &Out,
+) -> anyhow::Result<u8> {
+    let query = PowerPageQuery {
+        case: case.map(str::to_owned),
+        ops: ops
+            .map(super::ops::ops_from_file)
+            .transpose()?
+            .unwrap_or_default(),
+    };
+    let page = power_page::power_page_with(ws, &query)?;
     let failed = page
         .modes
         .iter()

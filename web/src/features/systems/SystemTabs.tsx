@@ -23,7 +23,6 @@ import { SystemOverview } from "./SystemOverview";
 const SeriesChart = lazy(() =>
   import("@/analysis/SeriesChart").then((m) => ({ default: m.SeriesChart })),
 );
-/** フロー図（@xyflow/react）は電源のフローのタブを開いたときだけ読む */
 
 export type SystemTab = "results" | "modes" | "settings" | "series";
 

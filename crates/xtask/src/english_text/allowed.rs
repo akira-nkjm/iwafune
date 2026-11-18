@@ -27,18 +27,6 @@ pub(super) const ALLOWED: &[(&str, &str)] = &[
         "bilingual analysis-view labels, label(ja, en) tables",
     ),
     (
-        "crates/app/service/src/flow/analysis.rs",
-        "bilingual KPI display (display / display_en)",
-    ),
-    (
-        "crates/app/service/src/flow/rows.rs",
-        "bilingual flow-row labels (label / label_en)",
-    ),
-    (
-        "crates/app/service/src/flow/text.rs",
-        "bilingual range text (ja / en)",
-    ),
-    (
         "crates/app/service/src/power_page/overview.rs",
         "bilingual power-page chart labels, label(ja, en)",
     ),
