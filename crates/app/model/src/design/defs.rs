@@ -42,6 +42,17 @@ enum_text! {
     }
 }
 
+impl NetKind {
+    /// 供給元・マスターが書かれていないネットで、星形の中心にする部品の役割（電源は PCDU、データと RF は OBC）。
+    /// **中心の役割の選び方はここだけ**（`NetView.hub`）。
+    pub fn hub_role(self) -> crate::role::Role {
+        match self {
+            Self::Power => crate::role::Role::Pcdu,
+            Self::Data | Self::Rf => crate::role::Role::Obc,
+        }
+    }
+}
+
 /// 属性定義（quantity kind）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]

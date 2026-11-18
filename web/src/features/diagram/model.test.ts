@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DesignView, PartRow } from "@/api/types";
+import type { DesignView, NetView, PartRow } from "@/api/types";
 import { fixture } from "@/test/fixture";
 import { buildModel, cardNodeId, groupNodeId } from "./model";
 import type { Layer } from "./power";
@@ -43,6 +43,27 @@ describe("系統図のモデル", () => {
     expect(power.map((e) => e.target.node).sort()).toEqual([cardNodeId("RW_X"), cardNodeId("TRX")]);
     const signal = m.edges.filter((e) => e.layer === "signal");
     expect(signal.every((e) => e.label === "CAN")).toBe(true);
+  });
+
+  it("中心は API の hub で決める（役割名は見ない）。collects なら線は各端から中心へ", () => {
+    const base = fixture.nets.find((n) => n.kind === "power") as NetView;
+    const [hub, ...rest] = base.members;
+    if (!hub) throw new Error("no members");
+    const edgesOf = (collects: boolean) =>
+      buildModel(
+        { ...fixture, nets: [{ ...base, source: null, hub: { port: hub, collects } }] },
+        { layers: both, mergeSiblings: false },
+      ).edges;
+    const out = edgesOf(false);
+    expect(out.every((e) => e.source.node === cardNodeId(hub.part))).toBe(true);
+    const into = edgesOf(true);
+    expect(into.every((e) => e.target.node === cardNodeId(hub.part))).toBe(true);
+    expect(into.length).toBe(rest.length);
+    const none = buildModel(
+      { ...fixture, nets: [{ ...base, source: null, hub: null }] },
+      { layers: both, mergeSiblings: false },
+    );
+    expect(none.junctions.map((j) => j.net)).toEqual(rest.length > 1 ? [base.id] : []);
   });
 
   it("層を切り替えると、その層の辺だけ（凡例も）", () => {

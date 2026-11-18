@@ -1,4 +1,5 @@
-import type { ThermalSteadyOutput, Verdict } from "@/api/types";
+import type { PartHeat, ThermalSteadyOutput, Verdict } from "@/api/types";
+import { heatHex, toneHex } from "@/lib/tone";
 
 export interface HeatCell {
   temperature: number;
@@ -49,4 +50,19 @@ export function heatMapOf(output: ThermalSteadyOutput | null): HeatMap | null {
  */
 export function heatRatio(t: number, map: Pick<HeatMap, "min" | "max">): number {
   return map.max > map.min ? (t - map.min) / (map.max - map.min) : 0.5;
+}
+
+/**
+ * 3D の部品の色（部品の ID → 色）。代表の温度（全ケースの最高）と、節点と部品の対応は API の `part_heat` が決める。
+ * ここは値を色に写すだけ。`part_heat` に無い部品（節点に入っていない部品）は灰色。
+ */
+export function partHeatColors(
+  heat: readonly PartHeat[] | undefined,
+  map: Pick<HeatMap, "min" | "max">,
+): (part: string) => string {
+  const by = new Map((heat ?? []).map((h) => [h.part, h]));
+  return (part) => {
+    const h = by.get(part);
+    return h ? heatHex(heatRatio(h.temperature.si, map)) : toneHex.gray;
+  };
 }
