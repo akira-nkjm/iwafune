@@ -76,6 +76,12 @@ export const shellJa = {
     conflictDetail: "最新の内容を読み直しました。もう一度操作してください。",
     failed: (summary: string) => `${summary}: 失敗しました`,
     network: (e: string) => `サーバーに接続できません（${e}）`,
+    undoSummary: (what: string) => `元に戻す: ${what}`,
+    redoSummary: (what: string) => `やり直す: ${what}`,
+    nothingToUndo: "元に戻せる編集がありません",
+    nothingToRedo: "やり直せる編集がありません",
+    stepFailed: (redo: boolean): string => (redo ? "やり直せませんでした" : "元に戻せませんでした"),
+    lastEdit: "直前の編集",
   },
   quantity: {
     edit: (label: string) => `${label} を編集`,

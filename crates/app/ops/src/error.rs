@@ -25,6 +25,20 @@ pub enum OpError {
     /// 適用後の設計に新しい error が出る
     #[error("Not written: applying this would produce {} error(s)", diagnostics.len())]
     Rejected { diagnostics: Vec<Diagnostic> },
+    /// 取り消し・やり直しの対象が無い
+    #[error("Nothing to {}", if *redo { "redo" } else { "undo" })]
+    NothingToStep { redo: bool },
+    /// 履歴の編集のあとに、履歴を通さずに設計ファイルが書き換わっている（手で編集・git・`fune fmt`・共有カタログの取得など）
+    #[error(
+        "Cannot {}: the design files changed outside the edit history since that edit \
+         (expected revision {expected}, found {actual}). Edits made by hand, by git, or by `fune fmt` / `fune catalog fetch` end the history at that point",
+        if *redo { "redo" } else { "undo" }
+    )]
+    HistoryMismatch {
+        redo: bool,
+        expected: Revision,
+        actual: Revision,
+    },
     #[error(transparent)]
     Store(#[from] StoreError),
 }
@@ -34,7 +48,8 @@ impl OpError {
     pub fn exit_code(&self) -> i32 {
         match self {
             OpError::Rejected { .. } => 1,
-            OpError::Conflict { .. } => 3,
+            OpError::Conflict { .. } | OpError::HistoryMismatch { .. } => 3,
+            OpError::NothingToStep { .. } => 2,
             OpError::Store(StoreError::Locked { .. }) => 3,
             OpError::Store(_) => 1,
             OpError::NotFound { .. } | OpError::AlreadyExists { .. } | OpError::Invalid { .. } => 2,

@@ -43,6 +43,7 @@ pub use flow::{
     FlowView,
 };
 mod format;
+mod history;
 pub use format::{FormatDesignRequest, FormatDesignResult};
 mod kpi;
 mod maneuver;
@@ -108,6 +109,7 @@ pub use fune_model::value::{Provenance, Quantity, Quaternion, SettingValue, Valu
 pub use fune_model::{Diagnostic, Severity};
 pub use fune_ops::{ModeCell, ModePosition, Op, ViewNodePos};
 pub use fune_projection::MissingInput;
+pub use history::{HistoryAction, HistoryEntryView, HistoryStepResult, HistoryView};
 pub use sat_analysis::spec::{
     AnalysisArea, AnalysisInfo, AnalysisKind, Channel, Check, ConditionTopic, Series, System,
     Verdict,

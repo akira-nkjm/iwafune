@@ -11,7 +11,7 @@
 //! | `defs` | attr/kind の add・replace・rm の引数 → Op |
 //! | `records` | case・source・harness・catalog・part point の引数 → Op |
 //! | `catalog` | catalog ls/show/fetch/update と、catalog source add/rm のあとの案内 |
-//! | `edit` | Op の列の適用と結果の表示・init |
+//! | `edit` | Op の列の適用と結果の表示・init・undo / redo |
 //! | `units` | units ls/parse/format |
 //! | `analyze` | analyze・budget |
 //! | `gui` | gui |
@@ -75,6 +75,9 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
             }
             Ok(u8::from(*check && !result.changed.is_empty()))
         }
+        Command::History => edit::history(&open(g)?, out),
+        Command::Undo => edit::step(&open(g)?, false, out),
+        Command::Redo => edit::step(&open(g)?, true, out),
         Command::Init { name } => edit::init(&g.dir, name, out),
         Command::Status => read::status(&open(g)?, out),
         Command::Check { deny_warnings } => read::check(&open(g)?, *deny_warnings, out),

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DesignView, System, ViewNodePos, ViewPortSide } from "@/api/types";
 import { getT, useLang } from "@/i18n";
 import { savedLayout, snap, viewId } from "../editing/saved";
-import { useViewEdits, VIEW } from "../editing/view-history";
+import { useViewEdits, VIEW } from "../editing/view-edits";
 import type { DiagramLayout } from "../layout/geometry";
 import { drawLayout, type LayoutPlan, planLayout } from "../layout/layout";
 import { buildModel, type DiagramModel } from "../model";
@@ -74,7 +74,7 @@ export function useDiagramModel(
 }
 
 /**
- * 位置と枠の大きさを view/electrical.toml に保存する（set_view_layout。元に戻せる。view-history.ts）。
+ * 位置と枠の大きさを view/electrical.toml に保存する（set_view_layout。元に戻せる。api/history.ts）。
  * `remove` に挙げたノードの位置は消す（自動配置の位置に戻る）。失敗したら `onError` を呼ぶ
  */
 export function usePersistLayout() {
