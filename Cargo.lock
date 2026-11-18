@@ -565,6 +565,7 @@ dependencies = [
  "blake3",
  "fune-model",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror",
  "toml",

@@ -10,10 +10,8 @@ export const diagramEn: typeof diagramJa = {
     editRoute: "Edit line route",
     undo: "Undo",
     redo: "Redo",
-    undoTitle: "Undo the last layout edit (⌘Z / Ctrl+Z)",
+    undoTitle: "Undo the last edit (⌘Z / Ctrl+Z)",
     redoTitle: "Redo the edit you undid (⇧⌘Z / Ctrl+Y)",
-    undoSummary: (s: string) => `Undo: ${s}`,
-    redoSummary: (s: string) => `Redo: ${s}`,
     resetLayout: "Reset positions and wires",
     resetLayoutTitle:
       "Clear every moved position and hand-drawn wire and go back to the automatic layout.",

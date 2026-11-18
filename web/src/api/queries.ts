@@ -19,6 +19,7 @@ import type {
   DataStatus,
   DefsView,
   DesignView,
+  HistoryView,
   Op,
   PartRow,
   PartView,
@@ -70,6 +71,9 @@ export const q = {
       },
     });
   },
+  /** 編集の履歴（取り消し・やり直しのボタンの有効・無効） */
+  history: () =>
+    queryOptions({ queryKey: keys.history, queryFn: () => api<HistoryView>("/history") }),
   defs: () => queryOptions({ queryKey: keys.defs, queryFn: () => api<DefsView>("/defs") }),
   diagnostics: () =>
     queryOptions({

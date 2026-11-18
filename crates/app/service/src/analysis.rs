@@ -8,6 +8,7 @@
 //! | `checks` | 出力の中の判定を集める（期間不足の注意は語彙から作る） |
 //! | `kpi` | KPI（代表値の選び方・判定・塗りの比・判定の数え方） |
 //! | `overview` | 系の概要の解析の表の行（主な結果の選び方・判定の文の持ち主ごとのまとまり） |
+//! | `part_heat` | 熱の定常解析の部品ごとの代表の温度（節点と部品の対応・代表の選び方） |
 //! | `weather` | 高度低下の入力に宇宙天気の表から日付で引いた列を足し、使った表の版を返す |
 
 use crate::dto::{
@@ -28,6 +29,7 @@ mod dims;
 pub(crate) mod kpi;
 pub mod labels;
 pub(crate) mod overview;
+mod part_heat;
 mod weather;
 
 /// 解析の一覧（`GET /analyses`）。
@@ -129,7 +131,9 @@ pub fn run_analysis(
         labels: outcome.labels,
         space_weather: outcome.space_weather,
         overview: crate::dto::AnalysisOverview::default(),
+        part_heat: None,
     };
+    result.part_heat = part_heat::part_heat(&result);
     result.overview = overview::overview(&result, None, Vec::new());
     Ok(result)
 }

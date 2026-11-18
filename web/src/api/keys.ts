@@ -11,6 +11,8 @@ export const keys = {
   systemModes: (system: string, opsJson: string) =>
     ["design", "system_modes", system, opsJson] as const,
   diagnostics: ["diagnostics"] as const,
+  /** 編集の履歴（`GET /history`。取り消し・やり直しができるか）。編集・取り消し・やり直しのたびに変わる */
+  history: ["history"] as const,
   units: (dimension?: string | null) => ["units", dimension ?? null] as const,
   parse: (input: string, dimension: string | null) => ["units", "parse", input, dimension] as const,
   analyses: ["analyses"] as const,
@@ -40,6 +42,7 @@ export const invalidatedByOps: readonly (readonly string[])[] = [
   keys.project,
   keys.design,
   keys.diagnostics,
+  keys.history,
   keys.analysisResults,
   ["budget"],
 ];

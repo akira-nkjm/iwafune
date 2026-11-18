@@ -11,7 +11,7 @@ import type { ViewEdge, ViewPortSide } from "@/api/types";
 import { uiHex } from "@/lib/tone";
 import { EdgeEditor } from "../editing/EdgeEditor";
 import { RouteControls } from "../editing/RouteControls";
-import { useViewEdits } from "../editing/view-history";
+import { useViewEdits } from "../editing/view-edits";
 import type { Pt } from "../layout/geometry";
 import { TITLE_H } from "../layout/geometry";
 import { placeLabels } from "../layout/labels";

@@ -249,3 +249,23 @@ fn every_run_result_carries_its_overview_row() {
         assert!(r.overview.hidden_tables.is_empty(), "{}", r.id);
     }
 }
+
+/// 熱の 3D の色: 部品ごとの代表の温度は service が選ぶ（節点と部品の対応・全ケースの最高・ケース・判定）。
+/// ほかの解析は欄を出さない。
+#[test]
+fn thermal_steady_returns_the_representative_temperature_per_part() {
+    let ws = demo();
+    let run = |id| analysis::run_analysis(&ws, id, &RunAnalysisRequest::default()).unwrap();
+    let result = run("thermal.steady");
+    let heat = result.part_heat.expect("part_heat");
+    assert!(!heat.is_empty());
+    let output: sat_analysis::thermal::ThermalSteadyOutput =
+        serde_json::from_value(result.output.unwrap()).unwrap();
+    for h in &heat {
+        let env = output.envelope.iter().find(|e| e.node == h.node).unwrap();
+        assert_eq!(h.temperature.si, env.max.value());
+        assert_eq!(h.case, env.max_case);
+        assert_eq!(h.verdict, env.verdict);
+    }
+    assert!(run("power.mode_load").part_heat.is_none());
+}
