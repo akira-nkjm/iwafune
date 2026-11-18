@@ -22,12 +22,8 @@ const ALLOWED: &[(&str, &str, &str)] = &[(
     "IDs of analyses that need a default case (a declaration of how cases are chosen, not an analysis value)",
 )];
 
-/// 許す周回数の直書きの呼び出し（(ファイルの接尾辞, 行の断片, 理由)）。解析へ移すまでの残りだけをここに置く。
-const ALLOWED_SAMPLING: &[(&str, &str, &str)] = &[(
-    "power.rs",
-    "timeline::timeline(ctx, Some(&mode), Some(1)",
-    "power.solar_sunlit still picks one orbit here; #138 moves the power timelines into the power analysis (then remove this entry)",
-)];
+/// 許す周回数の直書きの呼び出し（(ファイルの接尾辞, 行の断片, 理由)）。解析へ移すまでの残りだけをここに置く（今は無し）。
+const ALLOWED_SAMPLING: &[(&str, &str, &str)] = &[];
 
 /// 周回数・刻みを渡す呼び出しの書き出し（引数に数を直書きしてはならない）。
 const SAMPLING_CALLS: &[&str] = &[
@@ -214,13 +210,10 @@ mod tests {
         ] {
             assert!(violations(FILE, ok).is_empty(), "{ok}");
         }
-        // 解析へ移るまでの残り（許可リスト）だけは通る（別のファイルは通らない）
-        let allowed = "if let Some(t) = timeline::timeline(ctx, Some(&mode), Some(1), &mut m) {";
-        assert!(violations(FILE, allowed).is_empty());
-        assert_eq!(
-            violations("crates/app/projection/src/thermal.rs", allowed).len(),
-            1
-        );
+        // 許可リストは空: かつての許可（power.rs の `Some(1)`）も今は違反
+        let old = "if let Some(t) = timeline::timeline(ctx, Some(&mode), Some(1), &mut m) {";
+        assert_eq!(violations(FILE, old).len(), 1);
+        assert!(ALLOWED_SAMPLING.is_empty());
     }
 
     /// 許可リストの定数だけは通る（別のファイルの同名は通らない）。
