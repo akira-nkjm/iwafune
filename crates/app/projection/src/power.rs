@@ -17,7 +17,7 @@ use sat_analysis::power::solar_sunlit::{SolarSunlitCase, SolarSunlitSun};
 use sat_analysis::power::{
     EnergyBalanceInput, ModeLoadInput, OrbitGenerationInput, SolarSunlitInput,
 };
-use sat_analysis::spec::Analysis;
+use sat_analysis::spec::{Analysis, SamplingSpan};
 use sat_astro::timeline::TimelineSpec;
 use sat_units::typed::{Area, Energy, Power, Time, Voltage};
 
@@ -128,7 +128,9 @@ pub fn solar_sunlit(ctx: &Context<'_>) -> Result<SolarSunlitInput, MissingInputs
         );
     }
     for mode in modes {
-        if let Some(t) = timeline::timeline(ctx, Some(&mode), Some(1), &mut m) {
+        if let Some(t) =
+            timeline::timeline_over(ctx, Some(&mode), SamplingSpan::OrbitAverage, &mut m)
+        {
             cases.push(SolarSunlitCase {
                 id: mode.clone(),
                 label: mode.clone(),
