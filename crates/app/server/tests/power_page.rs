@@ -46,3 +46,30 @@ async fn whole_page_has_case_resolved_analyses_and_power_data() {
         assert!(page.get("parts").is_none());
     }
 }
+
+#[tokio::test]
+async fn post_takes_a_case_and_draft_ops_like_budgets() {
+    let (_tmp, router) = demo_router();
+    let (_, saved) = call(&router, "GET", "/api/v1/power_page", None).await;
+    let dod = |page: &serde_json::Value| {
+        page["analyses"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["result"]["id"] == "power.energy_balance")
+            .unwrap()["result"]["output"]["dod_limit"]
+            .as_f64()
+            .unwrap()
+    };
+    assert!((dod(&saved) - 0.3).abs() < 1e-12);
+    let body = json!({
+        "case": "hot_imaging",
+        "ops": [{"op": "set_setting", "path": "analysis.power.dod_max", "value": {"type": "number", "value": 0.2}}],
+    });
+    let (status, draft) = call(&router, "POST", "/api/v1/power_page", Some(body)).await;
+    assert_eq!(status, StatusCode::OK, "{draft}");
+    assert!((dod(&draft) - 0.2).abs() < 1e-12);
+    // 書き込まない
+    let (_, again) = call(&router, "GET", "/api/v1/power_page", None).await;
+    assert!((dod(&again) - 0.3).abs() < 1e-12);
+}

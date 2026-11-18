@@ -28,19 +28,10 @@ state: { [key in string]: VocabLabel },
 section: { [key in string]: VocabLabel }, 
 /**
  * 列挙の型（`maturity`・`net_kind`・`source_kind`・`distribution`・`evidence`・`origin`・`severity`・`attitude_law`・
- * `propagator`・`link_direction`・`uncertainty_side`・`value_type`・`budget_kind`・`maneuver_category`・`maneuver_method`・`central_body`・`maneuver_steering`、
- * 真偽の値 `bool`（`true`・`false`））→ 値 → 表示名
+ * `propagator`・`link_direction`・`uncertainty_side`・`value_type`・`budget_kind`・`maneuver_category`・`maneuver_method`・`central_body`・`maneuver_steering`）→ 値 → 表示名
  */
 enum: { [key in string]: { [key in string]: VocabLabel } }, 
 /**
  * 列挙の型 → 値を選択肢に並べる順（`enum` の同じ型の値をすべて並べる。無い型は値の綴りの順）
  */
-enum_order: { [key in string]: Array<string> }, 
-/**
- * 設定のパス（`conditions.orbit`・`analysis.power.dod_max`）→ 表示名。引き当ては [`setting_label`]
- */
-setting: { [key in string]: VocabLabel }, 
-/**
- * 解析ケースの欄（`mode`・`beta`・`orbits` …）→ 表示名
- */
-case_field: { [key in string]: VocabLabel }, };
+enum_order: { [key in string]: Array<string> }, };

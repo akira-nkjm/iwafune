@@ -40,19 +40,12 @@ pub struct Labels {
     #[serde(default)]
     pub section: BTreeMap<String, Label>,
     /// 列挙の型（`maturity`・`net_kind`・`source_kind`・`distribution`・`evidence`・`origin`・`severity`・`attitude_law`・
-    /// `propagator`・`link_direction`・`uncertainty_side`・`value_type`・`budget_kind`・`maneuver_category`・`maneuver_method`・`central_body`・`maneuver_steering`、
-    /// 真偽の値 `bool`（`true`・`false`））→ 値 → 表示名
+    /// `propagator`・`link_direction`・`uncertainty_side`・`value_type`・`budget_kind`・`maneuver_category`・`maneuver_method`・`central_body`・`maneuver_steering`）→ 値 → 表示名
     #[serde(default, rename = "enum")]
     pub enums: BTreeMap<String, BTreeMap<String, Label>>,
     /// 列挙の型 → 値を選択肢に並べる順（`enum` の同じ型の値をすべて並べる。無い型は値の綴りの順）
     #[serde(default)]
     pub enum_order: BTreeMap<String, Vec<String>>,
-    /// 設定のパス（`conditions.orbit`・`analysis.power.dod_max`）→ 表示名。引き当ては [`setting_label`]
-    #[serde(default)]
-    pub setting: BTreeMap<String, Label>,
-    /// 解析ケースの欄（`mode`・`beta`・`orbits` …）→ 表示名
-    #[serde(default)]
-    pub case_field: BTreeMap<String, Label>,
 }
 
 /// 組み込みの表示名（埋め込みの TOML はテストで解析できることを保証している）。
@@ -81,19 +74,6 @@ pub fn enum_label(ty: &str, value: &str) -> Option<&'static Label> {
 /// 機器の状態の表示名（無ければ None。プロジェクト独自の状態は ID をそのまま出す）。
 pub fn state_label(state: &str) -> Option<&'static Label> {
     labels().state.get(state)
-}
-
-/// 設定のパスの表示名。パスそのものに無ければ、いちばん長い親の表示名と、その下の残りのキー
-/// （`analysis.aocs.law.NOMINAL` → 姿勢則と `["NOMINAL"]`）。親にも無ければ None。
-pub fn setting_label(path: &crate::path::SettingPath) -> Option<(&'static Label, Vec<String>)> {
-    (1..=path.segments.len()).rev().find_map(|n| {
-        let parent = crate::path::SettingPath {
-            scope: path.scope,
-            segments: path.segments[..n].to_vec(),
-        };
-        let label = labels().setting.get(&parent.to_string())?;
-        Some((label, path.segments[n..].to_vec()))
-    })
 }
 
 /// 役割の無い部品をまとめたグループの表示名（「その他」）。
@@ -143,19 +123,7 @@ mod tests {
     }
 
     #[test]
-    fn setting_labels_have_english_and_fall_back_to_the_parent() {
-        use crate::path::SettingPath;
-        for (key, l) in labels().setting.iter().chain(&labels().case_field) {
-            assert!(l.label_en.is_some(), "{key}");
-        }
-        let (dod, rest) = setting_label(&SettingPath::analysis(&["power", "dod_max"])).unwrap();
-        assert_eq!((dod.label.as_str(), rest.len()), ("許容 DoD", 0));
-        let (law, rest) =
-            setting_label(&SettingPath::analysis(&["aocs", "law", "NOMINAL"])).unwrap();
-        assert_eq!(
-            (law.label.as_str(), rest),
-            ("姿勢則", vec!["NOMINAL".to_owned()])
-        );
+    fn role_labels_are_the_names_of_the_builtin_kinds() {
         assert_eq!(
             role_label(super::super::Role::SolarPanel).map(|l| l.label),
             Some("太陽電池パネル".to_owned())

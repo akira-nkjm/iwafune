@@ -9,87 +9,78 @@
 //! | `power.energy_balance` | ケースとモードの並びごとの最大 DoD と上限（判定の位置は概要の上段の判定と同じ） |
 //! | `power.sizing` | 太陽電池の面積と電池容量の今と必要（判定を決めた必要値） |
 
+use super::Runs;
 use super::presentation::{area_bar, capacity_bar, dod_bar, label};
+use crate::analysis::TypedRun;
 use crate::analysis::overview::{overview, share_of_largest};
 use crate::dto::{
-    AnalysisEntry, AnalysisLabel, AnalysisOverview, AnalysisRunResult, OverviewBar, OverviewChart,
-    OverviewReference, PowerLimitKind, PowerVerdictView,
+    AnalysisLabel, OverviewBar, OverviewChart, OverviewReference, PowerLimitKind, PowerVerdictView,
 };
 use crate::units::quantity_auto;
 use sat_analysis::power::{
-    EnergyBalance, EnergyBalanceOutput, ModeLoad, ModeLoadOutput, OrbitGeneration,
-    OrbitGenerationOutput, Sizing, SizingOutput,
+    EnergyBalanceOutput, ModeLoadOutput, OrbitGenerationOutput, SizingOutput,
 };
 use sat_analysis::spec::{Analysis, Verdict};
 use sat_units::typed::{Fraction, NamedKind, Power};
-use serde::de::DeserializeOwned;
-use serde_json::Value;
+use serde::Serialize;
 
-/// 解析をまたいで同じ表: （表を隠す解析, 表の位置, 同じ表を持つ解析, その表の位置）。両方の結果があり、中身が同じときだけ隠す。
-const SAME_TABLES: &[(&str, &[&str], &str, &[&str])] = &[
-    (
-        <EnergyBalance as Analysis>::ID,
-        &["mode_loads", "modes"],
-        <ModeLoad as Analysis>::ID,
-        &["modes"],
-    ),
-    (
-        <EnergyBalance as Analysis>::ID,
-        &["eclipses"],
-        <OrbitGeneration as Analysis>::ID,
-        &["eclipses"],
-    ),
-];
+/// 各解析の結果の概要（`overview`）に、電源の棒グラフと隠す表を入れる。棒グラフは型付きの出力から作る
+/// （出力が無い解析は棒グラフ無し）。
+pub(super) fn add_charts(runs: &mut Runs) {
+    let hidden = hidden_tables(runs);
+    let charts = (
+        runs.load.output.as_ref().map(mode_load),
+        runs.orbit.output.as_ref().map(orbit_generation),
+        runs.balance.output.as_ref().map(energy_balance),
+        runs.sizing.output.as_ref().map(sizing),
+    );
+    put(&mut runs.load, charts.0, Vec::new());
+    put(&mut runs.orbit, charts.1, Vec::new());
+    put(&mut runs.balance, charts.2, hidden);
+    put(&mut runs.sizing, charts.3, Vec::new());
+}
 
-/// 各解析の結果の概要（`overview`）に、電源の棒グラフと隠す表を入れる。
-pub(super) fn add_charts(runs: &mut [(AnalysisEntry, AnalysisRunResult)]) {
-    let added: Vec<AnalysisOverview> = {
-        let results: Vec<&AnalysisRunResult> = runs.iter().map(|(_, r)| r).collect();
-        results
-            .iter()
-            .map(|r| overview(r, chart(r), hidden_tables(r, &results)))
-            .collect()
+fn put<A: Analysis>(run: &mut TypedRun<A>, chart: Option<OverviewChart>, hidden: Vec<Vec<String>>) {
+    run.result.overview = overview(&run.result, chart, hidden);
+}
+
+/// 「データを見る」で隠す表（電力収支の出力のうち、ほかの解析の行に同じ中身の表があるもの）。位置は出力の JSON の
+/// キー（Web が隠す表を引く）。両方の出力があり、中身が同じときだけ隠す。
+///
+/// | 隠す表 | 同じ表を持つ解析 |
+/// |---|---|
+/// | `mode_loads.modes` | `power.mode_load` の `modes` |
+/// | `eclipses` | `power.orbit_generation` の `eclipses` |
+fn hidden_tables(runs: &Runs) -> Vec<Vec<String>> {
+    let Some(balance) = &runs.balance.output else {
+        return Vec::new();
     };
-    for ((_, r), o) in runs.iter_mut().zip(added) {
-        r.overview = o;
+    let mut hidden = Vec::new();
+    let same_as_load = runs
+        .load
+        .output
+        .as_ref()
+        .is_some_and(|load| same_table(&balance.mode_loads.modes, &load.modes));
+    if same_as_load {
+        hidden.push(vec!["mode_loads".to_owned(), "modes".to_owned()]);
     }
-}
-
-/// 「データを見る」で隠す表（ほかの解析の行に同じ中身の表があるもの）。
-fn hidden_tables(r: &AnalysisRunResult, all: &[&AnalysisRunResult]) -> Vec<Vec<String>> {
-    let table = |result: &AnalysisRunResult, at: &[&str]| -> Option<Value> {
-        at.iter()
-            .try_fold(result.output.as_ref()?, |v, k| v.get(k))
-            .cloned()
-    };
-    SAME_TABLES
-        .iter()
-        .filter(|(id, ..)| *id == r.id)
-        .filter(|(_, at, other, other_at)| {
-            let mine = table(r, at);
-            mine.is_some()
-                && all
-                    .iter()
-                    .any(|o| o.id == *other && table(o, other_at) == mine)
-        })
-        .map(|(_, at, ..)| at.iter().map(|k| (*k).to_owned()).collect())
-        .collect()
-}
-
-/// 解析ごとの小さな棒グラフ（出力が無いか型に戻せなければ null）。
-fn chart(r: &AnalysisRunResult) -> Option<OverviewChart> {
-    let output = r.output.as_ref()?;
-    match r.id.as_str() {
-        id if id == <ModeLoad as Analysis>::ID => Some(mode_load(&typed(output)?)),
-        id if id == <OrbitGeneration as Analysis>::ID => Some(orbit_generation(&typed(output)?)),
-        id if id == <EnergyBalance as Analysis>::ID => Some(energy_balance(&typed(output)?)),
-        id if id == <Sizing as Analysis>::ID => Some(sizing(&typed(output)?)),
-        _ => None,
+    let same_as_orbit = runs
+        .orbit
+        .output
+        .as_ref()
+        .is_some_and(|orbit| same_table(&balance.eclipses, &orbit.eclipses));
+    if same_as_orbit {
+        hidden.push(vec!["eclipses".to_owned()]);
     }
+    hidden
 }
 
-fn typed<T: DeserializeOwned>(output: &Value) -> Option<T> {
-    serde_json::from_value(output.clone()).ok()
+/// 2 つの表が API に載る形で同じか（書き出せなければ違うとする）。
+fn same_table<T: Serialize, U: Serialize>(a: &T, b: &U) -> bool {
+    match (serde_json::to_value(a), serde_json::to_value(b)) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => false,
+    }
 }
 
 /// 名前が日本語だけのもの（設計データのモード・ケースの表示名）。

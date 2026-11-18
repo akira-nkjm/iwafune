@@ -70,7 +70,7 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
         .route("/units", get(units::catalog))
         .route("/units/parse", post(units::parse))
         .route("/units/format", post(units::format))
-        .route("/power_page", get(power_page::get))
+        .route("/power_page", get(power_page::get).post(power_page::post))
         .route("/analyses", get(analyses::catalog))
         .route("/analyses/{id}", post(analyses::run))
         .route(

@@ -62,7 +62,6 @@ const result: AnalysisRunResult = {
 };
 const page: PowerPageView = {
   modes,
-  flow: { nodes: [], edges: [], folds: [] },
   analyses: [
     {
       result,

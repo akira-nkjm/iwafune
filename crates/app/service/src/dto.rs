@@ -9,7 +9,6 @@
 //! | `check` | 解析の判定 1 つ（結果と概要の行で共有する葉の型） |
 //! | `display` | 解析表示の葉の型（名前・時系列） |
 //! | `power_page` | 電源ページの流れ・判定バー・グラフ・部品の表示定義 |
-//! | `flow` | 解析のフロー図（部品・条件と設定・解析のカードと、値 → 解析・解析 → 解析のつながり） |
 //! | `design` | 設計データの表示（プロジェクト・部品・モード表・ネット・定義・設定） |
 //! | `catalog` | カタログ品の表示（値・パス・使っている部品） |
 //! | `shared_catalog` | 共有カタログの取得・更新の入出力（lock の commit・変わった品と値） |
@@ -38,11 +37,6 @@ mod common;
 mod data;
 mod design;
 mod edit;
-mod flow;
-pub use flow::{
-    FlowEdge, FlowEdgeKind, FlowFold, FlowMember, FlowNode, FlowNodeKind, FlowQuery, FlowRow,
-    FlowView,
-};
 mod format;
 mod history;
 pub use format::{FormatDesignRequest, FormatDesignResult};

@@ -9,6 +9,7 @@
 //! | `kpi` | KPI（代表値の選び方・判定・塗りの比・判定の数え方） |
 //! | `overview` | 系の概要の解析の表の行（主な結果の選び方・判定の文の持ち主ごとのまとまり） |
 //! | `part_heat` | 熱の定常解析の部品ごとの代表の温度（節点と部品の対応・代表の選び方） |
+//! | `typed` | 型付きの実行（入力・出力を型のまま返す。電源のページが使う） |
 //! | `weather` | 高度低下の入力に宇宙天気の表から日付で引いた列を足し、使った表の版を返す |
 
 use crate::dto::{
@@ -22,6 +23,7 @@ use serde_json::Value;
 use std::collections::BTreeMap;
 
 pub use fune_projection::system::area_key;
+pub(crate) use typed::{TypedRun, run_typed_in};
 
 pub(crate) mod channels;
 pub(crate) mod checks;
@@ -30,6 +32,7 @@ pub(crate) mod kpi;
 pub mod labels;
 pub(crate) mod overview;
 mod part_heat;
+mod typed;
 mod weather;
 
 /// 解析の一覧（`GET /analyses`）。
@@ -105,6 +108,16 @@ pub fn run_analysis(
     };
     let (case, case_source) = effective_case(snapshot.as_ref(), id, req.case.as_deref());
     let outcome = run_inner(id, req, snapshot.as_ref(), case.as_deref())?;
+    Ok(finish(id, case, case_source, outcome))
+}
+
+/// 実行の途中の値から結果を組み立てる（判定・KPI・表示用の補足）。JSON の実行と型付きの実行が同じ組み立てを通る。
+fn finish(
+    id: &str,
+    case: Option<String>,
+    case_source: Option<AnalysisCaseSource>,
+    outcome: Outcome,
+) -> AnalysisRunResult {
     let checks = checks::collect_checks(outcome.output.as_ref());
     let verdict = sat_analysis::spec::Verdict::worst(checks.iter().map(|c| c.verdict));
     let kpis = kpi::kpis(
@@ -135,7 +148,7 @@ pub fn run_analysis(
     };
     result.part_heat = part_heat::part_heat(&result);
     result.overview = overview::overview(&result, None, Vec::new());
-    Ok(result)
+    result
 }
 
 /// projection のケース選択を DTO に写す。上段の姿勢則専用の ID は全体に渡さない。
@@ -232,22 +245,6 @@ fn project(
     })
 }
 
-/// 解析の射影が読んだもの（部品の属性・設定・モード・ケース。`fune_projection::ReadLog`）。ケースは
-/// [`run_analysis`] と同じ規則で選ぶ。入力を組み立てられなくても、そこまでに読んだものを返す。
-pub(crate) fn read_targets(
-    snapshot: &crate::workspace::Snapshot,
-    id: &str,
-    explicit: Option<&str>,
-) -> std::collections::BTreeSet<fune_model::Target> {
-    let (case, _) = effective_case(Some(snapshot), id, explicit);
-    let log = fune_projection::ReadLog::new();
-    if let Ok(ctx) = Context::new(&snapshot.design, &snapshot.resolved, case.as_deref()) {
-        // 入力の組み立ての成否は解析の実行（run_analysis）が返す。ここは読んだものだけを使う
-        let _ = project_json(id, &ctx.with_reads(Some(&log)));
-    }
-    log.into_targets()
-}
-
 /// JSON Merge Patch（RFC 7396）。
 fn merge_patch(mut target: Value, patch: &Value) -> Value {
     let Value::Object(p) = patch else {
@@ -270,7 +267,7 @@ fn merge_patch(mut target: Value, patch: &Value) -> Value {
 }
 
 /// 出力の量の葉ごとの次元（JSON Pointer → 次元名）と、語彙の値の表示名（JSON Pointer → 表示名）。
-/// 型付きの出力に戻して `dims::meta_of` で集め、列挙の値は `labels::value_label` で引く。
+/// 型付きの出力に戻して `dims::meta_of` で集める（[`meta_labels`]）。
 fn output_meta(
     id: &str,
     output: &Value,
@@ -285,12 +282,19 @@ fn output_meta(
     if fune_projection::visit_output(id, output, &mut c).is_err() {
         return (BTreeMap::new(), BTreeMap::new());
     }
-    let labels =
-        c.0.variants
-            .iter()
-            .filter_map(|(at, (ty, value))| Some((at.clone(), labels::value_label(ty, value)?)))
-            .collect();
-    (c.0.dims, labels)
+    meta_labels(c.0)
+}
+
+/// 集めた次元と列挙の値から、列挙の値の表示名を引く（`labels::value_label`）。
+fn meta_labels(
+    meta: dims::OutputMeta,
+) -> (BTreeMap<String, String>, BTreeMap<String, AnalysisLabel>) {
+    let labels = meta
+        .variants
+        .iter()
+        .filter_map(|(at, (ty, value))| Some((at.clone(), labels::value_label(ty, value)?)))
+        .collect();
+    (meta.dims, labels)
 }
 
 #[cfg(test)]
