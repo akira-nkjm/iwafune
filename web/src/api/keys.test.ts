@@ -13,6 +13,7 @@ describe("query keys", () => {
       keys.part("RW_X", '[{"op":"create_attribute"}]'),
       keys.defs,
       keys.diagnostics,
+      keys.history,
       keys.analysis("power.mode_load", null),
       keys.powerPage(null),
       keys.powerPage("hot_imaging"),

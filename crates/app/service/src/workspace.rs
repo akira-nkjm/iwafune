@@ -92,6 +92,18 @@ pub(crate) fn op_error(ws: &Workspace, e: fune_ops::OpError) -> ServiceError {
             expected: expected.0,
             actual: actual.0,
         },
+        OpError::NothingToStep { redo } => ServiceError::NothingToStep {
+            action: if redo { "redo" } else { "undo" },
+        },
+        OpError::HistoryMismatch {
+            redo,
+            expected,
+            actual,
+        } => ServiceError::HistoryConflict {
+            action: if redo { "redo" } else { "undo" },
+            expected: expected.0,
+            actual: actual.0,
+        },
         OpError::NotFound { what } => ServiceError::NotFound {
             what: "target",
             id: what,
