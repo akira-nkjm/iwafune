@@ -5,7 +5,7 @@ use serde_json::json;
 
 fn check(verdict: Verdict) -> CheckView {
     CheckView {
-        key: "range:N".into(),
+        key: "range_high:N".into(),
         label: "動作温度範囲".into(),
         label_en: None,
         verdict,
