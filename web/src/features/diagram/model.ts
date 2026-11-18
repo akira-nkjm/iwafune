@@ -80,9 +80,6 @@ export const groupNodeId = (id: string) => `group:${id}`;
 export const cardNodeId = (id: string) => `card:${id}`;
 export const portHandleId = (port: string) => port;
 
-const POWER_HUB_ROLE: Role = "pcdu";
-const DATA_HUB_ROLE: Role = "obc";
-
 const SIGNAL_COLOR = toneHex.blue;
 const RF_COLOR = toneHex.rose;
 
@@ -160,22 +157,18 @@ function containersOf(design: DesignView, lang: "ja" | "en"): DiagramContainer[]
 type End = { card: string; port: string; part: string };
 
 /**
- * 星形の中心と線の向き。電源は供給元、データはマスターが中心で、線は中心から各端へ向ける。
- * どちらも書かれていなければ、電源は PCDU・データは OBC を中心にする（無ければ null）。
- * 供給元の書かれていない電源のネット（太陽電池の母線など）は、電力が中心の配電へ集まるので、
- * 線は各端から中心へ向ける（`collects`）。
+ * 星形の中心と線の向き。中心のポートと向き（`collects`）は API の `NetView.hub`（供給元・マスター、無ければ役割から
+ * service が決める）。ここはそのポートの端を探すだけ。
  */
 function hubOf(
-  design: DesignView,
   net: NetView,
   ends: End[],
+  cardOfPart: ReadonlyMap<string, string>,
 ): { hub: End | null; collects: boolean } {
-  const ref = net.kind === "power" ? net.source : net.master;
-  const byRef = ends.find((e) => e.part === ref?.part && e.port === ref.port);
-  if (byRef) return { hub: byRef, collects: false };
-  const role = net.kind === "power" ? POWER_HUB_ROLE : DATA_HUB_ROLE;
-  const hub = ends.find((e) => design.parts.find((p) => p.id === e.part)?.role === role) ?? null;
-  return { hub, collects: net.kind === "power" && hub !== null };
+  const port = net.hub?.port;
+  const card = port ? cardOfPart.get(port.part) : undefined;
+  const hub = ends.find((e) => e.card === card && e.port === port?.port) ?? null;
+  return { hub, collects: hub !== null && (net.hub?.collects ?? false) };
 }
 
 /** 線の端（カードのポートかジャンクション）、端に添えるポート名、キーに使う名前（`部品.ポート`） */
@@ -233,7 +226,7 @@ export function buildModel(design: DesignView, opts: DiagramOptions): DiagramMod
       dashed: net.kind === "rf",
       detach: mergedEnd(member) ? null : { part: member.part, port: member.port },
     });
-    const { hub, collects } = hubOf(design, net, ends);
+    const { hub, collects } = hubOf(net, ends, cardOfPart);
     if (hub || ends.length === 2) {
       const h = hub ?? (ends[0] as End);
       ends

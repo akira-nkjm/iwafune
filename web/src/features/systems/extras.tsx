@@ -4,10 +4,9 @@ import { analysisOutput } from "@/api/analysis-output";
 import type { AnalysisState } from "@/api/queries";
 import type { AnalysisOutputs, DesignView, System } from "@/api/types";
 import { LazyLayout3D } from "@/features/layout3d/LazyLayout3D";
-import { heatHex, toneHex } from "@/lib/tone";
 import { hasExtras } from "./preload";
 import type { SystemTab } from "./SystemTabs";
-import { heatKey, heatMapOf, heatRatio } from "./thermal/heat";
+import { heatMapOf, partHeatColors } from "./thermal/heat";
 import { ThermalHeatmap } from "./thermal/ThermalHeatmap";
 
 function resultOf(states: readonly AnalysisState[], id: string) {
@@ -35,17 +34,7 @@ export function systemExtras(
   if (system === "thermal") {
     const map = heatMapOf(outputOf(states, "thermal.steady"));
     if (!map) return {};
-    const hottest = (node: string) => {
-      const ts = map.cases.flatMap((c) => {
-        const cell = map.cells.get(heatKey(c.id, node));
-        return cell ? [cell.temperature] : [];
-      });
-      return ts.length > 0 ? Math.max(...ts) : null;
-    };
-    const colorOf = (id: string) => {
-      const t = hottest(id);
-      return t === null ? toneHex.gray : heatHex(heatRatio(t, map));
-    };
+    const colorOf = partHeatColors(resultOf(states, "thermal.steady")?.part_heat, map);
     return {
       results: (
         <>
