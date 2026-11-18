@@ -19,6 +19,8 @@ const header = {
   file: "modes/NOMINAL.toml",
   description: null,
   max_duration: qv(45, "min", "Time", 2700),
+  when: null,
+  start: null,
 };
 
 const ok: AocsAnalysisState = { status: "ok", verdict: "ok", missing: [], error: null };

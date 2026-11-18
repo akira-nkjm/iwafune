@@ -1,18 +1,22 @@
 //! 最長継続時間での評価: 基本のモードを回し続け、その上でケースのモードを最長継続時間だけ 1 回続けたときの DoD。
 //!
-//! 開始時刻を 1 周の中で標本ごとにずらし、DoD が最大の開始を取る（蝕に重なる開始が最悪になりやすい）。
-//! ずらす 1 周は解析期間の終わりから「周期 + 最長継続時間 + 周期」前から始まる 1 周（前は基本のモードで定常に近づき、
-//! 後ろは 1 周の回復を見る）。解析期間が足りなければ期間の始めから。窓は標本の刻みで丸める
+//! 開始時刻はモードの時刻の指定（`start`・`when`。[`super::timing`]）に従って選び、指定が無いときは 1 周の中で
+//! 標本ごとにずらして DoD が最大の開始を取る（蝕に重なる開始が最悪になりやすい）。窓は標本の刻みで丸める
 //! （窓の中の標本 `t_k ≤ t < t_k + 最長継続時間` にモードの負荷・発電を使い、刻みの間は線形補間）。
+//!
+//! 判定に使う DoD・電池切れは窓から後だけの値（解析の始めの過渡を含まない。始めの過渡は基本のモードの連続のケースが判定する）。
 
 use super::case::{lit_load, mode_loads};
 use super::context::mode_generation;
+use super::timing::{DurationTiming, ModeTiming, TimeWindow, anchor_name, select_starts};
 use super::verdict::{Judged, verdicts};
 use super::{
     Context, EnergyBalanceCase, EnergyBalanceCaseResult, EnergyBalanceEvaluation, EnergyBalanceLoad,
 };
 use crate::power::battery::{self, BatteryTrace};
-use crate::spec::{AnalysisError, Channel, ChannelKind, Series, ensure_positive, quantity_text};
+use crate::spec::{
+    AnalysisError, Channel, ChannelKind, Check, Series, Verdict, ensure_positive, quantity_text,
+};
 use sat_astro::timeline::time_mean;
 use sat_units::typed::{Energy, Fraction, Power, Qty, Time};
 use serde::{Deserialize, Serialize};
@@ -25,6 +29,9 @@ pub struct EnergyBalanceDuration {
     pub base_mode: String,
     /// モードを続けた時間（モードの最長継続時間）
     pub max_duration: Qty<Time>,
+    /// 開始をどう決めたか（指定の開始・許された範囲でずらした・タイミングの指定なし）
+    #[serde(default)]
+    pub timing: DurationTiming,
     /// ずらした開始時刻の数
     pub starts: usize,
     /// 最悪の開始時刻（元期からの経過）
@@ -35,11 +42,11 @@ pub struct EnergyBalanceDuration {
     pub eclipse_overlap: Qty<Time>,
     /// 最悪の開始での最小 SOC（解析期間全体）
     pub min_soc: Fraction,
-    /// 最悪の開始での最大 DoD（1 − 解析期間全体の最小 SOC。判定に使う）
+    /// 最悪の開始での最大 DoD（1 − 解析期間全体の最小 SOC。解析の始めの過渡を含むので参考値）
     pub max_dod: Fraction,
-    /// 最悪の開始での、窓から後だけの最大 DoD（解析の始めの過渡を含まない。最悪の開始はこれで選ぶ）
+    /// 最悪の開始での、窓から後だけの最大 DoD（解析の始めの過渡を含まない。最悪の開始はこれで選び、判定にも使う）
     pub max_dod_from_start: Fraction,
-    /// 最良の開始での最大 DoD（開始によるばらつきを見るため）
+    /// 最良の開始での、窓から後だけの最大 DoD（開始によるばらつきを見るため）
     pub best_max_dod: Fraction,
     /// 基本のモードだけを回したときの最大 DoD
     pub base_max_dod: Fraction,
@@ -47,7 +54,7 @@ pub struct EnergyBalanceDuration {
     pub orbit_average_balance: Qty<Power>,
     /// 最悪の開始から 1 周のエネルギー余裕（電池の効率込み、上下限で切る前）。開始から 1 周が期間に収まらなければ None
     pub energy_margin_per_orbit: Option<Qty<Energy>>,
-    /// 電池が空になり負荷をまかなえない時間があるか
+    /// 窓から後に、電池が空になり負荷をまかなえない時間があるか（判定に使う。始めの過渡は含まない）
     pub depleted: bool,
     /// 最悪の開始の時系列: `load`・`soc`
     pub series: Series,
@@ -103,13 +110,14 @@ pub(super) fn apply(
         return Ok(None);
     }
     let load = lit_load(&ctx.profile.lit, result.load_sunlit, result.load_eclipse);
-    let Some((duration, delta)) = sweep(ctx, base, &load, d.value()) else {
+    let Some((duration, delta, note)) = sweep(ctx, base, &load, d.value(), &case.timing) else {
         return Ok(None);
     };
     let basis = format!(
-        "when the base mode {} is sustained on top for the longest duration of {} (worst start within the orbit)",
+        "when the base mode {} is sustained on top for the longest duration of {} ({})",
         base.id,
-        quantity_text::<Time>(d.value())
+        quantity_text::<Time>(d.value()),
+        timing_basis(duration.timing, &case.timing)
     );
     result
         .checks
@@ -117,16 +125,42 @@ pub(super) fn apply(
     result.checks.extend(verdicts(
         ctx.battery.dod_limit,
         &Judged {
-            max_dod: duration.max_dod.value(),
+            max_dod: duration.max_dod_from_start.value(),
             margin: duration.energy_margin_per_orbit,
             margin_over_span: None,
             depleted: duration.depleted,
         },
         &basis,
     ));
+    if let Some(note) = note {
+        result
+            .checks
+            .push(Check::new("timing", "Mode timing", Verdict::Warning, note));
+    }
     result.evaluation = EnergyBalanceEvaluation::MaxDuration;
     result.by_max_duration = Some(duration);
     Ok(Some(delta))
+}
+
+/// 判定の括弧書きのうち、開始の決め方の部分。
+fn timing_basis(how: DurationTiming, t: &ModeTiming) -> String {
+    match (how, &t.start) {
+        (DurationTiming::Fixed, Some(r)) => format!(
+            "start fixed at {} {} {}",
+            anchor_name(r.from),
+            if r.offset.value() < 0.0 { "-" } else { "+" },
+            quantity_text::<Time>(r.offset.value().abs())
+        ),
+        (DurationTiming::Windowed, _) => format!(
+            "worst start within the allowed {} windows",
+            if t.when == TimeWindow::Sunlit {
+                "sunlit"
+            } else {
+                "eclipse"
+            }
+        ),
+        _ => "worst start within the orbit; timing unspecified".to_owned(),
+    }
 }
 
 /// 正味電力の列（基本のモードと窓の中のモード）と、窓。
@@ -218,15 +252,17 @@ impl BaseRun {
     }
 }
 
-/// 開始時刻をずらして最悪を取る。最悪は窓から後の最小 SOC が最も低い開始（解析の始めの過渡は開始によらないので比べない）。
-/// 最悪の開始での刻みごとのエネルギーの増分（基本のモードの積分の前半と積分し直した分をつないだもの）も返す。
-/// 標本が無ければ None。
+/// 開始時刻を指定に従って選び（[`select_starts`]）、その中で最悪を取る。最悪は窓から後の最小 SOC が最も低い開始
+/// （解析の始めの過渡は開始によらないので比べない）。開始が 1 つに決まっていればそれだけ。
+/// 最悪の開始での刻みごとのエネルギーの増分（基本のモードの積分の前半と積分し直した分をつないだもの）と、
+/// 指定どおりに選べなかった理由（あれば）も返す。標本が無ければ None。
 fn sweep(
     ctx: &Context,
     base: &BaseMode,
     mode_load: &[f64],
     duration: f64,
-) -> Option<(EnergyBalanceDuration, Vec<f64>)> {
+    timing: &ModeTiming,
+) -> Option<(EnergyBalanceDuration, Vec<f64>, Option<String>)> {
     let t = &ctx.profile.t;
     if t.is_empty() {
         return None;
@@ -240,12 +276,13 @@ fn sweep(
         duration,
     };
     let base_run = BaseRun::new(ctx, &w);
-    let starts = start_samples(t, ctx.period_s, duration);
+    let selection = select_starts(t, &ctx.profile.lit, ctx.period_s, duration, timing);
+    let starts = selection.starts;
     let mut worst: Option<(usize, Run)> = None;
     let mut best_dod = f64::INFINITY;
     for &k in &starts {
         let r = base_run.rerun(ctx, &w, k);
-        best_dod = best_dod.min(1.0 - r.min_soc);
+        best_dod = best_dod.min(1.0 - r.tail_min);
         if worst.as_ref().is_none_or(|(_, w)| r.tail_min < w.tail_min) {
             worst = Some((k, r));
         }
@@ -257,30 +294,15 @@ fn sweep(
         .chain(&r.trace.delta_unclamped)
         .copied()
         .collect();
-    let summary = summarize(
+    let mut summary = summarize(
         ctx,
         &w,
         (k, &r, starts.len()),
         &base_run.trace,
         (best_dod, base_min),
     );
-    Some((summary, delta))
-}
-
-/// ずらす開始の標本（1 周分）。最初の標本は窓の前の刻みが無く窓が半刻み短くなるので、標本が 2 つ以上あれば開始にしない。
-fn start_samples(t: &[f64], period_s: f64, duration: f64) -> Vec<usize> {
-    let (t0, end) = (t[0], t[t.len() - 1]);
-    let valid = period_s.is_finite() && period_s > 0.0;
-    let from = if valid {
-        (end - duration - 2.0 * period_s).max(t0)
-    } else {
-        t0
-    };
-    let tol = 1e-9 * period_s.abs().max(1.0);
-    let first = usize::from(t.len() > 1);
-    (first..t.len())
-        .filter(|&k| t[k] >= from - tol && (!valid || t[k] < from + period_s - tol))
-        .collect()
+    summary.timing = selection.timing;
+    Some((summary, delta, selection.note))
 }
 
 /// 最悪の開始の結果をまとめる。
@@ -299,10 +321,9 @@ fn summarize(
         .iter()
         .filter(|&&j| j + 1 < n && !ctx.profile.lit[j])
         .map(|&j| t[j + 1] - t[j])
-        .sum();
+        // 空の和は -0.0 になる（`Sum` の単位元）ので 0.0 から足す
+        .fold(0.0, |total, dt| total + dt);
     let (balance, margin) = orbit_after(ctx, w, k, r);
-    let depleted =
-        r.trace.depleted || (0..r.from).any(|j| base_trace.energy[j] <= 0.0 && w.base_net[j] < 0.0);
     let load: Vec<f64> = (0..n).map(|j| w.load(t, k, j)).collect();
     let soc: Vec<f64> = base_trace.energy[..r.from]
         .iter()
@@ -316,6 +337,7 @@ fn summarize(
     };
     EnergyBalanceDuration {
         base_mode: w.base.id.clone(),
+        timing: DurationTiming::Unspecified,
         max_duration: Qty::from_raw(w.duration),
         starts,
         worst_start: Qty::from_raw(t[k]),
@@ -328,7 +350,7 @@ fn summarize(
         base_max_dod: Fraction::new(1.0 - base_min),
         orbit_average_balance: Qty::from_raw(balance),
         energy_margin_per_orbit: margin.map(Qty::from_raw),
-        depleted,
+        depleted: r.trace.depleted,
         series: Series {
             t: t.clone(),
             channels: vec![

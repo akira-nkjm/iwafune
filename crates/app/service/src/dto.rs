@@ -90,9 +90,9 @@ pub use data::{DataItem, DataStatus, SpaceWeatherLookup, SpaceWeatherQuery, Spac
 pub use design::PartViewRequest;
 pub use design::{
     AttrSection, AttributeDefView, CaseView, DefsView, DesignCounts, DesignView, HarnessView,
-    KindDefView, ModeHeader, ModeRow, ModeTable, ModeValuesView, NetView, PartRow, PartView,
-    PartsQuery, PortView, ProjectInfo, SettingView, SystemModeView, SystemModesView, TreeNode,
-    TreeNodeKind, ValueAnswer, ValueQuery,
+    KindDefView, ModeHeader, ModeRow, ModeSegmentView, ModeSequenceView, ModeStartView, ModeTable,
+    ModeValuesView, NetView, PartRow, PartView, PartsQuery, PortView, ProjectInfo, SettingView,
+    SystemModeView, SystemModesView, TreeNode, TreeNodeKind, ValueAnswer, ValueQuery,
 };
 pub use edit::{
     ApplyRequest, ApplyResult, ChangedFile, FileChangeKind, InitResult, PlaceBodyRequest, SetText,
@@ -101,8 +101,8 @@ pub use edit::{
 pub use fune_model::design::PartField;
 pub use fune_model::design::{
     AttributeDef, Case, CatalogField, CatalogItem, Distribution, Harness, KindDef, Maneuver,
-    ManeuverCategory, ManeuverConstraints, ManeuverMethod, ManeuverTarget, Net, NetField, NetKind,
-    Pose, Source, SourceKind, UncertaintySide,
+    ManeuverCategory, ManeuverConstraints, ManeuverMethod, ManeuverTarget, ModeSegment, ModeWhen,
+    Net, NetField, NetKind, Pose, Source, SourceKind, StartFrom, StartRef, UncertaintySide,
 };
 pub use fune_model::design::{BudgetKind, SharedCatalogState, SharedCatalogStatus, StateAssign};
 pub use fune_model::design::{ViewEdge, ViewLayout, ViewNode, ViewPortSide};

@@ -11,6 +11,8 @@ const mode = (max_duration: QuantityView | null): ModeHeader => ({
   description: null,
   file: "modes/DOWNLINK.toml",
   max_duration,
+  when: null,
+  start: null,
 });
 
 const render = (m: ModeHeader) =>

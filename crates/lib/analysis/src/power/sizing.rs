@@ -4,7 +4,7 @@
 //! - 時系列の逆算（[`series`]）: 電力収支と同じ運用で 1 周の収支 ≥ 0 の最小面積と、DoD が上限に収まる最小容量。
 //!   KPI と判定（`sap_margin`・`battery_margin`・`mode_checks`）はこちらで行う（`basis`）。判定できなければ SMAD で行う。
 use super::battery::EnergyBalanceBattery;
-use super::energy_balance::EnergyBalanceSegment;
+use super::energy_balance::{EnergyBalanceSegment, ModeTiming, SequenceTiming};
 use super::mode_load::{ModeLoad, ModeLoadInput};
 use super::solar::{SolarArray, SolarPanel};
 use crate::orbit::{EclipseSeason, EclipseSeasonInput, EclipseSeasonPoint};
@@ -92,9 +92,15 @@ pub struct SizingInput {
     /// モードの最長継続時間（`power.energy_balance` と同じ。時系列の逆算で基本のモードの上に 1 回入れる）
     #[serde(default)]
     pub max_durations: BTreeMap<String, Qty<Time>>,
+    /// モードごとの時刻の指定（`power.energy_balance` と同じ。最長継続時間の開始の選び方）
+    #[serde(default)]
+    pub mode_timings: BTreeMap<String, ModeTiming>,
     /// モードの並び（`power.energy_balance` と同じ。全モードを逆算するときだけ時系列の逆算に使う）
     #[serde(default)]
     pub sequence: Vec<EnergyBalanceSegment>,
+    /// 並びの名前と先頭の位置（`power.energy_balance` と同じ）
+    #[serde(default)]
+    pub sequence_timing: SequenceTiming,
     /// 最長継続時間の評価で下に敷く基本のモード（`power.energy_balance` と同じ）
     #[serde(default)]
     pub base_mode: Option<String>,

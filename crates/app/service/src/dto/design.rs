@@ -180,12 +180,46 @@ pub struct PortView {
 pub struct ModeTable {
     pub modes: Vec<ModeHeader>,
     pub rows: Vec<ModeRow>,
+    /// 電源のモードの並び（名前の順。`default` があれば最初）。無ければ空
+    pub sequences: Vec<ModeSequenceView>,
+    /// 解析に使う並びの名前（`PowerSettings::active_sequence_name`。並びが無ければ null）
+    pub active_sequence: Option<String>,
+}
+
+/// 食の出入りからの位置の指定（開始の基準・並びの先頭の位置）。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ModeStartView {
+    pub from: fune_model::design::StartFrom,
+    /// 書かれたオフセット（無ければ null = 0）
+    pub offset: Option<QuantityView>,
+}
+
+/// モードの並び 1 つ。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ModeSequenceView {
+    pub name: String,
+    /// 名前の無い従来の `[[sequence]]` の形で書かれているか
+    pub legacy: bool,
+    /// 並びの先頭の位置（無ければ解析の始め）
+    pub anchor: Option<ModeStartView>,
+    pub segments: Vec<ModeSegmentView>,
+}
+
+/// 並びの区間 1 つ。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ModeSegmentView {
+    pub mode: String,
+    pub duration: QuantityView,
 }
 
 /// モードの列見出し。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ModeHeader {
     pub max_duration: Option<QuantityView>,
+    /// 最長継続時間の評価で使う時間帯（書かれていなければ null = 指定なし）
+    pub when: Option<fune_model::design::ModeWhen>,
+    /// 最長継続時間の評価の開始の指定（無ければ null）
+    pub start: Option<ModeStartView>,
     pub id: String,
     pub label: String,
     pub description: Option<String>,

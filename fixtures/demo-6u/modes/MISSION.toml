@@ -1,6 +1,7 @@
 label        = "Imaging"
 description  = "Imaging, nadir-pointing. RWs run at peak output over the target"
 max_duration = { value = 10.0, unit = "min" }
+when         = "sunlit"
 
 [states]
 CAM     = { state = "standby", duty = { on = 0.5 } }

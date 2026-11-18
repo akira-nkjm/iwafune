@@ -47,6 +47,11 @@ pub const SETTING_ENUMS: &[SettingEnum] = &[
     ),
     row(
         SettingScope::Analysis,
+        &["power", "sequences", ANY, "anchor", "from"],
+        "start_from",
+    ),
+    row(
+        SettingScope::Analysis,
         &["comm", "link", ANY, "direction"],
         "link_direction",
     ),

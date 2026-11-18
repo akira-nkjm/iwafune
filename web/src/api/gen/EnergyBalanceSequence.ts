@@ -7,9 +7,17 @@ import type { EnergyBalanceSegment } from "./EnergyBalanceSegment";
  */
 export type EnergyBalanceSequence = { 
 /**
+ * 使った並びの名前（無名の並びは None）
+ */
+name: string | null, 
+/**
  * 並びの 1 周期（区間の長さの合計）
  */
 cycle: number, 
+/**
+ * 並びの先頭の時刻（元期からの経過）。基準が無ければ解析の始め
+ */
+origin: number, 
 /**
  * 並びの区間（入力の順）
  */

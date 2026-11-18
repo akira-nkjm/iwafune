@@ -4,6 +4,8 @@ import type { EclipseSeasonInput } from "./EclipseSeasonInput";
 import type { EnergyBalanceBattery } from "./EnergyBalanceBattery";
 import type { EnergyBalanceSegment } from "./EnergyBalanceSegment";
 import type { ModeLoadInput } from "./ModeLoadInput";
+import type { ModeTiming } from "./ModeTiming";
+import type { SequenceTiming } from "./SequenceTiming";
 import type { SizingCell } from "./SizingCell";
 import type { SizingOptions } from "./SizingOptions";
 import type { SolarArray } from "./SolarArray";
@@ -34,9 +36,17 @@ array: SolarArray, cells: Array<SizingCell>, batteries: Array<EnergyBalanceBatte
  */
 max_durations: { [key in string]: number }, 
 /**
+ * モードごとの時刻の指定（`power.energy_balance` と同じ。最長継続時間の開始の選び方）
+ */
+mode_timings: { [key in string]: ModeTiming }, 
+/**
  * モードの並び（`power.energy_balance` と同じ。全モードを逆算するときだけ時系列の逆算に使う）
  */
 sequence: Array<EnergyBalanceSegment>, 
+/**
+ * 並びの名前と先頭の位置（`power.energy_balance` と同じ）
+ */
+sequence_timing: SequenceTiming, 
 /**
  * 最長継続時間の評価で下に敷く基本のモード（`power.energy_balance` と同じ）
  */

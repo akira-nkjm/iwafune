@@ -190,6 +190,22 @@ pub enum ModeCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// Write when a mode is used in the longest-duration evaluation (e.g. `fune mode timing MISSION --when sunlit`
+    /// or `fune mode timing DOWNLINK --start eclipse_exit --offset "5 min"`; omit every flag to remove the timing)
+    Timing {
+        mode: String,
+        /// Time window the mode may be used in (any / sunlit / eclipse)
+        #[arg(long)]
+        when: Option<String>,
+        /// Fix the start at an eclipse event (eclipse_exit / eclipse_entry)
+        #[arg(long)]
+        start: Option<String>,
+        /// Offset from the eclipse event (negative means before; needs --start)
+        #[arg(long, allow_hyphen_values = true)]
+        offset: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// Set the state of a part in a mode (e.g. `fune mode set NOMINAL TRX rx --duty tx=0.1`)
     Set {
         mode: String,
@@ -308,6 +324,35 @@ pub enum NetCmd {
     /// Disconnect a part's port from a net
     Disconnect {
         port: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+}
+
+/// `fune sequence …`
+#[derive(Debug, Subcommand)]
+pub enum SequenceCmd {
+    /// List the named mode sequences
+    Ls,
+    /// Write a named mode sequence in full (e.g. `fune sequence set imaging_day --segments "NOMINAL=76 min,MISSION=5 min" --anchor eclipse_exit`).
+    /// Choose the one the analyses use with `fune setting set analysis.power.active_sequence <name>`
+    Set {
+        name: String,
+        /// Segments as `mode=length`, separated by commas (repeated every cycle)
+        #[arg(long)]
+        segments: String,
+        /// Start the sequence at an eclipse event (eclipse_exit / eclipse_entry); omit to start at the beginning of the analysis
+        #[arg(long)]
+        anchor: Option<String>,
+        /// Offset from the eclipse event (negative means before; needs --anchor)
+        #[arg(long, allow_hyphen_values = true)]
+        offset: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Remove a named mode sequence
+    Rm {
+        name: String,
         #[command(flatten)]
         edit: EditOpts,
     },

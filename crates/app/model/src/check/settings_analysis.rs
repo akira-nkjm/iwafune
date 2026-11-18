@@ -3,7 +3,9 @@
 
 use super::Ctx;
 use super::settings::{Scope, scope};
-use crate::design::{AnalysisSystem, CommLinkSettings, Design, SettingEntry};
+use crate::design::{
+    AnalysisSystem, CommLinkSettings, DEFAULT_SEQUENCE, Design, PowerSettings, SettingEntry,
+};
 
 /// `analysis/` の全体。`entries` は `Design::setting_entries`。
 pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
@@ -126,6 +128,45 @@ fn check_power(ctx: &mut Ctx) {
             mode_exists(design, mode),
             "ref.mode",
             format!("Mode `{mode}`"),
+        );
+    }
+    check_sequences(&mut s, design, p);
+}
+
+/// 名前付きのモードの並び: 区間・モードの参照・従来の `[[sequence]]` との重なり・使う並びの存在。
+fn check_sequences(s: &mut Scope<'_, '_>, design: &Design, p: &PowerSettings) {
+    if !p.sequence.is_empty() && p.sequences.contains_key(DEFAULT_SEQUENCE) {
+        s.error(
+            &["sequence"],
+            "setting.sequence_conflict",
+            format!(
+                "`[[sequence]]` and `[sequences.{DEFAULT_SEQUENCE}]` are both written. `[[sequence]]` is the sequence named `{DEFAULT_SEQUENCE}`; keep only one"
+            ),
+        );
+    }
+    for (name, seq) in &p.sequences {
+        if seq.segments.is_empty() {
+            s.error(
+                &["sequences", name.as_str(), "segments"],
+                "setting.sequence_empty",
+                format!("Sequence `{name}` has no segments"),
+            );
+        }
+        for seg in &seq.segments {
+            s.reference(
+                &["sequences", name.as_str(), "segments"],
+                mode_exists(design, &seg.mode),
+                "ref.mode",
+                format!("Mode `{}`", seg.mode),
+            );
+        }
+    }
+    if let Some(active) = &p.active_sequence {
+        s.reference(
+            &["active_sequence"],
+            p.sequence(active).is_some(),
+            "ref.sequence",
+            format!("Sequence `{active}`"),
         );
     }
 }

@@ -36,6 +36,30 @@ pub enum CommandText {
         mode: String,
         duration: Option<String>,
     },
+    /// `fune mode timing <モード> --when sunlit|eclipse|any --start eclipse_exit|eclipse_entry --offset "5 min"`。
+    /// 旗を 1 つも書かなければ時刻の指定を消す。`offset` は `start` があるときだけ書ける。
+    ModeTiming {
+        mode: String,
+        #[serde(default)]
+        when: Option<String>,
+        #[serde(default)]
+        start: Option<String>,
+        #[serde(default)]
+        offset: Option<String>,
+    },
+    /// `fune sequence set <名前> --segments "NOMINAL=76 min,MISSION=5 min" --anchor eclipse_exit --offset "0 min"`
+    /// （並びを丸ごと書く。`anchor` が無ければ解析の始めから）。
+    SequenceSet {
+        name: String,
+        /// `モード=長さ` のカンマ区切り（`--duty` と同じ書き方）
+        segments: String,
+        #[serde(default)]
+        anchor: Option<String>,
+        #[serde(default)]
+        offset: Option<String>,
+    },
+    /// `fune sequence rm <名前>`。
+    SequenceRemove { name: String },
     /// `fune attr add <ID> --dimension … --units …`
     AttrAdd(AttrAddText),
     /// `fune kind add <ID> --states off,on --required mass --port PWR=power`

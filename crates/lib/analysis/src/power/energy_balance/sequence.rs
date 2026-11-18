@@ -1,14 +1,16 @@
 //! モードの並びで回す電力収支: 並び（1 周期分）を繰り返して解析期間を覆い、標本ごとにその時刻のモードの
 //! 負荷（日照中・日陰中、蝕の上書きは `mode_load` の評価のまま）と姿勢則の発電を使って電池を積分する。
 //!
-//! 時刻 `t` のモードは、解析の開始からの経過を周期で割った余りが入る区間（`[始め, 終わり)`）のモード。
+//! 時刻 `t` のモードは、並びの先頭からの経過を周期で割った余りが入る区間（`[始め, 終わり)`）のモード。
+//! 並びの先頭は解析の開始、または食の出入り + オフセット（`sequence_timing.anchor`。最初の出入りに合わせ、以後は周期で繰り返す）。
 //! 区間の境目は標本の刻みで丸める（刻みの間は線形補間）。
 
 use super::case::{balance, duty_of, mode_loads};
 use super::context::mode_generation;
+use super::timing::sequence_origin;
 use super::{Context, EnergyBalanceCaseResult, EnergyBalanceEvaluation, EnergyBalanceInput};
 use crate::power::battery::BatteryTrace;
-use crate::spec::{AnalysisError, ensure_positive};
+use crate::spec::{AnalysisError, Check, Verdict, ensure_positive};
 use sat_units::typed::{Power, Qty, Time};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -25,8 +27,13 @@ pub struct EnergyBalanceSegment {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct EnergyBalanceSequence {
+    /// 使った並びの名前（無名の並びは None）
+    #[serde(default)]
+    pub name: Option<String>,
     /// 並びの 1 周期（区間の長さの合計）
     pub cycle: Qty<Time>,
+    /// 並びの先頭の時刻（元期からの経過）。基準が無ければ解析の始め
+    pub origin: Qty<Time>,
     /// 並びの区間（入力の順）
     pub segments: Vec<EnergyBalanceSegment>,
     /// 並びに沿って負荷と姿勢則を切り替えた収支（`id` は `sequence`）。
@@ -63,6 +70,19 @@ pub(super) fn evaluate(
     }
     let cycle = validate(input)?;
     let mut checks = Vec::new();
+    let (origin, anchor_note) = sequence_origin(
+        &ctx.profile.t,
+        &ctx.profile.lit,
+        input.sequence_timing.anchor.as_ref(),
+    );
+    if let Some(note) = anchor_note {
+        checks.push(Check::new(
+            "sequence_anchor",
+            "Sequence anchor",
+            Verdict::Warning,
+            note,
+        ));
+    }
     let mut modes: BTreeMap<&str, ModeColumns> = BTreeMap::new();
     for s in &input.sequence {
         if !modes.contains_key(s.mode.as_str()) {
@@ -75,7 +95,7 @@ pub(super) fn evaluate(
         .iter()
         .filter_map(|s| modes.get(s.mode.as_str()))
         .collect();
-    let (load, generation) = along_sequence(ctx, &columns, cycle);
+    let (load, generation) = along_sequence(ctx, &columns, (origin, cycle));
     let means = (lit_mean(ctx, &load, true), lit_mean(ctx, &load, false));
     let mixed = ctx.with_generation(generation);
     let (mut result, trace) = balance(
@@ -89,7 +109,9 @@ pub(super) fn evaluate(
     result.evaluation = EnergyBalanceEvaluation::Sequence;
     result.duty = duty_of(input, input.sequence.iter().map(|s| s.mode.as_str()));
     let sequence = EnergyBalanceSequence {
+        name: input.sequence_timing.name.clone(),
         cycle: Qty::from_raw(cycle),
+        origin: Qty::from_raw(origin),
         segments: input.sequence.clone(),
         balance: result,
     };
@@ -97,7 +119,11 @@ pub(super) fn evaluate(
 }
 
 /// 標本ごとの負荷と発電の列。`columns[i]` は並びの `i` 番目の区間のモードの値。
-fn along_sequence(ctx: &Context, columns: &[&ModeColumns], cycle: f64) -> (Vec<f64>, Vec<f64>) {
+fn along_sequence(
+    ctx: &Context,
+    columns: &[&ModeColumns],
+    (origin, cycle): (f64, f64),
+) -> (Vec<f64>, Vec<f64>) {
     let ends: Vec<f64> = ctx
         .input
         .sequence
@@ -108,11 +134,10 @@ fn along_sequence(ctx: &Context, columns: &[&ModeColumns], cycle: f64) -> (Vec<f
         })
         .collect();
     let t = &ctx.profile.t;
-    let t0 = t.first().copied().unwrap_or(0.0);
     let last = columns.len().saturating_sub(1);
     let (mut load, mut generation) = (Vec::with_capacity(t.len()), Vec::with_capacity(t.len()));
     for (k, &tk) in t.iter().enumerate() {
-        let phase = (tk - t0).rem_euclid(cycle);
+        let phase = (tk - origin).rem_euclid(cycle);
         let i = ends.iter().position(|&e| phase < e).unwrap_or(last);
         let Some(((sun, ecl), g)) = columns.get(i) else {
             continue;

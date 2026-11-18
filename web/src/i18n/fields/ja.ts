@@ -146,6 +146,8 @@ const labels: Record<string, string> = {
   base_max_dod: "基本のモードだけの最大 DoD",
   depleted: "電池切れ",
   cycle: "並びの 1 周期",
+  origin: "並びの先頭の時刻",
+  timing: "開始の決め方",
   segments: "並びの区間",
   balance: "収支",
   sequence: "モードの並び",

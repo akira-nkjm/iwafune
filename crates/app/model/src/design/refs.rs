@@ -8,7 +8,7 @@
 //! |---|---|
 //! | 部品 | モードの `[states]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part`・`analysis/thermal.toml` の `[nodes]`・図の `[nodes]` のキー・マヌーバの `thruster` |
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
-//! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode` |
+//! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode` |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets` |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire` |
 //! | カタログ（`[[catalog]]` の名前。出所を外すのを拒むためだけ。書き換えはしない） | 部品の `catalog`・`candidates`・ハーネスの `wire` のうち `<名前>/…` のもの |
@@ -92,6 +92,8 @@ pub enum RefSite {
     PowerModeShare,
     /// 電源のモードの並びの区間（`[[sequence]]` の `index` 番目の `mode`）
     PowerSequence { index: usize },
+    /// 電源の名前付きのモードの並びの区間（`[[sequences.<名前>.segments]]` の `index` 番目の `mode`）
+    PowerNamedSequence { sequence: String, index: usize },
     /// 電源の基本のモード（`analysis/power.toml` の `base_mode`）
     PowerBaseMode,
     /// 姿勢則のキー（`analysis/aocs.toml` の `[law]`）
@@ -258,6 +260,18 @@ impl Design {
                     .filter(|(_, s)| s.mode == id)
                     .map(|(index, _)| RefSite::PowerSequence { index }),
             );
+            for (name, s) in &p.sequences {
+                out.extend(
+                    s.segments
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, seg)| seg.mode == id)
+                        .map(|(index, _)| RefSite::PowerNamedSequence {
+                            sequence: name.clone(),
+                            index,
+                        }),
+                );
+            }
             if p.base_mode.as_deref() == Some(id) {
                 out.push(RefSite::PowerBaseMode);
             }

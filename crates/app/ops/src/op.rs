@@ -3,8 +3,8 @@
 //! JSON では `{ "op": "set_value", ... }` の形（`op` が種類）。
 
 use fune_model::design::{
-    AttributeDef, Case, CatalogField, Harness, KindDef, Maneuver, Maturity, Net, NetField,
-    PartField, Pose, Source,
+    AttributeDef, Case, CatalogField, Harness, KindDef, Maneuver, Maturity, ModeSegment, ModeWhen,
+    Net, NetField, PartField, Pose, Source, StartRef,
 };
 use fune_model::value::{Provenance, Quaternion, SettingValue, Value, Vector3};
 use serde::{Deserialize, Serialize};
@@ -224,6 +224,28 @@ pub enum Op {
     SetModeDuration {
         mode: String,
         duration: Option<fune_model::value::Quantity>,
+    },
+    /// モードの時刻の指定（最長継続時間の評価で使う時間帯 `when` と、開始の基準 `start`）。どちらも None なら指定を消す。
+    SetModeTiming {
+        mode: String,
+        #[serde(default)]
+        when: Option<ModeWhen>,
+        #[serde(default)]
+        start: Option<StartRef>,
+    },
+    /// 電源のモードの並びを名前付きで丸ごと書く（`analysis/power.toml` の `[sequences.<名前>]`）。無ければ作る。
+    /// 従来の名前の無い `[[sequence]]` は `default` の並びなので、`default` を書くと `[[sequence]]` は消える（移行）。
+    /// 使う並びの選択は `SetSetting` の `analysis.power.active_sequence`。
+    SetSequence {
+        name: String,
+        /// 並びの先頭の位置（食の出入り + オフセット）。None なら解析の始め
+        #[serde(default)]
+        anchor: Option<StartRef>,
+        segments: Vec<ModeSegment>,
+    },
+    /// 電源のモードの並びを消す（使う並びだった場合は選択も外す）。
+    RemoveSequence {
+        name: String,
     },
     /// モード表のセルを一括で書く（GUI の表の編集）。
     SetModeStates {

@@ -25,6 +25,7 @@ pub mod defs;
 pub mod maneuver;
 pub mod net;
 pub mod part;
+pub mod power_sequences;
 pub mod project;
 pub mod refs;
 pub mod setting_dims;
@@ -34,6 +35,7 @@ pub mod source;
 pub mod source_map;
 pub mod system;
 pub mod thermal_settings;
+pub mod timing;
 pub mod view;
 
 pub use analysis::*;
@@ -42,6 +44,7 @@ pub use conditions::*;
 pub use defs::*;
 pub use maneuver::*;
 pub use part::*;
+pub use power_sequences::{DEFAULT_SEQUENCE, SequenceView};
 pub use project::*;
 pub use refs::{HarnessEnd, NetEnd, RefSite, Referent};
 pub use settings_view::SettingEntry;
@@ -49,6 +52,7 @@ pub use shared_catalog::{CatalogLock, LockedCatalog, SharedCatalogState, SharedC
 pub use source_map::{EntityKey, Loc, SourceMap};
 pub use system::*;
 pub use thermal_settings::*;
+pub use timing::*;
 pub use view::{ViewEdge, ViewLayout, ViewNode, ViewPortSide};
 
 use crate::chain::chain;

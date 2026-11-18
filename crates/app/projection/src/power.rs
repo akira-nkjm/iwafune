@@ -3,14 +3,13 @@
 use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::parts::{self, by_role, direction_body, label, ratio, state_values};
-use crate::quantity::{qty_opt, setting};
+use crate::quantity::qty_opt;
 use crate::timeline;
 use fune_model::Target;
 use fune_model::builtin::Role;
 use fune_model::design::AnalysisSystem;
-use fune_model::design::setting_dims as dims;
 use sat_analysis::power::energy_balance::{
-    EnergyBalance, EnergyBalanceBattery, EnergyBalanceCase, EnergyBalanceLoad, EnergyBalanceSegment,
+    EnergyBalance, EnergyBalanceBattery, EnergyBalanceCase, EnergyBalanceLoad,
 };
 use sat_analysis::power::mode_load::ModeLoadPart;
 use sat_analysis::power::solar::{SolarArray, SolarPanel};
@@ -22,6 +21,7 @@ use sat_analysis::spec::Analysis;
 use sat_astro::timeline::TimelineSpec;
 use sat_units::typed::{Area, Energy, Power, Time, Voltage};
 
+mod sequence;
 mod sizing;
 mod thrust;
 pub use sizing::sizing;
@@ -157,7 +157,7 @@ pub fn orbit_generation(ctx: &Context<'_>) -> Result<OrbitGenerationInput, Missi
 }
 
 /// `power.energy_balance`: モードごとに 1 ケース（ケースを選べばそのモードだけ）と、モードの並び
-/// （`analysis.power.sequence`）・基本のモード（`analysis.power.base_mode`）・モードの最長継続時間。
+/// （`analysis.power.active_sequence` の並び。[`sequence::active`]）・基本のモード（`analysis.power.base_mode`）・モードの最長継続時間。
 pub fn energy_balance(ctx: &Context<'_>) -> Result<EnergyBalanceInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let array = solar_array(ctx, &mut m);
@@ -177,9 +177,10 @@ pub fn energy_balance(ctx: &Context<'_>) -> Result<EnergyBalanceInput, MissingIn
             },
             attitude: mode_law(ctx, md.id.as_str()),
             max_duration: max_duration(md, &mut m),
+            timing: sequence::mode_timing(md, &mut m),
         })
         .collect();
-    let sequence = sequence(ctx, &mut m);
+    let (sequence, sequence_timing) = sequence::active(ctx, &mut m);
     let base_mode = base_mode(ctx);
     m.finish(|| {
         Some(EnergyBalanceInput {
@@ -191,6 +192,7 @@ pub fn energy_balance(ctx: &Context<'_>) -> Result<EnergyBalanceInput, MissingIn
             load_growth: None,
             cases,
             sequence,
+            sequence_timing,
             base_mode,
             mode_attitudes: mode_law_map(ctx),
         })
@@ -219,34 +221,6 @@ fn base_mode(ctx: &Context<'_>) -> Option<String> {
             .as_ref()
             .and_then(|p| p.base_mode.clone()),
     )
-}
-
-/// モードの並び（`analysis.power.sequence`）。区間の長さの次元が違えば不足入力。
-fn sequence(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceSegment> {
-    let Some(p) = ctx.design.analysis.power.as_ref() else {
-        return Vec::new();
-    };
-    if !p.sequence.is_empty() {
-        ctx.note(power_key(&["sequence"]));
-    }
-    p.sequence
-        .iter()
-        .enumerate()
-        .filter_map(|(i, s)| {
-            let index = i.to_string();
-            let duration = setting(
-                &dims::POWER_SEQUENCE_DURATION,
-                &[index.as_str()],
-                Some(&s.duration),
-                "Length of the mode sequence interval",
-                m,
-            )?;
-            Some(EnergyBalanceSegment {
-                mode: s.mode.clone(),
-                duration,
-            })
-        })
-        .collect()
 }
 
 /// 電力収支と逆算の上段の時系列。既定ケースから借りるのは姿勢則のモードだけで、β・周回数などは元の ctx を使う。

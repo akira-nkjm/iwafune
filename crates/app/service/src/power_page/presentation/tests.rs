@@ -148,6 +148,7 @@ fn builder_returns_selected_mode_values_bands_and_soc_limit() {
         load_growth: Some(LoadGrowth::Included),
         cases: vec![EnergyBalanceCase {
             max_duration: None,
+            timing: Default::default(),
             id: "nominal".into(),
             label: "Nominal".into(),
             load: EnergyBalanceLoad::Mode {
@@ -156,6 +157,7 @@ fn builder_returns_selected_mode_values_bands_and_soc_limit() {
             attitude: None,
         }],
         sequence: Vec::new(),
+        sequence_timing: Default::default(),
         base_mode: None,
         mode_attitudes: Default::default(),
     };

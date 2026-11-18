@@ -246,6 +246,8 @@ export const fixture: DesignView = {
         label: "定常",
         description: null,
         max_duration: null,
+        when: null,
+        start: null,
         file: "modes/NOMINAL.toml",
       },
       {
@@ -253,6 +255,8 @@ export const fixture: DesignView = {
         label: "セーフ",
         description: null,
         max_duration: null,
+        when: null,
+        start: null,
         file: "modes/SAFE.toml",
       },
     ],
@@ -288,6 +292,8 @@ export const fixture: DesignView = {
         shares: { NOMINAL: { tx: qv(10, "%", "Dimensionless", 0.1) } },
       },
     ],
+    sequences: [],
+    active_sequence: null,
   },
   nets: [
     net(

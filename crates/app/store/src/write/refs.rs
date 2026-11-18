@@ -184,6 +184,7 @@ fn rename_at(
         | RefSite::CaseMode { .. }
         | RefSite::PowerModeShare
         | RefSite::PowerSequence { .. }
+        | RefSite::PowerNamedSequence { .. }
         | RefSite::PowerBaseMode
         | RefSite::AttitudeLaw
         | RefSite::ThermalCaseMode { .. } => rename_setting_at(edits, site, names),
@@ -277,6 +278,16 @@ fn rename_setting_at(
         RefSite::PowerSequence { index } => edits.edit(&power(), |doc| {
             let segment = doc
                 .get_mut("sequence")
+                .and_then(Item::as_array_of_tables_mut)
+                .and_then(|a| a.get_mut(*index));
+            if let Some(t) = segment {
+                set(t, "mode", string(to));
+            }
+            Ok(())
+        }),
+        RefSite::PowerNamedSequence { sequence, index } => edits.edit(&power(), |doc| {
+            let segment = table_opt(doc, &["sequences", sequence])
+                .and_then(|t| t.get_mut("segments"))
                 .and_then(Item::as_array_of_tables_mut)
                 .and_then(|a| a.get_mut(*index));
             if let Some(t) = segment {

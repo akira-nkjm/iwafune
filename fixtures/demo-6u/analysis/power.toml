@@ -24,3 +24,37 @@ duration = { value = 5.0, unit = "min" }
 [[sequence]]
 mode     = "DOWNLINK"
 duration = { value = 9.6, unit = "min" }
+
+[sequences.imaging]
+anchor = { from = "eclipse_exit" }
+
+[[sequences.imaging.segments]]
+mode     = "NOMINAL"
+duration = { value = 40.0, unit = "min" }
+
+[[sequences.imaging.segments]]
+mode     = "MISSION"
+duration = { value = 10.0, unit = "min" }
+
+[[sequences.imaging.segments]]
+mode     = "NOMINAL"
+duration = { value = 35.6, unit = "min" }
+
+[[sequences.imaging.segments]]
+mode     = "DOWNLINK"
+duration = { value = 10.0, unit = "min" }
+
+[sequences.downlink]
+anchor = { from = "eclipse_exit", offset = { value = 10.0, unit = "min" } }
+
+[[sequences.downlink.segments]]
+mode     = "NOMINAL"
+duration = { value = 60.0, unit = "min" }
+
+[[sequences.downlink.segments]]
+mode     = "DOWNLINK"
+duration = { value = 15.0, unit = "min" }
+
+[[sequences.downlink.segments]]
+mode     = "NOMINAL"
+duration = { value = 20.6, unit = "min" }

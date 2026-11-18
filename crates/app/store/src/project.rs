@@ -103,6 +103,8 @@ fn template_design(name: &str) -> (Project, Allocations, BudgetPolicy, Mode) {
         states: BTreeMap::new(),
 
         max_duration: None,
+        when: None,
+        start: None,
         eclipse: Default::default(),
     };
     (project, allocations, policy, safe)

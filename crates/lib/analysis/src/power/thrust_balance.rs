@@ -101,6 +101,7 @@ fn balance_input(
     let mut run = input.clone();
     run.cases.clear();
     run.sequence.clear();
+    run.sequence_timing = Default::default();
     let block = !t.sunlit_only() && duty < 1.0;
     if block {
         let period = input.timeline.orbit().period_s();
@@ -131,6 +132,7 @@ fn balance_input(
             load,
             attitude: None,
             max_duration: None,
+            timing: Default::default(),
         }];
     }
     (run, block)

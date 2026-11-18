@@ -31,6 +31,7 @@ fn balance(i: &SizingInput, o: &SizingOutput, area: f64, capacity: f64) -> Energ
             load: EnergyBalanceLoad::Mode { mode: m.id.clone() },
             attitude: i.mode_laws.get(&m.id).cloned(),
             max_duration: i.max_durations.get(&m.id).copied(),
+            timing: i.mode_timings.get(&m.id).copied().unwrap_or_default(),
         })
         .collect();
     EnergyBalance::run(&EnergyBalanceInput {
@@ -42,6 +43,7 @@ fn balance(i: &SizingInput, o: &SizingOutput, area: f64, capacity: f64) -> Energ
         load_growth: Some(LoadGrowth::Included),
         cases,
         sequence: i.sequence.clone(),
+        sequence_timing: i.sequence_timing.clone(),
         base_mode: i.base_mode.clone(),
         mode_attitudes: i.mode_laws.clone(),
     })
@@ -233,4 +235,61 @@ fn short_span_falls_back_to_smad() {
     assert!(o.modes[0].series_area.is_none());
     let warning = o.checks.iter().find(|c| c.key == "time_series").unwrap();
     assert_eq!(warning.verdict, Verdict::Warning);
+}
+
+#[test]
+fn mode_timing_reaches_the_time_series_inverse() {
+    use crate::power::energy_balance::{DurationTiming, EclipseEvent, EventStart, ModeTiming};
+    // 時刻の指定が無ければ周回内の最悪の開始。MISSION の開始を食明けに決めると、窓が日照中に入る分だけ
+    // 1 周の収支が軽くなり（電池を通す負荷が減る）、逆算した必要面積は小さくなる
+    // （電力収支と同じ運用で評価するので、逆算した設計は電力収支の判定を通り、開始は指定のものになる）
+    // （MISSION も太陽指向にして、面積で収支が取れるようにする）
+    let free = {
+        let mut i = operations();
+        i.mode_laws.insert("MISSION".into(), sun_pointing_z());
+        i
+    };
+    let o_free = Sizing::run(&free).unwrap();
+    let mut fixed = free.clone();
+    fixed.mode_timings.insert(
+        "MISSION".into(),
+        ModeTiming {
+            start: Some(EventStart {
+                from: EclipseEvent::EclipseExit,
+                offset: Qty::from_raw(0.0),
+            }),
+            ..Default::default()
+        },
+    );
+    let o_fixed = Sizing::run(&fixed).unwrap();
+    let cap = |o: &SizingOutput| {
+        o.time_series
+            .as_ref()
+            .unwrap()
+            .targets
+            .iter()
+            .find(|t| t.id == "MISSION")
+            .map(|t| t.required_capacity.value())
+            .unwrap()
+    };
+    assert!(
+        cap(&o_fixed) < cap(&o_free),
+        "{} {}",
+        cap(&o_fixed),
+        cap(&o_free)
+    );
+    let out = balance(
+        &fixed,
+        &o_fixed,
+        o_fixed.required_area.value(),
+        o_fixed.required_capacity.value(),
+    );
+    assert!(passes(&out));
+    let d = out
+        .cases
+        .iter()
+        .find(|c| c.id == "MISSION")
+        .and_then(|c| c.by_max_duration.as_ref())
+        .unwrap();
+    assert_eq!(d.timing, DurationTiming::Fixed);
 }
