@@ -58,3 +58,9 @@ emissivity   = 0.86
 [surface.PANEL_PX]
 white_paint = 0.86
 black_paint = 0.14
+
+[enclosure]
+emissivity = 0.85
+
+[conductive.BAT]
+PANEL_MZ = { value = 0.8, unit = "W/K" }

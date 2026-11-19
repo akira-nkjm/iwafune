@@ -18,6 +18,7 @@ fn first_order_cooling() {
                 conductance: Qty::from_raw(1.0),
             }],
             radiative: vec![],
+            enclosure: None,
             surfaces: vec![],
         },
         timeline: leo_timeline(1800.0, 60.0),
@@ -46,6 +47,7 @@ fn phases_cycle() {
         nodes: vec![node("a", None)],
         conductive: vec![],
         radiative: vec![],
+        enclosure: None,
         surfaces: vec![],
     })
     .unwrap();

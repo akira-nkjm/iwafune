@@ -11,7 +11,7 @@
 //! | `project` | `fune.toml` |
 //! | `shared_catalog` | 共有カタログの固定（`catalog.lock`）と読み込みの状態の判定（`Design::shared_catalog_statuses`） |
 //! | `conditions` / `analysis` | `conditions/`・`analysis/` の型付きの設定。解析の系の一覧 `AnalysisSystem` |
-//! | `thermal_settings` | 熱の解析の設定（`analysis/thermal.toml`。環境条件・プリセット・解析マージン・表面材・発熱の場所） |
+//! | `thermal_settings` | 熱の解析の設定（`analysis/thermal.toml`。環境条件・プリセット・解析マージン・表面材・発熱の場所・節点間の明示の結合と外殻の放射） |
 //! | `refs` | 参照の索引（ある ID をどのエンティティのどのキーが持っているか。`Design::references`） |
 //! | `setting_dims` | 設定の量の次元の表（パスの形 → 次元。検査と射影が引く） |
 //! | `settings_view` | 型付きの設定をパス記法で読む（`Design::setting`・`setting_entries`・`settings_json`） |

@@ -23,6 +23,7 @@ fn loads_count_by_hand() {
         nodes: vec![node("n", None)],
         conductive: vec![],
         radiative: vec![],
+        enclosure: None,
         surfaces: vec![],
     })
     .unwrap();
@@ -72,6 +73,7 @@ fn node_aggregates_parts() {
         nodes: vec![n],
         conductive: vec![],
         radiative: vec![],
+        enclosure: None,
         surfaces: vec![],
     })
     .unwrap();

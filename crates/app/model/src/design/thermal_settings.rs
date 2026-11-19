@@ -1,6 +1,9 @@
 //! 熱の解析の設定（`analysis/thermal.toml`）。serde の形がそのままファイルの形。値はすべて任意で、既定値は解析が持つ。
 //!
-//! 部品・モード・表面材・節点の参照（`nodes` の値・`surface` と `heat_node` のキーと値・`case.<条件>.mode`）は
+//! 明示の結合は `[conductive.<節点>] <節点> = { value, unit }`（`radiative` も同じ形）で、設定のパスは
+//! `analysis.thermal.conductive.<節点>.<節点>`（`SetSetting` でそのまま編集できる）。
+//!
+//! 部品・モード・表面材・節点の参照（`nodes` の値・`surface` と `heat_node` のキーと値・`case.<条件>.mode`・結合の両端の節点）は
 //! `check` が検査し、部品の名前の変更（RenamePart）で一緒に書き換わる（`refs`）。
 
 use crate::enum_text::enum_text;
@@ -68,6 +71,16 @@ pub struct ThermalCoatingSettings {
     pub emissivity: Option<f64>,
 }
 
+/// 箱型の外殻の内面の放射（`[enclosure]`）。書くと、外殻の 6 面の節点どうしの放射を形態係数から求める
+/// （書かなければ従来どおり `radiative_coupling` の既定値）。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ThermalEnclosureSettings {
+    /// 内面の赤外の放射率 ε（0 を超え 1 以下。6 面で共通）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub emissivity: Option<f64>,
+}
+
 /// 熱の解析（`analysis/thermal.toml`）。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -78,6 +91,15 @@ pub struct ThermalSettings {
     /// 節点間の既定の輻射結合（ε と面積の積）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub radiative_coupling: Option<Quantity>,
+    /// 明示の節点間の伝導（節点 → 節点 → コンダクタンス。その対の取付の値を置き換える。0 で切り離す）
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub conductive: BTreeMap<String, BTreeMap<String, Quantity>>,
+    /// 明示の節点間の放射（節点 → 節点 → 有効放射交換面積。その対の既定値と外殻の値を置き換える）
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub radiative: BTreeMap<String, BTreeMap<String, Quantity>>,
+    /// 箱型の外殻の内面の放射（書いたときだけ外殻の放射を求める）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub enclosure: Option<ThermalEnclosureSettings>,
     /// 非定常解析の初期温度
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub initial_temperature: Option<Quantity>,

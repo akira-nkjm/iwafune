@@ -9,7 +9,7 @@ use crate::spec::{
     System, Verdict,
 };
 use crate::thermal::network::{
-    Compiled, INITIAL_GUESS_K, ThermalLoad, ThermalModeLoads, ThermalNetwork,
+    Compiled, INITIAL_GUESS_K, ThermalCouplings, ThermalLoad, ThermalModeLoads, ThermalNetwork,
 };
 use crate::thermal::orbit_heat::{
     ThermalEnvironment, ThermalEnvironmentUsed, absorbed, mean_absorbed, timeline_geometry,
@@ -111,6 +111,9 @@ pub struct ThermalTransientOutput {
     pub nodes: Vec<ThermalTransientNodeResult>,
     /// 使った解析マージン（不確かさと警告の幅）
     pub margin: ThermalMarginUsed,
+    /// 使った節点間の結合（伝導・放射と出どころ。外殻の放射を求めたときは形態係数）
+    #[serde(default)]
+    pub couplings: ThermalCouplings,
     /// 温度範囲を持つ節点の種類ごとの判定（key は `range:<node>:<storage|operating|performance>`）
     pub checks: Vec<Check>,
 }
@@ -178,6 +181,7 @@ impl Analysis for ThermalTransient {
             input.environment.used(central)?,
             margin,
         );
+        output.couplings = net.couplings;
         output.checks.extend(phases.checks);
         Ok(output)
     }
@@ -352,6 +356,7 @@ fn build_output(
         environment,
         nodes,
         margin,
+        couplings: ThermalCouplings::default(),
         checks,
     }
 }

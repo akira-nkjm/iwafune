@@ -116,3 +116,60 @@ fn node_part_without_mass_is_reported_as_missing() {
     };
     assert!(missing.into_vec().iter().any(|m| m.path == "BAT.mass"));
 }
+
+/// 明示の結合（`[conductive.*]`・`[radiative.*]`）と外殻（`[enclosure]`）は、解析の入力にそのまま渡る
+/// （置き換えと優先順位は解析が決める）。箱の寸法は機体の根（BUS_FRAME）の外形（100 × 226 × 366 mm）。
+#[test]
+fn explicit_couplings_and_enclosure_reach_the_analysis() {
+    let mut design = demo();
+    let t = design.analysis.thermal.as_mut().unwrap();
+    t.radiative.entry("PANEL_PX".into()).or_default().insert(
+        "PANEL_MX".into(),
+        fune_model::value::Quantity::new(0.02, "m^2"),
+    );
+    let resolved = fune_model::resolve(&design);
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let net = fune_projection::thermal::steady(&ctx).unwrap().network;
+    let strap = net
+        .conductive
+        .iter()
+        .find(|l| (l.a.as_str(), l.b.as_str()) == ("BAT", "PANEL_MZ"))
+        .unwrap();
+    assert_eq!(strap.conductance.value(), 0.8);
+    assert_eq!(net.radiative.len(), 1);
+    assert_eq!(net.radiative[0].exchange_area.value(), 0.02);
+    let e = net.enclosure.unwrap();
+    assert_eq!(e.emissivity, 0.85);
+    let size = e.size.unwrap();
+    let mm = |q: sat_units::typed::Qty<sat_units::typed::Length>| (q.value() * 1000.0).round();
+    assert_eq!((mm(size.x), mm(size.y), mm(size.z)), (100.0, 226.0, 366.0));
+}
+
+/// 外殻は `[enclosure] emissivity` を書いたときだけ。書かなければ従来どおり（解析へ渡さない）。
+/// 結合の量の次元が違えば不足入力に出す（黙って捨てない）。
+#[test]
+fn enclosure_is_off_without_emissivity_and_bad_units_are_missing() {
+    let mut design = demo();
+    design.analysis.thermal.as_mut().unwrap().enclosure = None;
+    let resolved = fune_model::resolve(&design);
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let net = fune_projection::thermal::steady(&ctx).unwrap().network;
+    assert!(net.enclosure.is_none());
+
+    let t = design.analysis.thermal.as_mut().unwrap();
+    t.conductive.get_mut("BAT").unwrap().insert(
+        "PANEL_MZ".into(),
+        fune_model::value::Quantity::new(0.8, "m^2"),
+    );
+    let resolved = fune_model::resolve(&design);
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let Err(missing) = fune_projection::thermal::steady(&ctx) else {
+        panic!("a conductance in m^2 was accepted");
+    };
+    assert!(
+        missing
+            .into_vec()
+            .iter()
+            .any(|m| m.path.contains("thermal.conductive.BAT.PANEL_MZ"))
+    );
+}

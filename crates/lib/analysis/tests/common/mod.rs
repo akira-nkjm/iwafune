@@ -99,6 +99,7 @@ pub fn network(nodes: Vec<ThermalNode>, surfaces: Vec<ThermalSurface>) -> Therma
         conductive: Vec::new(),
         radiative: Vec::new(),
         surfaces,
+        enclosure: None,
     }
 }
 

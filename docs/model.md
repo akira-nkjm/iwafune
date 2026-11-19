@@ -573,6 +573,38 @@ black_paint = 0.14
 A face's α/ε is the area-fraction-weighted sum (one face is one isothermal node, so both absorption and emission are linear in area). A part with `[surface.<part>]` written does not use the part's
 `absorptivity` and `emissivity`. A fraction total other than 1 or a missing α/ε is a check warning (so it can be written partway through entering them one by one), and the analysis stops with an input error.
 
+#### Couplings between nodes
+Conduction and radiation between nodes come from three places. For each node pair exactly one value is used, chosen in this order (`sat_analysis::thermal::network::couplings`):
+1. **Explicit** (`[conductive.*]`, `[radiative.*]`): replaces the value of that pair from the two sources below (0 isolates the pair).
+2. **Enclosure** (`[enclosure]`, radiation only, between the six faces of the box): replaces the mount default of the face-to-face pairs.
+3. **Mount default** (`contact_conductance` and `radiative_coupling`): one conductive link per node pair that has mounts (`contact_conductance` × the number of mounts between the pair) and, if `radiative_coupling` is written, one radiative link per such pair.
+```toml
+# analysis/thermal.toml
+[conductive.BAT]                              # node A -> node B -> conductance (the pair is unordered)
+PANEL_MZ = { value = 0.8, unit = "W/K" }
+[radiative.PANEL_PX]                          # node A -> node B -> effective radiative exchange area ε_eff·A·F
+PANEL_MX = { value = 0.02, unit = "m^2" }
+[enclosure]                                   # present with emissivity = the enclosure model is on
+emissivity = 0.85                             # inner emissivity of the six faces (above 0, at most 1)
+```
+A pair is written once, in either order; writing `A`→`B` and `B`→`A` is a check error (`thermal.coupling_duplicate`), as are a pair of the same node (`thermal.coupling_self`),
+a node not in `[nodes]` (`ref.thermal_node`) and a negative value (`setting.range`). The dimension is checked against the setting-dimension table (`THERMAL_CONDUCTIVE`: W/K, `THERMAL_RADIATIVE`: m²).
+Because a pair is a path (`analysis.thermal.conductive.BAT.PANEL_MZ`), it is edited with the generic setting operation (`fune set analysis.thermal.conductive.BAT.PANEL_MZ "0.8 W/K"`, `fune unset …`),
+the same on the CLI and over HTTP; there is no separate operation. Nodes cannot be renamed, so no reference rewriting is needed.
+**Enclosure model.** The box is the root part's `size` (the one part without a mount; its frame is the body frame), and its six inner faces are matched to nodes through the outer surfaces:
+for each face (±X, ±Y, ±Z) the node of the outer surface whose normal points that way (within about 2.6°) and whose area is within 5 % of the face area. If any of the six faces
+is not found or ambiguous, two faces share a node, or the box size is not known, the model is **not applied**: it is not an error, the mount defaults stay, and the reason is returned in the output's `couplings.enclosure.note` (`applied: false`).
+When it is applied, all 15 face-to-face pairs use the enclosure value (so the mount default `radiative_coupling` is not added on top of it). Pairs that involve a component node (not a face) keep the mount default or the explicit value.
+The faces are diffuse gray surfaces with a common inner emissivity ε. The view factors come from closed-form catalog formulas (`sat_astro::view_factor`): two identical, directly opposed parallel rectangles (Howell, *A Catalog of Radiation
+Heat Transfer Configuration Factors*, C-11) and two perpendicular rectangles sharing an edge (C-14; the same formulas are in Incropera). A cube gives 0.19982 (opposite) and 0.20004 (adjacent), and each row sums to 1.
+With the areas `A_i` of the box faces and `ρ = 1 − ε`, the Gebhart factors `B_ij` (the fraction of the energy emitted by face i that is finally absorbed by face j, including reflections) solve
+`B_ij = F_ij ε_j + Σ_k F_ik ρ_k B_kj` (`sat_analysis::thermal::enclosure`, with `sat_astro::math::solve_dense`), and the exchange area of the pair is `ε_i A_i B_ij` (it equals `ε_j A_j B_ji`).
+The heat flow from face i to face j is `σ ε_i A_i B_ij (T_i⁴ − T_j⁴)`. For two parallel plates this approaches `A / (1/ε₁ + 1/ε₂ − 1)`.
+Assumptions: the six faces are the only surfaces of the enclosure, and **blockage of the face-to-face views by components inside is ignored**. Components inside are not part of the enclosure model in this version;
+their coupling stays the mount default or the explicit value. The wall thickness is ignored (the box is the outer size).
+Both thermal analyses return the couplings they used in `couplings`: for every pair the conductance (`conductive`) or exchange area (`radiative`) and its source (`mount`, `explicit` or `enclosure`),
+and, when `[enclosure]` is written, the faces with their nodes and areas and the 6×6 view-factor matrix. The GUI shows these as the analysis's data tables.
+
 #### Verification of the thermal analyses
 
 Simple bodies whose answers are known in closed form are run through both `thermal.steady` and `thermal.transient`
