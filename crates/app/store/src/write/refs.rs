@@ -178,6 +178,7 @@ fn rename_at(
         | RefSite::Allocation { .. }
         | RefSite::ViewNode { .. } => rename_key_at(edits, design, site, names, moved),
         RefSite::CommLink { .. }
+        | RefSite::CommLinkAntenna { .. }
         | RefSite::ThermalNode { .. }
         | RefSite::ThermalSurface
         | RefSite::ThermalHeatNode
@@ -263,6 +264,13 @@ fn rename_setting_at(
             &layout::analysis_file(AnalysisSystem::Comm),
             &["link", link],
             "part",
+            to,
+        ),
+        RefSite::CommLinkAntenna { link } => set_in(
+            edits,
+            &layout::analysis_file(AnalysisSystem::Comm),
+            &["link", link],
+            "antenna",
             to,
         ),
         RefSite::ThermalNode { node } => edits.edit(&thermal(), |doc| {

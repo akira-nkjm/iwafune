@@ -582,6 +582,32 @@ The CLI and the screen use the same `SetSetting`. Example: `fune setting set ana
 default_case = "hot_imaging"
 ```
 
+### 5.4a Communication settings (`analysis/comm.toml`)
+
+`stations` lists the ground stations to use, `min_margin` is the required link margin, and each `[link.<name>]` is one link
+(`direction` = `down` or `up`, `part` = the transceiver part, `band` = the band under `conditions/ground/<ID>.toml` `[link.<band>]`, plus losses and `ebn0_required`).
+The link budget is evaluated for every link × ground station pair whose station has that band.
+
+- `data_downlink` (optional) names the downlink whose rate counts toward the daily data volume (`comm.data_throughput`). If omitted, the first downlink by name is used.
+  The other downlinks are not counted, and the analysis reports their names as a notice. `check` reports an error (`ref.link`) if the name is not a link and an error (`setting.link_direction`) if the link is not a downlink.
+- `antenna` (optional, per link) is the part that carries the spacecraft antenna. Its `antenna_gain` attribute is used as the spacecraft-side gain of that link;
+  if omitted, the transceiver's own `antenna_gain` is used. A part without `antenna_gain` is reported as a missing input that names the part. `check` reports an error (`ref.part`) if the part does not exist,
+  and renaming the part rewrites `antenna` together with `part` (both come from the reference index `Design::references`).
+
+```toml
+# analysis/comm.toml
+stations      = ["TOKYO_GS"]
+data_downlink = "s_down"
+
+[link.s_down]
+direction = "down"
+part      = "STX"
+antenna   = "S_PATCH"
+band      = "s_band"
+```
+
+Both keys are set with the same `SetSetting` as other settings, for example `fune set analysis.comm.data_downlink s_down`.
+
 ### 5.5 Reverse-computed power sizing (`power.sizing`)
 
 A steady-state analysis belonging to the Power subsystem. It outputs the required SAP and battery sizes and does not write back to part attributes.

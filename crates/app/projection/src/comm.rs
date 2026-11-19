@@ -3,15 +3,20 @@
 //! - 回線余裕は「設定の回線 × 設定の地上局」のうち、その回線の帯域の設定（`conditions.ground.<局>.link.<帯域>`）を持つ局との組を渡す
 //!   （回線が地上局を指定する設定は無いので、帯域を持つ局すべてに当てる。帯域を持たない局は組にしない。
 //!   どの局にもその帯域が無ければ不足入力。帯域の表にあるが必要な値が無いときも不足入力）。
-//! - 送信量に数える下り回線は名前順の先頭の 1 本（どの回線で送るかを決める設定が無い）。ほかの下り回線は名前だけ渡し、
+//! - 送信量に数える下り回線は `data_downlink` で選んだ 1 本（無ければ名前順の先頭の 1 本）。ほかの下り回線は名前だけ渡し、
 //!   解析が「数えていない」と判定（Ok）で知らせる。局ごとの回線の条件は `station_links` に、下りの帯域を持つ局の分を渡す。
 //!   その帯域を持たない局は `stations_without_band` に ID を渡し、数えない（結果の `station_closures` に残る）。
+//! - 衛星側のアンテナ利得は、回線の `antenna`（部品 ID）があればその部品の `antenna_gain`、無ければ送受信機の `antenna_gain`。
 //! - 地上局の `g_over_t` があれば、下りの受信側の G/T として渡す（どちらを使うかは解析が決める）。
+
+mod throughput;
+
+pub use throughput::data_throughput;
 
 use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::quantity::{db, ratio_db, setting, setting_opt};
-use crate::{cdh, timeline};
+use crate::timeline;
 use fune_model::Target;
 use fune_model::design::setting_dims as dims;
 use fune_model::design::{
@@ -19,10 +24,8 @@ use fune_model::design::{
 };
 use fune_model::path::SettingPath;
 use fune_model::resolve::ResolvedPart;
-use sat_analysis::comm::data_throughput::{DataThroughputLink, DataThroughputStationLink};
 use sat_analysis::comm::link_budget::{LinkBudgetDirection, LinkBudgetLink};
-use sat_analysis::comm::{DataThroughputInput, LinkBudgetInput, RfLinkParams, VisibilityInput};
-use sat_analysis::spec::Analysis;
+use sat_analysis::comm::{LinkBudgetInput, RfLinkParams, VisibilityInput};
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
 use sat_units::typed::{
@@ -162,7 +165,7 @@ fn rf_params(
     let why = "Transceiver values";
     let frequency = crate::parts::part_qty::<Frequency>(ctx, part, freq_attr, why, m);
     let rate = crate::parts::part_qty::<DataRate>(ctx, part, rate_attr, why, m);
-    let sat_gain = sat_gain_db(ctx, part, m);
+    let sat_gain = sat_gain_db(ctx, name, link, part, m);
     let ground_gain = m.need(
         db(ground.antenna_gain.as_ref()),
         dims::GROUND_ANTENNA_GAIN.at(&at),
@@ -240,8 +243,23 @@ fn power_and_noise(
     }
 }
 
-/// Spacecraft antenna gain [dB]（送受信機の `antenna_gain`。解決済みの値は線形の比なので dB に戻す）。
-fn sat_gain_db(ctx: &Context<'_>, part: &ResolvedPart, m: &mut MissingInputs) -> Option<Decibel> {
+/// Spacecraft antenna gain [dB]（回線の `antenna` の部品、無ければ送受信機の `antenna_gain`。
+/// 解決済みの値は線形の比なので dB に戻す）。
+fn sat_gain_db(
+    ctx: &Context<'_>,
+    name: &str,
+    link: &CommLinkSettings,
+    transceiver: &ResolvedPart,
+    m: &mut MissingInputs,
+) -> Option<Decibel> {
+    let part = match &link.antenna {
+        Some(id) => m.need(
+            ctx.resolved.parts.get(id.as_str()),
+            comm(&["link", name, "antenna"]),
+            "Link antenna (part id)",
+        )?,
+        None => transceiver,
+    };
     let ratio = m.need(
         ctx.scalar(part, "antenna_gain"),
         Target::attr(&part.id, "antenna_gain"),
@@ -285,110 +303,4 @@ pub fn visibility(ctx: &Context<'_>) -> Result<VisibilityInput, MissingInputs> {
             stations,
         })
     })
-}
-
-/// `comm.data_throughput`: 1 日分。発生量は `cdh.data_budget` を回して求める。
-pub fn data_throughput(ctx: &Context<'_>) -> Result<DataThroughputInput, MissingInputs> {
-    let mut m = MissingInputs::new();
-    let s = settings(ctx, &mut m);
-    let ids = s.map(|s| s.stations.clone()).unwrap_or_default();
-    let stations = ctx.stations(&ids, &mut m);
-    let sampling = timeline::day_sampling(ctx, &mut m);
-    let mut downs = s.into_iter().flat_map(|s| {
-        s.links
-            .iter()
-            .filter(|(_, l)| l.direction == LinkDirection::Down)
-    });
-    let down = m.need(
-        downs.next(),
-        comm(&["link"]),
-        "Downlink (direction = \"down\")",
-    );
-    let other_downlinks: Vec<String> = downs.map(|(name, _)| name.clone()).collect();
-    let rate = down.and_then(|(_, l)| {
-        let part = ctx.resolved.parts.get(l.part.as_str())?;
-        crate::parts::part_qty::<DataRate>(
-            ctx,
-            part,
-            "data_rate_down",
-            "Downlink data rate",
-            &mut m,
-        )
-    });
-    let (stations, without_band) = match down {
-        Some((name, l)) => {
-            let (with, without) = split_by_band(ctx, &stations, &l.band);
-            if with.is_empty() {
-                with_band(ctx, name, &l.band, &stations, &mut m);
-            }
-            let ids: Vec<String> = without.iter().map(|st| st.id.clone()).collect();
-            (with.into_iter().cloned().collect(), ids)
-        }
-        None => (stations, Vec::new()),
-    };
-    let station_links = down
-        .map(|(name, l)| station_links(ctx, name, l, &stations, &mut m))
-        .unwrap_or_default();
-    let generated = generated_per_day(ctx, &mut m);
-    m.finish(|| {
-        Some(DataThroughputInput {
-            sampling: sampling?,
-            stations,
-            downlink_rate: rate?,
-            usable_pass_fraction: None,
-            generated_per_day: generated?,
-            initial_backlog: None,
-            storage_capacity: None,
-            station_links,
-            stations_without_band: without_band,
-            downlink: down.map(|(name, _)| name.clone()),
-            other_downlinks,
-            required_margin_db: s.and_then(|s| db(s.min_margin.as_ref())),
-        })
-    })
-}
-
-/// 下り回線 1 本の、局ごとの回線の条件（地上側の利得・雑音温度・G/T は局ごとに違う）。
-fn station_links(
-    ctx: &Context<'_>,
-    name: &str,
-    link: &CommLinkSettings,
-    stations: &[GroundStation],
-    m: &mut MissingInputs,
-) -> Vec<DataThroughputStationLink> {
-    stations
-        .iter()
-        .filter_map(|st| {
-            let (rf, _) = rf_params(ctx, name, link, &st.id, m)?;
-            Some(DataThroughputStationLink {
-                station: st.id.clone(),
-                link: DataThroughputLink {
-                    rf,
-                    required_eb_n0_db: db(link.ebn0_required.as_ref())?,
-                },
-            })
-        })
-        .collect()
-}
-
-fn generated_per_day(
-    ctx: &Context<'_>,
-    m: &mut MissingInputs,
-) -> Option<Qty<sat_units::typed::Information>> {
-    match cdh::data_budget(ctx) {
-        Ok(input) => match sat_analysis::cdh::DataBudget::run(&input) {
-            Ok(out) => Some(out.total_per_day),
-            Err(e) => {
-                let target = Target::Analysis {
-                    id: sat_analysis::cdh::DataBudget::ID.to_owned(),
-                };
-                m.push(target, format!("Cannot compute the data volume ({e})"));
-                None
-            }
-        },
-        Err(more) => {
-            m.extend(more);
-            None
-        }
-    }
 }
