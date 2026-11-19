@@ -22,6 +22,7 @@
 //! | [`rocket`] | ロケット方程式（推薬 ⇄ ΔV、有効排気速度、噴射時間、推薬の流量）。換算はこれだけ |
 //! | [`transfer`] | 軌道遷移の ΔV（ホーマン・平面変更・バイエリプティック・Edelbaum の低推力・有限燃焼の損失の近似）。遷移の式はこれだけ |
 //! | [`illumination`] | 面への太陽入射（cos 則と日陰）。電源と熱で共有する |
+//! | [`view_factor`] | 長方形どうしの形態係数（真向かいの平行面・共通の辺を持つ直交面・箱の 6 面）。長方形間の形態係数はこれだけ |
 //! | [`timeline`] | 軌道上の時系列（時刻・位置・速度・太陽方向・日陰・機体姿勢）をまとめて作る。区間の抽出 |
 //!
 //! ## 単位の扱い
@@ -45,6 +46,7 @@ pub mod shadow;
 pub mod time;
 pub mod timeline;
 pub mod transfer;
+pub mod view_factor;
 
 /// sat-astro のエラー。
 #[derive(Debug, thiserror::Error)]

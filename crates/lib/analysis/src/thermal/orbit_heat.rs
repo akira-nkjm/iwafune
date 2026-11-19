@@ -190,6 +190,7 @@ mod tests {
             nodes: vec![node("p", None)],
             conductive: vec![],
             radiative: vec![],
+            enclosure: None,
             surfaces: vec![ThermalSurface {
                 id: "s".to_owned(),
                 node: "p".to_owned(),
@@ -352,6 +353,7 @@ pub(crate) mod fixtures {
             nodes: vec![n],
             conductive: vec![],
             radiative: vec![],
+            enclosure: None,
             surfaces: faces
                 .iter()
                 .enumerate()

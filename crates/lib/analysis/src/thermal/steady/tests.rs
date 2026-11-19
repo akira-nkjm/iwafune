@@ -23,6 +23,7 @@ fn input() -> ThermalSteadyInput {
                 conductance: Qty::from_raw(1.0),
             }],
             radiative: vec![],
+            enclosure: None,
             surfaces: vec![ThermalSurface {
                 id: "px".to_owned(),
                 node: "panel".to_owned(),

@@ -191,6 +191,10 @@ setting_quantities! {
     THERMAL_CONTACT_CONDUCTANCE: ThermalConductance = Analysis["thermal", "contact_conductance"];
     /// 節点間の放射結合（面積）
     THERMAL_RADIATIVE_COUPLING: Area = Analysis["thermal", "radiative_coupling"];
+    /// 明示の節点間の伝導（`[conductive.<節点>] <節点> = …`）
+    THERMAL_CONDUCTIVE: ThermalConductance = Analysis["thermal", "conductive", ANY, ANY];
+    /// 明示の節点間の放射（有効放射交換面積）
+    THERMAL_RADIATIVE: Area = Analysis["thermal", "radiative", ANY, ANY];
     /// 非定常の初期温度
     THERMAL_INITIAL_TEMPERATURE: Temperature = Analysis["thermal", "initial_temperature"];
     /// 非定常の刻み

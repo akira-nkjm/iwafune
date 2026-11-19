@@ -1,6 +1,8 @@
 //! `analysis/thermal.toml` の検査: 表面材と面積割合・発熱の場所・解析マージンの温度差の単位。
 
-use fune_model::design::{Part, ThermalCoatingSettings, ThermalMarginSettings, ThermalSettings};
+use fune_model::design::{
+    Part, ThermalCoatingSettings, ThermalEnclosureSettings, ThermalMarginSettings, ThermalSettings,
+};
 use fune_model::value::Quantity;
 use fune_model::{Design, Severity};
 
@@ -83,5 +85,84 @@ fn margin_is_a_temperature_difference_in_kelvin() {
     assert_eq!(
         codes(&design(margin("degC"))),
         [(Severity::Error, "thermal.difference_unit".to_owned())]
+    );
+}
+
+fn coupled(nodes: &[&str]) -> ThermalSettings {
+    let mut t = ThermalSettings::default();
+    for n in nodes {
+        t.nodes.insert((*n).into(), Vec::new());
+    }
+    t
+}
+
+/// 明示の結合: 節点が無い・同じ節点どうし・同じ対を逆向きに 2 度・負の値は誤り。正しい書き方は何も出ない。
+#[test]
+fn explicit_couplings_are_checked() {
+    let mut t = coupled(&["A", "B"]);
+    t.conductive
+        .entry("A".into())
+        .or_default()
+        .insert("B".into(), Quantity::new(0.8, "W/K"));
+    t.radiative
+        .entry("B".into())
+        .or_default()
+        .insert("A".into(), Quantity::new(0.01, "m^2"));
+    assert!(codes(&design(t.clone())).is_empty());
+
+    let mut bad = t.clone();
+    bad.conductive
+        .entry("B".into())
+        .or_default()
+        .insert("A".into(), Quantity::new(0.1, "W/K"));
+    assert_eq!(
+        codes(&design(bad)),
+        [(Severity::Error, "thermal.coupling_duplicate".to_owned())]
+    );
+
+    let mut bad = t.clone();
+    bad.conductive
+        .entry("A".into())
+        .or_default()
+        .insert("Z".into(), Quantity::new(0.1, "W/K"));
+    assert_eq!(
+        codes(&design(bad)),
+        [(Severity::Error, "ref.thermal_node".to_owned())]
+    );
+
+    let mut bad = t.clone();
+    bad.radiative
+        .entry("A".into())
+        .or_default()
+        .insert("A".into(), Quantity::new(0.1, "m^2"));
+    assert_eq!(
+        codes(&design(bad)),
+        [(Severity::Error, "thermal.coupling_self".to_owned())]
+    );
+
+    let mut bad = t;
+    bad.conductive
+        .get_mut("A")
+        .unwrap()
+        .insert("B".into(), Quantity::new(-1.0, "W/K"));
+    let found = fune_model::check(&design(bad));
+    assert!(found.iter().any(|d| d.code == "setting.range"));
+}
+
+/// 外殻の放射率は 0 を超え 1 以下。無ければ警告（外殻は使われない）。
+#[test]
+fn enclosure_emissivity_is_checked() {
+    let enclosure = |e: Option<f64>| ThermalSettings {
+        enclosure: Some(ThermalEnclosureSettings { emissivity: e }),
+        ..ThermalSettings::default()
+    };
+    assert!(codes(&design(enclosure(Some(0.85)))).is_empty());
+    for bad in [0.0, 1.2, -0.1] {
+        let found = fune_model::check(&design(enclosure(Some(bad))));
+        assert!(found.iter().any(|d| d.code == "setting.range"), "{bad}");
+    }
+    assert_eq!(
+        codes(&design(enclosure(None))),
+        [(Severity::Warning, "thermal.enclosure_emissivity".to_owned())]
     );
 }

@@ -1,4 +1,5 @@
-//! `analysis/thermal.toml` の検査（環境条件のモード・割合の範囲・節点の部品・表面材と面積割合・発熱の場所・温度差の単位）。
+//! `analysis/thermal.toml` の検査（環境条件のモード・割合の範囲・節点の部品・表面材と面積割合・発熱の場所・温度差の単位・
+//! 明示の結合の節点と値・外殻の放射率）。
 
 use super::Ctx;
 use super::settings::{Scope, scope};
@@ -38,6 +39,7 @@ pub(super) fn check_thermal(ctx: &mut Ctx) {
     check_nodes(&mut s, design, t);
     check_surfaces(&mut s, design, t);
     check_heat_nodes(&mut s, design, t);
+    check_couplings(&mut s, t);
 }
 
 /// 温度差は K で書き、0 以上にする。
@@ -146,5 +148,73 @@ fn check_heat_nodes(s: &mut Scope, design: &Design, t: &ThermalSettings) {
             "ref.thermal_node",
             format!("Thermal node `{node}` ([nodes])"),
         );
+    }
+}
+
+/// 明示の結合（`[conductive.<節点>]`・`[radiative.<節点>]`）と外殻の放射率。
+/// 結合は両端が節点であること、同じ節点どうしでないこと、同じ対を向きを変えて 2 度書かないこと、0 以上であること
+/// （次元は設定の次元の表が見る）。
+fn check_couplings(s: &mut Scope, t: &ThermalSettings) {
+    for (kind, table) in [("conductive", &t.conductive), ("radiative", &t.radiative)] {
+        let mut seen: std::collections::BTreeSet<(&str, &str)> = std::collections::BTreeSet::new();
+        for (a, row) in table {
+            for (b, q) in row {
+                let keys = [kind, a.as_str(), b.as_str()];
+                for end in [a, b] {
+                    let exists = t.nodes.contains_key(end);
+                    s.reference(
+                        &keys,
+                        exists,
+                        "ref.thermal_node",
+                        format!("Thermal node `{end}` ([nodes])"),
+                    );
+                }
+                if a == b {
+                    s.error(
+                        &keys,
+                        "thermal.coupling_self",
+                        format!("A coupling must join two different nodes (`{a}` is both ends)"),
+                    );
+                }
+                let pair = if a <= b {
+                    (a.as_str(), b.as_str())
+                } else {
+                    (b.as_str(), a.as_str())
+                };
+                if !seen.insert(pair) {
+                    s.error(
+                        &keys,
+                        "thermal.coupling_duplicate",
+                        format!(
+                            "The pair `{}` and `{}` is written twice ({kind})",
+                            pair.0, pair.1
+                        ),
+                    );
+                }
+                if q.value.is_nan() || q.value < 0.0 {
+                    s.error(
+                        &keys,
+                        "setting.range",
+                        "Must be a value of at least 0".into(),
+                    );
+                }
+            }
+        }
+    }
+    if let Some(e) = &t.enclosure {
+        match e.emissivity {
+            Some(v) if !(v > 0.0 && v <= 1.0) => s.error(
+                &["enclosure", "emissivity"],
+                "setting.range",
+                "Must be a value above 0 and at most 1".into(),
+            ),
+            None => s.warning(
+                &["enclosure"],
+                "thermal.enclosure_emissivity",
+                "The enclosure needs an emissivity (`emissivity`); without it the enclosure radiation is not used"
+                    .into(),
+            ),
+            _ => {}
+        }
     }
 }

@@ -14,6 +14,7 @@ describe("熱の温度表", () => {
   const out: ThermalSteadyOutput = {
     envelope: [],
     margin: { uncertainty: 0, warning_band: 5 },
+    couplings: { conductive: [], radiative: [], enclosure: null },
     checks: [],
     cases: [
       {
