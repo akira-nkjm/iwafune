@@ -1,8 +1,10 @@
 //! KPI ごとの扱い（`Rule`）: どの check に結ぶか（判定の対象か）・塗りの比・判定を数えるか・測れたときだけ出すか。
 //! **KPI と解析の check の対応はここだけ。** check のキーは sat-analysis が決める（キーを変えると `rule_tests` が落ちる）。
 
-use crate::dto::{CheckView, KpiKey, OverviewKpi};
+use crate::dto::{CheckView, KpiKey, KpiTally, OverviewKpi};
 use sat_analysis::spec::Verdict;
+use sat_analysis::thermal::range_item;
+use std::collections::HashMap;
 
 /// KPI の判定にする check の選び方（`CheckView.key` との照合）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -68,6 +70,39 @@ pub(super) enum Fill {
     OkShare,
 }
 
+/// 判定の数え方。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Tally {
+    /// 数えない
+    None,
+    /// 項目ごとに 1 つ数え、項目の判定は項目の check の最悪。温度範囲の上限側と下限側（`range_high:` / `range_low:`）は
+    /// 同じ節点・種類の 1 項目にまとめる（側ごとに数えると分母が倍になる）。温度範囲でない check はそれぞれが 1 項目
+    Items,
+}
+
+impl Tally {
+    /// 判定の数（数えない KPI は None）。
+    pub(super) fn count(self, checks: &[CheckView]) -> Option<KpiTally> {
+        match self {
+            Self::None => None,
+            Self::Items => {
+                // 項目: 温度範囲は (true, 節点:種類)、それ以外は (false, key)。並びは数えるだけなので順序は問わない
+                let mut items: HashMap<(bool, &str), bool> = HashMap::new();
+                for c in checks {
+                    let id = range_item(&c.key).map_or((false, c.key.as_str()), |r| (true, r));
+                    // 項目の判定は最悪。OK でないのが 1 つでもあれば項目は OK でない
+                    *items.entry(id).or_insert(false) |= c.verdict != Verdict::Ok;
+                }
+                let count = |n: usize| u32::try_from(n).unwrap_or(u32::MAX);
+                Some(KpiTally {
+                    checked: count(items.len()),
+                    flagged: count(items.values().filter(|flagged| **flagged).count()),
+                })
+            }
+        }
+    }
+}
+
 /// KPI ごとの扱い。
 pub(super) struct Rule {
     /// 結果に値も判定も無ければ出さない（設計が持たない手段の KPI。MTQ・RCS のアンロード時間）。
@@ -77,7 +112,7 @@ pub(super) struct Rule {
     /// 判定にする check。KPI が見せる量をちょうど判定する check だけを選ぶ（他の量の違反を巻き込まない）
     pub(super) checks: CheckMatch,
     pub(super) fill: Fill,
-    pub(super) tally: bool,
+    pub(super) tally: Tally,
 }
 
 use CheckMatch::{Any, Exact, OneOf, Prefix, Unjudged};
@@ -92,53 +127,53 @@ pub(super) fn rule(key: KpiKey) -> Rule {
     use KpiKey as K;
     let (checks, fill, tally) = match key {
         // 最大 DoD（噴射中の収支の分も同じ `dod`）。周回の収支（`energy_balance`）は別の量
-        K::MaxDod | K::ThrustMaxDod => (Exact("dod"), Fill::Value, false),
-        K::StorageMargin => (Exact("storage_margin"), Fill::Value, false),
-        K::SapMargin => (Exact("sap_margin"), Fill::Value, false),
-        K::BatteryMargin => (Exact("battery_margin"), Fill::Value, false),
-        K::TankVolumeMargin => (Exact("tank_volume"), Fill::Value, false),
-        K::ImpulseMargin => (Exact("total_impulse"), Fill::Value, false),
+        K::MaxDod | K::ThrustMaxDod => (Exact("dod"), Fill::Value, Tally::None),
+        K::StorageMargin => (Exact("storage_margin"), Fill::Value, Tally::None),
+        K::SapMargin => (Exact("sap_margin"), Fill::Value, Tally::None),
+        K::BatteryMargin => (Exact("battery_margin"), Fill::Value, Tally::None),
+        K::TankVolumeMargin => (Exact("tank_volume"), Fill::Value, Tally::None),
+        K::ImpulseMargin => (Exact("total_impulse"), Fill::Value, Tally::None),
         // 解析全体を代表する KPI。節点ごとの判定の数（`tally`）と OK の割合で見せる
-        K::NodesInRange => (Any, Fill::OkShare, true),
-        K::OrbitBalance => (Exact("energy_balance"), Fill::None, false),
+        K::NodesInRange => (Any, Fill::OkShare, Tally::Items),
+        K::OrbitBalance => (Exact("energy_balance"), Fill::None, Tally::None),
         // 軌道寿命は、ミッション期間との比較と寿命の上限の 2 つ（推薬で保てる期間 `propellant_life` は別の量）
         K::OrbitLifetime => (
             OneOf(&[Exact("lifetime_vs_mission"), Exact("max_lifetime")]),
             Fill::None,
-            false,
+            Tally::None,
         ),
         // 周期成分だけで容量を超えると間隔が 0 になる（`momentum_capacity`）。トルクの余裕は別の量
         K::UnloadInterval => (
             OneOf(&[Exact("unload_interval"), Exact("momentum_capacity")]),
             Fill::None,
-            false,
+            Tally::None,
         ),
         // 中心天体の磁場で評価できないとき（時間が無いとき）は `mtq_field_model`
         K::MtqUnloadTime => (
             OneOf(&[Exact("mtq_time"), Exact("mtq_field_model")]),
             Fill::None,
-            false,
+            Tally::None,
         ),
         // 捨てられない向きがあるとき（時間が無いとき）は `rcs_direction`
         K::RcsUnloadTime => (
             OneOf(&[Exact("rcs_time"), Exact("rcs_direction")]),
             Fill::None,
-            false,
+            Tally::None,
         ),
-        K::SensorIntrusion => (Prefix("intrusion:"), Fill::None, false),
-        K::SlewTime => (Exact("slew_time"), Fill::None, false),
-        K::LinkMargin => (Prefix("margin:"), Fill::None, false),
+        K::SensorIntrusion => (Prefix("intrusion:"), Fill::None, Tally::None),
+        K::SlewTime => (Exact("slew_time"), Fill::None, Tally::None),
+        K::LinkMargin => (Prefix("margin:"), Fill::None, Tally::None),
         // 1 日の送信可能量は「発生量 ≤ 送信可能量」の判定、最大の滞留は「滞留 ≤ ストレージ」の判定
-        K::DownlinkPerDay => (Exact("capacity"), Fill::None, false),
-        K::MaxBacklog => (Exact("storage"), Fill::None, false),
-        K::MaxTemperature | K::TransientMaxTemperature => (THERMAL_HIGH, Fill::None, false),
-        K::MinTemperature => (THERMAL_LOW, Fill::None, false),
-        K::TotalMass => (Exact("mass"), Fill::None, false),
-        K::MinSafetyMargin => (Prefix("interface:"), Fill::None, false),
+        K::DownlinkPerDay => (Exact("capacity"), Fill::None, Tally::None),
+        K::MaxBacklog => (Exact("storage"), Fill::None, Tally::None),
+        K::MaxTemperature | K::TransientMaxTemperature => (THERMAL_HIGH, Fill::None, Tally::None),
+        K::MinTemperature => (THERMAL_LOW, Fill::None, Tally::None),
+        K::TotalMass => (Exact("mass"), Fill::None, Tally::None),
+        K::MinSafetyMargin => (Prefix("interface:"), Fill::None, Tally::None),
         K::MinFrequency => (
             OneOf(&[Prefix("panel:"), Prefix("lateral:"), Prefix("axial:")]),
             Fill::None,
-            false,
+            Tally::None,
         ),
         K::LongestEclipse
         | K::BetaMin
@@ -156,7 +191,7 @@ pub(super) fn rule(key: KpiKey) -> Rule {
         | K::DvWithMargin
         | K::LoadedPropellant
         | K::ManeuversEnd
-        | K::ComShift => (Unjudged, Fill::None, false),
+        | K::ComShift => (Unjudged, Fill::None, Tally::None),
     };
     Rule {
         checks,

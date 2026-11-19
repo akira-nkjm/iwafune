@@ -205,3 +205,16 @@ fn each_side_is_judged_on_its_own() {
     let m = range_margins(280.0, 321.0, &all(&r), &p.used());
     assert_eq!(m[0].verdict, Verdict::Violation);
 }
+
+/// 判定の key から側を除いた項目が取れる（上限側と下限側は同じ項目。温度範囲でない key は None）。
+#[test]
+fn range_item_drops_the_side() {
+    assert_eq!(
+        range_item("range_high:box:operating"),
+        Some("box:operating")
+    );
+    assert_eq!(range_item("range_low:box:operating"), Some("box:operating"));
+    assert_eq!(range_item("range_high"), None);
+    assert_eq!(range_item("range_highest:x:y"), None);
+    assert_eq!(range_item("dod"), None);
+}

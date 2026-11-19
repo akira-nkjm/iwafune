@@ -194,3 +194,117 @@ fn ground_g_over_t_reaches_the_downlink_only() {
     assert_eq!(r["g_over_t_dbk"].as_f64(), Some(9.0));
     assert_eq!(r["g_over_t_given"], true);
 }
+
+fn comm_mut(design: &mut fune_model::Design) -> &mut fune_model::design::CommSettings {
+    design.analysis.comm.as_mut().unwrap()
+}
+
+fn missing_paths(design: &fune_model::Design, id: &str) -> Vec<(String, String)> {
+    let resolved = fune_model::resolve(design);
+    let ctx = Context::new(design, &resolved, None).unwrap();
+    let fune_projection::ProjectionError::Missing(m) = project_json(id, &ctx).unwrap_err() else {
+        panic!("{id} should be missing inputs");
+    };
+    m.into_vec()
+        .into_iter()
+        .map(|x| (x.path.to_string(), x.reason))
+        .collect()
+}
+
+/// `data_downlink` が無ければ名前順の先頭（上の `data_throughput_names_stations_and_uncounted_downlinks` と同じ）、
+/// 2 本目を選べばその回線が数えられ、1 本目が数えない側に移る。2 局 × 2 下りで何も黙って落ちない。
+#[test]
+fn data_downlink_selects_the_counted_downlink() {
+    let (mut design, _) = with_second_station();
+    let input = project(
+        &design.clone(),
+        &fune_model::resolve(&design),
+        "comm.data_throughput",
+    );
+    assert_eq!(input["downlink"], "s_down");
+    comm_mut(&mut design).data_downlink = Some("uhf_down".to_owned());
+    let resolved = fune_model::resolve(&design);
+    let input = project(&design, &resolved, "comm.data_throughput");
+    assert_eq!(input["downlink"], "uhf_down");
+    assert_eq!(input["other_downlinks"], serde_json::json!(["s_down"]));
+    assert_eq!(input["station_links"].as_array().unwrap().len(), 2);
+    assert_eq!(input["stations_without_band"], serde_json::json!([]));
+    let out = sat_analysis::catalog::run_json("comm.data_throughput", input).unwrap();
+    assert_eq!(out["station_closures"].as_array().unwrap().len(), 2);
+    let checks = out["checks"].as_array().unwrap();
+    assert!(checks.iter().any(|c| c["key"] == "downlinks_not_counted"));
+}
+
+/// 存在しない回線・下りでない回線を選ぶと、不足入力として `data_downlink` が挙がる。
+#[test]
+fn data_downlink_naming_a_missing_or_up_link_is_missing() {
+    for name in ["nope", "uhf_up"] {
+        let (mut design, _) = demo();
+        comm_mut(&mut design).data_downlink = Some(name.to_owned());
+        let missing = missing_paths(&design, "comm.data_throughput");
+        assert!(
+            missing
+                .iter()
+                .any(|(p, _)| p == "analysis.comm.data_downlink"),
+            "{name}: {missing:?}"
+        );
+    }
+}
+
+fn s_down_tx_gain(design: &fune_model::Design) -> f64 {
+    let resolved = fune_model::resolve(design);
+    let input = project(design, &resolved, "comm.link_budget");
+    let l = input["links"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|l| l["name"] == "s_down")
+        .unwrap();
+    l["rf"]["tx_gain_db"].as_f64().unwrap()
+}
+
+/// 回線の `antenna` があればその部品の `antenna_gain`、無ければ送受信機の値。部品に値が無ければその部品を名指して不足入力。
+#[test]
+fn link_antenna_part_gain_is_used_over_the_transceiver() {
+    let (mut design, _) = demo();
+    assert!((s_down_tx_gain(&design) - 6.5).abs() < 1e-9);
+    // UHF 送受信機（0 dBi）をアンテナに指定すると、S 帯の下りの送信利得が 0 dB になる
+    comm_mut(&mut design)
+        .links
+        .get_mut("s_down")
+        .unwrap()
+        .antenna = Some("UHF_TRX".to_owned());
+    assert!(s_down_tx_gain(&design).abs() < 1e-9);
+    // `antenna_gain` を持たない部品を指すと、その部品の属性が不足入力
+    let other = design
+        .parts
+        .keys()
+        .find(|id| !matches!(id.as_str(), "UHF_TRX" | "STX"))
+        .unwrap()
+        .to_string();
+    comm_mut(&mut design)
+        .links
+        .get_mut("s_down")
+        .unwrap()
+        .antenna = Some(other.clone());
+    let missing = missing_paths(&design, "comm.link_budget");
+    assert!(
+        missing
+            .iter()
+            .any(|(p, _)| p.contains(&other) && p.contains("antenna_gain")),
+        "{missing:?}"
+    );
+    // 存在しない部品
+    comm_mut(&mut design)
+        .links
+        .get_mut("s_down")
+        .unwrap()
+        .antenna = Some("NO_SUCH".to_owned());
+    let missing = missing_paths(&design, "comm.link_budget");
+    assert!(
+        missing
+            .iter()
+            .any(|(p, _)| p == "analysis.comm.link.s_down.antenna"),
+        "{missing:?}"
+    );
+}

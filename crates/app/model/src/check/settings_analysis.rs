@@ -4,7 +4,8 @@
 use super::Ctx;
 use super::settings::{Scope, scope};
 use crate::design::{
-    AnalysisSystem, CommLinkSettings, DEFAULT_SEQUENCE, Design, PowerSettings, SettingEntry,
+    AnalysisSystem, CommLinkSettings, CommSettings, DEFAULT_SEQUENCE, Design, LinkDirection,
+    PowerSettings, SettingEntry,
 };
 
 /// `analysis/` の全体。`entries` は `Design::setting_entries`。
@@ -213,6 +214,26 @@ fn check_comm(ctx: &mut Ctx) {
     for (name, link) in &c.links {
         check_link(&mut s, design, &c.stations, name, link);
     }
+    if let Some(name) = &c.data_downlink {
+        check_data_downlink(&mut s, c, name);
+    }
+}
+
+/// `data_downlink` は、定義した下り回線を指すこと。
+fn check_data_downlink(s: &mut Scope, c: &CommSettings, name: &str) {
+    match c.links.get(name) {
+        None => s.error(
+            &["data_downlink"],
+            "ref.link",
+            format!("Link `{name}` is not defined"),
+        ),
+        Some(l) if l.direction != LinkDirection::Down => s.error(
+            &["data_downlink"],
+            "setting.link_direction",
+            format!("Link `{name}` is not a downlink (direction = \"down\")"),
+        ),
+        Some(_) => {}
+    }
 }
 
 fn check_link(
@@ -229,6 +250,14 @@ fn check_link(
         "ref.part",
         format!("Part `{}`", link.part),
     );
+    if let Some(antenna) = &link.antenna {
+        s.reference(
+            &["link", name, "antenna"],
+            design.parts.contains_key(antenna.as_str()),
+            "ref.part",
+            format!("Part `{antenna}`"),
+        );
+    }
     for station in stations {
         let Some(g) = design.conditions.ground.get(station) else {
             continue;

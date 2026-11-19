@@ -6,7 +6,7 @@
 //!
 //! | 参照先 | 参照元（[`RefSite`]） |
 //! |---|---|
-//! | 部品 | モードの `[states]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part`・`analysis/thermal.toml` の `[nodes]`・図の `[nodes]` のキー・マヌーバの `thruster` |
+//! | 部品 | モードの `[states]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part` / `antenna`・`analysis/thermal.toml` の `[nodes]`・図の `[nodes]` のキー・マヌーバの `thruster` |
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
 //! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode` |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets` |
@@ -78,6 +78,8 @@ pub enum RefSite {
     Allocation { kind: BudgetKind },
     /// 回線の部品（`analysis/comm.toml` の `[link.<回線>].part`）
     CommLink { link: String },
+    /// 回線の衛星側アンテナの部品（`analysis/comm.toml` の `[link.<回線>].antenna`）
+    CommLinkAntenna { link: String },
     /// 熱の節点に入れた部品（`analysis/thermal.toml` の `[nodes]` の `<節点> = [...]`）
     ThermalNode { node: String },
     /// 外面の表面材を書いた部品（`analysis/thermal.toml` の `[surface.<部品>]` のキー）
@@ -191,6 +193,12 @@ impl Design {
                     .iter()
                     .filter(|(_, l)| l.part == id)
                     .map(|(link, _)| RefSite::CommLink { link: link.clone() }),
+            );
+            out.extend(
+                comm.links
+                    .iter()
+                    .filter(|(_, l)| l.antenna.as_deref() == Some(id))
+                    .map(|(link, _)| RefSite::CommLinkAntenna { link: link.clone() }),
             );
         }
         if let Some(thermal) = &self.analysis.thermal {

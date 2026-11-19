@@ -255,7 +255,7 @@ pub struct ThermalRangeMargin {
 
 /// 温度範囲の片側（判定は側ごとに出す）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ThermalRangeSide {
+pub enum ThermalRangeSide {
     /// 下限側（予測の最低 − 不確かさ と下限）
     Low,
     /// 上限側（予測の最高 + 不確かさ と上限）
@@ -263,13 +263,26 @@ pub(crate) enum ThermalRangeSide {
 }
 
 impl ThermalRangeSide {
+    /// 両側（`range_item` が側を見分けるのに使う）。
+    pub const ALL: [Self; 2] = [Self::Low, Self::High];
+
     /// 判定の key の先頭（`range_low` / `range_high`。KPI の対応は `fune-service` の `kpi::rule`）。
-    pub(crate) fn key_prefix(self) -> &'static str {
+    pub fn key_prefix(self) -> &'static str {
         match self {
             Self::Low => "range_low",
             Self::High => "range_high",
         }
     }
+}
+
+/// 温度範囲の判定の key から、側を除いた項目（`<節点>:<種類>`）を取り出す。温度範囲の判定でなければ None。
+/// 同じ節点・種類の上限側と下限側は同じ項目になる（KPI が節点・種類ごとに数えるとき用）。
+pub fn range_item(check_key: &str) -> Option<&str> {
+    ThermalRangeSide::ALL.iter().find_map(|side| {
+        check_key
+            .strip_prefix(side.key_prefix())
+            .and_then(|rest| rest.strip_prefix(':'))
+    })
 }
 
 impl ThermalRangeMargin {

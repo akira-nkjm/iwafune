@@ -161,3 +161,25 @@ fn ids_that_differ_only_in_case_are_taken() {
     let same = snap.design.cases["cold_safe"].clone();
     assert!(plan(&snap, &[Op::SetCase { case: same }]).is_ok());
 }
+
+/// 回線の `antenna`（部品）も、回線の `part` と同じ索引で部品の名前の変更に追従する。
+#[test]
+fn renaming_a_part_follows_the_link_antenna() {
+    let mut snap = snapshot();
+    snap.design
+        .analysis
+        .comm
+        .as_mut()
+        .unwrap()
+        .links
+        .get_mut("s_down")
+        .unwrap()
+        .antenna = Some("STX".to_owned());
+    let sites = snap.design.references(Referent::Part("STX"));
+    assert!(sites.contains(&RefSite::CommLinkAntenna {
+        link: "s_down".into()
+    }));
+    assert!(sites.contains(&RefSite::CommLink {
+        link: "s_down".into()
+    }));
+}
