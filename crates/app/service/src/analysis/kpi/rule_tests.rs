@@ -93,13 +93,17 @@ fn the_guard_rejects_unknown_keys() {
     ));
 }
 
-/// 判定の対象の KPI はキーを名指しするか、解析全体を代表する（`Any`）。`Any` は節点の動作範囲だけ。
+/// 判定の対象の KPI は必ずキーを名指しする（全 check の最悪を取る KPI は無い。温度範囲の判定の数もキーで選ぶ）。
 #[test]
-fn only_the_whole_analysis_kpi_uses_any() {
+fn judged_kpis_name_their_checks() {
     for info in sat_analysis::catalog::catalog() {
         for key in keys(&info.id) {
-            let any = rule(*key).checks == CheckMatch::Any;
-            assert_eq!(any, *key == KpiKey::NodesInRange, "{key:?}");
+            let r = rule(*key);
+            assert_eq!(
+                r.checks.is_judged(),
+                !r.checks.named().is_empty(),
+                "{key:?}"
+            );
         }
     }
 }
@@ -177,7 +181,7 @@ fn data_throughput_kpis_follow_their_own_check() {
 /// 温度範囲でない判定には巻き込まれない。上限だけ超えても最低温度の KPI は OK のまま（逆も同じ）。
 #[test]
 fn thermal_kpis_look_at_their_own_side() {
-    use KpiKey::{MaxTemperature, MinTemperature, NodesInRange};
+    use KpiKey::{MaxHeaterDuty, MaxTemperature, MinTemperature, NodesInRange};
     use Verdict::{Ok, Violation, Warning};
     let high_only = [
         checked("range_high:BAT:operating", Violation),
@@ -189,8 +193,9 @@ fn thermal_kpis_look_at_their_own_side() {
         [
             (MaxTemperature, Some(Violation)),
             (MinTemperature, Some(Ok)),
-            // 解析全体を代表する KPI は全 check の最悪
+            // 温度範囲の判定の最悪（範囲でない `other` は含めない）
             (NodesInRange, Some(Violation)),
+            (MaxHeaterDuty, None),
         ]
     );
     let low_only = [
@@ -204,6 +209,7 @@ fn thermal_kpis_look_at_their_own_side() {
             (MaxTemperature, Some(Ok)),
             (MinTemperature, Some(Warning)),
             (NodesInRange, Some(Warning)),
+            (MaxHeaterDuty, None),
         ]
     );
     // 温度範囲の判定が無ければ KPI の判定は無い
@@ -212,6 +218,35 @@ fn thermal_kpis_look_at_their_own_side() {
         verdicts_of("thermal.steady", &other)[..2],
         [(MaxTemperature, None), (MinTemperature, None)]
     );
+}
+
+/// ヒータの判定（`heater:<部品>`）はヒータのデューティの KPI だけの判定で、温度範囲の KPI（最高・最低・範囲の判定）には入らない。
+/// 逆に温度範囲の違反はヒータの KPI を動かさない。
+#[test]
+fn heater_checks_are_kept_apart_from_range_kpis() {
+    use KpiKey::{MaxHeaterDuty, MaxTemperature, MinTemperature, NodesInRange};
+    use Verdict::{Ok, Violation};
+    let saturated = [
+        checked("range_high:BAT:operating", Ok),
+        checked("range_low:BAT:operating", Ok),
+        checked("heater:HTR_BAT", Violation),
+    ];
+    assert_eq!(
+        verdicts_of("thermal.steady", &saturated),
+        [
+            (MaxTemperature, Some(Ok)),
+            (MinTemperature, Some(Ok)),
+            (NodesInRange, Some(Ok)),
+            (MaxHeaterDuty, Some(Violation)),
+        ]
+    );
+    let cold = [
+        checked("range_low:BAT:operating", Violation),
+        checked("heater:HTR_BAT", Ok),
+    ];
+    let v = verdicts_of("thermal.steady", &cold);
+    assert_eq!(v[2], (NodesInRange, Some(Violation)));
+    assert_eq!(v[3], (MaxHeaterDuty, Some(Ok)));
 }
 
 /// 要素ごとの check（回線・センサ・取付）は接頭辞で束ねて最悪を取り、他の check には引きずられない。

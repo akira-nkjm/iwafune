@@ -71,6 +71,10 @@ pub enum KpiKey {
     NodesInRange,
     /// 非定常の最高温度（節点のうち最高）
     TransientMaxTemperature,
+    /// ヒータのデューティの最大（定常はケースをまたいで、ヒータのうち最大）
+    MaxHeaterDuty,
+    /// 非定常のヒータの、最後の 1 周のデューティの最大（ヒータのうち最大）
+    TransientMaxHeaterDuty,
     /// 総質量
     TotalMass,
     /// 最小の安全余裕（取付のうち最小）

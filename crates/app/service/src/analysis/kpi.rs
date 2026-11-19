@@ -5,9 +5,9 @@
 //!   KPI ごとに最大か最小（最悪の側）を選ぶ。次元は型から（`sat_units::typed::NamedKind`）。
 //!   電力収支はケースの判定に使った運用の値（最長継続時間で評価したケースは `by_max_duration`）とモードの並びから選ぶ。
 //! - 判定: 判定の対象の KPI は、対応する check（`rule::CheckMatch`。キーの完全一致か接頭辞）の最悪。対応する check が無ければ null、
-//!   対象でない KPI（発生量・可視時間など）も null。解析全体を代表する KPI（節点の動作範囲）だけが全 check の最悪。
+//!   対象でない KPI（発生量・可視時間など）も null。節点の動作範囲の KPI は温度範囲の check（`range_high:`・`range_low:`）の最悪で、ヒータの判定（`heater:`）は含めない。
 //! - 塗りの比: 値そのものが比の KPI（DoD・余裕）は値、判定を数える KPI は OK の割合。
-//! - 判定の数え方: 判定を数える KPI（節点の動作範囲）は、項目（節点 × 範囲の種類）の数と OK でない数。
+//! - 判定の数え方: 判定を数える KPI（節点の動作範囲）は、温度範囲の項目（節点 × 範囲の種類）の数と OK でない数（範囲でない check は数えない）。
 //!   上限側と下限側の判定は 1 項目にまとめ、項目の判定は両側の悪いほう（`rule::Tally`）。
 //!
 //! 表示名は `labels::kpi_label`。電力のモードの選び方はバジェットと同じ `budget::budget_mode`。
@@ -147,8 +147,12 @@ kpi_table! {
         MaxTemperature => max_temperature,
         MinTemperature => min_temperature,
         NodesInRange => counted_only,
+        MaxHeaterDuty => max_heater_duty,
     }
-    thermal::ThermalTransient { TransientMaxTemperature => transient_max_temperature }
+    thermal::ThermalTransient {
+        TransientMaxTemperature => transient_max_temperature,
+        TransientMaxHeaterDuty => transient_max_heater_duty,
+    }
     structure::MassProperties { TotalMass => total_mass }
     structure::StaticLoad { MinSafetyMargin => min_safety_margin }
     structure::ModalEstimate { MinFrequency => min_frequency }
@@ -213,6 +217,18 @@ fn max_temperature(o: &thermal::ThermalSteadyOutput, _: Ctx<'_>) -> Option<Measu
 }
 fn min_temperature(o: &thermal::ThermalSteadyOutput, _: Ctx<'_>) -> Option<Measured> {
     smallest(o.envelope.iter().map(|n| n.min))
+}
+/// ヒータのデューティの最大（ケースをまたいで、ヒータのうち最大）。ヒータが無ければ None。
+fn max_heater_duty(o: &thermal::ThermalSteadyOutput, _: Ctx<'_>) -> Option<Measured> {
+    largest(
+        o.cases
+            .iter()
+            .flat_map(|c| c.heaters.iter().map(|h| h.duty_fraction)),
+    )
+}
+/// 非定常のヒータの、最後の 1 周のデューティの最大（判定と同じ量）。ヒータが無ければ None。
+fn transient_max_heater_duty(o: &thermal::ThermalTransientOutput, _: Ctx<'_>) -> Option<Measured> {
+    largest(o.heaters.iter().map(|h| h.duty_fraction_last_orbit))
 }
 fn transient_max_temperature(o: &thermal::ThermalTransientOutput, _: Ctx<'_>) -> Option<Measured> {
     largest(o.nodes.iter().map(|n| n.max))

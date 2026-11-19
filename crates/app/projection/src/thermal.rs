@@ -2,6 +2,7 @@
 //! 熱の計算（入熱・放射・解法・電力 → 発熱の変換・表面材の混ぜ方・温度範囲の判定）は sat-analysis が行う。
 //! ここは部品と設定の値を集めるだけ（ネットワークは [`network`]）。既定値（プリセットの環境・解析マージン）も解析が持つ。
 
+mod heaters;
 mod network;
 
 use crate::context::{Context, mode_def};
@@ -13,6 +14,7 @@ use fune_model::Target;
 use fune_model::design::setting_dims as dims;
 use fune_model::design::{AnalysisSystem, ThermalCaseSettings, ThermalPresetKind, ThermalSettings};
 use fune_model::path::SettingPath;
+use heaters::{heaters, is_thermostat};
 use network::network;
 use sat_analysis::spec::SamplingSpan;
 use sat_analysis::thermal::network::{ThermalModeLoads, ThermalModePart};
@@ -56,15 +58,34 @@ pub fn loads(
     s: &ThermalSettings,
     mode: Option<&str>,
 ) -> Option<ThermalModeLoads> {
+    mode_loads(ctx, s, mode, true)
+}
+
+/// 解析に渡す発熱の源: [`loads`] からサーモスタット付きのヒータを除いたもの（ヒータは [`heaters`] で別に渡す。二重に数えない）。
+fn analysis_loads(
+    ctx: &Context<'_>,
+    s: &ThermalSettings,
+    mode: Option<&str>,
+) -> Option<ThermalModeLoads> {
+    mode_loads(ctx, s, mode, false)
+}
+
+/// モードでの内部発熱の源。`with_thermostats` が偽ならサーモスタット付きのヒータを除く。
+fn mode_loads(
+    ctx: &Context<'_>,
+    s: &ThermalSettings,
+    mode: Option<&str>,
+    with_thermostats: bool,
+) -> Option<ThermalModeLoads> {
     let mode = mode.and_then(|id| ctx.design.modes.get(id))?;
-    let mut sources = node_of(s);
-    for (pid, node) in &s.heat_node {
-        sources.insert(pid.as_str(), node.as_str());
-    }
+    let sources = heaters::heat_nodes(s);
     let parts = sources
         .iter()
         .filter_map(|(pid, node)| {
             let p = ctx.resolved.parts.get(*pid)?;
+            if !with_thermostats && is_thermostat(ctx, p) {
+                return None;
+            }
             // 消費電力を持つ部品だけが発熱の源（構体やパネルは渡さない。電源の mode_load と同じ選び方）
             Some(ThermalModePart {
                 id: p.id.clone(),
@@ -111,6 +132,7 @@ fn margin(s: &ThermalSettings, m: &mut MissingInputs) -> ThermalMarginPolicy {
             policy.warning_band.as_ref(),
             m,
         ),
+        heater_duty_warning: None,
     }
 }
 
@@ -170,6 +192,7 @@ pub fn steady(ctx: &Context<'_>) -> Result<ThermalSteadyInput, MissingInputs> {
         return Err(m);
     };
     let net = network(ctx, s, &mut m);
+    let thermostats = heaters(ctx, s, &mut m);
     let mut cases = Vec::new();
     for (id, c) in &s.cases {
         let mode = c.mode.as_deref();
@@ -186,7 +209,8 @@ pub fn steady(ctx: &Context<'_>) -> Result<ThermalSteadyInput, MissingInputs> {
             environment: environment(id, c, Some(t.orbit().central), &mut m),
             exposure: ThermalExposure::OrbitAverage { timeline: t },
             loads: Vec::new(),
-            mode_loads: loads(ctx, s, mode),
+            mode_loads: analysis_loads(ctx, s, mode),
+            heaters: thermostats.clone(),
         });
     }
     if s.cases.is_empty() {
@@ -267,14 +291,16 @@ pub fn transient(ctx: &Context<'_>) -> Result<ThermalTransientInput, MissingInpu
         label: mode.unwrap_or("").to_owned(),
         duration: None,
         loads: Vec::new(),
-        mode_loads: loads(ctx, s, mode),
+        mode_loads: analysis_loads(ctx, s, mode),
     }];
+    let heaters = heaters(ctx, s, &mut m);
     m.finish(|| {
         Some(ThermalTransientInput {
             network: net,
             timeline: t?,
             environment,
             phases,
+            heaters,
             initial,
             max_step: None,
             margin,

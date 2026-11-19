@@ -44,6 +44,7 @@ fn steady_matches_the_fourth_power_mean_of_the_periodic_transient() {
             id: "avg".to_owned(),
             label: String::new(),
             environment: env(SOLAR, 0.0),
+            heaters: Vec::new(),
             exposure: ThermalExposure::OrbitAverage {
                 timeline: tl.clone(),
             },

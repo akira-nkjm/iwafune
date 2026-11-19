@@ -229,6 +229,7 @@ fn thermal_margin_fields_record_temperature_difference() {
     let policy = ThermalMarginPolicy {
         uncertainty: Some(Qty::from_raw(2.0)),
         warning_band: None,
+        heater_duty_warning: None,
     };
     let d = dims_of(&policy);
     assert_eq!(d["/uncertainty"], "TemperatureDifference");

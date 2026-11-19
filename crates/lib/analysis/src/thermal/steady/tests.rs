@@ -37,6 +37,7 @@ fn input() -> ThermalSteadyInput {
         },
         cases: vec![ThermalSteadyCase {
             mode_loads: None,
+            heaters: vec![],
             id: "hot".to_owned(),
             label: "Hot".to_owned(),
             environment: ThermalEnvironment {
@@ -150,6 +151,7 @@ fn orbit_average_cube() {
     };
     let case = |id: &str, e: ThermalEnvironment| ThermalSteadyCase {
         mode_loads: None,
+        heaters: vec![],
         id: id.to_owned(),
         label: String::new(),
         environment: e,

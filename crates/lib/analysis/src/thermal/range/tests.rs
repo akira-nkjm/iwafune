@@ -68,6 +68,7 @@ fn three_ranges_and_uncertainty_by_hand() {
     let u8 = ThermalMarginPolicy {
         uncertainty: Some(Qty::from_raw(8.0)),
         warning_band: None,
+        heater_duty_warning: None,
     };
     assert_eq!(verdicts(280.0, 300.0, &r, u8), [Ok, Warning, Violation]);
     let wide = ThermalMarginPolicy {
@@ -199,6 +200,7 @@ fn each_side_is_judged_on_its_own() {
     let u8 = ThermalMarginPolicy {
         uncertainty: Some(Qty::from_raw(8.0)),
         warning_band: None,
+        heater_duty_warning: None,
     };
     assert_eq!(sides(280.0, 300.0, u8), (Verdict::Ok, Verdict::Warning));
     // 範囲全体の判定は両側の悪いほう

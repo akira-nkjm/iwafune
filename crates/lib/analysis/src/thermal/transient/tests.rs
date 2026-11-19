@@ -24,6 +24,7 @@ fn first_order_cooling() {
         timeline: leo_timeline(1800.0, 60.0),
         environment: ThermalEnvironment::default(),
         phases: vec![],
+        heaters: vec![],
         initial: ThermalInitial::Uniform {
             temperature: Qty::from_raw(350.0),
         },
@@ -76,6 +77,7 @@ fn phases_cycle() {
                 loads: load(5.0),
             },
         ],
+        &[],
     )
     .unwrap();
     assert_eq!(p.at(5.0), &[1.0]);
@@ -102,6 +104,7 @@ fn orbit_average_start_is_near_periodic() {
         network: cube(5.0),
         timeline: tl.clone(),
         environment: ThermalEnvironment::default(),
+        heaters: vec![],
         phases: vec![ThermalHeatPhase {
             mode_loads: None,
             label: "NOM".to_owned(),
@@ -117,6 +120,7 @@ fn orbit_average_start_is_near_periodic() {
         network: cube(5.0),
         cases: vec![crate::thermal::steady::ThermalSteadyCase {
             mode_loads: None,
+            heaters: vec![],
             id: "avg".to_owned(),
             label: String::new(),
             environment: ThermalEnvironment::default(),
@@ -160,6 +164,7 @@ fn single_phase_duration_defaults_without_changing_the_result() {
             network: cube(5.0),
             timeline: leo_timeline(1.0, 30.0),
             environment: ThermalEnvironment::default(),
+            heaters: vec![],
             phases: vec![ThermalHeatPhase {
                 mode_loads: None,
                 label: "NOM".to_owned(),

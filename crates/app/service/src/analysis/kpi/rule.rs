@@ -11,8 +11,6 @@ use std::collections::HashMap;
 pub(super) enum CheckMatch {
     /// 判定の対象でない KPI（発生量・可視時間など。判定は null）
     Unjudged,
-    /// 解析の全 check（解析全体を代表する KPI だけ）
-    Any,
     /// このキーの check
     Exact(&'static str),
     /// このキーで始まる check の並び（節点・回線・センサなどの要素ごとの check。最悪を使う）
@@ -31,7 +29,6 @@ impl CheckMatch {
     pub(super) fn matches(self, key: &str) -> bool {
         match self {
             Self::Unjudged => false,
-            Self::Any => true,
             Self::Exact(k) => key == k,
             Self::Prefix(p) => key.starts_with(p),
             Self::OneOf(ms) => ms.iter().any(|m| m.matches(key)),
@@ -52,7 +49,7 @@ impl CheckMatch {
     #[cfg(test)]
     pub(super) fn named(self) -> Vec<CheckMatch> {
         match self {
-            Self::Unjudged | Self::Any => Vec::new(),
+            Self::Unjudged => Vec::new(),
             Self::Exact(_) | Self::Prefix(_) => vec![self],
             Self::OneOf(ms) => ms.iter().flat_map(|m| m.named()).collect(),
         }
@@ -75,8 +72,8 @@ pub(super) enum Fill {
 pub(super) enum Tally {
     /// 数えない
     None,
-    /// 項目ごとに 1 つ数え、項目の判定は項目の check の最悪。温度範囲の上限側と下限側（`range_high:` / `range_low:`）は
-    /// 同じ節点・種類の 1 項目にまとめる（側ごとに数えると分母が倍になる）。温度範囲でない check はそれぞれが 1 項目
+    /// 温度範囲の項目（節点 × 種類）ごとに 1 つ数え、項目の判定は項目の check の最悪。上限側と下限側（`range_high:` / `range_low:`）は
+    /// 同じ節点・種類の 1 項目にまとめる（側ごとに数えると分母が倍になる）。温度範囲でない check（ヒータなど）は数えない
     Items,
 }
 
@@ -86,10 +83,12 @@ impl Tally {
         match self {
             Self::None => None,
             Self::Items => {
-                // 項目: 温度範囲は (true, 節点:種類)、それ以外は (false, key)。並びは数えるだけなので順序は問わない
-                let mut items: HashMap<(bool, &str), bool> = HashMap::new();
+                // 項目: 温度範囲は節点:種類。範囲でない check は数えない。並びは数えるだけなので順序は問わない
+                let mut items: HashMap<&str, bool> = HashMap::new();
                 for c in checks {
-                    let id = range_item(&c.key).map_or((false, c.key.as_str()), |r| (true, r));
+                    let Some(id) = range_item(&c.key) else {
+                        continue;
+                    };
                     // 項目の判定は最悪。OK でないのが 1 つでもあれば項目は OK でない
                     *items.entry(id).or_insert(false) |= c.verdict != Verdict::Ok;
                 }
@@ -115,13 +114,15 @@ pub(super) struct Rule {
     pub(super) tally: Tally,
 }
 
-use CheckMatch::{Any, Exact, OneOf, Prefix, Unjudged};
+use CheckMatch::{Exact, OneOf, Prefix, Unjudged};
 
 /// 熱の温度範囲の判定は上限側（`range_high:<節点>:<種類>`）と下限側（`range_low:<節点>:<種類>`）に分かれる。
 /// 最高温度・非定常の最高温度の KPI は上限側、最低温度の KPI は下限側だけを見る（反対側の違反を巻き込まない）。
 /// 非定常の最低温度の KPI は無い（作るときは下限側を使う）。
 const THERMAL_HIGH: CheckMatch = Prefix("range_high:");
 const THERMAL_LOW: CheckMatch = Prefix("range_low:");
+/// ヒータの判定（`heater:<部品>`。温度範囲の判定ではない）。
+const THERMAL_HEATER: CheckMatch = Prefix("heater:");
 
 pub(super) fn rule(key: KpiKey) -> Rule {
     use KpiKey as K;
@@ -133,8 +134,12 @@ pub(super) fn rule(key: KpiKey) -> Rule {
         K::BatteryMargin => (Exact("battery_margin"), Fill::Value, Tally::None),
         K::TankVolumeMargin => (Exact("tank_volume"), Fill::Value, Tally::None),
         K::ImpulseMargin => (Exact("total_impulse"), Fill::Value, Tally::None),
-        // 解析全体を代表する KPI。節点ごとの判定の数（`tally`）と OK の割合で見せる
-        K::NodesInRange => (Any, Fill::OkShare, Tally::Items),
+        // 温度範囲の判定（`range_high:` と `range_low:`）の数（`tally`）と OK の割合で見せる。ヒータなど範囲でない判定は数えない
+        K::NodesInRange => (
+            OneOf(&[THERMAL_HIGH, THERMAL_LOW]),
+            Fill::OkShare,
+            Tally::Items,
+        ),
         K::OrbitBalance => (Exact("energy_balance"), Fill::None, Tally::None),
         // 軌道寿命は、ミッション期間との比較と寿命の上限の 2 つ（推薬で保てる期間 `propellant_life` は別の量）
         K::OrbitLifetime => (
@@ -168,6 +173,7 @@ pub(super) fn rule(key: KpiKey) -> Rule {
         K::MaxBacklog => (Exact("storage"), Fill::None, Tally::None),
         K::MaxTemperature | K::TransientMaxTemperature => (THERMAL_HIGH, Fill::None, Tally::None),
         K::MinTemperature => (THERMAL_LOW, Fill::None, Tally::None),
+        K::MaxHeaterDuty | K::TransientMaxHeaterDuty => (THERMAL_HEATER, Fill::Value, Tally::None),
         K::TotalMass => (Exact("mass"), Fill::None, Tally::None),
         K::MinSafetyMargin => (Prefix("interface:"), Fill::None, Tally::None),
         K::MinFrequency => (

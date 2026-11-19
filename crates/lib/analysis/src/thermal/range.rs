@@ -13,12 +13,6 @@ use crate::spec::{Verdict, margin_verdict};
 use sat_units::typed::{Qty, Temperature, TemperatureDifference};
 use serde::{Deserialize, Serialize};
 
-/// 範囲の端からこの幅 [K] 以内なら警告にする（解析マージンの方針の `warning_band` の既定値）。
-pub const RANGE_WARNING_BAND_K: f64 = 5.0;
-
-/// 予測温度の不確かさの既定値 [K]（解析マージンの方針の `uncertainty` の既定値）。0 なら予測温度をそのまま比べる。
-pub const DEFAULT_UNCERTAINTY_K: f64 = 0.0;
-
 /// 温度の範囲。
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -165,72 +159,6 @@ impl ThermalRanges {
         ThermalRangeKind::ALL
             .into_iter()
             .filter_map(|k| self.get(k).map(|r| (k, r)))
-    }
-}
-
-/// 解析マージンの方針。書かれていない値は解析の既定値（取り出しはメソッド、使った値は [`Self::used`]）。
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct ThermalMarginPolicy {
-    /// 予測温度の不確かさ（最高に足し、最低から引いてから範囲と比べる。既定 [`DEFAULT_UNCERTAINTY_K`]）
-    #[serde(
-        default,
-        serialize_with = "sat_units::typed::TemperatureDifferenceKind::serialize_option"
-    )]
-    pub uncertainty: Option<Qty<TemperatureDifference>>,
-    /// 範囲の端からこの幅以内を警告にする（既定 [`RANGE_WARNING_BAND_K`]）
-    #[serde(
-        default,
-        serialize_with = "sat_units::typed::TemperatureDifferenceKind::serialize_option"
-    )]
-    pub warning_band: Option<Qty<TemperatureDifference>>,
-}
-
-impl ThermalMarginPolicy {
-    /// 予測温度の不確かさ [K]（省略時 [`DEFAULT_UNCERTAINTY_K`]）。
-    pub fn uncertainty(&self) -> Qty<TemperatureDifference> {
-        self.uncertainty
-            .unwrap_or(Qty::from_raw(DEFAULT_UNCERTAINTY_K))
-    }
-
-    /// 警告の幅 [K]（省略時 [`RANGE_WARNING_BAND_K`]）。
-    pub fn warning_band(&self) -> Qty<TemperatureDifference> {
-        self.warning_band
-            .unwrap_or(Qty::from_raw(RANGE_WARNING_BAND_K))
-    }
-
-    /// 使った値（既定値を埋めたもの）。出力に返す。
-    pub fn used(&self) -> ThermalMarginUsed {
-        ThermalMarginUsed {
-            uncertainty: self.uncertainty(),
-            warning_band: self.warning_band(),
-        }
-    }
-}
-
-/// 解析に使った解析マージン（既定値を埋めたもの）。
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct ThermalMarginUsed {
-    /// 予測温度の不確かさ（温度差 [K]）
-    #[serde(serialize_with = "sat_units::typed::TemperatureDifferenceKind::serialize")]
-    pub uncertainty: Qty<TemperatureDifference>,
-    /// 範囲の端からこの幅以内を警告にした（温度差 [K]。Web の温度表もこれを使う）
-    #[serde(serialize_with = "sat_units::typed::TemperatureDifferenceKind::serialize")]
-    pub warning_band: Qty<TemperatureDifference>,
-}
-
-impl ThermalMarginUsed {
-    /// 入力を検査する（不確かさと警告の幅は 0 以上の有限の値）。
-    pub(crate) fn validate(&self) -> Result<(), crate::spec::AnalysisError> {
-        let ok = |v: f64| v.is_finite() && v >= 0.0;
-        if ok(self.uncertainty.value()) && ok(self.warning_band.value()) {
-            Ok(())
-        } else {
-            Err(crate::spec::AnalysisError::InvalidInput(
-                "Analysis margin uncertainty and warning width must be 0 or more".to_owned(),
-            ))
-        }
     }
 }
 
@@ -388,9 +316,14 @@ pub(crate) fn worst_verdict(margins: &[ThermalRangeMargin]) -> Verdict {
 }
 
 mod checks;
+mod policy;
 #[cfg(test)]
 use checks::excluded_text;
 pub(crate) use checks::range_checks;
+pub use policy::{
+    DEFAULT_HEATER_DUTY_WARNING, DEFAULT_UNCERTAINTY_K, RANGE_WARNING_BAND_K, ThermalMarginPolicy,
+    ThermalMarginUsed,
+};
 
 #[cfg(test)]
 mod tests;

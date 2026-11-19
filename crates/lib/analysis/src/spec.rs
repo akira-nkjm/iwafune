@@ -165,6 +165,8 @@ pub enum ChannelKind {
     NodeTemperature,
     /// 外部入熱の合計
     AbsorbedHeat,
+    /// ヒータの発熱（`subject` はヒータの部品）
+    HeaterPower,
     /// 未送信データ
     Backlog,
     /// 軌道の高度（高度低下の推移・マヌーバの順の軌道の推移）
