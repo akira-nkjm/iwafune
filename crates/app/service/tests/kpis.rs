@@ -89,8 +89,8 @@ fn demo_kpis_show_the_same_values_as_before() {
         (
             "thermal.transient",
             &[
-                (KpiKey::TransientMaxTemperature, "58.1 °C"),
-                (KpiKey::TransientMaxHeaterDuty, "42.0 %"),
+                (KpiKey::TransientMaxTemperature, "58.0 °C"),
+                (KpiKey::TransientMaxHeaterDuty, "41.8 %"),
             ],
         ),
         (

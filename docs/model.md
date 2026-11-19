@@ -558,6 +558,31 @@ The default value of 1 for `heat_fraction` was removed (a default would always a
 The link-budget transmit power `tx_power` has no states, so the per-state `rf_output` is written separately for heat dissipation.
 The node that emits heat is by default the node the part belongs to, and writing `part = "node"` in `[heat_node]` places it on that node (a part not in any node can also be a heat source).
 
+#### Transient integration
+
+`thermal.transient` integrates the node temperatures with the adaptive Dormand–Prince 8(5,3) method `sat_astro::ode::Dop853` (the workspace's only adaptive integrator; dense output).
+The output samples stay at the timeline's sample times; the integrator takes whatever steps the error control asks for in between.
+
+- **Tolerances.** The error of a step must stay within `abs_tol + rel_tol·|T|` per node (RMS over the nodes). The defaults belong to the analysis: `rel_tol = 1e-8` and `abs_tol = 1e-6 K` (`DEFAULT_REL_TOL`, `DEFAULT_ABS_TOL_K`).
+  The inputs `rel_tol` and `abs_tol` override them; `max_step` is an optional upper bound on the integrator's step (there is no other step setting: the old stability estimate for the fixed-step RK4 is gone).
+  The values used and the cost are returned in the output's `integration`: `smooth_segments`, `accepted_steps`, `rejected_steps`, `rhs_evaluations` and `events` (the heater switchings that stopped an integration).
+- **Where the integration is split.** The right-hand side must be smooth inside one integration for the error control to work, so it is split at every sample time, at every change of the heat phase (mode), and at the eclipse boundaries
+  (where the sunlit fraction leaves 1 or reaches 0; for the cylindrical shadow model the boundary is a jump, for the default conical model the penumbra begins and ends there with a kink).
+  The boundaries are located by bisection of the sunlit fraction (`sat_astro::timeline::TimelineEvaluator::shadow_edges`, tolerance 1 µs) between two samples. A short eclipse that begins and ends inside one sample interval is not found.
+- **External heat between samples (implemented: continuous evaluation).** The heat absorbed on the outer surfaces is evaluated inside the right-hand side at the integrator's own times, from the orbit, the Sun, the attitude law and the shadow at that time
+  (`TimelineEvaluator::at`; Kepler and J2 are evaluated directly, a numerical propagator is integrated once on a grid of at most 1/100 of the period and interpolated with cubic Hermite polynomials, which agrees with a direct propagation within a metre).
+  At the sample times it equals the timeline's own value. So the incidence angle, the view factor of the central body and the eclipse entry and exit are resolved between samples, and the sample step only sets the output interval
+  (the old sample-and-hold evaluation held the value at the start of each sample interval). Segment ends are evaluated just inside the segment (5 µs), so a jump of the sunlit fraction is never read from the wrong side.
+  Other kinks of the input (for example a face turning away from the Sun, where its absorbed heat reaches 0 with a changed slope) are not located: the error control takes smaller steps there.
+- **Heater switching by event location.** While a heater is on, the margin `off_above − T` of its node is watched, and while it is off `T − on_below`; the smallest margin of the active heaters is the event function. When it reaches 0 inside a step, the crossing time is found by bisection
+  (`sat_astro::math::bisect`) on the step's dense output, the segment stops there, the heater switches and the integration continues. The temperature at a switching equals the set point within `1e-5 K`, so the node no longer leaves the band by one sub-step of drift,
+  and the switching times, the duty, the longest on period and the last-orbit window use the exact times. After a switching the margin to the opposite set point is the band width, which is at least `0.001 K` (a narrower band is an input error),
+  so a switching cannot repeat at the same time. Heaters whose thermostat is off in a phase are held off and do not stop the integration. A crossing that goes out and back inside one step is not seen (the band is wide compared with a step).
+- **Stiff networks.** The method is explicit. A node with a very small heat capacity strongly coupled to a large one makes the step as small as the fast time constant, whatever the accuracy. A 12-node chain of alternating 0.09 J/K and 900 J/K nodes
+  (G = 10 W/K) over five orbits takes about a million steps and 12 million evaluations of the right-hand side (about a minute in a debug build; see `stiff_chain_five_orbits_cost`). There is no implicit integrator: model such a node as part of its neighbour.
+- **Accuracy.** The penumbra of the conical shadow begins and ends with a `x^(3/2)`-like rise of the sunlit fraction, which the error estimate sees only partly; with orbits through the penumbra the global error is a few times the tolerance
+  (about 1e-5 K at the defaults). Without a penumbra (cylindrical model, or no eclipse) the error is far below the tolerance.
+
 #### Heaters
 
 A heater part (`kind = "heater"`) with `setpoint = { min, max, unit = "degC" }` is a **thermostat-controlled heater** in both thermal analyses (`sat_analysis::thermal::network::{heater, heater_steady}`; the verdicts are `thermal::heater`).
@@ -577,10 +602,11 @@ With several heaters the sets (off / regulating / saturated) are found by an act
 P > P_max to saturated, a saturated node above its set point or an off node below it to regulating. The result per case and heater is `state`, `power`, `capacity`, `duty_fraction = P / P_max`, `set_point` and `node_temperature`;
 the node's `internal` heat includes the heater power. The check `heater:<part>` (worst case across cases) is a **violation if saturated** (capacity cannot hold the lower set point), a **warning if the duty is above 0.8** (`DEFAULT_HEATER_DUTY_WARNING`, overridable by `ThermalMarginPolicy.heater_duty_warning`, no setting yet), otherwise ok.
 
-**Transient** (`thermal.transient`). Bang-bang with hysteresis for each heater, evaluated at the end of every integration sub-step (the step is at most the sample step, so every sample is also a decision point); the heater heat is constant within a sub-step.
-The node may therefore leave the band by at most the temperature change of one sub-step (overshoot). The initial state is on below the lower set point, off above the upper one, and **off inside the band**. With `orbit_average_steady` the run starts from the steady state above (regulating heaters start at their lower set point, using the first phase's modes).
+**Transient** (`thermal.transient`). Bang-bang with hysteresis for each heater, switching at the exact time the sensed node reaches a set point (event location; see "Transient integration"): the heater heat is constant between switchings,
+and the node temperature at a switching equals the set point (within 1e-5 K), so it stays inside the band. The initial state is on below the lower set point, off above the upper one, and **off inside the band**. With `orbit_average_steady` the run starts from the steady state above
+(regulating heaters start at their lower set point, using the first phase's modes).
 Per heater the output has `duty_fraction` (on-time share of the run, including the start-up), `duty_fraction_last_orbit` (the last orbital period, or the whole run if shorter; used for the verdict), `mean_power`, `switchings` and `max_on_duration`,
-and the series channel `heater:<part>` (W, the state at the start of each sample). The check `heater:<part>` is a **violation if saturated** (on for the whole last orbit and the node never reached the lower set point), a **warning if the last-orbit duty is above the threshold**, otherwise ok.
+and the series channel `heater:<part>` (W, the state at each sample time). The check `heater:<part>` is a **violation if saturated** (on for the whole last orbit and the node never reached the lower set point), a **warning if the last-orbit duty is above the threshold**, otherwise ok.
 
 **Relation to the power side.** The electrical power analyses and budgets are unchanged: they read the heater's mode state (`on` = `power.on` all the time, `off` with an `on` duty = the weighted average). That is the conservative always-on value when the mode says `on`.
 The thermal result's `mean_power` / steady `power` is what the thermostat actually needs, so the two can be compared; feeding the thermal duty back into the power budget is not done.
@@ -641,22 +667,30 @@ A_abs the area facing the Sun, A_rad the radiating area, C heat capacity, T_s th
 
 | Case | Closed form | Test |
 |---|---|---|
-| Plate, one face to the Sun | T⁴ = T_s⁴ + α S A_abs / (ε σ A_rad), steady and transient (converges after 20 τ) | `flat_plate_one_face_equilibrium` |
+| Plate, one face to the Sun | T⁴ = T_s⁴ + α S A_abs / (ε σ A_rad), steady and transient (converges after 30 τ) | `flat_plate_one_face_equilibrium` |
 | Plate radiating from both faces | A_rad = 2 A_abs | `flat_plate_both_faces_radiate` |
 | Cube, one face to the Sun | A_abs = a², A_rad = 6a² | `cube_one_face_to_the_sun` |
 | Radiative cooling in deep space | 1/T³ = 1/T₀³ + 3 ε σ A t / C | `radiative_cooling_in_deep_space` |
 | Small perturbation | decay e^(−t/τ) near equilibrium (linearised, within the nonlinear correction) | `small_perturbation_decays_with_linear_time_constant` |
+| Nonlinear relaxation | C dT/dt = ε σ A (T_e⁴ − T⁴): atan x + ½ ln\|(1+x)/(1−x)\| grows linearly in t (x = T/T_e), from below and above T_e | `nonlinear_radiative_relaxation_matches_the_exact_solution` |
 | White paint, black paint, MLI-like effective emissivity | T_eq ratio = ((α₁/ε₁)/(α₂/ε₂))^¼ | `surface_finish_ratios` |
 | Mixed surface | area-weighted α and ε | `mixed_surface_equals_area_weighted_properties` |
 | Conduction only | T_sink⁴ = Q / (ε σ A), T_hot − T_sink = Q / G | `conduction_only_steady_and_transient`, `conduction_to_a_fixed_temperature_node` |
 | Two isolated masses | τ = C₁C₂ / (G (C₁ + C₂)), final temperature = heat-capacity-weighted mean | `isolated_masses_relax_to_the_energy_weighted_mean` |
 | Radiation only | Q = σ E (T₁⁴ − T₂⁴) | `radiation_only_steady_and_transient`, `radiation_to_a_fixed_temperature_node` |
 | Energy conservation | ∫(Q_in − Q_rad) dt = Σ C ΔT (the radiated heat is recomputed from the temperature series) | `transient_conserves_energy` |
-| Orbit with eclipse | for the periodic transient, ⟨T⁴⟩^¼ equals the steady solution at the orbit-average input, whatever C is | `steady_matches_the_fourth_power_mean_of_the_periodic_transient` |
+| Orbit with eclipse | for the periodic transient, (⟨T⁴⟩ + C ΔT/(P ε σ A))^¼ equals the steady solution at the orbit-average input, whatever C is (ΔT is the temperature change over the last orbit) | `steady_matches_the_fourth_power_mean_of_the_periodic_transient` |
+| Heater bang-bang | switching times τ ln 3, τ ln 1.5, τ ln 2 (first-order response between 270 K and 280 K), hence switchings, duty, longest on period and the power series | `bang_bang_period_duty_and_band_by_hand` |
+| Convergence | halving the tolerance changes the result by less than the tolerance scale | `halving_the_tolerance_changes_the_result_by_less_than_the_tolerance`, `conical_shadow_converges_within_a_few_tolerances` |
+| Eclipse boundary | a plate with ε ≈ 0 stops heating at the geometric entry (and resumes at the exit) of the cylindrical shadow; the time is read from the temperature change in one sample | `temperature_stops_rising_at_the_analytic_eclipse_entry_and_exit` |
+| Sample-step independence | the same case with sample steps 10 s and 120 s gives the same temperatures and the same heater statistics | `results_do_not_depend_on_the_sample_step`, `heater_switching_does_not_depend_on_the_sample_step` |
 | Nadir plate | absorbed = ε F q_IR A + α S ρ F A (at noon), F = (R/(R+h))² | `nadir_plate_planet_ir_and_albedo` |
 
 The tests use T_s = 0 unless stated (the default is 3 K, which is included in the formulas where used) and set the albedo and planet IR to 0 when only the Sun should act.
-`transient_stays_stable_when_equilibrium_is_hot` guards the transient step: the step is re-estimated at every sample from the current temperatures (the radiative stiffness grows with T³), so a body that heats far above 400 K on a coarse sample step does not diverge (it did when the step was estimated once from the initial temperatures).
+Tolerances of the closed-form comparisons (#297 with fixed-step RK4 and sample-and-hold, then #300): the deep-space cooling 1e-6 → 1e-8 K (observed 2e-10), the equilibrium after 30 τ 1e-6 → 1e-9 K (observed 1e-13),
+the heater switching times, duty (1e-9) and longest on period (1e-5 s instead of 30 s), the energy balance 1e-5 → 1e-9 of ΔU on the sunlit case, and the periodic-orbit identity 0.1 K → 3e-4 K (sample step 1/4600 of the period so that the averaging window is exact).
+`transient_stays_stable_when_equilibrium_is_hot` keeps a body that heats far above 400 K on a coarse sample step from diverging (the fixed-step RK4 once did); with adaptive steps it is a plain accuracy check (1 K → 1e-8 K).
+`stiff_chain_with_capacity_ratio_1e4_is_solved` runs a stiff chain; the five-orbit cost is recorded by the ignored `stiff_chain_five_orbits_cost`.
 
 ### 5.3 Outer shape for attitude analysis
 

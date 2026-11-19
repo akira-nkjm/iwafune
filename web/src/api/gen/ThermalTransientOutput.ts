@@ -4,6 +4,7 @@ import type { Series } from "./Series";
 import type { ThermalCouplings } from "./ThermalCouplings";
 import type { ThermalEnvironmentUsed } from "./ThermalEnvironmentUsed";
 import type { ThermalHeaterRun } from "./ThermalHeaterRun";
+import type { ThermalIntegration } from "./ThermalIntegration";
 import type { ThermalMarginUsed } from "./ThermalMarginUsed";
 import type { ThermalTransientNodeResult } from "./ThermalTransientNodeResult";
 
@@ -35,6 +36,10 @@ couplings: ThermalCouplings,
  * ヒータごとの結果（入力の順。ヒータが無ければ空）。発熱の時系列は `series` の `heater:<部品>`（W）
  */
 heaters: Array<ThermalHeaterRun>, 
+/**
+ * 使った積分の設定と費用（刻みの数・右辺の評価の数・ヒータの切り替えの数）
+ */
+integration: ThermalIntegration, 
 /**
  * 温度範囲を持つ節点の種類ごとの判定（key は `range_high|range_low:<node>:<storage|operating|performance>`）と、
  * ヒータごとの判定（key は `heater:<部品>`）

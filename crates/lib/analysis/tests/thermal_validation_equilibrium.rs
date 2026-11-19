@@ -19,8 +19,8 @@ fn tau(eps: f64, a_rad: f64, t_k: f64) -> f64 {
     C / (4.0 * eps * SIGMA_SB * a_rad * t_k.powi(3))
 }
 
-/// 定常解が `expected` に一致し、非定常（200 K から、一定の入熱）が 20 τ 後に `expected` へ収束することを確かめる。
-/// 20 τ 後の残りは e^-20 ≈ 2e-9 倍なので、収束の誤差は積分の誤差だけ。
+/// 定常解が `expected` に一致し、非定常（200 K から、一定の入熱）が 30 τ 後に `expected` へ収束することを確かめる。
+/// 30 τ 後の残りは e^-30 ≈ 1e-13 倍なので、収束の誤差は積分の誤差だけ。
 fn assert_steady_and_transient(
     net: impl Fn() -> ThermalNetwork,
     space_k: f64,
@@ -34,25 +34,24 @@ fn assert_steady_and_transient(
         (t_steady - expected).abs() < 1e-6,
         "steady {t_steady} vs {expected}"
     );
-    let span = 20.0 * tau(eps, a_rad, expected).max(tau(eps, a_rad, 200.0));
+    let span = 30.0 * tau(eps, a_rad, expected).max(tau(eps, a_rad, 200.0));
     let out = transient(
         net(),
         timeline(span, 10.0, 75.0),
         env(SOLAR, space_k),
         vec![],
         uniform(200.0),
-        1.0,
     );
     let last = *values(&out.series, "n").last().unwrap();
     assert!(
-        (last - expected).abs() < 1e-6,
+        (last - expected).abs() < 1e-9,
         "transient {last} vs {expected} (span {span} s)"
     );
 }
 
 /// 平板（1 面だけが太陽を向き、他方は断熱）: T_eq⁴ = T_s⁴ + α S A / (ε σ A) = T_s⁴ + α S / (ε σ)。
 /// 黒色塗装 α 0.92・ε 0.86 の 0.01 m²。T_s = 0（理想）と既定の 3 K の両方。
-/// 許容: 定常は Newton 法の収束（1e-6 K）、非定常は RK4 の刻み 1 s（時定数 ≳ 100 s）で 1e-6 K（観測 ≲ 1e-11 K）。
+/// 許容: 定常は Newton 法の収束（1e-6 K）、非定常は適応刻み（既定の許容）で 1e-9 K（観測 ≲ 1e-13 K。#297 の RK4 は 1e-6 K）。
 #[test]
 fn flat_plate_one_face_equilibrium() {
     let (alpha, eps, a) = (0.92, 0.86, 0.01);
@@ -103,7 +102,7 @@ fn cube_one_face_to_the_sun() {
 }
 
 /// 宇宙での放射冷却（入熱なし、T_s = 0）: C dT/dt = −ε σ A T⁴ → 1/T³ = 1/T0³ + 3 ε σ A t / C。
-/// T0 = 400 K から 1200 s まで、60 s ごとの系列を比べる。許容 1e-6 K（RK4 の刻み 1 s。T³ に比例して剛くなる 400 K でも hλ ≈ 0.03。観測 ≲ 4e-9 K）。
+/// T0 = 400 K から 1200 s まで、10 s ごとのすべての標本を比べる。許容 1e-8 K（観測 2e-10 K。#297 の RK4 は 1e-6 K、観測 4e-9 K）。
 #[test]
 fn radiative_cooling_in_deep_space() {
     let (eps, a, t0) = (0.86, 0.012, 400.0);
@@ -117,21 +116,21 @@ fn radiative_cooling_in_deep_space() {
         env(0.0, 0.0),
         vec![],
         uniform(t0),
-        1.0,
     );
     let v = values(&out.series, "n");
-    for (t, temp) in out.series.t.iter().zip(v).step_by(6) {
+    for (t, temp) in out.series.t.iter().zip(v) {
         let expected = (t0.powi(-3) + 3.0 * eps * SIGMA_SB * a * t / C).powf(-1.0 / 3.0);
         assert!(
-            (temp - expected).abs() < 1e-6,
+            (temp - expected).abs() < 1e-8,
             "t={t}: {temp} vs {expected}"
         );
     }
 }
 
 /// 平衡の近くの 1 次応答: 線形化した τ = C / (4 ε σ A T_eq³)。平衡から ±1 K ずらして τ 後の偏差は e^-1 K。
-/// 非線形性の補正は相対で約 3 δ/T ≈ 1 %（δ = 1 K, T ≈ 290 K）×偏差 0.37 K ≈ 0.004 K なので、許容 0.006 K（観測 0.0009 K）。
-/// 符号を反転した 2 つの平均は 2 次の項が打ち消すので、その平均は 0.001 K で一致する。
+/// 非線形性の補正は相対で約 3 δ/T ≈ 1 %（δ = 1 K, T ≈ 290 K）×偏差 0.37 K ≈ 0.004 K なので、許容 0.0015 K（観測 0.0009 K。#297 は 0.006 K）。
+/// 符号を反転した 2 つの平均は 2 次の項が打ち消すので、その平均は 2e-5 K で一致する（観測 6e-6 K。#297 は 0.001 K）。
+/// 非線形性を含めた厳密解との比較は `thermal_validation_integration.rs` の `nonlinear_radiative_relaxation_matches_the_exact_solution`（1e-8 K）。
 #[test]
 fn small_perturbation_decays_with_linear_time_constant() {
     let (alpha, eps, a) = (0.92, 0.86, 0.01);
@@ -148,7 +147,6 @@ fn small_perturbation_decays_with_linear_time_constant() {
             env(SOLAR, 0.0),
             vec![],
             uniform(t_star + delta),
-            0.5,
         );
         let at_tau = out
             .series
@@ -164,20 +162,20 @@ fn small_perturbation_decays_with_linear_time_constant() {
     };
     let (up, down) = (run(1.0), run(-1.0));
     let expected = (-1.0_f64).exp();
-    assert!((up - expected).abs() < 0.006, "+1 K: {up} vs {expected}");
+    assert!((up - expected).abs() < 0.0015, "+1 K: {up} vs {expected}");
     assert!(
-        (down + expected).abs() < 0.006,
+        (down + expected).abs() < 0.0015,
         "-1 K: {down} vs {}",
         -expected
     );
-    assert!(((up - down) / 2.0 - expected).abs() < 0.001);
+    assert!(((up - down) / 2.0 - expected).abs() < 2e-5);
 }
 
 /// 表面の性質: 同じ物体（1 面が太陽を向く立方体）を 白色塗装（α 0.2, ε 0.85）・黒色塗装（α 0.92, ε 0.86）・
 /// MLI 相当（実効放射率 0.02、α 0.3）で包む。T_eq 比 = ((α1/ε1)/(α2/ε2))^¼。
 /// MLI のモデル化: 外面 1 枚に「実効 ε 0.02・α 0.3」を一様な値として与える。実際のブランケットは外層が内部と
 /// 熱的にほぼ切り離されて浮くので、ここでの値は実効放射率の考え方を借りた仮の値であり、比の検証にだけ使う。
-/// 定常と非定常（各 20 τ。T_eq が 400 K を超える面は積分の刻みを 0.5 s にして安定にする）で比を比べる。許容 1e-8（比。観測 ≲ 1e-9）。
+/// 定常と非定常（各 30 τ）で比を比べる。許容は定常 1e-8、非定常 1e-11（比。観測 7e-15。#297 は非定常も 1e-8）。
 #[test]
 fn surface_finish_ratios() {
     let a = 0.1;
@@ -199,14 +197,13 @@ fn surface_finish_ratios() {
                 .temperature
                 .value();
             let eq = t_eq(alpha, eps, a * a, 6.0 * a * a, 0.0);
-            let span = 20.0 * tau(eps, 6.0 * a * a, eq).max(tau(eps, 6.0 * a * a, 200.0));
+            let span = 30.0 * tau(eps, 6.0 * a * a, eq).max(tau(eps, 6.0 * a * a, 200.0));
             let out = transient(
                 net(),
                 timeline(span, 10.0, 75.0),
                 env(SOLAR, 0.0),
                 vec![],
                 uniform(200.0),
-                0.5,
             );
             (ts, *values(&out.series, "n").last().unwrap(), eq)
         })
@@ -225,7 +222,7 @@ fn surface_finish_ratios() {
                 finishes[j].0
             );
             assert!(
-                (trans_ratio - want).abs() < 1e-8,
+                (trans_ratio - want).abs() < 1e-11,
                 "{} / {}: transient {trans_ratio} vs {want}",
                 finishes[i].0,
                 finishes[j].0
@@ -259,9 +256,9 @@ fn mixed_surface_equals_area_weighted_properties() {
     assert_steady_and_transient(mixed, 0.0, expected, 6.0 * a * a, e_eff);
 }
 
-/// 高温まで上がる物体でも非定常が発散しないこと（#297 で見つかった不具合の再発防止）。積分の刻みを初期温度だけで決めていたとき、
+/// 高温まで上がる物体でも非定常が発散しないこと（#297 で見つかった不具合の再発防止）。固定刻みの RK4 で刻みを初期温度だけで決めていたとき、
 /// 平衡温度が 400 K を大きく超える物体を粗い時刻刻みで走らせると、RK4 が不安定になって温度が −∞ に発散した
-/// （α 0.3・ε 0.02 の平板、平衡 ≈ 775 K、時刻刻み 1000 s、`max_step` なし）。刻みは時刻ごとに今の温度で決め直す。
+/// （α 0.3・ε 0.02 の平板、平衡 ≈ 775 K、標本の刻み 1000 s、`max_step` なし）。今は適応刻みで、平衡との差は 1e-8 K（#297 は 1 K）。
 #[test]
 fn transient_stays_stable_when_equilibrium_is_hot() {
     let (alpha, eps, a) = (0.3, 0.02, 0.01);
@@ -271,7 +268,7 @@ fn transient_stays_stable_when_equilibrium_is_hot() {
         vec![surface("f", "n", a, Vec3::X, alpha, eps)],
     );
     let tl = timeline(60_000.0, 1000.0, 75.0);
-    let out = transient_with_default_step(net, tl, env(SOLAR, 0.0), vec![], uniform(200.0));
+    let out = transient(net, tl, env(SOLAR, 0.0), vec![], uniform(200.0));
     let last = *values(&out.series, "n").last().unwrap();
-    assert!((last - expected).abs() < 1.0, "{last} vs {expected}");
+    assert!((last - expected).abs() < 1e-8, "{last} vs {expected}");
 }

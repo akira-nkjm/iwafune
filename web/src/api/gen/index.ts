@@ -399,6 +399,7 @@ export type * from "./ThermalHeaterRun";
 export type * from "./ThermalHeaterState";
 export type * from "./ThermalHeaterSteady";
 export type * from "./ThermalInitial";
+export type * from "./ThermalIntegration";
 export type * from "./ThermalLoad";
 export type * from "./ThermalMarginPolicy";
 export type * from "./ThermalMarginUsed";
