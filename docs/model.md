@@ -574,46 +574,61 @@ A face's α/ε is the area-fraction-weighted sum (one face is one isothermal nod
 `absorptivity` and `emissivity`. A fraction total other than 1 or a missing α/ε is a check warning (so it can be written partway through entering them one by one), and the analysis stops with an input error.
 
 #### Couplings between nodes
-
 Conduction and radiation between nodes come from three places. For each node pair exactly one value is used, chosen in this order (`sat_analysis::thermal::network::couplings`):
-
 1. **Explicit** (`[conductive.*]`, `[radiative.*]`): replaces the value of that pair from the two sources below (0 isolates the pair).
 2. **Enclosure** (`[enclosure]`, radiation only, between the six faces of the box): replaces the mount default of the face-to-face pairs.
 3. **Mount default** (`contact_conductance` and `radiative_coupling`): one conductive link per node pair that has mounts (`contact_conductance` × the number of mounts between the pair) and, if `radiative_coupling` is written, one radiative link per such pair.
-
 ```toml
 # analysis/thermal.toml
 [conductive.BAT]                              # node A -> node B -> conductance (the pair is unordered)
 PANEL_MZ = { value = 0.8, unit = "W/K" }
-
 [radiative.PANEL_PX]                          # node A -> node B -> effective radiative exchange area ε_eff·A·F
 PANEL_MX = { value = 0.02, unit = "m^2" }
-
 [enclosure]                                   # present with emissivity = the enclosure model is on
 emissivity = 0.85                             # inner emissivity of the six faces (above 0, at most 1)
 ```
-
 A pair is written once, in either order; writing `A`→`B` and `B`→`A` is a check error (`thermal.coupling_duplicate`), as are a pair of the same node (`thermal.coupling_self`),
 a node not in `[nodes]` (`ref.thermal_node`) and a negative value (`setting.range`). The dimension is checked against the setting-dimension table (`THERMAL_CONDUCTIVE`: W/K, `THERMAL_RADIATIVE`: m²).
 Because a pair is a path (`analysis.thermal.conductive.BAT.PANEL_MZ`), it is edited with the generic setting operation (`fune set analysis.thermal.conductive.BAT.PANEL_MZ "0.8 W/K"`, `fune unset …`),
 the same on the CLI and over HTTP; there is no separate operation. Nodes cannot be renamed, so no reference rewriting is needed.
-
 **Enclosure model.** The box is the root part's `size` (the one part without a mount; its frame is the body frame), and its six inner faces are matched to nodes through the outer surfaces:
 for each face (±X, ±Y, ±Z) the node of the outer surface whose normal points that way (within about 2.6°) and whose area is within 5 % of the face area. If any of the six faces
 is not found or ambiguous, two faces share a node, or the box size is not known, the model is **not applied**: it is not an error, the mount defaults stay, and the reason is returned in the output's `couplings.enclosure.note` (`applied: false`).
 When it is applied, all 15 face-to-face pairs use the enclosure value (so the mount default `radiative_coupling` is not added on top of it). Pairs that involve a component node (not a face) keep the mount default or the explicit value.
-
 The faces are diffuse gray surfaces with a common inner emissivity ε. The view factors come from closed-form catalog formulas (`sat_astro::view_factor`): two identical, directly opposed parallel rectangles (Howell, *A Catalog of Radiation
 Heat Transfer Configuration Factors*, C-11) and two perpendicular rectangles sharing an edge (C-14; the same formulas are in Incropera). A cube gives 0.19982 (opposite) and 0.20004 (adjacent), and each row sums to 1.
 With the areas `A_i` of the box faces and `ρ = 1 − ε`, the Gebhart factors `B_ij` (the fraction of the energy emitted by face i that is finally absorbed by face j, including reflections) solve
 `B_ij = F_ij ε_j + Σ_k F_ik ρ_k B_kj` (`sat_analysis::thermal::enclosure`, with `sat_astro::math::solve_dense`), and the exchange area of the pair is `ε_i A_i B_ij` (it equals `ε_j A_j B_ji`).
 The heat flow from face i to face j is `σ ε_i A_i B_ij (T_i⁴ − T_j⁴)`. For two parallel plates this approaches `A / (1/ε₁ + 1/ε₂ − 1)`.
-
 Assumptions: the six faces are the only surfaces of the enclosure, and **blockage of the face-to-face views by components inside is ignored**. Components inside are not part of the enclosure model in this version;
 their coupling stays the mount default or the explicit value. The wall thickness is ignored (the box is the outer size).
-
 Both thermal analyses return the couplings they used in `couplings`: for every pair the conductance (`conductive`) or exchange area (`radiative`) and its source (`mount`, `explicit` or `enclosure`),
 and, when `[enclosure]` is written, the faces with their nodes and areas and the 6×6 view-factor matrix. The GUI shows these as the analysis's data tables.
+
+#### Verification of the thermal analyses
+
+Simple bodies whose answers are known in closed form are run through both `thermal.steady` and `thermal.transient`
+(`crates/lib/analysis/tests/thermal_validation_*.rs`, public API only). Notation: α absorptivity, ε emissivity, S solar flux, σ Stefan–Boltzmann constant,
+A_abs the area facing the Sun, A_rad the radiating area, C heat capacity, T_s the background temperature, τ = C / (4 ε σ A_rad T³). A face absorbs and radiates with its own area (the back of a plate is a separate face).
+
+| Case | Closed form | Test |
+|---|---|---|
+| Plate, one face to the Sun | T⁴ = T_s⁴ + α S A_abs / (ε σ A_rad), steady and transient (converges after 20 τ) | `flat_plate_one_face_equilibrium` |
+| Plate radiating from both faces | A_rad = 2 A_abs | `flat_plate_both_faces_radiate` |
+| Cube, one face to the Sun | A_abs = a², A_rad = 6a² | `cube_one_face_to_the_sun` |
+| Radiative cooling in deep space | 1/T³ = 1/T₀³ + 3 ε σ A t / C | `radiative_cooling_in_deep_space` |
+| Small perturbation | decay e^(−t/τ) near equilibrium (linearised, within the nonlinear correction) | `small_perturbation_decays_with_linear_time_constant` |
+| White paint, black paint, MLI-like effective emissivity | T_eq ratio = ((α₁/ε₁)/(α₂/ε₂))^¼ | `surface_finish_ratios` |
+| Mixed surface | area-weighted α and ε | `mixed_surface_equals_area_weighted_properties` |
+| Conduction only | T_sink⁴ = Q / (ε σ A), T_hot − T_sink = Q / G | `conduction_only_steady_and_transient`, `conduction_to_a_fixed_temperature_node` |
+| Two isolated masses | τ = C₁C₂ / (G (C₁ + C₂)), final temperature = heat-capacity-weighted mean | `isolated_masses_relax_to_the_energy_weighted_mean` |
+| Radiation only | Q = σ E (T₁⁴ − T₂⁴) | `radiation_only_steady_and_transient`, `radiation_to_a_fixed_temperature_node` |
+| Energy conservation | ∫(Q_in − Q_rad) dt = Σ C ΔT (the radiated heat is recomputed from the temperature series) | `transient_conserves_energy` |
+| Orbit with eclipse | for the periodic transient, ⟨T⁴⟩^¼ equals the steady solution at the orbit-average input, whatever C is | `steady_matches_the_fourth_power_mean_of_the_periodic_transient` |
+| Nadir plate | absorbed = ε F q_IR A + α S ρ F A (at noon), F = (R/(R+h))² | `nadir_plate_planet_ir_and_albedo` |
+
+The tests use T_s = 0 unless stated (the default is 3 K, which is included in the formulas where used) and set the albedo and planet IR to 0 when only the Sun should act.
+`transient_stays_stable_when_equilibrium_is_hot` guards the transient step: the step is re-estimated at every sample from the current temperatures (the radiative stiffness grows with T³), so a body that heats far above 400 K on a coarse sample step does not diverge (it did when the step was estimated once from the initial temperatures).
 
 ### 5.3 Outer shape for attitude analysis
 

@@ -143,7 +143,6 @@ impl Analysis for ThermalTransient {
         let (t, geo) = timeline_geometry(timeline)?;
         let space_k = input.environment.space_temperature().value();
         let mut temps = initial(&net, input, timeline, &phases)?;
-        let dt = step_s(&net, input, &temps);
         let mut history: Vec<Vec<f64>> = Vec::with_capacity(t.len());
         let mut absorbed_total = Vec::with_capacity(t.len());
         for i in 0..t.len() {
@@ -156,6 +155,9 @@ impl Analysis for ThermalTransient {
                 .zip(phases.at(t[i]))
                 .map(|(a, b)| a + b)
                 .collect();
+            // 刻みは時刻ごとに今の温度で決め直す（放射の剛性は温度の 3 乗で増えるので、初期温度だけで決めると、
+            // 高温まで上がる物体で刻みが粗すぎて発散する）
+            let dt = step_s(&net, input, &temps);
             let f = |_: f64, x: &Vec<f64>| net.derivative(x, &q, space_k);
             temps = integrate(f, t[i], temps, t_next, dt, |_, _| {});
         }
@@ -299,7 +301,7 @@ const STABLE_STEP_MIN_REFERENCE_K: f64 = 400.0;
 /// 積分の刻みの下限 [s]（剛い節点があっても刻みが 0 に近づいて終わらなくならないように）。
 const MIN_STEP_S: f64 = 1e-3;
 
-/// 積分の刻み [s]。
+/// 積分の刻み [s]。時刻ごとに、今の温度（と下限の 400 K）で決め直す。
 fn step_s(net: &Compiled, input: &ThermalTransientInput, temps: &[f64]) -> f64 {
     let t_ref = temps
         .iter()
