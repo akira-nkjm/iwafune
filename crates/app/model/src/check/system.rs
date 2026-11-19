@@ -2,10 +2,10 @@
 
 use super::Ctx;
 use super::values::check_quantity_dimension;
-use crate::design::{EntityKey, NetKind, UncertaintySide};
+use crate::design::{Design, EntityKey, NetKind, UncertaintySide};
 use crate::path::PortRef;
 use crate::target::Target;
-use crate::value::Quantity;
+use crate::value::{Quantity, Scalar, Value};
 
 /// ポートの参照（部品が存在するか。ポートの所属が違えば warning）。対象は参照を書いたキー（`target`）。
 /// `部品.ポート` の形でない書き方は読み込み（`fune_model::path::port_text`）が誤りにする。
@@ -165,16 +165,17 @@ pub(super) fn check_cases(ctx: &mut Ctx) {
                 format!("Thermal environment `{tc}` is not in analysis/thermal.toml"),
             );
         }
-        if case
-            .side
-            .is_some_and(|side| side != UncertaintySide::Nominal)
+        if let Some(side @ (UncertaintySide::Min | UncertaintySide::Max)) = case.side
+            && !any_value_has_bound(design, side)
         {
             ctx.info(
-                "setting.not_applied",
+                "case.side_without_bounds",
                 &entity,
                 &["side"],
                 Some(Target::case(case.id.as_str(), Some("side"))),
-                "side (min / max) is not used by the analyses yet. Every analysis reads the nominal value (the min / max uncertainty of a value is not passed to the analyses)",
+                format!(
+                    "side = {side} has no effect: no value in the design has a `{side}` bound, so the analyses read the nominal values"
+                ),
             );
         }
         check_dim(
@@ -186,4 +187,21 @@ pub(super) fn check_cases(ctx: &mut Ctx) {
             "Angle",
         );
     }
+}
+
+/// 設計のどこかの値（部品・カタログの属性。状態ごとの値を含む）が `side` の側の値（`min` / `max`）を持つか。
+fn any_value_has_bound(design: &Design, side: UncertaintySide) -> bool {
+    let has = |s: &Scalar| match side {
+        UncertaintySide::Min => s.min.is_some(),
+        UncertaintySide::Max => s.max.is_some(),
+        UncertaintySide::Nominal => false,
+    };
+    let in_value = |v: &Value| match v {
+        Value::Scalar(s) => has(s),
+        Value::ByState(m) => m.values().any(|a| has(&a.value)),
+        _ => false,
+    };
+    let parts = design.parts.values().flat_map(|p| p.attr.values());
+    let items = design.catalog.values().flat_map(|c| c.attr.values());
+    parts.chain(items).any(|a| in_value(&a.value))
 }

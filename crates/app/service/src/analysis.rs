@@ -18,6 +18,7 @@ use crate::dto::{
 };
 use crate::error::{Result, ServiceError};
 use crate::workspace::Workspace;
+use fune_model::design::UncertaintySide;
 use fune_projection::{Context, MissingInput, ProjectionError, project_json};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -106,18 +107,13 @@ pub fn run_analysis(
         AnalysisInputSource::Given { .. } => None,
         _ => Some(crate::preview::snapshot_with(ws, &req.ops)?),
     };
-    let (case, case_source) = effective_case(snapshot.as_ref(), id, req.case.as_deref());
+    let (case, case_source, side) = effective_case(snapshot.as_ref(), id, req.case.as_deref());
     let outcome = run_inner(id, req, snapshot.as_ref(), case.as_deref())?;
-    Ok(finish(id, case, case_source, outcome))
+    Ok(finish(id, (case, case_source, side), outcome))
 }
 
 /// 実行の途中の値から結果を組み立てる（判定・KPI・表示用の補足）。JSON の実行と型付きの実行が同じ組み立てを通る。
-fn finish(
-    id: &str,
-    case: Option<String>,
-    case_source: Option<AnalysisCaseSource>,
-    outcome: Outcome,
-) -> AnalysisRunResult {
+fn finish(id: &str, (case, case_source, side): CaseInfo, outcome: Outcome) -> AnalysisRunResult {
     let checks = checks::collect_checks(outcome.output.as_ref());
     let verdict = sat_analysis::spec::Verdict::worst(checks.iter().map(|c| c.verdict));
     let kpis = kpi::kpis(
@@ -135,6 +131,7 @@ fn finish(
         id: id.to_owned(),
         case,
         case_source,
+        side,
         status: outcome.status,
         input: outcome.input,
         output: outcome.output,
@@ -156,7 +153,7 @@ fn effective_case(
     snapshot: Option<&crate::workspace::Snapshot>,
     id: &str,
     explicit: Option<&str>,
-) -> (Option<String>, Option<AnalysisCaseSource>) {
+) -> CaseInfo {
     use fune_projection::case_policy::{CaseSource, effective_case};
     let (case, source) = effective_case(snapshot.map(|s| &s.design), id, explicit);
     let source = source.map(|s| match s {
@@ -169,8 +166,21 @@ fn effective_case(
     } else {
         case.map(str::to_owned)
     };
-    (case, source)
+    // 実際に読む側（ケースがあれば `side`、書かれていなければ nominal。ケースが無ければ欄を出さない）。
+    let side = case.as_deref().and_then(|id| {
+        let design = &snapshot?.design;
+        let c = design.cases.get(id)?;
+        Some(c.side.unwrap_or(UncertaintySide::Nominal))
+    });
+    (case, source, side)
 }
+
+/// 結果に載せるケースの情報（ケース ID・選択元・読んだ側）。
+pub(crate) type CaseInfo = (
+    Option<String>,
+    Option<AnalysisCaseSource>,
+    Option<UncertaintySide>,
+);
 
 fn run_inner(
     id: &str,

@@ -9,7 +9,7 @@ mod compute;
 pub use compute::{evidence_of, pose_si, resolve, resolve_catalog_item, si_value};
 
 use crate::chain::{Chain, chain};
-use crate::design::{CatalogRef, Loc, Maturity, NetKind, NodeRef};
+use crate::design::{CatalogRef, Loc, Maturity, NetKind, NodeRef, UncertaintySide};
 use crate::enum_text::enum_text;
 use crate::id::Id;
 use crate::role::Role;
@@ -104,6 +104,18 @@ pub struct SiScalar {
     pub value: f64,
     pub min: Option<f64>,
     pub max: Option<f64>,
+}
+
+impl SiScalar {
+    /// 解析ケースの `side` が指す側の値。`max` ならその値の `max`、`min` なら `min`（その側が書かれていなければ nominal）、
+    /// `nominal` か未指定（ケースが無いときを含む）なら nominal。**どちら側を読むかの選択はここだけ**（解析・バジェットはこれを通る）。
+    pub fn read(&self, side: Option<UncertaintySide>) -> f64 {
+        match side {
+            Some(UncertaintySide::Max) => self.max.unwrap_or(self.value),
+            Some(UncertaintySide::Min) => self.min.unwrap_or(self.value),
+            Some(UncertaintySide::Nominal) | None => self.value,
+        }
+    }
 }
 
 /// SI に直した値。ベクトルの位置は m、角度は rad、温度は K、dB は線形の比。

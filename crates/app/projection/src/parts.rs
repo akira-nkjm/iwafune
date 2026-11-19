@@ -5,7 +5,8 @@ use crate::missing::MissingInputs;
 use crate::pose;
 use fune_model::Target;
 use fune_model::builtin::Role;
-use fune_model::resolve::{ResolvedPart, SiValue};
+use fune_model::design::UncertaintySide;
+use fune_model::resolve::{ResolvedPart, SiScalar, SiValue};
 use sat_analysis::modes::StateValues;
 use sat_astro::math::Vec3;
 use sat_units::typed::{Dimension, Qty};
@@ -22,10 +23,21 @@ impl Context<'_> {
         p.value(attr)
     }
 
-    /// 部品の属性のスカラーの nominal（SI）。
+    /// 選んだケースの `side`（ケースが無い・書かれていなければ None = nominal）。
+    pub fn side(&self) -> Option<UncertaintySide> {
+        self.case.and_then(|c| c.side)
+    }
+
+    /// 値のスカラーを、ケースの `side` が指す側で読む（`min` / `max` があればそれ、無ければ nominal）。
+    /// **部品の属性のスカラー・状態ごとの値を解析の入力にするときは、必ずここを通る**（選択そのものは `SiScalar::read`）。
+    pub fn read(&self, s: &SiScalar) -> f64 {
+        s.read(self.side())
+    }
+
+    /// 部品の属性のスカラー（SI。ケースの `side` が指す側。範囲 `Range` は不確かさではないので対象外）。
     pub fn scalar(&self, p: &ResolvedPart, attr: &str) -> Option<f64> {
         match self.attr(p, attr)? {
-            SiValue::Scalar(s) => Some(s.value),
+            SiValue::Scalar(s) => Some(self.read(s)),
             _ => None,
         }
     }
@@ -126,11 +138,11 @@ pub fn state_values<D: Dimension>(
             default: None,
             by_state: map
                 .iter()
-                .map(|(s, v)| (s.clone(), Qty::from_raw(v.value)))
+                .map(|(s, v)| (s.clone(), Qty::from_raw(ctx.read(v))))
                 .collect(),
         }),
         SiValue::Scalar(s) => Some(StateValues {
-            default: Some(Qty::from_raw(s.value)),
+            default: Some(Qty::from_raw(ctx.read(s))),
             by_state: BTreeMap::new(),
         }),
         _ => None,

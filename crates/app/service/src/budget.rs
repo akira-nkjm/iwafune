@@ -89,7 +89,7 @@ fn count(s: &Snapshot, kind: BudgetKind, case: Option<&str>) -> Result<Counted, 
     Ok(match kind {
         BudgetKind::Mass => Counted {
             propellant: Some(propellant::load(&ctx)),
-            ..plain(mass_items(s), uncounted::mass(s))
+            ..plain(mass_items(s, &ctx), uncounted::mass(s))
         },
         BudgetKind::Power => {
             let out = power::mode_load(&ctx)?;
@@ -146,8 +146,8 @@ fn item(s: &Snapshot, part: &str, value: f64, count: u32) -> BudgetItem {
     }
 }
 
-/// 質量: 部品ごとの 1 個あたりの質量と員数。
-fn mass_items(s: &Snapshot) -> Vec<BudgetItem> {
+/// 質量: 部品ごとの 1 個あたりの質量と員数。質量はケースの `side` が指す側で読む（`Context::scalar`。電力・データ量と同じ入口）。
+fn mass_items(s: &Snapshot, ctx: &Context<'_>) -> Vec<BudgetItem> {
     s.resolved
         .parts
         .values()
@@ -155,7 +155,7 @@ fn mass_items(s: &Snapshot) -> Vec<BudgetItem> {
             Some(item(
                 s,
                 &p.id,
-                p.scalar("mass")?,
+                ctx.scalar(p, "mass")?,
                 fune_projection::parts::count_of(p),
             ))
         })

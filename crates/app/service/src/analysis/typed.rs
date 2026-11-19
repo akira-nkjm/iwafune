@@ -24,10 +24,10 @@ pub(crate) fn run_typed_in<A>(
 where
     A: Analysis + fune_projection::Projects,
 {
-    let (case, case_source) = effective_case(Some(snapshot), A::ID, explicit_case);
-    let (outcome, input, output) = typed_outcome::<A>(snapshot, case.as_deref())?;
+    let info = effective_case(Some(snapshot), A::ID, explicit_case);
+    let (outcome, input, output) = typed_outcome::<A>(snapshot, info.0.as_deref())?;
     Ok(TypedRun {
-        result: finish(A::ID, case, case_source, outcome),
+        result: finish(A::ID, info, outcome),
         input,
         output,
     })
