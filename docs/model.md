@@ -573,6 +573,31 @@ black_paint = 0.14
 A face's α/ε is the area-fraction-weighted sum (one face is one isothermal node, so both absorption and emission are linear in area). A part with `[surface.<part>]` written does not use the part's
 `absorptivity` and `emissivity`. A fraction total other than 1 or a missing α/ε is a check warning (so it can be written partway through entering them one by one), and the analysis stops with an input error.
 
+#### Verification of the thermal analyses
+
+Simple bodies whose answers are known in closed form are run through both `thermal.steady` and `thermal.transient`
+(`crates/lib/analysis/tests/thermal_validation_*.rs`, public API only). Notation: α absorptivity, ε emissivity, S solar flux, σ Stefan–Boltzmann constant,
+A_abs the area facing the Sun, A_rad the radiating area, C heat capacity, T_s the background temperature, τ = C / (4 ε σ A_rad T³). A face absorbs and radiates with its own area (the back of a plate is a separate face).
+
+| Case | Closed form | Test |
+|---|---|---|
+| Plate, one face to the Sun | T⁴ = T_s⁴ + α S A_abs / (ε σ A_rad), steady and transient (converges after 20 τ) | `flat_plate_one_face_equilibrium` |
+| Plate radiating from both faces | A_rad = 2 A_abs | `flat_plate_both_faces_radiate` |
+| Cube, one face to the Sun | A_abs = a², A_rad = 6a² | `cube_one_face_to_the_sun` |
+| Radiative cooling in deep space | 1/T³ = 1/T₀³ + 3 ε σ A t / C | `radiative_cooling_in_deep_space` |
+| Small perturbation | decay e^(−t/τ) near equilibrium (linearised, within the nonlinear correction) | `small_perturbation_decays_with_linear_time_constant` |
+| White paint, black paint, MLI-like effective emissivity | T_eq ratio = ((α₁/ε₁)/(α₂/ε₂))^¼ | `surface_finish_ratios` |
+| Mixed surface | area-weighted α and ε | `mixed_surface_equals_area_weighted_properties` |
+| Conduction only | T_sink⁴ = Q / (ε σ A), T_hot − T_sink = Q / G | `conduction_only_steady_and_transient`, `conduction_to_a_fixed_temperature_node` |
+| Two isolated masses | τ = C₁C₂ / (G (C₁ + C₂)), final temperature = heat-capacity-weighted mean | `isolated_masses_relax_to_the_energy_weighted_mean` |
+| Radiation only | Q = σ E (T₁⁴ − T₂⁴) | `radiation_only_steady_and_transient`, `radiation_to_a_fixed_temperature_node` |
+| Energy conservation | ∫(Q_in − Q_rad) dt = Σ C ΔT (the radiated heat is recomputed from the temperature series) | `transient_conserves_energy` |
+| Orbit with eclipse | for the periodic transient, ⟨T⁴⟩^¼ equals the steady solution at the orbit-average input, whatever C is | `steady_matches_the_fourth_power_mean_of_the_periodic_transient` |
+| Nadir plate | absorbed = ε F q_IR A + α S ρ F A (at noon), F = (R/(R+h))² | `nadir_plate_planet_ir_and_albedo` |
+
+The tests use T_s = 0 unless stated (the default is 3 K, which is included in the formulas where used) and set the albedo and planet IR to 0 when only the Sun should act.
+`transient_stays_stable_when_equilibrium_is_hot` guards the transient step: the step is re-estimated at every sample from the current temperatures (the radiative stiffness grows with T³), so a body that heats far above 400 K on a coarse sample step does not diverge (it did when the step was estimated once from the initial temperatures).
+
 ### 5.3 Outer shape for attitude analysis
 
 The outer shape used for disturbances is the part with `size` and no mount parent, if there is exactly one such part.
