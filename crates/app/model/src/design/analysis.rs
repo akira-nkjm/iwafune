@@ -269,6 +269,9 @@ pub struct CommLinkSettings {
     pub part: String,
     /// 地上局側の帯域（`conditions/ground/<ID>.toml` の `[link.<名前>]`）
     pub band: String,
+    /// 衛星側のアンテナ（部品 ID。省略すると送受信機の `antenna_gain` を使う）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub antenna: Option<String>,
     /// 変調方式（表示用）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub modulation: Option<String>,
@@ -298,6 +301,9 @@ pub struct CommSettings {
     /// 回線余裕の判定のしきい値（dB）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_margin: Option<Quantity>,
+    /// 1 日の送信量（`comm.data_throughput`）に数える下り回線の名前（省略すると名前順の先頭の下り回線）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub data_downlink: Option<String>,
     /// 回線の名前 → 設定
     #[serde(default, rename = "link", skip_serializing_if = "BTreeMap::is_empty")]
     pub links: BTreeMap<String, CommLinkSettings>,
