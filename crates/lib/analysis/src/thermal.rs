@@ -30,7 +30,8 @@ pub use orbit_heat::{ThermalEnvironment, ThermalEnvironmentUsed, ThermalExposure
 pub use preset::ThermalPreset;
 pub use range::{
     ThermalMarginPolicy, ThermalMarginUsed, ThermalNodeRange, ThermalPowerState,
-    ThermalRangeExclusion, ThermalRangeKind, ThermalRangeMargin, ThermalRanges, ThermalTempRange,
+    ThermalRangeExclusion, ThermalRangeKind, ThermalRangeMargin, ThermalRangeSide, ThermalRanges,
+    ThermalTempRange, range_item,
 };
 pub use steady::{ThermalSteady, ThermalSteadyInput, ThermalSteadyOutput};
 pub use transient::{ThermalTransient, ThermalTransientInput, ThermalTransientOutput};
