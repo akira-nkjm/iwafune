@@ -375,10 +375,7 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         K::MaxBacklog => label("最大の未送信", "Max backlog"),
         K::MaxTemperature => label("最高温度", "Max temperature"),
         K::MinTemperature => label("最低温度", "Min temperature"),
-        K::NodesInRange => label(
-            "温度範囲の判定（節点）",
-            "Temperature range checks (nodes)",
-        ),
+        K::NodesInRange => label("温度範囲の判定（節点）", "Temperature range checks (nodes)"),
         K::TransientMaxTemperature => label("非定常の最高温度", "Transient max temperature"),
         K::MaxHeaterDuty => label("ヒータのデューティ（最大）", "Heater duty (max)"),
         K::TransientMaxHeaterDuty => label(
