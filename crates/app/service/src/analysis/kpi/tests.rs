@@ -4,8 +4,12 @@ use sat_units::typed::{Power, Temperature};
 use serde_json::json;
 
 fn check(verdict: Verdict) -> CheckView {
+    keyed("range_high:N", verdict)
+}
+
+fn keyed(key: &str, verdict: Verdict) -> CheckView {
     CheckView {
-        key: "range_high:N".into(),
+        key: key.into(),
         label: "動作温度範囲".into(),
         label_en: None,
         verdict,
@@ -60,13 +64,23 @@ fn every_kpi_comes_from_exactly_one_analysis() {
 /// 判定を数える KPI: 数と OK でない数、塗りは OK の割合（手で数えた 9 件中 4 件）。
 #[test]
 fn counting_kpi_tallies_checks_and_fills_with_the_ok_share() {
-    let mut checks = vec![check(Verdict::Ok); 5];
-    checks.extend([
-        check(Verdict::Violation),
-        check(Verdict::Warning),
-        check(Verdict::Violation),
-        check(Verdict::Violation),
-    ]);
+    // 9 項目（節点ごとの上限側の判定。KPI の最高温度が見る側）
+    let verdicts = [
+        Verdict::Ok,
+        Verdict::Ok,
+        Verdict::Ok,
+        Verdict::Ok,
+        Verdict::Ok,
+        Verdict::Violation,
+        Verdict::Warning,
+        Verdict::Violation,
+        Verdict::Violation,
+    ];
+    let checks: Vec<CheckView> = verdicts
+        .iter()
+        .enumerate()
+        .map(|(i, v)| keyed(&format!("range_high:n{i}:operating"), *v))
+        .collect();
     let output = json!({"cases": [], "envelope": [], "checks": []});
     let out = kpis(
         "thermal.steady",
@@ -110,10 +124,7 @@ fn ratio_kpis_fill_with_their_value_and_info_kpis_have_no_verdict() {
             kind: "Fraction",
         }),
         Some(Verdict::Violation),
-        KpiTally {
-            checked: 1,
-            flagged: 1,
-        },
+        &[check(Verdict::Violation)],
     );
     assert_eq!(ratio.value.as_ref().unwrap().display, "-3.60 %");
     let fill = ratio.fill.unwrap();
@@ -127,10 +138,7 @@ fn ratio_kpis_fill_with_their_value_and_info_kpis_have_no_verdict() {
             kind: "Information",
         }),
         Some(Verdict::Violation),
-        KpiTally {
-            checked: 1,
-            flagged: 1,
-        },
+        &[check(Verdict::Violation)],
     );
     assert_eq!(info.value.unwrap().display, "2.77 GB");
     assert!(info.verdict.is_none() && info.fill.is_none());
@@ -370,4 +378,34 @@ fn mtq_without_a_field_model_keeps_its_kpi_with_the_verdict() {
         judged_unload_kpis(&jupiter),
         [(Mtq, None, Some(Verdict::Warning))]
     );
+}
+
+/// 温度範囲の判定は節点 × 種類を 1 項目として数える: 片側だけ外れた節点も両側が外れた節点も 1 つ、
+/// 項目の判定は両側の悪いほう。側を分けて数えると分母が倍になる（手で数えた 4 項目中 2 項目）。
+#[test]
+fn nodes_in_range_counts_one_item_per_node_and_kind() {
+    use Verdict::{Ok, Violation, Warning};
+    let checks = [
+        // A: 上限側だけ違反
+        keyed("range_high:A:operating", Violation),
+        keyed("range_low:A:operating", Ok),
+        // B: 両側とも外れる（1 項目のまま）
+        keyed("range_high:B:operating", Warning),
+        keyed("range_low:B:operating", Violation),
+        // B の別の種類は別の項目
+        keyed("range_high:B:storage", Ok),
+        keyed("range_low:B:storage", Ok),
+        // 温度範囲でない判定はそれぞれ 1 項目
+        keyed("other", Ok),
+    ];
+    let tally = rule::Tally::Items.count(&checks).unwrap();
+    assert_eq!(
+        tally,
+        KpiTally {
+            checked: 4,
+            flagged: 2
+        }
+    );
+    assert!((tally.ok_share().unwrap().ratio - 0.5).abs() < 1e-12);
+    assert_eq!(rule::Tally::None.count(&checks), None);
 }

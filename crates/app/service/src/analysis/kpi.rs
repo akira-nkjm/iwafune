@@ -7,7 +7,8 @@
 //! - 判定: 判定の対象の KPI は、対応する check（`rule::CheckMatch`。キーの完全一致か接頭辞）の最悪。対応する check が無ければ null、
 //!   対象でない KPI（発生量・可視時間など）も null。解析全体を代表する KPI（節点の動作範囲）だけが全 check の最悪。
 //! - 塗りの比: 値そのものが比の KPI（DoD・余裕）は値、判定を数える KPI は OK の割合。
-//! - 判定の数え方: 判定を数える KPI（節点の動作範囲）は、解析の判定の数と OK でない数。
+//! - 判定の数え方: 判定を数える KPI（節点の動作範囲）は、項目（節点 × 範囲の種類）の数と OK でない数。
+//!   上限側と下限側の判定は 1 項目にまとめ、項目の判定は両側の悪いほう（`rule::Tally`）。
 //!
 //! 表示名は `labels::kpi_label`。電力のモードの選び方はバジェットと同じ `budget::budget_mode`。
 
@@ -257,18 +258,13 @@ pub(crate) fn kpis(
     let Some(output) = output else {
         return Vec::new();
     };
-    let tally = KpiTally {
-        checked: u32::try_from(checks.len()).unwrap_or(u32::MAX),
-        flagged: u32::try_from(checks.iter().filter(|c| c.verdict != Verdict::Ok).count())
-            .unwrap_or(u32::MAX),
-    };
     let judged = measure(id, output, ctx)
         .into_iter()
         .map(|(key, value)| (key, value, rule(key).checks.verdict(checks)))
         .collect();
     only_measured(judged)
         .into_iter()
-        .map(|(key, value, verdict)| view(key, value, verdict, tally))
+        .map(|(key, value, verdict)| view(key, value, verdict, checks))
         .collect()
 }
 
@@ -290,10 +286,10 @@ fn view(
     key: KpiKey,
     value: Option<Measured>,
     verdict: Option<Verdict>,
-    tally: KpiTally,
+    checks: &[CheckView],
 ) -> KpiView {
     let r = rule(key);
-    let tally = r.tally.then_some(tally);
+    let tally = r.tally.count(checks);
     let fill = match r.fill {
         Fill::None => None,
         Fill::Value => value.and_then(|v| FillRatio::of_value(v.si, FillBasis::Value)),
