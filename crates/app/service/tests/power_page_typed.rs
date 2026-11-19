@@ -75,7 +75,8 @@ fn typed_runs_match_the_generic_entry_for_every_case() {
 }
 
 /// バジェットのモード別の行（日照中）とモード表（日照中）は、同じ集計（`budget::mode_rollup`）の値で、
-/// 解析（`power.mode_load`）の成長余裕込みの合計とも同じ。
+/// 解析（`power.mode_load`）の成長余裕込みの合計とも同じ。モード表はケースを取らず nominal なので、`side` が max のケース
+/// （`hot_imaging`）のバジェットはモード表ではなく、同じケースの解析と比べる（#162）。
 #[test]
 fn mode_power_aggregation_agrees_between_budget_and_mode_table() {
     let ws = demo();
@@ -91,8 +92,11 @@ fn mode_power_aggregation_agrees_between_budget_and_mode_table() {
         .unwrap();
         let table =
             system_modes::system_modes(&ws, System::Power, &PartViewRequest::default()).unwrap();
-        let load =
-            analysis::run_analysis(&ws, "power.mode_load", &RunAnalysisRequest::default()).unwrap();
+        let req = RunAnalysisRequest {
+            case: case.map(str::to_owned),
+            ..Default::default()
+        };
+        let load = analysis::run_analysis(&ws, "power.mode_load", &req).unwrap();
         let load_modes = load.output.as_ref().unwrap()["modes"].as_array().unwrap();
         assert!(!b.modes.is_empty());
         let mut with_growth_differs = false;
@@ -100,21 +104,23 @@ fn mode_power_aggregation_agrees_between_budget_and_mode_table() {
             let id = row.node.as_deref().unwrap();
             let mode = table.modes.iter().find(|m| m.id == id).unwrap();
             let sunlit = &mode.sunlit;
-            assert_eq!(
-                Some(row.with_growth.si),
-                sunlit.total.as_ref().map(|t| t.si),
-                "{id}"
-            );
-            assert_eq!(
-                row.allocated.as_ref().map(|q| q.si),
-                sunlit.available.as_ref().map(|q| q.si),
-                "{id}"
-            );
-            assert_eq!(
-                row.margin.as_ref().map(|q| q.si),
-                sunlit.margin.as_ref().map(|q| q.si),
-                "{id}"
-            );
+            if case.is_none() {
+                assert_eq!(
+                    Some(row.with_growth.si),
+                    sunlit.total.as_ref().map(|t| t.si),
+                    "{id}"
+                );
+                assert_eq!(
+                    row.allocated.as_ref().map(|q| q.si),
+                    sunlit.available.as_ref().map(|q| q.si),
+                    "{id}"
+                );
+                assert_eq!(
+                    row.margin.as_ref().map(|q| q.si),
+                    sunlit.margin.as_ref().map(|q| q.si),
+                    "{id}"
+                );
+            }
             let analysed = load_modes.iter().find(|m| m["id"] == id).unwrap();
             let total = analysed["total_with_growth"].as_f64().unwrap();
             assert!((row.with_growth.si - total).abs() <= 1e-9 * total.abs().max(1.0));

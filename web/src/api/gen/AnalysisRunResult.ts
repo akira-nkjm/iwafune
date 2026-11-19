@@ -8,12 +8,18 @@ import type { KpiView } from "./KpiView";
 import type { MissingInput } from "./MissingInput";
 import type { PartHeat } from "./PartHeat";
 import type { SpaceWeatherVersion } from "./SpaceWeatherVersion";
+import type { UncertaintySide } from "./UncertaintySide";
 import type { Verdict } from "./Verdict";
 
 /**
  * 解析の実行結果。
  */
-export type AnalysisRunResult = { id: string, case: string | null, case_source: AnalysisCaseSource | null, status: AnalysisRunStatus, 
+export type AnalysisRunResult = { id: string, case: string | null, case_source: AnalysisCaseSource | null, 
+/**
+ * 解析が読んだ不確かさの側（ケースの `side`。ケースがあれば書かれていなくても `nominal`、ケースが無ければ欄を出さない）。
+ * `min` / `max` のときは、その側が書かれた値だけがその値で、書かれていない値は nominal を使っている
+ */
+side?: UncertaintySide, status: AnalysisRunStatus, 
 /**
  * 出力中の判定を、出てきた順に平らに並べたもの（場所と持ち主の名前つき）。
  */

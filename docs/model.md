@@ -361,9 +361,18 @@ In this situation `case = null` and `case_source = default_attitude`. The defaul
 If there is no default case, the attitude law is also used for the upper level only when it is unique; if there are several, it is a missing input.
 When an explicit case is given, that case's mode and conditions are used as before.
 
-The case's `side` (`nominal`, `min`, `max`) can be written and is saved, but is **not yet used by analyses**. Every analysis reads the nominal of a value,
-and the min / max of a value's uncertainty (`SiScalar.min`, `max`) are not passed to analyses. Writing anything other than `nominal` makes `check` notify with info (`setting.not_applied`).
-To use it, a rule is needed for "which side of which value to read" (the conservative side differs per value, such as max for mass and min for generated power).
+The case's `side` (`nominal`, `min`, `max`) chooses which side of a value's uncertainty the analyses read (`Uncertain<T>`: `SiScalar.min` / `max` beside the nominal).
+The rule is literal and the same for every attribute: with `side = "max"` an analysis reads the value's `max` if the value has one and its nominal otherwise; `side = "min"` likewise with `min`;
+`nominal` or no `side` reads the nominal. With no case (the default-attitude situation above, or a run with no case) every value is the nominal.
+The choice is made in one place (`SiScalar::read`), and the scalar and per-state values that projections hand to analyses and the mass budget all go through it
+(budgets run for a case follow it too; listings such as `part show` stay nominal). There is no per-attribute "conservative direction": a case that wants the worst case for generated power and for load
+chooses the side per value by which bounds the data carries (for example, write only `max` on a load and only `min` on a generation efficiency, and use `side = "max"` or `"min"` accordingly).
+A range such as a heater's `setpoint = { min, max }` is not an uncertainty and is not affected. The result's `side` shows the side that was read (`nominal` for a case with no `side`, absent when there is no case).
+`check` notifies with info `case.side_without_bounds` when a case asks for `min` / `max` but no part or catalog value carries that bound.
+
+How it combines with the budget policy: the growth margin (`budget/policy.toml` `[growth]`) is applied on top of the value that was read, so a `max` value still gets its maturity growth.
+The policy's `[uncertainty]` width is not applied to inputs; it is only the default analysis margin of the thermal temperature-range verdict (a margin on predicted temperatures), so an explicit
+`min` / `max` on a value (which moves the input) and that margin (which widens the verdict) are separate and are not double counted.
 
 Each case's `energy_margin_per_orbit` in the power balance is the minimum energy margin over the completed orbits
 (including battery efficiency, before clipping by the capacity limits, already converted to a per-period value). If there is no completed orbit it is `null`,

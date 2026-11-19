@@ -68,6 +68,11 @@ pub struct AnalysisRunResult {
     pub id: String,
     pub case: Option<String>,
     pub case_source: Option<AnalysisCaseSource>,
+    /// 解析が読んだ不確かさの側（ケースの `side`。ケースがあれば書かれていなくても `nominal`、ケースが無ければ欄を出さない）。
+    /// `min` / `max` のときは、その側が書かれた値だけがその値で、書かれていない値は nominal を使っている
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub side: Option<fune_model::design::UncertaintySide>,
     pub status: AnalysisRunStatus,
     /// 出力中の判定を、出てきた順に平らに並べたもの（場所と持ち主の名前つき）。
     pub checks: Vec<CheckView>,

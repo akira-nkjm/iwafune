@@ -253,8 +253,8 @@ fn firing_power(ctx: &Context<'_>, p: &ResolvedPart) -> Option<Qty<Power>> {
     match ctx.attr(p, "power")? {
         SiValue::ByState(map) => map
             .get(STATE_THRUSTER_FIRING)
-            .map(|v| Qty::from_raw(v.value)),
-        SiValue::Scalar(v) => Some(Qty::from_raw(v.value)),
+            .map(|v| Qty::from_raw(ctx.read(v))),
+        SiValue::Scalar(v) => Some(Qty::from_raw(ctx.read(v))),
         _ => None,
     }
 }
