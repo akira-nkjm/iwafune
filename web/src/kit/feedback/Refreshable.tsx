@@ -15,6 +15,7 @@ export function Refreshable({
   active,
   label,
   blockInput = false,
+  immediate = false,
   className,
   children,
 }: {
@@ -22,6 +23,11 @@ export function Refreshable({
   /** していることを短く（翻訳済みの文。例: 「電源を再計算中」） */
   label: string;
   blockInput?: boolean;
+  /**
+   * 中央のロゴを待たずに最初から出す。読み直しが画面を止める計算（図の位置の計算）のときに使う。
+   * 計算の間は画面を描き直せないので、始まる前に出しておかないとロゴが出ない。
+   */
+  immediate?: boolean;
   className?: string;
   children: ReactNode;
 }) {
@@ -33,7 +39,7 @@ export function Refreshable({
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <Working
             label={label}
-            after={REFRESH_MARK_DELAY_MS}
+            after={immediate ? 0 : REFRESH_MARK_DELAY_MS}
             announce={false}
             className="rounded-card border border-line bg-panel px-5 py-4 shadow-sm"
           />
