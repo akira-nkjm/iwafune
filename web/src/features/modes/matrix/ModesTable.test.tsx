@@ -59,7 +59,6 @@ function render(eclipse: boolean, system?: System) {
         view={{ data: view, pending: false, updating: false }}
         system={system}
         eclipse={eclipse}
-        updating={false}
         onCell={() => {}}
       />
     </QueryClientProvider>,

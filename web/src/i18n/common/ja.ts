@@ -8,6 +8,12 @@ export const commonJa = {
     sortColumn: "昇順・降順・元の順に並べ替え",
     tableView: "表",
     treeView: "ツリー",
+    working: {
+      elapsed: (seconds: number) => `${seconds} 秒`,
+      computing: (name: string) => `${name}を計算中`,
+      layingOutDiagram: "システム図の配置を計算中",
+      drawing3d: "3D 表示を準備中",
+    },
     loading: "読み込み中…",
     cancel: "キャンセル",
     apply: "適用",

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { MissingList } from "@/analysis/MissingList";
 import type { DesignView, System } from "@/api/types";
 import { useT } from "@/i18n";
+import { Refreshable } from "@/kit/feedback/Refreshable";
 import { Reveal } from "@/kit/Reveal";
 import { Button } from "@/ui/button";
 import { draftCount, type ModeDraft, withCell } from "../draft/draft";
@@ -28,7 +29,8 @@ export function ModesMatrix({
   onAdd?: () => void;
   system?: System;
 }) {
-  const tm = useT().modes;
+  const t = useT();
+  const tm = t.modes;
   const [eclipse, setEclipse] = useState(false);
   const table = design.modes;
   const computed = useModeDraftLoad(table, draft, system);
@@ -65,20 +67,22 @@ export function ModesMatrix({
             <MissingList design={design} missing={computed.view.data.missing} />
           </div>
         )}
-        <div className="min-h-0 flex-1 scroll-pt-16 scroll-pb-36 scroll-pl-52 overflow-auto">
-          <ModesTable
-            key={eclipse ? "eclipse" : "sunlit"}
-            modes={table.modes}
-            groups={matrixGroups(design, draft, computed.view.data, tm, eclipse, system)}
-            eclipse={eclipse}
-            view={computed.view}
-            system={system}
-            updating={computed.view.updating}
-            onCell={({ mode, part }, cell) =>
-              onDraft(withCell(table, draft, mode, part, cell, eclipse))
-            }
-          />
-        </div>
+        {/* セルの電力を下書きで問い合わせ直している間は、前の数字を薄くして出し、上端に帯を出す */}
+        <Refreshable active={computed.view.updating} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 scroll-pt-16 scroll-pb-36 scroll-pl-52 overflow-auto">
+            <ModesTable
+              key={eclipse ? "eclipse" : "sunlit"}
+              modes={table.modes}
+              groups={matrixGroups(design, draft, computed.view.data, tm, eclipse, system)}
+              eclipse={eclipse}
+              view={computed.view}
+              system={system}
+              onCell={({ mode, part }, cell) =>
+                onDraft(withCell(table, draft, mode, part, cell, eclipse))
+              }
+            />
+          </div>
+        </Refreshable>
         {/* 保存の帯はカードのいちばん下。最初の下書きで滑らかに開き、保存・破棄で滑らかに閉じる */}
         <Reveal open={count > 0}>
           <ModesSaveBar

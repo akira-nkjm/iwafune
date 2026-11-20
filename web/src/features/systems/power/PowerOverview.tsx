@@ -7,11 +7,20 @@ import { TablePanel } from "@/kit/table/TablePanel";
  * 電源の概要。解析の表（1 行 = 1 解析。主な結果・判定・足りない入力の数、開くと KPI の全部・棒グラフ・判定の文・生の表。
  * 行の中身は結果に API が添えた `AnalysisRunResult.overview`。電源は棒グラフと隠す表も入る）。
  */
-export function PowerOverview({ page, design }: { page: PowerPageView; design?: DesignView }) {
+export function PowerOverview({
+  page,
+  design,
+  updating = false,
+}: {
+  page: PowerPageView;
+  design?: DesignView;
+  /** 前の結果を出したまま読み直している（`usePowerPage` の `isFetching`） */
+  updating?: boolean;
+}) {
   const table = useT().systems.analysisTable;
   return (
     <TablePanel title={table.title} caption={table.caption}>
-      <AnalysisTable items={page.analyses} design={design} />
+      <AnalysisTable items={page.analyses.map((a) => ({ ...a, updating }))} design={design} />
     </TablePanel>
   );
 }

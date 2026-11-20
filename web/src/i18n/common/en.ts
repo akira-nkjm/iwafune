@@ -9,6 +9,12 @@ export const commonEn: typeof commonJa = {
     sortColumn: "Sort ascending, descending, then original order",
     tableView: "Table",
     treeView: "Tree",
+    working: {
+      elapsed: (seconds: number) => `${seconds} s`,
+      computing: (name: string) => `Computing ${name}`,
+      layingOutDiagram: "Laying out the system diagram",
+      drawing3d: "Preparing the 3D view",
+    },
     loading: "Loading…",
     cancel: "Cancel",
     apply: "Apply",

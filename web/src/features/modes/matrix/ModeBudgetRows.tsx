@@ -41,10 +41,7 @@ export function ModeBudgetRows({
             const values = eclipse ? found?.eclipse : found?.sunlit;
             const value = values?.[row.field];
             return (
-              <td
-                key={mode.id}
-                className={cn("num px-2 py-3 text-center text-xs", view.updating && "opacity-50")}
-              >
+              <td key={mode.id} className="num px-2 py-3 text-center text-xs">
                 {view.pending ? (
                   <Loading>
                     <SkeletonLines lines={1} />
