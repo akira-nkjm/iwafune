@@ -79,17 +79,35 @@ fn solve(
 fn thermostat_law_has_hysteresis() {
     let net = network(&[("n", 0.1)], &[]);
     let h = &net.heaters(&[heater("H", "n", 280.0, 285.0, 5.0)]).unwrap()[0];
-    assert!(h.next_state(false, 279.9));
-    assert!(h.next_state(true, 279.9));
-    assert!(!h.next_state(true, 285.1));
-    assert!(!h.next_state(false, 285.1));
+    assert!(h.next_state(false, 279.9, 0.0));
+    assert!(h.next_state(true, 279.9, 0.0));
+    assert!(!h.next_state(true, 285.1, 0.0));
+    assert!(!h.next_state(false, 285.1, 0.0));
     // 帯の中は保つ
-    assert!(h.next_state(true, 282.0));
-    assert!(!h.next_state(false, 282.0));
+    assert!(h.next_state(true, 282.0, 0.0));
+    assert!(!h.next_state(false, 282.0, 0.0));
     // 初期
     assert!(h.initial_state(270.0));
     assert!(!h.initial_state(282.0));
     assert!(!h.initial_state(300.0));
+}
+
+/// 切り替えまでの余裕と、許容つきの次の状態: オンなら `off_above` まで、オフなら `on_below` から。
+/// 許容 `tol` 以内か越えていれば切り替える（時間積分が設定温度に届く時刻を求めたとき、その直前の側の値でも切り替えるため）。
+#[test]
+fn margin_and_next_state_with_tolerance() {
+    let net = network(&[("n", 0.1)], &[]);
+    let h = &net.heaters(&[heater("H", "n", 280.0, 285.0, 5.0)]).unwrap()[0];
+    assert_eq!(h.margin(true, 283.0), 2.0);
+    assert_eq!(h.margin(false, 283.0), 3.0);
+    // 設定温度の手前 1e-7 K: 許容 1e-5 なら届いたとして切り替え、許容 0 なら切り替えない
+    assert!(!h.next_state(true, 285.0 - 1e-7, 1e-5));
+    assert!(h.next_state(true, 285.0 - 1e-7, 0.0));
+    assert!(h.next_state(false, 280.0 + 1e-7, 1e-5));
+    assert!(!h.next_state(false, 280.0 + 1e-7, 0.0));
+    // 切り替えた直後は反対側の設定温度までの余裕が帯の幅だけあるので、続けて切り替わらない
+    assert_eq!(h.margin(false, 285.0), 5.0);
+    assert_eq!(h.margin(true, 280.0), 5.0);
 }
 
 /// モードでの有効/無効: 停止状態だけなら無効、`off` に `on` の duty があるか `on` なら有効、割り当てが無い・モードが無ければ有効。
@@ -127,6 +145,9 @@ fn invalid_heaters_are_rejected() {
     assert!(ok(heater("H", "a", 280.0, 285.0, 5.0)));
     assert!(!ok(heater("H", "a", 285.0, 280.0, 5.0)));
     assert!(!ok(heater("H", "a", 280.0, 280.0, 5.0)));
+    // 帯の幅は下限（0.001 K）以上
+    assert!(!ok(heater("H", "a", 280.0, 280.0005, 5.0)));
+    assert!(ok(heater("H", "a", 280.0, 280.002, 5.0)));
     assert!(!ok(heater("H", "a", 280.0, 285.0, 0.0)));
     assert!(!ok(heater("H", "missing", 280.0, 285.0, 5.0)));
     assert!(

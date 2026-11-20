@@ -3,10 +3,14 @@
 //! - [`rk4_step`] / [`integrate`]: 固定刻みの古典的 RK4。入力を刻みの間一定にする（sample-and-hold）ループ向け。
 //! - [`Dop853`]: 適応刻みの Dormand–Prince 8(5,3)（密出力付き）。精度が要る軌道伝搬などに使う。
 //!   Hairer の `dop853.f` を移植し、任意の状態ベクトルに使えるようにしたもの。
+//!   [`Dop853::integrate_segment`] は区間ごとの積分で、途中でスイッチが切り替わる時刻（イベント）を密出力で求めて止める。
 
 mod dense_output;
 mod dop853;
 mod dop853_coeffs;
+mod segment;
+
+pub use segment::{OdeStats, Segment};
 
 /// 積分できる状態ベクトル。
 pub trait OdeState: Clone {
@@ -151,6 +155,23 @@ impl Dop853 {
         times: &[f64],
     ) -> Result<Vec<S>, crate::AstroError> {
         dop853::integrate_at(self, &f, t0, x0, times)
+    }
+
+    /// `t0` から `t1` まで積分する。`event(t, x)` が 0 以下になった時刻があれば、そこで止めて返す
+    /// （[`Segment::event`] が真。時刻は刻みの中の密出力に対する二分法で求めるので、刻みの端には量子化されない）。
+    ///
+    /// `t0` で `event` が 0 以下なら、進まずにイベントとして返す。`h_start` は初期刻みの目安（前の区間の
+    /// [`Segment::h_next`]。`None` なら自動）。入力が途中で不連続になる区間は、呼び出し側が分けて呼ぶ。
+    pub fn integrate_segment<S: OdeState>(
+        &self,
+        f: impl Fn(f64, &S) -> S,
+        t0: f64,
+        x0: S,
+        t1: f64,
+        h_start: Option<f64>,
+        event: impl Fn(f64, &S) -> f64,
+    ) -> Result<Segment<S>, crate::AstroError> {
+        segment::integrate_segment(self, &f, t0, x0, t1, h_start, &event)
     }
 }
 

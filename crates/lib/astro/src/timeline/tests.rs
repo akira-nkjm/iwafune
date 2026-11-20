@@ -157,3 +157,42 @@ fn sampling_is_flattened_in_json() {
     assert_eq!(back.sampling.beta, sp.sampling.beta);
     assert_eq!(back.sampling.step, sp.sampling.step);
 }
+
+/// 標本の時刻では、任意の時刻の評価（`TimelineEvaluator::at`）が `build` の点と同じになる。
+#[test]
+fn evaluator_matches_build_at_sample_times() {
+    let sp = spec(ShadowModel::Conical);
+    let samples = build(&sp).expect("timeline");
+    let ev = TimelineEvaluator::new(&sp).expect("evaluator");
+    for s in samples.iter().step_by(37) {
+        assert_eq!(ev.at(s.t_s), *s);
+    }
+}
+
+/// 円柱影の食の長さ（日照が 1 → 0 と 0 → 1 に変わる時刻の差）は、半角 asin(R/r) から周期 × asin(R/r)/π。
+/// 時刻は日照率の境を二分法で求めるので、標本の刻み（60 s）よりずっと小さい誤差で一致する。
+#[test]
+fn shadow_edges_give_the_analytic_eclipse_duration() {
+    let mut sp = spec(ShadowModel::Cylindrical);
+    sp.sampling.step = Qty::from_raw(60.0);
+    let ev = TimelineEvaluator::new(&sp).expect("evaluator");
+    let samples = build(&sp).expect("timeline");
+    let mut edges = Vec::new();
+    for w in samples.windows(2) {
+        let found = ev.shadow_edges(w[0].t_s, w[1].t_s);
+        if !found.is_empty() {
+            edges.push((w[0].sunlit, found));
+        }
+    }
+    // 円柱影は 1 → 0 の跳びなので、2 つの境が同じ時刻に重なる
+    assert_eq!(edges.len(), 2, "{edges:?}");
+    let (entry, exit) = (edges[0].1[0], edges[1].1[0]);
+    assert!((edges[0].1[0] - edges[0].1[1]).abs() < 1e-3);
+    let r = R_EARTH + 550e3;
+    let expected = sp.sampling.orbit.period_s() * (R_EARTH / r).asin() / core::f64::consts::PI;
+    assert!(
+        (exit - entry - expected).abs() < 1.0,
+        "{} vs {expected}",
+        exit - entry
+    );
+}

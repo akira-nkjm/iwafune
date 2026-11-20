@@ -26,9 +26,17 @@ phases: Array<ThermalHeatPhase>,
  */
 heaters: Array<ThermalHeater>, initial: ThermalInitial, 
 /**
- * 積分の刻みの上限（既定は安定条件の目安だけで決める）
+ * 積分の刻みの上限（既定は上限なし。刻みは許容誤差で決まる）
  */
 max_step: number | null, 
+/**
+ * 積分の相対許容誤差（既定は [`DEFAULT_REL_TOL`]）
+ */
+rel_tol: number | null, 
+/**
+ * 積分の絶対許容誤差（既定は [`DEFAULT_ABS_TOL_K`]）
+ */
+abs_tol: number | null, 
 /**
  * 解析マージンの方針（書かれていない値は解析の既定値）
  */
