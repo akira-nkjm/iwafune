@@ -73,6 +73,10 @@ pub enum ThermalHeaterState {
     Saturated,
 }
 
+/// 設定温度の帯の幅の下限 [K]。時間積分が切り替えの時刻を温度の許容（`transient::heater_control`）で求めるので、
+/// 切り替えた直後に反対側の設定温度の許容の中に入らないだけの幅を求める。
+pub(crate) const MIN_BAND_K: f64 = 1e-3;
+
 /// 添字に直したヒータ（SI の f64）。
 #[derive(Debug, Clone)]
 pub(crate) struct HeaterSpec {
@@ -88,13 +92,19 @@ pub(crate) struct HeaterSpec {
 
 impl HeaterSpec {
     /// 温度 `t` [K] を測って次の状態を決める（`on` は直前の状態）。法則はモジュールの説明。
-    pub fn next_state(&self, on: bool, t: f64) -> bool {
-        if t < self.on_below {
-            true
-        } else if t > self.off_above {
-            false
+    /// 次の切り替えの温度から `tol` [K] 以内（越えた場合を含む）なら、切り替えに届いたとして状態を反転する
+    /// （`tol = 0` なら、ちょうど設定温度にあるとき切り替える）。時間積分は切り替えの時刻を温度の許容 `tol` で求める。
+    pub fn next_state(&self, on: bool, t: f64, tol: f64) -> bool {
+        if self.margin(on, t) <= tol { !on } else { on }
+    }
+
+    /// 今の状態 `on` のまま温度が次の切り替えの温度に届くまでの余裕 [K]（オンなら `off_above` まで、オフなら `on_below` から。
+    /// 0 以下で切り替わる）。時間積分はこの値が 0 になる時刻をイベントとして求める（`transient::heater_control`）。
+    pub fn margin(&self, on: bool, t: f64) -> f64 {
+        if on {
+            self.off_above - t
         } else {
-            on
+            t - self.on_below
         }
     }
 
@@ -115,9 +125,9 @@ impl Compiled {
         for h in heaters {
             let bad = |why: &str| AnalysisError::InvalidInput(format!("Heater {}: {why}", h.id));
             let (lo, hi) = (h.on_below.value(), h.off_above.value());
-            if !(lo.is_finite() && hi.is_finite() && lo > 0.0 && lo < hi) {
+            if !(lo.is_finite() && hi.is_finite() && lo > 0.0 && hi - lo >= MIN_BAND_K) {
                 return Err(bad(
-                    "the on-below temperature must be positive and lower than the off-above temperature",
+                    "the on-below temperature must be positive and lower than the off-above temperature by at least 0.001 K",
                 ));
             }
             let p = h.power.value();

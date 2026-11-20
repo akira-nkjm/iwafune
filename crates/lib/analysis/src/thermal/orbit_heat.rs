@@ -99,16 +99,22 @@ pub(crate) fn absorbed(net: &Compiled, env: &ResolvedEnvironment, g: &Geometry) 
     q
 }
 
-/// 時系列の各点の幾何。
-pub(crate) fn timeline_geometry(
-    spec: &TimelineSpec,
-) -> Result<(Vec<f64>, Vec<Geometry>), AnalysisError> {
+/// 熱解析が扱える軌道か（中心天体が太陽だとアルベドも天体の赤外も無いので扱わない）。
+pub(crate) fn require_planetary(spec: &TimelineSpec) -> Result<(), AnalysisError> {
     if spec.orbit().central == CentralBody::Sun {
         return Err(AnalysisError::InvalidInput(
             "Thermal analysis with the Sun as the central body is not supported (it has no albedo or planet IR form)"
                 .to_owned(),
         ));
     }
+    Ok(())
+}
+
+/// 時系列の各点の幾何。
+pub(crate) fn timeline_geometry(
+    spec: &TimelineSpec,
+) -> Result<(Vec<f64>, Vec<Geometry>), AnalysisError> {
+    require_planetary(spec)?;
     let samples = build(spec)?;
     if samples.is_empty() {
         return Err(AnalysisError::InvalidInput(

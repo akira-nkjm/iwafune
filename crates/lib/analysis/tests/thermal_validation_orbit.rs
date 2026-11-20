@@ -23,8 +23,8 @@ use sat_units::typed::{Fraction, Qty};
 ///
 /// 検証: 太陽を向く平板（1 面、α 0.92・ε 0.86、0.02 m²）、β 0°（日陰 約 36 分 / 周期 約 96 分）、T_s = 0、
 /// 5 周回のうち最後の 1 周回（初期値は軌道平均の定常解。小さい熱容量は 1 周回で周期解に入り、大きい熱容量は初期値がほぼ周期解）。
-/// - 両方: T_ss ∈ [min, max]、(⟨T⁴⟩)^¼ = T_ss（許容 0.1 K、観測 0.04 K。入熱が標本の刻み 5 s の段で、定常側の平均は台形則という違いと、
-///   初期の過渡の残りによる）。
+/// - 両方: T_ss ∈ [min, max]、(⟨T⁴⟩ + C ΔT/(P ε σ A))^¼ = T_ss（ΔT は最後の 1 周回の温度変化。熱容量が大きいと初期値が周期解からわずかにずれていて 0 でない）。許容 3e-4 K。標本の刻みは周期の 1/4600 ≈ 1.25 s で、最後の 1 周回の窓は標本の点に重なる。
+///   #297 は刻み 5 s・窓が標本からずれて許容 0.1 K、観測 0.04 K。残りは日陰の出入りの折れ曲がりに対する台形則の誤差）。
 /// - 小さい熱容量（5 g、τ ≈ 数分）: ⟨T⟩ は T_ss より 3 K 以上低い（Jensen。この差は小さい熱容量で現れる）。
 /// - 大きい熱容量（20 kg、τ ≈ 数日）: ⟨T⟩ が T_ss と 0.1 K 以内（観測 0.024 K）、最高と最低の差が 2.5 K 未満（基本波の振幅 ≈ 平板の吸収の基本波 14.7 W / (C ω) ≈ 0.75 K、差は約 2 倍に高調波を加えた 約 1.9 K）。
 #[test]
@@ -39,7 +39,9 @@ fn steady_matches_the_fourth_power_mean_of_the_periodic_transient() {
         };
         let tl0 = timeline(1.0, 5.0, 0.0);
         let period = tl0.orbit().period_s();
-        let tl = timeline(5.0 * period, 5.0, 0.0);
+        // 標本の刻みは周期の 1/4600（≈ 1.25 s）。最後の 1 周回の窓が標本の点にちょうど重なる
+        let step = period / 4600.0;
+        let tl = timeline(5.0 * period, step, 0.0);
         let case = ThermalSteadyCase {
             id: "avg".to_owned(),
             label: String::new(),
@@ -64,7 +66,6 @@ fn steady_matches_the_fourth_power_mean_of_the_periodic_transient() {
             env(SOLAR, 0.0),
             vec![],
             ThermalInitial::OrbitAverageSteady,
-            5.0,
         );
         let (t, temp) = (&out.series.t, values(&out.series, "n"));
         let from = t.iter().position(|&x| x >= 4.0 * period).unwrap();
@@ -72,13 +73,17 @@ fn steady_matches_the_fourth_power_mean_of_the_periodic_transient() {
         let span = tl_t[tl_t.len() - 1] - tl_t[0];
         let mean = trapezoid(tl_t, tl_v) / span;
         let t4: Vec<f64> = tl_v.iter().map(|x| x.powi(4)).collect();
-        let mean4 = (trapezoid(tl_t, &t4) / span).powf(0.25);
+        let mean4_fourth = trapezoid(tl_t, &t4) / span;
+        // 1 周回の ∫C dT = C (T_end − T_start) は 0 でなくてもよい: ⟨T⁴⟩ = T_ss⁴ − C ΔT / (P ε σ A)。ΔT を含めて比べる
+        // （熱容量の大きい場合は初期値が周期解からわずかにずれて、最後の 1 周回でも温度が動いている）
+        let drift = mass * CP_AL * (tl_v[tl_v.len() - 1] - tl_v[0]) / (span * eps * SIGMA_SB * a);
+        let mean4 = (mean4_fourth + drift).powf(0.25);
         let (lo, hi) = tl_v
             .iter()
             .fold((f64::MAX, f64::MIN), |(l, h), &x| (l.min(x), h.max(x)));
         assert!(lo < t_ss && t_ss < hi, "mass {mass}: {lo} < {t_ss} < {hi}");
         assert!(
-            (mean4 - t_ss).abs() < 0.1,
+            (mean4 - t_ss).abs() < 3e-4,
             "mass {mass}: <T^4>^(1/4) {mean4} vs steady {t_ss}"
         );
         if small {

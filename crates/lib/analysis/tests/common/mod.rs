@@ -198,14 +198,13 @@ pub fn timeline(span_s: f64, step_s: f64, beta_deg: f64) -> TimelineSpec {
     tl
 }
 
-/// 非定常解析を走らせる（積分の刻みは `max_step_s` で上から抑える）。
+/// 非定常解析を走らせる（積分の許容誤差と刻みは解析の既定）。
 pub fn transient(
     net: ThermalNetwork,
     tl: TimelineSpec,
     environment: ThermalEnvironment,
     phases: Vec<ThermalHeatPhase>,
     initial: ThermalInitial,
-    max_step_s: f64,
 ) -> ThermalTransientOutput {
     ThermalTransient::run(&ThermalTransientInput {
         network: net,
@@ -214,7 +213,9 @@ pub fn transient(
         phases,
         heaters: Vec::new(),
         initial,
-        max_step: Some(Qty::from_raw(max_step_s)),
+        max_step: None,
+        rel_tol: None,
+        abs_tol: None,
         margin: ThermalMarginPolicy::default(),
     })
     .unwrap()
@@ -244,28 +245,47 @@ pub fn trapezoid(t: &[f64], v: &[f64]) -> f64 {
         .sum()
 }
 
+/// 等間隔の標本の ∫ v dt（シンプソン則。標本の数が偶数なら最後の 1 区間だけ台形則）。滑らかな量の積分に使う。
+pub fn simpson(t: &[f64], v: &[f64]) -> f64 {
+    let h = t[1] - t[0];
+    let n = v.len() - 1;
+    let m = n - n % 2;
+    let mut sum = v[0] + v[m];
+    for (i, x) in v.iter().enumerate().take(m).skip(1) {
+        sum += if i % 2 == 1 { 4.0 * x } else { 2.0 * x };
+    }
+    let tail = if n > m {
+        0.5 * (v[n - 1] + v[n]) * h
+    } else {
+        0.0
+    };
+    sum * h / 3.0 + tail
+}
+
 /// 放射する面積に対する平衡温度の閉じた形: `T⁴ = T_s⁴ + α S A_abs / (ε σ A_rad)`。
 pub fn t_eq(alpha: f64, eps: f64, a_abs: f64, a_rad: f64, space_k: f64) -> f64 {
     (space_k.powi(4) + alpha * SOLAR * a_abs / (eps * sat_astro::constants::SIGMA_SB * a_rad))
         .powf(0.25)
 }
 
-/// 積分の刻みの上限を与えない非定常解析（既定の刻みの見積もりをそのまま使う）。
-pub fn transient_with_default_step(
+/// 許容誤差を指定した非定常解析（`rel_tol`: 相対、`abs_tol_k`: 絶対 [K]）。
+pub fn transient_with_tolerance(
     net: ThermalNetwork,
     tl: TimelineSpec,
     environment: ThermalEnvironment,
-    phases: Vec<ThermalHeatPhase>,
     initial: ThermalInitial,
+    (rel_tol, abs_tol_k): (f64, f64),
 ) -> ThermalTransientOutput {
     ThermalTransient::run(&ThermalTransientInput {
         network: net,
         timeline: tl,
         environment,
-        phases,
+        phases: Vec::new(),
         heaters: Vec::new(),
         initial,
         max_step: None,
+        rel_tol: Some(rel_tol),
+        abs_tol: Some(Qty::from_raw(abs_tol_k)),
         margin: ThermalMarginPolicy::default(),
     })
     .unwrap()
