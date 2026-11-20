@@ -58,7 +58,7 @@ fn every_kpi_comes_from_exactly_one_analysis() {
                 .all(|d| !d.label.is_empty() && !d.label_en.is_empty())
         );
     }
-    assert_eq!(seen.len(), 41, "every KpiKey value is in the table");
+    assert_eq!(seen.len(), 43, "every KpiKey value is in the table");
 }
 
 /// 判定を数える KPI: 数と OK でない数、塗りは OK の割合（手で数えた 9 件中 4 件）。
@@ -94,7 +94,8 @@ fn counting_kpi_tallies_checks_and_fills_with_the_ok_share() {
         [
             KpiKey::MaxTemperature,
             KpiKey::MinTemperature,
-            KpiKey::NodesInRange
+            KpiKey::NodesInRange,
+            KpiKey::MaxHeaterDuty
         ]
     );
     let range = &out[2];
@@ -381,7 +382,8 @@ fn mtq_without_a_field_model_keeps_its_kpi_with_the_verdict() {
 }
 
 /// 温度範囲の判定は節点 × 種類を 1 項目として数える: 片側だけ外れた節点も両側が外れた節点も 1 つ、
-/// 項目の判定は両側の悪いほう。側を分けて数えると分母が倍になる（手で数えた 4 項目中 2 項目）。
+/// 項目の判定は両側の悪いほう。側を分けて数えると分母が倍になる（手で数えた 3 項目中 2 項目）。
+/// 温度範囲でない判定（ヒータ `heater:<部品>`・その他）は数えない（この KPI は温度範囲の KPI）。
 #[test]
 fn nodes_in_range_counts_one_item_per_node_and_kind() {
     use Verdict::{Ok, Violation, Warning};
@@ -395,17 +397,18 @@ fn nodes_in_range_counts_one_item_per_node_and_kind() {
         // B の別の種類は別の項目
         keyed("range_high:B:storage", Ok),
         keyed("range_low:B:storage", Ok),
-        // 温度範囲でない判定はそれぞれ 1 項目
+        // 温度範囲でない判定は数えない
         keyed("other", Ok),
+        keyed("heater:HTR_BAT", Violation),
     ];
     let tally = rule::Tally::Items.count(&checks).unwrap();
     assert_eq!(
         tally,
         KpiTally {
-            checked: 4,
+            checked: 3,
             flagged: 2
         }
     );
-    assert!((tally.ok_share().unwrap().ratio - 0.5).abs() < 1e-12);
+    assert!((tally.ok_share().unwrap().ratio - 1.0 / 3.0).abs() < 1e-12);
     assert_eq!(rule::Tally::None.count(&checks), None);
 }

@@ -558,6 +558,34 @@ The default value of 1 for `heat_fraction` was removed (a default would always a
 The link-budget transmit power `tx_power` has no states, so the per-state `rf_output` is written separately for heat dissipation.
 The node that emits heat is by default the node the part belongs to, and writing `part = "node"` in `[heat_node]` places it on that node (a part not in any node can also be a heat source).
 
+#### Heaters
+
+A heater part (`kind = "heater"`) with `setpoint = { min, max, unit = "degC" }` is a **thermostat-controlled heater** in both thermal analyses (`sat_analysis::thermal::network::{heater, heater_steady}`; the verdicts are `thermal::heater`).
+It senses the temperature of its node (the node the part belongs to, or its `[heat_node]`, the same rule as heat dissipation) and heats the same node. `min` is the lower set point (on below it) and `max` the upper one (off above it);
+in between the heater keeps its last state (hysteresis). When on, it dissipates its `power.on` (all of it becomes heat) times `count`.
+A heater **with** a `setpoint` is passed to the analyses as a heater, **not** as a mode-average heat load, so it is never counted twice. A heater **without** a `setpoint` stays an ordinary part: its mode average power is its heat, as before.
+At most one thermostat per node (a second one is an input error).
+
+**Mode interaction.** The thermostat is active when the heater's state in the case's mode is anything other than `off` for part of the time (`on`, or `off` with an `on` duty: the way the demo writes it; `modes::power_states`).
+It is disabled (0 W, never on) in a mode where the state is `off` and has no non-`off` duty. With no mode, or no assignment for the heater in the mode, it is active.
+The `duty` in the mode is the *power side's* estimate and is not used by the thermal analyses while the thermostat is active (the thermostat decides the duty). In the transient analysis the mode is read per heat phase.
+
+**Steady state** (`thermal.steady`). A thermostat has no single steady state inside its dead band, so the analysis defines it as: *the heater delivers the power P (0 ≤ P ≤ P_max) that holds its node at the lower set point.*
+If the node is already at or above the lower set point without the heater, the heater is `off` (P = 0). If P_max is not enough, the heater is `saturated` (P = P_max) and the node settles below the lower set point.
+Otherwise it is `regulating` and P is the heat the node would otherwise lose at the lower set point: for one node radiating to space, `P = ε σ A (T_set⁴ − T_space⁴) − Q_other`.
+With several heaters the sets (off / regulating / saturated) are found by an active-set iteration until consistent: regulating nodes are fixed at their set point in the Newton solver and P is read from the node's heat balance; P < 0 moves a heater to off,
+P > P_max to saturated, a saturated node above its set point or an off node below it to regulating. The result per case and heater is `state`, `power`, `capacity`, `duty_fraction = P / P_max`, `set_point` and `node_temperature`;
+the node's `internal` heat includes the heater power. The check `heater:<part>` (worst case across cases) is a **violation if saturated** (capacity cannot hold the lower set point), a **warning if the duty is above 0.8** (`DEFAULT_HEATER_DUTY_WARNING`, overridable by `ThermalMarginPolicy.heater_duty_warning`, no setting yet), otherwise ok.
+
+**Transient** (`thermal.transient`). Bang-bang with hysteresis for each heater, evaluated at the end of every integration sub-step (the step is at most the sample step, so every sample is also a decision point); the heater heat is constant within a sub-step.
+The node may therefore leave the band by at most the temperature change of one sub-step (overshoot). The initial state is on below the lower set point, off above the upper one, and **off inside the band**. With `orbit_average_steady` the run starts from the steady state above (regulating heaters start at their lower set point, using the first phase's modes).
+Per heater the output has `duty_fraction` (on-time share of the run, including the start-up), `duty_fraction_last_orbit` (the last orbital period, or the whole run if shorter; used for the verdict), `mean_power`, `switchings` and `max_on_duration`,
+and the series channel `heater:<part>` (W, the state at the start of each sample). The check `heater:<part>` is a **violation if saturated** (on for the whole last orbit and the node never reached the lower set point), a **warning if the last-orbit duty is above the threshold**, otherwise ok.
+
+**Relation to the power side.** The electrical power analyses and budgets are unchanged: they read the heater's mode state (`on` = `power.on` all the time, `off` with an `on` duty = the weighted average). That is the conservative always-on value when the mode says `on`.
+The thermal result's `mean_power` / steady `power` is what the thermostat actually needs, so the two can be compared; feeding the thermal duty back into the power budget is not done.
+Limits: one thermostat per node; the redundancy of the heater only decides the power state in the mode (the heat is `power × count`); proportional or timed control, thermostat accuracy and the heater's own thermal mass are not modelled.
+
 #### Surface materials
 
 ```toml

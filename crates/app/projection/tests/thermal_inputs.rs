@@ -173,3 +173,65 @@ fn enclosure_is_off_without_emissivity_and_bad_units_are_missing() {
             .any(|m| m.path.contains("thermal.conductive.BAT.PANEL_MZ"))
     );
 }
+
+/// `setpoint` を持つヒータ（HTR_BAT・HTR_CAM）は `ThermalHeater` として渡り、平均電力の発熱の源（解析の入力）には入らない
+/// （二重に数えない）。オンの電力は `power` の `on` の値、設定温度は SI（K）。モード表示用の `loads` には残る。
+/// `setpoint` を消せば、ヒータは従来どおりモードの発熱の源になる。
+#[test]
+fn thermostat_heaters_are_passed_as_heaters_not_loads() {
+    let design = demo();
+    let resolved = fune_model::resolve(&design);
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let input = fune_projection::thermal::steady(&ctx).unwrap();
+    let case = input.cases.iter().find(|c| c.id == "cold").unwrap();
+    let h = case.heaters.iter().find(|h| h.id == "HTR_BAT").unwrap();
+    assert_eq!(h.node, "BAT");
+    assert!((h.on_below.value() - 278.15).abs() < 1e-9);
+    assert!((h.off_above.value() - 283.15).abs() < 1e-9);
+    assert_eq!(h.power.value(), 2.0);
+    assert_eq!(case.heaters.len(), 2);
+    let analysis_parts = &case.mode_loads.as_ref().unwrap().parts;
+    assert!(analysis_parts.iter().all(|p| !p.id.starts_with("HTR_")));
+    let s = design.analysis.thermal.as_ref().unwrap();
+    let display = fune_projection::thermal::loads(&ctx, s, Some("SAFE")).unwrap();
+    assert!(display.parts.iter().any(|p| p.id == "HTR_BAT"));
+    // setpoint の無いヒータは、これまでどおりモードの発熱の源（ヒータとしては渡さない）
+    let mut plain = demo();
+    plain
+        .parts
+        .get_mut("HTR_BAT")
+        .unwrap()
+        .attr
+        .remove("setpoint");
+    let resolved = fune_model::resolve(&plain);
+    let ctx = Context::new(&plain, &resolved, None).unwrap();
+    let input = fune_projection::thermal::steady(&ctx).unwrap();
+    let case = &input.cases[0];
+    assert!(case.heaters.iter().all(|h| h.id != "HTR_BAT"));
+    assert!(
+        case.mode_loads
+            .as_ref()
+            .unwrap()
+            .parts
+            .iter()
+            .any(|p| p.id == "HTR_BAT")
+    );
+}
+
+/// オンの電力が無いヒータは、黙って外さず不足入力に `<部品>.power` を出す。
+#[test]
+fn heater_without_on_power_is_reported_as_missing() {
+    let mut design = demo();
+    design
+        .parts
+        .get_mut("HTR_CAM")
+        .unwrap()
+        .attr
+        .remove("power");
+    let resolved = fune_model::resolve(&design);
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let Err(missing) = fune_projection::thermal::steady(&ctx) else {
+        panic!("the input was built although a heater has no power");
+    };
+    assert!(missing.into_vec().iter().any(|m| m.path == "HTR_CAM.power"));
+}

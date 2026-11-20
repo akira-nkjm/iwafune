@@ -13,6 +13,8 @@ use sat_units::typed::{Area, Mass, Qty, SpecificHeatCapacity, Temperature, Therm
 use serde::{Deserialize, Serialize};
 
 mod couplings;
+mod heater;
+mod heater_steady;
 mod load;
 mod mode_loads;
 mod mounts;
@@ -23,6 +25,9 @@ pub use couplings::{
     ThermalConductanceUsed, ThermalCouplingSource, ThermalCouplings, ThermalEnclosureFace,
     ThermalEnclosureUsed, ThermalExchangeUsed,
 };
+pub(crate) use heater::{HeaterSpec, enabled_flags};
+pub use heater::{ThermalHeater, ThermalHeaterState};
+pub(crate) use heater_steady::HeaterSteady;
 pub use load::ThermalLoad;
 pub use mode_loads::{ThermalModeLoads, ThermalModePart};
 pub use mounts::ThermalMounts;

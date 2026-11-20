@@ -17,6 +17,7 @@ use sat_analysis::power::sizing::SizingLifetimeSource;
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
+use sat_analysis::thermal::ThermalHeaterState;
 use serde::de::DeserializeOwned;
 
 fn label(ja: impl Into<String>, en: impl Into<String>) -> AnalysisLabel {
@@ -58,6 +59,7 @@ pub fn channel_label(kind: ChannelKind, subject: Option<&str>) -> AnalysisLabel 
         K::MoonAngle => sensor_angle(s, SensorFovTarget::Moon),
         K::NodeTemperature => label(s, s),
         K::AbsorbedHeat => label("外部入熱", "Absorbed heat"),
+        K::HeaterPower => label(format!("{s} の発熱"), format!("{s} heater power")),
         K::Backlog => label("未送信データ", "Backlog"),
         K::Altitude => label("高度", "Altitude"),
         K::Inclination => label("傾斜角", "Inclination"),
@@ -253,6 +255,17 @@ fn sizing_lifetime_source(s: SizingLifetimeSource) -> AnalysisLabel {
     }
 }
 
+fn heater_state(s: ThermalHeaterState) -> AnalysisLabel {
+    match s {
+        ThermalHeaterState::Disabled => label("無効（モードで切っている）", "Disabled by mode"),
+        ThermalHeaterState::Off => label("オフ（加熱不要）", "Off (no heating needed)"),
+        ThermalHeaterState::Regulating => label("制御中", "Regulating"),
+        ThermalHeaterState::Saturated => {
+            label("飽和（容量が足りない）", "Saturated (capacity too small)")
+        }
+    }
+}
+
 fn modal_kind(k: ModalEstimateKind) -> AnalysisLabel {
     match k {
         ModalEstimateKind::Panel => label("パネルの面外一次", "Panel out-of-plane"),
@@ -311,6 +324,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
         "DurationTiming" => parse(value).map(duration_timing),
         "SizingLifetimeSource" => parse(value).map(sizing_lifetime_source),
+        "ThermalHeaterState" => parse(value).map(heater_state),
         "DataThroughputLinkClosure" => link_closure(value),
         "SolarActivity" => parse(value).map(orbit::solar_activity),
         "WeatherSource" => parse(value).map(orbit::weather_source),
@@ -361,11 +375,13 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         K::MaxBacklog => label("最大の未送信", "Max backlog"),
         K::MaxTemperature => label("最高温度", "Max temperature"),
         K::MinTemperature => label("最低温度", "Min temperature"),
-        K::NodesInRange => label(
-            "温度範囲の判定（節点・側）",
-            "Temperature range checks (nodes, per side)",
-        ),
+        K::NodesInRange => label("温度範囲の判定（節点）", "Temperature range checks (nodes)"),
         K::TransientMaxTemperature => label("非定常の最高温度", "Transient max temperature"),
+        K::MaxHeaterDuty => label("ヒータのデューティ（最大）", "Heater duty (max)"),
+        K::TransientMaxHeaterDuty => label(
+            "非定常のヒータのデューティ（最大・最後の 1 周）",
+            "Transient heater duty (max, last orbit)",
+        ),
         K::TotalMass => label("総質量", "Total mass"),
         K::MinSafetyMargin => label("最小の安全余裕（MS）", "Minimum margin of safety"),
         K::MinFrequency => label("最低の固有振動数", "Lowest natural frequency"),

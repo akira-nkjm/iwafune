@@ -22,6 +22,7 @@ margin: ThermalMarginUsed,
  */
 couplings: ThermalCouplings, 
 /**
- * 温度範囲を持つ節点の種類ごとの判定（key は `range:<node>:<storage|operating|performance>`）
+ * 温度範囲を持つ節点の種類ごとの判定（key は `range_high|range_low:<node>:<storage|operating|performance>`）と、
+ * ヒータごとの判定（key は `heater:<部品>`。ケースをまたいで最悪のケース）
  */
 checks: Array<Check>, };

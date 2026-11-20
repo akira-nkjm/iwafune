@@ -13,7 +13,7 @@ describe("熱の温度表", () => {
   };
   const out: ThermalSteadyOutput = {
     envelope: [],
-    margin: { uncertainty: 0, warning_band: 5 },
+    margin: { uncertainty: 0, warning_band: 5, heater_duty_warning: 0.8 },
     couplings: { conductive: [], radiative: [], enclosure: null },
     checks: [],
     cases: [
@@ -21,6 +21,7 @@ describe("熱の温度表", () => {
         id: "hot",
         label: "高温",
         environment,
+        heaters: [],
         iterations: 1,
         residual: 0,
         nodes: [
@@ -46,6 +47,7 @@ describe("熱の温度表", () => {
         id: "cold",
         label: "",
         environment,
+        heaters: [],
         iterations: 1,
         residual: 0,
         nodes: [

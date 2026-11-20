@@ -79,14 +79,19 @@ fn demo_kpis_show_the_same_values_as_before() {
         (
             "thermal.steady",
             &[
-                (KpiKey::MaxTemperature, "39.4 °C"),
-                (KpiKey::MinTemperature, "-22.8 °C"),
+                (KpiKey::MaxTemperature, "39.3 °C"),
+                (KpiKey::MinTemperature, "-21.9 °C"),
                 (KpiKey::NodesInRange, "—"),
+                // 冷たいケースではヒータが容量いっぱい（飽和）
+                (KpiKey::MaxHeaterDuty, "100 %"),
             ],
         ),
         (
             "thermal.transient",
-            &[(KpiKey::TransientMaxTemperature, "58.1 °C")],
+            &[
+                (KpiKey::TransientMaxTemperature, "58.1 °C"),
+                (KpiKey::TransientMaxHeaterDuty, "42.0 %"),
+            ],
         ),
         (
             "structure.mass_properties",
@@ -131,8 +136,8 @@ fn demo_kpis_show_the_same_values_as_before() {
     }
 }
 
-/// 概要のカードに使う判定・塗りの比・判定の数え方。判定は解析の判定（節点と温度範囲の種類の組 13 件のうち 8 件が、
-/// 不確かさ 5 K を含めて範囲の外か端。判定は上限側・下限側に分かれるが、数えるのは組ごとに 1 つ（両側の悪いほう）。温度範囲はケースのモードでの部品の電源の状態で選ぶので、電源を切るモードの
+/// 概要のカードに使う判定・塗りの比・判定の数え方。判定は解析の判定（節点と温度範囲の種類の組 13 件のうち 4 件が、
+/// 不確かさ 5 K を含めて範囲の外か端（ヒータのサーモスタットで冷たいケースの下限側が持ち上がる）。判定は上限側・下限側に分かれるが、数えるのは組ごとに 1 つ（両側の悪いほう）。温度範囲はケースのモードでの部品の電源の状態で選ぶので、電源を切るモードの
 /// CAM の動作・性能の範囲は違反にならない）。
 #[test]
 fn demo_verdicts_fills_and_tallies() {
@@ -156,10 +161,10 @@ fn demo_verdicts_fills_and_tallies() {
         range.tally,
         Some(KpiTally {
             checked: 13,
-            flagged: 6
+            flagged: 4
         })
     );
-    assert!((range.fill.unwrap().ratio - 7.0 / 13.0).abs() < 1e-12);
+    assert!((range.fill.unwrap().ratio - 9.0 / 13.0).abs() < 1e-12);
     // 判定の対象でない KPI（発生量・角運動量）は判定を持たない
     assert!(kpis(&ws, "cdh.data_budget", None)[0].verdict.is_none());
     assert!(kpis(&ws, "aocs.rw_unloading", None)[1].verdict.is_none());
