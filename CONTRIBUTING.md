@@ -3,6 +3,7 @@
 A foundation for studying the conceptual design of satellites. Design data (a git-managed directory of TOML) is edited from both the CLI (`fune`) and the GUI, and the analyses of each subsystem are run on it.
 The overall design is in [docs/architecture.md](docs/architecture.md), the shape of the data is in [docs/model.md](docs/model.md), where each feature lives is in [docs/architecture/registry.md](docs/architecture/registry.md),
 and upcoming features are in [docs/roadmap.md](docs/roadmap.md) and GitHub Issues.
+Building from source, the repository layout and the release flow are in [docs/development.md](docs/development.md).
 
 ## Structural rules (most important)
 
