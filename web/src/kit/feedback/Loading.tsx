@@ -3,10 +3,20 @@ import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { Skeleton } from "@/ui/skeleton";
 import { Panel } from "../panel/Panel";
+import { Working } from "./Working";
 
 /** スケルトンの行の幅（決まった順に繰り返す。毎回同じ形になり、行ごとに長さが違って見える） */
 const WIDTHS = ["w-3/4", "w-1/2", "w-5/6", "w-2/3", "w-2/5", "w-4/5"] as const;
 const width = (i: number) => WIDTHS[i % WIDTHS.length];
+
+/** 図のスケルトンのカードの位置 */
+const CANVAS_CARDS = [
+  "left-[8%] top-[14%]",
+  "left-[40%] top-[10%]",
+  "left-[70%] top-[18%]",
+  "left-[22%] top-[52%]",
+  "left-[56%] top-[56%]",
+] as const;
 
 /** 行と列の key（並べ替えない固定の並びなので、番号から作った名前を使う） */
 const KEYS = Array.from({ length: 40 }, (_, i) => `k${i}`);
@@ -33,6 +43,7 @@ export function Loading({ children, className }: { children: ReactNode; classNam
 /**
  * 前の中身を出したまま読み直しているときの、上端の細い帯（動き続ける）。親は `relative` にする。
  * `Loading` と同じく少し待ってから現れ、画面読み上げには「読み込み中…」を伝える。
+ * 中身を薄くして残すときは `Refreshable`（この帯と、中央のロゴを出す枠）を使う。
  */
 export function Refreshing({ className }: { className?: string }) {
   const t = useT();
@@ -188,19 +199,21 @@ export function SkeletonPage({
   );
 }
 
-/** 図（システム図のキャンバス） */
-export function SkeletonCanvas() {
+/**
+ * 図（システム図のキャンバス）。`label`（していること。翻訳済み）を渡すと、最初から中央にロゴのマークと経過秒を出す
+ * （図は位置の計算が済むまで何も描けないので、形だけのスケルトンよりも、していることを伝える）。
+ * `label` が無ければ、カードの形のスケルトン。
+ */
+export function SkeletonCanvas({ label }: { label?: string }) {
   return (
     <div className="relative min-h-[420px] flex-1 border-line border-t bg-panel-2/40">
-      {[
-        "left-[8%] top-[14%]",
-        "left-[40%] top-[10%]",
-        "left-[70%] top-[18%]",
-        "left-[22%] top-[52%]",
-        "left-[56%] top-[56%]",
-      ].map((pos) => (
-        <Skeleton key={pos} className={cn("absolute h-24 w-44 rounded-card", pos)} />
-      ))}
+      {label ? (
+        <Working label={label} after={0} announce={false} className="absolute inset-0" />
+      ) : (
+        CANVAS_CARDS.map((pos) => (
+          <Skeleton key={pos} className={cn("absolute h-24 w-44 rounded-card", pos)} />
+        ))
+      )}
     </div>
   );
 }

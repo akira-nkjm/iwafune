@@ -4,9 +4,10 @@ import { useSearchParams } from "react-router";
 import { onBeforeHistoryStep, useHistoryStep, useHistoryView } from "@/api/history";
 import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
-import { Refreshing, SkeletonCanvas } from "@/kit/feedback/Loading";
+import { SkeletonCanvas } from "@/kit/feedback/Loading";
 import { QueryState } from "@/kit/feedback/QueryState";
-import { cn } from "@/lib/cn";
+import { Refreshable } from "@/kit/feedback/Refreshable";
+import { afterPaint } from "@/lib/after-paint";
 import { diagramHiddenSystems, withDiagramHiddenSystems } from "@/lib/nav";
 import { CanvasFrame } from "@/shell/CanvasFrame";
 import { PageHeader } from "@/shell/PageHeader";
@@ -62,6 +63,18 @@ export function DiagramPage() {
     [params, d?.defs.systems],
   );
   const { model, layout, pending } = useDiagramModel(d, layers, merge, hiddenSystems);
+  // 表示の切り替え（系・層・まとめ方）は図を作り直す重い更新なので、先に「作り直し中」を画面に出してから始める。
+  // そうしないと、押しても作り直しが終わるまで何も変わらず、固まって見える
+  const [queued, setQueued] = useState(false);
+  const later = (apply: () => void) => {
+    setQueued(true);
+    afterPaint(apply);
+  };
+  // 作り直しが済んだら（図が変わらない切り替えなら、すぐ）戻す
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 切り替えた値が変わったときにも確かめ直す
+  useEffect(() => {
+    if (!pending) setQueued(false);
+  }, [pending, hiddenSystems, layers, merge]);
   const flow = useDiagramFlow(d, model, layout);
   // 元に戻す・やり直すの前に、手で動かした印と保存待ちの位置を捨てる（保存した位置だけを描くように）。
   // キー（⌘Z・⇧⌘Z。画面全体で受ける。shell/use-history-keys.ts）でもボタンでも同じ
@@ -88,7 +101,7 @@ export function DiagramPage() {
           refetch: design.refetch,
         }}
         className="flex min-h-0 flex-1 flex-col"
-        skeleton={<SkeletonCanvas />}
+        skeleton={<SkeletonCanvas label={t.common.working.layingOutDiagram} />}
       >
         {(shown) => (
           <CanvasFrame
@@ -99,14 +112,16 @@ export function DiagramPage() {
                   hidden={hiddenSystems}
                   onChange={(hidden) => {
                     setSelected(null);
-                    setParams((previous) => withDiagramHiddenSystems(previous, hidden));
+                    later(() =>
+                      setParams((previous) => withDiagramHiddenSystems(previous, hidden)),
+                    );
                   }}
                 />
                 <DiagramToolbar
                   layers={layers}
-                  onLayers={setLayers}
+                  onLayers={(next) => later(() => setLayers(next))}
                   merge={merge}
-                  onMerge={setMerge}
+                  onMerge={(next) => later(() => setMerge(next))}
                 />
                 <Button
                   size="icon-sm"
@@ -167,13 +182,12 @@ export function DiagramPage() {
               ),
             }}
           >
-            {pending && <Refreshing />}
-            <div
-              aria-busy={pending}
-              className={cn(
-                "absolute inset-0 transition-opacity duration-200 motion-reduce:transition-none",
-                pending && "pointer-events-none opacity-45",
-              )}
+            <Refreshable
+              active={pending || queued}
+              blockInput
+              immediate
+              label={t.common.working.layingOutDiagram}
+              className="absolute inset-0"
             >
               <DiagramCanvas
                 nodes={flow.nodes}
@@ -187,7 +201,7 @@ export function DiagramPage() {
                 onNodeDragStop={flow.onNodeDragStop}
               />
               <DiagramLegend categories={shown.model.legend} signal={layers.has("signal")} />
-            </div>
+            </Refreshable>
           </CanvasFrame>
         )}
       </QueryState>
