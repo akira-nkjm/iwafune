@@ -23,7 +23,7 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
         to={paths.diagnostics()}
         title={t.shell.diagTitle(errors, warnings)}
         aria-label={t.shell.diagLabel(errors, warnings)}
-        className="mx-auto flex size-9 flex-col items-center justify-center rounded-control text-[10px] hover:bg-panel"
+        className="mx-auto flex size-8 flex-col items-center justify-center rounded-control text-[10px] hover:bg-panel"
       >
         <GitBranch size={14} className="text-ink-3" />
         <span
@@ -35,7 +35,7 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
     );
   return (
     <div className="space-y-2 px-1">
-      <div className="flex items-center gap-2 text-[11.5px] text-ink-3">
+      <div className="flex items-center gap-[11px] px-1 text-[11.5px] text-ink-3">
         <GitBranch size={13} />
         <span className="truncate font-mono">{p?.branch ?? "—"}</span>
         <span className="ml-auto font-mono text-ink-4" title={p?.revision}>
@@ -63,7 +63,7 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-chip px-1 py-0.5 text-[11.5px] text-ink-3 hover:bg-panel"
+            className="flex w-full items-center gap-[11px] rounded-chip px-1 py-0.5 text-[11.5px] text-ink-3 hover:bg-panel"
           >
             <History size={13} />
             {t.shell.history}

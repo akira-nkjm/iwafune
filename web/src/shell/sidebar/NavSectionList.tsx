@@ -43,7 +43,8 @@ export function NavSectionList({
             tabIndex={rail ? -1 : 0}
             aria-hidden={rail}
             className={cn(
-              "flex h-6 w-full items-center gap-1 overflow-hidden rounded-[6px] px-1.5 font-semibold text-[10.5px] text-ink-4 tracking-[0.08em] hover:text-ink-2",
+              // 矢印（12 px）はアイコンの列（幅 16 px）の中央に置き、見出しの字は項目の名前と同じ位置から始める
+              "flex h-6 w-full items-center gap-[10px] overflow-hidden rounded-[6px] pr-1.5 pl-[10px] font-semibold text-[10.5px] text-ink-4 tracking-[0.08em] hover:text-ink-2",
               railFade(rail),
             )}
           >
@@ -61,7 +62,7 @@ export function NavSectionList({
           <div
             aria-hidden
             className={cn(
-              "pointer-events-none absolute top-1/2 left-2 h-px w-6 bg-line transition-opacity motion-reduce:transition-none",
+              "pointer-events-none absolute top-1/2 left-1 h-px w-6 bg-line transition-opacity motion-reduce:transition-none",
               rail ? "opacity-100 delay-100 duration-200" : "opacity-0 duration-100",
             )}
           />
@@ -85,7 +86,7 @@ export function NavSectionList({
                     {...preloadHandlers(() => preload.item(it.key))}
                     aria-label={rail ? name : undefined}
                     className={cn(
-                      "flex h-8 items-center gap-2.5 overflow-hidden rounded-control border border-transparent px-[11px] text-[13px] text-ink-2 transition-colors hover:bg-panel/70 hover:text-ink",
+                      "flex h-8 items-center gap-2 overflow-hidden rounded-control px-2 text-[13px] text-ink-2 transition-colors hover:bg-panel/70 hover:text-ink",
                       // 選択中は青の濃いめの地（accent-ink。白い字とのコントラスト 4.5:1 以上）に白い字。ホバーしても色は変えない
                       "aria-[current=page]:bg-accent-ink aria-[current=page]:font-medium aria-[current=page]:text-inverse aria-[current=page]:shadow-panel aria-[current=page]:hover:bg-accent-ink aria-[current=page]:hover:text-inverse",
                     )}

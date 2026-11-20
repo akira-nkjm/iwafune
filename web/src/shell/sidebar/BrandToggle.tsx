@@ -33,7 +33,7 @@ export function BrandToggle({ rail, onToggle }: { rail: boolean; onToggle: () =>
     if (e.detail === 0) requestAnimationFrame(() => next.current?.focus({ preventScroll: true }));
   };
   return (
-    <div className="flex h-10 shrink-0 items-center gap-1">
+    <div className="flex h-10 shrink-0 items-center gap-2">
       {rail ? (
         <Tip label={t.shell.openSidebar}>
           <button
@@ -43,7 +43,7 @@ export function BrandToggle({ rail, onToggle }: { rail: boolean; onToggle: () =>
             aria-label={t.shell.openSidebar}
             aria-expanded={false}
             aria-controls={SIDEBAR_ID}
-            className="group/brand relative flex size-10 shrink-0 items-center justify-center rounded-control transition-colors hover:bg-panel focus-visible:bg-panel"
+            className="group/brand relative flex size-8 shrink-0 items-center justify-center rounded-control transition-colors hover:bg-panel focus-visible:bg-panel"
           >
             <span className="flex transition-[opacity,scale] duration-150 ease-out group-hover/brand:scale-90 group-hover/brand:opacity-0 group-focus-visible/brand:opacity-0 motion-reduce:transition-none">
               <BrandMark size={MARK_WIDTH} tight />
@@ -57,7 +57,7 @@ export function BrandToggle({ rail, onToggle }: { rail: boolean; onToggle: () =>
           </button>
         </Tip>
       ) : (
-        <span className="flex size-10 shrink-0 items-center justify-center">
+        <span className="flex size-8 shrink-0 items-center justify-center">
           <BrandMark size={MARK_WIDTH} tight />
         </span>
       )}
