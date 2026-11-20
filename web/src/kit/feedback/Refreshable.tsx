@@ -6,7 +6,7 @@ import { Working } from "./Working";
 
 /**
  * 読み直し・再計算の間も前の中身を出しておく枠。`active` の間は、中身を少し薄くし、上端に細い帯を出す
- * （`Refreshing`）。少したつと、薄くした中身の中央にロゴのマーク・`label`・経過秒も出る（`Working`）。中身は動かさないので、枠の大きさは変わらない。
+ * （`Refreshing`）。`label` を渡した広い場所では、少したつと中央にロゴのマーク・`label`・経過秒も出る（`Working`）。中身は動かさないので、枠の大きさは変わらない。
  * 薄くする（`opacity-50` など）書き方は個々の画面に書かず、この枠を使う。
  * `className` は枠の class（高さの伸ばし方など。`relative` はこの枠が付ける）。
  * `blockInput` のときは、読み直す間は中身を操作できなくする（図のように、古い位置を触らせたくないとき）。
@@ -20,8 +20,11 @@ export function Refreshable({
   children,
 }: {
   active: boolean;
-  /** していることを短く（翻訳済みの文。例: 「電源を再計算中」） */
-  label: string;
+  /**
+   * していることを短く（翻訳済みの文）。渡すと、中央にロゴのマークと経過秒も出す。図のような広い場所だけに使い、
+   * 表やカードのような小さい場所では渡さない（薄くするのと上端の帯だけで足りる）。
+   */
+  label?: string;
   blockInput?: boolean;
   /**
    * 中央のロゴを待たずに最初から出す。読み直しが画面を止める計算（図の位置の計算）のときに使う。
@@ -34,7 +37,7 @@ export function Refreshable({
   return (
     <div className={cn("relative", className)}>
       {active && <Refreshing />}
-      {active && (
+      {active && label && (
         // 薄くした中身の字と重なっても読めるように、地のある小さな札に入れて中央に置く
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <Working

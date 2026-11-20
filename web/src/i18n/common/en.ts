@@ -11,7 +11,6 @@ export const commonEn: typeof commonJa = {
     treeView: "Tree",
     working: {
       elapsed: (seconds: number) => `${seconds} s`,
-      recomputing: (name: string) => `Recomputing ${name}`,
       computing: (name: string) => `Computing ${name}`,
       layingOutDiagram: "Laying out the system diagram",
       drawing3d: "Preparing the 3D view",

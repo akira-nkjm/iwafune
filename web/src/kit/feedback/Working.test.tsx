@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { MARK } from "@/shell/brand/brand-art";
 import { Refreshable } from "./Refreshable";
 import { Settled } from "./Settled";
-import { Working, WorkingChip } from "./Working";
+import { Working } from "./Working";
 
 describe("Working（長い待ちの中央表示）", () => {
   const out = renderToStaticMarkup(<Working label="システム図の配置を計算中" after={0} />);
@@ -26,7 +26,6 @@ describe("Working（長い待ちの中央表示）", () => {
 
   it("速い読み込みでは、待ち時間が過ぎるまで何も出さない", () => {
     expect(renderToStaticMarkup(<Working label="x" />)).toBe("");
-    expect(renderToStaticMarkup(<WorkingChip label="x" />)).toBe("");
   });
 
   it("Loading の中で使うとき（announce なし）は読み上げの領域を重ねない", () => {
@@ -57,6 +56,17 @@ describe("Refreshable（前の中身を残したまま読み直す枠）", () =>
     expect(out).toContain("opacity-55");
     expect(out).toContain('aria-busy="true"');
     expect(out).not.toContain("pointer-events-none opacity");
+  });
+
+  it("label を渡さない小さい場所（表・カード）では、ロゴを出さず、薄くするのと帯だけ", () => {
+    const out = renderToStaticMarkup(
+      <Refreshable active>
+        <p>前の結果</p>
+      </Refreshable>,
+    );
+    expect(out).toContain("opacity-55");
+    expect(out).toContain("refresh-bar");
+    expect(out.match(/pointer-events-none/g)).toHaveLength(1); // 帯だけ（中央のロゴの枠は無い）
   });
 
   it("操作を止めたいときだけ、中身を触れなくする", () => {

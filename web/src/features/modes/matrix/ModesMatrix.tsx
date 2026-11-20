@@ -68,11 +68,7 @@ export function ModesMatrix({
           </div>
         )}
         {/* セルの電力を下書きで問い合わせ直している間は、前の数字を薄くして出し、上端に帯を出す */}
-        <Refreshable
-          active={computed.view.updating}
-          label={t.common.working.recomputing(tm.matrixTitle)}
-          className="flex min-h-0 flex-1 flex-col"
-        >
+        <Refreshable active={computed.view.updating} className="flex min-h-0 flex-1 flex-col">
           <div className="min-h-0 flex-1 scroll-pt-16 scroll-pb-36 scroll-pl-52 overflow-auto">
             <ModesTable
               key={eclipse ? "eclipse" : "sunlit"}
