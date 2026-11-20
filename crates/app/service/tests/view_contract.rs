@@ -91,7 +91,7 @@ fn ends_places_and_setting_groups_are_structured() {
     );
     // デモに戻り（GND）のネットは無い
     assert!(design.nets.iter().all(|n| !n.is_return));
-    let cells = design.parts.iter().find(|p| p.id == "CELLS").unwrap();
+    let cells = design.parts.iter().find(|p| p.id == "CELL_MOD_1").unwrap();
     assert_eq!(cells.dir, ["power", "SAP_PY"]);
     for dir in cells.dir.iter() {
         assert!(design.tree.iter().any(|n| &n.id == dir), "{dir}");

@@ -69,9 +69,12 @@ fn rename_assembly_moves_children() {
     )
     .unwrap();
     let paths: Vec<&str> = p.changes.iter().map(|c| c.path.as_str()).collect();
-    assert!(paths.contains(&"parts/power/SAP_1/CELLS.toml"), "{paths:?}");
+    assert!(
+        paths.contains(&"parts/power/SAP_1/CELL_MOD_1.toml"),
+        "{paths:?}"
+    );
     assert_eq!(
-        p.design.parts["CELLS"]
+        p.design.parts["CELL_MOD_1"]
             .mount
             .as_ref()
             .map(|m| m.on.to_string()),
