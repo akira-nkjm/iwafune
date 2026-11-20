@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
 import { BrandMark } from "../brand/BrandMark";
 import { BrandWordmark } from "../brand/BrandWordmark";
 import { LOCKUP } from "../brand/brand-art";
-import { railFade } from "./sidebar-motion";
+import { railFade, SIDEBAR_MOTION } from "./sidebar-motion";
 import { SIDEBAR_ID } from "./sidebar-state";
 
 /** マークの幅 [px]。名前の大きさはここから LOCKUP の比で決まる（32 px → 16 px） */
@@ -33,8 +33,15 @@ export function BrandToggle({ rail, onToggle }: { rail: boolean; onToggle: () =>
     if (e.detail === 0) requestAnimationFrame(() => next.current?.focus({ preventScroll: true }));
   };
   return (
-    // マーク（幅 32 px）は 32 px の枠いっぱいに置く。中心がナビのアイコンの列の中心と合う
-    <div className="flex h-10 shrink-0 items-center gap-2">
+    // 開いているときは、マークの左端をナビのアイコンの左端（サイドバーの端から 16 px）に合わせる。
+    // 畳むと 32 px の枠だけになるので、寄せずに枠いっぱいに置く（幅と一緒に滑らかに動かす）
+    <div
+      className={cn(
+        "flex h-10 shrink-0 items-center gap-2 transition-[padding] motion-reduce:transition-none",
+        SIDEBAR_MOTION,
+        rail ? "pl-0" : "pl-2",
+      )}
+    >
       {rail ? (
         <Tip label={t.shell.openSidebar}>
           <button
