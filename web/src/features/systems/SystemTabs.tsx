@@ -18,6 +18,7 @@ import { AocsModes } from "./aocs/AocsModes";
 import { PowerModes } from "./power/PowerModes";
 import { PowerSeries } from "./power/PowerSeries";
 import { hasExtraTab } from "./preload";
+import { ManeuversTab } from "./propulsion/ManeuversTab";
 import { SystemOverview } from "./SystemOverview";
 
 /** グラフ（recharts）は時系列のタブを開いたときだけ読む。系のページの最初のチャンクを小さくするため */
@@ -25,7 +26,14 @@ const SeriesChart = lazy(() =>
   import("@/analysis/SeriesChart").then((m) => ({ default: m.SeriesChart })),
 );
 
-export type SystemTab = "results" | "modes" | "heat" | "analyses" | "settings" | "series";
+export type SystemTab =
+  | "results"
+  | "modes"
+  | "heat"
+  | "analyses"
+  | "settings"
+  | "series"
+  | "maneuvers";
 
 /**
  * 系のページのタブの中身（結果・モード・熱画像・設定・時系列）。extra は系ごとの追加の表示（熱の温度範囲の図と熱画像）。
@@ -72,6 +80,7 @@ export function SystemTabs({
       {node}
     </Settled>
   );
+  if (tab === "maneuvers") return <ManeuversTab />;
   if (tab === "heat") return settled(extra?.heat);
   // 解析のカードの並び（判定・値・表）。このタブを持つ系（熱）は、概要には図だけを出す
   if (tab === "analyses")
@@ -156,9 +165,10 @@ export function SystemTabs({
 /**
  * そのタブの中身が、ページの本文の高さいっぱいを使って自分の中でスクロールするか（部品 × モードの表）。
  * 表の見出しの行・左の列・下の合計を止めたままにするには、ページの本文ではなく表の中でスクロールさせる必要がある。
- * 独自のモードの見方を持つ系（AOCS のカード、電源の表）は、ふつうにページの本文がスクロールする。
+ * 独自のモードの見方を持つ系（AOCS のカード、電源の表）は、ふつうにページの本文がスクロールする。マヌーバの表も本文の中でスクロールする（見出しを止める）。
  */
 export function tabFillsBody(system: System, tab: SystemTab, defs: DefsView | undefined): boolean {
+  if (tab === "maneuvers") return true;
   return tab === "modes" && hasModes(system, defs) && system !== "aocs" && system !== "power";
 }
 

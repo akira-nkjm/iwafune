@@ -13,7 +13,6 @@ import {
   Orbit,
   Radio,
   Rocket,
-  Route,
   Ruler,
   Settings,
   Sun,
@@ -32,6 +31,7 @@ import { systemTitle } from "./design";
  * - `adding`: 追加ダイアログを開いているか（値は `"1"`）
  * - `group`: カタログのツリーの分け方
  * - `case`: 系のページの解析ケース
+ * - `maneuver`: 推進のマヌーバのタブで強調するマヌーバの ID
  * - `diagramHiddenSystem`: 系統図で隠す系（繰り返し可、空は全表示）
  */
 export const SEARCH = {
@@ -39,6 +39,7 @@ export const SEARCH = {
   adding: "new",
   group: "group",
   case: "case",
+  maneuver: "maneuver",
   diagramHiddenSystem: "hidden-system",
 } as const;
 
@@ -73,14 +74,20 @@ export const paths = {
   diagram: () => "/design/diagram",
   modes: () => "/design/modes",
   layout: () => "/design/layout",
-  maneuvers: () => "/design/maneuvers",
-  maneuver: (id: string) => itemPath(paths.maneuvers(), id),
   defs: (tab?: DefsTab) => (tab ? `/project/defs/${tab}` : "/project/defs"),
   /** 系のページ。`tab` が無ければ結果のタブ、`kase` があればその解析ケースで開く */
-  system: (system: System, at: { tab?: string | null; kase?: string | null } = {}) =>
+  system: (
+    system: System,
+    at: { tab?: string | null; kase?: string | null; maneuver?: string | null } = {},
+  ) =>
     withSearch(at.tab ? `/systems/${system}/${at.tab}` : `/systems/${system}`, {
       [SEARCH.case]: at.kase,
+      [SEARCH.maneuver]: at.maneuver,
     }),
+  /** 推進のページのマヌーバのタブ（一覧） */
+  maneuvers: () => paths.system("propulsion", { tab: "maneuvers" }),
+  /** マヌーバのタブで、その ID の行を強調して開く */
+  maneuver: (id: string) => paths.system("propulsion", { tab: "maneuvers", maneuver: id }),
   /** 解析の区分に対応するページ。 */
   area: (area: AnalysisArea): string =>
     area.kind === "system" ? paths.system(area.value) : paths.orbit(),
@@ -143,7 +150,6 @@ export const nav = (systems: readonly System[]): NavSection[] => [
       { to: paths.diagram(), key: "diagram", icon: Network },
       { to: paths.modes(), key: "modes", icon: Table2 },
       { to: paths.layout(), key: "layout", icon: Box },
-      { to: paths.maneuvers(), key: "maneuvers", icon: Route },
     ],
   },
   {

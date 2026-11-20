@@ -1,17 +1,13 @@
 import type { maneuversJa } from "./ja";
 
-/** Design / maneuvers (English) */
+/** Maneuvers tab of the propulsion page (English) */
 export const maneuversEn: typeof maneuversJa = {
   maneuvers: {
-    eyebrow: "Design",
-    title: "Maneuvers",
-    subtitle:
-      "maneuvers/<ID>.toml (execution order, method, target orbit). Results are on the propulsion page",
+    subtitle: "maneuvers/<ID>.toml (execution order, method, target orbit)",
     empty: "No maneuvers",
     add: "Add maneuver",
     edit: "Edit",
     remove: "Remove",
-    results: "Open propulsion analyses",
     order: "#",
     id: "ID",
     name: "Name",

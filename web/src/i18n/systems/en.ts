@@ -65,6 +65,7 @@ export const systemsEn: typeof systemsJa = {
       analyses: "Analysis results",
       settings: "Settings",
       series: "Time series",
+      maneuvers: "Maneuvers",
     },
     specs: {
       aocs: {
