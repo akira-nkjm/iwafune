@@ -148,7 +148,7 @@ fn remove_maneuver(edits: &mut Edits, design: &Design, id: &str) -> Result<(), O
 
 /// 書き込む（無ければ作る）ID として使えるか。同じ綴りの既存のものは書き換え、大文字小文字だけが違う既存の ID とは
 /// 重ねない（一意性の規則は `id::clash`。部品・モード・ネット・カタログ品と同じ）。
-fn set_id<'a>(
+pub(super) fn set_id<'a>(
     existing: impl Iterator<Item = &'a str>,
     id: &str,
     what: &str,
@@ -166,7 +166,7 @@ fn set_id<'a>(
     }
 }
 
-fn remove(
+pub(super) fn remove(
     edits: &mut Edits,
     exists: bool,
     file: &str,

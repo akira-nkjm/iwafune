@@ -66,6 +66,18 @@ describe("paths", () => {
     expect(matches(paths.defs("attributes"))).toBe(true);
   });
 
+  it("要求は設計の下のページで、適合表が既定のタブ", () => {
+    expect(paths.requirements()).toBe("/design/requirements");
+    expect(paths.requirements("list")).toBe("/design/requirements/list");
+    expect(matches(paths.requirements())).toBe(true);
+    expect(matches(paths.requirements("list"))).toBe(true);
+    const design = nav(fixture.defs.systems).find((s) => s.id === "design")?.items ?? [];
+    const item = design.find((i) => i.key === "requirements");
+    expect(item?.to).toBe(paths.requirements());
+    expect(item && navItemTitle(item, ja)).toBe("要求");
+    expect(item && navItemTitle(item, en)).toBe("Requirements");
+  });
+
   it("出典の台帳はプロジェクトの下のページ", () => {
     expect(paths.sources()).toBe("/project/sources");
     expect(matches(paths.sources())).toBe(true);

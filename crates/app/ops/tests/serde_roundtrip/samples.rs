@@ -20,3 +20,14 @@ pub fn maneuver() -> fune_model::design::Maneuver {
     }))
     .unwrap()
 }
+
+/// 範囲の制約・量化・確かめる先を持つ要求。
+pub fn requirement() -> fune_model::design::Requirement {
+    serde_json::from_value(serde_json::json!({
+        "id": "R_MASS", "statement": "質量の上限", "statement_en": "Mass limit", "quantity": "Mass",
+        "source": "sys_judgement",
+        "constraint": { "kind": "at_most", "value": { "value": 12.0, "unit": "kg" } },
+        "quantify": { "all_cases": true }, "verify": { "budget": "mass" }
+    }))
+    .unwrap()
+}

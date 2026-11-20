@@ -18,6 +18,18 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
         "query::design_view (`… ls` lists each; `view ls` is `query::view_layout`)",
     ),
     ("GET", "/maneuvers", &["maneuver", "ls"], "query::maneuvers"),
+    (
+        "GET",
+        "/requirements",
+        &["requirement", "ls"],
+        "query::requirements",
+    ),
+    (
+        "GET",
+        "/requirements/compliance",
+        &["requirement", "compliance"],
+        "requirements::compliance",
+    ),
     ("GET", "/parts", &["part", "ls"], "query::list_parts"),
     ("GET", "/parts/{id}", &["part", "show"], "query::part_view"),
     (
