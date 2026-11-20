@@ -14,7 +14,7 @@ export function LanguageSwitch({ rail = false }: { rail?: boolean }) {
         onClick={() => setLang(next)}
         title={`${t.common.language}: ${langNames[lang]} → ${langNames[next]}`}
         aria-label={`${t.common.language}: ${langNames[next]}`}
-        className="mx-auto flex size-9 items-center justify-center rounded-control text-ink-3 hover:bg-panel hover:text-ink"
+        className="mx-auto flex size-8 items-center justify-center rounded-control text-ink-3 hover:bg-panel hover:text-ink"
       >
         <Languages size={15} />
       </button>

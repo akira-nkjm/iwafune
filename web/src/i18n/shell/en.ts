@@ -29,8 +29,6 @@ export const shellEn: typeof shellJa = {
   shell: {
     openSidebar: "Open sidebar (⌘B)",
     closeSidebar: "Close sidebar (⌘B)",
-    addPart: "Add component",
-    addPartKey: "Add component (N)",
     search: "Search",
     searchKey: "Search (⌘K)",
     searchTitle: "Search",

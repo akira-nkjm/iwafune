@@ -114,7 +114,7 @@
   --text-md: 13px;
   --text-md--line-height: 1.45;
 
-  --spacing-sidebar: 232px;
+  --spacing-sidebar: 256px;
 
   /* 文字の太さ: Noto Sans JP（可変）が細く見えるので、Tailwind の段を全体に一段太くする（#92） */
   --font-weight-normal: 500;
