@@ -33,11 +33,12 @@ export function Sidebar() {
     <aside
       id={SIDEBAR_ID}
       className={cn(
-        "flex h-dvh shrink-0 flex-col overflow-hidden px-2 py-4",
+        "flex h-dvh shrink-0 flex-col overflow-hidden py-4",
         SIDEBAR_MOTION,
-        "transition-[width]",
-        // 畳んだ幅は、左右の余白 8 px と、アイコンの正方形の枠 32 px
-        rail ? "w-12" : "w-sidebar",
+        "transition-[width,padding]",
+        // 畳んだ幅は 64 px: ロゴ（32 px）とアイコンの正方形の枠（32 px）の左右に 16 px ずつ。
+        // ロゴの左端は開いていても畳んでも端から 16 px で動かない（開いているときは余白 8 px + ロゴの行の 8 px）
+        rail ? "w-16 px-4" : "w-sidebar px-2",
       )}
     >
       <BrandToggle rail={rail} onToggle={toggle} />
