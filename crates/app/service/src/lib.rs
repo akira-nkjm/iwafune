@@ -22,6 +22,7 @@
 //! | `shared_catalog` | 共有カタログ（`[[catalog]] git = …`）の取得・更新（git の CLI。プロジェクトの `.fune/catalogs/` のキャッシュと `catalog.lock`） |
 //! | `fetch` | 外部からの取得（`curl`。HTTPS だけ。宇宙天気と `self_update` が使う） |
 //! | `self_update` | `fune self-update`（最新のリリースの確認と、実行中の `fune` の置き換え。CLI だけ） |
+//! | `report` | 設計書に入れる表と図の書き出し（`fune report export`・`POST /report/export`。解析の結果から表・図・値を組み立て、ファイルの内容を返す。書き出すのは呼び出し側） |
 //! | `diff` | 変更前後の本文 → unified diff |
 //! | `error` | サービスのエラー（HTTP の状態と CLI の終了コードに写せる分類） |
 
@@ -37,6 +38,7 @@ pub mod history;
 pub mod mode_systems;
 pub mod preview;
 pub mod query;
+pub mod report;
 pub mod requirements;
 pub mod self_update;
 pub mod shared_catalog;

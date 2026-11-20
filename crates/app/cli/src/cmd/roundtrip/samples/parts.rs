@@ -13,6 +13,7 @@ fn tree_ops() -> Vec<Op> {
         Op::CreatePart {
             id: s("RW_W"),
             group: Some(s("aocs")),
+            group_under: vec![],
             catalog: Some(s("local/rw_10mNms")),
             kind: None,
             count: Some(2),
@@ -20,8 +21,19 @@ fn tree_ops() -> Vec<Op> {
             mode_state: Some(s("off")),
         },
         Op::CreatePart {
+            id: s("RW_W"),
+            group: Some(s("RW")),
+            group_under: vec![s("aocs")],
+            catalog: None,
+            kind: Some(s("reaction_wheel")),
+            count: None,
+            label: None,
+            mode_state: None,
+        },
+        Op::CreatePart {
             id: s("HTR_X"),
             group: None,
+            group_under: vec![],
             catalog: None,
             kind: Some(s("heater")),
             count: None,
@@ -40,10 +52,17 @@ fn tree_ops() -> Vec<Op> {
         Op::MovePart {
             id: s("RW_Z"),
             to: Some(s("power")),
+            under: vec![],
+        },
+        Op::MovePart {
+            id: s("RW_Z"),
+            to: Some(s("RW")),
+            under: vec![s("aocs")],
         },
         Op::MovePart {
             id: s("RW_Z"),
             to: None,
+            under: vec![],
         },
     ]
 }

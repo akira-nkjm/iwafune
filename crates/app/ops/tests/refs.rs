@@ -96,6 +96,7 @@ fn a_part_without_definition_is_rejected_by_the_check() {
     let undefined = Op::CreatePart {
         id: "RW_T".into(),
         group: Some("aocs".into()),
+        group_under: vec![],
         catalog: None,
         kind: None,
         count: None,
@@ -141,6 +142,7 @@ fn ids_that_differ_only_in_case_are_taken() {
     let part = Op::CreatePart {
         id: "rw_x".into(),
         group: Some("aocs".into()),
+        group_under: vec![],
         catalog: Some("local/rw_10mNms".into()),
         kind: None,
         count: None,

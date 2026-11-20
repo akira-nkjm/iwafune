@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/lib/*", "crates/app/*", "crates/xtask"]
 
 [workspace.package]
-version = "0.5.8"
+version = "0.5.9"
 edition = "2024"
 rust-version = "1.100"
 publish = false
@@ -28,6 +28,7 @@ fune-model = { path = "crates/app/model" }
 fune-store = { path = "crates/app/store" }
 fune-ops = { path = "crates/app/ops" }
 fune-projection = { path = "crates/app/projection" }
+fune-report = { path = "crates/app/report" }
 fune-service = { path = "crates/app/service" }
 fune-server = { path = "crates/app/server" }
 # 外部

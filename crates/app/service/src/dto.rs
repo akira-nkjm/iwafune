@@ -23,6 +23,7 @@
 //! | `overview` | 系の概要の解析の表の行（主な結果・判定のまとまり・小さな棒グラフ・隠す表） |
 //! | `net_class` | ネットの分類（電源の系統・星形の中心） |
 //! | `data` | 外部データ（DE440）の状態 |
+//! | `report` | 設計書に入れる表と図の書き出し（依頼・結果） |
 
 mod aocs_modes;
 pub use aocs_modes::*;
@@ -59,6 +60,9 @@ pub use net_class::{NetHub, PowerClass};
 pub use pose::{BodyPoseView, MountPointView, MountView, PoseQuantities};
 mod power_modes;
 pub use power_modes::*;
+mod report;
+pub use fune_report::{ReportFile, ReportItem, ReportLang};
+pub use report::{ReportExport, ReportRequest, ReportUnavailable};
 mod shared_catalog;
 pub use shared_catalog::{
     CatalogFetchRequest, CatalogItemChange, CatalogItemChangeKind, CatalogSyncEntry,

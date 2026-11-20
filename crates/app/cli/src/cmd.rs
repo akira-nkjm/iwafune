@@ -17,6 +17,7 @@
 //! | `analyze` | analyze・budget |
 //! | `pages` | mode view（GUI のモードの見方と同じ DTO を表にする） |
 //! | `gui` | gui |
+//! | `report` | report export（表と図のファイルを書き出す） |
 //! | `data` | data status/fetch |
 //! | `self_update` | self-update（実行中の `fune` の置き換え。プロジェクト不要） |
 
@@ -36,6 +37,7 @@ mod pages;
 mod parts;
 mod read;
 mod records;
+mod report;
 mod requirements;
 #[cfg(test)]
 mod roundtrip;
@@ -65,6 +67,7 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
         Command::Budget { kind, case, ops } => {
             analyze::budget(&open(g)?, kind, case.as_deref(), ops.as_deref(), out)
         }
+        Command::Report(c) => report::run(&open(g)?, c, out),
         Command::Fmt { check } => {
             let result = fune_service::format::format_design(
                 &open(g)?,

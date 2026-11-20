@@ -100,6 +100,7 @@ fn create_kind_and_use_it() {
         Op::CreatePart {
             id: "SAIL".into(),
             group: Some("structure".into()),
+            group_under: vec![],
             catalog: None,
             kind: Some("deorbit_sail".into()),
             count: None,

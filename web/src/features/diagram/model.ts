@@ -154,6 +154,32 @@ function containersOf(design: DesignView, lang: "ja" | "en"): DiagramContainer[]
     }));
 }
 
+/**
+ * カードが 1 枚しか入っていない入れ子の枠を外す。同じ部品をまとめた 1 枚（`RW ×3`）だけを入れた枠は、
+ * まとまりを二重に囲むだけなので、カードを親の枠にじかに置く。系の枠（親の無い枠）は残す。
+ */
+function withoutSingleCardFrames(
+  cards: DiagramCard[],
+  containers: DiagramContainer[],
+): { cards: DiagramCard[]; containers: DiagramContainer[] } {
+  const lifted = new Map<string, string | null>();
+  for (const c of containers) {
+    if (c.parent === null) continue;
+    const inside = cards.filter((card) => card.parent === c.id);
+    const frames = containers.some((x) => x.parent === c.id);
+    if (inside.length === 1 && !frames) lifted.set(c.id, c.parent);
+  }
+  if (lifted.size === 0) return { cards, containers };
+  return {
+    cards: cards.map((card) =>
+      card.parent !== null && lifted.has(card.parent)
+        ? { ...card, parent: lifted.get(card.parent) ?? null }
+        : card,
+    ),
+    containers: containers.filter((c) => !lifted.has(c.id)),
+  };
+}
+
 type End = { card: string; port: string; part: string };
 
 /**
@@ -182,8 +208,12 @@ const endpointOf = (e: End): Endpoint => ({
 
 export function buildModel(design: DesignView, opts: DiagramOptions): DiagramModel {
   const grouped = { ...design, tree: systemTree(design) };
-  const { cardOfPart, cards } = buildCards(grouped, opts.mergeSiblings);
-  const containers = containersOf(grouped, opts.lang ?? "ja");
+  const built = buildCards(grouped, opts.mergeSiblings);
+  const { cardOfPart } = built;
+  const { cards, containers } = withoutSingleCardFrames(
+    built.cards,
+    containersOf(grouped, opts.lang ?? "ja"),
+  );
   const categories = powerCategories(design);
   const cardById = new Map(cards.map((c) => [c.id, c]));
   const junctions: DiagramJunction[] = [];

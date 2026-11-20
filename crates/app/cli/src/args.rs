@@ -3,6 +3,7 @@
 mod defs;
 mod nouns;
 mod records;
+mod report;
 mod requirements;
 
 pub use defs::{AttrAddArgs, AttrCmd, KindAddArgs, KindCmd};
@@ -14,6 +15,7 @@ pub use records::{
     CaseArgs, CaseCmd, CatalogCmd, CatalogSourceCmd, HarnessArgs, HarnessCmd, ManeuverArgs,
     ManeuverCmd, PointArgs, SourceArgs, SourceCmd,
 };
+pub use report::{ReportCmd, ReportExportArgs};
 pub use requirements::{RequirementArgs, RequirementCmd};
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
@@ -184,6 +186,9 @@ pub enum Command {
         #[arg(long)]
         ops: Option<PathBuf>,
     },
+    /// Report export: tables and figures for a Typst design document
+    #[command(subcommand)]
+    Report(ReportCmd),
     /// External data (DE440 ephemeris)
     #[command(subcommand)]
     Data(DataCmd),

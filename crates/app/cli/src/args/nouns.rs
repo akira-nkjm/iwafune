@@ -54,7 +54,8 @@ pub enum PartCmd {
         catalog: Option<String>,
         #[arg(long)]
         kind: Option<String>,
-        /// Subsystem (or assembly) to place it in; directly under parts/ if omitted
+        /// Subsystem, group or assembly to place it in; directly under parts/ if omitted.
+        /// `aocs/RW` puts it in the group RW under aocs (the group is created if it does not exist)
         #[arg(long)]
         group: Option<String>,
         #[arg(long)]
@@ -73,7 +74,9 @@ pub enum PartCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// Move a part to another subsystem or assembly (`--root` for directly under parts/)
+    /// Move a part to another subsystem, group or assembly (`--root` for directly under parts/).
+    /// `aocs/RW` moves it into the group RW under aocs, creating the group if needed; moving the last part out removes the empty group
+    /// (move parts back to the subsystem with `fune part mv <id> aocs`)
     Mv {
         id: String,
         #[arg(required_unless_present = "root")]

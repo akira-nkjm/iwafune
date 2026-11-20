@@ -110,6 +110,7 @@ The "May depend on" column is the same as `ALLOWED` in `crates/xtask`, and devia
 | `fune-store` | model | Reading and writing directory ⇄ Design (toml_edit, canonical form), revision, locks | Checking, physics computation |
 | `fune-ops` | model, store | Op (the only entry point for edits), plan / apply, Op → CLI command (`to_cli`) | HTTP, display |
 | `fune-projection` | model, units, astro, analysis | Mapping Resolved to the input types of the analyses, and listing missing inputs | Physics computation, modeling defaults |
+| `fune-report` | units | Report export: the table, figure and value data model, the SVG chart writer, the Typst module and the file layout (see [report.md](report.md)) | Knowledge of the design or the analyses, file I/O |
 | `fune-service` | all of the above | All the functions that the CLI and HTTP call, and their input and output types (TS generated with ts-rs). Display strings are built with `sat_units::format` | Knowledge of HTTP, owning formatting rules itself |
 | `fune-server` | service | axum routing and JSON conversion, serving the SPA, the Host allowlist | Logic |
 | `fune-cli` | service, server | Argument parsing and display (tables, colors, diagnostics) of `fune`. Uses server for `fune gui` | Logic |
@@ -162,6 +163,7 @@ The CLI and HTTP call the same functions of `fune-service`.
 | Formatting | `fune fmt [--check]` | `POST /fmt` | `format::format_design` |
 | Undo / redo the last edit | `fune undo`, `fune redo` | `POST /undo`, `POST /redo` | `history::{undo, redo}` |
 | Edit history | `fune history` | `GET /history` | `history::view` |
+| Report tables and figures (derived files; the design is not changed) | `fune report export` | `POST /report/export` | `report::export` |
 
 - Whether the `"620 g"` in `fune set RW_X.mass "620 g"` is read as a quantity, an integer, a vector or a per-state value is decided by the service by looking at the attribute definition.
   The GUI also turns the typed string into an Op with `/ops/from_text` and then sends it with `/ops`, so the interpretation does not split in two (the value fields of parts and catalog items,
@@ -200,6 +202,7 @@ The correspondence between HTTP routes and the CLI and service (`crates/app/cli/
 | `GET /units`, `POST /units/parse`, `/units/format` | `fune units ls`, `parse`, `format` | `units::{units_catalog, parse_quantity, format_quantities}` |
 | `GET /analyses`, `POST /analyses/{id}` | `fune analyze ls`, `fune analyze <ID>` | `analysis::{analysis_catalog, run_analysis}` |
 | `GET` and `POST /budgets/{kind}` | `fune budget <kind>` | `budget::budget` (exit-code verdict: `budget::failure::fails`) |
+| `POST /report/export` | `fune report export` | `report::export` (the service returns the files' contents; the CLI writes them to `--out`) |
 | `GET /data/status`, `/data/space_weather`, `POST /data/{id}/fetch` | `fune data status`, `space-weather`, `fetch` | `data::{data_status, space_weather::lookup, fetch}` |
 | `GET /catalog/{id}` | `fune catalog show` | `query::catalog_item` |
 | `POST /catalog/fetch`, `/catalog/update` | `fune catalog fetch`, `update` | `shared_catalog::{fetch, update}` |

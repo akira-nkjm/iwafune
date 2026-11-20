@@ -2,11 +2,13 @@ import { Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useDesign } from "@/api/queries";
+import type { DesignView } from "@/api/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { nodeName } from "@/lib/design";
 import { nav, navItemTitle, paths } from "@/lib/nav";
 import {
+  Command,
   CommandDialog,
   CommandEmpty,
   CommandGroup,
@@ -63,72 +65,89 @@ export function CommandSearch({ rail = false }: { rail?: boolean }) {
         title={t.shell.searchTitle}
         description={t.shell.searchDescription}
       >
-        <CommandInput placeholder={t.shell.searchPlaceholder} />
-        <CommandList>
-          <CommandEmpty>{t.shell.notFound}</CommandEmpty>
-          <CommandGroup heading={t.shell.groupPages}>
-            {nav(d?.defs.systems ?? []).flatMap((s) =>
-              s.items.map((it) => (
-                <CommandItem
-                  key={it.to}
-                  value={`page ${navItemTitle(it, t, d?.defs)} ${it.key} ${it.to}`}
-                  onSelect={() => go(it.to)}
-                >
-                  <it.icon size={14} />
-                  <span className="text-box-cap">
-                    {s.heading ? `${t.nav.sections[s.id]} / ` : ""}
-                    {navItemTitle(it, t, d?.defs)}
-                  </span>
-                </CommandItem>
-              )),
-            )}
-          </CommandGroup>
-          {d && (
-            <CommandGroup heading={t.shell.groupParts}>
-              {d.parts.map((p) => (
-                <CommandItem
-                  key={p.id}
-                  value={`part ${p.id} ${p.kind ?? ""} ${p.catalog ?? ""}`}
-                  onSelect={() => go(paths.component(p.id))}
-                >
-                  <span className="font-mono">{p.id}</span>
-                  <span className="text-ink-3 text-xs">{p.kind}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          )}
-          {d && d.nets.length > 0 && (
-            <CommandGroup heading={t.shell.groupNets}>
-              {d.nets.map((n) => (
-                <CommandItem
-                  key={n.id}
-                  value={`net ${n.id} ${n.kind}`}
-                  onSelect={() => go(paths.diagram())}
-                >
-                  <span className="font-mono">{n.id}</span>
-                  <span className="text-ink-3 text-xs">{n.kind}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          )}
-          {d && d.modes.modes.length > 0 && (
-            <CommandGroup heading={t.shell.groupModes}>
-              {d.modes.modes.map((m) => (
-                <CommandItem
-                  key={m.id}
-                  value={`mode ${m.id} ${m.label}`}
-                  onSelect={() => go(paths.modes())}
-                >
-                  <span className="font-mono">{m.id}</span>
-                  {nodeName(m) !== m.id && (
-                    <span className="text-ink-3 text-xs">{nodeName(m)}</span>
-                  )}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          )}
-        </CommandList>
+        <SearchPalette design={d} onGo={go} />
       </CommandDialog>
     </>
+  );
+}
+
+/**
+ * 検索の中身（入力欄と候補の一覧）。cmdk の部品は `Command` の中でしか動かないので、ここで必ず包む
+ * （`CommandDialog` は包まない。包み忘れると、開いたときに描画が落ちる）。
+ */
+export function SearchPalette({
+  design: d,
+  onGo: go,
+}: {
+  design: DesignView | undefined;
+  onGo: (to: string) => void;
+}) {
+  const t = useT();
+  return (
+    <Command>
+      <CommandInput placeholder={t.shell.searchPlaceholder} />
+      <CommandList>
+        <CommandEmpty>{t.shell.notFound}</CommandEmpty>
+        <CommandGroup heading={t.shell.groupPages}>
+          {nav(d?.defs.systems ?? []).flatMap((s) =>
+            s.items.map((it) => (
+              <CommandItem
+                key={it.to}
+                value={`page ${navItemTitle(it, t, d?.defs)} ${it.key} ${it.to}`}
+                onSelect={() => go(it.to)}
+              >
+                <it.icon size={14} />
+                <span className="text-box-cap">
+                  {s.heading ? `${t.nav.sections[s.id]} / ` : ""}
+                  {navItemTitle(it, t, d?.defs)}
+                </span>
+              </CommandItem>
+            )),
+          )}
+        </CommandGroup>
+        {d && (
+          <CommandGroup heading={t.shell.groupParts}>
+            {d.parts.map((p) => (
+              <CommandItem
+                key={p.id}
+                value={`part ${p.id} ${p.kind ?? ""} ${p.catalog ?? ""}`}
+                onSelect={() => go(paths.component(p.id))}
+              >
+                <span className="font-mono">{p.id}</span>
+                <span className="text-ink-3 text-xs">{p.kind}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+        {d && d.nets.length > 0 && (
+          <CommandGroup heading={t.shell.groupNets}>
+            {d.nets.map((n) => (
+              <CommandItem
+                key={n.id}
+                value={`net ${n.id} ${n.kind}`}
+                onSelect={() => go(paths.diagram())}
+              >
+                <span className="font-mono">{n.id}</span>
+                <span className="text-ink-3 text-xs">{n.kind}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+        {d && d.modes.modes.length > 0 && (
+          <CommandGroup heading={t.shell.groupModes}>
+            {d.modes.modes.map((m) => (
+              <CommandItem
+                key={m.id}
+                value={`mode ${m.id} ${m.label}`}
+                onSelect={() => go(paths.modes())}
+              >
+                <span className="font-mono">{m.id}</span>
+                {nodeName(m) !== m.id && <span className="text-ink-3 text-xs">{nodeName(m)}</span>}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+      </CommandList>
+    </Command>
   );
 }

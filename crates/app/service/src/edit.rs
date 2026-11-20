@@ -10,6 +10,7 @@
 //! | `eclipse` | 季節解析の代表標本から新しい解析ケースの SetCase を作る |
 //! | `requirement` | `fune requirement add\|set` の引数（[`requirement_op`]。逆の向きは `query::requirements`） |
 //! | `maneuver` | `fune maneuver add\|set` の引数（[`maneuver_op`]。逆の向きは `query::maneuvers`） |
+//! | `group` | `fune part mv|add` の置き先 `aocs/RW`（[`group_target`]。ID の列に読む） |
 //! | `place` | `fune part place` の取付・位置・姿勢（[`place_op`]。姿勢の角度 `--rotation` は [`rotation_from_text`]）と、機体座標での配置（`--body-pos`・`POST /parts/{id}/place_body`） |
 
 use crate::diff;
@@ -25,6 +26,7 @@ mod catalog;
 mod command;
 mod defs;
 mod eclipse;
+mod group;
 mod maneuver;
 mod place;
 mod requirement;
@@ -40,6 +42,7 @@ pub use defs::{
 };
 pub use eclipse::case_from_eclipse_op;
 pub use fune_ops::{to_cli, to_cli_script};
+pub use group::group_target;
 pub use maneuver::maneuver_op;
 pub use place::{place_body, place_body_op, place_op, rotation_from_text};
 pub use requirement::requirement_op;

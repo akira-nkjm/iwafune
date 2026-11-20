@@ -869,6 +869,11 @@ parts/
 - A physical assembly (`SAP_PX`) has its own mass, mounting target and mount points, and child parts attach to the assembly with `mount = { on = "SAP_PX", … }`.
   In the budget, "the assembly itself plus the sum of its child parts" is the assembly's mass.
 - Moving a part to another grouping moves the file, and git shows it as a rename.
+- **Grouping parts of one subsystem** (say the three reaction wheels as `RW` under `aocs`): `fune part mv RW_X aocs/RW` moves the part into the folder `parts/aocs/RW/`, creating it if it does not exist. The destination is a path of IDs, outermost first
+  (`aocs/RW`, or `aocs/RW/pair` for a deeper group); the first ID must already exist, and a new group goes under a subsystem or another group, never under a part. `fune part add RW_W --kind reaction_wheel --group aocs/RW` creates a part in it, and a bare ID (`--group RW`) still means an existing node.
+  Move parts back with `fune part mv RW_X aocs` (the last part to leave removes the empty folder); `fune part rename-group RW WHEELS` renames the group. In Ops the same thing is `MovePart { id, to: "RW", under: ["aocs"] }` and `CreatePart { group: "RW", group_under: ["aocs"] }`.
+  Grouping changes neither a part's ID, its subsystem nor any analysis or budget number: only the file path (`PartRow.dir`, `parent`) and the product tree change. A group has no display name of its own (the folder ID is shown); IDs of groups and parts are in one namespace, so a group cannot be named like a part.
+  The Components page has the same operations: "Group…" in a part's header (the checked parts of the same parent), and rename and ungroup on the frame of a group in the overview.
 - `CODEOWNERS` can assign review owners per directory.
 
 ## 7. modes / nets / harness

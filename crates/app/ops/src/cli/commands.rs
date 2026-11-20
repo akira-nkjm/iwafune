@@ -17,8 +17,8 @@ pub(super) fn part_op(op: &Op) -> Option<Vec<String>> {
         Op::RenameGroup { id, to } => {
             vec![Cmd::new(&["fune", "part", "rename-group", id, to]).done()]
         }
-        Op::MovePart { id, to } => vec![match to {
-            Some(to) => Cmd::new(&["fune", "part", "mv", id, to]).done(),
+        Op::MovePart { id, to, under } => vec![match to {
+            Some(to) => Cmd::new(&["fune", "part", "mv", id, &group_text(to, under)]).done(),
             None => Cmd::new(&["fune", "part", "mv", id, "--root"]).done(),
         }],
         Op::SetValue {
@@ -61,10 +61,21 @@ pub(super) fn part_op(op: &Op) -> Option<Vec<String>> {
     })
 }
 
+/// 置き先 `to` と祖先の列 `under` → CLI で打つ綴り（`aocs/RW`。祖先が無ければ `to` だけ）。
+fn group_text(to: &str, under: &[String]) -> String {
+    under
+        .iter()
+        .map(String::as_str)
+        .chain(std::iter::once(to))
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
 fn create_part(op: &Op) -> String {
     let Op::CreatePart {
         id,
         group,
+        group_under,
         catalog,
         kind,
         count,
@@ -77,7 +88,13 @@ fn create_part(op: &Op) -> String {
     Cmd::new(&["fune", "part", "add", id])
         .flag("catalog", catalog.as_deref())
         .flag("kind", kind.as_deref())
-        .flag("group", group.as_deref())
+        .flag(
+            "group",
+            group
+                .as_deref()
+                .map(|g| group_text(g, group_under))
+                .as_deref(),
+        )
         .flag("count", count.map(|c| c.to_string()).as_deref())
         .flag("label", label.as_deref())
         .flag("mode-state", mode_state.as_deref())

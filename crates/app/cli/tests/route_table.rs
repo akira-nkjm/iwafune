@@ -100,6 +100,12 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
     ("GET", "/budgets/{kind}", &["budget"], "budget::budget"),
     (
         "POST",
+        "/report/export",
+        &["report", "export"],
+        "report::export（`--case`・`--item`・`--lang`。CLI は返ったファイルを `--out` に書く）",
+    ),
+    (
+        "POST",
         "/budgets/{kind}",
         &["budget"],
         "budget::budget（`--ops`・`--case`）",
