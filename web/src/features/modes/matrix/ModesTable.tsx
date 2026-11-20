@@ -25,7 +25,6 @@ export function ModesTable({
   view,
   system,
   eclipse,
-  updating,
   onCell,
 }: {
   /** 列（モード）の見出し */
@@ -35,19 +34,12 @@ export function ModesTable({
   system?: System;
   /** サブシステムごとの部品の行（`matrixGroups`） */
   groups: MatrixGroup[];
-  /** セルの電力を下書きで問い合わせている間（前の数字を薄くして出しておく） */
-  updating: boolean;
   /** セルを書き換えたとき（下書きにする） */
   onCell: OnCell;
 }) {
   const tm = useT().modes;
   return (
-    <table
-      className={cn(
-        "w-full border-separate border-spacing-0 text-sm [&_.num]:transition-opacity",
-        updating && "[&_tbody_.num]:opacity-50",
-      )}
-    >
+    <table className="w-full border-separate border-spacing-0 text-sm">
       <thead className="text-ink-3 text-xs">
         <tr>
           <th scope="col" className={`${STICKY.corner} min-w-48 px-4 py-3 text-left font-medium`}>

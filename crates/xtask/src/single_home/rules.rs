@@ -97,6 +97,17 @@ pub(super) const WEB_RULES: &[(&str, &[&str], &str)] = &[
         &["web/src/kit/feedback/Loading.tsx"],
         "skeletons (loading display)",
     ),
+    // 待ちを示す動くロゴは kit/feedback の部品だけが定義し、使う画面は `Working` / `Refreshing` / `Refreshable` を通す
+    (
+        "MarkLoader",
+        &["web/src/kit/feedback/"],
+        "the animated logo mark for waiting (loading display)",
+    ),
+    (
+        "mark-glow",
+        &["web/src/kit/feedback/"],
+        "the animated logo mark for waiting (loading display)",
+    ),
     // 系とバジェットの種類の一覧と並びは API（`DefsView.systems`・`budget_kinds`）。Web に写しを書かない
     (
         "\"aocs\", \"cdh\"",

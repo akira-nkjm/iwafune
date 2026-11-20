@@ -4,9 +4,9 @@ import { useSearchParams } from "react-router";
 import { onBeforeHistoryStep, useHistoryStep, useHistoryView } from "@/api/history";
 import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
-import { Refreshing, SkeletonCanvas } from "@/kit/feedback/Loading";
+import { SkeletonCanvas } from "@/kit/feedback/Loading";
 import { QueryState } from "@/kit/feedback/QueryState";
-import { cn } from "@/lib/cn";
+import { Refreshable } from "@/kit/feedback/Refreshable";
 import { diagramHiddenSystems, withDiagramHiddenSystems } from "@/lib/nav";
 import { CanvasFrame } from "@/shell/CanvasFrame";
 import { PageHeader } from "@/shell/PageHeader";
@@ -88,7 +88,7 @@ export function DiagramPage() {
           refetch: design.refetch,
         }}
         className="flex min-h-0 flex-1 flex-col"
-        skeleton={<SkeletonCanvas />}
+        skeleton={<SkeletonCanvas label={t.common.working.layingOutDiagram} />}
       >
         {(shown) => (
           <CanvasFrame
@@ -167,13 +167,11 @@ export function DiagramPage() {
               ),
             }}
           >
-            {pending && <Refreshing />}
-            <div
-              aria-busy={pending}
-              className={cn(
-                "absolute inset-0 transition-opacity duration-200 motion-reduce:transition-none",
-                pending && "pointer-events-none opacity-45",
-              )}
+            <Refreshable
+              active={pending}
+              blockInput
+              label={t.common.working.layingOutDiagram}
+              className="absolute inset-0"
             >
               <DiagramCanvas
                 nodes={flow.nodes}
@@ -187,7 +185,7 @@ export function DiagramPage() {
                 onNodeDragStop={flow.onNodeDragStop}
               />
               <DiagramLegend categories={shown.model.legend} signal={layers.has("signal")} />
-            </div>
+            </Refreshable>
           </CanvasFrame>
         )}
       </QueryState>

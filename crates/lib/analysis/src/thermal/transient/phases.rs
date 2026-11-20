@@ -82,6 +82,26 @@ impl Phases {
             .map_or(&self.all_enabled, |i| &self.enabled[i])
     }
 
+    /// 区間 `(a, b)` の中にある、発熱の区間の切り替わりの時刻（昇順）。区間が無ければ空。
+    pub(super) fn boundaries(&self, a: f64, b: f64) -> Vec<f64> {
+        if self.steps.is_empty() {
+            return Vec::new();
+        }
+        let (first, last) = ((a / self.cycle_s).floor(), (b / self.cycle_s).floor());
+        let mut out = Vec::new();
+        let mut k = first;
+        while k <= last {
+            out.extend(
+                self.steps
+                    .iter()
+                    .map(|(end, _)| k * self.cycle_s + end)
+                    .filter(|t| *t > a && *t < b),
+            );
+            k += 1.0;
+        }
+        out
+    }
+
     /// 周期で平均した発熱。
     pub(super) fn mean(&self) -> Vec<f64> {
         let mut out = self.zero.clone();

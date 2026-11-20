@@ -4,6 +4,7 @@ import type { AnalysisEntry, AnalysisOverview, AnalysisRunResult, DesignView } f
 import { localized, useT } from "@/i18n";
 import { analysisTitle } from "@/i18n/analysis-names";
 import { Loading, SkeletonLines } from "@/kit/feedback/Loading";
+import { WorkingChip } from "@/kit/feedback/Working";
 import { Pill } from "@/kit/status/Pill";
 import { VerdictPill } from "@/kit/status/VerdictPill";
 import { DataTable } from "@/kit/table/DataTable";
@@ -17,6 +18,8 @@ import { kpiText } from "./kpi";
 export interface AnalysisTableItem {
   entry: AnalysisEntry;
   result: AnalysisRunResult;
+  /** 前の結果を出したまま再計算している（行を薄くし、1 秒以上かかるときはチップを出す） */
+  updating?: boolean;
 }
 
 /** 結果がまだ無い解析の行（問い合わせ中、または問い合わせが失敗した。`error` が null なら読み込み中） */
@@ -106,7 +109,12 @@ export function AnalysisTableRow({
     <>
       <tr
         onClick={onToggle}
-        className={cn("cursor-pointer hover:bg-panel-2", open && "bg-panel-2")}
+        aria-busy={item.updating || undefined}
+        className={cn(
+          "cursor-pointer transition-opacity hover:bg-panel-2 motion-reduce:transition-none",
+          open && "bg-panel-2",
+          item.updating && "opacity-55",
+        )}
       >
         <Td className="whitespace-normal">
           <button
@@ -127,6 +135,12 @@ export function AnalysisTableRow({
             {analysisTitle(entry.info, result.id)}
           </button>
           <div className="pl-5 font-mono text-2xs text-ink-3">{result.id}</div>
+          {item.updating && (
+            <WorkingChip
+              label={dict.common.working.recomputing(analysisTitle(entry.info, result.id))}
+              className="mt-1 ml-5"
+            />
+          )}
         </Td>
         <Td>
           <Pill dot={false}>{entry.info.kind === "steady" ? t.steady : t.timeSeries}</Pill>

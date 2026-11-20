@@ -22,7 +22,7 @@ export function SystemOverview({
   const items = states.map((s) => {
     const entry = entries.get(s.id);
     return s.result && entry
-      ? { entry, result: s.result }
+      ? { entry, result: s.result, updating: s.updating }
       : { id: s.id, entry, error: s.result ? null : s.error };
   });
   return (

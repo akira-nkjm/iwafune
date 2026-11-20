@@ -281,28 +281,6 @@ impl Compiled {
             })
             .collect()
     }
-
-    /// 陽的 RK4 が安定に回る刻みの目安 [s]（温度 `t_ref_k` での線形化の固有値の上界から）。
-    pub fn stable_step_s(&self, t_ref_k: f64) -> f64 {
-        let mut k = self
-            .space
-            .iter()
-            .map(|s| 4.0 * s * t_ref_k.powi(3))
-            .collect::<Vec<_>>();
-        for &(i, j, g) in &self.cond {
-            k[i] += g;
-            k[j] += g;
-        }
-        for &(i, j, sr) in &self.rad {
-            let h = 4.0 * sr * t_ref_k.powi(3);
-            k[i] += h;
-            k[j] += h;
-        }
-        (0..self.len())
-            .filter(|&i| self.fixed[i].is_none() && k[i] > 0.0)
-            .map(|i| self.capacity[i] / k[i])
-            .fold(f64::INFINITY, f64::min)
-    }
 }
 
 fn nonneg(v: f64, a: &str, b: &str) -> Result<f64, AnalysisError> {

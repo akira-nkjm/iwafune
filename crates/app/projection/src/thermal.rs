@@ -303,6 +303,8 @@ pub fn transient(ctx: &Context<'_>) -> Result<ThermalTransientInput, MissingInpu
             heaters,
             initial,
             max_step: None,
+            rel_tol: None,
+            abs_tol: None,
             margin,
         })
     })

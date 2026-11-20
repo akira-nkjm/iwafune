@@ -12,6 +12,7 @@ mod local_time;
 mod mean;
 mod numerical;
 mod powered;
+mod track;
 pub use crate::kepler::{perifocal_to_eci, solve_kepler};
 pub use crate::state::OrbitState;
 
@@ -22,6 +23,7 @@ pub use local_time::{
 };
 pub use mean::{mean_semi_major_axis_m, orbit_averaged_elements, osculating_state_from_mean};
 pub use powered::{PoweredArc, PoweredSample, PoweredTarget, ThrustArc, propagate_powered};
+pub use track::OrbitTrack;
 
 use crate::AstroError;
 use crate::ephem::CentralBody;

@@ -52,7 +52,10 @@ export function SystemTabs({
 }) {
   const dict = useT();
   if (system === "power" && powerPage) {
-    if (tab === "results") return <PowerOverview page={powerPage} design={design} />;
+    if (tab === "results")
+      return (
+        <PowerOverview page={powerPage} design={design} updating={states.some((s) => s.updating)} />
+      );
     if (tab === "series") return <PowerSeries page={powerPage} />;
     if (tab === "modes") return <PowerModes page={powerPage} />;
   }

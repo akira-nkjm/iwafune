@@ -2,6 +2,7 @@ import { type Edge, type Node, useEdgesState, useNodesState } from "@xyflow/reac
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DesignView, System, ViewNodePos, ViewPortSide } from "@/api/types";
 import { getT, useLang } from "@/i18n";
+import { afterPaint } from "@/lib/after-paint";
 import { savedLayout, snap, viewId } from "../editing/saved";
 import { useViewEdits, VIEW } from "../editing/view-edits";
 import type { DiagramLayout } from "../layout/geometry";
@@ -64,8 +65,8 @@ export function useDiagramModel(
   const [plan, setPlan] = useState<{ full: DiagramModel; plan: LayoutPlan } | null>(null);
   useEffect(() => {
     if (!full) return;
-    const timer = setTimeout(() => setPlan({ full, plan: planLayout(full) }), 0);
-    return () => clearTimeout(timer);
+    // 位置の計算は重いので、読み込み中の表示（最初はロゴ、やり直しは薄くした前の図）が画面に出てから始める
+    return afterPaint(() => setPlan({ full, plan: planLayout(full) }));
   }, [full]);
   const layout = useMemo(
     () => (plan && model && plan.full === full ? drawLayout(plan.plan, model) : null),
