@@ -34,10 +34,6 @@ export const pages = {
     () => import("@/features/layout3d/LayoutPage"),
     (m) => m.LayoutPage,
   ),
-  maneuvers: page(
-    () => import("@/features/maneuvers/ManeuversPage"),
-    (m) => m.ManeuversPage,
-  ),
   requirements: page(
     () => import("@/features/requirements/RequirementsPage"),
     (m) => m.RequirementsPage,
@@ -94,7 +90,6 @@ export const preloadPlan: PreloadPlan = {
     pages.components,
     pages.catalog,
     pages.modes,
-    pages.maneuvers,
     pages.requirements,
     pages.defs,
     pages.system,

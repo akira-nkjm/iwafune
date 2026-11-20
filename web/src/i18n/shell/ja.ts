@@ -15,7 +15,6 @@ export const shellJa = {
       diagram: "システム図",
       modes: "モード",
       layout: "配置",
-      maneuvers: "マヌーバ",
       requirements: "要求",
       defs: "単位と定義",
       orbit: "軌道と地上局",
