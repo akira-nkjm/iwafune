@@ -61,6 +61,12 @@ pub(super) fn check_ids(ctx: &mut Ctx) {
         (id.clone(), EntityKey::Maneuver(id), target)
     });
     namespace(ctx, maneuvers.collect(), validate_entity_id);
+    let requirements = design.requirements.keys().map(|id| {
+        let id = id.to_string();
+        let target = Target::requirement(&id, None);
+        (id.clone(), EntityKey::Requirement(id), target)
+    });
+    namespace(ctx, requirements.collect(), validate_entity_id);
     check_catalog_ids(ctx);
 }
 

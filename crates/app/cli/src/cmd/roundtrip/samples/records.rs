@@ -289,6 +289,34 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
             ),
         },
         Op::RemoveManeuver { id: s("MV_X") },
+        Op::CreateRequirement {
+            requirement: requirement(
+                "R_X",
+                json!({ "statement": "The temperature shall stay \"in range\".", "statement_en": "In range",
+                "label": "Range", "quantity": "Temperature", "source": "sys_judgement",
+                "constraint": { "kind": "range", "min": { "value": -5.0, "unit": "degC" },
+                    "max": { "value": 40.0, "unit": "degC" } },
+                "quantify": { "cases": ["hot_imaging", "cold_safe"] },
+                "verify": { "analysis": "thermal.steady", "check": "range_low:BAT:operating" } }),
+            ),
+        },
+        Op::SetRequirement {
+            requirement: requirement(
+                "R_Y",
+                json!({ "statement": "Total mass", "quantity": "Mass",
+                "constraint": { "kind": "at_most", "value": { "value": 12.0, "unit": "kg" } },
+                "quantify": { "all_cases": true }, "verify": { "budget": "mass" } }),
+            ),
+        },
+        Op::SetRequirement {
+            requirement: requirement(
+                "R_Z",
+                json!({ "statement": "Temperature", "quantity": "Temperature",
+                "constraint": { "kind": "equal", "value": { "value": 20.0, "unit": "degC" },
+                    "tolerance": { "value": 2.0, "unit": "K" } } }),
+            ),
+        },
+        Op::RemoveRequirement { id: s("R_X") },
         Op::SetSetting {
             path: s("analysis.common.default_case"),
             value: Some(SettingValue::Text(s("hot_imaging"))),
@@ -321,4 +349,11 @@ fn maneuver(id: &str, body: serde_json::Value) -> fune_service::dto::Maneuver {
     let mut m: fune_service::dto::Maneuver = serde_json::from_value(body).unwrap();
     m.id = id.into();
     m
+}
+
+/// JSON の中身と ID から要求を作る。
+fn requirement(id: &str, body: serde_json::Value) -> fune_service::dto::Requirement {
+    let mut r: fune_service::dto::Requirement = serde_json::from_value(body).unwrap();
+    r.id = id.into();
+    r
 }

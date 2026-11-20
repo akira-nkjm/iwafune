@@ -34,6 +34,7 @@ One entity is one file, and the file name is the ID.
 | `defs/attribute/`, `defs/kind/` | Project-specific attribute and kind definitions (built-in definitions are held by fune-model) |
 | `modes/`, `nets/`, `harness/` | Operating modes (a table of part → state), electrical nets, harness segments |
 | `maneuvers/` | Maneuvers (category, calculation stage, thrusters, previous maneuver, target orbit, constraints. The execution order is `after`) |
+| `requirements/` | Requirements (statement, constraint, quantification, source, the analysis check or budget that verifies it) |
 | `budget/` | Allocation and margin policy |
 | `conditions/`, `analysis/`, `cases/` | Orbit and ground stations, per-subsystem analysis settings, analysis cases |
 | `sources/` | The ledger of sources |
@@ -109,6 +110,7 @@ The "May depend on" column is the same as `ALLOWED` in `crates/xtask`, and devia
 | `fune-store` | model | Reading and writing directory ⇄ Design (toml_edit, canonical form), revision, locks | Checking, physics computation |
 | `fune-ops` | model, store | Op (the only entry point for edits), plan / apply, Op → CLI command (`to_cli`) | HTTP, display |
 | `fune-projection` | model, units, astro, analysis | Mapping Resolved to the input types of the analyses, and listing missing inputs | Physics computation, modeling defaults |
+| `fune-report` | units | Report export: the table, figure and value data model, the SVG chart writer, the Typst module and the file layout (see [report.md](report.md)) | Knowledge of the design or the analyses, file I/O |
 | `fune-service` | all of the above | All the functions that the CLI and HTTP call, and their input and output types (TS generated with ts-rs). Display strings are built with `sat_units::format` | Knowledge of HTTP, owning formatting rules itself |
 | `fune-server` | service | axum routing and JSON conversion, serving the SPA, the Host allowlist | Logic |
 | `fune-cli` | service, server | Argument parsing and display (tables, colors, diagnostics) of `fune`. Uses server for `fune gui` | Logic |
@@ -134,6 +136,7 @@ An Op can be turned into JSON (`{ "op": "set_value", "part": "RW_X", ... }`). TS
 | Modes and nets | `CreateMode`, `RenameMode`, `SetModeStates`, `CreateNet`, `UpdateNet`, `SetNetField`, `RemoveNet`, etc. |
 | Cases, sources, harness | `SetCase`, `SetSource`, `SetHarness`, and their respective deletions |
 | Maneuvers | `CreateManeuver`, `SetManeuver`, `RemoveManeuver` (deleting reconnects the following maneuver to the preceding one) |
+| Requirements | `CreateRequirement`, `SetRequirement`, `RemoveRequirement` |
 | Diagrams | `SetViewLayout`, `SetViewEdge`, `UnsetViewEdge`, `ResetView` |
 | Settings | `SetSetting` (values in `conditions/`, `analysis/`, `budget/`) |
 
@@ -156,10 +159,11 @@ The CLI and HTTP call the same functions of `fune-service`.
 | Apply Ops | each edit command, `fune apply ops.json` | `POST /ops` | `edit::apply` |
 | Typed value string → Op | `fune set`, `fune setting set`, `fune catalog set` | `POST /ops/from_text` | `edit::set_op` |
 | Path to remove → Op | `fune unset`, `fune setting unset`, `fune catalog unset` | `POST /ops/unset_from_text` | `edit::unset_op` |
-| Arguments typed into a noun command → Op | `fune net set|unset`, `fune part place`, `fune mode set|unset`, `fune attr add|replace`, `fune kind add|replace`, `fune maneuver add|set`, `fune catalog source add` | `POST /ops/from_command` | `edit::command_ops` |
+| Arguments typed into a noun command → Op | `fune net set|unset`, `fune part place`, `fune mode set|unset`, `fune attr add|replace`, `fune kind add|replace`, `fune maneuver add|set`, `fune requirement add|set`, `fune catalog source add` | `POST /ops/from_command` | `edit::command_ops` |
 | Formatting | `fune fmt [--check]` | `POST /fmt` | `format::format_design` |
 | Undo / redo the last edit | `fune undo`, `fune redo` | `POST /undo`, `POST /redo` | `history::{undo, redo}` |
 | Edit history | `fune history` | `GET /history` | `history::view` |
+| Report tables and figures (derived files; the design is not changed) | `fune report export` | `POST /report/export` | `report::export` |
 
 - Whether the `"620 g"` in `fune set RW_X.mass "620 g"` is read as a quantity, an integer, a vector or a per-state value is decided by the service by looking at the attribute definition.
   The GUI also turns the typed string into an Op with `/ops/from_text` and then sends it with `/ops`, so the interpretation does not split in two (the value fields of parts and catalog items,
@@ -183,6 +187,8 @@ The correspondence between HTTP routes and the CLI and service (`crates/app/cli/
 | `GET /project` | `fune status` | `query::project_info` |
 | `GET /design` | `fune {net,mode,case,source,harness,setting,catalog} ls`, `fune view ls` | `query::design_view` (one diagram: `query::view_layout`) |
 | `GET /maneuvers` | `fune maneuver ls` | `query::maneuvers` |
+| `GET /requirements` | `fune requirement ls` | `query::requirements` |
+| `GET /requirements/compliance` | `fune requirement compliance` | `requirements::compliance` |
 | `GET /parts`, `GET` and `POST /parts/{id}` | `fune part ls`, `fune part show [--ops]` | `query::list_parts`, `query::part_view` |
 | `POST /parts/{id}/place_body` | `fune part place --body-pos` | `edit::place_body` |
 | `GET /values/{path}` | `fune get` | `query::get_value` |
@@ -196,6 +202,7 @@ The correspondence between HTTP routes and the CLI and service (`crates/app/cli/
 | `GET /units`, `POST /units/parse`, `/units/format` | `fune units ls`, `parse`, `format` | `units::{units_catalog, parse_quantity, format_quantities}` |
 | `GET /analyses`, `POST /analyses/{id}` | `fune analyze ls`, `fune analyze <ID>` | `analysis::{analysis_catalog, run_analysis}` |
 | `GET` and `POST /budgets/{kind}` | `fune budget <kind>` | `budget::budget` (exit-code verdict: `budget::failure::fails`) |
+| `POST /report/export` | `fune report export` | `report::export` (the service returns the files' contents; the CLI writes them to `--out`) |
 | `GET /data/status`, `/data/space_weather`, `POST /data/{id}/fetch` | `fune data status`, `space-weather`, `fetch` | `data::{data_status, space_weather::lookup, fetch}` |
 | `GET /catalog/{id}` | `fune catalog show` | `query::catalog_item` |
 | `POST /catalog/fetch`, `/catalog/update` | `fune catalog fetch`, `update` | `shared_catalog::{fetch, update}` |
@@ -242,7 +249,7 @@ Missing input is not an error, so both analyses and budgets return 200 with `mis
 
 | Path | Contents |
 |---|---|
-| `GET /project`, `/design`, `/parts`, `/parts/{id}`, `/values/{path}`, `/defs`, `/diagnostics`, `/maneuvers` | Reads (overview and revision, the whole design, parts, one value, definitions, diagnostics, the list of maneuvers (in execution order; the same as `fune maneuver ls`)) |
+| `GET /project`, `/design`, `/parts`, `/parts/{id}`, `/values/{path}`, `/defs`, `/diagnostics`, `/maneuvers`, `/requirements`, `/requirements/compliance` | Reads (overview and revision, the whole design, parts, one value, definitions, diagnostics, the list of maneuvers (in execution order; the same as `fune maneuver ls`), the list of requirements and the requirement compliance table (the same as `fune requirement ls|compliance`)) |
 | `POST /ops`, `/ops/from_text`, `/ops/unset_from_text`, `/ops/from_command`, `/fmt` | Edits (§4.3) |
 | `POST /undo`, `POST /redo`, `GET /history` | Undo and redo the last edit, and the edit history (§2.4) |
 | `POST /parts/{id}` | A part with unsaved edits (`ops`) applied without writing (the same shape as `GET`. `fune part show --ops`) |
@@ -257,8 +264,8 @@ Missing input is not an error, so both analyses and budgets return 200 with `mis
 UI components use Tailwind CSS 4 and Radix, the system diagram uses @xyflow/react (placement and wiring use our own automatic layout in `features/diagram/`),
 the 3D placement uses three, @react-three/fiber and @react-three/drei, and graphs use Recharts. Lint and formatting use Biome, and tests use Vitest.
 
-The screens are: overview (budgets and diagnostics), parts, catalog, system diagrams (power and signal), mode table, maneuvers (a list in execution order, and add, edit and delete with the same arguments as `fune maneuver add|set|rm`; the results are on the propulsion page), placement (the part tree on the left, 3D in the center, the placement fields on the right. Selecting, mounting and positioning parts are checked and edited in full-screen 3D, and the center of mass is shown if mass properties exist), definitions (attributes, kinds, units),
-per-subsystem pages (AOCS, C&DH, Communications, Payload, Power, Propulsion, Structure, Thermal. Propulsion uses the generic display (KPIs, verdicts, analysis tables). Analyses for payload are not registered yet. The structure overview links to the placement page. The 3D colored by temperature remains on the thermal page), orbit and ground stations, analysis cases, diagnostics, and settings.
+The screens are: overview (budgets and diagnostics), parts, catalog, system diagrams (power and signal), mode table, requirements (the compliance table, and a list with add, edit and delete using the same arguments as `fune requirement add|set|rm`), placement (the part tree on the left, 3D in the center, the placement fields on the right. Selecting, mounting and positioning parts are checked and edited in full-screen 3D, and the center of mass is shown if mass properties exist), definitions (attributes, kinds, units),
+per-subsystem pages (AOCS, C&DH, Communications, Payload, Power, Propulsion, Structure, Thermal. Propulsion uses the generic display (KPIs, verdicts, analysis tables) plus a Maneuvers tab (a list in execution order, and add, edit and delete with the same arguments as `fune maneuver add|set|rm`; `/design/maneuvers` redirects there). Analyses for payload are not registered yet. The structure overview links to the placement page. The 3D colored by temperature remains on the thermal page), orbit and ground stations, analysis cases, diagnostics, and settings.
 A subsystem page lists the parts related to that subsystem using only that subsystem's attribute columns, lets you edit them in cells, and shows the analysis results on the same page.
 The subsystem tabs are "Overview (KPIs and verdicts), Modes, Parts, Time series, Settings" (in Japanese: 概要, モード, 部品, 時系列, 設定).
 The Power overview (#89 stage 1) is centered on chips with verdicts per mode, and a common sunlit/eclipse toggle.

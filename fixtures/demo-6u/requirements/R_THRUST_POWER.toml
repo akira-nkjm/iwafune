@@ -1,0 +1,11 @@
+label     = "Thruster power balance"
+statement = "Electric thruster operation shall not make the orbit-average power balance negative."
+quantity  = "Power"
+source    = "sys_judgement"
+
+[constraint]
+kind  = "at_least"
+value = { value = 0.0, unit = "W" }
+
+[verify]
+analysis = "power.thrust_balance"

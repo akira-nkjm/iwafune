@@ -5,6 +5,13 @@ import { targetLink } from "./target-link";
 const parts = new Set(["RW_X"]);
 
 describe("targetLink", () => {
+  it("マヌーバの対象は、推進のページのマヌーバのタブへ", () => {
+    expect(targetLink({ kind: "maneuver", id: "burn-1", field: null }, parts)).toBe(
+      "/systems/propulsion/maneuvers?maneuver=burn-1",
+    );
+    expect(targetLink({ kind: "maneuvers" }, parts)).toBe("/systems/propulsion/maneuvers");
+  });
+
   it("部品の対象は、設計にある部品のページへ", () => {
     const attr: DesignTarget = {
       kind: "param",

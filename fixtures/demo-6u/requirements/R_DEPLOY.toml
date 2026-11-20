@@ -1,0 +1,8 @@
+label     = "Antenna deployment time"
+statement = "The antenna shall be deployed within 30 minutes after separation."
+quantity  = "Time"
+source    = "lv_icd"
+
+[constraint]
+kind  = "at_most"
+value = { value = 30.0, unit = "min" }

@@ -7,6 +7,7 @@
 //! | `system` | Mode・Net・Harness・Case |
 //! | `source` | Source・SourceKind・Distribution（出典の台帳） |
 //! | `maneuver` | マヌーバ（区分・計算の段階・目標の軌道・制約）と実行の順（`Design::ordered_maneuvers`） |
+//! | `requirement` | 要求（文・制約・量化・出典・確かめる先）と解析の ID の一覧 |
 //! | `budget` | 配分とマージン方針 |
 //! | `project` | `fune.toml` |
 //! | `shared_catalog` | 共有カタログの固定（`catalog.lock`）と読み込みの状態の判定（`Design::shared_catalog_statuses`） |
@@ -28,6 +29,7 @@ pub mod part;
 pub mod power_sequences;
 pub mod project;
 pub mod refs;
+pub mod requirement;
 pub mod setting_dims;
 pub mod settings_view;
 pub mod shared_catalog;
@@ -47,6 +49,7 @@ pub use part::*;
 pub use power_sequences::{DEFAULT_SEQUENCE, SequenceView};
 pub use project::*;
 pub use refs::{HarnessEnd, NetEnd, RefSite, Referent};
+pub use requirement::*;
 pub use settings_view::SettingEntry;
 pub use shared_catalog::{CatalogLock, LockedCatalog, SharedCatalogState, SharedCatalogStatus};
 pub use source_map::{EntityKey, Loc, SourceMap};
@@ -106,6 +109,8 @@ pub struct Design {
     /// マヌーバ（`maneuvers/<ID>.toml`。実行の順は [`Design::ordered_maneuvers`]）
     pub maneuvers: BTreeMap<Id<Maneuver>, Maneuver>,
     pub sources: BTreeMap<Id<Source>, Source>,
+    /// 要求（`requirements/<ID>.toml`。平らな一覧）
+    pub requirements: BTreeMap<Id<Requirement>, Requirement>,
     pub conditions: ConditionsSettings,
     pub analysis: AnalysisSettings,
     /// 図の配置（`view/<名前>.toml`。見た目だけ）

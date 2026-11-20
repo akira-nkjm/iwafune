@@ -1,5 +1,6 @@
 import { Pencil, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useEnumLabel } from "@/api/labels";
 import { useDesign } from "@/api/queries";
 import type { DesignView, ManeuverText, ManeuverView } from "@/api/types";
@@ -8,14 +9,11 @@ import { Empty } from "@/kit/feedback/Empty";
 import { SkeletonPanel } from "@/kit/feedback/Loading";
 import { QueryState } from "@/kit/feedback/QueryState";
 import { Panel } from "@/kit/panel/Panel";
-import { ChipLink } from "@/kit/selection/Chip";
 import { DataTable } from "@/kit/table/DataTable";
 import { Td } from "@/kit/table/Td";
 import { Th } from "@/kit/table/Th";
-import { paths } from "@/lib/nav";
+import { SEARCH } from "@/lib/nav";
 import { OpDialog } from "@/ops/OpDialog";
-import { PageBody } from "@/shell/PageBody";
-import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
 import { ManeuverDialog } from "./ManeuverDialog";
 import { emptyManeuverText } from "./maneuver-form";
@@ -28,43 +26,37 @@ type Open =
   | null;
 
 /**
- * 設計 / マヌーバ: maneuvers/ の一覧（実行の順は API が `order` で返す）と、追加・編集・削除。
- * 編集は `fune maneuver add|set|rm` と同じ引数を service に送る。ΔV などの結果は推進系のページ
+ * 推進のページのマヌーバのタブ: maneuvers/ の一覧（実行の順は API が `order` で返す）と、追加・編集・削除。
+ * 編集は `fune maneuver add|set|rm` と同じ引数を service に送る。ΔV などの結果は同じページの別のタブ。
+ * URL の `?maneuver=<ID>` で選んだ行を強調する（診断のリンクが開く）。表はページの本文の中でスクロールし、見出しを止める。
  */
-export function ManeuversPage() {
+export function ManeuversTab() {
   const t = useT().maneuvers;
   const design = useDesign();
+  const [params] = useSearchParams();
+  const selected = params.get(SEARCH.maneuver);
   const [open, setOpen] = useState<Open>(null);
   const close = (o: boolean) => !o && setOpen(null);
   return (
     <>
-      <PageHeader
-        eyebrow={t.eyebrow}
-        title={t.title}
-        subtitle={t.subtitle}
-        actions={
-          <>
-            <ChipLink to={paths.system("propulsion")} mono={false}>
-              {t.results}
-            </ChipLink>
-            <Button variant="outline" onClick={() => setOpen({ kind: "add" })}>
-              <Plus size={14} />
-              {t.add}
-            </Button>
-          </>
-        }
-      />
-      <PageBody>
+      <div className="flex shrink-0 items-center justify-between gap-3 px-6 pt-4 pb-3">
+        <p className="text-ink-3 text-sm">{t.subtitle}</p>
+        <Button variant="outline" onClick={() => setOpen({ kind: "add" })}>
+          <Plus size={14} />
+          {t.add}
+        </Button>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col px-6 pb-4">
         <QueryState query={design} skeleton={<SkeletonPanel lines={5} />}>
           {(d) =>
             d.maneuvers.length === 0 ? (
               <Empty>{t.empty}</Empty>
             ) : (
-              <ManeuversTable design={d} onOpen={setOpen} />
+              <ManeuversTable design={d} selected={selected} onOpen={setOpen} />
             )
           }
         </QueryState>
-      </PageBody>
+      </div>
       {design.data && open?.kind === "add" && (
         <ManeuverDialog
           design={design.data}
@@ -98,12 +90,22 @@ export function ManeuversPage() {
 }
 
 /** マヌーバの表（実行の順）。目標の量は API が整形した表示文字列 */
-function ManeuversTable({ design: d, onOpen }: { design: DesignView; onOpen: (o: Open) => void }) {
+function ManeuversTable({
+  design: d,
+  selected,
+  onOpen,
+}: {
+  design: DesignView;
+  selected: string | null;
+  onOpen: (o: Open) => void;
+}) {
   const t = useT().maneuvers;
   const label = useEnumLabel();
   return (
-    <Panel pad={false}>
+    <Panel pad={false} className="flex min-h-0 flex-col">
       <DataTable
+        stickyHead
+        className="min-h-0 flex-1"
         head={
           <>
             <Th>{t.order}</Th>
@@ -121,7 +123,13 @@ function ManeuversTable({ design: d, onOpen }: { design: DesignView; onOpen: (o:
         }
       >
         {d.maneuvers.map((m) => (
-          <ManeuverRow key={m.id} m={m} label={label} onOpen={onOpen} />
+          <ManeuverRow
+            key={m.id}
+            m={m}
+            selected={m.id === selected}
+            label={label}
+            onOpen={onOpen}
+          />
         ))}
       </DataTable>
     </Panel>
@@ -130,16 +138,27 @@ function ManeuversTable({ design: d, onOpen }: { design: DesignView; onOpen: (o:
 
 function ManeuverRow({
   m,
+  selected,
   label,
   onOpen,
 }: {
   m: ManeuverView;
+  selected: boolean;
   label: (ty: string, value: string) => string;
   onOpen: (o: Open) => void;
 }) {
   const t = useT().maneuvers;
+  // 診断のリンクで選ばれた行は、見える位置へ出す
+  const ref = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    if (selected) ref.current?.scrollIntoView({ block: "nearest" });
+  }, [selected]);
   return (
-    <tr>
+    <tr
+      ref={ref}
+      aria-current={selected || undefined}
+      className={selected ? "bg-panel-2" : undefined}
+    >
       <Td mono>{m.order}</Td>
       <Td mono>{m.id}</Td>
       <Td>{m.label}</Td>

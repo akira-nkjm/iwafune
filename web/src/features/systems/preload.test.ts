@@ -12,4 +12,9 @@ describe("追加のタブ", () => {
     expect(hasExtraTab("structure", "heat")).toBe(false);
     expect(hasExtraTab("thermal", "modes")).toBe(false);
   });
+  it("マヌーバの定義は推進だけ", () => {
+    expect(hasExtraTab("propulsion", "maneuvers")).toBe(true);
+    expect(hasExtraTab("thermal", "maneuvers")).toBe(false);
+    expect(hasExtraTab("propulsion", "heat")).toBe(false);
+  });
 });

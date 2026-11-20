@@ -1,6 +1,7 @@
 //! CLI コマンドの共有型・表示・引数の補助。
 use crate::args::{EditOpts, PointArgs};
-use fune_service::dto::{Op, Origin, Pose, ValueView};
+use crate::output::C;
+use fune_service::dto::{Op, Origin, Pose, ValueView, Verdict};
 use fune_service::{edit, query};
 /// 読み取りコマンドを処理したときの終了コード。
 pub(crate) type Handled = anyhow::Result<Option<u8>>;
@@ -12,6 +13,15 @@ pub(crate) fn list(text: &Option<String>) -> Vec<String> {
     text.as_deref()
         .map(edit::list_from_text)
         .unwrap_or_default()
+}
+
+/// 判定の印のセル（KPI・バジェット）。
+pub(super) fn verdict_cell(v: Verdict) -> C {
+    match v {
+        Verdict::Ok => C::Verdict("✔".into(), true),
+        Verdict::Warning => C::Text("⚠".into()),
+        Verdict::Violation => C::Verdict("✖".into(), false),
+    }
 }
 
 /// 未設定の値の文言（service は `ValueData::Unset` と `display: null` の構造で返す）。

@@ -15,6 +15,7 @@ import type {
   BudgetRequest,
   BudgetView,
   CheckReport,
+  ComplianceReport,
   ConditionTopic,
   DataStatus,
   DefsView,
@@ -129,6 +130,14 @@ export const q = {
   /** 外部データ（DE440）の状態。取得は `api/data.ts` の `useFetchData` */
   dataStatus: () =>
     queryOptions({ queryKey: keys.dataStatus, queryFn: () => api<DataStatus>("/data/status") }),
+  /** 要求適合表（要求ごとに、確かめる先の解析・バジェットを量化したケースで実行して判定を集める。重いので 30 秒は使い回す） */
+  compliance: () =>
+    queryOptions({
+      queryKey: keys.compliance,
+      queryFn: () => api<ComplianceReport>("/requirements/compliance"),
+      staleTime: 30_000,
+      placeholderData: keepPreviousData,
+    }),
   /** バジェット。`ops` の意味は analysis と同じ（下書きがあれば POST で送る） */
   budget: (kind: BudgetKind, ops: readonly Op[] = []) => {
     const json = ops.length > 0 ? JSON.stringify(ops) : "";

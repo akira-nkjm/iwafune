@@ -54,6 +54,9 @@ pub fn write_record<T: Serialize>(
 /// マヌーバのファイルで見出しの表にする最上位の表（docs/model.md の `maneuvers/`）。
 pub const MANEUVER_SECTIONS: &[&str] = &["target", "constraints"];
 
+/// 要求のファイルで見出しの表にする最上位の表（docs/model.md の `requirements/`）。
+pub const REQUIREMENT_SECTIONS: &[&str] = &["constraint", "quantify", "verify"];
+
 /// ファイルを値に合わせる（無ければ作る）。`sections` の最上位の表は見出しの表で書く（マヌーバの `[target]`・`[constraints]`）。
 pub fn write_record_with_sections<T: Serialize>(
     edits: &mut Edits,

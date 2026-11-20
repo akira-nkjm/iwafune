@@ -7,6 +7,7 @@ import type { ModeSetText } from "./ModeSetText";
 import type { NetSetText } from "./NetSetText";
 import type { NetUnsetText } from "./NetUnsetText";
 import type { PlaceText } from "./PlaceText";
+import type { RequirementText } from "./RequirementText";
 
 /**
  * 名詞のコマンドの引数（`POST /ops/from_command` の本文）。`command` でコマンドを選ぶ。
@@ -16,4 +17,4 @@ export type CommandText = { "command": "net_set" } & NetSetText | { "command": "
 /**
  * `モード=長さ` のカンマ区切り（`--duty` と同じ書き方）
  */
-segments: string, anchor: string | null, offset: string | null, } | { "command": "sequence_remove", name: string, } | { "command": "attr_add" } & AttrAddText | { "command": "kind_add" } & KindAddText | { "command": "attr_replace" } & AttrAddText | { "command": "kind_replace" } & KindAddText | { "command": "maneuver_add" } & ManeuverText | { "command": "maneuver_set" } & ManeuverText | { "command": "catalog_source_add" } & CatalogSourceAddText;
+segments: string, anchor: string | null, offset: string | null, } | { "command": "sequence_remove", name: string, } | { "command": "attr_add" } & AttrAddText | { "command": "kind_add" } & KindAddText | { "command": "attr_replace" } & AttrAddText | { "command": "kind_replace" } & KindAddText | { "command": "maneuver_add" } & ManeuverText | { "command": "maneuver_set" } & ManeuverText | { "command": "requirement_add" } & RequirementText | { "command": "requirement_set" } & RequirementText | { "command": "catalog_source_add" } & CatalogSourceAddText;

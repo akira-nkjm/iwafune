@@ -16,12 +16,20 @@ import { hasExtraTab } from "./preload";
 import { SystemHeaderActions } from "./SystemHeaderActions";
 import { hasModes, type SystemTab, SystemTabs, tabFillsBody } from "./SystemTabs";
 
-const TABS: SystemTab[] = ["results", "heat", "analyses", "modes", "series", "settings"];
+const TABS: SystemTab[] = [
+  "results",
+  "maneuvers",
+  "heat",
+  "analyses",
+  "modes",
+  "series",
+  "settings",
+];
 
 /** 系にそのタブがあるか（モードの見方は持つ系だけ、熱画像・解析結果のような追加のタブは `preload.ts` の `EXTRA_TABS` の系だけ） */
 function shows(system: System, tab: SystemTab, defs: DefsView | undefined): boolean {
   if (tab === "modes") return hasModes(system, defs);
-  if (tab === "heat" || tab === "analyses") return hasExtraTab(system, tab);
+  if (tab === "heat" || tab === "analyses" || tab === "maneuvers") return hasExtraTab(system, tab);
   return true;
 }
 

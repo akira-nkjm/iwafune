@@ -9,7 +9,7 @@
 //! | 部品の属性・フィールド、設定 | `RW_X.mass`・`RW_X.power.on`・`RW_X.count`・`analysis.power.dod_max` |
 //! | 部品のポート・取付・姿勢 | `RW_X.PWR`・`RW_X.mount`・`RW_X.pose`・`PANEL_MZ.mount_points.RW_SLOT_1` |
 //! | どれかの部品（役割で絞る） | `<部品>.power`・`<solar_panel>`・`<obc>.storage_capacity` |
-//! | モード・ネット・ハーネス・ケース・マヌーバ | `modes.NOMINAL.TRX`・`nets.P12V.rail`・`harness.H1.length`・`cases.HOT.beta`・`maneuvers.RAISE.thruster` |
+//! | モード・ネット・ハーネス・ケース・マヌーバ・要求 | `modes.NOMINAL.TRX`・`nets.P12V.rail`・`harness.H1.length`・`cases.HOT.beta`・`maneuvers.RAISE.thruster`・`requirements.R_MASS.verify.check` |
 //! | カタログ品・定義・図・出典 | `local/rw_10mNms.mass`・`mass`・`reaction_wheel`・`view.electrical.POWER`・`sources.em_test` |
 
 use crate::path::{AttrPath, ParamPath, PortRef, SettingPath};
@@ -57,6 +57,8 @@ pub enum Target {
     Case { id: String, field: Option<String> },
     /// マヌーバ（`field` は `thruster`・`target.altitude` など）
     Maneuver { id: String, field: Option<String> },
+    /// 要求（`field` は `constraint.value`・`verify.check` など）
+    Requirement { id: String, field: Option<String> },
     /// カタログ品（`attr` があれば、その品の属性）
     Catalog { id: String, attr: Option<AttrPath> },
     /// 属性定義（`defs/attribute/<id>.toml`）
@@ -140,6 +142,14 @@ impl Target {
     /// マヌーバ（`field` があればそのキー。`maneuvers.RAISE.thruster`）。
     pub fn maneuver(id: impl Into<String>, field: Option<&str>) -> Self {
         Target::Maneuver {
+            id: id.into(),
+            field: field.map(str::to_owned),
+        }
+    }
+
+    /// 要求（`field` があればそのキー。`requirements.R_MASS.constraint.value`）。
+    pub fn requirement(id: impl Into<String>, field: Option<&str>) -> Self {
+        Target::Requirement {
             id: id.into(),
             field: field.map(str::to_owned),
         }
@@ -241,6 +251,9 @@ impl fmt::Display for Target {
             }
             Target::Maneuver { id, field } => {
                 with_tail(f, format_args!("maneuvers.{id}"), field.as_deref())
+            }
+            Target::Requirement { id, field } => {
+                with_tail(f, format_args!("requirements.{id}"), field.as_deref())
             }
             Target::Catalog { id, attr: None } => f.write_str(id),
             Target::Catalog { id, attr: Some(a) } => write!(f, "{id}.{a}"),

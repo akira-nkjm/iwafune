@@ -1,14 +1,11 @@
-/** 設計 / マヌーバの文言（日本語） */
+/** 推進のマヌーバのタブの文言（日本語） */
 export const maneuversJa = {
   maneuvers: {
-    eyebrow: "設計",
-    title: "マヌーバ",
-    subtitle: "maneuvers/<ID>.toml（実行の順・計算の段階・目標の軌道）。結果は推進系のページ",
+    subtitle: "maneuvers/<ID>.toml（実行の順・計算の段階・目標の軌道）",
     empty: "マヌーバがありません",
     add: "マヌーバを追加",
     edit: "編集",
     remove: "削除",
-    results: "推進系の解析を開く",
     order: "順",
     id: "ID",
     name: "名前",

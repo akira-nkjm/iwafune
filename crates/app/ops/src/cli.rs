@@ -7,6 +7,7 @@
 //! | `text` | 引用・数値と単位の書き方・コマンドの組み立て |
 //! | `commands` | 部品・定義・モード・ネット・図・設定の Op のコマンド |
 //! | `records` | 取付点・解析ケース・出典・ハーネス・マヌーバの Op のコマンド |
+//! | `requirements` | 要求の Op のコマンド（旗は `fune_service` の `RequirementText` と 1 対 1） |
 //! | `catalog` | カタログ品の Op のコマンド |
 //! | `defs` | 定義の Op のコマンド（`attr add`・`kind add`。フィールドと旗は 1 対 1） |
 
@@ -14,6 +15,7 @@ mod catalog;
 mod commands;
 mod defs;
 mod records;
+mod requirements;
 mod text;
 
 pub use text::quote;
@@ -24,6 +26,7 @@ use crate::op::Op;
 pub fn to_cli(op: &Op) -> Vec<String> {
     commands::part_op(op)
         .or_else(|| records::record_op(op))
+        .or_else(|| requirements::requirement_op(op))
         .or_else(|| catalog::catalog_op(op))
         .unwrap_or_else(|| commands::other_op(op))
 }

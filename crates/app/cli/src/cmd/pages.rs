@@ -1,7 +1,8 @@
 //! `fune mode view`（`POST /system_modes/{system}` と同じ DTO を表にする）。
 //! 値・合計・判定は service が作ったものをそのまま並べる（CLI は計算しない）。
 
-use super::analyze::{print_missing, verdict_cell};
+use super::analyze::print_missing;
+use super::common::verdict_cell;
 use crate::args::ModeViewOpts;
 use crate::output::{C, Out};
 use fune_service::dto::{
