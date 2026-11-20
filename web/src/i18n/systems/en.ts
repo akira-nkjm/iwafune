@@ -62,6 +62,7 @@ export const systemsEn: typeof systemsJa = {
       results: "Overview",
       modes: "Modes",
       heat: "Thermal image",
+      analyses: "Analysis results",
       settings: "Settings",
       series: "Time series",
     },

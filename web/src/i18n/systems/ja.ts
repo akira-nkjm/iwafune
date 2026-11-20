@@ -62,6 +62,7 @@ export const systemsJa = {
       results: "概要",
       modes: "モード",
       heat: "熱画像",
+      analyses: "解析結果",
       settings: "設定",
       series: "時系列",
     },

@@ -17,6 +17,7 @@ import { AocsModes } from "./aocs/AocsModes";
 import { PowerModes } from "./power/PowerModes";
 import { PowerOverview } from "./power/PowerOverview";
 import { PowerSeries } from "./power/PowerSeries";
+import { hasExtraTab } from "./preload";
 import { SystemOverview } from "./SystemOverview";
 
 /** グラフ（recharts）は時系列のタブを開いたときだけ読む。系のページの最初のチャンクを小さくするため */
@@ -24,11 +25,11 @@ const SeriesChart = lazy(() =>
   import("@/analysis/SeriesChart").then((m) => ({ default: m.SeriesChart })),
 );
 
-export type SystemTab = "results" | "modes" | "heat" | "settings" | "series";
+export type SystemTab = "results" | "modes" | "heat" | "analyses" | "settings" | "series";
 
 /**
  * 系のページのタブの中身（結果・モード・熱画像・設定・時系列）。extra は系ごとの追加の表示（熱の温度範囲の図と熱画像）。
- * 結果のタブは、熱だけ解析のカードの並びで、ほかの系は解析の表（電源は `PowerOverview`、ほかは `SystemOverview`）。
+ * 結果のタブは、熱は温度範囲の図だけ（解析のカードは解析結果のタブ）で、ほかの系は解析の表（電源は `PowerOverview`、ほかは `SystemOverview`）。
  */
 export function SystemTabs({
   tab,
@@ -64,19 +65,22 @@ export function SystemTabs({
       )
     ) : null;
   if (tab === "heat") return <>{extra?.heat}</>;
+  // 解析のカードの並び（判定・値・表）。このタブを持つ系（熱）は、概要には図だけを出す
+  if (tab === "analyses")
+    return (
+      <div className="grid gap-4 xl:grid-cols-2">
+        {states.map((s) => (
+          <AnalysisCard key={s.id} state={s} entry={entries.get(s.id)} design={design} />
+        ))}
+      </div>
+    );
   if (tab === "results")
     return (
       <>
         {noAnalyses && <Empty>{dict.systems.noAnalyses}</Empty>}
         {extra?.results}
-        {system === "thermal" ? (
-          // 熱は温度範囲の図（`extra`）と解析のカードのまま
-          <div className="grid gap-4 xl:grid-cols-2">
-            {states.map((s) => (
-              <AnalysisCard key={s.id} state={s} entry={entries.get(s.id)} design={design} />
-            ))}
-          </div>
-        ) : (
+        {/* 解析結果のタブを持つ系（熱）の概要は図（`extra`）だけ。ほかの系は解析の表 */}
+        {!hasExtraTab(system, "analyses") && (
           <SystemOverview states={states} entries={entries} design={design} />
         )}
       </>

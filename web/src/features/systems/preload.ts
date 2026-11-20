@@ -12,9 +12,9 @@ export const EXTRA_CHUNKS = {
   thermal: [loadLayout3D],
 } as const satisfies Partial<Record<System, readonly (() => Promise<unknown>)[]>>;
 
-/** 追加の表示を持つ系が、共通のタブのほかに出すタブ（熱の熱画像）。系のページのタブの出し分けはこれで決める */
+/** 追加の表示を持つ系が、共通のタブのほかに出すタブ（熱の熱画像と、解析のカードを並べる解析結果）。系のページのタブの出し分けはこれで決める */
 export const EXTRA_TABS = {
-  thermal: ["heat"],
+  thermal: ["heat", "analyses"],
 } as const satisfies Record<keyof typeof EXTRA_CHUNKS, readonly SystemTab[]>;
 
 /** 追加の表示を持つ系 */

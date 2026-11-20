@@ -6,7 +6,7 @@ import type { AnalysisState } from "@/api/queries";
 import type { AnalysisEntry, AnalysisRunResult, KpiView, System } from "@/api/types";
 import { getT } from "@/i18n";
 import { fixture, qv } from "@/test/fixture";
-import { SystemTabs } from "./SystemTabs";
+import { type SystemTab, SystemTabs } from "./SystemTabs";
 
 const kpi: KpiView = {
   key: "link_margin",
@@ -60,12 +60,17 @@ const state = (id: string, over: Partial<AnalysisState> = {}): AnalysisState => 
   ...over,
 });
 
-function render(system: System, states: AnalysisState[], entries: AnalysisEntry[]) {
+function render(
+  system: System,
+  states: AnalysisState[],
+  entries: AnalysisEntry[],
+  tab: SystemTab = "results",
+) {
   return renderToStaticMarkup(
     <MemoryRouter>
       <QueryClientProvider client={new QueryClient()}>
         <SystemTabs
-          tab="results"
+          tab={tab}
           system={system}
           design={fixture}
           states={states}
@@ -111,14 +116,14 @@ describe("系の概要（結果のタブ）", () => {
     expect(html).not.toContain("aria-expanded");
   });
 
-  it("熱は解析のカードのまま（表を出さない）", () => {
-    const html = render(
-      "thermal",
-      [state("thermal.steady")],
-      [entry("thermal.steady", "thermal", "定常の熱")],
-    );
-    expect(html).not.toContain(getT().systems.analysisTable.main);
-    expect(html).toContain(getT().systems.status.ok);
-    expect(html).toContain("定常の熱");
+  it("熱の概要は表も解析のカードも出さず、カードは解析結果のタブに出す", () => {
+    const states = [state("thermal.steady")];
+    const entries = [entry("thermal.steady", "thermal", "定常の熱")];
+    const overview = render("thermal", states, entries);
+    expect(overview).not.toContain(getT().systems.analysisTable.main);
+    expect(overview).not.toContain("定常の熱");
+    const cards = render("thermal", states, entries, "analyses");
+    expect(cards).toContain(getT().systems.status.ok);
+    expect(cards).toContain("定常の熱");
   });
 });
