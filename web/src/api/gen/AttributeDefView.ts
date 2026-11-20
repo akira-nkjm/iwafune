@@ -22,6 +22,14 @@ section: string,
  */
 dimension: string | null, units: Array<string>, display_unit: string | null, by_state: boolean, 
 /**
+ * 方向の属性か（部品座標の単位ベクトル。3D はこれが true の属性を軸の矢印として描く）
+ */
+unit_vector: boolean, 
+/**
+ * 視野の半角の属性なら、そのまわりの方向の属性の ID（3D の視野の円錐）。そうでなければ null
+ */
+fov_axis: string | null, 
+/**
  * 組み込み（`fune_model::builtin`）なら true、プロジェクト独自（`defs/`）なら false
  */
 builtin: boolean, description: string | null, };

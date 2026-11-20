@@ -10,7 +10,6 @@ export const overviewEn: typeof overviewJa = {
     massDryWet: (dry: string, wet: string) => `Dry ${dry} · wet ${wet}`,
     massBudget: "Mass budget",
     limit: (v: string) => `Limit ${v}`,
-    powerBalance: "Power balance (orbit average, worst)",
     consumption: (v: string) => `Load ${v}`,
     generationLimit: (v: string) => `Expected generation ${v}`,
     allInRange: "All within range",

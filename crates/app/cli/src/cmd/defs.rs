@@ -34,6 +34,7 @@ fn attr_text(a: &AttrAddArgs) -> AttrAddText {
         symbols: list(&a.symbols),
         budget: a.budget.clone(),
         unit_vector: a.unit_vector,
+        fov_axis: a.fov_axis.clone(),
         section: a.section.clone(),
     }
 }

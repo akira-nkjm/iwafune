@@ -20,6 +20,7 @@
 //! | `budget` | 質量・電力・データ量のバジェット |
 //! | `kpi` | KPI（系の代表値・判定・塗りの比・判定の数え方）と塗りの比 |
 //! | `overview` | 系の概要の解析の表の行（主な結果・判定のまとまり・小さな棒グラフ・隠す表） |
+//! | `mode_levels` | モードの表の状態・電力の列の出し方 |
 //! | `net_class` | ネットの分類（電源の系統・星形の中心） |
 //! | `data` | 外部データ（DE440）の状態 |
 
@@ -49,6 +50,7 @@ pub use overview::{
     AnalysisOverview, OverviewBar, OverviewChart, OverviewCheckGroup, OverviewReference,
 };
 mod pose;
+pub use mode_levels::{ModeLevels, ModeLevelsView};
 pub use net_class::{NetHub, PowerClass};
 pub use pose::{BodyPoseView, MountPointView, MountView, PoseQuantities};
 mod power_modes;
@@ -60,6 +62,7 @@ pub use shared_catalog::{
 };
 mod source;
 pub use source::SourceView;
+mod mode_levels;
 mod net_class;
 mod units;
 mod value;

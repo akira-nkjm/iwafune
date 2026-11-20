@@ -10,6 +10,7 @@ import { draftCount, type ModeDraft, withCell } from "../draft/draft";
 import { ModesSaveBar } from "../draft/ModesSaveBar";
 import { useModeDraftLoad } from "../draft/use-mode-draft-load";
 import { ModesTable } from "./ModesTable";
+import { modeLevels } from "./matrix";
 import { matrixGroups } from "./matrix-rows";
 
 /**
@@ -87,6 +88,7 @@ export function ModesMatrix({
               eclipse={eclipse}
               view={computed.view}
               system={system}
+              levels={modeLevels(design.defs, system)}
               onCell={({ mode, part }, cell) =>
                 onDraft(withCell(table, draft, mode, part, cell, eclipse))
               }

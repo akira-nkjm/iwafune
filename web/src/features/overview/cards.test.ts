@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { KpiSlot } from "@/analysis/kpi";
-import type { BudgetView, KpiKey, KpiView, QuantityView, System } from "@/api/types";
+import type { BudgetView, KpiKey, KpiView, OverviewKpi, QuantityView, System } from "@/api/types";
 import { dictionaries } from "@/i18n";
 import { type OverviewSources, overviewCards } from "./cards";
 
@@ -26,14 +26,14 @@ const kpi = (key: KpiKey, rest: Partial<KpiView>): KpiView => ({
 });
 
 /** 概要の見出しにする KPI（API の `KpiDef.overview`）。フッターに添える KPI は `footer` に */
-const HEADS: Partial<Record<KpiKey, { order: number; footer: KpiKey[] }>> = {
-  orbit_balance: { order: 0, footer: [] },
-  max_dod: { order: 1, footer: [] },
-  unload_interval: { order: 2, footer: ["peak_momentum"] },
-  storage_margin: { order: 3, footer: ["data_per_day"] },
-  link_margin: { order: 4, footer: [] },
-  nodes_in_range: { order: 5, footer: ["max_temperature", "min_temperature"] },
-  dv_with_margin: { order: 6, footer: ["loaded_propellant"] },
+const HEADS: Partial<Record<KpiKey, OverviewKpi>> = {
+  orbit_balance: { order: 0, footer: [], budget: "power" },
+  max_dod: { order: 1, footer: [], budget: null },
+  unload_interval: { order: 2, footer: ["peak_momentum"], budget: null },
+  storage_margin: { order: 3, footer: ["data_per_day"], budget: null },
+  link_margin: { order: 4, footer: [], budget: null },
+  nodes_in_range: { order: 5, footer: ["max_temperature", "min_temperature"], budget: null },
+  dv_with_margin: { order: 6, footer: ["loaded_propellant"], budget: null },
 };
 
 const slot = (system: System, k: KpiView, loading = false): KpiSlot => ({

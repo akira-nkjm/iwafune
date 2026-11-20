@@ -10,7 +10,7 @@ import type {
 } from "@/api/types";
 import { kindLabel, nodeLabel, partById } from "@/lib/design";
 import { type CellText, cellOf, draftKey, type ModeDraft } from "../draft/draft";
-import { type CellWords, powerLevels, type StateRoles, savedCellText } from "./matrix";
+import { type CellWords, modeLevels, powerLevels, type StateRoles, savedCellText } from "./matrix";
 import type { CellAt } from "./matrix-focus";
 
 /** 行列の 1 セルに出すもの（`ModeCell` はこれ 1 つで描く） */
@@ -158,7 +158,7 @@ export function matrixGroups(
       count: part?.count ?? 1,
       kind: row.kind && kindLabel(design.defs, row.kind),
       levels:
-        !system || system === "power"
+        modeLevels(design.defs, system) === "power_levels"
           ? levels.map(([, q]) => q.display).join(" / ")
           : row.states.join(" / "),
       levelsTitle: levels.map(([state, q]) => `${state}: ${q.display}`).join(" / "),

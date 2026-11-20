@@ -54,6 +54,7 @@ fn attr_def(t: &AttrAddText) -> Result<AttributeDef> {
         "symbols": words(&t.symbols),
         "budget": given(&t.budget),
         "unit_vector": t.unit_vector,
+        "fov_axis": given(&t.fov_axis),
         "section": given(&t.section),
     });
     let mut def: AttributeDef = serde_json::from_value(value)

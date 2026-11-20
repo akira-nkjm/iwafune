@@ -2,6 +2,7 @@
 //! **KPI と解析の check の対応はここだけ。** check のキーは sat-analysis が決める（キーを変えると `rule_tests` が落ちる）。
 
 use crate::dto::{CheckView, KpiKey, KpiTally, OverviewKpi};
+use fune_model::design::BudgetKind;
 use sat_analysis::spec::Verdict;
 use sat_analysis::thermal::range_item;
 use std::collections::HashMap;
@@ -209,24 +210,29 @@ pub(super) fn rule(key: KpiKey) -> Rule {
 
 /// 概要のカード: 見出しにする KPI と、フッターに値を添える KPI。**概要に出す KPI の選び方と並びはここだけ**（web は一覧を持たない）。
 /// 並びは下の表の順（`OverviewKpi.order`）。測れない KPI のカードは web が出さない（値も判定も判定の数も無いとき）。
-const OVERVIEW: &[(KpiKey, &[KpiKey])] = &[
-    (KpiKey::OrbitBalance, &[]),
-    (KpiKey::MaxDod, &[]),
-    (KpiKey::UnloadInterval, &[KpiKey::PeakMomentum]),
-    (KpiKey::StorageMargin, &[KpiKey::DataPerDay]),
-    (KpiKey::LinkMargin, &[]),
+const OVERVIEW: &[(KpiKey, &[KpiKey], Option<BudgetKind>)] = &[
+    (KpiKey::OrbitBalance, &[], Some(BudgetKind::Power)),
+    (KpiKey::MaxDod, &[], None),
+    (KpiKey::UnloadInterval, &[KpiKey::PeakMomentum], None),
+    (KpiKey::StorageMargin, &[KpiKey::DataPerDay], None),
+    (KpiKey::LinkMargin, &[], None),
     (
         KpiKey::NodesInRange,
         &[KpiKey::MaxTemperature, KpiKey::MinTemperature],
+        None,
     ),
-    (KpiKey::DvWithMargin, &[KpiKey::LoadedPropellant]),
+    (KpiKey::DvWithMargin, &[KpiKey::LoadedPropellant], None),
 ];
 
 /// 概要のカードの見出しにする KPI なら、その並びとフッターの KPI。
 pub(super) fn overview(key: KpiKey) -> Option<OverviewKpi> {
-    let (order, (_, footer)) = OVERVIEW.iter().enumerate().find(|(_, (k, _))| *k == key)?;
+    let (order, (_, footer, budget)) = OVERVIEW
+        .iter()
+        .enumerate()
+        .find(|(_, (k, _, _))| *k == key)?;
     Some(OverviewKpi {
         order: u32::try_from(order).unwrap_or(u32::MAX),
         footer: footer.to_vec(),
+        budget: *budget,
     })
 }

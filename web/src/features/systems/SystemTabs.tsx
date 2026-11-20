@@ -14,9 +14,7 @@ import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { TablePanel } from "@/kit/table/TablePanel";
 import { systemTitle } from "@/lib/design";
-import { AocsModes } from "./aocs/AocsModes";
-import { PowerModes } from "./power/PowerModes";
-import { PowerSeries } from "./power/PowerSeries";
+import { dedicatedViews } from "./dedicated";
 import { hasExtraTab } from "./preload";
 import { SystemOverview } from "./SystemOverview";
 
@@ -52,16 +50,13 @@ export function SystemTabs({
   noAnalyses?: boolean;
 }) {
   const dict = useT();
-  // 電源のモードと時系列は、解析を回した系別のモード表示（`POST /system_modes/power`）。結果は解析の表（ほかの系と同じ）
-  if (system === "power" && tab === "series") return <PowerSeries kase={kase} />;
-  if (system === "power" && tab === "modes") return <PowerModes kase={kase} />;
+  // 専用の表示を持つ系（電源・AOCS）は登録表（`dedicated.tsx`）の表示。結果は解析の表（ほかの系と同じ）
+  const dedicated = dedicatedViews(system);
+  if (tab === "series" && dedicated?.series) return dedicated.series({ design, kase });
+  if (tab === "modes" && dedicated?.modes) return dedicated.modes({ design, kase });
   if (tab === "modes")
     return design && hasModes(system, design.defs) ? (
-      system === "aocs" ? (
-        <AocsModes design={design} />
-      ) : (
-        <SystemModes key={system} design={design} system={system} />
-      )
+      <SystemModes key={system} design={design} system={system} />
     ) : null;
   // 追加の表示（熱の図と熱画像）は、解析の結果と数字の表示がすべてそろってから一度に出す
   const settled = (node: ReactNode) => (
@@ -156,10 +151,10 @@ export function SystemTabs({
 /**
  * そのタブの中身が、ページの本文の高さいっぱいを使って自分の中でスクロールするか（部品 × モードの表）。
  * 表の見出しの行・左の列・下の合計を止めたままにするには、ページの本文ではなく表の中でスクロールさせる必要がある。
- * 独自のモードの見方を持つ系（AOCS のカード、電源の表）は、ふつうにページの本文がスクロールする。
+ * 専用のモードの見方を持つ系（`dedicated.tsx` の登録。AOCS のカード、電源の表）は、ふつうにページの本文がスクロールする。
  */
 export function tabFillsBody(system: System, tab: SystemTab, defs: DefsView | undefined): boolean {
-  return tab === "modes" && hasModes(system, defs) && system !== "aocs" && system !== "power";
+  return tab === "modes" && hasModes(system, defs) && !dedicatedViews(system)?.modes;
 }
 
 /** モードの見方を持つ系だけにタブを出す。どの系が持つかは API（`DefsView.mode_systems`）が返す。 */

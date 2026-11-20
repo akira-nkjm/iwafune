@@ -183,3 +183,17 @@ fn mode_systems_decide_support_and_summary_rows() {
     assert_eq!(rows(System::Thermal), [(L::Heat, F::Total, true)]);
     assert!(rows(System::Aocs).is_empty());
 }
+
+/// モードの表の部品ごとの列は、設計のモードのページと電源が電力、ほかの系は状態の名前。対応する系すべてに 1 つずつある。
+#[test]
+fn mode_levels_cover_the_design_page_and_every_mode_system() {
+    use crate::dto::ModeLevels;
+    let levels = crate::mode_systems::mode_levels();
+    assert_eq!(levels.len(), mode_systems().len() + 1);
+    let of = |system| levels.iter().find(|l| l.system == system).unwrap().levels;
+    assert_eq!(of(None), ModeLevels::PowerLevels);
+    assert_eq!(of(Some(System::Power)), ModeLevels::PowerLevels);
+    for system in [System::Aocs, System::Cdh, System::Thermal] {
+        assert_eq!(of(Some(system)), ModeLevels::States);
+    }
+}
