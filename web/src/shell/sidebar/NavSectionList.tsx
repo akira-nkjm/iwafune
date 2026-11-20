@@ -86,8 +86,8 @@ export function NavSectionList({
                     aria-label={rail ? name : undefined}
                     className={cn(
                       "flex h-8 items-center gap-2.5 overflow-hidden rounded-control border border-transparent px-[11px] text-[13px] text-ink-2 transition-colors hover:bg-panel/70 hover:text-ink",
-                      // 選択中は濃い地に白い字（いちばん目立つ色を、いまいる場所に使う）。ホバーしても色は変えない
-                      "aria-[current=page]:bg-ink aria-[current=page]:font-medium aria-[current=page]:text-inverse aria-[current=page]:shadow-panel aria-[current=page]:hover:bg-ink aria-[current=page]:hover:text-inverse",
+                      // 選択中は青の濃いめの地（accent-ink。白い字とのコントラスト 4.5:1 以上）に白い字。ホバーしても色は変えない
+                      "aria-[current=page]:bg-accent-ink aria-[current=page]:font-medium aria-[current=page]:text-inverse aria-[current=page]:shadow-panel aria-[current=page]:hover:bg-accent-ink aria-[current=page]:hover:text-inverse",
                     )}
                   >
                     <Icon size={16} strokeWidth={1.6} className="shrink-0" />
