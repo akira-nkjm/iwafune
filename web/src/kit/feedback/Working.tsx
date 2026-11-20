@@ -24,8 +24,8 @@ function SrText({ label }: { label: string }) {
 }
 
 /**
- * 前の中身を出したまま読み直しているときの小さなチップ（ロゴのマーク・していること・経過秒）。
- * 置かれて 1 秒たってから現れる（それまでは上端の帯だけ）。位置は `className` で決める（`Refreshing` が右上に置く）。
+ * 表の行のように小さな場所で、前の中身を出したまま読み直しているときの小さなチップ（ロゴのマーク・していること・経過秒）。
+ * 置かれて 1 秒たってから現れる。位置は `className` で決める。広い場所は `Refreshable`（中央のロゴ）を使う。
  */
 export function WorkingChip({ label, className }: { label: string; className?: string }) {
   const shown = useAfter(WORKING_DELAY_MS);

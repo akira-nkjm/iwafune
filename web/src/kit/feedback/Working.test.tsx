@@ -57,6 +57,6 @@ describe("Refreshable（前の中身を残したまま読み直す枠）", () =>
 
   it("操作を止めたいときだけ、中身を触れなくする", () => {
     expect(html(true, true)).toContain("pointer-events-none");
-    expect(html(true, false).match(/pointer-events-none/g)).toHaveLength(1); // 帯だけ
+    expect(html(true, false).match(/pointer-events-none/g)).toHaveLength(2); // 帯と、中央のロゴを置く枠だけ
   });
 });

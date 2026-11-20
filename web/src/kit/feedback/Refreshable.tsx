@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { Refreshing } from "./Loading";
+import { REFRESH_MARK_DELAY_MS } from "./use-working";
+import { Working } from "./Working";
 
 /**
  * 読み直し・再計算の間も前の中身を出しておく枠。`active` の間は、中身を少し薄くし、上端に細い帯を出す
- * （`Refreshing`。少したつとロゴと `label`・経過秒のチップも出る）。中身は動かさないので、枠の大きさは変わらない。
+ * （`Refreshing`）。少したつと、薄くした中身の中央にロゴのマーク・`label`・経過秒も出る（`Working`）。中身は動かさないので、枠の大きさは変わらない。
  * 薄くする（`opacity-50` など）書き方は個々の画面に書かず、この枠を使う。
  * `className` は枠の class（高さの伸ばし方など。`relative` はこの枠が付ける）。
  * `blockInput` のときは、読み直す間は中身を操作できなくする（図のように、古い位置を触らせたくないとき）。
@@ -25,7 +27,18 @@ export function Refreshable({
 }) {
   return (
     <div className={cn("relative", className)}>
-      {active && <Refreshing label={label} />}
+      {active && <Refreshing />}
+      {active && (
+        // 薄くした中身の字と重なっても読めるように、地のある小さな札に入れて中央に置く
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+          <Working
+            label={label}
+            after={REFRESH_MARK_DELAY_MS}
+            announce={false}
+            className="rounded-card border border-line bg-panel px-5 py-4 shadow-sm"
+          />
+        </div>
+      )}
       <div
         aria-busy={active}
         className={cn(

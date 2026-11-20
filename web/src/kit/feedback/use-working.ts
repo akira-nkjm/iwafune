@@ -3,6 +3,9 @@ import { useEffect, useState } from "react";
 /** 待ちの表示（チップ・ロゴ）を出すまでの時間 [ms]。これより短い待ちでは何も足さない */
 export const WORKING_DELAY_MS = 1000;
 
+/** 中身を薄くして読み直す間、中央のロゴを出すまでの時間 [ms]。すぐ終わる読み直しでは薄くなるだけにする */
+export const REFRESH_MARK_DELAY_MS = 300;
+
 /** 出てから `ms` ミリ秒たったか（0 以下なら最初から true）。速い読み込みで表示がちらつかないために使う */
 export function useAfter(ms: number): boolean {
   const [elapsed, setElapsed] = useState(ms <= 0);

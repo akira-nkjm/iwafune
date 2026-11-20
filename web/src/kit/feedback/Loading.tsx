@@ -3,7 +3,7 @@ import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { Skeleton } from "@/ui/skeleton";
 import { Panel } from "../panel/Panel";
-import { Working, WorkingChip } from "./Working";
+import { Working } from "./Working";
 
 /** スケルトンの行の幅（決まった順に繰り返す。毎回同じ形になり、行ごとに長さが違って見える） */
 const WIDTHS = ["w-3/4", "w-1/2", "w-5/6", "w-2/3", "w-2/5", "w-4/5"] as const;
@@ -43,28 +43,22 @@ export function Loading({ children, className }: { children: ReactNode; classNam
 /**
  * 前の中身を出したまま読み直しているときの、上端の細い帯（動き続ける）。親は `relative` にする。
  * `Loading` と同じく少し待ってから現れ、画面読み上げには「読み込み中…」を伝える。
- * `label`（していることの短い文。翻訳済み）を渡すと、1 秒以上かかるときだけ、右上にロゴと経過秒のチップも出す。
- * ふつうは `Refreshable`（中身を薄くする枠）を使う。
+ * 中身を薄くして残すときは `Refreshable`（この帯と、中央のロゴを出す枠）を使う。
  */
-export function Refreshing({ className, label }: { className?: string; label?: string }) {
+export function Refreshing({ className }: { className?: string }) {
   const t = useT();
   return (
-    <>
-      <div
-        role="status"
-        aria-busy="true"
-        className={cn(
-          "loading-appear pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-accent-tint",
-          className,
-        )}
-      >
-        <span className="sr-only">{t.common.loading}</span>
-        <div aria-hidden="true" className="refresh-bar h-full w-1/3 rounded-full bg-accent" />
-      </div>
-      {label && (
-        <WorkingChip label={label} className="pointer-events-none absolute top-2 right-2 z-10" />
+    <div
+      role="status"
+      aria-busy="true"
+      className={cn(
+        "loading-appear pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-accent-tint",
+        className,
       )}
-    </>
+    >
+      <span className="sr-only">{t.common.loading}</span>
+      <div aria-hidden="true" className="refresh-bar h-full w-1/3 rounded-full bg-accent" />
+    </div>
   );
 }
 
