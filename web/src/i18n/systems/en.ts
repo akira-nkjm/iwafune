@@ -148,9 +148,6 @@ export const systemsEn: typeof systemsJa = {
       noRanges: "This node has no temperature ranges",
     },
     thermalImage: {
-      title: "Thermal image",
-      caption:
-        "Parts are colored by their node's temperature. The color scale is fixed across all cases and times",
       source: "Temperature source",
       worst: "Worst across all cases",
       steadyCase: (name: string) => `Steady: ${name}`,
@@ -164,7 +161,6 @@ export const systemsEn: typeof systemsJa = {
       empty: "No thermal analysis results yet",
     },
     node: "Node",
-    thermal3d: "3D colored by temperature",
     thermal3dLegend: "Parts colored by their node's temperature (gray = not in a node)",
     layout3d: {
       browser: "Parts tree",

@@ -144,8 +144,6 @@ export const systemsJa = {
       noRanges: "この節点には温度範囲がありません",
     },
     thermalImage: {
-      title: "熱画像",
-      caption: "節点の温度で部品を塗ります。色の範囲は全ケース・全時刻で一定です",
       source: "温度の出どころ",
       worst: "全ケースの最高",
       steadyCase: (name: string) => `定常: ${name}`,
@@ -159,7 +157,6 @@ export const systemsJa = {
       empty: "熱の解析結果がまだありません",
     },
     node: "節点",
-    thermal3d: "温度で塗った 3D",
     thermal3dLegend: "節点の温度で塗った部品（灰色は節点に入っていない部品）",
     layout3d: {
       browser: "部品のツリー",

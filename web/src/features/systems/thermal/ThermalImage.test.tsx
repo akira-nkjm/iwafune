@@ -86,7 +86,7 @@ describe("熱画像（描画と出どころの選択肢）", () => {
     ]);
     expect(sourceOptions(null, false, labels)).toHaveLength(1);
   });
-  it("結果が無ければ案内を出し、あれば出どころの選択と凡例を出す", () => {
+  it("結果が無ければ案内を出し、あれば 3D を出す（選択と凡例は 3D の枠に渡す。3D は遅れて読むので、ここでは読み込み中）", () => {
     const I = getT().systems.thermalImage;
     expect(
       wrap(<ThermalImage design={fixture} steady={null} transient={null} heat={[]} />),
@@ -94,7 +94,7 @@ describe("熱画像（描画と出どころの選択肢）", () => {
     const html = wrap(
       <ThermalImage design={fixture} steady={steady} transient={transient} heat={[]} />,
     );
-    expect(html).toContain(I.source);
-    expect(html).toContain(I.scale);
+    expect(html).not.toContain(I.empty);
+    expect(html).toContain('role="status"');
   });
 });

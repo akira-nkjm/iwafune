@@ -3,14 +3,17 @@ import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { Formatted } from "@/quantity/Formatted";
 
+/** 整形が届くまでの代わり（生の SI の数は桁が長く、単位も違って見えるので出さない） */
+const PENDING = "…";
+
 /** 温度（SI の K）を API の整形で出す */
 export function Temp({ si }: { si: number }) {
-  return <Formatted si={si} dimension="Temperature" fallback={String(si)} />;
+  return <Formatted si={si} dimension="Temperature" fallback={PENDING} />;
 }
 
 /** 温度差（余裕。K のまま） */
 function Delta({ si }: { si: number }) {
-  return <Formatted si={si} dimension="Temperature" unit="K" fallback={String(si)} />;
+  return <Formatted si={si} dimension="Temperature" unit="K" fallback={PENDING} />;
 }
 
 export const verdictText = {
@@ -46,7 +49,7 @@ export function RangeTip({
       id={id}
       role="tooltip"
       className={cn(
-        "pointer-events-none absolute top-full z-20 mt-1 w-80 rounded-control border border-line bg-panel p-2 text-xs shadow-pop",
+        "pointer-events-none absolute top-full z-20 mt-1 w-max max-w-[min(32rem,90vw)] whitespace-nowrap rounded-control border border-line bg-panel p-2 text-xs shadow-pop",
         className,
       )}
     >
@@ -61,8 +64,8 @@ export function RangeTip({
           <thead className="text-[11px] text-ink-3">
             <tr>
               <th className="font-medium" />
-              <th className="font-medium">{R.range}</th>
-              <th className="font-medium">{R.marginLow}</th>
+              <th className="pr-3 font-medium">{R.range}</th>
+              <th className="pr-3 font-medium">{R.marginLow}</th>
               <th className="font-medium">{R.marginHigh}</th>
             </tr>
           </thead>
@@ -70,12 +73,12 @@ export function RangeTip({
             {ranges.map((r) => (
               <tr key={r.kind} className={verdictText[r.verdict]}>
                 <th className="pr-2 font-medium">{R.kinds[r.kind]}</th>
-                <td className="pr-2">
+                <td className="pr-3">
                   <Temp si={r.range.min} />
                   {t.systems.rangeSep}
                   <Temp si={r.range.max} />
                 </td>
-                <td className="pr-2">
+                <td className="pr-3">
                   <Delta si={r.margin_low} />
                 </td>
                 <td>

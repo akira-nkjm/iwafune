@@ -11,8 +11,6 @@ import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
 import { NativeSelect, type SelectOption } from "@/kit/forms/NativeSelect";
 import { RangeInput } from "@/kit/forms/RangeInput";
-import { Panel } from "@/kit/panel/Panel";
-import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { heatHex } from "@/lib/tone";
 import { Formatted } from "@/quantity/Formatted";
 import { Button } from "@/ui/button";
@@ -107,11 +105,15 @@ export function ThermalImage({
   );
   if (!scale) return <Empty>{I.empty}</Empty>;
   return (
-    <div className="space-y-4">
-      <Panel>
-        <PanelHeader title={I.title} caption={I.caption} />
-        <div className="flex flex-wrap items-center gap-3">
+    // 3D を大きく見せるため、操作は 3D の見出しの帯、凡例は 3D の上、節点の一覧は 3D の右に置く（1 枚のパネル）
+    <LazyLayout3D
+      variant="heat"
+      design={design}
+      colorOf={colorOf}
+      tools={
+        <>
           <NativeSelect
+            size="sm"
             aria-label={I.source}
             value={chosen.option.value}
             onChange={(e) => setValue(e.target.value)}
@@ -120,14 +122,11 @@ export function ThermalImage({
           {series && chosen.source.kind === "transient" && (
             <TimeControl times={series.t} index={index} onIndex={setIndex} />
           )}
-        </div>
-        <Legend scale={scale} />
-      </Panel>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <LazyLayout3D variant="heat" design={design} colorOf={colorOf} />
-        <NodeList temps={temps} heat={heat} scale={scale} />
-      </div>
-    </div>
+        </>
+      }
+      overlay={<Legend scale={scale} />}
+      aside={<NodeList temps={temps} heat={heat} scale={scale} />}
+    />
   );
 }
 
@@ -185,16 +184,9 @@ function TimeControl({
 function Legend({ scale }: { scale: HeatScale }) {
   const I = useT().systems.thermalImage;
   return (
-    <div
-      className="mt-3 flex items-center gap-2 text-ink-2 text-xs"
-      role="img"
-      aria-label={I.scale}
-    >
+    <div className="flex items-center gap-2 text-ink-2 text-xs" role="img" aria-label={I.scale}>
       <Temp si={scale.min} />
-      <span
-        className="h-3 min-w-24 max-w-md flex-1 rounded-sm"
-        style={{ background: gradientOf() }}
-      />
+      <span className="h-3 w-48 max-w-full rounded-sm" style={{ background: gradientOf() }} />
       <Temp si={scale.max} />
     </div>
   );
@@ -212,9 +204,9 @@ function NodeList({
 }) {
   const I = useT().systems.thermalImage;
   return (
-    <Panel>
-      <PanelHeader title={I.nodes} />
-      <ul className="max-h-[420px] space-y-1 overflow-y-auto text-xs">
+    <>
+      <h3 className="mb-2 font-medium text-ink text-sm">{I.nodes}</h3>
+      <ul className="space-y-1 text-xs">
         {[...temps].map(([node, temp]) => (
           <li key={node} className="flex items-center gap-2">
             <span
@@ -236,6 +228,6 @@ function NodeList({
           </li>
         ))}
       </ul>
-    </Panel>
+    </>
   );
 }
