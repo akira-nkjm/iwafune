@@ -96,7 +96,7 @@ export function NavSectionList({
                     // 色の変化が途中で止まり、前の項目の字が白いまま地だけ消える、といった半端な見た目になる
                     className={cn(
                       "flex h-8 items-center gap-3 overflow-hidden rounded-control text-[13px] text-ink-2 hover:bg-panel/70 hover:text-ink",
-                      railItem(rail),
+                      railItem(),
                       // 選択中は青の濃いめの地（accent-ink。白い字とのコントラスト 4.5:1 以上）に白い字。ホバーしても色は変えない
                       "data-[current=true]:bg-accent-ink data-[current=true]:font-medium data-[current=true]:text-inverse data-[current=true]:shadow-panel data-[current=true]:hover:bg-accent-ink data-[current=true]:hover:text-inverse",
                     )}
