@@ -17,6 +17,7 @@
 //! | `edit` | Op の適用と、人が打った文字列（`SetText`・`UnsetText`） |
 //! | `command` | 名詞のコマンドに打った引数（`CommandText`。`fune net set`・`fune part place`・`fune mode set` など） |
 //! | `maneuver` | マヌーバの表示（`ManeuverView`）と `fune maneuver add\|set` の引数（`ManeuverText`） |
+//! | `requirement` | 要求の表示（`RequirementView`）・`fune requirement add\|set` の引数（`RequirementText`）・要求適合表（`ComplianceReport`） |
 //! | `budget` | 質量・電力・データ量のバジェット |
 //! | `kpi` | KPI（系の代表値・判定・塗りの比・判定の数え方）と塗りの比 |
 //! | `overview` | 系の概要の解析の表の行（主な結果・判定のまとまり・小さな棒グラフ・隠す表） |
@@ -42,8 +43,13 @@ mod history;
 pub use format::{FormatDesignRequest, FormatDesignResult};
 mod kpi;
 mod maneuver;
+mod requirement;
 pub use kpi::{FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView, OverviewKpi};
 pub use maneuver::{ManeuverTargetView, ManeuverText, ManeuverView};
+pub use requirement::{
+    ComplianceCase, ComplianceReport, ComplianceRow, ComplianceSummary, ConstraintView,
+    NotVerifiedReason, RequirementText, RequirementView,
+};
 mod overview;
 pub use overview::{
     AnalysisOverview, OverviewBar, OverviewChart, OverviewCheckGroup, OverviewReference,
@@ -98,7 +104,8 @@ pub use fune_model::design::PartField;
 pub use fune_model::design::{
     AttributeDef, Case, CatalogField, CatalogItem, Distribution, Harness, KindDef, Maneuver,
     ManeuverCategory, ManeuverConstraints, ManeuverMethod, ManeuverTarget, ModeSegment, ModeWhen,
-    Net, NetField, NetKind, Pose, Source, SourceKind, StartFrom, StartRef, UncertaintySide,
+    Net, NetField, NetKind, Pose, Requirement, Source, SourceKind, StartFrom, StartRef,
+    UncertaintySide,
 };
 pub use fune_model::design::{BudgetKind, SharedCatalogState, SharedCatalogStatus, StateAssign};
 pub use fune_model::design::{ViewEdge, ViewLayout, ViewNode, ViewPortSide};

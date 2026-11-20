@@ -7,6 +7,7 @@
 //! | `parts` | 部品の行・1 部品の全情報・1 つの値 |
 //! | `pose` | 部品の配置の表示（取付・取付点・機体座標の位置と姿勢の角度。位置は 1 部品で同じ単位） |
 //! | `maneuvers` | マヌーバ（実行の順・目標の要素・編集の欄の初期値） |
+//! | `requirements` | 要求（制約の文・編集の欄の初期値。ID 順） |
 //! | `catalog` | カタログ品（値・パス・使っている部品・書き換えられるか） |
 //! | `sources` | 出典の台帳（Web のリンク・ファイル）とデータシートのリンク |
 //! | `values` | 解決済みの値・書かれた量 → 表示用の型 |
@@ -17,6 +18,7 @@ pub(crate) mod maneuvers;
 mod net_class;
 mod parts;
 mod pose;
+pub(crate) mod requirements;
 pub(crate) mod settings;
 mod sources;
 pub(crate) mod values;
@@ -92,6 +94,7 @@ pub fn design_view(ws: &Workspace) -> Result<DesignView> {
         settings: settings::settings(d),
         cases: views::cases(d),
         maneuvers: maneuvers::maneuvers(d),
+        requirements: requirements::requirements(d),
         sources: sources::sources(d),
         catalog: catalog::list(d),
         views: d.views.values().cloned().collect(),
@@ -111,6 +114,11 @@ pub fn catalog_item(ws: &Workspace, id: &str) -> Result<crate::dto::CatalogItemV
 /// 図（`view/<id>.toml`）の配置（`fune view ls`。`GET /design` の `views` の 1 件）。まだ無い図は `None`（エラーにしない）。
 pub fn view_layout(ws: &Workspace, id: &str) -> Result<Option<crate::dto::ViewLayout>> {
     Ok(ws.snapshot()?.design.views.get(id).cloned())
+}
+
+/// 要求の一覧（ID 順。`GET /requirements`・`fune requirement ls`）。
+pub fn requirements(ws: &Workspace) -> Result<Vec<crate::dto::RequirementView>> {
+    Ok(requirements::requirements(&ws.snapshot()?.design))
 }
 
 /// マヌーバの一覧（実行の順。`GET /maneuvers`・`fune maneuver ls`）。

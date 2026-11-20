@@ -10,6 +10,7 @@
 //! | `defs` | 定義（属性・種別）の Op（足す・置き換える・消す） |
 //! | `others` | モード・ネット・図・設定の Op |
 //! | `records` | 解析ケース・出典・ハーネスの Op |
+//! | `requirements` | 要求の Op（足す・書く・消す） |
 //! | `catalog` | カタログ品の Op（このプロジェクトの `catalog/` だけ） |
 //! | `catalog_source` | カタログの出所の Op（fune.toml の共有カタログ `[[catalog]] git = …` を足す・外す） |
 //! | `subdir` | ディレクトリの下に置けるエンティティ（カタログ品・出典）の Op に共通の計画（ディレクトリを選ぶ・移す） |
@@ -22,6 +23,7 @@ mod defs;
 mod others;
 mod parts;
 mod records;
+mod requirements;
 mod subdir;
 
 use crate::error::OpError;
@@ -147,6 +149,9 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::CreateManeuver { .. }
         | Op::SetManeuver { .. }
         | Op::RemoveManeuver { .. } => records::interpret(edits, design, op),
+        Op::CreateRequirement { .. } | Op::SetRequirement { .. } | Op::RemoveRequirement { .. } => {
+            requirements::interpret(edits, design, op)
+        }
         _ => others::interpret(edits, design, op),
     }
 }

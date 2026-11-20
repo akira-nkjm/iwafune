@@ -3,6 +3,7 @@
 mod defs;
 mod nouns;
 mod records;
+mod requirements;
 
 pub use defs::{AttrAddArgs, AttrCmd, KindAddArgs, KindCmd};
 pub use nouns::{
@@ -13,6 +14,7 @@ pub use records::{
     CaseArgs, CaseCmd, CatalogCmd, CatalogSourceCmd, HarnessArgs, HarnessCmd, ManeuverArgs,
     ManeuverCmd, PointArgs, SourceArgs, SourceCmd,
 };
+pub use requirements::{RequirementArgs, RequirementCmd};
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
@@ -149,6 +151,9 @@ pub enum Command {
     /// Maneuvers (maneuvers/)
     #[command(subcommand)]
     Maneuver(ManeuverCmd),
+    /// Requirements (requirements/) and the compliance table
+    #[command(subcommand)]
+    Requirement(RequirementCmd),
     /// Diagram layout (node positions of the system diagrams)
     #[command(subcommand)]
     View(ViewCmd),

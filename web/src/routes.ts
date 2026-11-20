@@ -10,6 +10,7 @@ export default [
     route("design/modes", "routes/modes.tsx"),
     route("design/layout", "routes/layout3d.tsx"),
     route("design/maneuvers/:id?", "routes/maneuvers.tsx"),
+    route("design/requirements/:tab?", "routes/requirements.tsx"),
     route("project/defs/:tab?", "routes/defs.tsx"),
     route("systems/:system/:tab?", "routes/system.tsx"),
     route("conditions/orbit", "routes/conditions-orbit.tsx"),

@@ -15,6 +15,7 @@
 //! | `units` | 単位の一覧・入力文字列の解析 |
 //! | `analysis` | 解析の一覧・実行・KPI（代表値・判定・塗りの比） |
 //! | `budget` | 質量・電力・データ量のバジェット |
+//! | `requirements` | 要求適合表（要求ごとに、確かめる先の解析・バジェットの判定を量化したケースで集める） |
 //! | `mode_systems` | モードの見方を持つ系の一覧（`DefsView.mode_systems` と `system_modes` の対応判定の共通の置き場。ほかの module に依存しない） |
 //! | `system_modes` | 系ごとのモードの見方（電源・C&DH・熱・AOCS の値・合計・判定） |
 //! | `data` | 外部データ（DE440・宇宙天気）の取得・状態・読み込み（ユーザーごとのキャッシュ）、日付からの宇宙天気 |
@@ -36,6 +37,7 @@ pub mod history;
 pub mod mode_systems;
 pub mod preview;
 pub mod query;
+pub mod requirements;
 pub mod self_update;
 pub mod shared_catalog;
 pub mod system_modes;

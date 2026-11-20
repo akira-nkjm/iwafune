@@ -1,0 +1,12 @@
+label     = "Star tracker field of view"
+statement = "The Sun and the Moon shall not intrude into the star tracker field of view."
+quantity  = "Dimensionless"
+source    = "sys_judgement"
+
+[constraint]
+kind  = "at_most"
+value = { value = 0.0, unit = "%" }
+
+[verify]
+analysis = "aocs.sensor_fov"
+check    = "intrusion:STT"

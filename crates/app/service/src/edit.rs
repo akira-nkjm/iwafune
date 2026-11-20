@@ -8,6 +8,7 @@
 //! | `command` | 名詞のコマンドの引数（[`command_ops`]。`fune net set|unset`・`fune part place`・`fune mode set|unset`） |
 //! | `defs` | `fune attr add`・`fune kind add` |
 //! | `eclipse` | 季節解析の代表標本から新しい解析ケースの SetCase を作る |
+//! | `requirement` | `fune requirement add\|set` の引数（[`requirement_op`]。逆の向きは `query::requirements`） |
 //! | `maneuver` | `fune maneuver add\|set` の引数（[`maneuver_op`]。逆の向きは `query::maneuvers`） |
 //! | `place` | `fune part place` の取付・位置・姿勢（[`place_op`]。姿勢の角度 `--rotation` は [`rotation_from_text`]）と、機体座標での配置（`--body-pos`・`POST /parts/{id}/place_body`） |
 
@@ -26,6 +27,7 @@ mod defs;
 mod eclipse;
 mod maneuver;
 mod place;
+mod requirement;
 mod text;
 
 pub use catalog::catalog_source_add_op;
@@ -40,6 +42,7 @@ pub use eclipse::case_from_eclipse_op;
 pub use fune_ops::{to_cli, to_cli_script};
 pub use maneuver::maneuver_op;
 pub use place::{place_body, place_body_op, place_op, rotation_from_text};
+pub use requirement::requirement_op;
 pub use text::{
     SetText, UnsetText, list_from_text, maturity, net_kind, pair_from_text, points_from_text,
     quantity_from_text, quaternion_from_text, vector_from_text, xy_from_text,

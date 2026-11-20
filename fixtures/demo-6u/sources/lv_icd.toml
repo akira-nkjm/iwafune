@@ -1,0 +1,4 @@
+kind     = "datasheet"
+label    = "Launch vehicle interface document (fictional)"
+ref      = "ICD-LV-001"
+revision = "Rev. B"

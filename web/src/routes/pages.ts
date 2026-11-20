@@ -38,6 +38,10 @@ export const pages = {
     () => import("@/features/maneuvers/ManeuversPage"),
     (m) => m.ManeuversPage,
   ),
+  requirements: page(
+    () => import("@/features/requirements/RequirementsPage"),
+    (m) => m.RequirementsPage,
+  ),
   defs: page(
     () => import("@/features/defs/DefsPage"),
     (m) => m.DefsPage,
@@ -91,6 +95,7 @@ export const preloadPlan: PreloadPlan = {
     pages.catalog,
     pages.modes,
     pages.maneuvers,
+    pages.requirements,
     pages.defs,
     pages.system,
     pages.orbit,

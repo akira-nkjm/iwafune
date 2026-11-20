@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 
 #[path = "serde_roundtrip/samples.rs"]
 mod samples;
-use samples::{maneuver, net};
+use samples::{maneuver, net, requirement};
 
 /// 種類の名前（ワイルドカードを使わない。種類が増えたら見本を足す）。
 fn name(op: &Op) -> &'static str {
@@ -69,6 +69,9 @@ fn name(op: &Op) -> &'static str {
         Op::CreateManeuver { .. } => "CreateManeuver",
         Op::SetManeuver { .. } => "SetManeuver",
         Op::RemoveManeuver { .. } => "RemoveManeuver",
+        Op::CreateRequirement { .. } => "CreateRequirement",
+        Op::SetRequirement { .. } => "SetRequirement",
+        Op::RemoveRequirement { .. } => "RemoveRequirement",
         Op::SetViewLayout { .. } => "SetViewLayout",
         Op::SetViewEdge { .. } => "SetViewEdge",
         Op::UnsetViewEdge { .. } => "UnsetViewEdge",
@@ -366,6 +369,15 @@ fn other_ops() -> Vec<Op> {
             maneuver: maneuver(),
         },
         Op::RemoveManeuver { id: "RAISE".into() },
+        Op::CreateRequirement {
+            requirement: requirement(),
+        },
+        Op::SetRequirement {
+            requirement: requirement(),
+        },
+        Op::RemoveRequirement {
+            id: "R_MASS".into(),
+        },
         Op::SetViewEdge {
             view: "electrical".into(),
             key: "P12V:PCDU.OUT1->RW_X.PWR".into(),
@@ -412,7 +424,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 54, "some op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 57, "some op kinds have no sample: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =

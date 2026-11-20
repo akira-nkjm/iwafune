@@ -82,6 +82,7 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         RunAnalysisRequest,
         AnalysisRunResult,
         CheckView,
+        ComplianceReport,
     );
     fune_projection::dispatch::export_ts(cfg)?;
     fune_projection::dispatch::visit_ts(&mut names);
