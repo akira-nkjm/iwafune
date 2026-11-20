@@ -33,12 +33,13 @@ export function Sidebar() {
     <aside
       id={SIDEBAR_ID}
       className={cn(
-        "flex h-dvh shrink-0 flex-col overflow-hidden py-4",
+        "flex h-dvh shrink-0 flex-col overflow-hidden px-2 py-4",
         SIDEBAR_MOTION,
-        "transition-[width,padding]",
+        "transition-[width]",
         // 畳んだ幅は 64 px: ロゴ（32 px）とアイコンの正方形の枠（32 px）の左右に 16 px ずつ。
-        // ロゴの左端は開いていても畳んでも端から 16 px で動かない（開いているときは余白 8 px + ロゴの行の 8 px）
-        rail ? "w-16 px-4" : "w-sidebar px-2",
+        // サイドバーの余白（8 px）は開閉で変えない。ロゴの行はいつも同じ位置（端から 16 px）で、
+        // ロゴより下だけを、畳んだときに 8 px 内側へ寄せる（下の `rail ? "px-2"`）
+        rail ? "w-16" : "w-sidebar",
       )}
     >
       <BrandToggle rail={rail} onToggle={toggle} />
@@ -58,40 +59,48 @@ export function Sidebar() {
           </div>
         </div>
       </div>
-      <CommandSearch rail={rail} />
-      <nav
-        aria-label={t.nav.main}
-        className="no-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto"
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col transition-[padding]",
+          SIDEBAR_MOTION,
+          rail ? "px-2" : "px-0",
+        )}
       >
-        {nav(design.data?.defs.systems ?? []).map((sec) => (
-          <NavSectionList
-            key={sec.id}
-            section={sec}
+        <CommandSearch rail={rail} />
+        <nav
+          aria-label={t.nav.main}
+          className="no-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto"
+        >
+          {nav(design.data?.defs.systems ?? []).map((sec) => (
+            <NavSectionList
+              key={sec.id}
+              section={sec}
+              rail={rail}
+              closed={closedSections.has(sec.id)}
+              onToggle={() => toggleSection(sec.id)}
+            />
+          ))}
+        </nav>
+        {/* 下の欄は開いたときと畳んだときで中身が違うので、高さを滑らかに変えて入れ替える（RailSwap） */}
+        <div className="mt-3 border-line border-t pt-3">
+          <RailSwap
             rail={rail}
-            closed={closedSections.has(sec.id)}
-            onToggle={() => toggleSection(sec.id)}
-          />
-        ))}
-      </nav>
-      {/* 下の欄は開いたときと畳んだときで中身が違うので、高さを滑らかに変えて入れ替える（RailSwap） */}
-      <div className="mt-3 border-line border-t pt-3">
-        <RailSwap
-          rail={rail}
-          full={
-            <div className="space-y-2">
-              <CommitChip />
-              <div className="px-2">
-                <LanguageSwitch />
+            full={
+              <div className="space-y-2">
+                <CommitChip />
+                <div className="px-2">
+                  <LanguageSwitch />
+                </div>
               </div>
-            </div>
-          }
-          compact={
-            <div className="space-y-2">
-              <CommitChip rail />
-              <LanguageSwitch rail />
-            </div>
-          }
-        />
+            }
+            compact={
+              <div className="space-y-2">
+                <CommitChip rail />
+                <LanguageSwitch rail />
+              </div>
+            }
+          />
+        </div>
       </div>
     </aside>
   );
