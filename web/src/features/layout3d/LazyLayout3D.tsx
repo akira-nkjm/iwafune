@@ -19,7 +19,7 @@ export function LazyLayout3D(props: Layout3DProps) {
   return (
     <Suspense
       fallback={
-        // チャンクの読み込みが 1 秒を超えるときだけ、スケルトンの上に中央のロゴとして出す
+        // 3D は読み込みが済むまで何も描けないので、最初からスケルトンの上に中央のロゴを出す
         <div className={fill ? "relative flex min-h-0 flex-1 flex-col" : "relative"}>
           <Loading className={fill ? "flex min-h-0 flex-1 flex-col" : undefined}>
             <SkeletonBlock
@@ -28,6 +28,7 @@ export function LazyLayout3D(props: Layout3DProps) {
           </Loading>
           <Working
             label={t.common.working.drawing3d}
+            after={0}
             announce={false}
             className="absolute inset-0"
           />

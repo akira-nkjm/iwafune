@@ -9,6 +9,15 @@ import { Working, WorkingChip } from "./Working";
 const WIDTHS = ["w-3/4", "w-1/2", "w-5/6", "w-2/3", "w-2/5", "w-4/5"] as const;
 const width = (i: number) => WIDTHS[i % WIDTHS.length];
 
+/** 図のスケルトンのカードの位置 */
+const CANVAS_CARDS = [
+  "left-[8%] top-[14%]",
+  "left-[40%] top-[10%]",
+  "left-[70%] top-[18%]",
+  "left-[22%] top-[52%]",
+  "left-[56%] top-[56%]",
+] as const;
+
 /** 行と列の key（並べ替えない固定の並びなので、番号から作った名前を使う） */
 const KEYS = Array.from({ length: 40 }, (_, i) => `k${i}`);
 const keys = (n: number) => KEYS.slice(0, Math.min(n, KEYS.length));
@@ -197,22 +206,20 @@ export function SkeletonPage({
 }
 
 /**
- * 図（システム図のキャンバス）。`label`（していること。翻訳済み）を渡すと、1 秒以上待つときだけ中央に
- * ロゴのマークと経過秒を重ねる（位置の計算など、中身がまだ出せない長い待ち）。
+ * 図（システム図のキャンバス）。`label`（していること。翻訳済み）を渡すと、最初から中央にロゴのマークと経過秒を出す
+ * （図は位置の計算が済むまで何も描けないので、形だけのスケルトンよりも、していることを伝える）。
+ * `label` が無ければ、カードの形のスケルトン。
  */
 export function SkeletonCanvas({ label }: { label?: string }) {
   return (
     <div className="relative min-h-[420px] flex-1 border-line border-t bg-panel-2/40">
-      {[
-        "left-[8%] top-[14%]",
-        "left-[40%] top-[10%]",
-        "left-[70%] top-[18%]",
-        "left-[22%] top-[52%]",
-        "left-[56%] top-[56%]",
-      ].map((pos) => (
-        <Skeleton key={pos} className={cn("absolute h-24 w-44 rounded-card", pos)} />
-      ))}
-      {label && <Working label={label} announce={false} className="absolute inset-0" />}
+      {label ? (
+        <Working label={label} after={0} announce={false} className="absolute inset-0" />
+      ) : (
+        CANVAS_CARDS.map((pos) => (
+          <Skeleton key={pos} className={cn("absolute h-24 w-44 rounded-card", pos)} />
+        ))
+      )}
     </div>
   );
 }
