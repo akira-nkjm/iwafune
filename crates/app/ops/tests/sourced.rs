@@ -63,7 +63,7 @@ fn set_value_changes_exactly_one_line() {
     };
     let p = plan(&snap, &[op]).unwrap();
     assert_eq!(p.changes.len(), 1);
-    assert_eq!(p.changes[0].path, "parts/aocs/RW_X.toml");
+    assert_eq!(p.changes[0].path, "parts/aocs/RW/RW_X.toml");
     let (removed, added) = changed_lines(&p.changes[0]);
     assert_eq!(removed, vec!["value       = 0.152".to_string()]);
     assert_eq!(added, vec!["value       = 0.155".to_string()]);

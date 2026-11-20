@@ -46,7 +46,7 @@ fn view_follows_the_position_in_the_history() {
     let h = history::view(&ws).unwrap();
     assert_eq!(h.entries.len(), 2);
     assert!(h.can_undo && !h.can_redo);
-    assert_eq!(h.entries[0].files, ["parts/aocs/RW_Y.toml"]);
+    assert_eq!(h.entries[0].files, ["parts/aocs/RW/RW_Y.toml"]);
     let undone = history::undo(&ws).unwrap();
     assert_eq!(undone.action, HistoryAction::Undo);
     assert_eq!(undone.changed.len(), 1);

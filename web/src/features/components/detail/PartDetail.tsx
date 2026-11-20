@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { FolderPlus, Pencil, Plus, Trash2 } from "lucide-react";
 import { q } from "@/api/queries";
 import type { DesignView, PartRow, StateAssign } from "@/api/types";
 import { localized, useT } from "@/i18n";
@@ -12,6 +12,7 @@ import { nodeLabel } from "@/lib/design";
 import { systemTone } from "@/lib/systems";
 import { Button } from "@/ui/button";
 import { DeletePartDialog } from "../DeletePartDialog";
+import { GroupPartsDialog } from "../groups/GroupPartsDialog";
 import { AddParameterDialog } from "../parameters/AddParameterDialog";
 import { RenamePartDialog } from "../RenamePartDialog";
 import { AttrTable } from "./AttrTable";
@@ -59,7 +60,7 @@ export function PartDetail({
   const cells = detail.data?.modes ?? modesFromTable(design, item.id);
   const diagnostics =
     detail.data?.diagnostics ?? design.diagnostics.filter((d) => d.part === item.id);
-  const dialogs = useDialogs<"param" | "rename" | "delete">();
+  const dialogs = useDialogs<"param" | "rename" | "delete" | "group">();
   const shown = new Set(sections.flatMap((s) => s.attrs));
   const rest = Object.keys(part.values).filter((id) => !shown.has(id));
 
@@ -79,6 +80,13 @@ export function PartDetail({
                 <Plus size={13} />
                 {t.addParam}
               </Button>
+              {part.parent && (
+                <DetailAction
+                  icon={FolderPlus}
+                  label={t.group}
+                  onClick={() => dialogs.show("group")}
+                />
+              )}
               <DetailAction icon={Pencil} label={t.rename} onClick={() => dialogs.show("rename")} />
               <DetailAction icon={Trash2} label={t.remove} onClick={() => dialogs.show("delete")} />
             </>
@@ -131,6 +139,9 @@ export function PartDetail({
       )}
       {dialogs.current === "param" && (
         <AddParameterDialog {...dialogs.props} design={design} part={part} />
+      )}
+      {dialogs.current === "group" && (
+        <GroupPartsDialog {...dialogs.props} design={design} part={part} onDone={() => {}} />
       )}
       {dialogs.current === "rename" && (
         <RenamePartDialog {...dialogs.props} part={part} onDone={onSelect} />

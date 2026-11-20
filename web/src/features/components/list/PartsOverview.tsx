@@ -7,13 +7,14 @@ import { Packed } from "@/kit/Packed";
 import { kindLabel, nodeName, systemTree } from "@/lib/design";
 import { systemTone } from "@/lib/systems";
 import type { Tone } from "@/lib/tone";
+import { GroupActions } from "../groups/GroupActions";
 
 /**
  * コンポーネントの「一覧」のタブ: サブシステム（Group）の枠ごとに部品のカードを並べる（製品ツリーの形のまま）。
  * カードは役割のアイコン・種類（種別定義の表示名）・ID と、員数（2 以上のとき右上の数。重ねて描く）。組立品は枠の中の
  * 小さな枠で、見出しを押すと組立品そのものを選び、子の部品をその中に並べる。サブシステムの枠は隙間が少なくなるよう
  * 詰めて並べる（`kit/Packed.tsx`）。表示するのは絞り込んだ部品（`items`）と、それを含む枠だけ。
- * 枠の名前は表示の言語の名前だけ（英語は ID、日本語は表示名）。
+ * 枠の名前は表示の言語の名前だけ（英語は ID、日本語は表示名）。入れ子のグループの枠には名前の変更と解除の操作が付く。
  */
 export function PartsOverview({
   design,
@@ -101,7 +102,15 @@ function Box({
   const assembly = node?.node === "part";
   const row = node ? ctx.rows.get(node.id) : undefined;
   const tone: Tone = node ? systemTone(row?.system ?? node.system) : "gray";
-  const prefix = assembly ? td.overviewAssembly : node ? td.overviewSubsystem : "";
+  // 親を持つ Group は系の下の入れ子のグループ（名前の変更と解除ができる）
+  const nestedGroup = node?.node === "group" && node.parent !== null;
+  const prefix = assembly
+    ? td.overviewAssembly
+    : nestedGroup
+      ? td.overviewGroup
+      : node
+        ? td.overviewSubsystem
+        : "";
   return (
     <GroupBox
       tone={tone}
@@ -110,6 +119,7 @@ function Box({
       nested={nested}
       selected={assembly && ctx.selected === node?.id}
       onSelectHeading={assembly && node ? () => ctx.onSelect(node.id) : undefined}
+      actions={nestedGroup && node ? <GroupActions group={node} nodes={ctx.nodes} /> : undefined}
     >
       {cards.length > 0 && (
         <CardGrid count={cards.length}>

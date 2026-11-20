@@ -156,6 +156,7 @@ fn undo_handles_renamed_deleted_and_created_files() {
         Op::CreatePart {
             id: "RW_S".into(),
             group: Some("aocs".into()),
+            group_under: vec![],
             catalog: Some("local/rw_10mNms".into()),
             kind: None,
             count: None,

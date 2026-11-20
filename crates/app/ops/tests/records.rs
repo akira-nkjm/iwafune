@@ -173,6 +173,7 @@ fn every_op_has_a_cli_form() {
         Op::MovePart {
             id: "X".into(),
             to: None,
+            under: vec![],
         },
         Op::UnsetValue {
             part: "X".into(),

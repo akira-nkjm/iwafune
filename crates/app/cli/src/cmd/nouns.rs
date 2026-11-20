@@ -21,28 +21,36 @@ pub fn part(c: &PartCmd) -> Built<'_> {
             label,
             mode_state,
             edit,
-        } => (
-            Op::CreatePart {
-                id: id.clone(),
-                group: group.clone(),
-                catalog: catalog.clone(),
-                kind: kind.clone(),
-                count: *count,
-                label: label.clone(),
-                mode_state: mode_state.clone(),
-            },
-            edit,
-        ),
+        } => {
+            let (group, group_under) = group_text(group.as_deref())?;
+            (
+                Op::CreatePart {
+                    id: id.clone(),
+                    group,
+                    group_under,
+                    catalog: catalog.clone(),
+                    kind: kind.clone(),
+                    count: *count,
+                    label: label.clone(),
+                    mode_state: mode_state.clone(),
+                },
+                edit,
+            )
+        }
         PartCmd::Rm { id, edit } => (Op::RemovePart { id: id.clone() }, edit),
         PartCmd::Mv {
             id, group, edit, ..
-        } => (
-            Op::MovePart {
-                id: id.clone(),
-                to: group.clone(),
-            },
-            edit,
-        ),
+        } => {
+            let (to, under) = group_text(group.as_deref())?;
+            (
+                Op::MovePart {
+                    id: id.clone(),
+                    to,
+                    under,
+                },
+                edit,
+            )
+        }
         PartCmd::Rename { id, to, edit } => (
             Op::RenamePart {
                 id: id.clone(),
@@ -62,6 +70,17 @@ pub fn part(c: &PartCmd) -> Built<'_> {
         PartCmd::Ls { .. } | PartCmd::Show { .. } => return Ok(None),
     };
     Ok(Some((op, e)))
+}
+
+/// 置き先の文字列（`aocs/RW`）→ (`to`、親の連鎖)。読み方は GUI と同じ `edit::group_target`。
+fn group_text(text: Option<&str>) -> anyhow::Result<(Option<String>, Vec<String>)> {
+    match text {
+        Some(t) => {
+            let (to, under) = edit::group_target(t)?;
+            Ok((Some(to), under))
+        }
+        None => Ok((None, Vec::new())),
+    }
 }
 
 /// `fune part place` → `Place`（位置と姿勢の文字列は GUI の配置の欄と同じ `edit::place_op` が読む）。

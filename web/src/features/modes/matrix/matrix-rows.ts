@@ -109,7 +109,7 @@ function cellsOf(
 /**
  * モード表（API の `ModeTable`）・下書き・下書きを当てた系別 DTO → 行列に出す行。
  * 定義では全ての部品を、系別表示では API が値を返す部品を、サブシステムの ID・部品の ID の順に、
- * サブシステムごとにまとめて並べる。値の計算はせず、API の値を並べるだけ。
+ * サブシステムごとにまとめ（その中では、入れ子のグループの部品を隣り合わせる）て並べる。値の計算はせず、API の値を並べるだけ。
  */
 export function matrixGroups(
   design: DesignView,
@@ -122,13 +122,22 @@ export function matrixGroups(
   const table = design.modes;
   const parts = partById(design);
   const groupOf = (row: ModeRow) => parts.get(row.part)?.system ?? null;
+  // 系の下の入れ子のグループ（`RW` など）に入っている部品は、そのグループの中で隣り合わせる（直下の部品が先）
+  const groupIds = new Set(design.tree.filter((n) => n.node === "group").map((n) => n.id));
+  const subgroupOf = (row: ModeRow) => {
+    const parent = parts.get(row.part)?.parent ?? "";
+    return groupIds.has(parent) && parent !== groupOf(row) ? parent : "";
+  };
   const rows = table.rows
     .filter(
       (r) =>
         !system || view?.modes.some((m) => r.part in m.sunlit.parts || r.part in m.eclipse.parts),
     )
     .sort(
-      (a, b) => (groupOf(a) ?? "").localeCompare(groupOf(b) ?? "") || a.part.localeCompare(b.part),
+      (a, b) =>
+        (groupOf(a) ?? "").localeCompare(groupOf(b) ?? "") ||
+        subgroupOf(a).localeCompare(subgroupOf(b)) ||
+        a.part.localeCompare(b.part),
     );
   const groups: MatrixGroup[] = [];
   rows.forEach((row, index) => {

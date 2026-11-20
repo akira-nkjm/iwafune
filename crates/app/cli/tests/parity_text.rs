@@ -161,7 +161,7 @@ fn gui_part_text_edits_match_cli() {
     }
     let trx = std::fs::read_to_string(http_root.join("parts/comm/UHF_TRX.toml")).unwrap();
     assert!(!trx.contains("4.2"), "do not keep the removed cell:\n{trx}");
-    let rw = std::fs::read_to_string(http_root.join("parts/aocs/RW_X.toml")).unwrap();
+    let rw = std::fs::read_to_string(http_root.join("parts/aocs/RW/RW_X.toml")).unwrap();
     assert!(rw.contains("count") && !rw.contains("label"), "{rw}");
 }
 

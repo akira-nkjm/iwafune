@@ -5,7 +5,7 @@ import { type Tone, toneHex, toneText } from "@/lib/tone";
 /**
  * 見出し付きの枠（色の点・小さな前置きの文字・題）。中身はカードの格子（`CardGrid`）と入れ子の枠（`NestedBoxes`）など。
  * `onSelectHeading` を渡すと見出しが押せるボタンになり（空いた所の選択解除を止める）、`selected` で枠に輪を付ける。
- * `nested` は別の枠の中の小さな枠（影なし・地を濃く）。
+ * `nested` は別の枠の中の小さな枠（影なし・地を濃く）。`actions` は見出しの右端に置く操作（名前の変更など）。
  */
 export function GroupBox({
   tone,
@@ -14,6 +14,7 @@ export function GroupBox({
   nested = false,
   selected = false,
   onSelectHeading,
+  actions,
   children,
 }: {
   tone: Tone;
@@ -24,6 +25,8 @@ export function GroupBox({
   selected?: boolean;
   /** 渡すと見出しを押せるボタンにする */
   onSelectHeading?: () => void;
+  /** 見出しの右端の操作 */
+  actions?: ReactNode;
   children?: ReactNode;
 }) {
   const heading = (
@@ -45,20 +48,23 @@ export function GroupBox({
         selected && "ring-2 ring-accent",
       )}
     >
-      {onSelectHeading ? (
-        <button
-          type="button"
-          className="mb-3 flex items-center gap-2 rounded text-[13px] hover:underline"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSelectHeading();
-          }}
-        >
-          {heading}
-        </button>
-      ) : (
-        <h3 className="mb-3 flex items-center gap-2 text-[13px]">{heading}</h3>
-      )}
+      <div className="mb-3 flex items-center gap-2">
+        {onSelectHeading ? (
+          <button
+            type="button"
+            className="flex items-center gap-2 rounded text-[13px] hover:underline"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectHeading();
+            }}
+          >
+            {heading}
+          </button>
+        ) : (
+          <h3 className="flex items-center gap-2 text-[13px]">{heading}</h3>
+        )}
+        {actions}
+      </div>
       {children}
     </section>
   );
