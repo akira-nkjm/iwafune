@@ -181,6 +181,7 @@ export const systemsJa = {
       moved: (id: string) => `${id} を動かした`,
       placementOf: (id: string) => `${id} の配置`,
       hint: "箱を選ぶと、取付と位置・姿勢を数値で編集できます。",
+      noSize: "大きさ（size）がまだ無いので、取付点の印（ひし形）で描いています。",
       unplaced: "未配置",
       axes: "軸・法線・視線",
       axesLegend: "青 = スピン軸、水色 = MTQ 軸、黄 = 法線、赤 = 視線、紺 = 推力",

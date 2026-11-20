@@ -38,7 +38,7 @@ fn demo_loads_without_errors_or_warnings() {
     assert_eq!(
         design
             .parts
-            .get("CELLS")
+            .get("CELL_MOD_1")
             .and_then(|p| p.parent.as_ref())
             .map(|n| n.id().to_string()),
         Some("SAP_PY".to_string())
@@ -122,7 +122,7 @@ fn demo_directions_in_the_body_frame() {
         ("SP_MX", "normal", [-1.0, 0.0, 0.0]),
         ("SP_PY", "normal", [0.0, 1.0, 0.0]),
         ("SP_MY", "normal", [0.0, -1.0, 0.0]),
-        ("CELLS", "normal", [1.0, 0.0, 0.0]),
+        ("CELL_MOD_1", "normal", [1.0, 0.0, 0.0]),
         ("RW_X", "spin_axis", [1.0, 0.0, 0.0]),
         ("RW_Y", "spin_axis", [0.0, 1.0, 0.0]),
         ("RW_Z", "spin_axis", [0.0, 0.0, 1.0]),

@@ -17,7 +17,7 @@ import { cn } from "@/lib/cn";
 import { HelperToggles } from "./HelperToggles";
 import { LayoutBrowser } from "./LayoutBrowser";
 import { Scene3D, type SceneEdit, type TransformMode } from "./Scene3D";
-import { axesOf, boxesOf, DEFAULT_STRUCTURE_OPACITY, fovsOf, type V3 } from "./scene";
+import { axesOf, boxesOf, DEFAULT_STRUCTURE_OPACITY, fovsOf, hasSize, type V3 } from "./scene";
 import { DEFAULT_SCENE_HELPERS, type FocusRequest, type SceneHelpers } from "./visibility";
 
 /** 移動のスナップ（選択肢の値は名前。刻み [m] は表から引く。選んだ文字列を数として読まない） */
@@ -337,6 +337,7 @@ function Inspector({
     >
       {part ? (
         <DetailSection title={L.placementOf(part.id)}>
+          {!hasSize(part) && <p className="mb-2 text-ink-3 text-xs">{L.noSize}</p>}
           <PlacementSection
             key={`${part.id}-${design.project.revision}`}
             design={design}
