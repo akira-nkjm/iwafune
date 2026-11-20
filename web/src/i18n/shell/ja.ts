@@ -28,8 +28,6 @@ export const shellJa = {
   shell: {
     openSidebar: "サイドバーを開く（⌘B）",
     closeSidebar: "サイドバーを閉じる（⌘B）",
-    addPart: "コンポーネント追加",
-    addPartKey: "コンポーネント追加（N）",
     search: "検索",
     searchKey: "検索（⌘K）",
     searchTitle: "検索",
