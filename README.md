@@ -13,39 +13,24 @@
 </p>
 
 <p align="center">
-  <b>Design data in git</b> · <b>CLI and GUI as equals</b> · <b>16 subsystem analyses</b>
+  <b>Design data in git</b> · <b>CLI and GUI as equals</b> · <b>27 analyses across 8 areas</b>
 </p>
 
 iwafune is a workbench for the conceptual design of small satellites. The design lives in a git-friendly
-directory of TOML files. You edit it from either the `fune` CLI or a web GUI, and run analyses for power,
-AOCS, C&DH, communications, power, propulsion, structure and thermal on the same data.
+directory of TOML files. You edit it from either the `fune` CLI or a web GUI, and run subsystem analyses
+on the same data.
 
-> The name comes from Ama-no-Iwafune, the rock boat said to have carried Nigihayahi down from the heavens.
-> The logo is its hull.
+## What you can do
 
-## Highlights
+- Pick parts from a catalog, set values with units, and record where each value comes from (datasheet, measurement, placeholder).
+- Define operating modes and see which part is on, off or duty-cycled in each.
+- Track mass, power and data budgets against allocations and margins.
+- Draw the electrical system (power and signal) and place parts in an editable 3D layout.
+- Run subsystem analyses, and read pass/warning/violation verdicts and the inputs still missing.
+- Save analysis settings as cases and compare them.
+- Use the CLI and the GUI interchangeably: both make the same edits, and the result is plain files in git.
 
-|  |  |
-|---|---|
-| **Design data as files** | One entity per TOML file: parts, modes, nets, harness, budgets, conditions, analysis settings and catalog items. Quantities carry units, and every value records where it came from (catalog, override or kind default) and what backs it (datasheet, measurement, placeholder…). |
-| **CLI and GUI as equals** | Every edit is an `Op`, and both front ends call the same service functions. A parity test checks that the same edit made from the CLI and from the HTTP API writes byte-identical files. |
-| **GUI** | Budgets overview, part table, mode matrix (ON/OFF and duty cycles), electrical system diagram (power and signal, overlaid or separate), editable 3D layout, and one page per subsystem. Japanese and English UI. |
-| **Orbit and environment** | Kepler/J2 and numerical propagation (DOP853), EGM96 gravity to degree 70, NRLMSISE-00, DE440 ephemerides (fetched on demand), central bodies other than Earth, solid tides, relativistic correction, ground track. |
-
-## Analyses
-
-| Subsystem | Analyses |
-|---|---|
-| Power | Mode power · sunlit generation · orbit generation · energy balance and depth of discharge |
-| AOCS | RW unloading interval · MTQ/RCS unloading time · sensor field-of-view keep-out |
-| C&DH | Data budget and storage |
-| Communications | Link budget · ground-station visibility · downlink throughput |
-| Thermal | Steady-state and transient multi-node |
-| Structure | Mass properties · quasi-static loads · simple modal estimate |
-| Propulsion | Maneuvers (impulsive · finite burn · low thrust) · delta-V budget with margin · propellant and tank margin · thruster usage against ratings |
-
-Each analysis takes typed SI inputs built from the design, returns typed outputs with pass/warning/violation
-checks, and lists any inputs that are still missing.
+The GUI has Japanese and English UI. The CLI, docs and demo data are in English.
 
 ## Install
 
@@ -76,8 +61,7 @@ On macOS, use `universal-apple-darwin` in place of `x86_64-linux-gnu` and check 
 The binary is not notarized: downloaded with `gh` it runs as is, but a copy downloaded in a browser is blocked by
 Gatekeeper until you run `xattr -d com.apple.quarantine fune`.
 
-Then run `fune gui` in a design directory (one with `fune.toml`), or `fune init` to start one.
-`fune data fetch de440` downloads the optional DE440 ephemeris the same way, and `fune data fetch space_weather` downloads the CelesTrak space weather table (F10.7, Ap) into the user cache. On other platforms, build from source.
+Then see [Getting started](#getting-started). On other platforms, [build from source](docs/development.md#building-from-source).
 
 ### Updating
 
@@ -85,75 +69,125 @@ Then run `fune gui` in a design directory (one with `fune.toml`), or `fune init`
 It downloads the archive with `curl`, verifies its SHA-256, checks that the new binary reports the expected version, and then swaps it in, so it needs write access to the directory holding `fune`.
 With cargo-binstall, running the install command again also works. If `fune` came from another package manager, update it with that instead.
 
-## Quick start
+## Getting started
 
-To build from source: Rust 1.100 or later (edition 2024), Node.js 24 or later, pnpm.
+### Get a project
+
+Start a new one in an empty directory (`fune init` writes into the current directory, or into `-C <dir>`, and does not run `git init`):
 
 ```bash
-pnpm -C web install && pnpm -C web build                       # build the GUI (the fune binary serves web/dist)
-cargo run -p fune-cli -- -C fixtures/demo-6u gui                # open the GUI on the demo 6U satellite
-cargo run -p fune-cli -- -C fixtures/demo-6u part ls            # list parts from the CLI
-cargo run -p fune-cli -- -C fixtures/demo-6u analyze power.energy_balance
+mkdir mysat && cd mysat
+git init
+fune init mysat
+fune status
 ```
 
-`fune --help` lists every command. `fune analyze ls` lists the analyses.
+Or explore the demo 6U satellite. It is in the repository (there is no template option in `fune init`); copy it so you can edit freely:
 
-## Repository layout
+```bash
+git clone https://github.com/akira-nkjm/iwafune
+cp -r iwafune/fixtures/demo-6u my-demo && cd my-demo
+fune status
+```
 
-| Path | Contents |
+`fune` finds the project by searching upward for `fune.toml`; `-C <dir>` points it elsewhere.
+
+### Open the GUI
+
+```bash
+fune gui            # serves on http://127.0.0.1:3000 (the next free port if busy) and opens the browser
+fune gui --no-open  # do not open the browser
+```
+
+The sidebar has Overview, Design (Components, Catalog, System diagram, Modes, Layout, Maneuvers), one page per subsystem,
+Conditions (Orbit & stations, Analysis cases) and Project (Units & definitions, Diagnostics, Settings, Sources).
+Pages show the CLI command for an edit, so you can learn one from the other. The CLI examples below use the demo.
+
+### Walk through
+
+| Step | CLI | In the GUI |
+|---|---|---|
+| Look around | `fune part ls`, `fune part show RW_X`, `fune catalog ls` | Components, Catalog |
+| Add a part from a catalog item | `fune part add FSS_2 --catalog local/fss_60 --group aocs` | Components (add) |
+| Set a value with a unit | `fune set FSS_2.mass "45 g" --source <id>` (`fune get FSS_2.mass` reads it back) | Components, the part's page |
+| Put the part in a mode | `fune mode set NOMINAL FSS_2 on` (`fune mode table` shows all modes) | Modes |
+| Group parts | `fune part mv FSS_2 aocs/sensors` (creates the group) | Components |
+| Check the design | `fune check` | Diagnostics (and the counter in the header) |
+| Read the budgets | `fune budget mass`, `fune budget power`, `fune budget data` | Overview |
+| Run an analysis | `fune analyze power.energy_balance` | the subsystem page, e.g. Power |
+| Run it for a case | `fune analyze power.energy_balance --case hot_imaging` | the subsystem page, case selector; Analysis cases |
+| Define a case | `fune case set my_case --mode NOMINAL --label "My case"` | Analysis cases |
+| Undo a mistake | `fune history`, `fune undo`, `fune redo` | Change history in the header |
+| Save | `git add -A && git commit -m "Add FSS_2"` | (use git) |
+
+Add `--dry-run` to an edit to see the file diff without writing, and `--json` to any command for machine-readable output.
+
+Values written without a source are accepted but marked "Unsourced". Register a source first with
+`fune source set <id> --kind datasheet --label "..."` and pass it with `--source <id>`. The kinds are placeholder, judgement, analysis, datasheet and measured.
+
+### Analyses, verdicts and missing inputs
+
+An analysis builds its inputs from the design and returns KPIs and verdicts (ok, warning, violation).
+If the design lacks something, it stops and lists what to provide, for example on a fresh project:
+
+```console
+$ fune analyze comm.link_budget
+✖ comm.link_budget: missing inputs (3)
+ Missing input       Reason
+ analysis.comm       Comm analysis settings (analysis/comm.toml)
+ conditions.ground   Ground station (conditions/ground/<id>.toml)
+ conditions.orbit    Orbit settings (conditions/orbit.toml)
+```
+
+Fill these in from the GUI (Orbit & stations, the subsystem page) or with `fune setting` / `fune apply`; the file shapes are in [docs/model.md](docs/model.md).
+`fune check` also warns about required attributes that are not set (for example a reaction wheel without `max_torque`) and budget limits that are not set (`fune setting set budget.mass.limit "3 kg"`).
+
+## Everyday commands
+
+| Command | What it does |
 |---|---|
-| `crates/lib/units` (`sat-units`) | Units, dimensions and typed quantities |
-| `crates/lib/astro` (`sat-astro`) | Math, integrators, time, orbits, ephemerides, eclipses, Earth models, attitude laws |
-| `crates/lib/analysis` (`sat-analysis`) | Subsystem analyses with typed SI inputs and outputs; no knowledge of the design model |
-| `crates/app/model` (`fune-model`) | Design data types, built-in vocabulary, resolution and validation |
-| `crates/app/store` (`fune-store`) | Reading and writing the TOML directory, revisions, locking |
-| `crates/app/ops` (`fune-ops`) | `Op`, the single entry point for edits: plan, apply, and conversion to CLI commands |
-| `crates/app/projection` (`fune-projection`) | Resolved design → analysis inputs, with a list of missing inputs |
-| `crates/app/service` (`fune-service`) | Every function the CLI and the HTTP API call, plus their types (exported to TypeScript) |
-| `crates/app/server` (`fune-server`) | HTTP API (axum) and the embedded GUI |
-| `crates/app/cli` (`fune-cli`) | The `fune` command |
-| `web/` | GUI (React, TypeScript) |
-| `fixtures/demo-6u` | Demo 6U satellite |
-| `docs/` | Architecture overview, data model, architecture registry, roadmap |
+| `fune status` | Project overview: counts of parts, modes, nets, cases |
+| `fune check` | Validate the design; exit code 1 on errors |
+| `fune part ls` / `fune part show <id>` | List parts / everything about one part |
+| `fune part add <id> --catalog <item>` | Add a part (or `--kind <kind>` for a blank one) |
+| `fune set <part>.<attr> "<value unit>"` | Set a value; `fune get` reads it, `fune unset` reverts to the catalog value |
+| `fune mode table` | Which part is in which state in each mode |
+| `fune budget mass\|power\|data` | Budget with growth, allocation and margin |
+| `fune analyze ls` / `fune analyze <id>` | List analyses / run one (`--case <id>` for a case) |
+| `fune catalog add` / `fune catalog show <item>` | Add or inspect catalog items |
+| `fune fmt` / `fune fmt --check` | Rewrite files in canonical form / check them |
+| `fune undo` / `fune redo` | Step through the last 100 edits |
+| `fune gui` | Start the GUI |
+| `fune self-update` | Update the binary |
 
-`crates/lib/*` never depend on `crates/app/*`. `cargo xtask check` enforces the dependency direction and the
-"one capability, one place" rules recorded in [docs/architecture/registry.md](docs/architecture/registry.md).
+`fune --help` lists every command, and `fune <command> --help` shows its options.
 
-## Development
+## Analyses
 
-```bash
-cargo xtask check                              # dependency and registry rules
-cargo test --workspace
-cargo clippy --all-targets -- -D warnings
-pnpm -C web lint && pnpm -C web typecheck && pnpm -C web test
-cargo test -p fune-service export_ts           # regenerate web/src/api/gen after changing API types
-```
+`fune analyze ls` lists them (27 on this version). Each takes typed SI inputs built from the design.
 
-CI runs all of the above, then builds the release binary and smoke-tests the CLI and the HTTP server.
+| Area | Analyses |
+|---|---|
+| AOCS | RW unloading frequency, momentum unloading time, sensor FoV and exclusion angles, slew time |
+| C&DH | Data volume and storage |
+| Communications | Link budget, ground station visibility, downlink capacity and backlog |
+| Orbit | Beta angle and eclipse seasons, drag decay and station keeping |
+| Power | Mode power consumption, sunlit generation, orbital generation, energy balance and DoD, power sizing, energy balance while thrusting |
+| Propulsion | Maneuvers, delta-V budget, propellant and tanks, thruster usage, orbit history, mass properties with propellant |
+| Structure | Mass properties, quasi-static loads, natural frequency estimate |
+| Thermal | Steady state, transient |
 
-### Branches and releases
+Orbit modelling includes Kepler/J2 and numerical propagation, EGM96 gravity, NRLMSISE-00, DE440 ephemerides, central bodies other than Earth and ground tracks.
 
-Daily work goes to `develop`. `main` only receives pull requests from `develop`, and each one is a release: bump
-the version on `develop` first (`[workspace.package] version` in `Cargo.toml` and `version` in `web/package.json`,
-to the same value). [release.yml](.github/workflows/release.yml) checks on the pull request that the version is
-consistent and not released yet; after the merge it publishes the container image, then creates the tag `vX.Y.Z`
-and its GitHub Release. Tags are not pushed by hand.
+## Working in a team
 
-### fune in other repositories' CI
+The design is a directory of TOML files, so branches, pull requests and reviews work as they do for code.
+`fune fmt` keeps the files in canonical form so diffs stay small; run `fune fmt --check` and `fune check` before committing.
 
-Each release publishes the CLI as `ghcr.io/akira-nkjm/fune:<version>` (and `:latest`) through
-[image.yml](.github/workflows/image.yml). To let another repository pull it, add that repository under the
-package's "Manage Actions access"; its workflow then uses the image as a job container with its own
-`GITHUB_TOKEN` (`permissions: packages: read`) and runs `fune check`.
+### Checking in CI
 
-### Shared catalogs in CI
-
-A satellite repository can read catalog items from a shared catalog repository (`[[catalog]] git = …` in
-`fune.toml`, see [docs/model.md §12](docs/model.md)). The commit is pinned in `catalog.lock`, which is committed,
-and the fetched files are cached under `.fune/` (ignored by git). Add one with
-`fune catalog source add <name> --git <url> [--rev <rev>]` (or from the catalog page of the GUI), then run
-`fune catalog fetch` and commit `fune.toml` and `catalog.lock`; `fune catalog source rm <name>` removes it again
-(refused while parts use its items). In CI, fetch the locked commit first, then check:
+Each release publishes the CLI as the container image `ghcr.io/akira-nkjm/fune:<version>` (and `:latest`). To let another repository pull it,
+add that repository under the package's "Manage Actions access". The workflow then uses it as a job container with its own `GITHUB_TOKEN`:
 
 ```yaml
 jobs:
@@ -165,25 +199,54 @@ jobs:
       packages: read
     steps:
       - uses: actions/checkout@v4
+      - run: fune fmt --check
+      - run: fune check
+```
+
+### Shared catalogs
+
+A satellite repository can read catalog items from a shared catalog repository (see [docs/model.md §12](docs/model.md#12-shared-catalogs)). Items appear as `<name>/<ID>`.
+
+```bash
+fune catalog source add shared --git <url> [--rev <rev>]   # or from the Catalog page of the GUI
+fune catalog fetch                                          # fetch and write catalog.lock
+git add fune.toml catalog.lock && git commit -m "Add shared catalog"
+fune catalog update shared    # later: move to the newest commit of rev and show what changed
+fune catalog source rm shared # refused while parts use its items
+```
+
+The commit is pinned in `catalog.lock` (commit it); fetched files are cached under `.fune/` (ignored by git). In CI, fetch the locked commit before checking:
+
+```yaml
+      - uses: actions/checkout@v4
       # Only for a private catalog repository: let git authenticate with a token that can read it.
       - run: git config --global url."https://x-access-token:${{ secrets.CATALOG_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - run: fune catalog fetch --locked   # fails if catalog.lock is missing or does not match fune.toml
       - run: fune check
 ```
 
-`fune catalog fetch --locked` never rewrites `catalog.lock`; run `fune catalog fetch` (or `fune catalog update <name>`
-to move to the newest commit of `rev`) locally and commit the lock. fune calls the `git` command, so authentication
-is whatever your git configuration provides (credential helper, SSH keys); the image includes `git`.
+`fune catalog fetch --locked` never rewrites `catalog.lock`. fune calls the `git` command, so authentication is whatever your git configuration provides; the image includes `git`.
 
-## Documentation
+## Optional data
 
-The design documents are written in Japanese.
+Some analyses use data that is not bundled. `fune data status` shows what is cached.
 
-- Architecture overview: [docs/architecture.md](docs/architecture.md)
-- Design model and file format: [docs/model.md](docs/model.md)
-- Architecture registry (where each capability lives): [docs/architecture/registry.md](docs/architecture/registry.md)
-- Roadmap toward conceptual design: [docs/roadmap.md](docs/roadmap.md) (tracked in issues #1–#16)
-- Development rules for contributors: [CONTRIBUTING.md](CONTRIBUTING.md)
+```bash
+fune data fetch de440           # DE440 ephemeris (needs the GitHub CLI, gh)
+fune data fetch space_weather   # CelesTrak space weather table, F10.7 and Ap (needs curl)
+```
+
+Both go to the user cache.
+
+## Learn more
+
+- [docs/model.md](docs/model.md): design data, file formats, directory layout
+- [docs/architecture.md](docs/architecture.md): how the code is put together
+- [docs/roadmap.md](docs/roadmap.md): planned features (tracked in GitHub Issues)
+- [docs/development.md](docs/development.md): building from source, repository layout, releases
+- [CONTRIBUTING.md](CONTRIBUTING.md): rules for contributors
+
+The documents are written in English.
 
 ## License
 
