@@ -2,7 +2,7 @@ import { lazy, type ReactNode, Suspense } from "react";
 import { AnalysisCard } from "@/analysis/AnalysisCard";
 import { collectSeries } from "@/analysis/output";
 import type { AnalysisState } from "@/api/queries";
-import type { AnalysisEntry, DefsView, DesignView, PowerPageView, System } from "@/api/types";
+import type { AnalysisEntry, DefsView, DesignView, System } from "@/api/types";
 import { SystemModes } from "@/features/modes/matrix/ModesMatrix";
 import { SettingsTable } from "@/features/project/SettingsTable";
 import { useT } from "@/i18n";
@@ -16,7 +16,6 @@ import { TablePanel } from "@/kit/table/TablePanel";
 import { systemTitle } from "@/lib/design";
 import { AocsModes } from "./aocs/AocsModes";
 import { PowerModes } from "./power/PowerModes";
-import { PowerOverview } from "./power/PowerOverview";
 import { PowerSeries } from "./power/PowerSeries";
 import { hasExtraTab } from "./preload";
 import { SystemOverview } from "./SystemOverview";
@@ -30,11 +29,11 @@ export type SystemTab = "results" | "modes" | "heat" | "analyses" | "settings" |
 
 /**
  * 系のページのタブの中身（結果・モード・熱画像・設定・時系列）。extra は系ごとの追加の表示（熱の温度範囲の図と熱画像）。
- * 結果のタブは、熱は温度範囲の図だけ（解析のカードは解析結果のタブ）で、ほかの系は解析の表（電源は `PowerOverview`、ほかは `SystemOverview`）。
+ * 結果のタブは、熱は温度範囲の図だけ（解析のカードは解析結果のタブ）で、ほかの系は解析の表（`SystemOverview`）。
  */
 export function SystemTabs({
   tab,
-  powerPage,
+  kase,
   system,
   design,
   states,
@@ -43,7 +42,8 @@ export function SystemTabs({
   noAnalyses = false,
 }: {
   tab: SystemTab;
-  powerPage?: PowerPageView;
+  /** 選んだケース（電源のモード・時系列の問い合わせに使う） */
+  kase: string | null;
   system: System;
   design: DesignView | undefined;
   states: AnalysisState[];
@@ -52,14 +52,9 @@ export function SystemTabs({
   noAnalyses?: boolean;
 }) {
   const dict = useT();
-  if (system === "power" && powerPage) {
-    if (tab === "results")
-      return (
-        <PowerOverview page={powerPage} design={design} updating={states.some((s) => s.updating)} />
-      );
-    if (tab === "series") return <PowerSeries page={powerPage} />;
-    if (tab === "modes") return <PowerModes page={powerPage} />;
-  }
+  // 電源のモードと時系列は、解析を回した系別のモード表示（`POST /system_modes/power`）。結果は解析の表（ほかの系と同じ）
+  if (system === "power" && tab === "series") return <PowerSeries kase={kase} />;
+  if (system === "power" && tab === "modes") return <PowerModes kase={kase} />;
   if (tab === "modes")
     return design && hasModes(system, design.defs) ? (
       system === "aocs" ? (

@@ -1,22 +1,35 @@
 use crate::Workspace;
-use crate::dto::{AnalysisOverview, KpiKey, PowerPageView};
+use crate::dto::{AnalysisOverview, AnalysisRunResult, KpiKey, RunAnalysisRequest};
 use std::path::Path;
 
-fn page(case: Option<&str>) -> PowerPageView {
+/// 電源の解析 4 つを汎用の入口（`analysis::run_analysis`）で回した結果。
+struct Page {
+    analyses: Vec<AnalysisRunResult>,
+}
+
+fn page(case: Option<&str>) -> Page {
     let ws =
         Workspace::open(Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u"))
             .unwrap();
-    crate::power_page::power_page(&ws, case).unwrap()
+    let analyses = [
+        "power.mode_load",
+        "power.orbit_generation",
+        "power.energy_balance",
+        "power.sizing",
+    ]
+    .map(|id| {
+        let req = RunAnalysisRequest {
+            case: case.map(str::to_owned),
+            ..Default::default()
+        };
+        crate::analysis::run_analysis(&ws, id, &req).unwrap()
+    })
+    .to_vec();
+    Page { analyses }
 }
 
-fn of<'a>(page: &'a PowerPageView, id: &str) -> &'a AnalysisOverview {
-    &page
-        .analyses
-        .iter()
-        .find(|a| a.result.id == id)
-        .unwrap()
-        .result
-        .overview
+fn of<'a>(page: &'a Page, id: &str) -> &'a AnalysisOverview {
+    &page.analyses.iter().find(|a| a.id == id).unwrap().overview
 }
 
 fn bar_keys(o: &AnalysisOverview) -> Vec<&str> {
@@ -35,17 +48,12 @@ fn every_power_analysis_has_main_results_and_a_chart() {
         let page = page(case);
         for a in &page.analyses {
             // 主な結果は結果の KPI の先頭（定義の順に 3 つまで）
-            let n = a.result.kpis.len().min(3);
-            assert_eq!(
-                a.result.overview.main,
-                a.result.kpis[..n],
-                "{}",
-                a.result.id
-            );
-            let chart = a.result.overview.chart.as_ref().unwrap();
-            assert!(!chart.bars.is_empty(), "{}", a.result.id);
+            let n = a.kpis.len().min(3);
+            assert_eq!(a.overview.main, a.kpis[..n], "{}", a.id);
+            let chart = a.overview.chart.as_ref().unwrap();
+            assert!(!chart.bars.is_empty(), "{}", a.id);
             for b in &chart.bars {
-                assert!((0.0..=1.0).contains(&b.fill), "{} {}", a.result.id, b.key);
+                assert!((0.0..=1.0).contains(&b.fill), "{} {}", a.id, b.key);
             }
         }
         let keys: Vec<_> = of(&page, "power.energy_balance")

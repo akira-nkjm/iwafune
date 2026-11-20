@@ -13,7 +13,7 @@ import type { Window } from "./Window";
  */
 export type EnergyBalanceOutput = { life: SolarLife, 
 /**
- * モード別の負荷内訳（電源ページでも共用）。
+ * モード別の負荷内訳（電源のモードの見方でも共用）。
  */
 mode_loads: ModeLoadOutput, 
 /**

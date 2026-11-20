@@ -20,7 +20,7 @@ use sat_analysis::structure::modal_estimate::ModalEstimateKind;
 use sat_analysis::thermal::ThermalHeaterState;
 use serde::de::DeserializeOwned;
 
-fn label(ja: impl Into<String>, en: impl Into<String>) -> AnalysisLabel {
+pub(crate) fn label(ja: impl Into<String>, en: impl Into<String>) -> AnalysisLabel {
     AnalysisLabel {
         label: ja.into(),
         label_en: en.into(),

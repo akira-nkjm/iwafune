@@ -14,7 +14,7 @@
 //! | `edit` | Op の列の適用と結果の表示・init・undo / redo |
 //! | `units` | units ls/parse/format |
 //! | `analyze` | analyze・budget |
-//! | `pages` | power-page・mode view（GUI のページと同じ DTO を表にする） |
+//! | `pages` | mode view（GUI のモードの見方と同じ DTO を表にする） |
 //! | `gui` | gui |
 //! | `data` | data status/fetch |
 //! | `self_update` | self-update（実行中の `fune` の置き換え。プロジェクト不要） |
@@ -62,9 +62,6 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
         Command::Analyze(a) => analyze::run(&open(g)?, a, out),
         Command::Budget { kind, case, ops } => {
             analyze::budget(&open(g)?, kind, case.as_deref(), ops.as_deref(), out)
-        }
-        Command::PowerPage { case, ops } => {
-            pages::power_page(&open(g)?, case.as_deref(), ops.as_deref(), out)
         }
         Command::Fmt { check } => {
             let result = fune_service::format::format_design(

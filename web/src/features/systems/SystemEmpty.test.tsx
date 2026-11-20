@@ -37,6 +37,7 @@ describe("解析がない系", () => {
         <QueryClientProvider client={new QueryClient()}>
           <SystemTabs
             tab={tab}
+            kase={null}
             system="payload"
             design={fixture}
             states={[]}
@@ -50,6 +51,7 @@ describe("解析がない系", () => {
   });
 });
 
+// 電源と AOCS は専用のモードの見方（解析を回した問い合わせ）。読み込み中の骨組みを出し、部品 × モードの表は出さない
 it("モードの見方を持つ系だけにモードタブの中身を出す", () => {
   for (const system of [
     "power",
@@ -62,11 +64,18 @@ it("モードの見方を持つ系だけにモードタブの中身を出す", (
   ] as const) {
     const html = renderToStaticMarkup(
       <QueryClientProvider client={new QueryClient()}>
-        <SystemTabs tab="modes" system={system} design={fixture} states={[]} entries={new Map()} />
+        <SystemTabs
+          tab="modes"
+          kase={null}
+          system={system}
+          design={fixture}
+          states={[]}
+          entries={new Map()}
+        />
       </QueryClientProvider>,
     );
     if (system === "structure" || system === "payload" || system === "comm") expect(html).toBe("");
-    else if (system === "aocs") {
+    else if (system === "aocs" || system === "power") {
       expect(html).toContain(getT().common.loading);
       expect(html).not.toContain(getT().modes.matrixTitle);
     } else {

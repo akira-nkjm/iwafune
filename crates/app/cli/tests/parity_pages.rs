@@ -1,5 +1,5 @@
-//! パリティテスト（CI 必須）: 電源のページとモード別の表示。`fune power-page`・`fune mode view <系>` の `--json` は、
-//! HTTP（`GET /power_page`・`POST /system_modes/{system}`）と同じ JSON。対応しない系は終了コード 2（HTTP は 4xx）、
+//! パリティテスト（CI 必須）: モード別の表示。`fune mode view <系>` の `--json` は、
+//! HTTP（`POST /system_modes/{system}`）と同じ JSON。対応しない系は終了コード 2（HTTP は 4xx）、
 //! 終了コードは `--json` でも表でも同じ。
 
 mod common;
@@ -19,23 +19,35 @@ fn cli_json(root: &Path, args: &[&str]) -> Value {
     serde_json::from_slice(&cli(root, &full).1).unwrap()
 }
 
+/// 電源の解析を含む見方（`--analyzed`・`--case`）と合計だけの足もと（`--totals-only`）は HTTP の依頼と同じ JSON。
 #[test]
-fn power_page_json_equals_http() {
+fn analyzed_and_totals_options_equal_http() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let (_t, root) = demo_copy();
+    let uri = "/api/v1/system_modes/power";
     assert_eq!(
-        cli_json(&root, &["power-page"]),
-        get_json(&rt, &root, "/api/v1/power_page")
+        cli_json(&root, &["mode", "view", "power", "--analyzed"]),
+        post_json(&rt, &root, uri, json!({ "analyzed": true }))
     );
     let case = get_json(&rt, &root, "/api/v1/design")["cases"][0]["id"]
         .as_str()
         .unwrap()
         .to_owned();
     assert_eq!(
-        cli_json(&root, &["power-page", "--case", &case]),
-        get_json(&rt, &root, &format!("/api/v1/power_page?case={case}"))
+        cli_json(
+            &root,
+            &["mode", "view", "power", "--analyzed", "--case", &case]
+        ),
+        post_json(&rt, &root, uri, json!({ "analyzed": true, "case": case }))
     );
-    assert_eq!(cli(&root, &["power-page"]).0, Some(0));
+    assert_eq!(
+        cli_json(&root, &["mode", "view", "power", "--totals-only"]),
+        post_json(&rt, &root, uri, json!({ "summary": "totals" }))
+    );
+    assert_eq!(
+        cli(&root, &["mode", "view", "power", "--analyzed"]).0,
+        Some(0)
+    );
 }
 
 #[test]

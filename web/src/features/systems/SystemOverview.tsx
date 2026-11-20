@@ -5,7 +5,7 @@ import { useT } from "@/i18n";
 import { TablePanel } from "@/kit/table/TablePanel";
 
 /**
- * 系の概要（熱と電源のページを除く）。電源の概要と同じ解析の表で、1 行 = 1 解析（行の中身は結果に API が添えた
+ * 系の概要（熱を除く。電源も同じ）。解析の表で、1 行 = 1 解析（行の中身は結果に API が添えた
  * `AnalysisRunResult.overview`）。結果がまだ無い解析は読み込み中のスケルトンの行、問い合わせが失敗した解析はエラーの行。
  */
 export function SystemOverview({

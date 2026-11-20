@@ -8,7 +8,7 @@
 //! | `analysis` | 解析の一覧と実行 |
 //! | `check` | 解析の判定 1 つ（結果と概要の行で共有する葉の型） |
 //! | `display` | 解析表示の葉の型（名前・時系列） |
-//! | `power_page` | 電源ページの流れ・判定バー・グラフ・部品の表示定義 |
+//! | `power_modes` | 電源のモードごとの電力の行き先・判定・グラフの表示定義 |
 //! | `design` | 設計データの表示（プロジェクト・部品・モード表・ネット・定義・設定） |
 //! | `catalog` | カタログ品の表示（値・パス・使っている部品） |
 //! | `shared_catalog` | 共有カタログの取得・更新の入出力（lock の commit・変わった品と値） |
@@ -51,8 +51,8 @@ pub use overview::{
 mod pose;
 pub use net_class::{NetHub, PowerClass};
 pub use pose::{BodyPoseView, MountPointView, MountView, PoseQuantities};
-mod power_page;
-pub use power_page::*;
+mod power_modes;
+pub use power_modes::*;
 mod shared_catalog;
 pub use shared_catalog::{
     CatalogFetchRequest, CatalogItemChange, CatalogItemChangeKind, CatalogSyncEntry,
@@ -85,9 +85,10 @@ pub use design::PartViewRequest;
 pub use design::{
     AttrSection, AttributeDefView, CaseView, DefsView, DesignCounts, DesignView, HarnessView,
     KindDefView, ModeHeader, ModeRow, ModeSegmentView, ModeSequenceView, ModeStartView,
-    ModeSummaryField, ModeSummaryLabel, ModeSummaryRow, ModeTable, ModeValuesView, NetView,
-    PartRow, PartView, PartsQuery, PortView, ProjectInfo, SettingView, SystemModeView,
-    SystemModesView, TreeNode, TreeNodeKind, ValueAnswer, ValueQuery,
+    ModeSummaryField, ModeSummaryLabel, ModeSummaryRow, ModeSummaryScope, ModeTable,
+    ModeValuesView, NetView, PartRow, PartView, PartsQuery, PortView, ProjectInfo, SettingView,
+    SystemModeView, SystemModesRequest, SystemModesView, TreeNode, TreeNodeKind, ValueAnswer,
+    ValueQuery,
 };
 pub use edit::{
     ApplyRequest, ApplyResult, ChangedFile, FileChangeKind, InitResult, PlaceBodyRequest, SetText,

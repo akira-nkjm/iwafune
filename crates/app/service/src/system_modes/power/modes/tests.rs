@@ -1,5 +1,12 @@
 use super::*;
+use crate::dto::PowerBudgetKind;
 use sat_analysis::power::{energy_balance::EnergyBalanceCaseResult, mode_load::ModeLoadMode};
+use sat_analysis::power::{
+    energy_balance::{EnergyBalanceInput, EnergyBalanceLoad, EnergyBalanceOutput},
+    sizing::SizingOutput,
+};
+use sat_analysis::spec::Check;
+use sat_units::typed::Fraction;
 use serde_json::json;
 
 fn fixture() -> (ModeLoadMode, EnergyBalanceCaseResult) {
@@ -56,57 +63,6 @@ fn budget_by_hand_keeps_power_and_shares_one_scale_across_modes() {
     let e = eclipse[0].as_ref().unwrap();
     assert_eq!(e.segments.iter().map(|g| g.value.si).sum::<f64>(), 15.0);
     assert!(e.segments.iter().all(|g| g.kind == PowerBudgetKind::Load));
-}
-
-#[test]
-fn verdict_meter_is_ratio_to_limit_and_signed_when_limit_is_zero() {
-    // DoD 0.2 / 上限 0.4 = 50 %: メーターは 0〜150 % なので塗りは 50/150、限界の線は 100/150
-    let dod = verdict_view::<Fraction>(
-        "dod",
-        label("DoD", "DoD"),
-        Some(0.2),
-        0.4,
-        PowerLimitKind::AtMost,
-        Some(Verdict::Ok),
-    );
-    assert!((dod.fill_end - 100.0 * 0.5 / 1.5).abs() < 1e-10);
-    assert!((dod.limit_at - 100.0 / 1.5).abs() < 1e-10);
-    assert_eq!(dod.fill_start, 0.0);
-    assert!(dod.note.label.contains("上限の"));
-    // 面積 2990 / 必要 5090 = 58.7 %
-    let area = verdict_view::<sat_units::typed::Area>(
-        "area",
-        label("面積", "Area"),
-        Some(2990.0),
-        5090.0,
-        PowerLimitKind::AtLeast,
-        Some(Verdict::Violation),
-    );
-    assert!((area.fill_end - 100.0 * (2990.0 / 5090.0) / 1.5).abs() < 1e-10);
-    assert!(area.note.label_en.contains("of required"));
-    // 収支 −10（限界 0）: 0 を中央に、左へ伸ばす。|v|×1.15 が端
-    let margin = verdict_view::<Energy>(
-        "margin",
-        label("収支", "Margin"),
-        Some(-10.0),
-        0.0,
-        PowerLimitKind::AtLeast,
-        Some(Verdict::Violation),
-    );
-    assert_eq!(margin.limit_at, 50.0);
-    assert_eq!(margin.fill_end, 50.0);
-    assert!((margin.fill_start - (50.0 - 50.0 / 1.15)).abs() < 1e-10);
-    assert!(margin.note.label.contains("不足"));
-    let missing = verdict_view::<Energy>(
-        "margin",
-        label("収支", "Margin"),
-        None,
-        0.0,
-        PowerLimitKind::AtLeast,
-        Some(Verdict::Warning),
-    );
-    assert!(missing.value.is_none());
-    assert_eq!(missing.fill_end, 0.0);
 }
 
 #[test]
@@ -205,8 +161,8 @@ fn builder_returns_selected_mode_values_bands_and_soc_limit() {
         sequence: None,
         checks: Vec::new(),
     };
-    let page = balance(&input, &out);
-    let mode = &page.modes[0];
+    let modes = balance(&input, &out);
+    let mode = &modes[0];
     assert_eq!(mode.id, "nominal");
     assert_eq!(mode.verdict, Some(Verdict::Ok));
     assert_eq!(mode.charts.len(), 3);
@@ -225,7 +181,7 @@ fn builder_returns_selected_mode_values_bands_and_soc_limit() {
 }
 
 #[test]
-fn sizing_builder_keeps_design_and_required_values_and_analysis_verdicts() {
+fn sizing_keeps_the_analysis_verdicts_per_mode() {
     let json = json!({
         "mode_checks":{"nominal":[
             {"key":"sap_margin","label":"Area","verdict":"ok","message":"3 >= 2"},
@@ -251,18 +207,6 @@ fn sizing_builder_keeps_design_and_required_values_and_analysis_verdicts() {
         "checks":[]
     });
     let out: SizingOutput = serde_json::from_value(json).unwrap();
-    let page = sizing(&out);
-    let mode = &page.modes[0];
-    assert_eq!(mode.verdict, Some(Verdict::Violation));
-    let checks = out.mode_checks.get("nominal");
-    let area = &area_bar(&out, out.required_area, checks);
-    assert_eq!(area.value.as_ref().unwrap().si, 3.0);
-    assert_eq!(area.limit.si, 2.0);
-    assert_eq!(area.verdict, Some(Verdict::Ok));
-    assert!(area.fill_end > area.limit_at);
-    let capacity = &capacity_bar(&out, out.required_capacity, checks);
-    assert_eq!(capacity.value.as_ref().unwrap().si, 100.0);
-    assert_eq!(capacity.limit.si, 120.0);
-    assert_eq!(capacity.verdict, Some(Verdict::Violation));
-    assert!(capacity.fill_end < capacity.limit_at);
+    let modes = sizing(&out);
+    assert_eq!(modes[0].verdict, Some(Verdict::Violation));
 }

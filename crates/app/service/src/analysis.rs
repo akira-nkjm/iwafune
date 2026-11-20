@@ -7,9 +7,9 @@
 //! | [`labels`] | 解析の出力の語彙の表示名（日本語・英語） |
 //! | `checks` | 出力の中の判定を集める（期間不足の注意は語彙から作る） |
 //! | `kpi` | KPI（代表値の選び方・判定・塗りの比・判定の数え方） |
-//! | `overview` | 系の概要の解析の表の行（主な結果の選び方・判定の文の持ち主ごとのまとまり） |
+//! | `overview` | 系の概要の解析の表の行（主な結果の選び方・判定の文の持ち主ごとのまとまり・電源の棒グラフと隠す表） |
 //! | `part_heat` | 熱の定常解析の部品ごとの代表の温度（節点と部品の対応・代表の選び方） |
-//! | `typed` | 型付きの実行（入力・出力を型のまま返す。電源のページが使う） |
+//! | `typed` | 型付きの実行（入力・出力を型のまま返す。電源のモードの見方・概要の隠す表が使う） |
 //! | `weather` | 高度低下の入力に宇宙天気の表から日付で引いた列を足し、使った表の版を返す |
 
 use crate::dto::{
@@ -109,7 +109,9 @@ pub fn run_analysis(
     };
     let (case, case_source, side) = effective_case(snapshot.as_ref(), id, req.case.as_deref());
     let outcome = run_inner(id, req, snapshot.as_ref(), case.as_deref())?;
-    Ok(finish(id, (case, case_source, side), outcome))
+    let mut result = finish(id, (case, case_source, side), outcome);
+    overview::add_system_parts(&mut result, snapshot.as_ref(), req.case.as_deref());
+    Ok(result)
 }
 
 /// 実行の途中の値から結果を組み立てる（判定・KPI・表示用の補足）。JSON の実行と型付きの実行が同じ組み立てを通る。

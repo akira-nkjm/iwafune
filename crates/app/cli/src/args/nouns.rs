@@ -136,6 +136,23 @@ pub struct PlaceArgs {
     pub edit: EditOpts,
 }
 
+// `fune mode view` の指定（`POST /system_modes/{system}` の依頼と同じ）。
+#[derive(Debug, clap::Args)]
+pub struct ModeViewOpts {
+    /// Apply unsaved edits (a JSON file of Ops, or `-` for stdin) without writing, then compute
+    #[arg(long)]
+    pub ops: Option<std::path::PathBuf>,
+    /// Analysis case ID (cases/<ID>.toml) for the analyses that `--analyzed` runs
+    #[arg(long)]
+    pub case: Option<String>,
+    /// Also run the subsystem's analyses and add their per-mode view (power: budget destinations, verdict and charts)
+    #[arg(long)]
+    pub analyzed: bool,
+    /// Return only the total row of the table footer (no available power or margin rows)
+    #[arg(long)]
+    pub totals_only: bool,
+}
+
 /// `fune mode …`
 #[derive(Debug, Subcommand)]
 pub enum ModeCmd {
@@ -149,9 +166,8 @@ pub enum ModeCmd {
     View {
         /// Subsystem ID (`fune mode view power`)
         system: String,
-        /// Apply unsaved edits (a JSON file of Ops, or `-` for stdin) without writing, then compute
-        #[arg(long)]
-        ops: Option<std::path::PathBuf>,
+        #[command(flatten)]
+        opts: ModeViewOpts,
     },
     /// Add a mode (`--from` copies the table of another mode)
     Add {

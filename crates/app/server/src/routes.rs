@@ -7,7 +7,6 @@
 //! | `history` | `/history` `/undo` `/redo` |
 //! | `units` | `/units` `/units/parse` `/units/format` |
 //! | `analyses` | `/analyses` `/analyses/{id}` `/budgets/{kind}` |
-//! | `power_page` | `/power_page` |
 //! | `data` | `/data/status` `/data/{id}/fetch` |
 //! | `catalog` | `/catalog/{id}`（カタログ品 1 件） `/catalog/fetch` `/catalog/update`（共有カタログ） |
 
@@ -17,7 +16,6 @@ mod data;
 mod design;
 mod edit;
 mod history;
-mod power_page;
 mod units;
 
 use crate::error::ApiError;
@@ -70,7 +68,6 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
         .route("/units", get(units::catalog))
         .route("/units/parse", post(units::parse))
         .route("/units/format", post(units::format))
-        .route("/power_page", get(power_page::get).post(power_page::post))
         .route("/analyses", get(analyses::catalog))
         .route("/analyses/{id}", post(analyses::run))
         .route(

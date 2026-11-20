@@ -1,6 +1,6 @@
 //! 電源の概要の解析の表の行（`AnalysisRunResult.overview`）に足すもの。主な結果と判定のまとまりは系に依らない
-//! `analysis::overview`（実行の結果を作るときに入る）、ここは電源の解析ごとの小さな棒グラフの選び方と、解析をまたいで
-//! 同じ表だけを持つ。
+//! [`super`]（実行の結果を作るときに入る）、ここは電源の解析ごとの小さな棒グラフの選び方と、解析をまたいで
+//! 同じ表だけを持つ。棒グラフは結果の出力の JSON を型に戻して作る（電源の出力の型は `sat_analysis::power`）。
 //!
 //! | 解析 | 棒グラフ |
 //! |---|---|
@@ -9,65 +9,76 @@
 //! | `power.energy_balance` | ケースとモードの並びごとの最大 DoD と上限（判定の位置は概要の上段の判定と同じ） |
 //! | `power.sizing` | 太陽電池の面積と電池容量の今と必要（判定を決めた必要値） |
 
-use super::Runs;
-use super::presentation::{area_bar, capacity_bar, dod_bar, label};
-use crate::analysis::TypedRun;
-use crate::analysis::overview::{overview, share_of_largest};
-use crate::dto::{
-    AnalysisLabel, OverviewBar, OverviewChart, OverviewReference, PowerLimitKind, PowerVerdictView,
-};
+use super::{overview, share_of_largest};
+use crate::analysis::labels::label;
+use crate::analysis::run_typed_in;
+use crate::dto::{AnalysisLabel, AnalysisRunResult, OverviewBar, OverviewChart, OverviewReference};
 use crate::units::quantity_auto;
+use crate::workspace::Snapshot;
+use meter::{LimitKind, Meter, area_bar, capacity_bar, dod_bar};
 use sat_analysis::power::{
-    EnergyBalanceOutput, ModeLoadOutput, OrbitGenerationOutput, SizingOutput,
+    EnergyBalance, EnergyBalanceOutput, ModeLoad, ModeLoadOutput, OrbitGeneration,
+    OrbitGenerationOutput, Sizing, SizingOutput,
 };
 use sat_analysis::spec::{Analysis, Verdict};
 use sat_units::typed::{Fraction, NamedKind, Power};
-use serde::Serialize;
+use serde::{Serialize, de::DeserializeOwned};
 
-/// 各解析の結果の概要（`overview`）に、電源の棒グラフと隠す表を入れる。棒グラフは型付きの出力から作る
-/// （出力が無い解析は棒グラフ無し）。
-pub(super) fn add_charts(runs: &mut Runs) {
-    let hidden = hidden_tables(runs);
-    let charts = (
-        runs.load.output.as_ref().map(mode_load),
-        runs.orbit.output.as_ref().map(orbit_generation),
-        runs.balance.output.as_ref().map(energy_balance),
-        runs.sizing.output.as_ref().map(sizing),
-    );
-    put(&mut runs.load, charts.0, Vec::new());
-    put(&mut runs.orbit, charts.1, Vec::new());
-    put(&mut runs.balance, charts.2, hidden);
-    put(&mut runs.sizing, charts.3, Vec::new());
+mod meter;
+
+/// 電源の解析の結果なら、概要の行に棒グラフと隠す表を足す。電源でない解析・出力の無い結果は何もしない。
+/// `snapshot` と `case` は、隠す表のために同じ設計・ケースで別の解析を回すのに使う（入力を丸ごと与えた実行は `snapshot` が無く、隠さない）。
+pub(super) fn add(result: &mut AnalysisRunResult, snapshot: Option<&Snapshot>, case: Option<&str>) {
+    let Some(output) = result.output.clone() else {
+        return;
+    };
+    let (chart, hidden) = match result.id.as_str() {
+        ModeLoad::ID => (read(&output).map(|o| mode_load(&o)), Vec::new()),
+        OrbitGeneration::ID => (read(&output).map(|o| orbit_generation(&o)), Vec::new()),
+        EnergyBalance::ID => {
+            let out: Option<EnergyBalanceOutput> = read(&output);
+            let hidden = out
+                .as_ref()
+                .zip(snapshot)
+                .map(|(out, s)| hidden_tables(out, s, case))
+                .unwrap_or_default();
+            (out.as_ref().map(energy_balance), hidden)
+        }
+        Sizing::ID => (read(&output).map(|o| sizing(&o)), Vec::new()),
+        _ => return,
+    };
+    result.overview = overview(result, chart, hidden);
 }
 
-fn put<A: Analysis>(run: &mut TypedRun<A>, chart: Option<OverviewChart>, hidden: Vec<Vec<String>>) {
-    run.result.overview = overview(&run.result, chart, hidden);
+/// 出力の JSON を型に戻す（戻せなければ棒グラフ無し）。
+fn read<T: DeserializeOwned>(output: &serde_json::Value) -> Option<T> {
+    serde_json::from_value(output.clone()).ok()
 }
 
 /// 「データを見る」で隠す表（電力収支の出力のうち、ほかの解析の行に同じ中身の表があるもの）。位置は出力の JSON の
-/// キー（Web が隠す表を引く）。両方の出力があり、中身が同じときだけ隠す。
+/// キー（Web が隠す表を引く）。同じ設計・ケースでほかの解析を回し、中身が同じときだけ隠す
+/// （回せない・出力が無いときは隠さない）。
 ///
 /// | 隠す表 | 同じ表を持つ解析 |
 /// |---|---|
 /// | `mode_loads.modes` | `power.mode_load` の `modes` |
 /// | `eclipses` | `power.orbit_generation` の `eclipses` |
-fn hidden_tables(runs: &Runs) -> Vec<Vec<String>> {
-    let Some(balance) = &runs.balance.output else {
-        return Vec::new();
-    };
+fn hidden_tables(
+    balance: &EnergyBalanceOutput,
+    snapshot: &Snapshot,
+    case: Option<&str>,
+) -> Vec<Vec<String>> {
     let mut hidden = Vec::new();
-    let same_as_load = runs
-        .load
-        .output
-        .as_ref()
+    let same_as_load = run_typed_in::<ModeLoad>(snapshot, case)
+        .ok()
+        .and_then(|r| r.output)
         .is_some_and(|load| same_table(&balance.mode_loads.modes, &load.modes));
     if same_as_load {
         hidden.push(vec!["mode_loads".to_owned(), "modes".to_owned()]);
     }
-    let same_as_orbit = runs
-        .orbit
-        .output
-        .as_ref()
+    let same_as_orbit = run_typed_in::<OrbitGeneration>(snapshot, case)
+        .ok()
+        .and_then(|r| r.output)
         .is_some_and(|orbit| same_table(&balance.eclipses, &orbit.eclipses));
     if same_as_orbit {
         hidden.push(vec!["eclipses".to_owned()]);
@@ -198,11 +209,11 @@ fn sizing(out: &SizingOutput) -> OverviewChart {
     }
 }
 
-/// 判定のメーター（`presentation::verdict_view` の位置の計算）を棒 1 本にする。位置は 0〜100 → 0〜1。
-fn meter(key: &str, l: AnalysisLabel, v: PowerVerdictView) -> OverviewBar {
+/// 判定のメーター（`meter::verdict_view` の位置の計算）を棒 1 本にする。位置は 0〜100 → 0〜1。
+fn meter(key: &str, l: AnalysisLabel, v: Meter) -> OverviewBar {
     let reference = match v.kind {
-        PowerLimitKind::AtMost => label("上限", "Limit"),
-        PowerLimitKind::AtLeast => label("必要", "Required"),
+        LimitKind::AtMost => label("上限", "Limit"),
+        LimitKind::AtLeast => label("必要", "Required"),
     };
     OverviewBar {
         key: key.into(),

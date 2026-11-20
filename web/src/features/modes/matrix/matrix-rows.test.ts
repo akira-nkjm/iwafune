@@ -45,6 +45,7 @@ function load(mean: number): SystemModesView {
           parts: { TRX: qv(1, "W", "Power") },
         },
         aocs: null,
+        power: null,
       },
     ],
   };
@@ -195,6 +196,7 @@ it("系別セルは API の次元を保持し、同じ mode_set の下書きで�
       {
         id: "NOMINAL",
         aocs: null,
+        power: null,
         sunlit: {
           parts: { TRX: qv(8, "kbit/s", "DataRate") },
           total: null,

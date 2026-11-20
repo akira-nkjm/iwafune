@@ -27,20 +27,20 @@ pub(super) const ALLOWED: &[(&str, &str)] = &[
         "bilingual analysis-view labels, label(ja, en) tables",
     ),
     (
-        "crates/app/service/src/power_page/overview.rs",
-        "bilingual power-page chart labels, label(ja, en)",
+        "crates/app/service/src/analysis/overview/power.rs",
+        "bilingual power overview chart labels, label(ja, en)",
     ),
     (
-        "crates/app/service/src/power_page/presentation.rs",
-        "bilingual power-page labels, label(ja, en)",
+        "crates/app/service/src/analysis/overview/power/meter.rs",
+        "bilingual power meter labels, label(ja, en)",
     ),
     (
-        "crates/app/service/src/power_page/presentation/budget.rs",
-        "bilingual power-page labels, label(ja, en)",
+        "crates/app/service/src/system_modes/power/budget.rs",
+        "bilingual power budget labels, label(ja, en)",
     ),
     (
-        "crates/app/service/src/power_page/presentation/charts.rs",
-        "bilingual power-page chart labels, label(ja, en)",
+        "crates/app/service/src/system_modes/power/charts.rs",
+        "bilingual power chart labels, label(ja, en)",
     ),
     (
         "crates/app/service/src/system_modes/attitude.rs",

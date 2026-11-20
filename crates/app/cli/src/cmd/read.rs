@@ -127,8 +127,8 @@ pub fn mode(ws: &Workspace, cmd: &ModeCmd, out: &Out) -> Handled {
     let table = match cmd {
         ModeCmd::Ls => false,
         ModeCmd::Table => true,
-        ModeCmd::View { system, ops } => {
-            return super::pages::mode_view(ws, system, ops.as_deref(), out).map(Some);
+        ModeCmd::View { system, opts } => {
+            return super::pages::mode_view(ws, system, opts, out).map(Some);
         }
         _ => return Ok(None),
     };

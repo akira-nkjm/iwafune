@@ -15,8 +15,9 @@ describe("query keys", () => {
       keys.diagnostics,
       keys.history,
       keys.analysis("power.mode_load", null),
-      keys.powerPage(null),
-      keys.powerPage("hot_imaging"),
+      keys.analyzedModes("power", null, "[]"),
+      keys.analyzedModes("power", "hot_imaging", "[]"),
+      keys.systemModes("power", "[]", "totals"),
       keys.budget("mass"),
     ];
     for (const k of affected) {
@@ -37,7 +38,7 @@ describe("query keys", () => {
     for (const k of [
       keys.analysis("comm.visibility", null),
       keys.analysis("x", "hot", "[]"),
-      keys.powerPage("hot"),
+      keys.analyzedModes("power", "hot", "[]"),
     ]) {
       expect(startsWith(k, keys.analysisResults)).toBe(true);
     }

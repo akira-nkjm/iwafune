@@ -14,7 +14,7 @@ import { matrixGroups } from "./matrix-rows";
 
 /**
  * モード表のカード: 見出しの帯（凡例・モード追加）、行列、下書きの保存の帯。下書きを当てた計算は `useModeDraftLoad`、
- * 行への変換は `matrixGroups`、表示は `ModesTable`。カードは画面の高さまで伸び、表はカードの中で縦横にスクロールする。
+ * 行への変換は `matrixGroups`、表示は `ModesTable`。設計のモードのページ（`system` 無し）は、行・セルは今のまま、足もとに電力の合計の行だけ出す。カードは画面の高さまで伸び、表はカードの中で縦横にスクロールする。
  */
 export function ModesMatrix({
   design,
@@ -62,18 +62,28 @@ export function ModesMatrix({
             {computed.error}
           </p>
         )}
-        {computed.view.data && computed.view.data.missing.length > 0 && (
+        {system && computed.view.data && computed.view.data.missing.length > 0 && (
           <div className="shrink-0 p-3">
             <MissingList design={design} missing={computed.view.data.missing} />
           </div>
         )}
         {/* セルの電力を下書きで問い合わせ直している間は、前の数字を薄くして出し、上端に帯を出す */}
-        <Refreshable active={computed.view.updating} className="flex min-h-0 flex-1 flex-col">
+        <Refreshable
+          active={!!system && computed.view.updating}
+          className="flex min-h-0 flex-1 flex-col"
+        >
           <div className="min-h-0 flex-1 scroll-pt-16 scroll-pb-36 scroll-pl-52 overflow-auto">
             <ModesTable
               key={eclipse ? "eclipse" : "sunlit"}
               modes={table.modes}
-              groups={matrixGroups(design, draft, computed.view.data, tm, eclipse, system)}
+              groups={matrixGroups(
+                design,
+                draft,
+                system ? computed.view.data : null,
+                tm,
+                eclipse,
+                system,
+              )}
               eclipse={eclipse}
               view={computed.view}
               system={system}

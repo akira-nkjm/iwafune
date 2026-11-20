@@ -122,7 +122,7 @@ pub enum EnergyBalanceLoad {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct EnergyBalanceOutput {
     pub life: SolarLife,
-    /// モード別の負荷内訳（電源ページでも共用）。
+    /// モード別の負荷内訳（電源のモードの見方でも共用）。
     pub mode_loads: super::mode_load::ModeLoadOutput,
     /// 集中電池モデルで使った DoD 上限。
     pub dod_limit: Fraction,

@@ -27,6 +27,7 @@ pub(super) fn views(s: &Snapshot) -> Result<Vec<crate::dto::SystemModeView>> {
                 sunlit: Default::default(),
                 eclipse: Default::default(),
                 aocs: Some(mode_view_with(s, mode.id.as_str(), &shared)?),
+                power: None,
             })
         })
         .collect()

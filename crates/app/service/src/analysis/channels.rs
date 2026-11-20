@@ -1,6 +1,6 @@
 //! 時系列のチャンネルの表示名と表示単位: 表示名は系列の種類（`kind`）と対象（`subject`）から語彙（`analysis::labels`）で引き、
 //! 表示単位は次元名から `sat_units::format` で選び JSON に付加する（形は `dto::DisplayChannel`）。型のままの系列には
-//! [`display_series`] が同じ規則で付ける（電源のページのグラフ）。
+//! [`display_series`] が同じ規則で付ける（電源のモードごとのグラフ）。
 //! 表示値 = SI × `display_scale` で済むよう、一次式の単位（affine・対数でないもの）だけを選ぶ。
 
 use super::labels::channel_label;
