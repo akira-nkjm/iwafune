@@ -12,7 +12,7 @@ export interface Box3D {
   position: V3;
   /** 機体座標の姿勢 [w, x, y, z] */
   orientation: Q4;
-  /** 箱の辺 [m]（size 属性の SI 値。無ければ既定の箱） */
+  /** 箱の辺 [m]（size 属性の SI 値。無ければ取付点の印の外接の大きさ） */
   size: V3;
   color: string;
   sized: boolean;
@@ -102,7 +102,7 @@ export function axesOf(design: DesignView): Axis3D[] {
 
 /** Bounds の最大辺に対する表示寸法の比。装飾の寸法はここだけで定義する。 */
 export const SCENE_RATIOS = {
-  defaultBox: 0.12,
+  marker: 0.04,
   arrow: 0.25,
   arrowHead: 0.06,
   arrowWidth: 0.035,
@@ -156,6 +156,11 @@ function sizeOf(p: PartRow): V3 | null {
   return v?.type === "vector" ? v.si : null;
 }
 
+/** 部品が大きさ（size）を持つか。持たない部品は箱ではなく取付点の印で描く */
+export function hasSize(p: PartRow): boolean {
+  return sizeOf(p) !== null;
+}
+
 /** 設計から 3D の箱を作る（機体座標が導出できた部品だけ）。色は系の色か、colorOf の上書き */
 export function boxesOf(
   design: DesignView,
@@ -185,8 +190,7 @@ export function boxesOf(
   const bounds = boundsOf(boxes);
   const dimensions = sceneDimensions(bounds);
   for (const box of boxes) {
-    if (!box.sized)
-      box.size = [dimensions.defaultBox, dimensions.defaultBox, dimensions.defaultBox];
+    if (!box.sized) box.size = [dimensions.marker, dimensions.marker, dimensions.marker];
   }
   return { boxes, unplaced, dimensions };
 }
@@ -222,9 +226,7 @@ export function boxMaterial(
     ? 1
     : box.structure && structureOpacity !== undefined
       ? structureOpacity
-      : box.sized
-        ? 0.85
-        : 0.45;
+      : 0.85;
   const opacity = dimmed && !selected ? base * DIMMED_OPACITY_RATIO : base;
   return { color: box.color, transparent: true, opacity, depthWrite: opacity === 1 };
 }

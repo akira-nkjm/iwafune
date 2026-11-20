@@ -163,7 +163,11 @@ export function Scene3D({
               onSelect(pickBox(hits, selected));
             }}
           >
-            <boxGeometry args={b.size} />
+            {b.sized ? (
+              <boxGeometry args={b.size} />
+            ) : (
+              <octahedronGeometry args={[b.size[0] / 2]} />
+            )}
             <meshStandardMaterial
               {...boxMaterial(b, b.id === selected, structureOpacity, dimmed(b.id))}
             />

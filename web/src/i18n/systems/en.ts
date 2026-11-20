@@ -186,6 +186,7 @@ export const systemsEn: typeof systemsJa = {
       moved: (id: string) => `Moved ${id}`,
       placementOf: (id: string) => `Placement of ${id}`,
       hint: "Select a box to edit its mount, position and orientation numerically.",
+      noSize: "No size is set yet, so it is drawn as a mount-point marker (diamond).",
       unplaced: "Unplaced",
       axes: "Axes, normals, boresights",
       axesLegend:

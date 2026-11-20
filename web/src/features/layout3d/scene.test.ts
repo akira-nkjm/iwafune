@@ -14,6 +14,7 @@ import {
   directionAttrs,
   FOV_DRAW_MAX,
   fovsOf,
+  hasSize,
   pickBox,
 } from "./scene";
 
@@ -176,6 +177,15 @@ describe("外形に対する表示寸法", () => {
     expect(large.boxes[1]!.size[0]).toBeCloseTo(small.boxes[1]!.size[0] * 10);
   });
 
+  it("size の無い部品は取付点の印（sized = false、外形に対する一定の大きさ）で、size のある部品は箱", () => {
+    const design = designAt(0.1);
+    const { boxes, dimensions } = boxesOf(design);
+    expect(boxes.map((b) => b.sized)).toEqual([true, false]);
+    expect(boxes[1]!.size).toEqual([dimensions.marker, dimensions.marker, dimensions.marker]);
+    expect(hasSize(design.parts[0]!)).toBe(true);
+    expect(hasSize(design.parts[1]!)).toBe(false);
+  });
+
   it("親の名前によらず API の system で色を決める", () => {
     const { boxes } = boxesOf(designAt(0.1));
     expect(boxes[1]!.color).toBe(toneHex[systemTone("payload")]);
@@ -208,7 +218,7 @@ describe("構造の透過表示", () => {
     const { boxes } = boxesOf({ ...fixture, parts });
     expect(boxes.map((b) => b.structure)).toEqual([true, false]);
     expect(boxMaterial(boxes[0]!, false, DEFAULT_STRUCTURE_OPACITY).opacity).toBe(0.3);
-    expect(boxMaterial(boxes[1]!, false, 0.3).opacity).toBe(0.45);
+    expect(boxMaterial(boxes[1]!, false, 0.3).opacity).toBe(0.85);
   });
 
   it("不透明度を連続して変えても透過モードは一定で、選択中は常に不透明", () => {
@@ -222,10 +232,10 @@ describe("構造の透過表示", () => {
       });
       expect(boxMaterial(box, true, opacity)).toMatchObject({ opacity: 1, depthWrite: true });
     }
-    expect(boxMaterial(box, false).opacity).toBe(0.45);
+    expect(boxMaterial(box, false).opacity).toBe(0.85);
     // ほかの部品が選ばれているときは淡く、選んだ部品は不透明のまま
     expect(boxMaterial(box, false, undefined, true).opacity).toBeCloseTo(
-      0.45 * DIMMED_OPACITY_RATIO,
+      0.85 * DIMMED_OPACITY_RATIO,
     );
     expect(boxMaterial(box, true, 0.3, true).opacity).toBe(1);
     expect(boxMaterial({ ...box, sized: true }, false).opacity).toBe(0.85);

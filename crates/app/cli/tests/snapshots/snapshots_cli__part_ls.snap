@@ -2,41 +2,44 @@
 source: crates/app/cli/tests/snapshots_cli.rs
 expression: "stdout(&[\"-C\", root.to_str().unwrap(), \"part\", \"ls\"])"
 ---
- ID          Subsystem    Kind                  Definition          Count   Mass     Power         Operating temp     
-──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
- BAT         power        battery               local/bat_2s2p          1    395 g             —       0 °C … 45.0 °C 
- BUS_FRAME   structure    structure             —                       1    620 g             —   not set            
- CAM         payload      camera                local/cam_ms_5m         1    920 g   6.80 W (on)       0 °C … 35.0 °C 
- CELLS       power        solar_panel           local/tj_cell_30       20   2.60 g             —   not set            
- EPT         propulsion   propulsion_thruster   —                       1    400 g   30.0 W (on)   not set            
- GPS         aocs         gps                   local/gps_l1            1   80.0 g   900 mW (on)   -20.0 °C … 60.0 °C 
- HTR_BAT     thermal      heater                —                       1   5.00 g   2.00 W (on)   not set            
- HTR_CAM     thermal      heater                —                       1   4.00 g   1.00 W (on)   not set            
- MTQ_X       aocs         magnetorquer          local/mtq_0p2           1   30.0 g   450 mW (on)   -30.0 °C … 70.0 °C 
- MTQ_Y       aocs         magnetorquer          local/mtq_0p2           1   30.0 g   450 mW (on)   -30.0 °C … 70.0 °C 
- MTQ_Z       aocs         magnetorquer          local/mtq_0p2           1   30.0 g   450 mW (on)   -30.0 °C … 70.0 °C 
- OBC         cdh          obc                   local/obc_m7            1   90.0 g   650 mW (on)   -25.0 °C … 70.0 °C 
- PANEL_MX    structure    panel                 —                       1    120 g             —   not set            
- PANEL_MY    structure    panel                 —                       1   70.0 g             —   not set            
- PANEL_MZ    structure    panel                 —                       1   90.0 g             —   not set            
- PANEL_PX    structure    panel                 —                       1    120 g             —   not set            
- PANEL_PY    structure    panel                 —                       1   60.0 g             —   not set            
- PANEL_PZ    structure    panel                 —                       1   70.0 g             —   not set            
- PCDU        power        pcdu                  local/pcdu_6u           1    200 g   350 mW (on)   -30.0 °C … 70.0 °C 
- RW_X        aocs         reaction_wheel        local/rw_10mNms         1    152 g   600 mW (on)   -20.0 °C … 60.0 °C 
- RW_Y        aocs         reaction_wheel        local/rw_10mNms         1    150 g   600 mW (on)   -20.0 °C … 60.0 °C 
- RW_Z        aocs         reaction_wheel        local/rw_10mNms         1    150 g   600 mW (on)   -20.0 °C … 60.0 °C 
- SAP_PY      power        structure             —                       1    180 g             —   not set            
- SP_MX       power        solar_panel           local/sp_2u3u           1    210 g             —   not set            
- SP_MY       power        solar_panel           local/sp_1u3u           1    100 g             —   not set            
- SP_PX       power        solar_panel           local/sp_2u3u           1    210 g             —   not set            
- SP_PY       power        solar_panel           local/sp_1u3u           1    100 g             —   not set            
- SS_MX       aocs         sun_sensor            local/fss_60            1   35.0 g   130 mW (on)   -40.0 °C … 85.0 °C 
- SS_MY       aocs         sun_sensor            local/fss_60            1   35.0 g   130 mW (on)   -40.0 °C … 85.0 °C 
- SS_PX       aocs         sun_sensor            local/fss_60            1   35.0 g   130 mW (on)   -40.0 °C … 85.0 °C 
- SS_PY       aocs         sun_sensor            local/fss_60            1   35.0 g   130 mW (on)   -40.0 °C … 85.0 °C 
- STT         aocs         star_tracker          local/stt_nano          1    280 g   1.10 W (on)   -20.0 °C … 50.0 °C 
- STX         comm         transceiver           local/sband_tx_2m       1    250 g   9.50 W (tx)   -20.0 °C … 50.0 °C 
- UHF_TRX     comm         transceiver           local/uhf_trx_9k6       1   90.0 g   3.80 W (tx)   -30.0 °C … 60.0 °C 
- XE_TANK     propulsion   propellant_tank       —                       1    150 g             —   not set            
-35 parts
+ ID           Subsystem    Kind                  Definition          Count   Mass     Power         Operating temp     
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ BAT          power        battery               local/bat_2s2p          1    395 g             —       0 °C … 45.0 °C 
+ BUS_FRAME    structure    structure             —                       1    620 g             —   not set            
+ CAM          payload      camera                local/cam_ms_5m         1    920 g   6.80 W (on)       0 °C … 35.0 °C 
+ CELL_MOD_1   power        solar_panel           local/tj_module_5       1   13.0 g             —   not set            
+ CELL_MOD_2   power        solar_panel           local/tj_module_5       1   13.0 g             —   not set            
+ CELL_MOD_3   power        solar_panel           local/tj_module_5       1   13.0 g             —   not set            
+ CELL_MOD_4   power        solar_panel           local/tj_module_5       1   13.0 g             —   not set            
+ EPT          propulsion   propulsion_thruster   —                       1    400 g   30.0 W (on)   not set            
+ GPS          aocs         gps                   local/gps_l1            1   80.0 g   900 mW (on)   -20.0 °C … 60.0 °C 
+ HTR_BAT      thermal      heater                —                       1   5.00 g   2.00 W (on)   not set            
+ HTR_CAM      thermal      heater                —                       1   4.00 g   1.00 W (on)   not set            
+ MTQ_X        aocs         magnetorquer          local/mtq_0p2           1   30.0 g   450 mW (on)   -30.0 °C … 70.0 °C 
+ MTQ_Y        aocs         magnetorquer          local/mtq_0p2           1   30.0 g   450 mW (on)   -30.0 °C … 70.0 °C 
+ MTQ_Z        aocs         magnetorquer          local/mtq_0p2           1   30.0 g   450 mW (on)   -30.0 °C … 70.0 °C 
+ OBC          cdh          obc                   local/obc_m7            1   90.0 g   650 mW (on)   -25.0 °C … 70.0 °C 
+ PANEL_MX     structure    panel                 —                       1    120 g             —   not set            
+ PANEL_MY     structure    panel                 —                       1   70.0 g             —   not set            
+ PANEL_MZ     structure    panel                 —                       1   90.0 g             —   not set            
+ PANEL_PX     structure    panel                 —                       1    120 g             —   not set            
+ PANEL_PY     structure    panel                 —                       1   60.0 g             —   not set            
+ PANEL_PZ     structure    panel                 —                       1   70.0 g             —   not set            
+ PCDU         power        pcdu                  local/pcdu_6u           1    200 g   350 mW (on)   -30.0 °C … 70.0 °C 
+ RW_X         aocs         reaction_wheel        local/rw_10mNms         1    152 g   600 mW (on)   -20.0 °C … 60.0 °C 
+ RW_Y         aocs         reaction_wheel        local/rw_10mNms         1    150 g   600 mW (on)   -20.0 °C … 60.0 °C 
+ RW_Z         aocs         reaction_wheel        local/rw_10mNms         1    150 g   600 mW (on)   -20.0 °C … 60.0 °C 
+ SAP_PY       power        structure             —                       1    180 g             —   not set            
+ SP_MX        power        solar_panel           local/sp_2u3u           1    210 g             —   not set            
+ SP_MY        power        solar_panel           local/sp_1u3u           1    100 g             —   not set            
+ SP_PX        power        solar_panel           local/sp_2u3u           1    210 g             —   not set            
+ SP_PY        power        solar_panel           local/sp_1u3u           1    100 g             —   not set            
+ SS_MX        aocs         sun_sensor            local/fss_60            1   35.0 g   130 mW (on)   -40.0 °C … 85.0 °C 
+ SS_MY        aocs         sun_sensor            local/fss_60            1   35.0 g   130 mW (on)   -40.0 °C … 85.0 °C 
+ SS_PX        aocs         sun_sensor            local/fss_60            1   35.0 g   130 mW (on)   -40.0 °C … 85.0 °C 
+ SS_PY        aocs         sun_sensor            local/fss_60            1   35.0 g   130 mW (on)   -40.0 °C … 85.0 °C 
+ STT          aocs         star_tracker          local/stt_nano          1    280 g   1.10 W (on)   -20.0 °C … 50.0 °C 
+ STX          comm         transceiver           local/sband_tx_2m       1    250 g   9.50 W (tx)   -20.0 °C … 50.0 °C 
+ UHF_TRX      comm         transceiver           local/uhf_trx_9k6       1   90.0 g   3.80 W (tx)   -30.0 °C … 60.0 °C 
+ XE_TANK      propulsion   propellant_tank       —                       1    150 g             —   not set            
+38 parts

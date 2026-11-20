@@ -17,7 +17,7 @@ expression: text
  local/sp_1u3u       power       solar_panel      Solar panel 1U×3U (8 triple-junction cells)                              10 
  local/sp_2u3u       power       solar_panel      Solar panel 2U×3U (20 triple-junction cells)                             10 
  local/stt_nano      aocs        star_tracker     Compact star tracker                                  ST-NANO            11 
- local/tj_cell_30    power       solar_panel      Triple-junction cell, 30 cm²                          TJ-30               7 
+ local/tj_module_5   power       solar_panel      Triple-junction cell module (5 cells of 30 cm²)       TJ-30-M5            8 
  local/uhf_trx_9k6   comm        transceiver      UHF transceiver, 9600 bps (antenna included)          UTRX-96            14 
 
  ID              Name                          Modes     File                     
