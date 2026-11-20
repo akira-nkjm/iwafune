@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Focus } from "lucide-react";
+import { Eye, EyeOff, Focus, Scan } from "lucide-react";
 import type { DesignView, PartRow } from "@/api/types";
 import { PartsTree } from "@/features/components/list/PartsTree";
 import { useT } from "@/i18n";
@@ -153,10 +153,11 @@ function IsolateToggle({
       onClick={() => onHidden(isolate(hidden, all, ids))}
       className={cn(
         "flex size-6 items-center justify-center rounded-control hover:bg-panel-2 hover:text-ink",
-        isolated ? "text-accent-ink" : "text-ink-3",
+        isolated ? "bg-accent-tint text-accent-ink" : "text-ink-3",
       )}
     >
-      <Focus size={14} />
+      {/* 目のマークと同じく、状態で図も変える: ふだんは枠だけ、これだけを出している間は枠の中に点 */}
+      {isolated ? <Focus size={14} /> : <Scan size={14} />}
     </button>
   );
 }
