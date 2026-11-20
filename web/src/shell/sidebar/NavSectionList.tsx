@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import { NavLink } from "react-router";
+import { matchPath, NavLink, useLocation, useNavigation } from "react-router";
 import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
@@ -28,6 +28,10 @@ export function NavSectionList({
   const t = useT();
   const design = useDesign();
   const preload = usePreloadPlan();
+  // いま向かっているページ（移っている途中なら行き先）。押した直後に選択中の色を移すために、行き先で見分ける。
+  // ページの切り替えが終わるのを待つと、重いページでは色だけ前の項目に残って見える
+  const location = useLocation();
+  const goingTo = useNavigation().location?.pathname ?? location.pathname;
   const itemsId = `${SIDEBAR_ID}-${section.id}`;
   const heading = section.heading ? t.nav.sections[section.id] : null;
   const showItems = rail || !closed || !heading;
@@ -77,7 +81,7 @@ export function NavSectionList({
               <li key={it.to}>
                 <RailTip rail={rail} label={heading ? `${heading} / ${name}` : name}>
                   {/* className は文字列にする（RailTip の asChild は className を文字列として結合するので、
-                      関数を渡すと崩れる）。選択中は NavLink が付ける aria-current="page" で見分ける。
+                      関数を渡すと崩れる）。選択中の色は `data-current`（行き先で決める。上の `goingTo`）で付ける。読み上げ用の aria-current は NavLink が付ける。
                       ホバー・フォーカスしたら、ルートのモジュール（React Router）とページの本体・データを先に読む */}
                   <NavLink
                     to={it.to}
@@ -85,10 +89,13 @@ export function NavSectionList({
                     prefetch="intent"
                     {...preloadHandlers(() => preload.item(it.key))}
                     aria-label={rail ? name : undefined}
+                    data-current={
+                      matchPath({ path: it.to, end: it.to === paths.overview() }, goingTo) !== null
+                    }
                     className={cn(
                       "flex h-8 items-center gap-2 overflow-hidden rounded-control px-2 text-[13px] text-ink-2 transition-colors hover:bg-panel/70 hover:text-ink",
                       // 選択中は青の濃いめの地（accent-ink。白い字とのコントラスト 4.5:1 以上）に白い字。ホバーしても色は変えない
-                      "aria-[current=page]:bg-accent-ink aria-[current=page]:font-medium aria-[current=page]:text-inverse aria-[current=page]:shadow-panel aria-[current=page]:hover:bg-accent-ink aria-[current=page]:hover:text-inverse",
+                      "data-[current=true]:bg-accent-ink data-[current=true]:font-medium data-[current=true]:text-inverse data-[current=true]:shadow-panel data-[current=true]:hover:bg-accent-ink data-[current=true]:hover:text-inverse",
                     )}
                   >
                     <Icon size={16} strokeWidth={1.6} className="shrink-0" />
