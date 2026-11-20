@@ -16,6 +16,7 @@ fune-model = { workspace = true }
 fune-store = { workspace = true }
 fune-ops = { workspace = true }
 fune-projection = { workspace = true }
+fune-report = { workspace = true, features = ["ts"] }
 sat-analysis = { workspace = true, features = ["ts"] }
 sat-astro = { workspace = true, features = ["ts"] }
 sat-units = { workspace = true, features = ["serde", "ts"] }
@@ -27,4 +28,5 @@ similar = { workspace = true }
 sha2 = { workspace = true }
 
 [dev-dependencies]
+insta = { workspace = true }
 tempfile = { workspace = true }

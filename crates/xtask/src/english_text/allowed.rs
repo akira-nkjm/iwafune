@@ -15,6 +15,10 @@ pub(super) const ALLOWED: &[(&str, &str)] = &[
         "Japanese display name of a condition group (label / label_en)",
     ),
     (
+        "crates/app/report/src/labels.rs",
+        "bilingual report headings, captions and notes, pair(ja, en)",
+    ),
+    (
         "crates/app/service/src/analysis/labels.rs",
         "bilingual analysis-view labels, label(ja, en) tables",
     ),

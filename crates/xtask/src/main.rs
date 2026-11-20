@@ -44,6 +44,7 @@ const ALLOWED: &[(&str, &[&str])] = &[
         "fune-projection",
         &["fune-model", "sat-analysis", "sat-astro", "sat-units"],
     ),
+    ("fune-report", &["sat-units"]),
     (
         "fune-service",
         &[
@@ -51,6 +52,7 @@ const ALLOWED: &[(&str, &[&str])] = &[
             "fune-store",
             "fune-ops",
             "fune-projection",
+            "fune-report",
             "sat-analysis",
             "sat-astro",
             "sat-units",

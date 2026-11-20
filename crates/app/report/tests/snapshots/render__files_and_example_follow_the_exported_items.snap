@@ -1,0 +1,19 @@
+---
+source: crates/app/report/tests/render.rs
+expression: "typst::example(&data)"
+---
+// Example document: includes every exported item. Write your own text around the calls.
+// Build it with `typst compile example.typ` (tested with Typst 0.15.1; for Japanese text set a CJK font with `#set text(font: …)`).
+#import "iwafune.typ": *
+#set page(paper: "a4", margin: 20mm)
+#set text(lang: "ja", size: 10pt)
+#set heading(numbering: "1.1")
+
+Model revision: #raw(revision)
+
+= Mass
+#mass-table()
+
+= Temperature history
+#thermal-history(case: "hot")
+#thermal-history(case: "cold")
