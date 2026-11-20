@@ -1,7 +1,7 @@
 //! グラフのチャンネルと共通横軸・時間帯の表示定義。
-use super::label;
 use crate::analysis::channels::display_series;
-use crate::dto::*;
+use crate::analysis::labels::label;
+use crate::dto::{DisplaySeries, PowerChartBand, PowerChartView, PowerModeView};
 use sat_analysis::power::{
     energy_balance::EnergyBalanceOutput, orbit_generation::OrbitGenerationOutput,
 };
@@ -51,7 +51,7 @@ pub(super) fn build(out: &EnergyBalanceOutput, index: usize, mode: &str) -> Vec<
         ),
     ]
     .into_iter()
-    .map(|(id, label, keys, soc)| {
+    .map(|(id, title, keys, soc)| {
         let mut channels: Vec<_> = series
             .channels
             .iter()
@@ -85,7 +85,7 @@ pub(super) fn build(out: &EnergyBalanceOutput, index: usize, mode: &str) -> Vec<
         };
         PowerChartView {
             id: id.into(),
-            label,
+            label: title,
             series: DisplaySeries {
                 t: series.t.clone(),
                 channels,
@@ -94,14 +94,14 @@ pub(super) fn build(out: &EnergyBalanceOutput, index: usize, mode: &str) -> Vec<
             show_time_axis: soc,
             bands: bands.clone(),
             reference,
-            reference_label: soc.then(|| super::label("許容 DoD", "Allowed DoD")),
+            reference_label: soc.then(|| label("許容 DoD", "Allowed DoD")),
         }
     })
     .collect()
 }
 
 /// 電力収支が未実行でも、軌道発電の結果だけで発電のグラフを表示できる。
-pub(super) fn orbital(out: &OrbitGenerationOutput) -> PowerPageView {
+pub(super) fn orbital(out: &OrbitGenerationOutput) -> Vec<PowerModeView> {
     let mut series = display_series(&out.series);
     series.channels.retain(|c| c.channel.key != "sunlit");
     let domain = [
@@ -129,28 +129,25 @@ pub(super) fn orbital(out: &OrbitGenerationOutput) -> PowerPageView {
             label: String::new(),
         },
     );
-    PowerPageView {
-        modes: vec![PowerModeView {
-            id: "orbit".into(),
-            label: match out.life {
-                sat_analysis::power::solar::SolarLife::Bol => "BOL",
-                sat_analysis::power::solar::SolarLife::Eol => "EOL",
-            }
-            .into(),
-            verdict: None,
-            sunlit: None,
-            eclipse: None,
-            charts: vec![PowerChartView {
-                id: "generation".into(),
-                label: label("太陽電池の発電", "Solar Cells generation"),
-                series,
-                domain,
-                show_time_axis: true,
-                bands,
-                reference: None,
-                reference_label: None,
-            }],
+    vec![PowerModeView {
+        id: "orbit".into(),
+        label: match out.life {
+            sat_analysis::power::solar::SolarLife::Bol => "BOL",
+            sat_analysis::power::solar::SolarLife::Eol => "EOL",
+        }
+        .into(),
+        verdict: None,
+        sunlit: None,
+        eclipse: None,
+        charts: vec![PowerChartView {
+            id: "generation".into(),
+            label: label("太陽電池の発電", "Solar Cells generation"),
+            series,
+            domain,
+            show_time_axis: true,
+            bands,
+            reference: None,
+            reference_label: None,
         }],
-        ..Default::default()
-    }
+    }]
 }

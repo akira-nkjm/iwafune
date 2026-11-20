@@ -96,8 +96,9 @@ export function ModesTable({
           ))}
         </MatrixFocus>
       </tbody>
-      {system && (
-        <tfoot className={`${STICKY.foot} bg-panel-2`}>
+      {/* 系のタブは足もとの行（合計・収支）、設計のモードのページは API が返した合計の行だけ */}
+      {(system || view.data) && (
+        <tfoot className={`${STICKY.foot} bg-panel-2`} aria-busy={view.updating}>
           <ModeBudgetRows modes={modes} view={view} eclipse={eclipse} />
         </tfoot>
       )}

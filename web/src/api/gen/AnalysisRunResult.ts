@@ -60,7 +60,7 @@ missing: Array<MissingInput>,
 error: string | null, 
 /**
  * 系の概要の解析の表の行（主な結果・判定のまとまり・開いたときの棒グラフ・隠す表）。主な結果と判定のまとまりは
- * `analysis::overview` が作り、棒グラフと隠す表は系ごとの組み立て（電源は `power_page::overview`）が足す。ほかは null と空
+ * `analysis::overview` が作り、棒グラフと隠す表は系ごとの組み立て（電源は `analysis::overview::power`）が足す。ほかは null と空
  */
 overview: AnalysisOverview, 
 /**

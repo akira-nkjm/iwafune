@@ -7,7 +7,7 @@ use axum::Json;
 use axum::extract::{Path, State};
 use fune_service::dto::{
     CheckReport, DefsView, DesignView, PartRow, PartView, PartViewRequest, PartsQuery, ProjectInfo,
-    ValueAnswer, ValueQuery,
+    SystemModesRequest, ValueAnswer, ValueQuery,
 };
 use fune_service::query;
 
@@ -86,7 +86,7 @@ pub async fn diagnostics(State(s): State<AppState>) -> Result<Json<CheckReport>,
 pub async fn system_modes(
     State(s): State<AppState>,
     Path(system): Path<String>,
-    ApiJson(req): ApiJson<PartViewRequest>,
+    ApiJson(req): ApiJson<SystemModesRequest>,
 ) -> Result<Json<fune_service::dto::SystemModesView>, ApiError> {
     blocking(&s, move |ws| {
         let system = fune_service::system_modes::parse_system(&system)?;

@@ -1,6 +1,6 @@
 //! 系の概要の「解析の表」の型（1 行 = 1 解析）。どの系の概要でも同じ形で、行に出す主な結果・判定のまとまり・
 //! 開いたときの小さな棒グラフ・「データを見る」で隠す表は `fune_service::analysis::overview` と系ごとの組み立て
-//! （電源は `power_page::overview`）が決める。Web は並べて描くだけ。
+//! （電源は `analysis::overview::power`）が決める。Web は並べて描くだけ。
 
 use super::{AnalysisLabel, CheckView, KpiView, QuantityView};
 use sat_analysis::spec::Verdict;

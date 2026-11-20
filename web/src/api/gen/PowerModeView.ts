@@ -4,6 +4,6 @@ import type { PowerChartView } from "./PowerChartView";
 import type { Verdict } from "./Verdict";
 
 /**
- * 選択するモードと、そのモードの表示。
+ * 1 モードの電力の表示（`SystemModeView.id` と同じモード ID）。
  */
 export type PowerModeView = { id: string, label: string, verdict: Verdict | null, sunlit: PowerBudgetView | null, eclipse: PowerBudgetView | null, charts: Array<PowerChartView>, };

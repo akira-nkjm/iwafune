@@ -403,6 +403,32 @@ pub struct ValueAnswer {
     pub selected: Option<QuantityView>,
 }
 
+/// 系別のモード表示の依頼（`POST /system_modes/{system}`、`fune mode view <系>`）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(default)]
+pub struct SystemModesRequest {
+    /// 保存していない編集。書き込まずに当てた設計で表示する（空なら保存済みの設計）
+    pub ops: Vec<Op>,
+    /// 解析ケースの ID（`cases/<ID>.toml`）。`analyzed` の解析に使う（省略時は各解析と同じ規則で決める）。部品別の値はケースを取らない
+    pub case: Option<String>,
+    /// 系の解析も回して、解析に基づく表示を足す（電源: モードごとの電力の行き先・判定・グラフ `SystemModeView.power`）。
+    /// 解析を回すので、表だけ欲しいときは偽にする
+    pub analyzed: bool,
+    /// 表の足もとに並べる行の範囲
+    pub summary: ModeSummaryScope,
+}
+
+/// 足もとの行の範囲（どの行を返すかは service が決める）。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ModeSummaryScope {
+    /// 系の全部の行（電源は合計・使用可能電力・余裕）
+    #[default]
+    All,
+    /// 合計の行だけ（判定は付けない）。設計のモードのページが全部品の表の足もとに合計だけ出すのに使う
+    Totals,
+}
+
 /// 系別のモード表示。状態の定義・編集は ModeTable と共通。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct SystemModesView {
@@ -455,6 +481,8 @@ pub struct SystemModeView {
     pub sunlit: ModeValuesView,
     pub eclipse: ModeValuesView,
     pub aocs: Option<super::AocsModeView>,
+    /// 電源のモードごとの電力の行き先・判定・グラフ（依頼の `analyzed` が真の電源の見方だけ。ほかは null）
+    pub power: Option<super::PowerModeView>,
 }
 
 /// 部品別の値と合計・収支。未割り当てや不足は None、警告は verdict に反映。

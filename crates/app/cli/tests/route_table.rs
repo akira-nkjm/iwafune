@@ -35,22 +35,10 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
     ("GET", "/values/{path}", &["get"], "query::get_value"),
     ("GET", "/defs", &["attr", "ls"], "query::defs_view"),
     (
-        "GET",
-        "/power_page",
-        &["power-page"],
-        "power_page::power_page",
-    ),
-    (
-        "POST",
-        "/power_page",
-        &["power-page"],
-        "power_page::power_page_with（`--ops`）",
-    ),
-    (
         "POST",
         "/system_modes/{system}",
         &["mode", "view"],
-        "system_modes::system_modes（`--ops`）",
+        "system_modes::system_modes（`--ops`・`--case`・`--analyzed`・`--totals-only`）",
     ),
     ("GET", "/diagnostics", &["check"], "query::check"),
     ("POST", "/fmt", &["fmt"], "format::format_design"),

@@ -199,14 +199,12 @@ The correspondence between HTTP routes and the CLI and service (`crates/app/cli/
 | `GET /data/status`, `/data/space_weather`, `POST /data/{id}/fetch` | `fune data status`, `space-weather`, `fetch` | `data::{data_status, space_weather::lookup, fetch}` |
 | `GET /catalog/{id}` | `fune catalog show` | `query::catalog_item` |
 | `POST /catalog/fetch`, `/catalog/update` | `fune catalog fetch`, `update` | `shared_catalog::{fetch, update}` |
-| `GET /power_page` | `fune power-page [--case]` | `power_page::power_page` |
-| `POST /power_page` | `fune power-page [--case] --ops` | `power_page::power_page_with` |
-| `POST /system_modes/{system}` | `fune mode view <system> [--ops]` | `system_modes::system_modes` |
+| `POST /system_modes/{system}` | `fune mode view <system> [--ops] [--case] [--analyzed] [--totals-only]` | `system_modes::system_modes` |
 
 Tests verify the following two things.
 
 - When the same edit is made with the `fune` executable and with HTTP, the files are byte-for-byte identical (`crates/app/cli/tests/parity.rs`, `parity_text.rs`, `parity_command.rs`).
-- `--json` of `fune power-page` and `fune mode view` equals the HTTP JSON of the same route (`crates/app/cli/tests/parity_pages.rs`).
+- `--json` of `fune mode view` equals the HTTP JSON of the same route (`crates/app/cli/tests/parity_pages.rs`).
 - For every kind of Op, reading the `to_cli` string back with clap returns the original Op (`crates/app/cli/src/cmd/roundtrip/`).
   When you add a kind of Op, it does not compile until you add a sample.
 
@@ -270,7 +268,7 @@ Detailed analysis tables and diagnostics are put away under each analysis's "Vie
 The Parts tab shows loads (per-state standalone power), solar cells (area, efficiency, normal) and batteries (capacity, voltage) by role, and uses the common attribute editing.
 The time series selects a mode and shows generation and load, charge/discharge and shunt, and SOC. It uses the common time domain, the bands of eclipse and mode, and synchronized hover, and draws the allowed DoD line on the SOC.
 Generation and sunlit in the upper section of the power balance are not shown again as orbit generation. The table of contents of the graphs is on the right.
-The display definition is `PowerPageView`, integrated by the independent `fune_service::power_page::power_page_with`, which runs the four Power analyses typed and returns `GET /api/v1/power_page?case=…` (and `POST /api/v1/power_page` with a draft `ops`). Power-specific fields are not placed in the generic analysis result or design DTOs. The 3 tabs use the same query of `usePowerPage`. Rust returns quantities, verdicts, ratios, marker positions and the channel selection, and the Web only draws and handles interaction.
+The Results tab is the generic analysis table fed by `POST /analyses/power.*` (bar charts and hidden tables come with each result). The per-mode display definition is `SystemModeView.power` of `POST /api/v1/system_modes/power` with `analyzed: true` (and the selected `case`, and a draft `ops`), built by `fune_service::system_modes::power`, which runs the four Power analyses typed. Power-specific fields are not placed in the generic analysis result. The Modes and Series tabs use the same query. Rust returns quantities, verdicts, ratios, marker positions and the channel selection, and the Web only draws and handles interaction.
 Other subsystems use the conventional generic display.
 A Modes tab is on AOCS, C&DH, Power and Thermal.
 Power shows the matrix of power consumption with the total including growth margin, available power, margin and verdict;
@@ -282,7 +280,7 @@ Equipment can be switched between sunlit and eclipse, aggregation shares `counte
 The sunlit/eclipse values, totals and verdicts are returned by `system_modes::system_modes` (`POST /system_modes/{system}`) from the existing projections and analyses.
 The available power of Power is the design value obtained by subtracting the system margin from the budget's allocation limit, and the same limit is used for both sunlit and eclipse (separate from on-orbit generation and the instantaneous capability of the battery).
 The design's "Modes" is the only place where definitions are edited (adding, name, duration, part states, number operating, spare, and eclipse overrides).
-A column of standalone power levels is kept as a reference for choosing states, but values, totals and balances in cells are placed in each subsystem's tab.
+A column of standalone power levels is kept as a reference for choosing states, but values, totals and balances in cells are placed in each subsystem's tab. The definition page adds one footer row, the total power consumption per mode (follows the sunlit/eclipse switch and the unsaved cell edits; the service returns only that row for `summary: "totals"` of `POST /system_modes/power`).
 Changing the state of a cell in each subsystem also uses the same `draft.ts`, `useModeDraftLoad`, and the arguments of `fune mode set|unset` → Op → save.
 The system diagram switches its display for each subsystem of the API's `DefsView.systems`, and hides structure by default.
 The selection is stored in the URL as `hidden-system` through `lib/nav.ts` (it can be repeated; empty means show all).

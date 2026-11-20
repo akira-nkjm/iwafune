@@ -241,7 +241,15 @@ fn catalog_lists_kpi_definitions() {
 }
 
 /// 実行の結果は概要の解析の表の行を持つ: 主な結果は KPI の先頭（定義の順に 3 つまで）、判定の文は持ち主ごとに全部。
-/// 棒グラフと隠す表は系ごとの組み立て（電源のページ）だけが足すので、解析の入口では null と空。
+/// 棒グラフと隠す表は系ごとの組み立て（電源の 4 つの解析）だけが足すので、ほかの解析では null と空。
+/// 概要の行に棒グラフを持つ解析（電源の 4 つ）。
+const POWER_CHARTS: [&str; 4] = [
+    "power.mode_load",
+    "power.orbit_generation",
+    "power.energy_balance",
+    "power.sizing",
+];
+
 #[test]
 fn every_run_result_carries_its_overview_row() {
     let ws = demo();
@@ -252,8 +260,11 @@ fn every_run_result_carries_its_overview_row() {
         assert_eq!(r.overview.main, r.kpis[..n], "{}", r.id);
         let grouped: usize = r.overview.checks.iter().map(|g| g.checks.len()).sum();
         assert_eq!(grouped, r.checks.len(), "{}", r.id);
-        assert!(r.overview.chart.is_none(), "{}", r.id);
-        assert!(r.overview.hidden_tables.is_empty(), "{}", r.id);
+        let power = POWER_CHARTS.contains(&r.id.as_str());
+        assert_eq!(r.overview.chart.is_some(), power, "{}", r.id);
+        if r.id != "power.energy_balance" {
+            assert!(r.overview.hidden_tables.is_empty(), "{}", r.id);
+        }
     }
 }
 

@@ -1,10 +1,11 @@
 //! 既存の負荷・発電・充放電の集計を、モードごとの積み上げ棒に写す（物理の計算はしない）。
-use super::label;
-use crate::dto::*;
+use crate::analysis::labels::label;
+use crate::dto::{AnalysisLabel, PowerBudgetKind, PowerBudgetSegment, PowerBudgetView};
 use sat_analysis::power::{
     energy_balance::{EnergyBalanceCaseResult, LoadGrowth},
     mode_load::ModeLoadMode,
 };
+use sat_analysis::spec::System;
 use sat_units::typed::{NamedKind, Power};
 use std::collections::BTreeMap;
 

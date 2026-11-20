@@ -20,14 +20,15 @@ import type {
   DefsView,
   DesignView,
   HistoryView,
+  ModeSummaryScope,
   Op,
   PartRow,
   PartView,
   PartViewRequest,
-  PowerPageView,
   ProjectInfo,
   RunAnalysisRequest,
   System,
+  SystemModesRequest,
   SystemModesView,
   UnitsCatalog,
 } from "./types";
@@ -38,27 +39,42 @@ export const queryClient = new QueryClient({
   },
 });
 
+/** `q.systemModes` の指定 */
+export interface SystemModesOptions {
+  /** 解析ケースの ID（`analyzed` の解析に使う。部品別の値はケースを取らない） */
+  kase?: string | null;
+  /** 系の解析も回す */
+  analyzed?: boolean;
+  /** 足もとの行の範囲 */
+  summary?: ModeSummaryScope;
+}
+
 /** 読み取りの queryOptions（画面は useQuery(q.xxx()) で使う） */
 export const q = {
-  powerPage: (kase: string | null) =>
-    queryOptions({
-      queryKey: keys.powerPage(kase),
-      queryFn: () => api<PowerPageView>(kase ? `/power_page?case=${seg(kase)}` : "/power_page"),
-      staleTime: 30_000,
-    }),
   project: () =>
     queryOptions({ queryKey: keys.project, queryFn: () => api<ProjectInfo>("/project") }),
   design: () => queryOptions({ queryKey: keys.design, queryFn: () => api<DesignView>("/design") }),
-  systemModes: (system: System, ops: readonly Op[] = []) =>
-    queryOptions({
-      queryKey: keys.systemModes(system, JSON.stringify(ops)),
+  /**
+   * 系別のモード表示（`POST /system_modes/{system}`）。`ops` は保存していない編集（書き込まずに当てる）。
+   * 既定は部品別の値の表だけ（解析は回さない）。`analyzed` を渡すと系の解析も回して解析に基づく表示を足す
+   * （電源: モードごとの電力の行き先・判定・グラフ。`kase` のケースで）。`summary` は足もとの行の範囲（service が行を選ぶ）。
+   */
+  systemModes: (system: System, ops: readonly Op[] = [], options: SystemModesOptions = {}) => {
+    const { kase = null, analyzed = false, summary = "all" } = options;
+    const opsJson = JSON.stringify(ops);
+    return queryOptions({
+      queryKey: analyzed
+        ? keys.analyzedModes(system, kase, opsJson)
+        : keys.systemModes(system, opsJson, summary),
       queryFn: () =>
         api<SystemModesView>(`/system_modes/${seg(system)}`, {
           method: "POST",
-          body: { ops: [...ops] } satisfies PartViewRequest,
+          body: { ops: [...ops], case: kase, analyzed, summary } satisfies SystemModesRequest,
         }),
       placeholderData: keepPreviousData,
-    }),
+      ...(analyzed ? { staleTime: 30_000 } : {}),
+    });
+  },
   /** 1 部品。`ops` を渡すと、保存していない編集を書き込まずに当てた設計の部品（`POST /parts/{id}`） */
   part: (id: string, ops: readonly Op[] = []) => {
     const json = ops.length > 0 ? JSON.stringify(ops) : "";
@@ -133,11 +149,6 @@ export function useDesign() {
   return useQuery(q.design());
 }
 
-/** ケースの電源ページ全体。3 タブが同じ取得結果を共有する。 */
-export function usePowerPage(kase: string | null, enabled = true) {
-  return useQuery({ ...q.powerPage(kase), enabled });
-}
-
 /**
  * 保存していない編集（ops）を書き込まずに当てた部品（`POST /parts/{id}`）。ops が null か空なら問い合わせない。
  * 打つ間は 250 ms 待ってから問い合わせる。同じ編集で定義を作る属性のパスを、その部品の `paths` から引くのに使う
@@ -164,7 +175,7 @@ export function useDraftPart(
 
 /** 解析を計算し直す（設計の編集の後は api/ops.ts が自動で無効化する。これは「再計算」ボタン用） */
 export function recomputeAnalyses(ids: readonly string[], kase: string | null): void {
-  void queryClient.invalidateQueries({ queryKey: keys.powerPage(kase) });
+  void queryClient.invalidateQueries({ queryKey: keys.analyzedModesAll });
   for (const id of ids) void queryClient.invalidateQueries({ queryKey: keys.analysis(id, kase) });
 }
 
@@ -219,10 +230,6 @@ export function useSystemAnalyses(system: string | null) {
 export async function prefetchSystemAnalyses(system: string): Promise<void> {
   try {
     const entries = await queryClient.fetchQuery(q.analyses());
-    if (system === "power") {
-      await queryClient.prefetchQuery(q.powerPage(null));
-      return;
-    }
     await Promise.all(
       systemEntries(entries, system).map((e) =>
         queryClient.prefetchQuery(q.analysis(e.info.id, null)),

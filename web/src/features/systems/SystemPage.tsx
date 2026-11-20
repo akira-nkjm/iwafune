@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useParams, useSearchParams } from "react-router";
-import { useAnalyses, useDesign, usePowerPage, useSystemAnalyses } from "@/api/queries";
-import type { AnalysisEntry, DefsView, PowerPageView, System } from "@/api/types";
+import { useAnalyses, useDesign, useSystemAnalyses } from "@/api/queries";
+import type { AnalysisEntry, DefsView, System } from "@/api/types";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
 import { SkeletonPage, SkeletonPanel } from "@/kit/feedback/Loading";
@@ -81,30 +81,19 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
   const [params, setParams] = useSearchParams();
   const kase = params.get(SEARCH.case);
   const catalog = useSystemAnalyses(system);
-  const genericStates = useAnalyses(system === "power" ? [] : catalog.ids, kase);
-  const powerPage = usePowerPage(kase, system === "power");
-  const states =
-    system === "power"
-      ? (powerPage.data?.analyses ?? []).map((a) => ({
-          id: a.result.id,
-          result: a.result,
-          loading: false,
-          updating: powerPage.isFetching,
-          error: null,
-        }))
-      : genericStates;
+  const states = useAnalyses(catalog.ids, kase);
   const entries = useMemo(
     () => new Map<string, AnalysisEntry>(catalog.entries.map((e) => [e.info.id, e])),
     [catalog.entries],
   );
   const tab: SystemTab =
     isTab(rawTab) && shows(system, rawTab, design.data?.defs) ? rawTab : "results";
-  const tabs = (d: NonNullable<DesignQuery["data"]>, page?: PowerPageView) => (
+  const tabs = (d: NonNullable<DesignQuery["data"]>) => (
     <SystemTabs
       tab={tab}
       system={system}
+      kase={kase}
       design={d}
-      powerPage={page}
       noAnalyses={!catalog.loading && catalog.entries.length === 0}
       states={states}
       entries={entries}
@@ -144,15 +133,7 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
         }
       >
         <QueryState query={design} skeleton={<SystemBodySkeleton />}>
-          {(d) =>
-            system === "power" ? (
-              <QueryState query={powerPage} skeleton={<SystemBodySkeleton />}>
-                {(page) => tabs(d, page)}
-              </QueryState>
-            ) : (
-              tabs(d)
-            )
-          }
+          {tabs}
         </QueryState>
       </PageBody>
     </>

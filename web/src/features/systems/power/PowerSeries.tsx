@@ -1,22 +1,38 @@
 import { lazy, Suspense, useState } from "react";
-import type { PowerPageView } from "@/api/types";
+import type { PowerModeView } from "@/api/types";
 import { localized, useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
-import { Loading, SkeletonBlock } from "@/kit/feedback/Loading";
+import { Loading, SkeletonBlock, SkeletonPanel } from "@/kit/feedback/Loading";
+import { QueryState } from "@/kit/feedback/QueryState";
+import { Refreshable } from "@/kit/feedback/Refreshable";
 import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { PowerControls } from "./PowerControls";
 import { PowerOutline } from "./PowerOutline";
+import { powerModesOf, usePowerModes } from "./use-power-modes";
 
 const SeriesChart = lazy(() =>
   import("@/analysis/SeriesChart").then((m) => ({ default: m.SeriesChart })),
 );
 
+/** 選んだケースの電源の時系列（問い合わせは `usePowerModes`。描くのは `PowerSeriesView`）。 */
+export function PowerSeries({ kase }: { kase: string | null }) {
+  const query = usePowerModes(kase);
+  return (
+    <QueryState query={query} skeleton={<SkeletonPanel lines={6} />}>
+      {(view) => (
+        <Refreshable active={query.isFetching}>
+          <PowerSeriesView modes={powerModesOf(view)} />
+        </Refreshable>
+      )}
+    </QueryState>
+  );
+}
+
 /** API のグラフ定義を選択モードだけ描く。全チャートで時間・ホバーを共有する。 */
-export function PowerSeries({ page }: { page: PowerPageView }) {
+export function PowerSeriesView({ modes }: { modes: PowerModeView[] }) {
   const t = useT();
   const [selected, setSelected] = useState<string>();
-  const modes = page.modes;
   const mode = modes.find((m) => m.id === selected) ?? modes[0];
   const charts = mode?.charts ?? [];
   const items = charts.map((chart) => ({
@@ -58,7 +74,7 @@ function BandLegend({
   charts,
   eclipseLabel,
 }: {
-  charts: PowerPageView["modes"][number]["charts"];
+  charts: PowerModeView["charts"];
   eclipseLabel: string;
 }) {
   if (!charts.some((c) => c.bands.some((b) => b.eclipse))) return null;

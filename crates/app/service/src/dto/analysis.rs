@@ -98,7 +98,7 @@ pub struct AnalysisRunResult {
     /// 解析が失敗したときの理由
     pub error: Option<String>,
     /// 系の概要の解析の表の行（主な結果・判定のまとまり・開いたときの棒グラフ・隠す表）。主な結果と判定のまとまりは
-    /// `analysis::overview` が作り、棒グラフと隠す表は系ごとの組み立て（電源は `power_page::overview`）が足す。ほかは null と空
+    /// `analysis::overview` が作り、棒グラフと隠す表は系ごとの組み立て（電源は `analysis::overview::power`）が足す。ほかは null と空
     pub overview: super::AnalysisOverview,
     /// 部品ごとの代表の温度（熱の定常解析だけ。それ以外は欄を出さない）。節点と部品の対応と代表の選び方は
     /// `analysis::part_heat` が決める。Web は 3D の色に値を写すだけ

@@ -71,6 +71,7 @@ function render(
       <QueryClientProvider client={new QueryClient()}>
         <SystemTabs
           tab={tab}
+          kase={null}
           system={system}
           design={fixture}
           states={states}
