@@ -1,14 +1,12 @@
 import type { ReactNode } from "react";
-import { dimOf, EACH } from "@/analysis/output";
 import { analysisOutput } from "@/api/analysis-output";
 import type { AnalysisState } from "@/api/queries";
 import type { AnalysisOutputs, DesignView, System } from "@/api/types";
-import { LazyLayout3D } from "@/features/layout3d/LazyLayout3D";
-import { heatHex, toneHex } from "@/lib/tone";
 import { hasExtras } from "./preload";
 import type { SystemTab } from "./SystemTabs";
-import { heatKey, heatMapOf, heatRatio } from "./thermal/heat";
-import { ThermalHeatmap } from "./thermal/ThermalHeatmap";
+import { rangeChartOf } from "./thermal/rangeChart";
+import { ThermalImage } from "./thermal/ThermalImage";
+import { ThermalRangeChart } from "./thermal/ThermalRangeChart";
 
 function resultOf(states: readonly AnalysisState[], id: string) {
   return states.find((s) => s.id === id)?.result;
@@ -22,45 +20,31 @@ function outputOf<K extends keyof AnalysisOutputs>(
 }
 
 /**
- * 系ごとの追加の表示（熱: 節点温度の表と温度で塗った 3D）。大きなチャンクは `preload.ts` の
- * `EXTRA_CHUNKS`（ナビの先読みと共通）で、下の分岐はその系をちょうど覆う（型で確かめる）。
+ * 系ごとの追加の表示（熱: 結果のタブの温度範囲の図と、熱画像のタブの温度で塗った 3D）。大きなチャンクは `preload.ts` の
+ * `EXTRA_CHUNKS`（ナビの先読みと共通）、追加のタブは `EXTRA_TABS`。下の分岐はその系をちょうど覆う（型で確かめる）。
+ * `kase` はページの上で選んだケース（図で強調する）。
  */
 export function systemExtras(
   system: System,
   design: DesignView | undefined,
   states: readonly AnalysisState[],
+  kase: string | null = null,
 ): Partial<Record<SystemTab, ReactNode>> {
   if (!design) return {};
   if (!hasExtras(system)) return {};
   if (system === "thermal") {
-    const map = heatMapOf(outputOf(states, "thermal.steady"));
-    if (!map) return {};
-    const hottest = (node: string) => {
-      const ts = map.cases.flatMap((c) => {
-        const cell = map.cells.get(heatKey(c.id, node));
-        return cell ? [cell.temperature] : [];
-      });
-      return ts.length > 0 ? Math.max(...ts) : null;
-    };
-    const colorOf = (id: string) => {
-      const t = hottest(id);
-      return t === null ? toneHex.gray : heatHex(heatRatio(t, map));
-    };
+    const steady = outputOf(states, "thermal.steady");
+    const transient = outputOf(states, "thermal.transient");
+    const model = rangeChartOf(steady, transient);
     return {
-      results: (
-        <>
-          <ThermalHeatmap
-            map={map}
-            dimension={dimOf(resultOf(states, "thermal.steady"), [
-              "cases",
-              EACH,
-              "nodes",
-              EACH,
-              "temperature",
-            ])}
-          />
-          <LazyLayout3D variant="heat" design={design} colorOf={colorOf} />
-        </>
+      results: model ? <ThermalRangeChart model={model} kase={kase} /> : null,
+      heat: (
+        <ThermalImage
+          design={design}
+          steady={steady}
+          transient={transient}
+          heat={resultOf(states, "thermal.steady")?.part_heat}
+        />
       ),
     };
   }

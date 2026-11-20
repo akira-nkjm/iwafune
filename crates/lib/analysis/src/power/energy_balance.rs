@@ -6,7 +6,8 @@
 //!
 //! - ケースは既定で解析期間ずっと続けたとして評価する（[`case`]）。
 //! - 最長継続時間を持つモードのケースは、基本のモードの上でその時間だけ続けたときの最悪で判定し直す（[`duration`]）。
-//! - モードの並びがあれば、並びに沿って負荷と姿勢則を切り替えた収支を別に出す（[`sequence`]）。
+//! - 最長継続時間の評価の開始は、モードの使う時間帯（`when`）・開始の基準（`start`）に従って選ぶ（[`timing`]。指定が無ければ周回内の最悪）。
+//! - モードの並びがあれば、並びに沿って負荷と姿勢則を切り替えた収支を別に出す（[`sequence`]。並びの先頭は食の出入りに合わせられる）。
 //! - 発電に倍率をかけて同じ運用を繰り返し評価する入口（[`ScaledBalance`]）を `power.sizing` の時系列の逆算が使う。
 //! - duty（状態の時間割合）はどれも平均の消費電力として一定にかける（周回内の時間分布は扱わない。結果の `duty` に書く）。
 
@@ -44,6 +45,9 @@ pub struct EnergyBalanceInput {
     /// モードの並び（1 周期分。繰り返して解析期間を覆う）。空なら並びの収支を出さない
     #[serde(default)]
     pub sequence: Vec<EnergyBalanceSegment>,
+    /// 並びの名前と、日照・食に対する先頭の位置（[`timing`]）。省略時は無名で、解析の始めから数える
+    #[serde(default)]
+    pub sequence_timing: SequenceTiming,
     /// 最長継続時間の評価で下に敷く基本のモード。省略時は並びの最初の区間のモード（並びも無ければ連続で評価する）
     #[serde(default)]
     pub base_mode: Option<String>,
@@ -92,6 +96,9 @@ pub struct EnergyBalanceCase {
     /// この時間だけ続けたときの最悪で行う（[`EnergyBalanceCaseResult::by_max_duration`]）。省略時は連続で評価
     #[serde(default)]
     pub max_duration: Option<Qty<Time>>,
+    /// 最長継続時間の評価での時刻の指定（使う時間帯・開始の基準）。無ければ開始を 1 周の中でずらして最悪を取る
+    #[serde(default)]
+    pub timing: ModeTiming,
 }
 
 /// 負荷のかけ方。
@@ -115,7 +122,7 @@ pub enum EnergyBalanceLoad {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct EnergyBalanceOutput {
     pub life: SolarLife,
-    /// モード別の負荷内訳（電源ページでも共用）。
+    /// モード別の負荷内訳（電源のモードの見方でも共用）。
     pub mode_loads: super::mode_load::ModeLoadOutput,
     /// 集中電池モデルで使った DoD 上限。
     pub dod_limit: Fraction,
@@ -340,12 +347,16 @@ mod context;
 mod duration;
 mod scaled;
 mod sequence;
+mod timing;
 mod verdict;
 use case::evaluate_case;
 use context::{Context, profile, with_law};
 pub use duration::EnergyBalanceDuration;
 pub use scaled::{ScaledBalance, ScaledJudgement};
 pub use sequence::{EnergyBalanceSegment, EnergyBalanceSequence};
+pub use timing::{
+    DurationTiming, EclipseEvent, EventStart, ModeTiming, SequenceTiming, TimeWindow,
+};
 
 #[cfg(test)]
 mod tests;

@@ -6,13 +6,20 @@ import type { AnalysisRunStatus } from "./AnalysisRunStatus";
 import type { CheckView } from "./CheckView";
 import type { KpiView } from "./KpiView";
 import type { MissingInput } from "./MissingInput";
+import type { PartHeat } from "./PartHeat";
 import type { SpaceWeatherVersion } from "./SpaceWeatherVersion";
+import type { UncertaintySide } from "./UncertaintySide";
 import type { Verdict } from "./Verdict";
 
 /**
  * 解析の実行結果。
  */
-export type AnalysisRunResult = { id: string, case: string | null, case_source: AnalysisCaseSource | null, status: AnalysisRunStatus, 
+export type AnalysisRunResult = { id: string, case: string | null, case_source: AnalysisCaseSource | null, 
+/**
+ * 解析が読んだ不確かさの側（ケースの `side`。ケースがあれば書かれていなくても `nominal`、ケースが無ければ欄を出さない）。
+ * `min` / `max` のときは、その側が書かれた値だけがその値で、書かれていない値は nominal を使っている
+ */
+side?: UncertaintySide, status: AnalysisRunStatus, 
 /**
  * 出力中の判定を、出てきた順に平らに並べたもの（場所と持ち主の名前つき）。
  */
@@ -53,9 +60,14 @@ missing: Array<MissingInput>,
 error: string | null, 
 /**
  * 系の概要の解析の表の行（主な結果・判定のまとまり・開いたときの棒グラフ・隠す表）。主な結果と判定のまとまりは
- * `analysis::overview` が作り、棒グラフと隠す表は系ごとの組み立て（電源は `power_page::overview`）が足す。ほかは null と空
+ * `analysis::overview` が作り、棒グラフと隠す表は系ごとの組み立て（電源は `analysis::overview::power`）が足す。ほかは null と空
  */
 overview: AnalysisOverview, 
+/**
+ * 部品ごとの代表の温度（熱の定常解析だけ。それ以外は欄を出さない）。節点と部品の対応と代表の選び方は
+ * `analysis::part_heat` が決める。Web は 3D の色に値を写すだけ
+ */
+part_heat?: Array<PartHeat>, 
 /**
  * 入力に使った宇宙天気の表の版（日付で引いた宇宙天気を使った解析だけ。使わなければ欄を出さない）
  */

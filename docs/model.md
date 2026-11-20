@@ -8,7 +8,7 @@ This document describes what structures hold the design-data model and how it is
   Edits are made against Design, and analyses read Resolved. Derived is not saved to files as a rule (§9).
 - **Analyses do not know the model.** The analysis library defines an input type for each analysis, and fune-projection projects Resolved onto that type and passes it in
   ([architecture.md](architecture.md) §6.3). Missing inputs are reported by name, such as "this analysis needs RW_X.max_momentum".
-- **The product tree is expressed with directories.** The top level is a directory named by a subsystem ID (such as `aocs`), and assemblies can be nested below it. Parts directly under `parts/` are also allowed.
+- **The product tree is expressed with directories.** The top level is usually a directory named by a subsystem ID (such as `aocs`), and assemblies can be nested below it. Parts directly under `parts/` and other top-level folders (such as `mechanism/`) are also allowed (see §6.2 on the two sets).
   A physical assembly that has its own mass or mounting target is expressed as "a part file plus a directory of the same name" (§6).
 - **Placement principle** (§7):
   Information that is complete within a single part goes in the part file. Things that span several parts and have their own names or attributes (modes, nets, harnesses) get their own directories.
@@ -161,7 +161,7 @@ flowchart LR
 | AttributeDef | Quantity kind | `defs/attribute/<id>.toml` | value type, dimension, allowed units, display unit, value range, whether it is looked up by state, which budget it enters |
 | KindDef | Part kind | `defs/kind/<id>.toml` | parent kind, required and optional attributes, vocabulary of equipment states (off / standby / on …), port templates, role |
 | CatalogItem | Definition of a purchased or designed item (ElementDefinition) | shared catalog or `catalog/[<dir>/…]<id>.toml` (§11.1) | kind, model number, maturity, tags (`tags = ["flight_proven", "domestic"]`: a free classification that is neither manufacturer nor kind; omitted when empty; `fune catalog set <item> tags a,b` / `unset`; a tag is non-empty, has no leading or trailing whitespace and no `,`, and is not duplicated within the same item), attribute values, port values, shape, the datasheet source (a source ID; §7.8) |
-| Group | Subsystem or nested folder | a directory under `parts/` that has no same-named file (the top level is a subsystem ID) | none (the subsystem's display name is a built-in vocabulary entry; allocations are in `budget/allocation.toml`) |
+| Group | Subsystem or nested folder | a directory under `parts/` that has no same-named file (the top level is usually a subsystem ID) | none (the subsystem's display name is a built-in vocabulary entry; allocations are in `budget/allocation.toml`) |
 | Part | A use in the product tree (ElementUsage) | `parts/<…>/<ID>.toml` | definition (catalog / kind), trade candidates, count and redundancy, mounting target and relative attitude, override values, the nets the ports belong to |
 | Mode | The satellite's operating mode | `modes/<ID>.toml` | duration, part → {state, time fraction, active count, spare state}, eclipse override |
 | Net | Electrical connection (logical) | `nets/<ID>.toml` | kind (power / data / rf), rail voltage, source port, current limit, protocol |
@@ -255,6 +255,8 @@ pub struct Mode {
     pub description: Option<String>,
     pub states: BTreeMap<Id<Part>, StateAssign>,
     pub max_duration: Option<Quantity>,    // time dimension. Used for the verdict of power.energy_balance (§5.1)
+    pub when: Option<ModeWhen>,            // sunlit | eclipse | any: the period the longest-duration evaluation may place the mode in (§5.1)
+    pub start: Option<StartRef>,           // { from: eclipse_exit | eclipse_entry, offset }: fixes the start of that evaluation (§5.1)
     pub eclipse: BTreeMap<Id<Part>, StateAssign>, // only the parts written here are replaced during eclipse
 }
 /// The base state, and the fraction of time spent in other states. The remainder of the fractions is the base state.
@@ -359,9 +361,18 @@ In this situation `case = null` and `case_source = default_attitude`. The defaul
 If there is no default case, the attitude law is also used for the upper level only when it is unique; if there are several, it is a missing input.
 When an explicit case is given, that case's mode and conditions are used as before.
 
-The case's `side` (`nominal`, `min`, `max`) can be written and is saved, but is **not yet used by analyses**. Every analysis reads the nominal of a value,
-and the min / max of a value's uncertainty (`SiScalar.min`, `max`) are not passed to analyses. Writing anything other than `nominal` makes `check` notify with info (`setting.not_applied`).
-To use it, a rule is needed for "which side of which value to read" (the conservative side differs per value, such as max for mass and min for generated power).
+The case's `side` (`nominal`, `min`, `max`) chooses which side of a value's uncertainty the analyses read (`Uncertain<T>`: `SiScalar.min` / `max` beside the nominal).
+The rule is literal and the same for every attribute: with `side = "max"` an analysis reads the value's `max` if the value has one and its nominal otherwise; `side = "min"` likewise with `min`;
+`nominal` or no `side` reads the nominal. With no case (the default-attitude situation above, or a run with no case) every value is the nominal.
+The choice is made in one place (`SiScalar::read`), and the scalar and per-state values that projections hand to analyses and the mass budget all go through it
+(budgets run for a case follow it too; listings such as `part show` stay nominal). There is no per-attribute "conservative direction": a case that wants the worst case for generated power and for load
+chooses the side per value by which bounds the data carries (for example, write only `max` on a load and only `min` on a generation efficiency, and use `side = "max"` or `"min"` accordingly).
+A range such as a heater's `setpoint = { min, max }` is not an uncertainty and is not affected. The result's `side` shows the side that was read (`nominal` for a case with no `side`, absent when there is no case).
+`check` notifies with info `case.side_without_bounds` when a case asks for `min` / `max` but no part or catalog value carries that bound.
+
+How it combines with the budget policy: the growth margin (`budget/policy.toml` `[growth]`) is applied on top of the value that was read, so a `max` value still gets its maturity growth.
+The policy's `[uncertainty]` width is not applied to inputs; it is only the default analysis margin of the thermal temperature-range verdict (a margin on predicted temperatures), so an explicit
+`min` / `max` on a value (which moves the input) and that margin (which widens the verdict) are separate and are not double counted.
 
 Each case's `energy_margin_per_orbit` in the power balance is the minimum energy margin over the completed orbits
 (including battery efficiency, before clipping by the capacity limits, already converted to a per-period value). If there is no completed orbit it is `null`,
@@ -378,16 +389,20 @@ were evaluated under is written in the case's `evaluation`.
   `no_base_mode`, and if the mode itself is the base mode it is `base_mode`; both are judged as continuous.
 - **Maximum duration** (`max_duration`): if the mode has `max_duration`, the base mode (`analysis.power.base_mode`,
   or if absent the mode of the first segment of `[[sequence]]`) is run continuously, and on top of that this mode is run once for the maximum duration.
-  The start is shifted per sample within one orbit, and the start whose minimum SOC after the window is lowest is taken as the worst. The one orbit that is shifted is the orbit starting
+  Where the window starts follows the mode's timing (`when`, `start`; see "Timing" below). With no timing, the start is shifted per sample within one orbit, and the start whose
+  minimum SOC after the window is lowest is taken as the worst. The one orbit that is shifted is the orbit starting
   "period + maximum duration + period" before the end of the analysis span (it approaches steady state before, and one orbit of recovery is observed after; if that is not enough, the start of the span).
-  The result is the case's `by_max_duration`: `max_dod` (from the minimum SOC over the whole analysis span; used for the verdict), `max_dod_from_start` (only after the window),
-  `best_max_dod` (the best start), `base_max_dod` (the base mode only), `worst_start`, `worst_start_in_orbit`,
+  The verdict uses the DoD **after the window starts** (`max_dod_from_start`) and a battery that runs empty after the window starts (`depleted`).
+  The initial transient of the analysis (the base mode alone, starting from `initial_soc`) is not part of this verdict; it is judged by the base mode's own continuous case.
+  The result is the case's `by_max_duration`: `timing` (how the start was decided: `fixed`, `windowed` or `unspecified`), `max_dod_from_start` (used for the verdict),
+  `max_dod` (from the minimum SOC over the whole analysis span, including the initial transient; reference),
+  `best_max_dod` (the best start, after the window), `base_max_dod` (the base mode only), `worst_start`, `worst_start_in_orbit`,
   `eclipse_overlap`, and `orbit_average_balance` and `energy_margin_per_orbit` (one orbit from the window's rise; when inserted once per orbit).
   The window is rounded to the sample step, and the load and the power generation under that mode's attitude law are used for samples inside the window.
-- **Mode sequence** (`sequence`): `[[sequence]]` is repeated to cover the analysis span, and the integration uses the load of the mode of the segment into which the remainder falls
-  after dividing the elapsed time from the start of the analysis by one period (sunlit and eclipse, and eclipse overrides, are evaluated as in `mode_load`) and the generation under the attitude law. The result is the output's
+- **Mode sequence** (`sequence`): the sequence in use (see "Named sequences" below; `[[sequence]]` in the old form) is repeated to cover the analysis span, and the integration uses the load of the mode of the segment into which the remainder falls
+  after dividing the elapsed time from the start of the sequence (the start of the analysis, or the sequence's anchor) by one period (sunlit and eclipse, and eclipse overrides, are evaluated as in `mode_load`) and the generation under the attitude law. The result is the output's
   `sequence.balance` (the same shape as a case; `load_sunlit` and `load_eclipse` are averages over the sunlit and eclipse samples), which holds the
-  DoD, minimum SOC, per-orbit balance (`orbits`) and verdicts over the whole operation. If there is no sequence, `sequence = null`.
+  DoD, minimum SOC, per-orbit balance (`orbits`) and verdicts over the whole operation, plus `name` (the sequence used; none for the old unnamed form), `cycle` and `origin` (the start time of the sequence). If there is no sequence, `sequence = null`.
 
 Duty (the time fraction of a state) is turned into an average power consumption and applied as a constant in every operation (the time distribution within an orbit is not handled). If a mode used
 has duty, it is indicated by `duty = averaged` on the case and the sequence. The KPI's maximum DoD and orbit-average balance (worst) are chosen from the values of the operation used for each case's verdict
@@ -397,7 +412,7 @@ has duty, it is indicated by `duty = averaged` on the case and the sequence. The
 # analysis/power.toml (sequence and base mode)
 base_mode = "NOMINAL"   # if omitted, the mode of the first segment of the sequence
 
-[[sequence]]
+[[sequence]]            # the old form: an unnamed sequence, read as the sequence named `default`
 mode     = "NOMINAL"
 duration = { value = 76.0, unit = "min" }
 
@@ -405,6 +420,51 @@ duration = { value = 76.0, unit = "min" }
 mode     = "DOWNLINK"
 duration = { value = 9.6, unit = "min" }
 ```
+
+**Named sequences.** Several sequences can be kept by name (for example nominal operation, an imaging day, a downlink burst) and one is used by the analyses.
+
+```toml
+# analysis/power.toml (named sequences)
+active_sequence = "imaging_day"   # the one the analyses use
+
+[sequences.imaging_day]
+anchor = { from = "eclipse_exit", offset = { value = 5.0, unit = "min" } }   # optional
+
+[[sequences.imaging_day.segments]]
+mode     = "NOMINAL"
+duration = { value = 76.0, unit = "min" }
+
+[[sequences.imaging_day.segments]]
+mode     = "MISSION"
+duration = { value = 10.0, unit = "min" }
+```
+
+- The sequence in use is `analysis.power.active_sequence`; if absent, `default` (the old `[[sequence]]`, or `[sequences.default]`), and if there is no such sequence, the first by name.
+  A name that does not exist is a check error (another sequence is never used silently). The sequence is chosen per analysis setting, not per analysis case.
+- The old form is still read as is (backward compatible) and is not rewritten by `fune fmt`. It cannot be written together with `[sequences.default]` (check error).
+  Writing `default` with `fune sequence set default …` migrates it to `[sequences.default]` and removes `[[sequence]]`.
+- `anchor` puts the start of the sequence at an eclipse event: `from` is `eclipse_exit` (sunlit again after an eclipse) or `eclipse_entry`, and `offset` (a time; negative means before; default 0).
+  The sequence starts at the first such event in the analysis span and repeats with its period (the sample step rounds the event). Without `anchor` it starts at the start of the analysis.
+  If the event does not occur in the span (for example no eclipse), the sequence starts at the start of the span and the sequence's `checks` carry a warning (`sequence_anchor`).
+- The CLI and the GUI edit them with Ops: `SetSequence` (writes one named sequence in full; `fune sequence set <name> --segments "NOMINAL=76 min,MISSION=10 min" --anchor eclipse_exit --offset "5 min"`),
+  `RemoveSequence` (`fune sequence rm`; also unsets `active_sequence` if it was the one removed), and `SetSetting` of `analysis.power.active_sequence`. The GUI's mode page lists the sequences and picks the one in use.
+  Editing the segments in the GUI is not available yet (use the CLI).
+
+**Timing of the longest-duration evaluation.** A mode with `max_duration` can say when it is used (`modes/<ID>.toml`):
+
+```toml
+max_duration = { value = 10.0, unit = "min" }
+when  = "sunlit"                                                  # sunlit | eclipse | any (default)
+start = { from = "eclipse_exit", offset = { value = 5.0, unit = "min" } }   # optional
+```
+
+- With `start`, the mode is evaluated only at that start (the first sample at or after the event time + offset, within the swept orbit): `by_max_duration.timing = fixed`.
+- With only `when = sunlit | eclipse`, the start is shifted only over starts whose whole window lies inside that period: `timing = windowed`.
+- With neither (`when = any` is the same as not writing it), today's search over every sample of one orbit is used and the verdict says so: `timing = unspecified`
+  (the verdict sentence reads "worst start within the orbit; timing unspecified").
+- If the timing cannot be honoured (the event does not occur in the swept orbit, or the window does not fit in any allowed window), the search falls back to the whole orbit and
+  a `timing` warning is added to the case's `checks`. A fixed start that is outside the mode's own `when` also warns. `when`/`start` on a mode with no `max_duration` is a check warning (`mode.timing_unused`).
+- `fune mode timing <mode> --when sunlit --start eclipse_exit --offset "5 min"` (no flags removes it; `SetModeTiming`). Dimension and spelling are checked like other settings.
 
 When an analysis case specifies a `mode`, that mode's `[law.<mode>]` is required, and the attitude law of a different mode is not substituted.
 If no mode is specified, an attitude law is used only when there is exactly one. With none or several, the analysis stops with a missing input.
@@ -436,7 +496,7 @@ A thermal analysis with the Sun as the central body is an input error.
 
 #### Temperature ranges (three kinds) and verdicts
 
-A part has three kinds of temperature range, and the thermal analysis judges each kind separately (the key is `range:<node>:<kind>`, and a node's range is the intersection of the parts' ranges for each kind.
+A part has three kinds of temperature range, and the thermal analysis judges each kind separately (the keys are `range_high:<node>:<kind>` and `range_low:<node>:<kind>`, one per side, and a node's range is the intersection of the parts' ranges for each kind.
 In cases with a mode, the parts to which a range applies are chosen by power state; see the table below).
 
 | Kind | Attribute | Meaning |
@@ -462,7 +522,7 @@ The range selection is `ThermalRangeKind::applies`, and a node's range is, for e
 A kind with no part to apply is not judged (for example, a node whose parts are all powered in the mode has no storage verdict). In transient analysis with several heating segments,
 a range that applies in any segment is applied.
 
-The verdict key stays as the kind (`range:<node>:<kind>`). Parts excluded by power state are written in the verdict text ("… (operating range -25.0 °C to 60.0 °C.
+Each kind gets two verdicts, one for the upper side (`range_high:<node>:<kind>`, the predicted maximum plus the uncertainty against the upper limit) and one for the lower side (`range_low:<node>:<kind>`), so a KPI can look at only its own side (the maximum-temperature KPIs use the upper side and the minimum-temperature KPI the lower side; exceeding only the upper limit does not flag the minimum temperature). The nodes-in-range KPI counts one item per node and kind: the two sides are merged and the item's verdict is the worse of the two. The comparison's own `verdict` is the worse of the two sides. Parts excluded by power state are written in the verdict text ("… (operating range -25.0 °C to 60.0 °C.
 Excluding GPS and STX, powered off in mode SAFE)") and are also returned in the comparison's `excluded` (part, mode, power `power_state`).
 The verdict over all steady-state cases (`envelope`) looks, for each kind, only at the cases to which that range applied; for the lower side it uses the range and margin of the case with the smallest margin to the lower limit,
 and for the upper side those of the case with the smallest margin to the upper limit (if the range does not vary between cases, this is the same as comparing the minimum and maximum over all cases with the range).
@@ -498,6 +558,60 @@ The default value of 1 for `heat_fraction` was removed (a default would always a
 The link-budget transmit power `tx_power` has no states, so the per-state `rf_output` is written separately for heat dissipation.
 The node that emits heat is by default the node the part belongs to, and writing `part = "node"` in `[heat_node]` places it on that node (a part not in any node can also be a heat source).
 
+#### Transient integration
+
+`thermal.transient` integrates the node temperatures with the adaptive Dormand–Prince 8(5,3) method `sat_astro::ode::Dop853` (the workspace's only adaptive integrator; dense output).
+The output samples stay at the timeline's sample times; the integrator takes whatever steps the error control asks for in between.
+
+- **Tolerances.** The error of a step must stay within `abs_tol + rel_tol·|T|` per node (RMS over the nodes). The defaults belong to the analysis: `rel_tol = 1e-8` and `abs_tol = 1e-6 K` (`DEFAULT_REL_TOL`, `DEFAULT_ABS_TOL_K`).
+  The inputs `rel_tol` and `abs_tol` override them; `max_step` is an optional upper bound on the integrator's step (there is no other step setting: the old stability estimate for the fixed-step RK4 is gone).
+  The values used and the cost are returned in the output's `integration`: `smooth_segments`, `accepted_steps`, `rejected_steps`, `rhs_evaluations` and `events` (the heater switchings that stopped an integration).
+- **Where the integration is split.** The right-hand side must be smooth inside one integration for the error control to work, so it is split at every sample time, at every change of the heat phase (mode), and at the eclipse boundaries
+  (where the sunlit fraction leaves 1 or reaches 0; for the cylindrical shadow model the boundary is a jump, for the default conical model the penumbra begins and ends there with a kink).
+  The boundaries are located by bisection of the sunlit fraction (`sat_astro::timeline::TimelineEvaluator::shadow_edges`, tolerance 1 µs) between two samples. A short eclipse that begins and ends inside one sample interval is not found.
+- **External heat between samples (implemented: continuous evaluation).** The heat absorbed on the outer surfaces is evaluated inside the right-hand side at the integrator's own times, from the orbit, the Sun, the attitude law and the shadow at that time
+  (`TimelineEvaluator::at`; Kepler and J2 are evaluated directly, a numerical propagator is integrated once on a grid of at most 1/100 of the period and interpolated with cubic Hermite polynomials, which agrees with a direct propagation within a metre).
+  At the sample times it equals the timeline's own value. So the incidence angle, the view factor of the central body and the eclipse entry and exit are resolved between samples, and the sample step only sets the output interval
+  (the old sample-and-hold evaluation held the value at the start of each sample interval). Segment ends are evaluated just inside the segment (5 µs), so a jump of the sunlit fraction is never read from the wrong side.
+  Other kinks of the input (for example a face turning away from the Sun, where its absorbed heat reaches 0 with a changed slope) are not located: the error control takes smaller steps there.
+- **Heater switching by event location.** While a heater is on, the margin `off_above − T` of its node is watched, and while it is off `T − on_below`; the smallest margin of the active heaters is the event function. When it reaches 0 inside a step, the crossing time is found by bisection
+  (`sat_astro::math::bisect`) on the step's dense output, the segment stops there, the heater switches and the integration continues. The temperature at a switching equals the set point within `1e-5 K`, so the node no longer leaves the band by one sub-step of drift,
+  and the switching times, the duty, the longest on period and the last-orbit window use the exact times. After a switching the margin to the opposite set point is the band width, which is at least `0.001 K` (a narrower band is an input error),
+  so a switching cannot repeat at the same time. Heaters whose thermostat is off in a phase are held off and do not stop the integration. A crossing that goes out and back inside one step is not seen (the band is wide compared with a step).
+- **Stiff networks.** The method is explicit. A node with a very small heat capacity strongly coupled to a large one makes the step as small as the fast time constant, whatever the accuracy. A 12-node chain of alternating 0.09 J/K and 900 J/K nodes
+  (G = 10 W/K) over five orbits takes about a million steps and 12 million evaluations of the right-hand side (about a minute in a debug build; see `stiff_chain_five_orbits_cost`). There is no implicit integrator: model such a node as part of its neighbour.
+- **Accuracy.** The penumbra of the conical shadow begins and ends with a `x^(3/2)`-like rise of the sunlit fraction, which the error estimate sees only partly; with orbits through the penumbra the global error is a few times the tolerance
+  (about 1e-5 K at the defaults). Without a penumbra (cylindrical model, or no eclipse) the error is far below the tolerance.
+
+#### Heaters
+
+A heater part (`kind = "heater"`) with `setpoint = { min, max, unit = "degC" }` is a **thermostat-controlled heater** in both thermal analyses (`sat_analysis::thermal::network::{heater, heater_steady}`; the verdicts are `thermal::heater`).
+It senses the temperature of its node (the node the part belongs to, or its `[heat_node]`, the same rule as heat dissipation) and heats the same node. `min` is the lower set point (on below it) and `max` the upper one (off above it);
+in between the heater keeps its last state (hysteresis). When on, it dissipates its `power.on` (all of it becomes heat) times `count`.
+A heater **with** a `setpoint` is passed to the analyses as a heater, **not** as a mode-average heat load, so it is never counted twice. A heater **without** a `setpoint` stays an ordinary part: its mode average power is its heat, as before.
+At most one thermostat per node (a second one is an input error).
+
+**Mode interaction.** The thermostat is active when the heater's state in the case's mode is anything other than `off` for part of the time (`on`, or `off` with an `on` duty: the way the demo writes it; `modes::power_states`).
+It is disabled (0 W, never on) in a mode where the state is `off` and has no non-`off` duty. With no mode, or no assignment for the heater in the mode, it is active.
+The `duty` in the mode is the *power side's* estimate and is not used by the thermal analyses while the thermostat is active (the thermostat decides the duty). In the transient analysis the mode is read per heat phase.
+
+**Steady state** (`thermal.steady`). A thermostat has no single steady state inside its dead band, so the analysis defines it as: *the heater delivers the power P (0 ≤ P ≤ P_max) that holds its node at the lower set point.*
+If the node is already at or above the lower set point without the heater, the heater is `off` (P = 0). If P_max is not enough, the heater is `saturated` (P = P_max) and the node settles below the lower set point.
+Otherwise it is `regulating` and P is the heat the node would otherwise lose at the lower set point: for one node radiating to space, `P = ε σ A (T_set⁴ − T_space⁴) − Q_other`.
+With several heaters the sets (off / regulating / saturated) are found by an active-set iteration until consistent: regulating nodes are fixed at their set point in the Newton solver and P is read from the node's heat balance; P < 0 moves a heater to off,
+P > P_max to saturated, a saturated node above its set point or an off node below it to regulating. The result per case and heater is `state`, `power`, `capacity`, `duty_fraction = P / P_max`, `set_point` and `node_temperature`;
+the node's `internal` heat includes the heater power. The check `heater:<part>` (worst case across cases) is a **violation if saturated** (capacity cannot hold the lower set point), a **warning if the duty is above 0.8** (`DEFAULT_HEATER_DUTY_WARNING`, overridable by `ThermalMarginPolicy.heater_duty_warning`, no setting yet), otherwise ok.
+
+**Transient** (`thermal.transient`). Bang-bang with hysteresis for each heater, switching at the exact time the sensed node reaches a set point (event location; see "Transient integration"): the heater heat is constant between switchings,
+and the node temperature at a switching equals the set point (within 1e-5 K), so it stays inside the band. The initial state is on below the lower set point, off above the upper one, and **off inside the band**. With `orbit_average_steady` the run starts from the steady state above
+(regulating heaters start at their lower set point, using the first phase's modes).
+Per heater the output has `duty_fraction` (on-time share of the run, including the start-up), `duty_fraction_last_orbit` (the last orbital period, or the whole run if shorter; used for the verdict), `mean_power`, `switchings` and `max_on_duration`,
+and the series channel `heater:<part>` (W, the state at each sample time). The check `heater:<part>` is a **violation if saturated** (on for the whole last orbit and the node never reached the lower set point), a **warning if the last-orbit duty is above the threshold**, otherwise ok.
+
+**Relation to the power side.** The electrical power analyses and budgets are unchanged: they read the heater's mode state (`on` = `power.on` all the time, `off` with an `on` duty = the weighted average). That is the conservative always-on value when the mode says `on`.
+The thermal result's `mean_power` / steady `power` is what the thermostat actually needs, so the two can be compared; feeding the thermal duty back into the power budget is not done.
+Limits: one thermostat per node; the redundancy of the heater only decides the power state in the mode (the heat is `power × count`); proportional or timed control, thermostat accuracy and the heater's own thermal mass are not modelled.
+
 #### Surface materials
 
 ```toml
@@ -512,6 +626,71 @@ black_paint = 0.14
 
 A face's α/ε is the area-fraction-weighted sum (one face is one isothermal node, so both absorption and emission are linear in area). A part with `[surface.<part>]` written does not use the part's
 `absorptivity` and `emissivity`. A fraction total other than 1 or a missing α/ε is a check warning (so it can be written partway through entering them one by one), and the analysis stops with an input error.
+
+#### Couplings between nodes
+Conduction and radiation between nodes come from three places. For each node pair exactly one value is used, chosen in this order (`sat_analysis::thermal::network::couplings`):
+1. **Explicit** (`[conductive.*]`, `[radiative.*]`): replaces the value of that pair from the two sources below (0 isolates the pair).
+2. **Enclosure** (`[enclosure]`, radiation only, between the six faces of the box): replaces the mount default of the face-to-face pairs.
+3. **Mount default** (`contact_conductance` and `radiative_coupling`): one conductive link per node pair that has mounts (`contact_conductance` × the number of mounts between the pair) and, if `radiative_coupling` is written, one radiative link per such pair.
+```toml
+# analysis/thermal.toml
+[conductive.BAT]                              # node A -> node B -> conductance (the pair is unordered)
+PANEL_MZ = { value = 0.8, unit = "W/K" }
+[radiative.PANEL_PX]                          # node A -> node B -> effective radiative exchange area ε_eff·A·F
+PANEL_MX = { value = 0.02, unit = "m^2" }
+[enclosure]                                   # present with emissivity = the enclosure model is on
+emissivity = 0.85                             # inner emissivity of the six faces (above 0, at most 1)
+```
+A pair is written once, in either order; writing `A`→`B` and `B`→`A` is a check error (`thermal.coupling_duplicate`), as are a pair of the same node (`thermal.coupling_self`),
+a node not in `[nodes]` (`ref.thermal_node`) and a negative value (`setting.range`). The dimension is checked against the setting-dimension table (`THERMAL_CONDUCTIVE`: W/K, `THERMAL_RADIATIVE`: m²).
+Because a pair is a path (`analysis.thermal.conductive.BAT.PANEL_MZ`), it is edited with the generic setting operation (`fune set analysis.thermal.conductive.BAT.PANEL_MZ "0.8 W/K"`, `fune unset …`),
+the same on the CLI and over HTTP; there is no separate operation. Nodes cannot be renamed, so no reference rewriting is needed.
+**Enclosure model.** The box is the root part's `size` (the one part without a mount; its frame is the body frame), and its six inner faces are matched to nodes through the outer surfaces:
+for each face (±X, ±Y, ±Z) the node of the outer surface whose normal points that way (within about 2.6°) and whose area is within 5 % of the face area. If any of the six faces
+is not found or ambiguous, two faces share a node, or the box size is not known, the model is **not applied**: it is not an error, the mount defaults stay, and the reason is returned in the output's `couplings.enclosure.note` (`applied: false`).
+When it is applied, all 15 face-to-face pairs use the enclosure value (so the mount default `radiative_coupling` is not added on top of it). Pairs that involve a component node (not a face) keep the mount default or the explicit value.
+The faces are diffuse gray surfaces with a common inner emissivity ε. The view factors come from closed-form catalog formulas (`sat_astro::view_factor`): two identical, directly opposed parallel rectangles (Howell, *A Catalog of Radiation
+Heat Transfer Configuration Factors*, C-11) and two perpendicular rectangles sharing an edge (C-14; the same formulas are in Incropera). A cube gives 0.19982 (opposite) and 0.20004 (adjacent), and each row sums to 1.
+With the areas `A_i` of the box faces and `ρ = 1 − ε`, the Gebhart factors `B_ij` (the fraction of the energy emitted by face i that is finally absorbed by face j, including reflections) solve
+`B_ij = F_ij ε_j + Σ_k F_ik ρ_k B_kj` (`sat_analysis::thermal::enclosure`, with `sat_astro::math::solve_dense`), and the exchange area of the pair is `ε_i A_i B_ij` (it equals `ε_j A_j B_ji`).
+The heat flow from face i to face j is `σ ε_i A_i B_ij (T_i⁴ − T_j⁴)`. For two parallel plates this approaches `A / (1/ε₁ + 1/ε₂ − 1)`.
+Assumptions: the six faces are the only surfaces of the enclosure, and **blockage of the face-to-face views by components inside is ignored**. Components inside are not part of the enclosure model in this version;
+their coupling stays the mount default or the explicit value. The wall thickness is ignored (the box is the outer size).
+Both thermal analyses return the couplings they used in `couplings`: for every pair the conductance (`conductive`) or exchange area (`radiative`) and its source (`mount`, `explicit` or `enclosure`),
+and, when `[enclosure]` is written, the faces with their nodes and areas and the 6×6 view-factor matrix. The GUI shows these as the analysis's data tables.
+
+#### Verification of the thermal analyses
+
+Simple bodies whose answers are known in closed form are run through both `thermal.steady` and `thermal.transient`
+(`crates/lib/analysis/tests/thermal_validation_*.rs`, public API only). Notation: α absorptivity, ε emissivity, S solar flux, σ Stefan–Boltzmann constant,
+A_abs the area facing the Sun, A_rad the radiating area, C heat capacity, T_s the background temperature, τ = C / (4 ε σ A_rad T³). A face absorbs and radiates with its own area (the back of a plate is a separate face).
+
+| Case | Closed form | Test |
+|---|---|---|
+| Plate, one face to the Sun | T⁴ = T_s⁴ + α S A_abs / (ε σ A_rad), steady and transient (converges after 30 τ) | `flat_plate_one_face_equilibrium` |
+| Plate radiating from both faces | A_rad = 2 A_abs | `flat_plate_both_faces_radiate` |
+| Cube, one face to the Sun | A_abs = a², A_rad = 6a² | `cube_one_face_to_the_sun` |
+| Radiative cooling in deep space | 1/T³ = 1/T₀³ + 3 ε σ A t / C | `radiative_cooling_in_deep_space` |
+| Small perturbation | decay e^(−t/τ) near equilibrium (linearised, within the nonlinear correction) | `small_perturbation_decays_with_linear_time_constant` |
+| Nonlinear relaxation | C dT/dt = ε σ A (T_e⁴ − T⁴): atan x + ½ ln\|(1+x)/(1−x)\| grows linearly in t (x = T/T_e), from below and above T_e | `nonlinear_radiative_relaxation_matches_the_exact_solution` |
+| White paint, black paint, MLI-like effective emissivity | T_eq ratio = ((α₁/ε₁)/(α₂/ε₂))^¼ | `surface_finish_ratios` |
+| Mixed surface | area-weighted α and ε | `mixed_surface_equals_area_weighted_properties` |
+| Conduction only | T_sink⁴ = Q / (ε σ A), T_hot − T_sink = Q / G | `conduction_only_steady_and_transient`, `conduction_to_a_fixed_temperature_node` |
+| Two isolated masses | τ = C₁C₂ / (G (C₁ + C₂)), final temperature = heat-capacity-weighted mean | `isolated_masses_relax_to_the_energy_weighted_mean` |
+| Radiation only | Q = σ E (T₁⁴ − T₂⁴) | `radiation_only_steady_and_transient`, `radiation_to_a_fixed_temperature_node` |
+| Energy conservation | ∫(Q_in − Q_rad) dt = Σ C ΔT (the radiated heat is recomputed from the temperature series) | `transient_conserves_energy` |
+| Orbit with eclipse | for the periodic transient, (⟨T⁴⟩ + C ΔT/(P ε σ A))^¼ equals the steady solution at the orbit-average input, whatever C is (ΔT is the temperature change over the last orbit) | `steady_matches_the_fourth_power_mean_of_the_periodic_transient` |
+| Heater bang-bang | switching times τ ln 3, τ ln 1.5, τ ln 2 (first-order response between 270 K and 280 K), hence switchings, duty, longest on period and the power series | `bang_bang_period_duty_and_band_by_hand` |
+| Convergence | halving the tolerance changes the result by less than the tolerance scale | `halving_the_tolerance_changes_the_result_by_less_than_the_tolerance`, `conical_shadow_converges_within_a_few_tolerances` |
+| Eclipse boundary | a plate with ε ≈ 0 stops heating at the geometric entry (and resumes at the exit) of the cylindrical shadow; the time is read from the temperature change in one sample | `temperature_stops_rising_at_the_analytic_eclipse_entry_and_exit` |
+| Sample-step independence | the same case with sample steps 10 s and 120 s gives the same temperatures and the same heater statistics | `results_do_not_depend_on_the_sample_step`, `heater_switching_does_not_depend_on_the_sample_step` |
+| Nadir plate | absorbed = ε F q_IR A + α S ρ F A (at noon), F = (R/(R+h))² | `nadir_plate_planet_ir_and_albedo` |
+
+The tests use T_s = 0 unless stated (the default is 3 K, which is included in the formulas where used) and set the albedo and planet IR to 0 when only the Sun should act.
+Tolerances of the closed-form comparisons (#297 with fixed-step RK4 and sample-and-hold, then #300): the deep-space cooling 1e-6 → 1e-8 K (observed 2e-10), the equilibrium after 30 τ 1e-6 → 1e-9 K (observed 1e-13),
+the heater switching times, duty (1e-9) and longest on period (1e-5 s instead of 30 s), the energy balance 1e-5 → 1e-9 of ΔU on the sunlit case, and the periodic-orbit identity 0.1 K → 3e-4 K (sample step 1/4600 of the period so that the averaging window is exact).
+`transient_stays_stable_when_equilibrium_is_hot` keeps a body that heats far above 400 K on a coarse sample step from diverging (the fixed-step RK4 once did); with adaptive steps it is a plain accuracy check (1 K → 1e-8 K).
+`stiff_chain_with_capacity_ratio_1e4_is_solved` runs a stiff chain; the five-orbit cost is recorded by the ignored `stiff_chain_five_orbits_cost`.
 
 ### 5.3 Outer shape for attitude analysis
 
@@ -531,6 +710,32 @@ The CLI and the screen use the same `SetSetting`. Example: `fune setting set ana
 default_case = "hot_imaging"
 ```
 
+### 5.4a Communication settings (`analysis/comm.toml`)
+
+`stations` lists the ground stations to use, `min_margin` is the required link margin, and each `[link.<name>]` is one link
+(`direction` = `down` or `up`, `part` = the transceiver part, `band` = the band under `conditions/ground/<ID>.toml` `[link.<band>]`, plus losses and `ebn0_required`).
+The link budget is evaluated for every link × ground station pair whose station has that band.
+
+- `data_downlink` (optional) names the downlink whose rate counts toward the daily data volume (`comm.data_throughput`). If omitted, the first downlink by name is used.
+  The other downlinks are not counted, and the analysis reports their names as a notice. `check` reports an error (`ref.link`) if the name is not a link and an error (`setting.link_direction`) if the link is not a downlink.
+- `antenna` (optional, per link) is the part that carries the spacecraft antenna. Its `antenna_gain` attribute is used as the spacecraft-side gain of that link;
+  if omitted, the transceiver's own `antenna_gain` is used. A part without `antenna_gain` is reported as a missing input that names the part. `check` reports an error (`ref.part`) if the part does not exist,
+  and renaming the part rewrites `antenna` together with `part` (both come from the reference index `Design::references`).
+
+```toml
+# analysis/comm.toml
+stations      = ["TOKYO_GS"]
+data_downlink = "s_down"
+
+[link.s_down]
+direction = "down"
+part      = "STX"
+antenna   = "S_PATCH"
+band      = "s_band"
+```
+
+Both keys are set with the same `SetSetting` as other settings, for example `fune set analysis.comm.data_downlink s_down`.
+
 ### 5.5 Reverse-computed power sizing (`power.sizing`)
 
 A steady-state analysis belonging to the Power subsystem. It outputs the required SAP and battery sizes and does not write back to part attributes.
@@ -538,7 +743,8 @@ Its inputs are the orbit, `conditions.orbit.duration`, parts with power and mode
 If parts, orbit, duration, modes, attitude law or `analysis.power.dod_max` are missing, it returns a missing input.
 If the explicit analysis case has a mode, that mode is used; otherwise every mode (and, for the time-series reverse computation, the mode sequence as well) is reverse-computed in turn,
 and the result is decided by the operation with the largest required area (`area_mode`) and the operation with the largest required capacity (`capacity_mode`).
-The time-series reverse computation uses the mode's `max_duration`, `analysis.power.sequence` and `analysis.power.base_mode` in the same way as `power.energy_balance`.
+The time-series reverse computation uses the mode's `max_duration` and timing (`when`, `start`), the sequence in use (`analysis.power.active_sequence`, `[[sequence]]`, `[sequences.<name>]`) and `analysis.power.base_mode` in the same way as `power.energy_balance`.
+The capacity is closed-form over the whole span of the judged operation (including the initial transient), so it is never smaller than the DoD after the window needs.
 Growth margin, count, redundancy and eclipse overrides share the aggregation of `power.mode_load`.
 For a mode that includes missing assignments or power values, the analysis stops so as not to underestimate the requirement.
 
@@ -656,12 +862,18 @@ parts/
 ```
 
 - A Group's ID is its directory name. It must be unique within the same namespace as part IDs.
-- A Group has neither mass nor mounting. The top-level directory names are `aocs`, `cdh`, `comm`, `payload`, `power`, `structure` and `thermal`. Anything else is a `fune check` error (listing the IDs that can be used). IDs of nested assemblies and folders are arbitrary.
+- A Group has neither mass nor mounting. The subsystem directory names are `aocs`, `cdh`, `comm`, `payload`, `power`, `propulsion`, `structure` and `thermal`. Any other top-level folder (a mechanism or harness assembly, say) is allowed and only reported as an `info` diagnostic `part.system_dir` that lists the subsystem IDs.
+  **"Subsystems that own analyses" and "top-level folders of the product tree" are separate sets.** The first (`AnalysisSystem`, returned as `DefsView.systems`) is the key of analyses, settings, allocations and colors and is fixed in code; the second is free. The link between them is only `Design::system_of` (location, then the kind's role, then none): parts under a non-system top-level folder belong to a subsystem only through their role, and otherwise go to the "Other" row of a budget. IDs of nested assemblies and folders are arbitrary.
 - A part's subsystem is decided only by `Design::system_of`: the top-level subsystem of its location → the subsystem of the kind's role (`role_system`, including inheritance) → `None`. Parts directly under `parts/` are also allowed, and belong to a subsystem if they have a role.
 - A subsystem's display name is the built-in vocabulary `labels.section` (Japanese and English). It is not overridden by the project. The API's `PartRow.system` is `System | null`, and the tree and budget rows also return `system` and the Japanese and English display names. The Web's colors look this subsystem up through the single mapping in `lib/systems.ts` (those without a subsystem get the neutral color). Allocations are written in `budget/allocation.toml`.
 - A physical assembly (`SAP_PX`) has its own mass, mounting target and mount points, and child parts attach to the assembly with `mount = { on = "SAP_PX", … }`.
   In the budget, "the assembly itself plus the sum of its child parts" is the assembly's mass.
 - Moving a part to another grouping moves the file, and git shows it as a rename.
+- **Grouping parts of one subsystem** (say the three reaction wheels as `RW` under `aocs`): `fune part mv RW_X aocs/RW` moves the part into the folder `parts/aocs/RW/`, creating it if it does not exist. The destination is a path of IDs, outermost first
+  (`aocs/RW`, or `aocs/RW/pair` for a deeper group); the first ID must already exist, and a new group goes under a subsystem or another group, never under a part. `fune part add RW_W --kind reaction_wheel --group aocs/RW` creates a part in it, and a bare ID (`--group RW`) still means an existing node.
+  Move parts back with `fune part mv RW_X aocs` (the last part to leave removes the empty folder); `fune part rename-group RW WHEELS` renames the group. In Ops the same thing is `MovePart { id, to: "RW", under: ["aocs"] }` and `CreatePart { group: "RW", group_under: ["aocs"] }`.
+  Grouping changes neither a part's ID, its subsystem nor any analysis or budget number: only the file path (`PartRow.dir`, `parent`) and the product tree change. A group has no display name of its own (the folder ID is shown); IDs of groups and parts are in one namespace, so a group cannot be named like a part.
+  The Components page has the same operations: "Group…" in a part's header (the checked parts of the same parent), and rename and ungroup on the frame of a group in the overview.
 - `CODEOWNERS` can assign review owners per directory.
 
 ## 7. modes / nets / harness
@@ -739,6 +951,7 @@ HTR = { state = "on" }
   A warm spare is chosen from `spare_state`, then the kind's vocabulary entry `standby`, then `idle` (`WARM_SPARE_DEFAULT_STATES`). If the spare state cannot be determined, or is not in the vocabulary, it is an error.
 - `[eclipse]` replaces the whole assignment of each part written there, during eclipse only (fields such as `active` and `duty` are not inherited individually).
   Parts not written use `[states]`. An override target absent from `[states]` is a warning, as with unspecified, and is not added to the analysis.
+- `when` and `start` (timing of the longest-duration evaluation; §5.1) are optional; `start.offset` is dimension-checked as a time.
 - `max_duration` is dimension-checked and shown in the CLI listing and the GUI's mode header. `power.energy_balance` judges by running this mode for the maximum duration
   on top of the base mode (§5.1). It does not affect the analysis span or the mode's time fraction (`mode_share`).
 - Counts are evaluated only by `sat_analysis::modes::counted_states`. Power is "active units × the state's average power + spare units × the spare state's power".

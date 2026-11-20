@@ -15,6 +15,7 @@ use sat_analysis::aocs::sensor_fov::SensorFovSensor;
 use sat_analysis::aocs::unload_time::{UnloadTimeField, UnloadTimeMtq};
 use sat_analysis::aocs::wheels::RwWheel;
 use sat_analysis::aocs::{RwUnloadingInput, SensorFovInput, SlewTimeInput, UnloadTimeInput};
+use sat_analysis::spec::SamplingSpan;
 use sat_analysis::structure::mass_properties::MassPropertiesSummary;
 use sat_astro::math::Vec3;
 use sat_units::typed::{Angle, AngularMomentum, Fraction, MagneticDipoleMoment, Qty, Torque};
@@ -126,12 +127,6 @@ fn usable_momentum_fraction(ctx: &Context<'_>) -> Option<Fraction> {
         .map(Fraction::new)
 }
 
-/// センサ FoV の時系列の周回数（禁止角への侵入の割合は 1 周で数える）。
-const SENSOR_FOV_ORBITS: u32 = 1;
-
-/// アンロード時間の地磁気の大きさを平均する周回数。
-const UNLOAD_FIELD_ORBITS: u32 = 1;
-
 /// `aocs.rw_unloading`
 pub fn rw_unloading(ctx: &Context<'_>) -> Result<RwUnloadingInput, MissingInputs> {
     rw_unloading_for_mode(ctx, timeline::case_mode_id(ctx).as_deref())
@@ -184,7 +179,7 @@ pub fn unload_time(ctx: &Context<'_>) -> Result<UnloadTimeInput, MissingInputs> 
             })
         })
         .collect();
-    let field_sampling = timeline::orbits_sampling_of(ctx, Some(UNLOAD_FIELD_ORBITS), &mut m);
+    let field_sampling = timeline::sampling_of(ctx, SamplingSpan::OrbitAverage, &mut m);
     let thrusters = thrust::thrusters(ctx, &mut m);
     let center_of_mass = if thrusters.is_empty() {
         None
@@ -222,7 +217,7 @@ pub fn sensor_fov_for_mode(
     mode: Option<&str>,
 ) -> Result<SensorFovInput, MissingInputs> {
     let mut m = MissingInputs::new();
-    let t = timeline::timeline(ctx, mode, Some(SENSOR_FOV_ORBITS), &mut m);
+    let t = timeline::timeline_over(ctx, mode, SamplingSpan::OrbitAverage, &mut m);
     let angle = |p: &fune_model::resolve::ResolvedPart, a: &str| {
         ctx.scalar(p, a).map(Qty::<Angle>::from_raw)
     };

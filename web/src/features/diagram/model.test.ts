@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { DesignView, PartRow } from "@/api/types";
+import type { DesignView, NetView, PartRow } from "@/api/types";
 import { fixture } from "@/test/fixture";
 import { buildModel, cardNodeId, groupNodeId } from "./model";
 import type { Layer } from "./power";
@@ -43,6 +43,27 @@ describe("系統図のモデル", () => {
     expect(power.map((e) => e.target.node).sort()).toEqual([cardNodeId("RW_X"), cardNodeId("TRX")]);
     const signal = m.edges.filter((e) => e.layer === "signal");
     expect(signal.every((e) => e.label === "CAN")).toBe(true);
+  });
+
+  it("中心は API の hub で決める（役割名は見ない）。collects なら線は各端から中心へ", () => {
+    const base = fixture.nets.find((n) => n.kind === "power") as NetView;
+    const [hub, ...rest] = base.members;
+    if (!hub) throw new Error("no members");
+    const edgesOf = (collects: boolean) =>
+      buildModel(
+        { ...fixture, nets: [{ ...base, source: null, hub: { port: hub, collects } }] },
+        { layers: both, mergeSiblings: false },
+      ).edges;
+    const out = edgesOf(false);
+    expect(out.every((e) => e.source.node === cardNodeId(hub.part))).toBe(true);
+    const into = edgesOf(true);
+    expect(into.every((e) => e.target.node === cardNodeId(hub.part))).toBe(true);
+    expect(into.length).toBe(rest.length);
+    const none = buildModel(
+      { ...fixture, nets: [{ ...base, source: null, hub: null }] },
+      { layers: both, mergeSiblings: false },
+    );
+    expect(none.junctions.map((j) => j.net)).toEqual(rest.length > 1 ? [base.id] : []);
   });
 
   it("層を切り替えると、その層の辺だけ（凡例も）", () => {
@@ -96,4 +117,45 @@ it("カードも枠も名前ではなく API の系で色を決める", () => {
   const model = buildModel(design, { layers: both, mergeSiblings: false });
   expect(model.cards.every((c) => c.tone === "rose")).toBe(true);
   expect(model.containers.every((c) => c.tone === "rose")).toBe(true);
+});
+
+it("まとめた 1 枚だけを入れた入れ子の枠は外し、カードを系の枠にじかに置く", () => {
+  const base = withWheels();
+  const aocs = base.tree.find((n) => n.id === "aocs");
+  if (!aocs) throw new Error("fixture");
+  // RW の 3 台を、AOCS の下のグループ `RW` に入れた設計
+  const grouped: DesignView = {
+    ...base,
+    parts: base.parts.map((p) => (p.id.startsWith("RW_") ? { ...p, parent: "RW" } : p)),
+    tree: [
+      ...base.tree
+        .filter((n) => !n.id.startsWith("RW_"))
+        .map((n) => (n.id === "aocs" ? { ...n, children: ["RW"] } : n)),
+      {
+        ...aocs,
+        id: "RW",
+        label: "RW",
+        label_en: "RW",
+        parent: "aocs",
+        children: ["RW_X", "RW_Y", "RW_Z"],
+      },
+      ...["RW_X", "RW_Y", "RW_Z"].map((id) => ({
+        ...aocs,
+        id,
+        node: "part" as const,
+        label: id,
+        label_en: id,
+        parent: "RW",
+        children: [],
+      })),
+    ],
+  };
+  const merged = buildModel(grouped, { layers: both, mergeSiblings: true });
+  expect(merged.containers.map((c) => c.id)).not.toContain(groupNodeId("RW"));
+  const card = merged.cards.find((c) => c.members.includes("RW_X"));
+  expect(card?.members).toHaveLength(3);
+  expect(card?.parent).toBe(groupNodeId("aocs"));
+  // まとめないときは 3 枚あるので、枠を残す
+  const apart = buildModel(grouped, { layers: both, mergeSiblings: false });
+  expect(apart.containers.map((c) => c.id)).toContain(groupNodeId("RW"));
 });

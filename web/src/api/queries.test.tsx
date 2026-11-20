@@ -39,21 +39,26 @@ it("系と話題の解析を area で分け、ID の接頭辞では選ばない"
   client.clear();
 });
 
-it("電源の全タブ用に単一のケース別 API とキャッシュを使う", async () => {
-  const page = { modes: [], analyses: [], parts: [] };
+it("系別のモード表示は、解析を回す依頼と回さない依頼でキャッシュを分け、ケースと足もとの範囲を本文で送る", async () => {
+  const view = { system: "power", modes: [], missing: [], summary: [] };
   const fetcher = vi
     .fn()
-    .mockImplementation(async () => new Response(JSON.stringify(page), { status: 200 }));
+    .mockImplementation(async () => new Response(JSON.stringify(view), { status: 200 }));
   vi.stubGlobal("fetch", fetcher);
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const body = (i: number) => JSON.parse(String(fetcher.mock.calls[i]?.[1]?.body));
   try {
-    expect(await client.fetchQuery(q.powerPage("case A"))).toEqual(page);
-    expect(await client.fetchQuery(q.powerPage("case A"))).toEqual(page);
+    const analyzed = q.systemModes("power", [], { kase: "case A", analyzed: true });
+    expect(await client.fetchQuery(analyzed)).toEqual(view);
+    expect(await client.fetchQuery(analyzed)).toEqual(view);
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/v1/power_page?case=case%20A");
-    expect(q.powerPage(null).queryKey).not.toEqual(q.powerPage("case A").queryKey);
-    expect(await client.fetchQuery(q.powerPage(null))).toEqual(page);
-    expect(fetcher.mock.calls[1]?.[0]).toBe("/api/v1/power_page");
+    expect(fetcher.mock.calls[0]?.[0]).toBe("/api/v1/system_modes/power");
+    expect(body(0)).toEqual({ ops: [], case: "case A", analyzed: true, summary: "all" });
+    const totals = q.systemModes("power", [], { summary: "totals" });
+    expect(totals.queryKey).not.toEqual(q.systemModes("power").queryKey);
+    expect(totals.queryKey).not.toEqual(analyzed.queryKey);
+    await client.fetchQuery(totals);
+    expect(body(1)).toEqual({ ops: [], case: null, analyzed: false, summary: "totals" });
   } finally {
     client.clear();
     vi.unstubAllGlobals();

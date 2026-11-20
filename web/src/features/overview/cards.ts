@@ -1,5 +1,6 @@
-import { type KpiSlot, kpiText } from "@/analysis/kpi";
+import { hasContent, type KpiSlot, kpiText } from "@/analysis/kpi";
 import type {
+  BudgetKind,
   BudgetPropellant,
   BudgetTotal,
   BudgetView,
@@ -7,7 +8,7 @@ import type {
   KpiKey,
   KpiTally,
 } from "@/api/types";
-import type { Dict } from "@/i18n";
+import { type Dict, localized } from "@/i18n";
 import type { TickTone } from "@/kit/metrics/TickBar";
 import { verdictTone } from "@/kit/status/verdict-tone";
 import { paths } from "@/lib/nav";
@@ -27,83 +28,66 @@ export interface OverviewCard {
   loading: boolean;
 }
 
-/**
- * 概要のカードに使う KPI（カードの値・塗り・判定と、フッターに添える値）。どの解析が出すかは解析の一覧
- * （`AnalysisEntry.kpis`）から引くので、ここには解析 ID を書かない。
- */
-export const OVERVIEW_KPIS: readonly KpiKey[] = [
-  "orbit_balance",
-  "max_dod",
-  "unload_interval",
-  "peak_momentum",
-  "storage_margin",
-  "data_per_day",
-  "link_margin",
-  "nodes_in_range",
-  "max_temperature",
-  "min_temperature",
-];
-
 /** バジェットの問い合わせの今 */
 export interface BudgetState {
   data: BudgetView | undefined;
   pending: boolean;
 }
 
-/** カードの材料: KPI の引き当て（キー → 値と解析の状態）と、質量・電力のバジェット */
+/** カードの材料: 解析の一覧に沿った KPI の引き当てと、バジェットの問い合わせ */
 export interface OverviewSources {
-  kpi: (key: KpiKey) => KpiSlot | undefined;
-  mass: BudgetState;
-  power: BudgetState;
+  /** 概要に使う解析の KPI（解析の一覧の順。`kpiSlots`） */
+  slots: readonly KpiSlot[];
+  budget: (kind: BudgetKind) => BudgetState;
 }
 
 /**
- * 概要の KPI カード（質量余裕はバジェット、電力収支は解析の KPI と電力のバジェット、残りは系の解析の KPI）。
+ * 概要の KPI カード。質量余裕はバジェット、見出しにする KPI は API が印を付けたもの（`KpiDef.overview`。並びは `order`）。
  * 値・判定・塗りの比・判定の数え方はすべて API のもので、ここは並べて文言を選ぶだけ（代表値を選んだり割ったりしない）。
+ * 解析が走り終えても見せるものが無い KPI（電池やホイールの無い設計など）のカードは出さない。
  */
 export function overviewCards(o: Dict["overview"], s: OverviewSources): OverviewCard[] {
-  const text = (key: KpiKey) => kpiText(s.kpi(key)?.kpi, () => "—");
-  const kpiCard = (
-    key: KpiKey,
-    label: string,
-    rest: Partial<Pick<OverviewCard, "value" | "fill" | "footer" | "footerRight">> = {},
-  ): OverviewCard => {
-    const slot = s.kpi(key);
-    return {
-      key,
-      label,
-      value: rest.value ?? text(key),
-      fill: rest.fill === undefined ? (slot?.kpi?.fill ?? null) : rest.fill,
-      tone: verdictTone[slot?.kpi?.verdict ?? "ok"],
-      footer: rest.footer ?? "",
-      footerRight: rest.footerRight ?? "",
-      to: slot ? paths.area(slot.area) : paths.overview(),
-      loading: slot?.loading ?? true,
-    };
-  };
+  const slotOf = (key: KpiKey) => s.slots.find((x) => x.def.key === key);
   const range = (t: KpiTally) =>
     t.checked === 0 ? "—" : t.flagged === 0 ? o.allInRange : o.nodesToCheck(t.flagged);
-  const { mass, power } = s;
-  return [
-    massCard(o, mass),
-    kpiCard("orbit_balance", o.powerBalance, {
-      fill: power.data?.fill ?? null,
-      footer: power.data?.total ? o.consumption(power.data.total.display) : "",
-      footerRight: power.data?.limit ? o.generationLimit(power.data.limit.display) : "",
-    }),
-    kpiCard("max_dod", o.maxDod, { footer: o.dodFooter }),
-    kpiCard("unload_interval", o.rwInterval, {
-      footer: `${o.peakMomentum} ${text("peak_momentum")}`,
-    }),
-    kpiCard("storage_margin", o.storageMargin, {
-      footer: `${o.perDay} ${text("data_per_day")}`,
-    }),
-    kpiCard("link_margin", o.linkMargin),
-    kpiCard("nodes_in_range", o.temperature, {
-      value: kpiText(s.kpi("nodes_in_range")?.kpi, range),
-      footer: `${o.tempMax} ${text("max_temperature")} / ${o.tempMin} ${text("min_temperature")}`,
-    }),
-  ];
+  /** フッター: 同じ解析の別の KPI を「名前 値」で並べる */
+  const footerOf = (footer: readonly KpiKey[]) =>
+    footer
+      .flatMap((key) => {
+        const f = slotOf(key);
+        return f ? [`${localized(f.def.label, f.def.label_en)} ${kpiText(f.kpi, () => "—")}`] : [];
+      })
+      .join(" / ");
+  const kpiCard = (slot: KpiSlot): OverviewCard => {
+    const power = s.budget("power");
+    // 電力収支だけは、塗りとフッターに電力のバジェット（消費と発電見込み）を添える
+    const balance = slot.def.key === "orbit_balance";
+    return {
+      key: slot.def.key,
+      label: balance ? o.powerBalance : localized(slot.def.label, slot.def.label_en),
+      value: kpiText(slot.kpi, range),
+      fill: balance ? (power.data?.fill ?? null) : (slot.kpi?.fill ?? null),
+      tone: verdictTone[slot.kpi?.verdict ?? "ok"],
+      footer: balance
+        ? power.data?.total
+          ? o.consumption(power.data.total.display)
+          : ""
+        : footerOf(slot.def.overview?.footer ?? []),
+      footerRight: balance && power.data?.limit ? o.generationLimit(power.data.limit.display) : "",
+      to: paths.area(slot.area),
+      loading: slot.loading,
+    };
+  };
+  const mass = s.budget("mass");
+  const cards = mass.pending || mass.data?.total ? [massCard(o, mass)] : [];
+  const heads = s.slots
+    .filter((slot) => slot.def.overview)
+    .sort((a, b) => (a.def.overview?.order ?? 0) - (b.def.overview?.order ?? 0));
+  for (const slot of heads) {
+    if (!slot.loading && !hasContent(slot.kpi)) continue;
+    cards.push(kpiCard(slot));
+  }
+  return cards;
 }
 
 /** 推薬込み（wet）の合計（質量のバジェットが推薬を数えたときだけ） */

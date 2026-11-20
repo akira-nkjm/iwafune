@@ -9,6 +9,7 @@
 //! | `defs` | `fune attr add`・`fune kind add` |
 //! | `eclipse` | 季節解析の代表標本から新しい解析ケースの SetCase を作る |
 //! | `maneuver` | `fune maneuver add\|set` の引数（[`maneuver_op`]。逆の向きは `query::maneuvers`） |
+//! | `group` | `fune part mv|add` の置き先 `aocs/RW`（[`group_target`]。ID の列に読む） |
 //! | `place` | `fune part place` の取付・位置・姿勢（[`place_op`]。姿勢の角度 `--rotation` は [`rotation_from_text`]）と、機体座標での配置（`--body-pos`・`POST /parts/{id}/place_body`） |
 
 use crate::diff;
@@ -24,20 +25,22 @@ mod catalog;
 mod command;
 mod defs;
 mod eclipse;
+mod group;
 mod maneuver;
 mod place;
 mod text;
 
 pub use catalog::catalog_source_add_op;
 pub use command::{
-    command_ops, duty_from_text, mode_duration_op, mode_move_op, mode_set_op, net_set_ops,
-    net_unset_op,
+    command_ops, duty_from_text, mode_duration_op, mode_move_op, mode_set_op, mode_timing_op,
+    net_set_ops, net_unset_op, sequence_set_op,
 };
 pub use defs::{
     attr_add_op, attr_replace_op, kind_add_op, kind_replace_op, port_template_from_text,
 };
 pub use eclipse::case_from_eclipse_op;
 pub use fune_ops::{to_cli, to_cli_script};
+pub use group::group_target;
 pub use maneuver::maneuver_op;
 pub use place::{place_body, place_body_op, place_op, rotation_from_text};
 pub use text::{
@@ -97,7 +100,7 @@ pub fn apply(ws: &Workspace, req: &ApplyRequest) -> Result<ApplyResult> {
 }
 
 /// 変わったファイルの一覧（同じ本文の削除と新規の組は移動とみなす）。
-fn changed_files(changes: &[fune_store::FileChange]) -> Vec<ChangedFile> {
+pub(crate) fn changed_files(changes: &[fune_store::FileChange]) -> Vec<ChangedFile> {
     let mut out = Vec::new();
     let mut moved_from: Vec<&str> = Vec::new();
     for c in changes {

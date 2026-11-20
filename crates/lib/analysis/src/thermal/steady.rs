@@ -2,9 +2,12 @@
 //! 解法は [`crate::thermal::network`]、入熱は [`crate::thermal::orbit_heat`]。
 
 use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict};
+use crate::thermal::heater::{ThermalHeaterSteady, steady_checks};
 use crate::thermal::network::{
-    Compiled, INITIAL_GUESS_K, ThermalLoad, ThermalModeLoads, ThermalNetwork,
+    Compiled, INITIAL_GUESS_K, ThermalCouplings, ThermalHeater, ThermalLoad, ThermalModeLoads,
+    ThermalNetwork, enabled_flags,
 };
+use crate::thermal::network::{HeaterSpec, HeaterSteady};
 use crate::thermal::orbit_heat::{
     ThermalEnvironment, ThermalEnvironmentUsed, ThermalExposure, exposure_absorbed,
 };
@@ -12,7 +15,7 @@ use crate::thermal::range::{
     ThermalMarginPolicy, ThermalMarginUsed, ThermalRangeMargin, envelope_margins, range_checks,
     range_margins, worst_verdict,
 };
-use sat_units::typed::{Power, Qty, Temperature};
+use sat_units::typed::{Fraction, Power, Qty, Temperature};
 use serde::{Deserialize, Serialize};
 
 /// 定常のケース。
@@ -30,6 +33,10 @@ pub struct ThermalSteadyCase {
     /// モードの発熱（不足入力は checks に警告）。
     #[serde(default)]
     pub mode_loads: Option<ThermalModeLoads>,
+    /// サーモスタット付きのヒータ。サーモスタットが働くかは `mode_loads` のモードで決まる（モードが無ければ働く）。
+    /// 定常では、下側の設定温度に節点を保つ電力を出す（定義は `network::heater_steady`）。`loads` や `mode_loads` に同じ部品を入れない
+    #[serde(default)]
+    pub heaters: Vec<ThermalHeater>,
 }
 
 /// 熱（定常）の入力。
@@ -51,7 +58,7 @@ pub struct ThermalSteadyNodeResult {
     pub temperature: Qty<Temperature>,
     /// 外部入熱（太陽・アルベド・地球赤外の吸収）
     pub absorbed: Qty<Power>,
-    /// 内部発熱（`ThermalLoad::dissipation` の合計）
+    /// 内部発熱（`ThermalLoad::dissipation` の合計とヒータの電力）
     pub internal: Qty<Power>,
     /// 温度範囲（保管・動作・性能の順。モードがあれば部品の電源の状態で選ぶ）との比較
     pub ranges: Vec<ThermalRangeMargin>,
@@ -69,6 +76,9 @@ pub struct ThermalSteadyCaseResult {
     pub environment: ThermalEnvironmentUsed,
     /// 入力の節点の順
     pub nodes: Vec<ThermalSteadyNodeResult>,
+    /// ヒータごとの結果（入力の順。ヒータが無ければ空）
+    #[serde(default)]
+    pub heaters: Vec<ThermalHeaterSteady>,
     pub iterations: u32,
     /// 収束時の熱収支の残差の最大
     pub residual: Qty<Power>,
@@ -99,7 +109,11 @@ pub struct ThermalSteadyOutput {
     pub envelope: Vec<ThermalSteadyEnvelope>,
     /// 使った解析マージン（不確かさと警告の幅）
     pub margin: ThermalMarginUsed,
-    /// 温度範囲を持つ節点の種類ごとの判定（key は `range:<node>:<storage|operating|performance>`）
+    /// 使った節点間の結合（伝導・放射と出どころ。外殻の放射を求めたときは形態係数）
+    #[serde(default)]
+    pub couplings: ThermalCouplings,
+    /// 温度範囲を持つ節点の種類ごとの判定（key は `range_high|range_low:<node>:<storage|operating|performance>`）と、
+    /// ヒータごとの判定（key は `heater:<部品>`。ケースをまたいで最悪のケース）
     pub checks: Vec<Check>,
 }
 
@@ -147,11 +161,17 @@ impl Analysis for ThermalSteady {
             .iter()
             .flat_map(|e| range_checks(&e.node, &e.ranges, &margin))
             .collect();
+        let per_case: Vec<_> = cases
+            .iter()
+            .map(|c| (c.id.as_str(), c.heaters.as_slice()))
+            .collect();
+        checks.extend(steady_checks(&per_case, margin.heater_duty_warning.value()));
         checks.extend(warnings);
         Ok(ThermalSteadyOutput {
             cases,
             envelope,
             margin,
+            couplings: net.couplings,
             checks,
         })
     }
@@ -164,14 +184,23 @@ fn solve_case(
     margin: &ThermalMarginUsed,
 ) -> Result<ThermalSteadyCaseResult, AnalysisError> {
     let absorbed = exposure_absorbed(net, &case.environment, &case.exposure)?;
-    let internal = net.loads(&case.loads)?;
+    let mut internal = net.loads(&case.loads)?;
     let q: Vec<f64> = absorbed.iter().zip(&internal).map(|(a, b)| a + b).collect();
-    let sol = net.solve_steady(
+    let modes = [case.mode_loads.as_ref().map(|l| &l.mode)];
+    let specs = net.heaters(&case.heaters)?;
+    let enabled = enabled_flags(&case.heaters, modes[0])?;
+    let heated = net.solve_steady_heated(
         &q,
         case.environment.space_temperature().value(),
         INITIAL_GUESS_K,
+        &specs,
+        &enabled,
     )?;
-    let modes = [case.mode_loads.as_ref().map(|l| &l.mode)];
+    let sol = heated.solution;
+    let heaters = heater_results(&specs, &heated.heaters, &case.heaters, &sol.temps);
+    for (spec, h) in specs.iter().zip(&heated.heaters) {
+        internal[spec.node] += h.power_w;
+    }
     let nodes = network
         .nodes
         .iter()
@@ -194,9 +223,34 @@ fn solve_case(
         label: case.label.clone(),
         environment: case.environment.used(case.exposure.central())?,
         nodes,
+        heaters,
         iterations: sol.iterations,
         residual: Qty::from_raw(sol.residual_w),
     })
+}
+
+/// ヒータごとの結果（`specs`・`solved`・`inputs` は同じ順）。
+fn heater_results(
+    specs: &[HeaterSpec],
+    solved: &[HeaterSteady],
+    inputs: &[ThermalHeater],
+    temps: &[f64],
+) -> Vec<ThermalHeaterSteady> {
+    specs
+        .iter()
+        .zip(solved)
+        .zip(inputs)
+        .map(|((spec, h), input)| ThermalHeaterSteady {
+            id: input.id.clone(),
+            node: input.node.clone(),
+            state: h.state,
+            power: Qty::from_raw(h.power_w),
+            capacity: Qty::from_raw(spec.max_w),
+            duty_fraction: Fraction::new(h.power_w / spec.max_w),
+            set_point: Qty::from_raw(spec.on_below),
+            node_temperature: Qty::from_raw(temps[spec.node]),
+        })
+        .collect()
 }
 
 fn envelope(
@@ -234,5 +288,7 @@ fn envelope(
         .collect()
 }
 
+#[cfg(test)]
+mod heater_tests;
 #[cfg(test)]
 mod tests;

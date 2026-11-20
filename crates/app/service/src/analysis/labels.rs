@@ -10,14 +10,17 @@ use sat_analysis::aocs::slew_time::{SlewAssumption, SlewProfile};
 use sat_analysis::aocs::unload_time::{MtqFieldGap, MtqFieldReason, UnloadAssumption};
 use sat_analysis::comm::data_throughput::DataThroughputLinkClosure;
 use sat_analysis::comm::link_budget::LinkBudgetDirection;
-use sat_analysis::power::energy_balance::{EnergyBalanceDuty, EnergyBalanceEvaluation};
+use sat_analysis::power::energy_balance::{
+    DurationTiming, EnergyBalanceDuty, EnergyBalanceEvaluation,
+};
 use sat_analysis::power::sizing::SizingLifetimeSource;
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
+use sat_analysis::thermal::ThermalHeaterState;
 use serde::de::DeserializeOwned;
 
-fn label(ja: impl Into<String>, en: impl Into<String>) -> AnalysisLabel {
+pub(crate) fn label(ja: impl Into<String>, en: impl Into<String>) -> AnalysisLabel {
     AnalysisLabel {
         label: ja.into(),
         label_en: en.into(),
@@ -56,6 +59,7 @@ pub fn channel_label(kind: ChannelKind, subject: Option<&str>) -> AnalysisLabel 
         K::MoonAngle => sensor_angle(s, SensorFovTarget::Moon),
         K::NodeTemperature => label(s, s),
         K::AbsorbedHeat => label("外部入熱", "Absorbed heat"),
+        K::HeaterPower => label(format!("{s} の発熱"), format!("{s} heater power")),
         K::Backlog => label("未送信データ", "Backlog"),
         K::Altitude => label("高度", "Altitude"),
         K::Inclination => label("傾斜角", "Inclination"),
@@ -210,10 +214,27 @@ fn energy_balance_evaluation(e: EnergyBalanceEvaluation) -> AnalysisLabel {
             "Run for the whole span (base mode)",
         ),
         E::MaxDuration => label(
-            "基本のモードの上で最長継続時間だけ続けたとき（開始は周回内の最悪）",
-            "Max duration on top of the base mode (worst start in the orbit)",
+            "基本のモードの上で最長継続時間だけ続けたとき（開始はモードの指定に従う。指定が無ければ周回内の最悪）",
+            "Max duration on top of the base mode (start follows the mode's timing; worst start in the orbit if none)",
         ),
         E::Sequence => label("モードの並びに沿って回したとき", "Along the mode sequence"),
+    }
+}
+
+fn duration_timing(t: DurationTiming) -> AnalysisLabel {
+    match t {
+        DurationTiming::Fixed => label(
+            "開始を指定（食の出入りからの位置）",
+            "Start fixed (relative to an eclipse event)",
+        ),
+        DurationTiming::Windowed => label(
+            "使う時間帯の中でずらした",
+            "Shifted within the allowed time window",
+        ),
+        DurationTiming::Unspecified => label(
+            "タイミング未指定（1 周の中の最悪）",
+            "Timing unspecified (worst start in the orbit)",
+        ),
     }
 }
 
@@ -231,6 +252,17 @@ fn sizing_lifetime_source(s: SizingLifetimeSource) -> AnalysisLabel {
     match s {
         SizingLifetimeSource::SeasonSpan => label("季節の走査期間", "Season scan span"),
         SizingLifetimeSource::DesignLife => label("設計寿命", "Design life"),
+    }
+}
+
+fn heater_state(s: ThermalHeaterState) -> AnalysisLabel {
+    match s {
+        ThermalHeaterState::Disabled => label("無効（モードで切っている）", "Disabled by mode"),
+        ThermalHeaterState::Off => label("オフ（加熱不要）", "Off (no heating needed)"),
+        ThermalHeaterState::Regulating => label("制御中", "Regulating"),
+        ThermalHeaterState::Saturated => {
+            label("飽和（容量が足りない）", "Saturated (capacity too small)")
+        }
     }
 }
 
@@ -290,7 +322,9 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "ModalEstimateKind" => parse(value).map(modal_kind),
         "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
+        "DurationTiming" => parse(value).map(duration_timing),
         "SizingLifetimeSource" => parse(value).map(sizing_lifetime_source),
+        "ThermalHeaterState" => parse(value).map(heater_state),
         "DataThroughputLinkClosure" => link_closure(value),
         "SolarActivity" => parse(value).map(orbit::solar_activity),
         "WeatherSource" => parse(value).map(orbit::weather_source),
@@ -343,6 +377,11 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         K::MinTemperature => label("最低温度", "Min temperature"),
         K::NodesInRange => label("温度範囲の判定（節点）", "Temperature range checks (nodes)"),
         K::TransientMaxTemperature => label("非定常の最高温度", "Transient max temperature"),
+        K::MaxHeaterDuty => label("ヒータのデューティ（最大）", "Heater duty (max)"),
+        K::TransientMaxHeaterDuty => label(
+            "非定常のヒータのデューティ（最大・最後の 1 周）",
+            "Transient heater duty (max, last orbit)",
+        ),
         K::TotalMass => label("総質量", "Total mass"),
         K::MinSafetyMargin => label("最小の安全余裕（MS）", "Minimum margin of safety"),
         K::MinFrequency => label("最低の固有振動数", "Lowest natural frequency"),

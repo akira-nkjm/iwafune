@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useParams, useSearchParams } from "react-router";
-import { useAnalyses, useDesign, usePowerPage, useSystemAnalyses } from "@/api/queries";
-import type { AnalysisEntry, PowerPageView, System } from "@/api/types";
+import { useAnalyses, useDesign, useSystemAnalyses } from "@/api/queries";
+import type { AnalysisEntry, DefsView, System } from "@/api/types";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
 import { SkeletonPage, SkeletonPanel } from "@/kit/feedback/Loading";
@@ -12,14 +12,16 @@ import { paths, SEARCH } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { systemExtras } from "./extras";
+import { hasExtraTab } from "./preload";
 import { SystemHeaderActions } from "./SystemHeaderActions";
-import { hasModes, type SystemTab, SystemTabs } from "./SystemTabs";
+import { hasModes, type SystemTab, SystemTabs, tabFillsBody } from "./SystemTabs";
 
-const TABS: SystemTab[] = ["results", "modes", "series", "settings"];
+const TABS: SystemTab[] = ["results", "heat", "analyses", "modes", "series", "settings"];
 
-/** 系にそのタブがあるか（モードの見方・フロー図は持つ系だけ） */
-function shows(system: System, tab: SystemTab): boolean {
-  if (tab === "modes") return hasModes(system);
+/** 系にそのタブがあるか（モードの見方は持つ系だけ、熱画像・解析結果のような追加のタブは `preload.ts` の `EXTRA_TABS` の系だけ） */
+function shows(system: System, tab: SystemTab, defs: DefsView | undefined): boolean {
+  if (tab === "modes") return hasModes(system, defs);
+  if (tab === "heat" || tab === "analyses") return hasExtraTab(system, tab);
   return true;
 }
 
@@ -79,33 +81,23 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
   const [params, setParams] = useSearchParams();
   const kase = params.get(SEARCH.case);
   const catalog = useSystemAnalyses(system);
-  const genericStates = useAnalyses(system === "power" ? [] : catalog.ids, kase);
-  const powerPage = usePowerPage(kase, system === "power");
-  const states =
-    system === "power"
-      ? (powerPage.data?.analyses ?? []).map((a) => ({
-          id: a.result.id,
-          result: a.result,
-          loading: false,
-          updating: powerPage.isFetching,
-          error: null,
-        }))
-      : genericStates;
+  const states = useAnalyses(catalog.ids, kase);
   const entries = useMemo(
     () => new Map<string, AnalysisEntry>(catalog.entries.map((e) => [e.info.id, e])),
     [catalog.entries],
   );
-  const tab: SystemTab = isTab(rawTab) && shows(system, rawTab) ? rawTab : "results";
-  const tabs = (d: NonNullable<DesignQuery["data"]>, page?: PowerPageView) => (
+  const tab: SystemTab =
+    isTab(rawTab) && shows(system, rawTab, design.data?.defs) ? rawTab : "results";
+  const tabs = (d: NonNullable<DesignQuery["data"]>) => (
     <SystemTabs
       tab={tab}
       system={system}
+      kase={kase}
       design={d}
-      powerPage={page}
       noAnalyses={!catalog.loading && catalog.entries.length === 0}
       states={states}
       entries={entries}
-      extra={systemExtras(system, d, states)}
+      extra={systemExtras(system, d, states, kase)}
     />
   );
   return (
@@ -127,22 +119,21 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
         }
       />
       <PageTabs
-        tabs={TABS.filter((k) => shows(system, k)).map((k) => ({
+        tabs={TABS.filter((k) => shows(system, k, design.data?.defs)).map((k) => ({
           to: paths.system(system, { tab: k === "results" ? null : k, kase }),
           label: t.systems.tabs[k],
         }))}
       />
-      <PageBody>
+      {/* 部品 × モードの表は、本文の高さいっぱいを使い、表の中でスクロールする（見出しと合計の行を止めたままにする） */}
+      <PageBody
+        className={
+          tabFillsBody(system, tab, design.data?.defs)
+            ? "flex flex-col overflow-hidden p-0"
+            : undefined
+        }
+      >
         <QueryState query={design} skeleton={<SystemBodySkeleton />}>
-          {(d) =>
-            system === "power" ? (
-              <QueryState query={powerPage} skeleton={<SystemBodySkeleton />}>
-                {(page) => tabs(d, page)}
-              </QueryState>
-            ) : (
-              tabs(d)
-            )
-          }
+          {tabs}
         </QueryState>
       </PageBody>
     </>

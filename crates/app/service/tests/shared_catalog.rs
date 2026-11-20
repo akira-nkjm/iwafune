@@ -86,7 +86,7 @@ fn project(tmp: &Path, repo: &Path, rev: &str) -> Workspace {
     ));
     std::fs::write(&toml, text).unwrap();
     for rw in ["RW_X", "RW_Y", "RW_Z"] {
-        let file = root.join(format!("parts/aocs/{rw}.toml"));
+        let file = root.join(format!("parts/aocs/RW/{rw}.toml"));
         let text = std::fs::read_to_string(&file).unwrap();
         std::fs::write(&file, text.replace("local/rw_10mNms", "lab/rw_10mNms")).unwrap();
     }

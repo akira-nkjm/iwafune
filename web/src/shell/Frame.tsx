@@ -6,13 +6,16 @@ import { cn } from "@/lib/cn";
 import { PreloadContext, type PreloadPlan, preloadIdlePages } from "./preload";
 import { Sidebar } from "./sidebar/Sidebar";
 import { SidebarProvider } from "./sidebar/SidebarContext";
+import { useHistoryKeys } from "./use-history-keys";
 
 /**
- * 画面の枠: 232px の固定サイドバー + 10px 内側に浮いた白いメインパネル 1 枚。
+ * 画面の枠: 256px の固定サイドバー（shadcn/ui のサイドバーの既定値と同じ。畳むと 64px） + 10px 内側に浮いた白いメインパネル 1 枚。
  * `preload` は先読みの計画（ページの登録 `routes/pages.ts` が作る）。ナビの項目は `usePreloadPlan` で引く
  */
 export function Frame({ children, preload }: { children: ReactNode; preload: PreloadPlan }) {
   const navigation = useNavigation();
+  // ⌘Z・⇧⌘Z（Ctrl+Z・Ctrl+Y）で直前の編集を元に戻す・やり直す（どのページでも。欄に文字を打っている間は欄の取り消し）
+  useHistoryKeys();
   // 編集のトーストに「質量 10.84 → 10.86 kg」を出すため、バジェットを先に読んでおく（api/ops.ts が前後を比べる）
   useQuery(q.budget("mass"));
   useQuery(q.budget("power"));

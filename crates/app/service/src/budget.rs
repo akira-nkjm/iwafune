@@ -13,9 +13,11 @@ use fune_model::id::Id;
 use fune_model::value::units::to_si;
 use fune_projection::{Context, MissingInputs};
 use sat_analysis::budget::{BudgetItem, BudgetRollup, budget_rollup};
-use sat_analysis::power::mode_load::{ModeLoadMode, ModeLoadOutput};
 use sat_analysis::spec::Verdict;
+
+pub(crate) use power::{budget_mode, mode_rollup};
 pub mod failure;
+mod power;
 mod propellant;
 mod uncounted;
 
@@ -87,15 +89,15 @@ fn count(s: &Snapshot, kind: BudgetKind, case: Option<&str>) -> Result<Counted, 
     Ok(match kind {
         BudgetKind::Mass => Counted {
             propellant: Some(propellant::load(&ctx)),
-            ..plain(mass_items(s), uncounted::mass(s))
+            ..plain(mass_items(s, &ctx), uncounted::mass(s))
         },
         BudgetKind::Power => {
-            let out = mode_load(&ctx)?;
-            let (items, mode) = power_items(s, &ctx, &out);
+            let out = power::mode_load(&ctx)?;
+            let (items, mode) = power::items(&ctx, &out);
             Counted {
                 items,
                 mode,
-                modes: power_modes(s, &out)?,
+                modes: power::modes(&s.design, &out)?,
                 propellant: None,
                 uncounted: uncounted::power(s, &out),
             }
@@ -144,8 +146,8 @@ fn item(s: &Snapshot, part: &str, value: f64, count: u32) -> BudgetItem {
     }
 }
 
-/// 質量: 部品ごとの 1 個あたりの質量と員数。
-fn mass_items(s: &Snapshot) -> Vec<BudgetItem> {
+/// 質量: 部品ごとの 1 個あたりの質量と員数。質量はケースの `side` が指す側で読む（`Context::scalar`。電力・データ量と同じ入口）。
+fn mass_items(s: &Snapshot, ctx: &Context<'_>) -> Vec<BudgetItem> {
     s.resolved
         .parts
         .values()
@@ -153,80 +155,9 @@ fn mass_items(s: &Snapshot) -> Vec<BudgetItem> {
             Some(item(
                 s,
                 &p.id,
-                p.scalar("mass")?,
+                ctx.scalar(p, "mass")?,
                 fune_projection::parts::count_of(p),
             ))
-        })
-        .collect()
-}
-
-/// 電力の解析（power.mode_load）。全体の行もモード別の行もこの 1 回の出力から作る。
-fn mode_load(ctx: &Context<'_>) -> Result<ModeLoadOutput, Uncounted> {
-    let input = fune_projection::power::mode_load(ctx)?;
-    Ok(
-        sat_analysis::catalog::run_typed::<sat_analysis::power::ModeLoad>(&input)
-            .map_err(analysis_error)?,
-    )
-}
-
-/// 1 つのモードの、部品ごとの平均消費電力（員数込み）。成長余裕と配分の行は質量と同じ `item` で決める。
-fn mode_items(s: &Snapshot, mode: &ModeLoadMode) -> Vec<BudgetItem> {
-    mode.parts
-        .iter()
-        .filter_map(|p| Some(item(s, &p.part, p.mean?.value(), 1)))
-        .collect()
-}
-
-/// 電力のバジェットで数えるモード: ケースのモード（`case_mode`。ケースが無いかモードを持たなければ、
-/// 成長余裕込みの合計が最大のモード）。**モードの選び方はここだけ**（KPI の `mode_load` も使う）。
-pub(crate) fn budget_mode<'a>(
-    out: &'a ModeLoadOutput,
-    case_mode: Option<&str>,
-) -> Option<&'a ModeLoadMode> {
-    out.modes
-        .iter()
-        .filter(|m| case_mode.is_none_or(|w| m.id == w))
-        .max_by(|a, b| {
-            a.total_with_growth
-                .value()
-                .total_cmp(&b.total_with_growth.value())
-        })
-}
-
-/// 電力: バジェットのモード（`budget_mode`）の部品。
-fn power_items(
-    s: &Snapshot,
-    ctx: &Context<'_>,
-    out: &ModeLoadOutput,
-) -> (Vec<BudgetItem>, Option<String>) {
-    let wanted = ctx.case_mode().map(|m| m.id.to_string());
-    match budget_mode(out, wanted.as_deref()) {
-        Some(mode) => (mode_items(s, mode), Some(mode.id.clone())),
-        None => (Vec::new(), None),
-    }
-}
-
-/// 電力のモードごとの合計・使用可能量・余裕。上限とシステム余裕は全体と同じ配分を使い、
-/// 集計と判定も全体と同じ `budget_rollup`・`verdict` で行う。
-fn power_modes(s: &Snapshot, out: &ModeLoadOutput) -> Result<Vec<BudgetRow>> {
-    let q = |v: f64| quantity_auto(v, BudgetKind::Power.dimension());
-    let (limit, system_margin) = allocated(&s.design, BudgetKind::Power);
-    out.modes
-        .iter()
-        .map(|mode| {
-            let r = rollup(&mode_items(s, mode), limit, system_margin)?;
-            Ok(BudgetRow {
-                node: Some(mode.id.clone()),
-                label: Some(mode.label.clone()),
-                label_en: None,
-                system: None,
-                current: q(r.total),
-                with_growth: q(r.total_with_growth),
-                allocated: r.allowed.map(q),
-                margin: r.margin.map(q),
-                verdict: verdict(&r),
-                fill: FillRatio::used_over_limit(r.total_with_growth, r.allowed),
-            })
         })
         .collect()
 }

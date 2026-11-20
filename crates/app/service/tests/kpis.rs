@@ -41,10 +41,12 @@ fn demo_kpis_show_the_same_values_as_before() {
             ],
         ),
         // #106 から、最長継続時間を持つモード（撮像・ダウンリンク）は定常の上でその時間だけ続けたときで、
-        // モードの並びも入れて選ぶ（以前はダウンリンクを丸 1 日続けた -5.09 W・100 %）
+        // モードの並びも入れて選ぶ（以前はダウンリンクを丸 1 日続けた -5.09 W・100 %）。
+        // #138 から撮像は日照中だけ（`when = "sunlit"`）で、1 周の軌道平均の収支は 15.8 W → 15.0 W（最悪の撮像が日陰でなくなる）。
+        // 最大 DoD は継続時間の長いダウンリンク（指定なし）のまま
         (
             "power.energy_balance",
-            &[(KpiKey::OrbitBalance, "15.8 W"), (KpiKey::MaxDod, "15.1 %")],
+            &[(KpiKey::OrbitBalance, "15.0 W"), (KpiKey::MaxDod, "15.1 %")],
         ),
         (
             "aocs.rw_unloading",
@@ -77,14 +79,19 @@ fn demo_kpis_show_the_same_values_as_before() {
         (
             "thermal.steady",
             &[
-                (KpiKey::MaxTemperature, "48.9 °C"),
-                (KpiKey::MinTemperature, "-32.6 °C"),
+                (KpiKey::MaxTemperature, "39.3 °C"),
+                (KpiKey::MinTemperature, "-21.9 °C"),
                 (KpiKey::NodesInRange, "—"),
+                // 冷たいケースではヒータが容量いっぱい（飽和）
+                (KpiKey::MaxHeaterDuty, "100 %"),
             ],
         ),
         (
             "thermal.transient",
-            &[(KpiKey::TransientMaxTemperature, "70.4 °C")],
+            &[
+                (KpiKey::TransientMaxTemperature, "58.0 °C"),
+                (KpiKey::TransientMaxHeaterDuty, "41.8 %"),
+            ],
         ),
         (
             "structure.mass_properties",
@@ -129,8 +136,8 @@ fn demo_kpis_show_the_same_values_as_before() {
     }
 }
 
-/// 概要のカードに使う判定・塗りの比・判定の数え方。判定は解析の判定（節点と温度範囲の種類の組 13 件のうち 8 件が、
-/// 不確かさ 5 K を含めて範囲の外か端。温度範囲はケースのモードでの部品の電源の状態で選ぶので、電源を切るモードの
+/// 概要のカードに使う判定・塗りの比・判定の数え方。判定は解析の判定（節点と温度範囲の種類の組 13 件のうち 4 件が、
+/// 不確かさ 5 K を含めて範囲の外か端（ヒータのサーモスタットで冷たいケースの下限側が持ち上がる）。判定は上限側・下限側に分かれるが、数えるのは組ごとに 1 つ（両側の悪いほう）。温度範囲はケースのモードでの部品の電源の状態で選ぶので、電源を切るモードの
 /// CAM の動作・性能の範囲は違反にならない）。
 #[test]
 fn demo_verdicts_fills_and_tallies() {
@@ -154,10 +161,10 @@ fn demo_verdicts_fills_and_tallies() {
         range.tally,
         Some(KpiTally {
             checked: 13,
-            flagged: 8
+            flagged: 4
         })
     );
-    assert!((range.fill.unwrap().ratio - 5.0 / 13.0).abs() < 1e-12);
+    assert!((range.fill.unwrap().ratio - 9.0 / 13.0).abs() < 1e-12);
     // 判定の対象でない KPI（発生量・角運動量）は判定を持たない
     assert!(kpis(&ws, "cdh.data_budget", None)[0].verdict.is_none());
     assert!(kpis(&ws, "aocs.rw_unloading", None)[1].verdict.is_none());
@@ -234,7 +241,15 @@ fn catalog_lists_kpi_definitions() {
 }
 
 /// 実行の結果は概要の解析の表の行を持つ: 主な結果は KPI の先頭（定義の順に 3 つまで）、判定の文は持ち主ごとに全部。
-/// 棒グラフと隠す表は系ごとの組み立て（電源のページ）だけが足すので、解析の入口では null と空。
+/// 棒グラフと隠す表は系ごとの組み立て（電源の 4 つの解析）だけが足すので、ほかの解析では null と空。
+/// 概要の行に棒グラフを持つ解析（電源の 4 つ）。
+const POWER_CHARTS: [&str; 4] = [
+    "power.mode_load",
+    "power.orbit_generation",
+    "power.energy_balance",
+    "power.sizing",
+];
+
 #[test]
 fn every_run_result_carries_its_overview_row() {
     let ws = demo();
@@ -245,7 +260,30 @@ fn every_run_result_carries_its_overview_row() {
         assert_eq!(r.overview.main, r.kpis[..n], "{}", r.id);
         let grouped: usize = r.overview.checks.iter().map(|g| g.checks.len()).sum();
         assert_eq!(grouped, r.checks.len(), "{}", r.id);
-        assert!(r.overview.chart.is_none(), "{}", r.id);
-        assert!(r.overview.hidden_tables.is_empty(), "{}", r.id);
+        let power = POWER_CHARTS.contains(&r.id.as_str());
+        assert_eq!(r.overview.chart.is_some(), power, "{}", r.id);
+        if r.id != "power.energy_balance" {
+            assert!(r.overview.hidden_tables.is_empty(), "{}", r.id);
+        }
     }
+}
+
+/// 熱の 3D の色: 部品ごとの代表の温度は service が選ぶ（節点と部品の対応・全ケースの最高・ケース・判定）。
+/// ほかの解析は欄を出さない。
+#[test]
+fn thermal_steady_returns_the_representative_temperature_per_part() {
+    let ws = demo();
+    let run = |id| analysis::run_analysis(&ws, id, &RunAnalysisRequest::default()).unwrap();
+    let result = run("thermal.steady");
+    let heat = result.part_heat.expect("part_heat");
+    assert!(!heat.is_empty());
+    let output: sat_analysis::thermal::ThermalSteadyOutput =
+        serde_json::from_value(result.output.unwrap()).unwrap();
+    for h in &heat {
+        let env = output.envelope.iter().find(|e| e.node == h.node).unwrap();
+        assert_eq!(h.temperature.si, env.max.value());
+        assert_eq!(h.case, env.max_case);
+        assert_eq!(h.verdict, env.verdict);
+    }
+    assert!(run("power.mode_load").part_heat.is_none());
 }

@@ -9,12 +9,17 @@ use crate::quantity::{setting, setting_opt};
 use fune_model::Target;
 use fune_model::design::ThermalSettings;
 use fune_model::design::setting_dims as dims;
+use fune_model::design::setting_dims::SettingQuantity;
 use fune_model::resolve::{ResolvedPart, SiValue};
+use fune_model::value::Quantity;
 use sat_analysis::thermal::network::{
-    ThermalCoating, ThermalMounts, ThermalNetwork, ThermalNode, ThermalNodePart, ThermalSurface,
+    ThermalCoating, ThermalConductiveLink, ThermalMounts, ThermalNetwork, ThermalNode,
+    ThermalNodePart, ThermalRadiativeLink, ThermalSurface,
 };
+use sat_analysis::thermal::{ThermalBoxSize, ThermalEnclosure};
 use sat_analysis::thermal::{ThermalRanges, ThermalTempRange};
 use sat_units::typed::Qty;
+use std::collections::BTreeMap;
 
 /// 温度範囲の属性: 保管 = `temp_survival`（非動作の範囲）、動作 = `temp_op`、性能 = `temp_perf`。
 const STORAGE_RANGE: &str = "temp_survival";
@@ -31,10 +36,69 @@ pub(super) fn network(
     ThermalNetwork {
         nodes: nodes(ctx, s, m),
         mounts,
-        conductive: Vec::new(),
-        radiative: Vec::new(),
+        conductive: conductive(s, m),
+        radiative: radiative(s, m),
+        enclosure: enclosure(ctx, s),
         surfaces: surfaces(ctx, s, m),
     }
+}
+
+/// 明示の伝導（`[conductive.<節点>] <節点> = …`。優先順位と置き換えは解析が決める）。
+fn conductive(s: &ThermalSettings, m: &mut MissingInputs) -> Vec<ThermalConductiveLink> {
+    pairs(&s.conductive, &dims::THERMAL_CONDUCTIVE, m)
+        .into_iter()
+        .map(|(a, b, conductance)| ThermalConductiveLink { a, b, conductance })
+        .collect()
+}
+
+/// 明示の放射（`[radiative.<節点>] <節点> = …`）。
+fn radiative(s: &ThermalSettings, m: &mut MissingInputs) -> Vec<ThermalRadiativeLink> {
+    pairs(&s.radiative, &dims::THERMAL_RADIATIVE, m)
+        .into_iter()
+        .map(|(a, b, exchange_area)| ThermalRadiativeLink {
+            a,
+            b,
+            exchange_area,
+        })
+        .collect()
+}
+
+/// 節点対の表（節点 → 節点 → 量）を (a, b, 型付きの量) に直す（次元が合わない量は不足入力に記録して飛ばす）。
+fn pairs<D: sat_units::typed::Dimension>(
+    table: &BTreeMap<String, BTreeMap<String, Quantity>>,
+    key: &SettingQuantity<D>,
+    m: &mut MissingInputs,
+) -> Vec<(String, String, Qty<D>)> {
+    let mut out = Vec::new();
+    for (a, row) in table {
+        for (b, q) in row {
+            if let Some(v) = setting_opt(key, &[a, b], Some(q), m) {
+                out.push((a.clone(), b.clone(), v));
+            }
+        }
+    }
+    out
+}
+
+/// 箱型の外殻（`[enclosure] emissivity` を書いたときだけ）。箱の寸法は機体の根（取付を持たない外形のある部品）の `size`。
+/// 6 面と節点の対応と、使えるかの判断は解析が行う。
+fn enclosure(ctx: &Context<'_>, s: &ThermalSettings) -> Option<ThermalEnclosure> {
+    let emissivity = s.enclosure.as_ref()?.emissivity?;
+    let mut roots = ctx
+        .resolved
+        .parts
+        .values()
+        .filter(|p| p.mount.is_none())
+        .filter_map(|p| ctx.vec3(p, "size"));
+    let size = match (roots.next(), roots.next()) {
+        (Some([x, y, z]), None) => Some(ThermalBoxSize {
+            x: Qty::from_raw(x),
+            y: Qty::from_raw(y),
+            z: Qty::from_raw(z),
+        }),
+        _ => None,
+    };
+    Some(ThermalEnclosure { size, emissivity })
 }
 
 /// 節点（部品ごとの質量・比熱・温度範囲。熱容量と範囲の共通部分は解析が求める）。

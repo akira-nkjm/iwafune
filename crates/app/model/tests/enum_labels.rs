@@ -13,8 +13,6 @@ use fune_model::value::ValueType;
 /// 表示名を持つ列挙（labels.toml の型の名前 → 値の綴りの一覧）。
 const LABELLED: &[(&str, &[&str])] = &[
     ("maturity", Maturity::NAMES),
-    // 真偽の値（設定の `true`・`false` の表示名。`builtin::setting_enums::setting_value_label`）
-    ("bool", &["false", "true"]),
     ("redundancy", fune_model::design::Redundancy::NAMES),
     ("net_kind", NetKind::NAMES),
     ("budget_kind", BudgetKind::NAMES),
@@ -28,6 +26,8 @@ const LABELLED: &[(&str, &[&str])] = &[
     ("origin", Origin::NAMES),
     ("severity", Severity::NAMES),
     ("attitude_law", AttitudeLawKind::NAMES),
+    ("mode_when", fune_model::design::ModeWhen::NAMES),
+    ("start_from", fune_model::design::StartFrom::NAMES),
     (
         "thermal_preset",
         fune_model::design::ThermalPresetKind::NAMES,

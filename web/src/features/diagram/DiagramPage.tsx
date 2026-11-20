@@ -1,10 +1,13 @@
 import { LayoutGrid, Redo2, RotateCcw, Undo2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
+import { onBeforeHistoryStep, useHistoryStep, useHistoryView } from "@/api/history";
 import { useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
 import { SkeletonCanvas } from "@/kit/feedback/Loading";
 import { QueryState } from "@/kit/feedback/QueryState";
+import { Refreshable } from "@/kit/feedback/Refreshable";
+import { afterPaint } from "@/lib/after-paint";
 import { diagramHiddenSystems, withDiagramHiddenSystems } from "@/lib/nav";
 import { CanvasFrame } from "@/shell/CanvasFrame";
 import { PageHeader } from "@/shell/PageHeader";
@@ -17,8 +20,7 @@ import { DiagramSystems } from "./DiagramSystems";
 import { DiagramToolbar } from "./DiagramToolbar";
 import { NewNetDialog } from "./editing/NewNetDialog";
 import { useDiagramConnect } from "./editing/use-diagram-connect";
-import { useUndoKeys } from "./editing/use-undo-keys";
-import { useViewEdits, useViewUndo } from "./editing/view-history";
+import { useViewEdits } from "./editing/view-edits";
 import type { Layer } from "./power";
 
 /**
@@ -35,7 +37,8 @@ export function DiagramPage() {
   const [layers, setLayers] = useState<ReadonlySet<Layer>>(new Set<Layer>(["power", "signal"]));
   const [merge, setMerge] = useState(true);
   const { editRoute } = useViewEdits();
-  const history = useViewUndo();
+  const history = useHistoryView();
+  const step = useHistoryStep();
   const [inspectorOpen, setInspectorOpen] = useState(() => {
     try {
       return localStorage.getItem("iwafune.diagram.inspector") !== "hidden";
@@ -59,18 +62,24 @@ export function DiagramPage() {
     () => diagramHiddenSystems(params, d?.defs.systems ?? []),
     [params, d?.defs.systems],
   );
-  const { model, layout } = useDiagramModel(d, layers, merge, hiddenSystems);
+  const { model, layout, pending } = useDiagramModel(d, layers, merge, hiddenSystems);
+  // 表示の切り替え（系・層・まとめ方）は図を作り直す重い更新なので、先に「作り直し中」を画面に出してから始める。
+  // そうしないと、押しても作り直しが終わるまで何も変わらず、固まって見える
+  const [queued, setQueued] = useState(false);
+  const later = (apply: () => void) => {
+    setQueued(true);
+    afterPaint(apply);
+  };
+  // 作り直しが済んだら（図が変わらない切り替えなら、すぐ）戻す
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 切り替えた値が変わったときにも確かめ直す
+  useEffect(() => {
+    if (!pending) setQueued(false);
+  }, [pending, hiddenSystems, layers, merge]);
   const flow = useDiagramFlow(d, model, layout);
-  // ⌘Z・⇧⌘Z（Ctrl+Z・Ctrl+Y）で配置の編集を元に戻す・やり直す。戻す前に、手で動かした印と保存待ちの位置を捨てる
-  const undo = () => {
-    flow.resetMoved();
-    history.undo();
-  };
-  const redo = () => {
-    flow.resetMoved();
-    history.redo();
-  };
-  useUndoKeys(undo, redo);
+  // 元に戻す・やり直すの前に、手で動かした印と保存待ちの位置を捨てる（保存した位置だけを描くように）。
+  // キー（⌘Z・⇧⌘Z。画面全体で受ける。shell/use-history-keys.ts）でもボタンでも同じ
+  const { resetMoved } = flow;
+  useEffect(() => onBeforeHistoryStep(resetMoved), [resetMoved]);
   const connect = useDiagramConnect(model);
   return (
     <>
@@ -83,7 +92,8 @@ export function DiagramPage() {
             : undefined
         }
       />
-      {/* 設計から作った図（配置は空き時間に計算する）ができるまでは、図のスケルトン */}
+      {/* 設計から作った図（配置は空き時間に計算する）が最初にできるまでは、図のスケルトン。表示を切り替えて位置を
+          探し直す間は、前の図を薄くして残し、上端に読み込み中の帯を出す（useDiagramModel の pending） */}
       <QueryState
         query={{
           data: d && model && layout ? { design: d, model } : undefined,
@@ -91,7 +101,7 @@ export function DiagramPage() {
           refetch: design.refetch,
         }}
         className="flex min-h-0 flex-1 flex-col"
-        skeleton={<SkeletonCanvas />}
+        skeleton={<SkeletonCanvas label={t.common.working.layingOutDiagram} />}
       >
         {(shown) => (
           <CanvasFrame
@@ -102,22 +112,24 @@ export function DiagramPage() {
                   hidden={hiddenSystems}
                   onChange={(hidden) => {
                     setSelected(null);
-                    setParams((previous) => withDiagramHiddenSystems(previous, hidden));
+                    later(() =>
+                      setParams((previous) => withDiagramHiddenSystems(previous, hidden)),
+                    );
                   }}
                 />
                 <DiagramToolbar
                   layers={layers}
-                  onLayers={setLayers}
+                  onLayers={(next) => later(() => setLayers(next))}
                   merge={merge}
-                  onMerge={setMerge}
+                  onMerge={(next) => later(() => setMerge(next))}
                 />
                 <Button
                   size="icon-sm"
                   variant="outline"
                   title={td.undoTitle}
                   aria-label={td.undo}
-                  disabled={!history.canUndo}
-                  onClick={undo}
+                  disabled={!history?.can_undo || step.isPending}
+                  onClick={() => step.mutate("undo")}
                 >
                   <Undo2 size={13} />
                 </Button>
@@ -126,8 +138,8 @@ export function DiagramPage() {
                   variant="outline"
                   title={td.redoTitle}
                   aria-label={td.redo}
-                  disabled={!history.canRedo}
-                  onClick={redo}
+                  disabled={!history?.can_redo || step.isPending}
+                  onClick={() => step.mutate("redo")}
                 >
                   <Redo2 size={13} />
                 </Button>
@@ -170,18 +182,26 @@ export function DiagramPage() {
               ),
             }}
           >
-            <DiagramCanvas
-              nodes={flow.nodes}
-              edges={flow.edges}
-              selected={selected}
-              onSelect={setSelected}
-              onNodesChange={flow.onNodesChange}
-              onEdgesChange={flow.onEdgesChange}
-              onConnect={connect.onConnect}
-              onEdgesDelete={connect.onEdgesDelete}
-              onNodeDragStop={flow.onNodeDragStop}
-            />
-            <DiagramLegend categories={shown.model.legend} signal={layers.has("signal")} />
+            <Refreshable
+              active={pending || queued}
+              blockInput
+              immediate
+              label={t.common.working.layingOutDiagram}
+              className="absolute inset-0"
+            >
+              <DiagramCanvas
+                nodes={flow.nodes}
+                edges={flow.edges}
+                selected={selected}
+                onSelect={setSelected}
+                onNodesChange={flow.onNodesChange}
+                onEdgesChange={flow.onEdgesChange}
+                onConnect={connect.onConnect}
+                onEdgesDelete={connect.onEdgesDelete}
+                onNodeDragStop={flow.onNodeDragStop}
+              />
+              <DiagramLegend categories={shown.model.legend} signal={layers.has("signal")} />
+            </Refreshable>
           </CanvasFrame>
         )}
       </QueryState>

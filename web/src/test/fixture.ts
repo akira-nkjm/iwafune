@@ -106,10 +106,14 @@ function part(
 }
 
 function net(id: string, kind: NetKind, members: PortRef[], extra: Partial<NetView> = {}): NetView {
+  // 系統と中心は API が決める。ここでは、供給元・マスターが書かれていればそのポートを中心にする
+  const declared = kind === "power" ? extra.source : extra.master;
   return {
     id,
     kind,
     is_return: false,
+    power_class: kind === "power" ? (extra.rail ? "regulated" : "unregulated") : null,
+    hub: declared ? { port: declared, collects: false } : null,
     label: id,
     source: null,
     rail: null,
@@ -242,6 +246,8 @@ export const fixture: DesignView = {
         label: "定常",
         description: null,
         max_duration: null,
+        when: null,
+        start: null,
         file: "modes/NOMINAL.toml",
       },
       {
@@ -249,6 +255,8 @@ export const fixture: DesignView = {
         label: "セーフ",
         description: null,
         max_duration: null,
+        when: null,
+        start: null,
         file: "modes/SAFE.toml",
       },
     ],
@@ -284,6 +292,8 @@ export const fixture: DesignView = {
         shares: { NOMINAL: { tx: qv(10, "%", "Dimensionless", 0.1) } },
       },
     ],
+    sequences: [],
+    active_sequence: null,
   },
   nets: [
     net(
@@ -348,11 +358,10 @@ export const fixture: DesignView = {
       },
       enum: {},
       enum_order: {},
-      setting: {},
-      case_field: {},
     },
     systems: ["aocs", "cdh", "comm", "payload", "power", "propulsion", "structure", "thermal"],
     budget_kinds: ["mass", "power", "data"],
+    mode_systems: ["aocs", "cdh", "power", "thermal"],
   },
   settings: [],
   cases: [],

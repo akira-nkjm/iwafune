@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { GitBranch, History } from "lucide-react";
+import { GitBranch, History, Redo2, Undo2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { q } from "@/api/queries";
 import { useLang, useT } from "@/i18n";
@@ -7,6 +8,11 @@ import { CliCopyButton } from "@/kit/CliCopyButton";
 import { useChangeHistory } from "@/lib/history";
 import { paths } from "@/lib/nav";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
+
+/** ナビのアイコンと同じ幅（16 px）の枠。小さいアイコンも中央に置いて、左右の空きをナビの行と同じにする */
+function IconSlot({ children }: { children: ReactNode }) {
+  return <span className="flex w-4 shrink-0 justify-center">{children}</span>;
+}
 
 /** サイドバー下部: ブランチ・revision・診断の件数・このセッションの変更履歴（CLI としてコピー） */
 export function CommitChip({ rail = false }: { rail?: boolean }) {
@@ -23,7 +29,7 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
         to={paths.diagnostics()}
         title={t.shell.diagTitle(errors, warnings)}
         aria-label={t.shell.diagLabel(errors, warnings)}
-        className="mx-auto flex size-9 flex-col items-center justify-center rounded-control text-[10px] hover:bg-panel"
+        className="mx-auto flex size-8 flex-col items-center justify-center rounded-control text-[10px] hover:bg-panel"
       >
         <GitBranch size={14} className="text-ink-3" />
         <span
@@ -34,9 +40,11 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
       </Link>
     );
   return (
-    <div className="space-y-2 px-1">
-      <div className="flex items-center gap-2 text-[11.5px] text-ink-3">
-        <GitBranch size={13} />
+    <div className="space-y-2 px-2">
+      <div className="flex items-center gap-3 px-2 text-[11.5px] text-ink-3">
+        <IconSlot>
+          <GitBranch size={13} />
+        </IconSlot>
         <span className="truncate font-mono">{p?.branch ?? "—"}</span>
         <span className="ml-auto font-mono text-ink-4" title={p?.revision}>
           {p?.revision.slice(0, 7) ?? ""}
@@ -49,7 +57,7 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
       ) : (
         <Link
           to={paths.diagnostics()}
-          className="flex items-center gap-2 rounded-chip px-1 py-0.5 text-[11.5px] hover:bg-panel"
+          className="flex items-center gap-2 rounded-chip py-0.5 pr-1 pl-9 text-[11.5px] hover:bg-panel"
         >
           <span className={errors > 0 ? "text-neg-ink" : "text-ink-3"}>
             {t.shell.errors(errors)}
@@ -63,9 +71,11 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex w-full items-center gap-2 rounded-chip px-1 py-0.5 text-[11.5px] text-ink-3 hover:bg-panel"
+            className="flex w-full items-center gap-3 rounded-chip px-2 py-0.5 text-[11.5px] text-ink-3 hover:bg-panel"
           >
-            <History size={13} />
+            <IconSlot>
+              <History size={13} />
+            </IconSlot>
             {t.shell.history}
             <span className="num ml-auto">{history.length}</span>
           </button>
@@ -81,6 +91,8 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
             {history.map((h) => (
               <li key={h.id} className="space-y-1 border-line-soft border-b px-3 py-2">
                 <div className="flex items-center gap-2 text-xs">
+                  {h.kind === "undo" && <Undo2 size={12} className="shrink-0 text-ink-3" />}
+                  {h.kind === "redo" && <Redo2 size={12} className="shrink-0 text-ink-3" />}
                   <span className="font-medium">{h.summary}</span>
                   <span className="ml-auto text-ink-4">{h.at.toLocaleTimeString(lang)}</span>
                 </div>
@@ -89,7 +101,7 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
                     {h.cli.join("\n")}
                   </pre>
                 )}
-                <CliCopyButton cli={h.cli} />
+                {h.cli.length > 0 && <CliCopyButton cli={h.cli} />}
               </li>
             ))}
           </ul>

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { MissingList } from "@/analysis/MissingList";
 import type { DesignView, System } from "@/api/types";
 import { useT } from "@/i18n";
+import { Refreshable } from "@/kit/feedback/Refreshable";
 import { Reveal } from "@/kit/Reveal";
 import { Button } from "@/ui/button";
 import { draftCount, type ModeDraft, withCell } from "../draft/draft";
@@ -13,7 +14,7 @@ import { matrixGroups } from "./matrix-rows";
 
 /**
  * モード表のカード: 見出しの帯（凡例・モード追加）、行列、下書きの保存の帯。下書きを当てた計算は `useModeDraftLoad`、
- * 行への変換は `matrixGroups`、表示は `ModesTable`。カードは画面の高さまで伸び、表はカードの中で縦横にスクロールする。
+ * 行への変換は `matrixGroups`、表示は `ModesTable`。設計のモードのページ（`system` 無し）は、行・セルは今のまま、足もとに電力の合計の行だけ出す。カードは画面の高さまで伸び、表はカードの中で縦横にスクロールする。
  */
 export function ModesMatrix({
   design,
@@ -28,7 +29,8 @@ export function ModesMatrix({
   onAdd?: () => void;
   system?: System;
 }) {
-  const tm = useT().modes;
+  const t = useT();
+  const tm = t.modes;
   const [eclipse, setEclipse] = useState(false);
   const table = design.modes;
   const computed = useModeDraftLoad(table, draft, system);
@@ -60,25 +62,37 @@ export function ModesMatrix({
             {computed.error}
           </p>
         )}
-        {computed.view.data && computed.view.data.missing.length > 0 && (
+        {system && computed.view.data && computed.view.data.missing.length > 0 && (
           <div className="shrink-0 p-3">
             <MissingList design={design} missing={computed.view.data.missing} />
           </div>
         )}
-        <div className="min-h-0 flex-1 scroll-pt-16 scroll-pb-36 scroll-pl-52 overflow-auto">
-          <ModesTable
-            key={eclipse ? "eclipse" : "sunlit"}
-            modes={table.modes}
-            groups={matrixGroups(design, draft, computed.view.data, tm, eclipse, system)}
-            eclipse={eclipse}
-            view={computed.view}
-            system={system}
-            updating={computed.view.updating}
-            onCell={({ mode, part }, cell) =>
-              onDraft(withCell(table, draft, mode, part, cell, eclipse))
-            }
-          />
-        </div>
+        {/* セルの電力を下書きで問い合わせ直している間は、前の数字を薄くして出し、上端に帯を出す */}
+        <Refreshable
+          active={!!system && computed.view.updating}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div className="min-h-0 flex-1 scroll-pt-16 scroll-pb-36 scroll-pl-52 overflow-auto">
+            <ModesTable
+              key={eclipse ? "eclipse" : "sunlit"}
+              modes={table.modes}
+              groups={matrixGroups(
+                design,
+                draft,
+                system ? computed.view.data : null,
+                tm,
+                eclipse,
+                system,
+              )}
+              eclipse={eclipse}
+              view={computed.view}
+              system={system}
+              onCell={({ mode, part }, cell) =>
+                onDraft(withCell(table, draft, mode, part, cell, eclipse))
+              }
+            />
+          </div>
+        </Refreshable>
         {/* 保存の帯はカードのいちばん下。最初の下書きで滑らかに開き、保存・破棄で滑らかに閉じる */}
         <Reveal open={count > 0}>
           <ModesSaveBar

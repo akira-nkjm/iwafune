@@ -1,13 +1,16 @@
 //! Design → 表示用の型（製品ツリー・モード表・ネット・ハーネス・定義・ケース）。解決済みの値を使わないもの。
 
 use crate::dto::{
-    AttributeDefView, CaseView, DefsView, HarnessView, KindDefView, ModeHeader, ModeRow, ModeTable,
-    NetView, QuantityView, TreeNode, TreeNodeKind,
+    AttributeDefView, CaseView, DefsView, HarnessView, KindDefView, ModeHeader, ModeRow,
+    ModeSegmentView, ModeSequenceView, ModeStartView, ModeTable, NetView, QuantityView, TreeNode,
+    TreeNodeKind,
 };
+use crate::query::net_class;
 use crate::query::values::authored_quantity;
 use fune_model::builtin;
 use fune_model::design::{AnalysisSystem, BudgetKind, Design, EntityKey, NodeRef};
 use fune_model::path::PortRef;
+use fune_model::resolve::Resolved;
 use std::collections::BTreeMap;
 
 /// エンティティのファイル（ルートからの相対パス）。
@@ -102,6 +105,8 @@ pub(crate) fn mode_table(design: &Design) -> ModeTable {
                 .max_duration
                 .as_ref()
                 .map(|q| authored_quantity(q, Some("Time"))),
+            when: m.when,
+            start: m.start.as_ref().map(start_view),
             id: m.id.to_string(),
             label: m.label.clone().unwrap_or_else(|| m.id.to_string()),
             description: m.description.clone(),
@@ -148,11 +153,49 @@ pub(crate) fn mode_table(design: &Design) -> ModeTable {
             }
         })
         .collect();
-    ModeTable { modes, rows }
+    let power = design.analysis.power.as_ref();
+    let sequences = power
+        .map(|p| {
+            p.sequence_names()
+                .into_iter()
+                .filter_map(|n| p.sequence(n))
+                .map(|s| ModeSequenceView {
+                    name: s.name.to_owned(),
+                    legacy: s.legacy,
+                    anchor: s.anchor.map(start_view),
+                    segments: s
+                        .segments
+                        .iter()
+                        .map(|g| ModeSegmentView {
+                            mode: g.mode.clone(),
+                            duration: authored_quantity(&g.duration, Some("Time")),
+                        })
+                        .collect(),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    ModeTable {
+        modes,
+        rows,
+        sequences,
+        active_sequence: power.and_then(|p| p.active_sequence_name().map(str::to_owned)),
+    }
+}
+
+/// 食の出入りからの位置の指定の表示用。
+fn start_view(r: &fune_model::design::StartRef) -> ModeStartView {
+    ModeStartView {
+        from: r.from,
+        offset: r
+            .offset
+            .as_ref()
+            .map(|q| authored_quantity(q, Some("Time"))),
+    }
 }
 
 /// ネット（つながるポートは部品の ports から集める）。
-pub(crate) fn nets(design: &Design) -> Vec<NetView> {
+pub(crate) fn nets(design: &Design, resolved: &Resolved) -> Vec<NetView> {
     let mut members: BTreeMap<&str, Vec<PortRef>> = BTreeMap::new();
     for p in design.parts.values() {
         for (port, binding) in &p.ports {
@@ -167,29 +210,34 @@ pub(crate) fn nets(design: &Design) -> Vec<NetView> {
     design
         .nets
         .values()
-        .map(|n| NetView {
-            id: n.id.to_string(),
-            kind: n.kind,
-            is_return: n.is_return(),
-            label: n.label.clone().unwrap_or_else(|| n.id.to_string()),
-            source: n.source.clone(),
-            rail: n
-                .rail
-                .as_ref()
-                .map(|q| authored_quantity(q, Some("Voltage"))),
-            limit: n
-                .limit
-                .as_ref()
-                .map(|q| authored_quantity(q, Some("ElectricCurrent"))),
-            protocol: n.protocol.clone(),
-            bitrate: n
-                .bitrate
-                .as_ref()
-                .map(|q| authored_quantity(q, Some("DataRate"))),
-            master: n.master.clone(),
-            members: members.remove(n.id.as_str()).unwrap_or_default(),
-            field_paths: net_field_paths(n.id.as_str()),
-            file: file_of(design, EntityKey::Net(n.id.to_string())),
+        .map(|n| {
+            let members = members.remove(n.id.as_str()).unwrap_or_default();
+            NetView {
+                id: n.id.to_string(),
+                kind: n.kind,
+                is_return: n.is_return(),
+                power_class: net_class::power_class(n, &members, net_class::roles(resolved)),
+                hub: net_class::hub(n, &members, net_class::roles(resolved)),
+                label: n.label.clone().unwrap_or_else(|| n.id.to_string()),
+                source: n.source.clone(),
+                rail: n
+                    .rail
+                    .as_ref()
+                    .map(|q| authored_quantity(q, Some("Voltage"))),
+                limit: n
+                    .limit
+                    .as_ref()
+                    .map(|q| authored_quantity(q, Some("ElectricCurrent"))),
+                protocol: n.protocol.clone(),
+                bitrate: n
+                    .bitrate
+                    .as_ref()
+                    .map(|q| authored_quantity(q, Some("DataRate"))),
+                master: n.master.clone(),
+                members,
+                field_paths: net_field_paths(n.id.as_str()),
+                file: file_of(design, EntityKey::Net(n.id.to_string())),
+            }
         })
         .collect()
 }
@@ -260,6 +308,7 @@ pub(crate) fn defs(design: &Design) -> DefsView {
             .map(|s| fune_projection::system::to_analysis(*s))
             .collect(),
         budget_kinds: BudgetKind::ALL.to_vec(),
+        mode_systems: crate::mode_systems::mode_systems(),
     }
 }
 
@@ -359,7 +408,10 @@ mod tests {
         let harness: fune_model::design::Harness =
             serde_json::from_value(json!({ "id": "H1", "from": "A.P1", "to": "B.P2" })).unwrap();
         design.harnesses.insert(harness.id.clone(), harness);
-        let labels: Vec<String> = nets(&design).into_iter().map(|n| n.label).collect();
+        let labels: Vec<String> = nets(&design, &Resolved::default())
+            .into_iter()
+            .map(|n| n.label)
+            .collect();
         assert_eq!(labels, ["N1", "バス"]);
         assert_eq!(harnesses(&design)[0].label, "H1");
     }

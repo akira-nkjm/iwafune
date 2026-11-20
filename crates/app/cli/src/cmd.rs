@@ -11,9 +11,10 @@
 //! | `defs` | attr/kind の add・replace・rm の引数 → Op |
 //! | `records` | case・source・harness・catalog・part point の引数 → Op |
 //! | `catalog` | catalog ls/show/fetch/update と、catalog source add/rm のあとの案内 |
-//! | `edit` | Op の列の適用と結果の表示・init |
+//! | `edit` | Op の列の適用と結果の表示・init・undo / redo |
 //! | `units` | units ls/parse/format |
 //! | `analyze` | analyze・budget |
+//! | `pages` | mode view（GUI のモードの見方と同じ DTO を表にする） |
 //! | `gui` | gui |
 //! | `data` | data status/fetch |
 //! | `self_update` | self-update（実行中の `fune` の置き換え。プロジェクト不要） |
@@ -30,6 +31,7 @@ mod nets;
 mod nouns;
 mod ops;
 mod output_tables;
+mod pages;
 mod parts;
 mod read;
 mod records;
@@ -75,6 +77,9 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
             }
             Ok(u8::from(*check && !result.changed.is_empty()))
         }
+        Command::History => edit::history(&open(g)?, out),
+        Command::Undo => edit::step(&open(g)?, false, out),
+        Command::Redo => edit::step(&open(g)?, true, out),
         Command::Init { name } => edit::init(&g.dir, name, out),
         Command::Status => read::status(&open(g)?, out),
         Command::Check { deny_warnings } => read::check(&open(g)?, *deny_warnings, out),
@@ -101,6 +106,7 @@ fn read_more(command: &Command, ws: &Workspace, out: &Out) -> anyhow::Result<Opt
     match command {
         Command::Part(c) => parts::part(ws, c, out),
         Command::Mode(c) => read::mode(ws, c, out),
+        Command::Sequence(c) => read::sequence(ws, c, out),
         Command::Net(c) => read::net(ws, c, out),
         Command::Attr(c) => read::attr(ws, c, out),
         Command::Kind(c) => read::kind(ws, c, out),

@@ -20,4 +20,8 @@ systems: Array<System>,
 /**
  * バジェットの種類の一覧と並び（`fune_model::design::BudgetKind` の宣言の順。表示名は `labels.enum.budget_kind`）
  */
-budget_kinds: Array<BudgetKind>, };
+budget_kinds: Array<BudgetKind>, 
+/**
+ * モードの見方（`POST /system_modes/{system}`）を持つ系（`systems` の部分集合で、同じ並び。`system_modes::mode_systems`）
+ */
+mode_systems: Array<System>, };

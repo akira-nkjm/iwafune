@@ -44,6 +44,41 @@ impl TorqueKind {
     }
 }
 
+/// 温度差（`TemperatureDifference`）の表示の名前。次元の型 [`super::TemperatureDifference`] は [`super::Temperature`] と
+/// 区別できないので、名前だけを持つ型で指す（`quantity_text::<TemperatureDifferenceKind>`。K で出し、273.15 を引かない）。
+pub enum TemperatureDifferenceKind {}
+
+impl NamedKind for TemperatureDifferenceKind {
+    fn name() -> &'static str {
+        "TemperatureDifference"
+    }
+}
+
+impl TemperatureDifferenceKind {
+    /// 温度差の出力欄を SI 数値のまま書き出し、次元の代わりに量の種類を記録する。
+    /// `#[serde(serialize_with = "sat_units::typed::TemperatureDifferenceKind::serialize")]` で指定する。
+    #[cfg(feature = "serde")]
+    pub fn serialize<S: serde::Serializer>(
+        value: &super::Qty<super::TemperatureDifference>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        crate::last_dimension::record_kind(Self::name());
+        serializer.serialize_f64(value.value())
+    }
+
+    /// 省略できる温度差の欄（`Option`）。値があるときだけ種類を記録し、無ければ null。
+    #[cfg(feature = "serde")]
+    pub fn serialize_option<S: serde::Serializer>(
+        value: &Option<super::Qty<super::TemperatureDifference>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        match value {
+            Some(v) => Self::serialize(v, serializer),
+            None => serializer.serialize_none(),
+        }
+    }
+}
+
 macro_rules! kind_name {
     ($($t:ty),+ $(,)?) => {
         $(impl NamedKind for $t {
@@ -65,7 +100,7 @@ kind_name!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::typed::{AngularMomentum, Energy, Length, Power, Torque};
+    use crate::typed::{AngularMomentum, Energy, Length, Power, Temperature, Torque};
 
     #[test]
     fn names_come_from_the_types() {
@@ -76,6 +111,12 @@ mod tests {
         assert_eq!(<Torque as NamedKind>::name(), "Energy");
         assert_eq!(<Energy as NamedKind>::name(), "Energy");
         assert_eq!(<TorqueKind as NamedKind>::name(), "Torque");
+        // 温度差も同じ（次元の型からは Temperature）
+        assert_eq!(<Temperature as NamedKind>::name(), "Temperature");
+        assert_eq!(
+            <TemperatureDifferenceKind as NamedKind>::name(),
+            "TemperatureDifference"
+        );
         assert_eq!(<Fraction as NamedKind>::name(), "Fraction");
         assert_eq!(<Decibel as NamedKind>::name(), "Decibel");
         assert_eq!(<DecibelHertz as NamedKind>::name(), "DecibelHertz");

@@ -213,3 +213,28 @@ fn leftover_record_does_not_leak_into_next_output() {
     assert!(!d.contains_key("/id"));
     assert_eq!(d["/p"], "Power");
 }
+
+/// 温度差の欄（解析マージンの不確かさ・警告の幅、範囲への余裕）は温度差の種類を記録し、K で表示する
+/// （温度の欄は従来どおり Temperature で °C）。5 K の警告の幅が -268 °C にならない。
+#[test]
+fn thermal_margin_fields_record_temperature_difference() {
+    use sat_analysis::thermal::ThermalMarginPolicy;
+    let used = ThermalMarginPolicy::default().used();
+    let d = dims_of(&used);
+    assert_eq!(d["/uncertainty"], "TemperatureDifference");
+    assert_eq!(d["/warning_band"], "TemperatureDifference");
+    let band = crate::units::quantity_auto(used.warning_band.value(), &d["/warning_band"]);
+    assert_eq!(band.display, "5.00 K");
+    // 省略できる欄（方針）は、書かれていれば種類を記録する
+    let policy = ThermalMarginPolicy {
+        uncertainty: Some(Qty::from_raw(2.0)),
+        warning_band: None,
+        heater_duty_warning: None,
+    };
+    let d = dims_of(&policy);
+    assert_eq!(d["/uncertainty"], "TemperatureDifference");
+    assert!(!d.contains_key("/warning_band"));
+    // 温度そのものは Temperature のまま
+    let t = dims_of(&Qty::<sat_units::typed::Temperature>::from_raw(293.15));
+    assert_eq!(t[""], "Temperature");
+}

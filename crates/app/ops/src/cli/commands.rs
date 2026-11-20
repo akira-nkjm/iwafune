@@ -2,7 +2,7 @@
 
 use super::text::Cmd;
 use crate::op::{ModeCell, ModePosition, Op, ViewNodePos};
-use fune_model::design::{Net, NetField, NetFieldName, PartField};
+use fune_model::design::{ModeWhen, Net, NetField, NetFieldName, PartField};
 use fune_model::value::{
     Provenance, Scalar, Value, list_to_text, number_to_text, number_unit_to_text, quantity_to_text,
     quaternion_to_text, setting_to_text, value_to_text, vector_to_text,
@@ -17,8 +17,8 @@ pub(super) fn part_op(op: &Op) -> Option<Vec<String>> {
         Op::RenameGroup { id, to } => {
             vec![Cmd::new(&["fune", "part", "rename-group", id, to]).done()]
         }
-        Op::MovePart { id, to } => vec![match to {
-            Some(to) => Cmd::new(&["fune", "part", "mv", id, to]).done(),
+        Op::MovePart { id, to, under } => vec![match to {
+            Some(to) => Cmd::new(&["fune", "part", "mv", id, &group_text(to, under)]).done(),
             None => Cmd::new(&["fune", "part", "mv", id, "--root"]).done(),
         }],
         Op::SetValue {
@@ -61,10 +61,21 @@ pub(super) fn part_op(op: &Op) -> Option<Vec<String>> {
     })
 }
 
+/// 置き先 `to` と祖先の列 `under` → CLI で打つ綴り（`aocs/RW`。祖先が無ければ `to` だけ）。
+fn group_text(to: &str, under: &[String]) -> String {
+    under
+        .iter()
+        .map(String::as_str)
+        .chain(std::iter::once(to))
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
 fn create_part(op: &Op) -> String {
     let Op::CreatePart {
         id,
         group,
+        group_under,
         catalog,
         kind,
         count,
@@ -77,7 +88,13 @@ fn create_part(op: &Op) -> String {
     Cmd::new(&["fune", "part", "add", id])
         .flag("catalog", catalog.as_deref())
         .flag("kind", kind.as_deref())
-        .flag("group", group.as_deref())
+        .flag(
+            "group",
+            group
+                .as_deref()
+                .map(|g| group_text(g, group_under))
+                .as_deref(),
+        )
         .flag("count", count.map(|c| c.to_string()).as_deref())
         .flag("label", label.as_deref())
         .flag("mode-state", mode_state.as_deref())
@@ -152,6 +169,46 @@ pub(super) fn other_op(op: &Op) -> Vec<String> {
                 )
                 .done(),
         ],
+        Op::SetModeTiming { mode, when, start } => vec![
+            Cmd::new(&["fune", "mode", "timing", mode])
+                .flag("when", when.map(ModeWhen::as_str))
+                .flag("start", start.as_ref().map(|s| s.from.as_str()))
+                .flag(
+                    "offset",
+                    start
+                        .as_ref()
+                        .and_then(|s| s.offset.as_ref())
+                        .map(quantity_to_text)
+                        .as_deref(),
+                )
+                .done(),
+        ],
+        Op::SetSequence {
+            name,
+            anchor,
+            segments,
+        } => {
+            let text = segments
+                .iter()
+                .map(|s| format!("{}={}", s.mode, quantity_to_text(&s.duration)))
+                .collect::<Vec<_>>()
+                .join(",");
+            vec![
+                Cmd::new(&["fune", "sequence", "set", name])
+                    .flag("segments", Some(&text))
+                    .flag("anchor", anchor.as_ref().map(|a| a.from.as_str()))
+                    .flag(
+                        "offset",
+                        anchor
+                            .as_ref()
+                            .and_then(|a| a.offset.as_ref())
+                            .map(quantity_to_text)
+                            .as_deref(),
+                    )
+                    .done(),
+            ]
+        }
+        Op::RemoveSequence { name } => vec![Cmd::new(&["fune", "sequence", "rm", name]).done()],
         Op::SetModeStates { cells } => cells.iter().map(mode_cell).collect(),
         Op::CreateNet { net } => vec![net_cmd("add", net)],
         Op::UpdateNet { net } => vec![net_cmd("replace", net)],

@@ -11,4 +11,8 @@ uncertainty: number,
 /**
  * 範囲の端からこの幅以内を警告にした（温度差 [K]。Web の温度表もこれを使う）
  */
-warning_band: number, };
+warning_band: number, 
+/**
+ * ヒータのデューティがこれを超えたら警告にした（0〜1。書かれていない古い出力は既定値）
+ */
+heater_duty_warning: number, };

@@ -21,10 +21,7 @@ const update = process.env.UPDATE_TOKENS === "1";
 const PANEL = palette.panel;
 const APP = palette.app;
 
-/**
- * Chromium で `color-mix(in oklab, neg t%, accent)` を canvas に塗って読んだ画素（手で写した参照値）。
- * 温度表がかつて CSS で混ぜていた色と、いまの `heatHex` が同じであることの確かめに使う
- */
+/** Chromium で `color-mix(in oklab, neg t%, accent)` を canvas に塗って読んだ画素（手で写した参照値）。`mixOklab` の確かめに使う */
 const CHROMIUM_OKLAB_MIX = { 0.25: "#6b759e", 0.5: "#8b647a", 0.75: "#a44d54" } as const;
 
 describe("色の正本と CSS", () => {
@@ -114,10 +111,16 @@ describe("色の混ぜ方", () => {
     expect(mixOklab(palette.accent, palette.neg, 0.75)).toBe(CHROMIUM_OKLAB_MIX[0.75]);
   });
 
-  it("熱の配色は低い温度が accent、高い温度が neg（温度表と 3D で同じ関数）", () => {
-    expect(heatHex(0)).toBe(palette.accent);
-    expect(heatHex(1)).toBe(palette.neg);
-    expect(heatHex(0.5)).toBe(mixOklab(palette.accent, palette.neg, 0.5));
+  it("熱画像の配色は低い温度が暗く高い温度が明るく、範囲外は端の色（凡例と 3D で同じ関数）", () => {
+    expect(heatHex(0)).toBe("#10104a");
+    expect(heatHex(1)).toBe("#fff9cf");
+    expect(heatHex(-3)).toBe(heatHex(0));
+    expect(heatHex(7)).toBe(heatHex(1));
+    expect(heatHex(0.5)).toBe("#e8532f");
+    // 暗い方から明るい方へ、明るさ（相対輝度）が単調に増える
+    const lum = (hex: string) => contrast(hex, "#000000");
+    const ls = [0, 0.2, 0.4, 0.6, 0.8, 1].map((r) => lum(heatHex(r)));
+    for (let i = 1; i < ls.length; i++) expect(ls[i] ?? 0).toBeGreaterThan(ls[i - 1] ?? 0);
   });
 
   it("サブシステム色の淡い地は、面の色にカテゴリ色を混ぜ、濃さは枠 < 見出し < アイコン < カード", () => {

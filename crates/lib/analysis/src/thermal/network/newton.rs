@@ -144,6 +144,7 @@ mod tests {
             nodes: vec![node("sink", Some(300.0)), node("box", None)],
             conductive: vec![cond("sink", "box", 0.5)],
             radiative: vec![],
+            enclosure: None,
             surfaces: vec![],
         };
         let c = Compiled::new(&net).unwrap();
@@ -182,6 +183,7 @@ mod tests {
             nodes: vec![node("plate", None)],
             conductive: vec![],
             radiative: vec![],
+            enclosure: None,
             surfaces: vec![ThermalSurface {
                 id: "s".to_owned(),
                 node: "plate".to_owned(),
@@ -210,6 +212,7 @@ mod tests {
             nodes: vec![node("a", None)],
             conductive: vec![],
             radiative: vec![],
+            enclosure: None,
             surfaces: vec![],
         };
         let c = Compiled::new(&net).unwrap();

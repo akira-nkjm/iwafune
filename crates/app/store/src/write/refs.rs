@@ -178,12 +178,14 @@ fn rename_at(
         | RefSite::Allocation { .. }
         | RefSite::ViewNode { .. } => rename_key_at(edits, design, site, names, moved),
         RefSite::CommLink { .. }
+        | RefSite::CommLinkAntenna { .. }
         | RefSite::ThermalNode { .. }
         | RefSite::ThermalSurface
         | RefSite::ThermalHeatNode
         | RefSite::CaseMode { .. }
         | RefSite::PowerModeShare
         | RefSite::PowerSequence { .. }
+        | RefSite::PowerNamedSequence { .. }
         | RefSite::PowerBaseMode
         | RefSite::AttitudeLaw
         | RefSite::ThermalCaseMode { .. } => rename_setting_at(edits, site, names),
@@ -264,6 +266,13 @@ fn rename_setting_at(
             "part",
             to,
         ),
+        RefSite::CommLinkAntenna { link } => set_in(
+            edits,
+            &layout::analysis_file(AnalysisSystem::Comm),
+            &["link", link],
+            "antenna",
+            to,
+        ),
         RefSite::ThermalNode { node } => edits.edit(&thermal(), |doc| {
             if let Some(item) = table_opt(doc, &["nodes"]).and_then(|t| t.get_mut(node)) {
                 replace_in_array(item, from, to);
@@ -277,6 +286,16 @@ fn rename_setting_at(
         RefSite::PowerSequence { index } => edits.edit(&power(), |doc| {
             let segment = doc
                 .get_mut("sequence")
+                .and_then(Item::as_array_of_tables_mut)
+                .and_then(|a| a.get_mut(*index));
+            if let Some(t) = segment {
+                set(t, "mode", string(to));
+            }
+            Ok(())
+        }),
+        RefSite::PowerNamedSequence { sequence, index } => edits.edit(&power(), |doc| {
+            let segment = table_opt(doc, &["sequences", sequence])
+                .and_then(|t| t.get_mut("segments"))
                 .and_then(Item::as_array_of_tables_mut)
                 .and_then(|a| a.get_mut(*index));
             if let Some(t) = segment {

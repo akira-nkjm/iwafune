@@ -1,10 +1,13 @@
 //! 系の概要の解析の表の行（`dto::AnalysisOverview`）のうち、どの系でも同じ組み立て。**行に出す主な結果の選び方
-//! （KPI の定義の順に [`MAIN_KPIS`] 個まで）はここだけ**（解析のフロー図のカードの行も使う）。判定の文は持ち主
+//! （KPI の定義の順に [`MAIN_KPIS`] 個まで）はここだけ**。判定の文は持ち主
 //! （`CheckView.scope`）ごとにまとめる。小さな棒グラフと「データを見る」で隠す表は、系ごとの組み立て（電源は
-//! `power_page::overview`）が渡す。
+//! `power`）が [`add_system_parts`] で足す。
 
 use crate::dto::{AnalysisOverview, AnalysisRunResult, CheckView, KpiView, OverviewCheckGroup};
 use crate::dto::{OverviewChart, QuantityView};
+use crate::workspace::Snapshot;
+
+mod power;
 
 /// 行に出す主な結果の数の上限。
 pub(crate) const MAIN_KPIS: usize = 3;
@@ -41,6 +44,16 @@ pub(crate) fn overview(
         chart,
         hidden_tables,
     }
+}
+
+/// 系ごとの組み立て（今は電源の棒グラフと隠す表）を結果の概要の行に足す。`snapshot` と `case` は実行に使った設計とケース
+/// （入力を丸ごと与えた実行は `snapshot` が無い）。
+pub(crate) fn add_system_parts(
+    result: &mut AnalysisRunResult,
+    snapshot: Option<&Snapshot>,
+    case: Option<&str>,
+) {
+    power::add(result, snapshot, case);
 }
 
 /// 棒の塗りの長さ: いちばん大きい値に対する割合（0〜1。最大が 0 以下か値が無ければ 0）。

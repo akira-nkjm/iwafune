@@ -18,22 +18,26 @@ fn first_order_cooling() {
                 conductance: Qty::from_raw(1.0),
             }],
             radiative: vec![],
+            enclosure: None,
             surfaces: vec![],
         },
         timeline: leo_timeline(1800.0, 60.0),
         environment: ThermalEnvironment::default(),
         phases: vec![],
+        heaters: vec![],
         initial: ThermalInitial::Uniform {
             temperature: Qty::from_raw(350.0),
         },
         max_step: None,
+        rel_tol: None,
+        abs_tol: None,
         margin: ThermalMarginPolicy::default(),
     };
     let out = ThermalTransient::run(&input).unwrap();
     let ch = &out.series.channels[1];
     for (t, v) in out.series.t.iter().zip(&ch.values) {
         let expected = 300.0 + 50.0 * (-t / 900.0).exp();
-        assert!((v - expected).abs() < 1e-4, "t={t}: {v} vs {expected}");
+        assert!((v - expected).abs() < 1e-8, "t={t}: {v} vs {expected}");
     }
     assert!((out.nodes[1].max.value() - 350.0).abs() < 1e-9);
     assert_eq!(out.nodes[0].min.value(), 300.0);
@@ -46,6 +50,7 @@ fn phases_cycle() {
         nodes: vec![node("a", None)],
         conductive: vec![],
         radiative: vec![],
+        enclosure: None,
         surfaces: vec![],
     })
     .unwrap();
@@ -74,6 +79,7 @@ fn phases_cycle() {
                 loads: load(5.0),
             },
         ],
+        &[],
     )
     .unwrap();
     assert_eq!(p.at(5.0), &[1.0]);
@@ -100,6 +106,7 @@ fn orbit_average_start_is_near_periodic() {
         network: cube(5.0),
         timeline: tl.clone(),
         environment: ThermalEnvironment::default(),
+        heaters: vec![],
         phases: vec![ThermalHeatPhase {
             mode_loads: None,
             label: "NOM".to_owned(),
@@ -108,6 +115,8 @@ fn orbit_average_start_is_near_periodic() {
         }],
         initial: ThermalInitial::OrbitAverageSteady,
         max_step: None,
+        rel_tol: None,
+        abs_tol: None,
         margin: ThermalMarginPolicy::default(),
     };
     let out = ThermalTransient::run(&input).unwrap();
@@ -115,6 +124,7 @@ fn orbit_average_start_is_near_periodic() {
         network: cube(5.0),
         cases: vec![crate::thermal::steady::ThermalSteadyCase {
             mode_loads: None,
+            heaters: vec![],
             id: "avg".to_owned(),
             label: String::new(),
             environment: ThermalEnvironment::default(),
@@ -158,6 +168,7 @@ fn single_phase_duration_defaults_without_changing_the_result() {
             network: cube(5.0),
             timeline: leo_timeline(1.0, 30.0),
             environment: ThermalEnvironment::default(),
+            heaters: vec![],
             phases: vec![ThermalHeatPhase {
                 mode_loads: None,
                 label: "NOM".to_owned(),
@@ -166,6 +177,8 @@ fn single_phase_duration_defaults_without_changing_the_result() {
             }],
             initial: ThermalInitial::OrbitAverageSteady,
             max_step: None,
+            rel_tol: None,
+            abs_tol: None,
             margin: ThermalMarginPolicy::default(),
         })
         .unwrap()
@@ -175,4 +188,76 @@ fn single_phase_duration_defaults_without_changing_the_result() {
     assert_eq!(DEFAULT_PHASE_DURATION_S, 86_400.0);
     assert_eq!(omitted.nodes[0].max, written.nodes[0].max);
     assert_eq!(omitted.nodes[0].min, written.nodes[0].min);
+}
+
+/// 発熱の区間の切り替わりの時刻（周期の中の区間の終わり + 周期の整数倍）を、区間 `(a, b)` の中の分だけ返す。
+#[test]
+fn phase_boundaries_inside_an_interval() {
+    let net = Compiled::new(&ThermalNetwork {
+        mounts: None,
+        nodes: vec![node("a", None)],
+        conductive: vec![],
+        radiative: vec![],
+        enclosure: None,
+        surfaces: vec![],
+    })
+    .unwrap();
+    let phase = |label: &str, duration: f64| ThermalHeatPhase {
+        mode_loads: None,
+        label: label.to_owned(),
+        duration: Some(Qty::from_raw(duration)),
+        loads: vec![],
+    };
+    let p = Phases::new(&net, &[phase("A", 10.0), phase("B", 30.0)], &[]).unwrap();
+    // 周期 40 s: 切り替わりは 10, 40, 50, 80, 90, …
+    assert_eq!(p.boundaries(0.0, 45.0), vec![10.0, 40.0]);
+    assert_eq!(p.boundaries(40.0, 90.0), vec![50.0, 80.0]);
+    assert!(p.boundaries(11.0, 39.0).is_empty());
+    // 区間が無ければ切り替わりも無い
+    let none = Phases::new(&net, &[], &[]).unwrap();
+    assert!(none.boundaries(0.0, 1e6).is_empty());
+}
+
+/// 積分の設定と費用の報告: 許容誤差の既定値と入力の上書きが報告に出て、最大刻みは刻みの上限になる。
+/// 値の検査（負の許容誤差・0 の最大刻み）は入力の誤りとして止まる。
+#[test]
+fn integration_settings_and_cost_are_reported() {
+    let base = || ThermalTransientInput {
+        network: cube(5.0),
+        timeline: leo_timeline(600.0, 60.0),
+        environment: ThermalEnvironment::default(),
+        phases: vec![],
+        heaters: vec![],
+        initial: ThermalInitial::Uniform {
+            temperature: Qty::from_raw(290.0),
+        },
+        max_step: None,
+        rel_tol: None,
+        abs_tol: None,
+        margin: ThermalMarginPolicy::default(),
+    };
+    let out = ThermalTransient::run(&base()).unwrap();
+    let report = &out.integration;
+    assert_eq!(report.rel_tol, DEFAULT_REL_TOL);
+    assert_eq!(report.abs_tol.value(), DEFAULT_ABS_TOL_K);
+    assert!(report.max_step.is_none() && report.events == 0);
+    assert!(report.smooth_segments >= 10 && report.accepted_steps >= report.smooth_segments);
+    assert!(report.rhs_evaluations >= 12 * report.accepted_steps);
+
+    let mut tight = base();
+    tight.rel_tol = Some(1e-11);
+    tight.abs_tol = Some(Qty::from_raw(1e-9));
+    tight.max_step = Some(Qty::from_raw(5.0));
+    let out = ThermalTransient::run(&tight).unwrap();
+    assert_eq!(out.integration.rel_tol, 1e-11);
+    assert_eq!(out.integration.abs_tol.value(), 1e-9);
+    // 600 s を 5 s 以下の刻みで進む
+    assert!(out.integration.accepted_steps >= 120);
+
+    let mut bad = base();
+    bad.rel_tol = Some(-1.0);
+    assert!(ThermalTransient::run(&bad).is_err());
+    let mut bad = base();
+    bad.max_step = Some(Qty::from_raw(0.0));
+    assert!(ThermalTransient::run(&bad).is_err());
 }

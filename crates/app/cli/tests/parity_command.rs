@@ -111,7 +111,7 @@ fn gui_placement_matches_cli() {
         assert_eq!(ops[0]["op"], "place", "{ops:?}");
         assert_same_files(&cli_root, &http_root, &cli.join(" "));
     }
-    let ss = std::fs::read_to_string(http_root.join("parts/aocs/SS_PX.toml")).unwrap();
+    let ss = std::fs::read_to_string(http_root.join("parts/aocs/SS/SS_PX.toml")).unwrap();
     // 手計算: qz(−30°)·qy(90°) = (cos15°cos45°, sin15°sin45°, cos15°sin45°, −sin15°cos45°)
     assert!(
         ss.contains("w = 0.683013") && ss.contains("x = 0.183013") && ss.contains("z = -0.183013"),
@@ -348,4 +348,80 @@ fn gui_mode_moves_match_cli() {
         .map(|m| m["id"].as_str().unwrap())
         .collect();
     assert_eq!(ids, ["DOWNLINK", "MISSION", "NOMINAL", "SAFE"]);
+}
+
+/// モードの時刻の指定・名前付きのモードの並び・使う並びの選択も、CLI と HTTP で同じ文字列解釈・同じファイル。
+/// 書いたあとも `fune fmt --check` に通る（正規形で書く）。
+#[test]
+fn gui_sequences_and_mode_timing_match_cli() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_t1, cli_root) = demo_copy();
+    let (_t2, http_root) = demo_copy();
+    let edits: Vec<(Vec<&str>, Value)> = vec![
+        (
+            vec!["mode", "timing", "MISSION", "--when", "sunlit"],
+            json!({"command":"mode_timing", "mode":"MISSION", "when":"sunlit"}),
+        ),
+        (
+            vec![
+                "mode",
+                "timing",
+                "DOWNLINK",
+                "--start",
+                "eclipse_exit",
+                "--offset",
+                "-5 min",
+            ],
+            json!({"command":"mode_timing", "mode":"DOWNLINK", "start":"eclipse_exit", "offset":"-5 min"}),
+        ),
+        (
+            vec![
+                "sequence",
+                "set",
+                "imaging_day",
+                "--segments",
+                "NOMINAL=76 min,MISSION=5 min,DOWNLINK=9.6 min",
+                "--anchor",
+                "eclipse_entry",
+                "--offset",
+                "10 min",
+            ],
+            json!({"command":"sequence_set", "name":"imaging_day",
+                "segments":"NOMINAL=76 min,MISSION=5 min,DOWNLINK=9.6 min",
+                "anchor":"eclipse_entry", "offset":"10 min"}),
+        ),
+        (
+            vec!["sequence", "set", "burst", "--segments", "DOWNLINK=95 min"],
+            json!({"command":"sequence_set", "name":"burst", "segments":"DOWNLINK=95 min"}),
+        ),
+        (
+            vec!["mode", "timing", "MISSION"],
+            json!({"command":"mode_timing", "mode":"MISSION"}),
+        ),
+        (
+            vec!["sequence", "rm", "burst"],
+            json!({"command":"sequence_remove", "name":"burst"}),
+        ),
+    ];
+    for (args, body) in edits {
+        run_cli(&cli_root, &args);
+        http_command(&rt, &http_root, body);
+        assert_same_files(&cli_root, &http_root, &args.join(" "));
+    }
+    // 使う並びの選択は `fune setting set`（`POST /ops/from_text`）
+    let path = "analysis.power.active_sequence";
+    run_cli(&cli_root, &["setting", "set", path, "imaging_day"]);
+    let op = post_json(
+        &rt,
+        &http_root,
+        "/api/v1/ops/from_text",
+        json!({"path": path, "value": "imaging_day"}),
+    );
+    post_json(&rt, &http_root, "/api/v1/ops", json!({"ops": [op]}));
+    assert_same_files(&cli_root, &http_root, path);
+    let power = std::fs::read_to_string(http_root.join("analysis/power.toml")).unwrap();
+    assert!(power.contains("active_sequence") && power.contains("[sequences.imaging_day]"));
+    let downlink = std::fs::read_to_string(http_root.join("modes/DOWNLINK.toml")).unwrap();
+    assert!(downlink.contains("eclipse_exit"), "{downlink}");
+    run_cli(&http_root, &["fmt", "--check"]);
 }

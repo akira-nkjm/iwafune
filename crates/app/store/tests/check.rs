@@ -288,9 +288,9 @@ fn setting_dimensions_come_from_the_table() {
     ));
 }
 
-/// グループは系。系の下の組立品・入れ子と、parts/ 直下の部品は許す。
+/// 最上位が系の ID でない組立品の置き場は許す（info で知らせるだけ。解析を持つ系と製品ツリーの最上位は別）。
 #[test]
-fn top_level_directories_are_system_ids() {
+fn top_level_directories_that_are_not_systems_are_info_only() {
     for path in [
         "parts/aocs/RW.toml",
         "parts/RW.toml",
@@ -298,25 +298,26 @@ fn top_level_directories_are_system_ids() {
     ] {
         let d = diags(&[(path, RW)]);
         assert!(
-            !has(&d, "part.system_dir", Severity::Error),
+            !d.iter().any(|d| d.code == "part.system_dir"),
             "{path}: {d:?}"
         );
     }
     for path in [
         "parts/ADCS/RW.toml",
-        "parts/AOCS/RW.toml",
-        "parts/custom/nested/RW.toml",
+        "parts/mechanism/nested/RW.toml",
+        "parts/harness/RW.toml",
     ] {
         let d = diags(&[(path, RW)]);
-        let error = d.iter().find(|d| d.code == "part.system_dir").unwrap();
-        assert_eq!(error.severity, Severity::Error);
+        let info = d.iter().find(|d| d.code == "part.system_dir").unwrap();
+        assert_eq!(info.severity, Severity::Info, "{path}");
         for system in fune_model::design::AnalysisSystem::ALL {
-            assert!(error.message.contains(system.as_str()), "{error:?}");
+            assert!(info.message.contains(system.as_str()), "{info:?}");
         }
+        assert!(
+            !d.iter().any(|d| d.severity == Severity::Error),
+            "{path}: {d:?}"
+        );
     }
-    // 最上位の同名部品を持つディレクトリも、系でなければ拒む。
-    let d = diags(&[("parts/ASSEMBLY.toml", RW), ("parts/ASSEMBLY/RW.toml", RW)]);
-    assert!(has(&d, "part.system_dir", Severity::Error));
 }
 
 #[test]

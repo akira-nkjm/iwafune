@@ -116,3 +116,122 @@ fn node_part_without_mass_is_reported_as_missing() {
     };
     assert!(missing.into_vec().iter().any(|m| m.path == "BAT.mass"));
 }
+
+/// 明示の結合（`[conductive.*]`・`[radiative.*]`）と外殻（`[enclosure]`）は、解析の入力にそのまま渡る
+/// （置き換えと優先順位は解析が決める）。箱の寸法は機体の根（BUS_FRAME）の外形（100 × 226 × 366 mm）。
+#[test]
+fn explicit_couplings_and_enclosure_reach_the_analysis() {
+    let mut design = demo();
+    let t = design.analysis.thermal.as_mut().unwrap();
+    t.radiative.entry("PANEL_PX".into()).or_default().insert(
+        "PANEL_MX".into(),
+        fune_model::value::Quantity::new(0.02, "m^2"),
+    );
+    let resolved = fune_model::resolve(&design);
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let net = fune_projection::thermal::steady(&ctx).unwrap().network;
+    let strap = net
+        .conductive
+        .iter()
+        .find(|l| (l.a.as_str(), l.b.as_str()) == ("BAT", "PANEL_MZ"))
+        .unwrap();
+    assert_eq!(strap.conductance.value(), 0.8);
+    assert_eq!(net.radiative.len(), 1);
+    assert_eq!(net.radiative[0].exchange_area.value(), 0.02);
+    let e = net.enclosure.unwrap();
+    assert_eq!(e.emissivity, 0.85);
+    let size = e.size.unwrap();
+    let mm = |q: sat_units::typed::Qty<sat_units::typed::Length>| (q.value() * 1000.0).round();
+    assert_eq!((mm(size.x), mm(size.y), mm(size.z)), (100.0, 226.0, 366.0));
+}
+
+/// 外殻は `[enclosure] emissivity` を書いたときだけ。書かなければ従来どおり（解析へ渡さない）。
+/// 結合の量の次元が違えば不足入力に出す（黙って捨てない）。
+#[test]
+fn enclosure_is_off_without_emissivity_and_bad_units_are_missing() {
+    let mut design = demo();
+    design.analysis.thermal.as_mut().unwrap().enclosure = None;
+    let resolved = fune_model::resolve(&design);
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let net = fune_projection::thermal::steady(&ctx).unwrap().network;
+    assert!(net.enclosure.is_none());
+
+    let t = design.analysis.thermal.as_mut().unwrap();
+    t.conductive.get_mut("BAT").unwrap().insert(
+        "PANEL_MZ".into(),
+        fune_model::value::Quantity::new(0.8, "m^2"),
+    );
+    let resolved = fune_model::resolve(&design);
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let Err(missing) = fune_projection::thermal::steady(&ctx) else {
+        panic!("a conductance in m^2 was accepted");
+    };
+    assert!(
+        missing
+            .into_vec()
+            .iter()
+            .any(|m| m.path.contains("thermal.conductive.BAT.PANEL_MZ"))
+    );
+}
+
+/// `setpoint` を持つヒータ（HTR_BAT・HTR_CAM）は `ThermalHeater` として渡り、平均電力の発熱の源（解析の入力）には入らない
+/// （二重に数えない）。オンの電力は `power` の `on` の値、設定温度は SI（K）。モード表示用の `loads` には残る。
+/// `setpoint` を消せば、ヒータは従来どおりモードの発熱の源になる。
+#[test]
+fn thermostat_heaters_are_passed_as_heaters_not_loads() {
+    let design = demo();
+    let resolved = fune_model::resolve(&design);
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let input = fune_projection::thermal::steady(&ctx).unwrap();
+    let case = input.cases.iter().find(|c| c.id == "cold").unwrap();
+    let h = case.heaters.iter().find(|h| h.id == "HTR_BAT").unwrap();
+    assert_eq!(h.node, "BAT");
+    assert!((h.on_below.value() - 278.15).abs() < 1e-9);
+    assert!((h.off_above.value() - 283.15).abs() < 1e-9);
+    assert_eq!(h.power.value(), 2.0);
+    assert_eq!(case.heaters.len(), 2);
+    let analysis_parts = &case.mode_loads.as_ref().unwrap().parts;
+    assert!(analysis_parts.iter().all(|p| !p.id.starts_with("HTR_")));
+    let s = design.analysis.thermal.as_ref().unwrap();
+    let display = fune_projection::thermal::loads(&ctx, s, Some("SAFE")).unwrap();
+    assert!(display.parts.iter().any(|p| p.id == "HTR_BAT"));
+    // setpoint の無いヒータは、これまでどおりモードの発熱の源（ヒータとしては渡さない）
+    let mut plain = demo();
+    plain
+        .parts
+        .get_mut("HTR_BAT")
+        .unwrap()
+        .attr
+        .remove("setpoint");
+    let resolved = fune_model::resolve(&plain);
+    let ctx = Context::new(&plain, &resolved, None).unwrap();
+    let input = fune_projection::thermal::steady(&ctx).unwrap();
+    let case = &input.cases[0];
+    assert!(case.heaters.iter().all(|h| h.id != "HTR_BAT"));
+    assert!(
+        case.mode_loads
+            .as_ref()
+            .unwrap()
+            .parts
+            .iter()
+            .any(|p| p.id == "HTR_BAT")
+    );
+}
+
+/// オンの電力が無いヒータは、黙って外さず不足入力に `<部品>.power` を出す。
+#[test]
+fn heater_without_on_power_is_reported_as_missing() {
+    let mut design = demo();
+    design
+        .parts
+        .get_mut("HTR_CAM")
+        .unwrap()
+        .attr
+        .remove("power");
+    let resolved = fune_model::resolve(&design);
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let Err(missing) = fune_projection::thermal::steady(&ctx) else {
+        panic!("the input was built although a heater has no power");
+    };
+    assert!(missing.into_vec().iter().any(|m| m.path == "HTR_CAM.power"));
+}

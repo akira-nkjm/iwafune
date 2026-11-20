@@ -5,7 +5,7 @@
 use crate::propulsion::{OrbitHistory, PropulsionInput, orbit_history};
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, ConditionTopic,
-    Series, ensure_positive, time_fraction,
+    Series, ensure_positive, step_for_period, time_fraction,
 };
 use sat_astro::ephem::{Body, CentralBody};
 use sat_astro::orbit::{OrbitSpec, beta_angle_rad};
@@ -17,8 +17,16 @@ use serde::{Deserialize, Serialize};
 
 /// 季節の標本の既定間隔 [s]（1 日）。
 pub const DEFAULT_STEP_S: f64 = sat_astro::constants::SECONDS_PER_DAY;
-/// 1 周内の影の標本間隔 [s]。境界の誤差は各境界で最大この間隔程度。
+/// 1 周内の影の標本間隔の下限 [s]。境界の誤差は各境界で最大この間隔程度。
+/// 実際の間隔は [`shadow_step_s`]（周期が長ければ周期の割合）。
 pub const SHADOW_STEP_S: f64 = 5.0;
+/// 1 周内の影の標本数の上限。100 分（6000 s）の周回軌道が下限の 5 s と一致する 1200 標本。
+pub const MAX_SHADOW_STEPS_PER_ORBIT: f64 = 1200.0;
+
+/// 周期 `period_s` の軌道の 1 周内の影の標本間隔 [s]（`spec::step_for_period`。100 分までは 5 s のまま）。
+pub fn shadow_step_s(period_s: f64) -> f64 {
+    step_for_period(period_s, SHADOW_STEP_S, MAX_SHADOW_STEPS_PER_ORBIT)
+}
 
 /// 季節解析の入力。ケースの β 上書きは使わず、実軌道の季節変動を求める。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,6 +67,7 @@ pub struct EclipseSeasonOutput {
     /// 季節の標本の蝕なしフラグを台形則で積算した期間（推定）。
     pub eclipse_free_duration: Qty<Time>,
     pub step: Qty<Time>,
+    /// 1 周内の影の標本間隔（入力の軌道の周期から。マヌーバで周期が変わる標本日はその軌道の周期から）
     pub shadow_step: Qty<Time>,
     /// 1 周中の太陽位置を標本日の位置に固定する近似。
     pub fixed_sun_per_orbit: bool,
@@ -109,7 +118,8 @@ impl Analysis for EclipseSeason {
             }
             points.push(point(&seg.orbit, dt)?);
         }
-        let mut out = summarize(points, times, step)?;
+        let shadow_step = shadow_step_s(input.orbit.period_s());
+        let mut out = summarize(points, times, step, shadow_step)?;
         out.maneuvers = used;
         Ok(out)
     }
@@ -136,7 +146,7 @@ fn shadow_durations(
 ) -> Result<(f64, f64), AnalysisError> {
     let period = orbit.period_s();
     ensure_positive("period", period)?;
-    let times = sample_times(period, SHADOW_STEP_S)?;
+    let times = sample_times(period, shadow_step_s(period))?;
     let offsets: Vec<_> = times.iter().map(|t| start + t).collect();
     let states = orbit.states_at(&offsets)?;
     let light: Vec<_> = states
@@ -159,6 +169,7 @@ fn summarize(
     points: Vec<EclipseSeasonPoint>,
     times: Vec<f64>,
     step: f64,
+    shadow_step: f64,
 ) -> Result<EclipseSeasonOutput, AnalysisError> {
     let first = points
         .first()
@@ -188,7 +199,7 @@ fn summarize(
         eclipse_free_samples: free.iter().filter(|&&f| f).count(),
         eclipse_free_duration,
         step: Qty::from_raw(step),
-        shadow_step: Qty::from_raw(SHADOW_STEP_S),
+        shadow_step: Qty::from_raw(shadow_step),
         fixed_sun_per_orbit: true,
         maneuvers: Vec::new(),
         series: Series { t: times, channels },

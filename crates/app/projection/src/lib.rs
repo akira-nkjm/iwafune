@@ -15,7 +15,7 @@
 //! | `reads` | 射影が読んだもの（部品の属性・設定・モード・ケース）の記録。記録の入口は `Context::note` だけ |
 //! | `aocs` `cdh` `comm` `power` `propulsion` `structure` `thermal` | 系ごとの射影 |
 //! | `orbit` | 軌道条件の解析の入力（季節解析: 軌道・期間・任意の刻み。高度低下: 軌道・質量・外形・抗力係数・`[decay]` の設定・推進系） |
-//! | `dispatch` | 解析 ID → 射影（入力の JSON）の対応表。実行は service（`sat_analysis::catalog::run_json`） |
+//! | `dispatch` | 解析 ID → 射影（入力の JSON）の対応表と、同じ表から引く型付きの射影（`Projects`・`project_typed`）。実行は service（`sat_analysis::catalog::run_json`・`run_typed`） |
 //! | `system` | 解析の系の対応（model の `AnalysisSystem` ⇄ sat-analysis の `System`）と一致のテスト |
 
 pub mod aocs;
@@ -39,6 +39,9 @@ pub mod thermal;
 pub mod timeline;
 
 pub use context::Context;
-pub use dispatch::{Entry, OutputVisitor, ProjectionError, entries, project_json, visit_output};
+pub use dispatch::{
+    Entry, OutputVisitor, ProjectionError, Projects, entries, project_json, project_typed,
+    visit_output,
+};
 pub use missing::{MissingInput, MissingInputs};
 pub use reads::ReadLog;

@@ -35,6 +35,7 @@ function load(mean: number): SystemModesView {
   return {
     system: "power",
     missing: [],
+    summary: [],
     modes: [
       {
         id: "NOMINAL",
@@ -44,10 +45,38 @@ function load(mean: number): SystemModesView {
           parts: { TRX: qv(1, "W", "Power") },
         },
         aocs: null,
+        power: null,
       },
     ],
   };
 }
+
+describe("matrixGroups（入れ子のグループ）", () => {
+  it("系の下のグループの部品は ID の順に割り込まれず、グループの中で隣り合わせる（直下の部品が先）", () => {
+    const rw = fixture.parts.find((p) => p.id === "RW_X") as PartRow;
+    const mk = (id: string, parent: string): PartRow => ({ ...rw, id, parent });
+    const parts = [mk("RW_X", "RW"), mk("STT", "aocs"), mk("RW_A", "RW"), mk("SS_X", "SS")];
+    const tree = [
+      ...fixture.tree,
+      ...["RW", "SS"].map((id) => ({
+        id,
+        node: "group" as const,
+        label: id,
+        label_en: null,
+        system: "aocs" as const,
+        parent: "aocs",
+        children: [],
+      })),
+    ];
+    const rows = ["RW_X", "STT", "RW_A", "SS_X"].map((part) => {
+      const row = fixture.modes.rows[0] as (typeof fixture.modes.rows)[number];
+      return { ...row, part };
+    });
+    const d = { ...fixture, parts, tree, modes: { ...fixture.modes, rows } };
+    const groups = matrixGroups(d, new Map(), null, modesJa.modes);
+    expect(groups.map((g) => g.rows.map((r) => r.part))).toEqual([["STT", "RW_A", "RW_X", "SS_X"]]);
+  });
+});
 
 describe("matrixGroups", () => {
   it("定義では電力を持たない部品も、サブシステムごとに ID の順で並べ、セルの位置の行を通しで振る", () => {
@@ -189,10 +218,12 @@ it("系別セルは API の次元を保持し、同じ mode_set の下書きで�
   const view: SystemModesView = {
     system: "cdh",
     missing: [],
+    summary: [],
     modes: [
       {
         id: "NOMINAL",
         aocs: null,
+        power: null,
         sunlit: {
           parts: { TRX: qv(8, "kbit/s", "DataRate") },
           total: null,

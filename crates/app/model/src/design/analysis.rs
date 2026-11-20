@@ -5,6 +5,7 @@
 //! 名前の変更（RenamePart・RenameMode）で一緒に書き換わる。
 
 use crate::design::thermal_settings::ThermalSettings;
+use crate::design::timing::StartRef;
 use crate::enum_text::enum_text;
 use crate::path::SettingPath;
 use crate::value::{Quantity, Quaternion, Vector3};
@@ -103,9 +104,16 @@ pub struct PowerSettings {
     /// 軌道平均で各モードにいる時間の割合（モード ID → 割合。合計 1）
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub mode_share: BTreeMap<String, f64>,
-    /// 時系列の解析で使うモードの並び（1 周回分。繰り返す）。`power.energy_balance` が並びで回す収支に使う
+    /// 時系列の解析で使うモードの並び（1 周回分。繰り返す）。`power.energy_balance` が並びで回す収支に使う。
+    /// 名前の無い並び（読み書きの形は従来のまま）で、`default` という名前の並びとして扱う（[`PowerSettings::sequence`]）
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub sequence: Vec<ModeSegment>,
+    /// 名前付きのモードの並び（通常運用・撮像日など。`[sequences.<名前>]`）
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub sequences: BTreeMap<String, SequenceSetting>,
+    /// 解析に使う並びの名前（省略時は `default`、それも無ければ名前の順で最初の並び）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_sequence: Option<String>,
     /// 最長継続時間の評価で下に敷く基本のモード（モード ID）。省略時は並びの最初の区間のモード
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_mode: Option<String>,
@@ -123,6 +131,18 @@ pub struct PowerSizingSettings {
     pub battery_strings: Option<u32>,
     pub bus_voltage: Option<Quantity>,
     pub sun_distance: Option<Quantity>,
+}
+
+/// 名前付きのモードの並び 1 つ。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct SequenceSetting {
+    /// 並びの先頭を置く位置（食の出入り + オフセット）。省略時は解析の始め
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub anchor: Option<StartRef>,
+    /// 区間（1 周期分。繰り返す）
+    #[serde(default)]
+    pub segments: Vec<ModeSegment>,
 }
 
 /// モードの時系列の 1 区間。
@@ -249,6 +269,9 @@ pub struct CommLinkSettings {
     pub part: String,
     /// 地上局側の帯域（`conditions/ground/<ID>.toml` の `[link.<名前>]`）
     pub band: String,
+    /// 衛星側のアンテナ（部品 ID。省略すると送受信機の `antenna_gain` を使う）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub antenna: Option<String>,
     /// 変調方式（表示用）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub modulation: Option<String>,
@@ -278,6 +301,9 @@ pub struct CommSettings {
     /// 回線余裕の判定のしきい値（dB）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_margin: Option<Quantity>,
+    /// 1 日の送信量（`comm.data_throughput`）に数える下り回線の名前（省略すると名前順の先頭の下り回線）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub data_downlink: Option<String>,
     /// 回線の名前 → 設定
     #[serde(default, rename = "link", skip_serializing_if = "BTreeMap::is_empty")]
     pub links: BTreeMap<String, CommLinkSettings>,

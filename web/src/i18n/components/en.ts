@@ -8,6 +8,7 @@ export const componentsEn: typeof componentsJa = {
     tabTree: "Tree",
     tabTable: "Table",
     overviewSubsystem: "Subsystem",
+    overviewGroup: "Group",
     overviewAssembly: "Assembly",
     overviewUnassigned: "Unassigned",
     subtitle: (parts: number, groups: number) => `${parts} parts · ${groups} systems`,
@@ -32,6 +33,7 @@ export const componentsEn: typeof componentsJa = {
     },
     detail: {
       addParam: "Add parameter",
+      group: "Group…",
       rename: "Rename",
       remove: "Delete",
       diagnostics: "Diagnostics",
@@ -121,6 +123,29 @@ export const componentsEn: typeof componentsJa = {
       noCatalogMatch: "No matching catalog item",
       kind: "Kind",
       pickKind: "Choose a kind",
+    },
+    group: {
+      foldAction: "Collapse into one card",
+      renameAction: "Rename group",
+      ungroupAction: "Ungroup (move the parts back to the parent)",
+      title: "Group parts",
+      description: (parent: string) =>
+        `Moves the checked parts into a folder under ${parent}. The folder is created if it does not exist; the parts keep their IDs and subsystem.`,
+      idLabel: "Group ID",
+      idHint:
+        "Becomes the folder name (parts/<subsystem>/<ID>/). An ID of an existing group under the same parent adds to it.",
+      partsLabel: "Parts in the group (same parent)",
+      summary: (group: string, count: number) => `Group ${count} parts as ${group}`,
+      confirm: "Group",
+      renameTitle: (id: string) => `Rename group ${id}`,
+      renameDescription:
+        "Moves the folder and rewrites the diagram layout and budget keys that refer to the group.",
+      renameConfirm: "Rename",
+      ungroupTitle: (id: string) => `Ungroup ${id}`,
+      ungroupDescription: (parent: string) =>
+        `Moves every part of the group back under ${parent}. The empty folder is removed.`,
+      ungroupSummary: (id: string) => `Ungroup ${id}`,
+      ungroupConfirm: "Ungroup",
     },
     rename: {
       title: (id: string) => `Rename ${id}`,

@@ -1,7 +1,7 @@
 //! 読むだけのコマンド: status・check・part ls/show・get・mode ls/table・net ls・attr ls・kind ls・setting ls。
 //! 名詞のコマンドで読み取りでないもの（`part add` など）は `None` を返し、`edit` に回す。
 
-use crate::args::{AttrCmd, KindCmd, ModeCmd, NetCmd, SettingCmd};
+use crate::args::{AttrCmd, KindCmd, ModeCmd, NetCmd, SequenceCmd, SettingCmd};
 use crate::diag;
 use crate::output::{C, Out};
 use fune_service::dto::{QuantityView, ValueData, ValueQuery};
@@ -80,11 +80,56 @@ pub fn get(ws: &Workspace, path: &str, state: Option<&str>, out: &Out) -> anyhow
     Ok(0)
 }
 
+/// `fune sequence ls`（読み取りだけ。書き込みは `nouns::sequence`）。
+pub fn sequence(ws: &Workspace, cmd: &SequenceCmd, out: &Out) -> Handled {
+    if !matches!(cmd, SequenceCmd::Ls) {
+        return Ok(None);
+    }
+    let modes = query::design_view(ws)?.modes;
+    if out.json {
+        out.json(&modes.sequences)?;
+        return Ok(Some(0));
+    }
+    let mut t = out.table(&["Name", "In use", "Anchor", "Segments"]);
+    for s in &modes.sequences {
+        let anchor = s.anchor.as_ref().map_or_else(String::new, |a| {
+            let offset = a
+                .offset
+                .as_ref()
+                .map_or(String::new(), |q| format!(" + {}", q.display));
+            format!("{}{offset}", a.from)
+        });
+        let segments: Vec<String> = s
+            .segments
+            .iter()
+            .map(|g| format!("{} {}", g.mode, g.duration.display))
+            .collect();
+        t.row(vec![
+            C::Strong(s.name.clone()),
+            C::Text(
+                if modes.active_sequence.as_deref() == Some(s.name.as_str()) {
+                    "yes"
+                } else {
+                    ""
+                }
+                .into(),
+            ),
+            C::Text(anchor),
+            C::Text(segments.join(", ")),
+        ]);
+    }
+    t.print();
+    Ok(Some(0))
+}
+
 /// `fune mode ls|table`
 pub fn mode(ws: &Workspace, cmd: &ModeCmd, out: &Out) -> Handled {
     let table = match cmd {
         ModeCmd::Ls => false,
         ModeCmd::Table => true,
+        ModeCmd::View { system, opts } => {
+            return super::pages::mode_view(ws, system, opts, out).map(Some);
+        }
         _ => return Ok(None),
     };
     let modes = query::design_view(ws)?.modes;

@@ -153,6 +153,10 @@ setting_quantities! {
     GROUND_LINE_LOSS: Dimensionless = Conditions["ground", ANY, "link", ANY, "line_loss"];
     /// 電源のモードの並びの区間の長さ（`analysis/power.toml` の `[[sequence]]`）
     POWER_SEQUENCE_DURATION: Time = Analysis["power", "sequence", ANY, "duration"];
+    /// 電源の名前付きのモードの並びの区間の長さ（`[[sequences.<名前>.segments]]`）
+    POWER_SEQUENCES_DURATION: Time = Analysis["power", "sequences", ANY, "segments", ANY, "duration"];
+    /// 電源の名前付きのモードの並びの先頭の基準のオフセット（`[sequences.<名前>]` の `anchor.offset`）
+    POWER_SEQUENCES_ANCHOR_OFFSET: Time = Analysis["power", "sequences", ANY, "anchor", "offset"];
     /// サイジングのバス電圧。
     POWER_SIZING_BUS_VOLTAGE: Voltage = Analysis["power", "sizing", "bus_voltage"];
     /// サイジングの太陽距離。
@@ -187,14 +191,18 @@ setting_quantities! {
     THERMAL_CONTACT_CONDUCTANCE: ThermalConductance = Analysis["thermal", "contact_conductance"];
     /// 節点間の放射結合（面積）
     THERMAL_RADIATIVE_COUPLING: Area = Analysis["thermal", "radiative_coupling"];
+    /// 明示の節点間の伝導（`[conductive.<節点>] <節点> = …`）
+    THERMAL_CONDUCTIVE: ThermalConductance = Analysis["thermal", "conductive", ANY, ANY];
+    /// 明示の節点間の放射（有効放射交換面積）
+    THERMAL_RADIATIVE: Area = Analysis["thermal", "radiative", ANY, ANY];
     /// 非定常の初期温度
     THERMAL_INITIAL_TEMPERATURE: Temperature = Analysis["thermal", "initial_temperature"];
     /// 非定常の刻み
     THERMAL_TIME_STEP: Time = Analysis["thermal", "time_step"];
     /// 予測温度の不確かさ（`[margin]`。温度差なので K で書く）
-    THERMAL_MARGIN_UNCERTAINTY: Temperature = Analysis["thermal", "margin", "uncertainty"];
+    THERMAL_MARGIN_UNCERTAINTY: TemperatureDifference = Analysis["thermal", "margin", "uncertainty"];
     /// 温度範囲の端の警告の幅（温度差）
-    THERMAL_MARGIN_WARNING_BAND: Temperature = Analysis["thermal", "margin", "warning_band"];
+    THERMAL_MARGIN_WARNING_BAND: TemperatureDifference = Analysis["thermal", "margin", "warning_band"];
     /// 環境条件の太陽光の強さ（`[case.<条件>]`）
     THERMAL_CASE_SOLAR_FLUX: Irradiance = Analysis["thermal", "case", ANY, "solar_flux"];
     /// 環境条件の中心天体の赤外放射（一律）

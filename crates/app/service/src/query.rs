@@ -14,6 +14,7 @@
 
 pub(crate) mod catalog;
 pub(crate) mod maneuvers;
+mod net_class;
 mod parts;
 mod pose;
 pub(crate) mod settings;
@@ -85,7 +86,7 @@ pub fn design_view(ws: &Workspace) -> Result<DesignView> {
         tree: views::tree(d),
         parts,
         modes: views::mode_table(d),
-        nets: views::nets(d),
+        nets: views::nets(d, &s.resolved),
         harnesses: views::harnesses(d),
         defs: views::defs(d),
         settings: settings::settings(d),

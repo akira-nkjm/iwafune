@@ -54,7 +54,8 @@ pub enum PartCmd {
         catalog: Option<String>,
         #[arg(long)]
         kind: Option<String>,
-        /// Subsystem (or assembly) to place it in; directly under parts/ if omitted
+        /// Subsystem, group or assembly to place it in; directly under parts/ if omitted.
+        /// `aocs/RW` puts it in the group RW under aocs (the group is created if it does not exist)
         #[arg(long)]
         group: Option<String>,
         #[arg(long)]
@@ -73,7 +74,9 @@ pub enum PartCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// Move a part to another subsystem or assembly (`--root` for directly under parts/)
+    /// Move a part to another subsystem, group or assembly (`--root` for directly under parts/).
+    /// `aocs/RW` moves it into the group RW under aocs, creating the group if needed; moving the last part out removes the empty group
+    /// (move parts back to the subsystem with `fune part mv <id> aocs`)
     Mv {
         id: String,
         #[arg(required_unless_present = "root")]
@@ -136,6 +139,23 @@ pub struct PlaceArgs {
     pub edit: EditOpts,
 }
 
+// `fune mode view` の指定（`POST /system_modes/{system}` の依頼と同じ）。
+#[derive(Debug, clap::Args)]
+pub struct ModeViewOpts {
+    /// Apply unsaved edits (a JSON file of Ops, or `-` for stdin) without writing, then compute
+    #[arg(long)]
+    pub ops: Option<std::path::PathBuf>,
+    /// Analysis case ID (cases/<ID>.toml) for the analyses that `--analyzed` runs
+    #[arg(long)]
+    pub case: Option<String>,
+    /// Also run the subsystem's analyses and add their per-mode view (power: budget destinations, verdict and charts)
+    #[arg(long)]
+    pub analyzed: bool,
+    /// Return only the total row of the table footer (no available power or margin rows)
+    #[arg(long)]
+    pub totals_only: bool,
+}
+
 /// `fune mode …`
 #[derive(Debug, Subcommand)]
 pub enum ModeCmd {
@@ -143,6 +163,15 @@ pub enum ModeCmd {
     Ls,
     /// Table of parts by mode
     Table,
+    /// Per-mode values of one subsystem (power, cdh, thermal, aocs; sunlit and eclipse), as the GUI's mode view shows them
+    ///
+    /// Exit code 1 if an input is missing or a verdict is a violation.
+    View {
+        /// Subsystem ID (`fune mode view power`)
+        system: String,
+        #[command(flatten)]
+        opts: ModeViewOpts,
+    },
     /// Add a mode (`--from` copies the table of another mode)
     Add {
         id: String,
@@ -187,6 +216,22 @@ pub enum ModeCmd {
         mode: String,
         #[arg(long)]
         max_duration: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Write when a mode is used in the longest-duration evaluation (e.g. `fune mode timing MISSION --when sunlit`
+    /// or `fune mode timing DOWNLINK --start eclipse_exit --offset "5 min"`; omit every flag to remove the timing)
+    Timing {
+        mode: String,
+        /// Time window the mode may be used in (any / sunlit / eclipse)
+        #[arg(long)]
+        when: Option<String>,
+        /// Fix the start at an eclipse event (eclipse_exit / eclipse_entry)
+        #[arg(long)]
+        start: Option<String>,
+        /// Offset from the eclipse event (negative means before; needs --start)
+        #[arg(long, allow_hyphen_values = true)]
+        offset: Option<String>,
         #[command(flatten)]
         edit: EditOpts,
     },
@@ -308,6 +353,35 @@ pub enum NetCmd {
     /// Disconnect a part's port from a net
     Disconnect {
         port: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+}
+
+/// `fune sequence …`
+#[derive(Debug, Subcommand)]
+pub enum SequenceCmd {
+    /// List the named mode sequences
+    Ls,
+    /// Write a named mode sequence in full (e.g. `fune sequence set imaging_day --segments "NOMINAL=76 min,MISSION=5 min" --anchor eclipse_exit`).
+    /// Choose the one the analyses use with `fune setting set analysis.power.active_sequence <name>`
+    Set {
+        name: String,
+        /// Segments as `mode=length`, separated by commas (repeated every cycle)
+        #[arg(long)]
+        segments: String,
+        /// Start the sequence at an eclipse event (eclipse_exit / eclipse_entry); omit to start at the beginning of the analysis
+        #[arg(long)]
+        anchor: Option<String>,
+        /// Offset from the eclipse event (negative means before; needs --anchor)
+        #[arg(long, allow_hyphen_values = true)]
+        offset: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Remove a named mode sequence
+    Rm {
+        name: String,
         #[command(flatten)]
         edit: EditOpts,
     },

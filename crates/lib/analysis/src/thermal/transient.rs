@@ -1,29 +1,39 @@
 //! 熱（非定常）（`thermal.transient`）。軌道上の入熱と内部発熱の区間（モードなど）で節点温度を時間積分する。
 //!
-//! - 入熱は `sat_astro::timeline` の各サンプルで求め、次のサンプルまで一定とする（sample-and-hold）。
-//! - 内部発熱は `phases` を順に繰り返す（1 区間だけなら一定）。区間はサンプルの時刻で切り替える。
-//! - 積分は `sat_astro::ode::integrate`（固定刻み RK4）。刻みは安定条件の目安と `max_step` の小さい方。
+//! - 積分は `sat_astro::ode::Dop853`（適応刻み・密出力）。許容誤差は `integration`（既定は解析が持つ）。
+//! - 外部入熱は積分の右辺の中で時刻ごとに求める（`sat_astro::timeline::TimelineEvaluator`。サンプルの間も連続）。
+//!   日陰の境（日照率が折れ曲がる時刻）・発熱の区間の切り替わり・サンプルの時刻で区間を分ける（`simulate`）。
+//! - 内部発熱は `phases` を順に繰り返す（1 区間だけなら一定）。区間の切り替わりの時刻で積分を分ける。
+//! - ヒータは設定温度に届く時刻を密出力で求めて切り替える（`heater_control`）。出力の時刻はタイムラインのサンプルのまま。
 
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series,
     System, Verdict,
 };
+use crate::thermal::heater::{ThermalHeaterRun, run_checks};
 use crate::thermal::network::{
-    Compiled, INITIAL_GUESS_K, ThermalLoad, ThermalModeLoads, ThermalNetwork,
+    Compiled, ThermalCouplings, ThermalHeater, ThermalLoad, ThermalModeLoads, ThermalNetwork,
 };
-use crate::thermal::orbit_heat::{
-    ThermalEnvironment, ThermalEnvironmentUsed, absorbed, mean_absorbed, timeline_geometry,
-};
+use crate::thermal::orbit_heat::{ThermalEnvironment, ThermalEnvironmentUsed, require_planetary};
 use crate::thermal::range::{
     ThermalMarginPolicy, ThermalMarginUsed, ThermalNodeRange, ThermalRangeMargin, range_checks,
     range_margins, worst_verdict,
 };
-use sat_astro::ode::integrate;
-use sat_astro::timeline::TimelineSpec;
-use sat_astro::timeline::time_mean;
+use sat_astro::timeline::{TimelineEvaluator, TimelineSpec, time_mean};
 use sat_units::typed::{Power, Qty, Temperature, Time};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+
+mod heater_control;
+mod initial;
+mod integration;
+mod phases;
+mod simulate;
+use heater_control::HeaterControl;
+use initial::initial;
+pub use integration::{DEFAULT_ABS_TOL_K, DEFAULT_REL_TOL, ThermalIntegration};
+use phases::Phases;
+use simulate::Simulation;
 
 /// 長さが書かれていない発熱の区間の長さ [s]。1 日。区間が 1 つだけなら周期で平均した発熱はその区間の発熱で、
 /// この長さは結果に効かない（複数の区間があるときは各区間の長さを書く）。
@@ -73,10 +83,21 @@ pub struct ThermalTransientInput {
     /// 内部発熱の区間（順に繰り返す。空なら発熱なし）
     #[serde(default)]
     pub phases: Vec<ThermalHeatPhase>,
+    /// サーモスタット付きのヒータ（走行の間ずっと状態を持つ。サーモスタットが働くかは区間のモードごとに決まり、
+    /// モードの無い区間では働く）。オンとオフは設定温度の帯で切り替える（`network::heater`）。
+    /// `phases` の `loads` や `mode_loads` に同じ部品を入れない
+    #[serde(default)]
+    pub heaters: Vec<ThermalHeater>,
     pub initial: ThermalInitial,
-    /// 積分の刻みの上限（既定は安定条件の目安だけで決める）
+    /// 積分の刻みの上限（既定は上限なし。刻みは許容誤差で決まる）
     #[serde(default)]
     pub max_step: Option<Qty<Time>>,
+    /// 積分の相対許容誤差（既定は [`DEFAULT_REL_TOL`]）
+    #[serde(default)]
+    pub rel_tol: Option<f64>,
+    /// 積分の絶対許容誤差（既定は [`DEFAULT_ABS_TOL_K`]）
+    #[serde(default)]
+    pub abs_tol: Option<Qty<Temperature>>,
     /// 解析マージンの方針（書かれていない値は解析の既定値）
     #[serde(default)]
     pub margin: ThermalMarginPolicy,
@@ -111,7 +132,17 @@ pub struct ThermalTransientOutput {
     pub nodes: Vec<ThermalTransientNodeResult>,
     /// 使った解析マージン（不確かさと警告の幅）
     pub margin: ThermalMarginUsed,
-    /// 温度範囲を持つ節点の種類ごとの判定（key は `range:<node>:<storage|operating|performance>`）
+    /// 使った節点間の結合（伝導・放射と出どころ。外殻の放射を求めたときは形態係数）
+    #[serde(default)]
+    pub couplings: ThermalCouplings,
+    /// ヒータごとの結果（入力の順。ヒータが無ければ空）。発熱の時系列は `series` の `heater:<部品>`（W）
+    #[serde(default)]
+    pub heaters: Vec<ThermalHeaterRun>,
+    /// 使った積分の設定と費用（刻みの数・右辺の評価の数・ヒータの切り替えの数）
+    #[serde(default)]
+    pub integration: ThermalIntegration,
+    /// 温度範囲を持つ節点の種類ごとの判定（key は `range_high|range_low:<node>:<storage|operating|performance>`）と、
+    /// ヒータごとの判定（key は `heater:<部品>`）
     pub checks: Vec<Check>,
 }
 
@@ -133,177 +164,74 @@ impl Analysis for ThermalTransient {
         let net = Compiled::new(&input.network)?;
         let margin = input.margin.used();
         margin.validate()?;
-        let phases = Phases::new(&net, &input.phases)?;
+        let specs = net.heaters(&input.heaters)?;
+        let phases = Phases::new(&net, &input.phases, &input.heaters)?;
         let timeline = &input.timeline;
         let central = timeline.orbit().central;
         let env = input.environment.resolve(central)?;
-        let (t, geo) = timeline_geometry(timeline)?;
+        require_planetary(timeline)?;
+        let cfg = integration::integrator(input)?;
+        let evaluator = TimelineEvaluator::new(timeline)?;
+        let t = timeline.sampling.times()?;
         let space_k = input.environment.space_temperature().value();
-        let mut temps = initial(&net, input, timeline, &phases)?;
-        let dt = step_s(&net, input, &temps);
-        let mut history: Vec<Vec<f64>> = Vec::with_capacity(t.len());
-        let mut absorbed_total = Vec::with_capacity(t.len());
-        for i in 0..t.len() {
-            history.push(temps.clone());
-            let q_ext = absorbed(&net, &env, &geo[i]);
-            absorbed_total.push(q_ext.iter().sum());
-            let Some(&t_next) = t.get(i + 1) else { break };
-            let q: Vec<f64> = q_ext
-                .iter()
-                .zip(phases.at(t[i]))
-                .map(|(a, b)| a + b)
-                .collect();
-            let f = |_: f64, x: &Vec<f64>| net.derivative(x, &q, space_k);
-            temps = integrate(f, t[i], temps, t_next, dt, |_, _| {});
-        }
-        let modes: Vec<_> = input
-            .phases
-            .iter()
-            .map(|p| p.mode_loads.as_ref().map(|l| &l.mode))
-            .collect();
-        let ranges = input
-            .network
-            .nodes
-            .iter()
-            .map(|n| n.ranges_in(&modes))
-            .collect::<Result<Vec<_>, _>>()?;
+        let temps = initial(&net, input, timeline, &phases, &specs)?;
+        let t0 = t.first().copied().unwrap_or(0.0);
+        let t_end = t.last().copied().unwrap_or(0.0);
+        let window_start = t0.max(t_end - timeline.orbit().period_s());
+        let mut control =
+            HeaterControl::new(&specs, &temps, phases.enabled_at(t0), t0, window_start);
+        let sim = Simulation {
+            net: &net,
+            env: &env,
+            phases: &phases,
+            timeline: &evaluator,
+            space_k,
+            cfg,
+        };
+        let run = sim.run(&t, temps, &mut control)?;
+        let integration = ThermalIntegration::new(&sim.cfg, input, run.segments, &run.cost);
+        let (runs, heater_power) = control.finish(&input.heaters, t0, t_end);
+        let ranges = node_ranges(input)?;
         let mut output = build_output(
             &input.network,
             &ranges,
             t,
-            &history,
-            absorbed_total,
+            &run.history,
+            run.absorbed,
             input.environment.used(central)?,
             margin,
         );
+        output.couplings = net.couplings;
+        output.integration = integration;
+        output
+            .checks
+            .extend(run_checks(&runs, margin.heater_duty_warning.value()));
+        output
+            .series
+            .channels
+            .extend(runs.iter().zip(heater_power).map(|(r, p)| {
+                Channel::of::<Power>(format!("heater:{}", r.id), ChannelKind::HeaterPower, p)
+                    .about(&r.id)
+            }));
+        output.heaters = runs;
         output.checks.extend(phases.checks);
         Ok(output)
     }
 }
 
-/// 内部発熱の区間を節点ごとの配列にしたもの。
-struct Phases {
-    /// (区間の終わり（周期の中の時刻）[s], 節点ごとの発熱 [W])
-    steps: Vec<(f64, Vec<f64>)>,
-    cycle_s: f64,
-    zero: Vec<f64>,
-    checks: Vec<Check>,
-}
-
-impl Phases {
-    fn new(net: &Compiled, phases: &[ThermalHeatPhase]) -> Result<Self, AnalysisError> {
-        let mut steps = Vec::with_capacity(phases.len());
-        let mut end = 0.0;
-        let mut checks = Vec::new();
-        for (i, p) in phases.iter().enumerate() {
-            let duration = p.duration.map_or(DEFAULT_PHASE_DURATION_S, |d| d.value());
-            if duration.is_nan() || duration <= 0.0 {
-                return Err(AnalysisError::InvalidInput(format!(
-                    "Heat interval {} must have a positive length",
-                    p.label
-                )));
-            }
-            end += duration;
-            let mut loads = p.loads.clone();
-            if let Some(mode) = &p.mode_loads {
-                let (mode_loads, warnings) = mode.evaluate()?;
-                loads.extend(mode_loads);
-                checks.extend(warnings.into_iter().map(|mut check| {
-                    check.key = format!("phase:{i}:{}", check.key);
-                    check
-                }));
-            }
-            steps.push((end, net.loads(&loads)?));
-        }
-        Ok(Self {
-            steps,
-            checks,
-            cycle_s: end,
-            zero: vec![0.0; net.len()],
-        })
-    }
-
-    /// 時刻 `t_s` の発熱。
-    fn at(&self, t_s: f64) -> &[f64] {
-        if self.steps.is_empty() {
-            return &self.zero;
-        }
-        let tau = t_s.rem_euclid(self.cycle_s);
-        self.steps
-            .iter()
-            .find(|(end, _)| tau < *end)
-            .or(self.steps.last())
-            .map_or(&self.zero, |(_, q)| q)
-    }
-
-    /// 周期で平均した発熱。
-    fn mean(&self) -> Vec<f64> {
-        let mut out = self.zero.clone();
-        let mut start = 0.0;
-        for (end, q) in &self.steps {
-            for (o, x) in out.iter_mut().zip(q) {
-                *o += x * (end - start) / self.cycle_s;
-            }
-            start = *end;
-        }
-        out
-    }
-}
-
-fn initial(
-    net: &Compiled,
-    input: &ThermalTransientInput,
-    timeline: &TimelineSpec,
-    phases: &Phases,
-) -> Result<Vec<f64>, AnalysisError> {
-    let mut t = match &input.initial {
-        ThermalInitial::Uniform { temperature } => vec![temperature.value(); net.len()],
-        ThermalInitial::PerNode {
-            temperatures,
-            default,
-        } => {
-            let mut t = vec![default.value(); net.len()];
-            for (id, v) in temperatures {
-                t[net.index(id)?] = v.value();
-            }
-            t
-        }
-        ThermalInitial::OrbitAverageSteady => {
-            let ext = mean_absorbed(net, &input.environment, timeline)?;
-            let q: Vec<f64> = ext.iter().zip(phases.mean()).map(|(a, b)| a + b).collect();
-            let space_k = input.environment.space_temperature().value();
-            net.solve_steady(&q, space_k, INITIAL_GUESS_K)?.temps
-        }
-    };
-    if t.iter().any(|x| x.is_nan() || *x <= 0.0) {
-        return Err(AnalysisError::InvalidInput(
-            "Initial temperature must be positive".to_owned(),
-        ));
-    }
-    for (ti, f) in t.iter_mut().zip(&net.fixed) {
-        if let Some(v) = f {
-            *ti = *v;
-        }
-    }
-    Ok(t)
-}
-
-/// 安定な刻みの目安を求める温度の下限 [K]。放射の線形化の剛性は温度の 3 乗で増えるので、初期温度がこれより低くても
-/// 軌道上で上がりうる温度で見積もる。
-const STABLE_STEP_MIN_REFERENCE_K: f64 = 400.0;
-
-/// 積分の刻みの下限 [s]（剛い節点があっても刻みが 0 に近づいて終わらなくならないように）。
-const MIN_STEP_S: f64 = 1e-3;
-
-/// 積分の刻み [s]。
-fn step_s(net: &Compiled, input: &ThermalTransientInput, temps: &[f64]) -> f64 {
-    let t_ref = temps
+/// 節点ごとの温度範囲（区間のモードがあれば部品の電源の状態で選ぶ）。
+fn node_ranges(input: &ThermalTransientInput) -> Result<Vec<Vec<ThermalNodeRange>>, AnalysisError> {
+    let modes: Vec<_> = input
+        .phases
         .iter()
-        .fold(STABLE_STEP_MIN_REFERENCE_K, |m, x| m.max(*x));
-    let stable = net.stable_step_s(t_ref);
-    let limit = input.max_step.map_or(f64::INFINITY, Qty::value);
-    let timeline = input.timeline.sampling.step.value();
-    stable.min(limit).min(timeline).max(MIN_STEP_S)
+        .map(|p| p.mode_loads.as_ref().map(|l| &l.mode))
+        .collect();
+    input
+        .network
+        .nodes
+        .iter()
+        .map(|n| n.ranges_in(&modes))
+        .collect()
 }
 
 /// 出力を組み立てる。`ranges` は節点ごとの温度範囲（`ThermalNode::ranges_in`。入力の節点の順）。
@@ -350,6 +278,9 @@ fn build_output(
         environment,
         nodes,
         margin,
+        couplings: ThermalCouplings::default(),
+        heaters: Vec::new(),
+        integration: ThermalIntegration::default(),
         checks,
     }
 }
@@ -365,5 +296,7 @@ fn extreme(values: &[f64], better: impl Fn(f64, f64) -> bool) -> (usize, f64) {
     best
 }
 
+#[cfg(test)]
+mod heater_tests;
 #[cfg(test)]
 mod tests;

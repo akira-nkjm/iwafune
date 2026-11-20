@@ -1,7 +1,7 @@
 //! モードの参照・状態・台数・継続時間の検査。
 
 use super::{Ctx, system::check_dim};
-use crate::design::{EntityKey, Mode, StateAssign};
+use crate::design::{EntityKey, Mode, ModeWhen, StateAssign};
 use crate::target::Target;
 
 /// モード: 部品の参照・状態の語彙・時間割合・表に無い部品。
@@ -28,6 +28,26 @@ pub(super) fn check_modes(ctx: &mut Ctx) {
             mode.max_duration.as_ref(),
             "Time",
         );
+        if let Some(q) = mode.start.as_ref().and_then(|s| s.offset.as_ref()) {
+            check_dim(
+                ctx,
+                &entity,
+                "start",
+                Target::mode(mode.id.as_str(), None),
+                Some(q),
+                "Time",
+            );
+        }
+        let timed = mode.start.is_some() || mode.when.is_some_and(|w| w != ModeWhen::Any);
+        if timed && mode.max_duration.is_none() {
+            ctx.warning(
+                "mode.timing_unused",
+                &entity,
+                &["max_duration"],
+                Some(Target::mode(mode.id.as_str(), None)),
+                "when / start only affect the longest-duration evaluation, but the mode has no max_duration",
+            );
+        }
         for (part_id, assign) in &mode.eclipse {
             check_mode_row(ctx, mode, &entity, part_id.as_str(), assign, "eclipse");
             if !mode.states.contains_key(part_id) {

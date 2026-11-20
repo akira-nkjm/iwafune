@@ -11,7 +11,7 @@ export type ThermalSteadyNodeResult = { node: string, temperature: number,
  */
 absorbed: number, 
 /**
- * 内部発熱（`ThermalLoad::dissipation` の合計）
+ * 内部発熱（`ThermalLoad::dissipation` の合計とヒータの電力）
  */
 internal: number, 
 /**

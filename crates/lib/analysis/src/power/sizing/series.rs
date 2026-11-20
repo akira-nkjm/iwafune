@@ -268,6 +268,7 @@ fn balance_input(
             load: EnergyBalanceLoad::Mode { mode: l.id.clone() },
             attitude: input.mode_laws.get(&l.id).cloned(),
             max_duration: input.max_durations.get(&l.id).copied(),
+            timing: input.mode_timings.get(&l.id).copied().unwrap_or_default(),
         })
         .collect();
     Ok(EnergyBalanceInput {
@@ -283,6 +284,7 @@ fn balance_input(
         } else {
             Vec::new()
         },
+        sequence_timing: input.sequence_timing.clone(),
         // 並びを使わないときも、基本のモードは電力収支と同じ（設定、無ければ並びの最初）
         base_mode: input
             .base_mode

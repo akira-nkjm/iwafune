@@ -96,6 +96,7 @@ fn a_part_without_definition_is_rejected_by_the_check() {
     let undefined = Op::CreatePart {
         id: "RW_T".into(),
         group: Some("aocs".into()),
+        group_under: vec![],
         catalog: None,
         kind: None,
         count: None,
@@ -141,6 +142,7 @@ fn ids_that_differ_only_in_case_are_taken() {
     let part = Op::CreatePart {
         id: "rw_x".into(),
         group: Some("aocs".into()),
+        group_under: vec![],
         catalog: Some("local/rw_10mNms".into()),
         kind: None,
         count: None,
@@ -160,4 +162,26 @@ fn ids_that_differ_only_in_case_are_taken() {
     // 同じ綴りなら書き換え
     let same = snap.design.cases["cold_safe"].clone();
     assert!(plan(&snap, &[Op::SetCase { case: same }]).is_ok());
+}
+
+/// 回線の `antenna`（部品）も、回線の `part` と同じ索引で部品の名前の変更に追従する。
+#[test]
+fn renaming_a_part_follows_the_link_antenna() {
+    let mut snap = snapshot();
+    snap.design
+        .analysis
+        .comm
+        .as_mut()
+        .unwrap()
+        .links
+        .get_mut("s_down")
+        .unwrap()
+        .antenna = Some("STX".to_owned());
+    let sites = snap.design.references(Referent::Part("STX"));
+    assert!(sites.contains(&RefSite::CommLinkAntenna {
+        link: "s_down".into()
+    }));
+    assert!(sites.contains(&RefSite::CommLink {
+        link: "s_down".into()
+    }));
 }

@@ -4,7 +4,7 @@
 //! デモで出る check はデモの実行で（動的なキーの接頭辞も含む）、デモが出さないキー（要求や上限を置かないと出ない判定、
 //! 設計が持たない手段の判定、噴射中の収支）は、解析の系のソース（テストを除く）の文字列に現れることで確かめる。
 
-use super::rule::{CheckMatch, rule};
+use super::rule::{CheckMatch, overview, rule};
 use super::*;
 use crate::Workspace;
 use crate::dto::{CheckView, RunAnalysisRequest};
@@ -88,18 +88,22 @@ fn the_guard_rejects_unknown_keys() {
     assert!(in_source(&source, CheckMatch::Exact("sap_margin")));
     assert!(!in_source(&source, CheckMatch::Exact("sap_margins")));
     assert!(!emitted_by_demo(
-        CheckMatch::Prefix("range:"),
+        CheckMatch::Prefix("range_high:"),
         &["dod".to_owned()]
     ));
 }
 
-/// 判定の対象の KPI はキーを名指しするか、解析全体を代表する（`Any`）。`Any` は節点の動作範囲だけ。
+/// 判定の対象の KPI は必ずキーを名指しする（全 check の最悪を取る KPI は無い。温度範囲の判定の数もキーで選ぶ）。
 #[test]
-fn only_the_whole_analysis_kpi_uses_any() {
+fn judged_kpis_name_their_checks() {
     for info in sat_analysis::catalog::catalog() {
         for key in keys(&info.id) {
-            let any = rule(*key).checks == CheckMatch::Any;
-            assert_eq!(any, *key == KpiKey::NodesInRange, "{key:?}");
+            let r = rule(*key);
+            assert_eq!(
+                r.checks.is_judged(),
+                !r.checks.named().is_empty(),
+                "{key:?}"
+            );
         }
     }
 }
@@ -173,24 +177,76 @@ fn data_throughput_kpis_follow_their_own_check() {
     );
 }
 
-/// 熱の判定は節点と範囲の種類ごとの 1 つで、最低と最高の両側を見る（片側だけの判定は解析が出さない）。
-/// 最高・最低の KPI は同じ判定の並びを使い、温度範囲でない判定には巻き込まれない。
+/// 熱の判定は節点・範囲の種類・側（上限・下限）ごとに出る。最高温度の KPI は上限側、最低温度の KPI は下限側だけを見て、
+/// 温度範囲でない判定には巻き込まれない。上限だけ超えても最低温度の KPI は OK のまま（逆も同じ）。
 #[test]
-fn thermal_kpis_use_the_range_checks_only() {
-    use KpiKey::{MaxTemperature, MinTemperature, NodesInRange};
-    let checks = [
-        checked("range:BAT:operating", Verdict::Warning),
-        checked("other", Verdict::Violation),
+fn thermal_kpis_look_at_their_own_side() {
+    use KpiKey::{MaxHeaterDuty, MaxTemperature, MinTemperature, NodesInRange};
+    use Verdict::{Ok, Violation, Warning};
+    let high_only = [
+        checked("range_high:BAT:operating", Violation),
+        checked("range_low:BAT:operating", Ok),
+        checked("other", Warning),
     ];
     assert_eq!(
-        verdicts_of("thermal.steady", &checks),
+        verdicts_of("thermal.steady", &high_only),
         [
-            (MaxTemperature, Some(Verdict::Warning)),
-            (MinTemperature, Some(Verdict::Warning)),
-            // 解析全体を代表する KPI は全 check の最悪
-            (NodesInRange, Some(Verdict::Violation)),
+            (MaxTemperature, Some(Violation)),
+            (MinTemperature, Some(Ok)),
+            // 温度範囲の判定の最悪（範囲でない `other` は含めない）
+            (NodesInRange, Some(Violation)),
+            (MaxHeaterDuty, None),
         ]
     );
+    let low_only = [
+        checked("range_high:BAT:operating", Ok),
+        checked("range_low:BAT:operating", Warning),
+        checked("range_low:CAM:storage", Ok),
+    ];
+    assert_eq!(
+        verdicts_of("thermal.steady", &low_only),
+        [
+            (MaxTemperature, Some(Ok)),
+            (MinTemperature, Some(Warning)),
+            (NodesInRange, Some(Warning)),
+            (MaxHeaterDuty, None),
+        ]
+    );
+    // 温度範囲の判定が無ければ KPI の判定は無い
+    let other = [checked("other", Violation)];
+    assert_eq!(
+        verdicts_of("thermal.steady", &other)[..2],
+        [(MaxTemperature, None), (MinTemperature, None)]
+    );
+}
+
+/// ヒータの判定（`heater:<部品>`）はヒータのデューティの KPI だけの判定で、温度範囲の KPI（最高・最低・範囲の判定）には入らない。
+/// 逆に温度範囲の違反はヒータの KPI を動かさない。
+#[test]
+fn heater_checks_are_kept_apart_from_range_kpis() {
+    use KpiKey::{MaxHeaterDuty, MaxTemperature, MinTemperature, NodesInRange};
+    use Verdict::{Ok, Violation};
+    let saturated = [
+        checked("range_high:BAT:operating", Ok),
+        checked("range_low:BAT:operating", Ok),
+        checked("heater:HTR_BAT", Violation),
+    ];
+    assert_eq!(
+        verdicts_of("thermal.steady", &saturated),
+        [
+            (MaxTemperature, Some(Ok)),
+            (MinTemperature, Some(Ok)),
+            (NodesInRange, Some(Ok)),
+            (MaxHeaterDuty, Some(Violation)),
+        ]
+    );
+    let cold = [
+        checked("range_low:BAT:operating", Violation),
+        checked("heater:HTR_BAT", Ok),
+    ];
+    let v = verdicts_of("thermal.steady", &cold);
+    assert_eq!(v[2], (NodesInRange, Some(Violation)));
+    assert_eq!(v[3], (MaxHeaterDuty, Some(Ok)));
 }
 
 /// 要素ごとの check（回線・センサ・取付）は接頭辞で束ねて最悪を取り、他の check には引きずられない。
@@ -209,4 +265,49 @@ fn per_item_checks_are_gathered_by_prefix() {
         verdicts_of("comm.link_budget", &unrelated),
         [(KpiKey::LinkMargin, None)]
     );
+}
+
+/// 概要のカードのフッターに添える KPI は、解析の一覧のどこかの解析が出す KPI（Web はそれらの解析も走らせて値を引く）。
+/// 見出しは設計に応じて 1 つ以上ある（推進の KPI を含む）。
+#[test]
+fn overview_footers_are_kpis_of_some_analysis() {
+    let catalog = crate::analysis::analysis_catalog().unwrap();
+    let all: Vec<KpiKey> = catalog
+        .iter()
+        .flat_map(|e| e.kpis.iter().map(|k| k.key))
+        .collect();
+    let mut headlines = Vec::new();
+    for entry in &catalog {
+        for def in &entry.kpis {
+            let Some(overview) = &def.overview else {
+                continue;
+            };
+            headlines.push(def.key);
+            for footer in &overview.footer {
+                assert!(
+                    all.contains(footer),
+                    "{}: footer {footer:?} of {:?} is not a KPI of any analysis",
+                    entry.info.id,
+                    def.key
+                );
+            }
+        }
+    }
+    assert!(headlines.contains(&KpiKey::DvWithMargin), "{headlines:?}");
+    assert!(headlines.contains(&KpiKey::OrbitBalance), "{headlines:?}");
+    // 並びは見出しごとに別（カードの順を一意に決める）で、電力収支が先頭
+    let mut orders: Vec<u32> = catalog
+        .iter()
+        .flat_map(|e| {
+            e.kpis
+                .iter()
+                .filter_map(|k| k.overview.as_ref().map(|o| o.order))
+        })
+        .collect();
+    orders.sort_unstable();
+    assert_eq!(
+        orders,
+        (0..u32::try_from(headlines.len()).unwrap()).collect::<Vec<_>>()
+    );
+    assert_eq!(overview(KpiKey::OrbitBalance).unwrap().order, 0);
 }

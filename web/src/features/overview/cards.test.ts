@@ -25,8 +25,25 @@ const kpi = (key: KpiKey, rest: Partial<KpiView>): KpiView => ({
   ...rest,
 });
 
+/** 概要の見出しにする KPI（API の `KpiDef.overview`）。フッターに添える KPI は `footer` に */
+const HEADS: Partial<Record<KpiKey, { order: number; footer: KpiKey[] }>> = {
+  orbit_balance: { order: 0, footer: [] },
+  max_dod: { order: 1, footer: [] },
+  unload_interval: { order: 2, footer: ["peak_momentum"] },
+  storage_margin: { order: 3, footer: ["data_per_day"] },
+  link_margin: { order: 4, footer: [] },
+  nodes_in_range: { order: 5, footer: ["max_temperature", "min_temperature"] },
+  dv_with_margin: { order: 6, footer: ["loaded_propellant"] },
+};
+
 const slot = (system: System, k: KpiView, loading = false): KpiSlot => ({
-  def: { key: k.key, label: k.label, label_en: k.label_en, when_measured: false },
+  def: {
+    key: k.key,
+    label: k.label,
+    label_en: k.label_en,
+    when_measured: false,
+    overview: HEADS[k.key] ?? null,
+  },
   analysis: `${system}.x`,
   area: { kind: "system", value: system },
   kpi: loading ? null : k,
@@ -83,8 +100,7 @@ const slots: KpiSlot[] = [
   slot("thermal", kpi("min_temperature", { value: qty("-32.2 °C") })),
 ];
 
-const sources: OverviewSources = {
-  kpi: (key) => slots.find((s) => s.def.key === key),
+const budgets = {
   mass: { data: budget({}), pending: false },
   power: {
     data: budget({
@@ -98,11 +114,16 @@ const sources: OverviewSources = {
   },
 };
 
+const sources: OverviewSources = {
+  slots,
+  budget: (kind) => budgets[kind as "mass" | "power"] ?? { data: undefined, pending: false },
+};
+
 describe("overviewCards", () => {
   const cards = overviewCards(o, sources);
   const card = (key: string) => cards.find((c) => c.key === key);
 
-  it("値・判定・塗りの比は API のものを並べる（質量はバジェット、電力収支は KPI と電力のバジェット）", () => {
+  it("値・判定・塗りの比は API のものを、解析の一覧の順に並べる（質量はバジェット、電力収支は KPI と電力のバジェット）", () => {
     expect(cards.map((c) => c.key)).toEqual([
       "mass",
       "orbit_balance",
@@ -131,14 +152,20 @@ describe("overviewCards", () => {
     expect(card("max_dod")).toMatchObject({ value: "100 %", fill: { ratio: 1, basis: "value" } });
   });
 
-  it("フッターに別の KPI の値を添え、判定の無い KPI は OK の色、届いていない値は「—」", () => {
+  it("並びは API の `order`（解析の一覧の順ではない）", () => {
+    const reversed = overviewCards(o, { ...sources, slots: [...slots].reverse() });
+    expect(reversed.map((c) => c.key)).toEqual(cards.map((c) => c.key));
+  });
+
+  it("見出しは API の KPI の名前、フッターには同じ解析の別の KPI を「名前 値」で添える（届いていない値は「—」）", () => {
     expect(card("unload_interval")).toMatchObject({
-      footer: `${o.peakMomentum} 2.32 mN·m·s`,
+      label: "unload_interval",
+      footer: "peak_momentum 2.32 mN·m·s",
       fill: null,
       tone: "pos",
       to: "/systems/aocs",
     });
-    expect(card("storage_margin")?.footer).toBe(`${o.perDay} —`);
+    expect(card("storage_margin")?.footer).toBe("data_per_day —");
     expect(card("storage_margin")?.tone).toBe("pos");
   });
 
@@ -147,38 +174,83 @@ describe("overviewCards", () => {
       value: o.nodesToCheck(4),
       fill: { ratio: 5 / 9, basis: "ok_share" },
       tone: "neg",
-      footer: `${o.tempMax} 50.5 °C / ${o.tempMin} -32.2 °C`,
+      footer: "max_temperature 50.5 °C / min_temperature -32.2 °C",
       to: "/systems/thermal",
     });
     const allOk = overviewCards(o, {
       ...sources,
-      kpi: (key) =>
-        key === "nodes_in_range"
-          ? slot("thermal", kpi(key, { tally: { checked: 9, flagged: 0 } }))
-          : sources.kpi(key),
+      slots: slots.map((s) =>
+        s.def.key === "nodes_in_range"
+          ? slot("thermal", kpi("nodes_in_range", { tally: { checked: 9, flagged: 0 } }))
+          : s,
+      ),
     });
     expect(allOk.find((c) => c.key === "nodes_in_range")?.value).toBe(o.allInRange);
+  });
+
+  it("推進の KPI は API が見出しにしていれば並ぶ（キーを書き足さなくてよい）", () => {
+    const withPropulsion = overviewCards(o, {
+      ...sources,
+      slots: [
+        ...slots,
+        slot("propulsion", kpi("dv_with_margin", { value: qty("212 m/s") })),
+        slot("propulsion", kpi("loaded_propellant", { value: qty("67.2 g") })),
+      ],
+    });
+    expect(withPropulsion.find((c) => c.key === "dv_with_margin")).toMatchObject({
+      value: "212 m/s",
+      footer: "loaded_propellant 67.2 g",
+      to: "/systems/propulsion",
+    });
+    // フッターだけの KPI（見出しでない）はカードにならない
+    expect(withPropulsion.some((c) => c.key === "loaded_propellant")).toBe(false);
+  });
+
+  it("解析が走り終えて見せるものが無い KPI（電池・ホイールの無い設計）のカードは出さない", () => {
+    const bare = overviewCards(o, {
+      ...sources,
+      slots: slots.map((s) =>
+        ["orbit_balance", "max_dod", "unload_interval"].includes(s.def.key)
+          ? { ...s, kpi: kpi(s.def.key, {}) }
+          : s,
+      ),
+    });
+    expect(bare.map((c) => c.key)).toEqual([
+      "mass",
+      "storage_margin",
+      "link_margin",
+      "nodes_in_range",
+    ]);
+    // 結果を待っている間は出す（読み込み中のカード）
+    const waiting = overviewCards(o, {
+      ...sources,
+      slots: slots.map((s) => (s.def.key === "max_dod" ? { ...s, kpi: null, loading: true } : s)),
+    });
+    expect(waiting.find((c) => c.key === "max_dod")?.loading).toBe(true);
   });
 
   it("推薬を数えた質量は推薬込みの余裕・判定・塗りを出し、フッターに乾燥と推薬込みの両方", () => {
     const wet = overviewCards(o, {
       ...sources,
-      mass: {
-        data: budget({
-          propellant: {
-            status: "counted",
-            analysis: "propulsion.propellant",
-            loaded: qty("67.2 g"),
-            wet: {
-              total: qty("5.71 kg"),
-              margin: qty("5.09 kg"),
-              verdict: "warning",
-              fill: { ratio: 0.48, basis: "used_over_limit" },
-            },
-          },
-        }),
-        pending: false,
-      },
+      budget: (kind) =>
+        kind === "mass"
+          ? {
+              data: budget({
+                propellant: {
+                  status: "counted",
+                  analysis: "propulsion.propellant",
+                  loaded: qty("67.2 g"),
+                  wet: {
+                    total: qty("5.71 kg"),
+                    margin: qty("5.09 kg"),
+                    verdict: "warning",
+                    fill: { ratio: 0.48, basis: "used_over_limit" },
+                  },
+                },
+              }),
+              pending: false,
+            }
+          : sources.budget(kind),
     });
     expect(wet[0]).toMatchObject({
       value: "5.09 kg",
@@ -188,19 +260,24 @@ describe("overviewCards", () => {
     });
     const none = overviewCards(o, {
       ...sources,
-      mass: { data: budget({ propellant: { status: "no_propulsion" } }), pending: false },
+      budget: (kind) =>
+        kind === "mass"
+          ? { data: budget({ propellant: { status: "no_propulsion" } }), pending: false }
+          : sources.budget(kind),
     });
     expect(none[0]).toMatchObject({ value: "5.16 kg", footer: o.massTotal("5.64 kg") });
   });
 
-  it("解析の一覧もバジェットも届く前は読み込み中で、開き先は概要", () => {
+  it("バジェットの届く前は質量のカードが読み込み中で、開き先は概要。バジェットの無い質量のカードは出さない", () => {
     const empty = overviewCards(o, {
-      kpi: () => undefined,
-      mass: { data: undefined, pending: true },
-      power: { data: undefined, pending: true },
+      slots: [],
+      budget: () => ({ data: undefined, pending: true }),
     });
-    expect(empty.every((c) => c.loading)).toBe(true);
-    expect(empty.every((c) => c.to === "/")).toBe(true);
-    expect(empty[0]).toMatchObject({ value: "—", tone: "accent", footer: o.massBudget });
+    expect(empty).toHaveLength(1);
+    expect(empty[0]).toMatchObject({ loading: true, to: "/", value: "—", tone: "accent" });
+    expect(empty[0]?.footer).toBe(o.massBudget);
+    expect(
+      overviewCards(o, { slots: [], budget: () => ({ data: undefined, pending: false }) }),
+    ).toEqual([]);
   });
 });

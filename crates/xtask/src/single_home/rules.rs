@@ -97,6 +97,17 @@ pub(super) const WEB_RULES: &[(&str, &[&str], &str)] = &[
         &["web/src/kit/feedback/Loading.tsx"],
         "skeletons (loading display)",
     ),
+    // 待ちを示す動くロゴは kit/feedback の部品だけが定義し、使う画面は `Working` / `Refreshing` / `Refreshable` を通す
+    (
+        "MarkLoader",
+        &["web/src/kit/feedback/"],
+        "the animated logo mark for waiting (loading display)",
+    ),
+    (
+        "mark-glow",
+        &["web/src/kit/feedback/"],
+        "the animated logo mark for waiting (loading display)",
+    ),
     // 系とバジェットの種類の一覧と並びは API（`DefsView.systems`・`budget_kinds`）。Web に写しを書かない
     (
         "\"aocs\", \"cdh\"",
@@ -112,6 +123,22 @@ pub(super) const WEB_RULES: &[(&str, &[&str], &str)] = &[
         "\"mass\", \"power\", \"data\"",
         &["web/src/test/"],
         "the list of budget kinds (the API's `DefsView.budget_kinds`)",
+    ),
+    // バジェットの種類を JSX の属性に直書きしない（`<BudgetPanel kind="mass" />`）。概要は `DefsView.budget_kinds` を回す
+    (
+        "kind=\"mass\"",
+        &["web/src/test/"],
+        "a budget kind written in JSX (iterate the API's `DefsView.budget_kinds`)",
+    ),
+    (
+        "kind=\"power\"",
+        &["web/src/test/"],
+        "a budget kind written in JSX (iterate the API's `DefsView.budget_kinds`)",
+    ),
+    (
+        "kind=\"data\"",
+        &["web/src/test/"],
+        "a budget kind written in JSX (iterate the API's `DefsView.budget_kinds`)",
     ),
     // 負の字間は欧文を半角のつまった字にする（Noto Sans JP の欧文が詰まって読みにくい）。使わない
     (

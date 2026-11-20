@@ -2,21 +2,16 @@
 //! **温度範囲の判定と、解析マージンの既定値はここだけ。**
 //!
 //! 判定は「予測の最低 − 不確かさ」と「予測の最高 + 不確かさ」を範囲と比べる。範囲を外れれば違反、
-//! 端から警告の幅以内なら警告（`spec::margin_verdict`）。範囲の種類ごとに 1 つの判定（key は `range:<節点>:<種類>`）を出す。
+//! 端から警告の幅以内なら警告（`spec::margin_verdict`）。範囲の種類ごとに、上限側（key は `range_high:<節点>:<種類>`）と
+//! 下限側（`range_low:<節点>:<種類>`）の 2 つの判定を出す（KPI の最高温度は上限側、最低温度は下限側だけを見るため）。
 //!
 //! モードのあるケースでは、部品のそのモードでの電源の状態（`modes::power_states`）で当てる範囲を選ぶ
 //! （[`ThermalRangeKind::applies`]: オフの部品は保管だけ、オンの部品は動作と性能）。外した部品は判定文（`checks`）に書く。
 
 use crate::modes::PowerStates;
 use crate::spec::{Verdict, margin_verdict};
-use sat_units::typed::{Qty, Temperature};
+use sat_units::typed::{Qty, Temperature, TemperatureDifference};
 use serde::{Deserialize, Serialize};
-
-/// 範囲の端からこの幅 [K] 以内なら警告にする（解析マージンの方針の `warning_band` の既定値）。
-pub const RANGE_WARNING_BAND_K: f64 = 5.0;
-
-/// 予測温度の不確かさの既定値 [K]（解析マージンの方針の `uncertainty` の既定値）。0 なら予測温度をそのまま比べる。
-pub const DEFAULT_UNCERTAINTY_K: f64 = 0.0;
 
 /// 温度の範囲。
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -167,64 +162,6 @@ impl ThermalRanges {
     }
 }
 
-/// 解析マージンの方針。書かれていない値は解析の既定値（取り出しはメソッド、使った値は [`Self::used`]）。
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct ThermalMarginPolicy {
-    /// 予測温度の不確かさ（最高に足し、最低から引いてから範囲と比べる。既定 [`DEFAULT_UNCERTAINTY_K`]）
-    #[serde(default)]
-    pub uncertainty: Option<Qty<Temperature>>,
-    /// 範囲の端からこの幅以内を警告にする（既定 [`RANGE_WARNING_BAND_K`]）
-    #[serde(default)]
-    pub warning_band: Option<Qty<Temperature>>,
-}
-
-impl ThermalMarginPolicy {
-    /// 予測温度の不確かさ [K]（省略時 [`DEFAULT_UNCERTAINTY_K`]）。
-    pub fn uncertainty(&self) -> Qty<Temperature> {
-        self.uncertainty
-            .unwrap_or(Qty::from_raw(DEFAULT_UNCERTAINTY_K))
-    }
-
-    /// 警告の幅 [K]（省略時 [`RANGE_WARNING_BAND_K`]）。
-    pub fn warning_band(&self) -> Qty<Temperature> {
-        self.warning_band
-            .unwrap_or(Qty::from_raw(RANGE_WARNING_BAND_K))
-    }
-
-    /// 使った値（既定値を埋めたもの）。出力に返す。
-    pub fn used(&self) -> ThermalMarginUsed {
-        ThermalMarginUsed {
-            uncertainty: self.uncertainty(),
-            warning_band: self.warning_band(),
-        }
-    }
-}
-
-/// 解析に使った解析マージン（既定値を埋めたもの）。
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct ThermalMarginUsed {
-    /// 予測温度の不確かさ（温度差 [K]）
-    pub uncertainty: Qty<Temperature>,
-    /// 範囲の端からこの幅以内を警告にした（温度差 [K]。Web の温度表もこれを使う）
-    pub warning_band: Qty<Temperature>,
-}
-
-impl ThermalMarginUsed {
-    /// 入力を検査する（不確かさと警告の幅は 0 以上の有限の値）。
-    pub(crate) fn validate(&self) -> Result<(), crate::spec::AnalysisError> {
-        let ok = |v: f64| v.is_finite() && v >= 0.0;
-        if ok(self.uncertainty.value()) && ok(self.warning_band.value()) {
-            Ok(())
-        } else {
-            Err(crate::spec::AnalysisError::InvalidInput(
-                "Analysis margin uncertainty and warning width must be 0 or more".to_owned(),
-            ))
-        }
-    }
-}
-
 /// 1 種類の温度範囲との比較。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -232,9 +169,11 @@ pub struct ThermalRangeMargin {
     pub kind: ThermalRangeKind,
     pub range: ThermalTempRange,
     /// 下限からの余裕 T_min − min（不確かさを引く前。温度差）
-    pub margin_low: Qty<Temperature>,
+    #[serde(serialize_with = "sat_units::typed::TemperatureDifferenceKind::serialize")]
+    pub margin_low: Qty<TemperatureDifference>,
     /// 上限までの余裕 max − T_max（不確かさを足す前。温度差）
-    pub margin_high: Qty<Temperature>,
+    #[serde(serialize_with = "sat_units::typed::TemperatureDifferenceKind::serialize")]
+    pub margin_high: Qty<TemperatureDifference>,
     /// 不確かさを含めた判定
     pub verdict: Verdict,
     /// モードでの電源の状態でこの範囲から外した部品（モードの無いケースでは空）
@@ -242,7 +181,55 @@ pub struct ThermalRangeMargin {
     pub excluded: Vec<ThermalRangeExclusion>,
 }
 
+/// 温度範囲の片側（判定は側ごとに出す）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThermalRangeSide {
+    /// 下限側（予測の最低 − 不確かさ と下限）
+    Low,
+    /// 上限側（予測の最高 + 不確かさ と上限）
+    High,
+}
+
+impl ThermalRangeSide {
+    /// 両側（`range_item` が側を見分けるのに使う）。
+    pub const ALL: [Self; 2] = [Self::Low, Self::High];
+
+    /// 判定の key の先頭（`range_low` / `range_high`。KPI の対応は `fune-service` の `kpi::rule`）。
+    pub fn key_prefix(self) -> &'static str {
+        match self {
+            Self::Low => "range_low",
+            Self::High => "range_high",
+        }
+    }
+}
+
+/// 温度範囲の判定の key から、側を除いた項目（`<節点>:<種類>`）を取り出す。温度範囲の判定でなければ None。
+/// 同じ節点・種類の上限側と下限側は同じ項目になる（KPI が節点・種類ごとに数えるとき用）。
+pub fn range_item(check_key: &str) -> Option<&str> {
+    ThermalRangeSide::ALL.iter().find_map(|side| {
+        check_key
+            .strip_prefix(side.key_prefix())
+            .and_then(|rest| rest.strip_prefix(':'))
+    })
+}
+
 impl ThermalRangeMargin {
+    /// 片側の判定（不確かさを引いてから。範囲全体の `verdict` は両側の悪いほう）。
+    pub(crate) fn side_verdict(
+        &self,
+        side: ThermalRangeSide,
+        margin: &ThermalMarginUsed,
+    ) -> Verdict {
+        let m = match side {
+            ThermalRangeSide::Low => self.margin_low,
+            ThermalRangeSide::High => self.margin_high,
+        };
+        margin_verdict(
+            m.value() - margin.uncertainty.value(),
+            margin.warning_band.value(),
+        )
+    }
+
     /// 余裕から比べた予測の最低・最高 [K]（`range.min + margin_low`・`range.max − margin_high`）。
     fn predicted(&self) -> (f64, f64) {
         (
@@ -260,15 +247,18 @@ fn judged(
     excluded: Vec<ThermalRangeExclusion>,
     margin: &ThermalMarginUsed,
 ) -> ThermalRangeMargin {
-    let u = margin.uncertainty.value();
-    ThermalRangeMargin {
+    let mut m = ThermalRangeMargin {
         kind,
         range,
         margin_low: Qty::from_raw(low),
         margin_high: Qty::from_raw(high),
-        verdict: margin_verdict((low - u).min(high - u), margin.warning_band.value()),
+        verdict: Verdict::Ok,
         excluded,
-    }
+    };
+    // 全体の判定は両側の悪いほう（側ごとの判定は `side_verdict` だけ）
+    let sides = [ThermalRangeSide::Low, ThermalRangeSide::High].map(|s| m.side_verdict(s, margin));
+    m.verdict = Verdict::worst(sides).unwrap_or(Verdict::Ok);
+    m
 }
 
 /// 最低 `lo`・最高 `hi` [K] を節点の範囲（`ThermalNode::ranges_in`。[`ThermalRangeKind::ALL`] の順）と比べる。
@@ -326,9 +316,14 @@ pub(crate) fn worst_verdict(margins: &[ThermalRangeMargin]) -> Verdict {
 }
 
 mod checks;
+mod policy;
 #[cfg(test)]
 use checks::excluded_text;
 pub(crate) use checks::range_checks;
+pub use policy::{
+    DEFAULT_HEATER_DUTY_WARNING, DEFAULT_UNCERTAINTY_K, RANGE_WARNING_BAND_K, ThermalMarginPolicy,
+    ThermalMarginUsed,
+};
 
 #[cfg(test)]
 mod tests;

@@ -4,9 +4,9 @@
 //! |---|---|
 //! | `design` | `/project` `/design` `/parts` `/parts/{id}`（POST は下書きを当てた部品） `/values/{path}` `/defs` `/diagnostics` |
 //! | `edit` | `/ops` `/ops/from_text` `/ops/unset_from_text` `/ops/from_command` `/parts/{id}/place_body` `/fmt` |
+//! | `history` | `/history` `/undo` `/redo` |
 //! | `units` | `/units` `/units/parse` `/units/format` |
 //! | `analyses` | `/analyses` `/analyses/{id}` `/budgets/{kind}` |
-//! | `power_page` | `/power_page` |
 //! | `data` | `/data/status` `/data/{id}/fetch` |
 //! | `catalog` | `/catalog/{id}`（カタログ品 1 件） `/catalog/fetch` `/catalog/update`（共有カタログ） |
 
@@ -15,7 +15,7 @@ mod catalog;
 mod data;
 mod design;
 mod edit;
-mod power_page;
+mod history;
 mod units;
 
 use crate::error::ApiError;
@@ -62,10 +62,12 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
         .route("/ops/unset_from_text", post(edit::op_unset_from_text))
         .route("/ops/from_command", post(edit::ops_from_command))
         .route("/ops/case_from_eclipse", post(edit::case_from_eclipse))
+        .route("/history", get(history::view))
+        .route("/undo", post(history::undo))
+        .route("/redo", post(history::redo))
         .route("/units", get(units::catalog))
         .route("/units/parse", post(units::parse))
         .route("/units/format", post(units::format))
-        .route("/power_page", get(power_page::get))
         .route("/analyses", get(analyses::catalog))
         .route("/analyses/{id}", post(analyses::run))
         .route(

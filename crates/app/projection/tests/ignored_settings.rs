@@ -40,16 +40,46 @@ fn codes(design: &Design) -> Vec<Severity> {
         .collect()
 }
 
-/// 使わない値を書くと `check` が知らせる: numerical は warning、nominal 以外の side は info。nominal・kepler・j2 では出ない。
+/// 使わない値を書くと `check` が知らせる: numerical は warning。side は解析に効くので、nominal 以外でもここには出ない。
 #[test]
 fn unapplied_settings_are_reported_by_check() {
     let mut design = demo();
-    for case in design.cases.values_mut() {
-        case.side = Some(UncertaintySide::Nominal);
-    }
     assert!(codes(&design).is_empty());
     design.conditions.orbit.as_mut().unwrap().propagator = Some(PropagatorKind::Numerical);
     assert_eq!(codes(&design), [Severity::Warning]);
     design.cases.values_mut().next().unwrap().side = Some(UncertaintySide::Max);
-    assert_eq!(codes(&design), [Severity::Info, Severity::Warning]);
+    assert_eq!(codes(&design), [Severity::Warning]);
+}
+
+fn side_findings(design: &Design) -> usize {
+    fune_model::check(design)
+        .iter()
+        .filter(|d| d.code == "case.side_without_bounds")
+        .count()
+}
+
+/// min / max の側を読むケースがあるのに、その側を持つ値が設計に無ければ info。デモはホイールの電力が持つので出ない。
+#[test]
+fn side_without_any_bound_is_reported() {
+    let mut design = demo();
+    assert_eq!(side_findings(&design), 0);
+    for item in design.catalog.values_mut() {
+        for a in item.attr.values_mut() {
+            match &mut a.value {
+                fune_model::value::Value::ByState(m) => {
+                    for s in m.values_mut() {
+                        s.value.min = None;
+                        s.value.max = None;
+                    }
+                }
+                fune_model::value::Value::Scalar(s) => {
+                    s.min = None;
+                    s.max = None;
+                }
+                _ => {}
+            }
+        }
+    }
+    // demo の side は max が 2 件・min が 1 件
+    assert_eq!(side_findings(&design), 3);
 }

@@ -11,4 +11,8 @@ uncertainty: number | null,
 /**
  * 範囲の端からこの幅以内を警告にする（既定 [`RANGE_WARNING_BAND_K`]）
  */
-warning_band: number | null, };
+warning_band: number | null, 
+/**
+ * ヒータのデューティがこれを超えたら警告（0〜1。既定 [`DEFAULT_HEATER_DUTY_WARNING`]）
+ */
+heater_duty_warning: number | null, };

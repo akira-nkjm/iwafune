@@ -63,7 +63,7 @@ pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
 }
 
 /// 足りない入力の表（解析とバジェットで同じ形）。
-fn print_missing(missing: &[MissingInput], out: &Out) {
+pub(super) fn print_missing(missing: &[MissingInput], out: &Out) {
     if missing.is_empty() {
         return;
     }
@@ -185,7 +185,7 @@ fn row_name(r: &BudgetRow) -> String {
         .unwrap_or_else(|| "(other)".to_owned())
 }
 
-/// 解析の種類の言い方（`analyze ls` と `flow`）。
+/// 解析の種類の言い方（`analyze ls`）。
 pub(super) fn kind_text(kind: AnalysisKind) -> &'static str {
     match kind {
         AnalysisKind::Steady => "steady",
@@ -193,7 +193,7 @@ pub(super) fn kind_text(kind: AnalysisKind) -> &'static str {
     }
 }
 
-/// 判定の印のセル（KPI・バジェット・フロー図）。
+/// 判定の印のセル（KPI・バジェット）。
 pub(super) fn verdict_cell(v: Verdict) -> C {
     match v {
         Verdict::Ok => C::Verdict("✔".into(), true),

@@ -180,12 +180,46 @@ pub struct PortView {
 pub struct ModeTable {
     pub modes: Vec<ModeHeader>,
     pub rows: Vec<ModeRow>,
+    /// 電源のモードの並び（名前の順。`default` があれば最初）。無ければ空
+    pub sequences: Vec<ModeSequenceView>,
+    /// 解析に使う並びの名前（`PowerSettings::active_sequence_name`。並びが無ければ null）
+    pub active_sequence: Option<String>,
+}
+
+/// 食の出入りからの位置の指定（開始の基準・並びの先頭の位置）。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ModeStartView {
+    pub from: fune_model::design::StartFrom,
+    /// 書かれたオフセット（無ければ null = 0）
+    pub offset: Option<QuantityView>,
+}
+
+/// モードの並び 1 つ。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ModeSequenceView {
+    pub name: String,
+    /// 名前の無い従来の `[[sequence]]` の形で書かれているか
+    pub legacy: bool,
+    /// 並びの先頭の位置（無ければ解析の始め）
+    pub anchor: Option<ModeStartView>,
+    pub segments: Vec<ModeSegmentView>,
+}
+
+/// 並びの区間 1 つ。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ModeSegmentView {
+    pub mode: String,
+    pub duration: QuantityView,
 }
 
 /// モードの列見出し。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ModeHeader {
     pub max_duration: Option<QuantityView>,
+    /// 最長継続時間の評価で使う時間帯（書かれていなければ null = 指定なし）
+    pub when: Option<fune_model::design::ModeWhen>,
+    /// 最長継続時間の評価の開始の指定（無ければ null）
+    pub start: Option<ModeStartView>,
     pub id: String,
     pub label: String,
     pub description: Option<String>,
@@ -221,6 +255,10 @@ pub struct NetView {
     pub kind: fune_model::design::NetKind,
     /// 戻り（GND）のネットか（判定は `fune_model::design::Net::is_return`。系統図の GND の層）
     pub is_return: bool,
+    /// 電源のネットの系統（電源以外は null。分類は `query::net_class::power_class`）。系統図の線の色と凡例が使う
+    pub power_class: Option<super::PowerClass>,
+    /// 星形の中心にするポート（無ければ null。選び方は `query::net_class::hub`）。系統図が線の向きを決めるのに使う
+    pub hub: Option<super::NetHub>,
     /// 表示名（無ければ ID）
     pub label: String,
     /// 供給元のポート（part = PCDU、port = OUT3）
@@ -266,6 +304,8 @@ pub struct DefsView {
     pub systems: Vec<sat_analysis::spec::System>,
     /// バジェットの種類の一覧と並び（`fune_model::design::BudgetKind` の宣言の順。表示名は `labels.enum.budget_kind`）
     pub budget_kinds: Vec<fune_model::design::BudgetKind>,
+    /// モードの見方（`POST /system_modes/{system}`）を持つ系（`systems` の部分集合で、同じ並び。`system_modes::mode_systems`）
+    pub mode_systems: Vec<sat_analysis::spec::System>,
 }
 
 /// 属性定義。
@@ -363,6 +403,32 @@ pub struct ValueAnswer {
     pub selected: Option<QuantityView>,
 }
 
+/// 系別のモード表示の依頼（`POST /system_modes/{system}`、`fune mode view <系>`）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(default)]
+pub struct SystemModesRequest {
+    /// 保存していない編集。書き込まずに当てた設計で表示する（空なら保存済みの設計）
+    pub ops: Vec<Op>,
+    /// 解析ケースの ID（`cases/<ID>.toml`）。`analyzed` の解析に使う（省略時は各解析と同じ規則で決める）。部品別の値はケースを取らない
+    pub case: Option<String>,
+    /// 系の解析も回して、解析に基づく表示を足す（電源: モードごとの電力の行き先・判定・グラフ `SystemModeView.power`）。
+    /// 解析を回すので、表だけ欲しいときは偽にする
+    pub analyzed: bool,
+    /// 表の足もとに並べる行の範囲
+    pub summary: ModeSummaryScope,
+}
+
+/// 足もとの行の範囲（どの行を返すかは service が決める）。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ModeSummaryScope {
+    /// 系の全部の行（電源は合計・使用可能電力・余裕）
+    #[default]
+    All,
+    /// 合計の行だけ（判定は付けない）。設計のモードのページが全部品の表の足もとに合計だけ出すのに使う
+    Totals,
+}
+
 /// 系別のモード表示。状態の定義・編集は ModeTable と共通。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct SystemModesView {
@@ -370,6 +436,42 @@ pub struct SystemModesView {
     pub modes: Vec<SystemModeView>,
     /// 表を作るのに足りなかった入力（解析の `missing` と同じ形。電力の表で、消費電力を持つ部品や運用モードが無いとき）
     pub missing: Vec<fune_projection::MissingInput>,
+    /// 表の足もとに並べる合計・収支の行（上から順。どの行を出すかは系ごとに service が決める。数値の行列を持たない系は空）
+    pub summary: Vec<ModeSummaryRow>,
+}
+
+/// 系別のモード表の足もとの行 1 つ（値は `ModeValuesView` の `field`。文言は見出し `label` から Web が選ぶ）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct ModeSummaryRow {
+    pub label: ModeSummaryLabel,
+    pub field: ModeSummaryField,
+    /// この行に判定（`ModeValuesView.verdict`）を添えるか
+    pub verdict: bool,
+}
+
+/// 足もとの行の見出しの種類。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ModeSummaryLabel {
+    /// 消費電力の合計（成長余裕込み）
+    Power,
+    /// データの発生レート（圧縮・パケット化前）
+    DataRate,
+    /// 内部発熱
+    Heat,
+    /// 使用可能電力
+    Available,
+    /// 余裕（システム余裕確保後）
+    Margin,
+}
+
+/// 足もとの行が読む `ModeValuesView` の欄。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum ModeSummaryField {
+    Total,
+    Available,
+    Margin,
 }
 
 /// 1 モードの系別表示。AOCS は専用カード、数値の行列はほかの系。
@@ -379,6 +481,8 @@ pub struct SystemModeView {
     pub sunlit: ModeValuesView,
     pub eclipse: ModeValuesView,
     pub aocs: Option<super::AocsModeView>,
+    /// 電源のモードごとの電力の行き先・判定・グラフ（依頼の `analyzed` が真の電源の見方だけ。ほかは null）
+    pub power: Option<super::PowerModeView>,
 }
 
 /// 部品別の値と合計・収支。未割り当てや不足は None、警告は verdict に反映。

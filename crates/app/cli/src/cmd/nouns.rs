@@ -3,7 +3,7 @@
 //! （`fune part place`・`fune mode set|unset` は GUI と同じ打った引数の型にして渡す）。
 
 use super::common::Built;
-use crate::args::{EditOpts, ModeCmd, PartCmd, SettingCmd, ViewCmd};
+use crate::args::{EditOpts, ModeCmd, PartCmd, SequenceCmd, SettingCmd, ViewCmd};
 use fune_service::Workspace;
 use fune_service::dto::{ModeCellText, ModeSetText, Op, PlaceText, ViewNodePos};
 use fune_service::edit::{self, SetText, UnsetText};
@@ -21,28 +21,36 @@ pub fn part(c: &PartCmd) -> Built<'_> {
             label,
             mode_state,
             edit,
-        } => (
-            Op::CreatePart {
-                id: id.clone(),
-                group: group.clone(),
-                catalog: catalog.clone(),
-                kind: kind.clone(),
-                count: *count,
-                label: label.clone(),
-                mode_state: mode_state.clone(),
-            },
-            edit,
-        ),
+        } => {
+            let (group, group_under) = group_text(group.as_deref())?;
+            (
+                Op::CreatePart {
+                    id: id.clone(),
+                    group,
+                    group_under,
+                    catalog: catalog.clone(),
+                    kind: kind.clone(),
+                    count: *count,
+                    label: label.clone(),
+                    mode_state: mode_state.clone(),
+                },
+                edit,
+            )
+        }
         PartCmd::Rm { id, edit } => (Op::RemovePart { id: id.clone() }, edit),
         PartCmd::Mv {
             id, group, edit, ..
-        } => (
-            Op::MovePart {
-                id: id.clone(),
-                to: group.clone(),
-            },
-            edit,
-        ),
+        } => {
+            let (to, under) = group_text(group.as_deref())?;
+            (
+                Op::MovePart {
+                    id: id.clone(),
+                    to,
+                    under,
+                },
+                edit,
+            )
+        }
         PartCmd::Rename { id, to, edit } => (
             Op::RenamePart {
                 id: id.clone(),
@@ -62,6 +70,17 @@ pub fn part(c: &PartCmd) -> Built<'_> {
         PartCmd::Ls { .. } | PartCmd::Show { .. } => return Ok(None),
     };
     Ok(Some((op, e)))
+}
+
+/// 置き先の文字列（`aocs/RW`）→ (`to`、親の連鎖)。読み方は GUI と同じ `edit::group_target`。
+fn group_text(text: Option<&str>) -> anyhow::Result<(Option<String>, Vec<String>)> {
+    match text {
+        Some(t) => {
+            let (to, under) = edit::group_target(t)?;
+            Ok((Some(to), under))
+        }
+        None => Ok((None, Vec::new())),
+    }
 }
 
 /// `fune part place` → `Place`（位置と姿勢の文字列は GUI の配置の欄と同じ `edit::place_op` が読む）。
@@ -123,6 +142,16 @@ pub fn mode(c: &ModeCmd) -> Built<'_> {
             max_duration,
             edit: e,
         } => (edit::mode_duration_op(mode, max_duration.as_deref())?, e),
+        ModeCmd::Timing {
+            mode,
+            when,
+            start,
+            offset,
+            edit: e,
+        } => (
+            edit::mode_timing_op(mode, when.as_deref(), start.as_deref(), offset.as_deref())?,
+            e,
+        ),
         ModeCmd::Set {
             mode,
             part,
@@ -161,7 +190,26 @@ pub fn mode(c: &ModeCmd) -> Built<'_> {
             })?,
             edit,
         ),
-        ModeCmd::Ls | ModeCmd::Table => return Ok(None),
+        ModeCmd::Ls | ModeCmd::Table | ModeCmd::View { .. } => return Ok(None),
+    };
+    Ok(Some((op, e)))
+}
+
+/// `fune sequence set|rm`
+pub fn sequence(c: &SequenceCmd) -> Built<'_> {
+    let (op, e) = match c {
+        SequenceCmd::Set {
+            name,
+            segments,
+            anchor,
+            offset,
+            edit,
+        } => (
+            edit::sequence_set_op(name, segments, anchor.as_deref(), offset.as_deref())?,
+            edit,
+        ),
+        SequenceCmd::Rm { name, edit } => (Op::RemoveSequence { name: name.clone() }, edit),
+        SequenceCmd::Ls => return Ok(None),
     };
     Ok(Some((op, e)))
 }

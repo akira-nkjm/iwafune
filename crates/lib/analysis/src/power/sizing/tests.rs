@@ -80,6 +80,8 @@ fn input() -> SizingInput {
             ..Default::default()
         },
         max_durations: BTreeMap::new(),
+        mode_timings: BTreeMap::new(),
+        sequence_timing: Default::default(),
         sequence: Vec::new(),
         base_mode: None,
     }

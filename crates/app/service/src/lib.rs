@@ -10,12 +10,12 @@
 //! | `dto` | 画面と CLI 向けの表示用の型（部品の表示・量の表示など） |
 //! | `query` | 読み取りの関数（設計全体・部品・カタログ品・定義・診断） |
 //! | `edit` | 編集の関数（Op の適用と、人が打った文字列 → Op。CLI と GUI が同じ `set_op`・`unset_op`・`command_ops` を通す） |
+//! | `history` | 編集の取り消し・やり直し（`fune undo`・`fune redo`・`POST /undo`・`POST /redo`。履歴は `.fune/history.json`、適用は fune-ops） |
 //! | `preview` | 保存していない編集（Op の列）を書き込まずに当てた設計（下書きのまま解析・バジェットを見る） |
 //! | `units` | 単位の一覧・入力文字列の解析 |
-//! | `power_page` | 電源ページ全体の解析収集と表示用集約 |
-//! | `flow` | 解析のフロー図（射影が読んだ値 → 解析・解析 → 解析のつながり。`fune flow`・`GET /flow/{system}`・電源ページの「フロー」タブ） |
 //! | `analysis` | 解析の一覧・実行・KPI（代表値・判定・塗りの比） |
 //! | `budget` | 質量・電力・データ量のバジェット |
+//! | `mode_systems` | モードの見方を持つ系の一覧（`DefsView.mode_systems` と `system_modes` の対応判定の共通の置き場。ほかの module に依存しない） |
 //! | `system_modes` | 系ごとのモードの見方（電源・C&DH・熱・AOCS の値・合計・判定） |
 //! | `data` | 外部データ（DE440・宇宙天気）の取得・状態・読み込み（ユーザーごとのキャッシュ）、日付からの宇宙天気 |
 //! | `shared_catalog` | 共有カタログ（`[[catalog]] git = …`）の取得・更新（git の CLI。プロジェクトの `.fune/catalogs/` のキャッシュと `catalog.lock`） |
@@ -32,8 +32,8 @@ pub mod dto;
 pub mod edit;
 pub mod error;
 pub(crate) mod fetch;
-pub mod flow;
-pub mod power_page;
+pub mod history;
+pub mod mode_systems;
 pub mod preview;
 pub mod query;
 pub mod self_update;

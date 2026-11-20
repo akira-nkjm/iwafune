@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { AnalysisState } from "@/api/queries";
 import type { AnalysisEntry, AnalysisRunResult, KpiKey, KpiView, System } from "@/api/types";
-import { analysesFor, kpiSlots, kpiText } from "./kpi";
+import { analysesFor, hasContent, kpiSlots, kpiText, overviewKeys } from "./kpi";
 
 const def = (key: KpiKey, when_measured = false) => ({
   key,
   label: `名前 ${key}`,
   label_en: `Name ${key}`,
   when_measured,
+  overview: null,
 });
 
 const entry = (id: string, system: System, keys: KpiKey[]): AnalysisEntry => ({
@@ -118,6 +119,33 @@ describe("analysesFor", () => {
       "power.energy_balance",
     ]);
     expect(analysesFor(entries, ["link_margin"])).toEqual([]);
+  });
+});
+
+describe("overviewKeys", () => {
+  it("API が概要の見出しにした KPI と、そのフッターの KPI のキーを、一覧の順に返す", () => {
+    const e = entry("power.energy_balance", "power", ["orbit_balance", "max_dod"]);
+    e.kpis = [
+      { ...def("orbit_balance"), overview: { order: 0, footer: ["max_dod"] } },
+      { ...def("max_dod"), overview: null },
+    ];
+    expect(overviewKeys([e, ...entries])).toEqual(["orbit_balance", "max_dod"]);
+    expect(overviewKeys(entries)).toEqual([]);
+  });
+});
+
+describe("hasContent", () => {
+  it("値・判定・数えた判定のどれかがあれば true、何も無ければ false", () => {
+    expect(hasContent(null)).toBe(false);
+    expect(hasContent(view("max_dod", null))).toBe(false);
+    expect(hasContent(view("max_dod", "1 W"))).toBe(true);
+    expect(hasContent({ ...view("max_dod", null), verdict: "ok" })).toBe(true);
+    expect(hasContent({ ...view("nodes_in_range", null), tally: { checked: 0, flagged: 0 } })).toBe(
+      false,
+    );
+    expect(hasContent({ ...view("nodes_in_range", null), tally: { checked: 3, flagged: 0 } })).toBe(
+      true,
+    );
   });
 });
 

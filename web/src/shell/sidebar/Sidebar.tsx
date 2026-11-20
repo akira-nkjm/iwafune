@@ -1,58 +1,44 @@
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
-import { useEffect } from "react";
-import { useNavigate } from "react-router";
 import { q, useDesign } from "@/api/queries";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { nav, paths } from "@/lib/nav";
-import { Kbd } from "@/ui/kbd";
+import { nav } from "@/lib/nav";
 import { CommitChip } from "../CommitChip";
 import { LanguageSwitch } from "../LanguageSwitch";
 import { BrandToggle } from "./BrandToggle";
 import { CommandSearch } from "./CommandSearch";
 import { NavSectionList } from "./NavSectionList";
 import { RailSwap } from "./RailSwap";
-import { RailTip } from "./RailTip";
 import { useSidebar } from "./SidebarContext";
-import { railFade, SIDEBAR_MOTION } from "./sidebar-motion";
+import { SIDEBAR_MOTION } from "./sidebar-motion";
 import { SIDEBAR_ID } from "./sidebar-state";
 
 /**
- * 左のサイドバー。開いているときはロゴ・プロジェクト・主ボタン・検索・区分付きのナビ・CommitChip。
+ * 左のサイドバー。開いているときはロゴ・プロジェクト・検索・区分付きのナビ・CommitChip。
  * 畳む（⌘/Ctrl+B かロゴのボタン）とアイコンのレールになり、メインのパネルが広がる。
+ * 並びを揃える: アイコンは幅 16 px の枠の中央に置き、枠の左（サイドバーの端から）の空きは 24 px、右（名前まで）は 12 px
+ * （名前は端から 52 px。ロゴの名前の字も同じ位置から始まる）。行（色の付く地）の左端は端から 16 px で、畳んでも行の左端とアイコンの位置は変わらない（`railItem`）。
+ * 畳むと、どの項目も 32 px 四方の枠になる。
  * 開閉は幅だけを動かし、アイコンの位置はどちらでも同じにして、名前は薄く消す（中身を差し替えないので跳ねない）。
  */
 export function Sidebar() {
   const t = useT();
   const design = useDesign();
   const project = useQuery(q.project());
-  const navigate = useNavigate();
   const { open, toggle, closedSections, toggleSection } = useSidebar();
-  const addPart = () => navigate(paths.addComponent());
   const rail = !open;
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-      if (e.key === "n" && !e.metaKey && !e.ctrlKey && !e.altKey) {
-        e.preventDefault();
-        navigate(paths.addComponent());
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [navigate]);
 
   const p = project.data;
   return (
     <aside
       id={SIDEBAR_ID}
       className={cn(
-        "flex h-dvh shrink-0 flex-col overflow-hidden px-3 py-4",
+        "flex h-dvh shrink-0 flex-col overflow-hidden px-2 py-4",
         SIDEBAR_MOTION,
         "transition-[width]",
+        // 畳んだ幅は 64 px: ロゴ（32 px）とアイコンの正方形の枠（32 px）の左右に 16 px ずつ。
+        // サイドバーの余白（8 px）は開閉で変えない。ロゴもアイコンも、開いていても畳んでも同じ位置に置く
+        // （ロゴは端から 16〜48 px、アイコンは 24〜40 px。どちらも中心は 32 px で、畳んだ幅の中央）
         rail ? "w-16" : "w-sidebar",
       )}
     >
@@ -68,55 +54,47 @@ export function Sidebar() {
       >
         <div className="min-h-0 overflow-hidden">
           <div className="flex items-center gap-1.5 whitespace-nowrap px-2 pt-1 pb-3 text-[11.5px] text-ink-3">
+            {/* プロジェクトの名前だけ（ブランチと版は下の欄に出る） */}
             <span className="truncate font-medium text-ink-2">{p?.name ?? "—"}</span>
-            <span className="truncate font-mono">{p?.branch ?? ""}</span>
           </div>
         </div>
       </div>
-      <RailTip rail={rail} label={t.shell.addPartKey}>
-        <button
-          type="button"
-          onClick={addPart}
-          aria-label={rail ? t.shell.addPartKey : undefined}
-          className="mt-1 mb-3 flex h-9 w-full items-center gap-2 overflow-hidden rounded-control bg-ink px-[11px] font-medium text-[13px] text-inverse shadow-panel transition-opacity hover:opacity-90"
+      <div className={cn("flex min-h-0 flex-1 flex-col")}>
+        <CommandSearch rail={rail} />
+        <nav
+          aria-label={t.nav.main}
+          className="no-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto"
         >
-          <Plus size={17} strokeWidth={2} className="shrink-0" />
-          <span className={railFade(rail)}>{t.shell.addPart}</span>
-          <Kbd className={cn("ml-auto bg-inverse/15 text-2xs text-inverse", railFade(rail))}>N</Kbd>
-        </button>
-      </RailTip>
-      <CommandSearch rail={rail} />
-      <nav
-        aria-label={t.nav.main}
-        className="no-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto"
-      >
-        {nav(design.data?.defs.systems ?? []).map((sec) => (
-          <NavSectionList
-            key={sec.id}
-            section={sec}
+          {nav(design.data?.defs.systems ?? []).map((sec) => (
+            <NavSectionList
+              key={sec.id}
+              section={sec}
+              rail={rail}
+              closed={closedSections.has(sec.id)}
+              onToggle={() => toggleSection(sec.id)}
+            />
+          ))}
+        </nav>
+        {/* 下の欄は開いたときと畳んだときで中身が違うので、高さを滑らかに変えて入れ替える（RailSwap） */}
+        <div className="mt-3 border-line border-t pt-3">
+          <RailSwap
             rail={rail}
-            closed={closedSections.has(sec.id)}
-            onToggle={() => toggleSection(sec.id)}
+            full={
+              <div className="space-y-2">
+                <CommitChip />
+                <div className="px-2">
+                  <LanguageSwitch />
+                </div>
+              </div>
+            }
+            compact={
+              <div className="space-y-2">
+                <CommitChip rail />
+                <LanguageSwitch rail />
+              </div>
+            }
           />
-        ))}
-      </nav>
-      {/* 下の欄は開いたときと畳んだときで中身が違うので、高さを滑らかに変えて入れ替える（RailSwap） */}
-      <div className="mt-3 border-line border-t pt-3">
-        <RailSwap
-          rail={rail}
-          full={
-            <div className="space-y-2 px-1">
-              <CommitChip />
-              <LanguageSwitch />
-            </div>
-          }
-          compact={
-            <div className="space-y-2">
-              <CommitChip rail />
-              <LanguageSwitch rail />
-            </div>
-          }
-        />
+        </div>
       </div>
     </aside>
   );

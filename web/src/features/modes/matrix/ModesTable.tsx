@@ -9,6 +9,7 @@ import { ModeBudgetRows } from "./ModeBudgetRows";
 import { ModeCell } from "./ModeCell";
 import { ModeDuration } from "./ModeDuration";
 import { ModeHeaderMenu } from "./ModeHeaderMenu";
+import { ModeTiming } from "./ModeTiming";
 import { STICKY } from "./matrix";
 import { MatrixFocus } from "./matrix-focus";
 import type { MatrixGroup, MatrixRow, OnCell } from "./matrix-rows";
@@ -24,7 +25,6 @@ export function ModesTable({
   view,
   system,
   eclipse,
-  updating,
   onCell,
 }: {
   /** 列（モード）の見出し */
@@ -34,19 +34,12 @@ export function ModesTable({
   system?: System;
   /** サブシステムごとの部品の行（`matrixGroups`） */
   groups: MatrixGroup[];
-  /** セルの電力を下書きで問い合わせている間（前の数字を薄くして出しておく） */
-  updating: boolean;
   /** セルを書き換えたとき（下書きにする） */
   onCell: OnCell;
 }) {
   const tm = useT().modes;
   return (
-    <table
-      className={cn(
-        "w-full border-separate border-spacing-0 text-sm [&_.num]:transition-opacity",
-        updating && "[&_tbody_.num]:opacity-50",
-      )}
-    >
+    <table className="w-full border-separate border-spacing-0 text-sm">
       <thead className="text-ink-3 text-xs">
         <tr>
           <th scope="col" className={`${STICKY.corner} min-w-48 px-4 py-3 text-left font-medium`}>
@@ -103,9 +96,10 @@ export function ModesTable({
           ))}
         </MatrixFocus>
       </tbody>
-      {system && (
-        <tfoot className={`${STICKY.foot} bg-panel-2`}>
-          <ModeBudgetRows modes={modes} view={view} eclipse={eclipse} system={system} />
+      {/* 系のタブは足もとの行（合計・収支）、設計のモードのページは API が返した合計の行だけ */}
+      {(system || view.data) && (
+        <tfoot className={`${STICKY.foot} bg-panel-2`} aria-busy={view.updating}>
+          <ModeBudgetRows modes={modes} view={view} eclipse={eclipse} />
         </tfoot>
       )}
     </table>
@@ -120,6 +114,7 @@ function ModeName({ mode, definitions }: { mode: ModeHeader; definitions: boolea
       <div className="font-medium text-ink">{name}</div>
       {name !== mode.id && <div className="font-mono text-[10px] text-ink-4">{mode.id}</div>}
       {definitions && <ModeDuration mode={mode} />}
+      {definitions && mode.max_duration && <ModeTiming mode={mode} />}
     </div>
   );
 }

@@ -21,12 +21,19 @@ const entry = (id: string, kpis: AnalysisEntry["kpis"]): AnalysisEntry => ({
 });
 
 const steady = entry("thermal.steady", [
-  { key: "max_temperature", label: "最高温度", label_en: "Max temperature", when_measured: false },
+  {
+    key: "max_temperature",
+    label: "最高温度",
+    label_en: "Max temperature",
+    when_measured: false,
+    overview: null,
+  },
   {
     key: "nodes_in_range",
     label: "温度範囲の判定（節点）",
     label_en: "Range checks",
     when_measured: false,
+    overview: null,
   },
 ]);
 const transient = entry("thermal.transient", [
@@ -35,6 +42,7 @@ const transient = entry("thermal.transient", [
     label: "非定常の最高温度",
     label_en: "Transient max",
     when_measured: false,
+    overview: null,
   },
 ]);
 

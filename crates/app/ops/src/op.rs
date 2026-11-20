@@ -3,8 +3,8 @@
 //! JSON では `{ "op": "set_value", ... }` の形（`op` が種類）。
 
 use fune_model::design::{
-    AttributeDef, Case, CatalogField, Harness, KindDef, Maneuver, Maturity, Net, NetField,
-    PartField, Pose, Source,
+    AttributeDef, Case, CatalogField, Harness, KindDef, Maneuver, Maturity, ModeSegment, ModeWhen,
+    Net, NetField, PartField, Pose, Source, StartRef,
 };
 use fune_model::value::{Provenance, Quaternion, SettingValue, Value, Vector3};
 use serde::{Deserialize, Serialize};
@@ -17,11 +17,15 @@ use ts_rs::TS;
 pub enum Op {
     // ---- 部品
     /// 部品を足す。`group` は親のグループ（無ければ作る）か組立品の部品。無ければ `parts/` の直下。
+    /// `group_under` は `group` の祖先の ID の列（外側から。例: 系 `aocs` の下のグループ `RW` なら `["aocs"]`）。
+    /// 空でなければ、`group` はその連鎖の下のグループとして（無ければ作って）使う。
     /// `catalog` か `kind` のどちらかが要る。モードには `mode_state`（既定は種別の `off`）で 1 行ずつ足す。
     CreatePart {
         id: String,
         #[serde(default)]
         group: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        group_under: Vec<String>,
         #[serde(default)]
         catalog: Option<String>,
         #[serde(default)]
@@ -49,10 +53,15 @@ pub enum Op {
         to: String,
     },
     /// 部品を別のグループ（または組立品）へ移す。`to` が None なら `parts/` の直下。
+    /// `under` は `to` の祖先の ID の列（外側から。例: 系 `aocs` の下のグループ `RW` なら `["aocs"]`）。
+    /// 空でなければ `to` はその連鎖の下のグループとして使い、無ければ作る（途中の段も）。
+    /// 連鎖の先頭は既存のノードで、新しいグループは別のグループの下にしか作れない。
     MovePart {
         id: String,
         #[serde(default)]
         to: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        under: Vec<String>,
     },
     /// 属性の値を書く（`state` があれば状態ごとの値の 1 セル）。
     SetValue {
@@ -224,6 +233,28 @@ pub enum Op {
     SetModeDuration {
         mode: String,
         duration: Option<fune_model::value::Quantity>,
+    },
+    /// モードの時刻の指定（最長継続時間の評価で使う時間帯 `when` と、開始の基準 `start`）。どちらも None なら指定を消す。
+    SetModeTiming {
+        mode: String,
+        #[serde(default)]
+        when: Option<ModeWhen>,
+        #[serde(default)]
+        start: Option<StartRef>,
+    },
+    /// 電源のモードの並びを名前付きで丸ごと書く（`analysis/power.toml` の `[sequences.<名前>]`）。無ければ作る。
+    /// 従来の名前の無い `[[sequence]]` は `default` の並びなので、`default` を書くと `[[sequence]]` は消える（移行）。
+    /// 使う並びの選択は `SetSetting` の `analysis.power.active_sequence`。
+    SetSequence {
+        name: String,
+        /// 並びの先頭の位置（食の出入り + オフセット）。None なら解析の始め
+        #[serde(default)]
+        anchor: Option<StartRef>,
+        segments: Vec<ModeSegment>,
+    },
+    /// 電源のモードの並びを消す（使う並びだった場合は選択も外す）。
+    RemoveSequence {
+        name: String,
     },
     /// モード表のセルを一括で書く（GUI の表の編集）。
     SetModeStates {

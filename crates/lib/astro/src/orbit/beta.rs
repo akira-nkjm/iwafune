@@ -60,8 +60,8 @@ pub fn raan_for_beta(spec: &OrbitSpec, at: Epoch, beta_rad: f64) -> Result<f64, 
     if denom.abs() < 1e-12 || !k.is_finite() || k.abs() > 1.0 {
         return Err(AstroError::InvalidInput(format!(
             "Beta = {:.3} deg is unreachable at inclination {:.3} deg",
-            el.i_rad.to_degrees(),
-            beta_rad.to_degrees()
+            beta_rad.to_degrees(),
+            el.i_rad.to_degrees()
         )));
     }
     let raan_at = alpha + k.asin();

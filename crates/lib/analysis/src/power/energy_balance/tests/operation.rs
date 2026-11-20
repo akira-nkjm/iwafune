@@ -11,13 +11,13 @@ use crate::spec::{Analysis, Verdict};
 use sat_units::typed::Qty;
 
 /// 電池から見た電力 [W] = バス側 / 放電効率 0.95。
-fn from_battery(bus_w: f64) -> f64 {
+pub(super) fn from_battery(bus_w: f64) -> f64 {
     bus_w / 0.95
 }
 
 /// 部品 OBC（off 0 W・on 9.5 W）と CAM（on 9.5 W）、モード IDLE（OBC off）・A（OBC on）・
 /// B（OBC と CAM on）・DUTY（OBC を on 半分）。
-fn loads() -> ModeLoadInput {
+pub(super) fn loads() -> ModeLoadInput {
     let part = |id: &str, states: &[(&str, f64)]| ModeLoadPart {
         id: id.to_owned(),
         label: String::new(),
@@ -65,7 +65,7 @@ fn loads() -> ModeLoadInput {
     }
 }
 
-fn mode_case(mode: &str, max_duration: Option<f64>) -> EnergyBalanceCase {
+pub(super) fn mode_case(mode: &str, max_duration: Option<f64>) -> EnergyBalanceCase {
     EnergyBalanceCase {
         id: mode.to_owned(),
         label: String::new(),
@@ -74,17 +74,18 @@ fn mode_case(mode: &str, max_duration: Option<f64>) -> EnergyBalanceCase {
         },
         attitude: None,
         max_duration: max_duration.map(Qty::from_raw),
+        timing: Default::default(),
     }
 }
 
-fn segment(mode: &str, seconds: f64) -> EnergyBalanceSegment {
+pub(super) fn segment(mode: &str, seconds: f64) -> EnergyBalanceSegment {
     EnergyBalanceSegment {
         mode: mode.to_owned(),
         duration: Qty::from_raw(seconds),
     }
 }
 
-fn with_loads(mut i: EnergyBalanceInput) -> EnergyBalanceInput {
+pub(super) fn with_loads(mut i: EnergyBalanceInput) -> EnergyBalanceInput {
     i.loads = loads();
     i
 }

@@ -90,7 +90,10 @@ fn unit_dimension_mismatch_is_rejected() {
         Err(OpError::Rejected { diagnostics }) => {
             assert!(diagnostics.iter().any(|d| d.code == "unit.dimension"
                 && d.target == Some(fune_model::Target::attr("RW_X", "mass"))));
-            assert_eq!(diagnostics[0].file.as_deref(), Some("parts/aocs/RW_X.toml"));
+            assert_eq!(
+                diagnostics[0].file.as_deref(),
+                Some("parts/aocs/RW/RW_X.toml")
+            );
             assert!(diagnostics[0].line.is_some());
         }
         other => panic!("{other:?}"),
@@ -105,6 +108,7 @@ fn create_move_and_remove_part() {
     let create = Op::CreatePart {
         id: "RW_S".into(),
         group: Some("aocs".into()),
+        group_under: vec![],
         catalog: Some("local/rw_10mNms".into()),
         kind: None,
         count: None,
@@ -133,6 +137,7 @@ fn create_move_and_remove_part() {
         &[Op::MovePart {
             id: "RW_S".into(),
             to: Some("payload".into()),
+            under: vec![],
         }],
     )
     .unwrap();

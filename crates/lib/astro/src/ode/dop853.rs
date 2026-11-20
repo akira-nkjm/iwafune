@@ -48,9 +48,24 @@ const BETA: f64 = 0.04;
 const SHRINK_LIMIT: f64 = 0.333;
 const GROW_LIMIT: f64 = 6.0;
 /// 連続して棄却してよい回数。
-const MAX_REJECTIONS: usize = 50;
+pub(super) const MAX_REJECTIONS: usize = 50;
 
-fn is_finite<S: OdeState>(x: &S) -> bool {
+/// 受理したときの刻みの縮み率（`h_new = h / 返り値`。PI 制御）。`fac11 = err^expo`、`facold` は直前の誤差。
+pub(super) fn accept_factor(fac11: f64, facold: f64) -> f64 {
+    (fac11 / facold.powf(BETA) / SAFETY).clamp(1.0 / GROW_LIMIT, 1.0 / SHRINK_LIMIT)
+}
+
+/// 棄却したときの刻みの縮み率（`h_new = h / 返り値`）。
+pub(super) fn reject_factor(fac11: f64) -> f64 {
+    (1.0 / SHRINK_LIMIT).min(fac11 / SAFETY)
+}
+
+/// 誤差ノルムの指数。
+pub(super) fn error_exponent() -> f64 {
+    1.0 / ORDER - BETA * 0.2
+}
+
+pub(super) fn is_finite<S: OdeState>(x: &S) -> bool {
     x.as_slice().iter().all(|v| v.is_finite())
 }
 
@@ -70,7 +85,7 @@ fn scale(cfg: &Dop853, y0: f64, y1: f64) -> f64 {
 }
 
 /// 1 ステップの試行。返り値は（ステップ、誤差ノルム）。追加段（密出力用）は受理後に計算する。
-fn try_step<S: OdeState>(
+pub(super) fn try_step<S: OdeState>(
     cfg: &Dop853,
     f: &impl Fn(f64, &S) -> S,
     t: f64,
@@ -107,7 +122,7 @@ fn try_step<S: OdeState>(
 }
 
 /// 受理したステップに密出力用の追加段（k13..k15）を足す。
-fn extend_for_dense<S: OdeState>(f: &impl Fn(f64, &S) -> S, step: &mut Step<S>) {
+pub(super) fn extend_for_dense<S: OdeState>(f: &impl Fn(f64, &S) -> S, step: &mut Step<S>) {
     for stage in (N_STAGES + 1)..N_STAGES_EXTENDED {
         let ys = stage_state(&step.y0, &step.k, &A[stage][..stage], step.h);
         let kj = f(step.t0 + C[stage] * step.h, &ys);
@@ -141,7 +156,7 @@ fn error_norm<S: OdeState>(cfg: &Dop853, y0: &S, y1: &S, k: &[S], h: f64) -> f64
 }
 
 /// 初期刻み（Hairer の `hinit`）。
-fn initial_step<S: OdeState>(
+pub(super) fn initial_step<S: OdeState>(
     cfg: &Dop853,
     f: &impl Fn(f64, &S) -> S,
     t0: f64,
@@ -180,7 +195,7 @@ fn initial_step<S: OdeState>(
     (100.0 * h0).min(h1).min(h_max)
 }
 
-fn not_finite(t: f64) -> AstroError {
+pub(super) fn not_finite(t: f64) -> AstroError {
     AstroError::InvalidInput(format!("Non-finite value during integration (t = {t})"))
 }
 
@@ -212,7 +227,7 @@ pub(super) fn integrate_at<S: OdeState>(
     let mut facold = 1e-4_f64;
     let mut last_rejected = false;
     let mut rejections = 0usize;
-    let expo = 1.0 / ORDER - BETA * 0.2;
+    let expo = error_exponent();
     for _ in 0..cfg.max_steps {
         let remaining = t_end - t;
         if remaining <= 0.0 {
@@ -227,8 +242,7 @@ pub(super) fn integrate_at<S: OdeState>(
         let (mut step, err) = try_step(cfg, f, t, &y, &k0, h)?;
         let fac11 = err.powf(expo);
         if err <= 1.0 {
-            let fac =
-                (fac11 / facold.powf(BETA) / SAFETY).clamp(1.0 / GROW_LIMIT, 1.0 / SHRINK_LIMIT);
+            let fac = accept_factor(fac11, facold);
             let mut h_next = (h / fac).min(cfg.max_step);
             facold = err.max(1e-4);
             let t_new = if h == remaining { t_end } else { t + h };
@@ -261,7 +275,7 @@ pub(super) fn integrate_at<S: OdeState>(
                 )));
             }
             last_rejected = true;
-            h /= (1.0 / SHRINK_LIMIT).min(fac11 / SAFETY);
+            h /= reject_factor(fac11);
         }
     }
     Err(AstroError::InvalidInput(format!(
@@ -270,7 +284,12 @@ pub(super) fn integrate_at<S: OdeState>(
     )))
 }
 
-fn validate<S: OdeState>(cfg: &Dop853, t0: f64, x0: &S, times: &[f64]) -> Result<(), AstroError> {
+pub(super) fn validate<S: OdeState>(
+    cfg: &Dop853,
+    t0: f64,
+    x0: &S,
+    times: &[f64],
+) -> Result<(), AstroError> {
     if !(cfg.rtol > 0.0 || cfg.atol > 0.0) || !cfg.rtol.is_finite() || !cfg.atol.is_finite() {
         return Err(AstroError::InvalidInput("Invalid DOP853 tolerance".into()));
     }

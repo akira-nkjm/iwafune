@@ -5,7 +5,7 @@
  *   tone.test.ts が一致と、コントラスト（塗りは 3:1 以上、文字の ink は 4.5:1 以上）・見分けやすさを検査する）。
  * - Tailwind のクラスの対応（toneBg など）。Tailwind はソースに字面で出たクラスだけを生成するので、省略せずに書く。
  * - CSS のクラスを使えない描画（three.js・SVG・README のロゴ）が使う hex（toneHex・uiHex・brandHex）。
- * - 色の混ぜ方（サブシステム色の淡い地 `toneTint`・熱の配色 `heatHex`・覆い `inkVeil`）。`color-mix(` と色の名前
+ * - 色の混ぜ方（サブシステム色の淡い地 `toneTint`・熱画像の配色 `heatHex`・覆い `inkVeil`）。`color-mix(` と色の名前
  *   （`white` など）はここの外に書かない（xtask の web_colors が検査する）。
  */
 import { mixOklab } from "./color";
@@ -227,10 +227,28 @@ export function toneTint(tone: Tone, level: TintLevel): string {
 /** 字の色を薄く透かした覆い（CSS の値）。系統図のミニマップで、いま見えている範囲の外にかける */
 export const inkVeil = "color-mix(in srgb, var(--color-ink) 8%, transparent)";
 
+/** 熱画像の配色の節（低い温度から高い温度へ。サーモグラフィの「アイアン」に近い、暗い藍 → 紫 → 赤 → 橙 → 黄 → 淡黄） */
+const THERMAL_STOPS = [
+  "#10104a",
+  "#5a1d8c",
+  "#b5307a",
+  "#e8532f",
+  "#f6a623",
+  "#fbe45c",
+  "#fff9cf",
+] as const;
+
 /**
- * 熱の配色: 低い温度（`ratio` = 0）の accent から高い温度（1）の neg へ OKLab で混ぜた hex。温度表（2D）も 3D の
- * 箱（three.js は CSS の color-mix を読めない）もこの 1 つの関数で塗るので、同じ温度は同じ色になる
+ * 熱の配色: 色の位置 `ratio`（0 = 低い温度、1 = 高い温度。範囲外は端に丸める）を熱画像風の色（hex）にする。
+ * 節の間は OKLab で混ぜる。3D の箱（three.js は CSS の color-mix を読めない）も凡例も同じこの関数で塗るので、同じ温度は同じ色になる
  */
 export function heatHex(ratio: number): string {
-  return mixOklab(palette.accent, palette.neg, ratio);
+  const r = Math.min(1, Math.max(0, ratio));
+  const x = r * (THERMAL_STOPS.length - 1);
+  const i = Math.min(Math.floor(x), THERMAL_STOPS.length - 2);
+  return mixOklab(
+    THERMAL_STOPS[i] ?? THERMAL_STOPS[0],
+    THERMAL_STOPS[i + 1] ?? THERMAL_STOPS[0],
+    x - i,
+  );
 }

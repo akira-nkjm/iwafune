@@ -3,7 +3,10 @@
 
 use super::Ctx;
 use super::settings::{Scope, scope};
-use crate::design::{AnalysisSystem, CommLinkSettings, Design, SettingEntry};
+use crate::design::{
+    AnalysisSystem, CommLinkSettings, CommSettings, DEFAULT_SEQUENCE, Design, LinkDirection,
+    PowerSettings, SettingEntry,
+};
 
 /// `analysis/` の全体。`entries` は `Design::setting_entries`。
 pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
@@ -128,6 +131,45 @@ fn check_power(ctx: &mut Ctx) {
             format!("Mode `{mode}`"),
         );
     }
+    check_sequences(&mut s, design, p);
+}
+
+/// 名前付きのモードの並び: 区間・モードの参照・従来の `[[sequence]]` との重なり・使う並びの存在。
+fn check_sequences(s: &mut Scope<'_, '_>, design: &Design, p: &PowerSettings) {
+    if !p.sequence.is_empty() && p.sequences.contains_key(DEFAULT_SEQUENCE) {
+        s.error(
+            &["sequence"],
+            "setting.sequence_conflict",
+            format!(
+                "`[[sequence]]` and `[sequences.{DEFAULT_SEQUENCE}]` are both written. `[[sequence]]` is the sequence named `{DEFAULT_SEQUENCE}`; keep only one"
+            ),
+        );
+    }
+    for (name, seq) in &p.sequences {
+        if seq.segments.is_empty() {
+            s.error(
+                &["sequences", name.as_str(), "segments"],
+                "setting.sequence_empty",
+                format!("Sequence `{name}` has no segments"),
+            );
+        }
+        for seg in &seq.segments {
+            s.reference(
+                &["sequences", name.as_str(), "segments"],
+                mode_exists(design, &seg.mode),
+                "ref.mode",
+                format!("Mode `{}`", seg.mode),
+            );
+        }
+    }
+    if let Some(active) = &p.active_sequence {
+        s.reference(
+            &["active_sequence"],
+            p.sequence(active).is_some(),
+            "ref.sequence",
+            format!("Sequence `{active}`"),
+        );
+    }
 }
 
 fn check_aocs(ctx: &mut Ctx) {
@@ -172,6 +214,26 @@ fn check_comm(ctx: &mut Ctx) {
     for (name, link) in &c.links {
         check_link(&mut s, design, &c.stations, name, link);
     }
+    if let Some(name) = &c.data_downlink {
+        check_data_downlink(&mut s, c, name);
+    }
+}
+
+/// `data_downlink` は、定義した下り回線を指すこと。
+fn check_data_downlink(s: &mut Scope, c: &CommSettings, name: &str) {
+    match c.links.get(name) {
+        None => s.error(
+            &["data_downlink"],
+            "ref.link",
+            format!("Link `{name}` is not defined"),
+        ),
+        Some(l) if l.direction != LinkDirection::Down => s.error(
+            &["data_downlink"],
+            "setting.link_direction",
+            format!("Link `{name}` is not a downlink (direction = \"down\")"),
+        ),
+        Some(_) => {}
+    }
 }
 
 fn check_link(
@@ -188,6 +250,14 @@ fn check_link(
         "ref.part",
         format!("Part `{}`", link.part),
     );
+    if let Some(antenna) = &link.antenna {
+        s.reference(
+            &["link", name, "antenna"],
+            design.parts.contains_key(antenna.as_str()),
+            "ref.part",
+            format!("Part `{antenna}`"),
+        );
+    }
     for station in stations {
         let Some(g) = design.conditions.ground.get(station) else {
             continue;

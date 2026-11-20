@@ -17,6 +17,8 @@ import { kpiText } from "./kpi";
 export interface AnalysisTableItem {
   entry: AnalysisEntry;
   result: AnalysisRunResult;
+  /** 前の結果を出したまま再計算している（行を薄くする） */
+  updating?: boolean;
 }
 
 /** 結果がまだ無い解析の行（問い合わせ中、または問い合わせが失敗した。`error` が null なら読み込み中） */
@@ -106,7 +108,12 @@ export function AnalysisTableRow({
     <>
       <tr
         onClick={onToggle}
-        className={cn("cursor-pointer hover:bg-panel-2", open && "bg-panel-2")}
+        aria-busy={item.updating || undefined}
+        className={cn(
+          "cursor-pointer transition-opacity hover:bg-panel-2 motion-reduce:transition-none",
+          open && "bg-panel-2",
+          item.updating && "opacity-55",
+        )}
       >
         <Td className="whitespace-normal">
           <button

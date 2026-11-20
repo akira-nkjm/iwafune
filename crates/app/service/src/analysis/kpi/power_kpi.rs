@@ -19,7 +19,7 @@ fn judged_balances(
     o: &power::EnergyBalanceOutput,
 ) -> impl Iterator<Item = (Qty<sat_units::typed::Power>, Fraction)> + '_ {
     let cases = o.cases.iter().map(|c| match &c.by_max_duration {
-        Some(d) => (d.orbit_average_balance, d.max_dod),
+        Some(d) => (d.orbit_average_balance, d.max_dod_from_start),
         None => (c.orbit_average_balance, c.max_dod),
     });
     let sequence = o

@@ -6,7 +6,8 @@ mod records;
 
 pub use defs::{AttrAddArgs, AttrCmd, KindAddArgs, KindCmd};
 pub use nouns::{
-    ModeCmd, NetArgs, NetCmd, NetSetArgs, PartCmd, PlaceArgs, SetArgs, SettingCmd, ViewCmd,
+    ModeCmd, ModeViewOpts, NetArgs, NetCmd, NetSetArgs, PartCmd, PlaceArgs, SequenceCmd, SetArgs,
+    SettingCmd, ViewCmd,
 };
 pub use records::{
     CaseArgs, CaseCmd, CatalogCmd, CatalogSourceCmd, HarnessArgs, HarnessCmd, ManeuverArgs,
@@ -124,6 +125,9 @@ pub enum Command {
     /// Operating modes
     #[command(subcommand)]
     Mode(ModeCmd),
+    /// Named mode sequences of the power analysis (analysis/power.toml)
+    #[command(subcommand)]
+    Sequence(SequenceCmd),
     /// Nets (electrical connections)
     #[command(subcommand)]
     Net(NetCmd),
@@ -157,6 +161,12 @@ pub enum Command {
         #[arg(long)]
         check: bool,
     },
+    /// List the edit history that `fune undo` and `fune redo` use (oldest first)
+    History,
+    /// Undo the last edit (restores the files the edit changed; refused if they changed since)
+    Undo,
+    /// Redo the edit that was undone
+    Redo,
     /// Run an analysis (`fune analyze ls`, `fune analyze power.energy_balance`)
     Analyze(AnalyzeArgs),
     /// Budgets (mass / power / data)

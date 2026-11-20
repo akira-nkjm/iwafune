@@ -7,6 +7,8 @@ export interface ChangeEntry {
   summary: string;
   cli: string[];
   files: string[];
+  /** 編集（省略）・取り消し・やり直し */
+  kind?: "undo" | "redo";
 }
 
 let entries: readonly ChangeEntry[] = [];

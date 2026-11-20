@@ -80,9 +80,6 @@ export const groupNodeId = (id: string) => `group:${id}`;
 export const cardNodeId = (id: string) => `card:${id}`;
 export const portHandleId = (port: string) => port;
 
-const POWER_HUB_ROLE: Role = "pcdu";
-const DATA_HUB_ROLE: Role = "obc";
-
 const SIGNAL_COLOR = toneHex.blue;
 const RF_COLOR = toneHex.rose;
 
@@ -157,25 +154,47 @@ function containersOf(design: DesignView, lang: "ja" | "en"): DiagramContainer[]
     }));
 }
 
+/**
+ * カードが 1 枚しか入っていない入れ子の枠を外す。同じ部品をまとめた 1 枚（`RW ×3`）だけを入れた枠は、
+ * まとまりを二重に囲むだけなので、カードを親の枠にじかに置く。系の枠（親の無い枠）は残す。
+ */
+function withoutSingleCardFrames(
+  cards: DiagramCard[],
+  containers: DiagramContainer[],
+): { cards: DiagramCard[]; containers: DiagramContainer[] } {
+  const lifted = new Map<string, string | null>();
+  for (const c of containers) {
+    if (c.parent === null) continue;
+    const inside = cards.filter((card) => card.parent === c.id);
+    const frames = containers.some((x) => x.parent === c.id);
+    if (inside.length === 1 && !frames) lifted.set(c.id, c.parent);
+  }
+  if (lifted.size === 0) return { cards, containers };
+  return {
+    cards: cards.map((card) =>
+      card.parent !== null && lifted.has(card.parent)
+        ? { ...card, parent: lifted.get(card.parent) ?? null }
+        : card,
+    ),
+    containers: containers.filter((c) => !lifted.has(c.id)),
+  };
+}
+
 type End = { card: string; port: string; part: string };
 
 /**
- * 星形の中心と線の向き。電源は供給元、データはマスターが中心で、線は中心から各端へ向ける。
- * どちらも書かれていなければ、電源は PCDU・データは OBC を中心にする（無ければ null）。
- * 供給元の書かれていない電源のネット（太陽電池の母線など）は、電力が中心の配電へ集まるので、
- * 線は各端から中心へ向ける（`collects`）。
+ * 星形の中心と線の向き。中心のポートと向き（`collects`）は API の `NetView.hub`（供給元・マスター、無ければ役割から
+ * service が決める）。ここはそのポートの端を探すだけ。
  */
 function hubOf(
-  design: DesignView,
   net: NetView,
   ends: End[],
+  cardOfPart: ReadonlyMap<string, string>,
 ): { hub: End | null; collects: boolean } {
-  const ref = net.kind === "power" ? net.source : net.master;
-  const byRef = ends.find((e) => e.part === ref?.part && e.port === ref.port);
-  if (byRef) return { hub: byRef, collects: false };
-  const role = net.kind === "power" ? POWER_HUB_ROLE : DATA_HUB_ROLE;
-  const hub = ends.find((e) => design.parts.find((p) => p.id === e.part)?.role === role) ?? null;
-  return { hub, collects: net.kind === "power" && hub !== null };
+  const port = net.hub?.port;
+  const card = port ? cardOfPart.get(port.part) : undefined;
+  const hub = ends.find((e) => e.card === card && e.port === port?.port) ?? null;
+  return { hub, collects: hub !== null && (net.hub?.collects ?? false) };
 }
 
 /** 線の端（カードのポートかジャンクション）、端に添えるポート名、キーに使う名前（`部品.ポート`） */
@@ -189,8 +208,12 @@ const endpointOf = (e: End): Endpoint => ({
 
 export function buildModel(design: DesignView, opts: DiagramOptions): DiagramModel {
   const grouped = { ...design, tree: systemTree(design) };
-  const { cardOfPart, cards } = buildCards(grouped, opts.mergeSiblings);
-  const containers = containersOf(grouped, opts.lang ?? "ja");
+  const built = buildCards(grouped, opts.mergeSiblings);
+  const { cardOfPart } = built;
+  const { cards, containers } = withoutSingleCardFrames(
+    built.cards,
+    containersOf(grouped, opts.lang ?? "ja"),
+  );
   const categories = powerCategories(design);
   const cardById = new Map(cards.map((c) => [c.id, c]));
   const junctions: DiagramJunction[] = [];
@@ -233,7 +256,7 @@ export function buildModel(design: DesignView, opts: DiagramOptions): DiagramMod
       dashed: net.kind === "rf",
       detach: mergedEnd(member) ? null : { part: member.part, port: member.port },
     });
-    const { hub, collects } = hubOf(design, net, ends);
+    const { hub, collects } = hubOf(net, ends, cardOfPart);
     if (hub || ends.length === 2) {
       const h = hub ?? (ends[0] as End);
       ends

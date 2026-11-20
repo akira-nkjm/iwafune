@@ -5,18 +5,29 @@
 //! Q_i は外部入熱（吸収した太陽・アルベド・地球赤外）と内部発熱（`load`）の和。外面の α/ε は `surface` が表面材から求める。`fixed_temperature` を持つ節点は境界（温度一定）。
 
 use crate::spec::AnalysisError;
+use crate::thermal::enclosure::ThermalEnclosure;
 use crate::thermal::range::ThermalRanges;
 use sat_astro::constants::SIGMA_SB;
 use sat_astro::math::Vec3;
 use sat_units::typed::{Area, Mass, Qty, SpecificHeatCapacity, Temperature, ThermalConductance};
 use serde::{Deserialize, Serialize};
 
+mod couplings;
+mod heater;
+mod heater_steady;
 mod load;
 mod mode_loads;
 mod mounts;
 mod newton;
 mod ranges;
 mod surface;
+pub use couplings::{
+    ThermalConductanceUsed, ThermalCouplingSource, ThermalCouplings, ThermalEnclosureFace,
+    ThermalEnclosureUsed, ThermalExchangeUsed,
+};
+pub(crate) use heater::{HeaterSpec, enabled_flags};
+pub use heater::{ThermalHeater, ThermalHeaterState};
+pub(crate) use heater_steady::HeaterSteady;
 pub use load::ThermalLoad;
 pub use mode_loads::{ThermalModeLoads, ThermalModePart};
 pub use mounts::ThermalMounts;
@@ -102,14 +113,19 @@ pub struct ThermalRadiativeLink {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThermalNetwork {
-    /// 取付から作る熱結合（明示の conductive/radiative に追加）。
+    /// 取付から作る既定の熱結合（明示の `conductive`・`radiative` と外殻の放射が、対ごとに置き換える。優先順位は `couplings`）。
     #[serde(default)]
     pub mounts: Option<ThermalMounts>,
     pub nodes: Vec<ThermalNode>,
+    /// 明示の伝導（その節点対の取付の値を置き換える。0 で切り離す）
     #[serde(default)]
     pub conductive: Vec<ThermalConductiveLink>,
+    /// 明示の放射（その節点対の既定値と外殻の値を置き換える）
     #[serde(default)]
     pub radiative: Vec<ThermalRadiativeLink>,
+    /// 箱型の外殻の内面の放射（設計が求めたときだけ）。外面の法線と面積から 6 面の節点を決める
+    #[serde(default)]
+    pub enclosure: Option<ThermalEnclosure>,
     #[serde(default)]
     pub surfaces: Vec<ThermalSurface>,
 }
@@ -138,6 +154,8 @@ pub(crate) struct Compiled {
     pub surfaces: Vec<Surface>,
     /// 節点ごとの宇宙への放射係数 Σ ε σ A [W/K⁴]
     pub space: Vec<f64>,
+    /// 使う結合の一覧（出力に載せる）
+    pub couplings: ThermalCouplings,
 }
 
 fn invalid(msg: String) -> AnalysisError {
@@ -163,6 +181,7 @@ impl Compiled {
             rad: Vec::new(),
             surfaces: Vec::new(),
             space: vec![0.0; ids.len()],
+            couplings: ThermalCouplings::default(),
             ids,
         };
         for n in &net.nodes {
@@ -177,19 +196,16 @@ impl Compiled {
             c.capacity.push(cap);
             c.fixed.push(fixed);
         }
-        let (mount_cond, mount_rad) = net
-            .mounts
-            .as_ref()
-            .map(ThermalMounts::links)
-            .unwrap_or_default();
-        for l in net.conductive.iter().chain(&mount_cond) {
+        let couplings = couplings::resolve(net)?;
+        for l in &couplings.conductive {
             let g = nonneg(l.conductance.value(), &l.a, &l.b)?;
             c.cond.push((c.index(&l.a)?, c.index(&l.b)?, g));
         }
-        for l in net.radiative.iter().chain(&mount_rad) {
+        for l in &couplings.radiative {
             let r = nonneg(l.exchange_area.value(), &l.a, &l.b)?;
             c.rad.push((c.index(&l.a)?, c.index(&l.b)?, SIGMA_SB * r));
         }
+        c.couplings = couplings;
         for s in &net.surfaces {
             let surface = c.surface(s)?;
             c.space[surface.node] += surface.eps * SIGMA_SB * surface.area_m2;
@@ -264,28 +280,6 @@ impl Compiled {
                 None => f[i] / self.capacity[i],
             })
             .collect()
-    }
-
-    /// 陽的 RK4 が安定に回る刻みの目安 [s]（温度 `t_ref_k` での線形化の固有値の上界から）。
-    pub fn stable_step_s(&self, t_ref_k: f64) -> f64 {
-        let mut k = self
-            .space
-            .iter()
-            .map(|s| 4.0 * s * t_ref_k.powi(3))
-            .collect::<Vec<_>>();
-        for &(i, j, g) in &self.cond {
-            k[i] += g;
-            k[j] += g;
-        }
-        for &(i, j, sr) in &self.rad {
-            let h = 4.0 * sr * t_ref_k.powi(3);
-            k[i] += h;
-            k[j] += h;
-        }
-        (0..self.len())
-            .filter(|&i| self.fixed[i].is_none() && k[i] > 0.0)
-            .map(|i| self.capacity[i] / k[i])
-            .fold(f64::INFINITY, f64::min)
     }
 }
 

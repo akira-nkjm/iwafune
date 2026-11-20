@@ -18,9 +18,19 @@ function modeView(system: System = "power"): SystemModesView {
     margin: qv(25, "W", "Power"),
     verdict: "ok" as const,
   };
+  // API の足もとの行（`system_modes::summary_rows`）と同じ
+  const summary: SystemModesView["summary"] =
+    system === "power"
+      ? [
+          { label: "power", field: "total", verdict: false },
+          { label: "available", field: "available", verdict: false },
+          { label: "margin", field: "margin", verdict: true },
+        ]
+      : [{ label: system === "cdh" ? "data_rate" : "heat", field: "total", verdict: true }];
   return {
     system,
     missing: [],
+    summary,
     modes: [
       {
         id: "NOMINAL",
@@ -32,24 +42,36 @@ function modeView(system: System = "power"): SystemModesView {
           margin: qv(36, "W", "Power"),
         },
         aocs: null,
+        power: null,
       },
     ],
   };
 }
 
-function render(eclipse: boolean, system?: System) {
+/** 設計のモードのページの足もと: API が `summary: "totals"` で返す、合計の行だけの表示 */
+function totalsView(): SystemModesView {
+  return { ...modeView("power"), summary: [{ label: "power", field: "total", verdict: false }] };
+}
+
+function render(eclipse: boolean, system?: System, footer = false) {
   const qc = new QueryClient();
   qc.setQueryData(["design", "defs"], fixture.defs);
-  const view = system ? modeView(system) : null;
+  const view = system ? modeView(system) : footer ? totalsView() : null;
   return renderToStaticMarkup(
     <QueryClientProvider client={qc}>
       <ModesTable
         modes={fixture.modes.modes}
-        groups={matrixGroups(fixture, new Map(), view, getT().modes, eclipse, system)}
+        groups={matrixGroups(
+          fixture,
+          new Map(),
+          system ? view : null,
+          getT().modes,
+          eclipse,
+          system,
+        )}
         view={{ data: view, pending: false, updating: false }}
         system={system}
         eclipse={eclipse}
-        updating={false}
         onCell={() => {}}
       />
     </QueryClientProvider>,
@@ -77,6 +99,24 @@ describe("系別のモードの行列", () => {
     expect(html).not.toContain(getT().modes.available);
     expect(html).not.toContain(getT().modes.margin);
     expect(html).not.toContain("15 W");
+  });
+  it("定義ページの足もとは電力の合計の行だけで、日照・蝕の切り替えに従い、判定は付けない", () => {
+    const tm = getT().modes;
+    const sunlit = render(false, undefined, true);
+    expect(sunlit).toContain(tm.powerRow);
+    expect(sunlit).toContain("15 W");
+    expect(sunlit).not.toContain("4 W");
+    expect(sunlit).not.toContain(tm.available);
+    expect(sunlit).not.toContain(tm.margin);
+    expect(sunlit).not.toContain("40 W");
+    // 判定のピルは出さない（`summary` の `verdict` が偽の行）
+    expect(sunlit).not.toContain(getT().verdict.ok);
+    const eclipse = render(true, undefined, true);
+    expect(eclipse).toContain("4 W");
+    expect(eclipse).not.toContain("15 W");
+    // 本体は今のまま: 単体の電力列があり、系のタブの部品値（12 W）は出ない
+    expect(sunlit).toContain(tm.powerLevels);
+    expect(sunlit).not.toContain("12 W");
   });
   it("C&DH・熱 はそれぞれの見出しを出し、電力の収支を出さない", () => {
     for (const [system, title] of [

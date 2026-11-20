@@ -45,6 +45,12 @@ interface HeatProps {
   design: DesignView;
   /** 部品の箱の色（その部品の温度の色。`lib/tone.ts` の `heatHex`） */
   colorOf: (id: string) => string;
+  /** 見出しの帯に置く操作（温度の出どころの選択など） */
+  tools?: ReactNode;
+  /** 3D の上（左下）に重ねるもの（色の凡例） */
+  overlay?: ReactNode;
+  /** 3D の右（狭い幅では下）に置くもの（節点の温度の一覧）。配置の欄の代わりに出す */
+  aside?: ReactNode;
 }
 
 /** 3D 配置の用途（`variant`）ごとの Props。用途に無い組み合わせ（熱の色で動かすなど）は型で作れない */
@@ -112,15 +118,17 @@ function PlacementLayout3D({ design, com }: PlacementProps) {
   );
 }
 
-/** 熱: 温度の色で塗った箱と、その凡例 */
-function HeatLayout3D({ design, colorOf }: HeatProps) {
+/** 熱: 温度の色で塗った箱。3D を大きく見せるため、画面の高さに合わせ、右は節点の一覧（`aside`）だけにする */
+function HeatLayout3D({ design, colorOf, tools, overlay, aside }: HeatProps) {
   const t = useT().systems;
   return (
     <Layout3DFrame
       design={design}
-      title={t.thermal3d}
       note={` · ${t.thermal3dLegend}`}
       colorOf={colorOf}
+      tools={tools}
+      overlay={overlay}
+      aside={aside}
     />
   );
 }
@@ -135,6 +143,8 @@ function Layout3DFrame({
   tools,
   edit,
   fill = false,
+  overlay,
+  aside,
 }: {
   design: DesignView;
   title?: string;
@@ -148,6 +158,10 @@ function Layout3DFrame({
   edit?: SceneEdit;
   /** 配置ページ: 残りの画面高を使い、部品のツリー・表示の切り替え・構造の不透明度を出す。熱の追加表示は既存の高さ */
   fill?: boolean;
+  /** 3D の左下に重ねるもの（熱の色の凡例） */
+  overlay?: ReactNode;
+  /** インスペクタの代わりに右へ置くもの（熱の節点の一覧） */
+  aside?: ReactNode;
 }) {
   const L = useT().systems.layout3d;
   const [selected, setSelected] = useState<string | null>(null);
@@ -219,7 +233,7 @@ function Layout3DFrame({
           "grid min-w-0 grid-cols-1 overflow-y-auto",
           fill
             ? "min-h-0 flex-1 grid-rows-[minmax(240px,1fr)_auto_auto] @min-[700px]:grid-cols-[minmax(0,240px)_minmax(0,1fr)] @min-[700px]:grid-rows-[minmax(240px,1fr)_auto] @min-[1100px]:grid-cols-[minmax(0,260px)_minmax(0,1fr)_minmax(0,320px)] @min-[1100px]:grid-rows-1"
-            : "h-[460px] grid-rows-[minmax(240px,1fr)_auto] @min-[700px]:grid-cols-[minmax(0,1fr)_minmax(0,340px)] @min-[700px]:grid-rows-1",
+            : "h-[calc(100dvh-15rem)] min-h-[460px] grid-rows-[minmax(320px,1fr)_auto] @min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,260px)] @min-[900px]:grid-rows-1",
         )}
       >
         {fill && (
@@ -267,24 +281,35 @@ function Layout3DFrame({
               <House className="size-4" aria-hidden />
             </button>
           )}
+          {overlay && (
+            <div className="pointer-events-none absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] rounded-control bg-panel/90 px-2 py-1">
+              {overlay}
+            </div>
+          )}
           {showAxes && (
             <p className="pointer-events-none absolute top-3 left-3 max-w-[calc(100%-1.5rem)] rounded-control bg-panel/90 px-2 py-1 text-ink-3 text-xs">
               {L.axesLegend}
             </p>
           )}
         </div>
-        <Inspector
-          design={design}
-          selected={selected}
-          onSelect={pick}
-          unplaced={unplaced}
-          className={cn(
-            "order-3 @min-[700px]:order-none",
-            fill
-              ? "@min-[700px]:col-span-2 @min-[1100px]:col-span-1 @min-[1100px]:border-t-0 @min-[1100px]:border-l"
-              : "@min-[700px]:border-t-0 @min-[700px]:border-l",
-          )}
-        />
+        {aside ? (
+          <aside className="order-3 min-w-0 overflow-y-auto border-line border-t p-3 @min-[900px]:order-none @min-[900px]:border-t-0 @min-[900px]:border-l">
+            {aside}
+          </aside>
+        ) : (
+          <Inspector
+            design={design}
+            selected={selected}
+            onSelect={pick}
+            unplaced={unplaced}
+            className={cn(
+              "order-3 @min-[700px]:order-none",
+              fill
+                ? "@min-[700px]:col-span-2 @min-[1100px]:col-span-1 @min-[1100px]:border-t-0 @min-[1100px]:border-l"
+                : "@min-[700px]:border-t-0 @min-[700px]:border-l",
+            )}
+          />
+        )}
       </div>
     </Panel>
   );

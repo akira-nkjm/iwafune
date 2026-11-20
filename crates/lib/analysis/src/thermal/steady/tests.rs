@@ -23,6 +23,7 @@ fn input() -> ThermalSteadyInput {
                 conductance: Qty::from_raw(1.0),
             }],
             radiative: vec![],
+            enclosure: None,
             surfaces: vec![ThermalSurface {
                 id: "px".to_owned(),
                 node: "panel".to_owned(),
@@ -36,6 +37,7 @@ fn input() -> ThermalSteadyInput {
         },
         cases: vec![ThermalSteadyCase {
             mode_loads: None,
+            heaters: vec![],
             id: "hot".to_owned(),
             label: "Hot".to_owned(),
             environment: ThermalEnvironment {
@@ -72,9 +74,12 @@ fn panel_and_box_hand_calculation() {
     assert!((nodes[1].temperature.value() - (t_panel + 5.0)).abs() < 1e-6);
     assert!((nodes[0].absorbed.value() - 70.0).abs() < 1e-9);
     assert_eq!(out.envelope[0].max_case, "hot");
-    assert_eq!(out.checks.len(), 1);
-    // T_panel ≈ 358.6 K > 350 K
+    // 動作範囲の判定は上限側と下限側の 2 つ。T_panel ≈ 358.6 K > 350 K で、上限側だけ違反
+    assert_eq!(out.checks.len(), 2);
+    assert_eq!(out.checks[0].key, "range_high:panel:operating");
     assert_eq!(out.checks[0].verdict, Verdict::Violation);
+    assert_eq!(out.checks[1].key, "range_low:panel:operating");
+    assert_eq!(out.checks[1].verdict, Verdict::Ok);
 }
 
 /// 同じ板（T_panel ≈ 358.6 K）に保管範囲 223〜373 K を足す: 保管は上端まで 14.4 K で Ok、動作（〜350 K）は違反。
@@ -90,16 +95,21 @@ fn storage_range_and_uncertainty_by_hand() {
         let out = ThermalSteady::run(i).unwrap();
         out.checks.into_iter().map(|c| (c.key, c.verdict)).collect()
     };
-    let key = |k: &str| format!("range:panel:{k}");
+    let key = |side: &str, k: &str| format!("range_{side}:panel:{k}");
+    // 板は 358.6 K: 保管（223〜373 K）は両側 OK、動作（〜350 K）は上限側だけ違反（下限側は OK）
     assert_eq!(
         verdicts(&i),
         [
-            (key("storage"), Verdict::Ok),
-            (key("operating"), Verdict::Violation)
+            (key("high", "storage"), Verdict::Ok),
+            (key("low", "storage"), Verdict::Ok),
+            (key("high", "operating"), Verdict::Violation),
+            (key("low", "operating"), Verdict::Ok),
         ]
     );
+    // 不確かさ 10 K で、保管の上限側だけ警告（余裕 4.4 K）。下限側は 135 K 以上で OK のまま
     i.margin.uncertainty = Some(Qty::from_raw(10.0));
-    assert_eq!(verdicts(&i)[0], (key("storage"), Verdict::Warning));
+    assert_eq!(verdicts(&i)[0], (key("high", "storage"), Verdict::Warning));
+    assert_eq!(verdicts(&i)[1], (key("low", "storage"), Verdict::Ok));
     let out = ThermalSteady::run(&i).unwrap();
     let t_panel = (75.0 / (0.08 * SIGMA_SB)).powf(0.25);
     let storage = &out.cases[0].nodes[0].ranges[0];
@@ -141,6 +151,7 @@ fn orbit_average_cube() {
     };
     let case = |id: &str, e: ThermalEnvironment| ThermalSteadyCase {
         mode_loads: None,
+        heaters: vec![],
         id: id.to_owned(),
         label: String::new(),
         environment: e,

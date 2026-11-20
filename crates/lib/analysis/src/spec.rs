@@ -165,6 +165,8 @@ pub enum ChannelKind {
     NodeTemperature,
     /// 外部入熱の合計
     AbsorbedHeat,
+    /// ヒータの発熱（`subject` はヒータの部品）
+    HeaterPower,
     /// 未送信データ
     Backlog,
     /// 軌道の高度（高度低下の推移・マヌーバの順の軌道の推移）
@@ -320,7 +322,10 @@ pub fn ensure_non_negative(name: &str, v: f64) -> Result<(), AnalysisError> {
 }
 
 mod sampling;
-pub use sampling::{DEFAULT_ORBITS, daily_sampling, orbit_count, orbits_sampling};
+pub use sampling::{
+    DEFAULT_ORBITS, MAX_STEPS_PER_ORBIT, ORBIT_AVERAGE_ORBITS, SamplingSpan, daily_sampling,
+    orbit_count, orbit_step_s, orbits_sampling, sampling, step_for_period,
+};
 
 mod orbit;
 pub use orbit::{

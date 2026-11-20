@@ -1,6 +1,6 @@
 //! HTTP の経路と CLI のコマンドの対応表（docs/architecture.md §4.3）。表が経路と食い違ったら落ちる:
 //! `crates/app/server/src/routes.rs` の経路はすべて表にあり、表の経路はすべて `routes.rs` にある。
-//! CLI のコマンドは実在する（`--help` が通る）。CLI の無い経路（`GAPS`）は #158 で埋めるまでの既知の欠け。
+//! CLI のコマンドは実在する（`--help` が通る）。すべての経路に CLI がある（#158）。
 //! 例外は `fune init`（サーバーはプロジェクトの中でしか動かない）・`fune gui`（サーバーを起動するコマンド）・
 //! `fune self-update`（CLI のバイナリ自身を置き換える）だけ。
 
@@ -34,6 +34,12 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
     ),
     ("GET", "/values/{path}", &["get"], "query::get_value"),
     ("GET", "/defs", &["attr", "ls"], "query::defs_view"),
+    (
+        "POST",
+        "/system_modes/{system}",
+        &["mode", "view"],
+        "system_modes::system_modes（`--ops`・`--case`・`--analyzed`・`--totals-only`）",
+    ),
     ("GET", "/diagnostics", &["check"], "query::check"),
     ("POST", "/fmt", &["fmt"], "format::format_design"),
     ("POST", "/ops", &["apply"], "edit::apply"),
@@ -51,6 +57,9 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
         &["case", "from-eclipse"],
         "edit::case_from_eclipse_op",
     ),
+    ("GET", "/history", &["history"], "history::view"),
+    ("POST", "/undo", &["undo"], "history::undo"),
+    ("POST", "/redo", &["redo"], "history::redo"),
     ("GET", "/units", &["units", "ls"], "units::units_catalog"),
     (
         "POST",
@@ -121,16 +130,6 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
     ),
 ];
 
-/// CLI がまだ無い経路（#158）。埋めたら表へ移す。
-const GAPS: &[(&str, &str, &str)] = &[
-    ("GET", "/power_page", "power_page::power_page"),
-    (
-        "POST",
-        "/system_modes/{system}",
-        "system_modes::system_modes",
-    ),
-];
-
 /// HTTP に無い CLI のコマンド。
 const CLI_ONLY: &[&str] = &["init", "gui", "self-update"];
 
@@ -155,14 +154,10 @@ fn routes_in_source() -> BTreeSet<(String, String)> {
 }
 
 #[test]
-fn every_route_is_in_the_table_or_the_gaps() {
+fn every_route_is_in_the_table() {
     let documented: BTreeSet<(String, String)> = TABLE
         .iter()
         .map(|(m, p, _, _)| ((*m).to_owned(), (*p).to_owned()))
-        .chain(
-            GAPS.iter()
-                .map(|(m, p, _)| ((*m).to_owned(), (*p).to_owned())),
-        )
         .collect();
     let actual = routes_in_source();
     assert!(actual.len() > 20, "could not read the routes: {actual:?}");
