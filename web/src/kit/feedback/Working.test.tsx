@@ -10,6 +10,8 @@ describe("Working（長い待ちの中央表示）", () => {
   it("ロゴのマークの 3 つの面を brand-art の図形から描き、面ごとに時間をずらす", () => {
     for (const face of MARK.faces) expect(out).toContain(`d="${face.d}"`);
     expect(out.match(/mark-glow/g)).toHaveLength(MARK.faces.length);
+    // 黄が差すのは甲板の面 1 つだけ
+    expect(out.match(/mark-glow-gold/g)).toHaveLength(1);
     expect(out).toContain("--mark-i:2");
   });
 
