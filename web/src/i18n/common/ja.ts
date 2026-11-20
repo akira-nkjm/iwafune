@@ -10,7 +10,6 @@ export const commonJa = {
     treeView: "ツリー",
     working: {
       elapsed: (seconds: number) => `${seconds} 秒`,
-      recomputing: (name: string) => `${name}を再計算中`,
       computing: (name: string) => `${name}を計算中`,
       layingOutDiagram: "システム図の配置を計算中",
       drawing3d: "3D 表示を準備中",

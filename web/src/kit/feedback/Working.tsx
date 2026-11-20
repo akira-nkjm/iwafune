@@ -24,30 +24,6 @@ function SrText({ label }: { label: string }) {
 }
 
 /**
- * 表の行のように小さな場所で、前の中身を出したまま読み直しているときの小さなチップ（ロゴのマーク・していること・経過秒）。
- * 置かれて 1 秒たってから現れる。位置は `className` で決める。広い場所は `Refreshable`（中央のロゴ）を使う。
- */
-export function WorkingChip({ label, className }: { label: string; className?: string }) {
-  const shown = useAfter(WORKING_DELAY_MS);
-  if (!shown) return null;
-  return (
-    <div
-      role="status"
-      aria-busy="true"
-      className={cn(
-        "loading-appear inline-flex items-center gap-1.5 rounded-chip border border-line bg-panel px-2 py-1 text-ink-2 text-xs shadow-sm",
-        className,
-      )}
-    >
-      <SrText label={label} />
-      <MarkLoader size={16} className="shrink-0 text-ink-2" />
-      <span aria-hidden="true">{label}</span>
-      <Elapsed />
-    </div>
-  );
-}
-
-/**
  * 長い計算や描画の間、まだ出せる中身が無いときの表示（中央にロゴのマーク、していること 1 行、経過秒）。
  * `className` で置き場所を決める（スケルトンの上に重ねるなら `absolute inset-0`）。
  * `after` ミリ秒たってから現れる（既定は `WORKING_DELAY_MS`）。`announce={false}` は、すでに `Loading` の中にあって

@@ -5,7 +5,6 @@ import { useT } from "@/i18n";
 import { analysisDescription, analysisTitle } from "@/i18n/analysis-names";
 import { Loading, SkeletonLines } from "@/kit/feedback/Loading";
 import { Refreshable } from "@/kit/feedback/Refreshable";
-import { Working } from "@/kit/feedback/Working";
 import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { Pill } from "@/kit/status/Pill";
@@ -39,7 +38,7 @@ export function AnalysisCard({
   const title = analysisTitle(entry?.info, state.id);
   return (
     <Panel>
-      <Refreshable active={state.updating} label={t.common.working.recomputing(title)}>
+      <Refreshable active={state.updating}>
         <PanelHeader
           title={title}
           caption={
@@ -60,12 +59,9 @@ export function AnalysisCard({
           }
         />
         {state.loading ? (
-          <>
-            <Loading>
-              <SkeletonLines lines={3} />
-            </Loading>
-            <Working label={t.common.working.computing(title)} announce={false} className="pt-4" />
-          </>
+          <Loading>
+            <SkeletonLines lines={3} />
+          </Loading>
         ) : state.error ? (
           <p className="text-neg-ink text-xs">{state.error}</p>
         ) : r ? (
