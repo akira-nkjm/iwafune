@@ -1,0 +1,15 @@
+label     = "Battery operating temperature"
+statement = "The battery shall stay above 0 degC in every analysis case."
+quantity  = "Temperature"
+source    = "ds_vendor"
+
+[constraint]
+kind  = "at_least"
+value = { value = 0.0, unit = "degC" }
+
+[quantify]
+all_cases = true
+
+[verify]
+analysis = "thermal.steady"
+check    = "range_low:BAT:operating"

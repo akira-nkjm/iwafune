@@ -1,0 +1,14 @@
+label     = "On-board data volume"
+statement = "The data held on board shall not exceed the OBC storage of 8 GB."
+quantity  = "Information"
+source    = "ds_vendor"
+
+[constraint]
+kind  = "at_most"
+value = { value = 8.0, unit = "GB" }
+
+[quantify]
+cases = ["eclipse_worst", "hot_imaging"]
+
+[verify]
+budget = "data"

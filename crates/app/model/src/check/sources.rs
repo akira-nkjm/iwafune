@@ -84,6 +84,18 @@ fn source_uses<'a>(ctx: &Ctx<'a>) -> Vec<SourceUse<'a>> {
             value_uses(&mut out, &entity, attr.as_str(), v, None, target);
         }
     }
+    for r in design.requirements.values() {
+        if let Some(source) = r.source.as_ref() {
+            out.push(SourceUse {
+                entity: EntityKey::Requirement(r.id.to_string()),
+                keys: vec!["source".to_owned()],
+                target: Target::requirement(r.id.as_str(), Some("source")),
+                source: source.as_str(),
+                item: None,
+                datasheet: false,
+            });
+        }
+    }
     for item in design.catalog.values() {
         let id = item.id.as_str();
         let entity = EntityKey::Catalog(item.id.clone());

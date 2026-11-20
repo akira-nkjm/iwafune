@@ -1,6 +1,6 @@
 //! 編集のコマンドの引数 → Op の列（実行はしない）。実行は `edit::run_ops`、往復の検査は `roundtrip` のテストが使う。
 
-use super::{defs, nets, nouns, records};
+use super::{defs, nets, nouns, records, requirements};
 use crate::args::{Command, EditOpts};
 use fune_service::Workspace;
 use fune_service::dto::Op;
@@ -54,6 +54,7 @@ pub fn edit_of<'a>(ws: &Workspace, command: &'a Command) -> anyhow::Result<Optio
         Command::Source(c) => one(records::source(c)?),
         Command::Harness(c) => one(records::harness(c)?),
         Command::Maneuver(c) => one(records::maneuver(c)?),
+        Command::Requirement(c) => one(requirements::requirement(c)?),
         Command::Catalog(c) => one(records::catalog(ws, c)?),
         Command::Set(a) => {
             let text = SetText {

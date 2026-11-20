@@ -34,6 +34,8 @@ export const keys = {
   /** バジェット。`opsJson` の意味は analysis と同じ */
   budget: (kind: string, opsJson = "") =>
     opsJson ? (["budget", kind, opsJson] as const) : (["budget", kind] as const),
+  /** 要求適合表（`GET /requirements/compliance`。設計・解析・バジェットから導出される） */
+  compliance: ["compliance"] as const,
   /** dry_run の結果（CLI のプレビュー）。revision が変われば別のキー */
   dryRun: (revision: string, opsJson: string) => ["dry_run", revision, opsJson] as const,
   /** 打った文字列から作った Op（`POST /ops/from_text`。書き込まない）。revision が変われば別のキー */
@@ -51,4 +53,5 @@ export const invalidatedByOps: readonly (readonly string[])[] = [
   keys.history,
   keys.analysisResults,
   ["budget"],
+  keys.compliance,
 ];

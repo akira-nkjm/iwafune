@@ -28,6 +28,7 @@ fune-model = { path = "crates/app/model" }
 fune-store = { path = "crates/app/store" }
 fune-ops = { path = "crates/app/ops" }
 fune-projection = { path = "crates/app/projection" }
+fune-report = { path = "crates/app/report" }
 fune-service = { path = "crates/app/service" }
 fune-server = { path = "crates/app/server" }
 # 外部

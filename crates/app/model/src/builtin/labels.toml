@@ -80,6 +80,7 @@ severity = ["error", "warning", "info"]
 maneuver_category = ["insertion", "station_keeping", "unloading", "deorbit", "other"]
 maneuver_method = ["impulsive", "finite_burn", "low_thrust", "propagated"]
 maneuver_steering = ["tangential", "inertial"]
+constraint_kind = ["at_most", "at_least", "equal", "range"]
 mode_when = ["any", "sunlit", "eclipse"]
 start_from = ["eclipse_exit", "eclipse_entry"]
 central_body = ["earth", "moon", "sun", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]
@@ -394,6 +395,22 @@ label_en = "Deorbit"
 [enum.maneuver_category.other]
 label    = "その他"
 label_en = "Other"
+
+[enum.constraint_kind.at_most]
+label    = "以下"
+label_en = "At most"
+
+[enum.constraint_kind.at_least]
+label    = "以上"
+label_en = "At least"
+
+[enum.constraint_kind.equal]
+label    = "等しい（許容幅つき）"
+label_en = "Equal (with tolerance)"
+
+[enum.constraint_kind.range]
+label    = "範囲内"
+label_en = "Within range"
 
 [enum.maneuver_method.impulsive]
 label    = "インパルス"

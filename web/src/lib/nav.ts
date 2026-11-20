@@ -2,6 +2,7 @@ import {
   BookOpen,
   Box,
   Boxes,
+  ClipboardCheck,
   Cpu,
   FileWarning,
   Gauge,
@@ -56,6 +57,9 @@ function withSearch(path: string, search: Record<string, string | null | undefin
   return text ? `${path}?${text}` : path;
 }
 
+/** 要求のページのタブ（適合表は既定のタブで、URL に足さない） */
+export type RequirementsTab = "list";
+
 /** 定義のページのタブ（単位は既定のタブで、URL に区間を足さない） */
 export type DefsTab = "attributes" | "kinds";
 
@@ -74,6 +78,8 @@ export const paths = {
   diagram: () => "/design/diagram",
   modes: () => "/design/modes",
   layout: () => "/design/layout",
+  requirements: (tab?: RequirementsTab) =>
+    tab ? `/design/requirements/${tab}` : "/design/requirements",
   defs: (tab?: DefsTab) => (tab ? `/project/defs/${tab}` : "/project/defs"),
   /** 系のページ。`tab` が無ければ結果のタブ、`kase` があればその解析ケースで開く */
   system: (
@@ -150,6 +156,7 @@ export const nav = (systems: readonly System[]): NavSection[] => [
       { to: paths.diagram(), key: "diagram", icon: Network },
       { to: paths.modes(), key: "modes", icon: Table2 },
       { to: paths.layout(), key: "layout", icon: Box },
+      { to: paths.requirements(), key: "requirements", icon: ClipboardCheck },
     ],
   },
   {

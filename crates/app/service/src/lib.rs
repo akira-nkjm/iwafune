@@ -15,12 +15,14 @@
 //! | `units` | 単位の一覧・入力文字列の解析 |
 //! | `analysis` | 解析の一覧・実行・KPI（代表値・判定・塗りの比） |
 //! | `budget` | 質量・電力・データ量のバジェット |
+//! | `requirements` | 要求適合表（要求ごとに、確かめる先の解析・バジェットの判定を量化したケースで集める） |
 //! | `mode_systems` | モードの見方を持つ系の一覧（`DefsView.mode_systems` と `system_modes` の対応判定の共通の置き場。ほかの module に依存しない） |
 //! | `system_modes` | 系ごとのモードの見方（電源・C&DH・熱・AOCS の値・合計・判定） |
 //! | `data` | 外部データ（DE440・宇宙天気）の取得・状態・読み込み（ユーザーごとのキャッシュ）、日付からの宇宙天気 |
 //! | `shared_catalog` | 共有カタログ（`[[catalog]] git = …`）の取得・更新（git の CLI。プロジェクトの `.fune/catalogs/` のキャッシュと `catalog.lock`） |
 //! | `fetch` | 外部からの取得（`curl`。HTTPS だけ。宇宙天気と `self_update` が使う） |
 //! | `self_update` | `fune self-update`（最新のリリースの確認と、実行中の `fune` の置き換え。CLI だけ） |
+//! | `report` | 設計書に入れる表と図の書き出し（`fune report export`・`POST /report/export`。解析の結果から表・図・値を組み立て、ファイルの内容を返す。書き出すのは呼び出し側） |
 //! | `diff` | 変更前後の本文 → unified diff |
 //! | `error` | サービスのエラー（HTTP の状態と CLI の終了コードに写せる分類） |
 
@@ -36,6 +38,8 @@ pub mod history;
 pub mod mode_systems;
 pub mod preview;
 pub mod query;
+pub mod report;
+pub mod requirements;
 pub mod self_update;
 pub mod shared_catalog;
 pub mod system_modes;

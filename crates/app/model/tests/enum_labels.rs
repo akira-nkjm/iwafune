@@ -46,6 +46,7 @@ const LABELLED: &[(&str, &[&str])] = &[
         "maneuver_steering",
         fune_model::design::ManeuverSteering::NAMES,
     ),
+    ("constraint_kind", fune_model::design::ConstraintKind::NAMES),
 ];
 
 #[test]
