@@ -36,12 +36,9 @@ export function RequirementsTable({
                 <>
                   <Th>{t.id}</Th>
                   <Th>{t.statement}</Th>
-                  <Th>{t.quantity}</Th>
                   <Th>{t.constraint}</Th>
                   <Th>{t.source}</Th>
                   <Th>{t.verify}</Th>
-                  <Th>{t.cases}</Th>
-                  <Th>{t.file}</Th>
                   <Th />
                 </>
               }
@@ -69,25 +66,31 @@ function RequirementRow({ r, onOpen }: { r: RequirementView; onOpen: (o: OpenFro
       : t.defaultCase;
   return (
     <tr>
-      <Td mono>{r.id}</Td>
-      <Td className="max-w-[360px]">
+      <Td mono className="align-top">
+        <span title={r.file}>{r.id}</span>
+      </Td>
+      {/* 文は折り返す（表のセルは既定で折り返さないので、長い文が隣の列に重なる） */}
+      <Td className="w-[40%] min-w-64 whitespace-normal align-top">
         <span className="block font-medium">{r.label}</span>
         <span className="block text-ink-3">{localized(r.statement, r.statement_en)}</span>
       </Td>
-      <Td>{r.quantity}</Td>
-      <Td>
-        <span className="text-ink-3">{label("constraint_kind", r.constraint.kind)}</span>{" "}
-        <span className="num">{r.constraint.text}</span>
+      {/* 制約の下に、対象の量を添える */}
+      <Td className="align-top">
+        <span className="block">
+          <span className="text-ink-3">{label("constraint_kind", r.constraint.kind)}</span>{" "}
+          <span className="num">{r.constraint.text}</span>
+        </span>
+        <span className="block text-ink-3 text-xs">{r.quantity}</span>
       </Td>
-      <Td mono>{r.source ?? t.noSource}</Td>
-      <Td>
+      <Td mono className="align-top">
+        {r.source ?? t.noSource}
+      </Td>
+      {/* 確かめる先の下に、成り立つべきケースを添える */}
+      <Td className="align-top">
         <VerifiedBy verify={r.verify} />
+        <span className="block whitespace-normal text-ink-3 text-xs">{cases}</span>
       </Td>
-      <Td className="text-ink-3">{cases}</Td>
-      <Td mono className="text-ink-4">
-        {r.file}
-      </Td>
-      <Td>
+      <Td className="align-top">
         <span className="flex gap-1">
           <Button
             size="sm"

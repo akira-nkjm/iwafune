@@ -38,9 +38,7 @@ export function ComplianceTab() {
                       <Th>{t.verdict}</Th>
                       <Th>{t.statement}</Th>
                       <Th>{t.constraint}</Th>
-                      <Th>{t.source}</Th>
                       <Th>{t.verify}</Th>
-                      <Th>{t.cases}</Th>
                       <Th>{t.result}</Th>
                     </>
                   }
@@ -78,24 +76,28 @@ function ComplianceRowView({ row }: { row: ComplianceRow }) {
   const cases = row.cases.map((c) => c.case ?? t.defaultCase).join(", ");
   return (
     <tr>
-      <Td>
+      <Td className="align-top">
         {row.verdict ? (
           <VerdictPill verdict={row.verdict} />
         ) : (
           <Pill tone="neutral">{t.notVerified}</Pill>
         )}
       </Td>
-      <Td className="max-w-[340px]">
-        <span className="block font-mono text-[12px] text-ink-3">{row.id}</span>
+      {/* 文は折り返す（表のセルは既定で折り返さないので、長い文が隣の列に重なる）。出典は ID の横に小さく添える */}
+      <Td className="w-[34%] min-w-64 whitespace-normal align-top">
+        <span className="block font-mono text-[12px] text-ink-3">
+          {row.id}
+          <span className="ml-2 text-ink-4">{row.source ?? t.noSource}</span>
+        </span>
         <span className="block">{localized(row.statement, row.statement_en)}</span>
       </Td>
-      <Td className="num whitespace-nowrap">{row.constraint.text}</Td>
-      <Td mono>{row.source ?? t.noSource}</Td>
-      <Td>
+      <Td className="num whitespace-nowrap align-top">{row.constraint.text}</Td>
+      {/* 確かめる先の下に、判定したケースを添える */}
+      <Td className="align-top">
         <VerifiedBy verify={row.verify} />
+        <span className="block whitespace-normal text-ink-3 text-xs">{cases}</span>
       </Td>
-      <Td className="text-ink-3">{cases}</Td>
-      <Td className="max-w-[360px] text-ink-2">
+      <Td className="w-[30%] min-w-56 whitespace-normal align-top text-ink-2">
         <Result row={row} />
       </Td>
     </tr>
