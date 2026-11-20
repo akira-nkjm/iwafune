@@ -144,7 +144,11 @@ function Box({
       onSelectHeading={
         assembly && node ? () => ctx.onSelect(node.id) : onFold ? () => onFold() : undefined
       }
-      actions={nestedGroup && node ? <GroupActions group={node} nodes={ctx.nodes} /> : undefined}
+      actions={
+        nestedGroup && node ? (
+          <GroupActions group={node} nodes={ctx.nodes} onFold={onFold} />
+        ) : undefined
+      }
     >
       {cards.length + folded.length > 0 && (
         <CardGrid count={cards.length + folded.length}>

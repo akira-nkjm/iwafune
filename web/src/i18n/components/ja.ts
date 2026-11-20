@@ -124,6 +124,7 @@ export const componentsJa = {
       pickKind: "種別を選ぶ",
     },
     group: {
+      foldAction: "たたむ（1 枚のカードに戻す）",
       renameAction: "グループの名前を変える",
       ungroupAction: "グループを解く（部品を親へ戻す）",
       title: "部品をグループにまとめる",

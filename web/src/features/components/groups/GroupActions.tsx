@@ -1,4 +1,4 @@
-import { FolderMinus, Pencil } from "lucide-react";
+import { ChevronsDownUp, FolderMinus, Pencil } from "lucide-react";
 import type { TreeNode } from "@/api/types";
 import { useT } from "@/i18n";
 import { DetailAction } from "@/kit/detail/DetailPane";
@@ -8,15 +8,18 @@ import { RenameDialog } from "@/ops/RenameDialog";
 import { ungroupOps, ungroupParts } from "./group-ops";
 
 /**
- * グループの枠の見出しの操作: 名前の変更（RenameGroup）と、グループを解いて部品を親へ戻す（部品ごとの MovePart）。
+ * グループの枠の見出しの操作: たたむ（1 枚のカードに戻す）、名前の変更（RenameGroup）と、グループを解いて部品を親へ戻す（部品ごとの MovePart）。
  * 解けるのは入れ子のグループで、中が部品だけのとき（`ungroupParts`）。押しても枠の外の選択解除は起きない。
  */
 export function GroupActions({
   group,
   nodes,
+  onFold,
 }: {
   group: TreeNode;
   nodes: ReadonlyMap<string, TreeNode>;
+  /** 渡すと「たたむ」のボタンを出す（開いた枠を 1 枚のカードに戻す） */
+  onFold?: () => void;
 }) {
   const tg = useT().components.group;
   const dialogs = useDialogs<"rename" | "ungroup">();
@@ -25,6 +28,7 @@ export function GroupActions({
     // biome-ignore lint/a11y/noStaticElementInteractions: 枠の外の「選択解除」へ押下を伝えないための囲み
     // biome-ignore lint/a11y/useKeyWithClickEvents: 同上（中のボタンがキーで操作できる）
     <span className="ml-auto flex gap-1" onClick={(e) => e.stopPropagation()}>
+      {onFold && <DetailAction icon={ChevronsDownUp} label={tg.foldAction} onClick={onFold} />}
       <DetailAction icon={Pencil} label={tg.renameAction} onClick={() => dialogs.show("rename")} />
       {parts && (
         <DetailAction

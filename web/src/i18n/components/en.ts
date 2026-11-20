@@ -125,6 +125,7 @@ export const componentsEn: typeof componentsJa = {
       pickKind: "Choose a kind",
     },
     group: {
+      foldAction: "Collapse into one card",
       renameAction: "Rename group",
       ungroupAction: "Ungroup (move the parts back to the parent)",
       title: "Group parts",
