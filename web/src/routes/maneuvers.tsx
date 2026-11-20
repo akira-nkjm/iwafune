@@ -1,21 +1,11 @@
-import { SkeletonPage, SkeletonPanel } from "@/kit/feedback/Loading";
-import { LazyRoute } from "@/shell/LazyRoute";
-import { loadOnNavigate } from "@/shell/lazy-page";
-import { pages } from "./pages";
+import { type LoaderFunctionArgs, redirect } from "react-router";
+import { paths } from "@/lib/nav";
 
-/** ルートを読んだ時点で本体も読み始める（描画を待たない） */
-export const clientLoader = loadOnNavigate(pages.maneuvers);
+/** 古い URL（マヌーバの独立したページ）は、推進のページのマヌーバのタブへ送る（ID があれば、その行を強調して開く） */
+export function clientLoader({ params }: LoaderFunctionArgs) {
+  return redirect(params.id ? paths.maneuver(params.id) : paths.maneuvers());
+}
 
-/** 本体のチャンクを読む間は、ページの骨組みのスケルトンを出す */
 export default function Route() {
-  return (
-    <LazyRoute
-      page={pages.maneuvers}
-      fallback={
-        <SkeletonPage>
-          <SkeletonPanel lines={5} />
-        </SkeletonPage>
-      }
-    />
-  );
+  return null;
 }

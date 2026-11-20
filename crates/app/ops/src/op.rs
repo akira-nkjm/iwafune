@@ -4,7 +4,7 @@
 
 use fune_model::design::{
     AttributeDef, Case, CatalogField, Harness, KindDef, Maneuver, Maturity, ModeSegment, ModeWhen,
-    Net, NetField, PartField, Pose, Source, StartRef,
+    Net, NetField, PartField, Pose, Requirement, Source, StartRef,
 };
 use fune_model::value::{Provenance, Quaternion, SettingValue, Value, Vector3};
 use serde::{Deserialize, Serialize};
@@ -319,6 +319,18 @@ pub enum Op {
     },
     /// マヌーバを消す（ほかのマヌーバの `after` が指していれば、消したマヌーバの `after` につなぎ直す）。
     RemoveManeuver {
+        id: String,
+    },
+    /// 要求を足す（`requirement.id` が対象。同じ ID があれば拒む）。
+    CreateRequirement {
+        requirement: Requirement,
+    },
+    /// 要求を書く（`requirement.id` が対象。無ければ作り、あれば丸ごと置き換える）。
+    SetRequirement {
+        requirement: Requirement,
+    },
+    /// 要求を消す。
+    RemoveRequirement {
         id: String,
     },
     // ---- 図の配置（見た目だけ）

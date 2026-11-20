@@ -158,7 +158,7 @@ flowchart LR
 | Project | Settings for the whole project | `fune.toml` | schema version, the TOML version to write, references to shared catalogs |
 | Allocation | Allocation | `budget/allocation.toml` | limits for mass, power and so on, system margin, allocation per subsystem (or per part) |
 | BudgetPolicy | Margin policy | `budget/policy.toml` | growth margin per maturity, default width of uncertainty, harness allowance |
-| AttributeDef | Quantity kind | `defs/attribute/<id>.toml` | value type, dimension, allowed units, display unit, value range, whether it is looked up by state, which budget it enters |
+| AttributeDef | Quantity kind | `defs/attribute/<id>.toml` | value type, dimension, allowed units, display unit, value range, whether it is looked up by state, which budget it enters, whether it is a direction (`unit_vector`: a unit vector in the part frame, drawn as an axis in 3D), and for a field-of-view half angle the direction attribute it is around (`fov_axis`, e.g. the built-in `fov_half_angle` has `fov_axis = "boresight"`; 3D draws the view cone from it). `fune attr add` takes `--unit-vector` and `--fov-axis <attribute>`; the Web does not know the attribute IDs |
 | KindDef | Part kind | `defs/kind/<id>.toml` | parent kind, required and optional attributes, vocabulary of equipment states (off / standby / on …), port templates, role |
 | CatalogItem | Definition of a purchased or designed item (ElementDefinition) | shared catalog or `catalog/[<dir>/…]<id>.toml` (§11.1) | kind, model number, maturity, tags (`tags = ["flight_proven", "domestic"]`: a free classification that is neither manufacturer nor kind; omitted when empty; `fune catalog set <item> tags a,b` / `unset`; a tag is non-empty, has no leading or trailing whitespace and no `,`, and is not duplicated within the same item), attribute values, port values, shape, the datasheet source (a source ID; §7.8) |
 | Group | Subsystem or nested folder | a directory under `parts/` that has no same-named file (the top level is usually a subsystem ID) | none (the subsystem's display name is a built-in vocabulary entry; allocations are in `budget/allocation.toml`) |
@@ -170,7 +170,7 @@ flowchart LR
 | Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only (§7.7) |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, date, author |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, document version, retrieval date, SHA-256, distribution category, date, author (§7.8) |
-| Requirement | Requirement (lightweight) | `requirements/<ID>.toml` | statement, target quantity, constraint, quantification such as "in all modes and all cases". Formal verdicts are written out to external verification tools |
+| Requirement | Requirement (lightweight, a flat list) | `requirements/<ID>.toml` | statement (Japanese and English), the dimension of the constrained quantity, constraint (direction and value), quantification (all cases / named cases), source (a source ID), and what verifies it (an analysis check or a budget). The verdict itself comes from the analysis or budget (§7.9). Formal verdicts written out to external verification tools are not decided yet |
 | Table | Tabular data | `tables/<ID>.csv` + `tables/<ID>.toml` | curves and characteristic tables. Units per column are declared on the TOML side |
 | View | Presentation-only information (outside Design) | `view/…` | coordinates of the system diagram, the 3D camera |
 
@@ -1139,6 +1139,54 @@ it is referenced by the URL in `ref`, and the SHA-256 of what was retrieved is k
   points to a `restricted` source through `source`, `datasheet` or a value's `from.source`, it is an error. Whether a catalog is writable is decided in one place,
   `CatalogSource::local_dir` (only origins of the form `path = …` are writable). Items of catalogs inside this project (`path = …`) are not covered.
 
+### 7.9 requirements/: one file per requirement, and the compliance table
+
+A requirement is a flat list (no tree, no parent and child, no allocation; the tree is out of scope of #10). The ID is the file name. A requirement says
+what it constrains, how, for which cases, where it comes from, and what verifies it. **The verdict is not decided here**: it is the verdict of the
+analysis check or the budget that the requirement points to, and the compliance table collects them.
+
+```toml
+# requirements/R_BAT_TEMP.toml
+label     = "Battery operating temperature"
+statement = "The battery shall stay above 0 degC in every analysis case."
+quantity  = "Temperature"           # the dimension of the constrained quantity (the unit of the constraint must have it)
+source    = "ds_vendor"             # a source ID (sources/). A missing source is a warning
+
+[constraint]
+kind  = "at_least"                  # at_most / at_least / equal / range
+value = { value = 0.0, unit = "degC" }
+
+[quantify]                          # for which cases it must hold. Omitted: the analysis's default case
+all_cases = true                    # every case in cases/. Or `cases = ["hot_imaging", "cold_safe"]` (not both)
+
+[verify]                            # what verifies it: an analysis check, or a budget (not both)
+analysis = "thermal.steady"
+check    = "range_low:BAT:operating"
+```
+
+- `statement_en` holds an English statement (the GUI shows it in English; `label` is an optional short name).
+- **Constraint**: `at_most` and `at_least` use `value`; `equal` uses `value` and an optional `tolerance` (`value ± tolerance`, 0 or more); `range` uses `min` and `max`
+  (`min` ≤ `max`). A field the direction does not use is an error. Every quantity must have the dimension named by `quantity` (`unit.dimension`).
+- **Quantification**: `all_cases = true` means every analysis case in `cases/`; `cases = [...]` names them (an unknown case is `ref.case`). Without either, the verifying analysis picks its own default case.
+- **What verifies it** (`[verify]`): `analysis` (an analysis ID; an unknown ID is `ref.analysis`) with an optional `check` (the key of one of that analysis's `checks`),
+  or `budget` (`mass` / `power` / `data`; its dimension must match `quantity`, `requirement.verify_dimension`). A `check` without an `analysis`, or a `budget` together with an `analysis`, is an error.
+  Without `check`, the verdict of the analysis as a whole (the worst of its checks) counts. If several checks share the key (per mode, per component), the worst one counts.
+- **Where the check keys are validated**: a check key is a string the analysis builds each run (`dod`, `margin:s_down@TOKYO_GS`, `range_low:BAT:operating`), so the set of keys cannot be known without
+  running the analysis. `fune check` therefore validates only what is static (the analysis ID against the registered analyses, the budget kind, the dimension, the references and the ID),
+  and the compliance table validates the key when it runs the analysis: a key the analysis did not produce makes the row "not verified" with the keys that were produced.
+  (`fune_model::design::ANALYSIS_IDS` mirrors the analysis registry because fune-model cannot depend on sat-analysis; a fune-projection test checks that they agree.)
+- Unlike the maneuver, there is no rename: nothing refers to a requirement by ID. Removing a source or a case that a requirement points to is refused by the edit check (`ref.source`, `ref.case`).
+- How to write: after the top-level values, `[constraint]`, `[quantify]` and `[verify]` are heading tables, and quantities inside are `{ value, unit }`
+  (`fune_store::write::records::REQUIREMENT_SECTIONS`). Edits use `fune requirement add|set|rm` (the GUI sends the same arguments to `POST /ops/from_command`).
+
+**Compliance table** (`fune requirement compliance`, `GET /requirements/compliance`, the Requirements page): for each requirement, the statement, the constraint, the source, what verifies it, the cases it was
+evaluated for, the evaluated value (a budget's total; analysis checks carry a message but no value), and the verdict. Each quantified case is judged on its own (an analysis or budget runs once per case and is reused across requirements).
+The row's verdict is the worst case, ranked **violation > not verified > warning > ok** (a requirement is not "ok" if any of its cases could not be verified). Not verified has a reason:
+`no_link` (nothing to verify it), `missing_inputs` (the analysis or budget lacks inputs, listed in `detail`), `failed`, `key_not_produced`, `unknown_target` (the analysis, budget or case does not exist).
+The counts (`summary`) and the verdicts are computed in `fune_service::requirements`; the Web only lays them out. The exit code of `fune requirement compliance` is 1 when any requirement is violated (`--deny-unverified` adds the not verified ones; warnings never fail it).
+
+Stage 1 of #10 only records the constraint next to the check; the analyses and budgets still use their own thresholds (`limit`, `min_margin`, …). Moving those onto the requirements, so that a value has one home, is the next stage.
+
 ## 8. Allocations and margin policy (budget/)
 
 Allocations are gathered in a single file rather than scattered across subsystem directories.
@@ -1471,7 +1519,7 @@ my-sat-design/
 ├── cases/<ID>.toml
 ├── maneuvers/<ID>.toml          # maneuvers (§7.7)
 ├── sources/<ID>.toml            # subdirectories allowed: sources/<dir>/<ID>.toml (§11.1)
-├── requirements/<ID>.toml
+├── requirements/<ID>.toml       # requirements (§7.9)
 ├── tables/<ID>.csv  tables/<ID>.toml
 ├── view/
 ├── results/<name>/               # only pinned analysis results
@@ -1729,4 +1777,4 @@ The implementation (fune-model / fune-store / fune-ops) follows this document, b
 | The ID comes from the file name (not written in the file) | Same. In addition, a JSON Op accepts the payload's `id`, and if the file has an `id` that differs from the file name, `id.mismatch` | So that new items can be created from the GUI and `fune apply` |
 | Attribute default values | Built-in attributes can have a `default` (for example, specific heat 900 J/(kg·K)). A value resolved from a default has origin `kind_default` and evidence `placeholder` | To show on screen that it is a provisional value |
 
-Not yet loaded: `mission/` for #9, `requirements/` and `tables/` (the directories are recognized). The `#:schema` heading line is not yet written out.
+Not yet loaded: `mission/` for #9 and `tables/` (the directories are recognized). The `#:schema` heading line is not yet written out.

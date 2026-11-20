@@ -1,0 +1,15 @@
+label     = "Battery depth of discharge"
+statement = "The battery depth of discharge shall not exceed 30 % in any analysis case."
+quantity  = "Dimensionless"
+source    = "sys_judgement"
+
+[constraint]
+kind  = "at_most"
+value = { value = 30.0, unit = "%" }
+
+[quantify]
+all_cases = true
+
+[verify]
+analysis = "power.energy_balance"
+check    = "dod"

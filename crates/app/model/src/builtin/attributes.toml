@@ -342,6 +342,7 @@ section     = "aocs"
 [fov_half_angle]
 label        = "視野の半角"
 label_en     = "FOV half angle"
+fov_axis     = "boresight"
 type         = "scalar"
 dimension    = "Angle"
 units        = ["deg", "rad"]

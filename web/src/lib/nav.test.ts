@@ -39,6 +39,17 @@ const matches = (url: string) => {
 };
 
 describe("paths", () => {
+  it("マヌーバは推進のページのタブで、設計のナビには無い", () => {
+    expect(paths.maneuvers()).toBe("/systems/propulsion/maneuvers");
+    expect(paths.maneuver("a b")).toBe("/systems/propulsion/maneuvers?maneuver=a+b");
+    expect(matches(paths.maneuvers())).toBe(true);
+    const design = nav(fixture.defs.systems).find((s) => s.id === "design")?.items ?? [];
+    expect(design.some((i) => i.to === paths.maneuvers())).toBe(false);
+    // 古い URL の道筋はルートに残る（推進のタブへ送る）
+    expect(matches("/design/maneuvers")).toBe(true);
+    expect(matches("/design/maneuvers/burn-1")).toBe(true);
+  });
+
   it("配置は設計のモードの次にあり、日英の表示名と専用ルートを持つ", () => {
     const items = nav(fixture.defs.systems).find((s) => s.id === "design")?.items ?? [];
     const modes = items.findIndex((i) => i.key === "modes");
@@ -64,6 +75,18 @@ describe("paths", () => {
     expect(project.map((i) => i.key)).toEqual(["diagnostics", "settings", "defs", "sources"]);
     expect(paths.defs()).toBe("/project/defs");
     expect(matches(paths.defs("attributes"))).toBe(true);
+  });
+
+  it("要求は設計の下のページで、適合表が既定のタブ", () => {
+    expect(paths.requirements()).toBe("/design/requirements");
+    expect(paths.requirements("list")).toBe("/design/requirements/list");
+    expect(matches(paths.requirements())).toBe(true);
+    expect(matches(paths.requirements("list"))).toBe(true);
+    const design = nav(fixture.defs.systems).find((s) => s.id === "design")?.items ?? [];
+    const item = design.find((i) => i.key === "requirements");
+    expect(item?.to).toBe(paths.requirements());
+    expect(item && navItemTitle(item, ja)).toBe("要求");
+    expect(item && navItemTitle(item, en)).toBe("Requirements");
   });
 
   it("出典の台帳はプロジェクトの下のページ", () => {

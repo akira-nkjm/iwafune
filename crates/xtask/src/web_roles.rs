@@ -18,14 +18,14 @@ fn is_ident(c: char) -> bool {
 }
 
 /// 式の終わり（左側）の識別子。`part.role` なら `role`、`x?.Role` なら `Role`。
-fn trailing_ident(s: &str) -> &str {
+pub(crate) fn trailing_ident(s: &str) -> &str {
     let s = s.trim_end();
     let start = s.rfind(|c: char| !is_ident(c)).map_or(0, |i| i + 1);
     &s[start..]
 }
 
 /// 式の始まり（右側）の `a.b?.c` の最後の識別子。
-fn last_segment(s: &str) -> &str {
+pub(crate) fn last_segment(s: &str) -> &str {
     let s = s.trim_start();
     let end = s
         .find(|c: char| !(is_ident(c) || matches!(c, '.' | '?')))
@@ -37,16 +37,16 @@ fn is_role_name(ident: &str) -> bool {
     ident.to_ascii_lowercase().ends_with("role")
 }
 
-fn starts_with_quote(s: &str) -> bool {
+pub(crate) fn starts_with_quote(s: &str) -> bool {
     s.trim_start().starts_with(['"', '\'', '`'])
 }
 
-fn ends_with_quote(s: &str) -> bool {
+pub(crate) fn ends_with_quote(s: &str) -> bool {
     s.trim_end().ends_with(['"', '\'', '`'])
 }
 
 /// 比較演算子（`===`・`!==`・`==`・`!=`）の位置と長さ。
-fn comparisons(line: &str) -> Vec<(usize, usize)> {
+pub(crate) fn comparisons(line: &str) -> Vec<(usize, usize)> {
     let mut out: Vec<(usize, usize)> = Vec::new();
     for (i, _) in line.char_indices() {
         let rest = &line[i..];

@@ -9,6 +9,7 @@ import type { ModeTable } from "./ModeTable";
 import type { NetView } from "./NetView";
 import type { PartRow } from "./PartRow";
 import type { ProjectInfo } from "./ProjectInfo";
+import type { RequirementView } from "./RequirementView";
 import type { SettingView } from "./SettingView";
 import type { SourceView } from "./SourceView";
 import type { TreeNode } from "./TreeNode";
@@ -26,6 +27,10 @@ tree: Array<TreeNode>, parts: Array<PartRow>, modes: ModeTable, nets: Array<NetV
  * マヌーバ（実行の順）
  */
 maneuvers: Array<ManeuverView>, 
+/**
+ * 要求（`requirements/<ID>.toml`。ID 順）
+ */
+requirements: Array<RequirementView>, 
 /**
  * 出典の台帳（`sources/<ID>.toml`。ID 順）
  */

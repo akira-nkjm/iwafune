@@ -1,0 +1,11 @@
+label     = "Total mass"
+statement = "The satellite total mass shall not exceed 12 kg."
+quantity  = "Mass"
+source    = "lv_icd"
+
+[constraint]
+kind  = "at_most"
+value = { value = 12.0, unit = "kg" }
+
+[verify]
+budget = "mass"

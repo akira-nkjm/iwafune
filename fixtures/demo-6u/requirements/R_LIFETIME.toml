@@ -1,0 +1,12 @@
+label     = "Orbital lifetime"
+statement = "The orbital lifetime after the end of the mission shall not exceed 25 years."
+quantity  = "Time"
+source    = "sys_judgement"
+
+[constraint]
+kind  = "at_most"
+value = { value = 25.0, unit = "yr" }
+
+[verify]
+analysis = "orbit.decay"
+check    = "max_lifetime"

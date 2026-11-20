@@ -72,6 +72,10 @@ pub enum CommandText {
     ManeuverAdd(super::ManeuverText),
     /// `fune maneuver set <ID> …`（無ければ作り、あれば丸ごと置き換える）
     ManeuverSet(super::ManeuverText),
+    /// `fune requirement add <ID> --statement … --quantity Mass --kind at_most --value "12 kg" …`（同じ ID があれば拒む）
+    RequirementAdd(super::RequirementText),
+    /// `fune requirement set <ID> …`（無ければ作り、あれば丸ごと置き換える）
+    RequirementSet(super::RequirementText),
     /// `fune catalog source add <名前> --git <URL> [--rev <rev>]`（fune.toml に共有カタログを足す。取得はしない）
     CatalogSourceAdd(CatalogSourceAddText),
 }
@@ -197,6 +201,8 @@ pub struct AttrAddText {
     pub budget: Option<String>,
     /// 方向ベクトル（単位ベクトルであるべきもの）
     pub unit_vector: bool,
+    /// 視野の半角のとき、どの方向の属性のまわりの視野か
+    pub fov_axis: Option<String>,
     /// 画面で並べる系（`basic`・`mass`・`power`・…）
     pub section: Option<String>,
 }

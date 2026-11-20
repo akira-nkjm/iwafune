@@ -1,7 +1,7 @@
 //! `fune maneuver add|set` に打った引数 → `CreateManeuver`・`SetManeuver`（`POST /ops/from_command` の `maneuver_add`・
 //! `maneuver_set`）。**マヌーバの旗の読み方はここだけ**（逆の向き = 編集の欄の初期値は `query::maneuvers::maneuver_text`）。
 
-use super::text::{fraction_from_text, given, invalid, quantity_from_text};
+use super::text::{bool_from_text as flag, fraction_from_text, given, invalid, quantity_from_text};
 use crate::dto::ManeuverText;
 use crate::error::Result;
 use fune_model::design::{Maneuver, ManeuverConstraints, ManeuverTarget};
@@ -20,17 +20,6 @@ pub fn maneuver_op(t: &ManeuverText, create: bool) -> Result<Op> {
 
 fn quantity(text: &Option<String>) -> Result<Option<Quantity>> {
     given(text).map(quantity_from_text).transpose()
-}
-
-/// 真偽の打った文字列（`true` / `false`）。
-fn flag(text: &Option<String>) -> Result<Option<bool>> {
-    given(text)
-        .map(|t| match t.trim() {
-            "true" => Ok(true),
-            "false" => Ok(false),
-            other => Err(invalid(format!("must be true or false ({other})"))),
-        })
-        .transpose()
 }
 
 fn maneuver_of(t: &ManeuverText) -> Result<Maneuver> {

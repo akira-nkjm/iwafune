@@ -1,5 +1,6 @@
 //! `fune analyze`・`fune budget`
 
+use super::common::verdict_cell;
 use crate::args::AnalyzeArgs;
 use crate::output::{C, Out};
 use fune_service::dto::{
@@ -190,15 +191,6 @@ pub(super) fn kind_text(kind: AnalysisKind) -> &'static str {
     match kind {
         AnalysisKind::Steady => "steady",
         AnalysisKind::TimeSeries => "time series",
-    }
-}
-
-/// 判定の印のセル（KPI・バジェット）。
-pub(super) fn verdict_cell(v: Verdict) -> C {
-    match v {
-        Verdict::Ok => C::Verdict("✔".into(), true),
-        Verdict::Warning => C::Text("⚠".into()),
-        Verdict::Violation => C::Verdict("✖".into(), false),
     }
 }
 

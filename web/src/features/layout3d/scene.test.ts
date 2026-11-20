@@ -1,6 +1,6 @@
 import { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import type { PartRow } from "@/api/types";
+import type { AttributeDefView, PartRow } from "@/api/types";
 import { systemTone } from "@/lib/systems";
 import { toneHex } from "@/lib/tone";
 import { bodyAt, fixture, mountAt } from "@/test/fixture";
@@ -11,6 +11,7 @@ import {
   boxMaterial,
   DEFAULT_STRUCTURE_OPACITY,
   DIMMED_OPACITY_RATIO,
+  directionAttrs,
   FOV_DRAW_MAX,
   fovsOf,
   hasSize,
@@ -59,6 +60,73 @@ describe("方向ベクトルの矢印", () => {
     expect(a?.dir[0]).toBeCloseTo(0);
     expect(a?.dir[1]).toBeCloseTo(0);
     expect(a?.dir[2]).toBeCloseTo(1);
+  });
+});
+
+describe("方向と視野の属性は API の定義で決まる", () => {
+  const vec = (attr: string, si: [number, number, number]) => ({
+    ...(base.values.mass as PartRow["values"][string]),
+    attr,
+    value: { type: "vector" as const, x: si[0], y: si[1], z: si[2], unit: "", si, frame: null },
+  });
+  const scalarAngle = (attr: string, rad: number) => ({
+    ...(base.values.mass as PartRow["values"][string]),
+    attr,
+    value: {
+      type: "scalar" as const,
+      nominal: { value: rad, unit: "rad", si: rad, dimension: "Angle", display: "" },
+      min: null,
+      max: null,
+    },
+  });
+  const def = (id: string, extra: Partial<AttributeDefView>): AttributeDefView => ({
+    ...(fixture.defs.attributes[0] as AttributeDefView),
+    id,
+    builtin: false,
+    unit_vector: false,
+    fov_axis: null,
+    ...extra,
+  });
+  const onBody = (values: PartRow["values"]): PartRow => ({
+    ...base,
+    mount: mountAt("body"),
+    body: bodyAt([0, 0, 0], [1, 0, 0, 0]),
+    values,
+  });
+
+  it("独自の方向の属性も、組み込みのあとに並べて矢印にする（ID は固定で持たない）", () => {
+    const defs = {
+      ...fixture.defs,
+      attributes: [def("zz_custom", { unit_vector: true }), ...fixture.defs.attributes],
+    };
+    expect(directionAttrs(defs)).toEqual([
+      "axis",
+      "boresight",
+      "direction",
+      "normal",
+      "spin_axis",
+      "zz_custom",
+    ]);
+    const p = onBody({ zz_custom: vec("zz_custom", [0, 3, 0]), mass: base.values.mass as never });
+    const [a] = axesOf({ ...fixture, defs, parts: [p] });
+    expect(a).toMatchObject({ attr: "zz_custom", order: 5, part: p.id, dir: [0, 1, 0] });
+  });
+
+  it("方向の印が無い属性は、ベクトルでも描かない", () => {
+    const p = onBody({ foo: vec("foo", [1, 0, 0]) });
+    expect(axesOf({ ...fixture, parts: [p] })).toEqual([]);
+  });
+
+  it("視野の対応は定義の fov_axis で決まる（独自の対応も描く）", () => {
+    const defs = {
+      ...fixture.defs,
+      attributes: [def("my_axis", { unit_vector: true }), def("my_fov", { fov_axis: "my_axis" })],
+    };
+    const p = onBody({ my_axis: vec("my_axis", [1, 0, 0]), my_fov: scalarAngle("my_fov", 0.2) });
+    expect(fovsOf({ ...fixture, defs, parts: [p] })).toEqual([
+      { part: p.id, dir: [1, 0, 0], halfAngle: 0.2 },
+    ]);
+    expect(fovsOf({ ...fixture, parts: [p] })).toEqual([]);
   });
 });
 
@@ -142,10 +210,10 @@ describe("構造の透過表示", () => {
   const mount: NonNullable<PartRow["mount"]> = mountAt("");
   const body: PartRow["body"] = bodyAt([0, 0, 0], [1, 0, 0, 0]);
 
-  it("名前・親によらず API の system が構造の部品だけを透過対象にする", () => {
+  it("名前・親・系によらず API の `structural` が構造の部品だけを透過対象にする", () => {
     const parts: PartRow[] = [
-      { ...base, id: "internal", system: "structure", parent: "power", mount, body },
-      { ...base, id: "PANEL_FRAME", system: "power", parent: "structure", mount, body },
+      { ...base, id: "internal", structural: true, parent: "power", mount, body },
+      { ...base, id: "PANEL_FRAME", structural: false, parent: "structure", mount, body },
     ];
     const { boxes } = boxesOf({ ...fixture, parts });
     expect(boxes.map((b) => b.structure)).toEqual([true, false]);
@@ -154,7 +222,7 @@ describe("構造の透過表示", () => {
   });
 
   it("不透明度を連続して変えても透過モードは一定で、選択中は常に不透明", () => {
-    const box = boxesOf({ ...fixture, parts: [{ ...base, system: "structure", mount, body }] })
+    const box = boxesOf({ ...fixture, parts: [{ ...base, structural: true, mount, body }] })
       .boxes[0]!;
     for (const opacity of [0, 0.15, 0.3, 0.75, 1]) {
       expect(boxMaterial(box, false, opacity)).toMatchObject({

@@ -206,7 +206,8 @@ function Layout3DFrame({
           <Switch value={showAxes} onChange={setShowAxes}>
             {L.axes}
           </Switch>
-          {fill && <HelperToggles value={helpers} onChange={setHelpers} />}
+          {/* 視野・原点の軸・格子・隅の軸の出し入れは、配置でも熱画像でも使える */}
+          <HelperToggles value={helpers} onChange={setHelpers} />
           {fill && (
             <label
               htmlFor={opacityId}

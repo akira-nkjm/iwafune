@@ -16,3 +16,21 @@ pub fn mode_systems() -> Vec<System> {
         })
         .collect()
 }
+
+/// モードの表の部品ごとの列の出し方。設計のモードのページ（`system` が null）と電源は状態ごとの電力、ほかの系は状態の名前。
+/// 列の見出しと行の文字をどちらにするかの正本はここだけ（Web は系の名前で決めない）。
+pub fn mode_levels() -> Vec<crate::dto::ModeLevelsView> {
+    use crate::dto::{ModeLevels, ModeLevelsView};
+    let of = |system: Option<System>| ModeLevelsView {
+        system,
+        levels: if matches!(system, None | Some(System::Power)) {
+            ModeLevels::PowerLevels
+        } else {
+            ModeLevels::States
+        },
+    };
+    std::iter::once(None)
+        .chain(mode_systems().into_iter().map(Some))
+        .map(of)
+        .collect()
+}

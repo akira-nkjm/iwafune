@@ -65,6 +65,7 @@ export const systemsJa = {
       analyses: "解析結果",
       settings: "設定",
       series: "時系列",
+      maneuvers: "マヌーバ",
     },
     specs: {
       aocs: {

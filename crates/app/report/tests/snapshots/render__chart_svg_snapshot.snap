@@ -1,0 +1,82 @@
+---
+source: crates/app/report/tests/render.rs
+expression: render(&chart())
+---
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 550" width="640" height="550" font-family="Noto Sans JP, Noto Sans, DejaVu Sans, Arial, sans-serif" font-size="11" fill="#111111">
+<rect width="640" height="550" fill="#FFFFFF"/>
+<clipPath id="c0"><rect x="66" y="10" width="560" height="220"/></clipPath>
+<rect x="136" y="10" width="70" height="220" fill="#E6E6E6"/>
+<rect x="416" y="10" width="105" height="220" fill="#E6E6E6"/>
+<line x1="66" y1="230" x2="626" y2="230" stroke="#DDDDDD" stroke-width="0.5"/>
+<text x="61" y="234" text-anchor="end">0</text>
+<line x1="66" y1="186" x2="626" y2="186" stroke="#DDDDDD" stroke-width="0.5"/>
+<text x="61" y="190" text-anchor="end">10</text>
+<line x1="66" y1="142" x2="626" y2="142" stroke="#DDDDDD" stroke-width="0.5"/>
+<text x="61" y="146" text-anchor="end">20</text>
+<line x1="66" y1="98" x2="626" y2="98" stroke="#DDDDDD" stroke-width="0.5"/>
+<text x="61" y="102" text-anchor="end">30</text>
+<line x1="66" y1="54" x2="626" y2="54" stroke="#DDDDDD" stroke-width="0.5"/>
+<text x="61" y="58" text-anchor="end">40</text>
+<line x1="66" y1="10" x2="626" y2="10" stroke="#DDDDDD" stroke-width="0.5"/>
+<text x="61" y="14" text-anchor="end">50</text>
+<line x1="66" y1="230" x2="66" y2="234" stroke="#333333" stroke-width="0.8"/>
+<line x1="136" y1="230" x2="136" y2="234" stroke="#333333" stroke-width="0.8"/>
+<line x1="206" y1="230" x2="206" y2="234" stroke="#333333" stroke-width="0.8"/>
+<line x1="276" y1="230" x2="276" y2="234" stroke="#333333" stroke-width="0.8"/>
+<line x1="346" y1="230" x2="346" y2="234" stroke="#333333" stroke-width="0.8"/>
+<line x1="416" y1="230" x2="416" y2="234" stroke="#333333" stroke-width="0.8"/>
+<line x1="486" y1="230" x2="486" y2="234" stroke="#333333" stroke-width="0.8"/>
+<line x1="556" y1="230" x2="556" y2="234" stroke="#333333" stroke-width="0.8"/>
+<line x1="626" y1="230" x2="626" y2="234" stroke="#333333" stroke-width="0.8"/>
+<line x1="66" y1="230" x2="626" y2="230" stroke="#444444" stroke-width="1" stroke-dasharray="5 3"/>
+<line x1="66" y1="32" x2="626" y2="32" stroke="#444444" stroke-width="1" stroke-dasharray="5 3"/>
+<polyline clip-path="url(#c0)" fill="none" stroke="#0072B2" stroke-width="1.2" points="66,186 136,158.43 206,151.72 276,170.96 346,201.58 416,220.41 486,213.2 556,185.41 626,158.06"/>
+<polyline clip-path="url(#c0)" fill="none" stroke="#D55E00" stroke-width="1.2" points="66,120 136,128.8 206,137.6 276,146.4 346,155.2 416,164 486,172.8 556,181.6 626,190.4"/>
+<rect x="66" y="10" width="560" height="220" fill="none" stroke="#333333" stroke-width="0.8"/>
+<text transform="rotate(-90 13 120)" x="13" y="120" text-anchor="middle">Temperature [°C]</text>
+<clipPath id="c1"><rect x="66" y="252" width="560" height="220"/></clipPath>
+<rect x="136" y="252" width="70" height="220" fill="#E6E6E6"/>
+<rect x="416" y="252" width="105" height="220" fill="#E6E6E6"/>
+<line x1="66" y1="472" x2="626" y2="472" stroke="#DDDDDD" stroke-width="0.5"/>
+<text x="61" y="476" text-anchor="end">92</text>
+<line x1="66" y1="417" x2="626" y2="417" stroke="#DDDDDD" stroke-width="0.5"/>
+<text x="61" y="421" text-anchor="end">94</text>
+<line x1="66" y1="362" x2="626" y2="362" stroke="#DDDDDD" stroke-width="0.5"/>
+<text x="61" y="366" text-anchor="end">96</text>
+<line x1="66" y1="307" x2="626" y2="307" stroke="#DDDDDD" stroke-width="0.5"/>
+<text x="61" y="311" text-anchor="end">98</text>
+<line x1="66" y1="252" x2="626" y2="252" stroke="#DDDDDD" stroke-width="0.5"/>
+<text x="61" y="256" text-anchor="end">100</text>
+<line x1="66" y1="472" x2="66" y2="476" stroke="#333333" stroke-width="0.8"/>
+<text x="66" y="488" text-anchor="middle">0</text>
+<line x1="136" y1="472" x2="136" y2="476" stroke="#333333" stroke-width="0.8"/>
+<text x="136" y="488" text-anchor="middle">1</text>
+<line x1="206" y1="472" x2="206" y2="476" stroke="#333333" stroke-width="0.8"/>
+<text x="206" y="488" text-anchor="middle">2</text>
+<line x1="276" y1="472" x2="276" y2="476" stroke="#333333" stroke-width="0.8"/>
+<text x="276" y="488" text-anchor="middle">3</text>
+<line x1="346" y1="472" x2="346" y2="476" stroke="#333333" stroke-width="0.8"/>
+<text x="346" y="488" text-anchor="middle">4</text>
+<line x1="416" y1="472" x2="416" y2="476" stroke="#333333" stroke-width="0.8"/>
+<text x="416" y="488" text-anchor="middle">5</text>
+<line x1="486" y1="472" x2="486" y2="476" stroke="#333333" stroke-width="0.8"/>
+<text x="486" y="488" text-anchor="middle">6</text>
+<line x1="556" y1="472" x2="556" y2="476" stroke="#333333" stroke-width="0.8"/>
+<text x="556" y="488" text-anchor="middle">7</text>
+<line x1="626" y1="472" x2="626" y2="476" stroke="#333333" stroke-width="0.8"/>
+<text x="626" y="488" text-anchor="middle">8</text>
+<polyline clip-path="url(#c1)" fill="none" stroke="#009E73" stroke-width="1.2" points="66,252 136,279.5 206,307 276,334.5 346,362 416,389.5 486,417 556,444.5 626,472"/>
+<rect x="66" y="252" width="560" height="220" fill="none" stroke="#333333" stroke-width="0.8"/>
+<text transform="rotate(-90 13 362)" x="13" y="362" text-anchor="middle">State of charge [%]</text>
+<text x="346" y="506" text-anchor="middle">Elapsed time [h]</text>
+<line x1="66" y1="524" x2="88" y2="524" stroke="#0072B2" stroke-width="1.6"/>
+<text x="94" y="528">BAT</text>
+<line x1="126.48" y1="524" x2="148.48" y2="524" stroke="#D55E00" stroke-width="1.6"/>
+<text x="154.48" y="528">CAM</text>
+<line x1="186.96" y1="524" x2="208.96" y2="524" stroke="#444444" stroke-width="1" stroke-dasharray="5 3"/>
+<text x="214.96" y="528">Allowable range (operating): BAT [0 – 45 °C]</text>
+<line x1="509.68" y1="524" x2="531.68" y2="524" stroke="#009E73" stroke-width="1.6"/>
+<text x="537.68" y="528">SOC</text>
+<rect x="66" y="535.5" width="22" height="9" fill="#E6E6E6" stroke="#333333" stroke-width="0.5"/>
+<text x="94" y="544">Eclipse</text>
+</svg>

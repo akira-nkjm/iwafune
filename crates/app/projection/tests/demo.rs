@@ -104,6 +104,23 @@ fn share_tolerance_matches_between_check_and_analysis() {
     );
 }
 
+/// 要求の「確かめる解析」の検査（fune-model の `ANALYSIS_IDS`）は、解析の登録（sat-analysis の `catalog`）と同じ集合にする。
+/// fune-model は sat-analysis に依存できないので、両方が見えるここで一致を確かめる。
+#[test]
+fn requirement_analysis_ids_match_the_analysis_catalog() {
+    let mut registered: Vec<String> = sat_analysis::catalog::catalog()
+        .into_iter()
+        .map(|i| i.id)
+        .collect();
+    let mut known: Vec<String> = fune_model::design::ANALYSIS_IDS
+        .iter()
+        .map(|s| (*s).to_owned())
+        .collect();
+    registered.sort();
+    known.sort();
+    assert_eq!(known, registered);
+}
+
 /// 員数を変更しても単体レートは変えず、count だけを解析へ渡す。
 #[test]
 fn cdh_projects_per_unit_rates_and_normalizes_counts() {

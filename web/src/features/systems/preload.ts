@@ -12,10 +12,14 @@ export const EXTRA_CHUNKS = {
   thermal: [loadLayout3D],
 } as const satisfies Partial<Record<System, readonly (() => Promise<unknown>)[]>>;
 
-/** 追加の表示を持つ系が、共通のタブのほかに出すタブ（熱の熱画像と、解析のカードを並べる解析結果）。系のページのタブの出し分けはこれで決める */
+/**
+ * 系が、共通のタブのほかに出すタブ（熱の熱画像と、解析のカードを並べる解析結果。推進のマヌーバの定義）。
+ * 系のページのタブの出し分けはこれで決める。大きなチャンクを使わないタブだけの系（推進）も書ける。
+ */
 export const EXTRA_TABS = {
   thermal: ["heat", "analyses"],
-} as const satisfies Record<keyof typeof EXTRA_CHUNKS, readonly SystemTab[]>;
+  propulsion: ["maneuvers"],
+} as const satisfies Partial<Record<System, readonly SystemTab[]>>;
 
 /** 追加の表示を持つ系 */
 export type ExtraSystem = keyof typeof EXTRA_CHUNKS;
@@ -35,5 +39,8 @@ export function preloadSystem(system: System): Promise<unknown>[] {
 
 /** その系にその追加のタブ（`EXTRA_TABS`）があるか */
 export function hasExtraTab(system: System, tab: SystemTab): boolean {
-  return hasExtras(system) && (EXTRA_TABS[system] as readonly SystemTab[]).includes(tab);
+  const tabs: readonly SystemTab[] | undefined = (
+    EXTRA_TABS as Partial<Record<System, readonly SystemTab[]>>
+  )[system];
+  return tabs?.includes(tab) ?? false;
 }

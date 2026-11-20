@@ -310,4 +310,14 @@ fn overview_footers_are_kpis_of_some_analysis() {
         (0..u32::try_from(headlines.len()).unwrap()).collect::<Vec<_>>()
     );
     assert_eq!(overview(KpiKey::OrbitBalance).unwrap().order, 0);
+    // 電力のバジェットを添えるのは電力収支のカードだけ
+    let budgets: Vec<_> = catalog
+        .iter()
+        .flat_map(|e| e.kpis.iter())
+        .filter_map(|k| Some((k.key, k.overview.as_ref()?.budget?)))
+        .collect();
+    assert_eq!(
+        budgets,
+        [(KpiKey::OrbitBalance, fune_model::design::BudgetKind::Power)]
+    );
 }

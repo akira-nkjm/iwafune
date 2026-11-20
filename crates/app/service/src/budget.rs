@@ -42,6 +42,40 @@ pub fn parse_kind(text: &str) -> Result<BudgetKind> {
         })
 }
 
+/// 質量の部品 1 行（報告書の質量表。値は `Counted` の 1 個あたりの質量・員数・成長余裕と、割り当てた配分の行）。
+#[derive(Debug, Clone)]
+pub(crate) struct PartLine {
+    pub part: String,
+    /// 配分の行（`BudgetRow.node` と同じ。どれにも属さなければ None）
+    pub row: Option<String>,
+    pub value: f64,
+    pub count: u32,
+    pub growth: f64,
+}
+
+/// 質量の部品の行と、集計（`budget_rollup`）の合計。入力が足りなければ空（`budget` の `missing` が理由を持つ）。
+pub(crate) fn mass_part_lines(s: &Snapshot) -> Result<(Vec<PartLine>, f64)> {
+    let ctx = match Context::new(&s.design, &s.resolved, None) {
+        Ok(ctx) => ctx,
+        Err(_) => return Ok((Vec::new(), 0.0)),
+    };
+    let items = mass_items(s, &ctx);
+    let alloc = s.design.budget.allocation.get(BudgetKind::Mass);
+    let (limit, margin) = allocated(&s.design, BudgetKind::Mass);
+    let total = rollup(&items, limit, margin)?.total;
+    let lines = items
+        .iter()
+        .map(|i| PartLine {
+            part: i.id.clone(),
+            row: row_of(&s.design, alloc, &i.id),
+            value: i.value,
+            count: i.count,
+            growth: i.growth,
+        })
+        .collect();
+    Ok((lines, total))
+}
+
 /// 数えた結果（配分の行に割り当てる前）。
 struct Counted {
     items: Vec<BudgetItem>,

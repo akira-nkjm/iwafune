@@ -64,6 +64,9 @@ pub struct AttrAddArgs {
     /// Direction vector (should be a unit vector)
     #[arg(long)]
     pub unit_vector: bool,
+    /// For the half angle of a field of view: the direction attribute it is around (for example boresight)
+    #[arg(long)]
+    pub fov_axis: Option<String>,
     /// Subsystem it is listed under on screen (basic, mass, aocs, cdh, comm, payload, power, propulsion, structure, thermal)
     #[arg(long)]
     pub section: Option<String>,

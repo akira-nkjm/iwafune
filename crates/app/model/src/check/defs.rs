@@ -37,6 +37,12 @@ pub fn attribute_def_problems(def: &AttributeDef) -> Vec<(&'static str, String)>
             "Per-state values are only allowed for scalars".to_string(),
         ));
     }
+    if def.fov_axis.is_some() && def.value_type != ValueType::Scalar {
+        out.push((
+            "def.fov_axis",
+            "A field-of-view axis can only be given to a scalar (the half angle)".to_string(),
+        ));
+    }
     match &def.dimension {
         Some(dim) => {
             if parse_dimension_name(dim).is_err() {
@@ -118,6 +124,21 @@ pub(super) fn check_defs(ctx: &mut Ctx) {
         }
         for (code, message) in attribute_def_problems(def) {
             ctx.error(code, &entity, &[], target(), message);
+        }
+        if let Some(axis) = &def.fov_axis
+            && !design
+                .attribute(axis.as_str())
+                .is_some_and(|a| a.unit_vector)
+        {
+            ctx.error(
+                "ref.attribute",
+                &entity,
+                &["fov_axis"],
+                target(),
+                format!(
+                    "Field-of-view axis `{axis}` is not a defined direction (unit vector) attribute"
+                ),
+            );
         }
     }
     for kind in design.kinds.values() {
@@ -225,6 +246,31 @@ mod tests {
         let mut def = builtin::attributes()["heat_fraction"].clone();
         def.id = Id::new(id);
         def
+    }
+
+    /// 視野の軸は、定義済みの方向（単位ベクトル）の属性でなければ error。スカラー以外に付けても error。
+    #[test]
+    fn fov_axis_must_point_at_a_direction_attribute() {
+        let codes = |design: &Design| -> Vec<String> {
+            crate::check::check(design)
+                .into_iter()
+                .filter(|d| d.code.starts_with("ref.attribute") || d.code == "def.fov_axis")
+                .map(|d| d.code.to_string())
+                .collect()
+        };
+        let mut design = Design::default();
+        let mut ok = def("half_view");
+        ok.fov_axis = Some(Id::new("boresight"));
+        design.attributes.insert(Id::new("half_view"), ok);
+        assert!(codes(&design).is_empty());
+        let mut bad = def("half_view2");
+        bad.fov_axis = Some(Id::new("mass"));
+        design.attributes.insert(Id::new("half_view2"), bad);
+        assert_eq!(codes(&design), ["ref.attribute"]);
+        let mut vec = def("half_view3");
+        vec.value_type = ValueType::Vec3;
+        vec.fov_axis = Some(Id::new("boresight"));
+        assert_eq!(attribute_def_problems(&vec)[0].0, "def.fov_axis");
     }
 
     /// 部品・カタログ品のフィールド名と同じ属性 ID は error（対象は属性定義）。大文字小文字を変えても同じ。

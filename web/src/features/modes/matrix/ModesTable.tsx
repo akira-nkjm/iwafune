@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import type { ModeHeader, System, SystemModesView } from "@/api/types";
+import type { ModeHeader, ModeLevels, System, SystemModesView } from "@/api/types";
 import { useT } from "@/i18n";
 import { SystemDot } from "@/kit/SystemDot";
 import { cn } from "@/lib/cn";
@@ -24,6 +24,7 @@ export function ModesTable({
   groups,
   view,
   system,
+  levels,
   eclipse,
   onCell,
 }: {
@@ -32,6 +33,8 @@ export function ModesTable({
   eclipse: boolean;
   view: DraftComputed<SystemModesView | null>;
   system?: System;
+  /** 部品ごとの列に出すもの（`modeLevels`。API が決める） */
+  levels: ModeLevels;
   /** サブシステムごとの部品の行（`matrixGroups`） */
   groups: MatrixGroup[];
   /** セルを書き換えたとき（下書きにする） */
@@ -46,7 +49,7 @@ export function ModesTable({
             {tm.part}
           </th>
           <th scope="col" className={`${STICKY.head} min-w-36 px-3 py-3 text-right font-medium`}>
-            {!system || system === "power" ? tm.powerLevels : tm.states}
+            {levels === "power_levels" ? tm.powerLevels : tm.states}
           </th>
           {modes.map((m, index) => (
             <th
