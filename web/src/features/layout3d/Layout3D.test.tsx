@@ -36,12 +36,21 @@ describe("Layout3D", () => {
     expect(render({ variant: "placement", design: fixture, com: null })).not.toContain(L.com);
   });
 
-  it("熱の温度の色は、熱の見出しと凡例を出し、動かす操作は出さない", () => {
+  it("熱の温度の色は、凡例の注記と渡した操作・一覧を出し、動かす操作と配置の欄は出さない", () => {
     const t = getT().systems;
-    const html = render({ variant: "heat", design: fixture, colorOf: () => "#000000" });
-    expect(html).toContain(t.thermal3d);
-    expect(html).toContain("h-[460px]");
+    const html = render({
+      variant: "heat",
+      design: fixture,
+      colorOf: () => "#000000",
+      tools: <span>出どころの選択</span>,
+      overlay: <span>色の凡例</span>,
+      aside: <span>節点の一覧</span>,
+    });
+    // 3D を大きく見せるため、高さは画面に合わせる
+    expect(html).toContain("h-[calc(100dvh-15rem)]");
     expect(html).toContain(t.thermal3dLegend);
+    for (const text of ["出どころの選択", "色の凡例", "節点の一覧"]) expect(html).toContain(text);
+    expect(html).not.toContain(L.hint);
     expect(html).not.toContain(`aria-label="${L.operation}"`);
     expect(html).not.toContain(`aria-label="${L.snap}"`);
     expect(html).not.toContain(L.com);

@@ -9,6 +9,7 @@ import { useT } from "@/i18n";
 import { analysisTitle } from "@/i18n/analysis-names";
 import { Empty } from "@/kit/feedback/Empty";
 import { Loading, SkeletonBlock } from "@/kit/feedback/Loading";
+import { Settled } from "@/kit/feedback/Settled";
 import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { TablePanel } from "@/kit/table/TablePanel";
@@ -17,6 +18,7 @@ import { AocsModes } from "./aocs/AocsModes";
 import { PowerModes } from "./power/PowerModes";
 import { PowerOverview } from "./power/PowerOverview";
 import { PowerSeries } from "./power/PowerSeries";
+import { hasExtraTab } from "./preload";
 import { SystemOverview } from "./SystemOverview";
 
 /** グラフ（recharts）は時系列のタブを開いたときだけ読む。系のページの最初のチャンクを小さくするため */
@@ -24,11 +26,11 @@ const SeriesChart = lazy(() =>
   import("@/analysis/SeriesChart").then((m) => ({ default: m.SeriesChart })),
 );
 
-export type SystemTab = "results" | "modes" | "settings" | "series";
+export type SystemTab = "results" | "modes" | "heat" | "analyses" | "settings" | "series";
 
 /**
- * 系のページのタブの中身（結果・モード・設定・時系列）。extra は系ごとの追加の表示（熱の温度表と 3D）。
- * 結果のタブは、熱だけ解析のカードの並びで、ほかの系は解析の表（電源は `PowerOverview`、ほかは `SystemOverview`）。
+ * 系のページのタブの中身（結果・モード・熱画像・設定・時系列）。extra は系ごとの追加の表示（熱の温度範囲の図と熱画像）。
+ * 結果のタブは、熱は温度範囲の図だけ（解析のカードは解析結果のタブ）で、ほかの系は解析の表（電源は `PowerOverview`、ほかは `SystemOverview`）。
  */
 export function SystemTabs({
   tab,
@@ -66,19 +68,32 @@ export function SystemTabs({
         <SystemModes key={system} design={design} system={system} />
       )
     ) : null;
+  // 追加の表示（熱の図と熱画像）は、解析の結果と数字の表示がすべてそろってから一度に出す
+  const settled = (node: ReactNode) => (
+    <Settled
+      pending={states.some((s) => s.loading)}
+      label={dict.common.working.computing(systemTitle(system, design?.defs))}
+    >
+      {node}
+    </Settled>
+  );
+  if (tab === "heat") return settled(extra?.heat);
+  // 解析のカードの並び（判定・値・表）。このタブを持つ系（熱）は、概要には図だけを出す
+  if (tab === "analyses")
+    return (
+      <div className="grid gap-4 xl:grid-cols-2">
+        {states.map((s) => (
+          <AnalysisCard key={s.id} state={s} entry={entries.get(s.id)} design={design} />
+        ))}
+      </div>
+    );
   if (tab === "results")
     return (
       <>
         {noAnalyses && <Empty>{dict.systems.noAnalyses}</Empty>}
-        {extra?.results}
-        {system === "thermal" ? (
-          // 熱は節点温度の表・3D（`extra`）と解析のカードのまま
-          <div className="grid gap-4 xl:grid-cols-2">
-            {states.map((s) => (
-              <AnalysisCard key={s.id} state={s} entry={entries.get(s.id)} design={design} />
-            ))}
-          </div>
-        ) : (
+        {extra?.results && settled(extra.results)}
+        {/* 解析結果のタブを持つ系（熱）の概要は図（`extra`）だけ。ほかの系は解析の表 */}
+        {!hasExtraTab(system, "analyses") && (
           <SystemOverview states={states} entries={entries} design={design} />
         )}
       </>
@@ -141,6 +156,15 @@ export function SystemTabs({
       {extra?.series}
     </>
   );
+}
+
+/**
+ * そのタブの中身が、ページの本文の高さいっぱいを使って自分の中でスクロールするか（部品 × モードの表）。
+ * 表の見出しの行・左の列・下の合計を止めたままにするには、ページの本文ではなく表の中でスクロールさせる必要がある。
+ * 独自のモードの見方を持つ系（AOCS のカード、電源の表）は、ふつうにページの本文がスクロールする。
+ */
+export function tabFillsBody(system: System, tab: SystemTab, defs: DefsView | undefined): boolean {
+  return tab === "modes" && hasModes(system, defs) && system !== "aocs" && system !== "power";
 }
 
 /** モードの見方を持つ系だけにタブを出す。どの系が持つかは API（`DefsView.mode_systems`）が返す。 */

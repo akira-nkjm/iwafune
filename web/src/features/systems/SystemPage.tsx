@@ -12,14 +12,16 @@ import { paths, SEARCH } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { systemExtras } from "./extras";
+import { hasExtraTab } from "./preload";
 import { SystemHeaderActions } from "./SystemHeaderActions";
-import { hasModes, type SystemTab, SystemTabs } from "./SystemTabs";
+import { hasModes, type SystemTab, SystemTabs, tabFillsBody } from "./SystemTabs";
 
-const TABS: SystemTab[] = ["results", "modes", "series", "settings"];
+const TABS: SystemTab[] = ["results", "heat", "analyses", "modes", "series", "settings"];
 
-/** 系にそのタブがあるか（モードの見方は持つ系だけ） */
+/** 系にそのタブがあるか（モードの見方は持つ系だけ、熱画像・解析結果のような追加のタブは `preload.ts` の `EXTRA_TABS` の系だけ） */
 function shows(system: System, tab: SystemTab, defs: DefsView | undefined): boolean {
   if (tab === "modes") return hasModes(system, defs);
+  if (tab === "heat" || tab === "analyses") return hasExtraTab(system, tab);
   return true;
 }
 
@@ -106,7 +108,7 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
       noAnalyses={!catalog.loading && catalog.entries.length === 0}
       states={states}
       entries={entries}
-      extra={systemExtras(system, d, states)}
+      extra={systemExtras(system, d, states, kase)}
     />
   );
   return (
@@ -133,7 +135,14 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
           label: t.systems.tabs[k],
         }))}
       />
-      <PageBody>
+      {/* 部品 × モードの表は、本文の高さいっぱいを使い、表の中でスクロールする（見出しと合計の行を止めたままにする） */}
+      <PageBody
+        className={
+          tabFillsBody(system, tab, design.data?.defs)
+            ? "flex flex-col overflow-hidden p-0"
+            : undefined
+        }
+      >
         <QueryState query={design} skeleton={<SystemBodySkeleton />}>
           {(d) =>
             system === "power" ? (
