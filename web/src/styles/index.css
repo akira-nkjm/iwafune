@@ -220,3 +220,24 @@
     transform: translateX(100%);
   }
 }
+
+/* 待ちを示すロゴ（kit/feedback/MarkLoader.tsx）。3 つの面が順に明るくなる（周期 1.5 秒、面ごとに 0.5 秒ずらす）。
+   動きを減らす設定では止めて、すべて明るいままにする */
+@keyframes mark-glow {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  30%,
+  60% {
+    opacity: 1;
+  }
+}
+
+@utility mark-glow {
+  animation: mark-glow 1.5s ease-in-out infinite;
+  animation-delay: calc(var(--mark-i, 0) * 0.5s);
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}

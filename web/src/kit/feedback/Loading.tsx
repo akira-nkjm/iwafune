@@ -3,6 +3,7 @@ import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { Skeleton } from "@/ui/skeleton";
 import { Panel } from "../panel/Panel";
+import { Working, WorkingChip } from "./Working";
 
 /** スケルトンの行の幅（決まった順に繰り返す。毎回同じ形になり、行ごとに長さが違って見える） */
 const WIDTHS = ["w-3/4", "w-1/2", "w-5/6", "w-2/3", "w-2/5", "w-4/5"] as const;
@@ -33,21 +34,28 @@ export function Loading({ children, className }: { children: ReactNode; classNam
 /**
  * 前の中身を出したまま読み直しているときの、上端の細い帯（動き続ける）。親は `relative` にする。
  * `Loading` と同じく少し待ってから現れ、画面読み上げには「読み込み中…」を伝える。
+ * `label`（していることの短い文。翻訳済み）を渡すと、1 秒以上かかるときだけ、右上にロゴと経過秒のチップも出す。
+ * ふつうは `Refreshable`（中身を薄くする枠）を使う。
  */
-export function Refreshing({ className }: { className?: string }) {
+export function Refreshing({ className, label }: { className?: string; label?: string }) {
   const t = useT();
   return (
-    <div
-      role="status"
-      aria-busy="true"
-      className={cn(
-        "loading-appear pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-accent-tint",
-        className,
+    <>
+      <div
+        role="status"
+        aria-busy="true"
+        className={cn(
+          "loading-appear pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-accent-tint",
+          className,
+        )}
+      >
+        <span className="sr-only">{t.common.loading}</span>
+        <div aria-hidden="true" className="refresh-bar h-full w-1/3 rounded-full bg-accent" />
+      </div>
+      {label && (
+        <WorkingChip label={label} className="pointer-events-none absolute top-2 right-2 z-10" />
       )}
-    >
-      <span className="sr-only">{t.common.loading}</span>
-      <div aria-hidden="true" className="refresh-bar h-full w-1/3 rounded-full bg-accent" />
-    </div>
+    </>
   );
 }
 
@@ -188,8 +196,11 @@ export function SkeletonPage({
   );
 }
 
-/** 図（システム図のキャンバス） */
-export function SkeletonCanvas() {
+/**
+ * 図（システム図のキャンバス）。`label`（していること。翻訳済み）を渡すと、1 秒以上待つときだけ中央に
+ * ロゴのマークと経過秒を重ねる（位置の計算など、中身がまだ出せない長い待ち）。
+ */
+export function SkeletonCanvas({ label }: { label?: string }) {
   return (
     <div className="relative min-h-[420px] flex-1 border-line border-t bg-panel-2/40">
       {[
@@ -201,6 +212,7 @@ export function SkeletonCanvas() {
       ].map((pos) => (
         <Skeleton key={pos} className={cn("absolute h-24 w-44 rounded-card", pos)} />
       ))}
+      {label && <Working label={label} announce={false} className="absolute inset-0" />}
     </div>
   );
 }

@@ -215,3 +215,29 @@ fn roles_and_off_state_have_one_home() {
         .is_none()
     );
 }
+
+/// 待ちを示す動くロゴ（`MarkLoader`・`mark-glow`）は kit/feedback の部品だけが使い、画面は `Working` などを通す。
+#[test]
+fn animated_logo_comes_from_kit_feedback() {
+    let mut errors = Vec::new();
+    for needle in ["MarkLoader", "mark-glow"] {
+        let rule = WEB_RULES.iter().find(|r| r.0 == needle).unwrap();
+        let line = format!("<{needle} size={{44}} />");
+        check_rule("web/src/kit/feedback/Working.tsx", &line, rule, &mut errors);
+        assert!(errors.is_empty());
+        check_rule(
+            "web/src/features/diagram/DiagramPage.tsx",
+            &line,
+            rule,
+            &mut errors,
+        );
+        check_rule(
+            "web/src/shell/brand/BrandMark.tsx",
+            &line,
+            rule,
+            &mut errors,
+        );
+        assert_eq!(errors.len(), 2);
+        errors.clear();
+    }
+}
