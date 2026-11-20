@@ -14,7 +14,7 @@ import { PageHeader } from "@/shell/PageHeader";
 import { systemExtras } from "./extras";
 import { hasExtraTab } from "./preload";
 import { SystemHeaderActions } from "./SystemHeaderActions";
-import { hasModes, type SystemTab, SystemTabs } from "./SystemTabs";
+import { hasModes, type SystemTab, SystemTabs, tabFillsBody } from "./SystemTabs";
 
 const TABS: SystemTab[] = ["results", "heat", "analyses", "modes", "series", "settings"];
 
@@ -135,7 +135,14 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
           label: t.systems.tabs[k],
         }))}
       />
-      <PageBody>
+      {/* 部品 × モードの表は、本文の高さいっぱいを使い、表の中でスクロールする（見出しと合計の行を止めたままにする） */}
+      <PageBody
+        className={
+          tabFillsBody(system, tab, design.data?.defs)
+            ? "flex flex-col overflow-hidden p-0"
+            : undefined
+        }
+      >
         <QueryState query={design} skeleton={<SystemBodySkeleton />}>
           {(d) =>
             system === "power" ? (
