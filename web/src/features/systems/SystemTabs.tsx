@@ -24,10 +24,10 @@ const SeriesChart = lazy(() =>
   import("@/analysis/SeriesChart").then((m) => ({ default: m.SeriesChart })),
 );
 
-export type SystemTab = "results" | "modes" | "settings" | "series";
+export type SystemTab = "results" | "modes" | "heat" | "settings" | "series";
 
 /**
- * 系のページのタブの中身（結果・モード・設定・時系列）。extra は系ごとの追加の表示（熱の温度表と 3D）。
+ * 系のページのタブの中身（結果・モード・熱画像・設定・時系列）。extra は系ごとの追加の表示（熱の温度範囲の図と熱画像）。
  * 結果のタブは、熱だけ解析のカードの並びで、ほかの系は解析の表（電源は `PowerOverview`、ほかは `SystemOverview`）。
  */
 export function SystemTabs({
@@ -63,13 +63,14 @@ export function SystemTabs({
         <SystemModes key={system} design={design} system={system} />
       )
     ) : null;
+  if (tab === "heat") return <>{extra?.heat}</>;
   if (tab === "results")
     return (
       <>
         {noAnalyses && <Empty>{dict.systems.noAnalyses}</Empty>}
         {extra?.results}
         {system === "thermal" ? (
-          // 熱は節点温度の表・3D（`extra`）と解析のカードのまま
+          // 熱は温度範囲の図（`extra`）と解析のカードのまま
           <div className="grid gap-4 xl:grid-cols-2">
             {states.map((s) => (
               <AnalysisCard key={s.id} state={s} entry={entries.get(s.id)} design={design} />

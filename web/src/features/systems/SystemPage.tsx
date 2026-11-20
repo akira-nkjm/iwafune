@@ -12,14 +12,16 @@ import { paths, SEARCH } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { systemExtras } from "./extras";
+import { hasExtraTab } from "./preload";
 import { SystemHeaderActions } from "./SystemHeaderActions";
 import { hasModes, type SystemTab, SystemTabs } from "./SystemTabs";
 
-const TABS: SystemTab[] = ["results", "modes", "series", "settings"];
+const TABS: SystemTab[] = ["results", "modes", "heat", "series", "settings"];
 
-/** 系にそのタブがあるか（モードの見方は持つ系だけ） */
+/** 系にそのタブがあるか（モードの見方は持つ系だけ、熱画像のような追加のタブは `preload.ts` の `EXTRA_TABS` の系だけ） */
 function shows(system: System, tab: SystemTab, defs: DefsView | undefined): boolean {
   if (tab === "modes") return hasModes(system, defs);
+  if (tab === "heat") return hasExtraTab(system, tab);
   return true;
 }
 
@@ -106,7 +108,7 @@ function SystemView({ system, design }: { system: System; design: DesignQuery })
       noAnalyses={!catalog.loading && catalog.entries.length === 0}
       states={states}
       entries={entries}
-      extra={systemExtras(system, d, states)}
+      extra={systemExtras(system, d, states, kase)}
     />
   );
   return (
