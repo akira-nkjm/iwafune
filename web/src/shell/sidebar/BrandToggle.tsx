@@ -35,7 +35,7 @@ export function BrandToggle({ rail, onToggle }: { rail: boolean; onToggle: () =>
   return (
     // マークの左端は、開いていても畳んでも、サイドバーの端から 16 px（サイドバーの余白 8 px + この行の 8 px）。
     // どちらの値も開閉で変えないので、ロゴは動かない
-    <div className="flex h-10 shrink-0 items-center gap-2 pl-2">
+    <div className="flex h-10 shrink-0 items-center gap-4 pl-2">
       {rail ? (
         <Tip label={t.shell.openSidebar}>
           <button

@@ -16,7 +16,7 @@ import {
 } from "@/ui/command";
 import { Kbd } from "@/ui/kbd";
 import { RailTip } from "./RailTip";
-import { railFade } from "./sidebar-motion";
+import { railFade, railItem } from "./sidebar-motion";
 
 /** ⌘K / Ctrl+K: ページ・部品・ネット・モードへ飛ぶ */
 export function CommandSearch({ rail = false }: { rail?: boolean }) {
@@ -47,7 +47,11 @@ export function CommandSearch({ rail = false }: { rail?: boolean }) {
           type="button"
           onClick={() => setOpen(true)}
           aria-label={rail ? t.shell.searchKey : undefined}
-          className="mb-3 flex h-8 w-full items-center gap-4 overflow-hidden rounded-control border border-line bg-panel px-[7px] text-[12.5px] text-ink-3 hover:text-ink"
+          className={cn(
+            "mb-3 flex h-8 items-center gap-6 overflow-hidden rounded-control border border-line bg-panel text-[12.5px] text-ink-3 hover:text-ink",
+            rail ? "w-8" : "w-full",
+            railItem(rail, true),
+          )}
         >
           <Search size={16} className="shrink-0" />
           <span className={railFade(rail)}>{t.shell.search}</span>

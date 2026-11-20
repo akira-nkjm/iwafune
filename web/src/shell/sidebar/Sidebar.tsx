@@ -16,8 +16,8 @@ import { SIDEBAR_ID } from "./sidebar-state";
 /**
  * 左のサイドバー。開いているときはロゴ・プロジェクト・検索・区分付きのナビ・CommitChip。
  * 畳む（⌘/Ctrl+B かロゴのボタン）とアイコンのレールになり、メインのパネルが広がる。
- * 並びを揃える: アイコンの左（サイドバーの端からアイコンまで）と右（アイコンから名前まで）の空きは、どちらも 16 px。
- * アイコンは幅 16 px の枠の中央に置く（行の左端から 8 px。名前は行の左端から 40 px）。
+ * 並びを揃える: アイコンは幅 16 px の枠の中央に置き、枠の左（サイドバーの端から）と右（名前まで）の空きは、どちらも 24 px
+ * （名前は端から 64 px。ロゴの名前の字も同じ位置から始まる）。畳むと、行は 32 px 四方の枠になる（`railItem`）。
  * 畳むと、どの項目も 32 px 四方の枠になる。
  * 開閉は幅だけを動かし、アイコンの位置はどちらでも同じにして、名前は薄く消す（中身を差し替えないので跳ねない）。
  */
@@ -37,8 +37,8 @@ export function Sidebar() {
         SIDEBAR_MOTION,
         "transition-[width]",
         // 畳んだ幅は 64 px: ロゴ（32 px）とアイコンの正方形の枠（32 px）の左右に 16 px ずつ。
-        // サイドバーの余白（8 px）は開閉で変えない。ロゴの行はいつも同じ位置（端から 16 px）で、
-        // ロゴより下だけを、畳んだときに 8 px 内側へ寄せる（下の `rail ? "px-2"`）
+        // サイドバーの余白（8 px）は開閉で変えない。ロゴもアイコンも、開いていても畳んでも同じ位置に置く
+        // （ロゴは端から 16〜48 px、アイコンは 24〜40 px。どちらも中心は 32 px で、畳んだ幅の中央）
         rail ? "w-16" : "w-sidebar",
       )}
     >
@@ -59,13 +59,7 @@ export function Sidebar() {
           </div>
         </div>
       </div>
-      <div
-        className={cn(
-          "flex min-h-0 flex-1 flex-col transition-[padding]",
-          SIDEBAR_MOTION,
-          rail ? "px-2" : "px-0",
-        )}
-      >
+      <div className={cn("flex min-h-0 flex-1 flex-col")}>
         <CommandSearch rail={rail} />
         <nav
           aria-label={t.nav.main}
