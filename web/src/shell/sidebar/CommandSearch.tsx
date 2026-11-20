@@ -47,7 +47,7 @@ export function CommandSearch({ rail = false }: { rail?: boolean }) {
           type="button"
           onClick={() => setOpen(true)}
           aria-label={rail ? t.shell.searchKey : undefined}
-          className="mb-3 flex h-8 w-full items-center gap-2 overflow-hidden rounded-control border border-line bg-panel px-[7px] text-[12.5px] text-ink-3 hover:text-ink"
+          className="mb-3 flex h-8 w-full items-center gap-4 overflow-hidden rounded-control border border-line bg-panel px-[7px] text-[12.5px] text-ink-3 hover:text-ink"
         >
           <Search size={16} className="shrink-0" />
           <span className={railFade(rail)}>{t.shell.search}</span>

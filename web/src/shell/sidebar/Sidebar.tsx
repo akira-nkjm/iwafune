@@ -16,7 +16,8 @@ import { SIDEBAR_ID } from "./sidebar-state";
 /**
  * 左のサイドバー。開いているときはロゴ・プロジェクト・検索・区分付きのナビ・CommitChip。
  * 畳む（⌘/Ctrl+B かロゴのボタン）とアイコンのレールになり、メインのパネルが広がる。
- * 並びは 32 px の枠で揃える: アイコンは左端から 8 px、アイコンと名前の間も 8 px（名前は 32 px から始まる）。
+ * 並びを揃える: アイコンの左（サイドバーの端からアイコンまで）と右（アイコンから名前まで）の空きは、どちらも 16 px。
+ * アイコンは幅 16 px の枠の中央に置く（行の左端から 8 px。名前は行の左端から 40 px）。
  * 畳むと、どの項目も 32 px 四方の枠になる。
  * 開閉は幅だけを動かし、アイコンの位置はどちらでも同じにして、名前は薄く消す（中身を差し替えないので跳ねない）。
  */
@@ -32,11 +33,11 @@ export function Sidebar() {
     <aside
       id={SIDEBAR_ID}
       className={cn(
-        "flex h-dvh shrink-0 flex-col overflow-hidden px-3 py-4",
+        "flex h-dvh shrink-0 flex-col overflow-hidden px-2 py-4",
         SIDEBAR_MOTION,
         "transition-[width]",
-        // 畳んだ幅は、左右の余白 12 px と、アイコンの正方形の枠 32 px
-        rail ? "w-14" : "w-sidebar",
+        // 畳んだ幅は、左右の余白 8 px と、アイコンの正方形の枠 32 px
+        rail ? "w-12" : "w-sidebar",
       )}
     >
       <BrandToggle rail={rail} onToggle={toggle} />

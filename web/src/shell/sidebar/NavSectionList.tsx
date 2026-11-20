@@ -48,7 +48,7 @@ export function NavSectionList({
             aria-hidden={rail}
             className={cn(
               // 矢印（12 px）はアイコンの列（幅 16 px）の中央に置き、見出しの字は項目の名前と同じ位置から始める
-              "flex h-6 w-full items-center gap-[10px] overflow-hidden rounded-[6px] pr-1.5 pl-[10px] font-semibold text-[10.5px] text-ink-4 tracking-[0.08em] hover:text-ink-2",
+              "flex h-6 w-full items-center gap-[18px] overflow-hidden rounded-[6px] pr-1.5 pl-[10px] font-semibold text-[10.5px] text-ink-4 tracking-[0.08em] hover:text-ink-2",
               railFade(rail),
             )}
           >
@@ -93,7 +93,7 @@ export function NavSectionList({
                       matchPath({ path: it.to, end: it.to === paths.overview() }, goingTo) !== null
                     }
                     className={cn(
-                      "flex h-8 items-center gap-2 overflow-hidden rounded-control px-2 text-[13px] text-ink-2 transition-colors hover:bg-panel/70 hover:text-ink",
+                      "flex h-8 items-center gap-4 overflow-hidden rounded-control px-2 text-[13px] text-ink-2 transition-colors hover:bg-panel/70 hover:text-ink",
                       // 選択中は青の濃いめの地（accent-ink。白い字とのコントラスト 4.5:1 以上）に白い字。ホバーしても色は変えない
                       "data-[current=true]:bg-accent-ink data-[current=true]:font-medium data-[current=true]:text-inverse data-[current=true]:shadow-panel data-[current=true]:hover:bg-accent-ink data-[current=true]:hover:text-inverse",
                     )}
