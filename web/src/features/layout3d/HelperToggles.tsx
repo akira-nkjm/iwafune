@@ -2,7 +2,7 @@ import { useT } from "@/i18n";
 import { Toggle } from "@/kit/selection/Toggle";
 import { SCENE_HELPERS, type SceneHelpers } from "./visibility";
 
-/** 座標の表示（原点の軸・地面の格子・画面隅の軸）を 1 つずつ出し入れするボタンの組（配置のページの操作の帯） */
+/** 視野と座標の表示（原点の軸・地面の格子・画面隅の軸）を 1 つずつ出し入れするボタンの組（3D の操作の帯。配置でも熱画像でも出す） */
 export function HelperToggles({
   value,
   onChange,
