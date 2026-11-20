@@ -40,8 +40,8 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
       </Link>
     );
   return (
-    <div className="space-y-2 px-1">
-      <div className="flex items-center gap-3 px-3 text-[11.5px] text-ink-3">
+    <div className="space-y-2 px-2">
+      <div className="flex items-center gap-3 px-2 text-[11.5px] text-ink-3">
         <IconSlot>
           <GitBranch size={13} />
         </IconSlot>
@@ -57,7 +57,7 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
       ) : (
         <Link
           to={paths.diagnostics()}
-          className="flex items-center gap-2 rounded-chip py-0.5 pr-1 pl-10 text-[11.5px] hover:bg-panel"
+          className="flex items-center gap-2 rounded-chip py-0.5 pr-1 pl-9 text-[11.5px] hover:bg-panel"
         >
           <span className={errors > 0 ? "text-neg-ink" : "text-ink-3"}>
             {t.shell.errors(errors)}
@@ -71,7 +71,7 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex w-full items-center gap-3 rounded-chip px-3 py-0.5 text-[11.5px] text-ink-3 hover:bg-panel"
+            className="flex w-full items-center gap-3 rounded-chip px-2 py-0.5 text-[11.5px] text-ink-3 hover:bg-panel"
           >
             <IconSlot>
               <History size={13} />

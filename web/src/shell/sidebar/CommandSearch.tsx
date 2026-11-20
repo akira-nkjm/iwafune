@@ -49,7 +49,6 @@ export function CommandSearch({ rail = false }: { rail?: boolean }) {
           aria-label={rail ? t.shell.searchKey : undefined}
           className={cn(
             "mb-3 flex h-8 items-center gap-3 overflow-hidden rounded-control border border-line bg-panel text-[12.5px] text-ink-3 hover:text-ink",
-            "w-full",
             railItem(true),
           )}
         >
