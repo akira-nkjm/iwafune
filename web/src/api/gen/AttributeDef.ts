@@ -55,6 +55,11 @@ default?: number | null,
  */
 unit_vector?: boolean, 
 /**
+ * 視野の半角を表す属性（スカラーの角度）が、どの方向の属性（`unit_vector`）のまわりの視野かを指す（例: `boresight`）。
+ * 3D はこの対応から視野の円錐を描く（Web は属性の ID を知らない）
+ */
+fov_axis?: string | null, 
+/**
  * 画面で並べる系（`basic`・`mass`・`aocs`・`cdh`・`comm`・`payload`・`power`・`propulsion`・`structure`・`thermal`）
  */
 section?: string | null, };

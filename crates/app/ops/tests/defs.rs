@@ -28,6 +28,7 @@ fn attr_def(id: &str, dimension: &str, units: &[&str]) -> AttributeDef {
         budget: None,
         default: None,
         unit_vector: false,
+        fov_axis: None,
         section: Some("aocs".into()),
     }
 }

@@ -23,7 +23,7 @@ pub(in super::super) fn def_ops() -> Vec<Op> {
     let mut full: AttributeDef = serde_json::from_value(json!({ "label": "Interface temperature label", "label_en": "Interface temperature",
         "description": "Interface temperature (\"estimated\")", "type": "scalar", "by_state": false, "dimension": "Temperature",
         "units": ["degC", "K"], "display_unit": "degC", "min": -40.5, "max": 358.15, "default": 293.15,
-        "budget": "power", "unit_vector": true, "section": "thermal" })).unwrap();
+        "budget": "power", "unit_vector": true, "fov_axis": "boresight", "section": "thermal" })).unwrap();
     full.id = "if_temp".into();
     let mut sym: AttributeDef = serde_json::from_value(json!({ "label": "Finish", "type": "enum",
         "symbols": ["black", "white", "mli"], "min": -1.0 }))

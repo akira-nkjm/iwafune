@@ -98,6 +98,10 @@ pub struct AttributeDef {
     /// 方向ベクトル（単位ベクトルであるべきもの）
     #[serde(default, skip_serializing_if = "is_false")]
     pub unit_vector: bool,
+    /// 視野の半角を表す属性（スカラーの角度）が、どの方向の属性（`unit_vector`）のまわりの視野かを指す（例: `boresight`）。
+    /// 3D はこの対応から視野の円錐を描く（Web は属性の ID を知らない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fov_axis: Option<Id<AttributeDef>>,
     /// 画面で並べる系（`basic`・`mass`・`aocs`・`cdh`・`comm`・`payload`・`power`・`propulsion`・`structure`・`thermal`）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub section: Option<String>,

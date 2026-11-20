@@ -40,6 +40,10 @@ kind: string | null, role: Role | null,
  */
 maneuver_thruster: boolean, 
 /**
+ * 構造の部品か（系が構造のもの。3D で外板として薄く描くのに使う。判定は `query::parts::part_row` だけ）
+ */
+structural: boolean, 
+/**
  * この部品を対象にした診断の件数（`DiagnosticView.part` が部品 ID のもの）
  */
 diagnostics: DiagnosticCounts, 

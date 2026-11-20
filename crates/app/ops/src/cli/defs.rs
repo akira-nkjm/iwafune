@@ -6,7 +6,7 @@
 //! | `type` / `by_state` | `--type <scalar…>` / `--by-state` |
 //! | `dimension` / `units` / `display_unit` | `--dimension` / `--units a,b` / `--display-unit` |
 //! | `min` / `max` / `default`（SI の数値） | `--min` / `--max` / `--default` |
-//! | `symbols` / `budget` / `unit_vector` / `section` | `--symbols a,b` / `--budget mass` / `--unit-vector` / `--section` |
+//! | `symbols` / `budget` / `unit_vector` / `fov_axis` / `section` | `--symbols a,b` / `--budget mass` / `--unit-vector` / `--fov-axis <属性>` / `--section` |
 //! | KindDef `label` / `label_en` / `description` / `extends` / `role` | `--label` / `--label-en` / `--description` / `--extends` / `--role` |
 //! | `states` / `required` / `optional` | `--states off,on` / `--required a,b` / `--optional c,d` |
 //! | `ports`（ポート名 → ネットの種類） | `--port PWR=power --port DATA=data`（繰り返し。ポート名の順） |
@@ -39,6 +39,7 @@ pub(super) fn attr_cmd(verb: &str, def: &AttributeDef) -> String {
         .flag("symbols", list(&def.symbols).as_deref())
         .flag("budget", def.budget.map(|b| b.as_str()))
         .switch("unit-vector", def.unit_vector)
+        .flag("fov-axis", def.fov_axis.as_ref().map(|a| a.as_str()))
         .flag("section", def.section.as_deref())
         .done()
 }
@@ -82,11 +83,12 @@ mod tests {
         def.symbols = vec!["a".into(), "b".into()];
         def.budget = Some(BudgetKind::Power);
         def.unit_vector = true;
+        def.fov_axis = Some("boresight".into());
         assert_eq!(
             attr_cmd("add", &def),
             "fune attr add power --label 消費電力 --label-en \"Power consumption\" --description 消費電力 \
              --type scalar --by-state --dimension Power --units W,mW --display-unit W --min=-40 --max 1000 \
-             --default 0.5 --symbols a,b --budget power --unit-vector --section power"
+             --default 0.5 --symbols a,b --budget power --unit-vector --fov-axis boresight --section power"
                 .replace("消費電力", "\"消費電力\"")
         );
     }

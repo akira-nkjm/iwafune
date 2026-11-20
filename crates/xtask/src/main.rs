@@ -14,6 +14,7 @@
 //! - Web のページ: ページの URL を `lib/nav.ts` の外で組み立てていないか、`features/` に shell などから依存していないか
 //!   （[`web_pages`]）
 //! - Web の役割名の比較: 部品の役割を文字列と比べて決めていないか（[`web_roles`]）
+//! - Web の系の名前の比較: 系を表す識別子を文字列と比べて決めていないか（[`web_systems`]）
 
 mod english_text;
 mod file_names;
@@ -25,6 +26,7 @@ mod web_colors;
 mod web_pages;
 mod web_roles;
 mod web_strings;
+mod web_systems;
 
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
@@ -110,6 +112,7 @@ fn check() -> Result<()> {
     web_colors::check(&meta.workspace_root, &files, &mut errors);
     web_pages::check(&meta.workspace_root, &files, &mut errors);
     web_roles::check(&meta.workspace_root, &files, &mut errors);
+    web_systems::check(&meta.workspace_root, &files, &mut errors);
     module_cycles::check(&meta.workspace_root, &mut errors)?;
     warn_long_files(&meta.workspace_root)?;
     if errors.is_empty() {

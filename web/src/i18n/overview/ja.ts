@@ -9,7 +9,6 @@ export const overviewJa = {
     massDryWet: (dry: string, wet: string) => `乾燥 ${dry} · 推薬込み ${wet}`,
     massBudget: "質量のバジェット",
     limit: (v: string) => `上限 ${v}`,
-    powerBalance: "電力収支（軌道平均・最悪）",
     consumption: (v: string) => `消費 ${v}`,
     generationLimit: (v: string) => `発電見込み ${v}`,
     allInRange: "すべて範囲内",

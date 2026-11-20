@@ -26,13 +26,17 @@ import {
 } from "./scene";
 import { DEFAULT_SCENE_HELPERS, type FocusRequest, type SceneHelpers } from "./visibility";
 
-const AXIS_COLOR: Record<Axis3D["attr"], string> = {
-  spin_axis: toneHex.blue,
-  axis: toneHex.teal,
-  normal: toneHex.gold,
-  boresight: toneHex.red,
-  direction: toneHex.navy,
-};
+/** 方向の属性の矢印の色（`Axis3D.order` 番目。属性の ID は見ない。足りなければ繰り返す） */
+const AXIS_PALETTE = [
+  toneHex.teal,
+  toneHex.red,
+  toneHex.navy,
+  toneHex.gold,
+  toneHex.blue,
+  toneHex.violet,
+  toneHex.green,
+  toneHex.orange,
+] as const;
 
 /** 押してから離すまでにこれより動いたらドラッグ（視点の操作）とみなし、クリックにしない [px] */
 const CLICK_SLOP_PX = 4;
@@ -177,7 +181,7 @@ export function Scene3D({
                       new Vector3(...a.dir),
                       new Vector3(),
                       dimensions.arrow,
-                      new Color(AXIS_COLOR[a.attr]),
+                      new Color(AXIS_PALETTE[a.order % AXIS_PALETTE.length]),
                       dimensions.arrowHead,
                       dimensions.arrowWidth,
                     )

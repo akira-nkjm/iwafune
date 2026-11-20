@@ -213,6 +213,8 @@ export type * from "./ModeCell";
 export type * from "./ModeCellText";
 export type * from "./ModeDef";
 export type * from "./ModeHeader";
+export type * from "./ModeLevels";
+export type * from "./ModeLevelsView";
 export type * from "./ModeLoadGroup";
 export type * from "./ModeLoadInput";
 export type * from "./ModeLoadMissing";

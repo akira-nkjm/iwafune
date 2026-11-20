@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { analysisOutput } from "@/api/analysis-output";
 import type { AnalysisState } from "@/api/queries";
 import type { AnalysisOutputs, DesignView, System } from "@/api/types";
-import { hasExtras } from "./preload";
+import { type ExtraSystem, hasExtras } from "./preload";
 import type { SystemTab } from "./SystemTabs";
 import { rangeChartOf } from "./thermal/rangeChart";
 import { ThermalImage } from "./thermal/ThermalImage";
@@ -19,20 +19,14 @@ function outputOf<K extends keyof AnalysisOutputs>(
   return analysisOutput(states.find((s) => s.id === id)?.result, id);
 }
 
-/**
- * 系ごとの追加の表示（熱: 結果のタブの温度範囲の図と、熱画像のタブの温度で塗った 3D）。大きなチャンクは `preload.ts` の
- * `EXTRA_CHUNKS`（ナビの先読みと共通）、追加のタブは `EXTRA_TABS`。下の分岐はその系をちょうど覆う（型で確かめる）。
- * `kase` はページの上で選んだケース（図で強調する）。
- */
-export function systemExtras(
-  system: System,
-  design: DesignView | undefined,
-  states: readonly AnalysisState[],
-  kase: string | null = null,
-): Partial<Record<SystemTab, ReactNode>> {
-  if (!design) return {};
-  if (!hasExtras(system)) return {};
-  if (system === "thermal") {
+type Extras = Partial<Record<SystemTab, ReactNode>>;
+
+/** 追加の表示の作り方。`EXTRA_CHUNKS` の系をちょうど覆う（`Record<ExtraSystem, …>` の型で確かめる） */
+const EXTRAS: Record<
+  ExtraSystem,
+  (design: DesignView, states: readonly AnalysisState[], kase: string | null) => Extras
+> = {
+  thermal: (design, states, kase) => {
     const steady = outputOf(states, "thermal.steady");
     const transient = outputOf(states, "thermal.transient");
     const model = rangeChartOf(steady, transient);
@@ -47,7 +41,20 @@ export function systemExtras(
         />
       ),
     };
-  }
-  // 上の分岐が EXTRA_CHUNKS の系をすべて覆っていなければ、ここで型が合わない
-  return system satisfies never;
+  },
+};
+
+/**
+ * 系ごとの追加の表示（熱: 結果のタブの温度範囲の図と、熱画像のタブの温度で塗った 3D）。大きなチャンクは `preload.ts` の
+ * `EXTRA_CHUNKS`（ナビの先読みと共通）、追加のタブは `EXTRA_TABS`、作り方は上の `EXTRAS`（系の名前で比べずに表で引く）。
+ * `kase` はページの上で選んだケース（図で強調する）。
+ */
+export function systemExtras(
+  system: System,
+  design: DesignView | undefined,
+  states: readonly AnalysisState[],
+  kase: string | null = null,
+): Extras {
+  if (!design || !hasExtras(system)) return {};
+  return EXTRAS[system](design, states, kase);
 }

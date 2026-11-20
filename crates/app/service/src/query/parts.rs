@@ -46,6 +46,7 @@ pub(crate) fn part_row(
         kind: rp.kind.clone(),
         role: rp.role,
         maneuver_thruster: part.is_some_and(|p| design.is_maneuver_thruster(p)),
+        structural: rp.system == Some(fune_model::design::AnalysisSystem::Structure),
         diagnostics: part_diagnostics(diagnostics, &rp.id),
         unset_count: unset_count(rp),
         catalog: rp.catalog.clone(),

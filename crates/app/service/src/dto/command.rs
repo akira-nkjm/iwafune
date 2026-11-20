@@ -201,6 +201,8 @@ pub struct AttrAddText {
     pub budget: Option<String>,
     /// 方向ベクトル（単位ベクトルであるべきもの）
     pub unit_vector: bool,
+    /// 視野の半角のとき、どの方向の属性のまわりの視野か
+    pub fov_axis: Option<String>,
     /// 画面で並べる系（`basic`・`mass`・`power`・…）
     pub section: Option<String>,
 }

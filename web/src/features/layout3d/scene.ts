@@ -1,5 +1,5 @@
 import { Box3, Quaternion, Vector3 } from "three";
-import type { DesignView, PartRow } from "@/api/types";
+import type { DefsView, DesignView, PartRow } from "@/api/types";
 import { systemTone } from "@/lib/systems";
 import { toneHex } from "@/lib/tone";
 
@@ -16,18 +16,27 @@ export interface Box3D {
   size: V3;
   color: string;
   sized: boolean;
-  /** API が返した系で構造を判別する（名前や ID から推測しない）。 */
+  /** API が構造の部品と返したもの（`PartRow.structural`。名前や ID から推測しない）。 */
   structure: boolean;
   /** 取付の根（機体座標の原点。3D で掴んで動かさない） */
   fixed: boolean;
 }
 
-/** 部品座標の方向ベクトルを持つ属性（RW のスピン軸・MTQ の軸・パネルの法線・センサの視線・推力の向き） */
-export const AXIS_ATTRS = ["spin_axis", "axis", "normal", "boresight", "direction"] as const;
+/**
+ * 軸の矢印として描く方向の属性の ID（部品座標の単位ベクトル）。どれが方向の属性かは API の属性の定義
+ * （`AttributeDefView.unit_vector`）が決める。組み込みの属性を先に、独自の属性をあとに並べる（色の割り当てが
+ * 独自の属性の追加で動かないように）。
+ */
+export function directionAttrs(defs: DefsView): string[] {
+  const dirs = defs.attributes.filter((a) => a.unit_vector);
+  return [...dirs.filter((a) => a.builtin), ...dirs.filter((a) => !a.builtin)].map((a) => a.id);
+}
 
 export interface Axis3D {
   id: string;
-  attr: (typeof AXIS_ATTRS)[number];
+  attr: string;
+  /** 方向の属性の並びの何番目か（矢印の色の割り当て） */
+  order: number;
   part: string;
   /** 部品座標の向き（長さは表示のために 1 に揃える） */
   dir: V3;
@@ -48,19 +57,27 @@ export interface Fov3D {
 /** 円錐を描く半角の上限 [rad]。これより広い視野は上限で描く（半球に近い円錐は平らになり形が読めないため） */
 export const FOV_DRAW_MAX = (80 * Math.PI) / 180;
 
-/** 視線（`boresight`）と視野の半角（`fov_half_angle`）を両方持つ部品の視野 */
+/**
+ * 視野を持つ部品の円錐。視野の半角の属性と、そのまわりの方向の属性の対応は API の属性の定義
+ * （`AttributeDefView.fov_axis`）が決める。両方の値を持つ部品だけ描く。
+ */
 export function fovsOf(design: DesignView): Fov3D[] {
   const out: Fov3D[] = [];
+  const fovAttrs = design.defs.attributes.flatMap((a) =>
+    a.fov_axis ? [{ half: a.id, axis: a.fov_axis }] : [],
+  );
   for (const p of design.parts) {
     if (!p.body) continue;
-    const dir = p.values.boresight?.value;
-    const half = p.values.fov_half_angle?.value;
-    if (dir?.type !== "vector" || half?.type !== "scalar") continue;
-    const d = new Vector3(...dir.si);
-    const angle = half.nominal.si;
-    if (d.lengthSq() === 0 || !(angle > 0)) continue;
-    d.normalize();
-    out.push({ part: p.id, dir: [d.x, d.y, d.z], halfAngle: Math.min(angle, FOV_DRAW_MAX) });
+    for (const { half, axis } of fovAttrs) {
+      const dir = p.values[axis]?.value;
+      const value = p.values[half]?.value;
+      if (dir?.type !== "vector" || value?.type !== "scalar") continue;
+      const d = new Vector3(...dir.si);
+      const angle = value.nominal.si;
+      if (d.lengthSq() === 0 || !(angle > 0)) continue;
+      d.normalize();
+      out.push({ part: p.id, dir: [d.x, d.y, d.z], halfAngle: Math.min(angle, FOV_DRAW_MAX) });
+    }
   }
   return out;
 }
@@ -68,16 +85,17 @@ export function fovsOf(design: DesignView): Fov3D[] {
 /** 方向属性を部品の子として描く矢印にする。座標変換は親 mesh に任せる */
 export function axesOf(design: DesignView): Axis3D[] {
   const out: Axis3D[] = [];
+  const attrs = directionAttrs(design.defs);
   for (const p of design.parts) {
     if (!p.mount) continue;
-    for (const attr of AXIS_ATTRS) {
+    attrs.forEach((attr, order) => {
       const v = p.values[attr]?.value;
-      if (v?.type !== "vector") continue;
+      if (v?.type !== "vector") return;
       const d = new Vector3(...v.si);
-      if (d.lengthSq() === 0) continue;
+      if (d.lengthSq() === 0) return;
       d.normalize();
-      out.push({ id: `${p.id}.${attr}`, attr, part: p.id, dir: [d.x, d.y, d.z] });
-    }
+      out.push({ id: `${p.id}.${attr}`, attr, order, part: p.id, dir: [d.x, d.y, d.z] });
+    });
   }
   return out;
 }
@@ -160,7 +178,7 @@ export function boxesOf(
       size: size ?? [0, 0, 0],
       color: colorOf?.(p.id) ?? toneHex[systemTone(p.system)],
       sized: size !== null,
-      structure: p.system === "structure",
+      structure: p.structural,
       fixed: body.root,
     });
   }

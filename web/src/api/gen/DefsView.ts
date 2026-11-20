@@ -2,6 +2,7 @@
 import type { AttributeDefView } from "./AttributeDefView";
 import type { BudgetKind } from "./BudgetKind";
 import type { KindDefView } from "./KindDefView";
+import type { ModeLevelsView } from "./ModeLevelsView";
 import type { System } from "./System";
 import type { VocabLabels } from "./VocabLabels";
 
@@ -24,4 +25,8 @@ budget_kinds: Array<BudgetKind>,
 /**
  * モードの見方（`POST /system_modes/{system}`）を持つ系（`systems` の部分集合で、同じ並び。`system_modes::mode_systems`）
  */
-mode_systems: Array<System>, };
+mode_systems: Array<System>, 
+/**
+ * モードの表の部品ごとの列の出し方（系ごとと、`system` が null の設計のモードのページ。`mode_systems::mode_levels`）
+ */
+mode_levels: Array<ModeLevelsView>, };
