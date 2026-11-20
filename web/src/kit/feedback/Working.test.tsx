@@ -1,7 +1,9 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { MARK } from "@/shell/brand/brand-art";
 import { Refreshable } from "./Refreshable";
+import { Settled } from "./Settled";
 import { Working, WorkingChip } from "./Working";
 
 describe("Working（長い待ちの中央表示）", () => {
@@ -60,5 +62,29 @@ describe("Refreshable（前の中身を残したまま読み直す枠）", () =>
   it("操作を止めたいときだけ、中身を触れなくする", () => {
     expect(html(true, true)).toContain("pointer-events-none");
     expect(html(true, false).match(/pointer-events-none/g)).toHaveLength(2); // 帯と、中央のロゴを置く枠だけ
+  });
+});
+
+describe("Settled（そろうまで待つ枠）", () => {
+  const html = (pending: boolean) =>
+    renderToStaticMarkup(
+      <QueryClientProvider client={new QueryClient()}>
+        <Settled pending={pending} label="熱を計算中">
+          <p>中身</p>
+        </Settled>
+      </QueryClientProvider>,
+    );
+
+  it("データが無い間は中身を描かず、待ちの表示だけを出す", () => {
+    const out = html(true);
+    expect(out).toContain("熱を計算中");
+    expect(out).not.toContain("中身");
+  });
+
+  it("データが来たら、見えない状態で中身を描いて（問い合わせを始めさせて）待つ", () => {
+    const out = html(false);
+    expect(out).toContain("熱を計算中");
+    expect(out).toContain("invisible");
+    expect(out).toContain("中身");
   });
 });

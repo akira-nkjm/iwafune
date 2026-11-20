@@ -39,7 +39,10 @@ export function formatQuantity(item: FormatItem): Promise<string> {
   });
 }
 
+/** 表示文字列の問い合わせのキーの先頭（これで始まる問い合わせが、数量の表示文字列） */
+export const FORMAT_KEY = "fmt";
+
 /** キャッシュのキー（同じ値・次元・単位は 1 回だけ問い合わせる） */
 export function formatKey(item: FormatItem): readonly [string, string, string | null, number] {
-  return ["fmt", item.dimension, item.unit, item.si] as const;
+  return [FORMAT_KEY, item.dimension, item.unit, item.si] as const;
 }
