@@ -14,6 +14,13 @@ pub enum AttrCmd {
     Add(AttrAddArgs),
     /// Replace an attribute definition entirely (same flags as `add`; project-specific definitions only)
     Replace(AttrAddArgs),
+    /// Rename a project-defined attribute (kinds' required/optional lists and the values of parts and catalog items are rewritten too)
+    Rename {
+        id: String,
+        to: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// Remove an attribute definition (refused if a kind lists it or a part or catalog item has a value for it)
     Rm {
         id: String,
@@ -84,6 +91,13 @@ pub enum KindCmd {
     Add(KindAddArgs),
     /// Replace a kind definition entirely (same flags as `add`; project-specific definitions only)
     Replace(KindAddArgs),
+    /// Rename a project-defined kind (the kind of parts and catalog items and the `extends` of other kinds are rewritten too)
+    Rename {
+        id: String,
+        to: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// Remove a kind definition (refused if a part or catalog item uses it or another kind inherits it)
     Rm {
         id: String,

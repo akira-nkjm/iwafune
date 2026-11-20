@@ -11,6 +11,10 @@ use fune_model::design::{AnalysisSystem, RefSite, Referent};
 use fune_model::path::PortRef;
 use toml_edit::Item;
 
+mod defs;
+
+pub use defs::{rename_attribute, rename_kind};
+
 /// 部品の名前の変更で移ったファイル（部品のファイルと、組立品のディレクトリごと移した子部品のファイル）。
 struct Moved {
     file: (String, String),
@@ -96,6 +100,17 @@ pub fn rename_catalog(
     rename_sites(edits, design, Referent::Catalog(from), to, None)
 }
 
+/// 地上局の名前を変える（ファイルの移動と、通信の解析の `stations` の書き換え）。
+pub fn rename_station(
+    edits: &mut Edits,
+    design: &Design,
+    from: &str,
+    to: &str,
+) -> Result<(), StoreError> {
+    edits.rename(&layout::ground_file(from), &layout::ground_file(to))?;
+    rename_sites(edits, design, Referent::Station(from), to, None)
+}
+
 /// 部品の削除に伴い、モードの行と配分を消す。ほかの参照（ネットの端・取付・解析の設定）は残すので、
 /// 参照先が無くなれば検査の誤りになり、削除の計画が拒まれる。
 pub fn forget_part(edits: &mut Edits, design: &Design, id: &str) -> Result<(), StoreError> {
@@ -153,6 +168,7 @@ fn rename_sites(
         | Referent::Net(id)
         | Referent::Catalog(id)
         | Referent::CatalogSource(id)
+        | Referent::Station(id)
         | Referent::Kind(id)
         | Referent::Attribute(id) => id,
     };
@@ -188,6 +204,7 @@ fn rename_at(
         | RefSite::PowerNamedSequence { .. }
         | RefSite::PowerBaseMode
         | RefSite::AttitudeLaw
+        | RefSite::CommStation
         | RefSite::ThermalCaseMode { .. } => rename_setting_at(edits, site, names),
         RefSite::PortNet { .. }
         | RefSite::HarnessNet { .. }
@@ -196,13 +213,12 @@ fn rename_at(
         | RefSite::HarnessWire { .. }
         | RefSite::ManeuverThruster { .. }
         | RefSite::ManeuverMode { .. } => rename_value_at(edits, design, site, names),
-        // 定義の名前の変更は Op に無い（索引は削除を拒むためだけ）
         RefSite::PartKind { .. }
         | RefSite::CatalogKind { .. }
         | RefSite::KindExtends { .. }
         | RefSite::KindAttribute { .. }
         | RefSite::PartAttribute { .. }
-        | RefSite::CatalogAttribute { .. } => Ok(()),
+        | RefSite::CatalogAttribute { .. } => defs::rename_def_at(edits, design, site, names),
     }
 }
 
@@ -250,7 +266,7 @@ fn rename_key_at(
     }
 }
 
-/// 解析の設定（`analysis/<系>.toml`）とケースに書かれた部品・モードの ID。
+/// 解析の設定（`analysis/<系>.toml`）とケースに書かれた部品・モード・地上局の ID。
 fn rename_setting_at(
     edits: &mut Edits,
     site: &RefSite,
@@ -312,6 +328,13 @@ fn rename_setting_at(
             to,
         ),
         RefSite::ThermalCaseMode { case } => set_in(edits, &thermal(), &["case", case], "mode", to),
+        RefSite::CommStation => replace_in(
+            edits,
+            &layout::analysis_file(AnalysisSystem::Comm),
+            "stations",
+            from,
+            to,
+        ),
         _ => Ok(()),
     }
 }

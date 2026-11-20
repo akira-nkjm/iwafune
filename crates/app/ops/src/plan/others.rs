@@ -244,7 +244,7 @@ fn existing_net(design: &Design, net: &Net) -> Result<(), OpError> {
 }
 
 /// 平らなディレクトリ（modes/・nets/）の新しい ID として使えるか（ID の規則と、大文字小文字を無視した一意性 `id::clash`）。
-fn new_flat_id<'a>(
+pub(super) fn new_flat_id<'a>(
     existing: impl Iterator<Item = &'a str>,
     id: &str,
     what: &str,

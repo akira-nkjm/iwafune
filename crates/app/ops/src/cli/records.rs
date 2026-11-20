@@ -1,4 +1,4 @@
-//! 取付点・解析ケース・出典・ハーネス・マヌーバの Op のコマンド。
+//! 取付点・解析ケース・出典・ハーネス・マヌーバ・地上局の Op のコマンドと、定義の名前の変更（`fune attr rename`・`fune kind rename`）。
 
 use super::text::Cmd;
 use crate::op::Op;
@@ -19,8 +19,38 @@ pub(super) fn record_op(op: &Op) -> Option<Vec<String>> {
         Op::CreateManeuver { maneuver } => maneuver_cmd("add", maneuver),
         Op::SetManeuver { maneuver } => maneuver_cmd("set", maneuver),
         Op::RemoveManeuver { id } => Cmd::new(&["fune", "maneuver", "rm", id]).done(),
+        Op::CreateGroundStation { .. } => ground_add_cmd(op),
+        Op::RemoveGroundStation { id } => Cmd::new(&["fune", "ground", "rm", id]).done(),
+        Op::RenameGroundStation { id, to } => {
+            Cmd::new(&["fune", "ground", "rename", id, to]).done()
+        }
+        Op::RenameAttribute { id, to } => Cmd::new(&["fune", "attr", "rename", id, to]).done(),
+        Op::RenameKind { id, to } => Cmd::new(&["fune", "kind", "rename", id, to]).done(),
         _ => return None,
     }])
+}
+
+/// `fune ground add <ID> [--label …] [--latitude …] [--longitude …] [--altitude …] [--min-elevation …]`
+fn ground_add_cmd(op: &Op) -> String {
+    let Op::CreateGroundStation {
+        id,
+        label,
+        latitude,
+        longitude,
+        altitude,
+        min_elevation,
+    } = op
+    else {
+        return String::new();
+    };
+    let text = |q: &Option<fune_model::value::Quantity>| q.as_ref().map(quantity_to_text);
+    Cmd::new(&["fune", "ground", "add", id])
+        .flag("label", label.as_deref())
+        .flag("latitude", text(latitude).as_deref())
+        .flag("longitude", text(longitude).as_deref())
+        .flag("altitude", text(altitude).as_deref())
+        .flag("min-elevation", text(min_elevation).as_deref())
+        .done()
 }
 
 fn mount_point(part: &str, point: &str, pose: Option<&Pose>) -> String {

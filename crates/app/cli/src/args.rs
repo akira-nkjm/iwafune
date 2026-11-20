@@ -1,12 +1,14 @@
 //! 引数の定義（clap）。コマンド体系は `fune <名詞> <動詞>` と、よく使うものの短縮。
 
 mod defs;
+mod ground;
 mod nouns;
 mod records;
 mod report;
 mod requirements;
 
 pub use defs::{AttrAddArgs, AttrCmd, KindAddArgs, KindCmd};
+pub use ground::GroundCmd;
 pub use nouns::{
     ModeCmd, ModeViewOpts, NetArgs, NetCmd, NetSetArgs, PartCmd, PlaceArgs, SequenceCmd, SetArgs,
     SettingCmd, ViewCmd,
@@ -153,6 +155,9 @@ pub enum Command {
     /// Maneuvers (maneuvers/)
     #[command(subcommand)]
     Maneuver(ManeuverCmd),
+    /// Ground stations (conditions/ground/)
+    #[command(subcommand)]
+    Ground(GroundCmd),
     /// Requirements (requirements/) and the compliance table
     #[command(subcommand)]
     Requirement(RequirementCmd),

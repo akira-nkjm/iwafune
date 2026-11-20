@@ -4,6 +4,7 @@
 //! |---|---|
 //! | `doc` | toml_edit の小さな道具（装飾を保った値の置き換え・揃えた挿入・表の確保・キーの名前の変更・配列の要素の置き換え） |
 //! | `catalog` | カタログ品のファイルの正規形とフィールド |
+//! | `ground` | 新しい地上局のファイルの正規形 |
 //! | `part` | 部品ファイルの編集（属性・フィールド・取付・ポート）と新しい部品ファイル |
 //! | `entities` | モード・ネット・定義・設定のファイルの編集と新しいファイル |
 //! | `project` | プロジェクトのファイル（`fune.toml`・`budget/`）の新しい本文（`fune init` の雛形も） |
@@ -19,6 +20,7 @@ pub mod catalog;
 mod commit;
 pub mod doc;
 pub mod entities;
+pub mod ground;
 pub mod part;
 pub mod project;
 pub mod records;

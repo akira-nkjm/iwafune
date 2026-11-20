@@ -242,10 +242,14 @@ pub fn rename_key(table: &mut Table, from: &str, to: &str) -> bool {
     };
     let mut key = Key::new(to);
     let mut decor = old.leaf_decor().clone();
-    let old_suffix = decor.suffix().and_then(|s| s.as_str()).map_or(1, str::len);
-    let total = old.display_repr().len() + old_suffix;
-    let new_len = key.display_repr().len();
-    decor.set_suffix(" ".repeat(total.saturating_sub(new_len).max(1)));
+    // 値の行（ドット付きキーも）だけ `=` の位置を保つ。見出しの表（`[attr.x]`）のキーには空白を足さない。
+    let is_row = item.is_value() || item.as_table().is_some_and(Table::is_dotted);
+    if is_row {
+        let old_suffix = decor.suffix().and_then(|s| s.as_str()).map_or(1, str::len);
+        let total = old.display_repr().len() + old_suffix;
+        let new_len = key.display_repr().len();
+        decor.set_suffix(" ".repeat(total.saturating_sub(new_len).max(1)));
+    }
     *key.leaf_decor_mut() = decor;
     table.insert_formatted(&key, item);
     if sorted {

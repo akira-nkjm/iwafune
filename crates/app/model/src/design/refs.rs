@@ -12,7 +12,8 @@
 //! | ネット | 部品のポートの `net`・ハーネスの `nets` |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire` |
 //! | カタログ（`[[catalog]]` の名前。出所を外すのを拒むためだけ。書き換えはしない） | 部品の `catalog`・`candidates`・ハーネスの `wire` のうち `<名前>/…` のもの |
-//! | 種別（プロジェクト独自の定義の削除を拒むためだけ。書き換えはしない） | 部品とカタログ品の `kind`・種別の `extends` |
+//! | 地上局 | `analysis/comm.toml` の `stations` |
+//! | 種別（名前の変更と、プロジェクト独自の定義の削除の拒否に使う） | 部品とカタログ品の `kind`・種別の `extends` |
 //! | 属性（同上） | 種別の `required` / `optional`・部品とカタログ品の属性の値 |
 
 use super::{BudgetKind, Design};
@@ -31,7 +32,9 @@ pub enum Referent<'a> {
     Catalog(&'a str),
     /// カタログの名前（`[[catalog]]` の `name`。その出所の品の参照すべて。外すのを拒むための索引）
     CatalogSource(&'a str),
-    /// 種別の ID（定義の削除を拒むための索引。名前の変更はしない）
+    /// 地上局の ID（`conditions/ground/<ID>.toml`）
+    Station(&'a str),
+    /// 種別の ID（定義の削除を拒むためと、名前の変更で書き換えるための索引）
     Kind(&'a str),
     /// 属性の ID（同上）
     Attribute(&'a str),
@@ -116,6 +119,8 @@ pub enum RefSite {
     ManeuverThruster { maneuver: String },
     /// マヌーバの噴射するモード（`[constraints].mode`）
     ManeuverMode { maneuver: String },
+    /// 通信の解析が使う地上局（`analysis/comm.toml` の `stations`）
+    CommStation,
     /// 部品の種別（`kind`）
     PartKind { part: String },
     /// カタログ品の種別（`kind`。`item` は `local/rw_10mNms` の形）
@@ -142,6 +147,7 @@ impl Design {
             Referent::CatalogSource(name) => {
                 self.catalog_refs(|r| split_catalog_ref(r).is_some_and(|(s, _)| s == name))
             }
+            Referent::Station(id) => self.station_refs(id),
             Referent::Kind(id) => self.kind_refs(id),
             Referent::Attribute(id) => self.attribute_refs(id),
         }
@@ -360,6 +366,20 @@ impl Design {
                 }),
         );
         out
+    }
+
+    /// 地上局を使っているもの（通信の解析の `stations`。空なら全局を使うので、どの局も参照されない）。
+    fn station_refs(&self, id: &str) -> Vec<RefSite> {
+        let listed = self
+            .analysis
+            .comm
+            .as_ref()
+            .is_some_and(|c| c.stations.iter().any(|s| s == id));
+        if listed {
+            vec![RefSite::CommStation]
+        } else {
+            Vec::new()
+        }
     }
 
     /// 種別を使っているもの: 部品 → カタログ品 → 継承している種別の順。

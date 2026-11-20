@@ -55,6 +55,8 @@ pub struct DesignView {
     pub cases: Vec<CaseView>,
     /// マヌーバ（実行の順）
     pub maneuvers: Vec<super::ManeuverView>,
+    /// 地上局（`conditions/ground/<ID>.toml`。ID 順。値は `settings`）
+    pub stations: Vec<super::GroundStationView>,
     /// 要求（`requirements/<ID>.toml`。ID 順）
     pub requirements: Vec<super::RequirementView>,
     /// 出典の台帳（`sources/<ID>.toml`。ID 順）

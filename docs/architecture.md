@@ -132,9 +132,10 @@ An Op can be turned into JSON (`{ "op": "set_value", "part": "RW_X", ... }`). TS
 |---|---|
 | Parts | `CreatePart`, `RemovePart`, `RenamePart`, `RenameGroup`, `MovePart`, `SetValue`, `UnsetValue`, `SetField`, `Place`, `SetPort`, `SetMountPoint` |
 | Catalog items | `CreateCatalogItem`, `SetCatalogValue`, `UnsetCatalogValue`, `SetCatalogField`, `RenameCatalogItem`, `RemoveCatalogItem` |
-| Definitions | `CreateAttribute`, `UpdateAttribute`, `DeleteAttribute`, `CreateKind`, `UpdateKind`, `DeleteKind` (built-in definitions can be neither rewritten nor deleted. Deleting a definition that is in use is refused) |
+| Definitions | `CreateAttribute`, `UpdateAttribute`, `DeleteAttribute`, `RenameAttribute`, `CreateKind`, `UpdateKind`, `DeleteKind`, `RenameKind` (built-in definitions can be neither rewritten, renamed nor deleted. Deleting a definition that is in use is refused. A rename rewrites every reference: a kind's attribute lists and `extends`, and the `kind` and attribute values of parts and local catalog items. It is refused while a read-only shared-catalog item uses the definition) |
 | Modes and nets | `CreateMode`, `RenameMode`, `SetModeStates`, `CreateNet`, `UpdateNet`, `SetNetField`, `RemoveNet`, etc. |
 | Cases, sources, harness | `SetCase`, `SetSource`, `SetHarness`, and their respective deletions |
+| Ground stations | `CreateGroundStation`, `RenameGroundStation` (rewrites `analysis.comm.stations`), `RemoveGroundStation` (refused while `analysis.comm.stations` lists the station). Values are written with `SetSetting` |
 | Maneuvers | `CreateManeuver`, `SetManeuver`, `RemoveManeuver` (deleting reconnects the following maneuver to the preceding one) |
 | Requirements | `CreateRequirement`, `SetRequirement`, `RemoveRequirement` |
 | Diagrams | `SetViewLayout`, `SetViewEdge`, `UnsetViewEdge`, `ResetView` |
@@ -159,7 +160,7 @@ The CLI and HTTP call the same functions of `fune-service`.
 | Apply Ops | each edit command, `fune apply ops.json` | `POST /ops` | `edit::apply` |
 | Typed value string → Op | `fune set`, `fune setting set`, `fune catalog set` | `POST /ops/from_text` | `edit::set_op` |
 | Path to remove → Op | `fune unset`, `fune setting unset`, `fune catalog unset` | `POST /ops/unset_from_text` | `edit::unset_op` |
-| Arguments typed into a noun command → Op | `fune net set|unset`, `fune part place`, `fune mode set|unset`, `fune attr add|replace`, `fune kind add|replace`, `fune maneuver add|set`, `fune requirement add|set`, `fune catalog source add` | `POST /ops/from_command` | `edit::command_ops` |
+| Arguments typed into a noun command → Op | `fune net set|unset`, `fune part place`, `fune mode set|unset`, `fune attr add|replace`, `fune kind add|replace`, `fune maneuver add|set`, `fune requirement add|set`, `fune ground add`, `fune catalog source add` | `POST /ops/from_command` | `edit::command_ops` |
 | Formatting | `fune fmt [--check]` | `POST /fmt` | `format::format_design` |
 | Undo / redo the last edit | `fune undo`, `fune redo` | `POST /undo`, `POST /redo` | `history::{undo, redo}` |
 | Edit history | `fune history` | `GET /history` | `history::view` |

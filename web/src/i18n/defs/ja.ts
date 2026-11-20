@@ -8,6 +8,8 @@ export const defsJa = {
     tabAttributes: "属性定義",
     tabKinds: "種別定義",
     builtin: "組み込み",
+    newId: "新しい ID",
+    renameConfirm: "変える",
     project: "プロジェクト",
     units: {
       tryTitle: "単位の試し打ち",
@@ -45,6 +47,11 @@ export const defsJa = {
       dialogDescription: "defs/attribute/<ID>.toml を作ります。",
       summary: (id: string) => `属性 ${id} を追加`,
       confirm: "追加",
+      actions: "操作",
+      rename: (id: string) => `属性 ${id} の名前を変える`,
+      renameDescription:
+        "種別の必須・任意の属性の一覧と、部品とカタログ品の値のキーも書き換えます。組み込みの属性は変えられません。",
+      renameSummary: (id: string, to: string) => `属性 ${id} → ${to}`,
     },
     kinds: {
       title: "種別定義",
@@ -64,6 +71,11 @@ export const defsJa = {
       dialogDescription: "defs/kind/<ID>.toml を作ります。",
       summary: (id: string) => `種別 ${id} を追加`,
       confirm: "追加",
+      actions: "操作",
+      rename: (id: string) => `種別 ${id} の名前を変える`,
+      renameDescription:
+        "部品とカタログ品の種別と、ほかの種別の継承元も書き換えます。組み込みの種別は変えられません。",
+      renameSummary: (id: string, to: string) => `種別 ${id} → ${to}`,
       roleField: "role（任意）",
       roleHint: "解析が部品を見分けるのに使う",
       statesField: "機器の状態（カンマ区切り）",

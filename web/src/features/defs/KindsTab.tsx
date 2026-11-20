@@ -15,6 +15,7 @@ import { defName } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
 import { Button } from "@/ui/button";
+import { RenameDefinition } from "./RenameDefinition";
 
 /**
  * 種別定義（機器の状態の語彙・必須の属性・ポートの雛形）。新しい種別は `fune kind add` と同じ引数を打った文字列のまま
@@ -58,6 +59,9 @@ export function KindsTab({ design }: { design: DesignView }) {
             <Th>{tk.optional}</Th>
             <Th>{tk.ports}</Th>
             <Th>{tk.origin}</Th>
+            <Th>
+              <span className="sr-only">{tk.actions}</span>
+            </Th>
           </>
         }
       >
@@ -88,6 +92,7 @@ export function KindsTab({ design }: { design: DesignView }) {
                 <Pill tone="accent">{t.defs.project}</Pill>
               )}
             </Td>
+            <Td>{!k.builtin && <RenameDefinition what="kind" id={k.id} />}</Td>
           </tr>
         ))}
       </DataTable>

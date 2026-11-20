@@ -3,6 +3,7 @@ import type { CaseView } from "./CaseView";
 import type { CatalogItemView } from "./CatalogItemView";
 import type { DefsView } from "./DefsView";
 import type { DiagnosticView } from "./DiagnosticView";
+import type { GroundStationView } from "./GroundStationView";
 import type { HarnessView } from "./HarnessView";
 import type { ManeuverView } from "./ManeuverView";
 import type { ModeTable } from "./ModeTable";
@@ -27,6 +28,10 @@ tree: Array<TreeNode>, parts: Array<PartRow>, modes: ModeTable, nets: Array<NetV
  * マヌーバ（実行の順）
  */
 maneuvers: Array<ManeuverView>, 
+/**
+ * 地上局（`conditions/ground/<ID>.toml`。ID 順。値は `settings`）
+ */
+stations: Array<GroundStationView>, 
 /**
  * 要求（`requirements/<ID>.toml`。ID 順）
  */

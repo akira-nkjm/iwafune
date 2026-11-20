@@ -205,6 +205,18 @@ pub enum Op {
     DeleteKind {
         id: String,
     },
+    /// プロジェクト独自の属性定義の名前を変える（種別の `required` / `optional`・部品とカタログ品の属性の値のキーも書き換える）。
+    /// 組み込みは不可。共有カタログの品がその属性の値を持っていれば、書き換えられないので拒む。
+    RenameAttribute {
+        id: String,
+        to: String,
+    },
+    /// プロジェクト独自の種別定義の名前を変える（部品とカタログ品の `kind`・ほかの種別の `extends` も書き換える）。
+    /// 組み込みは不可。共有カタログの品がその種別を使っていれば、書き換えられないので拒む。
+    RenameKind {
+        id: String,
+        to: String,
+    },
     // ---- モード
     /// モードを足す（`copy_from` があればその表を写す）。
     CreateMode {
@@ -301,6 +313,30 @@ pub enum Op {
     MoveSource {
         id: String,
         dir: String,
+    },
+    /// 地上局を足す（`conditions/ground/<id>.toml`。同じ ID があれば拒む）。帯域ごとの性能（`[link.<帯域>]`）は `SetSetting` で書く。
+    /// 緯度・経度・高度・最低仰角は角度・長さの量（次元は検査が見る）。
+    CreateGroundStation {
+        id: String,
+        #[serde(default)]
+        label: Option<String>,
+        #[serde(default)]
+        latitude: Option<fune_model::value::Quantity>,
+        #[serde(default)]
+        longitude: Option<fune_model::value::Quantity>,
+        #[serde(default)]
+        altitude: Option<fune_model::value::Quantity>,
+        #[serde(default)]
+        min_elevation: Option<fune_model::value::Quantity>,
+    },
+    /// 地上局を消す（通信の解析の `stations` に挙げられていれば拒む）。
+    RemoveGroundStation {
+        id: String,
+    },
+    /// 地上局の名前を変える（通信の解析の `stations` も書き換える）。
+    RenameGroundStation {
+        id: String,
+        to: String,
     },
     /// ハーネス区間を書く（`harness.id` が対象）。
     SetHarness {

@@ -54,6 +54,7 @@ pub fn edit_of<'a>(ws: &Workspace, command: &'a Command) -> anyhow::Result<Optio
         Command::Source(c) => one(records::source(c)?),
         Command::Harness(c) => one(records::harness(c)?),
         Command::Maneuver(c) => one(records::maneuver(c)?),
+        Command::Ground(c) => one(Some(records::ground(c)?)),
         Command::Requirement(c) => one(requirements::requirement(c)?),
         Command::Catalog(c) => one(records::catalog(ws, c)?),
         Command::Set(a) => {
