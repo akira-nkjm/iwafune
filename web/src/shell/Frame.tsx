@@ -9,7 +9,7 @@ import { SidebarProvider } from "./sidebar/SidebarContext";
 import { useHistoryKeys } from "./use-history-keys";
 
 /**
- * 画面の枠: 232px の固定サイドバー + 10px 内側に浮いた白いメインパネル 1 枚。
+ * 画面の枠: 208px の固定サイドバー + 10px 内側に浮いた白いメインパネル 1 枚。
  * `preload` は先読みの計画（ページの登録 `routes/pages.ts` が作る）。ナビの項目は `usePreloadPlan` で引く
  */
 export function Frame({ children, preload }: { children: ReactNode; preload: PreloadPlan }) {

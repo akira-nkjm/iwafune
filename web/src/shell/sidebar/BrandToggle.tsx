@@ -10,7 +10,7 @@ import { railFade } from "./sidebar-motion";
 import { SIDEBAR_ID } from "./sidebar-state";
 
 /** マークの幅 [px]。名前の大きさはここから LOCKUP の比で決まる（32 px → 16 px） */
-const MARK_WIDTH = 32;
+const MARK_WIDTH = 24;
 
 /**
  * ロゴと名前、サイドバーの開閉ボタン。開いているときは名前の右に閉じるボタンを置く。畳んだレールでは
@@ -33,7 +33,13 @@ export function BrandToggle({ rail, onToggle }: { rail: boolean; onToggle: () =>
     if (e.detail === 0) requestAnimationFrame(() => next.current?.focus({ preventScroll: true }));
   };
   return (
-    <div className="flex h-10 shrink-0 items-center gap-2">
+    // 開いているときは、マークの左端をナビのアイコンの左端（8 px）に合わせる。畳むと 32 px の枠の中央
+    <div
+      className={cn(
+        "flex h-10 shrink-0 items-center gap-2 transition-[padding] duration-200 motion-reduce:transition-none",
+        rail ? "pl-0" : "pl-1",
+      )}
+    >
       {rail ? (
         <Tip label={t.shell.openSidebar}>
           <button

@@ -51,8 +51,8 @@ export function Sidebar() {
       >
         <div className="min-h-0 overflow-hidden">
           <div className="flex items-center gap-1.5 whitespace-nowrap px-2 pt-1 pb-3 text-[11.5px] text-ink-3">
+            {/* プロジェクトの名前だけ（ブランチと版は下の欄に出る） */}
             <span className="truncate font-medium text-ink-2">{p?.name ?? "—"}</span>
-            <span className="truncate font-mono">{p?.branch ?? ""}</span>
           </div>
         </div>
       </div>

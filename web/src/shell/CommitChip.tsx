@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { GitBranch, History, Redo2, Undo2 } from "lucide-react";
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { q } from "@/api/queries";
 import { useLang, useT } from "@/i18n";
@@ -7,6 +8,11 @@ import { CliCopyButton } from "@/kit/CliCopyButton";
 import { useChangeHistory } from "@/lib/history";
 import { paths } from "@/lib/nav";
 import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
+
+/** ナビのアイコンと同じ幅（16 px）の枠。小さいアイコンも中央に置いて、左右の空きをナビの行と同じにする */
+function IconSlot({ children }: { children: ReactNode }) {
+  return <span className="flex w-4 shrink-0 justify-center">{children}</span>;
+}
 
 /** サイドバー下部: ブランチ・revision・診断の件数・このセッションの変更履歴（CLI としてコピー） */
 export function CommitChip({ rail = false }: { rail?: boolean }) {
@@ -35,8 +41,10 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
     );
   return (
     <div className="space-y-2 px-1">
-      <div className="flex items-center gap-[11px] px-1 text-[11.5px] text-ink-3">
-        <GitBranch size={13} />
+      <div className="flex items-center gap-2 px-1 text-[11.5px] text-ink-3">
+        <IconSlot>
+          <GitBranch size={13} />
+        </IconSlot>
         <span className="truncate font-mono">{p?.branch ?? "—"}</span>
         <span className="ml-auto font-mono text-ink-4" title={p?.revision}>
           {p?.revision.slice(0, 7) ?? ""}
@@ -49,7 +57,7 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
       ) : (
         <Link
           to={paths.diagnostics()}
-          className="flex items-center gap-2 rounded-chip px-1 py-0.5 text-[11.5px] hover:bg-panel"
+          className="flex items-center gap-2 rounded-chip py-0.5 pr-1 pl-7 text-[11.5px] hover:bg-panel"
         >
           <span className={errors > 0 ? "text-neg-ink" : "text-ink-3"}>
             {t.shell.errors(errors)}
@@ -63,9 +71,11 @@ export function CommitChip({ rail = false }: { rail?: boolean }) {
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex w-full items-center gap-[11px] rounded-chip px-1 py-0.5 text-[11.5px] text-ink-3 hover:bg-panel"
+            className="flex w-full items-center gap-2 rounded-chip px-1 py-0.5 text-[11.5px] text-ink-3 hover:bg-panel"
           >
-            <History size={13} />
+            <IconSlot>
+              <History size={13} />
+            </IconSlot>
             {t.shell.history}
             <span className="num ml-auto">{history.length}</span>
           </button>
