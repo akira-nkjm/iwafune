@@ -118,3 +118,44 @@ it("カードも枠も名前ではなく API の系で色を決める", () => {
   expect(model.cards.every((c) => c.tone === "rose")).toBe(true);
   expect(model.containers.every((c) => c.tone === "rose")).toBe(true);
 });
+
+it("まとめた 1 枚だけを入れた入れ子の枠は外し、カードを系の枠にじかに置く", () => {
+  const base = withWheels();
+  const aocs = base.tree.find((n) => n.id === "aocs");
+  if (!aocs) throw new Error("fixture");
+  // RW の 3 台を、AOCS の下のグループ `RW` に入れた設計
+  const grouped: DesignView = {
+    ...base,
+    parts: base.parts.map((p) => (p.id.startsWith("RW_") ? { ...p, parent: "RW" } : p)),
+    tree: [
+      ...base.tree
+        .filter((n) => !n.id.startsWith("RW_"))
+        .map((n) => (n.id === "aocs" ? { ...n, children: ["RW"] } : n)),
+      {
+        ...aocs,
+        id: "RW",
+        label: "RW",
+        label_en: "RW",
+        parent: "aocs",
+        children: ["RW_X", "RW_Y", "RW_Z"],
+      },
+      ...["RW_X", "RW_Y", "RW_Z"].map((id) => ({
+        ...aocs,
+        id,
+        node: "part" as const,
+        label: id,
+        label_en: id,
+        parent: "RW",
+        children: [],
+      })),
+    ],
+  };
+  const merged = buildModel(grouped, { layers: both, mergeSiblings: true });
+  expect(merged.containers.map((c) => c.id)).not.toContain(groupNodeId("RW"));
+  const card = merged.cards.find((c) => c.members.includes("RW_X"));
+  expect(card?.members).toHaveLength(3);
+  expect(card?.parent).toBe(groupNodeId("aocs"));
+  // まとめないときは 3 枚あるので、枠を残す
+  const apart = buildModel(grouped, { layers: both, mergeSiblings: false });
+  expect(apart.containers.map((c) => c.id)).toContain(groupNodeId("RW"));
+});

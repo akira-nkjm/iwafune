@@ -8,8 +8,9 @@ export const diagramDemo: DiagramModel = {
     {"id":"group:aocs","label":"AOCS","tone":"blue","parent":null},
     {"id":"group:cdh","label":"C&DH","tone":"navy","parent":null},
     {"id":"group:comm","label":"通信","tone":"gold","parent":null},
-    {"id":"group:power","label":"電源","tone":"green","parent":null},
     {"id":"group:payload","label":"ミッション機器","tone":"rose","parent":null},
+    {"id":"group:power","label":"電源","tone":"green","parent":null},
+    {"id":"group:propulsion","label":"推進","tone":"magenta","parent":null},
     {"id":"group:structure","label":"構造","tone":"violet","parent":null},
     {"id":"group:thermal","label":"熱","tone":"orange","parent":null},
   ],
@@ -18,6 +19,7 @@ export const diagramDemo: DiagramModel = {
     {"id":"card:BUS_FRAME","label":"BUS_FRAME","sub":"structure","role":"structure","tone":"violet","members":["BUS_FRAME"],"count":1,"parent":"group:structure","ports":[],"assembly":false},
     {"id":"card:CAM","label":"CAM","sub":"local/cam_ms_5m","role":"camera","tone":"rose","members":["CAM"],"count":1,"parent":"group:payload","ports":[{"id":"card:CAM::DATA","port":"DATA"},{"id":"card:CAM::PWR","port":"PWR"}],"assembly":false},
     {"id":"card:CELLS","label":"CELLS","sub":"local/tj_cell_30","role":"solar_panel","tone":"green","members":["CELLS"],"count":20,"parent":"card:SAP_PY","ports":[{"id":"card:CELLS::PWR","port":"PWR"}],"assembly":false},
+    {"id":"card:EPT","label":"EPT","sub":"propulsion_thruster","role":"propulsion_thruster","tone":"magenta","members":["EPT"],"count":1,"parent":"group:propulsion","ports":[],"assembly":false},
     {"id":"card:GPS","label":"GPS","sub":"local/gps_l1","role":"gps","tone":"blue","members":["GPS"],"count":1,"parent":"group:aocs","ports":[{"id":"card:GPS::DATA","port":"DATA"},{"id":"card:GPS::PWR","port":"PWR"}],"assembly":false},
     {"id":"card:HTR_BAT","label":"HTR_BAT","sub":"heater","role":"heater","tone":"orange","members":["HTR_BAT"],"count":1,"parent":"group:thermal","ports":[{"id":"card:HTR_BAT::PWR","port":"PWR"}],"assembly":false},
     {"id":"card:HTR_CAM","label":"HTR_CAM","sub":"heater","role":"heater","tone":"orange","members":["HTR_CAM"],"count":1,"parent":"group:thermal","ports":[{"id":"card:HTR_CAM::PWR","port":"PWR"}],"assembly":false},
@@ -38,6 +40,7 @@ export const diagramDemo: DiagramModel = {
     {"id":"card:STT","label":"STT","sub":"local/stt_nano","role":"star_tracker","tone":"blue","members":["STT"],"count":1,"parent":"group:aocs","ports":[{"id":"card:STT::DATA","port":"DATA"},{"id":"card:STT::PWR","port":"PWR"}],"assembly":false},
     {"id":"card:STX","label":"STX","sub":"local/sband_tx_2m","role":"transceiver","tone":"gold","members":["STX"],"count":1,"parent":"group:comm","ports":[{"id":"card:STX::DATA","port":"DATA"},{"id":"card:STX::PWR","port":"PWR"}],"assembly":false},
     {"id":"card:UHF_TRX","label":"UHF_TRX","sub":"local/uhf_trx_9k6","role":"transceiver","tone":"gold","members":["UHF_TRX"],"count":1,"parent":"group:comm","ports":[{"id":"card:UHF_TRX::DATA","port":"DATA"},{"id":"card:UHF_TRX::PWR","port":"PWR"}],"assembly":false},
+    {"id":"card:XE_TANK","label":"XE_TANK","sub":"propellant_tank","role":"propellant_tank","tone":"magenta","members":["XE_TANK"],"count":1,"parent":"group:propulsion","ports":[],"assembly":false},
   ],
   junctions: [
 

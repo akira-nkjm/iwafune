@@ -19,6 +19,7 @@ mod attr;
 mod catalog;
 mod catalog_source;
 mod defs;
+mod groups;
 mod others;
 mod parts;
 mod records;

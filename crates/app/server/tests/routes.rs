@@ -376,7 +376,7 @@ async fn place_body_converts_to_mount_local() {
 #[tokio::test]
 async fn format_check_is_read_only_and_apply_is_idempotent() {
     let (tmp, router) = demo_router();
-    let path = tmp.path().join("demo-6u/parts/aocs/RW_X.toml");
+    let path = tmp.path().join("demo-6u/parts/aocs/RW/RW_X.toml");
     let original = std::fs::read_to_string(&path).unwrap();
     let messy = format!("\n\n{original}\n\n");
     std::fs::write(&path, &messy).unwrap();
@@ -386,7 +386,7 @@ async fn format_check_is_read_only_and_apply_is_idempotent() {
         v["changed"]
             .as_array()
             .unwrap()
-            .contains(&json!("parts/aocs/RW_X.toml"))
+            .contains(&json!("parts/aocs/RW/RW_X.toml"))
     );
     assert_eq!(std::fs::read_to_string(&path).unwrap(), messy);
     let (s, applied) = call(&router, "POST", "/api/v1/fmt", Some(json!({}))).await;

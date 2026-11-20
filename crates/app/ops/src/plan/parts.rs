@@ -1,15 +1,16 @@
 //! 部品の Op の解釈（前提の確認 → store の編集）。
 
 use super::attr::{AttrTarget, unset_attr, write_attr};
+use super::groups::{new_node_id, target_dirs};
 use crate::error::OpError;
 use crate::op::Op;
 use fune_model::Design;
 use fune_model::builtin::STATE_OFF;
 use fune_model::design::{Mount, NodeRef, Part, Pose, StateAssign};
-use fune_model::id::{Id, clash, validate_local_name, validate_node_id};
+use fune_model::id::{Id, validate_local_name};
 use fune_model::value::Value;
 use fune_store::Edits;
-use fune_store::layout::{self, dirs_for_parent, part_path};
+use fune_store::layout::{self, part_path};
 use fune_store::write::{entities, part as wpart, refs};
 
 pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> {
@@ -28,7 +29,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             new_node_id(design, to)?;
             Ok(refs::rename_group(edits, design, id, to)?)
         }
-        Op::MovePart { id, to } => move_part(edits, design, id, to.as_deref()),
+        Op::MovePart { id, to, under } => move_part(edits, design, id, to.as_deref(), under),
         Op::SetValue {
             part,
             attr,
@@ -72,6 +73,7 @@ fn create_part_op(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpE
     let Op::CreatePart {
         id,
         group,
+        group_under,
         catalog,
         kind,
         count,
@@ -86,7 +88,8 @@ fn create_part_op(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpE
     part.kind = kind.as_deref().map(Id::new);
     part.count = count.unwrap_or(1);
     part.label = label.clone();
-    create_part(edits, design, part, group.as_deref(), mode_state.as_deref())
+    let target = (group.as_deref(), group_under.as_slice());
+    create_part(edits, design, part, target, mode_state.as_deref())
 }
 
 /// `Place` の Op（取付と姿勢を丸ごと置き換える）。
@@ -118,50 +121,16 @@ pub(super) fn existing_file(design: &Design, id: &str) -> Result<String, OpError
     layout::part_file(design, id).ok_or_else(|| OpError::not_found(format!("Part `{id}`")))
 }
 
-/// 新しいノード（部品・グループ）の ID として使えるか（規則と、大文字小文字を無視した一意性 `id::clash`）。
-fn new_node_id(design: &Design, id: &str) -> Result<(), OpError> {
-    validate_node_id(id).map_err(|e| OpError::invalid(e.to_string()))?;
-    let nodes = design
-        .parts
-        .keys()
-        .map(|k| k.as_str())
-        .chain(design.groups.keys().map(|k| k.as_str()));
-    if clash(nodes, id).is_some() {
-        return Err(OpError::exists(format!("ID `{id}`")));
-    }
-    Ok(())
-}
-
-/// 親の指定 → (親のノード, `parts/` の下のディレクトリの列)。無いグループは最上位に作る。
-fn parent_dirs(
-    design: &Design,
-    parent: Option<&str>,
-) -> Result<(Option<NodeRef>, Vec<String>), OpError> {
-    let Some(name) = parent else {
-        return Ok((None, Vec::new()));
-    };
-    match design.node(name) {
-        Some(node) => {
-            let dirs = dirs_for_parent(design, Some(&node));
-            Ok((Some(node), dirs))
-        }
-        None => {
-            new_node_id(design, name)?;
-            Ok((None, vec![name.to_string()]))
-        }
-    }
-}
-
 fn create_part(
     edits: &mut Edits,
     design: &Design,
     part: Part,
-    group: Option<&str>,
+    (group, group_under): (Option<&str>, &[String]),
     mode_state: Option<&str>,
 ) -> Result<(), OpError> {
     // `catalog` も `kind` も無い部品は検査（`part.no_definition`）の誤りになり、計画の最後に拒まれる
     new_node_id(design, part.id.as_str())?;
-    let (_, dirs) = parent_dirs(design, group)?;
+    let (_, dirs) = target_dirs(design, group, group_under)?;
     let file = part_path(&dirs, part.id.as_str());
     edits.create(&file, wpart::new_part_text(&part))?;
     let kind = design.part_kind_id(&part).map(str::to_string);
@@ -212,21 +181,20 @@ fn move_part(
     design: &Design,
     id: &str,
     to: Option<&str>,
+    under: &[String],
 ) -> Result<(), OpError> {
     let old_file = existing_file(design, id)?;
-    if let Some(target) = to {
-        let node = NodeRef::Part(Id::new(id));
-        let into_self = target == id
-            || design
-                .node(target)
-                .is_some_and(|t| design.ancestors(&t).contains(&node));
-        if into_self {
-            return Err(OpError::invalid(format!(
-                "Cannot move part `{id}` under itself"
-            )));
-        }
+    let (chain, dirs) = target_dirs(design, to, under)?;
+    let node = NodeRef::Part(Id::new(id));
+    let into_self = to == Some(id)
+        || chain
+            .iter()
+            .any(|t| *t == node || design.ancestors(t).contains(&node));
+    if into_self {
+        return Err(OpError::invalid(format!(
+            "Cannot move part `{id}` under itself"
+        )));
     }
-    let (_, dirs) = parent_dirs(design, to)?;
     let new_file = part_path(&dirs, id);
     if new_file == old_file {
         return Ok(());

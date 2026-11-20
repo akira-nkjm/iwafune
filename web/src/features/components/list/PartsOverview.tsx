@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { DesignView, PartRow, TreeNode } from "@/api/types";
 import { useLang, useT } from "@/i18n";
 import { CARD_WIDTH, CardGrid, NestedBoxes } from "@/kit/cards/CardGrid";
@@ -7,6 +8,7 @@ import { Packed } from "@/kit/Packed";
 import { kindLabel, nodeName, systemTree } from "@/lib/design";
 import { systemTone } from "@/lib/systems";
 import type { Tone } from "@/lib/tone";
+import { GroupActions } from "../groups/GroupActions";
 
 /**
  * コンポーネントの「一覧」のタブ: サブシステム（Group）の枠ごとに部品のカードを並べる（製品ツリーの形のまま）。
@@ -14,6 +16,9 @@ import type { Tone } from "@/lib/tone";
  * 小さな枠で、見出しを押すと組立品そのものを選び、子の部品をその中に並べる。サブシステムの枠は隙間が少なくなるよう
  * 詰めて並べる（`kit/Packed.tsx`）。表示するのは絞り込んだ部品（`items`）と、それを含む枠だけ。
  * 枠の名前は表示の言語の名前だけ（英語は ID、日本語は表示名）。
+ * 入れ子のグループ（中が部品だけのもの）は、ふだんは部品と同じ大きさの 1 枚のカード（名前と部品の数）にたたんで並べ、
+ * 押すと枠に開いて中の部品を見せる（枠の見出しを押すとたたむ）。選んでいる部品を含むグループは開いておく。
+ * 開いた枠には名前の変更と解除の操作が付く。
  */
 export function PartsOverview({
   design,
@@ -84,24 +89,51 @@ function Box({
   looseParts,
   ctx,
   nested = false,
+  onFold,
 }: {
   node: TreeNode | null;
   title?: string;
   looseParts?: TreeNode[];
   ctx: Ctx;
   nested?: boolean;
+  /** 渡すと、見出しを押してこの枠をカードにたためる（入れ子のグループ） */
+  onFold?: () => void;
 }) {
   const td = useT().components;
+  // 押して開いた入れ子のグループ（この枠の中のもの）
+  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
+  const toggle = (id: string) =>
+    setOpened((old) => {
+      const next = new Set(old);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   const children = (looseParts ?? node?.children.map((id) => ctx.nodes.get(id)) ?? []).filter(
     (n): n is TreeNode => !!n && ctx.shown(n.id),
   );
   // 子を持たない部品はカード、子を持つ部品（組立品）と入れ子の Group は小さな枠
   const cards = children.filter((n) => n.node === "part" && n.children.length === 0);
-  const inner = children.filter((n) => n.node === "group" || n.children.length > 0);
+  const nestedAll = children.filter((n) => n.node === "group" || n.children.length > 0);
+  // たたんでカードにするグループ: 中が部品だけで、開いておらず、選んでいる部品を含まないもの
+  const folded = nestedAll.filter(
+    (n) =>
+      foldable(n, ctx) &&
+      !opened.has(n.id) &&
+      !(ctx.selected !== null && n.children.includes(ctx.selected)),
+  );
+  const inner = nestedAll.filter((n) => !folded.includes(n));
   const assembly = node?.node === "part";
   const row = node ? ctx.rows.get(node.id) : undefined;
   const tone: Tone = node ? systemTone(row?.system ?? node.system) : "gray";
-  const prefix = assembly ? td.overviewAssembly : node ? td.overviewSubsystem : "";
+  // 親を持つ Group は系の下の入れ子のグループ（名前の変更と解除ができる）
+  const nestedGroup = node?.node === "group" && node.parent !== null;
+  const prefix = assembly
+    ? td.overviewAssembly
+    : nestedGroup
+      ? td.overviewGroup
+      : node
+        ? td.overviewSubsystem
+        : "";
   return (
     <GroupBox
       tone={tone}
@@ -109,24 +141,76 @@ function Box({
       title={title ?? (node ? ctx.nameOf(node) : "")}
       nested={nested}
       selected={assembly && ctx.selected === node?.id}
-      onSelectHeading={assembly && node ? () => ctx.onSelect(node.id) : undefined}
+      onSelectHeading={
+        assembly && node ? () => ctx.onSelect(node.id) : onFold ? () => onFold() : undefined
+      }
+      actions={
+        nestedGroup && node ? (
+          <GroupActions group={node} nodes={ctx.nodes} onFold={onFold} />
+        ) : undefined
+      }
     >
-      {cards.length > 0 && (
-        <CardGrid count={cards.length}>
+      {cards.length + folded.length > 0 && (
+        <CardGrid count={cards.length + folded.length}>
           {cards.map((n) => {
             const r = ctx.rows.get(n.id);
             return r ? <PartCard key={n.id} row={r} ctx={ctx} /> : null;
           })}
+          {folded.map((n) => (
+            <FoldedGroupCard key={n.id} node={n} ctx={ctx} onOpen={() => toggle(n.id)} />
+          ))}
         </CardGrid>
       )}
       {inner.length > 0 && (
-        <NestedBoxes afterCards={cards.length > 0}>
+        <NestedBoxes afterCards={cards.length + folded.length > 0}>
           {inner.map((n) => (
-            <Box key={n.id} node={n} ctx={ctx} nested />
+            <Box
+              key={n.id}
+              node={n}
+              ctx={ctx}
+              nested
+              onFold={foldable(n, ctx) ? () => toggle(n.id) : undefined}
+            />
           ))}
         </NestedBoxes>
       )}
     </GroupBox>
+  );
+}
+
+/** たためるグループ: 系の下の入れ子の Group で、中が（子を持たない）部品だけのもの */
+function foldable(n: TreeNode, ctx: Ctx): boolean {
+  if (n.node !== "group" || n.parent === null) return false;
+  const kids = n.children.map((id) => ctx.nodes.get(id)).filter((k) => !!k && ctx.shown(k.id));
+  return kids.length > 0 && kids.every((k) => k?.node === "part" && k.children.length === 0);
+}
+
+/**
+ * たたんだグループのカード（部品のカードと同じ大きさ）。アイコンと種類は中の部品がそろっているときだけ出し、
+ * 右上の数は中の部品の数。押すと枠に開く。
+ */
+function FoldedGroupCard({ node, ctx, onOpen }: { node: TreeNode; ctx: Ctx; onOpen: () => void }) {
+  const td = useT().components;
+  const rows = node.children.flatMap((id) => {
+    const r = ctx.rows.get(id);
+    return r ? [r] : [];
+  });
+  const first = rows[0];
+  const same = (pick: (r: PartRow) => string | null) =>
+    first !== undefined && rows.every((r) => pick(r) === pick(first));
+  const kind = same((r) => r.kind) && first ? ctx.kindName(first.kind) : "";
+  return (
+    <ItemCard
+      role={same((r) => r.role) && first ? first.role : null}
+      tone={systemTone(first?.system ?? node.system)}
+      caption={kind ? `${td.overviewGroup} · ${kind}` : td.overviewGroup}
+      name={ctx.nameOf(node)}
+      count={rows.length}
+      title={rows.map((r) => r.id).join(", ")}
+      selected={false}
+      onSelect={onOpen}
+      width={CARD_WIDTH}
+    />
   );
 }
 

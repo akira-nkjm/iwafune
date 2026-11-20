@@ -17,11 +17,15 @@ use ts_rs::TS;
 pub enum Op {
     // ---- 部品
     /// 部品を足す。`group` は親のグループ（無ければ作る）か組立品の部品。無ければ `parts/` の直下。
+    /// `group_under` は `group` の祖先の ID の列（外側から。例: 系 `aocs` の下のグループ `RW` なら `["aocs"]`）。
+    /// 空でなければ、`group` はその連鎖の下のグループとして（無ければ作って）使う。
     /// `catalog` か `kind` のどちらかが要る。モードには `mode_state`（既定は種別の `off`）で 1 行ずつ足す。
     CreatePart {
         id: String,
         #[serde(default)]
         group: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        group_under: Vec<String>,
         #[serde(default)]
         catalog: Option<String>,
         #[serde(default)]
@@ -49,10 +53,15 @@ pub enum Op {
         to: String,
     },
     /// 部品を別のグループ（または組立品）へ移す。`to` が None なら `parts/` の直下。
+    /// `under` は `to` の祖先の ID の列（外側から。例: 系 `aocs` の下のグループ `RW` なら `["aocs"]`）。
+    /// 空でなければ `to` はその連鎖の下のグループとして使い、無ければ作る（途中の段も）。
+    /// 連鎖の先頭は既存のノードで、新しいグループは別のグループの下にしか作れない。
     MovePart {
         id: String,
         #[serde(default)]
         to: Option<String>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        under: Vec<String>,
     },
     /// 属性の値を書く（`state` があれば状態ごとの値の 1 セル）。
     SetValue {

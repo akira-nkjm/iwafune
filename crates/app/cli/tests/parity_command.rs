@@ -111,7 +111,7 @@ fn gui_placement_matches_cli() {
         assert_eq!(ops[0]["op"], "place", "{ops:?}");
         assert_same_files(&cli_root, &http_root, &cli.join(" "));
     }
-    let ss = std::fs::read_to_string(http_root.join("parts/aocs/SS_PX.toml")).unwrap();
+    let ss = std::fs::read_to_string(http_root.join("parts/aocs/SS/SS_PX.toml")).unwrap();
     // 手計算: qz(−30°)·qy(90°) = (cos15°cos45°, sin15°sin45°, cos15°sin45°, −sin15°cos45°)
     assert!(
         ss.contains("w = 0.683013") && ss.contains("x = 0.183013") && ss.contains("z = -0.183013"),

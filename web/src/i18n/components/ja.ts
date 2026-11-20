@@ -7,6 +7,7 @@ export const componentsJa = {
     tabTree: "ツリー",
     tabTable: "表",
     overviewSubsystem: "サブシステム",
+    overviewGroup: "グループ",
     overviewAssembly: "組立品",
     overviewUnassigned: "未所属",
     subtitle: (parts: number, groups: number) => `${parts} 部品 · ${groups} 系`,
@@ -31,6 +32,7 @@ export const componentsJa = {
     },
     detail: {
       addParam: "パラメーター追加",
+      group: "グループにまとめる…",
       rename: "名前を変える",
       remove: "削除",
       diagnostics: "診断",
@@ -120,6 +122,29 @@ export const componentsJa = {
       noCatalogMatch: "一致するカタログの品がありません",
       kind: "種別",
       pickKind: "種別を選ぶ",
+    },
+    group: {
+      foldAction: "たたむ（1 枚のカードに戻す）",
+      renameAction: "グループの名前を変える",
+      ungroupAction: "グループを解く（部品を親へ戻す）",
+      title: "部品をグループにまとめる",
+      description: (parent: string) =>
+        `チェックした部品を ${parent} の下のフォルダへ移します。フォルダが無ければ作ります。部品の ID と所属するサブシステムは変わりません。`,
+      idLabel: "グループの ID",
+      idHint:
+        "フォルダ名（parts/<サブシステム>/<ID>/）になります。同じ親の下に同じ ID のグループがあれば、そこへ加えます。",
+      partsLabel: "グループに入れる部品（同じ親のもの）",
+      summary: (group: string, count: number) => `${count} 個の部品を ${group} にまとめる`,
+      confirm: "まとめる",
+      renameTitle: (id: string) => `グループ ${id} の名前を変える`,
+      renameDescription:
+        "フォルダを移し、グループを参照している図の配置と配分のキーも書き換えます。",
+      renameConfirm: "変更",
+      ungroupTitle: (id: string) => `${id} を解く`,
+      ungroupDescription: (parent: string) =>
+        `グループの部品をすべて ${parent} の直下へ戻します。空になったフォルダは消します。`,
+      ungroupSummary: (id: string) => `${id} を解く`,
+      ungroupConfirm: "解く",
     },
     rename: {
       title: (id: string) => `${id} の名前を変える`,

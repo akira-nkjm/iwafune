@@ -201,6 +201,7 @@ fn delete_kind_is_refused_while_used() {
         Op::CreatePart {
             id: "SAIL".into(),
             group: Some("structure".into()),
+            group_under: vec![],
             catalog: None,
             kind: Some("sail".into()),
             count: None,
