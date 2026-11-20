@@ -521,6 +521,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "fune-report"
+version = "0.5.9"
+dependencies = [
+ "insta",
+ "sat-units",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "ts-rs",
+]
+
+[[package]]
 name = "fune-server"
 version = "0.5.9"
 dependencies = [
@@ -545,7 +557,9 @@ dependencies = [
  "fune-model",
  "fune-ops",
  "fune-projection",
+ "fune-report",
  "fune-store",
+ "insta",
  "sat-analysis",
  "sat-astro",
  "sat-units",

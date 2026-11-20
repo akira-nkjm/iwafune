@@ -7,6 +7,7 @@
 //! | `history` | `/history` `/undo` `/redo` |
 //! | `units` | `/units` `/units/parse` `/units/format` |
 //! | `analyses` | `/analyses` `/analyses/{id}` `/budgets/{kind}` |
+//! | `report` | `/report/export` |
 //! | `data` | `/data/status` `/data/{id}/fetch` |
 //! | `catalog` | `/catalog/{id}`（カタログ品 1 件） `/catalog/fetch` `/catalog/update`（共有カタログ） |
 
@@ -16,6 +17,7 @@ mod data;
 mod design;
 mod edit;
 mod history;
+mod report;
 mod units;
 
 use crate::error::ApiError;
@@ -74,6 +76,7 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
             "/budgets/{kind}",
             get(analyses::budget).post(analyses::budget_with),
         )
+        .route("/report/export", post(report::export))
         .route("/data/status", get(data::status))
         .route("/data/space_weather", get(data::space_weather))
         .route("/data/{id}/fetch", post(data::fetch))
