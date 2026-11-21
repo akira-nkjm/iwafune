@@ -403,6 +403,7 @@ export const fixture: DesignView = {
   settings: [],
   cases: [],
   maneuvers: [],
+  stations: [],
   requirements: [],
   views: [],
   sources: [],

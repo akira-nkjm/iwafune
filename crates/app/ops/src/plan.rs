@@ -10,6 +10,7 @@
 //! | `defs` | 定義（属性・種別）の Op（足す・置き換える・消す） |
 //! | `others` | モード・ネット・図・設定の Op |
 //! | `records` | 解析ケース・出典・ハーネスの Op |
+//! | `ground` | 地上局の Op（足す・消す・名前を変える） |
 //! | `requirements` | 要求の Op（足す・書く・消す） |
 //! | `catalog` | カタログ品の Op（このプロジェクトの `catalog/` だけ） |
 //! | `catalog_source` | カタログの出所の Op（fune.toml の共有カタログ `[[catalog]] git = …` を足す・外す） |
@@ -20,6 +21,7 @@ mod attr;
 mod catalog;
 mod catalog_source;
 mod defs;
+mod ground;
 mod groups;
 mod others;
 mod parts;
@@ -129,7 +131,12 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::DeleteAttribute { .. }
         | Op::CreateKind { .. }
         | Op::UpdateKind { .. }
-        | Op::DeleteKind { .. } => defs::interpret(edits, design, op),
+        | Op::DeleteKind { .. }
+        | Op::RenameAttribute { .. }
+        | Op::RenameKind { .. } => defs::interpret(edits, design, op),
+        Op::CreateGroundStation { .. }
+        | Op::RemoveGroundStation { .. }
+        | Op::RenameGroundStation { .. } => ground::interpret(edits, design, op),
         Op::CreateCatalogItem { .. }
         | Op::SetCatalogValue { .. }
         | Op::UnsetCatalogValue { .. }

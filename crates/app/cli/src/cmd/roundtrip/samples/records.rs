@@ -46,6 +46,14 @@ pub(in super::super) fn def_ops() -> Vec<Op> {
         },
         Op::UpdateKind { def: ported },
         Op::DeleteKind { id: s("wire2") },
+        Op::RenameAttribute {
+            id: s("finish"),
+            to: s("coating"),
+        },
+        Op::RenameKind {
+            id: s("wire2"),
+            to: s("cable"),
+        },
     ]
 }
 
@@ -289,6 +297,27 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
             ),
         },
         Op::RemoveManeuver { id: s("MV_X") },
+        Op::CreateGroundStation {
+            id: s("SVALBARD"),
+            label: Some(s("Svalbard \"test\"")),
+            latitude: Some(Quantity::new(78.2, "deg")),
+            longitude: Some(Quantity::new(15.4, "deg")),
+            altitude: Some(Quantity::new(450.0, "m")),
+            min_elevation: Some(Quantity::new(-5.0, "deg")),
+        },
+        Op::CreateGroundStation {
+            id: s("BARE_GS"),
+            label: None,
+            latitude: None,
+            longitude: None,
+            altitude: None,
+            min_elevation: None,
+        },
+        Op::RemoveGroundStation { id: s("SVALBARD") },
+        Op::RenameGroundStation {
+            id: s("BARE_GS"),
+            to: s("BARE_GS2"),
+        },
         Op::CreateRequirement {
             requirement: requirement(
                 "R_X",

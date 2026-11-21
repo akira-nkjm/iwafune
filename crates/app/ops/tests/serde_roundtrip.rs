@@ -46,6 +46,8 @@ fn name(op: &Op) -> &'static str {
         Op::UpdateKind { .. } => "UpdateKind",
         Op::DeleteAttribute { .. } => "DeleteAttribute",
         Op::DeleteKind { .. } => "DeleteKind",
+        Op::RenameAttribute { .. } => "RenameAttribute",
+        Op::RenameKind { .. } => "RenameKind",
         Op::CreateMode { .. } => "CreateMode",
         Op::RemoveMode { .. } => "RemoveMode",
         Op::RenameMode { .. } => "RenameMode",
@@ -69,6 +71,9 @@ fn name(op: &Op) -> &'static str {
         Op::CreateManeuver { .. } => "CreateManeuver",
         Op::SetManeuver { .. } => "SetManeuver",
         Op::RemoveManeuver { .. } => "RemoveManeuver",
+        Op::CreateGroundStation { .. } => "CreateGroundStation",
+        Op::RemoveGroundStation { .. } => "RemoveGroundStation",
+        Op::RenameGroundStation { .. } => "RenameGroundStation",
         Op::CreateRequirement { .. } => "CreateRequirement",
         Op::SetRequirement { .. } => "SetRequirement",
         Op::RemoveRequirement { .. } => "RemoveRequirement",
@@ -282,6 +287,14 @@ fn other_ops() -> Vec<Op> {
         Op::DeleteKind {
             id: "film_heater".into(),
         },
+        Op::RenameAttribute {
+            id: "max_torque_2".into(),
+            to: "max_torque_3".into(),
+        },
+        Op::RenameKind {
+            id: "film_heater".into(),
+            to: "foil_heater".into(),
+        },
         Op::MoveMode {
             id: "SAFE".into(),
             position: fune_ops::ModePosition::Before("NOMINAL".into()),
@@ -371,6 +384,21 @@ fn other_ops() -> Vec<Op> {
             maneuver: maneuver(),
         },
         Op::RemoveManeuver { id: "RAISE".into() },
+        Op::CreateGroundStation {
+            id: "SVALBARD".into(),
+            label: Some("Svalbard".into()),
+            latitude: Some(Quantity::new(78.2, "deg")),
+            longitude: None,
+            altitude: None,
+            min_elevation: None,
+        },
+        Op::RemoveGroundStation {
+            id: "SVALBARD".into(),
+        },
+        Op::RenameGroundStation {
+            id: "SVALBARD".into(),
+            to: "SVALBARD2".into(),
+        },
         Op::CreateRequirement {
             requirement: requirement(),
         },
@@ -426,7 +454,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 57, "some op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 62, "some op kinds have no sample: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =

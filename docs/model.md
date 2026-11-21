@@ -23,6 +23,16 @@ Conditions are placed in `conditions/orbit.toml`, `conditions/launch.toml` and `
 The settings category is `SettingScope::Conditions` (spelled `conditions`; the display name is "前提条件" / "Conditions").
 The keys are `conditions.orbit.altitude`, `conditions.launch.<field>` and `conditions.ground.<ID>.<field>`.
 `mission/` is a reserved directory for the mission, mission success criteria and phases (#9), and is currently skipped.
+
+A ground station file (`label`, `latitude`, `longitude`, `altitude`, `min_elevation`, and per-band `[link.<band>]`) is edited as follows (all of it goes through Ops, so no file needs to be written by hand):
+
+- `fune ground add <ID> [--label …] [--latitude "35.7 deg"] [--longitude "139.7 deg"] [--altitude "40 m"] [--min-elevation "10 deg"]` (Op `create_ground_station`; the GUI sends the typed text to `POST /ops/from_command` as `{ "command": "ground_add", … }`)
+  creates `conditions/ground/<ID>.toml` in canonical form. Renaming or removing a station is also refused while a requirement's `verify.check` names it (for example `margin:<link>@<ID>`); update or remove those requirements first (temporary, until the key is structured; #328). The ID follows the ID rules and must not collide with an existing station (a difference only in letter case collides); the units are checked by `fune check`.
+- A value of an existing station is changed with `fune set conditions.ground.<ID>.<field> …` (`SetSetting`; it does not create a station: an unknown `<ID>` is refused, so add it with `fune ground add` first), including a band: `fune set conditions.ground.<ID>.link.<band>.antenna_gain "14 dBi"`. `fune unset conditions.ground.<ID>.link.<band>` removes a band.
+- `fune ground rename <ID> <NEW>` (Op `rename_ground_station`) moves the file and rewrites the station list `stations` of `analysis/comm.toml`.
+- `fune ground rm <ID>` (Op `remove_ground_station`) removes the file. It is **refused while `analysis.comm.stations` lists the station** (an empty `stations` means every station is used, so nothing refers to a particular one);
+  take the station out of that list first. This is the same style as removing a referenced catalog item or shared catalog.
+  The API returns the stations as `DesignView.stations` (`id`, `label`, `file`, `group`, `in_use`).
 Orbits and other items in the old layout are not read, and a missing orbit is reported as an existing missing input. There is no migration and no compatibility with old keys.
 
 The analysis category is `sat_analysis::spec::AnalysisArea`. It has `System(System)` and `Condition(ConditionTopic)`,
@@ -175,6 +185,12 @@ flowchart LR
 | View | Presentation-only information (outside Design) | `view/…` | coordinates of the system diagram, the 3D camera |
 
 ### 3.1 Roles and states of kinds
+
+Project-defined attributes and kinds can be renamed (`fune attr rename <ID> <NEW>`, `fune kind rename <ID> <NEW>`; Ops `rename_attribute`, `rename_kind`; `POST /ops`). The definition file is moved and
+every reference found by the reference index (`Design::references`) is rewritten: for an attribute, the `required` / `optional` lists of kinds and the `[attr.<ID>]` keys of parts and catalog items
+(including the by-state tables); for a kind, the `kind` of parts and catalog items and the `extends` of other kinds. Built-in attributes and kinds cannot be renamed, the new ID must follow the ID rules and must not be taken
+(built-in ones included), and `fune check` still rejects names that clash with field names (`def.reserved`). Items of shared catalogs are read-only and cannot be rewritten, so a rename is refused
+while one of them uses the definition (change the shared catalog first). Nothing else refers to a definition (analysis settings, view files and mode tables hold part, group, mode and net IDs only).
 
 - A kind's `role` is a value of `fune_model::builtin::Role` (`enum_text!`). Its spelling is defined in one place, `builtin/role.rs`, and unknown roles are rejected when serde reads them. If omitted, the parent kind's role is used, and if the parent has none, there is no role. Custom kind IDs are free, but the vocabulary of roles is not extended.
 - A role's display name is the Japanese and English name of the corresponding built-in kind. `labels.role_system` holds the subsystem of every role, keyed by Role (correspondences that belong to no subsystem are made explicit as `None`). The API returns roles as the TS `Role` type, and the Web icon table covers all roles.

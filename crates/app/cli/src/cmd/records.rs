@@ -2,10 +2,12 @@
 
 use super::common::{Built, list};
 use crate::args::{
-    CaseArgs, CaseCmd, CatalogCmd, CatalogSourceCmd, HarnessArgs, HarnessCmd, ManeuverArgs,
-    ManeuverCmd, SourceArgs, SourceCmd,
+    CaseArgs, CaseCmd, CatalogCmd, CatalogSourceCmd, GroundCmd, HarnessArgs, HarnessCmd,
+    ManeuverArgs, ManeuverCmd, SourceArgs, SourceCmd,
 };
-use fune_service::dto::{Case, CatalogSourceAddText, Harness, ManeuverText, Op, Source};
+use fune_service::dto::{
+    Case, CatalogSourceAddText, GroundAddText, Harness, ManeuverText, Op, Source,
+};
 use fune_service::edit;
 
 /// serde の綴り（snake_case）から列挙を読む。
@@ -133,6 +135,31 @@ pub fn maneuver(c: &ManeuverCmd) -> Built<'_> {
         ManeuverCmd::Set(a) => Some((edit::maneuver_op(&maneuver_text(a), false)?, &a.edit)),
         ManeuverCmd::Rm { id, edit } => Some((Op::RemoveManeuver { id: id.clone() }, edit)),
         ManeuverCmd::Ls => None,
+    })
+}
+
+/// `fune ground add|rm|rename` → `CreateGroundStation`（引数の読み方は service）・`RemoveGroundStation`・`RenameGroundStation`。
+pub fn ground(c: &GroundCmd) -> anyhow::Result<(Op, &crate::args::EditOpts)> {
+    Ok(match c {
+        GroundCmd::Add(a) => (
+            edit::ground_add_op(&GroundAddText {
+                id: a.id.clone(),
+                label: a.label.clone(),
+                latitude: a.latitude.clone(),
+                longitude: a.longitude.clone(),
+                altitude: a.altitude.clone(),
+                min_elevation: a.min_elevation.clone(),
+            })?,
+            &a.edit,
+        ),
+        GroundCmd::Rm { id, edit } => (Op::RemoveGroundStation { id: id.clone() }, edit),
+        GroundCmd::Rename { id, to, edit } => (
+            Op::RenameGroundStation {
+                id: id.clone(),
+                to: to.clone(),
+            },
+            edit,
+        ),
     })
 }
 

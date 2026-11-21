@@ -115,6 +115,8 @@ fn covers(op: &Op) -> &'static str {
         Op::UpdateKind { .. } => "UpdateKind",
         Op::DeleteAttribute { .. } => "DeleteAttribute",
         Op::DeleteKind { .. } => "DeleteKind",
+        Op::RenameAttribute { .. } => "RenameAttribute",
+        Op::RenameKind { .. } => "RenameKind",
         Op::CreateMode { .. } => "CreateMode",
         Op::RemoveMode { .. } => "RemoveMode",
         Op::RenameMode { .. } => "RenameMode",
@@ -138,6 +140,9 @@ fn covers(op: &Op) -> &'static str {
         Op::CreateManeuver { .. } => "CreateManeuver",
         Op::SetManeuver { .. } => "SetManeuver",
         Op::RemoveManeuver { .. } => "RemoveManeuver",
+        Op::CreateGroundStation { .. } => "CreateGroundStation",
+        Op::RemoveGroundStation { .. } => "RemoveGroundStation",
+        Op::RenameGroundStation { .. } => "RenameGroundStation",
         Op::CreateRequirement { .. } => "CreateRequirement",
         Op::SetRequirement { .. } => "SetRequirement",
         Op::RemoveRequirement { .. } => "RemoveRequirement",
@@ -186,5 +191,5 @@ fn every_op_survives_to_cli_and_back() {
     }
     seen.sort_unstable();
     seen.dedup();
-    assert_eq!(seen.len(), 57, "some Op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 62, "some Op kinds have no sample: {seen:?}");
 }

@@ -47,3 +47,26 @@ fn link_antenna_must_be_a_defined_part() {
         ["ref.part"]
     );
 }
+
+#[test]
+fn ground_station_ids_follow_the_entity_id_rule() {
+    let mut d = Design::default();
+    for id in ["TOKYO_GS", "a/b", "Gs.1"] {
+        d.conditions
+            .ground
+            .insert(id.to_owned(), Default::default());
+    }
+    let bad: Vec<String> = fune_model::check(&d)
+        .into_iter()
+        .filter(|x| x.code == "id.invalid")
+        .map(|x| x.message)
+        .collect();
+    assert_eq!(bad.len(), 2, "{bad:?}");
+    assert!(bad.iter().any(|m| m.contains("a/b")), "{bad:?}");
+    let ok = Design::default();
+    assert!(
+        fune_model::check(&ok)
+            .iter()
+            .all(|x| x.code != "id.invalid")
+    );
+}

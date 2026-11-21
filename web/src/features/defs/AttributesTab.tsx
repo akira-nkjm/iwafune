@@ -18,6 +18,7 @@ import { defName } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
 import { Button } from "@/ui/button";
+import { RenameDefinition } from "./RenameDefinition";
 
 const EMPTY: NewAttribute = { id: "", label: "", dimension: "", units: [], byState: false };
 
@@ -56,6 +57,9 @@ export function AttributesTab({ design }: { design: DesignView }) {
             <Th>{ta.displayUnit}</Th>
             <Th>{ta.byState}</Th>
             <Th>{ta.origin}</Th>
+            <Th>
+              <span className="sr-only">{ta.actions}</span>
+            </Th>
           </>
         }
       >
@@ -79,6 +83,7 @@ export function AttributesTab({ design }: { design: DesignView }) {
                 <Pill tone="accent">{t.defs.project}</Pill>
               )}
             </Td>
+            <Td>{!a.builtin && <RenameDefinition what="attribute" id={a.id} />}</Td>
           </tr>
         ))}
       </DataTable>

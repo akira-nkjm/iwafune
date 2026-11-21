@@ -262,6 +262,10 @@ pub fn assembly_dir(design: &Design, id: &str) -> Option<String> {
     part_file(design, id).map(|f| f.trim_end_matches(".toml").to_string())
 }
 
+/// 地上局のファイル（`conditions/ground/<ID>.toml`）。
+pub fn ground_file(id: &str) -> String {
+    format!("{GROUND_DIR}/{id}.toml")
+}
 pub fn mode_file(id: &str) -> String {
     format!("{MODES_DIR}/{id}.toml")
 }

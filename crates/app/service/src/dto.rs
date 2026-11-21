@@ -17,6 +17,7 @@
 //! | `edit` | Op の適用と、人が打った文字列（`SetText`・`UnsetText`） |
 //! | `command` | 名詞のコマンドに打った引数（`CommandText`。`fune net set`・`fune part place`・`fune mode set` など） |
 //! | `maneuver` | マヌーバの表示（`ManeuverView`）と `fune maneuver add\|set` の引数（`ManeuverText`） |
+//! | `ground` | 地上局の表示（`GroundStationView`）と `fune ground add` の引数（`GroundAddText`） |
 //! | `requirement` | 要求の表示（`RequirementView`）・`fune requirement add\|set` の引数（`RequirementText`）・要求適合表（`ComplianceReport`） |
 //! | `budget` | 質量・電力・データ量のバジェット |
 //! | `kpi` | KPI（系の代表値・判定・塗りの比・判定の数え方）と塗りの比 |
@@ -70,6 +71,8 @@ pub use shared_catalog::{
     CatalogFetchRequest, CatalogItemChange, CatalogItemChangeKind, CatalogSyncEntry,
     CatalogSyncResult, CatalogUpdateRequest, CatalogValueChange,
 };
+mod ground;
+pub use ground::{GroundAddText, GroundStationView};
 mod source;
 pub use source::SourceView;
 mod mode_levels;

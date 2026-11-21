@@ -14,10 +14,21 @@ use toml_edit::{DocumentMut, Item, Table, Value};
 
 /// 入れ子の表をインライン表にする（中の入れ子も含めて）。`sections` に挙げた最上位の表は見出しの表のまま残し、その中を
 /// インライン表にする（`[target]` の下の `altitude = { value, unit }` など。§10.2 の 2 段まで）。
+/// `sections` の名前の末尾が `/` なら、その表の子の表も見出しの表で残す（`link/` なら `[link.uhf]`。§10.2 の 3 段まで）。
 fn inline_nested(table: &mut Table, sections: &[&str]) {
     let keys: Vec<String> = table.iter().map(|(k, _)| k.to_string()).collect();
     for key in keys {
         if let Some(Item::Table(t)) = table.get_mut(&key) {
+            let children = format!("{key}/");
+            if sections.contains(&children.as_str()) {
+                let names: Vec<String> = t.iter().map(|(k, _)| k.to_string()).collect();
+                for name in names {
+                    if let Some(Item::Table(c)) = t.get_mut(&name) {
+                        inline_nested(c, &[]);
+                    }
+                }
+                continue;
+            }
             inline_nested(t, &[]);
             if sections.contains(&key.as_str()) {
                 continue;
@@ -56,6 +67,9 @@ pub const MANEUVER_SECTIONS: &[&str] = &["target", "constraints"];
 
 /// 要求のファイルで見出しの表にする最上位の表（docs/model.md の `requirements/`）。
 pub const REQUIREMENT_SECTIONS: &[&str] = &["constraint", "quantify", "verify"];
+
+/// 地上局のファイルで見出しの表にする表（`[link.<帯域>]`。docs/model.md の `conditions/ground/`）。
+pub const GROUND_SECTIONS: &[&str] = &["link/"];
 
 /// ファイルを値に合わせる（無ければ作る）。`sections` の最上位の表は見出しの表で書く（マヌーバの `[target]`・`[constraints]`）。
 pub fn write_record_with_sections<T: Serialize>(

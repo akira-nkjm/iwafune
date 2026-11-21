@@ -115,6 +115,19 @@ pub struct Verification {
 }
 
 impl Verification {
+    /// 判定のキー `check` が地上局 `station` を名指ししているか（`@<局の ID>` で終わる。部分一致はしない:
+    /// 局 `tokyo` は `…@tokyo2` に当たらない）。
+    ///
+    /// キーの書式（通信の解析の `margin:<回線>@<局>`）は解析が持つ。ここはそれを写した **暫定の見張り** で、
+    /// キーが構造を持つ形になるまで（#328）、局の名前変更・削除を拒むためだけに使う。解析の書式との一致は
+    /// fune-projection のテスト `station_check_key_matches_link_budget` が確かめる。
+    pub fn check_names_station(&self, station: &str) -> bool {
+        self.check.as_deref().is_some_and(|key| {
+            key.strip_suffix(station)
+                .is_some_and(|rest| rest.ends_with('@'))
+        })
+    }
+
     /// 何も書かれていないか（ファイルに `[verify]` を書かない）。
     pub fn is_empty(&self) -> bool {
         self == &Self::default()
@@ -194,6 +207,19 @@ pub const ANALYSIS_IDS: &[&str] = &[
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn check_key_names_station_by_exact_suffix() {
+        let verify = |key: &str| Verification {
+            check: Some(key.to_string()),
+            ..Default::default()
+        };
+        assert!(verify("margin:s_down@tokyo").check_names_station("tokyo"));
+        assert!(!verify("margin:s_down@tokyo2").check_names_station("tokyo"));
+        assert!(!verify("margin:s_down@xtokyo").check_names_station("tokyo"));
+        assert!(!verify("dod").check_names_station("tokyo"));
+        assert!(!Verification::default().check_names_station("tokyo"));
+    }
 
     #[test]
     fn empty_tables_are_not_written() {

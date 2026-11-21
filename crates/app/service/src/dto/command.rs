@@ -72,6 +72,8 @@ pub enum CommandText {
     ManeuverAdd(super::ManeuverText),
     /// `fune maneuver set <ID> …`（無ければ作り、あれば丸ごと置き換える）
     ManeuverSet(super::ManeuverText),
+    /// `fune ground add <ID> --label … --latitude "35.7 deg" …`（`conditions/ground/<ID>.toml` を作る。同じ ID があれば拒む）
+    GroundAdd(super::GroundAddText),
     /// `fune requirement add <ID> --statement … --quantity Mass --kind at_most --value "12 kg" …`（同じ ID があれば拒む）
     RequirementAdd(super::RequirementText),
     /// `fune requirement set <ID> …`（無ければ作り、あれば丸ごと置き換える）

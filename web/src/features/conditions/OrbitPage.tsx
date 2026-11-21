@@ -3,7 +3,7 @@ import { AnalysisKpis } from "@/analysis/AnalysisKpis";
 import { ResultTable } from "@/analysis/ResultTable";
 import { analysisOutput } from "@/api/analysis-output";
 import { useAnalyses, useConditionAnalyses, useDesign } from "@/api/queries";
-import type { SettingView } from "@/api/types";
+import type { GroundStationView, SettingView } from "@/api/types";
 import { SettingsTable } from "@/features/project/SettingsTable";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
@@ -16,6 +16,7 @@ import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { DecayPanel } from "./DecayPanel";
 import { EclipseSeasonPanel } from "./EclipseSeasonPanel";
+import { AddStationButton, StationActions } from "./StationDialogs";
 
 /** 前提条件 / 軌道と地上局: 前提条件の設定（API の `scope`）と、地上局ごとの可視（comm.visibility） */
 export function OrbitPage() {
@@ -27,7 +28,12 @@ export function OrbitPage() {
   const stations = analysisOutput(vis?.result, "comm.visibility")?.stations ?? [];
   return (
     <>
-      <PageHeader eyebrow={m.eyebrow} title={m.orbit} subtitle={m.orbitSubtitle} />
+      <PageHeader
+        eyebrow={m.eyebrow}
+        title={m.orbit}
+        subtitle={m.orbitSubtitle}
+        actions={<AddStationButton />}
+      />
       <PageBody>
         <QueryState
           query={design}
@@ -39,7 +45,7 @@ export function OrbitPage() {
             </>
           }
         >
-          {(d) => <ConditionsSettings settings={d.settings} />}
+          {(d) => <ConditionsSettings settings={d.settings} stations={d.stations} />}
         </QueryState>
         <OrbitAnalyses />
         {stations.length > 0 && (
@@ -59,10 +65,17 @@ export function OrbitPage() {
 }
 
 /** 前提条件の設定（API の `scope` が conditions のもの）を、まとまり（`group`）ごとの表に */
-function ConditionsSettings({ settings }: { settings: readonly SettingView[] }) {
+function ConditionsSettings({
+  settings,
+  stations,
+}: {
+  settings: readonly SettingView[];
+  stations: readonly GroundStationView[];
+}) {
   const m = useT().conditions;
   const conditions = settings.filter((s) => s.scope === "conditions");
-  const groups = [...new Set(conditions.map((s) => s.group))];
+  // 設定を 1 つも書いていない地上局もカードを出す（名前の変更・削除ができるように）
+  const groups = [...new Set([...conditions.map((s) => s.group), ...stations.map((s) => s.group)])];
   if (groups.length === 0)
     return (
       <Panel>
@@ -75,13 +88,20 @@ function ConditionsSettings({ settings }: { settings: readonly SettingView[] }) 
       {groups.map((g) => {
         const list = conditions.filter((s) => s.group === g);
         const label = list.find((s) => s.field === "label");
+        // 地上局のまとまりには名前の変更と削除（API の `stations` の `group` で引く）
+        const station = stations.find((s) => s.group === g);
         return (
           <TablePanel
             key={g}
-            title={label?.display ?? g}
-            caption={<span className="font-mono">{list[0]?.file ?? g}</span>}
+            title={label?.display ?? station?.id ?? g}
+            right={station && <StationActions station={station} />}
+            caption={<span className="font-mono">{list[0]?.file ?? station?.file ?? g}</span>}
           >
-            <SettingsTable settings={list} grouped />
+            {list.length > 0 ? (
+              <SettingsTable settings={list} grouped />
+            ) : (
+              <Empty>{m.stations.noValues}</Empty>
+            )}
           </TablePanel>
         );
       })}
