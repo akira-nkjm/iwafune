@@ -43,6 +43,9 @@ export const keys = {
   /** 名詞のコマンドに打った引数から作った Op の列（`POST /ops/from_command`。書き込まない） */
   commandOps: (revision: string, commandJson: string) =>
     ["command_ops", revision, commandJson] as const,
+  /** 季節解析から作った新しいケースの Op（`POST /ops/case_from_eclipse`。書き込まない）。revision が変われば別のキー */
+  eclipseCaseOp: (revision: string | null, json: string) =>
+    ["eclipse-case-op", revision, json] as const,
 };
 
 /** どの Op の後でも無効化するキーの先頭（設計・診断・解析・バジェットはすべて設計から導出される） */
