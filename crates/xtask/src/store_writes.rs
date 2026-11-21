@@ -4,7 +4,7 @@
 //! `fune-store` と `fune-ops` の中だけで、そのほかの crate のテスト以外のコードが呼んだら違反にする。
 //! Op にしない書き込みは [`EXCEPTIONS`] に理由付きで挙げたファイルだけが持つ（足すときは registry.md と CONTRIBUTING.md の例外の文も直す）。
 
-use crate::single_home::production_text;
+use crate::scan::production_text;
 use std::path::{Path, PathBuf};
 
 /// `commit` を呼んでよい crate のディレクトリ（store 自身と、Op の適用・取り消し・やり直し）。
@@ -44,7 +44,7 @@ fn violation(rel: &str, text: &str) -> Option<String> {
         return None;
     }
     let prod = production_text(rel, text)?;
-    calls_commit(prod).then(|| {
+    calls_commit(&prod).then(|| {
         format!(
             "{rel}: calls `fune_store::write::commit`. Design edits go through an Op (apply in fune-ops). \
              Writes that are not Ops are listed with a reason in EXCEPTIONS of crates/xtask/src/store_writes.rs"

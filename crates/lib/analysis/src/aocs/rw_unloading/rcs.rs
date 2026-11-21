@@ -12,7 +12,7 @@ use crate::aocs::unload_time::{UnloadAssumption, UnloadTimeRcsResult, rcs_unload
 use crate::spec::{AnalysisError, Check, Verdict, ensure_positive};
 use sat_astro::constants::SECONDS_PER_DAY;
 use sat_astro::math::Vec3;
-use sat_astro::rocket::{delta_v, exhaust_velocity};
+use sat_astro::rocket::{delta_v, exhaust_velocity, mass_flow_kg_s};
 use sat_units::typed::{AngularMomentum, Mass, Qty, Velocity};
 use serde::{Deserialize, Serialize};
 
@@ -90,7 +90,10 @@ fn mean_exhaust_velocity(thrusters: &[Thruster], firing: &[String]) -> Option<f6
             .filter(|t| firing.contains(&t.id))
             .fold((0.0, 0.0), |(f, m), t| {
                 let thrust = t.thrust.value();
-                (f + thrust, m + thrust / exhaust_velocity(t.isp.value()))
+                (
+                    f + thrust,
+                    m + mass_flow_kg_s(thrust, exhaust_velocity(t.isp.value())),
+                )
             });
     (flow > 0.0).then(|| force / flow)
 }

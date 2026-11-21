@@ -378,7 +378,7 @@ export function useEclipseCaseOp(id: string, at: string | null, mode: string) {
   const now = at && id.trim() ? JSON.stringify({ id, at, mode: mode || null }) : "";
   const json = useDebounced(now, 500);
   const query = useQuery<Op, ApiError>({
-    queryKey: ["eclipse-case-op", revision, json],
+    queryKey: keys.eclipseCaseOp(revision, json),
     queryFn: () => api<Op>("/ops/case_from_eclipse", { body: JSON.parse(json) }),
     enabled: json.length > 0,
     retry: false,
