@@ -9,7 +9,8 @@ import {
   ScrollRestoration,
 } from "react-router";
 import { queryClient } from "@/api/queries";
-import { getT, useLang, useT } from "@/i18n";
+import { getT, useLang } from "@/i18n";
+import { SkeletonShell } from "@/kit/feedback/Loading";
 import { Toaster } from "@/ui/sonner";
 import { TooltipProvider } from "@/ui/tooltip";
 import type { Route } from "./+types/root";
@@ -60,34 +61,10 @@ export default function App() {
 
 /**
  * 初回ロード中（SPA の index.html に焼き込まれる）。画面の枠（サイドバーと本体のパネル）の形のスケルトン。
- * 文言は `useT()` で引く（ハイドレーションの間は焼き込んだ日本語のまま。`getT()` だと英語のときに食い違う）
+ * 文言は `SkeletonShell` が `useT()` で引く（ハイドレーションの間は焼き込んだ日本語のまま。`getT()` だと英語のときに食い違う）
  */
 export function HydrateFallback() {
-  const t = useT();
-  const bar = "animate-pulse rounded-md bg-muted motion-reduce:animate-none";
-  return (
-    <div role="status" aria-busy="true" className="loading-appear flex h-dvh min-h-0">
-      <span className="sr-only">{t.shell.loading}</span>
-      <div aria-hidden="true" className="flex w-sidebar shrink-0 flex-col gap-3 px-3 py-4">
-        <div className={`${bar} mb-4 h-7 w-32`} />
-        {["w-28", "w-36", "w-24", "w-32", "w-20", "w-30"].map((w) => (
-          <div key={w} className={`${bar} h-4 ${w}`} />
-        ))}
-      </div>
-      <div aria-hidden="true" className="flex min-w-0 flex-1 flex-col py-2.5 pr-2.5">
-        <div className="flex flex-1 flex-col gap-4 rounded-panel border border-line bg-panel p-6 shadow-panel">
-          <div className={`${bar} h-3 w-24`} />
-          <div className={`${bar} h-7 w-64`} />
-          <div className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(230px,1fr))] gap-3">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className={`${bar} h-24 rounded-card`} />
-            ))}
-          </div>
-          <div className={`${bar} h-64 rounded-card`} />
-        </div>
-      </div>
-    </div>
-  );
+  return <SkeletonShell />;
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

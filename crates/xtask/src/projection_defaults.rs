@@ -9,7 +9,7 @@
 //!
 //!   慣例の既定値を sat-astro / sat-analysis から呼ぶもの（`unwrap_or(DEFAULT_ECCENTRICITY)`・`unwrap_or_default()`）は見ない。
 
-use crate::single_home::production_text;
+use crate::scan::production_text;
 use std::path::Path;
 
 /// 検査する範囲。
@@ -51,7 +51,7 @@ pub fn check(root: &Path, files: &[std::path::PathBuf], errors: &mut Vec<String>
             continue;
         };
         if let Some(prod) = production_text(&rel_s, &text) {
-            errors.extend(violations(&rel_s, prod));
+            errors.extend(violations(&rel_s, &prod));
         }
     }
 }

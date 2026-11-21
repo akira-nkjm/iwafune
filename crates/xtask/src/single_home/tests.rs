@@ -1,4 +1,5 @@
 use super::*;
+use crate::scan::production_text;
 
 #[test]
 fn analysis_display_conversions_are_rejected_only_in_production() {
@@ -18,7 +19,7 @@ fn analysis_display_conversions_are_rejected_only_in_production() {
         let code = format!("fn run() {{}}\n#[cfg(test)]\nmod tests {{ {needle} }}");
         check_rule(
             "crates/lib/analysis/src/check.rs",
-            production_text("check.rs", &code).unwrap(),
+            &production_text("check.rs", &code).unwrap(),
             rule,
             &mut errors,
         );
@@ -201,7 +202,7 @@ fn roles_and_off_state_have_one_home() {
     let text = "fn run() {}\n#[cfg(test)]\nmod tests { let state = \"off\"; }";
     check_rule(
         "crates/app/ops/src/plan/parts.rs",
-        production_text("parts.rs", text).unwrap(),
+        &production_text("parts.rs", text).unwrap(),
         rule,
         &mut errors,
     );
@@ -240,4 +241,119 @@ fn animated_logo_comes_from_kit_feedback() {
         assert_eq!(errors.len(), 2);
         errors.clear();
     }
+}
+
+/// 本番の規則を `rel` のファイルの本文 `text` に当てた違反の数（テストのファイルは見ない）。
+fn prod_violations(rel: &str, text: &str) -> usize {
+    let Some(prod) = production_text(rel, text) else {
+        return 0;
+    };
+    let mut errors = Vec::new();
+    for rule in PROD_RULES {
+        check_rule(rel, &prod, rule, &mut errors);
+    }
+    errors.len()
+}
+
+/// 推薬の流量の手書き（`F / (Isp · g₀)`）は rocket.rs だけが持ち、ほかは `mass_flow_kg_s` を通す。
+#[test]
+fn propellant_mass_flow_has_one_home() {
+    let by_hand = "flow += tt.thrust / (tt.isp * G0);";
+    assert_eq!(
+        prod_violations("crates/lib/analysis/src/aocs/unload_time/rcs.rs", by_hand),
+        1
+    );
+    assert_eq!(
+        prod_violations("crates/lib/analysis/src/x.rs", "f / exhaust_velocity(isp)"),
+        1
+    );
+    assert_eq!(
+        prod_violations("crates/lib/astro/src/rocket.rs", by_hand),
+        0
+    );
+    // 重量（質量 × g₀）は流量ではない
+    assert_eq!(
+        prod_violations("crates/lib/analysis/src/x.rs", "mass * G0 * n_ax"),
+        0
+    );
+}
+
+/// `/ 3600.0`・`* 100.0` は sat-units（と明示した例外）だけ。app や astro の全体を許さない。
+#[test]
+fn unit_display_conversions_are_not_allowed_across_app() {
+    for needle in ["x / 3600.0", "r * 100.0"] {
+        assert_eq!(prod_violations("crates/app/service/src/x.rs", needle), 1);
+        assert_eq!(prod_violations("crates/lib/astro/src/x.rs", needle), 1);
+        assert_eq!(prod_violations("crates/lib/units/src/x.rs", needle), 0);
+    }
+}
+
+/// Web の規則: パルス・バジェットの種類の引数・`queryKey: [` は決めたファイルだけ（テストは除く）。
+#[test]
+fn web_pulse_budget_literals_and_query_keys_have_homes() {
+    assert_eq!(
+        prod_violations("web/src/features/x/X.tsx", "animate-pulse"),
+        1
+    );
+    assert_eq!(
+        prod_violations("web/src/ui/skeleton.tsx", "animate-pulse"),
+        0
+    );
+    for call in [
+        "s.budget(\"mass\")",
+        "s.budget('power')",
+        "budget(\"data\")",
+    ] {
+        assert_eq!(
+            prod_violations("web/src/features/x/X.tsx", call),
+            1,
+            "{call}"
+        );
+        assert_eq!(
+            prod_violations("web/src/features/overview/cards.ts", call),
+            0
+        );
+        assert_eq!(prod_violations("web/src/api/keys.test.ts", call), 0);
+    }
+    assert_eq!(
+        prod_violations("web/src/features/x/X.tsx", "budget(kind)"),
+        0
+    );
+    let key = "useQuery({ queryKey: [\"a\"] })";
+    assert_eq!(prod_violations("web/src/shell/Frame.tsx", key), 1);
+    for ok in [
+        "web/src/api/keys.ts",
+        "web/src/quantity/format-batch.ts",
+        "web/src/kit/feedback/Settled.tsx",
+        "web/src/shell/Frame.test.tsx",
+    ] {
+        assert_eq!(prod_violations(ok, key), 0, "{ok}");
+    }
+}
+
+/// 定義の書き出しの規則は、許したパスに 1 つも現れなければ「死んだ規則」になる。
+#[test]
+fn rules_matching_nothing_are_reported() {
+    let rule_sources: Vec<(String, String)> = SHARED
+        .iter()
+        .flat_map(|rules| rules.iter())
+        .chain(RUST_RULES)
+        .chain(WEB_RULES)
+        .chain(PROD_RULES)
+        .filter(|(_, allowed, _)| !allowed.is_empty())
+        .map(|(needle, allowed, _)| (allowed[0].to_string(), needle.to_string()))
+        .collect();
+    assert!(dead_rules(&rule_sources).is_empty());
+    let dead = dead_rules(&[]);
+    assert!(dead.iter().any(|m| m.contains("fn side_verdict(")));
+    assert!(dead.iter().all(|m| !m.contains("fn enum_str")));
+    let moved = vec![(
+        "crates/lib/analysis/src/thermal/range.rs".to_string(),
+        "fn renamed_verdict(".to_string(),
+    )];
+    assert!(
+        dead_rules(&moved)
+            .iter()
+            .any(|m| m.contains("fn side_verdict("))
+    );
 }
