@@ -206,6 +206,8 @@ fn rename_at(
         | RefSite::AttitudeLaw
         | RefSite::CommStation
         | RefSite::ThermalCaseMode { .. } => rename_setting_at(edits, site, names),
+        // 判定のキーは解析が持つ書式なので書き換えない（名前の変更は ops が先に拒む）
+        RefSite::RequirementCheck { .. } => Ok(()),
         RefSite::PortNet { .. }
         | RefSite::HarnessNet { .. }
         | RefSite::PartCatalog { .. }

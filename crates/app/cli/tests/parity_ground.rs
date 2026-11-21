@@ -65,20 +65,17 @@ fn ground_station_add_rename_remove_match_cli() {
     );
     assert_same_files(&cli_root, &http_root, "ground rename");
 
-    // 解析が挙げている局の名前の変更は `stations` も書き換える
-    run_cli(&cli_root, &["ground", "rename", "TOKYO_GS", "TOKYO_2"]);
-    http_ops(
-        &rt,
-        &http_root,
-        json!([{ "op": "rename_ground_station", "id": "TOKYO_GS", "to": "TOKYO_2" }]),
-    );
-    assert_same_files(&cli_root, &http_root, "ground rename (listed)");
-    run_cli(&cli_root, &["ground", "rename", "TOKYO_2", "TOKYO_GS"]);
-    http_ops(
-        &rt,
-        &http_root,
-        json!([{ "op": "rename_ground_station", "id": "TOKYO_2", "to": "TOKYO_GS" }]),
-    );
+    // 要求の `verify.check` が名指している局（デモの `TOKYO_GS`）の名前の変更は拒まれ、何も書かれない
+    let before = snapshot_files(&cli_root);
+    let out = fune()
+        .arg("-C")
+        .arg(&cli_root)
+        .args(["ground", "rename", "TOKYO_GS", "TOKYO_2"])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    assert!(String::from_utf8_lossy(&out.stderr).contains("R_LINK_S"));
+    assert_eq!(snapshot_files(&cli_root), before);
 
     run_cli(&cli_root, &["ground", "rm", "KSAT_GS"]);
     http_ops(
@@ -93,6 +90,45 @@ fn ground_station_add_rename_remove_match_cli() {
         "add then remove restores the design"
     );
     run_cli(&cli_root, &["fmt", "--check"]);
+    run_cli(&cli_root, &["check"]);
+}
+
+/// 解析が挙げている局の名前の変更は `stations` も書き換える（要求が名指している間は拒まれるので、先に要求を消す）。
+#[test]
+fn listed_station_rename_matches_cli() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_t1, cli_root) = demo_copy();
+    let (_t2, http_root) = demo_copy();
+
+    run_cli(&cli_root, &["requirement", "rm", "R_LINK_S"]);
+    http_ops(
+        &rt,
+        &http_root,
+        json!([{ "op": "remove_requirement", "id": "R_LINK_S" }]),
+    );
+    let before = snapshot_files(&cli_root);
+
+    run_cli(&cli_root, &["ground", "rename", "TOKYO_GS", "TOKYO_2"]);
+    http_ops(
+        &rt,
+        &http_root,
+        json!([{ "op": "rename_ground_station", "id": "TOKYO_GS", "to": "TOKYO_2" }]),
+    );
+    assert_same_files(&cli_root, &http_root, "ground rename (listed)");
+    assert_ne!(snapshot_files(&cli_root), before);
+
+    run_cli(&cli_root, &["ground", "rename", "TOKYO_2", "TOKYO_GS"]);
+    http_ops(
+        &rt,
+        &http_root,
+        json!([{ "op": "rename_ground_station", "id": "TOKYO_2", "to": "TOKYO_GS" }]),
+    );
+    assert_same_files(&cli_root, &http_root, "ground rename (listed, back)");
+    assert_eq!(
+        snapshot_files(&cli_root),
+        before,
+        "renaming back restores the design"
+    );
     run_cli(&cli_root, &["check"]);
 }
 

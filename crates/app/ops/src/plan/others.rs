@@ -5,7 +5,7 @@ use crate::op::{ModeCell, ModePosition, Op, ViewNodePos};
 use fune_model::Design;
 use fune_model::design::{AnalysisSystem, Mode, ModeSegment, Net, StartRef, StateAssign, ViewNode};
 use fune_model::id::{Id, clash, validate_entity_id};
-use fune_model::path::{self, ParamPath};
+use fune_model::path::{self, ParamPath, SettingPath, SettingScope};
 use fune_model::value::SettingValue;
 use fune_store::Edits;
 use fune_store::layout;
@@ -124,7 +124,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             validate_entity_id(view).map_err(|e| OpError::invalid(e.to_string()))?;
             Ok(entities::reset_view(edits, &layout::view_file(view))?)
         }
-        Op::SetSetting { path, value } => set_setting(edits, path, value.as_ref()),
+        Op::SetSetting { path, value } => set_setting(edits, design, path, value.as_ref()),
         _ => Err(OpError::invalid("This op is not handled here")),
     }
 }
@@ -175,7 +175,12 @@ fn remove_net(edits: &mut Edits, design: &Design, id: &str) -> Result<(), OpErro
     Ok(())
 }
 
-fn set_setting(edits: &mut Edits, text: &str, value: Option<&SettingValue>) -> Result<(), OpError> {
+fn set_setting(
+    edits: &mut Edits,
+    design: &Design,
+    text: &str,
+    value: Option<&SettingValue>,
+) -> Result<(), OpError> {
     let ParamPath::Setting(setting) =
         path::parse(text).map_err(|e| OpError::invalid(e.to_string()))?
     else {
@@ -183,8 +188,25 @@ fn set_setting(edits: &mut Edits, text: &str, value: Option<&SettingValue>) -> R
             "`{text}` is not a setting path (it must start with conditions. / analysis. / budget.)"
         )));
     };
+    require_station_for_setting(design, &setting)?;
     let (file, keys) = layout::setting_location(&setting)?;
     Ok(entities::set_setting(edits, &file, &keys, value)?)
+}
+
+/// `conditions.ground.<局>.…` の書き込みは、局が既にあるときだけ（局は `CreateGroundStation` だけが作る。ID の検査を通らない
+/// ファイルができるのを防ぐ）。
+fn require_station_for_setting(design: &Design, setting: &SettingPath) -> Result<(), OpError> {
+    let s = &setting.segments;
+    if setting.scope != SettingScope::Conditions || s.first().map(String::as_str) != Some("ground")
+    {
+        return Ok(());
+    }
+    match s.get(1) {
+        Some(id) if !design.conditions.ground.contains_key(id) => Err(OpError::invalid(format!(
+            "Ground station `{id}` does not exist. Create it first with `fune ground add {id}`"
+        ))),
+        _ => Ok(()),
+    }
 }
 
 /// 名前付きの並びを書く（名前は ID の規則。区間は 1 つ以上・モードは存在すること。長さの次元は検査が見る）。

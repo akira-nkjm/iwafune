@@ -3,13 +3,14 @@
 //! | 名前空間 | ID の規則 |
 //! |---|---|
 //! | 部品とグループ（同じ名前空間） | `validate_node_id`（パスの予約語も禁止） |
-//! | モード・ネット・ハーネス・解析ケース・出典 | `validate_entity_id` |
+//! | モード・ネット・ハーネス・解析ケース・出典・地上局 | `validate_entity_id` |
 //! | 共有カタログの出典（カタログごと。`<カタログ名>/<ID>` の ID の部分） | `validate_entity_id` |
 //! | カタログ品（出所ごと。`<出所>/<ID>` の ID の部分） | `validate_entity_id` |
 
 use super::Ctx;
 use crate::design::{EntityKey, split_catalog_ref};
 use crate::id::{IdError, duplicates, validate_entity_id, validate_node_id};
+use crate::path::SettingPath;
 use crate::target::Target;
 
 /// 1 つの名前空間の ID（検査する ID, 位置を引くエンティティ, 対象）。
@@ -55,6 +56,15 @@ pub(super) fn check_ids(ctx: &mut Ctx) {
     });
     namespace(ctx, cases.collect(), validate_entity_id);
     check_source_ids(ctx);
+    let stations = design.conditions.ground.keys().map(|id| {
+        let path = SettingPath::conditions(&["ground", id]);
+        (
+            id.clone(),
+            EntityKey::Setting(path.clone()),
+            Target::from(path),
+        )
+    });
+    namespace(ctx, stations.collect(), validate_entity_id);
     let maneuvers = design.maneuvers.keys().map(|id| {
         let id = id.to_string();
         let target = Target::maneuver(&id, None);

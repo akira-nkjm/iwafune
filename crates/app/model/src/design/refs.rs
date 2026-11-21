@@ -12,7 +12,7 @@
 //! | ネット | 部品のポートの `net`・ハーネスの `nets` |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire` |
 //! | カタログ（`[[catalog]]` の名前。出所を外すのを拒むためだけ。書き換えはしない） | 部品の `catalog`・`candidates`・ハーネスの `wire` のうち `<名前>/…` のもの |
-//! | 地上局 | `analysis/comm.toml` の `stations` |
+//! | 地上局 | `analysis/comm.toml` の `stations`・要求の `[verify].check` が名指す局（書き換えはしない。名前の変更と削除を拒むための暫定の見張り。#328） |
 //! | 種別（名前の変更と、プロジェクト独自の定義の削除の拒否に使う） | 部品とカタログ品の `kind`・種別の `extends` |
 //! | 属性（同上） | 種別の `required` / `optional`・部品とカタログ品の属性の値 |
 
@@ -121,6 +121,9 @@ pub enum RefSite {
     ManeuverMode { maneuver: String },
     /// 通信の解析が使う地上局（`analysis/comm.toml` の `stations`）
     CommStation,
+    /// 要求の判定のキーが名指す地上局（`requirements/<要求>.toml` の `[verify].check` の `@<局>`。キーが構造を持つまでの
+    /// 暫定の見張りで、書き換えはしない。`Verification::check_names_station`）
+    RequirementCheck { requirement: String },
     /// 部品の種別（`kind`）
     PartKind { part: String },
     /// カタログ品の種別（`kind`。`item` は `local/rw_10mNms` の形）
@@ -368,18 +371,26 @@ impl Design {
         out
     }
 
-    /// 地上局を使っているもの（通信の解析の `stations`。空なら全局を使うので、どの局も参照されない）。
+    /// 地上局を使っているもの（通信の解析の `stations`（空なら全局を使うので、どの局も参照されない）→ 判定のキーが名指す要求）。
     fn station_refs(&self, id: &str) -> Vec<RefSite> {
         let listed = self
             .analysis
             .comm
             .as_ref()
             .is_some_and(|c| c.stations.iter().any(|s| s == id));
+        let mut out = Vec::new();
         if listed {
-            vec![RefSite::CommStation]
-        } else {
-            Vec::new()
+            out.push(RefSite::CommStation);
         }
+        out.extend(
+            self.requirements
+                .values()
+                .filter(|r| r.verify.check_names_station(id))
+                .map(|r| RefSite::RequirementCheck {
+                    requirement: r.id.to_string(),
+                }),
+        );
+        out
     }
 
     /// 種別を使っているもの: 部品 → カタログ品 → 継承している種別の順。

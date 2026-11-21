@@ -27,6 +27,13 @@ fn create(id: &str) -> Op {
     }
 }
 
+/// 局 `TOKYO_GS` を名指している要求（デモの `R_LINK_S`）を外す Op。局の一覧の書き換えだけを確かめるときに前置きする。
+fn drop_station_requirement() -> Op {
+    Op::RemoveRequirement {
+        id: "R_LINK_S".into(),
+    }
+}
+
 fn no_errors(d: &Design) {
     assert!(check(d).iter().all(|x| !x.is_error()), "{:?}", check(d));
 }
@@ -84,9 +91,12 @@ fn remove_works_unless_the_analysis_lists_the_station() {
     // 解析が挙げている局は消せない
     let err = plan(
         &snap,
-        &[Op::RemoveGroundStation {
-            id: "TOKYO_GS".into(),
-        }],
+        &[
+            drop_station_requirement(),
+            Op::RemoveGroundStation {
+                id: "TOKYO_GS".into(),
+            },
+        ],
     )
     .unwrap_err();
     assert!(err.to_string().contains("analysis.comm.stations"), "{err}");
@@ -116,10 +126,13 @@ fn remove_works_unless_the_analysis_lists_the_station() {
 fn rename_rewrites_the_station_list() {
     let p = plan(
         &snapshot(),
-        &[Op::RenameGroundStation {
-            id: "TOKYO_GS".into(),
-            to: "TOKYO_2".into(),
-        }],
+        &[
+            drop_station_requirement(),
+            Op::RenameGroundStation {
+                id: "TOKYO_GS".into(),
+                to: "TOKYO_2".into(),
+            },
+        ],
     )
     .unwrap();
     let paths: Vec<&str> = p.changes.iter().map(|c| c.path.as_str()).collect();
@@ -269,6 +282,7 @@ fn undo_and_redo_restore_every_new_op() {
             id: "SECOND_GS".into(),
             to: "SECOND_2".into(),
         },
+        drop_station_requirement(),
         Op::RenameGroundStation {
             id: "TOKYO_GS".into(),
             to: "TOKYO_2".into(),

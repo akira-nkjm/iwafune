@@ -121,6 +121,39 @@ fn requirement_analysis_ids_match_the_analysis_catalog() {
     assert_eq!(known, registered);
 }
 
+/// 通信の解析が作る判定のキー（`margin:<回線>@<局>`）を、fune-model の `Verification::check_names_station` が局の名指しと読む。
+/// キーの書式は解析が持ち、モデルは写しを持つ（#328 までの暫定の見張り）。両方が見えるここで一致を確かめる。
+#[test]
+fn station_check_key_matches_link_budget() {
+    let (design, resolved) = demo();
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let input = project_json("comm.link_budget", &ctx).unwrap();
+    let out = sat_analysis::catalog::run_json("comm.link_budget", input).unwrap();
+    let keys: Vec<&str> = out["checks"]
+        .as_array()
+        .unwrap_or_else(|| panic!("no checks in {out}"))
+        .iter()
+        .filter_map(|c| c["key"].as_str())
+        .filter(|k| k.starts_with("margin:"))
+        .collect();
+    assert!(!keys.is_empty(), "{out}");
+    let verify = |key: &str| fune_model::design::Verification {
+        check: Some(key.to_owned()),
+        ..Default::default()
+    };
+    for station in design.conditions.ground.keys() {
+        let named = keys
+            .iter()
+            .filter(|k| verify(k).check_names_station(station))
+            .count();
+        assert!(named > 0, "no key names {station}: {keys:?}");
+        // 接尾辞は完全に一致させる（局名の前後に何かが付いたものには当たらない）
+        for other in [format!("{station}2"), format!("x{station}")] {
+            assert!(keys.iter().all(|k| !verify(k).check_names_station(&other)));
+        }
+    }
+}
+
 /// 員数を変更しても単体レートは変えず、count だけを解析へ渡す。
 #[test]
 fn cdh_projects_per_unit_rates_and_normalizes_counts() {
