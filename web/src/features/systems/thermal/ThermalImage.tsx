@@ -23,6 +23,8 @@ import {
   partHeatColors,
   transientTemperatures,
 } from "./heat";
+import { orbitView } from "./insetGeometry";
+import { OrbitInset } from "./OrbitInset";
 import { Temp } from "./RangeTip";
 
 /** 再生で 1 回に進める時刻の数と間隔。全体を約 10 秒で再生する */
@@ -103,6 +105,8 @@ export function ThermalImage({
     () => (scale ? partHeatColors(heat, temps, scale) : () => ""),
     [heat, temps, scale],
   );
+  // 非定常のときだけ、同じ時刻の添字で軌道の図と太陽の矢印を出す（再生で添字が進むだけ。新しく取りに行かない）
+  const view = orbitView(source, transient?.orbit_plane, index);
   if (!scale) return <Empty>{I.empty}</Empty>;
   return (
     // 3D を大きく見せるため、操作は 3D の見出しの帯、凡例は 3D の上、節点の一覧は 3D の右に置く（1 枚のパネル）
@@ -125,6 +129,8 @@ export function ThermalImage({
         </>
       }
       overlay={<Legend scale={scale} />}
+      corner={view.plane && <OrbitInset plane={view.plane} index={index} />}
+      sun={view.sun}
       aside={<NodeList temps={temps} heat={heat} scale={scale} />}
     />
   );

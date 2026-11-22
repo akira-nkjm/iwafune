@@ -23,8 +23,8 @@ export function toggleHidden(hidden: ReadonlySet<string>, ids: readonly string[]
   return next;
 }
 
-/** 補助の表示の種類（視野の円錐・原点の軸・地面の格子・画面隅の軸） */
-export const SCENE_HELPERS = ["fov", "origin", "grid", "gizmo"] as const;
+/** 補助の表示の種類（視野の円錐・原点の軸・地面の格子・画面隅の軸・太陽の矢印・枠線だけの表示）。太陽の矢印は太陽方向を渡したときだけ出す（`sunHelper`） */
+export const SCENE_HELPERS = ["fov", "origin", "grid", "gizmo", "sun", "wireframe"] as const;
 export type SceneHelper = (typeof SCENE_HELPERS)[number];
 export type SceneHelpers = Record<SceneHelper, boolean>;
 
@@ -34,10 +34,25 @@ export const DEFAULT_SCENE_HELPERS: SceneHelpers = {
   origin: false,
   grid: false,
   gizmo: true,
+  sun: false,
+  // 枠線だけの表示（すべての部品の面をほぼ透明にして、中の配置を見通す）は、押したときだけ
+  wireframe: false,
 };
 
-/** 熱の画像の既定: 視野の円錐は温度の色に重なって読みにくいので、最初は出さない（ボタンで出せる） */
-export const HEAT_SCENE_HELPERS: SceneHelpers = { ...DEFAULT_SCENE_HELPERS, fov: false };
+/**
+ * 熱の画像の既定: 視野の円錐は温度の色に重なって読みにくいので、最初は出さない（ボタンで出せる）。
+ * 太陽の矢印は、太陽方向を渡したとき（非定常）に最初から出す。
+ */
+export const HEAT_SCENE_HELPERS: SceneHelpers = {
+  ...DEFAULT_SCENE_HELPERS,
+  fov: false,
+  sun: true,
+};
+
+/** 切り替えのボタンに出す補助の種類: 太陽の矢印は、太陽方向があるときだけ */
+export function visibleHelpers(hasSun: boolean): readonly SceneHelper[] {
+  return hasSun ? SCENE_HELPERS : SCENE_HELPERS.filter((k) => k !== "sun");
+}
 
 /** 3D の視点を部品に寄せる依頼。同じ部品を続けて押しても寄せ直すよう、押した回数 `n` を持つ */
 export interface FocusRequest {

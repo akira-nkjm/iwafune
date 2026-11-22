@@ -227,3 +227,35 @@ it("視野の表示は、配置では最初から出し、熱の画像では最�
   renderToStaticMarkup(<Layout3D variant="heat" design={design} colorOf={() => "#000000"} />);
   expect(state.scene.mock.lastCall?.[0]).toMatchObject({ helpers: { fov: false } });
 });
+
+it("熱の画像: 太陽方向があれば矢印を最初から場面に渡し、切り替えで外せる。配置にはボタンも矢印も無い", () => {
+  const L = getT().systems.layout3d;
+  const sun = { dir: [0.6, 0, 0.8] as [number, number, number], eclipse: false };
+  const heat = (extra: { sun?: typeof sun | null }) =>
+    renderToStaticMarkup(
+      <Layout3D
+        variant="heat"
+        design={design}
+        colorOf={() => "#000000"}
+        corner={<i>CORNER</i>}
+        {...extra}
+      />,
+    );
+  const html = heat({ sun });
+  expect(html).toContain(L.helper.sun);
+  expect(html).toContain("CORNER");
+  expect(state.scene.mock.lastCall?.[0]).toMatchObject({ helpers: { sun: true }, sun });
+  // 日陰のときの印は値のまま渡る（薄く描くのは場面）
+  heat({ sun: { ...sun, eclipse: true } });
+  expect(state.scene.mock.lastCall?.[0]).toMatchObject({ sun: { eclipse: true } });
+  state.helpers = { fov: false, origin: false, grid: false, gizmo: true, sun: false };
+  heat({ sun });
+  expect(state.scene.mock.lastCall?.[0]).toMatchObject({ sun: null });
+  state.helpers = null;
+  // 太陽方向が無ければ（非定常でなければ）ボタンも矢印も出さない
+  const none = heat({});
+  expect(none).not.toContain(L.helper.sun);
+  expect(state.scene.mock.lastCall?.[0]).toMatchObject({ sun: null });
+  expect(render()).not.toContain(L.helper.sun);
+  expect(state.scene.mock.lastCall?.[0]).toMatchObject({ sun: null, helpers: { sun: false } });
+});
