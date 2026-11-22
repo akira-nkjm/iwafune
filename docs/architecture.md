@@ -201,13 +201,13 @@ The correspondence between HTTP routes and the CLI and service (`crates/app/cli/
 | `POST /ops/from_text`, `/ops/unset_from_text`, `/ops/from_command` | `fune set`, `fune unset`, noun commands | `edit::{set_op, unset_op, command_ops}` |
 | `POST /ops/case_from_eclipse` | `fune case from-eclipse` | `edit::case_from_eclipse_op` |
 | `GET /units`, `POST /units/parse`, `/units/format` | `fune units ls`, `parse`, `format` | `units::{units_catalog, parse_quantity, format_quantities}` |
-| `GET /analyses`, `POST /analyses/{id}` | `fune analyze ls`, `fune analyze <ID>` | `analysis::{analysis_catalog, run_analysis}` |
+| `GET /analyses`, `POST /analyses/{id}` | `fune analyze ls`, `fune analyze <ID>` | `analysis::{analysis_catalog, run_analysis}` (exit-code verdict: `analysis::fails`) |
 | `GET` and `POST /budgets/{kind}` | `fune budget <kind>` | `budget::budget` (exit-code verdict: `budget::failure::fails`) |
 | `POST /report/export` | `fune report export` | `report::export` (the service returns the files' contents; the CLI writes them to `--out`) |
 | `GET /data/status`, `/data/space_weather`, `POST /data/{id}/fetch` | `fune data status`, `space-weather`, `fetch` | `data::{data_status, space_weather::lookup, fetch}` |
 | `GET /catalog/{id}` | `fune catalog show` | `query::catalog_item` |
 | `POST /catalog/fetch`, `/catalog/update` | `fune catalog fetch`, `update` | `shared_catalog::{fetch, update}` |
-| `POST /system_modes/{system}` | `fune mode view <system> [--ops] [--case] [--analyzed] [--totals-only]` | `system_modes::system_modes` |
+| `POST /system_modes/{system}` | `fune mode view <system> [--ops] [--case] [--analyzed] [--totals-only]` | `system_modes::system_modes` (exit-code verdict: `system_modes::fails`) |
 
 Tests verify the following two things.
 
@@ -231,6 +231,9 @@ When an unsaved draft (the `ops` of analysis, budget and part views) does not go
 Missing input is not an error, so both analyses and budgets return 200 with `missing` (the targets of the missing inputs and the reasons).
 `fune check` exits with 1 if there is an error (also for warnings with `--deny-warnings`).
 
+The exit code of the `fune` executable follows one convention: 0 is success; 1 is "the design or the result fails" (check errors, and for reads that judge a result: a missing input, a failed run or a violation verdict) or an internal error; 2 is invalid input or not found (an error that is not a service error, such as an unreadable file passed to `--ops`, also exits with 2); 3 is a conflict.
+Warnings never fail. The determination of "the result fails" is a service function, so that `--json` and the table agree and HTTP can show the same verdicts: `analysis::fails` (`fune analyze`: the run is not `ok`, or a check is a violation), `budget::failure::fails` (`fune budget`), `system_modes::fails` (`fune mode view`) and `requirements::fails` (`fune requirement compliance`).
+
 ## 5. Server and Web app
 
 ### 5.1 fune-server
@@ -250,14 +253,17 @@ Missing input is not an error, so both analyses and budgets return 200 with `mis
 
 | Path | Contents |
 |---|---|
-| `GET /project`, `/design`, `/parts`, `/parts/{id}`, `/values/{path}`, `/defs`, `/diagnostics`, `/maneuvers`, `/requirements`, `/requirements/compliance` | Reads (overview and revision, the whole design, parts, one value, definitions, diagnostics, the list of maneuvers (in execution order; the same as `fune maneuver ls`), the list of requirements and the requirement compliance table (the same as `fune requirement ls|compliance`)) |
-| `POST /ops`, `/ops/from_text`, `/ops/unset_from_text`, `/ops/from_command`, `/fmt` | Edits (§4.3) |
+| `GET /project`, `/design`, `/parts`, `/parts/{id}`, `/values/{path}`, `/defs`, `/diagnostics`, `/maneuvers`, `/requirements`, `/requirements/compliance`, `/catalog/{id}` | Reads (overview and revision, the whole design, parts, one value, definitions, diagnostics, one catalog item, the list of maneuvers (in execution order; the same as `fune maneuver ls`), the list of requirements and the requirement compliance table (the same as `fune requirement ls|compliance`)) |
+| `POST /ops`, `/ops/from_text`, `/ops/unset_from_text`, `/ops/from_command`, `/ops/case_from_eclipse`, `/fmt` | Edits (§4.3) |
 | `POST /undo`, `POST /redo`, `GET /history` | Undo and redo the last edit, and the edit history (§2.4) |
 | `POST /parts/{id}` | A part with unsaved edits (`ops`) applied without writing (the same shape as `GET`. `fune part show --ops`) |
 | `POST /parts/{id}/place_body` | Converts a placement in body coordinates into a `Place` relative to the mount target and applies it |
 | `GET /units`, `POST /units/parse`, `/units/format` | The list of units, parsing of input (dimension and SI conversion), display strings of SI values |
 | `GET /analyses`, `POST /analyses/{id}`, `GET`/`POST /budgets/{kind}` | The list and execution of analyses, budgets (§6. The `case` and `ops` of POST specify the analysis case and the draft) |
-| `GET /data/status`, `POST /data/{id}/fetch` | Status and fetching of external data (§6.5) |
+| `POST /system_modes/{system}` | The per-subsystem mode view (values, totals and verdicts of power, C&DH, thermal and AOCS; the `ops`, `case`, `analyzed` and `summary` of the request select the draft and the view) |
+| `GET /data/status`, `GET /data/space_weather`, `POST /data/{id}/fetch` | Status and fetching of external data, and the space weather table (§6.5) |
+| `POST /report/export` | Exports the design report |
+| `POST /catalog/fetch`, `POST /catalog/update` | Fetching and updating a shared catalog |
 
 ### 5.2 Web app
 

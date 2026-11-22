@@ -38,7 +38,6 @@ export const catalogJa = {
     unassigned: "系なし",
     fields: "基本",
     values: "値",
-    usedBy: "使っている部品",
     ports: "ポート",
     states: "状態",
     usedByCount: (n: number) => `使っている部品（${n}）`,
@@ -80,7 +79,6 @@ export const catalogJa = {
     itemNameHint: "カタログの中の名前（例: rw_30mNms）",
     noWritable:
       "書き込めるカタログがありません。fune.toml に [[catalog]] path = … のカタログを足してください。",
-    taken: "同じ ID の品があります",
     summaryUnset: (path: string) => `${path} を消す`,
     summaryField: (id: string, field: string) => `${id} の ${field} を変更`,
     summaryCreate: (id: string) => `カタログ品 ${id} を作る`,

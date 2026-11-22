@@ -169,14 +169,9 @@ pub fn mass_or_missing(ctx: &Context<'_>, p: &ResolvedPart, m: &mut MissingInput
     mass
 }
 
-/// 設計の員数（0 は未指定と同じく 1）。解析入力の count と示量の合計で共有する。
-pub fn count_of(p: &ResolvedPart) -> u32 {
-    p.count.max(1)
-}
-
 /// count を持たない解析入力に渡す示量の合計値。count があれば単体値を渡す。
 pub fn extensive(p: &ResolvedPart, value: f64) -> f64 {
-    value * f64::from(count_of(p))
+    value * f64::from(p.count_or_one())
 }
 
 /// 員数を掛けた示量の値を `Qty<D>` で（無ければ `PART.attr` を記録）。
