@@ -23,6 +23,7 @@ const FIELDS: &[(&str, &str)] = &[
     ("analysis", "verify.analysis"),
     ("check", "verify.check"),
     ("budget", "verify.budget"),
+    ("input", "input"),
 ];
 
 /// 要求の一覧（ID 順）。
@@ -46,6 +47,7 @@ fn view(design: &Design, r: &Requirement) -> RequirementView {
         constraint: constraint_view(r),
         quantify: r.quantify.clone(),
         verify: r.verify.clone(),
+        input: r.input,
         text: requirement_text(r),
         field_paths: FIELDS
             .iter()
@@ -108,5 +110,6 @@ pub(crate) fn requirement_text(r: &Requirement) -> RequirementText {
         analysis: r.verify.analysis.clone(),
         check: r.verify.check.clone(),
         budget: r.verify.budget.map(|b| b.as_str().to_owned()),
+        input: r.input.map(|i| i.as_str().to_owned()),
     }
 }

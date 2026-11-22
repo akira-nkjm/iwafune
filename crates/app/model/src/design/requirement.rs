@@ -28,6 +28,31 @@ enum_text! {
     }
 }
 
+enum_text! {
+    /// 要求が解析の入力として与える値（判定の基準ではなく、解析が読む入力。`Requirement::input`）。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+    pub enum RequirementInput: "requirement input" {
+        /// ミッション期間（「ミッションは少なくとも…続く」。`at_least` の値。季節の解析・高度低下・電源の逆算などが読む）
+        MissionDuration = "mission_duration",
+    }
+}
+
+impl RequirementInput {
+    /// 入力の値の次元名（要求の `quantity`）。
+    pub fn quantity(self) -> &'static str {
+        match self {
+            Self::MissionDuration => "Time",
+        }
+    }
+
+    /// 入力の値を書く制約の向き。
+    pub fn kind(self) -> ConstraintKind {
+        match self {
+            Self::MissionDuration => ConstraintKind::AtLeast,
+        }
+    }
+}
+
 /// 制約（向きと値）。向きごとに使う欄が決まっている（`check` の `requirement.constraint_*`）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -153,6 +178,10 @@ pub struct Requirement {
     /// 出典（`sources/<ID>.toml`）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<Id<Source>>,
+    /// 解析の入力として与える値（`mission_duration`。制約の値が入力の値になる。設計全体で同じ入力を与える要求は 1 つ）。
+    /// 判定の基準を与える `verify` とは別の欄（`verify.check` を入力の指定には使わない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input: Option<RequirementInput>,
     pub constraint: Constraint,
     #[serde(default, skip_serializing_if = "Quantification::is_empty")]
     pub quantify: Quantification,
@@ -233,6 +262,7 @@ mod tests {
             statement_en: None,
             quantity: "Mass".into(),
             source: None,
+            input: None,
             constraint: Constraint {
                 kind: ConstraintKind::AtMost,
                 value: Some(Quantity::new(12.0, "kg")),

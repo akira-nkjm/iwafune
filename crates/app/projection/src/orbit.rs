@@ -1,5 +1,5 @@
 //! 軌道条件の解析（季節解析・高度低下）。既定値や物理計算を持たず、条件ファイル・部品から写す。
-use crate::quantity::{setting, setting_opt};
+use crate::quantity::setting_opt;
 use crate::{Context, MissingInputs};
 use fune_model::design::OrbitDecaySettings;
 use fune_model::design::setting_dims as dims;
@@ -13,14 +13,12 @@ pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingIn
     let mut m = MissingInputs::new();
     let orbit = ctx.orbit(&mut m);
     let o = ctx.design.conditions.orbit.as_ref();
-    ctx.note(dims::ORBIT_DURATION.at(&[]));
     ctx.note(dims::ORBIT_ECLIPSE_SEASON_STEP.at(&[]));
-    let duration = setting(
-        &dims::ORBIT_DURATION,
-        &[],
-        o.and_then(|o| o.duration.as_ref()),
-        "Mission duration",
-        &mut m,
+    // ミッション期間は要求が与える（`input = "mission_duration"`）。無ければ入力不足
+    let duration = m.need(
+        ctx.mission_duration(),
+        Context::mission_duration_target(),
+        "Mission duration (an at_least requirement with input = \"mission_duration\")",
     );
     let step = setting_opt(
         &dims::ORBIT_ECLIPSE_SEASON_STEP,
@@ -54,12 +52,7 @@ pub fn decay(ctx: &Context<'_>) -> Result<OrbitDecayInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let orbit = ctx.orbit(&mut m);
     let o = ctx.design.conditions.orbit.as_ref();
-    let mission_duration = setting_opt(
-        &dims::ORBIT_DURATION,
-        &[],
-        o.and_then(|o| o.duration.as_ref()),
-        &mut m,
-    );
+    let mission_duration = ctx.mission_duration();
     let s = DecaySettings::read(o.and_then(|o| o.decay.as_ref()), &mut m);
     let body_size = match s.drag_area {
         Some(_) => None,
@@ -99,7 +92,9 @@ pub fn decay(ctx: &Context<'_>) -> Result<OrbitDecayInput, MissingInputs> {
             span: s.span,
             reentry_altitude: s.reentry_altitude,
             band: s.band,
-            max_lifetime: s.max_lifetime,
+            max_lifetime: ctx
+                .criterion("orbit.decay", "max_lifetime")
+                .map(|c| Qty::from_raw(c.si)),
             propulsion,
             dated_weather: None,
         })
@@ -112,7 +107,6 @@ struct DecaySettings {
     reentry_altitude: Option<Qty<Length>>,
     drag_area: Option<Qty<Area>>,
     band: Option<Qty<Length>>,
-    max_lifetime: Option<Qty<Time>>,
 }
 
 impl DecaySettings {
@@ -133,12 +127,6 @@ impl DecaySettings {
                 m,
             ),
             band: setting_opt(&dims::ORBIT_DECAY_BAND, &[], q(|s| s.band.as_ref()), m),
-            max_lifetime: setting_opt(
-                &dims::ORBIT_DECAY_MAX_LIFETIME,
-                &[],
-                q(|s| s.max_lifetime.as_ref()),
-                m,
-            ),
         }
     }
 }

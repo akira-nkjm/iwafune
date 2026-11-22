@@ -38,7 +38,7 @@ This text is the rules and the usual flows. For the exact arguments of any comma
   `fune part mv RW_X aocs/RW` moves a part into the group `RW` under the subsystem `aocs`.
   Subsystem directories are `aocs`, `cdh`, `comm`, `payload`, `power`, `propulsion`, `structure`, `thermal`.
 - A value is addressed as `<part>.<attribute>` (`RW_X.mass`), with a state for state-dependent
-  values (`RW_X.power.on`). Settings use `analysis.power.dod_max`. Catalog items are
+  values (`RW_X.power.on`). Settings use `analysis.power.initial_soc`. Catalog items are
   `local/<name>` (or `<catalog>/<name>`), for example `local/bat_2s2p`.
 - Modes (`NOMINAL`, `SAFE`, ...), analysis cases and requirements are referred to by their IDs.
 - Analyses are `<system>.<name>`, for example `power.energy_balance`. `fune analyze ls` lists them.
@@ -95,6 +95,8 @@ fune requirement compliance
 fune requirement add R_MASS --statement "The satellite total mass shall not exceed 12 kg." --quantity Mass --kind at_most --value "12 kg" --budget mass
 ```
 
+Limits and thresholds (budget limits, DoD, link margin, ...) are held by requirements, not settings:
+a `--budget` requirement is that budget's limit and `--analysis`/`--check` is that check's criterion.
 `fune requirement compliance` exits with 1 on a violation; "not verified" means no analysis check
 or budget is linked to that requirement yet. Check `fune requirement add --help` for the exact link flags.
 

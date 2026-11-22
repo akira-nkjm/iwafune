@@ -5,6 +5,7 @@ use super::Ctx;
 use super::values::check_quantity_dimension;
 use crate::design::{
     ANALYSIS_IDS, Constraint, ConstraintKind, EntityKey, Requirement, Verification,
+    declared_for_requirement,
 };
 use crate::target::Target;
 use crate::value::units::parse_dimension_name;
@@ -49,6 +50,8 @@ pub(super) fn check_requirements(ctx: &mut Ctx) {
         check_constraint(ctx, r, &entity);
         check_quantify(ctx, r, &entity);
         check_verify(ctx, r, &entity);
+        check_criterion(ctx, r, &entity);
+        check_input(ctx, r, &entity);
     }
 }
 
@@ -207,5 +210,113 @@ fn check_verify(ctx: &mut Ctx, r: &Requirement, entity: &EntityKey) {
             "requirement.verify_dimension",
             msg,
         );
+    }
+}
+
+/// 基準を持つ要求（バジェットの上限・基準を要求から取る判定。`design::criteria`）の向きと次元。
+/// 解析やバジェットがその値を基準として読むので、向きか次元が合わない要求は基準にならない。
+fn check_criterion(ctx: &mut Ctx, r: &Requirement, entity: &EntityKey) {
+    let (want_kind, want_dim, what) = if let Some(kind) = r.verify.budget {
+        (
+            ConstraintKind::AtMost,
+            kind.dimension(),
+            format!("The {kind} budget limit"),
+        )
+    } else if let Some(d) = declared_for_requirement(r) {
+        let what = format!(
+            "The criterion of `{}` / `{}`",
+            d.analysis,
+            r.verify.check.as_deref().unwrap_or_default()
+        );
+        (d.kind, d.quantity, what)
+    } else {
+        return;
+    };
+    if r.constraint.kind != want_kind {
+        let msg = format!(
+            "{what} is read from a `{want_kind}` constraint, but this requirement is `{}`",
+            r.constraint.kind
+        );
+        report(
+            ctx,
+            r,
+            entity,
+            "constraint.kind",
+            "requirement.criterion_kind",
+            msg,
+        );
+    }
+    if let (Ok(have), Ok(want)) = (
+        parse_dimension_name(&r.quantity),
+        parse_dimension_name(want_dim),
+    ) && !have.is_compatible_with(want)
+    {
+        let msg = format!(
+            "{what} is {want_dim}, but the requirement constrains {}",
+            r.quantity
+        );
+        report(
+            ctx,
+            r,
+            entity,
+            "quantity",
+            "requirement.criterion_dimension",
+            msg,
+        );
+    }
+}
+
+/// 解析の入力として与える要求（`input`）: 向きと次元が入力に合い、同じ入力を与える要求は 1 つ（ID の先頭のもの以外を誤りにする）。
+fn check_input(ctx: &mut Ctx, r: &Requirement, entity: &EntityKey) {
+    let Some(input) = r.input else {
+        return;
+    };
+    if r.constraint.kind != input.kind() {
+        let msg = format!(
+            "The input `{input}` is read from a `{}` constraint, but this requirement is `{}`",
+            input.kind(),
+            r.constraint.kind
+        );
+        report(
+            ctx,
+            r,
+            entity,
+            "constraint.kind",
+            "requirement.input_kind",
+            msg,
+        );
+    }
+    if let (Ok(have), Ok(want)) = (
+        parse_dimension_name(&r.quantity),
+        parse_dimension_name(input.quantity()),
+    ) && !have.is_compatible_with(want)
+    {
+        let msg = format!(
+            "The input `{input}` is {}, but the requirement constrains {}",
+            input.quantity(),
+            r.quantity
+        );
+        report(
+            ctx,
+            r,
+            entity,
+            "quantity",
+            "requirement.input_dimension",
+            msg,
+        );
+    }
+    let first = ctx
+        .design
+        .requirements
+        .values()
+        .find(|o| o.input == Some(input));
+    if let Some(first) = first
+        && first.id != r.id
+    {
+        let msg = format!(
+            "The input `{input}` is already given by requirement `{}`; only one requirement can give it",
+            first.id
+        );
+        report(ctx, r, entity, "input", "requirement.input_duplicate", msg);
     }
 }

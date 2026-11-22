@@ -3,6 +3,7 @@ import type { ComplianceCase } from "./ComplianceCase";
 import type { ConstraintView } from "./ConstraintView";
 import type { NotVerifiedReason } from "./NotVerifiedReason";
 import type { QuantityView } from "./QuantityView";
+import type { RequirementInput } from "./RequirementInput";
 import type { Verdict } from "./Verdict";
 import type { Verification } from "./Verification";
 
@@ -10,6 +11,10 @@ import type { Verification } from "./Verification";
  * 適合表の 1 行（要求 1 つ）。判定は確かめたケースのうち、違反 > 確かめられない > 警告 > 良の順に最も悪いもの。
  */
 export type ComplianceRow = { id: string, label: string, statement: string, statement_en: string | null, quantity: string, constraint: ConstraintView, source: string | null, verify: Verification, 
+/**
+ * 解析の入力として与える値（`mission_duration`。無ければ null）
+ */
+input: RequirementInput | null, 
 /**
  * 判定（確かめられなければ null）
  */

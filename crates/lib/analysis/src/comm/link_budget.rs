@@ -64,6 +64,9 @@ pub struct LinkBudgetLink {
     pub central: CentralBody,
     /// 評価する仰角（最悪は運用の最低仰角）
     pub elevation: Qty<Angle>,
+    /// 要求する回線余裕（この回線 × 地上局。省略時は入力全体の [`LinkBudgetInput::required_margin_db`]）
+    #[serde(default)]
+    pub required_margin_db: Option<Decibel>,
     /// 地表の電力束密度（PFD）の限度 [dBW/m²（基準帯域あたり）]。下りで書かれたときだけ判定する（既定値は持たない）
     #[serde(default)]
     pub pfd_limit_db: Option<Decibel>,
@@ -80,7 +83,7 @@ pub struct LinkBudgetLink {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct LinkBudgetInput {
     pub links: Vec<LinkBudgetLink>,
-    /// 要求する回線余裕（既定 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）
+    /// 要求する回線余裕（回線ごとの値を持たない回線に使う。既定 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）
     #[serde(default)]
     pub required_margin_db: Option<Decibel>,
     /// 軌道（中心天体が地球でない回線があるとき、地球から衛星までの距離を求めるのに使う。開始は軌道の元期）
@@ -136,6 +139,8 @@ pub struct LinkBudgetLinkResult {
     pub required_eb_n0_db: Decibel,
     /// 回線余裕 = Eb/N0 − 所要 Eb/N0 [dB]
     pub margin_db: Decibel,
+    /// 判定に使った要求余裕 [dB]（回線ごとの値、無ければ入力全体の値、それも無ければ既定値）
+    pub required_margin_db: Decibel,
     /// 要求余裕を残して通せる最大のデータレート
     pub max_data_rate: Qty<DataRate>,
     /// 地表の電力束密度 [dBW/m²（基準帯域あたり）]（下りだけ。最小の距離・大気損失なしの最悪の値）
@@ -153,7 +158,7 @@ pub struct LinkBudgetLinkResult {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct LinkBudgetOutput {
     pub links: Vec<LinkBudgetLinkResult>,
-    /// 判定に使った要求余裕 [dB]（入力が無ければ既定値）
+    /// 入力全体の要求余裕 [dB]（回線ごとの値を持たない回線に使った値。入力が無ければ既定値）。回線ごとに使った値は各回線の結果の `required_margin_db`
     pub required_margin_db: Decibel,
     /// 回線 × 地上局の組ごとの余裕の判定（key は `margin:<name>@<局>`）と、限度が書かれた下りの PFD の判定（`pfd:<name>@<局>`）
     pub checks: Vec<Check>,
@@ -182,6 +187,7 @@ impl Analysis for LinkBudget {
         let required = input.required_margin_db();
         let deep = deep_space_range(&input.links, input.orbit.as_ref(), input.duration)?;
         for link in &input.links {
+            let required = link.required_margin_db.unwrap_or(required);
             let result = evaluate(link, required, deep.as_ref())?;
             checks.push(margin_check(&result, required));
             checks.extend(pfd_check(&result));
@@ -232,6 +238,7 @@ fn evaluate(
         eb_n0_db: (eb_n0).into(),
         required_eb_n0_db: link.required_eb_n0_db,
         margin_db: (eb_n0 - link.required_eb_n0_db.value()).into(),
+        required_margin_db: required_margin,
         max_data_rate: Qty::from_raw(max_data_rate_bps(
             eval.c_over_n0_dbhz,
             link.required_eb_n0_db.value(),

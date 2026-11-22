@@ -23,6 +23,7 @@ export const overviewEn: typeof overviewJa = {
     budgetMode: (mode: string) => ` · mode ${mode}`,
     budgetMargin: (v: string) => `Margin ${v}`,
     budgetLimit: (limit: string, margin: string) => `/ limit ${limit} (system margin ${margin})`,
+    limitFrom: (id: string) => `Limit from requirement ${id} (edit it there)`,
     budgetDry: "Dry",
     budgetWet: "Wet",
     budgetPropellant: "Propellant",

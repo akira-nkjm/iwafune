@@ -214,11 +214,12 @@ fn si(x: &fune_model::value::Quantity) -> Option<f64> {
     to_si(x.value, &x.unit).ok()
 }
 
-/// 配分の上限（SI）とシステム余裕（比。配分が無ければ 0）。
+/// 配分の上限（SI。**上限は要求が持つ**: `verify.budget` がこの種類の要求のうち最も厳しいもの。`Design::budget_limit`）と
+/// システム余裕（比。配分が無ければ 0）。
 pub(crate) fn allocated(design: &Design, kind: BudgetKind) -> (Option<f64>, f64) {
     let alloc = design.budget.allocation.get(kind);
     (
-        alloc.and_then(|a| a.limit.as_ref()).and_then(si),
+        design.budget_limit(kind).map(|c| c.si),
         alloc.map_or(0.0, |a| a.system_margin),
     )
 }
@@ -308,6 +309,11 @@ fn header(design: &Design, kind: BudgetKind, case: Option<String>) -> BudgetView
     if design.budget.allocation.get(kind).is_none() {
         notes.push(format!("budget/allocation.toml has no [{key}]"));
     }
+    if design.budget_limit(kind).is_none() {
+        notes.push(format!(
+            "No requirement sets the {key} limit (an at_most requirement with verify.budget = \"{key}\")"
+        ));
+    }
     BudgetView {
         kind,
         system: crate::query::settings::budget_system(kind),
@@ -315,6 +321,7 @@ fn header(design: &Design, kind: BudgetKind, case: Option<String>) -> BudgetView
         label_en: label.and_then(|l| l.label_en.clone()),
         case,
         limit: limit.map(|v| quantity_auto(v, dim)),
+        limit_requirement: design.budget_limit(kind).map(|c| c.requirement),
         system_margin: crate::units::percent(system_margin),
         total: None,
         margin: None,

@@ -35,6 +35,8 @@ pub struct BudgetView {
     pub case: Option<String>,
     /// 上限（未設定なら null）
     pub limit: Option<QuantityView>,
+    /// 上限を決めた要求の ID（`verify.budget` がこの種類で、最も厳しいもの。上限は要求だけが持つ）
+    pub limit_requirement: Option<String>,
     /// システムマージン（比。`si` が 0〜1 の値、`display` が `"10.0 %"`。配分が無ければ 0）
     pub system_margin: QuantityView,
     /// 成長余裕込みの合計（入力が足りなければ null。質量は乾燥の合計）

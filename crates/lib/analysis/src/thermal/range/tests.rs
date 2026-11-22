@@ -14,6 +14,7 @@ fn all(r: &ThermalRanges) -> Vec<ThermalNodeRange> {
             kind,
             range,
             excluded: Vec::new(),
+            required: Vec::new(),
         })
         .collect()
 }

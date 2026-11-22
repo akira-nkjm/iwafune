@@ -334,17 +334,7 @@ fn unloading(ctx: &Context<'_>) -> (Option<UnloadingInput>, Option<UnloadingNote
     if rw.rcs.is_none() {
         return (None, Some(UnloadingNote::NoRcs));
     }
-    let mut ignored = MissingInputs::new();
-    let duration = setting_opt(
-        &dims::ORBIT_DURATION,
-        &[],
-        ctx.design
-            .conditions
-            .orbit
-            .as_ref()
-            .and_then(|o| o.duration.as_ref()),
-        &mut ignored,
-    );
+    let duration = ctx.mission_duration();
     match duration {
         Some(d) => (
             Some(UnloadingInput {

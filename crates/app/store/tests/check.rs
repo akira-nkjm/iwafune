@@ -143,9 +143,13 @@ fn mount_cycles_and_syntax_errors() {
 
 #[test]
 fn budget_over_allocation_is_a_warning() {
-    let alloc = "[mass]\nlimit = { value = 10.0, unit = \"kg\" }\nsystem_margin = 0.1\n\n[mass.alloc]\naocs = { value = 9.5, unit = \"kg\" }\n";
+    // 上限は要求が持つ（`verify.budget = "mass"` の `at_most`）
+    let limit = "statement = \"The mass shall not exceed 10 kg.\"\nquantity = \"Mass\"\n\n[constraint]\nkind = \"at_most\"\nvalue = { value = 10.0, unit = \"kg\" }\n\n[verify]\nbudget = \"mass\"\n";
+    let alloc =
+        "[mass]\nsystem_margin = 0.1\n\n[mass.alloc]\naocs = { value = 9.5, unit = \"kg\" }\n";
     let d = diags(&[
         ("budget/allocation.toml", alloc),
+        ("requirements/R_MASS.toml", limit),
         ("parts/aocs/RW.toml", RW),
     ]);
     assert!(has(&d, "budget.over_allocated", Severity::Warning), "{d:?}");
@@ -153,6 +157,7 @@ fn budget_over_allocation_is_a_warning() {
     assert!(has(
         &diags(&[
             ("budget/allocation.toml", &wrong),
+            ("requirements/R_MASS.toml", limit),
             ("parts/aocs/RW.toml", RW)
         ]),
         "unit.dimension",
@@ -398,4 +403,26 @@ fn limit_unset_only_for_configured_budget_kinds() {
         .collect();
     assert_eq!(unset.len(), 1, "{mass_only:?}");
     assert!(unset[0].message.contains("mass"));
+}
+
+/// 基準（上限）は要求が持つので、設定に旧い `limit` が書かれていれば移し先を知らせる（読まない。黙って残さない）。
+#[test]
+fn a_legacy_limit_in_the_allocation_is_reported_as_moved() {
+    let d = diags(&[
+        ("parts/RW.toml", RW),
+        (
+            "budget/allocation.toml",
+            "[mass]\nlimit = { value = 10.0, unit = \"kg\" }\nsystem_margin = 0.1\n",
+        ),
+    ]);
+    let moved: Vec<_> = d
+        .iter()
+        .filter(|x| x.code == "setting.moved_to_requirement")
+        .collect();
+    assert_eq!(moved.len(), 1, "{d:?}");
+    assert!(moved[0].is_error());
+    assert!(moved[0].message.contains("budget.mass.limit"));
+    assert!(moved[0].message.contains("verify.budget"));
+    // 旧い値は読まない: 上限を持つ要求が無いので上限は未設定のまま
+    assert!(has(&d, "budget.limit_unset", Severity::Warning), "{d:?}");
 }

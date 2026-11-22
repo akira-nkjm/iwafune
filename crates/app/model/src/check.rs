@@ -14,6 +14,7 @@ mod defs;
 mod ids;
 mod maneuvers;
 mod modes;
+mod moved;
 mod parts;
 mod requirements;
 mod settings;
@@ -63,6 +64,7 @@ pub fn check(design: &Design) -> Vec<Diagnostic> {
     let entries = design.setting_entries();
     settings::check_conditions(&mut ctx, &entries);
     settings_analysis::check_analysis(&mut ctx, &entries);
+    moved::check_moved_settings(&mut ctx, &entries);
     settings::check_materials(&mut ctx);
     ctx.out
 }

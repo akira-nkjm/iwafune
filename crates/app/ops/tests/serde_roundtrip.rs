@@ -442,7 +442,7 @@ fn other_ops() -> Vec<Op> {
             value: Some(SettingValue::Quantity(Quantity::new(550.0, "km"))),
         },
         Op::SetSetting {
-            path: "analysis.power.dod_max".into(),
+            path: "analysis.power.initial_soc".into(),
             value: None,
         },
     ]

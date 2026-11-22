@@ -140,7 +140,7 @@ $ fune analyze comm.link_budget
 ```
 
 Fill these in from the GUI (Orbit & stations, the subsystem page) or with `fune setting` / `fune apply`; the file shapes are in [docs/model.md](docs/model.md).
-`fune check` also warns about required attributes that are not set (for example a reaction wheel without `max_torque`) and budget limits that are not set (`fune setting set budget.mass.limit "3 kg"`).
+`fune check` also warns about required attributes that are not set (for example a reaction wheel without `max_torque`) and budget limits that are not set (a budget limit is an `at_most` requirement: `fune requirement add R_MASS --statement "..." --quantity Mass --kind at_most --value "3 kg" --budget mass`).
 
 ## Everyday commands
 

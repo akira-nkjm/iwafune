@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router";
 import { MissingList } from "@/analysis/MissingList";
 import { q, useDesign } from "@/api/queries";
 import type { BudgetKind, BudgetRow } from "@/api/types";
@@ -10,6 +11,7 @@ import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { VerdictPill } from "@/kit/status/VerdictPill";
 import { verdictTone } from "@/kit/status/verdict-tone";
+import { paths } from "@/lib/nav";
 import { MassTotals, PropellantRow } from "./BudgetPropellant";
 import { BudgetUncountedNote } from "./BudgetUncounted";
 import { wetTotal } from "./cards";
@@ -67,6 +69,7 @@ export function BudgetPanel({ kind }: { kind: BudgetKind }) {
               {t.overview.budgetLimit(v.limit.display, v.system_margin.display)}
             </span>
           )}
+          <LimitSource requirement={v.limit_requirement} />
         </div>
       )}
       {v.total && !v.propellant && (
@@ -77,6 +80,7 @@ export function BudgetPanel({ kind }: { kind: BudgetKind }) {
               {t.overview.budgetLimit(v.limit.display, v.system_margin.display)}
             </span>
           )}
+          <LimitSource requirement={v.limit_requirement} />
         </div>
       )}
       <ul className="space-y-2">
@@ -94,6 +98,17 @@ export function BudgetPanel({ kind }: { kind: BudgetKind }) {
         </ul>
       )}
     </Panel>
+  );
+}
+
+/** 上限を決めた要求への案内（上限は要求だけが持つので、編集は要求の画面で行う） */
+function LimitSource({ requirement }: { requirement: string | null }) {
+  const t = useT();
+  if (!requirement) return null;
+  return (
+    <Link to={paths.requirements("list")} className="text-accent-ink text-xs hover:underline">
+      {t.overview.limitFrom(requirement)}
+    </Link>
   );
 }
 

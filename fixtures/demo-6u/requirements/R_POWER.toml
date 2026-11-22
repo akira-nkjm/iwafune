@@ -1,0 +1,12 @@
+label        = "Power consumption"
+statement    = "The orbit-average power consumption shall not exceed the 24 W generated when sun-pointing."
+statement_en = "The orbit-average power consumption shall not exceed the 24 W generated when sun-pointing."
+quantity     = "Power"
+source       = "sys_judgement"
+
+[constraint]
+kind  = "at_most"
+value = { value = 24.0, unit = "W" }
+
+[verify]
+budget = "power"

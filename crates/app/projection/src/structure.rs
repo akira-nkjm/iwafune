@@ -19,7 +19,7 @@ use sat_analysis::structure::{
     MassPropertiesInput, ModalEstimateInput, StaticLoadInput, mass_properties as compute,
 };
 use sat_astro::math::Vec3;
-use sat_units::typed::{Acceleration, Length, Mass, Qty};
+use sat_units::typed::{Acceleration, Frequency, Length, Mass, Qty};
 
 /// 質量を持つ部品の質量特性の項目（位置は取付をたどった機体座標の部品原点。外形 `size` があれば箱として慣性を足す）。
 pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem> {
@@ -51,15 +51,12 @@ pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem
 pub fn mass_properties(ctx: &Context<'_>) -> Result<MassPropertiesInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let items = items(ctx, &mut m);
-    let limit = ctx
-        .design
-        .budget
-        .allocation
-        .mass
-        .as_ref()
-        .and_then(|a| a.limit.as_ref());
-    let target = SettingPath::budget(&[BudgetKind::Mass.as_str(), "limit"]);
-    let max_mass = qty_opt::<Mass>(limit, target, &mut m);
+    let limit = ctx.budget_limit(BudgetKind::Mass);
+    let target = Target::requirement(
+        limit.as_ref().map_or("", |c| c.requirement.as_str()),
+        Some("constraint.value"),
+    );
+    let max_mass = qty_opt::<Mass>(limit.as_ref().map(|c| &c.value), target, &mut m);
     m.finish(|| {
         Some(MassPropertiesInput {
             items,
@@ -247,20 +244,14 @@ pub fn modal_estimate(ctx: &Context<'_>) -> Result<ModalEstimateInput, MissingIn
             "No panel part (role = panel)",
         );
     }
-    let launch = ctx.design.conditions.launch.as_ref();
+    // 最低固有振動数は要求が持つ（`structure.modal_estimate` の `lateral`・`axial`）。無ければ判定しない
+    let frequency = |key: &str| {
+        ctx.criterion("structure.modal_estimate", key)
+            .map(|c| Qty::<Frequency>::from_raw(c.si))
+    };
     let requirements = ModalEstimateRequirements {
-        lateral: setting_opt(
-            &dims::LAUNCH_MIN_FREQUENCY_LATERAL,
-            &[],
-            launch.and_then(|l| l.min_frequency_lateral.as_ref()),
-            &mut m,
-        ),
-        axial: setting_opt(
-            &dims::LAUNCH_MIN_FREQUENCY_AXIAL,
-            &[],
-            launch.and_then(|l| l.min_frequency_axial.as_ref()),
-            &mut m,
-        ),
+        lateral: frequency("lateral"),
+        axial: frequency("axial"),
         panel: None,
     };
     m.finish(|| {

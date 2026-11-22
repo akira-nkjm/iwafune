@@ -6,9 +6,9 @@ use crate::missing::MissingInputs;
 use crate::quantity::{setting, setting_opt};
 use crate::reads::ReadLog;
 use fune_model::Target;
-use fune_model::design::CentralBodyKind;
 use fune_model::design::setting_dims as dims;
 use fune_model::design::{AnalysisSystem, AttitudeLawKind, AttitudeLawSetting, Case, Design, Mode};
+use fune_model::design::{BudgetKind, CentralBodyKind, Criterion};
 use fune_model::path::SettingPath;
 use fune_model::resolve::Resolved;
 use fune_model::value::{Quaternion, Vector3};
@@ -19,6 +19,7 @@ use sat_astro::attitude::{
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
 use sat_astro::math::{Quat, Vec3};
+use sat_units::typed::{Qty, Time};
 
 /// 設計の中心天体 → sat-astro の中心天体（μ・半径・暦・環境の値は sat-astro と解析が持つ）。
 pub fn central_body(c: CentralBodyKind) -> CentralBody {
@@ -80,6 +81,39 @@ impl<'a> Context<'a> {
     pub fn setting<T>(&self, path: SettingPath, value: T) -> T {
         self.note(path);
         value
+    }
+
+    /// バジェットの上限（`verify.budget` がこの種類の要求のうち最も厳しいもの）。決めた要求を読んだものとして記録する。
+    pub fn budget_limit(&self, kind: BudgetKind) -> Option<Criterion> {
+        self.criterion_read(self.design.budget_limit(kind))
+    }
+
+    /// 解析 `analysis` の判定 `key` の基準（それを決めた要求を読んだものとして記録する）。基準を持つ要求が無ければ `None`。
+    /// **解析の入力に入れる基準は、設定ではなくここから引く。**
+    pub fn criterion(&self, analysis: &str, key: &str) -> Option<Criterion> {
+        self.criterion_read(self.design.criterion(analysis, key))
+    }
+
+    /// ミッション期間（`input = "mission_duration"` の要求の値。それを決めた要求を読んだものとして記録する）。
+    /// 無ければ `None`（要るかどうかは読む解析が決める）。
+    pub fn mission_duration(&self) -> Option<Qty<Time>> {
+        let c = self.criterion_read(self.design.mission_duration())?;
+        Some(Qty::from_raw(c.si))
+    }
+
+    /// ミッション期間が必要な解析のために、無いときの不足入力の対象（`requirement[input/mission_duration]`）。
+    pub fn mission_duration_target() -> Target {
+        Target::criterion("input/mission_duration")
+    }
+
+    fn criterion_read(&self, c: Option<Criterion>) -> Option<Criterion> {
+        if let Some(c) = &c {
+            self.note(Target::requirement(
+                c.requirement.as_str(),
+                Some("constraint.value"),
+            ));
+        }
+        c
     }
 
     /// 表示順のモード（読んだものとして各モードを記録する）。

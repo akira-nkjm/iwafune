@@ -53,7 +53,7 @@ fn orbit_generation_reads_solar_panel_values_and_orbit() {
     assert!(r.contains(&orbit("epoch")));
     // 電池・負荷の値は読まない
     assert!(!r.contains(&Target::attr("BAT", "capacity")));
-    assert!(!r.contains(&power(&["dod_max"])));
+    assert!(!r.contains(&Target::requirement("R_DOD", Some("constraint.value"))));
 }
 
 #[test]
@@ -63,13 +63,19 @@ fn energy_balance_and_sizing_read_battery_capacity_and_power_settings() {
         for attr in ["capacity", "voltage"] {
             assert!(r.contains(&Target::attr("BAT", attr)), "{id}: BAT.{attr}");
         }
-        assert!(r.contains(&power(&["dod_max"])), "{id}: dod_max");
+        // DoD の上限は要求が持つので、設定ではなく要求を読む
+        assert!(
+            r.contains(&Target::requirement("R_DOD", Some("constraint.value"))),
+            "{id}: R_DOD"
+        );
         assert!(r.contains(&power(&["sequence"])), "{id}: sequence");
         assert!(r.contains(&Target::mode("NOMINAL", None)), "{id}: mode");
         assert!(r.contains(&Target::attr("SP_PX", "area")), "{id}: panel");
     }
-    assert!(reads("power.sizing").contains(&orbit("duration")));
-    assert!(!reads("power.energy_balance").contains(&orbit("duration")));
+    // 設計寿命（ミッション期間）は要求が与える
+    let mission = Target::requirement("R_MISSION", Some("constraint.value"));
+    assert!(reads("power.sizing").contains(&mission));
+    assert!(!reads("power.energy_balance").contains(&mission));
 }
 
 #[test]

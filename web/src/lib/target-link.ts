@@ -35,6 +35,7 @@ export function targetLink(
     case "maneuvers":
       return paths.maneuvers();
     case "requirement":
+    case "criterion":
       return paths.requirements("list");
     case "net":
     case "harness":

@@ -7,7 +7,7 @@ import type { OrbitSpec } from "./OrbitSpec";
  */
 export type LinkBudgetInput = { links: Array<LinkBudgetLink>, 
 /**
- * 要求する回線余裕（既定 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）
+ * 要求する回線余裕（回線ごとの値を持たない回線に使う。既定 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）
  */
 required_margin_db: number | null, 
 /**

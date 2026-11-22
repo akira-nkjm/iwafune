@@ -70,14 +70,13 @@ pub fn link_budget(ctx: &Context<'_>) -> Result<LinkBudgetInput, MissingInputs> 
             }
         }
     }
-    let required_margin_db = s.and_then(|s| db(s.min_margin.as_ref()));
     // 中心天体が地球でないときだけ、地球から衛星までの距離を求めるための軌道と期間（ミッション期間）を渡す。
     let far = orbit.filter(|o| o.central != CentralBody::Earth);
-    let duration = far.as_ref().and_then(|_| mission_duration(ctx, &mut m));
+    let duration = far.as_ref().and_then(|_| mission_duration(ctx));
     m.finish(|| {
         Some(LinkBudgetInput {
             links,
-            required_margin_db,
+            required_margin_db: None,
             orbit: far,
             duration,
         })
@@ -146,7 +145,8 @@ fn budget_link(
         altitude: height?.0,
         central: height?.1,
         elevation: station.min_elevation,
-        pfd_limit_db: pfd_limit(link, name, m),
+        required_margin_db: margin_criterion(ctx, name, &station.id),
+        pfd_limit_db: pfd_criterion(ctx, link.direction, name, &station.id),
         pfd_reference_bandwidth: setting_opt::<Frequency>(
             &dims::COMM_PFD_REFERENCE_BANDWIDTH,
             &[name],
@@ -162,23 +162,30 @@ fn budget_link(
     })
 }
 
-/// 地表の電力束密度の限度 [dBW/m²]（`pfd_limit`。単位は `dB`）。書かれていなければ `None`（判定を作らない）。
-fn pfd_limit(link: &CommLinkSettings, name: &str, m: &mut MissingInputs) -> Option<Decibel> {
-    let ratio =
-        setting_opt::<Dimensionless>(&dims::COMM_PFD_LIMIT, &[name], link.pfd_limit.as_ref(), m)?;
-    ratio_db(ratio.value())
+/// この回線 × 局の要求する回線余裕（`comm.link_budget` の `margin:<回線>@<局>` の基準。要求が無ければ `None` で、既定値は解析が持つ）。
+/// 通信の解析の判定のキーの書式はここと解析が持つ（`margin:{回線}@{局}`）。
+pub(crate) fn margin_criterion(ctx: &Context<'_>, link: &str, station: &str) -> Option<Decibel> {
+    let c = ctx.criterion("comm.link_budget", &format!("margin:{link}@{station}"))?;
+    ratio_db(c.si)
 }
 
-/// ミッション期間（`conditions.orbit.duration`。書かれていなければ解析の既定）。
-fn mission_duration(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<Qty<Time>> {
-    ctx.note(dims::ORBIT_DURATION.at(&[]));
-    let o = ctx.design.conditions.orbit.as_ref();
-    setting_opt::<Time>(
-        &dims::ORBIT_DURATION,
-        &[],
-        o.and_then(|o| o.duration.as_ref()),
-        m,
-    )
+/// 地表の電力束密度の限度 [dBW/m²]（下りの `pfd:<回線>@<局>` の基準。要求が無ければ `None`で判定を作らない）。
+fn pfd_criterion(
+    ctx: &Context<'_>,
+    direction: LinkDirection,
+    link: &str,
+    station: &str,
+) -> Option<Decibel> {
+    if direction != LinkDirection::Down {
+        return None;
+    }
+    let c = ctx.criterion("comm.link_budget", &format!("pfd:{link}@{station}"))?;
+    ratio_db(c.si)
+}
+
+/// ミッション期間（`input = "mission_duration"` の要求の値。無ければ解析の既定）。
+fn mission_duration(ctx: &Context<'_>) -> Option<Qty<Time>> {
+    ctx.mission_duration()
 }
 
 /// 回線 1 本の RF パラメーターとデータレート（下りは衛星 → 地上局、上りは地上局 → 衛星）。

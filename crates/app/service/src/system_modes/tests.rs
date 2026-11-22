@@ -4,6 +4,16 @@ use fune_model::design::{Allocation, AttitudeLawKind, Part};
 use fune_model::value::{Authored, Quantity, Scalar, Value};
 use sat_analysis::spec::{System, Verdict};
 
+/// 電力の上限（`verify.budget = "power"` の要求 `R_POWER` の値）を書き換える。上限は要求が持つ。
+fn set_power_limit(design: &mut fune_model::Design, watts: f64) {
+    let r = design
+        .requirements
+        .values_mut()
+        .find(|r| r.id.as_str() == "R_POWER")
+        .unwrap();
+    r.constraint.value = Some(Quantity::new(watts, "W"));
+}
+
 fn snapshot() -> Snapshot {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../fixtures/demo-6u");
     let mut design = Workspace::open(root).unwrap().snapshot().unwrap().design;
@@ -38,10 +48,11 @@ fn snapshot() -> Snapshot {
     design.modes = [(mode.id.clone(), mode)].into();
     design.budget.policy = Default::default();
     design.budget.allocation.power = Some(Allocation {
-        limit: Some(Quantity::new(100.0, "W")),
+        limit: None,
         system_margin: 0.2,
         alloc: Default::default(),
     });
+    set_power_limit(&mut design, 100.0);
     design.analysis.thermal =
         Some(serde_json::from_value(serde_json::json!({"nodes":{"node":["TEST"]}})).unwrap());
     design.analysis.aocs.as_mut().unwrap().law = [(
@@ -89,7 +100,7 @@ fn dto_values_and_budget_are_hand_checkable() {
 #[test]
 fn mode_verdicts_and_missing_states_come_from_rust() {
     let mut s = snapshot();
-    s.design.budget.allocation.power.as_mut().unwrap().limit = Some(Quantity::new(10.0, "W"));
+    set_power_limit(&mut s.design, 10.0);
     let power = system_modes_of(&s, System::Power).unwrap();
     assert_eq!(power.modes[0].sunlit.margin.as_ref().unwrap().si, -12.0);
     assert_eq!(power.modes[0].sunlit.verdict, Some(Verdict::Violation));

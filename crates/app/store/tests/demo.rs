@@ -159,15 +159,20 @@ fn every_setting_maps_to_its_file_and_line() {
     };
     use fune_model::value::SettingValue;
     assert_eq!(
-        snap.design.setting(&p("analysis.power.dod_max")),
-        Some(SettingValue::Number(0.3))
+        snap.design.setting(&p("analysis.power.initial_soc")),
+        Some(SettingValue::Number(0.9))
     );
     assert_eq!(
         snap.design.setting(&p("analysis.power.sequence.3.mode")),
         Some(SettingValue::Text("DOWNLINK".into()))
     );
-    assert!(
-        matches!(snap.design.setting(&p("budget.mass.limit")), Some(SettingValue::Quantity(q)) if q.value == 12.0)
+    // 基準（上限）は設定ではなく要求が持つ（`budget.mass.limit` はもう設定に無い）
+    assert_eq!(snap.design.setting(&p("budget.mass.limit")), None);
+    assert_eq!(
+        snap.design
+            .budget_limit(fune_model::design::BudgetKind::Mass)
+            .map(|c| (c.requirement, c.si)),
+        Some(("R_MASS".to_owned(), 12.0))
     );
     assert!(matches!(
         snap.design

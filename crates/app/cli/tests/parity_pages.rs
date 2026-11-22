@@ -115,11 +115,12 @@ fn mode_view_rejects_a_system_without_a_mode_view() {
 #[test]
 fn violations_exit_with_one_for_table_and_json() {
     let (_t, root) = demo_copy();
-    let file = root.join("budget/allocation.toml");
+    // 上限は要求が持つ（`R_POWER`）
+    let file = root.join("requirements/R_POWER.toml");
     let text = std::fs::read_to_string(&file).unwrap();
     let tight = text.replace(
-        "limit         = { value = 24.0, unit = \"W\" }",
-        "limit         = { value = 5.0, unit = \"W\" }",
+        "value = { value = 24.0, unit = \"W\" }",
+        "value = { value = 5.0, unit = \"W\" }",
     );
     assert_ne!(text, tight);
     std::fs::write(&file, tight).unwrap();

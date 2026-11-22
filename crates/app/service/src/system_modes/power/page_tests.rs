@@ -1,7 +1,6 @@
 use super::*;
 use crate::Workspace;
 use crate::dto::{ModeSummaryScope, Op, SystemModesRequest};
-use fune_model::value::SettingValue;
 use sat_analysis::spec::System;
 use std::path::Path;
 
@@ -61,7 +60,7 @@ fn case_limits_the_balance_to_its_mode() {
     assert_eq!(power("NOMINAL").charts[0].id, "generation");
 }
 
-/// 保存していない編集は書き込まずに当たる（DoD の上限を極端に下げると判定が変わり、保存済みは変わらない）。
+/// 保存していない編集は書き込まずに当たる（DoD の上限の要求を極端に下げると判定が変わり、保存済みは変わらない）。
 #[test]
 fn draft_ops_apply_without_writing() {
     let worst = |v: &crate::dto::SystemModesView| {
@@ -71,10 +70,18 @@ fn draft_ops_apply_without_writing() {
                 .filter_map(|m| m.power.as_ref().and_then(|p| p.verdict)),
         )
     };
-    let draft = vec![Op::SetSetting {
-        path: "analysis.power.dod_max".to_owned(),
-        value: Some(SettingValue::Number(0.001)),
-    }];
+    // DoD の上限は要求が持つので、要求の値を書き換える編集を当てる
+    let mut dod = demo()
+        .snapshot()
+        .unwrap()
+        .design
+        .requirements
+        .values()
+        .find(|r| r.id.as_str() == "R_DOD")
+        .cloned()
+        .unwrap();
+    dod.constraint.value = Some(fune_model::value::Quantity::new(0.1, "%"));
+    let draft = vec![Op::SetRequirement { requirement: dod }];
     assert_eq!(
         worst(&analyzed(None, draft)),
         Some(sat_analysis::spec::Verdict::Violation)
