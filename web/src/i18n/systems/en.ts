@@ -157,6 +157,7 @@ export const systemsEn: typeof systemsJa = {
       elapsed: "Elapsed",
       play: "Play",
       pause: "Pause",
+      speed: "Playback speed",
       scale: "Color scale (low to high temperature)",
       nodes: "Node temperatures",
       empty: "No thermal analysis results yet",

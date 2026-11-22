@@ -153,6 +153,7 @@ export const systemsJa = {
       elapsed: "経過",
       play: "再生",
       pause: "停止",
+      speed: "再生の速さ",
       scale: "色の範囲（低い温度から高い温度）",
       nodes: "節点の温度",
       empty: "熱の解析結果がまだありません",
