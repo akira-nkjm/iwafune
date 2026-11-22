@@ -174,6 +174,8 @@ export const systemsJa = {
       show: (name: string) => `${name} を表示`,
       hide: (name: string) => `${name} を隠す`,
       helpers: "座標の表示",
+      zoomIn: "拡大",
+      zoomOut: "縮小",
       home: "ホームポジション（初めの視点に戻す）",
       helper: {
         fov: "視野",

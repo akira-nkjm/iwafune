@@ -99,8 +99,10 @@ export function DiagramCanvas({
         snapToGrid
         snapGrid={[10, 10]}
         fitView
-        // ホイールは移動（Shift で横）、Ctrl / ⌘ + ホイールで拡大・縮小（DiagramZoom の useWheelZoom）
+        // トラックパッドの 2 本指のスクロールは移動、ピンチは拡大・縮小（React Flow）。マウスのホイールの目盛りは拡大・縮小
+        // （DiagramZoom の useWheelZoom。読み方は lib/wheel-input.ts）。左ドラッグ（何もない所）と中ボタンのドラッグで移動
         panOnScroll
+        panOnDrag={[0, 1]}
         zoomActivationKeyCode={["Meta", "Control"]}
         minZoom={ZOOM_RANGE.min}
         maxZoom={ZOOM_RANGE.max}

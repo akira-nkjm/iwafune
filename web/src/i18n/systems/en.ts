@@ -178,6 +178,8 @@ export const systemsEn: typeof systemsJa = {
       show: (name: string) => `Show ${name}`,
       hide: (name: string) => `Hide ${name}`,
       helpers: "Coordinate helpers",
+      zoomIn: "Zoom in",
+      zoomOut: "Zoom out",
       home: "Home view (reset the camera)",
       helper: {
         fov: "FoV",
