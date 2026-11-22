@@ -758,6 +758,44 @@ band      = "s_band"
 
 Both keys are set with the same `SetSetting` as other settings, for example `fune set analysis.comm.data_downlink s_down`.
 
+#### Distance of a link (`comm.link_budget`)
+
+The distance used for the link depends on the central body of `conditions.orbit` (`central`). The result says which model was used (`distance_model`).
+
+- **`earth_orbit`** (Earth): the slant range from the station to the spacecraft. The link margin is judged at the longest distance (the station's `min_elevation`), and the shortest distance (zenith, equal to the altitude) is reported as `range_min`.
+- **`earth_to_body`** (Moon, a planet or the Sun): the distance from Earth to the spacecraft, `|r_body(t) − r_earth(t) + r_spacecraft(t)|`, with the body position from the ephemeris (`sat_astro::ephem`) and the spacecraft position from the orbit around the body.
+  It is evaluated over the mission duration `conditions.orbit.duration` (one year when it is not written; a planet's synodic period can be longer, so write the duration for Mars and beyond).
+  The margin is judged at the **maximum** distance (`slant_range`); `range_min`, `range_min_epoch` and `range_max_epoch` report the minimum and the epochs of the extremes. Approximation: the distance is measured to Earth's centre, not to the station (an error of up to Earth's radius, about 1.7 % at the Moon and 0.01 % or less beyond Mars; the elevation, see below, uses the real station position).
+- `light_time` is the one-way light time at the maximum distance. Atmospheric and rain losses are the link's `atmospheric_loss` as before.
+
+`comm.visibility` and `comm.data_throughput` find passes from the real geocentric position of a spacecraft around another body (a daily pass of the Earth's rotation, above the station's `min_elevation`).
+The central body occults the spacecraft: while the line from the station to the spacecraft passes through the sphere of the body (equatorial radius), the spacecraft is not visible and the pass is cut (so a Moon or Mars orbiter has several passes a day).
+The occultation by Earth's own horizon is the elevation; atmospheric refraction and the bodies' oblateness are not modelled. `comm.data_throughput` judges the link closure at the maximum Earth distance within its one-day window (the link closes down to the horizon or never), not per elevation.
+The mission-wide worst distance is the link budget's job.
+
+#### Power flux density at the ground (PFD)
+
+For each **downlink** the link budget also reports the power flux density at the Earth's surface in the reference bandwidth,
+`PFD = EIRP − 10·log10(4π·d²) − 10·log10(max(B_occupied / B_reference, 1))` [dBW/m² in `B_reference`],
+evaluated at the **minimum** distance (the worst case): the zenith slant range (the altitude) for an Earth orbit, the minimum Earth distance for another body. Losses in the atmosphere are not subtracted. If `occupied_bandwidth` is not written the EIRP is taken to fall entirely inside the reference bandwidth (no spreading credit; the safe side).
+
+Optional settings of `[link.<name>]` in `analysis/comm.toml` (set with `fune set analysis.comm.link.<name>.<key> …`; all three are dimension-checked):
+
+| key | unit | meaning |
+|---|---|---|
+| `pfd_limit` | `dB` (dBW/m² in the reference bandwidth) | the limit. **No limit is built in or defaulted**: it depends on the band, the service and the angle of arrival, so take it from the regulation that applies to the mission. The check below exists only when this is written |
+| `pfd_reference_bandwidth` | `Hz`, `kHz` … | the reference bandwidth the limit is stated in (default 4 kHz) |
+| `occupied_bandwidth` | `Hz`, `kHz`, `MHz` … | the occupied bandwidth of the signal |
+
+When `pfd_limit` is written, the check `pfd:<link>@<station>` is added (like `margin:<link>@<station>`): margin = limit − PFD; negative is a violation and under 1 dB is a warning.
+A requirement refers to it with `verify.check = "pfd:<link>@<station>"`, and renaming or removing the station is refused while a requirement names it, as for the margin key.
+The demo's `s_down` writes a fictional limit of −135 dB to show the feature; it is not a regulatory value.
+
+#### Ground stations described by G/T
+
+A downlink band that writes `g_over_t` (dB/K, written in `dB`) does not need `antenna_gain` or `noise_temperature`: the given G/T is used (`g_over_t_given` in the result). Without `g_over_t` both are required.
+An uplink needs the station's `antenna_gain` and `tx_power`; a station given as an EIRP alone can be written as `tx_power` = the EIRP and `antenna_gain = 0 dBi`. A catalog of ground stations is not provided.
+
 ### 5.5 Reverse-computed power sizing (`power.sizing`)
 
 A steady-state analysis belonging to the Power subsystem. It outputs the required SAP and battery sizes and does not write back to part attributes.

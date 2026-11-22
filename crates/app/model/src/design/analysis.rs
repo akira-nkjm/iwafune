@@ -289,6 +289,16 @@ pub struct CommLinkSettings {
     /// 衛星側の給電線の損失
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub line_loss: Option<Quantity>,
+    /// 地表の電力束密度（PFD）の限度（下りだけ。dBW/m²（基準帯域あたり）。sat-units は `dBW/m²` を式にできないので単位は `dB` と書く）。
+    /// 限度は周波数帯・業務・到来角で規則が決めるので、書かれたときだけ判定する（既定値は無い）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pfd_limit: Option<Quantity>,
+    /// PFD の基準帯域（Hz。省略すると解析の既定 4 kHz）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pfd_reference_bandwidth: Option<Quantity>,
+    /// 信号の占有帯域（Hz。PFD を基準帯域あたりに直すのに使う。省略すると割らない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub occupied_bandwidth: Option<Quantity>,
 }
 
 /// 通信の解析（`analysis/comm.toml`）。

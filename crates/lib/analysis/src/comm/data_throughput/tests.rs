@@ -82,9 +82,9 @@ fn uhf() -> RfLinkParams {
         tx_power: Qty::from_raw(1.0),
         tx_gain_db: db(0.0),
         tx_loss_db: Some(db(1.0)),
-        rx_gain_db: db(12.0),
+        rx_gain_db: Some(db(12.0)),
         rx_loss_db: Some(db(0.0)),
-        system_noise_temperature: Qty::from_raw(500.0),
+        system_noise_temperature: Some(Qty::from_raw(500.0)),
         rx_g_over_t_dbk: None,
         atmospheric_loss_db: Some(db(0.5)),
         polarization_loss_db: Some(db(3.0)),
@@ -249,4 +249,45 @@ fn stations_without_the_band_are_listed_not_counted() {
     assert!(out.passes.iter().all(|p| p.station == "TKY"));
     assert!(out.checks.iter().all(|c| !c.key.starts_with("link_closes")));
     assert_eq!(out.link_closure, DataThroughputLinkClosure::NotEvaluated);
+}
+
+/// 月を回る衛星: 距離は地球から衛星まで（約 3.6〜4.1 億 m）で仰角によらないので、回線は「水平線から閉じる」か
+/// 「閉じない」かの二択になる。手計算（最大距離 4e8 m）: FSPL = 20 log10(4π × 4e8 × 437e6 / c) = 197.3 dB、
+/// C/N0 = −1（EIRP）− 197.3 − 4（その他の損失）− 14.99（G/T）+ 228.6 = 11.3 dBHz、Eb/N0 = 11.3 − 39.8 = −28.5 dB。
+/// 余裕 3 dB を残すには所要 −31.5 dB 以下が要るので、所要 −60 dB なら閉じ（水平線 0°）、所要 20 dB なら閉じない。
+#[test]
+fn moon_orbiter_closure_uses_the_earth_distance() {
+    let orbit = sat_astro::orbit::OrbitSpec::circular_about(
+        sat_astro::ephem::CentralBody::Moon,
+        sso_orbit().epoch,
+        Qty::from_raw(100.0e3),
+        Qty::from_raw(1.0),
+        Qty::from_raw(0.0),
+    );
+    let run = |required: f64| {
+        let mut i = input();
+        i.sampling = OrbitSampling::new(
+            orbit.clone(),
+            Qty::from_raw(SECONDS_PER_DAY),
+            Qty::from_raw(60.0),
+        );
+        i.station_links = vec![DataThroughputStationLink {
+            station: "TKY".to_owned(),
+            link: DataThroughputLink {
+                rf: uhf(),
+                required_eb_n0_db: Decibel::new(required),
+            },
+        }];
+        DataThroughput::run(&i).unwrap()
+    };
+    let closes = run(-60.0);
+    assert_eq!(
+        closes.link_closure,
+        DataThroughputLinkClosure::ClosesAbove {
+            min_elevation: Qty::ZERO
+        }
+    );
+    assert!(!closes.passes.is_empty());
+    let never = run(20.0);
+    assert_eq!(never.link_closure, DataThroughputLinkClosure::NeverCloses);
 }

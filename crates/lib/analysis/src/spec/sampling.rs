@@ -73,9 +73,14 @@ pub fn orbits_sampling(orbit: OrbitSpec, orbits: Option<u32>) -> OrbitSampling {
     sampling(orbit, SamplingSpan::Series(orbits))
 }
 
-/// 1 日分の標本の取り方（地上局の可視・送信量。刻みは周期から、β の指定なし）。
+/// 1 日分の標本（地上局の可視・送信量）の刻みの上限 [s]。パスの出入りは地球の自転（15°/h）で決まるので、
+/// 周期の長い軌道（日心軌道など。周期の割合の刻みが 1 日を超える）でも 10 分より粗くしない。
+/// 静止軌道までの周期（刻み 430 s 以下）では周期から決めた刻みのまま。
+pub const MAX_DAILY_STEP_S: f64 = 600.0;
+
+/// 1 日分の標本の取り方（地上局の可視・送信量。刻みは周期から、ただし [`MAX_DAILY_STEP_S`] まで。β の指定なし）。
 pub fn daily_sampling(orbit: OrbitSpec) -> OrbitSampling {
-    let step = orbit_step_s(orbit.period_s());
+    let step = orbit_step_s(orbit.period_s()).min(MAX_DAILY_STEP_S);
     OrbitSampling::new(orbit, Qty::from_raw(SECONDS_PER_DAY), Qty::from_raw(step))
 }
 
@@ -150,5 +155,33 @@ mod tests {
     fn daily_sampling_spans_one_day() {
         let s = daily_sampling(orbit());
         assert_eq!(s.span.value(), 86_400.0);
+    }
+
+    /// 1 日の標本の刻みは 10 分まで: 周期が 1 年の日心軌道（周期 / 200 = 1.6 日）でも 600 s、
+    /// 静止軌道（430.82 s）や周回軌道（30 s）は周期から決めた刻みのまま。
+    #[test]
+    fn daily_step_is_capped_for_long_periods() {
+        let heliocentric = OrbitSpec::new(
+            Epoch::parse("2027-01-01T00:00:00Z").expect("epoch"),
+            OrbitElements::with_defaults(
+                Qty::from_raw(1.5e11),
+                Qty::from_raw(0.0),
+                None,
+                None,
+                None,
+                None,
+            ),
+            Propagator::Kepler,
+        );
+        let mut sun = heliocentric;
+        sun.central = sat_astro::ephem::CentralBody::Sun;
+        assert_eq!(daily_sampling(sun).step.value(), MAX_DAILY_STEP_S);
+        let leo = OrbitSpec::circular(
+            Epoch::parse("2027-01-01T00:00:00Z").expect("epoch"),
+            Qty::from_raw(550.0e3),
+            Qty::from_raw(1.0),
+            Qty::from_raw(0.0),
+        );
+        assert_eq!(daily_sampling(leo).step.value(), 30.0);
     }
 }

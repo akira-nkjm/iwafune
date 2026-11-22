@@ -121,7 +121,7 @@ fn requirement_analysis_ids_match_the_analysis_catalog() {
     assert_eq!(known, registered);
 }
 
-/// 通信の解析が作る判定のキー（`margin:<回線>@<局>`）を、fune-model の `Verification::check_names_station` が局の名指しと読む。
+/// 通信の解析が作る判定のキー（`margin:<回線>@<局>`・`pfd:<回線>@<局>`）を、fune-model の `Verification::check_names_station` が局の名指しと読む。
 /// キーの書式は解析が持ち、モデルは写しを持つ（#328 までの暫定の見張り）。両方が見えるここで一致を確かめる。
 #[test]
 fn station_check_key_matches_link_budget() {
@@ -134,7 +134,7 @@ fn station_check_key_matches_link_budget() {
         .unwrap_or_else(|| panic!("no checks in {out}"))
         .iter()
         .filter_map(|c| c["key"].as_str())
-        .filter(|k| k.starts_with("margin:"))
+        .filter(|k| k.starts_with("margin:") || k.starts_with("pfd:"))
         .collect();
     assert!(!keys.is_empty(), "{out}");
     let verify = |key: &str| fune_model::design::Verification {

@@ -118,7 +118,7 @@ impl Verification {
     /// 判定のキー `check` が地上局 `station` を名指ししているか（`@<局の ID>` で終わる。部分一致はしない:
     /// 局 `tokyo` は `…@tokyo2` に当たらない）。
     ///
-    /// キーの書式（通信の解析の `margin:<回線>@<局>`）は解析が持つ。ここはそれを写した **暫定の見張り** で、
+    /// キーの書式（通信の解析の `margin:<回線>@<局>` と `pfd:<回線>@<局>`）は解析が持つ。ここはそれを写した **暫定の見張り** で、
     /// キーが構造を持つ形になるまで（#328）、局の名前変更・削除を拒むためだけに使う。解析の書式との一致は
     /// fune-projection のテスト `station_check_key_matches_link_budget` が確かめる。
     pub fn check_names_station(&self, station: &str) -> bool {
@@ -215,6 +215,9 @@ mod tests {
             ..Default::default()
         };
         assert!(verify("margin:s_down@tokyo").check_names_station("tokyo"));
+        // 電力束密度の判定（`pfd:<回線>@<局>`）も同じ書式
+        assert!(verify("pfd:s_down@tokyo").check_names_station("tokyo"));
+        assert!(!verify("pfd:s_down@tokyo2").check_names_station("tokyo"));
         assert!(!verify("margin:s_down@tokyo2").check_names_station("tokyo"));
         assert!(!verify("margin:s_down@xtokyo").check_names_station("tokyo"));
         assert!(!verify("dod").check_names_station("tokyo"));
