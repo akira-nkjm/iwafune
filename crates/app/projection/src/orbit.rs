@@ -50,17 +50,11 @@ pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingIn
 pub fn sun_distance(ctx: &Context<'_>) -> Result<SunDistanceInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let orbit = ctx.orbit(&mut m);
-    ctx.note(dims::ORBIT_DURATION.at(&[]));
-    let duration = setting(
-        &dims::ORBIT_DURATION,
-        &[],
-        ctx.design
-            .conditions
-            .orbit
-            .as_ref()
-            .and_then(|o| o.duration.as_ref()),
-        "Mission duration",
-        &mut m,
+    // ミッション期間は要求が与える（`input = "mission_duration"`）。無ければ入力不足
+    let duration = m.need(
+        ctx.mission_duration(),
+        Context::mission_duration_target(),
+        "Mission duration (an at_least requirement with input = \"mission_duration\")",
     );
     m.finish(|| {
         Some(SunDistanceInput {
