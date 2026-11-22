@@ -14,7 +14,7 @@ use crate::thermal::heater::{ThermalHeaterRun, run_checks};
 use crate::thermal::network::{
     Compiled, ThermalCouplings, ThermalHeater, ThermalLoad, ThermalModeLoads, ThermalNetwork,
 };
-use crate::thermal::orbit_heat::{ThermalEnvironment, ThermalEnvironmentUsed, require_planetary};
+use crate::thermal::orbit_heat::{ThermalEnvironment, ThermalEnvironmentUsed};
 use crate::thermal::range::{
     ThermalMarginPolicy, ThermalMarginUsed, ThermalNodeRange, ThermalRangeMargin, range_checks,
     range_margins, worst_verdict,
@@ -175,7 +175,6 @@ impl Analysis for ThermalTransient {
         let timeline = &input.timeline;
         let central = timeline.orbit().central;
         let env = input.environment.resolve(central)?;
-        require_planetary(timeline)?;
         let cfg = integration::integrator(input)?;
         let evaluator = TimelineEvaluator::new(timeline)?;
         let t = timeline.sampling.times()?;
@@ -210,7 +209,7 @@ impl Analysis for ThermalTransient {
         output.couplings = net.couplings;
         output.integration = integration;
         let shadow_below = crate::spec::SUNLIT_THRESHOLD;
-        output.orbit_plane = orbit_plane_track(&build(timeline)?, central.radius_m(), shadow_below);
+        output.orbit_plane = orbit_plane_track(&build(timeline)?, central, shadow_below);
         output
             .checks
             .extend(run_checks(&runs, margin.heater_duty_warning.value()));

@@ -25,4 +25,9 @@ beta?: Quantity | null,
 /**
  * 時系列の解析で回す周回数
  */
-orbits?: number | null, };
+orbits?: number | null, 
+/**
+ * 太陽からの距離（太陽を中心天体にする軌道だけ。軌道をこの半径の円軌道に置き換えて解析する。
+ * 惑星間の巡航の近日点・遠日点のケース。`fune case from-sun-distance`）
+ */
+sun_distance?: Quantity | null, };

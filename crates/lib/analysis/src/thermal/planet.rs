@@ -7,7 +7,9 @@
 //!
 //! 月の昼側は熱慣性が小さく、吸収した太陽光をその場で放射するとみなす（放射平衡）。直下点の温度は
 //! `T = ((1 − A) S cos θ / (ε σ))^¼` で、S = 1414 W/m² なら ≈ 390 K、夜側は ≈ 100 K で一定。
-//! ここに無い天体（太陽・水星・金星・火星・木星型惑星）は既定値を持たず、解析がアルベドと赤外放射の入力を求める。
+//! | 太陽 | 0（反射する面が無い） | 0（太陽の光は直達の太陽光として別に入る。太陽の見込み角が小さい遠方の近似） | — |
+//!
+//! ここに無い天体（水星・金星・火星・木星型惑星）は既定値を持たず、解析がアルベドと赤外放射の入力を求める。
 //! 地球周回で月から受けるアルベド・赤外は地球の数万分の 1 以下なので扱わない。
 
 use sat_astro::constants::{EARTH_ALBEDO, EARTH_IR, SIGMA_SB};
@@ -62,6 +64,11 @@ pub fn planet_environment(central: CentralBody) -> Option<PlanetEnvironment> {
                 night_w_m2: MOON_EMISSIVITY * SIGMA_SB * MOON_NIGHT_TEMPERATURE_K.powi(4),
             },
         }),
+        // 太陽を回る軌道（惑星間の巡航）。反射も天体の赤外も無く、入熱は直達の太陽光だけ（食も無い）
+        CentralBody::Sun => Some(PlanetEnvironment {
+            albedo: 0.0,
+            ir: PlanetIr::Uniform(0.0),
+        }),
         _ => None,
     }
 }
@@ -84,6 +91,9 @@ mod tests {
         // 太陽天頂角 60° では cos^¼ 倍
         assert!((temp(0.5) - temp(1.0) * 0.5_f64.powf(0.25)).abs() < 1e-9);
         assert!(planet_environment(CentralBody::Mars).is_none());
+        let sun = planet_environment(CentralBody::Sun).unwrap();
+        assert_eq!(sun.albedo, 0.0);
+        assert_eq!(sun.ir.emitted_w_m2(0.0, 1361.0, 1.0), 0.0);
         assert_eq!(
             planet_environment(CentralBody::Earth)
                 .unwrap()

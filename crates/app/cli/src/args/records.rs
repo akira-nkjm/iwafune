@@ -22,6 +22,17 @@ pub enum CaseCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// Create an analysis case at the minimum or maximum Sun distance of an orbit about the Sun
+    FromSunDistance {
+        id: String,
+        /// min / max (perihelion / aphelion within the mission duration)
+        #[arg(long, value_parser = ["min", "max"])]
+        at: String,
+        #[arg(long)]
+        mode: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// Remove an analysis case
     Rm {
         id: String,
@@ -53,6 +64,9 @@ pub struct CaseArgs {
     /// Number of orbits for the time series
     #[arg(long)]
     pub orbits: Option<u32>,
+    /// Distance from the Sun (e.g. `"0.7 AU"`; orbits about the Sun only: analyze a circular orbit at this distance)
+    #[arg(long)]
+    pub sun_distance: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }
