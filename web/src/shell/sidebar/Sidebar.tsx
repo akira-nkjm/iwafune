@@ -83,14 +83,14 @@ export function Sidebar() {
               <div className="space-y-2">
                 <CommitChip />
                 <div className="px-2">
-                  <LanguageSwitch />
+                  <LanguageSwitch variant="row" />
                 </div>
               </div>
             }
             compact={
               <div className="space-y-2">
                 <CommitChip rail />
-                <LanguageSwitch rail />
+                <LanguageSwitch variant="rail" />
               </div>
             }
           />
