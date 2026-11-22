@@ -177,6 +177,7 @@ export type * from "./LinkBudgetInput";
 export type * from "./LinkBudgetLink";
 export type * from "./LinkBudgetLinkResult";
 export type * from "./LinkBudgetOutput";
+export type * from "./LinkDistanceModel";
 export type * from "./LoadGrowth";
 export type * from "./Maneuver";
 export type * from "./ManeuverBurn";

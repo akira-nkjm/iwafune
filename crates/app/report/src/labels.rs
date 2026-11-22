@@ -69,6 +69,8 @@ pub enum Text {
     Altitude,
     Elevation,
     SlantRange,
+    RangeMin,
+    LightTime,
     Eirp,
     Fspl,
     ExtraLoss,
@@ -77,6 +79,9 @@ pub enum Text {
     EbN0,
     LinkMargin,
     MaxDataRate,
+    Pfd,
+    PfdLimit,
+    PfdMargin,
     RequiredMargin,
     LinkNote,
     // 温度
@@ -184,6 +189,11 @@ fn pair(t: Text) -> (&'static str, &'static str) {
         Altitude => ("高度", "Altitude"),
         Elevation => ("仰角", "Elevation"),
         SlantRange => ("斜距離", "Slant range"),
+        RangeMin => ("最小の距離", "Minimum distance"),
+        LightTime => (
+            "光の片道時間（最大の距離）",
+            "One-way light time (maximum distance)",
+        ),
         Eirp => ("EIRP", "EIRP"),
         Fspl => ("自由空間損失", "Free-space loss"),
         ExtraLoss => ("そのほかの経路損失", "Other path losses"),
@@ -195,6 +205,12 @@ fn pair(t: Text) -> (&'static str, &'static str) {
             "要求余裕で通せる最大データレート",
             "Maximum data rate at the required margin",
         ),
+        Pfd => (
+            "地表の電力束密度（PFD）",
+            "Power flux density at the ground (PFD)",
+        ),
+        PfdLimit => ("PFD の限度", "PFD limit"),
+        PfdMargin => ("PFD の余裕", "PFD margin"),
         RequiredMargin => ("要求余裕", "Required margin"),
         LinkNote => (
             "回線余裕 = Eb/N0 − 所要 Eb/N0。判定は要求余裕に対して行う。",

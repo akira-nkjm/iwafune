@@ -156,6 +156,8 @@ fn result_table(
     let r = |key: &str| num(res, key);
     let specs = [
         (Text::SlantRange, r("slant_range"), "Length"),
+        (Text::RangeMin, r("range_min"), "Length"),
+        (Text::LightTime, r("light_time"), "Time"),
         (Text::Eirp, r("eirp_dbw"), "DecibelWatt"),
         (Text::Fspl, r("fspl_db"), "Decibel"),
         (Text::ExtraLoss, r("extra_loss_db"), "Decibel"),
@@ -166,6 +168,9 @@ fn result_table(
         (Text::LinkMargin, r("margin_db"), "Decibel"),
         (Text::RequiredMargin, required, "Decibel"),
         (Text::MaxDataRate, r("max_data_rate"), "DataRate"),
+        (Text::Pfd, r("pfd_dbw_m2"), "Decibel"),
+        (Text::PfdLimit, r("pfd_limit_db"), "Decibel"),
+        (Text::PfdMargin, r("pfd_margin_db"), "Decibel"),
     ];
     let mut body = rows(ctx, &specs);
     if let Some(v) = verdict {

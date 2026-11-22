@@ -9,15 +9,15 @@ table mode-power case=null subject=null variant=null rows=30 | Component | Nomin
   caption: Power consumption by mode
 table link-budget case=null subject="s_down@TOKYO_GS" variant="input" rows=16 | Parameter | Value | Unit
   caption: Link budget inputs: s_down (downlink) @ TOKYO_GS, 2.25 GHz
-table link-budget case=null subject="s_down@TOKYO_GS" variant="result" rows=12 | Parameter | Value | Unit
+table link-budget case=null subject="s_down@TOKYO_GS" variant="result" rows=17 | Parameter | Value | Unit
   caption: Link budget results: s_down (downlink) @ TOKYO_GS, 2.25 GHz
 table link-budget case=null subject="uhf_down@TOKYO_GS" variant="input" rows=15 | Parameter | Value | Unit
   caption: Link budget inputs: uhf_down (downlink) @ TOKYO_GS, 437 MHz
-table link-budget case=null subject="uhf_down@TOKYO_GS" variant="result" rows=12 | Parameter | Value | Unit
+table link-budget case=null subject="uhf_down@TOKYO_GS" variant="result" rows=15 | Parameter | Value | Unit
   caption: Link budget results: uhf_down (downlink) @ TOKYO_GS, 437 MHz
 table link-budget case=null subject="uhf_up@TOKYO_GS" variant="input" rows=14 | Parameter | Value | Unit
   caption: Link budget inputs: uhf_up (uplink) @ TOKYO_GS, 437 MHz
-table link-budget case=null subject="uhf_up@TOKYO_GS" variant="result" rows=12 | Parameter | Value | Unit
+table link-budget case=null subject="uhf_up@TOKYO_GS" variant="result" rows=14 | Parameter | Value | Unit
   caption: Link budget results: uhf_up (uplink) @ TOKYO_GS, 437 MHz
 table thermal-result case="hot_imaging" subject=null variant=null rows=12 | Node | Cold (winter solstice, β 0) [°C] | Cold (nominal operation, β 0) [°C] | Hot (summer solstice, high β) [°C] | Min [°C] | Max [°C] | Allowable range (operating) [°C] | Verdict
   caption: Thermal analysis results (Hot (imaging))

@@ -22,6 +22,10 @@ pub fn required_margin(given: Option<Decibel>) -> Decibel {
     given.unwrap_or(DEFAULT_REQUIRED_MARGIN)
 }
 
+/// 電力束密度（PFD）の基準帯域の既定値 4 kHz。**既定値はここだけ**（`comm.link_budget`）。
+/// 基準帯域は規則（周波数帯・業務）で決まるので、設計が `pfd_reference_bandwidth` で上書きする。限度値の既定は持たない。
+pub const DEFAULT_PFD_REFERENCE_BANDWIDTH: Qty<Frequency> = Qty::from_raw(4_000.0);
+
 /// 回線が閉じる仰角の二分法の許容 [rad]。
 const ELEVATION_TOLERANCE_RAD: f64 = 1e-12;
 
@@ -41,15 +45,17 @@ pub struct RfLinkParams {
     /// 送信側の給電損失 [dB]（正の値が損失）。省略時 0
     #[serde(default)]
     pub tx_loss_db: Option<Decibel>,
-    /// 受信アンテナ利得 [dBi]
-    pub rx_gain_db: Decibel,
+    /// 受信アンテナ利得 [dBi]（G/T を与えるなら省略できる）
+    #[serde(default)]
+    pub rx_gain_db: Option<Decibel>,
     /// 受信側の給電損失 [dB]（LNA の手前。正の値が損失）。省略時 0
     #[serde(default)]
     pub rx_loss_db: Option<Decibel>,
-    /// 受信系のシステム雑音温度
-    pub system_noise_temperature: Qty<Temperature>,
+    /// 受信系のシステム雑音温度（G/T を与えるなら省略できる）
+    #[serde(default)]
+    pub system_noise_temperature: Option<Qty<Temperature>>,
     /// 受信系の G/T [dB/K]（与えれば `rx_gain_db`・`rx_loss_db`・`system_noise_temperature` から求めた G/T の代わりに使う。
-    /// 両方あるときはこちらを優先し、結果の `g_over_t_given` で分かる）
+    /// 両方あるときはこちらを優先し、結果の `g_over_t_given` で分かる。与えなければ利得と雑音温度が要る）
     #[serde(default)]
     pub rx_g_over_t_dbk: Option<DecibelPerKelvin>,
     /// 大気・降雨の損失 [dB]。省略時 0
@@ -113,6 +119,20 @@ pub fn eb_over_n0_db(c_over_n0_dbhz: f64, data_rate_bps: f64) -> f64 {
     c_over_n0_dbhz - ratio_to_db(data_rate_bps)
 }
 
+/// 地表の電力束密度 [dBW/m²（基準帯域あたり）] = EIRP − 10 log10(4π d²) − 10 log10(max(B_占有 / B_基準, 1))。
+/// 占有帯域が基準帯域より広ければ EIRP を基準帯域の幅に割って数える。占有帯域が分からない（`None`）か基準帯域以下なら
+/// 割らない（EIRP のすべてが基準帯域に入るとみなす安全側の値）。大気の損失などは引かない（最悪の値）。
+pub fn pfd_dbw_m2(
+    eirp_dbw: f64,
+    range_m: f64,
+    occupied_bandwidth_hz: Option<f64>,
+    reference_bandwidth_hz: f64,
+) -> f64 {
+    let spread =
+        occupied_bandwidth_hz.map_or(0.0, |b| ratio_to_db((b / reference_bandwidth_hz).max(1.0)));
+    eirp_dbw - ratio_to_db(4.0 * PI * range_m * range_m) - spread
+}
+
 /// 所要 Eb/N0 と余裕を満たす最大のデータレート [bit/s]。
 pub fn max_data_rate_bps(c_over_n0_dbhz: f64, required_eb_n0_db: f64, margin_db: f64) -> f64 {
     db_to_ratio(c_over_n0_dbhz - required_eb_n0_db - margin_db)
@@ -124,12 +144,12 @@ impl RfLinkParams {
         let positive = [
             self.frequency.value(),
             self.tx_power.value(),
-            self.system_noise_temperature.value(),
+            self.system_noise_temperature.map_or(1.0, |t| t.value()),
         ];
         let finite = [
             self.tx_gain_db.value(),
             self.tx_loss(),
-            self.rx_gain_db.value(),
+            self.rx_gain_db.map_or(0.0, Decibel::value),
             self.rx_loss(),
             self.extra_loss_db(),
             self.rx_g_over_t_dbk.map_or(0.0, DecibelPerKelvin::value),
@@ -141,7 +161,25 @@ impl RfLinkParams {
                 "{what}: frequency, transmit power and noise temperature must be positive; gain and loss must be finite"
             )));
         }
+        if self.rx_g_over_t().is_none() {
+            return Err(AnalysisError::InvalidInput(format!(
+                "{what}: the receiver needs G/T, or both the antenna gain and the noise temperature"
+            )));
+        }
         Ok(())
+    }
+
+    /// 受信系の G/T [dB/K] と、与えられた値か。与えた値（`rx_g_over_t_dbk`）があればそれを使い、無ければ利得・損失・雑音温度から求める。
+    /// どちらもできなければ `None`（[`RfLinkParams::validate`] が入力の誤りにする）。**G/T の選び方はここだけ。**
+    pub fn rx_g_over_t(&self) -> Option<(f64, bool)> {
+        if let Some(given) = self.rx_g_over_t_dbk {
+            return Some((given.value(), true));
+        }
+        let (gain, temperature) = (self.rx_gain_db?, self.system_noise_temperature?);
+        Some((
+            g_over_t_dbk(gain.value(), self.rx_loss(), temperature.value()),
+            false,
+        ))
     }
 
     /// 送信側の給電損失 [dB]（省略時 0）。
@@ -176,22 +214,14 @@ impl RfLinkParams {
         );
         let fspl = fspl_db(range_m, self.frequency.value());
         let extra = self.extra_loss_db();
-        let g_t = self.rx_g_over_t_dbk.map_or_else(
-            || {
-                g_over_t_dbk(
-                    self.rx_gain_db.value(),
-                    self.rx_loss(),
-                    self.system_noise_temperature.value(),
-                )
-            },
-            DecibelPerKelvin::value,
-        );
+        // 検査（`validate`）を通った入力では必ず決まる。決まらなければ NaN（判定は違反になる）。
+        let (g_t, g_t_given) = self.rx_g_over_t().unwrap_or((f64::NAN, false));
         LinkEvaluation {
             eirp_dbw: eirp,
             fspl_db: fspl,
             extra_loss_db: extra,
             g_over_t_dbk: g_t,
-            g_over_t_given: self.rx_g_over_t_dbk.is_some(),
+            g_over_t_given: g_t_given,
             c_over_n0_dbhz: c_over_n0_dbhz(eirp, fspl + extra, g_t),
         }
     }
@@ -263,9 +293,9 @@ mod tests {
             tx_power: Qty::from_raw(1.0),
             tx_gain_db: Decibel::new(0.0),
             tx_loss_db: None,
-            rx_gain_db: Decibel::new(12.0),
+            rx_gain_db: Some(Decibel::new(12.0)),
             rx_loss_db: None,
-            system_noise_temperature: Qty::from_raw(500.0),
+            system_noise_temperature: Some(Qty::from_raw(500.0)),
             rx_g_over_t_dbk: None,
             atmospheric_loss_db: None,
             polarization_loss_db: None,
@@ -291,9 +321,9 @@ mod tests {
             tx_power: Qty::from_raw(1.0),
             tx_gain_db: Decibel::new(0.0),
             tx_loss_db: None,
-            rx_gain_db: Decibel::new(12.0),
+            rx_gain_db: Some(Decibel::new(12.0)),
             rx_loss_db: None,
-            system_noise_temperature: Qty::from_raw(500.0),
+            system_noise_temperature: Some(Qty::from_raw(500.0)),
             rx_g_over_t_dbk: None,
             atmospheric_loss_db: None,
             polarization_loss_db: None,
@@ -309,6 +339,21 @@ mod tests {
         assert!(given.g_over_t_given);
         let gain = given.c_over_n0_dbhz - derived.c_over_n0_dbhz;
         assert!((gain - 4.99).abs() < 0.01, "{gain}");
+    }
+
+    /// 手計算: EIRP 10 dBW・距離 600 km・占有 1 MHz・基準 4 kHz。
+    /// 4π d² = 4π × 3.6e11 = 4.5239e12 m² → 126.555 dB、帯域の割り戻し 10 log10(1e6 / 4e3) = 23.979 dB、
+    /// PFD = 10 − 126.555 − 23.979 = −140.53 dBW/m²/4 kHz。占有帯域が基準以下・不明なら割らず −116.55。
+    #[test]
+    fn pfd_at_600_km() {
+        let pfd = pfd_dbw_m2(10.0, 600.0e3, Some(1.0e6), 4.0e3);
+        assert!((pfd + 140.53).abs() < 0.01, "{pfd}");
+        let narrow = pfd_dbw_m2(10.0, 600.0e3, Some(1.0e3), 4.0e3);
+        let unknown = pfd_dbw_m2(10.0, 600.0e3, None, 4.0e3);
+        assert_eq!(narrow, unknown);
+        assert!((unknown + 116.55).abs() < 0.01, "{unknown}");
+        // 距離が 10 倍なら 20 dB 下がる
+        assert!((pfd_dbw_m2(10.0, 6.0e6, Some(1.0e6), 4.0e3) - pfd + 20.0).abs() < 1e-9);
     }
 
     #[test]

@@ -9,7 +9,7 @@ use sat_analysis::aocs::sensor_fov::SensorFovTarget;
 use sat_analysis::aocs::slew_time::{SlewAssumption, SlewProfile};
 use sat_analysis::aocs::unload_time::{MtqFieldGap, MtqFieldReason, UnloadAssumption};
 use sat_analysis::comm::data_throughput::DataThroughputLinkClosure;
-use sat_analysis::comm::link_budget::LinkBudgetDirection;
+use sat_analysis::comm::link_budget::{LinkBudgetDirection, LinkDistanceModel};
 use sat_analysis::power::energy_balance::{
     DurationTiming, EnergyBalanceDuty, EnergyBalanceEvaluation,
 };
@@ -194,6 +194,19 @@ fn link_direction(d: LinkBudgetDirection) -> AnalysisLabel {
     }
 }
 
+fn link_distance_model(m: LinkDistanceModel) -> AnalysisLabel {
+    match m {
+        LinkDistanceModel::EarthOrbit => label(
+            "地球周回の斜距離（局から見た）",
+            "Earth-orbit slant range (from the station)",
+        ),
+        LinkDistanceModel::EarthToBody => label(
+            "地球から天体周回の衛星までの距離（地心）",
+            "Distance from Earth to the spacecraft around another body (geocentre)",
+        ),
+    }
+}
+
 fn solar_life(l: SolarLife) -> AnalysisLabel {
     match l {
         SolarLife::Bol => label("初期（BOL）", "Beginning of life"),
@@ -318,6 +331,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "SlewAssumption" => parse(value).map(slew_assumption),
         "SpanFallback" => parse(value).map(span_fallback),
         "LinkBudgetDirection" => parse(value).map(link_direction),
+        "LinkDistanceModel" => parse(value).map(link_distance_model),
         "SolarLife" => parse(value).map(solar_life),
         "ModalEstimateKind" => parse(value).map(modal_kind),
         "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),

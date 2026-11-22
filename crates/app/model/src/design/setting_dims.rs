@@ -187,6 +187,12 @@ setting_quantities! {
     COMM_IMPLEMENTATION_LOSS: Dimensionless = Analysis["comm", "link", ANY, "implementation_loss"];
     /// 衛星側の給電線の損失
     COMM_LINE_LOSS: Dimensionless = Analysis["comm", "link", ANY, "line_loss"];
+    /// 地表の電力束密度の限度（`[link.<回線>]`。dBW/m²（基準帯域あたり）を `dB` と書く）
+    COMM_PFD_LIMIT: Dimensionless = Analysis["comm", "link", ANY, "pfd_limit"];
+    /// 電力束密度の基準帯域
+    COMM_PFD_REFERENCE_BANDWIDTH: Frequency = Analysis["comm", "link", ANY, "pfd_reference_bandwidth"];
+    /// 信号の占有帯域
+    COMM_OCCUPIED_BANDWIDTH: Frequency = Analysis["comm", "link", ANY, "occupied_bandwidth"];
     /// 取付の接触熱コンダクタンス（`analysis/thermal.toml`）
     THERMAL_CONTACT_CONDUCTANCE: ThermalConductance = Analysis["thermal", "contact_conductance"];
     /// 節点間の放射結合（面積）

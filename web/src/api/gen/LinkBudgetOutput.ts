@@ -11,6 +11,6 @@ export type LinkBudgetOutput = { links: Array<LinkBudgetLinkResult>,
  */
 required_margin_db: number, 
 /**
- * 回線 × 地上局の組ごとの余裕の判定（key は `margin:<name>@<局>`）
+ * 回線 × 地上局の組ごとの余裕の判定（key は `margin:<name>@<局>`）と、限度が書かれた下りの PFD の判定（`pfd:<name>@<局>`）
  */
 checks: Array<Check>, };

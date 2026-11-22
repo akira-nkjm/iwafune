@@ -144,7 +144,8 @@ fn lunar_ground_track_and_earth_passes() {
         Qty::from_raw(0.0),
     );
     assert!(ground_track(&mars, epoch(), 600.0, 60.0).is_err());
-    // 地上局からは、月を回る衛星は月とほぼ同じ方向に見える（月が出ている間がパス）
+    // 地上局からは、月を回る衛星は月とほぼ同じ方向に見える（月が出ていて、月の陰に入っていない間がパス。
+    // 周回ごとに月の陰に入るので、1 つのパスは周期より短い）
     let gs = GroundStation {
         id: String::from("GS"),
         latitude: Qty::from_raw(35f64.to_radians()),
@@ -158,7 +159,7 @@ fn lunar_ground_track_and_earth_passes() {
     for p in &passes {
         let inside = p.aos.j2000_s > epoch().j2000_s && p.los.j2000_s < end.j2000_s;
         assert!(
-            !inside || p.duration.value() > 6.0 * 3600.0,
+            !inside || p.duration.value() < o.period_s(),
             "{}",
             p.duration.value()
         );
