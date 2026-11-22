@@ -76,18 +76,20 @@ jobs:
         with:
           # Pull requests read the develop cache but do not save their own (keeps the develop cache from being evicted).
           save-if: ${{ github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' }}
+      # The tests spend their time in the numeric crates (orbit, thermal and power analyses), which are slow without
+      # optimisation. Build only those three with optimisation; the dependencies keep their cached build.
+      - name: optimise the numeric crates
+        run: |
+          mkdir -p ~/.cargo
+          for c in sat-units sat-astro sat-analysis; do
+            printf '[profile.dev.package.%s]\nopt-level = 2\n' "$c" >> ~/.cargo/config.toml
+          done
       - name: fmt
         run: cargo fmt --all --check
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
-      # nextest runs the test binaries in parallel (cargo test runs them one after another). It does not run doc tests.
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest@0.9.151
       - name: test (including the CLI/HTTP parity tests)
-        run: cargo nextest run --workspace --no-fail-fast
-      - name: doc tests
-        run: cargo test --workspace --doc
+        run: cargo test --workspace
       - name: generated TS types match the Rust code
         run: |
           cargo test --workspace export_ts
