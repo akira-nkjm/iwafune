@@ -102,7 +102,6 @@ export const diagramJa = {
       summary: (id: string) => `ネット ${id} を作って接続`,
       confirm: "繋ぐ",
       id: "ネット ID",
-      idTaken: "同じ ID のネットがあります",
       kind: "種類",
       power: "電源（power）",
       data: "データ（data）",

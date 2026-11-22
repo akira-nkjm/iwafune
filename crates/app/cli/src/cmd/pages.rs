@@ -2,7 +2,7 @@
 //! 値・合計・判定は service が作ったものをそのまま並べる（CLI は計算しない）。
 
 use super::analyze::print_missing;
-use super::common::verdict_cell;
+use super::common::{value_with_mark, verdict_cell};
 use crate::args::ModeViewOpts;
 use crate::output::{C, Out};
 use fune_service::dto::{
@@ -40,7 +40,7 @@ pub fn mode_view(
         },
     };
     let view = system_modes::system_modes(ws, system_modes::parse_system(system)?, &req)?;
-    let failed = !view.missing.is_empty() || has_violation(&view);
+    let failed = system_modes::fails(&view);
     if out.json {
         out.json(&view)?;
         return Ok(u8::from(failed));
@@ -52,22 +52,6 @@ pub fn mode_view(
     print_power(&view, out);
     print_missing(&view.missing, out);
     Ok(u8::from(failed))
-}
-
-fn has_violation(view: &SystemModesView) -> bool {
-    view.modes.iter().any(|m| {
-        [&m.sunlit, &m.eclipse]
-            .iter()
-            .any(|v| v.verdict == Some(Verdict::Violation))
-            || m.power
-                .as_ref()
-                .is_some_and(|p| p.verdict == Some(Verdict::Violation))
-            || m.aocs.as_ref().is_some_and(|a| {
-                [&a.rw, &a.unloading, &a.sensor_fov]
-                    .iter()
-                    .any(|s| s.verdict == Some(Verdict::Violation))
-            })
-    })
 }
 
 fn label_text(label: ModeSummaryLabel) -> &'static str {
@@ -121,10 +105,7 @@ fn print_values(view: &SystemModesView, eclipse: bool, out: &Out) {
                 ModeSummaryField::Margin => &v.margin,
             };
             match (row.verdict, v.verdict, q) {
-                (true, Some(verdict), Some(q)) => {
-                    let mark = if verdict == Verdict::Ok { "✔" } else { "⚠" };
-                    C::Num(format!("{} {mark}", q.display))
-                }
+                (true, Some(verdict), Some(q)) => C::Num(value_with_mark(&q.display, verdict)),
                 _ => dash(q.as_ref()),
             }
         }));

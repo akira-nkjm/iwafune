@@ -90,7 +90,7 @@ fn mode_loads(
             Some(ThermalModePart {
                 id: p.id.clone(),
                 node: node.to_string(),
-                count: crate::parts::count_of(p),
+                count: p.count_or_one(),
                 redundancy: crate::parts::redundancy(p),
                 states: p.states.clone(),
                 power: state_values::<Power>(ctx, p, "power")?,

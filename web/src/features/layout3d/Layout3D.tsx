@@ -18,7 +18,12 @@ import { HelperToggles } from "./HelperToggles";
 import { LayoutBrowser } from "./LayoutBrowser";
 import { Scene3D, type SceneEdit, type TransformMode } from "./Scene3D";
 import { axesOf, boxesOf, DEFAULT_STRUCTURE_OPACITY, fovsOf, hasSize, type V3 } from "./scene";
-import { DEFAULT_SCENE_HELPERS, type FocusRequest, type SceneHelpers } from "./visibility";
+import {
+  DEFAULT_SCENE_HELPERS,
+  type FocusRequest,
+  HEAT_SCENE_HELPERS,
+  type SceneHelpers,
+} from "./visibility";
 
 /** 移動のスナップ（選択肢の値は名前。刻み [m] は表から引く。選んだ文字列を数として読まない） */
 const SNAPS = [
@@ -129,6 +134,7 @@ function HeatLayout3D({ design, colorOf, tools, overlay, aside }: HeatProps) {
       tools={tools}
       overlay={overlay}
       aside={aside}
+      initialHelpers={HEAT_SCENE_HELPERS}
     />
   );
 }
@@ -143,6 +149,7 @@ function Layout3DFrame({
   tools,
   edit,
   fill = false,
+  initialHelpers = DEFAULT_SCENE_HELPERS,
   overlay,
   aside,
 }: {
@@ -158,6 +165,8 @@ function Layout3DFrame({
   edit?: SceneEdit;
   /** 配置ページ: 残りの画面高を使い、部品のツリー・表示の切り替え・構造の不透明度を出す。熱の追加表示は既存の高さ */
   fill?: boolean;
+  /** 補助の表示（視野・軸・格子）の最初の状態 */
+  initialHelpers?: SceneHelpers;
   /** 3D の左下に重ねるもの（熱の色の凡例） */
   overlay?: ReactNode;
   /** インスペクタの代わりに右へ置くもの（熱の節点の一覧） */
@@ -169,7 +178,7 @@ function Layout3DFrame({
   const opacityId = useId();
   const [structureOpacity, setStructureOpacity] = useState(DEFAULT_STRUCTURE_OPACITY);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NONE_HIDDEN);
-  const [helpers, setHelpers] = useState<SceneHelpers>(DEFAULT_SCENE_HELPERS);
+  const [helpers, setHelpers] = useState<SceneHelpers>(initialHelpers);
   const [focus, setFocus] = useState<FocusRequest | undefined>(undefined);
   const [home, setHome] = useState(0);
   const { boxes, unplaced, dimensions } = useMemo(

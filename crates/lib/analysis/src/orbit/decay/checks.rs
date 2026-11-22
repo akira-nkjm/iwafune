@@ -3,7 +3,7 @@
 
 use super::{DATED, DecayCase, DecayUsed, MODERATE, NEAR_CIRCULAR_ECCENTRICITY, OrbitDecayInput};
 use crate::spec::{Check, Verdict, quantity_text};
-use sat_units::typed::Time;
+use sat_units::typed::{Dimensionless, Time};
 
 /// すべての判定（書かれた要求があるものだけ）。
 pub(super) fn checks(
@@ -23,7 +23,9 @@ pub(super) fn checks(
             "Near-circular orbit assumption",
             Verdict::Warning,
             format!(
-                "Eccentricity {e} exceeds the near-circular assumption ({NEAR_CIRCULAR_ECCENTRICITY} or less). Eccentricity changes are not tracked, so the lifetime is a rough estimate"
+                "Eccentricity {} exceeds the near-circular assumption ({} or less). Eccentricity changes are not tracked, so the lifetime is a rough estimate",
+                quantity_text::<Dimensionless>(e),
+                quantity_text::<Dimensionless>(NEAR_CIRCULAR_ECCENTRICITY)
             ),
         ));
     }

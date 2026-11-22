@@ -23,12 +23,14 @@ use fune_projection::{Context, MissingInput, ProjectionError, project_json};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+pub use failure::fails;
 pub use fune_projection::system::area_key;
 pub(crate) use typed::{TypedRun, run_typed_in};
 
 pub(crate) mod channels;
 pub(crate) mod checks;
 mod dims;
+mod failure;
 pub(crate) mod kpi;
 pub mod labels;
 pub(crate) mod overview;

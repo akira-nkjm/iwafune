@@ -180,7 +180,7 @@ fn cdh_projects_per_unit_rates_and_normalizes_counts() {
     }
     let part = resolved.parts.values_mut().next().unwrap();
     part.count = 0;
-    assert_eq!(fune_projection::parts::count_of(part), 1);
+    assert_eq!(part.count_or_one(), 1);
     assert_eq!(fune_projection::parts::extensive(part, 2.0), 2.0);
     part.count = 3;
     assert_eq!(fune_projection::parts::extensive(part, 2.0), 6.0);

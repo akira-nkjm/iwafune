@@ -141,7 +141,7 @@ fn node_part(
     Some(ThermalNodePart {
         id: pid.to_owned(),
         mass: Qty::from_raw(mass?),
-        count: crate::parts::count_of(p),
+        count: p.count_or_one(),
         specific_heat: Qty::from_raw(c?),
         ranges: ranges(ctx, p),
         redundancy: crate::parts::redundancy(p),
@@ -227,7 +227,7 @@ fn surfaces(ctx: &Context<'_>, s: &ThermalSettings, m: &mut MissingInputs) -> Ve
             id: p.id.clone(),
             node: (*n).to_owned(),
             area: Qty::from_raw(area),
-            count: crate::parts::count_of(p),
+            count: p.count_or_one(),
             normal,
             absorptivity,
             emissivity,
