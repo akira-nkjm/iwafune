@@ -310,4 +310,54 @@ mod tests {
             None
         );
     }
+
+    /// 太陽を回る円軌道（0.7・1.0・1.5 AU）で太陽指向: 食は無く（日照率 1）、発電は太陽光 S₁(AU/d)² に比例する。
+    /// 手計算: 面積 1 m²・効率 0.3・充填率 1 の +Z 面に垂直入射で P = 0.3 · 1361 · (AU/d)²（太陽光は距離から決める）。
+    #[test]
+    fn heliocentric_generation_scales_with_inverse_square_distance() {
+        use sat_astro::constants::AU;
+        use sat_astro::ephem::CentralBody;
+        use sat_astro::orbit::{OrbitElements, OrbitSpec, Propagator};
+        use sat_astro::time::Epoch;
+        use sat_astro::timeline::TimelineSpec;
+        let mut a = array();
+        a.solar_flux = None;
+        for d_au in [0.7_f64, 1.0, 1.5] {
+            let elements = OrbitElements::with_defaults(
+                Qty::from_raw(d_au * AU),
+                Qty::from_raw(0.1),
+                None,
+                None,
+                None,
+                None,
+            );
+            let mut orbit = OrbitSpec::new(
+                Epoch::parse("2030-01-01T00:00:00Z").unwrap(),
+                elements,
+                Propagator::Kepler,
+            );
+            orbit.central = CentralBody::Sun;
+            let period = orbit.period_s();
+            let timeline = TimelineSpec::new(
+                orbit,
+                sun_pointing_z(),
+                Qty::from_raw(2.0 * period),
+                Qty::from_raw(period / 100.0),
+            );
+            let input = OrbitGenerationInput {
+                timeline,
+                array: a.clone(),
+                life: Some(SolarLife::Bol),
+            };
+            let out = OrbitGeneration::run(&input).unwrap();
+            let expect = 0.3 * 1361.0 / (d_au * d_au);
+            assert!(
+                (out.orbit_average.value() / expect - 1.0).abs() < 1e-9,
+                "{d_au} AU: {} vs {expect}",
+                out.orbit_average.value()
+            );
+            assert!((out.sunlit_fraction.value() - 1.0).abs() < 1e-12);
+            assert_eq!(out.max_eclipse_duration.value(), 0.0);
+        }
+    }
 }

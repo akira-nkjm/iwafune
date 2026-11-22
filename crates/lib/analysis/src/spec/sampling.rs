@@ -1,6 +1,8 @@
 //! 時系列の標本の取り方の既定（周回数・刻み・1 日）と、設計が書かなかったときにそれを当てる構築。
 //! **時系列の期間と刻みの既定はここだけ**。
 //! - 期間: 周回数が書かれていなければ [`DEFAULT_ORBITS`]。1 周で数える量（周回平均・割合）は [`SamplingSpan::OrbitAverage`]（1 周）。
+//! - 太陽を回る軌道（惑星間の巡航。周期が数か月〜数年）では、周回数が書かれていなければ 1 周にする（[`DEFAULT_HELIOCENTRIC_ORBITS`]。
+//!   3 周では数年の時系列になり、積分の費用も 3 倍になる。書かれた周回数はそのまま使う）。
 //! - 刻み: [`orbit_step_s`]。周期の一定の割合（1 周あたり最大 [`MAX_STEPS_PER_ORBIT`] 標本）を超えない刻み（下限 `sat_astro::timeline::DEFAULT_STEP_S`）。
 //!   周期が 100 分までの周回軌道では従来どおり 30 s のまま、静止軌道や月周回のような長い周期でも 1 周の標本数が増えすぎない。
 //!
@@ -8,6 +10,7 @@
 //! （[`SamplingSpan`]）を渡す。
 
 use sat_astro::constants::SECONDS_PER_DAY;
+use sat_astro::ephem::CentralBody;
 use sat_astro::orbit::OrbitSpec;
 use sat_astro::timeline::{DEFAULT_STEP_S, OrbitSampling};
 use sat_units::typed::Qty;
@@ -15,6 +18,9 @@ use sat_units::typed::Qty;
 /// 周回数が書かれていないときに解く周回数（電源の収支・熱の非定常・RW のアンロードで共通）。
 /// 電池の充放電や熱の履歴が初期条件から落ち着いて見える程度の数として、概念検討で使う 3 周とする。
 pub const DEFAULT_ORBITS: u32 = 3;
+
+/// 太陽を回る軌道で、周回数が書かれていないときに解く周回数（[`DEFAULT_ORBITS`] の代わり）。
+pub const DEFAULT_HELIOCENTRIC_ORBITS: u32 = 1;
 
 /// 1 周の平均や割合を数える量（センサの禁止角への侵入の割合・アンロード時間の地磁気の平均・熱の軌道平均）が解く周回数。
 /// 周期的な量なので 1 周で足りる（複数周は同じ値の繰り返し）。
@@ -61,9 +67,15 @@ pub fn orbit_step_s(period_s: f64) -> f64 {
 /// 期間の取り方 `span` の標本の取り方（刻みは周期から、β の指定なし）。
 pub fn sampling(orbit: OrbitSpec, span: SamplingSpan) -> OrbitSampling {
     let period = orbit.period_s();
+    let orbits = match span {
+        SamplingSpan::Series(None) if orbit.central == CentralBody::Sun => {
+            DEFAULT_HELIOCENTRIC_ORBITS
+        }
+        _ => span.orbits(),
+    };
     OrbitSampling::new(
         orbit,
-        Qty::from_raw(period * f64::from(span.orbits())),
+        Qty::from_raw(period * f64::from(orbits)),
         Qty::from_raw(orbit_step_s(period)),
     )
 }
@@ -148,6 +160,20 @@ mod tests {
         assert_eq!(SamplingSpan::OrbitAverage.orbits(), 1);
         let s = sampling(o, SamplingSpan::OrbitAverage);
         assert!((s.span.value() - period).abs() < 1e-9);
+    }
+
+    /// 太陽を回る軌道では、周回数を書かなければ 1 周（地球周回の 3 周ではない）。書けばその周回数、周回平均は 1 周のまま。
+    #[test]
+    fn heliocentric_default_is_one_orbit() {
+        let mut o = orbit();
+        o.central = CentralBody::Sun;
+        let period = o.period_s();
+        let s = sampling(o.clone(), SamplingSpan::Series(None));
+        assert!((s.span.value() - period).abs() < 1e-6);
+        let s = sampling(o.clone(), SamplingSpan::Series(Some(2)));
+        assert!((s.span.value() - 2.0 * period).abs() < 1e-6);
+        let s = sampling(o, SamplingSpan::OrbitAverage);
+        assert!((s.span.value() - period).abs() < 1e-6);
     }
 
     /// 1 日の標本は 86 400 s。

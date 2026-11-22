@@ -252,6 +252,7 @@ fn other_ops() -> Vec<Op> {
         thermal_case: Some("cold".into()),
         beta: Some(Quantity::new(20.0, "deg")),
         orbits: Some(3),
+        sun_distance: None,
     };
     let source = Source {
         id: Id::new("tvac"),

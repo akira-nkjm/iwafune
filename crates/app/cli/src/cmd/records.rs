@@ -21,7 +21,7 @@ pub fn case(c: &CaseCmd) -> Built<'_> {
     Ok(match c {
         CaseCmd::Set(a) => Some((Op::SetCase { case: case_of(a)? }, &a.edit)),
         CaseCmd::Rm { id, edit } => Some((Op::RemoveCase { id: id.clone() }, edit)),
-        CaseCmd::Ls | CaseCmd::FromEclipse { .. } => None,
+        CaseCmd::Ls | CaseCmd::FromEclipse { .. } | CaseCmd::FromSunDistance { .. } => None,
     })
 }
 
@@ -39,6 +39,11 @@ fn case_of(a: &CaseArgs) -> anyhow::Result<Case> {
     case.id = a.id.as_str().into();
     case.beta = a
         .beta
+        .as_deref()
+        .map(edit::quantity_from_text)
+        .transpose()?;
+    case.sun_distance = a
+        .sun_distance
         .as_deref()
         .map(edit::quantity_from_text)
         .transpose()?;

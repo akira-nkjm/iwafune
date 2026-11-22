@@ -2,7 +2,7 @@
 use crate::Workspace;
 use crate::dto::CaseFromEclipseRequest;
 use crate::error::{Result, ServiceError};
-use fune_model::design::Case;
+use fune_model::design::{Case, Design};
 use fune_model::value::Quantity;
 use fune_ops::Op;
 use fune_projection::Context;
@@ -12,23 +12,7 @@ use sat_analysis::spec::Analysis;
 /// 最新の条件から解析し、新しいケースの `SetCase` Op を返す。既存ケースは上書きしない。
 pub fn case_from_eclipse_op(ws: &Workspace, req: &CaseFromEclipseRequest) -> Result<Op> {
     let snap = ws.snapshot()?;
-    fune_model::id::validate_entity_id(&req.id)
-        .map_err(|e| ServiceError::InvalidInput(e.to_string()))?;
-    if snap
-        .design
-        .cases
-        .keys()
-        .any(|id| fune_model::id::same_id(id.as_str(), &req.id))
-    {
-        return Err(ServiceError::AlreadyExists {
-            what: req.id.clone(),
-        });
-    }
-    if let Some(mode) = &req.mode
-        && !snap.design.modes.contains_key(mode.as_str())
-    {
-        return Err(ServiceError::not_found("mode", mode));
-    }
+    validate_new_case(&snap.design, &req.id, req.mode.as_deref())?;
     let ctx = Context::new(&snap.design, &snap.resolved, None)
         .map_err(|e| ServiceError::Analysis(e.to_string()))?;
     let input = fune_projection::orbit::eclipse_season(&ctx)
@@ -44,6 +28,27 @@ pub fn case_from_eclipse_op(ws: &Workspace, req: &CaseFromEclipseRequest) -> Res
         .map_err(|e| ServiceError::Internal(e.to_string()))?
         .from_si(point.beta.value());
     Ok(case_op(req, point, deg))
+}
+
+/// 新しい解析ケースの ID（形式・重複）とモードの存在を調べる（既存ケースは上書きしない）。ケースを作る入口で共有する。
+pub(super) fn validate_new_case(design: &Design, id: &str, mode: Option<&str>) -> Result<()> {
+    fune_model::id::validate_entity_id(id)
+        .map_err(|e| ServiceError::InvalidInput(e.to_string()))?;
+    if design
+        .cases
+        .keys()
+        .any(|existing| fune_model::id::same_id(existing.as_str(), id))
+    {
+        return Err(ServiceError::AlreadyExists {
+            what: id.to_owned(),
+        });
+    }
+    if let Some(mode) = mode
+        && !design.modes.contains_key(mode)
+    {
+        return Err(ServiceError::not_found("mode", mode));
+    }
+    Ok(())
 }
 
 /// 書き出すケースの β の単位。
@@ -72,6 +77,7 @@ fn case_op(
             thermal_case: None,
             beta: Some(Quantity::new(beta_deg, BETA_UNIT)),
             orbits: None,
+            sun_distance: None,
         },
     }
 }

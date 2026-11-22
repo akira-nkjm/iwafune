@@ -4,8 +4,8 @@ use crate::{Context, MissingInputs};
 use fune_model::design::OrbitDecaySettings;
 use fune_model::design::setting_dims as dims;
 use fune_model::value::Quantity;
-use sat_analysis::orbit::EclipseSeasonInput;
 use sat_analysis::orbit::decay::OrbitDecayInput;
+use sat_analysis::orbit::{EclipseSeasonInput, SunDistanceInput};
 use sat_units::typed::{Area, Length, Qty, Time};
 
 /// 軌道・Mission duration・任意の季節刻み。
@@ -41,6 +41,31 @@ pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingIn
             duration: duration?,
             step,
             maneuvers,
+        })
+    })
+}
+
+/// 太陽距離の極値（`sat_analysis::orbit::sun_distance_extremes`。解析ケースを近日点・遠日点で作るのに使う）の入力:
+/// 軌道（ケースを指定しない）とミッション期間。
+pub fn sun_distance(ctx: &Context<'_>) -> Result<SunDistanceInput, MissingInputs> {
+    let mut m = MissingInputs::new();
+    let orbit = ctx.orbit(&mut m);
+    ctx.note(dims::ORBIT_DURATION.at(&[]));
+    let duration = setting(
+        &dims::ORBIT_DURATION,
+        &[],
+        ctx.design
+            .conditions
+            .orbit
+            .as_ref()
+            .and_then(|o| o.duration.as_ref()),
+        "Mission duration",
+        &mut m,
+    );
+    m.finish(|| {
+        Some(SunDistanceInput {
+            orbit: orbit?,
+            duration: duration?,
         })
     })
 }

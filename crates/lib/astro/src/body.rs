@@ -120,6 +120,13 @@ impl CentralBody {
         }
     }
 
+    /// 設計で使う太陽光の強さの慣例値 [W/m²]（[`CentralBody::nominal_sun_distance_m`] の距離での値）。慣例の距離が無い天体は `None`。
+    /// 熱の定常解析の固定の向き（最悪ケース）が太陽光の強さを書かなかったときに使う。
+    pub fn nominal_solar_flux_w_m2(self) -> Option<f64> {
+        self.nominal_sun_distance_m()
+            .map(crate::illumination::solar_flux_w_m2)
+    }
+
     /// 大気のモデル（[`crate::atmosphere::density_about_kg_m3`]）が使えるか。地球だけがモデルを持つ。
     /// 月・水星は大気が無い（水星の外気圏は無視できる）。それ以外は大気があるがモデルが無い。
     pub fn atmosphere_model(self) -> EnvironmentModel {

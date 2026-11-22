@@ -1,6 +1,8 @@
 //! 熱環境（太陽光・中心天体のアルベドと赤外放射・宇宙の背景温度）と、中心天体に合わせた値の決め方。
 //!
 //! 値は「書いた値 → プリセット（`thermal::preset`）→ 中心天体の既定値（`thermal::planet`）」の順に決める。
+//! 中心天体が太陽のとき（惑星間の巡航）は、アルベドと天体の赤外は常に 0（書いた値・プリセットは使わない）、
+//! 太陽光の強さは書かなければ時刻ごとの太陽距離から（プリセットの 1 AU の値も使わない）。
 //! プリセットの太陽光（近日点・遠日点の 1 AU の値）は太陽距離の慣例値が 1 AU の天体（地球・月）だけ、
 //! プリセットのアルベド・赤外（LEO の代表値）は地球だけに使う。決まらない値は `InvalidInput`（入力を書く）。
 
@@ -64,8 +66,16 @@ impl ThermalEnvironment {
         &self,
         central: CentralBody,
     ) -> Result<ResolvedEnvironment, AnalysisError> {
-        let earth_preset = self.preset.filter(|_| central == CentralBody::Earth);
         let defaults = planet_environment(central);
+        if central == CentralBody::Sun {
+            return Ok(ResolvedEnvironment {
+                solar_flux_w_m2: self.solar_flux.map(Qty::value),
+                albedo: 0.0,
+                ir: PlanetIr::Uniform(0.0),
+                body_radius_m: central.radius_m(),
+            });
+        }
+        let earth_preset = self.preset.filter(|_| central == CentralBody::Earth);
         let solar_flux_w_m2 = match (self.solar_flux, self.preset) {
             (Some(f), _) => Some(f.value()),
             (None, Some(p)) if central.nominal_sun_distance_m().is_some() => {
@@ -183,5 +193,31 @@ mod tests {
         let used = env.used(CentralBody::Mars).unwrap();
         assert_eq!(used.albedo.value(), 0.25);
         assert_eq!(used.planet_ir.map(Qty::value), Some(110.0));
+    }
+
+    /// 太陽中心: アルベド・天体の赤外は 0。書いたアルベド・赤外・プリセットは使わず、太陽光は書かなければ距離から決める。
+    #[test]
+    fn sun_central_has_no_albedo_or_ir_and_ignores_the_earth_preset() {
+        let env = ThermalEnvironment {
+            preset: Some(ThermalPreset::Hot),
+            albedo: Some(Fraction::new(0.3)),
+            planet_ir: Some(Qty::from_raw(258.0)),
+            ..ThermalEnvironment::default()
+        };
+        let used = env.used(CentralBody::Sun).unwrap();
+        assert_eq!(used.albedo.value(), 0.0);
+        assert_eq!(used.planet_ir.map(Qty::value), Some(0.0));
+        assert!(used.solar_flux.is_none());
+        let env = ThermalEnvironment {
+            solar_flux: Some(Qty::from_raw(900.0)),
+            ..ThermalEnvironment::default()
+        };
+        assert_eq!(
+            env.used(CentralBody::Sun)
+                .unwrap()
+                .solar_flux
+                .map(Qty::value),
+            Some(900.0)
+        );
     }
 }

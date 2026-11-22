@@ -75,6 +75,18 @@ pub async fn format(
         .map(Json)
 }
 
+/// POST `/ops/case_from_sun_distance`。CLI と同じ計算から SetCase Op を作る（太陽を回る軌道の近日点・遠日点）。
+pub async fn case_from_sun_distance(
+    State(s): State<AppState>,
+    ApiJson(req): ApiJson<fune_service::dto::CaseFromSunDistanceRequest>,
+) -> Result<Json<Op>, ApiError> {
+    blocking(&s, move |ws| {
+        fune_service::edit::case_from_sun_distance_op(ws, &req)
+    })
+    .await
+    .map(Json)
+}
+
 /// POST `/ops/case_from_eclipse`。CLI と同じ解析から SetCase Op を作る。
 /// 保存は他の編集と同じく POST `/ops`。
 pub async fn case_from_eclipse(

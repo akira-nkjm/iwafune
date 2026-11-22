@@ -20,6 +20,12 @@ pub fn solar_flux_w_m2(sun_distance_m: f64) -> f64 {
     SOLAR_CONSTANT * ratio * ratio
 }
 
+/// 太陽距離が分かればその距離の太陽光の強さ、分からなければ 1 AU の値 [`SOLAR_CONSTANT`]（慣例）。
+/// **「距離が無いときは 1 AU」の規則はここだけ**（電源の太陽電池が使う）。
+pub fn solar_flux_or_nominal_w_m2(sun_distance_m: Option<f64>) -> f64 {
+    sun_distance_m.map_or(SOLAR_CONSTANT, solar_flux_w_m2)
+}
+
 /// 平板が半径 `body_radius_m` の中心天体（地球・月・惑星）を見る形態係数（0〜1）。`normal_eci` は面の外向き法線、
 /// `r_eci_m` は中心天体の中心から衛星への位置 [m]（同じ座標系）。
 ///
