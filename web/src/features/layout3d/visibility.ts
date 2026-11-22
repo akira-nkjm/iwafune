@@ -36,6 +36,9 @@ export const DEFAULT_SCENE_HELPERS: SceneHelpers = {
   gizmo: true,
 };
 
+/** 熱の画像の既定: 視野の円錐は温度の色に重なって読みにくいので、最初は出さない（ボタンで出せる） */
+export const HEAT_SCENE_HELPERS: SceneHelpers = { ...DEFAULT_SCENE_HELPERS, fov: false };
+
 /** 3D の視点を部品に寄せる依頼。同じ部品を続けて押しても寄せ直すよう、押した回数 `n` を持つ */
 export interface FocusRequest {
   id: string;

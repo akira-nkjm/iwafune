@@ -220,3 +220,10 @@ it.each(["ja", "en"] as const)(
     expect(state.scene.mock.lastCall?.[0]).toMatchObject({ home: 2 });
   },
 );
+
+it("視野の表示は、配置では最初から出し、熱の画像では最初は出さない", () => {
+  render();
+  expect(state.scene.mock.lastCall?.[0]).toMatchObject({ helpers: { fov: true } });
+  renderToStaticMarkup(<Layout3D variant="heat" design={design} colorOf={() => "#000000"} />);
+  expect(state.scene.mock.lastCall?.[0]).toMatchObject({ helpers: { fov: false } });
+});
