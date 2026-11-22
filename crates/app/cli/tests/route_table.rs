@@ -2,7 +2,7 @@
 //! `crates/app/server/src/routes.rs` の経路はすべて表にあり、表の経路はすべて `routes.rs` にある。
 //! CLI のコマンドは実在する（`--help` が通る）。すべての経路に CLI がある（#158）。
 //! 例外は `fune init`（サーバーはプロジェクトの中でしか動かない）・`fune gui`（サーバーを起動するコマンド）・
-//! `fune self-update`（CLI のバイナリ自身を置き換える）だけ。
+//! `fune self-update`（CLI のバイナリ自身を置き換える）・`fune skill`（呼び出した人のエージェント用ディレクトリに書く）だけ。
 
 mod common;
 
@@ -155,7 +155,7 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
 ];
 
 /// HTTP に無い CLI のコマンド。
-const CLI_ONLY: &[&str] = &["init", "gui", "self-update"];
+const CLI_ONLY: &[&str] = &["init", "gui", "self-update", "skill"];
 
 /// `routes.rs` の `.route("<path>", get(..).post(..))` を `METHOD path` の集合にする。
 fn routes_in_source() -> BTreeSet<(String, String)> {

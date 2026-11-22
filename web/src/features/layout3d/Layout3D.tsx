@@ -1,5 +1,4 @@
-import { House } from "lucide-react";
-import { type ReactNode, useId, useMemo, useState } from "react";
+import { type ReactNode, useId, useMemo, useReducer, useState } from "react";
 import { usePlaceBody } from "@/api/ops";
 import type { DesignView } from "@/api/types";
 import { PlacementSection } from "@/features/components/detail/PlacementSection";
@@ -26,6 +25,8 @@ import {
   type SunArrow,
   type V3,
 } from "./scene";
+import { ViewControls3D } from "./ViewControls3D";
+import type { ZoomRequest } from "./ViewInput3D";
 import {
   DEFAULT_SCENE_HELPERS,
   type FocusRequest,
@@ -199,6 +200,11 @@ function Layout3DFrame({
   const [helpers, setHelpers] = useState<SceneHelpers>(initialHelpers);
   const [focus, setFocus] = useState<FocusRequest | undefined>(undefined);
   const [home, setHome] = useState(0);
+  // ボタンの拡大・縮小の依頼（押すたびに n が増える）
+  const [zoom, zoomBy] = useReducer(
+    (old: ZoomRequest | null, factor: number) => ({ n: (old?.n ?? 0) + 1, factor }),
+    null,
+  );
   const { boxes, unplaced, dimensions } = useMemo(
     () => boxesOf(design, colorOf),
     [design, colorOf],
@@ -295,20 +301,13 @@ function Layout3DFrame({
               helpers={helpers}
               focus={focus ?? null}
               home={home}
+              zoom={zoom}
               fovs={fovs}
               sun={helpers.sun ? (sun ?? null) : null}
             />
           )}
           {boxes.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setHome((n) => n + 1)}
-              aria-label={L.home}
-              title={L.home}
-              className="absolute top-3 right-3 inline-flex size-8 items-center justify-center rounded-control border border-line bg-panel/90 text-ink-2 hover:bg-panel hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
-            >
-              <House className="size-4" aria-hidden />
-            </button>
+            <ViewControls3D onZoom={zoomBy} onHome={() => setHome((n) => n + 1)} />
           )}
           {overlay && (
             <div className="pointer-events-none absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] rounded-control bg-panel/90 px-2 py-1">

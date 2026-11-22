@@ -159,8 +159,17 @@ Fill these in from the GUI (Orbit & stations, the subsystem page) or with `fune 
 | `fune undo` / `fune redo` | Step through the last 100 edits |
 | `fune gui` | Start the GUI |
 | `fune self-update` | Update the binary |
+| `fune skill show` / `fune skill install` | Print / install the agent skill (see below) |
 
 `fune --help` lists every command, and `fune <command> --help` shows its options.
+
+### Agent skill
+
+`fune skill install` writes an Agent Skills file, `.claude/skills/fune/SKILL.md`, into the project (the directory with `fune.toml`, or the current directory outside a project),
+so an AI agent knows the rules for editing and analyzing a design: edit only through the CLI, run `fune check` and `fune fmt --check`, write units, and the usual flows.
+`--skills-dir <PATH>` installs into another skills directory (for another agent's location), and `fune skill show` prints the text.
+The text ships inside the binary and records the `fune` version. Running `fune skill install` again does nothing if it is current, replaces it if another version wrote it,
+and refuses (exit code 3) if you edited it, unless you pass `--force`.
 
 ## Analyses
 

@@ -11,7 +11,7 @@ import {
 import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Material, Mesh } from "three";
-import { ArrowHelper, Color, DoubleSide, Quaternion, Vector3 } from "three";
+import { ArrowHelper, Color, DoubleSide, MOUSE, Quaternion, Vector3 } from "three";
 import { palette, toneHex, uiHex } from "@/lib/tone";
 import {
   type Axis3D,
@@ -25,6 +25,7 @@ import {
   type sceneDimensions,
   type V3,
 } from "./scene";
+import { ViewInput3D, type ZoomRequest } from "./ViewInput3D";
 import { DEFAULT_SCENE_HELPERS, type FocusRequest, type SceneHelpers } from "./visibility";
 
 /** 方向の属性の矢印の色（`Axis3D.order` 番目。属性の ID は見ない。足りなければ繰り返す） */
@@ -69,6 +70,7 @@ export function Scene3D({
   helpers = DEFAULT_SCENE_HELPERS,
   focus = null,
   home = 0,
+  zoom = null,
   fovs = [],
   sun = null,
 }: {
@@ -94,6 +96,8 @@ export function Scene3D({
   sun?: SunArrow | null;
   /** ホームポジションに戻す依頼（押した回数。0 は依頼なし）。増えるたびに初めの向きへ戻し、全体が収まるまで引く */
   home?: number;
+  /** ボタンからの拡大・縮小の依頼（`ViewInput3D`）。無ければ依頼なし */
+  zoom?: ZoomRequest | null;
 }) {
   const [target, setTarget] = useState<Mesh | null>(null);
   // 押したときの画面の位置（離したときに動いていればドラッグ）
@@ -243,7 +247,12 @@ export function Scene3D({
         />
       )}
       {/* makeDefault: TransformControls を掴んでいる間は drei がカメラ操作を止める */}
-      <OrbitControls makeDefault />
+      {/* 左ドラッグ = 回転、中・右ドラッグと Shift + 左ドラッグ = 移動。ホイールは ViewInput3D が読む（OrbitControls の拡大は止める） */}
+      <OrbitControls
+        makeDefault
+        mouseButtons={{ LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.PAN, RIGHT: MOUSE.PAN }}
+      />
+      <ViewInput3D request={zoom} />
       {helpers.gizmo && (
         <GizmoHelper alignment="bottom-right" margin={[64, 64]}>
           <GizmoViewport labelColor={palette.inverse} axisHeadScale={0.9} />

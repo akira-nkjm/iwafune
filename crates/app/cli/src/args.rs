@@ -6,6 +6,7 @@ mod nouns;
 mod records;
 mod report;
 mod requirements;
+mod skill;
 
 pub use defs::{AttrAddArgs, AttrCmd, KindAddArgs, KindCmd};
 pub use ground::GroundCmd;
@@ -19,6 +20,7 @@ pub use records::{
 };
 pub use report::{ReportCmd, ReportExportArgs};
 pub use requirements::{RequirementArgs, RequirementCmd};
+pub use skill::SkillCmd;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
@@ -210,6 +212,9 @@ pub enum Command {
         #[arg(long, value_name = "VERSION")]
         version: Option<String>,
     },
+    /// Agent skill: show or install the instructions that teach an AI agent to use fune
+    #[command(subcommand)]
+    Skill(SkillCmd),
     /// Apply Op JSON (the same form the GUI uses)
     Apply {
         /// JSON file of an array of Ops (`-` for stdin)

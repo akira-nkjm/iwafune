@@ -56,6 +56,13 @@ pub enum ServiceError {
     Data(String),
     #[error("Cannot update fune: {0}")]
     SelfUpdate(String),
+    #[error("Cannot install the agent skill: {0}")]
+    Skill(String),
+    #[error(
+        "{path} differs from the text that fune {version} ships and was not written by another fune version \
+         (edited by hand?). Use --force to overwrite it, or `fune skill show` to compare"
+    )]
+    SkillModified { path: String, version: String },
     #[error("Internal error: {0}")]
     Internal(String),
 }
@@ -70,6 +77,7 @@ impl ServiceError {
             Self::InvalidInput(_) | Self::Unit { .. } => ErrorKind::InvalidInput,
             Self::Validation { .. } => ErrorKind::Validation,
             Self::Conflict { .. }
+            | Self::SkillModified { .. }
             | Self::HistoryConflict { .. }
             | Self::Locked(_)
             | Self::AlreadyExists { .. } => ErrorKind::Conflict,
@@ -77,6 +85,7 @@ impl ServiceError {
             | Self::Store(_)
             | Self::Data(_)
             | Self::SelfUpdate(_)
+            | Self::Skill(_)
             | Self::Internal(_) => ErrorKind::Internal,
         }
     }
@@ -98,6 +107,8 @@ impl ServiceError {
             Self::Store(_) => "store_error",
             Self::Data(_) => "data_error",
             Self::SelfUpdate(_) => "self_update_failed",
+            Self::Skill(_) => "skill_failed",
+            Self::SkillModified { .. } => "skill_modified",
             Self::Internal(_) => "internal",
         }
     }

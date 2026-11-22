@@ -7,19 +7,19 @@ import {
   useStore,
 } from "@xyflow/react";
 import { Focus, Map as MapIcon, Maximize, ZoomIn, ZoomOut } from "lucide-react";
-import { type ReactNode, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useT } from "@/i18n";
+import { ViewHelp } from "@/kit/view/ViewHelp";
+import { ViewButton, ViewToolbar } from "@/kit/view/ViewToolbar";
 import { keepsPromotedLayerResolution } from "@/lib/browser";
-import { cn } from "@/lib/cn";
 import { inkVeil, uiHex } from "@/lib/tone";
+import { clampZoom, createWheelClassifier, zoomFactor } from "@/lib/wheel-input";
 import type { DiagramSelection } from "../DiagramInspector";
 
 /** 拡大率の範囲（10%〜1000%） */
 export const ZOOM_RANGE = { min: 0.1, max: 10 } as const;
 /** 拡大・縮小・寄せる動きの時間 [ms] */
 const DURATION = 200;
-/** マウスのホイール 1 目盛りの拡大率（Ctrl / ⌘ + ホイール） */
-const WHEEL_STEP = 1.2;
 /** 拡大・移動が止まってから、図をいまの拡大率で描き直すまでの時間 [ms] */
 const SHARPEN_AFTER = 150;
 
@@ -37,7 +37,7 @@ function focusNodes(selected: DiagramSelection, edges: readonly Edge[]): { id: s
 /**
  * 系統図の拡大・縮小の操作（左下）: 縮小・いまの拡大率（押すと 100%）・拡大・全体を見る・選んだものに寄る・
  * 全体図（ミニマップ）の表示。キーボードでも操作できる（+ / − で拡大・縮小、0 で全体、1 で 100%、F で選んだものに寄る。
- * 文字を入力している欄の中では効かない）。マウスはホイールで移動（Shift + ホイールで横）、Ctrl / ⌘ + ホイールで拡大・縮小。
+ * 文字を入力している欄の中では効かない）。ホイールの読み方は lib/wheel-input.ts（マウスのホイール目盛りは拡大・縮小、トラックパッドの 2 本指は移動、ピンチは拡大・縮小）。
  */
 export function DiagramZoom({
   selected,
@@ -70,14 +70,14 @@ export function DiagramZoom({
   return (
     <>
       <Panel position="bottom-left">
-        <div className="flex items-center gap-0.5 rounded-control border border-line bg-panel p-0.5 shadow-panel">
-          <ZoomButton
+        <ViewToolbar>
+          <ViewButton
             label={td.zoomOut}
             onClick={actions.zoomOut}
             disabled={zoom <= ZOOM_RANGE.min}
           >
             <ZoomOut size={14} aria-hidden />
-          </ZoomButton>
+          </ViewButton>
           <button
             type="button"
             onClick={actions.actual}
@@ -87,20 +87,21 @@ export function DiagramZoom({
           >
             {`${Math.round(zoom * 100)}%`}
           </button>
-          <ZoomButton label={td.zoomIn} onClick={actions.zoomIn} disabled={zoom >= ZOOM_RANGE.max}>
+          <ViewButton label={td.zoomIn} onClick={actions.zoomIn} disabled={zoom >= ZOOM_RANGE.max}>
             <ZoomIn size={14} aria-hidden />
-          </ZoomButton>
+          </ViewButton>
           <span className="mx-0.5 h-4 w-px bg-line" />
-          <ZoomButton label={td.zoomFit} onClick={actions.fit}>
+          <ViewButton label={td.zoomFit} onClick={actions.fit}>
             <Maximize size={14} aria-hidden />
-          </ZoomButton>
-          <ZoomButton label={td.zoomFocus} onClick={actions.focus} disabled={targets.length === 0}>
+          </ViewButton>
+          <ViewButton label={td.zoomFocus} onClick={actions.focus} disabled={targets.length === 0}>
             <Focus size={14} aria-hidden />
-          </ZoomButton>
-          <ZoomButton label={td.minimap} onClick={() => onMinimap(!minimap)} pressed={minimap}>
+          </ViewButton>
+          <ViewButton label={td.minimap} onClick={() => onMinimap(!minimap)} pressed={minimap}>
             <MapIcon size={14} aria-hidden />
-          </ZoomButton>
-        </div>
+          </ViewButton>
+          <ViewHelp view="diagram" />
+        </ViewToolbar>
       </Panel>
       {minimap && (
         <MiniMap
@@ -118,57 +119,24 @@ export function DiagramZoom({
   );
 }
 
-function ZoomButton({
-  label,
-  onClick,
-  disabled,
-  pressed,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  pressed?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      aria-pressed={pressed}
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        "flex size-7 items-center justify-center rounded-[7px] text-ink-2 hover:bg-sunken hover:text-ink disabled:pointer-events-none disabled:opacity-40",
-        pressed && "bg-accent-tint text-accent-ink hover:bg-accent-tint",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
 /**
- * Ctrl / ⌘ + マウスのホイールで、カーソルの位置を中心に 1 目盛り WHEEL_STEP 倍ずつ拡大・縮小する。React Flow は
- * Ctrl 付きのホイールをトラックパッドのピンチとして扱い、Mac ではマウスの 1 目盛りで 4 倍も動いてしまうので、
- * 目盛りのあるホイール（1 回の量が大きいか、行単位）だけをここで受ける。トラックパッドのピンチ（小さな量）は
- * React Flow に任せる。ブラウザの拡大は止める。
+ * マウスのホイールの 1 目盛り（lib/wheel-input.ts が notch と読んだもの。Ctrl / ⌘ 付きも含む）で、カーソルの位置を中心に
+ * 1 目盛り NOTCH_ZOOM_STEP 倍ずつ拡大・縮小する。React Flow は Ctrl 付きのホイールをトラックパッドのピンチとして扱い、
+ * Mac ではマウスの 1 目盛りで 4 倍も動いてしまうので、目盛りはここで受ける。トラックパッドのピンチ（小さな量）は
+ * React Flow の zoomOnPinch、2 本指のスクロールは panOnScroll に任せる。ページのスクロールとブラウザの拡大は止める。
  */
 function useWheelZoom() {
   const { getViewport, setViewport } = useReactFlow();
   const domNode = useStore((s) => s.domNode);
   useEffect(() => {
     if (!domNode) return;
+    const classify = createWheelClassifier();
     const onWheel = (e: WheelEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
-      const notch = e.deltaMode === 1 || Math.abs(e.deltaY) >= 40;
-      if (!notch || e.deltaY === 0) return;
+      if (classify(e, e.timeStamp) !== "notch") return;
       e.preventDefault();
       e.stopPropagation();
       const { x, y, zoom } = getViewport();
-      const factor = e.deltaY < 0 ? WHEEL_STEP : 1 / WHEEL_STEP;
-      const next = Math.min(ZOOM_RANGE.max, Math.max(ZOOM_RANGE.min, zoom * factor));
+      const next = clampZoom(zoom * zoomFactor("notch", e.deltaY), ZOOM_RANGE.min, ZOOM_RANGE.max);
       const r = domNode.getBoundingClientRect();
       const px = e.clientX - r.left;
       const py = e.clientY - r.top;
