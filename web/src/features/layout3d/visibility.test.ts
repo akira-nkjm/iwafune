@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { isIsolated, isolate, toggleHidden, visibilityOf } from "./visibility";
+import {
+  DEFAULT_SCENE_HELPERS,
+  HEAT_SCENE_HELPERS,
+  isIsolated,
+  isolate,
+  toggleHidden,
+  visibilityOf,
+  visibleHelpers,
+} from "./visibility";
 
 describe("visibilityOf", () => {
   it("隠した数で、見える・隠れた・一部だけを返す", () => {
@@ -37,5 +45,16 @@ describe("この部品だけ表示", () => {
   it("別の部品が見えていれば分離表示ではない（押すとその組に切り替える）", () => {
     expect(isIsolated(new Set(["C"]), placed, ["A"])).toBe(false);
     expect([...isolate(new Set(["B", "C"]), placed, ["B"])].sort()).toEqual(["A", "C"]);
+  });
+});
+
+describe("太陽の矢印の補助", () => {
+  it("熱の画像では最初から出し、配置では出さない。ボタンは太陽方向があるときだけ", () => {
+    expect(HEAT_SCENE_HELPERS.sun).toBe(true);
+    expect(DEFAULT_SCENE_HELPERS.sun).toBe(false);
+    expect(HEAT_SCENE_HELPERS.fov).toBe(false);
+    expect(visibleHelpers(true)).toContain("sun");
+    expect(visibleHelpers(false)).not.toContain("sun");
+    expect(visibleHelpers(false)).toEqual(["fov", "origin", "grid", "gizmo", "wireframe"]);
   });
 });

@@ -17,7 +17,15 @@ import { cn } from "@/lib/cn";
 import { HelperToggles } from "./HelperToggles";
 import { LayoutBrowser } from "./LayoutBrowser";
 import { Scene3D, type SceneEdit, type TransformMode } from "./Scene3D";
-import { axesOf, boxesOf, DEFAULT_STRUCTURE_OPACITY, fovsOf, hasSize, type V3 } from "./scene";
+import {
+  axesOf,
+  boxesOf,
+  DEFAULT_STRUCTURE_OPACITY,
+  fovsOf,
+  hasSize,
+  type SunArrow,
+  type V3,
+} from "./scene";
 import {
   DEFAULT_SCENE_HELPERS,
   type FocusRequest,
@@ -54,6 +62,9 @@ interface HeatProps {
   tools?: ReactNode;
   /** 3D の上（左下）に重ねるもの（色の凡例） */
   overlay?: ReactNode;
+  /** 3D の右上（視点を戻すボタンの下）に重ねるもの（軌道の図）。`sun` は太陽の矢印（非定常のときだけ。無ければ矢印もボタンも出さない） */
+  corner?: ReactNode;
+  sun?: SunArrow | null;
   /** 3D の右（狭い幅では下）に置くもの（節点の温度の一覧）。配置の欄の代わりに出す */
   aside?: ReactNode;
 }
@@ -124,7 +135,7 @@ function PlacementLayout3D({ design, com }: PlacementProps) {
 }
 
 /** 熱: 温度の色で塗った箱。3D を大きく見せるため、画面の高さに合わせ、右は節点の一覧（`aside`）だけにする */
-function HeatLayout3D({ design, colorOf, tools, overlay, aside }: HeatProps) {
+function HeatLayout3D({ design, colorOf, tools, overlay, corner, sun, aside }: HeatProps) {
   const t = useT().systems;
   return (
     <Layout3DFrame
@@ -133,6 +144,8 @@ function HeatLayout3D({ design, colorOf, tools, overlay, aside }: HeatProps) {
       colorOf={colorOf}
       tools={tools}
       overlay={overlay}
+      corner={corner}
+      sun={sun}
       aside={aside}
       initialHelpers={HEAT_SCENE_HELPERS}
     />
@@ -151,6 +164,8 @@ function Layout3DFrame({
   fill = false,
   initialHelpers = DEFAULT_SCENE_HELPERS,
   overlay,
+  corner,
+  sun,
   aside,
 }: {
   design: DesignView;
@@ -169,6 +184,9 @@ function Layout3DFrame({
   initialHelpers?: SceneHelpers;
   /** 3D の左下に重ねるもの（熱の色の凡例） */
   overlay?: ReactNode;
+  /** 3D の右上（視点を戻すボタンの下）に重ねるもの（軌道の図）と、太陽の矢印（熱の非定常） */
+  corner?: ReactNode;
+  sun?: SunArrow | null;
   /** インスペクタの代わりに右へ置くもの（熱の節点の一覧） */
   aside?: ReactNode;
 }) {
@@ -216,7 +234,7 @@ function Layout3DFrame({
             {L.axes}
           </Switch>
           {/* 視野・原点の軸・格子・隅の軸の出し入れは、配置でも熱画像でも使える */}
-          <HelperToggles value={helpers} onChange={setHelpers} />
+          <HelperToggles value={helpers} onChange={setHelpers} hasSun={Boolean(sun)} />
           {fill && (
             <label
               htmlFor={opacityId}
@@ -278,6 +296,7 @@ function Layout3DFrame({
               focus={focus ?? null}
               home={home}
               fovs={fovs}
+              sun={helpers.sun ? (sun ?? null) : null}
             />
           )}
           {boxes.length > 0 && (
@@ -294,6 +313,11 @@ function Layout3DFrame({
           {overlay && (
             <div className="pointer-events-none absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] rounded-control bg-panel/90 px-2 py-1">
               {overlay}
+            </div>
+          )}
+          {corner && (
+            <div className="pointer-events-none absolute top-14 right-3 max-w-[calc(100%-1.5rem)] rounded-control bg-panel/90 p-1">
+              {corner}
             </div>
           )}
           {showAxes && (

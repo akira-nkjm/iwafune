@@ -16,6 +16,8 @@ import {
   fovsOf,
   hasSize,
   pickBox,
+  WIREFRAME_OPACITY,
+  WIREFRAME_SELECTED_OPACITY,
 } from "./scene";
 
 const base = fixture.parts[0]!;
@@ -293,5 +295,17 @@ describe("視野の円錐", () => {
     expect(fovsOf({ ...fixture, parts: [withFov(89)] })[0]?.halfAngle).toBe(FOV_DRAW_MAX);
     expect(fovsOf({ ...fixture, parts: [{ ...withFov(10), body: null }] })).toEqual([]);
     expect(fovsOf(fixture)).toEqual([]);
+  });
+});
+
+describe("枠線だけの表示", () => {
+  const box = { color: "#000000", structure: true } as Parameters<typeof boxMaterial>[0];
+  it("面をほぼ透明にし、選んだ部品だけ少し濃くする（構造の不透明度は使わない）", () => {
+    expect(boxMaterial(box, false, 1, false, true)).toMatchObject({
+      opacity: WIREFRAME_OPACITY,
+      depthWrite: false,
+    });
+    expect(boxMaterial(box, false, 1, true, true).opacity).toBe(WIREFRAME_OPACITY);
+    expect(boxMaterial(box, true, 1, false, true).opacity).toBe(WIREFRAME_SELECTED_OPACITY);
   });
 });

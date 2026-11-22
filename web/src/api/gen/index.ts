@@ -262,6 +262,7 @@ export type * from "./OrbitGenerationOutput";
 export type * from "./OrbitGenerationPanel";
 export type * from "./OrbitHistory";
 export type * from "./OrbitHistoryOutput";
+export type * from "./OrbitPlaneTrack";
 export type * from "./OrbitSampling";
 export type * from "./OrbitSegment";
 export type * from "./OrbitSpec";

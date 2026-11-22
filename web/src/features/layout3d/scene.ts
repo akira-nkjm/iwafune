@@ -100,6 +100,12 @@ export function axesOf(design: DesignView): Axis3D[] {
   return out;
 }
 
+/** 太陽の矢印（熱画像の非定常）。`dir` は機体座標系の太陽方向（単位ベクトル。API の値そのまま）、`eclipse` は日陰のとき真（薄く描く） */
+export interface SunArrow {
+  dir: V3;
+  eclipse: boolean;
+}
+
 /** Bounds の最大辺に対する表示寸法の比。装飾の寸法はここだけで定義する。 */
 export const SCENE_RATIOS = {
   marker: 0.04,
@@ -108,6 +114,7 @@ export const SCENE_RATIOS = {
   arrowWidth: 0.035,
   comRadius: 0.012,
   fovLength: 0.3,
+  sunArrow: 0.9,
   axes: 0.5,
   grid: 6,
   gridCell: 0.05,
@@ -213,15 +220,25 @@ export const DEFAULT_STRUCTURE_OPACITY = 0.3;
 /** 選んだ部品があるとき、ほかの部品の不透明度に掛ける比（選んだ部品を目立たせる） */
 export const DIMMED_OPACITY_RATIO = 0.25;
 
+/** 枠線だけの表示での面の不透明度（選んだ部品は少し濃くして、どれを選んでいるか分かるようにする） */
+export const WIREFRAME_OPACITY = 0.06;
+export const WIREFRAME_SELECTED_OPACITY = 0.4;
+
 /**
  * 箱の材質。`dimmed` はほかの部品が選ばれているとき（不透明度を `DIMMED_OPACITY_RATIO` 倍に下げる）。
+ * `wireframe` は枠線だけの表示: 面をほぼ透明にして縁の線で形を見せる（面は残すので、押して選べる）。
  */
 export function boxMaterial(
   box: Box3D,
   selected: boolean,
   structureOpacity?: number,
   dimmed = false,
+  wireframe = false,
 ) {
+  if (wireframe) {
+    const opacity = selected ? WIREFRAME_SELECTED_OPACITY : WIREFRAME_OPACITY;
+    return { color: box.color, transparent: true, opacity, depthWrite: false };
+  }
   const base = selected
     ? 1
     : box.structure && structureOpacity !== undefined

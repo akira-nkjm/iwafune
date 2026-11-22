@@ -23,11 +23,22 @@ import {
   partHeatColors,
   transientTemperatures,
 } from "./heat";
+import { orbitView } from "./insetGeometry";
+import { OrbitInset } from "./OrbitInset";
 import { Temp } from "./RangeTip";
 
 /** 再生で 1 回に進める時刻の数と間隔。全体を約 10 秒で再生する */
-const FRAMES = 120;
+/** 再生の 1 コマの間隔 [ms]（等倍）と、選べる速さ。等倍は 1 コマに 1 標本（1 周がおよそ十数秒） */
 const TICK_MS = 80;
+const SPEEDS = [
+  { value: "0.25", label: "0.25×", tickMs: TICK_MS * 4, step: 1 },
+  { value: "0.5", label: "0.5×", tickMs: TICK_MS * 2, step: 1 },
+  { value: "1", label: "1×", tickMs: TICK_MS, step: 1 },
+  { value: "2", label: "2×", tickMs: TICK_MS, step: 2 },
+  { value: "4", label: "4×", tickMs: TICK_MS, step: 4 },
+  { value: "8", label: "8×", tickMs: TICK_MS, step: 8 },
+] as const;
+const DEFAULT_SPEED = SPEEDS[2];
 
 /** 凡例の帯（CSS の線形グラデーション。色は `heatHex`） */
 const gradientOf = () =>
@@ -103,6 +114,8 @@ export function ThermalImage({
     () => (scale ? partHeatColors(heat, temps, scale) : () => ""),
     [heat, temps, scale],
   );
+  // 非定常のときだけ、同じ時刻の添字で軌道の図と太陽の矢印を出す（再生で添字が進むだけ。新しく取りに行かない）
+  const view = orbitView(source, transient?.orbit_plane, index);
   if (!scale) return <Empty>{I.empty}</Empty>;
   return (
     // 3D を大きく見せるため、操作は 3D の見出しの帯、凡例は 3D の上、節点の一覧は 3D の右に置く（1 枚のパネル）
@@ -125,6 +138,8 @@ export function ThermalImage({
         </>
       }
       overlay={<Legend scale={scale} />}
+      corner={view.plane && <OrbitInset plane={view.plane} index={index} />}
+      sun={view.sun}
       aside={<NodeList temps={temps} heat={heat} scale={scale} />}
     />
   );
@@ -145,12 +160,16 @@ function TimeControl({
   const id = useId();
   const last = times.length - 1;
   const at = Math.min(index, last);
+  const [speedValue, setSpeedValue] = useState<string>(DEFAULT_SPEED.value);
+  const speed = SPEEDS.find((sp) => sp.value === speedValue) ?? DEFAULT_SPEED;
   useEffect(() => {
     if (!playing || times.length <= 1) return;
-    const step = Math.max(1, Math.ceil(times.length / FRAMES));
-    const timer = setInterval(() => onIndex(at >= last ? 0 : Math.min(last, at + step)), TICK_MS);
+    const timer = setInterval(
+      () => onIndex(at >= last ? 0 : Math.min(last, at + speed.step)),
+      speed.tickMs,
+    );
     return () => clearInterval(timer);
-  }, [playing, at, last, times.length, onIndex]);
+  }, [playing, at, last, times.length, onIndex, speed]);
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
       <Button
@@ -162,6 +181,13 @@ function TimeControl({
         {playing ? <Pause /> : <Play />}
         {playing ? I.pause : I.play}
       </Button>
+      <NativeSelect
+        size="sm"
+        aria-label={I.speed}
+        value={speed.value}
+        onChange={(e) => setSpeedValue(e.target.value)}
+        options={SPEEDS.map((sp) => ({ value: sp.value, label: sp.label }))}
+      />
       <RangeInput
         id={id}
         aria-label={I.time}
@@ -172,7 +198,8 @@ function TimeControl({
         onChange={onIndex}
         className="min-w-40 flex-1"
       />
-      <label htmlFor={id} className="whitespace-nowrap text-ink-2 text-xs">
+      {/* 経過時間は桁が変わっても幅を変えない（スライダが揺れないように） */}
+      <label htmlFor={id} className="min-w-32 whitespace-nowrap text-ink-2 text-xs">
         {I.elapsed}{" "}
         <Formatted si={times[at] ?? 0} dimension="Time" fallback={String(times[at] ?? 0)} />
       </label>
@@ -224,7 +251,10 @@ function NodeList({
                   .join(", ")}
               </span>
             </span>
-            <Temp si={temp} />
+            {/* 温度の欄は幅を固定して右に寄せる（再生で桁や符号が変わっても、左の名前の切れ目が動かないように） */}
+            <span className="w-16 shrink-0 text-right">
+              <Temp si={temp} />
+            </span>
           </li>
         ))}
       </ul>

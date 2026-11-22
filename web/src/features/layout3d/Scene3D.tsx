@@ -9,8 +9,8 @@ import {
   useBounds,
 } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
-import { useEffect, useRef, useState } from "react";
-import type { Mesh } from "three";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Material, Mesh } from "three";
 import { ArrowHelper, Color, DoubleSide, Quaternion, Vector3 } from "three";
 import { palette, toneHex, uiHex } from "@/lib/tone";
 import {
@@ -21,6 +21,7 @@ import {
   type Fov3D,
   pickBox,
   type Q4,
+  type SunArrow,
   type sceneDimensions,
   type V3,
 } from "./scene";
@@ -69,6 +70,7 @@ export function Scene3D({
   focus = null,
   home = 0,
   fovs = [],
+  sun = null,
 }: {
   boxes: Box3D[];
   dimensions: ReturnType<typeof sceneDimensions>;
@@ -88,6 +90,8 @@ export function Scene3D({
   focus?: FocusRequest | null;
   /** 視野の円錐（`helpers.fov` のときだけ描く） */
   fovs?: Fov3D[];
+  /** 太陽の矢印（機体座標系の方向で、原点から描く。無ければ描かない。出し入れは呼び出し側が `helpers.sun` で決める） */
+  sun?: SunArrow | null;
   /** ホームポジションに戻す依頼（押した回数。0 は依頼なし）。増えるたびに初めの向きへ戻し、全体が収まるまで引く */
   home?: number;
 }) {
@@ -169,7 +173,13 @@ export function Scene3D({
               <octahedronGeometry args={[b.size[0] / 2]} />
             )}
             <meshStandardMaterial
-              {...boxMaterial(b, b.id === selected, structureOpacity, dimmed(b.id))}
+              {...boxMaterial(
+                b,
+                b.id === selected,
+                structureOpacity,
+                dimmed(b.id),
+                helpers.wireframe,
+              )}
             />
             <Edges
               color={b.id === selected ? uiHex.ink : dimmed(b.id) ? uiHex.tick : uiHex.ink3}
@@ -209,6 +219,7 @@ export function Scene3D({
             </group>
           ) : null;
         })}
+      {sun && <SunArrowMark sun={sun} dimensions={dimensions} />}
       {com && <CenterOfMass position={com} radius={dimensions.comRadius} />}
       {edit && target && selected && !boxes.find((b) => b.id === selected)?.fixed && (
         <TransformControls
@@ -280,6 +291,54 @@ function HomeView({ home, position }: { home: number; position: V3 }) {
     invalidate();
   }, [home, bounds, invalidate, x, y, z]);
   return null;
+}
+
+/** 日陰のときの太陽の矢印の不透明度（消さずに薄く描き、向きは読めるようにする） */
+const SUN_ECLIPSE_OPACITY = 0.25;
+
+/**
+ * 太陽の矢印: 機体の原点から太陽の向きへ。機体座標系の向きをそのまま three.js に渡す（箱・方向の属性の矢印と同じ座標。
+ * 場面は機体座標系なので変換は要らない）。ArrowHelper は 1 つ作って、時刻が進むたびに向きと色だけ更新する（再生中に作り直さない）。
+ * 全体を収める範囲（Bounds）には入れない。クリックの当たりには数えない。
+ */
+function SunArrowMark({
+  sun,
+  dimensions,
+}: {
+  sun: SunArrow;
+  dimensions: ReturnType<typeof sceneDimensions>;
+}) {
+  const invalidate = useThree((state) => state.invalidate);
+  const { sunArrow: length, arrowHead: head, arrowWidth: width } = dimensions;
+  const arrow = useMemo(() => {
+    const a = new ArrowHelper(
+      new Vector3(0, 0, 1),
+      new Vector3(),
+      length,
+      toneHex.gold,
+      head,
+      width,
+    );
+    a.line.raycast = () => null;
+    a.cone.raycast = () => null;
+    return a;
+  }, [length, head, width]);
+  useEffect(() => () => arrow.dispose(), [arrow]);
+  const [x, y, z] = sun.dir;
+  const { eclipse } = sun;
+  useEffect(() => {
+    const dir = new Vector3(x, y, z);
+    if (dir.lengthSq() === 0) return;
+    arrow.setDirection(dir.normalize());
+    arrow.setColor(eclipse ? toneHex.gray : toneHex.gold);
+    for (const m of [arrow.line.material as Material, arrow.cone.material as Material]) {
+      m.transparent = eclipse;
+      m.opacity = eclipse ? SUN_ECLIPSE_OPACITY : 1;
+    }
+    // frameloop="demand" では、向きの更新を描き直しの依頼で反映する
+    invalidate();
+  }, [arrow, x, y, z, eclipse, invalidate]);
+  return <primitive object={arrow} />;
 }
 
 /** 重心の記号の 8 分割（経度 4 × 緯度 2）。隣り合う区画が白と黒になるよう互い違いに塗る */
