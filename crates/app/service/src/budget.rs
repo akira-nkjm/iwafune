@@ -185,14 +185,7 @@ fn mass_items(s: &Snapshot, ctx: &Context<'_>) -> Vec<BudgetItem> {
     s.resolved
         .parts
         .values()
-        .filter_map(|p| {
-            Some(item(
-                s,
-                &p.id,
-                ctx.scalar(p, "mass")?,
-                fune_projection::parts::count_of(p),
-            ))
-        })
+        .filter_map(|p| Some(item(s, &p.id, ctx.scalar(p, "mass")?, p.count_or_one())))
         .collect()
 }
 

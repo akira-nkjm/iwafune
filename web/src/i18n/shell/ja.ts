@@ -48,7 +48,6 @@ export const shellJa = {
     historyTitle: "このセッションの変更",
     historyEmpty: "まだ変更はありません",
     tabs: "タブ",
-    loading: "読み込み中…",
     errorTitle: "エラーが起きました",
     errorDetail: "予期しないエラーです。",
     pageNotFound: "ページが見つかりません",
@@ -57,7 +56,6 @@ export const shellJa = {
   },
   cli: {
     copy: "コマンドをコピー",
-    short: "CLI",
     none: "コマンドがまだありません",
     copied: "コマンドをコピーしました",
     copyFailed: "クリップボードに書けませんでした",
@@ -87,8 +85,6 @@ export const shellJa = {
     dimension: (d: string) => `次元: ${d}`,
     example: "例: 0.62 kg",
     noText: "表示文字列が返りませんでした",
-    tensor: (unit: string) => `テンソル ${unit}`,
-    table: (id: string) => `表 ${id}`,
     /** 値を書き換えた編集の見出し（部品・カタログ品・設定で共通） */
     setSummary: (path: string, text: string) => `${path} = ${text}`,
     byState: "状態ごと",

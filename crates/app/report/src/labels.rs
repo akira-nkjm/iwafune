@@ -127,8 +127,8 @@ fn pair(t: Text) -> (&'static str, &'static str) {
         NotAvailable => ("算出できません: {}", "Not available: {}"),
         ModelRevision => ("モデルの revision: {}", "Model revision: {}"),
         SignificantFigures => (
-            "数値は有効数字 3 桁。",
-            "Values are given to 3 significant figures.",
+            "数値は有効数字 {} 桁。",
+            "Values are given to {} significant figures.",
         ),
         MassCaption => ("質量バジェット", "Mass budget"),
         UnitMass => ("単体質量", "Unit mass"),

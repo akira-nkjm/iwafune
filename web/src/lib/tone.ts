@@ -192,21 +192,6 @@ export const toneBorder: Record<Tone, string> = {
   magenta: "border-cat-magenta",
 };
 
-/** 淡い地 + 濃い字のバッジ */
-export const toneSoft: Record<Tone, string> = {
-  blue: "bg-cat-blue/12 text-cat-blue-ink ring-cat-blue/30",
-  gold: "bg-cat-gold/18 text-cat-gold-ink ring-cat-gold/40",
-  teal: "bg-cat-teal/12 text-cat-teal-ink ring-cat-teal/30",
-  navy: "bg-cat-navy/8 text-cat-navy-ink ring-cat-navy/20",
-  rose: "bg-cat-rose/20 text-cat-rose-ink ring-cat-rose/40",
-  red: "bg-cat-red/10 text-cat-red-ink ring-cat-red/25",
-  gray: "bg-cat-gray/25 text-cat-gray-ink ring-cat-gray/50",
-  green: "bg-cat-green/12 text-cat-green-ink ring-cat-green/30",
-  orange: "bg-cat-orange/12 text-cat-orange-ink ring-cat-orange/30",
-  violet: "bg-cat-violet/12 text-cat-violet-ink ring-cat-violet/30",
-  magenta: "bg-cat-magenta/12 text-cat-magenta-ink ring-cat-magenta/30",
-};
-
 /** 系列の色を順番に選ぶ（グラフの線など） */
 export function toneAt(i: number): Tone {
   return tones[((i % tones.length) + tones.length) % tones.length] ?? "blue";

@@ -132,20 +132,6 @@ export function SkeletonPanel({ lines = 4, className }: { lines?: number; classN
   );
 }
 
-/** 一覧と詳細の 2 列（部品・カタログの画面） */
-export function SkeletonSplit({ rows = 12 }: { rows?: number }) {
-  return (
-    <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_480px] border-line border-t">
-      <SkeletonTable rows={rows} cols={5} />
-      <div className="space-y-6 border-line border-l p-4">
-        <Skeleton className="h-5 w-48" />
-        <SkeletonLines lines={5} />
-        <SkeletonLines lines={4} />
-      </div>
-    </div>
-  );
-}
-
 /** KPI のカードの並び（概要の画面） */
 export function SkeletonCards({ count = 4 }: { count?: number }) {
   return (

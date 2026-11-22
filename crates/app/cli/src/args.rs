@@ -179,7 +179,7 @@ pub enum Command {
     Undo,
     /// Redo the edit that was undone
     Redo,
-    /// Run an analysis (`fune analyze ls`, `fune analyze power.energy_balance`)
+    /// Run an analysis (`fune analyze ls`, `fune analyze power.energy_balance`). Exit code 1 if an input is missing, the run fails or a check is a violation
     Analyze(AnalyzeArgs),
     /// Budgets (mass / power / data)
     Budget {

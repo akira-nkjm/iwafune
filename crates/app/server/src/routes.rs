@@ -2,13 +2,13 @@
 //!
 //! | モジュール | パス |
 //! |---|---|
-//! | `design` | `/project` `/design` `/parts` `/parts/{id}`（POST は下書きを当てた部品） `/values/{path}` `/defs` `/diagnostics` |
-//! | `edit` | `/ops` `/ops/from_text` `/ops/unset_from_text` `/ops/from_command` `/parts/{id}/place_body` `/fmt` |
+//! | `design` | `/project` `/design` `/system_modes/{system}`（POST） `/maneuvers` `/requirements` `/requirements/compliance` `/parts` `/parts/{id}`（POST は下書きを当てた部品） `/values/{path}` `/defs` `/diagnostics` |
+//! | `edit` | `/ops` `/ops/from_text` `/ops/unset_from_text` `/ops/from_command` `/ops/case_from_eclipse` `/parts/{id}/place_body` `/fmt` |
 //! | `history` | `/history` `/undo` `/redo` |
 //! | `units` | `/units` `/units/parse` `/units/format` |
-//! | `analyses` | `/analyses` `/analyses/{id}` `/budgets/{kind}` |
+//! | `analyses` | `/analyses` `/analyses/{id}` `/budgets/{kind}`（GET と、下書きを当てる POST） |
 //! | `report` | `/report/export` |
-//! | `data` | `/data/status` `/data/{id}/fetch` |
+//! | `data` | `/data/status` `/data/space_weather` `/data/{id}/fetch` |
 //! | `catalog` | `/catalog/{id}`（カタログ品 1 件） `/catalog/fetch` `/catalog/update`（共有カタログ） |
 
 mod analyses;

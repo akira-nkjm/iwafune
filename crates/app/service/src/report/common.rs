@@ -45,7 +45,11 @@ pub(super) fn why_not(r: &AnalysisRunResult) -> Option<String> {
 /// 表・図の下の注記の共通部分（有効数字・モデルの revision）。
 pub(super) fn footer(ctx: &Ctx<'_>) -> Vec<String> {
     vec![
-        t(ctx.lang, Text::SignificantFigures).to_owned(),
+        tr(
+            ctx.lang,
+            Text::SignificantFigures,
+            &[&sat_units::format::SIGNIFICANT_DIGITS.to_string()],
+        ),
         tr(ctx.lang, Text::ModelRevision, &[&revision(ctx)]),
     ]
 }

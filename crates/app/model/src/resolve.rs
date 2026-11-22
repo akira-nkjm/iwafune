@@ -202,6 +202,11 @@ pub struct ResolvedPort {
 }
 
 impl ResolvedPart {
+    /// 設計の員数（0 は未指定と同じく 1）。解析入力の count と示量の合計に使う。
+    pub fn count_or_one(&self) -> u32 {
+        self.count.max(1)
+    }
+
     /// 属性の値（設定されていれば）。
     pub fn value(&self, attr: &str) -> Option<&SiValue> {
         self.attr.get(attr).and_then(|v| v.value.get())
