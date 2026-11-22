@@ -19,6 +19,7 @@
 //! | `gui` | gui |
 //! | `report` | report export（表と図のファイルを書き出す） |
 //! | `data` | data status/fetch |
+//! | `skill` | skill show/install（エージェント向けの skill の本文の表示と書き込み。プロジェクト不要） |
 //! | `self_update` | self-update（実行中の `fune` の置き換え。プロジェクト不要） |
 
 mod analyze;
@@ -42,6 +43,7 @@ mod requirements;
 #[cfg(test)]
 mod roundtrip;
 mod self_update;
+mod skill;
 mod units;
 
 use crate::args::{Cli, Command};
@@ -56,6 +58,7 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
         Command::Units(c) => units::run(c, out),
         Command::Data(c) => data::run(c, out),
         Command::SelfUpdate { check, version } => self_update::run(*check, version.as_deref(), out),
+        Command::Skill(c) => skill::run(c, &g.dir, out),
         Command::Gui {
             port,
             host,
