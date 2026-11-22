@@ -80,8 +80,14 @@ jobs:
         run: cargo fmt --all --check
       - name: clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
+      # nextest runs the test binaries in parallel (cargo test runs them one after another). It does not run doc tests.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest@0.9.151
       - name: test (including the CLI/HTTP parity tests)
-        run: cargo test --workspace
+        run: cargo nextest run --workspace --no-fail-fast
+      - name: doc tests
+        run: cargo test --workspace --doc
       - name: generated TS types match the Rust code
         run: |
           cargo test --workspace export_ts
@@ -121,7 +127,8 @@ jobs:
   # Build the fune binary with the embedded SPA, start it on the demo data and check that the API responds.
   # Only on pushes to main and develop: the release build is the slowest step, and every merge still runs it.
   bundle:
-    needs: [rust, web]
+    # Runs alongside the rust job (it only needs the web build), so a push does not wait for the tests before the release build starts.
+    needs: [web]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
