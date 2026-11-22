@@ -11,7 +11,7 @@ import {
 
 /**
  * 表示言語の切り替え（日本語 / English）。選んだ言語は閲覧者ごとに保存する。
- * `row` はサイドバーの下の欄に置く形で、変更履歴の行と同じく「アイコン・名前・いまの値」の 1 行にし、押すとメニューで選ぶ。
+ * `row` はサイドバーの下の欄に置く形で、変更履歴の行と同じく「アイコン・名前・いまの値」の 1 行にし、押すと行のすぐ上に小さなメニューが開く。
  * `rail` は畳んだサイドバーの形で、1 つのボタンで交互に切り替える。どちらでもなければ、パネルの見出しなどに置く切り替え（`Segmented`）。
  */
 export function LanguageSwitch({
@@ -51,7 +51,8 @@ export function LanguageSwitch({
             <span className="ml-auto text-ink-4">{langNames[lang]}</span>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent side="right" align="end">
+        {/* 行の右端（いまの言語）のすぐ上に、行の字に近い大きさの小さなメニューを出す（サイドバーの幅に収める） */}
+        <DropdownMenuContent side="top" align="end" className="w-auto min-w-28">
           <DropdownMenuRadioGroup
             value={lang}
             onValueChange={(v) => {
@@ -60,7 +61,7 @@ export function LanguageSwitch({
             }}
           >
             {langs.map((l) => (
-              <DropdownMenuRadioItem key={l} value={l}>
+              <DropdownMenuRadioItem key={l} value={l} className="text-xs">
                 {langNames[l]}
               </DropdownMenuRadioItem>
             ))}
