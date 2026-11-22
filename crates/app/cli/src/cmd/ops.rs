@@ -50,6 +50,22 @@ pub fn edit_of<'a>(ws: &Workspace, command: &'a Command) -> anyhow::Result<Optio
             )?],
             opts,
         }),
+        Command::Case(crate::args::CaseCmd::FromSunDistance {
+            id,
+            at,
+            mode,
+            edit: opts,
+        }) => Some(Edit {
+            ops: vec![edit::case_from_sun_distance_op(
+                ws,
+                &fune_service::dto::CaseFromSunDistanceRequest {
+                    id: id.clone(),
+                    at: serde_json::from_value(serde_json::Value::String(at.clone()))?,
+                    mode: mode.clone(),
+                },
+            )?],
+            opts,
+        }),
         Command::Case(c) => one(records::case(c)?),
         Command::Source(c) => one(records::source(c)?),
         Command::Harness(c) => one(records::harness(c)?),

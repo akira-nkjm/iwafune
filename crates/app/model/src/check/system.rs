@@ -186,6 +186,14 @@ pub(super) fn check_cases(ctx: &mut Ctx) {
             case.beta.as_ref(),
             "Angle",
         );
+        check_dim(
+            ctx,
+            &entity,
+            "sun_distance",
+            Target::case(case.id.as_str(), Some("sun_distance")),
+            case.sun_distance.as_ref(),
+            "Length",
+        );
     }
 }
 

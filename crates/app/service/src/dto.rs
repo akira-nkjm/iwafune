@@ -89,8 +89,9 @@ pub use budget::{
 };
 pub use catalog::{CatalogItemView, CatalogSourceView};
 pub use command::{
-    AttrAddText, CaseFromEclipseRequest, CatalogSourceAddText, CommandText, EclipseCaseAt,
-    KindAddText, ModeCellText, ModeSetText, NetSetText, NetUnsetText, PlaceText,
+    AttrAddText, CaseFromEclipseRequest, CaseFromSunDistanceRequest, CatalogSourceAddText,
+    CommandText, EclipseCaseAt, KindAddText, ModeCellText, ModeSetText, NetSetText, NetUnsetText,
+    PlaceText, SunDistanceCaseAt,
 };
 pub use common::{
     CheckReport, DiagnosticCounts, DiagnosticView, ErrorEnvelope, ErrorInfo, QuantityView,

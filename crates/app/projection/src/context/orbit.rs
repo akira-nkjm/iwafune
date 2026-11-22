@@ -3,7 +3,8 @@
 
 use super::{Context, central_body};
 use crate::missing::MissingInputs;
-use crate::quantity::{setting, setting_opt};
+use crate::quantity::{qty_opt, setting, setting_opt};
+use fune_model::Target;
 use fune_model::design::PropagatorKind;
 use fune_model::design::setting_dims as dims;
 use fune_model::path::SettingPath;
@@ -87,6 +88,38 @@ impl<'a> Context<'a> {
         let elements = OrbitElements::with_defaults(a?, inc?, o.eccentricity, raan?, argp, ma);
         let mut spec = OrbitSpec::new(epoch?, elements, propagator);
         spec.central = central;
+        self.with_case_sun_distance(spec, m)
+    }
+
+    /// ケースの太陽距離（`sun_distance`）があれば、軌道をその半径の円軌道に置き換える（惑星間の巡航の近日点・遠日点のケース）。
+    /// 傾斜角・RAAN・元期はそのまま。太陽を中心天体にしない軌道では使えない（不足入力として記録する）。
+    fn with_case_sun_distance(
+        &self,
+        mut spec: OrbitSpec,
+        m: &mut MissingInputs,
+    ) -> Option<OrbitSpec> {
+        let Some(case) = self.case.filter(|c| c.sun_distance.is_some()) else {
+            return Some(spec);
+        };
+        let target = Target::case(case.id.as_str(), Some("sun_distance"));
+        self.note(target.clone());
+        let d = qty_opt::<Length>(case.sun_distance.as_ref(), target.clone(), m)?;
+        if spec.central != CentralBody::Sun {
+            m.push(
+                target,
+                "The case's sun_distance applies only to an orbit about the Sun (set conditions.orbit.central = \"sun\")",
+            );
+            return None;
+        }
+        if d.value() <= spec.central.radius_m() {
+            m.push(
+                target,
+                "The case's sun_distance must be larger than the radius of the Sun",
+            );
+            return None;
+        }
+        spec.elements.semi_major_axis = d;
+        spec.elements.eccentricity = DEFAULT_ECCENTRICITY;
         Some(spec)
     }
 

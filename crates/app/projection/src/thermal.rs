@@ -158,7 +158,12 @@ fn environment(
                 );
             }
         }
-        if c.preset.is_some() && c.solar_flux.is_none() && body.nominal_sun_distance_m().is_none() {
+        // 太陽中心ではプリセットを使わず、太陽光は時刻ごとの太陽距離から決まる（`sat_analysis::thermal::environment`）
+        if c.preset.is_some()
+            && c.solar_flux.is_none()
+            && body.nominal_sun_distance_m().is_none()
+            && body != CentralBody::Sun
+        {
             m.push(
                 at("solar_flux"),
                 "Solar flux (the preset value is for 1 AU)",

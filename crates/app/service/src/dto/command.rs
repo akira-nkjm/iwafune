@@ -238,6 +238,23 @@ pub enum EclipseCaseAt {
     BetaMin,
 }
 
+/// 太陽距離のケースにする標本（太陽を回る軌道の、ミッション期間の中の最小・最大）。
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum SunDistanceCaseAt {
+    Min,
+    Max,
+}
+
+/// `fune case from-sun-distance` と HTTP が共有する要求。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CaseFromSunDistanceRequest {
+    pub id: String,
+    pub at: SunDistanceCaseAt,
+    #[serde(default)]
+    pub mode: Option<String>,
+}
+
 /// `fune case from-eclipse` と HTTP が共有する要求。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct CaseFromEclipseRequest {

@@ -68,6 +68,7 @@ fn mount_point(part: &str, point: &str, pose: Option<&Pose>) -> String {
 fn case_cmd(case: &Case) -> String {
     let beta = case.beta.as_ref().map(quantity_to_text);
     let orbits = case.orbits.map(|o| o.to_string());
+    let sun_distance = case.sun_distance.as_ref().map(quantity_to_text);
     Cmd::new(&["fune", "case", "set", case.id.as_str()])
         .flag("label", case.label.as_deref())
         .flag("description", case.description.as_deref())
@@ -76,6 +77,7 @@ fn case_cmd(case: &Case) -> String {
         .flag("thermal-case", case.thermal_case.as_deref())
         .flag("beta", beta.as_deref())
         .flag("orbits", orbits.as_deref())
+        .flag("sun-distance", sun_distance.as_deref())
         .done()
 }
 

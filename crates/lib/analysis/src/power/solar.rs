@@ -12,8 +12,7 @@
 use crate::spec::{
     AnalysisError, SUNLIT_THRESHOLD, ensure_fraction, ensure_non_negative, is_sunlit,
 };
-use sat_astro::constants::SOLAR_CONSTANT;
-use sat_astro::illumination::{solar_flux_w_m2, solar_incidence};
+use sat_astro::illumination::{solar_flux_or_nominal_w_m2, solar_incidence};
 use sat_astro::math::Vec3;
 use sat_astro::timeline::{TimelineSample, Window, shadow_windows};
 use sat_units::typed::{Area, Irradiance, Power, Qty};
@@ -123,9 +122,8 @@ impl SolarArray {
 
     /// 太陽光の強さ。上書きがあればそれ、無ければ太陽までの距離 [m] から、距離も無ければ 1 AU の太陽定数。
     pub fn flux(&self, sun_distance_m: Option<f64>) -> Qty<Irradiance> {
-        self.solar_flux.unwrap_or_else(|| {
-            Qty::from_raw(sun_distance_m.map_or(SOLAR_CONSTANT, solar_flux_w_m2))
-        })
+        self.solar_flux
+            .unwrap_or_else(|| Qty::from_raw(solar_flux_or_nominal_w_m2(sun_distance_m)))
     }
 
     /// パネルごとの発電（バス側）[W]。`sun_dir_body` は機体座標系の太陽方向（正規化して使う）、`sunlit` は日照率。

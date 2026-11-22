@@ -75,7 +75,8 @@ Within one orbit of each sample the Sun position is fixed, and the existing orbi
 The durations of umbra (light fraction 0) and of penumbra not including umbra (greater than 0 and less than 1) are aggregated with the existing trapezoidal rule for time fractions.
 The time accuracy of the boundaries is about the sample interval at each boundary. Short eclipses and penumbrae can hide between samples.
 The shadow is cast by a sphere of the central body (radius `CentralBody::radius_m`; `shadow::central_shadow_factor`), and the Sun position is as seen from the central body.
-Time hidden by the Earth while orbiting the Moon (lunar eclipse) and time hidden by the Moon while orbiting the Earth are not included. An orbit with the Sun as central body has no β or eclipse, so it is an input error.
+Time hidden by the Earth while orbiting the Moon (lunar eclipse) and time hidden by the Moon while orbiting the Earth are not included. An orbit with the Sun as central body has no β or eclipse, so it is an input error
+(a heliocentric cruise is analysed through the Sun-distance cases below, not through the eclipse season).
 
 The output `points` is a list of date (UTC), β [rad], umbra [s] and penumbra [s], and `series` is the same values as series for graphs.
 `longest` and `max_eclipse_duration` are the sample and duration with the largest sum of umbra and penumbra, and
@@ -93,6 +94,24 @@ and saves the returned Op with the ordinary `POST /ops`. The GUI's orbit page us
 The case stores β (rad) and an optional mode. A case has no epoch field, so the sample's date is recorded in the description.
 This is a case that reuses a representative β condition; it does not change the epoch of later analyses through the date in the description.
 Overwriting an existing ID and unknown modes are rejected. `to_cli` returns a `fune case set` that keeps the value and the date.
+
+**Heliocentric cruise (the Sun as central body).** The power and thermal analyses run with `central = "sun"`: the timeline gives the Sun distance `|r|` at each time (so the solar flux is `S₁ (AU/d)²`
+and the generation scales the same way), there is no eclipse (the sunlit fraction is 1), and the thermal analyses take albedo and planet infrared as 0 (§5.2).
+A case's `beta` is an input error there (the Sun direction has no orbit plane to measure β from), so cruise cases do not set it.
+`power.sizing` is not available for a heliocentric orbit: it is sized against the longest eclipse and β season, which an orbit about the Sun does not have (the input error above).
+The worst cases of a cruise are the perihelion and the aphelion, made as analysis cases with `sun_distance` (a length, key `cases.<ID>.sun_distance`, dimension checked like `beta`):
+
+`fune case from-sun-distance <new ID> --at min|max [--mode <mode>]` finds the smallest or largest Sun distance of the orbit between the epoch and `duration`
+(`sat_analysis::orbit::sun_distance_extremes`: samples at the usual step, then a golden-section refinement around the extreme; if the span is shorter than half an orbit the extreme is at the span's end)
+with the service's `case_from_sun_distance_op` and builds an existing `SetCase` Op (HTTP: `POST /ops/case_from_sun_distance` with `{ "id": "perihelion", "at": "min", "mode": null }`, saved with `POST /ops`).
+The distance is written in AU and the date of the extreme is recorded in the description (a case has no epoch field). The orbit must have the Sun as central body (otherwise an error).
+A case with `sun_distance` makes every analysis use a **circular orbit at that distance** instead of the orbit conditions (inclination, RAAN, epoch and propagator are kept; `Context::orbit`).
+So `thermal.steady` is the steady state at that distance (the orbit average of a circular orbit is constant), and `thermal.transient`, `power.orbit_generation` and `power.energy_balance` run at that distance
+(for a circular orbit about the Sun the Sun direction turns slowly, one turn per orbit, and the attitude law follows it). A `sun_distance` on an orbit whose central body is not the Sun is a missing input naming `cases.<ID>.sun_distance`.
+Without such a case, the orbit conditions are used as they are: `thermal.steady` then averages over one orbit (a year-scale period) with the time mean of the inverse square of the distance (`⟨(a/r)²⟩ = 1/√(1−e²)` for an ellipse).
+A time series about the Sun with no number of orbits written runs **one** orbit instead of three (`spec::DEFAULT_HELIOCENTRIC_ORBITS`; an explicit `orbits` is used as written),
+and its step is the usual period/200 (a year-long orbit is sampled about every 1.6 days; a `time_step` of 30 s over a year is rejected as too many samples).
+The thermal transient integrates the whole span with the same adaptive method, so its cost grows with the span (about a minute in a debug build for one year of the demo; seconds in a release build).
 
 #### Altitude decay by atmospheric drag and orbit maintenance (`orbit.decay`)
 
@@ -176,7 +195,7 @@ flowchart LR
 | Mode | The satellite's operating mode | `modes/<ID>.toml` | duration, part → {state, time fraction, active count, spare state}, eclipse override |
 | Net | Electrical connection (logical) | `nets/<ID>.toml` | kind (power / data / rf), rail voltage, source port, current limit, protocol |
 | Harness | Cable segment (physical) | `harness/<ID>.toml` | ports at both ends, the nets it carries, wire, number of cores, length |
-| Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, which side of the uncertainty to read, orbit, attitude law, environment conditions, period |
+| Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, which side of the uncertainty to read, Sun distance (cruise), orbit, attitude law, environment conditions, period |
 | Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only (§7.7) |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, date, author |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, document version, retrieval date, SHA-256, distribution category, date, author (§7.8) |
@@ -482,6 +501,9 @@ start = { from = "eclipse_exit", offset = { value = 5.0, unit = "min" } }   # op
   a `timing` warning is added to the case's `checks`. A fixed start that is outside the mode's own `when` also warns. `when`/`start` on a mode with no `max_duration` is a check warning (`mode.timing_unused`).
 - `fune mode timing <mode> --when sunlit --start eclipse_exit --offset "5 min"` (no flags removes it; `SetModeTiming`). Dimension and spelling are checked like other settings.
 
+Attitude laws are about the central body: `nadir_pointing` points `axis` at the central body (the generic meaning, whatever the body) and `inertial` fixes the attitude.
+With the Sun as the central body, `sun_pointing` and `nadir_pointing` therefore point the same way (toward the Sun), and `nadir_body` of the thermal image's orbit data is the Sun direction as well.
+
 When an analysis case specifies a `mode`, that mode's `[law.<mode>]` is required, and the attitude law of a different mode is not substituted.
 If no mode is specified, an attitude law is used only when there is exactly one. With none or several, the analysis stops with a missing input.
 
@@ -499,6 +521,7 @@ The default albedo and infrared emission are per body (`sat_analysis::thermal::p
 |---|---|---|
 | Earth | 0.30 | uniform 237 W/m² |
 | Moon | 0.12 | varies with the solar zenith angle θ at the subsatellite point: dayside `(1 − A)·S·cos θ` (subsatellite point ≈ 390 K), nightside `0.95 σ (100 K)⁴ ≈ 5.4 W/m²` |
+| Sun | 0 | 0 (only direct sunlight; the written `albedo`, `planet_ir` and `preset` are not used) |
 | Others | none (write `albedo` and `planet_ir` in the environment condition; if absent, projection reports a missing input) | |
 
 The environment condition's `planet_ir` overrides the central body's uniform infrared emission (written for the Moon, it is used in place of the local-time model).
@@ -508,7 +531,11 @@ If the solar flux is not written, it is found from the Sun distance at each time
 The preset solar flux (perihelion and aphelion at 1 AU) is used only for Earth and the Moon, and the preset albedo and infrared (representative LEO values) only for Earth,
 so if you write a preset for any other body you must also write `solar_flux` (otherwise a missing input). The values used are in the output's `environment`
 (for the Moon `planet_ir` is null, and the nightside value is `night_ir`). Albedo and infrared received from the Moon while orbiting Earth are not handled (a few tens of thousandths of Earth's or less).
-A thermal analysis with the Sun as the central body is an input error.
+With the Sun as the central body (an interplanetary cruise) the albedo and the planet infrared are 0 and there is no eclipse: only direct sunlight heats the outer surfaces.
+Any written `albedo`, `planet_ir` and `preset` are not used (the preset values describe an Earth orbit), the solar flux is found from the Sun distance at each time
+(or a written `solar_flux` is used as it is, for a worst-case flux), and a fixed-orientation steady case (`Fixed`) needs `solar_flux` (there is no conventional distance). The values used appear in the output's `environment`
+(`albedo` 0, `planet_ir` 0, `solar_flux` null = from the distance). `thermal.steady` averages over one orbit (or is the steady state at the distance of a Sun-distance case, §1.1 "Heliocentric cruise"),
+and `thermal.transient` runs `orbits` orbits (one if not written). The orbit display frame (`orbit_plane`, below) has no Sun side in this case.
 
 #### Temperature ranges (three kinds) and verdicts
 
@@ -599,6 +626,8 @@ The output samples stay at the timeline's sample times; the integrator takes wha
   the Sun direction `sun_dir_body` and the central-body direction `nadir_body` (unit vectors in the body frame) per sample, and once the central body's `body_radius`, the Sun's elevation above the orbit plane `sun_elevation`
   at the first sample (the beta-like angle) and the `shadow_half_width` of the band to draw. The frame is fixed from the first sample: z is the orbit normal (r × v), x is the Sun direction projected onto the orbit plane
   (the first position direction if the Sun is nearly along the normal), y = z × x, so the Sun is always on the +x side and the shadow on the −x side. The frame is not updated while the orbit plane precesses.
+  With the Sun as the central body the Sun is at the origin, so there is no Sun side: x is the first position direction, `sun_elevation`, `body_radius` and `shadow_half_width` are 0 and no sample is in eclipse
+  (a `body_radius` of 0 means there is no central body to draw, and the GUI draws no inset; the Sun arrow still uses `sun_dir_body`).
   The picture is a schematic: the shadow band is the cylindrical shadow (half-width = body radius) and the real eclipse is the per-sample `sunlit`. It does not change any temperature or check.
 - **Stiff networks.** The method is explicit. A node with a very small heat capacity strongly coupled to a large one makes the step as small as the fast time constant, whatever the accuracy. A 12-node chain of alternating 0.09 J/K and 900 J/K nodes
   (G = 10 W/K) over five orbits takes about a million steps and 12 million evaluations of the right-hand side (about a minute in a debug build; see `stiff_chain_five_orbits_cost`). There is no implicit integrator: model such a node as part of its neighbour.
@@ -707,6 +736,8 @@ A_abs the area facing the Sun, A_rad the radiating area, C heat capacity, T_s th
 | Eclipse boundary | a plate with ε ≈ 0 stops heating at the geometric entry (and resumes at the exit) of the cylindrical shadow; the time is read from the temperature change in one sample | `temperature_stops_rising_at_the_analytic_eclipse_entry_and_exit` |
 | Sample-step independence | the same case with sample steps 10 s and 120 s gives the same temperatures and the same heater statistics | `results_do_not_depend_on_the_sample_step`, `heater_switching_does_not_depend_on_the_sample_step` |
 | Nadir plate | absorbed = ε F q_IR A + α S ρ F A (at noon), F = (R/(R+h))² | `nadir_plate_planet_ir_and_albedo` |
+| Heliocentric plate and cube (Sun as central body) | T_eq⁴ = α S₁ (AU/d)² A_abs / (ε σ A_rad), so T ∝ d^(-1/2) (0.5 / 1 / 2 AU; the 0.5 AU to 2 AU ratio is 2), steady and transient | `steady_plate_follows_the_inverse_square_root_of_distance`, `steady_cube_follows_the_inverse_square_root_of_distance`, `transient_plate_converges_to_the_distance_equilibrium` (`thermal_validation_heliocentric.rs`) |
+| Heliocentric ellipse (0.7–1.5 AU) | orbit average: ⟨(a/r)²⟩ = 1/√(1−e²); transient follows T_eq(r(t)) quasi-statically | `steady_orbit_average_of_an_ellipse_uses_the_time_mean_of_inverse_square`, `transient_follows_the_equilibrium_along_an_ellipse` |
 
 The tests use T_s = 0 unless stated (the default is 3 K, which is included in the formulas where used) and set the albedo and planet IR to 0 when only the Sun should act.
 Tolerances of the closed-form comparisons (#297 with fixed-step RK4 and sample-and-hold, then #300): the deep-space cooling 1e-6 → 1e-8 K (observed 2e-10), the equilibrium after 30 τ 1e-6 → 1e-9 K (observed 1e-13),
@@ -876,7 +907,7 @@ Overrides are in `[sizing]` of `analysis/power.toml`. All are optional, and the 
 | `inherent_degradation` | 1 (no additional inherent degradation) |
 | `battery_strings` (N) | 1 |
 | `bus_voltage` | none (no series-parallel layout) |
-| `sun_distance` | the conventional Sun distance of the central body (1 AU for Earth and the Moon; `CentralBody::nominal_sun_distance_m`). For other bodies, a missing input |
+| `sun_distance` | the conventional Sun distance of the central body (1 AU for Earth and the Moon; `CentralBody::nominal_sun_distance_m`). For other bodies, a missing input. `power.sizing` does not run about the Sun (no eclipse season) |
 
 The solar flux is found from `illumination::solar_flux_w_m2` with `sun_distance` (the flux formula exists only there) and is used in both the SMAD and the time-series reverse computations
 (at 2 AU it is 1/4, and the required area is 4 times). When a part's `packing_factor` and `eol_factor` are omitted they are 1, as in the existing generation model.

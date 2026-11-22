@@ -129,4 +129,8 @@ pub struct Case {
     /// 時系列の解析で回す周回数
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub orbits: Option<u32>,
+    /// 太陽からの距離（太陽を中心天体にする軌道だけ。軌道をこの半径の円軌道に置き換えて解析する。
+    /// 惑星間の巡航の近日点・遠日点のケース。`fune case from-sun-distance`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sun_distance: Option<Quantity>,
 }
