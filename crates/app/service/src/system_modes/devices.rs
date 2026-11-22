@@ -74,7 +74,7 @@ fn group<'a>(
         devices: Vec::new(),
     };
     for p in members {
-        let count = parts::count_of(p);
+        let count = p.count_or_one();
         group.total_count += count;
         let states = part_states(p, count, mode)?;
         let active_count = states.as_ref().map(|states| active_count(states));

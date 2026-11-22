@@ -78,7 +78,6 @@ export interface DiagramModel {
 
 export const groupNodeId = (id: string) => `group:${id}`;
 export const cardNodeId = (id: string) => `card:${id}`;
-export const portHandleId = (port: string) => port;
 
 const SIGNAL_COLOR = toneHex.blue;
 const RF_COLOR = toneHex.rose;

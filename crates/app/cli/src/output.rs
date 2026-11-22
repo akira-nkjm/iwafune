@@ -8,6 +8,11 @@ use comfy_table::{
 use owo_colors::{OwoColorize, Stream};
 use std::io::IsTerminal;
 
+/// 判定の印（`Verdict` との対応は `cmd/common.rs` だけが持つ。ここは文字の定義）。
+pub(crate) const MARK_OK: &str = "✔";
+pub(crate) const MARK_WARNING: &str = "⚠";
+pub(crate) const MARK_VIOLATION: &str = "✖";
+
 /// 表の線: 見出しの下の横線だけ（縦線・外枠・行の区切りは引かない）。
 const STYLE: TableStyle =
     TableStyle::new().header_separator(LineStyle::none().fill('─').junction('─'));
@@ -44,7 +49,7 @@ impl Out {
     pub fn ok(&self, msg: impl std::fmt::Display) {
         println!(
             "{} {msg}",
-            "✔".if_supports_color(Stream::Stdout, |t| t.green())
+            MARK_OK.if_supports_color(Stream::Stdout, |t| t.green())
         );
     }
 
@@ -62,7 +67,7 @@ impl Out {
     pub fn warn(&self, msg: impl std::fmt::Display) {
         eprintln!(
             "{} {msg}",
-            "⚠".if_supports_color(Stream::Stderr, |t| t.yellow())
+            MARK_WARNING.if_supports_color(Stream::Stderr, |t| t.yellow())
         );
     }
 
@@ -70,7 +75,7 @@ impl Out {
     pub fn fail(&self, msg: impl std::fmt::Display) {
         eprintln!(
             "{} {msg}",
-            "✖".if_supports_color(Stream::Stderr, |t| t.red())
+            MARK_VIOLATION.if_supports_color(Stream::Stderr, |t| t.red())
         );
     }
 

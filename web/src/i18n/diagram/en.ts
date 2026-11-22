@@ -104,7 +104,6 @@ export const diagramEn: typeof diagramJa = {
       summary: (id: string) => `Create net ${id} and connect`,
       confirm: "Connect",
       id: "Net ID",
-      idTaken: "A net with this ID already exists",
       kind: "Kind",
       power: "Power (power)",
       data: "Data (data)",
