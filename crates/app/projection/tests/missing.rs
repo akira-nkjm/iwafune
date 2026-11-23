@@ -58,6 +58,7 @@ fn missing_inputs_of_an_empty_design_name_no_parts() {
 }
 
 /// 部品の無い設計では、どの解析も「入力の不足」になる（入力を組み立てて、解析の側で失敗させない）。
+/// 射影の行が `None` の解析（`structure.modal_fem` は第 3 段階まで JSON の入力だけ）は、「作れない」と答える。
 #[test]
 fn every_analysis_reports_missing_inputs_on_an_empty_design() {
     let design = Design::default();
@@ -67,7 +68,11 @@ fn every_analysis_reports_missing_inputs_on_an_empty_design() {
     };
     for e in entries() {
         assert!(
-            matches!(project_json(e.id, &ctx), Err(ProjectionError::Missing(_))),
+            match project_json(e.id, &ctx) {
+                Err(ProjectionError::Missing(_)) => true,
+                Err(ProjectionError::NotImplemented(_)) => !e.projectable,
+                _ => false,
+            },
             "`{}` should report missing inputs on an empty design",
             e.id
         );

@@ -4,6 +4,7 @@
 //! |---|---|
 //! | `part` | Part・Group・NodeRef・Mount・Pose・PortBinding・CatalogItem |
 //! | `defs` | AttributeDef・KindDef・BudgetKind・NetKind |
+//! | `configuration` | 形態（部品の姿勢を上書きする名前つきの層。有効な姿勢を決める `Design::pose_in`） |
 //! | `mode` | Mode・StateAssign（運用モードの表） |
 //! | `phase` | フェーズ（ミッションの段階。軌道と姿勢則の上書き・並び `Design::ordered_phases`） |
 //! | `system` | Net・Harness・Case |
@@ -26,6 +27,7 @@
 pub mod analysis;
 pub mod budget;
 pub mod conditions;
+pub mod configuration;
 pub mod criteria;
 pub mod defs;
 pub mod launch;
@@ -52,6 +54,7 @@ pub mod view;
 pub use analysis::*;
 pub use budget::*;
 pub use conditions::*;
+pub use configuration::*;
 pub use criteria::{
     CRITERIA, Criterion, CriterionDecl, declared, declared_for_requirement, key_covers,
 };
@@ -126,6 +129,8 @@ pub struct Design {
     pub maneuvers: BTreeMap<Id<Maneuver>, Maneuver>,
     /// フェーズ（`phases/<ID>.toml`。並びは [`Design::ordered_phases`]）
     pub phases: BTreeMap<Id<Phase>, Phase>,
+    /// 形態（`configurations/<ID>.toml`。部品の姿勢の上書き。有効な姿勢は [`Design::pose_in`]）
+    pub configurations: BTreeMap<Id<Configuration>, Configuration>,
     pub sources: BTreeMap<Id<Source>, Source>,
     /// 要求（`requirements/<ID>.toml`。平らな一覧）
     pub requirements: BTreeMap<Id<Requirement>, Requirement>,

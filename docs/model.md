@@ -215,6 +215,7 @@ flowchart LR
 | Harness | Cable segment (physical) | `harness/<ID>.toml` | ports at both ends, the nets it carries, wire, number of cores, length |
 | Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, a phase (§7.10), which side of the uncertainty to read, Sun distance (cruise), orbit, attitude law, environment conditions, period |
 | Phase | Mission phase (commissioning, nominal operations, disposal) | `phases/<ID>.toml` | order, start and end conditions (free text), duration, the modes used, and optional overrides of the orbit and of the attitude law per mode for the cases that name the phase (§7.10) |
+| Configuration | A named overlay of part poses (stowed, deployed and other placement variants) | `configurations/<ID>.toml` | label, description, and a replacement pose per part (§7.11) |
 | Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only, dates of an interplanetary transfer (§7.7) |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, date, author |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, document version, retrieval date, SHA-256, distribution category, date, author (§7.8) |
@@ -1483,6 +1484,31 @@ law = "nadir_pointing"
 - **GUI.** The phases page edits the heading fields in a dialog and the overrides in an "Edit overrides" dialog: the orbit override is the same settings table as the design orbit (`SettingsTable`) and the attitude law override is the same fields as the AOCS mode's law (`Attitude`); both take only where the values are written (`FieldEdit`: `usePhaseFieldEdit` sends `phase_field`, the design's own editors use `useSettingEdit`). "Copy the design orbit", "Remove override" and adding or removing a law override send `phase_copy_orbit`, `phase_unset_orbit`, `phase_unset_law` and `phase_field` to `POST /ops/from_command`. Not editable in the GUI: adding an orbit field that is not already in the file (as for the design orbit; use `fune phase set-field`), and removing a single field (`fune phase unset-field`).
 - Not used yet: the duration and the order do not drive any analysis, and maneuvers do not read phases (`after` still names a maneuver; §7.7).
 
+### 7.11 configurations/: named overlays of part poses
+
+A configuration is a named variant of the placement (stowed, deployed, a cruise arrangement). The placement written in the part files (`mount`, `pose`) is the unnamed **base**; a configuration is a sparse overlay on it, and the ID is the file name (as for modes and phases).
+
+```toml
+# configurations/STOWED.toml
+label       = "Stowed"
+description = "Paddle folded onto the +X face"
+
+[pose.SAP_PY]          # REPLACES SAP_PY's [pose] as a whole in this configuration (no per-key merge), relative to its unchanged mount point
+position    = { x = 2.6, y = -1.5, z = 0.0, unit = "mm" }
+orientation = { w = 0.707107, x = 0.0, y = 0.0, z = -0.707107 }
+```
+
+- **What it overrides.** Only the pose (`position` and `orientation`) of a part, relative to the mount point written in the part file. The mount target and mount point are not overridable. A part that the file does not list keeps its base pose, and the children of an overridden part follow it through the mount chain.
+  Because the table is replaced as a whole, a key that the configuration does not write is the default (a missing `orientation` is the identity), not the base value. A design with no `configurations/` directory has the same files and the same numbers as before.
+- **One place decides.** `Design::pose_in(part, configuration)` returns the written pose in effect (the configuration's row, otherwise the part's own `pose`; an unknown configuration is the base). The mount resolution calls it, and nothing else does
+  (`cargo xtask check` enforces it); there is no second pose composition. `resolve` also builds a resolved design per configuration (only the mounts differ from the base), and `Resolved::in_configuration(Some(id))` returns it
+  (`None` and an unknown ID return the base). These per-configuration designs are not part of any API output. Analyses read a configuration only through the projection context, which is not wired yet.
+- **Checks** (`fune check`): the ID rules (`id.invalid`, `id.duplicate`); a key of `[pose]` must be a part (`ref.part`); a pose gets the same checks as a part's `pose` (`unit.dimension`, `unit.parse`, `pose.quaternion_norm`; the targets are `configurations.<ID>.pose.<PART>`);
+  and `configuration.pose_without_mount` (warning) when the part has no `mount`, because the resolution does not use the pose of a part that is not mounted.
+- **References.** The keys of `[pose]` are part references in the reference index (`RefSite::ConfigurationPose`). Renaming a part rewrites the key, and removing a part removes its row (and an emptied `[pose]`), the same policy as a mode's part rows.
+- **How to write.** After the top-level values, `[pose.<PART>]` are heading tables with inline `position` and `orientation` (`fune_store::write::records::CONFIGURATION_SECTIONS`). `fune fmt` keeps this form.
+- Not available yet: Ops, CLI commands, HTTP, selecting a configuration from the launch conditions or a phase, and analyses that read one (planned stages of #374).
+
 ## 8. Allocations and margin policy (budget/)
 
 Allocations are gathered in a single file rather than scattered across subsystem directories.
@@ -1812,6 +1838,7 @@ my-sat-design/
 ├── analysis/common.toml         # common analysis settings
 ├── mission/                     # reserved directory for #9 (mission and success criteria; not read for now)
 ├── phases/<ID>.toml             # mission phases (§7.10)
+├── configurations/<ID>.toml     # named overlays of part poses (§7.11)
 ├── cases/<ID>.toml
 ├── maneuvers/<ID>.toml          # maneuvers (§7.7)
 ├── sources/<ID>.toml            # subdirectories allowed: sources/<dir>/<ID>.toml (§11.1)
