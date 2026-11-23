@@ -267,7 +267,8 @@ impl<'a> Context<'a> {
     }
 }
 
-pub(crate) fn law_of(s: &AttitudeLawSetting) -> AttitudeLaw {
+/// 姿勢則の設定 → 姿勢則（書かれていない軸は既定の軸）。**設定を姿勢則にするのはここだけ**（フェーズの上書きの表示も使う）。
+pub fn law_of(s: &AttitudeLawSetting) -> AttitudeLaw {
     let v = |x: &Option<Vector3>, d: Vec3| x.as_ref().map_or(d, vec3);
     match s.law {
         AttitudeLawKind::SunPointing => AttitudeLaw::SunPointing {

@@ -78,6 +78,16 @@ const FEATURE_EDGES: &[(&str, &str, &str)] = &[
         "the system settings use the same table as the settings page",
     ),
     (
+        "phases",
+        "project/SettingsTable",
+        "the orbit override of a phase is edited with the same table as the design orbit; only where the values are written differs",
+    ),
+    (
+        "phases",
+        "systems/aocs/Attitude",
+        "the attitude law override of a phase is edited with the same fields as the mode's attitude law; only where the values are written differs",
+    ),
+    (
         "systems",
         "layout3d/LazyLayout3D",
         "the extra thermal view (3D painted by temperature)",

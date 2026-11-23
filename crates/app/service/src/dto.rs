@@ -51,7 +51,7 @@ mod phase;
 mod requirement;
 pub use kpi::{FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView, OverviewKpi};
 pub use maneuver::{ManeuverTargetView, ManeuverText, ManeuverView};
-pub use phase::{PhaseFieldView, PhaseText, PhaseView};
+pub use phase::{PhaseFieldView, PhaseLawView, PhaseText, PhaseView};
 pub use requirement::{
     ComplianceCase, ComplianceReport, ComplianceRow, ComplianceSummary, ConstraintView,
     NotVerifiedReason, RequirementText, RequirementView,

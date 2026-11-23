@@ -22,8 +22,9 @@ export const phasesJa = {
     cases: "解析ケース",
     file: "ファイル",
     none: "なし",
+    editOverrides: "上書きを編集",
     overridesNote:
-      "上書きの軌道と姿勢則は表示だけです。値の編集は fune phase set-field（軌道と姿勢則の値は、編集で見出しの欄を保存しても残ります）",
+      "軌道と姿勢則の上書きは、このフェーズを指す解析ケースだけ設計の値の代わりに使います（「上書きを編集」で編集。fune phase copy-orbit|unset-orbit|unset-law|set-field と同じ書き込み）。",
     dialog: {
       addTitle: "フェーズを追加",
       editTitle: (id: string) => `フェーズ ${id} を編集`,
@@ -39,6 +40,37 @@ export const phasesJa = {
       confirmEdit: "保存",
       summaryAdd: (id: string) => `フェーズ ${id} を追加`,
       summaryEdit: (id: string) => `フェーズ ${id} を書き換え`,
+    },
+    overridesDialog: {
+      title: (id: string) => `フェーズ ${id} の上書き`,
+      description:
+        "値の欄はその場で編集できます。打った文字列は fune phase set-field と同じ読み方で service が読みます。",
+      setSummary: (id: string, path: string, text: string) => `フェーズ ${id}: ${path} = ${text}`,
+      orbit: {
+        title: "軌道の上書き",
+        caption:
+          "設計の軌道（conditions/orbit.toml）を丸ごと置き換えます（キーごとの合成はしません）",
+        none: "上書きはありません。設計の軌道を使います。写すと、設計の軌道の今の値が上書きの出発点になります。",
+        empty: "書かれた欄がありません",
+        copy: "設計の軌道を写して上書きを始める",
+        recopy: "設計の軌道をもう一度写す",
+        remove: "上書きを削除",
+        copySummary: (id: string) => `フェーズ ${id} に設計の軌道を写す`,
+        removeSummary: (id: string) => `フェーズ ${id} の軌道の上書きを削除`,
+      },
+      law: {
+        title: "姿勢則の上書き",
+        caption: "モードごとに、設計の姿勢則の代わりに使います",
+        none: "上書きはありません",
+        noModes: "上書きを足せるモードがありません",
+        mode: "モード",
+        kind: "姿勢則",
+        add: "上書きを追加",
+        remove: "削除",
+        removeOf: (mode: string) => `モード ${mode} の姿勢則の上書きを削除`,
+        removeSummary: (id: string, mode: string) =>
+          `フェーズ ${id} のモード ${mode} の姿勢則の上書きを削除`,
+      },
     },
     removeDialog: {
       title: (id: string) => `フェーズ ${id} を削除`,

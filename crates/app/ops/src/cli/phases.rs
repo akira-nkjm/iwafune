@@ -1,4 +1,4 @@
-//! フェーズの Op のコマンド（`fune phase add|set|rm|rename|set-field|unset-field`・`fune case set-phase|unset-phase`）。
+//! フェーズの Op のコマンド（`fune phase add|set|rm|rename|set-field|unset-field|copy-orbit|unset-orbit|unset-law`・`fune case set-phase|unset-phase`）。
 
 use super::text::Cmd;
 use crate::op::Op;
@@ -20,6 +20,15 @@ pub(super) fn phase_op(op: &Op) -> Option<Vec<String>> {
                 .done(),
             None => Cmd::new(&["fune", "phase", "unset-field", phase, path]).done(),
         }],
+        Op::CopyPhaseOrbit { phase } => {
+            vec![Cmd::new(&["fune", "phase", "copy-orbit", phase]).done()]
+        }
+        Op::UnsetPhaseOrbit { phase } => {
+            vec![Cmd::new(&["fune", "phase", "unset-orbit", phase]).done()]
+        }
+        Op::UnsetPhaseLaw { phase, mode } => {
+            vec![Cmd::new(&["fune", "phase", "unset-law", phase, mode]).done()]
+        }
         Op::SetCasePhase { case, phase } => vec![match phase {
             Some(p) => Cmd::new(&["fune", "case", "set-phase", case, p]).done(),
             None => Cmd::new(&["fune", "case", "unset-phase", case]).done(),

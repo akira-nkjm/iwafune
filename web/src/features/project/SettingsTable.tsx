@@ -1,4 +1,4 @@
-import { useSetText } from "@/api/ops";
+import { type FieldEdit, useSettingEdit } from "@/api/field-edit";
 import type { SettingView } from "@/api/types";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
@@ -10,6 +10,9 @@ import { Th } from "@/kit/table/Th";
 import { EditableQuantity } from "@/quantity/EditableQuantity";
 import { quantityInputText } from "@/quantity/format";
 
+/** 表の 1 行（設計の設定 `SettingView` と、フェーズの上書きの欄が同じ形で渡せる）。`key` は欄のパスで、書き込みにそのまま使う */
+export type SettingRow = Pick<SettingView, "key" | "field" | "value" | "display" | "file">;
+
 /**
  * 設定（`conditions/`・`analysis/`・`budget/` の値）の表。セルで直接編集し、打った文字列をそのまま送る
  * （値の型は `fune set` と同じく service が決める）。量は入力欄が /units/parse で検査する。
@@ -18,17 +21,19 @@ export function SettingsTable({
   settings,
   empty,
   grouped = false,
+  edit,
 }: {
-  settings: SettingView[];
+  settings: SettingRow[];
   empty?: string;
   /** 1 つのまとまり（API の `group`）だけの表で、枠の見出しで分かるとき: キーはファイル内のキー（`field`）だけにし、ファイルの列を出さない */
   grouped?: boolean;
+  /** 書き先（省略は設計の設定。フェーズの上書きなら `usePhaseFieldEdit`） */
+  edit?: FieldEdit;
 }) {
   const t = useT();
-  const setText = useSetText();
+  const own = useSettingEdit();
+  const set = (edit ?? own).set;
   if (settings.length === 0) return <Empty>{empty ?? t.project.noSettings}</Empty>;
-  const set = (key: string, text: string) =>
-    setText.mutate({ path: key, value: text, summary: t.quantity.setSummary(key, text) });
   return (
     <DataTable
       head={

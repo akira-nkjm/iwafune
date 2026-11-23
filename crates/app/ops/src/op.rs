@@ -384,6 +384,20 @@ pub enum Op {
         #[serde(default)]
         value: Option<SettingValue>,
     },
+    /// 設計の軌道（`conditions/orbit.toml`）の今の値を、フェーズの `[orbit]` へ丸ごと写す（フェーズの軌道があれば置き換える。
+    /// 上書きの出発点で、1 手で済む。設計に軌道が無ければ拒む）。
+    CopyPhaseOrbit {
+        phase: String,
+    },
+    /// フェーズの軌道の上書き（`[orbit]`）を丸ごと消す（設計の軌道に戻る）。
+    UnsetPhaseOrbit {
+        phase: String,
+    },
+    /// フェーズのモードの姿勢則の上書き（`[law.<モード>]`）を丸ごと消す（設計の姿勢則に戻る）。
+    UnsetPhaseLaw {
+        phase: String,
+        mode: String,
+    },
     /// 解析ケースのフェーズを書く（None なら外す。ケースのほかの欄は変えない）。
     SetCasePhase {
         case: String,

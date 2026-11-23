@@ -348,3 +348,101 @@ fn renames_and_removals_follow_the_references() {
         ["fune phase rm T1"]
     );
 }
+
+/// 設計の軌道を写し（1 手）、欄を書き換え、丸ごと消す。どの段階でも読み直せる（適用後の検査が通る）。
+#[test]
+fn the_design_orbit_is_copied_into_a_phase_and_removed_whole() {
+    let snap = snapshot();
+    let create = Op::CreatePhase { phase: phase("T1") };
+    let copy = Op::CopyPhaseOrbit { phase: "T1".into() };
+    let p = plan(&snap, &[create.clone(), copy.clone()]).unwrap();
+    assert_eq!(p.design.phases["T1"].orbit, snap.design.conditions.orbit);
+    let text = after_of(&p, "phases/T1.toml");
+    assert!(
+        text.contains("[orbit]") && text.contains("sun_synchronous = true"),
+        "{text}"
+    );
+    assert_eq!(to_cli(&copy), ["fune phase copy-orbit T1"]);
+    // 写したあとに欄を書き換えられる。もう一度写すと設計の軌道に戻る
+    let edited = field(
+        "T1",
+        "orbit.altitude",
+        Some(SettingValue::Quantity(Quantity::new(400.0, "km"))),
+    );
+    let ops = [create.clone(), copy.clone(), edited, copy];
+    let reset = plan(&snap, &ops).unwrap();
+    assert_eq!(
+        reset.design.phases["T1"].orbit,
+        snap.design.conditions.orbit
+    );
+    // 丸ごと消すと、軌道を持たない同じフェーズに戻る（ほかの欄は残る）
+    let unset = Op::UnsetPhaseOrbit { phase: "T1".into() };
+    let back = plan(&snap, &[create.clone(), ops[1].clone(), unset.clone()]).unwrap();
+    let plain = plan(&snap, &[create]).unwrap();
+    assert_eq!(
+        after_of(&back, "phases/T1.toml"),
+        after_of(&plain, "phases/T1.toml")
+    );
+    assert_eq!(to_cli(&unset), ["fune phase unset-orbit T1"]);
+    // 無いフェーズ・設計に軌道が無いときは拒む
+    let missing = plan(
+        &snap,
+        &[Op::CopyPhaseOrbit {
+            phase: "NOPE".into(),
+        }],
+    );
+    assert!(
+        matches!(missing, Err(OpError::NotFound { .. })),
+        "{missing:?}"
+    );
+    let mut bare = snapshot();
+    bare.design.conditions.orbit = None;
+    let none = plan(
+        &bare,
+        &[Op::CopyPhaseOrbit {
+            phase: "DISPOSAL".into(),
+        }],
+    );
+    assert!(matches!(none, Err(OpError::Invalid { .. })), "{none:?}");
+}
+
+/// 姿勢則の上書きは、種類を先に書けば作れ（どの段階でも読み直せる）、モードごとに丸ごと消せる。
+#[test]
+fn a_law_override_is_created_by_its_kind_and_removed_whole() {
+    let snap = snapshot();
+    let ops = [
+        Op::CreatePhase { phase: phase("T1") },
+        field(
+            "T1",
+            "law.NOMINAL.law",
+            Some(SettingValue::Text("sun_pointing".into())),
+        ),
+        field(
+            "T1",
+            "law.NOMINAL.axis",
+            Some(SettingValue::Vector(fune_model::value::Vector3::unitless(
+                0.0, 0.0, 1.0,
+            ))),
+        ),
+        field(
+            "T1",
+            "law.SAFE.law",
+            Some(SettingValue::Text("inertial".into())),
+        ),
+    ];
+    let p = plan(&snap, &ops).unwrap();
+    assert_eq!(p.design.phases["T1"].law.len(), 2);
+    let unset = Op::UnsetPhaseLaw {
+        phase: "T1".into(),
+        mode: "NOMINAL".into(),
+    };
+    let mut all = ops.to_vec();
+    all.push(unset.clone());
+    let p = plan(&snap, &all).unwrap();
+    let law = &p.design.phases["T1"].law;
+    assert_eq!(law.keys().collect::<Vec<_>>(), ["SAFE"]);
+    assert_eq!(to_cli(&unset), ["fune phase unset-law T1 NOMINAL"]);
+    // 上書きの無いモードは拒む
+    let again = plan(&snap, &[ops[0].clone(), unset]);
+    assert!(matches!(again, Err(OpError::NotFound { .. })), "{again:?}");
+}

@@ -38,17 +38,71 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         Op::SetPhaseField { phase, path, value } => {
             set_phase_field(edits, design, phase, path, value.as_ref())
         }
+        Op::CopyPhaseOrbit { phase } => copy_phase_orbit(edits, design, phase),
+        Op::UnsetPhaseOrbit { phase } => {
+            let current = existing_phase(design, phase)?;
+            rewrite(
+                edits,
+                Phase {
+                    orbit: None,
+                    ..current.clone()
+                },
+            )
+        }
+        Op::UnsetPhaseLaw { phase, mode } => unset_phase_law(edits, design, phase, mode),
         Op::SetCasePhase { case, phase } => set_case_phase(edits, design, case, phase.as_deref()),
         _ => Err(OpError::invalid("This op is not handled here")),
     }
 }
 
-fn existing_phase(design: &Design, id: &str) -> Result<(), OpError> {
-    if design.phases.contains_key(id) {
-        Ok(())
-    } else {
-        Err(OpError::not_found(format!("Phase `{id}`")))
+fn existing_phase<'a>(design: &'a Design, id: &str) -> Result<&'a Phase, OpError> {
+    design
+        .phases
+        .get(id)
+        .ok_or_else(|| OpError::not_found(format!("Phase `{id}`")))
+}
+
+/// 今のフェーズをそのまま（軌道と姿勢則の表も含めて）書き直す。
+fn rewrite(edits: &mut Edits, p: Phase) -> Result<(), OpError> {
+    Ok(write_record_with_sections(
+        edits,
+        &layout::phase_file(p.id.as_str()),
+        &p,
+        PHASE_SECTIONS,
+    )?)
+}
+
+/// 設計の軌道を、フェーズの `[orbit]` へ丸ごと写す。
+fn copy_phase_orbit(edits: &mut Edits, design: &Design, phase: &str) -> Result<(), OpError> {
+    let current = existing_phase(design, phase)?;
+    let Some(orbit) = design.conditions.orbit.clone() else {
+        return Err(OpError::invalid(
+            "The design has no orbit (conditions/orbit.toml) to copy",
+        ));
+    };
+    rewrite(
+        edits,
+        Phase {
+            orbit: Some(orbit),
+            ..current.clone()
+        },
+    )
+}
+
+/// フェーズのモードの姿勢則の上書きを丸ごと消す（無ければ拒む）。
+fn unset_phase_law(
+    edits: &mut Edits,
+    design: &Design,
+    phase: &str,
+    mode: &str,
+) -> Result<(), OpError> {
+    let mut p = existing_phase(design, phase)?.clone();
+    if p.law.remove(mode).is_none() {
+        return Err(OpError::not_found(format!(
+            "Attitude law override of mode `{mode}` in phase `{phase}`"
+        )));
     }
+    rewrite(edits, p)
 }
 
 /// フェーズを書く。軌道（`orbit`）と姿勢則（`law`）が空なら、今のフェーズのものを残す（見出しの欄だけを書き換える

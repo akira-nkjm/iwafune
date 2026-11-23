@@ -71,6 +71,11 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
         CommandText::PhaseField { phase, path, value } => {
             vec![super::phase::phase_field_op(phase, path, value.as_deref())?]
         }
+        CommandText::PhaseCopyOrbit { phase } => vec![super::phase::copy_orbit_op(phase)],
+        CommandText::PhaseUnsetOrbit { phase } => vec![super::phase::unset_orbit_op(phase)],
+        CommandText::PhaseUnsetLaw { phase, mode } => {
+            vec![super::phase::unset_law_op(phase, mode)]
+        }
         CommandText::CasePhase { case, phase } => {
             vec![super::phase::case_phase_op(case, phase.as_deref())]
         }

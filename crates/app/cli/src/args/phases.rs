@@ -45,6 +45,25 @@ pub enum PhaseCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// Copy the design orbit (conditions/orbit.toml) into the phase as its orbit override (replaces the current one); edit the values with `set-field` afterwards
+    CopyOrbit {
+        phase: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Remove the whole orbit override of a phase (the design orbit applies again)
+    UnsetOrbit {
+        phase: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Remove the whole attitude law override of a mode in a phase (the design law applies again)
+    UnsetLaw {
+        phase: String,
+        mode: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
 }
 
 /// `fune phase add|set` (the flags map one to one to `fune_service::dto::PhaseText`)

@@ -17,6 +17,7 @@ import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
 import { PhaseDialog } from "./PhaseDialog";
+import { PhaseOverridesDialog } from "./PhaseOverrides";
 import { emptyPhaseText } from "./phase-form";
 
 /** 開いているダイアログ（追加・編集・削除） */
@@ -24,12 +25,13 @@ type Open =
   | { kind: "add" }
   | { kind: "edit"; text: PhaseText }
   | { kind: "remove"; id: string }
+  | { kind: "overrides"; id: string }
   | null;
 
 /**
  * 前提条件 / フェーズ: phases/ の一覧（並びは API が `position` で返す）と、追加・編集・削除。
- * 編集は `fune phase add|set|rm` と同じ引数を service に送る。軌道と姿勢則の上書きは表示だけ
- * （値の編集は `fune phase set-field`）。URL の `?phase=<ID>` で選んだ行を強調する（診断のリンクが開く）。
+ * 編集は `fune phase add|set|rm` と同じ引数を service に送る。軌道と姿勢則の上書きは「上書きを編集」のダイアログで編集する
+ * （`PhaseOverridesDialog`。書き込みは `fune phase copy-orbit|unset-orbit|unset-law|set-field` と同じ）。URL の `?phase=<ID>` で選んだ行を強調する（診断のリンクが開く）。
  */
 export function PhasesPage() {
   const m = useT().conditions;
@@ -71,6 +73,9 @@ export function PhasesPage() {
       )}
       {open?.kind === "edit" && (
         <PhaseDialog initial={open.text} adding={false} onOpenChange={close} />
+      )}
+      {open?.kind === "overrides" && (
+        <PhaseOverridesDialog phaseId={open.id} onOpenChange={close} />
       )}
       {open?.kind === "remove" && (
         <OpDialog
@@ -154,7 +159,7 @@ function PhaseRow({
       <Td mono>{p.duration?.display ?? "—"}</Td>
       <Td mono>{p.modes.length > 0 ? p.modes.join(" ") : "—"}</Td>
       <Td>
-        <Overrides p={p} />
+        <Overrides p={p} onEdit={() => onOpen({ kind: "overrides", id: p.id })} />
       </Td>
       <Td mono className="text-ink-3">
         {p.cases.length > 0 ? p.cases.join(" ") : "—"}
@@ -186,11 +191,10 @@ function PhaseRow({
   );
 }
 
-/** 軌道と姿勢則の上書き（API が整形した値の表示。上書きが無ければ「なし」） */
-function Overrides({ p }: { p: PhaseView }) {
+/** 軌道と姿勢則の上書き（API が整形した値の表示。上書きが無ければ「なし」）と、編集のダイアログを開くボタン */
+function Overrides({ p, onEdit }: { p: PhaseView; onEdit: () => void }) {
   const t = useT().phases;
-  if (p.orbit.length === 0 && p.law.length === 0)
-    return <span className="text-ink-4">{t.none}</span>;
+  const none = !p.orbit_overridden && p.laws.length === 0;
   const line = (label: string, fields: PhaseView["orbit"]) =>
     fields.length > 0 && (
       <span>
@@ -199,9 +203,21 @@ function Overrides({ p }: { p: PhaseView }) {
       </span>
     );
   return (
-    <span className="flex flex-col gap-0.5">
-      {line(t.orbit, p.orbit)}
-      {line(t.law, p.law)}
+    <span className="flex flex-col items-start gap-0.5">
+      {none ? (
+        <span className="text-ink-4">{t.none}</span>
+      ) : (
+        <>
+          {line(t.orbit, p.orbit)}
+          {p.laws.map((l) => (
+            <span key={l.mode}>{line(`${t.law} ${l.mode}`, l.fields)}</span>
+          ))}
+        </>
+      )}
+      <Button size="sm" variant="ghost" onClick={onEdit}>
+        <Pencil size={13} />
+        {t.editOverrides}
+      </Button>
     </span>
   );
 }

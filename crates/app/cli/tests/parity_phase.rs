@@ -190,3 +190,85 @@ fn phase_list_matches_http() {
     let shown: Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(&shown, disposal);
 }
+
+/// 上書きを 1 手で足す・消す操作（`phase copy-orbit|unset-orbit|unset-law`）も CLI と HTTP で同じファイルになる。
+/// 姿勢則の上書きは、種類を書く `set-field law.<モード>.law` 1 手で作れる。
+#[test]
+fn phase_override_edits_match_cli() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_t1, cli_root) = demo_copy();
+    let (_t2, http_root) = demo_copy();
+    let edits: Vec<(Vec<&str>, Value, &str)> = vec![
+        (
+            vec!["phase", "add", "PH_TEST", "--modes", "SAFE,NOMINAL"],
+            json!({ "command": "phase_add", "id": "PH_TEST", "modes": "SAFE,NOMINAL" }),
+            "create_phase",
+        ),
+        (
+            vec!["phase", "copy-orbit", "PH_TEST"],
+            json!({ "command": "phase_copy_orbit", "phase": "PH_TEST" }),
+            "copy_phase_orbit",
+        ),
+        (
+            vec!["phase", "set-field", "PH_TEST", "orbit.altitude", "420 km"],
+            json!({ "command": "phase_field", "phase": "PH_TEST", "path": "orbit.altitude",
+                "value": "420 km" }),
+            "set_phase_field",
+        ),
+        (
+            vec![
+                "phase",
+                "set-field",
+                "PH_TEST",
+                "law.SAFE.law",
+                "sun_pointing",
+            ],
+            json!({ "command": "phase_field", "phase": "PH_TEST", "path": "law.SAFE.law",
+                "value": "sun_pointing" }),
+            "set_phase_field",
+        ),
+        (
+            vec!["phase", "unset-law", "PH_TEST", "SAFE"],
+            json!({ "command": "phase_unset_law", "phase": "PH_TEST", "mode": "SAFE" }),
+            "unset_phase_law",
+        ),
+        (
+            vec!["phase", "unset-orbit", "PH_TEST"],
+            json!({ "command": "phase_unset_orbit", "phase": "PH_TEST" }),
+            "unset_phase_orbit",
+        ),
+    ];
+    for (cli, body, op) in edits {
+        run_cli(&cli_root, &cli);
+        let ops = http_command(&rt, &http_root, body);
+        assert!(ops.iter().all(|o| o["op"] == op), "{ops:?}");
+        assert_same_files(&cli_root, &http_root, &cli.join(" "));
+    }
+    let text = std::fs::read_to_string(http_root.join("phases/PH_TEST.toml")).unwrap();
+    assert!(
+        !text.contains("[orbit]") && !text.contains("[law"),
+        "{text}"
+    );
+    // 写した軌道は設計の軌道と同じ値で、`GET /phases` が欄の値（編集の欄の元）を返す
+    run_cli(&cli_root, &["phase", "copy-orbit", "PH_TEST"]);
+    http_command(
+        &rt,
+        &http_root,
+        json!({ "command": "phase_copy_orbit", "phase": "PH_TEST" }),
+    );
+    let phases = get_json(&rt, &http_root, "/api/v1/phases");
+    let test = phases
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["id"] == "PH_TEST")
+        .unwrap();
+    let altitude = test["orbit"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["path"] == "orbit.altitude")
+        .unwrap();
+    assert_eq!(altitude["display"], "550 km");
+    assert_eq!(altitude["value"]["type"], "scalar");
+}

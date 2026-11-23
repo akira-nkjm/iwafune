@@ -94,7 +94,7 @@ fn check_case_phase(ctx: &mut Ctx, case: &Case) {
         ctx.warning(
             "case.mode_not_in_phase",
             &entity,
-            &["mode"],
+            &["phase"],
             target,
             format!("Mode `{mode}` is not listed in the modes of phase `{phase_id}`"),
         );

@@ -103,7 +103,7 @@ fn mode_view_with(s: &Snapshot, mode: &str, shared: &ModeIndependent) -> Result<
             .and_then(|c| aocs::sensor_fov_for_mode(c, Some(mode))),
     );
     Ok(AocsModeView {
-        attitude: super::attitude::view(context, mode),
+        attitude: crate::attitude_view::view(context, mode),
         devices: super::devices::groups(context, &mode_def)?,
         eclipse_devices: super::devices::groups(context, &mode_def.in_eclipse())?,
         momentum_per_orbit: rw_out.as_ref().map(|o| {

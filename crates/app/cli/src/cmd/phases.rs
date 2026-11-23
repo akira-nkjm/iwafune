@@ -1,4 +1,4 @@
-//! `fune phase …`: 引数 → Op（`add|set|rm|rename|set-field|unset-field`。打った値を読むのは service の `edit::phase_op`・
+//! `fune phase …`: 引数 → Op（`add|set|rm|rename|set-field|unset-field|copy-orbit|unset-orbit|unset-law`。打った値を読むのは service の `edit::phase_op`・
 //! `edit::phase_field_op`）と、読み取り（`ls`・`show`。HTTP の `GET /phases` と同じ関数）。
 
 use super::common::{Built, Handled};
@@ -31,6 +31,9 @@ pub fn phase(c: &PhaseCmd) -> Built<'_> {
             path,
             edit: opts,
         } => Some((edit::phase_field_op(phase, path, None)?, opts)),
+        PhaseCmd::CopyOrbit { phase, edit } => Some((edit::copy_orbit_op(phase), edit)),
+        PhaseCmd::UnsetOrbit { phase, edit } => Some((edit::unset_orbit_op(phase), edit)),
+        PhaseCmd::UnsetLaw { phase, mode, edit } => Some((edit::unset_law_op(phase, mode), edit)),
         PhaseCmd::Ls | PhaseCmd::Show { .. } => None,
     })
 }
@@ -78,7 +81,13 @@ fn ls(ws: &Workspace, out: &Out) -> Handled {
             ),
             C::Text(p.modes.join(" ")),
             C::Dim(if p.orbit_overridden { "override" } else { "" }.to_owned()),
-            C::Dim(p.law_modes.join(" ")),
+            C::Dim(
+                p.laws
+                    .iter()
+                    .map(|l| l.mode.as_str())
+                    .collect::<Vec<_>>()
+                    .join(" "),
+            ),
             C::Dim(p.cases.join(" ")),
         ]);
     }
@@ -119,7 +128,7 @@ fn print_phase(p: &PhaseView, out: &Out) {
     line("modes", p.modes.join(", "));
     line("cases", p.cases.join(", "));
     line("file", p.file.clone());
-    for f in p.orbit.iter().chain(&p.law) {
+    for f in p.orbit.iter().chain(p.laws.iter().flat_map(|l| &l.fields)) {
         println!("  {:<28} {}", f.path, f.display);
     }
 }

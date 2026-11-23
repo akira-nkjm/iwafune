@@ -1,5 +1,6 @@
 //! `fune phase add|set|set-field|unset-field` と `fune case set-phase|unset-phase` に打った引数 → `CreatePhase`・`SetPhase`・
-//! `SetPhaseField`・`SetCasePhase`（`POST /ops/from_command` の `phase_add`・`phase_set`・`phase_field`・`case_phase`）。
+//! `SetPhaseField`・`CopyPhaseOrbit`・`UnsetPhaseOrbit`・`UnsetPhaseLaw`・`SetCasePhase`（`POST /ops/from_command` の `phase_add`・`phase_set`・
+//! `phase_field`・`phase_copy_orbit`・`phase_unset_orbit`・`phase_unset_law`・`case_phase`）。
 //! **フェーズの旗と、軌道・姿勢則の欄の値の読み方はここだけ**（逆の向き = 編集の欄の初期値は `query::phases::phase_text`）。
 
 use super::text::{given, invalid, list_from_text, quantity_from_text};
@@ -60,6 +61,28 @@ pub fn phase_field_op(phase: &str, path: &str, value: Option<&str>) -> Result<Op
         path: path.trim().to_owned(),
         value,
     })
+}
+
+/// `fune phase copy-orbit <ID>` → `CopyPhaseOrbit`（設計の軌道を写すのは Op の適用で行う）。
+pub fn copy_orbit_op(phase: &str) -> Op {
+    Op::CopyPhaseOrbit {
+        phase: phase.trim().to_owned(),
+    }
+}
+
+/// `fune phase unset-orbit <ID>` → `UnsetPhaseOrbit`。
+pub fn unset_orbit_op(phase: &str) -> Op {
+    Op::UnsetPhaseOrbit {
+        phase: phase.trim().to_owned(),
+    }
+}
+
+/// `fune phase unset-law <ID> <モード>` → `UnsetPhaseLaw`。
+pub fn unset_law_op(phase: &str, mode: &str) -> Op {
+    Op::UnsetPhaseLaw {
+        phase: phase.trim().to_owned(),
+        mode: mode.trim().to_owned(),
+    }
 }
 
 /// パス（`orbit.<キー>`・`law.<モード>.<キー>`）の欄の値の形の見本。

@@ -51,7 +51,9 @@ pub use fune_ops::{to_cli, to_cli_script};
 pub use ground::ground_add_op;
 pub use group::group_target;
 pub use maneuver::maneuver_op;
-pub use phase::{case_phase_op, phase_field_op, phase_op};
+pub use phase::{
+    case_phase_op, copy_orbit_op, phase_field_op, phase_op, unset_law_op, unset_orbit_op,
+};
 pub use place::{place_body, place_body_op, place_op, rotation_from_text};
 pub use requirement::requirement_op;
 pub use sun_distance::case_from_sun_distance_op;

@@ -290,6 +290,7 @@ export type * from "./PartViewRequest";
 export type * from "./PartsQuery";
 export type * from "./Phase";
 export type * from "./PhaseFieldView";
+export type * from "./PhaseLawView";
 export type * from "./PhaseText";
 export type * from "./PhaseView";
 export type * from "./PlaceBodyRequest";

@@ -47,7 +47,7 @@ pub(super) const ALLOWED: &[(&str, &str)] = &[
         "bilingual power chart labels, label(ja, en)",
     ),
     (
-        "crates/app/service/src/system_modes/attitude.rs",
+        "crates/app/service/src/attitude_view.rs",
         "bilingual attitude axis names (ja, en)",
     ),
     (

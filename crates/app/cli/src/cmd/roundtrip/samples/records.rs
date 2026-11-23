@@ -333,6 +333,12 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
             path: s("orbit.altitude"),
             value: None,
         },
+        Op::CopyPhaseOrbit { phase: s("PH_X") },
+        Op::UnsetPhaseOrbit { phase: s("PH_X") },
+        Op::UnsetPhaseLaw {
+            phase: s("PH_X"),
+            mode: s("NOMINAL"),
+        },
         Op::SetCasePhase {
             case: s("eclipse_worst"),
             phase: Some(s("PH_X")),

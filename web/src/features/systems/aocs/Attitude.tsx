@@ -1,6 +1,6 @@
 import { Pencil } from "lucide-react";
+import { type FieldEdit, useSettingEdit } from "@/api/field-edit";
 import { useEnumLabel, useEnumOptions } from "@/api/labels";
-import { useSetText } from "@/api/ops";
 import type { AocsAttitudeView, AocsLawField } from "@/api/types";
 import { localized, useT } from "@/i18n";
 import { CommitInput } from "@/kit/forms/CommitInput";
@@ -51,10 +51,15 @@ export function AttitudeLine({ item, mode }: { item: AocsAttitudeView; mode: str
   );
 }
 
-/** 実効軸の小さな図と設定欄。全欄は設定ページと同じ SetText で編集する。 */
-export function Attitude({ item }: { item: AocsAttitudeView }) {
+/**
+ * 実効軸の小さな図と設定欄。全欄は設定ページと同じ SetText で編集する（`edit` を渡すと書き先を替えられる。
+ * フェーズの上書きの姿勢則は `usePhaseFieldEdit`）。
+ */
+export function Attitude({ item, edit }: { item: AocsAttitudeView; edit?: FieldEdit }) {
   const dict = useT();
   const t = dict.systems.aocsModes;
+  const own = useSettingEdit();
+  const target = edit ?? own;
   return (
     <section>
       <h3 className="mb-2 font-medium text-sm">{dict.modes.attitudeLaw}</h3>
@@ -86,20 +91,18 @@ export function Attitude({ item }: { item: AocsAttitudeView }) {
       </div>
       <div className="grid gap-2">
         {item.fields.map((field) => (
-          <LawField key={field.path} field={field} />
+          <LawField key={field.path} field={field} edit={target} />
         ))}
       </div>
     </section>
   );
 }
 
-function LawField({ field }: { field: AocsLawField }) {
+function LawField({ field, edit }: { field: AocsLawField; edit: FieldEdit }) {
   const dict = useT();
   const t = dict.systems.aocsModes;
-  const set = useSetText();
   const options = useEnumOptions("attitude_law");
-  const commit = (value: string) =>
-    set.mutate({ path: field.path, value, summary: dict.quantity.setSummary(field.path, value) });
+  const commit = (value: string) => edit.set(field.path, value);
   return (
     <div className="grid gap-1 text-xs text-ink-3">
       <label htmlFor={field.path}>
@@ -110,7 +113,7 @@ function LawField({ field }: { field: AocsLawField }) {
           id={field.path}
           aria-label={field.path}
           value={field.text}
-          disabled={set.isPending}
+          disabled={edit.pending}
           onChange={(e) => commit(e.target.value)}
           className="rounded-control border border-line bg-panel px-2 py-1.5 text-ink"
         >
@@ -128,14 +131,14 @@ function LawField({ field }: { field: AocsLawField }) {
           id={field.path}
           label={field.path}
           value={field.text}
-          disabled={set.isPending}
+          disabled={edit.pending}
           allowEmpty={false}
           onCommit={commit}
         />
       )}
-      {set.error && (
+      {edit.error && (
         <p role="alert" className="text-xs text-neg-ink">
-          {set.error.message}
+          {edit.error.message}
         </p>
       )}
     </div>

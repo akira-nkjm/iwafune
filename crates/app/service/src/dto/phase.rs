@@ -36,8 +36,20 @@ pub struct PhaseFieldView {
     pub key: String,
     /// 値の表示（量なら単位付きに整形）
     pub display: String,
+    /// 値（設定の表と同じ形。設定の表の編集の欄がそのまま使う）
+    pub value: super::ValueData,
     /// 編集の欄の初期値（`fune phase set-field` に打つのと同じ文字列）
     pub text: String,
+}
+
+/// フェーズが姿勢則を上書きしているモード 1 つ（`[law.<モード>]`）。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct PhaseLawView {
+    pub mode: String,
+    /// 書かれた欄（`law.<モード>.<キー>`）
+    pub fields: Vec<PhaseFieldView>,
+    /// 姿勢則の種類・軸の欄・実効軸（AOCS のモードの姿勢則と同じ形。欄のパスは `fune phase set-field` のパス）
+    pub attitude: super::AocsAttitudeView,
 }
 
 /// フェーズ 1 つ（`(order, ID)` の順）。
@@ -59,10 +71,8 @@ pub struct PhaseView {
     pub orbit_overridden: bool,
     /// 上書きの軌道の書かれた欄（`[orbit]`。`orbit_overridden` のときだけ）
     pub orbit: Vec<PhaseFieldView>,
-    /// 姿勢則を上書きしているモード（`[law.<モード>]`）
-    pub law_modes: Vec<String>,
-    /// 上書きの姿勢則の書かれた欄（`[law.<モード>]`）
-    pub law: Vec<PhaseFieldView>,
+    /// 姿勢則の上書き（モードの ID 順。`[law.<モード>]`）
+    pub laws: Vec<PhaseLawView>,
     /// このフェーズを指している解析ケース
     pub cases: Vec<String>,
     /// 編集の欄の初期値（`fune phase set` に打つのと同じ文字列）

@@ -165,6 +165,9 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::RemovePhase { .. }
         | Op::RenamePhase { .. }
         | Op::SetPhaseField { .. }
+        | Op::CopyPhaseOrbit { .. }
+        | Op::UnsetPhaseOrbit { .. }
+        | Op::UnsetPhaseLaw { .. }
         | Op::SetCasePhase { .. } => phases::interpret(edits, design, op),
         Op::CreateRequirement { .. } | Op::SetRequirement { .. } | Op::RemoveRequirement { .. } => {
             requirements::interpret(edits, design, op)

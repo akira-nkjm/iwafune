@@ -79,6 +79,9 @@ fn name(op: &Op) -> &'static str {
         Op::RemovePhase { .. } => "RemovePhase",
         Op::RenamePhase { .. } => "RenamePhase",
         Op::SetPhaseField { .. } => "SetPhaseField",
+        Op::CopyPhaseOrbit { .. } => "CopyPhaseOrbit",
+        Op::UnsetPhaseOrbit { .. } => "UnsetPhaseOrbit",
+        Op::UnsetPhaseLaw { .. } => "UnsetPhaseLaw",
         Op::SetCasePhase { .. } => "SetCasePhase",
         Op::CreateRequirement { .. } => "CreateRequirement",
         Op::SetRequirement { .. } => "SetRequirement",
@@ -419,6 +422,16 @@ fn other_ops() -> Vec<Op> {
             path: "orbit.altitude".into(),
             value: Some(SettingValue::Quantity(Quantity::new(450.0, "km"))),
         },
+        Op::CopyPhaseOrbit {
+            phase: "LEOP".into(),
+        },
+        Op::UnsetPhaseOrbit {
+            phase: "LEOP".into(),
+        },
+        Op::UnsetPhaseLaw {
+            phase: "LEOP".into(),
+            mode: "NOMINAL".into(),
+        },
         Op::SetCasePhase {
             case: "eclipse_worst".into(),
             phase: None,
@@ -478,7 +491,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 68, "some op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 71, "some op kinds have no sample: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =

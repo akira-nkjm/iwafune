@@ -4,7 +4,7 @@
 use super::settings::value_data;
 use super::values::{authored_quantity, display_of};
 use super::views::file_of;
-use crate::dto::{PhaseFieldView, PhaseText, PhaseView};
+use crate::dto::{PhaseFieldView, PhaseLawView, PhaseText, PhaseView};
 use fune_model::Target;
 use fune_model::design::settings_view::entries_under;
 use fune_model::design::{Design, EntityKey, Phase};
@@ -48,8 +48,18 @@ fn view(design: &Design, p: &Phase, position: u32) -> PhaseView {
         modes: p.modes.iter().map(ToString::to_string).collect(),
         orbit_overridden: p.orbit.is_some(),
         orbit: fields("orbit", &serde_json::to_value(&p.orbit).unwrap_or_default()),
-        law_modes: p.law.keys().cloned().collect(),
-        law: fields("law", &serde_json::to_value(&p.law).unwrap_or_default()),
+        laws: p
+            .law
+            .iter()
+            .map(|(mode, setting)| PhaseLawView {
+                mode: mode.clone(),
+                fields: fields(
+                    "law",
+                    &serde_json::json!({ mode: serde_json::to_value(setting).unwrap_or_default() }),
+                ),
+                attitude: crate::attitude_view::phase_view(mode, setting),
+            })
+            .collect(),
         cases: design
             .cases
             .values()
@@ -75,10 +85,12 @@ fn fields(root: &str, json: &serde_json::Value) -> Vec<PhaseFieldView> {
         .into_iter()
         .filter_map(|e| {
             let value = e.value?;
+            let data = value_data(&value);
             Some(PhaseFieldView {
                 path: e.path.segments.join("."),
                 key: e.path.segments.get(1..).unwrap_or_default().join("."),
-                display: display_of(&value_data(&value)).unwrap_or_else(|| setting_to_text(&value)),
+                display: display_of(&data).unwrap_or_else(|| setting_to_text(&value)),
+                value: data,
                 text: setting_to_text(&value),
             })
         })

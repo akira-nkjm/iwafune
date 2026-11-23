@@ -426,3 +426,29 @@ fn a_legacy_limit_in_the_allocation_is_reported_as_moved() {
     // 旧い値は読まない: 上限を持つ要求が無いので上限は未設定のまま
     assert!(has(&d, "budget.limit_unset", Severity::Warning), "{d:?}");
 }
+
+/// ケースの `phase` についての診断（`ref.phase`・`case.mode_not_in_phase`）の位置は `phase` の行（`mode` の行ではない）。
+#[test]
+fn case_phase_diagnostics_point_at_the_phase_line() {
+    let case = "label = \"c\"\nmode  = \"NOMINAL\"\nphase = \"LEOP\"\n";
+    let modes = [("modes/SAFE.toml", ""), ("modes/NOMINAL.toml", "")];
+    let mut files = vec![
+        ("cases/c.toml", case),
+        ("phases/LEOP.toml", "modes = [\"SAFE\"]\n"),
+    ];
+    files.extend(modes);
+    let d = diags(&files);
+    let warned = d
+        .iter()
+        .find(|x| x.code == "case.mode_not_in_phase")
+        .expect("warning");
+    assert_eq!(
+        (warned.file.as_deref(), warned.line),
+        (Some("cases/c.toml"), Some(3))
+    );
+
+    let ghost = case.replace("LEOP", "GHOST");
+    let d = diags(&[("cases/c.toml", &ghost), ("modes/NOMINAL.toml", "")]);
+    let missing = d.iter().find(|x| x.code == "ref.phase").expect("ref.phase");
+    assert_eq!(missing.line, Some(3));
+}

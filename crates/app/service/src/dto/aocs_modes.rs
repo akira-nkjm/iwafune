@@ -47,7 +47,7 @@ pub struct AocsAnalysisState {
     pub error: Option<String>,
 }
 
-/// 姿勢則の設定と実効軸。編集は全て SetText を使う。
+/// 姿勢則の設定と実効軸。編集は全て SetText を使う（フェーズの上書きの欄は `fune phase set-field` と同じ `POST /ops/from_command` の `phase_field`）。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct AocsAttitudeView {
     pub law: Option<fune_model::design::AttitudeLawKind>,
