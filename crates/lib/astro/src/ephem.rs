@@ -50,6 +50,22 @@ pub fn source_at(epoch: Epoch) -> EphemerisSource {
     }
 }
 
+/// 解析式（Standish の表 1）が使える範囲 [ユリウス世紀]: 1800〜2050 年（J2000 から −2.0〜+0.5 世紀）。
+const ANALYTIC_SPAN_CENTURIES: (f64, f64) = (-2.0, 0.5);
+
+/// `epoch` で暦が使えるか。DE440 を登録していて期間内なら真、そうでなければ解析式の範囲（1800〜2050 年）の中なら真。
+/// 日付つきの惑星間遷移が、暦の外の日付を断るのに使う。
+pub fn covers(epoch: Epoch) -> bool {
+    source_at(epoch) == EphemerisSource::De440
+        || (ANALYTIC_SPAN_CENTURIES.0..=ANALYTIC_SPAN_CENTURIES.1)
+            .contains(&epoch.julian_centuries())
+}
+
+/// J2000 平均黄道の北の向き（ECI の単位ベクトル）。日心の軌道の「順行」の基準。
+pub fn ecliptic_normal_eci() -> Vec3 {
+    ecliptic_to_equatorial(Vec3::Z, obliquity_j2000())
+}
+
 fn de440_id(body: Body) -> i32 {
     use de440::body_id as id;
     match body {
