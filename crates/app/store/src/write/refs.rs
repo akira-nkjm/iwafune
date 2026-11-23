@@ -104,6 +104,20 @@ pub fn rename_phase(
     rename_sites(edits, design, Referent::Phase(from), to, None)
 }
 
+/// 形態の名前を変える（ファイルの移動。形態を指す参照元は今は無いが、索引を引いて書き換える）。
+pub fn rename_configuration(
+    edits: &mut Edits,
+    design: &Design,
+    from: &str,
+    to: &str,
+) -> Result<(), StoreError> {
+    edits.rename(
+        &layout::configuration_file(from),
+        &layout::configuration_file(to),
+    )?;
+    rename_sites(edits, design, Referent::Configuration(from), to, None)
+}
+
 /// カタログ品の名前を変える（ファイルの移動と、部品の `catalog`・`candidates`、ハーネスの `wire` の書き換え）。
 pub fn rename_catalog(
     edits: &mut Edits,
@@ -190,6 +204,7 @@ fn rename_sites(
         | Referent::Group(id)
         | Referent::Mode(id)
         | Referent::Phase(id)
+        | Referent::Configuration(id)
         | Referent::Net(id)
         | Referent::Catalog(id)
         | Referent::CatalogSource(id)

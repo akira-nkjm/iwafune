@@ -17,6 +17,7 @@
 //! | `edit` | Op の適用と、人が打った文字列（`SetText`・`UnsetText`） |
 //! | `command` | 名詞のコマンドに打った引数（`CommandText`。`fune net set`・`fune part place`・`fune mode set` など） |
 //! | `maneuver` | マヌーバの表示（`ManeuverView`）と `fune maneuver add\|set` の引数（`ManeuverText`） |
+//! | `configuration` | 形態の表示（`ConfigurationView`）と `fune configuration add\|set` の引数（`ConfigurationText`） |
 //! | `phase` | フェーズの表示（`PhaseView`）と `fune phase add\|set` の引数（`PhaseText`） |
 //! | `ground` | 地上局の表示（`GroundStationView`）と `fune ground add` の引数（`GroundAddText`） |
 //! | `records_text` | `fune link add`・`fune catalog source add-local`・`fune project set` の引数（`LinkAddText`・`CatalogLocalAddText`・`ProjectSetText`） |
@@ -40,6 +41,7 @@ mod budget;
 mod catalog;
 mod command;
 mod common;
+mod configuration;
 mod data;
 mod design;
 mod edit;
@@ -50,6 +52,7 @@ mod kpi;
 mod maneuver;
 mod phase;
 mod requirement;
+pub use configuration::{ConfigurationText, ConfigurationView};
 pub use kpi::{FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView, OverviewKpi};
 pub use maneuver::{ManeuverTargetView, ManeuverText, ManeuverView};
 pub use phase::{PhaseFieldView, PhaseLawView, PhaseText, PhaseView};
@@ -109,9 +112,9 @@ pub use design::{
     AttrSection, AttributeDefView, CaseView, DefsView, DesignCounts, DesignView, HarnessView,
     KindDefView, ModeHeader, ModeRow, ModeSegmentView, ModeSequenceView, ModeStartView,
     ModeSummaryField, ModeSummaryLabel, ModeSummaryRow, ModeSummaryScope, ModeTable,
-    ModeValuesView, NetView, PartRow, PartView, PartsQuery, PortView, ProjectInfo, SettingView,
-    SystemModeView, SystemModesRequest, SystemModesView, TreeNode, TreeNodeKind, ValueAnswer,
-    ValueQuery,
+    ModeValuesView, NetView, PartQuery, PartRow, PartView, PartsQuery, PortView, ProjectInfo,
+    SettingView, SystemModeView, SystemModesRequest, SystemModesView, TreeNode, TreeNodeKind,
+    ValueAnswer, ValueQuery,
 };
 pub use edit::{
     ApplyRequest, ApplyResult, ChangedFile, FileChangeKind, InitResult, PlaceBodyRequest, SetText,

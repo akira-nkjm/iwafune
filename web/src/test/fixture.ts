@@ -43,6 +43,7 @@ export function mountAt(
     authored_position: null,
     orientation,
     authored_orientation: null,
+    overridden: false,
     point_pose: zeroPose(),
     relative: zeroPose(),
   };
@@ -404,6 +405,7 @@ export const fixture: DesignView = {
   cases: [],
   maneuvers: [],
   phases: [],
+  configurations: [],
   stations: [],
   requirements: [],
   views: [],

@@ -28,4 +28,9 @@ orientation?: string | null,
  * 取付点に対する姿勢の X・Y・Z 軸まわりの回転角（`"0 90 0 deg"`。固定軸で X → Y → Z の順。`edit::rotation_from_text`）。
  * 省略か空なら書かない。`orientation` と両方は書けない
  */
-rotation?: string | null, };
+rotation?: string | null, 
+/**
+ * この形態に姿勢を書く（`--configuration`。取付は変えない。取付先・取付点は書かなくてよく、書くなら部品の取付と同じ）。
+ * 省略か空なら部品自身の取付と姿勢
+ */
+configuration?: string | null, };

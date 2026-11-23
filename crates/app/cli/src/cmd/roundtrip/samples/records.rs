@@ -314,6 +314,30 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
             id: s("PH_X"),
             to: s("PH_Z"),
         },
+        Op::CreateConfiguration {
+            id: s("STOWED"),
+            label: Some(s("Stowed \"test\"")),
+            description: Some(s("Paddle folded onto the +X face")),
+        },
+        Op::CreateConfiguration {
+            id: s("DEPLOYED"),
+            label: None,
+            description: None,
+        },
+        Op::SetConfiguration {
+            id: s("STOWED"),
+            label: Some(s("Stowed")),
+            description: None,
+        },
+        Op::RemoveConfiguration { id: s("STOWED") },
+        Op::RenameConfiguration {
+            id: s("STOWED"),
+            to: s("FOLDED"),
+        },
+        Op::UnsetConfigurationPose {
+            configuration: s("STOWED"),
+            part: s("RW_X"),
+        },
         Op::SetPhaseField {
             phase: s("PH_X"),
             path: s("orbit.altitude"),

@@ -316,6 +316,7 @@ export function usePlaceBody() {
       const body: PlaceBodyRequest = {
         position,
         orientation,
+        configuration: null,
         base_revision: revision,
         dry_run: false,
       };

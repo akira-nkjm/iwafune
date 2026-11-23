@@ -143,6 +143,7 @@ fn set_field_place_and_unset() {
                 frame: None,
             }),
             orientation: Some(Quaternion::IDENTITY),
+            configuration: None,
         },
         Op::UnsetValue {
             part: "RW_X".into(),
@@ -183,6 +184,7 @@ fn set_field_place_and_unset() {
         point: None,
         position: None,
         orientation: None,
+        configuration: None,
     };
     assert!(matches!(
         plan(&snap, &[dangling]),

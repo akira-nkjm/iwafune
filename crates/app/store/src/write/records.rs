@@ -88,6 +88,8 @@ pub fn write_record_with_sections<T: Serialize>(
     if edits.exists(path) {
         edits.edit(path, |doc| {
             sync_table(doc.as_table_mut(), desired.as_table().clone());
+            // 表を足した・キーを消したあとも `=` の揃えを正規形にする（足した表は揃っておらず、最長のキーを消すと古い幅が残る。#382）
+            crate::profile::align_table(doc.as_table_mut());
             Ok(())
         })
     } else {

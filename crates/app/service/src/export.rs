@@ -55,6 +55,7 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         PartView,
         PartViewRequest,
         PartsQuery,
+        PartQuery,
         ValueQuery,
         ValueAnswer,
         ApplyRequest,

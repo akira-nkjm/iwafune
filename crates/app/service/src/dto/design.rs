@@ -57,6 +57,8 @@ pub struct DesignView {
     pub maneuvers: Vec<super::ManeuverView>,
     /// フェーズ（並びの順）
     pub phases: Vec<super::PhaseView>,
+    /// 形態（`configurations/<ID>.toml`。ID 順。部品の姿勢は `GET /parts?configuration=` で形態ごとに読む）
+    pub configurations: Vec<super::ConfigurationView>,
     /// 地上局（`conditions/ground/<ID>.toml`。ID 順。値は `settings`）
     pub stations: Vec<super::GroundStationView>,
     /// 要求（`requirements/<ID>.toml`。ID 順）
@@ -147,6 +149,8 @@ pub struct PartViewRequest {
     /// 保存していない編集。書き込まずに当てた設計で表示する（空なら保存済みの設計。`GET` と同じ）。
     /// GUI のパラメーター追加は、同じ編集で定義を作る属性のパス（`PartRow.paths`）をここから引く
     pub ops: Vec<Op>,
+    /// この形態での取付・姿勢を返す（省略は基準。無い形態は拒む）
+    pub configuration: Option<String>,
 }
 
 /// 1 部品の全情報（`GET /parts/{id}`）。全系の属性を 1 か所に。
@@ -399,6 +403,16 @@ pub struct PartsQuery {
     pub group: Option<String>,
     /// この種別の部品だけ
     pub kind: Option<String>,
+    /// この形態での取付・姿勢（`mount`・`body`）を返す（省略は基準。無い形態は拒む）
+    pub configuration: Option<String>,
+}
+
+/// 1 部品の表示の依頼（`GET /parts/{id}?configuration=STOWED`）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+#[serde(default)]
+pub struct PartQuery {
+    /// この形態での取付・姿勢を返す（省略は基準。無い形態は拒む）
+    pub configuration: Option<String>,
 }
 
 /// 1 つの値の問い合わせ（`GET /values/{path}?state=on`、`fune get`）。

@@ -5,9 +5,10 @@
 //! |---|---|
 //! | `views` | Design → 製品ツリー・モード表・ネット・ハーネス・定義・ケース |
 //! | `parts` | 部品の行・1 部品の全情報・1 つの値 |
-//! | `pose` | 部品の配置の表示（取付・取付点・機体座標の位置と姿勢の角度。位置は 1 部品で同じ単位） |
+//! | `pose` | 部品の配置の表示（取付・取付点・機体座標の位置と姿勢の角度。位置は 1 部品で同じ単位。形態を選ぶのもここだけ） |
 //! | `ground` | 地上局（ID 順・表示名・ファイル・解析が使っているか） |
 //! | `maneuvers` | マヌーバ（実行の順・目標の要素・編集の欄の初期値） |
+//! | `configurations` | 形態（ID 順・姿勢を上書きしている部品・編集の欄の初期値） |
 //! | `phases` | フェーズ（並びの順・軌道と姿勢則の上書きの欄・編集の欄の初期値） |
 //! | `requirements` | 要求（制約の文・編集の欄の初期値。ID 順） |
 //! | `catalog` | カタログ品（値・パス・使っている部品・書き換えられるか） |
@@ -16,12 +17,13 @@
 //! | `settings` | 設定 → キーと値の一覧、設定・バジェットと系の対応 |
 
 pub(crate) mod catalog;
+pub(crate) mod configurations;
 pub(crate) mod ground;
 pub(crate) mod maneuvers;
 mod net_class;
 mod parts;
 pub(crate) mod phases;
-mod pose;
+pub(crate) mod pose;
 pub(crate) mod requirements;
 pub(crate) mod settings;
 mod sources;
@@ -86,7 +88,7 @@ fn info_of(ws: &Workspace, s: &Snapshot) -> ProjectInfo {
 pub fn design_view(ws: &Workspace) -> Result<DesignView> {
     let s = ws.snapshot()?;
     let d = &s.design;
-    let parts = parts::list(d, &s.resolved, &s.diagnostics, &PartsQuery::default());
+    let parts = parts::list(d, &s.resolved, &s.diagnostics, &PartsQuery::default())?;
     Ok(DesignView {
         project: info_of(ws, &s),
         tree: views::tree(d),
@@ -99,6 +101,7 @@ pub fn design_view(ws: &Workspace) -> Result<DesignView> {
         cases: views::cases(d),
         maneuvers: maneuvers::maneuvers(d),
         phases: phases::phases(d),
+        configurations: configurations::configurations(d),
         stations: ground::stations(d),
         requirements: requirements::requirements(d),
         sources: sources::sources(d),
@@ -140,14 +143,25 @@ pub fn maneuvers(ws: &Workspace) -> Result<Vec<crate::dto::ManeuverView>> {
 /// 部品の一覧（`GET /parts`）。
 pub fn list_parts(ws: &Workspace, q: &PartsQuery) -> Result<Vec<PartRow>> {
     let s = ws.snapshot()?;
-    Ok(parts::list(&s.design, &s.resolved, &s.diagnostics, q))
+    parts::list(&s.design, &s.resolved, &s.diagnostics, q)
+}
+
+/// 形態の一覧（`GET /configurations`・`fune configuration ls|show`）。
+pub fn configurations(ws: &Workspace) -> Result<Vec<crate::dto::ConfigurationView>> {
+    Ok(configurations::configurations(&ws.snapshot()?.design))
 }
 
 /// 1 部品の全情報（`GET /parts/{id}`・`fune part show`）。`req.ops` があれば、それを書き込まずに当てた設計で表示する
 /// （`POST /parts/{id}`・`fune part show --ops`。同じ編集で定義を作る属性のパスも `paths` に入る）。
 pub fn part_view(ws: &Workspace, id: &str, req: &PartViewRequest) -> Result<PartView> {
     let s = crate::preview::snapshot_with(ws, &req.ops)?;
-    parts::view(&s.design, &s.resolved, &s.diagnostics, id)
+    parts::view(
+        &s.design,
+        &s.resolved,
+        &s.diagnostics,
+        id,
+        req.configuration.as_deref(),
+    )
 }
 
 /// 1 つの値（`GET /values/{path}`）。
