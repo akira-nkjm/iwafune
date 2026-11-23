@@ -121,7 +121,8 @@ jobs:
   # Build the fune binary with the embedded SPA, start it on the demo data and check that the API responds.
   # Only on pushes to main and develop: the release build is the slowest step, and every merge still runs it.
   bundle:
-    needs: [rust, web]
+    # Runs alongside the rust job (it only needs the web build), so a push does not wait for the tests before the release build starts.
+    needs: [web]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
