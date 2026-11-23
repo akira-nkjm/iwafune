@@ -66,3 +66,8 @@ debug = "line-tables-only"
 
 [profile.dev.package."*"]
 debug = false
+
+# 配るバイナリ（リリースビルド）。クレートをまたいで最適化し、1 つの単位でコード生成する（ビルドは遅くなるが、バイナリが小さくなり、実行も少し速くなる）
+[profile.release]
+lto = "thin"
+codegen-units = 1
