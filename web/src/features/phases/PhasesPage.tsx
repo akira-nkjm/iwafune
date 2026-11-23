@@ -154,14 +154,17 @@ function PhaseRow({
       <Td mono>{p.position}</Td>
       <Td mono>{p.id}</Td>
       <Td>{p.label}</Td>
-      <Td className="text-ink-2">{p.start ?? "—"}</Td>
-      <Td className="text-ink-2">{p.end ?? "—"}</Td>
+      {/* 長くなる欄（条件・モード・上書き）は折り返す。折り返さないと表が横にはみ出し、右端の編集と削除が隠れる */}
+      <Td className="max-w-56 whitespace-normal text-ink-2">{p.start ?? "—"}</Td>
+      <Td className="max-w-56 whitespace-normal text-ink-2">{p.end ?? "—"}</Td>
       <Td mono>{p.duration?.display ?? "—"}</Td>
-      <Td mono>{p.modes.length > 0 ? p.modes.join(" ") : "—"}</Td>
-      <Td>
+      <Td mono className="max-w-48 whitespace-normal">
+        {p.modes.length > 0 ? p.modes.join(" ") : "—"}
+      </Td>
+      <Td className="min-w-48 max-w-80 whitespace-normal">
         <Overrides p={p} onEdit={() => onOpen({ kind: "overrides", id: p.id })} />
       </Td>
-      <Td mono className="text-ink-3">
+      <Td mono className="max-w-48 whitespace-normal text-ink-3">
         {p.cases.length > 0 ? p.cases.join(" ") : "—"}
       </Td>
       <Td mono className="text-ink-4">
