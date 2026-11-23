@@ -82,7 +82,12 @@ fn span_view(f: SpanFallback, at: String, scope: Option<String>) -> CheckView {
         key: "span".to_owned(),
         label: label.label,
         label_en: Some(label.label_en),
-        verdict: Verdict::Warning,
+        // 1 回限りの軌道は、期間が足りないのではなく周回が無いだけ（説明であって注意ではない）
+        verdict: if f == SpanFallback::OneOffSpan {
+            Verdict::Ok
+        } else {
+            Verdict::Warning
+        },
         message: message.label,
         message_en: Some(message.label_en),
         at,
@@ -170,6 +175,23 @@ mod tests {
                 .is_some_and(|m| m.contains("whole span"))
         );
         assert!(collect_checks(Some(&json!({"span_fallback": null}))).is_empty());
+    }
+
+    /// 1 回限りの軌道（周回が無い）の注意は、期間不足の警告ではなく説明（ok）で、日本語と英語の文がある。
+    #[test]
+    fn one_off_span_is_an_ok_note_in_both_languages() {
+        let output = json!({"span_fallback": "one_off_span", "checks": []});
+        let checks = collect_checks(Some(&output));
+        assert_eq!(checks.len(), 1);
+        let c = &checks[0];
+        assert_eq!((c.key.as_str(), c.at.as_str()), ("span", "/span_fallback"));
+        assert_eq!(c.verdict, sat_analysis::spec::Verdict::Ok);
+        assert!(c.message.contains("1 回限り"));
+        assert!(
+            c.message_en
+                .as_deref()
+                .is_some_and(|m| m.contains("one-off arc"))
+        );
     }
 
     /// MTQ を評価できなかった理由は、解析の判定に依らず語彙の日本語と英語で判定にする。判定は解析が決める

@@ -29,7 +29,6 @@ use sat_analysis::comm::link_budget::{LinkBudgetDirection, LinkBudgetLink};
 use sat_analysis::comm::{LinkBudgetInput, RfLinkParams, VisibilityInput};
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
-use sat_astro::orbit::Trajectory;
 use sat_units::typed::{DataRate, Decibel, Frequency, Length, Power, Qty, Temperature, Time};
 
 fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a CommSettings> {
@@ -52,10 +51,11 @@ pub fn link_budget(ctx: &Context<'_>) -> Result<LinkBudgetInput, MissingInputs> 
     let mut m = MissingInputs::new();
     let s = settings(ctx, &mut m);
     let stations = ctx.stations(s.map(|s| s.stations.as_slice()).unwrap_or(&[]), &mut m);
-    let orbit = ctx.orbit(&mut m);
+    let orbit = ctx.trajectory(&mut m);
+    // 高度は（要素の軌道の）長半径 − 中心天体の半径。1 回限りの軌道（巡航）も、中身の二体の軌道の長半径から
     let height = orbit
         .as_ref()
-        .map(|o| (Qty::from_raw(o.altitude_m()), o.central));
+        .and_then(|o| Some((Qty::from_raw(o.altitude_m()?), o.central())));
     let mut links = Vec::new();
     if let Some(s) = s {
         if s.links.is_empty() {
@@ -70,13 +70,13 @@ pub fn link_budget(ctx: &Context<'_>) -> Result<LinkBudgetInput, MissingInputs> 
         }
     }
     // 中心天体が地球でないときだけ、地球から衛星までの距離を求めるための軌道と期間（ミッション期間）を渡す。
-    let far = orbit.filter(|o| o.central != CentralBody::Earth);
+    let far = orbit.filter(|o| o.central() != CentralBody::Earth);
     let duration = far.as_ref().and_then(|_| mission_duration(ctx));
     m.finish(|| {
         Some(LinkBudgetInput {
             links,
             required_margin_db: None,
-            orbit: far.map(Trajectory::Elements),
+            orbit: far,
             duration,
         })
     })

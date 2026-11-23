@@ -293,6 +293,7 @@ export type * from "./OrbitPropagatorKind";
 export type * from "./OrbitSampling";
 export type * from "./OrbitSegment";
 export type * from "./OrbitSettings";
+export type * from "./OrbitSource";
 export type * from "./OrbitSpec";
 export type * from "./OrbitTarget";
 export type * from "./OverviewBar";

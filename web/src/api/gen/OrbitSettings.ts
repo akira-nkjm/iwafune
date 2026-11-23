@@ -3,12 +3,22 @@ import type { CentralBodyKind } from "./CentralBodyKind";
 import type { EclipseSeasonSettings } from "./EclipseSeasonSettings";
 import type { OrbitDecaySettings } from "./OrbitDecaySettings";
 import type { OrbitPropagatorKind } from "./OrbitPropagatorKind";
+import type { OrbitSource } from "./OrbitSource";
 import type { Quantity } from "./Quantity";
 
 /**
  * 軌道（`conditions/orbit.toml`）。円軌道は `altitude`、一般の軌道は `semi_major_axis` 以下の要素で書く。
  */
 export type OrbitSettings = { label?: string | null, 
+/**
+ * 軌道の出どころ（省略時は `elements`。`elements` は書かない）
+ */
+source?: OrbitSource | null, 
+/**
+ * `source = "transfer"` の巡航の軌道を取るマヌーバ（`maneuvers/<ID>.toml`。日付つきの `[transfer]` を持つもの）。
+ * 元期は出発の日、中心は共通の親、期間は飛行時間
+ */
+maneuver?: string | null, 
 /**
  * 元期（ISO 8601、UTC。例: `"2027-04-01T00:00:00Z"`）
  */

@@ -253,6 +253,8 @@ fn rename_at(
         | RefSite::CatalogItemDatasheet { .. }
         | RefSite::RequirementSource { .. }
         | RefSite::ManeuverAfter { .. }
+        | RefSite::OrbitManeuver
+        | RefSite::PhaseOrbitManeuver { .. }
         | RefSite::CommDataDownlink
         | RefSite::RequirementCheck { .. } => records::rename_record_at(edits, design, site, names),
     }

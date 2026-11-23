@@ -141,3 +141,45 @@ fn malformed_elements_report_the_underlying_error() {
         .to_string();
     assert!(e.contains("missing field"), "{e}");
 }
+
+/// 期間を持たせると繰り返しは 1 回限りになるが、位置・速度・中心天体・元期は変わらない。要素の入口（`elements`）は閉じる。
+#[test]
+fn a_span_makes_the_cycle_one_off_without_changing_the_motion() {
+    for o in cases() {
+        let plain = Trajectory::Elements(o.clone());
+        let spanned = plain.clone().with_span(86_400.0);
+        assert_eq!(spanned.cycle(), Cycle::OneOff { span_s: 86_400.0 });
+        assert_eq!(spanned.span_s(), Some(86_400.0));
+        assert_eq!(plain.span_s(), None);
+        assert!(spanned.elements().is_none());
+        assert_eq!(spanned.epoch(), o.epoch);
+        assert_eq!(spanned.central(), o.central);
+        let times = [0.0, 100.0, 5_000.0];
+        assert_eq!(
+            spanned.states_at(&times).unwrap(),
+            plain.states_at(&times).unwrap()
+        );
+        // 期間は置き換わる（入れ子にならない）
+        assert_eq!(spanned.with_span(10.0).span_s(), Some(10.0));
+    }
+}
+
+/// 期間を持つ軌道は `span_s` を足した形で書け、読み戻すと同じ。期間の無い軌道の書き出しには `span_s` が出ない。
+#[test]
+fn a_span_round_trips_and_a_plain_orbit_never_writes_it() {
+    let o = spec(CentralBody::Sun, 1.0e10, Propagator::Kepler);
+    let plain = serde_json::to_value(Trajectory::Elements(o.clone())).unwrap();
+    assert!(plain.get("span_s").is_none());
+    let spanned = Trajectory::Elements(o).with_span(2.5e7);
+    let v = serde_json::to_value(&spanned).unwrap();
+    assert_eq!(v["span_s"], 2.5e7);
+    let back: Trajectory = serde_json::from_value(v.clone()).unwrap();
+    assert_eq!(back.cycle(), Cycle::OneOff { span_s: 2.5e7 });
+    assert_eq!(serde_json::to_value(&back).unwrap(), v);
+    let bad = serde_json::from_value::<Trajectory>(serde_json::json!({
+        "span_s": "long", "epoch": "2027-04-01T00:00:00Z"
+    }))
+    .unwrap_err()
+    .to_string();
+    assert!(bad.contains("span_s"), "{bad}");
+}

@@ -33,6 +33,7 @@ const LABELLED: &[(&str, &[&str])] = &[
         fune_model::design::ThermalPresetKind::NAMES,
     ),
     ("propagator", PropagatorKind::NAMES),
+    ("orbit_source", fune_model::design::OrbitSource::NAMES),
     ("link_direction", LinkDirection::NAMES),
     ("uncertainty_side", UncertaintySide::NAMES),
     ("value_type", ValueType::NAMES),

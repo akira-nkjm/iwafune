@@ -285,6 +285,11 @@ pub fn assembly_dir(design: &Design, id: &str) -> Option<String> {
     part_file(design, id).map(|f| f.trim_end_matches(".toml").to_string())
 }
 
+/// 軌道のファイル（`conditions/orbit.toml`）。
+pub fn orbit_file() -> String {
+    format!("{CONDITIONS_DIR}/orbit.toml")
+}
+
 /// 打ち上げ条件のファイル（`conditions/launch.toml`）。
 pub fn launch_file() -> String {
     format!("{CONDITIONS_DIR}/launch.toml")

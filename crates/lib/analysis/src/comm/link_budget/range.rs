@@ -1,13 +1,14 @@
 //! 回線バジェットの距離（距離のモデルの選択はここだけ）。
 //! - 地球を回る衛星: 局から見た斜距離（`sat_astro::ground::slant_range_m`）。最大は最低仰角、最小は天頂（= 高度）。
 //! - 月・惑星・太陽を回る衛星: 地球から衛星までの距離（`sat_astro::ground::earth_range`、地心で近似）の、期間中の最小と最大。
+//!   期間はミッション期間（無ければ [`DEFAULT_RANGE_SPAN`]）、1 回限りの軌道（惑星間の巡航）はその期間（飛行時間）。
 
 use super::LinkBudgetLink;
 use crate::spec::{AnalysisError, orbit_step_s};
 use sat_astro::constants::{C_LIGHT, SECONDS_PER_DAY};
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::{EarthRange, earth_range, slant_range_m};
-use sat_astro::orbit::Trajectory;
+use sat_astro::orbit::{Cycle, Trajectory};
 use sat_astro::time::Epoch;
 use sat_units::typed::{Length, Qty, Time};
 use serde::{Deserialize, Serialize};
@@ -72,7 +73,11 @@ pub(super) fn deep_space_range(
                 .to_owned(),
         )
     })?;
-    let span = duration.unwrap_or(DEFAULT_RANGE_SPAN).value();
+    // 1 回限りの軌道（惑星間の巡航など）は、その期間（飛行時間）の距離を見る。ミッション期間は軌道の外まで含むので使わない。
+    let span = match orbit.cycle() {
+        Cycle::OneOff { span_s } => span_s,
+        Cycle::Periodic { .. } => duration.unwrap_or(DEFAULT_RANGE_SPAN).value(),
+    };
     if !(span > 0.0 && span.is_finite()) {
         return Err(AnalysisError::InvalidInput(
             "The evaluation span of the distance must be positive".to_owned(),

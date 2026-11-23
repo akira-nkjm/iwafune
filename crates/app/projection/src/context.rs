@@ -1,6 +1,9 @@
 //! 解析ケースの文脈: 設計・解決済みの値・ケースと、どの解析でも使う入力（軌道・地上局・姿勢則・モード）の組み立て。
 
 mod orbit;
+mod orbit_source;
+
+pub use crate::orbit_central::central_body;
 
 use crate::missing::MissingInputs;
 use crate::quantity::{setting, setting_opt};
@@ -8,7 +11,7 @@ use crate::reads::ReadLog;
 use fune_model::Target;
 use fune_model::design::setting_dims as dims;
 use fune_model::design::{AnalysisSystem, AttitudeLawKind, AttitudeLawSetting, Case, Design, Mode};
-use fune_model::design::{BudgetKind, CentralBodyKind, Criterion};
+use fune_model::design::{BudgetKind, Criterion};
 use fune_model::path::SettingPath;
 use fune_model::resolve::Resolved;
 use fune_model::value::{Quaternion, Vector3};
@@ -16,27 +19,10 @@ use sat_analysis::modes::{ModeDef, StateAssignment};
 use sat_astro::attitude::{
     AttitudeLaw, DEFAULT_INERTIAL_ORIENTATION, DEFAULT_PRIMARY_AXIS, DEFAULT_SECONDARY_AXIS,
 };
-use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
 use sat_astro::math::{Quat, Vec3};
 use sat_units::typed::{Qty, Time};
 use std::collections::BTreeMap;
-
-/// 設計の中心天体 → sat-astro の中心天体（μ・半径・暦・環境の値は sat-astro と解析が持つ）。
-pub fn central_body(c: CentralBodyKind) -> CentralBody {
-    match c {
-        CentralBodyKind::Earth => CentralBody::Earth,
-        CentralBodyKind::Moon => CentralBody::Moon,
-        CentralBodyKind::Sun => CentralBody::Sun,
-        CentralBodyKind::Mercury => CentralBody::Mercury,
-        CentralBodyKind::Venus => CentralBody::Venus,
-        CentralBodyKind::Mars => CentralBody::Mars,
-        CentralBodyKind::Jupiter => CentralBody::Jupiter,
-        CentralBodyKind::Saturn => CentralBody::Saturn,
-        CentralBodyKind::Uranus => CentralBody::Uranus,
-        CentralBodyKind::Neptune => CentralBody::Neptune,
-    }
-}
 
 /// 射影の文脈。部品の属性・設定・モード・ケースの読み出しは、読んだものを記録できるよう文脈の入口（部品の属性は
 /// `parts` の `Context::attr`・`scalar`・`vec3`、設定は `setting`、ほかは `orbit`・`modes` など。記録は `note`）を通す。
@@ -323,19 +309,5 @@ pub fn mode_def(mode: &Mode) -> ModeDef {
         label: mode.label.clone().unwrap_or_else(|| mode.id.to_string()),
         assignments: assignments(&mode.states),
         eclipse: assignments(&mode.eclipse),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// 中心天体の綴り（fune-model）と sat-astro の綴りが一致する。
-    #[test]
-    fn central_body_spellings_match_sat_astro() {
-        for &kind in CentralBodyKind::ALL {
-            let model = serde_json::to_value(kind).unwrap();
-            assert_eq!(model, serde_json::to_value(central_body(kind)).unwrap());
-        }
     }
 }

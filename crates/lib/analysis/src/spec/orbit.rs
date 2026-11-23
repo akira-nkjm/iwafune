@@ -135,12 +135,29 @@ pub enum SpanFallback {
     OrbitMeanOverSpan,
     /// 1 周あたりの永年成分を全期間から外挿した
     SecularExtrapolated,
+    /// 軌道が 1 回限りの期間（[`Cycle::OneOff`]。惑星間の巡航など）で、周回平均・周回あたりの量を期間全体で求めた
+    /// （期間が 1 周に満たないのではなく、周回が無い。[`span_note`]）
+    OneOffSpan,
 }
 
 /// 解析期間が 1 周に満たない（`complete_orbits == 0`）ときの代わりの集計。回り切った周回があれば `None`。
 /// **期間不足の扱いはこれを使う**（出力の `span_fallback`）。
 pub fn span_fallback(complete_orbits: usize, fallback: SpanFallback) -> Option<SpanFallback> {
     (complete_orbits == 0).then_some(fallback)
+}
+
+/// 出力の `span_fallback` に入れる注意: 軌道が 1 回限りの期間（[`Cycle::OneOff`]）なら、周回が無く期間全体で数えたこと
+/// （[`SpanFallback::OneOffSpan`]）、周期的な軌道なら [`span_fallback`]（1 周に満たないときだけ）。
+/// 周期的な軌道の出力は変わらない。**周回の集計の注意を出力に付けるのはこれを使う。**
+pub fn span_note(
+    cycle: Cycle,
+    complete_orbits: usize,
+    fallback: SpanFallback,
+) -> Option<SpanFallback> {
+    match cycle {
+        Cycle::OneOff { .. } => Some(SpanFallback::OneOffSpan),
+        Cycle::Periodic { .. } => span_fallback(complete_orbits, fallback),
+    }
 }
 
 #[cfg(test)]
