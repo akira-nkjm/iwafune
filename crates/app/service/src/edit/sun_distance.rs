@@ -45,6 +45,7 @@ fn case_op(req: &CaseFromSunDistanceRequest, point: &SunDistancePoint, au: f64) 
             label: None,
             description: Some(format!("{at} / {}", point.epoch.to_iso())),
             mode: req.mode.as_deref().map(Into::into),
+            phase: None,
             side: None,
             thermal_case: None,
             beta: None,

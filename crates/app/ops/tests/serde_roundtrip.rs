@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 
 #[path = "serde_roundtrip/samples.rs"]
 mod samples;
-use samples::{maneuver, net, requirement};
+use samples::{maneuver, net, phase, requirement};
 
 /// 種類の名前（ワイルドカードを使わない。種類が増えたら見本を足す）。
 fn name(op: &Op) -> &'static str {
@@ -74,6 +74,15 @@ fn name(op: &Op) -> &'static str {
         Op::CreateGroundStation { .. } => "CreateGroundStation",
         Op::RemoveGroundStation { .. } => "RemoveGroundStation",
         Op::RenameGroundStation { .. } => "RenameGroundStation",
+        Op::CreatePhase { .. } => "CreatePhase",
+        Op::SetPhase { .. } => "SetPhase",
+        Op::RemovePhase { .. } => "RemovePhase",
+        Op::RenamePhase { .. } => "RenamePhase",
+        Op::SetPhaseField { .. } => "SetPhaseField",
+        Op::CopyPhaseOrbit { .. } => "CopyPhaseOrbit",
+        Op::UnsetPhaseOrbit { .. } => "UnsetPhaseOrbit",
+        Op::UnsetPhaseLaw { .. } => "UnsetPhaseLaw",
+        Op::SetCasePhase { .. } => "SetCasePhase",
         Op::RenameNet { .. } => "RenameNet",
         Op::RenameHarness { .. } => "RenameHarness",
         Op::RenameCase { .. } => "RenameCase",
@@ -258,6 +267,7 @@ fn other_ops() -> Vec<Op> {
         label: Some("打ち上げ当日".into()),
         description: None,
         mode: Some(Id::new("SAFE")),
+        phase: Some(Id::new("LEOP")),
         side: Some(UncertaintySide::Max),
         thermal_case: Some("cold".into()),
         beta: Some(Quantity::new(20.0, "deg")),
@@ -410,6 +420,32 @@ fn other_ops() -> Vec<Op> {
             id: "SVALBARD".into(),
             to: "SVALBARD2".into(),
         },
+        Op::CreatePhase { phase: phase() },
+        Op::SetPhase { phase: phase() },
+        Op::RemovePhase { id: "LEOP".into() },
+        Op::RenamePhase {
+            id: "LEOP".into(),
+            to: "COMMISSIONING".into(),
+        },
+        Op::SetPhaseField {
+            phase: "LEOP".into(),
+            path: "orbit.altitude".into(),
+            value: Some(SettingValue::Quantity(Quantity::new(450.0, "km"))),
+        },
+        Op::CopyPhaseOrbit {
+            phase: "LEOP".into(),
+        },
+        Op::UnsetPhaseOrbit {
+            phase: "LEOP".into(),
+        },
+        Op::UnsetPhaseLaw {
+            phase: "LEOP".into(),
+            mode: "NOMINAL".into(),
+        },
+        Op::SetCasePhase {
+            case: "eclipse_worst".into(),
+            phase: None,
+        },
         Op::RenameNet {
             id: "P5V".into(),
             to: "P5V_MAIN".into(),
@@ -508,7 +544,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 72, "some op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 81, "some op kinds have no sample: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =

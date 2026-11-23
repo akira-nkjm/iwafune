@@ -15,6 +15,7 @@ export default [
     route("systems/:system/:tab?", "routes/system.tsx"),
     route("conditions/orbit", "routes/conditions-orbit.tsx"),
     route("conditions/cases", "routes/conditions-cases.tsx"),
+    route("conditions/phases", "routes/conditions-phases.tsx"),
     route("project/diagnostics", "routes/diagnostics.tsx"),
     route("project/settings", "routes/settings.tsx"),
     route("project/sources", "routes/sources.tsx"),

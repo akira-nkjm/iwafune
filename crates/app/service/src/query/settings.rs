@@ -87,7 +87,7 @@ fn number(x: f64) -> QuantityView {
     }
 }
 
-fn value_data(v: &SettingValue) -> ValueData {
+pub(crate) fn value_data(v: &SettingValue) -> ValueData {
     let scalar = |nominal| ValueData::Scalar {
         nominal,
         min: None,

@@ -4,7 +4,7 @@ This document describes how the code is put together today.
 The shape of the design data and the file format are in [model.md](model.md), where each feature lives is in [architecture/registry.md](architecture/registry.md) (the registry),
 the development rules are in [CONTRIBUTING.md](../CONTRIBUTING.md), and upcoming features are in [roadmap.md](roadmap.md) and GitHub Issues.
 
-Conditions (orbit, ground stations, launch conditions) are in `conditions/`. `mission/` is a directory reserved for the future #9 and is not read at present.
+Conditions (orbit, ground stations, launch conditions) are in `conditions/`. `mission/` is a directory reserved for the future #9 (mission and success criteria) and is not read at present; phases are in `phases/` ([model.md §7.10](model.md#710-phases-one-file-per-mission-phase)).
 An analysis belongs to `sat_analysis::spec::AnalysisArea` (either a subsystem, `System`, or a condition topic, `Condition`).
 The settings of a topic are placed inside the condition's file, and the concrete types will be added in #3 ([model.md §1.1](model.md#11-conditions-and-analysis-categories)).
 The CLI, API and web use the same classification, and KPIs are shown per subsystem or topic. The web hides the KPIs of conditions when they are empty.

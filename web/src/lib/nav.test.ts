@@ -67,6 +67,18 @@ describe("paths", () => {
     expect(navItemTitle(layout, en)).toBe("Layout");
   });
 
+  it("フェーズは前提条件の下のページで、日英の表示名とルートを持つ", () => {
+    const conditions = nav(fixture.defs.systems).find((s) => s.id === "conditions")?.items ?? [];
+    const item = conditions.find((i) => i.key === "phases");
+    expect(item?.to).toBe(paths.phases());
+    expect(paths.phases()).toBe("/conditions/phases");
+    expect(paths.phase("a b")).toBe("/conditions/phases?phase=a+b");
+    expect(matches(paths.phase("a b"))).toBe(true);
+    if (!item) throw new Error("missing phases nav item");
+    expect(navItemTitle(item, ja)).toBe("フェーズ");
+    expect(navItemTitle(item, en)).toBe("Phases");
+  });
+
   it("単位と定義はプロジェクトの設定の下にある", () => {
     const sections = nav(fixture.defs.systems);
     const design = sections.find((s) => s.id === "design")?.items ?? [];

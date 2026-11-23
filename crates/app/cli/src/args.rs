@@ -4,6 +4,7 @@ mod defs;
 mod ground;
 mod links;
 mod nouns;
+mod phases;
 mod records;
 mod report;
 mod requirements;
@@ -16,6 +17,7 @@ pub use nouns::{
     ModeCmd, ModeViewOpts, NetArgs, NetCmd, NetSetArgs, PartCmd, PlaceArgs, SequenceCmd, SetArgs,
     SettingCmd, ViewCmd,
 };
+pub use phases::{PhaseArgs, PhaseCmd};
 pub use records::{
     CaseArgs, CaseCmd, CatalogCmd, CatalogSourceCmd, HarnessArgs, HarnessCmd, ManeuverArgs,
     ManeuverCmd, PointArgs, SourceArgs, SourceCmd,
@@ -159,6 +161,9 @@ pub enum Command {
     /// Maneuvers (maneuvers/)
     #[command(subcommand)]
     Maneuver(ManeuverCmd),
+    /// Mission phases (phases/)
+    #[command(subcommand)]
+    Phase(PhaseCmd),
     /// Ground stations (conditions/ground/)
     #[command(subcommand)]
     Ground(GroundCmd),

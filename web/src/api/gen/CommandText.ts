@@ -9,6 +9,7 @@ import type { ManeuverText } from "./ManeuverText";
 import type { ModeSetText } from "./ModeSetText";
 import type { NetSetText } from "./NetSetText";
 import type { NetUnsetText } from "./NetUnsetText";
+import type { PhaseText } from "./PhaseText";
 import type { PlaceText } from "./PlaceText";
 import type { ProjectSetText } from "./ProjectSetText";
 import type { RequirementText } from "./RequirementText";
@@ -21,4 +22,4 @@ export type CommandText = { "command": "net_set" } & NetSetText | { "command": "
 /**
  * `モード=長さ` のカンマ区切り（`--duty` と同じ書き方）
  */
-segments: string, anchor: string | null, offset: string | null, } | { "command": "sequence_remove", name: string, } | { "command": "attr_add" } & AttrAddText | { "command": "kind_add" } & KindAddText | { "command": "attr_replace" } & AttrAddText | { "command": "kind_replace" } & KindAddText | { "command": "maneuver_add" } & ManeuverText | { "command": "maneuver_set" } & ManeuverText | { "command": "ground_add" } & GroundAddText | { "command": "requirement_add" } & RequirementText | { "command": "requirement_set" } & RequirementText | { "command": "catalog_source_add" } & CatalogSourceAddText | { "command": "catalog_local_add" } & CatalogLocalAddText | { "command": "link_add" } & LinkAddText | { "command": "project_set" } & ProjectSetText;
+segments: string, anchor: string | null, offset: string | null, } | { "command": "sequence_remove", name: string, } | { "command": "attr_add" } & AttrAddText | { "command": "kind_add" } & KindAddText | { "command": "attr_replace" } & AttrAddText | { "command": "kind_replace" } & KindAddText | { "command": "maneuver_add" } & ManeuverText | { "command": "maneuver_set" } & ManeuverText | { "command": "phase_add" } & PhaseText | { "command": "phase_set" } & PhaseText | { "command": "phase_field", phase: string, path: string, value: string | null, } | { "command": "phase_copy_orbit", phase: string, } | { "command": "phase_unset_orbit", phase: string, } | { "command": "phase_unset_law", phase: string, mode: string, } | { "command": "case_phase", case: string, phase: string | null, } | { "command": "ground_add" } & GroundAddText | { "command": "requirement_add" } & RequirementText | { "command": "requirement_set" } & RequirementText | { "command": "catalog_source_add" } & CatalogSourceAddText | { "command": "catalog_local_add" } & CatalogLocalAddText | { "command": "link_add" } & LinkAddText | { "command": "project_set" } & ProjectSetText;

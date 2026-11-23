@@ -5,3 +5,4 @@ side         = "max"
 beta         = { value = 0.0, unit = "deg" }
 orbits       = 15
 thermal_case = "cold"
+phase        = "NOMINAL_OPS"

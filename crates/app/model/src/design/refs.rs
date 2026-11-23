@@ -8,7 +8,8 @@
 //! |---|---|
 //! | 部品 | モードの `[states]` と `[eclipse]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part` / `antenna`・`analysis/thermal.toml` の `[nodes]` と `[surface]` と `[heat_node]` のキー・図の `[nodes]` のキー・マヌーバの `thruster` |
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
-//! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode` |
+//! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode`・フェーズの `modes` と `[law]` のキー |
+//! | フェーズ | ケースの `phase` |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets`・図の `[nodes]` のキー |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire` |
 //! | カタログ（`[[catalog]]` の名前。出所を外すのを拒むためだけ。書き換えはしない） | 部品の `catalog`・`candidates`・ハーネスの `wire` のうち `<名前>/…` のもの |
@@ -34,6 +35,8 @@ pub enum Referent<'a> {
     Part(&'a str),
     Group(&'a str),
     Mode(&'a str),
+    /// フェーズの ID（`phases/<ID>.toml`）
+    Phase(&'a str),
     Net(&'a str),
     /// カタログ品の参照（`"local/rw_10mNms"`）
     Catalog(&'a str),
@@ -136,6 +139,12 @@ pub enum RefSite {
     ManeuverThruster { maneuver: String },
     /// マヌーバの噴射するモード（`[constraints].mode`）
     ManeuverMode { maneuver: String },
+    /// 解析ケースのフェーズ（`cases/<ケース>.toml` の `phase`）
+    CasePhase { case: String },
+    /// フェーズが使うモード（`phases/<フェーズ>.toml` の `modes`）
+    PhaseMode { phase: String },
+    /// フェーズの姿勢則のキー（`phases/<フェーズ>.toml` の `[law]`）
+    PhaseLaw { phase: String },
     /// 通信の解析が使う地上局（`analysis/comm.toml` の `stations`）
     CommStation,
     /// 要求の判定のキーが名指す地上局（`requirements/<要求>.toml` の `[verify].check` の `@<局>`。キーが構造を持つまでの
@@ -183,6 +192,7 @@ impl Design {
             Referent::Part(id) => self.part_refs(id),
             Referent::Group(id) => self.group_refs(id),
             Referent::Mode(id) => self.mode_refs(id),
+            Referent::Phase(id) => self.phase_refs(id),
             Referent::Net(id) => self.net_refs(id),
             Referent::Catalog(reference) => self.catalog_refs(|r| r == reference),
             Referent::CatalogSource(name) => {
@@ -364,7 +374,30 @@ impl Design {
                     maneuver: m.id.to_string(),
                 }),
         );
+        for p in self.phases.values() {
+            if p.modes.iter().any(|m| m.as_str() == id) {
+                out.push(RefSite::PhaseMode {
+                    phase: p.id.to_string(),
+                });
+            }
+            if p.law.contains_key(id) {
+                out.push(RefSite::PhaseLaw {
+                    phase: p.id.to_string(),
+                });
+            }
+        }
         out
+    }
+
+    /// フェーズを指しているケース。
+    fn phase_refs(&self, id: &str) -> Vec<RefSite> {
+        self.cases
+            .values()
+            .filter(|c| c.phase.as_ref().is_some_and(|p| p.as_str() == id))
+            .map(|c| RefSite::CasePhase {
+                case: c.id.to_string(),
+            })
+            .collect()
     }
 
     fn net_refs(&self, id: &str) -> Vec<RefSite> {

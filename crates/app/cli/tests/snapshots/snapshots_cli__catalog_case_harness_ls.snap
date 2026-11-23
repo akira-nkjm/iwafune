@@ -20,11 +20,11 @@ expression: text
  local/tj_module_5   power       solar_panel      Triple-junction cell module (5 cells of 30 cm²)       TJ-30-M5            8 
  local/uhf_trx_9k6   comm        transceiver      UHF transceiver, 9600 bps (antenna included)          UTRX-96            14 
 
- ID              Name                          Modes     File                     
-──────────────────────────────────────────────────────────────────────────────────
- cold_safe       Cold (safe mode)              SAFE      cases/cold_safe.toml     
- eclipse_worst   Worst-case eclipse (β = 0°)   NOMINAL   cases/eclipse_worst.toml 
- hot_imaging     Hot (imaging)                 MISSION   cases/hot_imaging.toml   
+ ID              Name                          Modes     Phase         File                     
+────────────────────────────────────────────────────────────────────────────────────────────────
+ cold_safe       Cold (safe mode)              SAFE      NOMINAL_OPS   cases/cold_safe.toml     
+ eclipse_worst   Worst-case eclipse (β = 0°)   NOMINAL   NOMINAL_OPS   cases/eclipse_worst.toml 
+ hot_imaging     Hot (imaging)                 MISSION   NOMINAL_OPS   cases/hot_imaging.toml   
 
  ID           From        To         Nets     Length  
 ──────────────────────────────────────────────────────

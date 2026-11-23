@@ -2,7 +2,7 @@
 //!
 //! | モジュール | パス |
 //! |---|---|
-//! | `design` | `/project` `/design` `/system_modes/{system}`（POST） `/maneuvers` `/requirements` `/requirements/compliance` `/parts` `/parts/{id}`（POST は下書きを当てた部品） `/values/{path}` `/defs` `/diagnostics` |
+//! | `design` | `/project` `/design` `/system_modes/{system}`（POST） `/maneuvers` `/phases` `/requirements` `/requirements/compliance` `/parts` `/parts/{id}`（POST は下書きを当てた部品） `/values/{path}` `/defs` `/diagnostics` |
 //! | `edit` | `/ops` `/ops/from_text` `/ops/unset_from_text` `/ops/from_command` `/ops/case_from_eclipse` `/ops/case_from_sun_distance` `/parts/{id}/place_body` `/fmt` |
 //! | `history` | `/history` `/undo` `/redo` |
 //! | `units` | `/units` `/units/parse` `/units/format` |
@@ -52,6 +52,7 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
         .route("/design", get(design::design))
         .route("/system_modes/{system}", post(design::system_modes))
         .route("/maneuvers", get(design::maneuvers))
+        .route("/phases", get(design::phases))
         .route("/requirements", get(design::requirements))
         .route("/requirements/compliance", get(design::compliance))
         .route("/parts", get(design::parts))

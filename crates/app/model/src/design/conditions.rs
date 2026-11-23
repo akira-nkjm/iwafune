@@ -233,3 +233,16 @@ impl ConditionTopic {
         }
     }
 }
+
+impl OrbitSettings {
+    /// 欄の名前 → 値の形の見本（文字列で書く欄だけ。数値に見える文字列も文字列として読むための型で、既定値ではない。
+    /// フェーズの `[orbit]` の欄を文字列から読むとき（`fune phase set-field`）に使う）。
+    pub fn field_shape(key: &str) -> Option<crate::value::SettingValue> {
+        match key {
+            "label" | "epoch" | "ltdn" | "central" | "propagator" => {
+                Some(crate::value::SettingValue::Text(String::new()))
+            }
+            _ => None,
+        }
+    }
+}

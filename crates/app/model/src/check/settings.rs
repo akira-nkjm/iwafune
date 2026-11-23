@@ -16,12 +16,39 @@ pub(super) struct Scope<'c, 'a> {
     pub entity: EntityKey,
     /// 設定ファイルのパス（`conditions.orbit` など）。キーの列を足して対象にする
     pub prefix: SettingPath,
+    /// フェーズのファイルの中の設定（フェーズの ID と、ファイルの中の置き場所のキー。`phases/LEOP.toml` の `[orbit]` なら
+    /// `("LEOP", ["orbit"])`）。あれば、診断の対象と位置はフェーズのファイルのものにする（`prefix` は表の形の引き当てだけに使う）
+    pub phase: Option<(String, Vec<String>)>,
 }
 
 impl Scope<'_, '_> {
     /// ファイルの中のキーの列 → 設定の対象。
     pub fn path(&self, keys: &[&str]) -> Option<Target> {
-        Some(self.prefix.child(keys).into())
+        Some(match &self.phase {
+            Some((id, base)) => {
+                let all: Vec<&str> = base
+                    .iter()
+                    .map(String::as_str)
+                    .chain(keys.iter().copied())
+                    .collect();
+                Target::phase(id.as_str(), Some(&all.join(".")))
+            }
+            None => self.prefix.child(keys).into(),
+        })
+    }
+
+    /// 設定のキーの列 → 位置を引くファイルの中のキーの列（フェーズなら置き場所のキーを前に足す）。
+    fn file_keys(&self, keys: &[&str]) -> Vec<String> {
+        let base = self.phase.iter().flat_map(|(_, b)| b.iter().cloned());
+        base.chain(keys.iter().map(|k| (*k).to_owned())).collect()
+    }
+
+    /// 診断を足す（位置と対象の組み立てはここだけ）。
+    fn report(&mut self, sev: crate::diagnostic::Severity, code: &str, keys: &[&str], msg: String) {
+        let path = self.path(keys);
+        let file_keys = self.file_keys(keys);
+        let refs: Vec<&str> = file_keys.iter().map(String::as_str).collect();
+        self.ctx.report(sev, code, &self.entity, &refs, path, msg);
     }
 
     /// このファイルの量の葉（ベクトルは成分の単位）の次元を、設定の次元の表と比べる。`entries` は `Design::setting_entries`。
@@ -46,8 +73,7 @@ impl Scope<'_, '_> {
                     .iter()
                     .map(String::as_str)
                     .collect();
-                let target = Some(entry.path.clone().into());
-                self.ctx.report(sev, code, &self.entity, &keys, target, msg);
+                self.report(sev, code, &keys, msg);
             }
         }
     }
@@ -59,13 +85,11 @@ impl Scope<'_, '_> {
     }
 
     pub fn error(&mut self, keys: &[&str], code: &str, message: String) {
-        let path = self.path(keys);
-        self.ctx.error(code, &self.entity, keys, path, message);
+        self.report(crate::diagnostic::Severity::Error, code, keys, message);
     }
 
     pub fn warning(&mut self, keys: &[&str], code: &str, message: String) {
-        let path = self.path(keys);
-        self.ctx.warning(code, &self.entity, keys, path, message);
+        self.report(crate::diagnostic::Severity::Warning, code, keys, message);
     }
 
     pub fn reference(&mut self, keys: &[&str], exists: bool, code: &str, what: String) {
@@ -81,6 +105,17 @@ pub(super) fn scope<'c, 'a>(ctx: &'c mut Ctx<'a>, prefix: SettingPath) -> Scope<
         ctx,
         entity: EntityKey::Setting(prefix.clone()),
         prefix,
+        phase: None,
+    }
+}
+
+/// フェーズのファイルの中の軌道（`[orbit]`）の検査の窓口。診断の対象と位置はフェーズのファイルのもの。
+pub(super) fn phase_orbit_scope<'c, 'a>(ctx: &'c mut Ctx<'a>, phase: &str) -> Scope<'c, 'a> {
+    Scope {
+        ctx,
+        entity: EntityKey::Phase(phase.to_owned()),
+        prefix: SettingPath::conditions(&["orbit"]),
+        phase: Some((phase.to_owned(), vec!["orbit".to_owned()])),
     }
 }
 
@@ -100,7 +135,8 @@ pub(super) fn check_conditions(ctx: &mut Ctx, entries: &[SettingEntry]) {
     }
 }
 
-fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
+/// 軌道の設定の検査（設計の `conditions/orbit.toml` とフェーズの `[orbit]` で同じ）。
+pub(super) fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
     let non_earth = o
         .central
         .is_some_and(|c| c != crate::design::CentralBodyKind::Earth);

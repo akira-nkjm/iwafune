@@ -22,7 +22,7 @@ This document describes what structures hold the design-data model and how it is
 Conditions are placed in `conditions/orbit.toml`, `conditions/launch.toml` and `conditions/ground/<ID>.toml`.
 The settings category is `SettingScope::Conditions` (spelled `conditions`; the display name is "前提条件" / "Conditions").
 The keys are `conditions.orbit.altitude`, `conditions.launch.<field>` and `conditions.ground.<ID>.<field>`.
-`mission/` is a reserved directory for the mission, mission success criteria and phases (#9), and is currently skipped.
+`mission/` is a reserved directory for the mission and its success criteria (#9), and is currently skipped. Phases are in `phases/` (§7.10); a phase can override the orbit for the cases that name it.
 
 A ground station file (`label`, `latitude`, `longitude`, `altitude`, `min_elevation`, and per-band `[link.<band>]`) is edited as follows (all of it goes through Ops, so no file needs to be written by hand):
 
@@ -197,7 +197,8 @@ flowchart LR
 | Mode | The satellite's operating mode | `modes/<ID>.toml` | duration, part → {state, time fraction, active count, spare state}, eclipse override |
 | Net | Electrical connection (logical) | `nets/<ID>.toml` | kind (power / data / rf), rail voltage, source port, current limit, protocol |
 | Harness | Cable segment (physical) | `harness/<ID>.toml` | ports at both ends, the nets it carries, wire, number of cores, length |
-| Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, which side of the uncertainty to read, Sun distance (cruise), orbit, attitude law, environment conditions, period |
+| Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, a phase (§7.10), which side of the uncertainty to read, Sun distance (cruise), orbit, attitude law, environment conditions, period |
+| Phase | Mission phase (commissioning, nominal operations, disposal) | `phases/<ID>.toml` | order, start and end conditions (free text), duration, the modes used, and optional overrides of the orbit and of the attitude law per mode for the cases that name the phase (§7.10) |
 | Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only (§7.7) |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, date, author |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, document version, retrieval date, SHA-256, distribution category, date, author (§7.8) |
@@ -397,6 +398,10 @@ When no case is specified, `power.energy_balance` lists all modes one case at a 
 In this situation `case = null` and `case_source = default_attitude`. The default case's β, orbit count, side and so on are not applied.
 If there is no default case, the attitude law is also used for the upper level only when it is unique; if there are several, it is a missing input.
 When an explicit case is given, that case's mode and conditions are used as before.
+
+The case's `phase` (an ID in `phases/`, §7.10) selects a mission phase for the case. In the projection, `Context::orbit_settings` is the only place that decides which orbit settings are in effect
+(the phase's `[orbit]` if it has one, otherwise `conditions/orbit.toml`; see §7.10 for the rule) and `Context::laws` is the only place that decides the attitude laws in effect (`analysis.aocs.law` with the phase's `[law.<mode>]`
+laid over it per mode). A case with no phase, or a design with no phases, reads the design's orbit and laws exactly as before. A phase that does not exist is a check error (`ref.phase`) and is ignored by the projection.
 
 The case's `side` (`nominal`, `min`, `max`) chooses which side of a value's uncertainty the analyses read (`Uncertain<T>`: `SiScalar.min` / `max` beside the nominal).
 The rule is literal and the same for every attribute: with `side = "max"` an analysis reads the value's `max` if the value has one and its nominal otherwise; `side = "min"` likewise with `min`;
@@ -1335,6 +1340,46 @@ Design values and modelling inputs stay settings or part attributes (see the tab
 - **Stays a setting or attribute** (design values and modelling inputs): `ebn0_required`, `system_margin`, `alloc`, growth/uncertainty/harness allowance, `storage_margin`, `usable_momentum_fraction`, `unload_dipole_fraction`,
   `slew_angle`, `dv_margin`, `residual_fraction`, `safety_factor_*` (factors applied to loads, like `system_margin`), `fastener_allowable`, the thermal `[margin]`, ground station `min_elevation`, mode `max_duration`, and the part temperature ranges.
 
+### 7.10 phases/: one file per mission phase
+
+A phase is a stage of the mission (commissioning, nominal operations, disposal). The ID is the file name, and phases are listed by `(order, ID)` (`Design::ordered_phases` is the only place that decides the order).
+
+```toml
+# phases/LEOP.toml
+label    = "Launch and early operations"
+order    = 1                                         # an integer (kept as an integer by the TOML profile, like `count`). Omitted = 0
+start    = "Separation from the launcher"            # free text: the condition that starts the phase (optional)
+end      = "All subsystems checked out"              # free text (optional)
+duration = { value = 30.0, unit = "d" }              # optional, a time
+modes    = ["SAFE", "NOMINAL"]                       # the modes used in this phase (optional; references to modes/)
+
+[orbit]                # optional. Same keys as conditions/orbit.toml. If present it REPLACES the design's orbit as a whole for the cases that name this phase (no per-key merge)
+label    = "Disposal orbit (250 km)"
+altitude = { value = 250.0, unit = "km" }
+# ...
+
+[law.NOMINAL]          # optional. Same keys as analysis/aocs.toml [law.<mode>]. Replaces that mode's attitude law for the cases that name this phase
+law = "nadir_pointing"
+```
+
+- **How a case uses a phase.** A case with `phase = "<ID>"` (§5.1) reads the phase's `[orbit]` in place of `conditions/orbit.toml` as a whole (the epoch, the propagator, the `[decay]` and `[eclipse_season]` settings and so on come
+  from the phase's table too, so a phase orbit has to be complete) and the phase's `[law.<mode>]` in place of the design's law for that mode (modes the phase does not list keep the design's law). Nothing else changes.
+  The existing orbit and attitude-law code reads them (the orbit builder takes "the orbit settings in effect"); there is no second orbit builder. A missing input in a phase orbit names the phase file
+  (`phases.<ID>.orbit.<key>`, not `conditions.orbit.<key>`), and so does a read of a phase law (`phases.<ID>.law.<mode>`).
+- **Checks** (`fune check`): the ID rules (`id.invalid`, `id.duplicate`); every entry of `modes` and every key of `[law]` must be a mode (`ref.mode`); `duration` has the Time dimension (`unit.dimension`);
+  the `[orbit]` table gets the same checks as the design's orbit (dimensions of the quantities, eccentricity range, `ltdn` format; the targets are `phases.<ID>.orbit.<key>`);
+  a case's `phase` must exist (`ref.phase`); and `case.mode_not_in_phase` (warning) when a case with a phase names a mode that the phase's non-empty `modes` does not list.
+- **References.** Phases refer to modes (`modes`, the keys of `[law]`) and cases refer to phases (`phase`); both are in the reference index (`RefSite::PhaseMode`, `PhaseLaw`, `CasePhase`).
+  Renaming a mode rewrites the phases, and renaming a phase rewrites the cases. Removing a phase that a case names is rejected by the check (`ref.phase`), as removing a mode that a case names is.
+- **Ops**: `CreatePhase`, `SetPhase`, `RemovePhase`, `RenamePhase`, `SetPhaseField` (one value of `orbit.<key>` or `law.<mode>.<key>`; no value removes it, and an emptied table disappears), `CopyPhaseOrbit` (writes the design's current orbit into the phase's `[orbit]` in one step, replacing the current one; it is the starting point of an orbit override), `UnsetPhaseOrbit` and `UnsetPhaseLaw` (remove the whole `[orbit]`, or the whole `[law.<mode>]` of one mode) and `SetCasePhase`.
+  An attitude law override is started by writing its kind (`law.<mode>.law`) with `SetPhaseField`, because `AttitudeLawSetting` requires `law` whenever `[law.<mode>]` exists; the file stays loadable at every step.
+  `SetPhase` replaces the heading fields (`label`, `order`, `start`, `end`, `duration`, `modes`) and keeps the current `[orbit]` and `[law.*]` when the Op carries none.
+- **CLI** (the GUI sends the same arguments to `POST /ops/from_command`): `fune phase ls|show|add|set|rm|rename`, `fune phase set-field <ID> orbit.altitude "550 km"`, `fune phase unset-field <ID> <path>`, `fune phase copy-orbit <ID>`, `fune phase unset-orbit <ID>`, `fune phase unset-law <ID> <mode>`,
+  `fune case set-phase <case> <phase>`, `fune case unset-phase <case>` and `fune case set --phase <ID>`. How to write: after the top-level values, `[orbit]` and `[law.<mode>]` are heading tables
+  (`fune_store::write::records::PHASE_SECTIONS`).
+- **GUI.** The phases page edits the heading fields in a dialog and the overrides in an "Edit overrides" dialog: the orbit override is the same settings table as the design orbit (`SettingsTable`) and the attitude law override is the same fields as the AOCS mode's law (`Attitude`); both take only where the values are written (`FieldEdit`: `usePhaseFieldEdit` sends `phase_field`, the design's own editors use `useSettingEdit`). "Copy the design orbit", "Remove override" and adding or removing a law override send `phase_copy_orbit`, `phase_unset_orbit`, `phase_unset_law` and `phase_field` to `POST /ops/from_command`. Not editable in the GUI: adding an orbit field that is not already in the file (as for the design orbit; use `fune phase set-field`), and removing a single field (`fune phase unset-field`).
+- Not used yet: the duration and the order do not drive any analysis, and maneuvers do not read phases (`after` still names a maneuver; §7.7).
+
 ## 8. Allocations and margin policy (budget/)
 
 Allocations are gathered in a single file rather than scattered across subsystem directories.
@@ -1662,7 +1707,8 @@ my-sat-design/
 │   └── ground/<ID>.toml         # ground stations
 ├── analysis/<subsystem>.toml    # analysis settings per subsystem (no files for topics)
 ├── analysis/common.toml         # common analysis settings
-├── mission/                     # reserved directory for #9 (not read for now)
+├── mission/                     # reserved directory for #9 (mission and success criteria; not read for now)
+├── phases/<ID>.toml             # mission phases (§7.10)
 ├── cases/<ID>.toml
 ├── maneuvers/<ID>.toml          # maneuvers (§7.7)
 ├── sources/<ID>.toml            # subdirectories allowed: sources/<dir>/<ID>.toml (§11.1)

@@ -4,7 +4,9 @@
 //! |---|---|
 //! | `part` | Part・Group・NodeRef・Mount・Pose・PortBinding・CatalogItem |
 //! | `defs` | AttributeDef・KindDef・BudgetKind・NetKind |
-//! | `system` | Mode・Net・Harness・Case |
+//! | `mode` | Mode・StateAssign（運用モードの表） |
+//! | `phase` | フェーズ（ミッションの段階。軌道と姿勢則の上書き・並び `Design::ordered_phases`） |
+//! | `system` | Net・Harness・Case |
 //! | `source` | Source・SourceKind・Distribution（出典の台帳） |
 //! | `maneuver` | マヌーバ（区分・計算の段階・目標の軌道・制約）と実行の順（`Design::ordered_maneuvers`） |
 //! | `requirement` | 要求（文・制約・量化・出典・確かめる先）と解析の ID の一覧 |
@@ -27,9 +29,11 @@ pub mod conditions;
 pub mod criteria;
 pub mod defs;
 pub mod maneuver;
+pub mod mode;
 pub mod moved_settings;
 pub mod net;
 pub mod part;
+pub mod phase;
 pub mod power_sequences;
 pub mod project;
 pub mod refs;
@@ -52,8 +56,10 @@ pub use criteria::{
 };
 pub use defs::*;
 pub use maneuver::*;
+pub use mode::*;
 pub use moved_settings::{MOVED_SETTINGS, MovedSetting};
 pub use part::*;
+pub use phase::*;
 pub use power_sequences::{DEFAULT_SEQUENCE, SequenceView};
 pub use project::*;
 pub use refs::{HarnessEnd, NetEnd, RefSite, Referent};
@@ -116,6 +122,8 @@ pub struct Design {
     pub cases: BTreeMap<Id<Case>, Case>,
     /// マヌーバ（`maneuvers/<ID>.toml`。実行の順は [`Design::ordered_maneuvers`]）
     pub maneuvers: BTreeMap<Id<Maneuver>, Maneuver>,
+    /// フェーズ（`phases/<ID>.toml`。並びは [`Design::ordered_phases`]）
+    pub phases: BTreeMap<Id<Phase>, Phase>,
     pub sources: BTreeMap<Id<Source>, Source>,
     /// 要求（`requirements/<ID>.toml`。平らな一覧）
     pub requirements: BTreeMap<Id<Requirement>, Requirement>,

@@ -33,6 +33,19 @@ pub enum CaseCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// Set the phase of an analysis case (its orbit and attitude law overrides then apply)
+    SetPhase {
+        id: String,
+        phase: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Clear the phase of an analysis case
+    UnsetPhase {
+        id: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// Remove an analysis case
     Rm {
         id: String,
@@ -59,6 +72,9 @@ pub struct CaseArgs {
     /// Mode to use
     #[arg(long)]
     pub mode: Option<String>,
+    /// Phase (phases/); its orbit and attitude law overrides apply to the case
+    #[arg(long)]
+    pub phase: Option<String>,
     /// Which side of the uncertainty to read (nominal / min / max)
     #[arg(long)]
     pub side: Option<String>,

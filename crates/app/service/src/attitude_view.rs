@@ -1,36 +1,59 @@
 //! 実効姿勢則の軸の表示と、既存の設定編集へのパス。
 use crate::dto::{AocsAttitudeView, AocsAxisView, AocsLawField};
 use fune_model::design::AnalysisSystem;
-use fune_model::path::SettingPath;
 use fune_model::value::{Quaternion, Vector3, quaternion_to_text, vector_to_text};
 use fune_projection::{Context, MissingInputs};
 use sat_astro::attitude::AttitudeLaw;
 use sat_astro::math::Vec3;
 
-pub(super) fn view(ctx: &Context<'_>, mode: &str) -> AocsAttitudeView {
-    let path = AnalysisSystem::Aocs.setting_path().child(&["law", mode]);
+pub(crate) fn view(ctx: &Context<'_>, mode: &str) -> AocsAttitudeView {
+    let prefix = AnalysisSystem::Aocs
+        .setting_path()
+        .child(&["law", mode])
+        .to_string();
     let setting = ctx
         .design
         .analysis
         .aocs
         .as_ref()
         .and_then(|s| s.law.get(mode));
+    let effective = ctx.attitude_law(Some(mode), &mut MissingInputs::new());
+    view_of(&prefix, setting, effective)
+}
+
+/// フェーズの `[law.<モード>]` の姿勢則と実効軸（欄のパスは `fune phase set-field` の `law.<モード>.<キー>`）。
+pub(crate) fn phase_view(
+    mode: &str,
+    setting: &fune_model::design::AttitudeLawSetting,
+) -> AocsAttitudeView {
+    view_of(
+        &format!("law.{mode}"),
+        Some(setting),
+        Some(fune_projection::context::law_of(setting)),
+    )
+}
+
+/// 設定（`prefix` はその表のパス）と実効の姿勢則から、欄と軸を作る。
+fn view_of(
+    prefix: &str,
+    setting: Option<&fune_model::design::AttitudeLawSetting>,
+    effective: Option<AttitudeLaw>,
+) -> AocsAttitudeView {
     let law = setting.map(|s| s.law);
     let mut fields = vec![field(
-        &path,
+        prefix,
         "law",
         law.map(|l| l.to_string()).unwrap_or_default(),
     )];
-    let effective = ctx.attitude_law(Some(mode), &mut MissingInputs::new());
     let axes = effective.as_ref().map(axes).unwrap_or_default();
     if let Some(law) = effective {
-        fields.extend(axis_fields(&path, setting, law));
+        fields.extend(axis_fields(prefix, setting, law));
     }
     AocsAttitudeView { law, fields, axes }
 }
 
 fn axis_fields(
-    path: &SettingPath,
+    path: &str,
     setting: Option<&fune_model::design::AttitudeLawSetting>,
     law: AttitudeLaw,
 ) -> Vec<AocsLawField> {
@@ -97,10 +120,10 @@ fn axes(law: &AttitudeLaw) -> Vec<AocsAxisView> {
     }
 }
 
-fn field(path: &SettingPath, name: &str, text: String) -> AocsLawField {
+fn field(prefix: &str, name: &str, text: String) -> AocsLawField {
     AocsLawField {
         field: name.into(),
-        path: path.child(&[name]).to_string(),
+        path: format!("{prefix}.{name}"),
         text,
     }
 }

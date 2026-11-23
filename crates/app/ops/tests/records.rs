@@ -39,6 +39,7 @@ fn cases_are_created_and_updated_minimally() {
         label: Some("打ち上げ当日".into()),
         description: None,
         mode: Some(Id::new("SAFE")),
+        phase: None,
         side: Some(UncertaintySide::Max),
         thermal_case: None,
         beta: Some(Quantity::new(20.0, "deg")),

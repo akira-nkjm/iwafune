@@ -16,6 +16,7 @@ mod maneuvers;
 mod modes;
 mod moved;
 mod parts;
+mod phases;
 mod requirements;
 mod settings;
 mod settings_analysis;
@@ -58,6 +59,7 @@ pub fn check(design: &Design) -> Vec<Diagnostic> {
     system::check_cases(&mut ctx);
     sources::check_sources(&mut ctx);
     maneuvers::check_maneuvers(&mut ctx);
+    phases::check_phases(&mut ctx);
     requirements::check_requirements(&mut ctx);
     views::check_views(&mut ctx);
     budget::check_budget(&mut ctx);

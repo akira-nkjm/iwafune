@@ -2,7 +2,6 @@
 //! 値・合計・判定はここで作り、web は並べるだけ（`POST /system_modes/{system}`）。
 
 mod aocs;
-mod attitude;
 mod devices;
 mod failure;
 mod power;

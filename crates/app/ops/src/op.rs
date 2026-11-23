@@ -4,8 +4,8 @@
 
 use fune_model::design::{
     AttributeDef, Case, CatalogField, Harness, KindDef, LinkDirection, Maneuver, Maturity,
-    ModeSegment, ModeWhen, Net, NetField, PartField, Pose, ProjectField, Requirement, Source,
-    StartRef,
+    ModeSegment, ModeWhen, Net, NetField, PartField, Phase, Pose, ProjectField, Requirement,
+    Source, StartRef,
 };
 use fune_model::value::{Provenance, Quaternion, SettingValue, Value, Vector3};
 use serde::{Deserialize, Serialize};
@@ -358,6 +358,52 @@ pub enum Op {
     /// マヌーバを消す（ほかのマヌーバの `after` が指していれば、消したマヌーバの `after` につなぎ直す）。
     RemoveManeuver {
         id: String,
+    },
+    /// フェーズを足す（`phase.id` が対象。同じ ID があれば拒む。`orbit`・`law` も書かれていれば書く）。
+    CreatePhase {
+        phase: Phase,
+    },
+    /// フェーズを書く（`phase.id` が対象。無ければ作り、あれば見出しの欄を置き換える。`orbit` が無い・`law` が空なら、今の
+    /// `[orbit]`・`[law.*]` は残す。それらの値は `SetPhaseField` で書く）。
+    SetPhase {
+        phase: Phase,
+    },
+    /// フェーズを消す（ケースの `phase` が指していれば、適用後の検査が拒む）。
+    RemovePhase {
+        id: String,
+    },
+    /// フェーズの名前を変える（ケースの `phase` も書き換える）。
+    RenamePhase {
+        id: String,
+        to: String,
+    },
+    /// フェーズのファイルの中の軌道（`orbit.altitude`）か姿勢則（`law.NOMINAL.law`）の値を 1 つ書く（None なら消す）。
+    /// `path` はファイルの中のキーの列で、先頭は `orbit` か `law`（それ以外の欄は `SetPhase`）。
+    SetPhaseField {
+        phase: String,
+        path: String,
+        #[serde(default)]
+        value: Option<SettingValue>,
+    },
+    /// 設計の軌道（`conditions/orbit.toml`）の今の値を、フェーズの `[orbit]` へ丸ごと写す（フェーズの軌道があれば置き換える。
+    /// 上書きの出発点で、1 手で済む。設計に軌道が無ければ拒む）。
+    CopyPhaseOrbit {
+        phase: String,
+    },
+    /// フェーズの軌道の上書き（`[orbit]`）を丸ごと消す（設計の軌道に戻る）。
+    UnsetPhaseOrbit {
+        phase: String,
+    },
+    /// フェーズのモードの姿勢則の上書き（`[law.<モード>]`）を丸ごと消す（設計の姿勢則に戻る）。
+    UnsetPhaseLaw {
+        phase: String,
+        mode: String,
+    },
+    /// 解析ケースのフェーズを書く（None なら外す。ケースのほかの欄は変えない）。
+    SetCasePhase {
+        case: String,
+        #[serde(default)]
+        phase: Option<String>,
     },
     /// 要求を足す（`requirement.id` が対象。同じ ID があれば拒む）。
     CreateRequirement {

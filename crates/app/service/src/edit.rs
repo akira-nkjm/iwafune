@@ -11,6 +11,7 @@
 //! | `sun_distance` | 太陽を回る軌道の近日点・遠日点から新しい解析ケースの SetCase を作る |
 //! | `requirement` | `fune requirement add\|set` の引数（[`requirement_op`]。逆の向きは `query::requirements`） |
 //! | `maneuver` | `fune maneuver add\|set` の引数（[`maneuver_op`]。逆の向きは `query::maneuvers`） |
+//! | `phase` | `fune phase add\|set\|set-field` と `fune case set-phase` の引数（[`phase_op`]・[`phase_field_op`]・[`case_phase_op`]。逆の向きは `query::phases`） |
 //! | `ground` | `fune ground add` の引数（[`ground_add_op`]） |
 //! | `link` | `fune link add` の引数（[`link_add_op`]） |
 //! | `project` | `fune project set\|unset` の引数（[`project_field_op`]） |
@@ -34,6 +35,7 @@ mod ground;
 mod group;
 mod link;
 mod maneuver;
+mod phase;
 mod place;
 mod project;
 mod requirement;
@@ -54,6 +56,9 @@ pub use ground::ground_add_op;
 pub use group::group_target;
 pub use link::link_add_op;
 pub use maneuver::maneuver_op;
+pub use phase::{
+    case_phase_op, copy_orbit_op, phase_field_op, phase_op, unset_law_op, unset_orbit_op,
+};
 pub use place::{place_body, place_body_op, place_op, rotation_from_text};
 pub use project::project_field_op;
 pub use requirement::requirement_op;

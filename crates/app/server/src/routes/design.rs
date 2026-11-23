@@ -28,6 +28,13 @@ pub async fn maneuvers(
     blocking(&s, query::maneuvers).await.map(Json)
 }
 
+/// GET `/phases`（並びの順。`fune phase ls|show`）
+pub async fn phases(
+    State(s): State<AppState>,
+) -> Result<Json<Vec<fune_service::dto::PhaseView>>, ApiError> {
+    blocking(&s, query::phases).await.map(Json)
+}
+
 /// GET `/requirements`（ID 順。`fune requirement ls`）
 pub async fn requirements(
     State(s): State<AppState>,

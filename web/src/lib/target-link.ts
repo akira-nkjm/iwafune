@@ -43,6 +43,8 @@ export function targetLink(
       return paths.diagram();
     case "case":
       return paths.cases();
+    case "phase":
+      return paths.phase(target.id);
     case "catalog":
       return paths.catalogItem(target.id);
     case "attribute_def":

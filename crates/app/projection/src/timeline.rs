@@ -16,8 +16,10 @@ pub fn case_mode_id(ctx: &Context<'_>) -> Option<String> {
 
 /// 姿勢則が書かれているモード（ケースがあればそのモードだけ）。
 pub fn modes_with_law(ctx: &Context<'_>) -> Vec<String> {
-    let laws = ctx.design.analysis.aocs.as_ref().map(|a| &a.law);
-    let Some(laws) = laws else { return Vec::new() };
+    let laws = ctx.laws();
+    if laws.is_empty() {
+        return Vec::new();
+    }
     match case_mode_id(ctx) {
         Some(id) => vec![id],
         None => ctx

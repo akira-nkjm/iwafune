@@ -51,6 +51,7 @@ fn cruise() -> Design {
                 label: None,
                 description: None,
                 mode: Some("NOMINAL".into()),
+                phase: None,
                 side: None,
                 thermal_case: None,
                 beta: None,

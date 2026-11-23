@@ -312,8 +312,7 @@ fn batteries(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceBatte
 
 /// モードの姿勢則（`analysis.aocs.law.<モード>`）。書かれていなければ None（時系列の姿勢則を使う）。
 fn mode_law(ctx: &Context<'_>, mode: &str) -> Option<sat_astro::attitude::AttitudeLaw> {
-    let laws = &ctx.design.analysis.aocs.as_ref()?.law;
-    let law = laws.get(mode)?;
-    ctx.note(AnalysisSystem::Aocs.setting_path().child(&["law", mode]));
+    let law = *ctx.laws().get(mode)?;
+    ctx.note(ctx.law_target(mode));
     Some(crate::context::law_of(law))
 }

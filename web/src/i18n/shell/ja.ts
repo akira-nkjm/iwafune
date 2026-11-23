@@ -19,6 +19,7 @@ export const shellJa = {
       defs: "単位と定義",
       orbit: "軌道と地上局",
       cases: "解析ケース",
+      phases: "フェーズ",
       diagnostics: "診断",
       settings: "設定",
       sources: "出典",

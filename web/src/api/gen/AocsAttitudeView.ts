@@ -4,6 +4,6 @@ import type { AocsLawField } from "./AocsLawField";
 import type { AttitudeLawKind } from "./AttitudeLawKind";
 
 /**
- * 姿勢則の設定と実効軸。編集は全て SetText を使う。
+ * 姿勢則の設定と実効軸。編集は全て SetText を使う（フェーズの上書きの欄は `fune phase set-field` と同じ `POST /ops/from_command` の `phase_field`）。
  */
 export type AocsAttitudeView = { law: AttitudeLawKind | null, fields: Array<AocsLawField>, axes: Array<AocsAxisView>, };

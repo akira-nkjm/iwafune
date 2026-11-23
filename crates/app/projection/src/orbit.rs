@@ -1,5 +1,4 @@
 //! 軌道条件の解析（季節解析・高度低下）。既定値や物理計算を持たず、条件ファイル・部品から写す。
-use crate::quantity::setting_opt;
 use crate::{Context, MissingInputs};
 use fune_model::design::OrbitDecaySettings;
 use fune_model::design::setting_dims as dims;
@@ -12,17 +11,16 @@ use sat_units::typed::{Area, Length, Qty, Time};
 pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let orbit = ctx.orbit(&mut m);
-    let o = ctx.design.conditions.orbit.as_ref();
-    ctx.note(dims::ORBIT_ECLIPSE_SEASON_STEP.at(&[]));
+    let o = ctx.orbit_settings();
+    ctx.note(ctx.orbit_target(&["eclipse_season", "step"]));
     // ミッション期間は要求が与える（`input = "mission_duration"`）。無ければ入力不足
     let duration = m.need(
         ctx.mission_duration(),
         Context::mission_duration_target(),
         "Mission duration (an at_least requirement with input = \"mission_duration\")",
     );
-    let step = setting_opt(
+    let step = ctx.orbit_setting_opt(
         &dims::ORBIT_ECLIPSE_SEASON_STEP,
-        &[],
         o.and_then(|o| o.eclipse_season.as_ref())
             .and_then(|s| s.step.as_ref()),
         &mut m,
@@ -70,16 +68,16 @@ pub fn sun_distance(ctx: &Context<'_>) -> Result<SunDistanceInput, MissingInputs
 pub fn decay(ctx: &Context<'_>) -> Result<OrbitDecayInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let orbit = ctx.orbit(&mut m);
-    let o = ctx.design.conditions.orbit.as_ref();
+    let o = ctx.orbit_settings();
     let mission_duration = ctx.mission_duration();
-    let s = DecaySettings::read(o.and_then(|o| o.decay.as_ref()), &mut m);
+    let s = DecaySettings::read(ctx, o.and_then(|o| o.decay.as_ref()), &mut m);
     let body_size = match s.drag_area {
         Some(_) => None,
         None => {
             let size = crate::aocs::reference_box(ctx, &mut m);
             if size.is_none() {
                 m.push(
-                    dims::ORBIT_DECAY_DRAG_AREA.at(&[]),
+                    ctx.orbit_target(&["decay", "drag_area"]),
                     "Drag area (or body outline size)",
                 );
             }
@@ -129,23 +127,21 @@ struct DecaySettings {
 }
 
 impl DecaySettings {
-    fn read(s: Option<&OrbitDecaySettings>, m: &mut MissingInputs) -> Self {
+    fn read(ctx: &Context<'_>, s: Option<&OrbitDecaySettings>, m: &mut MissingInputs) -> Self {
         let q = |f: fn(&OrbitDecaySettings) -> Option<&Quantity>| s.and_then(f);
         Self {
-            span: setting_opt(&dims::ORBIT_DECAY_SPAN, &[], q(|s| s.span.as_ref()), m),
-            reentry_altitude: setting_opt(
+            span: ctx.orbit_setting_opt(&dims::ORBIT_DECAY_SPAN, q(|s| s.span.as_ref()), m),
+            reentry_altitude: ctx.orbit_setting_opt(
                 &dims::ORBIT_DECAY_REENTRY_ALTITUDE,
-                &[],
                 q(|s| s.reentry_altitude.as_ref()),
                 m,
             ),
-            drag_area: setting_opt(
+            drag_area: ctx.orbit_setting_opt(
                 &dims::ORBIT_DECAY_DRAG_AREA,
-                &[],
                 q(|s| s.drag_area.as_ref()),
                 m,
             ),
-            band: setting_opt(&dims::ORBIT_DECAY_BAND, &[], q(|s| s.band.as_ref()), m),
+            band: ctx.orbit_setting_opt(&dims::ORBIT_DECAY_BAND, q(|s| s.band.as_ref()), m),
         }
     }
 }
