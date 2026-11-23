@@ -34,12 +34,17 @@ export function targetLink(
       return paths.maneuver(target.id);
     case "maneuvers":
       return paths.maneuvers();
+    case "requirement":
+    case "criterion":
+      return paths.requirements("list");
     case "net":
     case "harness":
     case "view":
       return paths.diagram();
     case "case":
       return paths.cases();
+    case "phase":
+      return paths.phase(target.id);
     case "catalog":
       return paths.catalogItem(target.id);
     case "attribute_def":

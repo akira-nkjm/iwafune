@@ -1,0 +1,28 @@
+---
+source: crates/app/service/tests/report_export.rs
+expression: outline(&data(&r))
+---
+schema 1 lang "en" items ["mass","mode-power","link-budget","thermal-result","thermal-history","power-history"] cases ["hot_imaging"]
+table mass case=null subject=null variant=null rows=60 | Item | Qty | Unit mass [g] | Mass [g] | Growth [%] | Mass with growth [g]
+  caption: Mass budget
+table mode-power case=null subject=null variant=null rows=30 | Component | Nominal [W] | Imaging [W] | Downlink [W] | Safe mode [W]
+  caption: Power consumption by mode
+table link-budget case=null subject="s_down@TOKYO_GS" variant="input" rows=16 | Parameter | Value | Unit
+  caption: Link budget inputs: s_down (downlink) @ TOKYO_GS, 2.25 GHz
+table link-budget case=null subject="s_down@TOKYO_GS" variant="result" rows=17 | Parameter | Value | Unit
+  caption: Link budget results: s_down (downlink) @ TOKYO_GS, 2.25 GHz
+table link-budget case=null subject="uhf_down@TOKYO_GS" variant="input" rows=15 | Parameter | Value | Unit
+  caption: Link budget inputs: uhf_down (downlink) @ TOKYO_GS, 437 MHz
+table link-budget case=null subject="uhf_down@TOKYO_GS" variant="result" rows=15 | Parameter | Value | Unit
+  caption: Link budget results: uhf_down (downlink) @ TOKYO_GS, 437 MHz
+table link-budget case=null subject="uhf_up@TOKYO_GS" variant="input" rows=14 | Parameter | Value | Unit
+  caption: Link budget inputs: uhf_up (uplink) @ TOKYO_GS, 437 MHz
+table link-budget case=null subject="uhf_up@TOKYO_GS" variant="result" rows=14 | Parameter | Value | Unit
+  caption: Link budget results: uhf_up (uplink) @ TOKYO_GS, 437 MHz
+table thermal-result case="hot_imaging" subject=null variant=null rows=12 | Node | Cold (winter solstice, β 0) [°C] | Cold (nominal operation, β 0) [°C] | Hot (summer solstice, high β) [°C] | Min [°C] | Max [°C] | Allowable range (operating) [°C] | Verdict
+  caption: Thermal analysis results (Hot (imaging))
+figure thermal-history case="hot_imaging" file="figs/thermal-history-hot_imaging.svg" shaded=5 x=Elapsed time [h] panels: Temperature [°C] (12 series)
+  caption: Node temperatures over time (Hot (imaging))
+figure power-history case="hot_imaging" file="figs/power-history-hot_imaging.svg" shaded=15 x=Elapsed time [h] panels: Power [W] (2 series); State of charge [%] (1 series)
+  caption: Generation, load and battery state of charge over time (Hot (imaging))
+values: 50 (budget keys: budget.mass.limit, budget.mass.margin, budget.mass.total)

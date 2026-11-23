@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/lib/*", "crates/app/*", "crates/xtask"]
 
 [workspace.package]
-version = "0.5.9"
+version = "0.7.0"
 edition = "2024"
 rust-version = "1.100"
 publish = false
@@ -28,6 +28,7 @@ fune-model = { path = "crates/app/model" }
 fune-store = { path = "crates/app/store" }
 fune-ops = { path = "crates/app/ops" }
 fune-projection = { path = "crates/app/projection" }
+fune-report = { path = "crates/app/report" }
 fune-service = { path = "crates/app/service" }
 fune-server = { path = "crates/app/server" }
 # 外部
@@ -65,3 +66,8 @@ debug = "line-tables-only"
 
 [profile.dev.package."*"]
 debug = false
+
+# 配るバイナリ（リリースビルド）。クレートをまたいで最適化し、1 つの単位でコード生成する（ビルドは遅くなるが、バイナリが小さくなり、実行も少し速くなる）
+[profile.release]
+lto = "thin"
+codegen-units = 1

@@ -2,12 +2,13 @@
 //!
 //! | モジュール | パス |
 //! |---|---|
-//! | `design` | `/project` `/design` `/parts` `/parts/{id}`（POST は下書きを当てた部品） `/values/{path}` `/defs` `/diagnostics` |
-//! | `edit` | `/ops` `/ops/from_text` `/ops/unset_from_text` `/ops/from_command` `/parts/{id}/place_body` `/fmt` |
+//! | `design` | `/project` `/design` `/system_modes/{system}`（POST） `/maneuvers` `/phases` `/requirements` `/requirements/compliance` `/parts` `/parts/{id}`（POST は下書きを当てた部品） `/values/{path}` `/defs` `/diagnostics` |
+//! | `edit` | `/ops` `/ops/from_text` `/ops/unset_from_text` `/ops/from_command` `/ops/case_from_eclipse` `/ops/case_from_sun_distance` `/parts/{id}/place_body` `/fmt` |
 //! | `history` | `/history` `/undo` `/redo` |
 //! | `units` | `/units` `/units/parse` `/units/format` |
-//! | `analyses` | `/analyses` `/analyses/{id}` `/budgets/{kind}` |
-//! | `data` | `/data/status` `/data/{id}/fetch` |
+//! | `analyses` | `/analyses` `/analyses/{id}` `/budgets/{kind}`（GET と、下書きを当てる POST） |
+//! | `report` | `/report/export` |
+//! | `data` | `/data/status` `/data/space_weather` `/data/{id}/fetch` |
 //! | `catalog` | `/catalog/{id}`（カタログ品 1 件） `/catalog/fetch` `/catalog/update`（共有カタログ） |
 
 mod analyses;
@@ -16,6 +17,7 @@ mod data;
 mod design;
 mod edit;
 mod history;
+mod report;
 mod units;
 
 use crate::error::ApiError;
@@ -50,6 +52,9 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
         .route("/design", get(design::design))
         .route("/system_modes/{system}", post(design::system_modes))
         .route("/maneuvers", get(design::maneuvers))
+        .route("/phases", get(design::phases))
+        .route("/requirements", get(design::requirements))
+        .route("/requirements/compliance", get(design::compliance))
         .route("/parts", get(design::parts))
         .route("/parts/{id}", get(design::part).post(design::part_with))
         .route("/parts/{id}/place_body", post(edit::place_body))
@@ -62,6 +67,10 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
         .route("/ops/unset_from_text", post(edit::op_unset_from_text))
         .route("/ops/from_command", post(edit::ops_from_command))
         .route("/ops/case_from_eclipse", post(edit::case_from_eclipse))
+        .route(
+            "/ops/case_from_sun_distance",
+            post(edit::case_from_sun_distance),
+        )
         .route("/history", get(history::view))
         .route("/undo", post(history::undo))
         .route("/redo", post(history::redo))
@@ -74,6 +83,7 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
             "/budgets/{kind}",
             get(analyses::budget).post(analyses::budget_with),
         )
+        .route("/report/export", post(report::export))
         .route("/data/status", get(data::status))
         .route("/data/space_weather", get(data::space_weather))
         .route("/data/{id}/fetch", post(data::fetch))

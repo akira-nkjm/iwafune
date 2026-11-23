@@ -22,7 +22,17 @@ This document describes what structures hold the design-data model and how it is
 Conditions are placed in `conditions/orbit.toml`, `conditions/launch.toml` and `conditions/ground/<ID>.toml`.
 The settings category is `SettingScope::Conditions` (spelled `conditions`; the display name is "前提条件" / "Conditions").
 The keys are `conditions.orbit.altitude`, `conditions.launch.<field>` and `conditions.ground.<ID>.<field>`.
-`mission/` is a reserved directory for the mission, mission success criteria and phases (#9), and is currently skipped.
+`mission/` is a reserved directory for the mission and its success criteria (#9), and is currently skipped. Phases are in `phases/` (§7.10); a phase can override the orbit for the cases that name it.
+
+A ground station file (`label`, `latitude`, `longitude`, `altitude`, `min_elevation`, and per-band `[link.<band>]`) is edited as follows (all of it goes through Ops, so no file needs to be written by hand):
+
+- `fune ground add <ID> [--label …] [--latitude "35.7 deg"] [--longitude "139.7 deg"] [--altitude "40 m"] [--min-elevation "10 deg"]` (Op `create_ground_station`; the GUI sends the typed text to `POST /ops/from_command` as `{ "command": "ground_add", … }`)
+  creates `conditions/ground/<ID>.toml` in canonical form. Renaming or removing a station is also refused while a requirement's `verify.check` names it (for example `margin:<link>@<ID>`); update or remove those requirements first (temporary, until the key is structured; #328). The ID follows the ID rules and must not collide with an existing station (a difference only in letter case collides); the units are checked by `fune check`.
+- A value of an existing station is changed with `fune set conditions.ground.<ID>.<field> …` (`SetSetting`; it does not create a station: an unknown `<ID>` is refused, so add it with `fune ground add` first), including a band: `fune set conditions.ground.<ID>.link.<band>.antenna_gain "14 dBi"`. `fune unset conditions.ground.<ID>.link.<band>` removes a band.
+- `fune ground rename <ID> <NEW>` (Op `rename_ground_station`) moves the file and rewrites the station list `stations` of `analysis/comm.toml`.
+- `fune ground rm <ID>` (Op `remove_ground_station`) removes the file. It is **refused while `analysis.comm.stations` lists the station** (an empty `stations` means every station is used, so nothing refers to a particular one);
+  take the station out of that list first. This is the same style as removing a referenced catalog item or shared catalog.
+  The API returns the stations as `DesignView.stations` (`id`, `label`, `file`, `group`, `in_use`).
 Orbits and other items in the old layout are not read, and a missing orbit is reported as an existing missing input. There is no migration and no compatibility with old keys.
 
 The analysis category is `sat_analysis::spec::AnalysisArea`. It has `System(System)` and `Condition(ConditionTopic)`,
@@ -45,15 +55,15 @@ writing it for any other body is a `check` error (`setting.central`).
 and projection does not invent defaults, so time-series analyses propagate with the J2 secular terms (`j2`). Writing it makes `check` notify with a warning (`setting.not_applied`)
 (`numerical` reads the elements as osculating elements, so the same numbers give a different orbit from `j2`). `orbit.decay` does not use the propagator kind and finds the altitude decay with its own integration.
 
-`duration` in `conditions/orbit.toml` is the mission duration (a time quantity, key `conditions.orbit.duration`).
-The optional `step` of `[eclipse_season]` is also a time quantity (key `conditions.orbit.eclipse_season.step`).
+The **mission duration is held by a requirement** (§7.9), not by `conditions/orbit.toml`: the requirement `input = "mission_duration"` ("the mission shall last at least 1 year") gives
+its `at_least` value to the analyses that need the span (`Design::mission_duration`). The old key `conditions.orbit.duration` is no longer read (see "Moved settings" in §7.9).
+Without such a requirement the season analysis reports a missing input (`requirement[input/mission_duration]`).
+The optional `step` of `[eclipse_season]` is a time quantity (key `conditions.orbit.eclipse_season.step`).
 Reading and writing go through the existing path for condition files, and dimension checking and projection use the common table in `setting_dims`.
-An unset duration and step are also shown in the settings table. Without `duration`, the season analysis reports a missing input.
+An unset step is also shown in the settings table.
 
 ```toml
 # conditions/orbit.toml (the same file as the other orbital elements)
-duration = { value = 1, unit = "yr" }
-
 [eclipse_season]
 step = { value = 1, unit = "day" }
 ```
@@ -65,7 +75,8 @@ Within one orbit of each sample the Sun position is fixed, and the existing orbi
 The durations of umbra (light fraction 0) and of penumbra not including umbra (greater than 0 and less than 1) are aggregated with the existing trapezoidal rule for time fractions.
 The time accuracy of the boundaries is about the sample interval at each boundary. Short eclipses and penumbrae can hide between samples.
 The shadow is cast by a sphere of the central body (radius `CentralBody::radius_m`; `shadow::central_shadow_factor`), and the Sun position is as seen from the central body.
-Time hidden by the Earth while orbiting the Moon (lunar eclipse) and time hidden by the Moon while orbiting the Earth are not included. An orbit with the Sun as central body has no β or eclipse, so it is an input error.
+Time hidden by the Earth while orbiting the Moon (lunar eclipse) and time hidden by the Moon while orbiting the Earth are not included. An orbit with the Sun as central body has no β or eclipse, so it is an input error
+(a heliocentric cruise is analysed through the Sun-distance cases below, not through the eclipse season).
 
 The output `points` is a list of date (UTC), β [rad], umbra [s] and penumbra [s], and `series` is the same values as series for graphs.
 `longest` and `max_eclipse_duration` are the sample and duration with the largest sum of umbra and penumbra, and
@@ -84,6 +95,24 @@ The case stores β (rad) and an optional mode. A case has no epoch field, so the
 This is a case that reuses a representative β condition; it does not change the epoch of later analyses through the date in the description.
 Overwriting an existing ID and unknown modes are rejected. `to_cli` returns a `fune case set` that keeps the value and the date.
 
+**Heliocentric cruise (the Sun as central body).** The power and thermal analyses run with `central = "sun"`: the timeline gives the Sun distance `|r|` at each time (so the solar flux is `S₁ (AU/d)²`
+and the generation scales the same way), there is no eclipse (the sunlit fraction is 1), and the thermal analyses take albedo and planet infrared as 0 (§5.2).
+A case's `beta` is an input error there (the Sun direction has no orbit plane to measure β from), so cruise cases do not set it.
+`power.sizing` is not available for a heliocentric orbit: it is sized against the longest eclipse and β season, which an orbit about the Sun does not have (the input error above).
+The worst cases of a cruise are the perihelion and the aphelion, made as analysis cases with `sun_distance` (a length, key `cases.<ID>.sun_distance`, dimension checked like `beta`):
+
+`fune case from-sun-distance <new ID> --at min|max [--mode <mode>]` finds the smallest or largest Sun distance of the orbit between the epoch and `duration`
+(`sat_analysis::orbit::sun_distance_extremes`: samples at the usual step, then a golden-section refinement around the extreme; if the span is shorter than half an orbit the extreme is at the span's end)
+with the service's `case_from_sun_distance_op` and builds an existing `SetCase` Op (HTTP: `POST /ops/case_from_sun_distance` with `{ "id": "perihelion", "at": "min", "mode": null }`, saved with `POST /ops`).
+The distance is written in AU and the date of the extreme is recorded in the description (a case has no epoch field). The orbit must have the Sun as central body (otherwise an error).
+A case with `sun_distance` makes every analysis use a **circular orbit at that distance** instead of the orbit conditions (inclination, RAAN, epoch and propagator are kept; `Context::orbit`).
+So `thermal.steady` is the steady state at that distance (the orbit average of a circular orbit is constant), and `thermal.transient`, `power.orbit_generation` and `power.energy_balance` run at that distance
+(for a circular orbit about the Sun the Sun direction turns slowly, one turn per orbit, and the attitude law follows it). A `sun_distance` on an orbit whose central body is not the Sun is a missing input naming `cases.<ID>.sun_distance`.
+Without such a case, the orbit conditions are used as they are: `thermal.steady` then averages over one orbit (a year-scale period) with the time mean of the inverse square of the distance (`⟨(a/r)²⟩ = 1/√(1−e²)` for an ellipse).
+A time series about the Sun with no number of orbits written runs **one** orbit instead of three (`spec::DEFAULT_HELIOCENTRIC_ORBITS`; an explicit `orbits` is used as written),
+and its step is the usual period/200 (a year-long orbit is sampled about every 1.6 days; a `time_step` of 30 s over a year is rejected as too many samples).
+The thermal transient integrates the whole span with the same adaptive method, so its cost grows with the span (about a minute in a debug build for one year of the demo; seconds in a release build).
+
 #### Altitude decay by atmospheric drag and orbit maintenance (`orbit.decay`)
 
 `orbit.decay` is also `AnalysisArea::Condition(ConditionTopic::Orbit)`. Its settings are `[decay]` in `conditions/orbit.toml` (all optional; the defaults are held by the analysis).
@@ -94,12 +123,14 @@ span             = { value = 25, unit = "yr" }   # upper limit of the integratio
 reentry_altitude = { value = 120, unit = "km" }  # perigee altitude regarded as reentry (default 120 km)
 drag_area        = { value = 0.06, unit = "m^2" } # drag area (if absent, the area of the structure's bounding box averaged over orientation = surface area / 4)
 band             = { value = 2, unit = "km" }    # altitude band for orbit maintenance (if absent, drag is cancelled continuously)
-max_lifetime     = { value = 25, unit = "yr" }   # upper limit of lifetime (disposal requirement)
 ```
+
+The upper limit of the lifetime (the disposal requirement) is **not** a setting: it is the `at_most` requirement with `verify.analysis = "orbit.decay"` and `verify.check = "max_lifetime"` (§7.9).
+Without such a requirement no lifetime check is made.
 
 Other input values use existing ones: the orbit (`conditions/orbit.toml`; the case β is not used), the mass (the sum of the parts' mass properties),
 the outer shape (the structure's `size`; the same `aocs::reference_box` as for aerodynamic torque), the drag coefficient (`analysis.aocs.drag_coefficient`, 2.2 if absent), and
-the mission duration (`duration`; the period used to judge lifetime and to accumulate the orbit-maintenance ΔV; 1 year if absent).
+the mission duration (the requirement `input = "mission_duration"`; the period used to judge lifetime and to accumulate the orbit-maintenance ΔV; 1 year if absent).
 The propellant for orbit maintenance is the usable propellant of the propulsion analysis (`propulsion.propellant`, §7.7) (the propellant used with margin included); the propellant is not written here.
 The specific impulse is the lowest among the propulsion subsystem's thrusters (conservative side), and the mass before firing is the mass with propellant loaded (`wet_mass`). The propellant and thruster used appear in the result's
 `used.propellant` and `used.thruster`. Without a propulsion subsystem (maneuvers or propulsion parts), the propellant lifetime is not computed; with one, the propulsion inputs are required
@@ -158,7 +189,7 @@ flowchart LR
 | Project | Settings for the whole project | `fune.toml` | schema version, the TOML version to write, references to shared catalogs |
 | Allocation | Allocation | `budget/allocation.toml` | limits for mass, power and so on, system margin, allocation per subsystem (or per part) |
 | BudgetPolicy | Margin policy | `budget/policy.toml` | growth margin per maturity, default width of uncertainty, harness allowance |
-| AttributeDef | Quantity kind | `defs/attribute/<id>.toml` | value type, dimension, allowed units, display unit, value range, whether it is looked up by state, which budget it enters |
+| AttributeDef | Quantity kind | `defs/attribute/<id>.toml` | value type, dimension, allowed units, display unit, value range, whether it is looked up by state, which budget it enters, whether it is a direction (`unit_vector`: a unit vector in the part frame, drawn as an axis in 3D), and for a field-of-view half angle the direction attribute it is around (`fov_axis`, e.g. the built-in `fov_half_angle` has `fov_axis = "boresight"`; 3D draws the view cone from it). `fune attr add` takes `--unit-vector` and `--fov-axis <attribute>`; the Web does not know the attribute IDs |
 | KindDef | Part kind | `defs/kind/<id>.toml` | parent kind, required and optional attributes, vocabulary of equipment states (off / standby / on …), port templates, role |
 | CatalogItem | Definition of a purchased or designed item (ElementDefinition) | shared catalog or `catalog/[<dir>/…]<id>.toml` (§11.1) | kind, model number, maturity, tags (`tags = ["flight_proven", "domestic"]`: a free classification that is neither manufacturer nor kind; omitted when empty; `fune catalog set <item> tags a,b` / `unset`; a tag is non-empty, has no leading or trailing whitespace and no `,`, and is not duplicated within the same item), attribute values, port values, shape, the datasheet source (a source ID; §7.8) |
 | Group | Subsystem or nested folder | a directory under `parts/` that has no same-named file (the top level is usually a subsystem ID) | none (the subsystem's display name is a built-in vocabulary entry; allocations are in `budget/allocation.toml`) |
@@ -166,15 +197,22 @@ flowchart LR
 | Mode | The satellite's operating mode | `modes/<ID>.toml` | duration, part → {state, time fraction, active count, spare state}, eclipse override |
 | Net | Electrical connection (logical) | `nets/<ID>.toml` | kind (power / data / rf), rail voltage, source port, current limit, protocol |
 | Harness | Cable segment (physical) | `harness/<ID>.toml` | ports at both ends, the nets it carries, wire, number of cores, length |
-| Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, which side of the uncertainty to read, orbit, attitude law, environment conditions, period |
+| Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, a phase (§7.10), which side of the uncertainty to read, Sun distance (cruise), orbit, attitude law, environment conditions, period |
+| Phase | Mission phase (commissioning, nominal operations, disposal) | `phases/<ID>.toml` | order, start and end conditions (free text), duration, the modes used, and optional overrides of the orbit and of the attitude law per mode for the cases that name the phase (§7.10) |
 | Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only (§7.7) |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, date, author |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, document version, retrieval date, SHA-256, distribution category, date, author (§7.8) |
-| Requirement | Requirement (lightweight) | `requirements/<ID>.toml` | statement, target quantity, constraint, quantification such as "in all modes and all cases". Formal verdicts are written out to external verification tools |
+| Requirement | Requirement (lightweight, a flat list) | `requirements/<ID>.toml` | statement (Japanese and English), the dimension of the constrained quantity, constraint (direction and value), quantification (all cases / named cases), source (a source ID), and what verifies it (an analysis check or a budget). The verdict itself comes from the analysis or budget (§7.9). Formal verdicts written out to external verification tools are not decided yet |
 | Table | Tabular data | `tables/<ID>.csv` + `tables/<ID>.toml` | curves and characteristic tables. Units per column are declared on the TOML side |
 | View | Presentation-only information (outside Design) | `view/…` | coordinates of the system diagram, the 3D camera |
 
 ### 3.1 Roles and states of kinds
+
+Project-defined attributes and kinds can be renamed (`fune attr rename <ID> <NEW>`, `fune kind rename <ID> <NEW>`; Ops `rename_attribute`, `rename_kind`; `POST /ops`). The definition file is moved and
+every reference found by the reference index (`Design::references`) is rewritten: for an attribute, the `required` / `optional` lists of kinds and the `[attr.<ID>]` keys of parts and catalog items
+(including the by-state tables); for a kind, the `kind` of parts and catalog items and the `extends` of other kinds. Built-in attributes and kinds cannot be renamed, the new ID must follow the ID rules and must not be taken
+(built-in ones included), and `fune check` still rejects names that clash with field names (`def.reserved`). Items of shared catalogs are read-only and cannot be rewritten, so a rename is refused
+while one of them uses the definition (change the shared catalog first). Nothing else refers to a definition (analysis settings, view files and mode tables hold part, group, mode and net IDs only).
 
 - A kind's `role` is a value of `fune_model::builtin::Role` (`enum_text!`). Its spelling is defined in one place, `builtin/role.rs`, and unknown roles are rejected when serde reads them. If omitted, the parent kind's role is used, and if the parent has none, there is no role. Custom kind IDs are free, but the vocabulary of roles is not extended.
 - A role's display name is the Japanese and English name of the corresponding built-in kind. `labels.role_system` holds the subsystem of every role, keyed by Role (correspondences that belong to no subsystem are made explicit as `None`). The API returns roles as the TS `Role` type, and the Web icon table covers all roles.
@@ -361,6 +399,10 @@ In this situation `case = null` and `case_source = default_attitude`. The defaul
 If there is no default case, the attitude law is also used for the upper level only when it is unique; if there are several, it is a missing input.
 When an explicit case is given, that case's mode and conditions are used as before.
 
+The case's `phase` (an ID in `phases/`, §7.10) selects a mission phase for the case. In the projection, `Context::orbit_settings` is the only place that decides which orbit settings are in effect
+(the phase's `[orbit]` if it has one, otherwise `conditions/orbit.toml`; see §7.10 for the rule) and `Context::laws` is the only place that decides the attitude laws in effect (`analysis.aocs.law` with the phase's `[law.<mode>]`
+laid over it per mode). A case with no phase, or a design with no phases, reads the design's orbit and laws exactly as before. A phase that does not exist is a check error (`ref.phase`) and is ignored by the projection.
+
 The case's `side` (`nominal`, `min`, `max`) chooses which side of a value's uncertainty the analyses read (`Uncertain<T>`: `SiScalar.min` / `max` beside the nominal).
 The rule is literal and the same for every attribute: with `side = "max"` an analysis reads the value's `max` if the value has one and its nominal otherwise; `side = "min"` likewise with `min`;
 `nominal` or no `side` reads the nominal. With no case (the default-attitude situation above, or a run with no case) every value is the nominal.
@@ -466,6 +508,9 @@ start = { from = "eclipse_exit", offset = { value = 5.0, unit = "min" } }   # op
   a `timing` warning is added to the case's `checks`. A fixed start that is outside the mode's own `when` also warns. `when`/`start` on a mode with no `max_duration` is a check warning (`mode.timing_unused`).
 - `fune mode timing <mode> --when sunlit --start eclipse_exit --offset "5 min"` (no flags removes it; `SetModeTiming`). Dimension and spelling are checked like other settings.
 
+Attitude laws are about the central body: `nadir_pointing` points `axis` at the central body (the generic meaning, whatever the body) and `inertial` fixes the attitude.
+With the Sun as the central body, `sun_pointing` and `nadir_pointing` therefore point the same way (toward the Sun), and `nadir_body` of the thermal image's orbit data is the Sun direction as well.
+
 When an analysis case specifies a `mode`, that mode's `[law.<mode>]` is required, and the attitude law of a different mode is not substituted.
 If no mode is specified, an attitude law is used only when there is exactly one. With none or several, the analysis stops with a missing input.
 
@@ -483,6 +528,7 @@ The default albedo and infrared emission are per body (`sat_analysis::thermal::p
 |---|---|---|
 | Earth | 0.30 | uniform 237 W/m² |
 | Moon | 0.12 | varies with the solar zenith angle θ at the subsatellite point: dayside `(1 − A)·S·cos θ` (subsatellite point ≈ 390 K), nightside `0.95 σ (100 K)⁴ ≈ 5.4 W/m²` |
+| Sun | 0 | 0 (only direct sunlight; the written `albedo`, `planet_ir` and `preset` are not used) |
 | Others | none (write `albedo` and `planet_ir` in the environment condition; if absent, projection reports a missing input) | |
 
 The environment condition's `planet_ir` overrides the central body's uniform infrared emission (written for the Moon, it is used in place of the local-time model).
@@ -492,7 +538,11 @@ If the solar flux is not written, it is found from the Sun distance at each time
 The preset solar flux (perihelion and aphelion at 1 AU) is used only for Earth and the Moon, and the preset albedo and infrared (representative LEO values) only for Earth,
 so if you write a preset for any other body you must also write `solar_flux` (otherwise a missing input). The values used are in the output's `environment`
 (for the Moon `planet_ir` is null, and the nightside value is `night_ir`). Albedo and infrared received from the Moon while orbiting Earth are not handled (a few tens of thousandths of Earth's or less).
-A thermal analysis with the Sun as the central body is an input error.
+With the Sun as the central body (an interplanetary cruise) the albedo and the planet infrared are 0 and there is no eclipse: only direct sunlight heats the outer surfaces.
+Any written `albedo`, `planet_ir` and `preset` are not used (the preset values describe an Earth orbit), the solar flux is found from the Sun distance at each time
+(or a written `solar_flux` is used as it is, for a worst-case flux), and a fixed-orientation steady case (`Fixed`) needs `solar_flux` (there is no conventional distance). The values used appear in the output's `environment`
+(`albedo` 0, `planet_ir` 0, `solar_flux` null = from the distance). `thermal.steady` averages over one orbit (or is the steady state at the distance of a Sun-distance case, §1.1 "Heliocentric cruise"),
+and `thermal.transient` runs `orbits` orbits (one if not written). The orbit display frame (`orbit_plane`, below) has no Sun side in this case.
 
 #### Temperature ranges (three kinds) and verdicts
 
@@ -578,6 +628,14 @@ The output samples stay at the timeline's sample times; the integrator takes wha
   (`sat_astro::math::bisect`) on the step's dense output, the segment stops there, the heater switches and the integration continues. The temperature at a switching equals the set point within `1e-5 K`, so the node no longer leaves the band by one sub-step of drift,
   and the switching times, the duty, the longest on period and the last-orbit window use the exact times. After a switching the margin to the opposite set point is the band width, which is at least `0.001 K` (a narrower band is an input error),
   so a switching cannot repeat at the same time. Heaters whose thermostat is off in a phase are held off and do not stop the integration. A crossing that goes out and back inside one step is not seen (the band is wide compared with a step).
+- **Orbit display frame (`orbit_plane`).** The output also carries what the GUI's "Thermal image" needs to show where the satellite is while a transient plays, for exactly the same sample times as `series.t`
+  (`sat_astro::timeline::orbit_plane_track`, type `OrbitPlaneTrack`): the position projected into a fixed orbit-plane frame (`x`, `y` in metres), whether each sample is in eclipse (`eclipse`: the sunlit fraction is below `spec::SUNLIT_THRESHOLD`, decided by the analysis so the GUI does not judge it),
+  the Sun direction `sun_dir_body` and the central-body direction `nadir_body` (unit vectors in the body frame) per sample, and once the central body's `body_radius`, the Sun's elevation above the orbit plane `sun_elevation`
+  at the first sample (the beta-like angle) and the `shadow_half_width` of the band to draw. The frame is fixed from the first sample: z is the orbit normal (r × v), x is the Sun direction projected onto the orbit plane
+  (the first position direction if the Sun is nearly along the normal), y = z × x, so the Sun is always on the +x side and the shadow on the −x side. The frame is not updated while the orbit plane precesses.
+  With the Sun as the central body the Sun is at the origin, so there is no Sun side: x is the first position direction, `sun_elevation`, `body_radius` and `shadow_half_width` are 0 and no sample is in eclipse
+  (a `body_radius` of 0 means there is no central body to draw, and the GUI draws no inset; the Sun arrow still uses `sun_dir_body`).
+  The picture is a schematic: the shadow band is the cylindrical shadow (half-width = body radius) and the real eclipse is the per-sample `sunlit`. It does not change any temperature or check.
 - **Stiff networks.** The method is explicit. A node with a very small heat capacity strongly coupled to a large one makes the step as small as the fast time constant, whatever the accuracy. A 12-node chain of alternating 0.09 J/K and 900 J/K nodes
   (G = 10 W/K) over five orbits takes about a million steps and 12 million evaluations of the right-hand side (about a minute in a debug build; see `stiff_chain_five_orbits_cost`). There is no implicit integrator: model such a node as part of its neighbour.
 - **Accuracy.** The penumbra of the conical shadow begins and ends with a `x^(3/2)`-like rise of the sunlit fraction, which the error estimate sees only partly; with orbits through the penumbra the global error is a few times the tolerance
@@ -685,6 +743,8 @@ A_abs the area facing the Sun, A_rad the radiating area, C heat capacity, T_s th
 | Eclipse boundary | a plate with ε ≈ 0 stops heating at the geometric entry (and resumes at the exit) of the cylindrical shadow; the time is read from the temperature change in one sample | `temperature_stops_rising_at_the_analytic_eclipse_entry_and_exit` |
 | Sample-step independence | the same case with sample steps 10 s and 120 s gives the same temperatures and the same heater statistics | `results_do_not_depend_on_the_sample_step`, `heater_switching_does_not_depend_on_the_sample_step` |
 | Nadir plate | absorbed = ε F q_IR A + α S ρ F A (at noon), F = (R/(R+h))² | `nadir_plate_planet_ir_and_albedo` |
+| Heliocentric plate and cube (Sun as central body) | T_eq⁴ = α S₁ (AU/d)² A_abs / (ε σ A_rad), so T ∝ d^(-1/2) (0.5 / 1 / 2 AU; the 0.5 AU to 2 AU ratio is 2), steady and transient | `steady_plate_follows_the_inverse_square_root_of_distance`, `steady_cube_follows_the_inverse_square_root_of_distance`, `transient_plate_converges_to_the_distance_equilibrium` (`thermal_validation_heliocentric.rs`) |
+| Heliocentric ellipse (0.7–1.5 AU) | orbit average: ⟨(a/r)²⟩ = 1/√(1−e²); transient follows T_eq(r(t)) quasi-statically | `steady_orbit_average_of_an_ellipse_uses_the_time_mean_of_inverse_square`, `transient_follows_the_equilibrium_along_an_ellipse` |
 
 The tests use T_s = 0 unless stated (the default is 3 K, which is included in the formulas where used) and set the albedo and planet IR to 0 when only the Sun should act.
 Tolerances of the closed-form comparisons (#297 with fixed-step RK4 and sample-and-hold, then #300): the deep-space cooling 1e-6 → 1e-8 K (observed 2e-10), the equilibrium after 30 τ 1e-6 → 1e-9 K (observed 1e-13),
@@ -712,9 +772,12 @@ default_case = "hot_imaging"
 
 ### 5.4a Communication settings (`analysis/comm.toml`)
 
-`stations` lists the ground stations to use, `min_margin` is the required link margin, and each `[link.<name>]` is one link
+`stations` lists the ground stations to use, and each `[link.<name>]` is one link
 (`direction` = `down` or `up`, `part` = the transceiver part, `band` = the band under `conditions/ground/<ID>.toml` `[link.<band>]`, plus losses and `ebn0_required`).
 The link budget is evaluated for every link × ground station pair whose station has that band.
+The required link margin is a criterion, so it is held by a requirement (§7.9): `verify.analysis = "comm.link_budget"` with an `at_least` constraint and
+`verify.check = "margin"` (every link and station), `"margin:<link>"` (that link at every station) or `"margin:<link>@<station>"` (one pair). The tightest one that covers a pair applies to that pair;
+with none, the analysis default (3 dB) applies. `comm.data_throughput` uses the tightest margin of its downlink's stations. `ebn0_required` stays a link setting: it follows from the modulation and the BER, a design value.
 
 - `data_downlink` (optional) names the downlink whose rate counts toward the daily data volume (`comm.data_throughput`). If omitted, the first downlink by name is used.
   The other downlinks are not counted, and the analysis reports their names as a notice. `check` reports an error (`ref.link`) if the name is not a link and an error (`setting.link_direction`) if the link is not a downlink.
@@ -736,11 +799,61 @@ band      = "s_band"
 
 Both keys are set with the same `SetSetting` as other settings, for example `fune set analysis.comm.data_downlink s_down`.
 
+A link cannot be built one field at a time with `fune set`, because a link without `direction`, `part` and `band` does not load. Links have their own Ops (all through Ops, so no file needs to be written by hand):
+
+- `fune link add <name> --direction down|up --part <part> --band <band>` (Op `create_comm_link`; the GUI sends the typed text to `POST /ops/from_command` as `{ "command": "link_add", … }`)
+  writes `[link.<name>]` with just those three keys (creating `analysis/comm.toml` if needed); the rest is set with `fune set analysis.comm.link.<name>.<key> …`.
+  The name follows the ID rules and must not collide with an existing link (a difference only in letter case collides). A missing part is refused by the final check (`ref.part`); a band that a listed station lacks is only a warning (`ref.band`).
+- `fune link rename <name> <new>` (Op `rename_comm_link`) renames the table and rewrites `data_downlink` and the `verify.check` of requirements that name the link
+  (`margin:<link>`, `margin:<link>@<station>`, `pfd:<link>`, `pfd:<link>@<station>`; the key format is the analysis's, and `Verification::check_names_link` is the provisional mirror of it, checked against the analysis output in a fune-projection test; #328).
+  The reference index returns these as `Referent::Link` (`RefSite::{CommDataDownlink, RequirementLinkCheck}`).
+- `fune link rm <name>` (Op `remove_comm_link`) removes the table (and the `link` table when it was the last one), and clears `data_downlink` if it named the link.
+  It is refused while a requirement's `verify.check` names the link; update or remove those requirements first.
+
+#### Distance of a link (`comm.link_budget`)
+
+The distance used for the link depends on the central body of `conditions.orbit` (`central`). The result says which model was used (`distance_model`).
+
+- **`earth_orbit`** (Earth): the slant range from the station to the spacecraft. The link margin is judged at the longest distance (the station's `min_elevation`), and the shortest distance (zenith, equal to the altitude) is reported as `range_min`.
+- **`earth_to_body`** (Moon, a planet or the Sun): the distance from Earth to the spacecraft, `|r_body(t) − r_earth(t) + r_spacecraft(t)|`, with the body position from the ephemeris (`sat_astro::ephem`) and the spacecraft position from the orbit around the body.
+  It is evaluated over the mission duration (the requirement with `input = "mission_duration"`; one year when there is none; a planet's synodic period can be longer, so write the duration for Mars and beyond).
+  The margin is judged at the **maximum** distance (`slant_range`); `range_min`, `range_min_epoch` and `range_max_epoch` report the minimum and the epochs of the extremes. Approximation: the distance is measured to Earth's centre, not to the station (an error of up to Earth's radius, about 1.7 % at the Moon and 0.01 % or less beyond Mars; the elevation, see below, uses the real station position).
+- `light_time` is the one-way light time at the maximum distance. Atmospheric and rain losses are the link's `atmospheric_loss` as before.
+
+`comm.visibility` and `comm.data_throughput` find passes from the real geocentric position of a spacecraft around another body (a daily pass of the Earth's rotation, above the station's `min_elevation`).
+The central body occults the spacecraft: while the line from the station to the spacecraft passes through the sphere of the body (equatorial radius), the spacecraft is not visible and the pass is cut (so a Moon or Mars orbiter has several passes a day).
+The occultation by Earth's own horizon is the elevation; atmospheric refraction and the bodies' oblateness are not modelled. `comm.data_throughput` judges the link closure at the maximum Earth distance within its one-day window (the link closes down to the horizon or never), not per elevation.
+The mission-wide worst distance is the link budget's job.
+
+#### Power flux density at the ground (PFD)
+
+For each **downlink** the link budget also reports the power flux density at the Earth's surface in the reference bandwidth,
+`PFD = EIRP − 10·log10(4π·d²) − 10·log10(max(B_occupied / B_reference, 1))` [dBW/m² in `B_reference`],
+evaluated at the **minimum** distance (the worst case): the zenith slant range (the altitude) for an Earth orbit, the minimum Earth distance for another body. Losses in the atmosphere are not subtracted. If `occupied_bandwidth` is not written the EIRP is taken to fall entirely inside the reference bandwidth (no spreading credit; the safe side).
+
+Optional settings of `[link.<name>]` in `analysis/comm.toml` (set with `fune set analysis.comm.link.<name>.<key> …`; both are dimension-checked):
+
+| key | unit | meaning |
+|---|---|---|
+| `pfd_reference_bandwidth` | `Hz`, `kHz` … | the reference bandwidth the limit is stated in (default 4 kHz) |
+| `occupied_bandwidth` | `Hz`, `kHz`, `MHz` … | the occupied bandwidth of the signal |
+
+The PFD limit is a criterion held by a requirement: an `at_most` requirement with `verify.analysis = "comm.link_budget"` and `verify.check = "pfd:<link>"` (every station) or `"pfd:<link>@<station>"`.
+**No limit is built in or defaulted**: it depends on the band, the service and the angle of arrival, so take it from the regulation that applies to the mission.
+Only a downlink that a requirement covers gets the check `pfd:<link>@<station>` (like `margin:<link>@<station>`): margin = limit − PFD; negative is a violation and under 1 dB is a warning.
+Renaming or removing a station is refused while a requirement names it in `verify.check` (`…@<station>`), as for the margin key.
+The demo's `R_PFD` holds a fictional limit of −135 dB for `s_down` to show the feature; it is not a regulatory value.
+
+#### Ground stations described by G/T
+
+A downlink band that writes `g_over_t` (dB/K, written in `dB`) does not need `antenna_gain` or `noise_temperature`: the given G/T is used (`g_over_t_given` in the result). Without `g_over_t` both are required.
+An uplink needs the station's `antenna_gain` and `tx_power`; a station given as an EIRP alone can be written as `tx_power` = the EIRP and `antenna_gain = 0 dBi`. A catalog of ground stations is not provided.
+
 ### 5.5 Reverse-computed power sizing (`power.sizing`)
 
 A steady-state analysis belonging to the Power subsystem. It outputs the required SAP and battery sizes and does not write back to part attributes.
-Its inputs are the orbit, `conditions.orbit.duration`, parts with power and modes, `solar_panel` (with normals) and `battery` parts, the attitude law and the power settings.
-If parts, orbit, duration, modes, attitude law or `analysis.power.dod_max` are missing, it returns a missing input.
+Its inputs are the orbit, the mission duration (the requirement `input = "mission_duration"`), parts with power and modes, `solar_panel` (with normals) and `battery` parts, the attitude law and the power settings.
+If parts, orbit, duration, modes, attitude law or the DoD limit (the `at_most` requirement verified by `power.energy_balance` / `dod`) are missing, it returns a missing input.
 If the explicit analysis case has a mode, that mode is used; otherwise every mode (and, for the time-series reverse computation, the mode sequence as well) is reverse-computed in turn,
 and the result is decided by the operation with the largest required area (`area_mode`) and the operation with the largest required capacity (`capacity_mode`).
 The time-series reverse computation uses the mode's `max_duration` and timing (`when`, `start`), the sequence in use (`analysis.power.active_sequence`, `[[sequence]]`, `[sequences.<name>]`) and `analysis.power.base_mode` in the same way as `power.energy_balance`.
@@ -759,11 +872,11 @@ Generation is computed with the existing `solar` model, using `cell_efficiency`,
 The incidence is obtained by running `power.orbit_generation` with the same time series, SAPs and per-mode attitude law as `power.energy_balance` (`analysis.aocs.law.<mode>`, or the upper-level attitude law if absent),
 and multiplying by the incidence factor, which is the sunlit average generation divided by the generation when sunlight hits all panels head-on
 (the solar flux is fixed at 1 AU, and conversion efficiency is counted in Xd, so it is not put into the time series).
-It is further multiplied by `(1-annual_degradation)^lifetime_years` and `inherent_degradation`. The lifetime is the input design life `design_life` (projection passes `conditions.orbit.duration`), or if absent the period of the season scan. Which was used is in `used.lifetime_source`.
+It is further multiplied by `(1-annual_degradation)^lifetime_years` and `inherent_degradation`. The lifetime is the input design life `design_life` (projection passes the mission duration), or if absent the period of the season scan. Which was used is in `used.lifetime_source`.
 When different panels are mixed, a design that scales up and down while keeping the current area allocation is assumed.
 For a design in which aging and inherent degradation are already included in the existing `eol_factor`, override them so that additional degradation is not stacked on top.
 
-The required battery capacity of one set is `Pe*Te/(dod_max*N*Xbattery)`, and the total capacity is N times that.
+The required battery capacity of one set is `Pe*Te/(dod_max*N*Xbattery)` (`dod_max` is the DoD limit requirement), and the total capacity is N times that.
 As in the existing lumped battery model, the design capacity is the sum of all parts' capacities, and DoD and discharge efficiency are taken from the first battery. If voltage, efficiency, initial SOC or DoD differ between batteries, the result would change with the order of parts, so a `battery_mismatch` warning is emitted (only one in the output's top-level `checks`, for both the power balance and sizing).
 Area and capacity include the parts' counts. The margin is `spec::ratio_margin`, and the verdict is `ratio_margin_verdict` (warning width 0).
 If the load or eclipse is 0 and the requirement is 0, the margin is null (verdict OK).
@@ -816,16 +929,14 @@ Overrides are in `[sizing]` of `analysis/power.toml`. All are optional, and the 
 | `inherent_degradation` | 1 (no additional inherent degradation) |
 | `battery_strings` (N) | 1 |
 | `bus_voltage` | none (no series-parallel layout) |
-| `sun_distance` | the conventional Sun distance of the central body (1 AU for Earth and the Moon; `CentralBody::nominal_sun_distance_m`). For other bodies, a missing input |
+| `sun_distance` | the conventional Sun distance of the central body (1 AU for Earth and the Moon; `CentralBody::nominal_sun_distance_m`). For other bodies, a missing input. `power.sizing` does not run about the Sun (no eclipse season) |
 
 The solar flux is found from `illumination::solar_flux_w_m2` with `sun_distance` (the flux formula exists only there) and is used in both the SMAD and the time-series reverse computations
 (at 2 AU it is 1/4, and the required area is 4 times). When a part's `packing_factor` and `eol_factor` are omitted they are 1, as in the existing generation model.
 No sizing-specific defaults are provided for DoD, cell efficiency, area or battery capacity.
 
 ```toml
-# analysis/power.toml
-dod_max = 0.3
-
+# analysis/power.toml (the DoD limit is the requirement verified by power.energy_balance / dod, not a key here)
 [sizing]
 sunlit_efficiency = 0.8
 eclipse_efficiency = 0.6
@@ -1036,6 +1147,12 @@ from.note   = "Rough estimate from the 3D layout"
 | Create a new net | `nets/X.toml` (new), and the `ports` of the parts to connect |
 | Add a harness segment | only `harness/X.toml` (new) |
 | Rename a part | moving the part file, and rewriting `source` in the modes, harnesses and nets that refer to it (the Rename Op does all of this at once) |
+| Rename a net (`fune net rename`) | moving `nets/X.toml`, and rewriting `ports.<port>.net` of the parts, `nets` of the harness segments and the diagram node keys in `view/*.toml` that refer to it. Hand-drawn line keys (`[edge]`, `P5V:PCDU.OUT2>CAM.PWR`) are not rewritten (as for a part rename) |
+| Rename a harness segment (`fune harness rename`) | only moving `harness/X.toml` (no other entity holds a harness ID) |
+| Rename an analysis case (`fune case rename`) | moving `cases/X.toml`, and rewriting `default_case` of `analysis/common.toml` and `[quantify].cases` of the requirements |
+| Rename a source (`fune source rename`) | moving `sources/…/X.toml` (it stays in its directory), and rewriting the `from.source` of the values of parts and catalog items (including per-state cells), `source` and `datasheet` of the catalog items, and `source` of the requirements. A shared-catalog source, or a source used by a shared-catalog item, is refused because shared catalogs are read-only |
+| Rename a maneuver (`fune maneuver rename`) | moving `maneuvers/X.toml`, and rewriting `after` of the maneuvers that follow it |
+| Rename the project, change its display name (`fune project set name\|label`, `fune project unset label`) | only `[project]` of `fune.toml` (comments and key order stay; `schema` and `toml` are not set by commands) |
 | Reassign an allocation | only `budget/allocation.toml` |
 
 ### 7.6 The trade-off of placing modes on the mode side
@@ -1139,6 +1256,130 @@ it is referenced by the URL in `ref`, and the SHA-256 of what was retrieved is k
   points to a `restricted` source through `source`, `datasheet` or a value's `from.source`, it is an error. Whether a catalog is writable is decided in one place,
   `CatalogSource::local_dir` (only origins of the form `path = …` are writable). Items of catalogs inside this project (`path = …`) are not covered.
 
+### 7.9 requirements/: one file per requirement, and the compliance table
+
+A requirement is a flat list (no tree, no parent and child, no allocation; the tree is out of scope of #10). The ID is the file name. A requirement says
+what it constrains, how, for which cases, where it comes from, and what verifies it. **The verdict is not decided here**: it is the verdict of the
+analysis check or the budget that the requirement points to, and the compliance table collects them.
+
+```toml
+# requirements/R_BAT_TEMP.toml
+label     = "Battery operating temperature"
+statement = "The battery shall stay above 0 degC in every analysis case."
+quantity  = "Temperature"           # the dimension of the constrained quantity (the unit of the constraint must have it)
+source    = "ds_vendor"             # a source ID (sources/). A missing source is a warning
+
+[constraint]
+kind  = "at_least"                  # at_most / at_least / equal / range
+value = { value = 0.0, unit = "degC" }
+
+[quantify]                          # for which cases it must hold. Omitted: the analysis's default case
+all_cases = true                    # every case in cases/. Or `cases = ["hot_imaging", "cold_safe"]` (not both)
+
+[verify]                            # what verifies it: an analysis check, or a budget (not both)
+analysis = "thermal.steady"
+check    = "range_low:BAT:operating"
+```
+
+- `statement_en` holds an English statement (the GUI shows it in English; `label` is an optional short name).
+- **Constraint**: `at_most` and `at_least` use `value`; `equal` uses `value` and an optional `tolerance` (`value ± tolerance`, 0 or more); `range` uses `min` and `max`
+  (`min` ≤ `max`). A field the direction does not use is an error. Every quantity must have the dimension named by `quantity` (`unit.dimension`).
+- **Quantification**: `all_cases = true` means every analysis case in `cases/`; `cases = [...]` names them (an unknown case is `ref.case`). Without either, the verifying analysis picks its own default case.
+- **What verifies it** (`[verify]`): `analysis` (an analysis ID; an unknown ID is `ref.analysis`) with an optional `check` (the key of one of that analysis's `checks`),
+  or `budget` (`mass` / `power` / `data`; its dimension must match `quantity`, `requirement.verify_dimension`). A `check` without an `analysis`, or a `budget` together with an `analysis`, is an error.
+  Without `check`, the verdict of the analysis as a whole (the worst of its checks) counts. If several checks share the key (per mode, per component), the worst one counts.
+  A `check` matches a produced key by prefix at a separator (`margin` covers `margin:s_down@TOKYO_GS`), so one requirement can cover every link and station.
+- `input` (top level, optional): the analysis input the requirement gives (`mission_duration`); see "Criteria live in requirements" below. It is not part of `[verify]`.
+- **Where the check keys are validated**: a check key is a string the analysis builds each run (`dod`, `margin:s_down@TOKYO_GS`, `range_low:BAT:operating`), so the set of keys cannot be known without
+  running the analysis. `fune check` therefore validates only what is static (the analysis ID against the registered analyses, the budget kind, the dimension, the references and the ID),
+  and the compliance table validates the key when it runs the analysis: a key the analysis did not produce makes the row "not verified" with the keys that were produced.
+  (`fune_model::design::ANALYSIS_IDS` mirrors the analysis registry because fune-model cannot depend on sat-analysis; a fune-projection test checks that they agree.)
+- Unlike the maneuver, there is no rename: nothing refers to a requirement by ID. Removing a source or a case that a requirement points to is refused by the edit check (`ref.source`, `ref.case`).
+- How to write: after the top-level values, `[constraint]`, `[quantify]` and `[verify]` are heading tables, and quantities inside are `{ value, unit }`
+  (`fune_store::write::records::REQUIREMENT_SECTIONS`). Edits use `fune requirement add|set|rm` (the GUI sends the same arguments to `POST /ops/from_command`).
+
+**Compliance table** (`fune requirement compliance`, `GET /requirements/compliance`, the Requirements page): for each requirement, the statement, the constraint, the source, what verifies it, the cases it was
+evaluated for, the evaluated value (a budget's total; analysis checks carry a message but no value), and the verdict. Each quantified case is judged on its own (an analysis or budget runs once per case and is reused across requirements).
+The row's verdict is the worst case, ranked **violation > not verified > warning > ok** (a requirement is not "ok" if any of its cases could not be verified). Not verified has a reason:
+`no_link` (nothing to verify it), `design_input` (the requirement gives an analysis input, so there is nothing to verify), `missing_inputs` (the analysis or budget lacks inputs, listed in `detail`), `failed`, `key_not_produced`, `unknown_target` (the analysis, budget or case does not exist).
+The counts (`summary`) and the verdicts are computed in `fune_service::requirements`; the Web only lays them out. The exit code of `fune requirement compliance` is 1 when any requirement is violated (`--deny-unverified` adds the not verified ones; warnings never fail it).
+
+#### Criteria live in requirements (#10 stage 2)
+
+A **verdict criterion** (a limit or threshold a verdict compares against) is held **only** in the `constraint` of a requirement. Budgets and analyses read it from the requirement(s) that point at them.
+Design values and modelling inputs stay settings or part attributes (see the table below). One mechanism serves all of it, in `fune_model::design::criteria`:
+
+- **Budget limit**: `verify.budget = "<kind>"` with an `at_most` constraint is the limit of that budget (`Design::budget_limit`). The limit applies to the budget view in every case (`quantify` only selects the cases the compliance table judges).
+- **Analysis criterion**: a requirement whose `verify.analysis` and `verify.check` match a declared check supplies its criterion. The declared table `CRITERIA` (the single table) says which check takes its criterion from a requirement,
+  the constraint direction it expects and its dimension, and which input of the analysis it feeds (`fune_projection` calls `Context::criterion`). The check key is a prefix that stops at a separator (`:` or `@`):
+  `margin` covers every `margin:<link>@<station>`, `margin:s_down` covers that link at every station, and a full key covers one pair (`key_covers`).
+
+| Check (analysis / key) | Direction, dimension | Feeds |
+|---|---|---|
+| `power.energy_balance` / `dod` | `at_most`, Dimensionless | the allowed DoD of the batteries (also `power.sizing`). **Required**: without it the analyses report a missing input |
+| `comm.link_budget` / `margin` | `at_least`, Dimensionless (dB) | the required margin per link × station (`comm.data_throughput` takes the tightest of its downlink's stations); without one the analysis default (3 dB) applies |
+| `comm.link_budget` / `pfd` | `at_most`, Dimensionless (dB) | the PFD limit of a downlink; without one no PFD check is made |
+| `aocs.slew_time` / `slew_time` | `at_most`, Time | the required slew time; without one no check is made |
+| `orbit.decay` / `max_lifetime` | `at_most`, Time | the lifetime limit; without one no check is made |
+| `structure.modal_estimate` / `lateral`, `axial` | `at_least`, Frequency | the required natural frequency of beams (the demo has no beams, so these rows stay "not verified") |
+| `thermal.steady`, `thermal.transient` / `range_low`, `range_high` | `at_least` / `at_most`, Temperature | a node's lower or upper temperature limit (see below) |
+
+- **Several requirements on one criterion**: the tightest applies (`at_most` the smallest, `at_least` the largest). The compliance table still judges **each row against its own constraint**:
+  it re-runs the analysis or budget without the other requirements that share the criterion (a draft with `RemoveRequirement` ops; nothing is saved), so a looser requirement is met when the tighter one is, and a violated tighter one does not fail the looser one.
+- **Wrong direction or dimension**: a requirement whose constraint kind or dimension does not match the declared check (or a budget requirement that is not `at_most`) is not a criterion, and `fune check` reports
+  `requirement.criterion_kind` / `requirement.criterion_dimension` as an error.
+- **No requirement**: the analysis or budget runs as it did when the setting was absent (no verdict for that check, the analysis default, or a missing input for the DoD limit).
+- **Part temperature ranges stay part attributes** (`temp_op`, `temp_survival`, `temp_perf`). A temperature requirement (`range_low:<node>:<kind>`, `range_high:<node>:<kind>`) may only **tighten** the node's range for that check
+  (the stricter of the part range and the requirement applies). A requirement looser than the part range does not widen it: the check message says it has no effect (a requirement equal to the part range adds nothing).
+  The requirement is recorded in the analysis input (`network.nodes[].required`) and the message says "tightened by requirement R…".
+- **Mission duration** is an input, not a criterion, so it has its own field: `input = "mission_duration"` on an `at_least` requirement of dimension Time (one per design; a second one is `requirement.input_duplicate`).
+  The compliance row of such a requirement is "not verified" with the reason `design_input`.
+- **Moved settings** (`design::moved_settings`): the keys `budget.<kind>.limit`, `analysis.power.dod_max`, `analysis.comm.min_margin`, `analysis.comm.link.<name>.pfd_limit`, `analysis.aocs.max_slew_time`,
+  `conditions.orbit.decay.max_lifetime`, `conditions.launch.min_frequency_axial|lateral` and `conditions.orbit.duration` are no longer read. A file that still has one gets the error
+  `setting.moved_to_requirement` naming the key and the requirement to write; `fune setting set` refuses them; `fune setting unset <path>` removes them.
+- **Stays a setting or attribute** (design values and modelling inputs): `ebn0_required`, `system_margin`, `alloc`, growth/uncertainty/harness allowance, `storage_margin`, `usable_momentum_fraction`, `unload_dipole_fraction`,
+  `slew_angle`, `dv_margin`, `residual_fraction`, `safety_factor_*` (factors applied to loads, like `system_margin`), `fastener_allowable`, the thermal `[margin]`, ground station `min_elevation`, mode `max_duration`, and the part temperature ranges.
+
+### 7.10 phases/: one file per mission phase
+
+A phase is a stage of the mission (commissioning, nominal operations, disposal). The ID is the file name, and phases are listed by `(order, ID)` (`Design::ordered_phases` is the only place that decides the order).
+
+```toml
+# phases/LEOP.toml
+label    = "Launch and early operations"
+order    = 1                                         # an integer (kept as an integer by the TOML profile, like `count`). Omitted = 0
+start    = "Separation from the launcher"            # free text: the condition that starts the phase (optional)
+end      = "All subsystems checked out"              # free text (optional)
+duration = { value = 30.0, unit = "d" }              # optional, a time
+modes    = ["SAFE", "NOMINAL"]                       # the modes used in this phase (optional; references to modes/)
+
+[orbit]                # optional. Same keys as conditions/orbit.toml. If present it REPLACES the design's orbit as a whole for the cases that name this phase (no per-key merge)
+label    = "Disposal orbit (250 km)"
+altitude = { value = 250.0, unit = "km" }
+# ...
+
+[law.NOMINAL]          # optional. Same keys as analysis/aocs.toml [law.<mode>]. Replaces that mode's attitude law for the cases that name this phase
+law = "nadir_pointing"
+```
+
+- **How a case uses a phase.** A case with `phase = "<ID>"` (§5.1) reads the phase's `[orbit]` in place of `conditions/orbit.toml` as a whole (the epoch, the propagator, the `[decay]` and `[eclipse_season]` settings and so on come
+  from the phase's table too, so a phase orbit has to be complete) and the phase's `[law.<mode>]` in place of the design's law for that mode (modes the phase does not list keep the design's law). Nothing else changes.
+  The existing orbit and attitude-law code reads them (the orbit builder takes "the orbit settings in effect"); there is no second orbit builder. A missing input in a phase orbit names the phase file
+  (`phases.<ID>.orbit.<key>`, not `conditions.orbit.<key>`), and so does a read of a phase law (`phases.<ID>.law.<mode>`).
+- **Checks** (`fune check`): the ID rules (`id.invalid`, `id.duplicate`); every entry of `modes` and every key of `[law]` must be a mode (`ref.mode`); `duration` has the Time dimension (`unit.dimension`);
+  the `[orbit]` table gets the same checks as the design's orbit (dimensions of the quantities, eccentricity range, `ltdn` format; the targets are `phases.<ID>.orbit.<key>`);
+  a case's `phase` must exist (`ref.phase`); and `case.mode_not_in_phase` (warning) when a case with a phase names a mode that the phase's non-empty `modes` does not list.
+- **References.** Phases refer to modes (`modes`, the keys of `[law]`) and cases refer to phases (`phase`); both are in the reference index (`RefSite::PhaseMode`, `PhaseLaw`, `CasePhase`).
+  Renaming a mode rewrites the phases, and renaming a phase rewrites the cases. Removing a phase that a case names is rejected by the check (`ref.phase`), as removing a mode that a case names is.
+- **Ops**: `CreatePhase`, `SetPhase`, `RemovePhase`, `RenamePhase`, `SetPhaseField` (one value of `orbit.<key>` or `law.<mode>.<key>`; no value removes it, and an emptied table disappears), `CopyPhaseOrbit` (writes the design's current orbit into the phase's `[orbit]` in one step, replacing the current one; it is the starting point of an orbit override), `UnsetPhaseOrbit` and `UnsetPhaseLaw` (remove the whole `[orbit]`, or the whole `[law.<mode>]` of one mode) and `SetCasePhase`.
+  An attitude law override is started by writing its kind (`law.<mode>.law`) with `SetPhaseField`, because `AttitudeLawSetting` requires `law` whenever `[law.<mode>]` exists; the file stays loadable at every step.
+  `SetPhase` replaces the heading fields (`label`, `order`, `start`, `end`, `duration`, `modes`) and keeps the current `[orbit]` and `[law.*]` when the Op carries none.
+- **CLI** (the GUI sends the same arguments to `POST /ops/from_command`): `fune phase ls|show|add|set|rm|rename`, `fune phase set-field <ID> orbit.altitude "550 km"`, `fune phase unset-field <ID> <path>`, `fune phase copy-orbit <ID>`, `fune phase unset-orbit <ID>`, `fune phase unset-law <ID> <mode>`,
+  `fune case set-phase <case> <phase>`, `fune case unset-phase <case>` and `fune case set --phase <ID>`. How to write: after the top-level values, `[orbit]` and `[law.<mode>]` are heading tables
+  (`fune_store::write::records::PHASE_SECTIONS`).
+- **GUI.** The phases page edits the heading fields in a dialog and the overrides in an "Edit overrides" dialog: the orbit override is the same settings table as the design orbit (`SettingsTable`) and the attitude law override is the same fields as the AOCS mode's law (`Attitude`); both take only where the values are written (`FieldEdit`: `usePhaseFieldEdit` sends `phase_field`, the design's own editors use `useSettingEdit`). "Copy the design orbit", "Remove override" and adding or removing a law override send `phase_copy_orbit`, `phase_unset_orbit`, `phase_unset_law` and `phase_field` to `POST /ops/from_command`. Not editable in the GUI: adding an orbit field that is not already in the file (as for the design orbit; use `fune phase set-field`), and removing a single field (`fune phase unset-field`).
+- Not used yet: the duration and the order do not drive any analysis, and maneuvers do not read phases (`after` still names a maneuver; §7.7).
+
 ## 8. Allocations and margin policy (budget/)
 
 Allocations are gathered in a single file rather than scattered across subsystem directories.
@@ -1148,9 +1389,8 @@ Allocations are gathered in a single file rather than scattered across subsystem
 - The total can be checked in one file. `check()` verifies "total of allocations ≤ limit × (1 − system margin)" and emits a warning if exceeded.
 
 ```toml
-# budget/allocation.toml
+# budget/allocation.toml (the limits are requirements with `verify.budget`, §7.9, not keys here)
 [mass]
-limit         = { value = 12.0, unit = "kg" }   # upper limit from the launcher side
 system_margin = 0.10
 
 [mass.alloc]
@@ -1162,7 +1402,6 @@ payload   = { value = 1.5, unit = "kg" }
 structure = { value = 2.3, unit = "kg" }
 
 [power]
-limit         = { value = 25.0, unit = "W" }    # expected orbit-average generation
 system_margin = 0.15
 
 [power.alloc]
@@ -1191,7 +1430,8 @@ allowance = 0.05         # fraction allowed for subsystem mass while harness/ do
 
 An allocation key is a subsystem ID or a part ID. Allocation is possible even if the subsystem directory does not exist yet. Parts such as assemblies (`SAP_PX`) can also be allocated to, but IDs of arbitrary folders are not accepted.
 Aggregation gives priority to parts with an explicit allocation and to the nearest ancestor assembly, and otherwise gathers into the part's subsystem (including subsystems determined by role). Those without a subsystem go in the "Other" row. Only allocations of the same budget kind are used, and allocation targets of other kinds have no effect.
-`limit` may be omitted. For a kind with no limit set, `fune check` emits the warning "limit not set", does not judge against a limit, and returns the current total. `fune init` does not set a mass limit and does not embed a display name in the SAFE mode.
+**The limit of a budget is held by a requirement**: the `at_most` requirement with `verify.budget = "<kind>"` (§7.9; several → the smallest applies). The old `limit` key is no longer read and `fune check` reports it (`setting.moved_to_requirement`).
+For a kind with no such requirement, `fune check` emits the warning "limit not set" (`budget.limit_unset`), does not judge against a limit, and returns the current total. The budget view names the requirement that decided the limit (`limit_requirement`). `fune init` does not set a mass limit and does not embed a display name in the SAFE mode.
 
 **Propellant in the mass budget**: the mass budget (`fune budget mass`, `GET /budgets/mass`, and the mass budget in the overview) outputs a "Propellant" row
 after the rows of the parts' dry mass. Its value is taken only from the propellant loaded according to the propulsion analysis `propulsion.propellant` (the portion used with margin + the remaining portion), without applying growth margin,
@@ -1467,11 +1707,12 @@ my-sat-design/
 │   └── ground/<ID>.toml         # ground stations
 ├── analysis/<subsystem>.toml    # analysis settings per subsystem (no files for topics)
 ├── analysis/common.toml         # common analysis settings
-├── mission/                     # reserved directory for #9 (not read for now)
+├── mission/                     # reserved directory for #9 (mission and success criteria; not read for now)
+├── phases/<ID>.toml             # mission phases (§7.10)
 ├── cases/<ID>.toml
 ├── maneuvers/<ID>.toml          # maneuvers (§7.7)
 ├── sources/<ID>.toml            # subdirectories allowed: sources/<dir>/<ID>.toml (§11.1)
-├── requirements/<ID>.toml
+├── requirements/<ID>.toml       # requirements (§7.9)
 ├── tables/<ID>.csv  tables/<ID>.toml
 ├── view/
 ├── results/<name>/               # only pinned analysis results
@@ -1535,6 +1776,11 @@ rev  = "v2026.11"
 name = "local"
 path = "catalog"
 ```
+
+`[project]` holds `name` (required), `label` (the display name, optional), `schema` and `toml`. `name` and `label` are written with `fune project set name|label <value>` and `fune project unset label`
+(Op `set_project_field`; the GUI sends `{ "command": "project_set", "field": …, "value": … }` to `POST /ops/from_command`). A value must be one line of text, and `name` cannot be empty or removed.
+`schema` and `toml` are not set by commands. Comments and the order of keys stay as they are (`label` is put back in its place after `name` when it was removed).
+The `[[catalog]]` entries are edited with `fune catalog source add|add-local|rm` (§12.3).
 
 `parts/aocs/RW_X.toml`
 
@@ -1661,7 +1907,8 @@ Loading looks only at the lock's commit (even if `rev` is a branch, the contents
 | Command (HTTP) | What it does |
 |---|---|
 | `fune catalog source add <name> --git <URL> [--rev <rev>]` (`POST /ops/from_command` `{ "command": "catalog_source_add", … }` → `POST /ops`. The Op is `add_catalog_source`) | Adds one shared catalog after the `[[catalog]]` entries in fune.toml (written in canonical form). The name follows the ID rules and must not collide with an existing catalog (including `local` with `path`; even a difference only in letter case collides). `git` cannot be empty. **It does not fetch** (follow with `fune catalog fetch`; until then, `catalog.not_locked`). In the GUI it is "Add shared catalog" on the catalog page |
-| `fune catalog source rm <name>` (`remove_catalog_source` via `POST /ops`) | Removes a shared catalog from fune.toml. Only those with `git = …` can be removed; this project's own catalog (`path = …`) is not removed. If a part's `catalog` or `candidates`, or a harness's `wire`, refers to an item of it (`<name>/…`), it is refused, listing the referring parts and harnesses. catalog.lock is not rewritten, and the next `fune catalog fetch` removes the record (until then, a `catalog.lock_unused` warning). The cache under `.fune/` remains |
+| `fune catalog source add-local <name> --path <dir>` (`{ "command": "catalog_local_add", … }` → `POST /ops`. The Op is `add_local_catalog`) | Adds a catalog of this project (`[[catalog]] name = … path = …`) after the existing entries. The name follows the same rules as for a shared catalog (including no collision with any existing catalog). The directory (inside the project, `a/b`; each name follows the ID rules) must not be the project root, must not start with a directory the project layout uses (`parts`, `sources`, `modes`, `nets`, `harness`, `cases`, `maneuvers`, `requirements`, `conditions`, `analysis`, `view`, `budget`, `defs`, …), and must not contain or be inside another catalog's directory (`fune_store::layout::parse_local_catalog_path`). The directory is not created; adding the first item creates it |
+| `fune catalog source rm <name>` (`remove_catalog_source` via `POST /ops`) | Removes a catalog from fune.toml. A shared catalog (`git = …`) is removed unless a part's `catalog` or `candidates`, or a harness's `wire`, refers to an item of it (`<name>/…`; refused, listing the referring parts and harnesses). catalog.lock is not rewritten, and the next `fune catalog fetch` removes the record (until then, a `catalog.lock_unused` warning). The cache under `.fune/` remains. A catalog of this project (`path = …`) is removed only while it holds no items (their files would otherwise stay unread), after the same check of users |
 | `fune catalog fetch` (`POST /catalog/fetch`) | If the lock matches fune.toml, fetches the lock's commit (the commit is not moved). For a shared catalog absent from the lock or whose `git` or `rev` differs, it resolves `rev` and writes it to the lock. Lock records absent from fune.toml are removed |
 | `fune catalog fetch --locked` (`{ "locked": true }`) | Does not rewrite the lock. Fails if there is no lock or it differs from fune.toml (for CI) |
 | `fune catalog update <name>` (`POST /catalog/update`) | Advances that shared catalog's lock to the current commit of `rev`. Returns the items and values that changed (`attr.mass: 150 g → 160 g`) |
@@ -1729,4 +1976,4 @@ The implementation (fune-model / fune-store / fune-ops) follows this document, b
 | The ID comes from the file name (not written in the file) | Same. In addition, a JSON Op accepts the payload's `id`, and if the file has an `id` that differs from the file name, `id.mismatch` | So that new items can be created from the GUI and `fune apply` |
 | Attribute default values | Built-in attributes can have a `default` (for example, specific heat 900 J/(kg·K)). A value resolved from a default has origin `kind_default` and evidence `placeholder` | To show on screen that it is a provisional value |
 
-Not yet loaded: `mission/` for #9, `requirements/` and `tables/` (the directories are recognized). The `#:schema` heading line is not yet written out.
+Not yet loaded: `mission/` for #9 and `tables/` (the directories are recognized). The `#:schema` heading line is not yet written out.

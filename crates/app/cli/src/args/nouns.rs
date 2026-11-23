@@ -343,6 +343,13 @@ pub enum NetCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// Rename a net (the `net` of ports, the `nets` of harness segments and diagram nodes are rewritten too)
+    Rename {
+        id: String,
+        to: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// Connect a part's port to a net (e.g. `fune net connect RW_X.PWR P12V_AOCS`)
     Connect {
         port: String,

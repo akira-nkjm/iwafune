@@ -91,7 +91,7 @@ fn ends_places_and_setting_groups_are_structured() {
     );
     // デモに戻り（GND）のネットは無い
     assert!(design.nets.iter().all(|n| !n.is_return));
-    let cells = design.parts.iter().find(|p| p.id == "CELLS").unwrap();
+    let cells = design.parts.iter().find(|p| p.id == "CELL_MOD_1").unwrap();
     assert_eq!(cells.dir, ["power", "SAP_PY"]);
     for dir in cells.dir.iter() {
         assert!(design.tree.iter().any(|n| &n.id == dir), "{dir}");
@@ -108,11 +108,17 @@ fn ends_places_and_setting_groups_are_structured() {
     );
     assert_eq!(altitude.system, None);
     assert_eq!(
-        setting("analysis.power.dod_max").system,
+        setting("analysis.power.initial_soc").system,
         Some(System::Power)
     );
-    assert_eq!(setting("budget.mass.limit").system, Some(System::Structure));
-    assert_eq!(setting("budget.data.limit").system, Some(System::Cdh));
+    assert_eq!(
+        setting("budget.mass.system_margin").system,
+        Some(System::Structure)
+    );
+    assert_eq!(
+        setting("budget.data.system_margin").system,
+        Some(System::Cdh)
+    );
     let policy = design
         .settings
         .iter()
@@ -340,7 +346,7 @@ fn budget_puts_parts_without_a_group_in_one_other_row() {
     assert!(total(&draft) > total(&saved));
 }
 
-/// 役割で決まる系、種類ごとの配分、上限の省略を同じ集計で扱う。
+/// 役割で決まる系、種類ごとの配分、上限（要求）が無いときを同じ集計で扱う。
 #[test]
 fn budget_system_rows_and_optional_limits() {
     use fune_service::{
@@ -351,7 +357,7 @@ fn budget_system_rows_and_optional_limits() {
     let saved = budget::budget(&ws, BudgetKind::Mass, &BudgetRequest::default()).unwrap();
     let ops = serde_json::from_value(serde_json::json!([
         { "op": "move_part", "id": "RW_X", "to": null },
-        { "op": "set_setting", "path": "budget.mass.limit", "value": null },
+        { "op": "remove_requirement", "id": "R_MASS" },
         { "op": "set_setting", "path": "budget.power.alloc.RW_X",
           "value": { "type": "quantity", "value": { "value": 1.0, "unit": "W" } } }
     ]))

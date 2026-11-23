@@ -170,8 +170,8 @@ fn settings_and_nets() {
     let snap = snapshot();
     let ops = vec![
         Op::SetSetting {
-            path: "analysis.power.dod_max".into(),
-            value: Some(SettingValue::Number(0.25)),
+            path: "analysis.power.initial_soc".into(),
+            value: Some(SettingValue::Number(0.8)),
         },
         Op::SetSetting {
             path: "conditions.orbit.altitude".into(),
@@ -193,8 +193,8 @@ fn settings_and_nets() {
     ];
     let p = plan(&snap, &ops).unwrap();
     assert_eq!(
-        p.design.analysis.power.as_ref().unwrap().dod_max,
-        Some(0.25)
+        p.design.analysis.power.as_ref().unwrap().initial_soc,
+        Some(0.8)
     );
     assert_eq!(
         p.design

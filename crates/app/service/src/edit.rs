@@ -4,11 +4,17 @@
 //! | モジュール | 打った文字列 → Op |
 //! |---|---|
 //! | `text` | `fune set`・`fune unset`・`fune setting set|unset` のパスと値（[`set_op`]・[`unset_op`]）と、値の読み方 |
-//! | `catalog` | `fune catalog set|unset`・`fune catalog source add`（[`catalog_source_add_op`]） |
+//! | `catalog` | `fune catalog set|unset`・`fune catalog source add`・`add-local`（[`catalog_source_add_op`]・[`catalog_local_add_op`]） |
 //! | `command` | 名詞のコマンドの引数（[`command_ops`]。`fune net set|unset`・`fune part place`・`fune mode set|unset`） |
 //! | `defs` | `fune attr add`・`fune kind add` |
 //! | `eclipse` | 季節解析の代表標本から新しい解析ケースの SetCase を作る |
+//! | `sun_distance` | 太陽を回る軌道の近日点・遠日点から新しい解析ケースの SetCase を作る |
+//! | `requirement` | `fune requirement add\|set` の引数（[`requirement_op`]。逆の向きは `query::requirements`） |
 //! | `maneuver` | `fune maneuver add\|set` の引数（[`maneuver_op`]。逆の向きは `query::maneuvers`） |
+//! | `phase` | `fune phase add\|set\|set-field` と `fune case set-phase` の引数（[`phase_op`]・[`phase_field_op`]・[`case_phase_op`]。逆の向きは `query::phases`） |
+//! | `ground` | `fune ground add` の引数（[`ground_add_op`]） |
+//! | `link` | `fune link add` の引数（[`link_add_op`]） |
+//! | `project` | `fune project set\|unset` の引数（[`project_field_op`]） |
 //! | `group` | `fune part mv|add` の置き先 `aocs/RW`（[`group_target`]。ID の列に読む） |
 //! | `place` | `fune part place` の取付・位置・姿勢（[`place_op`]。姿勢の角度 `--rotation` は [`rotation_from_text`]）と、機体座標での配置（`--body-pos`・`POST /parts/{id}/place_body`） |
 
@@ -25,12 +31,18 @@ mod catalog;
 mod command;
 mod defs;
 mod eclipse;
+mod ground;
 mod group;
+mod link;
 mod maneuver;
+mod phase;
 mod place;
+mod project;
+mod requirement;
+mod sun_distance;
 mod text;
 
-pub use catalog::catalog_source_add_op;
+pub use catalog::{catalog_local_add_op, catalog_source_add_op};
 pub use command::{
     command_ops, duty_from_text, mode_duration_op, mode_move_op, mode_set_op, mode_timing_op,
     net_set_ops, net_unset_op, sequence_set_op,
@@ -40,9 +52,17 @@ pub use defs::{
 };
 pub use eclipse::case_from_eclipse_op;
 pub use fune_ops::{to_cli, to_cli_script};
+pub use ground::ground_add_op;
 pub use group::group_target;
+pub use link::link_add_op;
 pub use maneuver::maneuver_op;
+pub use phase::{
+    case_phase_op, copy_orbit_op, phase_field_op, phase_op, unset_law_op, unset_orbit_op,
+};
 pub use place::{place_body, place_body_op, place_op, rotation_from_text};
+pub use project::project_field_op;
+pub use requirement::requirement_op;
+pub use sun_distance::case_from_sun_distance_op;
 pub use text::{
     SetText, UnsetText, list_from_text, maturity, net_kind, pair_from_text, points_from_text,
     quantity_from_text, quaternion_from_text, vector_from_text, xy_from_text,

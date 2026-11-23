@@ -253,6 +253,14 @@ impl Decoder<'_> {
                 v.id = Id::new(id);
                 g.maneuvers.insert(Id::new(id), v);
             }),
+            FileRole::Phase(id) => self.read_into(path, |g, mut v: d::Phase| {
+                v.id = Id::new(id);
+                g.phases.insert(Id::new(id), v);
+            }),
+            FileRole::Requirement(id) => self.read_into(path, |g, mut v: d::Requirement| {
+                v.id = Id::new(id);
+                g.requirements.insert(Id::new(id), v);
+            }),
             FileRole::Conditions(name) => self.read_conditions(path, name),
             FileRole::Ground(id) => self.read_into(path, |g, mut v: d::GroundStationSettings| {
                 v.id = id.clone();
@@ -307,6 +315,8 @@ fn file_id(role: &FileRole) -> Option<&str> {
         | FileRole::Case(id)
         | FileRole::Source { id, .. }
         | FileRole::Maneuver(id)
+        | FileRole::Phase(id)
+        | FileRole::Requirement(id)
         | FileRole::Ground(id)
         | FileRole::View(id) => Some(id),
         _ => None,

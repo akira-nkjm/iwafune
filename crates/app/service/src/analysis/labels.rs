@@ -9,7 +9,7 @@ use sat_analysis::aocs::sensor_fov::SensorFovTarget;
 use sat_analysis::aocs::slew_time::{SlewAssumption, SlewProfile};
 use sat_analysis::aocs::unload_time::{MtqFieldGap, MtqFieldReason, UnloadAssumption};
 use sat_analysis::comm::data_throughput::DataThroughputLinkClosure;
-use sat_analysis::comm::link_budget::LinkBudgetDirection;
+use sat_analysis::comm::link_budget::{LinkBudgetDirection, LinkDistanceModel};
 use sat_analysis::power::energy_balance::{
     DurationTiming, EnergyBalanceDuty, EnergyBalanceEvaluation,
 };
@@ -194,6 +194,19 @@ fn link_direction(d: LinkBudgetDirection) -> AnalysisLabel {
     }
 }
 
+fn link_distance_model(m: LinkDistanceModel) -> AnalysisLabel {
+    match m {
+        LinkDistanceModel::EarthOrbit => label(
+            "地球周回の斜距離（局から見た）",
+            "Earth-orbit slant range (from the station)",
+        ),
+        LinkDistanceModel::EarthToBody => label(
+            "地球から天体周回の衛星までの距離（地心）",
+            "Distance from Earth to the spacecraft around another body (geocentre)",
+        ),
+    }
+}
+
 fn solar_life(l: SolarLife) -> AnalysisLabel {
     match l {
         SolarLife::Bol => label("初期（BOL）", "Beginning of life"),
@@ -318,6 +331,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "SlewAssumption" => parse(value).map(slew_assumption),
         "SpanFallback" => parse(value).map(span_fallback),
         "LinkBudgetDirection" => parse(value).map(link_direction),
+        "LinkDistanceModel" => parse(value).map(link_distance_model),
         "SolarLife" => parse(value).map(solar_life),
         "ModalEstimateKind" => parse(value).map(modal_kind),
         "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),
@@ -356,7 +370,10 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         K::ModeLoad => label("モードの消費電力（バジェット）", "Mode load (budget)"),
         K::OrbitGeneration => label("軌道平均の発電", "Orbit-average generation"),
         K::SunlitFraction => label("日照率", "Sunlit fraction"),
-        K::OrbitBalance => label("軌道平均の収支（最悪）", "Orbit-average balance (worst)"),
+        K::OrbitBalance => label(
+            "電力収支（軌道平均・最悪）",
+            "Power balance (orbit average, worst)",
+        ),
         K::MaxDod => label("最大 DoD", "Max DoD"),
         K::SapMargin => label("太陽電池の余裕", "Solar Cells margin"),
         K::BatteryMargin => label("バッテリーの余裕", "Battery margin"),

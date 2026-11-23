@@ -41,6 +41,10 @@ budget?: string | null,
  */
 unit_vector: boolean, 
 /**
+ * 視野の半角のとき、どの方向の属性のまわりの視野か
+ */
+fov_axis?: string | null, 
+/**
  * 画面で並べる系（`basic`・`mass`・`power`・…）
  */
 section?: string | null, };

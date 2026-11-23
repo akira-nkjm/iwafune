@@ -1,18 +1,30 @@
 //! 引数の定義（clap）。コマンド体系は `fune <名詞> <動詞>` と、よく使うものの短縮。
 
 mod defs;
+mod ground;
+mod links;
 mod nouns;
+mod phases;
 mod records;
+mod report;
+mod requirements;
+mod skill;
 
 pub use defs::{AttrAddArgs, AttrCmd, KindAddArgs, KindCmd};
+pub use ground::GroundCmd;
+pub use links::{LinkCmd, ProjectCmd};
 pub use nouns::{
     ModeCmd, ModeViewOpts, NetArgs, NetCmd, NetSetArgs, PartCmd, PlaceArgs, SequenceCmd, SetArgs,
     SettingCmd, ViewCmd,
 };
+pub use phases::{PhaseArgs, PhaseCmd};
 pub use records::{
     CaseArgs, CaseCmd, CatalogCmd, CatalogSourceCmd, HarnessArgs, HarnessCmd, ManeuverArgs,
     ManeuverCmd, PointArgs, SourceArgs, SourceCmd,
 };
+pub use report::{ReportCmd, ReportExportArgs};
+pub use requirements::{RequirementArgs, RequirementCmd};
+pub use skill::SkillCmd;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
@@ -149,6 +161,21 @@ pub enum Command {
     /// Maneuvers (maneuvers/)
     #[command(subcommand)]
     Maneuver(ManeuverCmd),
+    /// Mission phases (phases/)
+    #[command(subcommand)]
+    Phase(PhaseCmd),
+    /// Ground stations (conditions/ground/)
+    #[command(subcommand)]
+    Ground(GroundCmd),
+    /// Communication links (`[link.<name>]` in analysis/comm.toml)
+    #[command(subcommand)]
+    Link(LinkCmd),
+    /// Project settings (`[project]` in fune.toml)
+    #[command(subcommand)]
+    Project(ProjectCmd),
+    /// Requirements (requirements/) and the compliance table
+    #[command(subcommand)]
+    Requirement(RequirementCmd),
     /// Diagram layout (node positions of the system diagrams)
     #[command(subcommand)]
     View(ViewCmd),
@@ -167,7 +194,7 @@ pub enum Command {
     Undo,
     /// Redo the edit that was undone
     Redo,
-    /// Run an analysis (`fune analyze ls`, `fune analyze power.energy_balance`)
+    /// Run an analysis (`fune analyze ls`, `fune analyze power.energy_balance`). Exit code 1 if an input is missing, the run fails or a check is a violation
     Analyze(AnalyzeArgs),
     /// Budgets (mass / power / data)
     Budget {
@@ -179,6 +206,9 @@ pub enum Command {
         #[arg(long)]
         ops: Option<PathBuf>,
     },
+    /// Report export: tables and figures for a Typst design document
+    #[command(subcommand)]
+    Report(ReportCmd),
     /// External data (DE440 ephemeris)
     #[command(subcommand)]
     Data(DataCmd),
@@ -195,6 +225,9 @@ pub enum Command {
         #[arg(long, value_name = "VERSION")]
         version: Option<String>,
     },
+    /// Agent skill: show or install the instructions that teach an AI agent to use fune
+    #[command(subcommand)]
+    Skill(SkillCmd),
     /// Apply Op JSON (the same form the GUI uses)
     Apply {
         /// JSON file of an array of Ops (`-` for stdin)

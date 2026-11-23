@@ -6,13 +6,20 @@
 //!
 //! | 参照先 | 参照元（[`RefSite`]） |
 //! |---|---|
-//! | 部品 | モードの `[states]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part` / `antenna`・`analysis/thermal.toml` の `[nodes]`・図の `[nodes]` のキー・マヌーバの `thruster` |
+//! | 部品 | モードの `[states]` と `[eclipse]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part` / `antenna`・`analysis/thermal.toml` の `[nodes]` と `[surface]` と `[heat_node]` のキー・図の `[nodes]` のキー・マヌーバの `thruster` |
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
-//! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode` |
-//! | ネット | 部品のポートの `net`・ハーネスの `nets` |
+//! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode`・フェーズの `modes` と `[law]` のキー |
+//! | フェーズ | ケースの `phase` |
+//! | ネット | 部品のポートの `net`・ハーネスの `nets`・図の `[nodes]` のキー |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire` |
 //! | カタログ（`[[catalog]]` の名前。出所を外すのを拒むためだけ。書き換えはしない） | 部品の `catalog`・`candidates`・ハーネスの `wire` のうち `<名前>/…` のもの |
-//! | 種別（プロジェクト独自の定義の削除を拒むためだけ。書き換えはしない） | 部品とカタログ品の `kind`・種別の `extends` |
+//! | 地上局 | `analysis/comm.toml` の `stations`・要求の `[verify].check` が名指す局（書き換えはしない。名前の変更と削除を拒むための暫定の見張り。#328） |
+//! | ハーネス区間 | 参照元は無い（ほかのエンティティはハーネスの ID を持たない。名前の変更の索引を揃えるための空の索引） |
+//! | 解析ケース | `analysis/common.toml` の `default_case`・要求の `[quantify].cases` |
+//! | 出典 | 部品とカタログ品の属性の値の `from.source`（状態ごとのセルも）・カタログ品の `source` と `datasheet`・要求の `source` |
+//! | マヌーバ | ほかのマヌーバの `after` |
+//! | 通信の回線 | `analysis/comm.toml` の `data_downlink`・要求の `[verify].check` が名指す回線（`margin:<回線>@<局>`。書式は解析が持つので、局と同じく写し） |
+//! | 種別（名前の変更と、プロジェクト独自の定義の削除の拒否に使う） | 部品とカタログ品の `kind`・種別の `extends` |
 //! | 属性（同上） | 種別の `required` / `optional`・部品とカタログ品の属性の値 |
 
 use super::{BudgetKind, Design};
@@ -20,21 +27,37 @@ use crate::enum_text::enum_text;
 use crate::path::{PortRef, split_catalog_ref};
 use serde::{Deserialize, Serialize};
 
+mod records;
+
 /// 参照される ID。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Referent<'a> {
     Part(&'a str),
     Group(&'a str),
     Mode(&'a str),
+    /// フェーズの ID（`phases/<ID>.toml`）
+    Phase(&'a str),
     Net(&'a str),
     /// カタログ品の参照（`"local/rw_10mNms"`）
     Catalog(&'a str),
     /// カタログの名前（`[[catalog]]` の `name`。その出所の品の参照すべて。外すのを拒むための索引）
     CatalogSource(&'a str),
-    /// 種別の ID（定義の削除を拒むための索引。名前の変更はしない）
+    /// 地上局の ID（`conditions/ground/<ID>.toml`）
+    Station(&'a str),
+    /// 種別の ID（定義の削除を拒むためと、名前の変更で書き換えるための索引）
     Kind(&'a str),
     /// 属性の ID（同上）
     Attribute(&'a str),
+    /// ハーネス区間の ID（参照元は無い）
+    Harness(&'a str),
+    /// 解析ケースの ID
+    Case(&'a str),
+    /// 出典の ID（`sources/<ID>.toml`）
+    Source(&'a str),
+    /// マヌーバの ID
+    Maneuver(&'a str),
+    /// 通信の回線の名前（`analysis/comm.toml` の `[link.<名前>]`）
+    Link(&'a str),
 }
 
 enum_text! {
@@ -116,6 +139,17 @@ pub enum RefSite {
     ManeuverThruster { maneuver: String },
     /// マヌーバの噴射するモード（`[constraints].mode`）
     ManeuverMode { maneuver: String },
+    /// 解析ケースのフェーズ（`cases/<ケース>.toml` の `phase`）
+    CasePhase { case: String },
+    /// フェーズが使うモード（`phases/<フェーズ>.toml` の `modes`）
+    PhaseMode { phase: String },
+    /// フェーズの姿勢則のキー（`phases/<フェーズ>.toml` の `[law]`）
+    PhaseLaw { phase: String },
+    /// 通信の解析が使う地上局（`analysis/comm.toml` の `stations`）
+    CommStation,
+    /// 要求の判定のキーが名指す地上局（`requirements/<要求>.toml` の `[verify].check` の `@<局>`。キーが構造を持つまでの
+    /// 暫定の見張りで、書き換えはしない。`Verification::check_names_station`）
+    RequirementCheck { requirement: String },
     /// 部品の種別（`kind`）
     PartKind { part: String },
     /// カタログ品の種別（`kind`。`item` は `local/rw_10mNms` の形）
@@ -128,6 +162,27 @@ pub enum RefSite {
     PartAttribute { part: String },
     /// カタログ品が値を書いた属性
     CatalogAttribute { item: String },
+    /// 共通設定の既定のケース（`analysis/common.toml` の `default_case`）
+    CommonDefaultCase,
+    /// 要求が量化するケース（`requirements/<要求>.toml` の `[quantify].cases`）
+    RequirementCase { requirement: String },
+    /// 部品の属性の値の出典（`[attr.<属性>]` の `from.source`。状態ごとのセルの出典も）
+    PartValueSource { part: String, attr: String },
+    /// カタログ品の属性の値の出典（`item` は `local/rw_10mNms` の形）
+    CatalogValueSource { item: String, attr: String },
+    /// カタログ品の既定の出典（`source`）
+    CatalogItemSource { item: String },
+    /// カタログ品のデータシートの出典（`datasheet`）
+    CatalogItemDatasheet { item: String },
+    /// 要求の出典（`source`）
+    RequirementSource { requirement: String },
+    /// マヌーバの前（`after`）
+    ManeuverAfter { maneuver: String },
+    /// 通信の解析の下りの回線（`analysis/comm.toml` の `data_downlink`）
+    CommDataDownlink,
+    /// 要求の判定のキーが名指す回線（`[verify].check` の `margin:<回線>`・`pfd:<回線>`。`@<局>` は付いてもよい）。
+    /// 解析のキーの書式の写し（`Verification::check_names_link`。キーが構造を持つまでの暫定。#328）。名前の変更では書き換える
+    RequirementLinkCheck { requirement: String },
 }
 
 impl Design {
@@ -137,13 +192,20 @@ impl Design {
             Referent::Part(id) => self.part_refs(id),
             Referent::Group(id) => self.group_refs(id),
             Referent::Mode(id) => self.mode_refs(id),
+            Referent::Phase(id) => self.phase_refs(id),
             Referent::Net(id) => self.net_refs(id),
             Referent::Catalog(reference) => self.catalog_refs(|r| r == reference),
             Referent::CatalogSource(name) => {
                 self.catalog_refs(|r| split_catalog_ref(r).is_some_and(|(s, _)| s == name))
             }
+            Referent::Station(id) => self.station_refs(id),
             Referent::Kind(id) => self.kind_refs(id),
             Referent::Attribute(id) => self.attribute_refs(id),
+            Referent::Harness(id) => self.harness_refs(id),
+            Referent::Case(id) => self.case_refs(id),
+            Referent::Source(id) => self.source_refs(id),
+            Referent::Maneuver(id) => self.maneuver_refs(id),
+            Referent::Link(id) => self.link_refs(id),
         }
     }
 
@@ -312,7 +374,30 @@ impl Design {
                     maneuver: m.id.to_string(),
                 }),
         );
+        for p in self.phases.values() {
+            if p.modes.iter().any(|m| m.as_str() == id) {
+                out.push(RefSite::PhaseMode {
+                    phase: p.id.to_string(),
+                });
+            }
+            if p.law.contains_key(id) {
+                out.push(RefSite::PhaseLaw {
+                    phase: p.id.to_string(),
+                });
+            }
+        }
         out
+    }
+
+    /// フェーズを指しているケース。
+    fn phase_refs(&self, id: &str) -> Vec<RefSite> {
+        self.cases
+            .values()
+            .filter(|c| c.phase.as_ref().is_some_and(|p| p.as_str() == id))
+            .map(|c| RefSite::CasePhase {
+                case: c.id.to_string(),
+            })
+            .collect()
     }
 
     fn net_refs(&self, id: &str) -> Vec<RefSite> {
@@ -334,6 +419,13 @@ impl Design {
                 .map(|h| RefSite::HarnessNet {
                     harness: h.id.to_string(),
                 }),
+        );
+        // 図の配置のネットのノード（見た目だけ。部品・グループのノードと同じキー）
+        out.extend(
+            self.views
+                .values()
+                .filter(|v| v.nodes.contains_key(id))
+                .map(|v| RefSite::ViewNode { view: v.id.clone() }),
         );
         out
     }
@@ -357,6 +449,28 @@ impl Design {
                 .filter(|h| h.wire.as_deref().is_some_and(&hit))
                 .map(|h| RefSite::HarnessWire {
                     harness: h.id.to_string(),
+                }),
+        );
+        out
+    }
+
+    /// 地上局を使っているもの（通信の解析の `stations`（空なら全局を使うので、どの局も参照されない）→ 判定のキーが名指す要求）。
+    fn station_refs(&self, id: &str) -> Vec<RefSite> {
+        let listed = self
+            .analysis
+            .comm
+            .as_ref()
+            .is_some_and(|c| c.stations.iter().any(|s| s == id));
+        let mut out = Vec::new();
+        if listed {
+            out.push(RefSite::CommStation);
+        }
+        out.extend(
+            self.requirements
+                .values()
+                .filter(|r| r.verify.check_names_station(id))
+                .map(|r| RefSite::RequirementCheck {
+                    requirement: r.id.to_string(),
                 }),
         );
         out

@@ -40,7 +40,7 @@ PANEL_MZ = ["PANEL_MZ", "RW_X", "RW_Y", "RW_Z"]
 PANEL_PX = ["PANEL_PX", "SP_PX", "SS_PX"]
 PANEL_PY = ["PANEL_PY", "SP_PY", "SS_PY"]
 PANEL_PZ = ["PANEL_PZ"]
-SAP      = ["SAP_PY", "CELLS"]
+SAP      = ["SAP_PY", "CELL_MOD_1", "CELL_MOD_2", "CELL_MOD_3", "CELL_MOD_4"]
 
 [margin]
 uncertainty = { value = 5.0, unit = "K" }

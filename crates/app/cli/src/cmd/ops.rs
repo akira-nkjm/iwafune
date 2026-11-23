@@ -1,6 +1,6 @@
 //! 編集のコマンドの引数 → Op の列（実行はしない）。実行は `edit::run_ops`、往復の検査は `roundtrip` のテストが使う。
 
-use super::{defs, nets, nouns, records};
+use super::{defs, links, nets, nouns, phases, records, requirements};
 use crate::args::{Command, EditOpts};
 use fune_service::Workspace;
 use fune_service::dto::Op;
@@ -50,10 +50,31 @@ pub fn edit_of<'a>(ws: &Workspace, command: &'a Command) -> anyhow::Result<Optio
             )?],
             opts,
         }),
+        Command::Case(crate::args::CaseCmd::FromSunDistance {
+            id,
+            at,
+            mode,
+            edit: opts,
+        }) => Some(Edit {
+            ops: vec![edit::case_from_sun_distance_op(
+                ws,
+                &fune_service::dto::CaseFromSunDistanceRequest {
+                    id: id.clone(),
+                    at: serde_json::from_value(serde_json::Value::String(at.clone()))?,
+                    mode: mode.clone(),
+                },
+            )?],
+            opts,
+        }),
         Command::Case(c) => one(records::case(c)?),
         Command::Source(c) => one(records::source(c)?),
         Command::Harness(c) => one(records::harness(c)?),
         Command::Maneuver(c) => one(records::maneuver(c)?),
+        Command::Phase(c) => one(phases::phase(c)?),
+        Command::Ground(c) => one(Some(records::ground(c)?)),
+        Command::Link(c) => one(Some(links::link(c)?)),
+        Command::Project(c) => one(Some(links::project(c)?)),
+        Command::Requirement(c) => one(requirements::requirement(c)?),
         Command::Catalog(c) => one(records::catalog(ws, c)?),
         Command::Set(a) => {
             let text = SetText {

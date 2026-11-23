@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 
 #[path = "serde_roundtrip/samples.rs"]
 mod samples;
-use samples::{maneuver, net};
+use samples::{maneuver, net, phase, requirement};
 
 /// 種類の名前（ワイルドカードを使わない。種類が増えたら見本を足す）。
 fn name(op: &Op) -> &'static str {
@@ -46,6 +46,8 @@ fn name(op: &Op) -> &'static str {
         Op::UpdateKind { .. } => "UpdateKind",
         Op::DeleteAttribute { .. } => "DeleteAttribute",
         Op::DeleteKind { .. } => "DeleteKind",
+        Op::RenameAttribute { .. } => "RenameAttribute",
+        Op::RenameKind { .. } => "RenameKind",
         Op::CreateMode { .. } => "CreateMode",
         Op::RemoveMode { .. } => "RemoveMode",
         Op::RenameMode { .. } => "RenameMode",
@@ -69,6 +71,31 @@ fn name(op: &Op) -> &'static str {
         Op::CreateManeuver { .. } => "CreateManeuver",
         Op::SetManeuver { .. } => "SetManeuver",
         Op::RemoveManeuver { .. } => "RemoveManeuver",
+        Op::CreateGroundStation { .. } => "CreateGroundStation",
+        Op::RemoveGroundStation { .. } => "RemoveGroundStation",
+        Op::RenameGroundStation { .. } => "RenameGroundStation",
+        Op::CreatePhase { .. } => "CreatePhase",
+        Op::SetPhase { .. } => "SetPhase",
+        Op::RemovePhase { .. } => "RemovePhase",
+        Op::RenamePhase { .. } => "RenamePhase",
+        Op::SetPhaseField { .. } => "SetPhaseField",
+        Op::CopyPhaseOrbit { .. } => "CopyPhaseOrbit",
+        Op::UnsetPhaseOrbit { .. } => "UnsetPhaseOrbit",
+        Op::UnsetPhaseLaw { .. } => "UnsetPhaseLaw",
+        Op::SetCasePhase { .. } => "SetCasePhase",
+        Op::RenameNet { .. } => "RenameNet",
+        Op::RenameHarness { .. } => "RenameHarness",
+        Op::RenameCase { .. } => "RenameCase",
+        Op::RenameSource { .. } => "RenameSource",
+        Op::RenameManeuver { .. } => "RenameManeuver",
+        Op::CreateCommLink { .. } => "CreateCommLink",
+        Op::RemoveCommLink { .. } => "RemoveCommLink",
+        Op::RenameCommLink { .. } => "RenameCommLink",
+        Op::SetProjectField { .. } => "SetProjectField",
+        Op::AddLocalCatalog { .. } => "AddLocalCatalog",
+        Op::CreateRequirement { .. } => "CreateRequirement",
+        Op::SetRequirement { .. } => "SetRequirement",
+        Op::RemoveRequirement { .. } => "RemoveRequirement",
         Op::SetViewLayout { .. } => "SetViewLayout",
         Op::SetViewEdge { .. } => "SetViewEdge",
         Op::UnsetViewEdge { .. } => "UnsetViewEdge",
@@ -240,10 +267,12 @@ fn other_ops() -> Vec<Op> {
         label: Some("打ち上げ当日".into()),
         description: None,
         mode: Some(Id::new("SAFE")),
+        phase: Some(Id::new("LEOP")),
         side: Some(UncertaintySide::Max),
         thermal_case: Some("cold".into()),
         beta: Some(Quantity::new(20.0, "deg")),
         orbits: Some(3),
+        sun_distance: None,
     };
     let source = Source {
         id: Id::new("tvac"),
@@ -278,6 +307,14 @@ fn other_ops() -> Vec<Op> {
         Op::UpdateKind { def: kind },
         Op::DeleteKind {
             id: "film_heater".into(),
+        },
+        Op::RenameAttribute {
+            id: "max_torque_2".into(),
+            to: "max_torque_3".into(),
+        },
+        Op::RenameKind {
+            id: "film_heater".into(),
+            to: "foil_heater".into(),
         },
         Op::MoveMode {
             id: "SAFE".into(),
@@ -368,6 +405,99 @@ fn other_ops() -> Vec<Op> {
             maneuver: maneuver(),
         },
         Op::RemoveManeuver { id: "RAISE".into() },
+        Op::CreateGroundStation {
+            id: "SVALBARD".into(),
+            label: Some("Svalbard".into()),
+            latitude: Some(Quantity::new(78.2, "deg")),
+            longitude: None,
+            altitude: None,
+            min_elevation: None,
+        },
+        Op::RemoveGroundStation {
+            id: "SVALBARD".into(),
+        },
+        Op::RenameGroundStation {
+            id: "SVALBARD".into(),
+            to: "SVALBARD2".into(),
+        },
+        Op::CreatePhase { phase: phase() },
+        Op::SetPhase { phase: phase() },
+        Op::RemovePhase { id: "LEOP".into() },
+        Op::RenamePhase {
+            id: "LEOP".into(),
+            to: "COMMISSIONING".into(),
+        },
+        Op::SetPhaseField {
+            phase: "LEOP".into(),
+            path: "orbit.altitude".into(),
+            value: Some(SettingValue::Quantity(Quantity::new(450.0, "km"))),
+        },
+        Op::CopyPhaseOrbit {
+            phase: "LEOP".into(),
+        },
+        Op::UnsetPhaseOrbit {
+            phase: "LEOP".into(),
+        },
+        Op::UnsetPhaseLaw {
+            phase: "LEOP".into(),
+            mode: "NOMINAL".into(),
+        },
+        Op::SetCasePhase {
+            case: "eclipse_worst".into(),
+            phase: None,
+        },
+        Op::RenameNet {
+            id: "P5V".into(),
+            to: "P5V_MAIN".into(),
+        },
+        Op::RenameHarness {
+            id: "H_OBC_CAM".into(),
+            to: "H_OBC_CAMERA".into(),
+        },
+        Op::RenameCase {
+            id: "hot_imaging".into(),
+            to: "hot_img".into(),
+        },
+        Op::RenameSource {
+            id: "sys_judgement".into(),
+            to: "sys_judge".into(),
+        },
+        Op::RenameManeuver {
+            id: "RAISE".into(),
+            to: "M_RAISE".into(),
+        },
+        Op::CreateCommLink {
+            id: "x_down".into(),
+            direction: fune_model::design::LinkDirection::Down,
+            part: "STX".into(),
+            band: "s_band".into(),
+        },
+        Op::RemoveCommLink {
+            id: "x_down".into(),
+        },
+        Op::RenameCommLink {
+            id: "x_down".into(),
+            to: "x_dl".into(),
+        },
+        Op::SetProjectField {
+            field: fune_model::design::ProjectField::Name("demo".into()),
+        },
+        Op::SetProjectField {
+            field: fune_model::design::ProjectField::Label(None),
+        },
+        Op::AddLocalCatalog {
+            name: "vendor".into(),
+            path: "vendor_parts".into(),
+        },
+        Op::CreateRequirement {
+            requirement: requirement(),
+        },
+        Op::SetRequirement {
+            requirement: requirement(),
+        },
+        Op::RemoveRequirement {
+            id: "R_MASS".into(),
+        },
         Op::SetViewEdge {
             view: "electrical".into(),
             key: "P12V:PCDU.OUT1->RW_X.PWR".into(),
@@ -402,7 +532,7 @@ fn other_ops() -> Vec<Op> {
             value: Some(SettingValue::Quantity(Quantity::new(550.0, "km"))),
         },
         Op::SetSetting {
-            path: "analysis.power.dod_max".into(),
+            path: "analysis.power.initial_soc".into(),
             value: None,
         },
     ]
@@ -414,7 +544,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 54, "some op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 81, "some op kinds have no sample: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =

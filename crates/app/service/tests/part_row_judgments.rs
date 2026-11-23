@@ -80,3 +80,38 @@ fn edited_project_counts_diagnostics_and_inherits_the_thruster_role() {
     assert!(counts.errors + counts.warnings > 0, "{counts:?}");
     assert_eq!(row(&rows, "PANEL_PY").diagnostics.errors, 0);
 }
+
+/// 構造の部品（系が構造）だけが `structural`。方向の属性と視野の対応は、属性の定義（`DefsView`）が返す。
+#[test]
+fn demo_marks_structure_and_the_direction_and_fov_attributes() {
+    let ws = Workspace::open(fixture()).unwrap();
+    let view = query::design_view(&ws).unwrap();
+    assert!(row(&view.parts, "PANEL_PX").structural);
+    assert!(!row(&view.parts, "EPT").structural);
+    for p in &view.parts {
+        assert_eq!(
+            p.structural,
+            p.system == Some(fune_service::dto::System::Structure),
+            "{}",
+            p.id
+        );
+    }
+    let directions: Vec<&str> = view
+        .defs
+        .attributes
+        .iter()
+        .filter(|a| a.unit_vector)
+        .map(|a| a.id.as_str())
+        .collect();
+    assert_eq!(
+        directions,
+        ["axis", "boresight", "direction", "normal", "spin_axis"]
+    );
+    let fovs: Vec<(&str, &str)> = view
+        .defs
+        .attributes
+        .iter()
+        .filter_map(|a| Some((a.id.as_str(), a.fov_axis.as_deref()?)))
+        .collect();
+    assert_eq!(fovs, [("fov_half_angle", "boresight")]);
+}

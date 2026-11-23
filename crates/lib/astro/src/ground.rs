@@ -2,6 +2,7 @@
 
 use crate::AstroError;
 use crate::earth::{eci_to_ecef, geodetic_to_ecef};
+use crate::ephem::CentralBody;
 use crate::math::{Vec3, bisect, golden_section_max};
 use crate::orbit::OrbitSpec;
 use crate::time::Epoch;
@@ -9,8 +10,10 @@ use crate::timeline::sample_times;
 use sat_units::typed::{Angle, Length, Qty, Time};
 use serde::{Deserialize, Serialize};
 
+mod earth_range;
 mod ground_track;
 
+pub use earth_range::{EarthRange, earth_range};
 pub use ground_track::{GroundTrackPoint, ground_track};
 
 /// 地上局。
@@ -138,6 +141,8 @@ struct Track<'a> {
     times: Vec<f64>,
     states: Vec<crate::orbit::OrbitState>,
     min_el: f64,
+    /// 地球以外の中心天体（衛星が天体の陰に入ると見えない。地球が中心なら地平線が遮るので `None`）
+    occulter: Option<CentralBody>,
 }
 
 /// 二分法・黄金分割の打ち切り幅 [s]。
@@ -185,6 +190,7 @@ impl<'a> Track<'a> {
             times,
             states,
             min_el,
+            occulter: (central != CentralBody::Earth).then_some(central),
         })
     }
 
@@ -216,10 +222,32 @@ impl<'a> Track<'a> {
             .elevation_rad
     }
 
-    /// 仰角が最低仰角を横切る時刻（`lo` と `hi` で符号が違う前提）。
+    /// 見えるかどうかの水準 [rad]（`min_el` 以上なら見える）。仰角そのもので、
+    /// 中心天体が地球以外のときは天体の陰に入る間は `min_el` 未満に下げる（[`Track::occultation_margin`]）。
+    fn level(&self, t: f64) -> f64 {
+        let el = self.elevation(t);
+        match self.occulter {
+            None => el,
+            Some(body) => el.min(self.min_el + self.occultation_margin(body, t)),
+        }
+    }
+
+    /// 局から衛星への線分が天体 `body`（球）に当たらない余裕 [rad 相当] = (線分と天体の中心の最短距離 − 半径) / 局から中心までの距離。
+    /// 負なら衛星は天体の陰（局から見て天体の向こう側）にいる。
+    fn occultation_margin(&self, body: CentralBody, t: f64) -> f64 {
+        let epoch = self.start.plus_seconds(t);
+        let sat = eci_to_ecef(self.position(t), epoch);
+        let centre = eci_to_ecef(body.position_eci_m(epoch), epoch);
+        let (to_sat, to_centre) = (sat - self.topo.pos, centre - self.topo.pos);
+        let along = (to_centre.dot(to_sat) / to_sat.dot(to_sat)).clamp(0.0, 1.0);
+        let closest = to_sat * along;
+        ((closest - to_centre).norm() - body.radius_m()) / to_centre.norm()
+    }
+
+    /// 水準 `level` が最低仰角を横切る時刻（`lo` と `hi` で符号が違う前提）。
     fn crossing(&self, lo: f64, hi: f64) -> f64 {
         bisect(
-            |t| self.elevation(t) - self.min_el,
+            |t| self.level(t) - self.min_el,
             lo,
             hi,
             TIME_TOL_S,
@@ -228,13 +256,13 @@ impl<'a> Track<'a> {
         .unwrap_or(0.5 * (lo + hi))
     }
 
-    /// 区間内で仰角が最大の時刻と仰角（黄金分割。パスの中で仰角は単峰）。
-    fn peak(&self, lo: f64, hi: f64) -> (f64, f64) {
-        golden_section_max(|t| self.elevation(t), lo, hi, TIME_TOL_S, MAX_ITER)
+    /// 区間内で `f` が最大の時刻と値（黄金分割。パスの中で仰角は単峰）。
+    fn peak(&self, f: impl Fn(f64) -> f64, lo: f64, hi: f64) -> (f64, f64) {
+        golden_section_max(f, lo, hi, TIME_TOL_S, MAX_ITER)
     }
 
     fn passes(&self) -> Vec<GroundPass> {
-        let el: Vec<f64> = self.times.iter().map(|&t| self.elevation(t)).collect();
+        let el: Vec<f64> = self.times.iter().map(|&t| self.level(t)).collect();
         let n = el.len();
         let mut windows: Vec<(f64, f64)> = Vec::new();
         let mut aos: Option<f64> = if el[0] >= self.min_el {
@@ -266,7 +294,7 @@ impl<'a> Track<'a> {
 
     /// 局所最大の前後 `[lo, hi]` で、最大仰角が最低仰角を超えていればその区間を返す。
     fn grazing(&self, lo: f64, hi: f64) -> Option<(f64, f64)> {
-        let (t_max, el_max) = self.peak(lo, hi);
+        let (t_max, el_max) = self.peak(|t| self.level(t), lo, hi);
         if el_max < self.min_el {
             return None;
         }
@@ -274,7 +302,7 @@ impl<'a> Track<'a> {
     }
 
     fn pass(&self, aos: f64, los: f64) -> GroundPass {
-        let (tca, max_el) = self.peak(aos, los);
+        let (tca, max_el) = self.peak(|t| self.elevation(t), aos, los);
         GroundPass {
             station: self.station.id.clone(),
             aos: self.start.plus_seconds(aos),

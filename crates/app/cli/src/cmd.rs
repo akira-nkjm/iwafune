@@ -9,14 +9,18 @@
 //! | `nouns` | part・mode・setting・view の編集の引数 → Op |
 //! | `nets` | net の編集の引数 → Op |
 //! | `defs` | attr/kind の add・replace・rm の引数 → Op |
+//! | `requirements` | requirement add/set/rm の引数 → Op、requirement ls・compliance |
 //! | `records` | case・source・harness・catalog・part point の引数 → Op |
+//! | `links` | link add/rm/rename・project set/unset の引数 → Op |
 //! | `catalog` | catalog ls/show/fetch/update と、catalog source add/rm のあとの案内 |
 //! | `edit` | Op の列の適用と結果の表示・init・undo / redo |
 //! | `units` | units ls/parse/format |
 //! | `analyze` | analyze・budget |
 //! | `pages` | mode view（GUI のモードの見方と同じ DTO を表にする） |
 //! | `gui` | gui |
+//! | `report` | report export（表と図のファイルを書き出す） |
 //! | `data` | data status/fetch |
+//! | `skill` | skill show/install（エージェント向けの skill の本文の表示と書き込み。プロジェクト不要） |
 //! | `self_update` | self-update（実行中の `fune` の置き換え。プロジェクト不要） |
 
 mod analyze;
@@ -26,6 +30,7 @@ mod data;
 mod defs;
 mod edit;
 mod gui;
+mod links;
 mod maneuvers;
 mod nets;
 mod nouns;
@@ -33,11 +38,15 @@ mod ops;
 mod output_tables;
 mod pages;
 mod parts;
+mod phases;
 mod read;
 mod records;
+mod report;
+mod requirements;
 #[cfg(test)]
 mod roundtrip;
 mod self_update;
+mod skill;
 mod units;
 
 use crate::args::{Cli, Command};
@@ -52,6 +61,7 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
         Command::Units(c) => units::run(c, out),
         Command::Data(c) => data::run(c, out),
         Command::SelfUpdate { check, version } => self_update::run(*check, version.as_deref(), out),
+        Command::Skill(c) => skill::run(c, &g.dir, out),
         Command::Gui {
             port,
             host,
@@ -63,6 +73,7 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
         Command::Budget { kind, case, ops } => {
             analyze::budget(&open(g)?, kind, case.as_deref(), ops.as_deref(), out)
         }
+        Command::Report(c) => report::run(&open(g)?, c, out),
         Command::Fmt { check } => {
             let result = fune_service::format::format_design(
                 &open(g)?,
@@ -116,6 +127,8 @@ fn read_more(command: &Command, ws: &Workspace, out: &Out) -> anyhow::Result<Opt
         Command::Source(c) => read::source(ws, c, out),
         Command::Harness(c) => read::harness(ws, c, out),
         Command::Maneuver(c) => maneuvers::ls(ws, c, out),
+        Command::Phase(c) => phases::read(ws, c, out),
+        Command::Requirement(c) => requirements::read(ws, c, out),
         Command::Catalog(c) => catalog::read(ws, c, out),
         _ => Ok(None),
     }

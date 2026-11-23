@@ -1,0 +1,12 @@
+label     = "S-band downlink margin"
+statement = "The S-band downlink margin to the primary ground station shall be at least 3 dB."
+quantity  = "Dimensionless"
+source    = "sys_judgement"
+
+[constraint]
+kind  = "at_least"
+value = { value = 3.0, unit = "dB" }
+
+[verify]
+analysis = "comm.link_budget"
+check    = "margin:s_down@TOKYO_GS"

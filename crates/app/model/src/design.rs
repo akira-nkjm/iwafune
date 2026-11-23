@@ -4,10 +4,15 @@
 //! |---|---|
 //! | `part` | Part・Group・NodeRef・Mount・Pose・PortBinding・CatalogItem |
 //! | `defs` | AttributeDef・KindDef・BudgetKind・NetKind |
-//! | `system` | Mode・Net・Harness・Case |
+//! | `mode` | Mode・StateAssign（運用モードの表） |
+//! | `phase` | フェーズ（ミッションの段階。軌道と姿勢則の上書き・並び `Design::ordered_phases`） |
+//! | `system` | Net・Harness・Case |
 //! | `source` | Source・SourceKind・Distribution（出典の台帳） |
 //! | `maneuver` | マヌーバ（区分・計算の段階・目標の軌道・制約）と実行の順（`Design::ordered_maneuvers`） |
+//! | `requirement` | 要求（文・制約・量化・出典・確かめる先）と解析の ID の一覧 |
 //! | `budget` | 配分とマージン方針 |
+//! | `moved_settings` | 基準・ミッション期間が要求へ移った旧い設定のキーの表（書かれていれば `check` が移し先を知らせる） |
+//! | `criteria` | 判定の基準の置き場所（基準は要求だけが持つ。宣言の表 `CRITERIA` と、要求からの引き当て `Design::budget_limit`・`Design::criterion`） |
 //! | `project` | `fune.toml` |
 //! | `shared_catalog` | 共有カタログの固定（`catalog.lock`）と読み込みの状態の判定（`Design::shared_catalog_statuses`） |
 //! | `conditions` / `analysis` | `conditions/`・`analysis/` の型付きの設定。解析の系の一覧 `AnalysisSystem` |
@@ -21,13 +26,18 @@
 pub mod analysis;
 pub mod budget;
 pub mod conditions;
+pub mod criteria;
 pub mod defs;
 pub mod maneuver;
+pub mod mode;
+pub mod moved_settings;
 pub mod net;
 pub mod part;
+pub mod phase;
 pub mod power_sequences;
 pub mod project;
 pub mod refs;
+pub mod requirement;
 pub mod setting_dims;
 pub mod settings_view;
 pub mod shared_catalog;
@@ -41,12 +51,19 @@ pub mod view;
 pub use analysis::*;
 pub use budget::*;
 pub use conditions::*;
+pub use criteria::{
+    CRITERIA, Criterion, CriterionDecl, declared, declared_for_requirement, key_covers,
+};
 pub use defs::*;
 pub use maneuver::*;
+pub use mode::*;
+pub use moved_settings::{MOVED_SETTINGS, MovedSetting};
 pub use part::*;
+pub use phase::*;
 pub use power_sequences::{DEFAULT_SEQUENCE, SequenceView};
 pub use project::*;
 pub use refs::{HarnessEnd, NetEnd, RefSite, Referent};
+pub use requirement::*;
 pub use settings_view::SettingEntry;
 pub use shared_catalog::{CatalogLock, LockedCatalog, SharedCatalogState, SharedCatalogStatus};
 pub use source_map::{EntityKey, Loc, SourceMap};
@@ -105,7 +122,11 @@ pub struct Design {
     pub cases: BTreeMap<Id<Case>, Case>,
     /// マヌーバ（`maneuvers/<ID>.toml`。実行の順は [`Design::ordered_maneuvers`]）
     pub maneuvers: BTreeMap<Id<Maneuver>, Maneuver>,
+    /// フェーズ（`phases/<ID>.toml`。並びは [`Design::ordered_phases`]）
+    pub phases: BTreeMap<Id<Phase>, Phase>,
     pub sources: BTreeMap<Id<Source>, Source>,
+    /// 要求（`requirements/<ID>.toml`。平らな一覧）
+    pub requirements: BTreeMap<Id<Requirement>, Requirement>,
     pub conditions: ConditionsSettings,
     pub analysis: AnalysisSettings,
     /// 図の配置（`view/<名前>.toml`。見た目だけ）

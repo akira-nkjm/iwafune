@@ -28,6 +28,29 @@ pub async fn maneuvers(
     blocking(&s, query::maneuvers).await.map(Json)
 }
 
+/// GET `/phases`（並びの順。`fune phase ls|show`）
+pub async fn phases(
+    State(s): State<AppState>,
+) -> Result<Json<Vec<fune_service::dto::PhaseView>>, ApiError> {
+    blocking(&s, query::phases).await.map(Json)
+}
+
+/// GET `/requirements`（ID 順。`fune requirement ls`）
+pub async fn requirements(
+    State(s): State<AppState>,
+) -> Result<Json<Vec<fune_service::dto::RequirementView>>, ApiError> {
+    blocking(&s, query::requirements).await.map(Json)
+}
+
+/// GET `/requirements/compliance`（要求適合表。`fune requirement compliance`）
+pub async fn compliance(
+    State(s): State<AppState>,
+) -> Result<Json<fune_service::dto::ComplianceReport>, ApiError> {
+    blocking(&s, fune_service::requirements::compliance)
+        .await
+        .map(Json)
+}
+
 /// GET `/parts?group=aocs&kind=reaction_wheel`
 pub async fn parts(
     State(s): State<AppState>,

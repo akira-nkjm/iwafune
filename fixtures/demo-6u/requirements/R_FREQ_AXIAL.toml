@@ -1,0 +1,13 @@
+label        = "Axial natural frequency"
+statement    = "The axial natural frequency shall be at least 100 Hz."
+statement_en = "The axial natural frequency shall be at least 100 Hz."
+quantity     = "Frequency"
+source       = "lv_icd"
+
+[constraint]
+kind  = "at_least"
+value = { value = 100.0, unit = "Hz" }
+
+[verify]
+analysis = "structure.modal_estimate"
+check    = "axial"

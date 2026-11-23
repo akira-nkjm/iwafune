@@ -34,9 +34,9 @@ export const pages = {
     () => import("@/features/layout3d/LayoutPage"),
     (m) => m.LayoutPage,
   ),
-  maneuvers: page(
-    () => import("@/features/maneuvers/ManeuversPage"),
-    (m) => m.ManeuversPage,
+  requirements: page(
+    () => import("@/features/requirements/RequirementsPage"),
+    (m) => m.RequirementsPage,
   ),
   defs: page(
     () => import("@/features/defs/DefsPage"),
@@ -53,6 +53,10 @@ export const pages = {
   cases: page(
     () => import("@/features/conditions/CasesPage"),
     (m) => m.CasesPage,
+  ),
+  phases: page(
+    () => import("@/features/phases/PhasesPage"),
+    (m) => m.PhasesPage,
   ),
   diagnostics: page(
     () => import("@/features/project/DiagnosticsPage"),
@@ -90,11 +94,12 @@ export const preloadPlan: PreloadPlan = {
     pages.components,
     pages.catalog,
     pages.modes,
-    pages.maneuvers,
+    pages.requirements,
     pages.defs,
     pages.system,
     pages.orbit,
     pages.cases,
+    pages.phases,
     pages.diagnostics,
     pages.settings,
     pages.sources,

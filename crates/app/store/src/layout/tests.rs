@@ -17,6 +17,12 @@ fn classifies_files() {
         FileRole::Mode("SAFE".into())
     );
     assert_eq!(
+        classify("phases/LEOP.toml", &cat),
+        FileRole::Phase("LEOP".into())
+    );
+    // フェーズのファイルは平ら（入れ子は規約の外）
+    assert_eq!(classify("phases/a/LEOP.toml", &cat), FileRole::Other);
+    assert_eq!(
         classify("catalog/rw.toml", &cat),
         FileRole::Catalog {
             source: "local".into(),

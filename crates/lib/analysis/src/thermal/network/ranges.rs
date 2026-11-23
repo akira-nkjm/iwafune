@@ -31,10 +31,15 @@ impl ThermalNode {
                 }
             }
             if let Some(range) = range {
+                let (range, required) = match self.required.get(kind.key()) {
+                    Some(req) => req.tighten(range),
+                    None => (range, Vec::new()),
+                };
                 out.push(ThermalNodeRange {
                     kind,
                     range,
                     excluded,
+                    required,
                 });
             }
         }

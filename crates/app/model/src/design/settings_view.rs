@@ -91,6 +91,14 @@ impl Design {
     }
 }
 
+/// 型付きの設定 1 つ（`value` の JSON）の葉を、`root` を先頭にしたパスで並べる（フェーズの `[orbit]` を設計の軌道と同じ表の形で
+/// 検査するときの入口。`setting_entries` と同じ歩き方）。
+pub fn entries_under(root: &SettingPath, value: &Json) -> Vec<SettingEntry> {
+    let mut out = Vec::new();
+    walk(root, value, &mut out);
+    out
+}
+
 /// 葉なら Some（中身が null なら Some(None)）。表なら None。
 fn leaf(v: &Json) -> Option<Option<SettingValue>> {
     if let Some(q) = quantity_from_json(v) {

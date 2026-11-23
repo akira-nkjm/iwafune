@@ -2,8 +2,10 @@
 //! **時系列を使う解析（電源・姿勢・センサ・通信・熱）は、自分でループを書かずにこれを使う。**
 
 mod evaluator;
+mod orbit_plane;
 
 pub use evaluator::TimelineEvaluator;
+pub use orbit_plane::{OrbitPlaneTrack, orbit_plane_track};
 
 use crate::AstroError;
 use crate::attitude::{AttitudeLaw, body_to_eci};

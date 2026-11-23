@@ -14,12 +14,14 @@ use crate::thermal::heater::{ThermalHeaterRun, run_checks};
 use crate::thermal::network::{
     Compiled, ThermalCouplings, ThermalHeater, ThermalLoad, ThermalModeLoads, ThermalNetwork,
 };
-use crate::thermal::orbit_heat::{ThermalEnvironment, ThermalEnvironmentUsed, require_planetary};
+use crate::thermal::orbit_heat::{ThermalEnvironment, ThermalEnvironmentUsed};
 use crate::thermal::range::{
     ThermalMarginPolicy, ThermalMarginUsed, ThermalNodeRange, ThermalRangeMargin, range_checks,
     range_margins, worst_verdict,
 };
-use sat_astro::timeline::{TimelineEvaluator, TimelineSpec, time_mean};
+use sat_astro::timeline::{
+    OrbitPlaneTrack, TimelineEvaluator, TimelineSpec, build, orbit_plane_track, time_mean,
+};
 use sat_units::typed::{Power, Qty, Temperature, Time};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -141,6 +143,10 @@ pub struct ThermalTransientOutput {
     /// 使った積分の設定と費用（刻みの数・右辺の評価の数・ヒータの切り替えの数）
     #[serde(default)]
     pub integration: ThermalIntegration,
+    /// 軌道の図（インセット）と 3D の太陽の矢印に使う軌道面の表示用の座標。標本の時刻は `series.t` と同じ。
+    /// 表示枠は最初の標本で決めた固定の軌道面（+x が太陽側）。模式で、実際の日陰は `sunlit`（`sat_astro::timeline`）
+    #[serde(default)]
+    pub orbit_plane: OrbitPlaneTrack,
     /// 温度範囲を持つ節点の種類ごとの判定（key は `range_high|range_low:<node>:<storage|operating|performance>`）と、
     /// ヒータごとの判定（key は `heater:<部品>`）
     pub checks: Vec<Check>,
@@ -169,7 +175,6 @@ impl Analysis for ThermalTransient {
         let timeline = &input.timeline;
         let central = timeline.orbit().central;
         let env = input.environment.resolve(central)?;
-        require_planetary(timeline)?;
         let cfg = integration::integrator(input)?;
         let evaluator = TimelineEvaluator::new(timeline)?;
         let t = timeline.sampling.times()?;
@@ -203,6 +208,8 @@ impl Analysis for ThermalTransient {
         );
         output.couplings = net.couplings;
         output.integration = integration;
+        let shadow_below = crate::spec::SUNLIT_THRESHOLD;
+        output.orbit_plane = orbit_plane_track(&build(timeline)?, central, shadow_below);
         output
             .checks
             .extend(run_checks(&runs, margin.heater_duty_warning.value()));
@@ -281,6 +288,7 @@ fn build_output(
         couplings: ThermalCouplings::default(),
         heaters: Vec::new(),
         integration: ThermalIntegration::default(),
+        orbit_plane: OrbitPlaneTrack::default(),
         checks,
     }
 }

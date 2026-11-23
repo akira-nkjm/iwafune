@@ -36,6 +36,10 @@ case: string | null,
  */
 limit: QuantityView | null, 
 /**
+ * 上限を決めた要求の ID（`verify.budget` がこの種類で、最も厳しいもの。上限は要求だけが持つ）
+ */
+limit_requirement: string | null, 
+/**
  * システムマージン（比。`si` が 0〜1 の値、`display` が `"10.0 %"`。配分が無ければ 0）
  */
 system_margin: QuantityView, 

@@ -20,7 +20,7 @@ fn reports_missing_parts_orbit_and_modes() {
     assert!(
         missing
             .iter()
-            .any(|m| m.path == "conditions.orbit.duration")
+            .any(|m| m.path == "requirement[input/mission_duration]")
     );
     assert!(missing.iter().any(|m| m.reason.contains("solar panel")));
     assert!(missing.iter().any(|m| m.reason.contains("battery")));

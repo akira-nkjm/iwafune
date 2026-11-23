@@ -82,11 +82,6 @@ pub(in crate::single_home) const RULES: &[Rule] = &[
         &["crates/lib/astro/src/math"],
         "the linear system solver",
     ),
-    (
-        "fn gauss_elim",
-        &["crates/lib/astro/src/math"],
-        "the linear system solver",
-    ),
     // 天体・軌道・環境の計算
     (
         "fn earth_shadow_factor",
@@ -220,10 +215,65 @@ pub(in crate::single_home) const RULES: &[Rule] = &[
         &["crates/lib/analysis/src/modes.rs"],
         "per-state value tables",
     ),
+    // 温度範囲の判定（片側の判定と、全体の悪いほうの選び方）
     (
-        "fn range_verdict",
+        "fn side_verdict(",
         &["crates/lib/analysis/src/thermal/range.rs"],
         "temperature range judgement",
+    ),
+    (
+        "fn worst_verdict(",
+        &["crates/lib/analysis/src/thermal/range.rs"],
+        "temperature range judgement",
+    ),
+    // 形態係数・放射の囲い（熱）
+    (
+        "fn parallel_opposed(",
+        &["crates/lib/astro/src/view_factor.rs"],
+        "view factors (parallel opposed rectangles)",
+    ),
+    (
+        "fn box_faces(",
+        &["crates/lib/astro/src/view_factor.rs"],
+        "view factors (faces of a box)",
+    ),
+    (
+        "fn gebhart(",
+        &["crates/lib/analysis/src/thermal/enclosure.rs"],
+        "Gebhart factors of an enclosure",
+    ),
+    // 積分の 1 区間（`Dop853::integrate_segment` の公開口と、`ode/segment.rs` の本体。どちらも ode の中）
+    (
+        "fn integrate_segment",
+        &["crates/lib/astro/src/ode.rs"],
+        "integrators (one segment)",
+    ),
+    // 時系列の集計と求根
+    (
+        "fn time_mean(",
+        &["crates/lib/astro/src/timeline.rs"],
+        "time averaging of a time series",
+    ),
+    (
+        "fn cumulative_trapezoid(",
+        &["crates/lib/astro/src/timeline.rs"],
+        "cumulative integral of a time series",
+    ),
+    (
+        "fn bisect(",
+        &["crates/lib/astro/src/math/roots.rs"],
+        "root finding by bisection",
+    ),
+    // 余裕の判定と余裕率
+    (
+        "fn margin_verdict(",
+        &["crates/lib/analysis/src/spec.rs"],
+        "margin verdict",
+    ),
+    (
+        "fn ratio_margin(",
+        &["crates/lib/analysis/src/spec.rs"],
+        "margin ratio",
     ),
     // 推力をかけた伝搬・平均要素・推薬の流量（#79）
     (
@@ -240,6 +290,11 @@ pub(in crate::single_home) const RULES: &[Rule] = &[
         "fn mass_flow_kg_s",
         &["crates/lib/astro/src/rocket.rs"],
         "propellant mass flow",
+    ),
+    (
+        "fn exhaust_velocity(isp_s",
+        &["crates/lib/astro/src/rocket.rs"],
+        "the effective exhaust velocity",
     ),
     // 固定軸 X → Y → Z の回転角 ⇄ クォータニオン
     (

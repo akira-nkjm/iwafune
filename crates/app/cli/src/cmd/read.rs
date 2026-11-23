@@ -363,12 +363,13 @@ pub fn case(ws: &Workspace, cmd: &crate::args::CaseCmd, out: &Out) -> Handled {
         out.json(&cases)?;
         return Ok(Some(0));
     }
-    let mut t = out.table(&["ID", "Name", "Modes", "File"]);
+    let mut t = out.table(&["ID", "Name", "Modes", "Phase", "File"]);
     for c in &cases {
         t.row(vec![
             C::Strong(c.id.clone()),
             C::Text(c.label.clone()),
             C::Text(c.modes.join(" ")),
+            C::Text(c.phase.clone().unwrap_or_default()),
             C::Dim(c.file.clone()),
         ]);
     }

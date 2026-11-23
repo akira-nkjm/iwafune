@@ -38,7 +38,7 @@ fn demo_loads_without_errors_or_warnings() {
     assert_eq!(
         design
             .parts
-            .get("CELLS")
+            .get("CELL_MOD_1")
             .and_then(|p| p.parent.as_ref())
             .map(|n| n.id().to_string()),
         Some("SAP_PY".to_string())
@@ -122,7 +122,7 @@ fn demo_directions_in_the_body_frame() {
         ("SP_MX", "normal", [-1.0, 0.0, 0.0]),
         ("SP_PY", "normal", [0.0, 1.0, 0.0]),
         ("SP_MY", "normal", [0.0, -1.0, 0.0]),
-        ("CELLS", "normal", [1.0, 0.0, 0.0]),
+        ("CELL_MOD_1", "normal", [1.0, 0.0, 0.0]),
         ("RW_X", "spin_axis", [1.0, 0.0, 0.0]),
         ("RW_Y", "spin_axis", [0.0, 1.0, 0.0]),
         ("RW_Z", "spin_axis", [0.0, 0.0, 1.0]),
@@ -159,15 +159,20 @@ fn every_setting_maps_to_its_file_and_line() {
     };
     use fune_model::value::SettingValue;
     assert_eq!(
-        snap.design.setting(&p("analysis.power.dod_max")),
-        Some(SettingValue::Number(0.3))
+        snap.design.setting(&p("analysis.power.initial_soc")),
+        Some(SettingValue::Number(0.9))
     );
     assert_eq!(
         snap.design.setting(&p("analysis.power.sequence.3.mode")),
         Some(SettingValue::Text("DOWNLINK".into()))
     );
-    assert!(
-        matches!(snap.design.setting(&p("budget.mass.limit")), Some(SettingValue::Quantity(q)) if q.value == 12.0)
+    // 基準（上限）は設定ではなく要求が持つ（`budget.mass.limit` はもう設定に無い）
+    assert_eq!(snap.design.setting(&p("budget.mass.limit")), None);
+    assert_eq!(
+        snap.design
+            .budget_limit(fune_model::design::BudgetKind::Mass)
+            .map(|c| (c.requirement, c.si)),
+        Some(("R_MASS".to_owned(), 12.0))
     );
     assert!(matches!(
         snap.design

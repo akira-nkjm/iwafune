@@ -114,6 +114,8 @@ pub struct ThermalNodeRange {
     pub kind: ThermalRangeKind,
     pub range: ThermalTempRange,
     pub excluded: Vec<ThermalRangeExclusion>,
+    /// 部品の範囲と違う限界を与えた要求（`ThermalRequiredRange::tighten`）
+    pub required: Vec<ThermalRequiredUse>,
 }
 
 /// 部品（または節点）の 3 種の温度範囲。書かれていない種類は `None`（判定しない）。
@@ -179,6 +181,9 @@ pub struct ThermalRangeMargin {
     /// モードでの電源の状態でこの範囲から外した部品（モードの無いケースでは空）
     #[serde(default)]
     pub excluded: Vec<ThermalRangeExclusion>,
+    /// 部品の範囲と違う限界を与えた要求（厳しくして効いたもの・緩くて効かなかったもの。無ければ空）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub required: Vec<ThermalRequiredUse>,
 }
 
 /// 温度範囲の片側（判定は側ごとに出す）。
@@ -244,7 +249,7 @@ fn judged(
     kind: ThermalRangeKind,
     range: ThermalTempRange,
     (low, high): (f64, f64),
-    excluded: Vec<ThermalRangeExclusion>,
+    (excluded, required): (Vec<ThermalRangeExclusion>, Vec<ThermalRequiredUse>),
     margin: &ThermalMarginUsed,
 ) -> ThermalRangeMargin {
     let mut m = ThermalRangeMargin {
@@ -254,6 +259,7 @@ fn judged(
         margin_high: Qty::from_raw(high),
         verdict: Verdict::Ok,
         excluded,
+        required,
     };
     // 全体の判定は両側の悪いほう（側ごとの判定は `side_verdict` だけ）
     let sides = [ThermalRangeSide::Low, ThermalRangeSide::High].map(|s| m.side_verdict(s, margin));
@@ -272,7 +278,8 @@ pub(crate) fn range_margins(
         .iter()
         .map(|r| {
             let low_high = (lo - r.range.min.value(), r.range.max.value() - hi);
-            judged(r.kind, r.range, low_high, r.excluded.clone(), margin)
+            let extra = (r.excluded.clone(), r.required.clone());
+            judged(r.kind, r.range, low_high, extra, margin)
         })
         .collect()
 }
@@ -304,8 +311,21 @@ pub(crate) fn envelope_margins<'a>(
                     .filter(|e| !low.excluded.contains(e))
                     .cloned(),
             );
+            // 要求の使われ方は、その側の判定に使うケースのものだけ
+            let mut required: Vec<ThermalRequiredUse> = low
+                .required
+                .iter()
+                .filter(|u| u.is_side(ThermalRangeSide::Low))
+                .cloned()
+                .collect();
+            required.extend(
+                high.required
+                    .iter()
+                    .filter(|u| u.is_side(ThermalRangeSide::High))
+                    .cloned(),
+            );
             let low_high = (low.margin_low.value(), high.margin_high.value());
-            Some(judged(kind, range, low_high, excluded, margin))
+            Some(judged(kind, range, low_high, (excluded, required), margin))
         })
         .collect()
 }
@@ -317,6 +337,7 @@ pub(crate) fn worst_verdict(margins: &[ThermalRangeMargin]) -> Verdict {
 
 mod checks;
 mod policy;
+mod required;
 #[cfg(test)]
 use checks::excluded_text;
 pub(crate) use checks::range_checks;
@@ -324,6 +345,7 @@ pub use policy::{
     DEFAULT_HEATER_DUTY_WARNING, DEFAULT_UNCERTAINTY_K, RANGE_WARNING_BAND_K, ThermalMarginPolicy,
     ThermalMarginUsed,
 };
+pub use required::{ThermalRequiredBound, ThermalRequiredRange, ThermalRequiredUse};
 
 #[cfg(test)]
 mod tests;

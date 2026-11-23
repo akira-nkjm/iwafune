@@ -1,5 +1,4 @@
-import { House } from "lucide-react";
-import { type ReactNode, useId, useMemo, useState } from "react";
+import { type ReactNode, useId, useMemo, useReducer, useState } from "react";
 import { usePlaceBody } from "@/api/ops";
 import type { DesignView } from "@/api/types";
 import { PlacementSection } from "@/features/components/detail/PlacementSection";
@@ -17,8 +16,23 @@ import { cn } from "@/lib/cn";
 import { HelperToggles } from "./HelperToggles";
 import { LayoutBrowser } from "./LayoutBrowser";
 import { Scene3D, type SceneEdit, type TransformMode } from "./Scene3D";
-import { axesOf, boxesOf, DEFAULT_STRUCTURE_OPACITY, fovsOf, type V3 } from "./scene";
-import { DEFAULT_SCENE_HELPERS, type FocusRequest, type SceneHelpers } from "./visibility";
+import {
+  axesOf,
+  boxesOf,
+  DEFAULT_STRUCTURE_OPACITY,
+  fovsOf,
+  hasSize,
+  type SunArrow,
+  type V3,
+} from "./scene";
+import { ViewControls3D } from "./ViewControls3D";
+import type { ZoomRequest } from "./ViewInput3D";
+import {
+  DEFAULT_SCENE_HELPERS,
+  type FocusRequest,
+  HEAT_SCENE_HELPERS,
+  type SceneHelpers,
+} from "./visibility";
 
 /** 移動のスナップ（選択肢の値は名前。刻み [m] は表から引く。選んだ文字列を数として読まない） */
 const SNAPS = [
@@ -49,6 +63,9 @@ interface HeatProps {
   tools?: ReactNode;
   /** 3D の上（左下）に重ねるもの（色の凡例） */
   overlay?: ReactNode;
+  /** 3D の右上（視点を戻すボタンの下）に重ねるもの（軌道の図）。`sun` は太陽の矢印（非定常のときだけ。無ければ矢印もボタンも出さない） */
+  corner?: ReactNode;
+  sun?: SunArrow | null;
   /** 3D の右（狭い幅では下）に置くもの（節点の温度の一覧）。配置の欄の代わりに出す */
   aside?: ReactNode;
 }
@@ -119,7 +136,7 @@ function PlacementLayout3D({ design, com }: PlacementProps) {
 }
 
 /** 熱: 温度の色で塗った箱。3D を大きく見せるため、画面の高さに合わせ、右は節点の一覧（`aside`）だけにする */
-function HeatLayout3D({ design, colorOf, tools, overlay, aside }: HeatProps) {
+function HeatLayout3D({ design, colorOf, tools, overlay, corner, sun, aside }: HeatProps) {
   const t = useT().systems;
   return (
     <Layout3DFrame
@@ -128,7 +145,10 @@ function HeatLayout3D({ design, colorOf, tools, overlay, aside }: HeatProps) {
       colorOf={colorOf}
       tools={tools}
       overlay={overlay}
+      corner={corner}
+      sun={sun}
       aside={aside}
+      initialHelpers={HEAT_SCENE_HELPERS}
     />
   );
 }
@@ -143,7 +163,10 @@ function Layout3DFrame({
   tools,
   edit,
   fill = false,
+  initialHelpers = DEFAULT_SCENE_HELPERS,
   overlay,
+  corner,
+  sun,
   aside,
 }: {
   design: DesignView;
@@ -158,8 +181,13 @@ function Layout3DFrame({
   edit?: SceneEdit;
   /** 配置ページ: 残りの画面高を使い、部品のツリー・表示の切り替え・構造の不透明度を出す。熱の追加表示は既存の高さ */
   fill?: boolean;
+  /** 補助の表示（視野・軸・格子）の最初の状態 */
+  initialHelpers?: SceneHelpers;
   /** 3D の左下に重ねるもの（熱の色の凡例） */
   overlay?: ReactNode;
+  /** 3D の右上（視点を戻すボタンの下）に重ねるもの（軌道の図）と、太陽の矢印（熱の非定常） */
+  corner?: ReactNode;
+  sun?: SunArrow | null;
   /** インスペクタの代わりに右へ置くもの（熱の節点の一覧） */
   aside?: ReactNode;
 }) {
@@ -169,9 +197,14 @@ function Layout3DFrame({
   const opacityId = useId();
   const [structureOpacity, setStructureOpacity] = useState(DEFAULT_STRUCTURE_OPACITY);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NONE_HIDDEN);
-  const [helpers, setHelpers] = useState<SceneHelpers>(DEFAULT_SCENE_HELPERS);
+  const [helpers, setHelpers] = useState<SceneHelpers>(initialHelpers);
   const [focus, setFocus] = useState<FocusRequest | undefined>(undefined);
   const [home, setHome] = useState(0);
+  // ボタンの拡大・縮小の依頼（押すたびに n が増える）
+  const [zoom, zoomBy] = useReducer(
+    (old: ZoomRequest | null, factor: number) => ({ n: (old?.n ?? 0) + 1, factor }),
+    null,
+  );
   const { boxes, unplaced, dimensions } = useMemo(
     () => boxesOf(design, colorOf),
     [design, colorOf],
@@ -206,7 +239,8 @@ function Layout3DFrame({
           <Switch value={showAxes} onChange={setShowAxes}>
             {L.axes}
           </Switch>
-          {fill && <HelperToggles value={helpers} onChange={setHelpers} />}
+          {/* 視野・原点の軸・格子・隅の軸の出し入れは、配置でも熱画像でも使える */}
+          <HelperToggles value={helpers} onChange={setHelpers} hasSun={Boolean(sun)} />
           {fill && (
             <label
               htmlFor={opacityId}
@@ -267,23 +301,22 @@ function Layout3DFrame({
               helpers={helpers}
               focus={focus ?? null}
               home={home}
+              zoom={zoom}
               fovs={fovs}
+              sun={helpers.sun ? (sun ?? null) : null}
             />
           )}
           {boxes.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setHome((n) => n + 1)}
-              aria-label={L.home}
-              title={L.home}
-              className="absolute top-3 right-3 inline-flex size-8 items-center justify-center rounded-control border border-line bg-panel/90 text-ink-2 hover:bg-panel hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
-            >
-              <House className="size-4" aria-hidden />
-            </button>
+            <ViewControls3D onZoom={zoomBy} onHome={() => setHome((n) => n + 1)} />
           )}
           {overlay && (
             <div className="pointer-events-none absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] rounded-control bg-panel/90 px-2 py-1">
               {overlay}
+            </div>
+          )}
+          {corner && (
+            <div className="pointer-events-none absolute top-14 right-3 max-w-[calc(100%-1.5rem)] rounded-control bg-panel/90 p-1">
+              {corner}
             </div>
           )}
           {showAxes && (
@@ -337,6 +370,7 @@ function Inspector({
     >
       {part ? (
         <DetailSection title={L.placementOf(part.id)}>
+          {!hasSize(part) && <p className="mb-2 text-ink-3 text-xs">{L.noSize}</p>}
           <PlacementSection
             key={`${part.id}-${design.project.revision}`}
             design={design}

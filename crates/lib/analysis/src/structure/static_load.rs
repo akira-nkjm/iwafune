@@ -45,6 +45,18 @@ pub struct StaticLoadCase {
     pub lateral: f64,
 }
 
+impl StaticLoadCase {
+    /// 打ち上げのケース（ID は [`LAUNCH_CASE_ID`]）。`label` が書かれていなければ既定のラベル。
+    pub fn launch(label: Option<String>, axial: f64, lateral: f64) -> Self {
+        Self {
+            id: LAUNCH_CASE_ID.to_owned(),
+            label: label.unwrap_or_else(|| LAUNCH_CASE_LABEL.to_owned()),
+            axial,
+            lateral,
+        }
+    }
+}
+
 /// 取付部の許容荷重。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -78,7 +90,31 @@ pub const DEFAULT_SAFETY_FACTOR: f64 = 1.25;
 /// 安全余裕 MS の警告の幅。0 なので、MS ≥ 0 なら ok、負なら違反の二段階（[`crate::spec::ratio_margin_verdict`]）。
 pub const MS_WARNING_BAND: Fraction = Fraction::new(0.0);
 
+/// 取付先が書かれていない部品の取付先（ロケット）。部品でない ID でよい。
+pub const LAUNCH_VEHICLE_MOUNT: &str = "LV";
+
+/// 打ち上げの荷重のケースの ID と、ラベルが書かれていないときのラベル。
+pub const LAUNCH_CASE_ID: &str = "launch";
+const LAUNCH_CASE_LABEL: &str = "Launch";
+
 impl StaticLoadItem {
+    /// 部品の荷重の入力。`mount` が書かれていなければロケット（[`LAUNCH_VEHICLE_MOUNT`]）に取り付くとみなす。
+    pub fn new(
+        id: String,
+        mass: Qty<Mass>,
+        count: u32,
+        mount: Option<String>,
+        cg_height: Option<Qty<Length>>,
+    ) -> Self {
+        Self {
+            id,
+            mass,
+            count,
+            mount: mount.unwrap_or_else(|| LAUNCH_VEHICLE_MOUNT.to_owned()),
+            cg_height,
+        }
+    }
+
     /// 質量 × 員数 [kg]。
     pub fn total_mass(&self) -> f64 {
         self.mass.value() * f64::from(self.count)

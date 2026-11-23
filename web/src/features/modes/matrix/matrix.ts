@@ -1,4 +1,4 @@
-import type { ModeRow, ModeTable, PartRow } from "@/api/types";
+import type { DefsView, ModeLevels, ModeRow, ModeTable, PartRow, System } from "@/api/types";
 import type { modesJa } from "@/i18n/modes/ja";
 import type { CellText } from "../draft/draft";
 
@@ -46,6 +46,11 @@ export function cellSymbol(cell: CellText | null, offState: string | null): "●
   if (!cell) return "—";
   if (Object.keys(cell.duty).length > 0) return "◐";
   return cell.state === offState ? "—" : "●";
+}
+
+/** 部品ごとの列に何を出すか（API の `DefsView.mode_levels`。系の名前では決めない。`system` 無しは設計のモードのページ） */
+export function modeLevels(defs: DefsView, system?: System): ModeLevels {
+  return defs.mode_levels.find((l) => (l.system ?? undefined) === system)?.levels ?? "states";
 }
 
 /**

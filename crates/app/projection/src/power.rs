@@ -42,7 +42,7 @@ pub fn mode_load_input(ctx: &Context<'_>, m: &mut MissingInputs) -> ModeLoadInpu
                 id: p.id.clone(),
                 label: label(p),
                 group: p.system.map(|s| s.to_string()).unwrap_or_default(),
-                count: parts::count_of(p),
+                count: p.count_or_one(),
                 redundancy: crate::parts::redundancy(p),
                 states: p.states.clone(),
                 power: state_values::<Power>(ctx, p, "power")?,
@@ -282,10 +282,11 @@ fn batteries(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceBatte
     }
     let why = "Battery values";
     let settings = ctx.design.analysis.power.as_ref();
+    // 許容する DoD は要求が持つ（`power.energy_balance` の `dod`。`power.sizing` も同じ基準を読む）。無ければ入力不足
     let dod = m.need(
-        ctx.setting(power_key(&["dod_max"]), settings.and_then(|s| s.dod_max)),
-        power_key(&["dod_max"]),
-        "Allowed DoD",
+        ctx.criterion("power.energy_balance", "dod").map(|c| c.si),
+        Target::criterion("power.energy_balance/dod"),
+        "Allowed DoD (an at_most requirement verified by power.energy_balance / dod)",
     );
     let initial_soc = ctx.setting(
         power_key(&["initial_soc"]),
@@ -311,8 +312,7 @@ fn batteries(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceBatte
 
 /// モードの姿勢則（`analysis.aocs.law.<モード>`）。書かれていなければ None（時系列の姿勢則を使う）。
 fn mode_law(ctx: &Context<'_>, mode: &str) -> Option<sat_astro::attitude::AttitudeLaw> {
-    let laws = &ctx.design.analysis.aocs.as_ref()?.law;
-    let law = laws.get(mode)?;
-    ctx.note(AnalysisSystem::Aocs.setting_path().child(&["law", mode]));
+    let law = *ctx.laws().get(mode)?;
+    ctx.note(ctx.law_target(mode));
     Some(crate::context::law_of(law))
 }

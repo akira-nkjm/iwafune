@@ -1,0 +1,82 @@
+/** フェーズのページの文言（日本語） */
+export const phasesJa = {
+  phases: {
+    title: "フェーズ",
+    subtitle:
+      "phases/<ID>.toml（ミッションの段階。並び・始まりと終わりの条件・期間・使うモード・軌道と姿勢則の上書き）",
+    empty: "フェーズがありません",
+    add: "フェーズを追加",
+    edit: "編集",
+    remove: "削除",
+    position: "順",
+    id: "ID",
+    name: "名前",
+    order: "並び順",
+    start: "始まりの条件",
+    end: "終わりの条件",
+    duration: "期間",
+    modes: "使うモード",
+    overrides: "上書き",
+    orbit: "軌道",
+    law: "姿勢則",
+    cases: "解析ケース",
+    file: "ファイル",
+    none: "なし",
+    editOverrides: "上書きを編集",
+    overridesNote:
+      "軌道と姿勢則の上書きは、このフェーズを指す解析ケースだけ設計の値の代わりに使います（「上書きを編集」で編集。fune phase copy-orbit|unset-orbit|unset-law|set-field と同じ書き込み）。",
+    dialog: {
+      addTitle: "フェーズを追加",
+      editTitle: (id: string) => `フェーズ ${id} を編集`,
+      description:
+        '量（"30 d"）と整数は fune phase add|set と同じ読み方で service が読みます。軌道と姿勢則の上書きは今のまま残ります。',
+      label: "名前",
+      order: "並び順（整数。省略は 0）",
+      start: "始まりの条件",
+      end: "終わりの条件",
+      duration: "期間",
+      modes: "使うモード（カンマ区切り）",
+      confirmAdd: "追加",
+      confirmEdit: "保存",
+      summaryAdd: (id: string) => `フェーズ ${id} を追加`,
+      summaryEdit: (id: string) => `フェーズ ${id} を書き換え`,
+    },
+    overridesDialog: {
+      title: (id: string) => `フェーズ ${id} の上書き`,
+      description:
+        "値の欄はその場で編集できます。打った文字列は fune phase set-field と同じ読み方で service が読みます。",
+      setSummary: (id: string, path: string, text: string) => `フェーズ ${id}: ${path} = ${text}`,
+      orbit: {
+        title: "軌道の上書き",
+        caption:
+          "設計の軌道（conditions/orbit.toml）を丸ごと置き換えます（キーごとの合成はしません）",
+        none: "上書きはありません。設計の軌道を使います。写すと、設計の軌道の今の値が上書きの出発点になります。",
+        empty: "書かれた欄がありません",
+        copy: "設計の軌道を写して上書きを始める",
+        recopy: "設計の軌道をもう一度写す",
+        remove: "上書きを削除",
+        copySummary: (id: string) => `フェーズ ${id} に設計の軌道を写す`,
+        removeSummary: (id: string) => `フェーズ ${id} の軌道の上書きを削除`,
+      },
+      law: {
+        title: "姿勢則の上書き",
+        caption: "モードごとに、設計の姿勢則の代わりに使います",
+        none: "上書きはありません",
+        noModes: "上書きを足せるモードがありません",
+        mode: "モード",
+        kind: "姿勢則",
+        add: "上書きを追加",
+        remove: "削除",
+        removeOf: (mode: string) => `モード ${mode} の姿勢則の上書きを削除`,
+        removeSummary: (id: string, mode: string) =>
+          `フェーズ ${id} のモード ${mode} の姿勢則の上書きを削除`,
+      },
+    },
+    removeDialog: {
+      title: (id: string) => `フェーズ ${id} を削除`,
+      description: "このフェーズを指している解析ケースがあると、削除は拒まれます。",
+      confirm: "削除",
+      summary: (id: string) => `フェーズ ${id} を削除`,
+    },
+  },
+};

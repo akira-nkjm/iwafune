@@ -10,8 +10,8 @@
 use super::UnloadAssumption;
 use crate::aocs::thrusters::{Thruster, ThrusterTorque, thruster_torques};
 use crate::spec::AnalysisError;
-use sat_astro::constants::G0;
 use sat_astro::math::Vec3;
+use sat_astro::rocket::{exhaust_velocity, mass_flow_kg_s};
 use sat_units::typed::{Force, Mass, Qty, Time, Torque};
 use serde::{Deserialize, Serialize};
 
@@ -63,12 +63,12 @@ fn evaluate(
     let mut torque = Vec3::ZERO;
     let mut force = Vec3::ZERO;
     let mut used = Vec::new();
-    let mut flow = 0.0; // Σ F / (Isp g₀) [kg/s]
+    let mut flow = 0.0; // Σ F / v_e [kg/s]（推薬の流量は sat_astro::rocket）
     for (t, tt) in thrusters.iter().zip(torques) {
         if tt.torque.dot(dump) > 0.0 {
             torque += tt.torque;
             force += tt.force;
-            flow += tt.thrust / (tt.isp * G0);
+            flow += mass_flow_kg_s(tt.thrust, exhaust_velocity(tt.isp));
             used.push(t.id.clone());
         }
     }

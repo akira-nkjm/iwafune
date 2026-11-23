@@ -9,11 +9,9 @@ use crate::parts::state_values;
 use fune_model::Target;
 use fune_model::design::ThermalSettings;
 use fune_model::resolve::{ResolvedPart, SiValue};
+use fune_model::role::STATE_MAIN;
 use sat_analysis::thermal::ThermalHeater;
 use sat_units::typed::{Power, Qty};
-
-/// オンの状態の名前（`power` の状態ごとの値から、ヒータが発熱するときの電力を引く）。
-const ON_STATE: &str = "on";
 
 /// 部品がサーモスタット付きのヒータか（`setpoint` が範囲で書かれている）。
 pub(super) fn is_thermostat(ctx: &Context<'_>, p: &ResolvedPart) -> bool {
@@ -44,7 +42,7 @@ pub fn heaters(
         let Some(SiValue::Range { min, max }) = ctx.attr(p, "setpoint") else {
             continue;
         };
-        let power = state_values::<Power>(ctx, p, "power").and_then(|v| v.get(ON_STATE));
+        let power = state_values::<Power>(ctx, p, "power").and_then(|v| v.get(STATE_MAIN));
         let Some(power) = m.need(
             power,
             Target::attr(pid, "power"),
@@ -58,7 +56,7 @@ pub fn heaters(
             on_below: Qty::from_raw(*min),
             off_above: Qty::from_raw(*max),
             power,
-            count: crate::parts::count_of(p),
+            count: p.count_or_one(),
             redundancy: crate::parts::redundancy(p),
             states: p.states.clone(),
         });

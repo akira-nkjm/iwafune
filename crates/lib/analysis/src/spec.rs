@@ -323,8 +323,8 @@ pub fn ensure_non_negative(name: &str, v: f64) -> Result<(), AnalysisError> {
 
 mod sampling;
 pub use sampling::{
-    DEFAULT_ORBITS, MAX_STEPS_PER_ORBIT, ORBIT_AVERAGE_ORBITS, SamplingSpan, daily_sampling,
-    orbit_count, orbit_step_s, orbits_sampling, sampling, step_for_period,
+    DEFAULT_ORBITS, MAX_DAILY_STEP_S, MAX_STEPS_PER_ORBIT, ORBIT_AVERAGE_ORBITS, SamplingSpan,
+    daily_sampling, orbit_count, orbit_step_s, orbits_sampling, sampling, step_for_period,
 };
 
 mod orbit;

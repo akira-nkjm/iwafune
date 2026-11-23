@@ -126,7 +126,7 @@ describe("overviewKeys", () => {
   it("API が概要の見出しにした KPI と、そのフッターの KPI のキーを、一覧の順に返す", () => {
     const e = entry("power.energy_balance", "power", ["orbit_balance", "max_dod"]);
     e.kpis = [
-      { ...def("orbit_balance"), overview: { order: 0, footer: ["max_dod"] } },
+      { ...def("orbit_balance"), overview: { order: 0, footer: ["max_dod"], budget: null } },
       { ...def("max_dod"), overview: null },
     ];
     expect(overviewKeys([e, ...entries])).toEqual(["orbit_balance", "max_dod"]);

@@ -20,3 +20,25 @@ pub fn maneuver() -> fune_model::design::Maneuver {
     }))
     .unwrap()
 }
+
+/// 軌道と姿勢則の上書きを持つフェーズ。
+pub fn phase() -> fune_model::design::Phase {
+    serde_json::from_value(serde_json::json!({
+        "id": "LEOP", "label": "初期運用", "order": 1, "start": "分離", "end": "全系の確認",
+        "duration": { "value": 30.0, "unit": "d" }, "modes": ["SAFE", "NOMINAL"],
+        "orbit": { "altitude": { "value": 450.0, "unit": "km" }, "inclination": { "value": 97.4, "unit": "deg" } },
+        "law": { "NOMINAL": { "law": "nadir_pointing" } }
+    }))
+    .unwrap()
+}
+
+/// 範囲の制約・量化・確かめる先を持つ要求。
+pub fn requirement() -> fune_model::design::Requirement {
+    serde_json::from_value(serde_json::json!({
+        "id": "R_MASS", "statement": "質量の上限", "statement_en": "Mass limit", "quantity": "Mass",
+        "source": "sys_judgement",
+        "constraint": { "kind": "at_most", "value": { "value": 12.0, "unit": "kg" } },
+        "quantify": { "all_cases": true }, "verify": { "budget": "mass" }
+    }))
+    .unwrap()
+}

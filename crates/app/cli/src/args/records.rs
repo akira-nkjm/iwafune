@@ -22,9 +22,40 @@ pub enum CaseCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// Create an analysis case at the minimum or maximum Sun distance of an orbit about the Sun
+    FromSunDistance {
+        id: String,
+        /// min / max (perihelion / aphelion within the mission duration)
+        #[arg(long, value_parser = ["min", "max"])]
+        at: String,
+        #[arg(long)]
+        mode: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Set the phase of an analysis case (its orbit and attitude law overrides then apply)
+    SetPhase {
+        id: String,
+        phase: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Clear the phase of an analysis case
+    UnsetPhase {
+        id: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// Remove an analysis case
     Rm {
         id: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Rename an analysis case (`analysis.common.default_case` and the `quantify.cases` of requirements are rewritten too)
+    Rename {
+        id: String,
+        to: String,
         #[command(flatten)]
         edit: EditOpts,
     },
@@ -41,6 +72,9 @@ pub struct CaseArgs {
     /// Mode to use
     #[arg(long)]
     pub mode: Option<String>,
+    /// Phase (phases/); its orbit and attitude law overrides apply to the case
+    #[arg(long)]
+    pub phase: Option<String>,
     /// Which side of the uncertainty to read (nominal / min / max)
     #[arg(long)]
     pub side: Option<String>,
@@ -53,6 +87,9 @@ pub struct CaseArgs {
     /// Number of orbits for the time series
     #[arg(long)]
     pub orbits: Option<u32>,
+    /// Distance from the Sun (e.g. `"0.7 AU"`; orbits about the Sun only: analyze a circular orbit at this distance)
+    #[arg(long)]
+    pub sun_distance: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }
@@ -67,6 +104,13 @@ pub enum SourceCmd {
     /// Remove a source (refused if a value refers to it)
     Rm {
         id: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Rename a source (the sources of values, catalog items and requirements are rewritten too)
+    Rename {
+        id: String,
+        to: String,
         #[command(flatten)]
         edit: EditOpts,
     },
@@ -134,6 +178,13 @@ pub enum HarnessCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// Rename a harness segment (nothing else refers to a segment, so only the file moves)
+    Rename {
+        id: String,
+        to: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
 }
 
 /// `fune harness set`
@@ -175,6 +226,13 @@ pub enum ManeuverCmd {
     /// Remove a maneuver (later maneuvers are re-linked to the one before it)
     Rm {
         id: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Rename a maneuver (the `after` of other maneuvers is rewritten too)
+    Rename {
+        id: String,
+        to: String,
         #[command(flatten)]
         edit: EditOpts,
     },
@@ -340,7 +398,7 @@ pub enum CatalogCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// Catalog origins (`[[catalog]]` in fune.toml); only shared catalogs (`git = …`) can be added or removed
+    /// Catalog origins (`[[catalog]]` in fune.toml): add a shared catalog (`git = …`) or one of this project (`path = …`), or remove one
     #[command(subcommand)]
     Source(CatalogSourceCmd),
 }
@@ -361,7 +419,17 @@ pub enum CatalogSourceCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// Remove a shared catalog from fune.toml (refused if a part or harness uses its items; the catalog.lock entry is dropped on the next fetch)
+    /// Add a catalog of this project to fune.toml (`[[catalog]] path = …`; the directory is created when the first item is added)
+    AddLocal {
+        /// Name of the catalog (items appear as `<name>/<ID>`)
+        name: String,
+        /// Directory inside the project (e.g. `vendor_parts` or `a/b`; not one the project layout uses, such as `parts`)
+        #[arg(long)]
+        path: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Remove a catalog from fune.toml (refused if a part or harness uses its items, or, for a catalog of this project, while it holds items; the catalog.lock entry of a shared catalog is dropped on the next fetch)
     Rm {
         name: String,
         #[command(flatten)]

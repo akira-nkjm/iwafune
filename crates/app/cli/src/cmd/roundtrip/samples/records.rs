@@ -2,9 +2,9 @@
 
 use super::s;
 use fune_service::dto::{
-    AttributeDef, Case, Distribution, Harness, KindDef, ModeCell, ModeSegment, ModeWhen, Net,
-    NetField, NetKind, Op, PortRef, Quantity, SettingValue, Source, SourceKind, StartFrom,
-    StartRef, ViewNodePos,
+    AttributeDef, Case, Distribution, Harness, KindDef, LinkDirection, ModeCell, ModeSegment,
+    ModeWhen, Net, NetField, NetKind, Op, PortRef, ProjectField, Quantity, SettingValue, Source,
+    SourceKind, StartFrom, StartRef, ViewNodePos,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -23,7 +23,7 @@ pub(in super::super) fn def_ops() -> Vec<Op> {
     let mut full: AttributeDef = serde_json::from_value(json!({ "label": "Interface temperature label", "label_en": "Interface temperature",
         "description": "Interface temperature (\"estimated\")", "type": "scalar", "by_state": false, "dimension": "Temperature",
         "units": ["degC", "K"], "display_unit": "degC", "min": -40.5, "max": 358.15, "default": 293.15,
-        "budget": "power", "unit_vector": true, "section": "thermal" })).unwrap();
+        "budget": "power", "unit_vector": true, "fov_axis": "boresight", "section": "thermal" })).unwrap();
     full.id = "if_temp".into();
     let mut sym: AttributeDef = serde_json::from_value(json!({ "label": "Finish", "type": "enum",
         "symbols": ["black", "white", "mli"], "min": -1.0 }))
@@ -46,6 +46,14 @@ pub(in super::super) fn def_ops() -> Vec<Op> {
         },
         Op::UpdateKind { def: ported },
         Op::DeleteKind { id: s("wire2") },
+        Op::RenameAttribute {
+            id: s("finish"),
+            to: s("coating"),
+        },
+        Op::RenameKind {
+            id: s("wire2"),
+            to: s("cable"),
+        },
     ]
 }
 
@@ -223,7 +231,7 @@ pub(in super::super) fn view_ops() -> Vec<Op> {
 
 pub(in super::super) fn record_ops() -> Vec<Op> {
     let mut case: Case = serde_json::from_value(json!({ "label": "Worst-case eclipse", "description": "β 0",
-        "mode": "NOMINAL", "side": "max", "thermal_case": "cold", "beta": { "value": 0.0, "unit": "deg" }, "orbits": 5 })).unwrap();
+        "mode": "NOMINAL", "phase": "NOMINAL_OPS", "side": "max", "thermal_case": "cold", "beta": { "value": 0.0, "unit": "deg" }, "orbits": 5, "sun_distance": { "value": 0.7, "unit": "AU" } })).unwrap();
     case.id = "eclipse_worst".into();
     let source = Source {
         id: "ds_x".into(),
@@ -289,6 +297,149 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
             ),
         },
         Op::RemoveManeuver { id: s("MV_X") },
+        Op::CreatePhase {
+            phase: phase(
+                "PH_X",
+                json!({ "label": "Commissioning \"test\"", "order": -1, "start": "Separation",
+                "end": "All subsystems checked out", "duration": { "value": 30.0, "unit": "d" },
+                "modes": ["SAFE", "NOMINAL"] }),
+            ),
+        },
+        Op::SetPhase {
+            phase: phase("PH_Y", json!({ "order": 2 })),
+        },
+        Op::RemovePhase { id: s("PH_X") },
+        Op::RenamePhase {
+            id: s("PH_X"),
+            to: s("PH_Z"),
+        },
+        Op::SetPhaseField {
+            phase: s("PH_X"),
+            path: s("orbit.altitude"),
+            value: Some(SettingValue::Quantity(Quantity::new(450.0, "km"))),
+        },
+        Op::SetPhaseField {
+            phase: s("PH_X"),
+            path: s("orbit.label"),
+            value: Some(SettingValue::Text(s("1"))),
+        },
+        Op::SetPhaseField {
+            phase: s("PH_X"),
+            path: s("law.NOMINAL.law"),
+            value: Some(SettingValue::Text(s("nadir_pointing"))),
+        },
+        Op::SetPhaseField {
+            phase: s("PH_X"),
+            path: s("orbit.altitude"),
+            value: None,
+        },
+        Op::CopyPhaseOrbit { phase: s("PH_X") },
+        Op::UnsetPhaseOrbit { phase: s("PH_X") },
+        Op::UnsetPhaseLaw {
+            phase: s("PH_X"),
+            mode: s("NOMINAL"),
+        },
+        Op::SetCasePhase {
+            case: s("eclipse_worst"),
+            phase: Some(s("PH_X")),
+        },
+        Op::SetCasePhase {
+            case: s("eclipse_worst"),
+            phase: None,
+        },
+        Op::CreateGroundStation {
+            id: s("SVALBARD"),
+            label: Some(s("Svalbard \"test\"")),
+            latitude: Some(Quantity::new(78.2, "deg")),
+            longitude: Some(Quantity::new(15.4, "deg")),
+            altitude: Some(Quantity::new(450.0, "m")),
+            min_elevation: Some(Quantity::new(-5.0, "deg")),
+        },
+        Op::CreateGroundStation {
+            id: s("BARE_GS"),
+            label: None,
+            latitude: None,
+            longitude: None,
+            altitude: None,
+            min_elevation: None,
+        },
+        Op::RemoveGroundStation { id: s("SVALBARD") },
+        Op::RenameGroundStation {
+            id: s("BARE_GS"),
+            to: s("BARE_GS2"),
+        },
+        Op::RenameNet {
+            id: s("P5V"),
+            to: s("P5V_MAIN"),
+        },
+        Op::RenameHarness {
+            id: s("H_OBC_CAM"),
+            to: s("H_OBC_CAMERA"),
+        },
+        Op::RenameCase {
+            id: s("hot_imaging"),
+            to: s("hot_img"),
+        },
+        Op::RenameSource {
+            id: s("sys_judgement"),
+            to: s("sys_judge"),
+        },
+        Op::RenameManeuver {
+            id: s("RAISE"),
+            to: s("M_RAISE"),
+        },
+        Op::CreateCommLink {
+            id: s("x_down"),
+            direction: LinkDirection::Down,
+            part: s("STX"),
+            band: s("s_band"),
+        },
+        Op::RemoveCommLink { id: s("x_down") },
+        Op::RenameCommLink {
+            id: s("x_down"),
+            to: s("x_dl"),
+        },
+        Op::SetProjectField {
+            field: ProjectField::Name(s("demo project")),
+        },
+        Op::SetProjectField {
+            field: ProjectField::Label(Some(s("Demo \"label\""))),
+        },
+        Op::SetProjectField {
+            field: ProjectField::Label(None),
+        },
+        Op::AddLocalCatalog {
+            name: s("vendor"),
+            path: s("vendor/parts"),
+        },
+        Op::CreateRequirement {
+            requirement: requirement(
+                "R_X",
+                json!({ "statement": "The temperature shall stay \"in range\".", "statement_en": "In range",
+                "label": "Range", "quantity": "Temperature", "source": "sys_judgement",
+                "constraint": { "kind": "range", "min": { "value": -5.0, "unit": "degC" },
+                    "max": { "value": 40.0, "unit": "degC" } },
+                "quantify": { "cases": ["hot_imaging", "cold_safe"] },
+                "verify": { "analysis": "thermal.steady", "check": "range_low:BAT:operating" } }),
+            ),
+        },
+        Op::SetRequirement {
+            requirement: requirement(
+                "R_Y",
+                json!({ "statement": "Total mass", "quantity": "Mass",
+                "constraint": { "kind": "at_most", "value": { "value": 12.0, "unit": "kg" } },
+                "quantify": { "all_cases": true }, "verify": { "budget": "mass" } }),
+            ),
+        },
+        Op::SetRequirement {
+            requirement: requirement(
+                "R_Z",
+                json!({ "statement": "Temperature", "quantity": "Temperature",
+                "constraint": { "kind": "equal", "value": { "value": 20.0, "unit": "degC" },
+                    "tolerance": { "value": 2.0, "unit": "K" } } }),
+            ),
+        },
+        Op::RemoveRequirement { id: s("R_X") },
         Op::SetSetting {
             path: s("analysis.common.default_case"),
             value: Some(SettingValue::Text(s("hot_imaging"))),
@@ -321,4 +472,18 @@ fn maneuver(id: &str, body: serde_json::Value) -> fune_service::dto::Maneuver {
     let mut m: fune_service::dto::Maneuver = serde_json::from_value(body).unwrap();
     m.id = id.into();
     m
+}
+
+/// JSON の中身と ID からフェーズを作る。
+fn phase(id: &str, body: serde_json::Value) -> fune_service::dto::Phase {
+    let mut p: fune_service::dto::Phase = serde_json::from_value(body).unwrap();
+    p.id = id.into();
+    p
+}
+
+/// JSON の中身と ID から要求を作る。
+fn requirement(id: &str, body: serde_json::Value) -> fune_service::dto::Requirement {
+    let mut r: fune_service::dto::Requirement = serde_json::from_value(body).unwrap();
+    r.id = id.into();
+    r
 }

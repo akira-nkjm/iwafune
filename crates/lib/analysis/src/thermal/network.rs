@@ -6,7 +6,7 @@
 
 use crate::spec::AnalysisError;
 use crate::thermal::enclosure::ThermalEnclosure;
-use crate::thermal::range::ThermalRanges;
+use crate::thermal::range::{ThermalRanges, ThermalRequiredRange};
 use sat_astro::constants::SIGMA_SB;
 use sat_astro::math::Vec3;
 use sat_units::typed::{Area, Mass, Qty, SpecificHeatCapacity, Temperature, ThermalConductance};
@@ -69,6 +69,9 @@ pub struct ThermalNode {
     /// 温度一定の境界節点にするときの温度
     #[serde(default)]
     pub fixed_temperature: Option<Qty<Temperature>>,
+    /// 要求が部品の範囲に重ねる限界（種類の綴り `storage`・`operating`・`performance` → 下限と上限。部品の範囲を厳しくするだけ）
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub required: std::collections::BTreeMap<String, ThermalRequiredRange>,
 }
 
 impl ThermalNode {

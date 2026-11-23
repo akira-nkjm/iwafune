@@ -165,28 +165,50 @@ pub(super) const PROD_RULES: &[(&str, &[&str], &str)] = &[
         ],
         "the conventional off state (`STATE_OFF`)",
     ),
-    // 解析の表示換算を禁止する。現在の production の出現は全て判定文の換算。
+    // 解析の表示換算を禁止する。J → Wh の換算は sat-units だけ（nrlmsise00 の `/ 3600.0` は時刻の秒 → 時で、表示の換算ではない）
     (
         "/ 3600.0",
         &[
             "crates/lib/units/",
-            "crates/lib/astro/",
-            "crates/app/",
-            "web/",
+            "crates/lib/astro/src/atmosphere/nrlmsise00.rs",
         ],
         "the J to Wh display conversion (sat-units)",
     ),
+    // 比 → % の換算は sat-units だけ。概要のメーターの位置（0〜100）は表示の換算ではなく目盛りの値で、API に移す（#328）
     (
         "* 100.0",
         &[
             "crates/lib/units/",
-            "crates/lib/astro/",
-            "crates/app/",
-            "web/",
+            "crates/app/service/src/analysis/overview/power/meter.rs",
         ],
         "the ratio to % display conversion (sat-units)",
     ),
-    ("fn to_db", &["crates/lib/units/src/"], "dB conversion"),
+    // 推薬の流量 F / (Isp · g₀) は `sat_astro::rocket::mass_flow_kg_s`（排気速度は `exhaust_velocity`）だけ
+    (
+        "isp * G0",
+        &["crates/lib/astro/src/rocket.rs"],
+        "propellant mass flow and exhaust velocity (`sat_astro::rocket`)",
+    ),
+    (
+        "isp_s * G0",
+        &["crates/lib/astro/src/rocket.rs"],
+        "propellant mass flow and exhaust velocity (`sat_astro::rocket`)",
+    ),
+    (
+        "G0 * isp",
+        &["crates/lib/astro/src/rocket.rs"],
+        "propellant mass flow and exhaust velocity (`sat_astro::rocket`)",
+    ),
+    (
+        "/ exhaust_velocity(",
+        &["crates/lib/astro/src/rocket.rs"],
+        "propellant mass flow (`sat_astro::rocket::mass_flow_kg_s`)",
+    ),
+    (
+        "fn ratio_to_db",
+        &["crates/lib/units/src/"],
+        "dB conversion",
+    ),
     // 常用対数は dB の換算（`sat_units::ratio_to_db`）にだけ使う。テストは手計算の確かめに使ってよい
     (
         ".log10()",
@@ -211,6 +233,58 @@ pub(super) const PROD_RULES: &[(&str, &[&str], &str)] = &[
         "R_EARTH +",
         &["crates/lib/astro/src/"],
         "the altitude to radius conversion (`semi_major_axis_from_altitude`)",
+    ),
+    // 読み込み中のパルスのアニメーションは ui のスケルトンだけ（画面は `kit/feedback` の部品を通す）
+    (
+        "animate-pulse",
+        &["web/src/ui/skeleton.tsx"],
+        "the pulse animation of skeletons (loading display)",
+    ),
+    // バジェットの種類を引数に直書きしない（概要は `DefsView.budget_kinds` を回す）。質量カードの見出しの選び方は API に移す（#328）
+    (
+        "budget(\"mass\")",
+        &["web/src/features/overview/cards.ts"],
+        "a budget kind written as an argument (iterate the API's `DefsView.budget_kinds`)",
+    ),
+    // バジェットの種類を引数に直書きしない（概要は `DefsView.budget_kinds` を回す）。質量カードの見出しの選び方は API に移す（#328）
+    (
+        "budget(\"power\")",
+        &["web/src/features/overview/cards.ts"],
+        "a budget kind written as an argument (iterate the API's `DefsView.budget_kinds`)",
+    ),
+    // バジェットの種類を引数に直書きしない（概要は `DefsView.budget_kinds` を回す）。質量カードの見出しの選び方は API に移す（#328）
+    (
+        "budget(\"data\")",
+        &["web/src/features/overview/cards.ts"],
+        "a budget kind written as an argument (iterate the API's `DefsView.budget_kinds`)",
+    ),
+    // バジェットの種類を引数に直書きしない（概要は `DefsView.budget_kinds` を回す）。質量カードの見出しの選び方は API に移す（#328）
+    (
+        "budget('mass')",
+        &["web/src/features/overview/cards.ts"],
+        "a budget kind written as an argument (iterate the API's `DefsView.budget_kinds`)",
+    ),
+    // バジェットの種類を引数に直書きしない（概要は `DefsView.budget_kinds` を回す）。質量カードの見出しの選び方は API に移す（#328）
+    (
+        "budget('power')",
+        &["web/src/features/overview/cards.ts"],
+        "a budget kind written as an argument (iterate the API's `DefsView.budget_kinds`)",
+    ),
+    // バジェットの種類を引数に直書きしない（概要は `DefsView.budget_kinds` を回す）。質量カードの見出しの選び方は API に移す（#328）
+    (
+        "budget('data')",
+        &["web/src/features/overview/cards.ts"],
+        "a budget kind written as an argument (iterate the API's `DefsView.budget_kinds`)",
+    ),
+    // 問い合わせのキーは API 層のキー表（keys.ts）と、まとめて問い合わせる層・待ちの部品だけが組み立てる
+    (
+        "queryKey: [",
+        &[
+            "web/src/api/keys.ts",
+            "web/src/quantity/format-batch.ts",
+            "web/src/kit/feedback/Settled.tsx",
+        ],
+        "query keys (`web/src/api/keys.ts`)",
     ),
     // 参照の所在（`Design::references`）。テストは期待値として書いてよい
     (

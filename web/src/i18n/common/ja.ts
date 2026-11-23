@@ -4,10 +4,7 @@ export const commonJa = {
     resizeTree: "ツリーの幅を調整",
     expandAll: "すべて開く",
     collapseAll: "すべて閉じる",
-    view: "表示方法",
     sortColumn: "昇順・降順・元の順に並べ替え",
-    tableView: "表",
-    treeView: "ツリー",
     working: {
       elapsed: (seconds: number) => `${seconds} 秒`,
       computing: (name: string) => `${name}を計算中`,
@@ -26,19 +23,31 @@ export const commonJa = {
     saving: "保存中…",
     discard: "破棄",
     none: "—",
-    yes: "はい",
-    no: "いいえ",
-    search: "検索",
     all: "すべて",
     retry: "再試行",
     /** 「主（補足）」の書き方（ID と表示名、名前と種類など。組み立ては lib/design.ts の withNote） */
     withNote: (main: string, note: string) => `${main}（${note}）`,
     ok: "OK",
-    caution: "注意",
-    violation: "違反",
     noData: "データなし",
     cannotLoadDesign: (msg: string) => `設計を読めません: ${msg}`,
-    idRule: "英字で始め、英数字と _ だけを使います",
     language: "言語",
+    /** 図・3D の視点操作の案内（「?」の中身） */
+    viewHelp: {
+      label: "操作の案内",
+      title: "視点の操作",
+      zoom: "拡大・縮小",
+      pan: "移動",
+      rotate: "回転",
+      fit: "全体",
+      zoomHow:
+        "トラックパッドはピンチ、マウスはホイール（Ctrl / ⌘ + ホイールも可）。カーソルの位置を中心に拡大します",
+      panDiagramHow:
+        "トラックパッドは 2 本指でスクロール、マウスは中ボタンのドラッグか、何もない所の左ドラッグ",
+      pan3dHow:
+        "トラックパッドは 2 本指でスクロール、マウスは中ボタン・右ボタンのドラッグか、Shift + 左ドラッグ",
+      rotateHow: "1 本指のドラッグ、マウスは左ボタンのドラッグ",
+      fitDiagramHow: "左下の「全体を見る」ボタン、または 0 キー",
+      fit3dHow: "右上のホームポジションのボタン（向きも初めに戻ります）",
+    },
   },
 };

@@ -1,0 +1,10 @@
+label        = "Mission duration"
+statement    = "The mission shall last at least 1 year."
+statement_en = "The mission shall last at least 1 year."
+quantity     = "Time"
+source       = "sys_judgement"
+input        = "mission_duration"
+
+[constraint]
+kind  = "at_least"
+value = { value = 1.0, unit = "yr" }

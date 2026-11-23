@@ -279,6 +279,8 @@ pub(crate) fn defs(design: &Design) -> DefsView {
             units: a.units.clone(),
             display_unit: Some(a.display_unit().to_owned()).filter(|u| !u.is_empty()),
             by_state: a.by_state,
+            unit_vector: a.unit_vector,
+            fov_axis: a.fov_axis.as_ref().map(ToString::to_string),
             builtin: !design.attributes.contains_key(id) && builtin::attributes().contains_key(id),
             description: a.description.clone(),
         })
@@ -309,6 +311,7 @@ pub(crate) fn defs(design: &Design) -> DefsView {
             .collect(),
         budget_kinds: BudgetKind::ALL.to_vec(),
         mode_systems: crate::mode_systems::mode_systems(),
+        mode_levels: crate::mode_systems::mode_levels(),
     }
 }
 
@@ -322,6 +325,7 @@ pub(crate) fn cases(design: &Design) -> Vec<CaseView> {
             label: c.label.clone().unwrap_or_else(|| c.id.to_string()),
             description: c.description.clone(),
             modes: c.mode.iter().map(ToString::to_string).collect(),
+            phase: c.phase.as_ref().map(ToString::to_string),
             file: file_of(design, EntityKey::Case(c.id.to_string())),
         })
         .collect()

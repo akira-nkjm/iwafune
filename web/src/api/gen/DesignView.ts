@@ -3,12 +3,15 @@ import type { CaseView } from "./CaseView";
 import type { CatalogItemView } from "./CatalogItemView";
 import type { DefsView } from "./DefsView";
 import type { DiagnosticView } from "./DiagnosticView";
+import type { GroundStationView } from "./GroundStationView";
 import type { HarnessView } from "./HarnessView";
 import type { ManeuverView } from "./ManeuverView";
 import type { ModeTable } from "./ModeTable";
 import type { NetView } from "./NetView";
 import type { PartRow } from "./PartRow";
+import type { PhaseView } from "./PhaseView";
 import type { ProjectInfo } from "./ProjectInfo";
+import type { RequirementView } from "./RequirementView";
 import type { SettingView } from "./SettingView";
 import type { SourceView } from "./SourceView";
 import type { TreeNode } from "./TreeNode";
@@ -26,6 +29,18 @@ tree: Array<TreeNode>, parts: Array<PartRow>, modes: ModeTable, nets: Array<NetV
  * マヌーバ（実行の順）
  */
 maneuvers: Array<ManeuverView>, 
+/**
+ * フェーズ（並びの順）
+ */
+phases: Array<PhaseView>, 
+/**
+ * 地上局（`conditions/ground/<ID>.toml`。ID 順。値は `settings`）
+ */
+stations: Array<GroundStationView>, 
+/**
+ * 要求（`requirements/<ID>.toml`。ID 順）
+ */
+requirements: Array<RequirementView>, 
 /**
  * 出典の台帳（`sources/<ID>.toml`。ID 順）
  */

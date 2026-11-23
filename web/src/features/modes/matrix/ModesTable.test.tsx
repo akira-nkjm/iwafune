@@ -6,6 +6,7 @@ import { getT } from "@/i18n";
 import { fixture, qv } from "@/test/fixture";
 import { LightingSwitch } from "./ModesMatrix";
 import { ModesTable } from "./ModesTable";
+import { modeLevels } from "./matrix";
 import { matrixGroups } from "./matrix-rows";
 
 function modeView(system: System = "power"): SystemModesView {
@@ -71,6 +72,7 @@ function render(eclipse: boolean, system?: System, footer = false) {
         )}
         view={{ data: view, pending: false, updating: false }}
         system={system}
+        levels={modeLevels(fixture.defs, system)}
         eclipse={eclipse}
         onCell={() => {}}
       />

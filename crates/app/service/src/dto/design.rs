@@ -55,6 +55,12 @@ pub struct DesignView {
     pub cases: Vec<CaseView>,
     /// マヌーバ（実行の順）
     pub maneuvers: Vec<super::ManeuverView>,
+    /// フェーズ（並びの順）
+    pub phases: Vec<super::PhaseView>,
+    /// 地上局（`conditions/ground/<ID>.toml`。ID 順。値は `settings`）
+    pub stations: Vec<super::GroundStationView>,
+    /// 要求（`requirements/<ID>.toml`。ID 順）
+    pub requirements: Vec<super::RequirementView>,
     /// 出典の台帳（`sources/<ID>.toml`。ID 順）
     pub sources: Vec<super::SourceView>,
     /// カタログ品（`"local/rw_10mNms"` の順。値は部品と同じ形で、パスと使っている部品も品の中に）
@@ -105,6 +111,8 @@ pub struct PartRow {
     pub role: Option<Role>,
     /// マヌーバのスラスタに選べる部品か（`Design::is_maneuver_thruster`。検査と同じ判定）
     pub maneuver_thruster: bool,
+    /// 構造の部品か（系が構造のもの。3D で外板として薄く描くのに使う。判定は `query::parts::part_row` だけ）
+    pub structural: bool,
     /// この部品を対象にした診断の件数（`DiagnosticView.part` が部品 ID のもの）
     pub diagnostics: DiagnosticCounts,
     /// 未設定の値（`values` のうち `origin` が `unset`）の数
@@ -306,6 +314,8 @@ pub struct DefsView {
     pub budget_kinds: Vec<fune_model::design::BudgetKind>,
     /// モードの見方（`POST /system_modes/{system}`）を持つ系（`systems` の部分集合で、同じ並び。`system_modes::mode_systems`）
     pub mode_systems: Vec<sat_analysis::spec::System>,
+    /// モードの表の部品ごとの列の出し方（系ごとと、`system` が null の設計のモードのページ。`mode_systems::mode_levels`）
+    pub mode_levels: Vec<super::ModeLevelsView>,
 }
 
 /// 属性定義。
@@ -324,6 +334,10 @@ pub struct AttributeDefView {
     pub units: Vec<String>,
     pub display_unit: Option<String>,
     pub by_state: bool,
+    /// 方向の属性か（部品座標の単位ベクトル。3D はこれが true の属性を軸の矢印として描く）
+    pub unit_vector: bool,
+    /// 視野の半角の属性なら、そのまわりの方向の属性の ID（3D の視野の円錐）。そうでなければ null
+    pub fov_axis: Option<String>,
     /// 組み込み（`fune_model::builtin`）なら true、プロジェクト独自（`defs/`）なら false
     pub builtin: bool,
     pub description: Option<String>,
@@ -372,6 +386,8 @@ pub struct CaseView {
     pub description: Option<String>,
     /// 使うモード（モードの時系列なら先頭から順に）
     pub modes: Vec<String>,
+    /// フェーズ（`phases/<ID>.toml`。軌道・姿勢則がそのフェーズのものになる）
+    pub phase: Option<String>,
     pub file: String,
 }
 

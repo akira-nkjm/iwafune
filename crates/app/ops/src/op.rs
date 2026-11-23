@@ -3,8 +3,9 @@
 //! JSON では `{ "op": "set_value", ... }` の形（`op` が種類）。
 
 use fune_model::design::{
-    AttributeDef, Case, CatalogField, Harness, KindDef, Maneuver, Maturity, ModeSegment, ModeWhen,
-    Net, NetField, PartField, Pose, Source, StartRef,
+    AttributeDef, Case, CatalogField, Harness, KindDef, LinkDirection, Maneuver, Maturity,
+    ModeSegment, ModeWhen, Net, NetField, PartField, Phase, Pose, ProjectField, Requirement,
+    Source, StartRef,
 };
 use fune_model::value::{Provenance, Quaternion, SettingValue, Value, Vector3};
 use serde::{Deserialize, Serialize};
@@ -37,7 +38,8 @@ pub enum Op {
         #[serde(default)]
         mode_state: Option<String>,
     },
-    /// 部品を消す（モードの行と配分も消す）。取付・ネット・ハーネスから参照されていれば拒む。
+    /// 部品を消す。モードの行（`[states]`・`[eclipse]`）と配分のキーは一緒に消す。子部品を持つ組立品は拒む。
+    /// ネットの端・ハーネス・取付・図・解析の設定などの参照は書き換えず、参照先が無くなる検査の誤り（`ref.*`）で計画ごと拒む。
     RemovePart {
         id: String,
     },
@@ -205,6 +207,18 @@ pub enum Op {
     DeleteKind {
         id: String,
     },
+    /// プロジェクト独自の属性定義の名前を変える（種別の `required` / `optional`・部品とカタログ品の属性の値のキーも書き換える）。
+    /// 組み込みは不可。共有カタログの品がその属性の値を持っていれば、書き換えられないので拒む。
+    RenameAttribute {
+        id: String,
+        to: String,
+    },
+    /// プロジェクト独自の種別定義の名前を変える（部品とカタログ品の `kind`・ほかの種別の `extends` も書き換える）。
+    /// 組み込みは不可。共有カタログの品がその種別を使っていれば、書き換えられないので拒む。
+    RenameKind {
+        id: String,
+        to: String,
+    },
     // ---- モード
     /// モードを足す（`copy_from` があればその表を写す）。
     CreateMode {
@@ -302,6 +316,30 @@ pub enum Op {
         id: String,
         dir: String,
     },
+    /// 地上局を足す（`conditions/ground/<id>.toml`。同じ ID があれば拒む）。帯域ごとの性能（`[link.<帯域>]`）は `SetSetting` で書く。
+    /// 緯度・経度・高度・最低仰角は角度・長さの量（次元は検査が見る）。
+    CreateGroundStation {
+        id: String,
+        #[serde(default)]
+        label: Option<String>,
+        #[serde(default)]
+        latitude: Option<fune_model::value::Quantity>,
+        #[serde(default)]
+        longitude: Option<fune_model::value::Quantity>,
+        #[serde(default)]
+        altitude: Option<fune_model::value::Quantity>,
+        #[serde(default)]
+        min_elevation: Option<fune_model::value::Quantity>,
+    },
+    /// 地上局を消す（通信の解析の `stations` に挙げられていれば拒む）。
+    RemoveGroundStation {
+        id: String,
+    },
+    /// 地上局の名前を変える（通信の解析の `stations` も書き換える）。
+    RenameGroundStation {
+        id: String,
+        to: String,
+    },
     /// ハーネス区間を書く（`harness.id` が対象）。
     SetHarness {
         harness: Harness,
@@ -320,6 +358,118 @@ pub enum Op {
     /// マヌーバを消す（ほかのマヌーバの `after` が指していれば、消したマヌーバの `after` につなぎ直す）。
     RemoveManeuver {
         id: String,
+    },
+    /// フェーズを足す（`phase.id` が対象。同じ ID があれば拒む。`orbit`・`law` も書かれていれば書く）。
+    CreatePhase {
+        phase: Phase,
+    },
+    /// フェーズを書く（`phase.id` が対象。無ければ作り、あれば見出しの欄を置き換える。`orbit` が無い・`law` が空なら、今の
+    /// `[orbit]`・`[law.*]` は残す。それらの値は `SetPhaseField` で書く）。
+    SetPhase {
+        phase: Phase,
+    },
+    /// フェーズを消す（ケースの `phase` が指していれば、適用後の検査が拒む）。
+    RemovePhase {
+        id: String,
+    },
+    /// フェーズの名前を変える（ケースの `phase` も書き換える）。
+    RenamePhase {
+        id: String,
+        to: String,
+    },
+    /// フェーズのファイルの中の軌道（`orbit.altitude`）か姿勢則（`law.NOMINAL.law`）の値を 1 つ書く（None なら消す）。
+    /// `path` はファイルの中のキーの列で、先頭は `orbit` か `law`（それ以外の欄は `SetPhase`）。
+    SetPhaseField {
+        phase: String,
+        path: String,
+        #[serde(default)]
+        value: Option<SettingValue>,
+    },
+    /// 設計の軌道（`conditions/orbit.toml`）の今の値を、フェーズの `[orbit]` へ丸ごと写す（フェーズの軌道があれば置き換える。
+    /// 上書きの出発点で、1 手で済む。設計に軌道が無ければ拒む）。
+    CopyPhaseOrbit {
+        phase: String,
+    },
+    /// フェーズの軌道の上書き（`[orbit]`）を丸ごと消す（設計の軌道に戻る）。
+    UnsetPhaseOrbit {
+        phase: String,
+    },
+    /// フェーズのモードの姿勢則の上書き（`[law.<モード>]`）を丸ごと消す（設計の姿勢則に戻る）。
+    UnsetPhaseLaw {
+        phase: String,
+        mode: String,
+    },
+    /// 解析ケースのフェーズを書く（None なら外す。ケースのほかの欄は変えない）。
+    SetCasePhase {
+        case: String,
+        #[serde(default)]
+        phase: Option<String>,
+    },
+    /// 要求を足す（`requirement.id` が対象。同じ ID があれば拒む）。
+    CreateRequirement {
+        requirement: Requirement,
+    },
+    /// 要求を書く（`requirement.id` が対象。無ければ作り、あれば丸ごと置き換える）。
+    SetRequirement {
+        requirement: Requirement,
+    },
+    /// 要求を消す。
+    RemoveRequirement {
+        id: String,
+    },
+    // ---- 名前の変更・通信の回線・プロジェクト・ローカルのカタログ（手書きでしか直せなかったもの。#330）
+    /// ネットの名前を変える（部品のポートの `net`・ハーネスの `nets`・図のノードのキーも書き換える）。
+    RenameNet {
+        id: String,
+        to: String,
+    },
+    /// ハーネス区間の名前を変える（ほかのエンティティはハーネスの ID を持たないので、ファイルの移動だけ）。
+    RenameHarness {
+        id: String,
+        to: String,
+    },
+    /// 解析ケースの名前を変える（`analysis.common.default_case`・要求の `quantify.cases` も書き換える）。
+    RenameCase {
+        id: String,
+        to: String,
+    },
+    /// 出典の名前を変える（部品とカタログ品の値の出典・カタログ品の `source` / `datasheet`・要求の `source` も書き換える）。
+    /// 共有カタログの出典と、共有カタログの品が使っている出典は、読み取り専用なので拒む。
+    RenameSource {
+        id: String,
+        to: String,
+    },
+    /// マヌーバの名前を変える（ほかのマヌーバの `after` も書き換える）。
+    RenameManeuver {
+        id: String,
+        to: String,
+    },
+    /// 通信の回線を足す（`analysis/comm.toml` の `[link.<id>]`。読み込める最小の 3 つ。ほかの値は `SetSetting` で書く）。
+    /// 同じ名前があれば拒む。部品・帯域の実在は最後の検査が見る。
+    CreateCommLink {
+        id: String,
+        direction: LinkDirection,
+        part: String,
+        band: String,
+    },
+    /// 通信の回線を消す（`data_downlink` がその回線なら外す。要求の判定のキーが名指していれば拒む）。
+    RemoveCommLink {
+        id: String,
+    },
+    /// 通信の回線の名前を変える（`data_downlink`・要求の判定のキー `margin:<回線>@<局>` / `pfd:<回線>@<局>` も書き換える）。
+    RenameCommLink {
+        id: String,
+        to: String,
+    },
+    /// `fune.toml` の `[project]` のフィールドを書く（`name`・`label`）。
+    SetProjectField {
+        field: ProjectField,
+    },
+    /// このプロジェクトの中のカタログ（`[[catalog]] name = … path = …`）を足す。置き場所は `path`（プロジェクトの中の相対パス）。
+    /// 名前は ID の規則に従い、既にあるカタログと重ならないこと。ディレクトリは作らない（品を足すとき作られる）。
+    AddLocalCatalog {
+        name: String,
+        path: String,
     },
     // ---- 図の配置（見た目だけ）
     /// 図の配置を一括で書く（`view/<view>.toml`。挙げたノードだけを書き換え、`remove` は消す）。

@@ -24,8 +24,12 @@ pub const CASES_DIR: &str = "cases";
 pub const SOURCES_DIR: &str = "sources";
 /// マヌーバ（`maneuvers/<ID>.toml`）。
 pub const MANEUVERS_DIR: &str = "maneuvers";
-/// 規約にあるが まだ読まないディレクトリ（#9 のミッション・要求・表データ）。
-pub const RESERVED_DIRS: &[&str] = &["mission", "requirements", "tables"];
+/// フェーズ（`phases/<ID>.toml`）。
+pub const PHASES_DIR: &str = "phases";
+/// 要求（`requirements/<ID>.toml`）。
+pub const REQUIREMENTS_DIR: &str = "requirements";
+/// 規約にあるが まだ読まないディレクトリ（#9 のミッション・表データ）。
+pub const RESERVED_DIRS: &[&str] = &["mission", "tables"];
 pub const CONDITIONS_DIR: &str = "conditions";
 pub const GROUND_DIR: &str = "conditions/ground";
 pub const ANALYSIS_DIR: &str = "analysis";
@@ -45,6 +49,23 @@ pub const SHARED_CATALOG_DIRS: &[&str] = &[SHARED_ITEMS_DIR, SOURCES_DIR];
 pub const SHARED_ITEMS_DIR: &str = "catalog";
 /// 読まないディレクトリ。
 pub const IGNORED_DIRS: &[&str] = &["results", "exports", "target", "node_modules"];
+/// 規約が読む最上位のディレクトリ（[`RESERVED_DIRS`]・[`IGNORED_DIRS`] とともに、ローカルカタログのディレクトリにはできない）
+/// （`defs` は `defs/attribute`・`defs/kind` の親、`budget` は `budget/allocation.toml` の親）。
+pub const PROJECT_DIRS: &[&str] = &[
+    "defs",
+    "budget",
+    PARTS_DIR,
+    MODES_DIR,
+    NETS_DIR,
+    HARNESS_DIR,
+    CASES_DIR,
+    SOURCES_DIR,
+    MANEUVERS_DIR,
+    REQUIREMENTS_DIR,
+    CONDITIONS_DIR,
+    ANALYSIS_DIR,
+    VIEW_DIR,
+];
 /// 図の配置（見た目だけ。`view/<名前>.toml`）。
 pub const VIEW_DIR: &str = "view";
 /// `conditions/` の直下のファイル。
@@ -79,6 +100,8 @@ pub enum FileRole {
         id: String,
     },
     Maneuver(String),
+    Phase(String),
+    Requirement(String),
     /// `view/<名前>.toml`
     View(String),
     /// 規約にあるが まだ読まない（#9 用の `mission/`・`requirements/`・`tables/`）
@@ -120,7 +143,7 @@ pub fn classify(rel: &str, catalogs: &[(String, String)]) -> FileRole {
             .parse::<AnalysisSystem>()
             .map_or(FileRole::Other, FileRole::Analysis);
     }
-    let flat: [(&str, RoleOf); 9] = [
+    let flat: [(&str, RoleOf); 11] = [
         (ATTRIBUTE_DIR, FileRole::Attribute),
         (KIND_DIR, FileRole::Kind),
         (MODES_DIR, FileRole::Mode),
@@ -128,6 +151,8 @@ pub fn classify(rel: &str, catalogs: &[(String, String)]) -> FileRole {
         (HARNESS_DIR, FileRole::Harness),
         (CASES_DIR, FileRole::Case),
         (MANEUVERS_DIR, FileRole::Maneuver),
+        (PHASES_DIR, FileRole::Phase),
+        (REQUIREMENTS_DIR, FileRole::Requirement),
         (GROUND_DIR, FileRole::Ground),
         (VIEW_DIR, FileRole::View),
     ];
@@ -180,6 +205,8 @@ pub fn entity_key(role: &FileRole) -> Option<EntityKey> {
         FileRole::Case(id) => EntityKey::Case(id.clone()),
         FileRole::Source { id, .. } => EntityKey::Source(id.clone()),
         FileRole::Maneuver(id) => EntityKey::Maneuver(id.clone()),
+        FileRole::Phase(id) => EntityKey::Phase(id.clone()),
+        FileRole::Requirement(id) => EntityKey::Requirement(id.clone()),
         FileRole::View(id) => EntityKey::View(id.clone()),
         FileRole::Reserved => return None,
         FileRole::Conditions(id) => EntityKey::Setting(SettingPath::conditions(&[id])),
@@ -208,6 +235,8 @@ pub fn file_target(role: &FileRole) -> Option<Target> {
         FileRole::Case(id) => Target::case(id, None),
         FileRole::Source { id, .. } => Target::Source { id: id.clone() },
         FileRole::Maneuver(id) => Target::maneuver(id, None),
+        FileRole::Phase(id) => Target::phase(id, None),
+        FileRole::Requirement(id) => Target::requirement(id, None),
         FileRole::View(id) => Target::view(id, None),
         FileRole::Conditions(id) => SettingPath::conditions(&[id]).into(),
         FileRole::Ground(id) => SettingPath::conditions(&["ground", id]).into(),
@@ -256,6 +285,10 @@ pub fn assembly_dir(design: &Design, id: &str) -> Option<String> {
     part_file(design, id).map(|f| f.trim_end_matches(".toml").to_string())
 }
 
+/// 地上局のファイル（`conditions/ground/<ID>.toml`）。
+pub fn ground_file(id: &str) -> String {
+    format!("{GROUND_DIR}/{id}.toml")
+}
 pub fn mode_file(id: &str) -> String {
     format!("{MODES_DIR}/{id}.toml")
 }
@@ -270,6 +303,12 @@ pub fn case_file(id: &str) -> String {
 }
 pub fn maneuver_file(id: &str) -> String {
     format!("{MANEUVERS_DIR}/{id}.toml")
+}
+pub fn phase_file(id: &str) -> String {
+    format!("{PHASES_DIR}/{id}.toml")
+}
+pub fn requirement_file(id: &str) -> String {
+    format!("{REQUIREMENTS_DIR}/{id}.toml")
 }
 pub fn attribute_file(id: &str) -> String {
     format!("{ATTRIBUTE_DIR}/{id}.toml")
@@ -349,7 +388,7 @@ mod catalog;
 mod source;
 mod subdir;
 use catalog::catalog_role;
-pub use catalog::{CatalogLocation, catalog_item_dir, catalog_location};
+pub use catalog::{CatalogLocation, catalog_item_dir, catalog_location, parse_local_catalog_path};
 pub use source::{source_dir, source_file, source_path};
 pub use subdir::{
     dir_below, dirs_text, file_in_dir, is_cacheable, parse_subdir, shared_sub_dir, split_below,

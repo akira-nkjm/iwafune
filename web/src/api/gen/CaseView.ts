@@ -7,4 +7,8 @@ export type CaseView = { id: string, label: string, description: string | null,
 /**
  * 使うモード（モードの時系列なら先頭から順に）
  */
-modes: Array<string>, file: string, };
+modes: Array<string>, 
+/**
+ * フェーズ（`phases/<ID>.toml`。軌道・姿勢則がそのフェーズのものになる）
+ */
+phase: string | null, file: string, };

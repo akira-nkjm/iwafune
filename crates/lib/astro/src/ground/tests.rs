@@ -112,3 +112,49 @@ fn slant_range_at_zenith_horizon_and_on_the_moon() {
     let moon = slant_range_m(crate::constants::R_MOON, 100.0e3, 0.0);
     assert!((moon - 597.9e3).abs() < 0.1e3, "{moon}");
 }
+
+/// 月を回る極軌道（軌道面が地球と月を結ぶ線を含む）: 月の向こう側（元期の位置）では局から見て月の陰で
+/// 見えず（余裕 < 0）、手前側（半周後）では見える。局から衛星への線分と球の交わりを 2 次方程式で解いた値と全標本で一致する。
+#[test]
+fn moon_orbiter_behind_the_moon_is_occulted() {
+    use crate::ephem::CentralBody;
+    let moon = CentralBody::Moon.position_eci_m(epoch());
+    let mut orbit = OrbitSpec::circular_about(
+        CentralBody::Moon,
+        epoch(),
+        Qty::from_raw(100.0e3),
+        Qty::from_raw(core::f64::consts::FRAC_PI_2),
+        Qty::from_raw(moon.y.atan2(moon.x)),
+    );
+    orbit.propagator = Propagator::Kepler;
+    let period = orbit.period_s();
+    let gs = station(0.0, 0.0, 0.0);
+    let track = Track::new(&gs, &orbit, epoch(), period, 60.0).expect("track");
+    let hidden = |t: f64| {
+        // |S + u d − C|² = R² が u ∈ [0, 1] に解を持つか
+        let e = epoch().plus_seconds(t);
+        let sat = eci_to_ecef(track.position(t), e);
+        let centre = eci_to_ecef(CentralBody::Moon.position_eci_m(e), e);
+        let (d, c) = (sat - track.topo.pos, centre - track.topo.pos);
+        let (a, b) = (d.dot(d), -2.0 * d.dot(c));
+        let k = c.dot(c) - CentralBody::Moon.radius_m().powi(2);
+        let disc = b * b - 4.0 * a * k;
+        disc >= 0.0 && {
+            let u = (-b - disc.sqrt()) / (2.0 * a);
+            (0.0..=1.0).contains(&u)
+        }
+    };
+    let mut seen = [false, false];
+    for i in 0..=(period / 60.0) as usize {
+        let t = i as f64 * 60.0;
+        let margin = track.occultation_margin(CentralBody::Moon, t);
+        assert_eq!(margin < 0.0, hidden(t), "t = {t}: margin {margin}");
+        seen[usize::from(margin < 0.0)] = true;
+    }
+    assert!(
+        seen[0] && seen[1],
+        "both occulted and visible samples are expected"
+    );
+    assert!(track.occultation_margin(CentralBody::Moon, 0.0) < 0.0);
+    assert!(track.occultation_margin(CentralBody::Moon, 0.5 * period) > 0.0);
+}

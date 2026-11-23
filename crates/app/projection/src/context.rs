@@ -6,9 +6,9 @@ use crate::missing::MissingInputs;
 use crate::quantity::{setting, setting_opt};
 use crate::reads::ReadLog;
 use fune_model::Target;
-use fune_model::design::CentralBodyKind;
 use fune_model::design::setting_dims as dims;
 use fune_model::design::{AnalysisSystem, AttitudeLawKind, AttitudeLawSetting, Case, Design, Mode};
+use fune_model::design::{BudgetKind, CentralBodyKind, Criterion};
 use fune_model::path::SettingPath;
 use fune_model::resolve::Resolved;
 use fune_model::value::{Quaternion, Vector3};
@@ -19,6 +19,8 @@ use sat_astro::attitude::{
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
 use sat_astro::math::{Quat, Vec3};
+use sat_units::typed::{Qty, Time};
+use std::collections::BTreeMap;
 
 /// 設計の中心天体 → sat-astro の中心天体（μ・半径・暦・環境の値は sat-astro と解析が持つ）。
 pub fn central_body(c: CentralBodyKind) -> CentralBody {
@@ -80,6 +82,39 @@ impl<'a> Context<'a> {
     pub fn setting<T>(&self, path: SettingPath, value: T) -> T {
         self.note(path);
         value
+    }
+
+    /// バジェットの上限（`verify.budget` がこの種類の要求のうち最も厳しいもの）。決めた要求を読んだものとして記録する。
+    pub fn budget_limit(&self, kind: BudgetKind) -> Option<Criterion> {
+        self.criterion_read(self.design.budget_limit(kind))
+    }
+
+    /// 解析 `analysis` の判定 `key` の基準（それを決めた要求を読んだものとして記録する）。基準を持つ要求が無ければ `None`。
+    /// **解析の入力に入れる基準は、設定ではなくここから引く。**
+    pub fn criterion(&self, analysis: &str, key: &str) -> Option<Criterion> {
+        self.criterion_read(self.design.criterion(analysis, key))
+    }
+
+    /// ミッション期間（`input = "mission_duration"` の要求の値。それを決めた要求を読んだものとして記録する）。
+    /// 無ければ `None`（要るかどうかは読む解析が決める）。
+    pub fn mission_duration(&self) -> Option<Qty<Time>> {
+        let c = self.criterion_read(self.design.mission_duration())?;
+        Some(Qty::from_raw(c.si))
+    }
+
+    /// ミッション期間が必要な解析のために、無いときの不足入力の対象（`requirement[input/mission_duration]`）。
+    pub fn mission_duration_target() -> Target {
+        Target::criterion("input/mission_duration")
+    }
+
+    fn criterion_read(&self, c: Option<Criterion>) -> Option<Criterion> {
+        if let Some(c) = &c {
+            self.note(Target::requirement(
+                c.requirement.as_str(),
+                Some("constraint.value"),
+            ));
+        }
+        c
     }
 
     /// 表示順のモード（読んだものとして各モードを記録する）。
@@ -185,24 +220,43 @@ impl<'a> Context<'a> {
             .collect()
     }
 
+    /// 効いている姿勢則の表（モード ID → 姿勢則）: 設計の `analysis.aocs.law` に、ケースのフェーズの `[law.<モード>]` を
+    /// モードごとに重ねたもの（そのモードの姿勢則をフェーズの値が置き換える）。**姿勢則の表を読むのはここだけ。**
+    pub fn laws(&self) -> BTreeMap<&'a str, &'a AttitudeLawSetting> {
+        let design = self.design.analysis.aocs.iter().flat_map(|a| a.law.iter());
+        let phase = self.phase().into_iter().flat_map(|p| p.law.iter());
+        design.chain(phase).map(|(k, v)| (k.as_str(), v)).collect()
+    }
+
+    /// モードの姿勢則の欄の対象（フェーズが上書きしていれば `phases.<ID>.law.<モード>`、なければ `analysis.aocs.law.<モード>`）。
+    pub fn law_target(&self, mode: &str) -> Target {
+        match self.phase().filter(|p| p.law.contains_key(mode)) {
+            Some(p) => Target::phase(p.id.as_str(), Some(&format!("law.{mode}"))),
+            None => AnalysisSystem::Aocs
+                .setting_path()
+                .child(&["law", mode])
+                .into(),
+        }
+    }
+
     /// 指定モードの姿勢則。モード未指定なら唯一の姿勢則だけを使い、選べなければ不足入力。
     pub fn attitude_law(&self, mode: Option<&str>, m: &mut MissingInputs) -> Option<AttitudeLaw> {
-        let laws = self.design.analysis.aocs.as_ref().map(|a| &a.law);
-        let found = laws.and_then(|l| match mode {
-            Some(id) => l.get(id),
-            None if l.len() == 1 => l.values().next(),
+        let laws = self.laws();
+        let found = match mode {
+            Some(id) => laws.get(id).copied(),
+            None if laws.len() == 1 => laws.values().next().copied(),
             None => None,
-        });
-        let law = AnalysisSystem::Aocs.setting_path().child(&["law"]);
+        };
+        let table = AnalysisSystem::Aocs.setting_path().child(&["law"]);
         let key = match (mode, found.is_some()) {
             (Some(id), _) => Some(id),
-            (None, true) => laws.and_then(|l| l.keys().next()).map(String::as_str),
+            (None, true) => laws.keys().next().copied(),
             (None, false) => None,
         };
-        self.note(key.map_or_else(|| law.clone(), |id| law.child(&[id])));
+        self.note(key.map_or_else(|| table.clone().into(), |id| self.law_target(id)));
         let Some(setting) = found else {
             // モード未指定なら姿勢則の表を、指定済みならそのモードの欄を示す。
-            let target = mode.map_or_else(|| law.clone(), |id| law.child(&[id]));
+            let target = mode.map_or_else(|| table.clone().into(), |id| self.law_target(id));
             m.push(
                 target,
                 "Cannot pick the attitude law of the mode uniquely. Specify the attitude law of the target mode",
@@ -213,7 +267,8 @@ impl<'a> Context<'a> {
     }
 }
 
-pub(crate) fn law_of(s: &AttitudeLawSetting) -> AttitudeLaw {
+/// 姿勢則の設定 → 姿勢則（書かれていない軸は既定の軸）。**設定を姿勢則にするのはここだけ**（フェーズの上書きの表示も使う）。
+pub fn law_of(s: &AttitudeLawSetting) -> AttitudeLaw {
     let v = |x: &Option<Vector3>, d: Vec3| x.as_ref().map_or(d, vec3);
     match s.law {
         AttitudeLawKind::SunPointing => AttitudeLaw::SunPointing {

@@ -1,0 +1,13 @@
+label        = "Link margin"
+statement    = "Every link margin shall be at least 3 dB."
+statement_en = "Every link margin shall be at least 3 dB."
+quantity     = "Dimensionless"
+source       = "sys_judgement"
+
+[constraint]
+kind  = "at_least"
+value = { value = 3.0, unit = "dB" }
+
+[verify]
+analysis = "comm.link_budget"
+check    = "margin"

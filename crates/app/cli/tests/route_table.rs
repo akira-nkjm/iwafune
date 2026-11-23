@@ -2,7 +2,7 @@
 //! `crates/app/server/src/routes.rs` の経路はすべて表にあり、表の経路はすべて `routes.rs` にある。
 //! CLI のコマンドは実在する（`--help` が通る）。すべての経路に CLI がある（#158）。
 //! 例外は `fune init`（サーバーはプロジェクトの中でしか動かない）・`fune gui`（サーバーを起動するコマンド）・
-//! `fune self-update`（CLI のバイナリ自身を置き換える）だけ。
+//! `fune self-update`（CLI のバイナリ自身を置き換える）・`fune skill`（呼び出した人のエージェント用ディレクトリに書く）だけ。
 
 mod common;
 
@@ -18,6 +18,24 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
         "query::design_view (`… ls` lists each; `view ls` is `query::view_layout`)",
     ),
     ("GET", "/maneuvers", &["maneuver", "ls"], "query::maneuvers"),
+    (
+        "GET",
+        "/phases",
+        &["phase", "ls"],
+        "query::phases (`phase show` picks one)",
+    ),
+    (
+        "GET",
+        "/requirements",
+        &["requirement", "ls"],
+        "query::requirements",
+    ),
+    (
+        "GET",
+        "/requirements/compliance",
+        &["requirement", "compliance"],
+        "requirements::compliance",
+    ),
     ("GET", "/parts", &["part", "ls"], "query::list_parts"),
     ("GET", "/parts/{id}", &["part", "show"], "query::part_view"),
     (
@@ -57,6 +75,12 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
         &["case", "from-eclipse"],
         "edit::case_from_eclipse_op",
     ),
+    (
+        "POST",
+        "/ops/case_from_sun_distance",
+        &["case", "from-sun-distance"],
+        "edit::case_from_sun_distance_op",
+    ),
     ("GET", "/history", &["history"], "history::view"),
     ("POST", "/undo", &["undo"], "history::undo"),
     ("POST", "/redo", &["redo"], "history::redo"),
@@ -86,6 +110,12 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
         "analysis::run_analysis",
     ),
     ("GET", "/budgets/{kind}", &["budget"], "budget::budget"),
+    (
+        "POST",
+        "/report/export",
+        &["report", "export"],
+        "report::export（`--case`・`--item`・`--lang`。CLI は返ったファイルを `--out` に書く）",
+    ),
     (
         "POST",
         "/budgets/{kind}",
@@ -131,7 +161,7 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
 ];
 
 /// HTTP に無い CLI のコマンド。
-const CLI_ONLY: &[&str] = &["init", "gui", "self-update"];
+const CLI_ONLY: &[&str] = &["init", "gui", "self-update", "skill"];
 
 /// `routes.rs` の `.route("<path>", get(..).post(..))` を `METHOD path` の集合にする。
 fn routes_in_source() -> BTreeSet<(String, String)> {

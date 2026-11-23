@@ -237,19 +237,28 @@ pub fn rename_key(table: &mut Table, from: &str, to: &str) -> bool {
         let keys: Vec<&str> = table.iter().map(|(k, _)| k).collect();
         keys.windows(2).all(|w| w[0] <= w[1])
     };
+    let aligned = aligned_width(table).is_some();
     let Some((old, item)) = table.remove_entry(from) else {
         return false;
     };
     let mut key = Key::new(to);
     let mut decor = old.leaf_decor().clone();
-    let old_suffix = decor.suffix().and_then(|s| s.as_str()).map_or(1, str::len);
-    let total = old.display_repr().len() + old_suffix;
-    let new_len = key.display_repr().len();
-    decor.set_suffix(" ".repeat(total.saturating_sub(new_len).max(1)));
+    // 値の行（ドット付きキーも）だけ `=` の位置を保つ。見出しの表（`[attr.x]`）のキーには空白を足さない。
+    let is_row = item.is_value() || item.as_table().is_some_and(Table::is_dotted);
+    if is_row {
+        let old_suffix = decor.suffix().and_then(|s| s.as_str()).map_or(1, str::len);
+        let total = old.display_repr().len() + old_suffix;
+        let new_len = key.display_repr().len();
+        decor.set_suffix(" ".repeat(total.saturating_sub(new_len).max(1)));
+    }
     *key.leaf_decor_mut() = decor;
     table.insert_formatted(&key, item);
     if sorted {
         table.sort_values();
+    }
+    // 揃っていた表は、新しいキーの長さで揃え直す（最も長いキーの名前を変えると幅が変わる。揃えないと `fune fmt --check` に通らない）
+    if aligned {
+        crate::profile::align_rows(table);
     }
     true
 }

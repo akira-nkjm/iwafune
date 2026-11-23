@@ -132,20 +132,6 @@ export function SkeletonPanel({ lines = 4, className }: { lines?: number; classN
   );
 }
 
-/** 一覧と詳細の 2 列（部品・カタログの画面） */
-export function SkeletonSplit({ rows = 12 }: { rows?: number }) {
-  return (
-    <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_480px] border-line border-t">
-      <SkeletonTable rows={rows} cols={5} />
-      <div className="space-y-6 border-line border-l p-4">
-        <Skeleton className="h-5 w-48" />
-        <SkeletonLines lines={5} />
-        <SkeletonLines lines={4} />
-      </div>
-    </div>
-  );
-}
-
 /** KPI のカードの並び（概要の画面） */
 export function SkeletonCards({ count = 4 }: { count?: number }) {
   return (
@@ -215,5 +201,32 @@ export function SkeletonCanvas({ label }: { label?: string }) {
         ))
       )}
     </div>
+  );
+}
+
+/**
+ * アプリ全体の骨組み（サイドバーの列と本体のパネル）。初回ロード中（ルートの `HydrateFallback`）に出す。
+ * `useT()` は外部ストアを読むだけでプロバイダを要らないので、i18n・クエリ・ルーターの前でも描ける。
+ */
+export function SkeletonShell() {
+  return (
+    <Loading className="flex h-dvh min-h-0">
+      <div className="flex w-sidebar shrink-0 flex-col gap-3 px-3 py-4">
+        <Skeleton className="mb-4 h-7 w-32" />
+        {["w-28", "w-36", "w-24", "w-32", "w-20", "w-30"].map((w) => (
+          <Skeleton key={w} className={cn("h-4", w)} />
+        ))}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col py-2.5 pr-2.5">
+        <div className="flex flex-1 flex-col gap-4 rounded-panel border border-line bg-panel p-6 shadow-panel">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-7 w-64" />
+          <div className="mt-4">
+            <SkeletonCards count={4} />
+          </div>
+          <Skeleton className="h-64 rounded-card" />
+        </div>
+      </div>
+    </Loading>
   );
 }

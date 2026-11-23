@@ -17,7 +17,10 @@ use sat_analysis::thermal::network::{
     ThermalNodePart, ThermalRadiativeLink, ThermalSurface,
 };
 use sat_analysis::thermal::{ThermalBoxSize, ThermalEnclosure};
-use sat_analysis::thermal::{ThermalRanges, ThermalTempRange};
+use sat_analysis::thermal::{
+    ThermalRangeKind, ThermalRangeSide, ThermalRanges, ThermalRequiredBound, ThermalRequiredRange,
+    ThermalTempRange,
+};
 use sat_units::typed::Qty;
 use std::collections::BTreeMap;
 
@@ -30,11 +33,12 @@ const PERFORMANCE_RANGE: &str = "temp_perf";
 pub(super) fn network(
     ctx: &Context<'_>,
     s: &ThermalSettings,
+    analysis: &str,
     m: &mut MissingInputs,
 ) -> ThermalNetwork {
     let mounts = links(ctx, s, m);
     ThermalNetwork {
-        nodes: nodes(ctx, s, m),
+        nodes: nodes(ctx, s, analysis, m),
         mounts,
         conductive: conductive(s, m),
         radiative: radiative(s, m),
@@ -102,7 +106,12 @@ fn enclosure(ctx: &Context<'_>, s: &ThermalSettings) -> Option<ThermalEnclosure>
 }
 
 /// 節点（部品ごとの質量・比熱・温度範囲。熱容量と範囲の共通部分は解析が求める）。
-fn nodes(ctx: &Context<'_>, s: &ThermalSettings, m: &mut MissingInputs) -> Vec<ThermalNode> {
+fn nodes(
+    ctx: &Context<'_>,
+    s: &ThermalSettings,
+    analysis: &str,
+    m: &mut MissingInputs,
+) -> Vec<ThermalNode> {
     s.nodes
         .iter()
         .map(|(id, members)| ThermalNode {
@@ -112,6 +121,33 @@ fn nodes(ctx: &Context<'_>, s: &ThermalSettings, m: &mut MissingInputs) -> Vec<T
                 .filter_map(|pid| node_part(ctx, id, pid, m))
                 .collect(),
             fixed_temperature: None,
+            required: required_ranges(ctx, analysis, id),
+        })
+        .collect()
+}
+
+/// 節点の温度の要求（`range_low:<節点>:<種類>` の `at_least` と `range_high:<節点>:<種類>` の `at_most`）。
+/// 部品の範囲に重ねて厳しくするだけで、広げない（重ね方は解析が持つ）。判定のキーの書式は解析が持つ。
+fn required_ranges(
+    ctx: &Context<'_>,
+    analysis: &str,
+    node: &str,
+) -> BTreeMap<String, ThermalRequiredRange> {
+    let bound = |side: ThermalRangeSide, kind: ThermalRangeKind| {
+        let key = format!("{}:{node}:{}", side.key_prefix(), kind.key());
+        ctx.criterion(analysis, &key).map(|c| ThermalRequiredBound {
+            limit: Qty::from_raw(c.si),
+            requirement: c.requirement,
+        })
+    };
+    ThermalRangeKind::ALL
+        .into_iter()
+        .filter_map(|kind| {
+            let range = ThermalRequiredRange {
+                min: bound(ThermalRangeSide::Low, kind),
+                max: bound(ThermalRangeSide::High, kind),
+            };
+            (range != ThermalRequiredRange::default()).then(|| (kind.key().to_owned(), range))
         })
         .collect()
 }
@@ -141,7 +177,7 @@ fn node_part(
     Some(ThermalNodePart {
         id: pid.to_owned(),
         mass: Qty::from_raw(mass?),
-        count: crate::parts::count_of(p),
+        count: p.count_or_one(),
         specific_heat: Qty::from_raw(c?),
         ranges: ranges(ctx, p),
         redundancy: crate::parts::redundancy(p),
@@ -227,7 +263,7 @@ fn surfaces(ctx: &Context<'_>, s: &ThermalSettings, m: &mut MissingInputs) -> Ve
             id: p.id.clone(),
             node: (*n).to_owned(),
             area: Qty::from_raw(area),
-            count: crate::parts::count_of(p),
+            count: p.count_or_one(),
             normal,
             absorptivity,
             emissivity,

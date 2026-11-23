@@ -67,6 +67,8 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         UnsetText,
         CommandText,
         CaseFromEclipseRequest,
+        CaseFromSunDistanceRequest,
+        SunDistanceCaseAt,
         InitResult,
         BudgetKind,
         BudgetRequest,
@@ -82,6 +84,13 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         RunAnalysisRequest,
         AnalysisRunResult,
         CheckView,
+        ReportRequest,
+        ReportExport,
+        ReportUnavailable,
+        ReportItem,
+        ReportLang,
+        ReportFile,
+        ComplianceReport,
     );
     fune_projection::dispatch::export_ts(cfg)?;
     fune_projection::dispatch::visit_ts(&mut names);

@@ -30,6 +30,7 @@ use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
 use sat_units::typed::{
     DataRate, Decibel, DecibelPerKelvin, Dimensionless, Frequency, Length, Power, Qty, Temperature,
+    Time,
 };
 
 fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a CommSettings> {
@@ -52,7 +53,10 @@ pub fn link_budget(ctx: &Context<'_>) -> Result<LinkBudgetInput, MissingInputs> 
     let mut m = MissingInputs::new();
     let s = settings(ctx, &mut m);
     let stations = ctx.stations(s.map(|s| s.stations.as_slice()).unwrap_or(&[]), &mut m);
-    let height = orbit_height(ctx, &mut m);
+    let orbit = ctx.orbit(&mut m);
+    let height = orbit
+        .as_ref()
+        .map(|o| (Qty::from_raw(o.altitude_m()), o.central));
     let mut links = Vec::new();
     if let Some(s) = s {
         if s.links.is_empty() {
@@ -66,11 +70,15 @@ pub fn link_budget(ctx: &Context<'_>) -> Result<LinkBudgetInput, MissingInputs> 
             }
         }
     }
-    let required_margin_db = s.and_then(|s| db(s.min_margin.as_ref()));
+    // 中心天体が地球でないときだけ、地球から衛星までの距離を求めるための軌道と期間（ミッション期間）を渡す。
+    let far = orbit.filter(|o| o.central != CentralBody::Earth);
+    let duration = far.as_ref().and_then(|_| mission_duration(ctx));
     m.finish(|| {
         Some(LinkBudgetInput {
             links,
-            required_margin_db,
+            required_margin_db: None,
+            orbit: far,
+            duration,
         })
     })
 }
@@ -137,7 +145,47 @@ fn budget_link(
         altitude: height?.0,
         central: height?.1,
         elevation: station.min_elevation,
+        required_margin_db: margin_criterion(ctx, name, &station.id),
+        pfd_limit_db: pfd_criterion(ctx, link.direction, name, &station.id),
+        pfd_reference_bandwidth: setting_opt::<Frequency>(
+            &dims::COMM_PFD_REFERENCE_BANDWIDTH,
+            &[name],
+            link.pfd_reference_bandwidth.as_ref(),
+            m,
+        ),
+        occupied_bandwidth: setting_opt::<Frequency>(
+            &dims::COMM_OCCUPIED_BANDWIDTH,
+            &[name],
+            link.occupied_bandwidth.as_ref(),
+            m,
+        ),
     })
+}
+
+/// この回線 × 局の要求する回線余裕（`comm.link_budget` の `margin:<回線>@<局>` の基準。要求が無ければ `None` で、既定値は解析が持つ）。
+/// 通信の解析の判定のキーの書式はここと解析が持つ（`margin:{回線}@{局}`）。
+pub(crate) fn margin_criterion(ctx: &Context<'_>, link: &str, station: &str) -> Option<Decibel> {
+    let c = ctx.criterion("comm.link_budget", &format!("margin:{link}@{station}"))?;
+    ratio_db(c.si)
+}
+
+/// 地表の電力束密度の限度 [dBW/m²]（下りの `pfd:<回線>@<局>` の基準。要求が無ければ `None`で判定を作らない）。
+fn pfd_criterion(
+    ctx: &Context<'_>,
+    direction: LinkDirection,
+    link: &str,
+    station: &str,
+) -> Option<Decibel> {
+    if direction != LinkDirection::Down {
+        return None;
+    }
+    let c = ctx.criterion("comm.link_budget", &format!("pfd:{link}@{station}"))?;
+    ratio_db(c.si)
+}
+
+/// ミッション期間（`input = "mission_duration"` の要求の値。無ければ解析の既定）。
+fn mission_duration(ctx: &Context<'_>) -> Option<Qty<Time>> {
+    ctx.mission_duration()
 }
 
 /// 回線 1 本の RF パラメーターとデータレート（下りは衛星 → 地上局、上りは地上局 → 衛星）。
@@ -157,48 +205,80 @@ fn rf_params(
     let ground = ground_link(ctx, station_id, &link.band, m)?;
     let at = [station_id, link.band.as_str()];
     let down = link.direction == LinkDirection::Down;
-    let (freq_attr, rate_attr) = if down {
-        ("frequency_down", "data_rate_down")
-    } else {
-        ("frequency_up", "data_rate_up")
-    };
-    let why = "Transceiver values";
-    let frequency = crate::parts::part_qty::<Frequency>(ctx, part, freq_attr, why, m);
-    let rate = crate::parts::part_qty::<DataRate>(ctx, part, rate_attr, why, m);
+    let (frequency, rate) = frequency_and_rate(ctx, part, down, m);
     let sat_gain = sat_gain_db(ctx, name, link, part, m);
-    let ground_gain = m.need(
+    let g_over_t = if down {
+        given_g_over_t(ground, &at, m)
+    } else {
+        None
+    };
+    // G/T を直接与える下りは、地上局の利得と雑音温度を省略できる（それ以外は必須）。
+    let direct = g_over_t.is_some();
+    let ground_gain = need_unless(
         db(ground.antenna_gain.as_ref()),
+        direct,
         dims::GROUND_ANTENNA_GAIN.at(&at),
         "Ground station antenna gain (dBi)",
+        m,
     );
     let sat_loss = db(link.line_loss.as_ref());
     let ground_loss = db(ground.line_loss.as_ref());
-    let (tx_power, noise) = power_and_noise(ctx, part, ground, &at, down, m);
-    let (sat_gain, ground_gain) = (sat_gain?, ground_gain?);
+    let (tx_power, noise) = power_and_noise(ctx, part, ground, &at, (down, direct), m);
+    let (sat_gain, ground_gain, noise) = (sat_gain?, ground_gain?, noise?);
     let (tx_gain_db, rx_gain_db, tx_loss_db, rx_loss_db) = if down {
-        (sat_gain, ground_gain, sat_loss, ground_loss)
+        (Some(sat_gain), ground_gain, sat_loss, ground_loss)
     } else {
-        (ground_gain, sat_gain, ground_loss, sat_loss)
+        (ground_gain, Some(sat_gain), ground_loss, sat_loss)
     };
     let rf = RfLinkParams {
         frequency: frequency?,
         tx_power: tx_power?,
-        tx_gain_db,
+        tx_gain_db: tx_gain_db?,
         tx_loss_db,
         rx_gain_db,
         rx_loss_db,
-        system_noise_temperature: noise?,
-        rx_g_over_t_dbk: if down {
-            given_g_over_t(ground, &at, m)
-        } else {
-            None
-        },
+        system_noise_temperature: noise,
+        rx_g_over_t_dbk: g_over_t,
         atmospheric_loss_db: db(link.atmospheric_loss.as_ref()),
         polarization_loss_db: db(link.polarization_loss.as_ref()),
         pointing_loss_db: db(link.pointing_loss.as_ref()),
         other_loss_db: db(link.implementation_loss.as_ref()),
     };
     Some((rf, rate?))
+}
+
+/// 送受信機の周波数とデータレート（下りは `*_down`、上りは `*_up`）。
+fn frequency_and_rate(
+    ctx: &Context<'_>,
+    part: &ResolvedPart,
+    down: bool,
+    m: &mut MissingInputs,
+) -> (Option<Qty<Frequency>>, Option<Qty<DataRate>>) {
+    let (freq_attr, rate_attr) = if down {
+        ("frequency_down", "data_rate_down")
+    } else {
+        ("frequency_up", "data_rate_up")
+    };
+    let why = "Transceiver values";
+    (
+        crate::parts::part_qty::<Frequency>(ctx, part, freq_attr, why, m),
+        crate::parts::part_qty::<DataRate>(ctx, part, rate_attr, why, m),
+    )
+}
+
+/// 値が無いとき、`optional` なら省略（`Some(None)`）、そうでなければ不足入力に記録する（`None`）。
+fn need_unless<T>(
+    value: Option<T>,
+    optional: bool,
+    target: impl Into<Target>,
+    why: &str,
+    m: &mut MissingInputs,
+) -> Option<Option<T>> {
+    if optional {
+        Some(value)
+    } else {
+        m.need(value, target, why).map(Some)
+    }
 }
 
 /// 地上局が与えた G/T [dB/K]（`g_over_t`。単位は `dB`。あれば解析は利得・雑音温度から求めずにこれを使う）。
@@ -212,33 +292,33 @@ fn given_g_over_t(
     ratio_db(ratio.value()).map(|d| DecibelPerKelvin::new(d.value()))
 }
 
-/// 送信電力（送信側）と雑音温度（受信側）。下りは衛星が送信、上りは地上局が送信。`at` は (地上局, 帯域)。
+/// 送信電力（送信側）と雑音温度（受信側）。下りは衛星が送信、上りは地上局が送信。`at` は (地上局, 帯域)、
+/// `link` は (下りか, G/T を直接与えているか)。G/T を直接与える下りは地上局の雑音温度を省略できる（`Some(None)`）。
 fn power_and_noise(
     ctx: &Context<'_>,
     part: &ResolvedPart,
     ground: &fune_model::design::GroundLinkSettings,
     at: &[&str],
-    down: bool,
+    link: (bool, bool),
     m: &mut MissingInputs,
-) -> (Option<Qty<Power>>, Option<Qty<Temperature>>) {
+) -> (Option<Qty<Power>>, Option<Option<Qty<Temperature>>>) {
     let why = "Transceiver values";
+    let (down, direct) = link;
     if down {
         let noise = ground.noise_temperature.as_ref();
-        (
-            crate::parts::part_qty::<Power>(ctx, part, "tx_power", why, m),
-            setting(
-                &dims::GROUND_NOISE_TEMPERATURE,
-                at,
-                noise,
-                "Ground station noise temperature",
-                m,
-            ),
-        )
+        let power = crate::parts::part_qty::<Power>(ctx, part, "tx_power", why, m);
+        let noise = if direct {
+            Some(setting_opt(&dims::GROUND_NOISE_TEMPERATURE, at, noise, m))
+        } else {
+            let need = "Ground station noise temperature";
+            setting(&dims::GROUND_NOISE_TEMPERATURE, at, noise, need, m).map(Some)
+        };
+        (power, noise)
     } else {
         let power = ground.tx_power.as_ref();
         (
             setting(&dims::GROUND_TX_POWER, at, power, "Ground TX power", m),
-            crate::parts::part_qty::<Temperature>(ctx, part, "noise_temperature", why, m),
+            crate::parts::part_qty::<Temperature>(ctx, part, "noise_temperature", why, m).map(Some),
         )
     }
 }
@@ -277,12 +357,6 @@ fn ground_link<'a>(
     let g: Option<&GroundStationSettings> = ctx.design.conditions.ground.get(station);
     let l = g.and_then(|g| g.links.get(band));
     m.need(l, ground_band(station, band), "Ground band performance")
-}
-
-/// 円軌道の高度（`conditions.orbit.altitude`、無ければ長半径 − 中心天体の半径）と中心天体（斜距離に半径を使う）。
-fn orbit_height(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<(Qty<Length>, CentralBody)> {
-    let orbit = ctx.orbit(m)?;
-    Some((Qty::from_raw(orbit.altitude_m()), orbit.central))
 }
 
 /// `comm.visibility`: 1 日分。

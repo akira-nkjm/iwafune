@@ -14,6 +14,13 @@ pub enum AttrCmd {
     Add(AttrAddArgs),
     /// Replace an attribute definition entirely (same flags as `add`; project-specific definitions only)
     Replace(AttrAddArgs),
+    /// Rename a project-defined attribute (kinds' required/optional lists and the values of parts and catalog items are rewritten too)
+    Rename {
+        id: String,
+        to: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// Remove an attribute definition (refused if a kind lists it or a part or catalog item has a value for it)
     Rm {
         id: String,
@@ -64,6 +71,9 @@ pub struct AttrAddArgs {
     /// Direction vector (should be a unit vector)
     #[arg(long)]
     pub unit_vector: bool,
+    /// For the half angle of a field of view: the direction attribute it is around (for example boresight)
+    #[arg(long)]
+    pub fov_axis: Option<String>,
     /// Subsystem it is listed under on screen (basic, mass, aocs, cdh, comm, payload, power, propulsion, structure, thermal)
     #[arg(long)]
     pub section: Option<String>,
@@ -81,6 +91,13 @@ pub enum KindCmd {
     Add(KindAddArgs),
     /// Replace a kind definition entirely (same flags as `add`; project-specific definitions only)
     Replace(KindAddArgs),
+    /// Rename a project-defined kind (the kind of parts and catalog items and the `extends` of other kinds are rewritten too)
+    Rename {
+        id: String,
+        to: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// Remove a kind definition (refused if a part or catalog item uses it or another kind inherits it)
     Rm {
         id: String,

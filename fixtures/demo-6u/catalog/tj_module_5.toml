@@ -1,0 +1,17 @@
+# One 5-cell triple-junction module (fictional). Modules are placed one by one on the deployable paddle
+kind         = "solar_panel"
+label        = "Triple-junction cell module (5 cells of 30 cm²)"
+manufacturer = "Example Solar"
+part_number  = "TJ-30-M5"
+maturity     = "off_the_shelf"
+source       = "ds_vendor"
+
+[attr]
+mass            = { value = 13.0, unit = "g" }
+specific_heat   = { value = 350.0, unit = "J/(kg*K)" }
+area            = { value = 150.9, unit = "cm^2" }
+cell_efficiency = 0.295
+packing_factor  = 1.0
+eol_factor      = 0.88
+normal          = { x = 0.0, y = 0.0, z = 1.0 }
+size            = { x = 301.8, y = 50.0, z = 0.3, unit = "mm" }

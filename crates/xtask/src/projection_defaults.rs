@@ -4,12 +4,13 @@
 //! 既定値は解析（sat-analysis）が持つ。テスト以外の `crates/app/projection/src/` で次を違反にする。
 //! - `const DEFAULT_…` の定数（[`ALLOWED`] に理由付きで置いたものを除く）
 //! - 値の直書きの代わり（`unwrap_or(` / `map_or(` の最初の引数が数・`true`・`false`・`Vec3::`・`Quat::`）
+//! - 文字列の既定値の直書き（`unwrap_or("LV")`・`unwrap_or_else(|| "Launch".to_owned())`・`map_or_else(|| "LV".to_owned(), …)`。空文字列は見ない）
 //! - 周回数・刻みの選び（`const <名前>_ORBITS` / `_STEP` の定数、`timeline(` / `sampling_of(` 系の呼び出しに数を渡す `Some(<数>)`）。
 //!   周回数は解析が決める（`sat_analysis::spec::SamplingSpan`）か、設計が書いた値をそのまま渡す。許す箇所は [`ALLOWED_SAMPLING`]
 //!
 //!   慣例の既定値を sat-astro / sat-analysis から呼ぶもの（`unwrap_or(DEFAULT_ECCENTRICITY)`・`unwrap_or_default()`）は見ない。
 
-use crate::single_home::production_text;
+use crate::scan::production_text;
 use std::path::Path;
 
 /// 検査する範囲。
@@ -51,7 +52,7 @@ pub fn check(root: &Path, files: &[std::path::PathBuf], errors: &mut Vec<String>
             continue;
         };
         if let Some(prod) = production_text(&rel_s, &text) {
-            errors.extend(violations(&rel_s, prod));
+            errors.extend(violations(&rel_s, &prod));
         }
     }
 }
@@ -88,7 +89,12 @@ fn violations(rel: &str, code: &str) -> Vec<String> {
         if let Some(msg) = sampling_violation(rel, trimmed) {
             out.push(format!("{rel}:{}: {msg}", n + 1));
         }
-        for call in ["unwrap_or(", "map_or("] {
+        for call in [
+            "unwrap_or(",
+            "map_or(",
+            "unwrap_or_else(|| ",
+            "map_or_else(|| ",
+        ] {
             for rest in trimmed.split(call).skip(1) {
                 if starts_literal(rest) {
                     out.push(format!(
@@ -149,10 +155,17 @@ fn passes_number(rest: &str) -> bool {
     false
 }
 
-/// 値の直書きの書き出しか（数・`true`・`false`・`Vec3::`・`Quat::`・負の数）。
+/// 値の直書きの書き出しか（数・`true`・`false`・`Vec3::`・`Quat::`・負の数・空でない文字列）。
 fn starts_literal(rest: &str) -> bool {
     rest.chars().next().is_some_and(|c| c.is_ascii_digit())
         || LITERAL_STARTS.iter().any(|s| rest.starts_with(s))
+        || starts_string_literal(rest)
+}
+
+/// 空でない文字列の直書きの書き出しか（`"x`・`String::from("x`）。
+fn starts_string_literal(rest: &str) -> bool {
+    let rest = rest.strip_prefix("String::from(").unwrap_or(rest);
+    rest.strip_prefix('"').is_some_and(|r| !r.starts_with('"'))
 }
 
 #[cfg(test)]
@@ -171,6 +184,15 @@ mod tests {
         assert_eq!(violations(FILE, "x.unwrap_or(false)").len(), 1);
         assert_eq!(violations(FILE, "x.map_or(1.0, f)").len(), 1);
         assert_eq!(violations(FILE, "x.unwrap_or(Vec3::ZERO)").len(), 1);
+        assert_eq!(violations(FILE, "x.unwrap_or(\"LV\")").len(), 1);
+        assert_eq!(
+            violations(FILE, "x.unwrap_or_else(|| \"Launch\".to_owned())").len(),
+            1
+        );
+        assert_eq!(
+            violations(FILE, "m.map_or_else(|| \"LV\".to_owned(), |t| t.on)").len(),
+            1
+        );
     }
 
     /// 慣例の既定値を呼ぶもの・構造の値・コメントは見ない。
@@ -180,6 +202,9 @@ mod tests {
             "o.eccentricity.unwrap_or(DEFAULT_ECCENTRICITY)",
             "x.unwrap_or_default()",
             "x.map_or_else(|| a, f)",
+            "x.unwrap_or_else(|| String::new())",
+            "x.unwrap_or_else(|| \"\".to_owned())",
+            "x.unwrap_or_else(|| name.to_owned())",
             "x.unwrap_or(\"\")",
             "x.map_or(v, |q| q.rotate(v))",
             "// const DEFAULT_ORBITS: u32 = 3;",

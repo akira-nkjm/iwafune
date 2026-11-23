@@ -66,7 +66,26 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
         CommandText::KindReplace(t) => vec![super::defs::kind_replace_op(t)?],
         CommandText::ManeuverAdd(t) => vec![super::maneuver::maneuver_op(t, true)?],
         CommandText::ManeuverSet(t) => vec![super::maneuver::maneuver_op(t, false)?],
+        CommandText::PhaseAdd(t) => vec![super::phase::phase_op(t, true)?],
+        CommandText::PhaseSet(t) => vec![super::phase::phase_op(t, false)?],
+        CommandText::PhaseField { phase, path, value } => {
+            vec![super::phase::phase_field_op(phase, path, value.as_deref())?]
+        }
+        CommandText::PhaseCopyOrbit { phase } => vec![super::phase::copy_orbit_op(phase)],
+        CommandText::PhaseUnsetOrbit { phase } => vec![super::phase::unset_orbit_op(phase)],
+        CommandText::PhaseUnsetLaw { phase, mode } => {
+            vec![super::phase::unset_law_op(phase, mode)]
+        }
+        CommandText::CasePhase { case, phase } => {
+            vec![super::phase::case_phase_op(case, phase.as_deref())]
+        }
+        CommandText::GroundAdd(t) => vec![super::ground::ground_add_op(t)?],
+        CommandText::RequirementAdd(t) => vec![super::requirement::requirement_op(t, true)?],
+        CommandText::RequirementSet(t) => vec![super::requirement::requirement_op(t, false)?],
         CommandText::CatalogSourceAdd(t) => vec![super::catalog::catalog_source_add_op(t)],
+        CommandText::CatalogLocalAdd(t) => vec![super::catalog::catalog_local_add_op(t)],
+        CommandText::LinkAdd(t) => vec![super::link::link_add_op(t)?],
+        CommandText::ProjectSet(t) => vec![super::project::project_field_op(t)?],
     })
 }
 

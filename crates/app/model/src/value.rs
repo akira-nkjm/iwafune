@@ -62,6 +62,40 @@ impl<T> Authored<T> {
     }
 }
 
+impl Authored<Value> {
+    /// 出典 `from` を `to` に替えた値（値そのものの出典と、状態ごとのセルの出典。出典の名前の変更で使う）。
+    pub fn with_source_renamed(&self, from: &str, to: &str) -> Self {
+        let swap = |p: &Option<Provenance>| {
+            p.as_ref().map(|p| Provenance {
+                source: p
+                    .source
+                    .as_deref()
+                    .map(|s| if s == from { to } else { s }.to_owned()),
+                ..p.clone()
+            })
+        };
+        let value = match &self.value {
+            Value::ByState(cells) => Value::ByState(
+                cells
+                    .iter()
+                    .map(|(state, cell)| {
+                        let cell = Authored {
+                            value: cell.value.clone(),
+                            from: swap(&cell.from),
+                        };
+                        (state.clone(), cell)
+                    })
+                    .collect(),
+            ),
+            other => other.clone(),
+        };
+        Self {
+            value,
+            from: swap(&self.from),
+        }
+    }
+}
+
 /// 書かれたままの量（数値＋単位文字列＋任意の出典）。ファイルでも API でも `{ value, unit, from }`。
 /// 無次元は `unit = ""`。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

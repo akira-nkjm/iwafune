@@ -11,7 +11,7 @@ use sat_analysis::comm::DataThroughputInput;
 use sat_analysis::comm::data_throughput::{DataThroughputLink, DataThroughputStationLink};
 use sat_analysis::spec::Analysis;
 use sat_astro::ground::GroundStation;
-use sat_units::typed::{DataRate, Qty};
+use sat_units::typed::{DataRate, Decibel, Qty};
 
 /// `comm.data_throughput`: 1 日分。発生量は `cdh.data_budget` を回して求める。
 pub fn data_throughput(ctx: &Context<'_>) -> Result<DataThroughputInput, MissingInputs> {
@@ -46,6 +46,7 @@ pub fn data_throughput(ctx: &Context<'_>) -> Result<DataThroughputInput, Missing
         .map(|(name, l)| station_links(ctx, name, l, &stations, &mut m))
         .unwrap_or_default();
     let generated = generated_per_day(ctx, &mut m);
+    let required_margin_db = tightest_margin(ctx, down.map(|(n, _)| n.as_str()), &stations);
     m.finish(|| {
         Some(DataThroughputInput {
             sampling: sampling?,
@@ -59,7 +60,7 @@ pub fn data_throughput(ctx: &Context<'_>) -> Result<DataThroughputInput, Missing
             stations_without_band: without_band,
             downlink: down.map(|(name, _)| name.clone()),
             other_downlinks,
-            required_margin_db: s.and_then(|s| db(s.min_margin.as_ref())),
+            required_margin_db,
         })
     })
 }
@@ -138,4 +139,18 @@ fn generated_per_day(
             None
         }
     }
+}
+
+/// 回線の余裕の要求（送信量に数える下り回線の、数える局ごとの `margin:<回線>@<局>` の基準）のうち最も厳しいもの。
+/// この解析は 1 つの値をすべての局に使うので、局ごとの要求が違えば厳しい方に合わせる。要求が無ければ `None`（既定値は解析が持つ）。
+fn tightest_margin(
+    ctx: &Context<'_>,
+    downlink: Option<&str>,
+    stations: &[GroundStation],
+) -> Option<Decibel> {
+    let link = downlink?;
+    stations
+        .iter()
+        .filter_map(|st| super::margin_criterion(ctx, link, &st.id))
+        .max_by(|a, b| a.value().total_cmp(&b.value()))
 }

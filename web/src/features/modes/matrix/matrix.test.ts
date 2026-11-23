@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { modesEn } from "@/i18n/modes/en";
 import { modesJa } from "@/i18n/modes/ja";
 import { fixture } from "@/test/fixture";
-import { cellSymbol, type StateRoles, savedCellText, toggleCell } from "./matrix";
+import { cellSymbol, modeLevels, type StateRoles, savedCellText, toggleCell } from "./matrix";
 
 describe("保存済みのセルの文言", () => {
   const row = (part: string) => {
@@ -78,5 +78,19 @@ describe("セルの読み上げ", () => {
     expect(modesJa.modes.cellLabel("RW_X", "MISSION", "on", "600 mW")).toBe(
       "RW_X、MISSION: on、600 mW",
     );
+  });
+});
+
+describe("部品ごとの列に出すもの", () => {
+  it("系の名前ではなく API の mode_levels で決まる（設計のページは system 無し）", () => {
+    expect(modeLevels(fixture.defs)).toBe("power_levels");
+    expect(modeLevels(fixture.defs, "power")).toBe("power_levels");
+    expect(modeLevels(fixture.defs, "cdh")).toBe("states");
+    const swapped = {
+      ...fixture.defs,
+      mode_levels: [{ system: "cdh" as const, levels: "power_levels" as const }],
+    };
+    expect(modeLevels(swapped, "cdh")).toBe("power_levels");
+    expect(modeLevels(swapped, "power")).toBe("states");
   });
 });

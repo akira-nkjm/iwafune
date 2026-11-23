@@ -1,8 +1,8 @@
 //! カタログ品の置き場所（docs/model.md §7.8・§12）。品のファイルは `<カタログのパス>/<ディレクトリ…>/<ID>.toml`。
 //! ディレクトリは置き場所だけで、品の ID（ファイル名）にも部品からの参照にも入らない。
 
-use super::subdir::{dir_below, file_in_dir, shared_sub_dir, split_below};
-use super::{FileRole, SHARED_ITEMS_DIR};
+use super::subdir::{dir_below, file_in_dir, parse_subdir, shared_sub_dir, split_below};
+use super::{FileRole, IGNORED_DIRS, PROJECT_DIRS, RESERVED_DIRS, SHARED_ITEMS_DIR};
 use fune_model::Design;
 use fune_model::design::{CatalogSource, EntityKey, split_catalog_ref};
 
@@ -74,4 +74,39 @@ pub(super) fn catalog_role(stem_path: &str, catalogs: &[(String, String)]) -> Op
         dirs,
         id,
     })
+}
+
+/// 人が打ったローカルカタログのディレクトリ（プロジェクトのルートからの相対。`a/b`）→ `[[catalog]] path` に書く形。
+/// 名前はそれぞれ ID の規則に従い（[`parse_subdir`]）、ルート自身・規約が使うディレクトリ（[`PROJECT_DIRS`]。`parts`・`sources` など）・
+/// ほかのカタログのディレクトリと同じか、その中・外であるものは使えない。**ローカルカタログの置き場所の規則はここだけ。**
+pub fn parse_local_catalog_path(design: &Design, text: &str) -> Result<String, String> {
+    let dirs = parse_subdir(text)?;
+    let Some(first) = dirs.first() else {
+        return Err(
+            "The catalog directory cannot be the project root (give a directory such as `catalog`)"
+                .into(),
+        );
+    };
+    let used = PROJECT_DIRS.iter().chain(RESERVED_DIRS).chain(IGNORED_DIRS);
+    if used.into_iter().any(|d| d == first) {
+        return Err(format!(
+            "`{first}` is a directory the project layout uses, so it cannot hold a catalog"
+        ));
+    }
+    let path = dirs.join("/");
+    for other in design
+        .project
+        .catalogs
+        .iter()
+        .filter_map(CatalogSource::local_dir)
+    {
+        let other = other.trim_end_matches('/');
+        let nested = |a: &str, b: &str| a == b || a.starts_with(&format!("{b}/"));
+        if nested(&path, other) || nested(other, &path) {
+            return Err(format!(
+                "The directory `{path}` overlaps the directory `{other}` of another catalog"
+            ));
+        }
+    }
+    Ok(path)
 }

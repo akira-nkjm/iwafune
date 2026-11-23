@@ -59,21 +59,21 @@ export function overviewCards(o: Dict["overview"], s: OverviewSources): Overview
       })
       .join(" / ");
   const kpiCard = (slot: KpiSlot): OverviewCard => {
-    const power = s.budget("power");
-    // 電力収支だけは、塗りとフッターに電力のバジェット（消費と発電見込み）を添える
-    const balance = slot.def.key === "orbit_balance";
+    // API が「バジェットを添える」と印を付けた KPI（電力収支）は、塗りとフッターにそのバジェットの合計と上限を添える
+    const kind = slot.def.overview?.budget;
+    const attached = kind ? s.budget(kind) : null;
     return {
       key: slot.def.key,
-      label: balance ? o.powerBalance : localized(slot.def.label, slot.def.label_en),
+      label: localized(slot.def.label, slot.def.label_en),
       value: kpiText(slot.kpi, range),
-      fill: balance ? (power.data?.fill ?? null) : (slot.kpi?.fill ?? null),
+      fill: attached ? (attached.data?.fill ?? null) : (slot.kpi?.fill ?? null),
       tone: verdictTone[slot.kpi?.verdict ?? "ok"],
-      footer: balance
-        ? power.data?.total
-          ? o.consumption(power.data.total.display)
+      footer: attached
+        ? attached.data?.total
+          ? o.consumption(attached.data.total.display)
           : ""
         : footerOf(slot.def.overview?.footer ?? []),
-      footerRight: balance && power.data?.limit ? o.generationLimit(power.data.limit.display) : "",
+      footerRight: attached?.data?.limit ? o.generationLimit(attached.data.limit.display) : "",
       to: paths.area(slot.area),
       loading: slot.loading,
     };

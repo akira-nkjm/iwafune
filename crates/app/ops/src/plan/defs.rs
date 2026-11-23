@@ -1,4 +1,4 @@
-//! 定義（属性・種別）の Op の解釈。足す・置き換える・消す。組み込みの定義は書き換えも削除もできない。
+//! 定義（属性・種別）の Op の解釈。足す・置き換える・消す・名前を変える。組み込みの定義は書き換えも削除もできない。
 //! 置き換えで既存の値が合わなくなる編集は、ほかの Op と同じく計画の最後の検査（新しい error）で拒まれる。
 
 use crate::error::OpError;
@@ -9,8 +9,8 @@ use fune_model::check::attribute_def_problems;
 use fune_model::design::{AttributeDef, KindDef, RefSite, Referent};
 use fune_model::id::validate_local_name;
 use fune_store::Edits;
-use fune_store::layout;
-use fune_store::write::entities;
+use fune_store::layout::{self, CatalogLocation, catalog_location};
+use fune_store::write::{entities, refs};
 
 pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> {
     match op {
@@ -20,6 +20,8 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         Op::CreateKind { def } => create_kind(edits, design, def),
         Op::UpdateKind { def } => update_kind(edits, design, def),
         Op::DeleteKind { id } => delete_kind(edits, design, id),
+        Op::RenameAttribute { id, to } => rename_attribute(edits, design, id, to),
+        Op::RenameKind { id, to } => rename_kind(edits, design, id, to),
         _ => Err(OpError::invalid("Not a definition op")),
     }
 }
@@ -100,6 +102,67 @@ fn delete_kind(edits: &mut Edits, design: &Design, id: &str) -> Result<(), OpErr
     refuse_if_used("Kind", id, design.references(Referent::Kind(id)))?;
     edits.remove(&file)?;
     Ok(())
+}
+
+/// 属性の名前を変える。参照の書き換えは store（`refs::rename_attribute`）。
+fn rename_attribute(edits: &mut Edits, design: &Design, id: &str, to: &str) -> Result<(), OpError> {
+    own_attribute(design, id, "rename")?;
+    validate_local_name(to).map_err(|e| OpError::invalid(e.to_string()))?;
+    if design.attribute(to).is_some() {
+        return Err(OpError::exists(format!("Attribute `{to}`")));
+    }
+    refuse_shared_users(
+        "attribute",
+        id,
+        design.references(Referent::Attribute(id)),
+        design,
+    )?;
+    Ok(refs::rename_attribute(edits, design, id, to)?)
+}
+
+/// 種別の名前を変える。参照の書き換えは store（`refs::rename_kind`）。
+fn rename_kind(edits: &mut Edits, design: &Design, id: &str, to: &str) -> Result<(), OpError> {
+    own_kind(design, id, "rename")?;
+    validate_local_name(to).map_err(|e| OpError::invalid(e.to_string()))?;
+    if design.kind(to).is_some() || builtin::is_builtin_kind(to) {
+        return Err(OpError::exists(format!("Kind `{to}`")));
+    }
+    refuse_shared_users("kind", id, design.references(Referent::Kind(id)), design)?;
+    Ok(refs::rename_kind(edits, design, id, to)?)
+}
+
+/// 共有カタログの品（読み取り専用）が使っていれば、書き換えられないので名前の変更を拒む。
+pub(super) fn refuse_shared_users(
+    what: &str,
+    id: &str,
+    sites: Vec<RefSite>,
+    design: &Design,
+) -> Result<(), OpError> {
+    let shared: Vec<&str> = sites
+        .iter()
+        .filter_map(|site| match site {
+            RefSite::CatalogKind { item }
+            | RefSite::CatalogAttribute { item }
+            | RefSite::CatalogValueSource { item, .. }
+            | RefSite::CatalogItemSource { item }
+            | RefSite::CatalogItemDatasheet { item } => Some(item.as_str()),
+            _ => None,
+        })
+        .filter(|item| {
+            !matches!(
+                catalog_location(design, item),
+                CatalogLocation::Local { .. }
+            )
+        })
+        .collect();
+    if shared.is_empty() {
+        return Ok(());
+    }
+    Err(OpError::invalid(format!(
+        "The {what} `{id}` is used by shared catalog items ({}), which are read-only, so it cannot be renamed. \
+         Change the shared catalog first",
+        shared.join(", ")
+    )))
 }
 
 fn builtin_error(what: &str, id: &str, verb: &str) -> OpError {

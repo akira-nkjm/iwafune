@@ -79,6 +79,7 @@ fn enum_text_matches_serde_names() {
     same_as_serde::<fune_model::design::ManeuverCategory>();
     same_as_serde::<fune_model::design::ManeuverMethod>();
     same_as_serde::<fune_model::design::ManeuverSteering>();
+    same_as_serde::<fune_model::design::ConstraintKind>();
 }
 
 /// `analysis/` の型の欄（serde の名前 = ファイル名）は、共通設定と解析の系から成る。

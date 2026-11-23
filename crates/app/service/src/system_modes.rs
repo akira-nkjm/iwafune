@@ -2,14 +2,15 @@
 //! 値・合計・判定はここで作り、web は並べるだけ（`POST /system_modes/{system}`）。
 
 mod aocs;
-mod attitude;
 mod devices;
+mod failure;
 mod power;
 
 use crate::dto::{ModeSummaryScope, SystemModesRequest};
 use crate::error::Result;
 use crate::mode_systems::mode_systems;
 use crate::workspace::{Snapshot, Workspace};
+pub use failure::fails;
 
 /// 系別のモード表示（POST /system_modes/{system}）。下書きは保存と同じ Op を書き込まずに当てる。
 /// `req.analyzed` が真なら、電源は解析も回してモードごとの電力の行き先・判定・グラフを足す（`req.case` のケースで）。

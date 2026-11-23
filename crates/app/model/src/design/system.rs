@@ -1,71 +1,19 @@
-//! 複数の部品にまたがるエンティティ: モード・ネット・ハーネス・解析ケース・出典（docs/model.md §7）。
+//! 複数の部品にまたがるエンティティ: ネット・ハーネス・解析ケース・出典（docs/model.md §7。モードは `mode`、フェーズは `phase`）。
 //!
 //! serde の形がそのままファイルの形（`id` はファイル名から決まるので書かない）。
 
-use super::part::Part;
-use super::timing::{ModeWhen, StartRef};
+use super::mode::Mode;
+use super::phase::Phase;
 use crate::enum_text::enum_text;
 use crate::id::Id;
 use crate::path::{PortRef, port_text};
 use crate::value::Quantity;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use ts_rs::TS;
 
 pub use super::defs::NetKind;
 pub use super::net::{Net, NetField, NetFieldName};
 pub use super::source::{Distribution, Source, SourceKind};
-
-/// 衛星の運用モード（`modes/<ID>.toml`）。部品 → 状態の表。
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-pub struct Mode {
-    #[serde(default)]
-    pub id: Id<Mode>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub label: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    #[serde(default)]
-    pub states: BTreeMap<Id<Part>, StateAssign>,
-    /// 最長継続時間。`power.energy_balance` は基本のモードの上でこの時間だけ続けたときで判定する。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_duration: Option<Quantity>,
-    /// 最長継続時間の評価でこのモードを使う時間帯（省略は `any`）。`start` が無ければ、窓がこの時間帯に入る範囲で開始をずらす。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub when: Option<ModeWhen>,
-    /// 最長継続時間の評価の開始の指定（食の出入り + オフセット）。あればその開始だけで評価する。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub start: Option<StartRef>,
-    /// 蝕の間だけの上書き。
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub eclipse: BTreeMap<Id<Part>, StateAssign>,
-}
-
-/// 基本の状態と、ほかの状態で過ごす時間の割合（残りは基本の状態）。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
-#[serde(deny_unknown_fields)]
-pub struct StateAssign {
-    pub state: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub active: Option<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub spare_state: Option<String>,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub duty: BTreeMap<String, f64>,
-}
-
-impl StateAssign {
-    /// 時間割合なしの割り当て。
-    pub fn new(state: impl Into<String>) -> Self {
-        Self {
-            state: state.into(),
-            active: None,
-            spare_state: None,
-            duty: BTreeMap::new(),
-        }
-    }
-}
 
 /// ケーブル区間（物理。`harness/<ID>.toml`）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
@@ -117,6 +65,9 @@ pub struct Case {
     /// 解析するモード（無ければ `analysis/power.toml` のモードの割合）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mode: Option<Id<Mode>>,
+    /// フェーズ（`phases/<ID>.toml`）。あれば、フェーズの軌道・姿勢則が設計のものの代わりに使われる
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase: Option<Id<Phase>>,
     /// 不確かさのどちら側を読むか（既定は nominal）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub side: Option<UncertaintySide>,
@@ -129,4 +80,8 @@ pub struct Case {
     /// 時系列の解析で回す周回数
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub orbits: Option<u32>,
+    /// 太陽からの距離（太陽を中心天体にする軌道だけ。軌道をこの半径の円軌道に置き換えて解析する。
+    /// 惑星間の巡航の近日点・遠日点のケース。`fune case from-sun-distance`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sun_distance: Option<Quantity>,
 }

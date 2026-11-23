@@ -274,6 +274,17 @@ pub(super) fn given(text: &Option<String>) -> Option<&str> {
     text.as_deref().map(str::trim).filter(|t| !t.is_empty())
 }
 
+/// 真偽の打った文字列（`true` / `false`。書かなければ None。マヌーバの `--sunlit-only`・要求の `--all-cases`）。
+pub(super) fn bool_from_text(text: &Option<String>) -> Result<Option<bool>> {
+    given(text)
+        .map(|t| match t {
+            "true" => Ok(true),
+            "false" => Ok(false),
+            other => Err(invalid(format!("must be true or false ({other})"))),
+        })
+        .transpose()
+}
+
 /// 時間割合（`"0.1"`。モードの duty・マヌーバのデューティ）。範囲と合計は設計の検査（`fune_model::check`）が見る。
 pub(super) fn fraction_from_text(text: &str) -> Result<f64> {
     text.trim()

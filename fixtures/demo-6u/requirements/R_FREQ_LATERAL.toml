@@ -1,0 +1,13 @@
+label        = "Lateral natural frequency"
+statement    = "The lateral natural frequency shall be at least 50 Hz."
+statement_en = "The lateral natural frequency shall be at least 50 Hz."
+quantity     = "Frequency"
+source       = "lv_icd"
+
+[constraint]
+kind  = "at_least"
+value = { value = 50.0, unit = "Hz" }
+
+[verify]
+analysis = "structure.modal_estimate"
+check    = "lateral"

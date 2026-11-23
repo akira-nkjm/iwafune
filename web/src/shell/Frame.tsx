@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { type ReactNode, useEffect } from "react";
 import { useNavigation } from "react-router";
 import { q } from "@/api/queries";
@@ -17,9 +17,9 @@ export function Frame({ children, preload }: { children: ReactNode; preload: Pre
   // ⌘Z・⇧⌘Z（Ctrl+Z・Ctrl+Y）で直前の編集を元に戻す・やり直す（どのページでも。欄に文字を打っている間は欄の取り消し）
   useHistoryKeys();
   // 編集のトーストに「質量 10.84 → 10.86 kg」を出すため、バジェットを先に読んでおく（api/ops.ts が前後を比べる）
-  useQuery(q.budget("mass"));
-  useQuery(q.budget("power"));
-  useQuery(q.budget("data"));
+  // 種類は API の定義（`DefsView.budget_kinds`）から引く。定義を読むまでは何も頼まない
+  const defs = useQuery(q.defs());
+  useQueries({ queries: (defs.data?.budget_kinds ?? []).map((kind) => q.budget(kind)) });
   // 解析の一覧（系のページはここから解析を引く）。先に読んでおき、系のページを開いたらすぐ計算を頼めるようにする
   useQuery(q.analyses());
   // 軽いページの本体は空き時間に読んでおく（移った瞬間に中身を描けるように）

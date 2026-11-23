@@ -38,4 +38,20 @@ central: CentralBody,
 /**
  * 評価する仰角（最悪は運用の最低仰角）
  */
-elevation: number, };
+elevation: number, 
+/**
+ * 要求する回線余裕（この回線 × 地上局。省略時は入力全体の [`LinkBudgetInput::required_margin_db`]）
+ */
+required_margin_db: number | null, 
+/**
+ * 地表の電力束密度（PFD）の限度 [dBW/m²（基準帯域あたり）]。下りで書かれたときだけ判定する（既定値は持たない）
+ */
+pfd_limit_db: number | null, 
+/**
+ * PFD の基準帯域（省略時 [`DEFAULT_PFD_REFERENCE_BANDWIDTH`]）
+ */
+pfd_reference_bandwidth: number | null, 
+/**
+ * 信号の占有帯域（PFD を基準帯域あたりに直すのに使う。省略時は割らない＝安全側）
+ */
+occupied_bandwidth: number | null, };

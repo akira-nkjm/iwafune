@@ -1,11 +1,12 @@
 //! `fune analyze`・`fune budget`
 
+use super::common::{verdict_cell, verdict_line, verdict_word_cell};
 use crate::args::AnalyzeArgs;
 use crate::output::{C, Out};
 use fune_service::dto::{
     AnalysisInputSource, AnalysisKind, AnalysisRunStatus, BudgetPropellant, BudgetRequest,
     BudgetRow, BudgetUncounted, BudgetView, KpiView, MissingInput, QuantityView,
-    RunAnalysisRequest, Verdict,
+    RunAnalysisRequest,
 };
 use fune_service::{Workspace, analysis, budget, query};
 
@@ -29,7 +30,7 @@ pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
     let r = analysis::run_analysis(ws, &a.target, &req)?;
     if out.json {
         out.json(&r)?;
-        return Ok(u8::from(r.status != AnalysisRunStatus::Ok));
+        return Ok(u8::from(analysis::fails(&r)));
     }
     match r.status {
         AnalysisRunStatus::Ok => out.ok(format!("{} ran", r.id)),
@@ -59,7 +60,7 @@ pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
     if r.status == AnalysisRunStatus::Ok {
         println!("{}", out.dim("Use --json for the full result"));
     }
-    Ok(u8::from(r.status != AnalysisRunStatus::Ok))
+    Ok(u8::from(analysis::fails(&r)))
 }
 
 /// 足りない入力の表（解析とバジェットで同じ形）。
@@ -104,14 +105,8 @@ fn print_checks(checks: &[fune_service::dto::CheckView], out: &Out) {
     }
     let mut t = out.table(&["Verdict", "Target", "Item", "Detail"]);
     for c in checks {
-        let verdict = c.verdict;
-        let mark = match verdict {
-            Verdict::Ok => C::Verdict("✔ ok".into(), true),
-            Verdict::Warning => C::Text("⚠ warning".into()),
-            _ => C::Verdict("✖ violation".into(), false),
-        };
         t.row(vec![
-            mark,
+            verdict_word_cell(c.verdict),
             C::Text(c.scope.clone().unwrap_or_default()),
             C::Text(query::english(&c.label, c.label_en.as_deref()).to_owned()),
             C::Dim(query::english(&c.message, c.message_en.as_deref()).to_owned()),
@@ -193,15 +188,6 @@ pub(super) fn kind_text(kind: AnalysisKind) -> &'static str {
     }
 }
 
-/// 判定の印のセル（KPI・バジェット）。
-pub(super) fn verdict_cell(v: Verdict) -> C {
-    match v {
-        Verdict::Ok => C::Verdict("✔".into(), true),
-        Verdict::Warning => C::Text("⚠".into()),
-        Verdict::Violation => C::Verdict("✖".into(), false),
-    }
-}
-
 fn opt_cell(q: &Option<QuantityView>) -> C {
     q.as_ref()
         .map_or(C::Dim("—".into()), |q| C::Num(q.display.clone()))
@@ -209,15 +195,6 @@ fn opt_cell(q: &Option<QuantityView>) -> C {
 
 fn opt_text(q: &Option<QuantityView>) -> String {
     q.as_ref().map_or("—".to_owned(), |q| q.display.clone())
-}
-
-/// 判定に合わせて 1 行を出す（判定が無ければ OK の色）。
-fn verdict_line(v: Option<Verdict>, line: String, out: &Out) {
-    match v.unwrap_or(Verdict::Ok) {
-        Verdict::Ok => out.ok(line),
-        Verdict::Warning => out.warn(line),
-        Verdict::Violation => out.fail(line),
-    }
 }
 
 fn print_budget(b: &BudgetView, out: &Out) {

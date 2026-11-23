@@ -1,15 +1,30 @@
 //! 回線バジェット（`comm.link_budget`）。回線ごとに EIRP・自由空間損失・G/T・C/N0・Eb/N0 と余裕を求める。
-//! 計算の部品は [`crate::comm::link`] を使う。
+//! 計算の部品は [`crate::comm::link`]、距離の求め方（地球を回る衛星の斜距離／他の天体を回る衛星の地球からの距離）は [`range`]。
+//!
+//! - 回線余裕は最大の距離（最低仰角の斜距離、または期間中の地球からの最大距離）で判定する。
+//! - 下りは、最小の距離（天頂、または期間中の最小距離）での地表の電力束密度（PFD）も求める。限度値 `pfd_limit_db` が
+//!   書かれているときだけ判定する（限度値は周波数帯・業務・到来角で規則が決めるので、解析は既定値を持たない）。
 
-use crate::comm::link::{RfLinkParams, eb_over_n0_db, max_data_rate_bps, required_margin};
+mod range;
+
+pub use range::{DEFAULT_RANGE_SPAN, LinkDistanceModel};
+
+use crate::comm::link::{
+    DEFAULT_PFD_REFERENCE_BANDWIDTH, RfLinkParams, eb_over_n0_db, max_data_rate_bps, pfd_dbw_m2,
+    required_margin,
+};
 use crate::spec::quantity_text;
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, margin_verdict,
 };
+use range::{deep_space_range, link_range};
 use sat_astro::ephem::CentralBody;
-use sat_astro::ground::slant_range_m;
+use sat_astro::ground::EarthRange;
+use sat_astro::orbit::OrbitSpec;
+use sat_astro::time::Epoch;
 use sat_units::typed::{
-    Angle, DataRate, Decibel, DecibelHertz, DecibelPerKelvin, DecibelWatt, Length, Qty,
+    Angle, DataRate, Decibel, DecibelHertz, DecibelPerKelvin, DecibelWatt, Frequency, Length, Qty,
+    Time,
 };
 use serde::{Deserialize, Serialize};
 
@@ -23,6 +38,9 @@ pub enum LinkBudgetDirection {
     /// 衛星 → 地上
     Downlink,
 }
+
+/// 電力束密度（PFD）の判定で、限度値に近い（余裕がこれ未満）ときに警告にする幅 [dB]。
+pub const PFD_WARNING_BAND: Decibel = Decibel::new(1.0);
 
 /// 1 回線の入力。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,6 +64,18 @@ pub struct LinkBudgetLink {
     pub central: CentralBody,
     /// 評価する仰角（最悪は運用の最低仰角）
     pub elevation: Qty<Angle>,
+    /// 要求する回線余裕（この回線 × 地上局。省略時は入力全体の [`LinkBudgetInput::required_margin_db`]）
+    #[serde(default)]
+    pub required_margin_db: Option<Decibel>,
+    /// 地表の電力束密度（PFD）の限度 [dBW/m²（基準帯域あたり）]。下りで書かれたときだけ判定する（既定値は持たない）
+    #[serde(default)]
+    pub pfd_limit_db: Option<Decibel>,
+    /// PFD の基準帯域（省略時 [`DEFAULT_PFD_REFERENCE_BANDWIDTH`]）
+    #[serde(default)]
+    pub pfd_reference_bandwidth: Option<Qty<Frequency>>,
+    /// 信号の占有帯域（PFD を基準帯域あたりに直すのに使う。省略時は割らない＝安全側）
+    #[serde(default)]
+    pub occupied_bandwidth: Option<Qty<Frequency>>,
 }
 
 /// 回線バジェットの入力。
@@ -53,9 +83,15 @@ pub struct LinkBudgetLink {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct LinkBudgetInput {
     pub links: Vec<LinkBudgetLink>,
-    /// 要求する回線余裕（既定 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）
+    /// 要求する回線余裕（回線ごとの値を持たない回線に使う。既定 [`crate::comm::link::DEFAULT_REQUIRED_MARGIN`]）
     #[serde(default)]
     pub required_margin_db: Option<Decibel>,
+    /// 軌道（中心天体が地球でない回線があるとき、地球から衛星までの距離を求めるのに使う。開始は軌道の元期）
+    #[serde(default)]
+    pub orbit: Option<OrbitSpec>,
+    /// 距離を評価する期間（ミッション期間。省略時 [`DEFAULT_RANGE_SPAN`]。中心天体が地球でない回線だけ使う）
+    #[serde(default)]
+    pub duration: Option<Qty<Time>>,
 }
 
 impl LinkBudgetInput {
@@ -73,8 +109,18 @@ pub struct LinkBudgetLinkResult {
     /// 相手の地上局の ID（入力の `station`）
     pub station: String,
     pub direction: LinkBudgetDirection,
-    /// 斜距離
+    /// 回線余裕を判定した距離（最大の距離。地球を回る衛星は最低仰角の斜距離、ほかの天体を回る衛星は期間中の地球からの最大距離）
     pub slant_range: Qty<Length>,
+    /// 距離の求め方
+    pub distance_model: LinkDistanceModel,
+    /// 最小の距離（地球を回る衛星は天頂の斜距離 = 高度、ほかの天体を回る衛星は期間中の最小距離）。PFD はこの距離で求める
+    pub range_min: Qty<Length>,
+    /// 最小の距離になった時刻（ほかの天体を回る衛星だけ）
+    pub range_min_epoch: Option<Epoch>,
+    /// 最大の距離になった時刻（ほかの天体を回る衛星だけ）
+    pub range_max_epoch: Option<Epoch>,
+    /// 最大の距離を光が進む時間（片道）
+    pub light_time: Qty<Time>,
     /// EIRP [dBW]
     pub eirp_dbw: DecibelWatt,
     /// 自由空間損失 [dB]
@@ -93,8 +139,18 @@ pub struct LinkBudgetLinkResult {
     pub required_eb_n0_db: Decibel,
     /// 回線余裕 = Eb/N0 − 所要 Eb/N0 [dB]
     pub margin_db: Decibel,
+    /// 判定に使った要求余裕 [dB]（回線ごとの値、無ければ入力全体の値、それも無ければ既定値）
+    pub required_margin_db: Decibel,
     /// 要求余裕を残して通せる最大のデータレート
     pub max_data_rate: Qty<DataRate>,
+    /// 地表の電力束密度 [dBW/m²（基準帯域あたり）]（下りだけ。最小の距離・大気損失なしの最悪の値）
+    pub pfd_dbw_m2: Option<Decibel>,
+    /// 電力束密度の基準帯域（下りだけ）
+    pub pfd_reference_bandwidth: Option<Qty<Frequency>>,
+    /// 電力束密度の限度 [dBW/m²（基準帯域あたり）]（入力に書かれたときだけ）
+    pub pfd_limit_db: Option<Decibel>,
+    /// 電力束密度の余裕 = 限度 − PFD [dB]（限度が書かれたときだけ）
+    pub pfd_margin_db: Option<Decibel>,
 }
 
 /// 回線バジェットの出力。
@@ -102,9 +158,9 @@ pub struct LinkBudgetLinkResult {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct LinkBudgetOutput {
     pub links: Vec<LinkBudgetLinkResult>,
-    /// 判定に使った要求余裕 [dB]（入力が無ければ既定値）
+    /// 入力全体の要求余裕 [dB]（回線ごとの値を持たない回線に使った値。入力が無ければ既定値）。回線ごとに使った値は各回線の結果の `required_margin_db`
     pub required_margin_db: Decibel,
-    /// 回線 × 地上局の組ごとの余裕の判定（key は `margin:<name>@<局>`）
+    /// 回線 × 地上局の組ごとの余裕の判定（key は `margin:<name>@<局>`）と、限度が書かれた下りの PFD の判定（`pfd:<name>@<局>`）
     pub checks: Vec<Check>,
 }
 
@@ -129,9 +185,12 @@ impl Analysis for LinkBudget {
         let mut links = Vec::with_capacity(input.links.len());
         let mut checks = Vec::with_capacity(input.links.len());
         let required = input.required_margin_db();
+        let deep = deep_space_range(&input.links, input.orbit.as_ref(), input.duration)?;
         for link in &input.links {
-            let result = evaluate(link, required)?;
+            let required = link.required_margin_db.unwrap_or(required);
+            let result = evaluate(link, required, deep.as_ref())?;
             checks.push(margin_check(&result, required));
+            checks.extend(pfd_check(&result));
             links.push(result);
         }
         Ok(LinkBudgetOutput {
@@ -145,6 +204,7 @@ impl Analysis for LinkBudget {
 fn evaluate(
     link: &LinkBudgetLink,
     required_margin: Decibel,
+    deep: Option<&EarthRange>,
 ) -> Result<LinkBudgetLinkResult, AnalysisError> {
     link.rf.validate(&link.name)?;
     let rate = link.data_rate.value();
@@ -155,14 +215,20 @@ fn evaluate(
             link.name
         )));
     }
-    let range = slant_range_m(link.central.radius_m(), altitude, link.elevation.value());
-    let eval = link.rf.evaluate(range);
+    let range = link_range(link, deep)?;
+    let eval = link.rf.evaluate(range.max_m);
     let eb_n0 = eb_over_n0_db(eval.c_over_n0_dbhz, rate);
+    let pfd = pfd_of(link, eval.eirp_dbw, &range);
     Ok(LinkBudgetLinkResult {
         name: link.name.clone(),
         station: link.station.clone(),
         direction: link.direction,
-        slant_range: Qty::from_raw(range),
+        slant_range: range.max(),
+        distance_model: range.model,
+        range_min: range.min(),
+        range_min_epoch: range.min_epoch,
+        range_max_epoch: range.max_epoch,
+        light_time: range.light_time(),
         eirp_dbw: (eval.eirp_dbw).into(),
         fspl_db: (eval.fspl_db).into(),
         extra_loss_db: (eval.extra_loss_db).into(),
@@ -172,12 +238,68 @@ fn evaluate(
         eb_n0_db: (eb_n0).into(),
         required_eb_n0_db: link.required_eb_n0_db,
         margin_db: (eb_n0 - link.required_eb_n0_db.value()).into(),
+        required_margin_db: required_margin,
         max_data_rate: Qty::from_raw(max_data_rate_bps(
             eval.c_over_n0_dbhz,
             link.required_eb_n0_db.value(),
             required_margin.value(),
         )),
+        pfd_dbw_m2: pfd.as_ref().map(|p| p.pfd),
+        pfd_reference_bandwidth: pfd.as_ref().map(|p| p.reference),
+        pfd_limit_db: pfd.as_ref().and_then(|p| p.limit),
+        pfd_margin_db: pfd
+            .as_ref()
+            .and_then(|p| p.limit.map(|l| (l.value() - p.pfd.value()).into())),
     })
+}
+
+/// 下りの地表の電力束密度（最小の距離で）。
+struct Pfd {
+    pfd: Decibel,
+    reference: Qty<Frequency>,
+    limit: Option<Decibel>,
+}
+
+/// 下りの PFD を求める（上りは地表に電力を出さないので `None`）。
+fn pfd_of(link: &LinkBudgetLink, eirp_dbw: f64, range: &range::LinkRange) -> Option<Pfd> {
+    if link.direction != LinkBudgetDirection::Downlink {
+        return None;
+    }
+    let reference = link
+        .pfd_reference_bandwidth
+        .unwrap_or(DEFAULT_PFD_REFERENCE_BANDWIDTH);
+    Some(Pfd {
+        pfd: pfd_dbw_m2(
+            eirp_dbw,
+            range.min_m,
+            link.occupied_bandwidth.map(|b| b.value()),
+            reference.value(),
+        )
+        .into(),
+        reference,
+        limit: link.pfd_limit_db,
+    })
+}
+
+/// PFD の判定（限度が書かれた下りだけ。key は `pfd:<name>@<局>`）。余裕 = 限度 − PFD が負なら違反、[`PFD_WARNING_BAND`] 未満なら警告。
+fn pfd_check(result: &LinkBudgetLinkResult) -> Option<Check> {
+    let (pfd, limit, margin) = (
+        result.pfd_dbw_m2?,
+        result.pfd_limit_db?,
+        result.pfd_margin_db?,
+    );
+    let pair = format!("{}@{}", result.name, result.station);
+    Some(Check::new(
+        &format!("pfd:{pair}"),
+        &format!("{pair} power flux density"),
+        margin_verdict(margin.value(), PFD_WARNING_BAND.value()),
+        format!(
+            "PFD {} (limit {}, margin {})",
+            quantity_text::<Decibel>(pfd.value()),
+            quantity_text::<Decibel>(limit.value()),
+            quantity_text::<Decibel>(margin.value())
+        ),
+    ))
 }
 
 fn margin_check(result: &LinkBudgetLinkResult, required: Decibel) -> Check {
@@ -195,187 +317,4 @@ fn margin_check(result: &LinkBudgetLinkResult, required: Decibel) -> Check {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::spec::Verdict;
-    use sat_units::typed::DecibelPerKelvin;
-
-    fn db(v: f64) -> Decibel {
-        Decibel::new(v)
-    }
-
-    fn uhf_down() -> LinkBudgetLink {
-        LinkBudgetLink {
-            name: "UHF down".to_owned(),
-            station: "A".to_owned(),
-            direction: LinkBudgetDirection::Downlink,
-            rf: RfLinkParams {
-                frequency: Qty::from_raw(437.0e6),
-                tx_power: Qty::from_raw(1.0),
-                tx_gain_db: db(0.0),
-                tx_loss_db: Some(db(1.0)),
-                rx_gain_db: db(12.0),
-                rx_loss_db: Some(db(0.0)),
-                system_noise_temperature: Qty::from_raw(500.0),
-                rx_g_over_t_dbk: None,
-                atmospheric_loss_db: Some(db(0.5)),
-                polarization_loss_db: Some(db(3.0)),
-                pointing_loss_db: Some(db(0.5)),
-                other_loss_db: Some(db(0.0)),
-            },
-            data_rate: Qty::from_raw(9600.0),
-            required_eb_n0_db: db(10.0),
-            altitude: Qty::from_raw(1.0e6),
-            central: CentralBody::Earth,
-            elevation: Qty::from_raw(std::f64::consts::FRAC_PI_2),
-        }
-    }
-
-    /// 手計算: EIRP = 0 + 0 − 1 = −1 dBW、FSPL = 145.25 dB、その他 4 dB、G/T = 12 − 26.99 = −14.99 dB/K、
-    /// C/N0 = −1 − 149.25 − 14.99 + 228.60 = 63.36 dBHz、Eb/N0 = 63.36 − 39.82 = 23.54 dB、余裕 13.54 dB。
-    #[test]
-    fn hand_calculated_downlink() {
-        let out = LinkBudget::run(&LinkBudgetInput {
-            links: vec![uhf_down()],
-            required_margin_db: None,
-        })
-        .unwrap();
-        let r = &out.links[0];
-        assert!((r.slant_range.value() - 1.0e6).abs() < 1e-3);
-        assert!((r.eirp_dbw.value() + 1.0).abs() < 1e-9);
-        assert!((r.fspl_db.value() - 145.25).abs() < 0.02);
-        assert!((r.g_over_t_dbk.value() + 14.99).abs() < 0.01);
-        assert!(
-            (r.c_over_n0_dbhz.value() - 63.36).abs() < 0.03,
-            "{}",
-            r.c_over_n0_dbhz.value()
-        );
-        assert!(
-            (r.eb_n0_db.value() - 23.54).abs() < 0.03,
-            "{}",
-            r.eb_n0_db.value()
-        );
-        assert!((r.margin_db.value() - 13.54).abs() < 0.03);
-        assert_eq!(out.checks[0].verdict, Verdict::Ok);
-        // 最大レート: 10^((63.36 − 10 − 3)/10) ≈ 108 kbit/s
-        let max = r.max_data_rate.value();
-        assert!((max / 1.08e5 - 1.0).abs() < 0.01, "{max}");
-    }
-
-    #[test]
-    fn low_margin_is_flagged() {
-        let mut link = uhf_down();
-        link.rf.tx_power = Qty::from_raw(0.01); // −20 dB
-        link.elevation = Qty::from_raw(0.0);
-        let out = LinkBudget::run(&LinkBudgetInput {
-            links: vec![link],
-            required_margin_db: None,
-        })
-        .unwrap();
-        assert!(out.links[0].margin_db.value() < 0.0);
-        assert_eq!(out.checks[0].verdict, Verdict::Violation);
-    }
-
-    /// 地平線の斜距離は中心天体の半径で決まる: 月（R = 1737.4 km）の高度 1000 km は
-    /// √(2737.4² − 1737.4²) km ≈ 2115.5 km（地球なら √(7378.1² − 6378.1²) km ≈ 3709.0 km）。
-    #[test]
-    fn horizon_distance_follows_the_central_body() {
-        let range = |central: CentralBody| {
-            let mut link = uhf_down();
-            link.elevation = Qty::from_raw(0.0);
-            link.central = central;
-            let input = LinkBudgetInput {
-                links: vec![link],
-                required_margin_db: None,
-            };
-            LinkBudget::run(&input).unwrap().links[0]
-                .slant_range
-                .value()
-        };
-        assert!((range(CentralBody::Moon) - 2115.5e3).abs() < 0.5e3);
-        assert!((range(CentralBody::Earth) - 3709.0e3).abs() < 0.5e3);
-    }
-
-    /// 地上局 2 つ × 下り回線 2 本（UHF 437 MHz / S 帯 2.2 GHz）の 4 組がすべて結果と判定に出る。
-    /// 手計算（高度 1000 km・仰角 90° の斜距離 1000 km）:
-    /// - UHF: FSPL 145.25 dB。局 A（G = 12 dBi, T = 500 K）の余裕は 13.54 dB（上のテストと同じ）。
-    ///   局 B（G = 6 dBi）は G/T が 6 dB 下がるので 7.54 dB。
-    /// - S 帯（2.2 GHz）: FSPL = 145.25 + 20 log10(2200/437) = 145.25 + 14.04 = 159.29 dB。
-    ///   局 A の余裕は UHF から (−14.04 dB) = −0.50 dB、局 B は −6.50 dB。
-    ///
-    /// 余裕 3 dB を要求するので、UHF の 2 組は ok、S 帯の 2 組は violation。
-    #[test]
-    fn every_link_and_station_pair_is_evaluated() {
-        let mut links = Vec::new();
-        for (name, freq) in [("UHF down", 437.0e6), ("S down", 2.2e9)] {
-            for (station, gain) in [("A", 12.0), ("B", 6.0)] {
-                let mut l = uhf_down();
-                l.name = name.to_owned();
-                l.station = station.to_owned();
-                l.rf.frequency = Qty::from_raw(freq);
-                l.rf.rx_gain_db = db(gain);
-                links.push(l);
-            }
-        }
-        let out = LinkBudget::run(&LinkBudgetInput {
-            links,
-            required_margin_db: None,
-        })
-        .unwrap();
-        let margins: Vec<(String, f64)> = out
-            .links
-            .iter()
-            .map(|r| {
-                let st = &r.station;
-                (format!("{}@{st}", r.name), r.margin_db.value())
-            })
-            .collect();
-        let expect = [
-            ("UHF down@A", 13.54),
-            ("UHF down@B", 7.54),
-            ("S down@A", -0.50),
-            ("S down@B", -6.50),
-        ];
-        assert_eq!(margins.len(), 4);
-        for ((got_name, got), (name, want)) in margins.iter().zip(expect) {
-            assert_eq!(got_name, name);
-            assert!((got - want).abs() < 0.05, "{name}: {got}");
-        }
-        let verdicts: Vec<_> = out
-            .checks
-            .iter()
-            .map(|c| (c.key.as_str(), c.verdict))
-            .collect();
-        assert_eq!(
-            verdicts,
-            [
-                ("margin:UHF down@A", Verdict::Ok),
-                ("margin:UHF down@B", Verdict::Ok),
-                ("margin:S down@A", Verdict::Violation),
-                ("margin:S down@B", Verdict::Violation),
-            ]
-        );
-        assert!(out.checks[2].label.contains("S down@A"));
-    }
-
-    /// 与えた G/T を使う。−10 dB/K（導出値 −14.99 dB/K より 4.99 dB 高い）なら余裕も 4.99 dB 増えて 18.53 dB。
-    #[test]
-    fn given_g_over_t_is_used_and_reported() {
-        let run = |g_t: Option<f64>| {
-            let mut l = uhf_down();
-            l.rf.rx_g_over_t_dbk = g_t.map(DecibelPerKelvin::new);
-            LinkBudget::run(&LinkBudgetInput {
-                links: vec![l],
-                required_margin_db: None,
-            })
-            .unwrap()
-            .links
-            .remove(0)
-        };
-        let (derived, given) = (run(None), run(Some(-10.0)));
-        assert!(!derived.g_over_t_given && given.g_over_t_given);
-        assert_eq!(given.g_over_t_dbk.value(), -10.0);
-        assert!((given.margin_db.value() - 18.53).abs() < 0.03);
-        assert!((given.margin_db.value() - derived.margin_db.value() - 4.99).abs() < 0.01);
-    }
-}
+mod tests;

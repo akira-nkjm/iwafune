@@ -84,8 +84,11 @@ fn wet_can_violate_while_dry_fits() {
     let limit = (dry + 0.03) / 0.9;
     let v = mass(
         &ws,
-        ops(json!([{ "op": "set_setting", "path": "budget.mass.limit",
-            "value": { "type": "quantity", "value": { "value": limit, "unit": "kg" } } }])),
+        // 上限は要求 `R_MASS` が持つ
+        ops(json!([{ "op": "set_requirement", "requirement": {
+            "id": "R_MASS", "statement": "The mass shall not exceed the limit.", "quantity": "Mass",
+            "constraint": { "kind": "at_most", "value": { "value": limit, "unit": "kg" } },
+            "verify": { "budget": "mass" } } }])),
     );
     let Some(BudgetPropellant::Counted { wet, .. }) = &v.propellant else {
         panic!("{:?}", v.propellant);

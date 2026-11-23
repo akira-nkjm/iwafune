@@ -10,7 +10,9 @@ import type { Dict } from "./ja";
 import { maneuversEn } from "./maneuvers/en";
 import { modesEn } from "./modes/en";
 import { overviewEn } from "./overview/en";
+import { phasesEn } from "./phases/en";
 import { projectEn } from "./project/en";
+import { requirementsEn } from "./requirements/en";
 import { shellEn } from "./shell/en";
 import { sourcesEn } from "./sources/en";
 import { systemsEn } from "./systems/en";
@@ -29,5 +31,7 @@ export const en: Dict = {
   ...projectEn,
   ...conditionsEn,
   ...maneuversEn,
+  ...phasesEn,
+  ...requirementsEn,
   ...sourcesEn,
 };

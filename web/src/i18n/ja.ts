@@ -12,7 +12,9 @@ import { fieldsJa } from "./fields/ja";
 import { maneuversJa } from "./maneuvers/ja";
 import { modesJa } from "./modes/ja";
 import { overviewJa } from "./overview/ja";
+import { phasesJa } from "./phases/ja";
 import { projectJa } from "./project/ja";
+import { requirementsJa } from "./requirements/ja";
 import { shellJa } from "./shell/ja";
 import { sourcesJa } from "./sources/ja";
 import { systemsJa } from "./systems/ja";
@@ -31,6 +33,8 @@ export const ja = {
   ...projectJa,
   ...conditionsJa,
   ...maneuversJa,
+  ...phasesJa,
+  ...requirementsJa,
   ...sourcesJa,
 };
 

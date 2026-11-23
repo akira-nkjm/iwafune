@@ -1,4 +1,4 @@
-//! `fune attr add|replace|rm`・`fune kind add|replace|rm` の引数 → `CreateAttribute`|`UpdateAttribute`|`DeleteAttribute`・`CreateKind`|`UpdateKind`|`DeleteKind`。旗は定義のフィールドと 1 対 1。
+//! `fune attr add|replace|rename|rm`・`fune kind add|replace|rename|rm` の引数 → `CreateAttribute`|`UpdateAttribute`|`RenameAttribute`|`DeleteAttribute`・`CreateKind`|`UpdateKind`|`RenameKind`|`DeleteKind`。旗は定義のフィールドと 1 対 1。
 //! 引数は GUI の定義の作成と同じ打った引数の型（`AttrAddText`・`KindAddText`）にして、service の
 //! `edit::attr_add_op`・`kind_add_op` が読む（表示名の既定・数・一覧・ポートの雛形の読み方も service）。
 
@@ -12,6 +12,13 @@ pub fn attr(c: &AttrCmd) -> Built<'_> {
     Ok(Some(match c {
         AttrCmd::Add(a) => (edit::attr_add_op(&attr_text(a))?, &a.edit),
         AttrCmd::Replace(a) => (edit::attr_replace_op(&attr_text(a))?, &a.edit),
+        AttrCmd::Rename { id, to, edit } => (
+            Op::RenameAttribute {
+                id: id.clone(),
+                to: to.clone(),
+            },
+            edit,
+        ),
         AttrCmd::Rm { id, edit } => (Op::DeleteAttribute { id: id.clone() }, edit),
         AttrCmd::Ls => return Ok(None),
     }))
@@ -34,6 +41,7 @@ fn attr_text(a: &AttrAddArgs) -> AttrAddText {
         symbols: list(&a.symbols),
         budget: a.budget.clone(),
         unit_vector: a.unit_vector,
+        fov_axis: a.fov_axis.clone(),
         section: a.section.clone(),
     }
 }
@@ -43,6 +51,13 @@ pub fn kind(c: &KindCmd) -> Built<'_> {
     Ok(Some(match c {
         KindCmd::Add(a) => (edit::kind_add_op(&kind_text(a))?, &a.edit),
         KindCmd::Replace(a) => (edit::kind_replace_op(&kind_text(a))?, &a.edit),
+        KindCmd::Rename { id, to, edit } => (
+            Op::RenameKind {
+                id: id.clone(),
+                to: to.clone(),
+            },
+            edit,
+        ),
         KindCmd::Rm { id, edit } => (Op::DeleteKind { id: id.clone() }, edit),
         KindCmd::Ls => return Ok(None),
     }))

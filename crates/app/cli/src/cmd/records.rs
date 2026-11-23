@@ -2,10 +2,13 @@
 
 use super::common::{Built, list};
 use crate::args::{
-    CaseArgs, CaseCmd, CatalogCmd, CatalogSourceCmd, HarnessArgs, HarnessCmd, ManeuverArgs,
-    ManeuverCmd, SourceArgs, SourceCmd,
+    CaseArgs, CaseCmd, CatalogCmd, CatalogSourceCmd, GroundCmd, HarnessArgs, HarnessCmd,
+    ManeuverArgs, ManeuverCmd, SourceArgs, SourceCmd,
 };
-use fune_service::dto::{Case, CatalogSourceAddText, Harness, ManeuverText, Op, Source};
+use fune_service::dto::{
+    Case, CatalogLocalAddText, CatalogSourceAddText, GroundAddText, Harness, ManeuverText, Op,
+    Source,
+};
 use fune_service::edit;
 
 /// serde の綴り（snake_case）から列挙を読む。
@@ -18,8 +21,17 @@ fn enum_of<T: std::str::FromStr>(text: &str, what: &str) -> anyhow::Result<T> {
 pub fn case(c: &CaseCmd) -> Built<'_> {
     Ok(match c {
         CaseCmd::Set(a) => Some((Op::SetCase { case: case_of(a)? }, &a.edit)),
+        CaseCmd::SetPhase { id, phase, edit } => Some((edit::case_phase_op(id, Some(phase)), edit)),
+        CaseCmd::UnsetPhase { id, edit } => Some((edit::case_phase_op(id, None), edit)),
         CaseCmd::Rm { id, edit } => Some((Op::RemoveCase { id: id.clone() }, edit)),
-        CaseCmd::Ls | CaseCmd::FromEclipse { .. } => None,
+        CaseCmd::Rename { id, to, edit } => Some((
+            Op::RenameCase {
+                id: id.clone(),
+                to: to.clone(),
+            },
+            edit,
+        )),
+        CaseCmd::Ls | CaseCmd::FromEclipse { .. } | CaseCmd::FromSunDistance { .. } => None,
     })
 }
 
@@ -28,6 +40,7 @@ fn case_of(a: &CaseArgs) -> anyhow::Result<Case> {
         "label": a.label,
         "description": a.description,
         "mode": a.mode,
+        "phase": a.phase,
         "side": a.side,
         "thermal_case": a.thermal_case,
         "orbits": a.orbits,
@@ -37,6 +50,11 @@ fn case_of(a: &CaseArgs) -> anyhow::Result<Case> {
     case.id = a.id.as_str().into();
     case.beta = a
         .beta
+        .as_deref()
+        .map(edit::quantity_from_text)
+        .transpose()?;
+    case.sun_distance = a
+        .sun_distance
         .as_deref()
         .map(edit::quantity_from_text)
         .transpose()?;
@@ -54,6 +72,13 @@ pub fn source(c: &SourceCmd) -> Built<'_> {
             &a.edit,
         )),
         SourceCmd::Rm { id, edit } => Some((Op::RemoveSource { id: id.clone() }, edit)),
+        SourceCmd::Rename { id, to, edit } => Some((
+            Op::RenameSource {
+                id: id.clone(),
+                to: to.clone(),
+            },
+            edit,
+        )),
         SourceCmd::Mv {
             id,
             target,
@@ -102,6 +127,13 @@ pub fn harness(c: &HarnessCmd) -> Built<'_> {
             &a.edit,
         )),
         HarnessCmd::Rm { id, edit } => Some((Op::RemoveHarness { id: id.clone() }, edit)),
+        HarnessCmd::Rename { id, to, edit } => Some((
+            Op::RenameHarness {
+                id: id.clone(),
+                to: to.clone(),
+            },
+            edit,
+        )),
         HarnessCmd::Ls => None,
     })
 }
@@ -132,7 +164,39 @@ pub fn maneuver(c: &ManeuverCmd) -> Built<'_> {
         ManeuverCmd::Add(a) => Some((edit::maneuver_op(&maneuver_text(a), true)?, &a.edit)),
         ManeuverCmd::Set(a) => Some((edit::maneuver_op(&maneuver_text(a), false)?, &a.edit)),
         ManeuverCmd::Rm { id, edit } => Some((Op::RemoveManeuver { id: id.clone() }, edit)),
+        ManeuverCmd::Rename { id, to, edit } => Some((
+            Op::RenameManeuver {
+                id: id.clone(),
+                to: to.clone(),
+            },
+            edit,
+        )),
         ManeuverCmd::Ls => None,
+    })
+}
+
+/// `fune ground add|rm|rename` → `CreateGroundStation`（引数の読み方は service）・`RemoveGroundStation`・`RenameGroundStation`。
+pub fn ground(c: &GroundCmd) -> anyhow::Result<(Op, &crate::args::EditOpts)> {
+    Ok(match c {
+        GroundCmd::Add(a) => (
+            edit::ground_add_op(&GroundAddText {
+                id: a.id.clone(),
+                label: a.label.clone(),
+                latitude: a.latitude.clone(),
+                longitude: a.longitude.clone(),
+                altitude: a.altitude.clone(),
+                min_elevation: a.min_elevation.clone(),
+            })?,
+            &a.edit,
+        ),
+        GroundCmd::Rm { id, edit } => (Op::RemoveGroundStation { id: id.clone() }, edit),
+        GroundCmd::Rename { id, to, edit } => (
+            Op::RenameGroundStation {
+                id: id.clone(),
+                to: to.clone(),
+            },
+            edit,
+        ),
     })
 }
 
@@ -224,7 +288,7 @@ pub fn catalog<'a>(ws: &fune_service::Workspace, c: &'a CatalogCmd) -> Built<'a>
     })
 }
 
-/// `fune catalog source add|rm` → `AddCatalogSource`（引数の読み方は service）・`RemoveCatalogSource`。
+/// `fune catalog source add|add-local|rm` → `AddCatalogSource`・`AddLocalCatalog`（引数の読み方は service）・`RemoveCatalogSource`。
 fn catalog_source(c: &CatalogSourceCmd) -> (Op, &crate::args::EditOpts) {
     match c {
         CatalogSourceCmd::Add {
@@ -237,6 +301,17 @@ fn catalog_source(c: &CatalogSourceCmd) -> (Op, &crate::args::EditOpts) {
                 name: name.clone(),
                 git: git.clone(),
                 rev: rev.clone(),
+            }),
+            opts,
+        ),
+        CatalogSourceCmd::AddLocal {
+            name,
+            path,
+            edit: opts,
+        } => (
+            edit::catalog_local_add_op(&CatalogLocalAddText {
+                name: name.clone(),
+                path: path.clone(),
             }),
             opts,
         ),

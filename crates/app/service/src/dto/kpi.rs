@@ -121,6 +121,9 @@ pub struct OverviewKpi {
     pub order: u32,
     /// カードのフッターに値を添える KPI（表示の順。別の解析が出す KPI でもよい。Web はその解析も走らせる）
     pub footer: Vec<KpiKey>,
+    /// カードの塗りの比とフッターに、このバジェットの合計と上限を添えるか（電力収支のカードは電力のバジェット。
+    /// 判定の元は KPI のまま。どの KPI がどのバジェットを添えるかは `analysis::kpi::rule::overview` だけ）
+    pub budget: Option<fune_model::design::BudgetKind>,
 }
 
 /// KPI 1 つの値（`AnalysisRunResult.kpis`）。

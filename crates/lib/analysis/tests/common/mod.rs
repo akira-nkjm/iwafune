@@ -42,6 +42,7 @@ pub fn node_with(id: &str, mass_kg: f64, cp: f64, fixed: Option<f64>) -> Thermal
             states: Vec::new(),
         }],
         fixed_temperature: fixed.map(Qty::from_raw),
+        required: Default::default(),
     }
 }
 

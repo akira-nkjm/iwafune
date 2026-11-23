@@ -19,7 +19,7 @@ use sat_analysis::structure::{
     MassPropertiesInput, ModalEstimateInput, StaticLoadInput, mass_properties as compute,
 };
 use sat_astro::math::Vec3;
-use sat_units::typed::{Acceleration, Length, Mass, Qty};
+use sat_units::typed::{Acceleration, Frequency, Length, Mass, Qty};
 
 /// 質量を持つ部品の質量特性の項目（位置は取付をたどった機体座標の部品原点。外形 `size` があれば箱として慣性を足す）。
 pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem> {
@@ -34,7 +34,7 @@ pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem
         out.push(MassPropertiesItem {
             id: p.id.clone(),
             mass: Qty::from_raw(mass),
-            count: crate::parts::count_of(p),
+            count: p.count_or_one(),
             position,
             size: ctx.vec3(p, "size").map(|s| Vec3::new(s[0], s[1], s[2])),
             orientation: Some(orientation),
@@ -51,15 +51,12 @@ pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem
 pub fn mass_properties(ctx: &Context<'_>) -> Result<MassPropertiesInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let items = items(ctx, &mut m);
-    let limit = ctx
-        .design
-        .budget
-        .allocation
-        .mass
-        .as_ref()
-        .and_then(|a| a.limit.as_ref());
-    let target = SettingPath::budget(&[BudgetKind::Mass.as_str(), "limit"]);
-    let max_mass = qty_opt::<Mass>(limit, target, &mut m);
+    let limit = ctx.budget_limit(BudgetKind::Mass);
+    let target = Target::requirement(
+        limit.as_ref().map_or("", |c| c.requirement.as_str()),
+        Some("constraint.value"),
+    );
+    let max_mass = qty_opt::<Mass>(limit.as_ref().map(|c| &c.value), target, &mut m);
     m.finish(|| {
         Some(MassPropertiesInput {
             items,
@@ -107,16 +104,13 @@ fn load_items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<StaticLoadItem> {
         .parts
         .values()
         .filter_map(|p| {
-            Some(StaticLoadItem {
-                id: p.id.clone(),
-                mass: Qty::from_raw(crate::parts::mass_or_missing(ctx, p, m)?),
-                count: crate::parts::count_of(p),
-                mount: p
-                    .mount
-                    .as_ref()
-                    .map_or_else(|| "LV".to_owned(), |mt| mt.on.clone()),
-                cg_height: None,
-            })
+            Some(StaticLoadItem::new(
+                p.id.clone(),
+                Qty::from_raw(crate::parts::mass_or_missing(ctx, p, m)?),
+                p.count_or_one(),
+                p.mount.as_ref().map(|mt| mt.on.clone()),
+                None,
+            ))
         })
         .collect()
 }
@@ -167,15 +161,10 @@ pub fn static_load(ctx: &Context<'_>) -> Result<StaticLoadInput, MissingInputs> 
     let interfaces = interfaces(ctx, &items, &mut m);
     let safety_factor = launch.and_then(|l| l.safety_factor_yield);
     m.finish(|| {
-        let label = launch?.label.clone().unwrap_or_else(|| "Launch".to_owned());
+        let label = launch?.label.clone();
         Some(StaticLoadInput {
             items,
-            cases: vec![StaticLoadCase {
-                id: "launch".to_owned(),
-                label,
-                axial: axial?,
-                lateral: lateral?,
-            }],
+            cases: vec![StaticLoadCase::launch(label, axial?, lateral?)],
             interfaces,
             safety_factor,
         })
@@ -255,20 +244,14 @@ pub fn modal_estimate(ctx: &Context<'_>) -> Result<ModalEstimateInput, MissingIn
             "No panel part (role = panel)",
         );
     }
-    let launch = ctx.design.conditions.launch.as_ref();
+    // 最低固有振動数は要求が持つ（`structure.modal_estimate` の `lateral`・`axial`）。無ければ判定しない
+    let frequency = |key: &str| {
+        ctx.criterion("structure.modal_estimate", key)
+            .map(|c| Qty::<Frequency>::from_raw(c.si))
+    };
     let requirements = ModalEstimateRequirements {
-        lateral: setting_opt(
-            &dims::LAUNCH_MIN_FREQUENCY_LATERAL,
-            &[],
-            launch.and_then(|l| l.min_frequency_lateral.as_ref()),
-            &mut m,
-        ),
-        axial: setting_opt(
-            &dims::LAUNCH_MIN_FREQUENCY_AXIAL,
-            &[],
-            launch.and_then(|l| l.min_frequency_axial.as_ref()),
-            &mut m,
-        ),
+        lateral: frequency("lateral"),
+        axial: frequency("axial"),
         panel: None,
     };
     m.finish(|| {
@@ -290,7 +273,7 @@ fn mounted_on(ctx: &Context<'_>, panel: &str, m: &mut MissingInputs) -> Vec<Moda
             Some(ModalEstimateMounted {
                 id: c.id.clone(),
                 mass: Qty::from_raw(crate::parts::mass_or_missing(ctx, c, m)?),
-                count: crate::parts::count_of(c),
+                count: c.count_or_one(),
             })
         })
         .collect()

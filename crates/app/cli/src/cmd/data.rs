@@ -1,7 +1,7 @@
 //! `fune data status|fetch|space-weather`
 
 use crate::args::DataCmd;
-use crate::output::{C, Out};
+use crate::output::{C, MARK_OK, MARK_VIOLATION, Out};
 use fune_service::data;
 use fune_service::dto::{DataStatus, SpaceWeatherLookup};
 
@@ -34,8 +34,8 @@ fn show(s: &DataStatus, out: &Out) -> anyhow::Result<()> {
     for item in &s.items {
         let state = match (item.present, item.verified) {
             (false, _) => C::Dim("not fetched".into()),
-            (true, Some(true)) => C::Verdict("✔ SHA-256 matches".into(), true),
-            (true, _) => C::Verdict("✖ SHA-256 mismatch".into(), false),
+            (true, Some(true)) => C::Verdict(format!("{MARK_OK} SHA-256 matches"), true),
+            (true, _) => C::Verdict(format!("{MARK_VIOLATION} SHA-256 mismatch"), false),
         };
         let size = item
             .size

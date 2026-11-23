@@ -182,7 +182,7 @@ pub(super) fn mode_checks(
                         note,
                     ),
                     margin_check::<Energy>(
-                        ("battery_margin", "Battery margin"),
+                        BATTERY,
                         margin(capacity.value(), need_capacity.value()),
                         capacity.value(),
                         need_capacity.value(),

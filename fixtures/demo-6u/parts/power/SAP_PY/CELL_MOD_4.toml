@@ -1,0 +1,11 @@
+catalog = "local/tj_module_5"
+
+[mount]
+on    = "SAP_PY"
+point = "CELL_AREA"
+
+[pose]
+position = { x = 0.0, y = -30.5, z = 0.0, unit = "mm" }
+
+[ports.PWR]
+net = "SA_BUS"

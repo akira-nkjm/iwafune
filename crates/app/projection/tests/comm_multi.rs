@@ -69,7 +69,21 @@ fn link_budget_has_every_link_and_station_pair() {
     // 解析も回り、組ごとの判定が出る
     let out = sat_analysis::catalog::run_json("comm.link_budget", input).unwrap();
     assert_eq!(out["links"].as_array().unwrap().len(), 6);
-    assert_eq!(out["checks"].as_array().unwrap().len(), 6);
+    // 回線 × 局の余裕の判定が 6 つ。PFD の限度を書いた回線（デモの s_down）は局ごとに PFD の判定がもう 1 つ
+    let keys: Vec<&str> = out["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["key"].as_str().unwrap())
+        .collect();
+    assert_eq!(keys.iter().filter(|k| k.starts_with("margin:")).count(), 6);
+    let mut pfd: Vec<&str> = keys
+        .iter()
+        .filter(|k| k.starts_with("pfd:"))
+        .copied()
+        .collect();
+    pfd.sort();
+    assert_eq!(pfd, ["pfd:s_down@SECOND_GS", "pfd:s_down@TOKYO_GS"]);
 }
 
 /// 2 局目が S 帯の表を持たなければ、S 帯の回線はその局と組にせず（不足入力にもしない）、UHF の回線だけが組になる。
@@ -193,6 +207,65 @@ fn ground_g_over_t_reaches_the_downlink_only() {
         .unwrap();
     assert_eq!(r["g_over_t_dbk"].as_f64(), Some(9.0));
     assert_eq!(r["g_over_t_given"], true);
+}
+
+/// 下りの帯域に `g_over_t` があれば、地上局の `antenna_gain` と `noise_temperature` は書かなくてよい
+/// （余裕は書いたときと同じ）。`g_over_t` が無ければ、どちらも必須（不足入力）。上りは地上局の利得が要る。
+#[test]
+fn g_over_t_alone_describes_a_downlink_station() {
+    let (mut design, resolved) = demo();
+    let margin = |design: &fune_model::Design, resolved: &fune_model::Resolved| {
+        let input = project(design, resolved, "comm.link_budget");
+        let out = sat_analysis::catalog::run_json("comm.link_budget", input).unwrap();
+        out["links"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|l| l["name"] == "s_down")
+            .unwrap()["margin_db"]
+            .as_f64()
+            .unwrap()
+    };
+    let full = margin(&design, &resolved);
+    let band = design
+        .conditions
+        .ground
+        .get_mut("TOKYO_GS")
+        .unwrap()
+        .links
+        .get_mut("s_band")
+        .unwrap();
+    band.antenna_gain = None;
+    band.noise_temperature = None;
+    let resolved = fune_model::resolve(&design);
+    assert_eq!(margin(&design, &resolved), full);
+    let input = project(&design, &resolved, "comm.link_budget");
+    let rf = &input["links"][0]["rf"];
+    assert!(rf["rx_gain_db"].is_null() && rf["system_noise_temperature"].is_null());
+    // G/T が無ければ利得と雑音温度が要る
+    design
+        .conditions
+        .ground
+        .get_mut("TOKYO_GS")
+        .unwrap()
+        .links
+        .get_mut("s_band")
+        .unwrap()
+        .g_over_t = None;
+    let paths: Vec<String> = missing_paths(&design, "comm.link_budget")
+        .into_iter()
+        .map(|(p, _)| p)
+        .collect();
+    assert!(
+        paths.iter().any(|p| p.ends_with("s_band.antenna_gain")),
+        "{paths:?}"
+    );
+    assert!(
+        paths
+            .iter()
+            .any(|p| p.ends_with("s_band.noise_temperature")),
+        "{paths:?}"
+    );
 }
 
 fn comm_mut(design: &mut fune_model::Design) -> &mut fune_model::design::CommSettings {

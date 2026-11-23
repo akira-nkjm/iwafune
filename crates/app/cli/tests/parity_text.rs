@@ -24,7 +24,7 @@ fn gui_text_edits_match_cli() {
     let cases = [
         ("analysis.common.default_case", "hot_imaging"),
         ("analysis.power.orbits", "12"),
-        ("analysis.power.dod_max", "0.3"),
+        ("analysis.power.initial_soc", "0.8"),
         ("conditions.orbit.altitude", "560 km"),
         ("conditions.orbit.ltdn", "11:00"),
     ];
@@ -63,7 +63,7 @@ fn gui_text_edits_match_cli() {
         power.contains("= 12\n"),
         "write the orbit count as an integer:\n{power}"
     );
-    let path = "analysis.power.dod_max";
+    let path = "analysis.power.initial_soc";
     run_cli(&cli_root, &["setting", "unset", path]);
     let op = http_text(
         &rt,

@@ -104,6 +104,85 @@ fn share_tolerance_matches_between_check_and_analysis() {
     );
 }
 
+/// 要求の「確かめる解析」の検査（fune-model の `ANALYSIS_IDS`）は、解析の登録（sat-analysis の `catalog`）と同じ集合にする。
+/// fune-model は sat-analysis に依存できないので、両方が見えるここで一致を確かめる。
+#[test]
+fn requirement_analysis_ids_match_the_analysis_catalog() {
+    let mut registered: Vec<String> = sat_analysis::catalog::catalog()
+        .into_iter()
+        .map(|i| i.id)
+        .collect();
+    let mut known: Vec<String> = fune_model::design::ANALYSIS_IDS
+        .iter()
+        .map(|s| (*s).to_owned())
+        .collect();
+    registered.sort();
+    known.sort();
+    assert_eq!(known, registered);
+}
+
+/// 通信の解析が作る判定のキー（`margin:<回線>@<局>`・`pfd:<回線>@<局>`）を、fune-model の `Verification::check_names_station` が局の名指し、
+/// `check_names_link` が回線の名指しと読む。
+/// キーの書式は解析が持ち、モデルは写しを持つ（#328 までの暫定の見張り）。両方が見えるここで一致を確かめる。
+#[test]
+fn station_check_key_matches_link_budget() {
+    let (design, resolved) = demo();
+    let ctx = Context::new(&design, &resolved, None).unwrap();
+    let input = project_json("comm.link_budget", &ctx).unwrap();
+    let out = sat_analysis::catalog::run_json("comm.link_budget", input).unwrap();
+    let keys: Vec<&str> = out["checks"]
+        .as_array()
+        .unwrap_or_else(|| panic!("no checks in {out}"))
+        .iter()
+        .filter_map(|c| c["key"].as_str())
+        .filter(|k| k.starts_with("margin:") || k.starts_with("pfd:"))
+        .collect();
+    assert!(!keys.is_empty(), "{out}");
+    let verify = |key: &str| fune_model::design::Verification {
+        check: Some(key.to_owned()),
+        ..Default::default()
+    };
+    for station in design.conditions.ground.keys() {
+        let named = keys
+            .iter()
+            .filter(|k| verify(k).check_names_station(station))
+            .count();
+        assert!(named > 0, "no key names {station}: {keys:?}");
+        // 接尾辞は完全に一致させる（局名の前後に何かが付いたものには当たらない）
+        for other in [format!("{station}2"), format!("x{station}")] {
+            assert!(keys.iter().all(|k| !verify(k).check_names_station(&other)));
+        }
+    }
+    // 回線の名指し（`check_names_link`）も同じキーを読む。`LINK_CHECK_FAMILIES` は解析のキーの族の写し
+    let links = &design.analysis.comm.as_ref().unwrap().links;
+    for link in links.keys() {
+        let named = keys
+            .iter()
+            .filter(|k| verify(k).check_names_link(link))
+            .count();
+        assert!(named > 0, "no key names link {link}: {keys:?}");
+        for other in [format!("{link}2"), format!("x{link}")] {
+            assert!(keys.iter().all(|k| !verify(k).check_names_link(&other)));
+        }
+    }
+    for key in &keys {
+        let family = key.split(':').next().unwrap();
+        assert!(
+            fune_model::design::LINK_CHECK_FAMILIES.contains(&family),
+            "{key}"
+        );
+        // 書き換えは、名指した回線の名前だけを替える（族と局は変えない）
+        let link = links
+            .keys()
+            .find(|l| verify(key).check_names_link(l))
+            .unwrap();
+        let renamed = verify(key)
+            .check_with_link_renamed(link, "renamed")
+            .unwrap();
+        assert_eq!(renamed, key.replacen(link.as_str(), "renamed", 1));
+    }
+}
+
 /// 員数を変更しても単体レートは変えず、count だけを解析へ渡す。
 #[test]
 fn cdh_projects_per_unit_rates_and_normalizes_counts() {
@@ -130,7 +209,7 @@ fn cdh_projects_per_unit_rates_and_normalizes_counts() {
     }
     let part = resolved.parts.values_mut().next().unwrap();
     part.count = 0;
-    assert_eq!(fune_projection::parts::count_of(part), 1);
+    assert_eq!(part.count_or_one(), 1);
     assert_eq!(fune_projection::parts::extensive(part, 2.0), 2.0);
     part.count = 3;
     assert_eq!(fune_projection::parts::extensive(part, 2.0), 6.0);
@@ -299,7 +378,7 @@ fn mode_display_order_preserves_analysis_values() {
 
 /// 姿勢変更の時間: 角度と要求は `analysis/aocs.toml`、慣性は質量特性、ホイールは RW の部品から。
 /// デモ（I_xx = 0.109 kg·m²（推進系の部品込み）、RW 10 mN·m·s × 0.8・1 mN·m、90°）は x 軸が最悪で台形:
-/// t = θ I / h + h / τ = (π/2)(0.1094)/0.008 + 8 = 29.5 s。
+/// t = θ I / h + h / τ = (π/2)(0.1100)/0.008 + 8 = 29.6 s。
 #[test]
 fn slew_time_projects_settings_inertia_and_wheels() {
     use sat_analysis::spec::Analysis;
@@ -317,5 +396,5 @@ fn slew_time_projects_settings_inertia_and_wheels() {
     let expect = std::f64::consts::FRAC_PI_2 * ixx / 0.008 + 8.0;
     assert_eq!(out.worst.label, "x");
     assert!((out.worst.time.value() - expect).abs() < 1e-9);
-    assert!((out.worst.time.value() - 29.5).abs() < 0.05);
+    assert!((out.worst.time.value() - 29.6).abs() < 0.05);
 }

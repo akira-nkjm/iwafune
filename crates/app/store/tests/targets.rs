@@ -34,7 +34,7 @@ fn diagnostics_carry_typed_targets() {
         ),
         ("modes/SAFE.toml", "[states]\nGHOST = { state = \"on\" }\n"),
         ("cases/HOT.toml", "beta = { value = 1.0, unit = \"kg\" }\n"),
-        ("analysis/power.toml", "dod_max = 2.0\n"),
+        ("analysis/power.toml", "initial_soc = 2.0\n"),
     ]);
     let port = PortRef {
         part: "RW".into(),
@@ -60,7 +60,7 @@ fn diagnostics_carry_typed_targets() {
     );
     assert_eq!(
         target_of(&d, "setting.range", "analysis/power.toml"),
-        Some(SettingPath::analysis(&["power", "dod_max"]).into())
+        Some(SettingPath::analysis(&["power", "initial_soc"]).into())
     );
 }
 

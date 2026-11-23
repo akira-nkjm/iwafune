@@ -72,8 +72,43 @@ pub enum CommandText {
     ManeuverAdd(super::ManeuverText),
     /// `fune maneuver set <ID> …`（無ければ作り、あれば丸ごと置き換える）
     ManeuverSet(super::ManeuverText),
+    /// `fune phase add <ID> --label … --order 1 --duration "30 d" --modes SAFE,NOMINAL`（同じ ID があれば拒む）
+    PhaseAdd(super::PhaseText),
+    /// `fune phase set <ID> …`（無ければ作り、あれば見出しの欄を置き換える。軌道と姿勢則は今のまま残す）
+    PhaseSet(super::PhaseText),
+    /// `fune phase set-field <ID> orbit.altitude "550 km"`（`value` が無ければ `unset-field` で消す）
+    PhaseField {
+        phase: String,
+        path: String,
+        #[serde(default)]
+        value: Option<String>,
+    },
+    /// `fune phase copy-orbit <ID>`（設計の軌道の今の値をフェーズの `[orbit]` へ丸ごと写す。上書きの出発点）
+    PhaseCopyOrbit { phase: String },
+    /// `fune phase unset-orbit <ID>`（フェーズの軌道の上書きを丸ごと消す）
+    PhaseUnsetOrbit { phase: String },
+    /// `fune phase unset-law <ID> <モード>`（そのモードの姿勢則の上書きを丸ごと消す）
+    PhaseUnsetLaw { phase: String, mode: String },
+    /// `fune case set-phase <ケース> <フェーズ>`（`phase` が無ければ `unset-phase` で外す）
+    CasePhase {
+        case: String,
+        #[serde(default)]
+        phase: Option<String>,
+    },
+    /// `fune ground add <ID> --label … --latitude "35.7 deg" …`（`conditions/ground/<ID>.toml` を作る。同じ ID があれば拒む）
+    GroundAdd(super::GroundAddText),
+    /// `fune requirement add <ID> --statement … --quantity Mass --kind at_most --value "12 kg" …`（同じ ID があれば拒む）
+    RequirementAdd(super::RequirementText),
+    /// `fune requirement set <ID> …`（無ければ作り、あれば丸ごと置き換える）
+    RequirementSet(super::RequirementText),
     /// `fune catalog source add <名前> --git <URL> [--rev <rev>]`（fune.toml に共有カタログを足す。取得はしない）
     CatalogSourceAdd(CatalogSourceAddText),
+    /// `fune catalog source add-local <名前> --path <ディレクトリ>`（fune.toml にこのプロジェクトの中のカタログを足す）
+    CatalogLocalAdd(super::CatalogLocalAddText),
+    /// `fune link add <ID> --direction down --part STX --band s_band`（`analysis/comm.toml` に回線を足す。同じ名前があれば拒む）
+    LinkAdd(super::LinkAddText),
+    /// `fune project set <フィールド> <値>`・`fune project unset <フィールド>`（fune.toml の `[project]`）
+    ProjectSet(super::ProjectSetText),
 }
 
 /// `fune catalog source add` の引数。前後の空白は除き、空の `rev` は省いたのと同じ（既定のブランチ）。
@@ -197,6 +232,8 @@ pub struct AttrAddText {
     pub budget: Option<String>,
     /// 方向ベクトル（単位ベクトルであるべきもの）
     pub unit_vector: bool,
+    /// 視野の半角のとき、どの方向の属性のまわりの視野か
+    pub fov_axis: Option<String>,
     /// 画面で並べる系（`basic`・`mass`・`power`・…）
     pub section: Option<String>,
 }
@@ -228,6 +265,23 @@ pub struct KindAddText {
 pub enum EclipseCaseAt {
     Longest,
     BetaMin,
+}
+
+/// 太陽距離のケースにする標本（太陽を回る軌道の、ミッション期間の中の最小・最大）。
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum SunDistanceCaseAt {
+    Min,
+    Max,
+}
+
+/// `fune case from-sun-distance` と HTTP が共有する要求。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct CaseFromSunDistanceRequest {
+    pub id: String,
+    pub at: SunDistanceCaseAt,
+    #[serde(default)]
+    pub mode: Option<String>,
 }
 
 /// `fune case from-eclipse` と HTTP が共有する要求。

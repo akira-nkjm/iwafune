@@ -61,7 +61,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
 }
 
 /// 共有カタログの出典（`<カタログ名>/<ID>`）は読み取り専用（共有カタログのリポジトリで直す）。
-fn writable_source(design: &Design, id: &str) -> Result<(), OpError> {
+pub(super) fn writable_source(design: &Design, id: &str) -> Result<(), OpError> {
     match design.shared_catalog_of(id) {
         Some(c) => Err(OpError::invalid(format!(
             "Source `{id}` belongs to shared catalog `{}`, so it cannot be edited from this project. Open a PR on the shared catalog repository",
@@ -148,7 +148,7 @@ fn remove_maneuver(edits: &mut Edits, design: &Design, id: &str) -> Result<(), O
 
 /// 書き込む（無ければ作る）ID として使えるか。同じ綴りの既存のものは書き換え、大文字小文字だけが違う既存の ID とは
 /// 重ねない（一意性の規則は `id::clash`。部品・モード・ネット・カタログ品と同じ）。
-fn set_id<'a>(
+pub(super) fn set_id<'a>(
     existing: impl Iterator<Item = &'a str>,
     id: &str,
     what: &str,
@@ -166,7 +166,7 @@ fn set_id<'a>(
     }
 }
 
-fn remove(
+pub(super) fn remove(
     edits: &mut Edits,
     exists: bool,
     file: &str,
