@@ -210,6 +210,19 @@ pub struct RangeValue {
     pub unit: String,
 }
 
+/// 1 変数の関数（表）。引数 `at` が増える順に値 `values` を並べ、間は区分線形で結ぶ（引数が 1 つの特性曲線: 打ち上げ機の C3 → 質量など）。
+/// 引数の単位 `at_unit` と値の単位 `unit` は別の次元（属性定義が `at_dimension` と `dimension` で宣言する）。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(rename = "CurveValue")]
+pub struct Curve {
+    pub at: Vec<f64>,
+    #[serde(default)]
+    pub at_unit: String,
+    pub values: Vec<f64>,
+    #[serde(default)]
+    pub unit: String,
+}
+
 /// 属性の値。型は AttributeDef が宣言し、`check` が一致を検査する。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", content = "data", rename_all = "snake_case")]
@@ -225,6 +238,8 @@ pub enum Value {
     Bool(bool),
     Text(String),
     Range(RangeValue),
+    /// 1 変数の関数（引数と値の列。[`Curve`]）
+    Curve(Curve),
     /// `tables/<ID>` の参照
     Table(String),
 }
@@ -241,6 +256,7 @@ impl Value {
             Value::Bool(_) => ValueType::Bool,
             Value::Text(_) => ValueType::Text,
             Value::Range(_) => ValueType::Range,
+            Value::Curve(_) => ValueType::Curve,
             Value::Table(_) => ValueType::Table,
         }
     }
@@ -253,6 +269,7 @@ impl Value {
             Value::Vec3(v) => v.unit.as_deref(),
             Value::Tensor3(t) => Some(&t.unit),
             Value::Range(r) => Some(&r.unit),
+            Value::Curve(c) => Some(&c.unit),
             _ => None,
         }
     }
@@ -271,6 +288,7 @@ enum_text! {
         Bool = "bool",
         Text = "text",
         Range = "range",
+        Curve = "curve",
         Table = "table",
     }
 }

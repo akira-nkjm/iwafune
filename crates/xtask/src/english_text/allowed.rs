@@ -132,6 +132,10 @@ pub(super) const ALLOWED: &[(&str, &str)] = &[
         ANALYSIS_TEXT,
     ),
     (
+        "crates/lib/analysis/src/structure/modal_fem.rs",
+        ANALYSIS_TEXT,
+    ),
+    (
         "crates/lib/analysis/src/structure/static_load.rs",
         ANALYSIS_TEXT,
     ),

@@ -5,11 +5,13 @@
 //! | [`mass_properties`] | `structure.mass_properties` と、質量特性の関数 [`mass_properties::mass_properties`]（projection も呼ぶ） |
 //! | [`static_load`] | `structure.static_load` |
 //! | [`modal_estimate`] | `structure.modal_estimate` |
+//! | [`modal_fem`] | `structure.modal_fem`（パネルをシェル要素に分けた全体の固有値解析。メッシュ・要素・拘束・モードの分類は子モジュール） |
 //! | [`launch_fit`] | `structure.launch_fit`（質量・収納外形・固有振動数が打ち上げ機・ディスペンサーの条件に収まるか。限度の候補から効く 1 つを選ぶ規則もここ） |
 
 pub mod launch_fit;
 pub mod mass_properties;
 pub mod modal_estimate;
+pub mod modal_fem;
 pub mod static_load;
 
 pub use launch_fit::{LaunchFit, LaunchFitInput, LaunchFitOutput};
@@ -18,4 +20,5 @@ pub use mass_properties::{
     MassPropertiesSummary, mass_properties,
 };
 pub use modal_estimate::{ModalEstimate, ModalEstimateInput, ModalEstimateOutput};
+pub use modal_fem::{ModalFem, ModalFemInput, ModalFemOutput};
 pub use static_load::{StaticLoad, StaticLoadInput, StaticLoadOutput};

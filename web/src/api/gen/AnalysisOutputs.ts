@@ -17,6 +17,7 @@ import type { ThermalTransientOutput } from "./ThermalTransientOutput";
 import type { MassPropertiesOutput } from "./MassPropertiesOutput";
 import type { StaticLoadOutput } from "./StaticLoadOutput";
 import type { ModalEstimateOutput } from "./ModalEstimateOutput";
+import type { ModalFemOutput } from "./ModalFemOutput";
 import type { LaunchFitOutput } from "./LaunchFitOutput";
 import type { EclipseSeasonOutput } from "./EclipseSeasonOutput";
 import type { OrbitDecayOutput } from "./OrbitDecayOutput";
@@ -48,6 +49,7 @@ export type AnalysisOutputs = {
   "structure.mass_properties": MassPropertiesOutput;
   "structure.static_load": StaticLoadOutput;
   "structure.modal_estimate": ModalEstimateOutput;
+  "structure.modal_fem": ModalFemOutput;
   "structure.launch_fit": LaunchFitOutput;
   "orbit.eclipse_season": EclipseSeasonOutput;
   "orbit.decay": OrbitDecayOutput;

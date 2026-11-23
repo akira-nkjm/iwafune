@@ -50,6 +50,20 @@ fn values_round_trip() {
         Value::Enum(_)
     ));
     assert!(matches!(roundtrip("true", None).value, Value::Bool(true)));
+    // 曲線（1 変数の関数）。引数・値の配列と単位が往復する
+    let curve = roundtrip(
+        r#"{ at = [0.0, 10.0], at_unit = "km^2/s^2", values = [480.0, 360.5], unit = "kg" }"#,
+        None,
+    );
+    assert!(matches!(
+        &curve.value,
+        Value::Curve(c) if c.at == [0.0, 10.0] && c.values == [480.0, 360.5] && c.unit == "kg"
+    ));
+    assert!(
+        encoded_text(&curve).contains(r#"at = [0.0, 10.0]"#),
+        "{}",
+        encoded_text(&curve)
+    );
 }
 
 #[test]

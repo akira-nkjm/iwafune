@@ -68,6 +68,9 @@ pub const MANEUVER_SECTIONS: &[&str] = &["target", "constraints", "transfer"];
 /// フェーズのファイルで見出しの表にする表（`[orbit]` と `[law.<モード>]`。docs/model.md の `phases/`）。
 pub const PHASE_SECTIONS: &[&str] = &["orbit", "law/"];
 
+/// 形態のファイルで見出しの表にする表（`[pose.<部品>]`。docs/model.md の `configurations/`）。
+pub const CONFIGURATION_SECTIONS: &[&str] = &["pose/"];
+
 /// 要求のファイルで見出しの表にする最上位の表（docs/model.md の `requirements/`）。
 pub const REQUIREMENT_SECTIONS: &[&str] = &["constraint", "quantify", "verify"];
 
@@ -192,6 +195,7 @@ mod maneuver_tests {
             transfer: Some(ManeuverTransfer {
                 departure: Some("2028-12-10T00:00:00Z".into()),
                 arrival: Some("2029-09-25T00:00:00Z".into()),
+                departure_by: None,
             }),
         };
         let path = "maneuvers/MARS.toml";
@@ -214,5 +218,49 @@ mod maneuver_tests {
         write_record_with_sections(&mut edits, path, &m, MANEUVER_SECTIONS).unwrap();
         let removed = edits.files().get(path).unwrap();
         assert!(!removed.contains("transfer"), "{removed}");
+    }
+
+    /// 打ち上げ機が出発を受け持つなら `[transfer]` に `departure_by` が 1 行足され、書いた形は `fune fmt` の正規形で、
+    /// 読み戻すと同じ。外せばその行だけが消える（残りの桁そろえは `fune fmt` が正規形に戻す）。
+    #[test]
+    fn departure_by_is_one_more_line_in_the_transfer_table() {
+        use fune_model::design::{DepartureBy, ManeuverTransfer};
+        let mut m = Maneuver {
+            id: "MARS".into(),
+            label: None,
+            category: ManeuverCategory::Insertion,
+            method: ManeuverMethod::Impulsive,
+            thruster: None,
+            after: None,
+            via_altitude: None,
+            target: ManeuverTarget::default(),
+            constraints: ManeuverConstraints::default(),
+            transfer: Some(ManeuverTransfer {
+                departure: Some("2028-12-10T00:00:00Z".into()),
+                arrival: Some("2029-09-25T00:00:00Z".into()),
+                departure_by: Some(DepartureBy::Launcher),
+            }),
+        };
+        let path = "maneuvers/MARS.toml";
+        let mut edits = Edits::new(&crate::read::FileSet::new());
+        write_record_with_sections(&mut edits, path, &m, MANEUVER_SECTIONS).unwrap();
+        let text = edits.files().get(path).unwrap().to_string();
+        assert_eq!(
+            text,
+            "category = \"insertion\"\nmethod   = \"impulsive\"\n\n[transfer]\ndeparture    = \"2028-12-10T00:00:00Z\"\narrival      = \"2029-09-25T00:00:00Z\"\ndeparture_by = \"launcher\"\n"
+        );
+        assert_eq!(crate::format::format_text(path, &text).unwrap(), text);
+        assert_eq!(
+            toml::from_str::<Maneuver>(&text).unwrap().transfer,
+            m.transfer
+        );
+        m.transfer.as_mut().unwrap().departure_by = None;
+        write_record_with_sections(&mut edits, path, &m, MANEUVER_SECTIONS).unwrap();
+        let removed = edits.files().get(path).unwrap().to_string();
+        assert!(!removed.contains("departure_by"), "{removed}");
+        assert_eq!(
+            crate::format::format_text(path, &removed).unwrap(),
+            "category = \"insertion\"\nmethod   = \"impulsive\"\n\n[transfer]\ndeparture = \"2028-12-10T00:00:00Z\"\narrival   = \"2029-09-25T00:00:00Z\"\n"
+        );
     }
 }

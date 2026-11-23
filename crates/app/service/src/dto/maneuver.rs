@@ -45,6 +45,8 @@ pub struct ManeuverText {
     pub depart: Option<String>,
     /// 日付つきの惑星間遷移の到着の日（出発より後）
     pub arrive: Option<String>,
+    /// 出発の噴射を行うもの（`spacecraft` / `launcher`。書かなければ衛星。日付と一緒にだけ書ける）
+    pub departure_by: Option<String>,
 }
 
 /// 目標の軌道の要素 1 つ。

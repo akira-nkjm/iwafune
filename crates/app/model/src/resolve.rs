@@ -22,6 +22,19 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct Resolved {
     pub parts: BTreeMap<Id<crate::design::Part>, ResolvedPart>,
+    /// 形態 ID → その形態で解決した設計（基準の `parts` と、姿勢を上書きした部品の取付だけが違う）。入れ子はここで終わる
+    /// （形態の中の `configurations` は空）。API には出さない。引くのは [`Resolved::in_configuration`] だけ
+    #[serde(skip)]
+    #[ts(skip)]
+    pub configurations: BTreeMap<String, Resolved>,
+}
+
+impl Resolved {
+    /// 形態 `id` で解決した設計。`None` と、無い形態の ID は基準（自分）。**形態の選び方の既定（無い ID は基準）はここだけ。**
+    pub fn in_configuration(&self, id: Option<&str>) -> &Resolved {
+        id.and_then(|id| self.configurations.get(id))
+            .unwrap_or(self)
+    }
 }
 
 /// 解決済みの部品。
@@ -134,6 +147,11 @@ pub enum SiValue {
     Range {
         min: f64,
         max: f64,
+    },
+    /// 1 変数の関数（SI。引数と値は同じ長さで、引数は増える順）
+    Curve {
+        at: Vec<f64>,
+        values: Vec<f64>,
     },
     Table(String),
 }

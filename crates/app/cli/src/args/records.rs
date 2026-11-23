@@ -301,6 +301,9 @@ pub struct ManeuverArgs {
     /// Arrival date of a dated transfer between bodies (after --depart)
     #[arg(long)]
     pub arrive: Option<String>,
+    /// Who performs the departure burn of a dated transfer: `spacecraft` (default) or `launcher` (the launcher injects onto the departure asymptote, so the spacecraft does not count that burn; needs --depart and --arrive)
+    #[arg(long)]
+    pub departure_by: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }

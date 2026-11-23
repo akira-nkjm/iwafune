@@ -37,7 +37,17 @@ impl Evaluator {
 
     /// 出発の日 `departure`・到着の日 `arrival` での値。解けなければ（暦の外・面が決まらない・到着が出発より前など）エラー。
     pub fn at(&mut self, departure: Epoch, arrival: Epoch) -> Result<CellValues, AnalysisError> {
-        self.maneuver.transfer = Some(DatedTransferInput { departure, arrival });
+        // 出発の噴射を誰が行うか（`departure_by`）は、書かれたものを保つ（打ち上げ機なら捕獲だけを数える）
+        let departure_by = self
+            .maneuver
+            .transfer
+            .map(|t| t.departure_by)
+            .unwrap_or_default();
+        self.maneuver.transfer = Some(DatedTransferInput {
+            departure,
+            arrival,
+            departure_by,
+        });
         let planned = plan(self.from, &self.maneuver)?;
         let (Some(d), Ideal::Impulsive(t)) = (planned.dated, &planned.ideal) else {
             return Err(AnalysisError::InvalidInput(format!(
