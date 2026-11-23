@@ -50,6 +50,7 @@ fn case_context(s: &Snapshot) -> std::result::Result<Context<'_>, MissingInputs>
 fn mode_independent(s: &Snapshot) -> ModeIndependent {
     let ctx = case_context(s);
     let (out, unloading) = evaluate::<UnloadTime>(
+        s,
         ctx.as_ref()
             .map_err(Clone::clone)
             .and_then(aocs::unload_time),
@@ -93,11 +94,13 @@ fn mode_view_with(s: &Snapshot, mode: &str, shared: &ModeIndependent) -> Result<
         .find(|m| m.id == mode)
         .ok_or_else(|| crate::error::ServiceError::not_found("mode", mode))?;
     let (rw_out, rw) = evaluate::<RwUnloading>(
+        s,
         ctx.as_ref()
             .map_err(Clone::clone)
             .and_then(|c| aocs::rw_unloading_for_mode(c, Some(mode))),
     );
     let (_, sensor_fov) = evaluate::<SensorFov>(
+        s,
         ctx.as_ref()
             .map_err(Clone::clone)
             .and_then(|c| aocs::sensor_fov_for_mode(c, Some(mode))),
@@ -121,6 +124,7 @@ fn mode_view_with(s: &Snapshot, mode: &str, shared: &ModeIndependent) -> Result<
 }
 
 fn evaluate<A: Analysis>(
+    s: &Snapshot,
     input: std::result::Result<A::Input, MissingInputs>,
 ) -> (Option<A::Output>, AocsAnalysisState) {
     let mut state = AocsAnalysisState {
@@ -133,7 +137,7 @@ fn evaluate<A: Analysis>(
         Ok(input) => input,
         Err(m) => {
             state.status = AnalysisRunStatus::MissingInputs;
-            state.missing = m.into_vec();
+            state.missing = crate::fixes::complete(&s.design, &s.resolved, m.into_vec());
             return (None, state);
         }
     };

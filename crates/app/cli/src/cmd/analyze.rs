@@ -5,7 +5,7 @@ use crate::args::AnalyzeArgs;
 use crate::output::{C, Out};
 use fune_service::dto::{
     AnalysisInputSource, AnalysisKind, AnalysisRunStatus, BudgetPropellant, BudgetRequest,
-    BudgetRow, BudgetUncounted, BudgetView, KpiView, MissingInput, QuantityView,
+    BudgetRow, BudgetUncounted, BudgetView, Fix, KpiView, MissingInput, QuantityView,
     RunAnalysisRequest,
 };
 use fune_service::{Workspace, analysis, budget, query};
@@ -73,6 +73,36 @@ pub(super) fn print_missing(missing: &[MissingInput], out: &Out) {
         t.row(vec![C::Strong(m.path.clone()), C::Text(m.reason.clone())]);
     }
     t.print();
+    print_fixes(missing, out);
+}
+
+/// 足りない入力の直し方（service の `fixes` が決めた候補のコマンド。GUI の行の操作と同じ候補）。`<…>` は打つ前に置き換える。
+fn print_fixes(missing: &[MissingInput], out: &Out) {
+    if missing.iter().all(|m| m.fixes.is_empty()) {
+        return;
+    }
+    println!("{}", out.dim("To fix (replace the <…> parts):"));
+    for m in missing {
+        for (i, fix) in m.fixes.iter().enumerate() {
+            let head = if i == 0 { m.path.as_str() } else { "" };
+            println!("  {head:<28} {}", fix.command());
+            if let Some(c) = fix_catalog(fix) {
+                println!(
+                    "  {:<28} {}",
+                    "",
+                    out.dim(format!("or on the catalog item: {c}"))
+                );
+            }
+        }
+    }
+}
+
+/// 値の直しに付く、カタログ品の側へ書くコマンド。
+fn fix_catalog(fix: &Fix) -> Option<&str> {
+    match fix {
+        Fix::SetValue { catalog, .. } => catalog.as_ref().map(|c| c.command.as_str()),
+        _ => None,
+    }
 }
 
 /// KPI（代表値・判定。選び方は service の `analysis::kpi`）を表にする。判定を数える KPI は数を出す。
