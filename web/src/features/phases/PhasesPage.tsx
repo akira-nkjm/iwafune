@@ -161,7 +161,7 @@ function PhaseRow({
       <Td mono className="max-w-48 whitespace-normal">
         {p.modes.length > 0 ? p.modes.join(" ") : "—"}
       </Td>
-      <Td className="min-w-48 max-w-80 whitespace-normal">
+      <Td className="max-w-64 whitespace-normal">
         <Overrides p={p} onEdit={() => onOpen({ kind: "overrides", id: p.id })} />
       </Td>
       <Td mono className="max-w-48 whitespace-normal text-ink-3">
@@ -194,29 +194,18 @@ function PhaseRow({
   );
 }
 
-/** 軌道と姿勢則の上書き（API が整形した値の表示。上書きが無ければ「なし」）と、編集のダイアログを開くボタン */
+/**
+ * 軌道と姿勢則の上書きの要約（軌道を置き換えているか、姿勢則を上書きしているモード。上書きが無ければ「なし」）と、
+ * 編集のダイアログを開くボタン。値は表に並べず、ダイアログで見る（並べると行が長くなり、キーの名前も生で出る）
+ */
 function Overrides({ p, onEdit }: { p: PhaseView; onEdit: () => void }) {
   const t = useT().phases;
   const none = !p.orbit_overridden && p.laws.length === 0;
-  const line = (label: string, fields: PhaseView["orbit"]) =>
-    fields.length > 0 && (
-      <span>
-        <span className="text-ink-3">{label}</span>{" "}
-        {fields.map((f) => `${f.key} ${f.display}`).join(", ")}
-      </span>
-    );
   return (
     <span className="flex flex-col items-start gap-0.5">
-      {none ? (
-        <span className="text-ink-4">{t.none}</span>
-      ) : (
-        <>
-          {line(t.orbit, p.orbit)}
-          {p.laws.map((l) => (
-            <span key={l.mode}>{line(`${t.law} ${l.mode}`, l.fields)}</span>
-          ))}
-        </>
-      )}
+      {none && <span className="text-ink-4">{t.none}</span>}
+      {p.orbit_overridden && <span>{t.orbitReplaced}</span>}
+      {p.laws.length > 0 && <span>{t.lawFor(p.laws.map((l) => l.mode).join(", "))}</span>}
       <Button size="sm" variant="ghost" onClick={onEdit}>
         <Pencil size={13} />
         {t.editOverrides}
