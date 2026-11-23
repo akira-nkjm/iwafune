@@ -7,18 +7,52 @@ use super::{
 use crate::design::{
     AttributeDef, CatalogItem, Design, EntityKey, Part, Pose, SourceKind, SourceMap,
 };
+use crate::id::Id;
 use crate::value::units::to_si;
 use crate::value::{Authored, Provenance, Scalar, Value, ValueError};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// Design を解決する（純粋関数）。
 pub fn resolve(design: &Design) -> Resolved {
+    let parts: BTreeMap<_, _> = design
+        .parts
+        .iter()
+        .map(|(id, part)| (id.clone(), resolve_part(design, part)))
+        .collect();
+    let configurations = design
+        .configurations
+        .values()
+        .map(|c| {
+            let id = c.id.as_str();
+            (id.to_owned(), resolve_configuration(design, &parts, id))
+        })
+        .collect();
     Resolved {
-        parts: design
-            .parts
-            .iter()
-            .map(|(id, part)| (id.clone(), resolve_part(design, part)))
-            .collect(),
+        parts,
+        configurations,
+    }
+}
+
+/// 形態 `configuration` で解決した設計。姿勢が違うのは取付だけなので、基準の解決済みの部品から取付だけを
+/// その形態の姿勢（`Design::pose_in`）で作り直す（値の重ね合わせは基準のまま）。
+fn resolve_configuration(
+    design: &Design,
+    base: &BTreeMap<Id<Part>, ResolvedPart>,
+    configuration: &str,
+) -> Resolved {
+    let parts = base
+        .iter()
+        .map(|(id, resolved)| {
+            let mut resolved = resolved.clone();
+            if let Some(part) = design.parts.get(id) {
+                resolved.mount = resolve_mount(design, part, Some(configuration));
+            }
+            (id.clone(), resolved)
+        })
+        .collect();
+    Resolved {
+        parts,
+        configurations: BTreeMap::new(),
     }
 }
 
@@ -67,7 +101,7 @@ fn resolve_part(design: &Design, part: &Part) -> ResolvedPart {
         redundancy: part.redundancy,
         maturity: part.maturity.or_else(|| catalog.and_then(|c| c.maturity)),
         attr,
-        mount: resolve_mount(design, part),
+        mount: resolve_mount(design, part, None),
         ports: resolve_ports(design, part, catalog),
         evidence,
     }
@@ -304,7 +338,12 @@ pub fn pose_si(pose: Option<&Pose>) -> PoseSi {
     }
 }
 
-fn resolve_mount(design: &Design, part: &Part) -> Option<ResolvedMount> {
+/// 取付 1 段。姿勢は形態 `configuration`（`None` は基準）で有効な書かれた姿勢（`Design::pose_in`。**取付の姿勢を決めるのはここだけ**）。
+fn resolve_mount(
+    design: &Design,
+    part: &Part,
+    configuration: Option<&str>,
+) -> Option<ResolvedMount> {
     let mount = part.mount.as_ref()?;
     let parent = design.parts.get(mount.on.as_str());
     let point_pose = mount
@@ -316,7 +355,7 @@ fn resolve_mount(design: &Design, part: &Part) -> Option<ResolvedMount> {
         on: mount.on.to_string(),
         point: mount.point.clone(),
         point_pose,
-        pose: pose_si(part.pose.as_ref()),
+        pose: pose_si(design.pose_in(part, configuration)),
     })
 }
 

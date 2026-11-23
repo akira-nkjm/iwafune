@@ -357,3 +357,27 @@ fn rules_matching_nothing_are_reported() {
             .any(|m| m.contains("fn side_verdict("))
     );
 }
+
+/// 形態の姿勢は解決だけが読み、形態ごとの解決済みの設計は射影の文脈だけが選ぶ（テストは確かめに呼んでよい）。
+#[test]
+fn configuration_pose_is_read_only_by_the_resolution() {
+    let rule = |needle: &str| PROD_RULES.iter().find(|r| r.0 == needle).unwrap();
+    for (needle, home, other) in [
+        (
+            ".pose_in(",
+            "crates/app/model/src/resolve/compute.rs",
+            "crates/app/projection/src/pose.rs",
+        ),
+        (
+            ".in_configuration(",
+            "crates/app/projection/src/context.rs",
+            "crates/app/service/src/query.rs",
+        ),
+    ] {
+        let mut errors = Vec::new();
+        check_rule(home, needle, rule(needle), &mut errors);
+        assert!(errors.is_empty());
+        check_rule(other, needle, rule(needle), &mut errors);
+        assert_eq!(errors.len(), 1);
+    }
+}

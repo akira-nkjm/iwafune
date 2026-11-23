@@ -10,6 +10,7 @@
 
 mod budget;
 mod catalogs;
+mod configurations;
 mod defs;
 mod ids;
 mod launch;
@@ -61,6 +62,7 @@ pub fn check(design: &Design) -> Vec<Diagnostic> {
     sources::check_sources(&mut ctx);
     maneuvers::check_maneuvers(&mut ctx);
     phases::check_phases(&mut ctx);
+    configurations::check_configurations(&mut ctx);
     requirements::check_requirements(&mut ctx);
     views::check_views(&mut ctx);
     budget::check_budget(&mut ctx);

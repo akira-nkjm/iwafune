@@ -5,12 +5,14 @@
 //! に従う。数値伝搬（[`Propagator::Numerical`]）は [`numerical`] にあり、[`crate::force`] の加速度を
 //! [`crate::ode::Dop853`] で積分する（Cowell 法）。推力を入れた伝搬（[`propagate_powered`]）は `powered` にあり、
 //! 同じ積分器と力モデルに推力の項（[`crate::force::thrust`]）と質量を足す。平均の長半径（J2 の短周期項を引く）は `mean`。
+//! 円制限三体問題（ラグランジュ点・ハロー軌道の補正・回転系と慣性系の変換）の数学は [`cr3bp`] にある。
 //! 解析が軌道から読むもの（時刻での状態・中心天体・元期・繰り返しの長さ）の共通の入口は `trajectory`（[`Trajectory`]・[`Cycle`]）。
 //! 今は要素で書かれた軌道（[`OrbitSpec`]）だけで、数値は変わらない。
 
 mod analytic;
 mod approach;
 mod beta;
+pub mod cr3bp;
 mod local_time;
 mod mean;
 mod numerical;

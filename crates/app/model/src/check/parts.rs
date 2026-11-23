@@ -226,10 +226,17 @@ fn check_mount(ctx: &mut Ctx, part: &Part, entity: &EntityKey) {
         }
     }
     if let Some(pose) = &part.pose {
-        check_pose(ctx, entity, &id, None, pose);
+        check_pose(ctx, entity, &["pose"], Some(Target::pose(&id, None)), pose);
     }
     for (name, pose) in &part.mount_points {
-        check_pose(ctx, entity, &id, Some(name.as_str()), pose);
+        let keys = ["mount_points", name.as_str()];
+        check_pose(
+            ctx,
+            entity,
+            &keys,
+            Some(Target::pose(&id, Some(name))),
+            pose,
+        );
     }
 }
 
@@ -247,18 +254,16 @@ fn mount_cycle(design: &crate::design::Design, part: &Part) -> bool {
     parts.cycled()
 }
 
-/// 姿勢 1 つ（部品の `pose` か、取付点 `mount_point` の姿勢）。
-fn check_pose(ctx: &mut Ctx, entity: &EntityKey, id: &str, mount_point: Option<&str>, pose: &Pose) {
-    let keys: &[&str] = match mount_point {
-        None => &["pose"],
-        Some(point) => &["mount_points", point],
-    };
-    let target = || {
-        Some(Target::Pose {
-            part: id.to_owned(),
-            mount_point: mount_point.map(str::to_owned),
-        })
-    };
+/// 姿勢 1 つ（部品の `pose`・取付点の姿勢・形態の `[pose.<部品>]`）。`keys` は診断の位置（ファイルの中のキーの列）、
+/// `target` は診断の対象。**姿勢の検査はここだけ**（形態の検査も使う）。
+pub(super) fn check_pose(
+    ctx: &mut Ctx,
+    entity: &EntityKey,
+    keys: &[&str],
+    target: Option<Target>,
+    pose: &Pose,
+) {
+    let target = || target.clone();
     if let Some(p) = &pose.position
         && let Err(e) = expect_dimension(position_unit(p), "Length")
     {

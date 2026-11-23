@@ -3,7 +3,7 @@
 //! | 名前空間 | ID の規則 |
 //! |---|---|
 //! | 部品とグループ（同じ名前空間） | `validate_node_id`（パスの予約語も禁止） |
-//! | モード・ネット・ハーネス・解析ケース・出典・地上局・マヌーバ・フェーズ・要求 | `validate_entity_id` |
+//! | モード・ネット・ハーネス・解析ケース・出典・地上局・マヌーバ・フェーズ・形態・要求 | `validate_entity_id` |
 //! | 共有カタログの出典（カタログごと。`<カタログ名>/<ID>` の ID の部分） | `validate_entity_id` |
 //! | カタログ品（出所ごと。`<出所>/<ID>` の ID の部分） | `validate_entity_id` |
 
@@ -77,6 +77,12 @@ pub(super) fn check_ids(ctx: &mut Ctx) {
         (id.clone(), EntityKey::Phase(id), target)
     });
     namespace(ctx, phases.collect(), validate_entity_id);
+    let configurations = design.configurations.keys().map(|id| {
+        let id = id.to_string();
+        let target = Target::configuration(&id, None);
+        (id.clone(), EntityKey::Configuration(id), target)
+    });
+    namespace(ctx, configurations.collect(), validate_entity_id);
     let requirements = design.requirements.keys().map(|id| {
         let id = id.to_string();
         let target = Target::requirement(&id, None);
