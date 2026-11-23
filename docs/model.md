@@ -22,6 +22,7 @@ This document describes what structures hold the design-data model and how it is
 Conditions are placed in `conditions/orbit.toml`, `conditions/launch.toml` and `conditions/ground/<ID>.toml`.
 The settings category is `SettingScope::Conditions` (spelled `conditions`; the display name is "前提条件" / "Conditions").
 The keys are `conditions.orbit.altitude`, `conditions.launch.<field>` and `conditions.ground.<ID>.<field>`.
+`conditions/launch.toml` also selects the launch vehicle and the dispenser (`launcher`, `dispenser`; §5.6).
 `mission/` is a reserved directory for the mission and its success criteria (#9), and is currently skipped. Phases are in `phases/` (§7.10); a phase can override the orbit for the cases that name it.
 
 A ground station file (`label`, `latitude`, `longitude`, `altitude`, `min_elevation`, and per-band `[link.<band>]`) is edited as follows (all of it goes through Ops, so no file needs to be written by hand):
@@ -944,6 +945,46 @@ annual_degradation = 0.02
 bus_voltage = { value = 28.0, unit = "V" }
 ```
 
+### 5.6 Launch vehicle, dispenser and launch fit (#5)
+
+A launch vehicle and a dispenser are **catalog items** of the built-in kinds `launcher` and `dispenser`. They are not satellite parts: the kinds do not extend `component`, so they have no `mass` and never enter the mass budget, part lists or diagrams,
+and a part whose kind is (or extends) one of them is an error (`part.launch_kind`). All their attributes are optional: an attribute that is written becomes a limit, and one that is not written is not checked.
+
+| Attribute | Dimension | Units | Meaning |
+|---|---|---|---|
+| `max_payload_mass` | Mass | kg, g | the mass limit for the satellite |
+| `launch_envelope` | Length (vector) | mm, m | the allowed stowed box along the body axes x, y, z (z is the launch axis) |
+| `launch_load_axial`, `launch_load_lateral` | Acceleration | g0, m/s^2 | quasi-static load factors |
+| `min_frequency_axial`, `min_frequency_lateral` | Frequency | Hz | minimum first natural frequencies |
+| `max_tip_off_rate` | AngularVelocity | deg/s, rad/s | maximum angular rate at separation (stored; no analysis reads it yet) |
+
+The design selects them in `conditions/launch.toml` with the same reference form as a part's `catalog` (`<catalog>/<id>`, read by `split_catalog_ref`):
+
+```toml
+launcher   = "local/lv_alpha"        # item of kind `launcher`
+dispenser  = "local/disp_6u_rs"      # optional; item of kind `dispenser`
+load_axial = { value = 6.0, unit = "g0" }   # written values take precedence over the catalog
+```
+
+They are edited with `fune set conditions.launch.launcher <catalog>/<id>` and `fune unset conditions.launch.launcher` (the same for `dispenser`; the Op is `SetSetting`, so HTTP `POST /ops/from_text` writes the same bytes).
+`fune check` reports a selection that is not defined (`ref.launcher`, `ref.dispenser`) or has the wrong kind (`launch.kind`). Renaming the catalog item rewrites the selection, and removing the item (or its catalog) is refused while it is selected.
+
+**Precedence** (`fune_projection::launch`, the only place): a value written in `conditions/launch.toml` (`load_axial`, `load_lateral`) → the dispenser → the launcher (the nearer interface first; a value is taken from the first of them that has the attribute).
+`structure.static_load` reads the loads this way. When none gives a load, the missing input is `conditions.launch.load_axial` (or `load_lateral`) and the message says it can also be given as `launch_load_axial` / `launch_load_lateral` on the dispenser or launcher.
+`structure.modal_estimate` takes its minimum natural frequencies the same way (the item's `min_frequency_*`), and a requirement on `lateral` / `axial` can only tighten it (the larger wins).
+
+**`structure.launch_fit`** judges the design against the selected items and needs at least one of them (the missing input is `conditions.launch.launcher`):
+
+- **Mass**: launch mass = the sum of part mass × count + the loaded propellant (`propulsion.propellant`, when there is a propulsion system), against the mass limit. The growth allowance of the mass budget is not added (the budget view judges that total).
+  The limit is the tighter of the catalog value and the mass budget requirement (`verify.budget = "mass"`); the verdict text names where the winning limit came from (`dispenser local/…`, `requirement R_MASS`).
+- **Envelope**: the stowed outer dimensions are the `size` of the root part of the mounting tree (the same rule as the outer shape for attitude analysis, §5.3; parts that stick out of it are not measured). They are compared **axis by axis without rotation**:
+  body x with the allowed x, y with y, z with z. The launch axis is the body z axis, and an item's envelope is written in the same axes. A different orientation is a different `launch_envelope`, not a rotation inside the analysis.
+- **Natural frequencies**: the lowest whole-body first mode estimated by `structure.modal_estimate` (beam results `lateral` / `axial`) against the larger of the catalog minimum and the requirement (`structure.modal_estimate` / `lateral`, `axial`).
+  Panel out-of-plane modes are local and are not compared. The estimate has no beam model yet (the demo has none), so these checks end as a **warning "Not verified"**; they are never silently reported as fit.
+- Verdicts are two-level (fit or not): the margin is limit / value − 1, and a negative margin is a violation. Check keys are `mass`, `envelope:<x|y|z>` and `frequency:<lateral|axial>`.
+
+Not modeled yet: random vibration (PSD), interface details (the mechanical interface, separation springs) and shock. The angular rate at separation is only stored.
+
 ## 6. Product tree and mounting
 
 ### 6.1 Two hierarchies
@@ -1321,7 +1362,7 @@ Design values and modelling inputs stay settings or part attributes (see the tab
 | `comm.link_budget` / `pfd` | `at_most`, Dimensionless (dB) | the PFD limit of a downlink; without one no PFD check is made |
 | `aocs.slew_time` / `slew_time` | `at_most`, Time | the required slew time; without one no check is made |
 | `orbit.decay` / `max_lifetime` | `at_most`, Time | the lifetime limit; without one no check is made |
-| `structure.modal_estimate` / `lateral`, `axial` | `at_least`, Frequency | the required natural frequency of beams (the demo has no beams, so these rows stay "not verified") |
+| `structure.modal_estimate` / `lateral`, `axial` | `at_least`, Frequency | the required natural frequency of beams, and it only tightens the minimum of the selected launcher and dispenser (§5.6; the larger applies, and `structure.launch_fit` names which one). The demo has no beams, so these rows stay "not verified" |
 | `thermal.steady`, `thermal.transient` / `range_low`, `range_high` | `at_least` / `at_most`, Temperature | a node's lower or upper temperature limit (see below) |
 
 - **Several requirements on one criterion**: the tightest applies (`at_most` the smallest, `at_least` the largest). The compliance table still judges **each row against its own constraint**:

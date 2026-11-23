@@ -550,3 +550,74 @@ dimension    = "Dimensionless"
 units        = [""]
 min          = 0.0
 section      = "propulsion"
+
+# 打ち上げ機・ディスペンサー（種別 launcher・dispenser）の属性。衛星の部品ではなく、`conditions/launch.toml` が選ぶ条件の置き場所。
+[max_payload_mass]
+label        = "搭載質量の上限"
+label_en     = "Maximum payload mass"
+type         = "scalar"
+dimension    = "Mass"
+units        = ["kg", "g"]
+display_unit = "kg"
+min          = 0.0
+section      = "structure"
+
+[launch_envelope]
+label        = "収納外形の許容（箱）"
+label_en     = "Allowed stowed envelope (box)"
+description  = "機体座標の x, y, z 方向の許容の長さ。z が発射軸。軸ごとに比べ、辺の入れ替えはしない"
+type         = "vec3"
+dimension    = "Length"
+units        = ["mm", "m", "cm"]
+display_unit = "mm"
+section      = "structure"
+
+[launch_load_axial]
+label        = "準静的荷重（機軸方向）"
+label_en     = "Quasi-static load (axial)"
+type         = "scalar"
+dimension    = "Acceleration"
+units        = ["g0", "m/s^2"]
+display_unit = "g0"
+min          = 0.0
+section      = "structure"
+
+[launch_load_lateral]
+label        = "準静的荷重（直交方向）"
+label_en     = "Quasi-static load (lateral)"
+type         = "scalar"
+dimension    = "Acceleration"
+units        = ["g0", "m/s^2"]
+display_unit = "g0"
+min          = 0.0
+section      = "structure"
+
+[min_frequency_axial]
+label        = "最低固有振動数（機軸方向）"
+label_en     = "Minimum natural frequency (axial)"
+type         = "scalar"
+dimension    = "Frequency"
+units        = ["Hz"]
+display_unit = "Hz"
+min          = 0.0
+section      = "structure"
+
+[min_frequency_lateral]
+label        = "最低固有振動数（直交方向）"
+label_en     = "Minimum natural frequency (lateral)"
+type         = "scalar"
+dimension    = "Frequency"
+units        = ["Hz"]
+display_unit = "Hz"
+min          = 0.0
+section      = "structure"
+
+[max_tip_off_rate]
+label        = "分離時の角速度の上限（チップオフ）"
+label_en     = "Maximum tip-off angular rate at separation"
+type         = "scalar"
+dimension    = "AngularVelocity"
+units        = ["deg/s", "rad/s"]
+display_unit = "deg/s"
+min          = 0.0
+section      = "structure"

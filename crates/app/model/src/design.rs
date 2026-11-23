@@ -28,6 +28,7 @@ pub mod budget;
 pub mod conditions;
 pub mod criteria;
 pub mod defs;
+pub mod launch;
 pub mod maneuver;
 pub mod mode;
 pub mod moved_settings;
@@ -55,6 +56,7 @@ pub use criteria::{
     CRITERIA, Criterion, CriterionDecl, declared, declared_for_requirement, key_covers,
 };
 pub use defs::*;
+pub use launch::LaunchInterface;
 pub use maneuver::*;
 pub use mode::*;
 pub use moved_settings::{MOVED_SETTINGS, MovedSetting};
@@ -220,19 +222,20 @@ impl Design {
         .collect()
     }
 
-    /// カタログ品を参照しているもの（部品の ID、ハーネスは `harness/<ID>`。部品 → ハーネスの順）。
+    /// カタログ品を参照しているもの（部品の ID、ハーネスは `harness/<ID>`、打ち上げ条件は `conditions.launch.<launcher|dispenser>`。部品 → ハーネス → 打ち上げ条件の順）。
     /// 参照の所在は [`Design::references`]（削除を拒む文に使う）。
     pub fn catalog_users(&self, reference: &str) -> Vec<String> {
-        let harnesses = self
+        let others = self
             .references(Referent::Catalog(reference))
             .into_iter()
             .filter_map(|site| match site {
                 RefSite::HarnessWire { harness } => Some(format!("harness/{harness}")),
+                RefSite::LaunchSelection { which } => Some(format!("conditions.launch.{which}")),
                 _ => None,
             });
         self.catalog_part_users(reference)
             .into_iter()
-            .chain(harnesses)
+            .chain(others)
             .collect()
     }
 

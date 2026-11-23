@@ -237,6 +237,7 @@ fn rename_at(
         | RefSite::PartCatalog { .. }
         | RefSite::PartCandidate { .. }
         | RefSite::HarnessWire { .. }
+        | RefSite::LaunchSelection { .. }
         | RefSite::ManeuverThruster { .. }
         | RefSite::ManeuverMode { .. } => rename_value_at(edits, design, site, names),
         RefSite::PartKind { .. }
@@ -404,6 +405,9 @@ fn rename_value_at(
         }
         RefSite::HarnessWire { harness } => {
             set_top(edits, &layout::harness_file(harness), "wire", to)
+        }
+        RefSite::LaunchSelection { which } => {
+            set_top(edits, &layout::launch_file(), which.as_str(), to)
         }
         RefSite::ManeuverThruster { maneuver } => {
             set_top(edits, &layout::maneuver_file(maneuver), "thruster", to)

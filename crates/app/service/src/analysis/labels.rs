@@ -16,6 +16,7 @@ use sat_analysis::power::energy_balance::{
 use sat_analysis::power::sizing::SizingLifetimeSource;
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
+use sat_analysis::structure::launch_fit::LaunchFitDirection;
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
 use sat_analysis::thermal::ThermalHeaterState;
 use serde::de::DeserializeOwned;
@@ -287,6 +288,13 @@ fn modal_kind(k: ModalEstimateKind) -> AnalysisLabel {
     }
 }
 
+fn launch_fit_direction(d: LaunchFitDirection) -> AnalysisLabel {
+    match d {
+        LaunchFitDirection::Lateral => label("機軸に直交する方向", "Lateral"),
+        LaunchFitDirection::Axial => label("機軸方向", "Axial"),
+    }
+}
+
 mod orbit;
 mod propulsion;
 
@@ -334,6 +342,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "LinkDistanceModel" => parse(value).map(link_distance_model),
         "SolarLife" => parse(value).map(solar_life),
         "ModalEstimateKind" => parse(value).map(modal_kind),
+        "LaunchFitDirection" => parse(value).map(launch_fit_direction),
         "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
         "DurationTiming" => parse(value).map(duration_timing),

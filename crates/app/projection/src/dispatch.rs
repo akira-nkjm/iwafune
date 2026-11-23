@@ -160,6 +160,7 @@ table!(
     astructure::MassProperties => Some(structure::mass_properties),
     astructure::StaticLoad => Some(structure::static_load),
     astructure::ModalEstimate => Some(structure::modal_estimate),
+    astructure::LaunchFit => Some(crate::launch_fit::launch_fit),
     sat_analysis::orbit::EclipseSeason => Some(crate::orbit::eclipse_season),
     sat_analysis::orbit::OrbitDecay => Some(crate::orbit::decay),
     sat_analysis::propulsion::Maneuvers => Some(propulsion::maneuvers),

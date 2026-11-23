@@ -13,6 +13,8 @@
 //! | `quantity` | 書かれた量 → 型付きの SI 量（換算は sat-units） |
 //! | `missing` | 不足入力の型と収集 |
 //! | `reads` | 射影が読んだもの（部品の属性・設定・モード・ケース）の記録。記録の入口は `Context::note` だけ |
+//! | `launch` | 打ち上げ条件（`conditions/launch.toml` が選ぶ打ち上げ機・ディスペンサー）の読み出しと、値の優先順（launch.toml → ディスペンサー → 打ち上げ機）、限度の候補（要求を足す） |
+//! | `launch_fit` | `structure.launch_fit` の射影 |
 //! | `aocs` `cdh` `comm` `power` `propulsion` `structure` `thermal` | 系ごとの射影 |
 //! | `orbit` | 軌道条件の解析の入力（季節解析: 軌道・期間・任意の刻み。高度低下: 軌道・質量・外形・抗力係数・`[decay]` の設定・推進系） |
 //! | `dispatch` | 解析 ID → 射影（入力の JSON）の対応表と、同じ表から引く型付きの射影（`Projects`・`project_typed`）。実行は service（`sat_analysis::catalog::run_json`・`run_typed`） |
@@ -24,6 +26,8 @@ pub mod cdh;
 pub mod comm;
 pub mod context;
 pub mod dispatch;
+pub mod launch;
+pub mod launch_fit;
 pub mod missing;
 /// 軌道条件の解析（季節解析・高度低下）への写し替え。
 pub mod orbit;
