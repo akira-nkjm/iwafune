@@ -2,8 +2,12 @@ import { Link } from "react-router";
 import type { DesignView, MissingInput } from "@/api/types";
 import { useT } from "@/i18n";
 import { targetLink } from "@/lib/target-link";
+import { MissingFixActions } from "./MissingFixActions";
 
-/** 足りない入力（名指し）。対象の構造から、部品はコンポーネントのページへ、設定はプロジェクトの設定へ飛べる */
+/**
+ * 足りない入力（名指し）。対象の構造から、部品はコンポーネントのページへ、設定はプロジェクトの設定へ飛べる。
+ * 行ごとに、API が返した直し方の候補の操作（その場で値を入れる・部品を選ぶ・追加の画面へ行く）を出す。
+ */
 export function MissingList({
   design,
   missing,
@@ -21,7 +25,7 @@ export function MissingList({
         {missing.map((m) => {
           const to = targetLink(m.target, partIds);
           return (
-            <li key={`${m.path}-${m.reason}`} className="flex gap-2">
+            <li key={`${m.path}-${m.reason}`} className="flex flex-wrap gap-x-2">
               {to ? (
                 <Link to={to} className="font-mono text-accent-ink hover:underline">
                   {m.path}
@@ -30,6 +34,7 @@ export function MissingList({
                 <span className="font-mono text-ink-2">{m.path}</span>
               )}
               <span className="text-ink-2">{m.reason}</span>
+              <MissingFixActions input={m} design={design} />
             </li>
           );
         })}

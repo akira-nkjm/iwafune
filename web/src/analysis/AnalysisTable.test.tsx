@@ -128,8 +128,8 @@ const missingItem: AnalysisTableItem = {
     kpis: [],
     output: null,
     missing: [
-      { part: "BAT", path: "BAT.capacity", target: null, reason: "値がありません" },
-      { part: "SAP", path: "SAP.area", target: null, reason: "値がありません" },
+      { part: "BAT", path: "BAT.capacity", target: null, reason: "値がありません", fixes: [] },
+      { part: "SAP", path: "SAP.area", target: null, reason: "値がありません", fixes: [] },
     ],
     overview: { main: [], checks: [], chart: null, hidden_tables: [] },
   },

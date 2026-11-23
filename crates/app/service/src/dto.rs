@@ -132,7 +132,7 @@ pub use fune_model::resolve::{Evidence, Origin};
 pub use fune_model::value::{Provenance, Quantity, Quaternion, SettingValue, Value, Vector3};
 pub use fune_model::{Diagnostic, Severity};
 pub use fune_ops::{ModeCell, ModePosition, Op, ViewNodePos};
-pub use fune_projection::MissingInput;
+pub use fune_projection::{CatalogFix, Fix, ListKind, MissingInput};
 pub use history::{HistoryAction, HistoryEntryView, HistoryStepResult, HistoryView};
 pub use sat_analysis::spec::{
     AnalysisArea, AnalysisInfo, AnalysisKind, Channel, Check, ConditionTopic, Series, System,

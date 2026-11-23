@@ -203,7 +203,9 @@ describe("AOCS mode cards", () => {
         status: "missing_inputs",
         verdict: null,
         error: null,
-        missing: [{ path: "analysis.aocs.law.NOMINAL", part: null, target: null, reason: "law" }],
+        missing: [
+          { path: "analysis.aocs.law.NOMINAL", part: null, target: null, reason: "law", fixes: [] },
+        ],
       },
       sensor_fov: { status: "failed", verdict: null, missing: [], error: "Invalid attitude" },
     });
@@ -219,7 +221,15 @@ describe("AOCS mode cards", () => {
           status: "missing_inputs",
           verdict: null,
           error: null,
-          missing: [{ path: "analysis.aocs.law.NOMINAL", part: null, target: null, reason: "law" }],
+          missing: [
+            {
+              path: "analysis.aocs.law.NOMINAL",
+              part: null,
+              target: null,
+              reason: "law",
+              fixes: [],
+            },
+          ],
         },
         sensor_fov: { status: "failed", verdict: null, missing: [], error: "Invalid attitude" },
       },
