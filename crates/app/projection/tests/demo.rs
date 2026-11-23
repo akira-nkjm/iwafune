@@ -31,6 +31,10 @@ fn every_analysis_projects_or_names_missing_inputs() {
                 assert!(!list.is_empty(), "{}", e.id);
                 assert!(list.iter().all(|x| !x.path.is_empty()), "{}", e.id);
             }
+            // 射影の行が `None` の解析（`structure.modal_fem` は第 3 段階まで JSON の入力だけ）。表の側で「作れない」と分かっている。
+            Err(ProjectionError::NotImplemented(id)) => {
+                assert!(!e.projectable && id == e.id, "{}", e.id);
+            }
             Err(other) => panic!("{}: {other}", e.id),
         }
     }
