@@ -28,13 +28,29 @@ export function layoutInput(full: DiagramModel): string {
   return stable(rest);
 }
 
-const hex = (bytes: ArrayBuffer) =>
-  [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
+/**
+ * 文字列の 64 ビットのハッシュ（FNV-1a。16 進 16 桁）。
+ * `crypto.subtle` は使わない: 安全なコンテキスト（HTTPS か localhost）でしか使えず、LAN の HTTP で開いた画面では
+ * `undefined` になる。この鍵は結果を残す場所の見出しで、秘密を守るものではないので、暗号のハッシュは要らない。
+ */
+function fnv1a64(text: string): string {
+  const prime = 0x100000001b3n;
+  const mask = 0xffffffffffffffffn;
+  let hash = 0xcbf29ce484222325n;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= BigInt(text.charCodeAt(i));
+    hash = (hash * prime) & mask;
+  }
+  return hash.toString(16).padStart(16, "0");
+}
 
-/** 版 `version` で `full` を配置するときの結果の鍵（SHA-256 の 16 進）。同じ入力と版なら同じ鍵 */
+/**
+ * 版 `version` で `full` を配置するときの結果の鍵（版・入力の長さ・64 ビットのハッシュ）。同じ入力と版なら同じ鍵。
+ * 長さを入れるのは、ハッシュが偶然一致しても、長さの違う入力を同じ鍵にしないため。
+ */
 export async function keyOf(full: DiagramModel, version: number): Promise<string> {
   const text = `iwafune-layout/${version}\n${layoutInput(full)}`;
-  return hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)));
+  return `${version}-${text.length.toString(16)}-${fnv1a64(text)}`;
 }
 
 /** 配置の結果を残す鍵（いまの版で） */
