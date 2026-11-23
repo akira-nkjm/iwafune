@@ -24,7 +24,8 @@ export function AddSharedCatalogDialog({
   const [git, setGit] = useState("");
   const [rev, setRev] = useState("");
   const made = useCommandOps(open ? sharedCatalogAddCommand(name, git, rev) : null);
-  const error = useOpCheck(open ? made.ops : null).error ?? made.error;
+  const failed = useOpCheck(open ? made.ops : null).failed;
+  const error = made.error;
   return (
     <OpDialog
       open={open}
@@ -40,7 +41,7 @@ export function AddSharedCatalogDialog({
           id="shared-name"
           mono
           value={name}
-          invalid={!!error}
+          invalid={failed || !!error}
           placeholder="lab"
           onChange={(e) => setName(e.target.value)}
         />

@@ -202,8 +202,8 @@ impl ThermalRangeSide {
     /// 判定の key の先頭（`range_low` / `range_high`。KPI の対応は `fune-service` の `kpi::rule`）。
     pub fn key_prefix(self) -> &'static str {
         match self {
-            Self::Low => "range_low",
-            Self::High => "range_high",
+            Self::Low => sat_checkkey::family::RANGE_LOW,
+            Self::High => sat_checkkey::family::RANGE_HIGH,
         }
     }
 }

@@ -27,7 +27,8 @@ export function ModesSaveBar({
   const apply = useApplyOps();
   // 時間割合の合計などの規則はサーバー（dry_run）が検査する
   const check = useOpCheck(ops);
-  const reason = error ?? check.error;
+  // サーバー（dry_run）が弾いた理由は上のプレビューに出る。ここには下書きの時点で分かる誤りだけを出す
+  const reason = error;
   const save = () => {
     if (ops && check.ok)
       apply.mutate({ ops, summary: t.modes.saveSummary(count) }, { onSuccess: onDone });

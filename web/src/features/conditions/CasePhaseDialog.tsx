@@ -5,7 +5,6 @@ import { useT } from "@/i18n";
 import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { OpDialog } from "@/ops/OpDialog";
-import { useOpCheck } from "@/ops/use-op-check";
 import { casePhaseCommand } from "./case-phase";
 
 /**
@@ -24,7 +23,7 @@ export function CasePhaseDialog({
   const t = useT().conditions.casePhase;
   const [phase, setPhase] = useState(kase.phase ?? "");
   const made = useCommandOps(casePhaseCommand(kase.id, phase));
-  const error = useOpCheck(made.ops).error ?? made.error;
+  const error = made.error;
   return (
     <OpDialog
       open

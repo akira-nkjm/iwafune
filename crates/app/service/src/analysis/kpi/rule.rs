@@ -5,6 +5,7 @@ use crate::dto::{CheckView, KpiKey, KpiTally, OverviewKpi};
 use fune_model::design::BudgetKind;
 use sat_analysis::spec::Verdict;
 use sat_analysis::thermal::range_item;
+use sat_checkkey::family;
 use std::collections::HashMap;
 
 /// KPI の判定にする check の選び方（`CheckView.key` との照合）。
@@ -14,7 +15,7 @@ pub(super) enum CheckMatch {
     Unjudged,
     /// このキーの check
     Exact(&'static str),
-    /// このキーで始まる check の並び（節点・回線・センサなどの要素ごとの check。最悪を使う）
+    /// この族（`sat_checkkey::family`）の check の並び（節点・回線・センサなどの要素ごとの check。最悪を使う）
     Prefix(&'static str),
     /// いずれかに当たる check
     OneOf(&'static [CheckMatch]),
@@ -31,7 +32,9 @@ impl CheckMatch {
         match self {
             Self::Unjudged => false,
             Self::Exact(k) => key == k,
-            Self::Prefix(p) => key.starts_with(p),
+            Self::Prefix(p) => key
+                .strip_prefix(p)
+                .is_some_and(|rest| rest.starts_with(':')),
             Self::OneOf(ms) => ms.iter().any(|m| m.matches(key)),
         }
     }
@@ -120,10 +123,10 @@ use CheckMatch::{Exact, OneOf, Prefix, Unjudged};
 /// 熱の温度範囲の判定は上限側（`range_high:<節点>:<種類>`）と下限側（`range_low:<節点>:<種類>`）に分かれる。
 /// 最高温度・非定常の最高温度の KPI は上限側、最低温度の KPI は下限側だけを見る（反対側の違反を巻き込まない）。
 /// 非定常の最低温度の KPI は無い（作るときは下限側を使う）。
-const THERMAL_HIGH: CheckMatch = Prefix("range_high:");
-const THERMAL_LOW: CheckMatch = Prefix("range_low:");
+const THERMAL_HIGH: CheckMatch = Prefix(family::RANGE_HIGH);
+const THERMAL_LOW: CheckMatch = Prefix(family::RANGE_LOW);
 /// ヒータの判定（`heater:<部品>`。温度範囲の判定ではない）。
-const THERMAL_HEATER: CheckMatch = Prefix("heater:");
+const THERMAL_HEATER: CheckMatch = Prefix(family::HEATER);
 
 pub(super) fn rule(key: KpiKey) -> Rule {
     use KpiKey as K;
@@ -166,9 +169,9 @@ pub(super) fn rule(key: KpiKey) -> Rule {
             Fill::None,
             Tally::None,
         ),
-        K::SensorIntrusion => (Prefix("intrusion:"), Fill::None, Tally::None),
+        K::SensorIntrusion => (Prefix(family::INTRUSION), Fill::None, Tally::None),
         K::SlewTime => (Exact("slew_time"), Fill::None, Tally::None),
-        K::LinkMargin => (Prefix("margin:"), Fill::None, Tally::None),
+        K::LinkMargin => (Prefix(family::MARGIN), Fill::None, Tally::None),
         // 1 日の送信可能量は「発生量 ≤ 送信可能量」の判定、最大の滞留は「滞留 ≤ ストレージ」の判定
         K::DownlinkPerDay => (Exact("capacity"), Fill::None, Tally::None),
         K::MaxBacklog => (Exact("storage"), Fill::None, Tally::None),
@@ -176,9 +179,13 @@ pub(super) fn rule(key: KpiKey) -> Rule {
         K::MinTemperature => (THERMAL_LOW, Fill::None, Tally::None),
         K::MaxHeaterDuty | K::TransientMaxHeaterDuty => (THERMAL_HEATER, Fill::Value, Tally::None),
         K::TotalMass => (Exact("mass"), Fill::None, Tally::None),
-        K::MinSafetyMargin => (Prefix("interface:"), Fill::None, Tally::None),
+        K::MinSafetyMargin => (Prefix(family::INTERFACE), Fill::None, Tally::None),
         K::MinFrequency => (
-            OneOf(&[Prefix("panel:"), Prefix("lateral:"), Prefix("axial:")]),
+            OneOf(&[
+                Prefix(family::PANEL),
+                Prefix(family::LATERAL),
+                Prefix(family::AXIAL),
+            ]),
             Fill::None,
             Tally::None,
         ),

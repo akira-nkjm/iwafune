@@ -27,7 +27,8 @@ export function PhaseDialog({
   const td = t.dialog;
   const [text, setText] = useState<PhaseText>(initial);
   const made = useCommandOps(phaseCommand(text, adding));
-  const error = useOpCheck(made.ops).error ?? made.error;
+  const failed = useOpCheck(made.ops).failed;
+  const error = made.error;
   const set = (key: keyof PhaseText, value: string) => setText((s) => ({ ...s, [key]: value }));
   const input = (key: TextKey, label: string, placeholder?: string) => (
     <Field label={label} htmlFor={`ph-${key}`}>
@@ -58,7 +59,7 @@ export function PhaseDialog({
             mono
             value={text.id}
             disabled={!adding}
-            invalid={!!error}
+            invalid={failed || !!error}
             placeholder="LEOP"
             onChange={(e) => set("id", e.target.value)}
           />

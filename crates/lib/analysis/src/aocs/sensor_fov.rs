@@ -293,7 +293,7 @@ fn evaluate_sensor(
 }
 
 fn verdict(s: &SensorFovSensor, r: &SensorFovResult) -> Check {
-    let key = format!("intrusion:{}", s.id);
+    let key = sat_checkkey::sensor_intrusion(&s.id);
     let label = format!("{} exclusion angle", s.id);
     let pct = quantity_text::<Fraction>(r.intrusion_fraction.value());
     let (v, msg) = match s.max_intrusion_fraction {

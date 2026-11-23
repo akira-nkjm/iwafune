@@ -52,7 +52,8 @@ export function AddStationButton() {
   const [adding, setAdding] = useState(false);
   const [fresh, setFresh] = useState<NewStation>(EMPTY);
   const made = useCommandOps(adding ? groundAddCommand(fresh) : null);
-  const error = useOpCheck(adding ? made.ops : null).error ?? made.error;
+  const failed = useOpCheck(adding ? made.ops : null).failed;
+  const error = made.error;
   const set = (key: keyof NewStation) => (e: { target: { value: string } }) =>
     setFresh((f) => ({ ...f, [key]: e.target.value }));
   return (
@@ -82,7 +83,7 @@ export function AddStationButton() {
                 id="gs-id"
                 mono
                 value={fresh.id}
-                invalid={!!error}
+                invalid={failed || !!error}
                 placeholder="SVALBARD_GS"
                 onChange={set("id")}
               />

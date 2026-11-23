@@ -1,4 +1,4 @@
-//! `structure.launch_fit` の射影。打ち上げ時の質量（乾燥 + 積む推薬）・収納外形（構体の外形）・簡易固有振動数と、
+//! `structure.launch_fit` の射影。打ち上げ時の質量（質量バジェットと同じ部品の行（成長余裕つき）+ 積む推薬）・収納外形（構体の外形）・簡易固有振動数と、
 //! 打ち上げ機・ディスペンサー（と要求）の限度（読み出しと優先順は [`crate::launch`]）を解析の入力にする。
 
 use crate::context::Context;
@@ -63,7 +63,10 @@ pub fn launch_fit(ctx: &Context<'_>) -> Result<LaunchFitInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let launch = LaunchValues::new(ctx);
     need_selection(&launch, &mut m);
-    let dry = crate::structure::summary(ctx, &mut m);
+    let parts = crate::parts::mass_budget_items(ctx, &mut m);
+    if parts.is_empty() {
+        m.push(Target::any_part("mass"), "No part with a mass");
+    }
     let propellant = propellant(ctx, &mut m);
     let envelope = launch.vec3(attr::ENVELOPE).map(|f| LaunchFitEnvelope {
         origin: f.origin,
@@ -83,7 +86,7 @@ pub fn launch_fit(ctx: &Context<'_>) -> Result<LaunchFitInput, MissingInputs> {
     let max_mass = mass_limits(ctx, &launch);
     m.finish(|| {
         Some(LaunchFitInput {
-            dry_mass: dry?.total_mass,
+            parts,
             propellant_mass: propellant,
             size,
             max_mass,

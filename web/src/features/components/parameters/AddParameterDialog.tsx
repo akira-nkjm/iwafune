@@ -9,7 +9,6 @@ import { Segmented } from "@/kit/selection/Segmented";
 import { cn } from "@/lib/cn";
 import { attrDef, findParamPath, paramPath } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
-import { useOpCheck } from "@/ops/use-op-check";
 import { attrEditMode } from "@/quantity/attr-mode";
 import { QuantityInput } from "@/quantity/QuantityInput";
 import { AttributePicker } from "./AttributePicker";
@@ -81,7 +80,6 @@ export function AddParameterDialog({
       : null;
   const textOp = useTextOp(open ? text : null);
   const ops: Op[] | null = textOp.op ? [...(create ? [create] : []), textOp.op] : null;
-  const check = useOpCheck(ops);
   return (
     <OpDialog
       open={open}
@@ -113,7 +111,7 @@ export function AddParameterDialog({
         <NewAttributeFields
           value={fresh}
           onChange={setFresh}
-          idError={made.error ?? check.error ?? textOp.error ?? draft.error}
+          idError={made.error ?? textOp.error ?? draft.error}
         />
       )}
       {editable ? (

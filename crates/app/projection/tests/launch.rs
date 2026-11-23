@@ -105,12 +105,23 @@ fn launch_fit_input_carries_the_limits_with_their_origin() {
     assert!((num(&fit["min_axial"][0]["value"]) - 50.0).abs() < 1e-9);
 }
 
-/// 推進系があれば積む推薬が入る（乾燥と別に持つ）。
+/// 推進系があれば積む推薬が入る（部品の行と別に持つ）。
 #[test]
-fn launch_fit_input_splits_dry_mass_and_propellant() {
+fn launch_fit_input_splits_parts_and_propellant() {
     let d = demo();
     let fit = input(&d, "structure.launch_fit").unwrap();
-    assert!((num(&fit["dry_mass"]) - 5.548).abs() < 1e-9);
+    // 部品の行は質量バジェットと同じ（成長余裕つき）。素の合計は 5.548 kg、成長込みは行から数える
+    let parts = fit["parts"].as_array().unwrap();
+    let bare: f64 = parts
+        .iter()
+        .map(|p| num(&p["value"]) * num(&p["count"]))
+        .sum();
+    assert!((bare - 5.548).abs() < 1e-9);
+    let grown: f64 = parts
+        .iter()
+        .map(|p| num(&p["value"]) * num(&p["count"]) * (1.0 + num(&p["growth"])))
+        .sum();
+    assert!(grown > bare, "{grown} {bare}");
     let propellant = num(&fit["propellant_mass"]);
     assert!(propellant > 0.0 && propellant < 1.0, "{propellant}");
 }

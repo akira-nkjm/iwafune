@@ -38,6 +38,7 @@ export type * from "./AttributeDefView";
 export type * from "./Authored";
 export type * from "./Body";
 export type * from "./BodyPoseView";
+export type * from "./BudgetItem";
 export type * from "./BudgetKind";
 export type * from "./BudgetPropellant";
 export type * from "./BudgetRequest";

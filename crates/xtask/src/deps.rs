@@ -9,13 +9,20 @@ use std::collections::BTreeMap;
 const ALLOWED: &[(&str, &[&str])] = &[
     ("sat-units", &[]),
     ("sat-astro", &["sat-units"]),
-    ("sat-analysis", &["sat-units", "sat-astro"]),
-    ("fune-model", &["sat-units"]),
+    ("sat-checkkey", &[]),
+    ("sat-analysis", &["sat-units", "sat-astro", "sat-checkkey"]),
+    ("fune-model", &["sat-units", "sat-checkkey"]),
     ("fune-store", &["fune-model"]),
     ("fune-ops", &["fune-model", "fune-store"]),
     (
         "fune-projection",
-        &["fune-model", "sat-analysis", "sat-astro", "sat-units"],
+        &[
+            "fune-model",
+            "sat-analysis",
+            "sat-astro",
+            "sat-checkkey",
+            "sat-units",
+        ],
     ),
     ("fune-report", &["sat-units"]),
     (
@@ -28,6 +35,7 @@ const ALLOWED: &[(&str, &[&str])] = &[
             "fune-report",
             "sat-analysis",
             "sat-astro",
+            "sat-checkkey",
             "sat-units",
         ],
     ),

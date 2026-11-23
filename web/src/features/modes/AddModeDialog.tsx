@@ -27,7 +27,7 @@ export function AddModeDialog({
   const ops: Op[] | null = id
     ? [{ op: "create_mode", id, label: label || id, description: null, copy_from: copy || null }]
     : null;
-  const error = useOpCheck(ops).error;
+  const failed = useOpCheck(ops).failed;
   return (
     <OpDialog
       open={open}
@@ -39,12 +39,12 @@ export function AddModeDialog({
       confirmLabel={ta.confirm}
     >
       <div className="grid grid-cols-2 gap-3">
-        <Field label="ID" htmlFor="mode-id" error={error}>
+        <Field label="ID" htmlFor="mode-id">
           <TextInput
             id="mode-id"
             mono
             value={id}
-            invalid={!!error}
+            invalid={failed}
             placeholder="DOWNLINK"
             onChange={(e) => setId(e.target.value)}
           />
