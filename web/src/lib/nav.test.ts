@@ -50,10 +50,10 @@ describe("paths", () => {
     expect(matches("/design/maneuvers/burn-1")).toBe(true);
   });
 
-  it("配置は設計のモードの次にあり、日英の表示名と専用ルートを持つ", () => {
+  it("配置は設計の系統図の前にあり、日英の表示名と専用ルートを持つ", () => {
     const items = nav(fixture.defs.systems).find((s) => s.id === "design")?.items ?? [];
-    const modes = items.findIndex((i) => i.key === "modes");
-    const layout = items[modes + 1];
+    const diagram = items.findIndex((i) => i.key === "diagram");
+    const layout = items[diagram - 1];
     expect(layout?.key).toBe("layout");
     expect(layout?.to).toBe(paths.layout());
     expect(paths.layout()).toBe("/design/layout");
