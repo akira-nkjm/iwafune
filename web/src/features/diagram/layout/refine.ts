@@ -10,7 +10,7 @@ import {
   snapDown,
 } from "./geometry";
 import type { Tree } from "./pack";
-import { type Alternative, compareEnds } from "./route";
+import { type Alternative, compareEnds, type Router } from "./route";
 import { absBox, wiresOf } from "./wires";
 
 const SIDES: readonly Side[] = ["left", "right", "top", "bottom"];
@@ -106,6 +106,7 @@ export function refinePorts(
   tree: Tree,
   geometry: DiagramLayout,
   mode: "sides" | "offsets",
+  routed?: Router,
 ): Proposal[] {
   const layout: DiagramLayout = {
     ...geometry,
@@ -129,7 +130,7 @@ export function refinePorts(
         key: side,
       })),
     );
-    const { base, costs } = compareEnds(wires, cards, frames, () => alts);
+    const { base, costs } = compareEnds(wires, cards, frames, () => alts, routed);
     return bestPerPort(ends, base, alts, costs).map((p) => ({
       port: p.port,
       side: p.key,
@@ -138,19 +139,31 @@ export function refinePorts(
   }
   {
     let alts: (Alternative & { port: string; key: number })[] = [];
-    const { base, costs } = compareEnds(wires, cards, frames, (routes) => {
-      alts = ends.flatMap((e) => {
-        const along = straightened(e, routes.get(e.wire) ?? []);
-        if (along === null) return [];
-        const vertical = e.at.side === "left" || e.at.side === "right";
-        const local = vertical ? { x: e.at.x, y: along } : { x: along, y: e.at.y };
-        const at = anchorOf({ x: e.card.x + local.x, y: e.card.y + local.y }, e.at.side);
-        return [
-          { wire: e.wire, end: e.end, terminal: { at, side: e.at.side }, port: e.port, key: along },
-        ];
-      });
-      return alts;
-    });
+    const { base, costs } = compareEnds(
+      wires,
+      cards,
+      frames,
+      (routes) => {
+        alts = ends.flatMap((e) => {
+          const along = straightened(e, routes.get(e.wire) ?? []);
+          if (along === null) return [];
+          const vertical = e.at.side === "left" || e.at.side === "right";
+          const local = vertical ? { x: e.at.x, y: along } : { x: along, y: e.at.y };
+          const at = anchorOf({ x: e.card.x + local.x, y: e.card.y + local.y }, e.at.side);
+          return [
+            {
+              wire: e.wire,
+              end: e.end,
+              terminal: { at, side: e.at.side },
+              port: e.port,
+              key: along,
+            },
+          ];
+        });
+        return alts;
+      },
+      routed,
+    );
     return bestPerPort(ends, base, alts, costs).map((p) => ({
       port: p.port,
       offset: p.key,
