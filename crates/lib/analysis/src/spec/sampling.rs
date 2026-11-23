@@ -11,7 +11,7 @@
 
 use sat_astro::constants::SECONDS_PER_DAY;
 use sat_astro::ephem::CentralBody;
-use sat_astro::orbit::OrbitSpec;
+use sat_astro::orbit::{Cycle, Trajectory};
 use sat_astro::timeline::{DEFAULT_STEP_S, OrbitSampling};
 use sat_units::typed::Qty;
 
@@ -59,29 +59,33 @@ pub fn step_for_period(period_s: f64, floor_s: f64, max_steps_per_orbit: f64) ->
     floor_s.max(period_s / max_steps_per_orbit)
 }
 
-/// 周期 `period_s` の軌道の時系列の既定の刻み [s]（[`step_for_period`] に 30 s・[`MAX_STEPS_PER_ORBIT`]）。
-pub fn orbit_step_s(period_s: f64) -> f64 {
-    step_for_period(period_s, DEFAULT_STEP_S, MAX_STEPS_PER_ORBIT)
+/// 繰り返し `cycle` の軌道の時系列の既定の刻み [s]（[`step_for_period`] に 30 s・[`MAX_STEPS_PER_ORBIT`]。
+/// 長さは [`Cycle::length_s`]。1 回限りの軌道（[`Cycle::OneOff`]）の期間の扱いは段階 C で決める。今は周期と同じ式で刻む）。
+pub fn orbit_step_s(cycle: Cycle) -> f64 {
+    step_for_period(cycle.length_s(), DEFAULT_STEP_S, MAX_STEPS_PER_ORBIT)
 }
 
-/// 期間の取り方 `span` の標本の取り方（刻みは周期から、β の指定なし）。
-pub fn sampling(orbit: OrbitSpec, span: SamplingSpan) -> OrbitSampling {
-    let period = orbit.period_s();
-    let orbits = match span {
-        SamplingSpan::Series(None) if orbit.central == CentralBody::Sun => {
+/// 期間の取り方 `span` の標本の取り方（刻みは繰り返しの長さから、β の指定なし）。
+/// 1 回限りの軌道（[`Cycle::OneOff`]）は周回数を使わず、その期間そのものを解く（周回数の指定は無視）。
+pub fn sampling(orbit: impl Into<Trajectory>, span: SamplingSpan) -> OrbitSampling {
+    let orbit = orbit.into();
+    let cycle = orbit.cycle();
+    let orbits = match (cycle, span) {
+        (Cycle::OneOff { .. }, _) => 1,
+        (_, SamplingSpan::Series(None)) if orbit.central() == CentralBody::Sun => {
             DEFAULT_HELIOCENTRIC_ORBITS
         }
         _ => span.orbits(),
     };
     OrbitSampling::new(
         orbit,
-        Qty::from_raw(period * f64::from(orbits)),
-        Qty::from_raw(orbit_step_s(period)),
+        Qty::from_raw(cycle.length_s() * f64::from(orbits)),
+        Qty::from_raw(orbit_step_s(cycle)),
     )
 }
 
 /// 軌道 [`orbit_count`] 周分の標本の取り方（刻みは周期から、β の指定なし）。
-pub fn orbits_sampling(orbit: OrbitSpec, orbits: Option<u32>) -> OrbitSampling {
+pub fn orbits_sampling(orbit: impl Into<Trajectory>, orbits: Option<u32>) -> OrbitSampling {
     sampling(orbit, SamplingSpan::Series(orbits))
 }
 
@@ -91,16 +95,21 @@ pub fn orbits_sampling(orbit: OrbitSpec, orbits: Option<u32>) -> OrbitSampling {
 pub const MAX_DAILY_STEP_S: f64 = 600.0;
 
 /// 1 日分の標本の取り方（地上局の可視・送信量。刻みは周期から、ただし [`MAX_DAILY_STEP_S`] まで。β の指定なし）。
-pub fn daily_sampling(orbit: OrbitSpec) -> OrbitSampling {
-    let step = orbit_step_s(orbit.period_s()).min(MAX_DAILY_STEP_S);
+pub fn daily_sampling(orbit: impl Into<Trajectory>) -> OrbitSampling {
+    let orbit = orbit.into();
+    let step = orbit_step_s(orbit.cycle()).min(MAX_DAILY_STEP_S);
     OrbitSampling::new(orbit, Qty::from_raw(SECONDS_PER_DAY), Qty::from_raw(step))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sat_astro::orbit::{OrbitElements, Propagator};
+    use sat_astro::orbit::{OrbitElements, OrbitSpec, Propagator};
     use sat_astro::time::Epoch;
+
+    fn periodic(period_s: f64) -> Cycle {
+        Cycle::Periodic { period_s }
+    }
 
     fn orbit() -> OrbitSpec {
         let elements = OrbitElements::with_defaults(
@@ -137,11 +146,11 @@ mod tests {
     /// それより長い周期は周期 / 200（静止軌道 86 164 s なら 430.82 s、1 周は 200 標本）。
     #[test]
     fn step_is_a_fraction_of_the_period_with_a_floor() {
-        assert_eq!(orbit_step_s(5400.0), 30.0);
-        assert_eq!(orbit_step_s(6000.0), 30.0);
-        assert!((orbit_step_s(86_164.0) - 86_164.0 / 200.0).abs() < 1e-12);
+        assert_eq!(orbit_step_s(periodic(5400.0)), 30.0);
+        assert_eq!(orbit_step_s(periodic(6000.0)), 30.0);
+        assert!((orbit_step_s(periodic(86_164.0)) - 86_164.0 / 200.0).abs() < 1e-12);
         // 1 周の標本数は、周期が 6000 s 以下なら周期 / 30 s（従来どおり）、それ以上は 200 で頭打ち
-        let steps = |period: f64| period / orbit_step_s(period);
+        let steps = |period: f64| period / orbit_step_s(periodic(period));
         assert_eq!(steps(5400.0), 180.0);
         assert!((steps(86_164.0) - 200.0).abs() < 1e-9);
         assert!((steps(6.0e5) - 200.0).abs() < 1e-9);

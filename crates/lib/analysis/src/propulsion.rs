@@ -9,6 +9,7 @@
 //! | `flight` | 数値伝搬（`propagated`）のマヌーバを推力を入れて伝搬し、マヌーバの順に軌道の推移を作る |
 //! | [`history`] | 軌道の推移（いつ・どの軌道にいるか）と時刻からの引き方 |
 //! | [`dated`] | 日付つきの惑星間遷移（マヌーバの `transfer`）の結果（C3・超過速度・赤緯・飛行時間・暦の出所）と判定 |
+//! | [`transfer_check`] | `propulsion.transfer_check` 日付つきの遷移を太陽と惑星の重力で数値伝搬し直した確認（到着のずれ・最接近・超過速度の差・軌跡）。伝搬は `sat_astro::transfer::check_cruise` |
 //! | [`maneuvers`] | `propulsion.maneuvers` マヌーバごとの ΔV・噴射時間・推薬・前後の軌道 |
 //! | [`mass_properties`] | `propulsion.mass_properties` 推薬を積んだとき（寿命初期）と使ったあと（寿命末期）の質量と重心 |
 //! | [`orbit_history`] | `propulsion.orbit_history` マヌーバの順の軌道の推移（時系列） |
@@ -30,6 +31,7 @@ mod plan;
 pub mod propellant;
 mod sequence;
 pub mod thruster_usage;
+pub mod transfer_check;
 
 pub use dated::DatedTransferResult;
 pub use dv_budget::{DvBudget, DvBudgetOutput};
@@ -44,6 +46,9 @@ pub use mass_properties::{PropellantMassInput, PropellantMassOutput, PropellantM
 pub use orbit_history::{OrbitHistoryAnalysis, OrbitHistoryOutput, orbit_history};
 pub use propellant::{Propellant, PropellantOutput};
 pub use thruster_usage::{ThrusterUsage, ThrusterUsageOutput};
+pub use transfer_check::{
+    TransferCheck, TransferCheckNote, TransferCheckOutput, TransferCheckResult,
+};
 
 #[cfg(test)]
 mod dated_tests;
@@ -51,3 +56,5 @@ mod dated_tests;
 mod propagated_tests;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod transfer_check_tests;

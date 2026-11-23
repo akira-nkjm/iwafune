@@ -10,7 +10,7 @@
 //! | 部品のポート・取付・姿勢 | `RW_X.PWR`・`RW_X.mount`・`RW_X.pose`・`PANEL_MZ.mount_points.RW_SLOT_1` |
 //! | どれかの部品（役割で絞る） | `<部品>.power`・`<solar_panel>`・`<obc>.storage_capacity` |
 //! | 判定の基準を持つ要求（まだ無い） | `requirement[power.energy_balance/dod]`・`requirement[budget/mass]` |
-//! | モード・ネット・ハーネス・ケース・マヌーバ・フェーズ・要求 | `modes.NOMINAL.TRX`・`nets.P12V.rail`・`harness.H1.length`・`cases.HOT.beta`・`maneuvers.RAISE.thruster`・`phases.LEOP.orbit.altitude`・`requirements.R_MASS.verify.check` |
+//! | モード・ネット・ハーネス・ケース・マヌーバ・フェーズ・形態・要求 | `modes.NOMINAL.TRX`・`nets.P12V.rail`・`harness.H1.length`・`cases.HOT.beta`・`maneuvers.RAISE.thruster`・`phases.LEOP.orbit.altitude`・`configurations.STOWED.pose.SAP_PY`・`requirements.R_MASS.verify.check` |
 //! | カタログ品・定義・図・出典 | `local/rw_10mNms.mass`・`mass`・`reaction_wheel`・`view.electrical.POWER`・`sources.em_test` |
 
 use crate::path::{AttrPath, ParamPath, PortRef, SettingPath};
@@ -60,6 +60,8 @@ pub enum Target {
     Maneuver { id: String, field: Option<String> },
     /// フェーズ（`field` は `duration`・`orbit.altitude`・`law.NOMINAL.law` など）
     Phase { id: String, field: Option<String> },
+    /// 形態（`field` は `pose.SAP_PY` など）
+    Configuration { id: String, field: Option<String> },
     /// 要求（`field` は `constraint.value`・`verify.check` など）
     Requirement { id: String, field: Option<String> },
     /// 判定の基準を持つ要求（まだ無いとき）。`subject` は基準を取る判定（`power.energy_balance/dod`・`budget/mass`）
@@ -155,6 +157,22 @@ impl Target {
     /// フェーズ（`field` があればそのキー。`phases.LEOP.orbit.altitude`）。
     pub fn phase(id: impl Into<String>, field: Option<&str>) -> Self {
         Target::Phase {
+            id: id.into(),
+            field: field.map(str::to_owned),
+        }
+    }
+
+    /// 部品の姿勢（`mount_point` があれば、その取付点の姿勢）。
+    pub fn pose(part: &str, mount_point: Option<&str>) -> Self {
+        Target::Pose {
+            part: part.to_owned(),
+            mount_point: mount_point.map(str::to_owned),
+        }
+    }
+
+    /// 形態（`field` があればそのキー。`configurations.STOWED.pose.SAP_PY`）。
+    pub fn configuration(id: impl Into<String>, field: Option<&str>) -> Self {
+        Target::Configuration {
             id: id.into(),
             field: field.map(str::to_owned),
         }
@@ -275,6 +293,9 @@ impl fmt::Display for Target {
             Target::Phase { id, field } => {
                 with_tail(f, format_args!("phases.{id}"), field.as_deref())
             }
+            Target::Configuration { id, field } => {
+                with_tail(f, format_args!("configurations.{id}"), field.as_deref())
+            }
             Target::Requirement { id, field } => {
                 with_tail(f, format_args!("requirements.{id}"), field.as_deref())
             }
@@ -369,6 +390,10 @@ mod tests {
             (
                 Target::phase("LEOP", Some("orbit.altitude")),
                 "phases.LEOP.orbit.altitude",
+            ),
+            (
+                Target::configuration("STOWED", Some("pose.SAP_PY")),
+                "configurations.STOWED.pose.SAP_PY",
             ),
             (
                 Target::Catalog {

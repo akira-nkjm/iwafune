@@ -173,7 +173,7 @@ impl Analysis for ThermalTransient {
         let specs = net.heaters(&input.heaters)?;
         let phases = Phases::new(&net, &input.phases, &input.heaters)?;
         let timeline = &input.timeline;
-        let central = timeline.orbit().central;
+        let central = timeline.orbit().central();
         let env = input.environment.resolve(central)?;
         let cfg = integration::integrator(input)?;
         let evaluator = TimelineEvaluator::new(timeline)?;
@@ -182,7 +182,7 @@ impl Analysis for ThermalTransient {
         let temps = initial(&net, input, timeline, &phases, &specs)?;
         let t0 = t.first().copied().unwrap_or(0.0);
         let t_end = t.last().copied().unwrap_or(0.0);
-        let window_start = t0.max(t_end - timeline.orbit().period_s());
+        let window_start = t0.max(t_end - timeline.orbit().cycle().length_s());
         let mut control =
             HeaterControl::new(&specs, &temps, phases.enabled_at(t0), t0, window_start);
         let sim = Simulation {

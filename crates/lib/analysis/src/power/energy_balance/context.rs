@@ -6,6 +6,7 @@
 use super::{EnergyBalanceBattery, EnergyBalanceInput, SolarProfile};
 use crate::spec::{AnalysisError, orbit_ranges};
 use sat_astro::attitude::AttitudeLaw;
+use sat_astro::orbit::Cycle;
 use sat_astro::timeline::{self, TimelineSpec};
 use std::collections::BTreeMap;
 use std::ops::Range;
@@ -63,7 +64,8 @@ pub(super) struct Context<'a> {
     /// 発電（倍率込み）[W]
     pub(super) generation: Vec<f64>,
     pub(super) ranges: Vec<Range<usize>>,
-    pub(super) period_s: f64,
+    /// 繰り返しの長さ（周期、または 1 回限りの期間。長さは [`Context::period_s`]）
+    pub(super) cycle: Cycle,
     /// モードの姿勢則での発電の作り置き（無ければその場で作る）
     laws: Option<&'a LawGeneration>,
     /// 発電の倍率
@@ -71,19 +73,24 @@ pub(super) struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
+    /// 繰り返しの長さ [s]（周回の区切り・1 周あたりの量に使う）。
+    pub(super) fn period_s(&self) -> f64 {
+        self.cycle.length_s()
+    }
+
     pub(super) fn new(
         input: &'a EnergyBalanceInput,
         battery: &'a EnergyBalanceBattery,
         profile: &'a SolarProfile,
-        period_s: f64,
+        cycle: Cycle,
     ) -> Self {
         Self {
             generation: profile.total(input.life()),
-            ranges: orbit_ranges(&profile.t, period_s),
+            ranges: orbit_ranges(&profile.t, cycle),
             input,
             battery,
             profile,
-            period_s,
+            cycle,
             laws: None,
             scale: 1.0,
         }
@@ -107,7 +114,7 @@ impl<'a> Context<'a> {
             profile: self.profile,
             generation,
             ranges: self.ranges.clone(),
-            period_s: self.period_s,
+            cycle: self.cycle,
             laws: self.laws,
             scale: self.scale,
         }

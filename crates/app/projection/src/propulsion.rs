@@ -1,5 +1,6 @@
 //! 推進系の射影: `propulsion.maneuvers`・`propulsion.dv_budget`・`propulsion.propellant`・`propulsion.thruster_usage`・
-//! `propulsion.orbit_history`（同じ入力 `PropulsionInput`。RCS のアンロードは ΔV バジェットだけが使う）と
+//! `propulsion.orbit_history`・`propulsion.transfer_check`（同じ入力 `PropulsionInput`。日付つきの遷移の日付は `maneuver_dates` が読んだものを
+//! マヌーバの入力に写すだけで、遷移が無ければ解析が空の結果を返す。RCS のアンロードは ΔV バジェットだけが使う）と
 //! `propulsion.mass_properties`（質量特性の入力も足す）。
 //!
 //! - 数値伝搬（`propagated`）のマヌーバは `[constraints]` を `ThrustConstraints` に写し、無視した制約にしない。

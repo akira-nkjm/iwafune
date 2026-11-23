@@ -275,9 +275,9 @@ impl Analysis for EnergyBalance {
         input.array.validate()?;
         super::mode_load::validate(&input.loads)?;
         sequence::validate(input)?;
-        let period_s = input.timeline.orbit().period_s();
+        let cycle = input.timeline.orbit().cycle();
         let main = profile(input, &input.timeline)?;
-        let ctx = Context::new(input, &battery, &main, period_s);
+        let ctx = Context::new(input, &battery, &main, cycle);
         let base = duration::BaseMode::new(&ctx)?;
         let mut cases = Vec::with_capacity(input.cases.len());
         for c in &input.cases {
@@ -287,7 +287,7 @@ impl Analysis for EnergyBalance {
             };
             let own_ctx = own
                 .as_ref()
-                .map(|p| Context::new(input, &battery, p, period_s));
+                .map(|p| Context::new(input, &battery, p, cycle));
             let case_ctx = own_ctx.as_ref().unwrap_or(&ctx);
             let (mut result, _) = evaluate_case(case_ctx, c)?;
             duration::apply(case_ctx, c, base.as_ref(), &mut result)?;
@@ -318,7 +318,7 @@ impl Context<'_> {
             mode_loads,
             dod_limit: Fraction::new(self.battery.dod_limit),
             min_allowed_soc: Fraction::new(1.0 - self.battery.dod_limit),
-            period: Qty::from_raw(self.period_s),
+            period: Qty::from_raw(self.period_s()),
             complete_orbits: self.ranges.len(),
             span_fallback: span_fallback(self.ranges.len(), SpanFallback::OrbitMeanOverSpan),
             orbit_average_generation: Qty::from_raw(orbit_mean(

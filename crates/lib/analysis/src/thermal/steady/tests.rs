@@ -126,12 +126,14 @@ fn storage_range_and_uncertainty_by_hand() {
 fn orbit_average_cube() {
     use crate::thermal::orbit_heat::fixtures::{cube, leo_timeline};
     let mut tl = leo_timeline(1.0, 20.0);
-    let period = tl.orbit().period_s();
+    let period = tl.orbit().cycle().length_s();
     tl.sampling.span = Qty::from_raw(period);
     let samples = sat_astro::timeline::build(&tl).unwrap();
     let t: Vec<f64> = samples.iter().map(|s| s.t_s).collect();
     // 1 周回（両端を含む）で台形則の時間平均を取る。
-    let r = crate::spec::orbit_ranges(&t, period)[0].clone();
+    let r = crate::spec::orbit_ranges(&t, sat_astro::orbit::Cycle::Periodic { period_s: period })
+        [0]
+    .clone();
     let idx = r.start..=r.end.min(t.len() - 1);
     let q = |i: usize| {
         let d = samples[i].sun_dir_body();

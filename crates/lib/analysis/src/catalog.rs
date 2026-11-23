@@ -57,6 +57,7 @@ registry!(
     propulsion::Propellant,
     propulsion::ThrusterUsage,
     propulsion::OrbitHistoryAnalysis,
+    propulsion::TransferCheck,
     propulsion::PropellantMassProperties,
     structure::MassProperties,
     structure::StaticLoad,
