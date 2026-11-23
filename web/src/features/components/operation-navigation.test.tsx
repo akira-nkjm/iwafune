@@ -57,7 +57,7 @@ vi.mock("@/kit/detail/use-dialogs", () => ({
   useDialogs: () => ({ current: state.dialog, props: { open: true, onOpenChange: state.close } }),
 }));
 vi.mock("@/ops/use-op-check", () => ({
-  useOpCheck: () => ({ ok: true, error: null }),
+  useOpCheck: () => ({ ok: true, failed: false, previewError: null }),
 }));
 vi.mock("@/api/ops", () => ({ useApplyOps: () => mutation() }));
 

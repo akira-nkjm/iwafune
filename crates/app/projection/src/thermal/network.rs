@@ -134,7 +134,7 @@ fn required_ranges(
     node: &str,
 ) -> BTreeMap<String, ThermalRequiredRange> {
     let bound = |side: ThermalRangeSide, kind: ThermalRangeKind| {
-        let key = format!("{}:{node}:{}", side.key_prefix(), kind.key());
+        let key = sat_checkkey::thermal_range(side.key_prefix(), node, kind.key());
         ctx.criterion(analysis, &key).map(|c| ThermalRequiredBound {
             limit: Qty::from_raw(c.si),
             requirement: c.requirement,

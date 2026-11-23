@@ -42,7 +42,7 @@ export function RenameDialog({
   const id = useId();
   const [to, setTo] = useState(from);
   const ops = to && to !== from ? opsFor(to) : null;
-  const error = useOpCheck(open ? ops : null).error;
+  const failed = useOpCheck(open ? ops : null).failed;
   return (
     <OpDialog
       open={open}
@@ -54,12 +54,12 @@ export function RenameDialog({
       confirmLabel={confirmLabel}
       onDone={() => onDone?.(to)}
     >
-      <Field label={label} htmlFor={id} error={error} hint={hint}>
+      <Field label={label} htmlFor={id} hint={hint}>
         <TextInput
           id={id}
           mono
           value={to}
-          invalid={!!error}
+          invalid={failed}
           onChange={(e) => setTo(e.target.value)}
         />
       </Field>

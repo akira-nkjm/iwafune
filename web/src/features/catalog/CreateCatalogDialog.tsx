@@ -54,7 +54,7 @@ export function CreateCatalogDialog({
         ]
       : null;
   // ID の規則と重複はサーバー（dry_run）が検査する
-  const error = useOpCheck(ops).error;
+  const failed = useOpCheck(ops).failed;
   return (
     <OpDialog
       open={open}
@@ -81,17 +81,12 @@ export function CreateCatalogDialog({
               options={writable.map((c) => ({ value: c, label: c }))}
             />
           </Field>
-          <Field
-            label={t.catalog.itemName}
-            htmlFor="cat-name"
-            error={error}
-            hint={t.catalog.itemNameHint}
-          >
+          <Field label={t.catalog.itemName} htmlFor="cat-name" hint={t.catalog.itemNameHint}>
             <TextInput
               id="cat-name"
               mono
               value={name}
-              invalid={!!error}
+              invalid={failed}
               onChange={(e) => setName(e.target.value)}
             />
           </Field>

@@ -29,7 +29,7 @@ pub(crate) fn range_checks(
                 format!("{word} {}", t(predicted))
             };
             checks.push(Check::new(
-                &format!("{}:{node}:{}", side.key_prefix(), m.kind.key()),
+                &sat_checkkey::thermal_range(side.key_prefix(), node, m.kind.key()),
                 &format!("{node} {word} temperature ({})", m.kind.noun()),
                 m.side_verdict(side, margin),
                 format!(

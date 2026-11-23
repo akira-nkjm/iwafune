@@ -72,11 +72,65 @@ pub fn si<D: Dimension>(q: &Quantity) -> Result<Qty<D>, String> {
         .map_err(|e| e.to_string())
 }
 
-/// 量を dB に（単位どおりに SI の線形の比へ直してから `sat_units::ratio_to_db`。単位の無い値は線形の比、`dB` と書けば dB）。
-pub fn db(q: Option<&Quantity>) -> Option<Decibel> {
+/// 書かれた量を dB にする（単位どおりに SI の線形の比へ直してから `sat_units::ratio_to_db`。単位の無い値は線形の比、`dB` と書けば dB）。
+/// 単位が読めない・比が正でないときは理由を返す。
+fn read_db(q: &Quantity) -> Result<Decibel, String> {
+    let ratio = fune_model::value::units::to_si(q.value, &q.unit).map_err(|e| e.to_string())?;
+    ratio_db(ratio).ok_or_else(|| format!("{} is not a positive ratio", q.value))
+}
+
+/// 任意の dB の量（損失など）。**書かれていなければ `None`（記録しない）。書かれていて読めなければ、対象を名指しして不足入力に記録して `None`**
+/// （読めないものを黙って無いことにすると、損失が無いものとして余裕が楽観になる）。
+pub fn db_opt(
+    q: Option<&Quantity>,
+    target: impl Into<Target>,
+    m: &mut MissingInputs,
+) -> Option<Decibel> {
     let q = q?;
-    let ratio = fune_model::value::units::to_si(q.value, &q.unit).ok()?;
-    ratio_db(ratio)
+    match read_db(q) {
+        Ok(v) => Some(v),
+        Err(e) => {
+            m.push(target, format!("Cannot read the value as dB ({e})"));
+            None
+        }
+    }
+}
+
+/// 必須の dB の量。無いときも読めないときも、対象を名指しして不足入力に記録して `None`。
+pub fn db_need(
+    q: Option<&Quantity>,
+    target: impl Into<Target>,
+    reason: &str,
+    m: &mut MissingInputs,
+) -> Option<Decibel> {
+    let Some(q) = q else {
+        m.push(target, reason);
+        return None;
+    };
+    match read_db(q) {
+        Ok(v) => Some(v),
+        Err(e) => {
+            m.push(target, format!("{reason} ({e})"));
+            None
+        }
+    }
+}
+
+/// 解決済みの線形の比を dB にする。比が正でなければ、対象を名指しして不足入力に記録して `None`。
+pub fn ratio_db_need(
+    ratio: f64,
+    target: impl Into<Target>,
+    reason: &str,
+    m: &mut MissingInputs,
+) -> Option<Decibel> {
+    let db = ratio_db(ratio);
+    if db.is_none() {
+        m.push(
+            target,
+            format!("{reason} ({ratio} is not a positive ratio)"),
+        );
+    }
+    db
 }
 
 /// 線形の比（解決済みの値）を dB に（`sat_units::ratio_to_db`）。正でなければ `None`。

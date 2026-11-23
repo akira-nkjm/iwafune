@@ -25,7 +25,7 @@ pub(super) fn checks(
         for c in station_closures {
             if c.closure == DataThroughputLinkClosure::NeverCloses {
                 out.push(Check::new(
-                    &format!("link_closes:{}", c.station),
+                    &sat_checkkey::link_closes(&c.station),
                     &format!("Link ({})", c.station),
                     Verdict::Warning,
                     format!(

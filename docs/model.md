@@ -28,7 +28,7 @@ The keys are `conditions.orbit.altitude`, `conditions.launch.<field>` and `condi
 A ground station file (`label`, `latitude`, `longitude`, `altitude`, `min_elevation`, and per-band `[link.<band>]`) is edited as follows (all of it goes through Ops, so no file needs to be written by hand):
 
 - `fune ground add <ID> [--label …] [--latitude "35.7 deg"] [--longitude "139.7 deg"] [--altitude "40 m"] [--min-elevation "10 deg"]` (Op `create_ground_station`; the GUI sends the typed text to `POST /ops/from_command` as `{ "command": "ground_add", … }`)
-  creates `conditions/ground/<ID>.toml` in canonical form. Renaming or removing a station is also refused while a requirement's `verify.check` names it (for example `margin:<link>@<ID>`); update or remove those requirements first (temporary, until the key is structured; #328). The ID follows the ID rules and must not collide with an existing station (a difference only in letter case collides); the units are checked by `fune check`.
+  creates `conditions/ground/<ID>.toml` in canonical form. Renaming a station rewrites the `verify.check` of requirements that name it (for example `margin:<link>@<ID>`, `link_closes:<ID>`); removing it is refused while a requirement's `verify.check` names it (update or remove those requirements first). The ID follows the ID rules and must not collide with an existing station (a difference only in letter case collides); the units are checked by `fune check`.
 - A value of an existing station is changed with `fune set conditions.ground.<ID>.<field> …` (`SetSetting`; it does not create a station: an unknown `<ID>` is refused, so add it with `fune ground add` first), including a band: `fune set conditions.ground.<ID>.link.<band>.antenna_gain "14 dBi"`. `fune unset conditions.ground.<ID>.link.<band>` removes a band.
 - `fune ground rename <ID> <NEW>` (Op `rename_ground_station`) moves the file and rewrites the station list `stations` of `analysis/comm.toml`.
 - `fune ground rm <ID>` (Op `remove_ground_station`) removes the file. It is **refused while `analysis.comm.stations` lists the station** (an empty `stations` means every station is used, so nothing refers to a particular one);
@@ -806,8 +806,8 @@ A link cannot be built one field at a time with `fune set`, because a link witho
   writes `[link.<name>]` with just those three keys (creating `analysis/comm.toml` if needed); the rest is set with `fune set analysis.comm.link.<name>.<key> …`.
   The name follows the ID rules and must not collide with an existing link (a difference only in letter case collides). A missing part is refused by the final check (`ref.part`); a band that a listed station lacks is only a warning (`ref.band`).
 - `fune link rename <name> <new>` (Op `rename_comm_link`) renames the table and rewrites `data_downlink` and the `verify.check` of requirements that name the link
-  (`margin:<link>`, `margin:<link>@<station>`, `pfd:<link>`, `pfd:<link>@<station>`; the key format is the analysis's, and `Verification::check_names_link` is the provisional mirror of it, checked against the analysis output in a fune-projection test; #328).
-  The reference index returns these as `Referent::Link` (`RefSite::{CommDataDownlink, RequirementLinkCheck}`).
+  (`margin:<link>`, `margin:<link>@<station>`, `pfd:<link>`, `pfd:<link>@<station>`). The key format is the analysis's and is defined once in the `sat-checkkey` crate, which both the analyses (building keys) and `Verification::{check_names, check_with_renamed}` (reading and rewriting the names in a key) use.
+  The reference index returns these as `Referent::Link` (`RefSite::{CommDataDownlink, RequirementCheck}`).
 - `fune link rm <name>` (Op `remove_comm_link`) removes the table (and the `link` table when it was the last one), and clears `data_downlink` if it named the link.
   It is refused while a requirement's `verify.check` names the link; update or remove those requirements first.
 

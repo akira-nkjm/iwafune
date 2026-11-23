@@ -36,15 +36,12 @@ fn system_source(id: &str) -> String {
     out
 }
 
-/// 文字列がソースに現れるか（キーは `"key"`、接頭辞は `"prefix…` の形の文字列の頭。
-/// 種類の名前とコロンを別々に組み立てるキー（`"panel"` と `:{id}`）のために、コロンを除いた `"prefix"` も認める）。
+/// 文字列がソースに現れるか（キーは `"key"`。族は sat-checkkey の書式の表にあるか）。
 fn in_source(source: &str, m: CheckMatch) -> bool {
     match m {
         CheckMatch::Exact(k) => source.contains(&format!("\"{k}\"")),
-        CheckMatch::Prefix(p) => {
-            source.contains(&format!("\"{p}"))
-                || source.contains(&format!("\"{}\"", p.trim_end_matches(':')))
-        }
+        // 族のキーの書式は sat-checkkey が持つ（解析のソースには族の名前の文字列が無い）ので、書式の表にある族かで見る
+        CheckMatch::Prefix(p) => sat_checkkey::is_family(p),
         _ => unreachable!("named() only handles Exact and Prefix"),
     }
 }
@@ -88,7 +85,7 @@ fn the_guard_rejects_unknown_keys() {
     assert!(in_source(&source, CheckMatch::Exact("sap_margin")));
     assert!(!in_source(&source, CheckMatch::Exact("sap_margins")));
     assert!(!emitted_by_demo(
-        CheckMatch::Prefix("range_high:"),
+        CheckMatch::Prefix(sat_checkkey::family::RANGE_HIGH),
         &["dod".to_owned()]
     ));
 }

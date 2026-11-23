@@ -191,7 +191,8 @@ fn rename_sites(
         | Referent::Case(id)
         | Referent::Source(id)
         | Referent::Maneuver(id)
-        | Referent::Link(id) => id,
+        | Referent::Link(id)
+        | Referent::ThermalNode(id) => id,
     };
     for site in design.references(referent) {
         rename_at(edits, design, &site, (from, to), moved)?;
@@ -230,8 +231,6 @@ fn rename_at(
         | RefSite::AttitudeLaw
         | RefSite::CommStation
         | RefSite::ThermalCaseMode { .. } => rename_setting_at(edits, site, names),
-        // 判定のキーは解析が持つ書式なので書き換えない（名前の変更は ops が先に拒む）
-        RefSite::RequirementCheck { .. } => Ok(()),
         RefSite::PortNet { .. }
         | RefSite::HarnessNet { .. }
         | RefSite::PartCatalog { .. }
@@ -255,9 +254,7 @@ fn rename_at(
         | RefSite::RequirementSource { .. }
         | RefSite::ManeuverAfter { .. }
         | RefSite::CommDataDownlink
-        | RefSite::RequirementLinkCheck { .. } => {
-            records::rename_record_at(edits, design, site, names)
-        }
+        | RefSite::RequirementCheck { .. } => records::rename_record_at(edits, design, site, names),
     }
 }
 

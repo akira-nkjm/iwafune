@@ -35,7 +35,8 @@ export function ManeuverDialog({
   const bodies = useEnumOptions("central_body");
   const steerings = useEnumOptions("maneuver_steering");
   const made = useCommandOps(maneuverCommand(text, adding));
-  const error = useOpCheck(made.ops).error ?? made.error;
+  const failed = useOpCheck(made.ops).failed;
+  const error = made.error;
   const set = (key: keyof ManeuverText, value: string) => setText((s) => ({ ...s, [key]: value }));
   const others = design.maneuvers.filter((m) => m.id !== text.id);
   const input = (key: TextKey, label: string, placeholder?: string) => (
@@ -78,7 +79,7 @@ export function ManeuverDialog({
             mono
             value={text.id}
             disabled={!adding}
-            invalid={!!error}
+            invalid={failed || !!error}
             placeholder="RAISE"
             onChange={(e) => set("id", e.target.value)}
           />

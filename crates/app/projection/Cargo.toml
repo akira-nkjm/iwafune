@@ -14,6 +14,7 @@ workspace = true
 fune-model = { workspace = true }
 sat-analysis = { workspace = true, features = ["ts"] }
 sat-astro = { workspace = true }
+sat-checkkey = { workspace = true }
 sat-units = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

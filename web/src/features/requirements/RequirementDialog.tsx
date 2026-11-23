@@ -38,7 +38,8 @@ export function RequirementDialog({
   const analyses = useQuery(q.analyses()).data ?? [];
   const dimensions = useQuery(q.units()).data?.dimensions ?? [];
   const made = useCommandOps(requirementCommand(text, adding));
-  const error = useOpCheck(made.ops).error ?? made.error;
+  const failed = useOpCheck(made.ops).failed;
+  const error = made.error;
   const set = (key: keyof RequirementText, value: string) =>
     setText((s) => ({ ...s, [key]: value }));
   const input = (key: TextKey, label: string, placeholder?: string, hint?: string) => (
@@ -82,7 +83,7 @@ export function RequirementDialog({
             mono
             value={text.id}
             disabled={!adding}
-            invalid={!!error}
+            invalid={failed || !!error}
             placeholder="R_MASS"
             onChange={(e) => set("id", e.target.value)}
           />

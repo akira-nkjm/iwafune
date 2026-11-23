@@ -337,7 +337,7 @@ fn interface_check(input: &StaticLoadInput, m: &StaticLoadMountResult) -> Option
         "No allowable values".to_owned()
     };
     Some(Check::new(
-        &format!("interface:{}", m.mount),
+        &sat_checkkey::mount_interface(&m.mount),
         &format!("{} mount", m.mount),
         m.verdict,
         text,

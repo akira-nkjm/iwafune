@@ -9,29 +9,27 @@
 //! - 衛星側のアンテナ利得は、回線の `antenna`（部品 ID）があればその部品の `antenna_gain`、無ければ送受信機の `antenna_gain`。
 //! - 地上局の `g_over_t` があれば、下りの受信側の G/T として渡す（どちらを使うかは解析が決める）。
 
+mod gains;
 mod throughput;
 
 pub use throughput::data_throughput;
 
 use crate::context::Context;
 use crate::missing::MissingInputs;
-use crate::quantity::{db, ratio_db, setting, setting_opt};
+use crate::quantity::{db_opt, ratio_db, setting, setting_opt};
 use crate::timeline;
-use fune_model::Target;
 use fune_model::design::setting_dims as dims;
 use fune_model::design::{
     AnalysisSystem, CommLinkSettings, CommSettings, GroundStationSettings, LinkDirection,
 };
 use fune_model::path::SettingPath;
 use fune_model::resolve::ResolvedPart;
+use gains::{given_g_over_t, ground_gain_db, required_eb_n0, sat_gain_db};
 use sat_analysis::comm::link_budget::{LinkBudgetDirection, LinkBudgetLink};
 use sat_analysis::comm::{LinkBudgetInput, RfLinkParams, VisibilityInput};
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
-use sat_units::typed::{
-    DataRate, Decibel, DecibelPerKelvin, Dimensionless, Frequency, Length, Power, Qty, Temperature,
-    Time,
-};
+use sat_units::typed::{DataRate, Decibel, Frequency, Length, Power, Qty, Temperature, Time};
 
 fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a CommSettings> {
     let s = ctx.design.analysis.comm.as_ref();
@@ -127,11 +125,7 @@ fn budget_link(
     m: &mut MissingInputs,
 ) -> Option<LinkBudgetLink> {
     let (rf, data_rate) = rf_params(ctx, name, link, &station.id, m)?;
-    let required = m.need(
-        db(link.ebn0_required.as_ref()),
-        dims::COMM_EBN0_REQUIRED.at(&[name]),
-        "Required Eb/N0 (dB)",
-    );
+    let required = required_eb_n0(name, link, m);
     Some(LinkBudgetLink {
         name: name.to_owned(),
         station: station.id.clone(),
@@ -165,7 +159,10 @@ fn budget_link(
 /// この回線 × 局の要求する回線余裕（`comm.link_budget` の `margin:<回線>@<局>` の基準。要求が無ければ `None` で、既定値は解析が持つ）。
 /// 通信の解析の判定のキーの書式はここと解析が持つ（`margin:{回線}@{局}`）。
 pub(crate) fn margin_criterion(ctx: &Context<'_>, link: &str, station: &str) -> Option<Decibel> {
-    let c = ctx.criterion("comm.link_budget", &format!("margin:{link}@{station}"))?;
+    let c = ctx.criterion(
+        "comm.link_budget",
+        &sat_checkkey::link_margin(link, station),
+    )?;
     ratio_db(c.si)
 }
 
@@ -179,7 +176,7 @@ fn pfd_criterion(
     if direction != LinkDirection::Down {
         return None;
     }
-    let c = ctx.criterion("comm.link_budget", &format!("pfd:{link}@{station}"))?;
+    let c = ctx.criterion("comm.link_budget", &sat_checkkey::link_pfd(link, station))?;
     ratio_db(c.si)
 }
 
@@ -214,15 +211,9 @@ fn rf_params(
     };
     // G/T を直接与える下りは、地上局の利得と雑音温度を省略できる（それ以外は必須）。
     let direct = g_over_t.is_some();
-    let ground_gain = need_unless(
-        db(ground.antenna_gain.as_ref()),
-        direct,
-        dims::GROUND_ANTENNA_GAIN.at(&at),
-        "Ground station antenna gain (dBi)",
-        m,
-    );
-    let sat_loss = db(link.line_loss.as_ref());
-    let ground_loss = db(ground.line_loss.as_ref());
+    let ground_gain = ground_gain_db(ground, &at, direct, m);
+    let sat_loss = db_opt(link.line_loss.as_ref(), dims::COMM_LINE_LOSS.at(&[name]), m);
+    let ground_loss = db_opt(ground.line_loss.as_ref(), dims::GROUND_LINE_LOSS.at(&at), m);
     let (tx_power, noise) = power_and_noise(ctx, part, ground, &at, (down, direct), m);
     let (sat_gain, ground_gain, noise) = (sat_gain?, ground_gain?, noise?);
     let (tx_gain_db, rx_gain_db, tx_loss_db, rx_loss_db) = if down {
@@ -239,10 +230,26 @@ fn rf_params(
         rx_loss_db,
         system_noise_temperature: noise,
         rx_g_over_t_dbk: g_over_t,
-        atmospheric_loss_db: db(link.atmospheric_loss.as_ref()),
-        polarization_loss_db: db(link.polarization_loss.as_ref()),
-        pointing_loss_db: db(link.pointing_loss.as_ref()),
-        other_loss_db: db(link.implementation_loss.as_ref()),
+        atmospheric_loss_db: db_opt(
+            link.atmospheric_loss.as_ref(),
+            dims::COMM_ATMOSPHERIC_LOSS.at(&[name]),
+            m,
+        ),
+        polarization_loss_db: db_opt(
+            link.polarization_loss.as_ref(),
+            dims::COMM_POLARIZATION_LOSS.at(&[name]),
+            m,
+        ),
+        pointing_loss_db: db_opt(
+            link.pointing_loss.as_ref(),
+            dims::COMM_POINTING_LOSS.at(&[name]),
+            m,
+        ),
+        other_loss_db: db_opt(
+            link.implementation_loss.as_ref(),
+            dims::COMM_IMPLEMENTATION_LOSS.at(&[name]),
+            m,
+        ),
     };
     Some((rf, rate?))
 }
@@ -264,32 +271,6 @@ fn frequency_and_rate(
         crate::parts::part_qty::<Frequency>(ctx, part, freq_attr, why, m),
         crate::parts::part_qty::<DataRate>(ctx, part, rate_attr, why, m),
     )
-}
-
-/// 値が無いとき、`optional` なら省略（`Some(None)`）、そうでなければ不足入力に記録する（`None`）。
-fn need_unless<T>(
-    value: Option<T>,
-    optional: bool,
-    target: impl Into<Target>,
-    why: &str,
-    m: &mut MissingInputs,
-) -> Option<Option<T>> {
-    if optional {
-        Some(value)
-    } else {
-        m.need(value, target, why).map(Some)
-    }
-}
-
-/// 地上局が与えた G/T [dB/K]（`g_over_t`。単位は `dB`。あれば解析は利得・雑音温度から求めずにこれを使う）。
-fn given_g_over_t(
-    ground: &fune_model::design::GroundLinkSettings,
-    at: &[&str],
-    m: &mut MissingInputs,
-) -> Option<DecibelPerKelvin> {
-    let ratio =
-        setting_opt::<Dimensionless>(&dims::GROUND_G_OVER_T, at, ground.g_over_t.as_ref(), m)?;
-    ratio_db(ratio.value()).map(|d| DecibelPerKelvin::new(d.value()))
 }
 
 /// 送信電力（送信側）と雑音温度（受信側）。下りは衛星が送信、上りは地上局が送信。`at` は (地上局, 帯域)、
@@ -321,31 +302,6 @@ fn power_and_noise(
             crate::parts::part_qty::<Temperature>(ctx, part, "noise_temperature", why, m).map(Some),
         )
     }
-}
-
-/// Spacecraft antenna gain [dB]（回線の `antenna` の部品、無ければ送受信機の `antenna_gain`。
-/// 解決済みの値は線形の比なので dB に戻す）。
-fn sat_gain_db(
-    ctx: &Context<'_>,
-    name: &str,
-    link: &CommLinkSettings,
-    transceiver: &ResolvedPart,
-    m: &mut MissingInputs,
-) -> Option<Decibel> {
-    let part = match &link.antenna {
-        Some(id) => m.need(
-            ctx.resolved.parts.get(id.as_str()),
-            comm(&["link", name, "antenna"]),
-            "Link antenna (part id)",
-        )?,
-        None => transceiver,
-    };
-    let ratio = m.need(
-        ctx.scalar(part, "antenna_gain"),
-        Target::attr(&part.id, "antenna_gain"),
-        "Spacecraft antenna gain",
-    );
-    ratio.and_then(ratio_db)
 }
 
 fn ground_link<'a>(

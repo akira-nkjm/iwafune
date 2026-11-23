@@ -131,11 +131,15 @@ pub(super) fn rename_record_at(
             set_top(edits, &layout::maneuver_file(maneuver), "after", to)
         }
         RefSite::CommDataDownlink => set_top(edits, &comm(), "data_downlink", to),
-        RefSite::RequirementLinkCheck { requirement } => {
+        RefSite::RequirementCheck {
+            requirement,
+            entity,
+        } => {
+            // キーの書式は `sat_checkkey`（`Verification` 経由）。名指されている種類の名前だけを書き換える
             let key = design
                 .requirements
                 .get(requirement.as_str())
-                .and_then(|r| r.verify.check_with_link_renamed(from, to));
+                .and_then(|r| r.verify.check_with_renamed(*entity, from, to));
             match key {
                 Some(key) => set_in(
                     edits,

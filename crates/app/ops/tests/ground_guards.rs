@@ -1,4 +1,4 @@
-//! 地上局の Op の拒否: 要求の `verify.check` が名指す局の名前の変更・削除（#328 までの暫定の見張り）と、
+//! 地上局の Op: 要求の `verify.check` が名指す局の削除の拒否と名前の変更でのキーの書き換え（#367）、
 //! 設定の書き込みで局を作らないこと。fixtures/demo-6u に対して計画だけを立てる。
 
 use fune_model::value::{Quantity, SettingValue};
@@ -21,27 +21,30 @@ fn create(id: &str) -> Op {
     }
 }
 
-/// 要求の `verify.check` が局を名指している間は、名前の変更も削除も拒む（キーは書き換えない。#328 までの暫定）。
+/// 要求の `verify.check` が局を名指している間、削除は拒む。名前の変更は拒まず、キーを書き換える（`sat_checkkey`）。
 #[test]
-fn rename_and_remove_are_refused_while_a_requirement_checks_the_station() {
+fn remove_is_refused_and_rename_rewrites_while_a_requirement_checks_the_station() {
     let snap = snapshot();
+    let remove = Op::RemoveGroundStation {
+        id: "TOKYO_GS".into(),
+    };
+    let err = plan(&snap, &[remove]).unwrap_err();
+    assert!(matches!(err, OpError::Invalid { .. }), "{err}");
+    let text = err.to_string();
+    assert!(text.contains("R_LINK_S"), "{text}");
+    assert!(
+        text.contains("Update or remove those requirements"),
+        "{text}"
+    );
     let rename = Op::RenameGroundStation {
         id: "TOKYO_GS".into(),
         to: "TOKYO_2".into(),
     };
-    let remove = Op::RemoveGroundStation {
-        id: "TOKYO_GS".into(),
-    };
-    for op in [rename, remove] {
-        let err = plan(&snap, &[op]).unwrap_err();
-        assert!(matches!(err, OpError::Invalid { .. }), "{err}");
-        let text = err.to_string();
-        assert!(text.contains("R_LINK_S"), "{text}");
-        assert!(
-            text.contains("Update or remove those requirements"),
-            "{text}"
-        );
-    }
+    let p = plan(&snap, &[rename]).unwrap();
+    assert_eq!(
+        p.design.requirements["R_LINK_S"].verify.check.as_deref(),
+        Some("margin:s_down@TOKYO_2")
+    );
     // 名指していない局は、要求があっても変えられる・消せる
     let p = plan(
         &snap,

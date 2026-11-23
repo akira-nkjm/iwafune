@@ -23,6 +23,7 @@ mod_module_files = "deny"
 # 内部 crate
 sat-units = { path = "crates/lib/units" }
 sat-astro = { path = "crates/lib/astro" }
+sat-checkkey = { path = "crates/lib/checkkey" }
 sat-analysis = { path = "crates/lib/analysis" }
 fune-model = { path = "crates/app/model" }
 fune-store = { path = "crates/app/store" }
