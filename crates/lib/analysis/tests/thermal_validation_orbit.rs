@@ -38,7 +38,7 @@ fn steady_matches_the_fourth_power_mean_of_the_periodic_transient() {
             )
         };
         let tl0 = timeline(1.0, 5.0, 0.0);
-        let period = tl0.orbit().period_s();
+        let period = tl0.orbit().cycle().length_s();
         // 標本の刻みは周期の 1/4600（≈ 1.25 s）。最後の 1 周回の窓が標本の点にちょうど重なる
         let step = period / 4600.0;
         let tl = timeline(5.0 * period, step, 0.0);

@@ -297,7 +297,7 @@ fn inertial_law_toward_the_sun_lights_the_panel_fully() {
     i.timeline.attitude = AttitudeLaw::Inertial {
         q_body_to_eci: sat_astro::math::Quat::IDENTITY,
     };
-    i.array.panels[0].normal = sat_astro::ephem::sun_direction_eci(i.timeline.orbit().epoch);
+    i.array.panels[0].normal = sat_astro::ephem::sun_direction_eci(i.timeline.orbit().epoch());
     let out = EnergyBalance::run(&i).unwrap();
     let full = 0.0827 * 0.295 * 0.73 * 1361.0;
     let sunlit = &out

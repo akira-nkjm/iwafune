@@ -11,7 +11,7 @@ use crate::AstroError;
 use crate::attitude::{AttitudeLaw, body_to_eci};
 use crate::ephem::Body;
 use crate::math::{Quat, Vec3};
-use crate::orbit::{OrbitSpec, OrbitState, raan_for_beta};
+use crate::orbit::{OrbitState, Trajectory, raan_for_beta};
 use crate::shadow::{ShadowModel, central_shadow_factor};
 use crate::time::Epoch;
 use sat_units::typed::{Angle, Qty, Time};
@@ -25,7 +25,7 @@ pub const DEFAULT_STEP_S: f64 = 30.0;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct OrbitSampling {
-    pub orbit: OrbitSpec,
+    pub orbit: Trajectory,
     /// 期間（軌道の元期から）
     pub span: Qty<Time>,
     /// 刻み
@@ -38,9 +38,9 @@ pub struct OrbitSampling {
 
 impl OrbitSampling {
     /// β の指定なしで作る。
-    pub fn new(orbit: OrbitSpec, span: Qty<Time>, step: Qty<Time>) -> Self {
+    pub fn new(orbit: impl Into<Trajectory>, span: Qty<Time>, step: Qty<Time>) -> Self {
         Self {
-            orbit,
+            orbit: orbit.into(),
             span,
             step,
             beta: None,
@@ -49,13 +49,20 @@ impl OrbitSampling {
 
     /// 実際に伝搬に使う軌道（[`OrbitSampling::beta`] を指定したときは RAAN を置き換えたもの）。
     /// パスの検出など、同じ軌道を別の関数に渡すときはこれを使う。**β の当て込みはここだけ。**
-    pub fn resolved_orbit(&self) -> Result<OrbitSpec, AstroError> {
-        let mut orbit = self.orbit.clone();
-        if let Some(beta) = self.beta {
-            let raan = raan_for_beta(&orbit, orbit.epoch, beta.value())?;
-            orbit.elements.raan = Qty::from_raw(raan);
-        }
-        Ok(orbit)
+    /// β の当て込みはケプラー要素の軌道だけの機能（[`Trajectory::elements`] を通す）。ほかの source で指定すると `InvalidInput`。
+    pub fn resolved_orbit(&self) -> Result<Trajectory, AstroError> {
+        let Some(beta) = self.beta else {
+            return Ok(self.orbit.clone());
+        };
+        let Some(spec) = self.orbit.elements() else {
+            return Err(AstroError::InvalidInput(
+                "A beta angle can be imposed only on an orbit given by Kepler elements".into(),
+            ));
+        };
+        let mut spec = spec.clone();
+        let raan = raan_for_beta(&spec, spec.epoch, beta.value())?;
+        spec.elements.raan = Qty::from_raw(raan);
+        Ok(Trajectory::Elements(spec))
     }
 
     /// 時刻列（[`sample_times`]。期間と刻みを検査する）。
@@ -74,7 +81,7 @@ impl OrbitSampling {
             .zip(states)
             .map(|(t_s, state)| OrbitPoint {
                 t_s,
-                epoch: orbit.epoch.plus_seconds(t_s),
+                epoch: orbit.epoch().plus_seconds(t_s),
                 state,
             })
             .collect())
@@ -105,7 +112,12 @@ pub struct TimelineSpec {
 impl TimelineSpec {
     /// 既定の設定（円錐影、β の指定なし）で作る。フィールドが増えても呼び出し側を変えずに済むよう、
     /// 構造体リテラルよりこれを使う。
-    pub fn new(orbit: OrbitSpec, attitude: AttitudeLaw, span: Qty<Time>, step: Qty<Time>) -> Self {
+    pub fn new(
+        orbit: impl Into<Trajectory>,
+        attitude: AttitudeLaw,
+        span: Qty<Time>,
+        step: Qty<Time>,
+    ) -> Self {
         Self::from_sampling(OrbitSampling::new(orbit, span, step), attitude)
     }
 
@@ -119,12 +131,12 @@ impl TimelineSpec {
     }
 
     /// 実際に伝搬に使う軌道（[`OrbitSampling::resolved_orbit`]）。
-    pub fn resolved_orbit(&self) -> Result<OrbitSpec, AstroError> {
+    pub fn resolved_orbit(&self) -> Result<Trajectory, AstroError> {
         self.sampling.resolved_orbit()
     }
 
     /// 軌道（β を当てる前）。中心天体と周期はこれから取る（β は RAAN だけを変える）。
-    pub fn orbit(&self) -> &OrbitSpec {
+    pub fn orbit(&self) -> &Trajectory {
         &self.sampling.orbit
     }
 }
@@ -193,7 +205,7 @@ pub fn build(spec: &TimelineSpec) -> Result<Vec<TimelineSample>, AstroError> {
 fn sample(spec: &TimelineSpec, point: &OrbitPoint) -> TimelineSample {
     let OrbitPoint { t_s, epoch, state } = *point;
     let state = &state;
-    let central = spec.orbit().central;
+    let central = spec.orbit().central();
     let r_sun = central.relative_position_m(Body::Sun, epoch);
     let to_sun = r_sun - state.r_eci;
     let sunlit = central_shadow_factor(central, state.r_eci, r_sun, spec.shadow);

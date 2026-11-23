@@ -143,7 +143,7 @@ impl Analysis for RwUnloading {
         let samples = timeline::build(&input.timeline)?;
         let trace = Trace::build(
             &input.spacecraft,
-            input.timeline.orbit().central,
+            input.timeline.orbit().central(),
             &set,
             &samples,
         );
@@ -165,8 +165,9 @@ fn summarize(
     samples: &[TimelineSample],
     tr: &Trace,
 ) -> RwUnloadingOutput {
-    let period_s = input.timeline.orbit().period_s();
-    let ranges = orbit_ranges(&tr.t, period_s);
+    let cycle = input.timeline.orbit().cycle();
+    let period_s = cycle.length_s();
+    let ranges = orbit_ranges(&tr.t, cycle);
     let (secular, cyclic) = secular_and_cyclic(&tr.t, &tr.h_eci, &ranges, period_s);
     let limits: Vec<f64> = input
         .wheels

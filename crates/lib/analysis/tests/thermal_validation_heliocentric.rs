@@ -73,7 +73,7 @@ fn steady_plate_follows_the_inverse_square_root_of_distance() {
     let mut temps = Vec::new();
     for d_au in [0.5_f64, 1.0, 2.0] {
         let d = d_au * AU;
-        let period = helio_timeline(d, 0.0, 1.0, 1.0).orbit().period_s();
+        let period = helio_timeline(d, 0.0, 1.0, 1.0).orbit().cycle().length_s();
         let tl = helio_timeline(d, 0.0, period, period / 200.0);
         let case = steady(
             plate(),
@@ -95,7 +95,7 @@ fn steady_cube_follows_the_inverse_square_root_of_distance() {
     let a = 0.1;
     for d_au in [0.7_f64, 1.5] {
         let d = d_au * AU;
-        let period = helio_timeline(d, 0.0, 1.0, 1.0).orbit().period_s();
+        let period = helio_timeline(d, 0.0, 1.0, 1.0).orbit().cycle().length_s();
         let net = network(
             vec![al_node("n", MASS_KG)],
             cube_surfaces("n", a, ALPHA, EPS),
@@ -118,7 +118,7 @@ fn steady_cube_follows_the_inverse_square_root_of_distance() {
 #[test]
 fn written_albedo_and_planet_ir_are_not_used_about_the_sun() {
     let d = AU;
-    let period = helio_timeline(d, 0.0, 1.0, 1.0).orbit().period_s();
+    let period = helio_timeline(d, 0.0, 1.0, 1.0).orbit().cycle().length_s();
     let run = |environment| {
         let tl = helio_timeline(d, 0.0, period, period / 200.0);
         steady(
@@ -147,7 +147,7 @@ fn written_albedo_and_planet_ir_are_not_used_about_the_sun() {
 fn steady_orbit_average_of_an_ellipse_uses_the_time_mean_of_inverse_square() {
     let (rp, ra) = (0.7 * AU, 1.5 * AU);
     let (a, e) = ((rp + ra) / 2.0, (ra - rp) / (ra + rp));
-    let period = helio_timeline(a, e, 1.0, 1.0).orbit().period_s();
+    let period = helio_timeline(a, e, 1.0, 1.0).orbit().cycle().length_s();
     let tl = helio_timeline(a, e, period, period / 400.0);
     let case = steady(
         plate(),

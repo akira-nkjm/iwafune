@@ -6,6 +6,8 @@
 //! [`crate::ode::Dop853`] で積分する（Cowell 法）。推力を入れた伝搬（[`propagate_powered`]）は `powered` にあり、
 //! 同じ積分器と力モデルに推力の項（[`crate::force::thrust`]）と質量を足す。平均の長半径（J2 の短周期項を引く）は `mean`。
 //! 円制限三体問題（ラグランジュ点・ハロー軌道の補正・回転系と慣性系の変換）の数学は [`cr3bp`] にある。
+//! 解析が軌道から読むもの（時刻での状態・中心天体・元期・繰り返しの長さ）の共通の入口は `trajectory`（[`Trajectory`]・[`Cycle`]）。
+//! 今は要素で書かれた軌道（[`OrbitSpec`]）だけで、数値は変わらない。
 
 mod analytic;
 mod beta;
@@ -15,6 +17,7 @@ mod mean;
 mod numerical;
 mod powered;
 mod track;
+mod trajectory;
 pub use crate::kepler::{perifocal_to_eci, solve_kepler};
 pub use crate::state::OrbitState;
 
@@ -26,6 +29,7 @@ pub use local_time::{
 pub use mean::{mean_semi_major_axis_m, orbit_averaged_elements, osculating_state_from_mean};
 pub use powered::{PoweredArc, PoweredSample, PoweredTarget, ThrustArc, propagate_powered};
 pub use track::OrbitTrack;
+pub use trajectory::{Cycle, Trajectory};
 
 use crate::AstroError;
 use crate::ephem::CentralBody;

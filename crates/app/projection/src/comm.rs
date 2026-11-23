@@ -29,6 +29,7 @@ use sat_analysis::comm::link_budget::{LinkBudgetDirection, LinkBudgetLink};
 use sat_analysis::comm::{LinkBudgetInput, RfLinkParams, VisibilityInput};
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
+use sat_astro::orbit::Trajectory;
 use sat_units::typed::{DataRate, Decibel, Frequency, Length, Power, Qty, Temperature, Time};
 
 fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a CommSettings> {
@@ -75,7 +76,7 @@ pub fn link_budget(ctx: &Context<'_>) -> Result<LinkBudgetInput, MissingInputs> 
         Some(LinkBudgetInput {
             links,
             required_margin_db: None,
-            orbit: far,
+            orbit: far.map(Trajectory::Elements),
             duration,
         })
     })
