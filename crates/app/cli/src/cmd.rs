@@ -29,6 +29,7 @@ mod common;
 mod data;
 mod defs;
 mod edit;
+mod fix_hints;
 mod gui;
 mod links;
 mod maneuvers;
