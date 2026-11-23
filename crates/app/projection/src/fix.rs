@@ -21,6 +21,29 @@ pub struct CatalogFix {
     pub command: String,
 }
 
+/// 選べる値 1 つ（値の綴りと日英の表示名）。候補の絞り込みはサービスが決め、受け取る側は並べるだけ。
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+pub struct Choice {
+    /// 入れる値の綴り（`local/lv_alpha`・`ECI` など。そのまま `fune set` に渡せる）
+    pub value: String,
+    /// 日本語の表示名（無ければ `value`）
+    pub label: String,
+    /// 英語の表示名（無ければ None）
+    pub label_en: Option<String>,
+}
+
+/// 欄が指すものの種類（[`Fix::PickRef`]）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum RefKind {
+    /// 設計の部品
+    Part,
+    /// カタログの品（`<カタログ>/<ID>`）
+    CatalogItem,
+    /// 通信の回線（`analysis.comm` の回線の名前）
+    CommLink,
+}
+
 /// 足りない入力を一覧に足す先の一覧（「何を足すか」）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
@@ -53,6 +76,10 @@ pub enum Fix {
         command: String,
         /// 部品がカタログ品を選んでいるときの、品の側へ書く代わりの書き先
         catalog: Option<CatalogFix>,
+        /// 受け付ける入力の例（量なら `1 kg`。次元から `sat_units::format::input_example` が作る）
+        example: Option<String>,
+        /// 値が閉じた語彙（属性の列挙・真偽）のときの選べる値（空なら自由入力）
+        choices: Vec<Choice>,
     },
     /// 役割のどれかの部品の属性に値を入れる（その役割の部品はあるが、値が無い）。
     SetValueOnPart {
@@ -63,6 +90,10 @@ pub enum Fix {
         parts: Vec<String>,
         /// `fune set <部品>.<属性> "<value>"`
         command: String,
+        /// 受け付ける入力の例（[`Fix::SetValue`] の `example` と同じ）
+        example: Option<String>,
+        /// 値が閉じた語彙のときの選べる値（空なら自由入力）
+        choices: Vec<Choice>,
     },
     /// その役割の部品が 1 つも無い: 種別（と、その種別のカタログ品）を選んで部品を足す。
     AddPart {
@@ -84,18 +115,24 @@ pub enum Fix {
         /// `fune set <部品>.kind <kind>`
         command: String,
     },
-    /// 別の部品を指す欄が空か、指した部品が無い: 設計の部品から選んで入れる。
-    PickPart {
-        /// 欄の対象（マヌーバの `thruster`・解析設定の回線の `part`・`antenna`）
+    /// 別のもの（部品・カタログ品・通信の回線）を指す欄が空か、指したものが無い: 設計にあるものから選んで入れる。
+    PickRef {
+        /// 欄の対象（マヌーバの `thruster`・解析設定の回線の `part`・`antenna`・`conditions.launch.launcher`）
         target: Target,
-        /// 欄の表示パス
+        /// 欄の表示パス（`SetText.path` に使う）
         path: String,
-        /// 選べる部品の役割
+        /// 指すものの種類（入れる値の意味と、選べるものが無いときの案内の文を分ける）
+        what: RefKind,
+        /// 選べる部品の役割（`what` が部品のときだけ。それ以外は空）
         roles: Vec<Role>,
-        /// 選べる部品の ID
-        parts: Vec<String>,
+        /// 選べるカタログ品の種別（`what` がカタログ品のときだけ。継承を含めた子の種別も選べる。それ以外は空）
+        kinds: Vec<String>,
+        /// 選べるもの（部品の ID・カタログの参照 `<カタログ>/<ID>`・回線の名前と、表示名）。空なら選べるものが無い
+        choices: Vec<Choice>,
         /// 欄に入れる CLI のコマンド（`fune maneuver set …`・`fune set …`）
         command: String,
+        /// 選べるものが 1 つも無いときに、それを足す CLI のコマンド（足し方が無ければ None）
+        add_command: Option<String>,
     },
     /// 一覧の項目（モード・マヌーバ・地上局など）を足す。
     AddListItem {
@@ -113,7 +150,7 @@ impl Fix {
             | Fix::SetValueOnPart { command, .. }
             | Fix::AddPart { command, .. }
             | Fix::AssignPart { command, .. }
-            | Fix::PickPart { command, .. }
+            | Fix::PickRef { command, .. }
             | Fix::AddListItem { command, .. } => command,
         }
     }

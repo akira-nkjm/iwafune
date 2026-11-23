@@ -110,7 +110,16 @@ fn nadir_pointing_sensor_sees_earth() {
     };
     assert_eq!(earth(0).intrusion_fraction.value(), 1.0);
     assert_eq!(earth(1).intrusion_fraction.value(), 0.0);
-    let rho = (R_EARTH / input.timeline.orbit().elements.semi_major_axis.value()).asin();
+    let rho = (R_EARTH
+        / input
+            .timeline
+            .orbit()
+            .elements()
+            .expect("elements")
+            .elements
+            .semi_major_axis
+            .value())
+    .asin();
     assert!((earth(0).min_angle.value() + rho).abs() < 1e-3);
     assert_eq!(earth(0).windows.len(), 1);
 }

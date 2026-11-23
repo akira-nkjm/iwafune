@@ -7,7 +7,7 @@ use crate::spec::{AnalysisError, orbit_step_s};
 use sat_astro::constants::{C_LIGHT, SECONDS_PER_DAY};
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::{EarthRange, earth_range, slant_range_m};
-use sat_astro::orbit::OrbitSpec;
+use sat_astro::orbit::Trajectory;
 use sat_astro::time::Epoch;
 use sat_units::typed::{Length, Qty, Time};
 use serde::{Deserialize, Serialize};
@@ -60,7 +60,7 @@ impl LinkRange {
 /// 回線の中に中心天体が地球でないものがあれば、地球から衛星までの距離の範囲を求める（回線の数だけ繰り返さない）。
 pub(super) fn deep_space_range(
     links: &[LinkBudgetLink],
-    orbit: Option<&OrbitSpec>,
+    orbit: Option<&Trajectory>,
     duration: Option<Qty<Time>>,
 ) -> Result<Option<EarthRange>, AnalysisError> {
     if links.iter().all(|l| l.central == CentralBody::Earth) {
@@ -78,8 +78,13 @@ pub(super) fn deep_space_range(
             "The evaluation span of the distance must be positive".to_owned(),
         ));
     }
-    let step = orbit_step_s(orbit.period_s()).max(span / MAX_RANGE_SAMPLES);
-    Ok(Some(earth_range(orbit, orbit.epoch, span, step.min(span))?))
+    let step = orbit_step_s(orbit.cycle()).max(span / MAX_RANGE_SAMPLES);
+    Ok(Some(earth_range(
+        orbit,
+        orbit.epoch(),
+        span,
+        step.min(span),
+    )?))
 }
 
 /// 回線の距離。地球を回る衛星は斜距離、ほかの天体を回る衛星は `deep` の範囲（[`deep_space_range`] が求めたもの）。

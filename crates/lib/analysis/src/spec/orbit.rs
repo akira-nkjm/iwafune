@@ -1,6 +1,7 @@
 //! 時系列の集計の部品: 日照の判定、周回の切り出しと閉区間、周回平均、時間の割合、最長の区間、期間不足の扱い。
 //! **時系列を周回で区切って平均・割合を求めるのはここだけ。** 親の [`crate::spec`] が再公開する。
 
+use sat_astro::orbit::Cycle;
 use sat_astro::timeline::{TimelineSample, Window, time_mean};
 use sat_units::typed::{Fraction, Qty, Time};
 use serde::{Deserialize, Serialize};
@@ -19,7 +20,11 @@ pub fn is_sunlit(s: &TimelineSample) -> bool {
 /// 回り切っていない最後の周回は含めない（境界の判定には 1e-6·T の許容を持たせる）。
 /// `range.end` は次の周回の先頭の添字で、最後の周回では最後のサンプルの添字になることがある。
 /// 周回平均・周回ごとの積算に使う。**周回の切り出しはここだけ。**
-pub fn orbit_ranges(t: &[f64], period_s: f64) -> Vec<Range<usize>> {
+///
+/// 区切りの長さは繰り返しの長さ（[`Cycle::length_s`]）。1 回限りの軌道（[`Cycle::OneOff`]）は期間全体が 1 つの周回になる
+/// （期間の扱いの詳細は段階 C）。
+pub fn orbit_ranges(t: &[f64], cycle: Cycle) -> Vec<Range<usize>> {
+    let period_s = cycle.length_s();
     if t.is_empty() || period_s.is_nan() || period_s <= 0.0 {
         return Vec::new();
     }
@@ -142,12 +147,16 @@ pub fn span_fallback(complete_orbits: usize, fallback: SpanFallback) -> Option<S
 mod tests {
     use super::*;
 
+    fn periodic(period_s: f64) -> Cycle {
+        Cycle::Periodic { period_s }
+    }
+
     #[test]
     fn orbit_mean_is_time_weighted() {
         // 周期 100 s、刻みが不揃い（0, 10, 100, 110, 200）。v = t mod 100 の鋸波の 1 周の時間平均
         let t = [0.0, 10.0, 100.0, 110.0, 200.0];
         let v = [0.0, 10.0, 0.0, 10.0, 0.0];
-        let r = orbit_ranges(&t, 100.0);
+        let r = orbit_ranges(&t, periodic(100.0));
         assert_eq!(r.len(), 2);
         // 台形則: [0,10] 平均 5 ×10 + [10,100] 平均 5 ×90 → 5
         assert!((orbit_mean(&t, &v, &r) - 5.0).abs() < 1e-12);
@@ -170,16 +179,16 @@ mod tests {
     #[test]
     fn orbit_ranges_full_orbits_only() {
         let t: Vec<f64> = (0..=25).map(|i| f64::from(i) * 10.0).collect(); // 0..250 s
-        let r = orbit_ranges(&t, 100.0);
+        let r = orbit_ranges(&t, periodic(100.0));
         assert_eq!(r, vec![0..10, 10..20]);
-        assert!(orbit_ranges(&t, 0.0).is_empty());
+        assert!(orbit_ranges(&t, periodic(0.0)).is_empty());
     }
 
     #[test]
     fn segments_are_closed_and_fall_back_to_the_whole_span() {
         // 0..250 s（26 標本）: 2 周 [0, 10]・[10, 20]。周回が無ければ全期間 [0, 25]
         let t: Vec<f64> = (0..=25).map(|i| f64::from(i) * 10.0).collect();
-        let r = orbit_ranges(&t, 100.0);
+        let r = orbit_ranges(&t, periodic(100.0));
         assert_eq!(orbit_segments(t.len(), &r), vec![0..=10, 10..=20]);
         assert_eq!(orbit_segments(t.len(), &[]), vec![0..=25]);
         assert!(orbit_segments(0, &[]).is_empty());
@@ -192,7 +201,7 @@ mod tests {
         // 周期 100 s を 10 s 刻みで 250 s。各周の 0〜40 s が真。台形則で 1 周に真は 40 + 5（落ち際）+ 5（立ち上がり）= 50 s
         let t: Vec<f64> = (0..=25).map(|k| f64::from(k) * 10.0).collect();
         let flags: Vec<bool> = t.iter().map(|&x| x % 100.0 < 50.0).collect();
-        let r = orbit_ranges(&t, 100.0);
+        let r = orbit_ranges(&t, periodic(100.0));
         assert_eq!(r.len(), 2);
         assert!((time_fraction(&t, &flags, &r).value() - 0.5).abs() < 1e-12);
         // 周回を渡さなければ全期間: 2 周の 100 s ＋ 200〜250 s の 40 + 5 s → 145 / 250

@@ -92,6 +92,13 @@ pub fn display_units(dimension: &str) -> Option<impl Iterator<Item = &'static st
     Some(p.units.iter().map(|(u, _)| *u))
 }
 
+/// 次元名 `dimension` の入力の例（`1 kg`）。人が値を打つときの書式の見本で、単位は SI の 1 を表示するときに選ばれる単位
+/// （[`format_quantity`] の表示単位。表を別に持たない）。無次元など単位を書かない次元、読めない次元名は None。
+pub fn input_example(dimension: &str) -> Option<String> {
+    let unit = format_quantity(1.0, dimension).ok()?.unit;
+    (!unit.is_empty()).then(|| format!("1 {unit}"))
+}
+
 /// SI の値 `si_value` を、次元名 `dimension`（例: `"Power"`）に合う表示単位で整形する。
 pub fn format_quantity(si_value: f64, dimension: &str) -> Result<FormattedQuantity, UnitError> {
     let canonical = canonical_dimension_name(dimension).ok_or(UnitError::UnknownDimension)?;

@@ -2,11 +2,24 @@ import { useCallback, useState } from "react";
 import { useTextOp } from "@/api/ops";
 import { useT } from "@/i18n";
 import { Field } from "@/kit/forms/Field";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
 import { Segmented } from "@/kit/selection/Segmented";
 import { OpDialog } from "@/ops/OpDialog";
 import { QuantityInput } from "@/quantity/QuantityInput";
+import { choiceLabel } from "./MissingPickDialog";
 import { type ValueFix, type ValueScope, valueSetText } from "./missing-fix";
+
+/** 入力欄の補足（次元と入力の例。例は service が次元から作る） */
+function hintOf(
+  dimension: string | null,
+  example: string | null,
+  t: { dimension: (d: string) => string; example: (e: string) => string },
+): string | undefined {
+  const parts = [dimension ? t.dimension(dimension) : null, example ? t.example(example) : null];
+  const text = parts.filter((x) => x !== null).join(" · ");
+  return text || undefined;
+}
 
 /**
  * 足りない値をその場で入れるダイアログ（部品の属性・フィールド・設定）。打った文字列は `POST /ops/from_text`（`fune set`・
@@ -32,7 +45,7 @@ export function MissingValueDialog({
       wide
       onOpenChange={onOpenChange}
       title={t.title(fix.path)}
-      description={t.description}
+      description={fix.choices.length > 0 ? t.descriptionChoice : t.description}
       ops={made.op ? [made.op] : null}
       summary={t.summary(path)}
       confirmLabel={t.confirm}
@@ -54,9 +67,17 @@ export function MissingValueDialog({
         label={t.label}
         htmlFor="missing-value"
         error={made.error}
-        hint={fix.dimension ? t.dimension(fix.dimension) : undefined}
+        hint={hintOf(fix.dimension, fix.example, t)}
       >
-        {fix.dimension ? (
+        {fix.choices.length > 0 ? (
+          <NativeSelect
+            id="missing-value"
+            value={value}
+            placeholder={t.choose}
+            options={fix.choices.map((c) => ({ value: c.value, label: choiceLabel(c) }))}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        ) : fix.dimension ? (
           <QuantityInput
             initial=""
             dimension={fix.dimension}

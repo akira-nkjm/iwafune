@@ -1,6 +1,7 @@
 import { expect, it } from "vitest";
 import type { DesignView, Fix, ManeuverView, MissingInput } from "@/api/types";
 import { fixture } from "@/test/fixture";
+import { choiceLabel } from "./MissingPickDialog";
 import { pickEdit, rowActions, valueSetText } from "./missing-fix";
 
 const valueFix: Extract<Fix, { kind: "set_value" }> = {
@@ -9,18 +10,23 @@ const valueFix: Extract<Fix, { kind: "set_value" }> = {
   target: { target: "attr", part: "RW_X", attr: "max_momentum", state: null },
   dimension: "AngularMomentum",
   command: 'fune set RW_X.max_momentum "<value>"',
+  example: "1 mN*m*s",
+  choices: [],
   catalog: {
     item: "local/rw_10mNms",
     path: "max_momentum",
     command: 'fune catalog set local/rw_10mNms max_momentum "<value>"',
   },
 };
-const pickFix: Extract<Fix, { kind: "pick_part" }> = {
-  kind: "pick_part",
+const pickFix: Extract<Fix, { kind: "pick_ref" }> = {
+  kind: "pick_ref",
+  what: "part",
+  kinds: [],
+  add_command: null,
   target: { kind: "maneuver", id: "RAISE", field: "thruster" },
   path: "maneuvers.RAISE.thruster",
   roles: ["propulsion_thruster", "thruster"],
-  parts: ["EPT"],
+  choices: [{ value: "EPT", label: "EPT", label_en: null }],
   command: 'fune maneuver set RAISE --category insertion --method low_thrust --thruster "<part>"',
 };
 
@@ -39,7 +45,15 @@ it("候補の種類ごとに、その場の編集か既存のページへの道�
       pickFix,
       { kind: "add_part", roles: ["battery"], kinds: ["battery"], catalog_items: [], command: "" },
       { kind: "assign_part", roles: ["battery"], kinds: [], parts: ["OBC"], command: "" },
-      { kind: "set_value_on_part", attr: "a", dimension: null, parts: [], command: "" },
+      {
+        kind: "set_value_on_part",
+        attr: "a",
+        dimension: null,
+        example: null,
+        choices: [],
+        parts: [],
+        command: "",
+      },
       { kind: "add_list_item", list: "mode", command: "fune mode add <ID>" },
     ]),
   );
@@ -108,4 +122,40 @@ it("設定の部品の欄は、欄のパスに部品の ID を `from_text` で�
       value: "UHF_TRX",
     }),
   });
+});
+
+const launcherFix: typeof pickFix = {
+  ...pickFix,
+  what: "catalog_item",
+  kinds: ["launcher"],
+  target: {
+    kind: "param",
+    target: "setting",
+    scope: "conditions",
+    segments: ["launch", "launcher"],
+  },
+  path: "conditions.launch.launcher",
+  choices: [
+    { value: "local/lv_alpha", label: "Alpha", label_en: "Alpha LV" },
+    { value: "local/lv_beta", label: "local/lv_beta", label_en: null },
+  ],
+  command: "fune set conditions.launch.launcher <item>",
+  add_command: "fune catalog add local/<ID> --kind launcher",
+};
+
+it("カタログ品を選ぶと、欄のパスにカタログの参照を `from_text` で送る", () => {
+  const rows = rowActions(missing([launcherFix]));
+  expect(rows.map((a) => a.kind)).toEqual(["pick"]);
+  expect(pickEdit(launcherFix, "local/lv_alpha", design)).toEqual({
+    text: expect.objectContaining({
+      item: null,
+      path: "conditions.launch.launcher",
+      value: "local/lv_alpha",
+    }),
+  });
+  expect(pickEdit(launcherFix, "", design)).toBeNull();
+});
+
+it("選べるものの表示は、表示名があれば値を添え、無ければ値だけ", () => {
+  expect(launcherFix.choices.map(choiceLabel)).toEqual(["Alpha (local/lv_alpha)", "local/lv_beta"]);
 });

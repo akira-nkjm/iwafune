@@ -3,8 +3,8 @@ import { paths } from "@/lib/nav";
 
 /** 値を入れる候補（その場のダイアログ） */
 export type ValueFix = Extract<Fix, { kind: "set_value" }>;
-/** 部品を選ぶ候補（その場のダイアログ） */
-export type PickFix = Extract<Fix, { kind: "pick_part" }>;
+/** 別のもの（部品・カタログ品・通信の回線）を選ぶ候補（その場のダイアログ） */
+export type PickFix = Extract<Fix, { kind: "pick_ref" }>;
 
 /** 候補が開く画面（その場のダイアログを持たない候補は、既存のページへ行く。候補の種類で決め、文字列は読まない） */
 export type RowAction =
@@ -37,7 +37,7 @@ function actionOf(fix: Fix): RowAction {
   switch (fix.kind) {
     case "set_value":
       return { kind: "value", fix };
-    case "pick_part":
+    case "pick_ref":
       return { kind: "pick", fix };
     case "set_value_on_part":
       return { kind: "link", label: "setOnPart", to: paths.components() };
@@ -76,23 +76,23 @@ export function valueSetText(fix: ValueFix, scope: ValueScope, value: string): S
   };
 }
 
-/** 選んだ部品を入れる編集。マヌーバのスラスタは `fune maneuver set` と同じ引数、設定の欄は `fune set` と同じ文字列 */
+/** 選んだものを入れる編集。マヌーバのスラスタは `fune maneuver set` と同じ引数、設定の欄は `fune set` と同じ文字列 */
 export type PickEdit = { text: SetText } | { command: CommandText };
 
-/** 部品を選んだときに送るもの。選んでいない・マヌーバが設計に無いときは null */
-export function pickEdit(fix: PickFix, part: string, design: DesignView): PickEdit | null {
-  if (!part) return null;
+/** 選んだもの（部品の ID・カタログの参照・回線の名前）を送る編集。選んでいない・マヌーバが設計に無いときは null */
+export function pickEdit(fix: PickFix, chosen: string, design: DesignView): PickEdit | null {
+  if (!chosen) return null;
   if (fix.target.kind === "maneuver") {
     const id = fix.target.id;
     const maneuver = design.maneuvers.find((x) => x.id === id);
     if (!maneuver) return null;
-    return { command: { command: "maneuver_set", ...maneuver.text, thruster: part } };
+    return { command: { command: "maneuver_set", ...maneuver.text, thruster: chosen } };
   }
   return {
     text: {
       item: null,
       path: fix.path,
-      value: part,
+      value: chosen,
       source: null,
       at: null,
       note: null,

@@ -127,7 +127,7 @@ fn moon_orbiter_uses_the_earth_to_moon_range() {
     let input = LinkBudgetInput {
         links: vec![link],
         required_margin_db: None,
-        orbit: Some(orbit),
+        orbit: Some(orbit.into()),
         duration: Some(Qty::from_raw(30.0 * SECONDS_PER_DAY)),
     };
     let r = &LinkBudget::run(&input).unwrap().links[0];
