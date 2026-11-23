@@ -1,16 +1,23 @@
 import { useState } from "react";
 import { useCommandOps, useTextOp } from "@/api/ops";
-import type { DesignView, Op } from "@/api/types";
-import { useT } from "@/i18n";
+import type { Choice, DesignView, Op } from "@/api/types";
+import { localized, useT } from "@/i18n";
 import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { OpDialog } from "@/ops/OpDialog";
 import { type PickFix, pickEdit } from "./missing-fix";
 
+/** 選べるもの 1 つの表示（表示名が値と違えば `表示名 (値)`） */
+export function choiceLabel(c: Choice): string {
+  const name = localized(c.label, c.label_en);
+  return name === c.value ? c.value : `${name} (${c.value})`;
+}
+
 /**
- * 別の部品を指す欄（マヌーバのスラスタ・回線の送受信機とアンテナ）に、設計の部品から選んで入れるダイアログ。
- * 選べる部品は API が絞って返す（`PickFix.parts`）。マヌーバは `fune maneuver set` と同じ引数、設定の欄は `fune set` と同じ文字列を
- * service で Op にして、確定前に CLI と変わるファイルを見せる。
+ * 別のもの（マヌーバのスラスタ・回線の送受信機とアンテナ・打ち上げ機・ディスペンサー・下りの回線）を指す欄に、設計にあるものから
+ * 選んで入れるダイアログ。選べるもの（`PickFix.choices`）は API が絞って返す。マヌーバは `fune maneuver set` と同じ引数、
+ * 設定の欄は `fune set` と同じ文字列を service で Op にして、確定前に CLI と変わるファイルを見せる。
+ * 選べるものが無いときは、それを足す CLI のコマンドを出す。
  */
 export function MissingPickDialog({
   fix,
@@ -22,31 +29,37 @@ export function MissingPickDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const t = useT().fixes.pick;
-  const [part, setPart] = useState("");
-  const edit = pickEdit(fix, part, design);
+  const [chosen, setChosen] = useState("");
+  const edit = pickEdit(fix, chosen, design);
   const text = useTextOp(edit && "text" in edit ? edit.text : null);
   const command = useCommandOps(edit && "command" in edit ? edit.command : null);
   const ops: Op[] | null = text.op ? [text.op] : command.ops;
+  const kinds = fix.kinds.join(", ");
   return (
     <OpDialog
       open
       onOpenChange={onOpenChange}
       title={t.title(fix.path)}
-      description={t.description}
+      description={t.prompt[fix.what](kinds)}
       ops={ops}
-      summary={t.summary(fix.path, part)}
+      summary={t.summary(fix.path, chosen)}
       confirmLabel={t.confirm}
     >
-      {fix.parts.length === 0 ? (
-        <p className="text-ink-3 text-sm">{t.none}</p>
+      {fix.choices.length === 0 ? (
+        <div className="grid gap-1 text-ink-3 text-sm">
+          <p>{t.none[fix.what](kinds)}</p>
+          {fix.add_command && (
+            <code className="font-mono text-ink-2 text-xs">{fix.add_command}</code>
+          )}
+        </div>
       ) : (
-        <Field label={t.part} htmlFor="missing-part" error={text.error ?? command.error}>
+        <Field label={t.label[fix.what]} htmlFor="missing-pick" error={text.error ?? command.error}>
           <NativeSelect
-            id="missing-part"
-            value={part}
+            id="missing-pick"
+            value={chosen}
             placeholder={t.choose}
-            options={fix.parts.map((id) => ({ value: id, label: id }))}
-            onChange={(e) => setPart(e.target.value)}
+            options={fix.choices.map((c) => ({ value: c.value, label: choiceLabel(c) }))}
+            onChange={(e) => setChosen(e.target.value)}
           />
         </Field>
       )}

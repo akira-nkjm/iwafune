@@ -32,7 +32,7 @@ fn secular_and_cyclic_by_hand() {
             )
         })
         .collect();
-    let ranges = orbit_ranges(&t, period);
+    let ranges = orbit_ranges(&t, sat_astro::orbit::Cycle::Periodic { period_s: period });
     let (sec, cyc) = secular_and_cyclic(&t, &h, &ranges, period);
     assert!((sec.x - a * period).abs() < 1e-15);
     assert!((cyc - b).abs() < 1e-6);
@@ -156,7 +156,14 @@ fn nadir_gravity_gradient_with_product_of_inertia_on_pyramid() {
         max_torque: Qty::from_raw(0.002),
     });
     let out = RwUnloading::run(&i).unwrap();
-    let r = i.timeline.orbit().elements.semi_major_axis.value();
+    let r = i
+        .timeline
+        .orbit()
+        .elements()
+        .expect("elements")
+        .elements
+        .semi_major_axis
+        .value();
     let k = 3.0 * sat_astro::constants::MU_EARTH / r.powi(3);
     let expect = k * ixz * out.period.value();
     let got = out.secular_per_orbit.value();
@@ -329,10 +336,10 @@ fn about_body(body: sat_astro::ephem::CentralBody) -> RwUnloadingInput {
     });
     sc.residual_dipole = Some(Vec3::new(0.1, 0.0, 0.0));
     let mut i = input(sc, nadir_pointing_z());
-    let mut orbit = i.timeline.orbit().clone();
-    orbit = sat_astro::orbit::OrbitSpec::circular_about(
+    let epoch = i.timeline.orbit().epoch();
+    let orbit = sat_astro::orbit::OrbitSpec::circular_about(
         body,
-        orbit.epoch,
+        epoch,
         Qty::from_raw(100e3),
         Qty::from_raw(90f64.to_radians()),
         Qty::from_raw(0.0),

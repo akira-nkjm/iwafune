@@ -6,7 +6,7 @@ use crate::earth::geodetic_from_eci;
 use crate::ephem::CentralBody;
 use crate::ephem::orientation::moon_fixed_frame;
 use crate::math::Vec3;
-use crate::orbit::OrbitSpec;
+use crate::orbit::Trajectory;
 use crate::time::Epoch;
 use crate::timeline::sample_times;
 use serde::{Deserialize, Serialize};
@@ -30,15 +30,15 @@ pub struct GroundTrackPoint {
 /// 中心天体の固定座標で求める。地球は測地座標（WGS84）、月は月固定の ME 系の球面座標（高度は
 /// [`crate::constants::R_MOON`] から）。ほかの中心天体は自転のモデルが無いので `InvalidInput`。
 pub fn ground_track(
-    orbit: &OrbitSpec,
+    orbit: &Trajectory,
     start: Epoch,
     span_s: f64,
     step_s: f64,
 ) -> Result<Vec<GroundTrackPoint>, AstroError> {
     let times = sample_times(span_s, step_s)?;
-    let offset = start.seconds_since(orbit.epoch);
+    let offset = start.seconds_since(orbit.epoch());
     let abs: Vec<f64> = times.iter().map(|t| t + offset).collect();
-    let fixed = match orbit.central {
+    let fixed = match orbit.central() {
         CentralBody::Earth => geodetic_from_eci,
         CentralBody::Moon => selenographic_from_eci,
         other => {
@@ -79,6 +79,7 @@ fn selenographic_from_eci(r_eci_m: Vec3, epoch: Epoch) -> (f64, f64, f64) {
 mod tests {
     use super::*;
     use crate::constants::{MU_EARTH, OMEGA_EARTH, R_EARTH};
+    use crate::orbit::OrbitSpec;
     use sat_units::typed::Qty;
 
     fn epoch() -> Epoch {
@@ -93,7 +94,13 @@ mod tests {
             Qty::from_raw(51.6_f64.to_radians()),
             Qty::from_raw(0.0),
         );
-        let track = ground_track(&orbit, epoch(), orbit.period_s(), 10.0).expect("track");
+        let track = ground_track(
+            &Trajectory::from(orbit.clone()),
+            epoch(),
+            orbit.period_s(),
+            10.0,
+        )
+        .expect("track");
         let max_lat = track.iter().fold(0.0_f64, |m, p| m.max(p.lat_rad.abs()));
         // 測地緯度は地心緯度より少し大きい（51.6° で +0.2° 程度）
         assert!(
@@ -118,7 +125,13 @@ mod tests {
         );
         orbit.propagator = crate::orbit::Propagator::Kepler;
         let period = orbit.period_s();
-        let track = ground_track(&orbit, epoch(), period, period / 4.0).expect("track");
+        let track = ground_track(
+            &Trajectory::from(orbit.clone()),
+            epoch(),
+            period,
+            period / 4.0,
+        )
+        .expect("track");
         let d = (track[4].lon_rad - track[0].lon_rad).to_degrees();
         let shift = (d + 540.0).rem_euclid(360.0) - 180.0;
         let expected = -(OMEGA_EARTH * period).to_degrees();

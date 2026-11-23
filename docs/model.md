@@ -1277,6 +1277,13 @@ arrival   = "2029-09-25T00:00:00Z"
     the departure and arrival excess speeds, and the departure asymptote declination; the burns carry `v_inf` as for the Hohmann estimate, and the note is `dated_lambert` instead of `patched_conic`.
   - Edit with `fune maneuver add|set ... --body mars --depart 2028-12-10T00:00:00Z --arrive 2029-09-25T00:00:00Z` (both or neither; `set` rewrites the whole maneuver, so leaving them out removes `[transfer]`).
     More options (such as counting only the capture burn when the launcher provides the departure burn) can be added to `[transfer]` later without changing this shape.
+  - `propulsion.transfer_check` re-propagates each dated transfer and reports the arrival miss (against the arrival body's sphere of influence), the closest approach (distance and time), the difference of
+    the arrival excess speed from Lambert's, the bodies used as third bodies, and a coarse trajectory (heliocentric ecliptic x and y of the spacecraft and both bodies, and the distance to the arrival body, in the `series`).
+    The cruise starts at the centre of the departure body on the departure date with Lambert's heliocentric velocity and runs under the point-mass gravity of the Sun and the other planets (Earth too, unless it is an end).
+    **The departure and arrival bodies' own gravity is not modelled**: inside their spheres of influence the patched-conic burns stand in, and a point mass at the aim point would make the aimed trajectory singular.
+    So the miss is "how far the other planets push a trajectory aimed at the body's centre", not a flyby design. The search for the closest approach runs 10 days past the arrival date (`closest_approach_at_end` marks a minimum still outside that).
+    Only with DE440 is the result judged: the miss within the arrival body's sphere of influence is `ok`, outside it is a warning that targeting or trajectory correction is needed; a closest approach outside the sphere of influence is also a warning.
+    With the analytic ephemeris the numbers are shown but not judged (the miss is of the order of the ephemeris error, 10⁵ km for Mars), and the note `analytic_ephemeris_not_judged` says so. Without a dated transfer the result is an empty list.
 - The execution order is linked by `after`. The source of truth is `Design::ordered_maneuvers` (those with no `after` start in ID order, followed by the ones linked after them).
   A cycle is a `check` error (`maneuver.cycle`).
 - The first orbit is the conditions' orbit (`conditions/orbit.toml`). The dry mass is `dry_mass` in `analysis/propulsion.toml`, or if absent, the total mass of the parts' mass properties.

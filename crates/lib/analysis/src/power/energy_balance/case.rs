@@ -213,14 +213,14 @@ fn orbit_summaries(
         .map(|(index, r)| {
             let to_energy = |v: &[f64]| {
                 Qty::<Power>::from_raw(orbit_mean(&ctx.profile.t, v, std::slice::from_ref(r)))
-                    * Qty::<Time>::from_raw(ctx.period_s)
+                    * Qty::<Time>::from_raw(ctx.period_s())
             };
             let seg = orbit_segment(r, soc.len());
             let (start, end) = (*seg.start(), *seg.end());
             // 標本の区間の長さを周期ちょうどに揃える
             let covered = ctx.profile.t[end] - ctx.profile.t[start];
             let scale = if covered > 0.0 {
-                ctx.period_s / covered
+                ctx.period_s() / covered
             } else {
                 0.0
             };

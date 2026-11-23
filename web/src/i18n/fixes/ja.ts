@@ -2,7 +2,6 @@
 export const fixesJa = {
   fixes: {
     enterValue: "値を入れる",
-    pickPart: "部品を選ぶ",
     addPart: "部品を追加",
     assignPart: "既存の部品を割り当てる",
     setOnPart: "部品に値を入れる",
@@ -15,7 +14,10 @@ export const fixesJa = {
     },
     value: {
       title: (path: string) => `${path} の値を入れる`,
-      description: "打った値をそのまま保存し、足りない入力を解消します。",
+      description: "値を打ってください。打った値をそのまま保存し、足りない入力を解消します。",
+      descriptionChoice: "この設定が受け付ける値から選んでください。",
+      choose: "選んでください",
+      example: (e: string) => `例: ${e}`,
       label: "値",
       dimension: (d: string) => `次元: ${d}`,
       scope: "書き込み先",
@@ -26,12 +28,26 @@ export const fixesJa = {
       confirm: "保存",
     },
     pick: {
-      title: (path: string) => `${path} の部品を選ぶ`,
-      description: "設計にある部品から選んで入れます。",
-      part: "部品",
+      action: {
+        part: "部品を選ぶ",
+        catalog_item: "カタログ品を選ぶ",
+        comm_link: "回線を選ぶ",
+      },
+      title: (path: string) => `${path} に入れるものを選ぶ`,
+      prompt: {
+        part: () => "設計にある部品から選んでください。",
+        catalog_item: (kinds: string) => `カタログから、種別 ${kinds} の品を選んでください。`,
+        comm_link: () => "通信の設定にある下りの回線から選んでください。",
+      },
+      label: { part: "部品", catalog_item: "カタログ品", comm_link: "回線" },
       choose: "選んでください",
-      none: "条件に合う部品がありません。部品を追加してください。",
-      summary: (path: string, part: string) => `${path} を ${part} にする`,
+      none: {
+        part: () => "条件に合う部品がありません。先に部品を追加してください:",
+        catalog_item: (kinds: string) =>
+          `カタログに種別 ${kinds} の品がありません。先に追加してください:`,
+        comm_link: () => "下りの回線がありません。先に下りの回線を追加してください:",
+      },
+      summary: (path: string, chosen: string) => `${path} を ${chosen} にする`,
       confirm: "入れる",
     },
   },

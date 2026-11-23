@@ -54,7 +54,7 @@ pub fn sun_distance_extremes(
             "The mission duration must be positive".into(),
         ));
     }
-    let times = sample_times(span, orbit_step_s(orbit.period_s()))?;
+    let times = sample_times(span, orbit_step_s(orbit.cycle()))?;
     let dist = |t: f64| -> Result<f64, AnalysisError> { Ok(orbit.state_at(t)?.r_eci.norm()) };
     let values: Vec<f64> = times.iter().map(|&t| dist(t)).collect::<Result<_, _>>()?;
     let extreme = |sign: f64| -> Result<SunDistancePoint, AnalysisError> {

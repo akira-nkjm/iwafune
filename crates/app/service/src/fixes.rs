@@ -6,10 +6,10 @@
 //!
 //! | 対象 | 候補 |
 //! |---|---|
-//! | 部品の属性・フィールド | `SetValue`（部品がカタログ品を選んでいれば品の側の書き先も） |
-//! | 設定 | `SetValue`（次元は `setting_dimension`）。回線の部品・アンテナの欄は `PickPart` |
+//! | 部品の属性・フィールド | `SetValue`（部品がカタログ品を選んでいれば品の側の書き先も。量には入力の例、列挙・真偽には選べる値） |
+//! | 設定 | `SetValue`（次元は `setting_dimension`）。回線の部品・アンテナの欄は `PickRef`（部品）、打ち上げ機・ディスペンサーは `PickRef`（カタログ品）、`data_downlink` は `PickRef`（回線） |
 //! | 役割のどれかの部品 | その役割の部品が無ければ `AddPart` と `AssignPart`、有って値が無ければ `SetValueOnPart` |
-//! | マヌーバの `thruster` | `PickPart` |
+//! | マヌーバの `thruster` | `PickRef`（部品） |
 //! | モード・マヌーバ・地上局・回線・ケースの一覧の空 | `AddListItem` |
 //!
 //! どの候補も既存の Op になる（新しい編集の道は作らない）。
@@ -19,13 +19,15 @@ use fune_model::design::{Design, Maneuver};
 use fune_model::path::{ParamPath, SettingPath, SettingScope};
 use fune_model::resolve::{Origin, Resolved};
 use fune_model::role::Role;
-use fune_model::value::units::unit_dimension;
 use fune_model::{Id, Target};
 use fune_ops::{Op, cli::quote, to_cli};
-use fune_projection::{CatalogFix, Fix, ListKind, MissingInput};
+use fune_projection::{Fix, ListKind, MissingInput};
 
-/// 置き換え欄（値）。コマンドの中では `"<value>"` と引用して書く。
-const VALUE: &str = "\"<value>\"";
+mod refs;
+mod value;
+
+use refs::pick_part;
+use value::{VALUE, attr_dimension, example_of, set_attr, set_value};
 
 /// 不足入力の一覧に、設計を見て決めた直し方の候補を付ける。サービスが不足入力を返す所はすべてこれを通す。
 pub fn complete(
@@ -72,50 +74,6 @@ pub fn fixes_for(design: &Design, resolved: &Resolved, m: &MissingInput) -> Vec<
     }
 }
 
-/// 値を書く先（部品の属性・フィールド・設定）に値を入れる候補。
-fn set_value(m: &MissingInput, target: ParamPath, dimension: Option<String>) -> Fix {
-    Fix::SetValue {
-        path: m.path.clone(),
-        command: format!("fune set {} {VALUE}", quote(&m.path)),
-        target,
-        dimension,
-        catalog: None,
-    }
-}
-
-/// 属性の次元名（定義の `dimension`、無ければ `units` の先頭の単位の次元）。
-fn attr_dimension(design: &Design, attr: &str) -> Option<String> {
-    let def = design.attribute(attr)?;
-    def.dimension
-        .clone()
-        .or_else(|| def.units.first().and_then(|u| unit_dimension(u).ok()))
-}
-
-/// 部品の属性に値を入れる候補。部品がカタログ品を選んでいれば、品の側へ書く代わりの書き先も付ける。
-fn set_attr(design: &Design, m: &MissingInput, part: &str, attr: &str, state: Option<&str>) -> Fix {
-    let path = ParamPath::Attr {
-        part: part.to_owned(),
-        attr: attr.to_owned(),
-        state: state.map(str::to_owned),
-    };
-    let mut fix = set_value(m, path, attr_dimension(design, attr));
-    let item = design.parts.get(part).and_then(|p| p.catalog.as_ref());
-    if let (Fix::SetValue { catalog, .. }, Some(item)) = (&mut fix, item) {
-        let inside = state.map_or_else(|| attr.to_owned(), |s| format!("{attr}.{s}"));
-        let item = item.to_string();
-        *catalog = Some(CatalogFix {
-            command: format!(
-                "fune catalog set {} {} {VALUE}",
-                quote(&item),
-                quote(&inside)
-            ),
-            item,
-            path: inside,
-        });
-    }
-    fix
-}
-
 /// 設定が足りないときの候補（部品を指す欄・一覧の空・量の値）。
 fn setting_fixes(design: &Design, site: (&Target, &MissingInput), s: &SettingPath) -> Vec<Fix> {
     let comm =
@@ -131,9 +89,11 @@ fn setting_fixes(design: &Design, site: (&Target, &MissingInput), s: &SettingPat
     if !roles.is_empty() {
         let parts = parts_of_roles(design, roles);
         let command = format!("fune set {} <part>", quote(&m.path));
-        return vec![pick_part(site, roles, parts, command)];
+        return vec![pick_part(design, site, roles, parts, command)];
     }
-    if pattern_matches(SettingScope::Analysis, &["comm", "link"], s) {
+    if pattern_matches(SettingScope::Analysis, &["comm"], s)
+        || pattern_matches(SettingScope::Analysis, &["comm", "link"], s)
+    {
         let command = "fune link add <ID> --direction <down|up> --part <part> --band <band>";
         return vec![add_item(ListKind::CommLink, command)];
     }
@@ -145,6 +105,11 @@ fn setting_fixes(design: &Design, site: (&Target, &MissingInput), s: &SettingPat
         let command = format!("fune ground add {}", quote(id));
         return vec![add_item(ListKind::GroundStation, &command)];
     }
+    if let Some(fix) =
+        refs::catalog_item(design, s).or_else(|| refs::comm_downlink(design, site, s))
+    {
+        return vec![fix];
+    }
     let dimension = setting_dimension(s).map(str::to_owned);
     vec![set_value(m, ParamPath::Setting(s.clone()), dimension)]
 }
@@ -153,21 +118,6 @@ fn add_item(list: ListKind, command: &str) -> Fix {
     Fix::AddListItem {
         list,
         command: command.to_owned(),
-    }
-}
-
-fn pick_part(
-    (target, m): (&Target, &MissingInput),
-    roles: &[Role],
-    parts: Vec<String>,
-    command: String,
-) -> Fix {
-    Fix::PickPart {
-        target: target.clone(),
-        path: m.path.clone(),
-        roles: roles.to_vec(),
-        parts,
-        command,
     }
 }
 
@@ -190,7 +140,7 @@ fn maneuver_thruster(design: &Design, site: (&Target, &MissingInput), id: &str) 
             )
         });
     let roles = [Role::PropulsionThruster, Role::Thruster];
-    vec![pick_part(site, &roles, parts, command)]
+    vec![pick_part(design, site, &roles, parts, command)]
 }
 
 /// 今のマヌーバのスラスタを置き換え欄にした `fune maneuver set` のコマンド（`fune_ops::to_cli` が書く）。
@@ -238,6 +188,8 @@ fn any_part(design: &Design, resolved: &Resolved, roles: &[Role], attr: Option<&
             vec![Fix::SetValueOnPart {
                 attr: attr.to_owned(),
                 dimension: attr_dimension(design, attr),
+                example: example_of(attr_dimension(design, attr).as_deref()),
+                choices: value::choices_of_attr(design, attr),
                 parts: lacking,
                 command: format!("fune set <part>.{} {VALUE}", quote(attr)),
             }]

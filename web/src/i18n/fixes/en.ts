@@ -4,7 +4,6 @@ import type { fixesJa } from "./ja";
 export const fixesEn: typeof fixesJa = {
   fixes: {
     enterValue: "Enter value",
-    pickPart: "Pick a part",
     addPart: "Add a part",
     assignPart: "Assign an existing part",
     setOnPart: "Set on a part",
@@ -17,7 +16,10 @@ export const fixesEn: typeof fixesJa = {
     },
     value: {
       title: (path: string) => `Enter a value for ${path}`,
-      description: "Saves the value as typed and clears the missing input.",
+      description: "Type the value; it is saved as typed and clears the missing input.",
+      descriptionChoice: "Choose one of the values this setting accepts.",
+      choose: "Choose one",
+      example: (e: string) => `e.g. ${e}`,
       label: "Value",
       dimension: (d: string) => `Dimension: ${d}`,
       scope: "Write to",
@@ -29,12 +31,25 @@ export const fixesEn: typeof fixesJa = {
       confirm: "Save",
     },
     pick: {
-      title: (path: string) => `Pick a part for ${path}`,
-      description: "Choose among the parts in the design.",
-      part: "Part",
+      action: {
+        part: "Pick a part",
+        catalog_item: "Pick a catalog item",
+        comm_link: "Pick a link",
+      },
+      title: (path: string) => `Choose a value for ${path}`,
+      prompt: {
+        part: () => "Choose a part from the design.",
+        catalog_item: (kinds: string) => `Choose the item of kind ${kinds} from the catalog.`,
+        comm_link: () => "Choose one of the downlinks defined in the comm settings.",
+      },
+      label: { part: "Part", catalog_item: "Catalog item", comm_link: "Link" },
       choose: "Choose one",
-      none: "No part qualifies. Add a part first.",
-      summary: (path: string, part: string) => `Set ${path} to ${part}`,
+      none: {
+        part: () => "No part qualifies. Add a part first:",
+        catalog_item: (kinds: string) => `The catalog has no item of kind ${kinds}. Add one first:`,
+        comm_link: () => "No downlink is defined. Add a downlink first:",
+      },
+      summary: (path: string, chosen: string) => `Set ${path} to ${chosen}`,
       confirm: "Set",
     },
   },
