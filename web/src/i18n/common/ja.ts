@@ -31,6 +31,10 @@ export const commonJa = {
     noData: "データなし",
     cannotLoadDesign: (msg: string) => `設計を読めません: ${msg}`,
     language: "言語",
+    appearance: "外観",
+    themeSystem: "OS に従う",
+    themeLight: "ライト",
+    themeDark: "ダーク",
     /** 図・3D の視点操作の案内（「?」の中身） */
     viewHelp: {
       label: "操作の案内",

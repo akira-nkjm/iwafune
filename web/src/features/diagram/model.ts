@@ -1,7 +1,7 @@
 import type { DesignView, NetView, PartRow, Role, System } from "@/api/types";
 import { nodeName, systemTree } from "@/lib/design";
 import { systemTone } from "@/lib/systems";
-import { type Tone, toneHex, uiHex } from "@/lib/tone";
+import { type Tone, toneVar, uiVar } from "@/lib/tone";
 import { type Layer, layerOf, type PowerCategory, powerCategories } from "./power";
 import { visibleModel } from "./visibility";
 
@@ -79,8 +79,8 @@ export interface DiagramModel {
 export const groupNodeId = (id: string) => `group:${id}`;
 export const cardNodeId = (id: string) => `card:${id}`;
 
-const SIGNAL_COLOR = toneHex.blue;
-const RF_COLOR = toneHex.rose;
+const SIGNAL_COLOR = toneVar.blue;
+const RF_COLOR = toneVar.rose;
 
 function commonPrefix(ids: string[]): string {
   let p = ids[0] ?? "";
@@ -238,7 +238,7 @@ export function buildModel(design: DesignView, opts: DiagramOptions): DiagramMod
         ? net.kind === "rf"
           ? RF_COLOR
           : SIGNAL_COLOR
-        : (cat?.color ?? uiHex.ink3);
+        : (cat?.color ?? uiVar.ink3);
     const mergedEnd = (e: End) => (cardById.get(e.card)?.members.length ?? 1) > 1;
     // member: 中心でない側の端（線を消すとこのポートを切り離す）
     const edge = (from: Endpoint, to: Endpoint, member: End, i: number): DiagramEdge => ({

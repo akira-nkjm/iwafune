@@ -1,8 +1,12 @@
 /**
  * 画面の色の正本（色の値はこのファイルだけに書く。xtask が検査する）。
  * - `palette`: 地・線・字・アクセント・状態の色。`CAT`: カテゴリ色（サブシステム・系列の区別。塗りと文字用の ink）。
- *   src/styles/index.css の色と影の変数（@theme の --color-*・--shadow-*）は、ここから書き出す（`pnpm -C web tokens`。
- *   tone.test.ts が一致と、コントラスト（塗りは 3:1 以上、文字の ink は 4.5:1 以上）・見分けやすさを検査する）。
+ *   どちらも明るい配色（light）と暗い配色（dark）を持つ（`Scheme`）。`palette`・`toneHex`・`toneInkHex`・`uiHex` は明るい配色、
+ *   `paletteFor`・`toneHexFor`・`toneInkHexFor`・`uiHexFor` は配色を引数に取る版（three.js など hex が要る描画が使う。配色は
+ *   lib/theme.ts の `useScheme()`）。CSS で足りる描画は `toneVar`・`toneInkVar`・`uiVar`（`var(--color-…)`）を使うと配色に追従する。
+ *   src/styles/index.css の色と影の変数（@theme の --color-*・--shadow-*。暗い配色は `:root[data-theme="dark"]` の中）は、
+ *   ここから書き出す（`pnpm -C web tokens`。tone.test.ts が一致と、コントラスト（塗りは 3:1 以上、文字の ink は 4.5:1 以上）・
+ *   見分けやすさを両方の配色で検査する）。
  * - Tailwind のクラスの対応（toneBg など）。Tailwind はソースに字面で出たクラスだけを生成するので、省略せずに書く。
  * - CSS のクラスを使えない描画（three.js・SVG・README のロゴ）が使う hex（toneHex・uiHex・brandHex）。
  * - 色の混ぜ方（サブシステム色の淡い地 `toneTint`・熱画像の配色 `heatHex`・覆い `inkVeil`）。`color-mix(` と色の名前
@@ -25,8 +29,14 @@ export const tones = [
 ] as const;
 export type Tone = (typeof tones)[number];
 
-/** カテゴリ色: 塗り（fill）と、白地の文字に使う色（ink。4.5:1 以上） */
-const CAT: Record<Tone, { fill: string; ink: string }> = {
+/** 配色: 明るい（既定）か暗いか。閲覧者の選び（OS に従う・明るい・暗い）から lib/theme.ts が決める */
+export type Scheme = "light" | "dark";
+export const schemes: readonly Scheme[] = ["light", "dark"];
+
+type CatColors = Record<Tone, { fill: string; ink: string }>;
+
+/** カテゴリ色（明るい配色）: 塗り（fill）と、白地の文字に使う色（ink。4.5:1 以上） */
+const CAT: CatColors = {
   blue: { fill: "#3382c2", ink: "#1f63a0" },
   gold: { fill: "#e7bd41", ink: "#8a6400" },
   teal: { fill: "#0097a7", ink: "#006d79" },
@@ -38,6 +48,24 @@ const CAT: Record<Tone, { fill: string; ink: string }> = {
   orange: { fill: "#d9701f", ink: "#9c4a0a" },
   violet: { fill: "#7a5cc2", ink: "#5f42a6" },
   magenta: { fill: "#b04a96", ink: "#8e2f78" },
+};
+
+/**
+ * カテゴリ色（暗い配色）: 塗りは暗い面（panel）で 3:1 以上、ink は 4.5:1 以上（塗り専用の gold・rose・gray の塗りは 3:1 を問わない）。
+ * 紺は暗い面に沈むので、塗りも明るい青みの灰にする
+ */
+const CAT_DARK: CatColors = {
+  blue: { fill: "#4a93d6", ink: "#7ab7ee" },
+  gold: { fill: "#e7bd41", ink: "#e9c458" },
+  teal: { fill: "#1fb0c0", ink: "#4fcfdc" },
+  navy: { fill: "#8aa4d6", ink: "#9db6e2" },
+  rose: { fill: "#e29797", ink: "#f0a0a0" },
+  red: { fill: "#e05555", ink: "#f28585" },
+  gray: { fill: "#69758a", ink: "#9ba7ba" },
+  green: { fill: "#45ad5b", ink: "#6fcf86" },
+  orange: { fill: "#e5853a", ink: "#f0a56a" },
+  violet: { fill: "#8f72dc", ink: "#b39cf0" },
+  magenta: { fill: "#c462aa", ink: "#e48ccb" },
 };
 
 /** 字の色（紺）。線と影はこの色に透明度を付けたもの */
@@ -53,7 +81,7 @@ function alpha(hex: string, a: number): string {
  * 地・線・字・アクセント・状態の色（キーは CSS の --color-<キー> の名前）。アクセントと状態の色はカテゴリ色から取る
  * （アクセント = 青、良 = 青緑、注意 = 金、悪 = 赤）。warn の塗りは白地の文字に使わない（文字は *-ink）。
  */
-export const palette = {
+const LIGHT_PALETTE = {
   // 面
   app: "#fbfcfe",
   panel: "#ffffff",
@@ -86,45 +114,159 @@ export const palette = {
   "neg-ink": CAT.red.ink,
 } as const;
 
-/** 影（CSS の --shadow-<キー>） */
+export const palette = LIGHT_PALETTE;
+type PaletteKey = keyof typeof LIGHT_PALETTE;
+
+/** 暗い配色の線と影の元の色（淡い青みの灰。紺では暗い面に見えない） */
+const DARK_LINE = "#dbe6f4";
+/** 暗い配色の影の色 */
+const DARK_SHADOW = "#02060c";
+
+/**
+ * 暗い配色。調子は落ち着いた紺灰（純粋な黒にしない）。面は app < panel < panel-2 の順に明るくし、字は明るい青みの灰、
+ * 線は明るい色の透明度、影は暗い面でも見えるよう濃くする。`inverse` は「字の色の地に載せる字」なので、暗い配色では暗い色
+ */
+const DARK_PALETTE: Record<PaletteKey, string> = {
+  app: "#0e141d",
+  panel: "#151d29",
+  "panel-2": "#1b2432",
+  sunken: "#0a0f17",
+  chip: "#243044",
+  "line-soft": alpha(DARK_LINE, 0.07),
+  line: alpha(DARK_LINE, 0.11),
+  "line-strong": alpha(DARK_LINE, 0.18),
+  tick: "#2f3c52",
+  ink: "#e6edf6",
+  "ink-2": "#c4cedc",
+  "ink-3": CAT_DARK.gray.ink,
+  "ink-4": "#7d8aa0",
+  inverse: "#0e141d",
+  accent: CAT_DARK.blue.fill,
+  "accent-ink": CAT_DARK.blue.ink,
+  "accent-tint": "#18293d",
+  pos: CAT_DARK.teal.fill,
+  "pos-bg": "#102a30",
+  "pos-ink": CAT_DARK.teal.ink,
+  warn: CAT_DARK.gold.fill,
+  "warn-bg": "#2d2810",
+  "warn-ink": CAT_DARK.gold.ink,
+  neg: CAT_DARK.red.fill,
+  "neg-bg": "#341b20",
+  "neg-ink": CAT_DARK.red.ink,
+};
+
+/** 影（CSS の --shadow-<キー>）。明るい配色は紺、暗い配色は黒に近い紺で濃くする */
 const SHADOWS = {
-  panel: `0 1px 2px ${alpha(INK, 0.04)}, 0 1px 1px ${alpha(INK, 0.02)}`,
-  pop: `0 12px 32px ${alpha(INK, 0.16)}, 0 2px 6px ${alpha(INK, 0.06)}`,
+  light: {
+    panel: `0 1px 2px ${alpha(INK, 0.04)}, 0 1px 1px ${alpha(INK, 0.02)}`,
+    pop: `0 12px 32px ${alpha(INK, 0.16)}, 0 2px 6px ${alpha(INK, 0.06)}`,
+  },
+  dark: {
+    panel: `0 1px 2px ${alpha(DARK_SHADOW, 0.4)}, 0 1px 1px ${alpha(DARK_SHADOW, 0.25)}`,
+    pop: `0 12px 32px ${alpha(DARK_SHADOW, 0.6)}, 0 2px 6px ${alpha(DARK_SHADOW, 0.35)}`,
+  },
 } as const;
 
-/** index.css の書き出す部分の目印 */
+/** 配色ごとの地・線・字・状態の色 */
+export function paletteFor(scheme: Scheme): Record<PaletteKey, string> {
+  return scheme === "dark" ? DARK_PALETTE : LIGHT_PALETTE;
+}
+
+/** 配色ごとのカテゴリ色 */
+function catFor(scheme: Scheme): CatColors {
+  return scheme === "dark" ? CAT_DARK : CAT;
+}
+
+/** index.css の書き出す部分の目印（明るい配色は @theme の中、暗い配色は `:root[data-theme="dark"]` の中） */
 export const CSS_TOKENS_BEGIN =
   "/* colors:begin — lib/tone.ts から書き出す（pnpm -C web tokens）。手で書き換えない */";
 export const CSS_TOKENS_END = "/* colors:end */";
+export const CSS_TOKENS_DARK_BEGIN =
+  "/* colors:begin dark — lib/tone.ts から書き出す（pnpm -C web tokens）。手で書き換えない */";
+export const CSS_TOKENS_DARK_END = "/* colors:end dark */";
 
-/** index.css の @theme に入れる色と影の変数（目印の行を含む。字下げは 2 文字） */
-export function cssColorTokens(): string {
-  const lines = [
-    ...Object.entries(palette).map(([k, v]) => `--color-${k}: ${v};`),
-    ...tones.map((t) => `--color-cat-${t}: ${CAT[t].fill};`),
-    ...tones.map((t) => `--color-cat-${t}-ink: ${CAT[t].ink};`),
-    ...Object.entries(SHADOWS).map(([k, v]) => `--shadow-${k}: ${v};`),
+/** 配色の色と影の変数の宣言（`--color-…: …;`） */
+function cssDeclarations(scheme: Scheme): string[] {
+  const cat = catFor(scheme);
+  return [
+    ...Object.entries(paletteFor(scheme)).map(([k, v]) => `--color-${k}: ${v};`),
+    ...tones.map((t) => `--color-cat-${t}: ${cat[t].fill};`),
+    ...tones.map((t) => `--color-cat-${t}-ink: ${cat[t].ink};`),
+    ...Object.entries(SHADOWS[scheme]).map(([k, v]) => `--shadow-${k}: ${v};`),
   ];
-  return [CSS_TOKENS_BEGIN, ...lines, CSS_TOKENS_END].map((l) => `  ${l}`).join("\n");
 }
 
-/** 塗りの色（gold・rose・gray は白地の文字に使わない。fillOnly） */
-export const toneHex: Record<Tone, string> = Object.fromEntries(
-  tones.map((t) => [t, CAT[t].fill]),
+/** index.css の @theme に入れる明るい配色の変数（目印の行を含む。字下げは 2 文字） */
+export function cssColorTokens(): string {
+  return [CSS_TOKENS_BEGIN, ...cssDeclarations("light"), CSS_TOKENS_END]
+    .map((l) => `  ${l}`)
+    .join("\n");
+}
+
+/** index.css の `:root[data-theme="dark"]` に入れる暗い配色の変数（目印の行を含む。字下げは 2 文字） */
+export function cssColorTokensDark(): string {
+  return [CSS_TOKENS_DARK_BEGIN, ...cssDeclarations("dark"), CSS_TOKENS_DARK_END]
+    .map((l) => `  ${l}`)
+    .join("\n");
+}
+
+const hexMap = (scheme: Scheme, key: "fill" | "ink"): Record<Tone, string> =>
+  Object.fromEntries(tones.map((t) => [t, catFor(scheme)[t][key]])) as Record<Tone, string>;
+
+const TONE_HEX = { light: hexMap("light", "fill"), dark: hexMap("dark", "fill") } as const;
+const TONE_INK_HEX = { light: hexMap("light", "ink"), dark: hexMap("dark", "ink") } as const;
+
+/** 塗りの色（gold・rose・gray は白地の文字に使わない。fillOnly）。明るい配色 */
+export const toneHex: Record<Tone, string> = TONE_HEX.light;
+
+/** 文字用の色（白地で 4.5:1 以上）。明るい配色 */
+export const toneInkHex: Record<Tone, string> = TONE_INK_HEX.light;
+
+/** 配色ごとの塗りの色（three.js のように hex が要る描画用。CSS で足りるなら `toneVar`） */
+export function toneHexFor(scheme: Scheme): Record<Tone, string> {
+  return TONE_HEX[scheme];
+}
+
+/** 配色ごとの文字用の色 */
+export function toneInkHexFor(scheme: Scheme): Record<Tone, string> {
+  return TONE_INK_HEX[scheme];
+}
+
+/** カテゴリ色の CSS 変数（`var(--color-cat-<色>)`）。SVG の属性・style で配色に追従する */
+export const toneVar: Record<Tone, string> = Object.fromEntries(
+  tones.map((t) => [t, `var(--color-cat-${t})`]),
 ) as Record<Tone, string>;
 
-/** 文字用の色（白地で 4.5:1 以上） */
-export const toneInkHex: Record<Tone, string> = Object.fromEntries(
-  tones.map((t) => [t, CAT[t].ink]),
+/** 文字用のカテゴリ色の CSS 変数（`var(--color-cat-<色>-ink)`） */
+export const toneInkVar: Record<Tone, string> = Object.fromEntries(
+  tones.map((t) => [t, `var(--color-cat-${t}-ink)`]),
 ) as Record<Tone, string>;
 
-/** 画面の地・線・字のうち、CSS のクラスを使えない描画（three.js・SVG の stroke）が使う色 */
-export const uiHex = {
-  ink: palette.ink,
-  ink3: palette["ink-3"],
-  ink4: palette["ink-4"],
-  tick: palette.tick,
-  accent: palette.accent,
+function uiOf(p: Record<PaletteKey, string>) {
+  return {
+    ink: p.ink,
+    ink3: p["ink-3"],
+    ink4: p["ink-4"],
+    tick: p.tick,
+    accent: p.accent,
+  } as const;
+}
+
+/** 画面の地・線・字のうち、CSS のクラスを使えない描画（three.js）が使う色。明るい配色 */
+export const uiHex = uiOf(LIGHT_PALETTE);
+
+/** 配色ごとの `uiHex` */
+export function uiHexFor(scheme: Scheme) {
+  return uiOf(paletteFor(scheme));
+}
+
+/** 画面の地・線・字の CSS 変数。SVG の stroke・fill で配色に追従する */
+export const uiVar = {
+  ink: "var(--color-ink)",
+  ink3: "var(--color-ink-3)",
+  ink4: "var(--color-ink-4)",
+  tick: "var(--color-tick)",
+  accent: "var(--color-accent)",
 } as const;
 
 /**
@@ -204,9 +346,9 @@ export function toneAt(i: number): Tone {
 const TINT = { frame: 6, header: 10, icon: 16, card: 18 } as const;
 export type TintLevel = keyof typeof TINT;
 
-/** カテゴリ色を面（panel）の色に混ぜた淡い地（CSS の値。sRGB で混ぜる）。サブシステム色の地はこれだけで作る */
+/** カテゴリ色を面（panel）の色に混ぜた淡い地（CSS の値。sRGB で混ぜる。どちらも CSS 変数なので配色に追従する）。サブシステム色の地はこれだけで作る */
 export function toneTint(tone: Tone, level: TintLevel): string {
-  return `color-mix(in srgb, ${toneHex[tone]} ${TINT[level]}%, var(--color-panel))`;
+  return `color-mix(in srgb, ${toneVar[tone]} ${TINT[level]}%, var(--color-panel))`;
 }
 
 /** 字の色を薄く透かした覆い（CSS の値）。系統図のミニマップで、いま見えている範囲の外にかける */

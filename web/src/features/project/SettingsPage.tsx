@@ -9,6 +9,7 @@ import { TablePanel } from "@/kit/table/TablePanel";
 import { LanguageSwitch } from "@/shell/LanguageSwitch";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
+import { ThemeSwitch } from "@/shell/ThemeSwitch";
 import { DataPanel } from "./DataPanel";
 import { SettingsTable } from "./SettingsTable";
 
@@ -54,7 +55,7 @@ export function SettingsPage() {
   );
 }
 
-/** プロジェクトの情報（名前・場所・ブランチ・revision・スキーマの版）と言語の切り替え */
+/** プロジェクトの情報（名前・場所・ブランチ・revision・スキーマの版）と、言語・配色の切り替え */
 function ProjectPanel({ design: d }: { design: DesignView }) {
   const p = useT().project;
   const rows: [string, string][] = [
@@ -66,7 +67,15 @@ function ProjectPanel({ design: d }: { design: DesignView }) {
   ];
   return (
     <Panel>
-      <PanelHeader title={p.projectPanel} right={<LanguageSwitch />} />
+      <PanelHeader
+        title={p.projectPanel}
+        right={
+          <div className="flex flex-wrap items-center gap-2">
+            <LanguageSwitch />
+            <ThemeSwitch />
+          </div>
+        }
+      />
       <dl className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3 text-xs">
         {rows.map(([k, v]) => (
           <div key={k} className="min-w-0">

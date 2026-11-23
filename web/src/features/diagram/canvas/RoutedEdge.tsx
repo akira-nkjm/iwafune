@@ -8,7 +8,7 @@ import {
 } from "@xyflow/react";
 import { useEffect, useState } from "react";
 import type { ViewEdge, ViewPortSide } from "@/api/types";
-import { uiHex } from "@/lib/tone";
+import { uiVar } from "@/lib/tone";
 import { EdgeEditor } from "../editing/EdgeEditor";
 import { RouteControls } from "../editing/RouteControls";
 import { useViewEdits } from "../editing/view-edits";
@@ -216,7 +216,7 @@ export function RoutedEdge(props: Props) {
         path={path}
         interactionWidth={14}
         style={{
-          stroke: data?.color ?? uiHex.ink3,
+          stroke: data?.color ?? uiVar.ink3,
           strokeWidth: data?.selected ? 3 : 1.6,
           strokeDasharray: data?.dashed ? "5 3" : undefined,
         }}

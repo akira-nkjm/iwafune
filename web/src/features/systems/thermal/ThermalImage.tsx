@@ -11,6 +11,7 @@ import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
 import { NativeSelect, type SelectOption } from "@/kit/forms/NativeSelect";
 import { RangeInput } from "@/kit/forms/RangeInput";
+import { useScheme } from "@/lib/theme";
 import { heatHex } from "@/lib/tone";
 import { Formatted } from "@/quantity/Formatted";
 import { Button } from "@/ui/button";
@@ -84,6 +85,7 @@ export function ThermalImage({
 }) {
   const t = useT();
   const I = t.systems.thermalImage;
+  const scheme = useScheme();
   const series = useMemo(() => transientTemperatures(transient), [transient]);
   const scale = useMemo(() => heatScaleOf(steady, series), [steady, series]);
   const options = useMemo(
@@ -111,8 +113,8 @@ export function ThermalImage({
     [source, steady, series, heat],
   );
   const colorOf = useMemo(
-    () => (scale ? partHeatColors(heat, temps, scale) : () => ""),
-    [heat, temps, scale],
+    () => (scale ? partHeatColors(heat, temps, scale, scheme) : () => ""),
+    [heat, temps, scale, scheme],
   );
   // 非定常のときだけ、同じ時刻の添字で軌道の図と太陽の矢印を出す（再生で添字が進むだけ。新しく取りに行かない）
   const view = orbitView(source, transient?.orbit_plane, index);

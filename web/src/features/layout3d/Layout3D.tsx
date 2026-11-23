@@ -13,6 +13,7 @@ import { Chip } from "@/kit/selection/Chip";
 import { Segmented } from "@/kit/selection/Segmented";
 import { Switch } from "@/kit/selection/Switch";
 import { cn } from "@/lib/cn";
+import { useScheme } from "@/lib/theme";
 import { HelperToggles } from "./HelperToggles";
 import { LayoutBrowser } from "./LayoutBrowser";
 import { Scene3D, type SceneEdit, type TransformMode } from "./Scene3D";
@@ -41,7 +42,6 @@ const SNAPS = [
   { value: "10mm", label: "10 mm", step: 0.01 },
 ] as const;
 const DEFAULT_SNAP = SNAPS[1];
-
 /** 最初は隠した部品が無い */
 const NONE_HIDDEN: ReadonlySet<string> = new Set();
 
@@ -195,6 +195,7 @@ function Layout3DFrame({
   const [selected, setSelected] = useState<string | null>(null);
   const [showAxes, setShowAxes] = useState(false);
   const opacityId = useId();
+  const scheme = useScheme();
   const [structureOpacity, setStructureOpacity] = useState(DEFAULT_STRUCTURE_OPACITY);
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NONE_HIDDEN);
   const [helpers, setHelpers] = useState<SceneHelpers>(initialHelpers);
@@ -206,8 +207,8 @@ function Layout3DFrame({
     null,
   );
   const { boxes, unplaced, dimensions } = useMemo(
-    () => boxesOf(design, colorOf),
-    [design, colorOf],
+    () => boxesOf(design, colorOf, scheme),
+    [design, colorOf, scheme],
   );
   const placed = useMemo(() => new Set(boxes.map((b) => b.id)), [boxes]);
   const fovs = useMemo(() => fovsOf(design), [design]);

@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 import { nav } from "@/lib/nav";
 import { CommitChip } from "../CommitChip";
 import { LanguageSwitch } from "../LanguageSwitch";
+import { ThemeSwitch } from "../ThemeSwitch";
 import { BrandToggle } from "./BrandToggle";
 import { CommandSearch } from "./CommandSearch";
 import { NavSectionList } from "./NavSectionList";
@@ -82,8 +83,9 @@ export function Sidebar() {
             full={
               <div className="space-y-2">
                 <CommitChip />
-                <div className="px-2">
+                <div className="space-y-1 px-2">
                   <LanguageSwitch variant="row" />
+                  <ThemeSwitch variant="row" />
                 </div>
               </div>
             }
@@ -91,6 +93,7 @@ export function Sidebar() {
               <div className="space-y-2">
                 <CommitChip rail />
                 <LanguageSwitch variant="rail" />
+                <ThemeSwitch variant="rail" />
               </div>
             }
           />

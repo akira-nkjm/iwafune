@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { type Tone, toneHex, toneText } from "@/lib/tone";
+import { type Tone, toneText, toneVar } from "@/lib/tone";
 
 /**
  * 見出し付きの枠（色の点・小さな前置きの文字・題）。中身はカードの格子（`CardGrid`）と入れ子の枠（`NestedBoxes`）など。
@@ -33,7 +33,7 @@ export function GroupBox({
     <>
       <span
         className="size-2.5 shrink-0 rounded-full"
-        style={{ background: toneHex[tone] }}
+        style={{ background: toneVar[tone] }}
         aria-hidden
       />
       <span className="text-ink-3">{prefix}</span>
