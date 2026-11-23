@@ -61,6 +61,16 @@ pub enum ValueData {
         min: QuantityView,
         max: QuantityView,
     },
+    /// 1 変数の関数（引数と値は書かれた単位のまま。SI 値は `si_at`・`si_values`）
+    Curve {
+        at: Vec<f64>,
+        at_unit: String,
+        values: Vec<f64>,
+        unit: String,
+        /// SI の引数と値（同じ並び）
+        si_at: Vec<f64>,
+        si_values: Vec<f64>,
+    },
     Enum {
         value: String,
     },

@@ -27,6 +27,10 @@ by_state?: boolean,
  */
 dimension?: string | null, 
 /**
+ * 曲線（`curve`）の引数の次元名（`dimension` は値の次元）。曲線だけが持つ
+ */
+at_dimension?: string | null, 
+/**
  * 許可する単位（主な単位）。この外の単位は同じ次元でも warning
  */
 units?: Array<string>, 
