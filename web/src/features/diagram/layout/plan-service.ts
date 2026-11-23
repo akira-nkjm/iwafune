@@ -63,7 +63,12 @@ export function createPlanService(deps: { spawn: () => PlanWorker; cache?: PlanC
       worker.terminate();
       if (inflight === job) inflight = null;
     };
-    promise.then(done, done);
+    // 結果は、計算が終わった時点でメモリに残す（待っている依頼の続きより先に。同じ入力の次の依頼が、
+    // 終わったばかりの計算を見失って計算し直さないように）
+    promise.then((plan) => {
+      remember(key, plan);
+      done();
+    }, done);
     return job;
   };
 
@@ -72,7 +77,8 @@ export function createPlanService(deps: { spawn: () => PlanWorker; cache?: PlanC
     async plan(full: DiagramModel): Promise<LayoutPlan> {
       const id = ++latest;
       const key = await planKey(full);
-      const hit = memory.get(key) ?? (await deps.cache?.get(key)) ?? null;
+      // 保存領域を待っている間に、同じ入力の計算が終わっていることがあるので、メモリをもう一度見る
+      const hit = memory.get(key) ?? (await deps.cache?.get(key)) ?? memory.get(key) ?? null;
       if (id !== latest) throw new SupersededError();
       if (hit) {
         remember(key, hit);
