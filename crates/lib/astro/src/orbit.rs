@@ -7,6 +7,7 @@
 //! 同じ積分器と力モデルに推力の項（[`crate::force::thrust`]）と質量を足す。平均の長半径（J2 の短周期項を引く）は `mean`。
 
 mod analytic;
+mod approach;
 mod beta;
 mod local_time;
 mod mean;
@@ -17,11 +18,13 @@ pub use crate::kepler::{perifocal_to_eci, solve_kepler};
 pub use crate::state::OrbitState;
 
 pub use analytic::{j2_secular_rates, j2_secular_rates_about};
+pub use approach::{ClosestApproach, closest_approach};
 pub use beta::{beta_angle_rad, raan_for_beta};
 pub use local_time::{
     ltan_from_raan, raan_from_ltan, raan_from_ltan_about, raan_from_ltdn, raan_from_ltdn_about,
 };
 pub use mean::{mean_semi_major_axis_m, orbit_averaged_elements, osculating_state_from_mean};
+pub use numerical::{NUMERICAL_INTEGRATOR, propagate_states};
 pub use powered::{PoweredArc, PoweredSample, PoweredTarget, ThrustArc, propagate_powered};
 pub use track::OrbitTrack;
 

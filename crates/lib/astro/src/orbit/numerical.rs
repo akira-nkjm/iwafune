@@ -30,7 +30,8 @@ fn from_array(y: &[f64; 6]) -> OrbitState {
     }
 }
 
-/// 元期 `epoch` の状態 `x0` から、元期からの秒 `times_s`（昇順・非負）での状態を求める。
+/// 元期 `epoch` の状態 `x0` から、元期からの秒 `times_s`（昇順・非負）での状態を求める（既定の積分器
+/// [`NUMERICAL_INTEGRATOR`]）。
 pub(super) fn states_at(
     central: CentralBody,
     forces: &ForceConfig,
@@ -38,12 +39,27 @@ pub(super) fn states_at(
     x0: OrbitState,
     times_s: &[f64],
 ) -> Result<Vec<OrbitState>, AstroError> {
+    propagate_states(central, forces, epoch, x0, times_s, &NUMERICAL_INTEGRATOR)
+}
+
+/// 任意の初期状態 `x0`（中心天体 `central` からの相対・ECI の向き）を力モデルで数値伝搬し、元期からの秒 `times_s`
+/// （昇順・非負）での状態を、1 回の積分の密出力で返す。**要素でなく状態から始める入口**で、中心天体は太陽でも惑星でもよい
+/// （惑星間の巡航・ラグランジュ点まわりの軌道など、ケプラー要素で書けない軌道）。積分器は呼び出し側が選ぶ
+/// （惑星間では刻みの上限を [`NUMERICAL_INTEGRATOR`] の 600 s より大きくできる）。
+pub fn propagate_states(
+    central: CentralBody,
+    forces: &ForceConfig,
+    epoch: Epoch,
+    x0: OrbitState,
+    times_s: &[f64],
+    integrator: &Dop853,
+) -> Result<Vec<OrbitState>, AstroError> {
     crate::force::validate_about(central, forces)?;
     let f = |t: f64, y: &[f64; 6]| {
         let state = from_array(y);
         let a = acceleration_eci_about(central, forces, epoch.plus_seconds(t), &state);
         [y[3], y[4], y[5], a.x, a.y, a.z]
     };
-    let out = NUMERICAL_INTEGRATOR.integrate_at(f, 0.0, to_array(&x0), times_s)?;
+    let out = integrator.integrate_at(f, 0.0, to_array(&x0), times_s)?;
     Ok(out.iter().map(from_array).collect())
 }

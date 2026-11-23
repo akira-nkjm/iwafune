@@ -65,6 +65,17 @@ pub fn channel_label(kind: ChannelKind, subject: Option<&str>) -> AnalysisLabel 
         K::Altitude => label("高度", "Altitude"),
         K::Inclination => label("傾斜角", "Inclination"),
         K::Mass => label("質量", "Mass"),
+        K::HeliocentricX => match s {
+            "spacecraft" => label("宇宙機の日心 x", "Spacecraft heliocentric x"),
+            "departure" => label("出発天体の日心 x", "Departure body heliocentric x"),
+            _ => label("到着天体の日心 x", "Arrival body heliocentric x"),
+        },
+        K::HeliocentricY => match s {
+            "spacecraft" => label("宇宙機の日心 y", "Spacecraft heliocentric y"),
+            "departure" => label("出発天体の日心 y", "Departure body heliocentric y"),
+            _ => label("到着天体の日心 y", "Arrival body heliocentric y"),
+        },
+        K::ArrivalRange => label("到着天体までの距離", "Distance to the arrival body"),
     }
 }
 
@@ -359,6 +370,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "EphemerisSource" => parse(value).map(propulsion::ephemeris_source),
         "ThrustSteering" => parse(value).map(propulsion::steering),
         "ThrustBalanceNote" => parse(value).map(propulsion::thrust_balance_note),
+        "TransferCheckNote" => parse(value).map(propulsion::transfer_check_note),
         "UnloadingNote" => parse(value).map(propulsion::unloading),
         _ => None,
     }
