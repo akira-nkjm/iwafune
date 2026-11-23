@@ -1,6 +1,8 @@
 //! 打ち上げ適合（`structure.launch_fit`）。衛星が、選んだ打ち上げ機・ディスペンサーの条件に収まるかの判定。
 //!
-//! - 質量: 打ち上げ時の質量（乾燥質量 + 積む推薬）≤ 搭載質量の上限。
+//! - 質量: 打ち上げ時の質量（部品の質量 × 員数に成長余裕を掛けたものの合計 + 積む推薬）≤ 搭載質量の上限。
+//!   成長余裕の掛け方は質量バジェットと同じ（[`budget_rollup`]。推薬は成長余裕 0 の 1 行）で、バジェットの推薬込みの合計と同じ質量を判定する。
+//!   余裕を掛けない質量（素の質量）も出力に残す。
 //! - 外形: 収納状態の外形を **回転せずに軸ごとに** 許容の箱と比べる（機体座標の x は x と、y は y と、z は z と。発射軸は z）。
 //!   辺の入れ替えは許さない（置き方は設計が決めるので、解析は軸の入れ替えで合わせにいかない）。
 //! - 固有振動数: 簡易固有振動数（`structure.modal_estimate`）の機体全体の梁の一次（横・機軸）の最小値を、下限と比べる。
@@ -12,6 +14,7 @@
 //! 厳しいほうが効く）で、どこから来た値かは判定の文に書く。
 
 use super::modal_estimate::ModalEstimateKind;
+use crate::budget::{BudgetItem, budget_rollup};
 use crate::spec::quantity_text;
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict, ratio_margin,
@@ -68,8 +71,8 @@ pub struct LaunchFitMode {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct LaunchFitInput {
-    /// 乾燥質量（部品の質量 × 員数の合計）
-    pub dry_mass: Qty<Mass>,
+    /// 部品の行（1 個あたりの質量・員数・成長余裕。質量バジェットと同じ行）
+    pub parts: Vec<BudgetItem>,
     /// 積む推薬（推進系が無ければ `None`）
     #[serde(default)]
     pub propellant_mass: Option<Qty<Mass>>,
@@ -97,13 +100,15 @@ pub struct LaunchFitInput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct LaunchFitMass {
-    /// 打ち上げ時の質量（乾燥 + 推薬）
+    /// 判定した質量 = 成長余裕込みの打ち上げ時の質量（部品の成長余裕込みの合計 + 推薬。質量バジェットの推薬込みの合計と同じ）
     pub launch_mass: Qty<Mass>,
+    /// 成長余裕を掛けない質量（部品の質量 × 員数の合計 + 推薬）
+    pub bare_mass: Qty<Mass>,
     /// 効いた上限
     pub limit: Qty<Mass>,
     /// 効いた上限の出所
     pub origin: String,
-    /// 余裕 = 上限 / 質量 − 1
+    /// 余裕 = 上限 / 成長余裕込みの質量 − 1
     pub margin: Option<Fraction>,
     pub verdict: Verdict,
 }
@@ -246,19 +251,23 @@ fn judge_mass(input: &LaunchFitInput) -> Result<Option<LaunchFitMass>, AnalysisE
     let Some(limit) = tightest_max_mass(&input.max_mass) else {
         return Ok(None);
     };
-    let dry = input.dry_mass.value();
     let propellant = input.propellant_mass.map_or(0.0, Qty::value);
-    positive("Dry mass", dry)?;
     positive("Mass limit", limit.value.value())?;
     if !(propellant.is_finite() && propellant >= 0.0) {
         return Err(AnalysisError::InvalidInput(format!(
             "Propellant mass must not be negative ({propellant})"
         )));
     }
-    let launch = dry + propellant;
+    // 質量バジェットと同じ集計（推薬は成長余裕 0 の 1 行）
+    let mut items = input.parts.clone();
+    items.push(BudgetItem::counted("propellant", propellant, 1));
+    let rollup = budget_rollup(&items, None, 0.0)?;
+    positive("Dry mass", rollup.total - propellant)?;
+    let launch = rollup.total_with_growth;
     let margin = ratio_margin(limit.value.value(), launch);
     Ok(Some(LaunchFitMass {
         launch_mass: Qty::from_raw(launch),
+        bare_mass: Qty::from_raw(rollup.total),
         limit: limit.value,
         origin: limit.origin.clone(),
         margin,
@@ -341,8 +350,9 @@ fn mass_check(m: &LaunchFitMass) -> Check {
         "Launch mass",
         m.verdict,
         format!(
-            "{} (limit {} from {})",
+            "Launch mass with growth allowance {} (bare {}) (limit {} from {})",
             quantity_text::<Mass>(m.launch_mass.value()),
+            quantity_text::<Mass>(m.bare_mass.value()),
             quantity_text::<Mass>(m.limit.value()),
             m.origin
         ),
