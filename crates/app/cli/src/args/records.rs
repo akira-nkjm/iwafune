@@ -236,6 +236,15 @@ pub enum ManeuverCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// Set the departure and arrival dates of a transfer between bodies to the minimum of the date search (`propulsion.launch_window`)
+    SetWindow {
+        id: String,
+        /// dv (minimum maneuver delta-V) / c3 (minimum departure C3)
+        #[arg(long, value_parser = ["dv", "c3"])]
+        min: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
 }
 
 /// `fune maneuver add|set` (the flags map one to one to `fune_service::dto::ManeuverText`)

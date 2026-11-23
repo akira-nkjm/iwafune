@@ -33,6 +33,9 @@ use sat_analysis::propulsion::{
 use sat_astro::force::thrust::ThrustSteering;
 use sat_units::typed::{Force, Fraction, Impulse, MassDensity, Power, Qty, Time, Volume};
 
+mod launch_window;
+pub use launch_window::launch_window;
+
 /// 設計の区分 → 解析の区分。
 pub fn category(c: ManeuverCategory) -> DvCategory {
     match c {

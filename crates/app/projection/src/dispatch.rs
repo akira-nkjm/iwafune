@@ -169,6 +169,7 @@ table!(
     sat_analysis::propulsion::ThrusterUsage => Some(propulsion::maneuvers),
     sat_analysis::propulsion::OrbitHistoryAnalysis => Some(propulsion::maneuvers),
     sat_analysis::propulsion::TransferCheck => Some(propulsion::maneuvers),
+    sat_analysis::propulsion::LaunchWindow => Some(propulsion::launch_window),
     sat_analysis::propulsion::PropellantMassProperties => Some(propulsion::mass_properties),
     apower::ThrustBalance => Some(power::thrust_balance),
 );

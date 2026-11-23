@@ -45,6 +45,20 @@ fn check_propulsion(ctx: &mut Ctx) {
     let mut s = scope(ctx, AnalysisSystem::Propulsion.setting_path());
     s.fraction(&["dv_margin"], p.dv_margin);
     s.fraction(&["residual_fraction"], p.residual_fraction);
+    if let Some(w) = &p.launch_window {
+        for (key, steps) in [
+            ("departure_steps", w.departure_steps),
+            ("arrival_steps", w.arrival_steps),
+        ] {
+            if steps.is_some_and(|n| n < 2) {
+                s.error(
+                    &["launch_window", key],
+                    "setting.range",
+                    "The number of launch window grid points per axis must be at least 2".into(),
+                );
+            }
+        }
+    }
 }
 
 fn mode_exists(design: &Design, mode: &str) -> bool {

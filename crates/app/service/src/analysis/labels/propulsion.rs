@@ -5,7 +5,8 @@ use crate::dto::AnalysisLabel;
 use fune_projection::propulsion::{model_category, model_method, model_steering};
 use sat_analysis::power::thrust_balance::ThrustBalanceNote;
 use sat_analysis::propulsion::{
-    DvCategory, ManeuverNote, TransferCheckNote, TransferMethod, UnloadingNote,
+    DvCategory, LaunchWindowNote, LaunchWindowPointKind, LaunchWindowQuantity, ManeuverNote,
+    TransferCheckNote, TransferMethod, UnloadingNote,
 };
 use sat_astro::ephem::EphemerisSource;
 use sat_astro::force::thrust::ThrustSteering;
@@ -58,6 +59,47 @@ pub(super) fn transfer_check_note(n: TransferCheckNote) -> AnalysisLabel {
             "最接近が探した期間の端で、まだ近づいている（極小は期間の外）",
             "The closest approach is at the end of the searched span: still approaching (the minimum lies outside it)",
         ),
+    }
+}
+
+pub(super) fn launch_window_note(n: LaunchWindowNote) -> AnalysisLabel {
+    match n {
+        LaunchWindowNote::AnalyticEphemeris => label(
+            "天体の位置が解析式（DE440 でない）なので、火星で 10⁵ km 級の誤差があり、最小の日付も数日ずれうる",
+            "Body positions are analytic (not DE440): errors of the order of 10^5 km for Mars, so the best dates may shift by days",
+        ),
+        LaunchWindowNote::DeclinationAboveInclination => label(
+            "ΔV が最小の点の出発の漸近線の赤緯が駐機軌道の傾斜角より大きい（軌道面の変更は数えない）",
+            "The departure asymptote declination of the minimum delta-V point is above the parking orbit inclination (the plane change is not counted)",
+        ),
+        LaunchWindowNote::MinimumAtGridEdge => label(
+            "ΔV が最小の点が格子の端（軸の端・飛行時間の範囲の端・解けない点の隣）にある。窓や飛行時間の範囲を広げると下がるかもしれない",
+            "The minimum delta-V point is at the edge of the grid (axis end, time-of-flight limit or next to an unsolved point): widening the window or the time-of-flight range may lower it",
+        ),
+        LaunchWindowNote::WrittenDatesUnsolved => label(
+            "マヌーバに書かれた日付では遷移が解けない",
+            "The transfer cannot be solved for the dates written in the maneuver",
+        ),
+    }
+}
+
+pub(super) fn launch_window_point_kind(k: LaunchWindowPointKind) -> AnalysisLabel {
+    match k {
+        LaunchWindowPointKind::MinDeltaV => label("ΔV が最小の点", "Minimum delta-V point"),
+        LaunchWindowPointKind::MinC3 => label("C3 が最小の点", "Minimum C3 point"),
+        LaunchWindowPointKind::Written => label("書かれた日付", "Written dates"),
+    }
+}
+
+pub(super) fn launch_window_quantity(q: LaunchWindowQuantity) -> AnalysisLabel {
+    match q {
+        LaunchWindowQuantity::C3 => label("出発の C3", "Departure C3"),
+        LaunchWindowQuantity::VInfDeparture => label("出発の超過速度", "Departure excess speed"),
+        LaunchWindowQuantity::VInfArrival => label("到着の超過速度", "Arrival excess speed"),
+        LaunchWindowQuantity::DepartureDeclination => {
+            label("出発の漸近線の赤緯", "Departure asymptote declination")
+        }
+        LaunchWindowQuantity::DeltaV => label("マヌーバの ΔV", "Maneuver delta-V"),
     }
 }
 
