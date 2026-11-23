@@ -35,6 +35,8 @@ it("候補のある行は操作を出し、候補の無い行は出さない", (
             target: { target: "attr", part: "RW_X", attr: "max_momentum", state: null },
             dimension: "AngularMomentum",
             command: "",
+            example: null,
+            choices: [],
             catalog: null,
           },
           { kind: "add_list_item", list: "mode", command: "" },
@@ -46,4 +48,34 @@ it("候補のある行は操作を出し、候補の無い行は出さない", (
   expect(html).toContain(`>${t.enterValue}</button>`);
   expect(html).toContain(`>${t.addItem.mode}</a>`);
   expect(html.match(/<button/g)).toHaveLength(1);
+});
+
+it("カタログ品を指す欄の行は、カタログ品を選ぶ操作を出す", () => {
+  const t = getT().fixes;
+  const html = render(
+    <MissingList
+      design={undefined}
+      missing={[
+        withFixes([
+          {
+            kind: "pick_ref",
+            target: {
+              kind: "param",
+              target: "setting",
+              scope: "conditions",
+              segments: ["launch", "launcher"],
+            },
+            path: "conditions.launch.launcher",
+            what: "catalog_item",
+            roles: [],
+            kinds: ["launcher"],
+            choices: [{ value: "local/lv_alpha", label: "local/lv_alpha", label_en: null }],
+            command: "fune set conditions.launch.launcher <item>",
+            add_command: null,
+          },
+        ]),
+      ]}
+    />,
+  );
+  expect(html).toContain(`>${t.pick.action.catalog_item}</button>`);
 });

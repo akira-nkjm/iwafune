@@ -3,7 +3,9 @@
 use fune_model::path::ParamPath;
 use fune_model::role::Role;
 use fune_model::{Design, Target, resolve};
-use fune_service::dto::{AnalysisInputSource, AnalysisRunResult, Fix, ListKind, MissingInput};
+use fune_service::dto::{
+    AnalysisInputSource, AnalysisRunResult, Choice, Fix, ListKind, MissingInput, RefKind,
+};
 use fune_service::{Workspace, analysis, fixes};
 use serde_json::{Value, json};
 use std::path::Path;
@@ -20,6 +22,11 @@ fn run(ws: &Workspace, id: &str, edit: Value) -> AnalysisRunResult {
         ops: serde_json::from_value(edit).unwrap(),
     };
     analysis::run_analysis(ws, id, &req).unwrap()
+}
+
+/// 選べる値の綴り。
+fn values(choices: &[Choice]) -> Vec<&str> {
+    choices.iter().map(|c| c.value.as_str()).collect()
 }
 
 /// 対象だけを与えた不足入力の候補（設計は `design`）。
@@ -56,6 +63,7 @@ fn attribute_value_offers_part_and_catalog_item() {
             command,
             catalog: Some(catalog),
             target,
+            ..
         },
     ] = m.fixes.as_slice()
     else {
@@ -175,10 +183,11 @@ fn maneuver_thruster_picks_among_thrusters() {
     let design = ws.snapshot().unwrap().design;
     let fix = fixes_of(&design, Target::maneuver("RAISE", Some("thruster")));
     let [
-        Fix::PickPart {
+        Fix::PickRef {
             path,
+            what: RefKind::Part,
             roles,
-            parts,
+            choices,
             command,
             ..
         },
@@ -188,7 +197,7 @@ fn maneuver_thruster_picks_among_thrusters() {
     };
     assert_eq!(path, "maneuvers.RAISE.thruster");
     assert!(roles.contains(&Role::PropulsionThruster));
-    assert_eq!(parts, &["EPT"]);
+    assert_eq!(values(choices), ["EPT"]);
     assert!(
         command.starts_with("fune maneuver set RAISE ")
             && command.contains(r#"--thruster "<part>""#)
@@ -203,9 +212,9 @@ fn comm_link_parts_are_picked_by_role() {
     let path = fune_model::path::SettingPath::analysis(&["comm", "link", "uhf_down", "part"]);
     let fix = fixes_of(&design, path.into());
     let [
-        Fix::PickPart {
+        Fix::PickRef {
             roles,
-            parts,
+            choices,
             command,
             ..
         },
@@ -214,7 +223,8 @@ fn comm_link_parts_are_picked_by_role() {
         panic!("{fix:?}");
     };
     assert_eq!(roles, &[Role::Transceiver]);
-    assert!(parts.iter().any(|p| p == "UHF_TRX") && !parts.iter().any(|p| p == "OBC"));
+    let parts = values(choices);
+    assert!(parts.contains(&"UHF_TRX") && !parts.contains(&"OBC"));
     assert_eq!(command, "fune set analysis.comm.link.uhf_down.part <part>");
 }
 
@@ -249,4 +259,176 @@ fn other_targets_have_no_fix() {
     let design = ws.snapshot().unwrap().design;
     assert!(fixes_of(&design, Target::criterion("budget/mass")).is_empty());
     assert!(fixes_of(&design, Target::Part { id: "OBC".into() }).is_empty());
+}
+
+/// カタログ品を指す設定: 打ち上げ機の欄は打ち上げ機の種別の品だけ、ディスペンサーの欄はディスペンサーの種別の品だけを選べる。
+/// 欄が空でも、打ち上げ条件の全体が無くても、同じ候補（打ち上げ機の欄）になる。
+#[test]
+fn launch_settings_pick_catalog_items_of_their_kind() {
+    let ws = demo();
+    let mut design = ws.snapshot().unwrap().design;
+    if let Some(launch) = design.conditions.launch.as_mut() {
+        launch.launcher = None;
+    }
+    let pick = |design: &Design, keys: &[&str]| match fixes_of(
+        design,
+        fune_model::path::SettingPath::conditions(keys).into(),
+    )
+    .as_slice()
+    {
+        [
+            Fix::PickRef {
+                path,
+                what: RefKind::CatalogItem,
+                kinds,
+                choices,
+                command,
+                add_command,
+                ..
+            },
+        ] => (
+            path.clone(),
+            kinds.clone(),
+            choices.clone(),
+            command.clone(),
+            add_command.clone(),
+        ),
+        other => panic!("{other:?}"),
+    };
+    let (path, kinds, choices, command, add) = pick(&design, &["launch", "launcher"]);
+    assert_eq!(path, "conditions.launch.launcher");
+    assert_eq!(kinds, ["launcher"]);
+    assert_eq!(values(&choices), ["local/lv_alpha"]);
+    assert_eq!(command, "fune set conditions.launch.launcher <item>");
+    assert_eq!(
+        add.as_deref(),
+        Some("fune catalog add local/<ID> --kind launcher")
+    );
+    let (_, kinds, choices, ..) = pick(&design, &["launch", "dispenser"]);
+    assert_eq!(kinds, ["dispenser"]);
+    assert_eq!(values(&choices), ["local/disp_6u_rs"]);
+    let (path, kinds, ..) = pick(&design, &["launch"]);
+    assert_eq!(
+        (path.as_str(), kinds.as_slice()),
+        (
+            "conditions.launch.launcher",
+            ["launcher".to_owned()].as_slice()
+        )
+    );
+}
+
+/// 選べる品が 1 つも無いときは、候補は空で、足すコマンドが残る。
+#[test]
+fn launch_setting_without_catalog_items_says_how_to_add_one() {
+    let ws = demo();
+    let mut design = ws.snapshot().unwrap().design;
+    design.catalog.clear();
+    let path = fune_model::path::SettingPath::conditions(&["launch", "launcher"]);
+    let fix = fixes_of(&design, path.into());
+    let [
+        Fix::PickRef {
+            choices,
+            add_command,
+            ..
+        },
+    ] = fix.as_slice()
+    else {
+        panic!("{fix:?}");
+    };
+    assert!(choices.is_empty());
+    assert!(
+        add_command
+            .as_deref()
+            .is_some_and(|c| c.contains("--kind launcher"))
+    );
+}
+
+/// 通信の `data_downlink`: 下りの回線の名前だけを選べる。回線の設定の全体が無ければ、回線を足す候補。
+#[test]
+fn data_downlink_picks_a_down_link() {
+    let ws = demo();
+    let design = ws.snapshot().unwrap().design;
+    let path = fune_model::path::SettingPath::analysis(&["comm", "data_downlink"]);
+    let fix = fixes_of(&design, path.into());
+    let [
+        Fix::PickRef {
+            what: RefKind::CommLink,
+            choices,
+            command,
+            ..
+        },
+    ] = fix.as_slice()
+    else {
+        panic!("{fix:?}");
+    };
+    let downs: Vec<&str> = design
+        .analysis
+        .comm
+        .iter()
+        .flat_map(|c| c.links.iter())
+        .filter(|(_, l)| l.direction == fune_model::design::LinkDirection::Down)
+        .map(|(n, _)| n.as_str())
+        .collect();
+    assert!(!downs.is_empty());
+    assert_eq!(values(choices), downs);
+    assert_eq!(command, "fune set analysis.comm.data_downlink <link>");
+    let whole = fune_model::path::SettingPath::analysis(&["comm"]);
+    assert!(matches!(
+        fixes_of(&design, whole.into()).as_slice(),
+        [Fix::AddListItem {
+            list: ListKind::CommLink,
+            ..
+        }]
+    ));
+}
+
+/// 量の入力には、次元から作った例（`sat_units`）が付く。次元の無い値には付かない。
+#[test]
+fn quantity_fixes_carry_an_input_example() {
+    let ws = demo();
+    let design = ws.snapshot().unwrap().design;
+    let fix = fixes_of(&design, Target::attr("EPT", "mass"));
+    let [
+        Fix::SetValue {
+            example, choices, ..
+        },
+    ] = fix.as_slice()
+    else {
+        panic!("{fix:?}");
+    };
+    assert_eq!(example.as_deref(), Some("1 kg"));
+    assert!(choices.is_empty());
+    let path = fune_model::path::SettingPath::conditions(&["orbit", "altitude"]);
+    let fix = fixes_of(&design, path.into());
+    assert!(
+        matches!(fix.as_slice(), [Fix::SetValue { example: Some(e), .. }] if e.starts_with("1 "))
+    );
+    let fix = fixes_of(&design, Target::field("EPT", "count"));
+    assert!(matches!(
+        fix.as_slice(),
+        [Fix::SetValue { example: None, .. }]
+    ));
+}
+
+/// 閉じた語彙（列挙・真偽）の属性には、選べる値が付く（属性定義の `symbols`・型から。表を持たない）。
+#[test]
+fn enum_and_bool_attributes_offer_their_choices() {
+    use fune_model::design::AttributeDef;
+    let ws = demo();
+    let mut design = ws.snapshot().unwrap().design;
+    let def = |ty: &str, symbols: &[&str]| -> AttributeDef {
+        serde_json::from_value(json!({ "label": "x", "type": ty, "symbols": symbols })).unwrap()
+    };
+    design
+        .attributes
+        .insert("polarization".into(), def("enum", &["rhcp", "lhcp"]));
+    design
+        .attributes
+        .insert("deployable".into(), def("bool", &[]));
+    let choices = |attr: &str| match fixes_of(&design, Target::attr("EPT", attr)).as_slice() {
+        [Fix::SetValue { choices, .. }] => choices.clone(),
+        other => panic!("{other:?}"),
+    };
+    assert_eq!(values(&choices("polarization")), ["rhcp", "lhcp"]);
+    assert_eq!(values(&choices("deployable")), ["true", "false"]);
 }

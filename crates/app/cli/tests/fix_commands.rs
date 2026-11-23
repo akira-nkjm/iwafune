@@ -94,8 +94,9 @@ fn reference_fix_removes_the_missing_input() {
     let before = missing(&root, "propulsion.maneuvers");
     let m = find(&before, "maneuvers.RAISE.thruster").expect("missing");
     let fix = &m["fixes"][0];
-    assert_eq!(fix["kind"], "pick_part");
-    let part = fix["parts"][0].as_str().unwrap();
+    assert_eq!(fix["kind"], "pick_ref");
+    assert_eq!(fix["what"], "part");
+    let part = fix["choices"][0]["value"].as_str().unwrap();
     run_fix(&root, fix["command"].as_str().unwrap(), &[("<part>", part)]);
     assert!(
         find(
@@ -131,4 +132,38 @@ fn human_output_lists_the_commands() {
         text.contains("fune catalog set local/rw_10mNms max_momentum"),
         "{text}"
     );
+}
+
+/// カタログ品の参照: 打ち上げ機の選びを消して出る不足に、候補のカタログ品を入れたコマンドを打つと不足が消える。
+/// 人が読む表示には、選べる品と足し方が出る。
+#[test]
+fn catalog_item_fix_removes_the_missing_input() {
+    let (_tmp, root) = demo_copy();
+    for key in ["launcher", "dispenser"] {
+        fune()
+            .arg("-C")
+            .arg(&root)
+            .args(["unset", &format!("conditions.launch.{key}")])
+            .assert()
+            .success();
+    }
+    let before = missing(&root, "structure.launch_fit");
+    let m = find(&before, "conditions.launch.launcher").expect("missing");
+    let fix = &m["fixes"][0];
+    assert_eq!(fix["kind"], "pick_ref");
+    assert_eq!(fix["what"], "catalog_item");
+    assert_eq!(fix["kinds"][0], "launcher");
+    let item = fix["choices"][0]["value"].as_str().unwrap();
+    assert_eq!(item, "local/lv_alpha");
+    let human = fune()
+        .arg("-C")
+        .arg(&root)
+        .args(["analyze", "structure.launch_fit"])
+        .output()
+        .unwrap();
+    let text = String::from_utf8(human.stdout).unwrap();
+    assert!(text.contains("choose from: local/lv_alpha"), "{text}");
+    run_fix(&root, fix["command"].as_str().unwrap(), &[("<item>", item)]);
+    let after = missing(&root, "structure.launch_fit");
+    assert!(find(&after, "conditions.launch.launcher").is_none());
 }

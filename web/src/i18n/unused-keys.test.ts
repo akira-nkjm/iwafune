@@ -30,6 +30,10 @@ function sources(dir: string, out: string[] = []): string[] {
 const DYNAMIC_PREFIXES: Record<string, string> = {
   "catalog.groupings.": "CatalogPage が CATALOG_GROUPINGS の値で引く",
   "cli.change.": "OpPreview が API の変更の種別（created など）で引く",
+  "fixes.pick.action.": "analysis/MissingFixActions が API の選ぶものの種類（RefKind）で引く",
+  "fixes.pick.prompt.": "MissingPickDialog が API の選ぶものの種類（RefKind）で引く",
+  "fixes.pick.label.": "MissingPickDialog が API の選ぶものの種類（RefKind）で引く",
+  "fixes.pick.none.": "MissingPickDialog が API の選ぶものの種類（RefKind）で引く",
   "fixes.addItem.": "analysis/MissingFixActions が API の一覧の種別（ListKind）で引く",
   "fields.labels.": "analysis/fields.ts が API の出力項目のキーで引く",
   "nav.items.": "lib/nav.ts が項目のキーで引く",

@@ -279,3 +279,22 @@ fn specific_energy_is_shown_in_km2_per_s2() {
     assert_eq!(text(500.0, "SpecificEnergy"), "500 m²/s²");
     assert_eq!(text(0.0, "SpecificEnergy"), "0 km²/s²");
 }
+
+/// 入力の例は、その次元の表示単位で書き、解析すると同じ次元になる。単位の無い次元・未知の次元には無い。
+#[test]
+fn input_example_is_a_parsable_quantity_of_the_dimension() {
+    assert_eq!(input_example("Mass").as_deref(), Some("1 kg"));
+    for name in ["Mass", "Power", "Length", "Angle", "Frequency", "Time"] {
+        let example = input_example(name).expect(name);
+        let (number, unit) = example.split_once(' ').expect(&example);
+        assert_eq!(number, "1");
+        let dim = parse_dimension(name).expect(name);
+        assert!(
+            parse_unit(unit)
+                .expect(unit)
+                .dimension()
+                .is_compatible_with(dim)
+        );
+    }
+    assert_eq!(input_example("NoSuchDimension"), None);
+}
