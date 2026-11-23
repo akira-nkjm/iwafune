@@ -148,6 +148,11 @@ pub enum SiValue {
         min: f64,
         max: f64,
     },
+    /// 1 変数の関数（SI。引数と値は同じ長さで、引数は増える順）
+    Curve {
+        at: Vec<f64>,
+        values: Vec<f64>,
+    },
     Table(String),
 }
 

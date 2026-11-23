@@ -47,6 +47,17 @@ enum_text! {
     }
 }
 
+enum_text! {
+    /// 日付つきの惑星間遷移の出発の噴射を誰が行うか（`[transfer]` の `departure_by`）。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+    pub enum DepartureBy: "departure burn provider" {
+        /// 衛星が駐車軌道から出発する（書かなければこちら）
+        Spacecraft = "spacecraft",
+        /// 打ち上げ機が出発の軌道（C3）まで送る。衛星の推進系は出発の噴射を数えない
+        Launcher = "launcher",
+    }
+}
+
 /// 目標の軌道（変えたい要素だけ）。`altitude` は円軌道（近地点と遠地点の両方）で、`perigee_altitude`・`apogee_altitude` と一緒には書かない。
 /// `body` を書くとその天体を回る軌道への遷移（パッチドコニック）で、高度はその天体の半径から数える。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
@@ -107,6 +118,16 @@ pub struct ManeuverTransfer {
     /// 到着の日（出発より後）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub arrival: Option<String>,
+    /// 出発の噴射を行うもの（書かなければ衛星。`launcher` なら ΔV・推薬に出発の噴射を数えず、打ち上げ適合が C3 の曲線で質量の上限を引く）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub departure_by: Option<DepartureBy>,
+}
+
+impl ManeuverTransfer {
+    /// 出発の噴射を打ち上げ機が行うか。
+    pub fn departs_by_launcher(&self) -> bool {
+        self.departure_by == Some(DepartureBy::Launcher)
+    }
 }
 
 impl ManeuverTransfer {

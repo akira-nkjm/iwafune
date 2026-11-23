@@ -37,9 +37,9 @@ pub use dated::DatedTransferResult;
 pub use dv_budget::{DvBudget, DvBudgetOutput};
 pub use history::{OrbitHistory, OrbitSegment};
 pub use input::{
-    DEFAULT_DV_MARGIN, DEFAULT_RESIDUAL_FRACTION, DatedTransferInput, DvCategory, ManeuverInput,
-    OrbitTarget, PropellantTank, PropulsionInput, PropulsionThruster, ThrustConstraints,
-    TransferMethod, UnloadingInput, UnloadingNote,
+    DEFAULT_DV_MARGIN, DEFAULT_RESIDUAL_FRACTION, DatedTransferInput, DepartureProvider,
+    DvCategory, ManeuverInput, OrbitTarget, PropellantTank, PropulsionInput, PropulsionThruster,
+    ThrustConstraints, TransferMethod, UnloadingInput, UnloadingNote,
 };
 pub use maneuvers::{ManeuverNote, ManeuverPropagation, Maneuvers, ManeuversOutput};
 pub use mass_properties::{PropellantMassInput, PropellantMassOutput, PropellantMassProperties};

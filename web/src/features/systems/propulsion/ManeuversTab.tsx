@@ -185,6 +185,7 @@ function ManeuverRow({
             <span>
               <span className="text-ink-3">{t.targetKeys.transfer}</span> {m.text.depart} →{" "}
               {m.text.arrive}
+              {m.text.departure_by && <> ({label("departure_by", m.text.departure_by)})</>}
             </span>
           )}
         </span>

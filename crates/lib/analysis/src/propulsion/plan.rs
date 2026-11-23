@@ -10,7 +10,7 @@
 //!   噴射は同じく軌道の近点。結果は [`super::dated`]）。
 //! - 数値伝搬: 最初は低推力と同じ見積もり。伝搬の結果（[`Ideal::Propagated`]）で `sequence` が置き換える。
 
-use super::input::{ManeuverInput, OrbitTarget, TransferMethod};
+use super::input::{DepartureProvider, ManeuverInput, OrbitTarget, TransferMethod};
 use crate::spec::AnalysisError;
 use sat_astro::ephem::CentralBody;
 use sat_astro::orbit::OrbitSpec;
@@ -43,6 +43,8 @@ pub enum ManeuverNote {
     PatchedConic,
     /// 出発の日・到着の日の天体の位置からの Lambert の遷移（日付つきのパッチドコニック）で計算した
     DatedLambert,
+    /// 出発の噴射を打ち上げ機が行うので、衛星の ΔV・推薬に数えない（C3・超過速度は打ち上げの要求として出す）
+    DepartureByLauncher,
     /// 天体間の遷移では軌道面の変更（傾斜角）の ΔV を数えない
     PlaneChangeIgnored,
     /// 数値伝搬が上限の時間までに目標に届かなかった（届いたところまでの値）
@@ -133,6 +135,8 @@ pub(super) struct Planned {
     pub notes: Vec<ManeuverNote>,
     /// 日付つきの遷移の結果（`transfer` を書いたときだけ）
     pub dated: Option<DatedTransfer>,
+    /// 出発の噴射を打ち上げ機が行う（`ideal` の噴射の列と `sites` から出発の噴射を除いてある。C3・超過速度は `dated` に残る）
+    pub launcher_departure: bool,
 }
 
 impl Planned {
@@ -195,6 +199,7 @@ pub(super) fn plan(from: Orbit, m: &ManeuverInput) -> Result<Planned, AnalysisEr
         sites: Vec::new(),
         notes,
         dated: None,
+        launcher_departure: false,
     })
 }
 
@@ -250,7 +255,16 @@ fn interbody(from: Orbit, body: CentralBody, m: &ManeuverInput) -> Result<Planne
     if t.inclination.is_some() {
         notes.push(ManeuverNote::PlaneChangeIgnored);
     }
-    let legs = std::iter::once(departure).chain(arrival);
+    let launcher_departure = dated.is_some()
+        && m.transfer
+            .is_some_and(|t| t.departure_by == DepartureProvider::Launcher);
+    if launcher_departure {
+        notes.push(ManeuverNote::DepartureByLauncher);
+    }
+    let legs = (!launcher_departure)
+        .then_some(departure)
+        .into_iter()
+        .chain(arrival);
     let (burns, sites): (Vec<_>, Vec<_>) = legs
         .map(|b| {
             let burn = ImpulsiveBurn {
@@ -275,5 +289,6 @@ fn interbody(from: Orbit, body: CentralBody, m: &ManeuverInput) -> Result<Planne
         sites,
         notes,
         dated,
+        launcher_departure,
     })
 }

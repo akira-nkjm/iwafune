@@ -24,4 +24,12 @@ origin: string,
 /**
  * 余裕 = 上限 / 成長余裕込みの質量 − 1
  */
-margin: number | null, verdict: Verdict, };
+margin: number | null, 
+/**
+ * 能力の曲線を引いた C3（曲線を使ったときだけ。上限がほかの候補のものでも、引いたなら入る）
+ */
+c3: number | null, 
+/**
+ * 曲線の終わりの C3（遷移の C3 がこれより大きく、送れないときだけ。上限は 0 kg になり違反）
+ */
+beyond_curve_end: number | null, verdict: Verdict, };

@@ -954,6 +954,7 @@ and a part whose kind is (or extends) one of them is an error (`part.launch_kind
 | Attribute | Dimension | Units | Meaning |
 |---|---|---|---|
 | `max_payload_mass` | Mass | kg, g | the mass limit for the satellite |
+| `payload_mass_by_c3` | Mass (curve over C3, `SpecificEnergy`) | kg, g | the mass the launcher can inject as a function of the departure C3 (below) |
 | `launch_envelope` | Length (vector) | mm, m | the allowed stowed box along the body axes x, y, z (z is the launch axis) |
 | `launch_load_axial`, `launch_load_lateral` | Acceleration | g0, m/s^2 | quasi-static load factors |
 | `min_frequency_axial`, `min_frequency_lateral` | Frequency | Hz | minimum first natural frequencies |
@@ -970,6 +971,23 @@ load_axial = { value = 6.0, unit = "g0" }   # written values take precedence ove
 They are edited with `fune set conditions.launch.launcher <catalog>/<id>` and `fune unset conditions.launch.launcher` (the same for `dispenser`; the Op is `SetSetting`, so HTTP `POST /ops/from_text` writes the same bytes).
 `fune check` reports a selection that is not defined (`ref.launcher`, `ref.dispenser`) or has the wrong kind (`launch.kind`). Renaming the catalog item rewrites the selection, and removing the item (or its catalog) is refused while it is selected.
 
+**Capability curve** (`payload_mass_by_c3`). Attribute values have one more type besides scalars, vectors and ranges: the **curve** (`type = "curve"`), a one-variable function written as points in increasing argument order,
+joined linearly between points. The definition declares the unit dimension of both axes (`dimension` for the values, `at_dimension` for the argument; for this attribute `Mass` over `SpecificEnergy`, the dimension of C3 in km²/s²):
+
+```toml
+# catalog/lv_beta.toml (fictional launcher)
+[attr]
+payload_mass_by_c3 = { at = [0.0, 10.0, 20.0, 30.0], at_unit = "km^2/s^2", values = [140.0, 120.0, 90.0, 40.0], unit = "kg" }
+```
+
+The text form for `fune catalog set <item> payload_mass_by_c3 "<text>"` (and `POST /ops/from_text`) is `argument:value` pairs and the units in parentheses:
+`"0:140 10:120 20:90 30:40 (km^2/s^2 -> kg)"`. `fune check` reports a curve with no point, with different numbers of arguments and values, with non-finite numbers or with arguments that are not strictly increasing (`curve.shape`),
+and units of the wrong dimension on either axis (`unit.dimension`).
+The curve is read only when the design has a dated transfer whose departure burn is provided by the launcher (`departure_by = "launcher"`, §7.7): it is evaluated at that transfer's C3 (`propulsion.maneuvers`' `dated_transfer.c3`).
+Evaluation (`sat_analysis::structure::launch_fit`): piecewise linear in C3; **above the last point the launcher is not capable** (no extrapolation: the mass limit is 0 kg, a violation whose verdict text says "Not capable" and gives the C3 of the end of the curve);
+**below the first point the mass of the first point is used** (the injected mass only grows as C3 falls, so this is the conservative reading). Without a curve, or without a transfer departed by the launcher, the curve plays no part and the numbers are exactly those of the scalar limit.
+The declination of the departure asymptote against the launch site latitude is not a launch-fit check yet (a later item); `propulsion.maneuvers` reports the declination as a launch requirement.
+
 **Precedence** (`fune_projection::launch`, the only place): a value written in `conditions/launch.toml` (`load_axial`, `load_lateral`) → the dispenser → the launcher (the nearer interface first; a value is taken from the first of them that has the attribute).
 `structure.static_load` reads the loads this way. When none gives a load, the missing input is `conditions.launch.load_axial` (or `load_lateral`) and the message says it can also be given as `launch_load_axial` / `launch_load_lateral` on the dispenser or launcher.
 `structure.modal_estimate` takes its minimum natural frequencies the same way (the item's `min_frequency_*`), and a requirement on `lateral` / `axial` can only tighten it (the larger wins).
@@ -977,10 +995,13 @@ They are edited with `fune set conditions.launch.launcher <catalog>/<id>` and `f
 **`structure.launch_fit`** judges the design against the selected items and needs at least one of them (the missing input is `conditions.launch.launcher`):
 
 - **Mass**: launch mass = the sum of part mass × count × (1 + growth allowance) + the loaded propellant (`propulsion.propellant`, when there is a propulsion system), against the mass limit.
+  When the launcher provides the departure burn of a dated transfer (§7.7), the loaded propellant no longer contains that burn, so the launch mass is the **mass at injection** (the spacecraft that the launcher injects onto the departure asymptote).
   This is the same mass as the mass budget's total including propellant: the part rows are the mass budget's rows (`fune_projection::parts::mass_budget_items`), the growth allowance is applied once by `budget_rollup`, and the propellant is one row with no growth allowance.
   The judgement uses this growth-inclusive mass; the bare sum (without the growth allowance) is also reported (`bare_mass`), and the verdict text shows both (`Launch mass with growth allowance … (bare …) (limit … from …)`).
   The budget's system margin is not applied (it reduces the budget's own limit; the launch limit is compared as it is).
-  The limit is the tighter of the catalog value and the mass budget requirement (`verify.budget = "mass"`); the verdict text names where the winning limit came from (`dispenser local/…`, `requirement R_MASS`).
+  The limit is the tightest of **all** candidates: the scalar catalog value `max_payload_mass` (the dispenser's, else the launcher's), the capability curve at the transfer's C3 (when it applies, above; the dispenser's curve, else the launcher's)
+  and the mass budget requirement (`verify.budget = "mass"`). A scalar limit is therefore kept as a cap (for example an adapter or structural limit) while the curve gives the performance at this C3.
+  The verdict text names where the winning limit came from (`dispenser local/…`, `requirement R_MASS`, `launcher local/… at C3 12.1 km²/s²`).
 - **Envelope**: the stowed outer dimensions are the `size` of the root part of the mounting tree (the same rule as the outer shape for attitude analysis, §5.3; parts that stick out of it are not measured). They are compared **axis by axis without rotation**:
   body x with the allowed x, y with y, z with z. The launch axis is the body z axis, and an item's envelope is written in the same axes. A different orientation is a different `launch_envelope`, not a rotation inside the analysis.
 - **Natural frequencies**: the lowest whole-body first mode estimated by `structure.modal_estimate` (beam results `lateral` / `axial`) against the larger of the catalog minimum and the requirement (`structure.modal_estimate` / `lateral`, `axial`).
@@ -1271,6 +1292,7 @@ apogee_altitude  = { value = 33000.0, unit = "km" }
 [transfer]                   # dated transfer (optional)
 departure = "2028-12-10T00:00:00Z"   # same form as conditions.orbit.epoch (ISO 8601)
 arrival   = "2029-09-25T00:00:00Z"
+# departure_by = "launcher"          # optional: the launcher provides the departure burn (below)
 ```
 
 - The target elements that can be written are `body`, `altitude`, `perigee_altitude`, `apogee_altitude` and `inclination` (changes in RAAN are not handled yet).
@@ -1299,7 +1321,13 @@ arrival   = "2029-09-25T00:00:00Z"
     (`de440` only when both dates were served by DE440). The result (`dated_transfer` of `propulsion.maneuvers`, `dated_transfers` of `propulsion.dv_budget`) has the time of flight, the characteristic energy C3,
     the departure and arrival excess speeds, and the departure asymptote declination; the burns carry `v_inf` as for the Hohmann estimate, and the note is `dated_lambert` instead of `patched_conic`.
   - Edit with `fune maneuver add|set ... --body mars --depart 2028-12-10T00:00:00Z --arrive 2029-09-25T00:00:00Z` (both or neither; `set` rewrites the whole maneuver, so leaving them out removes `[transfer]`).
-    More options (such as counting only the capture burn when the launcher provides the departure burn) can be added to `[transfer]` later without changing this shape.
+  - **`departure_by`** (optional; `spacecraft` when not written, or `launcher`; flag `--departure-by`, which needs the two dates; the GUI maneuver dialog has it next to the dates).
+    With `launcher`, the launcher injects the spacecraft onto the departure asymptote, so the departure burn is not the spacecraft's: `sat_analysis::propulsion::plan` leaves it out of the burn list
+    (note `departure_by_launcher`), and so `propulsion.maneuvers`, `propulsion.dv_budget`, `propulsion.propellant` and `propulsion.thruster_usage` count only the capture burn and the later maneuvers (total ΔV = the total with the
+    spacecraft departing minus the departure burn; the propellant follows by the rocket equation, and the finite-burn transfer time adds half of the capture burn only).
+    The dated transfer result still carries C3, the excess speeds and the departure declination (as launch requirements; `departure_by` is in the result), and `dated_transfer_plane` and `dated_transfer_timing` are not raised
+    (the parking orbit and the end of the previous maneuver play no part). `structure.launch_fit` takes the C3 of the first such transfer for the capability curve (§5.6), and its launch mass is the mass at injection.
+    Check: `maneuver.departure_by_launcher_after` (warning) when such a maneuver follows another maneuver (`after`): the launcher injects the spacecraft directly, so a maneuver before it does not fit (it is still counted).
   - `propulsion.transfer_check` re-propagates each dated transfer and reports the arrival miss (against the arrival body's sphere of influence), the closest approach (distance and time), the difference of
     the arrival excess speed from Lambert's, the bodies used as third bodies, and a coarse trajectory (heliocentric ecliptic x and y of the spacecraft and both bodies, and the distance to the arrival body, in the `series`).
     The cruise starts at the centre of the departure body on the departure date with Lambert's heliocentric velocity and runs under the point-mass gravity of the Sun and the other planets (Earth too, unless it is an end).
@@ -1643,7 +1671,7 @@ Writing rules enforced by `fune fmt` and `fune check`.
    (because the path notation `RW_X.label` could not tell an attribute from a field. `def.reserved` in `fune check`, and `fune attr add` also refuses them).
 2. Nesting is at most two levels. Trees are expressed by directories, and relationships between entities by ID references.
    The only exception is the dotted keys of the value rows with a source (3) (`from.*` under `[attr.<name>]`, and `<state>.*` in a per-state value's cells).
-3. Inline tables are only for `{ value, unit }`, short vectors (`{ x, y, z, unit }`), ranges (`{ min, max, unit }`), and references that fit on one line.
+3. Inline tables are only for `{ value, unit }`, short vectors (`{ x, y, z, unit }`), ranges (`{ min, max, unit }`), curves (`{ at, at_unit, values, unit }`, §5.6), and references that fit on one line.
    Values with states or uncertainty go one cell per line under `[attr.<name>]`.
    **A value with a source (`from`) is written one element per line.** A value with no source stays a one-line inline table.
    The switch is decided only by whether a source exists, not by line length (to avoid the form changing and the diff getting noisy just because a short `note` was added).

@@ -265,6 +265,18 @@ pub fn si_value(value: &Value) -> Result<SiValue, ValueError> {
             min: to_si(r.min, &r.unit)?,
             max: to_si(r.max, &r.unit)?,
         },
+        Value::Curve(c) => SiValue::Curve {
+            at: c
+                .at
+                .iter()
+                .map(|v| to_si(*v, &c.at_unit))
+                .collect::<Result<_, _>>()?,
+            values: c
+                .values
+                .iter()
+                .map(|v| to_si(*v, &c.unit))
+                .collect::<Result<_, _>>()?,
+        },
         Value::Table(t) => SiValue::Table(t.clone()),
     })
 }
