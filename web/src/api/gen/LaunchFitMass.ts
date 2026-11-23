@@ -6,9 +6,13 @@ import type { Verdict } from "./Verdict";
  */
 export type LaunchFitMass = { 
 /**
- * 打ち上げ時の質量（乾燥 + 推薬）
+ * 判定した質量 = 成長余裕込みの打ち上げ時の質量（部品の成長余裕込みの合計 + 推薬。質量バジェットの推薬込みの合計と同じ）
  */
 launch_mass: number, 
+/**
+ * 成長余裕を掛けない質量（部品の質量 × 員数の合計 + 推薬）
+ */
+bare_mass: number, 
 /**
  * 効いた上限
  */
@@ -18,6 +22,6 @@ limit: number,
  */
 origin: string, 
 /**
- * 余裕 = 上限 / 質量 − 1
+ * 余裕 = 上限 / 成長余裕込みの質量 − 1
  */
 margin: number | null, verdict: Verdict, };

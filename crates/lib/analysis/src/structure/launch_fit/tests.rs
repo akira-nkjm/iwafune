@@ -24,13 +24,23 @@ fn mode(kind: ModalEstimateKind, hz: f64) -> LaunchFitMode {
     }
 }
 
-/// 6U 相当の収納外形 0.1 × 0.2263 × 0.366 m、乾燥 8 kg + 推薬 1.5 kg = 9.5 kg。
+/// 6U 相当の収納外形 0.1 × 0.2263 × 0.366 m。部品 4 kg × 1（成長 20 %）+ 2 kg × 2（成長 0）= 乾燥 8 kg（成長込み 8.8 kg）、
+/// 推薬 1.5 kg（成長 0）。素の質量 9.5 kg、成長込み 10.3 kg。
 fn base() -> LaunchFitInput {
     LaunchFitInput {
-        dry_mass: Qty::from_raw(8.0),
+        parts: vec![
+            BudgetItem {
+                id: "A".to_owned(),
+                group: String::new(),
+                value: 4.0,
+                count: 1,
+                growth: 0.2,
+            },
+            BudgetItem::counted("B", 2.0, 2),
+        ],
         propellant_mass: Some(Qty::from_raw(1.5)),
         size: Some(Vec3::new(0.1, 0.2263, 0.366)),
-        max_mass: vec![mass_limit("launcher L", 10.0)],
+        max_mass: vec![mass_limit("launcher L", 11.0)],
         envelope: Some(LaunchFitEnvelope {
             origin: "dispenser D".to_owned(),
             size: Vec3::new(0.1, 0.2263, 0.366),
@@ -48,14 +58,15 @@ fn check<'a>(out: &'a LaunchFitOutput, key: &str) -> &'a Check {
     out.checks.iter().find(|c| c.key == key).unwrap()
 }
 
-/// 手計算: 質量の余裕 = 10 / 9.5 − 1 = 0.05263。外形は許容と同じ寸法なので余裕 0（収まる）。
+/// 手計算: 成長込みの質量 = 4 × 1.2 + 2 × 2 + 1.5 = 10.3 kg（素は 9.5 kg）、質量の余裕 = 11 / 10.3 − 1 = 0.06796。外形は許容と同じ寸法なので余裕 0（収まる）。
 /// 固有振動数の余裕は横 60 / 40 − 1 = 0.5、機軸 120 / 80 − 1 = 0.5。
 #[test]
 fn fits_by_hand() {
     let out = LaunchFit::run(&base()).unwrap();
     let mass = out.mass.as_ref().unwrap();
-    assert!((mass.launch_mass.value() - 9.5).abs() < 1e-12);
-    assert!((mass.margin.unwrap().value() - (10.0 / 9.5 - 1.0)).abs() < 1e-12);
+    assert!((mass.launch_mass.value() - 10.3).abs() < 1e-12);
+    assert!((mass.bare_mass.value() - 9.5).abs() < 1e-12);
+    assert!((mass.margin.unwrap().value() - (11.0 / 10.3 - 1.0)).abs() < 1e-12);
     assert!(out.envelope.iter().all(|a| a.verdict == Verdict::Ok));
     assert!(
         out.envelope
@@ -73,7 +84,7 @@ fn fits_by_hand() {
     assert_eq!(out.checks.len(), 6);
 }
 
-/// 質量 9.5 kg が上限 9 kg を超える（余裕 = 9 / 9.5 − 1 < 0）。外形は y が 1 mm 足りない。軸の入れ替えでは救わない。
+/// 質量 10.3 kg が上限 9 kg を超える（余裕 = 9 / 10.3 − 1 < 0）。外形は y が 1 mm 足りない。軸の入れ替えでは救わない。
 #[test]
 fn does_not_fit() {
     let mut input = base();
@@ -159,4 +170,30 @@ fn nothing_to_compare_is_an_error() {
     input.min_lateral.clear();
     input.min_axial.clear();
     assert!(LaunchFit::run(&input).is_err());
+}
+
+/// 素の質量 9.5 kg は上限 10 kg に収まるが、成長余裕込みの 10.3 kg は超える。判定は成長込みで、文は両方の質量を示す。
+#[test]
+fn growth_allowance_is_judged() {
+    let mut input = base();
+    input.max_mass = vec![mass_limit("launcher L", 10.0)];
+    let out = LaunchFit::run(&input).unwrap();
+    let mass = out.mass.as_ref().unwrap();
+    assert_eq!(mass.verdict, Verdict::Violation);
+    assert!((mass.margin.unwrap().value() - (10.0 / 10.3 - 1.0)).abs() < 1e-12);
+    let message = &check(&out, "mass").message;
+    assert!(
+        message.starts_with("Launch mass with growth allowance 10.3 kg (bare 9.50 kg)"),
+        "{message}"
+    );
+}
+
+/// 推薬には成長余裕を掛けない（質量バジェットの推薬込みの合計と同じ）。推薬を 0 にすると成長込みは 8.8 kg。
+#[test]
+fn propellant_carries_no_growth() {
+    let mut input = base();
+    input.propellant_mass = None;
+    let mass = LaunchFit::run(&input).unwrap().mass.unwrap();
+    assert!((mass.launch_mass.value() - 8.8).abs() < 1e-12);
+    assert!((mass.bare_mass.value() - 8.0).abs() < 1e-12);
 }

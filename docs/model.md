@@ -975,7 +975,10 @@ They are edited with `fune set conditions.launch.launcher <catalog>/<id>` and `f
 
 **`structure.launch_fit`** judges the design against the selected items and needs at least one of them (the missing input is `conditions.launch.launcher`):
 
-- **Mass**: launch mass = the sum of part mass × count + the loaded propellant (`propulsion.propellant`, when there is a propulsion system), against the mass limit. The growth allowance of the mass budget is not added (the budget view judges that total).
+- **Mass**: launch mass = the sum of part mass × count × (1 + growth allowance) + the loaded propellant (`propulsion.propellant`, when there is a propulsion system), against the mass limit.
+  This is the same mass as the mass budget's total including propellant: the part rows are the mass budget's rows (`fune_projection::parts::mass_budget_items`), the growth allowance is applied once by `budget_rollup`, and the propellant is one row with no growth allowance.
+  The judgement uses this growth-inclusive mass; the bare sum (without the growth allowance) is also reported (`bare_mass`), and the verdict text shows both (`Launch mass with growth allowance … (bare …) (limit … from …)`).
+  The budget's system margin is not applied (it reduces the budget's own limit; the launch limit is compared as it is).
   The limit is the tighter of the catalog value and the mass budget requirement (`verify.budget = "mass"`); the verdict text names where the winning limit came from (`dispenser local/…`, `requirement R_MASS`).
 - **Envelope**: the stowed outer dimensions are the `size` of the root part of the mounting tree (the same rule as the outer shape for attitude analysis, §5.3; parts that stick out of it are not measured). They are compared **axis by axis without rotation**:
   body x with the allowed x, y with y, z with z. The launch axis is the body z axis, and an item's envelope is written in the same axes. A different orientation is a different `launch_envelope`, not a rotation inside the analysis.
