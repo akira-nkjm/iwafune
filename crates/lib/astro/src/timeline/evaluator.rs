@@ -4,7 +4,7 @@
 use super::{OrbitPoint, TimelineSample, TimelineSpec, sample};
 use crate::AstroError;
 use crate::math::bisect;
-use crate::orbit::{OrbitSpec, OrbitTrack};
+use crate::orbit::{OrbitTrack, Trajectory};
 
 /// 日照率が「全日照」「全日陰」の境の判定に使う幅（日照率は 0〜1。境のすぐ外側の値で符号を分ける）。
 const SHADOW_EDGE_EPS: f64 = 1e-9;
@@ -16,7 +16,7 @@ const TABLE_STEPS_PER_ORBIT: f64 = 100.0;
 /// 任意の時刻の時系列の点を求める道具（軌道の伝搬の表を 1 回だけ作る）。
 pub struct TimelineEvaluator<'a> {
     spec: &'a TimelineSpec,
-    orbit: OrbitSpec,
+    orbit: Trajectory,
     track: OrbitTrack,
 }
 
@@ -25,7 +25,7 @@ impl<'a> TimelineEvaluator<'a> {
     pub fn new(spec: &'a TimelineSpec) -> Result<Self, AstroError> {
         let orbit = spec.resolved_orbit()?;
         let step = spec.sampling.step.value();
-        let split = (step / (orbit.period_s() / TABLE_STEPS_PER_ORBIT))
+        let split = (step / (orbit.cycle().length_s() / TABLE_STEPS_PER_ORBIT))
             .ceil()
             .max(1.0);
         let track = orbit.track(spec.sampling.span.value(), step / split)?;
@@ -38,7 +38,7 @@ impl<'a> TimelineEvaluator<'a> {
             self.spec,
             &OrbitPoint {
                 t_s,
-                epoch: self.orbit.epoch.plus_seconds(t_s),
+                epoch: self.orbit.epoch().plus_seconds(t_s),
                 state: self.track.state_at(t_s),
             },
         )

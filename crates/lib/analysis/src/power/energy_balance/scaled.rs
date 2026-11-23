@@ -10,6 +10,7 @@ use super::{
     duration, sequence,
 };
 use crate::spec::AnalysisError;
+use sat_astro::orbit::Cycle;
 
 /// 倍率をかけたときの、判定に使う運用での値。
 #[derive(Debug, Clone)]
@@ -27,7 +28,7 @@ pub struct ScaledJudgement {
 pub struct ScaledBalance<'a> {
     input: &'a EnergyBalanceInput,
     battery: EnergyBalanceBattery,
-    period_s: f64,
+    cycle: Cycle,
     /// 上段の姿勢則（`timeline.attitude`）での時系列
     main: SolarProfile,
     /// ケースごとの姿勢則での時系列（ケースが姿勢則を替えるときだけ）
@@ -66,7 +67,7 @@ impl<'a> ScaledBalance<'a> {
             }
         }
         Ok(Self {
-            period_s: input.timeline.orbit().period_s(),
+            cycle: input.timeline.orbit().cycle(),
             main: profile(input, &input.timeline)?,
             input,
             battery,
@@ -126,6 +127,6 @@ impl<'a> ScaledBalance<'a> {
     }
 
     fn context<'s>(&'s self, profile: &'s SolarProfile, scale: f64) -> Context<'s> {
-        Context::new(self.input, &self.battery, profile, self.period_s).scaled(scale, &self.laws)
+        Context::new(self.input, &self.battery, profile, self.cycle).scaled(scale, &self.laws)
     }
 }

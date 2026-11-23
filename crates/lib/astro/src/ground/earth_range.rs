@@ -3,7 +3,7 @@
 //! 地上局までではなく地心までとみなす（地球の半径 6378 km の差。月で 1.7 %、火星以遠で 0.01 % 以下）。
 
 use crate::AstroError;
-use crate::orbit::OrbitSpec;
+use crate::orbit::Trajectory;
 use crate::time::Epoch;
 use crate::timeline::sample_times;
 
@@ -25,20 +25,20 @@ pub struct EarthRange {
 /// 軌道 `orbit` の中心天体が地球でも同じ式で求まる（地心距離そのもの）。刻みの間の極値は拾わないので、
 /// 刻みは中心天体を回る軌道の周期より十分細かくする（衛星の周回による変動は中心天体の軌道半径以下）。
 pub fn earth_range(
-    orbit: &OrbitSpec,
+    orbit: &Trajectory,
     start: Epoch,
     span_s: f64,
     step_s: f64,
 ) -> Result<EarthRange, AstroError> {
     let times = sample_times(span_s, step_s)?;
-    let offset = start.seconds_since(orbit.epoch);
+    let offset = start.seconds_since(orbit.epoch());
     let abs: Vec<f64> = times.iter().map(|t| t + offset).collect();
     let states = orbit.states_at(&abs)?;
     let mut min = (f64::INFINITY, start);
     let mut max = (f64::NEG_INFINITY, start);
     for (&t, state) in times.iter().zip(&states) {
         let epoch = start.plus_seconds(t);
-        let d = (orbit.central.position_eci_m(epoch) + state.r_eci).norm();
+        let d = (orbit.central().position_eci_m(epoch) + state.r_eci).norm();
         if d < min.0 {
             min = (d, epoch);
         }
@@ -59,7 +59,7 @@ mod tests {
     use super::*;
     use crate::constants::{AU, SECONDS_PER_DAY};
     use crate::ephem::CentralBody;
-    use crate::orbit::{OrbitElements, Propagator};
+    use crate::orbit::{OrbitElements, OrbitSpec, Propagator};
     use sat_units::typed::Qty;
 
     fn epoch() -> Epoch {
@@ -83,7 +83,7 @@ mod tests {
         let mut orbit = OrbitSpec::new(epoch(), elements, Propagator::Kepler);
         orbit.central = CentralBody::Sun;
         let range = earth_range(
-            &orbit,
+            &Trajectory::from(orbit.clone()),
             epoch(),
             5.0 * 365.25 * SECONDS_PER_DAY,
             6.0 * 3600.0,
@@ -107,7 +107,7 @@ mod tests {
             Qty::from_raw(0.0),
         );
         let span = 30.0 * SECONDS_PER_DAY;
-        let r = earth_range(&orbit, epoch(), span, 600.0).expect("range");
+        let r = earth_range(&Trajectory::from(orbit.clone()), epoch(), span, 600.0).expect("range");
         let a = orbit.elements.semi_major_axis.value();
         let centre = |e: Epoch| CentralBody::Moon.position_eci_m(e).norm();
         let (mut lo, mut hi) = (f64::INFINITY, 0.0_f64);

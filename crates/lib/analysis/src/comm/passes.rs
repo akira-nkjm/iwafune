@@ -4,7 +4,7 @@
 use crate::spec::AnalysisError;
 use sat_astro::constants::SECONDS_PER_DAY;
 use sat_astro::ground::{GroundPass, GroundStation, find_passes};
-use sat_astro::orbit::OrbitSpec;
+use sat_astro::orbit::Trajectory;
 use sat_astro::time::Epoch;
 use sat_astro::timeline::OrbitSampling;
 
@@ -12,7 +12,7 @@ use sat_astro::timeline::OrbitSampling;
 #[derive(Debug, Clone)]
 pub struct SearchWindow {
     /// 伝搬に使う軌道（β を指定したときは RAAN を置き換えたもの。`OrbitSampling::resolved_orbit`）
-    pub orbit: OrbitSpec,
+    pub orbit: Trajectory,
     /// 探索の開始（軌道の元期）
     pub start: Epoch,
     /// 期間 [s]
@@ -32,7 +32,7 @@ pub fn search_window(sampling: &OrbitSampling) -> Result<SearchWindow, AnalysisE
     }
     let orbit = sampling.resolved_orbit()?;
     Ok(SearchWindow {
-        start: orbit.epoch,
+        start: orbit.epoch(),
         orbit,
         span_s,
         step_s,
@@ -41,7 +41,7 @@ pub fn search_window(sampling: &OrbitSampling) -> Result<SearchWindow, AnalysisE
 
 /// すべての局のパスを AOS の順に並べて返す。
 pub fn find_all_passes(
-    orbit: &OrbitSpec,
+    orbit: &Trajectory,
     stations: &[GroundStation],
     start: Epoch,
     span_s: f64,
@@ -128,7 +128,9 @@ pub(crate) mod fixtures {
     }
 
     /// 1 日を 30 s 刻みで探す標本の取り方。
-    pub(crate) fn one_day(orbit: OrbitSpec) -> sat_astro::timeline::OrbitSampling {
+    pub(crate) fn one_day(
+        orbit: impl Into<sat_astro::orbit::Trajectory>,
+    ) -> sat_astro::timeline::OrbitSampling {
         sat_astro::timeline::OrbitSampling::new(
             orbit,
             Qty::from_raw(sat_astro::constants::SECONDS_PER_DAY),

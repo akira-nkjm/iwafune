@@ -70,7 +70,7 @@ fn lunar_orbit_thermal_and_eclipse_use_lunar_environment() {
     assert!(mean(hot) > mean(cold), "{} {}", mean(hot), mean(cold));
     assert!(max(hot) > max(cold));
     let transient = thermal::transient(&ctx).unwrap();
-    assert_eq!(transient.timeline.orbit().central, CentralBody::Moon);
+    assert_eq!(transient.timeline.orbit().central(), CentralBody::Moon);
     let t = ThermalTransient::run(&transient).unwrap();
     assert!(t.environment.night_ir.is_some());
 
