@@ -12,7 +12,7 @@
 //! | 兄弟 | 地球 → 火星 | 共通の親（太陽）のまわり（2 つの天体の軌道の半径） | 双曲線の脱出 | 双曲線の捕獲 |
 //!
 //! 軌道面の違い（天体の軌道の傾斜・出発の軌道の傾斜角）と打ち上げの窓（会合の時期）は扱わない。
-//! 日付を決めた遷移は [`super::lambert`] で解く。
+//! 日付を決めた遷移は [`super::lambert`] で解き、[`super::dated`] が出発・到着の噴射をつなぐ。
 
 use super::{Apsides, check_mu, vis_viva_m_s};
 use crate::AstroError;
@@ -51,10 +51,11 @@ impl PatchedConic {
     }
 }
 
-/// 超過速度 `v_inf` の双曲線の近点 `r_p` と、長半径 `a` の軌道の同じ点の速さの差 [m/s]。
-fn hyperbolic_dv(mu: f64, r_p: f64, v_inf: f64, orbit: Apsides) -> f64 {
-    let v_hyp = (v_inf * v_inf + 2.0 * mu / r_p).sqrt();
-    (v_hyp - vis_viva_m_s(mu, r_p, orbit.semi_major_axis_m())).abs()
+/// 超過速度 `v_inf_m_s` の双曲線の近点 `r_p_m` と、軌道 `orbit`（長半径で速さを決める）の同じ点の速さの差 [m/s]
+/// `|√(v∞² + 2μ/r_p) − v_軌道(r_p)|`。**双曲線の近点の噴射の ΔV はここだけ**（ホーマン系も日付つきの遷移も使う）。
+pub fn hyperbolic_periapsis_dv_m_s(mu: f64, r_p_m: f64, v_inf_m_s: f64, orbit: Apsides) -> f64 {
+    let v_hyp = (v_inf_m_s * v_inf_m_s + 2.0 * mu / r_p_m).sqrt();
+    (v_hyp - vis_viva_m_s(mu, r_p_m, orbit.semi_major_axis_m())).abs()
 }
 
 /// 半径 `r1` から `r2` への遷移の楕円の端の速さ（`r1` 側・`r2` 側）と半周の時間。
@@ -105,7 +106,7 @@ pub fn patched_conic(
             central: from,
             radius_m: rp,
             v_inf_m_s: Some(v_dep),
-            delta_v_m_s: hyperbolic_dv(from.gm(), rp, v_dep, departure),
+            delta_v_m_s: hyperbolic_periapsis_dv_m_s(from.gm(), rp, v_dep, departure),
         };
         Ok(PatchedConic {
             departure: departure_burn,
@@ -120,13 +121,13 @@ pub fn patched_conic(
     }
 }
 
-/// 到着の天体 `to` で超過速度 `v_inf` の双曲線から軌道 `c` に入る噴射。
-fn capture_burn(to: CentralBody, v_inf: f64, c: Apsides) -> PatchedBurn {
+/// 天体 `to` で超過速度 `v_inf` の双曲線と軌道 `c` の間を行き来する噴射（到着の捕獲。出発の脱出も同じ式）。
+pub(super) fn capture_burn(to: CentralBody, v_inf: f64, c: Apsides) -> PatchedBurn {
     PatchedBurn {
         central: to,
         radius_m: c.periapsis_m,
         v_inf_m_s: Some(v_inf),
-        delta_v_m_s: hyperbolic_dv(to.gm(), c.periapsis_m, v_inf, c),
+        delta_v_m_s: hyperbolic_periapsis_dv_m_s(to.gm(), c.periapsis_m, v_inf, c),
     }
 }
 
@@ -181,7 +182,7 @@ fn to_parent(
             central: from,
             radius_m: r_dep,
             v_inf_m_s: Some(v_inf),
-            delta_v_m_s: hyperbolic_dv(from.gm(), r_dep, v_inf, departure),
+            delta_v_m_s: hyperbolic_periapsis_dv_m_s(from.gm(), r_dep, v_inf, departure),
         },
         arrival: Some(PatchedBurn {
             central: to,

@@ -57,6 +57,20 @@ pub enum AstroError {
     /// 時刻の文字列を解釈できない。
     #[error("Cannot parse time: {0}")]
     InvalidEpoch(String),
+    /// 日付つきの遷移の 2 天体が、同じ親を回る別々の天体でない。
+    #[error(
+        "A dated transfer needs two different bodies orbiting the same parent ({from:?} to {to:?})"
+    )]
+    NotSiblingBodies {
+        from: crate::body::CentralBody,
+        to: crate::body::CentralBody,
+    },
+    /// 到着が出発より後でない。
+    #[error("The arrival ({arrive}) must be after the departure ({depart})")]
+    ArrivalNotAfterDeparture { depart: String, arrive: String },
+    /// 日付が暦（解析式の範囲か DE440 の期間）の外にある。
+    #[error("{epoch} is outside the ephemeris validity (1800 to 2050 for the analytic planets)")]
+    OutsideEphemeris { epoch: String },
 }
 
 pub mod body;
