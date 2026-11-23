@@ -38,6 +38,8 @@ export const maneuversJa = {
       inclination: "目標の傾斜角",
       depart: "出発の日（日付つきの遷移。UTC の ISO 8601）",
       arrive: "到着の日（出発より後。空にすると日付なしのホーマンの見積もり）",
+      departureBy:
+        "出発の噴射を行うもの（打ち上げ機なら ΔV・推薬に出発の噴射を数えず、打ち上げ適合が C3 の曲線で質量の上限を引く）",
       viaAltitude: "中間の遠地点高度（バイエリプティック）",
       sunlitOnly: "日照中だけ噴射",
       mode: "噴射するモード",

@@ -70,3 +70,33 @@ fn launch_selection_matches_between_cli_and_http() {
         "{keys:?}"
     );
 }
+
+/// 能力の曲線の書き込み（`fune catalog set local/lv_alpha payload_mass_by_c3 "…"` と `POST /ops/from_text` の `item`）が、
+/// バイト単位で同じファイルを書き、曲線の値が `[attr]` に 1 行で入る。
+#[test]
+fn capability_curve_edits_match_between_cli_and_http() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_a, cli) = demo_copy();
+    let (_b, http) = demo_copy();
+    let path = "payload_mass_by_c3";
+    let value = "0:140 10:120.5 20:90 (km^2/s^2 -> kg)";
+    run_cli(&cli, &["catalog", "set", "local/lv_alpha", path, value]);
+    let op = http_text(
+        &rt,
+        &http,
+        "/api/v1/ops/from_text",
+        json!({ "item": "local/lv_alpha", "path": path, "value": value }),
+    );
+    assert_eq!(op["value"]["type"], "curve", "{op}");
+    assert_same_files(&cli, &http, "catalog set payload_mass_by_c3");
+    let item = std::fs::read_to_string(http.join("catalog/lv_alpha.toml")).unwrap();
+    assert!(
+        item.contains(
+            "{ at = [0.0, 10.0, 20.0], at_unit = \"km^2/s^2\", values = [140.0, 120.5, 90.0], unit = \"kg\" }"
+        ),
+        "{item}"
+    );
+    // 書いたものを `fmt --check` と `check` が通す
+    run_cli(&cli, &["fmt", "--check"]);
+    run_cli(&cli, &["check"]);
+}

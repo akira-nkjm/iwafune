@@ -287,7 +287,12 @@ fn apply<'a>(
                 leg.ideal_delta_v_m_s += b.delta_v_m_s;
                 fire(&mut leg, engine, (site, b.radius_m), dv, dv_scale)?;
             }
-            leg.transfer_time_s = Some(impulsive_time(t.coast_s, &leg.burns, finite));
+            leg.transfer_time_s = Some(impulsive_time(
+                t.coast_s,
+                &leg.burns,
+                finite,
+                planned.launcher_departure,
+            ));
         }
         Ideal::LowThrust(dv) => {
             leg.ideal_delta_v_m_s = *dv;
@@ -366,14 +371,16 @@ fn fire(
 }
 
 /// インパルス・有限燃焼の遷移の時間: 噴射の間の慣性飛行。有限燃焼は噴射を近点・遠点を中心に置くので、
-/// 最初と最後の噴射の半分ずつを足す（噴射が 1 回ならその噴射時間）。
-fn impulsive_time(coast_s: f64, burns: &[Burn], finite: bool) -> f64 {
+/// 最初と最後の噴射の半分ずつを足す（噴射が 1 回ならその噴射時間）。出発の噴射を打ち上げ機が行うとき
+/// （`launcher_departure`）は、列の最初は出発の噴射でなく捕獲の噴射なので、飛行の時間に半分だけ足す。
+fn impulsive_time(coast_s: f64, burns: &[Burn], finite: bool, launcher_departure: bool) -> f64 {
     if !finite {
         return coast_s;
     }
     let t = |b: Option<&Burn>| b.and_then(|b| b.burn_time_s).unwrap_or(0.0);
     match burns {
         [] => 0.0,
+        [last] if launcher_departure => coast_s + 0.5 * t(Some(last)),
         [one] => t(Some(one)),
         _ => coast_s + 0.5 * (t(burns.first()) + t(burns.last())),
     }

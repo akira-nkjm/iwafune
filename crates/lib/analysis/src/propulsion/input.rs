@@ -101,6 +101,18 @@ pub struct OrbitTarget {
     pub inclination: Option<Qty<Angle>>,
 }
 
+/// 日付つきの遷移の出発の噴射を行うもの。綴りは設計データの `departure_by` と同じ（projection の対応とテストで一致を確かめる）。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "snake_case")]
+pub enum DepartureProvider {
+    /// 衛星が駐車軌道から出発する
+    #[default]
+    Spacecraft,
+    /// 打ち上げ機が出発の漸近線まで送る（衛星は出発の噴射を数えない）
+    Launcher,
+}
+
 /// 日付つきの惑星間遷移の日付（`target.body` があるときだけ。日付があれば天体間の ΔV は両端の天体の
 /// その日の位置からの Lambert で求め、無ければホーマンのパッチドコニック）。UTC/TT/TDB は区別しない。
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -110,6 +122,9 @@ pub struct DatedTransferInput {
     pub departure: Epoch,
     /// 到着の日（出発より後）
     pub arrival: Epoch,
+    /// 出発の噴射を行うもの（省略は衛星）
+    #[serde(default)]
+    pub departure_by: DepartureProvider,
 }
 
 /// マヌーバ 1 つ（実行の順に並べる）。
