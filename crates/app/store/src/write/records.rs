@@ -68,6 +68,9 @@ pub const MANEUVER_SECTIONS: &[&str] = &["target", "constraints", "transfer"];
 /// フェーズのファイルで見出しの表にする表（`[orbit]` と `[law.<モード>]`。docs/model.md の `phases/`）。
 pub const PHASE_SECTIONS: &[&str] = &["orbit", "law/"];
 
+/// 形態のファイルで見出しの表にする表（`[pose.<部品>]`。docs/model.md の `configurations/`）。
+pub const CONFIGURATION_SECTIONS: &[&str] = &["pose/"];
+
 /// 要求のファイルで見出しの表にする最上位の表（docs/model.md の `requirements/`）。
 pub const REQUIREMENT_SECTIONS: &[&str] = &["constraint", "quantify", "verify"];
 

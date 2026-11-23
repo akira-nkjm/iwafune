@@ -297,4 +297,19 @@ pub(super) const PROD_RULES: &[(&str, &[&str], &str)] = &[
         &["crates/app/model/src/design/refs.rs"],
         "the reference index",
     ),
+    // 形態で有効な姿勢は `Design::pose_in` が決め、取付の姿勢に使うのは解決（`resolve/compute.rs`）だけ。形態ごとの解決済みの設計は
+    // `Resolved::in_configuration` が引く。これを呼んでよいのは解決と、形態を選ぶ側（射影の文脈。選択の段階で足す）だけ
+    (
+        ".pose_in(",
+        &["crates/app/model/src/resolve/compute.rs"],
+        "the pose in effect in a configuration (`Design::pose_in`, called only by the mount resolution)",
+    ),
+    (
+        ".in_configuration(",
+        &[
+            "crates/app/model/src/resolve.rs",
+            "crates/app/projection/src/context.rs",
+        ],
+        "the resolved design of a configuration (`Resolved::in_configuration`, chosen only in the projection context)",
+    ),
 ];

@@ -53,6 +53,8 @@ export function targetLink(
       return paths.defs("kinds");
     case "source":
       return paths.sources();
+    // 形態のページはまだ無い（GUI の段階で足す）
+    case "configuration":
     case "analysis":
       return null;
   }
