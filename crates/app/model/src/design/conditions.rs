@@ -184,6 +184,13 @@ pub struct LaunchSettings {
     pub label: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vehicle: Option<String>,
+    /// 打ち上げ機のカタログ品（部品の `catalog` と同じ `<カタログ>/<ID>` の形。種別は `launcher`）。
+    /// ここに書かない荷重などは、この品の値（ディスペンサーがあればその値が先）から取る
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launcher: Option<String>,
+    /// ディスペンサーのカタログ品（同じ形。種別は `dispenser`）。打ち上げ機より衛星に近い接点なので、同じ属性があれば打ち上げ機より先に使う
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dispenser: Option<String>,
     /// 準静的荷重（機軸方向。単位は `g0`）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub load_axial: Option<Quantity>,
@@ -203,6 +210,19 @@ pub struct LaunchSettings {
     /// 安全率（終局）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub safety_factor_ultimate: Option<f64>,
+}
+
+impl LaunchSettings {
+    /// 欄の名前 → 値の形の見本（文字列で書く欄。数に見える ID も文字列として読むための型で、既定値ではない。
+    /// `fune set conditions.launch.<欄>` が使う）。
+    pub fn field_shape(key: &str) -> Option<crate::value::SettingValue> {
+        match key {
+            "label" | "vehicle" | "launcher" | "dispenser" => {
+                Some(crate::value::SettingValue::Text(String::new()))
+            }
+            _ => None,
+        }
+    }
 }
 
 enum_text! {

@@ -12,6 +12,7 @@ mod budget;
 mod catalogs;
 mod defs;
 mod ids;
+mod launch;
 mod maneuvers;
 mod modes;
 mod moved;
@@ -65,6 +66,7 @@ pub fn check(design: &Design) -> Vec<Diagnostic> {
     budget::check_budget(&mut ctx);
     let entries = design.setting_entries();
     settings::check_conditions(&mut ctx, &entries);
+    launch::check_launch(&mut ctx);
     settings_analysis::check_analysis(&mut ctx, &entries);
     moved::check_moved_settings(&mut ctx, &entries);
     settings::check_materials(&mut ctx);

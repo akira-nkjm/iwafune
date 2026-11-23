@@ -1,15 +1,17 @@
 //! 構造の射影: `structure.mass_properties`（と、姿勢の解析が使う慣性）。慣性の計算は sat-analysis に任せる。
 
 use crate::context::Context;
+use crate::launch::{LaunchValues, frequency_limits, launch_path};
 use crate::missing::MissingInputs;
 use crate::pose;
 use crate::quantity::{qty_opt, setting, setting_opt};
 use fune_model::Target;
 use fune_model::builtin::Role;
+use fune_model::design::launch::attr;
 use fune_model::design::setting_dims::{self as dims, SettingQuantity};
 use fune_model::design::{AnalysisSystem, BudgetKind};
-use fune_model::path::SettingPath;
 use fune_model::resolve::SiValue;
+use sat_analysis::structure::launch_fit::tightest_min_frequency;
 use sat_analysis::structure::mass_properties::{MassPropertiesItem, MassPropertiesSummary};
 use sat_analysis::structure::modal_estimate::{
     ModalEstimateMounted, ModalEstimatePanel, ModalEstimateRequirements,
@@ -19,7 +21,7 @@ use sat_analysis::structure::{
     MassPropertiesInput, ModalEstimateInput, StaticLoadInput, mass_properties as compute,
 };
 use sat_astro::math::Vec3;
-use sat_units::typed::{Acceleration, Frequency, Length, Mass, Qty};
+use sat_units::typed::{Acceleration, Length, Mass, Qty};
 
 /// 質量を持つ部品の質量特性の項目（位置は取付をたどった機体座標の部品原点。外形 `size` があれば箱として慣性を足す）。
 pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem> {
@@ -79,23 +81,33 @@ pub fn summary(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<MassPropertie
     }
 }
 
-/// `conditions.launch.<…>`（`conditions/launch.toml` のキー）。
-fn launch(keys: &[&str]) -> SettingPath {
-    SettingPath::conditions(&["launch"]).child(keys)
-}
-
-/// 荷重倍数（`g0` の倍数）。単位が無ければそのまま、あれば `g0` に換算する（換算は sat-units）。
+/// 荷重倍数（`g0` の倍数）。`conditions/launch.toml` に書いた値が先で、無ければディスペンサー・打ち上げ機の属性 `attr_id`。
+/// 書かれた値は単位が無ければそのまま、あれば `g0` に換算する（換算は sat-units）。
 fn load_factor(
     q: Option<&fune_model::value::Quantity>,
     key: &SettingQuantity<Acceleration>,
+    attr_id: &str,
+    values: &LaunchValues<'_>,
     m: &mut MissingInputs,
 ) -> Option<f64> {
-    let q = m.need(q, key.at(&[]), "Quasi-static load (g0)")?;
+    let g0 = |si: f64| sat_units::parse_unit("g0").ok().map(|g| g.from_si(si));
+    let Some(q) = q else {
+        let found = values.scalar(attr_id).map(|f| f.value);
+        return m
+            .need(
+                found,
+                key.at(&[]),
+                format!(
+                    "Quasi-static load (g0): write it in conditions/launch.toml or give the `{attr_id}` attribute to the dispenser or launcher"
+                ),
+            )
+            .and_then(g0);
+    };
     if q.unit.is_empty() {
         return Some(q.value);
     }
     let si = fune_model::value::units::to_si(q.value, &q.unit).ok()?;
-    sat_units::parse_unit("g0").ok().map(|g| g.from_si(si))
+    g0(si)
 }
 
 /// 準静的荷重の項目（質量を持つ部品。取付の根の取付先は `LV`）。
@@ -150,13 +162,30 @@ pub fn static_load(ctx: &Context<'_>) -> Result<StaticLoadInput, MissingInputs> 
     let launch = ctx.design.conditions.launch.as_ref();
     let launch = m.need(
         launch,
-        self::launch(&[]),
+        launch_path(&[]),
         "Launch conditions (conditions/launch.toml)",
     );
-    let axial =
-        launch.and_then(|l| load_factor(l.load_axial.as_ref(), &dims::LAUNCH_LOAD_AXIAL, &mut m));
-    let lateral = launch
-        .and_then(|l| load_factor(l.load_lateral.as_ref(), &dims::LAUNCH_LOAD_LATERAL, &mut m));
+    let values = LaunchValues::new(ctx);
+    let axial = launch.and_then(|l| {
+        let key = &dims::LAUNCH_LOAD_AXIAL;
+        load_factor(
+            l.load_axial.as_ref(),
+            key,
+            attr::LOAD_AXIAL,
+            &values,
+            &mut m,
+        )
+    });
+    let lateral = launch.and_then(|l| {
+        let key = &dims::LAUNCH_LOAD_LATERAL;
+        load_factor(
+            l.load_lateral.as_ref(),
+            key,
+            attr::LOAD_LATERAL,
+            &values,
+            &mut m,
+        )
+    });
     let items = load_items(ctx, &mut m);
     let interfaces = interfaces(ctx, &items, &mut m);
     let safety_factor = launch.and_then(|l| l.safety_factor_yield);
@@ -244,11 +273,11 @@ pub fn modal_estimate(ctx: &Context<'_>) -> Result<ModalEstimateInput, MissingIn
             "No panel part (role = panel)",
         );
     }
-    // 最低固有振動数は要求が持つ（`structure.modal_estimate` の `lateral`・`axial`）。無ければ判定しない
-    let frequency = |key: &str| {
-        ctx.criterion("structure.modal_estimate", key)
-            .map(|c| Qty::<Frequency>::from_raw(c.si))
-    };
+    // 最低固有振動数: ディスペンサー・打ち上げ機の値が基本の限度で、要求（`structure.modal_estimate` の `lateral`・`axial`）は
+    // それを厳しくする側にだけ働く（効く 1 つの選び方は `structure.launch_fit` の `tightest_min_frequency`）。無ければ判定しない
+    let launch = LaunchValues::new(ctx);
+    let frequency =
+        |key: &str| tightest_min_frequency(&frequency_limits(ctx, &launch, key)).map(|l| l.value);
     let requirements = ModalEstimateRequirements {
         lateral: frequency("lateral"),
         axial: frequency("axial"),

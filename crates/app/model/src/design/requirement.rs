@@ -277,6 +277,7 @@ pub const ANALYSIS_IDS: &[&str] = &[
     "structure.mass_properties",
     "structure.static_load",
     "structure.modal_estimate",
+    "structure.launch_fit",
     "thermal.steady",
     "thermal.transient",
 ];

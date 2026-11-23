@@ -175,7 +175,8 @@ fn setting_value(ws: &Workspace, path: &SettingPath, text: &SetText) -> Result<S
     let like = snapshot
         .design
         .setting(path)
-        .or_else(|| attitude_field_type(path));
+        .or_else(|| attitude_field_type(path))
+        .or_else(|| launch_field_type(path));
     setting_from_text(&text.value, like.as_ref()).map_err(|e| match like {
         Some(SettingValue::Quantity(_)) => quantity_error(text.value.trim(), e),
         _ => invalid(e),
@@ -196,6 +197,19 @@ fn attitude_field_type(path: &SettingPath) -> Option<SettingValue> {
         return None;
     }
     AttitudeLawSetting::field_shape(field)
+}
+
+// 未設定でも、打ち上げ条件の文字列の欄（ラベル・打ち上げ機・ディスペンサーの参照）は文字列として読む（欄の形は model が持つ）。
+fn launch_field_type(path: &SettingPath) -> Option<SettingValue> {
+    use fune_model::design::LaunchSettings;
+    use fune_model::path::SettingScope;
+    let [file, field] = path.segments.as_slice() else {
+        return None;
+    };
+    if path.scope != SettingScope::Conditions || file != "launch" {
+        return None;
+    }
+    LaunchSettings::field_shape(field)
 }
 
 /// 文字列 → ベクトル（`"0 0 12 mm"`）。`fune part place --position` 用。

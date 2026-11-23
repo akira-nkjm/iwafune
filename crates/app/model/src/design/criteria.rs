@@ -99,14 +99,14 @@ pub const CRITERIA: &[CriterionDecl] = &[
         check: "lateral",
         kind: ConstraintKind::AtLeast,
         quantity: "Frequency",
-        feeds: "ModalEstimateRequirements.lateral. Without it no check is made",
+        feeds: "ModalEstimateRequirements.lateral and the limit candidates of structure.launch_fit. It only tightens the minimum of the selected launcher and dispenser. Without any of them no check is made",
     },
     CriterionDecl {
         analysis: "structure.modal_estimate",
         check: "axial",
         kind: ConstraintKind::AtLeast,
         quantity: "Frequency",
-        feeds: "ModalEstimateRequirements.axial. Without it no check is made",
+        feeds: "ModalEstimateRequirements.axial and the limit candidates of structure.launch_fit. It only tightens the minimum of the selected launcher and dispenser. Without any of them no check is made",
     },
 ];
 

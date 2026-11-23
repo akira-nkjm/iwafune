@@ -61,6 +61,7 @@ registry!(
     structure::MassProperties,
     structure::StaticLoad,
     structure::ModalEstimate,
+    structure::LaunchFit,
     thermal::ThermalSteady,
     thermal::ThermalTransient,
 );

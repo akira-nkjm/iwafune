@@ -11,8 +11,8 @@
 //! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode`・フェーズの `modes` と `[law]` のキー |
 //! | フェーズ | ケースの `phase` |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets`・図の `[nodes]` のキー |
-//! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire` |
-//! | カタログ（`[[catalog]]` の名前。出所を外すのを拒むためだけ。書き換えはしない） | 部品の `catalog`・`candidates`・ハーネスの `wire` のうち `<名前>/…` のもの |
+//! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire`・`conditions/launch.toml` の `launcher`・`dispenser` |
+//! | カタログ（`[[catalog]]` の名前。出所を外すのを拒むためだけ。書き換えはしない） | 部品の `catalog`・`candidates`・ハーネスの `wire`・打ち上げ条件の `launcher`・`dispenser` のうち `<名前>/…` のもの |
 //! | 地上局 | `analysis/comm.toml` の `stations`・要求の `[verify].check` が名指す局（書き換えはしない。名前の変更と削除を拒むための暫定の見張り。#328） |
 //! | ハーネス区間 | 参照元は無い（ほかのエンティティはハーネスの ID を持たない。名前の変更の索引を揃えるための空の索引） |
 //! | 解析ケース | `analysis/common.toml` の `default_case`・要求の `[quantify].cases` |
@@ -22,7 +22,7 @@
 //! | 種別（名前の変更と、プロジェクト独自の定義の削除の拒否に使う） | 部品とカタログ品の `kind`・種別の `extends` |
 //! | 属性（同上） | 種別の `required` / `optional`・部品とカタログ品の属性の値 |
 
-use super::{BudgetKind, Design};
+use super::{BudgetKind, Design, LaunchInterface};
 use crate::enum_text::enum_text;
 use crate::path::{PortRef, split_catalog_ref};
 use serde::{Deserialize, Serialize};
@@ -135,6 +135,8 @@ pub enum RefSite {
     PartCandidate { part: String },
     /// ハーネスの線材（`wire`）
     HarnessWire { harness: String },
+    /// 打ち上げ条件が選んだ品（`conditions/launch.toml` の `launcher`・`dispenser`）
+    LaunchSelection { which: LaunchInterface },
     /// マヌーバのスラスタ（`maneuvers/<マヌーバ>.toml` の `thruster`）
     ManeuverThruster { maneuver: String },
     /// マヌーバの噴射するモード（`[constraints].mode`）
@@ -450,6 +452,12 @@ impl Design {
                 .map(|h| RefSite::HarnessWire {
                     harness: h.id.to_string(),
                 }),
+        );
+        out.extend(
+            LaunchInterface::NEAREST_FIRST
+                .into_iter()
+                .filter(|w| self.launch_selection(*w).is_some_and(&hit))
+                .map(|which| RefSite::LaunchSelection { which }),
         );
         out
     }
