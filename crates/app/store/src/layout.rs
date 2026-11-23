@@ -47,6 +47,23 @@ pub const SHARED_CATALOG_DIRS: &[&str] = &[SHARED_ITEMS_DIR, SOURCES_DIR];
 pub const SHARED_ITEMS_DIR: &str = "catalog";
 /// 読まないディレクトリ。
 pub const IGNORED_DIRS: &[&str] = &["results", "exports", "target", "node_modules"];
+/// 規約が読む最上位のディレクトリ（[`RESERVED_DIRS`]・[`IGNORED_DIRS`] とともに、ローカルカタログのディレクトリにはできない）
+/// （`defs` は `defs/attribute`・`defs/kind` の親、`budget` は `budget/allocation.toml` の親）。
+pub const PROJECT_DIRS: &[&str] = &[
+    "defs",
+    "budget",
+    PARTS_DIR,
+    MODES_DIR,
+    NETS_DIR,
+    HARNESS_DIR,
+    CASES_DIR,
+    SOURCES_DIR,
+    MANEUVERS_DIR,
+    REQUIREMENTS_DIR,
+    CONDITIONS_DIR,
+    ANALYSIS_DIR,
+    VIEW_DIR,
+];
 /// 図の配置（見た目だけ。`view/<名前>.toml`）。
 pub const VIEW_DIR: &str = "view";
 /// `conditions/` の直下のファイル。
@@ -362,7 +379,7 @@ mod catalog;
 mod source;
 mod subdir;
 use catalog::catalog_role;
-pub use catalog::{CatalogLocation, catalog_item_dir, catalog_location};
+pub use catalog::{CatalogLocation, catalog_item_dir, catalog_location, parse_local_catalog_path};
 pub use source::{source_dir, source_file, source_path};
 pub use subdir::{
     dir_below, dirs_text, file_in_dir, is_cacheable, parse_subdir, shared_sub_dir, split_below,

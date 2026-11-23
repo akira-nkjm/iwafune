@@ -132,7 +132,7 @@ fn rename_kind(edits: &mut Edits, design: &Design, id: &str, to: &str) -> Result
 }
 
 /// 共有カタログの品（読み取り専用）が使っていれば、書き換えられないので名前の変更を拒む。
-fn refuse_shared_users(
+pub(super) fn refuse_shared_users(
     what: &str,
     id: &str,
     sites: Vec<RefSite>,
@@ -141,9 +141,11 @@ fn refuse_shared_users(
     let shared: Vec<&str> = sites
         .iter()
         .filter_map(|site| match site {
-            RefSite::CatalogKind { item } | RefSite::CatalogAttribute { item } => {
-                Some(item.as_str())
-            }
+            RefSite::CatalogKind { item }
+            | RefSite::CatalogAttribute { item }
+            | RefSite::CatalogValueSource { item, .. }
+            | RefSite::CatalogItemSource { item }
+            | RefSite::CatalogItemDatasheet { item } => Some(item.as_str()),
             _ => None,
         })
         .filter(|item| {

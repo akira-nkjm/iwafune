@@ -121,7 +121,8 @@ fn requirement_analysis_ids_match_the_analysis_catalog() {
     assert_eq!(known, registered);
 }
 
-/// 通信の解析が作る判定のキー（`margin:<回線>@<局>`・`pfd:<回線>@<局>`）を、fune-model の `Verification::check_names_station` が局の名指しと読む。
+/// 通信の解析が作る判定のキー（`margin:<回線>@<局>`・`pfd:<回線>@<局>`）を、fune-model の `Verification::check_names_station` が局の名指し、
+/// `check_names_link` が回線の名指しと読む。
 /// キーの書式は解析が持ち、モデルは写しを持つ（#328 までの暫定の見張り）。両方が見えるここで一致を確かめる。
 #[test]
 fn station_check_key_matches_link_budget() {
@@ -151,6 +152,34 @@ fn station_check_key_matches_link_budget() {
         for other in [format!("{station}2"), format!("x{station}")] {
             assert!(keys.iter().all(|k| !verify(k).check_names_station(&other)));
         }
+    }
+    // 回線の名指し（`check_names_link`）も同じキーを読む。`LINK_CHECK_FAMILIES` は解析のキーの族の写し
+    let links = &design.analysis.comm.as_ref().unwrap().links;
+    for link in links.keys() {
+        let named = keys
+            .iter()
+            .filter(|k| verify(k).check_names_link(link))
+            .count();
+        assert!(named > 0, "no key names link {link}: {keys:?}");
+        for other in [format!("{link}2"), format!("x{link}")] {
+            assert!(keys.iter().all(|k| !verify(k).check_names_link(&other)));
+        }
+    }
+    for key in &keys {
+        let family = key.split(':').next().unwrap();
+        assert!(
+            fune_model::design::LINK_CHECK_FAMILIES.contains(&family),
+            "{key}"
+        );
+        // 書き換えは、名指した回線の名前だけを替える（族と局は変えない）
+        let link = links
+            .keys()
+            .find(|l| verify(key).check_names_link(l))
+            .unwrap();
+        let renamed = verify(key)
+            .check_with_link_renamed(link, "renamed")
+            .unwrap();
+        assert_eq!(renamed, key.replacen(link.as_str(), "renamed", 1));
     }
 }
 

@@ -118,7 +118,7 @@ fn add_prints_the_fetch_hint() {
     );
 }
 
-/// このプロジェクトのカタログ（path = …）は外せない。CLI は終了コード 2、HTTP は 4xx で、ファイルは変わらない。
+/// このプロジェクトのカタログ（path = …）は、品があるあいだ外せない。CLI は終了コード 2、HTTP は 4xx で、ファイルは変わらない。
 #[test]
 fn refused_remove_changes_nothing() {
     let rt = tokio::runtime::Runtime::new().unwrap();
