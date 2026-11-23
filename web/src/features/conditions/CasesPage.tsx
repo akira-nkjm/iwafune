@@ -1,5 +1,7 @@
+import { Pencil } from "lucide-react";
+import { useState } from "react";
 import { useDesign } from "@/api/queries";
-import type { DesignView } from "@/api/types";
+import type { CaseView, DesignView } from "@/api/types";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
 import { SkeletonPanel } from "@/kit/feedback/Loading";
@@ -13,6 +15,8 @@ import { systemTitle } from "@/lib/design";
 import { paths } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
+import { Button } from "@/ui/button";
+import { CasePhaseDialog } from "./CasePhaseDialog";
 
 /** 前提条件 / 解析ケース: cases/ の一覧。各系のページをそのケースで開ける */
 export function CasesPage() {
@@ -33,6 +37,7 @@ export function CasesPage() {
 /** ケースの表。最後の列は、そのケースで開く系のページへのリンク */
 function CasesTable({ design: d }: { design: DesignView }) {
   const m = useT().conditions;
+  const [editing, setEditing] = useState<CaseView | null>(null);
   return (
     <Panel pad={false}>
       <DataTable
@@ -42,6 +47,7 @@ function CasesTable({ design: d }: { design: DesignView }) {
             <Th>{m.name}</Th>
             <Th>{m.description}</Th>
             <Th>{m.modes}</Th>
+            <Th>{m.phase}</Th>
             <Th>{m.file}</Th>
             <Th>{m.openWith}</Th>
           </>
@@ -53,6 +59,19 @@ function CasesTable({ design: d }: { design: DesignView }) {
             <Td>{c.label}</Td>
             <Td className="text-ink-2">{c.description ?? "—"}</Td>
             <Td mono>{c.modes.join(" → ")}</Td>
+            <Td mono>
+              <span className="flex items-center gap-1">
+                {c.phase ?? "—"}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={m.setPhase}
+                  onClick={() => setEditing(c)}
+                >
+                  <Pencil size={13} />
+                </Button>
+              </span>
+            </Td>
             <Td mono className="text-ink-4">
               {c.file}
             </Td>
@@ -68,6 +87,13 @@ function CasesTable({ design: d }: { design: DesignView }) {
           </tr>
         ))}
       </DataTable>
+      {editing && (
+        <CasePhaseDialog
+          kase={editing}
+          phases={d.phases}
+          onOpenChange={(open) => !open && setEditing(null)}
+        />
+      )}
     </Panel>
   );
 }

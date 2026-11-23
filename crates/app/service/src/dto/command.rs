@@ -72,6 +72,23 @@ pub enum CommandText {
     ManeuverAdd(super::ManeuverText),
     /// `fune maneuver set <ID> …`（無ければ作り、あれば丸ごと置き換える）
     ManeuverSet(super::ManeuverText),
+    /// `fune phase add <ID> --label … --order 1 --duration "30 d" --modes SAFE,NOMINAL`（同じ ID があれば拒む）
+    PhaseAdd(super::PhaseText),
+    /// `fune phase set <ID> …`（無ければ作り、あれば見出しの欄を置き換える。軌道と姿勢則は今のまま残す）
+    PhaseSet(super::PhaseText),
+    /// `fune phase set-field <ID> orbit.altitude "550 km"`（`value` が無ければ `unset-field` で消す）
+    PhaseField {
+        phase: String,
+        path: String,
+        #[serde(default)]
+        value: Option<String>,
+    },
+    /// `fune case set-phase <ケース> <フェーズ>`（`phase` が無ければ `unset-phase` で外す）
+    CasePhase {
+        case: String,
+        #[serde(default)]
+        phase: Option<String>,
+    },
     /// `fune ground add <ID> --label … --latitude "35.7 deg" …`（`conditions/ground/<ID>.toml` を作る。同じ ID があれば拒む）
     GroundAdd(super::GroundAddText),
     /// `fune requirement add <ID> --statement … --quantity Mass --kind at_most --value "12 kg" …`（同じ ID があれば拒む）

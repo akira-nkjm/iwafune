@@ -55,6 +55,8 @@ pub struct DesignView {
     pub cases: Vec<CaseView>,
     /// マヌーバ（実行の順）
     pub maneuvers: Vec<super::ManeuverView>,
+    /// フェーズ（並びの順）
+    pub phases: Vec<super::PhaseView>,
     /// 地上局（`conditions/ground/<ID>.toml`。ID 順。値は `settings`）
     pub stations: Vec<super::GroundStationView>,
     /// 要求（`requirements/<ID>.toml`。ID 順）
@@ -384,6 +386,8 @@ pub struct CaseView {
     pub description: Option<String>,
     /// 使うモード（モードの時系列なら先頭から順に）
     pub modes: Vec<String>,
+    /// フェーズ（`phases/<ID>.toml`。軌道・姿勢則がそのフェーズのものになる）
+    pub phase: Option<String>,
     pub file: String,
 }
 

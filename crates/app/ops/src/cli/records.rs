@@ -73,6 +73,7 @@ fn case_cmd(case: &Case) -> String {
         .flag("label", case.label.as_deref())
         .flag("description", case.description.as_deref())
         .flag("mode", case.mode.as_ref().map(|m| m.as_str()))
+        .flag("phase", case.phase.as_ref().map(|p| p.as_str()))
         .flag("side", case.side.map(|s| s.as_str()))
         .flag("thermal-case", case.thermal_case.as_deref())
         .flag("beta", beta.as_deref())

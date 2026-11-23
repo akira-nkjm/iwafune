@@ -231,7 +231,7 @@ pub(in super::super) fn view_ops() -> Vec<Op> {
 
 pub(in super::super) fn record_ops() -> Vec<Op> {
     let mut case: Case = serde_json::from_value(json!({ "label": "Worst-case eclipse", "description": "β 0",
-        "mode": "NOMINAL", "side": "max", "thermal_case": "cold", "beta": { "value": 0.0, "unit": "deg" }, "orbits": 5, "sun_distance": { "value": 0.7, "unit": "AU" } })).unwrap();
+        "mode": "NOMINAL", "phase": "NOMINAL_OPS", "side": "max", "thermal_case": "cold", "beta": { "value": 0.0, "unit": "deg" }, "orbits": 5, "sun_distance": { "value": 0.7, "unit": "AU" } })).unwrap();
     case.id = "eclipse_worst".into();
     let source = Source {
         id: "ds_x".into(),
@@ -297,6 +297,50 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
             ),
         },
         Op::RemoveManeuver { id: s("MV_X") },
+        Op::CreatePhase {
+            phase: phase(
+                "PH_X",
+                json!({ "label": "Commissioning \"test\"", "order": -1, "start": "Separation",
+                "end": "All subsystems checked out", "duration": { "value": 30.0, "unit": "d" },
+                "modes": ["SAFE", "NOMINAL"] }),
+            ),
+        },
+        Op::SetPhase {
+            phase: phase("PH_Y", json!({ "order": 2 })),
+        },
+        Op::RemovePhase { id: s("PH_X") },
+        Op::RenamePhase {
+            id: s("PH_X"),
+            to: s("PH_Z"),
+        },
+        Op::SetPhaseField {
+            phase: s("PH_X"),
+            path: s("orbit.altitude"),
+            value: Some(SettingValue::Quantity(Quantity::new(450.0, "km"))),
+        },
+        Op::SetPhaseField {
+            phase: s("PH_X"),
+            path: s("orbit.label"),
+            value: Some(SettingValue::Text(s("1"))),
+        },
+        Op::SetPhaseField {
+            phase: s("PH_X"),
+            path: s("law.NOMINAL.law"),
+            value: Some(SettingValue::Text(s("nadir_pointing"))),
+        },
+        Op::SetPhaseField {
+            phase: s("PH_X"),
+            path: s("orbit.altitude"),
+            value: None,
+        },
+        Op::SetCasePhase {
+            case: s("eclipse_worst"),
+            phase: Some(s("PH_X")),
+        },
+        Op::SetCasePhase {
+            case: s("eclipse_worst"),
+            phase: None,
+        },
         Op::CreateGroundStation {
             id: s("SVALBARD"),
             label: Some(s("Svalbard \"test\"")),
@@ -378,6 +422,13 @@ fn maneuver(id: &str, body: serde_json::Value) -> fune_service::dto::Maneuver {
     let mut m: fune_service::dto::Maneuver = serde_json::from_value(body).unwrap();
     m.id = id.into();
     m
+}
+
+/// JSON の中身と ID からフェーズを作る。
+fn phase(id: &str, body: serde_json::Value) -> fune_service::dto::Phase {
+    let mut p: fune_service::dto::Phase = serde_json::from_value(body).unwrap();
+    p.id = id.into();
+    p
 }
 
 /// JSON の中身と ID から要求を作る。

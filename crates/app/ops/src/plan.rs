@@ -11,6 +11,7 @@
 //! | `defs` | 定義（属性・種別）の Op（足す・置き換える・消す） |
 //! | `others` | モード・ネット・図・設定の Op |
 //! | `records` | 解析ケース・出典・ハーネス・マヌーバの Op |
+//! | `phases` | フェーズの Op（足す・書く・消す・名前を変える・軌道と姿勢則の値・ケースのフェーズ） |
 //! | `ground` | 地上局の Op（足す・消す・名前を変える） |
 //! | `requirements` | 要求の Op（足す・書く・消す） |
 //! | `catalog` | カタログ品の Op（このプロジェクトの `catalog/` だけ） |
@@ -26,6 +27,7 @@ mod ground;
 mod groups;
 mod others;
 mod parts;
+mod phases;
 mod records;
 mod requirements;
 mod subdir;
@@ -158,6 +160,12 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::CreateManeuver { .. }
         | Op::SetManeuver { .. }
         | Op::RemoveManeuver { .. } => records::interpret(edits, design, op),
+        Op::CreatePhase { .. }
+        | Op::SetPhase { .. }
+        | Op::RemovePhase { .. }
+        | Op::RenamePhase { .. }
+        | Op::SetPhaseField { .. }
+        | Op::SetCasePhase { .. } => phases::interpret(edits, design, op),
         Op::CreateRequirement { .. } | Op::SetRequirement { .. } | Op::RemoveRequirement { .. } => {
             requirements::interpret(edits, design, op)
         }

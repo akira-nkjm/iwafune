@@ -9,6 +9,7 @@ import type { ManeuverView } from "./ManeuverView";
 import type { ModeTable } from "./ModeTable";
 import type { NetView } from "./NetView";
 import type { PartRow } from "./PartRow";
+import type { PhaseView } from "./PhaseView";
 import type { ProjectInfo } from "./ProjectInfo";
 import type { RequirementView } from "./RequirementView";
 import type { SettingView } from "./SettingView";
@@ -28,6 +29,10 @@ tree: Array<TreeNode>, parts: Array<PartRow>, modes: ModeTable, nets: Array<NetV
  * マヌーバ（実行の順）
  */
 maneuvers: Array<ManeuverView>, 
+/**
+ * フェーズ（並びの順）
+ */
+phases: Array<PhaseView>, 
 /**
  * 地上局（`conditions/ground/<ID>.toml`。ID 順。値は `settings`）
  */

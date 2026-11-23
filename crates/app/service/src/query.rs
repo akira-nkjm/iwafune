@@ -8,6 +8,7 @@
 //! | `pose` | 部品の配置の表示（取付・取付点・機体座標の位置と姿勢の角度。位置は 1 部品で同じ単位） |
 //! | `ground` | 地上局（ID 順・表示名・ファイル・解析が使っているか） |
 //! | `maneuvers` | マヌーバ（実行の順・目標の要素・編集の欄の初期値） |
+//! | `phases` | フェーズ（並びの順・軌道と姿勢則の上書きの欄・編集の欄の初期値） |
 //! | `requirements` | 要求（制約の文・編集の欄の初期値。ID 順） |
 //! | `catalog` | カタログ品（値・パス・使っている部品・書き換えられるか） |
 //! | `sources` | 出典の台帳（Web のリンク・ファイル）とデータシートのリンク |
@@ -19,6 +20,7 @@ pub(crate) mod ground;
 pub(crate) mod maneuvers;
 mod net_class;
 mod parts;
+pub(crate) mod phases;
 mod pose;
 pub(crate) mod requirements;
 pub(crate) mod settings;
@@ -96,6 +98,7 @@ pub fn design_view(ws: &Workspace) -> Result<DesignView> {
         settings: settings::settings(d),
         cases: views::cases(d),
         maneuvers: maneuvers::maneuvers(d),
+        phases: phases::phases(d),
         stations: ground::stations(d),
         requirements: requirements::requirements(d),
         sources: sources::sources(d),
@@ -122,6 +125,11 @@ pub fn view_layout(ws: &Workspace, id: &str) -> Result<Option<crate::dto::ViewLa
 /// 要求の一覧（ID 順。`GET /requirements`・`fune requirement ls`）。
 pub fn requirements(ws: &Workspace) -> Result<Vec<crate::dto::RequirementView>> {
     Ok(requirements::requirements(&ws.snapshot()?.design))
+}
+
+/// フェーズの一覧（並びの順。`GET /phases`・`fune phase ls|show`）。
+pub fn phases(ws: &Workspace) -> Result<Vec<crate::dto::PhaseView>> {
+    Ok(phases::phases(&ws.snapshot()?.design))
 }
 
 /// マヌーバの一覧（実行の順。`GET /maneuvers`・`fune maneuver ls`）。

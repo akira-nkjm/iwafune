@@ -325,6 +325,7 @@ pub(crate) fn cases(design: &Design) -> Vec<CaseView> {
             label: c.label.clone().unwrap_or_else(|| c.id.to_string()),
             description: c.description.clone(),
             modes: c.mode.iter().map(ToString::to_string).collect(),
+            phase: c.phase.as_ref().map(ToString::to_string),
             file: file_of(design, EntityKey::Case(c.id.to_string())),
         })
         .collect()

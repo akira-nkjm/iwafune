@@ -65,6 +65,9 @@ pub fn write_record<T: Serialize>(
 /// マヌーバのファイルで見出しの表にする最上位の表（docs/model.md の `maneuvers/`）。
 pub const MANEUVER_SECTIONS: &[&str] = &["target", "constraints"];
 
+/// フェーズのファイルで見出しの表にする表（`[orbit]` と `[law.<モード>]`。docs/model.md の `phases/`）。
+pub const PHASE_SECTIONS: &[&str] = &["orbit", "law/"];
+
 /// 要求のファイルで見出しの表にする最上位の表（docs/model.md の `requirements/`）。
 pub const REQUIREMENT_SECTIONS: &[&str] = &["constraint", "quantify", "verify"];
 

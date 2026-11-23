@@ -20,6 +20,7 @@ use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
 use sat_astro::math::{Quat, Vec3};
 use sat_units::typed::{Qty, Time};
+use std::collections::BTreeMap;
 
 /// 設計の中心天体 → sat-astro の中心天体（μ・半径・暦・環境の値は sat-astro と解析が持つ）。
 pub fn central_body(c: CentralBodyKind) -> CentralBody {
@@ -219,24 +220,43 @@ impl<'a> Context<'a> {
             .collect()
     }
 
+    /// 効いている姿勢則の表（モード ID → 姿勢則）: 設計の `analysis.aocs.law` に、ケースのフェーズの `[law.<モード>]` を
+    /// モードごとに重ねたもの（そのモードの姿勢則をフェーズの値が置き換える）。**姿勢則の表を読むのはここだけ。**
+    pub fn laws(&self) -> BTreeMap<&'a str, &'a AttitudeLawSetting> {
+        let design = self.design.analysis.aocs.iter().flat_map(|a| a.law.iter());
+        let phase = self.phase().into_iter().flat_map(|p| p.law.iter());
+        design.chain(phase).map(|(k, v)| (k.as_str(), v)).collect()
+    }
+
+    /// モードの姿勢則の欄の対象（フェーズが上書きしていれば `phases.<ID>.law.<モード>`、なければ `analysis.aocs.law.<モード>`）。
+    pub fn law_target(&self, mode: &str) -> Target {
+        match self.phase().filter(|p| p.law.contains_key(mode)) {
+            Some(p) => Target::phase(p.id.as_str(), Some(&format!("law.{mode}"))),
+            None => AnalysisSystem::Aocs
+                .setting_path()
+                .child(&["law", mode])
+                .into(),
+        }
+    }
+
     /// 指定モードの姿勢則。モード未指定なら唯一の姿勢則だけを使い、選べなければ不足入力。
     pub fn attitude_law(&self, mode: Option<&str>, m: &mut MissingInputs) -> Option<AttitudeLaw> {
-        let laws = self.design.analysis.aocs.as_ref().map(|a| &a.law);
-        let found = laws.and_then(|l| match mode {
-            Some(id) => l.get(id),
-            None if l.len() == 1 => l.values().next(),
+        let laws = self.laws();
+        let found = match mode {
+            Some(id) => laws.get(id).copied(),
+            None if laws.len() == 1 => laws.values().next().copied(),
             None => None,
-        });
-        let law = AnalysisSystem::Aocs.setting_path().child(&["law"]);
+        };
+        let table = AnalysisSystem::Aocs.setting_path().child(&["law"]);
         let key = match (mode, found.is_some()) {
             (Some(id), _) => Some(id),
-            (None, true) => laws.and_then(|l| l.keys().next()).map(String::as_str),
+            (None, true) => laws.keys().next().copied(),
             (None, false) => None,
         };
-        self.note(key.map_or_else(|| law.clone(), |id| law.child(&[id])));
+        self.note(key.map_or_else(|| table.clone().into(), |id| self.law_target(id)));
         let Some(setting) = found else {
             // モード未指定なら姿勢則の表を、指定済みならそのモードの欄を示す。
-            let target = mode.map_or_else(|| law.clone(), |id| law.child(&[id]));
+            let target = mode.map_or_else(|| table.clone().into(), |id| self.law_target(id));
             m.push(
                 target,
                 "Cannot pick the attitude law of the mode uniquely. Specify the attitude law of the target mode",

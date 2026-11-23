@@ -9,6 +9,18 @@ export const conditionsJa = {
     description: "説明",
     modes: "モード",
     file: "ファイル",
+    phase: "フェーズ",
+    setPhase: "フェーズを選ぶ",
+    casePhase: {
+      title: (id: string) => `ケース ${id} のフェーズ`,
+      description:
+        "選んだフェーズの軌道と姿勢則の上書きが、このケースの解析に使われます（fune case set-phase と同じ）。",
+      field: "フェーズ",
+      none: "フェーズなし（設計の軌道と姿勢則）",
+      confirm: "保存",
+      summary: (id: string, phase: string) =>
+        phase ? `ケース ${id} のフェーズを ${phase} にする` : `ケース ${id} のフェーズを外す`,
+    },
     openWith: "このケースで開く",
     orbit: "軌道と地上局",
     orbitSubtitle: "conditions/ の設定（軌道・地上局・期間）と、地上局の可視",

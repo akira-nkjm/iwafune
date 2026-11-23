@@ -143,6 +143,12 @@ fn covers(op: &Op) -> &'static str {
         Op::CreateGroundStation { .. } => "CreateGroundStation",
         Op::RemoveGroundStation { .. } => "RemoveGroundStation",
         Op::RenameGroundStation { .. } => "RenameGroundStation",
+        Op::CreatePhase { .. } => "CreatePhase",
+        Op::SetPhase { .. } => "SetPhase",
+        Op::RemovePhase { .. } => "RemovePhase",
+        Op::RenamePhase { .. } => "RenamePhase",
+        Op::SetPhaseField { .. } => "SetPhaseField",
+        Op::SetCasePhase { .. } => "SetCasePhase",
         Op::CreateRequirement { .. } => "CreateRequirement",
         Op::SetRequirement { .. } => "SetRequirement",
         Op::RemoveRequirement { .. } => "RemoveRequirement",
@@ -191,5 +197,5 @@ fn every_op_survives_to_cli_and_back() {
     }
     seen.sort_unstable();
     seen.dedup();
-    assert_eq!(seen.len(), 62, "some Op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 68, "some Op kinds have no sample: {seen:?}");
 }

@@ -5,8 +5,8 @@
 //! 粗い段階の解析は無視したことを結果に書く。
 
 use super::conditions::CentralBodyKind;
+use super::mode::Mode;
 use super::part::Part;
-use super::system::Mode;
 use crate::Design;
 use crate::enum_text::enum_text;
 use crate::id::Id;

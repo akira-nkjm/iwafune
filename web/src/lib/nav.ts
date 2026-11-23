@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Library,
   type LucideIcon,
+  Milestone,
   Network,
   Orbit,
   Radio,
@@ -33,6 +34,7 @@ import { systemTitle } from "./design";
  * - `group`: カタログのツリーの分け方
  * - `case`: 系のページの解析ケース
  * - `maneuver`: 推進のマヌーバのタブで強調するマヌーバの ID
+ * - `phase`: フェーズのページで強調するフェーズの ID
  * - `diagramHiddenSystem`: 系統図で隠す系（繰り返し可、空は全表示）
  */
 export const SEARCH = {
@@ -41,6 +43,7 @@ export const SEARCH = {
   group: "group",
   case: "case",
   maneuver: "maneuver",
+  phase: "phase",
   diagramHiddenSystem: "hidden-system",
 } as const;
 
@@ -99,6 +102,9 @@ export const paths = {
     area.kind === "system" ? paths.system(area.value) : paths.orbit(),
   orbit: () => "/conditions/orbit",
   cases: () => "/conditions/cases",
+  phases: () => "/conditions/phases",
+  /** フェーズのページで、その ID の行を強調して開く */
+  phase: (id: string) => withSearch(paths.phases(), { [SEARCH.phase]: id }),
   diagnostics: () => "/project/diagnostics",
   settings: () => "/project/settings",
   sources: () => "/project/sources",
@@ -175,6 +181,7 @@ export const nav = (systems: readonly System[]): NavSection[] => [
     items: [
       { to: paths.orbit(), key: "orbit", icon: Orbit },
       { to: paths.cases(), key: "cases", icon: Workflow },
+      { to: paths.phases(), key: "phases", icon: Milestone },
     ],
   },
   {

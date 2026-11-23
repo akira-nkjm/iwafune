@@ -20,6 +20,8 @@ fn enum_of<T: std::str::FromStr>(text: &str, what: &str) -> anyhow::Result<T> {
 pub fn case(c: &CaseCmd) -> Built<'_> {
     Ok(match c {
         CaseCmd::Set(a) => Some((Op::SetCase { case: case_of(a)? }, &a.edit)),
+        CaseCmd::SetPhase { id, phase, edit } => Some((edit::case_phase_op(id, Some(phase)), edit)),
+        CaseCmd::UnsetPhase { id, edit } => Some((edit::case_phase_op(id, None), edit)),
         CaseCmd::Rm { id, edit } => Some((Op::RemoveCase { id: id.clone() }, edit)),
         CaseCmd::Ls | CaseCmd::FromEclipse { .. } | CaseCmd::FromSunDistance { .. } => None,
     })
@@ -30,6 +32,7 @@ fn case_of(a: &CaseArgs) -> anyhow::Result<Case> {
         "label": a.label,
         "description": a.description,
         "mode": a.mode,
+        "phase": a.phase,
         "side": a.side,
         "thermal_case": a.thermal_case,
         "orbits": a.orbits,

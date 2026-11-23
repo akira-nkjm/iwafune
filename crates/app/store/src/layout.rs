@@ -24,6 +24,8 @@ pub const CASES_DIR: &str = "cases";
 pub const SOURCES_DIR: &str = "sources";
 /// マヌーバ（`maneuvers/<ID>.toml`）。
 pub const MANEUVERS_DIR: &str = "maneuvers";
+/// フェーズ（`phases/<ID>.toml`）。
+pub const PHASES_DIR: &str = "phases";
 /// 要求（`requirements/<ID>.toml`）。
 pub const REQUIREMENTS_DIR: &str = "requirements";
 /// 規約にあるが まだ読まないディレクトリ（#9 のミッション・表データ）。
@@ -81,6 +83,7 @@ pub enum FileRole {
         id: String,
     },
     Maneuver(String),
+    Phase(String),
     Requirement(String),
     /// `view/<名前>.toml`
     View(String),
@@ -123,7 +126,7 @@ pub fn classify(rel: &str, catalogs: &[(String, String)]) -> FileRole {
             .parse::<AnalysisSystem>()
             .map_or(FileRole::Other, FileRole::Analysis);
     }
-    let flat: [(&str, RoleOf); 10] = [
+    let flat: [(&str, RoleOf); 11] = [
         (ATTRIBUTE_DIR, FileRole::Attribute),
         (KIND_DIR, FileRole::Kind),
         (MODES_DIR, FileRole::Mode),
@@ -131,6 +134,7 @@ pub fn classify(rel: &str, catalogs: &[(String, String)]) -> FileRole {
         (HARNESS_DIR, FileRole::Harness),
         (CASES_DIR, FileRole::Case),
         (MANEUVERS_DIR, FileRole::Maneuver),
+        (PHASES_DIR, FileRole::Phase),
         (REQUIREMENTS_DIR, FileRole::Requirement),
         (GROUND_DIR, FileRole::Ground),
         (VIEW_DIR, FileRole::View),
@@ -184,6 +188,7 @@ pub fn entity_key(role: &FileRole) -> Option<EntityKey> {
         FileRole::Case(id) => EntityKey::Case(id.clone()),
         FileRole::Source { id, .. } => EntityKey::Source(id.clone()),
         FileRole::Maneuver(id) => EntityKey::Maneuver(id.clone()),
+        FileRole::Phase(id) => EntityKey::Phase(id.clone()),
         FileRole::Requirement(id) => EntityKey::Requirement(id.clone()),
         FileRole::View(id) => EntityKey::View(id.clone()),
         FileRole::Reserved => return None,
@@ -213,6 +218,7 @@ pub fn file_target(role: &FileRole) -> Option<Target> {
         FileRole::Case(id) => Target::case(id, None),
         FileRole::Source { id, .. } => Target::Source { id: id.clone() },
         FileRole::Maneuver(id) => Target::maneuver(id, None),
+        FileRole::Phase(id) => Target::phase(id, None),
         FileRole::Requirement(id) => Target::requirement(id, None),
         FileRole::View(id) => Target::view(id, None),
         FileRole::Conditions(id) => SettingPath::conditions(&[id]).into(),
@@ -280,6 +286,9 @@ pub fn case_file(id: &str) -> String {
 }
 pub fn maneuver_file(id: &str) -> String {
     format!("{MANEUVERS_DIR}/{id}.toml")
+}
+pub fn phase_file(id: &str) -> String {
+    format!("{PHASES_DIR}/{id}.toml")
 }
 pub fn requirement_file(id: &str) -> String {
     format!("{REQUIREMENTS_DIR}/{id}.toml")

@@ -54,6 +54,10 @@ export const pages = {
     () => import("@/features/conditions/CasesPage"),
     (m) => m.CasesPage,
   ),
+  phases: page(
+    () => import("@/features/phases/PhasesPage"),
+    (m) => m.PhasesPage,
+  ),
   diagnostics: page(
     () => import("@/features/project/DiagnosticsPage"),
     (m) => m.DiagnosticsPage,
@@ -95,6 +99,7 @@ export const preloadPlan: PreloadPlan = {
     pages.system,
     pages.orbit,
     pages.cases,
+    pages.phases,
     pages.diagnostics,
     pages.settings,
     pages.sources,

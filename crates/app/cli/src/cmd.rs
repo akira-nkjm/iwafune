@@ -36,6 +36,7 @@ mod ops;
 mod output_tables;
 mod pages;
 mod parts;
+mod phases;
 mod read;
 mod records;
 mod report;
@@ -124,6 +125,7 @@ fn read_more(command: &Command, ws: &Workspace, out: &Out) -> anyhow::Result<Opt
         Command::Source(c) => read::source(ws, c, out),
         Command::Harness(c) => read::harness(ws, c, out),
         Command::Maneuver(c) => maneuvers::ls(ws, c, out),
+        Command::Phase(c) => phases::read(ws, c, out),
         Command::Requirement(c) => requirements::read(ws, c, out),
         Command::Catalog(c) => catalog::read(ws, c, out),
         _ => Ok(None),

@@ -73,6 +73,7 @@ fn case_op(
                 point.epoch.to_iso()
             )),
             mode: req.mode.as_deref().map(Into::into),
+            phase: None,
             side: None,
             thermal_case: None,
             beta: Some(Quantity::new(beta_deg, BETA_UNIT)),

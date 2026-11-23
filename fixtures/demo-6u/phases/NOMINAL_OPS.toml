@@ -1,0 +1,6 @@
+label    = "Nominal operations"
+order    = 2
+start    = "Commissioning complete"
+end      = "End of the mission life"
+modes    = ["NOMINAL", "MISSION", "DOWNLINK", "SAFE"]
+duration = { value = 730.0, unit = "d" }

@@ -66,6 +66,14 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
         CommandText::KindReplace(t) => vec![super::defs::kind_replace_op(t)?],
         CommandText::ManeuverAdd(t) => vec![super::maneuver::maneuver_op(t, true)?],
         CommandText::ManeuverSet(t) => vec![super::maneuver::maneuver_op(t, false)?],
+        CommandText::PhaseAdd(t) => vec![super::phase::phase_op(t, true)?],
+        CommandText::PhaseSet(t) => vec![super::phase::phase_op(t, false)?],
+        CommandText::PhaseField { phase, path, value } => {
+            vec![super::phase::phase_field_op(phase, path, value.as_deref())?]
+        }
+        CommandText::CasePhase { case, phase } => {
+            vec![super::phase::case_phase_op(case, phase.as_deref())]
+        }
         CommandText::GroundAdd(t) => vec![super::ground::ground_add_op(t)?],
         CommandText::RequirementAdd(t) => vec![super::requirement::requirement_op(t, true)?],
         CommandText::RequirementSet(t) => vec![super::requirement::requirement_op(t, false)?],

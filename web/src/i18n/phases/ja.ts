@@ -1,0 +1,50 @@
+/** フェーズのページの文言（日本語） */
+export const phasesJa = {
+  phases: {
+    title: "フェーズ",
+    subtitle:
+      "phases/<ID>.toml（ミッションの段階。並び・始まりと終わりの条件・期間・使うモード・軌道と姿勢則の上書き）",
+    empty: "フェーズがありません",
+    add: "フェーズを追加",
+    edit: "編集",
+    remove: "削除",
+    position: "順",
+    id: "ID",
+    name: "名前",
+    order: "並び順",
+    start: "始まりの条件",
+    end: "終わりの条件",
+    duration: "期間",
+    modes: "使うモード",
+    overrides: "上書き",
+    orbit: "軌道",
+    law: "姿勢則",
+    cases: "解析ケース",
+    file: "ファイル",
+    none: "なし",
+    overridesNote:
+      "上書きの軌道と姿勢則は表示だけです。値の編集は fune phase set-field（軌道と姿勢則の値は、編集で見出しの欄を保存しても残ります）",
+    dialog: {
+      addTitle: "フェーズを追加",
+      editTitle: (id: string) => `フェーズ ${id} を編集`,
+      description:
+        '量（"30 d"）と整数は fune phase add|set と同じ読み方で service が読みます。軌道と姿勢則の上書きは今のまま残ります。',
+      label: "名前",
+      order: "並び順（整数。省略は 0）",
+      start: "始まりの条件",
+      end: "終わりの条件",
+      duration: "期間",
+      modes: "使うモード（カンマ区切り）",
+      confirmAdd: "追加",
+      confirmEdit: "保存",
+      summaryAdd: (id: string) => `フェーズ ${id} を追加`,
+      summaryEdit: (id: string) => `フェーズ ${id} を書き換え`,
+    },
+    removeDialog: {
+      title: (id: string) => `フェーズ ${id} を削除`,
+      description: "このフェーズを指している解析ケースがあると、削除は拒まれます。",
+      confirm: "削除",
+      summary: (id: string) => `フェーズ ${id} を削除`,
+    },
+  },
+};

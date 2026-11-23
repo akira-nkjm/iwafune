@@ -1,0 +1,17 @@
+label    = "Disposal"
+order    = 3
+start    = "End of the mission life"
+end      = "Re-entry"
+modes    = ["SAFE", "NOMINAL"]
+duration = { value = 180.0, unit = "d" }
+
+[orbit]
+label        = "Disposal orbit (250 km)"
+epoch        = "2029-04-01T00:00:00Z"
+propagator   = "j2"
+altitude     = { value = 250.0, unit = "km" }
+eccentricity = 0.0
+inclination  = { value = 96.4, unit = "deg" }
+raan         = { value = 0.0, unit = "deg" }
+arg_perigee  = { value = 0.0, unit = "deg" }
+mean_anomaly = { value = 0.0, unit = "deg" }

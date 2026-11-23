@@ -11,6 +11,10 @@ export type AnalysisCase = { id: string, label?: string | null, description?: st
  */
 mode?: string | null, 
 /**
+ * フェーズ（`phases/<ID>.toml`）。あれば、フェーズの軌道・姿勢則が設計のものの代わりに使われる
+ */
+phase?: string | null, 
+/**
  * 不確かさのどちら側を読むか（既定は nominal）
  */
 side?: UncertaintySide | null, 

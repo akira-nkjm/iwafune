@@ -7,8 +7,8 @@ use toml_edit::{DocumentMut, Item, Key, Table};
 pub mod renamed;
 mod sourced;
 pub use sourced::{MAX_HEADER_DEPTH, hide_empty_header, is_sourced, lay_out, spread_rows};
-/// 整数のまま書くキー（ID・員数・回数）。
-pub const INTEGER_KEYS: &[&str] = &["count", "active", "cores", "schema", "orbits"];
+/// 整数のまま書くキー（ID・員数・回数・フェーズの並び順 `order`）。
+pub const INTEGER_KEYS: &[&str] = &["count", "active", "cores", "schema", "orbits", "order"];
 /// `view/` の座標（画面の整数座標）。`points` は手で引いた線の折れ点（`[edge]` の `[[x, y], …]`）、
 /// `*_offset` は線の端子のカードの側の上での位置。
 pub const VIEW_INTEGER_KEYS: &[&str] = &[

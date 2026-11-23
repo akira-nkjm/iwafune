@@ -89,6 +89,17 @@ pub fn rename_mode(
     rename_sites(edits, design, Referent::Mode(from), to, None)
 }
 
+/// フェーズの名前を変える（ファイルの移動とケースの `phase` の書き換え）。
+pub fn rename_phase(
+    edits: &mut Edits,
+    design: &Design,
+    from: &str,
+    to: &str,
+) -> Result<(), StoreError> {
+    edits.rename(&layout::phase_file(from), &layout::phase_file(to))?;
+    rename_sites(edits, design, Referent::Phase(from), to, None)
+}
+
 /// カタログ品の名前を変える（ファイルの移動と、部品の `catalog`・`candidates`、ハーネスの `wire` の書き換え）。
 pub fn rename_catalog(
     edits: &mut Edits,
@@ -165,6 +176,7 @@ fn rename_sites(
         Referent::Part(id)
         | Referent::Group(id)
         | Referent::Mode(id)
+        | Referent::Phase(id)
         | Referent::Net(id)
         | Referent::Catalog(id)
         | Referent::CatalogSource(id)
@@ -199,6 +211,9 @@ fn rename_at(
         | RefSite::ThermalSurface
         | RefSite::ThermalHeatNode
         | RefSite::CaseMode { .. }
+        | RefSite::CasePhase { .. }
+        | RefSite::PhaseMode { .. }
+        | RefSite::PhaseLaw { .. }
         | RefSite::PowerModeShare
         | RefSite::PowerSequence { .. }
         | RefSite::PowerNamedSequence { .. }
@@ -268,7 +283,7 @@ fn rename_key_at(
     }
 }
 
-/// 解析の設定（`analysis/<系>.toml`）とケースに書かれた部品・モード・地上局の ID。
+/// 解析の設定（`analysis/<系>.toml`）・ケース・フェーズに書かれた部品・モード・地上局・フェーズの ID。
 fn rename_setting_at(
     edits: &mut Edits,
     site: &RefSite,
@@ -300,6 +315,13 @@ fn rename_setting_at(
         RefSite::ThermalSurface => rename_in(edits, &thermal(), &["surface"], from, to),
         RefSite::ThermalHeatNode => rename_in(edits, &thermal(), &["heat_node"], from, to),
         RefSite::CaseMode { case } => set_top(edits, &layout::case_file(case), "mode", to),
+        RefSite::CasePhase { case } => set_top(edits, &layout::case_file(case), "phase", to),
+        RefSite::PhaseMode { phase } => {
+            replace_in(edits, &layout::phase_file(phase), "modes", from, to)
+        }
+        RefSite::PhaseLaw { phase } => {
+            rename_in(edits, &layout::phase_file(phase), &["law"], from, to)
+        }
         RefSite::PowerModeShare => rename_in(edits, &power(), &["mode_share"], from, to),
         RefSite::PowerSequence { index } => edits.edit(&power(), |doc| {
             let segment = doc

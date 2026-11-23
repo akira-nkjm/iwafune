@@ -10,6 +10,18 @@ export const conditionsEn: typeof conditionsJa = {
     description: "Description",
     modes: "Modes",
     file: "File",
+    phase: "Phase",
+    setPhase: "Choose phase",
+    casePhase: {
+      title: (id: string) => `Phase of case ${id}`,
+      description:
+        "The orbit and attitude law overrides of the chosen phase are used when this case is analyzed (same as fune case set-phase).",
+      field: "Phase",
+      none: "No phase (the design orbit and attitude laws)",
+      confirm: "Save",
+      summary: (id: string, phase: string) =>
+        phase ? `Set the phase of case ${id} to ${phase}` : `Clear the phase of case ${id}`,
+    },
     openWith: "Open with this case",
     orbit: "Orbit & ground stations",
     orbitSubtitle:

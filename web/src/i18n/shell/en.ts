@@ -20,6 +20,7 @@ export const shellEn: typeof shellJa = {
       defs: "Units & definitions",
       orbit: "Orbit & stations",
       cases: "Analysis cases",
+      phases: "Phases",
       diagnostics: "Diagnostics",
       settings: "Settings",
       sources: "Sources",

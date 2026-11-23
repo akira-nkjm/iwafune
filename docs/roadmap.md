@@ -26,7 +26,7 @@ The counts are "of the 47 design reports, how many dealt with that item".
 | 6 | Extending modes (longest duration, sunlit and eclipse distinction, attitude law), plus the number simultaneously operating and redundancy (cold, warm) | every table in the template has a "simultaneously operating" column |
 | 7 | Inverse sizing of power (required SAP area and battery capacity) and support for distance from the Sun | 31 reports |
 | 8 | Extending the link calculation (PFD compliance under the Radio Act, distances determined by the case, deep space stations) | included as standard in the template |
-| 9 | Entities for the mission, success criteria and phases (mission sequence) | 45 and 31 reports |
+| 9 | Entities for the mission, success criteria and phases (mission sequence). Phases are done (`phases/`, an orbit and attitude-law override per phase for the cases that name it; `model.md` §7.10); the mission and its success criteria are not | 45 and 31 reports |
 | 10 | Extending requirements (rationale, origin, parent and child, allocation target, verification method) and a requirements compliance table (the compliance table and the criteria in requirements, i.e. budget limits, check thresholds and the mission duration held only by requirements, are done; the tree is not) | structure of the subsystem design reports |
 | 11 | Preparing thermal inputs (temperature ranges in 3 kinds: storage, operating and performance; distinguishing heat dissipation from power consumption; surface materials of faces; margin policy; worst-case presets) | 28 surface property tables and 17 allowable temperature tables |
 | 12 | Extending attitude analysis (slew time, disturbances from thrust error, ΔV and fuel for unloading) | 40 reports |

@@ -11,6 +11,7 @@
 //! | `sun_distance` | 太陽を回る軌道の近日点・遠日点から新しい解析ケースの SetCase を作る |
 //! | `requirement` | `fune requirement add\|set` の引数（[`requirement_op`]。逆の向きは `query::requirements`） |
 //! | `maneuver` | `fune maneuver add\|set` の引数（[`maneuver_op`]。逆の向きは `query::maneuvers`） |
+//! | `phase` | `fune phase add\|set\|set-field` と `fune case set-phase` の引数（[`phase_op`]・[`phase_field_op`]・[`case_phase_op`]。逆の向きは `query::phases`） |
 //! | `ground` | `fune ground add` の引数（[`ground_add_op`]） |
 //! | `group` | `fune part mv|add` の置き先 `aocs/RW`（[`group_target`]。ID の列に読む） |
 //! | `place` | `fune part place` の取付・位置・姿勢（[`place_op`]。姿勢の角度 `--rotation` は [`rotation_from_text`]）と、機体座標での配置（`--body-pos`・`POST /parts/{id}/place_body`） |
@@ -31,6 +32,7 @@ mod eclipse;
 mod ground;
 mod group;
 mod maneuver;
+mod phase;
 mod place;
 mod requirement;
 mod sun_distance;
@@ -49,6 +51,7 @@ pub use fune_ops::{to_cli, to_cli_script};
 pub use ground::ground_add_op;
 pub use group::group_target;
 pub use maneuver::maneuver_op;
+pub use phase::{case_phase_op, phase_field_op, phase_op};
 pub use place::{place_body, place_body_op, place_op, rotation_from_text};
 pub use requirement::requirement_op;
 pub use sun_distance::case_from_sun_distance_op;

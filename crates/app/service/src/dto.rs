@@ -17,6 +17,7 @@
 //! | `edit` | Op の適用と、人が打った文字列（`SetText`・`UnsetText`） |
 //! | `command` | 名詞のコマンドに打った引数（`CommandText`。`fune net set`・`fune part place`・`fune mode set` など） |
 //! | `maneuver` | マヌーバの表示（`ManeuverView`）と `fune maneuver add\|set` の引数（`ManeuverText`） |
+//! | `phase` | フェーズの表示（`PhaseView`）と `fune phase add\|set` の引数（`PhaseText`） |
 //! | `ground` | 地上局の表示（`GroundStationView`）と `fune ground add` の引数（`GroundAddText`） |
 //! | `requirement` | 要求の表示（`RequirementView`）・`fune requirement add\|set` の引数（`RequirementText`）・要求適合表（`ComplianceReport`） |
 //! | `budget` | 質量・電力・データ量のバジェット |
@@ -46,9 +47,11 @@ mod history;
 pub use format::{FormatDesignRequest, FormatDesignResult};
 mod kpi;
 mod maneuver;
+mod phase;
 mod requirement;
 pub use kpi::{FillBasis, FillRatio, KpiDef, KpiKey, KpiTally, KpiView, OverviewKpi};
 pub use maneuver::{ManeuverTargetView, ManeuverText, ManeuverView};
+pub use phase::{PhaseFieldView, PhaseText, PhaseView};
 pub use requirement::{
     ComplianceCase, ComplianceReport, ComplianceRow, ComplianceSummary, ConstraintView,
     NotVerifiedReason, RequirementText, RequirementView,
@@ -115,7 +118,7 @@ pub use fune_model::design::PartField;
 pub use fune_model::design::{
     AttributeDef, Case, CatalogField, CatalogItem, Distribution, Harness, KindDef, Maneuver,
     ManeuverCategory, ManeuverConstraints, ManeuverMethod, ManeuverTarget, ModeSegment, ModeWhen,
-    Net, NetField, NetKind, Pose, Requirement, Source, SourceKind, StartFrom, StartRef,
+    Net, NetField, NetKind, Phase, Pose, Requirement, Source, SourceKind, StartFrom, StartRef,
     UncertaintySide,
 };
 pub use fune_model::design::{BudgetKind, SharedCatalogState, SharedCatalogStatus, StateAssign};

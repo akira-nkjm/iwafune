@@ -20,6 +20,12 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
     ("GET", "/maneuvers", &["maneuver", "ls"], "query::maneuvers"),
     (
         "GET",
+        "/phases",
+        &["phase", "ls"],
+        "query::phases (`phase show` picks one)",
+    ),
+    (
+        "GET",
         "/requirements",
         &["requirement", "ls"],
         "query::requirements",
