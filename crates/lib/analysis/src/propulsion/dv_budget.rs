@@ -3,12 +3,14 @@
 //! - マヌーバの公称の ΔV（有限燃焼は損失込み。`propulsion.maneuvers` と同じ値）を区分ごとに足す。
 //! - RCS でのアンロードの ΔV: `aocs.rw_unloading` の 1 日の ΔV 換算 × ミッション期間（日）を区分 `unloading` に足す。
 //!   RCS が無いなどで足せなければ理由（[`UnloadingNote`]）を出す。
+//! - 日付つきの惑星間遷移（`transfer`）があれば、その結果と判定（[`super::dated`]）を添える。
 //! - マージン `ΔV_マージン込み = ΔV_合計 × (1 + マージン)`。マージンの既定値は [`super::DEFAULT_DV_MARGIN`]。
 
+use super::dated::{self, DatedTransferResult};
 use super::input::{DvCategory, PropulsionInput, UnloadingInput, UnloadingNote};
 use super::maneuvers::nominal;
 use crate::aocs::RwUnloading;
-use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, System};
+use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System};
 use sat_astro::constants::SECONDS_PER_DAY;
 use sat_units::typed::{Fraction, Qty, Time, Velocity};
 use serde::{Deserialize, Serialize};
@@ -50,6 +52,14 @@ pub struct DvBudgetOutput {
     pub margin: Fraction,
     pub margin_delta_v: Qty<Velocity>,
     pub total_with_margin: Qty<Velocity>,
+    /// 日付つきの惑星間遷移の結果（`transfer` を書いたマヌーバ。実行の順）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "ts", ts(optional, as = "Option<Vec<DatedTransferResult>>"))]
+    pub dated_transfers: Vec<DatedTransferResult>,
+    /// 日付つきの遷移の判定（赤緯・出発の日の時刻）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "ts", ts(optional, as = "Option<Vec<Check>>"))]
+    pub checks: Vec<Check>,
 }
 
 /// RCS でのアンロードの ΔV（足せなければ理由）。
@@ -141,6 +151,10 @@ impl Analysis for DvBudget {
             margin: Fraction::new(margin),
             margin_delta_v: Qty::from_raw(total * margin),
             total_with_margin: Qty::from_raw(total * (1.0 + margin)),
+            dated_transfers: seq.legs.iter().filter_map(dated::result).collect(),
+            checks: (0..seq.legs.len())
+                .flat_map(|i| dated::checks(&seq, input, i))
+                .collect(),
         })
     }
 }

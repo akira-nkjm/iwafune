@@ -41,6 +41,10 @@ pub struct ManeuverText {
     pub duty: Option<String>,
     /// 推力の向き（`tangential` / `inertial`）
     pub steering: Option<String>,
+    /// 日付つきの惑星間遷移の出発の日（ISO 8601、UTC。`"2028-12-10T00:00:00Z"`。到着の日と一緒に書く。目標の天体が要る）
+    pub depart: Option<String>,
+    /// 日付つきの惑星間遷移の到着の日（出発より後）
+    pub arrive: Option<String>,
 }
 
 /// 目標の軌道の要素 1 つ。

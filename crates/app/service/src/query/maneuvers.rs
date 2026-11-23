@@ -27,6 +27,8 @@ const FIELDS: &[(&str, &str)] = &[
     ("mode", "constraints.mode"),
     ("duty", "constraints.duty"),
     ("steering", "constraints.steering"),
+    ("depart", "transfer.departure"),
+    ("arrive", "transfer.arrival"),
 ];
 
 /// マヌーバの一覧（実行の順）。
@@ -103,5 +105,7 @@ pub(crate) fn maneuver_text(m: &Maneuver) -> ManeuverText {
         mode: m.constraints.mode.as_ref().map(ToString::to_string),
         duty: m.constraints.duty.map(|d| d.to_string()),
         steering: m.constraints.steering.map(|s| s.as_str().to_owned()),
+        depart: m.transfer.as_ref().and_then(|t| t.departure.clone()),
+        arrive: m.transfer.as_ref().and_then(|t| t.arrival.clone()),
     }
 }

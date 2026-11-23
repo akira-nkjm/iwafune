@@ -92,6 +92,33 @@ impl ManeuverTarget {
     }
 }
 
+/// 日付つきの惑星間遷移（`[transfer]`）。`target.body` を書いたマヌーバに足すと、天体間の ΔV を
+/// 出発の日・到着の日の天体の位置から求める（Lambert。書かなければホーマンのパッチドコニック）。
+/// 日付は `conditions.orbit.epoch` と同じ ISO 8601 の文字列（UTC。UTC/TT/TDB は区別しない）。
+/// 読み方（暦の範囲・順序・兄弟の天体か）の検査は暦を持つ fune-projection の側（`maneuver_dates`）、
+/// ここでは両方が書かれているかだけを見る。将来の旗はこの表にオプションの欄として足す（今ある書き方は変わらない）。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(rename = "ManeuverTransfer")]
+pub struct ManeuverTransfer {
+    /// 出発の日（ISO 8601、UTC。例: `"2028-12-10T00:00:00Z"`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub departure: Option<String>,
+    /// 到着の日（出発より後）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arrival: Option<String>,
+}
+
+impl ManeuverTransfer {
+    /// 書かれた日付のキーと値（宣言の順）。
+    pub fn entries(&self) -> [(&'static str, Option<&str>); 2] {
+        [
+            ("departure", self.departure.as_deref()),
+            ("arrival", self.arrival.as_deref()),
+        ]
+    }
+}
+
 /// 細かい段階（数値伝搬）でだけ効く制約。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -153,6 +180,9 @@ pub struct Maneuver {
     pub target: ManeuverTarget,
     #[serde(default, skip_serializing_if = "ManeuverConstraints::is_empty")]
     pub constraints: ManeuverConstraints,
+    /// 日付つきの惑星間遷移（`target.body` があるときだけ。無ければホーマンのパッチドコニック）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transfer: Option<ManeuverTransfer>,
 }
 
 impl Design {
@@ -209,6 +239,7 @@ mod tests {
             via_altitude: None,
             target: ManeuverTarget::default(),
             constraints: ManeuverConstraints::default(),
+            transfer: None,
         }
     }
 

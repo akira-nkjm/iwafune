@@ -78,7 +78,8 @@ fn torque_and_energy_are_one_and_the_same_dimension() {
 
 #[test]
 fn only_known_dimension_names_collide() {
-    // 次元名の語彙で指数ベクトルが一致する組は Energy と Torque、Temperature と TemperatureDifference の 2 組だけ。新しい次元を
+    // 次元名の語彙で指数ベクトルが一致する組は Energy と Torque、Temperature と TemperatureDifference、
+    // SpecificEnergy（J/kg。惑星間の出発の C3）と AbsorbedDose（Gy = J/kg）の 3 組だけ。新しい次元を
     // 足したときに、気付かないまま既存の次元と同一になるのを防ぐ。
     for (index, (left_name, left)) in DIMENSIONS.iter().enumerate() {
         for (right_name, right) in DIMENSIONS.iter().skip(index + 1) {
@@ -87,7 +88,9 @@ fn only_known_dimension_names_collide() {
             }
             let known = matches!(
                 (*left_name, *right_name),
-                ("Energy", "Torque") | ("Temperature", "TemperatureDifference")
+                ("Energy", "Torque")
+                    | ("Temperature", "TemperatureDifference")
+                    | ("SpecificEnergy", "AbsorbedDose")
             );
             assert!(
                 known,

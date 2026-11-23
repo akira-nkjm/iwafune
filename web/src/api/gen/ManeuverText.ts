@@ -52,4 +52,12 @@ duty?: string | null,
 /**
  * 推力の向き（`tangential` / `inertial`）
  */
-steering?: string | null, };
+steering?: string | null, 
+/**
+ * 日付つきの惑星間遷移の出発の日（ISO 8601、UTC。`"2028-12-10T00:00:00Z"`。到着の日と一緒に書く。目標の天体が要る）
+ */
+depart?: string | null, 
+/**
+ * 日付つきの惑星間遷移の到着の日（出発より後）
+ */
+arrive?: string | null, };

@@ -63,7 +63,7 @@ pub fn write_record<T: Serialize>(
 }
 
 /// マヌーバのファイルで見出しの表にする最上位の表（docs/model.md の `maneuvers/`）。
-pub const MANEUVER_SECTIONS: &[&str] = &["target", "constraints"];
+pub const MANEUVER_SECTIONS: &[&str] = &["target", "constraints", "transfer"];
 
 /// フェーズのファイルで見出しの表にする表（`[orbit]` と `[law.<モード>]`。docs/model.md の `phases/`）。
 pub const PHASE_SECTIONS: &[&str] = &["orbit", "law/"];
@@ -153,6 +153,7 @@ mod maneuver_tests {
                 mode: None,
                 ..ManeuverConstraints::default()
             },
+            transfer: None,
         };
         let path = "maneuvers/RAISE.toml";
         let mut edits = Edits::new(&crate::read::FileSet::new());
@@ -167,5 +168,51 @@ mod maneuver_tests {
         write_record_with_sections(&mut edits, path, &m, MANEUVER_SECTIONS).unwrap();
         let after = edits.files().get(path).unwrap();
         assert_eq!(after, text.replace("600.0", "650.0"));
+    }
+
+    /// `[transfer]` も見出しの表（日付は文字列）。書いた形は `fune fmt` の正規形で、日付 1 つの変更はその行だけ変わり、
+    /// `transfer` を外せば表ごと消える。
+    #[test]
+    fn a_dated_transfer_is_a_section_table() {
+        use fune_model::design::ManeuverTransfer;
+        let mut m = Maneuver {
+            id: "MARS".into(),
+            label: None,
+            category: ManeuverCategory::Insertion,
+            method: ManeuverMethod::Impulsive,
+            thruster: None,
+            after: Some("RAISE".into()),
+            via_altitude: None,
+            target: ManeuverTarget {
+                body: Some(fune_model::design::CentralBodyKind::Mars),
+                perigee_altitude: Some(Quantity::new(300.0, "km")),
+                ..ManeuverTarget::default()
+            },
+            constraints: ManeuverConstraints::default(),
+            transfer: Some(ManeuverTransfer {
+                departure: Some("2028-12-10T00:00:00Z".into()),
+                arrival: Some("2029-09-25T00:00:00Z".into()),
+            }),
+        };
+        let path = "maneuvers/MARS.toml";
+        let mut edits = Edits::new(&crate::read::FileSet::new());
+        write_record_with_sections(&mut edits, path, &m, MANEUVER_SECTIONS).unwrap();
+        let text = edits.files().get(path).unwrap().to_string();
+        assert_eq!(
+            text,
+            "category = \"insertion\"\nmethod   = \"impulsive\"\nafter    = \"RAISE\"\n\n[target]\nbody             = \"mars\"\nperigee_altitude = { value = 300.0, unit = \"km\" }\n\n[transfer]\ndeparture = \"2028-12-10T00:00:00Z\"\narrival   = \"2029-09-25T00:00:00Z\"\n"
+        );
+        assert_eq!(crate::format::format_text(path, &text).unwrap(), text);
+        // 読み戻すと同じマヌーバ
+        let back: Maneuver = toml::from_str(&text).unwrap();
+        assert_eq!(back.transfer, m.transfer);
+        m.transfer.as_mut().unwrap().arrival = Some("2029-09-26T00:00:00Z".into());
+        write_record_with_sections(&mut edits, path, &m, MANEUVER_SECTIONS).unwrap();
+        let after = edits.files().get(path).unwrap();
+        assert_eq!(after, text.replace("09-25", "09-26"));
+        m.transfer = None;
+        write_record_with_sections(&mut edits, path, &m, MANEUVER_SECTIONS).unwrap();
+        let removed = edits.files().get(path).unwrap();
+        assert!(!removed.contains("transfer"), "{removed}");
     }
 }

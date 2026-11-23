@@ -55,6 +55,7 @@ typed_dimensions![
     Volume,
     ThermalConductance,
     SpecificHeatCapacity,
+    SpecificEnergy,
     Irradiance,
     DataRate,
     SolidAngle,

@@ -218,6 +218,8 @@ fn maneuver_text(a: &ManeuverArgs) -> ManeuverText {
         mode: a.mode.clone(),
         duty: a.duty.clone(),
         steering: a.steering.clone(),
+        depart: a.depart.clone(),
+        arrive: a.arrive.clone(),
     }
 }
 

@@ -14,6 +14,7 @@
 //! - マージンなどの既定値は持たない（解析が持つ）。区分と計算の段階は model ⇄ analysis の対応で写す。
 
 use crate::context::Context;
+use crate::maneuver_dates;
 use crate::missing::MissingInputs;
 use crate::parts::{self, by_role};
 use crate::quantity::{qty_opt, setting_opt};
@@ -24,8 +25,9 @@ use fune_model::design::setting_dims as dims;
 use fune_model::design::{Maneuver, ManeuverCategory, ManeuverMethod, ManeuverSteering};
 use fune_model::resolve::{ResolvedPart, SiValue};
 use sat_analysis::propulsion::{
-    DvCategory, ManeuverInput, OrbitTarget, PropellantMassInput, PropellantTank, PropulsionInput,
-    PropulsionThruster, ThrustConstraints, TransferMethod, UnloadingInput, UnloadingNote,
+    DatedTransferInput, DvCategory, ManeuverInput, OrbitTarget, PropellantMassInput,
+    PropellantTank, PropulsionInput, PropulsionThruster, ThrustConstraints, TransferMethod,
+    UnloadingInput, UnloadingNote,
 };
 use sat_astro::force::thrust::ThrustSteering;
 use sat_units::typed::{Force, Fraction, Impulse, MassDensity, Power, Qty, Time, Volume};
@@ -190,6 +192,7 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
         );
         return None;
     }
+    let transfer = transfer_input(x, m)?;
     Some(ManeuverInput {
         id: id.to_owned(),
         category: category(x.category),
@@ -211,7 +214,21 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
         } else {
             ThrustConstraints::default()
         },
+        transfer,
     })
+}
+
+/// `[transfer]` の日付（読めなければ不足入力に記録して外側が `None`、書かれていなければ `Some(None)`）。
+fn transfer_input(x: &Maneuver, m: &mut MissingInputs) -> Option<Option<DatedTransferInput>> {
+    match maneuver_dates::parse(x) {
+        None => Some(None),
+        Some(Ok((departure, arrival))) => Some(Some(DatedTransferInput { departure, arrival })),
+        Some(Err((key, why))) => {
+            let field = format!("transfer.{key}");
+            m.push(Target::maneuver(x.id.as_str(), Some(&field)), why);
+            None
+        }
+    }
 }
 
 /// 数値伝搬で効く制約（`[constraints]`）。

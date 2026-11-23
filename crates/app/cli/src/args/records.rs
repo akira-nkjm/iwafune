@@ -286,6 +286,12 @@ pub struct ManeuverArgs {
     /// Thrust direction (tangential / inertial; propagated only)
     #[arg(long)]
     pub steering: Option<String>,
+    /// Departure date of a dated transfer between bodies (ISO 8601, UTC, e.g. `2028-12-10T00:00:00Z`; needs --body and --arrive; omit both to use the Hohmann-based estimate)
+    #[arg(long)]
+    pub depart: Option<String>,
+    /// Arrival date of a dated transfer between bodies (after --depart)
+    #[arg(long)]
+    pub arrive: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }

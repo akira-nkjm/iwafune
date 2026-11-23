@@ -1,5 +1,6 @@
 //! マヌーバ（`maneuvers/<ID>.toml`）の検査: スラスタ・前のマヌーバ・制約のモードの参照、実行の順の循環、
-//! 目標の軌道の量の次元と書き方（天体間の遷移の捕獲の軌道）、計算の段階に要るもの。
+//! 目標の軌道の量の次元と書き方（天体間の遷移の捕獲の軌道）、計算の段階に要るもの、
+//! 日付つきの遷移（`[transfer]`）の形（日付の読み方・暦の範囲・天体の組は暦を持つ `fune_projection::maneuver_dates` が見る）。
 
 use super::Ctx;
 use super::values::check_quantity_dimension;
@@ -14,6 +15,7 @@ pub(super) fn check_maneuvers(ctx: &mut Ctx) {
         check_after(ctx, design, m, &entity);
         check_target(ctx, m, &entity);
         check_duty(ctx, m, &entity);
+        check_transfer(ctx, m, &entity);
         if let Some(mode) = &m.constraints.mode
             && !design.modes.contains_key(mode.as_str())
         {
@@ -39,6 +41,45 @@ fn check_duty(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
             &["constraints", "duty"],
             Some(Target::maneuver(m.id.as_str(), Some("constraints.duty"))),
             format!("Duty must be greater than 0 and at most 1 ({d})"),
+        );
+    }
+}
+
+/// 日付つきの遷移（`[transfer]`）: 出発・到着の両方の日付が要り、目標の天体（`target.body`）が要る。
+/// 天体間の遷移で使えない計算の段階（低推力は `maneuver.body_method`、数値伝搬はここ）は誤り。
+fn check_transfer(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
+    let Some(tr) = &m.transfer else {
+        return;
+    };
+    let id = m.id.as_str();
+    for (key, date) in tr.entries() {
+        if date.is_none_or(|d| d.trim().is_empty()) {
+            let field = format!("transfer.{key}");
+            ctx.error(
+                "maneuver.transfer_dates",
+                entity,
+                &["transfer"],
+                Some(Target::maneuver(id, Some(&field))),
+                format!("[transfer] needs both departure and arrival (`{key}` is missing)"),
+            );
+        }
+    }
+    if m.target.body.is_none() {
+        ctx.error(
+            "maneuver.transfer_body",
+            entity,
+            &["transfer"],
+            Some(Target::maneuver(id, Some("transfer"))),
+            "[transfer] needs target.body (the body to arrive at)",
+        );
+    }
+    if m.method == ManeuverMethod::Propagated {
+        ctx.error(
+            "maneuver.transfer_method",
+            entity,
+            &["method"],
+            Some(Target::maneuver(id, Some("method"))),
+            "Dated transfers between bodies are computed with impulsive or finite_burn",
         );
     }
 }

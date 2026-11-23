@@ -112,6 +112,8 @@ export function ManeuverDialog({
         {input("inclination", td.inclination, "97.8 deg")}
         {input("perigee_altitude", td.perigeeAltitude, "250 km")}
         {input("apogee_altitude", td.apogeeAltitude)}
+        {text.body && input("depart", td.depart, "2028-12-10T00:00:00Z")}
+        {text.body && input("arrive", td.arrive, "2029-09-25T00:00:00Z")}
         {input("via_altitude", td.viaAltitude)}
         {select("sunlit_only", td.sunlitOnly, [
           { value: "true", label: td.yes },

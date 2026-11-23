@@ -3,6 +3,7 @@ import type { ManeuverCategory } from "./ManeuverCategory";
 import type { ManeuverConstraints } from "./ManeuverConstraints";
 import type { ManeuverMethod } from "./ManeuverMethod";
 import type { ManeuverTargetOrbit } from "./ManeuverTargetOrbit";
+import type { ManeuverTransfer } from "./ManeuverTransfer";
 import type { Quantity } from "./Quantity";
 
 /**
@@ -20,4 +21,8 @@ after?: string | null,
 /**
  * バイエリプティック遷移の中間の遠地点の高度（impulsive・finite_burn だけ）
  */
-via_altitude?: Quantity | null, target?: ManeuverTargetOrbit, constraints?: ManeuverConstraints, };
+via_altitude?: Quantity | null, target?: ManeuverTargetOrbit, constraints?: ManeuverConstraints, 
+/**
+ * 日付つきの惑星間遷移（`target.body` があるときだけ。無ければホーマンのパッチドコニック）
+ */
+transfer?: ManeuverTransfer | null, };

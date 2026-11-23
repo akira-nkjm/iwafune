@@ -31,8 +31,10 @@ impl Snapshot {
     pub fn of(design: Design, files: FileSet) -> Self {
         let resolved = fune_model::resolve(&design);
         // `check` は読み込み時の問題も含めて返す（ここで足すと 2 回ずつ出る）
+        // 暦を要る検査（日付つきの遷移の日付）は暦を持つ fune-projection の側（model は sat-astro に依存しない）
         let diagnostics = fune_model::check(&design)
             .into_iter()
+            .chain(fune_projection::maneuver_dates::check(&design))
             .map(|d| with_excerpt(d, &files))
             .collect();
         Self {

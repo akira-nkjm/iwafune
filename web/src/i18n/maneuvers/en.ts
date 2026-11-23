@@ -25,6 +25,7 @@ export const maneuversEn: typeof maneuversJa = {
       perigee_altitude: "Perigee altitude",
       apogee_altitude: "Apogee altitude",
       inclination: "Inclination",
+      transfer: "Departure → arrival",
     },
     dialog: {
       addTitle: "Add maneuver",
@@ -37,6 +38,8 @@ export const maneuversEn: typeof maneuversJa = {
       perigeeAltitude: "Target perigee altitude",
       apogeeAltitude: "Target apogee altitude",
       inclination: "Target inclination",
+      depart: "Departure date (dated transfer; ISO 8601, UTC)",
+      arrive: "Arrival date (after departure; leave both empty for the Hohmann-based estimate)",
       viaAltitude: "Intermediate apogee altitude (bi-elliptic)",
       sunlitOnly: "Fire in sunlight only",
       mode: "Firing mode",

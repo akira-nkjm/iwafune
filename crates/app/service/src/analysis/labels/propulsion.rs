@@ -5,6 +5,7 @@ use crate::dto::AnalysisLabel;
 use fune_projection::propulsion::{model_category, model_method, model_steering};
 use sat_analysis::power::thrust_balance::ThrustBalanceNote;
 use sat_analysis::propulsion::{DvCategory, ManeuverNote, TransferMethod, UnloadingNote};
+use sat_astro::ephem::EphemerisSource;
 use sat_astro::force::thrust::ThrustSteering;
 
 /// 設計の語彙（`maneuver_category`・`maneuver_method`・`maneuver_steering`）の表示名。**区分と計算の段階の表示名は labels.toml だけ**。
@@ -41,6 +42,16 @@ pub(super) fn thrust_balance_note(n: ThrustBalanceNote) -> AnalysisLabel {
     }
 }
 
+pub(super) fn ephemeris_source(s: EphemerisSource) -> AnalysisLabel {
+    match s {
+        EphemerisSource::De440 => label("JPL DE440", "JPL DE440"),
+        EphemerisSource::Analytic => label(
+            "解析式（VSOP87A・Standish。DE440 より少し粗い）",
+            "Analytic elements (slightly less accurate than DE440)",
+        ),
+    }
+}
+
 pub(super) fn note(n: ManeuverNote) -> AnalysisLabel {
     match n {
         ManeuverNote::BiElliptic => label(
@@ -70,6 +81,10 @@ pub(super) fn note(n: ManeuverNote) -> AnalysisLabel {
         ManeuverNote::PatchedConic => label(
             "天体間の遷移をパッチドコニック（天体の円軌道どうしのホーマン遷移）で計算した（打ち上げの窓は見ない）",
             "Computed as a patched-conic transfer (Hohmann between circular body orbits; launch windows are not considered)",
+        ),
+        ManeuverNote::DatedLambert => label(
+            "天体間の遷移を、出発の日・到着の日の天体の位置からの Lambert（日付つきのパッチドコニック）で計算した",
+            "Computed as a dated patched-conic transfer: a Lambert solution between the body positions on the departure and arrival dates",
         ),
         ManeuverNote::PlaneChangeIgnored => label(
             "天体間の遷移では傾斜角の変更の ΔV を数えない",

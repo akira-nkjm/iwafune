@@ -135,5 +135,13 @@ fn maneuver_cmd(verb: &str, m: &Maneuver) -> String {
         .flag("mode", m.constraints.mode.as_ref().map(|x| x.as_str()))
         .flag("duty", duty.as_deref())
         .flag("steering", m.constraints.steering.map(|s| s.as_str()))
+        .flag(
+            "depart",
+            m.transfer.as_ref().and_then(|t| t.departure.as_deref()),
+        )
+        .flag(
+            "arrive",
+            m.transfer.as_ref().and_then(|t| t.arrival.as_deref()),
+        )
         .done()
 }
