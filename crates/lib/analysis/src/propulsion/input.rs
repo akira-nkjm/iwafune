@@ -5,6 +5,7 @@ use crate::spec::{AnalysisError, ensure_fraction, ensure_positive};
 use sat_astro::ephem::CentralBody;
 use sat_astro::force::thrust::ThrustSteering;
 use sat_astro::orbit::OrbitSpec;
+use sat_astro::time::Epoch;
 use sat_units::typed::{
     Angle, Force, Fraction, Impulse, Length, Mass, MassDensity, Power, Qty, Time, Volume,
 };
@@ -100,6 +101,17 @@ pub struct OrbitTarget {
     pub inclination: Option<Qty<Angle>>,
 }
 
+/// 日付つきの惑星間遷移の日付（`target.body` があるときだけ。日付があれば天体間の ΔV は両端の天体の
+/// その日の位置からの Lambert で求め、無ければホーマンのパッチドコニック）。UTC/TT/TDB は区別しない。
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct DatedTransferInput {
+    /// 出発の日
+    pub departure: Epoch,
+    /// 到着の日（出発より後）
+    pub arrival: Epoch,
+}
+
 /// マヌーバ 1 つ（実行の順に並べる）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -121,6 +133,10 @@ pub struct ManeuverInput {
     /// 数値伝搬（`propagated`）で効く制約
     #[serde(default, skip_serializing_if = "ThrustConstraints::is_default")]
     pub thrust: ThrustConstraints,
+    /// 日付つきの惑星間遷移（`target.body` が兄弟の天体のときだけ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub transfer: Option<DatedTransferInput>,
 }
 
 /// 数値伝搬（`propagated`）で効く制約。

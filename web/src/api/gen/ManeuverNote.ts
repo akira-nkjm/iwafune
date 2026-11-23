@@ -3,4 +3,4 @@
 /**
  * マヌーバの計算の注記。**文は持たない**（service の語彙が引く）。
  */
-export type ManeuverNote = "bi_elliptic" | "via_altitude_ignored" | "low_thrust_circular_approximation" | "no_thruster" | "finite_burn_too_long" | "patched_conic" | "plane_change_ignored" | "propagation_not_reached";
+export type ManeuverNote = "bi_elliptic" | "via_altitude_ignored" | "low_thrust_circular_approximation" | "no_thruster" | "finite_burn_too_long" | "patched_conic" | "dated_lambert" | "plane_change_ignored" | "propagation_not_reached";

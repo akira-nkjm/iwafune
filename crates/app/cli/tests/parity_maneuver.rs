@@ -166,3 +166,125 @@ fn maneuver_list_matches_http() {
         "maneuvers.MV_B.target.altitude"
     );
 }
+
+/// 日付つきの遷移（`--depart`・`--arrive`）も CLI と HTTP で同じファイルになり、両方を空にして書き直すと `[transfer]` が消える。
+#[test]
+fn dated_transfer_edits_match_cli() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_t1, cli_root) = demo_copy();
+    let (_t2, http_root) = demo_copy();
+    let cli = [
+        "maneuver",
+        "add",
+        "MV_MARS",
+        "--category",
+        "insertion",
+        "--method",
+        "impulsive",
+        "--body",
+        "mars",
+        "--perigee-altitude",
+        "300 km",
+        "--apogee-altitude",
+        "33000 km",
+        "--depart",
+        "2028-12-10T00:00:00Z",
+        "--arrive",
+        "2029-09-25T00:00:00Z",
+    ];
+    run_cli(&cli_root, &cli);
+    let body = json!({ "command": "maneuver_add", "id": "MV_MARS", "category": "insertion",
+        "method": "impulsive", "body": "mars", "perigee_altitude": "300 km",
+        "apogee_altitude": "33000 km", "depart": "2028-12-10T00:00:00Z",
+        "arrive": "2029-09-25T00:00:00Z" });
+    http_command(&rt, &http_root, body);
+    assert_same_files(&cli_root, &http_root, &cli.join(" "));
+    let text = std::fs::read_to_string(http_root.join("maneuvers/MV_MARS.toml")).unwrap();
+    assert!(
+        text.contains("[transfer]\ndeparture = \"2028-12-10T00:00:00Z\"\narrival   = \"2029-09-25T00:00:00Z\"\n"),
+        "{text}"
+    );
+    // 日付を 1 つだけ書くのは誤り（どちらも同じ service の関数）
+    let fail = fune()
+        .arg("-C")
+        .arg(&cli_root)
+        .args([
+            "maneuver",
+            "set",
+            "MV_MARS",
+            "--category",
+            "insertion",
+            "--method",
+            "impulsive",
+        ])
+        .args([
+            "--body",
+            "mars",
+            "--perigee-altitude",
+            "300 km",
+            "--depart",
+            "2028-12-10T00:00:00Z",
+        ])
+        .output()
+        .unwrap();
+    assert!(!fail.status.success());
+    // 日付を書かずに書き直すと `[transfer]` が消える
+    let reset = [
+        "maneuver",
+        "set",
+        "MV_MARS",
+        "--category",
+        "insertion",
+        "--method",
+        "impulsive",
+        "--body",
+        "mars",
+        "--perigee-altitude",
+        "300 km",
+    ];
+    run_cli(&cli_root, &reset);
+    http_command(
+        &rt,
+        &http_root,
+        json!({ "command": "maneuver_set", "id": "MV_MARS", "category": "insertion",
+            "method": "impulsive", "body": "mars", "perigee_altitude": "300 km",
+            "depart": "", "arrive": null }),
+    );
+    assert_same_files(&cli_root, &http_root, "maneuver set (no dates)");
+    let text = std::fs::read_to_string(http_root.join("maneuvers/MV_MARS.toml")).unwrap();
+    assert!(!text.contains("transfer"), "{text}");
+    // 一覧の編集の欄の初期値は `--depart`・`--arrive` と同じ文字列
+    run_cli(&cli_root, &cli_set_with_dates());
+    let http = get_json(&rt, &cli_root, "/api/v1/maneuvers");
+    let row = http
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["id"] == "MV_MARS")
+        .unwrap();
+    assert_eq!(row["text"]["depart"], "2028-12-10T00:00:00Z");
+    assert_eq!(
+        row["field_paths"]["arrive"],
+        "maneuvers.MV_MARS.transfer.arrival"
+    );
+}
+
+fn cli_set_with_dates() -> Vec<&'static str> {
+    vec![
+        "maneuver",
+        "set",
+        "MV_MARS",
+        "--category",
+        "insertion",
+        "--method",
+        "impulsive",
+        "--body",
+        "mars",
+        "--perigee-altitude",
+        "300 km",
+        "--depart",
+        "2028-12-10T00:00:00Z",
+        "--arrive",
+        "2029-09-25T00:00:00Z",
+    ]
+}

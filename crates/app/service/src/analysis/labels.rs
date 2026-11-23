@@ -356,6 +356,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "DvCategory" => parse(value).map(propulsion::category),
         "TransferMethod" => parse(value).map(propulsion::method),
         "ManeuverNote" => parse(value).map(propulsion::note),
+        "EphemerisSource" => parse(value).map(propulsion::ephemeris_source),
         "ThrustSteering" => parse(value).map(propulsion::steering),
         "ThrustBalanceNote" => parse(value).map(propulsion::thrust_balance_note),
         "UnloadingNote" => parse(value).map(propulsion::unloading),

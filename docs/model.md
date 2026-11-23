@@ -200,7 +200,7 @@ flowchart LR
 | Harness | Cable segment (physical) | `harness/<ID>.toml` | ports at both ends, the nets it carries, wire, number of cores, length |
 | Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, a phase (§7.10), which side of the uncertainty to read, Sun distance (cruise), orbit, attitude law, environment conditions, period |
 | Phase | Mission phase (commissioning, nominal operations, disposal) | `phases/<ID>.toml` | order, start and end conditions (free text), duration, the modes used, and optional overrides of the orbit and of the attitude law per mode for the cases that name the phase (§7.10) |
-| Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only (§7.7) |
+| Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only, dates of an interplanetary transfer (§7.7) |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, date, author |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, document version, retrieval date, SHA-256, distribution category, date, author (§7.8) |
 | Requirement | Requirement (lightweight, a flat list) | `requirements/<ID>.toml` | statement (Japanese and English), the dimension of the constrained quantity, constraint (direction and value), quantification (all cases / named cases), source (a source ID), and what verifies it (an analysis check or a budget). The verdict itself comes from the analysis or budget (§7.9). Formal verdicts written out to external verification tools are not decided yet |
@@ -1226,6 +1226,26 @@ duty        = 0.8        # fraction of the allowed firing time actually fired (0
 steering    = "tangential"  # tangential (velocity direction. If inclination also changes, Edelbaum's yaw angle) / inertial (fixed to the initial direction)
 ```
 
+A maneuver that targets another planet can carry the two dates of the transfer:
+
+```toml
+# maneuvers/MARS_TRANSFER.toml
+label    = "Earth → Mars transfer and capture"
+category = "insertion"
+method   = "impulsive"
+thruster = "MAIN"
+after    = "RAISE"           # the orbit after RAISE is the parking orbit
+
+[target]                     # capture orbit (altitudes from the target body's radius)
+body             = "mars"
+perigee_altitude = { value = 300.0, unit = "km" }
+apogee_altitude  = { value = 33000.0, unit = "km" }
+
+[transfer]                   # dated transfer (optional)
+departure = "2028-12-10T00:00:00Z"   # same form as conditions.orbit.epoch (ISO 8601)
+arrival   = "2029-09-25T00:00:00Z"
+```
+
 - The target elements that can be written are `body`, `altitude`, `perigee_altitude`, `apogee_altitude` and `inclination` (changes in RAAN are not handled yet).
 - If `body` (the spelling of the central body) differs from the previous orbit's central body, the transfer between bodies is computed by patched conics
   (`sat_astro::transfer::patched_conic`; `method` is `impulsive` or `finite_burn`). The bodies' orbits are regarded as circular and coplanar,
@@ -1234,8 +1254,25 @@ steering    = "tangential"  # tangential (velocity direction. If inclination als
   Only parent-child pairs (Earth ⇄ Moon) and bodies orbiting the same parent (Earth ⇄ Mars) are supported; Moon → Mars is split into a maneuver at an intermediate body.
   Inclination changes and launch windows (the timing of the encounter) are not counted (notes `plane_change_ignored` and `patched_conic`). Later maneuvers are computed around the target body.
   The output's burns and orbits carry the non-Earth central body `central` and the hyperbolic excess velocity `v_inf`.
-  The velocities at both ends of a transfer with fixed dates can be solved with `sat_astro::transfer::lambert` (Lambert's problem), but maneuvers do not use it yet.
+  With a `[transfer]` table (below) the transfer is instead solved from the positions of the bodies on two dates.
   Writing `via_altitude` (top level) makes impulsive and finite-burn computations use a bi-elliptic transfer with that altitude as the intermediate apoapsis.
+- `[transfer]` (`departure` and `arrival`, both required) makes the ΔV between the bodies come from Lambert's problem between the positions of the two bodies on those dates
+  (`sat_astro::transfer::dated_transfer`; zero revolutions, prograde about the ecliptic north) instead of the Hohmann estimate. Without `[transfer]` the Hohmann-based calculation above runs unchanged.
+  It is the same maneuver entity and `method` (`impulsive` or `finite_burn`; `low_thrust` and `propagated` are `check` errors) and needs `target.body`.
+  Scope: two different bodies that orbit the same parent (planet ⇄ planet), as the departure body is the central body of the orbit before this maneuver.
+  Earth ⇄ Moon with dates is not supported (`maneuver.transfer_bodies`). The departure burn is at the periapsis of the parking orbit (the orbit before this maneuver) and the capture burn at the periapsis of the target orbit,
+  as for the Hohmann estimate; the sphere of influence is a point. The planes are not changed: the result carries a warning when the declination of the departure asymptote exceeds the parking orbit inclination.
+  The date strings use the same form as `conditions.orbit.epoch`; UTC, TT and TDB are not distinguished (the leap seconds and the UTC/TT difference are ignored, which is within the precision of concept design).
+  - Checks (all errors unless noted): both dates present (`maneuver.transfer_dates`), a target body (`maneuver.transfer_body`), `propagated` not used (`maneuver.transfer_method`; by model);
+    dates parse (`maneuver.transfer_epoch`), inside the ephemeris range (`maneuver.transfer_ephemeris`; 1800 to 2050, wider when DE440 is installed), arrival after departure (`maneuver.transfer_order`),
+    and sibling bodies (`maneuver.transfer_bodies`; by `fune_projection::maneuver_dates`, which has the ephemeris, and appended to `fune check` by `fune_service::workspace::Snapshot::of`).
+  - Maneuvers otherwise carry no dates; a maneuver starts when the previous one ends, counted from the first orbit's epoch (below). When that time is later than `departure`, `propulsion.maneuvers` and
+    `propulsion.dv_budget` carry a warning (`dated_transfer_timing`); the date is not moved. A second warning, `dated_transfer_plane`, is for the departure declination above the parking inclination.
+  - Body positions come from DE440 when it is installed (`fune data`) and from the analytic elements (VSOP87A, Standish) otherwise, so the ΔV can differ slightly; the result's `ephemeris` says which was used
+    (`de440` only when both dates were served by DE440). The result (`dated_transfer` of `propulsion.maneuvers`, `dated_transfers` of `propulsion.dv_budget`) has the time of flight, the characteristic energy C3,
+    the departure and arrival excess speeds, and the departure asymptote declination; the burns carry `v_inf` as for the Hohmann estimate, and the note is `dated_lambert` instead of `patched_conic`.
+  - Edit with `fune maneuver add|set ... --body mars --depart 2028-12-10T00:00:00Z --arrive 2029-09-25T00:00:00Z` (both or neither; `set` rewrites the whole maneuver, so leaving them out removes `[transfer]`).
+    More options (such as counting only the capture burn when the launcher provides the departure burn) can be added to `[transfer]` later without changing this shape.
 - The execution order is linked by `after`. The source of truth is `Design::ordered_maneuvers` (those with no `after` start in ID order, followed by the ones linked after them).
   A cycle is a `check` error (`maneuver.cycle`).
 - The first orbit is the conditions' orbit (`conditions/orbit.toml`). The dry mass is `dry_mass` in `analysis/propulsion.toml`, or if absent, the total mass of the parts' mass properties.
@@ -1249,7 +1286,7 @@ steering    = "tangential"  # tangential (velocity direction. If inclination als
   "When and in which orbit" for this order is given by `propulsion.orbit_history`. When there is a numerically propagated maneuver, `orbit.eclipse_season`
   (and `power.sizing`, which uses it) looks up the orbit for each sample day from this history (if there is none, the first orbit is kept).
 - `propulsion.mass_properties` gives mass and center of mass with propellant loaded (beginning of life) and after use (end of life) (the propellant is a point mass at the tank part's center of mass).
-- How to write: after the top-level values, `[target]` and `[constraints]` are written as heading tables, and quantities inside are `{ value, unit }`
+- How to write: after the top-level values, `[target]`, `[constraints]` and `[transfer]` are written as heading tables, and quantities inside are `{ value, unit }`
   (`fune_store::write::records::MANEUVER_SECTIONS`). Edits use `fune maneuver add|set|rm` (the GUI sends the same arguments to `POST /ops/from_command`).
 
 ### 7.8 sources/: the ledger of sources, and the source of a value

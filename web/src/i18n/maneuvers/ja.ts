@@ -23,6 +23,7 @@ export const maneuversJa = {
       perigee_altitude: "近地点高度",
       apogee_altitude: "遠地点高度",
       inclination: "傾斜角",
+      transfer: "出発 → 到着",
     } as Record<string, string>,
     dialog: {
       addTitle: "マヌーバを追加",
@@ -35,6 +36,8 @@ export const maneuversJa = {
       perigeeAltitude: "目標の近地点高度",
       apogeeAltitude: "目標の遠地点高度",
       inclination: "目標の傾斜角",
+      depart: "出発の日（日付つきの遷移。UTC の ISO 8601）",
+      arrive: "到着の日（出発より後。空にすると日付なしのホーマンの見積もり）",
       viaAltitude: "中間の遠地点高度（バイエリプティック）",
       sunlitOnly: "日照中だけ噴射",
       mode: "噴射するモード",

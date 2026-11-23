@@ -271,3 +271,11 @@ fn angular_velocity_uses_arcseconds_per_second_below_a_hundredth_deg_per_s() {
     assert_eq!(text(rate(1.0 / 3600.0), "AngularVelocity"), "1.00 arcsec/s");
     assert_eq!(text(0.0, "AngularVelocity"), "0 °/s");
 }
+
+/// 比エネルギー（惑星間の出発の C3）: m²/s² から km²/s² へ。C3 = 12.09 km²/s² は 1.209e7 m²/s²。
+#[test]
+fn specific_energy_is_shown_in_km2_per_s2() {
+    assert_eq!(text(12.09e6, "SpecificEnergy"), "12.1 km²/s²");
+    assert_eq!(text(500.0, "SpecificEnergy"), "500 m²/s²");
+    assert_eq!(text(0.0, "SpecificEnergy"), "0 km²/s²");
+}

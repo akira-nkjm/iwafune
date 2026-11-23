@@ -52,6 +52,7 @@ fn burn(id: &str, category: DvCategory, thruster: Option<&str>, altitude_m: f64)
         via_altitude: None,
         ignored_constraints: Vec::new(),
         thrust: ThrustConstraints::default(),
+        transfer: None,
     }
 }
 

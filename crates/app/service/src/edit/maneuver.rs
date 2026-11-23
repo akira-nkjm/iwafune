@@ -4,9 +4,10 @@
 use super::text::{bool_from_text as flag, fraction_from_text, given, invalid, quantity_from_text};
 use crate::dto::ManeuverText;
 use crate::error::Result;
-use fune_model::design::{Maneuver, ManeuverConstraints, ManeuverTarget};
+use fune_model::design::{Maneuver, ManeuverConstraints, ManeuverTarget, ManeuverTransfer};
 use fune_model::value::Quantity;
 use fune_ops::Op;
+use sat_astro::time::Epoch;
 
 /// 打った引数 → `CreateManeuver`（`create`）か `SetManeuver`。
 pub fn maneuver_op(t: &ManeuverText, create: bool) -> Result<Op> {
@@ -50,7 +51,31 @@ fn maneuver_of(t: &ManeuverText) -> Result<Maneuver> {
                 .map(|s| s.trim().parse().map_err(invalid))
                 .transpose()?,
         },
+        transfer: transfer_of(t)?,
     })
+}
+
+/// `--depart`・`--arrive`（両方か、どちらも書かない）→ `[transfer]`。日付の読み方は `sat_astro::time::Epoch::parse` だけ。
+/// 日付どうしの順・暦の範囲・天体の組は検査（`fune check`）が見る。
+fn transfer_of(t: &ManeuverText) -> Result<Option<ManeuverTransfer>> {
+    let date = |flag: &str, text: &Option<String>| -> Result<Option<String>> {
+        given(text)
+            .map(|s| {
+                let s = s.trim();
+                Epoch::parse(s)
+                    .map(|_| s.to_owned())
+                    .map_err(|e| invalid(format!("--{flag}: {e}")))
+            })
+            .transpose()
+    };
+    match (date("depart", &t.depart)?, date("arrive", &t.arrive)?) {
+        (None, None) => Ok(None),
+        (Some(departure), Some(arrival)) => Ok(Some(ManeuverTransfer {
+            departure: Some(departure),
+            arrival: Some(arrival),
+        })),
+        _ => Err(invalid("--depart and --arrive must be given together")),
+    }
 }
 
 #[cfg(test)]
@@ -112,6 +137,32 @@ mod tests {
         assert!(maneuver_op(&t, false).is_err());
         let mut t = text();
         t.body = Some("pluto".into());
+        assert!(maneuver_op(&t, false).is_err());
+    }
+
+    #[test]
+    fn dates_come_in_pairs_and_round_trip() {
+        let mut t = text();
+        t.depart = Some(" 2028-12-10T00:00:00Z ".into());
+        assert!(maneuver_op(&t, false).is_err(), "only one date");
+        t.arrive = Some("2029-09-25T00:00:00Z".into());
+        let Op::SetManeuver { maneuver } = maneuver_op(&t, false).unwrap() else {
+            panic!("not SetManeuver");
+        };
+        let tr = maneuver.transfer.clone().unwrap();
+        assert_eq!(tr.departure.as_deref(), Some("2028-12-10T00:00:00Z"));
+        assert_eq!(tr.arrival.as_deref(), Some("2029-09-25T00:00:00Z"));
+        let back = maneuver_op(&maneuver_text(&maneuver), true).unwrap();
+        assert_eq!(back, Op::CreateManeuver { maneuver });
+        // 空の文字列は書かない（編集で消す）
+        t.depart = Some(String::new());
+        t.arrive = Some(String::new());
+        let Op::SetManeuver { maneuver } = maneuver_op(&t, false).unwrap() else {
+            panic!("not SetManeuver");
+        };
+        assert_eq!(maneuver.transfer, None);
+        t.depart = Some("next Tuesday".into());
+        t.arrive = Some("2029-09-25T00:00:00Z".into());
         assert!(maneuver_op(&t, false).is_err());
     }
 }
