@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/lib/*", "crates/app/*", "crates/xtask"]
 
 [workspace.package]
-version = "0.5.9"
+version = "0.7.0"
 edition = "2024"
 rust-version = "1.100"
 publish = false
