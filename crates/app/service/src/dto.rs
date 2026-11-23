@@ -119,10 +119,10 @@ pub use edit::{
 };
 pub use fune_model::design::PartField;
 pub use fune_model::design::{
-    AttributeDef, Case, CatalogField, CatalogItem, Distribution, Harness, KindDef, Maneuver,
-    ManeuverCategory, ManeuverConstraints, ManeuverMethod, ManeuverTarget, ManeuverTransfer,
-    ModeSegment, ModeWhen, Net, NetField, NetKind, Phase, Pose, Requirement, Source, SourceKind,
-    StartFrom, StartRef, UncertaintySide,
+    AttributeDef, Case, CatalogField, CatalogItem, DepartureBy, Distribution, Harness, KindDef,
+    Maneuver, ManeuverCategory, ManeuverConstraints, ManeuverMethod, ManeuverTarget,
+    ManeuverTransfer, ModeSegment, ModeWhen, Net, NetField, NetKind, Phase, Pose, Requirement,
+    Source, SourceKind, StartFrom, StartRef, UncertaintySide,
 };
 pub use fune_model::design::{BudgetKind, SharedCatalogState, SharedCatalogStatus, StateAssign};
 pub use fune_model::design::{LinkDirection, ProjectField};

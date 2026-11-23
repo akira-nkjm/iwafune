@@ -21,13 +21,14 @@ use crate::quantity::{qty_opt, setting_opt};
 use crate::{aocs, structure};
 use fune_model::Target;
 use fune_model::builtin::{Role, STATE_THRUSTER_FIRING};
+use fune_model::design::DepartureBy as ModelDepartureBy;
 use fune_model::design::setting_dims as dims;
 use fune_model::design::{Maneuver, ManeuverCategory, ManeuverMethod, ManeuverSteering};
 use fune_model::resolve::{ResolvedPart, SiValue};
 use sat_analysis::propulsion::{
-    DatedTransferInput, DvCategory, ManeuverInput, OrbitTarget, PropellantMassInput,
-    PropellantTank, PropulsionInput, PropulsionThruster, ThrustConstraints, TransferMethod,
-    UnloadingInput, UnloadingNote,
+    DatedTransferInput, DepartureProvider, DvCategory, ManeuverInput, OrbitTarget,
+    PropellantMassInput, PropellantTank, PropulsionInput, PropulsionThruster, ThrustConstraints,
+    TransferMethod, UnloadingInput, UnloadingNote,
 };
 use sat_astro::force::thrust::ThrustSteering;
 use sat_units::typed::{Force, Fraction, Impulse, MassDensity, Power, Qty, Time, Volume};
@@ -50,6 +51,14 @@ pub fn method(m: ManeuverMethod) -> TransferMethod {
         ManeuverMethod::FiniteBurn => TransferMethod::FiniteBurn,
         ManeuverMethod::LowThrust => TransferMethod::LowThrust,
         ManeuverMethod::Propagated => TransferMethod::Propagated,
+    }
+}
+
+/// 設計の出発の噴射を行うもの → 解析の出発の噴射を行うもの（書かなければ衛星）。
+pub fn departure_by(d: Option<ModelDepartureBy>) -> DepartureProvider {
+    match d {
+        None | Some(ModelDepartureBy::Spacecraft) => DepartureProvider::Spacecraft,
+        Some(ModelDepartureBy::Launcher) => DepartureProvider::Launcher,
     }
 }
 
@@ -222,7 +231,11 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
 fn transfer_input(x: &Maneuver, m: &mut MissingInputs) -> Option<Option<DatedTransferInput>> {
     match maneuver_dates::parse(x) {
         None => Some(None),
-        Some(Ok((departure, arrival))) => Some(Some(DatedTransferInput { departure, arrival })),
+        Some(Ok((departure, arrival))) => Some(Some(DatedTransferInput {
+            departure,
+            arrival,
+            departure_by: departure_by(x.transfer.as_ref().and_then(|t| t.departure_by)),
+        })),
         Some(Err((key, why))) => {
             let field = format!("transfer.{key}");
             m.push(Target::maneuver(x.id.as_str(), Some(&field)), why);

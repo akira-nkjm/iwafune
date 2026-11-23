@@ -86,6 +86,10 @@ pub(super) fn note(n: ManeuverNote) -> AnalysisLabel {
             "天体間の遷移を、出発の日・到着の日の天体の位置からの Lambert（日付つきのパッチドコニック）で計算した",
             "Computed as a dated patched-conic transfer: a Lambert solution between the body positions on the departure and arrival dates",
         ),
+        ManeuverNote::DepartureByLauncher => label(
+            "出発の噴射は打ち上げ機が行うので、ΔV・推薬に数えない（C3・超過速度は打ち上げの要求）",
+            "The departure burn is provided by the launcher, so it is not counted in delta-V or propellant (C3 and excess speed are launch requirements)",
+        ),
         ManeuverNote::PlaneChangeIgnored => label(
             "天体間の遷移では傾斜角の変更の ΔV を数えない",
             "Inclination change delta-V is not counted for transfers between bodies",

@@ -41,6 +41,7 @@ fn base() -> LaunchFitInput {
         propellant_mass: Some(Qty::from_raw(1.5)),
         size: Some(Vec3::new(0.1, 0.2263, 0.366)),
         max_mass: vec![mass_limit("launcher L", 11.0)],
+        capability: None,
         envelope: Some(LaunchFitEnvelope {
             origin: "dispenser D".to_owned(),
             size: Vec3::new(0.1, 0.2263, 0.366),
@@ -196,4 +197,95 @@ fn propellant_carries_no_growth() {
     let mass = LaunchFit::run(&input).unwrap().mass.unwrap();
     assert!((mass.launch_mass.value() - 8.8).abs() < 1e-12);
     assert!((mass.bare_mass.value() - 8.0).abs() < 1e-12);
+}
+
+/// 能力の曲線 C3 [km²/s²] → 質量 [kg]: (0, 12)・(10, 11)・(20, 9)・(30, 5)。遷移の C3 は `c3_km2_s2`。
+fn with_curve(c3_km2_s2: f64) -> LaunchFitInput {
+    let point = |c3: f64, kg: f64| CapabilityPoint {
+        c3: Qty::from_raw(c3 * 1e6),
+        mass: Qty::from_raw(kg),
+    };
+    LaunchFitInput {
+        capability: Some(LaunchFitCapability {
+            origin: "launcher L".to_owned(),
+            maneuver: "MARS".to_owned(),
+            c3: Qty::from_raw(c3_km2_s2 * 1e6),
+            curve: vec![
+                point(0.0, 12.0),
+                point(10.0, 11.0),
+                point(20.0, 9.0),
+                point(30.0, 5.0),
+            ],
+        }),
+        ..base()
+    }
+}
+
+/// 手計算: C3 = 12 の曲線の質量は 11 + 0.2 × (9 − 11) = 10.6 kg。スカラーの 11 kg より厳しいので曲線が効き、
+/// 成長込みの質量 10.3 kg に対して余裕は 10.6 / 10.3 − 1。出所に C3 が入る。
+#[test]
+fn the_curve_at_the_transfer_c3_tightens_the_scalar_limit() {
+    let out = LaunchFit::run(&with_curve(12.0)).unwrap();
+    let mass = out.mass.as_ref().unwrap();
+    assert!((mass.limit.value() - 10.6).abs() < 1e-9);
+    assert!((mass.margin.unwrap().value() - (10.6 / 10.3 - 1.0)).abs() < 1e-9);
+    assert!(
+        mass.origin.contains("launcher L at C3 12.0 km²/s²"),
+        "{}",
+        mass.origin
+    );
+    assert_eq!(mass.verdict, Verdict::Ok);
+    assert!((mass.c3.unwrap().value() - 12e6).abs() < 1e-3);
+    assert!(mass.beyond_curve_end.is_none());
+    assert!(check(&out, "mass").message.contains("C3 12.0 km²/s²"));
+}
+
+/// 手計算: C3 = 15 は 11 + 0.5 × (9 − 11) = 10 kg で、成長込みの 10.3 kg より小さく違反（余裕 10 / 10.3 − 1）。
+#[test]
+fn a_curve_limit_below_the_launch_mass_is_a_violation() {
+    let out = LaunchFit::run(&with_curve(15.0)).unwrap();
+    let mass = out.mass.as_ref().unwrap();
+    assert!((mass.limit.value() - 10.0).abs() < 1e-9);
+    assert_eq!(mass.verdict, Verdict::Violation);
+    assert!((mass.margin.unwrap().value() - (10.0 / 10.3 - 1.0)).abs() < 1e-9);
+}
+
+/// C3 = 5 の曲線の質量は 11.5 kg で、スカラーの 11 kg のほうが厳しい（スカラーが効き、出所はスカラーのまま）。
+#[test]
+fn the_scalar_limit_still_applies_when_it_is_tighter() {
+    let out = LaunchFit::run(&with_curve(5.0)).unwrap();
+    let mass = out.mass.as_ref().unwrap();
+    assert!((mass.limit.value() - 11.0).abs() < 1e-9);
+    assert_eq!(mass.origin, "launcher L");
+}
+
+/// 曲線の最後の点（C3 = 30）より大きい C3 は送れない: 上限 0 kg の違反で、判定の文が「送れない」と曲線の終わりを言う。
+/// 最後の点ちょうどなら送れる（5 kg なので質量は違反）。
+#[test]
+fn beyond_the_last_point_is_not_capable() {
+    let out = LaunchFit::run(&with_curve(35.0)).unwrap();
+    let mass = out.mass.as_ref().unwrap();
+    assert_eq!(mass.verdict, Verdict::Violation);
+    assert_eq!(mass.limit.value(), 0.0);
+    assert!((mass.beyond_curve_end.unwrap().value() - 30e6).abs() < 1e-3);
+    let message = &check(&out, "mass").message;
+    assert!(message.starts_with("Not capable"), "{message}");
+    assert!(
+        message.contains("35.0 km²/s²") && message.contains("30.0 km²/s²"),
+        "{message}"
+    );
+    let at_end = LaunchFit::run(&with_curve(30.0)).unwrap();
+    assert!((at_end.mass.unwrap().limit.value() - 5.0).abs() < 1e-9);
+}
+
+/// 曲線だけでスカラーの上限が無くても質量を判定する。能力が無ければ（`capability: None`）今までと同じ。
+#[test]
+fn the_curve_alone_is_enough_and_no_curve_changes_nothing() {
+    let mut input = with_curve(12.0);
+    input.max_mass.clear();
+    let mass = LaunchFit::run(&input).unwrap().mass.unwrap();
+    assert!((mass.limit.value() - 10.6).abs() < 1e-9);
+    let plain = LaunchFit::run(&base()).unwrap().mass.unwrap();
+    assert!(plain.c3.is_none() && plain.beyond_curve_end.is_none());
+    assert_eq!(plain.origin, "launcher L");
 }

@@ -2,7 +2,7 @@
 //! 地球 → 火星を、解析式の暦（このクレートのテストは DE440 を登録しない）で、`sat_astro::transfer::dated_transfer` の
 //! 値（出発の v∞ 3.162 km/s・到着 2.876 km/s）と、その v∞ からの手計算の噴射に突き合わせる。
 
-use super::tests::{input, maneuver};
+use super::tests::{DRY, input, maneuver};
 use super::*;
 use crate::spec::{Analysis, Verdict};
 use sat_astro::constants::{GM_MARS, MU_EARTH, R_EARTH, R_MARS};
@@ -32,6 +32,7 @@ fn mars_input(incl_deg: f64, departure: &str) -> PropulsionInput {
         transfer: Some(DatedTransferInput {
             departure: epoch(departure),
             arrival: epoch("1997-09-12T00:00:00Z"),
+            departure_by: DepartureProvider::Spacecraft,
         }),
         ..maneuver(
             "MARS",
@@ -164,4 +165,118 @@ fn bad_transfers_are_errors() {
     i = mars_input(97.0, "1996-11-07T00:00:00Z");
     i.maneuvers[0].target.body = None;
     assert!(Maneuvers::run(&i).is_err(), "dates without a target body");
+}
+
+/// 出発の噴射を打ち上げ機が行う遷移の入力（`mars_input` の出発を打ち上げ機に）。
+fn launcher_input(incl_deg: f64) -> PropulsionInput {
+    let mut i = mars_input(incl_deg, "1996-11-07T00:00:00Z");
+    i.maneuvers[0].transfer.as_mut().unwrap().departure_by = DepartureProvider::Launcher;
+    i
+}
+
+/// 打ち上げ機が出発を行うと、噴射の列から出発の噴射だけが消える: 合計 ΔV は衛星が出発するときから出発の噴射を引いた値
+/// （同じ解析の出力どうしの差）、推薬は捕獲の噴射だけのロケット方程式 `m_p = m_dry (e^(Δv/v_e) − 1)`（残る推薬 0・マージン 0 の公称）、
+/// C3・超過速度・赤緯は変わらない（打ち上げの要求として出る）。
+#[test]
+fn launcher_departure_drops_the_departure_burn_only() {
+    let own = Maneuvers::run(&mars_input(97.0, "1996-11-07T00:00:00Z")).unwrap();
+    let by_launcher = Maneuvers::run(&launcher_input(97.0)).unwrap();
+    let (a, b) = (&own.maneuvers[0], &by_launcher.maneuvers[0]);
+    assert_eq!(a.burns.len(), 2);
+    assert_eq!(b.burns.len(), 1);
+    let departure_dv = a.burns[0].delta_v.value();
+    close(b.burns[0].delta_v.value(), a.burns[1].delta_v.value(), 1e-9);
+    close(
+        by_launcher.total_delta_v.value(),
+        own.total_delta_v.value() - departure_dv,
+        1e-9,
+    );
+    close(
+        b.ideal_delta_v.value(),
+        a.ideal_delta_v.value() - departure_dv,
+        1e-9,
+    );
+    // 推薬（乾燥 10 kg・220 s の捕獲だけ）
+    let ve = sat_astro::rocket::exhaust_velocity(220.0);
+    let hand = DRY * ((b.burns[0].delta_v.value() / ve).exp() - 1.0);
+    close(by_launcher.total_propellant.value(), hand, 1e-9);
+    close(by_launcher.initial_mass.value(), DRY + hand, 1e-9);
+    assert!(by_launcher.total_propellant.value() < own.total_propellant.value());
+    // C3 などは同じ結果で、出発を誰が行うかだけが違う
+    let (da, db) = (
+        a.dated_transfer.as_ref().unwrap(),
+        b.dated_transfer.as_ref().unwrap(),
+    );
+    assert_eq!(da.departure_by, DepartureProvider::Spacecraft);
+    assert_eq!(db.departure_by, DepartureProvider::Launcher);
+    close(da.c3.value(), db.c3.value(), 0.0);
+    close(
+        da.departure_declination.value(),
+        db.departure_declination.value(),
+        0.0,
+    );
+    close(
+        a.transfer_time.unwrap().value(),
+        b.transfer_time.unwrap().value(),
+        1e-6,
+    );
+    assert!(b.notes.contains(&ManeuverNote::DepartureByLauncher));
+    assert!(!a.notes.contains(&ManeuverNote::DepartureByLauncher));
+    // ΔV バジェットも同じ（合計から出発の噴射を引いた値）
+    let budget = DvBudget::run(&launcher_input(97.0)).unwrap();
+    let own_budget = DvBudget::run(&mars_input(97.0, "1996-11-07T00:00:00Z")).unwrap();
+    close(
+        budget.total.value(),
+        own_budget.total.value() - departure_dv,
+        1e-9,
+    );
+    assert_eq!(
+        budget.dated_transfers[0].departure_by,
+        DepartureProvider::Launcher
+    );
+}
+
+/// 打ち上げ機が出発を行うなら、駐車軌道の傾斜角（赤緯の警告）も前のマヌーバが終わる時刻（日付の警告）も問わない。
+#[test]
+fn launcher_departure_has_no_parking_orbit_warnings() {
+    let mut i = launcher_input(0.0);
+    i.initial_orbit.epoch = epoch("1996-11-20T00:00:00Z");
+    let m = &Maneuvers::run(&i).unwrap().maneuvers[0];
+    assert!(m.checks.is_empty(), "{:?}", m.checks);
+    // 衛星が出発するなら、同じ入力は両方の警告
+    i.maneuvers[0].transfer.as_mut().unwrap().departure_by = DepartureProvider::Spacecraft;
+    let keys: Vec<_> = Maneuvers::run(&i).unwrap().maneuvers[0]
+        .checks
+        .iter()
+        .map(|c| c.key.clone())
+        .collect();
+    assert!(
+        keys.contains(&"dated_transfer_plane".to_owned()),
+        "{keys:?}"
+    );
+    assert!(
+        keys.contains(&"dated_transfer_timing".to_owned()),
+        "{keys:?}"
+    );
+}
+
+/// 有限燃焼でも、出発の噴射が無いので飛行の時間は「慣性飛行 + 捕獲の噴射の半分」（衛星が出発するときは最初と最後の半分ずつ）。
+#[test]
+fn launcher_departure_transfer_time_with_a_finite_burn() {
+    let mut i = launcher_input(97.0);
+    i.thrusters[0].thrust = Qty::from_raw(500.0);
+    i.maneuvers[0].method = TransferMethod::FiniteBurn;
+    let out = Maneuvers::run(&i).unwrap();
+    let m = &out.maneuvers[0];
+    assert!(
+        !m.notes.contains(&ManeuverNote::FiniteBurnTooLong),
+        "{:?}",
+        m.notes
+    );
+    let tof = m.dated_transfer.as_ref().unwrap().time_of_flight.value();
+    close(
+        m.transfer_time.unwrap().value(),
+        tof + 0.5 * m.burns[0].burn_time.unwrap().value(),
+        1e-6,
+    );
 }
