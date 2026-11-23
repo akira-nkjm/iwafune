@@ -12,9 +12,11 @@ import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Material, Mesh } from "three";
 import { ArrowHelper, Color, DoubleSide, MOUSE, Quaternion, Vector3 } from "three";
-import { palette, toneHex, uiHex } from "@/lib/tone";
+import { useHex } from "@/lib/theme";
+import { palette, paletteFor, type Scheme, toneHexFor, uiHexFor } from "@/lib/tone";
 import {
   type Axis3D,
+  axisColor,
   type Box3D,
   boxMaterial,
   FOV_OPACITY,
@@ -27,18 +29,6 @@ import {
 } from "./scene";
 import { ViewInput3D, type ZoomRequest } from "./ViewInput3D";
 import { DEFAULT_SCENE_HELPERS, type FocusRequest, type SceneHelpers } from "./visibility";
-
-/** 方向の属性の矢印の色（`Axis3D.order` 番目。属性の ID は見ない。足りなければ繰り返す） */
-const AXIS_PALETTE = [
-  toneHex.teal,
-  toneHex.red,
-  toneHex.navy,
-  toneHex.gold,
-  toneHex.blue,
-  toneHex.violet,
-  toneHex.green,
-  toneHex.orange,
-] as const;
 
 /** 押してから離すまでにこれより動いたらドラッグ（視点の操作）とみなし、クリックにしない [px] */
 const CLICK_SLOP_PX = 4;
@@ -99,6 +89,7 @@ export function Scene3D({
   /** ボタンからの拡大・縮小の依頼（`ViewInput3D`）。無ければ依頼なし */
   zoom?: ZoomRequest | null;
 }) {
+  const { scheme, tone, ui } = useHex();
   const [target, setTarget] = useState<Mesh | null>(null);
   // 押したときの画面の位置（離したときに動いていればドラッグ）
   const pressed = useRef<{ x: number; y: number } | null>(null);
@@ -138,8 +129,8 @@ export function Scene3D({
           args={[dimensions.grid, dimensions.grid]}
           cellSize={dimensions.gridCell}
           sectionSize={dimensions.gridSection}
-          cellColor={uiHex.tick}
-          sectionColor={toneHex.gray}
+          cellColor={ui.tick}
+          sectionColor={tone.gray}
           fadeDistance={dimensions.gridFade}
           infiniteGrid
         />
@@ -186,7 +177,7 @@ export function Scene3D({
               )}
             />
             <Edges
-              color={b.id === selected ? uiHex.ink : dimmed(b.id) ? uiHex.tick : uiHex.ink3}
+              color={b.id === selected ? ui.ink : dimmed(b.id) ? ui.tick : ui.ink3}
               lineWidth={b.id === selected ? 2 : 1}
             />
             {axes
@@ -199,7 +190,7 @@ export function Scene3D({
                       new Vector3(...a.dir),
                       new Vector3(),
                       dimensions.arrow,
-                      new Color(AXIS_PALETTE[a.order % AXIS_PALETTE.length]),
+                      new Color(axisColor(scheme, a.order)),
                       dimensions.arrowHead,
                       dimensions.arrowWidth,
                     )
@@ -223,8 +214,8 @@ export function Scene3D({
             </group>
           ) : null;
         })}
-      {sun && <SunArrowMark sun={sun} dimensions={dimensions} />}
-      {com && <CenterOfMass position={com} radius={dimensions.comRadius} />}
+      {sun && <SunArrowMark sun={sun} dimensions={dimensions} scheme={scheme} />}
+      {com && <CenterOfMass position={com} radius={dimensions.comRadius} scheme={scheme} />}
       {edit && target && selected && !boxes.find((b) => b.id === selected)?.fixed && (
         <TransformControls
           object={target}
@@ -313,25 +304,21 @@ const SUN_ECLIPSE_OPACITY = 0.25;
 function SunArrowMark({
   sun,
   dimensions,
+  scheme,
 }: {
   sun: SunArrow;
   dimensions: ReturnType<typeof sceneDimensions>;
+  scheme: Scheme;
 }) {
+  const tone = toneHexFor(scheme);
   const invalidate = useThree((state) => state.invalidate);
   const { sunArrow: length, arrowHead: head, arrowWidth: width } = dimensions;
   const arrow = useMemo(() => {
-    const a = new ArrowHelper(
-      new Vector3(0, 0, 1),
-      new Vector3(),
-      length,
-      toneHex.gold,
-      head,
-      width,
-    );
+    const a = new ArrowHelper(new Vector3(0, 0, 1), new Vector3(), length, tone.gold, head, width);
     a.line.raycast = () => null;
     a.cone.raycast = () => null;
     return a;
-  }, [length, head, width]);
+  }, [length, head, width, tone.gold]);
   useEffect(() => () => arrow.dispose(), [arrow]);
   const [x, y, z] = sun.dir;
   const { eclipse } = sun;
@@ -339,14 +326,14 @@ function SunArrowMark({
     const dir = new Vector3(x, y, z);
     if (dir.lengthSq() === 0) return;
     arrow.setDirection(dir.normalize());
-    arrow.setColor(eclipse ? toneHex.gray : toneHex.gold);
+    arrow.setColor(eclipse ? tone.gray : tone.gold);
     for (const m of [arrow.line.material as Material, arrow.cone.material as Material]) {
       m.transparent = eclipse;
       m.opacity = eclipse ? SUN_ECLIPSE_OPACITY : 1;
     }
     // frameloop="demand" では、向きの更新を描き直しの依頼で反映する
     invalidate();
-  }, [arrow, x, y, z, eclipse, invalidate]);
+  }, [arrow, x, y, z, eclipse, tone.gray, tone.gold, invalidate]);
   return <primitive object={arrow} />;
 }
 
@@ -358,7 +345,16 @@ const COM_OCTANTS = [0, 1, 2, 3].flatMap((i) =>
 /**
  * 重心の記号（CAD の重心マーク）: 球を 8 つに分けて白と黒を互い違いに塗る。部品に隠れても見えるよう奥行きの判定をしない。
  */
-function CenterOfMass({ position, radius }: { position: V3; radius: number }) {
+function CenterOfMass({
+  position,
+  radius,
+  scheme,
+}: {
+  position: V3;
+  radius: number;
+  scheme: Scheme;
+}) {
+  const ui = uiHexFor(scheme);
   return (
     // 球の極（three の球は Y 軸）を機体の +Z に向け、白黒の境目の 1 本を水平にする
     <group position={position} rotation={[Math.PI / 2, 0, 0]}>
@@ -367,7 +363,7 @@ function CenterOfMass({ position, radius }: { position: V3; radius: number }) {
           <sphereGeometry
             args={[radius, 12, 8, (i * Math.PI) / 2, Math.PI / 2, (j * Math.PI) / 2, Math.PI / 2]}
           />
-          <meshBasicMaterial color={dark ? uiHex.ink : palette.inverse} depthTest={false} />
+          <meshBasicMaterial color={dark ? ui.ink : paletteFor(scheme).inverse} depthTest={false} />
         </mesh>
       ))}
     </group>

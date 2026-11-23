@@ -4,13 +4,14 @@
  * `BrandMark tight` と flex の items-center で並べると、マークの外枠の中心と名前の x ハイトの中心がそろう。
  */
 
+import { useScheme } from "@/lib/theme";
 import { brandInkHex } from "@/lib/tone";
 import { WORDMARK, wordmarkBox } from "./brand-art";
 
 /** `size` は 1 em の大きさ [px]（字の大きさ。CSS の font-size に当たる） */
 export function BrandWordmark({ size }: { size: number }) {
   const box = wordmarkBox();
-  const ink = brandInkHex.light;
+  const ink = brandInkHex[useScheme()];
   return (
     <svg
       width={(box.w * size) / 1000}

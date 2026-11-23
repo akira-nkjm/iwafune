@@ -1,6 +1,6 @@
 import type { DesignView, NetView } from "@/api/types";
 import { getT } from "@/i18n";
-import { toneHex, toneInkHex, uiHex } from "@/lib/tone";
+import { toneInkVar, toneVar, uiVar } from "@/lib/tone";
 
 /** 系統図の層（表示の切り替え） */
 export type Layer = "power" | "signal" | "gnd";
@@ -19,20 +19,20 @@ export interface PowerCategory {
 function fixedCategories() {
   const c = getT().diagram.categories;
   return {
-    gnd: { key: "gnd", label: c.gnd, color: uiHex.ink3, order: 90 },
-    battery: { key: "battery", label: c.battery, color: toneHex.navy, order: 10 },
-    solar: { key: "solar", label: c.solar, color: toneHex.blue, order: 20 },
-    unregulated: { key: "unregulated", label: c.unregulated, color: toneHex.red, order: 30 },
+    gnd: { key: "gnd", label: c.gnd, color: uiVar.ink3, order: 90 },
+    battery: { key: "battery", label: c.battery, color: toneVar.navy, order: 10 },
+    solar: { key: "solar", label: c.solar, color: toneVar.blue, order: 20 },
+    unregulated: { key: "unregulated", label: c.unregulated, color: toneVar.red, order: 30 },
   } satisfies Record<string, PowerCategory>;
 }
 /** 安定化レールの色（電圧の高い順に割り当てる。パレットの色だけを使う） */
 const RAIL_COLORS = [
-  toneHex.gold,
-  toneHex.teal,
-  toneHex.rose,
-  toneInkHex.blue,
-  toneInkHex.gold,
-  toneInkHex.teal,
+  toneVar.gold,
+  toneVar.teal,
+  toneVar.rose,
+  toneInkVar.blue,
+  toneInkVar.gold,
+  toneInkVar.teal,
 ];
 
 /** ネットの層: 戻り（API の `is_return`。判定は fune_model の Net::is_return）は GND、ほかの電源は給電、データと RF は信号 */
@@ -79,7 +79,7 @@ export function powerCategories(design: DesignView): Map<string, PowerCategory> 
     out.set(r.net.id, {
       key: `rail:${r.display}`,
       label: getT().diagram.categories.regulated(r.display),
-      color: RAIL_COLORS[i % RAIL_COLORS.length] ?? uiHex.ink3,
+      color: RAIL_COLORS[i % RAIL_COLORS.length] ?? uiVar.ink3,
       order: 40 + i,
     });
   }

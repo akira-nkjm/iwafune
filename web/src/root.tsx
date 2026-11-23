@@ -11,6 +11,7 @@ import {
 import { queryClient } from "@/api/queries";
 import { getT, useLang } from "@/i18n";
 import { SkeletonShell } from "@/kit/feedback/Loading";
+import { themeBootScript } from "@/lib/theme";
 import { Toaster } from "@/ui/sonner";
 import { TooltipProvider } from "@/ui/tooltip";
 import type { Route } from "./+types/root";
@@ -26,10 +27,14 @@ export const links: Route.LinksFunction = () => [
 export function Layout({ children }: { children: ReactNode }) {
   const lang = useLang();
   return (
-    <html lang={lang}>
+    // data-theme は themeBootScript と lib/theme.ts が付ける（React の管理の外）ので、ハイドレーションの食い違いは見ない
+    <html lang={lang} suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* 最初の描画の前に配色の属性を付ける（明るい画面のちらつきを防ぐ） */}
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: 固定の文字列（色の値を持たない小さな script） */}
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript() }} />
         <Meta />
         <Links />
       </head>

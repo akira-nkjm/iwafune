@@ -31,6 +31,10 @@ export const commonEn: typeof commonJa = {
     noData: "No data",
     cannotLoadDesign: (msg: string) => `Cannot load the design: ${msg}`,
     language: "Language",
+    appearance: "Appearance",
+    themeSystem: "Follow the OS",
+    themeLight: "Light",
+    themeDark: "Dark",
     viewHelp: {
       label: "Controls help",
       title: "View controls",
