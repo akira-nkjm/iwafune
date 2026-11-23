@@ -129,7 +129,8 @@ fn lunar_eclipse_fraction_at_beta_zero() {
 fn lunar_ground_track_and_earth_passes() {
     use crate::ground::{GroundStation, find_passes, ground_track, look_angles};
     let o = lunar(90.0, Propagator::Kepler);
-    let track = ground_track(&o, epoch(), o.period_s(), 60.0).expect("lunar ground track");
+    let track = ground_track(&Trajectory::from(o.clone()), epoch(), o.period_s(), 60.0)
+        .expect("lunar ground track");
     let max_lat = track
         .iter()
         .fold(0.0_f64, |m, p| m.max(p.lat_rad.abs()))
@@ -143,7 +144,7 @@ fn lunar_ground_track_and_earth_passes() {
         Qty::from_raw(1.0),
         Qty::from_raw(0.0),
     );
-    assert!(ground_track(&mars, epoch(), 600.0, 60.0).is_err());
+    assert!(ground_track(&Trajectory::from(mars), epoch(), 600.0, 60.0).is_err());
     // 地上局からは、月を回る衛星は月とほぼ同じ方向に見える（月が出ていて、月の陰に入っていない間がパス。
     // 周回ごとに月の陰に入るので、1 つのパスは周期より短い）
     let gs = GroundStation {
@@ -153,7 +154,14 @@ fn lunar_ground_track_and_earth_passes() {
         altitude: Qty::from_raw(0.0),
         min_elevation: Qty::from_raw(5f64.to_radians()),
     };
-    let passes = find_passes(&gs, &o, epoch(), 2.0 * 86_400.0, 300.0).expect("passes");
+    let passes = find_passes(
+        &gs,
+        &Trajectory::from(o.clone()),
+        epoch(),
+        2.0 * 86_400.0,
+        300.0,
+    )
+    .expect("passes");
     assert!(!passes.is_empty());
     let end = epoch().plus_seconds(2.0 * 86_400.0);
     for p in &passes {

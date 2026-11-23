@@ -4,7 +4,7 @@ use crate::AstroError;
 use crate::earth::{eci_to_ecef, geodetic_to_ecef};
 use crate::ephem::CentralBody;
 use crate::math::{Vec3, bisect, golden_section_max};
-use crate::orbit::OrbitSpec;
+use crate::orbit::Trajectory;
 use crate::time::Epoch;
 use crate::timeline::sample_times;
 use sat_units::typed::{Angle, Length, Qty, Time};
@@ -85,7 +85,7 @@ pub fn slant_range_m(body_radius_m: f64, altitude_m: f64, elevation_rad: f64) ->
 /// `start` から `span_s` 秒の間のパスを、`step_s` 秒刻みの探索と二分法で求める。
 pub fn find_passes(
     station: &GroundStation,
-    orbit: &OrbitSpec,
+    orbit: &Trajectory,
     start: Epoch,
     span_s: f64,
     step_s: f64,
@@ -153,7 +153,7 @@ const MAX_ITER: usize = 200;
 impl<'a> Track<'a> {
     fn new(
         station: &'a GroundStation,
-        orbit: &OrbitSpec,
+        orbit: &Trajectory,
         start: Epoch,
         span_s: f64,
         step_s: f64,
@@ -167,10 +167,10 @@ impl<'a> Track<'a> {
             )));
         }
         let times = sample_times(span_s, step_s)?;
-        let offset = start.seconds_since(orbit.epoch);
+        let offset = start.seconds_since(orbit.epoch());
         let abs: Vec<f64> = times.iter().map(|t| t + offset).collect();
         // 地上局は地球にあるので、地球以外が中心の軌道は地心の位置・速度に直す。
-        let central = orbit.central;
+        let central = orbit.central();
         let states = orbit
             .states_at(&abs)?
             .into_iter()

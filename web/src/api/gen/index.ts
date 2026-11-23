@@ -502,6 +502,7 @@ export type * from "./ThrusterUsageOutput";
 export type * from "./ThrusterUsageRow";
 export type * from "./TimeWindow";
 export type * from "./TimelineSpec";
+export type * from "./Trajectory";
 export type * from "./TransferMethod";
 export type * from "./TreeNode";
 export type * from "./TreeNodeKind";

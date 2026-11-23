@@ -104,7 +104,7 @@ fn balance_input(
     run.sequence_timing = Default::default();
     let block = !t.sunlit_only() && duty < 1.0;
     if block {
-        let period = input.timeline.orbit().period_s();
+        let period = input.timeline.orbit().cycle().length_s();
         run.sequence = vec![
             EnergyBalanceSegment {
                 mode: t.mode.clone(),

@@ -20,7 +20,7 @@ use crate::spec::{
 use range::{deep_space_range, link_range};
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::EarthRange;
-use sat_astro::orbit::OrbitSpec;
+use sat_astro::orbit::Trajectory;
 use sat_astro::time::Epoch;
 use sat_units::typed::{
     Angle, DataRate, Decibel, DecibelHertz, DecibelPerKelvin, DecibelWatt, Frequency, Length, Qty,
@@ -88,7 +88,7 @@ pub struct LinkBudgetInput {
     pub required_margin_db: Option<Decibel>,
     /// 軌道（中心天体が地球でない回線があるとき、地球から衛星までの距離を求めるのに使う。開始は軌道の元期）
     #[serde(default)]
-    pub orbit: Option<OrbitSpec>,
+    pub orbit: Option<Trajectory>,
     /// 距離を評価する期間（ミッション期間。省略時 [`DEFAULT_RANGE_SPAN`]。中心天体が地球でない回線だけ使う）
     #[serde(default)]
     pub duration: Option<Qty<Time>>,

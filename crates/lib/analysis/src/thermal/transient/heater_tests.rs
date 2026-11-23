@@ -137,7 +137,7 @@ fn bang_bang_period_duty_and_band_by_hand() {
     // 平均電力 = デューティ × 容量
     assert!((h.mean_power.value() - h.duty_fraction.value() * 20.0).abs() < 1e-12);
     // 最後の 1 周（軌道の周期）のデューティ: 手計算の切り替えの時刻から窓の中のオン時間を数える
-    let window = leo_timeline(1.0, STEP_S).orbit().period_s();
+    let window = leo_timeline(1.0, STEP_S).orbit().cycle().length_s();
     let (w0, mut on_window) = (span - window, 0.0);
     let edges: Vec<f64> = [0.0]
         .into_iter()

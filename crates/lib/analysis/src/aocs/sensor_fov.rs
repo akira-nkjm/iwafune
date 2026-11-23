@@ -153,7 +153,7 @@ impl Analysis for SensorFov {
             validate(s)?;
         }
         let samples = timeline::build(&input.timeline)?;
-        let central = input.timeline.orbit().central;
+        let central = input.timeline.orbit().central();
         let geometry: Vec<Geometry> = samples.iter().map(|s| Geometry::at(central, s)).collect();
         let t: Vec<f64> = samples.iter().map(|s| s.t_s).collect();
         let mut series = Series {

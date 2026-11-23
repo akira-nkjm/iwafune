@@ -45,7 +45,7 @@ impl ThermalExposure {
     /// 入熱の中心天体。
     pub fn central(&self) -> CentralBody {
         match self {
-            Self::OrbitAverage { timeline } => timeline.orbit().central,
+            Self::OrbitAverage { timeline } => timeline.orbit().central(),
             Self::Fixed { central, .. } => *central,
         }
     }
@@ -119,9 +119,9 @@ pub(crate) fn mean_absorbed(
     env: &ThermalEnvironment,
     spec: &TimelineSpec,
 ) -> Result<Vec<f64>, AnalysisError> {
-    let env = env.resolve(spec.orbit().central)?;
+    let env = env.resolve(spec.orbit().central())?;
     let (t, geo) = timeline_geometry(spec)?;
-    let ranges = orbit_ranges(&t, spec.orbit().period_s());
+    let ranges = orbit_ranges(&t, spec.orbit().cycle());
     let per_sample: Vec<Vec<f64>> = geo.iter().map(|g| absorbed(net, &env, g)).collect();
     Ok((0..net.len())
         .map(|i| {
@@ -282,14 +282,15 @@ mod tests {
     fn timeline_beta_is_honoured() {
         use super::fixtures::{cube, leo_timeline};
         let mut tl = leo_timeline(1.0, 30.0);
-        tl.sampling.span = Qty::from_raw(tl.orbit().period_s());
+        tl.sampling.span = Qty::from_raw(tl.orbit().cycle().length_s());
         let net = Compiled::new(&cube(1.0)).unwrap();
         let env = ThermalEnvironment::default();
         let mean = |beta_deg: f64| {
             let mut spec = tl.clone();
             spec.sampling.beta = Some(Qty::from_raw(beta_deg.to_radians()));
-            let orbit = spec.resolved_orbit().unwrap();
-            let b = sat_astro::orbit::beta_angle_rad(&orbit, orbit.epoch).unwrap();
+            let resolved = spec.resolved_orbit().unwrap();
+            let orbit = resolved.elements().unwrap();
+            let b = sat_astro::orbit::beta_angle_rad(orbit, orbit.epoch).unwrap();
             assert!(
                 (b.to_degrees() - beta_deg).abs() < 0.5,
                 "{} vs {beta_deg}",
