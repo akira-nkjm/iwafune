@@ -332,10 +332,16 @@ During development, `pnpm -C web dev` (port 5173) proxies `/api` to `127.0.0.1:3
 | Communications | `comm.link_budget` (link budget) | `comm.visibility` (ground station visibility), `comm.data_throughput` (data transmitted and stored) |
 | Power | `power.mode_load` (power consumption per mode), `power.solar_sunlit` (generation while sunlit) | `power.orbit_generation` (on-orbit generation), `power.energy_balance` (power balance and DoD), `power.thrust_balance` (power balance during firing of numerically propagated maneuvers) |
 | Propulsion | `propulsion.maneuvers` (ΔV, burn time, propellant and orbits before and after for each maneuver), `propulsion.dv_budget` (the breakdown, total and margin of ΔV by category, and the ΔV of RCS unloading), `propulsion.propellant` (wet and dry propellant and the volume margin of the tanks), `propulsion.thruster_usage` (total impulse, cumulative burn time, number of burns and the ratings), `propulsion.mass_properties` (mass and center of mass with propellant loaded and after use) | `propulsion.orbit_history` (the orbit history in maneuver order. For numerically propagated maneuvers, the altitude, inclination and mass of the propagation with thrust) |
-| Structure | `structure.mass_properties` (mass properties), `structure.static_load` (quasi-static load), `structure.modal_estimate` (simple natural frequency. No FEM) | `structure.launch_fit` (mass, stowed envelope and natural frequencies against the launcher and dispenser) |
+| Structure | `structure.mass_properties` (mass properties), `structure.static_load` (quasi-static load), `structure.modal_estimate` (simple natural frequency. No FEM), `structure.modal_fem` (coarse finite-element modes of the whole body from axis-aligned panels, lumped masses and a support type; the input is given as JSON for now and is not yet built from design data) | `structure.launch_fit` (mass, stowed envelope and natural frequencies against the launcher and dispenser) |
 | Thermal | `thermal.steady` (multi-node steady-state temperature) | `thermal.transient` (multi-node transient temperature) |
 
 `fune analyze ls` and `GET /analyses` return the same list.
+
+`structure.modal_fem` (#370, stage 2) meshes axis-aligned rectangular panels with one common grid per body axis, so panels sharing an edge or meeting at a T-junction are joined rigidly at shared nodes (the joined pairs and the panel each lumped mass was attached to are in the output).
+The element is a flat 4-node shell with 6 degrees of freedom per node (bending MITC4, membrane Q4, a drilling penalty of `DRILLING_FACTOR` times G·t on the difference between the node rotation and the in-plane rotation) with a lumped diagonal mass; the lowest modes come from `sat_astro::math::lowest_modes`.
+Supports are `base_fixed`, `rails`, `tabs`, `fixed` (faces, edges, points) and `free`; an unconstrained or under-constrained model still solves and its near-zero modes are reported as rigid-body modes.
+Each mode carries the effective mass fraction per axis and a class (axial, lateral to the launch axis, local, rigid). It is a trend-and-order-of-magnitude tool, not a replacement for a detailed model.
+Until the projection exists (stage 3) the input can only be given as JSON.
 
 ### 6.2 The shape of an analysis
 
