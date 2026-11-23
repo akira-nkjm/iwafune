@@ -80,6 +80,7 @@ severity = ["error", "warning", "info"]
 maneuver_category = ["insertion", "station_keeping", "unloading", "deorbit", "other"]
 maneuver_method = ["impulsive", "finite_burn", "low_thrust", "propagated"]
 maneuver_steering = ["tangential", "inertial"]
+departure_by = ["spacecraft", "launcher"]
 constraint_kind = ["at_most", "at_least", "equal", "range"]
 mode_when = ["any", "sunlit", "eclipse"]
 start_from = ["eclipse_exit", "eclipse_entry"]
@@ -342,6 +343,10 @@ label_en = "Text"
 label    = "範囲"
 label_en = "Range"
 
+[enum.value_type.curve]
+label    = "曲線"
+label_en = "Curve"
+
 [enum.value_type.table]
 label    = "表"
 label_en = "Table"
@@ -482,3 +487,11 @@ label_en = "Tangential"
 [enum.maneuver_steering.inertial]
 label    = "慣性固定"
 label_en = "Inertial"
+
+[enum.departure_by.spacecraft]
+label    = "衛星"
+label_en = "Spacecraft"
+
+[enum.departure_by.launcher]
+label    = "打ち上げ機"
+label_en = "Launcher"

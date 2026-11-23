@@ -296,6 +296,7 @@ const labels: Record<string, string> = {
   dated_transfers: "Dated interplanetary transfers",
   dated_transfer: "Dated interplanetary transfer",
   departure: "Departure date",
+  departure_by: "Departure burn by",
   arrival: "Arrival date",
   time_of_flight: "Time of flight",
   c3: "Departure C3 (characteristic energy)",

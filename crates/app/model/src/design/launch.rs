@@ -33,6 +33,8 @@ impl LaunchInterface {
 pub mod attr {
     /// 搭載質量の上限（質量）
     pub const MAX_PAYLOAD_MASS: &str = "max_payload_mass";
+    /// 搭載質量の上限（C3 の関数。曲線）。打ち上げ機が出発を受け持つ惑星間遷移の C3 で引く
+    pub const PAYLOAD_MASS_BY_C3: &str = "payload_mass_by_c3";
     /// 収納外形の許容（箱。機体座標の x, y, z）
     pub const ENVELOPE: &str = "launch_envelope";
     /// 準静的荷重（機軸方向。`g0`）
@@ -46,8 +48,9 @@ pub mod attr {
     /// 分離時の角速度の上限（チップオフ）
     pub const MAX_TIP_OFF_RATE: &str = "max_tip_off_rate";
     /// すべて（組み込みの種別の属性と、定義のテストの照合に使う）
-    pub const ALL: [&str; 7] = [
+    pub const ALL: [&str; 8] = [
         MAX_PAYLOAD_MASS,
+        PAYLOAD_MASS_BY_C3,
         ENVELOPE,
         LOAD_AXIAL,
         LOAD_LATERAL,

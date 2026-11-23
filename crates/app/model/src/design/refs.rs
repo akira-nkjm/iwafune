@@ -6,7 +6,7 @@
 //!
 //! | 参照先 | 参照元（[`RefSite`]） |
 //! |---|---|
-//! | 部品 | 要求の `[verify].check` が名指す部品（`intrusion:<部品>`・`heater:<部品>`・`interface:<取付先>`・`panel:<部品>` など）・モードの `[states]` と `[eclipse]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part` / `antenna`・`analysis/thermal.toml` の `[nodes]` と `[surface]` と `[heat_node]` のキー・図の `[nodes]` のキー・マヌーバの `thruster` |
+//! | 部品 | 要求の `[verify].check` が名指す部品（`intrusion:<部品>`・`heater:<部品>`・`interface:<取付先>`・`panel:<部品>` など）・モードの `[states]` と `[eclipse]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part` / `antenna`・`analysis/thermal.toml` の `[nodes]` と `[surface]` と `[heat_node]` のキー・図の `[nodes]` のキー・マヌーバの `thruster`・形態の `[pose]` のキー |
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
 //! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode`・フェーズの `modes` と `[law]` のキー |
 //! | フェーズ | ケースの `phase` |
@@ -87,6 +87,8 @@ enum_text! {
 pub enum RefSite {
     /// モードの表の行（`modes/<モード>.toml` の `[states]`・`[eclipse]` のキー）
     ModeRow { mode: String },
+    /// 形態の姿勢の行（`configurations/<形態>.toml` の `[pose]` のキー）
+    ConfigurationPose { configuration: String },
     /// ネットの供給元・マスター（値はポートの参照 `port`）
     NetPort {
         net: String,
@@ -229,6 +231,14 @@ impl Design {
                 mode: m.id.to_string(),
             })
             .collect();
+        out.extend(
+            self.configurations
+                .values()
+                .filter(|c| c.pose.contains_key(id))
+                .map(|c| RefSite::ConfigurationPose {
+                    configuration: c.id.to_string(),
+                }),
+        );
         for net in self.nets.values() {
             for (end, port) in [(NetEnd::Source, &net.source), (NetEnd::Master, &net.master)] {
                 if let Some(port) = port.as_ref().filter(|p| p.part == id) {

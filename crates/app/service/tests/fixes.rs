@@ -443,6 +443,7 @@ fn the_orbit_maneuver_picks_among_dated_transfers_and_the_source_has_no_fix() {
     dated.transfer = Some(fune_model::design::ManeuverTransfer {
         departure: Some("2028-12-10T00:00:00Z".to_owned()),
         arrival: Some("2029-09-25T00:00:00Z".to_owned()),
+        departure_by: None,
     });
     design.maneuvers.insert(dated.id.clone(), dated);
     let target =

@@ -26,6 +26,7 @@ fn maneuver(id: &str, transfer: bool) -> Maneuver {
         transfer: transfer.then(|| ManeuverTransfer {
             departure: Some("2028-12-10T00:00:00Z".to_owned()),
             arrival: Some("2029-09-25T00:00:00Z".to_owned()),
+            departure_by: None,
         }),
     }
 }

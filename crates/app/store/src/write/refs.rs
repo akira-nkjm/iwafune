@@ -2,7 +2,7 @@
 //! [`RefSite`]）が決め、ここは参照元のファイル（`layout`）とキーを書き換えるだけ。**
 
 use super::Edits;
-use super::doc::{rename_key, replace_in_array, set, string, table_opt};
+use super::doc::{drop_if_empty, rename_key, replace_in_array, set, string, table_opt};
 use super::part::{rename_mount_target, set_port};
 use crate::error::StoreError;
 use crate::layout;
@@ -126,7 +126,7 @@ pub fn rename_station(
     rename_sites(edits, design, Referent::Station(from), to, None)
 }
 
-/// 部品の削除に伴い、モードの行と配分を消す。ほかの参照（ネットの端・取付・解析の設定）は残すので、
+/// 部品の削除に伴い、モードの行・形態の姿勢の行と配分を消す。ほかの参照（ネットの端・取付・解析の設定）は残すので、
 /// 参照先が無くなれば検査の誤りになり、削除の計画が拒まれる。
 pub fn forget_part(edits: &mut Edits, design: &Design, id: &str) -> Result<(), StoreError> {
     for site in design.references(Referent::Part(id)) {
@@ -134,6 +134,15 @@ pub fn forget_part(edits: &mut Edits, design: &Design, id: &str) -> Result<(), S
             RefSite::ModeRow { mode } => {
                 super::entities::set_mode_row(edits, &layout::mode_file(&mode), id, false, None)?;
                 super::entities::set_mode_row(edits, &layout::mode_file(&mode), id, true, None)?;
+            }
+            RefSite::ConfigurationPose { configuration } => {
+                edits.edit(&layout::configuration_file(&configuration), |doc| {
+                    if let Some(t) = table_opt(doc, &["pose"]) {
+                        t.remove(id);
+                    }
+                    drop_if_empty(doc, &["pose"]);
+                    Ok(())
+                })?;
             }
             RefSite::Allocation { kind } => edits.edit(layout::ALLOCATION_FILE, |doc| {
                 if let Some(t) = table_opt(doc, &[kind.as_str(), "alloc"]) {
@@ -210,6 +219,7 @@ fn rename_at(
 ) -> Result<(), StoreError> {
     match site {
         RefSite::ModeRow { .. }
+        | RefSite::ConfigurationPose { .. }
         | RefSite::NetPort { .. }
         | RefSite::HarnessPort { .. }
         | RefSite::MountOn { .. }
@@ -273,6 +283,13 @@ fn rename_key_at(
             rename_in(edits, &layout::mode_file(mode), &["states"], from, to)?;
             rename_in(edits, &layout::mode_file(mode), &["eclipse"], from, to)
         }
+        RefSite::ConfigurationPose { configuration } => rename_in(
+            edits,
+            &layout::configuration_file(configuration),
+            &["pose"],
+            from,
+            to,
+        ),
         RefSite::NetPort { net, end, port } => set_top(
             edits,
             &layout::net_file(net),

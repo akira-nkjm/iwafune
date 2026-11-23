@@ -73,6 +73,19 @@ fn check_transfer(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
             "[transfer] needs target.body (the body to arrive at)",
         );
     }
+    if tr.departs_by_launcher()
+        && m.after
+            .as_deref()
+            .is_some_and(|a| ctx.design.maneuvers.contains_key(a))
+    {
+        ctx.warning(
+            "maneuver.departure_by_launcher_after",
+            entity,
+            &["transfer"],
+            Some(Target::maneuver(id, Some("transfer.departure_by"))),
+            "The launcher injects the spacecraft onto the departure asymptote, so a maneuver before this one (`after`) does not fit; the maneuvers before it are still counted",
+        );
+    }
     if m.method == ManeuverMethod::Propagated {
         ctx.error(
             "maneuver.transfer_method",

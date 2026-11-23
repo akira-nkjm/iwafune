@@ -152,6 +152,7 @@ mod tests {
             transfer: Some(ManeuverTransfer {
                 departure: Some(tr.0.to_owned()),
                 arrival: Some(tr.1.to_owned()),
+                departure_by: None,
             }),
         }
     }

@@ -49,6 +49,7 @@ fn mars_transfer(departure: &str, arrival: &str) -> Maneuver {
         transfer: Some(ManeuverTransfer {
             departure: Some(departure.to_owned()),
             arrival: Some(arrival.to_owned()),
+            departure_by: None,
         }),
     }
 }
