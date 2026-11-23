@@ -114,6 +114,21 @@ A time series about the Sun with no number of orbits written runs **one** orbit 
 and its step is the usual period/200 (a year-long orbit is sampled about every 1.6 days; a `time_step` of 30 s over a year is rejected as too many samples).
 The thermal transient integrates the whole span with the same adaptive method, so its cost grows with the span (about a minute in a debug build for one year of the demo; seconds in a release build).
 
+#### Mission geometry (`orbit.geometry`)
+
+`orbit.geometry` is `AnalysisArea::Condition(ConditionTopic::Orbit)` and has no settings. It reports how far the spacecraft is from the Sun and the Earth, and at which angles, over each phase.
+The distances and angles are computed in one place, `sat_astro::timeline::geometry`, from the orbit as a function of time (`Trajectory`), with the Sun and Earth positions from the ephemeris (DE440 if registered, otherwise the analytic one; the output says which, in `ephemeris`).
+
+- **Legs.** One leg per phase in the phase order (`order`, then ID). The orbit of a leg is the orbit in effect for that phase (the phase's `[orbit]` if it has one, otherwise `conditions/orbit.toml`), and the leg starts at that orbit's epoch.
+  A design without phases has one leg for the design orbit (`phase` is empty). A selected case does not pick a leg: all phases are reported.
+- **Span.** The orbit's one-off span if it has one, otherwise the phase `duration` if written, otherwise one orbit; `span_basis` says which (`one_off`, `phase_duration`, `one_cycle`). The span is split into 720 equal samples (`sample_step`).
+- **Definitions.** Distances are from the probe to the centre of the body (the Earth is the origin of the ephemeris; for an orbit about the Earth the Earth distance is the orbit radius, and for an orbit about the Sun the Sun distance is the orbit radius).
+  `sep` (SEP) is the angle at the Earth's centre between the Sun and the probe (near 0° at solar conjunction, near 180° at opposition); `spe` (SPE) is the angle at the probe between the Sun and the Earth (the phase angle used for antenna and array geometry).
+  For an orbit about the Earth, SEP is the geocentric Sun–satellite angle and goes around once per orbit, so it is not a conjunction angle there. The one-way light time to the Earth is the Earth distance divided by the speed of light.
+- **Output per leg.** `sun_distance` and `earth_distance` each with `min` and `max` (a `value` and the `epoch` of it), `sep_min` (the closest approach to conjunction), `light_time_max`, and a `series` (time from the leg start; channels `sun_distance`, `earth_distance`, `sep`, `spe`).
+  The extremes are refined between the samples around the extreme sample (golden section, one extremum assumed there); a variation faster than the sample step, such as the orbit of a low Earth satellite in SEP, is not resolved.
+  The analysis judges nothing and has no notes. Later stages read `legs[].earth_distance.max` (the farthest distance and its date) and `legs[].sun_distance.max.epoch` by phase ID.
+
 #### Altitude decay by atmospheric drag and orbit maintenance (`orbit.decay`)
 
 `orbit.decay` is also `AnalysisArea::Condition(ConditionTopic::Orbit)`. Its settings are `[decay]` in `conditions/orbit.toml` (all optional; the defaults are held by the analysis).

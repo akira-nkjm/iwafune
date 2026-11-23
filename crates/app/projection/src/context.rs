@@ -7,7 +7,9 @@ use crate::quantity::{setting, setting_opt};
 use crate::reads::ReadLog;
 use fune_model::Target;
 use fune_model::design::setting_dims as dims;
-use fune_model::design::{AnalysisSystem, AttitudeLawKind, AttitudeLawSetting, Case, Design, Mode};
+use fune_model::design::{
+    AnalysisSystem, AttitudeLawKind, AttitudeLawSetting, Case, Design, Mode, Phase,
+};
 use fune_model::design::{BudgetKind, CentralBodyKind, Criterion};
 use fune_model::path::SettingPath;
 use fune_model::resolve::Resolved;
@@ -47,6 +49,8 @@ pub struct Context<'a> {
     pub case: Option<&'a Case>,
     /// 読んだものの記録先（無ければ記録しない）
     reads: Option<&'a ReadLog>,
+    /// 効いているフェーズの指定（[`Context::in_phase`]。あればケースのフェーズより優先する）
+    phase_override: Option<&'a Phase>,
 }
 
 impl<'a> Context<'a> {
@@ -57,6 +61,19 @@ impl<'a> Context<'a> {
             resolved,
             case: None,
             reads: None,
+            phase_override: None,
+        }
+    }
+
+    /// フェーズ `phase` が効いている文脈（ケース・記録先はそのまま。軌道・姿勢則はケースのフェーズの代わりにこのフェーズのものを読む）。
+    /// ケースを持たずにフェーズごとの軌道を並べる解析（`orbit.geometry`）が使う。**ケースを介さずフェーズを指定する入口はここだけ。**
+    pub fn in_phase(&self, phase: &'a Phase) -> Self {
+        Self {
+            design: self.design,
+            resolved: self.resolved,
+            case: self.case,
+            reads: self.reads,
+            phase_override: Some(phase),
         }
     }
 
@@ -151,6 +168,7 @@ impl<'a> Context<'a> {
             resolved,
             case,
             reads: None,
+            phase_override: None,
         })
     }
 

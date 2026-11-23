@@ -163,6 +163,7 @@ table!(
     astructure::LaunchFit => Some(crate::launch_fit::launch_fit),
     sat_analysis::orbit::EclipseSeason => Some(crate::orbit::eclipse_season),
     sat_analysis::orbit::OrbitDecay => Some(crate::orbit::decay),
+    sat_analysis::orbit::Geometry => Some(crate::orbit::geometry),
     sat_analysis::propulsion::Maneuvers => Some(propulsion::maneuvers),
     sat_analysis::propulsion::DvBudget => Some(propulsion::dv_budget),
     sat_analysis::propulsion::Propellant => Some(propulsion::maneuvers),

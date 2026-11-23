@@ -46,6 +46,7 @@ registry!(
     comm::DataThroughput,
     crate::orbit::EclipseSeason,
     crate::orbit::OrbitDecay,
+    crate::orbit::Geometry,
     power::ModeLoad,
     power::SolarSunlit,
     power::OrbitGeneration,

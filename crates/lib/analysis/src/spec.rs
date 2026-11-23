@@ -181,6 +181,14 @@ pub enum ChannelKind {
     HeliocentricY,
     /// 到着天体までの距離（惑星間の遷移の確認）
     ArrivalRange,
+    /// 太陽の中心までの距離
+    SunDistance,
+    /// 地球の中心までの距離
+    EarthDistance,
+    /// 太陽–地球–探査機の角（SEP。地球で太陽と探査機がなす角）
+    SunEarthProbeAngle,
+    /// 太陽–探査機–地球の角（SPE。探査機で太陽と地球がなす角）
+    SunProbeEarthAngle,
 }
 
 impl Channel {
