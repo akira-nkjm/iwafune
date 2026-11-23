@@ -8,6 +8,7 @@ pub use crate::body::CentralBody;
 use crate::constants::*;
 use crate::constants::{A_MOON, GM_SUN, SUN_MEAN_MOTION};
 use crate::math::Vec3;
+use crate::state::OrbitState;
 use crate::time::Epoch;
 impl CentralBody {
     /// 親の天体（[`CentralBody::parent`]）を回る軌道の長半径 [m]。月は [`A_MOON`]、地球と惑星は
@@ -47,6 +48,25 @@ impl CentralBody {
         let h = 60.0;
         (self.position_eci_m(epoch.plus_seconds(h)) - self.position_eci_m(epoch.plus_seconds(-h)))
             / (2.0 * h)
+    }
+
+    /// 親の天体（[`CentralBody::parent`]）に対する位置・速度（ECI の向き）[m, m/s]。
+    /// 惑星・地球は太陽から、月は地球から見る。位置は [`CentralBody::position_eci_m`] の差、
+    /// 速度は [`CentralBody::velocity_eci_m_s`]（暦の中心差分）の差。親が無い（太陽）なら `None`。
+    pub fn state_about_parent(self, epoch: Epoch) -> Option<OrbitState> {
+        let parent = self.parent()?;
+        Some(OrbitState {
+            r_eci: self.position_eci_m(epoch) - parent.position_eci_m(epoch),
+            v_eci: self.velocity_eci_m_s(epoch) - parent.velocity_eci_m_s(epoch),
+        })
+    }
+
+    /// 影響圏の半径 `a (m/M)^(2/5)` [m]（Laplace の影響圏。`a` は [`CentralBody::orbit_radius_m`]、
+    /// `m`・`M` は天体と親の重力定数）。親が無い（太陽）なら `None`。
+    pub fn soi_radius_m(self) -> Option<f64> {
+        let a = self.orbit_radius_m()?;
+        let parent = self.parent()?;
+        Some(a * (self.gm() / parent.gm()).powf(0.4))
     }
 
     /// 中心天体から見た天体 `body` の位置（ECI の向き）[m]。
@@ -103,6 +123,46 @@ mod tests {
         assert!(crate::ephem::sun_direction_from(CentralBody::Sun, e).is_none());
         let s = crate::ephem::sun_direction_from(CentralBody::Moon, e).expect("direction");
         assert!((s.norm() - 1.0).abs() < 1e-12);
+    }
+
+    /// 影響圏 `a (m/M)^(2/5)` の手計算: 地球 `a = 1.0000 AU`、`m/M = 3.986e14/1.327e20 = 3.003e-6`、
+    /// `(m/M)^0.4 = exp(0.4 · ln 3.003e-6) = exp(−5.0865) = 6.18e-3` → `9.25e8 m`（Vallado §12.3 の 9.25e5 km）。
+    /// 月は `A_MOON · (GM☾/μ⊕)^0.4 = 3.844e8 · 0.01230^0.4 ≈ 6.6e7 m`。
+    #[test]
+    fn soi_radii_follow_the_hand_calculation() {
+        let earth = CentralBody::Earth.soi_radius_m().expect("soi");
+        assert!((earth / 1e3 - 9.25e5).abs() < 0.02e5, "{earth}");
+        let direct =
+            CentralBody::Earth.orbit_radius_m().expect("a") * (MU_EARTH / GM_SUN).powf(0.4);
+        assert_eq!(earth, direct);
+        let moon = CentralBody::Moon.soi_radius_m().expect("soi");
+        assert!((moon / 1e3 - 6.6e4).abs() < 0.2e4, "{moon}");
+        assert!(CentralBody::Sun.soi_radius_m().is_none());
+    }
+
+    /// 地球の日心状態: 距離は約 1 AU、速さは約 29.8 km/s、速度は位置を短い区間で積分したものと合う。
+    /// 月の地心状態は `position_eci_m`・`velocity_eci_m_s` そのもの。太陽は `None`。
+    #[test]
+    fn state_about_parent_is_consistent() {
+        let e = Epoch::parse("2027-04-01T00:00:00Z").expect("epoch");
+        let s = CentralBody::Earth.state_about_parent(e).expect("state");
+        assert!((s.r_eci.norm() / AU - 1.0).abs() < 0.02);
+        let v = s.v_eci.norm();
+        assert!(v > 29.2e3 && v < 30.4e3, "{v}");
+        let later = CentralBody::Earth
+            .state_about_parent(e.plus_seconds(600.0))
+            .expect("state");
+        // 区間の平均の速度は両端の速度の平均（台形則。曲率の誤差は 1e-4 m/s 以下）
+        let mean_v = (s.v_eci + later.v_eci) * 0.5;
+        assert!(((later.r_eci - s.r_eci) / 600.0 - mean_v).norm() < 0.01);
+        // 速度は軌道面内（r · v は小さい）で、日心の速さは vis-viva と合う
+        let a = CentralBody::Earth.orbit_radius_m().expect("a");
+        let vv = crate::transfer::vis_viva_m_s(GM_SUN, s.r_eci.norm(), a);
+        assert!((v - vv).abs() < 150.0, "{v} {vv}");
+        let moon = CentralBody::Moon.state_about_parent(e).expect("state");
+        assert_eq!(moon.r_eci, CentralBody::Moon.position_eci_m(e));
+        assert_eq!(moon.v_eci, CentralBody::Moon.velocity_eci_m_s(e));
+        assert!(CentralBody::Sun.state_about_parent(e).is_none());
     }
 
     #[test]

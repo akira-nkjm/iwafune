@@ -54,6 +54,19 @@ pub fn lambert(
     tof_s: f64,
     prograde: bool,
 ) -> Result<LambertSolution, AstroError> {
+    lambert_about_normal(mu, r1_m, r2_m, tof_s, prograde, Vec3::Z)
+}
+
+/// [`lambert()`] の「順行」を、座標系の z 軸でなく向き `normal`（単位ベクトル。日心の弧なら黄道の北）の側で決める版。
+/// `prograde` が真なら角運動量の `normal` 成分が正の向きに回る解を選ぶ。
+pub fn lambert_about_normal(
+    mu: f64,
+    r1_m: Vec3,
+    r2_m: Vec3,
+    tof_s: f64,
+    prograde: bool,
+    normal: Vec3,
+) -> Result<LambertSolution, AstroError> {
     let invalid =
         |why: &str| AstroError::InvalidInput(format!("Cannot solve the Lambert problem ({why})"));
     if !(mu > 0.0 && tof_s > 0.0 && tof_s.is_finite()) {
@@ -64,7 +77,7 @@ pub fn lambert(
     let (r1, r2) = (r1_m.norm(), r2_m.norm());
     let cos_dnu = (r1_m.dot(r2_m) / (r1 * r2)).clamp(-1.0, 1.0);
     let mut dnu = cos_dnu.acos();
-    let z_up = r1_m.cross(r2_m).z;
+    let z_up = r1_m.cross(r2_m).dot(normal);
     if (prograde && z_up < 0.0) || (!prograde && z_up >= 0.0) {
         dnu = 2.0 * PI - dnu;
     }

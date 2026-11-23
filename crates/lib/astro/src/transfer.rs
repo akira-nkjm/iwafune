@@ -14,6 +14,8 @@
 //! - 中心天体を替える遷移（[`patched_conic`]）: 天体の円軌道どうしのホーマン遷移と、出発・到着の双曲線の近点の噴射
 //!   （パッチドコニック。地球 → 月・地球 → 火星など。[`patched`]）。
 //! - Lambert の問題（[`lambert()`]）: 2 点と飛行時間から両端の速度（普遍変数。[`lambert`] モジュール）。
+//! - 日付を決めた惑星間の遷移（[`dated_transfer`]）: 出発・到着の日の天体の状態から日心の Lambert を解き、
+//!   v∞・C3・出発の赤緯・両端の噴射を求める（[`dated`] モジュール）。
 //!
 //! 値は SI（m・m/s・s・rad・kg・N）。重力定数 `mu` は中心天体のもの [m³/s²]。
 
@@ -21,10 +23,12 @@ use crate::AstroError;
 use crate::rocket::{burn_time, propellant_for};
 use core::f64::consts::PI;
 
+pub mod dated;
 pub mod lambert;
 pub mod patched;
-pub use lambert::{LambertSolution, lambert};
-pub use patched::{PatchedBurn, PatchedConic, patched_conic};
+pub use dated::{DatedTransfer, dated_transfer};
+pub use lambert::{LambertSolution, lambert, lambert_about_normal};
+pub use patched::{PatchedBurn, PatchedConic, hyperbolic_periapsis_dv_m_s, patched_conic};
 
 /// ΔV がこれ以下の噴射は数えない [m/s]（同じ軌道どうしの丸めの誤差）。
 const NEGLIGIBLE_DV_M_S: f64 = 1e-9;
@@ -352,6 +356,8 @@ pub fn finite_burn(
     ))
 }
 
+#[cfg(test)]
+mod dated_tests;
 #[cfg(test)]
 mod interplanetary_tests;
 #[cfg(test)]
