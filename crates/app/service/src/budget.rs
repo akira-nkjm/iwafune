@@ -61,7 +61,7 @@ pub(crate) fn mass_part_lines(s: &Snapshot) -> Result<(Vec<PartLine>, f64)> {
         Ok(ctx) => ctx,
         Err(_) => return Ok((Vec::new(), 0.0)),
     };
-    let items = mass_items(s, &ctx);
+    let items = mass_items(&ctx);
     let alloc = s.design.budget.allocation.get(BudgetKind::Mass);
     let (limit, margin) = allocated(&s.design, BudgetKind::Mass);
     let total = rollup(&items, limit, margin)?.total;
@@ -125,7 +125,7 @@ fn count(s: &Snapshot, kind: BudgetKind, case: Option<&str>) -> Result<Counted, 
     Ok(match kind {
         BudgetKind::Mass => Counted {
             propellant: Some(propellant::load(&ctx)),
-            ..plain(mass_items(s, &ctx), uncounted::mass(s))
+            ..plain(mass_items(&ctx), uncounted::mass(s))
         },
         BudgetKind::Power => {
             let out = power::mode_load(&ctx)?;
@@ -165,30 +165,20 @@ fn row_of(design: &Design, alloc: Option<&Allocation>, part: &str) -> Option<Str
         .or_else(|| design.system_of(part).map(|s| s.to_string()))
 }
 
-/// 1 部品の値。配分の行は `rows` が `row_of` で決める（`budget_rollup` の `by_group` は使わない）。
+/// 1 部品の値。配分の行は `rows` が `row_of` で決める（`budget_rollup` の `by_group` は使わない）。行の組み立ては `fune_projection::parts::budget_item`。
 fn item(s: &Snapshot, part: &str, value: f64, count: u32) -> BudgetItem {
-    let growth = s
-        .resolved
-        .parts
-        .get(part)
-        .and_then(|p| fune_projection::parts::growth(&s.design, p))
-        .unwrap_or(0.0);
-    BudgetItem {
-        id: part.to_owned(),
-        group: String::new(),
-        value,
-        count,
-        growth,
+    match s.resolved.parts.get(part) {
+        Some(p) => BudgetItem {
+            count,
+            ..fune_projection::parts::budget_item(&s.design, p, value)
+        },
+        None => BudgetItem::counted(part, value, count),
     }
 }
 
-/// 質量: 部品ごとの 1 個あたりの質量と員数。質量はケースの `side` が指す側で読む（`Context::scalar`。電力・データ量と同じ入口）。
-fn mass_items(s: &Snapshot, ctx: &Context<'_>) -> Vec<BudgetItem> {
-    s.resolved
-        .parts
-        .values()
-        .filter_map(|p| Some(item(s, &p.id, ctx.scalar(p, "mass")?, p.count_or_one())))
-        .collect()
+/// 質量: 部品ごとの 1 個あたりの質量と員数。行は `fune_projection::parts::mass_budget_items`（`structure.launch_fit` と同じ行）。
+fn mass_items(ctx: &Context<'_>) -> Vec<BudgetItem> {
+    fune_projection::parts::mass_budget_items(ctx, &mut MissingInputs::new())
 }
 
 /// データ量: 部品ごとの 1 日の発生量（HK＋ミッション、員数込み）。

@@ -7,6 +7,7 @@ use fune_model::Target;
 use fune_model::builtin::Role;
 use fune_model::design::UncertaintySide;
 use fune_model::resolve::{ResolvedPart, SiScalar, SiValue};
+use sat_analysis::budget::BudgetItem;
 use sat_analysis::modes::StateValues;
 use sat_astro::math::Vec3;
 use sat_units::typed::{Dimension, Qty};
@@ -189,6 +190,28 @@ pub fn extensive_qty<D: Dimension>(
 pub fn growth(design: &fune_model::Design, p: &ResolvedPart) -> Option<f64> {
     p.maturity
         .and_then(|mat| design.budget.policy.growth.get(mat))
+}
+
+/// 質量バジェットの 1 行（1 個あたりの値・員数・成熟度から引いた成長余裕）。**行の組み立てはここだけ**
+/// （service のバジェットと `structure.launch_fit` の入力が同じ行を使う）。
+pub fn budget_item(design: &fune_model::Design, p: &ResolvedPart, value: f64) -> BudgetItem {
+    BudgetItem {
+        id: p.id.clone(),
+        group: String::new(),
+        value,
+        count: p.count_or_one(),
+        growth: growth(design, p).unwrap_or_default(),
+    }
+}
+
+/// 質量バジェットの部品の行（質量はケースの `side` が指す側。質量の無い部品は数えず、
+/// 質量の属性があるのに値が決まらない部品は `m` に記録する）。**質量バジェットの行の集まりはここだけ**。
+pub fn mass_budget_items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<BudgetItem> {
+    ctx.resolved
+        .parts
+        .values()
+        .filter_map(|p| Some(budget_item(ctx.design, p, mass_or_missing(ctx, p, m)?)))
+        .collect()
 }
 
 /// 設計の冗長の方式を解析の列挙へ写す。
