@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createThemeStore,
+  DARK_QUERY,
   parseThemePref,
   resolveScheme,
   THEME_STORAGE_KEY,
@@ -170,6 +171,13 @@ describe("最初の描画の前に属性を付ける script", () => {
   it("保存が読めなくても OS に従う", () => {
     expect(run(null, true, true)).toBe("dark");
     expect(run(null, false, true)).toBe("light");
+  });
+
+  it("保存のキーとメディアクエリは、状態の本体と同じものを使う（script は固定の文字列で持つ）", () => {
+    expect(themeBootScript()).toContain(
+      `localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})`,
+    );
+    expect(themeBootScript()).toContain(`matchMedia(${JSON.stringify(DARK_QUERY)})`);
   });
 
   it("色の値を持たない", () => {

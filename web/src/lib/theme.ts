@@ -15,7 +15,7 @@ export const themePrefs: readonly ThemePref[] = ["system", "light", "dark"];
 export const DEFAULT_THEME_PREF: ThemePref = "system";
 export const THEME_STORAGE_KEY = "iwafune.theme";
 /** OS が暗い配色を望むかを問うメディアクエリ */
-const DARK_QUERY = "(prefers-color-scheme: dark)";
+export const DARK_QUERY = "(prefers-color-scheme: dark)";
 
 /** 保存した値を選びに直す（知らない値と未保存は OS に従う） */
 export function parseThemePref(v: unknown): ThemePref {
@@ -30,10 +30,15 @@ export function resolveScheme(pref: ThemePref, systemDark: boolean): Scheme {
 
 /**
  * <head> に入れる小さな script の本文。React が動く前に <html data-theme> を付けて、読み込み中に明るい画面が一瞬出るのを防ぐ。
- * 判定は `parseThemePref`・`resolveScheme` と同じ（保存が無い・壊れている・読めないときは OS に従う）
+ * 判定は `parseThemePref`・`resolveScheme` と同じ（保存が無い・壊れている・読めないときは OS に従う）。
+ * 値を埋め込んで組み立てず、固定の文字列で持つ（script の本文に値を差し込むと、差し込む値の無害化が要る）。
+ * 中の保存のキーとメディアクエリが `THEME_STORAGE_KEY`・`DARK_QUERY` と同じことは theme.test.ts が確かめる
  */
+const BOOT_SCRIPT =
+  '(function(){try{var p=null;try{p=localStorage.getItem("iwafune.theme")}catch(e){}var d=p==="dark"||(p!=="light"&&window.matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light")}catch(e){}})()';
+
 export function themeBootScript(): string {
-  return `(function(){try{var p=null;try{p=localStorage.getItem(${JSON.stringify(THEME_STORAGE_KEY)})}catch(e){}var d=p==="dark"||(p!=="light"&&window.matchMedia(${JSON.stringify(DARK_QUERY)}).matches);document.documentElement.setAttribute("data-theme",d?"dark":"light")}catch(e){}})()`;
+  return BOOT_SCRIPT;
 }
 
 /** 配色の状態が頼る環境（ブラウザでは localStorage・matchMedia・<html>。無ければ null） */
