@@ -16,6 +16,7 @@ use sat_analysis::power::energy_balance::{
 use sat_analysis::power::sizing::SizingLifetimeSource;
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
+use sat_analysis::structure::interference::InterferenceSkipReason;
 use sat_analysis::structure::launch_fit::LaunchFitDirection;
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
 use sat_analysis::thermal::ThermalHeaterState;
@@ -306,6 +307,13 @@ fn launch_fit_direction(d: LaunchFitDirection) -> AnalysisLabel {
     }
 }
 
+fn interference_skip_reason(r: InterferenceSkipReason) -> AnalysisLabel {
+    match r {
+        InterferenceSkipReason::NoSize => label("寸法が無い", "No size"),
+        InterferenceSkipReason::InvalidSize => label("寸法が正の値でない", "Size is not positive"),
+    }
+}
+
 mod orbit;
 mod propulsion;
 
@@ -354,6 +362,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "SolarLife" => parse(value).map(solar_life),
         "ModalEstimateKind" => parse(value).map(modal_kind),
         "LaunchFitDirection" => parse(value).map(launch_fit_direction),
+        "InterferenceSkipReason" => parse(value).map(interference_skip_reason),
         "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
         "DurationTiming" => parse(value).map(duration_timing),

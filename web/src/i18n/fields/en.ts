@@ -346,6 +346,21 @@ const labels: Record<string, string> = {
   per_day: "Firing to dump one day",
   delta_v_per_day: "ΔV equivalent per day",
   required: "Required",
+  parts_judged: "Parts judged",
+  pairs_judged: "Pairs judged",
+  pairs_in_mount_chain: "Pairs in a mount chain (not judged)",
+  overlaps: "Overlapping pairs",
+  first: "Part 1",
+  second: "Part 2",
+  depth: "Overlap depth",
+  separation_axis: "Separation direction (body frame)",
+  min_clearance: "Closest pair that does not overlap",
+  gap: "Gap",
+  skipped: "Parts not judged",
+  reason: "Reason",
+  repeated: "Parts with several copies (one box)",
+  count: "Count",
+  tolerance: "Overlap tolerance",
 };
 
 export const fieldsEn: typeof fieldsJa = {

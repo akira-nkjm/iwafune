@@ -344,6 +344,21 @@ const labels: Record<string, string> = {
   per_day: "1 日分を捨てる噴射",
   delta_v_per_day: "1 日の ΔV 換算",
   required: "要求",
+  parts_judged: "判定した部品の数",
+  pairs_judged: "判定した組の数",
+  pairs_in_mount_chain: "取付の連鎖にあり判定しなかった組の数",
+  overlaps: "重なっている組",
+  first: "部品 1",
+  second: "部品 2",
+  depth: "重なりの深さ",
+  separation_axis: "分離の向き（機体座標）",
+  min_clearance: "重なっていない組のうち最も近いもの",
+  gap: "隙間",
+  skipped: "判定しなかった部品",
+  reason: "理由",
+  repeated: "員数が 2 以上の部品（箱は 1 つ）",
+  count: "員数",
+  tolerance: "重なりの許容差",
 };
 
 export const fieldsJa = {

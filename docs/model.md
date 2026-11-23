@@ -989,6 +989,29 @@ They are edited with `fune set conditions.launch.launcher <catalog>/<id>` and `f
 
 Not modeled yet: random vibration (PSD), interface details (the mechanical interface, separation springs) and shock. The angular rate at separation is only stored.
 
+### 5.7 Part interference (`structure.interference`, #384)
+
+`structure.interference` checks whether the boxes of the parts overlap. Every part that has a `size` is a box: its centre is the part's origin, its edges are `size` along the part's own axes, and its position and orientation in the body frame
+come from the mount chain (`fune_projection::structure::boxes`, which reads them only through `Resolved` / `pose::body_pose`, so the analysis follows whichever configuration the resolved design is in; mass properties use the same placement).
+
+**An overlap is only a warning.** Boxes are larger than the real shapes (cylinders, cut-outs, lightened walls), so a hit may not be a real contact. Nothing about it is an error: `fune check` has no diagnostic for it, the analysis run is `ok`, and
+the verdict of every overlapping pair is `warning` (check key `overlap:<first>:<second>`; the text says "box approximation"). With no overlap there is one `ok` check (`interference`). A violation is never produced.
+
+- **Judgement**: oriented-box separation by the separating-axis test over 15 axes (3 + 3 face normals, 3 × 3 edge cross products; `sat_analysis::structure::interference::obb`, the only place).
+  The signed separation is the largest gap over the axes. Negative means overlap: the depth is the smallest translation that separates the boxes, and its direction is `separation_axis` (body frame, from `first` to `second`: moving `second` that far along it separates them).
+  For boxes that do not overlap, the gap is the best separating axis's gap, a **lower bound** of the true distance (exact when two faces face each other). All pairs are compared, O(n²) with a constant 15 axes per pair, with no broad phase (fine up to a few hundred parts).
+- **Tolerance**: an overlap is reported only when its depth is **greater than** the tolerance. The default is 0.1 mm: small enough to be far below the coarseness of the boxes, large enough to ignore rounding in positions and faces that merely touch.
+  It can be set in `analysis/structure.toml` as `interference_tolerance = { value = 1.0, unit = "mm" }` (`fune set analysis.structure.interference_tolerance "1 mm"`).
+  Panel boxes are centred on the face of the part they are mounted on, so neighbouring panels overlap at their corners by half a panel thickness; a tolerance above that hides it. Nothing is hidden by default.
+- **Mount ancestors and descendants are not judged.** A part is placed relative to the part it is mounted on, frames and panels hold their children in their box, and a child touches or sinks into its mount face by design. A pair is skipped when one part is on the other's mount chain
+  (the direct mount, or any ancestor, even through a part that has no size). Siblings and parts on different branches are always judged. The limit of this rule: whether a child sticks out of, or crosses, its own ancestor's box is not seen,
+  because a box cannot tell containment from interference. The number of skipped pairs is reported (`pairs_in_mount_chain`).
+- **`count` > 1**: the copies share one pose, so the part is one box: it is not compared with itself, and it is listed in `repeated`. Overlaps between copies are not judged.
+- **No `size`**: the part is listed in `skipped` (reason `no_size`; a `size` that is not positive is `invalid_size`). It is not a missing input. With fewer than two boxes the result is empty and successful.
+- **Output**: `overlaps` (pairs, deepest first: `first`, `second`, `depth`, `separation_axis`), `parts_judged`, `pairs_judged`, `pairs_in_mount_chain`, `tolerance` (the one used), `min_clearance` (the closest non-overlapping pair), `skipped`, `repeated` and `checks`.
+
+Not modeled: real shapes (STEP, #344), the path during deployment, and sensor fields of view or thruster plumes (the same boxes can serve them). A pair cannot yet be marked as "checked, intended".
+
 ## 6. Product tree and mounting
 
 ### 6.1 Two hierarchies
@@ -1427,7 +1450,7 @@ Design values and modelling inputs stay settings or part attributes (see the tab
   `conditions.orbit.decay.max_lifetime`, `conditions.launch.min_frequency_axial|lateral` and `conditions.orbit.duration` are no longer read. A file that still has one gets the error
   `setting.moved_to_requirement` naming the key and the requirement to write; `fune setting set` refuses them; `fune setting unset <path>` removes them.
 - **Stays a setting or attribute** (design values and modelling inputs): `ebn0_required`, `system_margin`, `alloc`, growth/uncertainty/harness allowance, `storage_margin`, `usable_momentum_fraction`, `unload_dipole_fraction`,
-  `slew_angle`, `dv_margin`, `residual_fraction`, `safety_factor_*` (factors applied to loads, like `system_margin`), `fastener_allowable`, the thermal `[margin]`, ground station `min_elevation`, mode `max_duration`, and the part temperature ranges.
+  `slew_angle`, `dv_margin`, `residual_fraction`, `safety_factor_*` (factors applied to loads, like `system_margin`), `fastener_allowable`, `interference_tolerance`, the thermal `[margin]`, ground station `min_elevation`, mode `max_duration`, and the part temperature ranges.
 
 ### 7.10 phases/: one file per mission phase
 

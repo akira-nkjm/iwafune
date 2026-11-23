@@ -116,6 +116,10 @@ pub(super) const ALLOWED: &[(&str, &str)] = &[
         ANALYSIS_TEXT,
     ),
     (
+        "crates/lib/analysis/src/structure/interference.rs",
+        ANALYSIS_TEXT,
+    ),
+    (
         "crates/lib/analysis/src/structure/launch_fit.rs",
         ANALYSIS_TEXT,
     ),

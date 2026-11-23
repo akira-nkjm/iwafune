@@ -1,0 +1,224 @@
+//! `structure.interference` のテスト（手計算との比較）。
+
+use super::*;
+
+fn unit_box(id: &str, center: [f64; 3]) -> InterferenceBox {
+    InterferenceBox {
+        id: id.to_owned(),
+        count: 1,
+        position: Vec3::new(center[0], center[1], center[2]),
+        orientation: Quat::IDENTITY,
+        size: Vec3::new(1.0, 1.0, 1.0),
+        mount_ancestors: Vec::new(),
+    }
+}
+
+fn input(boxes: Vec<InterferenceBox>) -> InterferenceInput {
+    InterferenceInput {
+        boxes,
+        unsized_parts: Vec::new(),
+        tolerance: None,
+    }
+}
+
+fn run(input: &InterferenceInput) -> InterferenceOutput {
+    Interference::run(input).unwrap()
+}
+
+/// 一辺 1 m の立方体 2 つ。中心の距離 0.9 → 深さ 0.1 m（x 方向）で警告。
+#[test]
+fn overlapping_cubes_are_a_warning_with_depth_and_axis() {
+    let out = run(&input(vec![
+        unit_box("A", [0.0; 3]),
+        unit_box("B", [0.9, 0.0, 0.0]),
+    ]));
+    assert_eq!(out.overlaps.len(), 1);
+    let p = &out.overlaps[0];
+    assert_eq!((p.first.as_str(), p.second.as_str()), ("A", "B"));
+    assert!((p.depth.value() - 0.1).abs() < 1e-12);
+    assert!((p.separation_axis.x - 1.0).abs() < 1e-12 && p.separation_axis.y.abs() < 1e-12);
+    assert_eq!((out.parts_judged, out.pairs_judged), (2, 1));
+    assert_eq!(out.checks.len(), 1);
+    assert_eq!(out.checks[0].verdict, Verdict::Warning);
+    assert_eq!(out.checks[0].key, "overlap:A:B");
+    assert!(out.checks[0].message.contains("box approximation"));
+    assert!(out.min_clearance.is_none());
+}
+
+/// 許容差 0.1 mm（既定）: 中心の距離 1.0（接触）と 1.0 − 0.05 mm（深さ 0.05 mm）は報告しない。
+/// 1.0 − 0.2 mm は深さ 0.2 mm で報告する。ちょうど許容差（深さ 0.1 mm）は報告しない（超えたときだけ）。
+#[test]
+fn tolerance_separates_contact_from_interference() {
+    let apart = |distance: f64| {
+        run(&input(vec![
+            unit_box("A", [0.0; 3]),
+            unit_box("B", [distance, 0.0, 0.0]),
+        ]))
+    };
+    assert!(apart(1.0).overlaps.is_empty());
+    assert!(apart(1.0 - 5e-5).overlaps.is_empty());
+    assert!(apart(1.0 - 1e-4 + 1e-9).overlaps.is_empty());
+    let out = apart(1.0 - 2e-4);
+    assert_eq!(out.overlaps.len(), 1);
+    assert!((out.overlaps[0].depth.value() - 2e-4).abs() < 1e-12);
+    // 接していて報告しなかった組は、最小の隙間 0 として残る
+    let touching = apart(1.0);
+    let c = touching.min_clearance.unwrap();
+    assert_eq!(c.gap.value(), 0.0);
+    assert_eq!(touching.checks[0].verdict, Verdict::Ok);
+}
+
+/// 許容差は入力で変えられる（1 cm なら、深さ 5 mm は報告しない。0 なら 1e-9 でも報告する）。
+#[test]
+fn tolerance_is_an_input() {
+    let mut i = input(vec![
+        unit_box("A", [0.0; 3]),
+        unit_box("B", [0.995, 0.0, 0.0]),
+    ]);
+    assert_eq!(run(&i).overlaps.len(), 1);
+    i.tolerance = Some(Qty::from_raw(0.01));
+    let out = run(&i);
+    assert!(out.overlaps.is_empty());
+    assert_eq!(out.tolerance.value(), 0.01);
+    i.tolerance = Some(Qty::from_raw(-1.0));
+    assert!(Interference::run(&i).is_err());
+}
+
+/// 隙間は、報告しなかった組のうち最小のもの（A–B は 0.3、B–C は 0.1 → B–C）。
+#[test]
+fn smallest_clearance_among_non_overlapping_pairs() {
+    let out = run(&input(vec![
+        unit_box("A", [0.0; 3]),
+        unit_box("B", [1.3, 0.0, 0.0]),
+        unit_box("C", [2.4, 0.0, 0.0]),
+    ]));
+    assert!(out.overlaps.is_empty());
+    let c = out.min_clearance.unwrap();
+    assert_eq!((c.first.as_str(), c.second.as_str()), ("B", "C"));
+    assert!((c.gap.value() - 0.1).abs() < 1e-12);
+    assert_eq!(out.pairs_judged, 3);
+}
+
+/// 取付の祖先・子孫の組は判定しない（間の部品が寸法を持たなくてもよい）。兄弟と別の枝の組は判定する。
+///
+/// FRAME（大きな箱）の中に A・B が収まる。A の子 C（A の取付先は FRAME。C の取付先は A）。
+/// A と B は兄弟で重なっている → 報告する。FRAME との組・A と C の組は判定しない。
+#[test]
+fn mount_ancestors_are_not_judged_but_siblings_are() {
+    let mut frame = unit_box("FRAME", [0.0; 3]);
+    frame.size = Vec3::new(10.0, 10.0, 10.0);
+    let mut a = unit_box("A", [0.0; 3]);
+    a.mount_ancestors = vec!["FRAME".to_owned()];
+    let mut b = unit_box("B", [0.5, 0.0, 0.0]);
+    b.mount_ancestors = vec!["FRAME".to_owned()];
+    // C は寸法の無い中間部品 MID を介して A に取り付く（祖先の列は近いほうから）
+    let mut c = unit_box("C", [0.0, 0.0, 0.0]);
+    c.mount_ancestors = vec!["MID".to_owned(), "A".to_owned(), "FRAME".to_owned()];
+    let out = run(&input(vec![frame, a, b, c]));
+    let pairs: Vec<(&str, &str)> = out
+        .overlaps
+        .iter()
+        .map(|p| (p.first.as_str(), p.second.as_str()))
+        .collect();
+    // C は B と別の枝なので、B との組は判定される。A–B、B–C はどちらも深さ 0.5（x 方向の中心の距離 0.5）
+    assert_eq!(pairs, vec![("A", "B"), ("B", "C")]);
+    // 判定しない組: FRAME–A、FRAME–B、FRAME–C、A–C の 4 つ。判定する組: A–B、B–C の 2 つ
+    assert_eq!(out.pairs_in_mount_chain, 4);
+    assert_eq!(out.pairs_judged, 2);
+}
+
+/// 取付の連鎖に無い箱どうしは、箱の中に完全に入っていても判定する（親子ではなく収容を決めるのは設計）。
+#[test]
+fn contained_non_ancestor_is_reported() {
+    let mut big = unit_box("BIG", [0.0; 3]);
+    big.size = Vec3::new(4.0, 4.0, 4.0);
+    let out = run(&input(vec![big, unit_box("IN", [0.2, 0.0, 0.0])]));
+    assert_eq!(out.overlaps.len(), 1);
+    // 小さな箱（辺 1、中心 +0.2）が大きな箱（半幅 2）から +x へ出るのに要る移動: 2 + 0.5 − 0.2 = 2.3
+    assert!((out.overlaps[0].depth.value() - 2.3).abs() < 1e-12);
+}
+
+/// 員数が 2 以上の部品は 1 つの箱として判定する（自分自身とは比べない）。一覧に出す。
+#[test]
+fn repeated_part_is_one_box_and_not_compared_with_itself() {
+    let mut a = unit_box("A", [0.0; 3]);
+    a.count = 4;
+    let out = run(&input(vec![a, unit_box("B", [3.0, 0.0, 0.0])]));
+    assert!(out.overlaps.is_empty());
+    assert_eq!(out.pairs_judged, 1);
+    assert_eq!(out.repeated.len(), 1);
+    assert_eq!(
+        (out.repeated[0].id.as_str(), out.repeated[0].count),
+        ("A", 4)
+    );
+}
+
+/// 寸法の無い部品は一覧に残す。寸法が正でない箱も判定せず一覧に残す。箱が 2 つに満たなければ重なり無しの成功（ok）。
+#[test]
+fn parts_without_a_size_are_listed_and_fewer_than_two_boxes_succeed() {
+    let mut zero = unit_box("Z", [0.0; 3]);
+    zero.size = Vec3::new(1.0, 0.0, 1.0);
+    let mut i = input(vec![unit_box("A", [0.0; 3]), zero]);
+    i.unsized_parts = vec!["WIRE".to_owned(), "BATTERY".to_owned()];
+    let out = run(&i);
+    assert!(out.overlaps.is_empty());
+    assert_eq!((out.parts_judged, out.pairs_judged), (1, 0));
+    let ids: Vec<(&str, InterferenceSkipReason)> = out
+        .skipped
+        .iter()
+        .map(|s| (s.id.as_str(), s.reason))
+        .collect();
+    assert_eq!(
+        ids,
+        vec![
+            ("BATTERY", InterferenceSkipReason::NoSize),
+            ("WIRE", InterferenceSkipReason::NoSize),
+            ("Z", InterferenceSkipReason::InvalidSize)
+        ]
+    );
+    assert_eq!(out.checks.len(), 1);
+    assert_eq!(out.checks[0].verdict, Verdict::Ok);
+    assert!(out.min_clearance.is_none());
+    // 箱が 1 つも無くても失敗しない
+    let empty = run(&input(Vec::new()));
+    assert_eq!((empty.parts_judged, empty.pairs_judged), (0, 0));
+    assert_eq!(empty.checks[0].verdict, Verdict::Ok);
+}
+
+/// 入力の順に依らない: 順を入れ替えても出力は同じ。深い順に並び、どの重なりも警告で、違反は出さない。
+#[test]
+fn result_does_not_depend_on_input_order_and_is_never_a_violation() {
+    let boxes = vec![
+        unit_box("A", [0.0; 3]),
+        unit_box("B", [0.9, 0.0, 0.0]),
+        unit_box("C", [0.0, 0.5, 0.0]),
+        unit_box("D", [5.0, 5.0, 5.0]),
+    ];
+    let forward = run(&input(boxes.clone()));
+    let mut reversed_boxes = boxes;
+    reversed_boxes.reverse();
+    let reversed = run(&input(reversed_boxes));
+    let key = |o: &InterferenceOutput| {
+        o.overlaps
+            .iter()
+            .map(|p| (p.first.clone(), p.second.clone(), p.depth.value().to_bits()))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(key(&forward), key(&reversed));
+    // A–C は深さ 0.5（y）、A–B は 0.1（x）、B–C は B(0.9,0,0) と C(0,0.5,0): x の重なり 0.1・y の重なり 0.5 → 0.1
+    let depths: Vec<f64> = forward.overlaps.iter().map(|p| p.depth.value()).collect();
+    assert_eq!(forward.overlaps.len(), 3);
+    assert!(depths.windows(2).all(|w| w[0] >= w[1]));
+    assert!((depths[0] - 0.5).abs() < 1e-12);
+    assert!(forward.checks.iter().all(|c| c.verdict == Verdict::Warning));
+}
+
+/// 出力は JSON に書いて読み戻せる（`fune analyze` の入力に使う形）。
+#[test]
+fn input_round_trips_through_json() {
+    let i = input(vec![unit_box("A", [0.0; 3])]);
+    let text = serde_json::to_string(&i).unwrap();
+    let back: InterferenceInput = serde_json::from_str(&text).unwrap();
+    assert_eq!(back.boxes.len(), 1);
+    assert_eq!(back.boxes[0].count, 1);
+}
