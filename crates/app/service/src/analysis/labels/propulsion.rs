@@ -4,7 +4,9 @@ use super::label;
 use crate::dto::AnalysisLabel;
 use fune_projection::propulsion::{model_category, model_method, model_steering};
 use sat_analysis::power::thrust_balance::ThrustBalanceNote;
-use sat_analysis::propulsion::{DvCategory, ManeuverNote, TransferMethod, UnloadingNote};
+use sat_analysis::propulsion::{
+    DvCategory, ManeuverNote, TransferCheckNote, TransferMethod, UnloadingNote,
+};
 use sat_astro::ephem::EphemerisSource;
 use sat_astro::force::thrust::ThrustSteering;
 
@@ -38,6 +40,23 @@ pub(super) fn thrust_balance_note(n: ThrustBalanceNote) -> AnalysisLabel {
         ThrustBalanceNote::DutyAsBlockPerOrbit => label(
             "デューティの分を 1 周の中でまとめて噴くとみなした（保守側）",
             "The duty is treated as one firing block per orbit (conservative)",
+        ),
+    }
+}
+
+pub(super) fn transfer_check_note(n: TransferCheckNote) -> AnalysisLabel {
+    match n {
+        TransferCheckNote::PointMassCruise => label(
+            "出発天体の中心から Lambert の速度で始め、出発・到着の天体の重力は入れず、ほかの惑星を点質量の第三体として伝搬した",
+            "Propagated from the departure body's centre with the Lambert velocity, without the gravity of the departure and arrival bodies, and with the other planets as point-mass third bodies",
+        ),
+        TransferCheckNote::AnalyticEphemerisNotJudged => label(
+            "天体の位置が解析式（DE440 でない）なので、ずれは暦の誤差と同程度で意味を持たず、判定しない",
+            "Body positions are analytic (not DE440), so the miss is of the order of the ephemeris error and is not judged",
+        ),
+        TransferCheckNote::ClosestApproachAtEnd => label(
+            "最接近が探した期間の端で、まだ近づいている（極小は期間の外）",
+            "The closest approach is at the end of the searched span: still approaching (the minimum lies outside it)",
         ),
     }
 }

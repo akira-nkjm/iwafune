@@ -19,4 +19,9 @@ solid_tide: boolean,
 /**
  * 一般相対論の補正（Schwarzschild 項）
  */
-relativity: boolean, };
+relativity: boolean, 
+/**
+ * 中心天体が地球でないとき、地球を第三体として自動で加えるのをやめる（既定は加える）。
+ * 地球の重力を別に扱う（出発・到着の天体として、影響圏の中は点として扱う）軌道の伝搬に使う。
+ */
+omit_earth: boolean, };

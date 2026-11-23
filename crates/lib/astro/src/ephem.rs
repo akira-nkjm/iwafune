@@ -66,6 +66,12 @@ pub fn ecliptic_normal_eci() -> Vec3 {
     ecliptic_to_equatorial(Vec3::Z, obliquity_j2000())
 }
 
+/// 赤道直交座標（ECI = J2000 平均赤道）→ J2000 平均黄道の直交座標（[`ecliptic_normal_eci`] の座標の逆）。
+/// 日心の軌道を黄道面に描くときの座標変換。**赤道 → 黄道の変換はここだけ。**
+pub fn eci_to_ecliptic_j2000(v_eci: Vec3) -> Vec3 {
+    ecliptic_to_equatorial(v_eci, -obliquity_j2000())
+}
+
 fn de440_id(body: Body) -> i32 {
     use de440::body_id as id;
     match body {

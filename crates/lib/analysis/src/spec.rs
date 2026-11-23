@@ -175,6 +175,12 @@ pub enum ChannelKind {
     Inclination,
     /// 機体の質量（推薬を使うと減る）
     Mass,
+    /// 日心（黄道面）の位置の x（`subject` は対象: `spacecraft`・`departure`・`arrival`）
+    HeliocentricX,
+    /// 日心（黄道面）の位置の y（`subject` は対象）
+    HeliocentricY,
+    /// 到着天体までの距離（惑星間の遷移の確認）
+    ArrivalRange,
 }
 
 impl Channel {

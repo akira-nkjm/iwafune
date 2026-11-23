@@ -171,6 +171,7 @@ fn full_config() -> ForceConfig {
         }),
         solid_tide: true,
         relativity: true,
+        omit_earth: false,
     }
 }
 

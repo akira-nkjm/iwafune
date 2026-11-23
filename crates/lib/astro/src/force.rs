@@ -46,6 +46,10 @@ pub struct ForceConfig {
     /// 一般相対論の補正（Schwarzschild 項）
     #[serde(default)]
     pub relativity: bool,
+    /// 中心天体が地球でないとき、地球を第三体として自動で加えるのをやめる（既定は加える）。
+    /// 地球の重力を別に扱う（出発・到着の天体として、影響圏の中は点として扱う）軌道の伝搬に使う。
+    #[serde(default)]
+    pub omit_earth: bool,
 }
 
 impl ForceConfig {
@@ -58,6 +62,29 @@ impl ForceConfig {
             drag: None,
             solid_tide: false,
             relativity: false,
+            omit_earth: false,
+        }
+    }
+
+    /// 太陽中心の点質量の力モデル: 惑星（`excluded` を除く。地球は [`Self::omit_earth`] で外す）を第三体の点質量として加える。
+    /// 惑星間の巡航の伝搬（`crate::transfer::cruise`）の力モデルで、同じ設定は中心天体が太陽のどの数値伝搬にも使える。
+    pub fn heliocentric_point_masses(excluded: &[CentralBody]) -> Self {
+        let planets = [
+            Body::Mercury,
+            Body::Venus,
+            Body::Mars,
+            Body::Jupiter,
+            Body::Saturn,
+            Body::Uranus,
+            Body::Neptune,
+        ];
+        Self {
+            third_bodies: planets
+                .into_iter()
+                .filter(|b| !excluded.iter().any(|c| c.as_body() == Some(*b)))
+                .collect(),
+            omit_earth: excluded.contains(&CentralBody::Earth),
+            ..Self::gravity_only(GravityModel::PointMass)
         }
     }
 }
@@ -153,7 +180,7 @@ pub fn acceleration_eci_about(
 }
 
 /// 中心天体 `central` のまわりの項ごとの加速度。地球以外では重力場は点質量＋J2（自転軸まわり）で、
-/// 地球を第三体として自動で加える。抗力・固体潮汐・EGM96 は地球だけ（[`validate_about`] が弾く）。
+/// 地球を第三体として自動で加える（[`ForceConfig::omit_earth`] で外せる）。抗力・固体潮汐・EGM96 は地球だけ（[`validate_about`] が弾く）。
 pub fn acceleration_breakdown_about(
     central: CentralBody,
     config: &ForceConfig,
@@ -202,7 +229,7 @@ pub fn acceleration_breakdown_about(
             out.push((ForceTerm::SolarRadiationPressure, a));
         }
     }
-    if !earth {
+    if !earth && !config.omit_earth {
         out.push((
             ForceTerm::EarthThirdBody,
             third_body_eci(MU_EARTH, -origin, r),
