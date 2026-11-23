@@ -83,6 +83,16 @@ fn name(op: &Op) -> &'static str {
         Op::UnsetPhaseOrbit { .. } => "UnsetPhaseOrbit",
         Op::UnsetPhaseLaw { .. } => "UnsetPhaseLaw",
         Op::SetCasePhase { .. } => "SetCasePhase",
+        Op::RenameNet { .. } => "RenameNet",
+        Op::RenameHarness { .. } => "RenameHarness",
+        Op::RenameCase { .. } => "RenameCase",
+        Op::RenameSource { .. } => "RenameSource",
+        Op::RenameManeuver { .. } => "RenameManeuver",
+        Op::CreateCommLink { .. } => "CreateCommLink",
+        Op::RemoveCommLink { .. } => "RemoveCommLink",
+        Op::RenameCommLink { .. } => "RenameCommLink",
+        Op::SetProjectField { .. } => "SetProjectField",
+        Op::AddLocalCatalog { .. } => "AddLocalCatalog",
         Op::CreateRequirement { .. } => "CreateRequirement",
         Op::SetRequirement { .. } => "SetRequirement",
         Op::RemoveRequirement { .. } => "RemoveRequirement",
@@ -436,6 +446,49 @@ fn other_ops() -> Vec<Op> {
             case: "eclipse_worst".into(),
             phase: None,
         },
+        Op::RenameNet {
+            id: "P5V".into(),
+            to: "P5V_MAIN".into(),
+        },
+        Op::RenameHarness {
+            id: "H_OBC_CAM".into(),
+            to: "H_OBC_CAMERA".into(),
+        },
+        Op::RenameCase {
+            id: "hot_imaging".into(),
+            to: "hot_img".into(),
+        },
+        Op::RenameSource {
+            id: "sys_judgement".into(),
+            to: "sys_judge".into(),
+        },
+        Op::RenameManeuver {
+            id: "RAISE".into(),
+            to: "M_RAISE".into(),
+        },
+        Op::CreateCommLink {
+            id: "x_down".into(),
+            direction: fune_model::design::LinkDirection::Down,
+            part: "STX".into(),
+            band: "s_band".into(),
+        },
+        Op::RemoveCommLink {
+            id: "x_down".into(),
+        },
+        Op::RenameCommLink {
+            id: "x_down".into(),
+            to: "x_dl".into(),
+        },
+        Op::SetProjectField {
+            field: fune_model::design::ProjectField::Name("demo".into()),
+        },
+        Op::SetProjectField {
+            field: fune_model::design::ProjectField::Label(None),
+        },
+        Op::AddLocalCatalog {
+            name: "vendor".into(),
+            path: "vendor_parts".into(),
+        },
         Op::CreateRequirement {
             requirement: requirement(),
         },
@@ -491,7 +544,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 71, "some op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 81, "some op kinds have no sample: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =

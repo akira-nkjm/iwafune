@@ -1,10 +1,10 @@
 //! カタログ品の編集の文字列 → Op（`fune catalog set local/rw_10mNms mass "620 g"` → `SetCatalogValue` など）。
 //! 入口は `edit::{set_op, unset_op}`（`SetText.item`・`UnsetText.item` があるときここに振り分ける）。
 //! 属性の値の読み方は部品と同じ（`text::attr_value`）。フィールド名（`fune_model::design::CatalogFieldName`）は `SetCatalogField` にする。
-//! 共有カタログの出所を足す引数（`fune catalog source add`）→ `AddCatalogSource` も持つ（[`catalog_source_add_op`]）。
+//! 共有カタログの出所を足す引数（`fune catalog source add`）→ `AddCatalogSource`、ローカルのカタログ（`add-local`）→ `AddLocalCatalog` も持つ（[`catalog_source_add_op`]・[`catalog_local_add_op`]）。
 
 use super::text::{AttrSlot, SetText, attr_value, given, invalid, list_from_text, maturity};
-use crate::dto::CatalogSourceAddText;
+use crate::dto::{CatalogLocalAddText, CatalogSourceAddText};
 use crate::error::Result;
 use crate::workspace::Workspace;
 use fune_model::design::{CatalogField, CatalogFieldName};
@@ -94,6 +94,15 @@ pub fn catalog_source_add_op(t: &CatalogSourceAddText) -> Op {
         name: t.name.trim().to_owned(),
         git: t.git.trim().to_owned(),
         rev: given(&t.rev).map(str::to_owned),
+    }
+}
+
+/// `fune catalog source add-local <名前> --path <ディレクトリ>` → `AddLocalCatalog`（前後の空白を除く。**この引数の読み方はここだけ**。
+/// 名前の規則・重複・置き場所の規則は適用のときに fune-ops が拒む）。
+pub fn catalog_local_add_op(t: &CatalogLocalAddText) -> Op {
+    Op::AddLocalCatalog {
+        name: t.name.trim().to_owned(),
+        path: t.path.trim().to_owned(),
     }
 }
 

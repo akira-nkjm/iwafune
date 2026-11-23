@@ -35,7 +35,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         Op::RemoveGroundStation { id } => {
             existing_station(design, id)?;
             let sites = design.references(Referent::Station(id));
-            refuse_if_checked_by_requirements(id, &sites, "deleted")?;
+            refuse_if_checked_by_requirements("Ground station", id, &sites, "deleted")?;
             if !sites.is_empty() {
                 return Err(OpError::invalid(format!(
                     "Ground station `{id}` is listed in `stations` of analysis/comm.toml and cannot be deleted. \
@@ -49,6 +49,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
             existing_station(design, id)?;
             new_station_id(design, to)?;
             refuse_if_checked_by_requirements(
+                "Ground station",
                 id,
                 &design.references(Referent::Station(id)),
                 "renamed",
@@ -59,8 +60,10 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
     }
 }
 
-/// 要求の判定のキーが局を名指していれば拒む（キーは解析が持つ書式で、書き換えない。構造のキーになるまでの暫定。#328）。
-fn refuse_if_checked_by_requirements(
+/// 要求の判定のキーが局・回線を名指していれば拒む（キーは解析が持つ書式。局のキーは書き換えない。構造のキーになるまでの暫定。#328。
+/// 回線の名前の変更はキーを書き換えるので使わず、削除だけがここを通る）。通信の回線の Op（`link`）も使う。
+pub(super) fn refuse_if_checked_by_requirements(
+    what: &str,
     id: &str,
     sites: &[RefSite],
     verb: &str,
@@ -68,7 +71,8 @@ fn refuse_if_checked_by_requirements(
     let ids: Vec<&str> = sites
         .iter()
         .filter_map(|s| match s {
-            RefSite::RequirementCheck { requirement } => Some(requirement.as_str()),
+            RefSite::RequirementCheck { requirement }
+            | RefSite::RequirementLinkCheck { requirement } => Some(requirement.as_str()),
             _ => None,
         })
         .collect();
@@ -76,7 +80,7 @@ fn refuse_if_checked_by_requirements(
         return Ok(());
     }
     Err(OpError::invalid(format!(
-        "Ground station `{id}` cannot be {verb}: `verify.check` of requirement(s) {} refers to it. \
+        "{what} `{id}` cannot be {verb}: `verify.check` of requirement(s) {} refers to it. \
          Update or remove those requirements first",
         ids.join(", ")
     )))

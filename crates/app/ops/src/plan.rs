@@ -13,9 +13,12 @@
 //! | `records` | 解析ケース・出典・ハーネス・マヌーバの Op |
 //! | `phases` | フェーズの Op（足す・書く・消す・名前を変える・軌道と姿勢則の値・ケースのフェーズ） |
 //! | `ground` | 地上局の Op（足す・消す・名前を変える） |
+//! | `renames` | ネット・ハーネス・解析ケース・出典・マヌーバの名前の変更の Op |
+//! | `link` | 通信の回線の Op（足す・消す・名前を変える） |
+//! | `project` | `fune.toml` の `[project]` の Op |
 //! | `requirements` | 要求の Op（足す・書く・消す） |
 //! | `catalog` | カタログ品の Op（このプロジェクトの `catalog/` だけ） |
-//! | `catalog_source` | カタログの出所の Op（fune.toml の共有カタログ `[[catalog]] git = …` を足す・外す） |
+//! | `catalog_source` | カタログの出所の Op（fune.toml の `[[catalog]]`。共有カタログ `git = …` とローカルのカタログ `path = …` を足す・外す） |
 //! | `subdir` | ディレクトリの下に置けるエンティティ（カタログ品・出典）の Op に共通の計画（ディレクトリを選ぶ・移す） |
 //! | `attr` | 属性の値の書き込み（部品とカタログ品で共有） |
 
@@ -25,10 +28,13 @@ mod catalog_source;
 mod defs;
 mod ground;
 mod groups;
+mod link;
 mod others;
 mod parts;
 mod phases;
+mod project;
 mod records;
+mod renames;
 mod requirements;
 mod subdir;
 
@@ -147,9 +153,18 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::RemoveCatalogItem { .. }
         | Op::RenameCatalogItem { .. }
         | Op::MoveCatalogItem { .. } => catalog::interpret(edits, design, op),
-        Op::AddCatalogSource { .. } | Op::RemoveCatalogSource { .. } => {
-            catalog_source::interpret(edits, design, op)
+        Op::AddCatalogSource { .. }
+        | Op::AddLocalCatalog { .. }
+        | Op::RemoveCatalogSource { .. } => catalog_source::interpret(edits, design, op),
+        Op::RenameNet { .. }
+        | Op::RenameHarness { .. }
+        | Op::RenameCase { .. }
+        | Op::RenameSource { .. }
+        | Op::RenameManeuver { .. } => renames::interpret(edits, design, op),
+        Op::CreateCommLink { .. } | Op::RemoveCommLink { .. } | Op::RenameCommLink { .. } => {
+            link::interpret(edits, design, op)
         }
+        Op::SetProjectField { .. } => project::interpret(edits, op),
         Op::SetCase { .. }
         | Op::RemoveCase { .. }
         | Op::SetSource { .. }

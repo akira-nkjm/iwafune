@@ -10,10 +10,15 @@
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
 //! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode`・フェーズの `modes` と `[law]` のキー |
 //! | フェーズ | ケースの `phase` |
-//! | ネット | 部品のポートの `net`・ハーネスの `nets` |
+//! | ネット | 部品のポートの `net`・ハーネスの `nets`・図の `[nodes]` のキー |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire` |
 //! | カタログ（`[[catalog]]` の名前。出所を外すのを拒むためだけ。書き換えはしない） | 部品の `catalog`・`candidates`・ハーネスの `wire` のうち `<名前>/…` のもの |
 //! | 地上局 | `analysis/comm.toml` の `stations`・要求の `[verify].check` が名指す局（書き換えはしない。名前の変更と削除を拒むための暫定の見張り。#328） |
+//! | ハーネス区間 | 参照元は無い（ほかのエンティティはハーネスの ID を持たない。名前の変更の索引を揃えるための空の索引） |
+//! | 解析ケース | `analysis/common.toml` の `default_case`・要求の `[quantify].cases` |
+//! | 出典 | 部品とカタログ品の属性の値の `from.source`（状態ごとのセルも）・カタログ品の `source` と `datasheet`・要求の `source` |
+//! | マヌーバ | ほかのマヌーバの `after` |
+//! | 通信の回線 | `analysis/comm.toml` の `data_downlink`・要求の `[verify].check` が名指す回線（`margin:<回線>@<局>`。書式は解析が持つので、局と同じく写し） |
 //! | 種別（名前の変更と、プロジェクト独自の定義の削除の拒否に使う） | 部品とカタログ品の `kind`・種別の `extends` |
 //! | 属性（同上） | 種別の `required` / `optional`・部品とカタログ品の属性の値 |
 
@@ -21,6 +26,8 @@ use super::{BudgetKind, Design};
 use crate::enum_text::enum_text;
 use crate::path::{PortRef, split_catalog_ref};
 use serde::{Deserialize, Serialize};
+
+mod records;
 
 /// 参照される ID。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,6 +48,16 @@ pub enum Referent<'a> {
     Kind(&'a str),
     /// 属性の ID（同上）
     Attribute(&'a str),
+    /// ハーネス区間の ID（参照元は無い）
+    Harness(&'a str),
+    /// 解析ケースの ID
+    Case(&'a str),
+    /// 出典の ID（`sources/<ID>.toml`）
+    Source(&'a str),
+    /// マヌーバの ID
+    Maneuver(&'a str),
+    /// 通信の回線の名前（`analysis/comm.toml` の `[link.<名前>]`）
+    Link(&'a str),
 }
 
 enum_text! {
@@ -145,6 +162,27 @@ pub enum RefSite {
     PartAttribute { part: String },
     /// カタログ品が値を書いた属性
     CatalogAttribute { item: String },
+    /// 共通設定の既定のケース（`analysis/common.toml` の `default_case`）
+    CommonDefaultCase,
+    /// 要求が量化するケース（`requirements/<要求>.toml` の `[quantify].cases`）
+    RequirementCase { requirement: String },
+    /// 部品の属性の値の出典（`[attr.<属性>]` の `from.source`。状態ごとのセルの出典も）
+    PartValueSource { part: String, attr: String },
+    /// カタログ品の属性の値の出典（`item` は `local/rw_10mNms` の形）
+    CatalogValueSource { item: String, attr: String },
+    /// カタログ品の既定の出典（`source`）
+    CatalogItemSource { item: String },
+    /// カタログ品のデータシートの出典（`datasheet`）
+    CatalogItemDatasheet { item: String },
+    /// 要求の出典（`source`）
+    RequirementSource { requirement: String },
+    /// マヌーバの前（`after`）
+    ManeuverAfter { maneuver: String },
+    /// 通信の解析の下りの回線（`analysis/comm.toml` の `data_downlink`）
+    CommDataDownlink,
+    /// 要求の判定のキーが名指す回線（`[verify].check` の `margin:<回線>`・`pfd:<回線>`。`@<局>` は付いてもよい）。
+    /// 解析のキーの書式の写し（`Verification::check_names_link`。キーが構造を持つまでの暫定。#328）。名前の変更では書き換える
+    RequirementLinkCheck { requirement: String },
 }
 
 impl Design {
@@ -163,6 +201,11 @@ impl Design {
             Referent::Station(id) => self.station_refs(id),
             Referent::Kind(id) => self.kind_refs(id),
             Referent::Attribute(id) => self.attribute_refs(id),
+            Referent::Harness(id) => self.harness_refs(id),
+            Referent::Case(id) => self.case_refs(id),
+            Referent::Source(id) => self.source_refs(id),
+            Referent::Maneuver(id) => self.maneuver_refs(id),
+            Referent::Link(id) => self.link_refs(id),
         }
     }
 
@@ -376,6 +419,13 @@ impl Design {
                 .map(|h| RefSite::HarnessNet {
                     harness: h.id.to_string(),
                 }),
+        );
+        // 図の配置のネットのノード（見た目だけ。部品・グループのノードと同じキー）
+        out.extend(
+            self.views
+                .values()
+                .filter(|v| v.nodes.contains_key(id))
+                .map(|v| RefSite::ViewNode { view: v.id.clone() }),
         );
         out
     }

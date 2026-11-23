@@ -237,6 +237,7 @@ pub fn rename_key(table: &mut Table, from: &str, to: &str) -> bool {
         let keys: Vec<&str> = table.iter().map(|(k, _)| k).collect();
         keys.windows(2).all(|w| w[0] <= w[1])
     };
+    let aligned = aligned_width(table).is_some();
     let Some((old, item)) = table.remove_entry(from) else {
         return false;
     };
@@ -254,6 +255,10 @@ pub fn rename_key(table: &mut Table, from: &str, to: &str) -> bool {
     table.insert_formatted(&key, item);
     if sorted {
         table.sort_values();
+    }
+    // 揃っていた表は、新しいキーの長さで揃え直す（最も長いキーの名前を変えると幅が変わる。揃えないと `fune fmt --check` に通らない）
+    if aligned {
+        crate::profile::align_rows(table);
     }
     true
 }

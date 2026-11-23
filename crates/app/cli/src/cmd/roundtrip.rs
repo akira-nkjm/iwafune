@@ -152,6 +152,16 @@ fn covers(op: &Op) -> &'static str {
         Op::UnsetPhaseOrbit { .. } => "UnsetPhaseOrbit",
         Op::UnsetPhaseLaw { .. } => "UnsetPhaseLaw",
         Op::SetCasePhase { .. } => "SetCasePhase",
+        Op::RenameNet { .. } => "RenameNet",
+        Op::RenameHarness { .. } => "RenameHarness",
+        Op::RenameCase { .. } => "RenameCase",
+        Op::RenameSource { .. } => "RenameSource",
+        Op::RenameManeuver { .. } => "RenameManeuver",
+        Op::CreateCommLink { .. } => "CreateCommLink",
+        Op::RemoveCommLink { .. } => "RemoveCommLink",
+        Op::RenameCommLink { .. } => "RenameCommLink",
+        Op::SetProjectField { .. } => "SetProjectField",
+        Op::AddLocalCatalog { .. } => "AddLocalCatalog",
         Op::CreateRequirement { .. } => "CreateRequirement",
         Op::SetRequirement { .. } => "SetRequirement",
         Op::RemoveRequirement { .. } => "RemoveRequirement",
@@ -200,5 +210,5 @@ fn every_op_survives_to_cli_and_back() {
     }
     seen.sort_unstable();
     seen.dedup();
-    assert_eq!(seen.len(), 71, "some Op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 81, "some Op kinds have no sample: {seen:?}");
 }

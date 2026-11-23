@@ -2,6 +2,7 @@
 
 mod defs;
 mod ground;
+mod links;
 mod nouns;
 mod phases;
 mod records;
@@ -11,6 +12,7 @@ mod skill;
 
 pub use defs::{AttrAddArgs, AttrCmd, KindAddArgs, KindCmd};
 pub use ground::GroundCmd;
+pub use links::{LinkCmd, ProjectCmd};
 pub use nouns::{
     ModeCmd, ModeViewOpts, NetArgs, NetCmd, NetSetArgs, PartCmd, PlaceArgs, SequenceCmd, SetArgs,
     SettingCmd, ViewCmd,
@@ -165,6 +167,12 @@ pub enum Command {
     /// Ground stations (conditions/ground/)
     #[command(subcommand)]
     Ground(GroundCmd),
+    /// Communication links (`[link.<name>]` in analysis/comm.toml)
+    #[command(subcommand)]
+    Link(LinkCmd),
+    /// Project settings (`[project]` in fune.toml)
+    #[command(subcommand)]
+    Project(ProjectCmd),
     /// Requirements (requirements/) and the compliance table
     #[command(subcommand)]
     Requirement(RequirementCmd),

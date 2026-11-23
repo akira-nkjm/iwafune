@@ -83,6 +83,9 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
         CommandText::RequirementAdd(t) => vec![super::requirement::requirement_op(t, true)?],
         CommandText::RequirementSet(t) => vec![super::requirement::requirement_op(t, false)?],
         CommandText::CatalogSourceAdd(t) => vec![super::catalog::catalog_source_add_op(t)],
+        CommandText::CatalogLocalAdd(t) => vec![super::catalog::catalog_local_add_op(t)],
+        CommandText::LinkAdd(t) => vec![super::link::link_add_op(t)?],
+        CommandText::ProjectSet(t) => vec![super::project::project_field_op(t)?],
     })
 }
 

@@ -23,6 +23,13 @@ pub fn net(c: &NetCmd) -> BuiltMany<'_> {
             edit,
         ),
         NetCmd::Rm { id, edit } => (vec![Op::RemoveNet { id: id.clone() }], edit),
+        NetCmd::Rename { id, to, edit } => (
+            vec![Op::RenameNet {
+                id: id.clone(),
+                to: to.clone(),
+            }],
+            edit,
+        ),
         NetCmd::Connect { port, net, edit } => (vec![set_port(port, Some(net.clone()))?], edit),
         NetCmd::Disconnect { port, edit } => (vec![set_port(port, None)?], edit),
         NetCmd::Ls => return Ok(None),

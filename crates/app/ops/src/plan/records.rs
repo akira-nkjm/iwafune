@@ -61,7 +61,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
 }
 
 /// 共有カタログの出典（`<カタログ名>/<ID>`）は読み取り専用（共有カタログのリポジトリで直す）。
-fn writable_source(design: &Design, id: &str) -> Result<(), OpError> {
+pub(super) fn writable_source(design: &Design, id: &str) -> Result<(), OpError> {
     match design.shared_catalog_of(id) {
         Some(c) => Err(OpError::invalid(format!(
             "Source `{id}` belongs to shared catalog `{}`, so it cannot be edited from this project. Open a PR on the shared catalog repository",
