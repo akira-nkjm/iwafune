@@ -82,6 +82,21 @@ pub(in crate::single_home) const RULES: &[Rule] = &[
         &["crates/lib/astro/src/math"],
         "the linear system solver",
     ),
+    (
+        "struct Skyline",
+        &["crates/lib/astro/src/math/skyline.rs"],
+        "the sparse symmetric (skyline) solver",
+    ),
+    (
+        "fn generalized_symmetric_eigen",
+        &["crates/lib/astro/src/math/sym_eigen.rs"],
+        "the dense symmetric eigensolver",
+    ),
+    (
+        "fn lowest_modes",
+        &["crates/lib/astro/src/math/subspace.rs"],
+        "the generalized eigenproblem (modal) solver",
+    ),
     // 天体・軌道・環境の計算
     (
         "fn earth_shadow_factor",
