@@ -6,7 +6,8 @@ use crate::args::{
     ManeuverArgs, ManeuverCmd, SourceArgs, SourceCmd,
 };
 use fune_service::dto::{
-    Case, CatalogSourceAddText, GroundAddText, Harness, ManeuverText, Op, Source,
+    Case, CatalogLocalAddText, CatalogSourceAddText, GroundAddText, Harness, ManeuverText, Op,
+    Source,
 };
 use fune_service::edit;
 
@@ -21,6 +22,13 @@ pub fn case(c: &CaseCmd) -> Built<'_> {
     Ok(match c {
         CaseCmd::Set(a) => Some((Op::SetCase { case: case_of(a)? }, &a.edit)),
         CaseCmd::Rm { id, edit } => Some((Op::RemoveCase { id: id.clone() }, edit)),
+        CaseCmd::Rename { id, to, edit } => Some((
+            Op::RenameCase {
+                id: id.clone(),
+                to: to.clone(),
+            },
+            edit,
+        )),
         CaseCmd::Ls | CaseCmd::FromEclipse { .. } | CaseCmd::FromSunDistance { .. } => None,
     })
 }
@@ -61,6 +69,13 @@ pub fn source(c: &SourceCmd) -> Built<'_> {
             &a.edit,
         )),
         SourceCmd::Rm { id, edit } => Some((Op::RemoveSource { id: id.clone() }, edit)),
+        SourceCmd::Rename { id, to, edit } => Some((
+            Op::RenameSource {
+                id: id.clone(),
+                to: to.clone(),
+            },
+            edit,
+        )),
         SourceCmd::Mv {
             id,
             target,
@@ -109,6 +124,13 @@ pub fn harness(c: &HarnessCmd) -> Built<'_> {
             &a.edit,
         )),
         HarnessCmd::Rm { id, edit } => Some((Op::RemoveHarness { id: id.clone() }, edit)),
+        HarnessCmd::Rename { id, to, edit } => Some((
+            Op::RenameHarness {
+                id: id.clone(),
+                to: to.clone(),
+            },
+            edit,
+        )),
         HarnessCmd::Ls => None,
     })
 }
@@ -139,6 +161,13 @@ pub fn maneuver(c: &ManeuverCmd) -> Built<'_> {
         ManeuverCmd::Add(a) => Some((edit::maneuver_op(&maneuver_text(a), true)?, &a.edit)),
         ManeuverCmd::Set(a) => Some((edit::maneuver_op(&maneuver_text(a), false)?, &a.edit)),
         ManeuverCmd::Rm { id, edit } => Some((Op::RemoveManeuver { id: id.clone() }, edit)),
+        ManeuverCmd::Rename { id, to, edit } => Some((
+            Op::RenameManeuver {
+                id: id.clone(),
+                to: to.clone(),
+            },
+            edit,
+        )),
         ManeuverCmd::Ls => None,
     })
 }
@@ -256,7 +285,7 @@ pub fn catalog<'a>(ws: &fune_service::Workspace, c: &'a CatalogCmd) -> Built<'a>
     })
 }
 
-/// `fune catalog source add|rm` → `AddCatalogSource`（引数の読み方は service）・`RemoveCatalogSource`。
+/// `fune catalog source add|add-local|rm` → `AddCatalogSource`・`AddLocalCatalog`（引数の読み方は service）・`RemoveCatalogSource`。
 fn catalog_source(c: &CatalogSourceCmd) -> (Op, &crate::args::EditOpts) {
     match c {
         CatalogSourceCmd::Add {
@@ -269,6 +298,17 @@ fn catalog_source(c: &CatalogSourceCmd) -> (Op, &crate::args::EditOpts) {
                 name: name.clone(),
                 git: git.clone(),
                 rev: rev.clone(),
+            }),
+            opts,
+        ),
+        CatalogSourceCmd::AddLocal {
+            name,
+            path,
+            edit: opts,
+        } => (
+            edit::catalog_local_add_op(&CatalogLocalAddText {
+                name: name.clone(),
+                path: path.clone(),
             }),
             opts,
         ),

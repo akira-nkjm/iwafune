@@ -6,7 +6,9 @@ use crate::codec::float;
 use crate::error::StoreError;
 use crate::layout::{LOCK_FILE, POLICY_FILE, PROJECT_FILE};
 use crate::profile as format;
-use fune_model::design::{Allocations, BudgetPolicy, CatalogLock, CatalogSource, Project};
+use fune_model::design::{
+    Allocations, BudgetPolicy, CatalogLock, CatalogSource, Project, ProjectField,
+};
 use toml_edit::{ArrayOfTables, DocumentMut, Item, Table};
 
 /// 新しい `fune.toml`（serde の形のまま）。
@@ -108,6 +110,37 @@ pub fn remove_catalog_source(edits: &mut crate::Edits, name: &str) -> Result<boo
         refinish(doc)?;
         Ok(true)
     })
+}
+
+/// `fune.toml` の `[project]` のフィールドを書く（`Label(None)` は消す）。ほかの行とコメントは残し、
+/// `=` の揃えは正規形（`fune fmt`）に合わせる。値の検査は呼ぶ側（fune-ops）。
+pub fn set_project_field(edits: &mut crate::Edits, field: &ProjectField) -> Result<(), StoreError> {
+    let (key, value) = match field {
+        ProjectField::Name(name) => ("name", Some(name.as_str())),
+        ProjectField::Label(label) => ("label", label.as_deref()),
+    };
+    edits.edit(PROJECT_FILE, |doc| {
+        let table = super::doc::table_mut(doc, &["project"])?;
+        super::doc::set_opt(table, key, value.map(super::doc::string));
+        keep_project_key_order(table);
+        refinish(doc)
+    })
+}
+
+/// `[project]` のキーを、serde の形の順（`name`・`label`・`schema`・`toml`。ほかのキーはその後ろに元の順）に並べる
+/// （足した `label` が末尾に付かないように。装飾とコメントはキーと一緒に動く）。
+fn keep_project_key_order(table: &mut Table) {
+    const ORDER: [&str; 4] = ["name", "label", "schema", "toml"];
+    let rank = |key: &str| ORDER.iter().position(|k| *k == key).unwrap_or(ORDER.len());
+    let keys: Vec<String> = table.iter().map(|(k, _)| k.to_owned()).collect();
+    if keys.windows(2).all(|w| rank(&w[0]) <= rank(&w[1])) {
+        return;
+    }
+    let mut entries: Vec<_> = keys.iter().filter_map(|k| table.remove_entry(k)).collect();
+    entries.sort_by_key(|(k, _)| rank(k.get()));
+    for (key, item) in entries {
+        table.insert_formatted(&key, item);
+    }
 }
 
 /// 編集した `fune.toml` を正規形の揃えで読み直す。

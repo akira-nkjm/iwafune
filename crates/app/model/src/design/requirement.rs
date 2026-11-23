@@ -153,10 +153,58 @@ impl Verification {
         })
     }
 
+    /// 判定のキー `check` が通信の回線 `link` を名指ししているか（`margin:<回線>`・`pfd:<回線>`。`@<局>` は付いてもよい。
+    /// 部分一致はしない: 回線 `s` は `margin:s_down@…` に当たらない）。
+    ///
+    /// 局と同じく、キーの書式（`LINK_CHECK_FAMILIES`）は解析が持ち、ここはその写しで、回線の名前変更・削除を扱うためだけに使う
+    /// （キーが構造を持つ形になるまで。#328）。解析の書式との一致は fune-projection のテストが確かめる。
+    pub fn check_names_link(&self, link: &str) -> bool {
+        self.check
+            .as_deref()
+            .and_then(link_check_parts)
+            .is_some_and(|p| p.link == link)
+    }
+
+    /// 回線 `from` を名指す判定のキーを、回線 `to` を名指すものに替えたキー（名指していなければ None）。
+    pub fn check_with_link_renamed(&self, from: &str, to: &str) -> Option<String> {
+        let parts = self.check.as_deref().and_then(link_check_parts)?;
+        (parts.link == from).then(|| {
+            let station = parts.station.map(|s| format!("@{s}")).unwrap_or_default();
+            format!("{}:{to}{station}", parts.family)
+        })
+    }
+
     /// 何も書かれていないか（ファイルに `[verify]` を書かない）。
     pub fn is_empty(&self) -> bool {
         self == &Self::default()
     }
+}
+
+/// 回線を名指す判定のキーの族（`comm.link_budget` の `margin:<回線>@<局>` と `pfd:<回線>@<局>`）。
+pub const LINK_CHECK_FAMILIES: &[&str] = &["margin", "pfd"];
+
+/// 回線を名指す判定のキーの中身。
+struct LinkCheckParts<'a> {
+    family: &'a str,
+    link: &'a str,
+    station: Option<&'a str>,
+}
+
+/// `<族>:<回線>[@<局>]` を分ける（族が `LINK_CHECK_FAMILIES` に無ければ None）。
+fn link_check_parts(key: &str) -> Option<LinkCheckParts<'_>> {
+    let (family, rest) = key.split_once(':')?;
+    if !LINK_CHECK_FAMILIES.contains(&family) {
+        return None;
+    }
+    let (link, station) = match rest.split_once('@') {
+        Some((link, station)) => (link, Some(station)),
+        None => (rest, None),
+    };
+    Some(LinkCheckParts {
+        family,
+        link,
+        station,
+    })
 }
 
 /// 要求（`requirements/<ID>.toml`）。

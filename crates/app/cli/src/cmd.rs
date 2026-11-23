@@ -11,6 +11,7 @@
 //! | `defs` | attr/kind の add・replace・rm の引数 → Op |
 //! | `requirements` | requirement add/set/rm の引数 → Op、requirement ls・compliance |
 //! | `records` | case・source・harness・catalog・part point の引数 → Op |
+//! | `links` | link add/rm/rename・project set/unset の引数 → Op |
 //! | `catalog` | catalog ls/show/fetch/update と、catalog source add/rm のあとの案内 |
 //! | `edit` | Op の列の適用と結果の表示・init・undo / redo |
 //! | `units` | units ls/parse/format |
@@ -29,6 +30,7 @@ mod data;
 mod defs;
 mod edit;
 mod gui;
+mod links;
 mod maneuvers;
 mod nets;
 mod nouns;

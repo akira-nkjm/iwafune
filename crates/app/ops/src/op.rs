@@ -3,8 +3,9 @@
 //! JSON では `{ "op": "set_value", ... }` の形（`op` が種類）。
 
 use fune_model::design::{
-    AttributeDef, Case, CatalogField, Harness, KindDef, Maneuver, Maturity, ModeSegment, ModeWhen,
-    Net, NetField, PartField, Pose, Requirement, Source, StartRef,
+    AttributeDef, Case, CatalogField, Harness, KindDef, LinkDirection, Maneuver, Maturity,
+    ModeSegment, ModeWhen, Net, NetField, PartField, Pose, ProjectField, Requirement, Source,
+    StartRef,
 };
 use fune_model::value::{Provenance, Quaternion, SettingValue, Value, Vector3};
 use serde::{Deserialize, Serialize};
@@ -369,6 +370,60 @@ pub enum Op {
     /// 要求を消す。
     RemoveRequirement {
         id: String,
+    },
+    // ---- 名前の変更・通信の回線・プロジェクト・ローカルのカタログ（手書きでしか直せなかったもの。#330）
+    /// ネットの名前を変える（部品のポートの `net`・ハーネスの `nets`・図のノードのキーも書き換える）。
+    RenameNet {
+        id: String,
+        to: String,
+    },
+    /// ハーネス区間の名前を変える（ほかのエンティティはハーネスの ID を持たないので、ファイルの移動だけ）。
+    RenameHarness {
+        id: String,
+        to: String,
+    },
+    /// 解析ケースの名前を変える（`analysis.common.default_case`・要求の `quantify.cases` も書き換える）。
+    RenameCase {
+        id: String,
+        to: String,
+    },
+    /// 出典の名前を変える（部品とカタログ品の値の出典・カタログ品の `source` / `datasheet`・要求の `source` も書き換える）。
+    /// 共有カタログの出典と、共有カタログの品が使っている出典は、読み取り専用なので拒む。
+    RenameSource {
+        id: String,
+        to: String,
+    },
+    /// マヌーバの名前を変える（ほかのマヌーバの `after` も書き換える）。
+    RenameManeuver {
+        id: String,
+        to: String,
+    },
+    /// 通信の回線を足す（`analysis/comm.toml` の `[link.<id>]`。読み込める最小の 3 つ。ほかの値は `SetSetting` で書く）。
+    /// 同じ名前があれば拒む。部品・帯域の実在は最後の検査が見る。
+    CreateCommLink {
+        id: String,
+        direction: LinkDirection,
+        part: String,
+        band: String,
+    },
+    /// 通信の回線を消す（`data_downlink` がその回線なら外す。要求の判定のキーが名指していれば拒む）。
+    RemoveCommLink {
+        id: String,
+    },
+    /// 通信の回線の名前を変える（`data_downlink`・要求の判定のキー `margin:<回線>@<局>` / `pfd:<回線>@<局>` も書き換える）。
+    RenameCommLink {
+        id: String,
+        to: String,
+    },
+    /// `fune.toml` の `[project]` のフィールドを書く（`name`・`label`）。
+    SetProjectField {
+        field: ProjectField,
+    },
+    /// このプロジェクトの中のカタログ（`[[catalog]] name = … path = …`）を足す。置き場所は `path`（プロジェクトの中の相対パス）。
+    /// 名前は ID の規則に従い、既にあるカタログと重ならないこと。ディレクトリは作らない（品を足すとき作られる）。
+    AddLocalCatalog {
+        name: String,
+        path: String,
     },
     // ---- 図の配置（見た目だけ）
     /// 図の配置を一括で書く（`view/<view>.toml`。挙げたノードだけを書き換え、`remove` は消す）。

@@ -55,6 +55,28 @@ fn default_toml() -> String {
     "1.0".to_string()
 }
 
+/// `[project]` の書き換えられるフィールド（`SetProjectField` の Op と store の書き込みが共有する）。
+/// `schema` と `toml` は書き換えない（版の移行は別の道）。None は消す（`name` は消せない）。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(tag = "field", content = "value", rename_all = "snake_case")]
+pub enum ProjectField {
+    Name(String),
+    Label(Option<String>),
+}
+
+impl ProjectField {
+    /// 書き換えられるフィールドの名前（ファイルのキー・CLI の引数）。
+    pub const NAMES: &'static [&'static str] = &["name", "label"];
+
+    /// フィールド名の綴り。
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Name(_) => "name",
+            Self::Label(_) => "label",
+        }
+    }
+}
+
 /// カタログの出所（`[[catalog]]`）。`path` ならリポジトリ内（書き込める）、`git` なら共有リポジトリ（読み取り専用。
 /// `catalog.lock` の commit を `.fune/` のキャッシュから読む。docs/model.md §12）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]

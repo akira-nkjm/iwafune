@@ -73,6 +73,13 @@ default state `off`; set the states it really has with `fune mode set`.)
 Modes: `fune mode add SURVEY --from NOMINAL` copies a table, then adjust rows with
 `fune mode set <mode> <part> <state>` and `fune mode duration <mode> --max-duration "90 min"`.
 
+Renaming: use the noun's `rename` command instead of deleting and recreating, because it rewrites every
+reference (for example `fune net rename P5V P5V_MAIN` or `fune case rename hot_imaging hot_img`; the same
+for parts, modes, harness segments, sources, maneuvers, ground stations, links, attributes and kinds).
+A communication link is created with all its required fields at once:
+`fune link add x_down --direction down --part STX --band s_band`.
+`fune project set name <value>` edits the project name (`label` for the display name).
+
 Run analyses and read the verdicts:
 
 ```

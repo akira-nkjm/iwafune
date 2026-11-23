@@ -12,8 +12,12 @@ use fune_model::path::PortRef;
 use toml_edit::Item;
 
 mod defs;
+mod records;
 
 pub use defs::{rename_attribute, rename_kind};
+pub use records::{
+    rename_case, rename_harness, rename_link, rename_maneuver, rename_net, rename_source,
+};
 
 /// 部品の名前の変更で移ったファイル（部品のファイルと、組立品のディレクトリごと移した子部品のファイル）。
 struct Moved {
@@ -170,7 +174,12 @@ fn rename_sites(
         | Referent::CatalogSource(id)
         | Referent::Station(id)
         | Referent::Kind(id)
-        | Referent::Attribute(id) => id,
+        | Referent::Attribute(id)
+        | Referent::Harness(id)
+        | Referent::Case(id)
+        | Referent::Source(id)
+        | Referent::Maneuver(id)
+        | Referent::Link(id) => id,
     };
     for site in design.references(referent) {
         rename_at(edits, design, &site, (from, to), moved)?;
@@ -221,6 +230,18 @@ fn rename_at(
         | RefSite::KindAttribute { .. }
         | RefSite::PartAttribute { .. }
         | RefSite::CatalogAttribute { .. } => defs::rename_def_at(edits, design, site, names),
+        RefSite::CommonDefaultCase
+        | RefSite::RequirementCase { .. }
+        | RefSite::PartValueSource { .. }
+        | RefSite::CatalogValueSource { .. }
+        | RefSite::CatalogItemSource { .. }
+        | RefSite::CatalogItemDatasheet { .. }
+        | RefSite::RequirementSource { .. }
+        | RefSite::ManeuverAfter { .. }
+        | RefSite::CommDataDownlink
+        | RefSite::RequirementLinkCheck { .. } => {
+            records::rename_record_at(edits, design, site, names)
+        }
     }
 }
 

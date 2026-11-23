@@ -80,6 +80,12 @@ pub enum CommandText {
     RequirementSet(super::RequirementText),
     /// `fune catalog source add <名前> --git <URL> [--rev <rev>]`（fune.toml に共有カタログを足す。取得はしない）
     CatalogSourceAdd(CatalogSourceAddText),
+    /// `fune catalog source add-local <名前> --path <ディレクトリ>`（fune.toml にこのプロジェクトの中のカタログを足す）
+    CatalogLocalAdd(super::CatalogLocalAddText),
+    /// `fune link add <ID> --direction down --part STX --band s_band`（`analysis/comm.toml` に回線を足す。同じ名前があれば拒む）
+    LinkAdd(super::LinkAddText),
+    /// `fune project set <フィールド> <値>`・`fune project unset <フィールド>`（fune.toml の `[project]`）
+    ProjectSet(super::ProjectSetText),
 }
 
 /// `fune catalog source add` の引数。前後の空白は除き、空の `rev` は省いたのと同じ（既定のブランチ）。

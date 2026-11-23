@@ -57,7 +57,7 @@ pub(super) fn rename_def_at(
 }
 
 /// このプロジェクトのカタログ品のファイル（共有カタログの品・読めない参照は誤り）。
-fn catalog_file(design: &Design, reference: &str) -> Result<String, StoreError> {
+pub(super) fn catalog_file(design: &Design, reference: &str) -> Result<String, StoreError> {
     match layout::catalog_location(design, reference) {
         CatalogLocation::Local { file, .. } => Ok(file),
         _ => Err(StoreError::Missing {

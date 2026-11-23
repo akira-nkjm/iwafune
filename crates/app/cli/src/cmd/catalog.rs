@@ -132,6 +132,9 @@ pub fn after_edit(cmd: &CatalogCmd, opts: &EditOpts, out: &Out) {
         CatalogSourceCmd::Add { name, .. } => format!(
             "Added shared catalog `{name}` to fune.toml (not fetched yet). Run `fune catalog fetch`, then commit catalog.lock"
         ),
+        CatalogSourceCmd::AddLocal { name, path, .. } => format!(
+            "Added catalog `{name}` (path = \"{path}\") to fune.toml. Add items with `fune catalog add {name}/<ID> --kind …`"
+        ),
         CatalogSourceCmd::Rm { name, .. } => {
             format!(
                 "Any `{name}` entry in catalog.lock is dropped by the next `fune catalog fetch`"

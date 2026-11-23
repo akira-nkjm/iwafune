@@ -794,6 +794,17 @@ band      = "s_band"
 
 Both keys are set with the same `SetSetting` as other settings, for example `fune set analysis.comm.data_downlink s_down`.
 
+A link cannot be built one field at a time with `fune set`, because a link without `direction`, `part` and `band` does not load. Links have their own Ops (all through Ops, so no file needs to be written by hand):
+
+- `fune link add <name> --direction down|up --part <part> --band <band>` (Op `create_comm_link`; the GUI sends the typed text to `POST /ops/from_command` as `{ "command": "link_add", … }`)
+  writes `[link.<name>]` with just those three keys (creating `analysis/comm.toml` if needed); the rest is set with `fune set analysis.comm.link.<name>.<key> …`.
+  The name follows the ID rules and must not collide with an existing link (a difference only in letter case collides). A missing part is refused by the final check (`ref.part`); a band that a listed station lacks is only a warning (`ref.band`).
+- `fune link rename <name> <new>` (Op `rename_comm_link`) renames the table and rewrites `data_downlink` and the `verify.check` of requirements that name the link
+  (`margin:<link>`, `margin:<link>@<station>`, `pfd:<link>`, `pfd:<link>@<station>`; the key format is the analysis's, and `Verification::check_names_link` is the provisional mirror of it, checked against the analysis output in a fune-projection test; #328).
+  The reference index returns these as `Referent::Link` (`RefSite::{CommDataDownlink, RequirementLinkCheck}`).
+- `fune link rm <name>` (Op `remove_comm_link`) removes the table (and the `link` table when it was the last one), and clears `data_downlink` if it named the link.
+  It is refused while a requirement's `verify.check` names the link; update or remove those requirements first.
+
 #### Distance of a link (`comm.link_budget`)
 
 The distance used for the link depends on the central body of `conditions.orbit` (`central`). The result says which model was used (`distance_model`).
@@ -1131,6 +1142,12 @@ from.note   = "Rough estimate from the 3D layout"
 | Create a new net | `nets/X.toml` (new), and the `ports` of the parts to connect |
 | Add a harness segment | only `harness/X.toml` (new) |
 | Rename a part | moving the part file, and rewriting `source` in the modes, harnesses and nets that refer to it (the Rename Op does all of this at once) |
+| Rename a net (`fune net rename`) | moving `nets/X.toml`, and rewriting `ports.<port>.net` of the parts, `nets` of the harness segments and the diagram node keys in `view/*.toml` that refer to it. Hand-drawn line keys (`[edge]`, `P5V:PCDU.OUT2>CAM.PWR`) are not rewritten (as for a part rename) |
+| Rename a harness segment (`fune harness rename`) | only moving `harness/X.toml` (no other entity holds a harness ID) |
+| Rename an analysis case (`fune case rename`) | moving `cases/X.toml`, and rewriting `default_case` of `analysis/common.toml` and `[quantify].cases` of the requirements |
+| Rename a source (`fune source rename`) | moving `sources/…/X.toml` (it stays in its directory), and rewriting the `from.source` of the values of parts and catalog items (including per-state cells), `source` and `datasheet` of the catalog items, and `source` of the requirements. A shared-catalog source, or a source used by a shared-catalog item, is refused because shared catalogs are read-only |
+| Rename a maneuver (`fune maneuver rename`) | moving `maneuvers/X.toml`, and rewriting `after` of the maneuvers that follow it |
+| Rename the project, change its display name (`fune project set name\|label`, `fune project unset label`) | only `[project]` of `fune.toml` (comments and key order stay; `schema` and `toml` are not set by commands) |
 | Reassign an allocation | only `budget/allocation.toml` |
 
 ### 7.6 The trade-off of placing modes on the mode side
@@ -1714,6 +1731,11 @@ name = "local"
 path = "catalog"
 ```
 
+`[project]` holds `name` (required), `label` (the display name, optional), `schema` and `toml`. `name` and `label` are written with `fune project set name|label <value>` and `fune project unset label`
+(Op `set_project_field`; the GUI sends `{ "command": "project_set", "field": …, "value": … }` to `POST /ops/from_command`). A value must be one line of text, and `name` cannot be empty or removed.
+`schema` and `toml` are not set by commands. Comments and the order of keys stay as they are (`label` is put back in its place after `name` when it was removed).
+The `[[catalog]]` entries are edited with `fune catalog source add|add-local|rm` (§12.3).
+
 `parts/aocs/RW_X.toml`
 
 ```toml
@@ -1839,7 +1861,8 @@ Loading looks only at the lock's commit (even if `rev` is a branch, the contents
 | Command (HTTP) | What it does |
 |---|---|
 | `fune catalog source add <name> --git <URL> [--rev <rev>]` (`POST /ops/from_command` `{ "command": "catalog_source_add", … }` → `POST /ops`. The Op is `add_catalog_source`) | Adds one shared catalog after the `[[catalog]]` entries in fune.toml (written in canonical form). The name follows the ID rules and must not collide with an existing catalog (including `local` with `path`; even a difference only in letter case collides). `git` cannot be empty. **It does not fetch** (follow with `fune catalog fetch`; until then, `catalog.not_locked`). In the GUI it is "Add shared catalog" on the catalog page |
-| `fune catalog source rm <name>` (`remove_catalog_source` via `POST /ops`) | Removes a shared catalog from fune.toml. Only those with `git = …` can be removed; this project's own catalog (`path = …`) is not removed. If a part's `catalog` or `candidates`, or a harness's `wire`, refers to an item of it (`<name>/…`), it is refused, listing the referring parts and harnesses. catalog.lock is not rewritten, and the next `fune catalog fetch` removes the record (until then, a `catalog.lock_unused` warning). The cache under `.fune/` remains |
+| `fune catalog source add-local <name> --path <dir>` (`{ "command": "catalog_local_add", … }` → `POST /ops`. The Op is `add_local_catalog`) | Adds a catalog of this project (`[[catalog]] name = … path = …`) after the existing entries. The name follows the same rules as for a shared catalog (including no collision with any existing catalog). The directory (inside the project, `a/b`; each name follows the ID rules) must not be the project root, must not start with a directory the project layout uses (`parts`, `sources`, `modes`, `nets`, `harness`, `cases`, `maneuvers`, `requirements`, `conditions`, `analysis`, `view`, `budget`, `defs`, …), and must not contain or be inside another catalog's directory (`fune_store::layout::parse_local_catalog_path`). The directory is not created; adding the first item creates it |
+| `fune catalog source rm <name>` (`remove_catalog_source` via `POST /ops`) | Removes a catalog from fune.toml. A shared catalog (`git = …`) is removed unless a part's `catalog` or `candidates`, or a harness's `wire`, refers to an item of it (`<name>/…`; refused, listing the referring parts and harnesses). catalog.lock is not rewritten, and the next `fune catalog fetch` removes the record (until then, a `catalog.lock_unused` warning). The cache under `.fune/` remains. A catalog of this project (`path = …`) is removed only while it holds no items (their files would otherwise stay unread), after the same check of users |
 | `fune catalog fetch` (`POST /catalog/fetch`) | If the lock matches fune.toml, fetches the lock's commit (the commit is not moved). For a shared catalog absent from the lock or whose `git` or `rev` differs, it resolves `rev` and writes it to the lock. Lock records absent from fune.toml are removed |
 | `fune catalog fetch --locked` (`{ "locked": true }`) | Does not rewrite the lock. Fails if there is no lock or it differs from fune.toml (for CI) |
 | `fune catalog update <name>` (`POST /catalog/update`) | Advances that shared catalog's lock to the current commit of `rev`. Returns the items and values that changed (`attr.mass: 150 g → 160 g`) |

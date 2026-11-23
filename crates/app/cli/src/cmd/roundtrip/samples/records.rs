@@ -2,9 +2,9 @@
 
 use super::s;
 use fune_service::dto::{
-    AttributeDef, Case, Distribution, Harness, KindDef, ModeCell, ModeSegment, ModeWhen, Net,
-    NetField, NetKind, Op, PortRef, Quantity, SettingValue, Source, SourceKind, StartFrom,
-    StartRef, ViewNodePos,
+    AttributeDef, Case, Distribution, Harness, KindDef, LinkDirection, ModeCell, ModeSegment,
+    ModeWhen, Net, NetField, NetKind, Op, PortRef, ProjectField, Quantity, SettingValue, Source,
+    SourceKind, StartFrom, StartRef, ViewNodePos,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -317,6 +317,50 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         Op::RenameGroundStation {
             id: s("BARE_GS"),
             to: s("BARE_GS2"),
+        },
+        Op::RenameNet {
+            id: s("P5V"),
+            to: s("P5V_MAIN"),
+        },
+        Op::RenameHarness {
+            id: s("H_OBC_CAM"),
+            to: s("H_OBC_CAMERA"),
+        },
+        Op::RenameCase {
+            id: s("hot_imaging"),
+            to: s("hot_img"),
+        },
+        Op::RenameSource {
+            id: s("sys_judgement"),
+            to: s("sys_judge"),
+        },
+        Op::RenameManeuver {
+            id: s("RAISE"),
+            to: s("M_RAISE"),
+        },
+        Op::CreateCommLink {
+            id: s("x_down"),
+            direction: LinkDirection::Down,
+            part: s("STX"),
+            band: s("s_band"),
+        },
+        Op::RemoveCommLink { id: s("x_down") },
+        Op::RenameCommLink {
+            id: s("x_down"),
+            to: s("x_dl"),
+        },
+        Op::SetProjectField {
+            field: ProjectField::Name(s("demo project")),
+        },
+        Op::SetProjectField {
+            field: ProjectField::Label(Some(s("Demo \"label\""))),
+        },
+        Op::SetProjectField {
+            field: ProjectField::Label(None),
+        },
+        Op::AddLocalCatalog {
+            name: s("vendor"),
+            path: s("vendor/parts"),
         },
         Op::CreateRequirement {
             requirement: requirement(

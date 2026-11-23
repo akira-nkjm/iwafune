@@ -18,6 +18,7 @@
 //! | `command` | 名詞のコマンドに打った引数（`CommandText`。`fune net set`・`fune part place`・`fune mode set` など） |
 //! | `maneuver` | マヌーバの表示（`ManeuverView`）と `fune maneuver add\|set` の引数（`ManeuverText`） |
 //! | `ground` | 地上局の表示（`GroundStationView`）と `fune ground add` の引数（`GroundAddText`） |
+//! | `records_text` | `fune link add`・`fune catalog source add-local`・`fune project set` の引数（`LinkAddText`・`CatalogLocalAddText`・`ProjectSetText`） |
 //! | `requirement` | 要求の表示（`RequirementView`）・`fune requirement add\|set` の引数（`RequirementText`）・要求適合表（`ComplianceReport`） |
 //! | `budget` | 質量・電力・データ量のバジェット |
 //! | `kpi` | KPI（系の代表値・判定・塗りの比・判定の数え方）と塗りの比 |
@@ -73,6 +74,8 @@ pub use shared_catalog::{
 };
 mod ground;
 pub use ground::{GroundAddText, GroundStationView};
+mod records_text;
+pub use records_text::{CatalogLocalAddText, LinkAddText, ProjectSetText};
 mod source;
 pub use source::SourceView;
 mod mode_levels;
@@ -119,6 +122,7 @@ pub use fune_model::design::{
     UncertaintySide,
 };
 pub use fune_model::design::{BudgetKind, SharedCatalogState, SharedCatalogStatus, StateAssign};
+pub use fune_model::design::{LinkDirection, ProjectField};
 pub use fune_model::design::{ViewEdge, ViewLayout, ViewNode, ViewPortSide};
 pub use fune_model::path::PortRef;
 pub use fune_model::resolve::{Evidence, Origin};
