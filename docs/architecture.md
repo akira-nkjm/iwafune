@@ -229,7 +229,7 @@ Tests verify the following two things.
 
 HTTP failures are returned as `{ "error": { "code", "message" }, "diagnostics": [...] }`, and the CLI prints the same shape with `--json`.
 When an unsaved draft (the `ops` of analysis, budget and part views) does not go through, it is returned with the same classification as saving (for a check failure, 422 and diagnostics).
-Missing input is not an error, so both analyses and budgets return 200 with `missing` (the targets of the missing inputs and the reasons).
+Missing input is not an error, so both analyses and budgets return 200 with `missing` (the targets of the missing inputs, the reasons, and the `fixes` that say what would fill each).
 `fune check` exits with 1 if there is an error (also for warnings with `--deny-warnings`).
 
 The exit code of the `fune` executable follows one convention: 0 is success; 1 is "the design or the result fails" (check errors, and for reads that judge a result: a missing input, a failed run or a violation verdict) or an internal error; 2 is invalid input or not found (an error that is not a service error, such as an unreadable file passed to `--ops`, also exits with 2); 3 is a conflict.
@@ -358,6 +358,7 @@ An analysis runs as follows (`fune_service::analysis::run_analysis`. `fune analy
    The correspondence between analysis IDs and projections is in one place, `fune_projection::dispatch`.
 3. If any input is missing, it returns `missing_inputs` without calling the analysis. `missing_inputs` expresses what is missing as a parameter path (`RW_X.max_momentum`, `conditions.orbit.altitude`) and a reason,
    and lists everything that was found.
+   Each missing input also carries `fixes`: structured candidates for what would fill it (enter a value, add or assign a part, pick the part a field refers to, add a list item; `fune_service::fixes`, the only place that decides them). `fune analyze` (and `fune budget`, `fune mode view`) prints each candidate as a command with `<…>` placeholders (for example `fune set RW_X.max_momentum "<value>"`), and `--json` returns the same candidates; the GUI row actions use them too.
 4. Run the analysis with `sat_analysis::catalog::run_json`.
 5. The service collects the dimension of each quantity of the output (JSON Pointer → dimension name) and the display names of vocabulary values (enumerations), attaches display names and display units to the time series,
    lines up the verdicts inside the output, and attaches the worst verdict. An analysis does not hold display names and returns only keys (`ChannelKind`, enumeration values, `span_fallback`)

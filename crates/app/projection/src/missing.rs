@@ -1,6 +1,7 @@
 //! 不足入力。**解析に必要なのに設計データに無いものを、対象（`fune_model::Target`）で名指しする。**
 //! 文字列のパスは対象の `Display` から作るだけで、読み直さない。
 
+use crate::fix::Fix;
 use fune_model::Target;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -19,6 +20,9 @@ pub struct MissingInput {
     pub target: Option<Target>,
     /// 何に使うか・何が要るか（例: `"RW の角運動量の上限"`）
     pub reason: String,
+    /// 直し方の候補（操作の種類と絞り込みの条件）。射影は空で返し、service の `fixes::complete` が設計を見て埋める
+    #[serde(default)]
+    pub fixes: Vec<Fix>,
 }
 
 impl MissingInput {
@@ -30,6 +34,7 @@ impl MissingInput {
                 .map_or_else(|| INTERNAL.to_owned(), Target::to_string),
             target,
             reason,
+            fixes: Vec::new(),
         }
     }
 }

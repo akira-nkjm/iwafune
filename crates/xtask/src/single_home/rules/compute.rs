@@ -164,6 +164,31 @@ pub(in crate::single_home) const RULES: &[Rule] = &[
         "transfer formulas",
     ),
     (
+        "fn hyperbolic_periapsis_dv_m_s(",
+        &["crates/lib/astro/src/transfer/patched.rs"],
+        "the delta-v of a hyperbolic periapsis burn",
+    ),
+    (
+        "fn dated_transfer(",
+        &["crates/lib/astro/src/transfer/dated.rs"],
+        "dated interplanetary transfers",
+    ),
+    (
+        "fn lambert_about_normal(",
+        &["crates/lib/astro/src/transfer/lambert.rs"],
+        "transfer formulas",
+    ),
+    (
+        "fn soi_radius_m(",
+        &["crates/lib/astro/src/ephem/central.rs"],
+        "the sphere-of-influence radius",
+    ),
+    (
+        "fn state_about_parent(",
+        &["crates/lib/astro/src/ephem/central.rs"],
+        "the state of a body about its parent",
+    ),
+    (
         "fn body_view_factor(",
         &["crates/lib/astro/src/illumination.rs"],
         "view factors",

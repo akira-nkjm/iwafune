@@ -12,6 +12,7 @@
 //! | `pose` | 取付の連鎖 → 機体座標の位置・姿勢（sat-astro の Quat で合成。合成はここだけ） |
 //! | `quantity` | 書かれた量 → 型付きの SI 量（換算は sat-units） |
 //! | `missing` | 不足入力の型と収集 |
+//! | `fix` | 不足入力の直し方の候補の型（決めるのは service の `fixes`） |
 //! | `reads` | 射影が読んだもの（部品の属性・設定・モード・ケース）の記録。記録の入口は `Context::note` だけ |
 //! | `launch` | 打ち上げ条件（`conditions/launch.toml` が選ぶ打ち上げ機・ディスペンサー）の読み出しと、値の優先順（launch.toml → ディスペンサー → 打ち上げ機）、限度の候補（要求を足す） |
 //! | `launch_fit` | `structure.launch_fit` の射影 |
@@ -26,6 +27,7 @@ pub mod cdh;
 pub mod comm;
 pub mod context;
 pub mod dispatch;
+pub mod fix;
 pub mod launch;
 pub mod launch_fit;
 pub mod missing;
@@ -47,5 +49,6 @@ pub use dispatch::{
     Entry, OutputVisitor, ProjectionError, Projects, entries, project_json, project_typed,
     visit_output,
 };
+pub use fix::{CatalogFix, Fix, ListKind};
 pub use missing::{MissingInput, MissingInputs};
 pub use reads::ReadLog;

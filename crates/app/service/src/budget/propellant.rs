@@ -30,7 +30,7 @@ pub(super) fn load(ctx: &Context<'_>) -> Load {
         Ok(input) => input,
         Err(m) => {
             return Load::Omitted(BudgetPropellant::Missing {
-                missing: m.into_vec(),
+                missing: crate::fixes::complete(ctx.design, ctx.resolved, m.into_vec()),
             });
         }
     };
