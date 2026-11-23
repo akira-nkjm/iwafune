@@ -51,6 +51,6 @@ pub use dispatch::{
     Entry, OutputVisitor, ProjectionError, Projects, entries, project_json, project_typed,
     visit_output,
 };
-pub use fix::{CatalogFix, Fix, ListKind};
+pub use fix::{CatalogFix, Choice, Fix, ListKind, RefKind};
 pub use missing::{MissingInput, MissingInputs};
 pub use reads::ReadLog;

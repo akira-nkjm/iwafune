@@ -1,7 +1,7 @@
 use super::*;
 use crate::constants::{MU_EARTH, OMEGA_EARTH, R_EARTH};
 use crate::earth::ecef_to_eci;
-use crate::orbit::Propagator;
+use crate::orbit::{OrbitSpec, Propagator};
 
 fn station(lat_deg: f64, lon_deg: f64, min_el_deg: f64) -> GroundStation {
     GroundStation {
@@ -44,7 +44,14 @@ fn equatorial_passes_match_closed_form() {
         Qty::from_raw(0.0),
     );
     orbit.propagator = Propagator::Kepler;
-    let passes = find_passes(&gs, &orbit, epoch(), 86_400.0, 30.0).expect("passes");
+    let passes = find_passes(
+        &gs,
+        &Trajectory::from(orbit.clone()),
+        epoch(),
+        86_400.0,
+        30.0,
+    )
+    .expect("passes");
     let r = R_EARTH + 550e3;
     let n = (MU_EARTH / r.powi(3)).sqrt();
     let lambda = (R_EARTH / r).acos();
@@ -78,8 +85,22 @@ fn sso_passes_over_tokyo_are_plausible() {
         Qty::from_raw(i),
         Qty::from_raw(1.0),
     );
-    let coarse = find_passes(&gs, &orbit, epoch(), 86_400.0, 60.0).expect("passes");
-    let fine = find_passes(&gs, &orbit, epoch(), 86_400.0, 10.0).expect("passes");
+    let coarse = find_passes(
+        &gs,
+        &Trajectory::from(orbit.clone()),
+        epoch(),
+        86_400.0,
+        60.0,
+    )
+    .expect("passes");
+    let fine = find_passes(
+        &gs,
+        &Trajectory::from(orbit.clone()),
+        epoch(),
+        86_400.0,
+        10.0,
+    )
+    .expect("passes");
     assert!((3..=8).contains(&coarse.len()), "{}", coarse.len());
     assert_eq!(coarse.len(), fine.len());
     for (c, f) in coarse.iter().zip(fine.iter()) {
@@ -97,8 +118,26 @@ fn rejects_bad_inputs() {
         Qty::from_raw(1.0),
         Qty::from_raw(0.0),
     );
-    assert!(find_passes(&station(0.0, 0.0, 0.0), &orbit, epoch(), 3600.0, 0.0).is_err());
-    assert!(find_passes(&station(95.0, 0.0, 0.0), &orbit, epoch(), 3600.0, 10.0).is_err());
+    assert!(
+        find_passes(
+            &station(0.0, 0.0, 0.0),
+            &Trajectory::from(orbit.clone()),
+            epoch(),
+            3600.0,
+            0.0
+        )
+        .is_err()
+    );
+    assert!(
+        find_passes(
+            &station(95.0, 0.0, 0.0),
+            &Trajectory::from(orbit.clone()),
+            epoch(),
+            3600.0,
+            10.0
+        )
+        .is_err()
+    );
 }
 
 #[test]
@@ -129,7 +168,8 @@ fn moon_orbiter_behind_the_moon_is_occulted() {
     orbit.propagator = Propagator::Kepler;
     let period = orbit.period_s();
     let gs = station(0.0, 0.0, 0.0);
-    let track = Track::new(&gs, &orbit, epoch(), period, 60.0).expect("track");
+    let track =
+        Track::new(&gs, &Trajectory::from(orbit.clone()), epoch(), period, 60.0).expect("track");
     let hidden = |t: f64| {
         // |S + u d − C|² = R² が u ∈ [0, 1] に解を持つか
         let e = epoch().plus_seconds(t);

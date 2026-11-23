@@ -212,7 +212,7 @@ pub fn steady(ctx: &Context<'_>) -> Result<ThermalSteadyInput, MissingInputs> {
         cases.push(ThermalSteadyCase {
             id: id.clone(),
             label: c.label.clone().unwrap_or_else(|| id.clone()),
-            environment: environment(id, c, Some(t.orbit().central), &mut m),
+            environment: environment(id, c, Some(t.orbit().central()), &mut m),
             exposure: ThermalExposure::OrbitAverage { timeline: t },
             loads: Vec::new(),
             mode_loads: analysis_loads(ctx, s, mode),
@@ -290,7 +290,7 @@ pub fn transient(ctx: &Context<'_>) -> Result<ThermalTransientInput, MissingInpu
         Some(temperature) => ThermalInitial::Uniform { temperature },
         None => ThermalInitial::OrbitAverageSteady,
     };
-    let central = t.as_ref().map(|t| t.orbit().central);
+    let central = t.as_ref().map(|t| t.orbit().central());
     let environment = environment(id, c, central, &mut m);
     let margin = margin(s, &mut m);
     let phases = vec![ThermalHeatPhase {

@@ -83,7 +83,7 @@ pub(super) fn verdicts(input: &RwUnloadingInput, o: &RwUnloadingOutput) -> Vec<C
     checks.extend(
         input
             .spacecraft
-            .environment_check(input.timeline.orbit().central),
+            .environment_check(input.timeline.orbit().central()),
     );
     checks
 }

@@ -59,7 +59,7 @@ impl MtqFieldGap {
 /// 磁場のモデルが無い天体で 0 として計算し「MTQ のトルクが 0」と誤解させないため、MTQ の評価を外す。
 pub(super) fn field_reason(field: Option<&UnloadTimeField>) -> Option<MtqFieldReason> {
     match field? {
-        UnloadTimeField::Orbit { sampling } => MtqFieldReason::of(sampling.orbit.central),
+        UnloadTimeField::Orbit { sampling } => MtqFieldReason::of(sampling.orbit.central()),
         UnloadTimeField::Constant { .. } => None,
     }
 }

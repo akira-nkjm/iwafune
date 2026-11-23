@@ -16,6 +16,8 @@
 //! - Lambert の問題（[`lambert()`]）: 2 点と飛行時間から両端の速度（普遍変数。[`lambert`] モジュール）。
 //! - 日付を決めた惑星間の遷移（[`dated_transfer`]）: 出発・到着の日の天体の状態から日心の Lambert を解き、
 //!   v∞・C3・出発の赤緯・両端の噴射を求める（[`dated`] モジュール）。
+//! - 日付つきの遷移の巡航の多体の確認（[`check_cruise`]）: Lambert の出発の状態を、太陽と惑星の点質量で数値伝搬して、
+//!   到着の日のずれ・最接近・到着の超過速度の差を求める（[`cruise`] モジュール。伝搬は `crate::orbit::propagate_states`）。
 //!
 //! 値は SI（m・m/s・s・rad・kg・N）。重力定数 `mu` は中心天体のもの [m³/s²]。
 
@@ -23,9 +25,11 @@ use crate::AstroError;
 use crate::rocket::{burn_time, propellant_for};
 use core::f64::consts::PI;
 
+pub mod cruise;
 pub mod dated;
 pub mod lambert;
 pub mod patched;
+pub use cruise::{CruiseCheck, CruiseSample, check_cruise};
 pub use dated::{DatedTransfer, dated_transfer};
 pub use lambert::{LambertSolution, lambert, lambert_about_normal};
 pub use patched::{PatchedBurn, PatchedConic, hyperbolic_periapsis_dv_m_s, patched_conic};

@@ -17,8 +17,6 @@ ts = ["dep:ts-rs", "sat-units/ts"]
 [dependencies]
 sat-units = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 ts-rs = { workspace = true, optional = true }
-
-[dev-dependencies]
-serde_json = { workspace = true }

@@ -22,7 +22,7 @@ fn epoch(s: &str) -> Epoch {
 }
 
 /// 高度 300 km の駐車軌道（傾斜角 `incl_deg`）、元期は出発の 6 日前。火星の高度 300 km の円軌道へ捕獲する日付つきの遷移。
-fn mars_input(incl_deg: f64, departure: &str) -> PropulsionInput {
+pub(super) fn mars_input(incl_deg: f64, departure: &str) -> PropulsionInput {
     let mut i = input(vec![ManeuverInput {
         target: OrbitTarget {
             body: Some(CentralBody::Mars),

@@ -48,7 +48,7 @@ export function MissingFixActions({
           );
         return (
           <button key={key} type="button" className={ACTION} onClick={() => setOpen(a)}>
-            {a.kind === "value" ? t.enterValue : t.pickPart}
+            {a.kind === "value" ? t.enterValue : t.pick.action[a.fix.what]}
           </button>
         );
       })}

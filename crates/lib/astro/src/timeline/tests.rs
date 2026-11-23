@@ -1,7 +1,7 @@
 use super::*;
 use crate::constants::R_EARTH;
 use crate::ephem::sun_direction_eci;
-use crate::orbit::{Propagator, beta_angle_rad};
+use crate::orbit::{OrbitSpec, Propagator, beta_angle_rad};
 
 fn polar_orbit_with_beta_zero() -> OrbitSpec {
     let epoch = Epoch::parse("2027-06-01T00:00:00Z").expect("epoch");
@@ -34,7 +34,8 @@ fn spec(shadow: ShadowModel) -> TimelineSpec {
 #[test]
 fn eclipse_fraction_at_550_km_beta_zero() {
     let sp = spec(ShadowModel::Cylindrical);
-    let beta = beta_angle_rad(&sp.sampling.orbit, sp.sampling.orbit.epoch).expect("β");
+    let orbit = sp.sampling.orbit.elements().expect("elements");
+    let beta = beta_angle_rad(orbit, orbit.epoch).expect("β");
     assert!(beta.abs() < 1e-6, "β = {beta}");
     let h = 550e3;
     let r = R_EARTH + h;
@@ -53,7 +54,7 @@ fn eclipse_fraction_at_550_km_beta_zero() {
     let w = shadow_windows(&samples, 0.5);
     assert_eq!(w.len(), 1, "{w:?}");
     let minutes = w[0].duration.value() / 60.0;
-    let expected_min = expected * sp.sampling.orbit.period_s() / 60.0;
+    let expected_min = expected * sp.sampling.orbit.cycle().length_s() / 60.0;
     // 端は標本の時刻なので刻み（5 s）の分だけ短くなりうる
     assert!((minutes - expected_min).abs() < 0.2, "{minutes} min");
 }
@@ -115,8 +116,9 @@ fn beta_override_sets_raan_at_start() {
     sp.sampling.span = Qty::from_raw(600.0);
     for beta_deg in [-30.0_f64, 0.0, 25.0, 60.0] {
         sp.sampling.beta = Some(Qty::from_raw(beta_deg.to_radians()));
-        let orbit = sp.resolved_orbit().expect("reaches beta");
-        let beta = beta_angle_rad(&orbit, orbit.epoch).expect("β").to_degrees();
+        let resolved = sp.resolved_orbit().expect("reaches beta");
+        let orbit = resolved.elements().expect("elements");
+        let beta = beta_angle_rad(orbit, orbit.epoch).expect("β").to_degrees();
         assert!((beta - beta_deg).abs() < 1e-9, "{beta} vs {beta_deg}");
         // build も同じ軌道を使う
         let first = build(&sp).expect("timeline")[0];
@@ -125,8 +127,18 @@ fn beta_override_sets_raan_at_start() {
     }
     sp.sampling.beta = None;
     assert_eq!(
-        sp.resolved_orbit().expect("as is").elements.raan,
-        sp.sampling.orbit.elements.raan
+        sp.resolved_orbit()
+            .expect("as is")
+            .elements()
+            .expect("elements")
+            .elements
+            .raan,
+        sp.sampling
+            .orbit
+            .elements()
+            .expect("elements")
+            .elements
+            .raan
     );
 }
 
@@ -189,7 +201,8 @@ fn shadow_edges_give_the_analytic_eclipse_duration() {
     let (entry, exit) = (edges[0].1[0], edges[1].1[0]);
     assert!((edges[0].1[0] - edges[0].1[1]).abs() < 1e-3);
     let r = R_EARTH + 550e3;
-    let expected = sp.sampling.orbit.period_s() * (R_EARTH / r).asin() / core::f64::consts::PI;
+    let expected =
+        sp.sampling.orbit.cycle().length_s() * (R_EARTH / r).asin() / core::f64::consts::PI;
     assert!(
         (exit - entry - expected).abs() < 1.0,
         "{} vs {expected}",
