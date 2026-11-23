@@ -295,3 +295,81 @@ fn local_time_raan_is_earth_only() {
         assert!(raan_from_ltdn_about(body, e, 10.5).is_err());
     }
 }
+
+/// 状態から始める数値伝搬（`propagate_states`）は、要素から始める既存の入口（`OrbitSpec::states_at`）と同じ結果を返す
+/// （前者を一般化した入口で、後者はその呼び出し）。中心天体は太陽。
+#[test]
+fn propagate_states_matches_the_orbit_spec_entry_about_the_sun() {
+    let mut spec = OrbitSpec::circular_about(
+        CentralBody::Sun,
+        epoch(),
+        Qty::from_raw(1.0e11),
+        Qty::from_raw(0.1),
+        Qty::from_raw(0.3),
+    );
+    spec.propagator = Propagator::Numerical {
+        forces: ForceConfig::gravity_only(GravityModel::PointMass),
+    };
+    let times = [0.0, 1.0e6, 5.0e6];
+    let via_spec = spec.states_at(&times).expect("spec");
+    let x0 = elements_to_state(
+        &spec.kepler_elements().expect("elements"),
+        CentralBody::Sun.gm(),
+    );
+    let forces = ForceConfig::gravity_only(GravityModel::PointMass);
+    let direct = propagate_states(
+        CentralBody::Sun,
+        &forces,
+        epoch(),
+        x0,
+        &times,
+        &NUMERICAL_INTEGRATOR,
+    )
+    .expect("direct");
+    assert_eq!(via_spec, direct);
+}
+
+/// 太陽中心の円軌道（半径 1.5e11 m）は、手計算の周期 `2π √(r³/GM☉)` の後に出発点へ戻る
+/// （地球を第三体に自動で加えるのを `omit_earth` で外した点質量の二体）。許容は位置 1e-9 × 半径（積分の許容 1e-11 × ステップ数）。
+#[test]
+fn heliocentric_circular_orbit_returns_after_one_period() {
+    let r = 1.5e11;
+    let mu = CentralBody::Sun.gm();
+    let period = TAU * (r * r * r / mu).sqrt();
+    let x0 = OrbitState {
+        r_eci: Vec3::new(r, 0.0, 0.0),
+        v_eci: Vec3::new(0.0, (mu / r).sqrt(), 0.0),
+    };
+    let forces = ForceConfig {
+        omit_earth: true,
+        ..ForceConfig::gravity_only(GravityModel::PointMass)
+    };
+    let end = propagate_states(
+        CentralBody::Sun,
+        &forces,
+        epoch(),
+        x0,
+        &[period],
+        &NUMERICAL_INTEGRATOR,
+    )
+    .expect("propagation");
+    assert!((end[0].r_eci - x0.r_eci).norm() < 1e-9 * r);
+}
+
+/// `omit_earth` は、地球以外が中心のときの地球の自動の第三体の項だけを外す。
+#[test]
+fn omit_earth_drops_only_the_automatic_earth_term() {
+    let s = OrbitState {
+        r_eci: Vec3::new(2.0e6, 0.0, 0.0),
+        v_eci: Vec3::ZERO,
+    };
+    let has_earth = |f: &ForceConfig| {
+        acceleration_breakdown_about(CentralBody::Moon, f, epoch(), &s)
+            .iter()
+            .any(|(t, _)| *t == ForceTerm::EarthThirdBody)
+    };
+    let mut f = ForceConfig::gravity_only(GravityModel::PointMass);
+    assert!(has_earth(&f));
+    f.omit_earth = true;
+    assert!(!has_earth(&f));
+}

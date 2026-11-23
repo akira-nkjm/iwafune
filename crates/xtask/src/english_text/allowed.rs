@@ -112,6 +112,10 @@ pub(super) const ALLOWED: &[(&str, &str)] = &[
         ANALYSIS_TEXT,
     ),
     (
+        "crates/lib/analysis/src/propulsion/transfer_check.rs",
+        ANALYSIS_TEXT,
+    ),
+    (
         "crates/lib/analysis/src/structure/launch_fit.rs",
         ANALYSIS_TEXT,
     ),
@@ -121,6 +125,10 @@ pub(super) const ALLOWED: &[(&str, &str)] = &[
     ),
     (
         "crates/lib/analysis/src/structure/modal_estimate.rs",
+        ANALYSIS_TEXT,
+    ),
+    (
+        "crates/lib/analysis/src/structure/modal_fem.rs",
         ANALYSIS_TEXT,
     ),
     (

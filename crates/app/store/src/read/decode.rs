@@ -257,6 +257,10 @@ impl Decoder<'_> {
                 v.id = Id::new(id);
                 g.phases.insert(Id::new(id), v);
             }),
+            FileRole::Configuration(id) => self.read_into(path, |g, mut v: d::Configuration| {
+                v.id = Id::new(id);
+                g.configurations.insert(Id::new(id), v);
+            }),
             FileRole::Requirement(id) => self.read_into(path, |g, mut v: d::Requirement| {
                 v.id = Id::new(id);
                 g.requirements.insert(Id::new(id), v);
@@ -316,6 +320,7 @@ fn file_id(role: &FileRole) -> Option<&str> {
         | FileRole::Source { id, .. }
         | FileRole::Maneuver(id)
         | FileRole::Phase(id)
+        | FileRole::Configuration(id)
         | FileRole::Requirement(id)
         | FileRole::Ground(id)
         | FileRole::View(id) => Some(id),

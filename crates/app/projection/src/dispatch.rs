@@ -160,6 +160,7 @@ table!(
     astructure::MassProperties => Some(structure::mass_properties),
     astructure::StaticLoad => Some(structure::static_load),
     astructure::ModalEstimate => Some(structure::modal_estimate),
+    astructure::ModalFem => None,
     astructure::LaunchFit => Some(crate::launch_fit::launch_fit),
     sat_analysis::orbit::EclipseSeason => Some(crate::orbit::eclipse_season),
     sat_analysis::orbit::OrbitDecay => Some(crate::orbit::decay),
@@ -168,6 +169,7 @@ table!(
     sat_analysis::propulsion::Propellant => Some(propulsion::maneuvers),
     sat_analysis::propulsion::ThrusterUsage => Some(propulsion::maneuvers),
     sat_analysis::propulsion::OrbitHistoryAnalysis => Some(propulsion::maneuvers),
+    sat_analysis::propulsion::TransferCheck => Some(propulsion::maneuvers),
     sat_analysis::propulsion::PropellantMassProperties => Some(propulsion::mass_properties),
     apower::ThrustBalance => Some(power::thrust_balance),
 );
