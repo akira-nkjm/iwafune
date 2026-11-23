@@ -19,14 +19,14 @@ export const phasesEn: typeof phasesJa = {
     duration: "Duration",
     modes: "Modes used",
     overrides: "Overrides",
-    orbit: "Orbit",
-    law: "Attitude law",
+    orbitReplaced: "Orbit replaced",
+    lawFor: (modes: string) => `Attitude law: ${modes}`,
     cases: "Analysis cases",
     file: "File",
     none: "None",
     editOverrides: "Edit overrides",
     overridesNote:
-      "The orbit and attitude law overrides replace the design values only for the analysis cases that name this phase (edit them with Edit overrides; the writes are the same as fune phase copy-orbit|unset-orbit|unset-law|set-field).",
+      "The orbit and attitude law overrides replace the design values only for the analysis cases that name this phase. Edit them with Edit overrides.",
     dialog: {
       addTitle: "Add phase",
       editTitle: (id: string) => `Edit phase ${id}`,

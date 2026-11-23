@@ -17,14 +17,14 @@ export const phasesJa = {
     duration: "期間",
     modes: "使うモード",
     overrides: "上書き",
-    orbit: "軌道",
-    law: "姿勢則",
+    orbitReplaced: "軌道を置き換え",
+    lawFor: (modes: string) => `姿勢則: ${modes}`,
     cases: "解析ケース",
     file: "ファイル",
     none: "なし",
     editOverrides: "上書きを編集",
     overridesNote:
-      "軌道と姿勢則の上書きは、このフェーズを指す解析ケースだけ設計の値の代わりに使います（「上書きを編集」で編集。fune phase copy-orbit|unset-orbit|unset-law|set-field と同じ書き込み）。",
+      "軌道と姿勢則の上書きは、このフェーズを指す解析ケースだけ設計の値の代わりに使います。「上書きを編集」で編集します。",
     dialog: {
       addTitle: "フェーズを追加",
       editTitle: (id: string) => `フェーズ ${id} を編集`,
