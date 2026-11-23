@@ -66,7 +66,7 @@ export function NewNetDialog({
         ]
       : null;
   // ID の規則と重複はサーバー（dry_run）が検査する
-  const error = useOpCheck(ops).error;
+  const failed = useOpCheck(ops).failed;
   const ends = [`${a.part}.${a.port}`, `${b.part}.${b.port}`];
   return (
     <OpDialog
@@ -79,12 +79,12 @@ export function NewNetDialog({
       confirmLabel={tn.confirm}
     >
       <div className="grid grid-cols-2 gap-3">
-        <Field label={tn.id} htmlFor="net-id" error={error}>
+        <Field label={tn.id} htmlFor="net-id">
           <TextInput
             id="net-id"
             mono
             value={id}
-            invalid={!!error}
+            invalid={failed}
             onChange={(e) => setId(e.target.value)}
           />
         </Field>

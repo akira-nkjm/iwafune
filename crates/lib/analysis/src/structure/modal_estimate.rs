@@ -200,12 +200,12 @@ fn result(
 fn check(r: &ModalEstimateResult) -> Option<Check> {
     let req = r.required?;
     let kind = match r.kind {
-        ModalEstimateKind::Panel => ("panel", "panel"),
-        ModalEstimateKind::BeamLateral => ("lateral", "lateral"),
-        ModalEstimateKind::BeamAxial => ("axial", "axial"),
+        ModalEstimateKind::Panel => (sat_checkkey::family::PANEL, "panel"),
+        ModalEstimateKind::BeamLateral => (sat_checkkey::family::LATERAL, "lateral"),
+        ModalEstimateKind::BeamAxial => (sat_checkkey::family::AXIAL, "axial"),
     };
     Some(Check::new(
-        &format!("{}:{}", kind.0, r.id),
+        &sat_checkkey::modal_frequency(kind.0, &r.id),
         &format!("{} first natural frequency ({})", r.id, kind.1),
         r.verdict,
         format!(

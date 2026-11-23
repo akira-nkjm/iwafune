@@ -290,7 +290,7 @@ fn pfd_check(result: &LinkBudgetLinkResult) -> Option<Check> {
     );
     let pair = format!("{}@{}", result.name, result.station);
     Some(Check::new(
-        &format!("pfd:{pair}"),
+        &sat_checkkey::link_pfd(&result.name, &result.station),
         &format!("{pair} power flux density"),
         margin_verdict(margin.value(), PFD_WARNING_BAND.value()),
         format!(
@@ -305,7 +305,7 @@ fn pfd_check(result: &LinkBudgetLinkResult) -> Option<Check> {
 fn margin_check(result: &LinkBudgetLinkResult, required: Decibel) -> Check {
     let pair = format!("{}@{}", result.name, result.station);
     Check::new(
-        &format!("margin:{pair}"),
+        &sat_checkkey::link_margin(&result.name, &result.station),
         &format!("{pair} link margin"),
         margin_verdict(result.margin_db.value(), required.value()),
         format!(

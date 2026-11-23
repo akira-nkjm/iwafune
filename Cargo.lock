@@ -481,6 +481,7 @@ dependencies = [
 name = "fune-model"
 version = "0.7.0"
 dependencies = [
+ "sat-checkkey",
  "sat-units",
  "serde",
  "serde_json",
@@ -512,6 +513,7 @@ dependencies = [
  "fune-store",
  "sat-analysis",
  "sat-astro",
+ "sat-checkkey",
  "sat-units",
  "serde",
  "serde_json",
@@ -562,6 +564,7 @@ dependencies = [
  "insta",
  "sat-analysis",
  "sat-astro",
+ "sat-checkkey",
  "sat-units",
  "serde",
  "serde_json",
@@ -1242,6 +1245,7 @@ name = "sat-analysis"
 version = "0.7.0"
 dependencies = [
  "sat-astro",
+ "sat-checkkey",
  "sat-units",
  "serde",
  "serde_json",
@@ -1259,6 +1263,10 @@ dependencies = [
  "thiserror",
  "ts-rs",
 ]
+
+[[package]]
+name = "sat-checkkey"
+version = "0.7.0"
 
 [[package]]
 name = "sat-units"

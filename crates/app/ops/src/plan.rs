@@ -13,6 +13,8 @@
 //! | `records` | 解析ケース・出典・ハーネス・マヌーバの Op |
 //! | `phases` | フェーズの Op（足す・書く・消す・名前を変える・軌道と姿勢則の値・ケースのフェーズ） |
 //! | `ground` | 地上局の Op（足す・消す・名前を変える） |
+//! | `check_keys` | 要求の判定のキーが名指すエンティティ（部品・局・回線・熱の節点）の削除の拒否 |
+//! | `renamed` | 名前の変更の Op を適用前の診断に写す（元からある error を新しい error と取り違えない） |
 //! | `renames` | ネット・ハーネス・解析ケース・出典・マヌーバの名前の変更の Op |
 //! | `link` | 通信の回線の Op（足す・消す・名前を変える） |
 //! | `project` | `fune.toml` の `[project]` の Op |
@@ -25,6 +27,7 @@
 mod attr;
 mod catalog;
 mod catalog_source;
+mod check_keys;
 mod defs;
 mod ground;
 mod groups;
@@ -34,6 +37,7 @@ mod parts;
 mod phases;
 mod project;
 mod records;
+mod renamed;
 mod renames;
 mod requirements;
 mod subdir;
@@ -93,7 +97,8 @@ pub fn plan(snapshot: &Snapshot, ops: &[Op]) -> Result<Plan, OpError> {
     }
     let before = check(&snapshot.design);
     let after = check(&design);
-    let new_errors = new_errors(&before, &after);
+    let renames: Vec<(&str, &str)> = ops.iter().filter_map(renamed::rename_of).collect();
+    let new_errors = new_errors(&before, &after, &renames);
     if !new_errors.is_empty() {
         return Err(OpError::Rejected {
             diagnostics: new_errors,
@@ -110,13 +115,21 @@ pub fn plan(snapshot: &Snapshot, ops: &[Op]) -> Result<Plan, OpError> {
 
 /// 適用後に新しく増えた error（位置は比べない。編集で行がずれ、名前の変更でファイルも変わるため）。
 /// 取得で直る共有カタログの状態（共有カタログを足した直後の `catalog.not_locked` など）は数えない。
-fn new_errors(before: &[Diagnostic], after: &[Diagnostic]) -> Vec<Diagnostic> {
-    let key = |d: &Diagnostic| (d.code.clone(), d.target.clone(), d.message.clone());
-    let old: BTreeSet<_> = before.iter().filter(|d| d.is_error()).map(key).collect();
+/// 名前の変更があれば、適用前の error の対象と文の中の ID を新しい名前に替えてから比べる（`renamed`）。
+fn new_errors(
+    before: &[Diagnostic],
+    after: &[Diagnostic],
+    renames: &[(&str, &str)],
+) -> Vec<Diagnostic> {
+    let old: BTreeSet<_> = before
+        .iter()
+        .filter(|d| d.is_error())
+        .map(|d| renamed::through_renames(d, renames))
+        .collect();
     after
         .iter()
         .filter(|d| d.is_error() && !FETCH_STATE_CODES.contains(&d.code.as_str()))
-        .filter(|d| !old.contains(&key(d)))
+        .filter(|d| !old.contains(&renamed::key(d)))
         .cloned()
         .collect()
 }

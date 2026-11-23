@@ -8,7 +8,7 @@ vi.mock("@/api/ops", () => ({
   useCommandOps: () => ({ ops: null, latest: null, error: null }),
 }));
 vi.mock("@/ops/use-op-check", () => ({
-  useOpCheck: () => ({ error: null, ok: true, pending: false, result: null }),
+  useOpCheck: () => ({ failed: false, previewError: null, ok: true, pending: false, result: null }),
 }));
 
 const station: GroundStationView = {

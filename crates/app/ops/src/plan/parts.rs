@@ -1,12 +1,13 @@
 //! 部品の Op の解釈（前提の確認 → store の編集）。
 
 use super::attr::{AttrTarget, unset_attr, write_attr};
+use super::check_keys::refuse_if_checked_by_requirements;
 use super::groups::{new_node_id, target_dirs};
 use crate::error::OpError;
 use crate::op::Op;
 use fune_model::Design;
 use fune_model::builtin::STATE_OFF;
-use fune_model::design::{Mount, NodeRef, Part, Pose, StateAssign};
+use fune_model::design::{Mount, NodeRef, Part, Pose, Referent, StateAssign};
 use fune_model::id::{Id, validate_local_name};
 use fune_model::value::Value;
 use fune_store::Edits;
@@ -172,6 +173,13 @@ fn remove_part(edits: &mut Edits, design: &Design, id: &str) -> Result<(), OpErr
             children.join(", ")
         )));
     }
+    // 要求の判定のキー（`intrusion:<部品>`・`heater:<部品>` など）が名指す部品は消さない（キーは書き換えられない）
+    refuse_if_checked_by_requirements(
+        "Part",
+        id,
+        &design.references(Referent::Part(id)),
+        "deleted",
+    )?;
     edits.remove(&file)?;
     Ok(refs::forget_part(edits, design, id)?)
 }

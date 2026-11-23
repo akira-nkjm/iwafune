@@ -17,6 +17,7 @@ ts = ["dep:ts-rs", "sat-units/ts", "sat-astro/ts"]
 [dependencies]
 sat-units = { workspace = true, features = ["serde"] }
 sat-astro = { workspace = true }
+sat-checkkey = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

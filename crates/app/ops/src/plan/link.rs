@@ -2,7 +2,7 @@
 //! （`SetSetting`）。足すときは読み込める最小の 3 つ（向き・部品・帯域）を書く。部品・帯域の実在は最後の検査（`ref.part`・`ref.band`）が見る。
 //! 消すときは、要求の判定のキーが名指していれば拒む（`data_downlink` がその回線なら外す）。名前の変更はそのキーも書き換える。
 
-use super::ground::refuse_if_checked_by_requirements;
+use super::check_keys::refuse_if_checked_by_requirements;
 use super::others::new_flat_id;
 use crate::error::OpError;
 use crate::op::Op;

@@ -12,7 +12,7 @@ vi.mock("@/i18n", async (original) => ({
   useT: () => getT(),
 }));
 vi.mock("@/ops/use-op-check", () => ({
-  useOpCheck: () => ({ error: null, ok: true, pending: false, result: null }),
+  useOpCheck: () => ({ failed: false, previewError: null, ok: true, pending: false, result: null }),
 }));
 vi.mock("@/ops/OpDialog", () => ({
   OpDialog: ({ ops, children }: { ops: Op[] | null; children: ReactNode }) => (

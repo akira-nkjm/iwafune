@@ -29,9 +29,9 @@ export function OpPreview({ ops, compact = false }: { ops: Op[] | null; compact?
       {compact ? (
         <div className="flex items-center gap-2">
           <span className="shrink-0 font-medium text-ink-2 text-xs">{t.cli.sameOp}</span>
-          {check.error ? (
+          {check.previewError ? (
             <span className="min-w-0 flex-1 truncate text-[11.5px] text-neg-ink">
-              {check.error}
+              {check.previewError}
             </span>
           ) : (
             <code
@@ -52,8 +52,8 @@ export function OpPreview({ ops, compact = false }: { ops: Op[] | null; compact?
             <span className="font-medium text-ink-2 text-xs">{t.cli.sameOp}</span>
             <CliCopyButton cli={cli} />
           </div>
-          {check.error ? (
-            <p className="text-[11.5px] text-neg-ink">{check.error}</p>
+          {check.previewError ? (
+            <p className="text-[11.5px] text-neg-ink">{check.previewError}</p>
           ) : (
             <pre className="max-h-28 overflow-auto whitespace-pre-wrap font-mono text-[11.5px] text-ink-2">
               {waiting ? t.cli.checking : cli.join("\n") || "—"}

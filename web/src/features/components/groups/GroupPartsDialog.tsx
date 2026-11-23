@@ -35,7 +35,7 @@ export function GroupPartsDialog({
   const parent = part.parent;
   const ids = siblings.map((p) => p.id).filter((id) => checked.has(id));
   const ops = parent && group && ids.length > 0 ? groupOps(parent, group, ids) : null;
-  const error = useOpCheck(open ? ops : null).error;
+  const failed = useOpCheck(open ? ops : null).failed;
   const toggle = (id: string) =>
     setChecked((prev) => {
       const next = new Set(prev);
@@ -53,12 +53,12 @@ export function GroupPartsDialog({
       confirmLabel={tg.confirm}
       onDone={() => onDone(group)}
     >
-      <Field label={tg.idLabel} htmlFor={idField} error={error} hint={tg.idHint}>
+      <Field label={tg.idLabel} htmlFor={idField} hint={tg.idHint}>
         <TextInput
           id={idField}
           mono
           value={group}
-          invalid={!!error}
+          invalid={failed}
           placeholder="RW"
           onChange={(e) => setGroup(e.target.value)}
         />

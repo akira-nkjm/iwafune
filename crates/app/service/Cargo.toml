@@ -19,6 +19,7 @@ fune-projection = { workspace = true }
 fune-report = { workspace = true, features = ["ts"] }
 sat-analysis = { workspace = true, features = ["ts"] }
 sat-astro = { workspace = true, features = ["ts"] }
+sat-checkkey = { workspace = true }
 sat-units = { workspace = true, features = ["serde", "ts"] }
 serde = { workspace = true }
 serde_json = { workspace = true }

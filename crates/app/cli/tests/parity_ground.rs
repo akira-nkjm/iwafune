@@ -65,12 +65,33 @@ fn ground_station_add_rename_remove_match_cli() {
     );
     assert_same_files(&cli_root, &http_root, "ground rename");
 
-    // 要求の `verify.check` が名指している局（デモの `TOKYO_GS`）の名前の変更は拒まれ、何も書かれない
+    // 要求の `verify.check` が名指している局（デモの `TOKYO_GS`）の名前の変更は、キーを書き換える（CLI と HTTP で同じファイル）
     let before = snapshot_files(&cli_root);
+    run_cli(&cli_root, &["ground", "rename", "TOKYO_GS", "TOKYO_2"]);
+    http_ops(
+        &rt,
+        &http_root,
+        json!([{ "op": "rename_ground_station", "id": "TOKYO_GS", "to": "TOKYO_2" }]),
+    );
+    assert_same_files(&cli_root, &http_root, "ground rename of a checked station");
+    let rewritten = std::fs::read_to_string(cli_root.join("requirements/R_LINK_S.toml")).unwrap();
+    assert!(rewritten.contains("margin:s_down@TOKYO_2"), "{rewritten}");
+    run_cli(&cli_root, &["ground", "rename", "TOKYO_2", "TOKYO_GS"]);
+    http_ops(
+        &rt,
+        &http_root,
+        json!([{ "op": "rename_ground_station", "id": "TOKYO_2", "to": "TOKYO_GS" }]),
+    );
+    assert_eq!(
+        snapshot_files(&cli_root),
+        before,
+        "renaming back restores the files"
+    );
+    // 削除は、キーを書き換えられないので拒まれ、何も書かれない
     let out = fune()
         .arg("-C")
         .arg(&cli_root)
-        .args(["ground", "rename", "TOKYO_GS", "TOKYO_2"])
+        .args(["ground", "rm", "TOKYO_GS"])
         .output()
         .unwrap();
     assert!(!out.status.success());
@@ -93,7 +114,7 @@ fn ground_station_add_rename_remove_match_cli() {
     run_cli(&cli_root, &["check"]);
 }
 
-/// 解析が挙げている局の名前の変更は `stations` も書き換える（要求が名指している間は拒まれるので、先に要求を消す）。
+/// 解析が挙げている局の名前の変更は `stations` も書き換える（ここでは要求を消して、`stations` だけを見る）。
 #[test]
 fn listed_station_rename_matches_cli() {
     let rt = tokio::runtime::Runtime::new().unwrap();

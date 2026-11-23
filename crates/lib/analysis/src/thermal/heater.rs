@@ -81,7 +81,7 @@ fn rank(h: &ThermalHeaterSteady) -> f64 {
 
 fn steady_check(case: &str, h: &ThermalHeaterSteady, warning: f64) -> Check {
     let (p, t) = (quantity_text::<Power>, quantity_text::<Temperature>);
-    let key = format!("heater:{}", h.id);
+    let key = sat_checkkey::heater(&h.id);
     let label = format!("{} heater duty", h.id);
     let duty = quantity_text::<Fraction>(h.duty_fraction.value());
     let (verdict, message) = match h.state {
@@ -153,7 +153,7 @@ pub(crate) fn run_checks(heaters: &[ThermalHeaterRun], warning: f64) -> Vec<Chec
                 )
             };
             Check::new(
-                &format!("heater:{}", h.id),
+                &sat_checkkey::heater(&h.id),
                 &format!("{} heater duty", h.id),
                 verdict,
                 message,

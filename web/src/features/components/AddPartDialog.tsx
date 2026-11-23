@@ -89,7 +89,7 @@ export function AddPartDialog({
         ]
       : null;
 
-  const idError = useOpCheck(ops).error;
+  const failed = useOpCheck(ops).failed;
   return (
     <OpDialog
       open={open}
@@ -104,12 +104,12 @@ export function AddPartDialog({
         setId("");
       }}
     >
-      <Field label="ID" htmlFor="add-part-id" error={idError}>
+      <Field label="ID" htmlFor="add-part-id">
         <TextInput
           id="add-part-id"
           mono
           value={id}
-          invalid={!!idError}
+          invalid={failed}
           placeholder={namePlaceholder}
           autoFocus={!!initialCatalog}
           onChange={(e) => setId(e.target.value)}

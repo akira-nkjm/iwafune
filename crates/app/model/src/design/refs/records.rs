@@ -2,7 +2,7 @@
 //! 親（`refs.rs`）の `Design::references` が引く。参照元の種類は [`RefSite`]。
 
 use super::RefSite;
-use crate::design::Design;
+use crate::design::{Design, EntityKind};
 use crate::value::{Authored, Value};
 
 impl Design {
@@ -93,14 +93,7 @@ impl Design {
         if chosen {
             out.push(RefSite::CommDataDownlink);
         }
-        out.extend(
-            self.requirements
-                .values()
-                .filter(|r| r.verify.check_names_link(id))
-                .map(|r| RefSite::RequirementLinkCheck {
-                    requirement: r.id.to_string(),
-                }),
-        );
+        out.extend(self.check_key_refs(EntityKind::Link, id));
         out
     }
 }

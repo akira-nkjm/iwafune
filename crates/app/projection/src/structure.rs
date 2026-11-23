@@ -106,8 +106,14 @@ fn load_factor(
     if q.unit.is_empty() {
         return Some(q.value);
     }
-    let si = fune_model::value::units::to_si(q.value, &q.unit).ok()?;
-    g0(si)
+    // 書かれているのに単位が読めないときは、対象を名指しして不足入力にする（汎用の「入力を作れない」にしない）
+    match fune_model::value::units::to_si(q.value, &q.unit) {
+        Ok(si) => g0(si),
+        Err(e) => {
+            m.push(key.at(&[]), format!("Quasi-static load (g0): {e}"));
+            None
+        }
+    }
 }
 
 /// 準静的荷重の項目（質量を持つ部品。取付の根の取付先は `LV`）。
@@ -279,8 +285,8 @@ pub fn modal_estimate(ctx: &Context<'_>) -> Result<ModalEstimateInput, MissingIn
     let frequency =
         |key: &str| tightest_min_frequency(&frequency_limits(ctx, &launch, key)).map(|l| l.value);
     let requirements = ModalEstimateRequirements {
-        lateral: frequency("lateral"),
-        axial: frequency("axial"),
+        lateral: frequency(sat_checkkey::family::LATERAL),
+        axial: frequency(sat_checkkey::family::AXIAL),
         panel: None,
     };
     m.finish(|| {

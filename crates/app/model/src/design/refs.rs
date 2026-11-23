@@ -6,27 +6,29 @@
 //!
 //! | 参照先 | 参照元（[`RefSite`]） |
 //! |---|---|
-//! | 部品 | モードの `[states]` と `[eclipse]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part` / `antenna`・`analysis/thermal.toml` の `[nodes]` と `[surface]` と `[heat_node]` のキー・図の `[nodes]` のキー・マヌーバの `thruster` |
+//! | 部品 | 要求の `[verify].check` が名指す部品（`intrusion:<部品>`・`heater:<部品>`・`interface:<取付先>`・`panel:<部品>` など）・モードの `[states]` と `[eclipse]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part` / `antenna`・`analysis/thermal.toml` の `[nodes]` と `[surface]` と `[heat_node]` のキー・図の `[nodes]` のキー・マヌーバの `thruster` |
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
 //! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode`・フェーズの `modes` と `[law]` のキー |
 //! | フェーズ | ケースの `phase` |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets`・図の `[nodes]` のキー |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire`・`conditions/launch.toml` の `launcher`・`dispenser` |
 //! | カタログ（`[[catalog]]` の名前。出所を外すのを拒むためだけ。書き換えはしない） | 部品の `catalog`・`candidates`・ハーネスの `wire`・打ち上げ条件の `launcher`・`dispenser` のうち `<名前>/…` のもの |
-//! | 地上局 | `analysis/comm.toml` の `stations`・要求の `[verify].check` が名指す局（書き換えはしない。名前の変更と削除を拒むための暫定の見張り。#328） |
+//! | 地上局 | `analysis/comm.toml` の `stations`・要求の `[verify].check` が名指す局（`margin:<回線>@<局>`・`link_closes:<局>`） |
+//! | 熱の節点（`analysis/thermal.toml` の `[nodes]` のキー） | 要求の `[verify].check` が名指す節点（`range_low:<節点>:<種類>`。節点の名前を変える Op は無いので、消すのを拒むためだけ） |
 //! | ハーネス区間 | 参照元は無い（ほかのエンティティはハーネスの ID を持たない。名前の変更の索引を揃えるための空の索引） |
 //! | 解析ケース | `analysis/common.toml` の `default_case`・要求の `[quantify].cases` |
 //! | 出典 | 部品とカタログ品の属性の値の `from.source`（状態ごとのセルも）・カタログ品の `source` と `datasheet`・要求の `source` |
 //! | マヌーバ | ほかのマヌーバの `after` |
-//! | 通信の回線 | `analysis/comm.toml` の `data_downlink`・要求の `[verify].check` が名指す回線（`margin:<回線>@<局>`。書式は解析が持つので、局と同じく写し） |
+//! | 通信の回線 | `analysis/comm.toml` の `data_downlink`・要求の `[verify].check` が名指す回線（`margin:<回線>@<局>`） |
 //! | 種別（名前の変更と、プロジェクト独自の定義の削除の拒否に使う） | 部品とカタログ品の `kind`・種別の `extends` |
 //! | 属性（同上） | 種別の `required` / `optional`・部品とカタログ品の属性の値 |
 
-use super::{BudgetKind, Design, LaunchInterface};
+use super::{BudgetKind, Design, EntityKind, LaunchInterface};
 use crate::enum_text::enum_text;
 use crate::path::{PortRef, split_catalog_ref};
 use serde::{Deserialize, Serialize};
 
+mod checks;
 mod records;
 
 /// 参照される ID。
@@ -58,6 +60,8 @@ pub enum Referent<'a> {
     Maneuver(&'a str),
     /// 通信の回線の名前（`analysis/comm.toml` の `[link.<名前>]`）
     Link(&'a str),
+    /// 熱の節点の名前（`analysis/thermal.toml` の `[nodes]` のキー。部品の ID ではない）
+    ThermalNode(&'a str),
 }
 
 enum_text! {
@@ -149,9 +153,12 @@ pub enum RefSite {
     PhaseLaw { phase: String },
     /// 通信の解析が使う地上局（`analysis/comm.toml` の `stations`）
     CommStation,
-    /// 要求の判定のキーが名指す地上局（`requirements/<要求>.toml` の `[verify].check` の `@<局>`。キーが構造を持つまでの
-    /// 暫定の見張りで、書き換えはしない。`Verification::check_names_station`）
-    RequirementCheck { requirement: String },
+    /// 要求の判定のキーが名指すエンティティ（`requirements/<要求>.toml` の `[verify].check` に入る部品・回線・局・熱の節点の名前。
+    /// キーの書式は `sat_checkkey`。名前の変更ではキーを書き換える。`entity` は名指されている種類）
+    RequirementCheck {
+        requirement: String,
+        entity: EntityKind,
+    },
     /// 部品の種別（`kind`）
     PartKind { part: String },
     /// カタログ品の種別（`kind`。`item` は `local/rw_10mNms` の形）
@@ -182,9 +189,6 @@ pub enum RefSite {
     ManeuverAfter { maneuver: String },
     /// 通信の解析の下りの回線（`analysis/comm.toml` の `data_downlink`）
     CommDataDownlink,
-    /// 要求の判定のキーが名指す回線（`[verify].check` の `margin:<回線>`・`pfd:<回線>`。`@<局>` は付いてもよい）。
-    /// 解析のキーの書式の写し（`Verification::check_names_link`。キーが構造を持つまでの暫定。#328）。名前の変更では書き換える
-    RequirementLinkCheck { requirement: String },
 }
 
 impl Design {
@@ -208,6 +212,7 @@ impl Design {
             Referent::Source(id) => self.source_refs(id),
             Referent::Maneuver(id) => self.maneuver_refs(id),
             Referent::Link(id) => self.link_refs(id),
+            Referent::ThermalNode(name) => self.thermal_node_refs(name),
         }
     }
 
@@ -288,6 +293,7 @@ impl Design {
                     maneuver: m.id.to_string(),
                 }),
         );
+        out.extend(self.check_key_refs(EntityKind::Part, id));
         out
     }
 
@@ -473,14 +479,7 @@ impl Design {
         if listed {
             out.push(RefSite::CommStation);
         }
-        out.extend(
-            self.requirements
-                .values()
-                .filter(|r| r.verify.check_names_station(id))
-                .map(|r| RefSite::RequirementCheck {
-                    requirement: r.id.to_string(),
-                }),
-        );
+        out.extend(self.check_key_refs(EntityKind::Station, id));
         out
     }
 
