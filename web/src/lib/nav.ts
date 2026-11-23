@@ -153,9 +153,9 @@ export const nav = (systems: readonly System[]): NavSection[] => [
     items: [
       { to: paths.components(), key: "components", icon: Boxes },
       { to: paths.catalog(), key: "catalog", icon: Library },
+      { to: paths.layout(), key: "layout", icon: Box },
       { to: paths.diagram(), key: "diagram", icon: Network },
       { to: paths.modes(), key: "modes", icon: Table2 },
-      { to: paths.layout(), key: "layout", icon: Box },
       { to: paths.requirements(), key: "requirements", icon: ClipboardCheck },
     ],
   },
