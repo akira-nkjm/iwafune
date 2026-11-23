@@ -41,7 +41,6 @@ fn decay_settings_match_http() {
     let (_cli_temp, cli_root) = demo_copy();
     let (_http_temp, http_root) = demo_copy();
     for (path, value) in [
-        ("conditions.orbit.decay.max_lifetime", "25 yr"),
         ("conditions.orbit.decay.band", "2 km"),
         ("conditions.orbit.decay.span", "10 yr"),
     ] {

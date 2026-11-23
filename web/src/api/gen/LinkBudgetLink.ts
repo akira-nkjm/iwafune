@@ -40,6 +40,10 @@ central: CentralBody,
  */
 elevation: number, 
 /**
+ * 要求する回線余裕（この回線 × 地上局。省略時は入力全体の [`LinkBudgetInput::required_margin_db`]）
+ */
+required_margin_db: number | null, 
+/**
  * 地表の電力束密度（PFD）の限度 [dBW/m²（基準帯域あたり）]。下りで書かれたときだけ判定する（既定値は持たない）
  */
 pfd_limit_db: number | null, 

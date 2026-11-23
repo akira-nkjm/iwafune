@@ -18,6 +18,7 @@ fn requirement(id: &str) -> Requirement {
         statement_en: None,
         quantity: "Mass".into(),
         source: Some("sys_judgement".into()),
+        input: None,
         constraint: Constraint {
             kind: ConstraintKind::AtMost,
             value: Some(Quantity::new(12.0, "kg")),
@@ -99,4 +100,31 @@ fn ids_follow_the_id_rules_and_removal_needs_an_existing_requirement() {
         plan(&snap, std::slice::from_ref(&missing)),
         Err(OpError::NotFound { .. })
     ));
+}
+
+/// 基準が要求へ移った設定（`budget.mass.limit`・`analysis.power.dod_max` など）は、書き込みを拒む（編集は要求で行う）。
+/// 消す（`unset`）のは通る。
+#[test]
+fn moved_criterion_settings_cannot_be_set_but_can_be_unset() {
+    use fune_model::value::SettingValue;
+    let snap = snapshot();
+    for path in [
+        "budget.mass.limit",
+        "analysis.power.dod_max",
+        "analysis.comm.min_margin",
+        "analysis.comm.link.s_down.pfd_limit",
+        "conditions.orbit.duration",
+    ] {
+        let set = Op::SetSetting {
+            path: path.into(),
+            value: Some(SettingValue::Number(1.0)),
+        };
+        let err = plan(&snap, &[set]).unwrap_err().to_string();
+        assert!(err.contains("fune requirement set"), "{path}: {err}");
+    }
+    let unset = Op::SetSetting {
+        path: "analysis.power.dod_max".into(),
+        value: None,
+    };
+    assert!(plan(&snap, &[unset]).is_ok());
 }

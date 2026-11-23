@@ -87,7 +87,7 @@ function RequirementRow({ r, onOpen }: { r: RequirementView; onOpen: (o: OpenFro
       </Td>
       {/* 確かめる先の下に、成り立つべきケースを添える */}
       <Td className="align-top">
-        <VerifiedBy verify={r.verify} />
+        <VerifiedBy verify={r.verify} input={r.input} />
         <span className="block whitespace-normal text-ink-3 text-xs">{cases}</span>
       </Td>
       <Td className="align-top">

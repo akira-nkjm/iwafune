@@ -64,4 +64,8 @@ check?: string | null,
 /**
  * 確かめるバジェット（`mass` / `power` / `data`）
  */
-budget?: string | null, };
+budget?: string | null, 
+/**
+ * 解析の入力として与える値（`mission_duration`。制約の値が入力になる）
+ */
+input?: string | null, };

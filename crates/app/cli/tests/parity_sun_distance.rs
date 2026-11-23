@@ -3,7 +3,7 @@ mod common;
 use common::{assert_same_files, demo_copy, post_json, run_cli};
 use serde_json::json;
 
-/// 太陽を回る軌道（長半径 ≈ 1.1 AU・離心率 0.3636）に直す。設定は CLI で両方に同じく書く。
+/// 太陽を回る軌道（長半径 ≈ 1.1 AU・離心率 0.3636）に直す。設定は CLI で両方に同じく書く（ミッション期間はデモの要求 `R_MISSION` の 1 年）。
 fn cruise_orbit(root: &std::path::Path) {
     run_cli(
         root,
@@ -19,7 +19,6 @@ fn cruise_orbit(root: &std::path::Path) {
         ("conditions.orbit.altitude", "164000000 km"),
         ("conditions.orbit.eccentricity", "0.3636364"),
         ("conditions.orbit.inclination", "1 deg"),
-        ("conditions.orbit.duration", "1 yr"),
     ] {
         run_cli(root, &["setting", "set", path, value]);
     }

@@ -1,0 +1,13 @@
+label        = "Slew time"
+statement    = "The 90 degree slew shall be completed within 120 seconds."
+statement_en = "The 90 degree slew shall be completed within 120 seconds."
+quantity     = "Time"
+source       = "sys_judgement"
+
+[constraint]
+kind  = "at_most"
+value = { value = 120.0, unit = "s" }
+
+[verify]
+analysis = "aocs.slew_time"
+check    = "slew_time"

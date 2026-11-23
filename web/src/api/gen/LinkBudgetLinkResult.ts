@@ -71,6 +71,10 @@ required_eb_n0_db: number,
  */
 margin_db: number, 
 /**
+ * 判定に使った要求余裕 [dB]（回線ごとの値、無ければ入力全体の値、それも無ければ既定値）
+ */
+required_margin_db: number, 
+/**
  * 要求余裕を残して通せる最大のデータレート
  */
 max_data_rate: number, 

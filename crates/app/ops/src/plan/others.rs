@@ -188,6 +188,11 @@ fn set_setting(
             "`{text}` is not a setting path (it must start with conditions. / analysis. / budget.)"
         )));
     };
+    if value.is_some()
+        && let Some(moved) = fune_model::design::MovedSetting::of(&setting)
+    {
+        return Err(OpError::invalid(moved.refusal(&setting)));
+    }
     require_station_for_setting(design, &setting)?;
     let (file, keys) = layout::setting_location(&setting)?;
     Ok(entities::set_setting(edits, &file, &keys, value)?)

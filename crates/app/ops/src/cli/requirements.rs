@@ -44,6 +44,7 @@ fn requirement_cmd(verb: &str, r: &Requirement) -> String {
         .flag("analysis", r.verify.analysis.as_deref())
         .flag("check", r.verify.check.as_deref())
         .flag("budget", r.verify.budget.map(|b| b.as_str()))
+        .flag("input", r.input.map(|i| i.as_str()))
         .flag("all-cases", all)
         .done()
 }

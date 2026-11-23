@@ -33,6 +33,7 @@ fn uhf_down() -> LinkBudgetLink {
         altitude: Qty::from_raw(1.0e6),
         central: CentralBody::Earth,
         elevation: Qty::from_raw(std::f64::consts::FRAC_PI_2),
+        required_margin_db: None,
         pfd_limit_db: None,
         pfd_reference_bandwidth: None,
         occupied_bandwidth: None,

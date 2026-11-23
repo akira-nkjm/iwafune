@@ -16,7 +16,7 @@ use fune_model::design::{AnalysisSystem, ThermalCaseSettings, ThermalPresetKind,
 use fune_model::path::SettingPath;
 use heaters::{heaters, is_thermostat};
 use network::network;
-use sat_analysis::spec::SamplingSpan;
+use sat_analysis::spec::{Analysis, SamplingSpan};
 use sat_analysis::thermal::network::{ThermalModeLoads, ThermalModePart};
 use sat_analysis::thermal::planet::planet_environment;
 use sat_analysis::thermal::steady::ThermalSteadyCase;
@@ -25,6 +25,7 @@ use sat_analysis::thermal::{
     ThermalEnvironment, ThermalExposure, ThermalMarginPolicy, ThermalPreset, ThermalSteadyInput,
     ThermalTransientInput,
 };
+use sat_analysis::thermal::{ThermalSteady, ThermalTransient};
 use sat_astro::ephem::CentralBody;
 use sat_units::typed::{Fraction, Power};
 use std::collections::BTreeMap;
@@ -196,7 +197,7 @@ pub fn steady(ctx: &Context<'_>) -> Result<ThermalSteadyInput, MissingInputs> {
     let Some(s) = settings(ctx, &mut m) else {
         return Err(m);
     };
-    let net = network(ctx, s, &mut m);
+    let net = network(ctx, s, ThermalSteady::ID, &mut m);
     let thermostats = heaters(ctx, s, &mut m);
     let mut cases = Vec::new();
     for (id, c) in &s.cases {
@@ -265,7 +266,7 @@ pub fn transient(ctx: &Context<'_>) -> Result<ThermalTransientInput, MissingInpu
     let Some(s) = settings(ctx, &mut m) else {
         return Err(m);
     };
-    let net = network(ctx, s, &mut m);
+    let net = network(ctx, s, ThermalTransient::ID, &mut m);
     let Some((id, c)) = transient_case(ctx, s, &mut m) else {
         return Err(m);
     };

@@ -37,6 +37,19 @@ fn the_demo_shows_every_verdict_and_every_unverified_state() {
     assert_eq!(verdict("R_STT_SUN"), Some(Verdict::Warning));
     assert_eq!(verdict("R_BAT_TEMP"), Some(Verdict::Violation));
     assert_eq!(verdict("R_STORAGE"), Some(Verdict::Violation));
+    // 基準を要求が持つ判定と、解析の入力を与える要求
+    for id in ["R_POWER", "R_LINK_MARGIN", "R_PFD", "R_SLEW"] {
+        assert_eq!(verdict(id), Some(Verdict::Ok), "{id}");
+    }
+    assert_eq!(
+        row(&report, "R_MISSION").reason,
+        Some(NotVerifiedReason::DesignInput)
+    );
+    // 最低固有振動数の判定は、梁を持たないデモでは出ない
+    assert_eq!(
+        row(&report, "R_FREQ_AXIAL").reason,
+        Some(NotVerifiedReason::KeyNotProduced)
+    );
     assert_eq!(
         row(&report, "R_DEPLOY").reason,
         Some(NotVerifiedReason::NoLink)
@@ -47,7 +60,7 @@ fn the_demo_shows_every_verdict_and_every_unverified_state() {
     let s = &report.summary;
     assert_eq!(
         (s.total, s.ok, s.warning, s.violation, s.not_verified),
-        (9, 4, 1, 2, 2)
+        (16, 8, 1, 2, 5)
     );
     assert!(fails(&report, false));
 }
@@ -137,4 +150,38 @@ fn keys_that_are_not_produced_and_unknown_targets_are_not_verified() {
         row(&report, "X_GONE").reason,
         Some(NotVerifiedReason::UnknownTarget)
     );
+}
+
+/// 同じ基準（質量の上限）に要求が複数あれば、バジェットは最も厳しい上限を使うが、各要求の行は**その要求自身の制約**で判定する。
+/// 緩い要求は、厳しい要求が違反でも満たされる。
+#[test]
+fn each_row_is_judged_against_its_own_constraint_when_limits_overlap() {
+    let tmp = tempfile::tempdir().unwrap();
+    let root = tmp.path().join("demo-6u");
+    copy_dir(&demo_root(), &root);
+    let write = |name: &str, kg: f64| {
+        let body = format!(
+            "statement = \"s\"\nquantity = \"Mass\"\nsource = \"sys_judgement\"\n[constraint]\nkind = \"at_most\"\nvalue = {{ value = {kg}, unit = \"kg\" }}\n[verify]\nbudget = \"mass\"\n"
+        );
+        std::fs::write(root.join("requirements").join(format!("{name}.toml")), body).unwrap();
+    };
+    write("X_TIGHT", 1.0);
+    write("X_LOOSE", 20.0);
+    let ws = Workspace::open(&root).unwrap();
+    // 質量のバジェットの上限は最も厳しい 1 kg
+    let view = fune_service::budget::budget(
+        &ws,
+        fune_service::dto::BudgetKind::Mass,
+        &fune_service::dto::BudgetRequest::default(),
+    )
+    .unwrap();
+    assert_eq!(view.limit.as_ref().map(|q| q.si), Some(1.0));
+    assert_eq!(view.limit_requirement.as_deref(), Some("X_TIGHT"));
+    assert_eq!(view.verdict, Some(Verdict::Violation));
+    // 適合表の行はそれぞれ自分の制約で判定する
+    let report = compliance(&ws).unwrap();
+    let verdict = |id: &str| row(&report, id).verdict;
+    assert_eq!(verdict("X_TIGHT"), Some(Verdict::Violation));
+    assert_eq!(verdict("R_MASS"), Some(Verdict::Ok));
+    assert_eq!(verdict("X_LOOSE"), Some(Verdict::Ok));
 }

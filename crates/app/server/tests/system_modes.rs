@@ -73,7 +73,10 @@ async fn post_takes_a_case_and_draft_ops_like_budgets() {
     };
     let body = json!({
         "analyzed": true,
-        "ops": [{"op": "set_setting", "path": "analysis.power.dod_max", "value": {"type": "number", "value": 0.001}}],
+        "ops": [{"op": "set_requirement", "requirement": {
+            "id": "R_DOD", "statement": "DoD limit", "quantity": "Dimensionless",
+            "constraint": {"kind": "at_most", "value": {"value": 0.1, "unit": "%"}},
+            "verify": {"analysis": "power.energy_balance", "check": "dod"}}}],
     });
     let (status, draft) = call(&router, "POST", URI, Some(body)).await;
     assert_eq!(status, StatusCode::OK, "{draft}");

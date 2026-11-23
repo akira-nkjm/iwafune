@@ -6,6 +6,11 @@
 //! 同じキーの判定が複数あれば（モードごとなど）最も悪いものを使う。ケースごとの結果を集めた行の判定は、
 //! 違反 > 確かめられない > 警告 > 良の順（1 つでも確かめられないケースがあれば「良」と言わない）。
 //! 解析とバジェットはケースごとに 1 回だけ実行する（同じ解析・ケースは要求をまたいで使い回す）。
+//!
+//! 判定の基準は要求が持つ（`fune_model::design::criteria`）。同じ基準に効く要求が複数あれば、解析とバジェットは最も厳しいものを使うので、
+//! **各要求の行は、その要求の制約だけを基準にして判定し直す**（同じ基準に効くほかの要求を外した設計で実行する。保存はしない）。
+//! だから緩い要求は、厳しい要求が満たされていれば満たされ、厳しい要求が違反でもその要求自身の制約を満たしていれば良になる。
+//! 判定のキーは、要求の `check` が接頭辞として当たるもの（`margin` は `margin:<回線>@<局>` のすべて。`key_covers`）を集める。
 
 use crate::analysis::run_analysis;
 use crate::budget::budget;
@@ -17,7 +22,7 @@ use crate::dto::{
 use crate::error::Result;
 use crate::query::requirements::constraint_view;
 use crate::workspace::Workspace;
-use fune_model::design::{Design, Requirement};
+use fune_model::design::{Design, Requirement, key_covers};
 use sat_analysis::spec::Verdict;
 use std::collections::BTreeMap;
 
@@ -46,12 +51,18 @@ pub fn fails(report: &ComplianceReport, deny_unverified: bool) -> bool {
 /// 同じ解析・ケースの実行を使い回す入れ物。
 #[derive(Default)]
 struct Runs {
-    analyses: BTreeMap<(String, Option<String>), Result<AnalysisRunResult>>,
-    budgets: BTreeMap<(BudgetKind, Option<String>), Result<BudgetView>>,
+    analyses: BTreeMap<RunKey, Result<AnalysisRunResult>>,
+    budgets: BTreeMap<(BudgetKind, Option<String>, Vec<String>), Result<BudgetView>>,
 }
 
+/// 解析の実行の使い回しの鍵（解析・ケース・外した要求）。
+type RunKey = (String, Option<String>, Vec<String>);
+
 fn row(ws: &Workspace, design: &Design, r: &Requirement, runs: &mut Runs) -> ComplianceRow {
-    let cases: Vec<ComplianceCase> = if r.verify.is_empty() {
+    let cases: Vec<ComplianceCase> = if let (true, Some(input)) = (r.verify.is_empty(), r.input) {
+        let detail = Some(format!("Gives the analysis input `{input}`"));
+        vec![unverified(None, NotVerifiedReason::DesignInput, detail)]
+    } else if r.verify.is_empty() {
         vec![unverified(None, NotVerifiedReason::NoLink, None)]
     } else {
         quantified_cases(design, r)
@@ -74,6 +85,7 @@ fn row(ws: &Workspace, design: &Design, r: &Requirement, runs: &mut Runs) -> Com
         constraint: constraint_view(r),
         source: r.source.as_ref().map(ToString::to_string),
         verify: r.verify.clone(),
+        input: r.input,
         verdict: decided.verdict,
         reason: decided.reason,
         detail: decided.detail,
@@ -135,16 +147,19 @@ fn judge(
         let detail = Some(format!("Analysis case `{c}` is not defined"));
         return unverified(case, NotVerifiedReason::UnknownTarget, detail);
     }
+    // 同じ基準に効くほかの要求を外して、この要求の制約だけで判定する
+    let without = design.criterion_siblings(r);
     if let Some(kind) = r.verify.budget {
-        return judge_budget(ws, kind, case, runs);
+        return judge_budget(ws, kind, case, without, runs);
     }
     let Some(analysis) = r.verify.analysis.as_deref() else {
         return unverified(case, NotVerifiedReason::NoLink, None);
     };
-    let key = (analysis.to_owned(), case.clone());
+    let key = (analysis.to_owned(), case.clone(), without.clone());
     let run = runs.analyses.entry(key).or_insert_with(|| {
         let req = RunAnalysisRequest {
             case: case.clone(),
+            ops: remove_ops(&without),
             ..RunAnalysisRequest::default()
         };
         run_analysis(ws, analysis, &req)
@@ -153,6 +168,13 @@ fn judge(
         Err(e) => unverified(case, NotVerifiedReason::UnknownTarget, Some(e.to_string())),
         Ok(result) => judge_analysis(result, r.verify.check.as_deref(), case),
     }
+}
+
+/// 要求を外す編集（保存しない。解析とバジェットの `ops`）。
+fn remove_ops(ids: &[String]) -> Vec<fune_ops::Op> {
+    ids.iter()
+        .map(|id| fune_ops::Op::RemoveRequirement { id: id.clone() })
+        .collect()
 }
 
 /// 解析の結果から、`check` のキーの判定（無ければ解析の判定全体）の最も悪いものを選ぶ。
@@ -177,7 +199,7 @@ fn judge_analysis(
     let hits: Vec<&CheckView> = result
         .checks
         .iter()
-        .filter(|c| key.is_none_or(|k| c.key == k))
+        .filter(|c| key.is_none_or(|k| key_covers(k, &c.key)))
         .collect();
     let Some(verdict) = Verdict::worst(hits.iter().map(|c| c.verdict)) else {
         let mut keys: Vec<&str> = result.checks.iter().map(|c| c.key.as_str()).collect();
@@ -207,12 +229,14 @@ fn judge_budget(
     ws: &Workspace,
     kind: BudgetKind,
     case: Option<String>,
+    without: Vec<String>,
     runs: &mut Runs,
 ) -> ComplianceCase {
-    let run = runs.budgets.entry((kind, case.clone())).or_insert_with(|| {
+    let key = (kind, case.clone(), without.clone());
+    let run = runs.budgets.entry(key).or_insert_with(|| {
         let req = BudgetRequest {
             case: case.clone(),
-            ..BudgetRequest::default()
+            ops: remove_ops(&without),
         };
         budget(ws, kind, &req)
     });
@@ -231,7 +255,7 @@ fn judge_budget(
     };
     let Some(verdict) = Verdict::worst(b.verdict.into_iter().chain(wet.and_then(|w| w.verdict)))
     else {
-        let detail = Some(format!("no {kind} limit in budget/allocation.toml"));
+        let detail = Some(format!("No requirement sets the {kind} limit"));
         return unverified(case, NotVerifiedReason::MissingInputs, detail);
     };
     let total: Option<&QuantityView> = wet.map(|w| &w.total).or(b.total.as_ref());

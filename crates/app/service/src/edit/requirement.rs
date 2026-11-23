@@ -33,6 +33,9 @@ fn requirement_of(t: &RequirementText) -> Result<Requirement> {
         statement_en: owned(&t.statement_en),
         quantity: t.quantity.trim().to_owned(),
         source: owned(&t.source).map(Into::into),
+        input: given(&t.input)
+            .map(|i| i.parse().map_err(invalid))
+            .transpose()?,
         constraint: Constraint {
             kind: t.kind.trim().parse().map_err(invalid)?,
             value: quantity(&t.value)?,

@@ -33,15 +33,36 @@ pub(crate) fn range_checks(
                 &format!("{node} {word} temperature ({})", m.kind.noun()),
                 m.side_verdict(side, margin),
                 format!(
-                    "{value} ({} {limit_word} limit {}{})",
+                    "{value} ({} {limit_word} limit {}{}{})",
                     m.kind.noun(),
                     t(limit),
+                    required_text(m, side),
                     excluded_text(&m.excluded)
                 ),
             ));
         }
     }
     checks
+}
+
+/// 要求が限界に効いたかどうかの文（効いた: 「、要求 R で厳しくした」、部品の範囲より緩くて効かなかった: 「。要求 R（…）は部品の範囲より緩く、効かない」）。
+/// 部品の範囲と同じ値の要求は書かない。
+fn required_text(m: &ThermalRangeMargin, side: ThermalRangeSide) -> String {
+    m.required
+        .iter()
+        .filter(|u| u.is_side(side))
+        .map(|u| {
+            if u.tightens {
+                format!(", tightened by requirement {}", u.requirement)
+            } else {
+                format!(
+                    ". Requirement {} ({}) is looser than the part range, so it has no effect",
+                    u.requirement,
+                    quantity_text::<Temperature>(u.limit.value())
+                )
+            }
+        })
+        .collect()
 }
 
 /// 外した部品の文（「。モード SAFE で電源オフの STX・UHF を除く」。無ければ空）。モードと電源の組ごとに部品をまとめ、

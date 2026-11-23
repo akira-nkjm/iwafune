@@ -22,6 +22,7 @@ export const overviewJa = {
     budgetMode: (mode: string) => ` · モード ${mode}`,
     budgetMargin: (v: string) => `余裕 ${v}`,
     budgetLimit: (limit: string, margin: string) => `/ 上限 ${limit}（システムマージン ${margin}）`,
+    limitFrom: (id: string) => `上限は要求 ${id} から（編集は要求で）`,
     budgetDry: "乾燥",
     budgetWet: "推薬込み",
     budgetPropellant: "推薬",

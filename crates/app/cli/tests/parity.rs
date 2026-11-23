@@ -131,9 +131,9 @@ fn record_edits() -> Vec<Edit> {
         },
         Edit {
             name: "SetSetting",
-            cli: &["setting", "set", "analysis.power.dod_max", "0.25"],
-            ops: json!([{ "op": "set_setting", "path": "analysis.power.dod_max",
-                "value": { "type": "number", "value": 0.25 } }]),
+            cli: &["setting", "set", "analysis.power.initial_soc", "0.8"],
+            ops: json!([{ "op": "set_setting", "path": "analysis.power.initial_soc",
+                "value": { "type": "number", "value": 0.8 } }]),
         },
     ]
 }

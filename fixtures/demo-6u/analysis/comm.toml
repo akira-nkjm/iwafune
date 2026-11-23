@@ -1,5 +1,4 @@
-stations   = ["TOKYO_GS"]
-min_margin = { value = 3.0, unit = "dB" }
+stations = ["TOKYO_GS"]
 
 [link.uhf_down]
 direction           = "down"
@@ -36,4 +35,3 @@ atmospheric_loss    = { value = 0.4, unit = "dB" }
 implementation_loss = { value = 1.5, unit = "dB" }
 line_loss           = { value = 0.5, unit = "dB" }
 occupied_bandwidth  = { value = 2.0, unit = "MHz" }
-pfd_limit           = { value = -135.0, unit = "dB" }  # Fictional demo value (dBW/m2 in the 4 kHz reference band). A real limit comes from the applicable regulation

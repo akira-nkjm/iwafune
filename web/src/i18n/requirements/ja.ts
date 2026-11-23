@@ -25,6 +25,7 @@ export const requirementsJa = {
     noSource: "出典なし",
     defaultCase: "既定",
     allCases: "すべてのケース",
+    inputOf: (name: string) => `入力（${name === "mission_duration" ? "ミッション期間" : name}）`,
     budgetOf: (kind: string) => `バジェット（${kind}）`,
     summary: {
       total: "要求",
@@ -40,6 +41,7 @@ export const requirementsJa = {
       failed: "解析が失敗しました",
       key_not_produced: "その判定が出ませんでした",
       unknown_target: "解析・バジェット・ケースが見つかりません",
+      design_input: "解析の入力を与える要求です（確かめる対象ではありません）",
     } as Record<string, string>,
     complianceEmpty: "要求がありません。要求を足すと、ここに適合表が出ます",
     dialog: {
@@ -66,6 +68,10 @@ export const requirementsJa = {
       checkHint:
         "例: dod。同じキーの判定が複数あれば最も悪いものを使う。書かなければ解析の判定全体",
       budget: "確かめるバジェット",
+      input: "解析の入力として与える値",
+      inputHint:
+        "ミッション期間のように、判定の基準ではなく解析が読む入力を与える要求です。制約の値がその入力になります",
+      inputMissionDuration: "ミッション期間（at_least の値）",
       unset: "指定しない",
       yes: "はい",
       no: "いいえ",

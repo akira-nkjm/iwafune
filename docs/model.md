@@ -55,15 +55,15 @@ writing it for any other body is a `check` error (`setting.central`).
 and projection does not invent defaults, so time-series analyses propagate with the J2 secular terms (`j2`). Writing it makes `check` notify with a warning (`setting.not_applied`)
 (`numerical` reads the elements as osculating elements, so the same numbers give a different orbit from `j2`). `orbit.decay` does not use the propagator kind and finds the altitude decay with its own integration.
 
-`duration` in `conditions/orbit.toml` is the mission duration (a time quantity, key `conditions.orbit.duration`).
-The optional `step` of `[eclipse_season]` is also a time quantity (key `conditions.orbit.eclipse_season.step`).
+The **mission duration is held by a requirement** (§7.9), not by `conditions/orbit.toml`: the requirement `input = "mission_duration"` ("the mission shall last at least 1 year") gives
+its `at_least` value to the analyses that need the span (`Design::mission_duration`). The old key `conditions.orbit.duration` is no longer read (see "Moved settings" in §7.9).
+Without such a requirement the season analysis reports a missing input (`requirement[input/mission_duration]`).
+The optional `step` of `[eclipse_season]` is a time quantity (key `conditions.orbit.eclipse_season.step`).
 Reading and writing go through the existing path for condition files, and dimension checking and projection use the common table in `setting_dims`.
-An unset duration and step are also shown in the settings table. Without `duration`, the season analysis reports a missing input.
+An unset step is also shown in the settings table.
 
 ```toml
 # conditions/orbit.toml (the same file as the other orbital elements)
-duration = { value = 1, unit = "yr" }
-
 [eclipse_season]
 step = { value = 1, unit = "day" }
 ```
@@ -123,12 +123,14 @@ span             = { value = 25, unit = "yr" }   # upper limit of the integratio
 reentry_altitude = { value = 120, unit = "km" }  # perigee altitude regarded as reentry (default 120 km)
 drag_area        = { value = 0.06, unit = "m^2" } # drag area (if absent, the area of the structure's bounding box averaged over orientation = surface area / 4)
 band             = { value = 2, unit = "km" }    # altitude band for orbit maintenance (if absent, drag is cancelled continuously)
-max_lifetime     = { value = 25, unit = "yr" }   # upper limit of lifetime (disposal requirement)
 ```
+
+The upper limit of the lifetime (the disposal requirement) is **not** a setting: it is the `at_most` requirement with `verify.analysis = "orbit.decay"` and `verify.check = "max_lifetime"` (§7.9).
+Without such a requirement no lifetime check is made.
 
 Other input values use existing ones: the orbit (`conditions/orbit.toml`; the case β is not used), the mass (the sum of the parts' mass properties),
 the outer shape (the structure's `size`; the same `aocs::reference_box` as for aerodynamic torque), the drag coefficient (`analysis.aocs.drag_coefficient`, 2.2 if absent), and
-the mission duration (`duration`; the period used to judge lifetime and to accumulate the orbit-maintenance ΔV; 1 year if absent).
+the mission duration (the requirement `input = "mission_duration"`; the period used to judge lifetime and to accumulate the orbit-maintenance ΔV; 1 year if absent).
 The propellant for orbit maintenance is the usable propellant of the propulsion analysis (`propulsion.propellant`, §7.7) (the propellant used with margin included); the propellant is not written here.
 The specific impulse is the lowest among the propulsion subsystem's thrusters (conservative side), and the mass before firing is the mass with propellant loaded (`wet_mass`). The propellant and thruster used appear in the result's
 `used.propellant` and `used.thruster`. Without a propulsion subsystem (maneuvers or propulsion parts), the propellant lifetime is not computed; with one, the propulsion inputs are required
@@ -765,9 +767,12 @@ default_case = "hot_imaging"
 
 ### 5.4a Communication settings (`analysis/comm.toml`)
 
-`stations` lists the ground stations to use, `min_margin` is the required link margin, and each `[link.<name>]` is one link
+`stations` lists the ground stations to use, and each `[link.<name>]` is one link
 (`direction` = `down` or `up`, `part` = the transceiver part, `band` = the band under `conditions/ground/<ID>.toml` `[link.<band>]`, plus losses and `ebn0_required`).
 The link budget is evaluated for every link × ground station pair whose station has that band.
+The required link margin is a criterion, so it is held by a requirement (§7.9): `verify.analysis = "comm.link_budget"` with an `at_least` constraint and
+`verify.check = "margin"` (every link and station), `"margin:<link>"` (that link at every station) or `"margin:<link>@<station>"` (one pair). The tightest one that covers a pair applies to that pair;
+with none, the analysis default (3 dB) applies. `comm.data_throughput` uses the tightest margin of its downlink's stations. `ebn0_required` stays a link setting: it follows from the modulation and the BER, a design value.
 
 - `data_downlink` (optional) names the downlink whose rate counts toward the daily data volume (`comm.data_throughput`). If omitted, the first downlink by name is used.
   The other downlinks are not counted, and the analysis reports their names as a notice. `check` reports an error (`ref.link`) if the name is not a link and an error (`setting.link_direction`) if the link is not a downlink.
@@ -795,7 +800,7 @@ The distance used for the link depends on the central body of `conditions.orbit`
 
 - **`earth_orbit`** (Earth): the slant range from the station to the spacecraft. The link margin is judged at the longest distance (the station's `min_elevation`), and the shortest distance (zenith, equal to the altitude) is reported as `range_min`.
 - **`earth_to_body`** (Moon, a planet or the Sun): the distance from Earth to the spacecraft, `|r_body(t) − r_earth(t) + r_spacecraft(t)|`, with the body position from the ephemeris (`sat_astro::ephem`) and the spacecraft position from the orbit around the body.
-  It is evaluated over the mission duration `conditions.orbit.duration` (one year when it is not written; a planet's synodic period can be longer, so write the duration for Mars and beyond).
+  It is evaluated over the mission duration (the requirement with `input = "mission_duration"`; one year when there is none; a planet's synodic period can be longer, so write the duration for Mars and beyond).
   The margin is judged at the **maximum** distance (`slant_range`); `range_min`, `range_min_epoch` and `range_max_epoch` report the minimum and the epochs of the extremes. Approximation: the distance is measured to Earth's centre, not to the station (an error of up to Earth's radius, about 1.7 % at the Moon and 0.01 % or less beyond Mars; the elevation, see below, uses the real station position).
 - `light_time` is the one-way light time at the maximum distance. Atmospheric and rain losses are the link's `atmospheric_loss` as before.
 
@@ -810,17 +815,18 @@ For each **downlink** the link budget also reports the power flux density at the
 `PFD = EIRP − 10·log10(4π·d²) − 10·log10(max(B_occupied / B_reference, 1))` [dBW/m² in `B_reference`],
 evaluated at the **minimum** distance (the worst case): the zenith slant range (the altitude) for an Earth orbit, the minimum Earth distance for another body. Losses in the atmosphere are not subtracted. If `occupied_bandwidth` is not written the EIRP is taken to fall entirely inside the reference bandwidth (no spreading credit; the safe side).
 
-Optional settings of `[link.<name>]` in `analysis/comm.toml` (set with `fune set analysis.comm.link.<name>.<key> …`; all three are dimension-checked):
+Optional settings of `[link.<name>]` in `analysis/comm.toml` (set with `fune set analysis.comm.link.<name>.<key> …`; both are dimension-checked):
 
 | key | unit | meaning |
 |---|---|---|
-| `pfd_limit` | `dB` (dBW/m² in the reference bandwidth) | the limit. **No limit is built in or defaulted**: it depends on the band, the service and the angle of arrival, so take it from the regulation that applies to the mission. The check below exists only when this is written |
 | `pfd_reference_bandwidth` | `Hz`, `kHz` … | the reference bandwidth the limit is stated in (default 4 kHz) |
 | `occupied_bandwidth` | `Hz`, `kHz`, `MHz` … | the occupied bandwidth of the signal |
 
-When `pfd_limit` is written, the check `pfd:<link>@<station>` is added (like `margin:<link>@<station>`): margin = limit − PFD; negative is a violation and under 1 dB is a warning.
-A requirement refers to it with `verify.check = "pfd:<link>@<station>"`, and renaming or removing the station is refused while a requirement names it, as for the margin key.
-The demo's `s_down` writes a fictional limit of −135 dB to show the feature; it is not a regulatory value.
+The PFD limit is a criterion held by a requirement: an `at_most` requirement with `verify.analysis = "comm.link_budget"` and `verify.check = "pfd:<link>"` (every station) or `"pfd:<link>@<station>"`.
+**No limit is built in or defaulted**: it depends on the band, the service and the angle of arrival, so take it from the regulation that applies to the mission.
+Only a downlink that a requirement covers gets the check `pfd:<link>@<station>` (like `margin:<link>@<station>`): margin = limit − PFD; negative is a violation and under 1 dB is a warning.
+Renaming or removing a station is refused while a requirement names it in `verify.check` (`…@<station>`), as for the margin key.
+The demo's `R_PFD` holds a fictional limit of −135 dB for `s_down` to show the feature; it is not a regulatory value.
 
 #### Ground stations described by G/T
 
@@ -830,8 +836,8 @@ An uplink needs the station's `antenna_gain` and `tx_power`; a station given as 
 ### 5.5 Reverse-computed power sizing (`power.sizing`)
 
 A steady-state analysis belonging to the Power subsystem. It outputs the required SAP and battery sizes and does not write back to part attributes.
-Its inputs are the orbit, `conditions.orbit.duration`, parts with power and modes, `solar_panel` (with normals) and `battery` parts, the attitude law and the power settings.
-If parts, orbit, duration, modes, attitude law or `analysis.power.dod_max` are missing, it returns a missing input.
+Its inputs are the orbit, the mission duration (the requirement `input = "mission_duration"`), parts with power and modes, `solar_panel` (with normals) and `battery` parts, the attitude law and the power settings.
+If parts, orbit, duration, modes, attitude law or the DoD limit (the `at_most` requirement verified by `power.energy_balance` / `dod`) are missing, it returns a missing input.
 If the explicit analysis case has a mode, that mode is used; otherwise every mode (and, for the time-series reverse computation, the mode sequence as well) is reverse-computed in turn,
 and the result is decided by the operation with the largest required area (`area_mode`) and the operation with the largest required capacity (`capacity_mode`).
 The time-series reverse computation uses the mode's `max_duration` and timing (`when`, `start`), the sequence in use (`analysis.power.active_sequence`, `[[sequence]]`, `[sequences.<name>]`) and `analysis.power.base_mode` in the same way as `power.energy_balance`.
@@ -850,11 +856,11 @@ Generation is computed with the existing `solar` model, using `cell_efficiency`,
 The incidence is obtained by running `power.orbit_generation` with the same time series, SAPs and per-mode attitude law as `power.energy_balance` (`analysis.aocs.law.<mode>`, or the upper-level attitude law if absent),
 and multiplying by the incidence factor, which is the sunlit average generation divided by the generation when sunlight hits all panels head-on
 (the solar flux is fixed at 1 AU, and conversion efficiency is counted in Xd, so it is not put into the time series).
-It is further multiplied by `(1-annual_degradation)^lifetime_years` and `inherent_degradation`. The lifetime is the input design life `design_life` (projection passes `conditions.orbit.duration`), or if absent the period of the season scan. Which was used is in `used.lifetime_source`.
+It is further multiplied by `(1-annual_degradation)^lifetime_years` and `inherent_degradation`. The lifetime is the input design life `design_life` (projection passes the mission duration), or if absent the period of the season scan. Which was used is in `used.lifetime_source`.
 When different panels are mixed, a design that scales up and down while keeping the current area allocation is assumed.
 For a design in which aging and inherent degradation are already included in the existing `eol_factor`, override them so that additional degradation is not stacked on top.
 
-The required battery capacity of one set is `Pe*Te/(dod_max*N*Xbattery)`, and the total capacity is N times that.
+The required battery capacity of one set is `Pe*Te/(dod_max*N*Xbattery)` (`dod_max` is the DoD limit requirement), and the total capacity is N times that.
 As in the existing lumped battery model, the design capacity is the sum of all parts' capacities, and DoD and discharge efficiency are taken from the first battery. If voltage, efficiency, initial SOC or DoD differ between batteries, the result would change with the order of parts, so a `battery_mismatch` warning is emitted (only one in the output's top-level `checks`, for both the power balance and sizing).
 Area and capacity include the parts' counts. The margin is `spec::ratio_margin`, and the verdict is `ratio_margin_verdict` (warning width 0).
 If the load or eclipse is 0 and the requirement is 0, the margin is null (verdict OK).
@@ -914,9 +920,7 @@ The solar flux is found from `illumination::solar_flux_w_m2` with `sun_distance`
 No sizing-specific defaults are provided for DoD, cell efficiency, area or battery capacity.
 
 ```toml
-# analysis/power.toml
-dod_max = 0.3
-
+# analysis/power.toml (the DoD limit is the requirement verified by power.energy_balance / dod, not a key here)
 [sizing]
 sunlit_efficiency = 0.8
 eclipse_efficiency = 0.6
@@ -1262,6 +1266,8 @@ check    = "range_low:BAT:operating"
 - **What verifies it** (`[verify]`): `analysis` (an analysis ID; an unknown ID is `ref.analysis`) with an optional `check` (the key of one of that analysis's `checks`),
   or `budget` (`mass` / `power` / `data`; its dimension must match `quantity`, `requirement.verify_dimension`). A `check` without an `analysis`, or a `budget` together with an `analysis`, is an error.
   Without `check`, the verdict of the analysis as a whole (the worst of its checks) counts. If several checks share the key (per mode, per component), the worst one counts.
+  A `check` matches a produced key by prefix at a separator (`margin` covers `margin:s_down@TOKYO_GS`), so one requirement can cover every link and station.
+- `input` (top level, optional): the analysis input the requirement gives (`mission_duration`); see "Criteria live in requirements" below. It is not part of `[verify]`.
 - **Where the check keys are validated**: a check key is a string the analysis builds each run (`dod`, `margin:s_down@TOKYO_GS`, `range_low:BAT:operating`), so the set of keys cannot be known without
   running the analysis. `fune check` therefore validates only what is static (the analysis ID against the registered analyses, the budget kind, the dimension, the references and the ID),
   and the compliance table validates the key when it runs the analysis: a key the analysis did not produce makes the row "not verified" with the keys that were produced.
@@ -1273,10 +1279,44 @@ check    = "range_low:BAT:operating"
 **Compliance table** (`fune requirement compliance`, `GET /requirements/compliance`, the Requirements page): for each requirement, the statement, the constraint, the source, what verifies it, the cases it was
 evaluated for, the evaluated value (a budget's total; analysis checks carry a message but no value), and the verdict. Each quantified case is judged on its own (an analysis or budget runs once per case and is reused across requirements).
 The row's verdict is the worst case, ranked **violation > not verified > warning > ok** (a requirement is not "ok" if any of its cases could not be verified). Not verified has a reason:
-`no_link` (nothing to verify it), `missing_inputs` (the analysis or budget lacks inputs, listed in `detail`), `failed`, `key_not_produced`, `unknown_target` (the analysis, budget or case does not exist).
+`no_link` (nothing to verify it), `design_input` (the requirement gives an analysis input, so there is nothing to verify), `missing_inputs` (the analysis or budget lacks inputs, listed in `detail`), `failed`, `key_not_produced`, `unknown_target` (the analysis, budget or case does not exist).
 The counts (`summary`) and the verdicts are computed in `fune_service::requirements`; the Web only lays them out. The exit code of `fune requirement compliance` is 1 when any requirement is violated (`--deny-unverified` adds the not verified ones; warnings never fail it).
 
-Stage 1 of #10 only records the constraint next to the check; the analyses and budgets still use their own thresholds (`limit`, `min_margin`, …). Moving those onto the requirements, so that a value has one home, is the next stage.
+#### Criteria live in requirements (#10 stage 2)
+
+A **verdict criterion** (a limit or threshold a verdict compares against) is held **only** in the `constraint` of a requirement. Budgets and analyses read it from the requirement(s) that point at them.
+Design values and modelling inputs stay settings or part attributes (see the table below). One mechanism serves all of it, in `fune_model::design::criteria`:
+
+- **Budget limit**: `verify.budget = "<kind>"` with an `at_most` constraint is the limit of that budget (`Design::budget_limit`). The limit applies to the budget view in every case (`quantify` only selects the cases the compliance table judges).
+- **Analysis criterion**: a requirement whose `verify.analysis` and `verify.check` match a declared check supplies its criterion. The declared table `CRITERIA` (the single table) says which check takes its criterion from a requirement,
+  the constraint direction it expects and its dimension, and which input of the analysis it feeds (`fune_projection` calls `Context::criterion`). The check key is a prefix that stops at a separator (`:` or `@`):
+  `margin` covers every `margin:<link>@<station>`, `margin:s_down` covers that link at every station, and a full key covers one pair (`key_covers`).
+
+| Check (analysis / key) | Direction, dimension | Feeds |
+|---|---|---|
+| `power.energy_balance` / `dod` | `at_most`, Dimensionless | the allowed DoD of the batteries (also `power.sizing`). **Required**: without it the analyses report a missing input |
+| `comm.link_budget` / `margin` | `at_least`, Dimensionless (dB) | the required margin per link × station (`comm.data_throughput` takes the tightest of its downlink's stations); without one the analysis default (3 dB) applies |
+| `comm.link_budget` / `pfd` | `at_most`, Dimensionless (dB) | the PFD limit of a downlink; without one no PFD check is made |
+| `aocs.slew_time` / `slew_time` | `at_most`, Time | the required slew time; without one no check is made |
+| `orbit.decay` / `max_lifetime` | `at_most`, Time | the lifetime limit; without one no check is made |
+| `structure.modal_estimate` / `lateral`, `axial` | `at_least`, Frequency | the required natural frequency of beams (the demo has no beams, so these rows stay "not verified") |
+| `thermal.steady`, `thermal.transient` / `range_low`, `range_high` | `at_least` / `at_most`, Temperature | a node's lower or upper temperature limit (see below) |
+
+- **Several requirements on one criterion**: the tightest applies (`at_most` the smallest, `at_least` the largest). The compliance table still judges **each row against its own constraint**:
+  it re-runs the analysis or budget without the other requirements that share the criterion (a draft with `RemoveRequirement` ops; nothing is saved), so a looser requirement is met when the tighter one is, and a violated tighter one does not fail the looser one.
+- **Wrong direction or dimension**: a requirement whose constraint kind or dimension does not match the declared check (or a budget requirement that is not `at_most`) is not a criterion, and `fune check` reports
+  `requirement.criterion_kind` / `requirement.criterion_dimension` as an error.
+- **No requirement**: the analysis or budget runs as it did when the setting was absent (no verdict for that check, the analysis default, or a missing input for the DoD limit).
+- **Part temperature ranges stay part attributes** (`temp_op`, `temp_survival`, `temp_perf`). A temperature requirement (`range_low:<node>:<kind>`, `range_high:<node>:<kind>`) may only **tighten** the node's range for that check
+  (the stricter of the part range and the requirement applies). A requirement looser than the part range does not widen it: the check message says it has no effect (a requirement equal to the part range adds nothing).
+  The requirement is recorded in the analysis input (`network.nodes[].required`) and the message says "tightened by requirement R…".
+- **Mission duration** is an input, not a criterion, so it has its own field: `input = "mission_duration"` on an `at_least` requirement of dimension Time (one per design; a second one is `requirement.input_duplicate`).
+  The compliance row of such a requirement is "not verified" with the reason `design_input`.
+- **Moved settings** (`design::moved_settings`): the keys `budget.<kind>.limit`, `analysis.power.dod_max`, `analysis.comm.min_margin`, `analysis.comm.link.<name>.pfd_limit`, `analysis.aocs.max_slew_time`,
+  `conditions.orbit.decay.max_lifetime`, `conditions.launch.min_frequency_axial|lateral` and `conditions.orbit.duration` are no longer read. A file that still has one gets the error
+  `setting.moved_to_requirement` naming the key and the requirement to write; `fune setting set` refuses them; `fune setting unset <path>` removes them.
+- **Stays a setting or attribute** (design values and modelling inputs): `ebn0_required`, `system_margin`, `alloc`, growth/uncertainty/harness allowance, `storage_margin`, `usable_momentum_fraction`, `unload_dipole_fraction`,
+  `slew_angle`, `dv_margin`, `residual_fraction`, `safety_factor_*` (factors applied to loads, like `system_margin`), `fastener_allowable`, the thermal `[margin]`, ground station `min_elevation`, mode `max_duration`, and the part temperature ranges.
 
 ## 8. Allocations and margin policy (budget/)
 
@@ -1287,9 +1327,8 @@ Allocations are gathered in a single file rather than scattered across subsystem
 - The total can be checked in one file. `check()` verifies "total of allocations ≤ limit × (1 − system margin)" and emits a warning if exceeded.
 
 ```toml
-# budget/allocation.toml
+# budget/allocation.toml (the limits are requirements with `verify.budget`, §7.9, not keys here)
 [mass]
-limit         = { value = 12.0, unit = "kg" }   # upper limit from the launcher side
 system_margin = 0.10
 
 [mass.alloc]
@@ -1301,7 +1340,6 @@ payload   = { value = 1.5, unit = "kg" }
 structure = { value = 2.3, unit = "kg" }
 
 [power]
-limit         = { value = 25.0, unit = "W" }    # expected orbit-average generation
 system_margin = 0.15
 
 [power.alloc]
@@ -1330,7 +1368,8 @@ allowance = 0.05         # fraction allowed for subsystem mass while harness/ do
 
 An allocation key is a subsystem ID or a part ID. Allocation is possible even if the subsystem directory does not exist yet. Parts such as assemblies (`SAP_PX`) can also be allocated to, but IDs of arbitrary folders are not accepted.
 Aggregation gives priority to parts with an explicit allocation and to the nearest ancestor assembly, and otherwise gathers into the part's subsystem (including subsystems determined by role). Those without a subsystem go in the "Other" row. Only allocations of the same budget kind are used, and allocation targets of other kinds have no effect.
-`limit` may be omitted. For a kind with no limit set, `fune check` emits the warning "limit not set", does not judge against a limit, and returns the current total. `fune init` does not set a mass limit and does not embed a display name in the SAFE mode.
+**The limit of a budget is held by a requirement**: the `at_most` requirement with `verify.budget = "<kind>"` (§7.9; several → the smallest applies). The old `limit` key is no longer read and `fune check` reports it (`setting.moved_to_requirement`).
+For a kind with no such requirement, `fune check` emits the warning "limit not set" (`budget.limit_unset`), does not judge against a limit, and returns the current total. The budget view names the requirement that decided the limit (`limit_requirement`). `fune init` does not set a mass limit and does not embed a display name in the SAFE mode.
 
 **Propellant in the mass budget**: the mass budget (`fune budget mass`, `GET /budgets/mass`, and the mass budget in the overview) outputs a "Propellant" row
 after the rows of the parts' dry mass. Its value is taken only from the propellant loaded according to the propulsion analysis `propulsion.propellant` (the portion used with margin + the remaining portion), without applying growth margin,

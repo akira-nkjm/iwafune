@@ -8,20 +8,16 @@ fn eclipse_settings_and_representative_cases_match_http() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let (_cli_temp, cli_root) = demo_copy();
     let (_http_temp, http_root) = demo_copy();
-    for (path, value) in [
-        ("conditions.orbit.duration", "1 yr"),
-        ("conditions.orbit.eclipse_season.step", "1 day"),
-    ] {
-        run_cli(&cli_root, &["setting", "set", path, value]);
-        let op = post_json(
-            &rt,
-            &http_root,
-            "/api/v1/ops/from_text",
-            json!({"path": path, "value": value}),
-        );
-        post_json(&rt, &http_root, "/api/v1/ops", json!({"ops": [op]}));
-        assert_same_files(&cli_root, &http_root, path);
-    }
+    let (path, value) = ("conditions.orbit.eclipse_season.step", "1 day");
+    run_cli(&cli_root, &["setting", "set", path, value]);
+    let op = post_json(
+        &rt,
+        &http_root,
+        "/api/v1/ops/from_text",
+        json!({"path": path, "value": value}),
+    );
+    post_json(&rt, &http_root, "/api/v1/ops", json!({"ops": [op]}));
+    assert_same_files(&cli_root, &http_root, path);
     for (id, at, mode) in [
         ("season_longest", "longest", Some("NOMINAL")),
         ("season_beta_min", "beta_min", None),
@@ -74,7 +70,8 @@ fn eclipse_settings_and_representative_cases_match_http() {
 fn missing_duration_is_exposed_by_http() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let (_temp, root) = demo_copy();
-    run_cli(&root, &["setting", "unset", "conditions.orbit.duration"]);
+    // ミッション期間は要求が与える（`input = "mission_duration"`）。その要求が無ければ入力不足
+    run_cli(&root, &["requirement", "rm", "R_MISSION"]);
     let run = post_json(
         &rt,
         &root,
@@ -87,7 +84,7 @@ fn missing_duration_is_exposed_by_http() {
             .as_array()
             .unwrap()
             .iter()
-            .any(|m| m["path"] == "conditions.orbit.duration")
+            .any(|m| m["path"] == "requirement[input/mission_duration]")
     );
 }
 

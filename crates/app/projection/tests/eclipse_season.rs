@@ -1,5 +1,5 @@
 //! 不足入力と設定次元の検証。物理の比較は sat-analysis のテストに置く。
-use fune_model::design::{EclipseSeasonSettings, OrbitSettings};
+use fune_model::design::{EclipseSeasonSettings, OrbitSettings, Requirement};
 use fune_model::value::Quantity;
 use fune_model::{Design, Severity};
 use fune_projection::{Context, orbit::eclipse_season};
@@ -16,6 +16,16 @@ fn design() -> Design {
     d
 }
 
+/// ミッション期間を与える要求（`input = "mission_duration"`）。
+fn mission(value: f64, unit: &str) -> Requirement {
+    serde_json::from_value(serde_json::json!({
+        "id": "R_MISSION", "statement": "The mission shall last at least 1 year.",
+        "quantity": "Time", "input": "mission_duration",
+        "constraint": {"kind": "at_least", "value": {"value": value, "unit": unit}}
+    }))
+    .unwrap()
+}
+
 #[test]
 fn missing_duration_and_optional_step() {
     let mut d = design();
@@ -26,9 +36,11 @@ fn missing_duration_and_optional_step() {
             .unwrap_err()
             .into_vec()
             .iter()
-            .any(|m| m.path == "conditions.orbit.duration")
+            .any(|m| m.path == "requirement[input/mission_duration]")
     );
-    d.conditions.orbit.as_mut().unwrap().duration = Some(Quantity::new(1.0, "yr"));
+    // ミッション期間は要求が与える
+    let r1 = mission(1.0, "yr");
+    d.requirements.insert(r1.id.clone(), r1);
     let r = fune_model::resolve(&d);
     let input = eclipse_season(&Context::new(&d, &r, None).unwrap()).unwrap();
     assert!(input.step.is_none());
@@ -39,11 +51,9 @@ fn missing_duration_and_optional_step() {
 fn wrong_dimensions_are_design_errors() {
     for field in ["duration", "step"] {
         let mut d = design();
+        let r1 = mission(1.0, if field == "duration" { "W" } else { "yr" });
+        d.requirements.insert(r1.id.clone(), r1);
         let o = d.conditions.orbit.as_mut().unwrap();
-        o.duration = Some(Quantity::new(
-            1.0,
-            if field == "duration" { "W" } else { "yr" },
-        ));
         o.eclipse_season = Some(EclipseSeasonSettings {
             step: Some(Quantity::new(
                 1.0,

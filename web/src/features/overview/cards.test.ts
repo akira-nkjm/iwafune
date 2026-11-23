@@ -57,6 +57,7 @@ const budget = (rest: Partial<BudgetView>): BudgetView => ({
   label_en: "Mass",
   case: null,
   limit: qty("12.0 kg"),
+  limit_requirement: "R_MASS",
   system_margin: qty("10.0 %"),
   total: qty("5.64 kg"),
   margin: qty("5.16 kg"),

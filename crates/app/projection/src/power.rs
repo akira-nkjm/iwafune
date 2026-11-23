@@ -282,10 +282,11 @@ fn batteries(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<EnergyBalanceBatte
     }
     let why = "Battery values";
     let settings = ctx.design.analysis.power.as_ref();
+    // 許容する DoD は要求が持つ（`power.energy_balance` の `dod`。`power.sizing` も同じ基準を読む）。無ければ入力不足
     let dod = m.need(
-        ctx.setting(power_key(&["dod_max"]), settings.and_then(|s| s.dod_max)),
-        power_key(&["dod_max"]),
-        "Allowed DoD",
+        ctx.criterion("power.energy_balance", "dod").map(|c| c.si),
+        Target::criterion("power.energy_balance/dod"),
+        "Allowed DoD (an at_most requirement verified by power.energy_balance / dod)",
     );
     let initial_soc = ctx.setting(
         power_key(&["initial_soc"]),

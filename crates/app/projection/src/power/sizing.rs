@@ -63,7 +63,7 @@ pub fn sizing(ctx: &Context<'_>) -> Result<SizingInput, MissingInputs> {
             "The specified mode does not exist",
         );
     }
-    // 設計寿命はミッション期間（`conditions.orbit.duration`）。季節の解析の期間も同じ設定から作るので同じ値
+    // 設計寿命はミッション期間（`input = "mission_duration"` の要求）。季節の解析の期間も同じ要求から作るので同じ値
     let design_life = season.as_ref().map(|s| s.duration);
     m.finish(|| {
         Some(SizingInput {

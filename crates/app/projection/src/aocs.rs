@@ -4,7 +4,7 @@
 use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::parts::{self, by_role, direction_body};
-use crate::quantity::{setting, setting_opt, vec_si};
+use crate::quantity::{setting, vec_si};
 use crate::{structure, timeline};
 use fune_model::Target;
 use fune_model::builtin::Role;
@@ -18,7 +18,7 @@ use sat_analysis::aocs::{RwUnloadingInput, SensorFovInput, SlewTimeInput, Unload
 use sat_analysis::spec::SamplingSpan;
 use sat_analysis::structure::mass_properties::MassPropertiesSummary;
 use sat_astro::math::Vec3;
-use sat_units::typed::{Angle, AngularMomentum, Fraction, MagneticDipoleMoment, Qty, Torque};
+use sat_units::typed::{Angle, AngularMomentum, Fraction, MagneticDipoleMoment, Qty, Time, Torque};
 
 mod thrust;
 
@@ -271,12 +271,10 @@ pub fn slew_time(ctx: &Context<'_>) -> Result<SlewTimeInput, MissingInputs> {
         "Slew angle",
         &mut m,
     );
-    let required_time = setting_opt(
-        &dims::AOCS_MAX_SLEW_TIME,
-        &[],
-        s.and_then(|s| s.max_slew_time.as_ref()),
-        &mut m,
-    );
+    // 姿勢変更の時間の上限は要求が持つ（`aocs.slew_time` の `slew_time`）。無ければ判定しない
+    let required_time = ctx
+        .criterion("aocs.slew_time", "slew_time")
+        .map(|c| Qty::<Time>::from_raw(c.si));
     m.finish(|| {
         Some(SlewTimeInput {
             inertia: summary?.inertia,

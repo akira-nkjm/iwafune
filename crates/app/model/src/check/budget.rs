@@ -15,19 +15,18 @@ fn budget_target(segments: &[&str]) -> Option<Target> {
 pub(super) fn check_budget(ctx: &mut Ctx) {
     let design = ctx.design;
     for kind in BudgetKind::ALL {
-        // 設定の無い種類（バジェットを持たないプロジェクトなど）は知らせない。設定があって上限の無いときだけ
-        if design
-            .budget
-            .allocation
-            .get(*kind)
-            .is_some_and(|a| a.limit.is_none())
-        {
+        // 設定の無い種類（バジェットを持たないプロジェクトなど）は知らせない。設定があって上限を持つ要求の無いときだけ
+        if design.budget.allocation.get(*kind).is_some() && design.budget_limit(*kind).is_none() {
             ctx.warning(
                 "budget.limit_unset",
                 &EntityKey::Allocation,
                 &[kind.as_str(), "limit"],
-                budget_target(&[kind.as_str(), "limit"]),
-                format!("The limit of {} is not set", kind.as_str()),
+                Some(Target::criterion(format!("budget/{}", kind.as_str()))),
+                format!(
+                    "No requirement sets the {} limit (add an at_most requirement with verify.budget = \"{}\")",
+                    kind.as_str(),
+                    kind.as_str()
+                ),
             );
         }
         if let Some(alloc) = design.budget.allocation.get(*kind) {
@@ -68,19 +67,12 @@ fn check_factors(ctx: &mut Ctx, factors: &MaturityFactors, key: &str) {
     }
 }
 
-/// 1 種類の配分（上限と配分先の次元・配分先の参照・合計 ≤ 上限 × (1 − マージン)）。
+/// 1 種類の配分（配分先の次元・配分先の参照・合計 ≤ 上限 × (1 − マージン)。上限は要求から引く。旧い `limit` は `moved` が知らせる）。
 fn check_allocation(ctx: &mut Ctx, kind: BudgetKind, alloc: &Allocation) {
     let design = ctx.design;
     let entity = EntityKey::Allocation;
     let name = kind.as_str();
     let dim = kind.dimension();
-    if let Some(limit) = &alloc.limit
-        && let Some((sev, code, msg)) = check_quantity_dimension(limit, dim)
-    {
-        let target = budget_target(&[name, "limit"]);
-        ctx.report(sev, code, &entity, &[name, "limit"], target, msg);
-        return;
-    }
     if !(0.0..1.0).contains(&alloc.system_margin) {
         ctx.error(
             "budget.margin",
@@ -110,7 +102,7 @@ fn check_allocation(ctx: &mut Ctx, kind: BudgetKind, alloc: &Allocation) {
             None => total += q.si().unwrap_or(0.0),
         }
     }
-    let Some(limit) = alloc.limit.as_ref().and_then(|q| q.si().ok()) else {
+    let Some(limit) = design.budget_limit(kind).map(|c| c.si) else {
         return;
     };
     let available = limit * (1.0 - alloc.system_margin);

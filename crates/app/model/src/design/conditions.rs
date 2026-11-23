@@ -84,8 +84,9 @@ pub struct OrbitSettings {
     pub arg_perigee: Option<Quantity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mean_anomaly: Option<Quantity>,
-    /// ミッション期間（時間）。
-    #[serde(default)]
+    /// **旧い設定（ミッション期間は要求へ移った。読まない）**。ミッション期間は、`input = "mission_duration"` の
+    /// `at_least` の要求が持つ（`Design::mission_duration`）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub duration: Option<Quantity>,
     /// 軌道の季節解析の設定。
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -121,8 +122,9 @@ pub struct OrbitDecaySettings {
     /// 軌道維持の高度の帯（長さ。無ければ抗力を連続して打ち消す）。
     #[serde(default)]
     pub band: Option<Quantity>,
-    /// 寿命の上限（時間。廃棄の要求）。
-    #[serde(default)]
+    /// **旧い設定（基準は要求へ移った。読まない）**。寿命の上限（廃棄の要求）は、`verify.analysis = "orbit.decay"`・
+    /// `verify.check = "max_lifetime"` の `at_most` の要求が持つ。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_lifetime: Option<Quantity>,
     /// 以前の軌道維持の推薬（質量）。**使わない**（軌道維持の推薬は推進系の解析 `propulsion.propellant` の使える推薬）。
     /// 古い設計を読めるように残し、書かれていれば `check` が外すよう warning（`setting.moved`）を出す。新しく書かない。
@@ -188,10 +190,11 @@ pub struct LaunchSettings {
     /// 準静的荷重（機軸に直交する方向）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub load_lateral: Option<Quantity>,
-    /// 要求される最低固有振動数（機軸方向）
+    /// **旧い設定（基準は要求へ移った。読まない）**。最低固有振動数（機軸方向）は、`verify.analysis = "structure.modal_estimate"`・
+    /// `verify.check = "axial"` の `at_least` の要求が持つ
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_frequency_axial: Option<Quantity>,
-    /// 要求される最低固有振動数（直交方向）
+    /// **旧い設定（基準は要求へ移った。読まない）**。最低固有振動数（直交方向）は、`verify.check = "lateral"` の要求が持つ
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_frequency_lateral: Option<Quantity>,
     /// 安全率（降伏）

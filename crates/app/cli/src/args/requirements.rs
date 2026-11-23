@@ -76,6 +76,9 @@ pub struct RequirementArgs {
     /// Budget that verifies it instead of an analysis (mass / power / data)
     #[arg(long)]
     pub budget: Option<String>,
+    /// Analysis input this requirement gives instead of a check (`mission_duration`: its at_least value is the mission duration)
+    #[arg(long)]
+    pub input: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }

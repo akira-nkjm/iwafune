@@ -94,7 +94,7 @@ function ComplianceRowView({ row }: { row: ComplianceRow }) {
       <Td className="num whitespace-nowrap align-top">{row.constraint.text}</Td>
       {/* 確かめる先の下に、判定したケースを添える */}
       <Td className="align-top">
-        <VerifiedBy verify={row.verify} />
+        <VerifiedBy verify={row.verify} input={row.input} />
         <span className="block whitespace-normal text-ink-3 text-xs">{cases}</span>
       </Td>
       <Td className="w-[30%] min-w-56 whitespace-normal align-top text-ink-2">

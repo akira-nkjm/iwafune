@@ -54,7 +54,8 @@ impl Allocations {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
 pub struct Allocation {
-    /// 上限（ロケット側の上限・軌道平均の発電見込みなど）
+    /// **旧い設定（基準は要求へ移った。読まない）**。上限は、`verify.budget` がこの種類の `at_most` の要求が持つ
+    /// （`Design::budget_limit`）。書かれていれば `check` が移し先を知らせる
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub limit: Option<Quantity>,
     /// システムマージン（上限に対する割合）

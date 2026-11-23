@@ -3,4 +3,4 @@
 /**
  * 確かめられなかった理由。
  */
-export type NotVerifiedReason = "no_link" | "missing_inputs" | "failed" | "key_not_produced" | "unknown_target";
+export type NotVerifiedReason = "no_link" | "missing_inputs" | "failed" | "key_not_produced" | "unknown_target" | "design_input";

@@ -141,6 +141,15 @@ export function RequirementDialog({
         )}
         {input("check", td.check, "dod", td.checkHint)}
         {select("budget", td.budget, budgetOptions)}
+        <Field label={td.input} htmlFor="rq-input" hint={td.inputHint}>
+          <NativeSelect
+            id="rq-input"
+            value={text.input ?? ""}
+            placeholder={td.unset}
+            options={[{ value: "mission_duration", label: td.inputMissionDuration }]}
+            onChange={(e) => set("input", e.target.value)}
+          />
+        </Field>
       </div>
     </OpDialog>
   );

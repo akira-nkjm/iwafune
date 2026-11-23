@@ -27,6 +27,7 @@ export const requirementsEn: typeof requirementsJa = {
     noSource: "No source",
     defaultCase: "default",
     allCases: "All cases",
+    inputOf: (name: string) => `Input (${name === "mission_duration" ? "mission duration" : name})`,
     budgetOf: (kind: string) => `Budget (${kind})`,
     summary: {
       total: "Requirements",
@@ -42,6 +43,7 @@ export const requirementsEn: typeof requirementsJa = {
       failed: "The analysis failed",
       key_not_produced: "The analysis did not produce that check",
       unknown_target: "The analysis, budget or case was not found",
+      design_input: "This requirement gives an analysis input (there is nothing to verify)",
     },
     complianceEmpty: "No requirements. Add one and the compliance table appears here",
     dialog: {
@@ -69,6 +71,10 @@ export const requirementsEn: typeof requirementsJa = {
       checkHint:
         "e.g. dod. If several checks share the key, the worst one counts. Left blank, the analysis verdict as a whole counts",
       budget: "Verifying budget",
+      input: "Analysis input given",
+      inputHint:
+        "For a requirement that gives an input the analyses read (not a verdict criterion), such as the mission duration. The constraint value becomes that input",
+      inputMissionDuration: "Mission duration (the at_least value)",
       unset: "Not set",
       yes: "Yes",
       no: "No",

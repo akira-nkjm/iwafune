@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 
 /// 距離を評価する期間の既定（ミッション期間が書かれていないとき）。**既定値はここだけ。**
 /// 1 年（回帰年）: 月の公転（27.3 日）と地球の日心距離の 1 周期を含む。火星などの会合周期（約 2.1 年）には足りないので、
-/// 惑星以遠はミッション期間（`conditions.orbit.duration`）を書く。
+/// 惑星以遠はミッション期間（`input = "mission_duration"` の要求）を書く。
 pub const DEFAULT_RANGE_SPAN: Qty<Time> = Qty::from_raw(365.25 * SECONDS_PER_DAY);
 
 /// 距離の標本数の上限（長い期間の刻みが細かくなりすぎないようにする）。

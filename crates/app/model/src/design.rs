@@ -9,6 +9,8 @@
 //! | `maneuver` | マヌーバ（区分・計算の段階・目標の軌道・制約）と実行の順（`Design::ordered_maneuvers`） |
 //! | `requirement` | 要求（文・制約・量化・出典・確かめる先）と解析の ID の一覧 |
 //! | `budget` | 配分とマージン方針 |
+//! | `moved_settings` | 基準・ミッション期間が要求へ移った旧い設定のキーの表（書かれていれば `check` が移し先を知らせる） |
+//! | `criteria` | 判定の基準の置き場所（基準は要求だけが持つ。宣言の表 `CRITERIA` と、要求からの引き当て `Design::budget_limit`・`Design::criterion`） |
 //! | `project` | `fune.toml` |
 //! | `shared_catalog` | 共有カタログの固定（`catalog.lock`）と読み込みの状態の判定（`Design::shared_catalog_statuses`） |
 //! | `conditions` / `analysis` | `conditions/`・`analysis/` の型付きの設定。解析の系の一覧 `AnalysisSystem` |
@@ -22,8 +24,10 @@
 pub mod analysis;
 pub mod budget;
 pub mod conditions;
+pub mod criteria;
 pub mod defs;
 pub mod maneuver;
+pub mod moved_settings;
 pub mod net;
 pub mod part;
 pub mod power_sequences;
@@ -43,8 +47,12 @@ pub mod view;
 pub use analysis::*;
 pub use budget::*;
 pub use conditions::*;
+pub use criteria::{
+    CRITERIA, Criterion, CriterionDecl, declared, declared_for_requirement, key_covers,
+};
 pub use defs::*;
 pub use maneuver::*;
+pub use moved_settings::{MOVED_SETTINGS, MovedSetting};
 pub use part::*;
 pub use power_sequences::{DEFAULT_SEQUENCE, SequenceView};
 pub use project::*;

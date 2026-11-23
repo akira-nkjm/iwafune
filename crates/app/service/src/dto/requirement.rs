@@ -3,7 +3,7 @@
 //! （`GET /requirements/compliance`・`fune requirement compliance`。作り方は `requirements`）。
 
 use super::QuantityView;
-use fune_model::design::{ConstraintKind, Quantification, Verification};
+use fune_model::design::{ConstraintKind, Quantification, RequirementInput, Verification};
 use sat_analysis::spec::Verdict;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -46,6 +46,8 @@ pub struct RequirementText {
     pub check: Option<String>,
     /// 確かめるバジェット（`mass` / `power` / `data`）
     pub budget: Option<String>,
+    /// 解析の入力として与える値（`mission_duration`。制約の値が入力になる）
+    pub input: Option<String>,
 }
 
 /// 制約の表示（向きと、値を整形した文）。
@@ -70,6 +72,8 @@ pub struct RequirementView {
     pub constraint: ConstraintView,
     pub quantify: Quantification,
     pub verify: Verification,
+    /// 解析の入力として与える値（`mission_duration`。無ければ null）
+    pub input: Option<RequirementInput>,
     /// 編集の欄の初期値（`fune requirement set` に打つのと同じ文字列）
     pub text: RequirementText,
     /// 欄の名前（`RequirementText` の欄）→ 対象のパス（`requirements.R_MASS.verify.check`。診断の `DiagnosticView.path` と同じ）
@@ -91,6 +95,8 @@ pub enum NotVerifiedReason {
     KeyNotProduced,
     /// 確かめる先の解析かバジェットが無い、またはケースが無い（`detail` に名前）
     UnknownTarget,
+    /// 解析の入力を与える要求で、確かめる先を持たない（`detail` に入力の名前。判定の対象ではない）
+    DesignInput,
 }
 
 /// 1 つのケースでの確かめの結果。
@@ -123,6 +129,8 @@ pub struct ComplianceRow {
     pub constraint: ConstraintView,
     pub source: Option<String>,
     pub verify: Verification,
+    /// 解析の入力として与える値（`mission_duration`。無ければ null）
+    pub input: Option<RequirementInput>,
     /// 判定（確かめられなければ null）
     pub verdict: Option<Verdict>,
     /// 確かめられなかった理由（`verdict` があれば null）

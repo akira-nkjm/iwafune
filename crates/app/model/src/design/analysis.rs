@@ -1,6 +1,8 @@
 //! 解析の設定（`analysis/<系>.toml`）。serde の形がそのままファイルの形。
 //!
-//! 値はすべて任意（`Option`）。足りない入力は projection が `analysis.power.dod_max` のようなパスで列挙する。
+//! 値はすべて任意（`Option`）。足りない入力は projection が `analysis.power.initial_soc` のようなパスで列挙する。
+//! **判定の基準（限度・しきい値）は設定に置かず、要求が持つ**（`design::criteria`）。基準だった旧い設定のキーは読み込めるが読まず、
+//! 書かれていれば `check` が移し先を知らせる（`MOVED_SETTINGS`）。
 //! モードや部品の ID を参照する箇所（`mode_share` のキー・`law` のキー・`nodes` の値など）は `check` が検査し、
 //! 名前の変更（RenamePart・RenameMode）で一緒に書き換わる。
 
@@ -89,7 +91,8 @@ pub struct PowerSettings {
     /// 逆算サイジングの任意の上書き。省略値は sat-analysis が持つ。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sizing: Option<PowerSizingSettings>,
-    /// 許容する最大放電深度（0〜1）
+    /// **旧い設定（基準は要求へ移った。読まない）**。許容する最大放電深度は、`verify.analysis = "power.energy_balance"`・
+    /// `verify.check = "dod"` の `at_most` の要求が持つ。書かれていれば `check` が `setting.moved_to_requirement` で知らせる
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dod_max: Option<f64>,
     /// 解析開始時の SOC（0〜1）
@@ -224,7 +227,8 @@ pub struct AocsSettings {
     /// 姿勢変更（`aocs.slew_time`）の角度（固有軸まわり、180° 以下）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub slew_angle: Option<Quantity>,
-    /// 姿勢変更の時間の要求上限（省略時は判定しない）
+    /// **旧い設定（基準は要求へ移った。読まない）**。姿勢変更の時間の上限は、`verify.analysis = "aocs.slew_time"`・
+    /// `verify.check = "slew_time"` の `at_most` の要求が持つ
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_slew_time: Option<Quantity>,
     /// モード ID → 姿勢則
@@ -289,8 +293,8 @@ pub struct CommLinkSettings {
     /// 衛星側の給電線の損失
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub line_loss: Option<Quantity>,
-    /// 地表の電力束密度（PFD）の限度（下りだけ。dBW/m²（基準帯域あたり）。sat-units は `dBW/m²` を式にできないので単位は `dB` と書く）。
-    /// 限度は周波数帯・業務・到来角で規則が決めるので、書かれたときだけ判定する（既定値は無い）
+    /// **旧い設定（基準は要求へ移った。読まない）**。地表の電力束密度（PFD）の限度は、`verify.analysis = "comm.link_budget"`・
+    /// `verify.check = "pfd:<回線>@<局>"` の `at_most` の要求が持つ（dBW/m²（基準帯域あたり）。単位は `dB` と書く）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pfd_limit: Option<Quantity>,
     /// PFD の基準帯域（Hz。省略すると解析の既定 4 kHz）
@@ -308,7 +312,8 @@ pub struct CommSettings {
     /// 使う地上局（`conditions/ground/<ID>`）
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub stations: Vec<String>,
-    /// 回線余裕の判定のしきい値（dB）
+    /// **旧い設定（基準は要求へ移った。読まない）**。回線余裕の下限は、`verify.analysis = "comm.link_budget"`・
+    /// `verify.check = "margin"`（すべての回線 × 局）か `margin:<回線>@<局>` の `at_least` の要求が持つ
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_margin: Option<Quantity>,
     /// 1 日の送信量（`comm.data_throughput`）に数える下り回線の名前（省略すると名前順の先頭の下り回線）

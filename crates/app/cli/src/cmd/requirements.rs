@@ -35,6 +35,7 @@ fn text(a: &RequirementArgs) -> RequirementText {
         analysis: a.analysis.clone(),
         check: a.check.clone(),
         budget: a.budget.clone(),
+        input: a.input.clone(),
     }
 }
 
@@ -140,6 +141,7 @@ fn detail(r: &ComplianceRow) -> String {
             NotVerifiedReason::Failed => "analysis failed",
             NotVerifiedReason::KeyNotProduced => "check not produced",
             NotVerifiedReason::UnknownTarget => "unknown analysis, budget or case",
+            NotVerifiedReason::DesignInput => "analysis input, nothing to verify",
         };
         return match &r.detail {
             Some(d) => format!("{why}: {d}"),

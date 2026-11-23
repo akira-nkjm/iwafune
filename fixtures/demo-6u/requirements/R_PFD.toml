@@ -1,0 +1,13 @@
+label        = "S-band power flux density"
+statement    = "The S-band downlink power flux density at the surface shall not exceed -135 dB (fictional demo value)."
+statement_en = "The S-band downlink power flux density at the surface shall not exceed -135 dB (fictional demo value)."
+quantity     = "Dimensionless"
+source       = "sys_judgement"
+
+[constraint]
+kind  = "at_most"
+value = { value = -135.0, unit = "dB" }
+
+[verify]
+analysis = "comm.link_budget"
+check    = "pfd:s_down"

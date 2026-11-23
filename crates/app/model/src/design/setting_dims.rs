@@ -99,8 +99,6 @@ macro_rules! setting_quantities {
 }
 
 setting_quantities! {
-    /// ミッション期間
-    ORBIT_DURATION: Time = Conditions["orbit", "duration"];
     /// 季節解析の標本の間隔
     ORBIT_ECLIPSE_SEASON_STEP: Time = Conditions["orbit", "eclipse_season", "step"];
     /// 高度低下の積分の期間の上限（`[decay]`）
@@ -111,8 +109,6 @@ setting_quantities! {
     ORBIT_DECAY_DRAG_AREA: Area = Conditions["orbit", "decay", "drag_area"];
     /// 軌道維持の高度の帯
     ORBIT_DECAY_BAND: Length = Conditions["orbit", "decay", "band"];
-    /// 寿命の上限（廃棄の要求）
-    ORBIT_DECAY_MAX_LIFETIME: Time = Conditions["orbit", "decay", "max_lifetime"];
     /// 軌道の高度（`conditions/orbit.toml`）
     ORBIT_ALTITUDE: Length = Conditions["orbit", "altitude"];
     /// 軌道長半径
@@ -129,10 +125,6 @@ setting_quantities! {
     LAUNCH_LOAD_AXIAL: Acceleration = Conditions["launch", "load_axial"];
     /// 準静的荷重（直交方向）
     LAUNCH_LOAD_LATERAL: Acceleration = Conditions["launch", "load_lateral"];
-    /// 最低固有振動数（機軸方向）
-    LAUNCH_MIN_FREQUENCY_AXIAL: Frequency = Conditions["launch", "min_frequency_axial"];
-    /// 最低固有振動数（直交方向）
-    LAUNCH_MIN_FREQUENCY_LATERAL: Frequency = Conditions["launch", "min_frequency_lateral"];
     /// 地上局の緯度（`conditions/ground/<局>.toml`）
     GROUND_LATITUDE: Angle = Conditions["ground", ANY, "latitude"];
     /// 地上局の経度
@@ -169,12 +161,8 @@ setting_quantities! {
     AOCS_RESIDUAL_DIPOLE: MagneticDipoleMoment = Analysis["aocs", "residual_dipole"];
     /// 姿勢変更の角度
     AOCS_SLEW_ANGLE: Angle = Analysis["aocs", "slew_angle"];
-    /// 姿勢変更の時間の要求上限
-    AOCS_MAX_SLEW_TIME: Time = Analysis["aocs", "max_slew_time"];
     /// 地上に降ろすまで保持する期間（`analysis/cdh.toml`）
     CDH_RETENTION: Time = Analysis["cdh", "retention"];
-    /// 要求する回線の余裕（`analysis/comm.toml`。dB）
-    COMM_MIN_MARGIN: Dimensionless = Analysis["comm", "min_margin"];
     /// 所要 Eb/N0（`[link.<回線>]`。dB）
     COMM_EBN0_REQUIRED: Dimensionless = Analysis["comm", "link", ANY, "ebn0_required"];
     /// 指向損失
@@ -187,8 +175,6 @@ setting_quantities! {
     COMM_IMPLEMENTATION_LOSS: Dimensionless = Analysis["comm", "link", ANY, "implementation_loss"];
     /// 衛星側の給電線の損失
     COMM_LINE_LOSS: Dimensionless = Analysis["comm", "link", ANY, "line_loss"];
-    /// 地表の電力束密度の限度（`[link.<回線>]`。dBW/m²（基準帯域あたり）を `dB` と書く）
-    COMM_PFD_LIMIT: Dimensionless = Analysis["comm", "link", ANY, "pfd_limit"];
     /// 電力束密度の基準帯域
     COMM_PFD_REFERENCE_BANDWIDTH: Frequency = Analysis["comm", "link", ANY, "pfd_reference_bandwidth"];
     /// 信号の占有帯域

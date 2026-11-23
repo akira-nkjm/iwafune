@@ -7,7 +7,7 @@ import type { LinkBudgetLinkResult } from "./LinkBudgetLinkResult";
  */
 export type LinkBudgetOutput = { links: Array<LinkBudgetLinkResult>, 
 /**
- * 判定に使った要求余裕 [dB]（入力が無ければ既定値）
+ * 入力全体の要求余裕 [dB]（回線ごとの値を持たない回線に使った値。入力が無ければ既定値）。回線ごとに使った値は各回線の結果の `required_margin_db`
  */
 required_margin_db: number, 
 /**

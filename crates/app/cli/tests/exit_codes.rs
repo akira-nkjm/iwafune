@@ -55,12 +55,12 @@ fn budget_exit_code_is_the_same_for_json_and_table() {
     ] {
         assert_eq!(code(&root, flags), Some(1), "{flags:?}");
     }
-    // 違反（質量の上限を 1 kg に下げる）
-    let file = root.join("budget/allocation.toml");
+    // 違反（質量の上限を 1 kg に下げる。上限は要求 `R_MASS` が持つ）
+    let file = root.join("requirements/R_MASS.toml");
     let text = std::fs::read_to_string(&file).unwrap();
     let tight = text.replace(
-        "limit         = { value = 12.0, unit = \"kg\" }",
-        "limit         = { value = 1.0, unit = \"kg\" }",
+        "value = { value = 12.0, unit = \"kg\" }",
+        "value = { value = 1.0, unit = \"kg\" }",
     );
     assert_ne!(text, tight);
     std::fs::write(&file, tight).unwrap();
