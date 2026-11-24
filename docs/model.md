@@ -226,6 +226,34 @@ The results are ordinary cases that can be edited (`fune case set … --epoch`; 
 The GUI's analysis cases page has the same two operations: a pencil in the start-time column (`set-epoch`, an empty field clears it) and "Cases from the worst days" (`from-geometry`; the phase list and mode list come from the design, the Ops and the equivalent commands are previewed before saving). The days are as accurate as `orbit.geometry` (720 samples per leg, refined by golden section: about a second for a smooth extreme). An extreme at the very end of a one-off span gives an epoch with no window left (see above), which `fune case from-geometry` still writes.
 `fune case from-sun-distance` remains for the steady analyses (it writes a `sun_distance` override, a circular orbit, for an orbit about the Sun with Kepler elements); `from-geometry` is the one for time series on any orbit.
 
+#### Total ionising dose (`orbit.total_dose`)
+
+`orbit.total_dose` is also `AnalysisArea::Condition(ConditionTopic::Orbit)` (the environment depends on the orbit). It adds up the radiation dose each part receives over the mission from an **environment table that you supply**, and compares it with the dose the part tolerates.
+**Limits.** No radiation-belt, solar-particle or shielding-transport model is built: the numbers in the table are yours. The shielding of a part is one equivalent aluminium thickness (a uniform spherical shell around the part); displacement damage and single-event effects are not computed.
+
+*The environment table.* A `curve` value (the type of `payload_mass_by_c3`, see "Capability curve") on the orbit table: dose **rate** (absorbed dose per time, e.g. `Gy/yr`) against shielding thickness (equivalent aluminium, a length). The values must be positive and the thicknesses strictly increasing. It is written in `conditions/orbit.toml`, or in a phase's `[orbit]` (the phase's orbit table replaces the design's as a whole, so a phase with its own `[orbit]` needs its own table):
+
+```toml
+dose_rate_by_shielding = { at = [0.5, 1.0, 2.0, 4.0, 8.0], at_unit = "mm", values = [400.0, 120.0, 30.0, 5.0, 0.8], unit = "Gy/yr" }
+```
+
+`fune set conditions.orbit.dose_rate_by_shielding "0.5:400 1:120 2:30 4:5 8:0.8 (mm -> Gy/yr)"`; for a phase `fune phase set-field <ID> orbit.dose_rate_by_shielding "…"`. Dose is written in `Gy` (`rad` is refused as ambiguous: 1 krad = 10 Gy). The dimension of the values is `AbsorbedDoseRate` (`L² T⁻³`).
+`check` reports `curve.shape` (arguments not increasing, a non-positive value) and `unit.dimension` for the units.
+
+*Part inputs* (optional built-in attributes of every component, section `radiation`): `shielding` (Length, equivalent aluminium thickness) and `tid_tolerance` (AbsorbedDose, the total dose the part withstands). A part is evaluated when it writes either. Design-wide, in `analysis/common.toml`:
+
+```toml
+[radiation]
+default_shielding = { value = 3.0, unit = "mm" }   # for parts that write a tolerance but no shielding (if absent they are not evaluated)
+design_margin     = 2.0                             # radiation design margin RDM (default 2, stated in the output)
+```
+
+*Method.* Legs are the phases in order when any phase has a `duration`, else one leg: the design orbit with the mission duration (as the RCS unloading of `propulsion.dv_budget`). For each part and leg the dose rate is read from the leg's table at the part's shielding and multiplied by the leg's duration; the part's total is the sum over the legs.
+**The table is read log-linearly**: linear in thickness and logarithmic in dose rate (so midway between two points it is the geometric mean of their rates), decided once in `sat_astro::math::interpolate` and echoed as `interpolation`. **There is no extrapolation**: a part whose shielding is outside a leg's table is *not evaluated* (no total, no verdict, a warning check `dose:<part>`); the nearest end value is never used.
+Margin = `tolerance / (total × RDM) − 1` (`spec::ratio_margin`); negative is a violation. A part without a tolerance gets its dose and no verdict. Example: 10 Gy/yr for 2 yr is 20 Gy; with a tolerance of 100 Gy and RDM 2 the margin is 100 / 40 − 1 = 1.5.
+A leg with no duration or no environment table is listed in `legs[].status` and left out of the totals, with the warning check `phases_left_out` (the totals are then lower bounds). The output also gives, per leg, the rate and dose at a reference shielding (the thinnest evaluated part), `reference_shielding`, and the part with the least margin (`worst`).
+The KPI is the minimum margin. Missing inputs: a part with `tid_tolerance` or `shielding`, an environment table, and (for the mission leg) the mission duration, each with a fix. No requirement keys the dose: the tolerance is a property of the part and the margin factor a design value, so a requirement can only verify the analysis as a whole (`verify.analysis = "orbit.total_dose"`).
+
 #### Altitude decay by atmospheric drag and orbit maintenance (`orbit.decay`)
 
 `orbit.decay` is also `AnalysisArea::Condition(ConditionTopic::Orbit)`. Its settings are `[decay]` in `conditions/orbit.toml` (all optional; the defaults are held by the analysis).
@@ -779,7 +807,15 @@ Renaming the part renames the key. Whether the box is a plate is decided by the 
   `plate_step:<part>` when that time constant is below 0.1 times the configured `time_step` (`PLATE_STEP_WARNING_FRACTION`); the message suggests fewer cells.
   The thickness cancels in the in-plane part: `τ = ρ c Δ² / (4 k)` for an interior square cell of side `Δ` (aluminium, `Δ` = 7 cm → about 18 s), and the conduction to a mounted part (a few W/K) shortens it further.
 
-Not modelled: a plate with an irregular outline or holes (cells are a uniform grid of the box), conduction through the thickness, a thermostat on a plate, and colouring the 3D thermal image per cell (it still colours whole parts by the hottest cell; the per-cell field view is a follow-up).
+- **Per-cell view.** The analyses `thermal.steady` and `thermal.transient` can also return the temperature of every cell with the geometry to draw it (the analysis *detail*, the same mechanism as the mode shapes of `structure.modal_fem`). Ask for it explicitly; the default output does not contain it (about 8 KB for two plates of 15 and 16 cells and three cases):
+  `fune analyze thermal.steady --json --detail`, or `POST /analyses/thermal.steady` with `{ "detail": true }` (the same for `thermal.transient`). The result then has a `detail` field of the type named by `detail_type` in `fune analyze ls --json` (`ThermalPlateTemperatures`); a design with no subdivided plate has no `detail` even when it is requested.
+  `mesh` (`nodes`: grid vertices in the body frame in m, built from the plate's box pose and the shared `PlateGrid` and lying on the plate's mid-plane; `groups`: for each plate its part `id` and the vertex indices of its cells as quadrilaterals, counter-clockwise about the plate normal, in cell order `i · v + j`),
+  `cells` (the same order as the quadrilaterals over all plates: the cell node ID and `cell = { part, i, j }`) and `fields`, each with a `quantity` and `temperature`, one value per entry of `cells`. For `thermal.steady` there is one field per case (`quantity` `steady`, with the case `case` and `label`), the solution of that case.
+  For `thermal.transient` there are three fields: `min` and `max` over the run and `end` (the last sample of the run) per cell; the time history of a cell is not repeated, it stays in the output's `series` (key `<PART>[i,j]`).
+  The GUI draws it in the row of the analysis on the Thermal page: every subdivided plate in its place, each cell in one colour of the same scale as the thermal image (the range is the lowest to the highest temperature over all fields shown, so switching the field does not change what a colour means), the plate IDs and
+  the cell temperatures in a list beside the 3D view (pointing at a cell or a list entry shows its ID and temperature), and a selector for the case (steady) or min / max / end (transient).
+
+Not modelled: a plate with an irregular outline or holes (cells are a uniform grid of the box), conduction through the thickness, a thermostat on a plate, and colouring the whole-spacecraft 3D thermal image per cell (it still colours whole parts by the hottest cell, `part_heat`; the per-cell view above is the way to see the field).
 
 #### Heat dissipation
 
@@ -1740,6 +1776,39 @@ arrival   = "2029-09-25T00:00:00Z"
     The dated transfer result still carries C3, the excess speeds and the departure declination (as launch requirements; `departure_by` is in the result), and `dated_transfer_plane` and `dated_transfer_timing` are not raised
     (the parking orbit and the end of the previous maneuver play no part). `structure.launch_fit` takes the C3 of the first such transfer for the capability curve (§5.6), and its launch mass is the mass at injection.
     Check: `maneuver.departure_by_launcher_after` (warning) when such a maneuver follows another maneuver (`after`): the launcher injects the spacecraft directly, so a maneuver before it does not fit (it is still counted).
+  - **Swing-bys** (`[[transfer.flybys]]`, optional, in date order between `departure` and `arrival`): the transfer passes intermediate planets (planets that orbit the same parent as the departure and arrival bodies; a body may not be followed by itself).
+    ```toml
+    [transfer]
+    departure = "2028-10-01T00:00:00Z"
+    arrival   = "2030-03-01T00:00:00Z"
+
+    [[transfer.flybys]]
+    body         = "venus"
+    date         = "2029-01-10T00:00:00Z"
+    powered      = true                                  # optional, default true
+    min_altitude = { value = 400.0, unit = "km" }        # optional minimum periapsis altitude
+
+    [[transfer.flybys]]
+    body = "earth"
+    date = "2029-06-01T00:00:00Z"
+    ```
+    The transfer becomes a chain of Lambert legs between the positions of consecutive bodies on the given dates (`sat_astro::transfer::dated_transfer_via`; a transfer without flybys is the same code with one leg and gives identical numbers).
+    The departure burn comes from the first leg, the capture burn from the last, and each flyby from the two legs around it (patched conics, `sat_astro::transfer::flyby_geometry`):
+    - v∞ in and out are the leg velocities minus the body's velocity; the turn angle δ is the angle between them. A half turn is `asin(1/e)` with `e = 1 + r_p v∞²/μ`; the periapsis radius `r_p` is solved (bisection) so that the two half turns sum to δ.
+      For `|v∞in| = |v∞out|` this is `sin(δ/2) = 1/(1 + r_p v∞²/μ)`, i.e. `r_p = μ/v∞² (1/sin(δ/2) − 1)`. If the two speeds differ, the **periapsis burn** is the difference of the periapsis speeds `√(v∞² + 2μ/r_p)` of the two hyperbolas (zero within `1e-3 m/s` for a ballistic flyby).
+    - `min_altitude` is the minimum periapsis altitude above the body's equatorial radius; it must be positive (`maneuver.flyby_altitude`; a periapsis at or below the surface is never accepted). If omitted, a convention per body class applies (`transfer::default_min_altitude_m`, the only place):
+      300 km for Venus, Earth and Mars (outside the sensible atmosphere and navigation uncertainty), 200 km for Mercury (no atmosphere). **The giant planets have no convention** (radiation belts, rings and the depth of the atmosphere differ), so omitting it for them is an error: write the altitude. These are concept-design conventions, not mission values.
+    - If δ exceeds the maximum turn at the minimum altitude, the flyby is **infeasible with these dates** in this model: the result has `feasible = false`, the required periapsis radius/altitude (below the minimum, possibly below the surface), and a warning `swing_by_turn`.
+      The periapsis burn is taken at the minimum radius and the missing turn `δ − δ_max` is charged as the chord `2 |v∞out| sin(Δ/2)` (a change of the outgoing excess velocity), so the total delta-v is still the sum of the pieces; this is a simple estimate of the cost, not an optimised solution.
+    - `powered = false` declares the flyby unpowered: the periapsis burn is not counted (and `swing_by_unpowered` warns when the speeds differ by more than `1e-3 m/s`).
+    - Total transfer delta-v = departure burn (unless `departure_by = "launcher"`) + the flyby burns + the capture burn. The flyby burns are burns of the maneuver between departure and capture (central body = the flyby body, `v_inf` = the incoming excess speed), counted by the budget, propellant, thruster usage and mass analyses like any other burn;
+      a finite-burn transfer time ignores them (they are in the middle of the flight). The note `swing_by` says the flybys are patched conics. The flyby is **instantaneous**: the time inside the flyby body's sphere of influence and the hyperbolic arc are not modelled.
+    - The result (`dated_transfer.flybys` of `propulsion.maneuvers`, `dated_transfers[].flybys` of `propulsion.dv_budget`) has per flyby: the body and date, v∞ in/out, the turn angle, the required periapsis radius and altitude, the minimum altitude, the maximum turn, the periapsis burn, the missing-turn delta-v, whether it is counted (`powered`) and `feasible`.
+    - Checks: `maneuver.flyby_date`, `maneuver.flyby_altitude` (model); `maneuver.flyby_epoch`, `maneuver.flyby_ephemeris`, `maneuver.flyby_order` (flyby dates strictly increasing between the departure and arrival dates), `maneuver.flyby_bodies` (`fune_projection::maneuver_dates`).
+    - Edit with the repeatable flag `--flyby "venus@2029-01-10T00:00:00Z,min_altitude=400 km,powered=false"` (`BODY@DATE`, the options optional; needs `--depart` and `--arrive`; `fune maneuver add|set`, HTTP `maneuver_add|maneuver_set` with `flybys`, the text form `ManeuverFlyby::{to_text, from_text}`).
+      The GUI maneuver dialog has a list editor for them (and the maneuver table shows them), and sends the written flybys back unchanged when other fields are edited.
+    - Not supported (refused, not ignored): `propulsion.launch_window` returns an error for a design where a maneuver has flybys (it searches two dates); `source = "transfer"` for such a maneuver is a missing input (a cruise orbit across the flybys needs a piecewise trajectory, a planned extension of `Trajectory::Spanned`:
+      one `Spanned` per leg with breakpoints at the flyby dates, so that position is continuous and velocity jumps by the change of the heliocentric velocity at each flyby). `propulsion.transfer_check` runs **leg by leg** (`leg` 1, 2, … on each result, note `legs_not_chained`): each leg is propagated from its own Lambert velocity, so the arrival miss of a leg is the aim error at that leg's end body; what is not verified is the flight through the flyby body's sphere of influence and a propagation chained across the flyby.
   - `propulsion.transfer_check` re-propagates each dated transfer and reports the arrival miss (against the arrival body's sphere of influence), the closest approach (distance and time), the difference of
     the arrival excess speed from Lambert's, the bodies used as third bodies, and a coarse trajectory (heliocentric ecliptic x and y of the spacecraft and both bodies, and the distance to the arrival body, in the `series`).
     The cruise starts at the centre of the departure body on the departure date with Lambert's heliocentric velocity and runs under the point-mass gravity of the Sun and the other planets (Earth too, unless it is an end).

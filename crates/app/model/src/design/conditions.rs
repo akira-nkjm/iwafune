@@ -5,7 +5,7 @@
 use super::configuration::Configuration;
 use crate::enum_text::enum_text;
 use crate::id::Id;
-use crate::value::{Quantity, Vector3};
+use crate::value::{Curve, Quantity, Vector3};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
@@ -255,6 +255,10 @@ pub struct OrbitSettings {
     /// `at_least` の要求が持つ（`Design::mission_duration`）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub duration: Option<Quantity>,
+    /// 環境の線量率の表（遮蔽の厚さ → 線量率。利用者が与える。放射線の総線量 `orbit.total_dose` が読む）。
+    /// フェーズの `[orbit]` に書けばそのフェーズの環境（軌道の設定は丸ごと置き換わる）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dose_rate_by_shielding: Option<Curve>,
     /// 軌道の季節解析の設定。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub eclipse_season: Option<EclipseSeasonSettings>,
@@ -463,6 +467,12 @@ impl OrbitSettings {
                 Some(SettingValue::Text(String::new()))
             }
             "position" | "velocity" => Some(SettingValue::Vector(Vector3::unitless(0.0, 0.0, 0.0))),
+            "dose_rate_by_shielding" => Some(SettingValue::Curve(Curve {
+                at: Vec::new(),
+                at_unit: String::new(),
+                values: Vec::new(),
+                unit: String::new(),
+            })),
             _ => None,
         }
     }

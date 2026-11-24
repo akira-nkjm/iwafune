@@ -35,6 +35,7 @@ fn mars_maneuver() -> Maneuver {
             departure: Some("2028-12-10T00:00:00Z".into()),
             arrival: Some("2029-09-25T00:00:00Z".into()),
             departure_by: None,
+            flybys: Vec::new(),
         }),
     }
 }
@@ -99,6 +100,7 @@ fn dates_outside_the_ephemeris_fail_like_the_maneuvers_analysis() {
         departure: Some("2200-12-10T00:00:00Z".into()),
         arrival: Some("2201-09-25T00:00:00Z".into()),
         departure_by: None,
+        flybys: Vec::new(),
     });
     let req = RunAnalysisRequest {
         ops: vec![Op::CreateManeuver { maneuver: m }],

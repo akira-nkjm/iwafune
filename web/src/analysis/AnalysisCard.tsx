@@ -9,6 +9,7 @@ import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { Pill } from "@/kit/status/Pill";
 import { ChecksList } from "./ChecksList";
+import { AnalysisDetail, hasDetailView } from "./detail/AnalysisDetail";
 import { FieldValue } from "./FieldValue";
 import { fieldLabel } from "./fields";
 import { MissingList } from "./MissingList";
@@ -68,6 +69,10 @@ export function AnalysisCard({
           <div className="space-y-3">
             {r.error && <p className="text-neg-ink text-xs">{r.error}</p>}
             <MissingList design={design} missing={r.missing} />
+            {/* 図（メッシュ上の場など）は、長くなりがちな判定の一覧より先に出す */}
+            {entry?.detail_type !== undefined && hasDetailView(entry.detail_type, r) && (
+              <AnalysisDetail result={r} detailType={entry.detail_type} />
+            )}
             <ChecksList checks={checks} />
             {children}
             {scalars.length > 0 && (

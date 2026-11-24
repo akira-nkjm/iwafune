@@ -1,7 +1,9 @@
 //! 熱（定常）（`thermal.steady`）。ケース（高温・低温など）ごとに節点温度の定常解を求め、保管・動作・性能の温度範囲と比べる。
 //! 解法は [`crate::thermal::network`]、入熱は [`crate::thermal::orbit_heat`]。
 
-use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict};
+use crate::spec::{
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, Detailed, System, Verdict,
+};
 use crate::thermal::heater::{ThermalHeaterSteady, steady_checks};
 use crate::thermal::network::{
     Compiled, INITIAL_GUESS_K, ThermalCell, ThermalCouplings, ThermalHeater, ThermalLoad,
@@ -10,6 +12,9 @@ use crate::thermal::network::{
 use crate::thermal::network::{HeaterSpec, HeaterSteady};
 use crate::thermal::orbit_heat::{
     ThermalEnvironment, ThermalEnvironmentUsed, ThermalExposure, exposure_absorbed,
+};
+use crate::thermal::plate_view::{
+    PlateFieldSource, ThermalPlateQuantity, plate_temperatures, to_detail,
 };
 use crate::thermal::range::{
     NodeJudged, ThermalMarginPolicy, ThermalMarginUsed, ThermalRangeMargin, envelope_margins,
@@ -137,6 +142,7 @@ impl Analysis for ThermalSteady {
     const TITLE_EN: &'static str = "Thermal (steady state)";
     const DESCRIPTION_EN: &'static str =
         "Steady-state node temperatures of the multi-node model for hot and cold cases";
+    const DETAIL_TYPE: Option<&'static str> = Some(crate::thermal::plate_view::DETAIL_TYPE);
     type Input = ThermalSteadyInput;
     type Output = ThermalSteadyOutput;
 
@@ -187,6 +193,40 @@ impl Analysis for ThermalSteady {
             checks,
         })
     }
+
+    fn run_detailed(
+        input: &Self::Input,
+        detail: bool,
+    ) -> Result<Detailed<Self::Output>, AnalysisError> {
+        let output = Self::run(input)?;
+        let detail = if detail {
+            plate_detail(input, &output)?
+        } else {
+            None
+        };
+        Ok(Detailed { output, detail })
+    }
+}
+
+/// 板の温度の分布（ケースごとの場）。板に分けていなければ詳細は無い。
+fn plate_detail(
+    input: &ThermalSteadyInput,
+    output: &ThermalSteadyOutput,
+) -> Result<Option<serde_json::Value>, AnalysisError> {
+    let sources = output
+        .cases
+        .iter()
+        .map(|c| PlateFieldSource {
+            quantity: ThermalPlateQuantity::Steady,
+            case: Some((c.id.as_str(), c.label.as_str())),
+            temperatures: c
+                .nodes
+                .iter()
+                .map(|n| (n.node.as_str(), n.temperature.value()))
+                .collect(),
+        })
+        .collect();
+    to_detail(plate_temperatures(&input.network.plates, sources)?)
 }
 
 fn solve_case(

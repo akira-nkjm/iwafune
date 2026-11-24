@@ -54,8 +54,14 @@ impl PatchedConic {
 /// 超過速度 `v_inf_m_s` の双曲線の近点 `r_p_m` と、軌道 `orbit`（長半径で速さを決める）の同じ点の速さの差 [m/s]
 /// `|√(v∞² + 2μ/r_p) − v_軌道(r_p)|`。**双曲線の近点の噴射の ΔV はここだけ**（ホーマン系も日付つきの遷移も使う）。
 pub fn hyperbolic_periapsis_dv_m_s(mu: f64, r_p_m: f64, v_inf_m_s: f64, orbit: Apsides) -> f64 {
-    let v_hyp = (v_inf_m_s * v_inf_m_s + 2.0 * mu / r_p_m).sqrt();
+    let v_hyp = hyperbolic_periapsis_speed_m_s(mu, r_p_m, v_inf_m_s);
     (v_hyp - vis_viva_m_s(mu, r_p_m, orbit.semi_major_axis_m())).abs()
+}
+
+/// 超過速度 `v_inf_m_s` の双曲線の近点 `r_p_m` での速さ `√(v∞² + 2μ/r_p)` [m/s]。**双曲線の近点の速さはここだけ**
+/// （近点の噴射 [`hyperbolic_periapsis_dv_m_s`] と、スイングバイの近点の噴射 [`super::flyby`] が使う）。
+pub fn hyperbolic_periapsis_speed_m_s(mu: f64, r_p_m: f64, v_inf_m_s: f64) -> f64 {
+    (v_inf_m_s * v_inf_m_s + 2.0 * mu / r_p_m).sqrt()
 }
 
 /// 半径 `r1` から `r2` への遷移の楕円の端の速さ（`r1` 側・`r2` 側）と半周の時間。

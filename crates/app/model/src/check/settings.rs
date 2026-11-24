@@ -4,7 +4,7 @@
 
 use super::Ctx;
 use super::values::check_quantity_dimension;
-use crate::design::setting_dims::setting_dimension;
+use crate::design::setting_dims::{setting_curve_dimensions, setting_dimension};
 use crate::design::{EntityKey, OrbitSettings, SettingEntry};
 use crate::path::SettingPath;
 use crate::target::Target;
@@ -58,6 +58,10 @@ impl Scope<'_, '_> {
             if scope != self.prefix.scope || !segments.starts_with(&self.prefix.segments) {
                 continue;
             }
+            if let Some(SettingValue::Curve(c)) = &entry.value {
+                self.curve(&entry.path, c);
+                continue;
+            }
             let q = match &entry.value {
                 Some(SettingValue::Quantity(q)) => q.clone(),
                 Some(SettingValue::Vector(v)) => {
@@ -75,6 +79,36 @@ impl Scope<'_, '_> {
                     .collect();
                 self.report(sev, code, &keys, msg);
             }
+        }
+    }
+
+    /// 曲線の設定（表）の形と、引数・値の単位の次元（曲線の設定の次元の表 `setting_curve_dimensions`）。
+    /// 値は対数で結ぶ表（線量率）なので正であること。
+    fn curve(&mut self, path: &SettingPath, c: &crate::value::Curve) {
+        let keys: Vec<&str> = path.segments[self.prefix.segments.len()..]
+            .iter()
+            .map(String::as_str)
+            .collect();
+        if let Some((sev, code, msg)) = super::values::curve_shape(&c.at, &c.values) {
+            self.report(sev, code, &keys, msg);
+            return;
+        }
+        let Some((at_dim, dim)) = setting_curve_dimensions(path) else {
+            return;
+        };
+        for (unit, spec) in [(&c.at_unit, at_dim), (&c.unit, dim)] {
+            if let Some((sev, code, msg)) =
+                check_quantity_dimension(&Quantity::new(1.0, unit.clone()), spec)
+            {
+                self.report(sev, code, &keys, msg);
+            }
+        }
+        if c.values.iter().any(|v| *v <= 0.0) {
+            self.error(
+                &keys,
+                "curve.shape",
+                "Every value of this table must be positive (it is read on a log scale)".into(),
+            );
         }
     }
 

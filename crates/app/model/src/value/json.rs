@@ -1,6 +1,6 @@
 //! JSON（API・serde の中間形）の中で、量やベクトルの形を見分ける（**ここだけ**。service と GUI 向けの変換もこれを使う）。
 
-use super::{Quantity, Quaternion, Vector3};
+use super::{Curve, Quantity, Quaternion, Vector3};
 use serde_json::Value as Json;
 
 /// `{ value, unit, from? }`（`value` が数値）なら量として読む。
@@ -32,6 +32,18 @@ pub fn vector_from_json(v: &Json) -> Option<Vector3> {
 pub fn quaternion_from_json(v: &Json) -> Option<Quaternion> {
     let map = v.as_object()?;
     if map.len() != 4 || !["w", "x", "y", "z"].iter().all(|k| map.contains_key(*k)) {
+        return None;
+    }
+    serde_json::from_value(v.clone()).ok()
+}
+
+/// `{ at, values, at_unit?, unit? }` なら曲線（表）として読む。
+pub fn curve_from_json(v: &Json) -> Option<Curve> {
+    let map = v.as_object()?;
+    let only = map
+        .keys()
+        .all(|k| matches!(k.as_str(), "at" | "at_unit" | "values" | "unit"));
+    if !(only && map.contains_key("at") && map.contains_key("values")) {
         return None;
     }
     serde_json::from_value(v.clone()).ok()

@@ -99,6 +99,7 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         ReportFile,
         ComplianceReport,
         sat_analysis::structure::ModalFemShapes,
+        sat_analysis::thermal::ThermalPlateTemperatures,
     );
     fune_projection::dispatch::export_ts(cfg)?;
     fune_projection::dispatch::visit_ts(&mut names);

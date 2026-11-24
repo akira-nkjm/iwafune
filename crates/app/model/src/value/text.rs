@@ -218,6 +218,7 @@ pub fn setting_from_text(
         Some(SettingValue::Vector(_)) => SettingValue::Vector(parse_vector(t)?),
         Some(SettingValue::Quaternion(_)) => SettingValue::Quaternion(parse_quaternion(t)?),
         Some(SettingValue::List(_)) => SettingValue::List(setting_list_from_text(t)?),
+        Some(SettingValue::Curve(_)) => SettingValue::Curve(parse_curve(t)?),
         Some(SettingValue::Text(_)) => SettingValue::Text(t.to_owned()),
         None => guess_setting(t),
     })

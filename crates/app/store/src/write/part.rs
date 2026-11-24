@@ -65,7 +65,19 @@ fn put(table: &mut Table, key: &str, item: Item) {
         (Some(Item::Table(old)), Item::Table(new)) if old.is_dotted() == new.is_dotted() => {
             sync_table(old, new);
         }
-        (_, item) => set(table, key, item),
+        // 表の列（`[[transfer.flybys]]`）は、行の数が同じなら行ごとに合わせる（変わった行だけ書き換わる）
+        (Some(Item::ArrayOfTables(old)), Item::ArrayOfTables(new)) if old.len() == new.len() => {
+            for (row, desired) in old.iter_mut().zip(new) {
+                sync_table(row, desired);
+            }
+        }
+        (_, item) => {
+            set(table, key, item);
+            // 新しく書いた表の列は `=` を揃える
+            if let Some(Item::ArrayOfTables(rows)) = table.get_mut(key) {
+                rows.iter_mut().for_each(format::align_table);
+            }
+        }
     }
     realign_dotted(table);
 }

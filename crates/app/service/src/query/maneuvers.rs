@@ -6,7 +6,7 @@ use crate::dto::{ManeuverTargetView, ManeuverView};
 
 use crate::dto::ManeuverText;
 use fune_model::Target;
-use fune_model::design::{Design, EntityKey, Maneuver, ManeuverTarget};
+use fune_model::design::{Design, EntityKey, Maneuver, ManeuverFlyby, ManeuverTarget};
 use fune_model::value::{Quantity, quantity_to_text};
 use std::collections::BTreeMap;
 
@@ -31,6 +31,7 @@ const FIELDS: &[(&str, &str)] = &[
     ("depart", "transfer.departure"),
     ("arrive", "transfer.arrival"),
     ("departure_by", "transfer.departure_by"),
+    ("flybys", "transfer.flybys"),
 ];
 
 /// マヌーバの一覧（実行の順）。
@@ -119,5 +120,10 @@ pub(crate) fn maneuver_text(m: &Maneuver) -> ManeuverText {
             .as_ref()
             .and_then(|t| t.departure_by)
             .map(|d| d.as_str().to_owned()),
+        flybys: m
+            .transfer
+            .as_ref()
+            .map(|t| t.flybys.iter().map(ManeuverFlyby::to_text).collect())
+            .unwrap_or_default(),
     }
 }

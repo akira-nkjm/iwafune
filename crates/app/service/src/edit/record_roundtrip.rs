@@ -95,6 +95,7 @@ fn fully_populated_records_survive_the_dialog_text() {
             departure: Some("2028-12-10T00:00:00Z".into()),
             arrival: Some("2029-09-25T00:00:00Z".into()),
             departure_by: Some(DepartureBy::Launcher),
+            flybys: Vec::new(),
         }),
     };
     let Ok(Op::SetManeuver { maneuver }) = maneuver_op(&maneuver_text(&m), false) else {

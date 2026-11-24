@@ -16,9 +16,11 @@
 //! - Lambert の問題（[`lambert()`]）: 2 点と飛行時間から両端の速度（普遍変数。[`lambert`] モジュール）。
 //! - 日付を決めた惑星間の遷移（[`dated_transfer`]）: 出発・到着の日の天体の状態から日心の Lambert を解き、
 //!   v∞・C3・出発の赤緯・両端の噴射を求める（[`dated`] モジュール）。
+//! - 途中の天体のスイングバイ（[`dated_transfer_via`]・[`flyby_geometry`]）: 日付つきの遷移を、天体の組ごとの Lambert の弧（脚。[`lambert_chain`]）の
+//!   つなぎにし、通過ごとに入り・出の超過速度から回頭角・近点の半径・近点の噴射を求める（[`flyby`] モジュール。動力あり・なし、近点の高度の下限）。
 //! - 日付つきの遷移の巡航の軌道（[`cruise_orbit`]）: 同じ Lambert の弧（[`lambert_arc`]）を、親のまわりの二体の軌道（接触要素）にする。
 //! - 日付つきの遷移の巡航の区間（[`cruise_leg`]）: 上の軌道を、出発の天体の影響圏を出てから到着の天体の影響圏に入るまでに切り出す（影響圏の中の双曲線の弧は解析しない）。
-//! - 日付つきの遷移の巡航の多体の確認（[`check_cruise`]）: Lambert の出発の状態を、太陽と惑星の点質量で数値伝搬して、
+//! - 日付つきの遷移の巡航の多体の確認（[`check_cruise`]。通過のある遷移は脚ごとに [`check_cruise_leg`]）: Lambert の出発の状態を、太陽と惑星の点質量で数値伝搬して、
 //!   到着の日のずれ・最接近・到着の超過速度の差を求める（[`cruise`] モジュール。伝搬は `crate::orbit::propagate_states`）。
 //!
 //! 値は SI（m・m/s・s・rad・kg・N）。重力定数 `mu` は中心天体のもの [m³/s²]。
@@ -29,17 +31,25 @@ use core::f64::consts::PI;
 
 pub mod cruise;
 pub mod dated;
+pub mod flyby;
 pub mod lambert;
 pub mod leg;
 pub mod patched;
-pub use cruise::{CruiseCheck, CruiseSample, check_cruise};
-pub use dated::{DatedTransfer, LambertArc, cruise_orbit, dated_transfer, lambert_arc};
+pub use cruise::{CruiseCheck, CruiseSample, check_cruise, check_cruise_leg};
+pub use dated::{
+    DatedTransfer, LambertArc, cruise_orbit, dated_transfer, dated_transfer_via, lambert_arc,
+    lambert_chain,
+};
+pub use flyby::{BALLISTIC_DV_M_S, FlybyPass, FlybyStop, default_min_altitude_m, flyby_geometry};
 pub use lambert::{LambertSolution, lambert, lambert_about_normal};
 pub use leg::{CruiseLeg, cruise_leg};
-pub use patched::{PatchedBurn, PatchedConic, hyperbolic_periapsis_dv_m_s, patched_conic};
+pub use patched::{
+    PatchedBurn, PatchedConic, hyperbolic_periapsis_dv_m_s, hyperbolic_periapsis_speed_m_s,
+    patched_conic,
+};
 
 /// ΔV がこれ以下の噴射は数えない [m/s]（同じ軌道どうしの丸めの誤差）。
-const NEGLIGIBLE_DV_M_S: f64 = 1e-9;
+pub const NEGLIGIBLE_DV_M_S: f64 = 1e-9;
 
 /// 軌道の近点と遠点の半径 [m]（中心天体の中心から）。円軌道は 2 つが等しい。
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -366,6 +376,8 @@ pub fn finite_burn(
 
 #[cfg(test)]
 mod dated_tests;
+#[cfg(test)]
+mod flyby_tests;
 #[cfg(test)]
 mod interplanetary_tests;
 #[cfg(test)]

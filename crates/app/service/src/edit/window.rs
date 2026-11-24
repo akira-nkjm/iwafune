@@ -42,12 +42,18 @@ pub fn maneuver_window_op(ws: &Workspace, req: &ManeuverWindowRequest) -> Result
     }
     .ok_or_else(|| ServiceError::Analysis(format!("No solved point for maneuver {}", req.id)))?;
     let mut maneuver = maneuver.clone();
-    // 日付だけを入れ替える（出発の噴射を誰が行うかは、書かれたものを保つ）
+    // 日付だけを入れ替える（出発の噴射を誰が行うか・途中のスイングバイは、書かれたものを保つ）
     let departure_by = maneuver.transfer.as_ref().and_then(|t| t.departure_by);
+    let flybys = maneuver
+        .transfer
+        .as_ref()
+        .map(|t| t.flybys.clone())
+        .unwrap_or_default();
     maneuver.transfer = Some(ManeuverTransfer {
         departure: Some(point.departure.to_iso()),
         arrival: Some(point.arrival.to_iso()),
         departure_by,
+        flybys,
     });
     Ok(Op::SetManeuver { maneuver })
 }

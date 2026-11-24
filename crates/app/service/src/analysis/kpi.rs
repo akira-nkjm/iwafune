@@ -186,6 +186,7 @@ kpi_table! {
     structure::ExternalGeometryReport { MeanProjectedArea => structure_kpi::projected_area_mean }
     structure::ModalFem { FirstFrequency => structure_kpi::first_frequency }
     sat_analysis::orbit::Geometry { GreatestEarthDistance => orbit::greatest_earth_distance }
+    sat_analysis::orbit::TotalDose { TotalDoseMargin => orbit::total_dose_margin }
     sat_analysis::propulsion::Maneuvers { LongestTransfer => propulsion::longest_transfer }
     sat_analysis::propulsion::DvBudget { DvWithMargin => propulsion::dv_with_margin }
     sat_analysis::propulsion::Propellant {
