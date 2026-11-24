@@ -610,6 +610,17 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
     }
 }
 
+/// 円制限三体問題の軌道を暦に載せた軌道の説明（key `orbit_model`）の項目名と文。
+pub fn orbit_model_check() -> (AnalysisLabel, AnalysisLabel) {
+    (
+        label("軌道のモデル", "Orbit model"),
+        label(
+            "軌道は円制限三体問題（CR3BP）のラグランジュ点またはハロー軌道を、暦の 2 天体の位置と速度に載せたものです（力モデルの伝搬ではなく、太陽・月・惑星の摂動と太陽輻射圧は入りません）。軌道維持は見積もらないので、ΔV の余裕としてマヌーバに書いてください",
+            "The orbit is a libration point or halo orbit of the circular restricted three-body problem (CR3BP) carried on the ephemeris positions and velocities of the two bodies (not a force-model propagation: third-body perturbations and solar radiation pressure are not included). Station keeping is not estimated, so write it as a delta-V allowance in a maneuver",
+        ),
+    )
+}
+
 /// 期間不足の注意（key `span`）の項目名と文。1 回限りの軌道（`OneOffSpan`）は期間不足ではなく、周回が無いことの説明。
 pub fn span_check(f: SpanFallback) -> (AnalysisLabel, AnalysisLabel) {
     let consequence = match f {

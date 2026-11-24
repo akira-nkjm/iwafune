@@ -34,6 +34,11 @@ const LABELLED: &[(&str, &[&str])] = &[
     ),
     ("propagator", PropagatorKind::NAMES),
     ("orbit_source", fune_model::design::OrbitSource::NAMES),
+    (
+        "libration_point",
+        fune_model::design::LibrationPointKind::NAMES,
+    ),
+    ("halo_branch", fune_model::design::HaloBranchKind::NAMES),
     ("link_direction", LinkDirection::NAMES),
     ("uncertainty_side", UncertaintySide::NAMES),
     ("value_type", ValueType::NAMES),
