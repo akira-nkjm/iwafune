@@ -51,6 +51,35 @@ A topic's settings location is looked up with `ConditionTopic::setting_path()`. 
 `sat_astro::ephem::CentralBody` (projection's `context::central_body` maps them). Sun-synchronous (`sun_synchronous`) applies to Earth only;
 writing it for any other body is a `check` error (`setting.central`).
 
+`source` is where the orbit comes from (`elements` or `transfer`; `elements` if omitted and then **never written to the file**, so existing files are unchanged; the display name is `orbit_source` in labels.toml).
+It is valid in `conditions/orbit.toml` and in a phase's `[orbit]` (§7.10), and it is edited with the existing ops only (`fune set conditions.orbit.source transfer`, `fune phase set-field <ID> orbit.source transfer`; there is no orbit field on the phase itself).
+Analyses read an orbit through `fune_projection::Context::trajectory` (state at a time, central body, epoch and the length of one cycle); only analyses that really need Kepler elements read `Context::orbit`.
+
+```toml
+# phases/CRUISE.toml (or conditions/orbit.toml)
+[orbit]
+source   = "transfer"
+maneuver = "MARS_TRANSFER"    # a maneuver with a dated [transfer] (§7.7)
+```
+
+- `source = "transfer"` takes the cruise leg of a dated transfer. The orbit is the Lambert arc (`sat_astro::transfer::lambert_arc`, the same solution `propulsion.maneuvers` uses for its burns) written as osculating Kepler elements
+  about the common parent of the two bodies (the Sun for planet ⇄ planet) and propagated as two bodies (`sat_astro::transfer::cruise_orbit`; it passes through the departure body's position on the departure date and the arrival body's on the arrival date).
+  **The leg runs from the departure body's sphere of influence to the arrival body's; the hyperbolic legs inside the spheres are not analysed** (patched conics: the heliocentric arc holds only outside them, and phases cannot hold a hyperbola).
+  `sat_astro::transfer::cruise_leg` finds the time the arc first leaves the departure body's sphere of influence (`CentralBody::soi_radius_m`, distance to the body from the ephemeris, bisection to 1 ms) and the last time before arrival that it is outside the arrival body's;
+  the trajectory's epoch is the first time (the same ellipse, advanced through its state), its span (`Cycle::OneOff`) is the interval between them, so the Earth range starts at about the Earth's sphere of influence (not at its centre).
+  The dates are read by the one reader of `[transfer]` (`fune_projection::maneuver_dates`); the departure body is the central body before the maneuver (`maneuver_dates::central_before`).
+  A hyperbolic arc (a short flight time), a body without a sphere of influence, or an arc that does not leave the departure sphere / stay outside the arrival one is a missing input with the reason.
+- Keys beside `source = "transfer"` that the source does not use (the Kepler elements, `epoch`, `central`, `propagator`, `[eclipse_season]`, `[decay]`) get the warning `setting.not_applied`; `maneuver` beside `source = "elements"` gets it too.
+  `maneuver` must name an existing maneuver whenever it is written (`ref.maneuver`) and, for `transfer`, that maneuver must have a `[transfer]` (`orbit.maneuver_transfer`). A missing `maneuver` is not a check error but a missing input (`conditions.orbit.maneuver`),
+  which offers the maneuvers with a dated transfer (`Fix::PickRef`).
+- `maneuver` is a reference to a maneuver (`RefSite::OrbitManeuver` for the design orbit, `RefSite::PhaseOrbitManeuver` for a phase orbit): renaming the maneuver rewrites both, and removing a maneuver they name is rejected by the check (`ref.maneuver`).
+- **Analyses that need Kepler elements** (`orbit.eclipse_season`, `orbit.decay`, `power.sizing`'s season, the element-editing maneuvers and `propulsion.orbit_history`'s starting orbit) are **not applicable** to an orbit whose source is not `elements`:
+  projection answers with a missing input on `<orbit>.source` (for a phase orbit `phases.<ID>.orbit.source`) whose reason starts with "Not applicable", with no fix candidate. A case's `beta` and `sun_distance`, and a thermal condition's `beta`, are overrides of Kepler elements
+  and become missing inputs on their own keys for such an orbit. The analyses' own rejections of an orbit about the Sun (`orbit.eclipse_season`) or off Earth (`orbit.decay`) stay in the analyses.
+- **One-off orbits.** A trajectory with a span has `Cycle::OneOff`: the time-series analyses sample the span itself (the `orbits` count is ignored; step `max(30 s, span / 200)`, so a 290-day cruise has 200 samples; a thermal `time_step` is not made finer than that step),
+  "per orbit" quantities (orbit averages, energy per orbit, per-orbit unloading) are computed over the whole span, the Earth distance of `comm.link_budget` is evaluated over the span, and the output's `span_fallback` is `one_off_span`
+  (shown as an `ok` check "Analysis span"; it is never present for a periodic orbit). The number of orbits is still used for Kepler-element orbits, including the one-orbit default about the Sun.
+
 `propagator` is the orbit propagation (`kepler`, `j2`, `numerical`; `j2` if omitted). Projection maps `kepler` and `j2` directly onto `sat_astro::orbit::Propagator`.
 `numerical` is **not used** by analyses: the force model of numerical propagation (drag and solar radiation pressure need values of the spacecraft) has no conventional default in sat-astro,
 and projection does not invent defaults, so time-series analyses propagate with the J2 secular terms (`j2`). Writing it makes `check` notify with a warning (`setting.not_applied`)
@@ -1353,8 +1382,21 @@ arrival   = "2029-09-25T00:00:00Z"
     So the miss is "how far the other planets push a trajectory aimed at the body's centre", not a flyby design. The search for the closest approach runs 10 days past the arrival date (`closest_approach_at_end` marks a minimum still outside that).
     Only with DE440 is the result judged: the miss within the arrival body's sphere of influence is `ok`, outside it is a warning that targeting or trajectory correction is needed; a closest approach outside the sphere of influence is also a warning.
     With the analytic ephemeris the numbers are shown but not judged (the miss is of the order of the ephemeris error, 10⁵ km for Mars), and the note `analytic_ephemeris_not_judged` says so. Without a dated transfer the result is an empty list.
+  - `propulsion.launch_window` searches the dates: for each maneuver whose target body orbits the same parent as the departure body (with or without `[transfer]`), it solves a grid of departure dates × arrival dates
+    and reports, per grid point, C3, the two excess speeds, the departure declination and the maneuver ΔV (departure burn from the parking orbit + capture burn into the target orbit, without finite-burn losses:
+    `ideal_delta_v` of `propulsion.maneuvers`), or no value where the transfer cannot be solved (a date outside the ephemeris, the two positions nearly opposite so the plane is undefined, no hyperbola).
+    **Each grid point goes through the same code as a maneuver with those dates** (`sat_astro::transfer::dated_transfer` and the plan's burns), so writing a grid point's dates into the maneuver makes `propulsion.maneuvers` report the same numbers.
+    The output has the axes and one array per quantity (`grid.departures`, `grid.arrivals`, `grid.layers`; row-major, departure by arrival; this is the data of a porkchop plot), the minimum-ΔV point and the minimum-C3 point (`minimum_delta_v`, `minimum_c3`),
+    the point at the dates written in the maneuver and its excess over the grid minimum (`written`), the ephemeris used, notes (`analytic_ephemeris`, `minimum_at_grid_edge` when the minimum touches an axis end, a time-of-flight limit or an unsolved point, `declination_above_inclination`),
+    and a flat `points` table with the same points. Maneuvers without an interplanetary transfer give an empty `windows`; if no grid point can be solved the first error is returned, as `propulsion.maneuvers` does.
+    The settings are `[launch_window]` in `analysis/propulsion.toml`, all optional: `departure_start` (ISO 8601), `departure_span`, `time_of_flight_min`, `time_of_flight_max` (times) and `departure_steps`, `arrival_steps` (at least 2).
+    The defaults are derived from the two bodies: the departure window is one synodic period starting at the first orbit's epoch (centred on the written departure date when the maneuver has dates),
+    the time of flight runs from 0.5 to 1.5 times the Hohmann transfer time, and each axis has 100 points; only the grid points whose time of flight is in range are solved.
+    `fune maneuver set-window <ID> --min dv|c3` (HTTP `POST /ops/maneuver_window`) writes the dates of the minimum-ΔV or minimum-C3 point into the maneuver through the existing maneuver Op (the same file as `fune maneuver set … --depart … --arrive …`).
+    The window is centred on the written departure date, so running the search again after writing re-centres the grid and can find a slightly different minimum.
 - The execution order is linked by `after`. The source of truth is `Design::ordered_maneuvers` (those with no `after` start in ID order, followed by the ones linked after them).
   A cycle is a `check` error (`maneuver.cycle`).
+- A cruise orbit can be taken from a dated transfer: `source = "transfer"` and `maneuver = "<ID>"` in `conditions/orbit.toml` or in a phase's `[orbit]` (§1 and §7.10). Maneuver renames rewrite those references.
 - The first orbit is the conditions' orbit (`conditions/orbit.toml`). The dry mass is `dry_mass` in `analysis/propulsion.toml`, or if absent, the total mass of the parts' mass properties.
 - `dv_margin` (default 10 %) and `residual_fraction` (remaining propellant, default 3 %) in `analysis/propulsion.toml`. The defaults are held by sat-analysis (`propulsion::input`).
 - Reference checks: the thruster is a part (an error if absent, a warning if its role is not `propulsion_thruster` or `thruster`), and the constraint's mode is a mode.
@@ -1524,10 +1566,11 @@ law = "nadir_pointing"
   from the phase's table too, so a phase orbit has to be complete) and the phase's `[law.<mode>]` in place of the design's law for that mode (modes the phase does not list keep the design's law). Nothing else changes.
   The existing orbit and attitude-law code reads them (the orbit builder takes "the orbit settings in effect"); there is no second orbit builder. A missing input in a phase orbit names the phase file
   (`phases.<ID>.orbit.<key>`, not `conditions.orbit.<key>`), and so does a read of a phase law (`phases.<ID>.law.<mode>`).
+- **Orbit from a dated transfer.** The phase's `[orbit]` can set `source = "transfer"` and `maneuver = "<ID>"` instead of Kepler elements (see the orbit settings in §1; no other key is needed), so a cruise phase takes its orbit from the maneuver's dates. The phases page then says "Orbit from <maneuver>" (`PhaseView.orbit_from`).
 - **Checks** (`fune check`): the ID rules (`id.invalid`, `id.duplicate`); every entry of `modes` and every key of `[law]` must be a mode (`ref.mode`); `duration` has the Time dimension (`unit.dimension`);
   the `[orbit]` table gets the same checks as the design's orbit (dimensions of the quantities, eccentricity range, `ltdn` format; the targets are `phases.<ID>.orbit.<key>`);
   a case's `phase` must exist (`ref.phase`); and `case.mode_not_in_phase` (warning) when a case with a phase names a mode that the phase's non-empty `modes` does not list.
-- **References.** Phases refer to modes (`modes`, the keys of `[law]`) and cases refer to phases (`phase`); both are in the reference index (`RefSite::PhaseMode`, `PhaseLaw`, `CasePhase`).
+- **References.** Phases refer to modes (`modes`, the keys of `[law]`) and cases refer to phases (`phase`); both are in the reference index (`RefSite::PhaseMode`, `PhaseLaw`, `CasePhase`); a phase orbit's `maneuver` refers to a maneuver (`RefSite::PhaseOrbitManeuver`).
   Renaming a mode rewrites the phases, and renaming a phase rewrites the cases. Removing a phase that a case names is rejected by the check (`ref.phase`), as removing a mode that a case names is.
 - **Ops**: `CreatePhase`, `SetPhase`, `RemovePhase`, `RenamePhase`, `SetPhaseField` (one value of `orbit.<key>` or `law.<mode>.<key>`; no value removes it, and an emptied table disappears), `CopyPhaseOrbit` (writes the design's current orbit into the phase's `[orbit]` in one step, replacing the current one; it is the starting point of an orbit override), `UnsetPhaseOrbit` and `UnsetPhaseLaw` (remove the whole `[orbit]`, or the whole `[law.<mode>]` of one mode) and `SetCasePhase`.
   An attitude law override is started by writing its kind (`law.<mode>.law`) with `SetPhaseField`, because `AttitudeLawSetting` requires `law` whenever `[law.<mode>]` exists; the file stays loadable at every step.

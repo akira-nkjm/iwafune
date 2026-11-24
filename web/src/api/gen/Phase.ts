@@ -28,7 +28,8 @@ duration?: Quantity | null,
  */
 modes?: Array<string>, 
 /**
- * 軌道の上書き（`conditions/orbit.toml` と同じ形。あれば設計の軌道を丸ごと置き換える。キーごとの合成はしない）
+ * 軌道の上書き（`conditions/orbit.toml` と同じ形。あれば設計の軌道を丸ごと置き換える。キーごとの合成はしない）。
+ * `source = "transfer"` と `maneuver` で、日付つきの遷移のマヌーバから巡航の軌道を取れる（フェーズの専用の欄は無い）
  */
 orbit?: OrbitSettings | null, 
 /**

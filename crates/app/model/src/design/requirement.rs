@@ -231,6 +231,7 @@ pub const ANALYSIS_IDS: &[&str] = &[
     "propulsion.thruster_usage",
     "propulsion.orbit_history",
     "propulsion.transfer_check",
+    "propulsion.launch_window",
     "propulsion.mass_properties",
     "structure.mass_properties",
     "structure.static_load",

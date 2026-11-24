@@ -19,7 +19,7 @@ use fune_model::design::{
 use fune_model::path::SettingPath;
 use heaters::{heaters, is_thermostat};
 use network::network;
-use sat_analysis::spec::{Analysis, SamplingSpan};
+use sat_analysis::spec::{Analysis, SamplingSpan, requested_step_s};
 use sat_analysis::thermal::network::{ThermalModeLoads, ThermalModePart};
 use sat_analysis::thermal::planet::planet_environment;
 use sat_analysis::thermal::steady::ThermalSteadyCase;
@@ -30,7 +30,7 @@ use sat_analysis::thermal::{
 };
 use sat_analysis::thermal::{ThermalSteady, ThermalTransient};
 use sat_astro::ephem::CentralBody;
-use sat_units::typed::{Fraction, Power};
+use sat_units::typed::{Fraction, Power, Qty};
 
 fn settings<'a>(ctx: &'a Context<'_>, m: &mut MissingInputs) -> Option<&'a ThermalSettings> {
     let s = ctx.design.analysis.thermal.as_ref();
@@ -205,7 +205,7 @@ pub fn steady(ctx: &Context<'_>) -> Result<ThermalSteadyInput, MissingInputs> {
         else {
             continue;
         };
-        if c.beta.is_some() {
+        if c.beta.is_some() && ctx.beta_applies(dims::THERMAL_CASE_BETA.at(&[id]), &mut m) {
             t.sampling.beta = setting_opt(&dims::THERMAL_CASE_BETA, &[id], c.beta.as_ref(), &mut m);
         }
         cases.push(ThermalSteadyCase {
@@ -271,12 +271,13 @@ pub fn transient(ctx: &Context<'_>) -> Result<ThermalTransientInput, MissingInpu
     };
     let mode = c.mode.as_deref();
     let t = timeline::timeline(ctx, mode, s.orbits, &mut m).map(|mut t| {
-        if c.beta.is_some() {
+        if c.beta.is_some() && ctx.beta_applies(dims::THERMAL_CASE_BETA.at(&[id]), &mut m) {
             t.sampling.beta = setting_opt(&dims::THERMAL_CASE_BETA, &[id], c.beta.as_ref(), &mut m);
         }
         if let Some(step) = setting_opt(&dims::THERMAL_TIME_STEP, &[], s.time_step.as_ref(), &mut m)
         {
-            t.sampling.step = step;
+            // 1 回限りの軌道（巡航）では、周回の分解能の刻みを期間の既定より細かくしない
+            t.sampling.step = Qty::from_raw(requested_step_s(t.orbit().cycle(), step.value()));
         }
         t
     });

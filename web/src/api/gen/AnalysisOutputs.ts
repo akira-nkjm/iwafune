@@ -28,6 +28,7 @@ import type { PropellantOutput } from "./PropellantOutput";
 import type { ThrusterUsageOutput } from "./ThrusterUsageOutput";
 import type { OrbitHistoryOutput } from "./OrbitHistoryOutput";
 import type { TransferCheckOutput } from "./TransferCheckOutput";
+import type { LaunchWindowOutput } from "./LaunchWindowOutput";
 import type { PropellantMassOutput } from "./PropellantMassOutput";
 import type { ThrustBalanceOutput } from "./ThrustBalanceOutput";
 export type AnalysisOutputs = {
@@ -60,6 +61,7 @@ export type AnalysisOutputs = {
   "propulsion.thruster_usage": ThrusterUsageOutput;
   "propulsion.orbit_history": OrbitHistoryOutput;
   "propulsion.transfer_check": TransferCheckOutput;
+  "propulsion.launch_window": LaunchWindowOutput;
   "propulsion.mass_properties": PropellantMassOutput;
   "power.thrust_balance": ThrustBalanceOutput;
 };

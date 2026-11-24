@@ -6,8 +6,8 @@
 use super::solar::{SolarArray, SolarLife, SolarProfile, eclipses};
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Series,
-    SpanFallback, System, longest_window, masked_time_mean, orbit_mean, orbit_ranges,
-    span_fallback, time_fraction,
+    SpanFallback, System, longest_window, masked_time_mean, orbit_mean, orbit_ranges, span_note,
+    time_fraction,
 };
 use sat_astro::orbit::Cycle;
 use sat_astro::timeline::{self, TimelineSpec, Window};
@@ -140,7 +140,7 @@ fn summarize(
         eclipses,
         panels,
         series: generation_series(input, profile, gen_life),
-        span_fallback: span_fallback(ranges.len(), SpanFallback::OrbitMeanOverSpan),
+        span_fallback: span_note(cycle, ranges.len(), SpanFallback::OrbitMeanOverSpan),
     }
 }
 
