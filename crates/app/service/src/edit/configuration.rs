@@ -10,17 +10,20 @@ use fune_ops::Op;
 pub fn configuration_op(t: &ConfigurationText, create: bool) -> Op {
     let id = t.id.trim().to_owned();
     let label = given(&t.label).map(str::to_owned);
+    let label_en = given(&t.label_en).map(str::to_owned);
     let description = given(&t.description).map(str::to_owned);
     if create {
         Op::CreateConfiguration {
             id,
             label,
+            label_en,
             description,
         }
     } else {
         Op::SetConfiguration {
             id,
             label,
+            label_en,
             description,
         }
     }
@@ -46,23 +49,31 @@ mod tests {
         let t = ConfigurationText {
             id: " STOWED ".into(),
             label: Some("Stowed".into()),
+            label_en: Some("Stowed (EN)".into()),
             description: Some(String::new()),
         };
         let Op::CreateConfiguration {
             id,
             label,
+            label_en,
             description,
         } = configuration_op(&t, true)
         else {
             panic!("not CreateConfiguration");
         };
         assert_eq!(
-            (id.as_str(), label.as_deref(), description),
-            ("STOWED", Some("Stowed"), None)
+            (
+                id.as_str(),
+                label.as_deref(),
+                label_en.as_deref(),
+                description
+            ),
+            ("STOWED", Some("Stowed"), Some("Stowed (EN)"), None)
         );
         let c = Configuration {
             id: "STOWED".into(),
             label: Some("Stowed".into()),
+            label_en: Some("Stowed (EN)".into()),
             ..Configuration::default()
         };
         assert_eq!(
@@ -70,6 +81,7 @@ mod tests {
             Op::SetConfiguration {
                 id: "STOWED".into(),
                 label: Some("Stowed".into()),
+                label_en: Some("Stowed (EN)".into()),
                 description: None,
             }
         );

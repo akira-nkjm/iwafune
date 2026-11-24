@@ -8,7 +8,11 @@ export type ConfigurationView = { id: string,
 /**
  * 表示名（無ければ ID）
  */
-label: string, description: string | null, 
+label: string, 
+/**
+ * 英語の表示名（書かれていなければ None。英語の画面は無ければ ID を出す）
+ */
+label_en: string | null, description: string | null, 
 /**
  * 姿勢を上書きしている部品（ID 順。`[pose.<部品>]`）
  */

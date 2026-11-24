@@ -291,7 +291,7 @@ fn apply<'a>(
                 t.coast_s,
                 &leg.burns,
                 finite,
-                planned.launcher_departure,
+                (planned.launcher_departure, planned.mid_burns.clone()),
             ));
         }
         Ideal::LowThrust(dv) => {
@@ -373,11 +373,24 @@ fn fire(
 /// インパルス・有限燃焼の遷移の時間: 噴射の間の慣性飛行。有限燃焼は噴射を近点・遠点を中心に置くので、
 /// 最初と最後の噴射の半分ずつを足す（噴射が 1 回ならその噴射時間）。出発の噴射を打ち上げ機が行うとき
 /// （`launcher_departure`）は、列の最初は出発の噴射でなく捕獲の噴射なので、飛行の時間に半分だけ足す。
-fn impulsive_time(coast_s: f64, burns: &[Burn], finite: bool, launcher_departure: bool) -> f64 {
+/// 飛行の途中の噴射（スイングバイの近点の噴射。`mid` の範囲）は両端の噴射ではないので数えない。
+fn impulsive_time(
+    coast_s: f64,
+    burns: &[Burn],
+    finite: bool,
+    (launcher_departure, mid): (bool, std::ops::Range<usize>),
+) -> f64 {
     if !finite {
         return coast_s;
     }
     let t = |b: Option<&Burn>| b.and_then(|b| b.burn_time_s).unwrap_or(0.0);
+    let ends: Vec<Burn> = burns
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| !mid.contains(i))
+        .map(|(_, b)| *b)
+        .collect();
+    let burns = ends.as_slice();
     match burns {
         [] => 0.0,
         [last] if launcher_departure => coast_s + 0.5 * t(Some(last)),

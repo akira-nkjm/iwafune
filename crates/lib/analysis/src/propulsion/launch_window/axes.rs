@@ -111,7 +111,7 @@ impl Axes {
     pub fn new(
         settings: &LaunchWindowSettings,
         (from, parking, to): (CentralBody, Apsides, CentralBody),
-        written: Option<DatedTransferInput>,
+        written: Option<&DatedTransferInput>,
         epoch: Epoch,
     ) -> Result<Self, AnalysisError> {
         let synodic_s = from.synodic_period_s(to).ok_or_else(|| {

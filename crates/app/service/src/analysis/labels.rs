@@ -519,6 +519,11 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "WeatherSource" => parse(value).map(orbit::weather_source),
         "DragAreaSource" => parse(value).map(orbit::drag_area_source),
         "GeometrySpanBasis" => parse(value).map(orbit::geometry_span_basis),
+        "DesignMarginSource" => parse(value).map(orbit::design_margin_source),
+        "ShieldingSource" => parse(value).map(orbit::shielding_source),
+        "DoseLegStatus" => parse(value).map(orbit::dose_leg_status),
+        "DoseNotEvaluated" => parse(value).map(orbit::dose_not_evaluated),
+        "DoseInterpolation" => parse(value).map(orbit::dose_interpolation),
         "DecayCondition" => orbit::decay_condition(value),
         "DvCategory" => parse(value).map(propulsion::category),
         "TransferMethod" => parse(value).map(propulsion::method),
@@ -604,10 +609,22 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         ),
         K::TransferMiss => label("到着のずれ（最大）", "Arrival miss distance (max)"),
         K::LaunchWindowDeltaV => label("窓の ΔV（最小）", "Launch window delta-v (min)"),
+        K::TotalDoseMargin => label("総線量の余裕（最小）", "Total dose margin (min)"),
         K::GreatestEarthDistance => {
             label("地球までの距離（最大）", "Distance from the Earth (max)")
         }
     }
+}
+
+/// 円制限三体問題の軌道を暦に載せた軌道の説明（key `orbit_model`）の項目名と文。
+pub fn orbit_model_check() -> (AnalysisLabel, AnalysisLabel) {
+    (
+        label("軌道のモデル", "Orbit model"),
+        label(
+            "軌道は円制限三体問題（CR3BP）のラグランジュ点またはハロー軌道を、暦の 2 天体の位置と速度に載せたものです（力モデルの伝搬ではなく、太陽・月・惑星の摂動と太陽輻射圧は入りません）。軌道維持は見積もらないので、ΔV の余裕としてマヌーバに書いてください",
+            "The orbit is a libration point or halo orbit of the circular restricted three-body problem (CR3BP) carried on the ephemeris positions and velocities of the two bodies (not a force-model propagation: third-body perturbations and solar radiation pressure are not included). Station keeping is not estimated, so write it as a delta-V allowance in a maneuver",
+        ),
+    )
 }
 
 /// 期間不足の注意（key `span`）の項目名と文。1 回限りの軌道（`OneOffSpan`）は期間不足ではなく、周回が無いことの説明。

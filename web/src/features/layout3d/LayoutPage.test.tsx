@@ -39,6 +39,7 @@ vi.mock("./LazyLayout3D", () => ({
 const stowed: ConfigurationView = {
   id: "STOWED",
   label: "Stowed",
+  label_en: null,
   description: null,
   overridden: [fixture.parts[0]!.id],
   text: { id: "STOWED" },

@@ -6,7 +6,7 @@
 label    = "機器（共通）"
 label_en = "Component (common)"
 required = ["mass"]
-optional = ["size", "temp_op", "temp_perf", "temp_survival", "specific_heat", "heat_fraction", "absorptivity", "emissivity", "hk_rate"]
+optional = ["size", "temp_op", "temp_perf", "temp_survival", "specific_heat", "heat_fraction", "absorptivity", "emissivity", "hk_rate", "shielding", "tid_tolerance"]
 
 [obc]
 label    = "オンボードコンピュータ"

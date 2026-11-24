@@ -51,6 +51,7 @@ fn mars_transfer(departure: &str, arrival: &str) -> Maneuver {
             departure: Some(departure.to_owned()),
             arrival: Some(arrival.to_owned()),
             departure_by: None,
+            flybys: Vec::new(),
         }),
     }
 }
@@ -372,4 +373,32 @@ fn the_thermal_time_step_is_not_finer_than_the_one_off_default() {
     let ctx = Context::new(&d, &resolved, Some("cold_safe")).unwrap();
     let input = fune_projection::thermal::transient(&ctx).expect("thermal input");
     assert_eq!(input.timeline.sampling.step.value(), 30.0);
+}
+
+/// 途中のスイングバイのある遷移は、巡航の軌道を黙って最初の脚だけにせず、理由つきの不足入力として断る
+/// （通過をまたぐ区間ごとの軌道は未対応）。通過を外せば同じ設計で軌道が取れる。
+#[test]
+fn a_swing_by_transfer_refuses_the_cruise_orbit_instead_of_returning_one_leg() {
+    let mut d = with_cruise();
+    d.maneuvers
+        .get_mut("MARS_TRANSFER")
+        .and_then(|m| m.transfer.as_mut())
+        .expect("transfer")
+        .flybys
+        .push(fune_model::design::ManeuverFlyby {
+            body: CentralBodyKind::Venus,
+            date: "2029-02-01T00:00:00Z".to_owned(),
+            min_altitude: None,
+            powered: None,
+        });
+    let missing = trajectory(&d, Some("cruise")).expect_err("must refuse");
+    assert_eq!(missing.len(), 1, "{missing:?}");
+    assert!(missing[0].reason.contains("swing-bys"), "{:?}", missing[0]);
+    d.maneuvers
+        .get_mut("MARS_TRANSFER")
+        .and_then(|m| m.transfer.as_mut())
+        .expect("transfer")
+        .flybys
+        .clear();
+    assert!(trajectory(&d, Some("cruise")).is_ok());
 }

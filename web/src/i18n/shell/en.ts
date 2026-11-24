@@ -65,6 +65,8 @@ export const shellEn: typeof shellJa = {
     more: (n: number) => `+${n} more`,
     checking: "Checking…",
     changedFiles: "Files changed:",
+    removedKeys: (path: string, keys: string) =>
+      `Removed from ${path}: ${keys} (not in the new record)`,
     change: { created: "new", modified: "modified", deleted: "deleted", renamed: "renamed" },
   },
   ops: {

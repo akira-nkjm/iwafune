@@ -357,3 +357,80 @@ fn departure_by_edits_match_cli() {
         "{text}"
     );
 }
+
+/// `--flyby`（繰り返す旗）も CLI と HTTP で同じファイルになり（`[[transfer.flybys]]`）、一覧の編集の欄の初期値（`flybys`）が付く。
+/// 編集の欄の初期値をそのまま送り返す（GUI の編集）と同じファイルのまま（通過が落ちない）。`fmt --check` も通る。
+#[test]
+fn flyby_edits_match_cli_and_survive_a_round_trip_of_the_edit_fields() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_t1, cli_root) = demo_copy();
+    let (_t2, http_root) = demo_copy();
+    let flybys = [
+        "venus@2029-01-10T00:00:00Z,min_altitude=400 km",
+        "earth@2029-06-01T00:00:00Z,powered=false",
+    ];
+    let mut cli = vec![
+        "maneuver",
+        "add",
+        "MV_MARS",
+        "--category",
+        "insertion",
+        "--method",
+        "impulsive",
+        "--body",
+        "mars",
+        "--perigee-altitude",
+        "300 km",
+        "--depart",
+        "2028-10-01T00:00:00Z",
+        "--arrive",
+        "2030-03-01T00:00:00Z",
+    ];
+    for f in flybys {
+        cli.extend(["--flyby", f]);
+    }
+    run_cli(&cli_root, &cli);
+    let body = json!({ "command": "maneuver_add", "id": "MV_MARS", "category": "insertion",
+        "method": "impulsive", "body": "mars", "perigee_altitude": "300 km",
+        "depart": "2028-10-01T00:00:00Z", "arrive": "2030-03-01T00:00:00Z",
+        "flybys": flybys });
+    http_command(&rt, &http_root, body);
+    assert_same_files(&cli_root, &http_root, &cli.join(" "));
+    let text = std::fs::read_to_string(http_root.join("maneuvers/MV_MARS.toml")).unwrap();
+    assert!(
+        text.contains("[[transfer.flybys]]\nbody         = \"venus\"\ndate         = \"2029-01-10T00:00:00Z\"\nmin_altitude = { value = 400.0, unit = \"km\" }\n"),
+        "{text}"
+    );
+    assert_eq!(text.matches("[[transfer.flybys]]").count(), 2, "{text}");
+    run_cli(&cli_root, &["fmt", "--check"]);
+    // 一覧の編集の欄の初期値と欄のパス
+    let list = get_json(&rt, &cli_root, "/api/v1/maneuvers");
+    let row = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["id"] == "MV_MARS")
+        .unwrap()
+        .clone();
+    assert_eq!(row["text"]["flybys"], json!(flybys));
+    assert_eq!(
+        row["field_paths"]["flybys"],
+        "maneuvers.MV_MARS.transfer.flybys"
+    );
+    // 編集の欄の初期値をそのまま `maneuver_set` で送り返しても、ファイルは変わらない（通過を黙って落とさない）
+    let mut set = row["text"].clone();
+    set["command"] = json!("maneuver_set");
+    http_command(&rt, &http_root, set);
+    let after = std::fs::read_to_string(http_root.join("maneuvers/MV_MARS.toml")).unwrap();
+    assert_eq!(after, text);
+    // 通過なしで書き直すと表の列ごと消える
+    let mut set = row["text"].clone();
+    set["command"] = json!("maneuver_set");
+    set["flybys"] = json!([]);
+    http_command(&rt, &http_root, set);
+    let cleared = std::fs::read_to_string(http_root.join("maneuvers/MV_MARS.toml")).unwrap();
+    assert!(
+        !cleared.contains("flybys") && cleared.contains("[transfer]"),
+        "{cleared}"
+    );
+}

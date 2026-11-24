@@ -195,6 +195,7 @@ pub fn setting_item(value: &SettingValue) -> Item {
         SettingValue::Vector(v) => Item::Value(encode_vector(v, None)),
         SettingValue::Quaternion(q) => Item::Value(encode_quaternion(q)),
         SettingValue::List(l) => strings(l.iter().map(String::as_str)),
+        SettingValue::Curve(c) => Item::Value(crate::codec::encode_curve(c, None)),
     }
 }
 

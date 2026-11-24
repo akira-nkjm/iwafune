@@ -19,6 +19,26 @@ pub(crate) fn node(id: &str, fixed: Option<f64>) -> ThermalNode {
     }
 }
 
+/// 板の詳細の確かめ用: 節点 `part` を 3 × 2 の升に分ける（箱 0.3 × 0.2 × 0.003 m を (1, 2, 3) に置く）。
+pub(crate) fn plate_of(part: &str) -> ThermalPlate {
+    use crate::structure::interference::InterferenceBox;
+    use sat_astro::math::{Quat, Vec3};
+    ThermalPlate {
+        part: part.to_owned(),
+        cells: [3, 2],
+        conductivity: Qty::from_raw(100.0),
+        frame: InterferenceBox {
+            id: part.to_owned(),
+            count: 1,
+            position: Vec3::new(1.0, 2.0, 3.0),
+            orientation: Quat::IDENTITY,
+            size: Vec3::new(0.3, 0.2, 0.003),
+            mount_ancestors: Vec::new(),
+        },
+        attachments: Vec::new(),
+    }
+}
+
 #[test]
 fn loads_count_by_hand() {
     let net = Compiled::new(&ThermalNetwork {
@@ -83,4 +103,42 @@ fn node_aggregates_parts() {
     })
     .unwrap();
     assert!((c.capacity[0] - 2050.0).abs() < 1e-9);
+}
+
+/// 熱容量が無い節点の判定（`lacks_heat_capacity`）: 質量 0、員数 0、部品なしは熱容量 0。
+/// 部品の 1 つに質量があれば足り、温度一定の境界節点は熱容量が要らない。解析の入力検査も同じ判定を通る。
+#[test]
+fn a_node_without_heat_capacity_is_refused() {
+    assert!(!node("n", None).lacks_heat_capacity());
+    let mut zero_mass = node("n", None);
+    zero_mass.parts[0].mass = Qty::from_raw(0.0);
+    assert!(zero_mass.lacks_heat_capacity());
+    let mut zero_count = node("n", None);
+    zero_count.parts[0].count = 0;
+    assert!(zero_count.lacks_heat_capacity());
+    let mut lumped = zero_mass.clone();
+    lumped.parts.push(node("m", None).parts.remove(0));
+    assert!(!lumped.lacks_heat_capacity());
+    let mut empty = node("n", None);
+    empty.parts.clear();
+    assert!(empty.lacks_heat_capacity());
+    let mut boundary = zero_mass.clone();
+    boundary.fixed_temperature = Some(Qty::from_raw(3.0));
+    assert!(!boundary.lacks_heat_capacity());
+    for n in [zero_mass, zero_count, empty] {
+        let net = ThermalNetwork {
+            mounts: None,
+            nodes: vec![n],
+            conductive: vec![],
+            radiative: vec![],
+            enclosure: None,
+            surfaces: vec![],
+            plates: vec![],
+        };
+        let e = Compiled::new(&net)
+            .map(|_| ())
+            .expect_err("refused")
+            .to_string();
+        assert!(e.contains("must be positive"), "{e}");
+    }
 }

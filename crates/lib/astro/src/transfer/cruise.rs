@@ -13,7 +13,7 @@
 //! - 影響圏の中のずれは見ない。ずれは「天体の中心を狙った日心の軌道が、ほかの惑星の重力で到着の日にどれだけ外れるか」。
 //! - 日付が DE440 の期間でなければ暦は解析式で、ずれの大きさは暦の誤差（火星で 10⁵ km 級）と同程度になり、判定に使えない。
 
-use super::dated::DatedTransfer;
+use super::dated::{DatedTransfer, LambertArc};
 use crate::AstroError;
 use crate::constants::SECONDS_PER_DAY;
 use crate::ephem::{CentralBody, EphemerisSource, covers, eci_to_ecliptic_j2000};
@@ -149,29 +149,68 @@ fn chart(
     out
 }
 
-/// 日付つきの遷移 `transfer`（`from` を `depart` に出て `to` に着く）の巡航を、太陽と惑星の点質量で伝搬して確認する。
-/// 出発の状態は `transfer.cruise_state`（出発天体の中心、Lambert の速度）。
+/// 確認する巡航の弧の始まり（出発の日の状態・親・飛行時間・暦の出所）。日付つきの遷移の全体（[`check_cruise`]）か、
+/// 通過のある遷移の 1 本の脚（[`check_cruise_leg`]）から作る。
+struct CruiseStart {
+    parent: CentralBody,
+    state: OrbitState,
+    transfer_s: f64,
+    ephemeris: EphemerisSource,
+}
+
+/// 日付つきの遷移 `transfer`（`from` を `depart` に出て `to` に着く。途中の通過のないもの）の巡航を、太陽と惑星の点質量で
+/// 伝搬して確認する。出発の状態は `transfer.cruise_state`（出発天体の中心、Lambert の速度）。
 /// 到着の日まで（と、その後の [`OVERSHOOT_S`] まで）を [`CRUISE_INTEGRATOR`] で伝搬する。
+/// 途中の通過のある遷移は、脚ごとに [`check_cruise_leg`] で確認する（通過の前後をつなげて伝搬はしない）。
 pub fn check_cruise(
     transfer: &DatedTransfer,
     from: CentralBody,
     to: CentralBody,
     depart: Epoch,
 ) -> Result<CruiseCheck, AstroError> {
-    let parent = transfer.parent;
-    let forces = ForceConfig::heliocentric_point_masses(&[from, to]);
-    let arrive = depart.plus_seconds(transfer.transfer_time_s);
-    let (times, arrival_index) = time_grid(arrive, transfer.transfer_time_s);
-    let propagate = |ts: &[f64]| {
-        propagate_states(
-            parent,
-            &forces,
-            depart,
-            transfer.cruise_state,
-            ts,
-            &CRUISE_INTEGRATOR,
-        )
+    let start = CruiseStart {
+        parent: transfer.parent,
+        state: transfer.cruise_state,
+        transfer_s: transfer.transfer_time_s,
+        ephemeris: transfer.ephemeris,
     };
+    check_from(&start, from, to, depart)
+}
+
+/// 通過のある遷移の 1 本の脚 `arc`（`from` を `depart` に出て `to` に着く Lambert の弧）の巡航を、[`check_cruise`] と同じ
+/// 伝搬で確認する。脚の始まりは `from` の中心から弧の出発の速度。両端（通過する天体を含む）の重力は入れない
+/// （通過の天体の近くの双曲線の弧・影響圏の中は伝搬しない）。`ephemeris` は暦の出所（判定に使う）。
+pub fn check_cruise_leg(
+    arc: &LambertArc,
+    from: CentralBody,
+    to: CentralBody,
+    depart: Epoch,
+    ephemeris: EphemerisSource,
+) -> Result<CruiseCheck, AstroError> {
+    let start = CruiseStart {
+        parent: arc.parent,
+        state: OrbitState {
+            r_eci: arc.from_state.r_eci,
+            v_eci: arc.v_departure_m_s,
+        },
+        transfer_s: arc.transfer_time_s,
+        ephemeris,
+    };
+    check_from(&start, from, to, depart)
+}
+
+fn check_from(
+    start: &CruiseStart,
+    from: CentralBody,
+    to: CentralBody,
+    depart: Epoch,
+) -> Result<CruiseCheck, AstroError> {
+    let parent = start.parent;
+    let forces = ForceConfig::heliocentric_point_masses(&[from, to]);
+    let arrive = depart.plus_seconds(start.transfer_s);
+    let (times, arrival_index) = time_grid(arrive, start.transfer_s);
+    let propagate =
+        |ts: &[f64]| propagate_states(parent, &forces, depart, start.state, ts, &CRUISE_INTEGRATOR);
     let distance = |ts: &[f64], states: &[OrbitState]| -> Vec<f64> {
         ts.iter()
             .zip(states)
@@ -190,7 +229,7 @@ pub fn check_cruise(
         .ok_or(AstroError::NotSiblingBodies { from, to })?;
     let upto = &times[..=arrival_index];
     Ok(CruiseCheck {
-        ephemeris: transfer.ephemeris,
+        ephemeris: start.ephemeris,
         miss_vector_m: at_arrival.r_eci - target.r_eci,
         arrival_soi_m: to.soi_radius_m(),
         closest,

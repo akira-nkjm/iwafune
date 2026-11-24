@@ -112,6 +112,10 @@ const NAMES: &[(&str, DimensionDisplayName)] = &[
     ("Conductance", names("コンダクタンス", "Conductance")),
     ("MagneticFlux", names("磁束", "Magnetic flux")),
     ("AbsorbedDose", names("吸収線量", "Absorbed dose")),
+    (
+        "AbsorbedDoseRate",
+        names("吸収線量率", "Absorbed dose rate"),
+    ),
     ("Impulse", names("力積", "Impulse")),
     // 表示の種類（次元は無次元）
     ("Fraction", names("比", "Fraction")),

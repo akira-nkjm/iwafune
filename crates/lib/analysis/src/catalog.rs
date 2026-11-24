@@ -68,6 +68,7 @@ registry!(
     crate::orbit::EclipseSeason,
     crate::orbit::OrbitDecay,
     crate::orbit::Geometry,
+    crate::orbit::TotalDose,
     power::ModeLoad,
     power::SolarSunlit,
     power::OrbitGeneration,

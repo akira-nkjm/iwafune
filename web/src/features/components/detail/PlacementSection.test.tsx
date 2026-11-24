@@ -191,6 +191,7 @@ it("部品詳細は上書きのある形態の取付点からの姿勢を読み�
   const stowed: ConfigurationView = {
     id: "STOWED",
     label: "Stowed",
+    label_en: null,
     description: null,
     file: "configurations/STOWED.toml",
     text: { id: "STOWED" },
@@ -214,10 +215,43 @@ it("部品詳細は上書きのある形態の取付点からの姿勢を読み�
     </QueryClientProvider>,
   );
   client.clear();
-  expect(html).toContain("Stowed (STOWED)");
+  expect(html).toContain("STOWED（Stowed）");
   expect(html).toContain("90.0°");
   expect(html).not.toContain("OTHER");
   expect(html).not.toContain("<input");
+});
+
+it("部品詳細の形態名は英語では英語名（無ければ ID だけ）", () => {
+  const { part } = mounted();
+  const stowed: ConfigurationView = {
+    id: "STOWED",
+    label: "収納",
+    label_en: "Stowed",
+    description: null,
+    file: "configurations/STOWED.toml",
+    text: { id: "STOWED" },
+    overridden: [part.id],
+  };
+  const render = (configurations: ConfigurationView[]) => {
+    const client = new QueryClient();
+    client.setQueryData(q.part(part.id, [], "STOWED").queryKey, {
+      part: { ...part, mount: { ...part.mount!, overridden: true } },
+      sections: [],
+      modes: {},
+      harnesses: [],
+      diagnostics: [],
+    });
+    const html = renderToStaticMarkup(
+      <QueryClientProvider client={client}>
+        <PlacementOverrides design={{ ...fixture, configurations }} part={part} />
+      </QueryClientProvider>,
+    );
+    client.clear();
+    return html;
+  };
+  setLang("en");
+  expect(render([stowed])).toContain("STOWED (Stowed)");
+  expect(render([{ ...stowed, label_en: null }])).not.toContain("収納");
 });
 
 it("形態の中でも取付の根の姿勢を編集できる: 取付先は送らず、形態に位置を書く", () => {

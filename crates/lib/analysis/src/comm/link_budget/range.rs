@@ -1,14 +1,13 @@
 //! 回線バジェットの距離（距離のモデルの選択はここだけ）。
 //! - 地球を回る衛星: 局から見た斜距離（`sat_astro::ground::slant_range_m`）。最大は最低仰角、最小は天頂（= 高度）。
-//! - 月・惑星・太陽を回る衛星: 地球から衛星までの距離（`sat_astro::ground::earth_range`、地心で近似）の、期間中の最小と最大。
+//! - 月・惑星・太陽を回る衛星と、高度を持たない軌道（ラグランジュ点のまわりなど。中心天体が地球でも）: 地球から衛星までの距離（`sat_astro::ground::earth_range`、地心で近似）の、期間中の最小と最大。
 //!   期間はミッション期間（無ければ [`DEFAULT_RANGE_SPAN`]）、1 回限りの軌道（惑星間の巡航）はその期間（飛行時間）。
 
 use super::{DEFAULT_CONJUNCTION_ANGLE, LinkBudgetLink};
 use crate::spec::{AnalysisError, orbit_step_s};
 use sat_astro::constants::SECONDS_PER_DAY;
-use sat_astro::ephem::CentralBody;
 use sat_astro::ground::{EarthRange, earth_range_with_sep, slant_range_m};
-use sat_astro::orbit::{Cycle, Trajectory};
+use sat_astro::orbit::{Cycle, Trajectory, measures_range_from_earth};
 use sat_astro::time::Epoch;
 use sat_astro::timeline::geometry::light_time_s;
 use sat_units::typed::{Length, Qty, Time};
@@ -64,13 +63,18 @@ impl LinkRange {
     }
 }
 
+/// 回線の距離を地球までの距離の時系列で測るか（`sat_astro::orbit::measures_range_from_earth`。中心天体が地球でない、または高度が無い）。
+fn ranges_from_earth(link: &LinkBudgetLink) -> bool {
+    measures_range_from_earth(link.central, link.altitude.map(Qty::value))
+}
+
 /// 回線の中に中心天体が地球でないものがあれば、地球から衛星までの距離の範囲を求める（回線の数だけ繰り返さない）。
 pub(super) fn deep_space_range(
     links: &[LinkBudgetLink],
     orbit: Option<&Trajectory>,
     duration: Option<Qty<Time>>,
 ) -> Result<Option<EarthRange>, AnalysisError> {
-    if links.iter().all(|l| l.central == CentralBody::Earth) {
+    if links.iter().all(|l| !ranges_from_earth(l)) {
         return Ok(None);
     }
     let orbit = orbit.ok_or_else(|| {
@@ -104,8 +108,8 @@ pub(super) fn link_range(
     link: &LinkBudgetLink,
     deep: Option<&EarthRange>,
 ) -> Result<LinkRange, AnalysisError> {
-    match (link.central, deep) {
-        (CentralBody::Earth, _) => {
+    match (ranges_from_earth(link), deep) {
+        (false, _) => {
             let altitude = link.altitude.map(Qty::value).ok_or_else(|| {
                 AnalysisError::InvalidInput(format!(
                     "{}: the slant range of an Earth orbit needs the altitude, which an orbit given by a state vector does not have",
@@ -121,14 +125,14 @@ pub(super) fn link_range(
                 max_epoch: None,
             })
         }
-        (_, Some(r)) => Ok(LinkRange {
+        (true, Some(r)) => Ok(LinkRange {
             model: LinkDistanceModel::EarthToBody,
             min_m: r.min_m,
             max_m: r.max_m,
             min_epoch: Some(r.min_epoch),
             max_epoch: Some(r.max_epoch),
         }),
-        (_, None) => Err(AnalysisError::InvalidInput(format!(
+        (true, None) => Err(AnalysisError::InvalidInput(format!(
             "{}: the Earth distance range was not computed",
             link.name
         ))),

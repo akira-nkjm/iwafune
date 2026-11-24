@@ -85,7 +85,7 @@ export function AnalysisRowDetail({
           ))}
         </section>
       )}
-      {detailType !== undefined && hasDetailView(detailType) && (
+      {detailType !== undefined && hasDetailView(detailType, result) && (
         <AnalysisDetail result={result} detailType={detailType} />
       )}
       {tables.length > 0 && (

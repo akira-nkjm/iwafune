@@ -38,6 +38,43 @@ fn central_sun_direction(central: CentralBody, at: Epoch) -> Result<Vec3, AstroE
     })
 }
 
+/// `at` の時刻に、傾斜角 `i_rad` の軌道が取れる β 角の範囲 `(最小, 最大)` [rad]。
+/// `sin β = cos δ · sin i · sin(Ω − α) + sin δ · cos i`（δ は太陽の赤緯）の `sin(Ω − α)` が −1〜+1 を動くので、
+/// `sin β` の範囲は `sin δ · cos i ∓ cos δ · sin i`（= `sin(δ ∓ i)`）。**取れる β の範囲の定義はここだけ**（[`raan_for_beta`] の
+/// 誤りの文もこれを使う）。
+fn beta_range_rad(i_rad: f64, sin_dec: f64) -> (f64, f64) {
+    let cos_dec = (1.0 - sin_dec * sin_dec).sqrt();
+    let (si, ci) = i_rad.sin_cos();
+    let centre = sin_dec * ci;
+    let half = cos_dec * si.abs();
+    (
+        (centre - half).clamp(-1.0, 1.0).asin(),
+        (centre + half).clamp(-1.0, 1.0).asin(),
+    )
+}
+
+/// 角度（rad）を表示の単位で整形した文字列（整形は sat-units に任せる）。
+fn angle_text(rad: f64) -> String {
+    use sat_units::format::{SIGNIFICANT_DIGITS, format_number, format_quantity};
+    format_quantity(rad, "Angle")
+        .map(|q| q.text)
+        .unwrap_or_else(|_| format_number(rad, SIGNIFICANT_DIGITS))
+}
+
+/// 届かない β の誤りの文（その元期・傾斜角で取れる範囲と、直し方を添える）。
+fn unreachable_message(beta_rad: f64, i_rad: f64, sin_dec: f64) -> String {
+    let (lo, hi) = beta_range_rad(i_rad, sin_dec);
+    format!(
+        "Beta = {} is unreachable at inclination {}: at this epoch (Sun declination {}) the beta angle of this orbit can only be from {} to {}. \
+         Give a beta inside that range, or change the epoch (an analysis case's `epoch`) or the inclination of the orbit",
+        angle_text(beta_rad),
+        angle_text(i_rad),
+        angle_text(sin_dec.clamp(-1.0, 1.0).asin()),
+        angle_text(lo),
+        angle_text(hi),
+    )
+}
+
 /// 時刻 `at` の β 角が `beta_rad` になる、元期の RAAN [rad]（0〜2π）。
 ///
 /// 太陽の赤経 α・赤緯 δ（`at` の時刻）に対して、[`beta_angle_rad`] と同じ符号の約束で
@@ -58,10 +95,8 @@ pub fn raan_for_beta(spec: &OrbitSpec, at: Epoch, beta_rad: f64) -> Result<f64, 
     let denom = cos_dec * si;
     let k = (beta_rad.sin() - sin_dec * ci) / denom;
     if denom.abs() < 1e-12 || !k.is_finite() || k.abs() > 1.0 {
-        return Err(AstroError::InvalidInput(format!(
-            "Beta = {:.3} deg is unreachable at inclination {:.3} deg",
-            beta_rad.to_degrees(),
-            el.i_rad.to_degrees()
+        return Err(AstroError::InvalidInput(unreachable_message(
+            beta_rad, el.i_rad, sin_dec,
         )));
     }
     let raan_at = alpha + k.asin();

@@ -5,7 +5,7 @@ use super::text::{bool_from_text as flag, fraction_from_text, given, invalid, qu
 use crate::dto::ManeuverText;
 use crate::error::Result;
 use fune_model::design::{
-    DepartureBy, Maneuver, ManeuverConstraints, ManeuverTarget, ManeuverTransfer,
+    DepartureBy, Maneuver, ManeuverConstraints, ManeuverFlyby, ManeuverTarget, ManeuverTransfer,
 };
 use fune_model::value::Quantity;
 use fune_ops::Op;
@@ -58,8 +58,8 @@ fn maneuver_of(t: &ManeuverText) -> Result<Maneuver> {
     })
 }
 
-/// `--depart`・`--arrive`（両方か、どちらも書かない）と `--departure-by`（日付と一緒にだけ）→ `[transfer]`。日付の読み方は `sat_astro::time::Epoch::parse` だけ。
-/// 日付どうしの順・暦の範囲・天体の組は検査（`fune check`）が見る。
+/// `--depart`・`--arrive`（両方か、どちらも書かない）と `--departure-by`・`--flyby`（日付と一緒にだけ）→ `[transfer]`。日付の読み方は
+/// `sat_astro::time::Epoch::parse` だけ。通過の書き方は `ManeuverFlyby::from_text`。日付どうしの順・暦の範囲・天体の組は検査（`fune check`）が見る。
 fn transfer_of(t: &ManeuverText) -> Result<Option<ManeuverTransfer>> {
     let date = |flag: &str, text: &Option<String>| -> Result<Option<String>> {
         given(text)
@@ -74,15 +74,31 @@ fn transfer_of(t: &ManeuverText) -> Result<Option<ManeuverTransfer>> {
     let departure_by = given(&t.departure_by)
         .map(|s| s.trim().parse::<DepartureBy>().map_err(invalid))
         .transpose()?;
+    let flybys = t
+        .flybys
+        .iter()
+        .filter(|f| !f.trim().is_empty())
+        .map(|f| {
+            let flyby =
+                ManeuverFlyby::from_text(f).map_err(|e| invalid(format!("--flyby: {e}")))?;
+            Epoch::parse(flyby.date.trim())
+                .map_err(|e| invalid(format!("--flyby {}: {e}", flyby.body.as_str())))?;
+            Ok(flyby)
+        })
+        .collect::<Result<Vec<_>>>()?;
     match (date("depart", &t.depart)?, date("arrive", &t.arrive)?) {
         (None, None) if departure_by.is_some() => Err(invalid(
             "--departure-by needs --depart and --arrive (it belongs to a dated transfer)",
+        )),
+        (None, None) if !flybys.is_empty() => Err(invalid(
+            "--flyby needs --depart and --arrive (it belongs to a dated transfer)",
         )),
         (None, None) => Ok(None),
         (Some(departure), Some(arrival)) => Ok(Some(ManeuverTransfer {
             departure: Some(departure),
             arrival: Some(arrival),
             departure_by,
+            flybys,
         })),
         _ => Err(invalid("--depart and --arrive must be given together")),
     }
@@ -174,5 +190,30 @@ mod tests {
         t.depart = Some("next Tuesday".into());
         t.arrive = Some("2029-09-25T00:00:00Z".into());
         assert!(maneuver_op(&t, false).is_err());
+    }
+
+    /// `--flyby` は日付と一緒にだけ書け、書いた順のまま `[[transfer.flybys]]` になる。読み戻し（GUI の編集の欄）で同じ。
+    #[test]
+    fn flybys_need_dates_and_round_trip() {
+        let mut t = text();
+        t.flybys = vec!["venus@2029-02-01T00:00:00Z,min_altitude=400 km".into()];
+        assert!(maneuver_op(&t, false).is_err(), "no dates");
+        t.depart = Some("2028-10-01T00:00:00Z".into());
+        t.arrive = Some("2029-12-01T00:00:00Z".into());
+        t.flybys
+            .push("earth@2029-06-01T00:00:00Z,powered=false".into());
+        let Op::SetManeuver { maneuver } = maneuver_op(&t, false).unwrap() else {
+            panic!("not SetManeuver");
+        };
+        let flybys = &maneuver.transfer.as_ref().unwrap().flybys;
+        assert_eq!(flybys.len(), 2);
+        assert_eq!(flybys[0].min_altitude, Some(Quantity::new(400.0, "km")));
+        assert_eq!(flybys[1].powered, Some(false));
+        let back = maneuver_op(&maneuver_text(&maneuver), true).unwrap();
+        assert_eq!(back, Op::CreateManeuver { maneuver });
+        for bad in ["venus", "venus@tomorrow", "pluto@2029-02-01T00:00:00Z"] {
+            t.flybys = vec![bad.into()];
+            assert!(maneuver_op(&t, false).is_err(), "{bad}");
+        }
     }
 }

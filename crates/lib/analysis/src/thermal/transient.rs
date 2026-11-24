@@ -7,8 +7,8 @@
 //! - ヒータは設定温度に届く時刻を密出力で求めて切り替える（`heater_control`）。出力の時刻はタイムラインのサンプルのまま。
 
 use crate::spec::{
-    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series,
-    System, Verdict,
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Detailed,
+    Series, System, Verdict,
 };
 use crate::thermal::heater::{ThermalHeaterRun, run_checks};
 use crate::thermal::network::{
@@ -31,11 +31,13 @@ mod heater_control;
 mod initial;
 mod integration;
 mod phases;
+mod plate_detail;
 mod simulate;
 use heater_control::HeaterControl;
 use initial::initial;
 pub use integration::{DEFAULT_ABS_TOL_K, DEFAULT_REL_TOL, ThermalIntegration};
 use phases::Phases;
+use plate_detail::plate_detail;
 use simulate::Simulation;
 
 /// 長さが書かれていない発熱の区間の長さ [s]。1 日。区間が 1 つだけなら周期で平均した発熱はその区間の発熱で、
@@ -168,6 +170,7 @@ impl Analysis for ThermalTransient {
     const DESCRIPTION: &'static str = "軌道上の多節点モデルの温度の時間変化";
     const TITLE_EN: &'static str = "Thermal (transient)";
     const DESCRIPTION_EN: &'static str = "Time history of node temperatures over the orbit";
+    const DETAIL_TYPE: Option<&'static str> = Some(crate::thermal::plate_view::DETAIL_TYPE);
     type Input = ThermalTransientInput;
     type Output = ThermalTransientOutput;
 
@@ -232,6 +235,19 @@ impl Analysis for ThermalTransient {
             timeline.sampling.step.value(),
         ));
         Ok(output)
+    }
+
+    fn run_detailed(
+        input: &Self::Input,
+        detail: bool,
+    ) -> Result<Detailed<Self::Output>, AnalysisError> {
+        let output = Self::run(input)?;
+        let detail = if detail {
+            plate_detail(input, &output)?
+        } else {
+            None
+        };
+        Ok(Detailed { output, detail })
     }
 }
 

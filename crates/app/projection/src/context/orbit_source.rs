@@ -6,23 +6,39 @@
 //!   日付の読み方は `maneuver_dates::parse`、巡航の区間は `sat_astro::transfer::cruise_leg`（Lambert の弧 `cruise_orbit` を影響圏の外に切り出す）（`propulsion.maneuvers` の
 //!   日付つきの遷移と同じ `lambert_arc`）。親のまわりの二体の軌道（接触要素）で、期間（`Trajectory::with_span`）が 1 回限りにする。
 //!   遷移の軌道が楕円でないときは不足入力として理由を返す（状態ベクトルの出どころが受け持つ）。
+//!   途中のスイングバイ（`[[transfer.flybys]]`）のある遷移は、通過をまたぐ軌道がまだ無いので不足入力として断る（最初の脚だけを返さない）。
 //!
 //! - `state`: 状態ベクトル（`epoch`・`central`・`position`・`velocity`・`span`）。`sat_astro::orbit::StateSpec`（既存の数値伝搬。
 //!   力の設定は書かせず、原点の天体で決まる慣例の既定 `ForceConfig::deep_space_defaults`）。向きは ECI。期間は 1 回限り（`Cycle::OneOff`）。
+//!
+//! - `libration`: ラグランジュ点（`primary`・`secondary`・`point`・`epoch`）、`amplitude_z` を書けばそのまわりのハロー軌道（`branch`）。
+//!   `sat_astro::orbit::SynodicSpec`（円制限三体問題の軌道を暦の 2 天体の位置に載せたもの。軌道維持は見積もらない）。原点は副天体。
+//!   繰り返しは周期的（ハローの周期、固定点は 2 天体の公転周期）。
 //!
 //! ケプラー要素が本当に要る解析は [`Context::orbit`] を使い、出どころが `elements` でなければ対象外になる。
 
 use super::Context;
 use crate::maneuver_dates;
 use crate::missing::MissingInputs;
-use crate::orbit_central::central_body;
+use crate::orbit_central::{central_body, halo_branch, libration_point};
 use fune_model::Target;
 use fune_model::design::setting_dims as dims;
-use fune_model::design::{Maneuver, OrbitSettings, OrbitSource};
+use fune_model::design::{CentralBodyKind, HaloBranchKind, Maneuver, OrbitSettings, OrbitSource};
 use sat_astro::ephem::CentralBody;
-use sat_astro::orbit::{OrbitState, StateSpec, Trajectory};
+use sat_astro::orbit::{HaloSpec, OrbitState, StateSpec, SynodicSpec, Trajectory};
 use sat_astro::time::Epoch;
 use sat_units::typed::Qty;
+
+/// ラグランジュ点の軌道が読む欄（`note` する欄）。
+const LIBRATION_KEYS: [&str; 7] = [
+    "source",
+    "epoch",
+    "primary",
+    "secondary",
+    "point",
+    "amplitude_z",
+    "branch",
+];
 
 impl Context<'_> {
     /// 効いている軌道の出どころ（軌道の設定が無ければ `elements`）。
@@ -37,6 +53,7 @@ impl Context<'_> {
         match self.orbit_settings() {
             Some(o) if o.source_kind() == OrbitSource::Transfer => self.transfer_trajectory(o, m),
             Some(o) if o.source_kind() == OrbitSource::State => self.state_trajectory(o, m),
+            Some(o) if o.source_kind() == OrbitSource::Libration => self.libration_trajectory(o, m),
             _ => self.orbit(m).map(Trajectory::Elements),
         }
     }
@@ -110,6 +127,60 @@ impl Context<'_> {
         overrides.then_some(Trajectory::State(spec))
     }
 
+    /// `source = "libration"`: 主天体・副天体・ラグランジュ点・元期（と、書けばハロー軌道の z 振幅・枝）から、円制限三体問題の軌道を
+    /// 暦の 2 天体の位置に載せた軌道。足りない欄・読めない欄は不足入力に記録する。
+    fn libration_trajectory(&self, o: &OrbitSettings, m: &mut MissingInputs) -> Option<Trajectory> {
+        for key in LIBRATION_KEYS {
+            self.note(self.orbit_target(&[key]));
+        }
+        let overrides = self.reject_case_overrides(m);
+        let epoch = self.epoch(o, m);
+        let body = |kind: Option<CentralBodyKind>, key: &str, what: &str, m: &mut MissingInputs| {
+            m.need(kind.map(central_body), self.orbit_target(&[key]), what)
+        };
+        let primary = body(
+            o.primary,
+            "primary",
+            "Primary body of the libration orbit (the body the secondary orbits, such as the sun)",
+            m,
+        );
+        let secondary = body(
+            o.secondary,
+            "secondary",
+            "Secondary body of the libration orbit (the origin of the orbit, such as the earth)",
+            m,
+        );
+        let point = m.need(
+            o.point.map(libration_point),
+            self.orbit_target(&["point"]),
+            "Libration point of the orbit (l1 to l5)",
+        );
+        let amplitude = match o.amplitude_z.as_ref() {
+            None => Some(None),
+            Some(q) => self
+                .orbit_setting(
+                    &dims::ORBIT_AMPLITUDE_Z,
+                    Some(q),
+                    "z-amplitude of the halo orbit",
+                    m,
+                )
+                .map(Some),
+        };
+        let halo = amplitude?.map(|a| HaloSpec {
+            amplitude_z_m: a.value(),
+            branch: halo_branch(o.branch.unwrap_or(HaloBranchKind::North)),
+        });
+        let spec = SynodicSpec::new(epoch?, primary?, secondary?, point?, halo);
+        if let Err(e) = spec.validate() {
+            m.push(
+                self.orbit_target(&["secondary"]),
+                format!("Cannot use the libration orbit ({e})"),
+            );
+            return None;
+        }
+        overrides.then_some(Trajectory::Synodic(spec))
+    }
+
     /// `source = "transfer"`: マヌーバの日付つきの遷移の巡航の軌道。
     fn transfer_trajectory(&self, o: &OrbitSettings, m: &mut MissingInputs) -> Option<Trajectory> {
         self.note(self.orbit_target(&["source"]));
@@ -131,6 +202,19 @@ impl Context<'_> {
                 return None;
             }
         };
+        // 途中のスイングバイのある遷移の巡航は、通過をまたぐ区間ごとの軌道（区分的な軌道）が要る。まだ作っていないので、黙って
+        // 最初の脚だけを返さずに断る（ΔV・推薬・バジェットと、`propulsion.transfer_check`（脚ごと）は通過に対応している）
+        if maneuver
+            .transfer
+            .as_ref()
+            .is_some_and(|t| !t.flybys.is_empty())
+        {
+            m.push(
+                self.orbit_target(&["maneuver"]),
+                format!("Maneuver {id} has swing-bys ([[transfer.flybys]]); a cruise orbit across the flybys (a piecewise trajectory) is not supported yet, so source = \"transfer\" cannot take its orbit"),
+            );
+            return None;
+        }
         let to = self.maneuver_target_body(maneuver, m)?;
         let from = maneuver_dates::central_before(self.design, maneuver);
         let orbit = self.cruise_orbit(maneuver, (from, to), dates, m)?;

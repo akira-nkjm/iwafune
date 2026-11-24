@@ -3,4 +3,4 @@
 /**
  * 結果の注記。**文は持たない**（service の語彙が引く）。
  */
-export type TransferCheckNote = "point_mass_cruise" | "analytic_ephemeris_not_judged" | "closest_approach_at_end";
+export type TransferCheckNote = "point_mass_cruise" | "analytic_ephemeris_not_judged" | "legs_not_chained" | "closest_approach_at_end";

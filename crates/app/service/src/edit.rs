@@ -4,6 +4,7 @@
 //! | モジュール | 打った文字列 → Op |
 //! |---|---|
 //! | `text` | `fune set`・`fune unset`・`fune setting set|unset` のパスと値（[`set_op`]・[`unset_op`]）と、値の読み方 |
+//! | `case_field` | `fune set|unset cases.<ID>.<欄>` のケースの欄 1 つ（`SetCaseField`。フェーズと時刻は `SetCasePhase`・`SetCaseEpoch`） |
 //! | `catalog` | `fune catalog set|unset`・`fune catalog source add`・`add-local`（[`catalog_source_add_op`]・[`catalog_local_add_op`]） |
 //! | `command` | 名詞のコマンドの引数（[`command_ops`]。`fune net set|unset`・`fune part place`・`fune mode set|unset`） |
 //! | `configuration` | `fune configuration add\|set\|unset-pose` の引数（[`configuration_op`]・[`unset_pose_op`]。逆の向きは `query::configurations`） |
@@ -26,10 +27,12 @@ use crate::dto::{ApplyRequest, ApplyResult, ChangedFile, FileChangeKind, InitRes
 use crate::error::{Result, ServiceError};
 use crate::workspace::{Workspace, op_error, store_error, with_excerpt};
 use fune_model::design::Revision;
+use fune_model::path::parse_case_field;
 use fune_ops::{ApplyOptions, Op};
 use fune_store::FileSet;
 use std::path::{Component, Path, PathBuf};
 
+mod case_field;
 mod catalog;
 mod command;
 mod configuration;
@@ -43,6 +46,8 @@ mod maneuver;
 mod phase;
 mod place;
 mod project;
+#[cfg(test)]
+mod record_roundtrip;
 mod requirement;
 mod sun_distance;
 mod text;
@@ -82,12 +87,19 @@ pub use window::maneuver_window_op;
 
 /// 人が打った値の文字列 → Op（`fune set`・`fune catalog set`・`POST /ops/from_text`）。
 /// `item` があればカタログ品の値かフィールド（`SetCatalogValue`・`SetCatalogField`）、無ければ部品の値・フィールドか設定
-/// （`SetValue`・`SetField`・`SetSetting`）。値の型は属性定義・設定の今の型から決める（`ops` があれば、それを書き込まずに
+/// （`SetValue`・`SetField`・`SetSetting`）、`cases.<ID>.<欄>` なら解析ケースの欄 1 つ（`SetCaseField`など。`case_field`）。値の型は属性定義・設定の今の型から決める（`ops` があれば、それを書き込まずに
 /// 当てた設計の定義と型。同じ編集で作る属性の値を読むため）。
 pub fn set_op(ws: &Workspace, t: &SetText) -> Result<Op> {
     match &t.item {
         Some(item) => catalog::catalog_set_op(ws, item, t),
-        None => text::param_set_op(ws, t),
+        None => match parse_case_field(&t.path) {
+            // 解析ケースの欄 1 つ（`cases.<ID>.<欄>`）
+            Some(case) => {
+                let (id, field) = case.map_err(text::invalid)?;
+                case_field::case_field_op(&id, &field, Some(&t.value))
+            }
+            None => text::param_set_op(ws, t),
+        },
     }
 }
 
@@ -96,7 +108,13 @@ pub fn set_op(ws: &Workspace, t: &SetText) -> Result<Op> {
 pub fn unset_op(t: &UnsetText) -> Result<Op> {
     match &t.item {
         Some(item) => catalog::catalog_unset_op(item, &t.path),
-        None => text::param_unset_op(&t.path),
+        None => match parse_case_field(&t.path) {
+            Some(case) => {
+                let (id, field) = case.map_err(text::invalid)?;
+                case_field::case_field_op(&id, &field, None)
+            }
+            None => text::param_unset_op(&t.path),
+        },
     }
 }
 
@@ -127,6 +145,7 @@ pub fn apply(ws: &Workspace, req: &ApplyRequest) -> Result<ApplyResult> {
         dry_run: !out.written,
         changed,
         diagnostics,
+        removed: out.plan.removed,
         cli: req.ops.iter().flat_map(fune_ops::to_cli).collect(),
     })
 }

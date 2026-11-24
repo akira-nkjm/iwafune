@@ -79,6 +79,11 @@ export function OpPreview({ ops, compact = false }: { ops: Op[] | null; compact?
           </p>
         )
       )}
+      {check.result?.removed.map((r) => (
+        <p key={r.path} className="text-[11px] text-warn-ink">
+          {t.cli.removedKeys(r.path, r.keys.join(", "))}
+        </p>
+      ))}
       {check.result?.diagnostics
         .filter((d) => d.severity !== "info")
         .map((d) => (

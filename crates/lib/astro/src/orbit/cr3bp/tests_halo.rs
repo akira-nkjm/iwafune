@@ -168,3 +168,45 @@ fn sampled_orbit_closes_and_gives_a_table() {
     assert!((s.z_amplitude() - 0.0).abs() > 0.0);
     assert!(cr.sample_orbit(&h.orbit, 1, &cfg.integrator).is_err());
 }
+
+/// z 振幅は軌道の z の最大値: 標本（半周期の点を含む）の最大の |z| が指定の値に合う。z の最大は 2 つの横切り（位相 0 と半周期）の
+/// どちらかで、L2 では反対側の方が大きい。
+#[test]
+fn the_z_amplitude_is_the_maximum_z_of_the_orbit() {
+    let cr = sun_earth_moon();
+    let target = 120_000e3 / AU;
+    for p in [LibrationPoint::L1, LibrationPoint::L2] {
+        let h = cr
+            .halo_orbit(p, Branch::North, target, &CorrectorConfig::default())
+            .expect("halo");
+        let cfg = CorrectorConfig::default();
+        let s = cr.sample_orbit(&h.orbit, 400, &cfg.integrator).expect("s");
+        let max = s.z_amplitude();
+        assert!(
+            (max - target).abs() <= 1e-9 * target,
+            "{p:?} {max} {target}"
+        );
+    }
+}
+
+/// 公表されている目安（検算であって、期待値の調整ではない）: 太陽–地球 L1 の z 振幅 110 000〜125 000 km のハローの周期は約 177〜178 日
+/// （文献の値の読み。CR3BP の理想化と、質量比・軌道の長半径の取り方の違いで 1〜2% は違う）。許容は文献値の範囲の両側に 2%
+/// （この理想化の違いの上限と見て 173.5〜181.6 日）。
+#[test]
+fn sun_earth_l1_halo_period_is_near_the_published_value() {
+    let cr = sun_earth_moon();
+    let n = (crate::constants::GM_SUN + crate::constants::MU_EARTH + crate::constants::GM_MOON)
+        / AU.powi(3);
+    for az_km in [110_000.0, 120_000.0, 125_000.0] {
+        let h = cr
+            .halo_orbit(
+                LibrationPoint::L1,
+                Branch::North,
+                az_km * 1e3 / AU,
+                &CorrectorConfig::default(),
+            )
+            .expect("halo");
+        let days = h.orbit.period / n.sqrt() / crate::constants::SECONDS_PER_DAY;
+        assert!((173.5..181.6).contains(&days), "{az_km}: {days}");
+    }
+}

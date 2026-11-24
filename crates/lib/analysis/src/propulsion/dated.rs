@@ -6,6 +6,7 @@
 //! - 前のマヌーバを最初の軌道の元期から続けて数えると、そのマヌーバの終わりが出発の日より後になる
 //!   （実行の順の時刻の置き方は [`super::history`] と同じ。待ちの時間はフェーズ（#9）で足す）。
 
+use super::flyby::{self, FlybyResult};
 use super::input::{DepartureProvider, PropulsionInput};
 use super::sequence::{Leg, Sequence};
 use crate::spec::{Check, Verdict, quantity_text};
@@ -34,14 +35,18 @@ pub struct DatedTransferResult {
     pub departure_by: DepartureProvider,
     /// 出発の漸近線の赤緯（出発天体の赤道に対して）
     pub departure_declination: Qty<Angle>,
-    /// 天体の位置の出所（出発・到着の両方が DE440 のときだけ `de440`。ΔV は出所で少し変わる）
+    /// 天体の位置の出所（出発・到着（と途中の通過）がすべて DE440 のときだけ `de440`。ΔV は出所で少し変わる）
     pub ephemeris: EphemerisSource,
+    /// 途中のスイングバイの結果（日付の順。無ければ省く）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "ts", ts(optional, as = "Option<Vec<FlybyResult>>"))]
+    pub flybys: Vec<FlybyResult>,
 }
 
 /// 区間の日付つきの遷移の結果（日付の無いマヌーバは `None`）。
 pub(super) fn result(leg: &Leg<'_>) -> Option<DatedTransferResult> {
-    let d = leg.planned.dated?;
-    let t = leg.maneuver.transfer?;
+    let d = leg.planned.dated.as_ref()?;
+    let t = leg.maneuver.transfer.as_ref()?;
     Some(DatedTransferResult {
         maneuver: leg.maneuver.id.clone(),
         departure: t.departure,
@@ -53,6 +58,7 @@ pub(super) fn result(leg: &Leg<'_>) -> Option<DatedTransferResult> {
         departure_by: t.departure_by,
         departure_declination: Qty::from_raw(d.departure_declination_rad),
         ephemeris: d.ephemeris,
+        flybys: flyby::results(d, t),
     })
 }
 
@@ -74,10 +80,11 @@ pub(super) fn checks(seq: &Sequence<'_>, input: &PropulsionInput, i: usize) -> V
     let Some(leg) = seq.legs.get(i) else {
         return Vec::new();
     };
-    let (Some(d), Some(t)) = (leg.planned.dated, leg.maneuver.transfer) else {
+    let (Some(d), Some(t)) = (leg.planned.dated.as_ref(), leg.maneuver.transfer.as_ref()) else {
         return Vec::new();
     };
-    let mut out = Vec::new();
+    // 通過の判定は、出発の噴射を誰が行うかによらない
+    let mut out = flyby::checks(leg.maneuver.id.as_str(), d, t);
     // 打ち上げ機が出発の軌道まで送るときは、駐車軌道の面も、前のマヌーバが終わる時刻も効かない
     if leg.planned.launcher_departure {
         return out;

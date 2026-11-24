@@ -8,6 +8,7 @@ fn default_case_must_exist() {
     let mut design = Design::default();
     design.analysis.common = Some(CommonSettings {
         default_case: Some("selected".to_owned()),
+        ..Default::default()
     });
     let target = Some(Target::from(SettingPath::analysis(&[
         "common",

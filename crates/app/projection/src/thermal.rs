@@ -3,6 +3,7 @@
 //! 熱の計算（入熱・放射・解法・電力 → 発熱の変換・表面材の混ぜ方・温度範囲の判定）は sat-analysis が行う。
 //! ここは部品と設定の値を集めるだけ（ネットワークは [`network`]）。既定値（プリセットの環境・解析マージン）も解析が持つ。
 
+mod capacity;
 mod heaters;
 mod network;
 mod plates;
@@ -12,6 +13,7 @@ use crate::missing::MissingInputs;
 use crate::parts::state_values;
 use crate::quantity::setting_opt;
 use crate::timeline;
+pub use capacity::check;
 use fune_model::Target;
 use fune_model::design::setting_dims as dims;
 use fune_model::design::{
