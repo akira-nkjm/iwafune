@@ -24,6 +24,7 @@ export const maneuversJa = {
       apogee_altitude: "遠地点高度",
       inclination: "傾斜角",
       transfer: "出発 → 到着",
+      delta_v: "書いた ΔV",
     } as Record<string, string>,
     dialog: {
       addTitle: "マヌーバを追加",
@@ -40,6 +41,7 @@ export const maneuversJa = {
       arrive: "到着の日（出発より後。空にすると日付なしのホーマンの見積もり）",
       departureBy:
         "出発の噴射を行うもの（打ち上げ機なら ΔV・推薬に出発の噴射を数えず、打ち上げ適合が C3 の曲線で質量の上限を引く）",
+      deltaV: "書く ΔV（余裕。軌道は変えない）",
       viaAltitude: "中間の遠地点高度（バイエリプティック）",
       sunlitOnly: "日照中だけ噴射",
       mode: "噴射するモード",

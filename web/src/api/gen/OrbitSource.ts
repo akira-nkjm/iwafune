@@ -3,6 +3,6 @@
 /**
  * 軌道の出どころ（`[orbit]` の `source`。書かなければ `elements`）。解析が軌道から読むのは時刻での状態・中心天体・元期・
  * 繰り返しの長さで、出どころごとに射影（`fune_projection::Context::trajectory`）がそれを作る。
- * 出どころは `state`・`libration` が増える（値を足すだけで、ほかの欄の形は変わらない）。
+ * 出どころは `libration` が増える（値を足すだけで、ほかの欄の形は変わらない）。
  */
-export type OrbitSource = "elements" | "transfer";
+export type OrbitSource = "elements" | "transfer" | "state";

@@ -17,6 +17,7 @@ mod heater;
 mod heater_steady;
 mod load;
 mod mode_loads;
+mod mount_contact;
 mod mounts;
 mod newton;
 mod ranges;
@@ -30,7 +31,11 @@ pub use heater::{ThermalHeater, ThermalHeaterState};
 pub(crate) use heater_steady::HeaterSteady;
 pub use load::ThermalLoad;
 pub use mode_loads::{ThermalModeLoads, ThermalModePart};
-pub use mounts::ThermalMounts;
+pub use mount_contact::{
+    ThermalContact, ThermalContactFallback, ThermalContactFallbackReason, ThermalContactPair,
+    ThermalContactUsed, ThermalMountBoxes,
+};
+pub use mounts::{MountConductance, MountLinks, ThermalMounts};
 pub use newton::INITIAL_GUESS_K;
 pub use surface::{ThermalCoating, ThermalSurface};
 

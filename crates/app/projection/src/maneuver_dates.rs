@@ -144,6 +144,7 @@ mod tests {
             thruster: None,
             after: after.map(str::to_owned),
             via_altitude: None,
+            delta_v: None,
             target: ManeuverTarget {
                 body: Some(body),
                 ..ManeuverTarget::default()

@@ -26,13 +26,16 @@ use fune_model::design::DepartureBy as ModelDepartureBy;
 use fune_model::design::setting_dims as dims;
 use fune_model::design::{Maneuver, ManeuverCategory, ManeuverMethod, ManeuverSteering};
 use fune_model::resolve::{ResolvedPart, SiValue};
+use fune_model::value::Quantity;
 use sat_analysis::propulsion::{
     DatedTransferInput, DepartureProvider, DvCategory, ManeuverInput, OrbitTarget,
     PropellantMassInput, PropellantTank, PropulsionInput, PropulsionThruster, ThrustConstraints,
     TransferMethod, UnloadingInput, UnloadingNote,
 };
 use sat_astro::force::thrust::ThrustSteering;
-use sat_units::typed::{Force, Fraction, Impulse, MassDensity, Power, Qty, Time, Volume};
+use sat_units::typed::{
+    Force, Fraction, Impulse, Length, MassDensity, Power, Qty, Time, Velocity, Volume,
+};
 
 mod launch_window;
 pub use launch_window::launch_window;
@@ -172,22 +175,7 @@ fn input(ctx: &Context<'_>, with_unloading: bool) -> Result<PropulsionInput, Mis
 /// マヌーバ 1 つ（量の次元が違えば記録して `None`）。
 fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<ManeuverInput> {
     let id = x.id.as_str();
-    let q = |key: &str, v, m: &mut MissingInputs| {
-        let target = Target::maneuver(id, Some(key));
-        qty_opt::<sat_units::typed::Length>(v, target, m)
-    };
-    let t = &x.target;
-    let target = OrbitTarget {
-        body: t.body.map(crate::context::central_body),
-        altitude: q("target.altitude", t.altitude.as_ref(), m),
-        perigee_altitude: q("target.perigee_altitude", t.perigee_altitude.as_ref(), m),
-        apogee_altitude: q("target.apogee_altitude", t.apogee_altitude.as_ref(), m),
-        inclination: qty_opt(
-            t.inclination.as_ref(),
-            Target::maneuver(id, Some("target.inclination")),
-            m,
-        ),
-    };
+    let target = orbit_target(x, m);
     let propagated = x.method == ManeuverMethod::Propagated;
     if propagated && x.thruster.is_none() {
         m.push(
@@ -212,7 +200,8 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
         method: method(x.method),
         thruster: x.thruster.as_ref().map(|p| p.to_string()),
         target,
-        via_altitude: q("via_altitude", x.via_altitude.as_ref(), m),
+        via_altitude: length(id, "via_altitude", x.via_altitude.as_ref(), m),
+        delta_v: written_delta_v(x, m),
         ignored_constraints: if propagated {
             Vec::new()
         } else {
@@ -229,6 +218,39 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
         },
         transfer,
     })
+}
+
+/// マヌーバの長さの量（次元が違えば不足入力に記録して `None`）。
+fn length(id: &str, key: &str, v: Option<&Quantity>, m: &mut MissingInputs) -> Option<Qty<Length>> {
+    qty_opt(v, Target::maneuver(id, Some(key)), m)
+}
+
+/// 目標の軌道（`[target]`。量の次元が違えば不足入力に記録して欠ける）。
+fn orbit_target(x: &Maneuver, m: &mut MissingInputs) -> OrbitTarget {
+    let id = x.id.as_str();
+    let t = &x.target;
+    OrbitTarget {
+        body: t.body.map(crate::context::central_body),
+        altitude: length(id, "target.altitude", t.altitude.as_ref(), m),
+        perigee_altitude: length(
+            id,
+            "target.perigee_altitude",
+            t.perigee_altitude.as_ref(),
+            m,
+        ),
+        apogee_altitude: length(id, "target.apogee_altitude", t.apogee_altitude.as_ref(), m),
+        inclination: qty_opt(
+            t.inclination.as_ref(),
+            Target::maneuver(id, Some("target.inclination")),
+            m,
+        ),
+    }
+}
+
+/// 直接書いた ΔV（速度の次元でなければ不足入力に記録して `None`）。
+fn written_delta_v(x: &Maneuver, m: &mut MissingInputs) -> Option<Qty<Velocity>> {
+    let target = Target::maneuver(x.id.as_str(), Some("delta_v"));
+    qty_opt(x.delta_v.as_ref(), target, m)
 }
 
 /// `[transfer]` の日付（読めなければ不足入力に記録して外側が `None`、書かれていなければ `Some(None)`）。

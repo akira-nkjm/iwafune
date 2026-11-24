@@ -535,10 +535,47 @@ fn settings_view_carries_the_choices_of_the_orbit_keys() {
             .find(|s| s.key == format!("conditions.orbit.{key}"))
             .unwrap_or_else(|| panic!("no setting {key}"))
     };
-    assert_eq!(values(&setting("source").choices), ["elements", "transfer"]);
+    assert_eq!(
+        values(&setting("source").choices),
+        ["elements", "transfer", "state"]
+    );
     assert!(
         setting("maneuver").choices.is_empty(),
         "the demo has no dated transfer"
     );
     assert!(setting("altitude").choices.is_empty());
+}
+
+/// 状態ベクトルの軌道の位置・速度は 3 成分と単位で打つ（入力の例は `1 0 0 km`・`1 0 0 km/s`）。期間は量（`1 d` のような単位つきの 1）。
+/// 直す先はそのまま `fune set` に渡せるパス。
+#[test]
+fn state_orbit_vectors_carry_a_three_component_example() {
+    let ws = demo();
+    let design = ws.snapshot().unwrap().design;
+    let example = |key: &str| -> (Option<String>, String) {
+        let path = fune_model::path::SettingPath::conditions(&["orbit", key]);
+        let fix = fixes_of(&design, path.into());
+        let [
+            Fix::SetValue {
+                example, command, ..
+            },
+        ] = fix.as_slice()
+        else {
+            panic!("{fix:?}");
+        };
+        (example.clone(), command.clone())
+    };
+    let (position, command) = example("position");
+    assert_eq!(command, "fune set conditions.orbit.position \"<value>\"");
+    let position = position.expect("an example");
+    let (number_count, unit) = position
+        .rsplit_once(' ')
+        .map(|(n, u)| (n.split(' ').count(), u.to_owned()))
+        .expect("numbers and a unit");
+    assert_eq!(number_count, 3, "{position}");
+    assert!(unit.contains('m'), "{position}");
+    let (velocity, _) = example("velocity");
+    assert!(velocity.expect("an example").split(' ').count() >= 4);
+    let (span, _) = example("span");
+    assert_eq!(span.expect("an example").split(' ').count(), 2);
 }

@@ -51,7 +51,7 @@ A topic's settings location is looked up with `ConditionTopic::setting_path()`. 
 `sat_astro::ephem::CentralBody` (projection's `context::central_body` maps them). Sun-synchronous (`sun_synchronous`) applies to Earth only;
 writing it for any other body is a `check` error (`setting.central`).
 
-`source` is where the orbit comes from (`elements` or `transfer`; `elements` if omitted and then **never written to the file**, so existing files are unchanged; the display name is `orbit_source` in labels.toml).
+`source` is where the orbit comes from (`elements`, `transfer` or `state`; `elements` if omitted and then **never written to the file**, so existing files are unchanged; the display name is `orbit_source` in labels.toml).
 It is valid in `conditions/orbit.toml` and in a phase's `[orbit]` (§7.10), and it is edited with the existing ops only (`fune set conditions.orbit.source transfer`, `fune phase set-field <ID> orbit.source transfer`; there is no orbit field on the phase itself).
 Analyses read an orbit through `fune_projection::Context::trajectory` (state at a time, central body, epoch and the length of one cycle); only analyses that really need Kepler elements read `Context::orbit`.
 
@@ -69,7 +69,29 @@ maneuver = "MARS_TRANSFER"    # a maneuver with a dated [transfer] (§7.7)
   the trajectory's epoch is the first time (the same ellipse, advanced through its state), its span (`Cycle::OneOff`) is the interval between them, so the Earth range starts at about the Earth's sphere of influence (not at its centre).
   The dates are read by the one reader of `[transfer]` (`fune_projection::maneuver_dates`); the departure body is the central body before the maneuver (`maneuver_dates::central_before`).
   A hyperbolic arc (a short flight time), a body without a sphere of influence, or an arc that does not leave the departure sphere / stay outside the arrival one is a missing input with the reason.
-- Keys beside `source = "transfer"` that the source does not use (the Kepler elements, `epoch`, `central`, `propagator`, `[eclipse_season]`, `[decay]`) get the warning `setting.not_applied`; `maneuver` beside `source = "elements"` gets it too.
+- `source = "state"` takes the orbit from a state vector that is propagated numerically (`sat_astro::orbit::StateSpec`; the existing N-body propagation `propagate_states`, nothing new):
+
+  ```toml
+  # phases/CRUISE.toml (or conditions/orbit.toml): a heliocentric circular orbit at 1 au
+  [orbit]
+  source   = "state"
+  epoch    = "2030-01-01T00:00:00Z"
+  central  = "sun"
+  position = { x = 149597870.7, y = 0.0, z = 0.0, unit = "km" }
+  velocity = { x = 0.0, y = 29.78, z = 0.0, unit = "km/s" }
+  span     = { value = 365.0, unit = "d" }
+  ```
+
+  `epoch`, `central` (the origin body, Earth if omitted), `position`, `velocity` (`{ x, y, z, unit }`) and `span` (a duration from the epoch: the range the analyses evaluate) are all needed; a missing one is a missing input on its own key (`conditions.orbit.position`, `phases.<ID>.orbit.span`, ...), with `fune set` as the fix (the example shown for a vector is `1 0 0 km`).
+  **The frame is one fixed inertial frame**: the same ECI as every orbit state in the model, the J2000 mean-equator frame (not the ecliptic), with the origin at the centre of `central`. There is no `frame` key (writing `frame` inside `position` or `velocity` is the error `orbit.state_frame`); a vocabulary of frames is added only when a second one is needed.
+  The orbit is **one-off** (`Cycle::OneOff { span }`): analyses sample the span, "per orbit" quantities are over the span, and it has no Kepler elements or altitude.
+  Forces are not written; they are a conventional default decided in one place from the origin body (`ForceConfig::deep_space_defaults`): about the **Sun**, the Sun's point mass plus the planets Mercury to Neptune as point-mass third bodies and the Earth as a third body with the Earth's GM only (no Moon);
+  about the **Earth**, the Earth's gravity with J2 plus the Sun and the Moon as point masses; about the **Moon or another planet**, that body's gravity with J2 plus the Sun, and the Earth as a third body (the automatic one) unless that body is the Earth. No drag, solar radiation pressure, EGM96 harmonics, tides or relativity.
+  The integrator is the adaptive DOP853 of the numerical propagator (relative tolerance 1e-11) with a step limit of one day about the Sun and 600 s about any other body. One propagation with dense output serves all requested times; where a table is needed for repeated evaluations
+  (thermal and power integrals, the refinement of extremes) it is built once at a step of a hundredth of the circular period at the osculating periapsis and interpolated by cubic Hermite (relative error about 4e-8 for a circular orbit at that step).
+  The ephemeris of the bodies is DE440 inside its range and the analytic one outside (as for `transfer`; `orbit.geometry` reports which was used).
+- Keys beside a source that it does not use get the warning `setting.not_applied`: for `transfer`, the Kepler elements, `epoch`, `central`, `propagator`, `[eclipse_season]`, `[decay]` and the state keys; for `state`, the Kepler-element keys (everything of `elements` except `epoch` and `central`), `propagator`, `[eclipse_season]`, `[decay]` and `maneuver`;
+  for `elements`, `maneuver` and the state keys (`position`, `velocity`, `span`). `span` must be positive and the components finite (`setting.range`), and the units must have the dimensions Length, Velocity and Time.
   `maneuver` must name an existing maneuver whenever it is written (`ref.maneuver`) and, for `transfer`, that maneuver must have a `[transfer]` (`orbit.maneuver_transfer`). A missing `maneuver` is not a check error but a missing input (`conditions.orbit.maneuver`),
   which offers the maneuvers with a dated transfer (`Fix::PickRef`).
 - `maneuver` is a reference to a maneuver (`RefSite::OrbitManeuver` for the design orbit, `RefSite::PhaseOrbitManeuver` for a phase orbit): renaming the maneuver rewrites both, and removing a maneuver they name is rejected by the check (`ref.maneuver`).
@@ -762,8 +784,18 @@ Conduction and radiation between nodes come from three places. For each node pai
 1. **Explicit** (`[conductive.*]`, `[radiative.*]`): replaces the value of that pair from the two sources below (0 isolates the pair).
 2. **Enclosure** (`[enclosure]`, radiation only, between the six faces of the box): replaces the mount default of the face-to-face pairs.
 3. **Mount default** (`contact_conductance` and `radiative_coupling`): one conductive link per node pair that has mounts (`contact_conductance` × the number of mounts between the pair) and, if `radiative_coupling` is written, one radiative link per such pair.
+   If `contact_conductance_per_area` is also written, the conduction of each mount is taken from the geometry instead (the next paragraph).
+**Conduction from the contact area.** Writing `contact_conductance_per_area` (a heat-transfer coefficient `h`, `W/(m²·K)`, edited with `fune set analysis.thermal.contact_conductance_per_area "300 W/(m^2*K)"`)
+makes each mount's conductance `h × A_contact` instead of the fixed `contact_conductance`. `A_contact` is the area where the two parts' boxes touch (`OrientedBox::contact_area` in `sat_analysis::structure::interference::obb`;
+the same boxes as `structure.interference`). A face of one box and a face of the other **touch** when their outward normals point in opposite directions (negative dot product) and all four corners of the other face
+lie within the distance tolerance of the first face's plane (0.1 mm, the default of `structure.interference`; this also bounds the tilt between the faces, about `tolerance / width`). The contact area is the area of the intersection of the two face rectangles projected on that plane
+(the larger one if several face pairs touch). A mount whose contact cannot be determined — a part without a usable `size`, boxes that do not touch (a gap above the tolerance, a deeper overlap does not count either, or faces that are not parallel), or a zero area —
+**falls back to the fixed `contact_conductance`**, as if `contact_conductance_per_area` were not written. The fallbacks are listed in the output with the reason (`couplings.mount_contact.fallbacks`: `no_box` or `not_touching`).
+Mounts between two different nodes add as before: a node pair's conductance is the sum over its mounts of `h × A_contact` or the fixed value. Mounts inside one node contribute nothing. The setting does not change radiation (`radiative_coupling` and `[enclosure]` stay as they are);
+radiation between internal parts from view factors is not part of it. Without `contact_conductance_per_area` nothing changes: the setting is off and the output has no `mount_contact` or `from_contact` fields.
 ```toml
 # analysis/thermal.toml
+contact_conductance_per_area = { value = 300.0, unit = "W/(m^2*K)" }   # optional: conduction of each mount from the contact area
 [conductive.BAT]                              # node A -> node B -> conductance (the pair is unordered)
 PANEL_MZ = { value = 0.8, unit = "W/K" }
 [radiative.PANEL_PX]                          # node A -> node B -> effective radiative exchange area ε_eff·A·F
@@ -786,8 +818,8 @@ With the areas `A_i` of the box faces and `ρ = 1 − ε`, the Gebhart factors `
 The heat flow from face i to face j is `σ ε_i A_i B_ij (T_i⁴ − T_j⁴)`. For two parallel plates this approaches `A / (1/ε₁ + 1/ε₂ − 1)`.
 Assumptions: the six faces are the only surfaces of the enclosure, and **blockage of the face-to-face views by components inside is ignored**. Components inside are not part of the enclosure model in this version;
 their coupling stays the mount default or the explicit value. The wall thickness is ignored (the box is the outer size).
-Both thermal analyses return the couplings they used in `couplings`: for every pair the conductance (`conductive`) or exchange area (`radiative`) and its source (`mount`, `explicit` or `enclosure`),
-and, when `[enclosure]` is written, the faces with their nodes and areas and the 6×6 view-factor matrix. The GUI shows these as the analysis's data tables.
+Both thermal analyses return the couplings they used in `couplings`: for every pair the conductance (`conductive`) or exchange area (`radiative`) and its source (`mount`, `contact`, `explicit` or `enclosure`; `contact` means at least one mount of the pair was taken from the contact area, and the pair's `from_contact` field gives the total contact area, the number of such mounts and `fixed_mounts`, the mounts of the same pair that used the fixed value instead),
+and, when `[enclosure]` is written, the faces with their nodes and areas and the 6×6 view-factor matrix; when `contact_conductance_per_area` is written, the number of mounts taken from the contact area and the fallback mounts with their reasons. The GUI shows these as the analysis's data tables.
 
 #### Verification of the thermal analyses
 
@@ -1474,6 +1506,25 @@ mode        = "THRUST"   # mode while firing (power.thrust_balance runs the powe
 duty        = 0.8        # fraction of the allowed firing time actually fired (0 < duty ≤ 1, 1 if omitted)
 steering    = "tangential"  # tangential (velocity direction. If inclination also changes, Edelbaum's yaw angle) / inertial (fixed to the initial direction)
 ```
+
+A maneuver can instead carry a **written ΔV**, an allowance for trajectory correction, orbit maintenance or margin that is not computed from an orbit change:
+
+```toml
+# maneuvers/TCM.toml
+label    = "Trajectory correction allowance"
+category = "station_keeping"   # the row of the ΔV budget (the purpose; `label` says it in words)
+method   = "impulsive"         # impulsive or low_thrust
+thruster = "CHEM"
+after    = "MARS_TRANSFER"
+delta_v  = { value = 15.0, unit = "m/s" }
+```
+
+- It is the same maneuver entity: it takes its place in the sequence by `after`, fires the thruster it names, and `propulsion.maneuvers`, `propulsion.dv_budget`, `propulsion.propellant`, `propulsion.thruster_usage` and `propulsion.mass_properties` count it like any other maneuver
+  (propellant by the rocket equation with the mass at that point, the ΔV margin, the budget row of `category`). The orbit does not change, so the maneuvers after it see the same orbit.
+  `impulsive` is one burn (no finite-burn loss) and `low_thrust` a continuous burn (the transfer time is the burn time); without a thruster only the ΔV is counted (note `no_thruster`). The result carries the note `written_delta_v`.
+- It cannot be combined with `[target]`, `via_altitude` or `[transfer]` (`maneuver.delta_v_conflict`, error): those compute ΔV from an orbit change. `finite_burn` and `propagated` need an orbit (`maneuver.delta_v_method`, error),
+  a negative or non-finite value is an error (`maneuver.delta_v_negative`), and the unit must be a velocity (`unit.dimension`). There is no repeat count: write one maneuver per allowance (or the total).
+- Edit with `fune maneuver add|set ... --delta-v "15 m/s"` (the GUI maneuver dialog has the same field; `set` rewrites the whole maneuver, so leaving the flag out removes it).
 
 A maneuver that targets another planet can carry the two dates of the transfer:
 

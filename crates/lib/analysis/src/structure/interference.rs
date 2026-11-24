@@ -186,6 +186,17 @@ pub(crate) fn count(n: usize) -> u32 {
     u32::try_from(n).unwrap_or(u32::MAX)
 }
 
+/// 箱として使えるか（寸法が正の有限値で、位置が有限）。使える箱の規則はここだけ（熱の取付の接触面積も使う）。
+pub(crate) fn is_usable(b: &InterferenceBox) -> bool {
+    let positive = [b.size.x, b.size.y, b.size.z]
+        .iter()
+        .all(|v| v.is_finite() && *v > 0.0);
+    let finite = [b.position.x, b.position.y, b.position.z]
+        .iter()
+        .all(|v| v.is_finite());
+    positive && finite
+}
+
 /// 判定できる箱（ID の昇順）と、判定しない部品（寸法が無い・正の有限値でない）。箱の使い方の規則はここだけ
 /// （`structure.cone_clearance` も同じ箱の入力を同じ規則で選ぶ）。
 pub(crate) fn usable_boxes<'a>(
@@ -201,13 +212,7 @@ pub(crate) fn usable_boxes<'a>(
         .collect();
     let mut judged = Vec::new();
     for b in boxes {
-        let positive = [b.size.x, b.size.y, b.size.z]
-            .iter()
-            .all(|v| v.is_finite() && *v > 0.0);
-        let finite = [b.position.x, b.position.y, b.position.z]
-            .iter()
-            .all(|v| v.is_finite());
-        if positive && finite {
+        if is_usable(b) {
             judged.push(b);
         } else {
             skipped.push(InterferenceSkipped {

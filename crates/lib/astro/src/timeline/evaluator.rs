@@ -10,9 +10,6 @@ use crate::orbit::{OrbitTrack, Trajectory};
 const SHADOW_EDGE_EPS: f64 = 1e-9;
 /// 日陰の境の時刻の許容幅 [s]。
 const SHADOW_EDGE_TOL_S: f64 = 1e-6;
-/// 数値伝搬の表の格子の刻みを、周期のこの分の 1 以下にする。
-const TABLE_STEPS_PER_ORBIT: f64 = 100.0;
-
 /// 任意の時刻の時系列の点を求める道具（軌道の伝搬の表を 1 回だけ作る）。
 pub struct TimelineEvaluator<'a> {
     spec: &'a TimelineSpec,
@@ -25,9 +22,7 @@ impl<'a> TimelineEvaluator<'a> {
     pub fn new(spec: &'a TimelineSpec) -> Result<Self, AstroError> {
         let orbit = spec.resolved_orbit()?;
         let step = spec.sampling.step.value();
-        let split = (step / (orbit.cycle().length_s() / TABLE_STEPS_PER_ORBIT))
-            .ceil()
-            .max(1.0);
+        let split = (step / orbit.table_step_s()).ceil().max(1.0);
         let track = orbit.track(spec.sampling.span.value(), step / split)?;
         Ok(Self { spec, orbit, track })
     }

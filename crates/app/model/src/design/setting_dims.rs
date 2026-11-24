@@ -121,6 +121,12 @@ setting_quantities! {
     ORBIT_ARG_PERIGEE: Angle = Conditions["orbit", "arg_perigee"];
     /// 平均近点角
     ORBIT_MEAN_ANOMALY: Angle = Conditions["orbit", "mean_anomaly"];
+    /// 状態ベクトルの軌道の位置（`source = "state"`。ベクトル）
+    ORBIT_POSITION: Length = Conditions["orbit", "position"];
+    /// 状態ベクトルの軌道の速度（ベクトル）
+    ORBIT_VELOCITY: Velocity = Conditions["orbit", "velocity"];
+    /// 状態ベクトルの軌道の期間
+    ORBIT_SPAN: Time = Conditions["orbit", "span"];
     /// 準静的荷重（機軸方向。`conditions/launch.toml`）
     LAUNCH_LOAD_AXIAL: Acceleration = Conditions["launch", "load_axial"];
     /// 準静的荷重（直交方向）
@@ -185,6 +191,8 @@ setting_quantities! {
     COMM_OCCUPIED_BANDWIDTH: Frequency = Analysis["comm", "link", ANY, "occupied_bandwidth"];
     /// 取付の接触熱コンダクタンス（`analysis/thermal.toml`）
     THERMAL_CONTACT_CONDUCTANCE: ThermalConductance = Analysis["thermal", "contact_conductance"];
+    /// 取付の接触熱コンダクタンスを接触面積から出すときの単位面積あたりの値（`analysis/thermal.toml`）
+    THERMAL_CONTACT_CONDUCTANCE_PER_AREA: HeatTransferCoefficient = Analysis["thermal", "contact_conductance_per_area"];
     /// 節点間の放射結合（面積）
     THERMAL_RADIATIVE_COUPLING: Area = Analysis["thermal", "radiative_coupling"];
     /// 明示の節点間の伝導（`[conductive.<節点>] <節点> = …`）

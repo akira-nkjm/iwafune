@@ -76,7 +76,7 @@ fn without_nodes_every_part_is_a_node() {
     assert!(input.network.nodes.iter().all(|n| n.per_part));
     let mounts = input.network.mounts.as_ref().unwrap();
     assert_eq!(mounts.mounts.len(), 2);
-    let (cond, _) = mounts.links();
+    let cond = mounts.links().unwrap().conductive;
     let pairs: Vec<_> = cond
         .iter()
         .map(|l| (l.a.as_str(), l.b.as_str(), l.conductance.value()))
@@ -95,7 +95,14 @@ fn lumped_and_per_part_nodes_mix_and_parallel_mounts_add() {
     );
     let flags: Vec<_> = input.network.nodes.iter().map(|n| n.per_part).collect();
     assert_eq!(flags, [true, false]);
-    let (cond, _) = input.network.mounts.as_ref().unwrap().links();
+    let cond = input
+        .network
+        .mounts
+        .as_ref()
+        .unwrap()
+        .links()
+        .unwrap()
+        .conductive;
     assert_eq!(cond.len(), 1);
     assert_eq!(
         (
@@ -113,7 +120,8 @@ fn everything_lumped_is_one_node_without_links() {
     let input = steady(&design("[nodes]\nALL = [\"A\", \"B\", \"C\"]\n")).unwrap();
     assert_eq!(capacities(&input), [("ALL".into(), 1800.0)]);
     assert!(!input.network.nodes[0].per_part);
-    let (cond, rad) = input.network.mounts.as_ref().unwrap().links();
+    let links = input.network.mounts.as_ref().unwrap().links().unwrap();
+    let (cond, rad) = (links.conductive, links.radiative);
     assert!(cond.is_empty() && rad.is_empty());
 }
 

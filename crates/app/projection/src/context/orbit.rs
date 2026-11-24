@@ -67,6 +67,17 @@ impl<'a> Context<'a> {
         qty(q, self.orbit_field(key), reason, m)
     }
 
+    /// 軌道の設定のベクトルの量を、次元 `D` の SI の `Vec3` にする（`orbit_setting` のベクトル版）。
+    pub(crate) fn orbit_vector<D: Dimension>(
+        &self,
+        key: &SettingQuantity<D>,
+        v: Option<&fune_model::value::Vector3>,
+        reason: &str,
+        m: &mut MissingInputs,
+    ) -> Option<sat_astro::math::Vec3> {
+        crate::quantity::vec_qty::<D>(v, self.orbit_field(key), reason, m)
+    }
+
     /// 任意の軌道の設定の量（`quantity::setting_opt` の軌道版）。
     pub(crate) fn orbit_setting_opt<D: Dimension>(
         &self,
@@ -78,7 +89,7 @@ impl<'a> Context<'a> {
     }
 
     /// 元期（書かれていない・読めなければ不足入力に記録して None）。
-    fn epoch(&self, o: &OrbitSettings, m: &mut MissingInputs) -> Option<Epoch> {
+    pub(super) fn epoch(&self, o: &OrbitSettings, m: &mut MissingInputs) -> Option<Epoch> {
         match o.epoch.as_deref().map(Epoch::parse) {
             Some(Ok(e)) => Some(e),
             Some(Err(e)) => {

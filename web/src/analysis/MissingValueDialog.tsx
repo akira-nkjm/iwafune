@@ -7,6 +7,7 @@ import { TextInput } from "@/kit/forms/TextInput";
 import { Segmented } from "@/kit/selection/Segmented";
 import { OpDialog } from "@/ops/OpDialog";
 import { QuantityInput } from "@/quantity/QuantityInput";
+import { useDimensionLabel } from "@/quantity/use-dimension-label";
 import { choiceLabel } from "./MissingPickDialog";
 import { type ValueFix, type ValueScope, valueSetText } from "./missing-fix";
 
@@ -15,8 +16,12 @@ function hintOf(
   dimension: string | null,
   example: string | null,
   t: { dimension: (d: string) => string; example: (e: string) => string },
+  dimensionLabel: (name: string) => string,
 ): string | undefined {
-  const parts = [dimension ? t.dimension(dimension) : null, example ? t.example(example) : null];
+  const parts = [
+    dimension ? t.dimension(dimensionLabel(dimension)) : null,
+    example ? t.example(example) : null,
+  ];
   const text = parts.filter((x) => x !== null).join(" · ");
   return text || undefined;
 }
@@ -34,6 +39,7 @@ export function MissingValueDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const t = useT().fixes.value;
+  const dimensionLabel = useDimensionLabel();
   const [scope, setScope] = useState<ValueScope>("part");
   const [value, setValue] = useState("");
   const onChange = useCallback((text: string) => setValue(text), []);
@@ -69,7 +75,7 @@ export function MissingValueDialog({
         label={t.label}
         htmlFor="missing-value"
         error={made.error}
-        hint={hintOf(quantityInput ? null : fix.dimension, fix.example, t)}
+        hint={hintOf(quantityInput ? null : fix.dimension, fix.example, t, dimensionLabel)}
       >
         {fix.choices.length > 0 ? (
           <NativeSelect
