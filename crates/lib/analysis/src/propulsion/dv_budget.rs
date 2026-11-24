@@ -1,18 +1,18 @@
 //! ΔV の内訳表（`propulsion.dv_budget`）。
 //!
 //! - マヌーバの公称の ΔV（有限燃焼は損失込み。`propulsion.maneuvers` と同じ値）を区分ごとに足す。
-//! - RCS でのアンロードの ΔV: `aocs.rw_unloading` の 1 日の ΔV 換算 × ミッション期間（日）を区分 `unloading` に足す。
-//!   RCS が無いなどで足せなければ理由（[`UnloadingNote`]）を出す。
+//! - RCS でのアンロードの ΔV: フェーズ（期間のあるもの。無ければミッション期間）ごとの `aocs.rw_unloading` の 1 日の ΔV 換算 × 日数を、
+//!   区分 `unloading` に足す（[`super::unloading`]）。書かれた `unloading` のマヌーバがあれば、その ΔV に**足す**（置き換えない。
+//!   同じ区分の行の中で、書かれたものと計算値の両方が合計に入る）。足せなければ理由（[`UnloadingNote`]）を出す。
 //! - 日付つきの惑星間遷移（`transfer`）があれば、その結果と判定（[`super::dated`]）を添える。
 //! - マージン `ΔV_マージン込み = ΔV_合計 × (1 + マージン)`。マージンの既定値は [`super::DEFAULT_DV_MARGIN`]。
 
 use super::dated::{self, DatedTransferResult};
-use super::input::{DvCategory, PropulsionInput, UnloadingInput, UnloadingNote};
+use super::input::{DvCategory, PropulsionInput, UnloadingNote};
 use super::maneuvers::nominal;
-use crate::aocs::RwUnloading;
+use super::unloading::{self, DvUnloading};
 use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System};
-use sat_astro::constants::SECONDS_PER_DAY;
-use sat_units::typed::{Fraction, Qty, Time, Velocity};
+use sat_units::typed::{Fraction, Qty, Velocity};
 use serde::{Deserialize, Serialize};
 
 /// 内訳表の 1 行（区分）。
@@ -27,16 +27,6 @@ pub struct DvBudgetRow {
     pub maneuvers: Vec<String>,
     /// RCS でのアンロードの ΔV を含むか
     pub includes_rcs_unloading: bool,
-}
-
-/// RCS でのアンロードの ΔV。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct DvUnloading {
-    /// 1 日の ΔV 換算（`aocs.rw_unloading`）
-    pub delta_v_per_day: Qty<Velocity>,
-    pub mission_duration: Qty<Time>,
-    pub delta_v: Qty<Velocity>,
 }
 
 /// `propulsion.dv_budget` の出力。
@@ -56,27 +46,10 @@ pub struct DvBudgetOutput {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[cfg_attr(feature = "ts", ts(optional, as = "Option<Vec<DatedTransferResult>>"))]
     pub dated_transfers: Vec<DatedTransferResult>,
-    /// 日付つきの遷移の判定（赤緯・出発の日の時刻）
+    /// 日付つきの遷移の判定（赤緯・出発の日の時刻）と、アンロードを足せなかった区間の警告
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[cfg_attr(feature = "ts", ts(optional, as = "Option<Vec<Check>>"))]
     pub checks: Vec<Check>,
-}
-
-/// RCS でのアンロードの ΔV（足せなければ理由）。
-fn unloading(u: &UnloadingInput) -> Result<Result<DvUnloading, UnloadingNote>, AnalysisError> {
-    let out = RwUnloading::run(&u.rw_unloading)?;
-    let Some(rcs) = out.rcs_unloading else {
-        return Ok(Err(UnloadingNote::NoRcs));
-    };
-    let Some(per_day) = rcs.delta_v_per_day else {
-        return Ok(Err(UnloadingNote::NotUnloadable));
-    };
-    let days = u.mission_duration.value() / SECONDS_PER_DAY;
-    Ok(Ok(DvUnloading {
-        delta_v_per_day: per_day,
-        mission_duration: u.mission_duration,
-        delta_v: Qty::from_raw(per_day.value() * days),
-    }))
 }
 
 /// 区分ごとの ΔV の内訳・合計・マージン。
@@ -100,12 +73,12 @@ impl Analysis for DvBudget {
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         let margin = input.dv_margin()?;
         let seq = nominal(input)?;
-        let (unload, note) = match &input.unloading {
-            Some(u) => match unloading(u)? {
-                Ok(d) => (Some(d), None),
-                Err(n) => (None, Some(n)),
-            },
-            None => (None, input.unloading_note),
+        let (unload, note, unloading_checks) = match &input.unloading {
+            Some(u) => {
+                let c = unloading::contribution(u)?;
+                (c.unloading, c.note, c.checks)
+            }
+            None => (None, input.unloading_note, Vec::new()),
         };
         let rows: Vec<DvBudgetRow> = DvCategory::ALL
             .iter()
@@ -154,6 +127,7 @@ impl Analysis for DvBudget {
             dated_transfers: seq.legs.iter().filter_map(dated::result).collect(),
             checks: (0..seq.legs.len())
                 .flat_map(|i| dated::checks(&seq, input, i))
+                .chain(unloading_checks)
                 .collect(),
         })
     }

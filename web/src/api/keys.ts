@@ -41,6 +41,12 @@ export const keys = {
       : opsJson
         ? (["analysis", id, kase, opsJson] as const)
         : (["analysis", id, kase] as const),
+  /**
+   * 解析の重い任意の出力（`detail: true` で取り直したもの。メッシュ上の場など）。結果と同じ先頭なので、同じ無効化の範囲に入る。
+   * 結果が使ったケースと形態を指定して取るので、キーにも入れる
+   */
+  analysisDetail: (id: string, kase: string | null, configuration: string | null = null) =>
+    ["analysis", id, kase, "detail", configuration] as const,
   /** 外部データ（DE440）の状態（`GET /data/status`）。設計の編集では変わらない */
   dataStatus: ["data", "status"] as const,
   /** バジェット。`opsJson` の意味は analysis と同じ */

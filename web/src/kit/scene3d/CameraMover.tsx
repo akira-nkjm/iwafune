@@ -2,7 +2,7 @@ import { useBounds } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useCallback, useEffect, useRef } from "react";
 import { type Object3D, type PerspectiveCamera, Vector3 } from "three";
-import type { V3 } from "./scene";
+import type { FocusRequest, V3 } from "./types";
 import {
   type CameraPose,
   type CubeView,
@@ -13,7 +13,6 @@ import {
   poseForView,
   positionOf,
 } from "./view-cube";
-import type { FocusRequest } from "./visibility";
 
 /** ビューキューブの区画を押した依頼（n が増えるたびに 1 回動かす） */
 export interface ViewRequest {

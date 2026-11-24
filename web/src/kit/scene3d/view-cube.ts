@@ -1,5 +1,5 @@
 import { Matrix4, Quaternion, Vector3 } from "three";
-import type { V3 } from "./scene";
+import type { V3 } from "./types";
 
 /**
  * ビューキューブの 26 の向きの表（単一の置き場）と、押したときのカメラの姿勢の計算。three の数学だけで書き、DOM と描画には触れない。

@@ -97,6 +97,7 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         ReportLang,
         ReportFile,
         ComplianceReport,
+        sat_analysis::structure::ModalFemShapes,
     );
     fune_projection::dispatch::export_ts(cfg)?;
     fune_projection::dispatch::visit_ts(&mut names);

@@ -1,3 +1,7 @@
+import type { FocusRequest } from "@/kit/scene3d/types";
+
+export type { FocusRequest };
+
 /**
  * 配置のページの表示・非表示（ページの中だけの状態。設計データには書かない）。
  * 部品は ID の集合で隠し、座標の表示（原点の軸・地面の格子・画面隅の軸）は 1 つずつ切り替える。
@@ -52,12 +56,6 @@ export const HEAT_SCENE_HELPERS: SceneHelpers = {
 /** 切り替えのボタンに出す補助の種類: 太陽の矢印は、太陽方向があるときだけ */
 export function visibleHelpers(hasSun: boolean): readonly SceneHelper[] {
   return hasSun ? SCENE_HELPERS : SCENE_HELPERS.filter((k) => k !== "sun");
-}
-
-/** 3D の視点を部品に寄せる依頼。同じ部品を続けて押しても寄せ直すよう、押した回数 `n` を持つ */
-export interface FocusRequest {
-  id: string;
-  n: number;
 }
 
 /** 組（`ids`）だけが見えていて、ほかの描ける部品（`placed` の残り）がすべて隠れているか */

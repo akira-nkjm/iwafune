@@ -255,12 +255,24 @@ pub struct PropellantTank {
     pub density: Option<Qty<MassDensity>>,
 }
 
-/// RCS でのアンロードの ΔV を足すための入力（`aocs.rw_unloading` の入力と、日数を掛けるミッション期間）。
+/// RCS でのアンロードの 1 区間（フェーズ 1 つ。フェーズが無い設計や、どのフェーズにも期間が無い設計はミッション期間の 1 区間）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct UnloadingLeg {
+    /// フェーズの ID（ミッション期間の区間は `None`）
+    pub phase: Option<String>,
+    /// そのフェーズの軌道・姿勢則・形態での `aocs.rw_unloading` の入力
+    pub rw_unloading: RwUnloadingInput,
+    /// 区間の長さ（フェーズの `duration`、またはミッション期間。無ければ足さずに区間だけ並べる）
+    pub duration: Option<Qty<Time>>,
+}
+
+/// RCS でのアンロードの ΔV・推薬を足すための入力（区間ごとの `aocs.rw_unloading` の入力と長さ）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct UnloadingInput {
-    pub rw_unloading: RwUnloadingInput,
-    pub mission_duration: Qty<Time>,
+    /// 区間（フェーズの並びの順）
+    pub legs: Vec<UnloadingLeg>,
 }
 
 /// アンロードの ΔV を足さなかった理由。**文は持たない**（service の語彙が引く）。
@@ -272,9 +284,9 @@ pub enum UnloadingNote {
     NoRcs,
     /// `aocs.rw_unloading` の入力が足りない
     UnloadingInputsMissing,
-    /// ミッション期間が無い
+    /// 区間の長さが無い（どのフェーズにも期間が無く、ミッション期間も無い）
     NoMissionDuration,
-    /// RCS では捨てられない（捨てる向きのスラスタが無いなど）
+    /// RCS では捨てられない（期間のあるどの区間でも、捨てる向きのスラスタが無いなど）
     NotUnloadable,
 }
 

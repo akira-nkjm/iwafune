@@ -1,6 +1,7 @@
 //! `structure.cone_clearance` の射影。円錐を持つもの（担い手）の表 [`CARRIERS`] と、全部品の箱（[`super::boxes`]）、距離の上限の設定。
 //!
 //! **どの部品が、どの属性から円錐（軸・半頂角）を持つかの対応はこの表だけ**（担い手を増やすのは表の 1 行。判定・規則・出力は解析が共通に持つ）。
+//! 担い手は、スラスタの噴流・センサの視野・アンテナのビーム（ビーム幅の半分を半頂角にする）。
 //! 軸の向きは `ctx.vec3` を機体座標に直したもの（[`crate::parts::direction_body`]）、置き場所は `ctx.resolved` から
 //! （形態を選べば、その配置で判定する）。軸や半頂角が読めない担い手は、不足入力にせず、そのまま解析へ渡して理由つきで一覧に残す。
 
@@ -28,12 +29,14 @@ pub struct CarrierRow {
     pub axis_sign: f64,
     /// 半頂角の属性（スカラーの角度）
     pub half_angle_attr: &'static str,
+    /// 属性の値に掛けて半頂角にする係数（半頂角そのものの属性なら 1、全角（ビーム幅）なら 0.5）
+    pub half_angle_scale: f64,
 }
 
 /// スラスタの役割（推進系のスラスタを含む）。
 const THRUSTER_ROLES: &[Role] = &[Role::Thruster, Role::PropulsionThruster];
 
-/// 担い手の表。**ここに 1 行足せば、解析の判定に載る**（アンテナのビームなら、役割 `Antenna`・軸 `boresight`・半頂角の属性を 1 行）。
+/// 担い手の表。**ここに 1 行足せば、解析の判定に載る**（役割・軸の属性と符号・半頂角の属性とその係数を 1 行）。
 pub const CARRIERS: &[CarrierRow] = &[
     // 噴流: 排気は推力の向き（`direction`）の反対へ出る。半頂角は任意の属性 `plume_half_angle`
     CarrierRow {
@@ -42,6 +45,7 @@ pub const CARRIERS: &[CarrierRow] = &[
         axis_attr: "direction",
         axis_sign: -1.0,
         half_angle_attr: "plume_half_angle",
+        half_angle_scale: 1.0,
     },
     // センサの視野: 視線（`boresight`）のまわりに `fov_half_angle`。`aocs.sensor_fov` と同じセンサの役割
     CarrierRow {
@@ -50,6 +54,17 @@ pub const CARRIERS: &[CarrierRow] = &[
         axis_attr: "boresight",
         axis_sign: 1.0,
         half_angle_attr: "fov_half_angle",
+        half_angle_scale: 1.0,
+    },
+    // アンテナのビーム: ボアサイト（`boresight`）のまわりに、半値全幅 `beamwidth` の半分。どちらも任意の属性で、無ければ判定せず一覧に残す
+    // （全方向のアンテナ・低利得のアンテナは、ボアサイトを持たないので自然に外れる）
+    CarrierRow {
+        roles: &[Role::Antenna],
+        kind: ConeKind::Beam,
+        axis_attr: "boresight",
+        axis_sign: 1.0,
+        half_angle_attr: "beamwidth",
+        half_angle_scale: 0.5,
     },
 ];
 
@@ -92,7 +107,9 @@ fn carriers(ctx: &Context<'_>) -> Vec<ConeCarrier> {
                 kind: row.kind,
                 position: placed(ctx, p).position,
                 axis,
-                half_angle: ctx.scalar(p, row.half_angle_attr).map(Qty::from_raw),
+                half_angle: ctx
+                    .scalar(p, row.half_angle_attr)
+                    .map(|v| Qty::from_raw(v * row.half_angle_scale)),
                 mount_ancestors: ctx
                     .resolved
                     .mount_ancestors(&p.id)

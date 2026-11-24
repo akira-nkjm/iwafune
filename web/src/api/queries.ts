@@ -117,6 +117,25 @@ export const q = {
       },
     });
   },
+  /**
+   * 解析の重い任意の出力つきの実行（`detail: true`。メッシュ上の場など。結果の `detail` に入る）。
+   * 解析の行を開いたときだけ取る。ケース・形態は、行の結果が使ったもの（`AnalysisRunResult.case`・`configuration`）
+   */
+  analysisDetail: (id: string, kase: string | null, configuration: string | null = null) =>
+    queryOptions({
+      queryKey: keys.analysisDetail(id, kase, configuration),
+      queryFn: () => {
+        const body: RunAnalysisRequest = {
+          case: kase,
+          ...(configuration ? { configuration } : {}),
+          source: { kind: "design" },
+          ops: [],
+          detail: true,
+        };
+        return api<AnalysisRunResult>(`/analyses/${seg(id)}`, { method: "POST", body });
+      },
+      staleTime: 30_000,
+    }),
   /** 編集の履歴（取り消し・やり直しのボタンの有効・無効） */
   history: () =>
     queryOptions({ queryKey: keys.history, queryFn: () => api<HistoryView>("/history") }),
@@ -154,6 +173,7 @@ export const q = {
           ...(configuration ? { configuration } : {}),
           source: { kind: "design" },
           ops: [...ops],
+          detail: false,
         };
         return api<AnalysisRunResult>(`/analyses/${seg(id)}`, { method: "POST", body });
       },

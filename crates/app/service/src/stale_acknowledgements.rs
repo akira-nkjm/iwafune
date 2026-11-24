@@ -19,6 +19,13 @@ use std::collections::BTreeMap;
 /// 配置 1 つ（`None` は解析が既定で選ぶ配置、`Some` は形態を明示）で出た所見（種類ごとの組の並び）。
 type Found = BTreeMap<FindingKind, Vec<(String, String)>>;
 
+/// 配置 1 つの結果: 所見と、縁の接触になった組（所見ではないが、その組の承知が要らなくなった理由として使う）。
+struct Placed<'a> {
+    placement: Option<&'a str>,
+    found: Found,
+    edge_contacts: Vec<(String, String)>,
+}
+
 /// 古い承知の警告（承知が無ければ空。解析も回さない）。
 pub fn stale(design: &Design, resolved: &Resolved) -> Vec<Diagnostic> {
     let Some(structure) = &design.analysis.structure else {
@@ -34,29 +41,30 @@ pub fn stale(design: &Design, resolved: &Resolved) -> Vec<Diagnostic> {
         .chain(design.configurations.keys().map(|k| Some(k.as_str())))
         .collect();
     // 配置 → 出た所見（解析が回らなかった配置は入れない）
-    let found: Vec<(Option<&str>, Found)> = placements
+    let found: Vec<Placed<'_>> = placements
         .iter()
-        .filter_map(|p| findings(&ctx, *p).map(|f| (*p, f)))
+        .filter_map(|p| findings(&ctx, *p))
         .collect();
     structure
         .acknowledged
         .iter()
         .enumerate()
         .filter(|(_, a)| is_stale(a, &found))
-        .map(|(i, a)| diagnostic(design, i, a))
+        .map(|(i, a)| diagnostic(design, i, a, is_edge_contact(a, &found)))
         .collect()
 }
 
 /// 承知が、比べられる配置のどれかの所見に当たらないか（比べられる配置が無ければ偽）。
-fn is_stale(a: &AcknowledgedFinding, found: &[(Option<&str>, Found)]) -> bool {
+fn is_stale(a: &AcknowledgedFinding, found: &[Placed<'_>]) -> bool {
     let mut comparable = false;
-    for (placement, f) in found {
+    for p in found {
         // 形態を指した承知は、その形態を明示して回した配置とだけ比べる。指さない承知はすべての配置と比べる
-        if a.configuration.is_some() && a.configuration.as_deref() != *placement {
+        if a.configuration.is_some() && a.configuration.as_deref() != p.placement {
             continue;
         }
         comparable = true;
-        let hit = f
+        let hit = p
+            .found
             .get(&a.finding)
             .is_some_and(|pairs| pairs.iter().any(|(x, y)| a.same_pair(a.finding, x, y)));
         if hit {
@@ -66,15 +74,30 @@ fn is_stale(a: &AcknowledgedFinding, found: &[(Option<&str>, Found)]) -> bool {
     comparable
 }
 
+/// 古い承知の組が、比べられる配置のどれかで縁の接触になっているか（干渉の承知だけ。縁の接触は重なりではないので承知が要らない）。
+fn is_edge_contact(a: &AcknowledgedFinding, found: &[Placed<'_>]) -> bool {
+    a.finding == FindingKind::Interference
+        && found
+            .iter()
+            .filter(|p| a.configuration.is_none() || a.configuration.as_deref() == p.placement)
+            .any(|p| {
+                p.edge_contacts
+                    .iter()
+                    .any(|(x, y)| a.same_pair(a.finding, x, y))
+            })
+}
+
 /// 配置 `placement` で 2 つの解析を回し、出た所見を集める（どちらも回らなければ None）。
-fn findings(ctx: &Context<'_>, placement: Option<&str>) -> Option<Found> {
+fn findings<'a>(ctx: &Context<'_>, placement: Option<&'a str>) -> Option<Placed<'a>> {
     let mut out = Found::new();
+    let mut edge_contacts = Vec::new();
     let mut ran = false;
     if let Some(o) = run::<Interference, InterferenceOutput>(ctx, placement) {
         ran = true;
         out.entry(FindingKind::Interference)
             .or_default()
             .extend(o.overlaps.into_iter().map(|p| (p.first, p.second)));
+        edge_contacts.extend(o.edge_contacts.into_iter().map(|e| (e.first, e.second)));
     }
     if let Some(o) = run::<ConeClearance, ConeClearanceOutput>(ctx, placement) {
         ran = true;
@@ -87,7 +110,11 @@ fn findings(ctx: &Context<'_>, placement: Option<&str>) -> Option<Found> {
                     .map(move |x| (id.clone(), x.part))
             }));
     }
-    ran.then_some(out)
+    ran.then_some(Placed {
+        placement,
+        found: out,
+        edge_contacts,
+    })
 }
 
 /// 解析 `A` を配置 `placement` で回して型付きの出力にする（入力が足りない・解析が失敗するときは None）。
@@ -103,7 +130,12 @@ fn run<'a, A: Analysis, O: serde::de::DeserializeOwned>(
 }
 
 /// 古い承知の警告 1 件（位置は `[[acknowledged]]` の該当の行）。
-fn diagnostic(design: &Design, index: usize, a: &AcknowledgedFinding) -> Diagnostic {
+fn diagnostic(
+    design: &Design,
+    index: usize,
+    a: &AcknowledgedFinding,
+    edge_contact: bool,
+) -> Diagnostic {
     let path = AnalysisSystem::Structure
         .setting_path()
         .child(&["acknowledged", &index.to_string()]);
@@ -111,8 +143,14 @@ fn diagnostic(design: &Design, index: usize, a: &AcknowledgedFinding) -> Diagnos
         Some(c) => format!(" in configuration `{c}`"),
         None => String::new(),
     };
+    // 縁の接触になった組は、規則が説明するので承知が要らない（重なりが消えた理由を添える）
+    let why = if edge_contact {
+        "is now an edge contact (only a thin sliver along an edge overlaps, which is not an overlap), so the acknowledgement is no longer needed"
+    } else {
+        "matches no current finding"
+    };
     let message = format!(
-        "The acknowledged {} pair `{}` / `{}` matches no current finding{scope}. If the finding is gone for good, withdraw it with `fune acknowledged rm {} {} {}{}`",
+        "The acknowledged {} pair `{}` / `{}` {why}{scope}. If the finding is gone for good, withdraw it with `fune acknowledged rm {} {} {}{}`",
         a.finding,
         a.first,
         a.second,
@@ -200,5 +238,25 @@ mod tests {
                 && stowed[0].contains("--configuration STOWED")
         );
         assert!(stale_of(&[ack(Interference, "SP_PX", "SS_PX", Some("STOWED"))]).is_empty());
+    }
+
+    /// 縁の接触になった組（隣り合うパネルの角）の承知は、古いとして知らせ、縁の接触であることを添える（重なりではないので承知が要らない）。
+    /// 組の並びは問わない。重なりのままの組（`SAP_PY`–`SP_PY`）の承知には添えない。
+    #[test]
+    fn an_acknowledged_edge_contact_is_reported_as_no_longer_needed() {
+        use FindingKind::Interference;
+        let edge = stale_of(&[ack(Interference, "PANEL_PX", "PANEL_PY", None)]);
+        assert_eq!(edge.len(), 1);
+        assert!(
+            edge[0].contains("is now an edge contact")
+                && edge[0].contains("`PANEL_PX` / `PANEL_PY`")
+        );
+        assert!(
+            stale_of(&[ack(Interference, "PANEL_PY", "PANEL_PX", None)])[0]
+                .contains("edge contact")
+        );
+        // どの組にも当たらない承知には、縁の接触とは書かない
+        let none = stale_of(&[ack(Interference, "CAM", "RW_X", None)]);
+        assert!(!none[0].contains("edge contact"));
     }
 }
