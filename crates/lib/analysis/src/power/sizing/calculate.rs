@@ -39,6 +39,7 @@ pub(super) fn margin_check<K: sat_units::typed::NamedKind>(
             quantity_text::<K>(required)
         ),
     )
+    .with_ratio_margin(margin)
 }
 
 pub(super) fn used(

@@ -318,17 +318,20 @@ fn pfd_check(result: &LinkBudgetLinkResult) -> Option<Check> {
         result.pfd_margin_db?,
     );
     let pair = format!("{}@{}", result.name, result.station);
-    Some(Check::new(
-        &sat_checkkey::link_pfd(&result.name, &result.station),
-        &format!("{pair} power flux density"),
-        margin_verdict(margin.value(), PFD_WARNING_BAND.value()),
-        format!(
-            "PFD {} (limit {}, margin {})",
-            quantity_text::<Decibel>(pfd.value()),
-            quantity_text::<Decibel>(limit.value()),
-            quantity_text::<Decibel>(margin.value())
-        ),
-    ))
+    Some(
+        Check::new(
+            &sat_checkkey::link_pfd(&result.name, &result.station),
+            &format!("{pair} power flux density"),
+            margin_verdict(margin.value(), PFD_WARNING_BAND.value()),
+            format!(
+                "PFD {} (limit {}, margin {})",
+                quantity_text::<Decibel>(pfd.value()),
+                quantity_text::<Decibel>(limit.value()),
+                quantity_text::<Decibel>(margin.value())
+            ),
+        )
+        .with_margin(margin.value()),
+    )
 }
 
 fn margin_check(result: &LinkBudgetLinkResult, required: Decibel) -> Check {
@@ -343,6 +346,7 @@ fn margin_check(result: &LinkBudgetLinkResult, required: Decibel) -> Check {
             quantity_text::<Decibel>(required.value())
         ),
     )
+    .with_margin(result.margin_db.value())
 }
 
 #[cfg(test)]

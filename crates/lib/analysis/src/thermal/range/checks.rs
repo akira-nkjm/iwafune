@@ -101,18 +101,21 @@ fn range_checks_for(
                 ThermalRangeSide::High => format!(", hottest cell {hot}"),
                 ThermalRangeSide::Low => format!(", coldest cell {cold}"),
             });
-            checks.push(Check::new(
-                &sat_checkkey::thermal_range(side.key_prefix(), node, m.kind.key()),
-                &format!("{node} {word} temperature ({})", m.kind.noun()),
-                m.side_verdict(side, margin),
-                format!(
-                    "{value} ({} {limit_word} limit {}{}{}{cell_text})",
-                    m.kind.noun(),
-                    t(limit),
-                    required_text(m, side),
-                    excluded_text(&m.excluded)
-                ),
-            ));
+            checks.push(
+                Check::new(
+                    &sat_checkkey::thermal_range(side.key_prefix(), node, m.kind.key()),
+                    &format!("{node} {word} temperature ({})", m.kind.noun()),
+                    m.side_verdict(side, margin),
+                    format!(
+                        "{value} ({} {limit_word} limit {}{}{}{cell_text})",
+                        m.kind.noun(),
+                        t(limit),
+                        required_text(m, side),
+                        excluded_text(&m.excluded)
+                    ),
+                )
+                .with_margin(m.side_margin(side, margin)),
+            );
         }
     }
     checks
