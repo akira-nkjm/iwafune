@@ -7,8 +7,17 @@ use toml_edit::{DocumentMut, Item, Key, Table};
 pub mod renamed;
 mod sourced;
 pub use sourced::{MAX_HEADER_DEPTH, hide_empty_header, is_sourced, lay_out, spread_rows};
-/// 整数のまま書くキー（ID・員数・回数・フェーズの並び順 `order`）。
-pub const INTEGER_KEYS: &[&str] = &["count", "active", "cores", "schema", "orbits", "order"];
+/// 整数のまま書くキー（ID・員数・回数・フェーズの並び順 `order`・日付の探索の格子の点の数）。
+pub const INTEGER_KEYS: &[&str] = &[
+    "count",
+    "active",
+    "cores",
+    "schema",
+    "orbits",
+    "order",
+    "departure_steps",
+    "arrival_steps",
+];
 /// `view/` の座標（画面の整数座標）。`points` は手で引いた線の折れ点（`[edge]` の `[[x, y], …]`）、
 /// `*_offset` は線の端子のカードの側の上での位置。
 pub const VIEW_INTEGER_KEYS: &[&str] = &[
@@ -122,5 +131,127 @@ pub fn align_table(table: &mut Table) {
             Item::ArrayOfTables(a) => a.iter_mut().for_each(align_table),
             _ => {}
         }
+    }
+}
+
+/// 値の行の並び（ドット付きキーは全体のパス）。キーの増減・名前の変更を見分ける印。
+fn row_signature(table: &Table) -> Vec<String> {
+    table
+        .get_values()
+        .iter()
+        .map(|(path, _)| {
+            path.iter()
+                .map(|k| k.display_repr().to_string())
+                .collect::<Vec<_>>()
+                .join(".")
+        })
+        .collect()
+}
+
+/// 編集の前後を比べ、値の行のキーが変わった表と、新しく足した表だけ `=` を揃え直す（正規形の揃えは [`align_rows`] が唯一の定義）。
+/// キーを消す・名前を変える編集で残りの行の揃えが古い幅のまま残ること、足した表が揃わないまま書かれることを防ぐ。
+/// 変わっていない表は触らない（手で書いたコメントや装飾を保つ）。
+pub fn realign_changed(before: &Table, after: &mut Table) {
+    if row_signature(before) != row_signature(after) {
+        align_rows(after);
+    }
+    for (key, item) in after.iter_mut() {
+        let old = before.get(&key);
+        match item {
+            Item::Table(t) if !t.is_dotted() => match old {
+                Some(Item::Table(o)) => realign_changed(o, t),
+                // 編集で新しく足した表: 比べる相手が無いので、まるごと揃える
+                _ => align_table(t),
+            },
+            Item::ArrayOfTables(a) => {
+                let old_rows: Vec<&Table> = match old {
+                    Some(Item::ArrayOfTables(o)) => o.iter().collect(),
+                    _ => Vec::new(),
+                };
+                for (i, t) in a.iter_mut().enumerate() {
+                    match old_rows.get(i) {
+                        Some(o) => realign_changed(o, t),
+                        // 新しく足した行（表）も、まるごと揃える
+                        None => align_table(t),
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn doc(text: &str) -> DocumentMut {
+        parse("t.toml", text).unwrap()
+    }
+
+    #[test]
+    fn realign_changed_fixes_only_tables_whose_keys_changed() {
+        // 長いキーを消した表だけ揃え直す。キーが変わらない表（手で揃えを崩した行）とコメントは触らない
+        let src = "[a]\nlong_key = 1.0  # 注\nk        = 2.0\n\n[b]\nx   = 1.0\nyyyy = 2.0\n";
+        let before = doc(src);
+        let mut after = before.clone();
+        after["a"].as_table_mut().unwrap().remove("long_key");
+        realign_changed(before.as_table(), after.as_table_mut());
+        assert_eq!(
+            after.to_string(),
+            "[a]\nk = 2.0\n\n[b]\nx   = 1.0\nyyyy = 2.0\n"
+        );
+    }
+
+    #[test]
+    fn realign_changed_leaves_an_unchanged_document_alone() {
+        let src = "[a]\nx   = 1.0\nyyyy = 2.0  # 注\n";
+        let before = doc(src);
+        let mut after = before.clone();
+        realign_changed(before.as_table(), after.as_table_mut());
+        assert_eq!(after.to_string(), src);
+    }
+
+    #[test]
+    fn realign_changed_follows_rows_of_arrays_of_tables() {
+        let before = doc("[[s]]\nlonger = 1.0\nk      = 2.0\n");
+        let mut after = before.clone();
+        after["s"]
+            .as_array_of_tables_mut()
+            .unwrap()
+            .get_mut(0)
+            .unwrap()
+            .remove("longer");
+        realign_changed(before.as_table(), after.as_table_mut());
+        assert_eq!(after.to_string(), "[[s]]\nk = 2.0\n");
+    }
+
+    #[test]
+    fn realign_changed_aligns_tables_and_rows_the_edit_added() {
+        // 新しく足した表（入れ子も）と、表の配列に足した行は、比べる相手が無くても揃える。元からある表は触らない
+        let before = doc("[a]\nx   = 1.0\nyyyy = 2.0\n\n[[s]]\nk = 1.0\n");
+        let mut after = before.clone();
+        let added = doc("[b.c]\nlong_key = 1.0\nk = 2.0\n\n[[s]]\nlonger = 1.0\nk = 2.0\n");
+        after["b"] = added["b"].clone();
+        let row = added["s"]
+            .as_array_of_tables()
+            .unwrap()
+            .get(0)
+            .unwrap()
+            .clone();
+        after["s"].as_array_of_tables_mut().unwrap().push(row);
+        realign_changed(before.as_table(), after.as_table_mut());
+        let text = after.to_string();
+        // 表が並ぶ順は見ない（揃えだけを確かめる）
+        assert!(
+            text.contains("[b.c]\nlong_key = 1.0\nk        = 2.0\n"),
+            "{text}"
+        );
+        assert!(
+            text.contains("[[s]]\nlonger = 1.0\nk      = 2.0\n"),
+            "{text}"
+        );
+        assert!(text.contains("[a]\nx   = 1.0\nyyyy = 2.0\n"), "{text}");
+        assert!(text.contains("[[s]]\nk = 1.0\n"), "{text}");
     }
 }

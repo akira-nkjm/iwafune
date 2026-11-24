@@ -1,6 +1,6 @@
 //! 編集のコマンドの引数 → Op の列（実行はしない）。実行は `edit::run_ops`、往復の検査は `roundtrip` のテストが使う。
 
-use super::{defs, links, nets, nouns, phases, records, requirements};
+use super::{configurations, defs, links, nets, nouns, phases, records, requirements};
 use crate::args::{Command, EditOpts};
 use fune_service::Workspace;
 use fune_service::dto::Op;
@@ -66,11 +66,26 @@ pub fn edit_of<'a>(ws: &Workspace, command: &'a Command) -> anyhow::Result<Optio
             )?],
             opts,
         }),
+        Command::Maneuver(crate::args::ManeuverCmd::SetWindow {
+            id,
+            min,
+            edit: opts,
+        }) => Some(Edit {
+            ops: vec![edit::maneuver_window_op(
+                ws,
+                &fune_service::dto::ManeuverWindowRequest {
+                    id: id.clone(),
+                    min: serde_json::from_value(serde_json::Value::String(min.clone()))?,
+                },
+            )?],
+            opts,
+        }),
         Command::Case(c) => one(records::case(c)?),
         Command::Source(c) => one(records::source(c)?),
         Command::Harness(c) => one(records::harness(c)?),
         Command::Maneuver(c) => one(records::maneuver(c)?),
         Command::Phase(c) => one(phases::phase(c)?),
+        Command::Configuration(c) => one(configurations::configuration(c)?),
         Command::Ground(c) => one(Some(records::ground(c)?)),
         Command::Link(c) => one(Some(links::link(c)?)),
         Command::Project(c) => one(Some(links::project(c)?)),
@@ -132,5 +147,6 @@ fn body_place_op(ws: &Workspace, p: &crate::args::PlaceArgs) -> anyhow::Result<O
         &p.id,
         &position,
         orientation.as_ref(),
+        p.configuration.as_deref(),
     )?)
 }

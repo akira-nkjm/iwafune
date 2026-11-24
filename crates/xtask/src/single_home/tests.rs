@@ -358,7 +358,8 @@ fn rules_matching_nothing_are_reported() {
     );
 }
 
-/// 形態の姿勢は解決だけが読み、形態ごとの解決済みの設計は射影の文脈だけが選ぶ（テストは確かめに呼んでよい）。
+/// 形態の姿勢は解決（と、サービスの読み取りが通る `query/pose.rs`）だけが読み、形態ごとの解決済みの設計は射影の文脈（と同じ `query/pose.rs`）だけが
+/// 選ぶ（テストは確かめに呼んでよい）。
 #[test]
 fn configuration_pose_is_read_only_by_the_resolution() {
     let rule = |needle: &str| PROD_RULES.iter().find(|r| r.0 == needle).unwrap();
@@ -376,6 +377,12 @@ fn configuration_pose_is_read_only_by_the_resolution() {
     ] {
         let mut errors = Vec::new();
         check_rule(home, needle, rule(needle), &mut errors);
+        check_rule(
+            "crates/app/service/src/query/pose.rs",
+            needle,
+            rule(needle),
+            &mut errors,
+        );
         assert!(errors.is_empty());
         check_rule(other, needle, rule(needle), &mut errors);
         assert_eq!(errors.len(), 1);

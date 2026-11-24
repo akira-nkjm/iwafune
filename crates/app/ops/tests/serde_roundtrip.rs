@@ -83,6 +83,11 @@ fn name(op: &Op) -> &'static str {
         Op::UnsetPhaseOrbit { .. } => "UnsetPhaseOrbit",
         Op::UnsetPhaseLaw { .. } => "UnsetPhaseLaw",
         Op::SetCasePhase { .. } => "SetCasePhase",
+        Op::CreateConfiguration { .. } => "CreateConfiguration",
+        Op::SetConfiguration { .. } => "SetConfiguration",
+        Op::RemoveConfiguration { .. } => "RemoveConfiguration",
+        Op::RenameConfiguration { .. } => "RenameConfiguration",
+        Op::UnsetConfigurationPose { .. } => "UnsetConfigurationPose",
         Op::RenameNet { .. } => "RenameNet",
         Op::RenameHarness { .. } => "RenameHarness",
         Op::RenameCase { .. } => "RenameCase",
@@ -193,6 +198,15 @@ fn part_ops() -> Vec<Op> {
             point: Some("RW_SLOT_X".into()),
             position: Some(mm(0.0, 0.0, 12.0)),
             orientation: Some(Quaternion::IDENTITY),
+            configuration: None,
+        },
+        Op::Place {
+            part: "SAP_PY".into(),
+            on: None,
+            point: None,
+            position: Some(mm(2.6, -1.5, 0.0)),
+            orientation: Some(Quaternion::IDENTITY),
+            configuration: Some("STOWED".into()),
         },
         Op::SetPort {
             part: "RW_X".into(),
@@ -420,6 +434,27 @@ fn other_ops() -> Vec<Op> {
             id: "SVALBARD".into(),
             to: "SVALBARD2".into(),
         },
+        Op::CreateConfiguration {
+            id: "STOWED".into(),
+            label: Some("Stowed".into()),
+            description: Some("Paddle folded onto the +X face".into()),
+        },
+        Op::SetConfiguration {
+            id: "STOWED".into(),
+            label: None,
+            description: None,
+        },
+        Op::RemoveConfiguration {
+            id: "STOWED".into(),
+        },
+        Op::RenameConfiguration {
+            id: "STOWED".into(),
+            to: "FOLDED".into(),
+        },
+        Op::UnsetConfigurationPose {
+            configuration: "STOWED".into(),
+            part: "SAP_PY".into(),
+        },
         Op::CreatePhase { phase: phase() },
         Op::SetPhase { phase: phase() },
         Op::RemovePhase { id: "LEOP".into() },
@@ -544,7 +579,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 81, "some op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 86, "some op kinds have no sample: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =
@@ -554,4 +589,24 @@ fn every_op_round_trips_through_json() {
     let batch = serde_json::to_string(&ops).unwrap();
     let back: Vec<Op> = serde_json::from_str(&batch).unwrap();
     assert_eq!(back, ops);
+}
+
+/// `configuration` を持たない Place の JSON は今まで通り読め、`None` は書き出さない（既存の Op の JSON は変わらない）。
+#[test]
+fn place_without_configuration_keeps_its_json() {
+    let old = r#"{"op":"place","part":"RW_X","on":"PANEL_MZ","point":null,"position":null,"orientation":null}"#;
+    let op: Op = serde_json::from_str(old).unwrap();
+    assert_eq!(
+        op,
+        Op::Place {
+            part: "RW_X".into(),
+            on: Some("PANEL_MZ".into()),
+            point: None,
+            position: None,
+            orientation: None,
+            configuration: None,
+        }
+    );
+    let json = serde_json::to_value(&op).unwrap();
+    assert!(json.get("configuration").is_none(), "{json}");
 }

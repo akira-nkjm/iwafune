@@ -88,6 +88,9 @@ pub struct PhaseArgs {
     /// Modes used in the phase (comma-separated)
     #[arg(long)]
     pub modes: Option<String>,
+    /// Configuration used by cases in this phase (omit to clear on set)
+    #[arg(long)]
+    pub configuration: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }

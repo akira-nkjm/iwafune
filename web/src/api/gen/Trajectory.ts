@@ -10,7 +10,11 @@ import type { Propagator } from "./Propagator";
  * 書く。このため、軌道を [`OrbitSpec`] で書いていた既存の入力はそのまま読め、書き出しも変わらない。
  * 将来の source は `source` のタグで区別する。
  */
-export type Trajectory = { epoch: string, elements: OrbitElements, propagator: Propagator, 
+export type Trajectory = { 
+/**
+ * 1 回限りの期間 [s]（周期的な軌道は書かない）
+ */
+span_s?: number | null, epoch: string, elements: OrbitElements, propagator: Propagator, 
 /**
  * 中心天体（既定は地球）。位置・速度は中心天体からの相対で、向きは ECI（J2000 平均赤道）。
  */

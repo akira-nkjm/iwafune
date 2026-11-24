@@ -11,6 +11,10 @@ export type RunAnalysisRequest = {
  */
 case: string | null, 
 /**
+ * 実行時に明示する形態の ID（設計データから組み立てる入力用）。
+ */
+configuration?: string | null, 
+/**
  * 入力の与え方（省略時は設計データから組み立てる）
  */
 source: AnalysisInputSource, 

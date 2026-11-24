@@ -173,6 +173,7 @@ fn place_ops() -> Vec<Op> {
             point: Some(s("RW_SLOT_X")),
             position: Some(mm(0.0, 0.0, 12.0)),
             orientation: Some(q.clone()),
+            configuration: None,
         },
         Op::Place {
             part: s("RW_X"),
@@ -180,6 +181,24 @@ fn place_ops() -> Vec<Op> {
             point: None,
             position: None,
             orientation: None,
+            configuration: None,
+        },
+        // 形態の中の配置は取付を変えない（取付先を書かなくてよく、取付先が無いことは「根にする」ではない）
+        Op::Place {
+            part: s("RW_X"),
+            on: None,
+            point: None,
+            position: Some(mm(2.6, -1.5, 0.0)),
+            orientation: Some(q.clone()),
+            configuration: Some(s("STOWED")),
+        },
+        Op::Place {
+            part: s("RW_X"),
+            on: Some(s("PANEL_MZ")),
+            point: Some(s("RW_SLOT_X")),
+            position: None,
+            orientation: Some(q.clone()),
+            configuration: Some(s("STOWED")),
         },
         Op::SetPort {
             part: s("RW_X"),

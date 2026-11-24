@@ -1,5 +1,5 @@
 import { type Box, GRID, type Pt, type Side, snapDown, snapUp } from "./geometry";
-import { Board, type Frame, Heap, Work } from "./route-board";
+import { Board, type Frame, Work } from "./route-board";
 
 export type { Frame } from "./route-board";
 
@@ -79,32 +79,40 @@ interface Search {
   goal: number;
   goalDir: number;
   net: number;
-  foreign: (frame: number) => boolean;
+  /** 枠の番号 + 1（盤面の frame）→ 線の両端と関係の無い枠なら 1（0 番は枠の外で 0） */
+  foreign: Uint8Array;
   box: [number, number, number, number];
 }
 
-/** 1 本の線の経路（格子点の番号の列）とその費用。A*（状態は格子点 × 進む向き） */
+/**
+ * 1 本の線の経路（格子点の番号の列）とその費用。A*（状態は格子点 × 進む向き）。
+ * 内側の繰り返しなので、費用の足し方（順序も含めて）は変えずに、呼び出しと配列の範囲外の読みを避けて書いている。
+ */
 function search(board: Board, work: Work, s: Search): { path: number[]; cost: number } | null {
-  const states = board.nx * board.ny * 4;
+  const { nx, ny, blocked, border, frame } = board;
+  const states = nx * ny * 4;
   const end = states;
   work.ensure(states + 1);
   work.stamp += 1;
-  const { g, parent, seen, closed, stamp } = work;
-  const heap = new Heap();
+  const { g, parent, seen, closed, stamp, heap } = work;
+  heap.clear();
   const [bx0, by0, bx1, by1] = s.box;
-  const gxGoal = s.goal % board.nx;
-  const gyGoal = Math.floor(s.goal / board.nx);
-  const h = (i: number) =>
-    COST.share * (Math.abs((i % board.nx) - gxGoal) + Math.abs(Math.floor(i / board.nx) - gyGoal));
-  const relax = (state: number, cost: number, from: number, point: number) => {
+  const gxGoal = s.goal % nx;
+  const gyGoal = Math.floor(s.goal / nx);
+  const net1 = s.net + 1;
+  const [occH, occV] = board.occ;
+  const relax = (state: number, cost: number, from: number, h: number) => {
     if (seen[state] === stamp && (g[state] ?? 0) <= cost) return;
     seen[state] = stamp;
     g[state] = cost;
     parent[state] = from;
-    heap.push(cost + (state === end ? 0 : h(point)), state);
+    heap.push(cost + h, state);
   };
+  // 残りの見積もり（格子点の座標から。ゴールまでの格子の数 × 共有する線の上の費用）
+  const rest = (x: number, y: number) => COST.share * (Math.abs(x - gxGoal) + Math.abs(y - gyGoal));
+  const [sx, sy] = [s.start % nx, Math.floor(s.start / nx)];
   for (let d = 0; d < 4; d++)
-    if (s.startDir < 0 || d === s.startDir) relax(s.start * 4 + d, 0, -1, s.start);
+    if (s.startDir < 0 || d === s.startDir) relax(s.start * 4 + d, 0, -1, rest(sx, sy));
   while (heap.size > 0) {
     const state = heap.pop();
     if (state === end) return { path: trace(parent, state), cost: g[state] ?? 0 };
@@ -114,42 +122,47 @@ function search(board: Board, work: Work, s: Search): { path: number[]; cost: nu
     const d = state & 3;
     const base = g[state] ?? 0;
     if (i === s.goal) {
-      relax(end, base + (s.goalDir < 0 || d === s.goalDir ? 0 : COST.bend), state, i);
+      relax(end, base + (s.goalDir < 0 || d === s.goalDir ? 0 : COST.bend), state, 0);
       continue;
     }
-    const gx = i % board.nx;
-    const gy = Math.floor(i / board.nx);
+    const gx = i % nx;
+    const gy = Math.floor(i / nx);
+    // 今いる点が別ネットの線の上か（そこで折れると、つながって見える）
+    const oh = occH[i] ?? 0;
+    const ov = occV[i] ?? 0;
+    const onOther = (oh !== 0 && oh !== net1) || (ov !== 0 && ov !== net1);
+    const ib = border[i] ?? 0;
     for (let nd = 0; nd < 4; nd++) {
       if (nd === OPPOSITE[d]) continue;
       const qx = gx + (DX[nd] ?? 0);
       const qy = gy + (DY[nd] ?? 0);
       if (qx < bx0 || qy < by0 || qx > bx1 || qy > by1) continue;
-      const q = qy * board.nx + qx;
-      if (board.blocked[q] && q !== s.goal) continue;
-      relax(q * 4 + nd, base + stepCost(board, s, i, q, d, nd), state, q);
+      const q = qy * nx + qx;
+      if (blocked[q] && q !== s.goal) continue;
+      // 1 格子進む費用。足す順は変えない（浮動小数点の丸めが変わると、同じ費用の経路の選び方が変わりうる）
+      const horizontal = nd < 2;
+      const along = horizontal ? occH : occV;
+      const across = horizontal ? occV : occH;
+      const here = along[q] ?? 0;
+      let c = here === net1 ? COST.share : 1;
+      if (nd !== d) {
+        c += COST.bend;
+        if (onOther) c += COST.corner;
+      }
+      if (here !== 0 && here !== net1) c += COST.overlap;
+      const cross = across[q] ?? 0;
+      if (cross !== 0 && cross !== net1) c += COST.cross;
+      const step = horizontal ? nx : 1;
+      const n1 = q - step >= 0 ? (along[q - step] ?? 0) : 0;
+      const n2 = q + step < along.length ? (along[q + step] ?? 0) : 0;
+      if ((n1 !== 0 && n1 !== net1) || (n2 !== 0 && n2 !== net1)) c += COST.near;
+      const bit = horizontal ? 1 : 2;
+      if (((border[q] ?? 0) & bit) !== 0 && (ib & bit) !== 0) c += COST.border;
+      if (s.foreign[frame[q] ?? 0]) c += COST.foreign;
+      relax(q * 4 + nd, base + c, state, rest(qx, qy));
     }
   }
   return null;
-}
-
-function stepCost(board: Board, s: Search, i: number, q: number, d: number, nd: number): number {
-  const axis = AXIS[nd] ?? 0;
-  const across = axis === 0 ? 1 : 0;
-  const own = board.occ[axis][q] === s.net + 1;
-  let c = own ? COST.share : 1;
-  if (nd !== d) {
-    c += COST.bend;
-    if (board.other(0, i, s.net) || board.other(1, i, s.net)) c += COST.corner;
-  }
-  if (board.other(axis, q, s.net)) c += COST.overlap;
-  if (board.other(across, q, s.net)) c += COST.cross;
-  const step = axis === 0 ? board.nx : 1;
-  if (board.other(axis, q - step, s.net) || board.other(axis, q + step, s.net)) c += COST.near;
-  const along = axis === 0 ? 1 : 2;
-  if ((board.border[q] ?? 0) & along && (board.border[i] ?? 0) & along) c += COST.border;
-  const f = board.frame[q] ?? 0;
-  if (f > 0 && s.foreign(f - 1)) c += COST.foreign;
-  return c;
 }
 
 function trace(parent: Int32Array, end: number): number[] {
@@ -173,7 +186,7 @@ const UNROUTED = 1e6;
  * 全部の線を引く係。線を 1 本ずつ引いたあと、1 本ずつ外して引き直す。引き終えたあと、1 本の線の端を別の所に
  * 付け替えたらどれだけの費用で引けるか（ほかの線はそのまま）も比べられる（端子の側の選び直し。layout.ts）。
  */
-class Router {
+export class Router {
   private readonly board: Board;
   private readonly work = new Work();
   private readonly plan: Plan[];
@@ -269,10 +282,23 @@ export function routeWires(
   frames: Frame[],
   unrouted?: Set<string>,
 ): Map<string, Pt[]> {
+  return routeKeeping(wires, cards, frames, unrouted).routes;
+}
+
+/**
+ * `routeWires` と同じ引き方で、引き終えた係（`Router`）も返す。同じ配置の線の端を選び直すとき（`compareEnds`）に
+ * 渡せば、全部の線を引き直さずに済む（同じ入力なら同じ経路なので、結果は変わらない）。
+ */
+export function routeKeeping(
+  wires: Wire[],
+  cards: Box[],
+  frames: Frame[],
+  unrouted?: Set<string>,
+): { routes: Map<string, Pt[]>; router: Router } {
   const router = new Router(wires, cards, frames);
   router.routeAll();
   for (const w of wires) if (router.cost(w.id) >= UNROUTED) unrouted?.add(w.id);
-  return router.result();
+  return { routes: router.result(), router };
 }
 
 /** 線の端の付け替えの候補（線の ID・どちらの端か・付け替える先） */
@@ -284,7 +310,8 @@ export interface Alternative {
 
 /**
  * 全部の線を引いたうえで、線ごとの費用と、候補ごとに線の端を付け替えたときのその線の費用を返す
- * （ほかの線はそのまま）。候補は引いた経路を見て作る（`propose`。端子の側や位置の選び直し。refine.ts）。
+ * （ほかの線はそのまま）。`routed` に、同じ線・カード・枠を引き終えた係（`routeKeeping`）を渡すと、引き直さずにそれを使う。
+ * 候補は引いた経路を見て作る（`propose`。端子の側や位置の選び直し。refine.ts）。
  * 候補の付け替え先は、カードの縁の上（盤面の中）に置くこと。
  */
 export function compareEnds(
@@ -292,9 +319,13 @@ export function compareEnds(
   cards: Box[],
   frames: Frame[],
   propose: (routes: Map<string, Pt[]>) => Alternative[],
+  routed?: Router,
 ): { base: Map<string, number>; alternatives: Alternative[]; costs: number[] } {
-  const router = new Router(wires, cards, frames);
-  router.routeAll();
+  let router = routed;
+  if (!router) {
+    router = new Router(wires, cards, frames);
+    router.routeAll();
+  }
   const alternatives = propose(router.result());
   return {
     base: new Map(wires.map((w) => [w.id, router.cost(w.id)])),
@@ -313,6 +344,15 @@ function markPath(board: Board, path: number[], net: number) {
   }
 }
 
+/** 枠の番号 + 1 ごとの「この線の両端と関係の無い枠か」（0 は枠の外） */
+function foreignFlags(w: Wire, frameIds: string[]): Uint8Array {
+  const out = new Uint8Array(frameIds.length + 1);
+  frameIds.forEach((id, k) => {
+    out[k + 1] = w.frames.has(id) ? 0 : 1;
+  });
+  return out;
+}
+
 function routeOne(
   board: Board,
   work: Work,
@@ -326,7 +366,7 @@ function routeOne(
     goal: b,
     goalDir: w.to.side ? (OPPOSITE[OUTWARD[w.to.side]] ?? -1) : -1,
     net: p.net,
-    foreign: (f) => !w.frames.has(frameIds[f] ?? ""),
+    foreign: foreignFlags(w, frameIds),
     box: [0, 0, board.nx - 1, board.ny - 1],
   };
   const [ax, ay] = [a % board.nx, Math.floor(a / board.nx)];

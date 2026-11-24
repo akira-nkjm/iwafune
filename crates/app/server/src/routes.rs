@@ -2,8 +2,8 @@
 //!
 //! | モジュール | パス |
 //! |---|---|
-//! | `design` | `/project` `/design` `/system_modes/{system}`（POST） `/maneuvers` `/phases` `/requirements` `/requirements/compliance` `/parts` `/parts/{id}`（POST は下書きを当てた部品） `/values/{path}` `/defs` `/diagnostics` |
-//! | `edit` | `/ops` `/ops/from_text` `/ops/unset_from_text` `/ops/from_command` `/ops/case_from_eclipse` `/ops/case_from_sun_distance` `/parts/{id}/place_body` `/fmt` |
+//! | `design` | `/project` `/design` `/system_modes/{system}`（POST） `/maneuvers` `/phases` `/configurations` `/requirements` `/requirements/compliance` `/parts` `/parts/{id}`（POST は下書きを当てた部品） `/values/{path}` `/defs` `/diagnostics` |
+//! | `edit` | `/ops` `/ops/from_text` `/ops/unset_from_text` `/ops/from_command` `/ops/case_from_eclipse` `/ops/case_from_sun_distance` `/ops/maneuver_window` `/parts/{id}/place_body` `/fmt` |
 //! | `history` | `/history` `/undo` `/redo` |
 //! | `units` | `/units` `/units/parse` `/units/format` |
 //! | `analyses` | `/analyses` `/analyses/{id}` `/budgets/{kind}`（GET と、下書きを当てる POST） |
@@ -53,6 +53,7 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
         .route("/system_modes/{system}", post(design::system_modes))
         .route("/maneuvers", get(design::maneuvers))
         .route("/phases", get(design::phases))
+        .route("/configurations", get(design::configurations))
         .route("/requirements", get(design::requirements))
         .route("/requirements/compliance", get(design::compliance))
         .route("/parts", get(design::parts))
@@ -67,6 +68,7 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
         .route("/ops/unset_from_text", post(edit::op_unset_from_text))
         .route("/ops/from_command", post(edit::ops_from_command))
         .route("/ops/case_from_eclipse", post(edit::case_from_eclipse))
+        .route("/ops/maneuver_window", post(edit::maneuver_window))
         .route(
             "/ops/case_from_sun_distance",
             post(edit::case_from_sun_distance),

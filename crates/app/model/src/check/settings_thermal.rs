@@ -3,7 +3,7 @@
 
 use super::Ctx;
 use super::settings::{Scope, scope};
-use crate::design::{AnalysisSystem, Design, ThermalSettings};
+use crate::design::{AnalysisSystem, Design, ThermalNodes, ThermalSettings};
 use crate::value::Quantity;
 
 /// 温度差（解析マージン）を書く単位。°C は 273.15 K のずれを足してしまうので使わない。
@@ -36,10 +36,11 @@ pub(super) fn check_thermal(ctx: &mut Ctx) {
             check_difference(&mut s, key, q.as_ref());
         }
     }
-    check_nodes(&mut s, design, t);
+    let nodes = t.node_map(design.parts.keys().map(|id| id.as_str()));
+    check_nodes(&mut s, design, t, &nodes);
     check_surfaces(&mut s, design, t);
-    check_heat_nodes(&mut s, design, t);
-    check_couplings(&mut s, t);
+    check_heat_nodes(&mut s, design, t, &nodes);
+    check_couplings(&mut s, t, &nodes);
 }
 
 /// 温度差は K で書き、0 以上にする。
@@ -63,8 +64,9 @@ fn check_difference(s: &mut Scope, key: &str, q: Option<&Quantity>) {
     }
 }
 
-/// 節点の部品の参照と、1 つの部品が 2 つの節点に入っていないか。
-fn check_nodes(s: &mut Scope, design: &Design, t: &ThermalSettings) {
+/// 節点の部品の参照と、1 つの部品が 2 つの節点に入っていないか、`[nodes]` のキーが `[nodes]` に載っていない部品の ID と
+/// 同じ名前でないか（部品は既定で自分の ID の節点になるので、名前がぶつかる）。
+fn check_nodes(s: &mut Scope, design: &Design, t: &ThermalSettings, nodes: &ThermalNodes) {
     let mut owner: std::collections::BTreeMap<&str, &str> = std::collections::BTreeMap::new();
     for (node, parts) in &t.nodes {
         for part in parts {
@@ -83,6 +85,16 @@ fn check_nodes(s: &mut Scope, design: &Design, t: &ThermalSettings) {
                 );
             }
         }
+    }
+    for part in nodes.clashes() {
+        s.error(
+            &["nodes", part],
+            "thermal.node_name_clash",
+            format!(
+                "Node `{part}` has the name of part `{part}`, which is not one of its parts. Every part not listed in [nodes] is a node named after the part, \
+                 so rename the node or list part `{part}` in a node"
+            ),
+        );
     }
 }
 
@@ -132,7 +144,7 @@ fn check_surfaces(s: &mut Scope, design: &Design, t: &ThermalSettings) {
 }
 
 /// 発熱の場所の部品と節点の参照。
-fn check_heat_nodes(s: &mut Scope, design: &Design, t: &ThermalSettings) {
+fn check_heat_nodes(s: &mut Scope, design: &Design, t: &ThermalSettings, nodes: &ThermalNodes) {
     for (part, node) in &t.heat_node {
         let exists = design.parts.contains_key(part.as_str());
         s.reference(
@@ -141,12 +153,12 @@ fn check_heat_nodes(s: &mut Scope, design: &Design, t: &ThermalSettings) {
             "ref.part",
             format!("Part `{part}`"),
         );
-        let exists = t.nodes.contains_key(node);
+        let exists = nodes.contains(node);
         s.reference(
             &["heat_node", part],
             exists,
             "ref.thermal_node",
-            format!("Thermal node `{node}` ([nodes])"),
+            format!("Thermal node `{node}` (a part ID or a [nodes] key)"),
         );
     }
 }
@@ -154,19 +166,19 @@ fn check_heat_nodes(s: &mut Scope, design: &Design, t: &ThermalSettings) {
 /// 明示の結合（`[conductive.<節点>]`・`[radiative.<節点>]`）と外殻の放射率。
 /// 結合は両端が節点であること、同じ節点どうしでないこと、同じ対を向きを変えて 2 度書かないこと、0 以上であること
 /// （次元は設定の次元の表が見る）。
-fn check_couplings(s: &mut Scope, t: &ThermalSettings) {
+fn check_couplings(s: &mut Scope, t: &ThermalSettings, nodes: &ThermalNodes) {
     for (kind, table) in [("conductive", &t.conductive), ("radiative", &t.radiative)] {
         let mut seen: std::collections::BTreeSet<(&str, &str)> = std::collections::BTreeSet::new();
         for (a, row) in table {
             for (b, q) in row {
                 let keys = [kind, a.as_str(), b.as_str()];
                 for end in [a, b] {
-                    let exists = t.nodes.contains_key(end);
+                    let exists = nodes.contains(end);
                     s.reference(
                         &keys,
                         exists,
                         "ref.thermal_node",
-                        format!("Thermal node `{end}` ([nodes])"),
+                        format!("Thermal node `{end}` (a part ID or a [nodes] key)"),
                     );
                 }
                 if a == b {

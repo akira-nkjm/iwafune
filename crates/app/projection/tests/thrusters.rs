@@ -64,6 +64,7 @@ fn thruster_ops() -> Vec<fune_ops::Op> {
                 frame: None,
             }),
             orientation: None,
+            configuration: None,
         },
     ]
 }

@@ -83,7 +83,7 @@ export const q = {
       queryKey: keys.part(id, json),
       queryFn: () => {
         if (!json) return api<PartView>(`/parts/${seg(id)}`);
-        const body: PartViewRequest = { ops: [...ops] };
+        const body: PartViewRequest = { ops: [...ops], configuration: null };
         return api<PartView>(`/parts/${seg(id)}`, { method: "POST", body });
       },
     });

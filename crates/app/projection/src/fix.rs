@@ -42,6 +42,10 @@ pub enum RefKind {
     CatalogItem,
     /// 通信の回線（`analysis.comm` の回線の名前）
     CommLink,
+    /// 部品の配置の形態（`configurations/<ID>.toml`）
+    Configuration,
+    /// マヌーバ（`maneuvers/<ID>.toml`。軌道の `maneuver` の欄が指す、日付つきの遷移を持つもの）
+    Maneuver,
 }
 
 /// 足りない入力を一覧に足す先の一覧（「何を足すか」）。
@@ -115,7 +119,7 @@ pub enum Fix {
         /// `fune set <部品>.kind <kind>`
         command: String,
     },
-    /// 別のもの（部品・カタログ品・通信の回線）を指す欄が空か、指したものが無い: 設計にあるものから選んで入れる。
+    /// 別のもの（部品・カタログ品・通信の回線・マヌーバ）を指す欄が空か、指したものが無い: 設計にあるものから選んで入れる。
     PickRef {
         /// 欄の対象（マヌーバの `thruster`・解析設定の回線の `part`・`antenna`・`conditions.launch.launcher`）
         target: Target,

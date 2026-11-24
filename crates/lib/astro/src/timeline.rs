@@ -2,6 +2,7 @@
 //! **時系列を使う解析（電源・姿勢・センサ・通信・熱）は、自分でループを書かずにこれを使う。**
 
 mod evaluator;
+pub mod geometry;
 mod orbit_plane;
 
 pub use evaluator::TimelineEvaluator;

@@ -5,6 +5,10 @@
 //!   3 周では数年の時系列になり、積分の費用も 3 倍になる。書かれた周回数はそのまま使う）。
 //! - 刻み: [`orbit_step_s`]。周期の一定の割合（1 周あたり最大 [`MAX_STEPS_PER_ORBIT`] 標本）を超えない刻み（下限 `sat_astro::timeline::DEFAULT_STEP_S`）。
 //!   周期が 100 分までの周回軌道では従来どおり 30 s のまま、静止軌道や月周回のような長い周期でも 1 周の標本数が増えすぎない。
+//! - 1 回限りの軌道（[`Cycle::OneOff`]。日付つきの遷移の巡航など）: 周回数は使わず（書かれていても無視）、期間そのものを解く。
+//!   刻みは周期と同じ規則で期間から決める（`max(30 s, 期間 / 200)`。300 日の巡航で 1.5 日、標本は 200 点）。
+//!   周回の集計（`orbit_ranges`）は期間全体を 1 周回として数える。設計が刻みを書いたとき（熱の `time_step`）は、周期的な軌道ではそのまま、
+//!   1 回限りの軌道では既定の刻みより細かくしない（[`requested_step_s`]）。
 //!
 //! 設計から入力を作る側（`fune-projection`）は既定を持たず、書かれた値（`None` かもしれない）か、解析が決める期間の種類
 //! （[`SamplingSpan`]）を渡す。
@@ -60,9 +64,20 @@ pub fn step_for_period(period_s: f64, floor_s: f64, max_steps_per_orbit: f64) ->
 }
 
 /// 繰り返し `cycle` の軌道の時系列の既定の刻み [s]（[`step_for_period`] に 30 s・[`MAX_STEPS_PER_ORBIT`]。
-/// 長さは [`Cycle::length_s`]。1 回限りの軌道（[`Cycle::OneOff`]）の期間の扱いは段階 C で決める。今は周期と同じ式で刻む）。
+/// 長さは [`Cycle::length_s`]）。1 回限りの軌道（[`Cycle::OneOff`]）は期間を周期とみなして同じ式で刻む
+/// （`max(30 s, 期間 / 200)`。期間が 100 分までなら 30 s、300 日なら 1.5 日）。
 pub fn orbit_step_s(cycle: Cycle) -> f64 {
     step_for_period(cycle.length_s(), DEFAULT_STEP_S, MAX_STEPS_PER_ORBIT)
+}
+
+/// 設計が決めた刻み `requested` を、軌道の繰り返しに合わせて使う刻み [s] にする。周期的な軌道はそのまま（周回の分解能の指定）。
+/// 1 回限りの軌道（[`Cycle::OneOff`]）は、期間から決めた既定の刻み（[`orbit_step_s`]）より細かくしない
+/// （数か月の巡航を周回の刻み 30 s で刻むと標本が数十万点になるため。粗くする指定はそのまま）。
+pub fn requested_step_s(cycle: Cycle, requested: f64) -> f64 {
+    match cycle {
+        Cycle::Periodic { .. } => requested,
+        Cycle::OneOff { .. } => requested.max(orbit_step_s(cycle)),
+    }
 }
 
 /// 期間の取り方 `span` の標本の取り方（刻みは繰り返しの長さから、β の指定なし）。
@@ -95,10 +110,16 @@ pub fn orbits_sampling(orbit: impl Into<Trajectory>, orbits: Option<u32>) -> Orb
 pub const MAX_DAILY_STEP_S: f64 = 600.0;
 
 /// 1 日分の標本の取り方（地上局の可視・送信量。刻みは周期から、ただし [`MAX_DAILY_STEP_S`] まで。β の指定なし）。
+/// 1 日より短い 1 回限りの軌道（[`Cycle::OneOff`]）は、その期間まで（軌道の外は解かない）。
 pub fn daily_sampling(orbit: impl Into<Trajectory>) -> OrbitSampling {
     let orbit = orbit.into();
-    let step = orbit_step_s(orbit.cycle()).min(MAX_DAILY_STEP_S);
-    OrbitSampling::new(orbit, Qty::from_raw(SECONDS_PER_DAY), Qty::from_raw(step))
+    let cycle = orbit.cycle();
+    let step = orbit_step_s(cycle).min(MAX_DAILY_STEP_S);
+    let span = match cycle {
+        Cycle::OneOff { span_s } => span_s.min(SECONDS_PER_DAY),
+        Cycle::Periodic { .. } => SECONDS_PER_DAY,
+    };
+    OrbitSampling::new(orbit, Qty::from_raw(span), Qty::from_raw(step))
 }
 
 #[cfg(test)]
@@ -218,5 +239,50 @@ mod tests {
             Qty::from_raw(0.0),
         );
         assert_eq!(daily_sampling(leo).step.value(), 30.0);
+    }
+
+    /// 1 回限りの軌道: 周回数（書かれていても平均の指定でも）を使わず、期間そのものを解く。刻みは `max(30 s, 期間 / 200)`。
+    #[test]
+    fn one_off_orbit_samples_its_span_with_a_span_based_step() {
+        let day = 86_400.0;
+        let cruise = Trajectory::from(orbit()).with_span(300.0 * day);
+        for span in [
+            SamplingSpan::Series(None),
+            SamplingSpan::Series(Some(7)),
+            SamplingSpan::OrbitAverage,
+        ] {
+            let s = sampling(cruise.clone(), span);
+            assert_eq!(s.span.value(), 300.0 * day);
+            assert_eq!(s.step.value(), 300.0 * day / 200.0);
+        }
+        // 太陽を回る要素の軌道の既定（1 周）は、1 回限りの期間では使わない
+        let mut sun = orbit();
+        sun.central = CentralBody::Sun;
+        let s = sampling(
+            Trajectory::from(sun).with_span(100.0 * day),
+            SamplingSpan::Series(None),
+        );
+        assert_eq!(s.span.value(), 100.0 * day);
+        // 短い期間は下限の刻み（30 s）
+        let s = sampling(
+            Trajectory::from(orbit()).with_span(3000.0),
+            SamplingSpan::Series(None),
+        );
+        assert_eq!((s.span.value(), s.step.value()), (3000.0, DEFAULT_STEP_S));
+        // 1 日の標本は、1 日より短い期間までで、刻みは 10 分まで
+        let d = daily_sampling(Trajectory::from(orbit()).with_span(3000.0));
+        assert_eq!(d.span.value(), 3000.0);
+        let d = daily_sampling(cruise);
+        assert_eq!((d.span.value(), d.step.value()), (day, MAX_DAILY_STEP_S));
+    }
+
+    /// 設計が書いた刻み: 周期的な軌道はそのまま。1 回限りの軌道は期間の既定（`max(30 s, 期間 / 200)`）より細かくしない。
+    #[test]
+    fn a_requested_step_is_not_finer_than_the_one_off_default() {
+        assert_eq!(requested_step_s(periodic(5400.0), 30.0), 30.0);
+        assert_eq!(requested_step_s(periodic(5400.0), 1.0), 1.0);
+        let one_off = Cycle::OneOff { span_s: 3.0e7 };
+        assert_eq!(requested_step_s(one_off, 30.0), 3.0e7 / 200.0);
+        assert_eq!(requested_step_s(one_off, 1.0e6), 1.0e6);
     }
 }

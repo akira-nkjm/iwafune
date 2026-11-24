@@ -1,5 +1,6 @@
 //! 引数の定義（clap）。コマンド体系は `fune <名詞> <動詞>` と、よく使うものの短縮。
 
+mod configurations;
 mod defs;
 mod ground;
 mod links;
@@ -10,6 +11,7 @@ mod report;
 mod requirements;
 mod skill;
 
+pub use configurations::{ConfigurationArgs, ConfigurationCmd};
 pub use defs::{AttrAddArgs, AttrCmd, KindAddArgs, KindCmd};
 pub use ground::GroundCmd;
 pub use links::{LinkCmd, ProjectCmd};
@@ -82,7 +84,20 @@ pub struct EditOpts {
 #[derive(Debug, Subcommand)]
 pub enum Command {
     /// Create a new project
-    Init { name: String },
+    ///
+    /// With DIR, creates that directory (parents included) and the project inside it; the project name is the last part of DIR.
+    /// Without DIR, creates the project in the current directory (or in -C <dir>); the name is the directory's name.
+    /// --name sets the project name in either form. An existing directory is used unless it already has fune.toml.
+    /// Examples: fune init sample | fune init | fune init --name mysat | fune init path/to/sample --name mysat
+    Init {
+        /// Directory to create the project in (default: the current directory)
+        // 全体の `-C`（id は `dir`）と衝突しないよう、フィールド名は `directory` にする
+        #[arg(value_name = "DIR")]
+        directory: Option<PathBuf>,
+        /// Project name (default: the name of the directory)
+        #[arg(long, value_name = "NAME")]
+        name: Option<String>,
+    },
     /// Check the design data (exit code 1 on errors)
     Check {
         /// Treat warnings as errors
@@ -164,6 +179,9 @@ pub enum Command {
     /// Mission phases (phases/)
     #[command(subcommand)]
     Phase(PhaseCmd),
+    /// Configurations: named overlays of part poses, e.g. stowed and deployed (configurations/)
+    #[command(subcommand)]
+    Configuration(ConfigurationCmd),
     /// Ground stations (conditions/ground/)
     #[command(subcommand)]
     Ground(GroundCmd),
@@ -289,6 +307,9 @@ pub struct AnalyzeArgs {
     /// Analysis case
     #[arg(long)]
     pub case: Option<String>,
+    /// Configuration to use when building input from the design
+    #[arg(long)]
+    pub configuration: Option<String>,
     /// JSON file that supplies the whole input (not built from the design data)
     #[arg(long)]
     pub input: Option<PathBuf>,

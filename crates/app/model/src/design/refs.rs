@@ -10,6 +10,7 @@
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
 //! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode`・フェーズの `modes` と `[law]` のキー |
 //! | フェーズ | ケースの `phase` |
+//! | 形態 | 参照元は無い（打上げ条件とフェーズが選ぶのは段階 3。名前の変更の索引を揃えるための空の索引） |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets`・図の `[nodes]` のキー |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire`・`conditions/launch.toml` の `launcher`・`dispenser` |
 //! | カタログ（`[[catalog]]` の名前。出所を外すのを拒むためだけ。書き換えはしない） | 部品の `catalog`・`candidates`・ハーネスの `wire`・打ち上げ条件の `launcher`・`dispenser` のうち `<名前>/…` のもの |
@@ -18,7 +19,7 @@
 //! | ハーネス区間 | 参照元は無い（ほかのエンティティはハーネスの ID を持たない。名前の変更の索引を揃えるための空の索引） |
 //! | 解析ケース | `analysis/common.toml` の `default_case`・要求の `[quantify].cases` |
 //! | 出典 | 部品とカタログ品の属性の値の `from.source`（状態ごとのセルも）・カタログ品の `source` と `datasheet`・要求の `source` |
-//! | マヌーバ | ほかのマヌーバの `after` |
+//! | マヌーバ | ほかのマヌーバの `after`・設計の軌道（`conditions/orbit.toml`）とフェーズの `[orbit]` の `maneuver` |
 //! | 通信の回線 | `analysis/comm.toml` の `data_downlink`・要求の `[verify].check` が名指す回線（`margin:<回線>@<局>`） |
 //! | 種別（名前の変更と、プロジェクト独自の定義の削除の拒否に使う） | 部品とカタログ品の `kind`・種別の `extends` |
 //! | 属性（同上） | 種別の `required` / `optional`・部品とカタログ品の属性の値 |
@@ -39,6 +40,8 @@ pub enum Referent<'a> {
     Mode(&'a str),
     /// フェーズの ID（`phases/<ID>.toml`）
     Phase(&'a str),
+    /// 形態の ID（`configurations/<ID>.toml`）
+    Configuration(&'a str),
     Net(&'a str),
     /// カタログ品の参照（`"local/rw_10mNms"`）
     Catalog(&'a str),
@@ -115,6 +118,9 @@ pub enum RefSite {
     ThermalSurface,
     /// 発熱の場所を書いた部品（`analysis/thermal.toml` の `[heat_node]` のキー）
     ThermalHeatNode,
+    /// 部品の ID を節点の名前として書いた設定（既定の 1 部品 1 節点の節点。`[conductive.*]`・`[radiative.*]` の両端と
+    /// `[heat_node]` の値）。部品の名前の変更が一緒に書き換える
+    ThermalNodeName,
     /// 図の配置のノード（`view/<図>.toml` の `[nodes]` のキー）
     ViewNode { view: String },
     /// 解析ケースのモード（`cases/<ケース>.toml` の `mode`）
@@ -149,6 +155,10 @@ pub enum RefSite {
     ManeuverMode { maneuver: String },
     /// 解析ケースのフェーズ（`cases/<ケース>.toml` の `phase`）
     CasePhase { case: String },
+    /// 打ち上げ条件の形態（`conditions/launch.toml` の `configuration`）
+    LaunchConfiguration,
+    /// フェーズの形態（`phases/<フェーズ>.toml` の `configuration`）
+    PhaseConfiguration { phase: String },
     /// フェーズが使うモード（`phases/<フェーズ>.toml` の `modes`）
     PhaseMode { phase: String },
     /// フェーズの姿勢則のキー（`phases/<フェーズ>.toml` の `[law]`）
@@ -189,6 +199,10 @@ pub enum RefSite {
     RequirementSource { requirement: String },
     /// マヌーバの前（`after`）
     ManeuverAfter { maneuver: String },
+    /// 設計の軌道が巡航の軌道を取る遷移のマヌーバ（`conditions/orbit.toml` の `maneuver`）
+    OrbitManeuver,
+    /// フェーズの軌道が巡航の軌道を取る遷移のマヌーバ（`phases/<フェーズ>.toml` の `[orbit]` の `maneuver`）
+    PhaseOrbitManeuver { phase: String },
     /// 通信の解析の下りの回線（`analysis/comm.toml` の `data_downlink`）
     CommDataDownlink,
 }
@@ -201,6 +215,7 @@ impl Design {
             Referent::Group(id) => self.group_refs(id),
             Referent::Mode(id) => self.mode_refs(id),
             Referent::Phase(id) => self.phase_refs(id),
+            Referent::Configuration(id) => self.configuration_refs(id),
             Referent::Net(id) => self.net_refs(id),
             Referent::Catalog(reference) => self.catalog_refs(|r| r == reference),
             Referent::CatalogSource(name) => {
@@ -294,6 +309,7 @@ impl Design {
             if thermal.heat_node.contains_key(id) {
                 out.push(RefSite::ThermalHeatNode);
             }
+            out.extend(self.per_part_node_refs(thermal, id));
         }
         out.extend(
             self.maneuvers
@@ -415,6 +431,31 @@ impl Design {
             .map(|c| RefSite::CasePhase {
                 case: c.id.to_string(),
             })
+            .collect()
+    }
+
+    /// 形態を指している打ち上げ条件とフェーズ。
+    fn configuration_refs(&self, id: &str) -> Vec<RefSite> {
+        let matches = |c: Option<&crate::Id<super::configuration::Configuration>>| {
+            c.is_some_and(|c| c.as_str() == id)
+        };
+        let launch = matches(
+            self.conditions
+                .launch
+                .as_ref()
+                .and_then(|s| s.configuration.as_ref()),
+        );
+        launch
+            .then_some(RefSite::LaunchConfiguration)
+            .into_iter()
+            .chain(
+                self.phases
+                    .values()
+                    .filter(|p| matches(p.configuration.as_ref()))
+                    .map(|p| RefSite::PhaseConfiguration {
+                        phase: p.id.to_string(),
+                    }),
+            )
             .collect()
     }
 

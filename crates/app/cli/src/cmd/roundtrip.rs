@@ -152,6 +152,11 @@ fn covers(op: &Op) -> &'static str {
         Op::UnsetPhaseOrbit { .. } => "UnsetPhaseOrbit",
         Op::UnsetPhaseLaw { .. } => "UnsetPhaseLaw",
         Op::SetCasePhase { .. } => "SetCasePhase",
+        Op::CreateConfiguration { .. } => "CreateConfiguration",
+        Op::SetConfiguration { .. } => "SetConfiguration",
+        Op::RemoveConfiguration { .. } => "RemoveConfiguration",
+        Op::RenameConfiguration { .. } => "RenameConfiguration",
+        Op::UnsetConfigurationPose { .. } => "UnsetConfigurationPose",
         Op::RenameNet { .. } => "RenameNet",
         Op::RenameHarness { .. } => "RenameHarness",
         Op::RenameCase { .. } => "RenameCase",
@@ -210,5 +215,5 @@ fn every_op_survives_to_cli_and_back() {
     }
     seen.sort_unstable();
     seen.dedup();
-    assert_eq!(seen.len(), 81, "some Op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 86, "some Op kinds have no sample: {seen:?}");
 }
