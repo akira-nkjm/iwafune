@@ -9,6 +9,14 @@ export type DimensionInfo = {
  */
 name: string, 
 /**
+ * 日本語の表示名（画面に出す名前。`name` は識別子）。名前の無い次元は `name` と同じ
+ */
+label: string, 
+/**
+ * 英語の表示名
+ */
+label_en: string, 
+/**
  * SI の基本単位での式（例: `"kg*m^2/s"`）。無次元は空文字列
  */
 si_unit: string, 

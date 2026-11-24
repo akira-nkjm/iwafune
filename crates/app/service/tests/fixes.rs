@@ -1,6 +1,6 @@
 //! 不足入力の直し方の候補（`fune_service::fixes`）。デモの設計から入力を消して、対象の種類ごとに候補を確かめる。
 
-use fune_model::path::ParamPath;
+use fune_model::path::{ParamPath, SettingPath};
 use fune_model::role::Role;
 use fune_model::{Design, Target, resolve};
 use fune_service::dto::{
@@ -432,6 +432,54 @@ fn enum_and_bool_attributes_offer_their_choices() {
     };
     assert_eq!(values(&choices("polarization")), ["rhcp", "lhcp"]);
     assert_eq!(values(&choices("deployable")), ["true", "false"]);
+}
+
+/// 打ち上げ時の拘束（`structure.modal_fem`）が足りないときは、語彙の選択肢つきの値を入れる候補になる
+/// （欄 `conditions.launch.launch_constraint` は属性と同じ名前で、選べる値は属性定義の語彙。面も同じ）。
+/// 解析の結果の不足にも付く。語彙の無い欄（ラベル）は自由入力のまま。
+#[test]
+fn the_launch_constraint_offers_the_attribute_vocabulary() {
+    let ws = demo();
+    // デモの拘束を消す（ディスペンサー・打ち上げ機の属性）
+    let r = run(
+        &ws,
+        "structure.modal_fem",
+        json!([
+            { "op": "unset_catalog_value", "item": "local/disp_6u_rs", "attr": "launch_constraint", "state": null },
+            { "op": "unset_catalog_value", "item": "local/lv_alpha", "attr": "launch_constraint", "state": null },
+        ]),
+    );
+    let m = r
+        .missing
+        .iter()
+        .find(|m| m.path == "conditions.launch.launch_constraint")
+        .expect("the constraint is missing");
+    let [
+        Fix::SetValue {
+            choices, command, ..
+        },
+    ] = m.fixes.as_slice()
+    else {
+        panic!("{:?}", m.fixes);
+    };
+    assert_eq!(
+        values(choices),
+        ["base_fixed", "rails", "tabs", "fixed", "free"]
+    );
+    assert_eq!(
+        command,
+        "fune set conditions.launch.launch_constraint \"<value>\""
+    );
+    let design = ws.snapshot().unwrap().design;
+    let face = SettingPath::conditions(&["launch", "launch_constraint_face"]);
+    let fix = fixes_of(&design, face.into());
+    let [Fix::SetValue { choices, .. }] = fix.as_slice() else {
+        panic!("{fix:?}");
+    };
+    assert_eq!(values(choices), ["+x", "-x", "+y", "-y", "+z", "-z"]);
+    let label = SettingPath::conditions(&["launch", "label"]);
+    let fix = fixes_of(&design, label.into());
+    assert!(matches!(fix.as_slice(), [Fix::SetValue { choices, .. }] if choices.is_empty()));
 }
 
 /// 軌道の `maneuver` が足りないときは、日付つきの遷移（`[transfer]`）を持つマヌーバだけを選ぶ候補（`PickRef`）。

@@ -4,6 +4,7 @@ import { useT } from "@/i18n";
 import { TextInput } from "@/kit/forms/TextInput";
 import { cn } from "@/lib/cn";
 import { withNote } from "@/lib/design";
+import { useDimensionLabel } from "./use-dimension-label";
 import { useParseQuantity } from "./use-parse";
 
 /**
@@ -37,6 +38,7 @@ export function QuantityInput({
   onChangeValid?: (text: string, valid: boolean, q: QuantityView | null) => void;
 }) {
   const t = useT();
+  const dimensionLabel = useDimensionLabel();
   const [text, setText] = useState(initial);
   const { parsed, error, pending, empty } = useParseQuantity(text, dimension);
   const id = useId();
@@ -95,9 +97,9 @@ export function QuantityInput({
           : pending
             ? t.quantity.parsing
             : parsed
-              ? `= ${withNote(parsed.si.display, parsed.quantity.dimension)}`
+              ? `= ${withNote(parsed.si.display, dimensionLabel(parsed.quantity.dimension))}`
               : dimension
-                ? t.quantity.dimension(dimension)
+                ? t.quantity.dimension(dimensionLabel(dimension))
                 : t.quantity.example}
       </div>
     </div>

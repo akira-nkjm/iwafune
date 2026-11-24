@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { q } from "@/api/queries";
 import type { DesignView } from "@/api/types";
-import { useT } from "@/i18n";
+import { localized, useT } from "@/i18n";
 import { SkeletonTable } from "@/kit/feedback/Loading";
 import { QueryState } from "@/kit/feedback/QueryState";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
@@ -13,10 +13,12 @@ import { TablePanel } from "@/kit/table/TablePanel";
 import { Td } from "@/kit/table/Td";
 import { Th } from "@/kit/table/Th";
 import { QuantityInput } from "@/quantity/QuantityInput";
+import { useDimensionLabel } from "@/quantity/use-dimension-label";
 
 /** 単位の一覧（sat-units のカーネル）と、その次元を使っている属性。入力の試し打ちもここでできる */
 export function UnitsTab({ design }: { design: DesignView | undefined }) {
   const t = useT();
+  const dimensionLabel = useDimensionLabel();
   const tu = t.defs.units;
   const mappingLabel = {
     linear: tu.linear,
@@ -49,7 +51,10 @@ export function UnitsTab({ design }: { design: DesignView | undefined }) {
             value={dim}
             onChange={(e) => setDim(e.target.value)}
             placeholder={tu.allDimensions}
-            options={(all.data?.dimensions ?? []).map((d) => ({ value: d.name, label: d.name }))}
+            options={(all.data?.dimensions ?? []).map((d) => ({
+              value: d.name,
+              label: localized(d.label, d.label_en),
+            }))}
           />
         }
       >
@@ -73,7 +78,7 @@ export function UnitsTab({ design }: { design: DesignView | undefined }) {
               {data.units.map((u) => (
                 <tr key={u.symbol}>
                   <Td mono>{u.symbol}</Td>
-                  <Td>{u.dimension}</Td>
+                  <Td>{dimensionLabel(u.dimension)}</Td>
                   <Td className="text-ink-3">{mappingLabel[u.mapping]}</Td>
                   <Td align="right" mono>
                     {u.scale}

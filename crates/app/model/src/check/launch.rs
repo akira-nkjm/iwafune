@@ -1,9 +1,11 @@
 //! 打ち上げ条件が選ぶ品（`conditions/launch.toml` の `launcher`・`dispenser`）の検査。
 //! 参照先が定義されているか・種別が合うか（`ref.launcher`・`ref.dispenser`・`launch.kind`）と、打ち上げ機・ディスペンサーの種別を
 //! 部品に使っていないか（`part.launch_kind`。これらは衛星の部品ではなく条件）。
+//! `launch.toml` に書いた拘束の種類・面が属性の語彙にあるか（`launch.constraint`）。
 
 use super::Ctx;
 use super::settings::scope;
+use crate::design::launch::attr;
 use crate::design::{EntityKey, LaunchInterface};
 use crate::path::SettingPath;
 use crate::target::Target;
@@ -11,7 +13,39 @@ use crate::target::Target;
 /// 選んだ品と、部品の種別。
 pub(super) fn check_launch(ctx: &mut Ctx) {
     check_selection(ctx);
+    check_constraint(ctx);
     check_parts(ctx);
+}
+
+/// `launch.toml` の拘束の種類・面は、属性定義の語彙（`symbols`。カタログの値と同じ語彙）のどれかであること。
+fn check_constraint(ctx: &mut Ctx) {
+    let design = ctx.design;
+    let Some(launch) = design.conditions.launch.as_ref() else {
+        return;
+    };
+    let written = [
+        (attr::CONSTRAINT, launch.launch_constraint.as_deref()),
+        (
+            attr::CONSTRAINT_FACE,
+            launch.launch_constraint_face.as_deref(),
+        ),
+    ];
+    for (key, value) in written {
+        let (Some(value), Some(def)) = (value, design.attribute(key)) else {
+            continue;
+        };
+        if def.symbols.iter().any(|w| w == value) {
+            continue;
+        }
+        scope(ctx, SettingPath::conditions(&["launch"])).error(
+            &[key],
+            "launch.constraint",
+            format!(
+                "`{value}` is not a value of `{key}` (one of: {})",
+                def.symbols.join(", ")
+            ),
+        );
+    }
 }
 
 fn check_selection(ctx: &mut Ctx) {

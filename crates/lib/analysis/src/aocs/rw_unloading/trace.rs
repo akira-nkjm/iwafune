@@ -1,6 +1,6 @@
 //! 時系列の計算（擾乱トルク → ECI での角運動量 → 機体座標系 → ホイールへの配分）と、永年・周期成分の分離。
 
-use crate::aocs::disturbance::{DisturbanceSpacecraft, DisturbanceTorques};
+use crate::aocs::disturbance::{DisturbanceModel, DisturbanceTorques};
 use crate::aocs::wheels::WheelSet;
 use crate::spec::orbit_segments;
 use sat_astro::ephem::CentralBody;
@@ -23,14 +23,14 @@ pub(super) struct Trace {
 
 impl Trace {
     pub(super) fn build(
-        sc: &DisturbanceSpacecraft,
+        model: &DisturbanceModel<'_>,
         central: CentralBody,
         set: &WheelSet,
         samples: &[TimelineSample],
     ) -> Self {
         let t: Vec<f64> = samples.iter().map(|s| s.t_s).collect();
         let torques: Vec<DisturbanceTorques> =
-            samples.iter().map(|s| sc.torques(central, s)).collect();
+            samples.iter().map(|s| model.torques(central, s)).collect();
         let tau_eci: Vec<Vec3> = samples
             .iter()
             .zip(&torques)

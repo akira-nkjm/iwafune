@@ -16,6 +16,10 @@ pub struct UnitsCatalog {
 pub struct DimensionInfo {
     /// 例: `"AngularMomentum"`
     pub name: String,
+    /// 日本語の表示名（画面に出す名前。`name` は識別子）。名前の無い次元は `name` と同じ
+    pub label: String,
+    /// 英語の表示名
+    pub label_en: String,
     /// SI の基本単位での式（例: `"kg*m^2/s"`）。無次元は空文字列
     pub si_unit: String,
     /// 表示単位の候補（小さい順。GUI の単位の選択肢）

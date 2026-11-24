@@ -4,7 +4,7 @@
 //! `match` で書くので、解析に値が増えたら、ここが書かれるまでコンパイルが通らない。
 
 use crate::dto::{AnalysisLabel, AocsUnloadMeans, KpiKey};
-use sat_analysis::aocs::disturbance::DisturbanceKind;
+use sat_analysis::aocs::disturbance::{DisturbanceKind, SurfaceValueSource};
 use sat_analysis::aocs::sensor_fov::SensorFovTarget;
 use sat_analysis::aocs::slew_time::{SlewAssumption, SlewProfile};
 use sat_analysis::aocs::unload_time::{MtqFieldGap, MtqFieldReason, UnloadAssumption};
@@ -21,6 +21,7 @@ use sat_analysis::structure::external_geometry::{BodyAxis, FaceDirection};
 use sat_analysis::structure::interference::InterferenceSkipReason;
 use sat_analysis::structure::launch_fit::{LaunchFitDirection, LaunchFitEnvelopeSource};
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
+use sat_analysis::structure::modal_fem::{ModalFemAxis, ModalFemModeClass};
 use sat_analysis::thermal::ThermalHeaterState;
 use serde::de::DeserializeOwned;
 
@@ -105,6 +106,20 @@ fn disturbance(k: DisturbanceKind) -> AnalysisLabel {
         DisturbanceKind::Srp => label("太陽輻射圧トルク", "Solar radiation pressure torque"),
         DisturbanceKind::Magnetic => label("残留磁気トルク", "Residual magnetic torque"),
         DisturbanceKind::Thrust => label("推力誤差トルク", "Thrust misalignment torque"),
+    }
+}
+
+fn surface_value_source(s: SurfaceValueSource) -> AnalysisLabel {
+    match s {
+        SurfaceValueSource::Written => label("設定に書いた値", "Written in the settings"),
+        SurfaceValueSource::Geometry => label(
+            "部品の箱の投影から向きごとに出した値",
+            "Per direction from the projection of the part boxes",
+        ),
+        SurfaceValueSource::CentreOfMass => label(
+            "重心に置いた（トルクは 0）",
+            "Placed at the centre of mass (zero torque)",
+        ),
     }
 }
 
@@ -343,6 +358,24 @@ fn body_axis(a: BodyAxis) -> AnalysisLabel {
     }
 }
 
+/// 有限要素の固有値解析の軸は機体の軸（`BodyAxis` と同じ表示名）。
+fn modal_fem_axis(a: ModalFemAxis) -> AnalysisLabel {
+    body_axis(match a {
+        ModalFemAxis::X => BodyAxis::X,
+        ModalFemAxis::Y => BodyAxis::Y,
+        ModalFemAxis::Z => BodyAxis::Z,
+    })
+}
+
+fn modal_fem_mode_class(c: ModalFemModeClass) -> AnalysisLabel {
+    match c {
+        ModalFemModeClass::Rigid => label("剛体（拘束のないモード）", "Rigid body"),
+        ModalFemModeClass::Axial => label("全体・機軸方向", "Global, axial"),
+        ModalFemModeClass::Lateral => label("全体・機軸に直交", "Global, lateral"),
+        ModalFemModeClass::Local => label("局所（パネルなど）", "Local (panels and the like)"),
+    }
+}
+
 fn face_direction(d: FaceDirection) -> AnalysisLabel {
     match d {
         FaceDirection::NegX => label("−X 面", "−X faces"),
@@ -410,6 +443,7 @@ fn parse<T: DeserializeOwned>(value: &str) -> Option<T> {
 pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
     match ty {
         "DisturbanceKind" => parse(value).map(disturbance),
+        "SurfaceValueSource" => parse(value).map(surface_value_source),
         "SensorFovTarget" => parse(value).map(sensor_target),
         "UnloadAssumption" => parse(value).map(unload_assumption),
         "MtqFieldReason" => parse(value).map(mtq_field_reason),
@@ -424,6 +458,8 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "LaunchFitEnvelopeSource" => parse(value).map(launch_fit_envelope_source),
         "InterferenceSkipReason" => parse(value).map(interference_skip_reason),
         "BodyAxis" => parse(value).map(body_axis),
+        "ModalFemAxis" => parse(value).map(modal_fem_axis),
+        "ModalFemModeClass" => parse(value).map(modal_fem_mode_class),
         "FaceDirection" => parse(value).map(face_direction),
         "ConeKind" => parse(value).map(cone_kind),
         "ConeSkipReason" => parse(value).map(cone_skip_reason),
@@ -516,6 +552,10 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         K::InterferenceOverlaps => label("部品の重なり（組）", "Part overlaps (pairs)"),
         K::ConeObstructions => label("円錐の遮り", "Cone obstructions"),
         K::MeanProjectedArea => label("投影面積（平均）", "Projected area (mean)"),
+        K::FirstFrequency => label(
+            "最低の固有振動数（有限要素）",
+            "Lowest natural frequency (finite element)",
+        ),
         K::TransferMiss => label("到着のずれ（最大）", "Arrival miss distance (max)"),
         K::LaunchWindowDeltaV => label("窓の ΔV（最小）", "Launch window delta-v (min)"),
         K::GreatestEarthDistance => {

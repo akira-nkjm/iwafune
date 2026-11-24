@@ -65,10 +65,12 @@ mod tests {
         DisturbanceSpacecraft {
             inertia: Mat3::diagonal(Vec3::new(0.05, 0.05, 0.05)),
             aero: aero.then(|| DisturbanceSurface {
+                coefficient: 2.2,
+                area: Some(Qty::from_raw(0.1)),
                 cp_offset: None,
-                coefficient_area: Qty::from_raw(0.1),
             }),
             srp: None,
+            geometry: None,
             residual_dipole: dipole.then_some(Vec3::new(0.1, 0.0, 0.0)),
             atmosphere: Default::default(),
             density_scale: None,

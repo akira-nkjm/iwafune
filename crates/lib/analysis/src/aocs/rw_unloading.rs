@@ -8,7 +8,9 @@
 //! 5. アンロード間隔 = (永年成分の向きで蓄えられる量の最小 − 周期成分) / 1 周あたりの永年成分 × 周期。
 //! 6. スラスタ（`rcs`）があれば、1 日に溜まる永年成分を RCS で捨てる推薬と、その ΔV 換算を求める（[`rcs`]）。
 
-use super::disturbance::{DisturbanceKind, DisturbanceSpacecraft, DisturbanceTorques};
+use super::disturbance::{
+    DisturbanceKind, DisturbanceSpacecraft, DisturbanceTorques, SurfaceValueSource,
+};
 use super::wheels::{RwWheel, WheelSet, usable_momentum_fraction};
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, Series, SpanFallback, System,
@@ -17,7 +19,7 @@ use crate::spec::{
 use sat_astro::constants::SECONDS_PER_DAY;
 use sat_astro::math::Vec3;
 use sat_astro::timeline::{self, TimelineSample, TimelineSpec, time_mean};
-use sat_units::typed::{AngularMomentum, Fraction, Qty, Time, Torque};
+use sat_units::typed::{AngularMomentum, Area, Fraction, Length, Qty, Time, Torque};
 use serde::{Deserialize, Serialize};
 
 /// トルクの余裕（[`crate::spec::ratio_margin`]）の警告の幅。0 なので、最大トルクが必要なトルク以上なら ok、足りなければ違反の二段階。
@@ -61,6 +63,8 @@ pub struct RwUnloadingOutput {
     pub usable_momentum_fraction: Fraction,
     /// 種類別の擾乱トルク（大きさの最大・平均）
     pub disturbances: Vec<RwUnloadingDisturbance>,
+    /// 空力・太陽輻射圧の面の、受圧面積と腕の出どころ（書かれた値か、部品の箱から出した値か）と範囲
+    pub surfaces: Vec<RwUnloadingSurface>,
     /// 合計の擾乱トルクの大きさの最大
     #[serde(serialize_with = "sat_units::typed::TorqueKind::serialize")]
     pub peak_disturbance: Qty<Torque>,
@@ -105,6 +109,26 @@ pub struct RwUnloadingDisturbance {
     pub mean: Qty<Torque>,
 }
 
+/// 空力・太陽輻射圧の面 1 つ。受圧面積と圧力中心（重心からの腕）の出どころと、時系列の中での範囲。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct RwUnloadingSurface {
+    /// 擾乱の種類（空力か太陽輻射圧）
+    pub key: DisturbanceKind,
+    /// 係数（Cd または Cr）
+    pub coefficient: f64,
+    /// 受圧面積の出どころ
+    pub area_source: SurfaceValueSource,
+    /// 圧力中心の出どころ
+    pub cp_source: SurfaceValueSource,
+    /// 受圧面積の最小（評価した点の中）
+    pub area_min: Qty<Area>,
+    /// 受圧面積の最大（評価した点の中）
+    pub area_max: Qty<Area>,
+    /// 重心から圧力中心までの腕の長さの最大
+    pub arm_max: Qty<Length>,
+}
+
 /// 1 台のホイールの結果。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -137,16 +161,11 @@ impl Analysis for RwUnloading {
     type Output = RwUnloadingOutput;
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
-        input.spacecraft.validate()?;
+        let model = input.spacecraft.model()?;
         let usable = usable_momentum_fraction(input.usable_momentum_fraction)?;
         let set = WheelSet::new(&input.wheels)?;
         let samples = timeline::build(&input.timeline)?;
-        let trace = Trace::build(
-            &input.spacecraft,
-            input.timeline.orbit().central(),
-            &set,
-            &samples,
-        );
+        let trace = Trace::build(&model, input.timeline.orbit().central(), &set, &samples);
         let mut out = summarize(input, usable, &set, &samples, &trace);
         if let Some(r) = &input.rcs {
             let (budget, check) =
@@ -195,6 +214,7 @@ fn summarize(
                 .fold(0.0, f64::max),
         ),
         disturbances,
+        surfaces: surfaces::summary(&input.spacecraft, &tr.torques),
         secular_per_orbit_eci: secular,
         secular_per_orbit: Qty::from_raw(secular.norm()),
         cyclic_amplitude: Qty::from_raw(cyclic),
@@ -307,10 +327,13 @@ fn nan_to_zero(v: f64) -> f64 {
 
 pub mod rcs;
 mod report;
+mod surfaces;
 mod trace;
 pub use rcs::{RwUnloadingRcs, RwUnloadingRcsInput};
 use report::{series, verdicts};
 use trace::{Trace, secular_and_cyclic};
 
+#[cfg(test)]
+mod geometry_tests;
 #[cfg(test)]
 mod tests;

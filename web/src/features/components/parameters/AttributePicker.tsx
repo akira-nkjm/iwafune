@@ -4,6 +4,7 @@ import { useT } from "@/i18n";
 import { TextInput } from "@/kit/forms/TextInput";
 import { cn } from "@/lib/cn";
 import { defName } from "@/lib/design";
+import { useDimensionLabel } from "@/quantity/use-dimension-label";
 
 /** 標準の属性（組み込み＋プロジェクト独自）を検索して 1 つ選ぶ。値のある属性は外す（状態ごとの属性は残す） */
 export function AttributePicker({
@@ -20,6 +21,7 @@ export function AttributePicker({
   onSelect: (id: string) => void;
 }) {
   const tp = useT().components.param;
+  const dimensionLabel = useDimensionLabel();
   const [search, setSearch] = useState("");
   const candidates = useMemo(() => {
     const used = new Set(
@@ -55,7 +57,7 @@ export function AttributePicker({
               <span className="truncate font-mono">{a.id}</span>
               <span className="truncate text-ink-2">{defName(a)}</span>
               <span className="text-ink-3">
-                {a.dimension ?? a.value_type}
+                {a.dimension ? dimensionLabel(a.dimension) : a.value_type}
                 {a.by_state ? tp.byState : ""}
                 {a.units.length > 0 ? ` · ${a.units.join(", ")}` : ""}
               </span>

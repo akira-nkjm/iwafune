@@ -219,6 +219,7 @@ pub(super) fn rule(key: KpiKey) -> Rule {
         | K::ComShift
         | K::LaunchFitMargin
         | K::MeanProjectedArea
+        | K::FirstFrequency
         | K::LaunchWindowDeltaV
         | K::GreatestEarthDistance => (Unjudged, Fill::None, Tally::None),
     };

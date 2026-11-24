@@ -166,7 +166,7 @@ The distances and angles are computed in one place, `sat_astro::timeline::geomet
 [decay]
 span             = { value = 25, unit = "yr" }   # upper limit of the integration span (default 25 years)
 reentry_altitude = { value = 120, unit = "km" }  # perigee altitude regarded as reentry (default 120 km)
-drag_area        = { value = 0.06, unit = "m^2" } # drag area (if absent, the area of the structure's bounding box averaged over orientation = surface area / 4)
+drag_area        = { value = 0.06, unit = "m^2" } # drag area (if absent, the mean projected area over all directions of the union of the part boxes; §5.9)
 band             = { value = 2, unit = "km" }    # altitude band for orbit maintenance (if absent, drag is cancelled continuously)
 ```
 
@@ -174,7 +174,7 @@ The upper limit of the lifetime (the disposal requirement) is **not** a setting:
 Without such a requirement no lifetime check is made.
 
 Other input values use existing ones: the orbit (`conditions/orbit.toml`; the case β is not used), the mass (the sum of the parts' mass properties),
-the outer shape (the structure's `size`; the same `aocs::reference_box` as for aerodynamic torque), the drag coefficient (`analysis.aocs.drag_coefficient`, 2.2 if absent), and
+the outer shape (the boxes of all parts with a `size`, placed by the configuration in effect: the phase's configuration of the case, else the base; the same geometry as `structure.external_geometry`, §5.9), the drag coefficient (`analysis.aocs.drag_coefficient`, 2.2 if absent), and
 the mission duration (the requirement `input = "mission_duration"`; the period used to judge lifetime and to accumulate the orbit-maintenance ΔV; 1 year if absent).
 The propellant for orbit maintenance is the usable propellant of the propulsion analysis (`propulsion.propellant`, §7.7) (the propellant used with margin included); the propellant is not written here.
 The specific impulse is the lowest among the propulsion subsystem's thrusters (conservative side), and the mass before firing is the mass with propellant loaded (`wet_mass`). The propellant and thruster used appear in the result's
@@ -826,10 +826,19 @@ the heater switching times, duty (1e-9) and longest on period (1e-5 s instead of
 
 ### 5.3 Outer shape for attitude analysis
 
-The outer shape used for disturbances is the part with `size` and no mount parent, if there is exactly one such part.
+**Drag area** (#388 stage 3). `drag_area` in `[decay]`, if written, is used as it is (`used.area_source = given`). Otherwise the area is the **mean projected area over all directions of the union of the part boxes** (`used.area_source = body_boxes`): exactly the `mean_projected_area` that `structure.external_geometry` reports (one function, `ExternalGeometry::mean_projected_area`).
+The part boxes are the input `body_boxes` (`fune_projection::structure::boxes`, so the configuration in effect is followed). A design with a single box and nothing else gets `(xy + yz + zx) / 2` as before; the deployed demo gets a larger area than its structure box alone. With no part that has a `size` (and no written area) the analysis reports a missing input.
+
+**Aerodynamic and solar-pressure torque** (`aocs.rw_unloading`, #388 stage 4). The physical model is unchanged (force = coefficient × area along the flow, or away from the Sun, `τ = r × F`); only the area and the arm change. At every time sample the area is the exact projected area of the union of the part boxes along the flow (aerodynamic) or the Sun direction (solar pressure) in the body frame,
+and the arm is the perpendicular part of the vector from the centre of mass (the mass properties) to the centroid of that projection (`ExternalGeometry::projected`; the same function as for the report and the drag area). A direction that repeats (the Sun direction of a sun-pointing law) is solved once.
+`analysis.aocs.aero_area` / `srp_area` (an area) and `cp_offset_aero` / `cp_offset_srp` (a body-frame vector) replace the geometric value when they are written; each of area and arm is replaced on its own. The output `surfaces` says, for the aerodynamic and the solar-pressure surface, where the area and the centre of pressure came from (`written` or `geometry`)
+and the range of the area and the arm over the time series. With a written area and a written centre of pressure no boxes are needed; otherwise a part with a `size` is required (a missing input if none). Cd and Cr remain `drag_coefficient` and `srp_coefficient`.
+The aerodynamic area is no longer "the largest face of the structure box whatever the attitude": it is the area seen along the flow in the current attitude, so a design that relied on the old fixed value gets different torques (write `aero_area` to fix it).
+
+The thermal enclosure and the launch-fit envelope fallback still use the root part: the part with `size` and no mount parent, if there is exactly one such part.
 If there are several, the analysis stops with the candidate part IDs shown in the missing-input message, and does not choose by ID order. The handling of zero is as before.
 
-A root's `[pose]` is its placement in the body frame (§7.1), but the outline consumers (this reference box, the decay area, the launch-fit envelope fallback and the thermal enclosure) still read the box as "the root's `size`, centred on the body origin, aligned to the body axes" (#388 replaces this rule by geometry from all part boxes).
+A root's `[pose]` is its placement in the body frame (§7.1), but the remaining outline consumers (the launch-fit envelope fallback and the thermal enclosure) still read the box as "the root's `size`, centred on the body origin, aligned to the body axes".
 So that a pose is never silently misread (`fune_projection::outline`):
 - a root rotated by a multiple of 90° about the body axes gives the box extents permuted into the body axes (a quarter turn about z swaps the x and y extents), which is exact;
 - a root with an offset from the body origin, or a rotation that is not a multiple of 90°, keeps its `size` as written and `fune check` warns `outline.root_pose` (the offset is ignored and the box is not turned by these consumers; mass properties, interference and the 3-D view do use the pose).
@@ -1035,6 +1044,8 @@ and a part whose kind is (or extends) one of them is an error (`part.launch_kind
 | `launch_load_axial`, `launch_load_lateral` | Acceleration | g0, m/s^2 | quasi-static load factors |
 | `min_frequency_axial`, `min_frequency_lateral` | Frequency | Hz | minimum first natural frequencies |
 | `max_tip_off_rate` | AngularVelocity | deg/s, rad/s | maximum angular rate at separation (stored; no analysis reads it yet) |
+| `launch_constraint` | enumeration | `base_fixed`, `rails`, `tabs`, `fixed`, `free` | how the interface supports the satellite for `structure.modal_fem` (§5.10) |
+| `launch_constraint_face` | enumeration | `+x`, `-x`, `+y`, `-y`, `+z`, `-z` | the face of the body box that `base_fixed`, `tabs` and `fixed` constrain (`-z` is the launcher side of the launch axis) |
 
 The design selects them in `conditions/launch.toml` with the same reference form as a part's `catalog` (`<catalog>/<id>`, read by `split_catalog_ref`):
 
@@ -1071,6 +1082,9 @@ The declination of the departure asymptote against the launch site latitude is n
 **Precedence** (`fune_projection::launch`, the only place): a value written in `conditions/launch.toml` (`load_axial`, `load_lateral`) → the dispenser → the launcher (the nearer interface first; a value is taken from the first of them that has the attribute).
 `structure.static_load` reads the loads this way. When none gives a load, the missing input is `conditions.launch.load_axial` (or `load_lateral`) and the message says it can also be given as `launch_load_axial` / `launch_load_lateral` on the dispenser or launcher.
 `structure.modal_estimate` takes its minimum natural frequencies the same way (the item's `min_frequency_*`), and a requirement on `lateral` / `axial` can only tighten it (the larger wins).
+`structure.modal_fem` reads `launch_constraint` and `launch_constraint_face` in the same order: the keys of the same names in `conditions/launch.toml` (`launch_constraint = "rails"`) → the dispenser → the launcher
+(`LaunchValues::text_set`). **The constraint kind and its face are a pair: the face is read only from the source that supplied the kind** (launch.toml, or that dispenser, or that launcher), never mixed from another source.
+If that source gives a kind that needs a face (`base_fixed`, `tabs`, `fixed`) and no face, the missing input is the face and the message names the source; a face written on the same source is ignored by `rails` and `free`. The vocabulary is the `symbols` of the attribute definitions (a value outside it is `launch.constraint` in `fune check`); when nothing gives a support type, the missing input is `conditions.launch.launch_constraint` and its fix offers the vocabulary as choices (the same for the face).
 
 **`structure.launch_fit`** judges the design against the selected items and needs at least one of them (the missing input is `conditions.launch.launcher`):
 
@@ -1148,8 +1162,7 @@ Not modeled: the effect of a plume on what it hits (heating, force and torque, c
 ### 5.9 External geometry (`structure.external_geometry`, #388)
 
 `structure.external_geometry` reports the spacecraft's outer shape as the parts' boxes give it: the **projected area** along any direction (boxes hide each other, so the areas are not summed) and the **exposed surface area** (the faces not covered by other boxes).
-It is a report: no verdict is produced (one `ok` check with the numbers), and nothing consumes it yet. The drag area of `orbit.decay`, the aerodynamic and solar-pressure torques of `aocs.rw_unloading`, the launch envelope and the thermal enclosure still use what they used before;
-making them read this geometry is the next stages of #388 (the numbers they produce will change then, and the demo's results with them). The boxes are the same oriented boxes as §5.7 (`fune_projection::structure::boxes`, so the configuration in effect is followed), with the same skip of parts without a `size`.
+It is a report: no verdict is produced (one `ok` check with the numbers). The drag area of `orbit.decay` (§5.3) and the aerodynamic and solar-pressure torques of `aocs.rw_unloading` (§5.3) take their areas (and the torque arm) from the same geometry; the launch envelope (§5.6) takes the stowed envelope from the same boxes under a configuration, and the thermal enclosure still uses the root box. The boxes are the same oriented boxes as §5.7 (`fune_projection::structure::boxes`, so the configuration in effect is followed), with the same skip of parts without a `size`.
 
 - **Projected area**: the silhouette of an oriented box along a direction is the convex hull of its 8 projected corners (a hexagon at most; a rectangle along a face normal, a segment edge-on). The projected area is the **exact area of the union of the silhouettes**, by a slab sweep in `sat_astro::math::planar`:
   the plane is cut at every vertex ordinate and every edge-crossing ordinate, inside a slab each silhouette is a trapezoid and their order does not change, so the union of intervals gives the area and the first moments in closed form (the trapezoid rule and Simpson's rule are exact on linear widths).
@@ -1169,7 +1182,42 @@ making them read this geometry is the next stages of #388 (the numbers they prod
 - **Output**: `projected` (X, Y, Z: `area`, `centre`; +/− directions are equal), `mean_projected_area`, `min_projected` and `max_projected` (`area` and the `direction`; the extremes over the direction set and the three body axes: `directions_measured` in all, so the maximum is a lower bound and the minimum an upper bound of the true extremes),
   `exposed_area`, `exposed_by_direction` (−X, +X, −Y, +Y, −Z, +Z), `exposed_by_part`, `internal_parts`, `skipped`, `repeated`, `parts_with_box`, `checks`.
 
-Not modeled: real shapes (STEP, #344), shadowing between parts for the thermal surfaces and the solar cells (a later issue, on the same geometry), and the drag coefficient or the pressure centre that would use these areas.
+Not modeled: real shapes (STEP, #344), shadowing between parts for the thermal surfaces and the solar cells (a later issue, on the same geometry), and a drag or reflection coefficient that depends on the face.
+
+### 5.10 Finite-element modal analysis (`structure.modal_fem`, #370)
+
+`structure.modal_fem` meshes the panels of the design into flat shell elements (one common grid per body axis, so panels that share an edge or meet at a T-junction are joined at shared nodes) and returns the lowest natural frequencies of the whole body
+with each mode's effective mass fraction per axis and class (rigid, axial, lateral, local). It is a **launch analysis**: parts are placed in the launch configuration (§7.11), so a deployable is a lumped mass at its stowed pose like any other part (nothing stowed-specific is built).
+It is an order-of-magnitude and trend tool, not a detailed model. How the model is built from the design (`fune_projection::structure::modal_fem`):
+
+- **Panels.** Every part of role `panel` is a rectangular mid-surface: its box centre is the centre, the thinnest box extent is the normal, the other two extents are the sides, `thickness` and the material (`analysis/structure.toml`, read by the same code as `structure.modal_estimate`) give the stiffness.
+  Only panels whose box follows the body axes (a multiple of 90°) are modelled; any other panel is left out with a reason in `skipped_panels` and its mass becomes a lumped mass. Joints are found from sizes and positions with a tolerance (default 1 mm, `joint_tolerance`) and listed in `joints`.
+  If a panel has a `mass`, the mass matrix uses it (a lightened panel) while the stiffness still comes from density and thickness; otherwise the mass is density × thickness × area.
+- **Frame.** Parts of role `structure` add **mass only**, spread over the whole model in proportion to the area each node carries. Their stiffness is not modelled, so the frequencies tend to be on the **low** side.
+- **Mounted parts.** Every other part with a `mass` is a lumped mass (mass × count) at the part's origin (its centre of mass in this model), tied rigidly to a panel and spread over the projection of its `size` box when the box follows the body axes. The panel is chosen in this order:
+  the `tie` setting, the nearest panel in the part's mount chain (a part mounted on a panel is tied to it), otherwise the **nearest panel(s)** (found by the analysis). Panels whose distance is within the joint tolerance of the nearest one are all nearest: the part's mass is **split equally** among them
+  (a part midway between two panels gives each half), so no panel is favoured by ID order. A `tie` or a mount on a panel always means exactly one panel.
+  `attachments` has one row per part and panel: the panel, the distance, `share` (the fraction of the part's mass, 1 unless split) and `automatic` (true only for the nearest-panel choice). Parts hanging on the frame are tied this way, so the result depends on this choice as much as on the mesh: read `attachments`.
+  A part that is far from its panel puts its mass at the nearest point of the panel; the rotary inertia of the offset is not modelled.
+- **Mass.** The model mass is the **bare** mass (no growth allowance, no propellant, which is not a part): the sum of mass × count of all parts that have a `mass`. For the demo it equals the mass budget's bare dry total.
+- **Constraint.** `launch_constraint` (§5.6): `base_fixed` fixes all degrees of freedom of the nodes on the face; `rails` fixes the four edges parallel to the launch axis (body z) laterally and the eight corners along it (a CubeSat dispenser);
+  `tabs` fixes the translations of the two edges of the face parallel to the launch axis; `fixed` fixes the translations of the nodes on the face (rotations free); `free` has no constraint (tests and diagnostics; the rigid-body modes are reported as `rigid`).
+  There is no default: without a support type the analysis is a missing input.
+- **Settings** (`analysis/structure.toml`, all optional; `fune set analysis.structure.modal.mesh_size "20 mm"`):
+
+  ```toml
+  [modal]
+  mesh_size       = { value = 20.0, unit = "mm" }   # element size; default min(shortest panel edge / 4, 25 mm)
+  joint_tolerance = { value = 1.0, unit = "mm" }    # edges and planes closer than this are the same; default 1 mm
+  [modal.tie]
+  OBC = "PANEL_MZ"                                    # part -> panel; overrides the mount chain and the nearest panel
+  ```
+
+  A `tie` that names a part that does not exist or something that is not a modelled panel is a missing input at that setting. A rename of a part or panel does not rewrite `tie` (the check at analysis time catches it).
+  Pairs of panels that must not be joined are not supported yet.
+- **KPI.** `first_frequency`: the lowest non-rigid mode (it may be a local mode such as a panel carrying heavy parts; the output separates `lowest_lateral` and `lowest_axial`). There is no verdict yet: the frequencies are compared with the launcher's minimums by `structure.launch_fit` in a later stage.
+
+Known biases: the frame stiffness is omitted (low), parts are tied rigidly at one point or one projected area (a heavy part on a thin panel gives a low local mode), the nearest-panel tie is a modelling choice made by distance only, and the joints between panels are rigid.
 
 ## 6. Product tree and mounting
 

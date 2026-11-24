@@ -62,9 +62,15 @@ export function LayoutBrowser({
             return (
               <span className="flex items-center">
                 {node.item && poseOverridden(design, configuration, node.item) && (
-                  <Pill tone="accent" dot={false}>
-                    {t.components.placement.overridden}
-                  </Pill>
+                  <button
+                    type="button"
+                    onClick={() => node.item && onSelect(node.item.id)}
+                    className="rounded-chip"
+                  >
+                    <Pill tone="accent" dot={false}>
+                      {t.components.placement.overridden}
+                    </Pill>
+                  </button>
                 )}
                 <IsolateToggle
                   node={node}

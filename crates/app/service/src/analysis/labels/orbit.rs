@@ -36,9 +36,9 @@ pub(super) fn weather_source(w: WeatherSource) -> AnalysisLabel {
 pub(super) fn drag_area_source(s: DragAreaSource) -> AnalysisLabel {
     match s {
         DragAreaSource::Given => label("与えた面積", "Given area"),
-        DragAreaSource::TumblingBox => label(
-            "構体の外形の箱を向きでならした面積（表面積の 1/4）",
-            "Body box averaged over orientations (a quarter of the surface area)",
+        DragAreaSource::BodyBoxes => label(
+            "部品の箱の和集合の、全方向の平均の投影面積",
+            "Mean projected area over all directions of the union of the part boxes",
         ),
     }
 }

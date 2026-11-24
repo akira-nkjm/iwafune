@@ -4,21 +4,26 @@
 use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::parts::{self, SENSOR_ROLES, by_role, direction_body};
-use crate::quantity::{setting, vec_si};
+use crate::quantity::{setting, setting_opt, vec_si};
 use crate::{structure, timeline};
 use fune_model::Target;
 use fune_model::builtin::Role;
 use fune_model::design::setting_dims as dims;
 use fune_model::path::SettingPath;
-use sat_analysis::aocs::disturbance::{DisturbanceSpacecraft, DisturbanceSurface};
+use sat_analysis::aocs::disturbance::{
+    DisturbanceGeometry, DisturbanceSpacecraft, DisturbanceSurface,
+};
 use sat_analysis::aocs::sensor_fov::SensorFovSensor;
 use sat_analysis::aocs::unload_time::{UnloadTimeField, UnloadTimeMtq};
 use sat_analysis::aocs::wheels::RwWheel;
 use sat_analysis::aocs::{RwUnloadingInput, SensorFovInput, SlewTimeInput, UnloadTimeInput};
 use sat_analysis::spec::SamplingSpan;
+use sat_analysis::structure::interference::InterferenceBox;
 use sat_analysis::structure::mass_properties::MassPropertiesSummary;
 use sat_astro::math::Vec3;
-use sat_units::typed::{Angle, AngularMomentum, Fraction, MagneticDipoleMoment, Qty, Time, Torque};
+use sat_units::typed::{
+    Angle, AngularMomentum, Area, Fraction, MagneticDipoleMoment, Qty, Time, Torque,
+};
 
 mod thrust;
 
@@ -51,20 +56,20 @@ pub fn wheels(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<RwWheel> {
     out
 }
 
-/// 擾乱の計算に使う機体の性質（慣性・圧力中心・残留磁気）。推力誤差は呼び出し側が足す。
-fn spacecraft(
+/// 空力・太陽輻射圧の面（係数・書かれた面積と圧力中心）と、書かれていない分を出すための部品の箱と重心。
+fn surfaces(
     ctx: &Context<'_>,
-    summary: &MassPropertiesSummary,
+    center_of_mass: Vec3,
     m: &mut MissingInputs,
-) -> DisturbanceSpacecraft {
+) -> (
+    Option<DisturbanceSurface>,
+    Option<DisturbanceSurface>,
+    Option<DisturbanceGeometry>,
+) {
     let s = settings(ctx);
-    // ベクトルの設定（パスは設定の次元の表の欄から。単位どおりに SI へ直す）
     let v = |x: Option<&fune_model::value::Vector3>, path: SettingPath, m: &mut MissingInputs| {
         x.and_then(|x| vec_si(x, path, m))
     };
-    let size = reference_box(ctx, m);
-    let surface =
-        |coef: Option<f64>, cp: Option<Vec3>| Some(DisturbanceSurface::from_box(size?, coef?, cp));
     let aero_cp = v(
         s.and_then(|s| s.cp_offset_aero.as_ref()),
         dims::AOCS_CP_OFFSET_AERO.at(&[]),
@@ -75,10 +80,61 @@ fn spacecraft(
         dims::AOCS_CP_OFFSET_SRP.at(&[]),
         m,
     );
+    let aero_area = setting_opt(
+        &dims::AOCS_AERO_AREA,
+        &[],
+        s.and_then(|s| s.aero_area.as_ref()),
+        m,
+    );
+    let srp_area = setting_opt(
+        &dims::AOCS_SRP_AREA,
+        &[],
+        s.and_then(|s| s.srp_area.as_ref()),
+        m,
+    );
+    let surface = |coefficient: Option<f64>, area: Option<Qty<Area>>, cp: Option<Vec3>| {
+        coefficient.map(|coefficient| DisturbanceSurface {
+            coefficient,
+            area,
+            cp_offset: cp,
+        })
+    };
+    let aero = surface(s.and_then(|s| s.drag_coefficient), aero_area, aero_cp);
+    let srp = surface(s.and_then(|s| s.srp_coefficient), srp_area, srp_cp);
+    let derived = [(&aero, &aero_area, &aero_cp), (&srp, &srp_area, &srp_cp)]
+        .iter()
+        .any(|(surface, area, cp)| surface.is_some() && (area.is_none() || cp.is_none()));
+    let boxes = structure::boxes(ctx).boxes;
+    if derived && boxes.is_empty() {
+        m.push(
+            Target::any_part("size"),
+            "A part with a size (its box gives the area and the centre of pressure of the aerodynamic and solar-pressure surfaces, unless both are written in the AOCS settings)",
+        );
+    }
+    let geometry = derived.then(|| DisturbanceGeometry {
+        boxes: boxes.into_iter().map(InterferenceBox::from).collect(),
+        center_of_mass,
+    });
+    (aero, srp, geometry)
+}
+
+/// 擾乱の計算に使う機体の性質（慣性・受圧面と圧力中心・残留磁気）。推力誤差は呼び出し側が足す。
+fn spacecraft(
+    ctx: &Context<'_>,
+    summary: &MassPropertiesSummary,
+    m: &mut MissingInputs,
+) -> DisturbanceSpacecraft {
+    let s = settings(ctx);
+    // ベクトルの設定（パスは設定の次元の表の欄から。単位どおりに SI へ直す）
+    let v = |x: Option<&fune_model::value::Vector3>, path: SettingPath, m: &mut MissingInputs| {
+        x.and_then(|x| vec_si(x, path, m))
+    };
+    let (aero, srp, geometry) = surfaces(ctx, summary.center_of_mass, m);
     DisturbanceSpacecraft {
         inertia: summary.inertia,
-        aero: surface(s.and_then(|s| s.drag_coefficient), aero_cp),
-        srp: surface(s.and_then(|s| s.srp_coefficient), srp_cp),
+        aero,
+        srp,
+        geometry,
         residual_dipole: v(
             s.and_then(|s| s.residual_dipole.as_ref()),
             dims::AOCS_RESIDUAL_DIPOLE.at(&[]),
@@ -90,7 +146,8 @@ fn spacecraft(
     }
 }
 
-/// 取付の根の部品（構体）の外形を渡す。面積の近似は解析が行う（空力・太陽輻射圧トルクと高度低下が共有する）。
+/// 取付の根の部品（構体）の外形を渡す。打ち上げの適合の外形（形態を選ばないときの代わり）が使う。
+/// 空力・太陽輻射圧のトルクと高度低下は #388 で部品の箱に移った（根の外形は使わない）。
 pub(crate) fn reference_box(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<Vec3> {
     let roots = crate::outline::candidates(ctx.resolved);
     let root = match roots.as_slice() {

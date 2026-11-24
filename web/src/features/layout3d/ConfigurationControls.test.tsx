@@ -170,6 +170,10 @@ it("削除は選んだ形態の RemoveConfiguration を適用する", async () =
     summary: text.removeTitle("STOWED"),
   });
   expect(state.select).toHaveBeenCalledExactlyOnceWith(null, { replace: true });
+  // 消した後の再読込が消した形態を読みに行かないよう、適用の前に基準へ移る
+  expect(state.select.mock.invocationCallOrder[0]).toBeLessThan(
+    state.apply.mock.invocationCallOrder[0]!,
+  );
 });
 
 it("切り替え欄は形態 ID を選び、基準を選ぶと指定を外す", () => {

@@ -12,21 +12,16 @@ fn demo() -> Design {
         .design
 }
 
+/// 空力・太陽輻射圧のトルクは根の箱を使わず部品の箱を使う（#388）ので、取付の根が複数あっても曖昧にならない。
 #[test]
-fn multiple_root_boxes_are_ambiguous() {
+fn several_roots_do_not_make_the_torque_geometry_ambiguous() {
     let design = demo();
     let mut resolved = fune_model::resolve(&design);
     let mut other = resolved.parts["BUS_FRAME"].clone();
     other.id = "OTHER_ROOT".to_owned();
     resolved.parts.insert(other.id.clone().into(), other);
     let ctx = Context::new(&design, &resolved, Some("hot_imaging")).unwrap();
-    let missing = aocs::rw_unloading(&ctx).unwrap_err().into_vec();
-    assert!(missing.iter().any(|m| {
-        m.target == Some(Target::any_part("size"))
-            && m.reason.contains("BUS_FRAME")
-            && m.reason.contains("OTHER_ROOT")
-            && m.reason.contains("ambiguous")
-    }));
+    assert!(aocs::rw_unloading(&ctx).is_ok());
 }
 
 #[test]

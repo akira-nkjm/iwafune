@@ -6,6 +6,7 @@
 //! モードや部品の ID を参照する箇所（`mode_share` のキー・`law` のキー・`nodes` の値など）は `check` が検査し、
 //! 名前の変更（RenamePart・RenameMode）で一緒に書き換わる。
 
+use crate::design::modal_settings::ModalSettings;
 use crate::design::thermal_settings::ThermalSettings;
 use crate::design::timing::StartRef;
 use crate::enum_text::enum_text;
@@ -238,10 +239,16 @@ pub struct AocsSettings {
     /// 太陽輻射圧の反射係数 Cr
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub srp_coefficient: Option<f64>,
-    /// 空力の圧力中心 − 重心（機体座標）
+    /// 空力の受圧面積（書けば、部品の箱から向きごとに出す面積に代えてこの値を使う）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aero_area: Option<Quantity>,
+    /// 太陽輻射圧の受圧面積（書けば、部品の箱から向きごとに出す面積に代えてこの値を使う）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub srp_area: Option<Quantity>,
+    /// 空力の圧力中心 − 重心（機体座標。書けば、部品の箱から出す値に代えてこの値を使う）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cp_offset_aero: Option<Vector3>,
-    /// 太陽輻射圧の圧力中心 − 重心（機体座標）
+    /// 太陽輻射圧の圧力中心 − 重心（機体座標。書けば、部品の箱から出す値に代えてこの値を使う）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cp_offset_srp: Option<Vector3>,
     /// 残留磁気双極子（機体座標）
@@ -389,4 +396,7 @@ pub struct StructureSettings {
     /// 噴流・視野の円錐を見る、頂点からの距離の上限（`structure.cone_clearance`。書かなければ機体の大きさから決める）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cone_clearance_range: Option<Quantity>,
+    /// 粗い有限要素の固有値解析（`structure.modal_fem`）の設定
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub modal: Option<ModalSettings>,
 }

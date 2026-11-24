@@ -4,7 +4,7 @@ import { useEnumOptions } from "@/api/labels";
 import { useCommandOps } from "@/api/ops";
 import { q } from "@/api/queries";
 import type { DesignView, RequirementText } from "@/api/types";
-import { useT } from "@/i18n";
+import { localized, useT } from "@/i18n";
 import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
@@ -107,7 +107,10 @@ export function RequirementDialog({
             id="rq-quantity"
             value={text.quantity}
             placeholder={td.unset}
-            options={dimensions.map((d) => ({ value: d.name, label: d.name }))}
+            options={dimensions.map((d) => ({
+              value: d.name,
+              label: localized(d.label, d.label_en),
+            }))}
             onChange={(e) => set("quantity", e.target.value)}
           />
         </Field>
