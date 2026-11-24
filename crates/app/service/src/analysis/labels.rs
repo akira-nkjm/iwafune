@@ -519,6 +519,11 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "WeatherSource" => parse(value).map(orbit::weather_source),
         "DragAreaSource" => parse(value).map(orbit::drag_area_source),
         "GeometrySpanBasis" => parse(value).map(orbit::geometry_span_basis),
+        "DesignMarginSource" => parse(value).map(orbit::design_margin_source),
+        "ShieldingSource" => parse(value).map(orbit::shielding_source),
+        "DoseLegStatus" => parse(value).map(orbit::dose_leg_status),
+        "DoseNotEvaluated" => parse(value).map(orbit::dose_not_evaluated),
+        "DoseInterpolation" => parse(value).map(orbit::dose_interpolation),
         "DecayCondition" => orbit::decay_condition(value),
         "DvCategory" => parse(value).map(propulsion::category),
         "TransferMethod" => parse(value).map(propulsion::method),
@@ -604,6 +609,7 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         ),
         K::TransferMiss => label("到着のずれ（最大）", "Arrival miss distance (max)"),
         K::LaunchWindowDeltaV => label("窓の ΔV（最小）", "Launch window delta-v (min)"),
+        K::TotalDoseMargin => label("総線量の余裕（最小）", "Total dose margin (min)"),
         K::GreatestEarthDistance => {
             label("地球までの距離（最大）", "Distance from the Earth (max)")
         }

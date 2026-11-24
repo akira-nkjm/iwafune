@@ -673,3 +673,25 @@ units        = ["deg/s", "rad/s"]
 display_unit = "deg/s"
 min          = 0.0
 section      = "structure"
+
+[shielding]
+label        = "遮蔽厚さ（等価アルミ）"
+label_en     = "Shielding thickness (aluminium equivalent)"
+description  = "部品のまわりの遮蔽を、全方向に均一な等価アルミの球殻の厚さで表した値。放射線の総線量（orbit.total_dose）が環境の表を引くのに使う。書かなければ設計の既定の遮蔽厚さ（analysis.common.radiation.default_shielding）を使う"
+type         = "scalar"
+dimension    = "Length"
+units        = ["mm", "m", "cm"]
+display_unit = "mm"
+min          = 0.0
+section      = "radiation"
+
+[tid_tolerance]
+label        = "許容総線量"
+label_en     = "Total ionising dose tolerance"
+description  = "部品が性能を保てる吸収線量の上限（総線量）。放射線の総線量（orbit.total_dose）が、設計余裕を掛けた予測の総線量と比べる。書かなければ線量だけを出し、判定はしない"
+type         = "scalar"
+dimension    = "AbsorbedDose"
+units        = ["Gy", "kGy", "mGy"]
+display_unit = "Gy"
+min          = 0.0
+section      = "radiation"

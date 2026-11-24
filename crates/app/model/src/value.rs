@@ -10,7 +10,9 @@ mod text;
 pub mod units;
 
 pub use date::is_calendar_date;
-pub use json::{is_quantity_json, quantity_from_json, quaternion_from_json, vector_from_json};
+pub use json::{
+    curve_from_json, is_quantity_json, quantity_from_json, quaternion_from_json, vector_from_json,
+};
 pub use text::{
     list_from_text, list_to_text, number_to_text, number_unit_to_text, parse_clock_hours,
     parse_number_unit, quantity_from_text, quantity_to_text, quaternion_to_text, range_to_text,
@@ -324,4 +326,6 @@ pub enum SettingValue {
     Vector(Vector3),
     Quaternion(Quaternion),
     List(Vec<String>),
+    /// 1 変数の関数（表。`dose_rate_by_shielding` など。属性の [`Curve`] と同じ形）
+    Curve(Curve),
 }
