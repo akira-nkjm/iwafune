@@ -4,9 +4,14 @@
 export const keys = {
   project: ["project"] as const,
   design: ["design"] as const,
+  parts: (configuration: string | null) => ["design", "parts", configuration] as const,
   /** 1 部品。`opsJson` は保存していない編集（下書き）を当てたもの（空なら保存済みの設計） */
-  part: (id: string, opsJson = "") =>
-    opsJson ? (["design", "part", id, opsJson] as const) : (["design", "part", id] as const),
+  part: (id: string, opsJson = "", configuration: string | null = null) =>
+    configuration
+      ? (["design", "part", id, opsJson, configuration] as const)
+      : opsJson
+        ? (["design", "part", id, opsJson] as const)
+        : (["design", "part", id] as const),
   defs: ["design", "defs"] as const,
   /** 系別のモード表示（部品別の値の表。解析は回さない）。`summary` が既定（all）以外のときは足もとの行の範囲を足す */
   systemModes: (system: string, opsJson: string, summary = "all") =>

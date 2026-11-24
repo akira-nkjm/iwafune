@@ -1548,7 +1548,8 @@ orientation = { w = 0.707107, x = 0.0, y = 0.0, z = -0.707107 }
   (target `configurations.<ID>.pose.<PART>`, with the location of the row). It is a warning of the edit (in the Op result's diagnostics), not of a stored design, because the check of a stored design cannot know that the mount changed. Moving a mount point of the parent (`SetMountPoint`) is not detected.
 - **CLI** (the GUI sends the same arguments to `POST /ops/from_command`): `fune configuration ls|show|add|set|rm|rename`, `fune configuration unset-pose <ID> <PART>`,
   `fune part place <PART> --configuration <ID> --position "…" --rotation "…"` (`--on`/`--point` optional; `--body-pos "x y z mm"` reads vehicle coordinates in that configuration), and `fune part ls|show --configuration <ID>`.
-- Not available yet: selecting a configuration from the launch conditions or a phase, analyses that read one, and the GUI (planned stages of #374).
+- The Layout page switches between Base and named configurations using the `configuration` URL parameter. In a named configuration, 3-D dragging and the placement fields write pose overrides, and **Reset to base** removes the selected part's override. The configuration menu manages the records, and component detail lists the part's overrides and mount-relative poses. The center-of-mass marker is shown only in Base.
+- Configuration selection in launch conditions and phases, and analysis of a selected configuration, are planned for #374.
 
 ## 8. Allocations and margin policy (budget/)
 

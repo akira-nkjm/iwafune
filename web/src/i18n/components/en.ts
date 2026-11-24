@@ -70,6 +70,11 @@ export const componentsEn: typeof componentsJa = {
       moveSummary: (part: string, to: string) => `Move ${part} to ${to}`,
     },
     placement: {
+      overridden: "Overridden",
+      resetOverride: "Reset to base",
+      resetSummary: (id: string) => `Reset ${id} to its base pose`,
+      poseLocked: "Only mounted parts can have pose overrides.",
+      overrides: "Pose overrides by configuration",
       mountOn: "Mounted on",
       mountPart: "Mounting part",
       body: "(spacecraft body)",

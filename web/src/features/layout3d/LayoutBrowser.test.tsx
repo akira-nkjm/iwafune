@@ -2,16 +2,16 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { getT } from "@/i18n";
 import { nodeLabel } from "@/lib/design";
-import { fixture } from "@/test/fixture";
+import { fixture, mountAt } from "@/test/fixture";
 import { LayoutBrowser } from "./LayoutBrowser";
 
 const L = getT().systems.layout3d;
 
 /** RW_X と PCDU は 3D に箱があり、TRX は未配置 */
-function render(hidden: string[] = [], selected: string | null = null) {
+function render(hidden: string[] = [], selected: string | null = null, design = fixture) {
   return renderToStaticMarkup(
     <LayoutBrowser
-      design={fixture}
+      design={design}
       placed={new Set(["RW_X", "PCDU"])}
       selected={selected}
       onSelect={() => {}}
@@ -47,4 +47,16 @@ describe("LayoutBrowser", () => {
     const html = render([], "PCDU");
     expect(html).toMatch(/aria-label="PCDU"[^>]*aria-selected="true"/);
   });
+});
+
+it("上書きの印は上書きされた部品にだけ出す", () => {
+  const label = getT().components.placement.overridden;
+  const design = {
+    ...fixture,
+    parts: fixture.parts.map((part) =>
+      part.id === "RW_X" ? { ...part, mount: { ...mountAt("ROOT"), overridden: true } } : part,
+    ),
+  };
+  expect(render()).not.toContain(label);
+  expect(render([], null, design).split(label)).toHaveLength(2);
 });

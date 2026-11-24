@@ -23,7 +23,9 @@ import type {
   HistoryView,
   ModeSummaryScope,
   Op,
+  PartQuery,
   PartRow,
+  PartsQuery,
   PartView,
   PartViewRequest,
   ProjectInfo,
@@ -48,6 +50,10 @@ export interface SystemModesOptions {
   analyzed?: boolean;
   /** 足もとの行の範囲 */
   summary?: ModeSummaryScope;
+}
+
+function configurationSearch(configuration: PartQuery["configuration"]): string {
+  return configuration === null ? "" : `?configuration=${seg(configuration)}`;
 }
 
 /** 読み取りの queryOptions（画面は useQuery(q.xxx()) で使う） */
@@ -76,15 +82,22 @@ export const q = {
       ...(analyzed ? { staleTime: 30_000 } : {}),
     });
   },
+  /** 部品の一覧。形態の指定があれば、その形態での取付・姿勢を読む。 */
+  parts: (configuration: PartsQuery["configuration"] = null) =>
+    queryOptions({
+      queryKey: keys.parts(configuration),
+      queryFn: () => api<PartRow[]>(`/parts${configurationSearch(configuration)}`),
+    }),
   /** 1 部品。`ops` を渡すと、保存していない編集を書き込まずに当てた設計の部品（`POST /parts/{id}`） */
-  part: (id: string, ops: readonly Op[] = []) => {
+  part: (id: string, ops: readonly Op[] = [], configuration: PartQuery["configuration"] = null) => {
     const json = ops.length > 0 ? JSON.stringify(ops) : "";
+    const path = `/parts/${seg(id)}`;
     return queryOptions({
-      queryKey: keys.part(id, json),
+      queryKey: keys.part(id, json, configuration),
       queryFn: () => {
-        if (!json) return api<PartView>(`/parts/${seg(id)}`);
-        const body: PartViewRequest = { ops: [...ops], configuration: null };
-        return api<PartView>(`/parts/${seg(id)}`, { method: "POST", body });
+        if (!json) return api<PartView>(`${path}${configurationSearch(configuration)}`);
+        const body: PartViewRequest = { ops: [...ops], configuration };
+        return api<PartView>(path, { method: "POST", body });
       },
     });
   },

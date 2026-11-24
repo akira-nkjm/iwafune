@@ -2,6 +2,7 @@ import { Eye, EyeOff, Focus, Scan } from "lucide-react";
 import type { DesignView, PartRow } from "@/api/types";
 import { PartsTree } from "@/features/components/list/PartsTree";
 import { useT } from "@/i18n";
+import { Pill } from "@/kit/status/Pill";
 import { type TreeNode, treeItems } from "@/kit/tree/tree-nodes";
 import { cn } from "@/lib/cn";
 import { nodeLabel } from "@/lib/design";
@@ -28,7 +29,8 @@ export function LayoutBrowser({
   hidden: ReadonlySet<string>;
   onHidden: (hidden: Set<string>) => void;
 }) {
-  const L = useT().systems.layout3d;
+  const t = useT();
+  const L = t.systems.layout3d;
   const folderLabel = (id: string) => nodeLabel(design, id);
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -56,6 +58,11 @@ export function LayoutBrowser({
             const label = node.item ? node.label : folderLabel(node.label);
             return (
               <span className="flex items-center">
+                {node.item?.mount?.overridden && (
+                  <Pill tone="accent" dot={false}>
+                    {t.components.placement.overridden}
+                  </Pill>
+                )}
                 <IsolateToggle
                   node={node}
                   label={label}

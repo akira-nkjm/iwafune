@@ -1,8 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import type { PlaceBodyEdit } from "@/api/ops";
 import { getT, setLang } from "@/i18n";
 import { bodyAt, fixture, mountAt } from "@/test/fixture";
 import { Layout3D } from "./Layout3D";
+import type { SceneEdit } from "./Scene3D";
 import { DEFAULT_STRUCTURE_OPACITY } from "./scene";
 
 const state = vi.hoisted(() => ({
@@ -17,6 +19,7 @@ const state = vi.hoisted(() => ({
   toggle: (_value: boolean) => {},
   slide: (_value: number) => {},
   scene: vi.fn(),
+  place: vi.fn(),
 }));
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
@@ -77,7 +80,17 @@ vi.mock("@/i18n", async (original) => ({
   ...(await original<typeof import("@/i18n")>()),
   useT: () => getT(),
 }));
-vi.mock("@/api/ops", () => ({ usePlaceBody: () => ({ mutate: vi.fn() }) }));
+vi.mock("@tanstack/react-query", async (original) => {
+  const actual = await original<typeof import("@tanstack/react-query")>();
+  const client = new actual.QueryClient();
+  return {
+    ...actual,
+    useQueryClient: () => client,
+    useMutation: ({ mutationFn }: { mutationFn: (edit: PlaceBodyEdit) => Promise<unknown> }) => ({
+      mutate: (edit: PlaceBodyEdit) => state.place(mutationFn(edit)),
+    }),
+  };
+});
 vi.mock("@/features/components/detail/PlacementSection", () => ({ PlacementSection: () => null }));
 vi.mock("@/kit/selection/Switch", () => ({
   Switch: ({ onChange, children }: { onChange: typeof state.toggle; children: string }) => {
@@ -115,8 +128,10 @@ const design = {
     },
   ],
 };
-const render = () =>
-  renderToStaticMarkup(<Layout3D variant="placement" design={design} com={null} />);
+const render = (configuration?: string) =>
+  renderToStaticMarkup(
+    <Layout3D variant="placement" design={design} com={null} configuration={configuration} />,
+  );
 
 beforeEach(() => {
   state.axes = true;
@@ -258,4 +273,27 @@ it("熱の画像: 太陽方向があれば矢印を最初から場面に渡し�
   expect(state.scene.mock.lastCall?.[0]).toMatchObject({ sun: null });
   expect(render()).not.toContain(L.helper.sun);
   expect(state.scene.mock.lastCall?.[0]).toMatchObject({ sun: null, helpers: { sun: false } });
+});
+
+it.each([undefined, "STOWED"])("3D の移動は表示中の形態 %s に送る", async (configuration) => {
+  const network = vi.fn(async (_url: string, _init: RequestInit) => new Response("{}"));
+  vi.stubGlobal("fetch", network);
+  try {
+    render(configuration);
+    const { edit } = state.scene.mock.lastCall![0] as { edit: SceneEdit };
+    const id = design.parts[0]!.id;
+    edit.onPlace(id, [0.1, 0.2, 0.3], [1, 0, 0, 0]);
+    await state.place.mock.lastCall?.[0];
+    const [url, init] = network.mock.calls[0]!;
+    expect(url).toBe(`/api/v1/parts/${id}/place_body`);
+    expect(JSON.parse(String(init.body))).toEqual({
+      position: { x: 0.1, y: 0.2, z: 0.3, unit: "m" },
+      orientation: { w: 1, x: 0, y: 0, z: 0 },
+      base_revision: null,
+      dry_run: false,
+      ...(configuration ? { configuration } : {}),
+    });
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });
