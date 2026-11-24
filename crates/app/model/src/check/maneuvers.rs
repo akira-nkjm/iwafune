@@ -4,7 +4,9 @@
 
 use super::Ctx;
 use super::values::check_quantity_dimension;
-use crate::design::{Design, EntityKey, Maneuver, ManeuverMethod, ManeuverTarget};
+use crate::design::{
+    Design, EntityKey, Maneuver, ManeuverMethod, ManeuverTarget, ManeuverTransfer,
+};
 use crate::target::Target;
 
 pub(super) fn check_maneuvers(ctx: &mut Ctx) {
@@ -132,6 +134,7 @@ fn check_transfer(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
             "The launcher injects the spacecraft onto the departure asymptote, so a maneuver before this one (`after`) does not fit; the maneuvers before it are still counted",
         );
     }
+    check_flybys(ctx, m, tr, entity);
     if m.method == ManeuverMethod::Propagated {
         ctx.error(
             "maneuver.transfer_method",
@@ -140,6 +143,49 @@ fn check_transfer(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
             Some(Target::maneuver(id, Some("method"))),
             "Dated transfers between bodies are computed with impulsive or finite_burn",
         );
+    }
+}
+
+/// 途中のスイングバイ（`[[transfer.flybys]]`）の形: 日付が空でない・近点の高度の下限は長さの正の有限の値。
+/// 日付の読み方・順序・暦・天体の組は暦を持つ `fune_projection::maneuver_dates` が見る。
+fn check_flybys(ctx: &mut Ctx, m: &Maneuver, tr: &ManeuverTransfer, entity: &EntityKey) {
+    let id = m.id.as_str();
+    let target = Some(Target::maneuver(id, Some("transfer.flybys")));
+    for (i, f) in tr.flybys.iter().enumerate() {
+        if f.date.trim().is_empty() {
+            ctx.error(
+                "maneuver.flyby_date",
+                entity,
+                &["transfer", "flybys"],
+                target.clone(),
+                format!("Flyby {} of [transfer] needs a date", i + 1),
+            );
+        }
+        let Some(q) = &f.min_altitude else {
+            continue;
+        };
+        if let Some((sev, code, msg)) = check_quantity_dimension(q, "Length") {
+            ctx.report(
+                sev,
+                code,
+                entity,
+                &["transfer", "flybys"],
+                target.clone(),
+                msg,
+            );
+        } else if !(q.value > 0.0 && q.value.is_finite()) {
+            ctx.error(
+                "maneuver.flyby_altitude",
+                entity,
+                &["transfer", "flybys"],
+                target.clone(),
+                format!(
+                    "The minimum altitude of flyby {} must be a finite value above 0 ({}); a periapsis at or below the surface is not accepted",
+                    i + 1,
+                    q.value
+                ),
+            );
+        }
     }
 }
 

@@ -69,6 +69,7 @@ typed_dimensions![
     Conductance,
     MagneticFlux,
     AbsorbedDose,
+    AbsorbedDoseRate,
     Impulse,
 ];
 

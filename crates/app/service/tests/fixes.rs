@@ -494,6 +494,7 @@ fn the_orbit_maneuver_picks_among_dated_transfers_and_the_source_has_no_fix() {
         departure: Some("2028-12-10T00:00:00Z".to_owned()),
         arrival: Some("2029-09-25T00:00:00Z".to_owned()),
         departure_by: None,
+        flybys: Vec::new(),
     });
     design.maneuvers.insert(dated.id.clone(), dated);
     let target =
@@ -538,7 +539,7 @@ fn settings_view_carries_the_choices_of_the_orbit_keys() {
     };
     assert_eq!(
         values(&setting("source").choices),
-        ["elements", "transfer", "state"]
+        ["elements", "transfer", "state", "libration"]
     );
     assert!(
         setting("maneuver").choices.is_empty(),

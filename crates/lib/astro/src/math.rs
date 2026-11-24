@@ -12,6 +12,7 @@
 //! | 一般化固有値問題 `K x = λ M x` の低次モード（シフト付き部分空間反復と Sturm 列の判定）[`lowest_modes`] | `math/subspace.rs` |
 //! | 平面の凸多角形と、その和集合の面積・図心 [`planar`]（帯の掃引で厳密。**凸多角形の和集合はここだけ**） | `math/planar.rs` |
 //! | ガウス・ルジャンドル則の節点と重み [`quadrature::gauss_legendre`]（**求積則の節点はここだけ**） | `math/quadrature.rs` |
+//! | 1 変数の表の補間 [`interpolate`]（区分線形か値の対数。**表の外は外挿しない**。表を引く規則はここだけ） | `math/table.rs` |
 //! | 二分法 [`bisect`]・黄金分割 [`golden_section_max`] | `math/roots.rs` |
 
 mod dense;
@@ -25,6 +26,7 @@ mod roots;
 mod skyline;
 mod subspace;
 mod sym_eigen;
+mod table;
 mod vec3;
 
 pub use dense::solve_dense;
@@ -34,4 +36,5 @@ pub use roots::{bisect, golden_section_max, golden_section_min};
 pub use skyline::{Skyline, SkylineError, SkylineLdl, ZERO_PIVOT_RELATIVE};
 pub use subspace::{Mass, Modes, SubspaceError, SubspaceOptions, lowest_modes};
 pub use sym_eigen::{SymEigen, SymEigenError, generalized_symmetric_eigen, symmetric_eigen};
+pub use table::{ValueScale, interpolate};
 pub use vec3::Vec3;

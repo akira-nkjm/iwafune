@@ -321,7 +321,11 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
                     "inclination": { "value": 97.5, "unit": "deg" } },
                 "constraints": { "sunlit_only": false, "mode": "NOMINAL" },
                 "transfer": { "departure": "2028-12-10T00:00:00Z", "arrival": "2029-09-25T00:00:00Z",
-                    "departure_by": "launcher" } }),
+                    "departure_by": "launcher",
+                    "flybys": [
+                        { "body": "venus", "date": "2029-02-01T00:00:00Z", "powered": false,
+                          "min_altitude": { "value": 400.0, "unit": "km" } },
+                        { "body": "earth", "date": "2029-06-01T00:00:00Z" } ] } }),
             ),
         },
         Op::CreateManeuver {
@@ -352,16 +356,19 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         Op::CreateConfiguration {
             id: s("STOWED"),
             label: Some(s("Stowed \"test\"")),
+            label_en: Some(s("Stowed \"en\"")),
             description: Some(s("Paddle folded onto the +X face")),
         },
         Op::CreateConfiguration {
             id: s("DEPLOYED"),
             label: None,
+            label_en: None,
             description: None,
         },
         Op::SetConfiguration {
             id: s("STOWED"),
             label: Some(s("Stowed")),
+            label_en: Some(s("Stowed (English)")),
             description: None,
         },
         Op::RemoveConfiguration { id: s("STOWED") },

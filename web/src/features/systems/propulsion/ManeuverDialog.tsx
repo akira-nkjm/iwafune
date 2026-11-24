@@ -8,9 +8,10 @@ import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
+import { FlybysField } from "./FlybysField";
 import { maneuverCommand, thrusterOptions } from "./maneuver-form";
 
-type TextKey = Exclude<keyof ManeuverText, "id" | "category" | "method">;
+type TextKey = Exclude<keyof ManeuverText, "id" | "category" | "method" | "flybys">;
 
 /**
  * マヌーバの追加・編集（`fune maneuver add|set` と同じ引数）。打った文字列のまま service に送り、Op にしてから確定する。
@@ -116,6 +117,16 @@ export function ManeuverDialog({
         {text.body && input("depart", td.depart, "2028-12-10T00:00:00Z")}
         {text.body && input("arrive", td.arrive, "2029-09-25T00:00:00Z")}
         {text.body && select("departure_by", td.departureBy, departures)}
+        {text.body && text.depart && (
+          <FlybysField
+            label={td.flybys}
+            hint={td.flybysHint}
+            addLabel={td.addFlyby}
+            removeLabel={td.removeFlyby}
+            value={text.flybys ?? []}
+            onChange={(flybys) => setText((s) => ({ ...s, flybys }))}
+          />
+        )}
         {input("via_altitude", td.viaAltitude)}
         {input("delta_v", td.deltaV, "15 m/s")}
         {select("sunlit_only", td.sunlitOnly, [

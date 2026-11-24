@@ -18,6 +18,7 @@ fn view(design: &Design, c: &Configuration) -> ConfigurationView {
     ConfigurationView {
         id: id.to_owned(),
         label: c.label.clone().unwrap_or_else(|| id.to_owned()),
+        label_en: c.label_en.clone(),
         description: c.description.clone(),
         overridden: c.pose.keys().map(ToString::to_string).collect(),
         text: configuration_text(c),
@@ -30,6 +31,7 @@ pub(crate) fn configuration_text(c: &Configuration) -> ConfigurationText {
     ConfigurationText {
         id: c.id.to_string(),
         label: c.label.clone(),
+        label_en: c.label_en.clone(),
         description: c.description.clone(),
     }
 }

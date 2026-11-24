@@ -193,6 +193,11 @@ function ManeuverRow({
               {m.text.departure_by && <> ({label("departure_by", m.text.departure_by)})</>}
             </span>
           )}
+          {(m.text.flybys ?? []).map((f) => (
+            <span key={f}>
+              <span className="text-ink-3">{t.targetKeys.flybys}</span> {f}
+            </span>
+          ))}
         </span>
       </Td>
       <Td mono className="text-ink-3">

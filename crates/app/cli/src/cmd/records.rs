@@ -230,6 +230,7 @@ fn maneuver_text(a: &ManeuverArgs) -> ManeuverText {
         depart: a.depart.clone(),
         arrive: a.arrive.clone(),
         departure_by: a.departure_by.clone(),
+        flybys: a.flybys.clone(),
     }
 }
 

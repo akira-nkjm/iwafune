@@ -2,7 +2,7 @@
 //!
 //! 付け替えた軌道は、元の軌道の `start` 以降と同じ軌道（同じ状態の列）を、`start` を元期として表したもの。
 //! 要素の軌道は要素を `start` まで進め（Kepler・J2 は永年変化、数値伝搬は接触要素）、状態ベクトルの軌道は `start` での状態を元期の状態にし、
-//! 1 回限りの期間を持つ軌道は期間を残りの長さにする（期間の外は付け替えられない）。付け替えは伝搬を足さない
+//! 回転座標系の軌跡は、元期を付け替えて表の位相を持たせる（同じ軌跡）。1 回限りの期間を持つ軌道は期間を残りの長さにする（期間の外は付け替えられない）。付け替えは伝搬を足さない
 //! （要素の軌道は解析式で進め、状態ベクトルの軌道は既存の数値伝搬で `start` まで 1 回進める）。
 
 use super::{OrbitSpec, Trajectory};
@@ -70,6 +70,7 @@ impl Trajectory {
                     ..s.clone()
                 }))
             }
+            Self::Synodic(s) => Ok(Self::Synodic(s.rebased_at(start)?)),
             Self::Spanned { orbit, span_s } => Ok(Self::Spanned {
                 orbit: Box::new(orbit.starting_at(start)?),
                 span_s: span_s - dt,

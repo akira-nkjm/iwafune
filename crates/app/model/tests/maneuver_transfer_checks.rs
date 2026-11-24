@@ -40,6 +40,7 @@ fn dates(a: Option<&str>, b: Option<&str>) -> Option<ManeuverTransfer> {
         departure: a.map(str::to_owned),
         arrival: b.map(str::to_owned),
         departure_by: None,
+        flybys: Vec::new(),
     })
 }
 
@@ -150,4 +151,48 @@ fn departure_by_the_launcher_after_another_maneuver_is_a_warning() {
         .unwrap()
         .departure_by = Some(DepartureBy::Spacecraft);
     assert_eq!(warns(&d), 0);
+}
+
+fn flyby(date: &str, altitude: Option<(f64, &str)>) -> fune_model::design::ManeuverFlyby {
+    fune_model::design::ManeuverFlyby {
+        body: CentralBodyKind::Venus,
+        date: date.to_owned(),
+        min_altitude: altitude.map(|(v, u)| fune_model::value::Quantity::new(v, u)),
+        powered: None,
+    }
+}
+
+fn flyby_codes(f: fune_model::design::ManeuverFlyby) -> Vec<String> {
+    let mut tr = dates(Some("2028-12-10T00:00:00Z"), Some("2029-09-25T00:00:00Z")).unwrap();
+    tr.flybys.push(f);
+    let d = design(
+        Some(CentralBodyKind::Mars),
+        Some(tr),
+        ManeuverMethod::Impulsive,
+    );
+    check(&d)
+        .into_iter()
+        .filter(|x| x.code.starts_with("maneuver.flyby") || x.code.starts_with("unit."))
+        .map(|x| x.code)
+        .collect()
+}
+
+/// スイングバイの形: 日付が要り、近点の高度の下限は長さの正の値（0 や負は表面以下を通ることになるので受け付けない）。
+#[test]
+fn flybys_need_a_date_and_a_positive_length_altitude() {
+    assert!(flyby_codes(flyby("2029-03-01T00:00:00Z", None)).is_empty());
+    assert!(flyby_codes(flyby("2029-03-01T00:00:00Z", Some((300.0, "km")))).is_empty());
+    assert_eq!(flyby_codes(flyby(" ", None)), ["maneuver.flyby_date"]);
+    assert_eq!(
+        flyby_codes(flyby("2029-03-01T00:00:00Z", Some((0.0, "km")))),
+        ["maneuver.flyby_altitude"]
+    );
+    assert_eq!(
+        flyby_codes(flyby("2029-03-01T00:00:00Z", Some((-5.0, "km")))),
+        ["maneuver.flyby_altitude"]
+    );
+    assert_eq!(
+        flyby_codes(flyby("2029-03-01T00:00:00Z", Some((300.0, "kg")))),
+        ["unit.dimension"]
+    );
 }

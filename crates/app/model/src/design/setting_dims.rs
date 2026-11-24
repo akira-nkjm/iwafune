@@ -125,8 +125,12 @@ setting_quantities! {
     ORBIT_POSITION: Length = Conditions["orbit", "position"];
     /// 状態ベクトルの軌道の速度（ベクトル）
     ORBIT_VELOCITY: Velocity = Conditions["orbit", "velocity"];
+    /// 放射線の既定の遮蔽厚さ（等価アルミ。`analysis/common.toml` の `[radiation]`）
+    RADIATION_DEFAULT_SHIELDING: Length = Analysis["common", "radiation", "default_shielding"];
     /// 状態ベクトルの軌道の期間
     ORBIT_SPAN: Time = Conditions["orbit", "span"];
+    /// ハロー軌道の z 方向の振幅（`source = "libration"`）
+    ORBIT_AMPLITUDE_Z: Length = Conditions["orbit", "amplitude_z"];
     /// 準静的荷重（機軸方向。`conditions/launch.toml`）
     LAUNCH_LOAD_AXIAL: Acceleration = Conditions["launch", "load_axial"];
     /// 準静的荷重（直交方向）
@@ -243,6 +247,74 @@ setting_quantities! {
     PROPULSION_LAUNCH_WINDOW_TOF_MAX: Time = Analysis["propulsion", "launch_window", "time_of_flight_max"];
 }
 
+/// 曲線（表）の設定の欄の宣言: パスの形と、引数・値の次元の型。射影はこれを渡して `Qty<A>` と `Qty<V>` の対に読む。
+pub struct SettingCurve<A, V> {
+    pub scope: SettingScope,
+    /// `scope` の後ろの区切りの形（[`ANY`] を含む）
+    pub pattern: &'static [&'static str],
+    _dimensions: PhantomData<fn() -> (A, V)>,
+}
+
+impl<A: Dimension, V: Dimension> SettingCurve<A, V> {
+    const fn new(scope: SettingScope, pattern: &'static [&'static str]) -> Self {
+        Self {
+            scope,
+            pattern,
+            _dimensions: PhantomData,
+        }
+    }
+
+    /// パスの形に当たる設定のパス（[`ANY`] を含まない形だけ。そのまま対象にする）。
+    pub fn path(&self) -> SettingPath {
+        SettingPath {
+            scope: self.scope,
+            segments: self.pattern.iter().map(|s| (*s).to_owned()).collect(),
+        }
+    }
+
+    /// 引数の次元名と値の次元名（検査の表 [`CURVES`] と同じ）。
+    pub fn dimensions(&self) -> (String, String) {
+        (
+            sat_units::format::dimension_label(A::DIM),
+            sat_units::format::dimension_label(V::DIM),
+        )
+    }
+}
+
+/// 曲線の設定の欄の 1 行（次元の名前）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SettingCurveDimension {
+    pub scope: SettingScope,
+    pub pattern: &'static [&'static str],
+    /// 引数の次元名
+    pub at_dimension: &'static str,
+    /// 値の次元名
+    pub dimension: &'static str,
+}
+
+/// 環境の線量率の表: 遮蔽の厚さ（等価アルミ）→ 線量率（軌道の設定。フェーズの `[orbit]` にも書ける）。
+pub const ORBIT_DOSE_RATE_BY_SHIELDING: SettingCurve<typed::Length, typed::AbsorbedDoseRate> =
+    SettingCurve::new(
+        SettingScope::Conditions,
+        &["orbit", "dose_rate_by_shielding"],
+    );
+
+/// 曲線の設定の欄の表（**曲線の設定の次元はここだけ**。検査は引数と値の単位をこれと比べる）。
+pub const CURVES: &[SettingCurveDimension] = &[SettingCurveDimension {
+    scope: SettingScope::Conditions,
+    pattern: &["orbit", "dose_rate_by_shielding"],
+    at_dimension: "Length",
+    dimension: "AbsorbedDoseRate",
+}];
+
+/// 曲線の設定のパスの（引数の次元名, 値の次元名）。表に無ければ None。
+pub fn setting_curve_dimensions(path: &SettingPath) -> Option<(&'static str, &'static str)> {
+    CURVES
+        .iter()
+        .find(|c| pattern_matches(c.scope, c.pattern, path))
+        .map(|c| (c.at_dimension, c.dimension))
+}
+
 /// 次元の型を持たない欄（名前の無い次元。射影は読まない）。
 pub const UNTYPED: &[SettingDimension] = &[];
 
@@ -259,6 +331,20 @@ pub fn setting_dimension(path: &SettingPath) -> Option<&'static str> {
 mod tests {
     use super::*;
     use crate::value::units::{parse_dimension_name, unit_info};
+
+    /// 曲線の欄の次元名は、型から出した名前と同じ。
+    #[test]
+    fn curve_dimension_names_are_those_of_the_types() {
+        let (at, value) = ORBIT_DOSE_RATE_BY_SHIELDING.dimensions();
+        assert_eq!(
+            setting_curve_dimensions(&ORBIT_DOSE_RATE_BY_SHIELDING.path()),
+            Some(("Length", "AbsorbedDoseRate"))
+        );
+        assert_eq!(
+            (at.as_str(), value.as_str()),
+            ("Length", "AbsorbedDoseRate")
+        );
+    }
 
     #[test]
     fn names_are_the_dimensions_of_the_types() {
