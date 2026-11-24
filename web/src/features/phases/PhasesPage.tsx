@@ -204,7 +204,9 @@ function Overrides({ p, onEdit }: { p: PhaseView; onEdit: () => void }) {
   return (
     <span className="flex flex-col items-start gap-0.5">
       {none && <span className="text-ink-4">{t.none}</span>}
-      {p.orbit_overridden && <span>{t.orbitReplaced}</span>}
+      {p.orbit_overridden && (
+        <span>{p.orbit_from ? t.orbitFrom(p.orbit_from) : t.orbitReplaced}</span>
+      )}
       {p.laws.length > 0 && <span>{t.lawFor(p.laws.map((l) => l.mode).join(", "))}</span>}
       <Button size="sm" variant="ghost" onClick={onEdit}>
         <Pencil size={13} />
