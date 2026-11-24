@@ -304,6 +304,32 @@ pub(in crate::single_home) const RULES: &[Rule] = &[
         &["crates/lib/astro/src/math/roots.rs"],
         "root finding by bisection",
     ),
+    // 平面の凸多角形の和集合・求積則・箱の外形（#388）
+    (
+        "fn union_measure(",
+        &["crates/lib/astro/src/math/planar.rs"],
+        "the planar union of convex polygons",
+    ),
+    (
+        "fn gauss_legendre(",
+        &["crates/lib/astro/src/math/quadrature.rs"],
+        "Gauss-Legendre quadrature nodes",
+    ),
+    (
+        "struct DirectionSet",
+        &["crates/lib/analysis/src/structure/external_geometry/directions.rs"],
+        "the direction set of the mean projected area",
+    ),
+    (
+        "fn silhouette(",
+        &["crates/lib/analysis/src/structure/interference/obb/shape.rs"],
+        "the silhouette of an oriented box",
+    ),
+    (
+        "fn mean_projected_area(",
+        &["crates/lib/analysis/src/structure/external_geometry/geometry.rs"],
+        "the mean projected area of the part boxes",
+    ),
     // 余裕の判定と余裕率
     (
         "fn margin_verdict(",
