@@ -4,4 +4,4 @@
  * 期間が 1 周に満たないとき、周回の集計を何で代えたか。出力の `span_fallback` に入れる。
  * **文言は持たない**: service がこれを注意（key `span`）にし、語彙から日本語と英語の文を引く。
  */
-export type SpanFallback = "orbit_mean_over_span" | "secular_extrapolated";
+export type SpanFallback = "orbit_mean_over_span" | "secular_extrapolated" | "one_off_span";

@@ -16,7 +16,7 @@ use super::mode_load::ModeLoadInput;
 use super::solar::{SolarArray, SolarLife, SolarProfile};
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series,
-    SpanFallback, System, orbit_mean, span_fallback, time_fraction,
+    SpanFallback, System, orbit_mean, span_note, time_fraction,
 };
 use sat_astro::attitude::AttitudeLaw;
 use sat_astro::timeline::TimelineSpec;
@@ -320,7 +320,11 @@ impl Context<'_> {
             min_allowed_soc: Fraction::new(1.0 - self.battery.dod_limit),
             period: Qty::from_raw(self.period_s()),
             complete_orbits: self.ranges.len(),
-            span_fallback: span_fallback(self.ranges.len(), SpanFallback::OrbitMeanOverSpan),
+            span_fallback: span_note(
+                self.cycle,
+                self.ranges.len(),
+                SpanFallback::OrbitMeanOverSpan,
+            ),
             orbit_average_generation: Qty::from_raw(orbit_mean(
                 &p.t,
                 &self.generation,

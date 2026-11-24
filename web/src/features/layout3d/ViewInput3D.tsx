@@ -5,6 +5,7 @@ import { clampZoom, createWheelClassifier, wheelPixels, zoomFactor } from "@/lib
 import {
   clampDollyFactor,
   cursorAnchor,
+  distanceRange,
   dollyAbout,
   panOffset,
   worldPerPixel,
@@ -16,15 +17,10 @@ export interface ZoomRequest {
   factor: number;
 }
 
-/** OrbitControls のうち使う部分（makeDefault で `useThree` の controls に入る） */
+/** 視点の操作（`FreeOrbitControls`。`useThree` の controls に入る）のうち使う部分 */
 interface Orbit {
   target: Vector3;
   update: () => void;
-}
-
-/** 視点と注視点の距離の範囲を、カメラの near / far から決める（近づきすぎて面を突き抜けない・遠ざかりすぎて消えない） */
-function distanceRange(camera: PerspectiveCamera) {
-  return { min: camera.near * 2, max: camera.far * 0.5 };
 }
 
 /** 注視点を中心に（cursor があればそのカーソルの下の点を中心に）factor 倍に拡大する */
@@ -35,7 +31,7 @@ function zoomView(
   ndc: { x: number; y: number } | null,
 ) {
   const distance = camera.position.distanceTo(orbit.target);
-  const f = clampDollyFactor(distance, factor, distanceRange(camera));
+  const f = clampDollyFactor(distance, factor, distanceRange(camera.near, camera.far));
   const right = new Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
   const up = new Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
   const h = distance * Math.tan((camera.fov * Math.PI) / 360);
@@ -47,8 +43,7 @@ function zoomView(
 }
 
 /**
- * 3D のホイール入力を受ける（lib/wheel-input.ts で読み分ける）。OrbitControls の既定のホイール（どれも拡大・縮小）は
- * ここで先に受けて渡さず（`enableZoom` は切らない。切るとタッチ画面の 2 本指の拡大も止まる）、こちらで扱う: scroll（トラックパッドの 2 本指）は画面に平行にカメラと注視点を動かし、
+ * 3D のホイール入力を受ける（lib/wheel-input.ts で読み分ける）。ホイールは視点の操作（`FreeOrbitControls`）が読まず、ここで扱う: scroll（トラックパッドの 2 本指）は画面に平行にカメラと注視点を動かし、
  * notch（マウスのホイール、Ctrl / ⌘ 付きも）と pinch は注視点の奥行きの面の上のカーソルの下の点を中心に拡大する。
  * 自分で拡大するのは、目盛り 1 つの拡大率とピンチの感度を図と揃え、カーソルを中心にするため。
  * この上のホイールではページを動かさず、ピンチでブラウザの拡大も起こさない。
@@ -67,7 +62,7 @@ export function ViewInput3D({ request }: { request: ZoomRequest | null }) {
     const classify = createWheelClassifier();
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      // OrbitControls のホイール（どれも拡大・縮小）へは渡さない
+      // ほかの要素のホイールの処理（ページのスクロールなど）へは渡さない
       e.stopImmediatePropagation();
       const kind = classify(e, e.timeStamp);
       const rect = el.getBoundingClientRect();
@@ -93,7 +88,7 @@ export function ViewInput3D({ request }: { request: ZoomRequest | null }) {
       invalidate();
     };
     // passive: false でないと preventDefault できない（ページのスクロールとブラウザの拡大を止める）
-    // capture: OrbitControls（同じ要素か、その親で受ける）より先に受ける
+    // capture: 親の要素より先に受ける
     el.addEventListener("wheel", onWheel, { capture: true, passive: false });
     return () => el.removeEventListener("wheel", onWheel, { capture: true });
   }, [camera, gl, controls, invalidate]);

@@ -25,7 +25,7 @@ use crate::workspace::{Workspace, op_error, store_error, with_excerpt};
 use fune_model::design::Revision;
 use fune_ops::{ApplyOptions, Op};
 use fune_store::FileSet;
-use std::path::Path;
+use std::path::{Component, Path, PathBuf};
 
 mod catalog;
 mod command;
@@ -41,6 +41,7 @@ mod project;
 mod requirement;
 mod sun_distance;
 mod text;
+mod window;
 
 pub use catalog::{catalog_local_add_op, catalog_source_add_op};
 pub use command::{
@@ -67,6 +68,7 @@ pub use text::{
     SetText, UnsetText, list_from_text, maturity, net_kind, pair_from_text, points_from_text,
     quantity_from_text, quaternion_from_text, vector_from_text, xy_from_text,
 };
+pub use window::maneuver_window_op;
 
 /// 人が打った値の文字列 → Op（`fune set`・`fune catalog set`・`POST /ops/from_text`）。
 /// `item` があればカタログ品の値かフィールド（`SetCatalogValue`・`SetCatalogField`）、無ければ部品の値・フィールドか設定
@@ -159,14 +161,82 @@ pub(crate) fn changed_files(changes: &[fune_store::FileChange]) -> Vec<ChangedFi
     out
 }
 
-/// 新しいプロジェクトを作る（`fune init`）。
-pub fn init(dir: &Path, name: &str) -> Result<InitResult> {
-    std::fs::create_dir_all(dir)
+/// 新しいプロジェクトを作る（`fune init [DIR] [--name NAME]`）。
+///
+/// - `target` があれば `base/target`（親ディレクトリも作る）、なければ `base` そのものをプロジェクトのルートにする。
+/// - `name` がなければルートのディレクトリ名を使う（プロジェクト名として使えない名前なら、何も作らずに誤りにする）。
+/// - 既にあるディレクトリは、`fune.toml` がなければ使う（雛形のうち既にあるファイルは上書きしない）。
+/// - このコマンドが作ったディレクトリは、書き込みに失敗したら（空のものだけ）消す。
+pub fn init(base: &Path, target: Option<&Path>, name: Option<&str>) -> Result<InitResult> {
+    let joined = match target {
+        Some(t) => base.join(t),
+        None => base.to_path_buf(),
+    };
+    let dir = clean_absolute(&joined)?;
+    let name = match name {
+        Some(n) => n.to_owned(),
+        None => derived_project_name(&dir)?,
+    };
+    let created_dirs = missing_ancestors(&dir);
+    std::fs::create_dir_all(&dir)
         .map_err(|e| ServiceError::Store(format!("{}: {e}", dir.display())))?;
-    let created = fune_store::project::init(dir, name).map_err(store_error)?;
-    let ws = Workspace::open(dir)?;
-    Ok(InitResult {
-        project: crate::query::project_info(&ws)?,
-        created,
-    })
+    let result = fune_store::project::init(&dir, &name)
+        .map_err(store_error)
+        .and_then(|created| {
+            let ws = Workspace::open(&dir)?;
+            Ok(InitResult {
+                project: crate::query::project_info(&ws)?,
+                created,
+            })
+        });
+    if result.is_err() {
+        // 深い方から、空のものだけ消す（`remove_dir` は空でなければ失敗するので、中身は消えない）
+        for d in created_dirs.iter().rev() {
+            let _ = std::fs::remove_dir(d);
+        }
+    }
+    result
+}
+
+/// 絶対パスにして、`.` と `..` を文字の上で解く（まだ存在しないディレクトリにも使える）。
+fn clean_absolute(path: &Path) -> Result<PathBuf> {
+    let abs = std::path::absolute(path)
+        .map_err(|e| ServiceError::Store(format!("{}: {e}", path.display())))?;
+    let mut clean = PathBuf::new();
+    for c in abs.components() {
+        match c {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                clean.pop();
+            }
+            other => clean.push(other),
+        }
+    }
+    Ok(clean)
+}
+
+/// ディレクトリ名からプロジェクト名を決める。使えない名前は `--name` を促す誤りにする。
+fn derived_project_name(dir: &Path) -> Result<String> {
+    let name = dir.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+    let usable = !name.trim().is_empty()
+        && !name.contains(['"', '\\'])
+        && !name.chars().any(char::is_control);
+    if usable {
+        Ok(name.to_owned())
+    } else {
+        Err(ServiceError::InvalidInput(format!(
+            "Cannot use the directory name {name:?} as the project name; pass one with --name"
+        )))
+    }
+}
+
+/// まだ存在しない祖先ディレクトリ（浅い方から。`create_dir_all` が作るもの）。
+fn missing_ancestors(dir: &Path) -> Vec<PathBuf> {
+    let mut missing: Vec<PathBuf> = dir
+        .ancestors()
+        .take_while(|a| !a.as_os_str().is_empty() && !a.exists())
+        .map(Path::to_path_buf)
+        .collect();
+    missing.reverse();
+    missing
 }

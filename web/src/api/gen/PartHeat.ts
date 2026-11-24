@@ -15,6 +15,10 @@ part: string,
  */
 node: string, 
 /**
+ * その節点が既定の 1 部品 1 節点か（偽は設計が `[nodes]` で複数の部品をまとめた節点）
+ */
+per_part: boolean, 
+/**
  * 代表の温度（全ケースの最高）
  */
 temperature: QuantityView, 

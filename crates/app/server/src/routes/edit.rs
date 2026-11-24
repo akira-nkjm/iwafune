@@ -99,3 +99,16 @@ pub async fn case_from_eclipse(
     .await
     .map(Json)
 }
+
+/// POST `/ops/maneuver_window`。CLI（`fune maneuver set-window`）と同じ探索から、マヌーバの日付を最小の点にする SetManeuver Op を作る。
+/// 保存は他の編集と同じく POST `/ops`。
+pub async fn maneuver_window(
+    State(s): State<AppState>,
+    ApiJson(req): ApiJson<fune_service::dto::ManeuverWindowRequest>,
+) -> Result<Json<Op>, ApiError> {
+    blocking(&s, move |ws| {
+        fune_service::edit::maneuver_window_op(ws, &req)
+    })
+    .await
+    .map(Json)
+}

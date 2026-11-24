@@ -12,6 +12,7 @@ export const diagramEn: typeof diagramJa = {
     redo: "Redo",
     undoTitle: "Undo the last edit (⌘Z / Ctrl+Z)",
     redoTitle: "Redo the edit you undid (⇧⌘Z / Ctrl+Y)",
+    cannotLayOut: (msg: string) => `Cannot lay out the system diagram: ${msg}`,
     resetLayout: "Reset positions and wires",
     resetLayoutTitle:
       "Clear every moved position and hand-drawn wire and go back to the automatic layout.",
