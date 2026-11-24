@@ -13,6 +13,6 @@ position: [number, number, number], mass: number,
  */
 footprint: [number, number, number] | null, 
 /**
- * 取り付けるパネルの ID（無ければ最も近いパネル）
+ * 取り付けるパネルの ID（無ければ最も近いパネル。同じ距離のパネルが複数あれば質量を等分する）
  */
 panel: string | null, };

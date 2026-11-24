@@ -384,6 +384,7 @@ const labels: Record<string, string> = {
   min_distance: "Nearest distance from the apex",
   parts_in_mount_chain: "Parts on the mount chain (not judged)",
   skipped_carriers: "Carriers not judged",
+  skipped_panels: "Panels left out of the model",
   projected: "Projected area along the body axes",
   along: "Viewed along",
   centre: "Silhouette centroid (body frame)",

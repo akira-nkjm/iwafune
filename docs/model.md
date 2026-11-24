@@ -1044,6 +1044,8 @@ and a part whose kind is (or extends) one of them is an error (`part.launch_kind
 | `launch_load_axial`, `launch_load_lateral` | Acceleration | g0, m/s^2 | quasi-static load factors |
 | `min_frequency_axial`, `min_frequency_lateral` | Frequency | Hz | minimum first natural frequencies |
 | `max_tip_off_rate` | AngularVelocity | deg/s, rad/s | maximum angular rate at separation (stored; no analysis reads it yet) |
+| `launch_constraint` | enumeration | `base_fixed`, `rails`, `tabs`, `fixed`, `free` | how the interface supports the satellite for `structure.modal_fem` (§5.10) |
+| `launch_constraint_face` | enumeration | `+x`, `-x`, `+y`, `-y`, `+z`, `-z` | the face of the body box that `base_fixed`, `tabs` and `fixed` constrain (`-z` is the launcher side of the launch axis) |
 
 The design selects them in `conditions/launch.toml` with the same reference form as a part's `catalog` (`<catalog>/<id>`, read by `split_catalog_ref`):
 
@@ -1080,6 +1082,9 @@ The declination of the departure asymptote against the launch site latitude is n
 **Precedence** (`fune_projection::launch`, the only place): a value written in `conditions/launch.toml` (`load_axial`, `load_lateral`) → the dispenser → the launcher (the nearer interface first; a value is taken from the first of them that has the attribute).
 `structure.static_load` reads the loads this way. When none gives a load, the missing input is `conditions.launch.load_axial` (or `load_lateral`) and the message says it can also be given as `launch_load_axial` / `launch_load_lateral` on the dispenser or launcher.
 `structure.modal_estimate` takes its minimum natural frequencies the same way (the item's `min_frequency_*`), and a requirement on `lateral` / `axial` can only tighten it (the larger wins).
+`structure.modal_fem` reads `launch_constraint` and `launch_constraint_face` in the same order: the keys of the same names in `conditions/launch.toml` (`launch_constraint = "rails"`) → the dispenser → the launcher
+(`LaunchValues::text_set`). **The constraint kind and its face are a pair: the face is read only from the source that supplied the kind** (launch.toml, or that dispenser, or that launcher), never mixed from another source.
+If that source gives a kind that needs a face (`base_fixed`, `tabs`, `fixed`) and no face, the missing input is the face and the message names the source; a face written on the same source is ignored by `rails` and `free`. The vocabulary is the `symbols` of the attribute definitions (a value outside it is `launch.constraint` in `fune check`); when nothing gives a support type, the missing input is `conditions.launch.launch_constraint` and its fix offers the vocabulary as choices (the same for the face).
 
 **`structure.launch_fit`** judges the design against the selected items and needs at least one of them (the missing input is `conditions.launch.launcher`):
 
@@ -1178,6 +1183,41 @@ It is a report: no verdict is produced (one `ok` check with the numbers). The dr
   `exposed_area`, `exposed_by_direction` (−X, +X, −Y, +Y, −Z, +Z), `exposed_by_part`, `internal_parts`, `skipped`, `repeated`, `parts_with_box`, `checks`.
 
 Not modeled: real shapes (STEP, #344), shadowing between parts for the thermal surfaces and the solar cells (a later issue, on the same geometry), and a drag or reflection coefficient that depends on the face.
+
+### 5.10 Finite-element modal analysis (`structure.modal_fem`, #370)
+
+`structure.modal_fem` meshes the panels of the design into flat shell elements (one common grid per body axis, so panels that share an edge or meet at a T-junction are joined at shared nodes) and returns the lowest natural frequencies of the whole body
+with each mode's effective mass fraction per axis and class (rigid, axial, lateral, local). It is a **launch analysis**: parts are placed in the launch configuration (§7.11), so a deployable is a lumped mass at its stowed pose like any other part (nothing stowed-specific is built).
+It is an order-of-magnitude and trend tool, not a detailed model. How the model is built from the design (`fune_projection::structure::modal_fem`):
+
+- **Panels.** Every part of role `panel` is a rectangular mid-surface: its box centre is the centre, the thinnest box extent is the normal, the other two extents are the sides, `thickness` and the material (`analysis/structure.toml`, read by the same code as `structure.modal_estimate`) give the stiffness.
+  Only panels whose box follows the body axes (a multiple of 90°) are modelled; any other panel is left out with a reason in `skipped_panels` and its mass becomes a lumped mass. Joints are found from sizes and positions with a tolerance (default 1 mm, `joint_tolerance`) and listed in `joints`.
+  If a panel has a `mass`, the mass matrix uses it (a lightened panel) while the stiffness still comes from density and thickness; otherwise the mass is density × thickness × area.
+- **Frame.** Parts of role `structure` add **mass only**, spread over the whole model in proportion to the area each node carries. Their stiffness is not modelled, so the frequencies tend to be on the **low** side.
+- **Mounted parts.** Every other part with a `mass` is a lumped mass (mass × count) at the part's origin (its centre of mass in this model), tied rigidly to a panel and spread over the projection of its `size` box when the box follows the body axes. The panel is chosen in this order:
+  the `tie` setting, the nearest panel in the part's mount chain (a part mounted on a panel is tied to it), otherwise the **nearest panel(s)** (found by the analysis). Panels whose distance is within the joint tolerance of the nearest one are all nearest: the part's mass is **split equally** among them
+  (a part midway between two panels gives each half), so no panel is favoured by ID order. A `tie` or a mount on a panel always means exactly one panel.
+  `attachments` has one row per part and panel: the panel, the distance, `share` (the fraction of the part's mass, 1 unless split) and `automatic` (true only for the nearest-panel choice). Parts hanging on the frame are tied this way, so the result depends on this choice as much as on the mesh: read `attachments`.
+  A part that is far from its panel puts its mass at the nearest point of the panel; the rotary inertia of the offset is not modelled.
+- **Mass.** The model mass is the **bare** mass (no growth allowance, no propellant, which is not a part): the sum of mass × count of all parts that have a `mass`. For the demo it equals the mass budget's bare dry total.
+- **Constraint.** `launch_constraint` (§5.6): `base_fixed` fixes all degrees of freedom of the nodes on the face; `rails` fixes the four edges parallel to the launch axis (body z) laterally and the eight corners along it (a CubeSat dispenser);
+  `tabs` fixes the translations of the two edges of the face parallel to the launch axis; `fixed` fixes the translations of the nodes on the face (rotations free); `free` has no constraint (tests and diagnostics; the rigid-body modes are reported as `rigid`).
+  There is no default: without a support type the analysis is a missing input.
+- **Settings** (`analysis/structure.toml`, all optional; `fune set analysis.structure.modal.mesh_size "20 mm"`):
+
+  ```toml
+  [modal]
+  mesh_size       = { value = 20.0, unit = "mm" }   # element size; default min(shortest panel edge / 4, 25 mm)
+  joint_tolerance = { value = 1.0, unit = "mm" }    # edges and planes closer than this are the same; default 1 mm
+  [modal.tie]
+  OBC = "PANEL_MZ"                                    # part -> panel; overrides the mount chain and the nearest panel
+  ```
+
+  A `tie` that names a part that does not exist or something that is not a modelled panel is a missing input at that setting. A rename of a part or panel does not rewrite `tie` (the check at analysis time catches it).
+  Pairs of panels that must not be joined are not supported yet.
+- **KPI.** `first_frequency`: the lowest non-rigid mode (it may be a local mode such as a panel carrying heavy parts; the output separates `lowest_lateral` and `lowest_axial`). There is no verdict yet: the frequencies are compared with the launcher's minimums by `structure.launch_fit` in a later stage.
+
+Known biases: the frame stiffness is omitted (low), parts are tied rigidly at one point or one projected area (a heavy part on a thin panel gives a low local mode), the nearest-panel tie is a modelling choice made by distance only, and the joints between panels are rigid.
 
 ## 6. Product tree and mounting
 

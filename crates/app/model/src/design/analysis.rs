@@ -6,6 +6,7 @@
 //! モードや部品の ID を参照する箇所（`mode_share` のキー・`law` のキー・`nodes` の値など）は `check` が検査し、
 //! 名前の変更（RenamePart・RenameMode）で一緒に書き換わる。
 
+use crate::design::modal_settings::ModalSettings;
 use crate::design::thermal_settings::ThermalSettings;
 use crate::design::timing::StartRef;
 use crate::enum_text::enum_text;
@@ -395,4 +396,7 @@ pub struct StructureSettings {
     /// 噴流・視野の円錐を見る、頂点からの距離の上限（`structure.cone_clearance`。書かなければ機体の大きさから決める）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cone_clearance_range: Option<Quantity>,
+    /// 粗い有限要素の固有値解析（`structure.modal_fem`）の設定
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub modal: Option<ModalSettings>,
 }

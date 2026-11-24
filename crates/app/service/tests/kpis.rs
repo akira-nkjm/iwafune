@@ -132,6 +132,12 @@ fn demo_kpis_show_the_same_values_as_before() {
             "structure.external_geometry",
             &[(KpiKey::MeanProjectedArea, "1082 cm²")],
         ),
+        // 有限要素の固有値解析（#370）の最低の固有振動数（剛体を除く最初のモード）。解析の出力の最初のモードの値
+        // （フレームに付いた部品の質量は、最も近いパネルが複数あれば等分するので、MX・PX に半分ずつ載って 70.0 Hz）
+        (
+            "structure.modal_fem",
+            &[(KpiKey::FirstFrequency, "70.0 Hz")],
+        ),
         // 軌道の幾何（区間のうち地球までの最大距離。デモは地球周回なので軌道半径）
         (
             "orbit.geometry",
@@ -284,6 +290,7 @@ fn catalog_lists_kpi_definitions() {
             KpiKey::TotalMass,
             KpiKey::MinSafetyMargin,
             KpiKey::MinFrequency,
+            KpiKey::FirstFrequency,
             KpiKey::LaunchFitMargin,
             KpiKey::InterferenceOverlaps,
             KpiKey::ConeObstructions,

@@ -303,6 +303,7 @@ export type * from "./ModalFemModeClass";
 export type * from "./ModalFemModelSize";
 export type * from "./ModalFemOutput";
 export type * from "./ModalFemPanel";
+export type * from "./ModalFemSkipped";
 export type * from "./ModalFemSupport";
 export type * from "./ModalFemTarget";
 export type * from "./ModeCell";

@@ -36,7 +36,7 @@ mod tests;
 pub use classify::{GLOBAL_MODE_MIN_FRACTION, RIGID_BODY_MAX_HZ};
 pub use input::{
     ModalFemAxis, ModalFemFace, ModalFemFixedItem, ModalFemInput, ModalFemLumped, ModalFemPanel,
-    ModalFemSupport, ModalFemTarget,
+    ModalFemSkipped, ModalFemSupport, ModalFemSupportError, ModalFemTarget,
 };
 pub use mesh::{DEFAULT_MERGE_TOLERANCE, DEFAULT_MESH_CAP, DEFAULT_MESH_DIVISIONS};
 pub use output::{
@@ -89,7 +89,14 @@ impl Analysis for ModalFem {
         let solved = solve::solve(&sys, count)?;
         let total = node_masses.total();
         let data = classify::classify(&sys, &solved, total, input.launch_axis);
-        Ok(output(&mesh, &fixed, &node_masses, &data, &solved))
+        Ok(output(
+            &mesh,
+            &fixed,
+            &node_masses,
+            &data,
+            &solved,
+            &input.skipped_panels,
+        ))
     }
 }
 
@@ -127,6 +134,7 @@ fn output(
     node_masses: &masses::NodeMasses,
     data: &[classify::ModeData],
     solved: &solve::Solved,
+    skipped: &[ModalFemSkipped],
 ) -> ModalFemOutput {
     let first = |class: ModalFemModeClass| {
         data.iter()
@@ -165,8 +173,10 @@ fn output(
                 panel: a.panel.clone(),
                 distance: Qty::from_raw(a.distance),
                 automatic: a.automatic,
+                share: Fraction::new(a.share),
             })
             .collect(),
+        skipped_panels: skipped.to_vec(),
         iterations: solved.iterations as u32,
         cluster_split: solved.cluster_split,
         total_mass: Qty::from_raw(node_masses.total()),

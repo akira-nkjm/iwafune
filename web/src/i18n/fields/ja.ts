@@ -382,6 +382,7 @@ const labels: Record<string, string> = {
   min_distance: "頂点からの最短距離",
   parts_in_mount_chain: "取付の連鎖にあり判定しなかった部品の数",
   skipped_carriers: "判定しなかった円錐の持ち主",
+  skipped_panels: "モデルにしなかったパネル",
   projected: "機体の軸に沿った投影面積",
   along: "見る向き",
   centre: "輪郭の図心（機体座標）",

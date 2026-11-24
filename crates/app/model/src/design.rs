@@ -33,6 +33,7 @@ pub mod criteria;
 pub mod defs;
 pub mod launch;
 pub mod maneuver;
+pub mod modal_settings;
 pub mod mode;
 pub mod moved_settings;
 pub mod net;
@@ -63,6 +64,7 @@ pub use criteria::{
 pub use defs::*;
 pub use launch::LaunchInterface;
 pub use maneuver::*;
+pub use modal_settings::ModalSettings;
 pub use mode::*;
 pub use moved_settings::{MOVED_SETTINGS, MovedSetting};
 pub use part::*;
