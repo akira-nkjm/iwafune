@@ -383,4 +383,7 @@ pub struct StructureSettings {
     /// 取付部の締結の許容荷重
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fastener_allowable: Option<Quantity>,
+    /// 部品の箱の重なりを干渉に数えない深さ（`structure.interference`。書かなければ解析の既定）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub interference_tolerance: Option<Quantity>,
 }

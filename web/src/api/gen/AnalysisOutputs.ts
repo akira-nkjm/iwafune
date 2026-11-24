@@ -19,6 +19,7 @@ import type { StaticLoadOutput } from "./StaticLoadOutput";
 import type { ModalEstimateOutput } from "./ModalEstimateOutput";
 import type { ModalFemOutput } from "./ModalFemOutput";
 import type { LaunchFitOutput } from "./LaunchFitOutput";
+import type { InterferenceOutput } from "./InterferenceOutput";
 import type { EclipseSeasonOutput } from "./EclipseSeasonOutput";
 import type { OrbitDecayOutput } from "./OrbitDecayOutput";
 import type { GeometryOutput } from "./GeometryOutput";
@@ -52,6 +53,7 @@ export type AnalysisOutputs = {
   "structure.modal_estimate": ModalEstimateOutput;
   "structure.modal_fem": ModalFemOutput;
   "structure.launch_fit": LaunchFitOutput;
+  "structure.interference": InterferenceOutput;
   "orbit.eclipse_season": EclipseSeasonOutput;
   "orbit.decay": OrbitDecayOutput;
   "orbit.geometry": GeometryOutput;
