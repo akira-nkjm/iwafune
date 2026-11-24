@@ -104,6 +104,21 @@ pub fn case_phase_op(case: &str, phase: Option<&str>) -> Op {
     }
 }
 
+/// `fune case set-epoch <ケース> <時刻>`（`epoch` が None か空なら `unset-epoch`）→ `SetCaseEpoch`。
+/// 時刻は解析と同じ読み方（`Epoch::parse`）で調べ、読めなければ拒む。書くのは打った文字列そのまま（前後の空白は除く）。
+/// 1 回限りの期間の外かどうかは軌道を見ないと分からないので、ここでは調べない（解析の不足入力 `cases.<ID>.epoch` が言う）。
+pub fn case_epoch_op(case: &str, epoch: Option<&str>) -> Result<Op> {
+    let epoch = epoch.map(str::trim).filter(|e| !e.is_empty());
+    if let Some(text) = epoch {
+        sat_astro::time::Epoch::parse(text)
+            .map_err(|e| invalid(format!("Cannot read the case epoch `{text}` ({e})")))?;
+    }
+    Ok(Op::SetCaseEpoch {
+        case: case.trim().to_owned(),
+        epoch: epoch.map(str::to_owned),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -164,5 +179,24 @@ mod tests {
             SettingValue::Vector(_)
         ));
         assert!(phase_field_op("P", "orbit.altitude", Some("")).is_ok());
+    }
+
+    #[test]
+    fn a_case_epoch_is_read_like_the_analysis_reads_it() {
+        let Op::SetCaseEpoch { case, epoch } =
+            case_epoch_op(" hot ", Some(" 2031-05-02T00:00:00Z ")).unwrap()
+        else {
+            panic!("not SetCaseEpoch");
+        };
+        assert_eq!(
+            (case.as_str(), epoch.as_deref()),
+            ("hot", Some("2031-05-02T00:00:00Z"))
+        );
+        // 空は外す。読めない時刻は拒む
+        assert!(matches!(
+            case_epoch_op("hot", Some("  ")).unwrap(),
+            Op::SetCaseEpoch { epoch: None, .. }
+        ));
+        assert!(case_epoch_op("hot", Some("next tuesday")).is_err());
     }
 }

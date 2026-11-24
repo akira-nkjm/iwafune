@@ -124,6 +124,11 @@ pub struct AnalysisRunResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub part_heat: Option<Vec<PartHeat>>,
+    /// 幾何の所見（箱の重なり・円錐に入る部品）に関わる部品の状態（干渉・円錐の遮りの解析だけ。それ以外は欄を出さない）。
+    /// どの部品がどの状態かは `analysis::part_findings` が決める。Web は 3D の色に値を写すだけ
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub part_findings: Option<Vec<PartFinding>>,
     /// 入力に使った宇宙天気の表の版（日付で引いた宇宙天気を使った解析だけ。使わなければ欄を出さない）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
@@ -141,6 +146,24 @@ pub enum AnalysisRunStatus {
     Ok,
     MissingInputs,
     Failed,
+}
+
+/// 幾何の所見に関わる部品の状態。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum FindingState {
+    /// 承知でない所見が残っている（判定は警告）
+    Open,
+    /// 関わる所見がすべて承知済み
+    Acknowledged,
+}
+
+/// 幾何の所見に関わる部品 1 つ（3D の色）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct PartFinding {
+    /// 部品の ID
+    pub part: String,
+    pub state: FindingState,
 }
 
 /// 部品 1 つの代表の温度（熱の 3D の色）。代表は全ケースを通した節点の最高温度で、部品は節点の温度を共有する。

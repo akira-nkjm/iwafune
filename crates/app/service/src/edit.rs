@@ -64,7 +64,8 @@ pub use group::group_target;
 pub use link::link_add_op;
 pub use maneuver::maneuver_op;
 pub use phase::{
-    case_phase_op, copy_orbit_op, phase_field_op, phase_op, unset_law_op, unset_orbit_op,
+    case_epoch_op, case_phase_op, copy_orbit_op, phase_field_op, phase_op, unset_law_op,
+    unset_orbit_op,
 };
 pub use place::{place_body, place_body_op, place_op, rotation_from_text};
 pub use project::project_field_op;

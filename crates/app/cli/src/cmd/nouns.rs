@@ -3,7 +3,7 @@
 //! （`fune part place`・`fune mode set|unset` は GUI と同じ打った引数の型にして渡す）。
 
 use super::common::Built;
-use crate::args::{EditOpts, ModeCmd, PartCmd, SequenceCmd, SettingCmd, ViewCmd};
+use crate::args::{AcknowledgedCmd, EditOpts, ModeCmd, PartCmd, SequenceCmd, SettingCmd, ViewCmd};
 use fune_service::Workspace;
 use fune_service::dto::{ModeCellText, ModeSetText, Op, PlaceText, ViewNodePos};
 use fune_service::edit::{self, SetText, UnsetText};
@@ -211,6 +211,49 @@ pub fn sequence(c: &SequenceCmd) -> Built<'_> {
         ),
         SequenceCmd::Rm { name, edit } => (Op::RemoveSequence { name: name.clone() }, edit),
         SequenceCmd::Ls => return Ok(None),
+    };
+    Ok(Some((op, e)))
+}
+
+/// `fune acknowledged add|rm`
+pub fn acknowledged(c: &AcknowledgedCmd) -> Built<'_> {
+    let finding = |text: &str| {
+        text.parse::<fune_service::dto::FindingKind>()
+            .map_err(anyhow::Error::from)
+    };
+    let (op, e) = match c {
+        AcknowledgedCmd::Add {
+            finding: f,
+            first,
+            second,
+            reason,
+            configuration,
+            edit,
+        } => (
+            Op::Acknowledge {
+                finding: finding(f)?,
+                first: first.clone(),
+                second: second.clone(),
+                configuration: configuration.clone(),
+                reason: reason.clone(),
+            },
+            edit,
+        ),
+        AcknowledgedCmd::Rm {
+            finding: f,
+            first,
+            second,
+            configuration,
+            edit,
+        } => (
+            Op::Unacknowledge {
+                finding: finding(f)?,
+                first: first.clone(),
+                second: second.clone(),
+                configuration: configuration.clone(),
+            },
+            edit,
+        ),
     };
     Ok(Some((op, e)))
 }

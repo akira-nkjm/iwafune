@@ -36,6 +36,7 @@ impl Snapshot {
             .into_iter()
             .chain(fune_projection::maneuver_dates::check(&design))
             .chain(fune_projection::outline::check(&design, &resolved))
+            .chain(crate::stale_acknowledgements::stale(&design, &resolved))
             .map(|d| with_excerpt(d, &files))
             .collect();
         Self {

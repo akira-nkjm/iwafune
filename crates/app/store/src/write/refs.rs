@@ -2,6 +2,7 @@
 //! [`RefSite`]）が決め、ここは参照元のファイル（`layout`）とキーを書き換えるだけ。**
 
 use super::Edits;
+use super::acknowledged;
 use super::doc::{drop_if_empty, rename_key, replace_in_array, set, string, table_opt};
 use super::part::{rename_mount_target, set_port};
 use crate::error::StoreError;
@@ -286,6 +287,18 @@ fn rename_at(
         | RefSite::PhaseOrbitManeuver { .. }
         | RefSite::CommDataDownlink
         | RefSite::RequirementCheck { .. } => records::rename_record_at(edits, design, site, names),
+        RefSite::AcknowledgedPart { index } => acknowledged::rename_part(
+            edits,
+            &layout::analysis_file(AnalysisSystem::Structure),
+            *index,
+            names,
+        ),
+        RefSite::AcknowledgedConfiguration { index } => acknowledged::rename_configuration(
+            edits,
+            &layout::analysis_file(AnalysisSystem::Structure),
+            *index,
+            names,
+        ),
     }
 }
 

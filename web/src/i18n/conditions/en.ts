@@ -13,6 +13,36 @@ export const conditionsEn: typeof conditionsJa = {
     phase: "Phase",
     setPhase: "Choose phase",
     epoch: "Start time",
+    setEpoch: "Enter start time",
+    caseEpoch: {
+      title: (id: string) => `Start time of case ${id}`,
+      description:
+        "Time-series analyses start this case's orbit at this time (same as fune case set-epoch). Leave it empty to start at the orbit's own epoch.",
+      field: "Start time",
+      hint: "ISO 8601 (e.g. 2031-05-02T00:00:00Z). For an orbit with a one-off span, a time inside the span.",
+      confirm: "Save",
+      summary: (id: string, epoch: string) =>
+        epoch
+          ? `Set the start time of case ${id} to ${epoch}`
+          : `Clear the start time of case ${id}`,
+    },
+    fromGeometry: {
+      open: "Cases from the worst days",
+      title: "Cases from the worst days",
+      description:
+        "Creates three cases from the mission geometry of the phase's orbit, starting at the day of the farthest and nearest Sun distance and the farthest Earth distance (an existing case gets the new start time; same as fune case from-geometry).",
+      phase: "Phase",
+      prefix: "Case ID prefix (optional)",
+      prefixHint:
+        "<prefix>_sun_far, <prefix>_sun_near, <prefix>_earth_far. Defaults to the phase ID in lower case",
+      mode: "Mode (optional)",
+      noMode: "Unspecified (an existing case keeps its mode)",
+      confirm: "Create cases",
+      summary: (phase: string) =>
+        phase
+          ? `Create cases from the worst days of phase ${phase}`
+          : "Create cases from the worst days",
+    },
     casePhase: {
       title: (id: string) => `Phase of case ${id}`,
       description:

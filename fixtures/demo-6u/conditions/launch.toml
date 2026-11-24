@@ -2,7 +2,6 @@
 # `launcher` and `dispenser` select catalog items; the limits they carry (mass, envelope, minimum natural frequencies, loads) are the base of
 # `structure.launch_fit`. Values written here (`load_axial`, `load_lateral`) take precedence over the catalog items.
 label                  = "Rideshare launch (provisional)"
-vehicle                = "H3"
 load_axial             = { value = 6.0, unit = "g0" }
 load_lateral           = { value = 2.0, unit = "g0" }
 safety_factor_yield    = 1.25

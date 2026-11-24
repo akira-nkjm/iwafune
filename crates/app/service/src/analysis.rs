@@ -8,6 +8,7 @@
 //! | `checks` | 出力の中の判定を集める（期間不足の注意は語彙から作る） |
 //! | `kpi` | KPI（代表値の選び方・判定・塗りの比・判定の数え方） |
 //! | `overview` | 系の概要の解析の表の行（主な結果の選び方・判定の文の持ち主ごとのまとまり・電源の棒グラフと隠す表） |
+//! | `part_findings` | 幾何の所見（箱の重なり・円錐に入る部品）に関わる部品ごとの状態（承知でない所見が残るか・すべて承知済みか） |
 //! | `part_heat` | 熱の定常解析の部品ごとの代表の温度（節点と部品の対応・代表の選び方） |
 //! | `typed` | 型付きの実行（入力・出力を型のまま返す。電源のモードの見方・概要の隠す表が使う） |
 //! | `weather` | 高度低下の入力に宇宙天気の表から日付で引いた列を足し、使った表の版を返す |
@@ -35,6 +36,7 @@ mod failure;
 pub(crate) mod kpi;
 pub mod labels;
 pub(crate) mod overview;
+mod part_findings;
 mod part_heat;
 mod typed;
 mod weather;
@@ -171,8 +173,10 @@ fn finish(id: &str, (case, case_source, side): CaseInfo, outcome: Outcome) -> An
         detail: outcome.detail,
         overview: crate::dto::AnalysisOverview::default(),
         part_heat: None,
+        part_findings: None,
     };
     result.part_heat = part_heat::part_heat(&result);
+    result.part_findings = part_findings::part_findings(&result);
     result.overview = overview::overview(&result, None, Vec::new());
     result
 }

@@ -17,3 +17,81 @@ poisson_ratio        = 0.3
 yield_strength       = { value = 450.0, unit = "MPa" }
 ultimate_strength    = { value = 500.0, unit = "MPa" }
 thermal_conductivity = { value = 5.0, unit = "W/(m*K)" }
+
+[[acknowledged]]
+finding = "interference"
+first   = "SAP_PY"
+second  = "SP_PY"
+reason  = "Hinge edge: the paddle box and the solar panel box meet at the hinge line, where the real parts only touch"
+
+[[acknowledged]]
+finding = "interference"
+first   = "PANEL_MX"
+second  = "PANEL_MY"
+reason  = "Neighbouring panel boxes are centred on the face of the part they are mounted on, so they overlap at the corner by half a panel thickness; the real panels meet edge to edge (box model)"
+
+[[acknowledged]]
+finding = "interference"
+first   = "PANEL_MX"
+second  = "PANEL_MZ"
+reason  = "Neighbouring panel boxes are centred on the face of the part they are mounted on, so they overlap at the corner by half a panel thickness; the real panels meet edge to edge (box model)"
+
+[[acknowledged]]
+finding = "interference"
+first   = "PANEL_MX"
+second  = "PANEL_PY"
+reason  = "Neighbouring panel boxes are centred on the face of the part they are mounted on, so they overlap at the corner by half a panel thickness; the real panels meet edge to edge (box model)"
+
+[[acknowledged]]
+finding = "interference"
+first   = "PANEL_MX"
+second  = "PANEL_PZ"
+reason  = "Neighbouring panel boxes are centred on the face of the part they are mounted on, so they overlap at the corner by half a panel thickness; the real panels meet edge to edge (box model)"
+
+[[acknowledged]]
+finding = "interference"
+first   = "PANEL_MY"
+second  = "PANEL_MZ"
+reason  = "Neighbouring panel boxes are centred on the face of the part they are mounted on, so they overlap at the corner by half a panel thickness; the real panels meet edge to edge (box model)"
+
+[[acknowledged]]
+finding = "interference"
+first   = "PANEL_MY"
+second  = "PANEL_PX"
+reason  = "Neighbouring panel boxes are centred on the face of the part they are mounted on, so they overlap at the corner by half a panel thickness; the real panels meet edge to edge (box model)"
+
+[[acknowledged]]
+finding = "interference"
+first   = "PANEL_MY"
+second  = "PANEL_PZ"
+reason  = "Neighbouring panel boxes are centred on the face of the part they are mounted on, so they overlap at the corner by half a panel thickness; the real panels meet edge to edge (box model)"
+
+[[acknowledged]]
+finding = "interference"
+first   = "PANEL_MZ"
+second  = "PANEL_PX"
+reason  = "Neighbouring panel boxes are centred on the face of the part they are mounted on, so they overlap at the corner by half a panel thickness; the real panels meet edge to edge (box model)"
+
+[[acknowledged]]
+finding = "interference"
+first   = "PANEL_MZ"
+second  = "PANEL_PY"
+reason  = "Neighbouring panel boxes are centred on the face of the part they are mounted on, so they overlap at the corner by half a panel thickness; the real panels meet edge to edge (box model)"
+
+[[acknowledged]]
+finding = "interference"
+first   = "PANEL_PX"
+second  = "PANEL_PY"
+reason  = "Neighbouring panel boxes are centred on the face of the part they are mounted on, so they overlap at the corner by half a panel thickness; the real panels meet edge to edge (box model)"
+
+[[acknowledged]]
+finding = "interference"
+first   = "PANEL_PX"
+second  = "PANEL_PZ"
+reason  = "Neighbouring panel boxes are centred on the face of the part they are mounted on, so they overlap at the corner by half a panel thickness; the real panels meet edge to edge (box model)"
+
+[[acknowledged]]
+finding = "interference"
+first   = "PANEL_PY"
+second  = "PANEL_PZ"
+reason  = "Neighbouring panel boxes are centred on the face of the part they are mounted on, so they overlap at the corner by half a panel thickness; the real panels meet edge to edge (box model)"

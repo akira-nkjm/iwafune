@@ -4,12 +4,14 @@
 //! 軸の向きは `ctx.vec3` を機体座標に直したもの（[`crate::parts::direction_body`]）、置き場所は `ctx.resolved` から
 //! （形態を選べば、その配置で判定する）。軸や半頂角が読めない担い手は、不足入力にせず、そのまま解析へ渡して理由つきで一覧に残す。
 
+use super::acknowledged::acknowledgements;
 use super::body_boxes::{boxes, placed};
 use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::parts::{SENSOR_ROLES, direction_body};
 use crate::quantity::setting_opt;
 use fune_model::builtin::Role;
+use fune_model::design::FindingKind;
 use fune_model::design::setting_dims as dims;
 use sat_analysis::structure::cone_clearance::{ConeCarrier, ConeClearanceInput, ConeKind};
 use sat_analysis::structure::interference::InterferenceBox;
@@ -63,12 +65,14 @@ pub fn cone_clearance(ctx: &Context<'_>) -> Result<ConeClearanceInput, MissingIn
         .and_then(|s| s.cone_clearance_range.as_ref());
     let range = setting_opt(&dims::STRUCTURE_CONE_CLEARANCE_RANGE, &[], range, &mut m);
     let carriers = carriers(ctx);
+    let acknowledged = acknowledgements(ctx, FindingKind::ConeClearance);
     m.finish(|| {
         Some(ConeClearanceInput {
             boxes: body.boxes.into_iter().map(InterferenceBox::from).collect(),
             unsized_parts: body.unsized_parts,
             carriers,
             range,
+            acknowledged,
         })
     })
 }

@@ -93,8 +93,32 @@ export const systemsEn: typeof systemsJa = {
           "Multi-node steady and transient analysis against storage, operating and performance ranges",
       },
     },
-    kpiTally: (checked: number, flagged: number) =>
-      flagged === 0 ? `All OK (${checked})` : `${flagged} of ${checked} need attention`,
+    kpiTally: (checked: number, flagged: number, acknowledged = 0) => {
+      const main =
+        flagged === 0 ? `All OK (${checked})` : `${flagged} of ${checked} need attention`;
+      return acknowledged === 0 ? main : `${main}, ${acknowledged} acknowledged`;
+    },
+    findings: {
+      title: "Geometry findings",
+      kind: { interference: "Box overlap", cone_clearance: "Part in a cone" },
+      open: "Open",
+      acknowledged: "Acknowledged",
+      none: "No findings",
+      acknowledge: "Acknowledge",
+      withdraw: "Withdraw",
+      reason: "Reason",
+      reasonHint: "Why the finding is a known box artefact (e.g. hinge edge)",
+      onlyIn: (configuration: string) => `Only in configuration ${configuration}`,
+      scope: (configuration: string) => `only in ${configuration}`,
+      acknowledgeTitle: (first: string, second: string) => `Acknowledge ${first} and ${second}`,
+      acknowledgeDescription:
+        "The finding stays in the analysis result; it only stops being a warning. The reason is written to the design data.",
+      acknowledgeSummary: (first: string, second: string) => `Acknowledged ${first} and ${second}`,
+      withdrawTitle: (first: string, second: string) =>
+        `Withdraw the acknowledgement of ${first} and ${second}`,
+      withdrawSummary: (first: string, second: string) =>
+        `Withdrew the acknowledgement of ${first} and ${second}`,
+    },
     kpiFill: {
       value: "Value (fraction)",
       used_over_limit: "Used against the limit",
@@ -203,6 +227,14 @@ export const systemsEn: typeof systemsJa = {
         removeDescription: "This also removes all pose overrides in this configuration.",
         added: (id: string) => `Add configuration ${id}`,
         renamed: (from: string, to: string) => `Rename configuration ${from} to ${to}`,
+      },
+      findings: {
+        toggle: "Show analysis findings as colours",
+        list: "Findings",
+        none: "No findings in this configuration",
+        open: "Open (warning)",
+        acknowledged: "Acknowledged",
+        select: (part: string) => `Select ${part}`,
       },
       browser: "Parts tree",
       isolate: (name: string) => `Show only ${name}`,

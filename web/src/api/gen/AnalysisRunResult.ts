@@ -7,6 +7,7 @@ import type { CheckView } from "./CheckView";
 import type { ConfigurationSource } from "./ConfigurationSource";
 import type { KpiView } from "./KpiView";
 import type { MissingInput } from "./MissingInput";
+import type { PartFinding } from "./PartFinding";
 import type { PartHeat } from "./PartHeat";
 import type { SpaceWeatherVersion } from "./SpaceWeatherVersion";
 import type { UncertaintySide } from "./UncertaintySide";
@@ -77,6 +78,11 @@ overview: AnalysisOverview,
  * `analysis::part_heat` が決める。Web は 3D の色に値を写すだけ
  */
 part_heat?: Array<PartHeat>, 
+/**
+ * 幾何の所見（箱の重なり・円錐に入る部品）に関わる部品の状態（干渉・円錐の遮りの解析だけ。それ以外は欄を出さない）。
+ * どの部品がどの状態かは `analysis::part_findings` が決める。Web は 3D の色に値を写すだけ
+ */
+part_findings?: Array<PartFinding>, 
 /**
  * 入力に使った宇宙天気の表の版（日付で引いた宇宙天気を使った解析だけ。使わなければ欄を出さない）
  */

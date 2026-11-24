@@ -16,8 +16,8 @@ pub use defs::{AttrAddArgs, AttrCmd, KindAddArgs, KindCmd};
 pub use ground::GroundCmd;
 pub use links::{LinkCmd, ProjectCmd};
 pub use nouns::{
-    ModeCmd, ModeViewOpts, NetArgs, NetCmd, NetSetArgs, PartCmd, PlaceArgs, SequenceCmd, SetArgs,
-    SettingCmd, ViewCmd,
+    AcknowledgedCmd, ModeCmd, ModeViewOpts, NetArgs, NetCmd, NetSetArgs, PartCmd, PlaceArgs,
+    SequenceCmd, SetArgs, SettingCmd, ViewCmd,
 };
 pub use phases::{PhaseArgs, PhaseCmd};
 pub use records::{
@@ -155,6 +155,9 @@ pub enum Command {
     /// Named mode sequences of the power analysis (analysis/power.toml)
     #[command(subcommand)]
     Sequence(SequenceCmd),
+    /// Acknowledged geometry findings: overlaps and plume/field-of-view hits that are known box artefacts (analysis/structure.toml)
+    #[command(subcommand)]
+    Acknowledged(AcknowledgedCmd),
     /// Nets (electrical connections)
     #[command(subcommand)]
     Net(NetCmd),

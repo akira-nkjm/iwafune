@@ -51,6 +51,7 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         }
         Op::UnsetPhaseLaw { phase, mode } => unset_phase_law(edits, design, phase, mode),
         Op::SetCasePhase { case, phase } => set_case_phase(edits, design, case, phase.as_deref()),
+        Op::SetCaseEpoch { case, epoch } => set_case_epoch(edits, design, case, epoch.as_deref()),
         _ => Err(OpError::invalid("This op is not handled here")),
     }
 }
@@ -175,6 +176,23 @@ fn set_case_phase(
     };
     let updated = Case {
         phase: phase.map(Into::into),
+        ..current.clone()
+    };
+    Ok(write_record(edits, &layout::case_file(case), &updated)?)
+}
+
+/// ケースの `epoch` だけを書き換える（ほかの欄はそのまま）。
+fn set_case_epoch(
+    edits: &mut Edits,
+    design: &Design,
+    case: &str,
+    epoch: Option<&str>,
+) -> Result<(), OpError> {
+    let Some(current) = design.cases.get(case) else {
+        return Err(OpError::not_found(format!("Analysis case `{case}`")));
+    };
+    let updated = Case {
+        epoch: epoch.map(str::to_owned),
         ..current.clone()
     };
     Ok(write_record(edits, &layout::case_file(case), &updated)?)

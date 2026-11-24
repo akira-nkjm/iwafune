@@ -25,6 +25,7 @@
 //! | `source_map` | エンティティ → ファイル・キー → 行 |
 //! | `view` | 図の配置（見た目だけ） |
 
+pub mod acknowledged;
 pub mod analysis;
 pub mod budget;
 pub mod conditions;
@@ -54,6 +55,7 @@ pub mod thermal_settings;
 pub mod timing;
 pub mod view;
 
+pub use acknowledged::{AcknowledgedFinding, FindingKind};
 pub use analysis::*;
 pub use budget::*;
 pub use conditions::*;

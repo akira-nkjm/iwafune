@@ -3,6 +3,7 @@
 //! | モジュール | 中身 |
 //! |---|---|
 //! | `doc` | toml_edit の小さな道具（装飾を保った値の置き換え・揃えた挿入・表の確保・キーの名前の変更・配列の要素の置き換え） |
+//! | `acknowledged` | 承知済みの組（`analysis/structure.toml` の `[[acknowledged]]`）の足す・取り消す・名前の変更 |
 //! | `catalog` | カタログ品のファイルの正規形とフィールド |
 //! | `ground` | 新しい地上局のファイルの正規形 |
 //! | `link` | 通信の回線（`analysis/comm.toml` の `[link.<名前>]`）の作成と削除 |
@@ -17,6 +18,7 @@
 //! 編集は既存の行の装飾（空白・コメント）を保ち、変えた値の行だけが変わるようにする。
 //! 計画した変更の列を（ディスクに書かずに）ファイルの集合に当てるのは [`apply_changes`]。
 
+pub mod acknowledged;
 pub mod catalog;
 mod commit;
 pub mod doc;

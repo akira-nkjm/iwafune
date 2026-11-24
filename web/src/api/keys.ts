@@ -51,6 +51,8 @@ export const keys = {
     opsJson ? (["budget", kind, opsJson] as const) : (["budget", kind] as const),
   /** 要求適合表（`GET /requirements/compliance`。設計・解析・バジェットから導出される） */
   compliance: ["compliance"] as const,
+  /** Op を確定する mutation のキー（`useApplyOps` など）。確定の最中かを `useIsMutating` で見るのに使う */
+  applyOps: ["apply_ops"] as const,
   /** dry_run の結果（CLI のプレビュー）。revision が変われば別のキー */
   dryRun: (revision: string, opsJson: string) => ["dry_run", revision, opsJson] as const,
   /** 打った文字列から作った Op（`POST /ops/from_text`。書き込まない）。revision が変われば別のキー */
@@ -58,6 +60,9 @@ export const keys = {
   /** 名詞のコマンドに打った引数から作った Op の列（`POST /ops/from_command`。書き込まない） */
   commandOps: (revision: string, commandJson: string) =>
     ["command_ops", revision, commandJson] as const,
+  /** 最悪の日から作るケースの Op の列（`POST /ops/cases_from_geometry`。書き込まない）。revision が変われば別のキー */
+  geometryCaseOps: (revision: string | null, json: string) =>
+    ["geometry-case-ops", revision, json] as const,
   /** 季節解析から作った新しいケースの Op（`POST /ops/case_from_eclipse`。書き込まない）。revision が変われば別のキー */
   eclipseCaseOp: (revision: string | null, json: string) =>
     ["eclipse-case-op", revision, json] as const,
