@@ -373,6 +373,8 @@ const labels: Record<string, string> = {
   second: "Part 2",
   depth: "Overlap depth",
   separation_axis: "Separation direction (body frame)",
+  acknowledged: "Acknowledged",
+  acknowledged_configuration: "Acknowledged in configuration",
   min_clearance: "Closest pair that does not overlap",
   gap: "Gap",
   skipped: "Parts not judged",

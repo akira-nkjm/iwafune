@@ -371,6 +371,8 @@ const labels: Record<string, string> = {
   second: "部品 2",
   depth: "重なりの深さ",
   separation_axis: "分離の向き（機体座標）",
+  acknowledged: "承知済み",
+  acknowledged_configuration: "承知した形態",
   min_clearance: "重なっていない組のうち最も近いもの",
   gap: "隙間",
   skipped: "判定しなかった部品",

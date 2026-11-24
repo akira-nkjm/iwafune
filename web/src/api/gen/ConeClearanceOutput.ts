@@ -25,7 +25,7 @@ parts_with_box: number,
  */
 cones_judged: number, 
 /**
- * 円錐に部品が入っている担い手の数
+ * 円錐に部品が入っている担い手の数（承知済みの組も数える。承知でない組が入っている担い手の数は `obstructions` の `acknowledged` から数える）
  */
 cones_obstructed: number, 
 /**

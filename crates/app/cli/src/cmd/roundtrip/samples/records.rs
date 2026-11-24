@@ -2,9 +2,9 @@
 
 use super::s;
 use fune_service::dto::{
-    AttributeDef, Case, Distribution, Harness, KindDef, LinkDirection, ModeCell, ModeSegment,
-    ModeWhen, Net, NetField, NetKind, Op, PortRef, ProjectField, Quantity, SettingValue, Source,
-    SourceKind, StartFrom, StartRef, ViewNodePos,
+    AttributeDef, Case, Distribution, FindingKind, Harness, KindDef, LinkDirection, ModeCell,
+    ModeSegment, ModeWhen, Net, NetField, NetKind, Op, PortRef, ProjectField, Quantity,
+    SettingValue, Source, SourceKind, StartFrom, StartRef, ViewNodePos,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -147,6 +147,32 @@ pub(in super::super) fn system_ops() -> Vec<Op> {
         },
         Op::RemoveSequence {
             name: "imaging_day".into(),
+        },
+        Op::Acknowledge {
+            finding: FindingKind::Interference,
+            first: "SAP_PY".into(),
+            second: "SP_PY".into(),
+            configuration: None,
+            reason: "Hinge edge of the box model".into(),
+        },
+        Op::Acknowledge {
+            finding: FindingKind::ConeClearance,
+            first: "SS_PX".into(),
+            second: "SAP_PY".into(),
+            configuration: Some("STOWED".into()),
+            reason: "Paddle box, folded".into(),
+        },
+        Op::Unacknowledge {
+            finding: FindingKind::Interference,
+            first: "SAP_PY".into(),
+            second: "SP_PY".into(),
+            configuration: None,
+        },
+        Op::Unacknowledge {
+            finding: FindingKind::ConeClearance,
+            first: "SS_PX".into(),
+            second: "SAP_PY".into(),
+            configuration: Some("STOWED".into()),
         },
         Op::SetModeStates {
             cells: vec![

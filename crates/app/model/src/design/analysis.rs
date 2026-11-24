@@ -6,6 +6,7 @@
 //! モードや部品の ID を参照する箇所（`mode_share` のキー・`law` のキー・`nodes` の値など）は `check` が検査し、
 //! 名前の変更（RenamePart・RenameMode）で一緒に書き換わる。
 
+use crate::design::acknowledged::AcknowledgedFinding;
 use crate::design::modal_settings::ModalSettings;
 use crate::design::thermal_settings::ThermalSettings;
 use crate::design::timing::StartRef;
@@ -399,4 +400,7 @@ pub struct StructureSettings {
     /// 粗い有限要素の固有値解析（`structure.modal_fem`）の設定
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub modal: Option<ModalSettings>,
+    /// 承知済みの組（`structure.interference` と `structure.cone_clearance` に共通。`[[acknowledged]]`）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub acknowledged: Vec<AcknowledgedFinding>,
 }

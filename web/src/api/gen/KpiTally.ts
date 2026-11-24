@@ -9,6 +9,10 @@ export type KpiTally = {
  */
 checked: number, 
 /**
- * そのうち OK でない（注意か違反の）数
+ * そのうち OK でない（注意か違反の）数。承知済みの所見は数えない
  */
-flagged: number, };
+flagged: number, 
+/**
+ * 承知済みの所見の数（所見は残るが判定は OK。承知を持つ解析＝干渉・円錐の遮りだけ。ほかは欄を出さない）
+ */
+acknowledged?: number, };

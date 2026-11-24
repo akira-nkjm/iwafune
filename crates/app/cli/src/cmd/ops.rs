@@ -29,6 +29,7 @@ pub fn edit_of<'a>(ws: &Workspace, command: &'a Command) -> anyhow::Result<Optio
         Command::Part(c) => one(nouns::part(c)?),
         Command::Mode(c) => one(nouns::mode(c)?),
         Command::Sequence(c) => one(nouns::sequence(c)?),
+        Command::Acknowledged(c) => one(nouns::acknowledged(c)?),
         Command::Net(c) => nets::net(c)?.map(|(ops, opts)| Edit { ops, opts }),
         Command::Attr(c) => one(defs::attr(c)?),
         Command::Kind(c) => one(defs::kind(c)?),

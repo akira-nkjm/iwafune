@@ -3,6 +3,7 @@ import { localized, useT } from "@/i18n";
 import { VerdictPill } from "@/kit/status/VerdictPill";
 import { ChecksList } from "./ChecksList";
 import { fieldLabel } from "./fields";
+import { GeometryFindings } from "./GeometryFindings";
 import { kpiText } from "./kpi";
 import { MissingList } from "./MissingList";
 import { OverviewBars } from "./OverviewBars";
@@ -43,10 +44,17 @@ export function AnalysisRowDetail({
               <h3 className="mb-2 font-medium text-ink-2 text-xs">{t.kpis}</h3>
               <dl className="divide-y divide-line-soft rounded-control border border-line">
                 {result.kpis.map((k) => (
-                  <div key={k.key} className="flex items-center gap-2 px-3 py-1.5 text-xs">
-                    <dt className="min-w-0 flex-1 text-ink-2">{localized(k.label, k.label_en)}</dt>
-                    <dd className="num shrink-0 text-right font-medium text-ink">
-                      {kpiText(k, (n) => dict.systems.kpiTally(n.checked, n.flagged))}
+                  <div
+                    key={k.key}
+                    className="flex flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-1.5 text-xs"
+                  >
+                    <dt className="min-w-0 flex-1 basis-32 text-ink-2">
+                      {localized(k.label, k.label_en)}
+                    </dt>
+                    <dd className="num min-w-0 max-w-full text-right font-medium text-ink">
+                      {kpiText(k, (n) =>
+                        dict.systems.kpiTally(n.checked, n.flagged, n.acknowledged),
+                      )}
                     </dd>
                     {k.verdict && (
                       <span className="shrink-0">
@@ -61,6 +69,7 @@ export function AnalysisRowDetail({
           {overview.chart && <OverviewBars chart={overview.chart} />}
         </div>
       )}
+      <GeometryFindings result={result} actions />
       {overview.checks.length > 0 && (
         <section aria-label={t.checks} className="space-y-2">
           <h3 className="font-medium text-ink-2 text-xs">{t.checks}</h3>

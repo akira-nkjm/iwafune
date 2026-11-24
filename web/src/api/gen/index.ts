@@ -1,4 +1,5 @@
 // Generated file. Do not edit by hand (regenerate with `cargo test -p fune-service export_ts`).
+export type * from "./Acknowledgement";
 export type * from "./AnalysisArea";
 export type * from "./AnalysisCase";
 export type * from "./AnalysisCaseSource";
@@ -182,6 +183,8 @@ export type * from "./FileChange";
 export type * from "./FileChangeKind";
 export type * from "./FillBasis";
 export type * from "./FillRatio";
+export type * from "./FindingKind";
+export type * from "./FindingState";
 export type * from "./FiringThruster";
 export type * from "./Fix";
 export type * from "./ForceConfig";
@@ -377,6 +380,7 @@ export type * from "./ParamPath";
 export type * from "./ParseQuantityRequest";
 export type * from "./ParsedQuantity";
 export type * from "./PartField";
+export type * from "./PartFinding";
 export type * from "./PartHeat";
 export type * from "./PartQuery";
 export type * from "./PartRow";

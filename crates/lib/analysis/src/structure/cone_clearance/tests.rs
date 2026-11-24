@@ -1,6 +1,7 @@
 //! `structure.cone_clearance` のテスト（手計算との比較）。担い手の表の規則（頂点・自身の箱・取付の連鎖・半頂角が無い担い手・距離の上限）を確かめる。
 
 use super::*;
+use crate::structure::acknowledged::Acknowledgement;
 use sat_astro::math::Quat;
 
 const DEG: f64 = std::f64::consts::PI / 180.0;
@@ -34,6 +35,7 @@ fn input(boxes: Vec<InterferenceBox>, carriers: Vec<ConeCarrier>) -> ConeClearan
         unsized_parts: Vec::new(),
         carriers,
         range: None,
+        acknowledged: Vec::new(),
     }
 }
 
@@ -214,4 +216,49 @@ fn plume_and_field_of_view_share_one_judgement() {
     close(x.min_distance.value(), y.min_distance.value());
     assert_eq!(a.cones[0].kind, ConeKind::Plume);
     assert_eq!(b.cones[0].kind, ConeKind::FieldOfView);
+}
+
+/// 承知済みの（担い手, 部品）は、円錐に入る部品として残り（フラグと理由つき）、判定は ok。承知していない部品は警告のまま。
+/// 順のある組なので、担い手と部品を取り違えた承知は効かない。
+#[test]
+fn an_acknowledged_obstruction_is_listed_and_does_not_warn() {
+    let mut i = input(
+        vec![
+            cube("PADDLE", [3.0, 0.0, 0.0], 1.0),
+            cube("BOOM", [6.0, 0.0, 0.0], 1.0),
+        ],
+        vec![carrier("EPT", ConeKind::Plume)],
+    );
+    i.acknowledged = vec![Acknowledgement {
+        first: "EPT".to_owned(),
+        second: "PADDLE".to_owned(),
+        reason: "paddle box".to_owned(),
+        configuration: None,
+    }];
+    let out = run(&i);
+    let obs = &out.cones[0].obstructions;
+    assert_eq!(obs.len(), 2);
+    assert!(obs[0].acknowledged && obs[0].reason.as_deref() == Some("paddle box"));
+    assert!(!obs[1].acknowledged && obs[1].reason.is_none());
+    let check = |key: &str| out.checks.iter().find(|c| c.key == key).unwrap();
+    assert_eq!(check("obstruction:EPT:PADDLE").verdict, Verdict::Ok);
+    assert!(
+        check("obstruction:EPT:PADDLE")
+            .message
+            .starts_with("Acknowledged: paddle box. ")
+    );
+    assert_eq!(check("obstruction:EPT:BOOM").verdict, Verdict::Warning);
+    // 取り違えた並び（部品, 担い手）は効かない
+    i.acknowledged = vec![Acknowledgement {
+        first: "PADDLE".to_owned(),
+        second: "EPT".to_owned(),
+        reason: "wrong way".to_owned(),
+        configuration: None,
+    }];
+    assert!(
+        run(&i).cones[0]
+            .obstructions
+            .iter()
+            .all(|o| !o.acknowledged)
+    );
 }
