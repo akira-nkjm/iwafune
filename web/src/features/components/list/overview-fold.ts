@@ -21,12 +21,22 @@ export function partsWithin(n: TreeNode, tree: ShownTree): string[] {
   ]);
 }
 
-/** たためるグループ: 系の下の入れ子の Group で、出すものを中に持つもの（中に組立品や別のグループがあってもよい） */
+/**
+ * たためる枠: 系の下の入れ子の Group か組立品（子を持つ部品）で、出すものを中に持つもの
+ * （Group は、中に組立品や別のグループがあってもよい）。系の枠そのものはたたまない。
+ */
 export function foldable(n: TreeNode, tree: ShownTree): boolean {
-  return n.node === "group" && n.parent !== null && shownChildren(n, tree).length > 0;
+  const nested = n.node === "part" || n.parent !== null;
+  return nested && shownChildren(n, tree).length > 0;
 }
 
-/** ふだんたたんでおくグループ: 中が（子を持たない）部品だけのもの。組立品や別のグループを持つものは、ふだんは開いておく */
+/**
+ * ふだんたたんでおく枠: 中が（子を持たない）部品だけの Group。組立品と、組立品や別のグループを持つ Group は、ふだんは開いておく
+ * （組立品は、押してたたむまで中の部品を見せる）。
+ */
 export function foldedByDefault(n: TreeNode, tree: ShownTree): boolean {
-  return shownChildren(n, tree).every((k) => k.node === "part" && k.children.length === 0);
+  return (
+    n.node === "group" &&
+    shownChildren(n, tree).every((k) => k.node === "part" && k.children.length === 0)
+  );
 }

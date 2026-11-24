@@ -131,16 +131,19 @@ fn group(
         let verdict = margin.map_or(Verdict::Ok, |m| {
             margin_verdict(m.value(), TANK_MARGIN_WARNING)
         });
-        checks.push(Check::new(
-            "tank_volume",
-            "Tank volume",
-            verdict,
-            format!(
-                "{name}: needs {} / tank {}",
-                quantity_text::<Volume>(v),
-                quantity_text::<Volume>(tank_volume)
-            ),
-        ));
+        checks.push(
+            Check::new(
+                "tank_volume",
+                "Tank volume",
+                verdict,
+                format!(
+                    "{name}: needs {} / tank {}",
+                    quantity_text::<Volume>(v),
+                    quantity_text::<Volume>(tank_volume)
+                ),
+            )
+            .with_ratio_margin(margin),
+        );
     }
     PropellantGroup {
         propellant,

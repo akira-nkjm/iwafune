@@ -19,6 +19,8 @@ pub enum CommandText {
     /// `fune mode set <モード> <部品> <状態> --duty tx=0.1`・`fune mode unset <モード> <部品>`。
     /// GUI のモード表は変えたセルをまとめて送り、1 つの `SetModeStates` になる
     ModeSet(ModeSetText),
+    /// 熱の結合・表面材・面の割合の下書き。変えたセルをまとめて送り、`fune set|unset analysis.thermal.…` と同じ `SetSetting` の列になる
+    ThermalSet(super::ThermalSetText),
     /// `fune mode move <ID> --before|--after|--first|--last`。
     ModeMove {
         id: String,

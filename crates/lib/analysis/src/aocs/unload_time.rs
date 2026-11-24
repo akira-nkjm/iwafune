@@ -15,7 +15,7 @@ use super::wheels::{RwWheel, usable_momentum_fraction};
 use crate::spec::quantity_text;
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_fraction,
-    ensure_non_negative, ensure_positive,
+    ensure_non_negative, ensure_positive, ratio_margin,
 };
 use sat_astro::geomag::field_about_eci_t;
 use sat_astro::math::Vec3;
@@ -326,18 +326,25 @@ fn verdicts(
     };
     let mut check = |key: &str, label: &str, time: Option<Qty<Time>>| {
         let v = Verdict::from_ok(time.is_some_and(|t| t <= req));
+        // 余裕 = 要求 / 時間 − 1。降ろせない（時間が無限大）ときは −1
+        let margin = time.map_or(Some(-1.0), |t| {
+            ratio_margin(req.value(), t.value()).map(|m| m.value())
+        });
         let shown = time.map_or("cannot unload".to_owned(), |t| {
             quantity_text::<Time>(t.value())
         });
-        checks.push(Check::new(
-            key,
-            label,
-            v,
-            format!(
-                "{shown} (required within {})",
-                quantity_text::<Time>(req.value())
-            ),
-        ));
+        checks.push(
+            Check::new(
+                key,
+                label,
+                v,
+                format!(
+                    "{shown} (required within {})",
+                    quantity_text::<Time>(req.value())
+                ),
+            )
+            .with_margin(margin),
+        );
     };
     if let Some(m) = mtq {
         check("mtq_time", "Unload time with MTQ", Some(m.time));

@@ -50,6 +50,7 @@ mod requirements;
 mod roundtrip;
 mod self_update;
 mod skill;
+mod thermal;
 mod units;
 
 use crate::args::{Cli, Command};
@@ -123,6 +124,7 @@ fn read_more(command: &Command, ws: &Workspace, out: &Out) -> anyhow::Result<Opt
         Command::Part(c) => parts::part(ws, c, out),
         Command::Mode(c) => read::mode(ws, c, out),
         Command::Sequence(c) => read::sequence(ws, c, out),
+        Command::Thermal(c) => thermal::thermal(ws, c, out),
         Command::Net(c) => read::net(ws, c, out),
         Command::Attr(c) => read::attr(ws, c, out),
         Command::Kind(c) => read::kind(ws, c, out),

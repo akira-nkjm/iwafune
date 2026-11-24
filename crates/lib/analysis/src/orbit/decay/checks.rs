@@ -2,7 +2,7 @@
 //! 判定文の数は `spec::quantity_text` で書く。条件は ID（`low`・`moderate`・`high`・`dated`）で名指す。
 
 use super::{DATED, DecayCase, DecayUsed, MODERATE, NEAR_CIRCULAR_ECCENTRICITY, OrbitDecayInput};
-use crate::spec::{Check, Verdict, quantity_text};
+use crate::spec::{Check, Verdict, quantity_text, ratio_margin};
 use sat_units::typed::{Dimensionless, Time};
 
 /// すべての判定（書かれた要求があるものだけ）。
@@ -92,12 +92,18 @@ fn mission_check(used: &DecayUsed, cases: &[DecayCase], mission: f64) -> Check {
             ),
         ),
     };
+    // 余裕 = 最も短い寿命（の下限）/ ミッション期間 − 1。ミッション期間より早い条件があれば負
+    let shortest = cases
+        .iter()
+        .map(|c| lower_bound(used, c))
+        .min_by(f64::total_cmp);
     Check::new(
         "lifetime_vs_mission",
         "Orbit lifetime against mission duration",
         verdict,
         message,
     )
+    .with_ratio_margin(shortest.and_then(|l| ratio_margin(l, mission)))
 }
 
 /// 推薬で高度を保てる期間がミッション期間に届かない条件があれば注意。
@@ -124,12 +130,15 @@ fn propellant_check(cases: &[DecayCase], mission: f64) -> Check {
             ),
         ),
     };
+    // 余裕 = 最も短い推薬で保てる期間 / ミッション期間 − 1
+    let margin = worst.and_then(|(_, life)| ratio_margin(life, mission));
     Check::new(
         "propellant_life",
         "Station-keeping propellant life",
         verdict,
         message,
     )
+    .with_ratio_margin(margin)
 }
 
 /// 代表の条件で寿命の上限（廃棄の要求）を満たすか。上限までに積分が届かなければ注意。
@@ -186,5 +195,7 @@ fn disposal_check(used: &DecayUsed, cases: &[DecayCase], max: f64) -> Check {
             ),
         ),
     };
+    // 余裕 = 上限 / 寿命（の下限）− 1。積分が届かず確かめられない（警告）ときも、下限に対する余裕を添える
     Check::new("max_lifetime", "Lifetime limit", verdict, message)
+        .with_ratio_margin(ratio_margin(max, life))
 }
