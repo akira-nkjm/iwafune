@@ -66,6 +66,20 @@ pub fn edit_of<'a>(ws: &Workspace, command: &'a Command) -> anyhow::Result<Optio
             )?],
             opts,
         }),
+        Command::Maneuver(crate::args::ManeuverCmd::SetWindow {
+            id,
+            min,
+            edit: opts,
+        }) => Some(Edit {
+            ops: vec![edit::maneuver_window_op(
+                ws,
+                &fune_service::dto::ManeuverWindowRequest {
+                    id: id.clone(),
+                    min: serde_json::from_value(serde_json::Value::String(min.clone()))?,
+                },
+            )?],
+            opts,
+        }),
         Command::Case(c) => one(records::case(c)?),
         Command::Source(c) => one(records::source(c)?),
         Command::Harness(c) => one(records::harness(c)?),

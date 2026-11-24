@@ -166,3 +166,49 @@ fn enclosure_emissivity_is_checked() {
         [(Severity::Warning, "thermal.enclosure_emissivity".to_owned())]
     );
 }
+
+/// 既定は 1 部品 1 節点: `[nodes]` に載せない部品は自分の ID の節点で、結合の両端と発熱の場所に使える。
+/// 部品の ID でも `[nodes]` のキーでもない名前は誤り。
+#[test]
+fn an_unlisted_part_is_a_node_named_after_it() {
+    let mut d = design(ThermalSettings::default());
+    let other = Part::new("BOX");
+    d.parts.insert(other.id.clone(), other);
+    let t = d.analysis.thermal.as_mut().unwrap();
+    t.conductive
+        .entry("PANEL".into())
+        .or_default()
+        .insert("BOX".into(), Quantity::new(0.8, "W/K"));
+    t.heat_node.insert("PANEL".into(), "BOX".into());
+    assert!(codes(&d).is_empty(), "{:?}", codes(&d));
+    let t = d.analysis.thermal.as_mut().unwrap();
+    t.heat_node.insert("PANEL".into(), "NOPE".into());
+    assert_eq!(
+        codes(&d),
+        [(Severity::Error, "ref.thermal_node".to_owned())]
+    );
+}
+
+/// `[nodes]` のキーが、`[nodes]` に載っていない部品の ID と同じなら名前がぶつかる（誤り）。
+/// その部品を自分の節点の一覧に入れるか、別の節点に入れていれば、名前は空いている。
+#[test]
+fn a_node_named_like_an_unlisted_part_is_a_clash() {
+    let clash = |nodes: &[(&str, &[&str])]| {
+        let mut d = design(ThermalSettings::default());
+        let other = Part::new("BOX");
+        d.parts.insert(other.id.clone(), other);
+        let t = d.analysis.thermal.as_mut().unwrap();
+        for (n, parts) in nodes {
+            t.nodes
+                .insert((*n).into(), parts.iter().map(|p| (*p).into()).collect());
+        }
+        codes(&d)
+    };
+    // 節点 BOX は PANEL だけをまとめ、部品 BOX はどの節点にも載っていない
+    assert_eq!(
+        clash(&[("BOX", &["PANEL"])]),
+        [(Severity::Error, "thermal.node_name_clash".to_owned())]
+    );
+    assert!(clash(&[("BOX", &["PANEL", "BOX"])]).is_empty());
+    assert!(clash(&[("BOX", &["PANEL"]), ("LUMP", &["BOX"])]).is_empty());
+}

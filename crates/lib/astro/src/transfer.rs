@@ -16,6 +16,8 @@
 //! - Lambert の問題（[`lambert()`]）: 2 点と飛行時間から両端の速度（普遍変数。[`lambert`] モジュール）。
 //! - 日付を決めた惑星間の遷移（[`dated_transfer`]）: 出発・到着の日の天体の状態から日心の Lambert を解き、
 //!   v∞・C3・出発の赤緯・両端の噴射を求める（[`dated`] モジュール）。
+//! - 日付つきの遷移の巡航の軌道（[`cruise_orbit`]）: 同じ Lambert の弧（[`lambert_arc`]）を、親のまわりの二体の軌道（接触要素）にする。
+//! - 日付つきの遷移の巡航の区間（[`cruise_leg`]）: 上の軌道を、出発の天体の影響圏を出てから到着の天体の影響圏に入るまでに切り出す（影響圏の中の双曲線の弧は解析しない）。
 //! - 日付つきの遷移の巡航の多体の確認（[`check_cruise`]）: Lambert の出発の状態を、太陽と惑星の点質量で数値伝搬して、
 //!   到着の日のずれ・最接近・到着の超過速度の差を求める（[`cruise`] モジュール。伝搬は `crate::orbit::propagate_states`）。
 //!
@@ -28,10 +30,12 @@ use core::f64::consts::PI;
 pub mod cruise;
 pub mod dated;
 pub mod lambert;
+pub mod leg;
 pub mod patched;
 pub use cruise::{CruiseCheck, CruiseSample, check_cruise};
-pub use dated::{DatedTransfer, dated_transfer};
+pub use dated::{DatedTransfer, LambertArc, cruise_orbit, dated_transfer, lambert_arc};
 pub use lambert::{LambertSolution, lambert, lambert_about_normal};
+pub use leg::{CruiseLeg, cruise_leg};
 pub use patched::{PatchedBurn, PatchedConic, hyperbolic_periapsis_dv_m_s, patched_conic};
 
 /// ΔV がこれ以下の噴射は数えない [m/s]（同じ軌道どうしの丸めの誤差）。

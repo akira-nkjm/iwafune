@@ -29,6 +29,7 @@ pub(crate) fn of_parts(input: &ThermalSteadyInput, output: &ThermalSteadyOutput)
             let heat = PartHeat {
                 part: part.id.clone(),
                 node: node.id.clone(),
+                per_part: node.per_part,
                 temperature: quantity_auto(env.max.value(), "Temperature"),
                 case: env.max_case.clone(),
                 verdict: env.verdict,
@@ -60,7 +61,7 @@ mod tests {
         let input: ThermalSteadyInput = serde_json::from_value(json!({
             "network": { "nodes": [
                 { "id": "panel", "parts": [part("a"), part("b")] },
-                { "id": "box", "parts": [part("c")] },
+                { "id": "box", "parts": [part("c")], "per_part": true },
                 { "id": "empty", "parts": [] },
             ] },
             "cases": [],
@@ -87,6 +88,7 @@ mod tests {
         let ids: Vec<_> = heat.iter().map(|h| h.part.as_str()).collect();
         assert_eq!(ids, ["a", "b", "c"]);
         assert_eq!(heat[0].node, "panel");
+        assert!(!heat[0].per_part && heat[2].per_part);
         assert_eq!(heat[0].temperature.si, 320.0);
         assert_eq!(heat[0].case, "hot");
         assert_eq!(heat[1].temperature.si, 320.0);

@@ -1,8 +1,10 @@
+import { choiceLabel } from "@/analysis/MissingPickDialog";
 import { type FieldEdit, useSettingEdit } from "@/api/field-edit";
 import type { SettingView } from "@/api/types";
 import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
 import { CommitInput } from "@/kit/forms/CommitInput";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { Switch } from "@/kit/selection/Switch";
 import { DataTable } from "@/kit/table/DataTable";
 import { Td } from "@/kit/table/Td";
@@ -11,7 +13,26 @@ import { EditableQuantity } from "@/quantity/EditableQuantity";
 import { quantityInputText } from "@/quantity/format";
 
 /** 表の 1 行（設計の設定 `SettingView` と、フェーズの上書きの欄が同じ形で渡せる）。`key` は欄のパスで、書き込みにそのまま使う */
-export type SettingRow = Pick<SettingView, "key" | "field" | "value" | "display" | "file">;
+export type SettingRow = Pick<
+  SettingView,
+  "key" | "field" | "value" | "display" | "file" | "choices"
+>;
+
+/** API が選択肢を返した欄（軌道の `source`・`maneuver`）: 選んで入れる（未入力は空の選択肢。選び直すとその値を書く） */
+function ChoiceCell({ row, onPick }: { row: SettingRow; onPick: (value: string) => void }) {
+  const t = useT();
+  const current = row.value.type === "text" || row.value.type === "enum" ? row.value.value : "";
+  return (
+    <NativeSelect
+      aria-label={row.key}
+      value={current}
+      placeholder={t.project.unset}
+      options={row.choices.map((c) => ({ value: c.value, label: choiceLabel(c) }))}
+      onChange={(e) => e.target.value && onPick(e.target.value)}
+      className="max-w-72"
+    />
+  );
+}
 
 /**
  * 設定（`conditions/`・`analysis/`・`budget/` の値）の表。セルで直接編集し、打った文字列をそのまま送る
@@ -60,6 +81,8 @@ export function SettingsTable({
                   label={s.key}
                   onCommit={(t) => set(s.key, t)}
                 />
+              ) : s.choices.length > 0 ? (
+                <ChoiceCell row={s} onPick={(value) => set(s.key, value)} />
               ) : v.type === "unset" ? (
                 <EditableQuantity
                   display="—"

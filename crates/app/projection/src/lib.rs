@@ -18,6 +18,7 @@
 //! | `launch_fit` | `structure.launch_fit` の射影 |
 //! | `maneuver_dates` | マヌーバの日付つきの遷移（`[transfer]`）の日付の読み方と、暦を要る検査（`fune check` の診断に service が足す） |
 //! | `aocs` `cdh` `comm` `power` `propulsion` `structure` `thermal` | 系ごとの射影 |
+//! | `orbit_central` | 設計の中心天体の読み替え（`central_body`）と設計の軌道の中心天体（葉のモジュール。`context` と `maneuver_dates` が使う） |
 //! | `orbit` | 軌道条件の解析の入力（季節解析: 軌道・期間・任意の刻み。高度低下: 軌道・質量・外形・抗力係数・`[decay]` の設定・推進系） |
 //! | `dispatch` | 解析 ID → 射影（入力の JSON）の対応表と、同じ表から引く型付きの射影（`Projects`・`project_typed`）。実行は service（`sat_analysis::catalog::run_json`・`run_typed`） |
 //! | `system` | 解析の系の対応（model の `AnalysisSystem` ⇄ sat-analysis の `System`）と一致のテスト |
@@ -35,6 +36,7 @@ pub mod maneuver_dates;
 pub mod missing;
 /// 軌道条件の解析（季節解析・高度低下）への写し替え。
 pub mod orbit;
+mod orbit_central;
 pub mod parts;
 pub mod pose;
 pub mod power;

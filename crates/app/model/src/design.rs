@@ -17,6 +17,7 @@
 //! | `project` | `fune.toml` |
 //! | `shared_catalog` | 共有カタログの固定（`catalog.lock`）と読み込みの状態の判定（`Design::shared_catalog_statuses`） |
 //! | `conditions` / `analysis` | `conditions/`・`analysis/` の型付きの設定。解析の系の一覧 `AnalysisSystem` |
+//! | `thermal_nodes` | 熱の節点（既定は 1 部品 1 節点、`[nodes]` で部品をまとめる）と部品 → 節点の対応（`ThermalSettings::node_map`） |
 //! | `thermal_settings` | 熱の解析の設定（`analysis/thermal.toml`。環境条件・プリセット・解析マージン・表面材・発熱の場所・節点間の明示の結合と外殻の放射） |
 //! | `refs` | 参照の索引（ある ID をどのエンティティのどのキーが持っているか。`Design::references`） |
 //! | `setting_dims` | 設定の量の次元の表（パスの形 → 次元。検査と射影が引く） |
@@ -47,6 +48,7 @@ pub mod shared_catalog;
 pub mod source;
 pub mod source_map;
 pub mod system;
+pub mod thermal_nodes;
 pub mod thermal_settings;
 pub mod timing;
 pub mod view;
@@ -73,6 +75,7 @@ pub use settings_view::SettingEntry;
 pub use shared_catalog::{CatalogLock, LockedCatalog, SharedCatalogState, SharedCatalogStatus};
 pub use source_map::{EntityKey, Loc, SourceMap};
 pub use system::*;
+pub use thermal_nodes::*;
 pub use thermal_settings::*;
 pub use timing::*;
 pub use view::{ViewEdge, ViewLayout, ViewNode, ViewPortSide};

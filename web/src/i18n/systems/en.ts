@@ -160,6 +160,7 @@ export const systemsEn: typeof systemsJa = {
       speed: "Playback speed",
       scale: "Color scale (low to high temperature)",
       nodes: "Node temperatures",
+      nodePerPart: "per part",
       empty: "No thermal analysis results yet",
       orbit: {
         label: "Orbit diagram (Sun to the right, shadow to the left)",

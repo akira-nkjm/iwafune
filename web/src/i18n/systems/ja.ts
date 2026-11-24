@@ -156,6 +156,7 @@ export const systemsJa = {
       speed: "再生の速さ",
       scale: "色の範囲（低い温度から高い温度）",
       nodes: "節点の温度",
+      nodePerPart: "部品ごと",
       empty: "熱の解析結果がまだありません",
       orbit: {
         label: "軌道の図（太陽は右、影は左）",
