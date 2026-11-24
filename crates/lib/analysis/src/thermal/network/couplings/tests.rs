@@ -1,10 +1,11 @@
+use super::super::ThermalConductiveLink;
 use super::super::tests::node;
 use super::*;
 use crate::thermal::enclosure::ThermalBoxSize;
 use crate::thermal::network::{Compiled, ThermalLoad, ThermalMounts};
 use sat_units::typed::Qty;
 
-fn cond(a: &str, b: &str, g: f64) -> ThermalConductiveLink {
+pub(super) fn cond(a: &str, b: &str, g: f64) -> ThermalConductiveLink {
     ThermalConductiveLink {
         a: a.to_owned(),
         b: b.to_owned(),
@@ -20,7 +21,7 @@ fn rad(a: &str, b: &str, area: f64) -> ThermalRadiativeLink {
     }
 }
 
-fn mounts(pairs: &[[&str; 2]], g: f64, area: Option<f64>) -> Option<ThermalMounts> {
+pub(super) fn mounts(pairs: &[[&str; 2]], g: f64, area: Option<f64>) -> Option<ThermalMounts> {
     Some(ThermalMounts {
         mounts: pairs
             .iter()
@@ -28,10 +29,11 @@ fn mounts(pairs: &[[&str; 2]], g: f64, area: Option<f64>) -> Option<ThermalMount
             .collect(),
         conductance: Qty::from_raw(g),
         exchange_area: area.map(Qty::from_raw),
+        contact: None,
     })
 }
 
-fn net(nodes: &[&str]) -> ThermalNetwork {
+pub(super) fn net(nodes: &[&str]) -> ThermalNetwork {
     ThermalNetwork {
         mounts: None,
         nodes: nodes.iter().map(|n| node(n, None)).collect(),

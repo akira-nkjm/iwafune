@@ -6,8 +6,9 @@
 //! - 外形: 収納状態の外形を **回転せずに軸ごとに** 許容の箱と比べる（機体座標の x は x と、y は y と、z は z と。発射軸は z）。
 //!   辺の入れ替えは許さない（置き方は設計が決めるので、解析は軸の入れ替えで合わせにいかない）。
 //!   外形は、打ち上げ条件が形態を指していれば寸法を持つ全部品の箱の包絡、指していなければ取付の根の寸法（子の `envelope`）。
-//! - 固有振動数: 簡易固有振動数（`structure.modal_estimate`）の機体全体の梁の一次（横・機軸）の最小値を、下限と比べる。
-//!   パネルの面外モードは局所のモードで、機体全体の剛性の条件とは別なので比べない。機体全体の見積もりが無ければ、判定せず
+//! - 固有振動数: 機体全体の一次（横・機軸）を、出どころつきの見積もりの並びから向きごとに 1 つ選んで下限と比べる
+//!   （出どころは粗い有限要素 `structure.modal_fem` と簡易固有振動数 `structure.modal_estimate` の梁。選ぶ規則は [`frequency`] の module doc）。
+//!   パネルの面外などの局所のモードは機体全体の剛性の条件とは別なので比べず、下限を下回るものは情報として残す。機体全体の見積もりが無ければ、判定せず
 //!   警告にする（「確かめていない」を適合と読まれないため）。
 //!
 //! 限度の値は呼び出し側（projection）が **候補の並び**で渡す。1 つ目が打ち上げ機・ディスペンサーの値（基本の限度）で、
@@ -16,11 +17,15 @@
 
 mod capability;
 mod envelope;
+mod frequency;
 
 pub use capability::{CapabilityPoint, LaunchFitCapability, mass_at_c3};
 pub use envelope::{LaunchFitAxis, LaunchFitEnvelope, LaunchFitEnvelopeSource, LaunchFitPartBoxes};
+pub use frequency::{
+    FEM_MODE_COUNT, LaunchFitFrequency, LaunchFitMode, LaunchFitSearch, LaunchFitSource,
+    LaunchFitSourceNote,
+};
 
-use super::modal_estimate::ModalEstimateKind;
 use crate::budget::{BudgetItem, budget_rollup};
 use crate::spec::quantity_text;
 use crate::spec::{
@@ -51,15 +56,6 @@ pub struct LaunchFitFrequencyLimit {
     /// 値の出所
     pub origin: String,
     pub value: Qty<Frequency>,
-}
-
-/// 機体全体の一次固有振動数の見積もり 1 つ（`structure.modal_estimate` の結果）。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct LaunchFitMode {
-    pub id: String,
-    pub kind: ModalEstimateKind,
-    pub frequency: Qty<Frequency>,
 }
 
 /// 打ち上げ適合の入力。
@@ -95,9 +91,15 @@ pub struct LaunchFitInput {
     /// 機軸方向の最低固有振動数の候補
     #[serde(default)]
     pub min_axial: Vec<LaunchFitFrequencyLimit>,
-    /// 簡易固有振動数の結果（梁の一次だけを使う）
+    /// 固有振動数の見積もりの並び（出どころつき。機体全体のモードと局所のモード。選ぶ規則は `frequency`）
     #[serde(default)]
     pub modes: Vec<LaunchFitMode>,
+    /// 出どころがモードを探した範囲（全体のモードが無いことの根拠）
+    #[serde(default)]
+    pub searched: Vec<LaunchFitSearch>,
+    /// 見積もりに使えなかった出どころと理由
+    #[serde(default)]
+    pub unavailable: Vec<LaunchFitSourceNote>,
 }
 
 /// 質量の判定。
@@ -141,24 +143,6 @@ impl LaunchFitDirection {
     }
 }
 
-/// 固有振動数の判定。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct LaunchFitFrequency {
-    pub direction: LaunchFitDirection,
-    /// 効いた下限
-    pub limit: Qty<Frequency>,
-    /// 効いた下限の出所
-    pub origin: String,
-    /// 機体全体の一次の見積もり（無ければ `None`。判定は警告）
-    pub estimated: Option<Qty<Frequency>>,
-    /// 見積もりの要素の ID
-    pub estimated_by: Option<String>,
-    /// 余裕 = 見積もり / 下限 − 1
-    pub margin: Option<Fraction>,
-    pub verdict: Verdict,
-}
-
 /// 打ち上げ適合の出力。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
@@ -178,6 +162,10 @@ pub struct LaunchFitOutput {
     pub skipped: Vec<InterferenceSkipped>,
     /// 横 → 機軸の順（下限のあるものだけ）
     pub frequencies: Vec<LaunchFitFrequency>,
+    /// 見積もりに使えなかった出どころと理由（入力のもの）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "ts", ts(optional, as = "Option<Vec<LaunchFitSourceNote>>"))]
+    pub unavailable: Vec<LaunchFitSourceNote>,
     /// 判定ごとの結果（key は `mass`・`envelope:<軸>`・`frequency:<向き>`）
     pub checks: Vec<Check>,
 }
@@ -227,7 +215,7 @@ impl Analysis for LaunchFit {
                 Vec::new(),
             ),
         };
-        let frequencies = judge_frequencies(input)?;
+        let frequencies = frequency::judge(input)?;
         if mass.is_none() && envelope.is_empty() && frequencies.is_empty() {
             return Err(AnalysisError::InvalidInput(
                 "No limit to compare against (the launcher, dispenser and requirements give no mass limit, envelope or minimum natural frequency)".to_owned(),
@@ -238,7 +226,11 @@ impl Analysis for LaunchFit {
         if let Some(origin) = &envelope_origin {
             checks.extend(envelope.iter().map(|a| envelope::axis_check(a, origin)));
         }
-        checks.extend(frequencies.iter().map(frequency_check));
+        checks.extend(
+            frequencies
+                .iter()
+                .map(|f| frequency::check(f, &input.unavailable)),
+        );
         Ok(LaunchFitOutput {
             mass,
             envelope_origin,
@@ -246,6 +238,7 @@ impl Analysis for LaunchFit {
             envelope,
             skipped,
             frequencies,
+            unavailable: input.unavailable.clone(),
             checks,
         })
     }
@@ -310,49 +303,6 @@ fn judge_mass(input: &LaunchFitInput) -> Result<Option<LaunchFitMass>, AnalysisE
     }))
 }
 
-/// 機体全体の梁の一次の最小値（向きの梁の結果。無ければ `None`）。
-fn whole_body(input: &LaunchFitInput, direction: LaunchFitDirection) -> Option<&LaunchFitMode> {
-    let kind = match direction {
-        LaunchFitDirection::Lateral => ModalEstimateKind::BeamLateral,
-        LaunchFitDirection::Axial => ModalEstimateKind::BeamAxial,
-    };
-    input
-        .modes
-        .iter()
-        .filter(|m| m.kind == kind && m.frequency.value().is_finite())
-        .min_by(|a, b| a.frequency.value().total_cmp(&b.frequency.value()))
-}
-
-fn judge_frequencies(input: &LaunchFitInput) -> Result<Vec<LaunchFitFrequency>, AnalysisError> {
-    let mut out = Vec::new();
-    for (direction, limits) in [
-        (LaunchFitDirection::Lateral, &input.min_lateral),
-        (LaunchFitDirection::Axial, &input.min_axial),
-    ] {
-        let Some(limit) = tightest_min_frequency(limits) else {
-            continue;
-        };
-        positive("Minimum natural frequency", limit.value.value())?;
-        let estimate = whole_body(input, direction);
-        let margin = estimate.and_then(|e| ratio_margin(e.frequency.value(), limit.value.value()));
-        let verdict = match estimate {
-            Some(_) => ratio_margin_verdict(margin, FIT_MARGIN_WARNING_BAND),
-            // 見積もりが無いのは「確かめていない」。適合と読まれないよう警告にする
-            None => Verdict::Warning,
-        };
-        out.push(LaunchFitFrequency {
-            direction,
-            limit: limit.value,
-            origin: limit.origin.clone(),
-            estimated: estimate.map(|e| e.frequency),
-            estimated_by: estimate.map(|e| e.id.clone()),
-            margin,
-            verdict,
-        });
-    }
-    Ok(out)
-}
-
 fn mass_check(m: &LaunchFitMass) -> Check {
     if let (Some(end), Some(c3)) = (m.beyond_curve_end, m.c3) {
         return Check::new(
@@ -380,27 +330,6 @@ fn mass_check(m: &LaunchFitMass) -> Check {
             quantity_text::<Mass>(m.limit.value()),
             m.origin
         ),
-    )
-}
-
-fn frequency_check(f: &LaunchFitFrequency) -> Check {
-    let name = f.direction.name();
-    let required = format!(
-        "required at least {} from {}",
-        quantity_text::<Frequency>(f.limit.value()),
-        f.origin
-    );
-    let message = match f.estimated {
-        Some(e) => format!("{} ({required})", quantity_text::<Frequency>(e.value())),
-        None => format!(
-            "Not verified: there is no whole-body estimate of the {name} first natural frequency (structure.modal_estimate has no beam result) ({required})"
-        ),
-    };
-    Check::new(
-        &format!("frequency:{name}"),
-        &format!("First natural frequency ({name})"),
-        f.verdict,
-        message,
     )
 }
 

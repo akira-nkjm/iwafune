@@ -108,6 +108,7 @@ mod tests {
             ("kg/m^3", "MassDensity"),
             ("W/K", "ThermalConductance"),
             ("W/m^2", "Irradiance"),
+            ("W/(m^2*K)", "HeatTransferCoefficient"),
             ("d", "Time"),
         ] {
             assert!(expect_dimension(unit, dim).is_ok(), "{unit} as {dim}");

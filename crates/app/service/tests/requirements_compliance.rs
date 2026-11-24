@@ -45,11 +45,11 @@ fn the_demo_shows_every_verdict_and_every_unverified_state() {
         row(&report, "R_MISSION").reason,
         Some(NotVerifiedReason::DesignInput)
     );
-    // 最低固有振動数の判定は、梁を持たないデモでは出ない
-    assert_eq!(
-        row(&report, "R_FREQ_AXIAL").reason,
-        Some(NotVerifiedReason::KeyNotProduced)
-    );
+    // 最低固有振動数の要求は打ち上げ適合の判定（`frequency:<向き>`）を確かめ先にし、粗い有限要素のモードで判定される
+    // （梁を持たないデモで確かめ先が `structure.modal_estimate` だった間は、判定が出ず「確かめていない」だった）
+    for id in ["R_FREQ_AXIAL", "R_FREQ_LATERAL"] {
+        assert_eq!(verdict(id), Some(Verdict::Ok), "{id}");
+    }
     assert_eq!(
         row(&report, "R_DEPLOY").reason,
         Some(NotVerifiedReason::NoLink)
@@ -60,7 +60,7 @@ fn the_demo_shows_every_verdict_and_every_unverified_state() {
     let s = &report.summary;
     assert_eq!(
         (s.total, s.ok, s.warning, s.violation, s.not_verified),
-        (16, 8, 1, 2, 5)
+        (16, 10, 1, 2, 3)
     );
     assert!(fails(&report, false));
 }

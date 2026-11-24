@@ -803,8 +803,18 @@ Conduction and radiation between nodes come from three places. For each node pai
 1. **Explicit** (`[conductive.*]`, `[radiative.*]`): replaces the value of that pair from the two sources below (0 isolates the pair).
 2. **Enclosure** (`[enclosure]`, radiation only, between the six faces of the box): replaces the mount default of the face-to-face pairs.
 3. **Mount default** (`contact_conductance` and `radiative_coupling`): one conductive link per node pair that has mounts (`contact_conductance` × the number of mounts between the pair) and, if `radiative_coupling` is written, one radiative link per such pair.
+   If `contact_conductance_per_area` is also written, the conduction of each mount is taken from the geometry instead (the next paragraph).
+**Conduction from the contact area.** Writing `contact_conductance_per_area` (a heat-transfer coefficient `h`, `W/(m²·K)`, edited with `fune set analysis.thermal.contact_conductance_per_area "300 W/(m^2*K)"`)
+makes each mount's conductance `h × A_contact` instead of the fixed `contact_conductance`. `A_contact` is the area where the two parts' boxes touch (`OrientedBox::contact_area` in `sat_analysis::structure::interference::obb`;
+the same boxes as `structure.interference`). A face of one box and a face of the other **touch** when their outward normals point in opposite directions (negative dot product) and all four corners of the other face
+lie within the distance tolerance of the first face's plane (0.1 mm, the default of `structure.interference`; this also bounds the tilt between the faces, about `tolerance / width`). The contact area is the area of the intersection of the two face rectangles projected on that plane
+(the larger one if several face pairs touch). A mount whose contact cannot be determined — a part without a usable `size`, boxes that do not touch (a gap above the tolerance, a deeper overlap does not count either, or faces that are not parallel), or a zero area —
+**falls back to the fixed `contact_conductance`**, as if `contact_conductance_per_area` were not written. The fallbacks are listed in the output with the reason (`couplings.mount_contact.fallbacks`: `no_box` or `not_touching`).
+Mounts between two different nodes add as before: a node pair's conductance is the sum over its mounts of `h × A_contact` or the fixed value. Mounts inside one node contribute nothing. The setting does not change radiation (`radiative_coupling` and `[enclosure]` stay as they are);
+radiation between internal parts from view factors is not part of it. Without `contact_conductance_per_area` nothing changes: the setting is off and the output has no `mount_contact` or `from_contact` fields.
 ```toml
 # analysis/thermal.toml
+contact_conductance_per_area = { value = 300.0, unit = "W/(m^2*K)" }   # optional: conduction of each mount from the contact area
 [conductive.BAT]                              # node A -> node B -> conductance (the pair is unordered)
 PANEL_MZ = { value = 0.8, unit = "W/K" }
 [radiative.PANEL_PX]                          # node A -> node B -> effective radiative exchange area ε_eff·A·F
@@ -827,8 +837,8 @@ With the areas `A_i` of the box faces and `ρ = 1 − ε`, the Gebhart factors `
 The heat flow from face i to face j is `σ ε_i A_i B_ij (T_i⁴ − T_j⁴)`. For two parallel plates this approaches `A / (1/ε₁ + 1/ε₂ − 1)`.
 Assumptions: the six faces are the only surfaces of the enclosure, and **blockage of the face-to-face views by components inside is ignored**. Components inside are not part of the enclosure model in this version;
 their coupling stays the mount default or the explicit value. The wall thickness is ignored (the box is the outer size).
-Both thermal analyses return the couplings they used in `couplings`: for every pair the conductance (`conductive`) or exchange area (`radiative`) and its source (`mount`, `explicit` or `enclosure`),
-and, when `[enclosure]` is written, the faces with their nodes and areas and the 6×6 view-factor matrix. The GUI shows these as the analysis's data tables.
+Both thermal analyses return the couplings they used in `couplings`: for every pair the conductance (`conductive`) or exchange area (`radiative`) and its source (`mount`, `contact`, `explicit` or `enclosure`; `contact` means at least one mount of the pair was taken from the contact area, and the pair's `from_contact` field gives the total contact area, the number of such mounts and `fixed_mounts`, the mounts of the same pair that used the fixed value instead),
+and, when `[enclosure]` is written, the faces with their nodes and areas and the 6×6 view-factor matrix; when `contact_conductance_per_area` is written, the number of mounts taken from the contact area and the fallback mounts with their reasons. The GUI shows these as the analysis's data tables.
 
 #### Verification of the thermal analyses
 
@@ -1148,8 +1158,17 @@ If that source gives a kind that needs a face (`base_fixed`, `tabs`, `fixed`) an
     The output carries them on each axis row as `at_min`, `at_max` and `centre_offset`. A part with no `size` is not measured and is listed in `skipped` (as in §5.7). The count of a part is ignored (copies are at one pose).
   - **No configuration in effect: from the root part** (`envelope_source` is omitted, the same output as before). The extent is the `size` of the root part of the mounting tree (the same rule as the outer shape for attitude analysis, §5.3); parts that stick out of it are not measured.
   If both could apply, the parts win: the root `size` is not read when a configuration is in effect. Which configuration is in effect follows the launch rule of §7.11 (the run's explicit one, else the launch conditions'; a case's phase is not read).
-- **Natural frequencies**: the lowest whole-body first mode estimated by `structure.modal_estimate` (beam results `lateral` / `axial`) against the larger of the catalog minimum and the requirement (`structure.modal_estimate` / `lateral`, `axial`).
-  Panel out-of-plane modes are local and are not compared. The estimate has no beam model yet (the demo has none), so these checks end as a **warning "Not verified"**; they are never silently reported as fit.
+- **Natural frequencies**: the whole-body first mode in each direction (lateral, axial) against the larger of the catalog minimum and the requirement (`structure.modal_estimate` / `lateral`, `axial`).
+  The estimates come as **one list with a source for each entry**: the finite-element model (`structure.modal_fem`, §5.10) and the beam estimate (`structure.modal_estimate`). For each direction the rule is (`sat_analysis::structure::launch_fit::frequency`, the only place):
+  1. a global mode in that direction from the first source that has one (priority: finite element, then beam estimate); its lowest one is compared with the limit, and the verdict text says which source it came from (`81.9 Hz by the finite-element model, mode 2 (required at least 50.0 Hz from …)`);
+  2. otherwise, when a source computed all modes up to a frequency and none of them was global in that direction, the first global mode there is **above** that frequency (the eigenvalue solver checks that no mode below the highest one returned is missed). If that frequency is at least the limit the check is **ok** (a lower bound: `estimated` stays empty, `searched_up_to` is set, and the margin is that frequency / limit − 1);
+     if the searched range does not reach the limit, a lower first mode cannot be ruled out, so it is a **warning "Not verified"** with the range;
+  3. otherwise a **warning "Not verified"**; a missing estimate is never reported as fit.
+
+  What counts as global is the mode class of `structure.modal_fem` (an effective mass fraction of at least 5 % on one axis, §5.10); a mode with less is local, so rule 2 says "no global mode", not "no mode".
+  The finite-element model is asked for 12 modes here (`FEM_MODE_COUNT`; its own default is 6), because the first axial mode of a satellite made of panels is often a few modes above the first lateral one.
+  The finite-element model is an **optional** input: when it cannot be built (no launch constraint, no panels, …) or solved, `structure.launch_fit` runs as before from the beam estimate, and the reason is listed in the output (`unavailable`) and at the end of the frequency rows (`; finite-element model not used: …`); it never becomes a missing input of `structure.launch_fit`.
+  **Local modes** (panel out-of-plane, or a panel carrying heavy parts) are not compared with the whole-body requirement, but the lowest one that is below the limit is reported on the row (`lowest_local`, and in the text) as information, so it is not hidden.
 - Verdicts are two-level (fit or not): the margin is limit / value − 1, and a negative margin is a violation. Check keys are `mass`, `envelope:<x|y|z>` and `frequency:<lateral|axial>`.
 
 Not modeled yet: random vibration (PSD), interface details (the mechanical interface, separation springs) and shock. The angular rate at separation is only stored.
@@ -1258,7 +1277,7 @@ It is an order-of-magnitude and trend tool, not a detailed model. How the model 
 
   A `tie` that names a part that does not exist or something that is not a modelled panel is a missing input at that setting. A rename of a part or panel does not rewrite `tie` (the check at analysis time catches it).
   Pairs of panels that must not be joined are not supported yet.
-- **KPI.** `first_frequency`: the lowest non-rigid mode (it may be a local mode such as a panel carrying heavy parts; the output separates `lowest_lateral` and `lowest_axial`). There is no verdict yet: the frequencies are compared with the launcher's minimums by `structure.launch_fit` in a later stage.
+- **KPI.** `first_frequency`: the lowest non-rigid mode (it may be a local mode such as a panel carrying heavy parts; the output separates `lowest_lateral` and `lowest_axial`). There is no verdict of its own: `structure.launch_fit` takes the lowest global lateral and axial modes (and the searched range) and compares them with the launcher's minimums (§5.6).
 
 Known biases: the frame stiffness is omitted (low), parts are tied rigidly at one point or one projected area (a heavy part on a thin panel gives a low local mode), the nearest-panel tie is a modelling choice made by distance only, and the joints between panels are rigid.
 
@@ -1728,7 +1747,7 @@ Design values and modelling inputs stay settings or part attributes (see the tab
 | `comm.link_budget` / `pfd` | `at_most`, Dimensionless (dB) | the PFD limit of a downlink; without one no PFD check is made |
 | `aocs.slew_time` / `slew_time` | `at_most`, Time | the required slew time; without one no check is made |
 | `orbit.decay` / `max_lifetime` | `at_most`, Time | the lifetime limit; without one no check is made |
-| `structure.modal_estimate` / `lateral`, `axial` | `at_least`, Frequency | the required natural frequency of beams, and it only tightens the minimum of the selected launcher and dispenser (§5.6; the larger applies, and `structure.launch_fit` names which one). The demo has no beams, so these rows stay "not verified" |
+| `structure.modal_estimate` / `lateral`, `axial` and `structure.launch_fit` / `frequency:lateral`, `frequency:axial` | `at_least`, Frequency | the required natural frequency. A requirement may verify against either analysis; its value is a limit candidate of **both** (it only tightens the minimum of the selected launcher and dispenser; §5.6; the larger applies, and `structure.launch_fit` names which one). The demo has no beams, so its requirements verify against `structure.launch_fit` (judged with the finite-element mode, §5.6); against `structure.modal_estimate` they would stay "not verified" |
 | `thermal.steady`, `thermal.transient` / `range_low`, `range_high` | `at_least` / `at_most`, Temperature | a node's lower or upper temperature limit (see below) |
 
 - **Several requirements on one criterion**: the tightest applies (`at_most` the smallest, `at_least` the largest). The compliance table still judges **each row against its own constraint**:

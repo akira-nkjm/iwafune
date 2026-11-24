@@ -90,6 +90,10 @@ pub struct ThermalSettings {
     /// 取付ごとの既定の接触熱コンダクタンス
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub contact_conductance: Option<Quantity>,
+    /// 取付の既定の伝導を、接する面の面積から出すときの単位面積あたりの接触熱コンダクタンス（W/(m²·K)）。
+    /// 書けば、両端の部品の箱が接する取付は `h × 接触面積`、接する面を決められない取付は `contact_conductance`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub contact_conductance_per_area: Option<Quantity>,
     /// 節点間の既定の輻射結合（ε と面積の積）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub radiative_coupling: Option<Quantity>,

@@ -1,6 +1,7 @@
 //! `structure.launch_fit` のテスト（手計算との比較）。
 
 use super::*;
+use crate::structure::modal_estimate::ModalEstimateKind;
 
 fn mass_limit(origin: &str, kg: f64) -> LaunchFitMassLimit {
     LaunchFitMassLimit {
@@ -16,10 +17,16 @@ fn freq_limit(origin: &str, hz: f64) -> LaunchFitFrequencyLimit {
     }
 }
 
+/// 簡易固有振動数の結果（梁の横・機軸は機体全体、パネルは局所）。
 fn mode(kind: ModalEstimateKind, hz: f64) -> LaunchFitMode {
     LaunchFitMode {
         id: "BODY".to_owned(),
-        kind,
+        source: LaunchFitSource::BeamEstimate,
+        direction: match kind {
+            ModalEstimateKind::BeamLateral => Some(LaunchFitDirection::Lateral),
+            ModalEstimateKind::BeamAxial => Some(LaunchFitDirection::Axial),
+            ModalEstimateKind::Panel => None,
+        },
         frequency: Qty::from_raw(hz),
     }
 }
@@ -53,6 +60,8 @@ fn base() -> LaunchFitInput {
             mode(ModalEstimateKind::BeamLateral, 60.0),
             mode(ModalEstimateKind::BeamAxial, 120.0),
         ],
+        searched: Vec::new(),
+        unavailable: Vec::new(),
     }
 }
 
@@ -289,4 +298,167 @@ fn the_curve_alone_is_enough_and_no_curve_changes_nothing() {
     let plain = LaunchFit::run(&base()).unwrap().mass.unwrap();
     assert!(plain.c3.is_none() && plain.beyond_curve_end.is_none());
     assert_eq!(plain.origin, "launcher L");
+}
+
+/// 有限要素のモード（`mode 2` のような ID）。
+fn fem(direction: Option<LaunchFitDirection>, hz: f64) -> LaunchFitMode {
+    LaunchFitMode {
+        id: "mode 2".to_owned(),
+        source: LaunchFitSource::FiniteElement,
+        direction,
+        frequency: Qty::from_raw(hz),
+    }
+}
+
+/// 有限要素の全体の横のモードがあれば、梁の見積もり（60 Hz）より先に使い、文に出どころを書く。
+/// 手計算: 余裕 = 50 / 40 − 1 = 0.25（梁なら 60 / 40 − 1 = 0.5 になるので、どちらが効いたかが分かる）。
+#[test]
+fn finite_element_global_mode_wins_over_the_beam_estimate() {
+    let mut input = base();
+    input
+        .modes
+        .push(fem(Some(LaunchFitDirection::Lateral), 50.0));
+    input
+        .modes
+        .push(fem(Some(LaunchFitDirection::Lateral), 90.0));
+    let out = LaunchFit::run(&input).unwrap();
+    let f = &out.frequencies[0];
+    assert_eq!(f.source, Some(LaunchFitSource::FiniteElement));
+    assert_eq!(f.estimated.unwrap().value(), 50.0);
+    assert!((f.margin.unwrap().value() - 0.25).abs() < 1e-12);
+    assert!(
+        check(&out, "frequency:lateral")
+            .message
+            .contains("finite-element model")
+    );
+    // 機軸は有限要素に全体のモードが無いので、梁のまま（余裕 120 / 80 − 1 = 0.5）
+    let a = &out.frequencies[1];
+    assert_eq!(a.source, Some(LaunchFitSource::BeamEstimate));
+    assert!((a.margin.unwrap().value() - 0.5).abs() < 1e-12);
+    assert!(
+        check(&out, "frequency:axial")
+            .message
+            .contains("beam estimate")
+    );
+}
+
+/// 有限要素の結果が無ければ、梁の見積もりで従来どおり判定する（出どころは梁）。
+#[test]
+fn without_the_finite_element_the_beam_estimate_is_used() {
+    let out = LaunchFit::run(&base()).unwrap();
+    for f in &out.frequencies {
+        assert_eq!(f.source, Some(LaunchFitSource::BeamEstimate));
+        assert!(f.searched_up_to.is_none());
+        assert!(f.lowest_local.is_none());
+    }
+    assert!((out.frequencies[0].margin.unwrap().value() - 0.5).abs() < 1e-12);
+}
+
+/// 全体のモードが無く、探した範囲の上端が下限以上なら、一次は範囲より上なので適合。
+/// 手計算: 機軸の下限 80 Hz、200 Hz まで探して無い → 下界の余裕 = 200 / 80 − 1 = 1.5。見積もりそのものは無い。
+#[test]
+fn no_global_mode_within_a_range_above_the_limit_is_ok() {
+    let mut input = base();
+    input.modes = vec![fem(Some(LaunchFitDirection::Lateral), 50.0)];
+    input.searched = vec![LaunchFitSearch {
+        source: LaunchFitSource::FiniteElement,
+        up_to: Qty::from_raw(200.0),
+    }];
+    let out = LaunchFit::run(&input).unwrap();
+    let a = &out.frequencies[1];
+    assert_eq!(a.verdict, Verdict::Ok);
+    assert!(a.estimated.is_none());
+    assert_eq!(a.searched_up_to.unwrap().value(), 200.0);
+    assert!((a.margin.unwrap().value() - 1.5).abs() < 1e-12);
+    assert!(
+        check(&out, "frequency:axial")
+            .message
+            .contains("found no global axial mode up to")
+    );
+}
+
+/// 探した範囲が下限に届かなければ、下限との間に一次があるかもしれないので警告（判定しない）。
+#[test]
+fn no_global_mode_within_a_range_below_the_limit_is_a_warning() {
+    let mut input = base();
+    input.modes = Vec::new();
+    input.searched = vec![LaunchFitSearch {
+        source: LaunchFitSource::FiniteElement,
+        up_to: Qty::from_raw(60.0),
+    }];
+    let out = LaunchFit::run(&input).unwrap();
+    let a = &out.frequencies[1];
+    assert_eq!(a.verdict, Verdict::Warning);
+    assert!(
+        check(&out, "frequency:axial")
+            .message
+            .starts_with("Not verified")
+    );
+    assert!(
+        check(&out, "frequency:axial")
+            .message
+            .contains("cannot be ruled out")
+    );
+    // 下限 40 Hz の横は、60 Hz まで探して無いので適合（余裕 60 / 40 − 1 = 0.5）
+    assert_eq!(out.frequencies[0].verdict, Verdict::Ok);
+}
+
+/// 梁の見積もりがあれば、探した範囲より梁の見積もりが先（範囲は全体のモードが無く、梁も無いときだけ使う）。
+#[test]
+fn the_beam_estimate_comes_before_a_searched_range() {
+    let mut input = base();
+    input.searched = vec![LaunchFitSearch {
+        source: LaunchFitSource::FiniteElement,
+        up_to: Qty::from_raw(500.0),
+    }];
+    let out = LaunchFit::run(&input).unwrap();
+    assert_eq!(
+        out.frequencies[1].source,
+        Some(LaunchFitSource::BeamEstimate)
+    );
+    assert!(out.frequencies[1].searched_up_to.is_none());
+}
+
+/// 下限を下回る局所のモードは情報として残し、判定には使わない（横 40 Hz の下限に対し、局所 30 Hz は残る。45 Hz は下限より上なので残さない）。
+#[test]
+fn a_local_mode_below_the_limit_is_reported_but_not_judged() {
+    let mut input = base();
+    input.modes.push(fem(None, 45.0));
+    input.modes.push(fem(None, 30.0));
+    let out = LaunchFit::run(&input).unwrap();
+    let f = &out.frequencies[0];
+    assert_eq!(f.verdict, Verdict::Ok);
+    assert_eq!(f.lowest_local.as_ref().unwrap().frequency.value(), 30.0);
+    assert!(
+        check(&out, "frequency:lateral")
+            .message
+            .contains("lowest local mode")
+    );
+    // 機軸の下限 80 Hz には 30 Hz も 45 Hz も下回るので、最も低い 30 Hz
+    assert_eq!(
+        out.frequencies[1]
+            .lowest_local
+            .as_ref()
+            .unwrap()
+            .frequency
+            .value(),
+        30.0
+    );
+}
+
+/// 使えなかった出どころは、理由とともに出力と判定の文に残る。
+#[test]
+fn an_unavailable_source_is_explained() {
+    let mut input = base();
+    input.unavailable = vec![LaunchFitSourceNote {
+        source: LaunchFitSource::FiniteElement,
+        reason: "no launch constraint".to_owned(),
+    }];
+    let out = LaunchFit::run(&input).unwrap();
+    assert_eq!(out.unavailable.len(), 1);
+    assert!(
+        check(&out, "frequency:lateral")
+            .message
+            .contains("not used: no launch constraint")
+    );
 }
