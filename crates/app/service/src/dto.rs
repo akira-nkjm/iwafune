@@ -28,6 +28,7 @@
 //! | `mode_levels` | モードの表の状態・電力の列の出し方 |
 //! | `net_class` | ネットの分類（電源の系統・星形の中心） |
 //! | `data` | 外部データ（DE440）の状態 |
+//! | `thermal_tables` | 熱の結合・表面の表（`ThermalTablesView`）と、その下書きの編集（`ThermalSetText`） |
 //! | `report` | 設計書に入れる表と図の書き出し（依頼・結果） |
 
 mod aocs_modes;
@@ -58,7 +59,7 @@ pub use maneuver::{ManeuverTargetView, ManeuverText, ManeuverView};
 pub use phase::{PhaseFieldView, PhaseLawView, PhaseText, PhaseView};
 pub use requirement::{
     ComplianceCase, ComplianceReport, ComplianceRow, ComplianceSummary, ConstraintView,
-    NotVerifiedReason, RequirementText, RequirementView,
+    DecisiveCheck, NotVerifiedReason, RequirementText, RequirementView,
 };
 mod overview;
 pub use overview::{
@@ -86,6 +87,7 @@ mod source;
 pub use source::SourceView;
 mod mode_levels;
 mod net_class;
+mod thermal_tables;
 mod units;
 mod value;
 
@@ -142,6 +144,12 @@ pub use history::{HistoryAction, HistoryEntryView, HistoryStepResult, HistoryVie
 pub use sat_analysis::spec::{
     AnalysisArea, AnalysisInfo, AnalysisKind, Channel, Check, ConditionTopic, Series, System,
     Verdict,
+};
+pub use thermal_tables::{
+    ThermalCellText, ThermalCoatingRow, ThermalContactRow, ThermalCouplingKind,
+    ThermalCouplingKindView, ThermalCouplingRow, ThermalCouplingsTable, ThermalFractionRow,
+    ThermalNodeTemperature, ThermalSetText, ThermalSurfaceRow, ThermalTablesRequest,
+    ThermalTablesView, ThermalUniformOptics,
 };
 pub use units::{
     DimensionInfo, FormatItem, FormatRequest, FormatResponse, ParseQuantityRequest, ParsedQuantity,

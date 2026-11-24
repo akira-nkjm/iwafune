@@ -16,6 +16,7 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
         CommandText::NetSet(t) => net_set_ops(t)?,
         CommandText::NetUnset(t) => vec![net_unset_op(t)?],
         CommandText::PartPlace(t) => vec![super::place::place_op(t)?],
+        CommandText::ThermalSet(t) => super::thermal::thermal_set_ops(t)?,
         CommandText::ModeMove {
             id,
             before,

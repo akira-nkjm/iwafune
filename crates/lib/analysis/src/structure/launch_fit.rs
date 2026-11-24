@@ -317,7 +317,8 @@ fn mass_check(m: &LaunchFitMass) -> Check {
                 quantity_text::<Mass>(m.launch_mass.value()),
                 quantity_text::<Mass>(m.bare_mass.value()),
             ),
-        );
+        )
+        .with_ratio_margin(m.margin);
     }
     Check::new(
         "mass",
@@ -331,6 +332,7 @@ fn mass_check(m: &LaunchFitMass) -> Check {
             m.origin
         ),
     )
+    .with_ratio_margin(m.margin)
 }
 
 #[cfg(test)]

@@ -64,6 +64,12 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
         &["mode", "view"],
         "system_modes::system_modes（`--ops`・`--case`・`--analyzed`・`--totals-only`）",
     ),
+    (
+        "POST",
+        "/thermal/tables",
+        &["thermal", "tables"],
+        "thermal_tables::thermal_tables（`--ops`・`--case`）",
+    ),
     ("GET", "/diagnostics", &["check"], "query::check"),
     ("POST", "/fmt", &["fmt"], "format::format_design"),
     ("POST", "/ops", &["apply"], "edit::apply"),

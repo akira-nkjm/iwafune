@@ -52,6 +52,8 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         DesignView,
         SystemModesView,
         SystemModesRequest,
+        ThermalTablesRequest,
+        ThermalTablesView,
         ModeSummaryScope,
         PartView,
         PartViewRequest,

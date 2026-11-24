@@ -112,7 +112,8 @@ fune requirement add R_MASS --statement "The satellite total mass shall not exce
 
 Limits and thresholds (budget limits, DoD, link margin, ...) are held by requirements, not settings:
 a `--budget` requirement is that budget's limit and `--analysis`/`--check` is that check's criterion.
-`fune requirement compliance` exits with 1 on a violation; "not verified" means no analysis check
+`fune requirement compliance` shows, per requirement, the worst verdict and, among equals, the tightest
+check and case (the Detail column names them); it exits with 1 on a violation; "not verified" means no analysis check
 or budget is linked to that requirement yet. Check `fune requirement add --help` for the exact link flags.
 
 Report tables and figures for a Typst document:

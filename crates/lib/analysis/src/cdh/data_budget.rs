@@ -331,16 +331,19 @@ fn summary_checks(
     let shown = margin.map_or("required 0".to_owned(), |m| {
         quantity_text::<Fraction>(m.value())
     });
-    checks.push(Check::new(
-        "storage_margin",
-        "Storage margin",
-        ratio_margin_verdict(margin, required),
-        format!(
-            "Capacity margin {shown} (required at least {} = keep {} of capacity free)",
-            quantity_text::<Fraction>(required.value()),
-            quantity_text::<Fraction>(reserve.value())
-        ),
-    ));
+    checks.push(
+        Check::new(
+            "storage_margin",
+            "Storage margin",
+            ratio_margin_verdict(margin, required),
+            format!(
+                "Capacity margin {shown} (required at least {} = keep {} of capacity free)",
+                quantity_text::<Fraction>(required.value()),
+                quantity_text::<Fraction>(reserve.value())
+            ),
+        )
+        .with_ratio_margin(margin),
+    );
     if let Some(limit) = downlink_per_day {
         let items: Vec<BudgetItem> = parts
             .iter()

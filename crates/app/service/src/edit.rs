@@ -19,6 +19,7 @@
 //! | `link` | `fune link add` の引数（[`link_add_op`]） |
 //! | `project` | `fune project set\|unset` の引数（[`project_field_op`]） |
 //! | `group` | `fune part mv|add` の置き先 `aocs/RW`（[`group_target`]。ID の列に読む） |
+//! | `thermal` | 熱の結合・表面材・面の割合の下書き（[`thermal_set_ops`]。`fune set|unset analysis.thermal.…` と同じ `SetSetting` の列） |
 //! | `place` | `fune part place` の取付・位置・姿勢（[`place_op`]。姿勢の角度 `--rotation` は [`rotation_from_text`]）と、機体座標での配置（`--body-pos`・`POST /parts/{id}/place_body`） |
 
 use crate::diff;
@@ -50,6 +51,7 @@ mod record_roundtrip;
 mod requirement;
 mod sun_distance;
 mod text;
+mod thermal;
 mod window;
 
 pub use catalog::{catalog_local_add_op, catalog_source_add_op};
@@ -80,6 +82,7 @@ pub use text::{
     SetText, UnsetText, list_from_text, maturity, net_kind, pair_from_text, points_from_text,
     quantity_from_text, quaternion_from_text, vector_from_text, xy_from_text,
 };
+pub use thermal::thermal_set_ops;
 pub use window::maneuver_window_op;
 
 /// 人が打った値の文字列 → Op（`fune set`・`fune catalog set`・`POST /ops/from_text`）。

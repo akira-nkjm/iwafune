@@ -3,8 +3,11 @@
 //!
 //! 判定のキーは解析が実行のたびに作る文字列（`dod`・`margin:s_down@TOKYO_GS`）で、解析の出力を見るまで実在が分からない。
 //! だから `fune check` では解析の ID だけを見て、キーの実在はここで確かめる（出なければ [`NotVerifiedReason::KeyNotProduced`]）。
-//! 同じキーの判定が複数あれば（モードごとなど）最も悪いものを使う。ケースごとの結果を集めた行の判定は、
-//! 違反 > 確かめられない > 警告 > 良の順（1 つでも確かめられないケースがあれば「良」と言わない）。
+//! 同じキーの判定が複数あれば（モードごとなど）最も悪いものを使い、同じ悪さの中では**余裕（`Check::margin`）が最も小さい**もの
+//! （余裕を持たない判定は持つ判定より後。持たない同士は先に出たもの）。ケースごとの結果を集めた行の判定は、
+//! 違反 > 確かめられない > 警告 > 良の順（1 つでも確かめられないケースがあれば「良」と言わない）で、同じ順位の中では余裕が最も小さいケース
+//! （同じなら先のケース）。行は、文を決めた判定（`check`）とケース（`decisive_case`）を名指す。
+//! 余裕の定義と比べ方は `sat_analysis::spec`（`Check::with_margin`・`margin_order`）だけにあり、ここは比べるだけ（値や文から作り直さない）。
 //! 解析とバジェットはケースごとに 1 回だけ実行する（同じ解析・ケースは要求をまたいで使い回す）。
 //!
 //! 判定の基準は要求が持つ（`fune_model::design::criteria`）。同じ基準に効く要求が複数あれば、解析とバジェットは最も厳しいものを使うので、
@@ -16,14 +19,14 @@ use crate::analysis::run_analysis;
 use crate::budget::budget;
 use crate::dto::{
     AnalysisRunResult, AnalysisRunStatus, BudgetKind, BudgetPropellant, BudgetRequest, BudgetView,
-    CheckView, ComplianceCase, ComplianceReport, ComplianceRow, ComplianceSummary,
+    CheckView, ComplianceCase, ComplianceReport, ComplianceRow, ComplianceSummary, DecisiveCheck,
     NotVerifiedReason, QuantityView, RunAnalysisRequest,
 };
 use crate::error::Result;
 use crate::query::requirements::constraint_view;
 use crate::workspace::Workspace;
 use fune_model::design::{Design, Requirement, key_covers};
-use sat_analysis::spec::Verdict;
+use sat_analysis::spec::{Verdict, margin_order};
 use std::collections::BTreeMap;
 
 /// 出た判定のキーを `detail` に並べる最大の数。
@@ -59,7 +62,8 @@ struct Runs {
 type RunKey = (String, Option<String>, Vec<String>);
 
 fn row(ws: &Workspace, design: &Design, r: &Requirement, runs: &mut Runs) -> ComplianceRow {
-    let cases: Vec<ComplianceCase> = if let (true, Some(input)) = (r.verify.is_empty(), r.input) {
+    let mut cases: Vec<ComplianceCase> = if let (true, Some(input)) = (r.verify.is_empty(), r.input)
+    {
         let detail = Some(format!("Gives the analysis input `{input}`"));
         vec![unverified(None, NotVerifiedReason::DesignInput, detail)]
     } else if r.verify.is_empty() {
@@ -70,11 +74,11 @@ fn row(ws: &Workspace, design: &Design, r: &Requirement, runs: &mut Runs) -> Com
             .map(|case| judge(ws, design, r, case, runs))
             .collect()
     };
-    let decided = cases
-        .iter()
-        .max_by_key(|c| rank(c))
-        .cloned()
-        .unwrap_or_else(|| unverified(None, NotVerifiedReason::NoLink, None));
+    let decided = decisive_index(&cases).map(|i| {
+        cases[i].decisive = true;
+        cases[i].clone()
+    });
+    let decided = decided.unwrap_or_else(|| unverified(None, NotVerifiedReason::NoLink, None));
     let id = r.id.as_str();
     ComplianceRow {
         id: id.to_owned(),
@@ -92,11 +96,23 @@ fn row(ws: &Workspace, design: &Design, r: &Requirement, runs: &mut Runs) -> Com
         message: decided.message,
         message_en: decided.message_en,
         value: decided.value,
+        check: decided.check,
+        decisive_case: decided.case,
+        margin: decided.margin,
         cases,
     }
 }
 
-/// 行の判定を決める順位（高いほど悪い。同じなら先のケース）。
+/// 行の文を決めるケース: 順位が最も悪いもの、同じ順位では余裕が最も小さいもの、それも同じなら先のケース（`min_by` は先を残す）。
+fn decisive_index(cases: &[ComplianceCase]) -> Option<usize> {
+    cases
+        .iter()
+        .enumerate()
+        .min_by(|(_, a), (_, b)| rank(b).cmp(&rank(a)).then(margin_order(a.margin, b.margin)))
+        .map(|(i, _)| i)
+}
+
+/// 行の判定を決める順位（高いほど悪い）。
 fn rank(c: &ComplianceCase) -> u8 {
     match (c.verdict, c.reason) {
         (Some(Verdict::Violation), _) => 3,
@@ -131,6 +147,9 @@ fn unverified(
         message: None,
         message_en: None,
         value: None,
+        check: None,
+        margin: None,
+        decisive: false,
     }
 }
 
@@ -213,15 +232,27 @@ fn judge_analysis(
         });
         return unverified(evaluated, NotVerifiedReason::KeyNotProduced, detail);
     };
-    let worst = hits.iter().find(|c| c.verdict == verdict);
+    // 最も悪い判定の中で余裕が最も小さいもの（余裕が同じ・無ければ先に出たもの）
+    let decisive = hits
+        .iter()
+        .filter(|c| c.verdict == verdict)
+        .min_by(|a, b| margin_order(a.margin, b.margin));
     ComplianceCase {
         case: evaluated,
         verdict: Some(verdict),
         reason: None,
         detail: None,
-        message: worst.map(|c| c.message.clone()),
-        message_en: worst.and_then(|c| c.message_en.clone()),
+        message: decisive.map(|c| c.message.clone()),
+        message_en: decisive.and_then(|c| c.message_en.clone()),
         value: None,
+        check: decisive.map(|c| DecisiveCheck {
+            key: c.key.clone(),
+            label: c.label.clone(),
+            label_en: c.label_en.clone(),
+            scope: c.scope.clone(),
+        }),
+        margin: decisive.and_then(|c| c.margin),
+        decisive: false,
     }
 }
 
@@ -249,16 +280,16 @@ fn judge_budget(
         let detail = Some(paths.join(", "));
         return unverified(case, NotVerifiedReason::MissingInputs, detail);
     }
-    let wet = match &b.propellant {
-        Some(BudgetPropellant::Counted { wet, .. }) => Some(wet),
-        _ => None,
-    };
-    let Some(verdict) = Verdict::worst(b.verdict.into_iter().chain(wet.and_then(|w| w.verdict)))
-    else {
+    let candidates = budget_judgements(b);
+    let Some(verdict) = Verdict::worst(candidates.iter().map(|c| c.0)) else {
         let detail = Some(format!("No requirement sets the {kind} limit"));
         return unverified(case, NotVerifiedReason::MissingInputs, detail);
     };
-    let total: Option<&QuantityView> = wet.map(|w| &w.total).or(b.total.as_ref());
+    let decisive = candidates
+        .iter()
+        .filter(|c| c.0 == verdict)
+        .min_by(|a, b| margin_order(a.1.map(|m| m.si), b.1.map(|m| m.si)));
+    let total: Option<&QuantityView> = decisive.and_then(|c| c.2);
     let message = match (total, &b.limit) {
         (Some(t), Some(l)) => Some(format!("Total {} against limit {}", t.display, l.display)),
         _ => None,
@@ -271,8 +302,29 @@ fn judge_budget(
         message,
         message_en: None,
         value: total.cloned(),
+        check: None,
+        margin: decisive.and_then(|c| c.1.map(|m| m.si)),
+        decisive: false,
     }
 }
+
+/// バジェットの乾燥の合計と推薬込みの合計の判定（推薬込みを先に並べる: 同じなら推薬込みの値を出す）。余裕はバジェット自身の余裕（上限までの量）。
+fn budget_judgements(b: &BudgetView) -> Vec<BudgetJudged<'_>> {
+    let wet = match &b.propellant {
+        Some(BudgetPropellant::Counted { wet, .. }) => Some(wet),
+        _ => None,
+    };
+    [
+        wet.and_then(|w| Some((w.verdict?, w.margin.as_ref(), Some(&w.total)))),
+        b.verdict.map(|v| (v, b.margin.as_ref(), b.total.as_ref())),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+/// バジェットの判定 1 つ（判定・余裕・合計）。
+type BudgetJudged<'a> = (Verdict, Option<&'a QuantityView>, Option<&'a QuantityView>);
 
 /// 判定の数え方（行の判定ごと）。
 fn summarize(rows: &[ComplianceRow]) -> ComplianceSummary {
@@ -292,52 +344,4 @@ fn summarize(rows: &[ComplianceRow]) -> ComplianceSummary {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn case(verdict: Option<Verdict>) -> ComplianceCase {
-        ComplianceCase {
-            case: None,
-            verdict,
-            reason: verdict.is_none().then_some(NotVerifiedReason::Failed),
-            detail: None,
-            message: None,
-            message_en: None,
-            value: None,
-        }
-    }
-
-    /// 違反 > 確かめられない > 警告 > 良。同じ順位なら先のケース。
-    #[test]
-    fn the_worst_case_decides_and_unverified_outranks_a_warning() {
-        let pick = |v: &[Option<Verdict>]| {
-            let cases: Vec<ComplianceCase> = v.iter().map(|x| case(*x)).collect();
-            cases.iter().max_by_key(|c| rank(c)).map(|c| c.verdict)
-        };
-        let (ok, warn, bad) = (
-            Some(Verdict::Ok),
-            Some(Verdict::Warning),
-            Some(Verdict::Violation),
-        );
-        assert_eq!(pick(&[ok, warn]), Some(warn));
-        assert_eq!(pick(&[warn, None]), Some(None));
-        assert_eq!(pick(&[ok, None, bad]), Some(bad));
-        assert_eq!(pick(&[ok, ok]), Some(ok));
-    }
-
-    #[test]
-    fn failure_counts_violations_and_optionally_unverified_rows() {
-        let report = |violation, not_verified| ComplianceReport {
-            rows: Vec::new(),
-            summary: ComplianceSummary {
-                violation,
-                not_verified,
-                ..ComplianceSummary::default()
-            },
-        };
-        assert!(fails(&report(1, 0), false));
-        assert!(!fails(&report(0, 2), false));
-        assert!(fails(&report(0, 2), true));
-        assert!(!fails(&report(0, 0), true));
-    }
-}
+mod tests;

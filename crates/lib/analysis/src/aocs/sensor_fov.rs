@@ -10,6 +10,7 @@
 //!   （`sat_astro::shadow::occulted_by`）は侵入としない。
 
 use crate::spec::quantity_text;
+use crate::spec::ratio_margin;
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series,
     System, Verdict, ensure_fraction, ensure_non_negative, is_sunlit, longest_window,
@@ -296,6 +297,10 @@ fn verdict(s: &SensorFovSensor, r: &SensorFovResult) -> Check {
     let key = sat_checkkey::sensor_intrusion(&s.id);
     let label = format!("{} exclusion angle", s.id);
     let pct = quantity_text::<Fraction>(r.intrusion_fraction.value());
+    // 余裕 = 上限 / 侵入の割合 − 1（上限が無い・侵入が無ければ余裕を持たない）
+    let margin = s
+        .max_intrusion_fraction
+        .and_then(|max| ratio_margin(max.value(), r.intrusion_fraction.value()));
     let (v, msg) = match s.max_intrusion_fraction {
         Some(max) if r.intrusion_fraction <= max => (
             Verdict::Ok,
@@ -316,7 +321,7 @@ fn verdict(s: &SensorFovSensor, r: &SensorFovResult) -> Check {
         }
         None => (Verdict::Ok, "No intrusion".to_owned()),
     };
-    Check::new(&key, &label, v, msg)
+    Check::new(&key, &label, v, msg).with_ratio_margin(margin)
 }
 
 #[cfg(test)]
