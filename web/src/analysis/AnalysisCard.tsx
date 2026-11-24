@@ -83,7 +83,7 @@ export function AnalysisCard({
                       {list.map((s) => (
                         <div key={s.path} className="min-w-0">
                           <dt className="truncate text-2xs text-ink-3" title={s.path}>
-                            {fieldLabel(s.key)}
+                            {fieldLabel(s.key, s.at.at(-2))}
                           </dt>
                           <dd className="num truncate font-medium text-[13px] text-ink">
                             <FieldValue
