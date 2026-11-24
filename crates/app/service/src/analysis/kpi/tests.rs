@@ -17,6 +17,7 @@ fn keyed(key: &str, verdict: Verdict) -> CheckView {
         message_en: None,
         at: "/checks/0".into(),
         scope: None,
+        margin: None,
     }
 }
 

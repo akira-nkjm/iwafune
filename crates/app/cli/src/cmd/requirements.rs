@@ -148,8 +148,34 @@ fn detail(r: &ComplianceRow) -> String {
             None => why.to_owned(),
         };
     }
-    r.message_en
+    let message = r
+        .message_en
         .clone()
         .or_else(|| r.message.clone())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    match decided_by(r) {
+        Some(by) => format!("{by}: {message}"),
+        None => message,
+    }
+}
+
+/// 文を決めた判定とケース（`[ケース · ]判定の項目名[ (持ち主)]`）。ケースは複数あるときだけ、バジェットは判定を持たないのでケースだけ。
+fn decided_by(r: &ComplianceRow) -> Option<String> {
+    let case = (r.cases.len() > 1).then(|| {
+        r.decisive_case
+            .clone()
+            .unwrap_or_else(|| "default".to_owned())
+    });
+    let check = r.check.as_ref().map(|c| {
+        let label = c.label_en.as_deref().unwrap_or(&c.label);
+        match &c.scope {
+            Some(scope) => format!("{label} ({scope})"),
+            None => label.to_owned(),
+        }
+    });
+    match (case, check) {
+        (Some(case), Some(check)) => Some(format!("{case} · {check}")),
+        (Some(only), None) | (None, Some(only)) => Some(only),
+        (None, None) => None,
+    }
 }

@@ -127,6 +127,7 @@ export type * from "./DecayWeatherOrigins";
 export type * from "./DecayWeatherSample";
 export type * from "./DecayWeatherSchedule";
 export type * from "./DecayWeatherSummary";
+export type * from "./DecisiveCheck";
 export type * from "./DefsView";
 export type * from "./DepartureBy";
 export type * from "./DepartureProvider";

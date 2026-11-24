@@ -219,20 +219,22 @@ pub fn range_item(check_key: &str) -> Option<&str> {
 }
 
 impl ThermalRangeMargin {
+    /// 片側の余裕 [K]（限界までの差から不確かさを引いた値。負なら限界を超える）。判定（`side_verdict`）と判定の余裕の比較（`Check::margin`）が使う。
+    pub(crate) fn side_margin(&self, side: ThermalRangeSide, margin: &ThermalMarginUsed) -> f64 {
+        let m = match side {
+            ThermalRangeSide::Low => self.margin_low,
+            ThermalRangeSide::High => self.margin_high,
+        };
+        m.value() - margin.uncertainty.value()
+    }
+
     /// 片側の判定（不確かさを引いてから。範囲全体の `verdict` は両側の悪いほう）。
     pub(crate) fn side_verdict(
         &self,
         side: ThermalRangeSide,
         margin: &ThermalMarginUsed,
     ) -> Verdict {
-        let m = match side {
-            ThermalRangeSide::Low => self.margin_low,
-            ThermalRangeSide::High => self.margin_high,
-        };
-        margin_verdict(
-            m.value() - margin.uncertainty.value(),
-            margin.warning_band.value(),
-        )
+        margin_verdict(self.side_margin(side, margin), margin.warning_band.value())
     }
 
     /// 余裕から比べた予測の最低・最高 [K]（`range.min + margin_low`・`range.max − margin_high`）。
