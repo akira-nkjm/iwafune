@@ -480,6 +480,7 @@ export type * from "./SlewTimeInput";
 export type * from "./SlewTimeOutput";
 export type * from "./SolarActivity";
 export type * from "./SolarArray";
+export type * from "./SolarConjunction";
 export type * from "./SolarLife";
 export type * from "./SolarPanel";
 export type * from "./SolarSunlitCase";

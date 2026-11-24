@@ -939,6 +939,16 @@ The distance used for the link depends on the central body of `conditions.orbit`
   The margin is judged at the **maximum** distance (`slant_range`); `range_min`, `range_min_epoch` and `range_max_epoch` report the minimum and the epochs of the extremes. Approximation: the distance is measured to Earth's centre, not to the station (an error of up to Earth's radius, about 1.7 % at the Moon and 0.01 % or less beyond Mars; the elevation, see below, uses the real station position).
 - `light_time` is the one-way light time at the maximum distance. Atmospheric and rain losses are the link's `atmospheric_loss` as before.
 
+**Deep-space links.** For `earth_to_body` the result also shows the other end of the range, so that the worst and the best case are both visible
+(the keys are absent for an `earth_orbit` link, whose output is unchanged). Everything uses the one link equation; only the distance changes:
+
+- `margin_db_at_range_min` is the link margin at the **minimum** distance (the best case; the verdict stays on `margin_db` at the maximum). It is higher than `margin_db` by `20·log10(range_max / range_min)`.
+- `max_data_rate` (at the maximum distance) and `max_data_rate_at_range_min` are the highest data rates that keep the required margin at the two ends. The rate scales with `1 / d²` (twice the distance, a quarter of the rate; 6.02 dB less margin at a fixed rate). They are information; no verdict unless a requirement points at the margin as before.
+- `light_time` (maximum distance) and `light_time_min` are the one-way light times, `distance / c` (1 au is 499.005 s). For the distance over time, see `orbit.geometry`.
+- `solar_conjunction` gives the minimum of the Sun–Earth–probe angle (SEP, see `orbit.geometry`) over the same span with its date (`sep_min`, `sep_min_epoch`) and the total time SEP is below the threshold (`time_below_threshold`, samples joined by straight lines).
+  The threshold is 3° (`threshold`, the analysis default; there is no setting for it). The check `solar_conjunction` is a warning when SEP falls below the threshold, because the link is assumed to be needed over the whole span. The increase of the receiver noise near conjunction is not modelled.
+  The extremes of the distance and the time below the threshold are found at the sample resolution of the span (period / 200 for a one-off orbit), the minimum SEP is refined between the samples.
+
 `comm.visibility` and `comm.data_throughput` find passes from the real geocentric position of a spacecraft around another body (a daily pass of the Earth's rotation, above the station's `min_elevation`).
 The central body occults the spacecraft: while the line from the station to the spacecraft passes through the sphere of the body (equatorial radius), the spacecraft is not visible and the pass is cut (so a Moon or Mars orbiter has several passes a day).
 The occultation by Earth's own horizon is the elevation; atmospheric refraction and the bodies' oblateness are not modelled. `comm.data_throughput` judges the link closure at the maximum Earth distance within its one-day window (the link closes down to the horizon or never), not per elevation.

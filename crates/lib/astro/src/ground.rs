@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 mod earth_range;
 mod ground_track;
 
-pub use earth_range::{EarthRange, earth_range};
+pub use earth_range::{EarthRange, earth_range, earth_range_with_sep};
 pub use ground_track::{GroundTrackPoint, ground_track};
 
 /// 地上局。

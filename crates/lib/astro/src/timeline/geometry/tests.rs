@@ -188,6 +188,21 @@ fn superior_conjunction_has_sep_0_and_spe_0() {
     assert!((g.earth_distance_m / (1.5 * AU + d_earth_sun) - 1.0).abs() < 1e-6);
 }
 
+/// 地球の黄道経度 + 90° の 1.5 AU の円軌道: 元期で太陽での角が 90°（直角三角形）なので、
+/// 地球での角 SEP = atan(R / r_E)（R = 1.5 AU、r_E = 地球の日心距離）。許容 1e-3 rad は地球の黄道緯度の上限に余裕を見た値。
+#[test]
+fn quadrature_has_sep_atan_of_the_distance_ratio() {
+    let orbit = ecliptic_circle(1.5 * AU, earth_longitude() + PI / 2.0);
+    let g = &geometry_at(&orbit, epoch(), &[0.0]).expect("geometry")[0];
+    let d_earth_sun = position_eci_m(Body::Sun, epoch()).norm();
+    let expected = (1.5 * AU / d_earth_sun).atan();
+    assert!(
+        (g.sep_rad - expected).abs() < 1e-3,
+        "{} {expected}",
+        g.sep_rad
+    );
+}
+
 /// 三角形（太陽・地球・探査機）: 内角の和 SEP + SPE + (太陽での角) = π、余弦定理が 3 辺すべてで成り立ち、
 /// 光の伝搬時間 × 光速 = 地球距離。1 周（1.2 年）の全標本で確かめる。
 #[test]
