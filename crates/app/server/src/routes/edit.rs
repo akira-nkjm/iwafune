@@ -87,6 +87,19 @@ pub async fn case_from_sun_distance(
     .map(Json)
 }
 
+/// POST `/ops/cases_from_geometry`。CLI と同じ計算から、最悪の日の `epoch` を持つ SetCase の Op の列を作る
+/// （太陽距離の最大・最小、地球距離の最大。保存は POST `/ops`）。
+pub async fn cases_from_geometry(
+    State(s): State<AppState>,
+    ApiJson(req): ApiJson<fune_service::dto::CaseFromGeometryRequest>,
+) -> Result<Json<Vec<Op>>, ApiError> {
+    blocking(&s, move |ws| {
+        fune_service::edit::cases_from_geometry_ops(ws, &req)
+    })
+    .await
+    .map(Json)
+}
+
 /// POST `/ops/case_from_eclipse`。CLI と同じ解析から SetCase Op を作る。
 /// 保存は他の編集と同じく POST `/ops`。
 pub async fn case_from_eclipse(

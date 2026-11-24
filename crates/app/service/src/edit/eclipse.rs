@@ -79,6 +79,7 @@ fn case_op(
             beta: Some(Quantity::new(beta_deg, BETA_UNIT)),
             orbits: None,
             sun_distance: None,
+            epoch: None,
         },
     }
 }

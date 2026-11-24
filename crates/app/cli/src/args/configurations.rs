@@ -13,7 +13,8 @@ pub enum ConfigurationCmd {
     Show { id: String },
     /// Add a configuration (refused if the ID exists). Place parts in it with `fune part place <PART> --configuration <ID> …`
     Add(ConfigurationArgs),
-    /// Write a configuration (create it, or replace its label and description if it exists; the part poses are kept)
+    /// Write a configuration (create it, or replace its label, English name and description if it exists: one not given is removed
+    /// and listed in the output; the part poses are kept)
     Set(ConfigurationArgs),
     /// Remove a configuration (its part poses go with it)
     Rm {
@@ -44,6 +45,9 @@ pub struct ConfigurationArgs {
     /// Display name
     #[arg(long)]
     pub label: Option<String>,
+    /// English display name
+    #[arg(long)]
+    pub label_en: Option<String>,
     /// Description (free text)
     #[arg(long)]
     pub description: Option<String>,

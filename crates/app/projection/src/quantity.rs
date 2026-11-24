@@ -65,6 +65,55 @@ pub fn setting_opt<D: Dimension>(
     qty_opt(q, key.at(fill), m)
 }
 
+/// 書かれた曲線（`{ at, at_unit, values, unit }`）を、引数が次元 `A`、値が次元 `V` の SI の点の並びにする。
+/// 次元が違う・単位が読めないときは理由を `m` に記録して `None`（点ごとにでなく 1 回だけ記録する）。
+pub fn curve_points<A: Dimension, V: Dimension>(
+    c: &fune_model::value::Curve,
+    target: impl Into<Target>,
+    m: &mut MissingInputs,
+) -> Option<Vec<(Qty<A>, Qty<V>)>> {
+    let point = |x: f64, y: f64| {
+        let a = si::<A>(&Quantity::new(x, c.at_unit.clone()))?;
+        let v = si::<V>(&Quantity::new(y, c.unit.clone()))?;
+        Ok::<_, String>((a, v))
+    };
+    let points: Result<Vec<_>, String> =
+        c.at.iter()
+            .zip(&c.values)
+            .map(|(x, y)| point(*x, *y))
+            .collect();
+    match points {
+        Ok(p) => Some(p),
+        Err(e) => {
+            m.push(target, e);
+            None
+        }
+    }
+}
+
+/// 書かれた単位付きのベクトル（`{ x, y, z, unit }`）を、次元 `D` の SI の `Vec3` にする。無いとき・単位の次元が違うときは
+/// `m` に記録して `None`（成分ごとにでなく 1 回だけ記録する）。
+pub fn vec_qty<D: Dimension>(
+    v: Option<&fune_model::value::Vector3>,
+    target: impl Into<Target>,
+    reason: &str,
+    m: &mut MissingInputs,
+) -> Option<sat_astro::math::Vec3> {
+    let Some(v) = v else {
+        m.push(target, reason);
+        return None;
+    };
+    let unit = v.unit.clone().unwrap_or_default();
+    let comp = |x: f64| si::<D>(&Quantity::new(x, unit.clone())).map(|q| q.value());
+    match (comp(v.x), comp(v.y), comp(v.z)) {
+        (Ok(x), Ok(y), Ok(z)) => Some(sat_astro::math::Vec3::new(x, y, z)),
+        (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
+            m.push(target, format!("{reason} ({e})"));
+            None
+        }
+    }
+}
+
 /// 次元を検査して SI の `Qty<D>` にする（検査と換算は `Quantity::si_as`）。
 pub fn si<D: Dimension>(q: &Quantity) -> Result<Qty<D>, String> {
     q.si_as(&sat_units::format::dimension_label(D::DIM))

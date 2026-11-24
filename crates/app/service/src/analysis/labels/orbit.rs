@@ -2,8 +2,11 @@
 
 use super::label;
 use crate::dto::AnalysisLabel;
-use sat_analysis::orbit::GeometrySpanBasis;
 use sat_analysis::orbit::decay::{DecayCondition, DragAreaSource};
+use sat_analysis::orbit::{
+    DesignMarginSource, DoseInterpolation, DoseLegStatus, DoseNotEvaluated, GeometrySpanBasis,
+    ShieldingSource,
+};
 use sat_astro::atmosphere::space_weather::{SolarActivity, WeatherSource};
 
 pub(super) fn solar_activity(a: SolarActivity) -> AnalysisLabel {
@@ -36,9 +39,9 @@ pub(super) fn weather_source(w: WeatherSource) -> AnalysisLabel {
 pub(super) fn drag_area_source(s: DragAreaSource) -> AnalysisLabel {
     match s {
         DragAreaSource::Given => label("与えた面積", "Given area"),
-        DragAreaSource::TumblingBox => label(
-            "構体の外形の箱を向きでならした面積（表面積の 1/4）",
-            "Body box averaged over orientations (a quarter of the surface area)",
+        DragAreaSource::BodyBoxes => label(
+            "部品の箱の和集合の、全方向の平均の投影面積",
+            "Mean projected area over all directions of the union of the part boxes",
         ),
     }
 }
@@ -64,4 +67,46 @@ pub(super) fn decay_condition(kind: &str) -> Option<AnalysisLabel> {
             "Dated values from the space-weather table",
         ),
     })
+}
+
+pub(super) fn design_margin_source(s: DesignMarginSource) -> AnalysisLabel {
+    match s {
+        DesignMarginSource::Given => label("設定の値", "Set in the design"),
+        DesignMarginSource::Default => label("解析の既定", "Analysis default"),
+    }
+}
+
+pub(super) fn shielding_source(s: ShieldingSource) -> AnalysisLabel {
+    match s {
+        ShieldingSource::Part => label("部品の値", "Part value"),
+        ShieldingSource::Default => label("設計の既定", "Design default"),
+    }
+}
+
+pub(super) fn dose_leg_status(s: DoseLegStatus) -> AnalysisLabel {
+    match s {
+        DoseLegStatus::Evaluated => label("評価した", "Evaluated"),
+        DoseLegStatus::NoDuration => label("期間が無いので除いた", "Left out: no duration"),
+        DoseLegStatus::NoEnvironment => {
+            label("環境の表が無いので除いた", "Left out: no environment table")
+        }
+    }
+}
+
+pub(super) fn dose_not_evaluated(r: DoseNotEvaluated) -> AnalysisLabel {
+    match r {
+        DoseNotEvaluated::NoShielding => label("遮蔽厚さが無い", "No shielding thickness"),
+        DoseNotEvaluated::OutsideTable => {
+            label("環境の表の範囲の外", "Outside the environment table")
+        }
+    }
+}
+
+pub(super) fn dose_interpolation(i: DoseInterpolation) -> AnalysisLabel {
+    match i {
+        DoseInterpolation::LogLinear => label(
+            "厚さについて線形、線量率は対数",
+            "Linear in thickness, logarithmic in dose rate",
+        ),
+    }
 }

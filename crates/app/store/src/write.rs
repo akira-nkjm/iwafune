@@ -3,6 +3,7 @@
 //! | モジュール | 中身 |
 //! |---|---|
 //! | `doc` | toml_edit の小さな道具（装飾を保った値の置き換え・揃えた挿入・表の確保・キーの名前の変更・配列の要素の置き換え） |
+//! | `acknowledged` | 承知済みの組（`analysis/structure.toml` の `[[acknowledged]]`）の足す・取り消す・名前の変更 |
 //! | `catalog` | カタログ品のファイルの正規形とフィールド |
 //! | `ground` | 新しい地上局のファイルの正規形 |
 //! | `link` | 通信の回線（`analysis/comm.toml` の `[link.<名前>]`）の作成と削除 |
@@ -11,12 +12,14 @@
 //! | `project` | プロジェクトのファイル（`fune.toml`・`budget/`）の新しい本文（`fune init` の雛形も） |
 //! | `records` | ケース・出典・ハーネス（serde の形のファイル）の書き込み |
 //! | `sequences` | 電源のモードの並び（`[sequences.<名前>]`）とモードの時刻の指定（`when`・`start`）の書き込み |
+//! | `removed` | 書き換えで消えたキーの検出（置き換える Op の「消えたキー」の知らせの元） |
 //! | `refs` | 名前の変更・削除に伴う参照の書き換え（参照の所在は model の `Design::references`） |
 //! | `commit` | tmp ＋ rename、失敗したら戻す |
 //!
 //! 編集は既存の行の装飾（空白・コメント）を保ち、変えた値の行だけが変わるようにする。
 //! 計画した変更の列を（ディスクに書かずに）ファイルの集合に当てるのは [`apply_changes`]。
 
+pub mod acknowledged;
 pub mod catalog;
 mod commit;
 pub mod doc;
@@ -27,6 +30,7 @@ pub mod part;
 pub mod project;
 pub mod records;
 pub mod refs;
+pub mod removed;
 pub mod sequences;
 
 pub use commit::commit;

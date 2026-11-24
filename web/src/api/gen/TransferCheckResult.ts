@@ -14,6 +14,10 @@ export type TransferCheckResult = {
  */
 maneuver: string, 
 /**
+ * 通過のある遷移の脚の番号（1 から。通過のない遷移は無し。`from`・`to`・日付はその脚のもの）
+ */
+leg?: number, 
+/**
  * 出発・到着の天体
  */
 from: CentralBody, to: CentralBody, 

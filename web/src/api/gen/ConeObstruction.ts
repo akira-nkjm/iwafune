@@ -15,4 +15,16 @@ min_angle: number,
 /**
  * 頂点から、箱のうち円錐の中にある部分までの最短距離
  */
-min_distance: number, };
+min_distance: number, 
+/**
+ * 設計者が承知済みとした組か（承知済みでも円錐に入る部品として残るが、判定は警告にしない）
+ */
+acknowledged: boolean, 
+/**
+ * 承知した理由（承知済みのときだけ）
+ */
+reason?: string, 
+/**
+ * 承知が形態を指していれば、その形態（取り消すときに同じ承知を指す。無ければすべての配置に効く承知）
+ */
+acknowledged_configuration?: string, };

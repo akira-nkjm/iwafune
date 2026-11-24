@@ -121,6 +121,16 @@ setting_quantities! {
     ORBIT_ARG_PERIGEE: Angle = Conditions["orbit", "arg_perigee"];
     /// 平均近点角
     ORBIT_MEAN_ANOMALY: Angle = Conditions["orbit", "mean_anomaly"];
+    /// 状態ベクトルの軌道の位置（`source = "state"`。ベクトル）
+    ORBIT_POSITION: Length = Conditions["orbit", "position"];
+    /// 状態ベクトルの軌道の速度（ベクトル）
+    ORBIT_VELOCITY: Velocity = Conditions["orbit", "velocity"];
+    /// 放射線の既定の遮蔽厚さ（等価アルミ。`analysis/common.toml` の `[radiation]`）
+    RADIATION_DEFAULT_SHIELDING: Length = Analysis["common", "radiation", "default_shielding"];
+    /// 状態ベクトルの軌道の期間
+    ORBIT_SPAN: Time = Conditions["orbit", "span"];
+    /// ハロー軌道の z 方向の振幅（`source = "libration"`）
+    ORBIT_AMPLITUDE_Z: Length = Conditions["orbit", "amplitude_z"];
     /// 準静的荷重（機軸方向。`conditions/launch.toml`）
     LAUNCH_LOAD_AXIAL: Acceleration = Conditions["launch", "load_axial"];
     /// 準静的荷重（直交方向）
@@ -153,7 +163,11 @@ setting_quantities! {
     POWER_SIZING_BUS_VOLTAGE: Voltage = Analysis["power", "sizing", "bus_voltage"];
     /// サイジングの太陽距離。
     POWER_SIZING_SUN_DISTANCE: Length = Analysis["power", "sizing", "sun_distance"];
-    /// 空力の圧力中心 − 重心（`analysis/aocs.toml`。ベクトル）
+    /// 空力の受圧面積（`analysis/aocs.toml`）
+    AOCS_AERO_AREA: Area = Analysis["aocs", "aero_area"];
+    /// 太陽輻射圧の受圧面積
+    AOCS_SRP_AREA: Area = Analysis["aocs", "srp_area"];
+    /// 空力の圧力中心 − 重心（ベクトル）
     AOCS_CP_OFFSET_AERO: Length = Analysis["aocs", "cp_offset_aero"];
     /// 太陽輻射圧の圧力中心 − 重心（ベクトル）
     AOCS_CP_OFFSET_SRP: Length = Analysis["aocs", "cp_offset_srp"];
@@ -181,6 +195,8 @@ setting_quantities! {
     COMM_OCCUPIED_BANDWIDTH: Frequency = Analysis["comm", "link", ANY, "occupied_bandwidth"];
     /// 取付の接触熱コンダクタンス（`analysis/thermal.toml`）
     THERMAL_CONTACT_CONDUCTANCE: ThermalConductance = Analysis["thermal", "contact_conductance"];
+    /// 取付の接触熱コンダクタンスを接触面積から出すときの単位面積あたりの値（`analysis/thermal.toml`）
+    THERMAL_CONTACT_CONDUCTANCE_PER_AREA: HeatTransferCoefficient = Analysis["thermal", "contact_conductance_per_area"];
     /// 節点間の放射結合（面積）
     THERMAL_RADIATIVE_COUPLING: Area = Analysis["thermal", "radiative_coupling"];
     /// 明示の節点間の伝導（`[conductive.<節点>] <節点> = …`）
@@ -207,6 +223,10 @@ setting_quantities! {
     STRUCTURE_INTERFERENCE_TOLERANCE: Length = Analysis["structure", "interference_tolerance"];
     /// 噴流・視野の円錐を見る、頂点からの距離の上限（`analysis/structure.toml`）
     STRUCTURE_CONE_CLEARANCE_RANGE: Length = Analysis["structure", "cone_clearance_range"];
+    /// 粗い有限要素の固有値解析の要素の大きさ（`analysis/structure.toml` の `[modal]`）
+    STRUCTURE_MODAL_MESH_SIZE: Length = Analysis["structure", "modal", "mesh_size"];
+    /// パネルの辺・面の位置を一致とみなす許容差
+    STRUCTURE_MODAL_JOINT_TOLERANCE: Length = Analysis["structure", "modal", "joint_tolerance"];
     /// 材料の密度（`[material.<材料>]`）
     MATERIAL_DENSITY: MassDensity = Analysis["structure", "material", ANY, "density"];
     /// 材料のヤング率
@@ -215,6 +235,8 @@ setting_quantities! {
     MATERIAL_YIELD_STRENGTH: Pressure = Analysis["structure", "material", ANY, "yield_strength"];
     /// 材料の引張強さ
     MATERIAL_ULTIMATE_STRENGTH: Pressure = Analysis["structure", "material", ANY, "ultimate_strength"];
+    /// 材料の熱伝導率（板の面内の伝導 `analysis.thermal.subdivide` が使う）
+    MATERIAL_THERMAL_CONDUCTIVITY: ThermalConductivity = Analysis["structure", "material", ANY, "thermal_conductivity"];
     /// 推進系の解析の乾燥質量の上書き（`analysis/propulsion.toml`）
     PROPULSION_DRY_MASS: Mass = Analysis["propulsion", "dry_mass"];
     /// 日付の探索の出発の窓の長さ（`[launch_window]`）
@@ -225,13 +247,76 @@ setting_quantities! {
     PROPULSION_LAUNCH_WINDOW_TOF_MAX: Time = Analysis["propulsion", "launch_window", "time_of_flight_max"];
 }
 
-/// 次元の型を持たない欄（名前の無い次元。射影は読まない）。
-pub const UNTYPED: &[SettingDimension] = &[SettingDimension {
-    scope: SettingScope::Analysis,
-    pattern: &["structure", "material", ANY, "thermal_conductivity"],
-    dimension: "W/(m*K)",
-    typed: None,
+/// 曲線（表）の設定の欄の宣言: パスの形と、引数・値の次元の型。射影はこれを渡して `Qty<A>` と `Qty<V>` の対に読む。
+pub struct SettingCurve<A, V> {
+    pub scope: SettingScope,
+    /// `scope` の後ろの区切りの形（[`ANY`] を含む）
+    pub pattern: &'static [&'static str],
+    _dimensions: PhantomData<fn() -> (A, V)>,
+}
+
+impl<A: Dimension, V: Dimension> SettingCurve<A, V> {
+    const fn new(scope: SettingScope, pattern: &'static [&'static str]) -> Self {
+        Self {
+            scope,
+            pattern,
+            _dimensions: PhantomData,
+        }
+    }
+
+    /// パスの形に当たる設定のパス（[`ANY`] を含まない形だけ。そのまま対象にする）。
+    pub fn path(&self) -> SettingPath {
+        SettingPath {
+            scope: self.scope,
+            segments: self.pattern.iter().map(|s| (*s).to_owned()).collect(),
+        }
+    }
+
+    /// 引数の次元名と値の次元名（検査の表 [`CURVES`] と同じ）。
+    pub fn dimensions(&self) -> (String, String) {
+        (
+            sat_units::format::dimension_label(A::DIM),
+            sat_units::format::dimension_label(V::DIM),
+        )
+    }
+}
+
+/// 曲線の設定の欄の 1 行（次元の名前）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SettingCurveDimension {
+    pub scope: SettingScope,
+    pub pattern: &'static [&'static str],
+    /// 引数の次元名
+    pub at_dimension: &'static str,
+    /// 値の次元名
+    pub dimension: &'static str,
+}
+
+/// 環境の線量率の表: 遮蔽の厚さ（等価アルミ）→ 線量率（軌道の設定。フェーズの `[orbit]` にも書ける）。
+pub const ORBIT_DOSE_RATE_BY_SHIELDING: SettingCurve<typed::Length, typed::AbsorbedDoseRate> =
+    SettingCurve::new(
+        SettingScope::Conditions,
+        &["orbit", "dose_rate_by_shielding"],
+    );
+
+/// 曲線の設定の欄の表（**曲線の設定の次元はここだけ**。検査は引数と値の単位をこれと比べる）。
+pub const CURVES: &[SettingCurveDimension] = &[SettingCurveDimension {
+    scope: SettingScope::Conditions,
+    pattern: &["orbit", "dose_rate_by_shielding"],
+    at_dimension: "Length",
+    dimension: "AbsorbedDoseRate",
 }];
+
+/// 曲線の設定のパスの（引数の次元名, 値の次元名）。表に無ければ None。
+pub fn setting_curve_dimensions(path: &SettingPath) -> Option<(&'static str, &'static str)> {
+    CURVES
+        .iter()
+        .find(|c| pattern_matches(c.scope, c.pattern, path))
+        .map(|c| (c.at_dimension, c.dimension))
+}
+
+/// 次元の型を持たない欄（名前の無い次元。射影は読まない）。
+pub const UNTYPED: &[SettingDimension] = &[];
 
 /// 設定のパスの次元（次元名か基準の単位。表に無ければ None）。
 pub fn setting_dimension(path: &SettingPath) -> Option<&'static str> {
@@ -246,6 +331,20 @@ pub fn setting_dimension(path: &SettingPath) -> Option<&'static str> {
 mod tests {
     use super::*;
     use crate::value::units::{parse_dimension_name, unit_info};
+
+    /// 曲線の欄の次元名は、型から出した名前と同じ。
+    #[test]
+    fn curve_dimension_names_are_those_of_the_types() {
+        let (at, value) = ORBIT_DOSE_RATE_BY_SHIELDING.dimensions();
+        assert_eq!(
+            setting_curve_dimensions(&ORBIT_DOSE_RATE_BY_SHIELDING.path()),
+            Some(("Length", "AbsorbedDoseRate"))
+        );
+        assert_eq!(
+            (at.as_str(), value.as_str()),
+            ("Length", "AbsorbedDoseRate")
+        );
+    }
 
     #[test]
     fn names_are_the_dimensions_of_the_types() {

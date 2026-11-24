@@ -280,6 +280,13 @@ fn specific_energy_is_shown_in_km2_per_s2() {
     assert_eq!(text(0.0, "SpecificEnergy"), "0 km²/s²");
 }
 
+/// 吸収線量率: SI（Gy/s）から年あたりへ。10 Gy/yr = 10 / (365.25 × 86400) Gy/s。
+#[test]
+fn absorbed_dose_rate_is_shown_per_year() {
+    let per_second = 10.0 / (365.25 * 86_400.0);
+    assert_eq!(text(per_second, "AbsorbedDoseRate"), "10.0 Gy/yr");
+}
+
 /// 入力の例は、その次元の表示単位で書き、解析すると同じ次元になる。単位の無い次元・未知の次元には無い。
 #[test]
 fn input_example_is_a_parsable_quantity_of_the_dimension() {

@@ -49,11 +49,13 @@ fn case(id: &str, other_w: f64, heaters: Vec<ThermalHeater>) -> ThermalSteadyCas
 fn run(cases: Vec<ThermalSteadyCase>) -> ThermalSteadyOutput {
     ThermalSteady::run(&ThermalSteadyInput {
         network: ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![node("n", None)],
             conductive: vec![],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![ThermalSurface {
                 id: "s".to_owned(),
                 node: "n".to_owned(),
@@ -64,6 +66,7 @@ fn run(cases: Vec<ThermalSteadyCase>) -> ThermalSteadyOutput {
                 emissivity: Some(0.8),
                 coatings: vec![],
             }],
+            shadowing: None,
         },
         cases,
         margin: ThermalMarginPolicy::default(),

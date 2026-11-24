@@ -105,12 +105,16 @@ pub enum KpiKey {
     ConeObstructions,
     /// 外形の投影面積の平均
     MeanProjectedArea,
+    /// 有限要素の固有値解析の最低の固有振動数（剛体のモードを除く最初のモード）
+    FirstFrequency,
     /// 日付つきの遷移の、到着の日のずれ（遷移のうち最大）
     TransferMiss,
     /// 打ち上げの窓の ΔV の最小（窓のうち最小）
     LaunchWindowDeltaV,
     /// 地球までの距離の最大（区間のうち最大）
     GreatestEarthDistance,
+    /// 放射線の総線量の余裕の最小（許容線量を持つ部品のうち最小）
+    TotalDoseMargin,
 }
 
 /// KPI の定義（`GET /analyses` の `AnalysisEntry.kpis`。結果が届く前に名前を並べるのに使う）。
@@ -183,8 +187,12 @@ pub enum FillBasis {
 pub struct KpiTally {
     /// 数えた判定の数
     pub checked: u32,
-    /// そのうち OK でない（注意か違反の）数
+    /// そのうち OK でない（注意か違反の）数。承知済みの所見は数えない
     pub flagged: u32,
+    /// 承知済みの所見の数（所見は残るが判定は OK。承知を持つ解析＝干渉・円錐の遮りだけ。ほかは欄を出さない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub acknowledged: Option<u32>,
 }
 
 impl FillRatio {
@@ -247,11 +255,13 @@ mod tests {
         let t = KpiTally {
             checked: 9,
             flagged: 4,
+            acknowledged: None,
         };
         assert!((t.ok_share().unwrap().ratio - 5.0 / 9.0).abs() < 1e-12);
         let none = KpiTally {
             checked: 0,
             flagged: 0,
+            acknowledged: None,
         };
         assert!(none.ok_share().is_none());
     }

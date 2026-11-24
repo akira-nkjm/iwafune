@@ -24,15 +24,18 @@ use fune_model::Target;
 use fune_model::builtin::{Role, STATE_THRUSTER_FIRING};
 use fune_model::design::DepartureBy as ModelDepartureBy;
 use fune_model::design::setting_dims as dims;
-use fune_model::design::{Maneuver, ManeuverCategory, ManeuverMethod, ManeuverSteering};
+use fune_model::design::{Maneuver, ManeuverCategory, ManeuverMethod, ManeuverSteering, Phase};
 use fune_model::resolve::{ResolvedPart, SiValue};
+use fune_model::value::Quantity;
 use sat_analysis::propulsion::{
-    DatedTransferInput, DepartureProvider, DvCategory, ManeuverInput, OrbitTarget,
+    DatedTransferInput, DepartureProvider, DvCategory, FlybyInput, ManeuverInput, OrbitTarget,
     PropellantMassInput, PropellantTank, PropulsionInput, PropulsionThruster, ThrustConstraints,
-    TransferMethod, UnloadingInput, UnloadingNote,
+    TransferMethod, UnloadingInput, UnloadingLeg, UnloadingNote,
 };
 use sat_astro::force::thrust::ThrustSteering;
-use sat_units::typed::{Force, Fraction, Impulse, MassDensity, Power, Qty, Time, Volume};
+use sat_units::typed::{
+    Force, Fraction, Impulse, Length, MassDensity, Power, Qty, Time, Velocity, Volume,
+};
 
 mod launch_window;
 pub use launch_window::launch_window;
@@ -172,22 +175,7 @@ fn input(ctx: &Context<'_>, with_unloading: bool) -> Result<PropulsionInput, Mis
 /// マヌーバ 1 つ（量の次元が違えば記録して `None`）。
 fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<ManeuverInput> {
     let id = x.id.as_str();
-    let q = |key: &str, v, m: &mut MissingInputs| {
-        let target = Target::maneuver(id, Some(key));
-        qty_opt::<sat_units::typed::Length>(v, target, m)
-    };
-    let t = &x.target;
-    let target = OrbitTarget {
-        body: t.body.map(crate::context::central_body),
-        altitude: q("target.altitude", t.altitude.as_ref(), m),
-        perigee_altitude: q("target.perigee_altitude", t.perigee_altitude.as_ref(), m),
-        apogee_altitude: q("target.apogee_altitude", t.apogee_altitude.as_ref(), m),
-        inclination: qty_opt(
-            t.inclination.as_ref(),
-            Target::maneuver(id, Some("target.inclination")),
-            m,
-        ),
-    };
+    let target = orbit_target(x, m);
     let propagated = x.method == ManeuverMethod::Propagated;
     if propagated && x.thruster.is_none() {
         m.push(
@@ -212,7 +200,8 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
         method: method(x.method),
         thruster: x.thruster.as_ref().map(|p| p.to_string()),
         target,
-        via_altitude: q("via_altitude", x.via_altitude.as_ref(), m),
+        via_altitude: length(id, "via_altitude", x.via_altitude.as_ref(), m),
+        delta_v: written_delta_v(x, m),
         ignored_constraints: if propagated {
             Vec::new()
         } else {
@@ -231,6 +220,39 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
     })
 }
 
+/// マヌーバの長さの量（次元が違えば不足入力に記録して `None`）。
+fn length(id: &str, key: &str, v: Option<&Quantity>, m: &mut MissingInputs) -> Option<Qty<Length>> {
+    qty_opt(v, Target::maneuver(id, Some(key)), m)
+}
+
+/// 目標の軌道（`[target]`。量の次元が違えば不足入力に記録して欠ける）。
+fn orbit_target(x: &Maneuver, m: &mut MissingInputs) -> OrbitTarget {
+    let id = x.id.as_str();
+    let t = &x.target;
+    OrbitTarget {
+        body: t.body.map(crate::context::central_body),
+        altitude: length(id, "target.altitude", t.altitude.as_ref(), m),
+        perigee_altitude: length(
+            id,
+            "target.perigee_altitude",
+            t.perigee_altitude.as_ref(),
+            m,
+        ),
+        apogee_altitude: length(id, "target.apogee_altitude", t.apogee_altitude.as_ref(), m),
+        inclination: qty_opt(
+            t.inclination.as_ref(),
+            Target::maneuver(id, Some("target.inclination")),
+            m,
+        ),
+    }
+}
+
+/// 直接書いた ΔV（速度の次元でなければ不足入力に記録して `None`）。
+fn written_delta_v(x: &Maneuver, m: &mut MissingInputs) -> Option<Qty<Velocity>> {
+    let target = Target::maneuver(x.id.as_str(), Some("delta_v"));
+    qty_opt(x.delta_v.as_ref(), target, m)
+}
+
 /// `[transfer]` の日付（読めなければ不足入力に記録して外側が `None`、書かれていなければ `Some(None)`）。
 fn transfer_input(x: &Maneuver, m: &mut MissingInputs) -> Option<Option<DatedTransferInput>> {
     match maneuver_dates::parse(x) {
@@ -239,6 +261,7 @@ fn transfer_input(x: &Maneuver, m: &mut MissingInputs) -> Option<Option<DatedTra
             departure,
             arrival,
             departure_by: departure_by(x.transfer.as_ref().and_then(|t| t.departure_by)),
+            flybys: flyby_inputs(x, m)?,
         })),
         Some(Err((key, why))) => {
             let field = format!("transfer.{key}");
@@ -246,6 +269,32 @@ fn transfer_input(x: &Maneuver, m: &mut MissingInputs) -> Option<Option<DatedTra
             None
         }
     }
+}
+
+/// `[[transfer.flybys]]`（日付の順。日付が読めなければ不足入力に記録して `None`、高度の下限の次元が違えば不足入力に記録する）。
+fn flyby_inputs(x: &Maneuver, m: &mut MissingInputs) -> Option<Vec<FlybyInput>> {
+    let written = x
+        .transfer
+        .as_ref()
+        .map(|t| t.flybys.as_slice())
+        .unwrap_or_default();
+    let mut out = Vec::with_capacity(written.len());
+    for (f, read) in written.iter().zip(maneuver_dates::parse_flybys(x)) {
+        let target = Target::maneuver(x.id.as_str(), Some("transfer.flybys"));
+        match read {
+            Ok((body, date)) => out.push(FlybyInput {
+                body,
+                date,
+                min_altitude: qty_opt(f.min_altitude.as_ref(), target, m),
+                powered: f.is_powered(),
+            }),
+            Err(why) => {
+                m.push(target, why);
+                return None;
+            }
+        }
+    }
+    Some(out)
 }
 
 /// 数値伝搬で効く制約（`[constraints]`）。
@@ -357,28 +406,71 @@ fn tanks(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<PropellantTank> {
         .collect()
 }
 
-/// RCS でのアンロードの入力（`aocs.rw_unloading` の射影とミッション期間）。足せなければ理由。
+/// RCS でのアンロードの入力（区間ごとの `aocs.rw_unloading` の射影と長さ）。足せなければ理由。
+/// 区間はフェーズの並びの順で、フェーズの軌道・姿勢則・形態で評価し、長さはフェーズの `duration`
+/// （どのフェーズにも期間が無い、またはフェーズが無い設計は、設計の軌道とミッション期間の 1 区間）。
 fn unloading(ctx: &Context<'_>) -> (Option<UnloadingInput>, Option<UnloadingNote>) {
     if by_role(ctx, Role::Thruster).next().is_none() {
         return (None, Some(UnloadingNote::NoRcs));
     }
-    let Ok(rw) = aocs::rw_unloading(ctx) else {
-        return (None, Some(UnloadingNote::UnloadingInputsMissing));
+    let phases = ctx.design.ordered_phases();
+    let legs = if phases.iter().any(|p| p.duration.is_some()) {
+        phase_legs(ctx, &phases)
+    } else {
+        mission_leg(ctx)
     };
-    if rw.rcs.is_none() {
-        return (None, Some(UnloadingNote::NoRcs));
+    match legs {
+        Ok(legs) if legs.iter().all(|l| l.rw_unloading.rcs.is_none()) => {
+            (None, Some(UnloadingNote::NoRcs))
+        }
+        Ok(legs) if legs.iter().all(|l| l.duration.is_none()) => {
+            (None, Some(UnloadingNote::NoMissionDuration))
+        }
+        Ok(legs) => (Some(UnloadingInput { legs }), None),
+        Err(()) => (None, Some(UnloadingNote::UnloadingInputsMissing)),
     }
-    let duration = ctx.mission_duration();
-    match duration {
-        Some(d) => (
-            Some(UnloadingInput {
-                rw_unloading: rw,
-                mission_duration: d,
-            }),
-            None,
-        ),
-        None => (None, Some(UnloadingNote::NoMissionDuration)),
+}
+
+/// 設計の軌道とミッション期間の 1 区間（フェーズに期間が無い設計。期間が無ければ区間の長さも `None`）。
+fn mission_leg(ctx: &Context<'_>) -> Result<Vec<UnloadingLeg>, ()> {
+    let rw_unloading = aocs::rw_unloading(ctx).map_err(|_| ())?;
+    Ok(vec![UnloadingLeg {
+        phase: None,
+        rw_unloading,
+        duration: ctx.mission_duration(),
+    }])
+}
+
+/// フェーズごとの区間。軌道・姿勢則・形態はそのフェーズのもの（[`Context::in_phase`]）。姿勢則のモードは、ケースを選んでいればそのモード、
+/// なければフェーズの `modes` のうち姿勢則を持つ唯一のもの（無い・複数なら姿勢則の表から一意に選べるときだけ。選べなければ入力不足）。
+fn phase_legs(ctx: &Context<'_>, phases: &[&Phase]) -> Result<Vec<UnloadingLeg>, ()> {
+    let mut m = MissingInputs::new();
+    let legs: Vec<Option<UnloadingLeg>> = phases
+        .iter()
+        .map(|&p| {
+            let c = ctx.in_phase(p);
+            let target = Target::phase(p.id.as_str(), Some("duration"));
+            ctx.note(target.clone());
+            let duration = qty_opt::<Time>(p.duration.as_ref(), target, &mut m);
+            let laws = c.laws();
+            let mut with_law = p.modes.iter().filter(|id| laws.contains_key(id.as_str()));
+            let unique = with_law.next().filter(|_| with_law.next().is_none());
+            let mode = c
+                .case_mode()
+                .map(|x| x.id.as_str())
+                .or(unique.map(|id| id.as_str()));
+            let rw_unloading = aocs::rw_unloading_for_mode(&c, mode).ok()?;
+            Some(UnloadingLeg {
+                phase: Some(p.id.as_str().to_owned()),
+                rw_unloading,
+                duration,
+            })
+        })
+        .collect();
+    if !m.is_empty() {
+        return Err(());
     }
+    legs.into_iter().collect::<Option<Vec<_>>>().ok_or(())
 }
 
 #[cfg(test)]

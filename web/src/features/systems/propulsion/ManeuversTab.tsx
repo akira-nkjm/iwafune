@@ -181,6 +181,11 @@ function ManeuverRow({
               <span className="text-ink-3">{t.targetKeys[x.key] ?? x.key}</span> {x.value.display}
             </span>
           ))}
+          {m.delta_v && (
+            <span>
+              <span className="text-ink-3">{t.targetKeys.delta_v}</span> {m.delta_v.display}
+            </span>
+          )}
           {m.text.depart && m.text.arrive && (
             <span>
               <span className="text-ink-3">{t.targetKeys.transfer}</span> {m.text.depart} →{" "}
@@ -188,6 +193,11 @@ function ManeuverRow({
               {m.text.departure_by && <> ({label("departure_by", m.text.departure_by)})</>}
             </span>
           )}
+          {(m.text.flybys ?? []).map((f) => (
+            <span key={f}>
+              <span className="text-ink-3">{t.targetKeys.flybys}</span> {f}
+            </span>
+          ))}
         </span>
       </Td>
       <Td mono className="text-ink-3">

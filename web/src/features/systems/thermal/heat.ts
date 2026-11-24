@@ -1,11 +1,6 @@
 import type { PartHeat, ThermalSteadyOutput, ThermalTransientOutput } from "@/api/types";
+import { type HeatScale, heatRatio, heatScaleOfValues } from "@/lib/heat-scale";
 import { heatHex, type Scheme, toneHexFor } from "@/lib/tone";
-
-/** 色の範囲（SI の K）。全ケースの定常と非定常の全時刻を通した最低と最高 */
-export interface HeatScale {
-  min: number;
-  max: number;
-}
 
 /** 熱画像に使う温度の出どころ: 全ケースの最悪（API の `part_heat`）・定常の 1 ケース・非定常のある時刻 */
 export type HeatSource =
@@ -33,22 +28,17 @@ export function transientTemperatures(
 }
 
 /**
- * 色の範囲。全ケースの定常の節点温度と、非定常の全時刻の節点温度の最低・最高。出どころを切り替えても
+ * 色の範囲（`lib/heat-scale.ts`）。全ケースの定常の節点温度と、非定常の全時刻の節点温度の最低・最高。出どころを切り替えても
  * 同じ範囲を使うので、色の意味は変わらない。値が 1 つも無ければ null。
  */
 export function heatScaleOf(
   steady: ThermalSteadyOutput | null,
   transient: TransientTemperatures | null,
 ): HeatScale | null {
-  let min = Number.POSITIVE_INFINITY;
-  let max = Number.NEGATIVE_INFINITY;
-  const take = (v: number) => {
-    min = Math.min(min, v);
-    max = Math.max(max, v);
-  };
-  for (const c of steady?.cases ?? []) for (const n of c.nodes) take(n.temperature);
-  for (const values of transient?.nodes.values() ?? []) for (const v of values) take(v);
-  return Number.isFinite(min) ? { min, max } : null;
+  const values: number[] = [];
+  for (const c of steady?.cases ?? []) for (const n of c.nodes) values.push(n.temperature);
+  for (const series of transient?.nodes.values() ?? []) values.push(...series);
+  return heatScaleOfValues(values);
 }
 
 /** 選んだ出どころでの節点の温度（節点 ID → K）。最悪は部品ごとの代表温度（`part_heat`）から節点ごとに拾う */
@@ -72,14 +62,6 @@ export function nodeTemperatures(
     }
   }
   return out;
-}
-
-/**
- * 色の位置（0 = 範囲の最低温度、1 = 最高温度）。色を塗るためだけの比で、物理量ではない。色そのものは
- * `lib/tone.ts` の `heatHex`（3D と凡例で共通）
- */
-export function heatRatio(t: number, scale: HeatScale): number {
-  return scale.max > scale.min ? (t - scale.min) / (scale.max - scale.min) : 0.5;
 }
 
 /**

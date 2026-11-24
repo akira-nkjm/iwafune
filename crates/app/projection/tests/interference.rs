@@ -172,3 +172,42 @@ fn in_phase_reads_the_placement_of_that_phase() {
     assert_eq!(overlaps("SPREAD"), 0);
     assert_eq!(overlaps("PLAIN"), 1);
 }
+
+/// 形態 NEAR は C を x = 0.4 m（0.3〜0.5 m）へ動かす: B との重なりは 0.1 m（基準は 0.05 m）。
+const NEAR: &str = "label = \"Near\"\n\n[pose.C]\nposition = { x = 0.4, y = 0.0, z = 0.0 }\n";
+
+/// 承知済みの組は、所見の種類と形態で絞って解析の入力になる。形態を指さない承知はどの配置にも効き、形態を指した承知はその形態だけに効く。
+/// 円錐の所見の承知は干渉の入力に入らない。
+#[test]
+fn acknowledgements_are_filtered_by_kind_and_configuration() {
+    let d = design(&[
+        ("configurations/NEAR.toml", NEAR),
+        (
+            "analysis/structure.toml",
+            "[[acknowledged]]\nfinding = \"interference\"\nfirst = \"B\"\nsecond = \"C\"\nconfiguration = \"NEAR\"\nreason = \"near only\"\n\n[[acknowledged]]\nfinding = \"cone_clearance\"\nfirst = \"B\"\nsecond = \"C\"\nreason = \"cone, not an overlap\"\n",
+        ),
+    ]);
+    let resolved = fune_model::resolve(&d);
+    let ctx = Context::bare(&d, &resolved);
+    let acknowledged = |configuration: Option<&str>| {
+        let (json, _) =
+            fune_projection::project_json_with_configuration(Interference::ID, &ctx, configuration);
+        let input: sat_analysis::structure::InterferenceInput =
+            serde_json::from_value(json.unwrap()).unwrap();
+        let out = Interference::run(&input).unwrap();
+        (input.acknowledged.len(), out)
+    };
+    // 基準: 形態を指した承知は効かず、重なりは警告のまま
+    let (n, out) = acknowledged(None);
+    assert_eq!(n, 0);
+    assert!(!out.overlaps[0].acknowledged);
+    assert_eq!(out.checks[0].verdict, Verdict::Warning);
+    // 形態 NEAR: 承知が効き、重なりは残るが判定は ok
+    let (n, out) = acknowledged(Some("NEAR"));
+    assert_eq!(n, 1);
+    assert_eq!(out.overlaps.len(), 1);
+    assert!((out.overlaps[0].depth.value() - 0.1).abs() < 1e-12);
+    assert!(out.overlaps[0].acknowledged);
+    assert_eq!(out.overlaps[0].reason.as_deref(), Some("near only"));
+    assert_eq!(out.checks[0].verdict, Verdict::Ok);
+}

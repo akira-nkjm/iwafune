@@ -1,35 +1,45 @@
-//! メッシュ。軸ごとに 1 つの共通の格子を作り、パネルの節点をその格子の点に置く。
-//! 共有する辺・T 字の接合では節点が同じ格子点になるので、パネルは節点で剛につながる。
+//! メッシュ。パネルの節点・要素・つながりと、フレームの部材の位置。
+//!
+//! - 軸に平行なパネル（[`grid`]）: 軸ごとに 1 つの共通の格子を作り、節点をその格子の点に置く。共有する辺・T 字では節点が同じ格子点になる。
+//! - 軸に沿わないパネル（[`skewed`]）: パネルごとに自分の面内の格子を作り、姿勢で機体座標に置く。許容差の内で合う節点は共有する。
+//! - フレームの部材（[`members`]）: フレームの箱の辺の上にある既存の節点を、辺に沿って梁要素でつなぐ（新しい節点は作らない）。
+//!
+//! どのパネルも同じ [`PanelMesh`]（局所の軸と格子）で表すので、要素・質量・取り付けは軸に平行かどうかを区別しない。
 
-use super::input::{ModalFemInput, ModalFemPanel};
+mod grid;
+mod members;
+mod skewed;
+
+use super::input::{ModalFemFace, ModalFemInput};
 use crate::spec::AnalysisError;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
+
+pub use crate::plate_grid::in_plane_axes;
 
 /// 既定の要素の大きさの上限 [m]。
 pub const DEFAULT_MESH_CAP: f64 = 0.025;
 /// 既定の要素の大きさを決める「最短の辺を何分割するか」。
 pub const DEFAULT_MESH_DIVISIONS: f64 = 4.0;
-/// 区間を要素の大きさで割った値の切り上げで、丸めの誤差を吸収する幅（要素の数に対する比）。
-const DIVISION_SLACK: f64 = 1.0e-6;
 /// 辺・面の位置を一致とみなす既定の許容差 [m]。
 pub const DEFAULT_MERGE_TOLERANCE: f64 = 1.0e-3;
 
-/// 1 枚のパネルの格子。
+/// 1 枚のパネルの格子。局所の座標 (u, v, n) の点の機体座標は `origin + u·frame[0] + v·frame[1] + n·frame[2]`。
 #[derive(Debug, Clone)]
 pub struct PanelMesh {
     pub id: String,
-    /// 法線の軸
-    pub normal: usize,
-    /// 面内の軸 (u, v)。法線から巡回順（u = n+1, v = n+2）なので (u, v, n) は右手系
-    pub axes: [usize; 2],
-    /// 中央面の位置（法線方向の座標）
-    pub plane: f64,
-    /// 面内の格子線の座標（u 方向、v 方向。昇順）
+    /// 局所の軸 (u, v, n) の機体座標での単位ベクトル（(u, v, n) は右手系）。
+    /// 軸に平行なパネルでは座標軸の巡回の並べ替え（法線 n、u = n+1、v = n+2）
+    pub frame: [[f64; 3]; 3],
+    /// 局所の原点の機体座標（軸に平行なパネルは中央面の位置だけを法線の成分に持つ。斜めのパネルは中心）
+    pub origin: [f64; 3],
+    /// 面内の格子線の局所座標（u 方向、v 方向。昇順）
     pub lines: [Vec<f64>; 2],
     /// 節点の番号（`nodes[i * lines[1].len() + j]` が u の i 番目、v の j 番目）
     pub nodes: Vec<usize>,
     /// 元の入力の添字
     pub source: usize,
+    /// 機体の軸に沿わないパネルか
+    pub skewed: bool,
 }
 
 impl PanelMesh {
@@ -43,7 +53,7 @@ impl PanelMesh {
         self.nodes[i * self.lines[1].len() + j]
     }
 
-    /// 面内の範囲 [u0, u1, v0, v1]。
+    /// 面内の範囲 [u0, u1, v0, v1]（局所座標）。
     pub fn extent(&self) -> [f64; 4] {
         let (u, v) = (&self.lines[0], &self.lines[1]);
         [u[0], u[u.len() - 1], v[0], v[v.len() - 1]]
@@ -53,6 +63,15 @@ impl PanelMesh {
     pub fn area(&self) -> f64 {
         let [u0, u1, v0, v1] = self.extent();
         (u1 - u0) * (v1 - v0)
+    }
+
+    /// 機体座標の点の局所座標 (u, v, 面からの距離 n)。
+    pub fn local(&self, pos: [f64; 3]) -> [f64; 3] {
+        std::array::from_fn(|i| {
+            (0..3)
+                .map(|k| (pos[k] - self.origin[k]) * self.frame[i][k])
+                .sum()
+        })
     }
 }
 
@@ -75,6 +94,51 @@ pub struct Joint {
     pub shared_nodes: usize,
 }
 
+/// 斜めのパネルの 4 辺のつながり（辺の節点がすべて別のパネルと共有なら「つながった」、一部なら「一部」、無ければ「つながらない」）。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SkewedJoin {
+    /// パネルの添字（`Mesh::panels`）
+    pub panel: usize,
+    pub joined: usize,
+    pub partly: usize,
+    pub unjoined: usize,
+}
+
+/// フレームの部材の辺 1 本（フレームの箱の辺。節点が 2 つ以上あるもの）。
+#[derive(Debug, Clone)]
+pub struct MemberEdge {
+    /// 辺を作る 2 つの面（軸 b = a+1 の面、軸 c = a+2 の面の順）
+    pub faces: [ModalFemFace; 2],
+    /// 辺の方向の軸
+    pub axis: usize,
+    /// 辺の位置（軸 a+1 と a+2 の座標）
+    pub fixed: [f64; 2],
+    /// 辺の上の節点（辺に沿った座標の昇順）
+    pub nodes: Vec<(f64, usize)>,
+}
+
+/// フレーム 1 つの部材。
+#[derive(Debug, Clone)]
+pub struct FrameMesh {
+    /// 入力の `frames` の添字
+    pub source: usize,
+    pub id: String,
+    pub edges: Vec<MemberEdge>,
+    /// 部材にならなかった辺（節点が 2 つ未満）
+    pub missing: Vec<[ModalFemFace; 2]>,
+}
+
+/// 梁要素 1 つ（フレームの部材の隣り合う 2 節点）。
+#[derive(Debug, Clone, Copy)]
+pub struct Member {
+    /// `Mesh::frames` の添字
+    pub frame: usize,
+    /// 部材の方向の軸
+    pub axis: usize,
+    pub nodes: [usize; 2],
+    pub length: f64,
+}
+
 /// 全体のメッシュ。
 #[derive(Debug, Clone)]
 pub struct Mesh {
@@ -82,6 +146,9 @@ pub struct Mesh {
     pub coords: Vec<[f64; 3]>,
     pub panels: Vec<PanelMesh>,
     pub joints: Vec<Joint>,
+    /// 斜めのパネルのつながり
+    pub skewed_joins: Vec<SkewedJoin>,
+    pub frames: Vec<FrameMesh>,
     /// 実際に使った要素の大きさ [m]
     pub mesh_size: f64,
 }
@@ -92,7 +159,7 @@ impl Mesh {
         self.coords.len()
     }
 
-    /// 要素数。
+    /// シェル要素の数。
     pub fn element_count(&self) -> usize {
         self.panels
             .iter()
@@ -100,7 +167,7 @@ impl Mesh {
             .sum()
     }
 
-    /// すべての要素（パネル順、u の添字が外側）。
+    /// すべてのシェル要素（パネル順、u の添字が外側）。
     pub fn elements(&self) -> impl Iterator<Item = Element> + '_ {
         self.panels.iter().enumerate().flat_map(|(pi, p)| {
             let (nu, nv) = p.dims();
@@ -120,133 +187,28 @@ impl Mesh {
         })
     }
 
+    /// すべての梁要素（フレーム順、辺の順、辺に沿った順）。
+    pub fn members(&self) -> impl Iterator<Item = Member> + '_ {
+        self.frames.iter().enumerate().flat_map(|(fi, f)| {
+            f.edges.iter().flat_map(move |e| {
+                e.nodes.windows(2).map(move |w| Member {
+                    frame: fi,
+                    axis: e.axis,
+                    nodes: [w[0].1, w[1].1],
+                    length: w[1].0 - w[0].0,
+                })
+            })
+        })
+    }
+
     /// 節点の座標の範囲 (最小, 最大)。
     pub fn bounds(&self) -> ([f64; 3], [f64; 3]) {
-        let mut lo = [f64::INFINITY; 3];
-        let mut hi = [f64::NEG_INFINITY; 3];
-        for c in &self.coords {
-            for a in 0..3 {
-                lo[a] = lo[a].min(c[a]);
-                hi[a] = hi[a].max(c[a]);
-            }
-        }
-        (lo, hi)
+        bounds_of(&self.coords)
     }
 }
 
 fn invalid(msg: String) -> AnalysisError {
     AnalysisError::InvalidInput(msg)
-}
-
-/// パネルの面内の軸 (u, v)（法線から巡回順）。
-pub fn in_plane_axes(normal: usize) -> [usize; 2] {
-    [(normal + 1) % 3, (normal + 2) % 3]
-}
-
-/// 面内の軸 `axis` 方向の辺の長さ（入力の `size` は昇順の 2 軸の順）。
-fn side_along(p: &ModalFemPanel, axis: usize) -> f64 {
-    let n = p.normal.index();
-    let rank = (0..3)
-        .filter(|a| *a != n)
-        .position(|a| a == axis)
-        .unwrap_or(0);
-    p.size[rank].value()
-}
-
-/// 値の列を、隣との差が許容差以下のものどうしで束ねた代表値（昇順）にする。
-fn cluster(mut values: Vec<f64>, tol: f64) -> Vec<f64> {
-    values.sort_by(f64::total_cmp);
-    let mut reps = Vec::new();
-    let mut group: Vec<f64> = Vec::new();
-    for v in values {
-        if group.last().is_some_and(|last| v - last > tol) {
-            reps.push(group.iter().sum::<f64>() / group.len() as f64);
-            group.clear();
-        }
-        group.push(v);
-    }
-    if !group.is_empty() {
-        reps.push(group.iter().sum::<f64>() / group.len() as f64);
-    }
-    reps
-}
-
-/// 代表値のうち `x` に最も近いものの添字。
-fn nearest(reps: &[f64], x: f64) -> usize {
-    reps.iter()
-        .enumerate()
-        .min_by(|a, b| (a.1 - x).abs().total_cmp(&(b.1 - x).abs()))
-        .map_or(0, |(i, _)| i)
-}
-
-/// 代表値の区間を `h` 以下に等分した格子線と、代表値ごとの格子線の添字。
-fn axis_grid(reps: &[f64], h: f64) -> (Vec<f64>, Vec<usize>) {
-    let mut lines = vec![reps[0]];
-    let mut at = vec![0];
-    for w in reps.windows(2) {
-        // 丸め（2.0000000000000004 など）で分割が 1 つ増えないよう、要素 1 つ分の 1e-6 だけ引いて切り上げる。
-        let n = ((w[1] - w[0]) / h - DIVISION_SLACK).ceil().max(1.0) as usize;
-        for k in 1..=n {
-            lines.push(w[0] + (w[1] - w[0]) * k as f64 / n as f64);
-        }
-        at.push(lines.len() - 1);
-    }
-    (lines, at)
-}
-
-/// 既定の要素の大きさ min(最短の辺 / 4, 25 mm)。
-fn default_mesh_size(panels: &[ModalFemPanel]) -> f64 {
-    let shortest = panels
-        .iter()
-        .flat_map(|p| p.size.iter().map(|s| s.value()))
-        .fold(f64::INFINITY, f64::min);
-    (shortest / DEFAULT_MESH_DIVISIONS).min(DEFAULT_MESH_CAP)
-}
-
-/// 軸ごとの格子線と、パネルの端・面の位置が格子線の何番目か。
-struct Grid {
-    lines: [Vec<f64>; 3],
-    /// 軸ごとの、代表値の添字 → 格子線の添字
-    at: [Vec<usize>; 3],
-    reps: [Vec<f64>; 3],
-}
-
-fn build_grid(input: &ModalFemInput, h: f64, tol: f64) -> Grid {
-    let mut raw: [Vec<f64>; 3] = Default::default();
-    for p in &input.panels {
-        let n = p.normal.index();
-        raw[n].push(p.center[n].value());
-        for axis in in_plane_axes(n) {
-            let (c, half) = (p.center[axis].value(), side_along(p, axis) / 2.0);
-            raw[axis].extend([c - half, c + half]);
-        }
-    }
-    let reps: [Vec<f64>; 3] = raw.map(|v| cluster(v, tol));
-    let built: Vec<(Vec<f64>, Vec<usize>)> = reps.iter().map(|r| axis_grid(r, h)).collect();
-    let mut it = built.into_iter();
-    let mut take = || it.next().unwrap_or_default();
-    let (l0, a0) = take();
-    let (l1, a1) = take();
-    let (l2, a2) = take();
-    Grid {
-        lines: [l0, l1, l2],
-        at: [a0, a1, a2],
-        reps,
-    }
-}
-
-/// パネルが占める格子点（`[軸 0, 軸 1, 軸 2]` の格子添字）の範囲を返す。
-fn panel_cells(grid: &Grid, p: &ModalFemPanel) -> ([usize; 3], [usize; 2], [usize; 2]) {
-    let n = p.normal.index();
-    let [u, v] = in_plane_axes(n);
-    let idx = |axis: usize, x: f64| grid.at[axis][nearest(&grid.reps[axis], x)];
-    let range = |axis: usize| {
-        let (c, half) = (p.center[axis].value(), side_along(p, axis) / 2.0);
-        [idx(axis, c - half), idx(axis, c + half)]
-    };
-    let mut base = [0; 3];
-    base[n] = idx(n, p.center[n].value());
-    (base, range(u), range(v))
 }
 
 /// 入力からメッシュを作る。
@@ -256,128 +218,98 @@ pub fn build(input: &ModalFemInput) -> Result<Mesh, AnalysisError> {
         .map_or(DEFAULT_MERGE_TOLERANCE, |t| t.value());
     let h = input
         .mesh_size
-        .map_or_else(|| default_mesh_size(&input.panels), |m| m.value());
-    let grid = build_grid(input, h, tol);
-    let mut keys: HashSet<[usize; 3]> = HashSet::new();
-    let mut cells: Vec<([usize; 3], [usize; 2], [usize; 2])> = Vec::new();
-    for p in &input.panels {
-        let c = panel_cells(&grid, p);
-        let (base, ur, vr) = c;
-        let [u, v] = in_plane_axes(p.normal.index());
-        for i in ur[0]..=ur[1] {
-            for j in vr[0]..=vr[1] {
-                let mut k = base;
-                (k[u], k[v]) = (i, j);
-                keys.insert(k);
-            }
-        }
-        cells.push(c);
-    }
-    let order = axis_priority(&grid);
-    let mut sorted: Vec<[usize; 3]> = keys.into_iter().collect();
-    sorted.sort_by_key(|k| order.map(|a| k[a]));
-    let id_of: HashMap<[usize; 3], usize> =
-        sorted.iter().enumerate().map(|(i, k)| (*k, i)).collect();
-    let coords = sorted
+        .map_or_else(|| grid::default_mesh_size(&input.panels), |m| m.value());
+    let (aligned, tilted): (Vec<grid::Aligned>, Vec<grid::Aligned>) = input
+        .panels
         .iter()
-        .map(|k| {
-            [
-                grid.lines[0][k[0]],
-                grid.lines[1][k[1]],
-                grid.lines[2][k[2]],
-            ]
+        .enumerate()
+        .partition(|(_, p)| p.orientation.is_none());
+    let grid::AlignedMesh {
+        mut coords,
+        mut panels,
+    } = grid::build(&aligned, h, tol)?;
+    if !tilted.is_empty() {
+        panels.extend(skewed::add(&tilted, h, tol, &mut coords)?);
+        order_nodes(&mut coords, &mut panels, tol);
+    }
+    let joints = joints(&panels, coords.len());
+    let skewed_joins = skewed_joins(&panels, coords.len());
+    let frames = input
+        .frames
+        .iter()
+        .enumerate()
+        .map(|(source, f)| {
+            let (edges, missing) = members::edges(f, &coords, tol);
+            FrameMesh {
+                source,
+                id: f.id.clone(),
+                edges,
+                missing,
+            }
         })
         .collect();
-    let panels = make_panels(input, &grid, &cells, &id_of)?;
-    check_overlap(&panels, &cells)?;
-    let joints = joints(&panels, sorted.len());
     Ok(Mesh {
         coords,
         panels,
         joints,
+        skewed_joins,
+        frames,
         mesh_size: h,
     })
 }
 
-/// 節点の並べ方の軸の優先順（箱の長い軸が先。ties は軸の番号順）。
-fn axis_priority(grid: &Grid) -> [usize; 3] {
-    let len = |a: usize| grid.lines[a][grid.lines[a].len() - 1] - grid.lines[a][0];
-    let mut order = [0, 1, 2];
-    order.sort_by(|a, b| len(*b).total_cmp(&len(*a)).then(a.cmp(b)));
-    order
-}
-
-fn make_panels(
-    input: &ModalFemInput,
-    grid: &Grid,
-    cells: &[([usize; 3], [usize; 2], [usize; 2])],
-    id_of: &HashMap<[usize; 3], usize>,
-) -> Result<Vec<PanelMesh>, AnalysisError> {
-    let mut out = Vec::new();
-    for (source, (p, (base, ur, vr))) in input.panels.iter().zip(cells).enumerate() {
-        let n = p.normal.index();
-        let [u, v] = in_plane_axes(n);
-        if ur[1] <= ur[0] || vr[1] <= vr[0] {
-            return Err(invalid(format!(
-                "{}: the panel collapses to a line or a point on the merged grid (size below the merge tolerance)",
-                p.id
-            )));
-        }
-        let mut nodes = Vec::new();
-        for i in ur[0]..=ur[1] {
-            for j in vr[0]..=vr[1] {
-                let mut k = *base;
-                (k[u], k[v]) = (i, j);
-                nodes.push(id_of[&k]);
-            }
-        }
-        out.push(PanelMesh {
-            id: p.id.clone(),
-            normal: n,
-            axes: [u, v],
-            plane: grid.lines[n][base[n]],
-            lines: [
-                grid.lines[u][ur[0]..=ur[1]].to_vec(),
-                grid.lines[v][vr[0]..=vr[1]].to_vec(),
-            ],
-            nodes,
-            source,
-        });
+/// 斜めのパネルを足したあとの節点の並べ直し（箱の長い軸の順。許容差ごとに丸めた座標で並べ、節点の番号を付け替える）。
+fn order_nodes(coords: &mut Vec<[f64; 3]>, panels: &mut [PanelMesh], tol: f64) {
+    let (lo, hi) = bounds_of(coords);
+    let mut axes = [0, 1, 2];
+    axes.sort_by(|a, b| {
+        (hi[*b] - lo[*b])
+            .total_cmp(&(hi[*a] - lo[*a]))
+            .then(a.cmp(b))
+    });
+    let step = tol.max(1.0e-9);
+    let key = |c: &[f64; 3]| axes.map(|a| (c[a] / step).round() as i64);
+    let mut order: Vec<usize> = (0..coords.len()).collect();
+    order.sort_by_key(|i| key(&coords[*i]));
+    let mut new_id = vec![0; coords.len()];
+    for (new, old) in order.iter().enumerate() {
+        new_id[*old] = new;
     }
-    Ok(out)
-}
-
-/// 同じ平面の同じ要素を 2 枚のパネルが占めていないか（剛性の二重計上）。
-fn check_overlap(
-    panels: &[PanelMesh],
-    cells: &[([usize; 3], [usize; 2], [usize; 2])],
-) -> Result<(), AnalysisError> {
-    let mut seen: HashMap<(usize, usize, usize, usize), usize> = HashMap::new();
-    for (pi, (p, (base, ur, vr))) in panels.iter().zip(cells).enumerate() {
-        for i in ur[0]..ur[1] {
-            for j in vr[0]..vr[1] {
-                if let Some(other) = seen.insert((p.normal, base[p.normal], i, j), pi) {
-                    return Err(invalid(format!(
-                        "Panels {} and {} overlap in the same plane",
-                        panels[other].id, p.id
-                    )));
-                }
-            }
+    *coords = order.iter().map(|i| coords[*i]).collect();
+    for p in panels {
+        for n in &mut p.nodes {
+            *n = new_id[*n];
         }
     }
-    Ok(())
 }
 
-/// 節点を共有するパネルの組（共有する節点の数つき）。
-fn joints(panels: &[PanelMesh], node_count: usize) -> Vec<Joint> {
+fn bounds_of(coords: &[[f64; 3]]) -> ([f64; 3], [f64; 3]) {
+    let mut lo = [f64::INFINITY; 3];
+    let mut hi = [f64::NEG_INFINITY; 3];
+    for c in coords {
+        for a in 0..3 {
+            lo[a] = lo[a].min(c[a]);
+            hi[a] = hi[a].max(c[a]);
+        }
+    }
+    (lo, hi)
+}
+
+/// 節点を持つパネルの一覧（節点ごと）。
+fn owners(panels: &[PanelMesh], node_count: usize) -> Vec<Vec<usize>> {
     let mut owners: Vec<Vec<usize>> = vec![Vec::new(); node_count];
     for (pi, p) in panels.iter().enumerate() {
         for &n in &p.nodes {
             owners[n].push(pi);
         }
     }
+    owners
+}
+
+/// 節点を共有するパネルの組（共有する節点の数つき）。
+fn joints(panels: &[PanelMesh], node_count: usize) -> Vec<Joint> {
     let mut pairs: BTreeMap<(usize, usize), usize> = BTreeMap::new();
-    for o in &owners {
+    for o in &owners(panels, node_count) {
         for (k, &a) in o.iter().enumerate() {
             for &b in &o[k + 1..] {
                 *pairs.entry((a.min(b), a.max(b))).or_insert(0) += 1;
@@ -388,4 +320,38 @@ fn joints(panels: &[PanelMesh], node_count: usize) -> Vec<Joint> {
         .into_iter()
         .map(|((a, b), shared_nodes)| Joint { a, b, shared_nodes })
         .collect()
+}
+
+/// 斜めのパネルの辺ごとのつながり。
+fn skewed_joins(panels: &[PanelMesh], node_count: usize) -> Vec<SkewedJoin> {
+    let owners = owners(panels, node_count);
+    let mut out = Vec::new();
+    for (pi, p) in panels.iter().enumerate().filter(|(_, p)| p.skewed) {
+        let (nu, nv) = p.dims();
+        let edges: [Vec<usize>; 4] = [
+            (0..nu).map(|i| p.node(i, 0)).collect(),
+            (0..nv).map(|j| p.node(nu - 1, j)).collect(),
+            (0..nu).map(|i| p.node(i, nv - 1)).collect(),
+            (0..nv).map(|j| p.node(0, j)).collect(),
+        ];
+        let mut join = SkewedJoin {
+            panel: pi,
+            joined: 0,
+            partly: 0,
+            unjoined: 0,
+        };
+        for edge in edges {
+            let shared = edge
+                .iter()
+                .filter(|n| owners[**n].iter().any(|o| *o != pi))
+                .count();
+            match shared {
+                0 => join.unjoined += 1,
+                s if s == edge.len() => join.joined += 1,
+                _ => join.partly += 1,
+            }
+        }
+        out.push(join);
+    }
+    out
 }

@@ -18,6 +18,11 @@ use toml_edit::{DocumentMut, Item, Table, Value};
 fn inline_nested(table: &mut Table, sections: &[&str]) {
     let keys: Vec<String> = table.iter().map(|(k, _)| k.to_string()).collect();
     for key in keys {
+        // 表の列（`[[transfer.flybys]]`）は列のまま、各行の中の入れ子の値をインライン表にする
+        if let Some(Item::ArrayOfTables(rows)) = table.get_mut(&key) {
+            rows.iter_mut().for_each(|row| inline_nested(row, &[]));
+            continue;
+        }
         if let Some(Item::Table(t)) = table.get_mut(&key) {
             let children = format!("{key}/");
             if sections.contains(&children.as_str()) {
@@ -147,6 +152,7 @@ mod maneuver_tests {
             thruster: Some("EPT".into()),
             after: None,
             via_altitude: None,
+            delta_v: None,
             target: ManeuverTarget {
                 altitude: Some(Quantity::new(600.0, "km")),
                 ..ManeuverTarget::default()
@@ -186,6 +192,7 @@ mod maneuver_tests {
             thruster: None,
             after: Some("RAISE".into()),
             via_altitude: None,
+            delta_v: None,
             target: ManeuverTarget {
                 body: Some(fune_model::design::CentralBodyKind::Mars),
                 perigee_altitude: Some(Quantity::new(300.0, "km")),
@@ -196,6 +203,7 @@ mod maneuver_tests {
                 departure: Some("2028-12-10T00:00:00Z".into()),
                 arrival: Some("2029-09-25T00:00:00Z".into()),
                 departure_by: None,
+                flybys: Vec::new(),
             }),
         };
         let path = "maneuvers/MARS.toml";
@@ -220,6 +228,78 @@ mod maneuver_tests {
         assert!(!removed.contains("transfer"), "{removed}");
     }
 
+    /// 途中のスイングバイは `[[transfer.flybys]]`（小さい記録の列。入れ子は 2 段）で、日付の順に書く。書いた形は `fune fmt` の正規形で、
+    /// 読み戻すと同じ。1 つの日付の変更はその行だけ変わり、外せば表の列ごと消える。
+    #[test]
+    fn flybys_are_an_array_of_tables_under_the_transfer() {
+        use fune_model::design::{CentralBodyKind, ManeuverFlyby, ManeuverTransfer};
+        let mut m = Maneuver {
+            id: "MARS".into(),
+            label: None,
+            category: ManeuverCategory::Insertion,
+            method: ManeuverMethod::Impulsive,
+            thruster: None,
+            after: None,
+            via_altitude: None,
+            delta_v: None,
+            target: ManeuverTarget {
+                body: Some(CentralBodyKind::Mars),
+                perigee_altitude: Some(Quantity::new(300.0, "km")),
+                ..ManeuverTarget::default()
+            },
+            constraints: ManeuverConstraints::default(),
+            transfer: Some(ManeuverTransfer {
+                departure: Some("2028-10-01T00:00:00Z".into()),
+                arrival: Some("2029-12-01T00:00:00Z".into()),
+                departure_by: None,
+                flybys: vec![
+                    ManeuverFlyby {
+                        body: CentralBodyKind::Venus,
+                        date: "2029-02-01T00:00:00Z".into(),
+                        min_altitude: Some(Quantity::new(400.0, "km")),
+                        powered: Some(false),
+                    },
+                    ManeuverFlyby {
+                        body: CentralBodyKind::Earth,
+                        date: "2029-06-01T00:00:00Z".into(),
+                        min_altitude: None,
+                        powered: None,
+                    },
+                ],
+            }),
+        };
+        let path = "maneuvers/MARS.toml";
+        let mut edits = Edits::new(&crate::read::FileSet::new());
+        write_record_with_sections(&mut edits, path, &m, MANEUVER_SECTIONS).unwrap();
+        let text = edits.files().get(path).unwrap().to_string();
+        assert_eq!(
+            text,
+            "category = \"insertion\"\nmethod   = \"impulsive\"\n\n[target]\nbody             = \"mars\"\nperigee_altitude = { value = 300.0, unit = \"km\" }\n\n[transfer]\ndeparture = \"2028-10-01T00:00:00Z\"\narrival   = \"2029-12-01T00:00:00Z\"\n\n[[transfer.flybys]]\nbody         = \"venus\"\ndate         = \"2029-02-01T00:00:00Z\"\npowered      = false\nmin_altitude = { value = 400.0, unit = \"km\" }\n\n[[transfer.flybys]]\nbody = \"earth\"\ndate = \"2029-06-01T00:00:00Z\"\n"
+        );
+        assert_eq!(crate::format::format_text(path, &text).unwrap(), text);
+        let back: Maneuver = toml::from_str(&text).unwrap();
+        assert_eq!(back.transfer, m.transfer);
+        // 日付 1 つの変更はその行だけ
+        m.transfer.as_mut().unwrap().flybys[1].date = "2029-06-02T00:00:00Z".into();
+        write_record_with_sections(&mut edits, path, &m, MANEUVER_SECTIONS).unwrap();
+        let after = edits.files().get(path).unwrap();
+        assert_eq!(after, text.replace("06-01", "06-02"));
+        // 行を足しても正規形のまま
+        let extra = m.transfer.as_ref().unwrap().flybys[0].clone();
+        m.transfer.as_mut().unwrap().flybys.push(extra);
+        write_record_with_sections(&mut edits, path, &m, MANEUVER_SECTIONS).unwrap();
+        let grown = edits.files().get(path).unwrap().to_string();
+        assert_eq!(crate::format::format_text(path, &grown).unwrap(), grown);
+        // 外せば表の列ごと消える
+        m.transfer.as_mut().unwrap().flybys.clear();
+        write_record_with_sections(&mut edits, path, &m, MANEUVER_SECTIONS).unwrap();
+        let removed = edits.files().get(path).unwrap();
+        assert!(
+            !removed.contains("flybys") && removed.contains("[transfer]"),
+            "{removed}"
+        );
+    }
+
     /// 打ち上げ機が出発を受け持つなら `[transfer]` に `departure_by` が 1 行足され、書いた形は `fune fmt` の正規形で、
     /// 読み戻すと同じ。外せばその行だけが消える（残りの桁そろえは `fune fmt` が正規形に戻す）。
     #[test]
@@ -233,12 +313,14 @@ mod maneuver_tests {
             thruster: None,
             after: None,
             via_altitude: None,
+            delta_v: None,
             target: ManeuverTarget::default(),
             constraints: ManeuverConstraints::default(),
             transfer: Some(ManeuverTransfer {
                 departure: Some("2028-12-10T00:00:00Z".into()),
                 arrival: Some("2029-09-25T00:00:00Z".into()),
                 departure_by: Some(DepartureBy::Launcher),
+                flybys: Vec::new(),
             }),
         };
         let path = "maneuvers/MARS.toml";

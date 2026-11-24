@@ -15,6 +15,7 @@
 //! | [`mass_properties`] | `propulsion.mass_properties` 推薬を積んだとき（寿命初期）と使ったあと（寿命末期）の質量と重心 |
 //! | [`orbit_history`] | `propulsion.orbit_history` マヌーバの順の軌道の推移（時系列） |
 //! | [`dv_budget`] | `propulsion.dv_budget` 区分ごとの ΔV の内訳・合計・マージン（RCS のアンロードの ΔV を含む） |
+//! | [`unloading`] | RCS でのアンロードの推薬と ΔV（フェーズごとに `aocs.rw_unloading` を評価して期間を掛け、`dv_budget` の区分 `unloading` に足す） |
 //! | [`propellant`] | `propulsion.propellant` 推薬の質量（ウェット・ドライ）とタンクの容積の余裕 |
 //! | [`thruster_usage`] | `propulsion.thruster_usage` スラスタの総インパルス・累積噴射時間・噴射回数と定格の比較 |
 //!
@@ -23,6 +24,7 @@
 pub mod dated;
 pub mod dv_budget;
 mod flight;
+pub mod flyby;
 pub mod history;
 pub mod input;
 pub mod launch_window;
@@ -34,14 +36,17 @@ pub mod propellant;
 mod sequence;
 pub mod thruster_usage;
 pub mod transfer_check;
+pub mod unloading;
 
 pub use dated::DatedTransferResult;
 pub use dv_budget::{DvBudget, DvBudgetOutput};
+pub use flyby::FlybyResult;
 pub use history::{OrbitHistory, OrbitSegment};
 pub use input::{
     DEFAULT_DV_MARGIN, DEFAULT_RESIDUAL_FRACTION, DatedTransferInput, DepartureProvider,
-    DvCategory, ManeuverInput, OrbitTarget, PropellantTank, PropulsionInput, PropulsionThruster,
-    ThrustConstraints, TransferMethod, UnloadingInput, UnloadingNote,
+    DvCategory, FlybyInput, ManeuverInput, OrbitTarget, PropellantTank, PropulsionInput,
+    PropulsionThruster, ThrustConstraints, TransferMethod, UnloadingInput, UnloadingLeg,
+    UnloadingNote,
 };
 pub use launch_window::{
     LaunchWindow, LaunchWindowGrid, LaunchWindowInput, LaunchWindowNote, LaunchWindowOutput,
@@ -56,12 +61,19 @@ pub use thruster_usage::{ThrusterUsage, ThrusterUsageOutput};
 pub use transfer_check::{
     TransferCheck, TransferCheckNote, TransferCheckOutput, TransferCheckResult,
 };
+pub use unloading::{DvUnloading, DvUnloadingLeg};
 
 #[cfg(test)]
 mod dated_tests;
 #[cfg(test)]
 mod propagated_tests;
 #[cfg(test)]
+mod swing_by_tests;
+#[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod transfer_check_tests;
+#[cfg(test)]
+mod unloading_tests;
+#[cfg(test)]
+mod written_tests;

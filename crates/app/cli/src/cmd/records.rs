@@ -23,6 +23,10 @@ pub fn case(c: &CaseCmd) -> Built<'_> {
         CaseCmd::Set(a) => Some((Op::SetCase { case: case_of(a)? }, &a.edit)),
         CaseCmd::SetPhase { id, phase, edit } => Some((edit::case_phase_op(id, Some(phase)), edit)),
         CaseCmd::UnsetPhase { id, edit } => Some((edit::case_phase_op(id, None), edit)),
+        CaseCmd::SetEpoch { id, epoch, edit } => {
+            Some((edit::case_epoch_op(id, Some(epoch))?, edit))
+        }
+        CaseCmd::UnsetEpoch { id, edit } => Some((edit::case_epoch_op(id, None)?, edit)),
         CaseCmd::Rm { id, edit } => Some((Op::RemoveCase { id: id.clone() }, edit)),
         CaseCmd::Rename { id, to, edit } => Some((
             Op::RenameCase {
@@ -31,7 +35,10 @@ pub fn case(c: &CaseCmd) -> Built<'_> {
             },
             edit,
         )),
-        CaseCmd::Ls | CaseCmd::FromEclipse { .. } | CaseCmd::FromSunDistance { .. } => None,
+        CaseCmd::Ls
+        | CaseCmd::FromEclipse { .. }
+        | CaseCmd::FromSunDistance { .. }
+        | CaseCmd::FromGeometry { .. } => None,
     })
 }
 
@@ -44,6 +51,7 @@ fn case_of(a: &CaseArgs) -> anyhow::Result<Case> {
         "side": a.side,
         "thermal_case": a.thermal_case,
         "orbits": a.orbits,
+        "epoch": a.epoch,
     });
     let mut case: Case = serde_json::from_value(value)
         .map_err(|e| anyhow::anyhow!("Cannot create the analysis case: {e}"))?;
@@ -209,6 +217,7 @@ fn maneuver_text(a: &ManeuverArgs) -> ManeuverText {
         thruster: a.thruster.clone(),
         after: a.after.clone(),
         via_altitude: a.via_altitude.clone(),
+        delta_v: a.delta_v.clone(),
         body: a.body.clone(),
         altitude: a.altitude.clone(),
         perigee_altitude: a.perigee_altitude.clone(),
@@ -221,6 +230,7 @@ fn maneuver_text(a: &ManeuverArgs) -> ManeuverText {
         depart: a.depart.clone(),
         arrive: a.arrive.clone(),
         departure_by: a.departure_by.clone(),
+        flybys: a.flybys.clone(),
     }
 }
 

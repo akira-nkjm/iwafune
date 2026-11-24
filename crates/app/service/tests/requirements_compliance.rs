@@ -1,6 +1,10 @@
 //! 要求適合表: デモの要求（fixtures/demo-6u/requirements）の判定と、確かめられない状態、ケースごとの集約。
 use fune_service::Workspace;
-use fune_service::dto::{ComplianceReport, ComplianceRow, NotVerifiedReason};
+use fune_service::analysis::run_analysis;
+use fune_service::dto::{
+    AnalysisRunResult, CheckView, ComplianceReport, ComplianceRow, NotVerifiedReason,
+    RunAnalysisRequest,
+};
 use fune_service::requirements::{compliance, fails};
 use sat_analysis::spec::Verdict;
 use std::path::Path;
@@ -45,11 +49,11 @@ fn the_demo_shows_every_verdict_and_every_unverified_state() {
         row(&report, "R_MISSION").reason,
         Some(NotVerifiedReason::DesignInput)
     );
-    // 最低固有振動数の判定は、梁を持たないデモでは出ない
-    assert_eq!(
-        row(&report, "R_FREQ_AXIAL").reason,
-        Some(NotVerifiedReason::KeyNotProduced)
-    );
+    // 最低固有振動数の要求は打ち上げ適合の判定（`frequency:<向き>`）を確かめ先にし、粗い有限要素のモードで判定される
+    // （梁を持たないデモで確かめ先が `structure.modal_estimate` だった間は、判定が出ず「確かめていない」だった）
+    for id in ["R_FREQ_AXIAL", "R_FREQ_LATERAL"] {
+        assert_eq!(verdict(id), Some(Verdict::Ok), "{id}");
+    }
     assert_eq!(
         row(&report, "R_DEPLOY").reason,
         Some(NotVerifiedReason::NoLink)
@@ -60,7 +64,7 @@ fn the_demo_shows_every_verdict_and_every_unverified_state() {
     let s = &report.summary;
     assert_eq!(
         (s.total, s.ok, s.warning, s.violation, s.not_verified),
-        (16, 8, 1, 2, 5)
+        (16, 10, 1, 2, 3)
     );
     assert!(fails(&report, false));
 }
@@ -184,4 +188,94 @@ fn each_row_is_judged_against_its_own_constraint_when_limits_overlap() {
     assert_eq!(verdict("X_TIGHT"), Some(Verdict::Violation));
     assert_eq!(verdict("R_MASS"), Some(Verdict::Ok));
     assert_eq!(verdict("X_LOOSE"), Some(Verdict::Ok));
+}
+
+/// 解析を実行して、キーの族（`key_covers`）に当たる判定のうち余裕が最も小さいものを返す（適合表を介さない期待値）。
+fn tightest(ws: &Workspace, id: &str, case: Option<&str>, family: &str) -> CheckView {
+    let req = RunAnalysisRequest {
+        case: case.map(str::to_owned),
+        ..RunAnalysisRequest::default()
+    };
+    let result: AnalysisRunResult = run_analysis(ws, id, &req).unwrap();
+    let hits: Vec<CheckView> = result
+        .checks
+        .into_iter()
+        .filter(|c| fune_model::design::key_covers(family, &c.key))
+        .collect();
+    hits.into_iter()
+        .filter(|c| c.margin.is_some())
+        .min_by(|a, b| a.margin.unwrap().total_cmp(&b.margin.unwrap()))
+        .unwrap()
+}
+
+/// 全回線の余裕の要求は、`comm.link_budget` が出した余裕の最小の回線の文を出す（最初の回線ではない）。
+#[test]
+fn the_link_margin_row_shows_the_tightest_link() {
+    let ws = Workspace::open(demo_root()).unwrap();
+    let report = compliance(&ws).unwrap();
+    let expected = tightest(&ws, "comm.link_budget", None, "margin");
+    let row = row(&report, "R_LINK_MARGIN");
+    assert_eq!(row.check.as_ref().unwrap().key, expected.key);
+    assert_eq!(row.margin, expected.margin);
+    assert_eq!(row.message.as_deref(), Some(expected.message.as_str()));
+    // 回線の余裕に差があって初めて、最初の判定との区別になる
+    let all: Vec<f64> = run_analysis(&ws, "comm.link_budget", &RunAnalysisRequest::default())
+        .unwrap()
+        .checks
+        .iter()
+        .filter(|c| fune_model::design::key_covers("margin", &c.key))
+        .filter_map(|c| c.margin)
+        .collect();
+    assert!(all.len() > 1 && all.iter().any(|m| *m > expected.margin.unwrap()));
+    // 1 つの回線だけを名指す要求は、その回線の文
+    let s_down = tightest(&ws, "comm.link_budget", None, "margin:s_down@TOKYO_GS");
+    assert_eq!(
+        row_check_key(&report, "R_LINK_S"),
+        Some(s_down.key.as_str())
+    );
+}
+
+fn row_check_key<'a>(report: &'a ComplianceReport, id: &str) -> Option<&'a str> {
+    row(report, id).check.as_ref().map(|c| c.key.as_str())
+}
+
+/// すべてのケースで成り立つ要求は、解析が出した余裕の最も小さい（DoD が最も深い）ケースの文を出し、そのケースを名指す。
+#[test]
+fn the_dod_row_shows_the_deepest_case() {
+    let ws = Workspace::open(demo_root()).unwrap();
+    let report = compliance(&ws).unwrap();
+    let r = row(&report, "R_DOD");
+    let per_case: Vec<(String, CheckView)> = r
+        .cases
+        .iter()
+        .map(|c| {
+            let case = c.case.clone().unwrap();
+            let tight = tightest(&ws, "power.energy_balance", Some(&case), "dod");
+            (case, tight)
+        })
+        .collect();
+    let (deepest, check) = per_case
+        .iter()
+        .min_by(|a, b| a.1.margin.unwrap().total_cmp(&b.1.margin.unwrap()))
+        .unwrap();
+    assert!(per_case.iter().any(|(_, c)| c.margin != check.margin));
+    assert_eq!(r.decisive_case.as_deref(), Some(deepest.as_str()));
+    assert_eq!(r.message.as_deref(), Some(check.message.as_str()));
+    let flagged: Vec<&str> = r
+        .cases
+        .iter()
+        .filter(|c| c.decisive)
+        .filter_map(|c| c.case.as_deref())
+        .collect();
+    assert_eq!(flagged, [deepest.as_str()]);
+}
+
+/// バジェットの行も、行の値を決めたケースを名指す（違反のケースが決める）。判定の件数は変わらない。
+#[test]
+fn a_budget_row_names_the_deciding_case() {
+    let report = compliance(&Workspace::open(demo_root()).unwrap()).unwrap();
+    let storage = row(&report, "R_STORAGE");
+    assert_eq!(storage.decisive_case.as_deref(), Some("hot_imaging"));
+    assert!(storage.check.is_none());
+    assert!(storage.margin.is_some_and(|m| m < 0.0));
 }

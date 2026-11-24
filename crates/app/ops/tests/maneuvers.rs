@@ -21,6 +21,7 @@ fn maneuver(id: &str, after: Option<&str>) -> Maneuver {
         thruster: Some("RW_X".into()),
         after: after.map(str::to_owned),
         via_altitude: None,
+        delta_v: None,
         target: ManeuverTarget {
             altitude: Some(Quantity::new(600.0, "km")),
             ..ManeuverTarget::default()
@@ -162,6 +163,7 @@ fn a_dated_transfer_is_written_and_has_cli_flags() {
         departure: Some("2028-12-10T00:00:00Z".into()),
         arrival: Some("2029-09-25T00:00:00Z".into()),
         departure_by: None,
+        flybys: Vec::new(),
     });
     let op = Op::CreateManeuver { maneuver: m };
     let p = plan(&snap, std::slice::from_ref(&op)).unwrap();

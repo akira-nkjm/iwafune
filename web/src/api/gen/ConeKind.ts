@@ -3,4 +3,4 @@
 /**
  * 円錐の種類。
  */
-export type ConeKind = "plume" | "field_of_view";
+export type ConeKind = "plume" | "field_of_view" | "beam";

@@ -233,6 +233,7 @@ pub(super) fn axis_check(a: &LaunchFitAxis, origin: &str) -> Check {
         a.verdict,
         message,
     )
+    .with_ratio_margin(a.margin)
 }
 
 #[cfg(test)]

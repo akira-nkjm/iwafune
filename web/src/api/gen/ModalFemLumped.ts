@@ -13,6 +13,10 @@ position: [number, number, number], mass: number,
  */
 footprint: [number, number, number] | null, 
 /**
- * 取り付けるパネルの ID（無ければ最も近いパネル）
+ * 取り付けるパネルの ID（無ければ、`frame`、さらに無ければ最も近いパネル。同じ距離のパネルが複数あれば質量を等分する）
  */
-panel: string | null, };
+panel: string | null, 
+/**
+ * 取り付け先をたどったフレーム（`ModalFemFrame::id`）。`panel` が無く、このフレームに部材があれば、質量はフレームの最も近い 2 本の辺に配る
+ */
+frame?: string, };

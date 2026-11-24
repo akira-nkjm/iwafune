@@ -7,14 +7,16 @@
 //! | 対象 | 候補 |
 //! |---|---|
 //! | 部品の属性・フィールド | `SetValue`（部品がカタログ品を選んでいれば品の側の書き先も。量には入力の例、列挙・真偽には選べる値） |
-//! | 設定 | `SetValue`（次元は `setting_dimension`）。回線の部品・アンテナの欄は `PickRef`（部品）、打ち上げ機・ディスペンサーは `PickRef`（カタログ品）、`data_downlink` は `PickRef`（回線）、軌道の `maneuver` は `PickRef`（日付つきの遷移を持つマヌーバ）。軌道の `source` は候補なし（対象外の理由） |
+//! | 設定 | `SetValue`（次元は `setting_dimension`。`conditions.launch` の欄が列挙の属性と同じ名前なら、選べる値は属性定義の語彙）。回線の部品・アンテナの欄は `PickRef`（部品）、打ち上げ機・ディスペンサーは `PickRef`（カタログ品）、`data_downlink` は `PickRef`（回線）、軌道の `maneuver` は `PickRef`（日付つきの遷移を持つマヌーバ）。軌道の `source` は候補なし（対象外の理由） |
 //! | 役割のどれかの部品 | その役割の部品が無ければ `AddPart` と `AssignPart`、有って値が無ければ `SetValueOnPart` |
 //! | マヌーバの `thruster` | `PickRef`（部品） |
 //! | モード・マヌーバ・地上局・回線・ケースの一覧の空 | `AddListItem` |
 //!
 //! どの候補も既存の Op になる（新しい編集の道は作らない）。
 
-use fune_model::design::setting_dims::{ANY, pattern_matches, setting_dimension};
+use fune_model::design::setting_dims::{
+    ANY, pattern_matches, setting_curve_dimensions, setting_dimension,
+};
 use fune_model::design::{Design, Maneuver};
 use fune_model::path::{ParamPath, SettingPath, SettingScope};
 use fune_model::resolve::{Origin, Resolved};
@@ -121,8 +123,24 @@ fn setting_fixes(design: &Design, site: (&Target, &MissingInput), s: &SettingPat
     {
         return vec![fix];
     }
+    if let Some(fix) = value::launch_enum(design, m, s) {
+        return vec![fix];
+    }
     let dimension = setting_dimension(s).map(str::to_owned);
-    vec![set_value(m, ParamPath::Setting(s.clone()), dimension)]
+    let mut fix = set_value(m, ParamPath::Setting(s.clone()), dimension);
+    // 曲線（表）の欄は、点と単位（`"1:1 2:0.5 (mm -> Gy/yr)"`）で打つ（量の例を曲線の例に直す）
+    if let (Some((at, v)), Fix::SetValue { example, .. }) = (setting_curve_dimensions(s), &mut fix)
+    {
+        *example = value::curve_example(at, v);
+    }
+    // 状態ベクトルの軌道の位置・速度は 3 成分と単位（`"1 0 0 km"`）で打つ（量の例を 3 成分の例に直す）
+    let vector = ["position", "velocity"]
+        .iter()
+        .any(|k| pattern_matches(SettingScope::Conditions, &["orbit", k], s));
+    if let (true, Fix::SetValue { example, .. }) = (vector, &mut fix) {
+        *example = example.as_deref().and_then(value::vector_example);
+    }
+    vec![fix]
 }
 
 fn add_item(list: ListKind, command: &str) -> Fix {

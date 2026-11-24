@@ -66,6 +66,10 @@ it("上書きの印は、形態を表示しているときに上書きされた�
   expect(render()).not.toContain(label);
   expect(render([], null, design).split(label)).toHaveLength(1);
   expect(render([], null, design, "STOWED").split(label)).toHaveLength(2);
+  // 印は押せる（押すとその部品を選ぶ）ボタンの中にある
+  expect(render([], null, design, "STOWED")).toMatch(
+    new RegExp(`<button type="button" class="rounded-chip"><span[^>]*>${label}</span></button>`),
+  );
   // 取付の無い部品（根）は API の mount が無いので、形態の `overridden` に載っているかで決める
   const root = { ...fixture.parts[0]!, id: "RW_X", mount: null };
   const rooted = {
@@ -75,6 +79,7 @@ it("上書きの印は、形態を表示しているときに上書きされた�
       {
         id: "STOWED",
         label: "Stowed",
+        label_en: null,
         description: null,
         overridden: ["RW_X"],
         text: { id: "STOWED" },

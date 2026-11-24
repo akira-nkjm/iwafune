@@ -107,6 +107,11 @@ pub fn solar_array(ctx: &Context<'_>, m: &mut MissingInputs) -> SolarArray {
                 .as_ref()
                 .and_then(|p| p.conversion_efficiency),
         ),
+        shadowing: crate::structure::shadowing(
+            ctx,
+            AnalysisSystem::Power,
+            ctx.design.analysis.power.as_ref().and_then(|p| p.shadowing),
+        ),
     }
 }
 

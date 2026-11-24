@@ -58,6 +58,7 @@ fn input(base: Option<&str>) -> EnergyBalanceInput {
             }],
             solar_flux: Some(Qty::from_raw(1361.0)),
             conversion_efficiency: None,
+            shadowing: None,
         },
         life: Some(SolarLife::Bol),
         batteries: vec![EnergyBalanceBattery {

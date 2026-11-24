@@ -1,13 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { PartHeat, ThermalSteadyOutput, ThermalTransientOutput } from "@/api/types";
+import { heatRatio } from "@/lib/heat-scale";
 import { heatHex, toneHex } from "@/lib/tone";
-import {
-  heatRatio,
-  heatScaleOf,
-  nodeTemperatures,
-  partHeatColors,
-  transientTemperatures,
-} from "./heat";
+import { heatScaleOf, nodeTemperatures, partHeatColors, transientTemperatures } from "./heat";
 
 describe("熱画像の色", () => {
   const environment = {

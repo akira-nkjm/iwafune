@@ -41,6 +41,7 @@ fn radiating(id: &str, area_m2: f64) -> (super::super::ThermalNode, ThermalSurfa
 fn network(parts: &[(&str, f64)], links: &[(&str, &str, f64)]) -> Compiled {
     let (nodes, surfaces): (Vec<_>, Vec<_>) = parts.iter().map(|(id, a)| radiating(id, *a)).unzip();
     Compiled::new(&ThermalNetwork {
+        plates: Vec::new(),
         mounts: None,
         nodes,
         conductive: links
@@ -53,7 +54,9 @@ fn network(parts: &[(&str, f64)], links: &[(&str, &str, f64)]) -> Compiled {
             .collect(),
         radiative: vec![],
         enclosure: None,
+        view_factors: None,
         surfaces,
+        shadowing: None,
     })
     .unwrap()
 }

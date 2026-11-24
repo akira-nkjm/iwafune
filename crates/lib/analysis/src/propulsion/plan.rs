@@ -7,16 +7,19 @@
 //! - 目標に別の天体（`target.body`）を書いたとき: パッチドコニックの遷移（`sat_astro::transfer::patched_conic`。
 //!   出発の軌道の近点で脱出し、目標の天体を回る軌道の近点で捕獲する）。軌道は中心天体ごと持つ。
 //!   `transfer`（出発・到着の日）があれば、遷移は両端の天体のその日の位置からの Lambert（`sat_astro::transfer::dated_transfer`。
-//!   噴射は同じく軌道の近点。結果は [`super::dated`]）。
+//!   噴射は同じく軌道の近点。結果は [`super::dated`]）。途中のスイングバイ（`transfer.flybys`）は、前後の脚をつなぎ、通過ごとの近点の噴射を
+//!   出発と到着の噴射の間に足す（`sat_astro::transfer::dated_transfer_via`。動力なしと宣言した通過は数えない）。
 //! - 数値伝搬: 最初は低推力と同じ見積もり。伝搬の結果（[`Ideal::Propagated`]）で `sequence` が置き換える。
 
-use super::input::{DepartureProvider, ManeuverInput, OrbitTarget, TransferMethod};
+use super::input::{
+    DatedTransferInput, DepartureProvider, ManeuverInput, OrbitTarget, TransferMethod,
+};
 use crate::spec::AnalysisError;
 use sat_astro::ephem::CentralBody;
 use sat_astro::orbit::OrbitSpec;
 use sat_astro::transfer::{
-    Apsides, DatedTransfer, ImpulsiveBurn, ImpulsiveTransfer, apse_transfer, bi_elliptic,
-    dated_transfer, edelbaum, patched_conic,
+    Apsides, DatedTransfer, FlybyStop, ImpulsiveBurn, ImpulsiveTransfer, NEGLIGIBLE_DV_M_S,
+    PatchedBurn, apse_transfer, bi_elliptic, dated_transfer_via, edelbaum, patched_conic,
 };
 use sat_units::typed::{Length, Qty};
 use serde::{Deserialize, Serialize};
@@ -43,12 +46,16 @@ pub enum ManeuverNote {
     PatchedConic,
     /// 出発の日・到着の日の天体の位置からの Lambert の遷移（日付つきのパッチドコニック）で計算した
     DatedLambert,
+    /// 途中の惑星のスイングバイをパッチドコニックで計算した（通過は一瞬。影響圏の中の時間・双曲線の弧は扱わない）
+    SwingBy,
     /// 出発の噴射を打ち上げ機が行うので、衛星の ΔV・推薬に数えない（C3・超過速度は打ち上げの要求として出す）
     DepartureByLauncher,
     /// 天体間の遷移では軌道面の変更（傾斜角）の ΔV を数えない
     PlaneChangeIgnored,
     /// 数値伝搬が上限の時間までに目標に届かなかった（届いたところまでの値）
     PropagationNotReached,
+    /// ΔV は軌道の計算でなく、設計データに直接書かれた値（軌道は変わらない）
+    WrittenDeltaV,
 }
 
 /// 軌道（中心天体・近地点と遠地点の半径・傾斜角）。
@@ -137,6 +144,8 @@ pub(super) struct Planned {
     pub dated: Option<DatedTransfer>,
     /// 出発の噴射を打ち上げ機が行う（`ideal` の噴射の列と `sites` から出発の噴射を除いてある。C3・超過速度は `dated` に残る）
     pub launcher_departure: bool,
+    /// `ideal` の噴射の列のうち、途中のスイングバイの噴射の範囲（通過がなければ空。飛行の途中の噴射なので、有限燃焼の遷移の時間に半分ずつ足さない）
+    pub mid_burns: std::ops::Range<usize>,
 }
 
 impl Planned {
@@ -151,6 +160,9 @@ impl Planned {
 
 /// 軌道 `from` からマヌーバ `m` を行う計画。
 pub(super) fn plan(from: Orbit, m: &ManeuverInput) -> Result<Planned, AnalysisError> {
+    if let Some(dv) = m.delta_v {
+        return written(from, dv.value(), m);
+    }
     if let Some(body) = m.target.body.filter(|b| *b != from.central) {
         return interbody(from, body, m);
     }
@@ -200,6 +212,50 @@ pub(super) fn plan(from: Orbit, m: &ManeuverInput) -> Result<Planned, AnalysisEr
         notes,
         dated: None,
         launcher_departure: false,
+        mid_burns: 0..0,
+    })
+}
+
+/// 直接書いた ΔV（余裕）。軌道は変わらず、ΔV はそのまま理想の ΔV にする（噴射の位置は今の軌道の長半径。
+/// インパルスは 1 回の噴射、低推力は連続噴射）。軌道の計算（`target` ・`via_altitude`・`transfer`）とは一緒に使えない。
+fn written(from: Orbit, delta_v_m_s: f64, m: &ManeuverInput) -> Result<Planned, AnalysisError> {
+    let invalid = |why: &str| AnalysisError::InvalidInput(format!("Maneuver {}: {why}", m.id));
+    if m.transfer.is_some() || m.via_altitude.is_some() || m.target.body.is_some() {
+        return Err(invalid(
+            "A written delta_v cannot be combined with a target body, via_altitude or a dated transfer",
+        ));
+    }
+    if !(delta_v_m_s >= 0.0 && delta_v_m_s.is_finite()) {
+        return Err(invalid(
+            "A written delta_v must be a finite value of 0 or more",
+        ));
+    }
+    let ideal = match m.method {
+        TransferMethod::Impulsive | TransferMethod::FiniteBurn => {
+            Ideal::Impulsive(ImpulsiveTransfer {
+                burns: vec![ImpulsiveBurn {
+                    radius_m: from.apsides.semi_major_axis_m(),
+                    delta_v_m_s,
+                }],
+                coast_s: 0.0,
+            })
+        }
+        TransferMethod::LowThrust => Ideal::LowThrust(delta_v_m_s),
+        TransferMethod::Propagated => {
+            return Err(invalid(
+                "A written delta_v is used with impulsive or low_thrust (propagated needs an orbit change)",
+            ));
+        }
+    };
+    Ok(Planned {
+        from,
+        to: from,
+        ideal,
+        sites: Vec::new(),
+        notes: vec![ManeuverNote::WrittenDeltaV],
+        dated: None,
+        launcher_departure: false,
+        mid_burns: 0..0,
     })
 }
 
@@ -227,15 +283,16 @@ fn interbody(from: Orbit, body: CentralBody, m: &ManeuverInput) -> Result<Planne
         }
     };
     let capture = Apsides::new(rp, ra);
-    let (departure, arrival, coast_s, dated) = match m.transfer {
+    let (departure, arrival, coast_s, dated) = match &m.transfer {
         Some(t) => {
-            let d = dated_transfer(
+            let d = dated_transfer_via(
                 from.central,
                 from.apsides,
                 body,
                 Some(capture),
                 t.departure,
                 t.arrival,
+                &flyby_stops(t),
             )?;
             (d.departure, d.arrival, d.transfer_time_s, Some(d))
         }
@@ -249,6 +306,9 @@ fn interbody(from: Orbit, body: CentralBody, m: &ManeuverInput) -> Result<Planne
     } else {
         ManeuverNote::PatchedConic
     }];
+    if dated.as_ref().is_some_and(|d| !d.flybys.is_empty()) {
+        notes.push(ManeuverNote::SwingBy);
+    }
     if m.via_altitude.is_some() {
         notes.push(ManeuverNote::ViaAltitudeIgnored);
     }
@@ -257,26 +317,22 @@ fn interbody(from: Orbit, body: CentralBody, m: &ManeuverInput) -> Result<Planne
     }
     let launcher_departure = dated.is_some()
         && m.transfer
+            .as_ref()
             .is_some_and(|t| t.departure_by == DepartureProvider::Launcher);
     if launcher_departure {
         notes.push(ManeuverNote::DepartureByLauncher);
     }
-    let legs = (!launcher_departure)
-        .then_some(departure)
+    let first = (!launcher_departure).then(|| burn_of(departure));
+    let mid = dated
+        .as_ref()
+        .map(|d| flyby_burns(d, m.transfer.as_ref()))
+        .unwrap_or_default();
+    let mid_start = usize::from(first.is_some());
+    let mid_burns = mid_start..mid_start + mid.len();
+    let (burns, sites): (Vec<_>, Vec<_>) = first
         .into_iter()
-        .chain(arrival);
-    let (burns, sites): (Vec<_>, Vec<_>) = legs
-        .map(|b| {
-            let burn = ImpulsiveBurn {
-                radius_m: b.radius_m,
-                delta_v_m_s: b.delta_v_m_s,
-            };
-            let site = BurnSite {
-                central: b.central,
-                v_inf_m_s: b.v_inf_m_s,
-            };
-            (burn, site)
-        })
+        .chain(mid)
+        .chain(arrival.map(burn_of))
         .unzip();
     Ok(Planned {
         from,
@@ -290,5 +346,56 @@ fn interbody(from: Orbit, body: CentralBody, m: &ManeuverInput) -> Result<Planne
         notes,
         dated,
         launcher_departure,
+        mid_burns,
     })
+}
+
+/// 噴射 1 回の（噴射・場所）。
+fn burn_of(b: PatchedBurn) -> (ImpulsiveBurn, BurnSite) {
+    let burn = ImpulsiveBurn {
+        radius_m: b.radius_m,
+        delta_v_m_s: b.delta_v_m_s,
+    };
+    let site = BurnSite {
+        central: b.central,
+        v_inf_m_s: b.v_inf_m_s,
+    };
+    (burn, site)
+}
+
+/// 日付つきの遷移の入力の通過 → `sat_astro` の通過（日付の順のまま）。
+fn flyby_stops(t: &DatedTransferInput) -> Vec<FlybyStop> {
+    t.flybys
+        .iter()
+        .map(|f| FlybyStop {
+            body: f.body,
+            date: f.date,
+            min_altitude_m: f.min_altitude.map(|h| h.value()),
+        })
+        .collect()
+}
+
+/// 通過ごとの近点の噴射（動力ありと書かれ、ΔV が無視できる量を超えるものだけ。噴射の位置は近点の半径、近点が無限大なら下限の半径）。
+/// 噴射する場所は通過する天体で、超過速度は入りの大きさ。
+fn flyby_burns(
+    d: &DatedTransfer,
+    t: Option<&DatedTransferInput>,
+) -> Vec<(ImpulsiveBurn, BurnSite)> {
+    let powered = |i: usize| t.and_then(|t| t.flybys.get(i)).is_none_or(|f| f.powered);
+    d.flybys
+        .iter()
+        .enumerate()
+        .filter(|(i, f)| powered(*i) && f.total_dv_m_s() > NEGLIGIBLE_DV_M_S)
+        .map(|(_, f)| {
+            let burn = ImpulsiveBurn {
+                radius_m: f.periapsis_radius_m.unwrap_or(f.min_radius_m),
+                delta_v_m_s: f.total_dv_m_s(),
+            };
+            let site = BurnSite {
+                central: f.body,
+                v_inf_m_s: Some(f.v_inf_in_m_s.norm()),
+            };
+            (burn, site)
+        })
+        .collect()
 }

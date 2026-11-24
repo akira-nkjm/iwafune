@@ -27,6 +27,6 @@ value: ValueData,
  */
 text: string, 
 /**
- * 選んで入れる欄の選択肢（軌道の `source`・`maneuver`。空なら自由入力）
+ * 選んで入れる欄の選択肢（軌道の `source`・`maneuver`。空なら自由入力。欄の一覧は API が出どころごとに返す）
  */
 choices: Array<Choice>, };

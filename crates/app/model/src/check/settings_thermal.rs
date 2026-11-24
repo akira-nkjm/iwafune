@@ -3,7 +3,9 @@
 
 use super::Ctx;
 use super::settings::{Scope, scope};
-use crate::design::{AnalysisSystem, Design, ThermalNodes, ThermalSettings};
+use crate::design::{
+    AnalysisSystem, Design, ThermalNodes, ThermalSettings, ThermalSubdivideSettings,
+};
 use crate::value::Quantity;
 
 /// 温度差（解析マージン）を書く単位。°C は 273.15 K のずれを足してしまうので使わない。
@@ -41,6 +43,7 @@ pub(super) fn check_thermal(ctx: &mut Ctx) {
     check_surfaces(&mut s, design, t);
     check_heat_nodes(&mut s, design, t, &nodes);
     check_couplings(&mut s, t, &nodes);
+    check_subdivide(&mut s, design, t, &nodes);
 }
 
 /// 温度差は K で書き、0 以上にする。
@@ -163,6 +166,50 @@ fn check_heat_nodes(s: &mut Scope, design: &Design, t: &ThermalSettings, nodes: 
     }
 }
 
+/// 板の分け方（`[subdivide.<部品>]`）。部品があること、`[nodes]` でまとめた部品でないこと（升ごとの節点になる部品は
+/// 1 部品 1 節点のものだけ）、升の数が 1 以上で上限以下であること。`u`・`v` の片方だけ書いた途中の状態は警告（解析は不足入力にする）。
+/// 板の形かどうか（箱の寸法）は部品の値を解決してから決まるので、解析の入力の検査が見る。
+fn check_subdivide(s: &mut Scope, design: &Design, t: &ThermalSettings, nodes: &ThermalNodes) {
+    for (part, cells) in &t.subdivide {
+        let exists = design.parts.contains_key(part.as_str());
+        s.reference(
+            &["subdivide", part],
+            exists,
+            "ref.part",
+            format!("Part `{part}`"),
+        );
+        if exists && !nodes.is_per_part(part) {
+            s.error(
+                &["subdivide", part],
+                "thermal.subdivide_lumped",
+                format!(
+                    "Part `{part}` is lumped into a node by [nodes], so it cannot be subdivided. \
+                     Remove it from [nodes] to give it its own node"
+                ),
+            );
+        }
+        for (axis, n) in [("u", cells.u), ("v", cells.v)] {
+            match n {
+                Some(n) if !(1..=ThermalSubdivideSettings::MAX_CELLS).contains(&n) => s.error(
+                    &["subdivide", part, axis],
+                    "thermal.subdivide_cells",
+                    format!(
+                        "A plate is split into 1 to {max} cells along each axis (`{n}` is written for `{part}.{axis}`). \
+                         More cells make the explicit transient solver take much smaller steps",
+                        max = ThermalSubdivideSettings::MAX_CELLS
+                    ),
+                ),
+                Some(_) => {}
+                None => s.warning(
+                    &["subdivide", part],
+                    "thermal.subdivide_incomplete",
+                    format!("`[subdivide.{part}]` needs both `u` and `v` (missing `{axis}`)"),
+                ),
+            }
+        }
+    }
+}
+
 /// 明示の結合（`[conductive.<節点>]`・`[radiative.<節点>]`）と外殻の放射率。
 /// 結合は両端が節点であること、同じ節点どうしでないこと、同じ対を向きを変えて 2 度書かないこと、0 以上であること
 /// （次元は設定の次元の表が見る）。
@@ -228,5 +275,27 @@ fn check_couplings(s: &mut Scope, t: &ThermalSettings, nodes: &ThermalNodes) {
             ),
             _ => {}
         }
+    }
+    check_view_factors(s, t);
+}
+
+/// 形態係数の放射率（0 を超え 1 以下。無ければ警告で、形態係数は使われない）。
+fn check_view_factors(s: &mut Scope, t: &ThermalSettings) {
+    let Some(v) = &t.view_factors else {
+        return;
+    };
+    match v.emissivity {
+        Some(e) if !(e > 0.0 && e <= 1.0) => s.error(
+            &["view_factors", "emissivity"],
+            "setting.range",
+            "Must be a value above 0 and at most 1".into(),
+        ),
+        None => s.warning(
+            &["view_factors"],
+            "thermal.view_factors_emissivity",
+            "The view-factor radiation needs an emissivity (`emissivity`); without it the view factors are not used"
+                .into(),
+        ),
+        _ => {}
     }
 }

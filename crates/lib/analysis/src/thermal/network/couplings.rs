@@ -1,11 +1,17 @@
 //! 節点間の熱結合を決める。**どの結合を使うか（優先順位）と、使った結合の一覧はここだけ。**
 //!
-//! 節点対ごとに 1 つの値を使う。優先順位は 明示（`conductive`・`radiative`）＞ 外殻（`enclosure`。放射のみ）＞ 取付の既定値（`mounts`）。
+//! 節点対ごとに 1 つの値を使う。優先順位は 明示（`conductive`・`radiative`）＞ 外殻（`enclosure`。放射のみ）＞ 形態係数（`view_factors`。放射のみ）＞ 取付の既定値（`mounts`）。
+//! 取付の既定値の伝導は、`contact_conductance_per_area` を書けば取付ごとに接触面積から出し（出せない取付は 1 取付あたりの値）、
+//! 出所は、接触面積から出した取付をその対に 1 つでも含めば `contact`（内訳は `contact`）、なければ `mount`。
 //! 明示した対は取付から作った値を **置き換える**（0 なら切り離す）。書いていない対は取付の既定値のまま。
+//! 形態係数の値（内部の部品と構造の殻の内側の面どうし。計算は `view_factors`）は、値を出した対の取付の既定値を置き換え、外殻と明示の値には置き換えられる。
 //! 外殻の 6 面と節点の対応は、外面の法線（機体座標の ±X・±Y・±Z）と面積（箱の面の面積に近いもの）から決める。
 //! 6 面が 1 つずつの別の節点に決まらないときは外殻の放射を使わず、理由を出力に残す（誤りにはしない）。
 
-use super::{ThermalConductiveLink, ThermalNetwork, ThermalRadiativeLink, ThermalSurface};
+use super::mount_contact::{ThermalContactPair, ThermalContactUsed};
+use super::mounts::{MountConductance, MountLinks};
+use super::view_factors::{ThermalViewFactorPair, ThermalViewFactorsUsed};
+use super::{ThermalNetwork, ThermalRadiativeLink, ThermalSurface};
 use crate::spec::AnalysisError;
 use crate::thermal::enclosure::{BoxExchange, ThermalEnclosure, box_exchange};
 use sat_astro::math::Vec3;
@@ -24,12 +30,16 @@ const FACE_AREA_TOLERANCE: f64 = 0.05;
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(rename_all = "snake_case")]
 pub enum ThermalCouplingSource {
-    /// 取付から作った既定値
+    /// 取付から作った既定値（1 取付あたりの値 × 取付の数）
     Mount,
+    /// 取付の両端の部品の箱の接触面積から出した既定値（`h × A`。出せない取付が混じる対は `contact.fixed_mounts` に数が出る）
+    Contact,
     /// 設計に明示した値
     Explicit,
     /// 箱の外殻の内面の放射（形態係数と Gebhart 係数）
     Enclosure,
+    /// 内部の部品と構造の殻の内側の面どうしの放射（遮蔽つきの形態係数。`from_view_factors` に内訳）
+    ViewFactor,
 }
 
 /// 使った伝導の結合（節点対は ID の昇順）。
@@ -40,6 +50,10 @@ pub struct ThermalConductanceUsed {
     pub b: String,
     pub conductance: Qty<ThermalConductance>,
     pub source: ThermalCouplingSource,
+    /// 接触面積から出した取付の内訳（出所が `contact` のときだけ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub from_contact: Option<ThermalContactPair>,
 }
 
 /// 使った放射の結合（有効放射交換面積。節点対は ID の昇順）。
@@ -50,6 +64,10 @@ pub struct ThermalExchangeUsed {
     pub b: String,
     pub exchange_area: Qty<Area>,
     pub source: ThermalCouplingSource,
+    /// 形態係数から出した対の内訳（出所が `view_factor` のときだけ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub from_view_factors: Option<ThermalViewFactorPair>,
 }
 
 /// 外殻の 1 面。
@@ -92,6 +110,17 @@ pub struct ThermalCouplings {
     /// 外殻の放射を設計が求めたときだけ
     #[serde(default)]
     pub enclosure: Option<ThermalEnclosureUsed>,
+    /// 内部の放射を形態係数から出す設定のときだけ（使えなければ理由つき）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub view_factors: Option<ThermalViewFactorsUsed>,
+    /// 取付の伝導を接触面積から出す設定のときだけ（出せなかった取付はここに理由つきで残る）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub mount_contact: Option<ThermalContactUsed>,
+    /// 升に分けた板ごとの報告（板を分けたときだけ。結合は板の部品の名前のまま上に並び、升への配分はここの規則）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub plates: Vec<super::ThermalPlateUsed>,
 }
 
 type Pair = (String, String);
@@ -129,17 +158,21 @@ fn explicit<T>(
 
 /// 優先順位に従って、使う結合を決める。
 pub(super) fn resolve(net: &ThermalNetwork) -> Result<ThermalCouplings, AnalysisError> {
-    let (mount_cond, mount_rad) = net
+    let MountLinks {
+        conductive: mount_cond,
+        radiative: mount_rad,
+        contact: mount_contact,
+    } = net
         .mounts
         .as_ref()
         .map(super::ThermalMounts::links)
+        .transpose()?
         .unwrap_or_default();
-    let mut cond = mounted(&mount_cond, |l: &ThermalConductiveLink| {
-        (&l.a, &l.b, l.conductance.value())
-    });
+    let (mut cond, mut details) = mounted_conductance(&mount_cond);
     let mut rad = mounted(&mount_rad, |l: &ThermalRadiativeLink| {
         (&l.a, &l.b, l.exchange_area.value())
     });
+    let (view_factors, mut view_details) = apply_view_factors(net, &mut rad)?;
     let enclosure = match &net.enclosure {
         Some(e) => Some(apply_enclosure(net, e, &mut rad)?),
         None => None,
@@ -147,6 +180,7 @@ pub(super) fn resolve(net: &ThermalNetwork) -> Result<ThermalCouplings, Analysis
     let explicit_cond = explicit(&net.conductive, |l| (&l.a, &l.b, l.conductance.value()))?;
     let explicit_rad = explicit(&net.radiative, |l| (&l.a, &l.b, l.exchange_area.value()))?;
     for (p, v) in explicit_cond {
+        details.remove(&p);
         cond.insert(p, (v, ThermalCouplingSource::Explicit));
     }
     for (p, v) in explicit_rad {
@@ -156,26 +190,84 @@ pub(super) fn resolve(net: &ThermalNetwork) -> Result<ThermalCouplings, Analysis
         conductive: cond
             .into_iter()
             .map(|((a, b), (v, source))| ThermalConductanceUsed {
+                from_contact: details.get(&(a.clone(), b.clone())).copied(),
                 a,
                 b,
                 conductance: Qty::from_raw(v),
                 source,
             })
             .collect(),
-        radiative: rad
-            .into_iter()
-            .map(|((a, b), (v, source))| ThermalExchangeUsed {
-                a,
-                b,
-                exchange_area: Qty::from_raw(v),
-                source,
-            })
-            .collect(),
+        radiative: radiative_used(rad, &mut view_details),
         enclosure,
+        view_factors,
+        mount_contact,
+        plates: Vec::new(),
     })
 }
 
 type Table = BTreeMap<Pair, (f64, ThermalCouplingSource)>;
+
+/// 形態係数の値を表へ入れる（値を出した対の取付の既定値を置き換える）。要約と、対ごとの内訳を返す。
+fn apply_view_factors(
+    net: &ThermalNetwork,
+    rad: &mut Table,
+) -> Result<
+    (
+        Option<ThermalViewFactorsUsed>,
+        BTreeMap<Pair, ThermalViewFactorPair>,
+    ),
+    AnalysisError,
+> {
+    let mut details = BTreeMap::new();
+    let Some(v) = &net.view_factors else {
+        return Ok((None, details));
+    };
+    let found = super::view_factors::resolve(net, v)?;
+    for (p, value) in found.pairs {
+        rad.insert(
+            p.clone(),
+            (value.exchange_m2, ThermalCouplingSource::ViewFactor),
+        );
+        details.insert(p, value.detail);
+    }
+    Ok((Some(found.used), details))
+}
+
+/// 使った放射の一覧。形態係数の値のまま残った対にだけ内訳を付ける（外殻・明示が置き換えた対には付けない）。
+fn radiative_used(
+    rad: Table,
+    details: &mut BTreeMap<Pair, ThermalViewFactorPair>,
+) -> Vec<ThermalExchangeUsed> {
+    rad.into_iter()
+        .map(|((a, b), (v, source))| ThermalExchangeUsed {
+            from_view_factors: (source == ThermalCouplingSource::ViewFactor)
+                .then(|| details.remove(&(a.clone(), b.clone())))
+                .flatten(),
+            a,
+            b,
+            exchange_area: Qty::from_raw(v),
+            source,
+        })
+        .collect()
+}
+
+/// 取付から作った伝導の表と、接触面積から出した対の内訳。接触面積から出した取付を含む対の出所は `contact`。
+fn mounted_conductance(links: &[MountConductance]) -> (Table, BTreeMap<Pair, ThermalContactPair>) {
+    let mut cond = Table::new();
+    let mut details = BTreeMap::new();
+    for l in links {
+        let source = if l.contact.is_some() {
+            ThermalCouplingSource::Contact
+        } else {
+            ThermalCouplingSource::Mount
+        };
+        cond.insert(pair(&l.a, &l.b), (l.conductance.value(), source));
+        if let Some(c) = l.contact {
+            details.insert(pair(&l.a, &l.b), c);
+        }
+    }
+    (cond, details)
+}
 
 /// 取付から作った結合（取付の対はすでに昇順で 1 対 1 つ）。
 fn mounted<T>(links: &[T], ends: impl Fn(&T) -> (&String, &String, f64)) -> Table {
@@ -292,4 +384,6 @@ fn face_nodes(surfaces: &[ThermalSurface], exchange: &BoxExchange) -> Result<Vec
 }
 
 #[cfg(test)]
-mod tests;
+mod contact_tests;
+#[cfg(test)]
+pub(super) mod tests;

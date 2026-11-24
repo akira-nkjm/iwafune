@@ -9,7 +9,8 @@ use clap::{Args, Subcommand};
 pub enum CaseCmd {
     /// List analysis cases
     Ls,
-    /// Write an analysis case
+    /// Write an analysis case (creates it, or replaces the whole record: fields not given are removed and listed in the output;
+    /// to change one field and keep the rest use `fune set cases.<ID>.<field> <value>`, e.g. `fune set cases.hot.beta "60 deg"`)
     Set(CaseArgs),
     /// Create analysis cases from the representative days of a seasonal analysis
     FromEclipse {
@@ -33,7 +34,21 @@ pub enum CaseCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// Set the phase of an analysis case (its orbit and attitude law overrides then apply)
+    /// Create (or update) the analysis cases of the worst days of an orbit: the farthest and nearest Sun distance and the farthest Earth distance, each as a case with an epoch
+    FromGeometry {
+        /// Phase whose orbit is read (required when the design has phases; also set as the cases' phase)
+        #[arg(long)]
+        phase: Option<String>,
+        /// Prefix of the case IDs (`<prefix>_sun_far`, `<prefix>_sun_near`, `<prefix>_earth_far`; default: the phase ID in lower case, or none)
+        #[arg(long)]
+        prefix: Option<String>,
+        /// Mode of the cases (an existing case keeps its mode when omitted)
+        #[arg(long)]
+        mode: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Set the phase of an analysis case (its orbit and attitude law overrides then apply; same as `fune set cases.<ID>.phase <PHASE>`)
     SetPhase {
         id: String,
         phase: String,
@@ -42,6 +57,20 @@ pub enum CaseCmd {
     },
     /// Clear the phase of an analysis case
     UnsetPhase {
+        id: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Set the time an analysis case starts at on its orbit (ISO 8601; the other fields stay as they are; same as `fune set cases.<ID>.epoch <TIME>`)
+    SetEpoch {
+        id: String,
+        /// e.g. `"2031-05-02T00:00:00Z"` (within the span for a one-off orbit)
+        epoch: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Clear the time of an analysis case (the analyses start at the orbit's own epoch)
+    UnsetEpoch {
         id: String,
         #[command(flatten)]
         edit: EditOpts,
@@ -90,6 +119,9 @@ pub struct CaseArgs {
     /// Distance from the Sun (e.g. `"0.7 AU"`; orbits about the Sun only: analyze a circular orbit at this distance)
     #[arg(long)]
     pub sun_distance: Option<String>,
+    /// Time the analyses start at on the case's orbit (ISO 8601, e.g. `"2031-05-02T00:00:00Z"`; within the span for a one-off orbit)
+    #[arg(long)]
+    pub epoch: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }
@@ -99,7 +131,8 @@ pub struct CaseArgs {
 pub enum SourceCmd {
     /// List sources
     Ls,
-    /// Write a source
+    /// Write a source (creates it, or replaces the whole record: fields not given are removed and listed in the output;
+    /// there is no one-field edit for sources yet, so give every field you want to keep)
     Set(Box<SourceArgs>),
     /// Remove a source (refused if a value refers to it)
     Rm {
@@ -170,7 +203,8 @@ pub struct SourceArgs {
 pub enum HarnessCmd {
     /// List harness segments
     Ls,
-    /// Write a harness segment
+    /// Write a harness segment (creates it, or replaces the whole record: fields not given are removed and listed in the output;
+    /// there is no one-field edit for harness segments yet, so give every field you want to keep)
     Set(HarnessArgs),
     /// Remove a harness segment
     Rm {
@@ -221,7 +255,8 @@ pub enum ManeuverCmd {
     Ls,
     /// Add a maneuver (refused if the ID exists)
     Add(ManeuverArgs),
-    /// Write a maneuver (create it, or replace it entirely if it exists)
+    /// Write a maneuver (create it, or replace it entirely if it exists: fields not given are removed and listed in the output;
+    /// there is no one-field edit for maneuvers yet, so give every field you want to keep)
     Set(ManeuverArgs),
     /// Remove a maneuver (later maneuvers are re-linked to the one before it)
     Rm {
@@ -268,6 +303,9 @@ pub struct ManeuverArgs {
     /// Intermediate apoapsis altitude of a bi-elliptic transfer (e.g. `"20000 km"`)
     #[arg(long)]
     pub via_altitude: Option<String>,
+    /// Written delta-V of an allowance (e.g. `"15 m/s"`: trajectory correction, orbit maintenance, margin). The orbit does not change; not combined with the target orbit flags, --via-altitude or dates
+    #[arg(long)]
+    pub delta_v: Option<String>,
     /// Central body of the target (e.g. `moon`, `mars`; makes it a transfer between bodies, with altitudes measured from that body)
     #[arg(long)]
     pub body: Option<String>,
@@ -304,6 +342,9 @@ pub struct ManeuverArgs {
     /// Who performs the departure burn of a dated transfer: `spacecraft` (default) or `launcher` (the launcher injects onto the departure asymptote, so the spacecraft does not count that burn; needs --depart and --arrive)
     #[arg(long)]
     pub departure_by: Option<String>,
+    /// Swing-by of a planet between departure and arrival (repeatable, in date order): `BODY@DATE`, optionally followed by `,min_altitude=400 km` (minimum periapsis altitude; the default is a convention per body, required for the giant planets) and `,powered=false` (declared unpowered: the periapsis burn is not counted); e.g. `venus@2029-02-01T00:00:00Z`. Needs --depart and --arrive
+    #[arg(long = "flyby", value_name = "BODY@DATE")]
+    pub flybys: Vec<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }

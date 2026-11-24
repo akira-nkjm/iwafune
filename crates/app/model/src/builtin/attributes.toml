@@ -450,6 +450,18 @@ units        = ["dBi", "dB"]
 display_unit = "dBi"
 section      = "comm"
 
+[beamwidth]
+label        = "ビーム幅"
+label_en     = "Beamwidth"
+description  = "アンテナの半値全幅（ボアサイトを中心にした全角。半頂角はこの半分）。機体の部品がビームに入っていないかの確認に使う / The full half-power beamwidth of an antenna, centred on its boresight (the cone's half angle is half of this). Used to check that no part of the spacecraft lies inside the beam."
+type         = "scalar"
+dimension    = "Angle"
+units        = ["deg", "rad"]
+display_unit = "deg"
+min          = 0.0
+max          = 3.141592653589793
+section      = "comm"
+
 [noise_temperature]
 label        = "雑音温度"
 label_en     = "Noise temperature"
@@ -482,6 +494,27 @@ section      = "thermal"
 [thickness]
 label        = "板厚"
 label_en     = "Thickness"
+type         = "scalar"
+dimension    = "Length"
+units        = ["mm", "m"]
+display_unit = "mm"
+min          = 0.0
+section      = "structure"
+
+# 構体のフレームの部材（箱の辺の梁。`structure.modal_fem`）。外側の辺と、あれば肉厚（正方形の断面。肉厚が無ければ中実）
+[member_width]
+label        = "部材の外寸"
+label_en     = "Member width"
+type         = "scalar"
+dimension    = "Length"
+units        = ["mm", "m"]
+display_unit = "mm"
+min          = 0.0
+section      = "structure"
+
+[member_wall]
+label        = "部材の肉厚"
+label_en     = "Member wall thickness"
 type         = "scalar"
 dimension    = "Length"
 units        = ["mm", "m"]
@@ -596,6 +629,22 @@ units        = ["mm", "m", "cm"]
 display_unit = "mm"
 section      = "structure"
 
+[launch_constraint]
+label       = "打ち上げ時の拘束の種類"
+label_en    = "Launch support type"
+description = "打ち上げ機・ディスペンサーが衛星を支える形（`structure.modal_fem` の拘束）。base_fixed: 指定した面の全節点を固定、rails: 機軸に平行な 4 本の辺を横方向に、8 つの角を機軸方向に固定、tabs: 指定した面の機軸に平行な 2 本の辺を固定、fixed: 指定した面の節点の並進を固定、free: 拘束なし"
+type        = "enum"
+symbols     = ["base_fixed", "rails", "tabs", "fixed", "free"]
+section     = "structure"
+
+[launch_constraint_face]
+label       = "拘束する面"
+label_en    = "Constrained face"
+description = "拘束の種類 base_fixed・tabs・fixed が使う、機体を囲む箱の面（法線の向き付きの軸。+z は発射軸の先、-z は打ち上げ機側）"
+type        = "enum"
+symbols     = ["+x", "-x", "+y", "-y", "+z", "-z"]
+section     = "structure"
+
 [launch_load_axial]
 label        = "準静的荷重（機軸方向）"
 label_en     = "Quasi-static load (axial)"
@@ -645,3 +694,25 @@ units        = ["deg/s", "rad/s"]
 display_unit = "deg/s"
 min          = 0.0
 section      = "structure"
+
+[shielding]
+label        = "遮蔽厚さ（等価アルミ）"
+label_en     = "Shielding thickness (aluminium equivalent)"
+description  = "部品のまわりの遮蔽を、全方向に均一な等価アルミの球殻の厚さで表した値。放射線の総線量（orbit.total_dose）が環境の表を引くのに使う。書かなければ設計の既定の遮蔽厚さ（analysis.common.radiation.default_shielding）を使う"
+type         = "scalar"
+dimension    = "Length"
+units        = ["mm", "m", "cm"]
+display_unit = "mm"
+min          = 0.0
+section      = "radiation"
+
+[tid_tolerance]
+label        = "許容総線量"
+label_en     = "Total ionising dose tolerance"
+description  = "部品が性能を保てる吸収線量の上限（総線量）。放射線の総線量（orbit.total_dose）が、設計余裕を掛けた予測の総線量と比べる。書かなければ線量だけを出し、判定はしない"
+type         = "scalar"
+dimension    = "AbsorbedDose"
+units        = ["Gy", "kGy", "mGy"]
+display_unit = "Gy"
+min          = 0.0
+section      = "radiation"

@@ -2,6 +2,7 @@
 //! [`RefSite`]）が決め、ここは参照元のファイル（`layout`）とキーを書き換えるだけ。**
 
 use super::Edits;
+use super::acknowledged;
 use super::doc::{drop_if_empty, rename_key, replace_in_array, set, string, table_opt};
 use super::part::{rename_mount_target, set_port};
 use crate::error::StoreError;
@@ -246,6 +247,7 @@ fn rename_at(
         | RefSite::ThermalNode { .. }
         | RefSite::ThermalSurface
         | RefSite::ThermalHeatNode
+        | RefSite::ThermalSubdivide
         | RefSite::ThermalNodeName
         | RefSite::CaseMode { .. }
         | RefSite::CasePhase { .. }
@@ -286,6 +288,18 @@ fn rename_at(
         | RefSite::PhaseOrbitManeuver { .. }
         | RefSite::CommDataDownlink
         | RefSite::RequirementCheck { .. } => records::rename_record_at(edits, design, site, names),
+        RefSite::AcknowledgedPart { index } => acknowledged::rename_part(
+            edits,
+            &layout::analysis_file(AnalysisSystem::Structure),
+            *index,
+            names,
+        ),
+        RefSite::AcknowledgedConfiguration { index } => acknowledged::rename_configuration(
+            edits,
+            &layout::analysis_file(AnalysisSystem::Structure),
+            *index,
+            names,
+        ),
     }
 }
 
@@ -371,6 +385,7 @@ fn rename_setting_at(
         }),
         RefSite::ThermalSurface => rename_in(edits, &thermal(), &["surface"], from, to),
         RefSite::ThermalHeatNode => rename_in(edits, &thermal(), &["heat_node"], from, to),
+        RefSite::ThermalSubdivide => rename_in(edits, &thermal(), &["subdivide"], from, to),
         RefSite::ThermalNodeName => thermal::rename_node_name(edits, from, to),
         RefSite::CaseMode { case } => set_top(edits, &layout::case_file(case), "mode", to),
         RefSite::CasePhase { case } => set_top(edits, &layout::case_file(case), "phase", to),

@@ -33,7 +33,7 @@ export function AnalysisKpis({
       items={kpiSlots(entries, states).map((s) => ({
         key: s.def.key,
         label: localized(s.def.label, s.def.label_en),
-        value: kpiText(s.kpi, (n) => t.kpiTally(n.checked, n.flagged)),
+        value: kpiText(s.kpi, (n) => t.kpiTally(n.checked, n.flagged, n.acknowledged)),
         loading: s.loading,
       }))}
     />

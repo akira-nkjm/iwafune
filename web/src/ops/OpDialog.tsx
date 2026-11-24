@@ -30,6 +30,7 @@ export function OpDialog({
   confirmLabel,
   destructive,
   wide,
+  onBeforeApply,
   onDone,
 }: {
   open: boolean;
@@ -42,14 +43,20 @@ export function OpDialog({
   confirmLabel?: string;
   destructive?: boolean;
   wide?: boolean;
+  /** 送る直前（設計の再読込の前）に呼ぶ。消すものを見ている画面が、消えたものを読みに行かないよう移るのに使う */
+  onBeforeApply?: () => void;
   onDone?: () => void;
 }) {
   const t = useT();
   const apply = useApplyOps();
   // 確定できるのは dry_run が通ったときだけ（規則はサーバーが持つ）
-  const check = useOpCheck(open ? ops : null);
+  // 成功したあとは検査もプレビューも止める。成功で設計が読み直されて revision が進んでも、閉じるまでの間に
+  // 同じ Op の dry_run を新しい revision へ取り直さない（消した対象は 404、足した対象は 409 になる）
+  const live = open && !apply.isSuccess;
+  const check = useOpCheck(live ? ops : null);
   const submit = () => {
     if (!ops) return;
+    onBeforeApply?.();
     // 設計の再読込で詳細が消えても、閉じる処理と選び直しを最後まで実行する。
     void apply.mutateAsync({ ops, summary }).then(
       () => {
@@ -75,7 +82,7 @@ export function OpDialog({
           }}
         >
           {children}
-          {open && <OpPreview ops={ops} />}
+          {live && <OpPreview ops={ops} />}
           {apply.isError && <p className="text-neg-ink text-xs">{apply.error.message}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

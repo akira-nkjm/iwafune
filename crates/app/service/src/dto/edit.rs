@@ -2,7 +2,7 @@
 
 use super::{DiagnosticView, ProjectInfo};
 use fune_model::value::{Quaternion, Vector3};
-use fune_ops::Op;
+use fune_ops::{Op, RemovedKeys};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -29,6 +29,10 @@ pub struct ApplyResult {
     pub changed: Vec<ChangedFile>,
     /// 適用後の検証結果（warning 以下。error があれば書き込まずにエラーになる）
     pub diagnostics: Vec<DiagnosticView>,
+    /// 置き換える操作（`fune case set` など、レコードを丸ごと書く Op）が既存のレコードから落としたキー（書かなかった欄。
+    /// ファイルごと。書き込む前の dry run にも載る。無ければ空）
+    #[serde(default)]
+    pub removed: Vec<RemovedKeys>,
     /// 同じ操作をする CLI のコマンド（「CLI としてコピー」用）
     pub cli: Vec<String>,
 }

@@ -1,7 +1,10 @@
 //! `thermal.steady` のテスト（板と箱の手計算・3 種の範囲と不確かさ・軌道平均の立方体）。
 
 use super::*;
-use crate::thermal::network::{ThermalConductiveLink, ThermalSurface, tests::node};
+use crate::thermal::network::{
+    ThermalConductiveLink, ThermalSurface,
+    tests::{node, plate_of},
+};
 use crate::thermal::range::ThermalTempRange;
 use sat_astro::constants::SIGMA_SB;
 use sat_astro::math::Vec3;
@@ -15,6 +18,7 @@ fn input() -> ThermalSteadyInput {
     });
     ThermalSteadyInput {
         network: ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![panel, node("box", None)],
             conductive: vec![ThermalConductiveLink {
@@ -24,6 +28,7 @@ fn input() -> ThermalSteadyInput {
             }],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![ThermalSurface {
                 id: "px".to_owned(),
                 node: "panel".to_owned(),
@@ -34,6 +39,7 @@ fn input() -> ThermalSteadyInput {
                 emissivity: Some(0.8),
                 coatings: vec![],
             }],
+            shadowing: None,
         },
         cases: vec![ThermalSteadyCase {
             mode_loads: None,
@@ -181,4 +187,66 @@ fn orbit_average_cube() {
     assert_eq!(out.envelope[0].max_case, "hot");
     // 地球の入熱が無い「sun」が最も冷たい。
     assert_eq!(out.envelope[0].min_case, "sun");
+}
+
+/// 升に分けた板の詳細: 升は 3 × 2 = 6 で、場の値は結果の節点（升の ID）の温度と同じ。メッシュは頂点 4 × 3 = 12・四角形 6。
+/// （結合も外面も升の面積の割合で配るので、この板の升の温度は等しい。升ごとの違いは取付の位置で配る設計のテストで確かめる）
+#[test]
+fn plate_detail_has_the_solver_cell_temperatures() {
+    let mut i = input();
+    i.network.plates = vec![plate_of("panel")];
+    let plain = ThermalSteady::run(&i).unwrap();
+    let detailed = ThermalSteady::run_detailed(&i, true).unwrap();
+    assert_eq!(
+        serde_json::to_value(&detailed.output).unwrap(),
+        serde_json::to_value(&plain).unwrap(),
+        "the output does not change"
+    );
+    let d: crate::thermal::plate_view::ThermalPlateTemperatures =
+        serde_json::from_value(detailed.detail.expect("detail")).unwrap();
+    assert_eq!(d.mesh.nodes.len(), 12);
+    assert_eq!(d.mesh.groups.len(), 1);
+    assert_eq!(d.mesh.groups[0].id, "panel");
+    assert_eq!(d.mesh.groups[0].quads.len(), 6);
+    assert_eq!(d.cells.len(), 6);
+    assert_eq!(d.fields.len(), 1);
+    let f = &d.fields[0];
+    assert_eq!(
+        f.quantity,
+        crate::thermal::plate_view::ThermalPlateQuantity::Steady
+    );
+    assert_eq!(f.case.as_deref(), Some("hot"));
+    assert_eq!(f.label.as_deref(), Some("Hot"));
+    for (cell, t) in d.cells.iter().zip(&f.temperature) {
+        let node = plain.cases[0]
+            .nodes
+            .iter()
+            .find(|n| n.node == cell.node)
+            .expect("the cell is a node of the result");
+        assert_eq!(t.value(), node.temperature.value());
+    }
+    // 升の通し番号 k = i × 2 + j の順
+    assert_eq!(d.cells[3].node, "panel[1,1]");
+    assert!(f.temperature.iter().all(|t| t.value().is_finite()));
+}
+
+/// 板が無ければ詳細は無い（板に分けていない設計で `detail: true` を頼んでも、出力は同じで詳細は付かない）。
+#[test]
+fn no_subdivision_means_no_detail() {
+    let i = input();
+    let d = ThermalSteady::run_detailed(&i, true).unwrap();
+    assert!(d.detail.is_none());
+    assert_eq!(
+        serde_json::to_value(&d.output).unwrap(),
+        serde_json::to_value(ThermalSteady::run(&i).unwrap()).unwrap()
+    );
+    let mut with = input();
+    with.network.plates = vec![plate_of("panel")];
+    assert!(
+        ThermalSteady::run_detailed(&with, false)
+            .unwrap()
+            .detail
+            .is_none(),
+        "no detail unless requested"
+    );
 }

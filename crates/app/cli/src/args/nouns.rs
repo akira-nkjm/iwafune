@@ -7,9 +7,11 @@ use clap::{Args, Subcommand};
 /// `fune set`
 #[derive(Debug, Args)]
 pub struct SetArgs {
-    /// Path (`RW_X.mass`, `RW_X.power.on`, `RW_X.label`, `analysis.power.dod_max`)
+    /// Path (`RW_X.mass`, `RW_X.power.on`, `RW_X.label`, `analysis.power.dod_max`, or one field of an analysis case: `cases.<ID>.<field>`
+    /// with label, description, mode, phase, side, thermal_case, beta, orbits, sun_distance or epoch)
     pub path: String,
-    /// Value (e.g. `"620 g"`, `"-20 .. 60 degC"`, `"0 0 1"`)
+    /// Value (e.g. `"620 g"`, `"-20 .. 60 degC"`, `"0 0 1"`). A list setting (`analysis.thermal.nodes.<NODE>`, `analysis.comm.stations`)
+    /// takes comma-separated words (`"BAT_A, BAT_B"`) or a TOML array of strings (`'["BAT_A", "BAT_B"]'`)
     #[arg(allow_hyphen_values = true)]
     pub value: String,
     /// Source ID (sources/)
@@ -406,12 +408,49 @@ pub enum SequenceCmd {
     },
 }
 
+/// `fune acknowledged …`
+#[derive(Debug, Subcommand)]
+pub enum AcknowledgedCmd {
+    /// Acknowledge a geometry finding with a reason, so it no longer warns but stays listed
+    /// (e.g. `fune acknowledged add interference SAP_PY SP_PY --reason "Hinge edge of the box model"`).
+    /// For `cone_clearance`, give the cone carrier first and the part inside its cone second
+    Add {
+        /// Kind of finding (`interference` or `cone_clearance`)
+        finding: String,
+        /// First part (the two overlapping parts in either order; for a cone, the carrier)
+        first: String,
+        /// Second part (for a cone, the part inside the cone)
+        second: String,
+        /// Why the finding is acceptable
+        #[arg(long)]
+        reason: String,
+        /// Only for this configuration (omit for every configuration and the base placement)
+        #[arg(long)]
+        configuration: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Withdraw an acknowledgement (the finding warns again)
+    Rm {
+        /// Kind of finding (`interference` or `cone_clearance`)
+        finding: String,
+        first: String,
+        second: String,
+        /// The configuration the acknowledgement was written for (omit if it applies to all)
+        #[arg(long)]
+        configuration: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+}
+
 /// `fune setting …`
 #[derive(Debug, Subcommand)]
 pub enum SettingCmd {
     /// List settings
     Ls,
-    /// Change a setting (e.g. `fune setting set analysis.power.dod_max 0.3`)
+    /// Change a setting (e.g. `fune setting set analysis.power.dod_max 0.3`; a list setting such as `analysis.thermal.nodes.<NODE>`
+    /// takes comma-separated words `"A, B"` or a TOML array of strings `'["A", "B"]'`)
     Set {
         key: String,
         #[arg(allow_hyphen_values = true)]

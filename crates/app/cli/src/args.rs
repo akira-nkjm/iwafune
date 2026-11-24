@@ -10,14 +10,15 @@ mod records;
 mod report;
 mod requirements;
 mod skill;
+mod thermal;
 
 pub use configurations::{ConfigurationArgs, ConfigurationCmd};
 pub use defs::{AttrAddArgs, AttrCmd, KindAddArgs, KindCmd};
 pub use ground::GroundCmd;
 pub use links::{LinkCmd, ProjectCmd};
 pub use nouns::{
-    ModeCmd, ModeViewOpts, NetArgs, NetCmd, NetSetArgs, PartCmd, PlaceArgs, SequenceCmd, SetArgs,
-    SettingCmd, ViewCmd,
+    AcknowledgedCmd, ModeCmd, ModeViewOpts, NetArgs, NetCmd, NetSetArgs, PartCmd, PlaceArgs,
+    SequenceCmd, SetArgs, SettingCmd, ViewCmd,
 };
 pub use phases::{PhaseArgs, PhaseCmd};
 pub use records::{
@@ -27,6 +28,7 @@ pub use records::{
 pub use report::{ReportCmd, ReportExportArgs};
 pub use requirements::{RequirementArgs, RequirementCmd};
 pub use skill::SkillCmd;
+pub use thermal::ThermalCmd;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
@@ -137,7 +139,7 @@ pub enum Command {
         #[arg(long)]
         state: Option<String>,
     },
-    /// Remove an overridden value and revert to the catalog value
+    /// Remove an overridden value and revert to the catalog value (also removes one field of an analysis case: `fune unset cases.<ID>.<field>`)
     Unset {
         path: String,
         #[command(flatten)]
@@ -152,9 +154,15 @@ pub enum Command {
     /// Operating modes
     #[command(subcommand)]
     Mode(ModeCmd),
+    /// Thermal couplings, outer-surface coatings and coatings (read; edit with `fune set|unset analysis.thermal.…`)
+    #[command(subcommand)]
+    Thermal(ThermalCmd),
     /// Named mode sequences of the power analysis (analysis/power.toml)
     #[command(subcommand)]
     Sequence(SequenceCmd),
+    /// Acknowledged geometry findings: overlaps and plume/field-of-view hits that are known box artefacts (analysis/structure.toml)
+    #[command(subcommand)]
+    Acknowledged(AcknowledgedCmd),
     /// Nets (electrical connections)
     #[command(subcommand)]
     Net(NetCmd),
@@ -316,4 +324,7 @@ pub struct AnalyzeArgs {
     /// Apply unsaved edits (a JSON file of Ops, or `-` for stdin) without writing, then analyze
     #[arg(long)]
     pub ops: Option<PathBuf>,
+    /// Also return the heavy optional output of the analysis (for example the mode shapes of `structure.modal_fem`) as `detail` in `--json`; analyses without one ignore it
+    #[arg(long)]
+    pub detail: bool,
 }

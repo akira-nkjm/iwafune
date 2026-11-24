@@ -99,6 +99,18 @@ pub enum NotVerifiedReason {
     DesignInput,
 }
 
+/// 値を決めた解析の判定（適合表の行・ケースが、どの判定の文かを示す。バジェットの行は判定を持たないので付かない）。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+pub struct DecisiveCheck {
+    /// 判定の種類（`CheckView.key`。例: `"margin:s_down@TOKYO_GS"`）
+    pub key: String,
+    pub label: String,
+    /// 英語の項目名（語彙から引いた判定だけ。null なら `label` を使う）
+    pub label_en: Option<String>,
+    /// 判定の持ち主の名前（`CheckView.scope`。例: モードの名前。出力の最上位なら null）
+    pub scope: Option<String>,
+}
+
 /// 1 つのケースでの確かめの結果。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct ComplianceCase {
@@ -116,6 +128,12 @@ pub struct ComplianceCase {
     pub message_en: Option<String>,
     /// 評価した値（バジェットの合計。解析の判定は値を持たないので null）
     pub value: Option<QuantityView>,
+    /// 文を決めた判定（解析の判定のとき。最も悪い判定の中で余裕が最も小さいもの）
+    pub check: Option<DecisiveCheck>,
+    /// 文を決めた判定（バジェットなら上限までの量）の余裕（小さいほど厳しい。持たなければ null）。ケースの間で比べる
+    pub margin: Option<f64>,
+    /// 行の値を決めたケースか（ケースが 1 つだけでも true）
+    pub decisive: bool,
 }
 
 /// 適合表の 1 行（要求 1 つ）。判定は確かめたケースのうち、違反 > 確かめられない > 警告 > 良の順に最も悪いもの。
@@ -141,6 +159,12 @@ pub struct ComplianceRow {
     pub message_en: Option<String>,
     /// 行の判定を決めたケースの評価した値
     pub value: Option<QuantityView>,
+    /// 行の文を決めた判定（解析の判定のとき）
+    pub check: Option<DecisiveCheck>,
+    /// 行の文を決めたケースの ID（`cases` の `decisive` のもの。ケースを指定していなければ解析が選んだケースか null）
+    pub decisive_case: Option<String>,
+    /// 行の文を決めた判定の余裕（`ComplianceCase.margin`）
+    pub margin: Option<f64>,
     /// ケースごとの結果（量化の順）
     pub cases: Vec<ComplianceCase>,
 }

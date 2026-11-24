@@ -1,6 +1,8 @@
-import { type ReactNode, useId, useMemo, useReducer, useState } from "react";
+import { type ReactNode, useId, useMemo, useState } from "react";
+import { FindingRow } from "@/analysis/GeometryFindings";
+import { findingKey, findingStates, geometryFindings } from "@/analysis/geometry-findings";
 import { usePlaceBody } from "@/api/ops";
-import type { DesignView } from "@/api/types";
+import type { AnalysisRunResult, DesignView } from "@/api/types";
 import { PlacementSection } from "@/features/components/detail/PlacementSection";
 import { useT } from "@/i18n";
 import { DetailSection } from "@/kit/detail/DetailSection";
@@ -9,11 +11,14 @@ import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { RangeInput } from "@/kit/forms/RangeInput";
 import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
+import { useViewRequests } from "@/kit/scene3d/SceneShell";
+import { ViewControls3D } from "@/kit/scene3d/ViewControls3D";
 import { Chip } from "@/kit/selection/Chip";
 import { Segmented } from "@/kit/selection/Segmented";
 import { Switch } from "@/kit/selection/Switch";
 import { cn } from "@/lib/cn";
 import { useScheme } from "@/lib/theme";
+import { findingHex } from "@/lib/tone";
 import { HelperToggles } from "./HelperToggles";
 import { LayoutBrowser } from "./LayoutBrowser";
 import { Scene3D, type SceneEdit, type TransformMode } from "./Scene3D";
@@ -26,8 +31,6 @@ import {
   type SunArrow,
   type V3,
 } from "./scene";
-import { ViewControls3D } from "./ViewControls3D";
-import type { ZoomRequest } from "./ViewInput3D";
 import {
   DEFAULT_SCENE_HELPERS,
   type FocusRequest,
@@ -52,6 +55,8 @@ interface PlacementProps {
   configuration?: string | null;
   /** 重心（機体座標、m。質量特性の出力が無ければ null） */
   com: V3 | null;
+  /** 幾何の所見を出す解析（干渉・円錐の遮り）の、表示中の形態での結果。無ければ所見の表示を出さない */
+  findings?: readonly AnalysisRunResult[];
 }
 
 /** 熱の温度の色の表示: 箱を温度の色で塗る（3D の上では動かさない） */
@@ -87,7 +92,7 @@ export function Layout3D(props: Layout3DProps) {
 }
 
 /** 構造: 移動・回転とスナップを選び、箱を離したときに Place を送る */
-function PlacementLayout3D({ design, com, configuration }: PlacementProps) {
+function PlacementLayout3D({ design, com, configuration, findings }: PlacementProps) {
   const L = useT().systems.layout3d;
   const place = usePlaceBody();
   const [mode, setMode] = useState<TransformMode>("translate");
@@ -99,6 +104,7 @@ function PlacementLayout3D({ design, com, configuration }: PlacementProps) {
       configuration={configuration}
       note={com ? L.com : ""}
       com={com}
+      findings={findings}
       fill
       tools={
         <div className="ml-auto flex items-center gap-2">
@@ -172,9 +178,12 @@ function Layout3DFrame({
   corner,
   sun,
   aside,
+  findings,
 }: {
   design: DesignView;
   configuration?: string | null;
+  /** 幾何の所見の解析の結果（あれば、所見の表示の切り替えと一覧を出す。最初は切っておく） */
+  findings?: readonly AnalysisRunResult[];
   title?: string;
   /** 部品の数の後ろに添える補足（凡例・重心の印） */
   note: string;
@@ -205,15 +214,18 @@ function Layout3DFrame({
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NONE_HIDDEN);
   const [helpers, setHelpers] = useState<SceneHelpers>(initialHelpers);
   const [focus, setFocus] = useState<FocusRequest | undefined>(undefined);
-  const [home, setHome] = useState(0);
-  // ボタンの拡大・縮小の依頼（押すたびに n が増える）
-  const [zoom, zoomBy] = useReducer(
-    (old: ZoomRequest | null, factor: number) => ({ n: (old?.n ?? 0) + 1, factor }),
-    null,
-  );
+  const { home, zoom, zoomBy, goHome } = useViewRequests();
+  const [showFindings, setShowFindings] = useState(false);
+  const findingList = useMemo(() => (findings ?? []).flatMap(geometryFindings), [findings]);
+  // 所見の表示が入っている間は、所見に関わる部品を状態の色で塗り、ほかの部品は灰色にする（状態は API の `part_findings`）
+  const tint = useMemo(() => {
+    if (!findings || !showFindings) return colorOf;
+    const states = findingStates(findings);
+    return (id: string) => findingHex(scheme, states.get(id) ?? null);
+  }, [findings, showFindings, colorOf, scheme]);
   const { boxes, unplaced, dimensions } = useMemo(
-    () => boxesOf(design, colorOf, scheme),
-    [design, colorOf, scheme],
+    () => boxesOf(design, tint, scheme),
+    [design, tint, scheme],
   );
   const placed = useMemo(() => new Set(boxes.map((b) => b.id)), [boxes]);
   const fovs = useMemo(() => fovsOf(design), [design]);
@@ -265,9 +277,29 @@ function Layout3DFrame({
               />
             </label>
           )}
+          {findings && (
+            <Switch value={showFindings} onChange={setShowFindings}>
+              {L.findings.toggle}
+            </Switch>
+          )}
           {tools}
         </div>
       </div>
+      {findings && showFindings && (
+        <div className="max-h-32 shrink-0 overflow-y-auto border-line border-b px-4 py-2 text-xs">
+          {findingList.length === 0 ? (
+            <p className="text-ink-3">{L.findings.none}</p>
+          ) : (
+            <ul aria-label={L.findings.list} className="space-y-1">
+              {findingList.map((f) => (
+                <li key={findingKey(f)} className="flex">
+                  <FindingRow finding={f} onSelectPart={pick} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
       <div
         className={cn(
           "grid min-w-0 grid-cols-1 overflow-y-auto",
@@ -297,7 +329,6 @@ function Layout3DFrame({
             <Empty className="m-auto">{L.empty}</Empty>
           ) : (
             <Scene3D
-              key={configuration}
               boxes={shown}
               dimensions={dimensions}
               selected={selected}
@@ -314,9 +345,7 @@ function Layout3DFrame({
               sun={helpers.sun ? (sun ?? null) : null}
             />
           )}
-          {boxes.length > 0 && (
-            <ViewControls3D onZoom={zoomBy} onHome={() => setHome((n) => n + 1)} />
-          )}
+          {boxes.length > 0 && <ViewControls3D onZoom={zoomBy} onHome={goHome} />}
           {overlay && (
             <div className="pointer-events-none absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] rounded-control bg-panel/90 px-2 py-1">
               {overlay}

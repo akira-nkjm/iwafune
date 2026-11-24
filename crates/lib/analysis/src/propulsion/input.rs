@@ -7,7 +7,7 @@ use sat_astro::force::thrust::ThrustSteering;
 use sat_astro::orbit::OrbitSpec;
 use sat_astro::time::Epoch;
 use sat_units::typed::{
-    Angle, Force, Fraction, Impulse, Length, Mass, MassDensity, Power, Qty, Time, Volume,
+    Angle, Force, Fraction, Impulse, Length, Mass, MassDensity, Power, Qty, Time, Velocity, Volume,
 };
 use serde::{Deserialize, Serialize};
 
@@ -113,9 +113,25 @@ pub enum DepartureProvider {
     Launcher,
 }
 
+/// 日付つきの遷移の途中の惑星のスイングバイ 1 回（`DatedTransferInput::flybys`。`sat_astro::transfer::flyby`）。
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct FlybyInput {
+    /// 通過する天体（出発・到着の天体と同じ親を回る惑星）
+    pub body: CentralBody,
+    /// 通過の日
+    pub date: Epoch,
+    /// 近点の高度の下限（天体の赤道半径から。省略は天体の種類ごとの慣例の既定。慣例の無い天体は不足入力）
+    #[serde(default)]
+    pub min_altitude: Option<Qty<Length>>,
+    /// 近点の噴射（入りと出の超過速度の大きさの差）をこのマヌーバのスラスタが行う（ΔV・推薬に数える）。`false` なら数えず警告
+    pub powered: bool,
+}
+
 /// 日付つきの惑星間遷移の日付（`target.body` があるときだけ。日付があれば天体間の ΔV は両端の天体の
 /// その日の位置からの Lambert で求め、無ければホーマンのパッチドコニック）。UTC/TT/TDB は区別しない。
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+/// 途中の通過（`flybys`）があれば、前後の天体の組ごとの Lambert の弧をつなぐ。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct DatedTransferInput {
     /// 出発の日
@@ -125,6 +141,10 @@ pub struct DatedTransferInput {
     /// 出発の噴射を行うもの（省略は衛星）
     #[serde(default)]
     pub departure_by: DepartureProvider,
+    /// 途中のスイングバイ（日付の順。省略は 1 本の弧）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "ts", ts(optional, as = "Option<Vec<FlybyInput>>"))]
+    pub flybys: Vec<FlybyInput>,
 }
 
 /// マヌーバ 1 つ（実行の順に並べる）。
@@ -142,6 +162,11 @@ pub struct ManeuverInput {
     /// バイエリプティック遷移の中間の遠地点の高度（インパルス・有限燃焼のときだけ使う）
     #[serde(default)]
     pub via_altitude: Option<Qty<Length>>,
+    /// 直接書いた ΔV（軌道修正・軌道維持・マージンなどの余裕。軌道は変えず、`target` などから ΔV を計算しない。
+    /// 計算の段階はインパルスか低推力）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub delta_v: Option<Qty<Velocity>>,
     /// 書かれているが粗い段階では効かない制約のキー（`sunlit_only`・`mode` など。結果に無視したことを書く）
     #[serde(default)]
     pub ignored_constraints: Vec<String>,
@@ -250,12 +275,24 @@ pub struct PropellantTank {
     pub density: Option<Qty<MassDensity>>,
 }
 
-/// RCS でのアンロードの ΔV を足すための入力（`aocs.rw_unloading` の入力と、日数を掛けるミッション期間）。
+/// RCS でのアンロードの 1 区間（フェーズ 1 つ。フェーズが無い設計や、どのフェーズにも期間が無い設計はミッション期間の 1 区間）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct UnloadingLeg {
+    /// フェーズの ID（ミッション期間の区間は `None`）
+    pub phase: Option<String>,
+    /// そのフェーズの軌道・姿勢則・形態での `aocs.rw_unloading` の入力
+    pub rw_unloading: RwUnloadingInput,
+    /// 区間の長さ（フェーズの `duration`、またはミッション期間。無ければ足さずに区間だけ並べる）
+    pub duration: Option<Qty<Time>>,
+}
+
+/// RCS でのアンロードの ΔV・推薬を足すための入力（区間ごとの `aocs.rw_unloading` の入力と長さ）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct UnloadingInput {
-    pub rw_unloading: RwUnloadingInput,
-    pub mission_duration: Qty<Time>,
+    /// 区間（フェーズの並びの順）
+    pub legs: Vec<UnloadingLeg>,
 }
 
 /// アンロードの ΔV を足さなかった理由。**文は持たない**（service の語彙が引く）。
@@ -267,9 +304,9 @@ pub enum UnloadingNote {
     NoRcs,
     /// `aocs.rw_unloading` の入力が足りない
     UnloadingInputsMissing,
-    /// ミッション期間が無い
+    /// 区間の長さが無い（どのフェーズにも期間が無く、ミッション期間も無い）
     NoMissionDuration,
-    /// RCS では捨てられない（捨てる向きのスラスタが無いなど）
+    /// RCS では捨てられない（期間のあるどの区間でも、捨てる向きのスラスタが無いなど）
     NotUnloadable,
 }
 

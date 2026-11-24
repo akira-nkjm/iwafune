@@ -2,9 +2,9 @@
 
 use super::s;
 use fune_service::dto::{
-    AttributeDef, Case, Distribution, Harness, KindDef, LinkDirection, ModeCell, ModeSegment,
-    ModeWhen, Net, NetField, NetKind, Op, PortRef, ProjectField, Quantity, SettingValue, Source,
-    SourceKind, StartFrom, StartRef, ViewNodePos,
+    AttributeDef, Case, CaseField, Distribution, FindingKind, Harness, KindDef, LinkDirection,
+    ModeCell, ModeSegment, ModeWhen, Net, NetField, NetKind, Op, PortRef, ProjectField, Quantity,
+    SettingValue, Source, SourceKind, StartFrom, StartRef, UncertaintySide, ViewNodePos,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -148,6 +148,32 @@ pub(in super::super) fn system_ops() -> Vec<Op> {
         Op::RemoveSequence {
             name: "imaging_day".into(),
         },
+        Op::Acknowledge {
+            finding: FindingKind::Interference,
+            first: "SAP_PY".into(),
+            second: "SP_PY".into(),
+            configuration: None,
+            reason: "Hinge edge of the box model".into(),
+        },
+        Op::Acknowledge {
+            finding: FindingKind::ConeClearance,
+            first: "SS_PX".into(),
+            second: "SAP_PY".into(),
+            configuration: Some("STOWED".into()),
+            reason: "Paddle box, folded".into(),
+        },
+        Op::Unacknowledge {
+            finding: FindingKind::Interference,
+            first: "SAP_PY".into(),
+            second: "SP_PY".into(),
+            configuration: None,
+        },
+        Op::Unacknowledge {
+            finding: FindingKind::ConeClearance,
+            first: "SS_PX".into(),
+            second: "SAP_PY".into(),
+            configuration: Some("STOWED".into()),
+        },
         Op::SetModeStates {
             cells: vec![
                 cell("UHF_TRX", Some("rx"), &[("tx", 0.1)]),
@@ -231,7 +257,7 @@ pub(in super::super) fn view_ops() -> Vec<Op> {
 
 pub(in super::super) fn record_ops() -> Vec<Op> {
     let mut case: Case = serde_json::from_value(json!({ "label": "Worst-case eclipse", "description": "β 0",
-        "mode": "NOMINAL", "phase": "NOMINAL_OPS", "side": "max", "thermal_case": "cold", "beta": { "value": 0.0, "unit": "deg" }, "orbits": 5, "sun_distance": { "value": 0.7, "unit": "AU" } })).unwrap();
+        "mode": "NOMINAL", "phase": "NOMINAL_OPS", "side": "max", "thermal_case": "cold", "beta": { "value": 0.0, "unit": "deg" }, "orbits": 5, "sun_distance": { "value": 0.7, "unit": "AU" }, "epoch": "2031-05-02T00:00:00Z" })).unwrap();
     case.id = "eclipse_worst".into();
     let source = Source {
         id: "ds_x".into(),
@@ -295,7 +321,19 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
                     "inclination": { "value": 97.5, "unit": "deg" } },
                 "constraints": { "sunlit_only": false, "mode": "NOMINAL" },
                 "transfer": { "departure": "2028-12-10T00:00:00Z", "arrival": "2029-09-25T00:00:00Z",
-                    "departure_by": "launcher" } }),
+                    "departure_by": "launcher",
+                    "flybys": [
+                        { "body": "venus", "date": "2029-02-01T00:00:00Z", "powered": false,
+                          "min_altitude": { "value": 400.0, "unit": "km" } },
+                        { "body": "earth", "date": "2029-06-01T00:00:00Z" } ] } }),
+            ),
+        },
+        Op::CreateManeuver {
+            maneuver: maneuver(
+                "MV_Z",
+                json!({ "label": "Correction allowance", "category": "station_keeping",
+                "method": "impulsive", "thruster": "RW_X", "after": "MV_X",
+                "delta_v": { "value": 15.0, "unit": "m/s" } }),
             ),
         },
         Op::RemoveManeuver { id: s("MV_X") },
@@ -318,16 +356,19 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         Op::CreateConfiguration {
             id: s("STOWED"),
             label: Some(s("Stowed \"test\"")),
+            label_en: Some(s("Stowed \"en\"")),
             description: Some(s("Paddle folded onto the +X face")),
         },
         Op::CreateConfiguration {
             id: s("DEPLOYED"),
             label: None,
+            label_en: None,
             description: None,
         },
         Op::SetConfiguration {
             id: s("STOWED"),
             label: Some(s("Stowed")),
+            label_en: Some(s("Stowed (English)")),
             description: None,
         },
         Op::RemoveConfiguration { id: s("STOWED") },
@@ -372,6 +413,34 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         Op::SetCasePhase {
             case: s("eclipse_worst"),
             phase: None,
+        },
+        Op::SetCaseEpoch {
+            case: s("eclipse_worst"),
+            epoch: Some(s("2031-05-02T00:00:00Z")),
+        },
+        Op::SetCaseEpoch {
+            case: s("eclipse_worst"),
+            epoch: None,
+        },
+        Op::SetCaseField {
+            case: s("eclipse_worst"),
+            field: CaseField::Beta(Some(Quantity::new(-60.5, "deg"))),
+        },
+        Op::SetCaseField {
+            case: s("eclipse_worst"),
+            field: CaseField::Orbits(Some(15)),
+        },
+        Op::SetCaseField {
+            case: s("eclipse_worst"),
+            field: CaseField::Side(Some(UncertaintySide::Max)),
+        },
+        Op::SetCaseField {
+            case: s("eclipse_worst"),
+            field: CaseField::Label(Some(s("Worst \"eclipse\" case"))),
+        },
+        Op::SetCaseField {
+            case: s("eclipse_worst"),
+            field: CaseField::SunDistance(None),
         },
         Op::CreateGroundStation {
             id: s("SVALBARD"),

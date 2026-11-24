@@ -16,6 +16,7 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
         CommandText::NetSet(t) => net_set_ops(t)?,
         CommandText::NetUnset(t) => vec![net_unset_op(t)?],
         CommandText::PartPlace(t) => vec![super::place::place_op(t)?],
+        CommandText::ThermalSet(t) => super::thermal::thermal_set_ops(t)?,
         CommandText::ModeMove {
             id,
             before,
@@ -78,6 +79,9 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
         }
         CommandText::CasePhase { case, phase } => {
             vec![super::phase::case_phase_op(case, phase.as_deref())]
+        }
+        CommandText::CaseEpoch { case, epoch } => {
+            vec![super::phase::case_epoch_op(case, epoch.as_deref())?]
         }
         CommandText::ConfigurationAdd(t) => vec![super::configuration::configuration_op(t, true)],
         CommandText::ConfigurationSet(t) => vec![super::configuration::configuration_op(t, false)],

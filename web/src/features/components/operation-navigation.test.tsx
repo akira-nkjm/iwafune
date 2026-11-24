@@ -89,6 +89,7 @@ const applied: ApplyResult = {
   dry_run: false,
   changed: [],
   diagnostics: [],
+  removed: [],
   cli: [],
 };
 const catalog: CatalogItemView = {

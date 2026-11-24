@@ -1,6 +1,6 @@
 //! 不足入力の直し方の候補（`fune_service::fixes`）。デモの設計から入力を消して、対象の種類ごとに候補を確かめる。
 
-use fune_model::path::ParamPath;
+use fune_model::path::{ParamPath, SettingPath};
 use fune_model::role::Role;
 use fune_model::{Design, Target, resolve};
 use fune_service::dto::{
@@ -21,6 +21,7 @@ fn run(ws: &Workspace, id: &str, edit: Value) -> AnalysisRunResult {
         configuration: None,
         source: AnalysisInputSource::Design,
         ops: serde_json::from_value(edit).unwrap(),
+        detail: false,
     };
     analysis::run_analysis(ws, id, &req).unwrap()
 }
@@ -434,6 +435,54 @@ fn enum_and_bool_attributes_offer_their_choices() {
     assert_eq!(values(&choices("deployable")), ["true", "false"]);
 }
 
+/// 打ち上げ時の拘束（`structure.modal_fem`）が足りないときは、語彙の選択肢つきの値を入れる候補になる
+/// （欄 `conditions.launch.launch_constraint` は属性と同じ名前で、選べる値は属性定義の語彙。面も同じ）。
+/// 解析の結果の不足にも付く。語彙の無い欄（ラベル）は自由入力のまま。
+#[test]
+fn the_launch_constraint_offers_the_attribute_vocabulary() {
+    let ws = demo();
+    // デモの拘束を消す（ディスペンサー・打ち上げ機の属性）
+    let r = run(
+        &ws,
+        "structure.modal_fem",
+        json!([
+            { "op": "unset_catalog_value", "item": "local/disp_6u_rs", "attr": "launch_constraint", "state": null },
+            { "op": "unset_catalog_value", "item": "local/lv_alpha", "attr": "launch_constraint", "state": null },
+        ]),
+    );
+    let m = r
+        .missing
+        .iter()
+        .find(|m| m.path == "conditions.launch.launch_constraint")
+        .expect("the constraint is missing");
+    let [
+        Fix::SetValue {
+            choices, command, ..
+        },
+    ] = m.fixes.as_slice()
+    else {
+        panic!("{:?}", m.fixes);
+    };
+    assert_eq!(
+        values(choices),
+        ["base_fixed", "rails", "tabs", "fixed", "free"]
+    );
+    assert_eq!(
+        command,
+        "fune set conditions.launch.launch_constraint \"<value>\""
+    );
+    let design = ws.snapshot().unwrap().design;
+    let face = SettingPath::conditions(&["launch", "launch_constraint_face"]);
+    let fix = fixes_of(&design, face.into());
+    let [Fix::SetValue { choices, .. }] = fix.as_slice() else {
+        panic!("{fix:?}");
+    };
+    assert_eq!(values(choices), ["+x", "-x", "+y", "-y", "+z", "-z"]);
+    let label = SettingPath::conditions(&["launch", "label"]);
+    let fix = fixes_of(&design, label.into());
+    assert!(matches!(fix.as_slice(), [Fix::SetValue { choices, .. }] if choices.is_empty()));
+}
+
 /// 軌道の `maneuver` が足りないときは、日付つきの遷移（`[transfer]`）を持つマヌーバだけを選ぶ候補（`PickRef`）。
 /// `source` は書かなくてよい欄で、対象外の理由（`source` を対象にした不足入力）には直す候補を付けない。
 #[test]
@@ -445,6 +494,7 @@ fn the_orbit_maneuver_picks_among_dated_transfers_and_the_source_has_no_fix() {
         departure: Some("2028-12-10T00:00:00Z".to_owned()),
         arrival: Some("2029-09-25T00:00:00Z".to_owned()),
         departure_by: None,
+        flybys: Vec::new(),
     });
     design.maneuvers.insert(dated.id.clone(), dated);
     let target =
@@ -487,10 +537,47 @@ fn settings_view_carries_the_choices_of_the_orbit_keys() {
             .find(|s| s.key == format!("conditions.orbit.{key}"))
             .unwrap_or_else(|| panic!("no setting {key}"))
     };
-    assert_eq!(values(&setting("source").choices), ["elements", "transfer"]);
+    assert_eq!(
+        values(&setting("source").choices),
+        ["elements", "transfer", "state", "libration"]
+    );
     assert!(
         setting("maneuver").choices.is_empty(),
         "the demo has no dated transfer"
     );
     assert!(setting("altitude").choices.is_empty());
+}
+
+/// 状態ベクトルの軌道の位置・速度は 3 成分と単位で打つ（入力の例は `1 0 0 km`・`1 0 0 km/s`）。期間は量（`1 d` のような単位つきの 1）。
+/// 直す先はそのまま `fune set` に渡せるパス。
+#[test]
+fn state_orbit_vectors_carry_a_three_component_example() {
+    let ws = demo();
+    let design = ws.snapshot().unwrap().design;
+    let example = |key: &str| -> (Option<String>, String) {
+        let path = fune_model::path::SettingPath::conditions(&["orbit", key]);
+        let fix = fixes_of(&design, path.into());
+        let [
+            Fix::SetValue {
+                example, command, ..
+            },
+        ] = fix.as_slice()
+        else {
+            panic!("{fix:?}");
+        };
+        (example.clone(), command.clone())
+    };
+    let (position, command) = example("position");
+    assert_eq!(command, "fune set conditions.orbit.position \"<value>\"");
+    let position = position.expect("an example");
+    let (number_count, unit) = position
+        .rsplit_once(' ')
+        .map(|(n, u)| (n.split(' ').count(), u.to_owned()))
+        .expect("numbers and a unit");
+    assert_eq!(number_count, 3, "{position}");
+    assert!(unit.contains('m'), "{position}");
+    let (velocity, _) = example("velocity");
+    assert!(velocity.expect("an example").split(' ').count() >= 4);
+    let (span, _) = example("span");
+    assert_eq!(span.expect("an example").split(' ').count(), 2);
 }

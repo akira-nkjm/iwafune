@@ -17,6 +17,14 @@ pub const NUMERICAL_INTEGRATOR: Dop853 = Dop853 {
     max_steps: 2_000_000,
 };
 
+/// 太陽中心の数値伝搬の積分器: 精度は [`NUMERICAL_INTEGRATOR`] と同じで、刻みの上限だけを 1 日にする
+/// （惑星間は 600 s の上限が要らない）。**太陽中心の積分の設定はここだけ**（巡航の確認 `transfer::cruise` と
+/// 状態ベクトルの軌道 [`super::StateSpec`] が使う）。
+pub const HELIOCENTRIC_INTEGRATOR: Dop853 = Dop853 {
+    max_step: crate::constants::SECONDS_PER_DAY,
+    ..NUMERICAL_INTEGRATOR
+};
+
 fn to_array(s: &OrbitState) -> [f64; 6] {
     [
         s.r_eci.x, s.r_eci.y, s.r_eci.z, s.v_eci.x, s.v_eci.y, s.v_eci.z,

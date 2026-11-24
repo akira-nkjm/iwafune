@@ -8,6 +8,7 @@
 use crate::error::{Result, ServiceError};
 use crate::preview::snapshot_with;
 use crate::workspace::Workspace;
+use fune_model::design::setting_lists::list_field_shape;
 use fune_model::design::{Maturity, NetKind, PartField, PartFieldName};
 use fune_model::path::{ParamPath, SettingPath, parse};
 use fune_model::value::{
@@ -176,9 +177,17 @@ fn setting_value(ws: &Workspace, path: &SettingPath, text: &SetText) -> Result<S
         .design
         .setting(path)
         .or_else(|| attitude_field_type(path))
-        .or_else(|| launch_field_type(path));
-    setting_from_text(&text.value, like.as_ref()).map_err(|e| match like {
-        Some(SettingValue::Quantity(_)) => quantity_error(text.value.trim(), e),
+        .or_else(|| launch_field_type(path))
+        .or_else(|| orbit_field_type(path))
+        .or_else(|| thermal_field_type(path))
+        .or_else(|| list_field_shape(path));
+    setting_text_value(&text.value, like)
+}
+
+/// 打った文字列 → 設定の値（`like` は欄の今の値か値の形の見本。`fune set` と下書きの `thermal_set` が同じ読み方を通る）。
+pub(super) fn setting_text_value(text: &str, like: Option<SettingValue>) -> Result<SettingValue> {
+    setting_from_text(text, like.as_ref()).map_err(|e| match like {
+        Some(SettingValue::Quantity(_)) => quantity_error(text.trim(), e),
         _ => invalid(e),
     })
 }
@@ -210,6 +219,31 @@ fn launch_field_type(path: &SettingPath) -> Option<SettingValue> {
         return None;
     }
     LaunchSettings::field_shape(field)
+}
+
+// 未設定でも、設計の軌道の文字列の欄とベクトルの欄（状態ベクトルの位置・速度）は型どおりに読む（欄の形は model が持つ）。
+fn orbit_field_type(path: &SettingPath) -> Option<SettingValue> {
+    use fune_model::design::OrbitSettings;
+    use fune_model::path::SettingScope;
+    let [file, field] = path.segments.as_slice() else {
+        return None;
+    };
+    if path.scope != SettingScope::Conditions || file != "orbit" {
+        return None;
+    }
+    OrbitSettings::field_shape(field)
+}
+
+// 未設定でも、熱の表面材と面積割合は小数、ラベルは文字列、明示の結合は量として読む（欄の形は model が持つ）。
+// 熱の下書きの `thermal_set`（`super::thermal`）も同じ表を引くので、`fune set` と同じファイルになる。
+pub(super) fn thermal_field_type(path: &SettingPath) -> Option<SettingValue> {
+    use fune_model::design::{AnalysisSystem, ThermalSettings};
+    use fune_model::path::SettingScope;
+    let (system, rest) = path.segments.split_first()?;
+    if path.scope != SettingScope::Analysis || system != AnalysisSystem::Thermal.as_str() {
+        return None;
+    }
+    ThermalSettings::field_shape(rest)
 }
 
 /// 文字列 → ベクトル（`"0 0 12 mm"`）。`fune part place --position` 用。

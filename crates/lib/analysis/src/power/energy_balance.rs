@@ -141,6 +141,9 @@ pub struct EnergyBalanceOutput {
     pub eclipses: Vec<sat_astro::timeline::Window>,
     /// 時系列（`timeline.attitude` の姿勢則）: `generation`・`sunlit`
     pub series: Series,
+    /// パネルの面の日照割合（ほかの部品の影を引いた割合）の、日照中の標本での最小と平均（`timeline.attitude` の姿勢則）。影を数えたときだけ付く
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadowing: Option<crate::structure::external_geometry::ShadowingReport>,
     /// モードごとのケース。`max_dod` などの欄は解析期間ずっと続けたときの値、判定は `evaluation` の運用で
     pub cases: Vec<EnergyBalanceCaseResult>,
     /// モードの並びで回した収支（並びが無ければ None）
@@ -339,6 +342,7 @@ impl Context<'_> {
                 ],
                 t: p.t.clone(),
             },
+            shadowing: p.shadowing.clone(),
             cases,
             sequence,
             checks: Vec::new(),

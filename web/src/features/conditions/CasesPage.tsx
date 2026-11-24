@@ -16,7 +16,9 @@ import { paths } from "@/lib/nav";
 import { PageBody } from "@/shell/PageBody";
 import { PageHeader } from "@/shell/PageHeader";
 import { Button } from "@/ui/button";
+import { CaseEpochDialog } from "./CaseEpochDialog";
 import { CasePhaseDialog } from "./CasePhaseDialog";
+import { CasesFromGeometryButton } from "./CasesFromGeometryDialog";
 
 /** 前提条件 / 解析ケース: cases/ の一覧。各系のページをそのケースで開ける */
 export function CasesPage() {
@@ -24,7 +26,12 @@ export function CasesPage() {
   const design = useDesign();
   return (
     <>
-      <PageHeader eyebrow={m.eyebrow} title={m.cases} subtitle={m.casesSubtitle} />
+      <PageHeader
+        eyebrow={m.eyebrow}
+        title={m.cases}
+        subtitle={m.casesSubtitle}
+        actions={<CasesFromGeometryButton design={design.data} />}
+      />
       <PageBody>
         <QueryState query={design} skeleton={<SkeletonPanel lines={5} />}>
           {(d) => (d.cases.length === 0 ? <Empty>{m.noCases}</Empty> : <CasesTable design={d} />)}
@@ -38,6 +45,7 @@ export function CasesPage() {
 function CasesTable({ design: d }: { design: DesignView }) {
   const m = useT().conditions;
   const [editing, setEditing] = useState<CaseView | null>(null);
+  const [editingEpoch, setEditingEpoch] = useState<CaseView | null>(null);
   return (
     <Panel pad={false}>
       <DataTable
@@ -48,6 +56,7 @@ function CasesTable({ design: d }: { design: DesignView }) {
             <Th>{m.description}</Th>
             <Th>{m.modes}</Th>
             <Th>{m.phase}</Th>
+            <Th>{m.epoch}</Th>
             <Th>{m.file}</Th>
             <Th>{m.openWith}</Th>
           </>
@@ -67,6 +76,19 @@ function CasesTable({ design: d }: { design: DesignView }) {
                   variant="ghost"
                   aria-label={m.setPhase}
                   onClick={() => setEditing(c)}
+                >
+                  <Pencil size={13} />
+                </Button>
+              </span>
+            </Td>
+            <Td mono>
+              <span className="flex items-center gap-1">
+                {c.epoch ?? "—"}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label={m.setEpoch}
+                  onClick={() => setEditingEpoch(c)}
                 >
                   <Pencil size={13} />
                 </Button>
@@ -92,6 +114,12 @@ function CasesTable({ design: d }: { design: DesignView }) {
           kase={editing}
           phases={d.phases}
           onOpenChange={(open) => !open && setEditing(null)}
+        />
+      )}
+      {editingEpoch && (
+        <CaseEpochDialog
+          kase={editingEpoch}
+          onOpenChange={(open) => !open && setEditingEpoch(null)}
         />
       )}
     </Panel>

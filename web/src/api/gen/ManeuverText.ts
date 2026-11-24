@@ -26,6 +26,10 @@ after?: string | null,
  */
 via_altitude?: string | null, 
 /**
+ * 直接書く ΔV（`"15 m/s"`。軌道修正・軌道維持・マージンの余裕。軌道は変えず、目標の軌道・中間の遠地点・日付とは一緒に書かない）
+ */
+delta_v?: string | null, 
+/**
  * 目標の中心天体（`moon`・`mars` など。書くと天体間の遷移で、高度はその天体から）
  */
 body?: string | null, 
@@ -64,4 +68,9 @@ arrive?: string | null,
 /**
  * 出発の噴射を行うもの（`spacecraft` / `launcher`。書かなければ衛星。日付と一緒にだけ書ける）
  */
-departure_by?: string | null, };
+departure_by?: string | null, 
+/**
+ * 途中のスイングバイ（`"venus@2029-02-01T00:00:00Z"`、`,min_altitude=400 km`・`,powered=false` を続けられる。繰り返す旗。
+ * 日付と一緒にだけ書ける。GUI の編集では、書かれたものをそのまま送り返す）
+ */
+flybys?: Array<string> | null, };

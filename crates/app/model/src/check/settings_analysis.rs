@@ -15,6 +15,23 @@ pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
         scope(ctx, system.setting_path()).dimensions(entries);
     }
     let design = ctx.design;
+    // 共通の設定（`analysis/common.toml`）: 放射線の設定の量の次元と、設計余裕が正であること
+    let mut common = scope(ctx, crate::path::SettingPath::analysis_common());
+    common.dimensions(entries);
+    if design
+        .analysis
+        .common
+        .as_ref()
+        .and_then(|c| c.radiation.as_ref())
+        .and_then(|r| r.design_margin)
+        .is_some_and(|m| !(m.is_finite() && m > 0.0))
+    {
+        common.error(
+            &["radiation", "design_margin"],
+            "setting.range",
+            "The design margin must be positive".into(),
+        );
+    }
     if let Some(id) = design
         .analysis
         .common
@@ -34,6 +51,7 @@ pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
     check_cdh(ctx);
     check_comm(ctx);
     super::settings_thermal::check_thermal(ctx);
+    super::settings_structure::check_structure(ctx);
     check_propulsion(ctx);
 }
 

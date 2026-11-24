@@ -98,6 +98,16 @@ fn phase_edits_match_cli() {
             "set_case_phase",
         ),
         (
+            vec!["case", "set-epoch", "hot_imaging", "2031-05-02T00:00:00Z"],
+            json!({ "command": "case_epoch", "case": "hot_imaging", "epoch": "2031-05-02T00:00:00Z" }),
+            "set_case_epoch",
+        ),
+        (
+            vec!["case", "unset-epoch", "hot_imaging"],
+            json!({ "command": "case_epoch", "case": "hot_imaging" }),
+            "set_case_epoch",
+        ),
+        (
             vec!["phase", "unset-field", "PH_TEST", "orbit.epoch"],
             json!({ "command": "phase_field", "phase": "PH_TEST", "path": "orbit.epoch" }),
             "set_phase_field",

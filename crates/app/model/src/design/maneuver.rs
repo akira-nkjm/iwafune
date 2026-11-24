@@ -5,6 +5,7 @@
 //! 粗い段階の解析は無視したことを結果に書く。
 
 use super::conditions::CentralBodyKind;
+use super::maneuver_flyby::ManeuverFlyby;
 use super::mode::Mode;
 use super::part::Part;
 use crate::Design;
@@ -121,6 +122,10 @@ pub struct ManeuverTransfer {
     /// 出発の噴射を行うもの（書かなければ衛星。`launcher` なら ΔV・推薬に出発の噴射を数えず、打ち上げ適合が C3 の曲線で質量の上限を引く）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub departure_by: Option<DepartureBy>,
+    /// 途中の惑星のスイングバイ（日付の順。`[[transfer.flybys]]`。書かなければ出発から到着まで 1 本の弧）。
+    /// 前後の天体の組ごとの Lambert の弧をつなぎ、通過で入りと出の超過速度の差を近点の噴射にする（パッチドコニック。`sat_astro::transfer::flyby`）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub flybys: Vec<ManeuverFlyby>,
 }
 
 impl ManeuverTransfer {
@@ -197,6 +202,10 @@ pub struct Maneuver {
     /// バイエリプティック遷移の中間の遠地点の高度（impulsive・finite_burn だけ）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub via_altitude: Option<Quantity>,
+    /// 直接書いた ΔV（速度。軌道の変更ではなく余裕として見込む軌道修正・軌道維持・マージン。軌道は変わらない。
+    /// `[target]`・`via_altitude`・`[transfer]` とは一緒に書かず、`method` は impulsive か low_thrust）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delta_v: Option<Quantity>,
     #[serde(default, skip_serializing_if = "ManeuverTarget::is_empty")]
     pub target: ManeuverTarget,
     #[serde(default, skip_serializing_if = "ManeuverConstraints::is_empty")]
@@ -258,6 +267,7 @@ mod tests {
             thruster: None,
             after: after.map(str::to_owned),
             via_altitude: None,
+            delta_v: None,
             target: ManeuverTarget::default(),
             constraints: ManeuverConstraints::default(),
             transfer: None,

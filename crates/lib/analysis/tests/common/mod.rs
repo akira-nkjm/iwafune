@@ -31,6 +31,7 @@ pub const CP_AL: f64 = 900.0;
 /// 比熱 `cp` の部品 1 つだけの節点（熱容量 = `mass_kg`·`cp`）。
 pub fn node_with(id: &str, mass_kg: f64, cp: f64, fixed: Option<f64>) -> ThermalNode {
     ThermalNode {
+        cell: None,
         id: id.to_owned(),
         parts: vec![ThermalNodePart {
             id: id.to_owned(),
@@ -96,12 +97,15 @@ pub fn cube_surfaces(node: &str, a: f64, alpha: f64, eps: f64) -> Vec<ThermalSur
 /// 節点と外面だけの熱ネットワーク（結合なし）。
 pub fn network(nodes: Vec<ThermalNode>, surfaces: Vec<ThermalSurface>) -> ThermalNetwork {
     ThermalNetwork {
+        plates: Vec::new(),
         mounts: None,
         nodes,
         conductive: Vec::new(),
         radiative: Vec::new(),
         surfaces,
         enclosure: None,
+        view_factors: None,
+        shadowing: None,
     }
 }
 

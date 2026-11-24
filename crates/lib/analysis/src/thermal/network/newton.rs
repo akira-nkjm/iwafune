@@ -140,12 +140,15 @@ mod tests {
     #[test]
     fn two_node_conduction() {
         let net = ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![node("sink", Some(300.0)), node("box", None)],
             conductive: vec![cond("sink", "box", 0.5)],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![],
+            shadowing: None,
         };
         let c = Compiled::new(&net).unwrap();
         let q = c
@@ -179,11 +182,13 @@ mod tests {
     #[test]
     fn single_node_radiation_balance() {
         let net = ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![node("plate", None)],
             conductive: vec![],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![ThermalSurface {
                 id: "s".to_owned(),
                 node: "plate".to_owned(),
@@ -194,6 +199,7 @@ mod tests {
                 emissivity: Some(0.8),
                 coatings: vec![],
             }],
+            shadowing: None,
         };
         let c = Compiled::new(&net).unwrap();
         let s = c.solve_steady(&[20.0], 0.0, 290.0).unwrap();
@@ -208,12 +214,15 @@ mod tests {
     #[test]
     fn isolated_node_is_rejected() {
         let net = ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![node("a", None)],
             conductive: vec![],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![],
+            shadowing: None,
         };
         let c = Compiled::new(&net).unwrap();
         assert!(c.solve_steady(&[1.0], 3.0, 290.0).is_err());

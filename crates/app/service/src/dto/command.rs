@@ -19,6 +19,8 @@ pub enum CommandText {
     /// `fune mode set <モード> <部品> <状態> --duty tx=0.1`・`fune mode unset <モード> <部品>`。
     /// GUI のモード表は変えたセルをまとめて送り、1 つの `SetModeStates` になる
     ModeSet(ModeSetText),
+    /// 熱の結合・表面材・面の割合の下書き。変えたセルをまとめて送り、`fune set|unset analysis.thermal.…` と同じ `SetSetting` の列になる
+    ThermalSet(super::ThermalSetText),
     /// `fune mode move <ID> --before|--after|--first|--last`。
     ModeMove {
         id: String,
@@ -95,7 +97,13 @@ pub enum CommandText {
         #[serde(default)]
         phase: Option<String>,
     },
-    /// `fune configuration add <ID> --label … --description …`（同じ ID があれば拒む）
+    /// `fune case set-epoch <ケース> <時刻>`（`epoch` が無い・空なら `unset-epoch` で外す。時刻の読み方はサービスだけが持つ）
+    CaseEpoch {
+        case: String,
+        #[serde(default)]
+        epoch: Option<String>,
+    },
+    /// `fune configuration add <ID> --label … --label-en … --description …`（同じ ID があれば拒む）
     ConfigurationAdd(super::ConfigurationText),
     /// `fune configuration set <ID> …`（無ければ作り、あれば見出しの欄を置き換える。部品ごとの姿勢は今のまま残す）
     ConfigurationSet(super::ConfigurationText),
@@ -288,6 +296,22 @@ pub enum SunDistanceCaseAt {
 pub struct CaseFromSunDistanceRequest {
     pub id: String,
     pub at: SunDistanceCaseAt,
+    #[serde(default)]
+    pub mode: Option<String>,
+}
+
+/// `fune case from-geometry` と HTTP が共有する要求。フェーズの軌道のミッション幾何（`orbit.geometry` の区間）の、
+/// 太陽距離の最大・最小と地球距離の最大の日付から、`epoch` を持つ解析ケースを作る（なければ作り、あれば `epoch` などを更新する）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct CaseFromGeometryRequest {
+    /// 読むフェーズ（フェーズが無い設計は省略。フェーズがある設計では必須）。ケースの `phase` にもなる
+    #[serde(default)]
+    pub phase: Option<String>,
+    /// ケース ID の前置き（`<prefix>_sun_far`・`<prefix>_sun_near`・`<prefix>_earth_far`）。省略時はフェーズの ID（小文字）、
+    /// フェーズも無ければ前置きなし
+    #[serde(default)]
+    pub prefix: Option<String>,
+    /// ケースのモード（省略すると、新しいケースにはモードを書かず、既にあるケースのモードは変えない）
     #[serde(default)]
     pub mode: Option<String>,
 }

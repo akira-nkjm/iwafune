@@ -6,6 +6,8 @@
 //! モードや部品の ID を参照する箇所（`mode_share` のキー・`law` のキー・`nodes` の値など）は `check` が検査し、
 //! 名前の変更（RenamePart・RenameMode）で一緒に書き換わる。
 
+use crate::design::acknowledged::AcknowledgedFinding;
+use crate::design::modal_settings::ModalSettings;
 use crate::design::thermal_settings::ThermalSettings;
 use crate::design::timing::StartRef;
 use crate::enum_text::enum_text;
@@ -111,6 +113,21 @@ pub struct PropulsionLaunchWindow {
 pub struct CommonSettings {
     /// 解析ケースを明示しなかったときに使うケース ID。
     pub default_case: Option<String>,
+    /// 放射線の総線量（`orbit.total_dose`）の設定（`[radiation]`）。環境の表は軌道の設定が持つ
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub radiation: Option<RadiationSettings>,
+}
+
+/// 放射線の総線量の設計全体の設定（`analysis/common.toml` の `[radiation]`）。どれも任意で、既定値は解析が持つ。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RadiationSettings {
+    /// 遮蔽厚さ（`shielding`）を書かない部品に使う等価アルミの厚さ（長さ。書かなければその部品は評価しない）
+    #[serde(default)]
+    pub default_shielding: Option<Quantity>,
+    /// 設計余裕 RDM（許容線量を総線量の何倍以上に取るか。既定は解析が持つ）
+    #[serde(default)]
+    pub design_margin: Option<f64>,
 }
 
 /// 電源の解析（`analysis/power.toml`）。
@@ -133,6 +150,10 @@ pub struct PowerSettings {
     /// 時系列の解析で回す周回数
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub orbits: Option<u32>,
+    /// 太陽電池の発電に、ほかの部品の影（部品の箱から出す面の日照割合）を数えるか。省略時は数える
+    /// （部品に寸法があるとき。`false` で従来の式のまま）。熱の外面は `analysis.thermal.shadowing`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadowing: Option<bool>,
     /// 軌道平均で各モードにいる時間の割合（モード ID → 割合。合計 1）
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub mode_share: BTreeMap<String, f64>,
@@ -238,10 +259,16 @@ pub struct AocsSettings {
     /// 太陽輻射圧の反射係数 Cr
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub srp_coefficient: Option<f64>,
-    /// 空力の圧力中心 − 重心（機体座標）
+    /// 空力の受圧面積（書けば、部品の箱から向きごとに出す面積に代えてこの値を使う）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aero_area: Option<Quantity>,
+    /// 太陽輻射圧の受圧面積（書けば、部品の箱から向きごとに出す面積に代えてこの値を使う）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub srp_area: Option<Quantity>,
+    /// 空力の圧力中心 − 重心（機体座標。書けば、部品の箱から出す値に代えてこの値を使う）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cp_offset_aero: Option<Vector3>,
-    /// 太陽輻射圧の圧力中心 − 重心（機体座標）
+    /// 太陽輻射圧の圧力中心 − 重心（機体座標。書けば、部品の箱から出す値に代えてこの値を使う）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cp_offset_srp: Option<Vector3>,
     /// 残留磁気双極子（機体座標）
@@ -389,4 +416,10 @@ pub struct StructureSettings {
     /// 噴流・視野の円錐を見る、頂点からの距離の上限（`structure.cone_clearance`。書かなければ機体の大きさから決める）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cone_clearance_range: Option<Quantity>,
+    /// 粗い有限要素の固有値解析（`structure.modal_fem`）の設定
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub modal: Option<ModalSettings>,
+    /// 承知済みの組（`structure.interference` と `structure.cone_clearance` に共通。`[[acknowledged]]`）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub acknowledged: Vec<AcknowledgedFinding>,
 }

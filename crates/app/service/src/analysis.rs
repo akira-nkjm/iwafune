@@ -8,6 +8,7 @@
 //! | `checks` | 出力の中の判定を集める（期間不足の注意は語彙から作る） |
 //! | `kpi` | KPI（代表値の選び方・判定・塗りの比・判定の数え方） |
 //! | `overview` | 系の概要の解析の表の行（主な結果の選び方・判定の文の持ち主ごとのまとまり・電源の棒グラフと隠す表） |
+//! | `part_findings` | 幾何の所見（箱の重なり・円錐に入る部品）に関わる部品ごとの状態（承知でない所見が残るか・すべて承知済みか） |
 //! | `part_heat` | 熱の定常解析の部品ごとの代表の温度（節点と部品の対応・代表の選び方） |
 //! | `typed` | 型付きの実行（入力・出力を型のまま返す。電源のモードの見方・概要の隠す表が使う） |
 //! | `weather` | 高度低下の入力に宇宙天気の表から日付で引いた列を足し、使った表の版を返す |
@@ -35,6 +36,7 @@ mod failure;
 pub(crate) mod kpi;
 pub mod labels;
 pub(crate) mod overview;
+mod part_findings;
 mod part_heat;
 mod typed;
 mod weather;
@@ -53,6 +55,7 @@ pub fn analysis_catalog() -> Result<Vec<AnalysisEntry>> {
                 output_type: row.output_type.clone(),
                 projectable: row.projectable,
                 kpis: kpi::defs(&info.id),
+                detail_type: sat_analysis::catalog::detail_type(&info.id).map(str::to_owned),
                 info,
             })
         })
@@ -73,6 +76,8 @@ struct Outcome {
     configuration: Option<(String, ConfigurationSource)>,
     /// 入力に足した宇宙天気の表の版
     space_weather: Option<crate::dto::SpaceWeatherVersion>,
+    /// 重い任意の出力（頼まれて、解析が持つときだけ）
+    detail: Option<Value>,
 }
 
 impl Outcome {
@@ -88,6 +93,7 @@ impl Outcome {
             case_mode: None,
             configuration: None,
             space_weather: None,
+            detail: None,
         }
     }
 }
@@ -145,6 +151,9 @@ fn finish(id: &str, (case, case_source, side): CaseInfo, outcome: Outcome) -> An
             case_mode: outcome.case_mode.as_deref(),
         },
     );
+    // 軌道の説明は判定でも KPI の材料でもない（結果の判定の一覧にだけ足す）
+    let mut checks = checks;
+    checks.extend(checks::orbit_model_checks(outcome.input.as_ref()));
     let (configuration, configuration_source) = outcome.configuration.unzip();
     let mut result = AnalysisRunResult {
         checks,
@@ -164,10 +173,13 @@ fn finish(id: &str, (case, case_source, side): CaseInfo, outcome: Outcome) -> An
         dims: outcome.dims,
         labels: outcome.labels,
         space_weather: outcome.space_weather,
+        detail: outcome.detail,
         overview: crate::dto::AnalysisOverview::default(),
         part_heat: None,
+        part_findings: None,
     };
     result.part_heat = part_heat::part_heat(&result);
+    result.part_findings = part_findings::part_findings(&result);
     result.overview = overview::overview(&result, None, Vec::new());
     result
 }
@@ -257,7 +269,7 @@ fn run_inner(
             }
         }
     };
-    Ok(evaluate(id, projected, configuration))
+    Ok(evaluate(id, projected, configuration, req.detail))
 }
 
 /// 組み立てた入力で解析を実行し、出力の表示情報も作る。
@@ -269,9 +281,10 @@ fn evaluate(
         space_weather,
     }: Projected,
     configuration: Option<(String, ConfigurationSource)>,
+    detail: bool,
 ) -> Outcome {
-    match sat_analysis::catalog::run_json(id, input.clone()) {
-        Ok(mut output) => {
+    match sat_analysis::catalog::run_json_detailed(id, input.clone(), detail) {
+        Ok((mut output, detail)) => {
             channels::fix_channels(&mut output);
             let (dims, labels) = output_meta(id, &output);
             Outcome {
@@ -285,6 +298,7 @@ fn evaluate(
                 case_mode,
                 configuration,
                 space_weather,
+                detail,
             }
         }
         Err(e) => Outcome {

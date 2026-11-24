@@ -1,9 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router";
+import { FINDING_ANALYSES } from "@/analysis/geometry-findings";
 import { analysisOutput } from "@/api/analysis-output";
 import { q, useDesign } from "@/api/queries";
-import type { DesignView } from "@/api/types";
+import type { AnalysisRunResult, DesignView } from "@/api/types";
 import { useT } from "@/i18n";
 import { SkeletonBlock } from "@/kit/feedback/Loading";
 import { QueryState } from "@/kit/feedback/QueryState";
@@ -42,13 +43,30 @@ function LayoutContent({ design }: { design: DesignView }) {
   const requested = params.get(SEARCH.configuration);
   const selected = design.configurations.find(({ id }) => id === requested) ?? null;
   const configuration = selected?.id ?? null;
-  const parts = useQuery(q.parts(configuration));
+  // 形態を切り替えている間は前の一覧を出し続ける（3D を作り直さず、選択とカメラを保つ。変わるのは姿勢だけ）
+  const parts = useQuery({ ...q.parts(configuration), placeholderData: keepPreviousData });
   // 表示中の形態の配置で重心を求める（Base は選択なし）
   const mass = useQuery(q.analysis("structure.mass_properties", null, [], configuration));
   const c = analysisOutput(mass.data, "structure.mass_properties")?.summary.center_of_mass;
   const com: V3 | null = c ? [c.x, c.y, c.z] : null;
+  // 表示中の形態での幾何の所見（干渉・円錐の遮り）。3D の所見の表示が使う（入力不足・失敗のときは載せない）
+  const interference = useQuery(q.analysis(FINDING_ANALYSES[0], null, [], configuration));
+  const cones = useQuery(q.analysis(FINDING_ANALYSES[1], null, [], configuration));
+  const findings = useMemo(
+    () => [interference.data, cones.data].filter((r): r is AnalysisRunResult => r?.status === "ok"),
+    [interference.data, cones.data],
+  );
 
+  // 自分で選んだ（選び直させた）形態。URL の更新は描画より遅れて届くので、届くまでの間に、設計の再読込で
+  // 古い形態が無くなったのを見て URL を基準に戻してしまわない（名前を変えた形態を選び直したのを上書きしない）
+  const chosen = useRef<string | null | undefined>(undefined);
+  const select = (id: string | null, options?: { replace: boolean }) => {
+    chosen.current = id;
+    setParams(withLayoutConfiguration(params, id), options);
+  };
   useEffect(() => {
+    if (chosen.current === requested) chosen.current = undefined;
+    else if (chosen.current !== undefined) return;
     if (requested !== null && !configuration)
       setParams(withLayoutConfiguration(params, null), { replace: true });
   }, [requested, configuration, params, setParams]);
@@ -58,7 +76,7 @@ function LayoutContent({ design }: { design: DesignView }) {
       <ConfigurationControls
         configurations={design.configurations}
         selected={selected}
-        onSelect={(id, options) => setParams(withLayoutConfiguration(params, id), options)}
+        onSelect={select}
       />
       <QueryState
         query={parts}
@@ -71,6 +89,7 @@ function LayoutContent({ design }: { design: DesignView }) {
             design={{ ...design, parts: rows }}
             configuration={configuration}
             com={com}
+            findings={findings}
           />
         )}
       </QueryState>

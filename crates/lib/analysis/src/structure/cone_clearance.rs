@@ -1,7 +1,7 @@
-//! 円錐の遮りの確認（`structure.cone_clearance`）。スラスタの噴流と、センサの視野を、**同じ 1 つの判定**で見る。
+//! 円錐の遮りの確認（`structure.cone_clearance`）。スラスタの噴流と、センサの視野と、アンテナのビームを、**同じ 1 つの判定**で見る。
 //! どちらも「ある点から、ある向きに、ある半頂角で広がる円錐」で、その中に機体の部品の箱が入っていないかを調べる。
 //! 円錐を持つもの（担い手。[`ConeCarrier`]）の種類は [`ConeKind`] で区別するだけで、判定・規則・出力は共通。
-//! 担い手の属性の対応（どの属性が軸・半頂角か、軸の符号）は射影の表にだけある（アンテナのビームなどは表の 1 行を足すだけ）。
+//! 担い手の属性の対応（どの属性が軸・半頂角か、軸の符号、ビーム幅から半頂角への換算）は射影の表にだけある（担い手を増やすのは表の 1 行）。
 //!
 //! **噴流や視野を遮る部品が見つかっても警告で、エラーにも解析の失敗にもしない。** 箱は実際の形より大きいので、
 //! 箱が円錐に入っても実物は入らないことがある。判定の文にも箱での近似であることを書く（干渉の確認 `structure.interference` と同じ立場）。
@@ -17,10 +17,14 @@
 //! - **半頂角が無い担い手は判定せず、一覧に残す**（噴流の半頂角は任意の属性なので、何も仮定しない）。軸が無い・値が不正なものも同じ。
 //! - 寸法が無い（または正でない）部品は判定せず、一覧に残す（箱の選び方は干渉の確認と共通）。
 //!
+//! - **承知済みの（担い手, 部品）**: 設計者が理由つきで承知した組は、円錐に入る部品として出力に残す（`acknowledged: true` と理由）が、
+//!   判定は警告にしない（`ok`。規則は [`super::acknowledged`]。担い手が先、部品が後の順のある組）。
+//!
 //! 幾何は [`cone`]（円錐と向きつきの箱の厳密な交差）。箱は干渉の確認と同じ `OrientedBox`・`InterferenceBox`。
 
 pub mod cone;
 
+use super::acknowledged::{Acknowledgement, find, note};
 use super::interference::obb::OrientedBox;
 use super::interference::{
     InterferenceBox, InterferenceSkipped, count, on_mount_chain, usable_boxes,
@@ -45,6 +49,8 @@ pub enum ConeKind {
     Plume,
     /// センサの視野（視線のまわり）
     FieldOfView,
+    /// アンテナのビーム（ボアサイトのまわり。半頂角はビーム幅の半分）
+    Beam,
 }
 
 impl ConeKind {
@@ -53,6 +59,7 @@ impl ConeKind {
         match self {
             Self::Plume => ("plume", "Plume"),
             Self::FieldOfView => ("field of view", "Field of view"),
+            Self::Beam => ("antenna beam", "Antenna beam"),
         }
     }
 }
@@ -90,6 +97,9 @@ pub struct ConeClearanceInput {
     /// 頂点からの距離の上限（無ければ機体の大きさから決める）
     #[serde(default)]
     pub range: Option<Qty<Length>>,
+    /// 承知済みの（担い手, 部品）の組（いま見ている配置に効くもの）
+    #[serde(default)]
+    pub acknowledged: Vec<Acknowledgement>,
 }
 
 /// 判定しなかった担い手の理由。
@@ -126,6 +136,17 @@ pub struct ConeObstruction {
     pub min_angle: Qty<Angle>,
     /// 頂点から、箱のうち円錐の中にある部分までの最短距離
     pub min_distance: Qty<Length>,
+    /// 設計者が承知済みとした組か（承知済みでも円錐に入る部品として残るが、判定は警告にしない）
+    #[serde(default)]
+    pub acknowledged: bool,
+    /// 承知した理由（承知済みのときだけ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub reason: Option<String>,
+    /// 承知が形態を指していれば、その形態（取り消すときに同じ承知を指す。無ければすべての配置に効く承知）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub acknowledged_configuration: Option<String>,
 }
 
 /// 判定した円錐 1 つ。
@@ -162,7 +183,7 @@ pub struct ConeClearanceOutput {
     pub parts_with_box: u32,
     /// 判定した円錐の数
     pub cones_judged: u32,
-    /// 円錐に部品が入っている担い手の数
+    /// 円錐に部品が入っている担い手の数（承知済みの組も数える。承知でない組が入っている担い手の数は `obstructions` の `acknowledged` から数える）
     pub cones_obstructed: u32,
     /// 円錐ごとの結果（担い手の ID の昇順）
     pub cones: Vec<ConeReport>,
@@ -182,9 +203,9 @@ impl Analysis for ConeClearance {
     const TITLE: &'static str = "噴流・視野の遮り";
     const AREA: AnalysisArea = AnalysisArea::System(System::Structure);
     const KIND: AnalysisKind = AnalysisKind::Steady;
-    const DESCRIPTION: &'static str = "スラスタの噴流の円錐と、センサの視野の円錐に、機体の部品の箱が入っていないか（箱での近似。入っていれば警告）";
+    const DESCRIPTION: &'static str = "スラスタの噴流・センサの視野・アンテナのビームの円錐に、機体の部品の箱が入っていないか（箱での近似。入っていれば警告）";
     const TITLE_EN: &'static str = "Plume and FoV clearance";
-    const DESCRIPTION_EN: &'static str = "Whether the boxes of the spacecraft's own parts lie inside a thruster plume cone or a sensor field-of-view cone (a box approximation; a hit is a warning)";
+    const DESCRIPTION_EN: &'static str = "Whether the boxes of the spacecraft's own parts lie inside a thruster plume cone, a sensor field-of-view cone or an antenna beam cone (a box approximation; a hit is a warning)";
     type Input = ConeClearanceInput;
     type Output = ConeClearanceOutput;
 
@@ -207,7 +228,12 @@ impl Analysis for ConeClearance {
         let mut skipped_carriers = Vec::new();
         for c in carriers {
             match cone_of(c, &judged, &placed, range) {
-                Ok(cone) => cones.push(report(c, &cone, &judged, &placed, range)),
+                Ok(cone) => cones.push(report(
+                    c,
+                    &cone,
+                    (&judged, &placed),
+                    (range, &input.acknowledged),
+                )),
                 Err(reason) => skipped_carriers.push(ConeCarrierSkipped {
                     id: c.id.clone(),
                     kind: c.kind,
@@ -298,9 +324,8 @@ fn cone_of(
 fn report(
     c: &ConeCarrier,
     cone: &Cone,
-    boxes: &[&InterferenceBox],
-    placed: &[OrientedBox],
-    range: Qty<Length>,
+    (boxes, placed): (&[&InterferenceBox], &[OrientedBox]),
+    (range, acknowledged): (Qty<Length>, &[Acknowledgement]),
 ) -> ConeReport {
     let mut judged = 0;
     let mut related = 0;
@@ -315,10 +340,14 @@ fn report(
         }
         judged += 1;
         if let Some(hit) = contact(cone, shape) {
+            let ack = find(acknowledged, &c.id, &b.id, true);
             obstructions.push(ConeObstruction {
                 part: b.id.clone(),
                 min_angle: Qty::from_raw(hit.min_angle),
                 min_distance: Qty::from_raw(hit.min_distance),
+                acknowledged: ack.is_some(),
+                reason: ack.map(|a| a.reason.clone()),
+                acknowledged_configuration: ack.and_then(|a| a.configuration.clone()),
             });
         }
     }
@@ -349,7 +378,7 @@ fn checks(cones: &[ConeReport], skipped: usize, parts: usize, range: Qty<Length>
     }
     let message = if cones.is_empty() {
         format!(
-            "No thruster plume or sensor field of view could be judged ({skipped} carriers skipped, see the list)"
+            "No plume, field of view or antenna beam could be judged ({skipped} carriers skipped, see the list)"
         )
     } else {
         format!(
@@ -371,12 +400,17 @@ fn obstruction_checks(c: &ConeReport) -> Vec<Check> {
     c.obstructions
         .iter()
         .map(|o| {
+            // 承知済みは判定を `ok` にして、承知であることと理由を文の頭に残す
+            let (verdict, head) = match &o.reason {
+                Some(reason) => (Verdict::Ok, note(reason)),
+                None => (Verdict::Warning, String::new()),
+            };
             Check::new(
                 &sat_checkkey::cone_obstruction(&c.id, &o.part),
                 &format!("{} of {} reaches {}", c.kind.text().1, c.id, o.part),
-                Verdict::Warning,
+                verdict,
                 format!(
-                    "The box of {} lies inside the {} cone of {} (half angle {}, range {}): {} from the axis at the nearest, {} from the apex at the nearest. Boxes are larger than the real shapes, so the real part may not be in the cone (box approximation)",
+                    "{head}The box of {} lies inside the {} cone of {} (half angle {}, range {}): {} from the axis at the nearest, {} from the apex at the nearest. Boxes are larger than the real shapes, so the real part may not be in the cone (box approximation)",
                     o.part,
                     c.kind.text().0,
                     c.id,

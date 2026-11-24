@@ -4,19 +4,25 @@
 //! - 回線余裕は最大の距離（最低仰角の斜距離、または期間中の地球からの最大距離）で判定する。
 //! - 下りは、最小の距離（天頂、または期間中の最小距離）での地表の電力束密度（PFD）も求める。限度値 `pfd_limit_db` が
 //!   書かれているときだけ判定する（限度値は周波数帯・業務・到来角で規則が決めるので、解析は既定値を持たない）。
+//! - ほかの天体を回る衛星は、最小の距離（最良の端）の余裕・最大のデータレート・光の伝搬時間（[`at_range`]。式は 1 つで距離だけ変える）と、
+//!   太陽との合（[`conjunction`]。SEP の最小としきい値を下回る時間、`solar_conjunction` の判定）も出す。
+//!   地球を回る衛星の出力にはこれらのキーが出ない（出力は従来と同じ）。
 
+mod at_range;
+mod conjunction;
 mod range;
 
+pub use conjunction::{DEFAULT_CONJUNCTION_ANGLE, SolarConjunction};
 pub use range::{DEFAULT_RANGE_SPAN, LinkDistanceModel};
 
 use crate::comm::link::{
-    DEFAULT_PFD_REFERENCE_BANDWIDTH, RfLinkParams, eb_over_n0_db, max_data_rate_bps, pfd_dbw_m2,
-    required_margin,
+    DEFAULT_PFD_REFERENCE_BANDWIDTH, RfLinkParams, pfd_dbw_m2, required_margin,
 };
 use crate::spec::quantity_text;
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, margin_verdict,
 };
+use at_range::at_range;
 use range::{deep_space_range, link_range};
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::EarthRange;
@@ -57,8 +63,10 @@ pub struct LinkBudgetLink {
     pub data_rate: Qty<DataRate>,
     /// 変調・符号化で決まる所要 Eb/N0
     pub required_eb_n0_db: Decibel,
-    /// 衛星の高度（中心天体の半径から）
-    pub altitude: Qty<Length>,
+    /// 衛星の高度（中心天体の半径から）。地球を回る衛星の斜距離に使う。長半径を持たない軌道（状態ベクトル）には無い
+    /// （地球以外を回る衛星の距離は地球からの距離で、高度は使わない）
+    #[serde(default)]
+    pub altitude: Option<Qty<Length>>,
     /// 軌道の中心天体（斜距離に半径を使う。省略時は地球）
     #[serde(default)]
     pub central: CentralBody,
@@ -121,6 +129,10 @@ pub struct LinkBudgetLinkResult {
     pub range_max_epoch: Option<Epoch>,
     /// 最大の距離を光が進む時間（片道）
     pub light_time: Qty<Time>,
+    /// 最小の距離を光が進む時間（片道。ほかの天体を回る衛星だけ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub light_time_min: Option<Qty<Time>>,
     /// EIRP [dBW]
     pub eirp_dbw: DecibelWatt,
     /// 自由空間損失 [dB]
@@ -141,8 +153,16 @@ pub struct LinkBudgetLinkResult {
     pub margin_db: Decibel,
     /// 判定に使った要求余裕 [dB]（回線ごとの値、無ければ入力全体の値、それも無ければ既定値）
     pub required_margin_db: Decibel,
-    /// 要求余裕を残して通せる最大のデータレート
+    /// 要求余裕を残して通せる最大のデータレート（最大の距離で。距離の 2 乗に反比例する）
     pub max_data_rate: Qty<DataRate>,
+    /// 最小の距離での回線余裕 [dB]（最良の端。ほかの天体を回る衛星だけ。判定は最大の距離の `margin_db`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub margin_db_at_range_min: Option<Decibel>,
+    /// 最小の距離で、要求余裕を残して通せる最大のデータレート（ほかの天体を回る衛星だけ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub max_data_rate_at_range_min: Option<Qty<DataRate>>,
     /// 地表の電力束密度 [dBW/m²（基準帯域あたり）]（下りだけ。最小の距離・大気損失なしの最悪の値）
     pub pfd_dbw_m2: Option<Decibel>,
     /// 電力束密度の基準帯域（下りだけ）
@@ -160,6 +180,10 @@ pub struct LinkBudgetOutput {
     pub links: Vec<LinkBudgetLinkResult>,
     /// 入力全体の要求余裕 [dB]（回線ごとの値を持たない回線に使った値。入力が無ければ既定値）。回線ごとに使った値は各回線の結果の `required_margin_db`
     pub required_margin_db: Decibel,
+    /// 太陽との合（SEP の最小としきい値を下回る時間）。ほかの天体を回る衛星の回線があるときだけ。判定は key `solar_conjunction`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub solar_conjunction: Option<SolarConjunction>,
     /// 回線 × 地上局の組ごとの余裕の判定（key は `margin:<name>@<局>`）と、限度が書かれた下りの PFD の判定（`pfd:<name>@<局>`）
     pub checks: Vec<Check>,
 }
@@ -193,9 +217,12 @@ impl Analysis for LinkBudget {
             checks.extend(pfd_check(&result));
             links.push(result);
         }
+        let solar_conjunction = deep.as_ref().map(SolarConjunction::of);
+        checks.extend(solar_conjunction.as_ref().map(SolarConjunction::check));
         Ok(LinkBudgetOutput {
             links,
             required_margin_db: required,
+            solar_conjunction,
             checks,
         })
     }
@@ -208,16 +235,19 @@ fn evaluate(
 ) -> Result<LinkBudgetLinkResult, AnalysisError> {
     link.rf.validate(&link.name)?;
     let rate = link.data_rate.value();
-    let altitude = link.altitude.value();
-    if !(rate > 0.0 && altitude > 0.0) {
+    let altitude_ok = link.altitude.is_none_or(|a| a.value() > 0.0);
+    if !(rate > 0.0 && altitude_ok) {
         return Err(AnalysisError::InvalidInput(format!(
             "{}: data rate and altitude must be positive",
             link.name
         )));
     }
     let range = link_range(link, deep)?;
-    let eval = link.rf.evaluate(range.max_m);
-    let eb_n0 = eb_over_n0_db(eval.c_over_n0_dbhz, rate);
+    let far = at_range(link, required_margin, range.max_m);
+    let eval = far.eval;
+    // 最小の距離（最良の端）。地球を回る衛星の最小は天頂で、天頂での余裕は PFD と違い判定に使わないので、ほかの天体を回る衛星だけ求める
+    let near = (range.model == LinkDistanceModel::EarthToBody)
+        .then(|| at_range(link, required_margin, range.min_m));
     let pfd = pfd_of(link, eval.eirp_dbw, &range);
     Ok(LinkBudgetLinkResult {
         name: link.name.clone(),
@@ -229,21 +259,20 @@ fn evaluate(
         range_min_epoch: range.min_epoch,
         range_max_epoch: range.max_epoch,
         light_time: range.light_time(),
+        light_time_min: near.map(|_| range.light_time_min()),
         eirp_dbw: (eval.eirp_dbw).into(),
         fspl_db: (eval.fspl_db).into(),
         extra_loss_db: (eval.extra_loss_db).into(),
         g_over_t_dbk: (eval.g_over_t_dbk).into(),
         g_over_t_given: eval.g_over_t_given,
         c_over_n0_dbhz: (eval.c_over_n0_dbhz).into(),
-        eb_n0_db: (eb_n0).into(),
+        eb_n0_db: (far.eb_n0_db).into(),
         required_eb_n0_db: link.required_eb_n0_db,
-        margin_db: (eb_n0 - link.required_eb_n0_db.value()).into(),
+        margin_db: (far.margin_db).into(),
         required_margin_db: required_margin,
-        max_data_rate: Qty::from_raw(max_data_rate_bps(
-            eval.c_over_n0_dbhz,
-            link.required_eb_n0_db.value(),
-            required_margin.value(),
-        )),
+        max_data_rate: Qty::from_raw(far.max_data_rate_bps),
+        margin_db_at_range_min: near.map(|n| n.margin_db.into()),
+        max_data_rate_at_range_min: near.map(|n| Qty::from_raw(n.max_data_rate_bps)),
         pfd_dbw_m2: pfd.as_ref().map(|p| p.pfd),
         pfd_reference_bandwidth: pfd.as_ref().map(|p| p.reference),
         pfd_limit_db: pfd.as_ref().and_then(|p| p.limit),
@@ -289,17 +318,20 @@ fn pfd_check(result: &LinkBudgetLinkResult) -> Option<Check> {
         result.pfd_margin_db?,
     );
     let pair = format!("{}@{}", result.name, result.station);
-    Some(Check::new(
-        &sat_checkkey::link_pfd(&result.name, &result.station),
-        &format!("{pair} power flux density"),
-        margin_verdict(margin.value(), PFD_WARNING_BAND.value()),
-        format!(
-            "PFD {} (limit {}, margin {})",
-            quantity_text::<Decibel>(pfd.value()),
-            quantity_text::<Decibel>(limit.value()),
-            quantity_text::<Decibel>(margin.value())
-        ),
-    ))
+    Some(
+        Check::new(
+            &sat_checkkey::link_pfd(&result.name, &result.station),
+            &format!("{pair} power flux density"),
+            margin_verdict(margin.value(), PFD_WARNING_BAND.value()),
+            format!(
+                "PFD {} (limit {}, margin {})",
+                quantity_text::<Decibel>(pfd.value()),
+                quantity_text::<Decibel>(limit.value()),
+                quantity_text::<Decibel>(margin.value())
+            ),
+        )
+        .with_margin(margin.value()),
+    )
 }
 
 fn margin_check(result: &LinkBudgetLinkResult, required: Decibel) -> Check {
@@ -314,7 +346,10 @@ fn margin_check(result: &LinkBudgetLinkResult, required: Decibel) -> Check {
             quantity_text::<Decibel>(required.value())
         ),
     )
+    .with_margin(result.margin_db.value())
 }
 
+#[cfg(test)]
+mod deep_space_tests;
 #[cfg(test)]
 mod tests;

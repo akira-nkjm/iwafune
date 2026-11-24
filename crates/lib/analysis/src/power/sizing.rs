@@ -7,12 +7,16 @@ use super::battery::EnergyBalanceBattery;
 use super::energy_balance::{EnergyBalanceSegment, ModeTiming, SequenceTiming};
 use super::mode_load::{ModeLoad, ModeLoadInput};
 use super::solar::{SolarArray, SolarPanel};
-use crate::orbit::{EclipseSeason, EclipseSeasonInput, EclipseSeasonPoint};
+use crate::orbit::{
+    EclipseSeason, EclipseSeasonInput, EclipseSeasonPoint, sun_distance_extremes_over,
+};
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, ensure_fraction,
     ensure_non_negative, ensure_positive, quantity_text, ratio_margin_verdict,
 };
 use sat_astro::attitude::AttitudeLaw;
+use sat_astro::orbit::Trajectory;
+use sat_astro::time::Epoch;
 use sat_astro::timeline::TimelineSpec;
 use sat_units::typed::{
     Area, ElectricCurrent, Energy, Fraction, Length, Power, Qty, Time, Voltage,
@@ -123,6 +127,15 @@ pub struct SizingUsed {
     pub dod_max: Fraction,
     pub battery_strings: u32,
     pub sun_distance: Qty<Length>,
+    /// `sun_distance` の出どころ。設定と中心天体の慣例値（従来の出どころ）は書き出さず、期間の最大のときだけ書き出す
+    #[serde(
+        default,
+        skip_serializing_if = "SizingSunDistanceSource::is_conventional"
+    )]
+    pub sun_distance_source: SizingSunDistanceSource,
+    /// `sun_distance_source = span_max` のとき、期間の中で太陽距離が最大になった日付
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sun_distance_epoch: Option<Epoch>,
     /// 部品別のセル効率・実装率・EOL 係数（省略値を解決済み）。
     pub panels: Vec<SolarPanel>,
 }
@@ -165,6 +178,27 @@ pub enum SizingLifetimeSource {
     SeasonSpan,
     /// 設計寿命の入力（`design_life`）
     DesignLife,
+}
+
+/// 発電の強さを決める太陽距離の出どころ。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "snake_case")]
+pub enum SizingSunDistanceSource {
+    /// 設定 `[sizing] sun_distance`
+    Setting,
+    /// 中心天体の慣例値（地球・月は 1 AU）
+    #[default]
+    Nominal,
+    /// 慣例値の無い中心天体で、設定も無いとき: 季節の走査の期間（ミッション期間）の中の太陽距離の最大（最悪の日。発電が最小）
+    SpanMax,
+}
+
+impl SizingSunDistanceSource {
+    /// 設定か中心天体の慣例値か（従来の出どころ。出力に書かない）。
+    pub fn is_conventional(&self) -> bool {
+        !matches!(self, Self::SpanMax)
+    }
 }
 
 /// KPI と判定に使った必要量の求め方。
@@ -215,6 +249,7 @@ pub struct SizingOutput {
     pub basis: SizingBasis,
     /// モードごとの面積・容量の判定（`basis` の値で）。
     pub mode_checks: BTreeMap<String, Vec<Check>>,
+    /// 必要面積（`basis` の求め方）。
     pub required_area: Qty<Area>,
     pub required_capacity: Qty<Energy>,
     pub required_capacity_per_string: Qty<Energy>,
@@ -233,6 +268,11 @@ pub struct SizingOutput {
     /// 直並列数（SMAD の必要発電と、面積を決めたモードの入射係数から）
     pub strings: Option<SizingStrings>,
     pub modes: Vec<SizingMode>,
+    /// 必要量に、部品どうしの影（部品の箱から出すパネルの面の日照割合）が入っているか。入っていれば、必要面積と容量は
+    /// 現在の部品の配置の影を含んだ値（影を減らす配置の変更で変わる。パネルの面積を替えても影の割合は変わらない）。
+    /// 影の割合は `power.orbit_generation` / `power.energy_balance` の `shadowing`
+    #[serde(default)]
+    pub shadowed: bool,
     pub sunlit_duration: Qty<Time>,
     pub eclipse_duration: Qty<Time>,
     pub longest: EclipseSeasonPoint,
@@ -309,6 +349,7 @@ impl Analysis for Sizing {
             eclipse_duration: Qty::from_raw(te),
             longest: season.longest,
             modes,
+            shadowed: input.array.shading().is_some(),
             used,
             checks,
         })

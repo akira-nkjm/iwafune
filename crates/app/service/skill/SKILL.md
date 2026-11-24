@@ -80,6 +80,14 @@ A communication link is created with all its required fields at once:
 `fune link add x_down --direction down --part STX --band s_band`.
 `fune project set name <value>` edits the project name (`label` for the display name).
 
+A noun's `set` command (`fune case set`, `fune maneuver set`, `fune requirement set`, ...) **writes the whole
+record**: a field you do not give is removed, and the output lists what was removed (`Removed from
+cases/hot.toml: beta, orbits (not given to set)`; `--dry-run` shows it before writing, `fune undo` restores it).
+To change one field of an analysis case and keep the rest, use `fune set cases.<ID>.<field> <value>`
+(`label`, `description`, `mode`, `phase`, `side`, `thermal_case`, `beta`, `orbits`, `sun_distance`, `epoch`;
+`fune unset cases.<ID>.<field>` removes one). A setting that is a list is written with commas
+(`fune set analysis.thermal.nodes.BUS "OBC, PCDU"`) or a TOML array (`'["OBC", "PCDU"]'`).
+
 Run analyses and read the verdicts:
 
 ```
@@ -104,7 +112,8 @@ fune requirement add R_MASS --statement "The satellite total mass shall not exce
 
 Limits and thresholds (budget limits, DoD, link margin, ...) are held by requirements, not settings:
 a `--budget` requirement is that budget's limit and `--analysis`/`--check` is that check's criterion.
-`fune requirement compliance` exits with 1 on a violation; "not verified" means no analysis check
+`fune requirement compliance` shows, per requirement, the worst verdict and, among equals, the tightest
+check and case (the Detail column names them); it exits with 1 on a violation; "not verified" means no analysis check
 or budget is linked to that requirement yet. Check `fune requirement add --help` for the exact link flags.
 
 Report tables and figures for a Typst document:

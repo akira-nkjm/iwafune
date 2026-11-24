@@ -54,6 +54,8 @@ typed_dimensions![
     ElectricCharge,
     Volume,
     ThermalConductance,
+    ThermalConductivity,
+    HeatTransferCoefficient,
     SpecificHeatCapacity,
     SpecificEnergy,
     Irradiance,
@@ -67,6 +69,7 @@ typed_dimensions![
     Conductance,
     MagneticFlux,
     AbsorbedDose,
+    AbsorbedDoseRate,
     Impulse,
 ];
 

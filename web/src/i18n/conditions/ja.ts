@@ -11,6 +11,33 @@ export const conditionsJa = {
     file: "ファイル",
     phase: "フェーズ",
     setPhase: "フェーズを選ぶ",
+    epoch: "開始時刻",
+    setEpoch: "開始時刻を入力する",
+    caseEpoch: {
+      title: (id: string) => `ケース ${id} の開始時刻`,
+      description:
+        "時系列の解析は、このケースの軌道をこの時刻から始めます（fune case set-epoch と同じ）。空にすると軌道の元期から始めます。",
+      field: "開始時刻",
+      hint: "ISO 8601（例: 2031-05-02T00:00:00Z）。1 回限りの期間を持つ軌道では、期間の中の時刻にします。",
+      confirm: "保存",
+      summary: (id: string, epoch: string) =>
+        epoch ? `ケース ${id} の開始時刻を ${epoch} にする` : `ケース ${id} の開始時刻を外す`,
+    },
+    fromGeometry: {
+      open: "最悪の日からケースを作る",
+      title: "最悪の日からケースを作る",
+      description:
+        "フェーズの軌道のミッション幾何から、太陽距離の最大・最小と地球距離の最大の日を開始時刻にした 3 つのケースを作ります（既にあれば開始時刻などを更新。fune case from-geometry と同じ）。",
+      phase: "フェーズ",
+      prefix: "ケース ID の前置き（任意）",
+      prefixHint:
+        "<前置き>_sun_far・<前置き>_sun_near・<前置き>_earth_far。省略するとフェーズの ID（小文字）",
+      mode: "モード（任意）",
+      noMode: "指定しない（既存のケースのモードは変えない）",
+      confirm: "ケースを作る",
+      summary: (phase: string) =>
+        phase ? `フェーズ ${phase} の最悪の日からケースを作る` : "最悪の日からケースを作る",
+    },
     casePhase: {
       title: (id: string) => `ケース ${id} のフェーズ`,
       description:

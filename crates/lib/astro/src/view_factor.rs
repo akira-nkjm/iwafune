@@ -2,9 +2,13 @@
 //!
 //! 式は Howell, A Catalog of Radiation Heat Transfer Configuration Factors の C-11（同じ大きさで真向かいの平行な長方形）と
 //! C-14（共通の辺を持つ直交する長方形）。Incropera にも同じ式がある。
+//! 任意の位置・向きの長方形どうし（遮蔽つき）は子の `rect`（数値積分。閉じた式との一致は試験で確かめる）。
 //! 中心天体に対する平板の形態係数は [`crate::illumination::body_view_factor`]。
 
 use std::f64::consts::PI;
+
+mod rect;
+pub use rect::{Quadrature, Rect, point_to_rect, rect_view_factor};
 
 /// 箱の 6 面の並び（外向き法線）: +X, −X, +Y, −Y, +Z, −Z。[`box_faces`] の添字はこの順。
 pub const BOX_FACES: [&str; 6] = ["+X", "-X", "+Y", "-Y", "+Z", "-Z"];

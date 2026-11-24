@@ -1,4 +1,6 @@
 //! 軌道条件の解析（季節解析・高度低下・ミッション幾何）。既定値や物理計算を持たず、条件ファイル・部品から写す。
+mod total_dose;
+
 use crate::{Context, MissingInputs};
 use fune_model::Target;
 use fune_model::design::OrbitDecaySettings;
@@ -6,7 +8,10 @@ use fune_model::design::setting_dims as dims;
 use fune_model::value::Quantity;
 use sat_analysis::orbit::decay::OrbitDecayInput;
 use sat_analysis::orbit::{EclipseSeasonInput, GeometryInput, GeometryLegInput, SunDistanceInput};
+use sat_analysis::structure::interference::InterferenceBox;
 use sat_units::typed::{Area, Length, Qty, Time};
+
+pub use total_dose::total_dose;
 
 /// 軌道・Mission duration・任意の季節刻み。
 pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingInputs> {
@@ -99,7 +104,7 @@ pub fn sun_distance(ctx: &Context<'_>) -> Result<SunDistanceInput, MissingInputs
     })
 }
 
-/// `orbit.decay`: 軌道・機体の質量（部品）・外形（構体の `size`）・抗力係数（`analysis.aocs.drag_coefficient`）・
+/// `orbit.decay`: 軌道・機体の質量（部品）・部品の箱（抗力の面積。書かれていなければ解析が全方向の平均の投影面積を出す）・抗力係数（`analysis.aocs.drag_coefficient`）・
 /// Mission durationと `[decay]` の任意の設定。軌道維持の推進系は推進系の解析と同じ入力（`propulsion::maneuvers`。
 /// 推進系が無ければ付けず、有れば足りない入力も並べる）。宇宙天気の表から引いた列は service が足す（ここは表を読まない）。
 pub fn decay(ctx: &Context<'_>) -> Result<OrbitDecayInput, MissingInputs> {
@@ -108,17 +113,18 @@ pub fn decay(ctx: &Context<'_>) -> Result<OrbitDecayInput, MissingInputs> {
     let o = ctx.orbit_settings();
     let mission_duration = ctx.mission_duration();
     let s = DecaySettings::read(ctx, o.and_then(|o| o.decay.as_ref()), &mut m);
-    let body_size = match s.drag_area {
-        Some(_) => None,
+    // 面積が書かれていなければ、部品の箱（有効な形態の配置）から解析が出す
+    let body_boxes: Vec<InterferenceBox> = match s.drag_area {
+        Some(_) => Vec::new(),
         None => {
-            let size = crate::aocs::reference_box(ctx, &mut m);
-            if size.is_none() {
+            let body = crate::structure::boxes(ctx);
+            if body.boxes.is_empty() {
                 m.push(
                     ctx.orbit_target(&["decay", "drag_area"]),
-                    "Drag area (or body outline size)",
+                    "Drag area (or a part with a size)",
                 );
             }
-            size
+            body.boxes.into_iter().map(InterferenceBox::from).collect()
         }
     };
     let mass = crate::structure::summary(ctx, &mut m).map(|s| s.total_mass);
@@ -140,7 +146,7 @@ pub fn decay(ctx: &Context<'_>) -> Result<OrbitDecayInput, MissingInputs> {
             orbit: orbit?,
             mass: mass?,
             drag_area: s.drag_area,
-            body_size,
+            body_boxes,
             drag_coefficient,
             mission_duration,
             span: s.span,

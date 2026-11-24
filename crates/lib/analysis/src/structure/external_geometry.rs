@@ -12,13 +12,16 @@
 //!   にある部品）は、面も数えず、一覧にする。向きの内訳は面の法線の最大成分の軸で分ける。
 //! - 寸法が無い（または正でない）部品は計算に入れず、一覧に残す（箱の選び方は干渉の確認と共通）。箱が 1 つも無ければ、入力の不足。
 //!
+//! - **面の日照割合**（`lit`）: 遠い光源（太陽）に対して、ほかの箱が落とす影を引いた面の照らされる割合。太陽電池の発電と熱の外面の直達日射が使う
+//!   （規則は `lit` の説明）。この報告は日照割合を出さない。
+//!
 //! 箱は干渉の確認と同じ `OrientedBox`・`InterferenceBox`。
 
 pub mod directions;
 pub mod exposed;
 pub mod geometry;
+pub mod lit;
 
-use super::interference::obb::OrientedBox;
 use super::interference::{
     InterferenceBox, InterferenceRepeated, InterferenceSkipped, count, usable_boxes,
 };
@@ -26,7 +29,10 @@ use crate::spec::quantity_text;
 use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict};
 use directions::DirectionSet;
 use exposed::Exposure;
-pub use geometry::{DirectionArea, ExternalGeometry, PartBox, Projection, mean_of};
+pub use geometry::{DirectionArea, ExternalGeometry, PartBox, Projection, direction_key, mean_of};
+pub use lit::{
+    DEFAULT_SHADOWING, Footprint, LitSurfaces, PartLit, ShadowLoss, ShadowingInput, ShadowingReport,
+};
 use sat_astro::math::Vec3;
 use sat_units::typed::{Area, Qty};
 use serde::{Deserialize, Serialize};
@@ -197,15 +203,7 @@ impl Analysis for ExternalGeometryReport {
                 count: b.count,
             })
             .collect();
-        let geometry = ExternalGeometry::new(
-            judged
-                .iter()
-                .map(|b| PartBox {
-                    id: b.id.clone(),
-                    shape: OrientedBox::from_size(b.position, b.orientation, b.size),
-                })
-                .collect(),
-        );
+        let geometry = ExternalGeometry::from_usable(&judged);
         Ok(report(&geometry, skipped, repeated))
     }
 }

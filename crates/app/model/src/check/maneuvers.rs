@@ -1,10 +1,12 @@
 //! マヌーバ（`maneuvers/<ID>.toml`）の検査: スラスタ・前のマヌーバ・制約のモードの参照、実行の順の循環、
-//! 目標の軌道の量の次元と書き方（天体間の遷移の捕獲の軌道）、計算の段階に要るもの、
+//! 直接書いた ΔV（`delta_v`）の次元・符号・ほかの書き方との併用、目標の軌道の量の次元と書き方（天体間の遷移の捕獲の軌道）、計算の段階に要るもの、
 //! 日付つきの遷移（`[transfer]`）の形（日付の読み方・暦の範囲・天体の組は暦を持つ `fune_projection::maneuver_dates` が見る）。
 
 use super::Ctx;
 use super::values::check_quantity_dimension;
-use crate::design::{Design, EntityKey, Maneuver, ManeuverMethod, ManeuverTarget};
+use crate::design::{
+    Design, EntityKey, Maneuver, ManeuverMethod, ManeuverTarget, ManeuverTransfer,
+};
 use crate::target::Target;
 
 pub(super) fn check_maneuvers(ctx: &mut Ctx) {
@@ -14,6 +16,7 @@ pub(super) fn check_maneuvers(ctx: &mut Ctx) {
         check_thruster(ctx, design, m, &entity);
         check_after(ctx, design, m, &entity);
         check_target(ctx, m, &entity);
+        check_delta_v(ctx, m, &entity);
         check_duty(ctx, m, &entity);
         check_transfer(ctx, m, &entity);
         if let Some(mode) = &m.constraints.mode
@@ -27,6 +30,51 @@ pub(super) fn check_maneuvers(ctx: &mut Ctx) {
                 format!("Mode `{mode}` is not defined"),
             );
         }
+    }
+}
+
+/// 直接書いた ΔV（`delta_v`）: 速度の次元で負でなく、軌道を変える書き方（`[target]`・`via_altitude`・`[transfer]`）と
+/// 一緒に書かず、計算の段階は impulsive か low_thrust（有限燃焼の損失・数値伝搬は軌道の計算が要る）。
+fn check_delta_v(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
+    let Some(q) = &m.delta_v else {
+        return;
+    };
+    let id = m.id.as_str();
+    let target = |field: &str| Some(Target::maneuver(id, Some(field)));
+    if let Some((sev, code, msg)) = check_quantity_dimension(q, "Velocity") {
+        ctx.report(sev, code, entity, &["delta_v"], target("delta_v"), msg);
+    } else if !(q.value >= 0.0 && q.value.is_finite()) {
+        ctx.error(
+            "maneuver.delta_v_negative",
+            entity,
+            &["delta_v"],
+            target("delta_v"),
+            format!("delta_v must be a finite value of 0 or more ({})", q.value),
+        );
+    }
+    if !m.target.is_empty() || m.via_altitude.is_some() || m.transfer.is_some() {
+        ctx.error(
+            "maneuver.delta_v_conflict",
+            entity,
+            &["delta_v"],
+            target("delta_v"),
+            "delta_v (a written allowance) cannot be combined with [target], via_altitude or [transfer], which compute ΔV from an orbit change",
+        );
+    }
+    if matches!(
+        m.method,
+        ManeuverMethod::FiniteBurn | ManeuverMethod::Propagated
+    ) {
+        ctx.error(
+            "maneuver.delta_v_method",
+            entity,
+            &["method"],
+            target("method"),
+            format!(
+                "A written delta_v is used with impulsive or low_thrust, not {}",
+                m.method
+            ),
+        );
     }
 }
 
@@ -86,6 +134,7 @@ fn check_transfer(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
             "The launcher injects the spacecraft onto the departure asymptote, so a maneuver before this one (`after`) does not fit; the maneuvers before it are still counted",
         );
     }
+    check_flybys(ctx, m, tr, entity);
     if m.method == ManeuverMethod::Propagated {
         ctx.error(
             "maneuver.transfer_method",
@@ -94,6 +143,49 @@ fn check_transfer(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
             Some(Target::maneuver(id, Some("method"))),
             "Dated transfers between bodies are computed with impulsive or finite_burn",
         );
+    }
+}
+
+/// 途中のスイングバイ（`[[transfer.flybys]]`）の形: 日付が空でない・近点の高度の下限は長さの正の有限の値。
+/// 日付の読み方・順序・暦・天体の組は暦を持つ `fune_projection::maneuver_dates` が見る。
+fn check_flybys(ctx: &mut Ctx, m: &Maneuver, tr: &ManeuverTransfer, entity: &EntityKey) {
+    let id = m.id.as_str();
+    let target = Some(Target::maneuver(id, Some("transfer.flybys")));
+    for (i, f) in tr.flybys.iter().enumerate() {
+        if f.date.trim().is_empty() {
+            ctx.error(
+                "maneuver.flyby_date",
+                entity,
+                &["transfer", "flybys"],
+                target.clone(),
+                format!("Flyby {} of [transfer] needs a date", i + 1),
+            );
+        }
+        let Some(q) = &f.min_altitude else {
+            continue;
+        };
+        if let Some((sev, code, msg)) = check_quantity_dimension(q, "Length") {
+            ctx.report(
+                sev,
+                code,
+                entity,
+                &["transfer", "flybys"],
+                target.clone(),
+                msg,
+            );
+        } else if !(q.value > 0.0 && q.value.is_finite()) {
+            ctx.error(
+                "maneuver.flyby_altitude",
+                entity,
+                &["transfer", "flybys"],
+                target.clone(),
+                format!(
+                    "The minimum altitude of flyby {} must be a finite value above 0 ({}); a periapsis at or below the surface is not accepted",
+                    i + 1,
+                    q.value
+                ),
+            );
+        }
     }
 }
 

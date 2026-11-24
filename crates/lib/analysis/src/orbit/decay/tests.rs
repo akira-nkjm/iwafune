@@ -7,6 +7,7 @@ use crate::propulsion::{
 use crate::spec::Verdict;
 use sat_astro::atmosphere::{AtmosphereModel, density_exponential_kg_m3};
 use sat_astro::constants::{MU_EARTH, OMEGA_EARTH, R_EARTH};
+use sat_astro::math::Vec3;
 use sat_astro::orbit::{OrbitSpec, Propagator, sso_inclination_rad};
 use sat_astro::time::Epoch;
 
@@ -23,13 +24,25 @@ pub(super) fn circular(altitude_m: f64, inclination_deg: f64) -> OrbitSpec {
     )
 }
 
-/// 3U CubeSat（4 kg、10 × 10 × 34 cm を向きでならした面積 0.039 m²、Cd 2.2）。
+/// 軸に沿って原点に置いた箱 1 つ（部品 `id`、辺 `size` [m]、中心 `at` [m]）。
+pub(super) fn box_at(id: &str, at: [f64; 3], size: [f64; 3]) -> InterferenceBox {
+    InterferenceBox {
+        id: id.to_owned(),
+        count: 1,
+        position: Vec3::new(at[0], at[1], at[2]),
+        orientation: sat_astro::math::Quat::IDENTITY,
+        size: Vec3::new(size[0], size[1], size[2]),
+        mount_ancestors: Vec::new(),
+    }
+}
+
+/// 3U CubeSat（4 kg、10 × 10 × 34 cm の箱 1 つ。向きでならした面積 0.039 m²、Cd 2.2）。
 pub(super) fn cubesat_3u(altitude_m: f64) -> OrbitDecayInput {
     OrbitDecayInput {
         orbit: circular(altitude_m, 97.4),
         mass: Qty::from_raw(4.0),
         drag_area: None,
-        body_size: Some(Vec3::new(0.1, 0.1, 0.34)),
+        body_boxes: vec![box_at("BUS", [0.0; 3], [0.1, 0.1, 0.34])],
         drag_coefficient: None,
         mission_duration: None,
         span: None,
@@ -120,7 +133,7 @@ fn iss_like_decay_is_kilometres_per_month() {
         mass: Qty::from_raw(420_000.0),
         drag_area: Some(Qty::from_raw(1_470.0)),
         drag_coefficient: Some(2.2),
-        body_size: None,
+        body_boxes: Vec::new(),
         span: Some(Qty::from_raw(30.0 * SECONDS_PER_DAY)),
         ..cubesat_3u(410e3)
     };
@@ -208,6 +221,7 @@ pub(super) fn propulsion(orbit: &OrbitSpec, dry_kg: f64) -> PropulsionInput {
                 ..OrbitTarget::default()
             },
             via_altitude: None,
+            delta_v: None,
             ignored_constraints: Vec::new(),
             thrust: ThrustConstraints::default(),
             transfer: None,
@@ -267,15 +281,56 @@ fn propellant_life_and_checks() {
     assert!(o.checks.iter().all(|c| c.key != "near_circular"));
 }
 
+/// 箱 1 つなら、全方向の平均の投影面積は表面積の 1/4（Cauchy の公式）= `(xy + yz + zx) / 2`（手計算）:
+/// 立方体の辺 1 m は 6 m² / 4 = 1.5 m²、10 × 10 × 34 cm は (0.01 + 0.034 + 0.034) / 2 = 0.039 m²。
+/// 軸に沿った箱は求積が解析的なので 1e-12 で合う。
 #[test]
-fn tumbling_area_is_a_quarter_of_the_surface() {
-    // 立方体の辺 1 m: 表面積 6 m² → 1.5 m²
-    assert_eq!(tumbling_area(Vec3::new(1.0, 1.0, 1.0)), 1.5);
+fn one_box_gives_a_quarter_of_the_surface() {
+    let mut cube = cubesat_3u(500e3);
+    cube.body_boxes = vec![box_at("CUBE", [0.3, -0.2, 0.1], [1.0, 1.0, 1.0])];
+    let u = used_values(&cube).unwrap().0;
+    assert!((u.drag_area.value() - 1.5).abs() < 1e-12);
     let i = cubesat_3u(500e3);
     let u = used_values(&i).unwrap().0;
     assert!((u.drag_area.value() - 0.039).abs() < 1e-12);
-    assert_eq!(u.area_source, DragAreaSource::TumblingBox);
+    assert_eq!(u.area_source, DragAreaSource::BodyBoxes);
     assert_eq!(u.drag_coefficient, DEFAULT_DRAG_COEFFICIENT);
+}
+
+/// 同じ箱を 2 つに割って並べても面積は同じ（重なりを 1 度だけ数える）。
+/// 箱の上に板（パドル）を足すと、平均の投影面積が増える: 2 つの箱の和集合は報告と同じ幾何なので、
+/// `ExternalGeometry` の値とそのまま一致する。
+#[test]
+fn mean_area_is_the_union_of_the_boxes() {
+    let whole = used_values(&cubesat_3u(500e3)).unwrap().0.drag_area.value();
+    let mut split = cubesat_3u(500e3);
+    split.body_boxes = vec![
+        box_at("LOW", [0.0, 0.0, -0.085], [0.1, 0.1, 0.17]),
+        box_at("HIGH", [0.0, 0.0, 0.085], [0.1, 0.1, 0.17]),
+    ];
+    let halves = used_values(&split).unwrap().0.drag_area.value();
+    assert!((halves - whole).abs() < 1e-12, "{halves} vs {whole}");
+    // 板（1 × 0.1 × 0.002 m）を足す: 報告と同じ幾何の平均と一致し、箱だけより大きい
+    let mut with_plate = cubesat_3u(500e3);
+    with_plate
+        .body_boxes
+        .push(box_at("PANEL", [0.55, 0.0, 0.0], [1.0, 0.1, 0.002]));
+    let got = used_values(&with_plate).unwrap().0.drag_area.value();
+    let expect = ExternalGeometry::from_boxes(&with_plate.body_boxes)
+        .unwrap()
+        .mean_projected_area();
+    assert_eq!(got, expect);
+    assert!(got > whole);
+}
+
+/// 書かれた面積は、箱があっても勝ち、出所は「与えた」。
+#[test]
+fn a_written_drag_area_wins_over_the_boxes() {
+    let mut i = cubesat_3u(500e3);
+    i.drag_area = Some(Qty::from_raw(0.5));
+    let u = used_values(&i).unwrap().0;
+    assert_eq!(u.drag_area.value(), 0.5);
+    assert_eq!(u.area_source, DragAreaSource::Given);
 }
 
 #[test]
@@ -283,7 +338,7 @@ fn invalid_inputs_are_errors() {
     let mut i = cubesat_3u(100e3);
     assert!(OrbitDecay::run(&i).is_err());
     i = cubesat_3u(500e3);
-    i.body_size = None;
+    i.body_boxes = Vec::new();
     assert!(OrbitDecay::run(&i).is_err());
     // 推進系の解析が通らなければ（比推力が 0）高度低下も誤り
     i = cubesat_3u(500e3);

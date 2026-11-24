@@ -292,6 +292,20 @@ pub fn encode_vector(v: &Vector3, from: Option<&Provenance>) -> toml_edit::Value
     toml_edit::Value::InlineTable(t)
 }
 
+/// 曲線（`{ at, at_unit, values, unit }`。属性の値も設定の値も同じ形）。
+pub fn encode_curve(c: &Curve, from: Option<&Provenance>) -> toml_edit::Value {
+    let numbers = |xs: &[f64]| xs.iter().map(|x| float(*x)).collect::<toml_edit::Array>();
+    let mut t = InlineTable::new();
+    t.insert("at", numbers(&c.at).into());
+    if !c.at_unit.is_empty() {
+        t.insert("at_unit", c.at_unit.as_str().into());
+    }
+    t.insert("values", numbers(&c.values).into());
+    t.insert("unit", c.unit.as_str().into());
+    push_from(&mut t, from);
+    toml_edit::Value::InlineTable(t)
+}
+
 /// クォータニオン（`{ w, x, y, z }`）。
 pub fn encode_quaternion(q: &Quaternion) -> toml_edit::Value {
     let mut t = InlineTable::new();
@@ -368,18 +382,7 @@ pub fn encode_value(value: &Authored<Value>) -> Item {
             push_from(&mut t, from);
             toml_edit::Value::InlineTable(t)
         }
-        Value::Curve(c) => {
-            let numbers = |xs: &[f64]| xs.iter().map(|x| float(*x)).collect::<toml_edit::Array>();
-            let mut t = InlineTable::new();
-            t.insert("at", numbers(&c.at).into());
-            if !c.at_unit.is_empty() {
-                t.insert("at_unit", c.at_unit.as_str().into());
-            }
-            t.insert("values", numbers(&c.values).into());
-            t.insert("unit", c.unit.as_str().into());
-            push_from(&mut t, from);
-            toml_edit::Value::InlineTable(t)
-        }
+        Value::Curve(c) => encode_curve(c, from),
         Value::Table(id) => {
             let mut t = InlineTable::new();
             t.insert("table", id.as_str().into());

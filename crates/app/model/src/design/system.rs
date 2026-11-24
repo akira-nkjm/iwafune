@@ -84,4 +84,8 @@ pub struct Case {
     /// 惑星間の巡航の近日点・遠日点のケース。`fune case from-sun-distance`）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sun_distance: Option<Quantity>,
+    /// 解析を始める時刻（ISO 8601。軌道の元期の代わりに、ケースの軌道のこの時刻から時系列を回す。最悪の条件を「この軌道のこの日」として書く。
+    /// 1 回限りの期間を持つ軌道では、元期から期間の終わりまでの間。`fune case from-geometry`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub epoch: Option<String>,
 }

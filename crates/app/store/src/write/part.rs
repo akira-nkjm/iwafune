@@ -33,6 +33,11 @@ fn pose_table(pose: &Pose) -> Table {
 
 /// 表の中身を `desired` に合わせる（同じ値の行は触らない）。
 /// 出典の付いた値の表（ドット付きキーの行を持つ表）は、行を足したら `=` を揃え直す。
+///
+/// 表に無かったキーは、`desired` の並び（正規の順。新しいファイルの書き手 `record_doc` が決める）での直前のキーの
+/// すぐ後ろに入れる（直前のキーが無ければ表の先頭）。既にあるキーは順も装飾も動かさない
+/// （手で並べ替えたファイルは並べ替えない。足した 1 行だけを正規の順に沿う位置に置く）。見出しの表（`[a]`）は
+/// 出力の順が位置で決まるので、ここでは動かさない。
 pub fn sync_table(existing: &mut Table, desired: Table) {
     let keep: Vec<String> = desired.iter().map(|(k, _)| k.to_string()).collect();
     let stale: Vec<String> = existing
@@ -43,10 +48,38 @@ pub fn sync_table(existing: &mut Table, desired: Table) {
     for k in stale {
         existing.remove(&k);
     }
+    let mut previous: Option<String> = None;
     for (k, v) in desired {
+        let added_row = !existing.contains_key(&k) && !is_header_table(&v);
         put(existing, &k, v);
+        if added_row {
+            place_after(existing, &k, previous.as_deref());
+        }
+        previous = Some(k);
     }
     realign_dotted(existing);
+}
+
+/// 見出しの表（`[a]`。ドット付きキーの行ではない表）か。
+fn is_header_table(item: &Item) -> bool {
+    item.as_table().is_some_and(|t| !t.is_dotted())
+}
+
+/// 末尾に足したばかりの行 `key` を `after` のすぐ後ろ（`None` なら先頭）へ移す。間にあった行は、順・装飾のまま後ろへ送る。
+fn place_after(table: &mut Table, key: &str, after: Option<&str>) {
+    let keys: Vec<String> = table.iter().map(|(k, _)| k.to_string()).collect();
+    let Some(at) = keys.iter().position(|k| k == key) else {
+        return;
+    };
+    let from = match after {
+        Some(a) => keys.iter().position(|k| k == a).map_or(at, |i| i + 1),
+        None => 0,
+    };
+    for name in keys.iter().take(at).skip(from) {
+        if let Some((k, item)) = table.remove_entry(name) {
+            table.insert_formatted(&k, item);
+        }
+    }
 }
 
 /// ドット付きキーの行のある表（出典の付いた値）の `=` を揃え直す。
@@ -65,7 +98,19 @@ fn put(table: &mut Table, key: &str, item: Item) {
         (Some(Item::Table(old)), Item::Table(new)) if old.is_dotted() == new.is_dotted() => {
             sync_table(old, new);
         }
-        (_, item) => set(table, key, item),
+        // 表の列（`[[transfer.flybys]]`）は、行の数が同じなら行ごとに合わせる（変わった行だけ書き換わる）
+        (Some(Item::ArrayOfTables(old)), Item::ArrayOfTables(new)) if old.len() == new.len() => {
+            for (row, desired) in old.iter_mut().zip(new) {
+                sync_table(row, desired);
+            }
+        }
+        (_, item) => {
+            set(table, key, item);
+            // 新しく書いた表の列は `=` を揃える
+            if let Some(Item::ArrayOfTables(rows)) = table.get_mut(key) {
+                rows.iter_mut().for_each(format::align_table);
+            }
+        }
     }
     realign_dotted(table);
 }

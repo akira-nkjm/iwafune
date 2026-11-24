@@ -5,17 +5,42 @@
 //! [`Trajectory::Elements`]（[`OrbitSpec`]）の関数は [`OrbitSpec`] の関数にそのまま渡す（数値は変わらない）。
 //! どの軌道にも、1 回限りの期間を持たせられる（[`Trajectory::with_span`]。[`Trajectory::Spanned`]）。期間を持つと
 //! [`Cycle`] は [`Cycle::OneOff`] になり、中身の軌道の伝搬は変えない（日付つきの遷移の巡航のように、周期的でない弧を
-//! 二体の軌道で表すときに使う。状態ベクトル・回転座標系の軌跡の source も同じ仕組みで期間を持つ）。
-//! ほかの source（状態ベクトル・回転座標系の軌跡・表）は、この列挙型に変種を足し、
+//! 二体の軌道で表すときに使う）。状態ベクトルの軌道（[`Trajectory::State`]）は期間が必須で、同じ [`Cycle::OneOff`]・
+//! [`Trajectory::with_span`]・`span_s` の書き方を使う（期間は [`StateSpec`] の欄で、`Spanned` で包まない）。
+//! 回転座標系の軌跡（[`Trajectory::Synodic`]。ラグランジュ点・ハロー軌道。円制限三体問題の軌道を暦の 2 天体の位置に載せたもの）は周期的で、
+//! 中心天体は 2 天体のうちの副天体。ほかの source（表）は、この列挙型に変種を足し、
 //! 下の各メソッドに分岐を足すだけで増やせる（呼び出し側は変えない）。
 //! ケプラー要素が本当に要る処理は [`Trajectory::elements`] を通して取り、無ければ対象外として扱う
-//! （期間を持つ軌道は、要素で書かれていても周期的でないので `None`）。
+//! （期間を持つ軌道は、要素で書かれていても周期的でないので `None`。状態ベクトルの軌道も `None`）。
+//!
+//! 時間の順に並んだ弧の連鎖（[`Trajectory::Arcs`]。[`chain::ArcChain`]）は、期間を持つ軌道を隣り合う弧が接するように並べたもの
+//! （スイングバイのある巡航: 通過の日に位置は連続で速度が跳ぶ）。**弧が 1 本ならこの変種を作らず、その弧（[`Trajectory::Spanned`] や
+//! [`Trajectory::State`]）そのもの**（[`Trajectory::chain`]）。各メソッドは時刻の弧に渡すだけで、弧ごとの評価を重ねて書かない。
 
-use super::{OrbitSpec, OrbitState, OrbitTrack};
+mod chain;
+mod rebase;
+mod repr;
+
+pub use chain::ArcChain;
+#[cfg(feature = "ts")]
+use repr::TrajectoryRepr;
+
+use super::track::TABLE_STEPS_PER_ORBIT;
+use super::{OrbitSpec, OrbitState, OrbitTrack, StateSpec, SynodicSpec};
 use crate::AstroError;
 use crate::ephem::CentralBody;
+use crate::ode::step_offsets;
 use crate::time::Epoch;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+/// JSON の `source` の値: 回転座標系の軌跡（[`Trajectory::Synodic`]）。**この綴りを書くのはここだけ**（読み書きと、解析の入力からこの軌道を見つける側が使う）。
+pub const LIBRATION_SOURCE: &str = "libration";
+
+/// 地球からの距離を、高度から決まる斜距離でなく、地球までの距離の時系列（[`crate::ground::earth_range`]）で測る軌道か。
+/// 中心天体が地球でない軌道、または中心天体が地球でも高度（長半径）を持たない軌道（回転座標系の軌跡・状態ベクトルの軌道。
+/// 太陽–地球 L2 のように中心天体は地球でも、地球から百万 km 以上離れる）。**この判定はここだけ**（通信の回線の距離と回線が閉じる条件が使う）。
+pub fn measures_range_from_earth(central: CentralBody, altitude_m: Option<f64>) -> bool {
+    central != CentralBody::Earth || altitude_m.is_none()
+}
 
 /// 軌道の繰り返しの長さ。周期の置き換え。
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -48,27 +73,24 @@ impl Cycle {
 ///
 /// JSON では、`source` が無ければ [`Trajectory::Elements`] と読み、`Elements` は [`OrbitSpec`] と同じ形（タグ無し）で
 /// 書く。このため、軌道を [`OrbitSpec`] で書いていた既存の入力はそのまま読め、書き出しも変わらない。
-/// 将来の source は `source` のタグで区別する。
+/// 要素以外の source は `source` のタグ（`"state"`）で区別する（[`TrajectoryRepr`]）。
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-// JSON の形は OrbitSpec（期間があれば `span_s` を足したもの）。変種が増えるときにこの指定を外す。
+// JSON の形は TrajectoryRepr（要素は OrbitSpec に期間があれば `span_s` を足したもの、状態ベクトルは `source = "state"` を足したもの）。
 #[cfg_attr(feature = "ts", ts(as = "TrajectoryRepr"))]
 pub enum Trajectory {
     /// ケプラー要素（今の軌道）。
     Elements(OrbitSpec),
+    /// 状態ベクトル（元期・原点の天体・位置・速度・力の設定・期間）を既存の数値伝搬で伝搬する軌道。繰り返しは常に 1 回限り。
+    State(StateSpec),
+    /// 2 天体の回転座標系での軌跡（ラグランジュ点そのもの、またはハロー軌道。円制限三体問題の軌道を暦の 2 天体の位置に載せたもの）。
+    /// 繰り返しは周期的（ハローの周期、固定点は 2 天体の公転周期）。
+    Synodic(SynodicSpec),
     /// 1 回限りの期間 `span_s` [s] を持つ軌道（[`Cycle::OneOff`]）。伝搬・中心天体・元期は `orbit` のまま。
     Spanned { orbit: Box<Trajectory>, span_s: f64 },
-}
-
-/// JSON の形（[`OrbitSpec`] の欄に、期間があれば `span_s` を並べる）。
-#[derive(Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct TrajectoryRepr {
-    #[serde(flatten)]
-    pub orbit: OrbitSpec,
-    /// 1 回限りの期間 [s]（周期的な軌道は書かない）
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub span_s: Option<f64>,
+    /// 時間の順に並べた 2 本以上の弧（それぞれ期間を持つ軌道）。隣り合う弧の境（折れ目）で位置は連続、速度は跳ぶ。
+    /// 繰り返しは全体で 1 回限り。作るのは [`Trajectory::chain`]（弧が 1 本ならその弧を返す）。
+    Arcs(ArcChain),
 }
 
 impl From<OrbitSpec> for Trajectory {
@@ -89,9 +111,13 @@ impl OrbitSpec {
 
 impl Trajectory {
     /// 1 回限りの期間 `span_s` [s] を持たせる（すでにあれば置き換える）。期間は正の有限の値（検査は呼ぶ側）。
+    /// 状態ベクトルの軌道は期間が自分の欄なので、その欄を置き換える。
+    /// 弧の連鎖は全体の期間を置き換える（期間の外の弧は落とし、最後の弧を `span_s` の終わりまで縮める・延ばす）。
     pub fn with_span(self, span_s: f64) -> Self {
         match self {
+            Self::Arcs(chain) => chain.with_span(span_s),
             Self::Spanned { orbit, .. } => Self::Spanned { orbit, span_s },
+            Self::State(spec) => Self::State(StateSpec { span_s, ..spec }),
             orbit => Self::Spanned {
                 orbit: Box::new(orbit),
                 span_s,
@@ -102,8 +128,28 @@ impl Trajectory {
     /// 1 回限りの期間 [s]（周期的な軌道は `None`）。
     pub fn span_s(&self) -> Option<f64> {
         match self {
-            Self::Elements(_) => None,
+            Self::Elements(_) | Self::Synodic(_) => None,
+            Self::State(s) => Some(s.span_s),
             Self::Spanned { span_s, .. } => Some(*span_s),
+            Self::Arcs(c) => Some(c.span_s()),
+        }
+    }
+
+    /// 弧の連鎖を作る（時間の順の弧。それぞれ期間を持つ軌道で、隣り合う弧は前の弧の終わりで接する。検査は [`ArcChain::new`]）。
+    /// **弧が 1 本なら変種を足さず、その弧そのもの**を返す（1 本の弧は今までの [`Trajectory::Spanned`]・[`Trajectory::State`]）。
+    pub fn chain(mut arcs: Vec<Trajectory>) -> Result<Self, AstroError> {
+        if arcs.len() == 1 {
+            return chain::check_arc(&arcs[0], 0).map(|()| arcs.remove(0));
+        }
+        ArcChain::new(arcs).map(Self::Arcs)
+    }
+
+    /// 弧の境（折れ目）の時刻（元期からの経過 [s]、昇順）。弧が 1 本・周期的な軌道は空。位置は境で連続だが速度は跳ぶので、
+    /// 境をまたぐ補間・極値の詰めは境で分ける。**境の時刻を答えるのはここだけ**（解析の側で弧の構造を調べない）。
+    pub fn breakpoints_s(&self) -> Vec<f64> {
+        match self {
+            Self::Arcs(c) => c.breakpoints_s(),
+            _ => Vec::new(),
         }
     }
 
@@ -111,7 +157,10 @@ impl Trajectory {
     pub fn epoch(&self) -> Epoch {
         match self {
             Self::Elements(o) => o.epoch,
+            Self::State(s) => s.epoch,
+            Self::Synodic(s) => s.epoch,
             Self::Spanned { orbit, .. } => orbit.epoch(),
+            Self::Arcs(c) => c.epoch(),
         }
     }
 
@@ -119,7 +168,21 @@ impl Trajectory {
     pub fn central(&self) -> CentralBody {
         match self {
             Self::Elements(o) => o.central,
+            Self::State(s) => s.central,
+            Self::Synodic(s) => s.central(),
             Self::Spanned { orbit, .. } => orbit.central(),
+            Self::Arcs(c) => c.central(),
+        }
+    }
+
+    /// 中心天体のほかに日陰を作る天体（既定は無し。日陰を作る天体は中心天体だけ）。回転座標系の軌跡は、主天体が太陽でなければ主天体
+    /// （地球–月系の月の向こうの点に、地球が影を落とす）。**中心天体以外の日陰の天体を決めるのはここだけ**（時系列の日照率が使う）。
+    pub fn extra_shadow_caster(&self) -> Option<CentralBody> {
+        match self {
+            Self::Synodic(s) => s.extra_shadow_caster(),
+            Self::Spanned { orbit, .. } => orbit.extra_shadow_caster(),
+            Self::Arcs(c) => c.first().extra_shadow_caster(),
+            Self::Elements(_) | Self::State(_) => None,
         }
     }
 
@@ -127,7 +190,11 @@ impl Trajectory {
     pub fn state_at(&self, t_s: f64) -> Result<OrbitState, AstroError> {
         match self {
             Self::Elements(o) => o.state_at(t_s),
+            Self::State(_) | Self::Synodic(_) => self.states_at(&[t_s])?.pop().ok_or_else(|| {
+                AstroError::InvalidInput("Numerical propagation returned no result".into())
+            }),
             Self::Spanned { orbit, .. } => orbit.state_at(t_s),
+            Self::Arcs(c) => c.state_at(t_s),
         }
     }
 
@@ -135,31 +202,68 @@ impl Trajectory {
     pub fn states_at(&self, times_s: &[f64]) -> Result<Vec<OrbitState>, AstroError> {
         match self {
             Self::Elements(o) => o.states_at(times_s),
+            Self::State(s) => s.states_at(times_s),
+            Self::Synodic(s) => s.states_at(times_s),
             Self::Spanned { orbit, .. } => orbit.states_at(times_s),
+            Self::Arcs(c) => c.states_at(times_s),
         }
     }
 
     /// 元期から `span_s` 秒までの任意の時刻の状態を求める道具（[`OrbitSpec::track`]）。
+    /// 状態ベクトルの軌道は、1 回の積分で格子（刻み `max_grid_s` と [`StateSpec::table_step_s`] の小さい方）の表を作り、
+    /// 格子の間をエルミート補間する（数値伝搬の要素の軌道と同じ表）。
     pub fn track(&self, span_s: f64, max_grid_s: f64) -> Result<OrbitTrack, AstroError> {
         match self {
             Self::Elements(o) => o.track(span_s, max_grid_s),
+            Self::State(s) => {
+                let t = step_offsets(span_s, max_grid_s.min(s.table_step_s()));
+                let states = s.states_at(&t)?;
+                Ok(OrbitTrack::from_table(t, states))
+            }
+            Self::Synodic(s) => {
+                let t = step_offsets(span_s, max_grid_s.min(self.table_step_s()));
+                Ok(OrbitTrack::from_table(t.clone(), s.states_at(&t)?))
+            }
             Self::Spanned { orbit, .. } => orbit.track(span_s, max_grid_s),
+            Self::Arcs(c) => c.track(span_s, max_grid_s),
         }
     }
 
-    /// 繰り返しの長さ。ケプラー要素は周期的（Kepler 周期）、期間を持つ軌道は 1 回限り。
+    /// 任意の時刻の表（[`Trajectory::track`]）の格子の刻み [s] の目安。繰り返しの 1 単位（周期、または期間）の
+    /// [`TABLE_STEPS_PER_ORBIT`] 分の 1。状態ベクトルの軌道は近点での 1 周の時間から（[`StateSpec::table_step_s`]）。
+    /// 弧の連鎖は弧ごとの刻みの最小（表は弧ごとに作る）。
+    pub fn table_step_s(&self) -> f64 {
+        match self {
+            Self::State(s) => s.table_step_s(),
+            Self::Arcs(c) => c.table_step_s(),
+            _ => self.cycle().length_s() / TABLE_STEPS_PER_ORBIT,
+        }
+    }
+
+    /// 繰り返しの長さ。ケプラー要素は周期的（Kepler 周期）、期間を持つ軌道・状態ベクトルの軌道は 1 回限り。
     pub fn cycle(&self) -> Cycle {
         match self {
             Self::Elements(o) => o.cycle(),
+            Self::State(s) => Cycle::OneOff { span_s: s.span_s },
+            Self::Synodic(s) => Cycle::Periodic {
+                period_s: s.period_s(),
+            },
             Self::Spanned { span_s, .. } => Cycle::OneOff { span_s: *span_s },
+            Self::Arcs(c) => Cycle::OneOff { span_s: c.span_s() },
         }
     }
 
+    /// 地球からの距離を地球までの距離の時系列で測る軌道か（[`measures_range_from_earth`]）。
+    pub fn ranges_from_earth(&self) -> bool {
+        measures_range_from_earth(self.central(), self.altitude_m())
+    }
+
     /// 高度 [m] = 長半径 − 中心天体の赤道半径（[`OrbitSpec::altitude_m`]。楕円では平均の高さ）。
-    /// 期間を持つ軌道は中身の二体の軌道の値。長半径を持たない軌道（将来の状態ベクトルなど）は `None`。
+    /// 期間を持つ軌道は中身の二体の軌道の値。長半径を持たない軌道（状態ベクトルの軌道）と、弧ごとに軌道が違う連鎖は `None`。
     pub fn altitude_m(&self) -> Option<f64> {
         match self {
             Self::Elements(o) => Some(o.altitude_m()),
+            Self::State(_) | Self::Synodic(_) | Self::Arcs(_) => None,
             Self::Spanned { orbit, .. } => orbit.altitude_m(),
         }
     }
@@ -168,7 +272,7 @@ impl Trajectory {
     pub fn elements(&self) -> Option<&OrbitSpec> {
         match self {
             Self::Elements(o) => Some(o),
-            Self::Spanned { .. } => None,
+            Self::State(_) | Self::Synodic(_) | Self::Spanned { .. } | Self::Arcs(_) => None,
         }
     }
 
@@ -176,55 +280,7 @@ impl Trajectory {
     pub fn elements_mut(&mut self) -> Option<&mut OrbitSpec> {
         match self {
             Self::Elements(o) => Some(o),
-            Self::Spanned { .. } => None,
-        }
-    }
-}
-
-impl Serialize for Trajectory {
-    /// `Elements` は [`OrbitSpec`] と同じ形（タグ無し）。期間を持つ軌道は、その欄に `span_s` を足した形。
-    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        match self {
-            Self::Elements(o) => o.serialize(s),
-            Self::Spanned { orbit, span_s } => match orbit.as_ref() {
-                Self::Elements(o) => TrajectoryRepr {
-                    orbit: o.clone(),
-                    span_s: Some(*span_s),
-                }
-                .serialize(s),
-                // 期間は 1 段だけ（`with_span` が置き換える）。入れ子は作らない
-                Self::Spanned { .. } => Err(serde::ser::Error::custom("Nested trajectory span")),
-            },
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for Trajectory {
-    /// `source` が無い、または `"elements"` なら [`OrbitSpec`] として読む。
-    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        use serde::de::Error;
-        let mut value = serde_json::Value::deserialize(d)?;
-        let (source, span) = match value.as_object_mut() {
-            Some(map) => (map.remove("source"), map.remove("span_s")),
-            None => (None, None),
-        };
-        let span_s = match span {
-            None | Some(serde_json::Value::Null) => None,
-            Some(v) => Some(v.as_f64().ok_or_else(|| {
-                D::Error::custom("The span of an orbit (span_s) must be a number of seconds")
-            })?),
-        };
-        match source.as_ref().map(serde_json::Value::as_str) {
-            None | Some(Some("elements")) => OrbitSpec::deserialize(value)
-                .map(|o| match span_s {
-                    Some(span_s) => Self::Elements(o).with_span(span_s),
-                    None => Self::Elements(o),
-                })
-                .map_err(D::Error::custom),
-            Some(_) => Err(D::Error::custom(format!(
-                "Unknown orbit source {}",
-                source.unwrap_or_default()
-            ))),
+            Self::State(_) | Self::Synodic(_) | Self::Spanned { .. } | Self::Arcs(_) => None,
         }
     }
 }

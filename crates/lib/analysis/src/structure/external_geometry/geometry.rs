@@ -2,6 +2,7 @@
 //! 表面積（面の被覆）は子の `exposed`（`ExternalGeometry::exposure`）、平均の向きの組は子の `directions`。
 
 use super::super::interference::obb::{OrientedBox, PLANE_EPS, plane_basis};
+use super::super::interference::{InterferenceBox, usable_boxes};
 use super::directions::DirectionSet;
 use sat_astro::math::Vec3;
 use sat_astro::math::planar::union_measure;
@@ -10,6 +11,15 @@ use sat_astro::math::planar::union_measure;
 /// CAD の寸法の丸めと取付の面の合わせの余裕で、箱の近似の粗さ（mm〜cm）より十分小さい
 /// （`structure.interference` の許容差の既定と同じ尺度。意味が違う値なので、別の定数にしている）。
 pub const SURFACE_TOLERANCE: f64 = 1e-4;
+
+/// 向きの量子化の細かさ（成分を 1e-12 の刻みに丸めて、同じ向きの繰り返しを使い回す。差は浮動小数点の雑音の大きさ）。
+const DIRECTION_KEY_SCALE: f64 = 1e12;
+
+/// 向き（単位ベクトル）を、キャッシュの鍵にする量子化した整数の組にする。**向きごとの投影・日照割合を使い回す鍵はここだけ**
+/// （固定姿勢の機体の一定の向き、たとえば太陽指向の太陽の向きを、何度も解かないため）。
+pub fn direction_key(d: Vec3) -> [i64; 3] {
+    [d.x, d.y, d.z].map(|c| (c * DIRECTION_KEY_SCALE).round() as i64)
+}
 
 /// 部品の箱 1 つ。
 #[derive(Debug, Clone, PartialEq)]
@@ -49,6 +59,26 @@ impl ExternalGeometry {
             internal,
             hidden,
         }
+    }
+
+    /// 判定に使える箱（`usable_boxes` が選んだもの。ID の昇順）から作る。
+    pub(crate) fn from_usable(boxes: &[&InterferenceBox]) -> Self {
+        Self::new(
+            boxes
+                .iter()
+                .map(|b| PartBox {
+                    id: b.id.clone(),
+                    shape: OrientedBox::from_size(b.position, b.orientation, b.size),
+                })
+                .collect(),
+        )
+    }
+
+    /// 解析の入力の箱から作る（寸法が正の有限値でない箱は除く。選び方は `usable_boxes`＝箱の使い方の規則）。
+    /// 使える箱が 1 つも無ければ `None`。高度低下と擾乱トルクが、報告（`structure.external_geometry`）と同じ幾何を使うための入口。
+    pub fn from_boxes(boxes: &[InterferenceBox]) -> Option<Self> {
+        let (usable, _) = usable_boxes(boxes, &[]);
+        (!usable.is_empty()).then(|| Self::from_usable(&usable))
     }
 
     /// 全部の箱。

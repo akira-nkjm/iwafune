@@ -184,7 +184,9 @@ kpi_table! {
     structure::Interference { InterferenceOverlaps => structure_kpi::interference_overlaps }
     structure::ConeClearance { ConeObstructions => structure_kpi::cone_obstructions }
     structure::ExternalGeometryReport { MeanProjectedArea => structure_kpi::projected_area_mean }
+    structure::ModalFem { FirstFrequency => structure_kpi::first_frequency }
     sat_analysis::orbit::Geometry { GreatestEarthDistance => orbit::greatest_earth_distance }
+    sat_analysis::orbit::TotalDose { TotalDoseMargin => orbit::total_dose_margin }
     sat_analysis::propulsion::Maneuvers { LongestTransfer => propulsion::longest_transfer }
     sat_analysis::propulsion::DvBudget { DvWithMargin => propulsion::dv_with_margin }
     sat_analysis::propulsion::Propellant {

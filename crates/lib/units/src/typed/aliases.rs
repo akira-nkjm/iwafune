@@ -95,6 +95,12 @@ pub type __Volume = Dim<Three, Zero, Zero, Zero, Zero, Zero, Zero, Zero, Zero>;
 pub type __ThermalConductance =
     Dim<Two, One, NegativeThree, Zero, NegativeOne, Zero, Zero, Zero, Zero>;
 #[doc(hidden)]
+pub type __ThermalConductivity =
+    Dim<One, One, NegativeThree, Zero, NegativeOne, Zero, Zero, Zero, Zero>;
+#[doc(hidden)]
+pub type __HeatTransferCoefficient =
+    Dim<Zero, One, NegativeThree, Zero, NegativeOne, Zero, Zero, Zero, Zero>;
+#[doc(hidden)]
 pub type __SpecificHeatCapacity =
     Dim<Two, Zero, NegativeTwo, Zero, NegativeOne, Zero, Zero, Zero, Zero>;
 #[doc(hidden)]
@@ -121,6 +127,8 @@ pub type __Conductance = Dim<NegativeTwo, NegativeOne, Three, Two, Zero, Zero, Z
 pub type __MagneticFlux = Dim<Two, One, NegativeTwo, NegativeOne, Zero, Zero, Zero, Zero, Zero>;
 #[doc(hidden)]
 pub type __AbsorbedDose = Dim<Two, Zero, NegativeTwo, Zero, Zero, Zero, Zero, Zero, Zero>;
+#[doc(hidden)]
+pub type __AbsorbedDoseRate = Dim<Two, Zero, NegativeThree, Zero, Zero, Zero, Zero, Zero, Zero>;
 #[doc(hidden)]
 pub type __Impulse = Dim<One, One, NegativeOne, Zero, Zero, Zero, Zero, Zero, Zero>;
 
@@ -213,6 +221,10 @@ pub type ElectricCharge = __ElectricCharge;
 pub type Volume = __Volume;
 /// Thermal-conductance dimension (`M L^2 T^-3 K^-1`, for example `W/K`).
 pub type ThermalConductance = __ThermalConductance;
+/// Thermal-conductivity dimension (`L M T^-3 K^-1`, for example `W/(m*K)`; the conduction of a material).
+pub type ThermalConductivity = __ThermalConductivity;
+/// Heat-transfer-coefficient dimension (`M T^-3 K^-1`, for example `W/(m^2*K)`; the conductance per contact area).
+pub type HeatTransferCoefficient = __HeatTransferCoefficient;
 /// Specific-heat-capacity dimension (`L^2 T^-2 K^-1`, for example `J/(kg*K)`).
 pub type SpecificHeatCapacity = __SpecificHeatCapacity;
 /// Specific-energy dimension (`L^2 T^-2`, for example `J/kg` or `km^2/s^2`; the characteristic energy C3 of an interplanetary departure).
@@ -243,6 +255,9 @@ pub type MagneticFlux = __MagneticFlux;
 /// `Gy`（吸収線量）と `Sv`（線量当量）はどちらも `J/kg` で、速度の 2 乗・比エネルギーとも
 /// 次元が同一。次元検査はこれらを区別しない。線量当量用の別名は置かず、使い分けは単位の
 /// 綴りで担保する。
+/// 表示（型から名前を引く）には `AbsorbedDoseKind` を使う（次元の型からは `SpecificEnergy` になり km²/s² で出る）。
 pub type AbsorbedDose = __AbsorbedDose;
+/// Absorbed-dose-rate dimension (`L^2 T^-3`, for example `Gy/yr`; the radiation environment of an orbit).
+pub type AbsorbedDoseRate = __AbsorbedDoseRate;
 /// Impulse (linear momentum) dimension (`M L T^-1`, for example `N*s`)。推進の総インパルス・最小インパルスビットに使う。
 pub type Impulse = __Impulse;

@@ -4,7 +4,7 @@
 //! `match` で書くので、解析に値が増えたら、ここが書かれるまでコンパイルが通らない。
 
 use crate::dto::{AnalysisLabel, AocsUnloadMeans, KpiKey};
-use sat_analysis::aocs::disturbance::DisturbanceKind;
+use sat_analysis::aocs::disturbance::{DisturbanceKind, SurfaceValueSource};
 use sat_analysis::aocs::sensor_fov::SensorFovTarget;
 use sat_analysis::aocs::slew_time::{SlewAssumption, SlewProfile};
 use sat_analysis::aocs::unload_time::{MtqFieldGap, MtqFieldReason, UnloadAssumption};
@@ -13,21 +13,46 @@ use sat_analysis::comm::link_budget::{LinkBudgetDirection, LinkDistanceModel};
 use sat_analysis::power::energy_balance::{
     DurationTiming, EnergyBalanceDuty, EnergyBalanceEvaluation,
 };
-use sat_analysis::power::sizing::SizingLifetimeSource;
+use sat_analysis::power::sizing::{SizingLifetimeSource, SizingSunDistanceSource};
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
 use sat_analysis::structure::cone_clearance::{ConeKind, ConeSkipReason};
 use sat_analysis::structure::external_geometry::{BodyAxis, FaceDirection};
 use sat_analysis::structure::interference::InterferenceSkipReason;
-use sat_analysis::structure::launch_fit::{LaunchFitDirection, LaunchFitEnvelopeSource};
+use sat_analysis::structure::launch_fit::{
+    LaunchFitDirection, LaunchFitEnvelopeSource, LaunchFitSource,
+};
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
+use sat_analysis::structure::modal_fem::{ModalFemAxis, ModalFemModeClass};
 use sat_analysis::thermal::ThermalHeaterState;
+use sat_analysis::thermal::network::ThermalCouplingSource;
 use serde::de::DeserializeOwned;
 
 pub(crate) fn label(ja: impl Into<String>, en: impl Into<String>) -> AnalysisLabel {
     AnalysisLabel {
         label: ja.into(),
         label_en: en.into(),
+    }
+}
+
+/// 熱の結合の出どころの表示名。
+pub fn coupling_source(s: ThermalCouplingSource) -> AnalysisLabel {
+    use ThermalCouplingSource as S;
+    match s {
+        S::Mount => label("取付の既定値", "Mount default"),
+        S::Contact => label("接触面積", "Contact area"),
+        S::Explicit => label("書いた値", "Written value"),
+        S::Enclosure => label("箱の放射", "Enclosure radiation"),
+        S::ViewFactor => label("形態係数", "View factors"),
+    }
+}
+
+/// 熱の結合の種類の表示名（伝導・放射）。
+pub fn coupling_kind(k: crate::dto::ThermalCouplingKind) -> AnalysisLabel {
+    use crate::dto::ThermalCouplingKind as K;
+    match k {
+        K::Conductive => label("伝導", "Conduction"),
+        K::Radiative => label("放射", "Radiation"),
     }
 }
 
@@ -105,6 +130,20 @@ fn disturbance(k: DisturbanceKind) -> AnalysisLabel {
         DisturbanceKind::Srp => label("太陽輻射圧トルク", "Solar radiation pressure torque"),
         DisturbanceKind::Magnetic => label("残留磁気トルク", "Residual magnetic torque"),
         DisturbanceKind::Thrust => label("推力誤差トルク", "Thrust misalignment torque"),
+    }
+}
+
+fn surface_value_source(s: SurfaceValueSource) -> AnalysisLabel {
+    match s {
+        SurfaceValueSource::Written => label("設定に書いた値", "Written in the settings"),
+        SurfaceValueSource::Geometry => label(
+            "部品の箱の投影から向きごとに出した値",
+            "Per direction from the projection of the part boxes",
+        ),
+        SurfaceValueSource::CentreOfMass => label(
+            "重心に置いた（トルクは 0）",
+            "Placed at the centre of mass (zero torque)",
+        ),
     }
 }
 
@@ -288,6 +327,19 @@ fn energy_balance_duty(d: EnergyBalanceDuty) -> AnalysisLabel {
     }
 }
 
+fn sizing_sun_distance_source(s: SizingSunDistanceSource) -> AnalysisLabel {
+    match s {
+        SizingSunDistanceSource::Setting => label("設定", "Setting"),
+        SizingSunDistanceSource::Nominal => {
+            label("中心天体の慣例値", "Conventional value of the central body")
+        }
+        SizingSunDistanceSource::SpanMax => label(
+            "期間の中の太陽距離の最大（最悪の日）",
+            "Farthest Sun distance over the span (worst day)",
+        ),
+    }
+}
+
 fn sizing_lifetime_source(s: SizingLifetimeSource) -> AnalysisLabel {
     match s {
         SizingLifetimeSource::SeasonSpan => label("季節の走査期間", "Season scan span"),
@@ -321,6 +373,13 @@ fn launch_fit_direction(d: LaunchFitDirection) -> AnalysisLabel {
     }
 }
 
+fn launch_fit_source(s: LaunchFitSource) -> AnalysisLabel {
+    match s {
+        LaunchFitSource::BeamEstimate => label("梁の見積もり", "Beam estimate"),
+        LaunchFitSource::FiniteElement => label("粗い有限要素", "Coarse finite element"),
+    }
+}
+
 fn launch_fit_envelope_source(s: LaunchFitEnvelopeSource) -> AnalysisLabel {
     match s {
         LaunchFitEnvelopeSource::RootSize => label("構体（取付の根）の寸法", "Root part size"),
@@ -343,6 +402,24 @@ fn body_axis(a: BodyAxis) -> AnalysisLabel {
     }
 }
 
+/// 有限要素の固有値解析の軸は機体の軸（`BodyAxis` と同じ表示名）。
+fn modal_fem_axis(a: ModalFemAxis) -> AnalysisLabel {
+    body_axis(match a {
+        ModalFemAxis::X => BodyAxis::X,
+        ModalFemAxis::Y => BodyAxis::Y,
+        ModalFemAxis::Z => BodyAxis::Z,
+    })
+}
+
+fn modal_fem_mode_class(c: ModalFemModeClass) -> AnalysisLabel {
+    match c {
+        ModalFemModeClass::Rigid => label("剛体（拘束のないモード）", "Rigid body"),
+        ModalFemModeClass::Axial => label("全体・機軸方向", "Global, axial"),
+        ModalFemModeClass::Lateral => label("全体・機軸に直交", "Global, lateral"),
+        ModalFemModeClass::Local => label("局所（パネルなど）", "Local (panels and the like)"),
+    }
+}
+
 fn face_direction(d: FaceDirection) -> AnalysisLabel {
     match d {
         FaceDirection::NegX => label("−X 面", "−X faces"),
@@ -358,6 +435,7 @@ fn cone_kind(k: ConeKind) -> AnalysisLabel {
     match k {
         ConeKind::Plume => label("噴流", "Plume"),
         ConeKind::FieldOfView => label("視野", "Field of view"),
+        ConeKind::Beam => label("アンテナのビーム", "Antenna beam"),
     }
 }
 
@@ -410,6 +488,7 @@ fn parse<T: DeserializeOwned>(value: &str) -> Option<T> {
 pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
     match ty {
         "DisturbanceKind" => parse(value).map(disturbance),
+        "SurfaceValueSource" => parse(value).map(surface_value_source),
         "SensorFovTarget" => parse(value).map(sensor_target),
         "UnloadAssumption" => parse(value).map(unload_assumption),
         "MtqFieldReason" => parse(value).map(mtq_field_reason),
@@ -422,8 +501,11 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "ModalEstimateKind" => parse(value).map(modal_kind),
         "LaunchFitDirection" => parse(value).map(launch_fit_direction),
         "LaunchFitEnvelopeSource" => parse(value).map(launch_fit_envelope_source),
+        "LaunchFitSource" => parse(value).map(launch_fit_source),
         "InterferenceSkipReason" => parse(value).map(interference_skip_reason),
         "BodyAxis" => parse(value).map(body_axis),
+        "ModalFemAxis" => parse(value).map(modal_fem_axis),
+        "ModalFemModeClass" => parse(value).map(modal_fem_mode_class),
         "FaceDirection" => parse(value).map(face_direction),
         "ConeKind" => parse(value).map(cone_kind),
         "ConeSkipReason" => parse(value).map(cone_skip_reason),
@@ -431,12 +513,18 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
         "DurationTiming" => parse(value).map(duration_timing),
         "SizingLifetimeSource" => parse(value).map(sizing_lifetime_source),
+        "SizingSunDistanceSource" => parse(value).map(sizing_sun_distance_source),
         "ThermalHeaterState" => parse(value).map(heater_state),
         "DataThroughputLinkClosure" => link_closure(value),
         "SolarActivity" => parse(value).map(orbit::solar_activity),
         "WeatherSource" => parse(value).map(orbit::weather_source),
         "DragAreaSource" => parse(value).map(orbit::drag_area_source),
         "GeometrySpanBasis" => parse(value).map(orbit::geometry_span_basis),
+        "DesignMarginSource" => parse(value).map(orbit::design_margin_source),
+        "ShieldingSource" => parse(value).map(orbit::shielding_source),
+        "DoseLegStatus" => parse(value).map(orbit::dose_leg_status),
+        "DoseNotEvaluated" => parse(value).map(orbit::dose_not_evaluated),
+        "DoseInterpolation" => parse(value).map(orbit::dose_interpolation),
         "DecayCondition" => orbit::decay_condition(value),
         "DvCategory" => parse(value).map(propulsion::category),
         "TransferMethod" => parse(value).map(propulsion::method),
@@ -516,12 +604,28 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
         K::InterferenceOverlaps => label("部品の重なり（組）", "Part overlaps (pairs)"),
         K::ConeObstructions => label("円錐の遮り", "Cone obstructions"),
         K::MeanProjectedArea => label("投影面積（平均）", "Projected area (mean)"),
+        K::FirstFrequency => label(
+            "最低の固有振動数（有限要素）",
+            "Lowest natural frequency (finite element)",
+        ),
         K::TransferMiss => label("到着のずれ（最大）", "Arrival miss distance (max)"),
         K::LaunchWindowDeltaV => label("窓の ΔV（最小）", "Launch window delta-v (min)"),
+        K::TotalDoseMargin => label("総線量の余裕（最小）", "Total dose margin (min)"),
         K::GreatestEarthDistance => {
             label("地球までの距離（最大）", "Distance from the Earth (max)")
         }
     }
+}
+
+/// 円制限三体問題の軌道を暦に載せた軌道の説明（key `orbit_model`）の項目名と文。
+pub fn orbit_model_check() -> (AnalysisLabel, AnalysisLabel) {
+    (
+        label("軌道のモデル", "Orbit model"),
+        label(
+            "軌道は円制限三体問題（CR3BP）のラグランジュ点またはハロー軌道を、暦の 2 天体の位置と速度に載せたものです（力モデルの伝搬ではなく、太陽・月・惑星の摂動と太陽輻射圧は入りません）。軌道維持は見積もらないので、ΔV の余裕としてマヌーバに書いてください",
+            "The orbit is a libration point or halo orbit of the circular restricted three-body problem (CR3BP) carried on the ephemeris positions and velocities of the two bodies (not a force-model propagation: third-body perturbations and solar radiation pressure are not included). Station keeping is not estimated, so write it as a delta-V allowance in a maneuver",
+        ),
+    )
 }
 
 /// 期間不足の注意（key `span`）の項目名と文。1 回限りの軌道（`OneOffSpan`）は期間不足ではなく、周回が無いことの説明。
@@ -539,8 +643,8 @@ pub fn span_check(f: SpanFallback) -> (AnalysisLabel, AnalysisLabel) {
             return (
                 label("解析期間", "Analysis span"),
                 label(
-                    "軌道は 1 回限りの区間（惑星間の巡航の、両端の天体の影響圏のあいだなど）で周回が無いため、軌道平均と 1 周あたりの量は区間全体で求めています（影響圏の中の双曲線の弧は解析しません）",
-                    "The orbit is a one-off arc (such as an interplanetary cruise between the spheres of influence of its end bodies; the hyperbolic legs inside them are not analysed) with no repeating orbit, so orbit averages and per-orbit quantities are taken over the whole arc",
+                    "軌道は 1 回限りの区間（惑星間の巡航の、両端の天体の影響圏のあいだなど。スイングバイがあれば通過の日を境にした弧の連鎖）で周回が無いため、軌道平均と 1 周あたりの量は区間全体で求めています（影響圏の中の双曲線の弧と、通過の天体の影響圏の中は解析しません。通過は一瞬とみなし、その日に日心の速度が跳びます）",
+                    "The orbit is a one-off arc (such as an interplanetary cruise between the spheres of influence of its end bodies; with flybys, a chain of arcs broken at the flyby dates) with no repeating orbit, so orbit averages and per-orbit quantities are taken over the whole arc (the hyperbolic legs inside the end spheres of influence, and the time inside a flyby body's sphere of influence, are not analysed; a flyby is instantaneous and the heliocentric velocity jumps on its date)",
                 ),
             );
         }

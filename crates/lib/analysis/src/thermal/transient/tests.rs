@@ -1,7 +1,10 @@
 //! `thermal.transient` のテスト（1 次遅れの解析解・軌道上の周期解）。
 
 use super::*;
-use crate::thermal::network::{ThermalConductiveLink, tests::node};
+use crate::thermal::network::{
+    ThermalConductiveLink,
+    tests::{node, plate_of},
+};
 use crate::thermal::orbit_heat::fixtures::{cube, leo_timeline};
 
 /// 1 次遅れ: C = 900 J/K の節点を G = 1 W/K で 300 K の境界につなぎ、350 K から冷やす。
@@ -10,6 +13,7 @@ use crate::thermal::orbit_heat::fixtures::{cube, leo_timeline};
 fn first_order_cooling() {
     let input = ThermalTransientInput {
         network: ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![node("sink", Some(300.0)), node("box", None)],
             conductive: vec![ThermalConductiveLink {
@@ -19,7 +23,9 @@ fn first_order_cooling() {
             }],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![],
+            shadowing: None,
         },
         timeline: leo_timeline(1800.0, 60.0),
         environment: ThermalEnvironment::default(),
@@ -46,12 +52,15 @@ fn first_order_cooling() {
 #[test]
 fn phases_cycle() {
     let net = Compiled::new(&ThermalNetwork {
+        plates: Vec::new(),
         mounts: None,
         nodes: vec![node("a", None)],
         conductive: vec![],
         radiative: vec![],
         enclosure: None,
+        view_factors: None,
         surfaces: vec![],
+        shadowing: None,
     })
     .unwrap();
     let load = |w: f64| {
@@ -194,12 +203,15 @@ fn single_phase_duration_defaults_without_changing_the_result() {
 #[test]
 fn phase_boundaries_inside_an_interval() {
     let net = Compiled::new(&ThermalNetwork {
+        plates: Vec::new(),
         mounts: None,
         nodes: vec![node("a", None)],
         conductive: vec![],
         radiative: vec![],
         enclosure: None,
+        view_factors: None,
         surfaces: vec![],
+        shadowing: None,
     })
     .unwrap();
     let phase = |label: &str, duration: f64| ThermalHeatPhase {
@@ -260,4 +272,79 @@ fn integration_settings_and_cost_are_reported() {
     let mut bad = base();
     bad.max_step = Some(Qty::from_raw(0.0));
     assert!(ThermalTransient::run(&bad).is_err());
+}
+
+/// 升に分けた板の詳細は、升ごとの最低・最高・終わりの 3 つの場（時刻ごとの全履歴は載せない）。値は結果の節点（升の ID）の最低・最高と、
+/// 温度の系列の最後の標本に等しい。冷やすだけなので、最高は初期の 350 K、最低と終わりは同じ。
+#[test]
+fn plate_detail_is_min_max_and_end_per_cell() {
+    use crate::thermal::plate_view::{ThermalPlateQuantity, ThermalPlateTemperatures};
+    let input = ThermalTransientInput {
+        network: ThermalNetwork {
+            plates: vec![plate_of("box")],
+            mounts: None,
+            nodes: vec![node("sink", Some(300.0)), node("box", None)],
+            conductive: vec![ThermalConductiveLink {
+                a: "sink".to_owned(),
+                b: "box".to_owned(),
+                conductance: Qty::from_raw(1.0),
+            }],
+            radiative: vec![],
+            enclosure: None,
+            view_factors: None,
+            surfaces: vec![],
+            shadowing: None,
+        },
+        timeline: leo_timeline(1800.0, 60.0),
+        environment: ThermalEnvironment::default(),
+        phases: vec![],
+        heaters: vec![],
+        initial: ThermalInitial::Uniform {
+            temperature: Qty::from_raw(350.0),
+        },
+        max_step: None,
+        rel_tol: None,
+        abs_tol: None,
+        margin: ThermalMarginPolicy::default(),
+    };
+    let plain = ThermalTransient::run(&input).unwrap();
+    let detailed = ThermalTransient::run_detailed(&input, true).unwrap();
+    assert_eq!(
+        serde_json::to_value(&detailed.output).unwrap(),
+        serde_json::to_value(&plain).unwrap()
+    );
+    let d: ThermalPlateTemperatures =
+        serde_json::from_value(detailed.detail.expect("detail")).unwrap();
+    let quantities: Vec<_> = d.fields.iter().map(|f| f.quantity).collect();
+    assert_eq!(
+        quantities,
+        [
+            ThermalPlateQuantity::Min,
+            ThermalPlateQuantity::Max,
+            ThermalPlateQuantity::End
+        ]
+    );
+    assert_eq!(d.cells.len(), 6);
+    for (k, cell) in d.cells.iter().enumerate() {
+        let node = plain.nodes.iter().find(|n| n.node == cell.node).unwrap();
+        let series = plain
+            .series
+            .channels
+            .iter()
+            .find(|c| c.key == cell.node)
+            .unwrap();
+        assert_eq!(d.fields[0].temperature[k].value(), node.min.value());
+        assert_eq!(d.fields[1].temperature[k].value(), node.max.value());
+        assert_eq!(
+            d.fields[2].temperature[k].value(),
+            *series.values.last().unwrap()
+        );
+        assert!((node.max.value() - 350.0).abs() < 1e-9);
+    }
+    assert!(
+        ThermalTransient::run_detailed(&input, false)
+            .unwrap()
+            .detail
+            .is_none()
+    );
 }

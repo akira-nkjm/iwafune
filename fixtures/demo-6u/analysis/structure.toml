@@ -17,3 +17,9 @@ poisson_ratio        = 0.3
 yield_strength       = { value = 450.0, unit = "MPa" }
 ultimate_strength    = { value = 500.0, unit = "MPa" }
 thermal_conductivity = { value = 5.0, unit = "W/(m*K)" }
+
+[[acknowledged]]
+finding = "interference"
+first   = "SAP_PY"
+second  = "SP_PY"
+reason  = "Hinge edge: the paddle box and the solar panel box meet at the hinge line, where the real parts only touch"

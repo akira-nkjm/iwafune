@@ -28,6 +28,7 @@
 //! | `mode_levels` | モードの表の状態・電力の列の出し方 |
 //! | `net_class` | ネットの分類（電源の系統・星形の中心） |
 //! | `data` | 外部データ（DE440）の状態 |
+//! | `thermal_tables` | 熱の結合・表面の表（`ThermalTablesView`）と、その下書きの編集（`ThermalSetText`） |
 //! | `report` | 設計書に入れる表と図の書き出し（依頼・結果） |
 
 mod aocs_modes;
@@ -58,7 +59,7 @@ pub use maneuver::{ManeuverTargetView, ManeuverText, ManeuverView};
 pub use phase::{PhaseFieldView, PhaseLawView, PhaseText, PhaseView};
 pub use requirement::{
     ComplianceCase, ComplianceReport, ComplianceRow, ComplianceSummary, ConstraintView,
-    NotVerifiedReason, RequirementText, RequirementView,
+    DecisiveCheck, NotVerifiedReason, RequirementText, RequirementView,
 };
 mod overview;
 pub use overview::{
@@ -86,21 +87,23 @@ mod source;
 pub use source::SourceView;
 mod mode_levels;
 mod net_class;
+mod thermal_tables;
 mod units;
 mod value;
 
 pub use analysis::{
     AnalysisCaseSource, AnalysisEntry, AnalysisInputSource, AnalysisRunResult, AnalysisRunStatus,
-    PartHeat, RunAnalysisRequest,
+    FindingState, PartFinding, PartHeat, RunAnalysisRequest,
 };
 pub use budget::{
     BudgetPropellant, BudgetRequest, BudgetRow, BudgetTotal, BudgetUncounted, BudgetView,
 };
 pub use catalog::{CatalogItemView, CatalogSourceView};
 pub use command::{
-    AttrAddText, CaseFromEclipseRequest, CaseFromSunDistanceRequest, CatalogSourceAddText,
-    CommandText, EclipseCaseAt, KindAddText, ManeuverWindowRequest, ModeCellText, ModeSetText,
-    NetSetText, NetUnsetText, PlaceText, SunDistanceCaseAt, WindowObjective,
+    AttrAddText, CaseFromEclipseRequest, CaseFromGeometryRequest, CaseFromSunDistanceRequest,
+    CatalogSourceAddText, CommandText, EclipseCaseAt, KindAddText, ManeuverWindowRequest,
+    ModeCellText, ModeSetText, NetSetText, NetUnsetText, PlaceText, SunDistanceCaseAt,
+    WindowObjective,
 };
 pub use common::{
     CheckReport, DiagnosticCounts, DiagnosticView, ErrorEnvelope, ErrorInfo, QuantityView,
@@ -120,26 +123,33 @@ pub use edit::{
     ApplyRequest, ApplyResult, ChangedFile, FileChangeKind, InitResult, PlaceBodyRequest, SetText,
     UnsetText,
 };
-pub use fune_model::design::PartField;
 pub use fune_model::design::{
     AttributeDef, Case, CatalogField, CatalogItem, DepartureBy, Distribution, Harness, KindDef,
-    Maneuver, ManeuverCategory, ManeuverConstraints, ManeuverMethod, ManeuverTarget,
+    Maneuver, ManeuverCategory, ManeuverConstraints, ManeuverFlyby, ManeuverMethod, ManeuverTarget,
     ManeuverTransfer, ModeSegment, ModeWhen, Net, NetField, NetKind, Phase, Pose, Requirement,
     Source, SourceKind, StartFrom, StartRef, UncertaintySide,
 };
 pub use fune_model::design::{BudgetKind, SharedCatalogState, SharedCatalogStatus, StateAssign};
-pub use fune_model::design::{LinkDirection, ProjectField};
+pub use fune_model::design::{CaseField, PartField};
+pub use fune_model::design::{FindingKind, LinkDirection, ProjectField};
 pub use fune_model::design::{ViewEdge, ViewLayout, ViewNode, ViewPortSide};
 pub use fune_model::path::PortRef;
 pub use fune_model::resolve::{Evidence, Origin};
 pub use fune_model::value::{Provenance, Quantity, Quaternion, SettingValue, Value, Vector3};
 pub use fune_model::{Diagnostic, Severity};
+pub use fune_ops::RemovedKeys;
 pub use fune_ops::{ModeCell, ModePosition, Op, ViewNodePos};
 pub use fune_projection::{CatalogFix, Choice, Fix, ListKind, MissingInput, RefKind};
 pub use history::{HistoryAction, HistoryEntryView, HistoryStepResult, HistoryView};
 pub use sat_analysis::spec::{
     AnalysisArea, AnalysisInfo, AnalysisKind, Channel, Check, ConditionTopic, Series, System,
     Verdict,
+};
+pub use thermal_tables::{
+    ThermalCellText, ThermalCoatingRow, ThermalContactRow, ThermalCouplingKind,
+    ThermalCouplingKindView, ThermalCouplingRow, ThermalCouplingsTable, ThermalFractionRow,
+    ThermalNodeTemperature, ThermalSetText, ThermalSurfaceRow, ThermalTablesRequest,
+    ThermalTablesView, ThermalUniformOptics, ThermalViewFactorRow,
 };
 pub use units::{
     DimensionInfo, FormatItem, FormatRequest, FormatResponse, ParseQuantityRequest, ParsedQuantity,

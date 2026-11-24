@@ -5,7 +5,7 @@
 use super::configuration::Configuration;
 use crate::enum_text::enum_text;
 use crate::id::Id;
-use crate::value::Quantity;
+use crate::value::{Curve, Quantity, Vector3};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
@@ -35,21 +35,51 @@ enum_text! {
 enum_text! {
     /// 軌道の出どころ（`[orbit]` の `source`。書かなければ `elements`）。解析が軌道から読むのは時刻での状態・中心天体・元期・
     /// 繰り返しの長さで、出どころごとに射影（`fune_projection::Context::trajectory`）がそれを作る。
-    /// 出どころは `state`・`libration` が増える（値を足すだけで、ほかの欄の形は変わらない）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
     pub enum OrbitSource: "orbit source" {
         /// ケプラー要素（`altitude`・`semi_major_axis` 以下。既定）
         Elements = "elements",
         /// 日付つきの遷移のマヌーバ（`maneuver`）の巡航の軌道。元期は出発、中心は共通の親、期間は飛行時間
         Transfer = "transfer",
+        /// 状態ベクトル（`epoch`・`central`・`position`・`velocity`・`span`）を多体の力で数値伝搬する軌道。位置・速度は
+        /// 原点の天体の中心から、向きは ECI（J2000 平均赤道の慣性系）
+        State = "state",
+        /// ラグランジュ点（`primary`・`secondary`・`point`・`epoch`）、`amplitude_z` を書けばそのまわりのハロー軌道（`branch`）。
+        /// 円制限三体問題の軌道を暦の 2 天体の位置に載せたもの。原点は副天体
+        Libration = "libration",
     }
 }
 
-/// ケプラー要素の軌道（`source = "elements"`）だけが使う欄。
-const ELEMENT_KEYS: &[&str] = &[
-    "epoch",
+enum_text! {
+    /// ラグランジュ点（`source = "libration"` の `point`）。`sat_astro::orbit::cr3bp::LibrationPoint` に射影する。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+    pub enum LibrationPointKind: "libration point" {
+        L1 = "l1",
+        L2 = "l2",
+        L3 = "l3",
+        L4 = "l4",
+        L5 = "l5",
+    }
+}
+
+enum_text! {
+    /// ハロー軌道の枝（`source = "libration"` の `branch`）。北は元期に z > 0、南はその z → −z の鏡像。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+    pub enum HaloBranchKind: "halo branch" {
+        North = "north",
+        South = "south",
+    }
+}
+
+/// 状態ベクトルの軌道（`source = "state"`）だけが使う欄。
+const STATE_KEYS: &[&str] = &["position", "velocity", "span"];
+
+/// ラグランジュ点の軌道（`source = "libration"`）だけが使う欄（`epoch` は状態ベクトルの軌道も使う）。
+const LIBRATION_KEYS: &[&str] = &["primary", "secondary", "point", "amplitude_z", "branch"];
+
+/// ケプラー要素の軌道（`source = "elements"`）だけが使う欄（`epoch`・`central` は状態ベクトルの軌道も使う）。
+const ELEMENT_ONLY_KEYS: &[&str] = &[
     "propagator",
-    "central",
     "altitude",
     "semi_major_axis",
     "eccentricity",
@@ -64,12 +94,62 @@ const ELEMENT_KEYS: &[&str] = &[
 ];
 
 impl OrbitSource {
+    /// 設定の表（設計の軌道・フェーズの `[orbit]`）に、まだ書かれていなくても欄として出すキー（編集の入口）。
+    /// `source` は常に。既定の出どころ（`elements`）と `transfer` は、遷移への切り替えに備えて `maneuver` も出す。
+    /// `state` は、状態ベクトルの軌道が使う欄（`unused_keys` の補集合）を出し、ケプラー要素の欄は出さない。
+    /// **どの出どころで何を出すかはここだけ**（Web は API の返した欄を並べるだけで、出どころごとの欄の一覧を持たない）。
+    pub fn offered_keys(self) -> Vec<&'static str> {
+        match self {
+            Self::Elements | Self::Transfer => vec!["source", "maneuver"],
+            Self::State => {
+                let unused = self.unused_keys();
+                ["source", "epoch", "central", "position", "velocity", "span"]
+                    .into_iter()
+                    .filter(|k| !unused.contains(k))
+                    .collect()
+            }
+            Self::Libration => {
+                let unused = self.unused_keys();
+                ["source", "epoch"]
+                    .into_iter()
+                    .chain(LIBRATION_KEYS.iter().copied())
+                    .filter(|k| !unused.contains(k))
+                    .collect()
+            }
+        }
+    }
+
     /// この出どころでは使わない欄（書かれていても解析に効かない。検査が `setting.not_applied` で知らせる）。
     /// 出どころを足すときは、その出どころの欄をほかの出どころの「使わない欄」に足す。
-    pub fn unused_keys(self) -> &'static [&'static str] {
+    pub fn unused_keys(self) -> Vec<&'static str> {
+        let (elements, shared): (&[&str], &[&str]) = (ELEMENT_ONLY_KEYS, &["epoch", "central"]);
         match self {
-            Self::Elements => &["maneuver"],
-            Self::Transfer => ELEMENT_KEYS,
+            Self::Elements => ["maneuver"]
+                .iter()
+                .chain(STATE_KEYS)
+                .chain(LIBRATION_KEYS)
+                .copied()
+                .collect(),
+            Self::Transfer => shared
+                .iter()
+                .chain(elements)
+                .chain(STATE_KEYS)
+                .chain(LIBRATION_KEYS)
+                .copied()
+                .collect(),
+            Self::State => ["maneuver"]
+                .iter()
+                .chain(elements)
+                .chain(LIBRATION_KEYS)
+                .copied()
+                .collect(),
+            // 原点の天体（`central`）は副天体で決まるので書かせない
+            Self::Libration => ["maneuver", "central"]
+                .iter()
+                .chain(elements)
+                .chain(STATE_KEYS)
+                .copied()
+                .collect(),
         }
     }
 }
@@ -92,6 +172,18 @@ enum_text! {
     }
 }
 
+impl CentralBodyKind {
+    /// 暦で回っている先の天体（月は地球、太陽以外の惑星は太陽。太陽は無し）。ラグランジュ点の軌道の主天体と副天体の組の検査に使う。
+    /// `sat_astro::ephem::CentralBody::parent` と同じ（projection のテストで一致を確かめる。model は sat-astro に依存しない）。
+    pub fn parent(self) -> Option<Self> {
+        match self {
+            Self::Sun => None,
+            Self::Moon => Some(Self::Earth),
+            _ => Some(Self::Sun),
+        }
+    }
+}
+
 /// 軌道（`conditions/orbit.toml`）。円軌道は `altitude`、一般の軌道は `semi_major_axis` 以下の要素で書く。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -110,9 +202,33 @@ pub struct OrbitSettings {
     pub epoch: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub propagator: Option<PropagatorKind>,
-    /// 中心天体（省略時は地球）。高度はこの天体の赤道半径から数える
+    /// 中心天体（省略時は地球）。高度はこの天体の赤道半径から数える。`source = "state"` では位置・速度の原点の天体
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub central: Option<CentralBodyKind>,
+    /// `source = "libration"` の主天体（副天体の親。太陽–地球なら `sun`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary: Option<CentralBodyKind>,
+    /// `source = "libration"` の副天体（位置・速度の原点の天体。太陽–地球なら `earth`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secondary: Option<CentralBodyKind>,
+    /// `source = "libration"` のラグランジュ点（`l1`〜`l5`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub point: Option<LibrationPointKind>,
+    /// `source = "libration"` のハロー軌道の z 方向の振幅（長さ。書けばハロー軌道、書かなければ点そのもの。`l1`・`l2` だけ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub amplitude_z: Option<Quantity>,
+    /// `source = "libration"` のハロー軌道の枝（`north`・`south`。`amplitude_z` を書いたときだけ。省略は北）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub branch: Option<HaloBranchKind>,
+    /// `source = "state"` の元期の位置（`{ x, y, z, unit }`。原点の天体の中心から。向きは ECI = J2000 平均赤道の慣性系。座標系を `frame` で選ぶことはできない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position: Option<Vector3>,
+    /// `source = "state"` の元期の速度（`{ x, y, z, unit }`。位置と同じ座標系）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub velocity: Option<Vector3>,
+    /// `source = "state"` の期間（時間。元期から。解析はこの期間を評価する）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub span: Option<Quantity>,
     /// 円軌道の高度
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub altitude: Option<Quantity>,
@@ -139,6 +255,10 @@ pub struct OrbitSettings {
     /// `at_least` の要求が持つ（`Design::mission_duration`）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub duration: Option<Quantity>,
+    /// 環境の線量率の表（遮蔽の厚さ → 線量率。利用者が与える。放射線の総線量 `orbit.total_dose` が読む）。
+    /// フェーズの `[orbit]` に書けばそのフェーズの環境（軌道の設定は丸ごと置き換わる）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dose_rate_by_shielding: Option<Curve>,
     /// 軌道の季節解析の設定。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub eclipse_season: Option<EclipseSeasonSettings>,
@@ -258,6 +378,13 @@ pub struct LaunchSettings {
     /// **旧い設定（基準は要求へ移った。読まない）**。最低固有振動数（直交方向）は、`verify.check = "lateral"` の要求が持つ
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_frequency_lateral: Option<Quantity>,
+    /// 打ち上げ時の拘束の種類（`structure.modal_fem`。語彙は属性 `launch_constraint` の `symbols`）。
+    /// 書けばディスペンサー・打ち上げ機の属性より先に使う
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launch_constraint: Option<String>,
+    /// 拘束する面（`base_fixed`・`tabs`・`fixed` が使う。語彙は属性 `launch_constraint_face` の `symbols`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launch_constraint_face: Option<String>,
     /// 安全率（降伏）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub safety_factor_yield: Option<f64>,
@@ -271,9 +398,13 @@ impl LaunchSettings {
     /// `fune set conditions.launch.<欄>` が使う）。
     pub fn field_shape(key: &str) -> Option<crate::value::SettingValue> {
         match key {
-            "label" | "vehicle" | "launcher" | "dispenser" | "configuration" => {
-                Some(crate::value::SettingValue::Text(String::new()))
-            }
+            "label"
+            | "vehicle"
+            | "launcher"
+            | "dispenser"
+            | "configuration"
+            | "launch_constraint"
+            | "launch_constraint_face" => Some(crate::value::SettingValue::Text(String::new())),
             _ => None,
         }
     }
@@ -325,13 +456,23 @@ impl OrbitSettings {
             .collect()
     }
 
-    /// 欄の名前 → 値の形の見本（文字列で書く欄だけ。数値に見える文字列も文字列として読むための型で、既定値ではない。
-    /// フェーズの `[orbit]` の欄を文字列から読むとき（`fune phase set-field`）に使う）。
+    /// 欄の名前 → 値の形の見本（文字列で書く欄と、ベクトルの欄。数値に見える文字列も文字列として、`"1 0 0 km"` はベクトルとして
+    /// 読むための型で、既定値ではない。まだ書かれていない欄を文字列から読むとき（`fune set conditions.orbit.<欄>`・
+    /// `fune phase set-field`）に使う）。
     pub fn field_shape(key: &str) -> Option<crate::value::SettingValue> {
+        use crate::value::SettingValue;
         match key {
-            "label" | "source" | "maneuver" | "epoch" | "ltdn" | "central" | "propagator" => {
-                Some(crate::value::SettingValue::Text(String::new()))
+            "label" | "source" | "maneuver" | "epoch" | "ltdn" | "central" | "propagator"
+            | "primary" | "secondary" | "point" | "branch" => {
+                Some(SettingValue::Text(String::new()))
             }
+            "position" | "velocity" => Some(SettingValue::Vector(Vector3::unitless(0.0, 0.0, 0.0))),
+            "dose_rate_by_shielding" => Some(SettingValue::Curve(Curve {
+                at: Vec::new(),
+                at_unit: String::new(),
+                values: Vec::new(),
+                unit: String::new(),
+            })),
             _ => None,
         }
     }

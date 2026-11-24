@@ -33,6 +33,7 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
     let mut names = names::NameCheck::new(cfg);
     export_types!(cfg, names;
         fune_store::FileChange,
+        fune_ops::RemovedKeys,
         FormatDesignRequest,
         FormatDesignResult,
         CatalogFetchRequest,
@@ -51,6 +52,8 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         DesignView,
         SystemModesView,
         SystemModesRequest,
+        ThermalTablesRequest,
+        ThermalTablesView,
         ModeSummaryScope,
         PartView,
         PartViewRequest,
@@ -69,6 +72,7 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         CommandText,
         CaseFromEclipseRequest,
         CaseFromSunDistanceRequest,
+        CaseFromGeometryRequest,
         ManeuverWindowRequest,
         WindowObjective,
         SunDistanceCaseAt,
@@ -94,6 +98,8 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         ReportLang,
         ReportFile,
         ComplianceReport,
+        sat_analysis::structure::ModalFemShapes,
+        sat_analysis::thermal::ThermalPlateTemperatures,
     );
     fune_projection::dispatch::export_ts(cfg)?;
     fune_projection::dispatch::visit_ts(&mut names);

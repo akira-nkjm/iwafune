@@ -34,25 +34,33 @@ fn demo_kpis_show_the_same_values_as_before() {
         ("power.mode_load", &[(KpiKey::ModeLoad, "17.4 W")]),
         (
             "power.orbit_generation",
-            // #147 で日照率を足した（軌道 1 周の日照の時間の割合）
+            // #147 で日照率を足した（軌道 1 周の日照の時間の割合）。
+            // #424 部品どうしの影: 展開したパドルが +Y 面のセル（SP_PY）に落とす影と、太陽センサーが +X・−X・−Y 面のセルに落とす影で、
+            // 28.3 W → 27.1 W（日照率は変わらない）
             &[
-                (KpiKey::OrbitGeneration, "28.3 W"),
+                (KpiKey::OrbitGeneration, "27.1 W"),
                 (KpiKey::SunlitFraction, "78.4 %"),
             ],
         ),
         // #106 から、最長継続時間を持つモード（撮像・ダウンリンク）は定常の上でその時間だけ続けたときで、
         // モードの並びも入れて選ぶ（以前はダウンリンクを丸 1 日続けた -5.09 W・100 %）。
         // #138 から撮像は日照中だけ（`when = "sunlit"`）で、1 周の軌道平均の収支は 15.8 W → 15.0 W（最悪の撮像が日陰でなくなる）。
-        // 最大 DoD は継続時間の長いダウンリンク（指定なし）のまま
+        // 最大 DoD は継続時間の長いダウンリンク（指定なし）のまま。
+        // #424 部品どうしの影（発電が 28.3 → 27.1 W に下がる）で、軌道平均の収支は 15.0 W → 14.2 W、最大 DoD は 15.1 % のまま
         (
             "power.energy_balance",
-            &[(KpiKey::OrbitBalance, "15.0 W"), (KpiKey::MaxDod, "15.1 %")],
+            &[(KpiKey::OrbitBalance, "14.2 W"), (KpiKey::MaxDod, "15.1 %")],
         ),
+        // #388 段階 4: 空力・太陽輻射圧の面積と腕を部品の箱から出す（デモの `cp_offset_*` は消した）。16.2 h → 17.6 h、
+        // 2.39 → 2.25 mN·m·s。合計は残留磁気トルク（約 8e-7 N·m）が支配し、空力は 1.9e-8 → 5.9e-9 N·m、
+        // 太陽輻射圧は 4.5e-9 → 8.8e-8 N·m（+X 側の面積 約 0.145〜0.166 m² × Cr 1.3 × P 4.5e-6 N/m² × 腕 約 0.09 m
+        // ≈ 8e-8 N·m と桁が合う）。値そのものの手計算は無理なので、面積と腕の単体の手計算は
+        // `disturbance/surface/tests.rs` と `rw_unloading/geometry_tests.rs` が持つ。
         (
             "aocs.rw_unloading",
             &[
-                (KpiKey::UnloadInterval, "16.2 h"),
-                (KpiKey::PeakMomentum, "2.39 mN·m·s"),
+                (KpiKey::UnloadInterval, "17.6 h"),
+                (KpiKey::PeakMomentum, "2.25 mN·m·s"),
             ],
         ),
         // #168 から RCS のアンロード時間も KPI にしたが、デモにスラスタは無いので出ない
@@ -80,7 +88,9 @@ fn demo_kpis_show_the_same_values_as_before() {
         (
             "thermal.steady",
             &[
-                (KpiKey::MaxTemperature, "39.3 °C"),
+                // #424 部品どうしの影（外面の直達日射に影を数える）: 高温のケースで +Y 面のセルが展開パドルの影になり、
+                // 最高温度 39.3 → 38.0 °C（最低温度は影の無い低温のケースなので -21.9 °C のまま）
+                (KpiKey::MaxTemperature, "38.0 °C"),
                 (KpiKey::MinTemperature, "-21.9 °C"),
                 (KpiKey::NodesInRange, "—"),
                 // 冷たいケースではヒータが容量いっぱい（飽和）
@@ -90,8 +100,10 @@ fn demo_kpis_show_the_same_values_as_before() {
         (
             "thermal.transient",
             &[
-                (KpiKey::TransientMaxTemperature, "58.0 °C"),
-                (KpiKey::TransientMaxHeaterDuty, "41.5 %"),
+                // #424 部品どうしの影: 最高温度 58.0 → 57.9 °C、ヒータの最大のデューティ 41.5 → 60.0 %（影で外面の入熱が減って全体が冷え、
+                // BAT のヒータ HTR_BAT が多く働く。どちらも判定は ok）
+                (KpiKey::TransientMaxTemperature, "57.9 °C"),
+                (KpiKey::TransientMaxHeaterDuty, "60.0 %"),
             ],
         ),
         (
@@ -127,6 +139,11 @@ fn demo_kpis_show_the_same_values_as_before() {
             "structure.external_geometry",
             &[(KpiKey::MeanProjectedArea, "1082 cm²")],
         ),
+        // 有限要素の固有値解析（#370）の最低の固有振動数（剛体を除く最初のモード）。解析の出力の最初のモードの値
+        // 値を 70.0 Hz から 145 Hz に更新（#370）: デモのフレーム（BUS_FRAME）に部材の断面（member_width 8 mm・member_wall 1.5 mm）を足し、
+        // 箱の 12 辺が梁の部材になって、フレームに付いた部品は MX・PX のパネルに半分ずつ載る代わりに部材につながるようになった
+        // （MX・PX の重い部品による低い局所のモードが無くなる）。質量は変わらない（5.548 kg）
+        ("structure.modal_fem", &[(KpiKey::FirstFrequency, "145 Hz")]),
         // 軌道の幾何（区間のうち地球までの最大距離。デモは地球周回なので軌道半径）
         (
             "orbit.geometry",
@@ -168,8 +185,9 @@ fn demo_kpis_show_the_same_values_as_before() {
     }
 }
 
-/// 判定を数える新しい KPI（重なりの組・遮られた円錐）の数。デモの値を出力（`structure.interference` の重なり 18 組 /
-/// 判定した 573 組、`structure.cone_clearance` の遮られた円錐 2 / 判定した 7）と手で突き合わせた。
+/// 判定を数える新しい KPI（重なりの組・遮られた円錐）の数。デモの値を出力（`structure.interference` の重なり 6 組 /
+/// 判定した 573 組のうち、承知済みの 1 組（ヒンジの縁）を除いた警告 5 組。パネルの角 12 組は縁の接触で、重なりに数えない。
+/// `structure.cone_clearance` の遮られた円錐 2 / 判定した 7）と手で突き合わせた。
 #[test]
 fn demo_new_analyses_kpis_count_checks() {
     let ws = demo();
@@ -178,7 +196,8 @@ fn demo_new_analyses_kpis_count_checks() {
         overlaps.tally,
         Some(KpiTally {
             checked: 573,
-            flagged: 18
+            flagged: 5,
+            acknowledged: Some(1)
         })
     );
     assert_eq!(overlaps.verdict, Some(Verdict::Warning));
@@ -187,7 +206,8 @@ fn demo_new_analyses_kpis_count_checks() {
         cones.tally,
         Some(KpiTally {
             checked: 7,
-            flagged: 2
+            flagged: 2,
+            acknowledged: Some(0)
         })
     );
     assert_eq!(cones.verdict, Some(Verdict::Warning));
@@ -218,10 +238,13 @@ fn demo_verdicts_fills_and_tallies() {
         range.tally,
         Some(KpiTally {
             checked: 13,
-            flagged: 4
+            // #424 部品どうしの影: 高温のケースでカメラ（CAM）の性能の範囲の上限の警告が無くなる（最高 21.3 → 18.6 °C）ので 4 → 3
+            flagged: 3,
+            acknowledged: None
         })
     );
-    assert!((range.fill.unwrap().ratio - 9.0 / 13.0).abs() < 1e-12);
+    // 当てはまる割合は（判定した数 − 印の付いた数）/ 判定した数: 上の 3 に合わせて 10/13（#424 で 9/13 から）
+    assert!((range.fill.unwrap().ratio - 10.0 / 13.0).abs() < 1e-12);
     // 判定の対象でない KPI（発生量・角運動量）は判定を持たない
     assert!(kpis(&ws, "cdh.data_budget", None)[0].verdict.is_none());
     assert!(kpis(&ws, "aocs.rw_unloading", None)[1].verdict.is_none());
@@ -279,6 +302,7 @@ fn catalog_lists_kpi_definitions() {
             KpiKey::TotalMass,
             KpiKey::MinSafetyMargin,
             KpiKey::MinFrequency,
+            KpiKey::FirstFrequency,
             KpiKey::LaunchFitMargin,
             KpiKey::InterferenceOverlaps,
             KpiKey::ConeObstructions,
@@ -347,4 +371,41 @@ fn thermal_steady_returns_the_representative_temperature_per_part() {
         assert_eq!(h.verdict, env.verdict);
     }
     assert!(run("power.mode_load").part_heat.is_none());
+}
+
+/// 幾何の所見の 3D の色: 所見に関わる部品の状態は service が決める。デモの干渉は、承知済みの 1 組（ヒンジの縁）の部品が
+/// `acknowledged`、承知でない 5 組（太陽センサと太陽電池パネル・`EPT` とパネル）の部品が `open`。形態 STOWED の円錐は、
+/// 担い手 `SS_PX`・`STT` と遮る部品が `open`。ほかの解析は欄を出さない。
+#[test]
+fn geometry_findings_return_the_state_per_part() {
+    use fune_service::dto::FindingState::{Acknowledged, Open};
+    let ws = demo();
+    let run = |id: &str, configuration: Option<&str>| {
+        let req = RunAnalysisRequest {
+            configuration: configuration.map(str::to_owned),
+            ..Default::default()
+        };
+        analysis::run_analysis(&ws, id, &req).unwrap()
+    };
+    let state = |r: &fune_service::dto::AnalysisRunResult, part: &str| {
+        r.part_findings
+            .as_ref()
+            .expect("part_findings")
+            .iter()
+            .find(|p| p.part == part)
+            .map(|p| p.state)
+    };
+    let overlaps = run("structure.interference", None);
+    // パネルの角は縁の接触（所見ではない）なので、パネルは色が付かない
+    assert_eq!(state(&overlaps, "PANEL_MX"), None);
+    assert_eq!(state(&overlaps, "SAP_PY"), Some(Acknowledged));
+    // `SP_PY` はヒンジの縁（承知済み）と太陽センサ `SS_PY`（承知でない）の両方に関わるので `open`
+    assert_eq!(state(&overlaps, "SP_PY"), Some(Open));
+    assert_eq!(state(&overlaps, "EPT"), Some(Open));
+    assert_eq!(state(&overlaps, "CAM"), None);
+    let stowed = run("structure.cone_clearance", Some("STOWED"));
+    assert_eq!(state(&stowed, "SS_PX"), Some(Open));
+    assert_eq!(state(&stowed, "SAP_PY"), Some(Open));
+    assert_eq!(state(&stowed, "STT"), Some(Open));
+    assert!(run("power.mode_load", None).part_findings.is_none());
 }

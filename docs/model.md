@@ -51,7 +51,7 @@ A topic's settings location is looked up with `ConditionTopic::setting_path()`. 
 `sat_astro::ephem::CentralBody` (projection's `context::central_body` maps them). Sun-synchronous (`sun_synchronous`) applies to Earth only;
 writing it for any other body is a `check` error (`setting.central`).
 
-`source` is where the orbit comes from (`elements` or `transfer`; `elements` if omitted and then **never written to the file**, so existing files are unchanged; the display name is `orbit_source` in labels.toml).
+`source` is where the orbit comes from (`elements`, `transfer`, `state` or `libration`; `elements` if omitted and then **never written to the file**, so existing files are unchanged; the display name is `orbit_source` in labels.toml).
 It is valid in `conditions/orbit.toml` and in a phase's `[orbit]` (§7.10), and it is edited with the existing ops only (`fune set conditions.orbit.source transfer`, `fune phase set-field <ID> orbit.source transfer`; there is no orbit field on the phase itself).
 Analyses read an orbit through `fune_projection::Context::trajectory` (state at a time, central body, epoch and the length of one cycle); only analyses that really need Kepler elements read `Context::orbit`.
 
@@ -69,7 +69,69 @@ maneuver = "MARS_TRANSFER"    # a maneuver with a dated [transfer] (§7.7)
   the trajectory's epoch is the first time (the same ellipse, advanced through its state), its span (`Cycle::OneOff`) is the interval between them, so the Earth range starts at about the Earth's sphere of influence (not at its centre).
   The dates are read by the one reader of `[transfer]` (`fune_projection::maneuver_dates`); the departure body is the central body before the maneuver (`maneuver_dates::central_before`).
   A hyperbolic arc (a short flight time), a body without a sphere of influence, or an arc that does not leave the departure sphere / stay outside the arrival one is a missing input with the reason.
-- Keys beside `source = "transfer"` that the source does not use (the Kepler elements, `epoch`, `central`, `propagator`, `[eclipse_season]`, `[decay]`) get the warning `setting.not_applied`; `maneuver` beside `source = "elements"` gets it too.
+  **With flybys** (`[[transfer.flybys]]`, §7.7) the cruise is a **chain of arcs** (`Trajectory::Arcs`, `sat_astro::transfer::cruise_trajectory`): one Kepler arc per Lambert leg, broken at the flyby dates.
+  Each arc is valid on its own interval; consecutive arcs meet at the flyby date, where **position is continuous** (both arcs pass through the flyby body's position that day) and **velocity jumps** (by the change of the heliocentric velocity of the flyby; it is the difference of the two legs' Lambert velocities, and equals the difference of the excess velocities in and out).
+  Only the first arc's start (the departure sphere of influence) and the last arc's end (the arrival sphere of influence) are clipped as above; the flyby side of each arc is the whole leg.
+  **The flyby is instantaneous: the time inside the flyby body's sphere of influence and the hyperbolic arc are not modelled** (the heliocentric arcs are extended to the flyby body's centre, with no analysed gap), and this is said in the span note of the analyses that read the chain.
+  A chain is built only if its arcs meet (`ArcChain::new`: central bodies equal, the start of each arc within 1 ms of the end of the previous one, positions within **1 m** at each break; Lambert legs agree to well under a millimetre, so a larger miss means the arcs do not actually meet and is refused).
+  A transfer with one leg is **the one-arc case**: `Trajectory::chain` returns the single arc unchanged (the same `Spanned` orbit, numbers and JSON as before).
+  How the entry points behave across a break (breakpoints at the flyby dates, `Trajectory::breakpoints_s`):
+  - `state_at` / `states_at`: each time is evaluated on the arc that contains it; a time exactly at a break uses the **outgoing** arc (the velocity after the flyby); times before the first arc or after the last extend the first / last arc, as for a single arc.
+  - `track` (the table behind interpolation, used by the thermal solver, the timeline evaluator and extremum refinement): one table per arc, so interpolation never straddles a break and the velocity jump is kept.
+  - `cycle()` is `OneOff` over the whole flight and `central()` is the common parent; `elements()` is `None` for more than one arc (Kepler-only analyses answer "Not applicable" as for `state`), and `altitude_m()` is `None`.
+  - A case `epoch` inside any arc starts there: the remaining part of that arc followed by the later arcs (a break exactly at the epoch starts the outgoing arc); an epoch outside the whole flight is a missing input, as for one arc.
+  - Extremum refinement (`orbit.geometry`, the Earth range and solar conjunction of `comm.link_budget`, `orbit.sun_distance`) splits its search window at a break and takes the break itself as a candidate (`extremes_by_split`), so an extreme at the flyby (where distances are continuous but their slope is not) is found exactly and a window never mixes two arcs.
+  - The time-series analyses sample the whole flight on the usual one-off grid; the sampled position is continuous across the flyby, and tables and eclipse searches work arc by arc (there is no eclipse about the Sun).
+  JSON: a single arc is written exactly as before (`OrbitSpec` fields plus `span_s`); two or more arcs are written `{ "source": "arcs", "arcs": [ <orbit with span_s>, … ] }` (`ArcsRepr`, only Kepler arcs).
+- `source = "state"` takes the orbit from a state vector that is propagated numerically (`sat_astro::orbit::StateSpec`; the existing N-body propagation `propagate_states`, nothing new):
+
+  ```toml
+  # phases/CRUISE.toml (or conditions/orbit.toml): a heliocentric circular orbit at 1 au
+  [orbit]
+  source   = "state"
+  epoch    = "2030-01-01T00:00:00Z"
+  central  = "sun"
+  position = { x = 149597870.7, y = 0.0, z = 0.0, unit = "km" }
+  velocity = { x = 0.0, y = 29.78, z = 0.0, unit = "km/s" }
+  span     = { value = 365.0, unit = "d" }
+  ```
+
+  `epoch`, `central` (the origin body, Earth if omitted), `position`, `velocity` (`{ x, y, z, unit }`) and `span` (a duration from the epoch: the range the analyses evaluate) are all needed; a missing one is a missing input on its own key (`conditions.orbit.position`, `phases.<ID>.orbit.span`, ...), with `fune set` as the fix (the example shown for a vector is `1 0 0 km`).
+  **The frame is one fixed inertial frame**: the same ECI as every orbit state in the model, the J2000 mean-equator frame (not the ecliptic), with the origin at the centre of `central`. There is no `frame` key (writing `frame` inside `position` or `velocity` is the error `orbit.state_frame`); a vocabulary of frames is added only when a second one is needed.
+  The orbit is **one-off** (`Cycle::OneOff { span }`): analyses sample the span, "per orbit" quantities are over the span, and it has no Kepler elements or altitude.
+  Forces are not written; they are a conventional default decided in one place from the origin body (`ForceConfig::deep_space_defaults`): about the **Sun**, the Sun's point mass plus the planets Mercury to Neptune as point-mass third bodies and the Earth as a third body with the Earth's GM only (no Moon);
+  about the **Earth**, the Earth's gravity with J2 plus the Sun and the Moon as point masses; about the **Moon or another planet**, that body's gravity with J2 plus the Sun, and the Earth as a third body (the automatic one) unless that body is the Earth. No drag, solar radiation pressure, EGM96 harmonics, tides or relativity.
+  The integrator is the adaptive DOP853 of the numerical propagator (relative tolerance 1e-11) with a step limit of one day about the Sun and 600 s about any other body. One propagation with dense output serves all requested times; where a table is needed for repeated evaluations
+  (thermal and power integrals, the refinement of extremes) it is built once at a step of a hundredth of the circular period at the osculating periapsis and interpolated by cubic Hermite (relative error about 4e-8 for a circular orbit at that step).
+  The ephemeris of the bodies is DE440 inside its range and the analytic one outside (as for `transfer`; `orbit.geometry` reports which was used).
+- `source = "libration"` takes a libration point of two bodies, or a halo orbit around it, as the orbit (`sat_astro::orbit::SynodicSpec`, `Trajectory::Synodic`):
+
+  ```toml
+  # conditions/orbit.toml (or a phase's [orbit]): a halo orbit about the Sun-Earth L2
+  [orbit]
+  source      = "libration"
+  epoch       = "2030-01-01T00:00:00Z"
+  primary     = "sun"
+  secondary   = "earth"
+  point       = "l2"                                   # l1 .. l5; display name `libration_point`
+  amplitude_z = { value = 120000.0, unit = "km" }      # omit for the point itself
+  branch      = "north"                                # north (default) or south; display name `halo_branch`
+  ```
+
+  **This is a circular-restricted-three-body (CR3BP) orbit carried on the ephemeris, not a force-model propagation.** A halo orbit is a periodic orbit of the CR3BP (`sat_astro::orbit::cr3bp`: the third-order Richardson approximation as the first guess, then a differential correction with the state transition matrix) tabulated for one period.
+  Each time, the two bodies' actual state about the primary (`CentralBody::state_about_parent`: DE440 inside its range, the analytic ephemeris outside) fixes the instantaneous distance (the length unit), the instantaneous angular rate and the rotating axes (the pulsating frame, `Cr3bp::rotating_to_inertial`), and the rotating-frame state is mapped to the inertial one.
+  So the orbit follows the Earth's eccentricity (the distance scales with the instantaneous separation) and orbit plane, but third-body perturbations, solar radiation pressure and the eccentricity's effect on the dynamics are not in it. **Station keeping is not estimated**: write it as a ΔV allowance in a maneuver.
+  - `primary` must be what `secondary` orbits in the ephemeris (a planet about the Sun, or the Moon about the Earth; `CentralBodyKind::parent`, the check `orbit.libration_pair`). The mass ratio uses GM of the primary and of the secondary; for an Earth secondary the Moon's GM is added (the usual Sun–Earth value, and the ephemeris Earth is close to the Earth–Moon barycentre).
+  - `amplitude_z` is the maximum |z| of the CR3BP halo (the larger of its two xz-plane crossings; the usual `Az`), divided by the secondary's mean distance `a` to become normalised; at another instantaneous distance the real extent scales with it. A halo needs `l1` or `l2` (`orbit.libration_halo_point`; the approximation exists only there), a positive amplitude (`setting.range`), and the corrector must converge (otherwise a missing input names the reason).
+    `branch` without `amplitude_z` has no effect (the warning `orbit.libration_branch`). North is the side with z > 0 at the epoch, along the secondary's orbit normal; south is its mirror image.
+  - The epoch is the start of the table: the halo is at its xz-plane crossing there. The table's phase is the angle the secondary has swept about the primary (so the same orbit continues at another epoch; the case `epoch` starts it at any day, `Trajectory::starting_at`).
+  - **Origin, repetition, shadow**: the origin body (`central()`, used for the sub-point, shadow and occultation) is the secondary; `central` is not written for this source. The cycle is `Periodic` with the halo's corrected period (about 180 days for a 120 000 km Sun–Earth L2 halo, 177.9 days at L1) or, for a point, the sidereal period of the two bodies (the Sun geometry repeats with it).
+    A body other than the secondary can also cast the shadow (`Trajectory::extra_shadow_caster`: the primary unless it is the Sun, so the Earth shadows the Earth–Moon L1/L2; the sunlit fraction is the smaller of the two bodies' factors, and an orbit without one is unchanged). At Sun–Earth L2 the Earth's penumbra and umbra are the secondary's shadow as usual.
+  - Kepler-only analyses answer "Not applicable" as for `transfer` and `state`; the time-series analyses and `orbit.geometry` run. At the Sun–Earth L2 the Sun–probe–Earth angle is 0° and the Sun–Earth–probe angle 180° (Sun and Earth are on the same side of the probe), at L1 the reverse.
+    Every analysis result carries an `orbit_model` note (the check key; verdict ok) saying that the orbit is a CR3BP orbit carried on the ephemeris and that station keeping is not estimated.
+- The settings tables (the orbit page and a phase's override dialog) list, for a source, the keys it uses even when they are not written (`OrbitSource::offered_keys`): `state` lists `epoch`, `central`, `position`, `velocity` and `span` and none of the Kepler elements; `libration` lists `epoch`, `primary`, `secondary`, `point`, `amplitude_z` and `branch`. A cell typed there is sent as text and read by the service (`orbit_field_type` / `/ops/from_text`; a vector is `1 0 0 km`); an unreadable value is shown under the cell.
+- Keys beside a source that it does not use get the warning `setting.not_applied`: for `transfer`, the Kepler elements, `epoch`, `central`, `propagator`, `[eclipse_season]`, `[decay]` and the state keys; for `state`, the Kepler-element keys (everything of `elements` except `epoch` and `central`), `propagator`, `[eclipse_season]`, `[decay]` and `maneuver`; for `libration`, the Kepler-element keys, `central`, the state keys and `maneuver` (the libration keys beside any other source too);
+  for `elements`, `maneuver` and the state keys (`position`, `velocity`, `span`). `span` must be positive and the components finite (`setting.range`), and the units must have the dimensions Length, Velocity and Time.
   `maneuver` must name an existing maneuver whenever it is written (`ref.maneuver`) and, for `transfer`, that maneuver must have a `[transfer]` (`orbit.maneuver_transfer`). A missing `maneuver` is not a check error but a missing input (`conditions.orbit.maneuver`),
   which offers the maneuvers with a dated transfer (`Fix::PickRef`).
 - `maneuver` is a reference to a maneuver (`RefSite::OrbitManeuver` for the design orbit, `RefSite::PhaseOrbitManeuver` for a phase orbit): renaming the maneuver rewrites both, and removing a maneuver they name is rejected by the check (`ref.maneuver`).
@@ -121,8 +183,8 @@ The verdict is informational only and no checks are attached. The KPIs list the 
 the service's `case_from_eclipse_op` and builds an existing `SetCase` Op.
 HTTP sends `{ "id": "season_longest", "at": "longest", "mode": null }` to `POST /ops/case_from_eclipse`
 and saves the returned Op with the ordinary `POST /ops`. The GUI's orbit page uses the same entry point, so the preview and the CLI output are shared.
-The case stores β (rad) and an optional mode. A case has no epoch field, so the sample's date is recorded in the description.
-This is a case that reuses a representative β condition; it does not change the epoch of later analyses through the date in the description.
+The case stores β (rad) and an optional mode. The sample's date is recorded in the description and not in the case's `epoch` (below).
+This is a case that reuses a representative β condition; it does not change the start time of later analyses through the date in the description.
 Overwriting an existing ID and unknown modes are rejected. `to_cli` returns a `fune case set` that keeps the value and the date.
 
 **Heliocentric cruise (the Sun as central body).** The power and thermal analyses run with `central = "sun"`: the timeline gives the Sun distance `|r|` at each time (so the solar flux is `S₁ (AU/d)²`
@@ -134,7 +196,7 @@ The worst cases of a cruise are the perihelion and the aphelion, made as analysi
 `fune case from-sun-distance <new ID> --at min|max [--mode <mode>]` finds the smallest or largest Sun distance of the orbit between the epoch and `duration`
 (`sat_analysis::orbit::sun_distance_extremes`: samples at the usual step, then a golden-section refinement around the extreme; if the span is shorter than half an orbit the extreme is at the span's end)
 with the service's `case_from_sun_distance_op` and builds an existing `SetCase` Op (HTTP: `POST /ops/case_from_sun_distance` with `{ "id": "perihelion", "at": "min", "mode": null }`, saved with `POST /ops`).
-The distance is written in AU and the date of the extreme is recorded in the description (a case has no epoch field). The orbit must have the Sun as central body (otherwise an error).
+The distance is written in AU and the date of the extreme is recorded in the description (the day of the extreme as an `epoch` is made by `fune case from-geometry`, below). The orbit must have the Sun as central body (otherwise an error).
 A case with `sun_distance` makes every analysis use a **circular orbit at that distance** instead of the orbit conditions (inclination, RAAN, epoch and propagator are kept; `Context::orbit`).
 So `thermal.steady` is the steady state at that distance (the orbit average of a circular orbit is constant), and `thermal.transient`, `power.orbit_generation` and `power.energy_balance` run at that distance
 (for a circular orbit about the Sun the Sun direction turns slowly, one turn per orbit, and the attitude law follows it). A `sun_distance` on an orbit whose central body is not the Sun is a missing input naming `cases.<ID>.sun_distance`.
@@ -158,6 +220,54 @@ The distances and angles are computed in one place, `sat_astro::timeline::geomet
   The extremes are refined between the samples around the extreme sample (golden section, one extremum assumed there); a variation faster than the sample step, such as the orbit of a low Earth satellite in SEP, is not resolved.
   The analysis judges nothing and has no notes. Later stages read `legs[].earth_distance.max` (the farthest distance and its date) and `legs[].sun_distance.max.epoch` by phase ID.
 
+#### The time of a case (`epoch`) and the worst-day cases
+
+A case may carry `epoch` (ISO 8601, `cases.<ID>.epoch`): **the time at which the time-series analyses run in that case start on the case's orbit** (the orbit in effect for the case's phase, any source), instead of the orbit's own epoch.
+`Context::case_trajectory` is the one place that applies it (`Trajectory::starting_at`; every time-series projection in `timeline.rs` goes through it). A case without `epoch` behaves exactly as before.
+
+- **Periodic orbits** (Kepler elements): the elements are advanced to the epoch (the J2 secular drift of RAAN, argument of perigee and mean anomaly for `j2`, two-body for `kepler`) and the series starts there, so the Sun geometry (season, β, Sun distance for a heliocentric orbit) is that of the date. The epoch may be before or after the orbit's epoch.
+- **One-off orbits** (`transfer`, `state`, a span): the epoch must lie in `[orbit epoch, orbit epoch + span)`; the span becomes what remains (end of the span minus the epoch), so the window is clipped at the end of the orbit's span. An epoch outside the span, or exactly at its end (nothing left to analyse), is a missing input naming `cases.<ID>.epoch` with the span in the message; an unparsable epoch is also a missing input on that key.
+  For a `state` orbit the state at the epoch is propagated once with the existing numerical propagation and becomes the new initial state.
+- **Precedence with the other overrides.** `epoch` is applied last, to the orbit as the other overrides leave it: the case's `sun_distance` first replaces the orbit by a circle, then the series starts at the epoch on it; the case's `beta` replaces the RAAN so that β holds **at the start time** (so an explicit `beta` always wins over the geometry that the epoch alone would give).
+  `beta` and `sun_distance` stay not applicable to non-`elements` orbits; `epoch` is applicable to every source. Analyses that read the orbit as Kepler elements rather than as a time series (`orbit.eclipse_season`, `orbit.decay`, `power.sizing`'s season) do not read `epoch`; the orbit averages of `thermal.steady` start at it like any time series (the same result over a whole periodic cycle, the remaining span for a one-off orbit).
+- **Worst-case calculations do not read `epoch`.** The link budget keeps the farthest Earth distance over the whole span of the phase's orbit (`distance_model = earth_to_body`, with `range_max_epoch`), and the power sizing keeps the farthest Sun distance over the mission duration (below). A case is a way to choose what a time series shows, not to weaken a worst-case sizing.
+
+`fune case from-geometry [--phase <ID>] [--prefix <name>] [--mode <mode>]` (service `cases_from_geometry_ops`; HTTP `POST /ops/cases_from_geometry` with `{ "phase": "NOMINAL_OPS", "prefix": null, "mode": null }` returns the Ops, saved with `POST /ops`)
+generalises the creation of cases from a date: it reads the leg of the phase from `orbit.geometry` (one geometry for every source; the leg's span as above) and writes three cases whose `epoch` is the day of
+the **maximum Sun distance** (`<prefix>_sun_far`), the **minimum Sun distance** (`<prefix>_sun_near`) and the **maximum Earth distance** (`<prefix>_earth_far`), with `phase` set to the given phase and the quantity and date in the description.
+The prefix defaults to the lower-case phase ID (none for a design without phases; a design with phases requires `--phase`). The names are fixed, so running it again gives the same files; a case that already exists keeps all its other fields (its mode only changes when `--mode` is given) and gets the new `epoch`, `phase` and description.
+The results are ordinary cases that can be edited (`fune case set … --epoch`; `fune case set-epoch <ID> <time>` / `unset-epoch <ID>` change only the `epoch` and keep every other field; HTTP `{ "command": "case_epoch", "case": "hot", "epoch": "2031-05-02T00:00:00Z" }` to `POST /ops/from_command`; the service reads the time like the analysis does and rejects one it cannot parse; a time outside a one-off span is only found by the analysis, as the missing input on `cases.<ID>.epoch`).
+The GUI's analysis cases page has the same two operations: a pencil in the start-time column (`set-epoch`, an empty field clears it) and "Cases from the worst days" (`from-geometry`; the phase list and mode list come from the design, the Ops and the equivalent commands are previewed before saving). The days are as accurate as `orbit.geometry` (720 samples per leg, refined by golden section: about a second for a smooth extreme). An extreme at the very end of a one-off span gives an epoch with no window left (see above), which `fune case from-geometry` still writes.
+`fune case from-sun-distance` remains for the steady analyses (it writes a `sun_distance` override, a circular orbit, for an orbit about the Sun with Kepler elements); `from-geometry` is the one for time series on any orbit.
+
+#### Total ionising dose (`orbit.total_dose`)
+
+`orbit.total_dose` is also `AnalysisArea::Condition(ConditionTopic::Orbit)` (the environment depends on the orbit). It adds up the radiation dose each part receives over the mission from an **environment table that you supply**, and compares it with the dose the part tolerates.
+**Limits.** No radiation-belt, solar-particle or shielding-transport model is built: the numbers in the table are yours. The shielding of a part is one equivalent aluminium thickness (a uniform spherical shell around the part); displacement damage and single-event effects are not computed.
+
+*The environment table.* A `curve` value (the type of `payload_mass_by_c3`, see "Capability curve") on the orbit table: dose **rate** (absorbed dose per time, e.g. `Gy/yr`) against shielding thickness (equivalent aluminium, a length). The values must be positive and the thicknesses strictly increasing. It is written in `conditions/orbit.toml`, or in a phase's `[orbit]` (the phase's orbit table replaces the design's as a whole, so a phase with its own `[orbit]` needs its own table):
+
+```toml
+dose_rate_by_shielding = { at = [0.5, 1.0, 2.0, 4.0, 8.0], at_unit = "mm", values = [400.0, 120.0, 30.0, 5.0, 0.8], unit = "Gy/yr" }
+```
+
+`fune set conditions.orbit.dose_rate_by_shielding "0.5:400 1:120 2:30 4:5 8:0.8 (mm -> Gy/yr)"`; for a phase `fune phase set-field <ID> orbit.dose_rate_by_shielding "…"`. Dose is written in `Gy` (`rad` is refused as ambiguous: 1 krad = 10 Gy). The dimension of the values is `AbsorbedDoseRate` (`L² T⁻³`).
+`check` reports `curve.shape` (arguments not increasing, a non-positive value) and `unit.dimension` for the units.
+
+*Part inputs* (optional built-in attributes of every component, section `radiation`): `shielding` (Length, equivalent aluminium thickness) and `tid_tolerance` (AbsorbedDose, the total dose the part withstands). A part is evaluated when it writes either. Design-wide, in `analysis/common.toml`:
+
+```toml
+[radiation]
+default_shielding = { value = 3.0, unit = "mm" }   # for parts that write a tolerance but no shielding (if absent they are not evaluated)
+design_margin     = 2.0                             # radiation design margin RDM (default 2, stated in the output)
+```
+
+*Method.* Legs are the phases in order when any phase has a `duration`, else one leg: the design orbit with the mission duration (as the RCS unloading of `propulsion.dv_budget`). For each part and leg the dose rate is read from the leg's table at the part's shielding and multiplied by the leg's duration; the part's total is the sum over the legs.
+**The table is read log-linearly**: linear in thickness and logarithmic in dose rate (so midway between two points it is the geometric mean of their rates), decided once in `sat_astro::math::interpolate` and echoed as `interpolation`. **There is no extrapolation**: a part whose shielding is outside a leg's table is *not evaluated* (no total, no verdict, a warning check `dose:<part>`); the nearest end value is never used.
+Margin = `tolerance / (total × RDM) − 1` (`spec::ratio_margin`); negative is a violation. A part without a tolerance gets its dose and no verdict. Example: 10 Gy/yr for 2 yr is 20 Gy; with a tolerance of 100 Gy and RDM 2 the margin is 100 / 40 − 1 = 1.5.
+A leg with no duration or no environment table is listed in `legs[].status` and left out of the totals, with the warning check `phases_left_out` (the totals are then lower bounds). The output also gives, per leg, the rate and dose at a reference shielding (the thinnest evaluated part), `reference_shielding`, and the part with the least margin (`worst`).
+The KPI is the minimum margin. Missing inputs: a part with `tid_tolerance` or `shielding`, an environment table, and (for the mission leg) the mission duration, each with a fix. No requirement keys the dose: the tolerance is a property of the part and the margin factor a design value, so a requirement can only verify the analysis as a whole (`verify.analysis = "orbit.total_dose"`).
+
 #### Altitude decay by atmospheric drag and orbit maintenance (`orbit.decay`)
 
 `orbit.decay` is also `AnalysisArea::Condition(ConditionTopic::Orbit)`. Its settings are `[decay]` in `conditions/orbit.toml` (all optional; the defaults are held by the analysis).
@@ -166,7 +276,7 @@ The distances and angles are computed in one place, `sat_astro::timeline::geomet
 [decay]
 span             = { value = 25, unit = "yr" }   # upper limit of the integration span (default 25 years)
 reentry_altitude = { value = 120, unit = "km" }  # perigee altitude regarded as reentry (default 120 km)
-drag_area        = { value = 0.06, unit = "m^2" } # drag area (if absent, the area of the structure's bounding box averaged over orientation = surface area / 4)
+drag_area        = { value = 0.06, unit = "m^2" } # drag area (if absent, the mean projected area over all directions of the union of the part boxes; §5.9)
 band             = { value = 2, unit = "km" }    # altitude band for orbit maintenance (if absent, drag is cancelled continuously)
 ```
 
@@ -174,7 +284,7 @@ The upper limit of the lifetime (the disposal requirement) is **not** a setting:
 Without such a requirement no lifetime check is made.
 
 Other input values use existing ones: the orbit (`conditions/orbit.toml`; the case β is not used), the mass (the sum of the parts' mass properties),
-the outer shape (the structure's `size`; the same `aocs::reference_box` as for aerodynamic torque), the drag coefficient (`analysis.aocs.drag_coefficient`, 2.2 if absent), and
+the outer shape (the boxes of all parts with a `size`, placed by the configuration in effect: the phase's configuration of the case, else the base; the same geometry as `structure.external_geometry`, §5.9), the drag coefficient (`analysis.aocs.drag_coefficient`, 2.2 if absent), and
 the mission duration (the requirement `input = "mission_duration"`; the period used to judge lifetime and to accumulate the orbit-maintenance ΔV; 1 year if absent).
 The propellant for orbit maintenance is the usable propellant of the propulsion analysis (`propulsion.propellant`, §7.7) (the propellant used with margin included); the propellant is not written here.
 The specific impulse is the lowest among the propulsion subsystem's thrusters (conservative side), and the mass before firing is the mass with propellant loaded (`wet_mass`). The propellant and thruster used appear in the result's
@@ -242,9 +352,9 @@ flowchart LR
 | Mode | The satellite's operating mode | `modes/<ID>.toml` | duration, part → {state, time fraction, active count, spare state}, eclipse override |
 | Net | Electrical connection (logical) | `nets/<ID>.toml` | kind (power / data / rf), rail voltage, source port, current limit, protocol |
 | Harness | Cable segment (physical) | `harness/<ID>.toml` | ports at both ends, the nets it carries, wire, number of cores, length |
-| Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, a phase (§7.10), which side of the uncertainty to read, Sun distance (cruise), orbit, attitude law, environment conditions, period |
+| Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, a phase (§7.10), which side of the uncertainty to read, Sun distance (cruise), the start time `epoch` (a day on the orbit), orbit, attitude law, environment conditions, period |
 | Phase | Mission phase (commissioning, nominal operations, disposal) | `phases/<ID>.toml` | order, start and end conditions (free text), duration, the modes used, and optional configuration selection and overrides of the orbit and of the attitude law per mode for the cases that name the phase (§7.10) |
-| Configuration | A named overlay of part poses (stowed, deployed and other placement variants) | `configurations/<ID>.toml` | label, description, and a replacement pose per part (§7.11) |
+| Configuration | A named overlay of part poses (stowed, deployed and other placement variants) | `configurations/<ID>.toml` | label, optional English label (`label_en`), description, and a replacement pose per part (§7.11) |
 | Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only, dates of an interplanetary transfer (§7.7) |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, date, author |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, document version, retrieval date, SHA-256, distribution category, date, author (§7.8) |
@@ -430,6 +540,17 @@ pub trait Project<I> {
 - Computation cache: Derived is memoized keyed by a fingerprint of the inputs. At the scale of thousands of items, simple full recomputation is enough.
   If it becomes slow, consider an incremental computation framework (such as salsa).
 
+### 5.0 Editing a case
+
+`fune case set <ID> --…` **writes the whole record** (`SetCase`): a field that is not given is removed. Every Op that replaces a record this way
+(`case set`, `maneuver set`, `requirement set`, `source set`, `harness set`, `phase set` for its heading fields, `configuration set`, `net replace`, `sequence set`, the attribute and kind replacements)
+reports the keys it removed from an existing file: the CLI prints `Removed from cases/hot.toml: beta, orbits (not given to set)` as a warning (`Would remove from …` before the diff of a `--dry-run`),
+`POST /ops` returns them as `removed: [{ path, keys }]` (also with `dry_run`), and the GUI preview shows them. Nested keys are dotted (`target.altitude`); a key that a later Op of the same batch writes back is not reported.
+To change one field and keep the rest, use the generic path: `fune set cases.<ID>.<field> <value>` and `fune unset cases.<ID>.<field>` (HTTP `POST /ops/from_text` and `/ops/unset_from_text` with the same `path`),
+where `<field>` is any of `label`, `description`, `mode`, `phase`, `side` (`nominal`/`min`/`max`), `thermal_case`, `beta` (`"60 deg"`), `orbits` (an integer), `sun_distance` (`"0.7 AU"`) and `epoch` (ISO 8601).
+They make the Op `SetCaseField` (one field of the case; the case must exist), except `phase` and `epoch`, which make `SetCasePhase` and `SetCaseEpoch` (the same as `fune case set-phase` / `set-epoch`).
+There is no one-field path yet for maneuvers, requirements, sources, harness segments and the heading fields of a phase; those commands list what they drop.
+
 ### 5.1 Condition selection for analysis cases
 
 Projection's `case_policy::effective_case` gives priority to an explicit case. The targets to which `analysis.common.default_case` is applied
@@ -568,6 +689,9 @@ If no analysis case is selected at all, it reports `analysis.thermal.case`. It a
 `thermal.steady` still analyzes all thermal conditions.
 For both analyses, the case's β is overridden only when the thermal condition has `beta`; if omitted, the case's β is kept.
 Heat input on the outer surface consists of the Sun, the central body's albedo and the central body's infrared emission, and view factors are found from the central body's radius (`illumination::body_view_factor`).
+**Shadowing (#424).** The **direct solar** input of an outer surface is multiplied by that surface's lit fraction (§5.9) for the Sun direction at that time: the shadows of the other parts' boxes (the surface is its part's box; a part with no box or no matching face is unshadowed and listed in `shadowing.unshadowed`). The central body's **albedo and infrared are not shadowed**: they are extended sources filling a large part of the sky, and a box blocks a small part of that view, so they keep the view factor only.
+A part resting on the surface or mounted on the surface's part (a cell on a panel) is part of the surface and does not remove the light under it; only a shadow that reaches beyond its footprint counts (`Footprint::Credited`, §5.9). A part that is not a thermal surface itself (for example the folded paddle, which has no optical properties in the demo) takes the light away from what it covers without absorbing it: give it an area, a normal and α/ε if its own heating matters. It is on by default when parts have sizes; `analysis.thermal.shadowing = false` restores the previous numbers exactly. The Sun direction is the sample's (orbit average) or the case's fixed direction.
+`thermal.steady` (per case) and `thermal.transient` carry `shadowing` (minimum and mean lit fraction of each surface over the sunlit samples) only when shadows were applied. The emission to space is not changed (the exposed area of covered surfaces is not reduced).
 The default albedo and infrared emission are per body (`sat_analysis::thermal::planet`):
 
 | Body | Albedo | Infrared emission |
@@ -659,7 +783,7 @@ all go through it. Node names and part IDs share one namespace, so the rules are
 - A `[nodes]` key that equals the ID of a part that `[nodes]` does not list (and the part's own list is not that key) is a check error (`thermal.node_name_clash`): the part would be a node of the same name. Rename the key or list the part.
   (A key equal to the ID of a part that is listed in another node, or in the key's own list, is fine.)
 - A node needs a positive heat capacity. A part without `mass` (a required attribute of every component kind) is a missing input `<part>.mass`, exactly as for a listed part; a part without `specific_heat` uses the attribute's default;
-  `count` multiplies the capacity. A part of zero mass (or `count = 0`) would be a node of zero capacity, which the analysis refuses as an input error naming the node; give it a mass or list it in `[nodes]` with a part that has one.
+  `count` multiplies the capacity. A part of zero mass would be a node of zero capacity, which the analysis refuses as an input error naming the node. `fune check` reports it before any analysis runs, as the warning `thermal.zero_capacity` on the part (or on `analysis.thermal.nodes.<NODE>` when every part of a lumped node has zero mass), only when the design has `analysis/thermal.toml`; give the part a mass or list it in `[nodes]` with a part that has one. (`count = 0` is read as 1, so it never makes a node of zero capacity.)
   There is no separate notion of an organisational or purely logical part: groups and assemblies are not parts, and every part is a physical component with a mass. A launcher or dispenser is not a satellite part and is not a node.
 - Node names in `[conductive.*]`, `[radiative.*]`, `[heat_node]` and in the requirement check keys `range_high:<node>:<kind>`/`range_low:<node>:<kind>` are part IDs or `[nodes]` keys. Renaming a part that is a per-part node rewrites those names
   (couplings, `[heat_node]` values, check keys) and removing it is refused while a requirement check key names it. The analysis input marks per-part nodes with `per_part` (display only, so the GUI can tell "per part" from "lumped").
@@ -667,6 +791,48 @@ all go through it. Node names and part IDs share one namespace, so the rules are
   A part with no mount (the root) has no mount link of its own.
 
 Adding a part that `[nodes]` leaves out changes the thermal result (its mass is now counted and it is coupled along its mount). For the demo this applies to the electric thruster and the propellant tank.
+
+#### Temperature distribution inside a plate (subdividing a part)
+
+A plate-like part (a panel) is one isothermal node by default, so the difference between its edge and its middle, or between a hot component's footprint and the far corner, does not show.
+`[subdivide.<part>]` in `analysis/thermal.toml` splits one part into a grid of thermal cells (the choice belongs to the thermal analysis, not to the part):
+```toml
+# analysis/thermal.toml
+[subdivide.PANEL_PX]    # integers: the number of cells along the plate's two in-plane axes
+u = 3
+v = 5
+```
+It is edited with the generic setting operation (`fune set analysis.thermal.subdivide.PANEL_PX.u 3`, `… .v 5`, `fune unset …`; CLI and HTTP write the same bytes). A part is checked for: existing (`ref.part`), not lumped by `[nodes]` (`thermal.subdivide_lumped`),
+1 to 8 cells per axis (`thermal.subdivide_cells`: the transient solver is explicit, so more cells make it take much smaller steps; see "Stiff networks"), and both `u` and `v` written (`thermal.subdivide_incomplete`, a warning while one is still missing).
+Renaming the part renames the key. Whether the box is a plate is decided by the analysis from the resolved `size`: the thinnest side must be at most 1/4 of the next thinnest, otherwise the analysis stops with an input error naming the part.
+
+- **Axes** (`sat_analysis::plate_grid`, shared with the coarse finite-element mesh). The plate's normal is the thinnest side of its box and the plate thickness is that side. The in-plane axes follow the normal cyclically: normal x → `u` = y, `v` = z; normal y → `u` = z, `v` = x; normal z → `u` = x, `v` = y.
+  Cells are numbered `(i, j)` from 0 (`i` along `u`).
+- **Cells are internal nodes** named `<PART>[i,j]` (for example `PANEL_PX[2,4]`) in the results, the time series and the `couplings.plates` report; each carries `cell = { part, i, j }`. **Everything you write keeps naming the part**: an explicit `[conductive.*]` or `[radiative.*]` pair,
+  `[heat_node]`, `[surface.*]` and the requirement keys `range_high|range_low:<part>:<kind>`. Nothing stores a cell name, so renaming a part needs no migration.
+- **In-plane conduction** between cells that share an edge: `G = k · t · (shared edge length) / (centre distance)`, with `k` the thermal conductivity of the part's `material` (`analysis.structure.material.<name>.thermal_conductivity`; a missing one is a missing input),
+  `t` the thickness. For cells of `Δu × Δv`: `G_u = k t Δv/Δu` between neighbours along `u`, `G_v = k t Δu/Δv` along `v`. (A uniform grid: the shared edge is the other cell side and the centre distance is one cell side.)
+- **Heat capacity** of a cell is the part's capacity times its area fraction (`1/(u·v)`). **External heat** (solar, albedo, planet infrared, radiation to space) and **internal dissipation** on the part are distributed by cell area, with the surface's coatings unchanged.
+  A thermostat heater cannot be placed on a subdivided part (a thermostat senses one node): the analysis stops with an input error; put the heater on a part mounted on the plate.
+- **Couplings to the part** are resolved first as for any node (explicit > enclosure > contact area > mount default, so the `couplings` list still names the part and its sources) and then distributed over the cells with the total preserved:
+  explicit conduction and radiation, enclosure radiation and the radiation default by cell area; the conduction of a **mount** goes to the cells under the mounted part: the weight of a cell is its contact area with the other part's box
+  (`OrientedBox::contact_area` applied to the cell's box, so a box on the face and a box against the edge both work), and when the boxes do not touch within the tolerance (0.1 mm) the weight is the overlap of the other box projected onto the plate with the cell.
+  If neither can be determined (no box, no overlap) the coupling is spread by cell area and the other node is listed in `couplings.plates[].spread_by_area`. When both ends are subdivided plates the product of the area fractions is used.
+- **Requirement keys** `range_high:<part>:<kind>` and `range_low:<part>:<kind>` evaluate the **hottest cell** (high side) and the **coldest cell** (low side) of the plate, the conservative reading, and the check text names the cell
+  (`…, hottest cell PANEL_PX[2,4]`). The results still list every cell with its own verdict, and the KPIs (maximum and minimum temperature) include the cells.
+- **Stiffness.** The solvers are unchanged and still explicit. `couplings.plates[]` reports each plate's thickness, the two in-plane conductances and the smallest cell time constant `C / ΣG` (the sum is over every conduction on the cell, in-plane and distributed). `thermal.transient` adds a warning check
+  `plate_step:<part>` when that time constant is below 0.1 times the configured `time_step` (`PLATE_STEP_WARNING_FRACTION`); the message suggests fewer cells.
+  The thickness cancels in the in-plane part: `τ = ρ c Δ² / (4 k)` for an interior square cell of side `Δ` (aluminium, `Δ` = 7 cm → about 18 s), and the conduction to a mounted part (a few W/K) shortens it further.
+
+- **Per-cell view.** The analyses `thermal.steady` and `thermal.transient` can also return the temperature of every cell with the geometry to draw it (the analysis *detail*, the same mechanism as the mode shapes of `structure.modal_fem`). Ask for it explicitly; the default output does not contain it (about 8 KB for two plates of 15 and 16 cells and three cases):
+  `fune analyze thermal.steady --json --detail`, or `POST /analyses/thermal.steady` with `{ "detail": true }` (the same for `thermal.transient`). The result then has a `detail` field of the type named by `detail_type` in `fune analyze ls --json` (`ThermalPlateTemperatures`); a design with no subdivided plate has no `detail` even when it is requested.
+  `mesh` (`nodes`: grid vertices in the body frame in m, built from the plate's box pose and the shared `PlateGrid` and lying on the plate's mid-plane; `groups`: for each plate its part `id` and the vertex indices of its cells as quadrilaterals, counter-clockwise about the plate normal, in cell order `i · v + j`),
+  `cells` (the same order as the quadrilaterals over all plates: the cell node ID and `cell = { part, i, j }`) and `fields`, each with a `quantity` and `temperature`, one value per entry of `cells`. For `thermal.steady` there is one field per case (`quantity` `steady`, with the case `case` and `label`), the solution of that case.
+  For `thermal.transient` there are three fields: `min` and `max` over the run and `end` (the last sample of the run) per cell; the time history of a cell is not repeated, it stays in the output's `series` (key `<PART>[i,j]`).
+  The GUI draws it in the row of the analysis on the Thermal page: every subdivided plate in its place, each cell in one colour of the same scale as the thermal image (the range is the lowest to the highest temperature over all fields shown, so switching the field does not change what a colour means), the plate IDs and
+  the cell temperatures in a list beside the 3D view (pointing at a cell or a list entry shows its ID and temperature), and a selector for the case (steady) or min / max / end (transient).
+
+Not modelled: a plate with an irregular outline or holes (cells are a uniform grid of the box), conduction through the thickness, a thermostat on a plate, and colouring the whole-spacecraft 3D thermal image per cell (it still colours whole parts by the hottest cell, `part_heat`; the per-cell view above is the way to see the field).
 
 #### Heat dissipation
 
@@ -709,7 +875,7 @@ The output samples stay at the timeline's sample times; the integrator takes wha
 - **Stiff networks.** The method is explicit. A node with a very small heat capacity strongly coupled to a large one makes the step as small as the fast time constant, whatever the accuracy. A 12-node chain of alternating 0.09 J/K and 900 J/K nodes
   (G = 10 W/K) over five orbits takes about a million steps and 12 million evaluations of the right-hand side (about a minute in a debug build; see `stiff_chain_five_orbits_cost`). There is no implicit integrator: model such a node as part of its neighbour.
   With one node per part, small parts become small nodes. Measured on the demo with `[nodes]` removed (38 nodes, capacities 4.4 to 782 J/K, default 0.5 W/K per mount), `thermal.transient` over five orbits takes about 1100 steps and 15 000 evaluations (0.04 s in a release build), the same as with lumped nodes;
-  the cost only grows when a part's capacity per unit of coupling approaches a second: a 0.05 g heater (0.045 J/K) and a 0.02 g heater in the same design raise it to about 100 000 steps and 1.3 million evaluations (2 s in a release build, 27 s in a debug build). Nothing is limited or warned; list a very light part in `[nodes]` with the part it is mounted on.
+  the cost only grows when a part's capacity per unit of coupling approaches a second: a 0.05 g heater (0.045 J/K) and a 0.02 g heater in the same design raise it to about 100 000 steps and 1.3 million evaluations (2 s in a release build, 27 s in a debug build). Nothing is limited or warned for light parts; list a very light part in `[nodes]` with the part it is mounted on. Subdivided plates are the exception: their cell time constants are reported and warned about (see "Temperature distribution inside a plate").
 - **Accuracy.** The penumbra of the conical shadow begins and ends with a `x^(3/2)`-like rise of the sunlit fraction, which the error estimate sees only partly; with orbits through the penumbra the global error is a few times the tolerance
   (about 1e-5 K at the defaults). Without a penumbra (cylindrical model, or no eclipse) the error is far below the tolerance.
 
@@ -758,23 +924,40 @@ A face's α/ε is the area-fraction-weighted sum (one face is one isothermal nod
 `absorptivity` and `emissivity`. A fraction total other than 1 or a missing α/ε is a check warning (so it can be written partway through entering them one by one), and the analysis stops with an input error.
 
 #### Couplings between nodes
-Conduction and radiation between nodes come from three places. For each node pair exactly one value is used, chosen in this order (`sat_analysis::thermal::network::couplings`):
-1. **Explicit** (`[conductive.*]`, `[radiative.*]`): replaces the value of that pair from the two sources below (0 isolates the pair).
-2. **Enclosure** (`[enclosure]`, radiation only, between the six faces of the box): replaces the mount default of the face-to-face pairs.
-3. **Mount default** (`contact_conductance` and `radiative_coupling`): one conductive link per node pair that has mounts (`contact_conductance` × the number of mounts between the pair) and, if `radiative_coupling` is written, one radiative link per such pair.
+Conduction and radiation between nodes come from four places. For each node pair exactly one value is used, chosen in this order (`sat_analysis::thermal::network::couplings`):
+1. **Explicit** (`[conductive.*]`, `[radiative.*]`): replaces the value of that pair from the sources below (0 isolates the pair).
+2. **Enclosure** (`[enclosure]`, radiation only, between the six faces of the box): replaces the value of the face-to-face pairs.
+3. **View factors** (`[view_factors]`, radiation only, between the inner faces of the structure box and the parts inside it): replaces the mount default of every node pair it gives a value to (the paragraph "Radiation from view factors" below).
+4. **Mount default** (`contact_conductance` and `radiative_coupling`): one conductive link per node pair that has mounts (`contact_conductance` × the number of mounts between the pair) and, if `radiative_coupling` is written, one radiative link per such pair.
+   If `contact_conductance_per_area` is also written, the conduction of each mount is taken from the geometry instead (the next paragraph).
+**Conduction from the contact area.** Writing `contact_conductance_per_area` (a heat-transfer coefficient `h`, `W/(m²·K)`, edited with `fune set analysis.thermal.contact_conductance_per_area "300 W/(m^2*K)"`)
+makes each mount's conductance `h × A_contact` instead of the fixed `contact_conductance`. `A_contact` is the area where the two parts' boxes touch (`OrientedBox::contact_area` in `sat_analysis::structure::interference::obb`;
+the same boxes as `structure.interference`). A face of one box and a face of the other **touch** when their outward normals point in opposite directions (negative dot product) and all four corners of the other face
+lie within the distance tolerance of the first face's plane (0.1 mm, the default of `structure.interference`; this also bounds the tilt between the faces, about `tolerance / width`). The contact area is the area of the intersection of the two face rectangles projected on that plane
+(the larger one if several face pairs touch). A mount whose contact cannot be determined — a part without a usable `size`, boxes that do not touch (a gap above the tolerance, a deeper overlap does not count either, or faces that are not parallel), or a zero area —
+**falls back to the fixed `contact_conductance`**, as if `contact_conductance_per_area` were not written. The fallbacks are listed in the output with the reason (`couplings.mount_contact.fallbacks`: `no_box` or `not_touching`).
+Mounts between two different nodes add as before: a node pair's conductance is the sum over its mounts of `h × A_contact` or the fixed value. Mounts inside one node contribute nothing. The setting does not change radiation (`radiative_coupling` and `[enclosure]` stay as they are);
+radiation between internal parts comes from `[view_factors]` instead. Without `contact_conductance_per_area` nothing changes: the setting is off and the output has no `mount_contact` or `from_contact` fields.
 ```toml
 # analysis/thermal.toml
+contact_conductance_per_area = { value = 300.0, unit = "W/(m^2*K)" }   # optional: conduction of each mount from the contact area
 [conductive.BAT]                              # node A -> node B -> conductance (the pair is unordered)
 PANEL_MZ = { value = 0.8, unit = "W/K" }
 [radiative.PANEL_PX]                          # node A -> node B -> effective radiative exchange area ε_eff·A·F
 PANEL_MX = { value = 0.02, unit = "m^2" }
 [enclosure]                                   # present with emissivity = the enclosure model is on
 emissivity = 0.85                             # inner emissivity of the six faces (above 0, at most 1)
+[view_factors]                                # present with emissivity = radiation between internal parts from view factors is on
+emissivity = 0.8                              # emissivity of every internal face (above 0, at most 1)
 ```
 A pair is written once, in either order; writing `A`→`B` and `B`→`A` is a check error (`thermal.coupling_duplicate`), as are a pair of the same node (`thermal.coupling_self`),
 a node that is neither a part ID nor a `[nodes]` key (`ref.thermal_node`) and a negative value (`setting.range`). The dimension is checked against the setting-dimension table (`THERMAL_CONDUCTIVE`: W/K, `THERMAL_RADIATIVE`: m²).
 Because a pair is a path (`analysis.thermal.conductive.BAT.PANEL_MZ`), it is edited with the generic setting operation (`fune set analysis.thermal.conductive.BAT.PANEL_MZ "0.8 W/K"`, `fune unset …`),
 the same on the CLI and over HTTP; there is no separate operation. A `[nodes]` key cannot be renamed; renaming a part that is a per-part node rewrites the node name in these tables (see "Thermal nodes").
+The surface materials are edited the same way: `fune set analysis.thermal.coating.white_paint.absorptivity 0.2`, `fune set analysis.thermal.surface.PANEL_PX.white_paint 0.7` and `fune unset analysis.thermal.coating.grey` (removing a table removes the whole coating or surface; a coating that a surface still lists is refused with `ref.coating`).
+An unwritten absorptivity, emissivity or area fraction is read as a float (`fune set analysis.thermal.surface.PANEL_PY.grey 1` writes `1.0`; `ThermalSettings::field_shape`), a label as text, and a coupling as a quantity.
+**The GUI's "Couplings and surfaces" tab** (Thermal page) lists every pair of `couplings` with its value in use, its source and, for `contact`, the contact area; typing a value writes the pair's explicit value, and "Withdraw" removes it so the pair falls back to its default source; a pair with no value yet is added from the node list. Below, the outer surfaces (fractions per coating, or the part's own α/ε) and the coatings (label, α, ε) are edited the same way.
+The edits collect in a draft: `POST /ops/from_command` with `command: "thermal_set"` (`ThermalSetText`; `fune_service::edit::thermal_set_ops`) turns the changed cells into the same `SetSetting` Ops as the `fune set|unset` commands above (the CLI needs no separate command; the parity test `parity_thermal_tables` compares the files). The table and the node temperatures (`ThermalTablesView.temperatures`, the minimum and maximum over all cases of `thermal.steady`) are asked with the draft Ops applied in memory (`POST /thermal/tables`, `fune_service::thermal_tables`), so the save bar shows how the temperatures change before the edit is written. Checks that refuse the edit (`thermal.coupling_duplicate`, `thermal.coupling_self`, `ref.thermal_node`, `ref.coating`, dimension errors) appear in the save bar and block saving.
 **Enclosure model.** The box is the root part's `size` (the one part without a mount; its frame is the body frame, the box is centred on the body origin and a root turned by a multiple of 90° gives the permuted extents, §5.3), and its six inner faces are matched to nodes through the outer surfaces:
 for each face (±X, ±Y, ±Z) the node of the outer surface whose normal points that way (within about 2.6°) and whose area is within 5 % of the face area. If any of the six faces
 is not found or ambiguous, two faces share a node, or the box size is not known, the model is **not applied**: it is not an error, the mount defaults stay, and the reason is returned in the output's `couplings.enclosure.note` (`applied: false`).
@@ -786,8 +969,27 @@ With the areas `A_i` of the box faces and `ρ = 1 − ε`, the Gebhart factors `
 The heat flow from face i to face j is `σ ε_i A_i B_ij (T_i⁴ − T_j⁴)`. For two parallel plates this approaches `A / (1/ε₁ + 1/ε₂ − 1)`.
 Assumptions: the six faces are the only surfaces of the enclosure, and **blockage of the face-to-face views by components inside is ignored**. Components inside are not part of the enclosure model in this version;
 their coupling stays the mount default or the explicit value. The wall thickness is ignored (the box is the outer size).
-Both thermal analyses return the couplings they used in `couplings`: for every pair the conductance (`conductive`) or exchange area (`radiative`) and its source (`mount`, `explicit` or `enclosure`),
-and, when `[enclosure]` is written, the faces with their nodes and areas and the 6×6 view-factor matrix. The GUI shows these as the analysis's data tables.
+**Radiation from view factors.** Writing `[view_factors] emissivity` (`fune set analysis.thermal.view_factors.emissivity 0.8`; the value is a plain number, above 0 and at most 1) replaces the fixed `radiative_coupling` between internal parts with a value computed from the part boxes (the same boxes as `structure.interference`, in the configuration in effect). Without it nothing changes: no `view_factors` field appears in the output and the other values are untouched.
+It is the radiation half of stage 2 of #389; the conduction half is `contact_conductance_per_area`.
+- **What takes part** (`sat_analysis::structure::cavity_views`). A part whose box lies wholly inside another part's box (the rule of `structure.external_geometry`: all eight corners within 0.1 mm of the container, the lowest-numbered container if several) is an *internal part*, and the container is a *hollow shell* whose six faces are the cavity wall, seen from the inside (the normal is reversed; the wall thickness is ignored).
+  Each cavity (one per container) has the six inner wall faces and the six outward faces of every internal part. **A part that is not inside a container does not take part**: it has no faces in the cavity and does not block any view (the outer panels, a deployed paddle, parts on the outside; they appear in `couplings.view_factors.outside`). A design in which no part lies inside another's box has no cavity: the model is **not applied** (`applied: false`, with the reason in `note`) and nothing is guessed.
+- **View factor of a face pair.** Two faces of one cavity that can see each other (each has a corner in front of the other's plane) get the view factor `F_ij = (1/A_i) ∬ cosθ_i cosθ_j / (π r²) V dA_i dA_j` of diffuse Lambert surfaces (`sat_astro::view_factor::rect`, the only numerical rectangle-to-rectangle integration; the closed forms stay in `sat_astro::view_factor`).
+  For each point `p` of face i, the factor to face j *without blocking* is exact (the Nusselt contour integral of the part of face j above the tangent plane at `p`, so faces a few millimetres apart need no special treatment). It is averaged over face i with a 10×10 Gauss–Legendre rule (`Quadrature::DEFAULT.source`).
+  **Occlusion**: if another internal part's box (the two owners excluded, each box shrunk by 0.1 mm so that grazing views are not blocked; `OrientedBox::blocks_segment`) lies in the bounding box of the two faces, the exact value at `p` is multiplied by the visible share of face j: the kernel-weighted fraction of 6×6 Gauss–Legendre points on face j whose segment from `p` crosses no box.
+- **Faces in contact are excluded.** A face pair for which `BoxFace::contact_area` is positive (opposite normals and all four corners within 0.1 mm of the other plane: the rule of `contact_conductance_per_area`, one function) is not integrated; two touching boxes conduct and their kernel would diverge. The number of excluded pairs is `couplings.view_factors.contact_pairs`.
+  A part with `count` above 1 is one box (as in the other geometric analyses).
+- **Effective exchange area of a face pair.** All faces have the same emissivity ε (`view_factors.emissivity`; a part's `emissivity` attribute is its *outer* surface and is not used). With `G_ij = A_i F_ij` and `ρ = 1 − ε` the pair exchanges `E_ij = 1 / (ρ/(ε A_i) + 1/G_ij + ρ/(ε A_j))`
+  (the two-surface radiation network of Oppenheim: two grey diffuse surfaces that see only each other). For two equal faces with `F = 1` this is `A / (1/ε₁ + 1/ε₂ − 1)`, and for two surfaces enclosing each other it equals the Gebhart exchange area of the enclosure model (`ε₁A₁B₁₂`; a test compares them). Reflection through third faces is not counted, which is why the full Gebhart system of `[enclosure]` is not used here: the cavity is not closed (contact pairs are left out, boxes may overlap), and the missing reflections are small for a high ε.
+- **From faces to node pairs.** The value of a node pair is the sum of `E_ij` over the face pairs between parts of the two nodes (parts of one node exchange nothing with each other). Every node pair that has at least one facing face pair gets a value and its source is `view_factor`:
+  the value replaces the mount default of the pair (`radiative_coupling`), and a pair whose views are all blocked gets 0 (it is isolated radiatively, and counted in `blocked_node_pairs`). A pair with no facing face pair (only contact, or a part outside every cavity) keeps the lower-priority value. The enclosure and explicit values replace the view-factor value of their pairs.
+  With plate subdivision (`[subdivide]`) the value of the plate's part is resolved at part level and spread over the cells by area, like the other part-level radiative couplings; per-cell view factors are not computed.
+- **Accuracy and the quality indicator.** Without blocking the integration reproduces the closed forms: two parallel unit squares at distance 1, `F = 0.1998…` (Howell C-11), and two perpendicular unit squares sharing an edge, `F = 0.2000…` (C-14), to rounding error (1e-14 and 3e-15); rectangles of different size, about 1e-5; 90 mm × 96 mm faces 2.5 mm apart (a gap of 1/36 of the width), 7e-4 relative;
+  the six inner faces of a closed box sum to 1 (`Σ_j F_ij`) to rounding error, and `A_i F_ij = A_j F_ji` agrees to about 2e-5 (relative) when each direction is integrated on its own. With blocking, the value is sampled, accurate to a few per cent (the half-blocking plate gives exactly half by symmetry; a non-symmetric blocker agrees with the definition within 3 %).
+  The output gives, per node, `residual = 1 − Σ_i A_i Σ_j F_ij / Σ_i A_i` over its faces in the cavity: 0 for a closed cavity, and larger by the share of its view that is not counted (contact pairs, views starting inside an overlapping box, sampling error). A node whose faces are mostly in contact with others has a residual near 1 and its radiation is not meaningful; look at `couplings.view_factors.nodes`.
+- **Limits.** Boxes only (no cut-outs, cylinders or holes), grey diffuse surfaces, one emissivity for all faces, the wall is a thin shell, no interreflection through third faces, one level of nesting is handled per cavity, no per-cell factors, and an internal part that overlaps another box sees nothing from inside it. The matrix is computed once per analysis run, not per time step.
+  Cost: face pairs grow with the square of the number of faces (about 100 faces for the demo's 15 internal parts); pairs that cannot face each other are dropped before integration and only the boxes near a pair are tested for blocking. The time spent is `couplings.view_factors.elapsed`.
+Both thermal analyses return the couplings they used in `couplings`: for every pair the conductance (`conductive`) or exchange area (`radiative`) and its source (`mount`, `contact`, `explicit`, `enclosure` or `view_factor`; `contact` means at least one mount of the pair was taken from the contact area, and the pair's `from_contact` field gives the total contact area, the number of such mounts and `fixed_mounts`, the mounts of the same pair that used the fixed value instead),
+and, when `[enclosure]` is written, the faces with their nodes and areas and the 6×6 view-factor matrix; when `[view_factors]` is written, the cavities, the parts left outside, the counts of faces, face pairs (found, in contact, blocked) and node pairs, the per-node residual and the time spent (`couplings.view_factors`; a `view_factor` pair has `from_view_factors` with the summed `A·F` and the number of face pairs); when `contact_conductance_per_area` is written, the number of mounts taken from the contact area and the fallback mounts with their reasons. The GUI shows these as the analysis's data tables.
 
 #### Verification of the thermal analyses
 
@@ -826,10 +1028,19 @@ the heater switching times, duty (1e-9) and longest on period (1e-5 s instead of
 
 ### 5.3 Outer shape for attitude analysis
 
-The outer shape used for disturbances is the part with `size` and no mount parent, if there is exactly one such part.
+**Drag area** (#388 stage 3). `drag_area` in `[decay]`, if written, is used as it is (`used.area_source = given`). Otherwise the area is the **mean projected area over all directions of the union of the part boxes** (`used.area_source = body_boxes`): exactly the `mean_projected_area` that `structure.external_geometry` reports (one function, `ExternalGeometry::mean_projected_area`).
+The part boxes are the input `body_boxes` (`fune_projection::structure::boxes`, so the configuration in effect is followed). A design with a single box and nothing else gets `(xy + yz + zx) / 2` as before; the deployed demo gets a larger area than its structure box alone. With no part that has a `size` (and no written area) the analysis reports a missing input.
+
+**Aerodynamic and solar-pressure torque** (`aocs.rw_unloading`, #388 stage 4). The physical model is unchanged (force = coefficient × area along the flow, or away from the Sun, `τ = r × F`); only the area and the arm change. At every time sample the area is the exact projected area of the union of the part boxes along the flow (aerodynamic) or the Sun direction (solar pressure) in the body frame,
+and the arm is the perpendicular part of the vector from the centre of mass (the mass properties) to the centroid of that projection (`ExternalGeometry::projected`; the same function as for the report and the drag area). A direction that repeats (the Sun direction of a sun-pointing law) is solved once.
+`analysis.aocs.aero_area` / `srp_area` (an area) and `cp_offset_aero` / `cp_offset_srp` (a body-frame vector) replace the geometric value when they are written; each of area and arm is replaced on its own. The output `surfaces` says, for the aerodynamic and the solar-pressure surface, where the area and the centre of pressure came from (`written` or `geometry`)
+and the range of the area and the arm over the time series. With a written area and a written centre of pressure no boxes are needed; otherwise a part with a `size` is required (a missing input if none). Cd and Cr remain `drag_coefficient` and `srp_coefficient`.
+The aerodynamic area is no longer "the largest face of the structure box whatever the attitude": it is the area seen along the flow in the current attitude, so a design that relied on the old fixed value gets different torques (write `aero_area` to fix it).
+
+The thermal enclosure and the launch-fit envelope fallback still use the root part: the part with `size` and no mount parent, if there is exactly one such part.
 If there are several, the analysis stops with the candidate part IDs shown in the missing-input message, and does not choose by ID order. The handling of zero is as before.
 
-A root's `[pose]` is its placement in the body frame (§7.1), but the outline consumers (this reference box, the decay area, the launch-fit envelope fallback and the thermal enclosure) still read the box as "the root's `size`, centred on the body origin, aligned to the body axes" (#388 replaces this rule by geometry from all part boxes).
+A root's `[pose]` is its placement in the body frame (§7.1), but the remaining outline consumers (the launch-fit envelope fallback and the thermal enclosure) still read the box as "the root's `size`, centred on the body origin, aligned to the body axes".
 So that a pose is never silently misread (`fune_projection::outline`):
 - a root rotated by a multiple of 90° about the body axes gives the box extents permuted into the body axes (a quarter turn about z swaps the x and y extents), which is exact;
 - a root with an offset from the body origin, or a rotation that is not a multiple of 90°, keeps its `size` as written and `fune check` warns `outline.root_pose` (the offset is ignored and the box is not turned by these consumers; mass properties, interference and the 3-D view do use the pose).
@@ -894,9 +1105,21 @@ The distance used for the link depends on the central body of `conditions.orbit`
 
 - **`earth_orbit`** (Earth): the slant range from the station to the spacecraft. The link margin is judged at the longest distance (the station's `min_elevation`), and the shortest distance (zenith, equal to the altitude) is reported as `range_min`.
 - **`earth_to_body`** (Moon, a planet or the Sun): the distance from Earth to the spacecraft, `|r_body(t) − r_earth(t) + r_spacecraft(t)|`, with the body position from the ephemeris (`sat_astro::ephem`) and the spacecraft position from the orbit around the body.
-  It is evaluated over the mission duration (the requirement with `input = "mission_duration"`; one year when there is none; a planet's synodic period can be longer, so write the duration for Mars and beyond).
+  It is evaluated over the mission duration (the requirement with `input = "mission_duration"`; one year when there is none; a planet's synodic period can be longer, so write the duration for Mars and beyond), or over the whole span of a one-off orbit (`transfer`, `state`), of the phase's orbit in effect for the case.
+  The analysis case's `epoch` does not change it: the range is a worst case over the whole span. The extremes are the sample extremes at the usual step (`max(30 s, span / 200)`), so the margin is evaluated at a distance up to about 2·10⁻⁴ (relative) short of the true maximum for a heliocentric cruise (`orbit.geometry` reports the refined extremes).
+  An orbit given by a state vector has no altitude, so a link about another body does not need one (`LinkBudgetLink.altitude` is optional; an Earth-orbit link without an altitude is an input error). Before, such a design reported "No links".
   The margin is judged at the **maximum** distance (`slant_range`); `range_min`, `range_min_epoch` and `range_max_epoch` report the minimum and the epochs of the extremes. Approximation: the distance is measured to Earth's centre, not to the station (an error of up to Earth's radius, about 1.7 % at the Moon and 0.01 % or less beyond Mars; the elevation, see below, uses the real station position).
 - `light_time` is the one-way light time at the maximum distance. Atmospheric and rain losses are the link's `atmospheric_loss` as before.
+
+**Deep-space links.** For `earth_to_body` the result also shows the other end of the range, so that the worst and the best case are both visible
+(the keys are absent for an `earth_orbit` link, whose output is unchanged). Everything uses the one link equation; only the distance changes:
+
+- `margin_db_at_range_min` is the link margin at the **minimum** distance (the best case; the verdict stays on `margin_db` at the maximum). It is higher than `margin_db` by `20·log10(range_max / range_min)`.
+- `max_data_rate` (at the maximum distance) and `max_data_rate_at_range_min` are the highest data rates that keep the required margin at the two ends. The rate scales with `1 / d²` (twice the distance, a quarter of the rate; 6.02 dB less margin at a fixed rate). They are information; no verdict unless a requirement points at the margin as before.
+- `light_time` (maximum distance) and `light_time_min` are the one-way light times, `distance / c` (1 au is 499.005 s). For the distance over time, see `orbit.geometry`.
+- `solar_conjunction` gives the minimum of the Sun–Earth–probe angle (SEP, see `orbit.geometry`) over the same span with its date (`sep_min`, `sep_min_epoch`) and the total time SEP is below the threshold (`time_below_threshold`, samples joined by straight lines).
+  The threshold is 3° (`threshold`, the analysis default; there is no setting for it). The check `solar_conjunction` is a warning when SEP falls below the threshold, because the link is assumed to be needed over the whole span. The increase of the receiver noise near conjunction is not modelled.
+  The extremes of the distance and the time below the threshold are found at the sample resolution of the span (period / 200 for a one-off orbit), the minimum SEP is refined between the samples.
 
 `comm.visibility` and `comm.data_throughput` find passes from the real geocentric position of a spacecraft around another body (a daily pass of the Earth's rotation, above the station's `min_elevation`).
 The central body occults the spacecraft: while the line from the station to the spacecraft passes through the sphere of the body (equatorial radius), the spacecraft is not visible and the pass is cut (so a Moon or Mars orbiter has several passes a day).
@@ -938,6 +1161,12 @@ The time-series reverse computation uses the mode's `max_duration` and timing (`
 The capacity is closed-form over the whole span of the judged operation (including the initial transient), so it is never smaller than the DoD after the window needs.
 Growth margin, count, redundancy and eclipse overrides share the aggregation of `power.mode_load`.
 For a mode that includes missing assignments or power values, the analysis stops so as not to underestimate the requirement.
+
+**Shadowing between parts (#424).** The generation of every solar panel (`power.solar_sunlit`, `power.orbit_generation`, `power.energy_balance`, and through them `power.sizing` and `power.thrust_balance`) is `P = Φ · A · η · … · max(0, n̂·ŝ) · ν · λ`, where `λ` is the lit fraction of the panel's box face for the Sun direction `ŝ` in the body frame at that sample (§5.9: the shadows of the other parts' boxes, in the effective configuration, so a folded paddle shades the cells it lies on).
+The panel is its part's box (matched by part ID), and its face is the box face whose normal matches the written `normal`. A part with no box or no matching face keeps `λ = 1` and is listed in the output's `shadowing.unshadowed`.
+It is **on by default whenever parts have sizes** (the owner's rule for #388: switch by default, accept the demo's changes); `analysis.power.shadowing = false` turns it off and restores the previous formula exactly (the panel power is multiplied by 1, not recomputed). The setting is read through `fune_projection::structure::shadowing`; the default (`DEFAULT_SHADOWING`) belongs to the analysis.
+The outputs of `power.solar_sunlit` (per case), `power.orbit_generation` and `power.energy_balance` carry `shadowing` only when shadows were applied: for each panel the minimum and the mean of `λ` over the samples in which the panel was lit (sunlit sample and `n̂·ŝ > 0`; a plain mean over those samples) and their number.
+`power.sizing` scales the panel area, not the geometry (the lit fractions stay as the current boxes give them), so its required area and capacity **include the shadows of the current layout**; the output field `shadowed` says so, and the lit fractions are in the `shadowing` of `power.orbit_generation` / `power.energy_balance`. The Sun is a point source and the albedo is not generated (no shadows on reflected light).
 
 The longest eclipse calls `orbit.eclipse_season` with the same orbit, period and season step (the sum of umbra and penumbra).
 The sunlit time is the orbital period minus the longest eclipse, and the lifetime is the mission duration converted to Julian years.
@@ -1007,7 +1236,7 @@ Overrides are in `[sizing]` of `analysis/power.toml`. All are optional, and the 
 | `inherent_degradation` | 1 (no additional inherent degradation) |
 | `battery_strings` (N) | 1 |
 | `bus_voltage` | none (no series-parallel layout) |
-| `sun_distance` | the conventional Sun distance of the central body (1 AU for Earth and the Moon; `CentralBody::nominal_sun_distance_m`). For other bodies, a missing input. `power.sizing` does not run about the Sun (no eclipse season) |
+| `sun_distance` | the conventional Sun distance of the central body (1 AU for Earth and the Moon; `CentralBody::nominal_sun_distance_m`). For other bodies (a planet), the **maximum Sun distance over the mission duration** from the orbit (the worst day: the lowest flux; `sat_analysis::orbit::sun_distance_extremes_over`, which uses the mission geometry of `sat_astro::timeline::geometry`). `used.sun_distance_source` (`span_max`, with `used.sun_distance_epoch`) says so; a written value or the conventional one is not marked. `power.sizing` does not run about the Sun or for a `transfer` / `state` orbit (no eclipse season on Kepler elements: not applicable), and an analysis case's `epoch` does not change it |
 
 The solar flux is found from `illumination::solar_flux_w_m2` with `sun_distance` (the flux formula exists only there) and is used in both the SMAD and the time-series reverse computations
 (at 2 AU it is 1/4, and the required area is 4 times). When a part's `packing_factor` and `eol_factor` are omitted they are 1, as in the existing generation model.
@@ -1035,6 +1264,8 @@ and a part whose kind is (or extends) one of them is an error (`part.launch_kind
 | `launch_load_axial`, `launch_load_lateral` | Acceleration | g0, m/s^2 | quasi-static load factors |
 | `min_frequency_axial`, `min_frequency_lateral` | Frequency | Hz | minimum first natural frequencies |
 | `max_tip_off_rate` | AngularVelocity | deg/s, rad/s | maximum angular rate at separation (stored; no analysis reads it yet) |
+| `launch_constraint` | enumeration | `base_fixed`, `rails`, `tabs`, `fixed`, `free` | how the interface supports the satellite for `structure.modal_fem` (§5.10) |
+| `launch_constraint_face` | enumeration | `+x`, `-x`, `+y`, `-y`, `+z`, `-z` | the face of the body box that `base_fixed`, `tabs` and `fixed` constrain (`-z` is the launcher side of the launch axis) |
 
 The design selects them in `conditions/launch.toml` with the same reference form as a part's `catalog` (`<catalog>/<id>`, read by `split_catalog_ref`):
 
@@ -1071,6 +1302,9 @@ The declination of the departure asymptote against the launch site latitude is n
 **Precedence** (`fune_projection::launch`, the only place): a value written in `conditions/launch.toml` (`load_axial`, `load_lateral`) → the dispenser → the launcher (the nearer interface first; a value is taken from the first of them that has the attribute).
 `structure.static_load` reads the loads this way. When none gives a load, the missing input is `conditions.launch.load_axial` (or `load_lateral`) and the message says it can also be given as `launch_load_axial` / `launch_load_lateral` on the dispenser or launcher.
 `structure.modal_estimate` takes its minimum natural frequencies the same way (the item's `min_frequency_*`), and a requirement on `lateral` / `axial` can only tighten it (the larger wins).
+`structure.modal_fem` reads `launch_constraint` and `launch_constraint_face` in the same order: the keys of the same names in `conditions/launch.toml` (`launch_constraint = "rails"`) → the dispenser → the launcher
+(`LaunchValues::text_set`). **The constraint kind and its face are a pair: the face is read only from the source that supplied the kind** (launch.toml, or that dispenser, or that launcher), never mixed from another source.
+If that source gives a kind that needs a face (`base_fixed`, `tabs`, `fixed`) and no face, the missing input is the face and the message names the source; a face written on the same source is ignored by `rails` and `free`. The vocabulary is the `symbols` of the attribute definitions (a value outside it is `launch.constraint` in `fune check`); when nothing gives a support type, the missing input is `conditions.launch.launch_constraint` and its fix offers the vocabulary as choices (the same for the face).
 
 **`structure.launch_fit`** judges the design against the selected items and needs at least one of them (the missing input is `conditions.launch.launcher`):
 
@@ -1091,8 +1325,17 @@ The declination of the departure asymptote against the launch site latitude is n
     The output carries them on each axis row as `at_min`, `at_max` and `centre_offset`. A part with no `size` is not measured and is listed in `skipped` (as in §5.7). The count of a part is ignored (copies are at one pose).
   - **No configuration in effect: from the root part** (`envelope_source` is omitted, the same output as before). The extent is the `size` of the root part of the mounting tree (the same rule as the outer shape for attitude analysis, §5.3); parts that stick out of it are not measured.
   If both could apply, the parts win: the root `size` is not read when a configuration is in effect. Which configuration is in effect follows the launch rule of §7.11 (the run's explicit one, else the launch conditions'; a case's phase is not read).
-- **Natural frequencies**: the lowest whole-body first mode estimated by `structure.modal_estimate` (beam results `lateral` / `axial`) against the larger of the catalog minimum and the requirement (`structure.modal_estimate` / `lateral`, `axial`).
-  Panel out-of-plane modes are local and are not compared. The estimate has no beam model yet (the demo has none), so these checks end as a **warning "Not verified"**; they are never silently reported as fit.
+- **Natural frequencies**: the whole-body first mode in each direction (lateral, axial) against the larger of the catalog minimum and the requirement (`structure.modal_estimate` / `lateral`, `axial`).
+  The estimates come as **one list with a source for each entry**: the finite-element model (`structure.modal_fem`, §5.10) and the beam estimate (`structure.modal_estimate`). For each direction the rule is (`sat_analysis::structure::launch_fit::frequency`, the only place):
+  1. a global mode in that direction from the first source that has one (priority: finite element, then beam estimate); its lowest one is compared with the limit, and the verdict text says which source it came from (`81.9 Hz by the finite-element model, mode 2 (required at least 50.0 Hz from …)`);
+  2. otherwise, when a source computed all modes up to a frequency and none of them was global in that direction, the first global mode there is **above** that frequency (the eigenvalue solver checks that no mode below the highest one returned is missed). If that frequency is at least the limit the check is **ok** (a lower bound: `estimated` stays empty, `searched_up_to` is set, and the margin is that frequency / limit − 1);
+     if the searched range does not reach the limit, a lower first mode cannot be ruled out, so it is a **warning "Not verified"** with the range;
+  3. otherwise a **warning "Not verified"**; a missing estimate is never reported as fit.
+
+  What counts as global is the mode class of `structure.modal_fem` (an effective mass fraction of at least 5 % on one axis, §5.10); a mode with less is local, so rule 2 says "no global mode", not "no mode".
+  The finite-element model is asked for 12 modes here (`FEM_MODE_COUNT`; its own default is 6), because the first axial mode of a satellite made of panels is often a few modes above the first lateral one.
+  The finite-element model is an **optional** input: when it cannot be built (no launch constraint, no panels, …) or solved, `structure.launch_fit` runs as before from the beam estimate, and the reason is listed in the output (`unavailable`) and at the end of the frequency rows (`; finite-element model not used: …`); it never becomes a missing input of `structure.launch_fit`.
+  **Local modes** (panel out-of-plane, or a panel carrying heavy parts) are not compared with the whole-body requirement, but the lowest one that is below the limit is reported on the row (`lowest_local`, and in the text) as information, so it is not hidden.
 - Verdicts are two-level (fit or not): the margin is limit / value − 1, and a negative margin is a violation. Check keys are `mass`, `envelope:<x|y|z>` and `frequency:<lateral|axial>`.
 
 Not modeled yet: random vibration (PSD), interface details (the mechanical interface, separation springs) and shock. The angular rate at separation is only stored.
@@ -1110,29 +1353,77 @@ the verdict of every overlapping pair is `warning` (check key `overlap:<first>:<
   For boxes that do not overlap, the gap is the best separating axis's gap, a **lower bound** of the true distance (exact when two faces face each other). All pairs are compared, O(n²) with a constant 15 axes per pair, with no broad phase (fine up to a few hundred parts).
 - **Tolerance**: an overlap is reported only when its depth is **greater than** the tolerance. The default is 0.1 mm: small enough to be far below the coarseness of the boxes, large enough to ignore rounding in positions and faces that merely touch.
   It can be set in `analysis/structure.toml` as `interference_tolerance = { value = 1.0, unit = "mm" }` (`fune set analysis.structure.interference_tolerance "1 mm"`).
-  Panel boxes are centred on the face of the part they are mounted on, so neighbouring panels overlap at their corners by half a panel thickness; a tolerance above that hides it. Nothing is hidden by default.
+  Panel boxes are centred on the face of the part they are mounted on, so neighbouring panels overlap at their corners by half a panel thickness; that is not hidden by the tolerance but classified as an **edge contact** (next item).
+- **Edge contact** (`sat_analysis::structure::interference::edge_contact`, the only place): an overlap whose penetration is confined to a thin sliver along an edge is **not an interference**. It is listed in its own group `edge_contacts` (`first`, `second`, `depth`, `thickness`), is not a warning, has no check, and is still counted in `pairs_judged`; the `ok` check text says how many there are, so nothing is hidden.
+  The rule is purely geometric (no roles). For a box `P`, along each of its three axes the overlap interval is the part of `P`'s range that the other box's projection covers, of length `e_k` (exact when the axes line up, an upper bound of the overlap's extent otherwise, so a tilted sunk part is never taken for a sliver).
+  The thickness `t` is the smaller of the two boxes' shortest sides. The axis with the longest interval is the **edge direction**; the other two are the **cross-section**. Both boxes must satisfy (with the interference tolerance as the slack of "at most" and "touches"):
+  (1) each cross-section interval is at most `t` **and touches an end of `P`'s range** (the sliver lies at an edge or a face boundary of the box, not in the middle of a face), and the edge-direction length is at least 4 times the longer cross-section interval (a sliver is long);
+  (2) the volume bound `Π e_k` (the smaller of the two boxes' bounds) is at most **2 %** of the smaller box's volume.
+  So two panels meeting at a corner (overlap `t/2 × t/2 × full length`) are an edge contact, whatever their sizes. A part sunk into a panel face is not: the panel's in-plane intervals are as long as the part (not at most `t`), a thin small part inside a panel fills most of its own volume (rule 2) and does not touch the panel's boundary, a slight face overlap of two fat boxes has no long edge direction (rule 1), and a plate edge stuck into the middle of another plate's face does not touch that plate's boundary.
+  The 2 % and the factor 4 are conservative on purpose: when in doubt the overlap stays a warning. The rule does not read acknowledgements: an acknowledged pair that is now an edge contact is reported by `acknowledged.stale` (below).
 - **Mount ancestors and descendants are not judged.** A part is placed relative to the part it is mounted on, frames and panels hold their children in their box, and a child touches or sinks into its mount face by design. A pair is skipped when one part is on the other's mount chain
   (the direct mount, or any ancestor, even through a part that has no size). Siblings and parts on different branches are always judged. The limit of this rule: whether a child sticks out of, or crosses, its own ancestor's box is not seen,
   because a box cannot tell containment from interference. The number of skipped pairs is reported (`pairs_in_mount_chain`).
 - **`count` > 1**: the copies share one pose, so the part is one box: it is not compared with itself, and it is listed in `repeated`. Overlaps between copies are not judged.
 - **No `size`**: the part is listed in `skipped` (reason `no_size`; a `size` that is not positive is `invalid_size`). It is not a missing input. With fewer than two boxes the result is empty and successful.
-- **Output**: `overlaps` (pairs, deepest first: `first`, `second`, `depth`, `separation_axis`), `parts_judged`, `pairs_judged`, `pairs_in_mount_chain`, `tolerance` (the one used), `min_clearance` (the closest non-overlapping pair), `skipped`, `repeated` and `checks`.
+- **Output**: `overlaps` (pairs, deepest first: `first`, `second`, `depth`, `separation_axis`, and for an acknowledged pair `acknowledged`, `reason`, `acknowledged_configuration`), `edge_contacts` (the edge contacts above, deepest first; not findings, so neither the findings list, the 3D highlight nor the KPI tally counts them), `parts_judged`, `pairs_judged`, `pairs_in_mount_chain`, `tolerance` (the one used), `min_clearance` (the closest non-overlapping pair), `skipped`, `repeated` and `checks`.
 
-Not modeled: real shapes (STEP, #344), the path during deployment, and a pair cannot yet be marked as "checked, intended". Sensor fields of view and thruster plumes are judged against the same boxes by `structure.cone_clearance` (§5.8).
+Not modeled: real shapes (STEP, #344) and the path during deployment. Sensor fields of view and thruster plumes are judged against the same boxes by `structure.cone_clearance` (§5.8).
+
+#### Acknowledged pairs (#414)
+
+Some findings are known consequences of modelling parts as boxes (the hinge edge, panels meeting at a corner). The designer records "known, accepted" for one pair with a reason, so that it stops being a warning but **stays visible**.
+One list serves both analyses (`structure.interference` and `structure.cone_clearance`): `[[acknowledged]]` in `analysis/structure.toml` (`fune_model::design::AcknowledgedFinding`; the vocabulary of `finding` is `FindingKind`).
+
+```toml
+[[acknowledged]]
+finding = "interference"
+first   = "SAP_PY"
+second  = "SP_PY"
+reason  = "Hinge edge: the paddle box and the solar panel box meet at the hinge line, where the real parts only touch"
+
+[[acknowledged]]
+finding       = "cone_clearance"
+first         = "SS_PX"      # the carrier of the cone
+second        = "SAP_PY"     # the part inside the cone
+configuration = "STOWED"     # optional; absent means every configuration and the base placement
+reason        = "The sun sensor is not used while the paddle is folded"
+```
+
+- **Keys**: `finding` is `interference` or `cone_clearance`. `first` and `second` are two parts. For an overlap the order does not matter (a pair is one pair either way). For a cone, `first` is the carrier and `second` the part inside its cone, in that order (the same pair as the check key `obstruction:<carrier>:<part>`; a carrier has one cone kind, so no further key is needed).
+  `configuration` is optional; `reason` is required and not blank. A pair written twice for the same configuration is a warning (`acknowledged.duplicate`).
+- **Semantics** (`sat_analysis::structure::acknowledged`, the only place): an acknowledged finding is still computed and listed (`acknowledged: true`, `reason`, and `acknowledged_configuration` when the acknowledgement names a configuration, so that withdrawing it points at the same entry),
+  but its check is `ok` instead of `warning` and its text starts with `Acknowledged: <reason>.` (the verdict has no informational level; `ok` with the text keeps the finding visible). A configuration-specific acknowledgement applies only when that configuration is in effect (`fune_projection::structure::acknowledgements`). The overall verdict follows the checks, so an analysis whose findings are all acknowledged is `ok`.
+- **KPIs** (`structure_kpi`): the tally has `flagged` (unacknowledged findings; for cones, carriers with an unacknowledged part in the cone) and `acknowledged` (acknowledged findings; for cones, carriers whose parts in the cone are all acknowledged), so the web never counts.
+  The demo reads `5 of 573 need attention, 13 acknowledged` for `structure.interference`.
+- **Stale acknowledgements**: an entry that matches no current finding is a **warning** `acknowledged.stale` from `fune check` (and the GUI's diagnostics). The model's `check` cannot run analyses, so `fune_service::stale_acknowledgements` runs both analyses (for the placement the default case selects and for each configuration) and compares; it is called from `Snapshot::of`, next to the other diagnostics that need the projection.
+  An entry with a `configuration` is compared only with that configuration's findings; an entry without one only has to match some placement (findings differ between configurations, so one placement cannot call it stale). An entry whose analysis could not run for any comparable placement (a size is missing, say) is not called stale.
+  Limit: the placement "the default case selects" is the base placement unless the default case's phase names a configuration.
+  An acknowledged interference pair that is now an **edge contact** (§5.7) is also stale (an edge contact is not an overlap, so it is not a finding): the warning says so ("is now an edge contact … no longer needed") and names the `fune acknowledged rm` command.
+- **Parts and configurations are references**: `fune check` reports a part or configuration that does not exist (`ref.part`, `ref.configuration`). Renaming a part or a configuration rewrites the entries (`RefSite::{AcknowledgedPart, AcknowledgedConfiguration}` of the reference index), and removing a part or a configuration an entry names is refused until the entry is withdrawn (the same behaviour as the other settings that name parts).
+- **Editing** (Ops `Acknowledge` / `Unacknowledge`; a list of records cannot be edited sensibly with `SetSetting`): `fune acknowledged add interference SAP_PY SP_PY --reason "…" [--configuration STOWED]` and `fune acknowledged rm interference SAP_PY SP_PY [--configuration STOWED]`. Acknowledging a pair that is already acknowledged (same configuration, either order for an overlap) rewrites its reason.
+  Withdrawing a pair that is not acknowledged is refused. The GUI sends the same Ops from the analysis result ("Acknowledge" asks for a reason and offers "only in this configuration" when the result was computed for a configuration; "Withdraw"). The CLI and HTTP write byte-identical files (parity test).
+- **In the demo** (`fixtures/demo-6u`): the 1 mm hinge-edge overlap of `SAP_PY` and `SP_PY` is acknowledged. (The twelve panel-corner overlaps, 0.75 mm, are edge contacts by the rule of §5.7 and need no acknowledgement. The hinge-edge pair is not an edge contact: the overlap is 1.0 mm × 1.6 mm × 366 mm, but along the paddle box's Y axis (113 to 339 mm) it spans 113.7 to 115.3 mm, which does not touch the paddle's lower end (0.7 mm away, more than the 0.1 mm tolerance), so the rule keeps it an overlap and it stays acknowledged.) The other findings are left as warnings: the sun-sensor boxes sunk into the solar panel boxes (`SP_*`/`SS_*`), `EPT` against `PANEL_MZ`,
+  and the cone findings (the paddle in the field of view of the sun sensors, `STT` against `SP_MY`) are not documented as accepted, and some of them may be real.
+- **3D** (layout page): a switch (off by default) paints the parts that the findings of the configuration being viewed involve: parts with an unacknowledged finding in the warning colour, parts whose findings are all acknowledged in the good colour, the others grey (`lib/tone.ts` `findingHex`), and lists the findings; choosing a part name selects and focuses it.
+  The state of each part is decided by the service (`AnalysisRunResult.part_findings`, `analysis::part_findings`); the web paints. The cones themselves are not drawn.
 
 ### 5.8 Plume and field-of-view clearance (`structure.cone_clearance`, #397)
 
 `structure.cone_clearance` asks, for every part that carries a **cone**, which parts of the spacecraft lie inside it. A thruster plume and a sensor field of view are the same geometry (an apex, an axis, a half angle, an optional range), so there is one analysis, one geometry (`sat_analysis::structure::cone_clearance::cone`) and one report. The parts are the same oriented boxes as in §5.7
 (`fune_projection::structure::boxes`, so the configuration in effect is followed: stowed and deployed layouts give different answers). The box selection (parts without a `size` are listed, not an error), the mount-chain rule and the report shape (`checks`, `skipped`) are shared with `structure.interference` (`usable_boxes`, `on_mount_chain`).
 
-**A hit is only a warning**, for the same reason as §5.7: boxes are larger than the real shapes. No `fune check` diagnostic, the run is `ok`, never an analysis failure, and nothing blocks an edit. One `warning` check per (carrier, part), key `obstruction:<carrier>:<part>` (renaming a part rewrites the key); with no hit, one `ok` check `cone_clearance`.
+**A hit is only a warning**, for the same reason as §5.7: boxes are larger than the real shapes. No `fune check` diagnostic, the run is `ok`, never an analysis failure, and nothing blocks an edit. One `warning` check per (carrier, part), key `obstruction:<carrier>:<part>` (renaming a part rewrites the key); with no hit, one `ok` check `cone_clearance`. A pair the designer acknowledged (§5.7, "Acknowledged pairs") is still listed (`acknowledged`, `reason`) but its check is `ok`.
 
 - **Carrier table** (`fune_projection::structure::CARRIERS`, the only place that says which attributes give the cone): a part of one of the roles in a row carries a cone whose axis is `axis_sign × <axis attribute>` (read through `parts::direction_body`, so it is in the body frame) and whose half angle is `<half-angle attribute>`.
   Today: **thrusters** (roles `thruster`, `propulsion_thruster`): axis = −`direction` (the exhaust leaves opposite to the thrust, `direction` being the direction the spacecraft is pushed), half angle = `plume_half_angle`, kind `plume`. So `direction` is the direction of the force on the spacecraft, not of the exhaust: a thruster on the −Z face of the bus has `direction` = +Z (the built-in attribute's description says the same).
-  **Sensors with a field of view** (the sensor roles of `aocs.sensor_fov`: `star_tracker`, `sun_sensor`, `camera`): axis = `boresight`, half angle = `fov_half_angle`, kind `field_of_view`. Adding another carrier (an antenna beam, say) is one row in this table
-  (and the half-angle attribute in the vocabulary); the geometry, rules and report do not change.
+  **Sensors with a field of view** (the sensor roles of `aocs.sensor_fov`: `star_tracker`, `sun_sensor`, `camera`): axis = `boresight`, half angle = `fov_half_angle`, kind `field_of_view`.
+  **Antennas** (role `antenna`, #414): axis = `boresight`, half angle = **half of `beamwidth`** (the row's `half_angle_scale` is 0.5; the others are 1), kind `beam`. Adding another carrier is one row in this table
+  (and the attribute in the vocabulary); the geometry, rules and report do not change. An antenna's findings use the same key family `obstruction:<antenna>:<part>` and are acknowledged with the same entries (`fune acknowledged add cone_clearance <antenna> <part> --reason …`).
 - **`plume_half_angle`** (new built-in attribute, Angle, 0 to 90°, optional on `thruster` and `propulsion_thruster`): the half angle of the cone the exhaust spreads into. Nothing is assumed when it is absent: the thruster is listed in `skipped_carriers` with reason `no_half_angle`
   (a carrier without a readable axis, with a zero axis, or with a half angle outside (0, 90°) is listed with `no_axis`, `invalid_axis` or `invalid_half_angle`). It is not a missing input.
+- **`beamwidth`** (new built-in attribute, Angle, 0 to 180°, optional on `antenna`): the full half-power beamwidth, centred on `boresight`. Both it and `boresight` are optional: an antenna without either (an omnidirectional or low-gain antenna has no `boresight`) is listed in `skipped_carriers` (reason `no_half_angle` / `no_axis`), never a missing input and never an assumed width.
+  The beam is modelled as a circular cone of the half-power width, so a box inside it is a warning only as far as the half-power cone matters; sidelobes and the near field are not modelled. Not drawn in 3D (`fov_axis` is for half angles, and `beamwidth` is a full width).
 - **Apex**: where the axis leaves the carrier's own box (box centre + axis × the box's support along the axis); the part origin when the carrier has no `size`. A nozzle or an aperture is taken to be on the box face the axis points through.
 - **Not judged**: the carrier's own box, and parts on its mount chain (its mount ancestors, whose boxes contain the carrier and its apex, and any part mounted on the carrier). Siblings, parts on other branches and deployables are always judged.
   The limit of this rule: a carrier that points into its own mount (for example a thruster that fires through the bus) is not detected through the mount part itself, only through the other parts in the way. The number of boxes skipped for this reason is `parts_in_mount_chain`.
@@ -1148,8 +1439,7 @@ Not modeled: the effect of a plume on what it hits (heating, force and torque, c
 ### 5.9 External geometry (`structure.external_geometry`, #388)
 
 `structure.external_geometry` reports the spacecraft's outer shape as the parts' boxes give it: the **projected area** along any direction (boxes hide each other, so the areas are not summed) and the **exposed surface area** (the faces not covered by other boxes).
-It is a report: no verdict is produced (one `ok` check with the numbers), and nothing consumes it yet. The drag area of `orbit.decay`, the aerodynamic and solar-pressure torques of `aocs.rw_unloading`, the launch envelope and the thermal enclosure still use what they used before;
-making them read this geometry is the next stages of #388 (the numbers they produce will change then, and the demo's results with them). The boxes are the same oriented boxes as §5.7 (`fune_projection::structure::boxes`, so the configuration in effect is followed), with the same skip of parts without a `size`.
+It is a report: no verdict is produced (one `ok` check with the numbers). The drag area of `orbit.decay` (§5.3) and the aerodynamic and solar-pressure torques of `aocs.rw_unloading` (§5.3) take their areas (and the torque arm) from the same geometry; the launch envelope (§5.6) takes the stowed envelope from the same boxes under a configuration, and the thermal enclosure still uses the root box. The boxes are the same oriented boxes as §5.7 (`fune_projection::structure::boxes`, so the configuration in effect is followed), with the same skip of parts without a `size`.
 
 - **Projected area**: the silhouette of an oriented box along a direction is the convex hull of its 8 projected corners (a hexagon at most; a rectangle along a face normal, a segment edge-on). The projected area is the **exact area of the union of the silhouettes**, by a slab sweep in `sat_astro::math::planar`:
   the plane is cut at every vertex ordinate and every edge-crossing ordinate, inside a slab each silhouette is a trapezoid and their order does not change, so the union of intervals gives the area and the first moments in closed form (the trapezoid rule and Simpson's rule are exact on linear widths).
@@ -1169,7 +1459,72 @@ making them read this geometry is the next stages of #388 (the numbers they prod
 - **Output**: `projected` (X, Y, Z: `area`, `centre`; +/− directions are equal), `mean_projected_area`, `min_projected` and `max_projected` (`area` and the `direction`; the extremes over the direction set and the three body axes: `directions_measured` in all, so the maximum is a lower bound and the minimum an upper bound of the true extremes),
   `exposed_area`, `exposed_by_direction` (−X, +X, −Y, +Y, −Z, +Z), `exposed_by_part`, `internal_parts`, `skipped`, `repeated`, `parts_with_box`, `checks`.
 
-Not modeled: real shapes (STEP, #344), shadowing between parts for the thermal surfaces and the solar cells (a later issue, on the same geometry), and the drag coefficient or the pressure centre that would use these areas.
+- **Lit fraction of a face (shadowing, #424)**: the fraction of a box face that a distant source (the Sun) can see, with the shadows of the other boxes removed (`sat_analysis::structure::external_geometry::lit`; **the shadow of one box on another is only computed here**; solar generation (§5.5) and the thermal outer surfaces (§5.2) use the same function). It is not part of this report's output.
+  For a face `F` (outward normal `n`) and a direction `d` from the face toward the source: (1) if `n·d ≤ 0` the face receives no light (lit fraction 0, the usual back-face rule; a box never shades its own faces); (2) every other box is cut by the plane of `F`, and the part on the source side of the plane is projected along `d` onto the plane (a point at height `h` lands `h·tan θ` aside; the convex hull of the projected corners and of the edge crossings with the plane is the shadow polygon);
+  (3) the polygons are clipped to the face rectangle and united by the same planar union (`sat_astro::math::planar`); the lit fraction is `1 − shadow area / face area` (1e-12 snapped to 0 or 1). No grid and no new clipper; the Sun is a point source (no penumbra from its 0.27° radius).
+  **Flush rule**: a box that does not rise more than 0.1 mm (`SURFACE_TOLERANCE`) above the face's plane is not an occluder. A neighbour in the same plane, and the panel behind a cell mounted on it, never shade the face; a box that rises above the plane (even if its base is below it, as an embedded part) does.
+  **Footprint rule** (`Footprint`): a part that sits on the face covers the face under it: a box that touches or crosses the face's plane (within 0.1 mm), or a part whose mount chain (`mount_ancestors`) includes the face's part (the mount decides, not the tolerance: in the demo a cell is mounted 0.45 mm above its panel's box). For a **solar cell** (`Blocks`) that area is dark. For a **thermal outer surface** (`Credited`) it stays lit, because the surface's optical properties stand for the surface including what is mounted on it (the existing convention that the cells on a panel are counted through the panel's surface), so the area under such a part (its orthogonal projection on the face) is credited and only the shadow that reaches beyond it is subtracted.
+  A face is the box face whose normal best matches the part's written normal (`cos ≥ 0.999`, about 2.6°); a part with no box, or a normal that matches no face, is not shadowed (lit fraction 1) and is listed in the report's `unshadowed`. Results are cached per direction (`direction_key`, components rounded to 1e-12), so a fixed Sun direction is solved once.
+
+- **Shaded but not absorbed (thermal)**: the thermal `shadowing` output lists `casters` (parts that cast a shadow on a reported face in some sunlit sample) and `lost`: `parts` (the casters that have **no outer surface of their own** in the network), `power` (the direct solar heat summed over all surfaces without shadows minus with shadows, an orbit mean for `OrbitAverage`, a sample mean in `thermal.transient`) and `fraction` (`power` / absorbed heat with shadows).
+  **With plate subdivision (§ "Temperature distribution inside a plate")**: the lit fraction is still one value per outer surface (the whole face), and the shaded direct-solar input of that surface is then distributed over the plate's cells by area like any other external input, so the cells' sum equals the shaded face input (energy is conserved; tested). A shadow edge across a plate is therefore not resolved cell by cell; a per-cell lit fraction (each cell is a rectangle on the face) is a follow-up.
+  A part with no area and optical properties intercepts sunlight but absorbs nothing in the model, so that heat disappears. When `parts` is not empty and `fraction` exceeds `SHADOW_LOSS_WARNING_FRACTION` (2 %, defined only in `thermal::orbit_heat::external`), the analysis adds a warning check (key `shadow_loss`; `thermal.steady` gives one check, for the case with the largest fraction). The remedy is to give the shading part an external surface (area, normal, absorptivity, emissivity) or to lump it into the surface it covers. Covered faces still radiate to space (not changed).
+
+Not modeled: real shapes (STEP, #344), penumbra from the Sun's disc, and a drag or reflection coefficient that depends on the face (the per-face coefficients of #424 are not part of this change).
+
+### 5.10 Finite-element modal analysis (`structure.modal_fem`, #370)
+
+`structure.modal_fem` meshes the panels of the design into flat shell elements (one common grid per body axis, so panels that share an edge or meet at a T-junction are joined at shared nodes; panels that are not aligned with the body axes get their own grid), optionally adds the frame as beam members along the edges of its box, and returns the lowest natural frequencies of the whole body
+with each mode's effective mass fraction per axis and class (rigid, axial, lateral, local). It is a **launch analysis**: parts are placed in the launch configuration (§7.11), so a deployable is a lumped mass at its stowed pose like any other part (nothing stowed-specific is built).
+It is an order-of-magnitude and trend tool, not a detailed model. How the model is built from the design (`fune_projection::structure::modal_fem`):
+
+- **Panels.** Every part of role `panel` is a rectangular mid-surface: its box centre is the centre, the thinnest box extent is the normal, the other two extents are the sides, `thickness` and the material (`analysis/structure.toml`, read by the same code as `structure.modal_estimate`) give the stiffness.
+  A panel whose box follows the body axes (a multiple of 90°) is meshed on the common grid. **A panel whose box is turned by any other rotation is modelled too** (see *Skewed panels* below). Joints are found from sizes and positions with a tolerance (default 1 mm, `joint_tolerance`) and listed in `joints`.
+  If a panel has a `mass`, the mass matrix uses it (a lightened panel) while the stiffness still comes from density and thickness; otherwise the mass is density × thickness × area.
+- **Frame.** Parts of role `structure` are read by `fune_projection::structure::modal_fem::frame`. **Without** the optional attributes `member_width` (outer side of a square section, mm) and `member_wall` (wall thickness, mm; no wall means a solid bar) the frame adds **mass only**, spread over the whole model in proportion to the area each node carries (it is "frame stiffness not modelled": no `frames` entry appears in the output, and the frequencies tend to be on the **low** side).
+  **With `member_width`** the frame also needs its `size` (the box; its sides must follow the body axes) and a `material`, and it becomes **beam members along the 12 edges of its box** (the rails and end-frame members of a CubeSat-like structure):
+  - *Nodes.* No new nodes: the members join the existing mesh nodes that lie on each box edge (within the joint tolerance), in order along the edge, one beam element between neighbours. An edge with fewer than two nodes (no panel runs along it) is **not** a member and is listed in `frames[].unmodelled_edges` (as `+x +y`: the two faces that make the edge).
+  - *Element.* A 2-node Euler–Bernoulli beam (6 degrees of freedom per node, shear deformation neglected: the members are slender), cubic bending, linear axial and torsion, square section: solid `A = a²`, `I = a⁴/12`, `J = 0.1406 a⁴`; tube with wall `t`: `A = a² − (a − 2t)²`, `I = (a⁴ − (a − 2t)⁴)/12`, `J = t (a − t)³` (thin-walled closed section). `E` and `ν` come from the frame's material (the same lookup as the panels, `structure::panel::properties`). The section sits on the panel mid-plane edge (no eccentricity) and the beams are added on top of the panels (the small overlap of the rail and the panel edge is not removed).
+  - *Mass.* The frame's `mass` attribute (× count) is the frame's mass; the section only gives stiffness (the same convention as a panel's `mass`). It is spread over the members in proportion to their length, half on each end node, so the total is preserved (a test checks it); members have no rotary inertia. A frame with no member (every edge unmodelled) puts its mass over the whole model like a mass-only frame, so the mass is never lost.
+  - *Output.* `frames[]` (`id`, `members`: beam elements, `edges`: box edges modelled, `unmodelled_edges`, `mass`) appears only when a frame with a section is in the model.
+- **Mounted parts.** Every other part with a `mass` is a lumped mass (mass × count) at the part's origin (its centre of mass in this model), tied rigidly and spread over the projection of its `size` box when the box follows the body axes. **Where it is tied** is decided in this order:
+  1. the `tie` setting (a panel);
+  2. the nearest panel **or frame with members** in the part's mount chain (a part mounted on a panel is tied to that panel; a part mounted on a frame that has a section is tied to the frame's members);
+  3. otherwise the **nearest panel(s)** (found by the analysis). Panels whose distance is within the joint tolerance of the nearest one are all nearest: the part's mass is **split equally** among them
+     (a part midway between two panels gives each half), so no panel is favoured by ID order. A `tie` or a mount on a panel always means exactly one panel.
+  A frame whose members could not be built (every edge unmodelled) is skipped in step 2, so a part on it falls to step 3.
+  - *Tie to frame members* (`sat_analysis::structure::modal_fem::frame_tie`). For a point `p` (the part's position; with a `size` box, 5 × 5 × 5 points over the box, each carrying an equal share), find on each modelled box edge the closest point `qₑ` (within the nodes' extent) and its distance `dₑ`. Choose the pair of edges that minimises `dᵢ + dⱼ + dist(p, segment qᵢqⱼ)` (ties go to the edge listed first: axis `x`, `y`, `z`, then the faces in the order `−`, `+`), project `p` onto the segment and give `qᵢ` the share `1 − s`, `qⱼ` the share `s`; each point is then spread linearly over the two nodes that bracket it on its edge.
+    The total mass is preserved exactly and so is the first moment about the **projected** point: if `p` lies on the segment (for example a part on a face midway between two rails) its centre of mass is unchanged; otherwise only the offset perpendicular to the segment is dropped, the same kind of simplification as projecting onto a panel. Rotary inertia of the offset is not modelled.
+  `attachments` has one row per part and tie target: the panel (or, for a tie to members, the frame in `panel` and the box edge in `edge`), the distance, `share` (the fraction of the part's mass, 1 unless split or spread over several edges) and `automatic` (true for the nearest-panel choice and for every tie to members, whose nodes the analysis picks).
+  A part that is far from its panel puts its mass at the nearest point of the panel; the rotary inertia of the offset is not modelled.
+- **Skewed panels.** A panel whose box is not aligned with the body axes is meshed on **its own uniform in-plane grid** (cells of at most the mesh size; `fune_projection` passes the box pose as `orientation`) and placed in the body frame by that pose. Each shell element is formulated in the panel plane and its stiffness matrix is rotated to the body axes (`assemble::to_global`: the same step the axis-aligned elements and the beam members go through, where the rotation is a permutation of the axes), so a rigid rotation of a panel or of the whole structure does not change the frequencies (checked to 1e-7 against the axis-aligned model in the tests; the drilling penalty is formulated about the panel normal and rotates with the element).
+  Nodes that coincide (within the joint tolerance) with a node of another panel are **shared**; that is the only way a skewed panel is joined: where its edge lies along another panel's surface and the grids do not match, the panel is **not** tied there (a general node-to-surface tie is not built). The output says so, per skewed panel in `skewed_panels[]`:
+  `joined_edges` (all nodes of the edge are shared with another panel), `partly_joined_edges` (some are, for example only the corner) and `unjoined_edges` (none are: a free edge, or a joint whose grids do not match). A panel with four unjoined edges is a mechanism (its rigid-body modes are reported). Skewed panels are not checked for overlap with other panels.
+  Lumped masses are tied to skewed panels like any other panel (projection onto the panel plane in its local axes, the footprint projected onto the in-plane axes).
+- **Mass.** The model mass is the **bare** mass (no growth allowance, no propellant, which is not a part): the sum of mass × count of all parts that have a `mass`. For the demo it equals the mass budget's bare dry total.
+- **Constraint.** `launch_constraint` (§5.6): `base_fixed` fixes all degrees of freedom of the nodes on the face; `rails` fixes the four edges parallel to the launch axis (body z) laterally and the eight corners along it (a CubeSat dispenser);
+  `tabs` fixes the translations of the two edges of the face parallel to the launch axis; `fixed` fixes the translations of the nodes on the face (rotations free); `free` has no constraint (tests and diagnostics; the rigid-body modes are reported as `rigid`).
+  There is no default: without a support type the analysis is a missing input.
+- **Settings** (`analysis/structure.toml`, all optional; `fune set analysis.structure.modal.mesh_size "20 mm"`):
+
+  ```toml
+  [modal]
+  mesh_size       = { value = 20.0, unit = "mm" }   # element size; default min(shortest panel edge / 4, 25 mm)
+  joint_tolerance = { value = 1.0, unit = "mm" }    # edges and planes closer than this are the same; default 1 mm
+  [modal.tie]
+  OBC = "PANEL_MZ"                                    # part -> panel; overrides the mount chain and the nearest panel
+  ```
+
+  A `tie` that names a part that does not exist or something that is not a modelled panel is a missing input at that setting. A rename of a part or panel does not rewrite `tie` (the check at analysis time catches it).
+  Pairs of panels that must not be joined are not supported yet.
+- **Mode shapes.** The analysis can also return the shape of each computed mode, for display. Ask for it explicitly; the default output does not contain it (it is about 290 KB for the demo, 6 modes, against about 32 KB for the result without it):
+  `fune analyze structure.modal_fem --json --detail`, or `POST /analyses/structure.modal_fem` with `{ "detail": true }` (both call `analysis::run_analysis`). The result then has a `detail` field of the type named by `detail_type` in `fune analyze ls --json` (`ModalFemShapes`):
+  `mesh` (`nodes`: positions in the body frame in m; `groups`: for each panel its `id` and the node indices of its quadrilaterals, counter-clockwise about the panel normal; `lines`, present only when a frame has members: the end nodes of each beam element), `normalization` and `modes` (for each mode, the `index` that matches `modes[].index`,
+  `displacement`: the nodal translation (x, y, z) for each node of `mesh.nodes`, and `magnitude`: its norm). **Normalization** `max_translation`: the eigenvector is scaled so the largest nodal translation magnitude is 1, so a shape is dimensionless and only its form is meaningful (not an amplitude); the sign is fixed (the first component that is at least 99 % of the largest is positive).
+  Rotations are not returned, and the lumped masses are not drawn. The GUI draws it in the row of the analysis (Structure page): the undeformed mesh as faint lines and the deformed mesh coloured by `magnitude` (the frame's members are drawn as lines in the same faint style, not coloured); the amplitude slider and the animation are display settings only (position = node + scale × displacement).
+- **KPI.** `first_frequency`: the lowest non-rigid mode (it may be a local mode such as a panel carrying heavy parts; the output separates `lowest_lateral` and `lowest_axial`). There is no verdict of its own: `structure.launch_fit` takes the lowest global lateral and axial modes (and the searched range) and compares them with the launcher's minimums (§5.6).
+
+Known biases: **without a member section** the frame stiffness is omitted (frequencies low); **with one** the members are straight beams of one square section along the box edges, with no eccentricity to the panels, no shear deformation, and any stiffness of the real corner joints is rigid (frequencies tend high compared with bolted joints); parts are tied rigidly at one point or one projected area (a heavy part on a thin panel gives a low local mode), the tie to members drops the offset from the segment of the two chosen edges, the nearest-panel tie is a modelling choice made by distance only, the joints between panels are rigid, and the joints of skewed panels exist only where nodes coincide.
 
 ## 6. Product tree and mounting
 
@@ -1418,6 +1773,25 @@ duty        = 0.8        # fraction of the allowed firing time actually fired (0
 steering    = "tangential"  # tangential (velocity direction. If inclination also changes, Edelbaum's yaw angle) / inertial (fixed to the initial direction)
 ```
 
+A maneuver can instead carry a **written ΔV**, an allowance for trajectory correction, orbit maintenance or margin that is not computed from an orbit change:
+
+```toml
+# maneuvers/TCM.toml
+label    = "Trajectory correction allowance"
+category = "station_keeping"   # the row of the ΔV budget (the purpose; `label` says it in words)
+method   = "impulsive"         # impulsive or low_thrust
+thruster = "CHEM"
+after    = "MARS_TRANSFER"
+delta_v  = { value = 15.0, unit = "m/s" }
+```
+
+- It is the same maneuver entity: it takes its place in the sequence by `after`, fires the thruster it names, and `propulsion.maneuvers`, `propulsion.dv_budget`, `propulsion.propellant`, `propulsion.thruster_usage` and `propulsion.mass_properties` count it like any other maneuver
+  (propellant by the rocket equation with the mass at that point, the ΔV margin, the budget row of `category`). The orbit does not change, so the maneuvers after it see the same orbit.
+  `impulsive` is one burn (no finite-burn loss) and `low_thrust` a continuous burn (the transfer time is the burn time); without a thruster only the ΔV is counted (note `no_thruster`). The result carries the note `written_delta_v`.
+- It cannot be combined with `[target]`, `via_altitude` or `[transfer]` (`maneuver.delta_v_conflict`, error): those compute ΔV from an orbit change. `finite_burn` and `propagated` need an orbit (`maneuver.delta_v_method`, error),
+  a negative or non-finite value is an error (`maneuver.delta_v_negative`), and the unit must be a velocity (`unit.dimension`). There is no repeat count: write one maneuver per allowance (or the total).
+- Edit with `fune maneuver add|set ... --delta-v "15 m/s"` (the GUI maneuver dialog has the same field; `set` rewrites the whole maneuver, so leaving the flag out removes it).
+
 A maneuver that targets another planet can carry the two dates of the transfer:
 
 ```toml
@@ -1472,6 +1846,40 @@ arrival   = "2029-09-25T00:00:00Z"
     The dated transfer result still carries C3, the excess speeds and the departure declination (as launch requirements; `departure_by` is in the result), and `dated_transfer_plane` and `dated_transfer_timing` are not raised
     (the parking orbit and the end of the previous maneuver play no part). `structure.launch_fit` takes the C3 of the first such transfer for the capability curve (§5.6), and its launch mass is the mass at injection.
     Check: `maneuver.departure_by_launcher_after` (warning) when such a maneuver follows another maneuver (`after`): the launcher injects the spacecraft directly, so a maneuver before it does not fit (it is still counted).
+  - **Swing-bys** (`[[transfer.flybys]]`, optional, in date order between `departure` and `arrival`): the transfer passes intermediate planets (planets that orbit the same parent as the departure and arrival bodies; a body may not be followed by itself).
+    ```toml
+    [transfer]
+    departure = "2028-10-01T00:00:00Z"
+    arrival   = "2030-03-01T00:00:00Z"
+
+    [[transfer.flybys]]
+    body         = "venus"
+    date         = "2029-01-10T00:00:00Z"
+    powered      = true                                  # optional, default true
+    min_altitude = { value = 400.0, unit = "km" }        # optional minimum periapsis altitude
+
+    [[transfer.flybys]]
+    body = "earth"
+    date = "2029-06-01T00:00:00Z"
+    ```
+    The transfer becomes a chain of Lambert legs between the positions of consecutive bodies on the given dates (`sat_astro::transfer::dated_transfer_via`; a transfer without flybys is the same code with one leg and gives identical numbers).
+    The departure burn comes from the first leg, the capture burn from the last, and each flyby from the two legs around it (patched conics, `sat_astro::transfer::flyby_geometry`):
+    - v∞ in and out are the leg velocities minus the body's velocity; the turn angle δ is the angle between them. A half turn is `asin(1/e)` with `e = 1 + r_p v∞²/μ`; the periapsis radius `r_p` is solved (bisection) so that the two half turns sum to δ.
+      For `|v∞in| = |v∞out|` this is `sin(δ/2) = 1/(1 + r_p v∞²/μ)`, i.e. `r_p = μ/v∞² (1/sin(δ/2) − 1)`. If the two speeds differ, the **periapsis burn** is the difference of the periapsis speeds `√(v∞² + 2μ/r_p)` of the two hyperbolas (zero within `1e-3 m/s` for a ballistic flyby).
+    - `min_altitude` is the minimum periapsis altitude above the body's equatorial radius; it must be positive (`maneuver.flyby_altitude`; a periapsis at or below the surface is never accepted). If omitted, a convention per body class applies (`transfer::default_min_altitude_m`, the only place):
+      300 km for Venus, Earth and Mars (outside the sensible atmosphere and navigation uncertainty), 200 km for Mercury (no atmosphere). **The giant planets have no convention** (radiation belts, rings and the depth of the atmosphere differ), so omitting it for them is an error: write the altitude. These are concept-design conventions, not mission values.
+    - If δ exceeds the maximum turn at the minimum altitude, the flyby is **infeasible with these dates** in this model: the result has `feasible = false`, the required periapsis radius/altitude (below the minimum, possibly below the surface), and a warning `swing_by_turn`.
+      The periapsis burn is taken at the minimum radius and the missing turn `δ − δ_max` is charged as the chord `2 |v∞out| sin(Δ/2)` (a change of the outgoing excess velocity), so the total delta-v is still the sum of the pieces; this is a simple estimate of the cost, not an optimised solution.
+    - `powered = false` declares the flyby unpowered: the periapsis burn is not counted (and `swing_by_unpowered` warns when the speeds differ by more than `1e-3 m/s`).
+    - Total transfer delta-v = departure burn (unless `departure_by = "launcher"`) + the flyby burns + the capture burn. The flyby burns are burns of the maneuver between departure and capture (central body = the flyby body, `v_inf` = the incoming excess speed), counted by the budget, propellant, thruster usage and mass analyses like any other burn;
+      a finite-burn transfer time ignores them (they are in the middle of the flight). The note `swing_by` says the flybys are patched conics. The flyby is **instantaneous**: the time inside the flyby body's sphere of influence and the hyperbolic arc are not modelled.
+    - The result (`dated_transfer.flybys` of `propulsion.maneuvers`, `dated_transfers[].flybys` of `propulsion.dv_budget`) has per flyby: the body and date, v∞ in/out, the turn angle, the required periapsis radius and altitude, the minimum altitude, the maximum turn, the periapsis burn, the missing-turn delta-v, whether it is counted (`powered`) and `feasible`.
+    - Checks: `maneuver.flyby_date`, `maneuver.flyby_altitude` (model); `maneuver.flyby_epoch`, `maneuver.flyby_ephemeris`, `maneuver.flyby_order` (flyby dates strictly increasing between the departure and arrival dates), `maneuver.flyby_bodies` (`fune_projection::maneuver_dates`).
+    - Edit with the repeatable flag `--flyby "venus@2029-01-10T00:00:00Z,min_altitude=400 km,powered=false"` (`BODY@DATE`, the options optional; needs `--depart` and `--arrive`; `fune maneuver add|set`, HTTP `maneuver_add|maneuver_set` with `flybys`, the text form `ManeuverFlyby::{to_text, from_text}`).
+      The GUI maneuver dialog has a list editor for them (and the maneuver table shows them), and sends the written flybys back unchanged when other fields are edited.
+    - Not supported (refused, not ignored): `propulsion.launch_window` returns an error for a design where a maneuver has flybys (it searches two dates).
+    - `source = "transfer"` for such a maneuver is the **chain of arcs** of §1 (one Kepler arc per leg, position continuous and velocity jumping at each flyby date). Modelled: the heliocentric flight between the departure and arrival spheres of influence, with an instantaneous change of velocity at each flyby date; **not modelled**: the flight through the flyby body's sphere of influence (the time spent inside it, the hyperbolic arc, the offset of the aim point from the body's centre) and any perturbation.
+    - `propulsion.transfer_check` runs **leg by leg** (`leg` 1, 2, … on each result, note `legs_not_chained`): each leg is propagated from its own Lambert velocity, so the arrival miss of a leg is the aim error at that leg's end body; what is not verified is the flight through the flyby body's sphere of influence and a propagation chained across the flyby (the cruise orbit above is the ideal chain of Kepler arcs, not that propagation).
   - `propulsion.transfer_check` re-propagates each dated transfer and reports the arrival miss (against the arrival body's sphere of influence), the closest approach (distance and time), the difference of
     the arrival excess speed from Lambert's, the bodies used as third bodies, and a coarse trajectory (heliocentric ecliptic x and y of the spacecraft and both bodies, and the distance to the arrival body, in the `series`).
     The cruise starts at the centre of the departure body on the departure date with Lambert's heliocentric velocity and runs under the point-mass gravity of the Sun and the other planets (Earth too, unless it is an end).
@@ -1537,8 +1945,9 @@ by           = "system-lead"
 | `by` | author | — |
 | `note` | memo | — |
 
-A new file is written in the order of the table. When adding a field to an existing file, as with other records (cases, harnesses), it is appended at the end without moving the current lines
-(to keep diffs small; `fune fmt` does not reorder keys). `fune source set` and the GUI's sources page write with the same Op `set_source`. The material itself (the PDF) is not placed in the repository;
+A new file is written in the order of the table. When adding a field to an existing file, as with other records (cases, harnesses, configurations, maneuvers, phases, requirements), the new key goes right after the
+key that precedes it in that order (at the top of the key lines if none of the earlier keys is in the file), so an added key ends up where a freshly written file has it; the current lines, their order and their comments do not move
+(to keep diffs small; `fune fmt` does not reorder keys, so a file whose keys were ordered by hand stays as it is and only the added key is placed). `fune source set` and the GUI's sources page write with the same Op `set_source`. The material itself (the PDF) is not placed in the repository;
 it is referenced by the URL in `ref`, and the SHA-256 of what was retrieved is kept.
 
 - **The source of a value**, `from`, has three keys: `source` (a source ID), `at` (the position within the material, such as page, table or section like `p.12 Table 3`, as written), and `note`.
@@ -1599,6 +2008,7 @@ check    = "range_low:BAT:operating"
 evaluated for, the evaluated value (a budget's total; analysis checks carry a message but no value), and the verdict. Each quantified case is judged on its own (an analysis or budget runs once per case and is reused across requirements).
 The row's verdict is the worst case, ranked **violation > not verified > warning > ok** (a requirement is not "ok" if any of its cases could not be verified). Not verified has a reason:
 `no_link` (nothing to verify it), `design_input` (the requirement gives an analysis input, so there is nothing to verify), `missing_inputs` (the analysis or budget lacks inputs, listed in `detail`), `failed`, `key_not_produced`, `unknown_target` (the analysis, budget or case does not exist).
+**Which check and which case the row shows.** A check that compares a value against a criterion carries an optional `margin` (JSON `margin`, omitted when absent): the number the analysis derived its verdict from — smaller is tighter and negative means the criterion is violated (a ratio margin `capability / demand − 1`, a dB or temperature difference, or a budget's usable amount minus its total; `sat_analysis::spec::Check::with_margin`). The unit differs by kind of check, so margins are only ever compared among the checks one requirement key covers (for example `margin` covers every `margin:<link>@<station>`), which are of one kind. Facts and "not verified" warnings carry no margin. Among the checks a requirement covers, the row takes the worst verdict and, among those, the smallest margin; a check without a margin comes after those with one, and between checks without margins the first stays (the earlier behaviour). Across cases the row takes the worst rank (violation > not verified > warning > ok), then the smallest margin, then the first case. The row names the check (`check`: key, label, owner such as the mode) and the case (`decisive_case`, and `decisive` on the case) its message and value come from; a budget row names only the case (its margin is the budget's own: usable amount minus total). The margin is shown as the check and case, not as a number (its unit differs by kind); it is in `--json` as `margin`.
 The counts (`summary`) and the verdicts are computed in `fune_service::requirements`; the Web only lays them out. The exit code of `fune requirement compliance` is 1 when any requirement is violated (`--deny-unverified` adds the not verified ones; warnings never fail it).
 
 #### Criteria live in requirements (#10 stage 2)
@@ -1618,7 +2028,7 @@ Design values and modelling inputs stay settings or part attributes (see the tab
 | `comm.link_budget` / `pfd` | `at_most`, Dimensionless (dB) | the PFD limit of a downlink; without one no PFD check is made |
 | `aocs.slew_time` / `slew_time` | `at_most`, Time | the required slew time; without one no check is made |
 | `orbit.decay` / `max_lifetime` | `at_most`, Time | the lifetime limit; without one no check is made |
-| `structure.modal_estimate` / `lateral`, `axial` | `at_least`, Frequency | the required natural frequency of beams, and it only tightens the minimum of the selected launcher and dispenser (§5.6; the larger applies, and `structure.launch_fit` names which one). The demo has no beams, so these rows stay "not verified" |
+| `structure.modal_estimate` / `lateral`, `axial` and `structure.launch_fit` / `frequency:lateral`, `frequency:axial` | `at_least`, Frequency | the required natural frequency. A requirement may verify against either analysis; its value is a limit candidate of **both** (it only tightens the minimum of the selected launcher and dispenser; §5.6; the larger applies, and `structure.launch_fit` names which one). The demo has no beams, so its requirements verify against `structure.launch_fit` (judged with the finite-element mode, §5.6); against `structure.modal_estimate` they would stay "not verified" |
 | `thermal.steady`, `thermal.transient` / `range_low`, `range_high` | `at_least` / `at_most`, Temperature | a node's lower or upper temperature limit (see below) |
 
 - **Several requirements on one criterion**: the tightest applies (`at_most` the smallest, `at_least` the largest). The compliance table still judges **each row against its own constraint**:
@@ -1678,7 +2088,15 @@ law = "nadir_pointing"
   `fune case set-phase <case> <phase>`, `fune case unset-phase <case>` and `fune case set --phase <ID>`. How to write: after the top-level values, `[orbit]` and `[law.<mode>]` are heading tables
   (`fune_store::write::records::PHASE_SECTIONS`).
 - **GUI.** The phases page edits the heading fields in a dialog and the overrides in an "Edit overrides" dialog: the orbit override is the same settings table as the design orbit (`SettingsTable`) and the attitude law override is the same fields as the AOCS mode's law (`Attitude`); both take only where the values are written (`FieldEdit`: `usePhaseFieldEdit` sends `phase_field`, the design's own editors use `useSettingEdit`). "Copy the design orbit", "Remove override" and adding or removing a law override send `phase_copy_orbit`, `phase_unset_orbit`, `phase_unset_law` and `phase_field` to `POST /ops/from_command`. Not editable in the GUI: adding an orbit field that is not already in the file (as for the design orbit; use `fune phase set-field`), and removing a single field (`fune phase unset-field`).
-- Not used yet: the duration and the order do not drive any analysis, and maneuvers do not read phases (`after` still names a maneuver; §7.7).
+- **Duration in analyses.** The `duration` of a phase is read by `orbit.geometry` (the length of each leg) and by the RCS unloading term of `propulsion.dv_budget` (below). The order and the other fields do not drive any analysis, and maneuvers do not read phases (`after` still names a maneuver; §7.7).
+- **Attitude-control propellant over the phases** (`propulsion.dv_budget`, row `unloading`). When the design has thrusters of the AOCS role `thruster` (the RCS; not the `propulsion_thruster` of the maneuvers), momentum dumped by thrusters is added to the ΔV budget:
+  for every phase with a `duration` (in phase order) `aocs.rw_unloading` is evaluated **once** over its usual representative span in that phase's orbit, attitude law and configuration, and its daily result (secular momentum per orbit × orbits per day, the propellant for the worst of the body ±x, ±y, ±z by the simultaneous-firing rule of `aocs.unload_time`,
+  and the ΔV conversion with the spacecraft mass) is multiplied by the phase's days: dumped momentum `ΔH = H_day · T`, propellant `m = m_day · T` (one thruster: `m = ΔH / (L · Isp · g₀)` for the moment arm `L = |r − r_cm|` about the dumped axis),
+  ΔV `Δv_day · T`, and the sum over the phases is added to the budget row `unloading` (so the total and the margin include it; `unloading.legs` lists every phase with its duration, `dumped_momentum`, `propellant`, `delta_v` and `worst_direction`).
+  A **written** `unloading` maneuver (§7.7) is not replaced: its ΔV and the computed ΔV are both in the row (the row's `includes_rcs_unloading` says so). The attitude-law mode of a phase is the case's mode when a case is selected, else the only mode listed in the phase's `modes` that has an attitude law, else the only law of the design;
+  if none of these is unique, the input is missing (note `unloading_inputs_missing`). A phase without a `duration` is listed with `counted = false` and adds nothing; if no phase has a duration, the mission duration (`input = "mission_duration"`) is one leg in the design's orbit.
+  A phase in which no thruster can torque about the worst axis is **not** counted as zero: the budget carries the warning `unloading_direction` (and the note `not_unloadable` when no phase can be counted).
+  Without thrusters (unloading by magnetorquers) nothing is added (note `no_rcs`) and the output is unchanged. Magnetorquers are not used for unloading in this term; for a central body without a magnetic field model `aocs.unload_time` already reports that only the RCS can unload (`mtq_field_gap`).
 
 ### 7.11 configurations/: named overlays of part poses
 
@@ -1687,6 +2105,7 @@ A configuration is a named variant of the placement (stowed, deployed, a cruise 
 ```toml
 # configurations/STOWED.toml
 label       = "Stowed"
+label_en    = "Stowed"                    # optional English name
 description = "Paddle folded onto the +X face"
 
 [pose.SAP_PY]          # REPLACES SAP_PY's [pose] as a whole in this configuration (no per-key merge), relative to its unchanged mount point
@@ -1694,6 +2113,7 @@ position    = { x = 2.6, y = -1.5, z = 0.0, unit = "mm" }
 orientation = { w = 0.707107, x = 0.0, y = 0.0, z = -0.707107 }
 ```
 
+- **Names.** `label` is the display name as written (users usually write it in their own language) and the optional `label_en` is the English one. The GUI shows `label_en` in English and, when there is none, the ID (the same rule as for other records with a `label_en`: `nodeName` / `idWithName`); in Japanese it shows the ID with `label`. The keys are written in the order `label`, `label_en`, `description`; a file without `label_en` is unchanged.
 - **What it overrides.** Only the pose (`position` and `orientation`) of a part, relative to the mount point written in the part file (for a root, which has no mount, the pose in the body frame, §7.1). The mount target and mount point are not overridable. A part that the file does not list keeps its base pose, and the children of an overridden part follow it through the mount chain.
   Because the table is replaced as a whole, a key that the configuration does not write is the default (a missing `orientation` is the identity), not the base value. A design with no `configurations/` directory has the same files and the same numbers as before.
 - **One place decides.** `Design::pose_in(part, configuration)` returns the written pose in effect (the configuration's row, otherwise the part's own `pose`; an unknown configuration is the base). The mount resolution calls it, and nothing else does
@@ -1703,17 +2123,17 @@ orientation = { w = 0.707107, x = 0.0, y = 0.0, z = -0.707107 }
   and nothing is special for a root (the warning `configuration.pose_without_mount` of the first version is gone: a root's override is its body-frame pose in that configuration). `outline.root_pose` (warning, §5.3) is also given for a configuration that overrides the outline root's pose.
 - **References.** The keys of `[pose]` are part references in the reference index (`RefSite::ConfigurationPose`). Renaming a part rewrites the key, and removing a part removes its row (and an emptied `[pose]`), the same policy as a mode's part rows. The launch and phase selections are indexed as `RefSite::LaunchConfiguration` and `RefSite::PhaseConfiguration`. Renaming a configuration rewrites both selections. Removing it while either site names it is rejected with `ref.configuration`.
 - **How to write.** After the top-level values, `[pose.<PART>]` are heading tables with inline `position` and `orientation` (`fune_store::write::records::CONFIGURATION_SECTIONS`). `fune fmt` keeps this form.
-- **Ops**: `CreateConfiguration` (refused if the ID exists), `SetConfiguration` (writes `label` and `description`, creates the file if missing, keeps the `[pose.*]` rows), `RemoveConfiguration`, `RenameConfiguration` (moves the file and follows the reference index to rewrite launch and phase selections),
+- **Ops**: `CreateConfiguration` (refused if the ID exists), `SetConfiguration` (writes `label`, `label_en` and `description`; an empty `label_en` removes the key, creates the file if missing, keeps the `[pose.*]` rows), `RemoveConfiguration`, `RenameConfiguration` (moves the file and follows the reference index to rewrite launch and phase selections),
   and `UnsetConfigurationPose` (removes one part's override; an emptied `[pose]` table disappears and the heading stays; refused if the part has no override there, so a repeated reset is an error and not a silent no-op).
   **Placing a part in a configuration is the same `Place` Op as placing a part**, with one more optional `configuration`: the pose (`position`, `orientation`) is written to `[pose.<PART>]` of that configuration's file as a whole instead of the part's own `[pose]`, which is left untouched.
   The rules: `on` and `point` may be omitted, and if given must equal the part's mount (re-mounting per configuration is not possible, and `--root` is refused; for a root, giving a mount target is a re-mount and is refused too); the pose of a part with no mount is its body-frame pose; at least one of `position` and `orientation` is required (to go back to the base pose, remove the override); an unknown configuration or part is refused.
   The Op JSON is unchanged when `configuration` is absent.
 - **Placing in vehicle coordinates** (`fune part place --body-pos`, the GUI's 3-D drag, `POST /parts/{id}/place_body`) takes the configuration too. The body position is read in the resolved design of that configuration (`Resolved::in_configuration`), because the parents' poses may be overridden there, and converted to the mount-local pose by the same `fune_projection::pose::body_to_mount_local` as in the base; the result is a `Place` with `configuration`.
 - **Reading.** `PartRow.mount` and `PartRow.body` (part listings and the part detail) take an optional configuration (`GET /parts?configuration=`, `GET /parts/{id}?configuration=`, `PartViewRequest.configuration`, `fune part ls|show --configuration <ID>`) and return the poses in that configuration; an unknown configuration is an error (it is not read as the base).
-  `MountView.overridden` tells whether the configuration overrides the part's pose (the written `authored_*` values and `relative` are then the override). `GET /configurations` and `GET /design` (`configurations`) list the configurations: ID, label, description, the overridden part IDs, and the initial values of the editing fields.
+  `MountView.overridden` tells whether the configuration overrides the part's pose (the written `authored_*` values and `relative` are then the override). `GET /configurations` and `GET /design` (`configurations`) list the configurations: ID, label (the label, or the ID when there is none), `label_en` (or null), description, the overridden part IDs, and the initial values of the editing fields.
 - **Diagnostic when the base mount changes.** `[pose.<PART>]` is relative to the part's base mount point, so `Place` on a part's own mount (without `configuration`) that changes `on` or `point` while a configuration overrides that part returns the warning `configuration.mount_changed` for each such configuration
   (target `configurations.<ID>.pose.<PART>`, with the location of the row). It is a warning of the edit (in the Op result's diagnostics), not of a stored design, because the check of a stored design cannot know that the mount changed. Moving a mount point of the parent (`SetMountPoint`) is not detected.
-- **CLI** (the GUI sends the same arguments to `POST /ops/from_command`): `fune configuration ls|show|add|set|rm|rename`, `fune configuration unset-pose <ID> <PART>`,
+- **CLI** (the GUI sends the same arguments to `POST /ops/from_command`): `fune configuration ls|show|add|set|rm|rename` (`add` and `set` take `--label`, `--label-en` and `--description`; `ls` adds an "English name" column only when some configuration has one), `fune configuration unset-pose <ID> <PART>`,
   `fune part place <PART> --configuration <ID> --position "…" --rotation "…"` (`--on`/`--point` optional; `--body-pos "x y z mm"` reads vehicle coordinates in that configuration), and `fune part ls|show --configuration <ID>`.
 - The Layout page switches between Base and named configurations using the `configuration` URL parameter. In a named configuration, 3-D dragging and the placement fields write pose overrides (a root part's pose can be overridden too), the mount controls are disabled, and **Reset to base** removes the selected part's override. The configuration menu manages the records, and component detail lists the part's overrides and mount-relative poses.
   The center-of-mass marker is the structure mass-properties analysis requested with the selected configuration, so it follows the configuration being viewed.
@@ -1902,6 +2322,11 @@ Writing rules enforced by `fune fmt` and `fune check`.
 9. A renamed key is also read from its old name with the same value, and a `toml.renamed_key` warning urges migration. `fune fmt` (and `fune set` on that file) rewrites it to
    the new name (the line position, value and comments are kept; `=` is realigned). Typing the old name into `fune set` also writes the new name. The mapping is in one place, `fune_store::profile::renamed`. At present the only entry is
    `[case.*] earth_ir` → `planet_ir` in `analysis/thermal.toml` (§5.2).
+10. **List settings.** A setting whose value is a list of strings is written with `fune set` / `fune setting set` / `POST /ops/from_text` as comma-separated words
+   (`fune set analysis.thermal.nodes.BUS "OBC, PCDU, BAT"`) or as a TOML array of strings (`fune set analysis.thermal.nodes.BUS '["OBC", "PCDU", "BAT"]'`; the array may be empty).
+   Which keys are lists is decided by the key alone, from the one table `fune_model::design::setting_lists::LIST_SETTINGS` (at present `analysis.thermal.nodes.<NODE>` and `analysis.comm.stations`), never guessed from the text;
+   an unset key is typed the same way, and `fune unset` removes the key. The words are checked like the same references written in the file (`ref.*`), and `fune part rename` / `fune ground rename` rewrite them.
+   `to_cli` prints the comma-separated form.
 
 ### 10.3 TOML versions
 

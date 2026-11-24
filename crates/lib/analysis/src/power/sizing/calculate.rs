@@ -39,6 +39,7 @@ pub(super) fn margin_check<K: sat_units::typed::NamedKind>(
             quantity_text::<K>(required)
         ),
     )
+    .with_ratio_margin(margin)
 }
 
 pub(super) fn used(
@@ -46,15 +47,7 @@ pub(super) fn used(
     battery: &EnergyBalanceBattery,
 ) -> Result<SizingUsed, AnalysisError> {
     let o = &input.options;
-    let central = input.season.orbit.central;
-    let distance = o
-        .sun_distance
-        .or_else(|| central.nominal_sun_distance_m().map(Qty::from_raw))
-        .ok_or_else(|| {
-            AnalysisError::InvalidInput(format!(
-                "No conventional Sun distance for central body {central:?}. Set sun_distance"
-            ))
-        })?;
+    let (distance, sun_distance_source, sun_distance_epoch) = sun_distance_used(input)?;
     ensure_positive("Sun distance", distance.value())?;
     let (life, lifetime_source) = match input.design_life {
         Some(life) => (life, SizingLifetimeSource::DesignLife),
@@ -77,6 +70,8 @@ pub(super) fn used(
         dod_max: Fraction::new(battery.dod_limit),
         battery_strings: o.battery_strings.unwrap_or(1),
         sun_distance: distance,
+        sun_distance_source,
+        sun_distance_epoch,
         panels: input
             .array
             .panels
@@ -90,6 +85,30 @@ pub(super) fn used(
     };
     validate_used(&u)?;
     Ok(u)
+}
+
+/// 発電の強さを決める太陽距離: 設定があればそれ、なければ中心天体の慣例値（地球・月は 1 AU）、それも無い中心天体
+/// （火星など日心距離が変わる）は、季節の走査の期間（ミッション期間）の中の太陽距離の最大（最悪の日。発電が最小）。
+/// 最大は軌道の関数としての太陽距離（ミッション幾何の 1 か所、`sun_distance_extremes_over`）から取る。
+fn sun_distance_used(
+    input: &SizingInput,
+) -> Result<(Qty<Length>, SizingSunDistanceSource, Option<Epoch>), AnalysisError> {
+    if let Some(d) = input.options.sun_distance {
+        return Ok((d, SizingSunDistanceSource::Setting, None));
+    }
+    let orbit = &input.season.orbit;
+    if let Some(d) = orbit.central.nominal_sun_distance_m() {
+        return Ok((Qty::from_raw(d), SizingSunDistanceSource::Nominal, None));
+    }
+    let x = sun_distance_extremes_over(
+        &Trajectory::from(orbit.clone()),
+        input.season.duration.value(),
+    )?;
+    Ok((
+        x.max.distance,
+        SizingSunDistanceSource::SpanMax,
+        Some(x.max.epoch),
+    ))
 }
 
 fn validate_used(u: &SizingUsed) -> Result<(), AnalysisError> {

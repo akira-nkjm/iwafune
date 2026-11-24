@@ -47,8 +47,12 @@ pub mod attr {
     pub const MIN_FREQUENCY_LATERAL: &str = "min_frequency_lateral";
     /// 分離時の角速度の上限（チップオフ）
     pub const MAX_TIP_OFF_RATE: &str = "max_tip_off_rate";
+    /// 打ち上げ時の拘束の種類（列挙。語彙は属性定義の `symbols`）
+    pub const CONSTRAINT: &str = "launch_constraint";
+    /// 拘束する面（列挙。`base_fixed`・`tabs`・`fixed` が使う）
+    pub const CONSTRAINT_FACE: &str = "launch_constraint_face";
     /// すべて（組み込みの種別の属性と、定義のテストの照合に使う）
-    pub const ALL: [&str; 8] = [
+    pub const ALL: [&str; 10] = [
         MAX_PAYLOAD_MASS,
         PAYLOAD_MASS_BY_C3,
         ENVELOPE,
@@ -57,6 +61,8 @@ pub mod attr {
         MIN_FREQUENCY_AXIAL,
         MIN_FREQUENCY_LATERAL,
         MAX_TIP_OFF_RATE,
+        CONSTRAINT,
+        CONSTRAINT_FACE,
     ];
 }
 

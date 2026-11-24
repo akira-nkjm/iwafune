@@ -29,6 +29,23 @@ pub fn parse(m: &Maneuver) -> Option<Result<Dates, (&'static str, String)>> {
     Some(read("departure", &tr.departure).and_then(|d| Ok((d, read("arrival", &tr.arrival)?))))
 }
 
+/// `[[transfer.flybys]]` の天体と日付を読む（日付の順の並びのまま。読めない通過は `Err` に理由の英語の 1 文）。
+pub fn parse_flybys(m: &Maneuver) -> Vec<Result<(CentralBody, Epoch), String>> {
+    let Some(tr) = m.transfer.as_ref() else {
+        return Vec::new();
+    };
+    tr.flybys
+        .iter()
+        .enumerate()
+        .map(|(i, f)| {
+            let text = f.date.trim();
+            Epoch::parse(text)
+                .map(|d| (central_body(f.body), d))
+                .map_err(|e| format!("Cannot parse the date of flyby {} ({e})", i + 1))
+        })
+        .collect()
+}
+
 /// マヌーバの前の中心天体（`after` の鎖をたどり、目標の天体を書いたマヌーバで替わる。始めは最初の軌道の中心天体）。
 pub fn central_before(design: &Design, m: &Maneuver) -> CentralBody {
     let mut chain = Vec::new();
@@ -120,6 +137,84 @@ fn check_one(
             );
         }
     }
+    check_flybys(design, m, (departure, arrival), out);
+}
+
+/// 途中のスイングバイの診断（`transfer.flybys`）: 日付が読める・暦の範囲・出発と到着の間で順に増える・
+/// 通過の天体が出発・到着の天体と同じ親を回る惑星で、隣り合う天体と別。
+fn check_flybys(
+    design: &Design,
+    m: &Maneuver,
+    (departure, arrival): Dates,
+    out: &mut Vec<Diagnostic>,
+) {
+    let flybys = parse_flybys(m);
+    let flyby_count = flybys.len();
+    if flyby_count == 0 {
+        return;
+    }
+    let id = m.id.as_str();
+    let entity = EntityKey::Maneuver(id.to_owned());
+    let mut push = |code: &str, message: String| {
+        out.push(
+            Diagnostic::error(code, message)
+                .with_target(Target::maneuver(id, Some("transfer.flybys")))
+                .at(design.source_map.locate(&entity, &["transfer", "flybys"])),
+        );
+    };
+    let mut nodes = vec![(central_before(design, m), departure)];
+    for (i, f) in flybys.into_iter().enumerate() {
+        match f {
+            Ok((body, date)) if covers(date) => nodes.push((body, date)),
+            Ok((_, date)) => push(
+                "maneuver.flyby_ephemeris",
+                format!(
+                    "The date {} of flyby {} is outside the range of the ephemeris (1800 to 2050 without DE440)",
+                    date.to_iso(),
+                    i + 1
+                ),
+            ),
+            Err(why) => push("maneuver.flyby_epoch", why),
+        }
+    }
+    if let Some(to) = m.target.body.map(central_body) {
+        nodes.push((to, arrival));
+    }
+    if nodes.len() < 2 + flyby_count {
+        return; // 読めない通過があれば、順序・天体の検査はしない
+    }
+    for pair in nodes.windows(2) {
+        for (code, message) in leg_problems(pair[0], pair[1]) {
+            push(code, message);
+        }
+    }
+}
+
+/// 隣り合う節点（出発・通過・到着の天体と日）`(a, ta)` → `(b, tb)` の問題（日付が増えない・同じ親を回る別々の惑星でない）。
+fn leg_problems(
+    (a, ta): (CentralBody, Epoch),
+    (b, tb): (CentralBody, Epoch),
+) -> Vec<(&'static str, String)> {
+    let mut out = Vec::new();
+    if tb.seconds_since(ta) <= 0.0 {
+        out.push((
+            "maneuver.flyby_order",
+            format!(
+                "The flyby dates must increase strictly between the departure and arrival dates ({} is not before {})",
+                ta.to_iso(),
+                tb.to_iso()
+            ),
+        ));
+    }
+    if !(a != b && a.parent().is_some() && a.parent() == b.parent()) {
+        out.push((
+            "maneuver.flyby_bodies",
+            format!(
+                "Consecutive bodies of a swing-by transfer must be different planets orbiting the same parent; {a:?} followed by {b:?} is not supported"
+            ),
+        ));
+    }
+    out
 }
 
 #[cfg(test)]
@@ -144,6 +239,7 @@ mod tests {
             thruster: None,
             after: after.map(str::to_owned),
             via_altitude: None,
+            delta_v: None,
             target: ManeuverTarget {
                 body: Some(body),
                 ..ManeuverTarget::default()
@@ -153,6 +249,7 @@ mod tests {
                 departure: Some(tr.0.to_owned()),
                 arrival: Some(tr.1.to_owned()),
                 departure_by: None,
+                flybys: Vec::new(),
             }),
         }
     }
@@ -214,6 +311,65 @@ mod tests {
                 Some("maneuvers.C.transfer".to_owned()),
                 "maneuver.transfer_bodies".to_owned()
             )]
+        );
+    }
+
+    fn with_flybys(flybys: Vec<(CentralBodyKind, &str)>) -> Maneuver {
+        let mut m = maneuver("M", None, CentralBodyKind::Mars, GOOD);
+        m.transfer.as_mut().unwrap().flybys = flybys
+            .into_iter()
+            .map(|(body, date)| fune_model::design::ManeuverFlyby {
+                body,
+                date: date.to_owned(),
+                min_altitude: None,
+                powered: None,
+            })
+            .collect();
+        m
+    }
+
+    /// 通過の検査: 日付の順（出発と到着の間で順に増える）・読めない日付・暦の範囲・隣り合う天体は別の同じ親の惑星。
+    #[test]
+    fn flybys_are_checked_for_order_dates_and_bodies() {
+        use CentralBodyKind::{Earth, Moon, Venus};
+        let ok = "2029-02-01T00:00:00Z";
+        assert!(codes(with_flybys(vec![(Venus, ok)])).is_empty());
+        // 出発より前・到着より後・逆順
+        assert_eq!(
+            codes(with_flybys(vec![(Venus, "2028-11-01T00:00:00Z")])),
+            ["maneuver.flyby_order"]
+        );
+        assert_eq!(
+            codes(with_flybys(vec![(Venus, "2029-10-01T00:00:00Z")])),
+            ["maneuver.flyby_order"]
+        );
+        assert_eq!(
+            codes(with_flybys(vec![
+                (Venus, "2029-03-01T00:00:00Z"),
+                (Earth, ok)
+            ])),
+            ["maneuver.flyby_order"]
+        );
+        assert_eq!(
+            codes(with_flybys(vec![(Venus, "soon")])),
+            ["maneuver.flyby_epoch"]
+        );
+        assert_eq!(
+            codes(with_flybys(vec![(Venus, "2300-01-01T00:00:00Z")])),
+            ["maneuver.flyby_ephemeris"]
+        );
+        // 出発（地球）と同じ天体が続く・月は別の親・到着（火星）と同じ天体が続く
+        assert_eq!(
+            codes(with_flybys(vec![(Earth, ok)])),
+            ["maneuver.flyby_bodies"]
+        );
+        assert_eq!(
+            codes(with_flybys(vec![(Moon, ok)])),
+            ["maneuver.flyby_bodies", "maneuver.flyby_bodies"]
+        );
+        assert_eq!(
+            codes(with_flybys(vec![(CentralBodyKind::Mars, ok)])),
+            ["maneuver.flyby_bodies"]
         );
     }
 }

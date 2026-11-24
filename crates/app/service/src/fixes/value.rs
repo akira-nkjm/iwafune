@@ -2,6 +2,7 @@
 //! 次元の名前と入力の例は `sat_units`、列挙の語彙は属性定義（`AttributeDef::symbols`・`value_type`）から引き、表をここに持たない。
 
 use super::{Design, Fix, MissingInput, ParamPath, quote};
+use fune_model::path::{SettingPath, SettingScope};
 use fune_model::value::ValueType;
 use fune_model::value::units::unit_dimension;
 use fune_projection::{CatalogFix, Choice};
@@ -27,6 +28,23 @@ pub(super) fn example_of(dimension: Option<&str>) -> Option<String> {
     sat_units::format::input_example(dimension?)
 }
 
+/// 曲線（表）の入力の例（`1:1 2:0.5 (mm -> Gy/yr)`。引数と値の次元名から、それぞれの表示単位で書く）。読めなければ None。
+pub(super) fn curve_example(at_dimension: &str, dimension: &str) -> Option<String> {
+    let unit =
+        |d: &str| example_of(Some(d)).and_then(|e| e.split_once(' ').map(|(_, u)| u.to_owned()));
+    Some(format!(
+        "1:1 2:0.5 ({} -> {})",
+        unit(at_dimension)?,
+        unit(dimension)?
+    ))
+}
+
+/// 量の入力の例（`1 km`）→ ベクトルの入力の例（`1 0 0 km`。単位は共通）。読めなければ None。
+pub(super) fn vector_example(quantity: &str) -> Option<String> {
+    let (value, unit) = quantity.split_once(' ')?;
+    Some(format!("{value} 0 0 {unit}"))
+}
+
 /// 属性の選べる値: 列挙で語彙（`symbols`）が決まっていればその値、真偽なら `true`・`false`。自由入力なら空。
 pub(super) fn choices_of_attr(design: &Design, attr: &str) -> Vec<Choice> {
     let Some(def) = design.attribute(attr) else {
@@ -45,6 +63,26 @@ pub(super) fn choices_of_attr(design: &Design, attr: &str) -> Vec<Choice> {
             label_en: None,
         })
         .collect()
+}
+
+/// `conditions.launch.<キー>` の欄で、キーが列挙の属性（拘束の種類・面）と同じ名前のもの。選べる値は属性定義の語彙
+/// （カタログの品に書く値と同じ。語彙の表を持たない）。そうでなければ None。
+pub(super) fn launch_enum(design: &Design, m: &MissingInput, s: &SettingPath) -> Option<Fix> {
+    let [file, key] = s.segments.as_slice() else {
+        return None;
+    };
+    if s.scope != SettingScope::Conditions || file != "launch" {
+        return None;
+    }
+    let choices = choices_of_attr(design, key);
+    if choices.is_empty() {
+        return None;
+    }
+    let mut fix = set_value(m, ParamPath::Setting(s.clone()), None);
+    if let Fix::SetValue { choices: c, .. } = &mut fix {
+        *c = choices;
+    }
+    Some(fix)
 }
 
 /// 属性の次元名（定義の `dimension`、無ければ `units` の先頭の単位の次元）。

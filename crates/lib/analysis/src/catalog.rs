@@ -1,6 +1,6 @@
 //! 解析の一覧と ID による動的な実行。**解析の登録はここだけで行う。** 新しい解析を足したら下の一覧に 1 行足す（系の綴り順。軌道は `orbit`）。
 
-use crate::spec::{Analysis, AnalysisError, AnalysisInfo};
+use crate::spec::{Analysis, AnalysisError, AnalysisInfo, Detailed};
 use crate::{aocs, cdh, comm, power, propulsion, structure, thermal};
 
 macro_rules! registry {
@@ -20,14 +20,35 @@ macro_rules! registry {
             &[]
         }
 
+        /// 解析の重い任意の出力（`Analysis::DETAIL_TYPE`）の TS の型名。持たない解析と未知の ID は `None`。
+        pub fn detail_type(id: &str) -> Option<&'static str> {
+            $(
+                if id == <$t as Analysis>::ID {
+                    return <$t as Analysis>::DETAIL_TYPE;
+                }
+            )+
+            None
+        }
+
         /// ID で解析を選び、JSON の入力で実行して JSON の出力を返す（CLI と HTTP が使う）。
         pub fn run_json(id: &str, input: serde_json::Value) -> Result<serde_json::Value, AnalysisError> {
+            run_json_detailed(id, input, false).map(|(output, _)| output)
+        }
+
+        /// `run_json` に、重い任意の出力（`detail` が `true` で、解析が持つときだけ `Some`）を足したもの。
+        pub fn run_json_detailed(
+            id: &str,
+            input: serde_json::Value,
+            detail: bool,
+        ) -> Result<(serde_json::Value, Option<serde_json::Value>), AnalysisError> {
             $(
                 if id == <$t as Analysis>::ID {
                     let input: <$t as Analysis>::Input =
                         serde_json::from_value(input).map_err(|e| AnalysisError::Json(e.to_string()))?;
-                    let output = run_typed::<$t>(&input)?;
-                    return serde_json::to_value(output).map_err(|e| AnalysisError::Json(e.to_string()));
+                    let done = run_typed_detailed::<$t>(&input, detail)?;
+                    let output = serde_json::to_value(done.output)
+                        .map_err(|e| AnalysisError::Json(e.to_string()))?;
+                    return Ok((output, done.detail));
                 }
             )+
             Err(AnalysisError::Unknown(id.to_owned()))
@@ -47,6 +68,7 @@ registry!(
     crate::orbit::EclipseSeason,
     crate::orbit::OrbitDecay,
     crate::orbit::Geometry,
+    crate::orbit::TotalDose,
     power::ModeLoad,
     power::SolarSunlit,
     power::OrbitGeneration,
@@ -79,6 +101,17 @@ pub fn run_typed<A: Analysis>(input: &A::Input) -> Result<A::Output, AnalysisErr
         return Err(AnalysisError::Unknown(A::ID.to_owned()));
     }
     A::run(input)
+}
+
+/// `run_typed` に、重い任意の出力を頼む版。
+pub fn run_typed_detailed<A: Analysis>(
+    input: &A::Input,
+    detail: bool,
+) -> Result<Detailed<A::Output>, AnalysisError> {
+    if !catalog().iter().any(|entry| entry.id == A::ID) {
+        return Err(AnalysisError::Unknown(A::ID.to_owned()));
+    }
+    A::run_detailed(input, detail)
 }
 
 #[cfg(test)]

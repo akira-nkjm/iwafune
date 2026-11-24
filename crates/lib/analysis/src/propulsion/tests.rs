@@ -48,6 +48,7 @@ pub(super) fn maneuver(
             ..OrbitTarget::default()
         },
         via_altitude: None,
+        delta_v: None,
         ignored_constraints: Vec::new(),
         thrust: ThrustConstraints::default(),
         transfer: None,

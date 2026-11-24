@@ -29,7 +29,7 @@ modes: Array<string>,
  */
 orbit_overridden: boolean, 
 /**
- * 上書きの軌道の書かれた欄（`[orbit]`。`orbit_overridden` のときだけ。選んで入れる `source`・`maneuver` は未入力でも並べる）
+ * 上書きの軌道の書かれた欄（`[orbit]`。`orbit_overridden` のときだけ。出どころが使う欄（`source` と、その出どころの欄）は未入力でも並べる）
  */
 orbit: Array<PhaseFieldView>, 
 /**

@@ -363,15 +363,26 @@ pub fn case(ws: &Workspace, cmd: &crate::args::CaseCmd, out: &Out) -> Handled {
         out.json(&cases)?;
         return Ok(Some(0));
     }
-    let mut t = out.table(&["ID", "Name", "Modes", "Phase", "File"]);
+    // 時刻の列は、時刻を持つケースがあるときだけ出す（無いときの表は今まで通り）
+    let dated = cases.iter().any(|c| c.epoch.is_some());
+    let mut head = vec!["ID", "Name", "Modes", "Phase"];
+    if dated {
+        head.push("Epoch");
+    }
+    head.push("File");
+    let mut t = out.table(&head);
     for c in &cases {
-        t.row(vec![
+        let mut row = vec![
             C::Strong(c.id.clone()),
             C::Text(c.label.clone()),
             C::Text(c.modes.join(" ")),
             C::Text(c.phase.clone().unwrap_or_default()),
-            C::Dim(c.file.clone()),
-        ]);
+        ];
+        if dated {
+            row.push(C::Text(c.epoch.clone().unwrap_or_default()));
+        }
+        row.push(C::Dim(c.file.clone()));
+        t.row(row);
     }
     t.print();
     Ok(Some(0))

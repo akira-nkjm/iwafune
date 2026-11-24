@@ -160,3 +160,26 @@ fn invalid_and_duplicate_ids_are_reported() {
     ]);
     assert!(find(&d, "id.duplicate").is_some(), "{d:?}");
 }
+
+/// 英語名は `label` と `description` の間に書く正規の順。キーの無いファイルは `fune fmt` が 1 バイトも変えない。
+#[test]
+fn label_en_has_its_canonical_place_and_a_file_without_it_is_untouched() {
+    let with_en =
+        "label       = \"収納\"\nlabel_en    = \"Stowed\"\ndescription = \"Paddle folded\"\n";
+    let design = design_of(&files(&[("configurations/STOWED.toml", with_en)]));
+    let c = &design.configurations["STOWED"];
+    assert_eq!(c.label_en.as_deref(), Some("Stowed"));
+    let doc = record_doc("configurations/STOWED.toml", c, CONFIGURATION_SECTIONS).unwrap();
+    assert_eq!(fune_store::format::finish(doc), with_en);
+    assert_eq!(
+        format_text("configurations/STOWED.toml", with_en).unwrap(),
+        with_en
+    );
+    // `fune fmt` は順を入れ替えず、`=` の位置だけ揃える
+    let loose = "label_en = \"Stowed\"\nlabel = \"収納\"\n";
+    assert_eq!(
+        format_text("configurations/STOWED.toml", loose).unwrap(),
+        "label_en = \"Stowed\"\nlabel    = \"収納\"\n"
+    );
+    assert!(format_files(&files(&[("configurations/STOWED.toml", CANONICAL)])).is_empty());
+}

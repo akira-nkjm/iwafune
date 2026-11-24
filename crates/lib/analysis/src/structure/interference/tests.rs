@@ -1,6 +1,7 @@
 //! `structure.interference` のテスト（手計算との比較）。
 
 use super::*;
+use crate::structure::acknowledged::Acknowledgement;
 
 fn unit_box(id: &str, center: [f64; 3]) -> InterferenceBox {
     InterferenceBox {
@@ -18,6 +19,7 @@ fn input(boxes: Vec<InterferenceBox>) -> InterferenceInput {
         boxes,
         unsized_parts: Vec::new(),
         tolerance: None,
+        acknowledged: Vec::new(),
     }
 }
 
@@ -221,4 +223,115 @@ fn input_round_trips_through_json() {
     let back: InterferenceInput = serde_json::from_str(&text).unwrap();
     assert_eq!(back.boxes.len(), 1);
     assert_eq!(back.boxes[0].count, 1);
+}
+
+fn ack(first: &str, second: &str, reason: &str) -> Acknowledgement {
+    Acknowledgement {
+        first: first.to_owned(),
+        second: second.to_owned(),
+        reason: reason.to_owned(),
+        configuration: None,
+    }
+}
+
+/// 承知済みの組（どちらの並びで書いても同じ）は、重なりとして残り（フラグと理由つき）、判定は ok。承知していない組は警告のまま。
+#[test]
+fn an_acknowledged_pair_is_listed_with_its_reason_and_does_not_warn() {
+    let mut i = input(vec![
+        unit_box("A", [0.0; 3]),
+        unit_box("B", [0.9, 0.0, 0.0]),
+        unit_box("C", [-0.9, 0.0, 0.0]),
+    ]);
+    // A–B と A–C が重なる。A–B だけを（並びを逆にして）承知する
+    i.acknowledged = vec![ack("B", "A", "hinge edge")];
+    let out = run(&i);
+    assert_eq!(out.overlaps.len(), 2);
+    let ab = out.overlaps.iter().find(|p| p.second == "B").unwrap();
+    assert!(ab.acknowledged);
+    assert_eq!(ab.reason.as_deref(), Some("hinge edge"));
+    let ac = out.overlaps.iter().find(|p| p.second == "C").unwrap();
+    assert!(!ac.acknowledged && ac.reason.is_none());
+    let verdict = |key: &str| out.checks.iter().find(|c| c.key == key).unwrap();
+    assert_eq!(verdict("overlap:A:B").verdict, Verdict::Ok);
+    assert!(
+        verdict("overlap:A:B")
+            .message
+            .starts_with("Acknowledged: hinge edge. ")
+    );
+    assert_eq!(verdict("overlap:A:C").verdict, Verdict::Warning);
+}
+
+/// すべて承知済みなら、警告は無い（判定は組ごとの ok。重なりは出力に残る）。
+#[test]
+fn when_every_overlap_is_acknowledged_nothing_warns() {
+    let mut i = input(vec![
+        unit_box("A", [0.0; 3]),
+        unit_box("B", [0.9, 0.0, 0.0]),
+    ]);
+    i.acknowledged = vec![ack("A", "B", "known")];
+    let out = run(&i);
+    assert_eq!(out.overlaps.len(), 1);
+    assert!(out.checks.iter().all(|c| c.verdict == Verdict::Ok));
+    assert_eq!(
+        Verdict::worst(out.checks.iter().map(|c| c.verdict)),
+        Some(Verdict::Ok)
+    );
+}
+
+fn sized(id: &str, center: [f64; 3], size: [f64; 3]) -> InterferenceBox {
+    InterferenceBox {
+        size: Vec3::new(size[0], size[1], size[2]),
+        ..unit_box(id, center)
+    }
+}
+
+/// 隣り合う 2 枚のパネル（厚さ 2 mm）が縁で半厚ずつ重なる（一辺 1 m の面に中心を置く: x ∈ [0.499, 0.501] と y ∈ [0.499, 0.501]）。
+/// 重なりは 1 mm × 1 mm × 1 m で、縁の接触として別に残り、干渉の警告にはならない。深さは 1 mm（x にも y にも 1 mm）。
+/// 縁の接触があっても組は「判定した組」に数える。
+#[test]
+fn panels_meeting_at_a_corner_are_listed_as_an_edge_contact_not_a_warning() {
+    let out = run(&input(vec![
+        sized("PX", [0.5, 0.0, 0.0], [0.002, 1.0, 1.0]),
+        sized("PY", [0.0, 0.5, 0.0], [1.0, 0.002, 1.0]),
+    ]));
+    assert!(out.overlaps.is_empty());
+    assert_eq!(out.edge_contacts.len(), 1);
+    let e = &out.edge_contacts[0];
+    assert_eq!((e.first.as_str(), e.second.as_str()), ("PX", "PY"));
+    assert!((e.depth.value() - 1e-3).abs() < 1e-12);
+    assert!((e.thickness.value() - 2e-3).abs() < 1e-15);
+    assert_eq!(out.pairs_judged, 1);
+    assert_eq!(out.checks.len(), 1);
+    assert_eq!(out.checks[0].verdict, Verdict::Ok);
+    assert!(out.checks[0].message.contains("1 edge contacts"));
+}
+
+/// 同じ板に、一辺 40 mm のセンサが 5 mm 食い込む（板 z ∈ [-0.001, 0.001]、センサ z ∈ [-0.004, 0.036]）: 縁の接触ではなく、干渉の警告。
+#[test]
+fn a_sensor_sunk_into_a_panel_is_still_an_overlap() {
+    let out = run(&input(vec![
+        sized("PANEL", [0.0; 3], [1.0, 1.0, 0.002]),
+        sized("SENSOR", [0.0, 0.0, 0.016], [0.04, 0.04, 0.04]),
+    ]));
+    assert!(out.edge_contacts.is_empty());
+    assert_eq!(out.overlaps.len(), 1);
+    assert_eq!(out.checks[0].verdict, Verdict::Warning);
+}
+
+/// 縁の接触の組を承知していても、承知は効かない（所見ではないので `overlaps` に出ない。古い承知として別に知らせる）。
+#[test]
+fn an_acknowledgement_of_an_edge_contact_matches_nothing() {
+    let mut i = input(vec![
+        sized("PX", [0.5, 0.0, 0.0], [0.002, 1.0, 1.0]),
+        sized("PY", [0.0, 0.5, 0.0], [1.0, 0.002, 1.0]),
+    ]);
+    i.acknowledged = vec![Acknowledgement {
+        first: "PX".to_owned(),
+        second: "PY".to_owned(),
+        reason: "r".to_owned(),
+        configuration: None,
+    }];
+    let out = run(&i);
+    assert!(out.overlaps.is_empty());
+    assert_eq!(out.edge_contacts.len(), 1);
 }

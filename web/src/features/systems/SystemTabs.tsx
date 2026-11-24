@@ -28,6 +28,7 @@ export type SystemTab =
   | "results"
   | "modes"
   | "heat"
+  | "couplings"
   | "analyses"
   | "settings"
   | "series"
@@ -77,6 +78,8 @@ export function SystemTabs({
   );
   if (tab === "maneuvers") return <ManeuversTab />;
   if (tab === "heat") return settled(extra?.heat);
+  // 結合と表面は自分で表を問い合わせ、下書きも持つ（解析の結果が出そろうのを待たない）
+  if (tab === "couplings") return extra?.couplings ?? null;
   // 解析のカードの並び（判定・値・表）。このタブを持つ系（熱）は、概要には図だけを出す
   if (tab === "analyses")
     return (

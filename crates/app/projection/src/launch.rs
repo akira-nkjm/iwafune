@@ -1,6 +1,6 @@
 //! 打ち上げ条件の読み出し。`conditions/launch.toml` が選ぶ打ち上げ機・ディスペンサー（カタログ品）の属性を SI で引く。
 //!
-//! **値の優先順の規則はここだけ**: `conditions/launch.toml` に直接書いた値（荷重など。読むのは各射影）→ ディスペンサー →
+//! **値の優先順の規則はここだけ**: `conditions/launch.toml` に直接書いた値（荷重など。読むのは各射影。列挙は [`LaunchValues::text_set`]。組の属性は同じ出所から）→ ディスペンサー →
 //! 打ち上げ機（衛星に近い接点が先。`LaunchInterface::NEAREST_FIRST`）。要求は限度を厳しくする側にだけ働き
 //! （質量・固有振動数。[`mass_limits`]・[`frequency_limits`]）、効く 1 つの選び方は解析 `structure.launch_fit` が持つ
 //! （`tightest_max_mass`・`tightest_min_frequency`）。値の出所は文字列（`launcher local/lv_alpha`）で持ち、判定の文に出す。
@@ -40,6 +40,14 @@ pub(crate) struct Found<T> {
     pub value: T,
     /// 出所（`launcher local/lv_alpha`）
     pub origin: String,
+}
+
+/// 同じ出所から読んだ文字列の属性の組（[`LaunchValues::text_set`]）。
+pub(crate) struct TextSet {
+    /// 出所（`launcher local/lv_alpha`・`conditions/launch.toml`）
+    pub origin: String,
+    /// 属性ごとの値（頼んだ並び。その出所に無ければ `None`）
+    pub values: Vec<Option<String>>,
 }
 
 /// `conditions.launch.<欄>` のパス。
@@ -115,6 +123,51 @@ impl<'a> LaunchValues<'a> {
         }
     }
 
+    /// 互いに組になる文字列（列挙）の属性を、**同じ出所から**読む。先頭の属性 `attrs[0]` を持つ最初の出所
+    /// （`conditions/launch.toml` に直接書いた値 `written` → ディスペンサー → 打ち上げ機）を選び、残りの属性はその出所だけから引く
+    /// （別の出所の値は混ぜない）。返す値は `attrs` と同じ並びで、その出所が持たない属性は `None`。
+    pub fn text_set(&self, attrs: &[(&str, Option<&str>)]) -> Option<TextSet> {
+        let (lead, written) = *attrs.first()?;
+        if written.is_some() {
+            let values = attrs
+                .iter()
+                .map(|(attr_id, w)| {
+                    w.inspect(|_| self.ctx.note(launch_path(&[attr_id])))
+                        .map(str::to_owned)
+                })
+                .collect();
+            return Some(TextSet {
+                origin: "conditions/launch.toml".to_owned(),
+                values,
+            });
+        }
+        let c = self
+            .chosen
+            .iter()
+            .find(|c| matches!(c.values.get(lead).map(|v| &v.value), Some(Cell::Set(_))))?;
+        let values = attrs
+            .iter()
+            .map(|(attr_id, _)| {
+                let v = c.values.get(*attr_id)?;
+                let Cell::Set(SiValue::Enum(text)) = &v.value else {
+                    return None;
+                };
+                self.ctx.note(Target::Catalog {
+                    id: c.item.id.clone(),
+                    attr: Some(AttrPath {
+                        attr: (*attr_id).to_owned(),
+                        state: None,
+                    }),
+                });
+                Some(text.clone())
+            })
+            .collect();
+        Some(TextSet {
+            origin: format!("{} {}", c.which, c.item.id),
+            values,
+        })
+    }
+
     /// ベクトルの属性（SI）。
     pub fn vec3(&self, attr_id: &str) -> Option<Found<[f64; 3]>> {
         let f = self.first(attr_id)?;
@@ -175,7 +228,7 @@ pub(crate) struct LauncherDeparture {
 }
 
 /// 最低固有振動数の候補（基本の限度 = 打ち上げ機・ディスペンサーの値、続いて `structure.modal_estimate` の判定
-/// `lateral`・`axial` の要求）。`direction` は `lateral` か `axial`。
+/// `lateral`・`axial` か `structure.launch_fit` の判定 `frequency:<向き>` を確かめ先にする要求）。`direction` は `lateral` か `axial`。
 pub(crate) fn frequency_limits(
     ctx: &Context<'_>,
     launch: &LaunchValues<'_>,
@@ -186,12 +239,20 @@ pub(crate) fn frequency_limits(
         _ => attr::MIN_FREQUENCY_LATERAL,
     };
     let base = launch.scalar(attr_id).map(|f| (f.origin, f.value));
-    let requirement = ctx
-        .criterion("structure.modal_estimate", direction)
-        .map(|c| (format!("requirement {}", c.requirement), c.si));
-    [base, requirement]
-        .into_iter()
-        .flatten()
+    // 要求は、簡易固有振動数の判定（`lateral`・`axial`）か打ち上げ適合の判定（`frequency:<向き>`）のどちらを確かめ先にしていてもよい。
+    // 同じ下限なので、どちらも限度の候補に入る（効く 1 つは解析が選ぶ）
+    let requirements = [
+        ctx.criterion("structure.modal_estimate", direction),
+        ctx.criterion(
+            "structure.launch_fit",
+            &sat_checkkey::launch_frequency(direction),
+        ),
+    ]
+    .into_iter()
+    .flatten()
+    .map(|c| (format!("requirement {}", c.requirement), c.si));
+    base.into_iter()
+        .chain(requirements)
         .map(|(origin, hz)| LaunchFitFrequencyLimit {
             origin,
             value: Qty::<Frequency>::from_raw(hz),

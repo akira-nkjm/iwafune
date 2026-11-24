@@ -155,7 +155,7 @@ export function AnalysisTableRow({
       {open && (
         <tr id={detailId}>
           <td colSpan={COLUMNS} className="px-3 pt-2 pb-4">
-            <AnalysisRowDetail result={result} design={design} />
+            <AnalysisRowDetail result={result} design={design} detailType={entry.detail_type} />
           </td>
         </tr>
       )}
@@ -211,7 +211,7 @@ function MainResults({ kpis }: { kpis: AnalysisOverview["main"] }) {
         <li key={k.key} className="flex items-baseline gap-1.5">
           <span className="text-ink-3">{localized(k.label, k.label_en)}</span>
           <span className="num font-medium text-ink">
-            {kpiText(k, (n) => t.kpiTally(n.checked, n.flagged))}
+            {kpiText(k, (n) => t.kpiTally(n.checked, n.flagged, n.acknowledged))}
           </span>
         </li>
       ))}

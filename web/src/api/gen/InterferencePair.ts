@@ -16,4 +16,16 @@ depth: number,
 /**
  * 分離の向き（機体座標系の単位ベクトル。`first` から `second` へ。`second` をこの向きに深さだけ動かせば重なりが解ける）
  */
-separation_axis: Vec3, };
+separation_axis: Vec3, 
+/**
+ * 設計者が承知済みとした組か（承知済みでも重なりとして残るが、判定は警告にしない）
+ */
+acknowledged: boolean, 
+/**
+ * 承知した理由（承知済みのときだけ）
+ */
+reason?: string, 
+/**
+ * 承知が形態を指していれば、その形態（取り消すときに同じ承知を指す。無ければすべての配置に効く承知）
+ */
+acknowledged_configuration?: string, };

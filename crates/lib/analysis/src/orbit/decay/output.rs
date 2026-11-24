@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 pub enum DragAreaSource {
     /// 入力で与えた面積
     Given,
-    /// 機体の外形の箱の、向きをならした平均の投影面積（表面積の 1/4）
-    TumblingBox,
+    /// 寸法を持つ部品の箱の和集合の、全方向の平均の投影面積（`structure.external_geometry` の平均と同じ値）
+    BodyBoxes,
 }
 
 /// 使った値（既定値を含む）。

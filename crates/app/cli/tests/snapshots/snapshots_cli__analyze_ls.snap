@@ -15,6 +15,7 @@ expression: text
  orbit        orbit.eclipse_season          Beta angle and eclipse seasons    time series   built from design
  orbit        orbit.decay                   Drag decay and station keeping    time series   built from design
  orbit        orbit.geometry                Mission geometry                  time series   built from design
+ orbit        orbit.total_dose              Total ionising dose               steady        built from design
  power        power.mode_load               Mode power consumption            steady        built from design
  power        power.solar_sunlit            Sunlit power generation           steady        built from design
  power        power.orbit_generation        Orbital power generation          time series   built from design
@@ -32,7 +33,7 @@ expression: text
  structure    structure.mass_properties     Mass properties                   steady        built from design
  structure    structure.static_load         Quasi-static loads                steady        built from design
  structure    structure.modal_estimate      Natural frequency estimate        steady        built from design
- structure    structure.modal_fem           Finite-element modal analysis     steady        unsupported
+ structure    structure.modal_fem           Finite-element modal analysis     steady        built from design
  structure    structure.launch_fit          Launch vehicle fit                steady        built from design
  structure    structure.interference        Part interference                 steady        built from design
  structure    structure.cone_clearance      Plume and FoV clearance           steady        built from design

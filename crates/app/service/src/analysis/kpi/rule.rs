@@ -100,6 +100,7 @@ impl Tally {
                 Some(KpiTally {
                     checked: count(items.len()),
                     flagged: count(items.values().filter(|flagged| **flagged).count()),
+                    acknowledged: None,
                 })
             }
         }
@@ -182,6 +183,7 @@ pub(super) fn rule(key: KpiKey) -> Rule {
         ),
         K::SensorIntrusion => (Prefix(family::INTRUSION), Fill::None, Tally::None),
         K::SlewTime => (Exact("slew_time"), Fill::None, Tally::None),
+        K::TotalDoseMargin => (Prefix(family::DOSE), Fill::Value, Tally::None),
         K::LinkMargin => (Prefix(family::MARGIN), Fill::None, Tally::None),
         // 1 日の送信可能量は「発生量 ≤ 送信可能量」の判定、最大の滞留は「滞留 ≤ ストレージ」の判定
         K::DownlinkPerDay => (Exact("capacity"), Fill::None, Tally::None),
@@ -219,6 +221,7 @@ pub(super) fn rule(key: KpiKey) -> Rule {
         | K::ComShift
         | K::LaunchFitMargin
         | K::MeanProjectedArea
+        | K::FirstFrequency
         | K::LaunchWindowDeltaV
         | K::GreatestEarthDistance => (Unjudged, Fill::None, Tally::None),
     };

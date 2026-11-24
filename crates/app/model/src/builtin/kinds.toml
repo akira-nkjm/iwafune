@@ -6,7 +6,7 @@
 label    = "機器（共通）"
 label_en = "Component (common)"
 required = ["mass"]
-optional = ["size", "temp_op", "temp_perf", "temp_survival", "specific_heat", "heat_fraction", "absorptivity", "emissivity", "hk_rate"]
+optional = ["size", "temp_op", "temp_perf", "temp_survival", "specific_heat", "heat_fraction", "absorptivity", "emissivity", "hk_rate", "shielding", "tid_tolerance"]
 
 [obc]
 label    = "オンボードコンピュータ"
@@ -124,7 +124,7 @@ label_en = "Antenna"
 extends  = "component"
 role     = "antenna"
 required = ["antenna_gain"]
-optional = ["boresight"]
+optional = ["boresight", "beamwidth"]
 
 [camera]
 label    = "カメラ"
@@ -156,7 +156,7 @@ label    = "構体"
 label_en = "Structure"
 extends  = "component"
 role     = "structure"
-optional = ["material"]
+optional = ["material", "member_width", "member_wall"]
 
 [propulsion_thruster]
 label    = "推進系スラスタ"
@@ -180,9 +180,9 @@ optional = ["propellant_density"]
 [launcher]
 label    = "打ち上げ機"
 label_en = "Launch vehicle"
-optional = ["max_payload_mass", "payload_mass_by_c3", "launch_envelope", "launch_load_axial", "launch_load_lateral", "min_frequency_axial", "min_frequency_lateral", "max_tip_off_rate"]
+optional = ["max_payload_mass", "payload_mass_by_c3", "launch_envelope", "launch_load_axial", "launch_load_lateral", "min_frequency_axial", "min_frequency_lateral", "max_tip_off_rate", "launch_constraint", "launch_constraint_face"]
 
 [dispenser]
 label    = "ディスペンサー"
 label_en = "Dispenser"
-optional = ["max_payload_mass", "payload_mass_by_c3", "launch_envelope", "launch_load_axial", "launch_load_lateral", "min_frequency_axial", "min_frequency_lateral", "max_tip_off_rate"]
+optional = ["max_payload_mass", "payload_mass_by_c3", "launch_envelope", "launch_load_axial", "launch_load_lateral", "min_frequency_axial", "min_frequency_lateral", "max_tip_off_rate", "launch_constraint", "launch_constraint_face"]

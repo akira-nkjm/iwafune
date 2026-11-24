@@ -1,6 +1,9 @@
 import {
   keepPreviousData,
   type QueryClient,
+  queryOptions,
+  type UseMutationOptions,
+  useIsMutating,
   useMutation,
   useQuery,
   useQueryClient,
@@ -12,13 +15,15 @@ import { clearFieldErrors, setFieldErrors } from "@/lib/field-errors";
 import { copyText, recordChange } from "@/lib/history";
 import { useDebounced } from "@/lib/use-debounced";
 import { type ApiError, api, seg } from "./client";
-import { invalidatedByOps, keys } from "./keys";
+import { keys, type Retired, retiredBy } from "./keys";
 import { q } from "./queries";
+import { refreshDerived } from "./refresh";
 import type {
   ApplyRequest,
   ApplyResult,
   BudgetKind,
   BudgetView,
+  CaseFromGeometryRequest,
   CatalogItemView,
   CommandText,
   DesignView,
@@ -93,10 +98,11 @@ async function onApplied(
   summary: string,
   paths: string[],
   before: Snapshot,
+  retired?: Retired,
 ) {
   clearFieldErrors(paths);
   recordChange({ summary, cli: r.cli, files: r.changed.map((c) => c.path) });
-  await Promise.all(invalidatedByOps.map((k) => qc.invalidateQueries({ queryKey: k })));
+  await refreshDerived(qc, retired);
   const lines = await deltas(qc, before);
   if (lines.length === 0 && r.changed.length > 0)
     lines.push(getT().ops.changed(r.changed.map((c) => c.path).join(", ")));
@@ -114,7 +120,7 @@ async function onApplied(
 /** 編集が弾かれたとき: 版ずれなら読み直し、検証エラーなら欄の下に理由を出す */
 async function onRejected(qc: QueryClient, e: ApiError, summary: string, paths: string[]) {
   if (e.conflict) {
-    await Promise.all(invalidatedByOps.map((k) => qc.invalidateQueries({ queryKey: k })));
+    await refreshDerived(qc);
     toast.error(getT().ops.conflict, { description: getT().ops.conflictDetail });
     return;
   }
@@ -132,30 +138,50 @@ async function onRejected(qc: QueryClient, e: ApiError, summary: string, paths: 
   });
 }
 
+/** 編集の mutation の設定（送り先だけが違う。`useEdit` と、hook を通さない検査が使う） */
+export function editOptions<R extends { summary: string }>(
+  qc: QueryClient,
+  send: (req: R, revision: string | null) => Promise<ApplyResult>,
+  pathsOf: (req: R) => string[],
+  retiredOf?: (req: R) => Retired,
+): UseMutationOptions<ApplyResult, ApiError, R, Snapshot> {
+  return {
+    mutationKey: keys.applyOps,
+    onMutate: () => snapshot(qc),
+    mutationFn: (req) => send(req, currentRevision(qc)),
+    onSuccess: (r, req, before) =>
+      onApplied(qc, r, req.summary, pathsOf(req), before ?? new Map(), retiredOf?.(req)),
+    onError: (e, req) => onRejected(qc, e, req.summary, pathsOf(req)),
+  };
+}
+
 /** 編集の mutation の共通形（送り先だけが違う） */
 function useEdit<R extends { summary: string }>(
   send: (req: R, revision: string | null) => Promise<ApplyResult>,
   pathsOf: (req: R) => string[],
 ) {
   const qc = useQueryClient();
-  return useMutation<ApplyResult, ApiError, R, Snapshot>({
-    onMutate: () => snapshot(qc),
-    mutationFn: (req) => send(req, currentRevision(qc)),
-    onSuccess: (r, req, before) => onApplied(qc, r, req.summary, pathsOf(req), before ?? new Map()),
-    onError: (e, req) => onRejected(qc, e, req.summary, pathsOf(req)),
-  });
+  return useMutation<ApplyResult, ApiError, R, Snapshot>(editOptions(qc, send, pathsOf));
 }
 
-/** Op を POST /ops で送る唯一の hook */
-export function useApplyOps() {
-  const qc = useQueryClient();
-  return useEdit<OpsRequest>(
+/** Op を POST /ops で送る mutation の設定（`useApplyOps` と、hook を通さない検査が使う） */
+export function applyOpsOptions(qc: QueryClient) {
+  return editOptions<OpsRequest>(
+    qc,
     ({ ops }, revision) => {
       const body: ApplyRequest = { ops, base_revision: revision, dry_run: false };
       return api<ApplyResult>("/ops", { method: "POST", body });
     },
     (req) => opPaths(req.ops, qc.getQueryData<DesignView>(keys.design)),
+    // 消した・名前を変えた対象の問い合わせは読み直さない（画面がまだ古い対象を見ている間に 404 になる）
+    (req) => retiredBy(req.ops),
   );
+}
+
+/** Op を POST /ops で送る唯一の hook */
+export function useApplyOps() {
+  const qc = useQueryClient();
+  return useMutation(applyOpsOptions(qc));
 }
 
 /** 人が打った文字列で 1 つの値を書き換える（部品の値とフィールド・設定の表・カタログ品の値とフィールドなど） */
@@ -329,20 +355,35 @@ export function usePlaceBody() {
 }
 
 /**
+ * Op の確定の最中か。確定が成功すると設計を読み直して revision が進むが、その間も確定したダイアログは開いている。
+ * revision が入ったキーの問い合わせ（dry_run）を、この間は新しい revision で取り直さないために見る
+ * （取り直すと、消した対象が無くて 404、足した対象が既にあって 409 になる）。
+ */
+export function useApplying(): boolean {
+  return useIsMutating({ mutationKey: keys.applyOps }) > 0;
+}
+
+/**
  * 書き込まずに Op を試す（dry_run）。確定前に「CLI としてコピー」と変わるファイルを見せるのに使う。
  * ops が空なら問い合わせない。
  */
 export function useDryRun(ops: Op[] | null) {
   const qc = useQueryClient();
+  return useQuery(dryRunOptions(qc, ops, useApplying()));
+}
+
+/** dry_run の問い合わせの設定（`useDryRun` と、hook を通さない検査が使う）。`applying` の間は問い合わせない */
+export function dryRunOptions(qc: QueryClient, ops: Op[] | null, applying: boolean) {
   const revision = currentRevision(qc);
   const json = ops && ops.length > 0 ? JSON.stringify(ops) : "";
-  return useQuery<ApplyResult, ApiError>({
+  return queryOptions<ApplyResult, ApiError>({
     queryKey: keys.dryRun(revision ?? "", json),
     queryFn: () => {
       const body: ApplyRequest = { ops: ops ?? [], base_revision: revision, dry_run: true };
       return api<ApplyResult>("/ops", { method: "POST", body });
     },
-    enabled: json.length > 0,
+    // 確定の最中は問い合わせない（確定で revision が進んだあとの、同じ Op の取り直しを避ける）
+    enabled: json.length > 0 && !applying,
     retry: false,
     staleTime: Number.POSITIVE_INFINITY,
     // 編集のたびにキーが変わる。次の結果が来るまで前の結果を出しておき、プレビューが空に戻って跳ねないようにする
@@ -390,5 +431,27 @@ export function useEclipseCaseOp(id: string, at: string | null, mode: string) {
   return {
     ops: json === now && now && query.data ? [query.data] : null,
     error: json === now ? query.error?.message : null,
+  };
+}
+
+/** 最悪の日（太陽距離の最大・最小、地球距離の最大）からケースの Op の列を作る（書き込まない。`POST /ops/cases_from_geometry`）。 */
+export function useGeometryCaseOps(request: CaseFromGeometryRequest | null) {
+  const qc = useQueryClient();
+  const revision = currentRevision(qc);
+  const now = request ? JSON.stringify(request) : "";
+  const json = useDebounced(now, 400);
+  const query = useQuery<Op[], ApiError>({
+    queryKey: keys.geometryCaseOps(revision, json),
+    queryFn: () =>
+      api<Op[]>("/ops/cases_from_geometry", { method: "POST", body: JSON.parse(json) }),
+    enabled: json.length > 0,
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const settled = json === now && now.length > 0;
+  return {
+    ops: settled ? (query.data ?? null) : null,
+    error: settled ? (query.error?.message ?? null) : null,
+    pending: !settled || query.isFetching,
   };
 }

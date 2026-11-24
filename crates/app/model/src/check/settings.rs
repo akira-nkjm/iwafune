@@ -4,7 +4,7 @@
 
 use super::Ctx;
 use super::values::check_quantity_dimension;
-use crate::design::setting_dims::setting_dimension;
+use crate::design::setting_dims::{setting_curve_dimensions, setting_dimension};
 use crate::design::{EntityKey, OrbitSettings, SettingEntry};
 use crate::path::SettingPath;
 use crate::target::Target;
@@ -58,6 +58,10 @@ impl Scope<'_, '_> {
             if scope != self.prefix.scope || !segments.starts_with(&self.prefix.segments) {
                 continue;
             }
+            if let Some(SettingValue::Curve(c)) = &entry.value {
+                self.curve(&entry.path, c);
+                continue;
+            }
             let q = match &entry.value {
                 Some(SettingValue::Quantity(q)) => q.clone(),
                 Some(SettingValue::Vector(v)) => {
@@ -75,6 +79,36 @@ impl Scope<'_, '_> {
                     .collect();
                 self.report(sev, code, &keys, msg);
             }
+        }
+    }
+
+    /// 曲線の設定（表）の形と、引数・値の単位の次元（曲線の設定の次元の表 `setting_curve_dimensions`）。
+    /// 値は対数で結ぶ表（線量率）なので正であること。
+    fn curve(&mut self, path: &SettingPath, c: &crate::value::Curve) {
+        let keys: Vec<&str> = path.segments[self.prefix.segments.len()..]
+            .iter()
+            .map(String::as_str)
+            .collect();
+        if let Some((sev, code, msg)) = super::values::curve_shape(&c.at, &c.values) {
+            self.report(sev, code, &keys, msg);
+            return;
+        }
+        let Some((at_dim, dim)) = setting_curve_dimensions(path) else {
+            return;
+        };
+        for (unit, spec) in [(&c.at_unit, at_dim), (&c.unit, dim)] {
+            if let Some((sev, code, msg)) =
+                check_quantity_dimension(&Quantity::new(1.0, unit.clone()), spec)
+            {
+                self.report(sev, code, &keys, msg);
+            }
+        }
+        if c.values.iter().any(|v| *v <= 0.0) {
+            self.error(
+                &keys,
+                "curve.shape",
+                "Every value of this table must be positive (it is read on a log scale)".into(),
+            );
         }
     }
 
@@ -184,6 +218,83 @@ pub(super) fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
     }
 }
 
+/// 状態ベクトルの軌道（`source = "state"`）の値の検査。足りない欄は検査の誤りにせず、射影が足りない入力として知らせる。
+/// - `position`・`velocity` に `frame` を書くことはできない（座標系は ECI = J2000 平均赤道の慣性系の 1 つだけ）。
+/// - `span` は正の値（単位は次元の表が見る）。
+fn check_state(s: &mut Scope, o: &OrbitSettings) {
+    for (key, v) in [("position", &o.position), ("velocity", &o.velocity)] {
+        if v.as_ref().is_some_and(|v| v.frame.is_some()) {
+            s.error(
+                &[key],
+                "orbit.state_frame",
+                format!(
+                    "`{key}` of a state orbit is in the J2000 mean-equator inertial frame (ECI); remove `frame`"
+                ),
+            );
+        }
+        if v.as_ref()
+            .is_some_and(|v| [v.x, v.y, v.z].iter().any(|c| !c.is_finite()))
+        {
+            s.error(
+                &[key],
+                "setting.range",
+                "Every component must be a finite number".into(),
+            );
+        }
+    }
+    if o.span
+        .as_ref()
+        .is_some_and(|q| !(q.value.is_finite() && q.value > 0.0))
+    {
+        s.error(
+            &["span"],
+            "setting.range",
+            "The span must be positive".into(),
+        );
+    }
+}
+
+/// ラグランジュ点の軌道（`source = "libration"`）の値の検査。足りない欄は検査の誤りにせず、射影が足りない入力として知らせる。
+/// - 主天体は副天体の親（太陽–惑星、地球–月）でなければならない（暦が持つ組）。
+/// - `amplitude_z` は正の値で、`l1`・`l2` だけ（ハローの 3 次の近似が L1・L2 にしか無い）。`branch` は `amplitude_z` と一緒に書く（無ければ効かない警告）。
+fn check_libration(s: &mut Scope, o: &OrbitSettings) {
+    if let (Some(primary), Some(secondary)) = (o.primary, o.secondary)
+        && secondary.parent() != Some(primary)
+    {
+        s.error(
+            &["secondary"],
+            "orbit.libration_pair",
+            format!(
+                "`{secondary}` does not orbit `{primary}` in the ephemeris. The pair must be a body and the body it orbits (a planet and the sun, or the moon and the earth)"
+            ),
+        );
+    }
+    if let Some(a) = &o.amplitude_z {
+        if !(a.value.is_finite() && a.value > 0.0) {
+            s.error(
+                &["amplitude_z"],
+                "setting.range",
+                "The z-amplitude must be positive".into(),
+            );
+        }
+        use crate::design::LibrationPointKind::{L1, L2};
+        if o.point.is_some_and(|p| !matches!(p, L1 | L2)) {
+            s.error(
+                &["amplitude_z"],
+                "orbit.libration_halo_point",
+                "A halo orbit exists only about l1 and l2. Remove the amplitude, or choose l1 or l2".into(),
+            );
+        }
+    } else if o.branch.is_some() {
+        // 効かないだけなので警告（誤りにすると、振幅を先に消す編集が止まる）
+        s.warning(
+            &["branch"],
+            "orbit.libration_branch",
+            "`branch` chooses a side of a halo orbit, so it has no effect without `amplitude_z`. Write the amplitude, or remove the branch".into(),
+        );
+    }
+}
+
 /// 軌道の出どころ（`source`）の検査: `maneuver` が書かれていればマヌーバがあること、`transfer` ならそのマヌーバが日付つきの `[transfer]` を持つこと、
 /// 出どころが使わない欄（`transfer` に添えた要素・`elements` に添えた `maneuver`）は `setting.not_applied` の警告。
 /// 日付の読み方・暦の範囲はマヌーバ側の検査（`maneuver.transfer_*`）が見る。
@@ -198,6 +309,12 @@ fn check_orbit_source(s: &mut Scope, o: &OrbitSettings) {
                 "`{key}` is not used by an orbit with source = \"{source}\", so it has no effect. Remove it, or change the source"
             ),
         );
+    }
+    if source == OrbitSource::State {
+        check_state(s, o);
+    }
+    if source == OrbitSource::Libration {
+        check_libration(s, o);
     }
     // `maneuver` が書かれていないのは足りない入力（射影が選べるマヌーバを添えて知らせる）で、検査の誤りにはしない。
     // 書かれていれば、出どころによらずマヌーバがあること（参照の索引と同じ。消す Op を拒むため）

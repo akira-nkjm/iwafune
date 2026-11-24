@@ -6,6 +6,7 @@ import { useDialogs } from "@/kit/detail/use-dialogs";
 import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
+import { idWithName } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
 import { RenameDialog } from "@/ops/RenameDialog";
 import { Button } from "@/ui/button";
@@ -28,9 +29,10 @@ export function ConfigurationControls({
 }) {
   const t = useT();
   const c = t.systems.layout3d.configuration;
-  const options = configurations.map(({ id, label }) => ({
-    value: id,
-    label: id === label ? id : `${label} (${id})`,
+  const options = configurations.map((c) => ({
+    // 表示の言語の名前（英語は ID、日本語は「ID（表示名）」。`idWithName`）
+    value: c.id,
+    label: idWithName(c),
   }));
   const dialogs = useDialogs<"add" | "edit" | "rename" | "remove">();
   const [target, setTarget] = useState<ConfigurationView | null>(null);
@@ -97,7 +99,8 @@ export function ConfigurationControls({
           ops={[{ op: "remove_configuration", id: target.id }]}
           summary={c.removeTitle(target.id)}
           confirmLabel={c.remove}
-          onDone={() => onSelect(null, { replace: true })}
+          // 消す前に基準へ移る（消した後の再読込が、消した形態の部品一覧を読みに行かないように）
+          onBeforeApply={() => onSelect(null, { replace: true })}
           destructive
         />
       )}
@@ -145,6 +148,7 @@ function ConfigurationDialog({
     >
       {input("id", c.id, Boolean(initial))}
       {input("label", c.label)}
+      {input("label_en", c.labelEn)}
       {input("description", c.description)}
       {made.error && (
         <p role="alert" className="text-neg-ink text-xs">

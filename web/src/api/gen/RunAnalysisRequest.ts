@@ -22,4 +22,8 @@ source: AnalysisInputSource,
  * 保存していない編集。書き込まずに当てた設計から入力を組み立てる（空なら保存済みの設計）。
  * `source` が `given` のときは使わない
  */
-ops: Array<Op>, };
+ops: Array<Op>, 
+/**
+ * 重い任意の出力（メッシュ上の場など。`AnalysisEntry.detail_type` を持つ解析だけ）も返す。既定は返さない
+ */
+detail: boolean, };

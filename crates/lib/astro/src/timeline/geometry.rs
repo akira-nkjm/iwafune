@@ -18,16 +18,22 @@
 //!
 //! 極値は標本の最小・最大（[`extreme_indices`]）と、標本の前後の区間で黄金分割（`math::golden_section_min`）して詰めたもの
 //! （[`extremes_by`]）の 2 つ。詰める区間では単峰とみなす（軌道の周回による細かい変動が標本の刻みより速い成分は、詰めても拾えない）。
+//! 弧の連鎖の軌道（スイングバイのある巡航）は、境で位置が連続で速度が跳ぶので、距離・角は連続だが傾きが折れる。
+//! 詰める区間は境で分け、境そのものも極値の候補にする（[`extremes_by_split`]、[`breakpoints_from`]）。
 
+mod below;
 mod extremes;
 
-pub use extremes::{Extremes, Extremum, ExtremumKind, extreme_indices, extremes_by};
+pub use below::time_below_s;
+pub use extremes::{
+    Extremes, Extremum, ExtremumKind, extreme_indices, extremes_by, extremes_by_split,
+};
 
 use crate::AstroError;
 use crate::constants::C_LIGHT;
 use crate::ephem::CentralBody;
 use crate::math::Vec3;
-use crate::orbit::Trajectory;
+use crate::orbit::{OrbitState, OrbitTrack, Trajectory};
 use crate::time::Epoch;
 
 /// 片道の光の伝搬時間 [s]（距離 [m] / 光速）。**距離 → 光の伝搬時間の換算はここだけ。**
@@ -104,24 +110,27 @@ struct Positions {
     sun: Vec3,
 }
 
+/// 時刻 `epoch` での軌道の状態 `state`（中心天体からの相対）を、地心の位置にする（`(中心天体からの相対位置, 地心の位置)`）。
+fn positions(orbit: &Trajectory, epoch: Epoch, state: &OrbitState) -> (Vec3, Positions) {
+    let probe = orbit.central().position_eci_m(epoch) + state.r_eci;
+    let sun = CentralBody::Sun.position_eci_m(epoch);
+    (state.r_eci, Positions { probe, sun })
+}
+
 /// `start` から `times_s`（昇順）の時刻での軌道の状態を、地心の位置にして返す（`(元期, 中心天体からの相対位置, 地心の位置)`）。
 fn probe_states(
     orbit: &Trajectory,
     start: Epoch,
     times_s: &[f64],
 ) -> Result<Vec<(Epoch, Vec3, Positions)>, AstroError> {
-    let offset = start.seconds_since(orbit.epoch());
-    let abs: Vec<f64> = times_s.iter().map(|t| t + offset).collect();
-    let states = orbit.states_at(&abs)?;
-    let central = orbit.central();
+    let states = orbit.states_at(&offsets(orbit, start, times_s))?;
     Ok(times_s
         .iter()
         .zip(&states)
         .map(|(&t, s)| {
             let epoch = start.plus_seconds(t);
-            let probe = central.position_eci_m(epoch) + s.r_eci;
-            let sun = CentralBody::Sun.position_eci_m(epoch);
-            (epoch, s.r_eci, Positions { probe, sun })
+            let (r, pos) = positions(orbit, epoch, s);
+            (epoch, r, pos)
         })
         .collect())
 }
@@ -181,6 +190,16 @@ pub fn body_views_at(
         .collect()
 }
 
+/// 天体 `body` の中心までの距離 [m]（探査機の状態から。[`body_views_at`] の距離と同じ式）。
+fn distance_of(orbit: &Trajectory, epoch: Epoch, state: &OrbitState, body: CentralBody) -> f64 {
+    let (r, pos) = positions(orbit, epoch, state);
+    if body == orbit.central() {
+        r.norm()
+    } else {
+        (body.position_eci_m(epoch) - pos.probe).norm()
+    }
+}
+
 /// 天体 `body` の中心までの距離 [m] だけを時刻ごとに求める（角が要らないときの軽い入口。値は [`body_views_at`] と同じ）。
 pub fn body_distances_m(
     orbit: &Trajectory,
@@ -188,16 +207,18 @@ pub fn body_distances_m(
     times_s: &[f64],
     body: CentralBody,
 ) -> Result<Vec<f64>, AstroError> {
-    Ok(probe_states(orbit, start, times_s)?
-        .into_iter()
-        .map(|(epoch, r, pos)| {
-            if body == orbit.central() {
-                r.norm()
-            } else {
-                (body.position_eci_m(epoch) - pos.probe).norm()
-            }
-        })
+    let states = orbit.states_at(&offsets(orbit, start, times_s))?;
+    Ok(times_s
+        .iter()
+        .zip(&states)
+        .map(|(&t, s)| distance_of(orbit, start.plus_seconds(t), s, body))
         .collect())
+}
+
+/// `start` からの経過 `times_s` を、軌道の元期からの経過にする。
+fn offsets(orbit: &Trajectory, start: Epoch, times_s: &[f64]) -> Vec<f64> {
+    let offset = start.seconds_since(orbit.epoch());
+    times_s.iter().map(|t| t + offset).collect()
 }
 
 /// 太陽・地球の幾何を時刻ごとに求める（時刻の取り方は [`body_views_at`] と同じ）。
@@ -206,31 +227,86 @@ pub fn geometry_at(
     start: Epoch,
     times_s: &[f64],
 ) -> Result<Vec<GeometrySample>, AstroError> {
-    let central = orbit.central();
-    probe_states(orbit, start, times_s)?
-        .into_iter()
-        .zip(times_s)
-        .map(|((epoch, r, pos), &t_s)| {
-            let sun = view(central, epoch, r, &pos, CentralBody::Sun)?;
-            let earth = view(central, epoch, r, &pos, CentralBody::Earth)?;
-            let angles = earth
-                .angles
-                .ok_or_else(|| AstroError::InvalidInput("The Earth angles are undefined".into()))?;
-            Ok(GeometrySample {
-                t_s,
-                epoch,
-                sun_distance_m: sun.distance_m,
-                earth_distance_m: earth.distance_m,
-                sep_rad: angles.at_body_rad,
-                spe_rad: angles.at_probe_rad,
-                light_time_s: earth.light_time_s,
-            })
-        })
+    let states = orbit.states_at(&offsets(orbit, start, times_s))?;
+    times_s
+        .iter()
+        .zip(&states)
+        .map(|(&t_s, s)| sample_of(orbit, start, t_s, s))
         .collect()
 }
 
+/// 時刻 `start + t_s` の探査機の状態 `state` から太陽・地球の幾何の標本 1 つを作る。
+fn sample_of(
+    orbit: &Trajectory,
+    start: Epoch,
+    t_s: f64,
+    state: &OrbitState,
+) -> Result<GeometrySample, AstroError> {
+    let central = orbit.central();
+    let epoch = start.plus_seconds(t_s);
+    let (r, pos) = positions(orbit, epoch, state);
+    let sun = view(central, epoch, r, &pos, CentralBody::Sun)?;
+    let earth = view(central, epoch, r, &pos, CentralBody::Earth)?;
+    let angles = earth
+        .angles
+        .ok_or_else(|| AstroError::InvalidInput("The Earth angles are undefined".into()))?;
+    Ok(GeometrySample {
+        t_s,
+        epoch,
+        sun_distance_m: sun.distance_m,
+        earth_distance_m: earth.distance_m,
+        sep_rad: angles.at_body_rad,
+        spe_rad: angles.at_probe_rad,
+        light_time_s: earth.light_time_s,
+    })
+}
+
+/// 任意の時刻の探査機の状態を何度も求める道具（極値を詰める評価のように、1 時刻ずつ多数回の評価をするとき用）。
+/// 軌道の表を 1 回だけ作る（[`Trajectory::track`]。解析的な軌道は表を使わず、[`Trajectory::states_at`] と同じ値）ので、
+/// 数値伝搬の軌道で時刻ごとに元期から積分し直さない。`start` から `last_s` [s] までで使える。
+pub struct ProbeTrack<'a> {
+    orbit: &'a Trajectory,
+    start: Epoch,
+    offset_s: f64,
+    track: OrbitTrack,
+}
+
+impl<'a> ProbeTrack<'a> {
+    /// `start` から `last_s` [s] までの道具を作る。
+    pub fn new(orbit: &'a Trajectory, start: Epoch, last_s: f64) -> Result<Self, AstroError> {
+        let offset_s = start.seconds_since(orbit.epoch());
+        let track = orbit.track(offset_s + last_s, orbit.table_step_s())?;
+        Ok(Self {
+            orbit,
+            start,
+            offset_s,
+            track,
+        })
+    }
+
+    /// `start` から `t_s` 後の太陽・地球の幾何（[`geometry_at`] の 1 時刻と同じ量）。
+    pub fn geometry(&self, t_s: f64) -> Result<GeometrySample, AstroError> {
+        sample_of(
+            self.orbit,
+            self.start,
+            t_s,
+            &self.track.state_at(t_s + self.offset_s),
+        )
+    }
+
+    /// `start` から `t_s` 後の天体 `body` の中心までの距離 [m]（[`body_distances_m`] の 1 時刻と同じ量）。
+    pub fn distance_m(&self, t_s: f64, body: CentralBody) -> f64 {
+        distance_of(
+            self.orbit,
+            self.start.plus_seconds(t_s),
+            &self.track.state_at(t_s + self.offset_s),
+            body,
+        )
+    }
+}
+
 /// 標本 `samples` の中の量 `metric` の最小・最大を、標本の前後の区間で詰めて求める。
-/// 詰める評価は 1 時刻ずつ [`geometry_at`] を呼ぶ。標本が空なら `None`。
+/// 詰める評価は [`ProbeTrack`]（表を 1 回だけ作る）で 1 時刻ずつ行う。標本が空なら `None`。
 pub fn refined_extremes(
     orbit: &Trajectory,
     start: Epoch,
@@ -239,10 +315,41 @@ pub fn refined_extremes(
 ) -> Result<Option<Extremes>, AstroError> {
     let times: Vec<f64> = samples.iter().map(|s| s.t_s).collect();
     let values: Vec<f64> = samples.iter().map(|s| metric.of(s)).collect();
-    extremes_by(&times, &values, |t| {
-        Ok(metric.of(&geometry_at(orbit, start, &[t])?[0]))
+    let Some(last_s) = times.iter().copied().reduce(f64::max) else {
+        return Ok(None);
+    };
+    let probe = ProbeTrack::new(orbit, start, last_s)?;
+    let breaks = breakpoints_from(orbit, start);
+    extremes_by_split(&times, &values, &breaks, |t| {
+        Ok(metric.of(&probe.geometry(t)?))
     })
 }
 
+/// 時刻列 `times`（昇順）に、範囲の中の折れ目 `breaks`（昇順）を加えた昇順の列。標本の最小・最大を折れ目で取りこぼさないために使う
+/// （折れ目は距離の傾きが跳ぶ点で、標本の間にあると極値を見逃す）。折れ目が無ければ `times` のまま。
+pub fn times_with_breaks(times: &[f64], breaks: &[f64]) -> Vec<f64> {
+    let (Some(first), Some(last)) = (times.first().copied(), times.last().copied()) else {
+        return Vec::new();
+    };
+    let mut all: Vec<f64> = times.to_vec();
+    all.extend(breaks.iter().copied().filter(|b| *b > first && *b < last));
+    all.sort_by(f64::total_cmp);
+    all.dedup();
+    all
+}
+
+/// 軌道の折れ目（弧の連鎖の境。[`Trajectory::breakpoints_s`]）を、`start` からの経過 [s] にしたもの（昇順。折れ目の無い軌道は空）。
+/// 極値を詰める区間はこの折れ目で分ける（[`extremes_by_split`]）。**軌道の折れ目を標本の時刻の座標に直すのはここだけ**。
+pub fn breakpoints_from(orbit: &Trajectory, start: Epoch) -> Vec<f64> {
+    let offset = start.seconds_since(orbit.epoch());
+    orbit
+        .breakpoints_s()
+        .into_iter()
+        .map(|b| b - offset)
+        .collect()
+}
+
+#[cfg(test)]
+mod chain_tests;
 #[cfg(test)]
 mod tests;

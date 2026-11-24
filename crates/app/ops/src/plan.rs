@@ -16,6 +16,7 @@
 //! | `ground` | 地上局の Op（足す・消す・名前を変える） |
 //! | `check_keys` | 要求の判定のキーが名指すエンティティ（部品・局・回線・熱の節点）の削除の拒否 |
 //! | `remount` | 基準の取付の付け替えで形態の上書きが古い取付点に対するものになるときの警告（`configuration.mount_changed`） |
+//! | `removed` | 置き換える Op が既存のレコードから落としたキーの一覧（`RemovedKeys`。結果に載せて、書かなかった欄が黙って消えるのを知らせる） |
 //! | `renamed` | 名前の変更の Op を適用前の診断に写す（元からある error を新しい error と取り違えない） |
 //! | `renames` | ネット・ハーネス・解析ケース・出典・マヌーバの名前の変更の Op |
 //! | `link` | 通信の回線の Op（足す・消す・名前を変える） |
@@ -24,8 +25,10 @@
 //! | `catalog` | カタログ品の Op（このプロジェクトの `catalog/` だけ） |
 //! | `catalog_source` | カタログの出所の Op（fune.toml の `[[catalog]]`。共有カタログ `git = …` とローカルのカタログ `path = …` を足す・外す） |
 //! | `subdir` | ディレクトリの下に置けるエンティティ（カタログ品・出典）の Op に共通の計画（ディレクトリを選ぶ・移す） |
+//! | `acknowledged` | 承知済みの組（幾何の所見）の Op（足す・取り消す） |
 //! | `attr` | 属性の値の書き込み（部品とカタログ品で共有） |
 
+mod acknowledged;
 mod attr;
 mod catalog;
 mod catalog_source;
@@ -41,6 +44,7 @@ mod phases;
 mod project;
 mod records;
 mod remount;
+mod removed;
 mod renamed;
 mod renames;
 mod requirements;
@@ -53,6 +57,7 @@ use fune_model::design::Revision;
 use fune_model::{Design, Diagnostic, check};
 use fune_store::read::design_of;
 use fune_store::{Edits, FileChange, Snapshot, revision};
+pub use removed::RemovedKeys;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use ts_rs::TS;
@@ -69,6 +74,8 @@ pub struct Plan {
     pub diagnostics: Vec<Diagnostic>,
     /// 適用後の設計
     pub design: Design,
+    /// 置き換える Op が既存のレコードから落としたキー（書かなかった欄。ファイルごと）
+    pub removed: Vec<RemovedKeys>,
 }
 
 /// 計画の要約（API・CLI の `--dry-run` 向け）。
@@ -78,6 +85,9 @@ pub struct PlanSummary {
     pub revision: Revision,
     pub changes: Vec<FileChange>,
     pub diagnostics: Vec<Diagnostic>,
+    /// 置き換える Op が既存のレコードから落としたキー（`fune case set` で書かなかった `beta` など。無ければ空）
+    #[serde(default)]
+    pub removed: Vec<RemovedKeys>,
 }
 
 impl From<&Plan> for PlanSummary {
@@ -87,6 +97,7 @@ impl From<&Plan> for PlanSummary {
             revision: plan.revision.clone(),
             changes: plan.changes.clone(),
             diagnostics: plan.diagnostics.clone(),
+            removed: plan.removed.clone(),
         }
     }
 }
@@ -96,9 +107,14 @@ pub fn plan(snapshot: &Snapshot, ops: &[Op]) -> Result<Plan, OpError> {
     let mut edits = Edits::new(&snapshot.files);
     let mut design = snapshot.design.clone();
     let mut remounts = Vec::new();
+    let mut removed = Vec::new();
     for op in ops {
         remounts.extend(remount::remount_of(&design, op));
+        let before = removed::replaces_record(op).then(|| edits.files().clone());
         interpret(&mut edits, &design, op)?;
+        if let Some(before) = before {
+            removed.extend(removed::between(&before, edits.files()));
+        }
         design = design_of(edits.files());
     }
     let before = check(&snapshot.design);
@@ -118,6 +134,7 @@ pub fn plan(snapshot: &Snapshot, ops: &[Op]) -> Result<Plan, OpError> {
         changes: edits.changes(),
         diagnostics,
         design,
+        removed: removed::settled(removed, edits.files()),
     })
 }
 
@@ -204,12 +221,17 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::CopyPhaseOrbit { .. }
         | Op::UnsetPhaseOrbit { .. }
         | Op::UnsetPhaseLaw { .. }
-        | Op::SetCasePhase { .. } => phases::interpret(edits, design, op),
+        | Op::SetCasePhase { .. }
+        | Op::SetCaseEpoch { .. }
+        | Op::SetCaseField { .. } => phases::interpret(edits, design, op),
         Op::CreateConfiguration { .. }
         | Op::SetConfiguration { .. }
         | Op::RemoveConfiguration { .. }
         | Op::RenameConfiguration { .. }
         | Op::UnsetConfigurationPose { .. } => configurations::interpret(edits, design, op),
+        Op::Acknowledge { .. } | Op::Unacknowledge { .. } => {
+            acknowledged::interpret(edits, design, op)
+        }
         Op::CreateRequirement { .. } | Op::SetRequirement { .. } | Op::RemoveRequirement { .. } => {
             requirements::interpret(edits, design, op)
         }
