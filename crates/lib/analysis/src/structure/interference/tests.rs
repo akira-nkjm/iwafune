@@ -277,3 +277,61 @@ fn when_every_overlap_is_acknowledged_nothing_warns() {
         Some(Verdict::Ok)
     );
 }
+
+fn sized(id: &str, center: [f64; 3], size: [f64; 3]) -> InterferenceBox {
+    InterferenceBox {
+        size: Vec3::new(size[0], size[1], size[2]),
+        ..unit_box(id, center)
+    }
+}
+
+/// 隣り合う 2 枚のパネル（厚さ 2 mm）が縁で半厚ずつ重なる（一辺 1 m の面に中心を置く: x ∈ [0.499, 0.501] と y ∈ [0.499, 0.501]）。
+/// 重なりは 1 mm × 1 mm × 1 m で、縁の接触として別に残り、干渉の警告にはならない。深さは 1 mm（x にも y にも 1 mm）。
+/// 縁の接触があっても組は「判定した組」に数える。
+#[test]
+fn panels_meeting_at_a_corner_are_listed_as_an_edge_contact_not_a_warning() {
+    let out = run(&input(vec![
+        sized("PX", [0.5, 0.0, 0.0], [0.002, 1.0, 1.0]),
+        sized("PY", [0.0, 0.5, 0.0], [1.0, 0.002, 1.0]),
+    ]));
+    assert!(out.overlaps.is_empty());
+    assert_eq!(out.edge_contacts.len(), 1);
+    let e = &out.edge_contacts[0];
+    assert_eq!((e.first.as_str(), e.second.as_str()), ("PX", "PY"));
+    assert!((e.depth.value() - 1e-3).abs() < 1e-12);
+    assert!((e.thickness.value() - 2e-3).abs() < 1e-15);
+    assert_eq!(out.pairs_judged, 1);
+    assert_eq!(out.checks.len(), 1);
+    assert_eq!(out.checks[0].verdict, Verdict::Ok);
+    assert!(out.checks[0].message.contains("1 edge contacts"));
+}
+
+/// 同じ板に、一辺 40 mm のセンサが 5 mm 食い込む（板 z ∈ [-0.001, 0.001]、センサ z ∈ [-0.004, 0.036]）: 縁の接触ではなく、干渉の警告。
+#[test]
+fn a_sensor_sunk_into_a_panel_is_still_an_overlap() {
+    let out = run(&input(vec![
+        sized("PANEL", [0.0; 3], [1.0, 1.0, 0.002]),
+        sized("SENSOR", [0.0, 0.0, 0.016], [0.04, 0.04, 0.04]),
+    ]));
+    assert!(out.edge_contacts.is_empty());
+    assert_eq!(out.overlaps.len(), 1);
+    assert_eq!(out.checks[0].verdict, Verdict::Warning);
+}
+
+/// 縁の接触の組を承知していても、承知は効かない（所見ではないので `overlaps` に出ない。古い承知として別に知らせる）。
+#[test]
+fn an_acknowledgement_of_an_edge_contact_matches_nothing() {
+    let mut i = input(vec![
+        sized("PX", [0.5, 0.0, 0.0], [0.002, 1.0, 1.0]),
+        sized("PY", [0.0, 0.5, 0.0], [1.0, 0.002, 1.0]),
+    ]);
+    i.acknowledged = vec![Acknowledgement {
+        first: "PX".to_owned(),
+        second: "PY".to_owned(),
+        reason: "r".to_owned(),
+        configuration: None,
+    }];
+    let out = run(&i);
+    assert!(out.overlaps.is_empty());
+    assert_eq!(out.edge_contacts.len(), 1);
+}

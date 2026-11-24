@@ -157,6 +157,7 @@ export type * from "./EclipseSeasonInput";
 export type * from "./EclipseSeasonOutput";
 export type * from "./EclipseSeasonPoint";
 export type * from "./EclipseSeasonSettings";
+export type * from "./EdgeContact";
 export type * from "./ElementsRepr";
 export type * from "./EnergyBalanceBattery";
 export type * from "./EnergyBalanceCase";

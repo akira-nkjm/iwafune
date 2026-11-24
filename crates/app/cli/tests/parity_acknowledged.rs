@@ -74,7 +74,7 @@ fn acknowledged_edits_match_cli() {
         assert_same_files(&cli_root, &http_root, &cli.join(" "));
     }
     let text = std::fs::read_to_string(http_root.join("analysis/structure.toml")).unwrap();
-    // デモは 13 組を承知済みにしている。同じ組への承知は行を足さず、理由を書き換える
-    assert_eq!(text.matches("[[acknowledged]]").count(), 13, "{text}");
+    // デモは 1 組（ヒンジの縁）を承知済みにしている（パネルの角は縁の接触で、承知が要らない）。同じ組への承知は行を足さず、理由を書き換える
+    assert_eq!(text.matches("[[acknowledged]]").count(), 1, "{text}");
     assert!(text.contains("the boxes meet at the hinge line"), "{text}");
 }
