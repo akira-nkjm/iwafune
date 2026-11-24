@@ -51,6 +51,35 @@ A topic's settings location is looked up with `ConditionTopic::setting_path()`. 
 `sat_astro::ephem::CentralBody` (projection's `context::central_body` maps them). Sun-synchronous (`sun_synchronous`) applies to Earth only;
 writing it for any other body is a `check` error (`setting.central`).
 
+`source` is where the orbit comes from (`elements` or `transfer`; `elements` if omitted and then **never written to the file**, so existing files are unchanged; the display name is `orbit_source` in labels.toml).
+It is valid in `conditions/orbit.toml` and in a phase's `[orbit]` (§7.10), and it is edited with the existing ops only (`fune set conditions.orbit.source transfer`, `fune phase set-field <ID> orbit.source transfer`; there is no orbit field on the phase itself).
+Analyses read an orbit through `fune_projection::Context::trajectory` (state at a time, central body, epoch and the length of one cycle); only analyses that really need Kepler elements read `Context::orbit`.
+
+```toml
+# phases/CRUISE.toml (or conditions/orbit.toml)
+[orbit]
+source   = "transfer"
+maneuver = "MARS_TRANSFER"    # a maneuver with a dated [transfer] (§7.7)
+```
+
+- `source = "transfer"` takes the cruise leg of a dated transfer. The orbit is the Lambert arc (`sat_astro::transfer::lambert_arc`, the same solution `propulsion.maneuvers` uses for its burns) written as osculating Kepler elements
+  about the common parent of the two bodies (the Sun for planet ⇄ planet) and propagated as two bodies (`sat_astro::transfer::cruise_orbit`; it passes through the departure body's position on the departure date and the arrival body's on the arrival date).
+  **The leg runs from the departure body's sphere of influence to the arrival body's; the hyperbolic legs inside the spheres are not analysed** (patched conics: the heliocentric arc holds only outside them, and phases cannot hold a hyperbola).
+  `sat_astro::transfer::cruise_leg` finds the time the arc first leaves the departure body's sphere of influence (`CentralBody::soi_radius_m`, distance to the body from the ephemeris, bisection to 1 ms) and the last time before arrival that it is outside the arrival body's;
+  the trajectory's epoch is the first time (the same ellipse, advanced through its state), its span (`Cycle::OneOff`) is the interval between them, so the Earth range starts at about the Earth's sphere of influence (not at its centre).
+  The dates are read by the one reader of `[transfer]` (`fune_projection::maneuver_dates`); the departure body is the central body before the maneuver (`maneuver_dates::central_before`).
+  A hyperbolic arc (a short flight time), a body without a sphere of influence, or an arc that does not leave the departure sphere / stay outside the arrival one is a missing input with the reason.
+- Keys beside `source = "transfer"` that the source does not use (the Kepler elements, `epoch`, `central`, `propagator`, `[eclipse_season]`, `[decay]`) get the warning `setting.not_applied`; `maneuver` beside `source = "elements"` gets it too.
+  `maneuver` must name an existing maneuver whenever it is written (`ref.maneuver`) and, for `transfer`, that maneuver must have a `[transfer]` (`orbit.maneuver_transfer`). A missing `maneuver` is not a check error but a missing input (`conditions.orbit.maneuver`),
+  which offers the maneuvers with a dated transfer (`Fix::PickRef`).
+- `maneuver` is a reference to a maneuver (`RefSite::OrbitManeuver` for the design orbit, `RefSite::PhaseOrbitManeuver` for a phase orbit): renaming the maneuver rewrites both, and removing a maneuver they name is rejected by the check (`ref.maneuver`).
+- **Analyses that need Kepler elements** (`orbit.eclipse_season`, `orbit.decay`, `power.sizing`'s season, the element-editing maneuvers and `propulsion.orbit_history`'s starting orbit) are **not applicable** to an orbit whose source is not `elements`:
+  projection answers with a missing input on `<orbit>.source` (for a phase orbit `phases.<ID>.orbit.source`) whose reason starts with "Not applicable", with no fix candidate. A case's `beta` and `sun_distance`, and a thermal condition's `beta`, are overrides of Kepler elements
+  and become missing inputs on their own keys for such an orbit. The analyses' own rejections of an orbit about the Sun (`orbit.eclipse_season`) or off Earth (`orbit.decay`) stay in the analyses.
+- **One-off orbits.** A trajectory with a span has `Cycle::OneOff`: the time-series analyses sample the span itself (the `orbits` count is ignored; step `max(30 s, span / 200)`, so a 290-day cruise has 200 samples; a thermal `time_step` is not made finer than that step),
+  "per orbit" quantities (orbit averages, energy per orbit, per-orbit unloading) are computed over the whole span, the Earth distance of `comm.link_budget` is evaluated over the span, and the output's `span_fallback` is `one_off_span`
+  (shown as an `ok` check "Analysis span"; it is never present for a periodic orbit). The number of orbits is still used for Kepler-element orbits, including the one-orbit default about the Sun.
+
 `propagator` is the orbit propagation (`kepler`, `j2`, `numerical`; `j2` if omitted). Projection maps `kepler` and `j2` directly onto `sat_astro::orbit::Propagator`.
 `numerical` is **not used** by analyses: the force model of numerical propagation (drag and solar radiation pressure need values of the spacecraft) has no conventional default in sat-astro,
 and projection does not invent defaults, so time-series analyses propagate with the J2 secular terms (`j2`). Writing it makes `check` notify with a warning (`setting.not_applied`)
@@ -113,6 +142,21 @@ Without such a case, the orbit conditions are used as they are: `thermal.steady`
 A time series about the Sun with no number of orbits written runs **one** orbit instead of three (`spec::DEFAULT_HELIOCENTRIC_ORBITS`; an explicit `orbits` is used as written),
 and its step is the usual period/200 (a year-long orbit is sampled about every 1.6 days; a `time_step` of 30 s over a year is rejected as too many samples).
 The thermal transient integrates the whole span with the same adaptive method, so its cost grows with the span (about a minute in a debug build for one year of the demo; seconds in a release build).
+
+#### Mission geometry (`orbit.geometry`)
+
+`orbit.geometry` is `AnalysisArea::Condition(ConditionTopic::Orbit)` and has no settings. It reports how far the spacecraft is from the Sun and the Earth, and at which angles, over each phase.
+The distances and angles are computed in one place, `sat_astro::timeline::geometry`, from the orbit as a function of time (`Trajectory`), with the Sun and Earth positions from the ephemeris (DE440 if registered, otherwise the analytic one; the output says which, in `ephemeris`).
+
+- **Legs.** One leg per phase in the phase order (`order`, then ID). The orbit of a leg is the orbit in effect for that phase (the phase's `[orbit]` if it has one, otherwise `conditions/orbit.toml`), and the leg starts at that orbit's epoch.
+  A design without phases has one leg for the design orbit (`phase` is empty). A selected case does not pick a leg: all phases are reported.
+- **Span.** The orbit's one-off span if it has one, otherwise the phase `duration` if written, otherwise one orbit; `span_basis` says which (`one_off`, `phase_duration`, `one_cycle`). The span is split into 720 equal samples (`sample_step`).
+- **Definitions.** Distances are from the probe to the centre of the body (the Earth is the origin of the ephemeris; for an orbit about the Earth the Earth distance is the orbit radius, and for an orbit about the Sun the Sun distance is the orbit radius).
+  `sep` (SEP) is the angle at the Earth's centre between the Sun and the probe (near 0° at solar conjunction, near 180° at opposition); `spe` (SPE) is the angle at the probe between the Sun and the Earth (the phase angle used for antenna and array geometry).
+  For an orbit about the Earth, SEP is the geocentric Sun–satellite angle and goes around once per orbit, so it is not a conjunction angle there. The one-way light time to the Earth is the Earth distance divided by the speed of light.
+- **Output per leg.** `sun_distance` and `earth_distance` each with `min` and `max` (a `value` and the `epoch` of it), `sep_min` (the closest approach to conjunction), `light_time_max`, and a `series` (time from the leg start; channels `sun_distance`, `earth_distance`, `sep`, `spe`).
+  The extremes are refined between the samples around the extreme sample (golden section, one extremum assumed there); a variation faster than the sample step, such as the orbit of a low Earth satellite in SEP, is not resolved.
+  The analysis judges nothing and has no notes. Later stages read `legs[].earth_distance.max` (the farthest distance and its date) and `legs[].sun_distance.max.epoch` by phase ID.
 
 #### Altitude decay by atmospheric drag and orbit maintenance (`orbit.decay`)
 
@@ -1326,6 +1370,7 @@ arrival   = "2029-09-25T00:00:00Z"
     The window is centred on the written departure date, so running the search again after writing re-centres the grid and can find a slightly different minimum.
 - The execution order is linked by `after`. The source of truth is `Design::ordered_maneuvers` (those with no `after` start in ID order, followed by the ones linked after them).
   A cycle is a `check` error (`maneuver.cycle`).
+- A cruise orbit can be taken from a dated transfer: `source = "transfer"` and `maneuver = "<ID>"` in `conditions/orbit.toml` or in a phase's `[orbit]` (§1 and §7.10). Maneuver renames rewrite those references.
 - The first orbit is the conditions' orbit (`conditions/orbit.toml`). The dry mass is `dry_mass` in `analysis/propulsion.toml`, or if absent, the total mass of the parts' mass properties.
 - `dv_margin` (default 10 %) and `residual_fraction` (remaining propellant, default 3 %) in `analysis/propulsion.toml`. The defaults are held by sat-analysis (`propulsion::input`).
 - Reference checks: the thruster is a part (an error if absent, a warning if its role is not `propulsion_thruster` or `thruster`), and the constraint's mode is a mode.
@@ -1495,10 +1540,11 @@ law = "nadir_pointing"
   from the phase's table too, so a phase orbit has to be complete) and the phase's `[law.<mode>]` in place of the design's law for that mode (modes the phase does not list keep the design's law). Nothing else changes.
   The existing orbit and attitude-law code reads them (the orbit builder takes "the orbit settings in effect"); there is no second orbit builder. A missing input in a phase orbit names the phase file
   (`phases.<ID>.orbit.<key>`, not `conditions.orbit.<key>`), and so does a read of a phase law (`phases.<ID>.law.<mode>`).
+- **Orbit from a dated transfer.** The phase's `[orbit]` can set `source = "transfer"` and `maneuver = "<ID>"` instead of Kepler elements (see the orbit settings in §1; no other key is needed), so a cruise phase takes its orbit from the maneuver's dates. The phases page then says "Orbit from <maneuver>" (`PhaseView.orbit_from`).
 - **Checks** (`fune check`): the ID rules (`id.invalid`, `id.duplicate`); every entry of `modes` and every key of `[law]` must be a mode (`ref.mode`); `duration` has the Time dimension (`unit.dimension`);
   the `[orbit]` table gets the same checks as the design's orbit (dimensions of the quantities, eccentricity range, `ltdn` format; the targets are `phases.<ID>.orbit.<key>`);
   a case's `phase` must exist (`ref.phase`); and `case.mode_not_in_phase` (warning) when a case with a phase names a mode that the phase's non-empty `modes` does not list.
-- **References.** Phases refer to modes (`modes`, the keys of `[law]`) and cases refer to phases (`phase`); both are in the reference index (`RefSite::PhaseMode`, `PhaseLaw`, `CasePhase`).
+- **References.** Phases refer to modes (`modes`, the keys of `[law]`) and cases refer to phases (`phase`); both are in the reference index (`RefSite::PhaseMode`, `PhaseLaw`, `CasePhase`); a phase orbit's `maneuver` refers to a maneuver (`RefSite::PhaseOrbitManeuver`).
   Renaming a mode rewrites the phases, and renaming a phase rewrites the cases. Removing a phase that a case names is rejected by the check (`ref.phase`), as removing a mode that a case names is.
 - **Ops**: `CreatePhase`, `SetPhase`, `RemovePhase`, `RenamePhase`, `SetPhaseField` (one value of `orbit.<key>` or `law.<mode>.<key>`; no value removes it, and an emptied table disappears), `CopyPhaseOrbit` (writes the design's current orbit into the phase's `[orbit]` in one step, replacing the current one; it is the starting point of an orbit override), `UnsetPhaseOrbit` and `UnsetPhaseLaw` (remove the whole `[orbit]`, or the whole `[law.<mode>]` of one mode) and `SetCasePhase`.
   An attitude law override is started by writing its kind (`law.<mode>.law`) with `SetPhaseField`, because `AttitudeLawSetting` requires `law` whenever `[law.<mode>]` exists; the file stays loadable at every step.

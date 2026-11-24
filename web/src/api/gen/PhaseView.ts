@@ -29,9 +29,13 @@ modes: Array<string>,
  */
 orbit_overridden: boolean, 
 /**
- * 上書きの軌道の書かれた欄（`[orbit]`。`orbit_overridden` のときだけ）
+ * 上書きの軌道の書かれた欄（`[orbit]`。`orbit_overridden` のときだけ。選んで入れる `source`・`maneuver` は未入力でも並べる）
  */
 orbit: Array<PhaseFieldView>, 
+/**
+ * 上書きの軌道が巡航の軌道を取る遷移のマヌーバ（`[orbit]` が `source = "transfer"` のとき）。一覧の「軌道は <マヌーバ> から」の表示用
+ */
+orbit_from: string | null, 
 /**
  * 姿勢則の上書き（モードの ID 順。`[law.<モード>]`）
  */

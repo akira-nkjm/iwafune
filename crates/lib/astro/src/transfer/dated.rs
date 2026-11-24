@@ -15,8 +15,10 @@ use crate::ephem::{
     CentralBody, EphemerisSource, covers, ecliptic_normal_eci, orientation::pole_eci, source_at,
 };
 use crate::math::Vec3;
+use crate::orbit::{OrbitElements, OrbitSpec, Propagator, osculating_elements};
 use crate::state::OrbitState;
 use crate::time::Epoch;
+use sat_units::typed::Qty;
 
 /// 日付を決めた遷移。ベクトルは ECI（J2000 平均赤道）の向き。
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -72,23 +74,33 @@ fn validate(
     Ok(parent)
 }
 
-/// 天体 `from` の軌道 `parking` から、日付 `depart` に出発して `arrive` に天体 `to` に着く遷移
-/// （`capture` はその軌道への捕獲。`None` なら捕獲しない）。出発・到着の噴射は軌道の近点で行う。
-/// `from` と `to` が同じ親を回る別々の天体でない、到着が出発より後でない、日付が暦の外にある、
-/// Lambert の問題が解けない（2 点が正反対に近く面が決まらない）ときはエラー。
-pub fn dated_transfer(
+/// 日付を決めた遷移の Lambert の弧（両端の天体の状態と、親のまわりの遷移の軌道の両端の速度）。
+/// **日付つきの遷移の Lambert を解くのはここだけ**（[`dated_transfer`] の噴射と、巡航の軌道 [`cruise_orbit`] が共有する）。
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LambertArc {
+    /// 遷移の軌道の中心（共通の親）
+    pub parent: CentralBody,
+    /// 飛行時間 [s]
+    pub transfer_time_s: f64,
+    /// 出発の日の出発天体の状態（親の中心から。ECI の向き）
+    pub from_state: OrbitState,
+    /// 到着の日の到着天体の状態（同）
+    pub to_state: OrbitState,
+    /// 遷移の軌道の出発の速度 [m/s]
+    pub v_departure_m_s: Vec3,
+    /// 遷移の軌道の到着の速度 [m/s]
+    pub v_arrival_m_s: Vec3,
+}
+
+/// 天体 `from` を `depart` に出て天体 `to` に `arrive` に着く Lambert の弧を解く（順行は黄道の北に対して決める）。
+/// 条件（共通の親の別々の天体・暦の範囲・日付の順序）に合わない、または Lambert が解けないときはエラー。
+pub fn lambert_arc(
     from: CentralBody,
-    parking: Apsides,
     to: CentralBody,
-    capture: Option<Apsides>,
     depart: Epoch,
     arrive: Epoch,
-) -> Result<DatedTransfer, AstroError> {
+) -> Result<LambertArc, AstroError> {
     let parent = validate(from, to, depart, arrive)?;
-    parking.check()?;
-    if let Some(c) = capture {
-        c.check()?;
-    }
     let mu = parent.gm();
     check_mu(mu)?;
     let transfer_time_s = arrive.seconds_since(depart);
@@ -106,8 +118,81 @@ pub fn dated_transfer(
         true,
         ecliptic_normal_eci(),
     )?;
-    let v_inf_dep = sol.v1_m_s - start.v_eci;
-    let v_inf_arr = sol.v2_m_s - end.v_eci;
+    Ok(LambertArc {
+        parent,
+        transfer_time_s,
+        from_state: start,
+        to_state: end,
+        v_departure_m_s: sol.v1_m_s,
+        v_arrival_m_s: sol.v2_m_s,
+    })
+}
+
+/// 日付つきの遷移の巡航の軌道: 出発の日の遷移の状態（[`LambertArc`]）を親のまわりの接触要素にした二体（Kepler）の軌道。
+/// 元期は出発の日、中心は共通の親、伝搬は二体なので Lambert の弧そのもの（両端の天体の位置を通る）。
+/// 遷移の軌道が楕円でない（双曲線・放物線）ときはエラー（長半径が定まらない。状態ベクトルの source が受け持つ）。
+pub fn cruise_orbit(
+    from: CentralBody,
+    to: CentralBody,
+    depart: Epoch,
+    arrive: Epoch,
+) -> Result<OrbitSpec, AstroError> {
+    let arc = lambert_arc(from, to, depart, arrive)?;
+    let state = OrbitState {
+        r_eci: arc.from_state.r_eci,
+        v_eci: arc.v_departure_m_s,
+    };
+    let mu = arc.parent.gm();
+    let energy = 0.5 * state.v_eci.norm_squared() - mu / state.r_eci.norm();
+    if energy.is_nan() || energy >= 0.0 {
+        return Err(AstroError::InvalidInput(format!(
+            "The transfer arc from {from:?} to {to:?} is not an ellipse about {parent:?} (specific energy {energy:.3e} J/kg)",
+            parent = arc.parent
+        )));
+    }
+    let mut spec = spec_from_state(&state, mu, depart)?;
+    spec.central = arc.parent;
+    Ok(spec)
+}
+
+/// 親のまわりの状態 `state`（元期 `epoch`）を接触要素にした二体（Kepler）の軌道（中心天体は呼ぶ側が置く）。
+/// **状態 → 巡航の軌道の変換はここだけ**（[`cruise_orbit`] と、巡航の区間の切り出し [`super::leg::cruise_leg`] が使う）。
+pub(super) fn spec_from_state(
+    state: &OrbitState,
+    mu: f64,
+    epoch: Epoch,
+) -> Result<OrbitSpec, AstroError> {
+    let el = osculating_elements(state, mu)?;
+    let elements = OrbitElements {
+        semi_major_axis: Qty::from_raw(el.a_m),
+        eccentricity: el.e,
+        inclination: Qty::from_raw(el.i_rad),
+        raan: Qty::from_raw(el.raan_rad),
+        arg_perigee: Qty::from_raw(el.argp_rad),
+        mean_anomaly: Qty::from_raw(el.mean_anomaly_rad),
+    };
+    Ok(OrbitSpec::new(epoch, elements, Propagator::Kepler))
+}
+
+/// 天体 `from` の軌道 `parking` から、日付 `depart` に出発して `arrive` に天体 `to` に着く遷移
+/// （`capture` はその軌道への捕獲。`None` なら捕獲しない）。出発・到着の噴射は軌道の近点で行う。
+/// `from` と `to` が同じ親を回る別々の天体でない、到着が出発より後でない、日付が暦の外にある、
+/// Lambert の問題が解けない（2 点が正反対に近く面が決まらない）ときはエラー。
+pub fn dated_transfer(
+    from: CentralBody,
+    parking: Apsides,
+    to: CentralBody,
+    capture: Option<Apsides>,
+    depart: Epoch,
+    arrive: Epoch,
+) -> Result<DatedTransfer, AstroError> {
+    parking.check()?;
+    if let Some(c) = capture {
+        c.check()?;
+    }
+    let arc = lambert_arc(from, to, depart, arrive)?;
+    let v_inf_dep = arc.v_departure_m_s - arc.from_state.v_eci;
+    let v_inf_arr = arc.v_arrival_m_s - arc.to_state.v_eci;
     let v_dep = v_inf_dep.norm();
     let declination = v_inf_dep.normalized().map_or(0.0, |u| {
         u.dot(pole_eci(from, depart)).clamp(-1.0, 1.0).asin()
@@ -121,11 +206,11 @@ pub fn dated_transfer(
         v_inf_departure_m_s: v_inf_dep,
         v_inf_arrival_m_s: v_inf_arr,
         departure_declination_rad: declination,
-        transfer_time_s,
-        parent,
+        transfer_time_s: arc.transfer_time_s,
+        parent: arc.parent,
         cruise_state: OrbitState {
-            r_eci: start.r_eci,
-            v_eci: sol.v1_m_s,
+            r_eci: arc.from_state.r_eci,
+            v_eci: arc.v_departure_m_s,
         },
         ephemeris: if both_de440 {
             EphemerisSource::De440

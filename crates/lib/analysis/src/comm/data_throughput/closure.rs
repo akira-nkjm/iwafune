@@ -30,8 +30,8 @@ pub(super) fn station_closures(
     input: &DataThroughputInput,
     w: &SearchWindow,
 ) -> Result<Vec<DataThroughputStationClosure>, AnalysisError> {
-    // 高度は平均（長半径 − 中心天体の半径）で代表させる。要素で書かれた軌道だけが持つ値なので `elements()` から取る。
-    let altitude = w.orbit.elements().map(|o| o.altitude_m());
+    // 高度は平均（長半径 − 中心天体の半径）で代表させる。長半径を持つ軌道だけが持つ値。
+    let altitude = w.orbit.altitude_m();
     let far = (w.orbit.central() != CentralBody::Earth && !input.station_links.is_empty())
         .then(|| earth_range(&w.orbit, w.start, w.span_s, w.step_s))
         .transpose()?;
