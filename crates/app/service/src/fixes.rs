@@ -67,6 +67,11 @@ pub fn fixes_for(design: &Design, resolved: &Resolved, m: &MissingInput) -> Vec<
                 &format!("fune case set {}", quote(id)),
             )]
         }
+        Target::Phase { id, field } if field.as_deref() == Some("configuration") => {
+            refs::phase_configuration(design, (target, m), id)
+                .into_iter()
+                .collect()
+        }
         Target::Maneuver { id, field } if field.as_deref() == Some("thruster") => {
             maneuver_thruster(design, (target, m), id)
         }
@@ -105,8 +110,9 @@ fn setting_fixes(design: &Design, site: (&Target, &MissingInput), s: &SettingPat
         let command = format!("fune ground add {}", quote(id));
         return vec![add_item(ListKind::GroundStation, &command)];
     }
-    if let Some(fix) =
-        refs::catalog_item(design, s).or_else(|| refs::comm_downlink(design, site, s))
+    if let Some(fix) = refs::catalog_item(design, s)
+        .or_else(|| refs::comm_downlink(design, site, s))
+        .or_else(|| refs::launch_configuration(design, site, s))
     {
         return vec![fix];
     }

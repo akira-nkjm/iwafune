@@ -42,6 +42,8 @@ pub enum RefKind {
     CatalogItem,
     /// 通信の回線（`analysis.comm` の回線の名前）
     CommLink,
+    /// 部品の配置の形態（`configurations/<ID>.toml`）
+    Configuration,
 }
 
 /// 足りない入力を一覧に足す先の一覧（「何を足すか」）。

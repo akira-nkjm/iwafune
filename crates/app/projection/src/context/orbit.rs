@@ -23,9 +23,9 @@ impl<'a> Context<'a> {
             return Some(p);
         }
         let case = self.case?;
-        let id = case.phase.as_ref()?;
+        case.phase.as_ref()?;
         self.note(Target::case(case.id.as_str(), Some("phase")));
-        self.design.phases.get(id.as_str())
+        crate::case_policy::case_phase(self.design, self.case)
     }
 
     /// 効いている軌道の設定: ケースのフェーズが `[orbit]` を持てばそれ（設計の軌道を丸ごと置き換える。キーごとの合成はしない）、

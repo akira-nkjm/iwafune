@@ -79,6 +79,7 @@ export type * from "./ComplianceReport";
 export type * from "./ComplianceRow";
 export type * from "./ComplianceSummary";
 export type * from "./ConditionTopic";
+export type * from "./ConfigurationSource";
 export type * from "./ConfigurationText";
 export type * from "./ConfigurationView";
 export type * from "./Constraint";

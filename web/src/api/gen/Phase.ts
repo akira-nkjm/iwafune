@@ -28,6 +28,10 @@ duration?: Quantity | null,
  */
 modes?: Array<string>, 
 /**
+ * このフェーズを選んだ解析ケースが使う形態。
+ */
+configuration?: string | null, 
+/**
  * 軌道の上書き（`conditions/orbit.toml` と同じ形。あれば設計の軌道を丸ごと置き換える。キーごとの合成はしない）
  */
 orbit?: OrbitSettings | null, 

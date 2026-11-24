@@ -247,6 +247,8 @@ fn rename_at(
         | RefSite::ThermalHeatNode
         | RefSite::CaseMode { .. }
         | RefSite::CasePhase { .. }
+        | RefSite::PhaseConfiguration { .. }
+        | RefSite::LaunchConfiguration
         | RefSite::PhaseMode { .. }
         | RefSite::PhaseLaw { .. }
         | RefSite::PowerModeShare
@@ -367,6 +369,10 @@ fn rename_setting_at(
         RefSite::ThermalHeatNode => rename_in(edits, &thermal(), &["heat_node"], from, to),
         RefSite::CaseMode { case } => set_top(edits, &layout::case_file(case), "mode", to),
         RefSite::CasePhase { case } => set_top(edits, &layout::case_file(case), "phase", to),
+        RefSite::PhaseConfiguration { phase } => {
+            set_top(edits, &layout::phase_file(phase), "configuration", to)
+        }
+        RefSite::LaunchConfiguration => set_top(edits, &layout::launch_file(), "configuration", to),
         RefSite::PhaseMode { phase } => {
             replace_in(edits, &layout::phase_file(phase), "modes", from, to)
         }

@@ -19,6 +19,7 @@ fn phase(id: &str) -> Phase {
         end: None,
         duration: Some(Quantity::new(10.0, "d")),
         modes: vec!["SAFE".into(), "NOMINAL".into()],
+        configuration: None,
         orbit: None,
         law: Default::default(),
     }

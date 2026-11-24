@@ -47,6 +47,7 @@ fn text(a: &PhaseArgs) -> PhaseText {
         end: a.end.clone(),
         duration: a.duration.clone(),
         modes: a.modes.clone(),
+        configuration: a.configuration.clone(),
     }
 }
 

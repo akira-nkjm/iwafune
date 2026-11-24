@@ -1,5 +1,6 @@
 //! 解析ケースの文脈: 設計・解決済みの値・ケースと、どの解析でも使う入力（軌道・地上局・姿勢則・モード）の組み立て。
 
+mod configuration;
 mod orbit;
 
 use crate::missing::MissingInputs;
@@ -45,6 +46,9 @@ pub fn central_body(c: CentralBodyKind) -> CentralBody {
 pub struct Context<'a> {
     pub design: &'a Design,
     pub resolved: &'a Resolved,
+    /// 形態を切り替えるときの基準の解決結果。
+    base: &'a Resolved,
+    configuration: Option<(&'a str, crate::configuration_policy::ConfigurationSource)>,
     /// 選んだ解析ケース（無ければケース未選択）
     pub case: Option<&'a Case>,
     /// 読んだものの記録先（無ければ記録しない）
@@ -59,6 +63,8 @@ impl<'a> Context<'a> {
         Self {
             design,
             resolved,
+            base: resolved,
+            configuration: None,
             case: None,
             reads: None,
             phase_override: None,
@@ -69,11 +75,8 @@ impl<'a> Context<'a> {
     /// ケースを持たずにフェーズごとの軌道を並べる解析（`orbit.geometry`）が使う。**ケースを介さずフェーズを指定する入口はここだけ。**
     pub fn in_phase(&self, phase: &'a Phase) -> Self {
         Self {
-            design: self.design,
-            resolved: self.resolved,
-            case: self.case,
-            reads: self.reads,
             phase_override: Some(phase),
+            ..*self
         }
     }
 
@@ -163,13 +166,25 @@ impl<'a> Context<'a> {
                 }
             },
         };
-        Ok(Self {
-            design,
-            resolved,
-            case,
-            reads: None,
-            phase_override: None,
-        })
+        let mut ctx = Self::bare(design, resolved);
+        ctx.case = case;
+        Ok(ctx.select_configuration(None, None))
+    }
+
+    fn select_configuration(
+        mut self,
+        analysis_id: Option<&str>,
+        explicit: Option<&'a str>,
+    ) -> Self {
+        let (id, source) = crate::configuration_policy::select(
+            self.design,
+            analysis_id,
+            || self.phase(),
+            explicit,
+        );
+        self.configuration = id.zip(source);
+        self.resolved = self.base.in_configuration(id);
+        self
     }
 
     /// ケースが指すモード（無ければ None）。

@@ -74,5 +74,9 @@ fn phase_cmd(verb: &str, p: &Phase) -> String {
         .flag("end", p.end.as_deref())
         .flag("duration", duration.as_deref())
         .flag("modes", modes.as_deref())
+        .flag(
+            "configuration",
+            p.configuration.as_ref().map(|id| id.as_str()),
+        )
         .done()
 }

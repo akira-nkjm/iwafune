@@ -20,6 +20,7 @@ const FIELDS: &[(&str, &str)] = &[
     ("end", "end"),
     ("duration", "duration"),
     ("modes", "modes"),
+    ("configuration", "configuration"),
 ];
 
 /// フェーズの一覧（並びの順）。
@@ -107,5 +108,6 @@ pub(crate) fn phase_text(p: &Phase) -> PhaseText {
         end: p.end.clone(),
         duration: p.duration.as_ref().map(quantity_to_text),
         modes: (!p.modes.is_empty()).then(|| list_to_text(p.modes.iter().map(|m| m.as_str()))),
+        configuration: p.configuration.as_ref().map(ToString::to_string),
     }
 }

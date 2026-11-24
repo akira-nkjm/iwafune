@@ -18,6 +18,7 @@ fn demo() -> Workspace {
 fn run(ws: &Workspace, id: &str, edit: Value) -> AnalysisRunResult {
     let req = fune_service::dto::RunAnalysisRequest {
         case: None,
+        configuration: None,
         source: AnalysisInputSource::Design,
         ops: serde_json::from_value(edit).unwrap(),
     };

@@ -7,6 +7,7 @@
 
 use super::analysis::AttitudeLawSetting;
 use super::conditions::OrbitSettings;
+use super::configuration::Configuration;
 use super::mode::Mode;
 use crate::Design;
 use crate::id::Id;
@@ -38,6 +39,9 @@ pub struct Phase {
     /// このフェーズで使うモード（`modes/` への参照）
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub modes: Vec<Id<Mode>>,
+    /// このフェーズを選んだ解析ケースが使う形態。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configuration: Option<Id<Configuration>>,
     /// 軌道の上書き（`conditions/orbit.toml` と同じ形。あれば設計の軌道を丸ごと置き換える。キーごとの合成はしない）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub orbit: Option<OrbitSettings>,

@@ -2,6 +2,7 @@
 
 use super::{AnalysisLabel, CheckView, KpiDef, KpiView};
 use fune_projection::MissingInput;
+use fune_projection::configuration_policy::ConfigurationSource;
 use sat_analysis::spec::AnalysisInfo;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -26,6 +27,10 @@ pub struct AnalysisEntry {
 pub struct RunAnalysisRequest {
     /// 解析ケースの ID（`cases/<ID>.toml`）。省略時は projection の対象解析だけ既定ケースを適用
     pub case: Option<String>,
+    /// 実行時に明示する形態の ID（設計データから組み立てる入力用）。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional = nullable)]
+    pub configuration: Option<String>,
     /// 入力の与え方（省略時は設計データから組み立てる）
     pub source: AnalysisInputSource,
     /// 保存していない編集。書き込まずに当てた設計から入力を組み立てる（空なら保存済みの設計）。
@@ -68,6 +73,14 @@ pub struct AnalysisRunResult {
     pub id: String,
     pub case: Option<String>,
     pub case_source: Option<AnalysisCaseSource>,
+    /// 解析が使った形態の ID（基準なら省略）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub configuration: Option<String>,
+    /// 形態の選択元（基準なら省略）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub configuration_source: Option<ConfigurationSource>,
     /// 解析が読んだ不確かさの側（ケースの `side`。ケースがあれば書かれていなくても `nominal`、ケースが無ければ欄を出さない）。
     /// `min` / `max` のときは、その側が書かれた値だけがその値で、書かれていない値は nominal を使っている
     #[serde(default, skip_serializing_if = "Option::is_none")]

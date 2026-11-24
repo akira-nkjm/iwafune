@@ -25,6 +25,9 @@ pub struct PhaseText {
     pub duration: Option<String>,
     /// 使うモード（カンマ区切り）
     pub modes: Option<String>,
+    /// 解析ケースがこのフェーズで使う形態の ID。
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub configuration: Option<String>,
 }
 
 /// 軌道・姿勢則の上書きの欄 1 つ。

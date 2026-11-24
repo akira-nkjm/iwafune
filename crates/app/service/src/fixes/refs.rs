@@ -147,3 +147,54 @@ pub(super) fn comm_downlink(
         add,
     ))
 }
+
+/// 打ち上げ条件の形態を選ぶ候補。
+pub(super) fn launch_configuration(
+    design: &Design,
+    (target, m): (&Target, &MissingInput),
+    s: &SettingPath,
+) -> Option<Fix> {
+    pattern_matches(SettingScope::Conditions, &["launch", "configuration"], s).then(|| {
+        configuration(
+            design,
+            (target, &m.path),
+            format!("fune set {} <configuration>", quote(&m.path)),
+        )
+    })
+}
+
+/// フェーズの見出しを保ったまま形態を選ぶ候補（コマンドの組み立ては `to_cli`）。
+pub(super) fn phase_configuration(
+    design: &Design,
+    (target, m): (&Target, &MissingInput),
+    id: &str,
+) -> Option<Fix> {
+    let mut phase = design.phases.get(id)?.clone();
+    phase.configuration = Some("<configuration>".into());
+    phase.orbit = None;
+    phase.law.clear();
+    let command = fune_ops::to_cli(&fune_ops::Op::SetPhase { phase })
+        .into_iter()
+        .next()?;
+    Some(configuration(design, (target, &m.path), command))
+}
+
+fn configuration(design: &Design, site: Site<'_>, command: String) -> Fix {
+    let choices = design
+        .configurations
+        .values()
+        .map(|c| Choice {
+            value: c.id.to_string(),
+            label: c.label.clone().unwrap_or_else(|| c.id.to_string()),
+            label_en: None,
+        })
+        .collect();
+    pick(
+        site,
+        RefKind::Configuration,
+        Scope::default(),
+        choices,
+        command,
+        Some("fune configuration add <ID>".to_owned()),
+    )
+}

@@ -236,8 +236,7 @@ fn attitude_timeline(
         analysis,
         ctx.case.map(|c| c.id.as_str()),
     );
-    let attitude_ctx =
-        Context::new(ctx.design, ctx.resolved, attitude_case)?.with_reads(ctx.reads());
+    let attitude_ctx = ctx.for_case(analysis, attitude_case)?;
     let attitude_mode = timeline::case_mode_id(&attitude_ctx);
     Ok(timeline::timeline(
         ctx,
