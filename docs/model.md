@@ -1863,8 +1863,9 @@ by           = "system-lead"
 | `by` | author | — |
 | `note` | memo | — |
 
-A new file is written in the order of the table. When adding a field to an existing file, as with other records (cases, harnesses), it is appended at the end without moving the current lines
-(to keep diffs small; `fune fmt` does not reorder keys). `fune source set` and the GUI's sources page write with the same Op `set_source`. The material itself (the PDF) is not placed in the repository;
+A new file is written in the order of the table. When adding a field to an existing file, as with other records (cases, harnesses, configurations, maneuvers, phases, requirements), the new key goes right after the
+key that precedes it in that order (at the top of the key lines if none of the earlier keys is in the file), so an added key ends up where a freshly written file has it; the current lines, their order and their comments do not move
+(to keep diffs small; `fune fmt` does not reorder keys, so a file whose keys were ordered by hand stays as it is and only the added key is placed). `fune source set` and the GUI's sources page write with the same Op `set_source`. The material itself (the PDF) is not placed in the repository;
 it is referenced by the URL in `ref`, and the SHA-256 of what was retrieved is kept.
 
 - **The source of a value**, `from`, has three keys: `source` (a source ID), `at` (the position within the material, such as page, table or section like `p.12 Table 3`, as written), and `note`.

@@ -15,8 +15,9 @@ import { clearFieldErrors, setFieldErrors } from "@/lib/field-errors";
 import { copyText, recordChange } from "@/lib/history";
 import { useDebounced } from "@/lib/use-debounced";
 import { type ApiError, api, seg } from "./client";
-import { invalidatedByOps, keys } from "./keys";
+import { keys, type Retired, retiredBy } from "./keys";
 import { q } from "./queries";
+import { refreshDerived } from "./refresh";
 import type {
   ApplyRequest,
   ApplyResult,
@@ -97,10 +98,11 @@ async function onApplied(
   summary: string,
   paths: string[],
   before: Snapshot,
+  retired?: Retired,
 ) {
   clearFieldErrors(paths);
   recordChange({ summary, cli: r.cli, files: r.changed.map((c) => c.path) });
-  await Promise.all(invalidatedByOps.map((k) => qc.invalidateQueries({ queryKey: k })));
+  await refreshDerived(qc, retired);
   const lines = await deltas(qc, before);
   if (lines.length === 0 && r.changed.length > 0)
     lines.push(getT().ops.changed(r.changed.map((c) => c.path).join(", ")));
@@ -118,7 +120,7 @@ async function onApplied(
 /** 編集が弾かれたとき: 版ずれなら読み直し、検証エラーなら欄の下に理由を出す */
 async function onRejected(qc: QueryClient, e: ApiError, summary: string, paths: string[]) {
   if (e.conflict) {
-    await Promise.all(invalidatedByOps.map((k) => qc.invalidateQueries({ queryKey: k })));
+    await refreshDerived(qc);
     toast.error(getT().ops.conflict, { description: getT().ops.conflictDetail });
     return;
   }
@@ -141,12 +143,14 @@ export function editOptions<R extends { summary: string }>(
   qc: QueryClient,
   send: (req: R, revision: string | null) => Promise<ApplyResult>,
   pathsOf: (req: R) => string[],
+  retiredOf?: (req: R) => Retired,
 ): UseMutationOptions<ApplyResult, ApiError, R, Snapshot> {
   return {
     mutationKey: keys.applyOps,
     onMutate: () => snapshot(qc),
     mutationFn: (req) => send(req, currentRevision(qc)),
-    onSuccess: (r, req, before) => onApplied(qc, r, req.summary, pathsOf(req), before ?? new Map()),
+    onSuccess: (r, req, before) =>
+      onApplied(qc, r, req.summary, pathsOf(req), before ?? new Map(), retiredOf?.(req)),
     onError: (e, req) => onRejected(qc, e, req.summary, pathsOf(req)),
   };
 }
@@ -169,6 +173,8 @@ export function applyOpsOptions(qc: QueryClient) {
       return api<ApplyResult>("/ops", { method: "POST", body });
     },
     (req) => opPaths(req.ops, qc.getQueryData<DesignView>(keys.design)),
+    // 消した・名前を変えた対象の問い合わせは読み直さない（画面がまだ古い対象を見ている間に 404 になる）
+    (req) => retiredBy(req.ops),
   );
 }
 
