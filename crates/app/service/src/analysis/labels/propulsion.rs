@@ -173,8 +173,8 @@ pub(super) fn unloading(n: UnloadingNote) -> AnalysisLabel {
             "aocs.rw_unloading lacks inputs, so unloading delta-V is not included",
         ),
         UnloadingNote::NoMissionDuration => label(
-            "ミッション期間が無いので、アンロードの ΔV は含めない",
-            "No mission duration, so unloading delta-V is not included",
+            "フェーズの期間もミッション期間も無いので、アンロードの ΔV は含めない",
+            "No phase duration or mission duration, so unloading delta-V is not included",
         ),
         UnloadingNote::NotUnloadable => label(
             "RCS で捨てられない向きがあるので、アンロードの ΔV は含めない",
