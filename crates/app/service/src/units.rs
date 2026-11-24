@@ -8,9 +8,9 @@ use crate::dto::{
 use crate::error::{Result, ServiceError};
 use fune_model::value::parse_number_unit;
 use sat_units::format::{
-    FormattedQuantity, SIGNIFICANT_DIGITS, canonical_dimension_name, dimension_label_preferring,
-    display_units, format_dimension, format_in_unit, format_number, format_quantity,
-    si_unit_expression,
+    FormattedQuantity, SIGNIFICANT_DIGITS, canonical_dimension_name, dimension_display_name,
+    dimension_label_preferring, display_units, format_dimension, format_in_unit, format_number,
+    format_quantity, si_unit_expression,
 };
 use sat_units::typed::{NamedKind, TemperatureDifferenceKind, TorqueKind};
 use sat_units::{Dimension, Unit, named_dimensions, parse_dimension, parse_unit};
@@ -63,12 +63,19 @@ pub fn units_catalog(query: &UnitsQuery) -> Result<UnitsCatalog> {
     let dimensions = named_dimensions()
         .iter()
         .filter(|(name, d)| wanted.is_none_or(|w| w == *d) && alias.is_none_or(|a| *name == a))
-        .map(|(name, d)| DimensionInfo {
-            name: (*name).to_owned(),
-            si_unit: si_unit_expression(*d),
-            display_units: display_units(name)
-                .map(|u| u.map(str::to_owned).collect())
-                .unwrap_or_default(),
+        .map(|(name, d)| {
+            // 表示名の対は `sat_units::format`（全次元に対があることはそのテストが固定する）。無ければ次元名のまま
+            let (label, label_en) =
+                dimension_display_name(name).map_or((*name, *name), |n| (n.label, n.label_en));
+            DimensionInfo {
+                name: (*name).to_owned(),
+                label: label.to_owned(),
+                label_en: label_en.to_owned(),
+                si_unit: si_unit_expression(*d),
+                display_units: display_units(name)
+                    .map(|u| u.map(str::to_owned).collect())
+                    .unwrap_or_default(),
+            }
         })
         .collect();
     let symbols: Vec<&str> = match alias {

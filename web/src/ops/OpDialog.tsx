@@ -30,6 +30,7 @@ export function OpDialog({
   confirmLabel,
   destructive,
   wide,
+  onBeforeApply,
   onDone,
 }: {
   open: boolean;
@@ -42,6 +43,8 @@ export function OpDialog({
   confirmLabel?: string;
   destructive?: boolean;
   wide?: boolean;
+  /** 送る直前（設計の再読込の前）に呼ぶ。消すものを見ている画面が、消えたものを読みに行かないよう移るのに使う */
+  onBeforeApply?: () => void;
   onDone?: () => void;
 }) {
   const t = useT();
@@ -50,6 +53,7 @@ export function OpDialog({
   const check = useOpCheck(open ? ops : null);
   const submit = () => {
     if (!ops) return;
+    onBeforeApply?.();
     // 設計の再読込で詳細が消えても、閉じる処理と選び直しを最後まで実行する。
     void apply.mutateAsync({ ops, summary }).then(
       () => {

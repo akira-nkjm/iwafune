@@ -297,7 +297,6 @@ function Layout3DFrame({
             <Empty className="m-auto">{L.empty}</Empty>
           ) : (
             <Scene3D
-              key={configuration}
               boxes={shown}
               dimensions={dimensions}
               selected={selected}

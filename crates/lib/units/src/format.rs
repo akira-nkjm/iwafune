@@ -18,9 +18,11 @@ use alloc::format;
 use alloc::string::String;
 use preferences::{PREFERENCES, Preference};
 
+mod dimension_name;
 mod label;
 mod preferences;
 
+pub use dimension_name::{DimensionDisplayName, dimension_display_name};
 pub use label::unit_label;
 
 /// 表示の有効数字。

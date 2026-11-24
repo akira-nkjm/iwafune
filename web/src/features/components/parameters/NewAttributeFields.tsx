@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { q } from "@/api/queries";
-import { useT } from "@/i18n";
+import { localized, useT } from "@/i18n";
 import { Loading, SkeletonChips } from "@/kit/feedback/Loading";
 import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
@@ -77,7 +77,7 @@ export function NewAttributeFields({
           placeholder={tn.pickDimension}
           options={dims.map((d) => ({
             value: d.name,
-            label: withNote(d.name, d.si_unit),
+            label: withNote(localized(d.label, d.label_en), d.si_unit),
           }))}
         />
       </Field>
