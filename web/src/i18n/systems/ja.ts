@@ -177,11 +177,12 @@ export const systemsJa = {
       zoomIn: "拡大",
       zoomOut: "縮小",
       home: "ホームポジション（初めの視点に戻す）",
+      viewCubeFace: (name: string) => `${name} の向きから見る`,
       helper: {
         fov: "視野",
         origin: "原点の軸",
         grid: "格子",
-        gizmo: "隅の軸",
+        gizmo: "ビューキューブ",
         sun: "太陽",
         wireframe: "枠線だけ",
       },
