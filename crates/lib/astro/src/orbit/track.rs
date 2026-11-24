@@ -2,6 +2,7 @@
 //!
 //! 解析的な伝搬（Kepler・J2）は時刻から直接求める。数値伝搬は 1 回の積分で格子の状態の表を作り、格子の間は
 //! 位置と速度から 3 次のエルミート補間で求める（時刻ごとに元期から積分し直さない）。
+//! 弧の連鎖（[`super::Trajectory::Arcs`]）は弧ごとの道具を並べ、時刻の弧の道具に渡す（折れ目で速度が跳ぶので、表は折れ目をまたがない）。
 
 use super::analytic::Analytic;
 use super::{OrbitSpec, OrbitState, Propagator};
@@ -11,6 +12,12 @@ use crate::ode::step_offsets;
 /// 数値伝搬の表の格子の刻みを、周期（繰り返しの 1 単位）のこの分の 1 以下にする。**表の格子の細かさの基準はここだけ**
 /// （時系列の評価器・極値の詰め・状態ベクトルの軌道の表が使う）。
 pub(crate) const TABLE_STEPS_PER_ORBIT: f64 = 100.0;
+
+/// 元期からの時刻 `t_s` を含む弧の添字（始めが `t_s` 以下の最後の弧。先頭の始めより前は 0）。
+/// **時刻 → 弧の対応はここだけ**（連鎖の評価と、弧ごとの表 [`OrbitTrack`] が使う）。
+pub(crate) fn arc_index(starts_s: &[f64], t_s: f64) -> usize {
+    starts_s.partition_point(|s| *s <= t_s).saturating_sub(1)
+}
 
 /// 任意の時刻の状態を求める道具（[`OrbitSpec::track`]）。
 pub struct OrbitTrack {
@@ -23,6 +30,11 @@ enum Kind {
     Table {
         t: Vec<f64>,
         s: Vec<OrbitState>,
+    },
+    /// 弧ごとの道具（各弧の始めの時刻 [s] は昇順で先頭が 0。道具の時刻は弧の始めから測る）
+    Chain {
+        starts_s: Vec<f64>,
+        tracks: Vec<OrbitTrack>,
     },
 }
 
@@ -54,11 +66,22 @@ impl OrbitTrack {
         }
     }
 
-    /// 元期から `t_s` 秒後の状態（表の範囲の外は端の区間の補間式の延長）。
+    /// 弧ごとの道具（`tracks[i]` は始め `starts_s[i]` の弧の、弧の始めからの時刻で使う道具）から作る。
+    pub(super) fn from_arcs(starts_s: Vec<f64>, tracks: Vec<OrbitTrack>) -> Self {
+        Self {
+            kind: Kind::Chain { starts_s, tracks },
+        }
+    }
+
+    /// 元期から `t_s` 秒後の状態（表の範囲の外は端の区間の補間式の延長）。弧の連鎖は時刻を含む弧の道具で（折れ目ちょうどは後の弧）。
     pub fn state_at(&self, t_s: f64) -> OrbitState {
         match &self.kind {
             Kind::Analytic(a) => a.state_at(t_s),
             Kind::Table { t, s } => hermite(t, s, t_s),
+            Kind::Chain { starts_s, tracks } => {
+                let k = arc_index(starts_s, t_s);
+                tracks[k].state_at(t_s - starts_s[k])
+            }
         }
     }
 }

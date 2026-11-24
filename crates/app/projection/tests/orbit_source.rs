@@ -375,30 +375,249 @@ fn the_thermal_time_step_is_not_finer_than_the_one_off_default() {
     assert_eq!(input.timeline.sampling.step.value(), 30.0);
 }
 
-/// 途中のスイングバイのある遷移は、巡航の軌道を黙って最初の脚だけにせず、理由つきの不足入力として断る
-/// （通過をまたぐ区間ごとの軌道は未対応）。通過を外せば同じ設計で軌道が取れる。
-#[test]
-fn a_swing_by_transfer_refuses_the_cruise_orbit_instead_of_returning_one_leg() {
+const SWING_DEPARTURE: &str = "2028-10-01T00:00:00Z";
+const SWING_FLYBY: &str = "2028-12-30T00:00:00Z";
+const SWING_ARRIVAL: &str = "2030-02-23T00:00:00Z";
+
+fn venus_flyby(date: &str) -> fune_model::design::ManeuverFlyby {
+    fune_model::design::ManeuverFlyby {
+        body: CentralBodyKind::Venus,
+        date: date.to_owned(),
+        min_altitude: None,
+        powered: None,
+    }
+}
+
+/// `with_cruise` の遷移を、地球 → 金星（通過）→ 火星（日付は解析式の暦で成り立つ組）にする。
+fn with_swing_by() -> Design {
     let mut d = with_cruise();
-    d.maneuvers
-        .get_mut("MARS_TRANSFER")
-        .and_then(|m| m.transfer.as_mut())
+    let mut m = mars_transfer(SWING_DEPARTURE, SWING_ARRIVAL);
+    m.transfer
+        .as_mut()
         .expect("transfer")
         .flybys
-        .push(fune_model::design::ManeuverFlyby {
-            body: CentralBodyKind::Venus,
-            date: "2029-02-01T00:00:00Z".to_owned(),
-            min_altitude: None,
-            powered: None,
-        });
-    let missing = trajectory(&d, Some("cruise")).expect_err("must refuse");
-    assert_eq!(missing.len(), 1, "{missing:?}");
-    assert!(missing[0].reason.contains("swing-bys"), "{:?}", missing[0]);
+        .push(venus_flyby(SWING_FLYBY));
+    d.maneuvers.insert("MARS_TRANSFER".into(), m);
+    d
+}
+
+/// 途中のスイングバイのある遷移は、通過の日を境にした 2 本の弧の連鎖になる（もう断らない）: 元期は出発の天体の影響圏を出る時刻、
+/// 中心は太陽、境は通過の日、その日に両方の弧が金星の位置を通る（許容 1 m。連鎖の検査の許容と同じ）。繰り返しは全体で 1 回限り。
+/// 通過を外すと、同じ設計で弧 1 本（従来と同じ形）になる。
+#[test]
+fn a_swing_by_transfer_resolves_to_a_chain_of_arcs() {
+    let mut d = with_swing_by();
+    let t = trajectory(&d, Some("cruise")).expect("trajectory");
+    let Trajectory::Arcs(chain) = &t else {
+        panic!("a chain of arcs is expected: {t:?}");
+    };
+    assert_eq!(chain.arcs().len(), 2);
+    assert_eq!(t.central(), CentralBody::Sun);
+    let (departure, flyby, arrival) = (
+        epoch(SWING_DEPARTURE),
+        epoch(SWING_FLYBY),
+        epoch(SWING_ARRIVAL),
+    );
+    assert!(t.epoch().seconds_since(departure) > 0.0);
+    let at = t.breakpoints_s();
+    assert_eq!(at.len(), 1);
+    assert!((at[0] - flyby.seconds_since(t.epoch())).abs() < 1e-6);
+    let venus = CentralBody::Venus.state_about_parent(flyby).expect("venus");
+    let end_of_first = &chain.arcs()[0];
+    let incoming = end_of_first
+        .state_at(end_of_first.span_s().expect("span"))
+        .expect("state");
+    assert!((incoming.r_eci - venus.r_eci).norm() < 1.0);
+    assert!((t.state_at(at[0]).unwrap().r_eci - venus.r_eci).norm() < 1.0);
+    // 全体は到着の天体（火星）の影響圏に入るまで（到着の日より前）
+    let Cycle::OneOff { span_s } = t.cycle() else {
+        panic!("a one-off chain is expected");
+    };
+    assert!(t.epoch().seconds_since(departure) + span_s < arrival.seconds_since(departure));
+    assert!(t.elements().is_none());
+    // 通過を外すと弧 1 本
     d.maneuvers
         .get_mut("MARS_TRANSFER")
         .and_then(|m| m.transfer.as_mut())
         .expect("transfer")
         .flybys
         .clear();
-    assert!(trajectory(&d, Some("cruise")).is_ok());
+    let single = trajectory(&d, Some("cruise")).expect("trajectory");
+    assert!(matches!(single, Trajectory::Spanned { .. }));
+}
+
+/// 通過の日が読めない・通過の天体が隣と同じなら、理由つきの不足入力（軌道の `maneuver`、または通過の欄）で、黙って 1 脚だけにしない。
+#[test]
+fn an_unreadable_or_invalid_flyby_is_a_missing_input() {
+    let mut d = with_swing_by();
+    d.maneuvers
+        .get_mut("MARS_TRANSFER")
+        .and_then(|m| m.transfer.as_mut())
+        .expect("transfer")
+        .flybys[0]
+        .date = "soon".to_owned();
+    let m = trajectory(&d, Some("cruise")).expect_err("must refuse");
+    assert_eq!(m.len(), 1, "{m:?}");
+    assert!(m[0].reason.contains("Cannot parse the date of flyby 1"));
+    let mut d = with_swing_by();
+    d.maneuvers
+        .get_mut("MARS_TRANSFER")
+        .and_then(|m| m.transfer.as_mut())
+        .expect("transfer")
+        .flybys[0]
+        .body = CentralBodyKind::Mars;
+    let m = trajectory(&d, Some("cruise")).expect_err("must refuse");
+    assert_eq!(m.len(), 1, "{m:?}");
+    assert_eq!(m[0].path, "phases.CRUISE.orbit.maneuver");
+    assert!(m[0].reason.contains("must differ"), "{}", m[0].reason);
+}
+
+/// ケースの `epoch` が 2 本目の弧の中なら、そこから始まる（残りの弧 1 本。境の前の弧は落ちる）。境ちょうどは出ていく弧（後の弧）。
+/// 最初の弧の中なら、その弧の残りと後の弧の連鎖。始めの状態は元の軌道のその時刻の状態と同じ。
+#[test]
+fn a_case_epoch_starts_in_the_arc_that_contains_it() {
+    let mut d = with_swing_by();
+    let full = trajectory(&d, Some("cruise")).expect("trajectory");
+    let start_of = |d: &Design, text: &str| -> Trajectory {
+        let mut d = d.clone();
+        d.cases.get_mut("cruise").unwrap().epoch = Some(text.to_owned());
+        let resolved = fune_model::resolve(&d);
+        let ctx = Context::new(&d, &resolved, Some("cruise")).unwrap();
+        let mut m = MissingInputs::new();
+        let t = ctx.case_trajectory(&mut m).expect("case trajectory");
+        assert!(m.is_empty());
+        t
+    };
+    let same_state = |t: &Trajectory, at: &str| {
+        let dt = epoch(at).seconds_since(full.epoch());
+        let (got, want) = (t.state_at(0.0).unwrap(), full.state_at(dt).unwrap());
+        assert!((got.r_eci - want.r_eci).norm() < 1e-3, "{at}");
+        assert!((got.v_eci - want.v_eci).norm() < 1e-6, "{at}");
+    };
+    // 2 本目の弧の中（金星の通過の後）
+    let in_second = start_of(&d, "2029-06-01T00:00:00Z");
+    assert_eq!(in_second.epoch(), epoch("2029-06-01T00:00:00Z"));
+    assert!(matches!(in_second, Trajectory::Spanned { .. }));
+    same_state(&in_second, "2029-06-01T00:00:00Z");
+    // 境ちょうど: 出ていく弧の全体（始めの速度は後の弧のもの）
+    let at_break = start_of(&d, SWING_FLYBY);
+    assert!(matches!(at_break, Trajectory::Spanned { .. }));
+    assert_eq!(at_break.epoch(), epoch(SWING_FLYBY));
+    same_state(&at_break, SWING_FLYBY);
+    // 最初の弧の中
+    let in_first = start_of(&d, "2028-11-15T00:00:00Z");
+    assert_eq!(in_first.breakpoints_s().len(), 1);
+    same_state(&in_first, "2028-11-15T00:00:00Z");
+    // 全体の外は、理由つきの不足入力としてケースの epoch を指す
+    d.cases.get_mut("cruise").unwrap().epoch = Some("2031-01-01T00:00:00Z".to_owned());
+    let resolved = fune_model::resolve(&d);
+    let ctx = Context::new(&d, &resolved, Some("cruise")).unwrap();
+    let mut m = MissingInputs::new();
+    assert!(ctx.case_trajectory(&mut m).is_none());
+    assert_eq!(m.into_vec()[0].path, "cases.cruise.epoch");
+}
+
+/// 時系列（電源が使う）は連鎖の全体を 1 回限りの軌道として解く: 日照率は 1、太陽距離は境でも連続（境の前後の標本の差は、
+/// 標本の間隔の間の距離の変化の範囲）で、境の日の太陽距離は金星の日心距離（暦）に等しい。
+#[test]
+fn the_timeline_and_power_run_across_the_flyby() {
+    let d = with_swing_by();
+    let resolved = fune_model::resolve(&d);
+    let ctx = Context::new(&d, &resolved, Some("cruise")).unwrap();
+    let mut m = MissingInputs::new();
+    let spec = timeline::timeline(&ctx, Some("NOMINAL"), Some(7), &mut m).expect("timeline");
+    assert!(m.is_empty());
+    let samples = build(&spec).expect("samples");
+    assert!(samples.iter().all(|s| s.sunlit == 1.0));
+    // 標本の太陽距離は、軌道の位置の大きさそのもの（太陽中心）
+    assert!(
+        samples
+            .iter()
+            .all(|s| (s.sun_distance_m - s.r_eci.norm()).abs() < 1.0)
+    );
+    let t0 = spec.orbit().epoch();
+    let flyby = epoch(SWING_FLYBY);
+    let venus_distance = CentralBody::Venus
+        .state_about_parent(flyby)
+        .expect("venus")
+        .r_eci
+        .norm();
+    let state = spec
+        .orbit()
+        .state_at(flyby.seconds_since(t0))
+        .expect("state");
+    assert!((state.r_eci.norm() - venus_distance).abs() < 1.0);
+    let out = OrbitGeneration::run(&power::orbit_generation(&ctx).unwrap()).unwrap();
+    assert_eq!(out.sunlit_fraction.value(), 1.0);
+    assert_eq!(
+        out.span_fallback,
+        Some(sat_analysis::spec::SpanFallback::OneOffSpan)
+    );
+}
+
+/// 設計の軌道が通過のある遷移でも、`orbit.geometry` が連鎖の全体で走る: 区間は 1 つ（中心は太陽、期間は連鎖の全体の `OneOff`）。
+/// 通過の日の太陽距離は金星の日心距離（暦）で、境をまたぐ標本の地球距離は連続（光の伝搬時間は地球距離 / c）。
+#[test]
+fn orbit_geometry_runs_across_the_flyby() {
+    let mut d = with_swing_by();
+    d.conditions.orbit = Some(transfer_orbit(Some("MARS_TRANSFER")));
+    d.phases.clear();
+    let resolved = fune_model::resolve(&d);
+    let ctx = Context::new(&d, &resolved, None).expect("context");
+    let input = orbit::geometry(&ctx).expect("geometry input");
+    let leg = &input.legs[0];
+    assert_eq!(leg.orbit.breakpoints_s().len(), 1);
+    let out = sat_analysis::orbit::Geometry::run(&input).expect("geometry");
+    let g = &out.legs[0];
+    assert_eq!(g.central, CentralBody::Sun);
+    assert_eq!(g.span_basis, sat_analysis::orbit::GeometrySpanBasis::OneOff);
+    assert_eq!(g.span.value(), leg.orbit.cycle().length_s());
+    // 太陽距離の最小は、金星の通過の日の距離（金星の日心距離）以下、最大は両端の距離以上（極値は標本・詰めた値で、端と境を含む）
+    let (lo, hi) = (
+        g.sun_distance.min.value.value(),
+        g.sun_distance.max.value.value(),
+    );
+    let venus = CentralBody::Venus
+        .state_about_parent(epoch(SWING_FLYBY))
+        .expect("venus")
+        .r_eci
+        .norm();
+    assert!(lo <= venus + 1.0, "{lo} vs {venus}");
+    let span = leg.orbit.cycle().length_s();
+    for t in [0.0, span] {
+        let r = leg.orbit.state_at(t).expect("state").r_eci.norm();
+        assert!(hi >= r - 1.0, "{hi} vs {r} at {t}");
+    }
+}
+
+/// 回線バジェットの地球からの距離は連鎖の全体で求まり（最小は始めの地球の影響圏の境、最大は区間中の最遠）、
+/// ケプラー要素が要る解析は連鎖でも「対象外」を理由つきの不足入力で返す。
+#[test]
+fn the_link_budget_and_kepler_only_analyses_handle_a_chain() {
+    let d = with_swing_by();
+    let resolved = fune_model::resolve(&d);
+    let ctx = Context::new(&d, &resolved, Some("cruise")).unwrap();
+    let input = comm::link_budget(&ctx).expect("link budget input");
+    let out = LinkBudget::run(&input).expect("link budget");
+    let link = &out.links[0];
+    let soi = CentralBody::Earth.soi_radius_m().expect("soi");
+    assert!((link.range_min.value() - soi).abs() < 100.0);
+    assert!(link.slant_range.value() > link.range_min.value());
+    for m in [
+        orbit::eclipse_season(&ctx).unwrap_err(),
+        orbit::decay(&ctx).unwrap_err(),
+        power::sizing(&ctx).unwrap_err(),
+    ] {
+        let got: Vec<(String, String)> = m
+            .into_vec()
+            .into_iter()
+            .map(|m| (m.path, m.reason))
+            .collect();
+        assert!(
+            got.iter().any(|(p, r)| p == "phases.CRUISE.orbit.source"
+                && r.contains("Not applicable")
+                && r.contains("transfer")),
+            "{got:?}"
+        );
+    }
 }

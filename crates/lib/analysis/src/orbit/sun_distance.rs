@@ -9,7 +9,7 @@ use crate::spec::{AnalysisError, orbit_step_s};
 use sat_astro::ephem::CentralBody;
 use sat_astro::orbit::{OrbitSpec, Trajectory};
 use sat_astro::time::Epoch;
-use sat_astro::timeline::geometry::{body_distances_m, extremes_by};
+use sat_astro::timeline::geometry::{body_distances_m, breakpoints_from, extremes_by_split};
 use sat_astro::timeline::sample_times;
 use sat_units::typed::{Length, Qty, Time};
 
@@ -56,7 +56,7 @@ const MAX_SAMPLES: f64 = 50_000.0;
 
 /// 軌道（どの出どころ・どの中心天体でもよい）の、元期から `span_s` 秒までの太陽距離の最小・最大と日付。
 /// 標本の刻みは軌道の繰り返しの 200 分の 1（`spec::orbit_step_s`）か、期間の [`MAX_SAMPLES`] 分の 1 の大きい方で、
-/// 極値の近くは黄金分割で詰める（`sat_astro::timeline::geometry::extremes_by`）。**距離の計算はミッション幾何の 1 か所**
+/// 極値の近くは黄金分割で詰める（`sat_astro::timeline::geometry::extremes_by_split`。弧の連鎖の境をまたがない）。**距離の計算はミッション幾何の 1 か所**
 /// （`body_distances_m`）で、ここは標本の取り方と型だけ。期間が正でなければ `InvalidInput`。
 pub fn sun_distance_extremes_over(
     orbit: &Trajectory,
@@ -72,7 +72,8 @@ pub fn sun_distance_extremes_over(
     let start = orbit.epoch();
     let sun = |times: &[f64]| body_distances_m(orbit, start, times, CentralBody::Sun);
     let values = sun(&times)?;
-    let x = extremes_by(&times, &values, |t| Ok(sun(&[t])?[0]))?
+    let breaks = breakpoints_from(orbit, start);
+    let x = extremes_by_split(&times, &values, &breaks, |t| Ok(sun(&[t])?[0]))?
         .ok_or_else(|| AnalysisError::InvalidInput("No samples".into()))?;
     let point = |e: sat_astro::timeline::geometry::Extremum| SunDistancePoint {
         epoch: start.plus_seconds(e.t_s),

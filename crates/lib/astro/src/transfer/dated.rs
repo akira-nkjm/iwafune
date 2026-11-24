@@ -150,7 +150,17 @@ pub fn cruise_orbit(
     depart: Epoch,
     arrive: Epoch,
 ) -> Result<OrbitSpec, AstroError> {
-    let arc = lambert_arc(from, to, depart, arrive)?;
+    arc_orbit(&lambert_arc(from, to, depart, arrive)?, from, to, depart)
+}
+
+/// Lambert の弧 `arc`（`from` を `depart` に出て `to` に着く）を、出発の日を元期とする親のまわりの二体の軌道にする
+/// （[`cruise_orbit`] の本体。通過のある遷移の脚ごとの軌道 [`super::leg::cruise_legs`] も使う）。楕円でなければエラー。
+pub(super) fn arc_orbit(
+    arc: &LambertArc,
+    from: CentralBody,
+    to: CentralBody,
+    depart: Epoch,
+) -> Result<OrbitSpec, AstroError> {
     let state = OrbitState {
         r_eci: arc.from_state.r_eci,
         v_eci: arc.v_departure_m_s,
