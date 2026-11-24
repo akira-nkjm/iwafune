@@ -373,6 +373,18 @@ const labels: Record<string, string> = {
   min_distance: "頂点からの最短距離",
   parts_in_mount_chain: "取付の連鎖にあり判定しなかった部品の数",
   skipped_carriers: "判定しなかった円錐の持ち主",
+  projected: "機体の軸に沿った投影面積",
+  along: "見る向き",
+  centre: "輪郭の図心（機体座標）",
+  mean_projected_area: "全方向の平均の投影面積",
+  min_projected: "最小の投影面積（測った向きの中）",
+  max_projected: "最大の投影面積（測った向きの中）",
+  directions_measured: "測った向きの数",
+  exposed_area: "外に出ている表面積",
+  exposed_by_direction: "面の向き別の表面積",
+  exposed_by_part: "部品別の表面積",
+  internal_parts: "ほかの箱の中にある部品（表面積に入れない）",
+  inside: "含む箱の部品",
 };
 
 export const fieldsJa = {

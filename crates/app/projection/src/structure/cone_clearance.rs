@@ -65,18 +65,7 @@ pub fn cone_clearance(ctx: &Context<'_>) -> Result<ConeClearanceInput, MissingIn
     let carriers = carriers(ctx);
     m.finish(|| {
         Some(ConeClearanceInput {
-            boxes: body
-                .boxes
-                .into_iter()
-                .map(|b| InterferenceBox {
-                    id: b.id,
-                    count: b.count,
-                    position: b.position,
-                    orientation: b.orientation,
-                    size: b.size,
-                    mount_ancestors: b.mount_ancestors,
-                })
-                .collect(),
+            boxes: body.boxes.into_iter().map(InterferenceBox::from).collect(),
             unsized_parts: body.unsized_parts,
             carriers,
             range,

@@ -21,6 +21,7 @@ import type { ModalFemOutput } from "./ModalFemOutput";
 import type { LaunchFitOutput } from "./LaunchFitOutput";
 import type { InterferenceOutput } from "./InterferenceOutput";
 import type { ConeClearanceOutput } from "./ConeClearanceOutput";
+import type { ExternalGeometryOutput } from "./ExternalGeometryOutput";
 import type { EclipseSeasonOutput } from "./EclipseSeasonOutput";
 import type { OrbitDecayOutput } from "./OrbitDecayOutput";
 import type { ManeuversOutput } from "./ManeuversOutput";
@@ -54,6 +55,7 @@ export type AnalysisOutputs = {
   "structure.launch_fit": LaunchFitOutput;
   "structure.interference": InterferenceOutput;
   "structure.cone_clearance": ConeClearanceOutput;
+  "structure.external_geometry": ExternalGeometryOutput;
   "orbit.eclipse_season": EclipseSeasonOutput;
   "orbit.decay": OrbitDecayOutput;
   "propulsion.maneuvers": ManeuversOutput;

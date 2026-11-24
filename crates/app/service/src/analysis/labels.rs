@@ -17,6 +17,7 @@ use sat_analysis::power::sizing::SizingLifetimeSource;
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
 use sat_analysis::structure::cone_clearance::{ConeKind, ConeSkipReason};
+use sat_analysis::structure::external_geometry::{BodyAxis, FaceDirection};
 use sat_analysis::structure::interference::InterferenceSkipReason;
 use sat_analysis::structure::launch_fit::LaunchFitDirection;
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
@@ -315,6 +316,25 @@ fn interference_skip_reason(r: InterferenceSkipReason) -> AnalysisLabel {
     }
 }
 
+fn body_axis(a: BodyAxis) -> AnalysisLabel {
+    match a {
+        BodyAxis::X => label("X 軸", "X axis"),
+        BodyAxis::Y => label("Y 軸", "Y axis"),
+        BodyAxis::Z => label("Z 軸", "Z axis"),
+    }
+}
+
+fn face_direction(d: FaceDirection) -> AnalysisLabel {
+    match d {
+        FaceDirection::NegX => label("−X 面", "−X faces"),
+        FaceDirection::PosX => label("+X 面", "+X faces"),
+        FaceDirection::NegY => label("−Y 面", "−Y faces"),
+        FaceDirection::PosY => label("+Y 面", "+Y faces"),
+        FaceDirection::NegZ => label("−Z 面", "−Z faces"),
+        FaceDirection::PosZ => label("+Z 面", "+Z faces"),
+    }
+}
+
 fn cone_kind(k: ConeKind) -> AnalysisLabel {
     match k {
         ConeKind::Plume => label("噴流", "Plume"),
@@ -383,6 +403,8 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "ModalEstimateKind" => parse(value).map(modal_kind),
         "LaunchFitDirection" => parse(value).map(launch_fit_direction),
         "InterferenceSkipReason" => parse(value).map(interference_skip_reason),
+        "BodyAxis" => parse(value).map(body_axis),
+        "FaceDirection" => parse(value).map(face_direction),
         "ConeKind" => parse(value).map(cone_kind),
         "ConeSkipReason" => parse(value).map(cone_skip_reason),
         "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),

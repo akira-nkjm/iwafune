@@ -5,6 +5,7 @@
 use crate::context::Context;
 use crate::pose;
 use fune_model::resolve::ResolvedPart;
+use sat_analysis::structure::interference::InterferenceBox;
 use sat_astro::math::{Quat, Vec3};
 
 /// 部品 1 つの機体座標での位置・姿勢と、箱の辺の長さ（`size` があれば）。
@@ -42,6 +43,20 @@ pub struct BodyBox {
     pub size: Vec3,
     /// 取付先をたどった部品の ID（近いほうから。寸法を持たない部品も含む）
     pub mount_ancestors: Vec<String>,
+}
+
+/// 解析の入力の箱にする（干渉の確認・円錐の遮り・外形の面積が同じ箱の入力を使う。変換はここだけ）。
+impl From<BodyBox> for InterferenceBox {
+    fn from(b: BodyBox) -> Self {
+        Self {
+            id: b.id,
+            count: b.count,
+            position: b.position,
+            orientation: b.orientation,
+            size: b.size,
+            mount_ancestors: b.mount_ancestors,
+        }
+    }
 }
 
 /// 設計の全部品の箱と、寸法を持たない部品。

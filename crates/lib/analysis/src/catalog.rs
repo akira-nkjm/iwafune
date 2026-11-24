@@ -66,6 +66,7 @@ registry!(
     structure::LaunchFit,
     structure::Interference,
     structure::ConeClearance,
+    structure::ExternalGeometryReport,
     thermal::ThermalSteady,
     thermal::ThermalTransient,
 );
