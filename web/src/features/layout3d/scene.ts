@@ -1,9 +1,10 @@
 import { Box3, Quaternion, Vector3 } from "three";
 import type { DefsView, DesignView, PartRow } from "@/api/types";
+import type { V3 } from "@/kit/scene3d/types";
 import { systemTone } from "@/lib/systems";
 import { type Scheme, type Tone, toneHexFor } from "@/lib/tone";
 
-export type V3 = [number, number, number];
+export type { V3 };
 export type Q4 = [number, number, number, number];
 
 export interface Box3D {

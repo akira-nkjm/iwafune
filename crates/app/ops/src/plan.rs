@@ -206,7 +206,8 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::CopyPhaseOrbit { .. }
         | Op::UnsetPhaseOrbit { .. }
         | Op::UnsetPhaseLaw { .. }
-        | Op::SetCasePhase { .. } => phases::interpret(edits, design, op),
+        | Op::SetCasePhase { .. }
+        | Op::SetCaseEpoch { .. } => phases::interpret(edits, design, op),
         Op::CreateConfiguration { .. }
         | Op::SetConfiguration { .. }
         | Op::RemoveConfiguration { .. }

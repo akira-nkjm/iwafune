@@ -12,6 +12,7 @@
 //! | `assemble` | 剛性行列（スカイライン）の組み立てと自由度の番号 |
 //! | `solve` | 固有値（`sat_astro::math::lowest_modes`） |
 //! | `classify` | 有効質量の割合とモードの分類 |
+//! | `shapes` | 頼まれたときだけ返すモードの形（節点の変位・規格化・メッシュの幾何） |
 //!
 //! 前提: 要素は平らで長方形、パネルは節点で剛につなぐ（辺・T 字で格子点が一致するとつながる）、質量は対角の集中質量。
 //! 集中質量は取り付け先のパネルの面に投影して配る（面からのオフセットの回転慣性は考えない）。
@@ -25,6 +26,7 @@ mod lumped;
 mod masses;
 mod mesh;
 mod output;
+mod shapes;
 mod shell;
 mod solve;
 mod supports;
@@ -43,9 +45,10 @@ pub use output::{
     ModalFemAttachment, ModalFemJoint, ModalFemMode, ModalFemModeClass, ModalFemModelSize,
     ModalFemOutput,
 };
+pub use shapes::{ModalFemModeShape, ModalFemShapeNorm, ModalFemShapes};
 pub use shell::SHEAR_CORRECTION;
 
-use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, System};
+use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, Detailed, System};
 use sat_units::typed::{Fraction, Qty};
 use shell::ShellProps;
 
@@ -66,38 +69,62 @@ impl Analysis for ModalFem {
         "パネルをシェル要素に分けた機体全体の低次の固有振動数とモードの向き";
     const TITLE_EN: &'static str = "Finite-element modal analysis";
     const DESCRIPTION_EN: &'static str = "Lowest natural frequencies and mode directions of the whole body, with the panels meshed into shell elements";
+    const DETAIL_TYPE: Option<&'static str> = Some(shapes::DETAIL_TYPE);
     type Input = ModalFemInput;
     type Output = ModalFemOutput;
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
-        validate::check(input)?;
-        let mesh = mesh::build(input)?;
-        let node_masses = masses::build(&mesh, input)?;
-        let tol = input
-            .merge_tolerance
-            .map_or(DEFAULT_MERGE_TOLERANCE, Qty::value);
-        let fixed = supports::fixed_dofs(&mesh, &input.support, input.launch_axis, tol)?;
-        let props = shell_props(input);
-        let sys = assemble::assemble(&mesh, &props, &fixed, &node_masses)?;
-        let count = input.mode_count.unwrap_or(DEFAULT_MODE_COUNT) as usize;
-        if count == 0 || count > sys.global.len() {
-            return Err(AnalysisError::InvalidInput(format!(
-                "The mode count must be 1 to {} for this model",
-                sys.global.len()
-            )));
-        }
-        let solved = solve::solve(&sys, count)?;
-        let total = node_masses.total();
-        let data = classify::classify(&sys, &solved, total, input.launch_axis);
-        Ok(output(
-            &mesh,
-            &fixed,
-            &node_masses,
-            &data,
-            &solved,
-            &input.skipped_panels,
-        ))
+        solve_model(input, false).map(|(output, _)| output)
     }
+
+    fn run_detailed(
+        input: &Self::Input,
+        detail: bool,
+    ) -> Result<Detailed<Self::Output>, AnalysisError> {
+        let (output, shapes) = solve_model(input, detail)?;
+        let detail = shapes
+            .map(|s| serde_json::to_value(s).map_err(|e| AnalysisError::Json(e.to_string())))
+            .transpose()?;
+        Ok(Detailed { output, detail })
+    }
+}
+
+/// モデルを組んで解く。`with_shapes` ならモードの形も取り出す（出力は同じ）。
+fn solve_model(
+    input: &ModalFemInput,
+    with_shapes: bool,
+) -> Result<(ModalFemOutput, Option<ModalFemShapes>), AnalysisError> {
+    validate::check(input)?;
+    let mesh = mesh::build(input)?;
+    let node_masses = masses::build(&mesh, input)?;
+    let tol = input
+        .merge_tolerance
+        .map_or(DEFAULT_MERGE_TOLERANCE, Qty::value);
+    let fixed = supports::fixed_dofs(&mesh, &input.support, input.launch_axis, tol)?;
+    let props = shell_props(input);
+    let sys = assemble::assemble(&mesh, &props, &fixed, &node_masses)?;
+    let count = input.mode_count.unwrap_or(DEFAULT_MODE_COUNT) as usize;
+    if count == 0 || count > sys.global.len() {
+        return Err(AnalysisError::InvalidInput(format!(
+            "The mode count must be 1 to {} for this model",
+            sys.global.len()
+        )));
+    }
+    let solved = solve::solve(&sys, count)?;
+    let total = node_masses.total();
+    let data = classify::classify(&sys, &solved, total, input.launch_axis);
+    let out = output(
+        &mesh,
+        &fixed,
+        &node_masses,
+        &data,
+        &solved,
+        &input.skipped_panels,
+    );
+    Ok((
+        out,
+        with_shapes.then(|| shapes::shapes(&mesh, &sys, &solved)),
+    ))
 }
 
 /// パネルごとの要素の材料。

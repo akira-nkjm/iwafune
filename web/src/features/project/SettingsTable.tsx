@@ -9,6 +9,7 @@ import { Switch } from "@/kit/selection/Switch";
 import { DataTable } from "@/kit/table/DataTable";
 import { Td } from "@/kit/table/Td";
 import { Th } from "@/kit/table/Th";
+import { useFieldError } from "@/lib/field-errors";
 import { EditableQuantity } from "@/quantity/EditableQuantity";
 import { quantityInputText } from "@/quantity/format";
 
@@ -31,6 +32,20 @@ function ChoiceCell({ row, onPick }: { row: SettingRow; onPick: (value: string) 
       onChange={(e) => e.target.value && onPick(e.target.value)}
       className="max-w-72"
     />
+  );
+}
+
+/**
+ * まだ書かれていない欄: 打った文字列をそのまま送る（量・ベクトル（`1 0 0 km`）・日時・名前のどれかは service が欄から決め、
+ * 読めなければ理由をこの欄の下に出す）。値の型を Web が決めないので、量の入力欄は使わない。
+ */
+function UnsetCell({ row, onCommit }: { row: SettingRow; onCommit: (text: string) => void }) {
+  const error = useFieldError(row.key);
+  return (
+    <span className="inline-flex min-w-0 flex-col">
+      <CommitInput label={row.key} value="" placeholder="—" onCommit={onCommit} className="w-44" />
+      {error && <span className="px-1 text-[11px] text-neg-ink">{error}</span>}
+    </span>
   );
 }
 
@@ -84,14 +99,7 @@ export function SettingsTable({
               ) : s.choices.length > 0 ? (
                 <ChoiceCell row={s} onPick={(value) => set(s.key, value)} />
               ) : v.type === "unset" ? (
-                <EditableQuantity
-                  display="—"
-                  initial=""
-                  dimension={null}
-                  label={s.key}
-                  muted
-                  onCommit={(t) => set(s.key, t)}
-                />
+                <UnsetCell row={s} onCommit={(t) => set(s.key, t)} />
               ) : v.type === "bool" ? (
                 <Switch
                   aria-label={s.key}

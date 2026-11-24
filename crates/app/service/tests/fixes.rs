@@ -21,6 +21,7 @@ fn run(ws: &Workspace, id: &str, edit: Value) -> AnalysisRunResult {
         configuration: None,
         source: AnalysisInputSource::Design,
         ops: serde_json::from_value(edit).unwrap(),
+        detail: false,
     };
     analysis::run_analysis(ws, id, &req).unwrap()
 }

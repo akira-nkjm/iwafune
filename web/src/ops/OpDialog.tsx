@@ -50,7 +50,10 @@ export function OpDialog({
   const t = useT();
   const apply = useApplyOps();
   // 確定できるのは dry_run が通ったときだけ（規則はサーバーが持つ）
-  const check = useOpCheck(open ? ops : null);
+  // 成功したあとは検査もプレビューも止める。成功で設計が読み直されて revision が進んでも、閉じるまでの間に
+  // 同じ Op の dry_run を新しい revision へ取り直さない（消した対象は 404、足した対象は 409 になる）
+  const live = open && !apply.isSuccess;
+  const check = useOpCheck(live ? ops : null);
   const submit = () => {
     if (!ops) return;
     onBeforeApply?.();
@@ -79,7 +82,7 @@ export function OpDialog({
           }}
         >
           {children}
-          {open && <OpPreview ops={ops} />}
+          {live && <OpPreview ops={ops} />}
           {apply.isError && <p className="text-neg-ink text-xs">{apply.error.message}</p>}
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
