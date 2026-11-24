@@ -171,7 +171,7 @@ pub fn maneuver(c: &ManeuverCmd) -> Built<'_> {
             },
             edit,
         )),
-        ManeuverCmd::Ls => None,
+        ManeuverCmd::Ls | ManeuverCmd::SetWindow { .. } => None,
     })
 }
 

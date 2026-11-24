@@ -32,6 +32,7 @@ export function overrideRows(fields: readonly PhaseFieldView[], file: string): S
     value: f.value,
     display: f.display,
     file,
+    choices: f.choices,
   }));
 }
 

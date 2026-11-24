@@ -33,6 +33,8 @@ mod tests {
             id: "x.y".into(),
             case: None,
             case_source: None,
+            configuration: None,
+            configuration_source: None,
             side: None,
             status,
             checks,

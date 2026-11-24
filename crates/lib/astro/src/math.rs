@@ -30,7 +30,7 @@ mod vec3;
 pub use dense::solve_dense;
 pub use mat3::Mat3;
 pub use quat::Quat;
-pub use roots::{bisect, golden_section_max};
+pub use roots::{bisect, golden_section_max, golden_section_min};
 pub use skyline::{Skyline, SkylineError, SkylineLdl, ZERO_PIVOT_RELATIVE};
 pub use subspace::{Mass, Modes, SubspaceError, SubspaceOptions, lowest_modes};
 pub use sym_eigen::{SymEigen, SymEigenError, generalized_symmetric_eigen, symmetric_eigen};

@@ -95,6 +95,10 @@ pub enum CommandText {
         #[serde(default)]
         phase: Option<String>,
     },
+    /// `fune configuration add <ID> --label … --description …`（同じ ID があれば拒む）
+    ConfigurationAdd(super::ConfigurationText),
+    /// `fune configuration set <ID> …`（無ければ作り、あれば見出しの欄を置き換える。部品ごとの姿勢は今のまま残す）
+    ConfigurationSet(super::ConfigurationText),
     /// `fune ground add <ID> --label … --latitude "35.7 deg" …`（`conditions/ground/<ID>.toml` を作る。同じ ID があれば拒む）
     GroundAdd(super::GroundAddText),
     /// `fune requirement add <ID> --statement … --quantity Mass --kind at_most --value "12 kg" …`（同じ ID があれば拒む）
@@ -174,6 +178,10 @@ pub struct PlaceText {
     /// 省略か空なら書かない。`orientation` と両方は書けない
     #[serde(default)]
     pub rotation: Option<String>,
+    /// この形態に姿勢を書く（`--configuration`。取付は変えない。取付先・取付点は書かなくてよく、書くなら部品の取付と同じ）。
+    /// 省略か空なら部品自身の取付と姿勢
+    #[serde(default)]
+    pub configuration: Option<String>,
 }
 
 /// モード表のセルの編集（`fune mode set|unset` の引数の列）。
@@ -282,6 +290,24 @@ pub struct CaseFromSunDistanceRequest {
     pub at: SunDistanceCaseAt,
     #[serde(default)]
     pub mode: Option<String>,
+}
+
+/// 日付の探索で選ぶ点（`propulsion.launch_window` の最小の点）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum WindowObjective {
+    /// マヌーバの ΔV が最小の点
+    Dv,
+    /// 出発の C3 が最小の点
+    C3,
+}
+
+/// `fune maneuver set-window` と HTTP が共有する要求（マヌーバの日付を探索の最小の点の日付にする）。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ManeuverWindowRequest {
+    /// マヌーバの ID
+    pub id: String,
+    pub min: WindowObjective,
 }
 
 /// `fune case from-eclipse` と HTTP が共有する要求。

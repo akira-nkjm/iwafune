@@ -92,6 +92,7 @@ fn place_op(p: &crate::args::PlaceArgs) -> anyhow::Result<Op> {
         position: p.position.clone(),
         orientation: p.orientation.clone(),
         rotation: p.rotation.clone(),
+        configuration: p.configuration.clone(),
     })?)
 }
 

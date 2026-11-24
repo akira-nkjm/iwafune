@@ -32,6 +32,7 @@ export const projectEn: typeof projectJa = {
       budget: { title: "Budget", caption: "budget/ — allocations and margin policy" },
     },
     noSettings: "No settings",
+    unset: "Not set",
     key: "Key",
     value: "Value",
     file: "File",

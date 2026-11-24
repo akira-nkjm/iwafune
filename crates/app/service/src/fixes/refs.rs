@@ -1,4 +1,4 @@
-//! 別のもの（部品・カタログ品・通信の回線）を指す欄の候補（`Fix::PickRef`）。選べるものはここで設計から絞り、
+//! 別のもの（部品・カタログ品・通信の回線・マヌーバ）を指す欄の候補（`Fix::PickRef`）。選べるものはここで設計から絞り、
 //! 受け取る側（CLI・Web）は並べるだけ。カタログ品の位置づけの綴りと種別の判定は `fune_model::design::launch` のものを使い、
 //! ここに種別の表を持たない。
 
@@ -145,5 +145,87 @@ pub(super) fn comm_downlink(
         choices,
         command,
         add,
+    ))
+}
+
+/// 打ち上げ条件の形態を選ぶ候補。
+pub(super) fn launch_configuration(
+    design: &Design,
+    (target, m): (&Target, &MissingInput),
+    s: &SettingPath,
+) -> Option<Fix> {
+    pattern_matches(SettingScope::Conditions, &["launch", "configuration"], s).then(|| {
+        configuration(
+            design,
+            (target, &m.path),
+            format!("fune set {} <configuration>", quote(&m.path)),
+        )
+    })
+}
+
+/// フェーズの見出しを保ったまま形態を選ぶ候補（コマンドの組み立ては `to_cli`）。
+pub(super) fn phase_configuration(
+    design: &Design,
+    (target, m): (&Target, &MissingInput),
+    id: &str,
+) -> Option<Fix> {
+    let mut phase = design.phases.get(id)?.clone();
+    phase.configuration = Some("<configuration>".into());
+    phase.orbit = None;
+    phase.law.clear();
+    let command = fune_ops::to_cli(&fune_ops::Op::SetPhase { phase })
+        .into_iter()
+        .next()?;
+    Some(configuration(design, (target, &m.path), command))
+}
+
+fn configuration(design: &Design, site: Site<'_>, command: String) -> Fix {
+    let choices = design
+        .configurations
+        .values()
+        .map(|c| Choice {
+            value: c.id.to_string(),
+            label: c.label.clone().unwrap_or_else(|| c.id.to_string()),
+            label_en: None,
+        })
+        .collect();
+    pick(
+        site,
+        RefKind::Configuration,
+        Scope::default(),
+        choices,
+        command,
+        Some("fune configuration add <ID>".to_owned()),
+    )
+}
+
+/// `conditions.orbit.maneuver`: 日付つきの遷移（`[transfer]`）を持つマヌーバから選ぶ候補（巡航の軌道を取るマヌーバ）。
+pub(super) fn orbit_maneuver(
+    design: &Design,
+    site: (&Target, &MissingInput),
+    s: &SettingPath,
+) -> Option<Fix> {
+    if !pattern_matches(SettingScope::Conditions, &["orbit", "maneuver"], s) {
+        return None;
+    }
+    let choices = design
+        .ordered_maneuvers()
+        .into_iter()
+        .filter(|m| m.transfer.is_some())
+        .map(|m| Choice {
+            value: m.id.to_string(),
+            label: m.label.clone().unwrap_or_else(|| m.id.to_string()),
+            label_en: None,
+        })
+        .collect();
+    let command = format!("fune set {} <maneuver>", quote(&site.1.path));
+    let add = "fune maneuver add <ID> --category insertion --method impulsive --body <body> --depart <date> --arrive <date>";
+    Some(pick(
+        (site.0, &site.1.path),
+        RefKind::Maneuver,
+        Scope::default(),
+        choices,
+        command,
+        Some(add.to_owned()),
     ))
 }

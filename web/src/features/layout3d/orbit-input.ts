@@ -1,9 +1,14 @@
 import type { Vector3 } from "three";
 
 /**
- * 3D の視点操作の計算（OrbitControls の外側で動かす、ホイールの移動と拡大）。three の Vector3 だけで書き、DOM に触れない。
+ * 3D の視点操作の計算（ホイールの移動と拡大。`FreeOrbitControls` の外側の入力が使う）。three の Vector3 だけで書き、DOM に触れない。
  * ホイールの読み方は lib/wheel-input.ts。
  */
+
+/** 視点と注視点の距離の範囲を、カメラの near / far から決める（近づきすぎて面を突き抜けない・遠ざかりすぎて消えない） */
+export function distanceRange(near: number, far: number): { min: number; max: number } {
+  return { min: near * 2, max: far * 0.5 };
+}
 
 /** 画面の 1 px が、注視点の奥行きで世界の何 m にあたるか（透視投影。fov は縦の画角 [度]、height は描画領域の高さ [px]） */
 export function worldPerPixel(distance: number, fovDeg: number, heightPx: number): number {

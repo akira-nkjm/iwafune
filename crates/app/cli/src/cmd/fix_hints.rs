@@ -73,6 +73,8 @@ fn ref_hints(what: RefKind, choices: &[Choice], add: Option<&str>) -> Vec<String
         RefKind::Part => "part",
         RefKind::CatalogItem => "catalog item",
         RefKind::CommLink => "link",
+        RefKind::Configuration => "configuration",
+        RefKind::Maneuver => "maneuver with a dated transfer",
     };
     let mut v = vec![format!("no {noun} to choose from yet")];
     v.extend(add.map(|a| format!("add one: {a}")));

@@ -19,7 +19,8 @@ use crate::dto::{
 use crate::error::{Result, ServiceError};
 use crate::workspace::Workspace;
 use fune_model::design::UncertaintySide;
-use fune_projection::{Context, MissingInput, ProjectionError, project_json};
+use fune_projection::configuration_policy::ConfigurationSource;
+use fune_projection::{Context, MissingInput, ProjectionError, project_json_with_configuration};
 use serde_json::Value;
 use std::collections::BTreeMap;
 
@@ -69,6 +70,7 @@ struct Outcome {
     error: Option<String>,
     /// 解析ケースのモード（KPI の電力のモードの選び方に使う。入力を丸ごと与えたときは None）
     case_mode: Option<String>,
+    configuration: Option<(String, ConfigurationSource)>,
     /// 入力に足した宇宙天気の表の版
     space_weather: Option<crate::dto::SpaceWeatherVersion>,
 }
@@ -84,6 +86,7 @@ impl Outcome {
             missing: Vec::new(),
             error: Some(error),
             case_mode: None,
+            configuration: None,
             space_weather: None,
         }
     }
@@ -106,8 +109,22 @@ pub fn run_analysis(
         return Err(ServiceError::not_found("analysis", id));
     }
     let snapshot = match &req.source {
-        AnalysisInputSource::Given { .. } => None,
-        _ => Some(crate::preview::snapshot_with(ws, &req.ops)?),
+        AnalysisInputSource::Given { .. } => {
+            if req.configuration.is_some() {
+                return Err(ServiceError::InvalidInput(
+                    "A configuration requires input built from the design".to_owned(),
+                ));
+            }
+            None
+        }
+        _ => {
+            let snapshot = crate::preview::snapshot_with(ws, &req.ops)?;
+            crate::query::pose::require_configuration(
+                &snapshot.design,
+                req.configuration.as_deref(),
+            )?;
+            Some(snapshot)
+        }
     };
     let (case, case_source, side) = effective_case(snapshot.as_ref(), id, req.case.as_deref());
     let outcome = run_inner(id, req, snapshot.as_ref(), case.as_deref())?;
@@ -128,6 +145,7 @@ fn finish(id: &str, (case, case_source, side): CaseInfo, outcome: Outcome) -> An
             case_mode: outcome.case_mode.as_deref(),
         },
     );
+    let (configuration, configuration_source) = outcome.configuration.unzip();
     let mut result = AnalysisRunResult {
         checks,
         verdict,
@@ -135,6 +153,8 @@ fn finish(id: &str, (case, case_source, side): CaseInfo, outcome: Outcome) -> An
         id: id.to_owned(),
         case,
         case_source,
+        configuration,
+        configuration_source,
         side,
         status: outcome.status,
         input: outcome.input,
@@ -192,18 +212,28 @@ fn run_inner(
     snapshot: Option<&crate::workspace::Snapshot>,
     case: Option<&str>,
 ) -> Result<Outcome> {
-    let (input, case_mode, space_weather) = match &req.source {
-        AnalysisInputSource::Given { input } => (input.clone(), None, None),
+    let (projected, configuration) = match &req.source {
+        AnalysisInputSource::Given { input } => (
+            Projected {
+                input: input.clone(),
+                case_mode: None,
+                space_weather: None,
+            },
+            None,
+        ),
         source => {
             let snapshot = snapshot
                 .ok_or_else(|| ServiceError::Internal("No design for the analysis".to_owned()))?;
-            match project(snapshot, id, case) {
-                Ok(p) => match source {
-                    AnalysisInputSource::Patched { patch } => {
-                        (merge_patch(p.input, patch), p.case_mode, p.space_weather)
+            let (projected, configuration) =
+                project(snapshot, id, case, req.configuration.as_deref());
+            let configuration = configuration.map(|(id, source)| (id.to_owned(), source));
+            match projected {
+                Ok(mut p) => {
+                    if let AnalysisInputSource::Patched { patch } = source {
+                        p.input = merge_patch(p.input, patch);
                     }
-                    _ => (p.input, p.case_mode, p.space_weather),
-                },
+                    (p, configuration)
+                }
                 Err(ProjectionError::Missing(m)) => {
                     return Ok(Outcome {
                         status: AnalysisRunStatus::MissingInputs,
@@ -213,17 +243,34 @@ fn run_inner(
                             m.into_vec(),
                         ),
                         error: None,
+                        configuration,
                         ..Outcome::failed(String::new())
                     });
                 }
                 Err(e @ ProjectionError::NotImplemented(_)) => {
-                    return Ok(Outcome::failed(e.to_string()));
+                    return Ok(Outcome {
+                        configuration,
+                        ..Outcome::failed(e.to_string())
+                    });
                 }
                 Err(e) => return Err(ServiceError::Analysis(e.to_string())),
             }
         }
     };
-    Ok(match sat_analysis::catalog::run_json(id, input.clone()) {
+    Ok(evaluate(id, projected, configuration))
+}
+
+/// 組み立てた入力で解析を実行し、出力の表示情報も作る。
+fn evaluate(
+    id: &str,
+    Projected {
+        input,
+        case_mode,
+        space_weather,
+    }: Projected,
+    configuration: Option<(String, ConfigurationSource)>,
+) -> Outcome {
+    match sat_analysis::catalog::run_json(id, input.clone()) {
         Ok(mut output) => {
             channels::fix_channels(&mut output);
             let (dims, labels) = output_meta(id, &output);
@@ -236,31 +283,44 @@ fn run_inner(
                 missing: Vec::new(),
                 error: None,
                 case_mode,
+                configuration,
                 space_weather,
             }
         }
         Err(e) => Outcome {
             input: Some(input),
+            configuration,
             space_weather,
             ..Outcome::failed(e.to_string())
         },
-    })
+    }
 }
 
 /// 設計（依頼の `ops` があれば書き込まずに当てたもの）から解析の入力を組み立てる。ケースのモードも添える。
 /// 外部データの要る解析には、ここでキャッシュの表から引いた値を足す（`weather::attach`）。
-fn project(
-    snapshot: &crate::workspace::Snapshot,
+fn project<'a>(
+    snapshot: &'a crate::workspace::Snapshot,
     id: &str,
     case: Option<&str>,
-) -> Result<Projected, ProjectionError> {
-    let ctx = Context::new(&snapshot.design, &snapshot.resolved, case)?;
-    let (input, space_weather) = weather::attach(id, project_json(id, &ctx)?);
-    Ok(Projected {
-        input,
-        case_mode: ctx.case_mode().map(|m| m.id.to_string()),
-        space_weather,
-    })
+    explicit: Option<&'a str>,
+) -> (
+    Result<Projected, ProjectionError>,
+    Option<(&'a str, ConfigurationSource)>,
+) {
+    let ctx = match Context::new(&snapshot.design, &snapshot.resolved, case) {
+        Ok(ctx) => ctx,
+        Err(missing) => return (Err(missing.into()), None),
+    };
+    let (input, configuration) = project_json_with_configuration(id, &ctx, explicit);
+    let projected = input.map(|input| {
+        let (input, space_weather) = weather::attach(id, input);
+        Projected {
+            input,
+            case_mode: ctx.case_mode().map(|m| m.id.to_string()),
+            space_weather,
+        }
+    });
+    (projected, configuration)
 }
 
 /// JSON Merge Patch（RFC 7396）。

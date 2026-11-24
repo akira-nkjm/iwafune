@@ -160,6 +160,7 @@ export const systemsEn: typeof systemsJa = {
       speed: "Playback speed",
       scale: "Color scale (low to high temperature)",
       nodes: "Node temperatures",
+      nodePerPart: "per part",
       empty: "No thermal analysis results yet",
       orbit: {
         label: "Orbit diagram (Sun to the right, shadow to the left)",
@@ -181,11 +182,12 @@ export const systemsEn: typeof systemsJa = {
       zoomIn: "Zoom in",
       zoomOut: "Zoom out",
       home: "Home view (reset the camera)",
+      viewCubeFace: (name: string) => `Look from ${name}`,
       helper: {
         fov: "FoV",
         origin: "Origin axes",
         grid: "Grid",
-        gizmo: "Corner axes",
+        gizmo: "View cube",
         sun: "Sun",
         wireframe: "Wireframe",
       },

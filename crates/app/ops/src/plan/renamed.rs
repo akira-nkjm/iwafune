@@ -17,6 +17,7 @@ pub(super) fn rename_of(op: &Op) -> Option<(&str, &str)> {
         | Op::RenameMode { id, to }
         | Op::RenameGroundStation { id, to }
         | Op::RenamePhase { id, to }
+        | Op::RenameConfiguration { id, to }
         | Op::RenameNet { id, to }
         | Op::RenameHarness { id, to }
         | Op::RenameCase { id, to }
@@ -123,6 +124,10 @@ mod tests {
                 to: to.clone(),
             },
             Op::RenamePhase {
+                id: id.clone(),
+                to: to.clone(),
+            },
+            Op::RenameConfiguration {
                 id: id.clone(),
                 to: to.clone(),
             },

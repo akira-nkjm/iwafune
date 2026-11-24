@@ -40,6 +40,7 @@ fn body_pose_covers_mounted_parts_and_the_mount_root() {
             frame: None,
         },
         None,
+        None,
     )
     .unwrap_err();
     assert!(err.to_string().contains("mount root"));

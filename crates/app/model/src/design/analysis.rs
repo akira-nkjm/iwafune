@@ -74,6 +74,35 @@ pub struct PropulsionSettings {
     /// 乾燥質量の上書き（省略時は部品の質量特性の総質量）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dry_mass: Option<Quantity>,
+    /// 日付の探索（`propulsion.launch_window`）の設定（`[launch_window]`）。どれも任意で、既定値は解析が持つ。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launch_window: Option<PropulsionLaunchWindow>,
+}
+
+/// 日付の探索の設定（`analysis/propulsion.toml` の `[launch_window]`）。どれも任意で、既定値は解析が天体の組から決める
+/// （出発の窓 = 2 天体の会合周期、始め = 最初の軌道の元期（日付が書かれていればその出発の日が真ん中）、
+/// 飛行時間 = ホーマンの 0.5〜1.5 倍、格子 = 軸ごとに 100 点）。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct PropulsionLaunchWindow {
+    /// 出発の窓の始め（ISO 8601、UTC。例: `"2028-01-01T00:00:00Z"`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub departure_start: Option<String>,
+    /// 出発の窓の長さ（時間）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub departure_span: Option<Quantity>,
+    /// 飛行時間の下限（時間）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time_of_flight_min: Option<Quantity>,
+    /// 飛行時間の上限（時間）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time_of_flight_max: Option<Quantity>,
+    /// 出発の軸の点の数（2 以上）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub departure_steps: Option<u32>,
+    /// 到着の軸の点の数（2 以上）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arrival_steps: Option<u32>,
 }
 
 /// 系に属さない解析の共通設定（`analysis/common.toml`）。

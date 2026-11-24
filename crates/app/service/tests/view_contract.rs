@@ -52,7 +52,10 @@ fn draft_part_view_has_paths_for_new_attributes() {
             ..def
         },
     };
-    let req = fune_service::dto::PartViewRequest { ops: vec![create] };
+    let req = fune_service::dto::PartViewRequest {
+        ops: vec![create],
+        configuration: None,
+    };
     let draft = query::part_view(&ws, "UHF_TRX", &req).unwrap();
     assert_eq!(
         draft.part.paths["tank_pressure"]["tx"],

@@ -5,7 +5,7 @@
 //! の検査はここが持つ（`fune check` の診断は service が model の検査にこれを足す。`transfer` が書かれているか・
 //! 目標の天体があるかは model の `check::maneuvers`）。射影（`propulsion::maneuver`）も同じ読み方を使う。
 
-use crate::context::central_body;
+use crate::orbit_central::{central_body, design_orbit_central};
 use fune_model::design::{EntityKey, Maneuver};
 use fune_model::{Design, Diagnostic, Target};
 use sat_astro::ephem::{CentralBody, covers};
@@ -40,13 +40,8 @@ pub fn central_before(design: &Design, m: &Maneuver) -> CentralBody {
         chain.push(prev);
         at = prev.after.as_deref();
     }
-    let initial = design
-        .conditions
-        .orbit
-        .as_ref()
-        .and_then(|o| o.central)
-        .map(central_body)
-        .unwrap_or_default();
+    // 始めの軌道の中心天体は、設計の軌道の読み手（`context`）に聞く（出どころ ごとに決め方が違う）
+    let initial = design_orbit_central(design);
     chain
         .iter()
         .rev()

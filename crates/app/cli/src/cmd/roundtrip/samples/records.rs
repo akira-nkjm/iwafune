@@ -304,7 +304,7 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
                 "PH_X",
                 json!({ "label": "Commissioning \"test\"", "order": -1, "start": "Separation",
                 "end": "All subsystems checked out", "duration": { "value": 30.0, "unit": "d" },
-                "modes": ["SAFE", "NOMINAL"] }),
+                "modes": ["SAFE", "NOMINAL"], "configuration": "STOWED" }),
             ),
         },
         Op::SetPhase {
@@ -314,6 +314,30 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         Op::RenamePhase {
             id: s("PH_X"),
             to: s("PH_Z"),
+        },
+        Op::CreateConfiguration {
+            id: s("STOWED"),
+            label: Some(s("Stowed \"test\"")),
+            description: Some(s("Paddle folded onto the +X face")),
+        },
+        Op::CreateConfiguration {
+            id: s("DEPLOYED"),
+            label: None,
+            description: None,
+        },
+        Op::SetConfiguration {
+            id: s("STOWED"),
+            label: Some(s("Stowed")),
+            description: None,
+        },
+        Op::RemoveConfiguration { id: s("STOWED") },
+        Op::RenameConfiguration {
+            id: s("STOWED"),
+            to: s("FOLDED"),
+        },
+        Op::UnsetConfigurationPose {
+            configuration: s("STOWED"),
+            part: s("RW_X"),
         },
         Op::SetPhaseField {
             phase: s("PH_X"),
@@ -442,6 +466,14 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
             ),
         },
         Op::RemoveRequirement { id: s("R_X") },
+        Op::SetSetting {
+            path: s("conditions.launch.configuration"),
+            value: Some(SettingValue::Text(s("42"))),
+        },
+        Op::SetSetting {
+            path: s("conditions.launch.configuration"),
+            value: None,
+        },
         Op::SetSetting {
             path: s("analysis.common.default_case"),
             value: Some(SettingValue::Text(s("hot_imaging"))),

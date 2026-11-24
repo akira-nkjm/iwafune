@@ -18,6 +18,7 @@ fn demo() -> Workspace {
 fn run(ws: &Workspace, id: &str, edit: Value) -> AnalysisRunResult {
     let req = fune_service::dto::RunAnalysisRequest {
         case: None,
+        configuration: None,
         source: AnalysisInputSource::Design,
         ops: serde_json::from_value(edit).unwrap(),
     };
@@ -431,4 +432,65 @@ fn enum_and_bool_attributes_offer_their_choices() {
     };
     assert_eq!(values(&choices("polarization")), ["rhcp", "lhcp"]);
     assert_eq!(values(&choices("deployable")), ["true", "false"]);
+}
+
+/// 軌道の `maneuver` が足りないときは、日付つきの遷移（`[transfer]`）を持つマヌーバだけを選ぶ候補（`PickRef`）。
+/// `source` は書かなくてよい欄で、対象外の理由（`source` を対象にした不足入力）には直す候補を付けない。
+#[test]
+fn the_orbit_maneuver_picks_among_dated_transfers_and_the_source_has_no_fix() {
+    let mut design = demo().snapshot().expect("snapshot").design.clone();
+    let mut dated = design.maneuvers["RAISE"].clone();
+    dated.id = "MV_MARS".into();
+    dated.transfer = Some(fune_model::design::ManeuverTransfer {
+        departure: Some("2028-12-10T00:00:00Z".to_owned()),
+        arrival: Some("2029-09-25T00:00:00Z".to_owned()),
+        departure_by: None,
+    });
+    design.maneuvers.insert(dated.id.clone(), dated);
+    let target =
+        |key: &str| Target::from(fune_model::path::SettingPath::conditions(&["orbit", key]));
+    let fixes = fixes_of(&design, target("maneuver"));
+    let [
+        Fix::PickRef {
+            what,
+            choices,
+            command,
+            add_command,
+            ..
+        },
+    ] = fixes.as_slice()
+    else {
+        panic!("expected one PickRef");
+    };
+    assert_eq!(*what, RefKind::Maneuver);
+    // 日付を持たない RAISE・DEORBIT は選べない
+    assert_eq!(values(choices), ["MV_MARS"]);
+    assert_eq!(command, "fune set conditions.orbit.maneuver <maneuver>");
+    assert!(
+        add_command
+            .as_deref()
+            .is_some_and(|c| c.contains("--depart"))
+    );
+    assert!(fixes_of(&design, target("source")).is_empty());
+}
+
+/// 設定の表は、選んで入れる欄（`source`・`maneuver`）の選択肢を API が返す（`maneuver` は日付つきの遷移を持つものだけ）。
+/// フェーズの上書きの表（`PhaseView.orbit`）は CLI と HTTP のパリティテスト（`parity_orbit_source.rs`）で見る。
+#[test]
+fn settings_view_carries_the_choices_of_the_orbit_keys() {
+    let ws = demo();
+    let design = fune_service::query::design_view(&ws).expect("design view");
+    let setting = |key: &str| {
+        design
+            .settings
+            .iter()
+            .find(|s| s.key == format!("conditions.orbit.{key}"))
+            .unwrap_or_else(|| panic!("no setting {key}"))
+    };
+    assert_eq!(values(&setting("source").choices), ["elements", "transfer"]);
+    assert!(
+        setting("maneuver").choices.is_empty(),
+        "the demo has no dated transfer"
+    );
+    assert!(setting("altitude").choices.is_empty());
 }

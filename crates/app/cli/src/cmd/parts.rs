@@ -4,25 +4,35 @@ use super::common::{Handled, UNSET, provenance};
 use crate::args::PartCmd;
 use crate::diag;
 use crate::output::{C, Out};
-use fune_service::dto::{Origin, PartViewRequest, PartsQuery, ValueData, ValueView};
+use fune_service::dto::{Origin, PartRow, PartViewRequest, PartsQuery, ValueData, ValueView};
 use fune_service::{Workspace, query};
 
 /// `fune part ls|show`
 pub fn part(ws: &Workspace, cmd: &PartCmd, out: &Out) -> Handled {
     match cmd {
-        PartCmd::Ls { group, kind } => {
+        PartCmd::Ls {
+            group,
+            kind,
+            configuration,
+        } => {
             let q = PartsQuery {
                 group: group.clone(),
                 kind: kind.clone(),
+                configuration: configuration.clone(),
             };
             part_ls(ws, &q, out).map(Some)
         }
-        PartCmd::Show { id, ops } => {
+        PartCmd::Show {
+            id,
+            ops,
+            configuration,
+        } => {
             let req = PartViewRequest {
                 ops: match ops {
                     Some(path) => super::ops::ops_from_file(path)?,
                     None => Vec::new(),
                 },
+                configuration: configuration.clone(),
             };
             part_show(ws, id, &req, out).map(Some)
         }
@@ -129,6 +139,7 @@ fn part_show(ws: &Workspace, id: &str, req: &PartViewRequest, out: &Out) -> anyh
         }
         t.print();
     }
+    print_placement(r, req.configuration.as_deref(), out);
     if !r.ports.is_empty() {
         let mut t = out.table(&["Port", "Net"]);
         for port in &r.ports {
@@ -143,4 +154,43 @@ fn part_show(ws: &Workspace, id: &str, req: &PartViewRequest, out: &Out) -> anyh
         eprint!("{}", diag::render(&p.diagnostics, out.color));
     }
     Ok(0)
+}
+
+/// 配置の表（取付・取付点に対する位置・機体座標の位置と姿勢。`--configuration` があればその形態のもの）。取付も機体座標の姿勢も無ければ出さない。
+fn print_placement(r: &PartRow, configuration: Option<&str>, out: &Out) {
+    if r.mount.is_none() && r.body.is_none() {
+        return;
+    }
+    let shown = |q: &fune_service::dto::PoseQuantities| {
+        let position: Vec<&str> = q.position.iter().map(|v| v.display.as_str()).collect();
+        let rotation: Vec<&str> = q.rotation.iter().map(|v| v.display.as_str()).collect();
+        format!("({}) rot ({})", position.join(", "), rotation.join(", "))
+    };
+    let title = match configuration {
+        Some(c) => format!("Placement in configuration {c}"),
+        None => "Placement".to_owned(),
+    };
+    let mut t = out.table(&[title.as_str(), "Value"]);
+    if let Some(m) = &r.mount {
+        let on = match &m.point {
+            Some(p) => format!("{}.{p}", m.on),
+            None => m.on.clone(),
+        };
+        t.row(vec![C::Text("mount".into()), C::Text(on)]);
+        t.row(vec![
+            C::Text("in mount".into()),
+            C::Text(shown(&m.relative)),
+        ]);
+        if configuration.is_some() {
+            let note = if m.overridden { "overridden" } else { "base" };
+            t.row(vec![C::Text("pose from".into()), C::Dim(note.into())]);
+        }
+    }
+    if let Some(b) = &r.body {
+        t.row(vec![
+            C::Text("in vehicle".into()),
+            C::Text(shown(&b.quantities)),
+        ]);
+    }
+    t.print();
 }

@@ -1,14 +1,16 @@
 //! 解析ケースの文脈のうち、軌道（`conditions/orbit.toml`。ケースがフェーズを指していて、フェーズが `[orbit]` を持てばそれ）の組み立て。
 //! 太陽同期の傾斜角と地方時からの RAAN は、sat-astro の換算を呼び、対応しない天体は不足入力にする。
 //! 効いている軌道の設定は [`Context::orbit_settings`] だけが決め、不足入力・読んだものの記録の対象は [`Context::orbit_target`] だけが作る
-//! （フェーズの軌道ならフェーズのファイルを指す）。
+//! （フェーズの軌道ならフェーズのファイルを指す）。ケプラー要素の軌道（`source = "elements"`）の組み立ては [`Context::orbit`]。
+//! 解析に渡す軌道は、出どころ（`source`）で分かれる [`Context::trajectory`]（`context/orbit_source.rs`）が作る。
 
-use super::{Context, central_body};
+use super::Context;
 use crate::missing::MissingInputs;
+use crate::orbit_central::{central_body, design_orbit};
 use crate::quantity::{qty, qty_opt};
 use fune_model::Target;
 use fune_model::design::setting_dims::{self as dims, SettingQuantity};
-use fune_model::design::{OrbitSettings, Phase, PropagatorKind};
+use fune_model::design::{OrbitSettings, OrbitSource, Phase, PropagatorKind};
 use fune_model::path::SettingPath;
 use sat_astro::ephem::CentralBody;
 use sat_astro::orbit::{DEFAULT_ECCENTRICITY, OrbitElements, OrbitSpec, Propagator};
@@ -16,12 +18,16 @@ use sat_astro::time::Epoch;
 use sat_units::typed::{Angle, Dimension, Length, Qty};
 
 impl<'a> Context<'a> {
-    /// ケースが指すフェーズ（ケースにフェーズが無い・フェーズが無ければ None。無い ID は検査が `ref.phase` で知らせる）。
+    /// 効いているフェーズ（[`Context::in_phase`] の指定、なければケースが指すフェーズ。ケースにフェーズが無い・フェーズが無ければ None。無い ID は検査が `ref.phase` で知らせる）。
     pub fn phase(&self) -> Option<&'a Phase> {
+        if let Some(p) = self.phase_override {
+            self.note(Target::phase(p.id.as_str(), None));
+            return Some(p);
+        }
         let case = self.case?;
-        let id = case.phase.as_ref()?;
+        case.phase.as_ref()?;
         self.note(Target::case(case.id.as_str(), Some("phase")));
-        self.design.phases.get(id.as_str())
+        crate::case_policy::case_phase(self.design, self.case)
     }
 
     /// 効いている軌道の設定: ケースのフェーズが `[orbit]` を持てばそれ（設計の軌道を丸ごと置き換える。キーごとの合成はしない）、
@@ -29,7 +35,7 @@ impl<'a> Context<'a> {
     pub fn orbit_settings(&self) -> Option<&'a OrbitSettings> {
         match self.phase().and_then(|p| p.orbit.as_ref()) {
             Some(o) => Some(o),
-            None => self.design.conditions.orbit.as_ref(),
+            None => design_orbit(self.design),
         }
     }
 
@@ -89,7 +95,10 @@ impl<'a> Context<'a> {
         }
     }
 
-    /// 軌道（`conditions/orbit.toml`。ケースのフェーズが `[orbit]` を持てばそれ）。
+    /// ケプラー要素の軌道（`conditions/orbit.toml`。ケースのフェーズが `[orbit]` を持てばそれ）。ケプラー要素が本当に要る解析
+    /// （季節解析・高度低下・要素を替えるマヌーバの始めの軌道）の入口。**出どころが `elements` でない軌道は対象外**で、
+    /// 軌道の `source` を対象に理由を不足入力として返す（直し方の候補は付かない）。
+    /// 時系列・通信など、状態・中心天体・元期・繰り返しの長さだけを読む解析は [`Context::trajectory`]。
     pub fn orbit(&self, m: &mut MissingInputs) -> Option<OrbitSpec> {
         let Some(o) = self.orbit_settings() else {
             m.push(
@@ -98,6 +107,17 @@ impl<'a> Context<'a> {
             );
             return None;
         };
+        self.note(self.orbit_target(&["source"]));
+        if o.source_kind() != OrbitSource::Elements {
+            m.push(
+                self.orbit_target(&["source"]),
+                format!(
+                    "Not applicable: this analysis needs an orbit given by Kepler elements, but the orbit in effect has source = \"{}\"",
+                    o.source_kind()
+                ),
+            );
+            return None;
+        }
         for key in [
             "epoch",
             "central",

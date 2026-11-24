@@ -33,6 +33,7 @@ export const projectJa = {
       budget: { title: "バジェット", caption: "budget/ — 配分・マージン方針" },
     },
     noSettings: "設定がありません",
+    unset: "未設定",
     key: "キー",
     value: "値",
     file: "ファイル",

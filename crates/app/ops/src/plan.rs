@@ -12,8 +12,10 @@
 //! | `others` | モード・ネット・図・設定の Op |
 //! | `records` | 解析ケース・出典・ハーネス・マヌーバの Op |
 //! | `phases` | フェーズの Op（足す・書く・消す・名前を変える・軌道と姿勢則の値・ケースのフェーズ） |
+//! | `configurations` | 形態の Op（足す・見出しを書く・消す・名前を変える・部品の姿勢の上書きを消す）と、形態の中への配置（`Place` の `configuration`） |
 //! | `ground` | 地上局の Op（足す・消す・名前を変える） |
 //! | `check_keys` | 要求の判定のキーが名指すエンティティ（部品・局・回線・熱の節点）の削除の拒否 |
+//! | `remount` | 基準の取付の付け替えで形態の上書きが古い取付点に対するものになるときの警告（`configuration.mount_changed`） |
 //! | `renamed` | 名前の変更の Op を適用前の診断に写す（元からある error を新しい error と取り違えない） |
 //! | `renames` | ネット・ハーネス・解析ケース・出典・マヌーバの名前の変更の Op |
 //! | `link` | 通信の回線の Op（足す・消す・名前を変える） |
@@ -28,6 +30,7 @@ mod attr;
 mod catalog;
 mod catalog_source;
 mod check_keys;
+mod configurations;
 mod defs;
 mod ground;
 mod groups;
@@ -37,6 +40,7 @@ mod parts;
 mod phases;
 mod project;
 mod records;
+mod remount;
 mod renamed;
 mod renames;
 mod requirements;
@@ -91,7 +95,9 @@ impl From<&Plan> for PlanSummary {
 pub fn plan(snapshot: &Snapshot, ops: &[Op]) -> Result<Plan, OpError> {
     let mut edits = Edits::new(&snapshot.files);
     let mut design = snapshot.design.clone();
+    let mut remounts = Vec::new();
     for op in ops {
+        remounts.extend(remount::remount_of(&design, op));
         interpret(&mut edits, &design, op)?;
         design = design_of(edits.files());
     }
@@ -104,11 +110,13 @@ pub fn plan(snapshot: &Snapshot, ops: &[Op]) -> Result<Plan, OpError> {
             diagnostics: new_errors,
         });
     }
+    let mut diagnostics = after;
+    diagnostics.extend(remount::diagnostics(&design, &remounts));
     Ok(Plan {
         base_revision: snapshot.design.revision.clone(),
         revision: revision::of(edits.files()),
         changes: edits.changes(),
-        diagnostics: after,
+        diagnostics,
         design,
     })
 }
@@ -197,6 +205,11 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::UnsetPhaseOrbit { .. }
         | Op::UnsetPhaseLaw { .. }
         | Op::SetCasePhase { .. } => phases::interpret(edits, design, op),
+        Op::CreateConfiguration { .. }
+        | Op::SetConfiguration { .. }
+        | Op::RemoveConfiguration { .. }
+        | Op::RenameConfiguration { .. }
+        | Op::UnsetConfigurationPose { .. } => configurations::interpret(edits, design, op),
         Op::CreateRequirement { .. } | Op::SetRequirement { .. } | Op::RemoveRequirement { .. } => {
             requirements::interpret(edits, design, op)
         }

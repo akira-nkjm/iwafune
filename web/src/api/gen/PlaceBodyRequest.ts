@@ -14,4 +14,8 @@ position: Vector3,
 /**
  * 機体座標での姿勢（部品 → 機体、w x y z）。省略すると今の姿勢のまま
  */
-orientation: Quaternion | null, base_revision: string | null, dry_run: boolean, };
+orientation: Quaternion | null, 
+/**
+ * この形態の姿勢として書く（機体座標はその形態の設計で読み、結果は形態の `[pose.<部品>]` に入る。省略は部品自身の姿勢）
+ */
+configuration: string | null, base_revision: string | null, dry_run: boolean, };

@@ -43,6 +43,8 @@ pub struct MountView {
     pub point_pose: PoseQuantities,
     /// 取付点に対する位置（書かれていなければ 0）・姿勢（書かれていなければ 0°）
     pub relative: PoseQuantities,
+    /// 問い合わせた形態がこの部品の姿勢を上書きしているか（基準を読んだときは常に false。`authored_*`・`relative` は上書きの値）
+    pub overridden: bool,
 }
 
 /// 機体座標での位置・姿勢（取付の連鎖をたどったもの）。

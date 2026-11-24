@@ -18,6 +18,7 @@ export const phasesJa = {
     modes: "使うモード",
     overrides: "上書き",
     orbitReplaced: "軌道を置き換え",
+    orbitFrom: (maneuver: string) => `軌道は ${maneuver} から`,
     lawFor: (modes: string) => `姿勢則: ${modes}`,
     cases: "解析ケース",
     file: "ファイル",

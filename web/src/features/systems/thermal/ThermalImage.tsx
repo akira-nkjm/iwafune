@@ -221,8 +221,14 @@ function Legend({ scale }: { scale: HeatScale }) {
   );
 }
 
+/** 節点の名前のあとの注: 既定の 1 部品 1 節点は「部品ごと」、設計がまとめた節点は入っている部品の一覧 */
+function nodeNote(heat: readonly PartHeat[] | undefined, node: string, perPart: string): string {
+  const parts = (heat ?? []).filter((h) => h.node === node);
+  return parts.some((h) => h.per_part) ? `(${perPart})` : parts.map((h) => h.part).join(", ");
+}
+
 /** 節点の温度の一覧（色の見本・節点・その節点に入っている部品・温度） */
-function NodeList({
+export function NodeList({
   temps,
   heat,
   scale,
@@ -245,13 +251,7 @@ function NodeList({
             />
             <span className="min-w-0 flex-1 truncate font-mono text-ink-2">
               {node}
-              <span className="text-ink-4">
-                {" "}
-                {(heat ?? [])
-                  .filter((h) => h.node === node)
-                  .map((h) => h.part)
-                  .join(", ")}
-              </span>
+              <span className="text-ink-4"> {nodeNote(heat, node, I.nodePerPart)}</span>
             </span>
             {/* 温度の欄は幅を固定して右に寄せる（再生で桁や符号が変わっても、左の名前の切れ目が動かないように） */}
             <span className="w-16 shrink-0 text-right">

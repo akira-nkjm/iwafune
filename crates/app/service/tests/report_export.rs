@@ -338,7 +338,7 @@ fn figures_carry_the_case_eclipse_shading_and_limits() {
         .unwrap();
     assert_eq!(thermal["case"], "eclipse_worst");
     assert!(thermal["shaded"].as_u64().unwrap() >= 4, "eclipse bands");
-    assert_eq!(thermal["panels"][0]["series"].as_array().unwrap().len(), 12);
+    assert_eq!(thermal["panels"][0]["series"].as_array().unwrap().len(), 14);
     let power = figs.iter().find(|f| f["item"] == "power-history").unwrap();
     assert_eq!(
         power["panels"].as_array().unwrap().len(),

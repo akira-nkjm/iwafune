@@ -24,6 +24,7 @@ pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
     };
     let req = RunAnalysisRequest {
         case: a.case.clone(),
+        configuration: a.configuration.clone(),
         source,
         ops,
     };
