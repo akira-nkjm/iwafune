@@ -6,6 +6,7 @@ import { useDialogs } from "@/kit/detail/use-dialogs";
 import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
+import { idWithName } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
 import { RenameDialog } from "@/ops/RenameDialog";
 import { Button } from "@/ui/button";
@@ -28,9 +29,10 @@ export function ConfigurationControls({
 }) {
   const t = useT();
   const c = t.systems.layout3d.configuration;
-  const options = configurations.map(({ id, label }) => ({
-    value: id,
-    label: id === label ? id : `${label} (${id})`,
+  const options = configurations.map((c) => ({
+    // 表示の言語の名前（英語は ID、日本語は「ID（表示名）」。`idWithName`）
+    value: c.id,
+    label: idWithName(c),
   }));
   const dialogs = useDialogs<"add" | "edit" | "rename" | "remove">();
   const [target, setTarget] = useState<ConfigurationView | null>(null);
