@@ -23,6 +23,7 @@ export const maneuversJa = {
       perigee_altitude: "近地点高度",
       apogee_altitude: "遠地点高度",
       inclination: "傾斜角",
+      flybys: "スイングバイ",
       transfer: "出発 → 到着",
       delta_v: "書いた ΔV",
     } as Record<string, string>,
@@ -41,6 +42,11 @@ export const maneuversJa = {
       arrive: "到着の日（出発より後。空にすると日付なしのホーマンの見積もり）",
       departureBy:
         "出発の噴射を行うもの（打ち上げ機なら ΔV・推薬に出発の噴射を数えず、打ち上げ適合が C3 の曲線で質量の上限を引く）",
+      flybys: "スイングバイ（出発と到着の間、日付の順）",
+      flybysHint:
+        "1 行に 1 回: 天体@日付。続けて ,min_altitude=400 km（天体ごとの既定。木星型の惑星は必須）・,powered=false（動力なしと宣言。近点の噴射は数えない）を書けます",
+      addFlyby: "スイングバイを追加",
+      removeFlyby: "スイングバイを削除",
       deltaV: "書く ΔV（余裕。軌道は変えない）",
       viaAltitude: "中間の遠地点高度（バイエリプティック）",
       sunlitOnly: "日照中だけ噴射",

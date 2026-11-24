@@ -126,7 +126,7 @@ pub use edit::{
 pub use fune_model::design::PartField;
 pub use fune_model::design::{
     AttributeDef, Case, CatalogField, CatalogItem, DepartureBy, Distribution, Harness, KindDef,
-    Maneuver, ManeuverCategory, ManeuverConstraints, ManeuverMethod, ManeuverTarget,
+    Maneuver, ManeuverCategory, ManeuverConstraints, ManeuverFlyby, ManeuverMethod, ManeuverTarget,
     ManeuverTransfer, ModeSegment, ModeWhen, Net, NetField, NetKind, Phase, Pose, Requirement,
     Source, SourceKind, StartFrom, StartRef, UncertaintySide,
 };

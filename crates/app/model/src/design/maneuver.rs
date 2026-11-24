@@ -5,6 +5,7 @@
 //! 粗い段階の解析は無視したことを結果に書く。
 
 use super::conditions::CentralBodyKind;
+use super::maneuver_flyby::ManeuverFlyby;
 use super::mode::Mode;
 use super::part::Part;
 use crate::Design;
@@ -121,6 +122,10 @@ pub struct ManeuverTransfer {
     /// 出発の噴射を行うもの（書かなければ衛星。`launcher` なら ΔV・推薬に出発の噴射を数えず、打ち上げ適合が C3 の曲線で質量の上限を引く）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub departure_by: Option<DepartureBy>,
+    /// 途中の惑星のスイングバイ（日付の順。`[[transfer.flybys]]`。書かなければ出発から到着まで 1 本の弧）。
+    /// 前後の天体の組ごとの Lambert の弧をつなぎ、通過で入りと出の超過速度の差を近点の噴射にする（パッチドコニック。`sat_astro::transfer::flyby`）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub flybys: Vec<ManeuverFlyby>,
 }
 
 impl ManeuverTransfer {

@@ -28,7 +28,7 @@ use fune_model::design::{Maneuver, ManeuverCategory, ManeuverMethod, ManeuverSte
 use fune_model::resolve::{ResolvedPart, SiValue};
 use fune_model::value::Quantity;
 use sat_analysis::propulsion::{
-    DatedTransferInput, DepartureProvider, DvCategory, ManeuverInput, OrbitTarget,
+    DatedTransferInput, DepartureProvider, DvCategory, FlybyInput, ManeuverInput, OrbitTarget,
     PropellantMassInput, PropellantTank, PropulsionInput, PropulsionThruster, ThrustConstraints,
     TransferMethod, UnloadingInput, UnloadingLeg, UnloadingNote,
 };
@@ -261,6 +261,7 @@ fn transfer_input(x: &Maneuver, m: &mut MissingInputs) -> Option<Option<DatedTra
             departure,
             arrival,
             departure_by: departure_by(x.transfer.as_ref().and_then(|t| t.departure_by)),
+            flybys: flyby_inputs(x, m)?,
         })),
         Some(Err((key, why))) => {
             let field = format!("transfer.{key}");
@@ -268,6 +269,32 @@ fn transfer_input(x: &Maneuver, m: &mut MissingInputs) -> Option<Option<DatedTra
             None
         }
     }
+}
+
+/// `[[transfer.flybys]]`（日付の順。日付が読めなければ不足入力に記録して `None`、高度の下限の次元が違えば不足入力に記録する）。
+fn flyby_inputs(x: &Maneuver, m: &mut MissingInputs) -> Option<Vec<FlybyInput>> {
+    let written = x
+        .transfer
+        .as_ref()
+        .map(|t| t.flybys.as_slice())
+        .unwrap_or_default();
+    let mut out = Vec::with_capacity(written.len());
+    for (f, read) in written.iter().zip(maneuver_dates::parse_flybys(x)) {
+        let target = Target::maneuver(x.id.as_str(), Some("transfer.flybys"));
+        match read {
+            Ok((body, date)) => out.push(FlybyInput {
+                body,
+                date,
+                min_altitude: qty_opt(f.min_altitude.as_ref(), target, m),
+                powered: f.is_powered(),
+            }),
+            Err(why) => {
+                m.push(target, why);
+                return None;
+            }
+        }
+    }
+    Some(out)
 }
 
 /// 数値伝搬で効く制約（`[constraints]`）。

@@ -41,15 +41,18 @@ impl Evaluator {
         let departure_by = self
             .maneuver
             .transfer
+            .as_ref()
             .map(|t| t.departure_by)
             .unwrap_or_default();
         self.maneuver.transfer = Some(DatedTransferInput {
             departure,
             arrival,
             departure_by,
+            // 通過のある遷移は探索しない（`LaunchWindow::run` が断る）
+            flybys: Vec::new(),
         });
         let planned = plan(self.from, &self.maneuver)?;
-        let (Some(d), Ideal::Impulsive(t)) = (planned.dated, &planned.ideal) else {
+        let (Some(d), Ideal::Impulsive(t)) = (planned.dated.as_ref(), &planned.ideal) else {
             return Err(AnalysisError::InvalidInput(format!(
                 "Maneuver {}: the launch window search needs a dated transfer between bodies",
                 self.maneuver.id

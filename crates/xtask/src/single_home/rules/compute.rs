@@ -189,6 +189,26 @@ pub(in crate::single_home) const RULES: &[Rule] = &[
         "dated interplanetary transfers",
     ),
     (
+        "fn flyby_geometry(",
+        &["crates/lib/astro/src/transfer/flyby.rs"],
+        "swing-by (gravity assist) geometry and its periapsis burn",
+    ),
+    (
+        "fn default_min_altitude_m(",
+        &["crates/lib/astro/src/transfer/flyby.rs"],
+        "the default minimum flyby altitude per body class",
+    ),
+    (
+        "fn hyperbolic_periapsis_speed_m_s(",
+        &["crates/lib/astro/src/transfer/patched.rs"],
+        "the speed at the periapsis of a hyperbola",
+    ),
+    (
+        "fn lambert_chain(",
+        &["crates/lib/astro/src/transfer/dated.rs"],
+        "the legs of a dated transfer",
+    ),
+    (
         "fn lambert_about_normal(",
         &["crates/lib/astro/src/transfer/lambert.rs"],
         "transfer formulas",

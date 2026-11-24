@@ -33,6 +33,18 @@ describe("マヌーバの欄 → fune maneuver add|set の引数", () => {
     expect(maneuverCommand(text, false)).toEqual({ command: "maneuver_set", ...text });
   });
 
+  it("途中のスイングバイ（flybys）も読まずにそのまま渡す（編集で黙って落とさない）", () => {
+    const text = {
+      ...emptyManeuverText(),
+      id: "MARS",
+      body: "mars",
+      depart: "2028-10-01T00:00:00Z",
+      arrive: "2030-03-01T00:00:00Z",
+      flybys: ["venus@2029-01-10T00:00:00Z,min_altitude=400 km", "earth@2029-06-01T00:00:00Z"],
+    };
+    expect(maneuverCommand(text, false)).toEqual({ command: "maneuver_set", ...text });
+  });
+
   it("スラスタの選択肢は API の maneuver_thruster で選ぶ（役割は見ない）", () => {
     const parts = fixture.parts.map((p, i) => ({ ...p, maneuver_thruster: i === 0 }));
     const options = thrusterOptions({ ...fixture, parts });

@@ -338,6 +338,9 @@ pub struct ManeuverArgs {
     /// Who performs the departure burn of a dated transfer: `spacecraft` (default) or `launcher` (the launcher injects onto the departure asymptote, so the spacecraft does not count that burn; needs --depart and --arrive)
     #[arg(long)]
     pub departure_by: Option<String>,
+    /// Swing-by of a planet between departure and arrival (repeatable, in date order): `BODY@DATE`, optionally followed by `,min_altitude=400 km` (minimum periapsis altitude; the default is a convention per body, required for the giant planets) and `,powered=false` (declared unpowered: the periapsis burn is not counted); e.g. `venus@2029-02-01T00:00:00Z`. Needs --depart and --arrive
+    #[arg(long = "flyby", value_name = "BODY@DATE")]
+    pub flybys: Vec<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }

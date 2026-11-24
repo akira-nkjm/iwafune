@@ -149,6 +149,7 @@ fn launcher_departure(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<Launch
     let input = crate::propulsion::maneuvers(ctx).ok()?;
     let id = input.maneuvers.iter().find_map(|x| {
         x.transfer
+            .as_ref()
             .filter(|t| t.departure_by == DepartureProvider::Launcher)
             .map(|_| x.id.clone())
     })?;

@@ -68,4 +68,9 @@ arrive?: string | null,
 /**
  * 出発の噴射を行うもの（`spacecraft` / `launcher`。書かなければ衛星。日付と一緒にだけ書ける）
  */
-departure_by?: string | null, };
+departure_by?: string | null, 
+/**
+ * 途中のスイングバイ（`"venus@2029-02-01T00:00:00Z"`、`,min_altitude=400 km`・`,powered=false` を続けられる。繰り返す旗。
+ * 日付と一緒にだけ書ける。GUI の編集では、書かれたものをそのまま送り返す）
+ */
+flybys?: Array<string> | null, };
