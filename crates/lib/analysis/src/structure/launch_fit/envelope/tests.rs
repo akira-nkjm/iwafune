@@ -37,6 +37,8 @@ fn input(boxes: Option<Vec<InterferenceBox>>, unsized_parts: &[&str]) -> LaunchF
         min_lateral: Vec::new(),
         min_axial: Vec::new(),
         modes: Vec::new(),
+        searched: Vec::new(),
+        unavailable: Vec::new(),
     }
 }
 

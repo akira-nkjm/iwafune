@@ -13,13 +13,15 @@ use sat_analysis::comm::link_budget::{LinkBudgetDirection, LinkDistanceModel};
 use sat_analysis::power::energy_balance::{
     DurationTiming, EnergyBalanceDuty, EnergyBalanceEvaluation,
 };
-use sat_analysis::power::sizing::SizingLifetimeSource;
+use sat_analysis::power::sizing::{SizingLifetimeSource, SizingSunDistanceSource};
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
 use sat_analysis::structure::cone_clearance::{ConeKind, ConeSkipReason};
 use sat_analysis::structure::external_geometry::{BodyAxis, FaceDirection};
 use sat_analysis::structure::interference::InterferenceSkipReason;
-use sat_analysis::structure::launch_fit::{LaunchFitDirection, LaunchFitEnvelopeSource};
+use sat_analysis::structure::launch_fit::{
+    LaunchFitDirection, LaunchFitEnvelopeSource, LaunchFitSource,
+};
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
 use sat_analysis::structure::modal_fem::{ModalFemAxis, ModalFemModeClass};
 use sat_analysis::thermal::ThermalHeaterState;
@@ -303,6 +305,19 @@ fn energy_balance_duty(d: EnergyBalanceDuty) -> AnalysisLabel {
     }
 }
 
+fn sizing_sun_distance_source(s: SizingSunDistanceSource) -> AnalysisLabel {
+    match s {
+        SizingSunDistanceSource::Setting => label("設定", "Setting"),
+        SizingSunDistanceSource::Nominal => {
+            label("中心天体の慣例値", "Conventional value of the central body")
+        }
+        SizingSunDistanceSource::SpanMax => label(
+            "期間の中の太陽距離の最大（最悪の日）",
+            "Farthest Sun distance over the span (worst day)",
+        ),
+    }
+}
+
 fn sizing_lifetime_source(s: SizingLifetimeSource) -> AnalysisLabel {
     match s {
         SizingLifetimeSource::SeasonSpan => label("季節の走査期間", "Season scan span"),
@@ -333,6 +348,13 @@ fn launch_fit_direction(d: LaunchFitDirection) -> AnalysisLabel {
     match d {
         LaunchFitDirection::Lateral => label("機軸に直交する方向", "Lateral"),
         LaunchFitDirection::Axial => label("機軸方向", "Axial"),
+    }
+}
+
+fn launch_fit_source(s: LaunchFitSource) -> AnalysisLabel {
+    match s {
+        LaunchFitSource::BeamEstimate => label("梁の見積もり", "Beam estimate"),
+        LaunchFitSource::FiniteElement => label("粗い有限要素", "Coarse finite element"),
     }
 }
 
@@ -456,6 +478,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "ModalEstimateKind" => parse(value).map(modal_kind),
         "LaunchFitDirection" => parse(value).map(launch_fit_direction),
         "LaunchFitEnvelopeSource" => parse(value).map(launch_fit_envelope_source),
+        "LaunchFitSource" => parse(value).map(launch_fit_source),
         "InterferenceSkipReason" => parse(value).map(interference_skip_reason),
         "BodyAxis" => parse(value).map(body_axis),
         "ModalFemAxis" => parse(value).map(modal_fem_axis),
@@ -467,6 +490,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
         "DurationTiming" => parse(value).map(duration_timing),
         "SizingLifetimeSource" => parse(value).map(sizing_lifetime_source),
+        "SizingSunDistanceSource" => parse(value).map(sizing_sun_distance_source),
         "ThermalHeaterState" => parse(value).map(heater_state),
         "DataThroughputLinkClosure" => link_closure(value),
         "SolarActivity" => parse(value).map(orbit::solar_activity),

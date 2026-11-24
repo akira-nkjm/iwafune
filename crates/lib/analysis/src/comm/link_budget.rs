@@ -63,8 +63,10 @@ pub struct LinkBudgetLink {
     pub data_rate: Qty<DataRate>,
     /// 変調・符号化で決まる所要 Eb/N0
     pub required_eb_n0_db: Decibel,
-    /// 衛星の高度（中心天体の半径から）
-    pub altitude: Qty<Length>,
+    /// 衛星の高度（中心天体の半径から）。地球を回る衛星の斜距離に使う。長半径を持たない軌道（状態ベクトル）には無い
+    /// （地球以外を回る衛星の距離は地球からの距離で、高度は使わない）
+    #[serde(default)]
+    pub altitude: Option<Qty<Length>>,
     /// 軌道の中心天体（斜距離に半径を使う。省略時は地球）
     #[serde(default)]
     pub central: CentralBody,
@@ -233,8 +235,8 @@ fn evaluate(
 ) -> Result<LinkBudgetLinkResult, AnalysisError> {
     link.rf.validate(&link.name)?;
     let rate = link.data_rate.value();
-    let altitude = link.altitude.value();
-    if !(rate > 0.0 && altitude > 0.0) {
+    let altitude_ok = link.altitude.is_none_or(|a| a.value() > 0.0);
+    if !(rate > 0.0 && altitude_ok) {
         return Err(AnalysisError::InvalidInput(format!(
             "{}: data rate and altitude must be positive",
             link.name

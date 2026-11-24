@@ -48,6 +48,7 @@ function CasesTable({ design: d }: { design: DesignView }) {
             <Th>{m.description}</Th>
             <Th>{m.modes}</Th>
             <Th>{m.phase}</Th>
+            <Th>{m.epoch}</Th>
             <Th>{m.file}</Th>
             <Th>{m.openWith}</Th>
           </>
@@ -72,6 +73,7 @@ function CasesTable({ design: d }: { design: DesignView }) {
                 </Button>
               </span>
             </Td>
+            <Td mono>{c.epoch ?? "—"}</Td>
             <Td mono className="text-ink-4">
               {c.file}
             </Td>

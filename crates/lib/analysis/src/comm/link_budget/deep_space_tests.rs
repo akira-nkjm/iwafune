@@ -56,7 +56,7 @@ fn deep_link() -> LinkBudgetLink {
         },
         data_rate: Qty::from_raw(1000.0),
         required_eb_n0_db: db(2.0),
-        altitude: Qty::from_raw(1.0e9),
+        altitude: Some(Qty::from_raw(1.0e9)),
         central: CentralBody::Sun,
         elevation: Qty::from_raw(0.0),
         required_margin_db: None,
@@ -174,7 +174,7 @@ fn a_probe_at_quadrature_is_not_in_conjunction() {
 fn an_earth_orbit_output_has_no_deep_space_keys() {
     let mut link = deep_link();
     link.central = CentralBody::Earth;
-    link.altitude = Qty::from_raw(1.0e6);
+    link.altitude = Some(Qty::from_raw(1.0e6));
     link.elevation = Qty::from_raw(PI / 2.0);
     let out = LinkBudget::run(&LinkBudgetInput {
         links: vec![link],

@@ -22,6 +22,7 @@ fn case(id: &str, mode: Option<&str>, phase: Option<&str>) -> Case {
         beta: None,
         orbits: None,
         sun_distance: None,
+        epoch: None,
     }
 }
 

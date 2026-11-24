@@ -30,7 +30,7 @@ fn uhf_down() -> LinkBudgetLink {
         },
         data_rate: Qty::from_raw(9600.0),
         required_eb_n0_db: db(10.0),
-        altitude: Qty::from_raw(1.0e6),
+        altitude: Some(Qty::from_raw(1.0e6)),
         central: CentralBody::Earth,
         elevation: Qty::from_raw(std::f64::consts::FRAC_PI_2),
         required_margin_db: None,
@@ -123,7 +123,7 @@ fn moon_orbiter_uses_the_earth_to_moon_range() {
     );
     let mut link = uhf_down();
     link.central = CentralBody::Moon;
-    link.altitude = Qty::from_raw(100.0e3);
+    link.altitude = Some(Qty::from_raw(100.0e3));
     let input = LinkBudgetInput {
         links: vec![link],
         required_margin_db: None,

@@ -6,6 +6,8 @@ import type { LaunchFitFrequencyLimit } from "./LaunchFitFrequencyLimit";
 import type { LaunchFitMassLimit } from "./LaunchFitMassLimit";
 import type { LaunchFitMode } from "./LaunchFitMode";
 import type { LaunchFitPartBoxes } from "./LaunchFitPartBoxes";
+import type { LaunchFitSearch } from "./LaunchFitSearch";
+import type { LaunchFitSourceNote } from "./LaunchFitSourceNote";
 import type { Vec3 } from "./Vec3";
 
 /**
@@ -50,6 +52,14 @@ min_lateral: Array<LaunchFitFrequencyLimit>,
  */
 min_axial: Array<LaunchFitFrequencyLimit>, 
 /**
- * 簡易固有振動数の結果（梁の一次だけを使う）
+ * 固有振動数の見積もりの並び（出どころつき。機体全体のモードと局所のモード。選ぶ規則は `frequency`）
  */
-modes: Array<LaunchFitMode>, };
+modes: Array<LaunchFitMode>, 
+/**
+ * 出どころがモードを探した範囲（全体のモードが無いことの根拠）
+ */
+searched: Array<LaunchFitSearch>, 
+/**
+ * 見積もりに使えなかった出どころと理由
+ */
+unavailable: Array<LaunchFitSourceNote>, };
