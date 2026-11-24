@@ -1,21 +1,37 @@
 //! ハロー軌道の 3 次の解析近似（Richardson 1980）と、それを補正した軌道。
 //!
-//! 出典: D. L. Richardson, "Analytic construction of periodic orbits about the collinear points",
-//! Celestial Mechanics 22, 241-253 (1980)。係数の式は論文そのものを手元で読めなかったので、
-//! その実装である Orekit の `RichardsonExpansion`（Apache-2.0。Koon, Lo, Marsden, Ross の
-//! *Dynamical Systems, the Three-Body Problem, and Space Mission Design* を参照している）の式を写した。
-//! **論文との照合はしていない。** 係数 a31 の第 2 項の `3·c3` は、Orekit では `2·c3`、記憶では `3·c3` で食い違う
-//! （b31 の対応する項が `3·c3` なので `3·c3` を採った。第 3 調和の項で、補正の結果には影響しない）。
-//! この近似はあくまで補正の初期値で、採用の根拠は補正後の周期性の残差とヤコビ定数の保存である。
+//! 出典: Koon, Lo, Marsden, Ross, *Dynamical Systems, the Three-Body Problem and Space Mission Design*
+//! （2011）§6.6「Third-Order Richardson Expansion」に再掲された Richardson (1980, Celestial Mechanics 22, 241-253) の式。
+//! 式は手元で読めたこの本から自分で書き直した（本文は写していない）。論文の原文は読めていない。
+//! 別の実装（Orekit の `RichardsonExpansion`）は `a31` の第 2 項の係数が `3·c3` でなく `2·c3` で、この本と食い違う。ここは本のとおり `3·c3`。
+//!
+//! 係数の検証（式を写し間違えていないことの確認は出典に頼らない）:
+//! - 本が数値を載せている太陽–地球 L1 の `s1`・`s2`・`l1`・`l2` と、この式が相対 1e-6 以内で合う（`tests_halo`。
+//!   質量比を 5 桁で与えた丸めの範囲）。2 次の係数（`a21`〜`d21`）はこれらの値に効くので、その検証にもなる。
+//! - λ と鉛直の振動数が線形化の特性方程式を満たす。
+//! - 3 次の解を厳密な運動方程式に代入した残差が、振幅の 4 乗で小さくなる（3 次までの係数のどれかが違えば 3 乗でしか小さくならない。
+//!   3 次の係数 `a31`〜`d32` はこの検査だけが確かめる）。
+//!
+//! この近似は補正の初期値で、採用の根拠は補正後の周期性の残差とヤコビ定数の保存。
 //!
 //! 座標は、ラグランジュ点を原点とし γ（点から副天体までの距離）で割った長さ。回転系の x は主天体から副天体へ。
 
 use super::corrector::{CorrectorConfig, PeriodicGuess, PeriodicOrbit};
 use super::dynamics::State6;
 use super::{Cr3bp, Cr3bpError, LibrationPoint};
+use serde::{Deserialize, Serialize};
 
-/// ハロー軌道の枝。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// z 振幅から Richardson の `az` を求める固定点反復の上限（収束は 数回）。
+const ZERO_Z_ITERATIONS: usize = 60;
+
+/// z 振幅（z の最大値）を合わせる外側の反復の上限と、相対の許容。
+const MAX_AMPLITUDE_ITERATIONS: usize = 20;
+const AMPLITUDE_TOLERANCE: f64 = 1e-10;
+
+/// ハロー軌道の枝。JSON・設計の綴りは `north`・`south`。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "lowercase")]
 pub enum Branch {
     /// 北（z > 0 の側が xz 平面の横切りでの z0）
     North,
@@ -63,7 +79,7 @@ pub struct HaloGuess {
     pub period: f64,
     /// x 振幅（γ で割った単位）
     pub ax: f64,
-    /// z 振幅（γ で割った単位）
+    /// Richardson の z 振幅の係数 `az`（γ で割った単位。xz 平面を横切る点の z とは `az·(1 + O(ax))` の差）
     pub az: f64,
 }
 
@@ -242,7 +258,9 @@ impl RichardsonCoefficients {
 
 impl Cr3bp {
     /// z 振幅 `z_amplitude`（正規化の長さ。2 天体の距離を 1 とする）のハロー軌道の 3 次の解析近似。
-    /// 振幅は近似の z の最大値（γ 倍した値）。x 振幅は関係式 `l1·ax² + l2·az² + Δ = 0` から決まる。
+    /// **z 振幅は、xz 平面を横切る点（位相 0）での |z|**（その点で `vz = 0` なので z の極値で、軌道の z の最大値）。Richardson の振幅の
+    /// 係数 `az`（`z` の基本調和の振幅）とは違うので、この値になる `az` を固定点反復で求める（`z0 = az·(1 + O(ax))`）。
+    /// x 振幅は関係式 `l1·ax² + l2·az² + Δ = 0` から決まる。
     pub fn halo_guess(
         &self,
         point: LibrationPoint,
@@ -250,13 +268,28 @@ impl Cr3bp {
         z_amplitude: f64,
     ) -> Result<HaloGuess, Cr3bpError> {
         let c = RichardsonCoefficients::new(self, point)?;
-        let az = z_amplitude.abs() / c.gamma;
-        let ax2 = -(c.delta + c.l2 * az * az) / c.l1;
-        if ax2.is_nan() || ax2 <= 0.0 {
-            return Err(Cr3bpError::NoHaloAtAmplitude { z_amplitude });
-        }
-        let ax = ax2.sqrt();
         let dm = if branch == Branch::North { 1.0 } else { -1.0 };
+        let target = z_amplitude.abs() / c.gamma;
+        let no_halo = || Cr3bpError::NoHaloAtAmplitude { z_amplitude };
+        let x_amplitude = |az: f64| {
+            let ax2 = -(c.delta + c.l2 * az * az) / c.l1;
+            (ax2.is_finite() && ax2 > 0.0).then(|| ax2.sqrt())
+        };
+        let mut az = target;
+        for _ in 0..ZERO_Z_ITERATIONS {
+            let ax = x_amplitude(az).ok_or_else(no_halo)?;
+            let z0 = c.local_state(ax, az, 1.0, 0.0)[2].abs();
+            if z0 == 0.0 || !z0.is_finite() {
+                return Err(no_halo());
+            }
+            let next = az * target / z0;
+            let done = (next - az).abs() <= 1e-14 * az;
+            az = next;
+            if done {
+                break;
+            }
+        }
+        let ax = x_amplitude(az).ok_or_else(no_halo)?;
         let local = c.local_state(ax, az, dm, 0.0);
         let x_point = self.libration_point(point)?[0];
         let mut state: State6 = std::array::from_fn(|i| local[i] * c.gamma);
@@ -270,7 +303,9 @@ impl Cr3bp {
         })
     }
 
-    /// 3 次の解析近似から出発して補正したハロー軌道。補正は z0 を固定する（[`CorrectorConfig::default`]）。
+    /// 3 次の解析近似から出発して補正したハロー軌道。**`z_amplitude` は軌道の z の最大値**（文献の `Az`）。補正は xz 平面を横切る点の z0 を
+    /// 固定する（[`CorrectorConfig::default`]）が、z の最大はその点とは限らない（L2 では反対側の横切りの方が大きい）ので、
+    /// 2 つの横切り（位相 0 と半周期）の |z| の大きい方が `z_amplitude` になるまで、z0 の目標を比で直して補正をやり直す（数回）。
     pub fn halo_orbit(
         &self,
         point: LibrationPoint,
@@ -278,14 +313,29 @@ impl Cr3bp {
         z_amplitude: f64,
         cfg: &CorrectorConfig,
     ) -> Result<HaloOrbit, Cr3bpError> {
-        let guess = self.halo_guess(point, branch, z_amplitude)?;
-        let orbit = self.correct_periodic(
-            &PeriodicGuess {
-                state: guess.state,
-                period: guess.period,
-            },
-            cfg,
-        )?;
-        Ok(HaloOrbit { guess, orbit })
+        let wanted = z_amplitude.abs();
+        let mut z0 = wanted;
+        let mut last = f64::INFINITY;
+        for _ in 0..MAX_AMPLITUDE_ITERATIONS {
+            let guess = self.halo_guess(point, branch, z0)?;
+            let orbit = self.correct_periodic(
+                &PeriodicGuess {
+                    state: guess.state,
+                    period: guess.period,
+                },
+                cfg,
+            )?;
+            let far = self.flow(orbit.state, &[0.5 * orbit.period], &cfg.integrator)?[0];
+            let zmax = orbit.state[2].abs().max(far[2].abs());
+            last = ((zmax - wanted) / wanted).abs();
+            if last <= AMPLITUDE_TOLERANCE {
+                return Ok(HaloOrbit { guess, orbit });
+            }
+            z0 *= wanted / zmax;
+        }
+        Err(Cr3bpError::NotConverged {
+            iterations: MAX_AMPLITUDE_ITERATIONS,
+            residual: last,
+        })
     }
 }

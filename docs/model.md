@@ -51,7 +51,7 @@ A topic's settings location is looked up with `ConditionTopic::setting_path()`. 
 `sat_astro::ephem::CentralBody` (projection's `context::central_body` maps them). Sun-synchronous (`sun_synchronous`) applies to Earth only;
 writing it for any other body is a `check` error (`setting.central`).
 
-`source` is where the orbit comes from (`elements`, `transfer` or `state`; `elements` if omitted and then **never written to the file**, so existing files are unchanged; the display name is `orbit_source` in labels.toml).
+`source` is where the orbit comes from (`elements`, `transfer`, `state` or `libration`; `elements` if omitted and then **never written to the file**, so existing files are unchanged; the display name is `orbit_source` in labels.toml).
 It is valid in `conditions/orbit.toml` and in a phase's `[orbit]` (§7.10), and it is edited with the existing ops only (`fune set conditions.orbit.source transfer`, `fune phase set-field <ID> orbit.source transfer`; there is no orbit field on the phase itself).
 Analyses read an orbit through `fune_projection::Context::trajectory` (state at a time, central body, epoch and the length of one cycle); only analyses that really need Kepler elements read `Context::orbit`.
 
@@ -90,8 +90,33 @@ maneuver = "MARS_TRANSFER"    # a maneuver with a dated [transfer] (§7.7)
   The integrator is the adaptive DOP853 of the numerical propagator (relative tolerance 1e-11) with a step limit of one day about the Sun and 600 s about any other body. One propagation with dense output serves all requested times; where a table is needed for repeated evaluations
   (thermal and power integrals, the refinement of extremes) it is built once at a step of a hundredth of the circular period at the osculating periapsis and interpolated by cubic Hermite (relative error about 4e-8 for a circular orbit at that step).
   The ephemeris of the bodies is DE440 inside its range and the analytic one outside (as for `transfer`; `orbit.geometry` reports which was used).
-- The settings tables (the orbit page and a phase's override dialog) list, for a source, the keys it uses even when they are not written (`OrbitSource::offered_keys`): `state` lists `epoch`, `central`, `position`, `velocity` and `span` and none of the Kepler elements. A cell typed there is sent as text and read by the service (`orbit_field_type` / `/ops/from_text`; a vector is `1 0 0 km`); an unreadable value is shown under the cell.
-- Keys beside a source that it does not use get the warning `setting.not_applied`: for `transfer`, the Kepler elements, `epoch`, `central`, `propagator`, `[eclipse_season]`, `[decay]` and the state keys; for `state`, the Kepler-element keys (everything of `elements` except `epoch` and `central`), `propagator`, `[eclipse_season]`, `[decay]` and `maneuver`;
+- `source = "libration"` takes a libration point of two bodies, or a halo orbit around it, as the orbit (`sat_astro::orbit::SynodicSpec`, `Trajectory::Synodic`):
+
+  ```toml
+  # conditions/orbit.toml (or a phase's [orbit]): a halo orbit about the Sun-Earth L2
+  [orbit]
+  source      = "libration"
+  epoch       = "2030-01-01T00:00:00Z"
+  primary     = "sun"
+  secondary   = "earth"
+  point       = "l2"                                   # l1 .. l5; display name `libration_point`
+  amplitude_z = { value = 120000.0, unit = "km" }      # omit for the point itself
+  branch      = "north"                                # north (default) or south; display name `halo_branch`
+  ```
+
+  **This is a circular-restricted-three-body (CR3BP) orbit carried on the ephemeris, not a force-model propagation.** A halo orbit is a periodic orbit of the CR3BP (`sat_astro::orbit::cr3bp`: the third-order Richardson approximation as the first guess, then a differential correction with the state transition matrix) tabulated for one period.
+  Each time, the two bodies' actual state about the primary (`CentralBody::state_about_parent`: DE440 inside its range, the analytic ephemeris outside) fixes the instantaneous distance (the length unit), the instantaneous angular rate and the rotating axes (the pulsating frame, `Cr3bp::rotating_to_inertial`), and the rotating-frame state is mapped to the inertial one.
+  So the orbit follows the Earth's eccentricity (the distance scales with the instantaneous separation) and orbit plane, but third-body perturbations, solar radiation pressure and the eccentricity's effect on the dynamics are not in it. **Station keeping is not estimated**: write it as a ΔV allowance in a maneuver.
+  - `primary` must be what `secondary` orbits in the ephemeris (a planet about the Sun, or the Moon about the Earth; `CentralBodyKind::parent`, the check `orbit.libration_pair`). The mass ratio uses GM of the primary and of the secondary; for an Earth secondary the Moon's GM is added (the usual Sun–Earth value, and the ephemeris Earth is close to the Earth–Moon barycentre).
+  - `amplitude_z` is the maximum |z| of the CR3BP halo (the larger of its two xz-plane crossings; the usual `Az`), divided by the secondary's mean distance `a` to become normalised; at another instantaneous distance the real extent scales with it. A halo needs `l1` or `l2` (`orbit.libration_halo_point`; the approximation exists only there), a positive amplitude (`setting.range`), and the corrector must converge (otherwise a missing input names the reason).
+    `branch` without `amplitude_z` has no effect (the warning `orbit.libration_branch`). North is the side with z > 0 at the epoch, along the secondary's orbit normal; south is its mirror image.
+  - The epoch is the start of the table: the halo is at its xz-plane crossing there. The table's phase is the angle the secondary has swept about the primary (so the same orbit continues at another epoch; the case `epoch` starts it at any day, `Trajectory::starting_at`).
+  - **Origin, repetition, shadow**: the origin body (`central()`, used for the sub-point, shadow and occultation) is the secondary; `central` is not written for this source. The cycle is `Periodic` with the halo's corrected period (about 180 days for a 120 000 km Sun–Earth L2 halo, 177.9 days at L1) or, for a point, the sidereal period of the two bodies (the Sun geometry repeats with it).
+    A body other than the secondary can also cast the shadow (`Trajectory::extra_shadow_caster`: the primary unless it is the Sun, so the Earth shadows the Earth–Moon L1/L2; the sunlit fraction is the smaller of the two bodies' factors, and an orbit without one is unchanged). At Sun–Earth L2 the Earth's penumbra and umbra are the secondary's shadow as usual.
+  - Kepler-only analyses answer "Not applicable" as for `transfer` and `state`; the time-series analyses and `orbit.geometry` run. At the Sun–Earth L2 the Sun–probe–Earth angle is 0° and the Sun–Earth–probe angle 180° (Sun and Earth are on the same side of the probe), at L1 the reverse.
+    Every analysis result carries an `orbit_model` note (the check key; verdict ok) saying that the orbit is a CR3BP orbit carried on the ephemeris and that station keeping is not estimated.
+- The settings tables (the orbit page and a phase's override dialog) list, for a source, the keys it uses even when they are not written (`OrbitSource::offered_keys`): `state` lists `epoch`, `central`, `position`, `velocity` and `span` and none of the Kepler elements; `libration` lists `epoch`, `primary`, `secondary`, `point`, `amplitude_z` and `branch`. A cell typed there is sent as text and read by the service (`orbit_field_type` / `/ops/from_text`; a vector is `1 0 0 km`); an unreadable value is shown under the cell.
+- Keys beside a source that it does not use get the warning `setting.not_applied`: for `transfer`, the Kepler elements, `epoch`, `central`, `propagator`, `[eclipse_season]`, `[decay]` and the state keys; for `state`, the Kepler-element keys (everything of `elements` except `epoch` and `central`), `propagator`, `[eclipse_season]`, `[decay]` and `maneuver`; for `libration`, the Kepler-element keys, `central`, the state keys and `maneuver` (the libration keys beside any other source too);
   for `elements`, `maneuver` and the state keys (`position`, `velocity`, `span`). `span` must be positive and the components finite (`setting.range`), and the units must have the dimensions Length, Velocity and Time.
   `maneuver` must name an existing maneuver whenever it is written (`ref.maneuver`) and, for `transfer`, that maneuver must have a `[transfer]` (`orbit.maneuver_transfer`). A missing `maneuver` is not a check error but a missing input (`conditions.orbit.maneuver`),
   which offers the maneuvers with a dated transfer (`Fix::PickRef`).

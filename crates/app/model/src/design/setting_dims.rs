@@ -127,6 +127,8 @@ setting_quantities! {
     ORBIT_VELOCITY: Velocity = Conditions["orbit", "velocity"];
     /// 状態ベクトルの軌道の期間
     ORBIT_SPAN: Time = Conditions["orbit", "span"];
+    /// ハロー軌道の z 方向の振幅（`source = "libration"`）
+    ORBIT_AMPLITUDE_Z: Length = Conditions["orbit", "amplitude_z"];
     /// 準静的荷重（機軸方向。`conditions/launch.toml`）
     LAUNCH_LOAD_AXIAL: Acceleration = Conditions["launch", "load_axial"];
     /// 準静的荷重（直交方向）

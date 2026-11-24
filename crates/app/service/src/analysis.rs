@@ -147,6 +147,9 @@ fn finish(id: &str, (case, case_source, side): CaseInfo, outcome: Outcome) -> An
             case_mode: outcome.case_mode.as_deref(),
         },
     );
+    // 軌道の説明は判定でも KPI の材料でもない（結果の判定の一覧にだけ足す）
+    let mut checks = checks;
+    checks.extend(checks::orbit_model_checks(outcome.input.as_ref()));
     let (configuration, configuration_source) = outcome.configuration.unzip();
     let mut result = AnalysisRunResult {
         checks,
