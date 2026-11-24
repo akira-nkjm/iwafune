@@ -182,11 +182,12 @@ export const systemsEn: typeof systemsJa = {
       zoomIn: "Zoom in",
       zoomOut: "Zoom out",
       home: "Home view (reset the camera)",
+      viewCubeFace: (name: string) => `Look from ${name}`,
       helper: {
         fov: "FoV",
         origin: "Origin axes",
         grid: "Grid",
-        gizmo: "Corner axes",
+        gizmo: "View cube",
         sun: "Sun",
         wireframe: "Wireframe",
       },
