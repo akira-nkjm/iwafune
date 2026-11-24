@@ -432,6 +432,12 @@ pub enum Op {
         #[serde(default)]
         phase: Option<String>,
     },
+    /// 解析ケースの時刻（`epoch`）を書く（None なら外す。ケースのほかの欄は変えない。時刻の読み方の検査は service が持つ）。
+    SetCaseEpoch {
+        case: String,
+        #[serde(default)]
+        epoch: Option<String>,
+    },
     /// 形態を足す（同じ ID があれば拒む）。
     CreateConfiguration {
         id: String,

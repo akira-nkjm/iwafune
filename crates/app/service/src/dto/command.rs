@@ -95,6 +95,12 @@ pub enum CommandText {
         #[serde(default)]
         phase: Option<String>,
     },
+    /// `fune case set-epoch <ケース> <時刻>`（`epoch` が無い・空なら `unset-epoch` で外す。時刻の読み方はサービスだけが持つ）
+    CaseEpoch {
+        case: String,
+        #[serde(default)]
+        epoch: Option<String>,
+    },
     /// `fune configuration add <ID> --label … --description …`（同じ ID があれば拒む）
     ConfigurationAdd(super::ConfigurationText),
     /// `fune configuration set <ID> …`（無ければ作り、あれば見出しの欄を置き換える。部品ごとの姿勢は今のまま残す）
