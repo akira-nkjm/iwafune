@@ -42,6 +42,20 @@ describe("surface mesh geometry", () => {
     expect(keys.size).toBe(12);
   });
 
+  it("adds the lines that are not panel edges, once", () => {
+    // 面の辺と同じ線 (0, 3) は足さず、面の外の線 (8, 0) と、同じ線の逆向き (0, 8) の重複は 1 本だけ足す
+    const e = edgeIndices({
+      ...MESH,
+      lines: [
+        [0, 3],
+        [8, 0],
+        [0, 8],
+      ],
+    });
+    expect(e.length).toBe(13 * 2);
+    expect([...e.slice(-2)]).toEqual([8, 0]);
+  });
+
   it("moves each node by scale times its displacement", () => {
     const disp: V3[] = NODES.map((_, n): V3 => [0, 0, n === 4 ? 1 : 0]);
     const out = deformedPositions(NODES, disp, 0.1);

@@ -13,6 +13,10 @@ pub struct SurfaceMesh {
     pub nodes: Vec<[f32; 3]>,
     /// パネルごとの四角形
     pub groups: Vec<SurfaceGroup>,
+    /// 面でない線（フレームの部材など）の両端の節点番号。面のメッシュだけの解析では空で、出力に出さない
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "ts", ts(optional, as = "Option<Vec<[u32; 2]>>"))]
+    pub lines: Vec<[u32; 2]>,
 }
 
 /// 1 枚のパネルの四角形。

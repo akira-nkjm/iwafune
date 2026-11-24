@@ -65,8 +65,10 @@ fn plate_by_hand() -> ModalFemInput {
             poisson_ratio: 0.3,
             density: Qty::<MassDensity>::from_raw(2700.0),
             mass: None,
+            orientation: None,
         }],
         lumped: vec![],
+        frames: vec![],
         skipped_panels: vec![],
         distributed_mass: None,
         launch_axis: ModalFemAxis::Z,
@@ -336,27 +338,6 @@ fn the_modal_settings_are_read() {
     assert_eq!(i.mesh_size.map(|x| x.value()), Some(0.02));
     assert_eq!(i.merge_tolerance.map(|x| x.value()), Some(0.002));
     assert!((run(&i).model.mesh_size.value() - 0.02).abs() < 1e-12);
-}
-
-/// 機体の軸に沿わないパネル（z まわりに 30° 回した板）は、理由つきで飛ばし、質量は集中質量にする。
-#[test]
-fn a_skewed_panel_is_skipped_with_a_reason_and_keeps_its_mass() {
-    let skew = "kind = \"panel\"\n[pose]\nposition = { x = 0.6, y = 0.0, z = 0.0 }\norientation = { w = 0.9659258262890683, x = 0.0, y = 0.0, z = 0.25881904510252074 }\n[attr]\nsize = { x = 0.2, y = 0.3, z = 0.002, unit = \"m\" }\nthickness = { value = 0.002, unit = \"m\" }\nmaterial = \"al\"\nmass = { value = 0.4, unit = \"kg\" }\n";
-    let d = design(&[
-        ("parts/P.toml", PLATE),
-        ("parts/S.toml", skew),
-        ("conditions/launch.toml", CLAMP_X),
-    ]);
-    let i = input(&d);
-    assert_eq!(i.panels.len(), 1);
-    assert_eq!(i.skipped_panels.len(), 1);
-    assert_eq!(i.skipped_panels[0].id, "S");
-    assert!(i.skipped_panels[0].reason.contains("not aligned"));
-    assert_eq!(i.lumped[0].id, "S");
-    assert_eq!(i.lumped[0].footprint, None);
-    let out = run(&i);
-    assert_eq!(out.skipped_panels.len(), 1);
-    assert!((out.total_mass.value() - (0.324 + 0.4)).abs() < 1e-9);
 }
 
 /// 打ち上げの解析は打ち上げ条件の形態で部品を置く: 展開した姿勢（x = 1 m）の部品が、収納の形態では板の上に来る。
