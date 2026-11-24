@@ -319,4 +319,7 @@ pub struct AnalyzeArgs {
     /// Apply unsaved edits (a JSON file of Ops, or `-` for stdin) without writing, then analyze
     #[arg(long)]
     pub ops: Option<PathBuf>,
+    /// Also return the heavy optional output of the analysis (for example the mode shapes of `structure.modal_fem`) as `detail` in `--json`; analyses without one ignore it
+    #[arg(long)]
+    pub detail: bool,
 }

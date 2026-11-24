@@ -50,6 +50,7 @@ mod tests {
             part_heat: None,
             part_findings: None,
             space_weather: None,
+            detail: None,
         }
     }
 

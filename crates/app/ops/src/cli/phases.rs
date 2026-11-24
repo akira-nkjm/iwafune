@@ -33,6 +33,10 @@ pub(super) fn phase_op(op: &Op) -> Option<Vec<String>> {
             Some(p) => Cmd::new(&["fune", "case", "set-phase", case, p]).done(),
             None => Cmd::new(&["fune", "case", "unset-phase", case]).done(),
         }],
+        Op::SetCaseEpoch { case, epoch } => vec![match epoch {
+            Some(e) => Cmd::new(&["fune", "case", "set-epoch", case, e]).done(),
+            None => Cmd::new(&["fune", "case", "unset-epoch", case]).done(),
+        }],
         _ => return None,
     })
 }

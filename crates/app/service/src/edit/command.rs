@@ -79,6 +79,9 @@ pub fn command_ops(t: &CommandText) -> Result<Vec<Op>> {
         CommandText::CasePhase { case, phase } => {
             vec![super::phase::case_phase_op(case, phase.as_deref())]
         }
+        CommandText::CaseEpoch { case, epoch } => {
+            vec![super::phase::case_epoch_op(case, epoch.as_deref())?]
+        }
         CommandText::ConfigurationAdd(t) => vec![super::configuration::configuration_op(t, true)],
         CommandText::ConfigurationSet(t) => vec![super::configuration::configuration_op(t, false)],
         CommandText::GroundAdd(t) => vec![super::ground::ground_add_op(t)?],
