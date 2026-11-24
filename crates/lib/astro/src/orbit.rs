@@ -37,6 +37,7 @@ pub use powered::{PoweredArc, PoweredSample, PoweredTarget, ThrustArc, propagate
 pub use state_spec::StateSpec;
 pub use synodic::{HaloSpec, SynodicSpec};
 pub use track::OrbitTrack;
+pub(crate) use track::arc_index;
 pub use trajectory::{Cycle, LIBRATION_SOURCE, Trajectory, measures_range_from_earth};
 
 use crate::AstroError;

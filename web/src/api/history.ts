@@ -3,8 +3,8 @@ import { toast } from "sonner";
 import { getT } from "@/i18n";
 import { recordChange } from "@/lib/history";
 import { type ApiError, api } from "./client";
-import { invalidatedByOps } from "./keys";
 import { q } from "./queries";
+import { refreshDerived } from "./refresh";
 import type { HistoryAction, HistoryStepResult, HistoryView } from "./types";
 
 /** 取り消し・やり直しの直前に呼ぶ処理（画面が持つ保存待ちの状態を捨てるため） */
@@ -25,7 +25,7 @@ export function useHistoryView(): HistoryView | undefined {
 
 /** 設計から導出する問い合わせを読み直す（編集と同じ範囲） */
 async function refresh(qc: QueryClient) {
-  await Promise.all(invalidatedByOps.map((k) => qc.invalidateQueries({ queryKey: k })));
+  await refreshDerived(qc);
 }
 
 /** 取り消し・やり直しの記録の見出し（元の編集に対応する CLI のコマンドの先頭。無ければ変わったファイル） */

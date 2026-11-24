@@ -140,11 +140,10 @@ fn demo_kpis_show_the_same_values_as_before() {
             &[(KpiKey::MeanProjectedArea, "1082 cm²")],
         ),
         // 有限要素の固有値解析（#370）の最低の固有振動数（剛体を除く最初のモード）。解析の出力の最初のモードの値
-        // （フレームに付いた部品の質量は、最も近いパネルが複数あれば等分するので、MX・PX に半分ずつ載って 70.0 Hz）
-        (
-            "structure.modal_fem",
-            &[(KpiKey::FirstFrequency, "70.0 Hz")],
-        ),
+        // 値を 70.0 Hz から 145 Hz に更新（#370）: デモのフレーム（BUS_FRAME）に部材の断面（member_width 8 mm・member_wall 1.5 mm）を足し、
+        // 箱の 12 辺が梁の部材になって、フレームに付いた部品は MX・PX のパネルに半分ずつ載る代わりに部材につながるようになった
+        // （MX・PX の重い部品による低い局所のモードが無くなる）。質量は変わらない（5.548 kg）
+        ("structure.modal_fem", &[(KpiKey::FirstFrequency, "145 Hz")]),
         // 軌道の幾何（区間のうち地球までの最大距離。デモは地球周回なので軌道半径）
         (
             "orbit.geometry",

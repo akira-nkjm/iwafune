@@ -19,9 +19,10 @@ export function triangleIndices(mesh: Pick<SurfaceMesh, "groups">): Uint32Array 
 
 /**
  * 辺（線分の両端の節点番号の対）。隣り合う四角形が共有する辺は 1 本にする（二重に描いて濃く見えないように）。
- * 並びは四角形の出てきた順で、決定的。
+ * 面でない線（`lines`。フレームの部材）が面の辺と同じなら 1 本にして、面の辺のあとに足す。
+ * 並びは四角形・線の出てきた順で、決定的。
  */
-export function edgeIndices(mesh: Pick<SurfaceMesh, "groups">): Uint32Array {
+export function edgeIndices(mesh: Pick<SurfaceMesh, "groups" | "lines">): Uint32Array {
   const seen = new Set<string>();
   const out: number[] = [];
   for (const g of mesh.groups) {
@@ -35,6 +36,12 @@ export function edgeIndices(mesh: Pick<SurfaceMesh, "groups">): Uint32Array {
         out.push(a, b);
       }
     }
+  }
+  for (const [a, b] of mesh.lines ?? []) {
+    const key = a < b ? `${a}:${b}` : `${b}:${a}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(a, b);
   }
   return Uint32Array.from(out);
 }

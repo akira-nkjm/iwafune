@@ -643,8 +643,8 @@ pub fn span_check(f: SpanFallback) -> (AnalysisLabel, AnalysisLabel) {
             return (
                 label("解析期間", "Analysis span"),
                 label(
-                    "軌道は 1 回限りの区間（惑星間の巡航の、両端の天体の影響圏のあいだなど）で周回が無いため、軌道平均と 1 周あたりの量は区間全体で求めています（影響圏の中の双曲線の弧は解析しません）",
-                    "The orbit is a one-off arc (such as an interplanetary cruise between the spheres of influence of its end bodies; the hyperbolic legs inside them are not analysed) with no repeating orbit, so orbit averages and per-orbit quantities are taken over the whole arc",
+                    "軌道は 1 回限りの区間（惑星間の巡航の、両端の天体の影響圏のあいだなど。スイングバイがあれば通過の日を境にした弧の連鎖）で周回が無いため、軌道平均と 1 周あたりの量は区間全体で求めています（影響圏の中の双曲線の弧と、通過の天体の影響圏の中は解析しません。通過は一瞬とみなし、その日に日心の速度が跳びます）",
+                    "The orbit is a one-off arc (such as an interplanetary cruise between the spheres of influence of its end bodies; with flybys, a chain of arcs broken at the flyby dates) with no repeating orbit, so orbit averages and per-orbit quantities are taken over the whole arc (the hyperbolic legs inside the end spheres of influence, and the time inside a flyby body's sphere of influence, are not analysed; a flyby is instantaneous and the heliocentric velocity jumps on its date)",
                 ),
             );
         }

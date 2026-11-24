@@ -18,12 +18,16 @@
 //!
 //! 極値は標本の最小・最大（[`extreme_indices`]）と、標本の前後の区間で黄金分割（`math::golden_section_min`）して詰めたもの
 //! （[`extremes_by`]）の 2 つ。詰める区間では単峰とみなす（軌道の周回による細かい変動が標本の刻みより速い成分は、詰めても拾えない）。
+//! 弧の連鎖の軌道（スイングバイのある巡航）は、境で位置が連続で速度が跳ぶので、距離・角は連続だが傾きが折れる。
+//! 詰める区間は境で分け、境そのものも極値の候補にする（[`extremes_by_split`]、[`breakpoints_from`]）。
 
 mod below;
 mod extremes;
 
 pub use below::time_below_s;
-pub use extremes::{Extremes, Extremum, ExtremumKind, extreme_indices, extremes_by};
+pub use extremes::{
+    Extremes, Extremum, ExtremumKind, extreme_indices, extremes_by, extremes_by_split,
+};
 
 use crate::AstroError;
 use crate::constants::C_LIGHT;
@@ -315,8 +319,37 @@ pub fn refined_extremes(
         return Ok(None);
     };
     let probe = ProbeTrack::new(orbit, start, last_s)?;
-    extremes_by(&times, &values, |t| Ok(metric.of(&probe.geometry(t)?)))
+    let breaks = breakpoints_from(orbit, start);
+    extremes_by_split(&times, &values, &breaks, |t| {
+        Ok(metric.of(&probe.geometry(t)?))
+    })
 }
 
+/// 時刻列 `times`（昇順）に、範囲の中の折れ目 `breaks`（昇順）を加えた昇順の列。標本の最小・最大を折れ目で取りこぼさないために使う
+/// （折れ目は距離の傾きが跳ぶ点で、標本の間にあると極値を見逃す）。折れ目が無ければ `times` のまま。
+pub fn times_with_breaks(times: &[f64], breaks: &[f64]) -> Vec<f64> {
+    let (Some(first), Some(last)) = (times.first().copied(), times.last().copied()) else {
+        return Vec::new();
+    };
+    let mut all: Vec<f64> = times.to_vec();
+    all.extend(breaks.iter().copied().filter(|b| *b > first && *b < last));
+    all.sort_by(f64::total_cmp);
+    all.dedup();
+    all
+}
+
+/// 軌道の折れ目（弧の連鎖の境。[`Trajectory::breakpoints_s`]）を、`start` からの経過 [s] にしたもの（昇順。折れ目の無い軌道は空）。
+/// 極値を詰める区間はこの折れ目で分ける（[`extremes_by_split`]）。**軌道の折れ目を標本の時刻の座標に直すのはここだけ**。
+pub fn breakpoints_from(orbit: &Trajectory, start: Epoch) -> Vec<f64> {
+    let offset = start.seconds_since(orbit.epoch());
+    orbit
+        .breakpoints_s()
+        .into_iter()
+        .map(|b| b - offset)
+        .collect()
+}
+
+#[cfg(test)]
+mod chain_tests;
 #[cfg(test)]
 mod tests;

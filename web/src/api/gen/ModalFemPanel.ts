@@ -2,7 +2,7 @@
 import type { ModalFemAxis } from "./ModalFemAxis";
 
 /**
- * 軸に平行な長方形のパネル（中央面）。
+ * 長方形のパネル（中央面）。`orientation` が無ければ座標軸に平行（法線は座標軸）、あれば箱の姿勢で斜めに置く。
  */
 export type ModalFemPanel = { id: string, 
 /**
@@ -10,13 +10,18 @@ export type ModalFemPanel = { id: string,
  */
 center: [number, number, number], 
 /**
- * 板の法線の軸
+ * 板の法線の軸（`orientation` があれば、箱の座標系（部品の座標系）の軸）
  */
 normal: ModalFemAxis, 
 /**
- * 面内の 2 辺の長さ [m]（法線以外の 2 軸を x, y, z の昇順に並べた順）
+ * 面内の 2 辺の長さ [m]（法線以外の 2 軸を x, y, z の昇順に並べた順。`orientation` があれば箱の座標系の軸の順）
  */
-size: [number, number], thickness: number, youngs_modulus: number, poisson_ratio: number, density: number, 
+size: [number, number], 
+/**
+ * 箱の座標系 → 機体座標系の回転 `[w, x, y, z]`（単位クォータニオン）。**あれば斜めのパネル**で、`center` は箱の中心、
+ * 面内の格子はパネルの面の中で作る（軸に平行なパネルと共通の格子は使わない）。無ければ座標軸に平行（`normal` は機体の軸）
+ */
+orientation?: [number, number, number, number], thickness: number, youngs_modulus: number, poisson_ratio: number, density: number, 
 /**
  * 板の全質量。与えると質量行列だけ密度 × 板厚 × 面積の代わりにこの値を使う（剛性は変えない。肉抜きの表現）
  */
