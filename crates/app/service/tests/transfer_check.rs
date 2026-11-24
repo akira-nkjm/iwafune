@@ -6,7 +6,7 @@ use fune_model::design::{
     ManeuverTarget, ManeuverTransfer,
 };
 use fune_model::value::Quantity;
-use fune_service::dto::{AnalysisRunStatus, Op, RunAnalysisRequest};
+use fune_service::dto::{AnalysisRunStatus, KpiKey, Op, RunAnalysisRequest};
 use fune_service::{Workspace, analysis};
 use std::path::Path;
 
@@ -52,6 +52,10 @@ fn the_demo_has_no_dated_transfer_so_nothing_applies() {
         0
     );
     assert!(result.checks.is_empty());
+    // 何も当てはまらない（日付つきの遷移が無い）ことは、KPI の値なし（行は「—」）で、KPI が無い（「結果なし」）のとは違う
+    assert_eq!(result.kpis.len(), 1);
+    assert_eq!(result.kpis[0].key, KpiKey::TransferMiss);
+    assert!(result.kpis[0].value.is_none());
 }
 
 #[test]
@@ -79,6 +83,11 @@ fn a_dated_transfer_is_checked_with_labelled_series_and_notes() {
     // 量の次元（ずれ・影響圏の半径）
     assert_eq!(result.dims["/transfers/0/miss_distance"], "Length");
     assert_eq!(result.dims["/transfers/0/arrival_soi_radius"], "Length");
+    // 代表値は到着のずれ（遷移のうち最大）で、出力の値と一致する
+    assert_eq!(result.kpis.len(), 1);
+    let miss = result.kpis[0].value.as_ref().unwrap();
+    assert_eq!(result.kpis[0].key, KpiKey::TransferMiss);
+    assert_eq!(miss.si, t["miss_distance"].as_f64().unwrap());
 }
 
 /// 暦の外の日付は、`propulsion.maneuvers`（段階 2）と同じく解析の誤りになる（黙って計算しない）。
