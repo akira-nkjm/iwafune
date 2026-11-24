@@ -379,3 +379,14 @@ export function heatHex(ratio: number): string {
     x - i,
   );
 }
+
+/**
+ * 幾何の所見の 3D の色（hex。three.js は CSS の変数を読めない）: 承知でない所見が残る部品（`open`）は注意の色（warn）、
+ * 関わる所見がすべて承知済みの部品（`acknowledged`）は良の色（pos）、所見に関わらない部品（`null`）は灰色（熱画像で節点に入っていない部品と同じ灰色）。
+ * 状態は API の `PartFinding.state`
+ */
+export function findingHex(scheme: Scheme, state: "open" | "acknowledged" | null): string {
+  if (state === null) return toneHexFor(scheme).gray;
+  const p = paletteFor(scheme);
+  return state === "open" ? p.warn : p.pos;
+}

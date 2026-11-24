@@ -9,6 +9,7 @@ import {
   cssColorTokens,
   cssColorTokensDark,
   fillOnly,
+  findingHex,
   heatHex,
   palette,
   paletteFor,
@@ -205,5 +206,30 @@ describe("色の混ぜ方", () => {
     );
     expect(levels).toEqual([...levels].sort((a, b) => a - b));
     expect(new Set(levels).size).toBe(levels.length);
+  });
+});
+
+describe.each(schemes)("幾何の所見の 3D の色: %s", (scheme) => {
+  it("承知でない・承知済み・関わらない部品の 3 色は hex で、互いに見分けられる（箱の塗りなので面とのコントラストは求めない）", () => {
+    const colors = [
+      findingHex(scheme, "open"),
+      findingHex(scheme, "acknowledged"),
+      findingHex(scheme, null),
+    ];
+    for (const hex of colors) {
+      expect(hex).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+    expect(new Set(colors).size).toBe(3);
+    for (const [a, b] of [
+      [0, 1],
+      [0, 2],
+      [1, 2],
+    ] as const)
+      expect(deltaE(colors[a] ?? "", colors[b] ?? "")).toBeGreaterThanOrEqual(0.05);
+  });
+
+  it("承知でないものは注意の色、承知済みは良の色（判定のピルと同じ palette）", () => {
+    expect(findingHex(scheme, "open")).toBe(paletteFor(scheme).warn);
+    expect(findingHex(scheme, "acknowledged")).toBe(paletteFor(scheme).pos);
   });
 });

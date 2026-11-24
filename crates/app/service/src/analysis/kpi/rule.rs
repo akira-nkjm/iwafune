@@ -100,6 +100,7 @@ impl Tally {
                 Some(KpiTally {
                     checked: count(items.len()),
                     flagged: count(items.values().filter(|flagged| **flagged).count()),
+                    acknowledged: None,
                 })
             }
         }

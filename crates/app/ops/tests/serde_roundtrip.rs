@@ -56,6 +56,8 @@ fn name(op: &Op) -> &'static str {
         Op::SetModeTiming { .. } => "SetModeTiming",
         Op::SetSequence { .. } => "SetSequence",
         Op::RemoveSequence { .. } => "RemoveSequence",
+        Op::Acknowledge { .. } => "Acknowledge",
+        Op::Unacknowledge { .. } => "Unacknowledge",
         Op::SetModeStates { .. } => "SetModeStates",
         Op::CreateNet { .. } => "CreateNet",
         Op::UpdateNet { .. } => "UpdateNet",
@@ -361,6 +363,19 @@ fn other_ops() -> Vec<Op> {
         Op::RemoveSequence {
             name: "imaging_day".into(),
         },
+        Op::Acknowledge {
+            finding: fune_model::design::FindingKind::Interference,
+            first: "SAP_PY".into(),
+            second: "SP_PY".into(),
+            configuration: Some("STOWED".into()),
+            reason: "Hinge edge".into(),
+        },
+        Op::Unacknowledge {
+            finding: fune_model::design::FindingKind::ConeClearance,
+            first: "SS_PX".into(),
+            second: "SAP_PY".into(),
+            configuration: None,
+        },
         Op::CreateMode {
             id: "DEPLOY".into(),
             label: Some("展開".into()),
@@ -580,7 +595,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 86, "some op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 88, "some op kinds have no sample: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =

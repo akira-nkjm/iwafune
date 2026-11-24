@@ -6,11 +6,11 @@
 //!
 //! | 参照先 | 参照元（[`RefSite`]） |
 //! |---|---|
-//! | 部品 | 要求の `[verify].check` が名指す部品（`intrusion:<部品>`・`heater:<部品>`・`interface:<取付先>`・`panel:<部品>` など）・モードの `[states]` と `[eclipse]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part` / `antenna`・`analysis/thermal.toml` の `[nodes]` と `[surface]` と `[heat_node]` のキー・図の `[nodes]` のキー・マヌーバの `thruster`・形態の `[pose]` のキー |
+//! | 部品 | 要求の `[verify].check` が名指す部品（`intrusion:<部品>`・`heater:<部品>`・`interface:<取付先>`・`panel:<部品>` など）・モードの `[states]` と `[eclipse]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part` / `antenna`・`analysis/thermal.toml` の `[nodes]` と `[surface]` と `[heat_node]` のキー・図の `[nodes]` のキー・マヌーバの `thruster`・形態の `[pose]` のキー・`analysis/structure.toml` の `[[acknowledged]]` の `first` / `second` |
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
 //! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode`・フェーズの `modes` と `[law]` のキー |
 //! | フェーズ | ケースの `phase` |
-//! | 形態 | 参照元は無い（打上げ条件とフェーズが選ぶのは段階 3。名前の変更の索引を揃えるための空の索引） |
+//! | 形態 | 打ち上げ条件の `configuration`・フェーズの `configuration`・`analysis/structure.toml` の `[[acknowledged]]` の `configuration` |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets`・図の `[nodes]` のキー |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire`・`conditions/launch.toml` の `launcher`・`dispenser` |
 //! | カタログ（`[[catalog]]` の名前。出所を外すのを拒むためだけ。書き換えはしない） | 部品の `catalog`・`candidates`・ハーネスの `wire`・打ち上げ条件の `launcher`・`dispenser` のうち `<名前>/…` のもの |
@@ -205,6 +205,10 @@ pub enum RefSite {
     PhaseOrbitManeuver { phase: String },
     /// 通信の解析の下りの回線（`analysis/comm.toml` の `data_downlink`）
     CommDataDownlink,
+    /// 承知済みの組の部品（`analysis/structure.toml` の `[[acknowledged]]` の `index` 番目の `first` / `second`）
+    AcknowledgedPart { index: usize },
+    /// 承知済みの組の形態（`analysis/structure.toml` の `[[acknowledged]]` の `index` 番目の `configuration`）
+    AcknowledgedConfiguration { index: usize },
 }
 
 impl Design {
@@ -319,8 +323,33 @@ impl Design {
                     maneuver: m.id.to_string(),
                 }),
         );
+        out.extend(self.acknowledged_refs(|a| a.first == id || a.second == id, true));
         out.extend(self.check_key_refs(EntityKind::Part, id));
         out
+    }
+
+    /// 承知済みの組（`analysis/structure.toml` の `[[acknowledged]]`）のうち `hit` に当たるもの（番号の順）。`part` は部品の参照か（偽は形態の参照）。
+    fn acknowledged_refs(
+        &self,
+        hit: impl Fn(&super::AcknowledgedFinding) -> bool,
+        part: bool,
+    ) -> Vec<RefSite> {
+        let Some(structure) = &self.analysis.structure else {
+            return Vec::new();
+        };
+        structure
+            .acknowledged
+            .iter()
+            .enumerate()
+            .filter(|(_, a)| hit(a))
+            .map(|(index, _)| {
+                if part {
+                    RefSite::AcknowledgedPart { index }
+                } else {
+                    RefSite::AcknowledgedConfiguration { index }
+                }
+            })
+            .collect()
     }
 
     fn group_refs(&self, id: &str) -> Vec<RefSite> {
@@ -456,6 +485,7 @@ impl Design {
                         phase: p.id.to_string(),
                     }),
             )
+            .chain(self.acknowledged_refs(|a| a.configuration.as_deref() == Some(id), false))
             .collect()
     }
 

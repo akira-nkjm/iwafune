@@ -140,12 +140,18 @@ describe("hasContent", () => {
     expect(hasContent(view("max_dod", null))).toBe(false);
     expect(hasContent(view("max_dod", "1 W"))).toBe(true);
     expect(hasContent({ ...view("max_dod", null), verdict: "ok" })).toBe(true);
-    expect(hasContent({ ...view("nodes_in_range", null), tally: { checked: 0, flagged: 0 } })).toBe(
-      false,
-    );
-    expect(hasContent({ ...view("nodes_in_range", null), tally: { checked: 3, flagged: 0 } })).toBe(
-      true,
-    );
+    expect(
+      hasContent({
+        ...view("nodes_in_range", null),
+        tally: { checked: 0, flagged: 0 },
+      }),
+    ).toBe(false);
+    expect(
+      hasContent({
+        ...view("nodes_in_range", null),
+        tally: { checked: 3, flagged: 0 },
+      }),
+    ).toBe(true);
   });
 });
 

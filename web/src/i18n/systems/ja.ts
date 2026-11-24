@@ -91,8 +91,31 @@ export const systemsJa = {
       thermal: { description: "多節点の定常・非定常解析と、保管・動作・性能の温度範囲との比較" },
     },
     // KPI の名前は API（`KpiDef.label`・`label_en`）。ここは判定を数える KPI の数の文と、塗りの比の根拠（`FillBasis`）の文
-    kpiTally: (checked: number, flagged: number) =>
-      flagged === 0 ? `すべて OK（${checked}）` : `${flagged} / ${checked} が要確認`,
+    kpiTally: (checked: number, flagged: number, acknowledged = 0) => {
+      const main = flagged === 0 ? `すべて OK（${checked}）` : `${flagged} / ${checked} が要確認`;
+      return acknowledged === 0 ? main : `${main}、承知済み ${acknowledged}`;
+    },
+    // 幾何の所見（箱の重なり・円錐に入る部品）と、その承知。所見の種類の名前は API の `FindingKind`
+    findings: {
+      title: "幾何の所見",
+      kind: { interference: "箱の重なり", cone_clearance: "円錐に入る部品" },
+      open: "未承知",
+      acknowledged: "承知済み",
+      none: "所見はありません",
+      acknowledge: "承知する",
+      withdraw: "承知を取り消す",
+      reason: "理由",
+      reasonHint: "箱で表すと必ず出る理由など（例: ヒンジの縁）",
+      onlyIn: (configuration: string) => `形態 ${configuration} だけに効かせる`,
+      scope: (configuration: string) => `形態 ${configuration} だけ`,
+      acknowledgeTitle: (first: string, second: string) => `${first} と ${second} を承知する`,
+      acknowledgeDescription:
+        "所見は解析の結果に残り、判定が警告にならないだけです。承知した理由は設計データに書かれます。",
+      acknowledgeSummary: (first: string, second: string) => `${first} と ${second} を承知した`,
+      withdrawTitle: (first: string, second: string) => `${first} と ${second} の承知を取り消す`,
+      withdrawSummary: (first: string, second: string) =>
+        `${first} と ${second} の承知を取り消した`,
+    },
     kpiFill: {
       value: "値（割合）",
       used_over_limit: "上限に対する使用量",
@@ -187,6 +210,14 @@ export const systemsJa = {
         removeDescription: "この形態の姿勢の上書きもすべて削除します。",
         added: (id: string) => `形態 ${id} を追加`,
         renamed: (from: string, to: string) => `形態 ${from} を ${to} に変更`,
+      },
+      findings: {
+        toggle: "解析の所見を色で示す",
+        list: "所見の一覧",
+        none: "この形態に所見はありません",
+        open: "未承知（警告）",
+        acknowledged: "承知済み",
+        select: (part: string) => `${part} を選ぶ`,
       },
       browser: "部品のツリー",
       isolate: (name: string) => `${name} だけ表示`,

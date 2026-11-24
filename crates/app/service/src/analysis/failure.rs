@@ -48,6 +48,7 @@ mod tests {
             error: None,
             overview: Default::default(),
             part_heat: None,
+            part_findings: None,
             space_weather: None,
         }
     }
