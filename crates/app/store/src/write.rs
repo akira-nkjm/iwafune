@@ -12,6 +12,7 @@
 //! | `project` | プロジェクトのファイル（`fune.toml`・`budget/`）の新しい本文（`fune init` の雛形も） |
 //! | `records` | ケース・出典・ハーネス（serde の形のファイル）の書き込み |
 //! | `sequences` | 電源のモードの並び（`[sequences.<名前>]`）とモードの時刻の指定（`when`・`start`）の書き込み |
+//! | `removed` | 書き換えで消えたキーの検出（置き換える Op の「消えたキー」の知らせの元） |
 //! | `refs` | 名前の変更・削除に伴う参照の書き換え（参照の所在は model の `Design::references`） |
 //! | `commit` | tmp ＋ rename、失敗したら戻す |
 //!
@@ -29,6 +30,7 @@ pub mod part;
 pub mod project;
 pub mod records;
 pub mod refs;
+pub mod removed;
 pub mod sequences;
 
 pub use commit::commit;

@@ -13,7 +13,8 @@ pub enum PhaseCmd {
     Show { id: String },
     /// Add a phase (refused if the ID exists)
     Add(PhaseArgs),
-    /// Write a phase (create it, or replace its fields if it exists; the orbit and attitude law overrides are kept)
+    /// Write a phase (create it, or replace its heading fields if it exists: heading fields not given are removed and listed in the output;
+    /// the orbit and attitude law overrides are kept and are changed one value at a time with `set-field`)
     Set(PhaseArgs),
     /// Remove a phase (refused while an analysis case refers to it)
     Rm {

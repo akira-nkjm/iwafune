@@ -23,4 +23,4 @@ pub use cli::{to_cli, to_cli_script};
 pub use error::OpError;
 pub use history::{Direction, StepOutcome, redo, undo};
 pub use op::{ModeCell, ModePosition, Op, ViewNodePos};
-pub use plan::{Plan, PlanSummary, plan};
+pub use plan::{Plan, PlanSummary, RemovedKeys, plan};

@@ -217,10 +217,25 @@ pub fn setting_from_text(
         Some(SettingValue::Quantity(_)) => SettingValue::Quantity(quantity_from_text(t)?),
         Some(SettingValue::Vector(_)) => SettingValue::Vector(parse_vector(t)?),
         Some(SettingValue::Quaternion(_)) => SettingValue::Quaternion(parse_quaternion(t)?),
-        Some(SettingValue::List(_)) => SettingValue::List(list_from_text(t)),
+        Some(SettingValue::List(_)) => SettingValue::List(setting_list_from_text(t)?),
         Some(SettingValue::Text(_)) => SettingValue::Text(t.to_owned()),
         None => guess_setting(t),
     })
+}
+
+/// 設定の一覧の値。主な書き方はカンマ区切り（`A, B, C`。`list_from_text` と同じ）。`[` で始まれば TOML の文字列の配列
+/// （`["A", "B"]`）として読む（要素は文字列だけ。空の配列は空の一覧）。
+fn setting_list_from_text(t: &str) -> Result<Vec<String>, ValueError> {
+    if !t.starts_with('[') {
+        return Ok(list_from_text(t));
+    }
+    #[derive(serde::Deserialize)]
+    struct Wrapper {
+        v: Vec<String>,
+    }
+    toml::from_str::<Wrapper>(&format!("v = {t}"))
+        .map(|w| w.v)
+        .map_err(|_| ValueError::Syntax(t.to_owned()))
 }
 
 fn guess_setting(t: &str) -> SettingValue {
@@ -445,6 +460,32 @@ mod tests {
             Err(ValueError::Unit { .. })
         ));
         assert!(setting_from_text("abc", Some(&settings[0])).is_err());
+    }
+
+    /// 設定の一覧は、カンマ区切りでも TOML の配列でも同じ値になる。配列の要素は文字列だけ。
+    #[test]
+    fn setting_lists_read_commas_or_a_toml_array() {
+        let like = SettingValue::List(vec![]);
+        let want = SettingValue::List(vec!["A".into(), "B 2".into()]);
+        for text in [
+            "A, B 2",
+            "[\"A\", \"B 2\"]",
+            "['A','B 2']",
+            " [ \"A\" , \"B 2\" ] ",
+        ] {
+            assert_eq!(
+                setting_from_text(text, Some(&like)).unwrap(),
+                want,
+                "{text}"
+            );
+        }
+        assert_eq!(
+            setting_from_text("[]", Some(&like)).unwrap(),
+            SettingValue::List(vec![])
+        );
+        for bad in ["[1, 2]", "[\"A\"", "[A, B]"] {
+            assert!(setting_from_text(bad, Some(&like)).is_err(), "{bad}");
+        }
     }
 
     #[test]

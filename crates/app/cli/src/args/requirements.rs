@@ -17,7 +17,8 @@ pub enum RequirementCmd {
     },
     /// Add a requirement (refused if the ID exists)
     Add(RequirementArgs),
-    /// Write a requirement (create it, or replace it entirely if it exists)
+    /// Write a requirement (create it, or replace it entirely if it exists: fields not given are removed and listed in the output;
+    /// there is no one-field edit for requirements yet, so give every field you want to keep)
     Set(RequirementArgs),
     /// Remove a requirement
     Rm {

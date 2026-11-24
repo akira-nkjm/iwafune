@@ -2,9 +2,9 @@
 
 use super::s;
 use fune_service::dto::{
-    AttributeDef, Case, Distribution, FindingKind, Harness, KindDef, LinkDirection, ModeCell,
-    ModeSegment, ModeWhen, Net, NetField, NetKind, Op, PortRef, ProjectField, Quantity,
-    SettingValue, Source, SourceKind, StartFrom, StartRef, ViewNodePos,
+    AttributeDef, Case, CaseField, Distribution, FindingKind, Harness, KindDef, LinkDirection,
+    ModeCell, ModeSegment, ModeWhen, Net, NetField, NetKind, Op, PortRef, ProjectField, Quantity,
+    SettingValue, Source, SourceKind, StartFrom, StartRef, UncertaintySide, ViewNodePos,
 };
 use serde_json::json;
 use std::collections::BTreeMap;
@@ -414,6 +414,26 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         Op::SetCaseEpoch {
             case: s("eclipse_worst"),
             epoch: None,
+        },
+        Op::SetCaseField {
+            case: s("eclipse_worst"),
+            field: CaseField::Beta(Some(Quantity::new(-60.5, "deg"))),
+        },
+        Op::SetCaseField {
+            case: s("eclipse_worst"),
+            field: CaseField::Orbits(Some(15)),
+        },
+        Op::SetCaseField {
+            case: s("eclipse_worst"),
+            field: CaseField::Side(Some(UncertaintySide::Max)),
+        },
+        Op::SetCaseField {
+            case: s("eclipse_worst"),
+            field: CaseField::Label(Some(s("Worst \"eclipse\" case"))),
+        },
+        Op::SetCaseField {
+            case: s("eclipse_worst"),
+            field: CaseField::SunDistance(None),
         },
         Op::CreateGroundStation {
             id: s("SVALBARD"),

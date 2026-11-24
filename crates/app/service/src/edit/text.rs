@@ -8,6 +8,7 @@
 use crate::error::{Result, ServiceError};
 use crate::preview::snapshot_with;
 use crate::workspace::Workspace;
+use fune_model::design::setting_lists::list_field_shape;
 use fune_model::design::{Maturity, NetKind, PartField, PartFieldName};
 use fune_model::path::{ParamPath, SettingPath, parse};
 use fune_model::value::{
@@ -177,7 +178,8 @@ fn setting_value(ws: &Workspace, path: &SettingPath, text: &SetText) -> Result<S
         .setting(path)
         .or_else(|| attitude_field_type(path))
         .or_else(|| launch_field_type(path))
-        .or_else(|| orbit_field_type(path));
+        .or_else(|| orbit_field_type(path))
+        .or_else(|| list_field_shape(path));
     setting_from_text(&text.value, like.as_ref()).map_err(|e| match like {
         Some(SettingValue::Quantity(_)) => quantity_error(text.value.trim(), e),
         _ => invalid(e),
