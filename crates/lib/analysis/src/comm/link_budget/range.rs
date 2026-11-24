@@ -5,11 +5,12 @@
 
 use super::LinkBudgetLink;
 use crate::spec::{AnalysisError, orbit_step_s};
-use sat_astro::constants::{C_LIGHT, SECONDS_PER_DAY};
+use sat_astro::constants::SECONDS_PER_DAY;
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::{EarthRange, earth_range, slant_range_m};
 use sat_astro::orbit::{Cycle, Trajectory};
 use sat_astro::time::Epoch;
+use sat_astro::timeline::geometry::light_time_s;
 use sat_units::typed::{Length, Qty, Time};
 use serde::{Deserialize, Serialize};
 
@@ -44,9 +45,9 @@ pub(super) struct LinkRange {
 }
 
 impl LinkRange {
-    /// 最大の距離を光が進む時間（片道）。
+    /// 最大の距離を光が進む時間（片道。換算は `timeline::geometry::light_time_s`）。
     pub fn light_time(&self) -> Qty<Time> {
-        Qty::from_raw(self.max_m / C_LIGHT)
+        Qty::from_raw(light_time_s(self.max_m))
     }
 
     pub fn min(&self) -> Qty<Length> {
