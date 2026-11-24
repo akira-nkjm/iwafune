@@ -20,6 +20,7 @@ fn attr_def(id: &str, dimension: &str, units: &[&str]) -> AttributeDef {
         value_type: ValueType::Scalar,
         by_state: false,
         dimension: Some(dimension.into()),
+        at_dimension: None,
         units: units.iter().map(|u| u.to_string()).collect(),
         display_unit: None,
         min: None,

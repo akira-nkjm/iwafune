@@ -38,6 +38,7 @@ fn dates(a: Option<&str>, b: Option<&str>) -> Option<ManeuverTransfer> {
     Some(ManeuverTransfer {
         departure: a.map(str::to_owned),
         arrival: b.map(str::to_owned),
+        departure_by: None,
     })
 }
 
@@ -109,4 +110,43 @@ fn propagated_and_low_thrust_are_rejected_for_dated_transfers() {
     // 低推力は従来どおり `maneuver.body_method`
     let d = design(Some(CentralBodyKind::Mars), tr, ManeuverMethod::LowThrust);
     assert!(check(&d).iter().any(|x| x.code == "maneuver.body_method"));
+}
+
+/// `departure_by = "launcher"` は、前のマヌーバ（`after` がマヌーバ）があると警告（先に軌道を変える噴射は打ち上げ機の送り先と合わない）。
+/// 最初のマヌーバなら何も言わず、`spacecraft`（既定）なら前のマヌーバがあっても言わない。
+#[test]
+fn departure_by_the_launcher_after_another_maneuver_is_a_warning() {
+    use fune_model::design::DepartureBy;
+    let launcher = || {
+        let mut tr = dates(Some("2028-12-10T00:00:00Z"), Some("2029-09-25T00:00:00Z")).unwrap();
+        tr.departure_by = Some(DepartureBy::Launcher);
+        tr
+    };
+    let warns = |d: &Design| {
+        check(d)
+            .into_iter()
+            .filter(|x| x.code == "maneuver.departure_by_launcher_after")
+            .count()
+    };
+    let mut d = design(
+        Some(CentralBodyKind::Mars),
+        Some(launcher()),
+        ManeuverMethod::Impulsive,
+    );
+    assert_eq!(warns(&d), 0);
+    let mut raise = d.maneuvers["MARS"].clone();
+    raise.id = "RAISE".into();
+    raise.transfer = None;
+    raise.target = ManeuverTarget::default();
+    d.maneuvers.insert("RAISE".into(), raise);
+    d.maneuvers.get_mut("MARS").unwrap().after = Some("RAISE".into());
+    assert_eq!(warns(&d), 1);
+    d.maneuvers
+        .get_mut("MARS")
+        .unwrap()
+        .transfer
+        .as_mut()
+        .unwrap()
+        .departure_by = Some(DepartureBy::Spacecraft);
+    assert_eq!(warns(&d), 0);
 }

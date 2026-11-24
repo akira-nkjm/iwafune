@@ -124,3 +124,90 @@ pub fn align_table(table: &mut Table) {
         }
     }
 }
+
+/// 値の行の並び（ドット付きキーは全体のパス）。キーの増減・名前の変更を見分ける印。
+fn row_signature(table: &Table) -> Vec<String> {
+    table
+        .get_values()
+        .iter()
+        .map(|(path, _)| {
+            path.iter()
+                .map(|k| k.display_repr().to_string())
+                .collect::<Vec<_>>()
+                .join(".")
+        })
+        .collect()
+}
+
+/// 編集の前後を比べ、値の行のキーが変わった表だけ `=` を揃え直す（正規形の揃えは [`align_rows`] が唯一の定義）。
+/// キーを消す・名前を変える編集で、残りの行の揃えが古い幅のまま残るのを防ぐ。変わっていない表は触らない
+/// （手で書いたコメントや装飾を保つ）。
+pub fn realign_changed(before: &Table, after: &mut Table) {
+    if row_signature(before) != row_signature(after) {
+        align_rows(after);
+    }
+    for (key, item) in after.iter_mut() {
+        let old = before.get(&key);
+        match item {
+            Item::Table(t) if !t.is_dotted() => {
+                if let Some(Item::Table(o)) = old {
+                    realign_changed(o, t);
+                }
+            }
+            Item::ArrayOfTables(a) => {
+                if let Some(Item::ArrayOfTables(o)) = old {
+                    for (t, o) in a.iter_mut().zip(o.iter()) {
+                        realign_changed(o, t);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn doc(text: &str) -> DocumentMut {
+        parse("t.toml", text).unwrap()
+    }
+
+    #[test]
+    fn realign_changed_fixes_only_tables_whose_keys_changed() {
+        // 長いキーを消した表だけ揃え直す。キーが変わらない表（手で揃えを崩した行）とコメントは触らない
+        let src = "[a]\nlong_key = 1.0  # 注\nk        = 2.0\n\n[b]\nx   = 1.0\nyyyy = 2.0\n";
+        let before = doc(src);
+        let mut after = before.clone();
+        after["a"].as_table_mut().unwrap().remove("long_key");
+        realign_changed(before.as_table(), after.as_table_mut());
+        assert_eq!(
+            after.to_string(),
+            "[a]\nk = 2.0\n\n[b]\nx   = 1.0\nyyyy = 2.0\n"
+        );
+    }
+
+    #[test]
+    fn realign_changed_leaves_an_unchanged_document_alone() {
+        let src = "[a]\nx   = 1.0\nyyyy = 2.0  # 注\n";
+        let before = doc(src);
+        let mut after = before.clone();
+        realign_changed(before.as_table(), after.as_table_mut());
+        assert_eq!(after.to_string(), src);
+    }
+
+    #[test]
+    fn realign_changed_follows_rows_of_arrays_of_tables() {
+        let before = doc("[[s]]\nlonger = 1.0\nk      = 2.0\n");
+        let mut after = before.clone();
+        after["s"]
+            .as_array_of_tables_mut()
+            .unwrap()
+            .get_mut(0)
+            .unwrap()
+            .remove("longer");
+        realign_changed(before.as_table(), after.as_table_mut());
+        assert_eq!(after.to_string(), "[[s]]\nk = 2.0\n");
+    }
+}

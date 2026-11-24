@@ -96,6 +96,25 @@ fn value_data(v: &SiValue, rv: &ResolvedValue) -> ValueData {
             min: si_view(*min, rv),
             max: si_view(*max, rv),
         },
+        SiValue::Curve { at, values } => {
+            let (at_unit, unit, shown_at, shown_values) = match &rv.authored {
+                Some(Value::Curve(c)) => (
+                    c.at_unit.clone(),
+                    c.unit.clone(),
+                    c.at.clone(),
+                    c.values.clone(),
+                ),
+                _ => (String::new(), String::new(), at.clone(), values.clone()),
+            };
+            ValueData::Curve {
+                at: shown_at,
+                at_unit,
+                values: shown_values,
+                unit,
+                si_at: at.clone(),
+                si_values: values.clone(),
+            }
+        }
         SiValue::Enum(s) => ValueData::Enum { value: s.clone() },
         SiValue::Bool(b) => ValueData::Bool { value: *b },
         SiValue::Text(s) => ValueData::Text { value: s.clone() },
@@ -139,6 +158,21 @@ pub(crate) fn display_of(v: &ValueData) -> Option<String> {
         ),
         ValueData::Tensor { .. } => "3×3".to_owned(),
         ValueData::Range { min, max } => format!("{} … {}", min.display, max.display),
+        ValueData::Curve {
+            at,
+            at_unit,
+            values,
+            unit,
+            ..
+        } => {
+            let points = at
+                .iter()
+                .zip(values)
+                .map(|(a, v)| format!("{}: {}", number_text(*a), number_text(*v)))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{points} ({at_unit} → {unit})")
+        }
         ValueData::Enum { value } | ValueData::Text { value } => value.clone(),
         ValueData::Bool { value } => value.to_string(),
         ValueData::Table { id } => format!("table:{id}"),

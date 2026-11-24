@@ -3,4 +3,4 @@
 /**
  * 値の型（AttributeDef の `type`）。
  */
-export type AttrValueType = "scalar" | "vec3" | "quat" | "tensor3" | "enum" | "bool" | "text" | "range" | "table";
+export type AttrValueType = "scalar" | "vec3" | "quat" | "tensor3" | "enum" | "bool" | "text" | "range" | "curve" | "table";

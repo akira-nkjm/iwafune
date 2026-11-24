@@ -76,6 +76,14 @@ pub fn channel_label(kind: ChannelKind, subject: Option<&str>) -> AnalysisLabel 
             _ => label("到着天体の日心 y", "Arrival body heliocentric y"),
         },
         K::ArrivalRange => label("到着天体までの距離", "Distance to the arrival body"),
+        K::SunDistance => label("太陽までの距離", "Distance to the Sun"),
+        K::EarthDistance => label("地球までの距離", "Distance to the Earth"),
+        K::SunEarthProbeAngle => {
+            label("太陽–地球–探査機の角（SEP）", "Sun–Earth–probe angle (SEP)")
+        }
+        K::SunProbeEarthAngle => {
+            label("太陽–探査機–地球の角（SPE）", "Sun–probe–Earth angle (SPE)")
+        }
     }
 }
 
@@ -363,6 +371,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "SolarActivity" => parse(value).map(orbit::solar_activity),
         "WeatherSource" => parse(value).map(orbit::weather_source),
         "DragAreaSource" => parse(value).map(orbit::drag_area_source),
+        "GeometrySpanBasis" => parse(value).map(orbit::geometry_span_basis),
         "DecayCondition" => orbit::decay_condition(value),
         "DvCategory" => parse(value).map(propulsion::category),
         "TransferMethod" => parse(value).map(propulsion::method),

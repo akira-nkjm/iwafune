@@ -40,6 +40,8 @@ export const maneuversEn: typeof maneuversJa = {
       inclination: "Target inclination",
       depart: "Departure date (dated transfer; ISO 8601, UTC)",
       arrive: "Arrival date (after departure; leave both empty for the Hohmann-based estimate)",
+      departureBy:
+        "Who performs the departure burn (the launcher: it is not counted in delta-V or propellant, and launch fit takes the mass limit from the C3 capability curve)",
       viaAltitude: "Intermediate apogee altitude (bi-elliptic)",
       sunlitOnly: "Fire in sunlight only",
       mode: "Firing mode",

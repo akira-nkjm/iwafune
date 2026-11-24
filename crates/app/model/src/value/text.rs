@@ -15,7 +15,8 @@ pub use write::{
 
 use super::units::unit_info;
 use super::{
-    Quantity, Quaternion, RangeValue, Scalar, SettingValue, Value, ValueError, ValueType, Vector3,
+    Curve, Quantity, Quaternion, RangeValue, Scalar, SettingValue, Value, ValueError, ValueType,
+    Vector3,
 };
 
 /// `"620 g"`・`"0.3"`・`"-20degC"` → (数値, 単位)。単位が無ければ無次元（空文字列）。
@@ -70,6 +71,7 @@ fn number_prefix_len(text: &str) -> usize {
 /// - range: `"-20 .. 60 degC"`
 /// - vec3: `"0 0 1"`・`"100 100 20 mm"`
 /// - quat: `"1 0 0 0"`（w x y z）
+/// - curve: `"0:480 10:360 20:150 (km^2/s^2 -> kg)"`（`引数:値` の並びと、括弧の中に引数の単位 `->` 値の単位）
 /// - bool: `"true"` / `"false"`、enum / text / table: そのまま
 pub fn value_from_text(text: &str, value_type: ValueType) -> Result<Value, ValueError> {
     let text = text.trim();
@@ -79,6 +81,7 @@ pub fn value_from_text(text: &str, value_type: ValueType) -> Result<Value, Value
             Ok(Value::Scalar(Scalar::new(value, unit)))
         }
         ValueType::Range => parse_range(text).map(Value::Range),
+        ValueType::Curve => parse_curve(text).map(Value::Curve),
         ValueType::Vec3 => parse_vector(text).map(Value::Vec3),
         ValueType::Quat => parse_quaternion(text).map(Value::Quat),
         ValueType::Bool => match text {
@@ -93,6 +96,38 @@ pub fn value_from_text(text: &str, value_type: ValueType) -> Result<Value, Value
             "Cannot enter a tensor as text (pass it as JSON)".to_string(),
         )),
     }
+}
+
+/// 曲線（`"0:480 10:360 (km^2/s^2 -> kg)"`）。単位は括弧の中（引数の単位 `->` 値の単位。どちらも省略できる）。
+fn parse_curve(text: &str) -> Result<Curve, ValueError> {
+    let syntax = || ValueError::Syntax(text.to_string());
+    let (body, units) = match text.split_once('(') {
+        Some((body, rest)) => (body, rest.strip_suffix(')').ok_or_else(syntax)?),
+        None => (text, ""),
+    };
+    let (at_unit, unit) = match units.split_once("->") {
+        Some((a, b)) => (a.trim(), b.trim()),
+        None if units.trim().is_empty() => ("", ""),
+        None => return Err(syntax()),
+    };
+    let (mut at, mut values) = (Vec::new(), Vec::new());
+    for pair in body.split(|c: char| c.is_whitespace() || c == ',') {
+        if pair.is_empty() {
+            continue;
+        }
+        let (a, v) = pair.split_once(':').ok_or_else(syntax)?;
+        at.push(a.parse::<f64>().map_err(|_| syntax())?);
+        values.push(v.parse::<f64>().map_err(|_| syntax())?);
+    }
+    if at.is_empty() {
+        return Err(syntax());
+    }
+    Ok(Curve {
+        at,
+        at_unit: at_unit.to_string(),
+        values,
+        unit: unit.to_string(),
+    })
 }
 
 fn parse_range(text: &str) -> Result<RangeValue, ValueError> {
@@ -230,6 +265,31 @@ mod tests {
         assert_eq!(parse_clock_hours("10.5"), None);
     }
 
+    /// 曲線の文字列は `引数:値` の並びと、括弧の中の単位（引数の単位 `->` 値の単位）。点の無い・形の違う文字列は誤り。
+    #[test]
+    fn curve_text_reads_points_and_units() {
+        let c = value_from_text("0:480, 10:360 20:150 (km^2/s^2 -> kg)", ValueType::Curve);
+        assert_eq!(
+            c.ok(),
+            Some(Value::Curve(Curve {
+                at: vec![0.0, 10.0, 20.0],
+                at_unit: "km^2/s^2".into(),
+                values: vec![480.0, 360.0, 150.0],
+                unit: "kg".into(),
+            }))
+        );
+        for bad in [
+            "",
+            "0 480",
+            "0:480 (kg)",
+            "0:480 (a -> b",
+            "a:1",
+            "0:480 10:",
+        ] {
+            assert!(value_from_text(bad, ValueType::Curve).is_err(), "{bad}");
+        }
+    }
+
     #[test]
     fn number_and_unit_split() {
         assert_eq!(parse_number_unit("620 g").ok(), Some((620.0, "g".into())));
@@ -299,6 +359,18 @@ mod tests {
             Value::Enum("al6061_t6".into()),
             Value::Text("EM 実測".into()),
             Value::Table("rw_torque".into()),
+            Value::Curve(Curve {
+                at: vec![0.0, 10.5, 30.0],
+                at_unit: "km^2/s^2".into(),
+                values: vec![480.0, 360.25, 1e-3],
+                unit: "kg".into(),
+            }),
+            Value::Curve(Curve {
+                at: vec![1.0],
+                at_unit: String::new(),
+                values: vec![2.0],
+                unit: String::new(),
+            }),
         ];
         for v in &values {
             let text = value_to_text(v).unwrap();

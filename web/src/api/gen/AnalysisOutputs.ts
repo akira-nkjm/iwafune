@@ -21,6 +21,7 @@ import type { ModalFemOutput } from "./ModalFemOutput";
 import type { LaunchFitOutput } from "./LaunchFitOutput";
 import type { EclipseSeasonOutput } from "./EclipseSeasonOutput";
 import type { OrbitDecayOutput } from "./OrbitDecayOutput";
+import type { GeometryOutput } from "./GeometryOutput";
 import type { ManeuversOutput } from "./ManeuversOutput";
 import type { DvBudgetOutput } from "./DvBudgetOutput";
 import type { PropellantOutput } from "./PropellantOutput";
@@ -52,6 +53,7 @@ export type AnalysisOutputs = {
   "structure.launch_fit": LaunchFitOutput;
   "orbit.eclipse_season": EclipseSeasonOutput;
   "orbit.decay": OrbitDecayOutput;
+  "orbit.geometry": GeometryOutput;
   "propulsion.maneuvers": ManeuversOutput;
   "propulsion.dv_budget": DvBudgetOutput;
   "propulsion.propellant": PropellantOutput;
