@@ -4,4 +4,9 @@ import type { Verdict } from "./Verdict";
 /**
  * 要求や制約との比較（例: DoD が上限を超えていないか）。
  */
-export type Check = { key: string, label: string, verdict: Verdict, message: string, };
+export type Check = { key: string, label: string, verdict: Verdict, message: string, 
+/**
+ * 基準に対する余裕（小さいほど厳しい。負なら基準を満たさない）。基準との比較で判定を出す判定だけが持つ（事実の記述や
+ * 「確かめていない」の注意は持たない）。定義と比べ方は [`Check::with_margin`] と [`margin_order`]
+ */
+margin?: number, };

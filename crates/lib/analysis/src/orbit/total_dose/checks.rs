@@ -26,18 +26,22 @@ pub(super) fn checks(parts: &[DosePart], legs: &[DoseLeg], rdm: f64) -> Vec<Chec
                     p.shielding.map_or_else(String::new, |s| quantity_text::<Length>(s.value()))
                 ),
             )),
-            (None, Some(v), Some(total), Some(tol)) => out.push(Check::new(
-                &key,
-                &label,
-                v,
-                format!(
-                    "Total dose {} (x{} design margin = {}) against a tolerance of {}",
-                    quantity_text::<AbsorbedDoseKind>(total.value()),
-                    quantity_text::<Dimensionless>(rdm),
-                    quantity_text::<AbsorbedDoseKind>(total.value() * rdm),
-                    quantity_text::<AbsorbedDoseKind>(tol.value()),
-                ),
-            )),
+            (None, Some(v), Some(total), Some(tol)) => out.push(
+                Check::new(
+                    &key,
+                    &label,
+                    v,
+                    format!(
+                        "Total dose {} (x{} design margin = {}) against a tolerance of {}",
+                        quantity_text::<AbsorbedDoseKind>(total.value()),
+                        quantity_text::<Dimensionless>(rdm),
+                        quantity_text::<AbsorbedDoseKind>(total.value() * rdm),
+                        quantity_text::<AbsorbedDoseKind>(tol.value()),
+                    ),
+                )
+                // 判定を導いた余裕（許容 / (総線量 × 設計余裕) − 1）。適合表が最も厳しい部品を選ぶのに使う
+                .with_ratio_margin(p.margin),
+            ),
             _ => {}
         }
     }

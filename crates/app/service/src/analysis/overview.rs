@@ -79,6 +79,7 @@ mod tests {
             message_en: None,
             at: at.into(),
             scope: scope.map(str::to_owned),
+            margin: None,
         }
     }
 

@@ -6,7 +6,9 @@
 
 use crate::budget::{BudgetItem, limit_check};
 use crate::spec::quantity_text;
-use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict};
+use crate::spec::{
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict, ratio_margin,
+};
 use sat_astro::math::{Mat3, Quat, Vec3};
 use sat_units::typed::{Fraction, Length, Mass, Qty};
 use serde::{Deserialize, Serialize};
@@ -223,20 +225,33 @@ fn checks(
         let inside = d.x.abs() <= b.half_extent.x
             && d.y.abs() <= b.half_extent.y
             && d.z.abs() <= b.half_extent.z;
-        out.push(Check::new(
-            "center_of_mass",
-            "Centre of mass position",
-            Verdict::from_ok(inside),
-            format!(
-                "Offset from centre ({}, {}, {}), allowed (±{}, ±{}, ±{})",
-                quantity_text::<Length>(d.x),
-                quantity_text::<Length>(d.y),
-                quantity_text::<Length>(d.z),
-                quantity_text::<Length>(b.half_extent.x),
-                quantity_text::<Length>(b.half_extent.y),
-                quantity_text::<Length>(b.half_extent.z)
-            ),
-        ));
+        // 余裕 = 許容の半幅 / ずれ − 1 の軸ごとの最小（ずれが 0 の軸は余裕が無限大）
+        let margin = [
+            (d.x, b.half_extent.x),
+            (d.y, b.half_extent.y),
+            (d.z, b.half_extent.z),
+        ]
+        .into_iter()
+        .filter_map(|(off, half)| ratio_margin(half, off.abs()))
+        .map(|m| m.value())
+        .min_by(f64::total_cmp);
+        out.push(
+            Check::new(
+                "center_of_mass",
+                "Centre of mass position",
+                Verdict::from_ok(inside),
+                format!(
+                    "Offset from centre ({}, {}, {}), allowed (±{}, ±{}, ±{})",
+                    quantity_text::<Length>(d.x),
+                    quantity_text::<Length>(d.y),
+                    quantity_text::<Length>(d.z),
+                    quantity_text::<Length>(b.half_extent.x),
+                    quantity_text::<Length>(b.half_extent.y),
+                    quantity_text::<Length>(b.half_extent.z)
+                ),
+            )
+            .with_margin(margin),
+        );
     }
     Ok(out)
 }
