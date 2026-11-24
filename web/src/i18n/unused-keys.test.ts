@@ -43,6 +43,7 @@ const DYNAMIC_PREFIXES: Record<string, string> = {
   "status.": "AnalysisTable が API の状態で引く",
   "requirements.reasons.": "ComplianceTab が API の理由で引く",
   "systems.aocsModes.fields.": "Attitude が API の出力項目のキーで引く",
+  "systems.findings.kind.": "GeometryFindings が API の所見の種類（FindingKind）で引く",
   "systems.layout3d.helper.": "HelperToggles が補助表示のキーで引く",
   "project.data.ephemeris.": "DataPanel が API の天体暦の種別で引く",
   "diagram.toolbar.": "DiagramToolbar が層の名前（power / signal / gnd）で引く",

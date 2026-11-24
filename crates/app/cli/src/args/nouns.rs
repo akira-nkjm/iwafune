@@ -406,6 +406,42 @@ pub enum SequenceCmd {
     },
 }
 
+/// `fune acknowledged …`
+#[derive(Debug, Subcommand)]
+pub enum AcknowledgedCmd {
+    /// Acknowledge a geometry finding with a reason, so it no longer warns but stays listed
+    /// (e.g. `fune acknowledged add interference SAP_PY SP_PY --reason "Hinge edge of the box model"`).
+    /// For `cone_clearance`, give the cone carrier first and the part inside its cone second
+    Add {
+        /// Kind of finding (`interference` or `cone_clearance`)
+        finding: String,
+        /// First part (the two overlapping parts in either order; for a cone, the carrier)
+        first: String,
+        /// Second part (for a cone, the part inside the cone)
+        second: String,
+        /// Why the finding is acceptable
+        #[arg(long)]
+        reason: String,
+        /// Only for this configuration (omit for every configuration and the base placement)
+        #[arg(long)]
+        configuration: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Withdraw an acknowledgement (the finding warns again)
+    Rm {
+        /// Kind of finding (`interference` or `cone_clearance`)
+        finding: String,
+        first: String,
+        second: String,
+        /// The configuration the acknowledgement was written for (omit if it applies to all)
+        #[arg(long)]
+        configuration: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+}
+
 /// `fune setting …`
 #[derive(Debug, Subcommand)]
 pub enum SettingCmd {

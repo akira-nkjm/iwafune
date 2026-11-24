@@ -54,6 +54,9 @@ export const keys = {
   /** 名詞のコマンドに打った引数から作った Op の列（`POST /ops/from_command`。書き込まない） */
   commandOps: (revision: string, commandJson: string) =>
     ["command_ops", revision, commandJson] as const,
+  /** 最悪の日から作るケースの Op の列（`POST /ops/cases_from_geometry`。書き込まない）。revision が変われば別のキー */
+  geometryCaseOps: (revision: string | null, json: string) =>
+    ["geometry-case-ops", revision, json] as const,
   /** 季節解析から作った新しいケースの Op（`POST /ops/case_from_eclipse`。書き込まない）。revision が変われば別のキー */
   eclipseCaseOp: (revision: string | null, json: string) =>
     ["eclipse-case-op", revision, json] as const,

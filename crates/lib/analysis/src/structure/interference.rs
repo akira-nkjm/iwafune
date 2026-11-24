@@ -13,10 +13,14 @@
 //! - **員数（`count`）が 2 以上の部品は 1 つの位置に重ねて置く**: 同じ部品どうし（自分自身・複製）は比べない。ほかの部品との組は 1 つの箱で判定する。
 //! - 寸法が無い（または正でない）部品は判定せず、一覧に残す。箱が 2 つに満たなければ、重なり無しの成功にする。
 //!
+//! - **承知済みの組**: 設計者が理由つきで承知した組は、重なりとして出力に残す（`acknowledged: true` と理由）が、判定は警告にしない（`ok`。
+//!   規則は [`super::acknowledged`]。出力の `overlaps` には承知済みも入るので、警告の数は `acknowledged` が偽のものを数える）。
+//!
 //! 幾何は [`obb`]（向きつきの箱の分離軸の判定）。
 
 pub mod obb;
 
+use super::acknowledged::{Acknowledgement, find, note};
 use crate::spec::quantity_text;
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict,
@@ -61,6 +65,9 @@ pub struct InterferenceInput {
     /// 重なりの深さの許容差（無ければ [`DEFAULT_TOLERANCE`]）
     #[serde(default)]
     pub tolerance: Option<Qty<Length>>,
+    /// 承知済みの組（いま見ている配置に効くもの。順序のない組として照合する）
+    #[serde(default)]
+    pub acknowledged: Vec<Acknowledgement>,
 }
 
 /// 重なっている組 1 つ。
@@ -74,6 +81,17 @@ pub struct InterferencePair {
     pub depth: Qty<Length>,
     /// 分離の向き（機体座標系の単位ベクトル。`first` から `second` へ。`second` をこの向きに深さだけ動かせば重なりが解ける）
     pub separation_axis: Vec3,
+    /// 設計者が承知済みとした組か（承知済みでも重なりとして残るが、判定は警告にしない）
+    #[serde(default)]
+    pub acknowledged: bool,
+    /// 承知した理由（承知済みのときだけ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub reason: Option<String>,
+    /// 承知が形態を指していれば、その形態（取り消すときに同じ承知を指す。無ければすべての配置に効く承知）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub acknowledged_configuration: Option<String>,
 }
 
 /// 離れている組のうち、最も近い組。
@@ -156,7 +174,7 @@ impl Analysis for Interference {
         let tolerance = input.tolerance.unwrap_or(DEFAULT_TOLERANCE);
         ensure_non_negative("Interference tolerance", tolerance.value())?;
         let (judged, mut skipped) = usable_boxes(&input.boxes, &input.unsized_parts);
-        let scan = scan_pairs(&judged, tolerance.value());
+        let scan = scan_pairs(&judged, tolerance.value(), &input.acknowledged);
         skipped.sort_by(|a, b| a.id.cmp(&b.id));
         let repeated = judged
             .iter()
@@ -249,7 +267,11 @@ pub(crate) fn on_mount_chain(
 }
 
 /// 全組を調べる（組の順は ID の昇順で固定。軸は `a` から `b` へ）。
-fn scan_pairs(boxes: &[&InterferenceBox], tolerance: f64) -> Scan {
+fn scan_pairs(
+    boxes: &[&InterferenceBox],
+    tolerance: f64,
+    acknowledged: &[Acknowledgement],
+) -> Scan {
     let placed: Vec<OrientedBox> = boxes
         .iter()
         .map(|b| OrientedBox::from_size(b.position, b.orientation, b.size))
@@ -274,11 +296,15 @@ fn scan_pairs(boxes: &[&InterferenceBox], tolerance: f64) -> Scan {
             scan.judged += 1;
             let s = separation(&placed[i], &placed[j]);
             if s.depth() > tolerance {
+                let ack = find(acknowledged, &a.id, &b.id, false);
                 scan.overlaps.push(InterferencePair {
                     first: a.id.clone(),
                     second: b.id.clone(),
                     depth: Qty::from_raw(s.depth()),
                     separation_axis: s.axis,
+                    acknowledged: ack.is_some(),
+                    reason: ack.map(|a| a.reason.clone()),
+                    acknowledged_configuration: ack.and_then(|a| a.configuration.clone()),
                 });
             } else {
                 let gap = s.distance.max(0.0);
@@ -330,12 +356,17 @@ fn checks(scan: &Scan, parts: usize, tolerance: Qty<Length>) -> Vec<Check> {
     scan.overlaps
         .iter()
         .map(|p| {
+            // 承知済みは判定を `ok` にして、承知であることと理由を文の頭に残す
+            let (verdict, head) = match &p.reason {
+                Some(reason) => (Verdict::Ok, note(reason)),
+                None => (Verdict::Warning, String::new()),
+            };
             Check::new(
                 &sat_checkkey::part_overlap(&p.first, &p.second),
                 &format!("Boxes of {} and {} overlap", p.first, p.second),
-                Verdict::Warning,
+                verdict,
                 format!(
-                    "Overlap {} (tolerance {}): moving {} by this amount along {} separates the boxes. Boxes are larger than the real shapes, so this may not be a real contact (box approximation)",
+                    "{head}Overlap {} (tolerance {}): moving {} by this amount along {} separates the boxes. Boxes are larger than the real shapes, so this may not be a real contact (box approximation)",
                     quantity_text::<Length>(p.depth.value()),
                     quantity_text::<Length>(tolerance.value()),
                     p.second,

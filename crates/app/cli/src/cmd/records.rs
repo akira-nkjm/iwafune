@@ -23,6 +23,10 @@ pub fn case(c: &CaseCmd) -> Built<'_> {
         CaseCmd::Set(a) => Some((Op::SetCase { case: case_of(a)? }, &a.edit)),
         CaseCmd::SetPhase { id, phase, edit } => Some((edit::case_phase_op(id, Some(phase)), edit)),
         CaseCmd::UnsetPhase { id, edit } => Some((edit::case_phase_op(id, None), edit)),
+        CaseCmd::SetEpoch { id, epoch, edit } => {
+            Some((edit::case_epoch_op(id, Some(epoch))?, edit))
+        }
+        CaseCmd::UnsetEpoch { id, edit } => Some((edit::case_epoch_op(id, None)?, edit)),
         CaseCmd::Rm { id, edit } => Some((Op::RemoveCase { id: id.clone() }, edit)),
         CaseCmd::Rename { id, to, edit } => Some((
             Op::RenameCase {

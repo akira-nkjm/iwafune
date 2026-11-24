@@ -180,7 +180,8 @@ fn demo_kpis_show_the_same_values_as_before() {
 }
 
 /// 判定を数える新しい KPI（重なりの組・遮られた円錐）の数。デモの値を出力（`structure.interference` の重なり 18 組 /
-/// 判定した 573 組、`structure.cone_clearance` の遮られた円錐 2 / 判定した 7）と手で突き合わせた。
+/// 判定した 573 組のうち、承知済みの 13 組（ヒンジの縁 1 組とパネルの角 12 組）を除いた警告 5 組、
+/// `structure.cone_clearance` の遮られた円錐 2 / 判定した 7）と手で突き合わせた。
 #[test]
 fn demo_new_analyses_kpis_count_checks() {
     let ws = demo();
@@ -189,7 +190,8 @@ fn demo_new_analyses_kpis_count_checks() {
         overlaps.tally,
         Some(KpiTally {
             checked: 573,
-            flagged: 18
+            flagged: 5,
+            acknowledged: Some(13)
         })
     );
     assert_eq!(overlaps.verdict, Some(Verdict::Warning));
@@ -198,7 +200,8 @@ fn demo_new_analyses_kpis_count_checks() {
         cones.tally,
         Some(KpiTally {
             checked: 7,
-            flagged: 2
+            flagged: 2,
+            acknowledged: Some(0)
         })
     );
     assert_eq!(cones.verdict, Some(Verdict::Warning));
@@ -229,7 +232,8 @@ fn demo_verdicts_fills_and_tallies() {
         range.tally,
         Some(KpiTally {
             checked: 13,
-            flagged: 4
+            flagged: 4,
+            acknowledged: None
         })
     );
     assert!((range.fill.unwrap().ratio - 9.0 / 13.0).abs() < 1e-12);
@@ -359,4 +363,40 @@ fn thermal_steady_returns_the_representative_temperature_per_part() {
         assert_eq!(h.verdict, env.verdict);
     }
     assert!(run("power.mode_load").part_heat.is_none());
+}
+
+/// 幾何の所見の 3D の色: 所見に関わる部品の状態は service が決める。デモの干渉は、承知済みの 13 組（ヒンジの縁・パネルの角）の部品が
+/// `acknowledged`、承知でない 5 組（太陽センサと太陽電池パネル・`EPT` とパネル）の部品が `open`。形態 STOWED の円錐は、
+/// 担い手 `SS_PX`・`STT` と遮る部品が `open`。ほかの解析は欄を出さない。
+#[test]
+fn geometry_findings_return_the_state_per_part() {
+    use fune_service::dto::FindingState::{Acknowledged, Open};
+    let ws = demo();
+    let run = |id: &str, configuration: Option<&str>| {
+        let req = RunAnalysisRequest {
+            configuration: configuration.map(str::to_owned),
+            ..Default::default()
+        };
+        analysis::run_analysis(&ws, id, &req).unwrap()
+    };
+    let state = |r: &fune_service::dto::AnalysisRunResult, part: &str| {
+        r.part_findings
+            .as_ref()
+            .expect("part_findings")
+            .iter()
+            .find(|p| p.part == part)
+            .map(|p| p.state)
+    };
+    let overlaps = run("structure.interference", None);
+    assert_eq!(state(&overlaps, "PANEL_MX"), Some(Acknowledged));
+    assert_eq!(state(&overlaps, "SAP_PY"), Some(Acknowledged));
+    // `SP_PY` はヒンジの縁（承知済み）と太陽センサ `SS_PY`（承知でない）の両方に関わるので `open`
+    assert_eq!(state(&overlaps, "SP_PY"), Some(Open));
+    assert_eq!(state(&overlaps, "EPT"), Some(Open));
+    assert_eq!(state(&overlaps, "CAM"), None);
+    let stowed = run("structure.cone_clearance", Some("STOWED"));
+    assert_eq!(state(&stowed, "SS_PX"), Some(Open));
+    assert_eq!(state(&stowed, "SAP_PY"), Some(Open));
+    assert_eq!(state(&stowed, "STT"), Some(Open));
+    assert!(run("power.mode_load", None).part_findings.is_none());
 }

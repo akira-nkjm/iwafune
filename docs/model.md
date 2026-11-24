@@ -90,6 +90,7 @@ maneuver = "MARS_TRANSFER"    # a maneuver with a dated [transfer] (§7.7)
   The integrator is the adaptive DOP853 of the numerical propagator (relative tolerance 1e-11) with a step limit of one day about the Sun and 600 s about any other body. One propagation with dense output serves all requested times; where a table is needed for repeated evaluations
   (thermal and power integrals, the refinement of extremes) it is built once at a step of a hundredth of the circular period at the osculating periapsis and interpolated by cubic Hermite (relative error about 4e-8 for a circular orbit at that step).
   The ephemeris of the bodies is DE440 inside its range and the analytic one outside (as for `transfer`; `orbit.geometry` reports which was used).
+- The settings tables (the orbit page and a phase's override dialog) list, for a source, the keys it uses even when they are not written (`OrbitSource::offered_keys`): `state` lists `epoch`, `central`, `position`, `velocity` and `span` and none of the Kepler elements. A cell typed there is sent as text and read by the service (`orbit_field_type` / `/ops/from_text`; a vector is `1 0 0 km`); an unreadable value is shown under the cell.
 - Keys beside a source that it does not use get the warning `setting.not_applied`: for `transfer`, the Kepler elements, `epoch`, `central`, `propagator`, `[eclipse_season]`, `[decay]` and the state keys; for `state`, the Kepler-element keys (everything of `elements` except `epoch` and `central`), `propagator`, `[eclipse_season]`, `[decay]` and `maneuver`;
   for `elements`, `maneuver` and the state keys (`position`, `velocity`, `span`). `span` must be positive and the components finite (`setting.range`), and the units must have the dimensions Length, Velocity and Time.
   `maneuver` must name an existing maneuver whenever it is written (`ref.maneuver`) and, for `transfer`, that maneuver must have a `[transfer]` (`orbit.maneuver_transfer`). A missing `maneuver` is not a check error but a missing input (`conditions.orbit.maneuver`),
@@ -196,7 +197,8 @@ A case may carry `epoch` (ISO 8601, `cases.<ID>.epoch`): **the time at which the
 generalises the creation of cases from a date: it reads the leg of the phase from `orbit.geometry` (one geometry for every source; the leg's span as above) and writes three cases whose `epoch` is the day of
 the **maximum Sun distance** (`<prefix>_sun_far`), the **minimum Sun distance** (`<prefix>_sun_near`) and the **maximum Earth distance** (`<prefix>_earth_far`), with `phase` set to the given phase and the quantity and date in the description.
 The prefix defaults to the lower-case phase ID (none for a design without phases; a design with phases requires `--phase`). The names are fixed, so running it again gives the same files; a case that already exists keeps all its other fields (its mode only changes when `--mode` is given) and gets the new `epoch`, `phase` and description.
-The results are ordinary cases that can be edited (`fune case set … --epoch`). The days are as accurate as `orbit.geometry` (720 samples per leg, refined by golden section: about a second for a smooth extreme). An extreme at the very end of a one-off span gives an epoch with no window left (see above), which `fune case from-geometry` still writes.
+The results are ordinary cases that can be edited (`fune case set … --epoch`; `fune case set-epoch <ID> <time>` / `unset-epoch <ID>` change only the `epoch` and keep every other field; HTTP `{ "command": "case_epoch", "case": "hot", "epoch": "2031-05-02T00:00:00Z" }` to `POST /ops/from_command`; the service reads the time like the analysis does and rejects one it cannot parse; a time outside a one-off span is only found by the analysis, as the missing input on `cases.<ID>.epoch`).
+The GUI's analysis cases page has the same two operations: a pencil in the start-time column (`set-epoch`, an empty field clears it) and "Cases from the worst days" (`from-geometry`; the phase list and mode list come from the design, the Ops and the equivalent commands are previewed before saving). The days are as accurate as `orbit.geometry` (720 samples per leg, refined by golden section: about a second for a smooth extreme). An extreme at the very end of a one-off span gives an epoch with no window left (see above), which `fune case from-geometry` still writes.
 `fune case from-sun-distance` remains for the steady analyses (it writes a `sun_distance` override, a circular orbit, for an orbit about the Sun with Kepler elements); `from-geometry` is the one for time series on any orbit.
 
 #### Altitude decay by atmospheric drag and orbit maintenance (`orbit.decay`)
@@ -1202,16 +1204,53 @@ the verdict of every overlapping pair is `warning` (check key `overlap:<first>:<
   because a box cannot tell containment from interference. The number of skipped pairs is reported (`pairs_in_mount_chain`).
 - **`count` > 1**: the copies share one pose, so the part is one box: it is not compared with itself, and it is listed in `repeated`. Overlaps between copies are not judged.
 - **No `size`**: the part is listed in `skipped` (reason `no_size`; a `size` that is not positive is `invalid_size`). It is not a missing input. With fewer than two boxes the result is empty and successful.
-- **Output**: `overlaps` (pairs, deepest first: `first`, `second`, `depth`, `separation_axis`), `parts_judged`, `pairs_judged`, `pairs_in_mount_chain`, `tolerance` (the one used), `min_clearance` (the closest non-overlapping pair), `skipped`, `repeated` and `checks`.
+- **Output**: `overlaps` (pairs, deepest first: `first`, `second`, `depth`, `separation_axis`, and for an acknowledged pair `acknowledged`, `reason`, `acknowledged_configuration`), `parts_judged`, `pairs_judged`, `pairs_in_mount_chain`, `tolerance` (the one used), `min_clearance` (the closest non-overlapping pair), `skipped`, `repeated` and `checks`.
 
-Not modeled: real shapes (STEP, #344), the path during deployment, and a pair cannot yet be marked as "checked, intended". Sensor fields of view and thruster plumes are judged against the same boxes by `structure.cone_clearance` (§5.8).
+Not modeled: real shapes (STEP, #344) and the path during deployment. Sensor fields of view and thruster plumes are judged against the same boxes by `structure.cone_clearance` (§5.8).
+
+#### Acknowledged pairs (#414)
+
+Some findings are known consequences of modelling parts as boxes (the hinge edge, panels meeting at a corner). The designer records "known, accepted" for one pair with a reason, so that it stops being a warning but **stays visible**.
+One list serves both analyses (`structure.interference` and `structure.cone_clearance`): `[[acknowledged]]` in `analysis/structure.toml` (`fune_model::design::AcknowledgedFinding`; the vocabulary of `finding` is `FindingKind`).
+
+```toml
+[[acknowledged]]
+finding = "interference"
+first   = "SAP_PY"
+second  = "SP_PY"
+reason  = "Hinge edge: the paddle box and the solar panel box meet at the hinge line, where the real parts only touch"
+
+[[acknowledged]]
+finding       = "cone_clearance"
+first         = "SS_PX"      # the carrier of the cone
+second        = "SAP_PY"     # the part inside the cone
+configuration = "STOWED"     # optional; absent means every configuration and the base placement
+reason        = "The sun sensor is not used while the paddle is folded"
+```
+
+- **Keys**: `finding` is `interference` or `cone_clearance`. `first` and `second` are two parts. For an overlap the order does not matter (a pair is one pair either way). For a cone, `first` is the carrier and `second` the part inside its cone, in that order (the same pair as the check key `obstruction:<carrier>:<part>`; a carrier has one cone kind, so no further key is needed).
+  `configuration` is optional; `reason` is required and not blank. A pair written twice for the same configuration is a warning (`acknowledged.duplicate`).
+- **Semantics** (`sat_analysis::structure::acknowledged`, the only place): an acknowledged finding is still computed and listed (`acknowledged: true`, `reason`, and `acknowledged_configuration` when the acknowledgement names a configuration, so that withdrawing it points at the same entry),
+  but its check is `ok` instead of `warning` and its text starts with `Acknowledged: <reason>.` (the verdict has no informational level; `ok` with the text keeps the finding visible). A configuration-specific acknowledgement applies only when that configuration is in effect (`fune_projection::structure::acknowledgements`). The overall verdict follows the checks, so an analysis whose findings are all acknowledged is `ok`.
+- **KPIs** (`structure_kpi`): the tally has `flagged` (unacknowledged findings; for cones, carriers with an unacknowledged part in the cone) and `acknowledged` (acknowledged findings; for cones, carriers whose parts in the cone are all acknowledged), so the web never counts.
+  The demo reads `5 of 573 need attention, 13 acknowledged` for `structure.interference`.
+- **Stale acknowledgements**: an entry that matches no current finding is a **warning** `acknowledged.stale` from `fune check` (and the GUI's diagnostics). The model's `check` cannot run analyses, so `fune_service::stale_acknowledgements` runs both analyses (for the placement the default case selects and for each configuration) and compares; it is called from `Snapshot::of`, next to the other diagnostics that need the projection.
+  An entry with a `configuration` is compared only with that configuration's findings; an entry without one only has to match some placement (findings differ between configurations, so one placement cannot call it stale). An entry whose analysis could not run for any comparable placement (a size is missing, say) is not called stale.
+  Limit: the placement "the default case selects" is the base placement unless the default case's phase names a configuration.
+- **Parts and configurations are references**: `fune check` reports a part or configuration that does not exist (`ref.part`, `ref.configuration`). Renaming a part or a configuration rewrites the entries (`RefSite::{AcknowledgedPart, AcknowledgedConfiguration}` of the reference index), and removing a part or a configuration an entry names is refused until the entry is withdrawn (the same behaviour as the other settings that name parts).
+- **Editing** (Ops `Acknowledge` / `Unacknowledge`; a list of records cannot be edited sensibly with `SetSetting`): `fune acknowledged add interference SAP_PY SP_PY --reason "…" [--configuration STOWED]` and `fune acknowledged rm interference SAP_PY SP_PY [--configuration STOWED]`. Acknowledging a pair that is already acknowledged (same configuration, either order for an overlap) rewrites its reason.
+  Withdrawing a pair that is not acknowledged is refused. The GUI sends the same Ops from the analysis result ("Acknowledge" asks for a reason and offers "only in this configuration" when the result was computed for a configuration; "Withdraw"). The CLI and HTTP write byte-identical files (parity test).
+- **In the demo** (`fixtures/demo-6u`): the 1 mm hinge-edge overlap of `SAP_PY` and `SP_PY` and the twelve panel-corner overlaps (neighbouring panel boxes are centred on the face of the part they are mounted on, so they overlap by half a panel thickness, 0.75 mm) are acknowledged. The other findings are left as warnings: the sun-sensor boxes sunk into the solar panel boxes (`SP_*`/`SS_*`), `EPT` against `PANEL_MZ`,
+  and the cone findings (the paddle in the field of view of the sun sensors, `STT` against `SP_MY`) are not documented as accepted, and some of them may be real.
+- **3D** (layout page): a switch (off by default) paints the parts that the findings of the configuration being viewed involve: parts with an unacknowledged finding in the warning colour, parts whose findings are all acknowledged in the good colour, the others grey (`lib/tone.ts` `findingHex`), and lists the findings; choosing a part name selects and focuses it.
+  The state of each part is decided by the service (`AnalysisRunResult.part_findings`, `analysis::part_findings`); the web paints. The cones themselves are not drawn.
 
 ### 5.8 Plume and field-of-view clearance (`structure.cone_clearance`, #397)
 
 `structure.cone_clearance` asks, for every part that carries a **cone**, which parts of the spacecraft lie inside it. A thruster plume and a sensor field of view are the same geometry (an apex, an axis, a half angle, an optional range), so there is one analysis, one geometry (`sat_analysis::structure::cone_clearance::cone`) and one report. The parts are the same oriented boxes as in §5.7
 (`fune_projection::structure::boxes`, so the configuration in effect is followed: stowed and deployed layouts give different answers). The box selection (parts without a `size` are listed, not an error), the mount-chain rule and the report shape (`checks`, `skipped`) are shared with `structure.interference` (`usable_boxes`, `on_mount_chain`).
 
-**A hit is only a warning**, for the same reason as §5.7: boxes are larger than the real shapes. No `fune check` diagnostic, the run is `ok`, never an analysis failure, and nothing blocks an edit. One `warning` check per (carrier, part), key `obstruction:<carrier>:<part>` (renaming a part rewrites the key); with no hit, one `ok` check `cone_clearance`.
+**A hit is only a warning**, for the same reason as §5.7: boxes are larger than the real shapes. No `fune check` diagnostic, the run is `ok`, never an analysis failure, and nothing blocks an edit. One `warning` check per (carrier, part), key `obstruction:<carrier>:<part>` (renaming a part rewrites the key); with no hit, one `ok` check `cone_clearance`. A pair the designer acknowledged (§5.7, "Acknowledged pairs") is still listed (`acknowledged`, `reason`) but its check is `ok`.
 
 - **Carrier table** (`fune_projection::structure::CARRIERS`, the only place that says which attributes give the cone): a part of one of the roles in a row carries a cone whose axis is `axis_sign × <axis attribute>` (read through `parts::direction_body`, so it is in the body frame) and whose half angle is `<half-angle attribute>`.
   Today: **thrusters** (roles `thruster`, `propulsion_thruster`): axis = −`direction` (the exhaust leaves opposite to the thrust, `direction` being the direction the spacecraft is pushed), half angle = `plume_half_angle`, kind `plume`. So `direction` is the direction of the force on the spacecraft, not of the exhaust: a thruster on the −Z face of the bus has `direction` = +Z (the built-in attribute's description says the same).

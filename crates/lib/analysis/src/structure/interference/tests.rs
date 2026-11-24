@@ -1,6 +1,7 @@
 //! `structure.interference` のテスト（手計算との比較）。
 
 use super::*;
+use crate::structure::acknowledged::Acknowledgement;
 
 fn unit_box(id: &str, center: [f64; 3]) -> InterferenceBox {
     InterferenceBox {
@@ -18,6 +19,7 @@ fn input(boxes: Vec<InterferenceBox>) -> InterferenceInput {
         boxes,
         unsized_parts: Vec::new(),
         tolerance: None,
+        acknowledged: Vec::new(),
     }
 }
 
@@ -221,4 +223,57 @@ fn input_round_trips_through_json() {
     let back: InterferenceInput = serde_json::from_str(&text).unwrap();
     assert_eq!(back.boxes.len(), 1);
     assert_eq!(back.boxes[0].count, 1);
+}
+
+fn ack(first: &str, second: &str, reason: &str) -> Acknowledgement {
+    Acknowledgement {
+        first: first.to_owned(),
+        second: second.to_owned(),
+        reason: reason.to_owned(),
+        configuration: None,
+    }
+}
+
+/// 承知済みの組（どちらの並びで書いても同じ）は、重なりとして残り（フラグと理由つき）、判定は ok。承知していない組は警告のまま。
+#[test]
+fn an_acknowledged_pair_is_listed_with_its_reason_and_does_not_warn() {
+    let mut i = input(vec![
+        unit_box("A", [0.0; 3]),
+        unit_box("B", [0.9, 0.0, 0.0]),
+        unit_box("C", [-0.9, 0.0, 0.0]),
+    ]);
+    // A–B と A–C が重なる。A–B だけを（並びを逆にして）承知する
+    i.acknowledged = vec![ack("B", "A", "hinge edge")];
+    let out = run(&i);
+    assert_eq!(out.overlaps.len(), 2);
+    let ab = out.overlaps.iter().find(|p| p.second == "B").unwrap();
+    assert!(ab.acknowledged);
+    assert_eq!(ab.reason.as_deref(), Some("hinge edge"));
+    let ac = out.overlaps.iter().find(|p| p.second == "C").unwrap();
+    assert!(!ac.acknowledged && ac.reason.is_none());
+    let verdict = |key: &str| out.checks.iter().find(|c| c.key == key).unwrap();
+    assert_eq!(verdict("overlap:A:B").verdict, Verdict::Ok);
+    assert!(
+        verdict("overlap:A:B")
+            .message
+            .starts_with("Acknowledged: hinge edge. ")
+    );
+    assert_eq!(verdict("overlap:A:C").verdict, Verdict::Warning);
+}
+
+/// すべて承知済みなら、警告は無い（判定は組ごとの ok。重なりは出力に残る）。
+#[test]
+fn when_every_overlap_is_acknowledged_nothing_warns() {
+    let mut i = input(vec![
+        unit_box("A", [0.0; 3]),
+        unit_box("B", [0.9, 0.0, 0.0]),
+    ]);
+    i.acknowledged = vec![ack("A", "B", "known")];
+    let out = run(&i);
+    assert_eq!(out.overlaps.len(), 1);
+    assert!(out.checks.iter().all(|c| c.verdict == Verdict::Ok));
+    assert_eq!(
+        Verdict::worst(out.checks.iter().map(|c| c.verdict)),
+        Some(Verdict::Ok)
+    );
 }

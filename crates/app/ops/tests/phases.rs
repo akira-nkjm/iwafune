@@ -238,6 +238,40 @@ fn a_case_phase_is_set_and_cleared() {
     assert!(p.design.cases["hot_imaging"].phase.is_none());
 }
 
+#[test]
+fn a_case_epoch_is_set_and_cleared_without_touching_other_fields() {
+    let snap = snapshot();
+    let set = Op::SetCaseEpoch {
+        case: "hot_imaging".into(),
+        epoch: Some("2031-05-02T00:00:00Z".into()),
+    };
+    let before = snap.design.cases["hot_imaging"].clone();
+    let p = plan(&snap, std::slice::from_ref(&set)).unwrap();
+    let after = &p.design.cases["hot_imaging"];
+    assert_eq!(after.epoch.as_deref(), Some("2031-05-02T00:00:00Z"));
+    assert_eq!(after.phase, before.phase);
+    assert_eq!(after.mode, before.mode);
+    assert_eq!(
+        to_cli(&set),
+        ["fune case set-epoch hot_imaging 2031-05-02T00:00:00Z"]
+    );
+    let clear = Op::SetCaseEpoch {
+        case: "hot_imaging".into(),
+        epoch: None,
+    };
+    assert_eq!(to_cli(&clear), ["fune case unset-epoch hot_imaging"]);
+    let p = plan(&snap, &[set, clear]).unwrap();
+    assert!(p.design.cases["hot_imaging"].epoch.is_none());
+    let missing = Op::SetCaseEpoch {
+        case: "NO_SUCH_CASE".into(),
+        epoch: None,
+    };
+    assert!(matches!(
+        plan(&snap, &[missing]),
+        Err(OpError::NotFound { .. })
+    ));
+}
+
 /// 名前の変更はケースの `phase` を書き換え、モードの名前の変更はフェーズの `modes` と `[law]` のキーを書き換える。
 /// フェーズを消すとき、ケースが指していれば拒む（モードを参照しているケースを消せないのと同じ）。
 #[test]

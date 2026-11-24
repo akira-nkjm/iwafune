@@ -213,6 +213,42 @@ pub(super) fn other_op(op: &Op) -> Vec<String> {
             ]
         }
         Op::RemoveSequence { name } => vec![Cmd::new(&["fune", "sequence", "rm", name]).done()],
+        Op::Acknowledge {
+            finding,
+            first,
+            second,
+            configuration,
+            reason,
+        } => vec![
+            Cmd::new(&[
+                "fune",
+                "acknowledged",
+                "add",
+                finding.as_str(),
+                first,
+                second,
+            ])
+            .flag("reason", Some(reason))
+            .flag("configuration", configuration.as_deref())
+            .done(),
+        ],
+        Op::Unacknowledge {
+            finding,
+            first,
+            second,
+            configuration,
+        } => vec![
+            Cmd::new(&[
+                "fune",
+                "acknowledged",
+                "rm",
+                finding.as_str(),
+                first,
+                second,
+            ])
+            .flag("configuration", configuration.as_deref())
+            .done(),
+        ],
         Op::SetModeStates { cells } => cells.iter().map(mode_cell).collect(),
         Op::CreateNet { net } => vec![net_cmd("add", net)],
         Op::UpdateNet { net } => vec![net_cmd("replace", net)],

@@ -103,7 +103,8 @@ fn counting_kpi_tallies_checks_and_fills_with_the_ok_share() {
         range.tally,
         Some(KpiTally {
             checked: 9,
-            flagged: 4
+            flagged: 4,
+            acknowledged: None
         })
     );
     let fill = range.fill.unwrap();
@@ -406,7 +407,8 @@ fn nodes_in_range_counts_one_item_per_node_and_kind() {
         tally,
         KpiTally {
             checked: 3,
-            flagged: 2
+            flagged: 2,
+            acknowledged: None
         }
     );
     assert!((tally.ok_share().unwrap().ratio - 1.0 / 3.0).abs() < 1e-12);
