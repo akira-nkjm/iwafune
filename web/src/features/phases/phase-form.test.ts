@@ -11,4 +11,9 @@ describe("phaseCommand", () => {
     expect(phaseCommand(text, true)).toEqual({ command: "phase_add", ...text });
     expect(phaseCommand(text, false)).toEqual({ command: "phase_set", ...text });
   });
+
+  it("解析ケースが使う形態も、選んだ ID のまま service に渡す", () => {
+    const text = { id: "LEOP", configuration: "STOWED" };
+    expect(phaseCommand(text, false)).toEqual({ command: "phase_set", ...text });
+  });
 });

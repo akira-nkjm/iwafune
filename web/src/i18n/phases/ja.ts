@@ -37,6 +37,8 @@ export const phasesJa = {
       end: "終わりの条件",
       duration: "期間",
       modes: "使うモード（カンマ区切り）",
+      configuration: "解析ケースが使う形態",
+      configurationNone: "基準の配置",
       confirmAdd: "追加",
       confirmEdit: "保存",
       summaryAdd: (id: string) => `フェーズ ${id} を追加`,

@@ -1688,7 +1688,8 @@ orientation = { w = 0.707107, x = 0.0, y = 0.0, z = -0.707107 }
   Otherwise `structure.launch_fit`, `structure.static_load`, `structure.modal_estimate`, and `structure.modal_fem` use the launch selection. Other analyses use the configuration of the effective case's phase. A case can name a phase.
   If the applicable selection is absent, the analysis uses the base placement. A saved selection that names an unknown ID is an error in `fune check` and appears as a missing input with configuration candidates when projected.
   The result includes `configuration` and `configuration_source` (`explicit`, `launch`, or `phase`) when a named configuration is selected. Base results omit both fields. A nested case context resolves from the base again and carries any explicit request selection.
-- Launch-fit envelopes derived from part boxes and GUI controls for the launch and phase selections are later stages of #374.
+- The phase dialog on the Phases page sets the phase's `configuration` (a select of the existing configurations; blank means the base placement).
+- Launch-fit envelopes derived from part boxes and a GUI control for the launch selection are later stages of #374.
 
 ## 8. Allocations and margin policy (budget/)
 

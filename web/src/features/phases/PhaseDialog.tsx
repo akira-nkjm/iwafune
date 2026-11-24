@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { useCommandOps } from "@/api/ops";
+import { useDesign } from "@/api/queries";
 import type { PhaseText } from "@/api/types";
 import { useT } from "@/i18n";
 import { Field } from "@/kit/forms/Field";
+import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
 import { phaseCommand } from "./phase-form";
 
-type TextKey = Exclude<keyof PhaseText, "id">;
+type TextKey = Exclude<keyof PhaseText, "id" | "configuration">;
 
 /**
  * フェーズの追加・編集（`fune phase add|set` と同じ引数）。打った文字列のまま service に送り、Op にしてから確定する。
@@ -26,6 +28,7 @@ export function PhaseDialog({
   const t = useT().phases;
   const td = t.dialog;
   const [text, setText] = useState<PhaseText>(initial);
+  const configurations = useDesign().data?.configurations ?? [];
   const made = useCommandOps(phaseCommand(text, adding));
   const failed = useOpCheck(made.ops).failed;
   const error = made.error;
@@ -70,6 +73,19 @@ export function PhaseDialog({
         {input("start", td.start)}
         {input("end", td.end)}
         {input("modes", td.modes, "SAFE,NOMINAL")}
+        <Field label={td.configuration} htmlFor="ph-configuration">
+          <NativeSelect
+            id="ph-configuration"
+            className="w-full"
+            value={text.configuration ?? ""}
+            placeholder={td.configurationNone}
+            options={configurations.map(({ id, label }) => ({
+              value: id,
+              label: id === label ? id : `${label} (${id})`,
+            }))}
+            onChange={(e) => set("configuration", e.target.value)}
+          />
+        </Field>
       </div>
     </OpDialog>
   );
