@@ -126,6 +126,7 @@ fn maneuver_cmd(verb: &str, m: &Maneuver) -> String {
         .flag("thruster", m.thruster.as_ref().map(|p| p.as_str()))
         .flag("after", m.after.as_deref())
         .flag("via-altitude", q(&m.via_altitude).as_deref())
+        .flag("delta-v", q(&m.delta_v).as_deref())
         .flag("body", t.body.map(|b| b.as_str()))
         .flag("altitude", q(&t.altitude).as_deref())
         .flag("perigee-altitude", q(&t.perigee_altitude).as_deref())

@@ -147,6 +147,7 @@ mod maneuver_tests {
             thruster: Some("EPT".into()),
             after: None,
             via_altitude: None,
+            delta_v: None,
             target: ManeuverTarget {
                 altitude: Some(Quantity::new(600.0, "km")),
                 ..ManeuverTarget::default()
@@ -186,6 +187,7 @@ mod maneuver_tests {
             thruster: None,
             after: Some("RAISE".into()),
             via_altitude: None,
+            delta_v: None,
             target: ManeuverTarget {
                 body: Some(fune_model::design::CentralBodyKind::Mars),
                 perigee_altitude: Some(Quantity::new(300.0, "km")),
@@ -233,6 +235,7 @@ mod maneuver_tests {
             thruster: None,
             after: None,
             via_altitude: None,
+            delta_v: None,
             target: ManeuverTarget::default(),
             constraints: ManeuverConstraints::default(),
             transfer: Some(ManeuverTransfer {

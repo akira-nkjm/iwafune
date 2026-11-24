@@ -49,6 +49,8 @@ pub enum ManeuverNote {
     PlaneChangeIgnored,
     /// 数値伝搬が上限の時間までに目標に届かなかった（届いたところまでの値）
     PropagationNotReached,
+    /// ΔV は軌道の計算でなく、設計データに直接書かれた値（軌道は変わらない）
+    WrittenDeltaV,
 }
 
 /// 軌道（中心天体・近地点と遠地点の半径・傾斜角）。
@@ -151,6 +153,9 @@ impl Planned {
 
 /// 軌道 `from` からマヌーバ `m` を行う計画。
 pub(super) fn plan(from: Orbit, m: &ManeuverInput) -> Result<Planned, AnalysisError> {
+    if let Some(dv) = m.delta_v {
+        return written(from, dv.value(), m);
+    }
     if let Some(body) = m.target.body.filter(|b| *b != from.central) {
         return interbody(from, body, m);
     }
@@ -198,6 +203,48 @@ pub(super) fn plan(from: Orbit, m: &ManeuverInput) -> Result<Planned, AnalysisEr
         ideal,
         sites: Vec::new(),
         notes,
+        dated: None,
+        launcher_departure: false,
+    })
+}
+
+/// 直接書いた ΔV（余裕）。軌道は変わらず、ΔV はそのまま理想の ΔV にする（噴射の位置は今の軌道の長半径。
+/// インパルスは 1 回の噴射、低推力は連続噴射）。軌道の計算（`target` ・`via_altitude`・`transfer`）とは一緒に使えない。
+fn written(from: Orbit, delta_v_m_s: f64, m: &ManeuverInput) -> Result<Planned, AnalysisError> {
+    let invalid = |why: &str| AnalysisError::InvalidInput(format!("Maneuver {}: {why}", m.id));
+    if m.transfer.is_some() || m.via_altitude.is_some() || m.target.body.is_some() {
+        return Err(invalid(
+            "A written delta_v cannot be combined with a target body, via_altitude or a dated transfer",
+        ));
+    }
+    if !(delta_v_m_s >= 0.0 && delta_v_m_s.is_finite()) {
+        return Err(invalid(
+            "A written delta_v must be a finite value of 0 or more",
+        ));
+    }
+    let ideal = match m.method {
+        TransferMethod::Impulsive | TransferMethod::FiniteBurn => {
+            Ideal::Impulsive(ImpulsiveTransfer {
+                burns: vec![ImpulsiveBurn {
+                    radius_m: from.apsides.semi_major_axis_m(),
+                    delta_v_m_s,
+                }],
+                coast_s: 0.0,
+            })
+        }
+        TransferMethod::LowThrust => Ideal::LowThrust(delta_v_m_s),
+        TransferMethod::Propagated => {
+            return Err(invalid(
+                "A written delta_v is used with impulsive or low_thrust (propagated needs an orbit change)",
+            ));
+        }
+    };
+    Ok(Planned {
+        from,
+        to: from,
+        ideal,
+        sites: Vec::new(),
+        notes: vec![ManeuverNote::WrittenDeltaV],
         dated: None,
         launcher_departure: false,
     })

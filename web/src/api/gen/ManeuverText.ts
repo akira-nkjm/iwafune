@@ -26,6 +26,10 @@ after?: string | null,
  */
 via_altitude?: string | null, 
 /**
+ * 直接書く ΔV（`"15 m/s"`。軌道修正・軌道維持・マージンの余裕。軌道は変えず、目標の軌道・中間の遠地点・日付とは一緒に書かない）
+ */
+delta_v?: string | null, 
+/**
  * 目標の中心天体（`moon`・`mars` など。書くと天体間の遷移で、高度はその天体から）
  */
 body?: string | null, 

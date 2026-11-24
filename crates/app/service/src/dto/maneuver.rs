@@ -25,6 +25,8 @@ pub struct ManeuverText {
     pub after: Option<String>,
     /// バイエリプティック遷移の中間の遠地点の高度（`"20000 km"`）
     pub via_altitude: Option<String>,
+    /// 直接書く ΔV（`"15 m/s"`。軌道修正・軌道維持・マージンの余裕。軌道は変えず、目標の軌道・中間の遠地点・日付とは一緒に書かない）
+    pub delta_v: Option<String>,
     /// 目標の中心天体（`moon`・`mars` など。書くと天体間の遷移で、高度はその天体から）
     pub body: Option<String>,
     /// 目標の円軌道の高度（`"600 km"`）
@@ -72,6 +74,8 @@ pub struct ManeuverView {
     /// 目標の中心天体（天体間の遷移。書かなければ同じ天体のまわり）
     pub body: Option<CentralBodyKind>,
     pub via_altitude: Option<QuantityView>,
+    /// 直接書かれた ΔV（余裕。書かなければ目標の軌道から計算する）
+    pub delta_v: Option<QuantityView>,
     /// 書かれた目標の要素（宣言の順）
     pub target: Vec<ManeuverTargetView>,
     /// 書かれた制約のキー（粗い段階の解析は無視する）
