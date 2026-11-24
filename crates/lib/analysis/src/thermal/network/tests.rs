@@ -12,6 +12,7 @@ pub(crate) fn node(id: &str, fixed: Option<f64>) -> ThermalNode {
             redundancy: crate::modes::Redundancy::None,
             states: Vec::new(),
         }],
+        per_part: false,
         fixed_temperature: fixed.map(Qty::from_raw),
         required: Default::default(),
     }

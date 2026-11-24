@@ -29,6 +29,12 @@ impl Design {
                 orbit.eclipse_season.get_or_insert_default();
                 orbit.decay.get_or_insert_default();
                 let mut v = to(serde_json::to_value(&conditions));
+                // 軌道の出どころと遷移のマヌーバは、未入力でも設定の表に欄を出す（選んで入れる。値の既定値は付けない）。
+                if let Some(orbit) = v.get_mut("orbit").and_then(Json::as_object_mut) {
+                    for key in ["source", "maneuver"] {
+                        orbit.entry(key).or_insert(Json::Null);
+                    }
+                }
                 // 地上局の `id` はファイル名で決まるので設定の値ではない。
                 if let Some(ground) = v.get_mut("ground").and_then(Json::as_object_mut) {
                     for station in ground.values_mut().filter_map(Json::as_object_mut) {

@@ -45,7 +45,7 @@ pub fn rename_case(
     rename_sites(edits, design, Referent::Case(from), to, None)
 }
 
-/// マヌーバの名前を変える（ファイルの移動と、ほかのマヌーバの `after` の書き換え）。
+/// マヌーバの名前を変える（ファイルの移動と、ほかのマヌーバの `after`・設計とフェーズの軌道の `maneuver` の書き換え）。
 pub fn rename_maneuver(
     edits: &mut Edits,
     design: &Design,
@@ -130,6 +130,14 @@ pub(super) fn rename_record_at(
         RefSite::ManeuverAfter { maneuver } => {
             set_top(edits, &layout::maneuver_file(maneuver), "after", to)
         }
+        RefSite::OrbitManeuver => set_top(edits, &layout::orbit_file(), "maneuver", to),
+        RefSite::PhaseOrbitManeuver { phase } => set_in(
+            edits,
+            &layout::phase_file(phase),
+            &["orbit"],
+            "maneuver",
+            to,
+        ),
         RefSite::CommDataDownlink => set_top(edits, &comm(), "data_downlink", to),
         RefSite::RequirementCheck {
             requirement,

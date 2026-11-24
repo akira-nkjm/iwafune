@@ -215,6 +215,12 @@ setting_quantities! {
     MATERIAL_ULTIMATE_STRENGTH: Pressure = Analysis["structure", "material", ANY, "ultimate_strength"];
     /// 推進系の解析の乾燥質量の上書き（`analysis/propulsion.toml`）
     PROPULSION_DRY_MASS: Mass = Analysis["propulsion", "dry_mass"];
+    /// 日付の探索の出発の窓の長さ（`[launch_window]`）
+    PROPULSION_LAUNCH_WINDOW_DEPARTURE_SPAN: Time = Analysis["propulsion", "launch_window", "departure_span"];
+    /// 日付の探索の飛行時間の下限
+    PROPULSION_LAUNCH_WINDOW_TOF_MIN: Time = Analysis["propulsion", "launch_window", "time_of_flight_min"];
+    /// 日付の探索の飛行時間の上限
+    PROPULSION_LAUNCH_WINDOW_TOF_MAX: Time = Analysis["propulsion", "launch_window", "time_of_flight_max"];
 }
 
 /// 次元の型を持たない欄（名前の無い次元。射影は読まない）。

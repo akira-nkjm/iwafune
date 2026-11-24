@@ -137,6 +137,7 @@ pub(super) fn check_conditions(ctx: &mut Ctx, entries: &[SettingEntry]) {
 
 /// 軌道の設定の検査（設計の `conditions/orbit.toml` とフェーズの `[orbit]` で同じ）。
 pub(super) fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
+    check_orbit_source(s, o);
     let non_earth = o
         .central
         .is_some_and(|c| c != crate::design::CentralBodyKind::Earth);
@@ -180,6 +181,41 @@ pub(super) fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
             "setting.moved",
             "Orbit-keeping propellant uses the propellants available to the propulsion analysis (propulsion.propellant), so this value is not used. Set the propellant with propulsion parts (propellant_tank, propulsion_thruster) and maneuvers (maneuvers/), then remove it with `fune setting unset conditions.orbit.decay.propellant`".into(),
         );
+    }
+}
+
+/// 軌道の出どころ（`source`）の検査: `maneuver` が書かれていればマヌーバがあること、`transfer` ならそのマヌーバが日付つきの `[transfer]` を持つこと、
+/// 出どころが使わない欄（`transfer` に添えた要素・`elements` に添えた `maneuver`）は `setting.not_applied` の警告。
+/// 日付の読み方・暦の範囲はマヌーバ側の検査（`maneuver.transfer_*`）が見る。
+fn check_orbit_source(s: &mut Scope, o: &OrbitSettings) {
+    use crate::design::OrbitSource;
+    let source = o.source_kind();
+    for key in o.unused_keys() {
+        s.warning(
+            &[key],
+            "setting.not_applied",
+            format!(
+                "`{key}` is not used by an orbit with source = \"{source}\", so it has no effect. Remove it, or change the source"
+            ),
+        );
+    }
+    // `maneuver` が書かれていないのは足りない入力（射影が選べるマヌーバを添えて知らせる）で、検査の誤りにはしない。
+    // 書かれていれば、出どころによらずマヌーバがあること（参照の索引と同じ。消す Op を拒むため）
+    let Some(id) = o.maneuver.as_deref() else {
+        return;
+    };
+    match s.ctx.design.maneuvers.get(id) {
+        None => s.error(
+            &["maneuver"],
+            "ref.maneuver",
+            format!("Maneuver `{id}` is not defined"),
+        ),
+        Some(m) if source == OrbitSource::Transfer && m.transfer.is_none() => s.error(
+            &["maneuver"],
+            "orbit.maneuver_transfer",
+            format!("Maneuver `{id}` has no [transfer] (departure and arrival dates) to take an orbit from"),
+        ),
+        Some(_) => {}
     }
 }
 

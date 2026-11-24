@@ -71,7 +71,14 @@ describe("熱画像の色", () => {
   };
   const q = (si: number) => ({ si, display: "", unit: "K" }) as PartHeat["temperature"];
   const heat: PartHeat[] = [
-    { part: "obc_a", node: "OBC", temperature: q(320), case: "hot", verdict: "warning" },
+    {
+      part: "obc_a",
+      node: "OBC",
+      per_part: false,
+      temperature: q(320),
+      case: "hot",
+      verdict: "warning",
+    },
   ];
   const tr = {
     series: {

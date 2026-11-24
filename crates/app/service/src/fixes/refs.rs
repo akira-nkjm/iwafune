@@ -1,4 +1,4 @@
-//! 別のもの（部品・カタログ品・通信の回線）を指す欄の候補（`Fix::PickRef`）。選べるものはここで設計から絞り、
+//! 別のもの（部品・カタログ品・通信の回線・マヌーバ）を指す欄の候補（`Fix::PickRef`）。選べるものはここで設計から絞り、
 //! 受け取る側（CLI・Web）は並べるだけ。カタログ品の位置づけの綴りと種別の判定は `fune_model::design::launch` のものを使い、
 //! ここに種別の表を持たない。
 
@@ -145,5 +145,36 @@ pub(super) fn comm_downlink(
         choices,
         command,
         add,
+    ))
+}
+
+/// `conditions.orbit.maneuver`: 日付つきの遷移（`[transfer]`）を持つマヌーバから選ぶ候補（巡航の軌道を取るマヌーバ）。
+pub(super) fn orbit_maneuver(
+    design: &Design,
+    site: (&Target, &MissingInput),
+    s: &SettingPath,
+) -> Option<Fix> {
+    if !pattern_matches(SettingScope::Conditions, &["orbit", "maneuver"], s) {
+        return None;
+    }
+    let choices = design
+        .ordered_maneuvers()
+        .into_iter()
+        .filter(|m| m.transfer.is_some())
+        .map(|m| Choice {
+            value: m.id.to_string(),
+            label: m.label.clone().unwrap_or_else(|| m.id.to_string()),
+            label_en: None,
+        })
+        .collect();
+    let command = format!("fune set {} <maneuver>", quote(&site.1.path));
+    let add = "fune maneuver add <ID> --category insertion --method impulsive --body <body> --depart <date> --arrive <date>";
+    Some(pick(
+        (site.0, &site.1.path),
+        RefKind::Maneuver,
+        Scope::default(),
+        choices,
+        command,
+        Some(add.to_owned()),
     ))
 }

@@ -331,3 +331,102 @@ fn renames_refuse_taken_invalid_and_missing_ids() {
         );
     }
 }
+
+/// 軌道の `maneuver`（設計の軌道とフェーズの `[orbit]`）はマヌーバの参照元になる: 名前の変更で両方の `maneuver` が書き換わり、
+/// 戻すと元のバイト列になる。参照されているマヌーバを消す Op は、適用後の検査（`ref.maneuver`）が拒む。
+#[test]
+fn rename_maneuver_rewrites_the_orbit_maneuver_of_the_design_and_of_a_phase() {
+    use fune_model::design::{Maneuver, ManeuverTransfer};
+    use fune_model::value::SettingValue;
+    let mut maneuver: Maneuver = snapshot().design.maneuvers["RAISE"].clone();
+    maneuver.id = "MV_MARS".into();
+    maneuver.after = None;
+    maneuver.thruster = None;
+    maneuver.method = fune_model::design::ManeuverMethod::Impulsive;
+    maneuver.target.altitude = None;
+    maneuver.constraints = Default::default();
+    maneuver.target.body = Some(fune_model::design::CentralBodyKind::Mars);
+    maneuver.target.perigee_altitude = Some(fune_model::value::Quantity::new(300.0, "km"));
+    maneuver.transfer = Some(ManeuverTransfer {
+        departure: Some("2028-12-10T00:00:00Z".to_owned()),
+        arrival: Some("2029-09-25T00:00:00Z".to_owned()),
+        departure_by: None,
+    });
+    let text = |v: &str| Some(SettingValue::Text(v.to_owned()));
+    let snap = applied(
+        &snapshot(),
+        &[
+            Op::SetManeuver { maneuver },
+            Op::SetSetting {
+                path: "conditions.orbit.maneuver".into(),
+                value: text("MV_MARS"),
+            },
+            Op::SetPhase {
+                phase: fune_model::design::Phase {
+                    id: "CRUISE".into(),
+                    ..Default::default()
+                },
+            },
+            Op::SetPhaseField {
+                phase: "CRUISE".into(),
+                path: "orbit.maneuver".into(),
+                value: text("MV_MARS"),
+            },
+        ],
+    );
+    let sites = snap.design.references(Referent::Maneuver("MV_MARS"));
+    assert_eq!(
+        sites,
+        [
+            RefSite::OrbitManeuver,
+            RefSite::PhaseOrbitManeuver {
+                phase: "CRUISE".into()
+            }
+        ]
+    );
+    let renamed = plan(&snap, &[rename_ops("maneuver", "MV_MARS", "MV_X")])
+        .unwrap()
+        .design;
+    assert_eq!(
+        renamed
+            .conditions
+            .orbit
+            .as_ref()
+            .unwrap()
+            .maneuver
+            .as_deref(),
+        Some("MV_X")
+    );
+    assert_eq!(
+        renamed.phases["CRUISE"]
+            .orbit
+            .as_ref()
+            .unwrap()
+            .maneuver
+            .as_deref(),
+        Some("MV_X")
+    );
+    assert!(renamed.references(Referent::Maneuver("MV_MARS")).is_empty());
+    // 名前を戻すと元のバイト列
+    let back = applied(
+        &applied(&snap, &[rename_ops("maneuver", "MV_MARS", "MV_X")]),
+        &[rename_ops("maneuver", "MV_X", "MV_MARS")],
+    );
+    assert!(plan_between(&snap.files, &back.files).is_empty());
+    // 参照されているマヌーバは消せない（`ref.maneuver` が新しい誤りになる）
+    let removed = plan(
+        &snap,
+        &[Op::RemoveManeuver {
+            id: "MV_MARS".into(),
+        }],
+    );
+    match removed {
+        Err(OpError::Rejected { diagnostics }) => {
+            assert!(
+                diagnostics.iter().any(|d| d.code == "ref.maneuver"),
+                "{diagnostics:?}"
+            );
+        }
+        other => panic!("expected a rejection, got {other:?}"),
+    }
+}
