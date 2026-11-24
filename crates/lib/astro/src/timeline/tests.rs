@@ -209,3 +209,75 @@ fn shadow_edges_give_the_analytic_eclipse_duration() {
         exit - entry
     );
 }
+
+/// 回転座標系の軌跡（ラグランジュ点）の幾何: 太陽–地球 L2 は地球の向こう側にあり、太陽・地球は探査機から同じ側
+/// （太陽–探査機–地球の角 SPE ≈ 0°、地球での太陽–地球–探査機の角 SEP ≈ 180°）。L1 は地球と太陽の間で SPE ≈ 180°、SEP ≈ 0°。
+#[test]
+fn sun_earth_libration_points_have_the_hand_derived_angles() {
+    use crate::ephem::CentralBody;
+    use crate::orbit::SynodicSpec;
+    use crate::orbit::cr3bp::LibrationPoint;
+    let epoch = Epoch::parse("2030-01-01T00:00:00Z").expect("epoch");
+    let day = 86_400.0;
+    for (point, sep_deg, spe_deg) in [
+        (LibrationPoint::L2, 180.0, 0.0),
+        (LibrationPoint::L1, 0.0, 180.0),
+    ] {
+        let orbit = Trajectory::Synodic(SynodicSpec::new(
+            epoch,
+            CentralBody::Sun,
+            CentralBody::Earth,
+            point,
+            None,
+        ));
+        let times: Vec<f64> = (0..6).map(|i| f64::from(i) * 60.0 * day).collect();
+        for g in geometry::geometry_at(&orbit, epoch, &times).expect("geometry") {
+            // L1・L2 は地球の近く（γ·d ≈ 0.01 d）なので、太陽の方向の角のずれは 1e-2 rad 以内の幾何誤差でなく定義どおり 0 か 180°
+            assert!(
+                (g.sep_rad.to_degrees() - sep_deg).abs() < 1e-6,
+                "{point:?} sep {}",
+                g.sep_rad.to_degrees()
+            );
+            assert!(
+                (g.spe_rad.to_degrees() - spe_deg).abs() < 1e-3,
+                "{point:?} spe {}",
+                g.spe_rad.to_degrees()
+            );
+        }
+    }
+}
+
+/// 日陰を作る天体: 地球–月系の L1（地球と月の間）は、月食のとき地球の本影に入る。中心天体（月）だけを見ると日照 1 のまま
+/// （地球は影を作る天体として足されている）。2022-11-08 の皆既月食の最大の時刻（約 10:59 UTC。月の暦の精度で本影の中心から 0.5 本影半径以内）。
+#[test]
+fn earth_moon_l1_is_in_the_earth_umbra_during_a_total_lunar_eclipse() {
+    use crate::ephem::CentralBody;
+    use crate::orbit::SynodicSpec;
+    use crate::orbit::cr3bp::LibrationPoint;
+    let epoch = Epoch::parse("2022-11-08T10:59:00Z").expect("epoch");
+    let orbit = Trajectory::Synodic(SynodicSpec::new(
+        epoch,
+        CentralBody::Earth,
+        CentralBody::Moon,
+        LibrationPoint::L1,
+        None,
+    ));
+    assert_eq!(orbit.central(), CentralBody::Moon);
+    let sp = TimelineSpec::new(
+        orbit,
+        AttitudeLaw::SunPointing {
+            axis: Vec3::Z,
+            secondary: Vec3::Y,
+        },
+        Qty::from_raw(0.0),
+        Qty::from_raw(60.0),
+    );
+    let s = &build(&sp).expect("timeline")[0];
+    assert_eq!(s.sunlit, 0.0);
+    // 中心天体（月）だけなら、月の影は月の向こう側に伸びるので、手前の L1 は月の影の外で日照
+    let r_sun = CentralBody::Moon.relative_position_m(Body::Sun, epoch);
+    assert_eq!(
+        central_shadow_factor(CentralBody::Moon, s.r_eci, r_sun, sp.shadow),
+        1.0
+    );
+}

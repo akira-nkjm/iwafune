@@ -220,6 +220,47 @@ fn check_state(s: &mut Scope, o: &OrbitSettings) {
     }
 }
 
+/// ラグランジュ点の軌道（`source = "libration"`）の値の検査。足りない欄は検査の誤りにせず、射影が足りない入力として知らせる。
+/// - 主天体は副天体の親（太陽–惑星、地球–月）でなければならない（暦が持つ組）。
+/// - `amplitude_z` は正の値で、`l1`・`l2` だけ（ハローの 3 次の近似が L1・L2 にしか無い）。`branch` は `amplitude_z` と一緒に書く（無ければ効かない警告）。
+fn check_libration(s: &mut Scope, o: &OrbitSettings) {
+    if let (Some(primary), Some(secondary)) = (o.primary, o.secondary)
+        && secondary.parent() != Some(primary)
+    {
+        s.error(
+            &["secondary"],
+            "orbit.libration_pair",
+            format!(
+                "`{secondary}` does not orbit `{primary}` in the ephemeris. The pair must be a body and the body it orbits (a planet and the sun, or the moon and the earth)"
+            ),
+        );
+    }
+    if let Some(a) = &o.amplitude_z {
+        if !(a.value.is_finite() && a.value > 0.0) {
+            s.error(
+                &["amplitude_z"],
+                "setting.range",
+                "The z-amplitude must be positive".into(),
+            );
+        }
+        use crate::design::LibrationPointKind::{L1, L2};
+        if o.point.is_some_and(|p| !matches!(p, L1 | L2)) {
+            s.error(
+                &["amplitude_z"],
+                "orbit.libration_halo_point",
+                "A halo orbit exists only about l1 and l2. Remove the amplitude, or choose l1 or l2".into(),
+            );
+        }
+    } else if o.branch.is_some() {
+        // 効かないだけなので警告（誤りにすると、振幅を先に消す編集が止まる）
+        s.warning(
+            &["branch"],
+            "orbit.libration_branch",
+            "`branch` chooses a side of a halo orbit, so it has no effect without `amplitude_z`. Write the amplitude, or remove the branch".into(),
+        );
+    }
+}
+
 /// 軌道の出どころ（`source`）の検査: `maneuver` が書かれていればマヌーバがあること、`transfer` ならそのマヌーバが日付つきの `[transfer]` を持つこと、
 /// 出どころが使わない欄（`transfer` に添えた要素・`elements` に添えた `maneuver`）は `setting.not_applied` の警告。
 /// 日付の読み方・暦の範囲はマヌーバ側の検査（`maneuver.transfer_*`）が見る。
@@ -237,6 +278,9 @@ fn check_orbit_source(s: &mut Scope, o: &OrbitSettings) {
     }
     if source == OrbitSource::State {
         check_state(s, o);
+    }
+    if source == OrbitSource::Libration {
+        check_libration(s, o);
     }
     // `maneuver` が書かれていないのは足りない入力（射影が選べるマヌーバを添えて知らせる）で、検査の誤りにはしない。
     // 書かれていれば、出どころによらずマヌーバがあること（参照の索引と同じ。消す Op を拒むため）
