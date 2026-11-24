@@ -3,15 +3,15 @@ import { localized, useT } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { nodeName } from "@/lib/design";
 import { systemTone } from "@/lib/systems";
-import { toneHex } from "@/lib/tone";
+import { toneVar } from "@/lib/tone";
 import { quantityText } from "@/quantity/format";
 
 /** 区間の塗り。系の消費は系の色、充電・余り・不足は電源の色を薄めて区別する（幅は API の fraction） */
 function segmentStyle(s: PowerBudgetSegment) {
-  if (s.kind === "load") return { background: toneHex[systemTone(s.system)] };
-  if (s.kind === "charge") return { background: toneHex.green, opacity: 0.4 };
-  if (s.kind === "shunt") return { background: toneHex.gray, opacity: 0.35 };
-  return { background: toneHex.red, opacity: 0.25 };
+  if (s.kind === "load") return { background: toneVar[systemTone(s.system)] };
+  if (s.kind === "charge") return { background: toneVar.green, opacity: 0.4 };
+  if (s.kind === "shunt") return { background: toneVar.gray, opacity: 0.35 };
+  return { background: toneVar.red, opacity: 0.25 };
 }
 
 /**

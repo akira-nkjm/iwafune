@@ -8,6 +8,7 @@
 //! | `commands` | 部品・定義・モード・ネット・図・設定の Op のコマンド |
 //! | `records` | 取付点・解析ケース・出典・ハーネス・マヌーバの Op のコマンド |
 //! | `phases` | フェーズの Op のコマンド（旗は `fune_service` の `PhaseText` と 1 対 1。軌道と姿勢則は葉ごとの `set-field`）・ケースのフェーズ |
+//! | `configurations` | 形態の Op のコマンド（旗は `fune_service` の `ConfigurationText` と 1 対 1。形態の中の配置は `part place --configuration`） |
 //! | `renames` | 名前の変更・通信の回線・プロジェクト・ローカルのカタログの Op のコマンド |
 //! | `requirements` | 要求の Op のコマンド（旗は `fune_service` の `RequirementText` と 1 対 1） |
 //! | `catalog` | カタログ品の Op のコマンド |
@@ -15,6 +16,7 @@
 
 mod catalog;
 mod commands;
+mod configurations;
 mod defs;
 mod phases;
 mod records;
@@ -31,6 +33,7 @@ pub fn to_cli(op: &Op) -> Vec<String> {
     commands::part_op(op)
         .or_else(|| records::record_op(op))
         .or_else(|| phases::phase_op(op))
+        .or_else(|| configurations::configuration_op(op))
         .or_else(|| renames::rename_op(op))
         .or_else(|| requirements::requirement_op(op))
         .or_else(|| catalog::catalog_op(op))

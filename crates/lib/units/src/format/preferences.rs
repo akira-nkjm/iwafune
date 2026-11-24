@@ -181,6 +181,11 @@ pub(super) const PREFERENCES: &[Preference] = &[
     pref("Volume", "L", &[("mL", 1.0), ("L", 1.0), ("m^3", 1.0)]),
     pref("ThermalConductance", "W/K", &[("mW/K", 1.0), ("W/K", 1.0)]),
     pref("SpecificHeatCapacity", "J/(kg*K)", &[("J/(kg*K)", 1.0)]),
+    pref(
+        "SpecificEnergy",
+        "km^2/s^2",
+        &[("m^2/s^2", 1.0), ("km^2/s^2", 1.0)],
+    ),
     pref("Irradiance", "W/m^2", &[("W/m^2", 1.0)]),
     pref(
         "DataRate",

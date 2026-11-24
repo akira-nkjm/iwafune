@@ -1,6 +1,6 @@
 //! 解析ごとの既定ケースの対象宣言と解決。共通設定の既定ケースを読むのはここだけ。
 
-use fune_model::Design;
+use fune_model::design::{Case, Design, Phase};
 use sat_analysis::aocs::rw_unloading::RwUnloading;
 use sat_analysis::aocs::sensor_fov::SensorFov;
 use sat_analysis::power::energy_balance::EnergyBalance;
@@ -8,6 +8,11 @@ use sat_analysis::power::orbit_generation::OrbitGeneration;
 use sat_analysis::power::sizing::Sizing;
 use sat_analysis::spec::Analysis;
 use sat_analysis::thermal::transient::ThermalTransient;
+
+/// ケースが指すフェーズ。指定が無い・参照が解決しない場合は None。
+pub(crate) fn case_phase<'a>(design: &'a Design, case: Option<&Case>) -> Option<&'a Phase> {
+    design.phases.get(case?.phase.as_ref()?)
+}
 
 /// ケースを選んだ理由。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

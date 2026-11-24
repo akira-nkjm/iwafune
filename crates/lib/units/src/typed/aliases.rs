@@ -98,6 +98,8 @@ pub type __ThermalConductance =
 pub type __SpecificHeatCapacity =
     Dim<Two, Zero, NegativeTwo, Zero, NegativeOne, Zero, Zero, Zero, Zero>;
 #[doc(hidden)]
+pub type __SpecificEnergy = Dim<Two, Zero, NegativeTwo, Zero, Zero, Zero, Zero, Zero, Zero>;
+#[doc(hidden)]
 pub type __Irradiance = Dim<Zero, One, NegativeThree, Zero, Zero, Zero, Zero, Zero, Zero>;
 #[doc(hidden)]
 pub type __DataRate = Dim<Zero, Zero, NegativeOne, Zero, Zero, Zero, Zero, Zero, One>;
@@ -213,6 +215,9 @@ pub type Volume = __Volume;
 pub type ThermalConductance = __ThermalConductance;
 /// Specific-heat-capacity dimension (`L^2 T^-2 K^-1`, for example `J/(kg*K)`).
 pub type SpecificHeatCapacity = __SpecificHeatCapacity;
+/// Specific-energy dimension (`L^2 T^-2`, for example `J/kg` or `km^2/s^2`; the characteristic energy C3 of an interplanetary departure).
+/// [`AbsorbedDose`] (Gy = J/kg) has the same exponents; the name lookup from a dimension gives `SpecificEnergy` (it comes first in the vocabulary).
+pub type SpecificEnergy = __SpecificEnergy;
 /// Irradiance dimension (`M T^-3`, for example `W/m^2`).
 pub type Irradiance = __Irradiance;
 /// Data-rate dimension (`Information T^-1`, for example `bit/s`).

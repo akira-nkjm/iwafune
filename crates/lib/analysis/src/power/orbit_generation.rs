@@ -6,9 +6,10 @@
 use super::solar::{SolarArray, SolarLife, SolarProfile, eclipses};
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Series,
-    SpanFallback, System, longest_window, masked_time_mean, orbit_mean, orbit_ranges,
-    span_fallback, time_fraction,
+    SpanFallback, System, longest_window, masked_time_mean, orbit_mean, orbit_ranges, span_note,
+    time_fraction,
 };
+use sat_astro::orbit::Cycle;
 use sat_astro::timeline::{self, TimelineSpec, Window};
 use sat_units::typed::{Energy, Fraction, Power, Qty, Time};
 use serde::{Deserialize, Serialize};
@@ -94,9 +95,9 @@ impl Analysis for OrbitGeneration {
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         input.array.validate()?;
         let samples = timeline::build(&input.timeline)?;
-        let period_s = input.timeline.orbit().period_s();
+        let cycle = input.timeline.orbit().cycle();
         let profile = SolarProfile::build(&input.array, &samples);
-        Ok(summarize(input, &profile, eclipses(&samples), period_s))
+        Ok(summarize(input, &profile, eclipses(&samples), cycle))
     }
 }
 
@@ -105,10 +106,11 @@ fn summarize(
     input: &OrbitGenerationInput,
     profile: &SolarProfile,
     eclipses: Vec<Window>,
-    period_s: f64,
+    cycle: Cycle,
 ) -> OrbitGenerationOutput {
     let life = input.life();
-    let ranges = orbit_ranges(&profile.t, period_s);
+    let period_s = cycle.length_s();
+    let ranges = orbit_ranges(&profile.t, cycle);
     let gen_life = profile.total(life);
     let flags = &profile.lit;
     let orbit_average = orbit_mean(&profile.t, &gen_life, &ranges);
@@ -138,7 +140,7 @@ fn summarize(
         eclipses,
         panels,
         series: generation_series(input, profile, gen_life),
-        span_fallback: span_fallback(ranges.len(), SpanFallback::OrbitMeanOverSpan),
+        span_fallback: span_note(cycle, ranges.len(), SpanFallback::OrbitMeanOverSpan),
     }
 }
 
@@ -244,7 +246,7 @@ mod tests {
             end: Qty::from_raw(95.0),
             duration: Qty::from_raw(40.0),
         }];
-        let out = summarize(&input(1.0), &p, ecl, 100.0);
+        let out = summarize(&input(1.0), &p, ecl, Cycle::Periodic { period_s: 100.0 });
         assert_eq!(out.complete_orbits, 2);
         // 1 周 10 サンプルのうち 6 サンプルが日照 → 408.3 × 0.6 = 244.98 W
         assert!((out.orbit_average.value() - 244.98).abs() < 1e-9);
@@ -294,7 +296,14 @@ mod tests {
         let mut i = input(1.0);
         i.timeline.sampling.beta = Some(Qty::from_raw(0.0));
         let out = OrbitGeneration::run(&i).unwrap();
-        let r = i.timeline.orbit().elements.semi_major_axis.value();
+        let r = i
+            .timeline
+            .orbit()
+            .elements()
+            .expect("elements")
+            .elements
+            .semi_major_axis
+            .value();
         let expect = (R_EARTH / r).asin() / std::f64::consts::PI * out.period.value();
         let got = out.max_eclipse_duration.value();
         assert!((got - expect).abs() < 0.01 * expect, "{got} vs {expect}");

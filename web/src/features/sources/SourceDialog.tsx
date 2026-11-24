@@ -6,7 +6,6 @@ import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
 import { OpDialog } from "@/ops/OpDialog";
-import { useOpCheck } from "@/ops/use-op-check";
 import { draftOf, type SourceDraft, setSourceOp, type TextField } from "./sources";
 
 /** 欄の並び（ファイルの書き順と同じ）と、等幅で出すか・補足 */
@@ -43,7 +42,6 @@ export function SourceDialog({
     const op = setSourceOp(draft);
     return op ? [op] : null;
   })();
-  const error = useOpCheck(open ? ops : null).error;
   const set = (patch: Partial<SourceDraft>) => setDraft((d) => ({ ...d, ...patch }));
   return (
     <OpDialog
@@ -94,7 +92,6 @@ export function SourceDialog({
           </Field>
         ))}
       </div>
-      {error && <p className="text-[11px] text-neg-ink">{error}</p>}
     </OpDialog>
   );
 }

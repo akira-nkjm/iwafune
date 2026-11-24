@@ -100,3 +100,117 @@ describe("dims（次元）の引き当て", () => {
     expect(dimOf(undefined, ["period"])).toBeNull();
   });
 });
+
+describe("部品の干渉（structure.interference）の出力の形", () => {
+  const interference = {
+    tolerance: 0.0001,
+    parts_judged: 3,
+    pairs_judged: 3,
+    pairs_in_mount_chain: 0,
+    overlaps: [
+      { first: "A", second: "B", depth: 0.04, separation_axis: { x: 0, y: 0, z: -1 } },
+      { first: "A", second: "C", depth: 0.001, separation_axis: { x: 1, y: 0, z: 0 } },
+    ],
+    min_clearance: null,
+    skipped: [{ id: "HTR", reason: "no_size" }],
+    repeated: [],
+    checks: [{ key: "overlap:A:B", label: "Boxes", verdict: "warning", message: "" }],
+  };
+
+  it("重なっている組と判定しなかった部品は表になり、深さは次元つきの数、向きは 1 つのセルになる", () => {
+    const tables = collectTables(interference);
+    expect(tables.map((t) => t.key)).toEqual(["overlaps", "skipped"]);
+    expect(tableColumns(tables[0]?.rows ?? [])).toEqual([
+      "first",
+      "second",
+      "depth",
+      "separation_axis",
+    ]);
+    expect(collectScalars(interference).map((s) => s.key)).toEqual([
+      "tolerance",
+      "parts_judged",
+      "pairs_judged",
+      "pairs_in_mount_chain",
+      "min_clearance",
+    ]);
+  });
+});
+
+describe("噴流・視野の遮り（structure.cone_clearance）の出力の形", () => {
+  const cone = {
+    range: 0.6,
+    range_is_default: true,
+    parts_with_box: 36,
+    cones_judged: 1,
+    cones_obstructed: 1,
+    cones: [
+      {
+        id: "STT",
+        kind: "field_of_view",
+        half_angle: 0.17,
+        cone_axis: { x: 0, y: -1, z: 0 },
+        apex: { x: 0, y: -0.11, z: -0.03 },
+        range: 0.6,
+        parts_judged: 33,
+        parts_in_mount_chain: 2,
+        obstructions: [{ part: "SP_MY", min_angle: 0, min_distance: 0.0007 }],
+      },
+    ],
+    skipped_carriers: [{ id: "EPT", kind: "plume", reason: "no_half_angle" }],
+    skipped: [],
+    checks: [{ key: "obstruction:STT:SP_MY", label: "x", verdict: "warning", message: "" }],
+  };
+
+  it("円錐と判定しなかった持ち主は表になり、数は単独の値になる", () => {
+    const tables = collectTables(cone);
+    expect(tables.map((t) => t.key)).toEqual(["cones", "skipped_carriers"]);
+    expect(collectScalars(cone).map((s) => s.key)).toEqual([
+      "range",
+      "range_is_default",
+      "parts_with_box",
+      "cones_judged",
+      "cones_obstructed",
+    ]);
+  });
+});
+
+describe("外形の面積（structure.external_geometry）の出力の形", () => {
+  const geometry = {
+    parts_with_box: 36,
+    projected: [
+      { along: "x", area: 0.167, centre: { x: 0, y: 0.11, z: 0 } },
+      { along: "y", area: 0.039, centre: { x: 0, y: 0, z: 0.001 } },
+      { along: "z", area: 0.025, centre: { x: 0, y: 0.004, z: 0 } },
+    ],
+    mean_projected_area: 0.108,
+    min_projected: { area: 0.025, direction: { x: 0, y: 0, z: 1 } },
+    max_projected: { area: 0.172, direction: { x: 0.97, y: -0.16, z: 0.18 } },
+    directions_measured: 387,
+    exposed_area: 0.91,
+    exposed_by_direction: [{ face: "neg_x", area: 0.39 }],
+    exposed_by_part: [{ id: "PANEL_MX", area: 0.08 }],
+    internal_parts: [{ id: "BAT", inside: "BUS_FRAME" }],
+    skipped: [],
+    repeated: [],
+    checks: [{ key: "external_geometry", label: "x", verdict: "ok", message: "" }],
+  };
+
+  it("軸ごとの投影・面の向き別・部品別・内部の部品は表になり、数と最小・最大は単独の値になる", () => {
+    expect(collectTables(geometry).map((t) => t.key)).toEqual([
+      "projected",
+      "exposed_by_direction",
+      "exposed_by_part",
+      "internal_parts",
+    ]);
+    expect(collectScalars(geometry).map((s) => s.path)).toEqual([
+      "parts_with_box",
+      "mean_projected_area",
+      "min_projected.area",
+      "min_projected.direction",
+      "max_projected.area",
+      "max_projected.direction",
+      "directions_measured",
+      "exposed_area",
+    ]);
+  });
+});

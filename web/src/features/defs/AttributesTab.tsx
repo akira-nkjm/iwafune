@@ -16,7 +16,6 @@ import { Th } from "@/kit/table/Th";
 import { defName } from "@/lib/design";
 
 import { OpDialog } from "@/ops/OpDialog";
-import { useOpCheck } from "@/ops/use-op-check";
 import { Button } from "@/ui/button";
 import { RenameDefinition } from "./RenameDefinition";
 
@@ -34,7 +33,7 @@ export function AttributesTab({ design }: { design: DesignView }) {
   const attrs = design.defs.attributes;
   const made = useCommandOps(adding ? attrAddCommand(fresh) : null);
   const ops = made.ops;
-  const idError = useOpCheck(adding ? ops : null).error ?? made.error;
+  const idError = made.error;
   return (
     <TablePanel
       title={ta.title}

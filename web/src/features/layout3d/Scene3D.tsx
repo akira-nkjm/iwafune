@@ -1,20 +1,16 @@
-import {
-  Bounds,
-  Edges,
-  GizmoHelper,
-  GizmoViewport,
-  Grid,
-  OrbitControls,
-  TransformControls,
-  useBounds,
-} from "@react-three/drei";
+import { Bounds, Edges, GizmoHelper, Grid, TransformControls } from "@react-three/drei";
 import { Canvas, useThree } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Material, Mesh } from "three";
-import { ArrowHelper, Color, DoubleSide, MOUSE, Quaternion, Vector3 } from "three";
-import { palette, toneHex, uiHex } from "@/lib/tone";
+import { ArrowHelper, Color, DoubleSide, Quaternion, Vector3 } from "three";
+import { useT } from "@/i18n";
+import { useHex } from "@/lib/theme";
+import { paletteFor, type Scheme, toneHexFor, uiHexFor } from "@/lib/tone";
+import { CameraMover, type ViewRequest } from "./CameraMover";
+import { FreeOrbit } from "./FreeOrbit";
 import {
   type Axis3D,
+  axisColor,
   type Box3D,
   boxMaterial,
   FOV_OPACITY,
@@ -25,20 +21,10 @@ import {
   type sceneDimensions,
   type V3,
 } from "./scene";
+import { ViewCube } from "./ViewCube";
 import { ViewInput3D, type ZoomRequest } from "./ViewInput3D";
+import type { CubeView } from "./view-cube";
 import { DEFAULT_SCENE_HELPERS, type FocusRequest, type SceneHelpers } from "./visibility";
-
-/** 方向の属性の矢印の色（`Axis3D.order` 番目。属性の ID は見ない。足りなければ繰り返す） */
-const AXIS_PALETTE = [
-  toneHex.teal,
-  toneHex.red,
-  toneHex.navy,
-  toneHex.gold,
-  toneHex.blue,
-  toneHex.violet,
-  toneHex.green,
-  toneHex.orange,
-] as const;
 
 /** 押してから離すまでにこれより動いたらドラッグ（視点の操作）とみなし、クリックにしない [px] */
 const CLICK_SLOP_PX = 4;
@@ -99,7 +85,16 @@ export function Scene3D({
   /** ボタンからの拡大・縮小の依頼（`ViewInput3D`）。無ければ依頼なし */
   zoom?: ZoomRequest | null;
 }) {
+  const { scheme, tone, ui } = useHex();
   const [target, setTarget] = useState<Mesh | null>(null);
+  const L = useT().systems.layout3d;
+  // ビューキューブの区画を押した依頼（押すたびに n が増える。動かすのは CameraMover）
+  const [view, setView] = useState<ViewRequest | null>(null);
+  const pickView = useCallback(
+    (v: CubeView) => setView((prev) => ({ n: (prev?.n ?? 0) + 1, view: v })),
+    [],
+  );
+  const cubeLabel = useCallback((name: string) => L.viewCubeFace(name), [L]);
   // 押したときの画面の位置（離したときに動いていればドラッグ）
   const pressed = useRef<{ x: number; y: number } | null>(null);
   const dragged = (e: MouseEvent) =>
@@ -138,18 +133,19 @@ export function Scene3D({
           args={[dimensions.grid, dimensions.grid]}
           cellSize={dimensions.gridCell}
           sectionSize={dimensions.gridSection}
-          cellColor={uiHex.tick}
-          sectionColor={toneHex.gray}
+          cellColor={ui.tick}
+          sectionColor={tone.gray}
           fadeDistance={dimensions.gridFade}
           infiniteGrid
         />
       )}
       {helpers.origin && <axesHelper args={[dimensions.axes]} />}
       <Bounds fit clip margin={1.3}>
-        <FocusOn focus={focus} />
-        <HomeView
+        <CameraMover
           home={home}
           position={[dimensions.cameraX, dimensions.cameraY, dimensions.cameraZ]}
+          focus={focus}
+          view={view}
         />
         {boxes.map((b) => (
           <mesh
@@ -186,7 +182,7 @@ export function Scene3D({
               )}
             />
             <Edges
-              color={b.id === selected ? uiHex.ink : dimmed(b.id) ? uiHex.tick : uiHex.ink3}
+              color={b.id === selected ? ui.ink : dimmed(b.id) ? ui.tick : ui.ink3}
               lineWidth={b.id === selected ? 2 : 1}
             />
             {axes
@@ -199,7 +195,7 @@ export function Scene3D({
                       new Vector3(...a.dir),
                       new Vector3(),
                       dimensions.arrow,
-                      new Color(AXIS_PALETTE[a.order % AXIS_PALETTE.length]),
+                      new Color(axisColor(scheme, a.order)),
                       dimensions.arrowHead,
                       dimensions.arrowWidth,
                     )
@@ -223,9 +219,9 @@ export function Scene3D({
             </group>
           ) : null;
         })}
-      {sun && <SunArrowMark sun={sun} dimensions={dimensions} />}
-      {com && <CenterOfMass position={com} radius={dimensions.comRadius} />}
-      {edit && target && selected && !boxes.find((b) => b.id === selected)?.fixed && (
+      {sun && <SunArrowMark sun={sun} dimensions={dimensions} scheme={scheme} />}
+      {com && <CenterOfMass position={com} radius={dimensions.comRadius} scheme={scheme} />}
+      {edit && target && selected && (
         <TransformControls
           object={target}
           mode={edit.mode}
@@ -246,60 +242,17 @@ export function Scene3D({
           }}
         />
       )}
-      {/* makeDefault: TransformControls を掴んでいる間は drei がカメラ操作を止める */}
-      {/* 左ドラッグ = 回転、中・右ドラッグと Shift + 左ドラッグ = 移動。ホイールは ViewInput3D が読む（OrbitControls の拡大は止める） */}
-      <OrbitControls
-        makeDefault
-        mouseButtons={{ LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.PAN, RIGHT: MOUSE.PAN }}
-      />
+      {/* 視点の操作を controls に入れる: TransformControls を掴んでいる間は drei がその操作を止める */}
+      {/* 左ドラッグ = どの軸まわりにも回す、中・右ドラッグと Shift + 左ドラッグ = 移動。ホイールは ViewInput3D が読む */}
+      <FreeOrbit />
       <ViewInput3D request={zoom} />
       {helpers.gizmo && (
         <GizmoHelper alignment="bottom-right" margin={[64, 64]}>
-          <GizmoViewport labelColor={palette.inverse} axisHeadScale={0.9} />
+          <ViewCube scheme={scheme} onPick={pickView} label={cubeLabel} />
         </GizmoHelper>
       )}
     </Canvas>
   );
-}
-
-/** 依頼された部品（mesh の name は部品の ID）の外形に視点を寄せる。向きは今のまま、距離と注視点だけを変える */
-function FocusOn({ focus }: { focus: FocusRequest | null }) {
-  const bounds = useBounds();
-  const scene = useThree((state) => state.scene);
-  const invalidate = useThree((state) => state.invalidate);
-  // 同じ依頼を 2 回寄せない（カメラ操作の付け替えで bounds が作り直されても、視点を戻さない）
-  const done = useRef<FocusRequest | null>(null);
-  useEffect(() => {
-    if (!focus || !bounds || done.current === focus) return;
-    done.current = focus;
-    const target = scene.getObjectByName(focus.id);
-    if (!target) return;
-    bounds.refresh(target).fit();
-    // frameloop="demand" では、動かし始めを描き直しの依頼で起こす
-    invalidate();
-  }, [focus, bounds, scene, invalidate]);
-  return null;
-}
-
-/**
- * ホームポジション: 今の視点から、初めの向き（`position` から原点を見る向き）で表示中の部品の全体が収まる位置へ、
- * 約 1 秒かけて滑らかに動かす（位置は補間、向きは球面補間。`Bounds` が終わりに OrbitControls の注視点も全体の中心へ合わせる）。
- */
-function HomeView({ home, position }: { home: number; position: V3 }) {
-  const bounds = useBounds();
-  const invalidate = useThree((state) => state.invalidate);
-  const done = useRef(home);
-  const [x, y, z] = position;
-  useEffect(() => {
-    if (!bounds || done.current === home) return;
-    done.current = home;
-    const { center, distance } = bounds.refresh().clip().getSize();
-    const direction = new Vector3(x, y, z).normalize();
-    const goal = center.clone().addScaledVector(direction, distance);
-    bounds.moveTo(goal).lookAt({ target: center, up: [0, 0, 1] });
-    invalidate();
-  }, [home, bounds, invalidate, x, y, z]);
-  return null;
 }
 
 /** 日陰のときの太陽の矢印の不透明度（消さずに薄く描き、向きは読めるようにする） */
@@ -313,25 +266,21 @@ const SUN_ECLIPSE_OPACITY = 0.25;
 function SunArrowMark({
   sun,
   dimensions,
+  scheme,
 }: {
   sun: SunArrow;
   dimensions: ReturnType<typeof sceneDimensions>;
+  scheme: Scheme;
 }) {
+  const tone = toneHexFor(scheme);
   const invalidate = useThree((state) => state.invalidate);
   const { sunArrow: length, arrowHead: head, arrowWidth: width } = dimensions;
   const arrow = useMemo(() => {
-    const a = new ArrowHelper(
-      new Vector3(0, 0, 1),
-      new Vector3(),
-      length,
-      toneHex.gold,
-      head,
-      width,
-    );
+    const a = new ArrowHelper(new Vector3(0, 0, 1), new Vector3(), length, tone.gold, head, width);
     a.line.raycast = () => null;
     a.cone.raycast = () => null;
     return a;
-  }, [length, head, width]);
+  }, [length, head, width, tone.gold]);
   useEffect(() => () => arrow.dispose(), [arrow]);
   const [x, y, z] = sun.dir;
   const { eclipse } = sun;
@@ -339,14 +288,14 @@ function SunArrowMark({
     const dir = new Vector3(x, y, z);
     if (dir.lengthSq() === 0) return;
     arrow.setDirection(dir.normalize());
-    arrow.setColor(eclipse ? toneHex.gray : toneHex.gold);
+    arrow.setColor(eclipse ? tone.gray : tone.gold);
     for (const m of [arrow.line.material as Material, arrow.cone.material as Material]) {
       m.transparent = eclipse;
       m.opacity = eclipse ? SUN_ECLIPSE_OPACITY : 1;
     }
     // frameloop="demand" では、向きの更新を描き直しの依頼で反映する
     invalidate();
-  }, [arrow, x, y, z, eclipse, invalidate]);
+  }, [arrow, x, y, z, eclipse, tone.gray, tone.gold, invalidate]);
   return <primitive object={arrow} />;
 }
 
@@ -358,7 +307,16 @@ const COM_OCTANTS = [0, 1, 2, 3].flatMap((i) =>
 /**
  * 重心の記号（CAD の重心マーク）: 球を 8 つに分けて白と黒を互い違いに塗る。部品に隠れても見えるよう奥行きの判定をしない。
  */
-function CenterOfMass({ position, radius }: { position: V3; radius: number }) {
+function CenterOfMass({
+  position,
+  radius,
+  scheme,
+}: {
+  position: V3;
+  radius: number;
+  scheme: Scheme;
+}) {
+  const ui = uiHexFor(scheme);
   return (
     // 球の極（three の球は Y 軸）を機体の +Z に向け、白黒の境目の 1 本を水平にする
     <group position={position} rotation={[Math.PI / 2, 0, 0]}>
@@ -367,7 +325,7 @@ function CenterOfMass({ position, radius }: { position: V3; radius: number }) {
           <sphereGeometry
             args={[radius, 12, 8, (i * Math.PI) / 2, Math.PI / 2, (j * Math.PI) / 2, Math.PI / 2]}
           />
-          <meshBasicMaterial color={dark ? uiHex.ink : palette.inverse} depthTest={false} />
+          <meshBasicMaterial color={dark ? ui.ink : paletteFor(scheme).inverse} depthTest={false} />
         </mesh>
       ))}
     </group>

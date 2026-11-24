@@ -24,6 +24,7 @@ pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
     };
     let req = RunAnalysisRequest {
         case: a.case.clone(),
+        configuration: a.configuration.clone(),
         source,
         ops,
     };
@@ -73,6 +74,7 @@ pub(super) fn print_missing(missing: &[MissingInput], out: &Out) {
         t.row(vec![C::Strong(m.path.clone()), C::Text(m.reason.clone())]);
     }
     t.print();
+    super::fix_hints::print_fixes(missing, out);
 }
 
 /// KPI（代表値・判定。選び方は service の `analysis::kpi`）を表にする。判定を数える KPI は数を出す。

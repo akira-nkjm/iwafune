@@ -2,9 +2,10 @@ import { Eye, EyeOff, Focus, Scan } from "lucide-react";
 import type { DesignView, PartRow } from "@/api/types";
 import { PartsTree } from "@/features/components/list/PartsTree";
 import { useT } from "@/i18n";
+import { Pill } from "@/kit/status/Pill";
 import { type TreeNode, treeItems } from "@/kit/tree/tree-nodes";
 import { cn } from "@/lib/cn";
-import { nodeLabel } from "@/lib/design";
+import { nodeLabel, poseOverridden } from "@/lib/design";
 import { isIsolated, isolate, toggleHidden, type Visibility, visibilityOf } from "./visibility";
 
 /**
@@ -13,6 +14,7 @@ import { isIsolated, isolate, toggleHidden, type Visibility, visibilityOf } from
  */
 export function LayoutBrowser({
   design,
+  configuration,
   placed,
   selected,
   onSelect,
@@ -20,6 +22,8 @@ export function LayoutBrowser({
   onHidden,
 }: {
   design: DesignView;
+  /** 表示中の形態（無ければ基準） */
+  configuration?: string | null;
   /** 3D に箱がある部品（取付のある部品）の ID */
   placed: ReadonlySet<string>;
   selected: string | null;
@@ -28,7 +32,8 @@ export function LayoutBrowser({
   hidden: ReadonlySet<string>;
   onHidden: (hidden: Set<string>) => void;
 }) {
-  const L = useT().systems.layout3d;
+  const t = useT();
+  const L = t.systems.layout3d;
   const folderLabel = (id: string) => nodeLabel(design, id);
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -56,6 +61,11 @@ export function LayoutBrowser({
             const label = node.item ? node.label : folderLabel(node.label);
             return (
               <span className="flex items-center">
+                {node.item && poseOverridden(design, configuration, node.item) && (
+                  <Pill tone="accent" dot={false}>
+                    {t.components.placement.overridden}
+                  </Pill>
+                )}
                 <IsolateToggle
                   node={node}
                   label={label}

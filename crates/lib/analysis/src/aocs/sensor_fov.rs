@@ -153,7 +153,7 @@ impl Analysis for SensorFov {
             validate(s)?;
         }
         let samples = timeline::build(&input.timeline)?;
-        let central = input.timeline.orbit().central;
+        let central = input.timeline.orbit().central();
         let geometry: Vec<Geometry> = samples.iter().map(|s| Geometry::at(central, s)).collect();
         let t: Vec<f64> = samples.iter().map(|s| s.t_s).collect();
         let mut series = Series {
@@ -293,7 +293,7 @@ fn evaluate_sensor(
 }
 
 fn verdict(s: &SensorFovSensor, r: &SensorFovResult) -> Check {
-    let key = format!("intrusion:{}", s.id);
+    let key = sat_checkkey::sensor_intrusion(&s.id);
     let label = format!("{} exclusion angle", s.id);
     let pct = quantity_text::<Fraction>(r.intrusion_fraction.value());
     let (v, msg) = match s.max_intrusion_fraction {

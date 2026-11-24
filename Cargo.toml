@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/lib/*", "crates/app/*", "crates/xtask"]
 
 [workspace.package]
-version = "0.7.0"
+version = "0.8.0"
 edition = "2024"
 rust-version = "1.100"
 publish = false
@@ -23,6 +23,7 @@ mod_module_files = "deny"
 # 内部 crate
 sat-units = { path = "crates/lib/units" }
 sat-astro = { path = "crates/lib/astro" }
+sat-checkkey = { path = "crates/lib/checkkey" }
 sat-analysis = { path = "crates/lib/analysis" }
 fune-model = { path = "crates/app/model" }
 fune-store = { path = "crates/app/store" }

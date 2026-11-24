@@ -249,7 +249,7 @@ fn field_stats(field: &UnloadTimeField) -> Result<(FieldStats, Option<f64>), Ana
         }
         UnloadTimeField::Orbit { sampling } => {
             // 磁場は位置だけで決まるので、姿勢則の要らない軌道の標本で求める（β の指定は RAAN に当てる）
-            let central = sampling.orbit.central;
+            let central = sampling.orbit.central();
             if MtqFieldReason::of(central).is_some() {
                 // `run` が先に外すので通らない（磁場を 0 として計算しないための守り）
                 return Err(AnalysisError::InvalidInput(format!(
@@ -270,7 +270,7 @@ fn field_stats(field: &UnloadTimeField) -> Result<(FieldStats, Option<f64>), Ana
             let mean = time_mean(&t, &b);
             let min = b.iter().copied().fold(f64::INFINITY, f64::min);
             let max = b.iter().copied().fold(0.0, f64::max);
-            Ok(((mean, min, max), Some(sampling.orbit.period_s())))
+            Ok(((mean, min, max), Some(sampling.orbit.cycle().length_s())))
         }
     }
 }

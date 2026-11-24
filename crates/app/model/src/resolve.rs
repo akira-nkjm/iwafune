@@ -22,6 +22,19 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 pub struct Resolved {
     pub parts: BTreeMap<Id<crate::design::Part>, ResolvedPart>,
+    /// 形態 ID → その形態で解決した設計（基準の `parts` と、姿勢を上書きした部品の取付だけが違う）。入れ子はここで終わる
+    /// （形態の中の `configurations` は空）。API には出さない。引くのは [`Resolved::in_configuration`] だけ
+    #[serde(skip)]
+    #[ts(skip)]
+    pub configurations: BTreeMap<String, Resolved>,
+}
+
+impl Resolved {
+    /// 形態 `id` で解決した設計。`None` と、無い形態の ID は基準（自分）。**形態の選び方の既定（無い ID は基準）はここだけ。**
+    pub fn in_configuration(&self, id: Option<&str>) -> &Resolved {
+        id.and_then(|id| self.configurations.get(id))
+            .unwrap_or(self)
+    }
 }
 
 /// 解決済みの部品。
@@ -46,6 +59,11 @@ pub struct ResolvedPart {
     /// 属性 ID → 値。種別の必須・任意の属性は書かれていなくても Unset で入る
     pub attr: BTreeMap<String, ResolvedValue>,
     pub mount: Option<ResolvedMount>,
+    /// 取付を持たない部品（根）の `[pose]`（機体座標での位置・姿勢。書かれていなければ None で、原点・恒等と同じ）。
+    /// 取付のある部品は None（その姿勢は `mount.pose`）。形態の上書きも反映する
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub root_pose: Option<PoseSi>,
     pub ports: BTreeMap<String, ResolvedPort>,
     /// 属性の根拠の最弱値
     pub evidence: Evidence,
@@ -134,6 +152,11 @@ pub enum SiValue {
     Range {
         min: f64,
         max: f64,
+    },
+    /// 1 変数の関数（SI。引数と値は同じ長さで、引数は増える順）
+    Curve {
+        at: Vec<f64>,
+        values: Vec<f64>,
     },
     Table(String),
 }
@@ -235,17 +258,28 @@ impl ResolvedPart {
 }
 
 impl Resolved {
-    /// 機体（取付の根）から部品までの相対姿勢の列。
+    /// 機体座標から部品までの相対姿勢の列。
     /// `body_T_part = chain[0] ∘ chain[1] ∘ …` の順に合成すると機体座標での部品の姿勢になる。
-    /// 各取付は (取付点の姿勢, 取付点に対する姿勢) の 2 つを積む。循環していれば途中で止める。
+    /// 先頭は取付の根の `[pose]`（機体座標での根の姿勢。書かれていなければ積まない）、続いて各取付が
+    /// (取付点の姿勢, 取付点に対する姿勢) の 2 つを積む。循環していれば途中で止める。**機体座標の連鎖の起点はここだけ**。
     pub fn pose_chain(&self, part: &str) -> Vec<PoseSi> {
-        let mut reversed: Vec<PoseSi> = self
-            .mount_chain(part)
-            .filter_map(|p| p.mount.as_ref())
-            .flat_map(|mount| [mount.pose, mount.point_pose])
-            .collect();
-        reversed.reverse();
-        reversed
+        let mut parts = self.mount_chain(part);
+        let mut steps = Vec::new();
+        let mut last = None;
+        for p in parts.by_ref() {
+            if let Some(mount) = &p.mount {
+                steps.extend([mount.pose, mount.point_pose]);
+            }
+            last = Some(p);
+        }
+        // 取付先が無い部品は根（`root_pose` は取付のある部品では None）。循環の途中で止まったときは根に着いていない
+        if !parts.cycled()
+            && let Some(pose) = last.and_then(|p| p.root_pose)
+        {
+            steps.push(pose);
+        }
+        steps.reverse();
+        steps
     }
 
     /// 取付の根（取付先を持たない部品）までたどった ID（循環か、取付先の部品が無ければ None）。
@@ -253,6 +287,14 @@ impl Resolved {
         let mut parts = self.mount_chain(part);
         let last = parts.by_ref().last()?;
         (!parts.cycled() && last.mount.is_none()).then_some(last.id.as_str())
+    }
+
+    /// 部品の取付先をたどった ID（近いほうから。自分は含まない。循環か、取付先の部品が無いところで止まる）。
+    pub fn mount_ancestors(&self, part: &str) -> Vec<&str> {
+        self.mount_chain(part)
+            .skip(1)
+            .map(|p| p.id.as_str())
+            .collect()
     }
 
     /// 取付の根か（取付先を持たず、ほかの部品の取付の連鎖がここで終わる）。

@@ -276,7 +276,7 @@ fn sweep(
         duration,
     };
     let base_run = BaseRun::new(ctx, &w);
-    let selection = select_starts(t, &ctx.profile.lit, ctx.period_s, duration, timing);
+    let selection = select_starts(t, &ctx.profile.lit, ctx.period_s(), duration, timing);
     let starts = selection.starts;
     let mut worst: Option<(usize, Run)> = None;
     let mut best_dod = f64::INFINITY;
@@ -330,8 +330,8 @@ fn summarize(
         .chain(&r.trace.energy)
         .map(|e| e / capacity)
         .collect();
-    let phase = if ctx.period_s > 0.0 {
-        (t[k] - t[0]).rem_euclid(ctx.period_s)
+    let phase = if ctx.period_s() > 0.0 {
+        (t[k] - t[0]).rem_euclid(ctx.period_s())
     } else {
         0.0
     };
@@ -365,7 +365,7 @@ fn summarize(
 /// 1 周は窓の立ち上がりの刻み（`r.from`）から測る。終わりが刻みの途中なら、最後の刻みの増分を時間の割合で按分する。
 fn orbit_after(ctx: &Context, w: &Window, k: usize, r: &Run) -> (f64, Option<f64>) {
     let t = &ctx.profile.t;
-    let (from, period) = (r.from, ctx.period_s);
+    let (from, period) = (r.from, ctx.period_s());
     let tol = 1e-9 * period.abs().max(1.0);
     let end = (from + 1..t.len()).find(|&j| t[j] - t[from] >= period - tol);
     let last = end.unwrap_or(t.len() - 1);

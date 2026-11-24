@@ -82,6 +82,21 @@ pub(in crate::single_home) const RULES: &[Rule] = &[
         &["crates/lib/astro/src/math"],
         "the linear system solver",
     ),
+    (
+        "struct Skyline",
+        &["crates/lib/astro/src/math/skyline.rs"],
+        "the sparse symmetric (skyline) solver",
+    ),
+    (
+        "fn generalized_symmetric_eigen",
+        &["crates/lib/astro/src/math/sym_eigen.rs"],
+        "the dense symmetric eigensolver",
+    ),
+    (
+        "fn lowest_modes",
+        &["crates/lib/astro/src/math/subspace.rs"],
+        "the generalized eigenproblem (modal) solver",
+    ),
     // 天体・軌道・環境の計算
     (
         "fn earth_shadow_factor",
@@ -162,6 +177,31 @@ pub(in crate::single_home) const RULES: &[Rule] = &[
         "fn lambert(",
         &["crates/lib/astro/src/transfer.rs"],
         "transfer formulas",
+    ),
+    (
+        "fn hyperbolic_periapsis_dv_m_s(",
+        &["crates/lib/astro/src/transfer/patched.rs"],
+        "the delta-v of a hyperbolic periapsis burn",
+    ),
+    (
+        "fn dated_transfer(",
+        &["crates/lib/astro/src/transfer/dated.rs"],
+        "dated interplanetary transfers",
+    ),
+    (
+        "fn lambert_about_normal(",
+        &["crates/lib/astro/src/transfer/lambert.rs"],
+        "transfer formulas",
+    ),
+    (
+        "fn soi_radius_m(",
+        &["crates/lib/astro/src/ephem/central.rs"],
+        "the sphere-of-influence radius",
+    ),
+    (
+        "fn state_about_parent(",
+        &["crates/lib/astro/src/ephem/central.rs"],
+        "the state of a body about its parent",
     ),
     (
         "fn body_view_factor(",
@@ -263,6 +303,32 @@ pub(in crate::single_home) const RULES: &[Rule] = &[
         "fn bisect(",
         &["crates/lib/astro/src/math/roots.rs"],
         "root finding by bisection",
+    ),
+    // 平面の凸多角形の和集合・求積則・箱の外形（#388）
+    (
+        "fn union_measure(",
+        &["crates/lib/astro/src/math/planar.rs"],
+        "the planar union of convex polygons",
+    ),
+    (
+        "fn gauss_legendre(",
+        &["crates/lib/astro/src/math/quadrature.rs"],
+        "Gauss-Legendre quadrature nodes",
+    ),
+    (
+        "struct DirectionSet",
+        &["crates/lib/analysis/src/structure/external_geometry/directions.rs"],
+        "the direction set of the mean projected area",
+    ),
+    (
+        "fn silhouette(",
+        &["crates/lib/analysis/src/structure/interference/obb/shape.rs"],
+        "the silhouette of an oriented box",
+    ),
+    (
+        "fn mean_projected_area(",
+        &["crates/lib/analysis/src/structure/external_geometry/geometry.rs"],
+        "the mean projected area of the part boxes",
     ),
     // 余裕の判定と余裕率
     (

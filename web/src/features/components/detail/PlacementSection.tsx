@@ -1,11 +1,17 @@
+import { useQueries } from "@tanstack/react-query";
 import { useState } from "react";
 import { useApplyOps, useCommandOps } from "@/api/ops";
+import { q } from "@/api/queries";
 import type { CommandText, DesignView, PartRow, PoseQuantities } from "@/api/types";
 import { useT } from "@/i18n";
 import { PropertyList } from "@/kit/detail/PropertyList";
+import { SkeletonBlock } from "@/kit/feedback/Loading";
+import { QueryState } from "@/kit/feedback/QueryState";
 import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
+import { Pill } from "@/kit/status/Pill";
+import { poseOverridden } from "@/lib/design";
 import {
   AXES,
   numbersInputText,
@@ -16,7 +22,7 @@ import {
 import { Button } from "@/ui/button";
 
 /** 配置の欄に打った文字列（角度は X・Y・Z の 3 つの欄。度） */
-interface PlacementForm {
+export interface PlacementForm {
   on: string;
   point: string;
   position: string;
@@ -26,14 +32,16 @@ interface PlacementForm {
 type Placement = ReturnType<typeof useT>["components"]["placement"];
 
 /** 欄の初期値: 位置は書かれたものだけを書かれた単位で、角度は API の取付点に対する姿勢の角度（度）で */
-function initialForm(part: PartRow): PlacementForm {
+export function initialForm(part: PartRow): PlacementForm {
   const m = part.mount;
-  const r = m?.relative.rotation;
+  // 取付の無い部品（根）の `[pose]` は機体座標での姿勢。書かれた値と角度は API の body から読む
+  const r = m ? m.relative.rotation : part.body?.quantities.rotation;
+  const authored = m ? m.authored_position : part.body?.authored_position;
   return {
     on: m?.on ?? "",
     point: m?.point ?? "",
     // 書かれていなければ空（空の欄は CLI で旗を書かないのと同じで、書かない）
-    position: m?.authored_position ? vectorInputText(m.authored_position) : "",
+    position: authored ? vectorInputText(authored) : "",
     angles: r ? [String(r[0].value), String(r[1].value), String(r[2].value)] : ["0", "0", "0"],
   };
 }
@@ -51,17 +59,29 @@ function sameForm(a: PlacementForm, b: PlacementForm): boolean {
  * `fune part place` の引数。角度を変えたら `--rotation "x y z deg"`、変えなければ書かれた四元数をそのまま
  * `--orientation` で送る（読むのはどちらも service）。
  */
-function placeText(part: PartRow, form: PlacementForm, initial: PlacementForm): CommandText {
+export function placeText(
+  part: PartRow,
+  form: PlacementForm,
+  initial: PlacementForm,
+  configuration?: string | null,
+): CommandText {
   const turned = form.angles.some((v, i) => v !== initial.angles[i]);
-  const q = part.mount?.authored_orientation;
+  // 取付の無い部品（根）の姿勢は機体座標の `[pose]` の書かれた値
+  const orientation = part.mount
+    ? part.mount.authored_orientation
+    : part.body?.authored_orientation;
+  // 位置を空にした場合も、形態の姿勢には位置か姿勢のどちらかが必要。
+  const writeAngles = turned || (configuration && !form.position.trim() && !orientation);
   return {
     command: "part_place",
     part: part.id,
-    on: form.on,
-    point: form.point,
+    ...(configuration ? { configuration } : { on: form.on, point: form.point }),
     position: form.position,
-    orientation: !turned && q ? numbersInputText([q.w, q.x, q.y, q.z]) : null,
-    rotation: turned ? `${form.angles.join(" ")} deg` : null,
+    orientation:
+      !writeAngles && orientation
+        ? numbersInputText([orientation.w, orientation.x, orientation.y, orientation.z])
+        : null,
+    rotation: writeAngles ? `${form.angles.join(" ")} deg` : null,
   };
 }
 
@@ -70,19 +90,56 @@ function placeText(part: PartRow, form: PlacementForm, initial: PlacementForm): 
  * 位置と角度は `fune part place --position "0 0 12 mm" --rotation "0 90 0 deg"` と同じ文字列にして
  * `POST /ops/from_command` に送る（読むのは service）。取付点・機体座標の位置と姿勢は API の表示のまま（位置は同じ単位）。
  */
-export function PlacementSection({ design, part }: { design: DesignView; part: PartRow }) {
+export function PlacementSection({
+  design,
+  part,
+  configuration,
+}: {
+  design: DesignView;
+  part: PartRow;
+  configuration?: string | null;
+}) {
   const apply = useApplyOps();
   const t = useT().components.placement;
   const [initial] = useState(() => initialForm(part));
   const [form, setForm] = useState(initial);
-  const made = useCommandOps(sameForm(form, initial) ? null : placeText(part, form, initial));
+  const made = useCommandOps(
+    sameForm(form, initial) ? null : placeText(part, form, initial, configuration),
+  );
   const edit = (patch: Partial<PlacementForm>) => setForm((f) => ({ ...f, ...patch }));
   const place = () => {
     if (made.ops) apply.mutate({ ops: made.ops, summary: t.summary(part.id) });
   };
   return (
     <PropertyList className="@container min-w-0">
-      <MountFields design={design} part={part} form={form} onChange={edit} t={t} />
+      {configuration && poseOverridden(design, configuration, part) && (
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+          <Pill tone="accent" dot={false}>
+            {t.overridden}
+          </Pill>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={apply.isPending}
+            onClick={() =>
+              apply.mutate({
+                ops: [{ op: "unset_configuration_pose", configuration, part: part.id }],
+                summary: t.resetSummary(part.id),
+              })
+            }
+          >
+            {t.resetOverride}
+          </Button>
+        </div>
+      )}
+      <MountFields
+        design={design}
+        part={part}
+        form={form}
+        onChange={edit}
+        t={t}
+        disabled={Boolean(configuration)}
+      />
       <Readout label={t.pointPose} pose={pointPose(design, part, form)} empty={t.origin} />
       <Field
         className="px-3 py-2 wrap-anywhere"
@@ -146,12 +203,14 @@ function MountFields({
   form,
   onChange,
   t,
+  disabled,
 }: {
   design: DesignView;
   part: PartRow;
   form: PlacementForm;
   onChange: (patch: Partial<PlacementForm>) => void;
   t: Placement;
+  disabled: boolean;
 }) {
   const points = design.parts.find((p) => p.id === form.on)?.mount_points ?? [];
   const options = points.map((p) => ({
@@ -168,6 +227,7 @@ function MountFields({
         <NativeSelect
           size="sm"
           aria-label={t.mountPart}
+          disabled={disabled}
           value={form.on}
           placeholder={t.body}
           onChange={(e) => onChange({ on: e.target.value, point: "" })}
@@ -180,7 +240,7 @@ function MountFields({
           aria-label={t.point}
           value={form.point}
           placeholder={t.origin}
-          disabled={form.on === ""}
+          disabled={disabled || form.on === ""}
           onChange={(e) => onChange({ point: e.target.value })}
           options={options}
         />
@@ -212,5 +272,33 @@ function Readout({
         )}
       </span>
     </Field>
+  );
+}
+
+/** 部品詳細では上書きがある形態だけを読み、取付点に対する姿勢を表示する。 */
+export function PlacementOverrides({ design, part }: { design: DesignView; part: PartRow }) {
+  const t = useT().components.placement;
+  const overrides = design.configurations.filter(({ overridden }) => overridden.includes(part.id));
+  const queries = useQueries({
+    queries: overrides.map(({ id }) => q.part(part.id, [], id)),
+  });
+  if (overrides.length === 0) return null;
+  return (
+    <div className="mt-3 space-y-1">
+      <h3 className="font-medium text-ink-2 text-xs">{t.overrides}</h3>
+      <PropertyList>
+        {overrides.map(({ id, label }, index) => (
+          <QueryState key={id} query={queries[index]!} skeleton={<SkeletonBlock className="h-9" />}>
+            {({ part }) => (
+              <Readout
+                label={label === id ? id : `${label} (${id})`}
+                pose={part.mount?.overridden ? part.mount.relative : null}
+                empty="—"
+              />
+            )}
+          </QueryState>
+        ))}
+      </PropertyList>
+    </div>
   );
 }

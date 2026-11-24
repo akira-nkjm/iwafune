@@ -29,14 +29,17 @@ fn unset_count(rp: &ResolvedPart) -> u32 {
 }
 
 /// 部品の一覧の 1 行。
+/// `configuration` があれば、取付（`mount`）と機体座標の姿勢（`body`）はその形態のもの（ほかの欄は基準と同じ）。
 pub(crate) fn part_row(
     design: &Design,
     resolved: &Resolved,
     diagnostics: &[DiagnosticView],
-    rp: &ResolvedPart,
+    (rp, configuration): (&ResolvedPart, Option<&str>),
 ) -> PartRow {
     let part = design.parts.get(rp.id.as_str());
-    let unit = super::pose::position_unit(design, part);
+    let unit = super::pose::position_unit(design, part, configuration);
+    let posed = super::pose::resolved_in(resolved, configuration);
+    let rp_posed = posed.parts.get(rp.id.as_str()).unwrap_or(rp);
     PartRow {
         paths: crate::query::views::parameter_paths(design, &rp.id, &rp.states),
         field_paths: crate::query::views::field_paths(&rp.id),
@@ -67,9 +70,9 @@ pub(crate) fn part_row(
                 net: p.net.clone(),
             })
             .collect(),
-        mount: super::pose::mount_view(part, rp, &unit),
+        mount: super::pose::mount_view(design, part, rp_posed, (&unit, configuration)),
         mount_points: super::pose::mount_points(part),
-        body: super::pose::body_pose_view(resolved, rp, &unit),
+        body: super::pose::body_pose_view(design, posed, (part, rp_posed), (&unit, configuration)),
         states: rp.states.clone(),
         file: file_of(design, EntityKey::Part(rp.id.clone())),
         // 置き場所の区間はディレクトリの規約（`fune_store::layout`）が親の連鎖から作る（パスの文字列は分解しない）
@@ -83,8 +86,9 @@ pub(crate) fn list(
     resolved: &Resolved,
     diagnostics: &[DiagnosticView],
     q: &PartsQuery,
-) -> Vec<PartRow> {
-    resolved
+) -> Result<Vec<PartRow>> {
+    super::pose::require_configuration(design, q.configuration.as_deref())?;
+    Ok(resolved
         .parts
         .values()
         .filter(|rp| {
@@ -93,8 +97,15 @@ pub(crate) fn list(
                 .is_none_or(|k| rp.kind.as_deref() == Some(k.as_str()))
         })
         .filter(|rp| q.group.as_ref().is_none_or(|g| in_group(design, &rp.id, g)))
-        .map(|rp| part_row(design, resolved, diagnostics, rp))
-        .collect()
+        .map(|rp| {
+            part_row(
+                design,
+                resolved,
+                diagnostics,
+                (rp, q.configuration.as_deref()),
+            )
+        })
+        .collect())
 }
 
 fn in_group(design: &Design, part: &str, group: &str) -> bool {
@@ -111,12 +122,14 @@ pub(crate) fn view(
     resolved: &Resolved,
     diagnostics: &[DiagnosticView],
     id: &str,
+    configuration: Option<&str>,
 ) -> Result<PartView> {
+    super::pose::require_configuration(design, configuration)?;
     let rp = resolved
         .parts
         .get(id)
         .ok_or_else(|| ServiceError::not_found("part", id))?;
-    let part = part_row(design, resolved, diagnostics, rp);
+    let part = part_row(design, resolved, diagnostics, (rp, configuration));
     // 系の順と見出しは `fune_model::builtin::sections`、属性の系は `Design::attribute_section`。
     let mut sections: Vec<AttrSection> = fune_model::builtin::sections()
         .into_iter()

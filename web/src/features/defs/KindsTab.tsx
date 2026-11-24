@@ -35,7 +35,8 @@ export function KindsTab({ design }: { design: DesignView }) {
     : null;
   const made = useCommandOps(adding ? command : null);
   const ops = made.ops;
-  const error = useOpCheck(adding ? ops : null).error ?? made.error;
+  const failed = useOpCheck(adding ? ops : null).failed;
+  const error = made.error;
   return (
     <TablePanel
       title={tk.title}
@@ -112,7 +113,7 @@ export function KindsTab({ design }: { design: DesignView }) {
                 id="kind-id"
                 mono
                 value={id}
-                invalid={!!error}
+                invalid={failed || !!error}
                 placeholder="magnetorquer"
                 onChange={(e) => setId(e.target.value)}
               />

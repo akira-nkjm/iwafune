@@ -16,7 +16,7 @@ import type {
   DisplaySeries as Series,
 } from "@/api/types";
 import { localized, useT } from "@/i18n";
-import { toneAt, toneHex } from "@/lib/tone";
+import { toneAt, toneVar } from "@/lib/tone";
 import { NumText, numText } from "@/quantity/chart";
 
 /** 標本を表示だけ間引く。表示値は API の display_scale を掛ける。 */
@@ -175,7 +175,7 @@ function SeriesPlot({
               dot={false}
               isAnimationActive={false}
               strokeWidth={1.5}
-              stroke={toneHex[toneAt(i)]}
+              stroke={toneVar[toneAt(i)]}
             />
           ))}
         </LineChart>

@@ -22,12 +22,13 @@ This document describes what structures hold the design-data model and how it is
 Conditions are placed in `conditions/orbit.toml`, `conditions/launch.toml` and `conditions/ground/<ID>.toml`.
 The settings category is `SettingScope::Conditions` (spelled `conditions`; the display name is "前提条件" / "Conditions").
 The keys are `conditions.orbit.altitude`, `conditions.launch.<field>` and `conditions.ground.<ID>.<field>`.
-`mission/` is a reserved directory for the mission and its success criteria (#9), and is currently skipped. Phases are in `phases/` (§7.10); a phase can override the orbit for the cases that name it.
+`conditions/launch.toml` also selects the launch vehicle, dispenser and launch configuration (`launcher`, `dispenser`, `configuration`; §5.6).
+`mission/` is a reserved directory for the mission and its success criteria (#9), and is currently skipped. Phases are in `phases/` (§7.10); a phase can override the orbit and select a configuration for the cases that name it.
 
 A ground station file (`label`, `latitude`, `longitude`, `altitude`, `min_elevation`, and per-band `[link.<band>]`) is edited as follows (all of it goes through Ops, so no file needs to be written by hand):
 
 - `fune ground add <ID> [--label …] [--latitude "35.7 deg"] [--longitude "139.7 deg"] [--altitude "40 m"] [--min-elevation "10 deg"]` (Op `create_ground_station`; the GUI sends the typed text to `POST /ops/from_command` as `{ "command": "ground_add", … }`)
-  creates `conditions/ground/<ID>.toml` in canonical form. Renaming or removing a station is also refused while a requirement's `verify.check` names it (for example `margin:<link>@<ID>`); update or remove those requirements first (temporary, until the key is structured; #328). The ID follows the ID rules and must not collide with an existing station (a difference only in letter case collides); the units are checked by `fune check`.
+  creates `conditions/ground/<ID>.toml` in canonical form. Renaming a station rewrites the `verify.check` of requirements that name it (for example `margin:<link>@<ID>`, `link_closes:<ID>`); removing it is refused while a requirement's `verify.check` names it (update or remove those requirements first). The ID follows the ID rules and must not collide with an existing station (a difference only in letter case collides); the units are checked by `fune check`.
 - A value of an existing station is changed with `fune set conditions.ground.<ID>.<field> …` (`SetSetting`; it does not create a station: an unknown `<ID>` is refused, so add it with `fune ground add` first), including a band: `fune set conditions.ground.<ID>.link.<band>.antenna_gain "14 dBi"`. `fune unset conditions.ground.<ID>.link.<band>` removes a band.
 - `fune ground rename <ID> <NEW>` (Op `rename_ground_station`) moves the file and rewrites the station list `stations` of `analysis/comm.toml`.
 - `fune ground rm <ID>` (Op `remove_ground_station`) removes the file. It is **refused while `analysis.comm.stations` lists the station** (an empty `stations` means every station is used, so nothing refers to a particular one);
@@ -49,6 +50,35 @@ A topic's settings location is looked up with `ConditionTopic::setting_path()`. 
 `uranus`, `neptune`; Earth if omitted; the display name is `central_body` in labels.toml). Altitude is counted from this body's equatorial radius, and μ, radius, J2 and the ephemeris are held by
 `sat_astro::ephem::CentralBody` (projection's `context::central_body` maps them). Sun-synchronous (`sun_synchronous`) applies to Earth only;
 writing it for any other body is a `check` error (`setting.central`).
+
+`source` is where the orbit comes from (`elements` or `transfer`; `elements` if omitted and then **never written to the file**, so existing files are unchanged; the display name is `orbit_source` in labels.toml).
+It is valid in `conditions/orbit.toml` and in a phase's `[orbit]` (§7.10), and it is edited with the existing ops only (`fune set conditions.orbit.source transfer`, `fune phase set-field <ID> orbit.source transfer`; there is no orbit field on the phase itself).
+Analyses read an orbit through `fune_projection::Context::trajectory` (state at a time, central body, epoch and the length of one cycle); only analyses that really need Kepler elements read `Context::orbit`.
+
+```toml
+# phases/CRUISE.toml (or conditions/orbit.toml)
+[orbit]
+source   = "transfer"
+maneuver = "MARS_TRANSFER"    # a maneuver with a dated [transfer] (§7.7)
+```
+
+- `source = "transfer"` takes the cruise leg of a dated transfer. The orbit is the Lambert arc (`sat_astro::transfer::lambert_arc`, the same solution `propulsion.maneuvers` uses for its burns) written as osculating Kepler elements
+  about the common parent of the two bodies (the Sun for planet ⇄ planet) and propagated as two bodies (`sat_astro::transfer::cruise_orbit`; it passes through the departure body's position on the departure date and the arrival body's on the arrival date).
+  **The leg runs from the departure body's sphere of influence to the arrival body's; the hyperbolic legs inside the spheres are not analysed** (patched conics: the heliocentric arc holds only outside them, and phases cannot hold a hyperbola).
+  `sat_astro::transfer::cruise_leg` finds the time the arc first leaves the departure body's sphere of influence (`CentralBody::soi_radius_m`, distance to the body from the ephemeris, bisection to 1 ms) and the last time before arrival that it is outside the arrival body's;
+  the trajectory's epoch is the first time (the same ellipse, advanced through its state), its span (`Cycle::OneOff`) is the interval between them, so the Earth range starts at about the Earth's sphere of influence (not at its centre).
+  The dates are read by the one reader of `[transfer]` (`fune_projection::maneuver_dates`); the departure body is the central body before the maneuver (`maneuver_dates::central_before`).
+  A hyperbolic arc (a short flight time), a body without a sphere of influence, or an arc that does not leave the departure sphere / stay outside the arrival one is a missing input with the reason.
+- Keys beside `source = "transfer"` that the source does not use (the Kepler elements, `epoch`, `central`, `propagator`, `[eclipse_season]`, `[decay]`) get the warning `setting.not_applied`; `maneuver` beside `source = "elements"` gets it too.
+  `maneuver` must name an existing maneuver whenever it is written (`ref.maneuver`) and, for `transfer`, that maneuver must have a `[transfer]` (`orbit.maneuver_transfer`). A missing `maneuver` is not a check error but a missing input (`conditions.orbit.maneuver`),
+  which offers the maneuvers with a dated transfer (`Fix::PickRef`).
+- `maneuver` is a reference to a maneuver (`RefSite::OrbitManeuver` for the design orbit, `RefSite::PhaseOrbitManeuver` for a phase orbit): renaming the maneuver rewrites both, and removing a maneuver they name is rejected by the check (`ref.maneuver`).
+- **Analyses that need Kepler elements** (`orbit.eclipse_season`, `orbit.decay`, `power.sizing`'s season, the element-editing maneuvers and `propulsion.orbit_history`'s starting orbit) are **not applicable** to an orbit whose source is not `elements`:
+  projection answers with a missing input on `<orbit>.source` (for a phase orbit `phases.<ID>.orbit.source`) whose reason starts with "Not applicable", with no fix candidate. A case's `beta` and `sun_distance`, and a thermal condition's `beta`, are overrides of Kepler elements
+  and become missing inputs on their own keys for such an orbit. The analyses' own rejections of an orbit about the Sun (`orbit.eclipse_season`) or off Earth (`orbit.decay`) stay in the analyses.
+- **One-off orbits.** A trajectory with a span has `Cycle::OneOff`: the time-series analyses sample the span itself (the `orbits` count is ignored; step `max(30 s, span / 200)`, so a 290-day cruise has 200 samples; a thermal `time_step` is not made finer than that step),
+  "per orbit" quantities (orbit averages, energy per orbit, per-orbit unloading) are computed over the whole span, the Earth distance of `comm.link_budget` is evaluated over the span, and the output's `span_fallback` is `one_off_span`
+  (shown as an `ok` check "Analysis span"; it is never present for a periodic orbit). The number of orbits is still used for Kepler-element orbits, including the one-orbit default about the Sun.
 
 `propagator` is the orbit propagation (`kepler`, `j2`, `numerical`; `j2` if omitted). Projection maps `kepler` and `j2` directly onto `sat_astro::orbit::Propagator`.
 `numerical` is **not used** by analyses: the force model of numerical propagation (drag and solar radiation pressure need values of the spacecraft) has no conventional default in sat-astro,
@@ -112,6 +142,21 @@ Without such a case, the orbit conditions are used as they are: `thermal.steady`
 A time series about the Sun with no number of orbits written runs **one** orbit instead of three (`spec::DEFAULT_HELIOCENTRIC_ORBITS`; an explicit `orbits` is used as written),
 and its step is the usual period/200 (a year-long orbit is sampled about every 1.6 days; a `time_step` of 30 s over a year is rejected as too many samples).
 The thermal transient integrates the whole span with the same adaptive method, so its cost grows with the span (about a minute in a debug build for one year of the demo; seconds in a release build).
+
+#### Mission geometry (`orbit.geometry`)
+
+`orbit.geometry` is `AnalysisArea::Condition(ConditionTopic::Orbit)` and has no settings. It reports how far the spacecraft is from the Sun and the Earth, and at which angles, over each phase.
+The distances and angles are computed in one place, `sat_astro::timeline::geometry`, from the orbit as a function of time (`Trajectory`), with the Sun and Earth positions from the ephemeris (DE440 if registered, otherwise the analytic one; the output says which, in `ephemeris`).
+
+- **Legs.** One leg per phase in the phase order (`order`, then ID). The orbit of a leg is the orbit in effect for that phase (the phase's `[orbit]` if it has one, otherwise `conditions/orbit.toml`), and the leg starts at that orbit's epoch.
+  A design without phases has one leg for the design orbit (`phase` is empty). A selected case does not pick a leg: all phases are reported.
+- **Span.** The orbit's one-off span if it has one, otherwise the phase `duration` if written, otherwise one orbit; `span_basis` says which (`one_off`, `phase_duration`, `one_cycle`). The span is split into 720 equal samples (`sample_step`).
+- **Definitions.** Distances are from the probe to the centre of the body (the Earth is the origin of the ephemeris; for an orbit about the Earth the Earth distance is the orbit radius, and for an orbit about the Sun the Sun distance is the orbit radius).
+  `sep` (SEP) is the angle at the Earth's centre between the Sun and the probe (near 0° at solar conjunction, near 180° at opposition); `spe` (SPE) is the angle at the probe between the Sun and the Earth (the phase angle used for antenna and array geometry).
+  For an orbit about the Earth, SEP is the geocentric Sun–satellite angle and goes around once per orbit, so it is not a conjunction angle there. The one-way light time to the Earth is the Earth distance divided by the speed of light.
+- **Output per leg.** `sun_distance` and `earth_distance` each with `min` and `max` (a `value` and the `epoch` of it), `sep_min` (the closest approach to conjunction), `light_time_max`, and a `series` (time from the leg start; channels `sun_distance`, `earth_distance`, `sep`, `spe`).
+  The extremes are refined between the samples around the extreme sample (golden section, one extremum assumed there); a variation faster than the sample step, such as the orbit of a low Earth satellite in SEP, is not resolved.
+  The analysis judges nothing and has no notes. Later stages read `legs[].earth_distance.max` (the farthest distance and its date) and `legs[].sun_distance.max.epoch` by phase ID.
 
 #### Altitude decay by atmospheric drag and orbit maintenance (`orbit.decay`)
 
@@ -198,8 +243,9 @@ flowchart LR
 | Net | Electrical connection (logical) | `nets/<ID>.toml` | kind (power / data / rf), rail voltage, source port, current limit, protocol |
 | Harness | Cable segment (physical) | `harness/<ID>.toml` | ports at both ends, the nets it carries, wire, number of cores, length |
 | Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, a phase (§7.10), which side of the uncertainty to read, Sun distance (cruise), orbit, attitude law, environment conditions, period |
-| Phase | Mission phase (commissioning, nominal operations, disposal) | `phases/<ID>.toml` | order, start and end conditions (free text), duration, the modes used, and optional overrides of the orbit and of the attitude law per mode for the cases that name the phase (§7.10) |
-| Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only (§7.7) |
+| Phase | Mission phase (commissioning, nominal operations, disposal) | `phases/<ID>.toml` | order, start and end conditions (free text), duration, the modes used, and optional configuration selection and overrides of the orbit and of the attitude law per mode for the cases that name the phase (§7.10) |
+| Configuration | A named overlay of part poses (stowed, deployed and other placement variants) | `configurations/<ID>.toml` | label, description, and a replacement pose per part (§7.11) |
+| Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only, dates of an interplanetary transfer (§7.7) |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, date, author |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, document version, retrieval date, SHA-256, distribution category, date, author (§7.8) |
 | Requirement | Requirement (lightweight, a flat list) | `requirements/<ID>.toml` | statement (Japanese and English), the dimension of the constrained quantity, constraint (direction and value), quantification (all cases / named cases), source (a source ID), and what verifies it (an analysis check or a budget). The verdict itself comes from the analysis or budget (§7.9). Formal verdicts written out to external verification tools are not decided yet |
@@ -257,7 +303,7 @@ pub struct Part {
     pub count: u32,                        // count. If individual attitudes or wiring are needed, make them separate Parts
     pub redundancy: Redundancy,            // none (default) / cold / warm
     pub mount: Option<Mount>,              // the mounting target Part and mount point
-    pub pose: Option<Pose>,                // position and attitude relative to the mount point's frame
+    pub pose: Option<Pose>,                // position and attitude relative to the mount point's frame (for a root, which has no mount: in the body frame)
     pub mount_points: BTreeMap<Id<MountPoint>, Pose>,       // points where other parts attach to this one
     pub attr: BTreeMap<Id<AttributeDef>, Authored<Value>>,  // overrides of catalog values
     pub ports: BTreeMap<Id<Port>, PortBinding>,             // port → the net it belongs to
@@ -598,6 +644,30 @@ A preset fills in the solar flux, albedo and central-body infrared (`planet_ir`)
 `hot` is 1414 W/m², 0.35 and 258 W/m²; `cold` and `safe_mode` are 1322 W/m², 0.25 and 217 W/m². `safe_mode` is a cold environment,
 meant to be combined with the safe-mode operating mode (`mode`) to see whether heaters alone can keep the spacecraft warm.
 
+#### Thermal nodes
+
+**One part is one node by default.** Every part that `[nodes]` does not list is a node named after the part ID; its heat capacity is `mass × count × specific_heat` of that part (`specific_heat` falls back to the attribute's default, 900 J/(kg·K)).
+`[nodes]` is an optional override that lumps several parts into one node, and only the parts written there are lumped:
+```toml
+# analysis/thermal.toml
+[nodes]                           # node -> parts lumped into it; every other part stays its own node
+ELEC = ["OBC", "PCDU", "GPS"]     # one node of Σ mass × count × specific heat, one temperature
+```
+Nothing guesses a grouping (no "one node per panel"). The map from part to node is decided in one place (`fune_model::design::ThermalSettings::node_map`); the network, mounts, external surfaces, heat sources, heaters, the couplings and `[heat_node]`
+all go through it. Node names and part IDs share one namespace, so the rules are:
+- A part listed in `[nodes]` belongs to that node and has no node of its own; a part in two nodes is a check error (`thermal.node_overlap`).
+- A `[nodes]` key that equals the ID of a part that `[nodes]` does not list (and the part's own list is not that key) is a check error (`thermal.node_name_clash`): the part would be a node of the same name. Rename the key or list the part.
+  (A key equal to the ID of a part that is listed in another node, or in the key's own list, is fine.)
+- A node needs a positive heat capacity. A part without `mass` (a required attribute of every component kind) is a missing input `<part>.mass`, exactly as for a listed part; a part without `specific_heat` uses the attribute's default;
+  `count` multiplies the capacity. A part of zero mass (or `count = 0`) would be a node of zero capacity, which the analysis refuses as an input error naming the node; give it a mass or list it in `[nodes]` with a part that has one.
+  There is no separate notion of an organisational or purely logical part: groups and assemblies are not parts, and every part is a physical component with a mass. A launcher or dispenser is not a satellite part and is not a node.
+- Node names in `[conductive.*]`, `[radiative.*]`, `[heat_node]` and in the requirement check keys `range_high:<node>:<kind>`/`range_low:<node>:<kind>` are part IDs or `[nodes]` keys. Renaming a part that is a per-part node rewrites those names
+  (couplings, `[heat_node]` values, check keys) and removing it is refused while a requirement check key names it. The analysis input marks per-part nodes with `per_part` (display only, so the GUI can tell "per part" from "lumped").
+- The mount default couples nodes along the mount relations, one link per node pair that has mounts (parallel mounts add), so with one node per part the number of links is the number of mounts (the default radiative coupling is also one per such pair, not every pair of nodes).
+  A part with no mount (the root) has no mount link of its own.
+
+Adding a part that `[nodes]` leaves out changes the thermal result (its mass is now counted and it is coupled along its mount). For the demo this applies to the electric thruster and the propellant tank.
+
 #### Heat dissipation
 
 Heat dissipation is found by `sat_analysis::thermal::network::load` from the part's mode average. In order of priority:
@@ -606,7 +676,7 @@ Heat dissipation is found by `sat_analysis::thermal::network::load` from the par
 
 The default value of 1 for `heat_fraction` was removed (a default would always act as an override and make RF output ineffective; if not written, a part with no RF output is all heat as before).
 The link-budget transmit power `tx_power` has no states, so the per-state `rf_output` is written separately for heat dissipation.
-The node that emits heat is by default the node the part belongs to, and writing `part = "node"` in `[heat_node]` places it on that node (a part not in any node can also be a heat source).
+The node that emits heat is by default the node the part belongs to, and writing `part = "node"` in `[heat_node]` places it on that node (every part is in a node, so every part with a power state is a heat source; `[heat_node]` moves it to another node).
 
 #### Transient integration
 
@@ -638,6 +708,8 @@ The output samples stay at the timeline's sample times; the integrator takes wha
   The picture is a schematic: the shadow band is the cylindrical shadow (half-width = body radius) and the real eclipse is the per-sample `sunlit`. It does not change any temperature or check.
 - **Stiff networks.** The method is explicit. A node with a very small heat capacity strongly coupled to a large one makes the step as small as the fast time constant, whatever the accuracy. A 12-node chain of alternating 0.09 J/K and 900 J/K nodes
   (G = 10 W/K) over five orbits takes about a million steps and 12 million evaluations of the right-hand side (about a minute in a debug build; see `stiff_chain_five_orbits_cost`). There is no implicit integrator: model such a node as part of its neighbour.
+  With one node per part, small parts become small nodes. Measured on the demo with `[nodes]` removed (38 nodes, capacities 4.4 to 782 J/K, default 0.5 W/K per mount), `thermal.transient` over five orbits takes about 1100 steps and 15 000 evaluations (0.04 s in a release build), the same as with lumped nodes;
+  the cost only grows when a part's capacity per unit of coupling approaches a second: a 0.05 g heater (0.045 J/K) and a 0.02 g heater in the same design raise it to about 100 000 steps and 1.3 million evaluations (2 s in a release build, 27 s in a debug build). Nothing is limited or warned; list a very light part in `[nodes]` with the part it is mounted on.
 - **Accuracy.** The penumbra of the conical shadow begins and ends with a `x^(3/2)`-like rise of the sunlit fraction, which the error estimate sees only partly; with orbits through the penumbra the global error is a few times the tolerance
   (about 1e-5 K at the defaults). Without a penumbra (cylindrical model, or no eclipse) the error is far below the tolerance.
 
@@ -700,10 +772,10 @@ PANEL_MX = { value = 0.02, unit = "m^2" }
 emissivity = 0.85                             # inner emissivity of the six faces (above 0, at most 1)
 ```
 A pair is written once, in either order; writing `A`→`B` and `B`→`A` is a check error (`thermal.coupling_duplicate`), as are a pair of the same node (`thermal.coupling_self`),
-a node not in `[nodes]` (`ref.thermal_node`) and a negative value (`setting.range`). The dimension is checked against the setting-dimension table (`THERMAL_CONDUCTIVE`: W/K, `THERMAL_RADIATIVE`: m²).
+a node that is neither a part ID nor a `[nodes]` key (`ref.thermal_node`) and a negative value (`setting.range`). The dimension is checked against the setting-dimension table (`THERMAL_CONDUCTIVE`: W/K, `THERMAL_RADIATIVE`: m²).
 Because a pair is a path (`analysis.thermal.conductive.BAT.PANEL_MZ`), it is edited with the generic setting operation (`fune set analysis.thermal.conductive.BAT.PANEL_MZ "0.8 W/K"`, `fune unset …`),
-the same on the CLI and over HTTP; there is no separate operation. Nodes cannot be renamed, so no reference rewriting is needed.
-**Enclosure model.** The box is the root part's `size` (the one part without a mount; its frame is the body frame), and its six inner faces are matched to nodes through the outer surfaces:
+the same on the CLI and over HTTP; there is no separate operation. A `[nodes]` key cannot be renamed; renaming a part that is a per-part node rewrites the node name in these tables (see "Thermal nodes").
+**Enclosure model.** The box is the root part's `size` (the one part without a mount; its frame is the body frame, the box is centred on the body origin and a root turned by a multiple of 90° gives the permuted extents, §5.3), and its six inner faces are matched to nodes through the outer surfaces:
 for each face (±X, ±Y, ±Z) the node of the outer surface whose normal points that way (within about 2.6°) and whose area is within 5 % of the face area. If any of the six faces
 is not found or ambiguous, two faces share a node, or the box size is not known, the model is **not applied**: it is not an error, the mount defaults stay, and the reason is returned in the output's `couplings.enclosure.note` (`applied: false`).
 When it is applied, all 15 face-to-face pairs use the enclosure value (so the mount default `radiative_coupling` is not added on top of it). Pairs that involve a component node (not a face) keep the mount default or the explicit value.
@@ -757,6 +829,12 @@ the heater switching times, duty (1e-9) and longest on period (1e-5 s instead of
 The outer shape used for disturbances is the part with `size` and no mount parent, if there is exactly one such part.
 If there are several, the analysis stops with the candidate part IDs shown in the missing-input message, and does not choose by ID order. The handling of zero is as before.
 
+A root's `[pose]` is its placement in the body frame (§7.1), but the outline consumers (this reference box, the decay area, the launch-fit envelope fallback and the thermal enclosure) still read the box as "the root's `size`, centred on the body origin, aligned to the body axes" (#388 replaces this rule by geometry from all part boxes).
+So that a pose is never silently misread (`fune_projection::outline`):
+- a root rotated by a multiple of 90° about the body axes gives the box extents permuted into the body axes (a quarter turn about z swaps the x and y extents), which is exact;
+- a root with an offset from the body origin, or a rotation that is not a multiple of 90°, keeps its `size` as written and `fune check` warns `outline.root_pose` (the offset is ignored and the box is not turned by these consumers; mass properties, interference and the 3-D view do use the pose).
+  The warning is given for the base, and for a configuration that overrides the outline root's pose. It appears only when exactly one part is the outline candidate. No numbers of a design whose root has no `[pose]` change.
+
 ### 5.4 Common analysis settings
 
 The list of subsystems is held by `AnalysisSystem`, and returned in the same order in the API's `DefsView.systems`. The display name of `aocs` is AOCS in both Japanese and English, and `payload` is "ミッション機器" in Japanese and "Payload" in English. Payload has no analyses and no settings yet. The old subsystem name `attitude` is not accepted.
@@ -805,8 +883,8 @@ A link cannot be built one field at a time with `fune set`, because a link witho
   writes `[link.<name>]` with just those three keys (creating `analysis/comm.toml` if needed); the rest is set with `fune set analysis.comm.link.<name>.<key> …`.
   The name follows the ID rules and must not collide with an existing link (a difference only in letter case collides). A missing part is refused by the final check (`ref.part`); a band that a listed station lacks is only a warning (`ref.band`).
 - `fune link rename <name> <new>` (Op `rename_comm_link`) renames the table and rewrites `data_downlink` and the `verify.check` of requirements that name the link
-  (`margin:<link>`, `margin:<link>@<station>`, `pfd:<link>`, `pfd:<link>@<station>`; the key format is the analysis's, and `Verification::check_names_link` is the provisional mirror of it, checked against the analysis output in a fune-projection test; #328).
-  The reference index returns these as `Referent::Link` (`RefSite::{CommDataDownlink, RequirementLinkCheck}`).
+  (`margin:<link>`, `margin:<link>@<station>`, `pfd:<link>`, `pfd:<link>@<station>`). The key format is the analysis's and is defined once in the `sat-checkkey` crate, which both the analyses (building keys) and `Verification::{check_names, check_with_renamed}` (reading and rewriting the names in a key) use.
+  The reference index returns these as `Referent::Link` (`RefSite::{CommDataDownlink, RequirementCheck}`).
 - `fune link rm <name>` (Op `remove_comm_link`) removes the table (and the `link` table when it was the last one), and clears `data_downlink` if it named the link.
   It is refused while a requirement's `verify.check` names the link; update or remove those requirements first.
 
@@ -944,6 +1022,155 @@ annual_degradation = 0.02
 bus_voltage = { value = 28.0, unit = "V" }
 ```
 
+### 5.6 Launch vehicle, dispenser and launch fit (#5)
+
+A launch vehicle and a dispenser are **catalog items** of the built-in kinds `launcher` and `dispenser`. They are not satellite parts: the kinds do not extend `component`, so they have no `mass` and never enter the mass budget, part lists or diagrams,
+and a part whose kind is (or extends) one of them is an error (`part.launch_kind`). All their attributes are optional: an attribute that is written becomes a limit, and one that is not written is not checked.
+
+| Attribute | Dimension | Units | Meaning |
+|---|---|---|---|
+| `max_payload_mass` | Mass | kg, g | the mass limit for the satellite |
+| `payload_mass_by_c3` | Mass (curve over C3, `SpecificEnergy`) | kg, g | the mass the launcher can inject as a function of the departure C3 (below) |
+| `launch_envelope` | Length (vector) | mm, m | the allowed stowed box along the body axes x, y, z (z is the launch axis) |
+| `launch_load_axial`, `launch_load_lateral` | Acceleration | g0, m/s^2 | quasi-static load factors |
+| `min_frequency_axial`, `min_frequency_lateral` | Frequency | Hz | minimum first natural frequencies |
+| `max_tip_off_rate` | AngularVelocity | deg/s, rad/s | maximum angular rate at separation (stored; no analysis reads it yet) |
+
+The design selects them in `conditions/launch.toml` with the same reference form as a part's `catalog` (`<catalog>/<id>`, read by `split_catalog_ref`):
+
+```toml
+launcher   = "local/lv_alpha"        # item of kind `launcher`
+dispenser  = "local/disp_6u_rs"      # optional; item of kind `dispenser`
+load_axial = { value = 6.0, unit = "g0" }   # written values take precedence over the catalog
+```
+
+They are edited with `fune set conditions.launch.launcher <catalog>/<id>` and `fune unset conditions.launch.launcher` (the same for `dispenser`; the Op is `SetSetting`, so HTTP `POST /ops/from_text` writes the same bytes).
+`fune check` reports a selection that is not defined (`ref.launcher`, `ref.dispenser`) or has the wrong kind (`launch.kind`). Renaming the catalog item rewrites the selection, and removing the item (or its catalog) is refused while it is selected.
+
+The optional `configuration = "STOWED"` in `conditions/launch.toml` selects the placement for launch analyses (§7.11). Set it with
+`fune set conditions.launch.configuration STOWED` and clear it with `fune unset conditions.launch.configuration`. If configurations exist and this field is absent,
+`fune check` reports `launch.configuration_unset` as info, and launch analyses use the base placement unless the request selects a configuration.
+
+**Capability curve** (`payload_mass_by_c3`). Attribute values have one more type besides scalars, vectors and ranges: the **curve** (`type = "curve"`), a one-variable function written as points in increasing argument order,
+joined linearly between points. The definition declares the unit dimension of both axes (`dimension` for the values, `at_dimension` for the argument; for this attribute `Mass` over `SpecificEnergy`, the dimension of C3 in km²/s²):
+
+```toml
+# catalog/lv_beta.toml (fictional launcher)
+[attr]
+payload_mass_by_c3 = { at = [0.0, 10.0, 20.0, 30.0], at_unit = "km^2/s^2", values = [140.0, 120.0, 90.0, 40.0], unit = "kg" }
+```
+
+The text form for `fune catalog set <item> payload_mass_by_c3 "<text>"` (and `POST /ops/from_text`) is `argument:value` pairs and the units in parentheses:
+`"0:140 10:120 20:90 30:40 (km^2/s^2 -> kg)"`. `fune check` reports a curve with no point, with different numbers of arguments and values, with non-finite numbers or with arguments that are not strictly increasing (`curve.shape`),
+and units of the wrong dimension on either axis (`unit.dimension`).
+The curve is read only when the design has a dated transfer whose departure burn is provided by the launcher (`departure_by = "launcher"`, §7.7): it is evaluated at that transfer's C3 (`propulsion.maneuvers`' `dated_transfer.c3`).
+Evaluation (`sat_analysis::structure::launch_fit`): piecewise linear in C3; **above the last point the launcher is not capable** (no extrapolation: the mass limit is 0 kg, a violation whose verdict text says "Not capable" and gives the C3 of the end of the curve);
+**below the first point the mass of the first point is used** (the injected mass only grows as C3 falls, so this is the conservative reading). Without a curve, or without a transfer departed by the launcher, the curve plays no part and the numbers are exactly those of the scalar limit.
+The declination of the departure asymptote against the launch site latitude is not a launch-fit check yet (a later item); `propulsion.maneuvers` reports the declination as a launch requirement.
+
+**Precedence** (`fune_projection::launch`, the only place): a value written in `conditions/launch.toml` (`load_axial`, `load_lateral`) → the dispenser → the launcher (the nearer interface first; a value is taken from the first of them that has the attribute).
+`structure.static_load` reads the loads this way. When none gives a load, the missing input is `conditions.launch.load_axial` (or `load_lateral`) and the message says it can also be given as `launch_load_axial` / `launch_load_lateral` on the dispenser or launcher.
+`structure.modal_estimate` takes its minimum natural frequencies the same way (the item's `min_frequency_*`), and a requirement on `lateral` / `axial` can only tighten it (the larger wins).
+
+**`structure.launch_fit`** judges the design against the selected items and needs at least one of them (the missing input is `conditions.launch.launcher`):
+
+- **Mass**: launch mass = the sum of part mass × count × (1 + growth allowance) + the loaded propellant (`propulsion.propellant`, when there is a propulsion system), against the mass limit.
+  When the launcher provides the departure burn of a dated transfer (§7.7), the loaded propellant no longer contains that burn, so the launch mass is the **mass at injection** (the spacecraft that the launcher injects onto the departure asymptote).
+  This is the same mass as the mass budget's total including propellant: the part rows are the mass budget's rows (`fune_projection::parts::mass_budget_items`), the growth allowance is applied once by `budget_rollup`, and the propellant is one row with no growth allowance.
+  The judgement uses this growth-inclusive mass; the bare sum (without the growth allowance) is also reported (`bare_mass`), and the verdict text shows both (`Launch mass with growth allowance … (bare …) (limit … from …)`).
+  The budget's system margin is not applied (it reduces the budget's own limit; the launch limit is compared as it is).
+  The limit is the tightest of **all** candidates: the scalar catalog value `max_payload_mass` (the dispenser's, else the launcher's), the capability curve at the transfer's C3 (when it applies, above; the dispenser's curve, else the launcher's)
+  and the mass budget requirement (`verify.budget = "mass"`). A scalar limit is therefore kept as a cap (for example an adapter or structural limit) while the curve gives the performance at this C3.
+  The verdict text names where the winning limit came from (`dispenser local/…`, `requirement R_MASS`, `launcher local/… at C3 12.1 km²/s²`).
+- **Envelope**: the stowed envelope is compared with the allowed one **axis by axis without rotation**: body x with the allowed x, y with y, z with z. The launch axis is the body z axis, and an item's envelope is written in the same axes.
+  A different orientation is a different `launch_envelope`, not a rotation inside the analysis. Only sizes (the extent, maximum minus minimum, per axis) are compared; there is no placement of the satellite inside the allowed box.
+  Where the extent comes from depends on whether a configuration is in effect (§7.11; the launch conditions name one in `configuration`, or the run names one with `--configuration`):
+  - **A configuration is in effect: from the parts** (`envelope_source = "parts"`). The extent is the axis-aligned box that encloses the boxes of **all** parts that have a `size`, placed in that configuration
+    (the same boxes as `structure.interference`, §5.7: `fune_projection::structure::boxes`; the enclosing box is `obb::axis_aligned_extents`). Parts that stick out of the structure (a sun sensor, a folded paddle) are therefore measured.
+    The verdict text of each axis names the part(s) whose box reaches the minimum and the maximum of that axis (`from -56.5 mm at SS_MX to 60.2 mm at SAP_PY`) and gives the offset of the centre of the extent from the body origin (information: a stowed assembly is often not centred; it is not judged).
+    The output carries them on each axis row as `at_min`, `at_max` and `centre_offset`. A part with no `size` is not measured and is listed in `skipped` (as in §5.7). The count of a part is ignored (copies are at one pose).
+  - **No configuration in effect: from the root part** (`envelope_source` is omitted, the same output as before). The extent is the `size` of the root part of the mounting tree (the same rule as the outer shape for attitude analysis, §5.3); parts that stick out of it are not measured.
+  If both could apply, the parts win: the root `size` is not read when a configuration is in effect. Which configuration is in effect follows the launch rule of §7.11 (the run's explicit one, else the launch conditions'; a case's phase is not read).
+- **Natural frequencies**: the lowest whole-body first mode estimated by `structure.modal_estimate` (beam results `lateral` / `axial`) against the larger of the catalog minimum and the requirement (`structure.modal_estimate` / `lateral`, `axial`).
+  Panel out-of-plane modes are local and are not compared. The estimate has no beam model yet (the demo has none), so these checks end as a **warning "Not verified"**; they are never silently reported as fit.
+- Verdicts are two-level (fit or not): the margin is limit / value − 1, and a negative margin is a violation. Check keys are `mass`, `envelope:<x|y|z>` and `frequency:<lateral|axial>`.
+
+Not modeled yet: random vibration (PSD), interface details (the mechanical interface, separation springs) and shock. The angular rate at separation is only stored.
+
+### 5.7 Part interference (`structure.interference`, #384)
+
+`structure.interference` checks whether the boxes of the parts overlap. Every part that has a `size` is a box: its centre is the part's origin, its edges are `size` along the part's own axes, and its position and orientation in the body frame
+come from the mount chain (`fune_projection::structure::boxes`, which reads them only through `Resolved` / `pose::body_pose`, so the analysis follows whichever configuration the resolved design is in; mass properties use the same placement).
+
+**An overlap is only a warning.** Boxes are larger than the real shapes (cylinders, cut-outs, lightened walls), so a hit may not be a real contact. Nothing about it is an error: `fune check` has no diagnostic for it, the analysis run is `ok`, and
+the verdict of every overlapping pair is `warning` (check key `overlap:<first>:<second>`; the text says "box approximation"). With no overlap there is one `ok` check (`interference`). A violation is never produced.
+
+- **Judgement**: oriented-box separation by the separating-axis test over 15 axes (3 + 3 face normals, 3 × 3 edge cross products; `sat_analysis::structure::interference::obb`, the only place).
+  The signed separation is the largest gap over the axes. Negative means overlap: the depth is the smallest translation that separates the boxes, and its direction is `separation_axis` (body frame, from `first` to `second`: moving `second` that far along it separates them).
+  For boxes that do not overlap, the gap is the best separating axis's gap, a **lower bound** of the true distance (exact when two faces face each other). All pairs are compared, O(n²) with a constant 15 axes per pair, with no broad phase (fine up to a few hundred parts).
+- **Tolerance**: an overlap is reported only when its depth is **greater than** the tolerance. The default is 0.1 mm: small enough to be far below the coarseness of the boxes, large enough to ignore rounding in positions and faces that merely touch.
+  It can be set in `analysis/structure.toml` as `interference_tolerance = { value = 1.0, unit = "mm" }` (`fune set analysis.structure.interference_tolerance "1 mm"`).
+  Panel boxes are centred on the face of the part they are mounted on, so neighbouring panels overlap at their corners by half a panel thickness; a tolerance above that hides it. Nothing is hidden by default.
+- **Mount ancestors and descendants are not judged.** A part is placed relative to the part it is mounted on, frames and panels hold their children in their box, and a child touches or sinks into its mount face by design. A pair is skipped when one part is on the other's mount chain
+  (the direct mount, or any ancestor, even through a part that has no size). Siblings and parts on different branches are always judged. The limit of this rule: whether a child sticks out of, or crosses, its own ancestor's box is not seen,
+  because a box cannot tell containment from interference. The number of skipped pairs is reported (`pairs_in_mount_chain`).
+- **`count` > 1**: the copies share one pose, so the part is one box: it is not compared with itself, and it is listed in `repeated`. Overlaps between copies are not judged.
+- **No `size`**: the part is listed in `skipped` (reason `no_size`; a `size` that is not positive is `invalid_size`). It is not a missing input. With fewer than two boxes the result is empty and successful.
+- **Output**: `overlaps` (pairs, deepest first: `first`, `second`, `depth`, `separation_axis`), `parts_judged`, `pairs_judged`, `pairs_in_mount_chain`, `tolerance` (the one used), `min_clearance` (the closest non-overlapping pair), `skipped`, `repeated` and `checks`.
+
+Not modeled: real shapes (STEP, #344), the path during deployment, and a pair cannot yet be marked as "checked, intended". Sensor fields of view and thruster plumes are judged against the same boxes by `structure.cone_clearance` (§5.8).
+
+### 5.8 Plume and field-of-view clearance (`structure.cone_clearance`, #397)
+
+`structure.cone_clearance` asks, for every part that carries a **cone**, which parts of the spacecraft lie inside it. A thruster plume and a sensor field of view are the same geometry (an apex, an axis, a half angle, an optional range), so there is one analysis, one geometry (`sat_analysis::structure::cone_clearance::cone`) and one report. The parts are the same oriented boxes as in §5.7
+(`fune_projection::structure::boxes`, so the configuration in effect is followed: stowed and deployed layouts give different answers). The box selection (parts without a `size` are listed, not an error), the mount-chain rule and the report shape (`checks`, `skipped`) are shared with `structure.interference` (`usable_boxes`, `on_mount_chain`).
+
+**A hit is only a warning**, for the same reason as §5.7: boxes are larger than the real shapes. No `fune check` diagnostic, the run is `ok`, never an analysis failure, and nothing blocks an edit. One `warning` check per (carrier, part), key `obstruction:<carrier>:<part>` (renaming a part rewrites the key); with no hit, one `ok` check `cone_clearance`.
+
+- **Carrier table** (`fune_projection::structure::CARRIERS`, the only place that says which attributes give the cone): a part of one of the roles in a row carries a cone whose axis is `axis_sign × <axis attribute>` (read through `parts::direction_body`, so it is in the body frame) and whose half angle is `<half-angle attribute>`.
+  Today: **thrusters** (roles `thruster`, `propulsion_thruster`): axis = −`direction` (the exhaust leaves opposite to the thrust, `direction` being the direction the spacecraft is pushed), half angle = `plume_half_angle`, kind `plume`. So `direction` is the direction of the force on the spacecraft, not of the exhaust: a thruster on the −Z face of the bus has `direction` = +Z (the built-in attribute's description says the same).
+  **Sensors with a field of view** (the sensor roles of `aocs.sensor_fov`: `star_tracker`, `sun_sensor`, `camera`): axis = `boresight`, half angle = `fov_half_angle`, kind `field_of_view`. Adding another carrier (an antenna beam, say) is one row in this table
+  (and the half-angle attribute in the vocabulary); the geometry, rules and report do not change.
+- **`plume_half_angle`** (new built-in attribute, Angle, 0 to 90°, optional on `thruster` and `propulsion_thruster`): the half angle of the cone the exhaust spreads into. Nothing is assumed when it is absent: the thruster is listed in `skipped_carriers` with reason `no_half_angle`
+  (a carrier without a readable axis, with a zero axis, or with a half angle outside (0, 90°) is listed with `no_axis`, `invalid_axis` or `invalid_half_angle`). It is not a missing input.
+- **Apex**: where the axis leaves the carrier's own box (box centre + axis × the box's support along the axis); the part origin when the carrier has no `size`. A nozzle or an aperture is taken to be on the box face the axis points through.
+- **Not judged**: the carrier's own box, and parts on its mount chain (its mount ancestors, whose boxes contain the carrier and its apex, and any part mounted on the carrier). Siblings, parts on other branches and deployables are always judged.
+  The limit of this rule: a carrier that points into its own mount (for example a thruster that fires through the bus) is not detected through the mount part itself, only through the other parts in the way. The number of boxes skipped for this reason is `parts_in_mount_chain`.
+- **Range**: only points within the range of the apex count. The default is the diagonal of the axis-aligned box that holds all part boxes and all carrier positions, the largest possible distance between two points of the spacecraft, so by default nothing is excluded;
+  `analysis/structure.toml` `cone_clearance_range = { value = 0.5, unit = "m" }` (`fune set analysis.structure.cone_clearance_range "0.5 m"`) narrows it. `range_is_default` tells which was used.
+- **Geometry is exact for the box**: the cone is a circular cone (half angle strictly between 0 and 90°) and the box is a convex polytope. The minimum angle from the axis is 0 when the axis ray meets the box, else it is found in closed form on the 12 edges. The minimum distance from the apex to the part of the box inside the cone is the least of
+  closed-form candidates (vertices, edge–cone crossings, the foot of the perpendicular on a face, the point of a face where the cone surface has the generator nearest the face normal). Touching counts as a hit (±1e-12 rad). The reported angle is over the whole box, not limited to the range. The error that remains is the box approximation itself, not the geometry.
+- **Output**: `cones` (per judged carrier: `id`, `kind`, `half_angle`, `axis`, `apex`, `range`, `parts_judged`, `parts_in_mount_chain`, `obstructions` = `part`, `min_angle`, `min_distance`, nearest first), `skipped_carriers`, `skipped` (parts without a size), `range`, `range_is_default`, `parts_with_box`, `cones_judged`, `cones_obstructed`, `checks`.
+- **Relation to `aocs.sensor_fov`**: that analysis is the time-domain one (which celestial bodies enter the field of view and the exclusion angles over an orbit); this one is static geometry (which of the spacecraft's own parts block it). They read the same attributes (`boresight`, `fov_half_angle`) and neither feeds the other.
+
+Not modeled: the effect of a plume on what it hits (heating, force and torque, contamination: they need a plume flow model), real shapes (STEP, #344), fields of view that are not circular cones (rectangular fields), and drawing the cones in 3D (the layout view draws the field-of-view cone from `fov_axis`; the plume would also need the axis sign, so it is not drawn yet).
+
+### 5.9 External geometry (`structure.external_geometry`, #388)
+
+`structure.external_geometry` reports the spacecraft's outer shape as the parts' boxes give it: the **projected area** along any direction (boxes hide each other, so the areas are not summed) and the **exposed surface area** (the faces not covered by other boxes).
+It is a report: no verdict is produced (one `ok` check with the numbers), and nothing consumes it yet. The drag area of `orbit.decay`, the aerodynamic and solar-pressure torques of `aocs.rw_unloading`, the launch envelope and the thermal enclosure still use what they used before;
+making them read this geometry is the next stages of #388 (the numbers they produce will change then, and the demo's results with them). The boxes are the same oriented boxes as §5.7 (`fune_projection::structure::boxes`, so the configuration in effect is followed), with the same skip of parts without a `size`.
+
+- **Projected area**: the silhouette of an oriented box along a direction is the convex hull of its 8 projected corners (a hexagon at most; a rectangle along a face normal, a segment edge-on). The projected area is the **exact area of the union of the silhouettes**, by a slab sweep in `sat_astro::math::planar`:
+  the plane is cut at every vertex ordinate and every edge-crossing ordinate, inside a slab each silhouette is a trapezoid and their order does not change, so the union of intervals gives the area and the first moments in closed form (the trapezoid rule and Simpson's rule are exact on linear widths).
+  There is no grid and no resolution parameter; shared edges, coincident and identical boxes, edge-on plates and nearly parallel edges are handled by the same code and the result does not depend on the order of the parts. A part hidden inside others needs no classification: the union hides it.
+- **Centre of the projection**: `Projection.centre` is the centroid of the union expressed as a **point in body coordinates on the plane through the body origin perpendicular to the direction** (its component along the direction is 0). The lever arm about the centre of mass is the difference between this point and the centre of mass projected onto the same plane;
+  only the components perpendicular to the direction matter. The silhouette along `−d` is the same point set as along `d` (the same orthogonal projection), so the area and the centre are equal for opposite directions.
+- **Mean over all directions**: `A(d) = A(−d)`, so the mean over the sphere is an integral over a hemisphere. `DirectionSet::standard` is a product Gauss–Legendre rule: 12 polar nodes on `[0, π/2]` (with the `sin θ` weight; the integrand is smooth in θ) × 8 nodes in each of the 4 azimuth quadrants (the kinks of a box's `|dx|`, `|dy|` lie on the quadrant boundaries) = **384 directions**.
+  Measured against the closed form of one convex box, `(xy + yz + zx) / 2`: about 1e-15 relative for an axis-aligned box, and at worst about 1e-3 over 40 random orientations (the kinks of a rotated box do not lie on the quadrant boundaries; the error falls roughly with the inverse square of the node count: 3e-3 at 192 directions, 1e-3 at 384 here).
+  This one set is the only one (the mean projected area for the drag, the minimum, maximum and mean of the report). Cost in a release build with 41 boxes: about 0.09 ms per direction (hidden boxes are skipped when they lie inside another box with no tolerance, which does not change the union), about 40 ms for all 384 directions, and about 0.25 ms for the whole exposed surface.
+  An `#[ignore]`d test (`cost_of_the_projection_on_forty_boxes`) records it.
+- **Exposed surface area**: for every face of a box (a rectangle), the other boxes are cut by the face's plane. A box that crosses the plane covers its cross-section; a box that touches the plane within 0.1 mm covers the contact set (a face of it, an edge or a point). The cross-sections are clipped to the face and united with the same planar union; the exposed part is the face area minus that union (a remainder below 1e-12 of the face counts as fully covered).
+  Totals are given overall, per part, and per face direction. The direction is the body axis along which the face normal has its largest component (±X, ±Y, ±Z): exact for axis-aligned boxes; for a rotated box the face goes to the nearest axis (the sum is unchanged), and a normal exactly between two axes goes to the lower axis (x before y before z).
+  Two boxes glued face to face lose the contact rectangle twice; a panel that covers a face exactly leaves that face with 0.
+- **Internal parts** (tier 1): a part whose 8 corners lie inside another single box (with 0.1 mm of tolerance) is internal. It is listed (`internal_parts`, with the box that holds it), and it is not counted in the exposed area (neither its faces, nor as a cover). Two boxes that contain each other (the same box twice) leave the one that sorts first. The projected area needs no classification.
+  Not done: tier 2 (silhouette invariance over the direction set). A part enclosed by several boxes together, but by no single box, is still counted as exposed where its faces are free of other boxes.
+- **`count` > 1**: the copies share one pose, so the part is one box and is counted once (listed in `repeated`). **No `size`**: listed in `skipped` (the same rule as §5.7). With no box at all the analysis reports a missing input (`a part with a size`).
+- **Output**: `projected` (X, Y, Z: `area`, `centre`; +/− directions are equal), `mean_projected_area`, `min_projected` and `max_projected` (`area` and the `direction`; the extremes over the direction set and the three body axes: `directions_measured` in all, so the maximum is a lower bound and the minimum an upper bound of the true extremes),
+  `exposed_area`, `exposed_by_direction` (−X, +X, −Y, +Y, −Z, +Z), `exposed_by_part`, `internal_parts`, `skipped`, `repeated`, `parts_with_box`, `checks`.
+
+Not modeled: real shapes (STEP, #344), shadowing between parts for the thermal surfaces and the solar cells (a later issue, on the same geometry), and the drag coefficient or the pressure centre that would use these areas.
+
 ## 6. Product tree and mounting
 
 ### 6.1 Two hierarchies
@@ -995,6 +1222,12 @@ parts/
 - **Things that span several parts and have their own names or attributes** (modes, nets, harnesses) get their own directories.
 - **References are by ID.** Part IDs are unique overall, so a part can be pointed to as `RW_X` from any directory.
 - `nets/` and `harness/` are laid out flat. Only `parts/` gives directories the meaning of "parent".
+- **Placement of a part** (`[mount]`, `mount_points`, `[pose]`). A part with a mount is placed by its `[pose]` relative to the mount point of the part it is mounted on (the point's own pose, or the origin and no rotation when no point is given). A part **without** a mount (a root) is placed by its `[pose]` in the **body frame**: its position and orientation are the root's own place in the vehicle, and not written means the origin with no rotation, exactly as before.
+  The body-frame pose of any part is one composition (`Resolved::pose_chain`, composed by `fune_projection::pose`) that starts with the root's `[pose]` and follows the mounts down, so children follow a moved or rotated root, several roots can sit at their own places, and everything that reads body poses (mass properties, interference, cone clearance, thermal surface normals, solar panel normals, thrust directions, the 3-D view) follows without a second composition.
+  The body origin is wherever the design puts it: a dummy "origin" part whose centre happens to be the origin is not needed. The "root = vehicle outline" rule of the analyses is a separate matter (§5.3).
+  `fune part place <ROOT> --root --position … --rotation …` (or the GUI's placement fields with no mount target) writes the root's `[pose]`; the same command with `--root` also un-mounts a mounted part, so un-mounting and giving the body pose are one command.
+  Placing in vehicle coordinates (`--body-pos`, `POST /parts/{id}/place_body`, the 3-D drag) goes through the same inverse for a root, where the mount frame is the body frame itself, so the requested pose is written as the root's `[pose]` unchanged.
+  *Change in behaviour:* a root's `[pose]` used to be ignored; a design that has one written now has it applied (numbers change). Designs whose roots have no `[pose]` are byte-identical in files and numbers.
 
 ```
 my-sat-design/
@@ -1185,6 +1418,27 @@ duty        = 0.8        # fraction of the allowed firing time actually fired (0
 steering    = "tangential"  # tangential (velocity direction. If inclination also changes, Edelbaum's yaw angle) / inertial (fixed to the initial direction)
 ```
 
+A maneuver that targets another planet can carry the two dates of the transfer:
+
+```toml
+# maneuvers/MARS_TRANSFER.toml
+label    = "Earth → Mars transfer and capture"
+category = "insertion"
+method   = "impulsive"
+thruster = "MAIN"
+after    = "RAISE"           # the orbit after RAISE is the parking orbit
+
+[target]                     # capture orbit (altitudes from the target body's radius)
+body             = "mars"
+perigee_altitude = { value = 300.0, unit = "km" }
+apogee_altitude  = { value = 33000.0, unit = "km" }
+
+[transfer]                   # dated transfer (optional)
+departure = "2028-12-10T00:00:00Z"   # same form as conditions.orbit.epoch (ISO 8601)
+arrival   = "2029-09-25T00:00:00Z"
+# departure_by = "launcher"          # optional: the launcher provides the departure burn (below)
+```
+
 - The target elements that can be written are `body`, `altitude`, `perigee_altitude`, `apogee_altitude` and `inclination` (changes in RAAN are not handled yet).
 - If `body` (the spelling of the central body) differs from the previous orbit's central body, the transfer between bodies is computed by patched conics
   (`sat_astro::transfer::patched_conic`; `method` is `impulsive` or `finite_burn`). The bodies' orbits are regarded as circular and coplanar,
@@ -1193,10 +1447,53 @@ steering    = "tangential"  # tangential (velocity direction. If inclination als
   Only parent-child pairs (Earth ⇄ Moon) and bodies orbiting the same parent (Earth ⇄ Mars) are supported; Moon → Mars is split into a maneuver at an intermediate body.
   Inclination changes and launch windows (the timing of the encounter) are not counted (notes `plane_change_ignored` and `patched_conic`). Later maneuvers are computed around the target body.
   The output's burns and orbits carry the non-Earth central body `central` and the hyperbolic excess velocity `v_inf`.
-  The velocities at both ends of a transfer with fixed dates can be solved with `sat_astro::transfer::lambert` (Lambert's problem), but maneuvers do not use it yet.
+  With a `[transfer]` table (below) the transfer is instead solved from the positions of the bodies on two dates.
   Writing `via_altitude` (top level) makes impulsive and finite-burn computations use a bi-elliptic transfer with that altitude as the intermediate apoapsis.
+- `[transfer]` (`departure` and `arrival`, both required) makes the ΔV between the bodies come from Lambert's problem between the positions of the two bodies on those dates
+  (`sat_astro::transfer::dated_transfer`; zero revolutions, prograde about the ecliptic north) instead of the Hohmann estimate. Without `[transfer]` the Hohmann-based calculation above runs unchanged.
+  It is the same maneuver entity and `method` (`impulsive` or `finite_burn`; `low_thrust` and `propagated` are `check` errors) and needs `target.body`.
+  Scope: two different bodies that orbit the same parent (planet ⇄ planet), as the departure body is the central body of the orbit before this maneuver.
+  Earth ⇄ Moon with dates is not supported (`maneuver.transfer_bodies`). The departure burn is at the periapsis of the parking orbit (the orbit before this maneuver) and the capture burn at the periapsis of the target orbit,
+  as for the Hohmann estimate; the sphere of influence is a point. The planes are not changed: the result carries a warning when the declination of the departure asymptote exceeds the parking orbit inclination.
+  The date strings use the same form as `conditions.orbit.epoch`; UTC, TT and TDB are not distinguished (the leap seconds and the UTC/TT difference are ignored, which is within the precision of concept design).
+  - Checks (all errors unless noted): both dates present (`maneuver.transfer_dates`), a target body (`maneuver.transfer_body`), `propagated` not used (`maneuver.transfer_method`; by model);
+    dates parse (`maneuver.transfer_epoch`), inside the ephemeris range (`maneuver.transfer_ephemeris`; 1800 to 2050, wider when DE440 is installed), arrival after departure (`maneuver.transfer_order`),
+    and sibling bodies (`maneuver.transfer_bodies`; by `fune_projection::maneuver_dates`, which has the ephemeris, and appended to `fune check` by `fune_service::workspace::Snapshot::of`).
+  - Maneuvers otherwise carry no dates; a maneuver starts when the previous one ends, counted from the first orbit's epoch (below). When that time is later than `departure`, `propulsion.maneuvers` and
+    `propulsion.dv_budget` carry a warning (`dated_transfer_timing`); the date is not moved. A second warning, `dated_transfer_plane`, is for the departure declination above the parking inclination.
+  - Body positions come from DE440 when it is installed (`fune data`) and from the analytic elements (VSOP87A, Standish) otherwise, so the ΔV can differ slightly; the result's `ephemeris` says which was used
+    (`de440` only when both dates were served by DE440). The result (`dated_transfer` of `propulsion.maneuvers`, `dated_transfers` of `propulsion.dv_budget`) has the time of flight, the characteristic energy C3,
+    the departure and arrival excess speeds, and the departure asymptote declination; the burns carry `v_inf` as for the Hohmann estimate, and the note is `dated_lambert` instead of `patched_conic`.
+  - Edit with `fune maneuver add|set ... --body mars --depart 2028-12-10T00:00:00Z --arrive 2029-09-25T00:00:00Z` (both or neither; `set` rewrites the whole maneuver, so leaving them out removes `[transfer]`).
+  - **`departure_by`** (optional; `spacecraft` when not written, or `launcher`; flag `--departure-by`, which needs the two dates; the GUI maneuver dialog has it next to the dates).
+    With `launcher`, the launcher injects the spacecraft onto the departure asymptote, so the departure burn is not the spacecraft's: `sat_analysis::propulsion::plan` leaves it out of the burn list
+    (note `departure_by_launcher`), and so `propulsion.maneuvers`, `propulsion.dv_budget`, `propulsion.propellant` and `propulsion.thruster_usage` count only the capture burn and the later maneuvers (total ΔV = the total with the
+    spacecraft departing minus the departure burn; the propellant follows by the rocket equation, and the finite-burn transfer time adds half of the capture burn only).
+    The dated transfer result still carries C3, the excess speeds and the departure declination (as launch requirements; `departure_by` is in the result), and `dated_transfer_plane` and `dated_transfer_timing` are not raised
+    (the parking orbit and the end of the previous maneuver play no part). `structure.launch_fit` takes the C3 of the first such transfer for the capability curve (§5.6), and its launch mass is the mass at injection.
+    Check: `maneuver.departure_by_launcher_after` (warning) when such a maneuver follows another maneuver (`after`): the launcher injects the spacecraft directly, so a maneuver before it does not fit (it is still counted).
+  - `propulsion.transfer_check` re-propagates each dated transfer and reports the arrival miss (against the arrival body's sphere of influence), the closest approach (distance and time), the difference of
+    the arrival excess speed from Lambert's, the bodies used as third bodies, and a coarse trajectory (heliocentric ecliptic x and y of the spacecraft and both bodies, and the distance to the arrival body, in the `series`).
+    The cruise starts at the centre of the departure body on the departure date with Lambert's heliocentric velocity and runs under the point-mass gravity of the Sun and the other planets (Earth too, unless it is an end).
+    **The departure and arrival bodies' own gravity is not modelled**: inside their spheres of influence the patched-conic burns stand in, and a point mass at the aim point would make the aimed trajectory singular.
+    So the miss is "how far the other planets push a trajectory aimed at the body's centre", not a flyby design. The search for the closest approach runs 10 days past the arrival date (`closest_approach_at_end` marks a minimum still outside that).
+    Only with DE440 is the result judged: the miss within the arrival body's sphere of influence is `ok`, outside it is a warning that targeting or trajectory correction is needed; a closest approach outside the sphere of influence is also a warning.
+    With the analytic ephemeris the numbers are shown but not judged (the miss is of the order of the ephemeris error, 10⁵ km for Mars), and the note `analytic_ephemeris_not_judged` says so. Without a dated transfer the result is an empty list.
+  - `propulsion.launch_window` searches the dates: for each maneuver whose target body orbits the same parent as the departure body (with or without `[transfer]`), it solves a grid of departure dates × arrival dates
+    and reports, per grid point, C3, the two excess speeds, the departure declination and the maneuver ΔV (departure burn from the parking orbit + capture burn into the target orbit, without finite-burn losses:
+    `ideal_delta_v` of `propulsion.maneuvers`), or no value where the transfer cannot be solved (a date outside the ephemeris, the two positions nearly opposite so the plane is undefined, no hyperbola).
+    **Each grid point goes through the same code as a maneuver with those dates** (`sat_astro::transfer::dated_transfer` and the plan's burns), so writing a grid point's dates into the maneuver makes `propulsion.maneuvers` report the same numbers.
+    The output has the axes and one array per quantity (`grid.departures`, `grid.arrivals`, `grid.layers`; row-major, departure by arrival; this is the data of a porkchop plot), the minimum-ΔV point and the minimum-C3 point (`minimum_delta_v`, `minimum_c3`),
+    the point at the dates written in the maneuver and its excess over the grid minimum (`written`), the ephemeris used, notes (`analytic_ephemeris`, `minimum_at_grid_edge` when the minimum touches an axis end, a time-of-flight limit or an unsolved point, `declination_above_inclination`),
+    and a flat `points` table with the same points. Maneuvers without an interplanetary transfer give an empty `windows`; if no grid point can be solved the first error is returned, as `propulsion.maneuvers` does.
+    The settings are `[launch_window]` in `analysis/propulsion.toml`, all optional: `departure_start` (ISO 8601), `departure_span`, `time_of_flight_min`, `time_of_flight_max` (times) and `departure_steps`, `arrival_steps` (at least 2).
+    The defaults are derived from the two bodies: the departure window is one synodic period starting at the first orbit's epoch (centred on the written departure date when the maneuver has dates),
+    the time of flight runs from 0.5 to 1.5 times the Hohmann transfer time, and each axis has 100 points; only the grid points whose time of flight is in range are solved.
+    `fune maneuver set-window <ID> --min dv|c3` (HTTP `POST /ops/maneuver_window`) writes the dates of the minimum-ΔV or minimum-C3 point into the maneuver through the existing maneuver Op (the same file as `fune maneuver set … --depart … --arrive …`).
+    The window is centred on the written departure date, so running the search again after writing re-centres the grid and can find a slightly different minimum.
 - The execution order is linked by `after`. The source of truth is `Design::ordered_maneuvers` (those with no `after` start in ID order, followed by the ones linked after them).
   A cycle is a `check` error (`maneuver.cycle`).
+- A cruise orbit can be taken from a dated transfer: `source = "transfer"` and `maneuver = "<ID>"` in `conditions/orbit.toml` or in a phase's `[orbit]` (§1 and §7.10). Maneuver renames rewrite those references.
 - The first orbit is the conditions' orbit (`conditions/orbit.toml`). The dry mass is `dry_mass` in `analysis/propulsion.toml`, or if absent, the total mass of the parts' mass properties.
 - `dv_margin` (default 10 %) and `residual_fraction` (remaining propellant, default 3 %) in `analysis/propulsion.toml`. The defaults are held by sat-analysis (`propulsion::input`).
 - Reference checks: the thruster is a part (an error if absent, a warning if its role is not `propulsion_thruster` or `thruster`), and the constraint's mode is a mode.
@@ -1208,7 +1505,7 @@ steering    = "tangential"  # tangential (velocity direction. If inclination als
   "When and in which orbit" for this order is given by `propulsion.orbit_history`. When there is a numerically propagated maneuver, `orbit.eclipse_season`
   (and `power.sizing`, which uses it) looks up the orbit for each sample day from this history (if there is none, the first orbit is kept).
 - `propulsion.mass_properties` gives mass and center of mass with propellant loaded (beginning of life) and after use (end of life) (the propellant is a point mass at the tank part's center of mass).
-- How to write: after the top-level values, `[target]` and `[constraints]` are written as heading tables, and quantities inside are `{ value, unit }`
+- How to write: after the top-level values, `[target]`, `[constraints]` and `[transfer]` are written as heading tables, and quantities inside are `{ value, unit }`
   (`fune_store::write::records::MANEUVER_SECTIONS`). Edits use `fune maneuver add|set|rm` (the GUI sends the same arguments to `POST /ops/from_command`).
 
 ### 7.8 sources/: the ledger of sources, and the source of a value
@@ -1321,7 +1618,7 @@ Design values and modelling inputs stay settings or part attributes (see the tab
 | `comm.link_budget` / `pfd` | `at_most`, Dimensionless (dB) | the PFD limit of a downlink; without one no PFD check is made |
 | `aocs.slew_time` / `slew_time` | `at_most`, Time | the required slew time; without one no check is made |
 | `orbit.decay` / `max_lifetime` | `at_most`, Time | the lifetime limit; without one no check is made |
-| `structure.modal_estimate` / `lateral`, `axial` | `at_least`, Frequency | the required natural frequency of beams (the demo has no beams, so these rows stay "not verified") |
+| `structure.modal_estimate` / `lateral`, `axial` | `at_least`, Frequency | the required natural frequency of beams, and it only tightens the minimum of the selected launcher and dispenser (§5.6; the larger applies, and `structure.launch_fit` names which one). The demo has no beams, so these rows stay "not verified" |
 | `thermal.steady`, `thermal.transient` / `range_low`, `range_high` | `at_least` / `at_most`, Temperature | a node's lower or upper temperature limit (see below) |
 
 - **Several requirements on one criterion**: the tightest applies (`at_most` the smallest, `at_least` the largest). The compliance table still judges **each row against its own constraint**:
@@ -1338,7 +1635,7 @@ Design values and modelling inputs stay settings or part attributes (see the tab
   `conditions.orbit.decay.max_lifetime`, `conditions.launch.min_frequency_axial|lateral` and `conditions.orbit.duration` are no longer read. A file that still has one gets the error
   `setting.moved_to_requirement` naming the key and the requirement to write; `fune setting set` refuses them; `fune setting unset <path>` removes them.
 - **Stays a setting or attribute** (design values and modelling inputs): `ebn0_required`, `system_margin`, `alloc`, growth/uncertainty/harness allowance, `storage_margin`, `usable_momentum_fraction`, `unload_dipole_fraction`,
-  `slew_angle`, `dv_margin`, `residual_fraction`, `safety_factor_*` (factors applied to loads, like `system_margin`), `fastener_allowable`, the thermal `[margin]`, ground station `min_elevation`, mode `max_duration`, and the part temperature ranges.
+  `slew_angle`, `dv_margin`, `residual_fraction`, `safety_factor_*` (factors applied to loads, like `system_margin`), `fastener_allowable`, `interference_tolerance`, `cone_clearance_range`, the thermal `[margin]`, ground station `min_elevation`, mode `max_duration`, and the part temperature ranges.
 
 ### 7.10 phases/: one file per mission phase
 
@@ -1352,6 +1649,7 @@ start    = "Separation from the launcher"            # free text: the condition 
 end      = "All subsystems checked out"              # free text (optional)
 duration = { value = 30.0, unit = "d" }              # optional, a time
 modes    = ["SAFE", "NOMINAL"]                       # the modes used in this phase (optional; references to modes/)
+configuration = "STOWED"                            # optional; placement for analyses using this phase (§7.11)
 
 [orbit]                # optional. Same keys as conditions/orbit.toml. If present it REPLACES the design's orbit as a whole for the cases that name this phase (no per-key merge)
 label    = "Disposal orbit (250 km)"
@@ -1363,22 +1661,83 @@ law = "nadir_pointing"
 ```
 
 - **How a case uses a phase.** A case with `phase = "<ID>"` (§5.1) reads the phase's `[orbit]` in place of `conditions/orbit.toml` as a whole (the epoch, the propagator, the `[decay]` and `[eclipse_season]` settings and so on come
-  from the phase's table too, so a phase orbit has to be complete) and the phase's `[law.<mode>]` in place of the design's law for that mode (modes the phase does not list keep the design's law). Nothing else changes.
+  from the phase's table too, so a phase orbit has to be complete) and the phase's `[law.<mode>]` in place of the design's law for that mode (modes the phase does not list keep the design's law). Its optional `configuration` selects the placement according to §7.11.
   The existing orbit and attitude-law code reads them (the orbit builder takes "the orbit settings in effect"); there is no second orbit builder. A missing input in a phase orbit names the phase file
   (`phases.<ID>.orbit.<key>`, not `conditions.orbit.<key>`), and so does a read of a phase law (`phases.<ID>.law.<mode>`).
+- **Orbit from a dated transfer.** The phase's `[orbit]` can set `source = "transfer"` and `maneuver = "<ID>"` instead of Kepler elements (see the orbit settings in §1; no other key is needed), so a cruise phase takes its orbit from the maneuver's dates. The phases page then says "Orbit from <maneuver>" (`PhaseView.orbit_from`).
 - **Checks** (`fune check`): the ID rules (`id.invalid`, `id.duplicate`); every entry of `modes` and every key of `[law]` must be a mode (`ref.mode`); `duration` has the Time dimension (`unit.dimension`);
   the `[orbit]` table gets the same checks as the design's orbit (dimensions of the quantities, eccentricity range, `ltdn` format; the targets are `phases.<ID>.orbit.<key>`);
-  a case's `phase` must exist (`ref.phase`); and `case.mode_not_in_phase` (warning) when a case with a phase names a mode that the phase's non-empty `modes` does not list.
-- **References.** Phases refer to modes (`modes`, the keys of `[law]`) and cases refer to phases (`phase`); both are in the reference index (`RefSite::PhaseMode`, `PhaseLaw`, `CasePhase`).
+  a case's `phase` must exist (`ref.phase`); a phase's `configuration` must exist (`ref.configuration`); and `case.mode_not_in_phase` (warning) when a case with a phase names a mode that the phase's non-empty `modes` does not list.
+- **References.** Phases refer to modes (`modes`, the keys of `[law]`) and cases refer to phases (`phase`); both are in the reference index (`RefSite::PhaseMode`, `PhaseLaw`, `CasePhase`); a phase orbit's `maneuver` refers to a maneuver (`RefSite::PhaseOrbitManeuver`).
   Renaming a mode rewrites the phases, and renaming a phase rewrites the cases. Removing a phase that a case names is rejected by the check (`ref.phase`), as removing a mode that a case names is.
 - **Ops**: `CreatePhase`, `SetPhase`, `RemovePhase`, `RenamePhase`, `SetPhaseField` (one value of `orbit.<key>` or `law.<mode>.<key>`; no value removes it, and an emptied table disappears), `CopyPhaseOrbit` (writes the design's current orbit into the phase's `[orbit]` in one step, replacing the current one; it is the starting point of an orbit override), `UnsetPhaseOrbit` and `UnsetPhaseLaw` (remove the whole `[orbit]`, or the whole `[law.<mode>]` of one mode) and `SetCasePhase`.
   An attitude law override is started by writing its kind (`law.<mode>.law`) with `SetPhaseField`, because `AttitudeLawSetting` requires `law` whenever `[law.<mode>]` exists; the file stays loadable at every step.
-  `SetPhase` replaces the heading fields (`label`, `order`, `start`, `end`, `duration`, `modes`) and keeps the current `[orbit]` and `[law.*]` when the Op carries none.
+  `SetPhase` replaces the heading fields (`label`, `order`, `start`, `end`, `duration`, `modes`, `configuration`) and keeps the current `[orbit]` and `[law.*]` when the Op carries none.
 - **CLI** (the GUI sends the same arguments to `POST /ops/from_command`): `fune phase ls|show|add|set|rm|rename`, `fune phase set-field <ID> orbit.altitude "550 km"`, `fune phase unset-field <ID> <path>`, `fune phase copy-orbit <ID>`, `fune phase unset-orbit <ID>`, `fune phase unset-law <ID> <mode>`,
+  `fune phase set <ID> --configuration STOWED` (omit the flag or pass an empty value to clear it, as for other optional heading fields),
   `fune case set-phase <case> <phase>`, `fune case unset-phase <case>` and `fune case set --phase <ID>`. How to write: after the top-level values, `[orbit]` and `[law.<mode>]` are heading tables
   (`fune_store::write::records::PHASE_SECTIONS`).
 - **GUI.** The phases page edits the heading fields in a dialog and the overrides in an "Edit overrides" dialog: the orbit override is the same settings table as the design orbit (`SettingsTable`) and the attitude law override is the same fields as the AOCS mode's law (`Attitude`); both take only where the values are written (`FieldEdit`: `usePhaseFieldEdit` sends `phase_field`, the design's own editors use `useSettingEdit`). "Copy the design orbit", "Remove override" and adding or removing a law override send `phase_copy_orbit`, `phase_unset_orbit`, `phase_unset_law` and `phase_field` to `POST /ops/from_command`. Not editable in the GUI: adding an orbit field that is not already in the file (as for the design orbit; use `fune phase set-field`), and removing a single field (`fune phase unset-field`).
 - Not used yet: the duration and the order do not drive any analysis, and maneuvers do not read phases (`after` still names a maneuver; §7.7).
+
+### 7.11 configurations/: named overlays of part poses
+
+A configuration is a named variant of the placement (stowed, deployed, a cruise arrangement). The placement written in the part files (`mount`, `pose`) is the unnamed **base**; a configuration is a sparse overlay on it, and the ID is the file name (as for modes and phases).
+
+```toml
+# configurations/STOWED.toml
+label       = "Stowed"
+description = "Paddle folded onto the +X face"
+
+[pose.SAP_PY]          # REPLACES SAP_PY's [pose] as a whole in this configuration (no per-key merge), relative to its unchanged mount point
+position    = { x = 2.6, y = -1.5, z = 0.0, unit = "mm" }
+orientation = { w = 0.707107, x = 0.0, y = 0.0, z = -0.707107 }
+```
+
+- **What it overrides.** Only the pose (`position` and `orientation`) of a part, relative to the mount point written in the part file (for a root, which has no mount, the pose in the body frame, §7.1). The mount target and mount point are not overridable. A part that the file does not list keeps its base pose, and the children of an overridden part follow it through the mount chain.
+  Because the table is replaced as a whole, a key that the configuration does not write is the default (a missing `orientation` is the identity), not the base value. A design with no `configurations/` directory has the same files and the same numbers as before.
+- **One place decides.** `Design::pose_in(part, configuration)` returns the written pose in effect (the configuration's row, otherwise the part's own `pose`; an unknown configuration is the base). The mount resolution calls it, and nothing else does
+  (`cargo xtask check` enforces it); there is no second pose composition. `resolve` also builds a resolved design per configuration (only the mounts differ from the base), and `Resolved::in_configuration(Some(id))` returns it
+  (`None` and an unknown ID return the base). These per-configuration designs are not part of any API output. Analyses read the effective resolved placement through the projection context.
+- **Checks** (`fune check`): the ID rules (`id.invalid`, `id.duplicate`); a key of `[pose]` must be a part (`ref.part`); a pose gets the same checks as a part's `pose` (`unit.dimension`, `unit.parse`, `pose.quaternion_norm`; the targets are `configurations.<ID>.pose.<PART>`);
+  and nothing is special for a root (the warning `configuration.pose_without_mount` of the first version is gone: a root's override is its body-frame pose in that configuration). `outline.root_pose` (warning, §5.3) is also given for a configuration that overrides the outline root's pose.
+- **References.** The keys of `[pose]` are part references in the reference index (`RefSite::ConfigurationPose`). Renaming a part rewrites the key, and removing a part removes its row (and an emptied `[pose]`), the same policy as a mode's part rows. The launch and phase selections are indexed as `RefSite::LaunchConfiguration` and `RefSite::PhaseConfiguration`. Renaming a configuration rewrites both selections. Removing it while either site names it is rejected with `ref.configuration`.
+- **How to write.** After the top-level values, `[pose.<PART>]` are heading tables with inline `position` and `orientation` (`fune_store::write::records::CONFIGURATION_SECTIONS`). `fune fmt` keeps this form.
+- **Ops**: `CreateConfiguration` (refused if the ID exists), `SetConfiguration` (writes `label` and `description`, creates the file if missing, keeps the `[pose.*]` rows), `RemoveConfiguration`, `RenameConfiguration` (moves the file and follows the reference index to rewrite launch and phase selections),
+  and `UnsetConfigurationPose` (removes one part's override; an emptied `[pose]` table disappears and the heading stays; refused if the part has no override there, so a repeated reset is an error and not a silent no-op).
+  **Placing a part in a configuration is the same `Place` Op as placing a part**, with one more optional `configuration`: the pose (`position`, `orientation`) is written to `[pose.<PART>]` of that configuration's file as a whole instead of the part's own `[pose]`, which is left untouched.
+  The rules: `on` and `point` may be omitted, and if given must equal the part's mount (re-mounting per configuration is not possible, and `--root` is refused; for a root, giving a mount target is a re-mount and is refused too); the pose of a part with no mount is its body-frame pose; at least one of `position` and `orientation` is required (to go back to the base pose, remove the override); an unknown configuration or part is refused.
+  The Op JSON is unchanged when `configuration` is absent.
+- **Placing in vehicle coordinates** (`fune part place --body-pos`, the GUI's 3-D drag, `POST /parts/{id}/place_body`) takes the configuration too. The body position is read in the resolved design of that configuration (`Resolved::in_configuration`), because the parents' poses may be overridden there, and converted to the mount-local pose by the same `fune_projection::pose::body_to_mount_local` as in the base; the result is a `Place` with `configuration`.
+- **Reading.** `PartRow.mount` and `PartRow.body` (part listings and the part detail) take an optional configuration (`GET /parts?configuration=`, `GET /parts/{id}?configuration=`, `PartViewRequest.configuration`, `fune part ls|show --configuration <ID>`) and return the poses in that configuration; an unknown configuration is an error (it is not read as the base).
+  `MountView.overridden` tells whether the configuration overrides the part's pose (the written `authored_*` values and `relative` are then the override). `GET /configurations` and `GET /design` (`configurations`) list the configurations: ID, label, description, the overridden part IDs, and the initial values of the editing fields.
+- **Diagnostic when the base mount changes.** `[pose.<PART>]` is relative to the part's base mount point, so `Place` on a part's own mount (without `configuration`) that changes `on` or `point` while a configuration overrides that part returns the warning `configuration.mount_changed` for each such configuration
+  (target `configurations.<ID>.pose.<PART>`, with the location of the row). It is a warning of the edit (in the Op result's diagnostics), not of a stored design, because the check of a stored design cannot know that the mount changed. Moving a mount point of the parent (`SetMountPoint`) is not detected.
+- **CLI** (the GUI sends the same arguments to `POST /ops/from_command`): `fune configuration ls|show|add|set|rm|rename`, `fune configuration unset-pose <ID> <PART>`,
+  `fune part place <PART> --configuration <ID> --position "…" --rotation "…"` (`--on`/`--point` optional; `--body-pos "x y z mm"` reads vehicle coordinates in that configuration), and `fune part ls|show --configuration <ID>`.
+- The Layout page switches between Base and named configurations using the `configuration` URL parameter. In a named configuration, 3-D dragging and the placement fields write pose overrides (a root part's pose can be overridden too), the mount controls are disabled, and **Reset to base** removes the selected part's override. The configuration menu manages the records, and component detail lists the part's overrides and mount-relative poses.
+  The center-of-mass marker is the structure mass-properties analysis requested with the selected configuration, so it follows the configuration being viewed.
+- **Analysis selection.** `fune analyze <id> --configuration <ID>` and the `configuration` field of `POST /analyses/{id}` select a configuration explicitly when the input is built from a design. The request rejects an unknown ID.
+  Otherwise `structure.launch_fit`, `structure.static_load`, `structure.modal_estimate`, and `structure.modal_fem` use the launch selection. Other analyses use the configuration of the effective case's phase. A case can name a phase.
+  If the applicable selection is absent, the analysis uses the base placement. A saved selection that names an unknown ID is an error in `fune check` and appears as a missing input with configuration candidates when projected.
+  The result includes `configuration` and `configuration_source` (`explicit`, `launch`, or `phase`) when a named configuration is selected. Base results omit both fields. A nested case context resolves from the base again and carries any explicit request selection.
+- **Launch fit from the parts.** When the launch selection (or an explicit one) is in effect, `structure.launch_fit` measures the envelope from the boxes of all parts in that configuration (§5.6). The demo is the worked example: `configurations/STOWED.toml` folds the deployable paddle `SAP_PY` (2 × 226 × 366 mm, hinged on the +Y face at its +X edge, cells facing +X when deployed) flat onto the +X face:
+
+  ```toml
+  [pose.SAP_PY]   # relative to the hinge point of PANEL_PY (50, 114.5, 0) mm, which stays as it is
+  position    = { x = 9.2, y = -111.5, z = 0.0, unit = "mm" }
+  orientation = { w = 0.0, x = 0.0, y = 0.0, z = 1.0 }   # 180 degrees about the hinge line (body z)
+  ```
+
+  Hand calculation (mm). The deployed paddle centre is the hinge + (0, 111.5, 0) = (50, 226, 0). Turning it 180 degrees about the hinge line (z) puts the centre at the hinge + (0, -111.5, 0) in y, so y = 3.0 and the box spans y = -110 to 116, covering the face (y = ±113); z is unchanged (±183).
+  Its x is set by the hinge bracket offset: the paddle plane is moved 9.2 mm out of the hinge's plane to x = 59.2 (58.2 to 60.2), so that it clears the +X panel: the solar panel `SP_PX` reaches 52.8, and the sun sensor `SS_PX`, which sticks out of the panel, reaches 56.5.
+  The turn puts the cells (0.3 mm thick, 2 mm from the paddle plane on the cell side) on the body side, at 57.05 to 57.35: the gap to `SS_PX` is 57.05 - 56.5 = 0.55 mm and to `SP_PX` 57.05 - 52.8 = 4.25 mm (the paddle plate itself is 1.7 mm and 5.4 mm away). The cells face the body in this configuration.
+  `structure.interference` in `STOWED` has no overlap that the base placement does not have; the 1 mm hinge-edge overlap of `SAP_PY` and `SP_PY` in the base disappears.
+  The four sun sensors protrude from their panels by the same amount (the box centre is at 51.5 mm from the centre, 1.5 mm beyond the panel's mount plane, and the box is 10 mm thick: outer face at 56.5 mm, inner face at 46.5 mm). The two sensors on the ±X panels are placed at y = 80 mm, z = 150 mm, where the internal boxes `PCDU` and `OBC` (x = ±45) leave a 1.5 mm gap.
+  The stowed extent (all 36 boxes with a size): x from -56.5 (`SS_MX`) to 60.2 (`SAP_PY`) = 116.7 mm against the dispenser's 125 mm (margin 7.1 %); y from -119.5 (`SS_MY`) to 119.5 (`SS_PY`) = 239.0 mm against 245 mm (2.5 %); z from -185 (`EPT`) to 184 (`PANEL_PZ`) = 369 mm against 380 mm (3.0 %).
+  `LEOP` selects `STOWED` (cases on that phase are judged stowed), and so does the launch selection (`conditions/launch.toml`, `configuration = "STOWED"`), so `structure.launch_fit` measures the stowed assembly.
+- The phase dialog on the Phases page sets the phase's `configuration` (a select of the existing configurations; blank means the base placement).
+- A GUI control for the launch selection is a later stage of #374.
 
 ## 8. Allocations and margin policy (budget/)
 
@@ -1506,7 +1865,7 @@ Writing rules enforced by `fune fmt` and `fune check`.
    (because the path notation `RW_X.label` could not tell an attribute from a field. `def.reserved` in `fune check`, and `fune attr add` also refuses them).
 2. Nesting is at most two levels. Trees are expressed by directories, and relationships between entities by ID references.
    The only exception is the dotted keys of the value rows with a source (3) (`from.*` under `[attr.<name>]`, and `<state>.*` in a per-state value's cells).
-3. Inline tables are only for `{ value, unit }`, short vectors (`{ x, y, z, unit }`), ranges (`{ min, max, unit }`), and references that fit on one line.
+3. Inline tables are only for `{ value, unit }`, short vectors (`{ x, y, z, unit }`), ranges (`{ min, max, unit }`), curves (`{ at, at_unit, values, unit }`, §5.6), and references that fit on one line.
    Values with states or uncertainty go one cell per line under `[attr.<name>]`.
    **A value with a source (`from`) is written one element per line.** A value with no source stays a one-line inline table.
    The switch is decided only by whether a source exists, not by line length (to avoid the form changing and the diff getting noisy just because a short `note` was added).
@@ -1648,6 +2007,7 @@ The conditions for the automatic layout are as follows (`web/src/features/diagra
   (because moving one terminal can open space for another to move. Example: moving the OBC's SPW1 down lets LVDS1 move left).
   The side of a terminal is decided by the direction of the counterpart's center, but actual lines go around cards in between and around the trunk of the same net, so reselecting can make lines shorter
   with fewer bends.
+- The layout runs in a Web Worker so that the page stays responsive, and its result (frame and card positions and terminals, before the lines of the shown layers are drawn) is kept in memory and in the browser (IndexedDB) under a key made from the layout input and `LAYOUT_VERSION`. The same input always gives the same diagram, so a kept result is used as is. Positions and routes saved in `view/electrical.toml` are applied on top and never enter the key.
 - Frames with no lines (such as the structure) are made a 3-column grid and placed below or to the right of the diagram, whichever brings the whole closer to 16:10.
 - A line's label (protocol name) is attached only once to lines of the same protocol coming from the same terminal, and is placed beside the line where it does not overlap cards, frame headings,
   other labels or lines.
@@ -1709,6 +2069,7 @@ my-sat-design/
 ├── analysis/common.toml         # common analysis settings
 ├── mission/                     # reserved directory for #9 (mission and success criteria; not read for now)
 ├── phases/<ID>.toml             # mission phases (§7.10)
+├── configurations/<ID>.toml     # named overlays of part poses (§7.11)
 ├── cases/<ID>.toml
 ├── maneuvers/<ID>.toml          # maneuvers (§7.7)
 ├── sources/<ID>.toml            # subdirectories allowed: sources/<dir>/<ID>.toml (§11.1)

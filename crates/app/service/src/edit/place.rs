@@ -7,6 +7,7 @@
 use super::text::{given, invalid, quaternion_from_text, vector_from_text};
 use crate::dto::{ApplyRequest, ApplyResult, PlaceBodyRequest, PlaceText};
 use crate::error::{Result, ServiceError};
+use crate::query::pose;
 use crate::workspace::Workspace;
 use fune_model::value::units::{expect_dimension, to_si, unit_info};
 use fune_model::value::{Quaternion, Vector3};
@@ -27,12 +28,19 @@ pub fn place_op(t: &PlaceText) -> Result<Op> {
         (None, Some(r)) => Some(rotation_from_text(r)?),
         (None, None) => None,
     };
+    let configuration = given(&t.configuration);
+    // 形態の中の配置は取付を変えないので、取付先を書かなくても取付点（書くなら部品の取付と同じ）を渡せる
+    let point = match configuration {
+        Some(_) => given(&t.point),
+        None => on.and(given(&t.point)),
+    };
     Ok(Op::Place {
         part: t.part.trim().to_owned(),
         on: on.map(str::to_owned),
-        point: on.and(given(&t.point)).map(str::to_owned),
+        point: point.map(str::to_owned),
         position: given(&t.position).map(vector_from_text).transpose()?,
         orientation,
+        configuration: configuration.map(str::to_owned),
     })
 }
 
@@ -55,28 +63,29 @@ pub fn rotation_from_text(text: &str) -> Result<Quaternion> {
 }
 
 /// 機体座標の位置・姿勢から `Place` の Op を作る（取付先・取付点はそのまま。位置はファイルの今の単位で書く）。
+/// `configuration` があれば、機体座標はその形態で解決した設計で読み（親の姿勢が基準と違えば、取付点に対する姿勢も違う）、
+/// 結果はその形態の `[pose.<部品>]` に書く `Place`（`configuration` つき）になる。逆変換は 1 つ
+/// （`fune_projection::pose::body_to_mount_local`）で、形態ごとの合成は持たない。取付の根（取付先が無い）の取付点の座標系は
+/// 機体座標なので、同じ逆変換（恒等の座標系）で、機体座標での姿勢がそのまま根の `[pose]` になる。
 pub fn place_body_op(
     ws: &Workspace,
     id: &str,
     position: &Vector3,
     orientation: Option<&Quaternion>,
+    configuration: Option<&str>,
 ) -> Result<Op> {
     let s = ws.snapshot()?;
-    let rp = s
-        .resolved
+    pose::require_configuration(&s.design, configuration)?;
+    let resolved = pose::resolved_in(&s.resolved, configuration);
+    let rp = resolved
         .parts
         .get(id)
         .ok_or_else(|| ServiceError::not_found("part", id))?;
-    if rp.mount.is_none() && s.resolved.is_mount_root(id) {
-        return Err(ServiceError::InvalidInput(format!(
-            "Cannot move part `{id}` in body coordinates because it is the mount root (the origin of body coordinates)"
-        )));
-    }
     let unit = fune_model::design::position_unit(position);
     let si = |v: f64| to_si(v, unit).map_err(|e| ServiceError::InvalidInput(e.to_string()));
     let p_body = Vec3::new(si(position.x)?, si(position.y)?, si(position.z)?);
     let (_, q_now) =
-        fune_projection::pose::body_pose(&s.resolved, id).unwrap_or((Vec3::ZERO, Quat::IDENTITY));
+        fune_projection::pose::body_pose(resolved, id).unwrap_or((Vec3::ZERO, Quat::IDENTITY));
     let q_body = orientation.map_or(q_now, |q| Quat {
         w: q.w,
         x: q.x,
@@ -84,9 +93,13 @@ pub fn place_body_op(
         z: q.z,
     });
     let (p_local, q_local) =
-        fune_projection::pose::body_to_mount_local(&s.resolved, id, p_body, q_body)
+        fune_projection::pose::body_to_mount_local(resolved, id, p_body, q_body)
             .ok_or_else(|| ServiceError::not_found("part", id))?;
-    let authored = s.design.parts.get(id).and_then(|p| p.pose.as_ref());
+    let authored = s
+        .design
+        .parts
+        .get(id)
+        .and_then(|p| pose::authored_pose(&s.design, p, configuration));
     let file_unit = authored
         .and_then(|p| p.position.as_ref())
         .and_then(|v| v.unit.clone())
@@ -116,12 +129,19 @@ pub fn place_body_op(
             frame: None,
         }),
         orientation,
+        configuration: configuration.map(str::to_owned),
     })
 }
 
 /// 機体座標での配置を適用する（`POST /parts/{id}/place_body`）。
 pub fn place_body(ws: &Workspace, id: &str, req: &PlaceBodyRequest) -> Result<ApplyResult> {
-    let op = place_body_op(ws, id, &req.position, req.orientation.as_ref())?;
+    let op = place_body_op(
+        ws,
+        id,
+        &req.position,
+        req.orientation.as_ref(),
+        req.configuration.as_deref(),
+    )?;
     super::apply(
         ws,
         &ApplyRequest {
@@ -150,6 +170,7 @@ mod tests {
             position: Some("0 0 12 mm".into()),
             orientation: orientation.map(str::to_owned),
             rotation: rotation.map(str::to_owned),
+            configuration: None,
         }
     }
 

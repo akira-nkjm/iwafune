@@ -1,7 +1,7 @@
 import type { Role } from "@/api/types";
 import { RoleIcon } from "@/kit/RoleIcon";
 import { cn } from "@/lib/cn";
-import { type Tone, toneInkHex, toneTint } from "@/lib/tone";
+import { type Tone, toneInkVar, toneTint } from "@/lib/tone";
 
 /**
  * 1 つのものを表すカード（役割の丸いアイコン・小さな補足の行・名前）。`count` が 2 以上のときは右上に数の丸と
@@ -55,7 +55,7 @@ export function ItemCard({
       >
         <span
           className="flex size-10 shrink-0 items-center justify-center rounded-full"
-          style={{ background: toneTint(tone, "icon"), color: toneInkHex[tone] }}
+          style={{ background: toneTint(tone, "icon"), color: toneInkVar[tone] }}
         >
           <RoleIcon role={role} size={20} />
         </span>

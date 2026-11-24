@@ -16,6 +16,10 @@ use sat_analysis::power::energy_balance::{
 use sat_analysis::power::sizing::SizingLifetimeSource;
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
+use sat_analysis::structure::cone_clearance::{ConeKind, ConeSkipReason};
+use sat_analysis::structure::external_geometry::{BodyAxis, FaceDirection};
+use sat_analysis::structure::interference::InterferenceSkipReason;
+use sat_analysis::structure::launch_fit::{LaunchFitDirection, LaunchFitEnvelopeSource};
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
 use sat_analysis::thermal::ThermalHeaterState;
 use serde::de::DeserializeOwned;
@@ -64,6 +68,25 @@ pub fn channel_label(kind: ChannelKind, subject: Option<&str>) -> AnalysisLabel 
         K::Altitude => label("高度", "Altitude"),
         K::Inclination => label("傾斜角", "Inclination"),
         K::Mass => label("質量", "Mass"),
+        K::HeliocentricX => match s {
+            "spacecraft" => label("宇宙機の日心 x", "Spacecraft heliocentric x"),
+            "departure" => label("出発天体の日心 x", "Departure body heliocentric x"),
+            _ => label("到着天体の日心 x", "Arrival body heliocentric x"),
+        },
+        K::HeliocentricY => match s {
+            "spacecraft" => label("宇宙機の日心 y", "Spacecraft heliocentric y"),
+            "departure" => label("出発天体の日心 y", "Departure body heliocentric y"),
+            _ => label("到着天体の日心 y", "Arrival body heliocentric y"),
+        },
+        K::ArrivalRange => label("到着天体までの距離", "Distance to the arrival body"),
+        K::SunDistance => label("太陽までの距離", "Distance to the Sun"),
+        K::EarthDistance => label("地球までの距離", "Distance to the Earth"),
+        K::SunEarthProbeAngle => {
+            label("太陽–地球–探査機の角（SEP）", "Sun–Earth–probe angle (SEP)")
+        }
+        K::SunProbeEarthAngle => {
+            label("太陽–探査機–地球の角（SPE）", "Sun–probe–Earth angle (SPE)")
+        }
     }
 }
 
@@ -184,6 +207,10 @@ fn span_fallback(f: SpanFallback) -> AnalysisLabel {
         SpanFallback::SecularExtrapolated => {
             label("全期間からの外挿", "Extrapolated from the whole span")
         }
+        SpanFallback::OneOffSpan => label(
+            "全期間の平均（1 回限りの軌道）",
+            "Mean over the whole span (one-off orbit)",
+        ),
     }
 }
 
@@ -287,6 +314,65 @@ fn modal_kind(k: ModalEstimateKind) -> AnalysisLabel {
     }
 }
 
+fn launch_fit_direction(d: LaunchFitDirection) -> AnalysisLabel {
+    match d {
+        LaunchFitDirection::Lateral => label("機軸に直交する方向", "Lateral"),
+        LaunchFitDirection::Axial => label("機軸方向", "Axial"),
+    }
+}
+
+fn launch_fit_envelope_source(s: LaunchFitEnvelopeSource) -> AnalysisLabel {
+    match s {
+        LaunchFitEnvelopeSource::RootSize => label("構体（取付の根）の寸法", "Root part size"),
+        LaunchFitEnvelopeSource::Parts => label("全部品の箱", "Part boxes"),
+    }
+}
+
+fn interference_skip_reason(r: InterferenceSkipReason) -> AnalysisLabel {
+    match r {
+        InterferenceSkipReason::NoSize => label("寸法が無い", "No size"),
+        InterferenceSkipReason::InvalidSize => label("寸法が正の値でない", "Size is not positive"),
+    }
+}
+
+fn body_axis(a: BodyAxis) -> AnalysisLabel {
+    match a {
+        BodyAxis::X => label("X 軸", "X axis"),
+        BodyAxis::Y => label("Y 軸", "Y axis"),
+        BodyAxis::Z => label("Z 軸", "Z axis"),
+    }
+}
+
+fn face_direction(d: FaceDirection) -> AnalysisLabel {
+    match d {
+        FaceDirection::NegX => label("−X 面", "−X faces"),
+        FaceDirection::PosX => label("+X 面", "+X faces"),
+        FaceDirection::NegY => label("−Y 面", "−Y faces"),
+        FaceDirection::PosY => label("+Y 面", "+Y faces"),
+        FaceDirection::NegZ => label("−Z 面", "−Z faces"),
+        FaceDirection::PosZ => label("+Z 面", "+Z faces"),
+    }
+}
+
+fn cone_kind(k: ConeKind) -> AnalysisLabel {
+    match k {
+        ConeKind::Plume => label("噴流", "Plume"),
+        ConeKind::FieldOfView => label("視野", "Field of view"),
+    }
+}
+
+fn cone_skip_reason(r: ConeSkipReason) -> AnalysisLabel {
+    match r {
+        ConeSkipReason::NoAxis => label("軸の向きが読めない", "No axis direction"),
+        ConeSkipReason::InvalidAxis => label("軸の向きが零または不正", "Axis is zero or invalid"),
+        ConeSkipReason::NoHalfAngle => label("半頂角が無い", "No half angle"),
+        ConeSkipReason::InvalidHalfAngle => label(
+            "半頂角が 0 より大きく 90° より小さくない",
+            "Half angle is not between 0 and 90 degrees",
+        ),
+    }
+}
+
 mod orbit;
 mod propulsion;
 
@@ -334,6 +420,13 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "LinkDistanceModel" => parse(value).map(link_distance_model),
         "SolarLife" => parse(value).map(solar_life),
         "ModalEstimateKind" => parse(value).map(modal_kind),
+        "LaunchFitDirection" => parse(value).map(launch_fit_direction),
+        "LaunchFitEnvelopeSource" => parse(value).map(launch_fit_envelope_source),
+        "InterferenceSkipReason" => parse(value).map(interference_skip_reason),
+        "BodyAxis" => parse(value).map(body_axis),
+        "FaceDirection" => parse(value).map(face_direction),
+        "ConeKind" => parse(value).map(cone_kind),
+        "ConeSkipReason" => parse(value).map(cone_skip_reason),
         "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
         "DurationTiming" => parse(value).map(duration_timing),
@@ -343,12 +436,18 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "SolarActivity" => parse(value).map(orbit::solar_activity),
         "WeatherSource" => parse(value).map(orbit::weather_source),
         "DragAreaSource" => parse(value).map(orbit::drag_area_source),
+        "GeometrySpanBasis" => parse(value).map(orbit::geometry_span_basis),
         "DecayCondition" => orbit::decay_condition(value),
         "DvCategory" => parse(value).map(propulsion::category),
         "TransferMethod" => parse(value).map(propulsion::method),
         "ManeuverNote" => parse(value).map(propulsion::note),
+        "EphemerisSource" => parse(value).map(propulsion::ephemeris_source),
         "ThrustSteering" => parse(value).map(propulsion::steering),
         "ThrustBalanceNote" => parse(value).map(propulsion::thrust_balance_note),
+        "LaunchWindowNote" => parse(value).map(propulsion::launch_window_note),
+        "LaunchWindowPointKind" => parse(value).map(propulsion::launch_window_point_kind),
+        "LaunchWindowQuantity" => parse(value).map(propulsion::launch_window_quantity),
+        "TransferCheckNote" => parse(value).map(propulsion::transfer_check_note),
         "UnloadingNote" => parse(value).map(propulsion::unloading),
         _ => None,
     }
@@ -413,10 +512,19 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
             "Center-of-mass shift from propellant",
         ),
         K::ThrustMaxDod => label("噴射中の最大 DoD", "Max DoD while thrusting"),
+        K::LaunchFitMargin => label("打ち上げ適合の余裕（最小）", "Launch fit margin (min)"),
+        K::InterferenceOverlaps => label("部品の重なり（組）", "Part overlaps (pairs)"),
+        K::ConeObstructions => label("円錐の遮り", "Cone obstructions"),
+        K::MeanProjectedArea => label("投影面積（平均）", "Projected area (mean)"),
+        K::TransferMiss => label("到着のずれ（最大）", "Arrival miss distance (max)"),
+        K::LaunchWindowDeltaV => label("窓の ΔV（最小）", "Launch window delta-v (min)"),
+        K::GreatestEarthDistance => {
+            label("地球までの距離（最大）", "Distance from the Earth (max)")
+        }
     }
 }
 
-/// 期間不足の注意（key `span`）の項目名と文。
+/// 期間不足の注意（key `span`）の項目名と文。1 回限りの軌道（`OneOffSpan`）は期間不足ではなく、周回が無いことの説明。
 pub fn span_check(f: SpanFallback) -> (AnalysisLabel, AnalysisLabel) {
     let consequence = match f {
         SpanFallback::OrbitMeanOverSpan => label(
@@ -427,6 +535,15 @@ pub fn span_check(f: SpanFallback) -> (AnalysisLabel, AnalysisLabel) {
             "永年成分は全期間から外挿しています",
             "the secular part is extrapolated from the whole span",
         ),
+        SpanFallback::OneOffSpan => {
+            return (
+                label("解析期間", "Analysis span"),
+                label(
+                    "軌道は 1 回限りの区間（惑星間の巡航の、両端の天体の影響圏のあいだなど）で周回が無いため、軌道平均と 1 周あたりの量は区間全体で求めています（影響圏の中の双曲線の弧は解析しません）",
+                    "The orbit is a one-off arc (such as an interplanetary cruise between the spheres of influence of its end bodies; the hyperbolic legs inside them are not analysed) with no repeating orbit, so orbit averages and per-orbit quantities are taken over the whole arc",
+                ),
+            );
+        }
     };
     (
         label("解析期間", "Analysis span"),

@@ -2,17 +2,16 @@
 //!
 //! 解析ケースを「太陽距離が最小・最大の時刻」で作るために使う（`fune_service::edit::sun_distance`）。
 //! カタログの解析ではなく、期間の標本（`spec::orbit_step_s` の刻み）で極値の近くを見つけ、その前後を黄金分割で詰める。
+//! 距離と極値の詰め方は `sat_astro::timeline::geometry`（太陽距離 `body_distances_m`・`extremes_by`）で、ここは入力の検査と出力の型だけ。
 //! 期間が半周より短ければ極値は期間の端になる（端も標本に含める）。
 
 use crate::spec::{AnalysisError, orbit_step_s};
 use sat_astro::ephem::CentralBody;
-use sat_astro::orbit::OrbitSpec;
+use sat_astro::orbit::{OrbitSpec, Trajectory};
 use sat_astro::time::Epoch;
+use sat_astro::timeline::geometry::{body_distances_m, extremes_by};
 use sat_astro::timeline::sample_times;
 use sat_units::typed::{Length, Qty, Time};
-
-/// 黄金分割の反復回数（区間は 0.618^N 倍になる。数十 ns のオーダーまで詰まる）。
-const REFINE_ITERATIONS: usize = 60;
 
 /// 太陽距離の極値を求める入力（軌道とミッション期間。`orbit.eclipse_season` の入力から β と刻みを除いたもの）。
 #[derive(Debug, Clone)]
@@ -54,58 +53,20 @@ pub fn sun_distance_extremes(
             "The mission duration must be positive".into(),
         ));
     }
-    let times = sample_times(span, orbit_step_s(orbit.period_s()))?;
-    let dist = |t: f64| -> Result<f64, AnalysisError> { Ok(orbit.state_at(t)?.r_eci.norm()) };
-    let values: Vec<f64> = times.iter().map(|&t| dist(t)).collect::<Result<_, _>>()?;
-    let extreme = |sign: f64| -> Result<SunDistancePoint, AnalysisError> {
-        let i = (0..values.len())
-            .min_by(|&a, &b| (sign * values[a]).total_cmp(&(sign * values[b])))
-            .unwrap_or(0);
-        let lo = times[i.saturating_sub(1)];
-        let hi = times[(i + 1).min(times.len() - 1)];
-        let t = golden_min(|t| dist(t).map(|d| sign * d), lo, hi)?;
-        // 端の標本が極値なら端のまま（黄金分割は内側へ寄るので、端の値が良ければ端を採る）
-        let t = [t, times[i]]
-            .into_iter()
-            .map(|t| dist(t).map(|d| (t, d)))
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .min_by(|a, b| (sign * a.1).total_cmp(&(sign * b.1)))
-            .map_or(times[i], |p| p.0);
-        Ok(SunDistancePoint {
-            epoch: orbit.epoch.plus_seconds(t),
-            distance: Qty::from_raw(dist(t)?),
-        })
+    let times = sample_times(span, orbit_step_s(orbit.cycle()))?;
+    let trajectory = Trajectory::from(orbit.clone());
+    let sun = |times: &[f64]| body_distances_m(&trajectory, orbit.epoch, times, CentralBody::Sun);
+    let values = sun(&times)?;
+    let x = extremes_by(&times, &values, |t| Ok(sun(&[t])?[0]))?
+        .ok_or_else(|| AnalysisError::InvalidInput("No samples".into()))?;
+    let point = |e: sat_astro::timeline::geometry::Extremum| SunDistancePoint {
+        epoch: orbit.epoch.plus_seconds(e.t_s),
+        distance: Qty::from_raw(e.value),
     };
     Ok(SunDistanceExtremes {
-        min: extreme(1.0)?,
-        max: extreme(-1.0)?,
+        min: point(x.min),
+        max: point(x.max),
     })
-}
-
-/// 区間 `[lo, hi]` で `f` が最小になる点（黄金分割。区間の中で単峰とみなす）。
-fn golden_min(
-    f: impl Fn(f64) -> Result<f64, AnalysisError>,
-    mut lo: f64,
-    mut hi: f64,
-) -> Result<f64, AnalysisError> {
-    let g = (5f64.sqrt() - 1.0) / 2.0;
-    let (mut x1, mut x2) = (hi - g * (hi - lo), lo + g * (hi - lo));
-    let (mut f1, mut f2) = (f(x1)?, f(x2)?);
-    for _ in 0..REFINE_ITERATIONS {
-        if f1 < f2 {
-            hi = x2;
-            (x2, f2) = (x1, f1);
-            x1 = hi - g * (hi - lo);
-            f1 = f(x1)?;
-        } else {
-            lo = x1;
-            (x1, f1) = (x2, f2);
-            x2 = lo + g * (hi - lo);
-            f2 = f(x2)?;
-        }
-    }
-    Ok(0.5 * (lo + hi))
 }
 
 #[cfg(test)]

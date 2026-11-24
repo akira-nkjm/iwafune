@@ -12,7 +12,7 @@ use super::disturbance::{DisturbanceKind, DisturbanceSpacecraft, DisturbanceTorq
 use super::wheels::{RwWheel, WheelSet, usable_momentum_fraction};
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, Series, SpanFallback, System,
-    orbit_ranges, ratio_margin, span_fallback,
+    orbit_ranges, ratio_margin, span_note,
 };
 use sat_astro::constants::SECONDS_PER_DAY;
 use sat_astro::math::Vec3;
@@ -143,7 +143,7 @@ impl Analysis for RwUnloading {
         let samples = timeline::build(&input.timeline)?;
         let trace = Trace::build(
             &input.spacecraft,
-            input.timeline.orbit().central,
+            input.timeline.orbit().central(),
             &set,
             &samples,
         );
@@ -165,8 +165,9 @@ fn summarize(
     samples: &[TimelineSample],
     tr: &Trace,
 ) -> RwUnloadingOutput {
-    let period_s = input.timeline.orbit().period_s();
-    let ranges = orbit_ranges(&tr.t, period_s);
+    let cycle = input.timeline.orbit().cycle();
+    let period_s = cycle.length_s();
+    let ranges = orbit_ranges(&tr.t, cycle);
     let (secular, cyclic) = secular_and_cyclic(&tr.t, &tr.h_eci, &ranges, period_s);
     let limits: Vec<f64> = input
         .wheels
@@ -185,7 +186,7 @@ fn summarize(
     let mut out = RwUnloadingOutput {
         period: Qty::from_raw(period_s),
         complete_orbits: ranges.len(),
-        span_fallback: span_fallback(ranges.len(), SpanFallback::SecularExtrapolated),
+        span_fallback: span_note(cycle, ranges.len(), SpanFallback::SecularExtrapolated),
         usable_momentum_fraction: usable,
         peak_disturbance: Qty::from_raw(
             tr.torques

@@ -10,6 +10,7 @@ use super::system::Case;
 use crate::enum_text::enum_text;
 use crate::id::Id;
 use crate::value::Quantity;
+pub use sat_checkkey::EntityKind;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -140,71 +141,26 @@ pub struct Verification {
 }
 
 impl Verification {
-    /// 判定のキー `check` が地上局 `station` を名指ししているか（`@<局の ID>` で終わる。部分一致はしない:
-    /// 局 `tokyo` は `…@tokyo2` に当たらない）。
+    /// 判定のキー `check` が `kind` のエンティティ `name` を名指ししているか（部品・通信の回線・地上局・熱の節点。
+    /// 名前は欄ごとに完全一致で見る: 局 `tokyo` は `…@tokyo2` に当たらない）。
     ///
-    /// キーの書式（通信の解析の `margin:<回線>@<局>` と `pfd:<回線>@<局>`）は解析が持つ。ここはそれを写した **暫定の見張り** で、
-    /// キーが構造を持つ形になるまで（#328）、局の名前変更・削除を拒むためだけに使う。解析の書式との一致は
-    /// fune-projection のテスト `station_check_key_matches_link_budget` が確かめる。
-    pub fn check_names_station(&self, station: &str) -> bool {
-        self.check.as_deref().is_some_and(|key| {
-            key.strip_suffix(station)
-                .is_some_and(|rest| rest.ends_with('@'))
-        })
-    }
-
-    /// 判定のキー `check` が通信の回線 `link` を名指ししているか（`margin:<回線>`・`pfd:<回線>`。`@<局>` は付いてもよい。
-    /// 部分一致はしない: 回線 `s` は `margin:s_down@…` に当たらない）。
-    ///
-    /// 局と同じく、キーの書式（`LINK_CHECK_FAMILIES`）は解析が持ち、ここはその写しで、回線の名前変更・削除を扱うためだけに使う
-    /// （キーが構造を持つ形になるまで。#328）。解析の書式との一致は fune-projection のテストが確かめる。
-    pub fn check_names_link(&self, link: &str) -> bool {
+    /// キーの書式は解析のものなので、読みも書き換えも `sat_checkkey` が持つ（解析のキーの組み立てと同じ表）。
+    /// 解析の出力するキーとの一致は fune-projection のテストが確かめる。
+    pub fn check_names(&self, kind: EntityKind, name: &str) -> bool {
         self.check
             .as_deref()
-            .and_then(link_check_parts)
-            .is_some_and(|p| p.link == link)
+            .is_some_and(|key| sat_checkkey::names(key, kind).contains(&name))
     }
 
-    /// 回線 `from` を名指す判定のキーを、回線 `to` を名指すものに替えたキー（名指していなければ None）。
-    pub fn check_with_link_renamed(&self, from: &str, to: &str) -> Option<String> {
-        let parts = self.check.as_deref().and_then(link_check_parts)?;
-        (parts.link == from).then(|| {
-            let station = parts.station.map(|s| format!("@{s}")).unwrap_or_default();
-            format!("{}:{to}{station}", parts.family)
-        })
+    /// `kind` のエンティティ `from` を名指す判定のキーを、`to` を名指すものに替えたキー（名指していなければ None）。
+    pub fn check_with_renamed(&self, kind: EntityKind, from: &str, to: &str) -> Option<String> {
+        sat_checkkey::renamed(self.check.as_deref()?, kind, from, to)
     }
 
     /// 何も書かれていないか（ファイルに `[verify]` を書かない）。
     pub fn is_empty(&self) -> bool {
         self == &Self::default()
     }
-}
-
-/// 回線を名指す判定のキーの族（`comm.link_budget` の `margin:<回線>@<局>` と `pfd:<回線>@<局>`）。
-pub const LINK_CHECK_FAMILIES: &[&str] = &["margin", "pfd"];
-
-/// 回線を名指す判定のキーの中身。
-struct LinkCheckParts<'a> {
-    family: &'a str,
-    link: &'a str,
-    station: Option<&'a str>,
-}
-
-/// `<族>:<回線>[@<局>]` を分ける（族が `LINK_CHECK_FAMILIES` に無ければ None）。
-fn link_check_parts(key: &str) -> Option<LinkCheckParts<'_>> {
-    let (family, rest) = key.split_once(':')?;
-    if !LINK_CHECK_FAMILIES.contains(&family) {
-        return None;
-    }
-    let (link, station) = match rest.split_once('@') {
-        Some((link, station)) => (link, Some(station)),
-        None => (rest, None),
-    };
-    Some(LinkCheckParts {
-        family,
-        link,
-        station,
-    })
 }
 
 /// 要求（`requirements/<ID>.toml`）。
@@ -262,6 +218,7 @@ pub const ANALYSIS_IDS: &[&str] = &[
     "comm.data_throughput",
     "orbit.eclipse_season",
     "orbit.decay",
+    "orbit.geometry",
     "power.mode_load",
     "power.solar_sunlit",
     "power.orbit_generation",
@@ -273,10 +230,17 @@ pub const ANALYSIS_IDS: &[&str] = &[
     "propulsion.propellant",
     "propulsion.thruster_usage",
     "propulsion.orbit_history",
+    "propulsion.transfer_check",
+    "propulsion.launch_window",
     "propulsion.mass_properties",
     "structure.mass_properties",
     "structure.static_load",
     "structure.modal_estimate",
+    "structure.modal_fem",
+    "structure.launch_fit",
+    "structure.interference",
+    "structure.cone_clearance",
+    "structure.external_geometry",
     "thermal.steady",
     "thermal.transient",
 ];
@@ -286,19 +250,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn check_key_names_station_by_exact_suffix() {
+    fn check_key_names_entities_by_whole_name() {
         let verify = |key: &str| Verification {
             check: Some(key.to_string()),
             ..Default::default()
         };
-        assert!(verify("margin:s_down@tokyo").check_names_station("tokyo"));
+        assert!(verify("margin:s_down@tokyo").check_names(EntityKind::Station, "tokyo"));
         // 電力束密度の判定（`pfd:<回線>@<局>`）も同じ書式
-        assert!(verify("pfd:s_down@tokyo").check_names_station("tokyo"));
-        assert!(!verify("pfd:s_down@tokyo2").check_names_station("tokyo"));
-        assert!(!verify("margin:s_down@tokyo2").check_names_station("tokyo"));
-        assert!(!verify("margin:s_down@xtokyo").check_names_station("tokyo"));
-        assert!(!verify("dod").check_names_station("tokyo"));
-        assert!(!Verification::default().check_names_station("tokyo"));
+        assert!(verify("pfd:s_down@tokyo").check_names(EntityKind::Station, "tokyo"));
+        assert!(!verify("pfd:s_down@tokyo2").check_names(EntityKind::Station, "tokyo"));
+        assert!(!verify("margin:s_down@xtokyo").check_names(EntityKind::Station, "tokyo"));
+        assert!(!verify("dod").check_names(EntityKind::Station, "tokyo"));
+        assert!(!Verification::default().check_names(EntityKind::Station, "tokyo"));
+        assert!(verify("intrusion:STT").check_names(EntityKind::Part, "STT"));
+        assert!(!verify("intrusion:STT").check_names(EntityKind::ThermalNode, "STT"));
+        assert_eq!(
+            verify("range_low:BAT:operating")
+                .check_with_renamed(EntityKind::ThermalNode, "BAT", "BATT")
+                .as_deref(),
+            Some("range_low:BATT:operating")
+        );
     }
 
     #[test]

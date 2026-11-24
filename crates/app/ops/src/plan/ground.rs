@@ -1,11 +1,13 @@
 //! 地上局（`conditions/ground/<ID>.toml`）の Op の解釈。足す・消す・名前を変える。値の書き換えは設定の書き込み（`SetSetting`）。
-//! 消すときは、通信の解析の `stations` に挙げられていれば拒む（`stations` が空なら全局を使うので、どの局も参照されていない）。
+//! 消すときは、通信の解析の `stations` に挙げられているか、要求の判定のキーが名指していれば拒む（`stations` が空なら全局を使うので、
+//! どの局も参照されていない）。名前の変更は、`stations` と要求の判定のキーを書き換える。
 
+use super::check_keys::refuse_if_checked_by_requirements;
 use super::others::new_flat_id;
 use crate::error::OpError;
 use crate::op::Op;
 use fune_model::Design;
-use fune_model::design::{GroundStationSettings, RefSite, Referent};
+use fune_model::design::{GroundStationSettings, Referent};
 use fune_store::Edits;
 use fune_store::layout;
 use fune_store::write::{ground, refs};
@@ -48,42 +50,11 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         Op::RenameGroundStation { id, to } => {
             existing_station(design, id)?;
             new_station_id(design, to)?;
-            refuse_if_checked_by_requirements(
-                "Ground station",
-                id,
-                &design.references(Referent::Station(id)),
-                "renamed",
-            )?;
+            // 要求の判定のキー（`margin:<回線>@<局>`・`link_closes:<局>`）は名前の変更で書き換わる（`refs::rename_station`）
             Ok(refs::rename_station(edits, design, id, to)?)
         }
         _ => Err(OpError::invalid("Not a ground station op")),
     }
-}
-
-/// 要求の判定のキーが局・回線を名指していれば拒む（キーは解析が持つ書式。局のキーは書き換えない。構造のキーになるまでの暫定。#328。
-/// 回線の名前の変更はキーを書き換えるので使わず、削除だけがここを通る）。通信の回線の Op（`link`）も使う。
-pub(super) fn refuse_if_checked_by_requirements(
-    what: &str,
-    id: &str,
-    sites: &[RefSite],
-    verb: &str,
-) -> Result<(), OpError> {
-    let ids: Vec<&str> = sites
-        .iter()
-        .filter_map(|s| match s {
-            RefSite::RequirementCheck { requirement }
-            | RefSite::RequirementLinkCheck { requirement } => Some(requirement.as_str()),
-            _ => None,
-        })
-        .collect();
-    if ids.is_empty() {
-        return Ok(());
-    }
-    Err(OpError::invalid(format!(
-        "{what} `{id}` cannot be {verb}: `verify.check` of requirement(s) {} refers to it. \
-         Update or remove those requirements first",
-        ids.join(", ")
-    )))
 }
 
 fn existing_station(design: &Design, id: &str) -> Result<(), OpError> {

@@ -4,7 +4,7 @@
 //! - バジェット: `verify.budget = <種類>` の要求の `at_most` が、その種類の上限になる（[`Design::budget_limit`]）。
 //! - 解析の判定: `verify.analysis = <解析 ID>` と `verify.check = <判定のキー>` が、解析が実行のたびに作る判定のキーに当たる要求が、
 //!   その判定の基準になる（[`Design::criterion`]）。どの判定が基準を要求から取るか・向き・次元は宣言の表 [`CRITERIA`] が持つ。
-//!   解析の判定のキーは解析が作る文字列なので、表の写しは fune-projection のテストが解析の出力と突き合わせる。
+//!   解析の判定のキーは解析が作る文字列で、族の名前と書式は `sat_checkkey` が持つ（表の `check` はその族の名前の定数）。
 //! - ミッション期間は基準ではなく解析の入力なので、別の欄 `input = "mission_duration"` の要求が与える（[`Design::mission_duration`]）。
 //! - 同じ基準を持つ要求が複数あれば、最も厳しいもの（`at_most` は最小、`at_least` は最大）が効く。
 //!   向きか次元が表と合わない要求は基準にならない（`fune check` が `requirement.criterion_*` で知らせる）。
@@ -13,6 +13,7 @@
 
 use super::{BudgetKind, ConstraintKind, Design, Requirement, RequirementInput};
 use crate::value::Quantity;
+use sat_checkkey::family;
 
 /// 基準を要求から取る判定 1 つの宣言。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -40,14 +41,14 @@ pub const CRITERIA: &[CriterionDecl] = &[
     },
     CriterionDecl {
         analysis: "comm.link_budget",
-        check: "margin",
+        check: family::MARGIN,
         kind: ConstraintKind::AtLeast,
         quantity: "Dimensionless",
         feeds: "LinkBudgetLink.required_margin_db per link and station; comm.data_throughput takes the tightest of its downlink's stations. Without it the analysis default applies",
     },
     CriterionDecl {
         analysis: "comm.link_budget",
-        check: "pfd",
+        check: family::PFD,
         kind: ConstraintKind::AtMost,
         quantity: "Dimensionless",
         feeds: "LinkBudgetLink.pfd_limit_db (downlinks only). Without it no PFD check is made",
@@ -68,45 +69,45 @@ pub const CRITERIA: &[CriterionDecl] = &[
     },
     CriterionDecl {
         analysis: "thermal.steady",
-        check: "range_low",
+        check: family::RANGE_LOW,
         kind: ConstraintKind::AtLeast,
         quantity: "Temperature",
         feeds: "ThermalNode.required (lower limit per node and range kind). It only tightens the part range: a looser requirement has no effect",
     },
     CriterionDecl {
         analysis: "thermal.steady",
-        check: "range_high",
+        check: family::RANGE_HIGH,
         kind: ConstraintKind::AtMost,
         quantity: "Temperature",
         feeds: "ThermalNode.required (upper limit per node and range kind). It only tightens the part range: a looser requirement has no effect",
     },
     CriterionDecl {
         analysis: "thermal.transient",
-        check: "range_low",
+        check: family::RANGE_LOW,
         kind: ConstraintKind::AtLeast,
         quantity: "Temperature",
         feeds: "ThermalNode.required (lower limit per node and range kind). It only tightens the part range: a looser requirement has no effect",
     },
     CriterionDecl {
         analysis: "thermal.transient",
-        check: "range_high",
+        check: family::RANGE_HIGH,
         kind: ConstraintKind::AtMost,
         quantity: "Temperature",
         feeds: "ThermalNode.required (upper limit per node and range kind). It only tightens the part range: a looser requirement has no effect",
     },
     CriterionDecl {
         analysis: "structure.modal_estimate",
-        check: "lateral",
+        check: family::LATERAL,
         kind: ConstraintKind::AtLeast,
         quantity: "Frequency",
-        feeds: "ModalEstimateRequirements.lateral. Without it no check is made",
+        feeds: "ModalEstimateRequirements.lateral and the limit candidates of structure.launch_fit. It only tightens the minimum of the selected launcher and dispenser. Without any of them no check is made",
     },
     CriterionDecl {
         analysis: "structure.modal_estimate",
-        check: "axial",
+        check: family::AXIAL,
         kind: ConstraintKind::AtLeast,
         quantity: "Frequency",
-        feeds: "ModalEstimateRequirements.axial. Without it no check is made",
+        feeds: "ModalEstimateRequirements.axial and the limit candidates of structure.launch_fit. It only tightens the minimum of the selected launcher and dispenser. Without any of them no check is made",
     },
 ];
 

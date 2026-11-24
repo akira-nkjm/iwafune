@@ -45,7 +45,7 @@ pub fn rename_case(
     rename_sites(edits, design, Referent::Case(from), to, None)
 }
 
-/// マヌーバの名前を変える（ファイルの移動と、ほかのマヌーバの `after` の書き換え）。
+/// マヌーバの名前を変える（ファイルの移動と、ほかのマヌーバの `after`・設計とフェーズの軌道の `maneuver` の書き換え）。
 pub fn rename_maneuver(
     edits: &mut Edits,
     design: &Design,
@@ -130,12 +130,24 @@ pub(super) fn rename_record_at(
         RefSite::ManeuverAfter { maneuver } => {
             set_top(edits, &layout::maneuver_file(maneuver), "after", to)
         }
+        RefSite::OrbitManeuver => set_top(edits, &layout::orbit_file(), "maneuver", to),
+        RefSite::PhaseOrbitManeuver { phase } => set_in(
+            edits,
+            &layout::phase_file(phase),
+            &["orbit"],
+            "maneuver",
+            to,
+        ),
         RefSite::CommDataDownlink => set_top(edits, &comm(), "data_downlink", to),
-        RefSite::RequirementLinkCheck { requirement } => {
+        RefSite::RequirementCheck {
+            requirement,
+            entity,
+        } => {
+            // キーの書式は `sat_checkkey`（`Verification` 経由）。名指されている種類の名前だけを書き換える
             let key = design
                 .requirements
                 .get(requirement.as_str())
-                .and_then(|r| r.verify.check_with_link_renamed(from, to));
+                .and_then(|r| r.verify.check_with_renamed(*entity, from, to));
             match key {
                 Some(key) => set_in(
                     edits,

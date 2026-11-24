@@ -69,6 +69,7 @@ mod tests {
     fn missing_inputs_fail() {
         let mut v = demo_view();
         v.missing.push(MissingInput {
+            fixes: Vec::new(),
             part: None,
             path: "p".into(),
             target: None,

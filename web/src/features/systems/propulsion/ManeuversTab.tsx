@@ -181,6 +181,13 @@ function ManeuverRow({
               <span className="text-ink-3">{t.targetKeys[x.key] ?? x.key}</span> {x.value.display}
             </span>
           ))}
+          {m.text.depart && m.text.arrive && (
+            <span>
+              <span className="text-ink-3">{t.targetKeys.transfer}</span> {m.text.depart} →{" "}
+              {m.text.arrive}
+              {m.text.departure_by && <> ({label("departure_by", m.text.departure_by)})</>}
+            </span>
+          )}
         </span>
       </Td>
       <Td mono className="text-ink-3">

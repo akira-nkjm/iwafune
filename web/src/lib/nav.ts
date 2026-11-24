@@ -35,6 +35,7 @@ import { systemTitle } from "./design";
  * - `case`: 系のページの解析ケース
  * - `maneuver`: 推進のマヌーバのタブで強調するマヌーバの ID
  * - `phase`: フェーズのページで強調するフェーズの ID
+ * - `configuration`: 配置ページで表示・編集する形態の ID
  * - `diagramHiddenSystem`: 系統図で隠す系（繰り返し可、空は全表示）
  */
 export const SEARCH = {
@@ -44,6 +45,7 @@ export const SEARCH = {
   case: "case",
   maneuver: "maneuver",
   phase: "phase",
+  configuration: "configuration",
   diagramHiddenSystem: "hidden-system",
 } as const;
 
@@ -80,7 +82,8 @@ export const paths = {
   catalogItem: (id: string) => itemPath(paths.catalog(), id),
   diagram: () => "/design/diagram",
   modes: () => "/design/modes",
-  layout: () => "/design/layout",
+  layout: (configuration?: string | null) =>
+    withSearch("/design/layout", { [SEARCH.configuration]: configuration }),
   requirements: (tab?: RequirementsTab) =>
     tab ? `/design/requirements/${tab}` : "/design/requirements",
   defs: (tab?: DefsTab) => (tab ? `/project/defs/${tab}` : "/project/defs"),
@@ -223,5 +226,16 @@ export function withDiagramHiddenSystems(
   next.delete(SEARCH.diagramHiddenSystem);
   for (const system of hidden) next.append(SEARCH.diagramHiddenSystem, system);
   if (hidden.size === 0) next.set(SEARCH.diagramHiddenSystem, "");
+  return next;
+}
+
+/** 配置ページの形態だけを切り替える。基準ではパラメーターを外す。 */
+export function withLayoutConfiguration(
+  params: URLSearchParams,
+  configuration: string | null,
+): URLSearchParams {
+  const next = new URLSearchParams(params);
+  if (configuration) next.set(SEARCH.configuration, configuration);
+  else next.delete(SEARCH.configuration);
   return next;
 }

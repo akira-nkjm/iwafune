@@ -26,6 +26,12 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
     ),
     (
         "GET",
+        "/configurations",
+        &["configuration", "ls"],
+        "query::configurations (`configuration show` picks one)",
+    ),
+    (
+        "GET",
         "/requirements",
         &["requirement", "ls"],
         "query::requirements",
@@ -68,6 +74,12 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
         "/ops/from_command",
         &["part", "place"],
         "edit::command_ops",
+    ),
+    (
+        "POST",
+        "/ops/maneuver_window",
+        &["maneuver", "set-window"],
+        "edit::maneuver_window_op",
     ),
     (
         "POST",

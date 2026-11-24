@@ -102,7 +102,7 @@ fn system_modes_of(
     Ok(SystemModesView {
         system,
         modes,
-        missing: missing.into_vec(),
+        missing: crate::fixes::complete(&s.design, &s.resolved, missing.into_vec()),
         summary: summary_rows(system, ModeSummaryScope::All),
     })
 }

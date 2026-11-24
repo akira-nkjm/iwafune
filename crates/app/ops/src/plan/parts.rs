@@ -1,12 +1,14 @@
 //! 部品の Op の解釈（前提の確認 → store の編集）。
 
 use super::attr::{AttrTarget, unset_attr, write_attr};
+use super::check_keys::refuse_if_checked_by_requirements;
+use super::configurations::{Placement, place_in};
 use super::groups::{new_node_id, target_dirs};
 use crate::error::OpError;
 use crate::op::Op;
 use fune_model::Design;
 use fune_model::builtin::STATE_OFF;
-use fune_model::design::{Mount, NodeRef, Part, Pose, StateAssign};
+use fune_model::design::{Mount, NodeRef, Part, Pose, Referent, StateAssign};
 use fune_model::id::{Id, validate_local_name};
 use fune_model::value::Value;
 use fune_store::Edits;
@@ -100,10 +102,21 @@ fn place_op(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> 
         point,
         position,
         orientation,
+        configuration,
     } = op
     else {
         return Err(OpError::invalid("Not a Place op"));
     };
+    if let Some(configuration) = configuration {
+        let placement = Placement {
+            part,
+            on: on.as_deref(),
+            point: point.as_deref(),
+            position,
+            orientation,
+        };
+        return place_in(edits, design, configuration, &placement);
+    }
     let file = existing_file(design, part)?;
     let mount = on.as_ref().map(|on| Mount {
         on: Id::new(on),
@@ -172,6 +185,13 @@ fn remove_part(edits: &mut Edits, design: &Design, id: &str) -> Result<(), OpErr
             children.join(", ")
         )));
     }
+    // 要求の判定のキー（`intrusion:<部品>`・`heater:<部品>` など）が名指す部品は消さない（キーは書き換えられない）
+    refuse_if_checked_by_requirements(
+        "Part",
+        id,
+        &design.references(Referent::Part(id)),
+        "deleted",
+    )?;
     edits.remove(&file)?;
     Ok(refs::forget_part(edits, design, id)?)
 }

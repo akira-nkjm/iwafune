@@ -33,6 +33,7 @@ const LABELLED: &[(&str, &[&str])] = &[
         fune_model::design::ThermalPresetKind::NAMES,
     ),
     ("propagator", PropagatorKind::NAMES),
+    ("orbit_source", fune_model::design::OrbitSource::NAMES),
     ("link_direction", LinkDirection::NAMES),
     ("uncertainty_side", UncertaintySide::NAMES),
     ("value_type", ValueType::NAMES),
@@ -46,6 +47,7 @@ const LABELLED: &[(&str, &[&str])] = &[
         "maneuver_steering",
         fune_model::design::ManeuverSteering::NAMES,
     ),
+    ("departure_by", fune_model::design::DepartureBy::NAMES),
     ("constraint_kind", fune_model::design::ConstraintKind::NAMES),
 ];
 

@@ -18,7 +18,7 @@ import { RenamePartDialog } from "../RenamePartDialog";
 import { AttrTable } from "./AttrTable";
 import { BasicSection } from "./BasicSection";
 import { PartModes } from "./PartModes";
-import { PlacementSection } from "./PlacementSection";
+import { PlacementOverrides, PlacementSection } from "./PlacementSection";
 import { PortsSection } from "./PortsSection";
 
 function modesFromTable(design: DesignView, id: string): Record<string, StateAssign> {
@@ -125,6 +125,7 @@ export function PartDetail({
           design={design}
           part={part}
         />
+        <PlacementOverrides design={design} part={part} />
       </DetailSection>
       <DetailSection title={t.ports}>
         <PortsSection design={design} part={part} />

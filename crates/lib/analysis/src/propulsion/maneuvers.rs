@@ -3,6 +3,7 @@
 //! 公称の値（ΔV のマージンも残る推薬も見込まない）。初期質量は乾燥質量 + 使う推薬。マージン込みの推薬は
 //! `propulsion.propellant`、区分ごとの合計とマージンは `propulsion.dv_budget`。
 
+use super::dated::{self, DatedTransferResult};
 use super::flight::Flight;
 use super::input::{DvCategory, PropulsionInput, TransferMethod};
 pub use super::plan::ManeuverNote;
@@ -123,6 +124,10 @@ pub struct ManeuverResult {
     /// 数値伝搬の結果（`propagated` のときだけ）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub propagation: Option<ManeuverPropagation>,
+    /// 日付つきの惑星間遷移の結果（`transfer` を書いたときだけ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub dated_transfer: Option<DatedTransferResult>,
     pub notes: Vec<ManeuverNote>,
     pub checks: Vec<Check>,
 }
@@ -217,6 +222,7 @@ pub(super) fn result(leg: &Leg<'_>, flight: Option<&Flight>) -> ManeuverResult {
         firing_power: leg.thruster.and_then(|t| t.firing_power),
         ignored_constraints: m.ignored_constraints.clone(),
         propagation: flight.map(|f| propagation(leg.planned.to.central, leg, f)),
+        dated_transfer: dated::result(leg),
         notes: leg.notes.clone(),
         checks,
     }
@@ -248,7 +254,11 @@ impl Analysis for Maneuvers {
             .legs
             .iter()
             .enumerate()
-            .map(|(i, l)| result(l, seq.flights.get(i).and_then(Option::as_ref)))
+            .map(|(i, l)| {
+                let mut r = result(l, seq.flights.get(i).and_then(Option::as_ref));
+                r.checks.extend(dated::checks(&seq, input, i));
+                r
+            })
             .collect();
         Ok(ManeuversOutput {
             total_delta_v: Qty::from_raw(seq.legs.iter().map(|l| l.delta_v_m_s).sum()),

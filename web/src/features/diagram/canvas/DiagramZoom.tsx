@@ -12,7 +12,7 @@ import { useT } from "@/i18n";
 import { ViewHelp } from "@/kit/view/ViewHelp";
 import { ViewButton, ViewToolbar } from "@/kit/view/ViewToolbar";
 import { keepsPromotedLayerResolution } from "@/lib/browser";
-import { inkVeil, uiHex } from "@/lib/tone";
+import { inkVeil, uiVar } from "@/lib/tone";
 import { clampZoom, createWheelClassifier, zoomFactor } from "@/lib/wheel-input";
 import type { DiagramSelection } from "../DiagramInspector";
 
@@ -109,8 +109,8 @@ export function DiagramZoom({
           pannable
           zoomable
           ariaLabel={td.minimap}
-          nodeColor={(n) => (n.type === "card" ? uiHex.ink3 : "transparent")}
-          nodeStrokeColor={(n) => (n.type === "container" ? uiHex.ink3 : "transparent")}
+          nodeColor={(n) => (n.type === "card" ? uiVar.ink3 : "transparent")}
+          nodeStrokeColor={(n) => (n.type === "container" ? uiVar.ink3 : "transparent")}
           maskColor={inkVeil}
           className="!rounded-control !border !border-line !bg-panel !shadow-panel"
         />

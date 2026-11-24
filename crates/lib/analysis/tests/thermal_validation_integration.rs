@@ -50,7 +50,7 @@ fn convergence(shadow: ShadowModel, slack: f64) -> (Vec<f64>, Vec<u32>) {
         }];
         net
     };
-    let period = timeline(1.0, 30.0, 0.0).orbit().period_s();
+    let period = timeline(1.0, 30.0, 0.0).orbit().cycle().length_s();
     let run = |rel: f64, abs: f64| {
         let mut tl = timeline(2.0 * period, 30.0, 0.0);
         tl.shadow = shadow;
@@ -117,7 +117,7 @@ fn cylinder_edge(tl: &TimelineSpec, t0: f64, t1: f64) -> f64 {
     let perp = |t: f64| {
         let r = orbit.state_at(t).unwrap().r_eci;
         let s = CentralBody::Earth
-            .relative_position_m(Body::Sun, orbit.epoch.plus_seconds(t))
+            .relative_position_m(Body::Sun, orbit.epoch().plus_seconds(t))
             .normalized()
             .unwrap();
         (r - s * r.dot(s)).norm() - R_EARTH
@@ -340,6 +340,6 @@ fn stiff_chain_with_capacity_ratio_1e4_is_solved() {
 #[test]
 #[ignore = "slow: records the cost of a stiff 5-orbit run"]
 fn stiff_chain_five_orbits_cost() {
-    let period = timeline(1.0, 30.0, 0.0).orbit().period_s();
+    let period = timeline(1.0, 30.0, 0.0).orbit().cycle().length_s();
     stiff_chain(5.0 * period);
 }

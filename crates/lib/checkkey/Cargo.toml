@@ -1,0 +1,16 @@
+[package]
+name = "sat-checkkey"
+description = "The key format of analysis checks (the strings that requirements point at), shared by the analyses that build them and the model that reads names out of them"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "sat_checkkey"
+
+[dependencies]

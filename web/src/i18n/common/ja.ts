@@ -31,6 +31,10 @@ export const commonJa = {
     noData: "データなし",
     cannotLoadDesign: (msg: string) => `設計を読めません: ${msg}`,
     language: "言語",
+    appearance: "外観",
+    themeSystem: "OS に従う",
+    themeLight: "ライト",
+    themeDark: "ダーク",
     /** 図・3D の視点操作の案内（「?」の中身） */
     viewHelp: {
       label: "操作の案内",
@@ -45,7 +49,8 @@ export const commonJa = {
         "トラックパッドは 2 本指でスクロール、マウスは中ボタンのドラッグか、何もない所の左ドラッグ",
       pan3dHow:
         "トラックパッドは 2 本指でスクロール、マウスは中ボタン・右ボタンのドラッグか、Shift + 左ドラッグ",
-      rotateHow: "1 本指のドラッグ、マウスは左ボタンのドラッグ",
+      rotateHow:
+        "1 本指のドラッグ、マウスは左ボタンのドラッグ。どの軸のまわりにも回せます（逆さまも可）。右下のキューブの面・辺・角を押すと、その向きから傾きなく見ます",
       fitDiagramHow: "左下の「全体を見る」ボタン、または 0 キー",
       fit3dHow: "右上のホームポジションのボタン（向きも初めに戻ります）",
     },

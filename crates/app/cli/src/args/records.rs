@@ -236,6 +236,15 @@ pub enum ManeuverCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// Set the departure and arrival dates of a transfer between bodies to the minimum of the date search (`propulsion.launch_window`)
+    SetWindow {
+        id: String,
+        /// dv (minimum maneuver delta-V) / c3 (minimum departure C3)
+        #[arg(long, value_parser = ["dv", "c3"])]
+        min: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
 }
 
 /// `fune maneuver add|set` (the flags map one to one to `fune_service::dto::ManeuverText`)
@@ -286,6 +295,15 @@ pub struct ManeuverArgs {
     /// Thrust direction (tangential / inertial; propagated only)
     #[arg(long)]
     pub steering: Option<String>,
+    /// Departure date of a dated transfer between bodies (ISO 8601, UTC, e.g. `2028-12-10T00:00:00Z`; needs --body and --arrive; omit both to use the Hohmann-based estimate)
+    #[arg(long)]
+    pub depart: Option<String>,
+    /// Arrival date of a dated transfer between bodies (after --depart)
+    #[arg(long)]
+    pub arrive: Option<String>,
+    /// Who performs the departure burn of a dated transfer: `spacecraft` (default) or `launcher` (the launcher injects onto the departure asymptote, so the spacecraft does not count that burn; needs --depart and --arrive)
+    #[arg(long)]
+    pub departure_by: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }

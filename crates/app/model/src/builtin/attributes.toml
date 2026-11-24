@@ -276,7 +276,7 @@ section      = "aocs"
 [spin_axis]
 label       = "回転軸"
 label_en    = "Spin axis"
-description = "部品座標の単位ベクトル"
+description = "機体が押される力の向き（部品座標の単位ベクトル）。排気はこの向きの反対に出る。 / The direction of the force on the spacecraft (a unit vector in the part frame). The exhaust leaves in the opposite direction."
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true
@@ -285,7 +285,7 @@ section     = "aocs"
 [axis]
 label       = "軸"
 label_en    = "Axis"
-description = "部品座標の単位ベクトル"
+description = "機体が押される力の向き（部品座標の単位ベクトル）。排気はこの向きの反対に出る。 / The direction of the force on the spacecraft (a unit vector in the part frame). The exhaust leaves in the opposite direction."
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true
@@ -324,16 +324,28 @@ section      = "aocs"
 [direction]
 label       = "推力の向き"
 label_en    = "Thrust direction"
-description = "部品座標の単位ベクトル"
+description = "機体が押される力の向き（部品座標の単位ベクトル）。排気はこの向きの反対に出る。 / The direction of the force on the spacecraft (a unit vector in the part frame). The exhaust leaves in the opposite direction."
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true
 section     = "aocs"
 
+[plume_half_angle]
+label        = "噴流の半角"
+label_en     = "Plume half angle"
+description  = "排気が広がる円錐の半頂角（推力の向きの反対が軸）。機体の部品が噴流に入っていないかの確認に使う"
+type         = "scalar"
+dimension    = "Angle"
+units        = ["deg", "rad"]
+display_unit = "deg"
+min          = 0.0
+max          = 1.5707963267948966
+section      = "propulsion"
+
 [boresight]
 label       = "視線方向"
 label_en    = "Boresight"
-description = "部品座標の単位ベクトル"
+description = "機体が押される力の向き（部品座標の単位ベクトル）。排気はこの向きの反対に出る。 / The direction of the force on the spacecraft (a unit vector in the part frame). The exhaust leaves in the opposite direction."
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true
@@ -550,3 +562,86 @@ dimension    = "Dimensionless"
 units        = [""]
 min          = 0.0
 section      = "propulsion"
+
+# 打ち上げ機・ディスペンサー（種別 launcher・dispenser）の属性。衛星の部品ではなく、`conditions/launch.toml` が選ぶ条件の置き場所。
+[max_payload_mass]
+label        = "搭載質量の上限"
+label_en     = "Maximum payload mass"
+type         = "scalar"
+dimension    = "Mass"
+units        = ["kg", "g"]
+display_unit = "kg"
+min          = 0.0
+section      = "structure"
+
+[payload_mass_by_c3]
+label        = "搭載質量の上限（C3 の関数）"
+label_en     = "Payload mass capability versus C3"
+description  = "出発の特性エネルギー C3 ごとに打ち上げ機が送れる質量。点の間は直線で結び、最後の点より大きい C3 は送れない（外挿しない）。最初の点より小さい C3 は最初の点の質量で見る"
+type         = "curve"
+dimension    = "Mass"
+at_dimension = "SpecificEnergy"
+units        = ["kg", "g"]
+display_unit = "kg"
+min          = 0.0
+section      = "structure"
+
+[launch_envelope]
+label        = "収納外形の許容（箱）"
+label_en     = "Allowed stowed envelope (box)"
+description  = "機体座標の x, y, z 方向の許容の長さ。z が発射軸。軸ごとに比べ、辺の入れ替えはしない"
+type         = "vec3"
+dimension    = "Length"
+units        = ["mm", "m", "cm"]
+display_unit = "mm"
+section      = "structure"
+
+[launch_load_axial]
+label        = "準静的荷重（機軸方向）"
+label_en     = "Quasi-static load (axial)"
+type         = "scalar"
+dimension    = "Acceleration"
+units        = ["g0", "m/s^2"]
+display_unit = "g0"
+min          = 0.0
+section      = "structure"
+
+[launch_load_lateral]
+label        = "準静的荷重（直交方向）"
+label_en     = "Quasi-static load (lateral)"
+type         = "scalar"
+dimension    = "Acceleration"
+units        = ["g0", "m/s^2"]
+display_unit = "g0"
+min          = 0.0
+section      = "structure"
+
+[min_frequency_axial]
+label        = "最低固有振動数（機軸方向）"
+label_en     = "Minimum natural frequency (axial)"
+type         = "scalar"
+dimension    = "Frequency"
+units        = ["Hz"]
+display_unit = "Hz"
+min          = 0.0
+section      = "structure"
+
+[min_frequency_lateral]
+label        = "最低固有振動数（直交方向）"
+label_en     = "Minimum natural frequency (lateral)"
+type         = "scalar"
+dimension    = "Frequency"
+units        = ["Hz"]
+display_unit = "Hz"
+min          = 0.0
+section      = "structure"
+
+[max_tip_off_rate]
+label        = "分離時の角速度の上限（チップオフ）"
+label_en     = "Maximum tip-off angular rate at separation"
+type         = "scalar"
+dimension    = "AngularVelocity"
+units        = ["deg/s", "rad/s"]
+display_unit = "deg/s"
+min          = 0.0
+section      = "structure"

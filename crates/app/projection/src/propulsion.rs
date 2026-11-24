@@ -1,5 +1,6 @@
 //! 推進系の射影: `propulsion.maneuvers`・`propulsion.dv_budget`・`propulsion.propellant`・`propulsion.thruster_usage`・
-//! `propulsion.orbit_history`（同じ入力 `PropulsionInput`。RCS のアンロードは ΔV バジェットだけが使う）と
+//! `propulsion.orbit_history`・`propulsion.transfer_check`（同じ入力 `PropulsionInput`。日付つきの遷移の日付は `maneuver_dates` が読んだものを
+//! マヌーバの入力に写すだけで、遷移が無ければ解析が空の結果を返す。RCS のアンロードは ΔV バジェットだけが使う）と
 //! `propulsion.mass_properties`（質量特性の入力も足す）。
 //!
 //! - 数値伝搬（`propagated`）のマヌーバは `[constraints]` を `ThrustConstraints` に写し、無視した制約にしない。
@@ -14,21 +15,27 @@
 //! - マージンなどの既定値は持たない（解析が持つ）。区分と計算の段階は model ⇄ analysis の対応で写す。
 
 use crate::context::Context;
+use crate::maneuver_dates;
 use crate::missing::MissingInputs;
 use crate::parts::{self, by_role};
 use crate::quantity::{qty_opt, setting_opt};
 use crate::{aocs, structure};
 use fune_model::Target;
 use fune_model::builtin::{Role, STATE_THRUSTER_FIRING};
+use fune_model::design::DepartureBy as ModelDepartureBy;
 use fune_model::design::setting_dims as dims;
 use fune_model::design::{Maneuver, ManeuverCategory, ManeuverMethod, ManeuverSteering};
 use fune_model::resolve::{ResolvedPart, SiValue};
 use sat_analysis::propulsion::{
-    DvCategory, ManeuverInput, OrbitTarget, PropellantMassInput, PropellantTank, PropulsionInput,
-    PropulsionThruster, ThrustConstraints, TransferMethod, UnloadingInput, UnloadingNote,
+    DatedTransferInput, DepartureProvider, DvCategory, ManeuverInput, OrbitTarget,
+    PropellantMassInput, PropellantTank, PropulsionInput, PropulsionThruster, ThrustConstraints,
+    TransferMethod, UnloadingInput, UnloadingNote,
 };
 use sat_astro::force::thrust::ThrustSteering;
 use sat_units::typed::{Force, Fraction, Impulse, MassDensity, Power, Qty, Time, Volume};
+
+mod launch_window;
+pub use launch_window::launch_window;
 
 /// 設計の区分 → 解析の区分。
 pub fn category(c: ManeuverCategory) -> DvCategory {
@@ -48,6 +55,14 @@ pub fn method(m: ManeuverMethod) -> TransferMethod {
         ManeuverMethod::FiniteBurn => TransferMethod::FiniteBurn,
         ManeuverMethod::LowThrust => TransferMethod::LowThrust,
         ManeuverMethod::Propagated => TransferMethod::Propagated,
+    }
+}
+
+/// 設計の出発の噴射を行うもの → 解析の出発の噴射を行うもの（書かなければ衛星）。
+pub fn departure_by(d: Option<ModelDepartureBy>) -> DepartureProvider {
+    match d {
+        None | Some(ModelDepartureBy::Spacecraft) => DepartureProvider::Spacecraft,
+        Some(ModelDepartureBy::Launcher) => DepartureProvider::Launcher,
     }
 }
 
@@ -190,6 +205,7 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
         );
         return None;
     }
+    let transfer = transfer_input(x, m)?;
     Some(ManeuverInput {
         id: id.to_owned(),
         category: category(x.category),
@@ -211,7 +227,25 @@ fn maneuver(ctx: &Context<'_>, x: &Maneuver, m: &mut MissingInputs) -> Option<Ma
         } else {
             ThrustConstraints::default()
         },
+        transfer,
     })
+}
+
+/// `[transfer]` の日付（読めなければ不足入力に記録して外側が `None`、書かれていなければ `Some(None)`）。
+fn transfer_input(x: &Maneuver, m: &mut MissingInputs) -> Option<Option<DatedTransferInput>> {
+    match maneuver_dates::parse(x) {
+        None => Some(None),
+        Some(Ok((departure, arrival))) => Some(Some(DatedTransferInput {
+            departure,
+            arrival,
+            departure_by: departure_by(x.transfer.as_ref().and_then(|t| t.departure_by)),
+        })),
+        Some(Err((key, why))) => {
+            let field = format!("transfer.{key}");
+            m.push(Target::maneuver(x.id.as_str(), Some(&field)), why);
+            None
+        }
+    }
 }
 
 /// 数値伝搬で効く制約（`[constraints]`）。

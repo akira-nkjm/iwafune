@@ -1,5 +1,5 @@
 import type { PartHeat, ThermalSteadyOutput, ThermalTransientOutput } from "@/api/types";
-import { heatHex, toneHex } from "@/lib/tone";
+import { heatHex, type Scheme, toneHexFor } from "@/lib/tone";
 
 /** 色の範囲（SI の K）。全ケースの定常と非定常の全時刻を通した最低と最高 */
 export interface HeatScale {
@@ -90,11 +90,12 @@ export function partHeatColors(
   heat: readonly PartHeat[] | undefined,
   temps: ReadonlyMap<string, number>,
   scale: HeatScale,
+  scheme: Scheme = "light",
 ): (part: string) => string {
   const nodeOf = new Map((heat ?? []).map((h) => [h.part, h.node]));
   return (part) => {
     const node = nodeOf.get(part);
     const t = node === undefined ? undefined : temps.get(node);
-    return t === undefined ? toneHex.gray : heatHex(heatRatio(t, scale));
+    return t === undefined ? toneHexFor(scheme).gray : heatHex(heatRatio(t, scale));
   };
 }

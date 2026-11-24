@@ -2,7 +2,7 @@
 //! [`RefSite`]）が決め、ここは参照元のファイル（`layout`）とキーを書き換えるだけ。**
 
 use super::Edits;
-use super::doc::{rename_key, replace_in_array, set, string, table_opt};
+use super::doc::{drop_if_empty, rename_key, replace_in_array, set, string, table_opt};
 use super::part::{rename_mount_target, set_port};
 use crate::error::StoreError;
 use crate::layout;
@@ -13,6 +13,7 @@ use toml_edit::Item;
 
 mod defs;
 mod records;
+mod thermal;
 
 pub use defs::{rename_attribute, rename_kind};
 pub use records::{
@@ -104,6 +105,20 @@ pub fn rename_phase(
     rename_sites(edits, design, Referent::Phase(from), to, None)
 }
 
+/// 形態の名前を変える（ファイルの移動。形態を指す参照元は今は無いが、索引を引いて書き換える）。
+pub fn rename_configuration(
+    edits: &mut Edits,
+    design: &Design,
+    from: &str,
+    to: &str,
+) -> Result<(), StoreError> {
+    edits.rename(
+        &layout::configuration_file(from),
+        &layout::configuration_file(to),
+    )?;
+    rename_sites(edits, design, Referent::Configuration(from), to, None)
+}
+
 /// カタログ品の名前を変える（ファイルの移動と、部品の `catalog`・`candidates`、ハーネスの `wire` の書き換え）。
 pub fn rename_catalog(
     edits: &mut Edits,
@@ -126,7 +141,7 @@ pub fn rename_station(
     rename_sites(edits, design, Referent::Station(from), to, None)
 }
 
-/// 部品の削除に伴い、モードの行と配分を消す。ほかの参照（ネットの端・取付・解析の設定）は残すので、
+/// 部品の削除に伴い、モードの行・形態の姿勢の行と配分を消す。ほかの参照（ネットの端・取付・解析の設定）は残すので、
 /// 参照先が無くなれば検査の誤りになり、削除の計画が拒まれる。
 pub fn forget_part(edits: &mut Edits, design: &Design, id: &str) -> Result<(), StoreError> {
     for site in design.references(Referent::Part(id)) {
@@ -134,6 +149,15 @@ pub fn forget_part(edits: &mut Edits, design: &Design, id: &str) -> Result<(), S
             RefSite::ModeRow { mode } => {
                 super::entities::set_mode_row(edits, &layout::mode_file(&mode), id, false, None)?;
                 super::entities::set_mode_row(edits, &layout::mode_file(&mode), id, true, None)?;
+            }
+            RefSite::ConfigurationPose { configuration } => {
+                edits.edit(&layout::configuration_file(&configuration), |doc| {
+                    if let Some(t) = table_opt(doc, &["pose"]) {
+                        t.remove(id);
+                    }
+                    drop_if_empty(doc, &["pose"]);
+                    Ok(())
+                })?;
             }
             RefSite::Allocation { kind } => edits.edit(layout::ALLOCATION_FILE, |doc| {
                 if let Some(t) = table_opt(doc, &[kind.as_str(), "alloc"]) {
@@ -181,6 +205,7 @@ fn rename_sites(
         | Referent::Group(id)
         | Referent::Mode(id)
         | Referent::Phase(id)
+        | Referent::Configuration(id)
         | Referent::Net(id)
         | Referent::Catalog(id)
         | Referent::CatalogSource(id)
@@ -191,7 +216,8 @@ fn rename_sites(
         | Referent::Case(id)
         | Referent::Source(id)
         | Referent::Maneuver(id)
-        | Referent::Link(id) => id,
+        | Referent::Link(id)
+        | Referent::ThermalNode(id) => id,
     };
     for site in design.references(referent) {
         rename_at(edits, design, &site, (from, to), moved)?;
@@ -209,6 +235,7 @@ fn rename_at(
 ) -> Result<(), StoreError> {
     match site {
         RefSite::ModeRow { .. }
+        | RefSite::ConfigurationPose { .. }
         | RefSite::NetPort { .. }
         | RefSite::HarnessPort { .. }
         | RefSite::MountOn { .. }
@@ -219,8 +246,11 @@ fn rename_at(
         | RefSite::ThermalNode { .. }
         | RefSite::ThermalSurface
         | RefSite::ThermalHeatNode
+        | RefSite::ThermalNodeName
         | RefSite::CaseMode { .. }
         | RefSite::CasePhase { .. }
+        | RefSite::PhaseConfiguration { .. }
+        | RefSite::LaunchConfiguration
         | RefSite::PhaseMode { .. }
         | RefSite::PhaseLaw { .. }
         | RefSite::PowerModeShare
@@ -230,13 +260,12 @@ fn rename_at(
         | RefSite::AttitudeLaw
         | RefSite::CommStation
         | RefSite::ThermalCaseMode { .. } => rename_setting_at(edits, site, names),
-        // 判定のキーは解析が持つ書式なので書き換えない（名前の変更は ops が先に拒む）
-        RefSite::RequirementCheck { .. } => Ok(()),
         RefSite::PortNet { .. }
         | RefSite::HarnessNet { .. }
         | RefSite::PartCatalog { .. }
         | RefSite::PartCandidate { .. }
         | RefSite::HarnessWire { .. }
+        | RefSite::LaunchSelection { .. }
         | RefSite::ManeuverThruster { .. }
         | RefSite::ManeuverMode { .. } => rename_value_at(edits, design, site, names),
         RefSite::PartKind { .. }
@@ -253,10 +282,10 @@ fn rename_at(
         | RefSite::CatalogItemDatasheet { .. }
         | RefSite::RequirementSource { .. }
         | RefSite::ManeuverAfter { .. }
+        | RefSite::OrbitManeuver
+        | RefSite::PhaseOrbitManeuver { .. }
         | RefSite::CommDataDownlink
-        | RefSite::RequirementLinkCheck { .. } => {
-            records::rename_record_at(edits, design, site, names)
-        }
+        | RefSite::RequirementCheck { .. } => records::rename_record_at(edits, design, site, names),
     }
 }
 
@@ -273,6 +302,13 @@ fn rename_key_at(
             rename_in(edits, &layout::mode_file(mode), &["states"], from, to)?;
             rename_in(edits, &layout::mode_file(mode), &["eclipse"], from, to)
         }
+        RefSite::ConfigurationPose { configuration } => rename_in(
+            edits,
+            &layout::configuration_file(configuration),
+            &["pose"],
+            from,
+            to,
+        ),
         RefSite::NetPort { net, end, port } => set_top(
             edits,
             &layout::net_file(net),
@@ -335,8 +371,13 @@ fn rename_setting_at(
         }),
         RefSite::ThermalSurface => rename_in(edits, &thermal(), &["surface"], from, to),
         RefSite::ThermalHeatNode => rename_in(edits, &thermal(), &["heat_node"], from, to),
+        RefSite::ThermalNodeName => thermal::rename_node_name(edits, from, to),
         RefSite::CaseMode { case } => set_top(edits, &layout::case_file(case), "mode", to),
         RefSite::CasePhase { case } => set_top(edits, &layout::case_file(case), "phase", to),
+        RefSite::PhaseConfiguration { phase } => {
+            set_top(edits, &layout::phase_file(phase), "configuration", to)
+        }
+        RefSite::LaunchConfiguration => set_top(edits, &layout::launch_file(), "configuration", to),
         RefSite::PhaseMode { phase } => {
             replace_in(edits, &layout::phase_file(phase), "modes", from, to)
         }
@@ -404,6 +445,9 @@ fn rename_value_at(
         }
         RefSite::HarnessWire { harness } => {
             set_top(edits, &layout::harness_file(harness), "wire", to)
+        }
+        RefSite::LaunchSelection { which } => {
+            set_top(edits, &layout::launch_file(), which.as_str(), to)
         }
         RefSite::ManeuverThruster { maneuver } => {
             set_top(edits, &layout::maneuver_file(maneuver), "thruster", to)

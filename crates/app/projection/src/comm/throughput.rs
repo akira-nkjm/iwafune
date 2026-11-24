@@ -3,7 +3,6 @@
 use super::{CommLinkSettings, CommSettings, comm, rf_params, settings, split_by_band, with_band};
 use crate::context::Context;
 use crate::missing::MissingInputs;
-use crate::quantity::db;
 use crate::{cdh, timeline};
 use fune_model::Target;
 use fune_model::design::LinkDirection;
@@ -104,6 +103,10 @@ fn station_links(
     stations: &[GroundStation],
     m: &mut MissingInputs,
 ) -> Vec<DataThroughputStationLink> {
+    // 所要 Eb/N0 は回線の設定で、局によらない。読めないときは 1 回だけ不足入力にし、局ごとの条件は作らない
+    let Some(required_eb_n0_db) = super::gains::required_eb_n0(name, link, m) else {
+        return Vec::new();
+    };
     stations
         .iter()
         .filter_map(|st| {
@@ -112,7 +115,7 @@ fn station_links(
                 station: st.id.clone(),
                 link: DataThroughputLink {
                     rf,
-                    required_eb_n0_db: db(link.ebn0_required.as_ref())?,
+                    required_eb_n0_db,
                 },
             })
         })

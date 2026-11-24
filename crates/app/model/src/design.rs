@@ -4,6 +4,7 @@
 //! |---|---|
 //! | `part` | Part・Group・NodeRef・Mount・Pose・PortBinding・CatalogItem |
 //! | `defs` | AttributeDef・KindDef・BudgetKind・NetKind |
+//! | `configuration` | 形態（部品の姿勢を上書きする名前つきの層。有効な姿勢を決める `Design::pose_in`） |
 //! | `mode` | Mode・StateAssign（運用モードの表） |
 //! | `phase` | フェーズ（ミッションの段階。軌道と姿勢則の上書き・並び `Design::ordered_phases`） |
 //! | `system` | Net・Harness・Case |
@@ -16,6 +17,7 @@
 //! | `project` | `fune.toml` |
 //! | `shared_catalog` | 共有カタログの固定（`catalog.lock`）と読み込みの状態の判定（`Design::shared_catalog_statuses`） |
 //! | `conditions` / `analysis` | `conditions/`・`analysis/` の型付きの設定。解析の系の一覧 `AnalysisSystem` |
+//! | `thermal_nodes` | 熱の節点（既定は 1 部品 1 節点、`[nodes]` で部品をまとめる）と部品 → 節点の対応（`ThermalSettings::node_map`） |
 //! | `thermal_settings` | 熱の解析の設定（`analysis/thermal.toml`。環境条件・プリセット・解析マージン・表面材・発熱の場所・節点間の明示の結合と外殻の放射） |
 //! | `refs` | 参照の索引（ある ID をどのエンティティのどのキーが持っているか。`Design::references`） |
 //! | `setting_dims` | 設定の量の次元の表（パスの形 → 次元。検査と射影が引く） |
@@ -26,8 +28,10 @@
 pub mod analysis;
 pub mod budget;
 pub mod conditions;
+pub mod configuration;
 pub mod criteria;
 pub mod defs;
+pub mod launch;
 pub mod maneuver;
 pub mod mode;
 pub mod moved_settings;
@@ -44,6 +48,7 @@ pub mod shared_catalog;
 pub mod source;
 pub mod source_map;
 pub mod system;
+pub mod thermal_nodes;
 pub mod thermal_settings;
 pub mod timing;
 pub mod view;
@@ -51,10 +56,12 @@ pub mod view;
 pub use analysis::*;
 pub use budget::*;
 pub use conditions::*;
+pub use configuration::*;
 pub use criteria::{
     CRITERIA, Criterion, CriterionDecl, declared, declared_for_requirement, key_covers,
 };
 pub use defs::*;
+pub use launch::LaunchInterface;
 pub use maneuver::*;
 pub use mode::*;
 pub use moved_settings::{MOVED_SETTINGS, MovedSetting};
@@ -68,6 +75,7 @@ pub use settings_view::SettingEntry;
 pub use shared_catalog::{CatalogLock, LockedCatalog, SharedCatalogState, SharedCatalogStatus};
 pub use source_map::{EntityKey, Loc, SourceMap};
 pub use system::*;
+pub use thermal_nodes::*;
 pub use thermal_settings::*;
 pub use timing::*;
 pub use view::{ViewEdge, ViewLayout, ViewNode, ViewPortSide};
@@ -124,6 +132,8 @@ pub struct Design {
     pub maneuvers: BTreeMap<Id<Maneuver>, Maneuver>,
     /// フェーズ（`phases/<ID>.toml`。並びは [`Design::ordered_phases`]）
     pub phases: BTreeMap<Id<Phase>, Phase>,
+    /// 形態（`configurations/<ID>.toml`。部品の姿勢の上書き。有効な姿勢は [`Design::pose_in`]）
+    pub configurations: BTreeMap<Id<Configuration>, Configuration>,
     pub sources: BTreeMap<Id<Source>, Source>,
     /// 要求（`requirements/<ID>.toml`。平らな一覧）
     pub requirements: BTreeMap<Id<Requirement>, Requirement>,
@@ -220,19 +230,20 @@ impl Design {
         .collect()
     }
 
-    /// カタログ品を参照しているもの（部品の ID、ハーネスは `harness/<ID>`。部品 → ハーネスの順）。
+    /// カタログ品を参照しているもの（部品の ID、ハーネスは `harness/<ID>`、打ち上げ条件は `conditions.launch.<launcher|dispenser>`。部品 → ハーネス → 打ち上げ条件の順）。
     /// 参照の所在は [`Design::references`]（削除を拒む文に使う）。
     pub fn catalog_users(&self, reference: &str) -> Vec<String> {
-        let harnesses = self
+        let others = self
             .references(Referent::Catalog(reference))
             .into_iter()
             .filter_map(|site| match site {
                 RefSite::HarnessWire { harness } => Some(format!("harness/{harness}")),
+                RefSite::LaunchSelection { which } => Some(format!("conditions.launch.{which}")),
                 _ => None,
             });
         self.catalog_part_users(reference)
             .into_iter()
-            .chain(harnesses)
+            .chain(others)
             .collect()
     }
 

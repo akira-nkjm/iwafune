@@ -31,6 +31,10 @@ export const commonEn: typeof commonJa = {
     noData: "No data",
     cannotLoadDesign: (msg: string) => `Cannot load the design: ${msg}`,
     language: "Language",
+    appearance: "Appearance",
+    themeSystem: "Follow the OS",
+    themeLight: "Light",
+    themeDark: "Dark",
     viewHelp: {
       label: "Controls help",
       title: "View controls",
@@ -44,7 +48,8 @@ export const commonEn: typeof commonJa = {
         "Trackpad: two-finger scroll. Mouse: middle-button drag, or left-drag on empty background.",
       pan3dHow:
         "Trackpad: two-finger scroll. Mouse: middle- or right-button drag, or Shift + left drag.",
-      rotateHow: "One-finger drag, or left-button drag.",
+      rotateHow:
+        "One-finger drag, or left-button drag. Rolls about any axis (upside down too). Click a face, edge or corner of the cube at the bottom right to look from that direction with no tilt.",
       fitDiagramHow: "The fit button at the bottom left, or the 0 key.",
       fit3dHow: "The home button at the top right (also resets the direction).",
     },

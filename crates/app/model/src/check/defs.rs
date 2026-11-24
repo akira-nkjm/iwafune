@@ -20,7 +20,11 @@ pub fn attribute_def_problems(def: &AttributeDef) -> Vec<(&'static str, String)>
     }
     let needs_unit = matches!(
         def.value_type,
-        ValueType::Scalar | ValueType::Vec3 | ValueType::Range | ValueType::Tensor3
+        ValueType::Scalar
+            | ValueType::Vec3
+            | ValueType::Range
+            | ValueType::Tensor3
+            | ValueType::Curve
     );
     if !needs_unit && (def.dimension.is_some() || !def.units.is_empty()) {
         out.push((
@@ -30,6 +34,20 @@ pub fn attribute_def_problems(def: &AttributeDef) -> Vec<(&'static str, String)>
                 def.value_type
             ),
         ));
+    }
+    match (&def.at_dimension, def.value_type) {
+        (Some(dim), ValueType::Curve) if parse_dimension_name(dim).is_err() => {
+            out.push(("def.dimension", format!("Unknown dimension name `{dim}`")));
+        }
+        (None, ValueType::Curve) => out.push((
+            "def.dimension",
+            "A curve needs the dimension of its argument (at_dimension)".to_string(),
+        )),
+        (Some(_), t) if t != ValueType::Curve => out.push((
+            "def.dimension",
+            "Only a curve can have an argument dimension (at_dimension)".to_string(),
+        )),
+        _ => {}
     }
     if def.by_state && def.value_type != ValueType::Scalar {
         out.push((

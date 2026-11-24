@@ -1,7 +1,7 @@
 import { Box3, Quaternion, Vector3 } from "three";
 import type { DefsView, DesignView, PartRow } from "@/api/types";
 import { systemTone } from "@/lib/systems";
-import { toneHex } from "@/lib/tone";
+import { type Scheme, type Tone, toneHexFor } from "@/lib/tone";
 
 export type V3 = [number, number, number];
 export type Q4 = [number, number, number, number];
@@ -18,8 +18,6 @@ export interface Box3D {
   sized: boolean;
   /** API が構造の部品と返したもの（`PartRow.structural`。名前や ID から推測しない）。 */
   structure: boolean;
-  /** 取付の根（機体座標の原点。3D で掴んで動かさない） */
-  fixed: boolean;
 }
 
 /**
@@ -168,15 +166,16 @@ export function hasSize(p: PartRow): boolean {
   return sizeOf(p) !== null;
 }
 
-/** 設計から 3D の箱を作る（機体座標が導出できた部品だけ）。色は系の色か、colorOf の上書き */
+/** 設計から 3D の箱を作る（機体座標が導出できた部品だけ）。色は系の色（配色 `scheme` の塗りの色）か、colorOf の上書き */
 export function boxesOf(
   design: DesignView,
   colorOf?: (id: string) => string | undefined,
+  scheme: Scheme = "light",
 ): { boxes: Box3D[]; unplaced: string[]; dimensions: ReturnType<typeof sceneDimensions> } {
   const boxes: Box3D[] = [];
   const unplaced: string[] = [];
   for (const p of design.parts) {
-    // 機体座標の位置・姿勢がある部品（取付のある部品と取付の根。API が決める）だけを置く
+    // 機体座標の位置・姿勢がある部品（取付のある部品・取付の根・姿勢の書かれた根。API が決める）だけを置く。根も動かせる
     const body = p.body;
     if (!body) {
       unplaced.push(p.id);
@@ -188,10 +187,9 @@ export function boxesOf(
       position: body.position,
       orientation: body.orientation,
       size: size ?? [0, 0, 0],
-      color: colorOf?.(p.id) ?? toneHex[systemTone(p.system)],
+      color: colorOf?.(p.id) ?? toneHexFor(scheme)[systemTone(p.system)],
       sized: size !== null,
       structure: p.structural,
-      fixed: body.root,
     });
   }
   const bounds = boundsOf(boxes);
@@ -247,3 +245,19 @@ export function boxMaterial(
   const opacity = dimmed && !selected ? base * DIMMED_OPACITY_RATIO : base;
   return { color: box.color, transparent: true, opacity, depthWrite: opacity === 1 };
 }
+
+/** 方向の属性の矢印の色（`Axis3D.order` 番目。属性の ID は見ない。足りなければ繰り返す）の並び（配色ごとの塗りの色で引く） */
+const AXIS_TONES: readonly Tone[] = [
+  "teal",
+  "red",
+  "navy",
+  "gold",
+  "blue",
+  "violet",
+  "green",
+  "orange",
+];
+
+/** 方向の属性の矢印の色 */
+export const axisColor = (scheme: Scheme, order: number) =>
+  toneHexFor(scheme)[AXIS_TONES[order % AXIS_TONES.length] ?? "teal"];

@@ -23,7 +23,9 @@ import type {
   HistoryView,
   ModeSummaryScope,
   Op,
+  PartQuery,
   PartRow,
+  PartsQuery,
   PartView,
   PartViewRequest,
   ProjectInfo,
@@ -48,6 +50,10 @@ export interface SystemModesOptions {
   analyzed?: boolean;
   /** 足もとの行の範囲 */
   summary?: ModeSummaryScope;
+}
+
+function configurationSearch(configuration: PartQuery["configuration"]): string {
+  return configuration === null ? "" : `?configuration=${seg(configuration)}`;
 }
 
 /** 読み取りの queryOptions（画面は useQuery(q.xxx()) で使う） */
@@ -76,15 +82,22 @@ export const q = {
       ...(analyzed ? { staleTime: 30_000 } : {}),
     });
   },
+  /** 部品の一覧。形態の指定があれば、その形態での取付・姿勢を読む。 */
+  parts: (configuration: PartsQuery["configuration"] = null) =>
+    queryOptions({
+      queryKey: keys.parts(configuration),
+      queryFn: () => api<PartRow[]>(`/parts${configurationSearch(configuration)}`),
+    }),
   /** 1 部品。`ops` を渡すと、保存していない編集を書き込まずに当てた設計の部品（`POST /parts/{id}`） */
-  part: (id: string, ops: readonly Op[] = []) => {
+  part: (id: string, ops: readonly Op[] = [], configuration: PartQuery["configuration"] = null) => {
     const json = ops.length > 0 ? JSON.stringify(ops) : "";
+    const path = `/parts/${seg(id)}`;
     return queryOptions({
-      queryKey: keys.part(id, json),
+      queryKey: keys.part(id, json, configuration),
       queryFn: () => {
-        if (!json) return api<PartView>(`/parts/${seg(id)}`);
-        const body: PartViewRequest = { ops: [...ops] };
-        return api<PartView>(`/parts/${seg(id)}`, { method: "POST", body });
+        if (!json) return api<PartView>(`${path}${configurationSearch(configuration)}`);
+        const body: PartViewRequest = { ops: [...ops], configuration };
+        return api<PartView>(path, { method: "POST", body });
       },
     });
   },
@@ -109,14 +122,20 @@ export const q = {
       queryFn: () => api<AnalysisEntry[]>("/analyses"),
       staleTime: Number.POSITIVE_INFINITY,
     }),
-  /** 解析の実行。`ops` を渡すと、保存していない編集を書き込まずに当てた設計で計算する */
-  analysis: (id: string, kase: string | null, ops: readonly Op[] = []) => {
+  /** 解析の実行。`ops` を渡すと、保存していない編集を書き込まずに当てた設計で計算する。`configuration` はその形態の配置で計算する */
+  analysis: (
+    id: string,
+    kase: string | null,
+    ops: readonly Op[] = [],
+    configuration: string | null = null,
+  ) => {
     const json = ops.length > 0 ? JSON.stringify(ops) : "";
     return queryOptions({
-      queryKey: keys.analysis(id, kase, json),
+      queryKey: keys.analysis(id, kase, json, configuration),
       queryFn: () => {
         const body: RunAnalysisRequest = {
           case: kase,
+          ...(configuration ? { configuration } : {}),
           source: { kind: "design" },
           ops: [...ops],
         };
@@ -220,9 +239,20 @@ export function useAnalyses(
   });
 }
 
+/**
+ * ページに並べる解析: 設計データから入力を作れるもの（API の `projectable`）だけ。作れない解析（入力を JSON で渡す
+ * 解析）は並べない（走らせると「実装していない」という失敗になり、概要・判定の集計にも入ってしまう）。
+ * 作れない解析は CLI（`fune analyze <id> --input`・`fune analyze ls`）で使う。
+ */
+function listable(entries: readonly AnalysisEntry[]): AnalysisEntry[] {
+  return entries.filter((e) => e.projectable);
+}
+
 /** ある系の解析。系への所属は sat-analysis の info.area が正本 */
 function systemEntries(entries: readonly AnalysisEntry[], system: string | null): AnalysisEntry[] {
-  return entries.filter((e) => e.info.area.kind === "system" && e.info.area.value === system);
+  return listable(entries).filter(
+    (e) => e.info.area.kind === "system" && e.info.area.value === system,
+  );
 }
 
 /** 解析の一覧（GET /analyses）から、ある系の解析（一覧の順）とその ID を引く */
@@ -252,7 +282,7 @@ export async function prefetchSystemAnalyses(system: string): Promise<void> {
 /** 前提条件の話題に属する解析（系の解析とは別の区分）。 */
 export function useConditionAnalyses(topic: ConditionTopic) {
   const catalog = useQuery(q.analyses());
-  const entries = (catalog.data ?? []).filter(
+  const entries = listable(catalog.data ?? []).filter(
     (e) => e.info.area.kind === "condition" && e.info.area.value === topic,
   );
   return { entries, ids: entries.map((e) => e.info.id), loading: catalog.isPending };

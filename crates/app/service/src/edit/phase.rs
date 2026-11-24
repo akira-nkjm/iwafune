@@ -41,6 +41,7 @@ fn phase_of(t: &PhaseText) -> Result<Phase> {
             .into_iter()
             .map(Into::into)
             .collect(),
+        configuration: given(&t.configuration).map(Into::into),
         orbit: None,
         law: Default::default(),
     })
@@ -118,6 +119,7 @@ mod tests {
             end: Some(String::new()),
             duration: Some(" 30 d".into()),
             modes: Some("SAFE, NOMINAL".into()),
+            configuration: Some("STOWED".into()),
         }
     }
 

@@ -39,10 +39,16 @@ pub enum PartCmd {
         group: Option<String>,
         #[arg(long)]
         kind: Option<String>,
+        /// Poses (`mount`, `body` in `--json`) as they are in this configuration (default: the base placement)
+        #[arg(long)]
+        configuration: Option<String>,
     },
     /// Show everything about one part
     Show {
         id: String,
+        /// Poses as they are in this configuration (default: the base placement)
+        #[arg(long)]
+        configuration: Option<String>,
         /// Apply unsaved edits (a JSON file of Ops, or `-` for stdin) without writing, then show
         #[arg(long)]
         ops: Option<std::path::PathBuf>,
@@ -111,12 +117,13 @@ pub enum PartCmd {
 pub struct PlaceArgs {
     pub id: String,
     /// Part to mount on
-    #[arg(long, required_unless_present_any = ["root", "body_pos"])]
+    #[arg(long, required_unless_present_any = ["root", "body_pos", "configuration"])]
     pub on: Option<String>,
     /// Mount point
     #[arg(long)]
     pub point: Option<String>,
-    /// Unmount and make the part a root of the vehicle
+    /// Unmount and make the part a root of the vehicle. The position and attitude of a root are in vehicle coordinates
+    /// (not written: the origin, no rotation). Also use it to move a part that is already a root
     #[arg(long, conflicts_with_all = ["on", "point"])]
     pub root: bool,
     /// Position (e.g. `"0 0 12 mm"`)
@@ -125,16 +132,21 @@ pub struct PlaceArgs {
     /// Attitude quaternion (`"1 0 0 0"`, w x y z)
     #[arg(long, allow_hyphen_values = true)]
     pub orientation: Option<String>,
-    /// Attitude as rotation angles about the X, Y and Z axes (e.g. `"0 90 0 deg"`; applied about the mount point's axes in the order X, Y, Z).
+    /// Attitude as rotation angles about the X, Y and Z axes (e.g. `"0 90 0 deg"`; applied about the mount point's axes (the vehicle axes for a root) in the order X, Y, Z).
     /// Written to the file as a quaternion. Cannot be combined with `--orientation`
     #[arg(long, allow_hyphen_values = true, conflicts_with = "orientation")]
     pub rotation: Option<String>,
-    /// Position in vehicle coordinates (e.g. `"30 0 -100 mm"`); the mount target and point stay as they are, and the result is written as a relative position and attitude
+    /// Position in vehicle coordinates (e.g. `"30 0 -100 mm"`); the mount target and point stay as they are, and the result is written as a relative position and attitude (for a root, as its own position and attitude)
     #[arg(long, allow_hyphen_values = true, conflicts_with_all = ["on", "point", "root", "position", "orientation", "rotation"])]
     pub body_pos: Option<String>,
     /// Attitude in vehicle coordinates (part to vehicle, `"w x y z"`); use with `--body-pos`
     #[arg(long, allow_hyphen_values = true, requires = "body_pos")]
     pub body_rot: Option<String>,
+    /// Write the pose to this configuration (`fune configuration add`) instead of the part's own `[pose]`. The mount stays as it is
+    /// (`--on` and `--point` may be omitted, and must match the part's mount if given); the pose replaces the part's pose in that
+    /// configuration as a whole, and `--body-pos` reads vehicle coordinates in that configuration. Undo with `fune configuration unset-pose`
+    #[arg(long, conflicts_with = "root")]
+    pub configuration: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }

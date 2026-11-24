@@ -58,7 +58,7 @@ fn every_kpi_comes_from_exactly_one_analysis() {
                 .all(|d| !d.label.is_empty() && !d.label_en.is_empty())
         );
     }
-    assert_eq!(seen.len(), 43, "every KpiKey value is in the table");
+    assert_eq!(seen.len(), 50, "every KpiKey value is in the table");
 }
 
 /// 判定を数える KPI: 数と OK でない数、塗りは OK の割合（手で数えた 9 件中 4 件）。
@@ -120,10 +120,10 @@ fn counting_kpi_tallies_checks_and_fills_with_the_ok_share() {
 fn ratio_kpis_fill_with_their_value_and_info_kpis_have_no_verdict() {
     let ratio = view(
         KpiKey::StorageMargin,
-        Some(Measured {
+        Some(Reading::Value(Measured {
             si: -0.036,
             kind: "Fraction",
-        }),
+        })),
         Some(Verdict::Violation),
         &[check(Verdict::Violation)],
     );
@@ -134,10 +134,10 @@ fn ratio_kpis_fill_with_their_value_and_info_kpis_have_no_verdict() {
     assert!(ratio.tally.is_none());
     let info = view(
         KpiKey::DataPerDay,
-        Some(Measured {
+        Some(Reading::Value(Measured {
             si: 2.2132224e10,
             kind: "Information",
-        }),
+        })),
         Some(Verdict::Violation),
         &[check(Verdict::Violation)],
     );

@@ -297,7 +297,10 @@ fn balance_input(
 /// 時系列の日付と β を最長蝕の標本に替える（姿勢則・期間・刻みはそのまま）。
 pub fn worst_season(timeline: &TimelineSpec, longest: &EclipseSeasonPoint) -> TimelineSpec {
     let mut t = timeline.clone();
-    t.sampling.orbit.epoch = longest.epoch;
+    // 季節変化（β と日付）は要素で書かれた軌道だけの機能（`power.sizing` の入力は `OrbitSpec` から作る）。
+    if let Some(orbit) = t.sampling.orbit.elements_mut() {
+        orbit.epoch = longest.epoch;
+    }
     t.sampling.beta = Some(longest.beta);
     t
 }

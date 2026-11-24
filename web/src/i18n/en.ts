@@ -6,6 +6,7 @@ import { conditionsEn } from "./conditions/en";
 import { defsEn } from "./defs/en";
 import { diagramEn } from "./diagram/en";
 import { fieldsEn } from "./fields/en";
+import { fixesEn } from "./fixes/en";
 import type { Dict } from "./ja";
 import { maneuversEn } from "./maneuvers/en";
 import { modesEn } from "./modes/en";
@@ -27,6 +28,7 @@ export const en: Dict = {
   ...defsEn,
   ...systemsEn,
   ...fieldsEn,
+  ...fixesEn,
   ...overviewEn,
   ...projectEn,
   ...conditionsEn,

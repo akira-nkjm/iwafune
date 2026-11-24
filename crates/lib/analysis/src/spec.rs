@@ -175,6 +175,20 @@ pub enum ChannelKind {
     Inclination,
     /// 機体の質量（推薬を使うと減る）
     Mass,
+    /// 日心（黄道面）の位置の x（`subject` は対象: `spacecraft`・`departure`・`arrival`）
+    HeliocentricX,
+    /// 日心（黄道面）の位置の y（`subject` は対象）
+    HeliocentricY,
+    /// 到着天体までの距離（惑星間の遷移の確認）
+    ArrivalRange,
+    /// 太陽の中心までの距離
+    SunDistance,
+    /// 地球の中心までの距離
+    EarthDistance,
+    /// 太陽–地球–探査機の角（SEP。地球で太陽と探査機がなす角）
+    SunEarthProbeAngle,
+    /// 太陽–探査機–地球の角（SPE。探査機で太陽と地球がなす角）
+    SunProbeEarthAngle,
 }
 
 impl Channel {
@@ -324,13 +338,14 @@ pub fn ensure_non_negative(name: &str, v: f64) -> Result<(), AnalysisError> {
 mod sampling;
 pub use sampling::{
     DEFAULT_ORBITS, MAX_DAILY_STEP_S, MAX_STEPS_PER_ORBIT, ORBIT_AVERAGE_ORBITS, SamplingSpan,
-    daily_sampling, orbit_count, orbit_step_s, orbits_sampling, sampling, step_for_period,
+    daily_sampling, orbit_count, orbit_step_s, orbits_sampling, requested_step_s, sampling,
+    step_for_period,
 };
 
 mod orbit;
 pub use orbit::{
     SUNLIT_THRESHOLD, SpanFallback, is_sunlit, longest_window, masked_time_mean, orbit_mean,
-    orbit_ranges, orbit_segment, orbit_segments, span_fallback, time_fraction,
+    orbit_ranges, orbit_segment, orbit_segments, span_fallback, span_note, time_fraction,
 };
 
 /// 時系列の中の区間と、その抽出。実体は sat-astro（下の層）にあり、ここでは再公開するだけ。

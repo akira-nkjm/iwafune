@@ -2,7 +2,9 @@
 //!
 //! 値はすべて任意（`Option`）。足りない入力は projection が `conditions.orbit.altitude` のようなパスで列挙する。
 
+use super::configuration::Configuration;
 use crate::enum_text::enum_text;
+use crate::id::Id;
 use crate::value::Quantity;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -31,6 +33,48 @@ enum_text! {
 }
 
 enum_text! {
+    /// 軌道の出どころ（`[orbit]` の `source`。書かなければ `elements`）。解析が軌道から読むのは時刻での状態・中心天体・元期・
+    /// 繰り返しの長さで、出どころごとに射影（`fune_projection::Context::trajectory`）がそれを作る。
+    /// 出どころは `state`・`libration` が増える（値を足すだけで、ほかの欄の形は変わらない）。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+    pub enum OrbitSource: "orbit source" {
+        /// ケプラー要素（`altitude`・`semi_major_axis` 以下。既定）
+        Elements = "elements",
+        /// 日付つきの遷移のマヌーバ（`maneuver`）の巡航の軌道。元期は出発、中心は共通の親、期間は飛行時間
+        Transfer = "transfer",
+    }
+}
+
+/// ケプラー要素の軌道（`source = "elements"`）だけが使う欄。
+const ELEMENT_KEYS: &[&str] = &[
+    "epoch",
+    "propagator",
+    "central",
+    "altitude",
+    "semi_major_axis",
+    "eccentricity",
+    "inclination",
+    "sun_synchronous",
+    "ltdn",
+    "raan",
+    "arg_perigee",
+    "mean_anomaly",
+    "eclipse_season",
+    "decay",
+];
+
+impl OrbitSource {
+    /// この出どころでは使わない欄（書かれていても解析に効かない。検査が `setting.not_applied` で知らせる）。
+    /// 出どころを足すときは、その出どころの欄をほかの出どころの「使わない欄」に足す。
+    pub fn unused_keys(self) -> &'static [&'static str] {
+        match self {
+            Self::Elements => &["maneuver"],
+            Self::Transfer => ELEMENT_KEYS,
+        }
+    }
+}
+
+enum_text! {
     /// 軌道の中心天体（`sat_astro::ephem::CentralBody` に射影する。μ・半径・環境の値は sat-astro と解析が持つ）。
     /// マヌーバの目標の天体（`target.body`）にも使う。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
@@ -54,6 +98,13 @@ enum_text! {
 pub struct OrbitSettings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
+    /// 軌道の出どころ（省略時は `elements`。`elements` は書かない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<OrbitSource>,
+    /// `source = "transfer"` の巡航の軌道を取るマヌーバ（`maneuvers/<ID>.toml`。日付つきの `[transfer]` を持つもの）。
+    /// 元期は出発の日、中心は共通の親、期間は飛行時間
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub maneuver: Option<String>,
     /// 元期（ISO 8601、UTC。例: `"2027-04-01T00:00:00Z"`）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub epoch: Option<String>,
@@ -184,6 +235,16 @@ pub struct LaunchSettings {
     pub label: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vehicle: Option<String>,
+    /// 打ち上げ機のカタログ品（部品の `catalog` と同じ `<カタログ>/<ID>` の形。種別は `launcher`）。
+    /// ここに書かない荷重などは、この品の値（ディスペンサーがあればその値が先）から取る
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launcher: Option<String>,
+    /// ディスペンサーのカタログ品（同じ形。種別は `dispenser`）。打ち上げ機より衛星に近い接点なので、同じ属性があれば打ち上げ機より先に使う
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dispenser: Option<String>,
+    /// 打ち上げの解析が使う形態。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configuration: Option<Id<Configuration>>,
     /// 準静的荷重（機軸方向。単位は `g0`）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub load_axial: Option<Quantity>,
@@ -203,6 +264,19 @@ pub struct LaunchSettings {
     /// 安全率（終局）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub safety_factor_ultimate: Option<f64>,
+}
+
+impl LaunchSettings {
+    /// 欄の名前 → 値の形の見本（文字列で書く欄。数に見える ID も文字列として読むための型で、既定値ではない。
+    /// `fune set conditions.launch.<欄>` が使う）。
+    pub fn field_shape(key: &str) -> Option<crate::value::SettingValue> {
+        match key {
+            "label" | "vehicle" | "launcher" | "dispenser" | "configuration" => {
+                Some(crate::value::SettingValue::Text(String::new()))
+            }
+            _ => None,
+        }
+    }
 }
 
 enum_text! {
@@ -235,11 +309,27 @@ impl ConditionTopic {
 }
 
 impl OrbitSettings {
+    /// 効く出どころ（書かれていなければ `elements`）。**出どころの既定はここだけ。**
+    pub fn source_kind(&self) -> OrbitSource {
+        self.source.unwrap_or(OrbitSource::Elements)
+    }
+
+    /// 書かれている欄のうち、出どころが使わない欄（`OrbitSource::unused_keys`）。
+    pub fn unused_keys(&self) -> Vec<&'static str> {
+        let written = serde_json::to_value(self).unwrap_or_default();
+        let unused = self.source_kind().unused_keys();
+        unused
+            .iter()
+            .copied()
+            .filter(|k| written.get(k).is_some_and(|v| !v.is_null()))
+            .collect()
+    }
+
     /// 欄の名前 → 値の形の見本（文字列で書く欄だけ。数値に見える文字列も文字列として読むための型で、既定値ではない。
     /// フェーズの `[orbit]` の欄を文字列から読むとき（`fune phase set-field`）に使う）。
     pub fn field_shape(key: &str) -> Option<crate::value::SettingValue> {
         match key {
-            "label" | "epoch" | "ltdn" | "central" | "propagator" => {
+            "label" | "source" | "maneuver" | "epoch" | "ltdn" | "central" | "propagator" => {
                 Some(crate::value::SettingValue::Text(String::new()))
             }
             _ => None,

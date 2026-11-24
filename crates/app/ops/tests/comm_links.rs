@@ -155,7 +155,7 @@ fn rename_rewrites_the_table_the_downlink_choice_and_requirement_checks() {
     let checked: Vec<&str> = before
         .iter()
         .filter_map(|s| match s {
-            RefSite::RequirementLinkCheck { requirement } => Some(requirement.as_str()),
+            RefSite::RequirementCheck { requirement, .. } => Some(requirement.as_str()),
             _ => None,
         })
         .collect();

@@ -1,5 +1,6 @@
 //! モード・ネット・図・設定の Op の解釈（前提の確認 → store の編集）。
 
+use super::check_keys::refuse_removing_checked_thermal_node;
 use crate::error::OpError;
 use crate::op::{ModeCell, ModePosition, Op, ViewNodePos};
 use fune_model::Design;
@@ -194,6 +195,7 @@ fn set_setting(
         return Err(OpError::invalid(moved.refusal(&setting)));
     }
     require_station_for_setting(design, &setting)?;
+    refuse_removing_checked_thermal_node(design, &setting, value.is_none())?;
     let (file, keys) = layout::setting_location(&setting)?;
     Ok(entities::set_setting(edits, &file, &keys, value)?)
 }

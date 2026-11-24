@@ -21,6 +21,7 @@
 //! | `system_modes` | 系ごとのモードの見方（電源・C&DH・熱・AOCS の値・合計・判定） |
 //! | `data` | 外部データ（DE440・宇宙天気）の取得・状態・読み込み（ユーザーごとのキャッシュ）、日付からの宇宙天気 |
 //! | `shared_catalog` | 共有カタログ（`[[catalog]] git = …`）の取得・更新（git の CLI。プロジェクトの `.fune/catalogs/` のキャッシュと `catalog.lock`） |
+//! | `fixes` | 不足入力の直し方の候補（操作の種類・絞り込み・CLI のコマンド。`fune analyze` と GUI の行の操作が同じ候補を使う） |
 //! | `fetch` | 外部からの取得（`curl`。HTTPS だけ。宇宙天気と `self_update` が使う） |
 //! | `self_update` | `fune self-update`（最新のリリースの確認と、実行中の `fune` の置き換え。CLI だけ） |
 //! | `skill` | `fune skill`（AI エージェント向けの skill 本文 `skill/SKILL.md` をバイナリに埋め込み、`.claude/skills/fune/` などへ入れる。CLI だけ） |
@@ -54,5 +55,6 @@ pub use error::{ErrorKind, Result, ServiceError};
 pub use workspace::Workspace;
 
 pub mod export;
+pub mod fixes;
 
 pub mod format;

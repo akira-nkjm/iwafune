@@ -203,6 +203,10 @@ setting_quantities! {
     THERMAL_CASE_BETA: Angle = Analysis["thermal", "case", ANY, "beta"];
     /// 締結 1 本の許容せん断荷重（`analysis/structure.toml`）
     STRUCTURE_FASTENER_ALLOWABLE: Force = Analysis["structure", "fastener_allowable"];
+    /// 部品の箱の重なりを干渉に数えない深さ（`analysis/structure.toml`）
+    STRUCTURE_INTERFERENCE_TOLERANCE: Length = Analysis["structure", "interference_tolerance"];
+    /// 噴流・視野の円錐を見る、頂点からの距離の上限（`analysis/structure.toml`）
+    STRUCTURE_CONE_CLEARANCE_RANGE: Length = Analysis["structure", "cone_clearance_range"];
     /// 材料の密度（`[material.<材料>]`）
     MATERIAL_DENSITY: MassDensity = Analysis["structure", "material", ANY, "density"];
     /// 材料のヤング率
@@ -213,6 +217,12 @@ setting_quantities! {
     MATERIAL_ULTIMATE_STRENGTH: Pressure = Analysis["structure", "material", ANY, "ultimate_strength"];
     /// 推進系の解析の乾燥質量の上書き（`analysis/propulsion.toml`）
     PROPULSION_DRY_MASS: Mass = Analysis["propulsion", "dry_mass"];
+    /// 日付の探索の出発の窓の長さ（`[launch_window]`）
+    PROPULSION_LAUNCH_WINDOW_DEPARTURE_SPAN: Time = Analysis["propulsion", "launch_window", "departure_span"];
+    /// 日付の探索の飛行時間の下限
+    PROPULSION_LAUNCH_WINDOW_TOF_MIN: Time = Analysis["propulsion", "launch_window", "time_of_flight_min"];
+    /// 日付の探索の飛行時間の上限
+    PROPULSION_LAUNCH_WINDOW_TOF_MAX: Time = Analysis["propulsion", "launch_window", "time_of_flight_max"];
 }
 
 /// 次元の型を持たない欄（名前の無い次元。射影は読まない）。

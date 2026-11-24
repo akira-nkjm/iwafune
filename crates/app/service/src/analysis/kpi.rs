@@ -29,6 +29,30 @@ pub(crate) struct KpiContext<'a> {
     pub case_mode: Option<&'a str>,
 }
 
+/// KPI の読み: 量（値）か、数えた結果（判定を数える KPI。干渉・円錐の遮り）。
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Reading {
+    Value(Measured),
+    Count(KpiTally),
+}
+
+/// 値の関数の戻り（量・数）を `Reading` にする。`kpi_table!` が値の型を問わず引けるようにする。
+trait IntoReading {
+    fn into_reading(self) -> Option<Reading>;
+}
+
+impl IntoReading for Option<Measured> {
+    fn into_reading(self) -> Option<Reading> {
+        self.map(Reading::Value)
+    }
+}
+
+impl IntoReading for Option<KpiTally> {
+    fn into_reading(self) -> Option<Reading> {
+        self.map(Reading::Count)
+    }
+}
+
 /// KPI の量: SI の値と、表示の種類の名前（型から）。
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Measured {
@@ -105,10 +129,10 @@ macro_rules! kpi_table {
         }
 
         /// 出力を解析の型に戻し、KPI ごとの値を引く（`keys` と同じ並び）。型に戻せなければ値はすべて None。
-        fn measure(id: &str, output: &Value, ctx: KpiContext<'_>) -> Vec<(KpiKey, Option<Measured>)> {
+        fn measure(id: &str, output: &Value, ctx: KpiContext<'_>) -> Vec<(KpiKey, Option<Reading>)> {
             $(if id == <$a as Analysis>::ID {
                 return match <<$a as Analysis>::Output>::deserialize(output) {
-                    Ok(o) => vec![$((KpiKey::$key, $f(&o, ctx))),+],
+                    Ok(o) => vec![$((KpiKey::$key, $f(&o, ctx).into_reading())),+],
                     Err(_) => keys(id).iter().map(|k| (*k, None)).collect(),
                 };
             })+
@@ -156,6 +180,11 @@ kpi_table! {
     structure::MassProperties { TotalMass => total_mass }
     structure::StaticLoad { MinSafetyMargin => min_safety_margin }
     structure::ModalEstimate { MinFrequency => min_frequency }
+    structure::LaunchFit { LaunchFitMargin => structure_kpi::launch_fit_margin }
+    structure::Interference { InterferenceOverlaps => structure_kpi::interference_overlaps }
+    structure::ConeClearance { ConeObstructions => structure_kpi::cone_obstructions }
+    structure::ExternalGeometryReport { MeanProjectedArea => structure_kpi::projected_area_mean }
+    sat_analysis::orbit::Geometry { GreatestEarthDistance => orbit::greatest_earth_distance }
     sat_analysis::propulsion::Maneuvers { LongestTransfer => propulsion::longest_transfer }
     sat_analysis::propulsion::DvBudget { DvWithMargin => propulsion::dv_with_margin }
     sat_analysis::propulsion::Propellant {
@@ -163,6 +192,8 @@ kpi_table! {
         TankVolumeMargin => propulsion::tank_volume_margin,
     }
     sat_analysis::propulsion::ThrusterUsage { ImpulseMargin => propulsion::impulse_margin }
+    sat_analysis::propulsion::TransferCheck { TransferMiss => propulsion::transfer_miss }
+    sat_analysis::propulsion::LaunchWindow { LaunchWindowDeltaV => propulsion::launch_window_delta_v }
     sat_analysis::propulsion::OrbitHistoryAnalysis { ManeuversEnd => propulsion::maneuvers_end }
     sat_analysis::propulsion::PropellantMassProperties { ComShift => propulsion::com_shift }
     power::ThrustBalance { ThrustMaxDod => propulsion::thrust_max_dod }
@@ -285,7 +316,7 @@ pub(crate) fn kpis(
 }
 
 /// KPI の値と、対応する check の判定。
-type Judged = (KpiKey, Option<Measured>, Option<Verdict>);
+type Judged = (KpiKey, Option<Reading>, Option<Verdict>);
 
 /// 値も判定も無い「測れたときだけ出す」KPI（設計が持たない手段）を外す（すべて外れるなら先頭の 1 つを残す）。
 /// 値が無くても判定があれば残す（RCS だけの設計で捨てられない向きがあるときの RCS の違反を、KPI の行に出すため）。
@@ -300,12 +331,17 @@ fn only_measured(all: Vec<Judged>) -> Vec<Judged> {
 
 fn view(
     key: KpiKey,
-    value: Option<Measured>,
+    reading: Option<Reading>,
     verdict: Option<Verdict>,
     checks: &[CheckView],
 ) -> KpiView {
     let r = rule(key);
-    let tally = r.tally.count(checks);
+    let (value, counted) = match reading {
+        Some(Reading::Value(m)) => (Some(m), None),
+        Some(Reading::Count(t)) => (None, Some(t)),
+        None => (None, None),
+    };
+    let tally = r.tally.count(checks).or(counted);
     let fill = match r.fill {
         Fill::None => None,
         Fill::Value => value.and_then(|v| FillRatio::of_value(v.si, FillBasis::Value)),
@@ -327,6 +363,7 @@ mod orbit;
 mod power_kpi;
 mod propulsion;
 mod rule;
+mod structure_kpi;
 
 #[cfg(test)]
 mod rule_tests;

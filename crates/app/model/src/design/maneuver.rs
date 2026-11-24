@@ -47,6 +47,17 @@ enum_text! {
     }
 }
 
+enum_text! {
+    /// 日付つきの惑星間遷移の出発の噴射を誰が行うか（`[transfer]` の `departure_by`）。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+    pub enum DepartureBy: "departure burn provider" {
+        /// 衛星が駐車軌道から出発する（書かなければこちら）
+        Spacecraft = "spacecraft",
+        /// 打ち上げ機が出発の軌道（C3）まで送る。衛星の推進系は出発の噴射を数えない
+        Launcher = "launcher",
+    }
+}
+
 /// 目標の軌道（変えたい要素だけ）。`altitude` は円軌道（近地点と遠地点の両方）で、`perigee_altitude`・`apogee_altitude` と一緒には書かない。
 /// `body` を書くとその天体を回る軌道への遷移（パッチドコニック）で、高度はその天体の半径から数える。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
@@ -89,6 +100,43 @@ impl ManeuverTarget {
         } else {
             "Length"
         }
+    }
+}
+
+/// 日付つきの惑星間遷移（`[transfer]`）。`target.body` を書いたマヌーバに足すと、天体間の ΔV を
+/// 出発の日・到着の日の天体の位置から求める（Lambert。書かなければホーマンのパッチドコニック）。
+/// 日付は `conditions.orbit.epoch` と同じ ISO 8601 の文字列（UTC。UTC/TT/TDB は区別しない）。
+/// 読み方（暦の範囲・順序・兄弟の天体か）の検査は暦を持つ fune-projection の側（`maneuver_dates`）、
+/// ここでは両方が書かれているかだけを見る。将来の旗はこの表にオプションの欄として足す（今ある書き方は変わらない）。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+#[ts(rename = "ManeuverTransfer")]
+pub struct ManeuverTransfer {
+    /// 出発の日（ISO 8601、UTC。例: `"2028-12-10T00:00:00Z"`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub departure: Option<String>,
+    /// 到着の日（出発より後）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub arrival: Option<String>,
+    /// 出発の噴射を行うもの（書かなければ衛星。`launcher` なら ΔV・推薬に出発の噴射を数えず、打ち上げ適合が C3 の曲線で質量の上限を引く）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub departure_by: Option<DepartureBy>,
+}
+
+impl ManeuverTransfer {
+    /// 出発の噴射を打ち上げ機が行うか。
+    pub fn departs_by_launcher(&self) -> bool {
+        self.departure_by == Some(DepartureBy::Launcher)
+    }
+}
+
+impl ManeuverTransfer {
+    /// 書かれた日付のキーと値（宣言の順）。
+    pub fn entries(&self) -> [(&'static str, Option<&str>); 2] {
+        [
+            ("departure", self.departure.as_deref()),
+            ("arrival", self.arrival.as_deref()),
+        ]
     }
 }
 
@@ -153,6 +201,9 @@ pub struct Maneuver {
     pub target: ManeuverTarget,
     #[serde(default, skip_serializing_if = "ManeuverConstraints::is_empty")]
     pub constraints: ManeuverConstraints,
+    /// 日付つきの惑星間遷移（`target.body` があるときだけ。無ければホーマンのパッチドコニック）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub transfer: Option<ManeuverTransfer>,
 }
 
 impl Design {
@@ -209,6 +260,7 @@ mod tests {
             via_altitude: None,
             target: ManeuverTarget::default(),
             constraints: ManeuverConstraints::default(),
+            transfer: None,
         }
     }
 

@@ -307,15 +307,18 @@ export interface PlaceBodyEdit {
   part: string;
   position: PlaceBodyRequest["position"];
   orientation: PlaceBodyRequest["orientation"];
+  configuration?: PlaceBodyRequest["configuration"];
   summary: string;
 }
 
 export function usePlaceBody() {
   return useEdit<PlaceBodyEdit>(
-    ({ part, position, orientation }, revision) => {
-      const body: PlaceBodyRequest = {
+    ({ part, position, orientation, configuration }, revision) => {
+      const body: Omit<PlaceBodyRequest, "configuration"> &
+        Partial<Pick<PlaceBodyRequest, "configuration">> = {
         position,
         orientation,
+        configuration: configuration ?? undefined,
         base_revision: revision,
         dry_run: false,
       };

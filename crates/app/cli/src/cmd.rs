@@ -11,6 +11,7 @@
 //! | `defs` | attr/kind の add・replace・rm の引数 → Op |
 //! | `requirements` | requirement add/set/rm の引数 → Op、requirement ls・compliance |
 //! | `records` | case・source・harness・catalog・part point の引数 → Op |
+//! | `configurations` | configuration add/set/rm/rename/unset-pose の引数 → Op、configuration ls/show |
 //! | `links` | link add/rm/rename・project set/unset の引数 → Op |
 //! | `catalog` | catalog ls/show/fetch/update と、catalog source add/rm のあとの案内 |
 //! | `edit` | Op の列の適用と結果の表示・init・undo / redo |
@@ -26,9 +27,11 @@
 mod analyze;
 mod catalog;
 mod common;
+mod configurations;
 mod data;
 mod defs;
 mod edit;
+mod fix_hints;
 mod gui;
 mod links;
 mod maneuvers;
@@ -91,7 +94,9 @@ pub fn run(cli: &Cli, out: &Out) -> anyhow::Result<u8> {
         Command::History => edit::history(&open(g)?, out),
         Command::Undo => edit::step(&open(g)?, false, out),
         Command::Redo => edit::step(&open(g)?, true, out),
-        Command::Init { name } => edit::init(&g.dir, name, out),
+        Command::Init { directory, name } => {
+            edit::init(&g.dir, directory.as_deref(), name.as_deref(), out)
+        }
         Command::Status => read::status(&open(g)?, out),
         Command::Check { deny_warnings } => read::check(&open(g)?, *deny_warnings, out),
         Command::Get { path, state } => read::get(&open(g)?, path, state.as_deref(), out),
@@ -128,6 +133,7 @@ fn read_more(command: &Command, ws: &Workspace, out: &Out) -> anyhow::Result<Opt
         Command::Harness(c) => read::harness(ws, c, out),
         Command::Maneuver(c) => maneuvers::ls(ws, c, out),
         Command::Phase(c) => phases::read(ws, c, out),
+        Command::Configuration(c) => configurations::read(ws, c, out),
         Command::Requirement(c) => requirements::read(ws, c, out),
         Command::Catalog(c) => catalog::read(ws, c, out),
         _ => Ok(None),

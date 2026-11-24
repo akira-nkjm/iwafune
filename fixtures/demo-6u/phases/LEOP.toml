@@ -1,6 +1,7 @@
-label    = "Launch and early operations"
-order    = 1
-start    = "Separation from the launcher"
-end      = "All subsystems checked out"
-modes    = ["SAFE", "NOMINAL"]
-duration = { value = 30.0, unit = "d" }
+label         = "Launch and early operations"
+order         = 1
+start         = "Separation from the launcher"
+end           = "All subsystems checked out"
+modes         = ["SAFE", "NOMINAL"]
+duration      = { value = 30.0, unit = "d" }
+configuration = "STOWED"

@@ -2,32 +2,40 @@
 source: crates/app/cli/tests/snapshots_cli.rs
 expression: text
 ---
- Area         ID                           Name                              Kind          Input
-─────────────────────────────────────────────────────────────────────────────────────────────────────────────
- aocs         aocs.rw_unloading            RW unloading frequency            time series   built from design
- aocs         aocs.unload_time             Momentum unloading time           steady        built from design
- aocs         aocs.sensor_fov              Sensor FoV and exclusion angles   time series   built from design
- aocs         aocs.slew_time               Slew time                         steady        built from design
- cdh          cdh.data_budget              Data volume and storage           steady        built from design
- comm         comm.link_budget             Link budget                       steady        built from design
- comm         comm.visibility              Ground station visibility         time series   built from design
- comm         comm.data_throughput         Downlink capacity and backlog     time series   built from design
- orbit        orbit.eclipse_season         Beta angle and eclipse seasons    time series   built from design
- orbit        orbit.decay                  Drag decay and station keeping    time series   built from design
- power        power.mode_load              Mode power consumption            steady        built from design
- power        power.solar_sunlit           Sunlit power generation           steady        built from design
- power        power.orbit_generation       Orbital power generation          time series   built from design
- power        power.energy_balance         Energy balance and DoD            time series   built from design
- power        power.sizing                 Power sizing                      steady        built from design
- power        power.thrust_balance         Energy balance while thrusting    time series   built from design
- propulsion   propulsion.maneuvers         Maneuvers                         steady        built from design
- propulsion   propulsion.dv_budget         Delta-V budget                    steady        built from design
- propulsion   propulsion.propellant        Propellant and tanks              steady        built from design
- propulsion   propulsion.thruster_usage    Thruster usage                    steady        built from design
- propulsion   propulsion.orbit_history     Orbit history                     time series   built from design
- propulsion   propulsion.mass_properties   Mass properties with propellant   steady        built from design
- structure    structure.mass_properties    Mass properties                   steady        built from design
- structure    structure.static_load        Quasi-static loads                steady        built from design
- structure    structure.modal_estimate     Natural frequency estimate        steady        built from design
- thermal      thermal.steady               Thermal (steady state)            steady        built from design
- thermal      thermal.transient            Thermal (transient)               time series   built from design
+ Area         ID                            Name                              Kind          Input
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ aocs         aocs.rw_unloading             RW unloading frequency            time series   built from design
+ aocs         aocs.unload_time              Momentum unloading time           steady        built from design
+ aocs         aocs.sensor_fov               Sensor FoV and exclusion angles   time series   built from design
+ aocs         aocs.slew_time                Slew time                         steady        built from design
+ cdh          cdh.data_budget               Data volume and storage           steady        built from design
+ comm         comm.link_budget              Link budget                       steady        built from design
+ comm         comm.visibility               Ground station visibility         time series   built from design
+ comm         comm.data_throughput          Downlink capacity and backlog     time series   built from design
+ orbit        orbit.eclipse_season          Beta angle and eclipse seasons    time series   built from design
+ orbit        orbit.decay                   Drag decay and station keeping    time series   built from design
+ orbit        orbit.geometry                Mission geometry                  time series   built from design
+ power        power.mode_load               Mode power consumption            steady        built from design
+ power        power.solar_sunlit            Sunlit power generation           steady        built from design
+ power        power.orbit_generation        Orbital power generation          time series   built from design
+ power        power.energy_balance          Energy balance and DoD            time series   built from design
+ power        power.sizing                  Power sizing                      steady        built from design
+ power        power.thrust_balance          Energy balance while thrusting    time series   built from design
+ propulsion   propulsion.maneuvers          Maneuvers                         steady        built from design
+ propulsion   propulsion.dv_budget          Delta-V budget                    steady        built from design
+ propulsion   propulsion.propellant         Propellant and tanks              steady        built from design
+ propulsion   propulsion.thruster_usage     Thruster usage                    steady        built from design
+ propulsion   propulsion.orbit_history      Orbit history                     time series   built from design
+ propulsion   propulsion.transfer_check     Transfer check (n-body)           steady        built from design
+ propulsion   propulsion.launch_window      Launch window (date search)       steady        built from design
+ propulsion   propulsion.mass_properties    Mass properties with propellant   steady        built from design
+ structure    structure.mass_properties     Mass properties                   steady        built from design
+ structure    structure.static_load         Quasi-static loads                steady        built from design
+ structure    structure.modal_estimate      Natural frequency estimate        steady        built from design
+ structure    structure.modal_fem           Finite-element modal analysis     steady        unsupported
+ structure    structure.launch_fit          Launch vehicle fit                steady        built from design
+ structure    structure.interference        Part interference                 steady        built from design
+ structure    structure.cone_clearance      Plume and FoV clearance           steady        built from design
+ structure    structure.external_geometry   External geometry                 steady        built from design
+ thermal      thermal.steady                Thermal (steady state)            steady        built from design
+ thermal      thermal.transient             Thermal (transient)               time series   built from design

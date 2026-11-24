@@ -8,7 +8,7 @@ use crate::comm::passes::SearchWindow;
 use crate::spec::AnalysisError;
 use sat_astro::ephem::CentralBody;
 use sat_astro::ground::{EarthRange, GroundStation, earth_range};
-use sat_astro::orbit::OrbitSpec;
+use sat_astro::orbit::Trajectory;
 use sat_units::typed::{Angle, Qty};
 
 /// 局に使う回線の条件（その局の専用）。
@@ -30,15 +30,21 @@ pub(super) fn station_closures(
     input: &DataThroughputInput,
     w: &SearchWindow,
 ) -> Result<Vec<DataThroughputStationClosure>, AnalysisError> {
-    // 高度は平均（長半径 − 中心天体の半径）で代表させる。
+    // 高度は平均（長半径 − 中心天体の半径）で代表させる。長半径を持つ軌道だけが持つ値。
     let altitude = w.orbit.altitude_m();
-    let far = (w.orbit.central != CentralBody::Earth && !input.station_links.is_empty())
+    let far = (w.orbit.central() != CentralBody::Earth && !input.station_links.is_empty())
         .then(|| earth_range(&w.orbit, w.start, w.span_s, w.step_s))
         .transpose()?;
     let counted = input.stations.iter().map(|st| {
         let closure = match link_for(input, &st.id) {
             None => DataThroughputLinkClosure::NotEvaluated,
             Some(link) => {
+                let Some(altitude) = altitude else {
+                    return Err(AnalysisError::InvalidInput(
+                        "The downlink closure needs an orbit given by Kepler elements (it uses the altitude)"
+                            .to_owned(),
+                    ));
+                };
                 if altitude <= 0.0 {
                     return Err(AnalysisError::InvalidInput(
                         "Orbit altitude is negative".to_owned(),
@@ -65,7 +71,7 @@ pub(super) fn station_closures(
 fn closure_of(
     input: &DataThroughputInput,
     link: &DataThroughputLink,
-    orbit: &OrbitSpec,
+    orbit: &Trajectory,
     altitude: f64,
     far: Option<&EarthRange>,
 ) -> DataThroughputLinkClosure {
@@ -76,7 +82,7 @@ fn closure_of(
             (link.rf.eb_n0_margin_db(range.max_m, rate, required) >= margin.value()).then_some(0.0)
         }
         None => link.rf.min_elevation_for_margin(
-            orbit.central.radius_m(),
+            orbit.central().radius_m(),
             altitude,
             rate,
             required,

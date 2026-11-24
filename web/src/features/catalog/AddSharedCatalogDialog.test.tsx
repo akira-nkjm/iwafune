@@ -18,7 +18,13 @@ vi.mock("@/api/ops", () => ({
   },
 }));
 vi.mock("@/ops/use-op-check", () => ({
-  useOpCheck: () => ({ error: state.error, ok: !state.error, pending: false, result: null }),
+  useOpCheck: () => ({
+    failed: !!state.error,
+    previewError: state.error,
+    ok: !state.error,
+    pending: false,
+    result: null,
+  }),
 }));
 vi.mock("@/ops/OpDialog", () => ({
   OpDialog: ({
@@ -69,12 +75,13 @@ describe("共有カタログを足すダイアログ", () => {
     expect(state.commands).toEqual([null]);
   });
 
-  it("service が作った Op をそのまま確定に渡し、弾かれた理由（API の文）を名前の欄に出す", () => {
+  it("service が作った Op をそのまま確定に渡し、弾かれたら名前の欄を赤くする（理由の文はプレビューが出すので欄の下には出さない）", () => {
     state.ops = [op];
     state.error = "カタログ `lab` は既にあります";
     const html = render();
     expect(html).toContain("add_catalog_source");
-    expect(html).toContain("カタログ `lab` は既にあります");
+    expect(html).not.toContain("カタログ `lab` は既にあります");
+    expect(html).toContain('aria-invalid="true"');
   });
 
   it("閉じている間は問い合わせない", () => {

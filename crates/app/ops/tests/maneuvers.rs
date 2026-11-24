@@ -30,6 +30,7 @@ fn maneuver(id: &str, after: Option<&str>) -> Maneuver {
             mode: Some("NOMINAL".into()),
             ..ManeuverConstraints::default()
         },
+        transfer: None,
     }
 }
 
@@ -143,4 +144,35 @@ fn renaming_parts_and_modes_rewrites_maneuvers() {
     let text = after_of(&p, "maneuvers/T1.toml");
     assert!(text.contains("thruster = \"RW_A\""), "{text}");
     assert!(text.contains("mode = \"NOMINAL2\""), "{text}");
+}
+
+/// 日付つきの遷移（`[transfer]`）は同じ Op の中身で、`to_cli` は `--depart`・`--arrive` を出す。書かれるファイルは正規形。
+#[test]
+fn a_dated_transfer_is_written_and_has_cli_flags() {
+    use fune_model::design::{CentralBodyKind, ManeuverTransfer};
+    let snap = snapshot();
+    let mut m = maneuver("MARS", None);
+    m.constraints = ManeuverConstraints::default();
+    m.target = ManeuverTarget {
+        body: Some(CentralBodyKind::Mars),
+        perigee_altitude: Some(Quantity::new(300.0, "km")),
+        ..ManeuverTarget::default()
+    };
+    m.transfer = Some(ManeuverTransfer {
+        departure: Some("2028-12-10T00:00:00Z".into()),
+        arrival: Some("2029-09-25T00:00:00Z".into()),
+        departure_by: None,
+    });
+    let op = Op::CreateManeuver { maneuver: m };
+    let p = plan(&snap, std::slice::from_ref(&op)).unwrap();
+    assert_eq!(
+        after_of(&p, "maneuvers/MARS.toml"),
+        "label    = \"試験\"\ncategory = \"insertion\"\nmethod   = \"impulsive\"\nthruster = \"RW_X\"\n\n[target]\nbody             = \"mars\"\nperigee_altitude = { value = 300.0, unit = \"km\" }\n\n[transfer]\ndeparture = \"2028-12-10T00:00:00Z\"\narrival   = \"2029-09-25T00:00:00Z\"\n"
+    );
+    assert_eq!(
+        to_cli(&op),
+        [
+            "fune maneuver add MARS --category insertion --method impulsive --label \"試験\" --thruster RW_X --body mars --perigee-altitude \"300 km\" --depart 2028-12-10T00:00:00Z --arrive 2029-09-25T00:00:00Z"
+        ]
+    );
 }

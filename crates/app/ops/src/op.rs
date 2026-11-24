@@ -87,7 +87,10 @@ pub enum Op {
         part: String,
         field: PartField,
     },
-    /// 取付と姿勢。`on` が None なら取付を外す（機体の根になる）。
+    /// 取付と姿勢。`on` が None なら取付を外す（機体の根になる。このとき `position`・`orientation` は機体座標での根の姿勢）。
+    /// `configuration` があれば、取付は変えずに、その形態の `[pose.<部品>]` へ姿勢（`position`・`orientation`）だけを
+    /// 丸ごと書く（部品自身の `[pose]` は変えない）。このとき `on`・`point` は、書くなら部品の取付と同じでなければならない
+    /// （形態ごとの付け替えはできない）。取付の無い部品（根）の姿勢は機体座標での姿勢（形態の中でも同じ）。位置も姿勢も無ければ拒む（上書きを消すのは `UnsetConfigurationPose`）。
     Place {
         part: String,
         #[serde(default)]
@@ -98,6 +101,8 @@ pub enum Op {
         position: Option<Vector3>,
         #[serde(default)]
         orientation: Option<Quaternion>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        configuration: Option<String>,
     },
     /// ポートのネット所属（`net` が None なら外す）。
     SetPort {
@@ -404,6 +409,36 @@ pub enum Op {
         case: String,
         #[serde(default)]
         phase: Option<String>,
+    },
+    /// 形態を足す（同じ ID があれば拒む）。
+    CreateConfiguration {
+        id: String,
+        #[serde(default)]
+        label: Option<String>,
+        #[serde(default)]
+        description: Option<String>,
+    },
+    /// 形態の見出し（`label`・`description`）を書く（無ければ作る）。部品ごとの姿勢（`[pose.*]`）は今のまま残す。
+    SetConfiguration {
+        id: String,
+        #[serde(default)]
+        label: Option<String>,
+        #[serde(default)]
+        description: Option<String>,
+    },
+    /// 形態を消す（ファイルごと。形態を指す参照元は今は無い）。
+    RemoveConfiguration {
+        id: String,
+    },
+    /// 形態の名前を変える（ファイルを移す。形態を指す参照が増えたら、その書き換えも同じ索引で行う）。
+    RenameConfiguration {
+        id: String,
+        to: String,
+    },
+    /// 形態での部品の姿勢の上書きを消す（基準の姿勢に戻る。空になった `[pose]` の表は消え、見出しは残る。上書きが無ければ拒む）。
+    UnsetConfigurationPose {
+        configuration: String,
+        part: String,
     },
     /// 要求を足す（`requirement.id` が対象。同じ ID があれば拒む）。
     CreateRequirement {

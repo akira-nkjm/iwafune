@@ -111,6 +111,7 @@ fn users(sites: Vec<RefSite>) -> Vec<String> {
                 format!("part {part}")
             }
             RefSite::HarnessWire { harness } => format!("harness {harness}"),
+            RefSite::LaunchSelection { which } => format!("conditions.launch.{which}"),
             _ => continue,
         };
         if !out.contains(&text) {

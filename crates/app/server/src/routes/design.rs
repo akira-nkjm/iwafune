@@ -6,8 +6,8 @@ use crate::error::ApiError;
 use axum::Json;
 use axum::extract::{Path, State};
 use fune_service::dto::{
-    CheckReport, DefsView, DesignView, PartRow, PartView, PartViewRequest, PartsQuery, ProjectInfo,
-    SystemModesRequest, ValueAnswer, ValueQuery,
+    CheckReport, DefsView, DesignView, PartQuery, PartRow, PartView, PartViewRequest, PartsQuery,
+    ProjectInfo, SystemModesRequest, ValueAnswer, ValueQuery,
 };
 use fune_service::query;
 
@@ -35,6 +35,13 @@ pub async fn phases(
     blocking(&s, query::phases).await.map(Json)
 }
 
+/// GET `/configurations`（ID 順。`fune configuration ls|show`）
+pub async fn configurations(
+    State(s): State<AppState>,
+) -> Result<Json<Vec<fune_service::dto::ConfigurationView>>, ApiError> {
+    blocking(&s, query::configurations).await.map(Json)
+}
+
 /// GET `/requirements`（ID 順。`fune requirement ls`）
 pub async fn requirements(
     State(s): State<AppState>,
@@ -51,7 +58,7 @@ pub async fn compliance(
         .map(Json)
 }
 
-/// GET `/parts?group=aocs&kind=reaction_wheel`
+/// GET `/parts?group=aocs&kind=reaction_wheel&configuration=STOWED`
 pub async fn parts(
     State(s): State<AppState>,
     ApiQuery(q): ApiQuery<PartsQuery>,
@@ -61,13 +68,18 @@ pub async fn parts(
         .map(Json)
 }
 
-/// GET `/parts/{id}`
+/// GET `/parts/{id}?configuration=STOWED`
 pub async fn part(
     State(s): State<AppState>,
     Path(id): Path<String>,
+    ApiQuery(q): ApiQuery<PartQuery>,
 ) -> Result<Json<PartView>, ApiError> {
     blocking(&s, move |ws| {
-        query::part_view(ws, &id, &PartViewRequest::default())
+        let req = PartViewRequest {
+            configuration: q.configuration,
+            ..PartViewRequest::default()
+        };
+        query::part_view(ws, &id, &req)
     })
     .await
     .map(Json)

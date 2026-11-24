@@ -11,4 +11,8 @@ group: string | null,
 /**
  * この種別の部品だけ
  */
-kind: string | null, };
+kind: string | null, 
+/**
+ * この形態での取付・姿勢（`mount`・`body`）を返す（省略は基準。無い形態は拒む）
+ */
+configuration: string | null, };

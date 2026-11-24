@@ -64,12 +64,14 @@ export function BudgetPanel({ kind }: { kind: BudgetKind }) {
             dryMargin={v.margin}
             propellant={v.propellant}
           />
-          {v.limit && (
-            <span className="text-ink-3 text-xs">
-              {t.overview.budgetLimit(v.limit.display, v.system_margin.display)}
-            </span>
-          )}
-          <LimitSource requirement={v.limit_requirement} />
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            {v.limit && (
+              <span className="text-ink-3 text-xs">
+                {t.overview.budgetLimit(v.limit.display, v.system_margin.display)}
+              </span>
+            )}
+            <LimitSource requirement={v.limit_requirement} />
+          </div>
         </div>
       )}
       {v.total && !v.propellant && (

@@ -69,6 +69,10 @@ export const componentsJa = {
       moveSummary: (part: string, to: string) => `${part} を ${to} へ移動`,
     },
     placement: {
+      overridden: "上書きあり",
+      resetOverride: "基準に戻す",
+      resetSummary: (id: string) => `${id} の姿勢を基準に戻す`,
+      overrides: "形態ごとの姿勢の上書き",
       mountOn: "取付先",
       mountPart: "取付先の部品",
       body: "（機体）",

@@ -1,6 +1,7 @@
 //! 解析 ID → 射影（入力の JSON）。**射影の対応表はここだけ。** 解析の登録と実行は `sat_analysis::catalog`（service が呼ぶ）。
 //! `every_catalog_entry_has_a_row` のテストが、カタログとこの表がずれていないことを確かめる。
 
+use crate::configuration_policy::ConfigurationSource;
 use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::{aocs, cdh, comm, power, propulsion, structure, thermal};
@@ -66,6 +67,7 @@ fn project_with<A: Analysis>(
     p: Projector<A>,
 ) -> Result<A::Input, ProjectionError> {
     let project = p.ok_or_else(|| ProjectionError::NotImplemented(A::ID.to_owned()))?;
+    ctx.require_configuration()?;
     Ok(project(ctx)?)
 }
 
@@ -89,7 +91,7 @@ macro_rules! table {
     ($($a:ty => $p:expr),+ $(,)?) => {
         $(impl Projects for $a {
             fn project(ctx: &Context<'_>) -> Result<<$a as Analysis>::Input, ProjectionError> {
-                project_with::<$a>(ctx, $p)
+                project_with::<$a>(&ctx.for_analysis(Self::ID, None), $p)
             }
         })+
 
@@ -100,10 +102,20 @@ macro_rules! table {
 
         /// 解析の入力を設計データから組み立てて JSON で返す。
         pub fn project_json(id: &str, ctx: &Context<'_>) -> Result<Value, ProjectionError> {
+            project_json_with_configuration(id, ctx, None).0
+        }
+
+        /// 形態の指定を受けて射影し、使う形態と選択元も返す。
+        pub fn project_json_with_configuration<'a>(
+            id: &str,
+            ctx: &Context<'a>,
+            explicit: Option<&'a str>,
+        ) -> (Result<Value, ProjectionError>, Option<(&'a str, ConfigurationSource)>) {
             $(if id == <$a as Analysis>::ID {
-                return to_json::<$a>(ctx, $p);
+                let ctx = ctx.for_analysis(id, explicit);
+                return (to_json::<$a>(&ctx, $p), ctx.configuration());
             })+
-            Err(ProjectionError::UnknownAnalysis(id.to_owned()))
+            (Err(ProjectionError::UnknownAnalysis(id.to_owned())), None)
         }
 
         /// すべての解析の入出力の TS 型を書き出す（service の TS の書き出しから呼ぶ）。
@@ -160,13 +172,21 @@ table!(
     astructure::MassProperties => Some(structure::mass_properties),
     astructure::StaticLoad => Some(structure::static_load),
     astructure::ModalEstimate => Some(structure::modal_estimate),
+    astructure::ModalFem => None,
+    astructure::LaunchFit => Some(crate::launch_fit::launch_fit),
+    astructure::Interference => Some(structure::interference),
+    astructure::ConeClearance => Some(structure::cone_clearance),
+    astructure::ExternalGeometryReport => Some(structure::external_geometry),
     sat_analysis::orbit::EclipseSeason => Some(crate::orbit::eclipse_season),
     sat_analysis::orbit::OrbitDecay => Some(crate::orbit::decay),
+    sat_analysis::orbit::Geometry => Some(crate::orbit::geometry),
     sat_analysis::propulsion::Maneuvers => Some(propulsion::maneuvers),
     sat_analysis::propulsion::DvBudget => Some(propulsion::dv_budget),
     sat_analysis::propulsion::Propellant => Some(propulsion::maneuvers),
     sat_analysis::propulsion::ThrusterUsage => Some(propulsion::maneuvers),
     sat_analysis::propulsion::OrbitHistoryAnalysis => Some(propulsion::maneuvers),
+    sat_analysis::propulsion::TransferCheck => Some(propulsion::maneuvers),
+    sat_analysis::propulsion::LaunchWindow => Some(propulsion::launch_window),
     sat_analysis::propulsion::PropellantMassProperties => Some(propulsion::mass_properties),
     apower::ThrustBalance => Some(power::thrust_balance),
 );

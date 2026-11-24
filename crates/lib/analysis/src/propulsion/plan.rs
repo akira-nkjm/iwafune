@@ -6,14 +6,17 @@
 //! - 低推力: Edelbaum の式（円軌道どうし。円でなければ長半径の円で近似したと注記する）。
 //! - 目標に別の天体（`target.body`）を書いたとき: パッチドコニックの遷移（`sat_astro::transfer::patched_conic`。
 //!   出発の軌道の近点で脱出し、目標の天体を回る軌道の近点で捕獲する）。軌道は中心天体ごと持つ。
+//!   `transfer`（出発・到着の日）があれば、遷移は両端の天体のその日の位置からの Lambert（`sat_astro::transfer::dated_transfer`。
+//!   噴射は同じく軌道の近点。結果は [`super::dated`]）。
 //! - 数値伝搬: 最初は低推力と同じ見積もり。伝搬の結果（[`Ideal::Propagated`]）で `sequence` が置き換える。
 
-use super::input::{ManeuverInput, OrbitTarget, TransferMethod};
+use super::input::{DepartureProvider, ManeuverInput, OrbitTarget, TransferMethod};
 use crate::spec::AnalysisError;
 use sat_astro::ephem::CentralBody;
 use sat_astro::orbit::OrbitSpec;
 use sat_astro::transfer::{
-    Apsides, ImpulsiveBurn, ImpulsiveTransfer, apse_transfer, bi_elliptic, edelbaum, patched_conic,
+    Apsides, DatedTransfer, ImpulsiveBurn, ImpulsiveTransfer, apse_transfer, bi_elliptic,
+    dated_transfer, edelbaum, patched_conic,
 };
 use sat_units::typed::{Length, Qty};
 use serde::{Deserialize, Serialize};
@@ -38,6 +41,10 @@ pub enum ManeuverNote {
     FiniteBurnTooLong,
     /// 別の天体へのパッチドコニックの遷移（天体の円軌道どうしのホーマン遷移。打ち上げの窓は見ない）で計算した
     PatchedConic,
+    /// 出発の日・到着の日の天体の位置からの Lambert の遷移（日付つきのパッチドコニック）で計算した
+    DatedLambert,
+    /// 出発の噴射を打ち上げ機が行うので、衛星の ΔV・推薬に数えない（C3・超過速度は打ち上げの要求として出す）
+    DepartureByLauncher,
     /// 天体間の遷移では軌道面の変更（傾斜角）の ΔV を数えない
     PlaneChangeIgnored,
     /// 数値伝搬が上限の時間までに目標に届かなかった（届いたところまでの値）
@@ -126,6 +133,10 @@ pub(super) struct Planned {
     /// 噴射ごとの場所（インパルスは `ideal` の噴射と同じ順、低推力は 1 つ）
     pub sites: Vec<BurnSite>,
     pub notes: Vec<ManeuverNote>,
+    /// 日付つきの遷移の結果（`transfer` を書いたときだけ）
+    pub dated: Option<DatedTransfer>,
+    /// 出発の噴射を打ち上げ機が行う（`ideal` の噴射の列と `sites` から出発の噴射を除いてある。C3・超過速度は `dated` に残る）
+    pub launcher_departure: bool,
 }
 
 impl Planned {
@@ -142,6 +153,12 @@ impl Planned {
 pub(super) fn plan(from: Orbit, m: &ManeuverInput) -> Result<Planned, AnalysisError> {
     if let Some(body) = m.target.body.filter(|b| *b != from.central) {
         return interbody(from, body, m);
+    }
+    if m.transfer.is_some() {
+        return Err(AnalysisError::InvalidInput(format!(
+            "Maneuver {}: a dated transfer needs a target body different from the current central body",
+            m.id
+        )));
     }
     let central = from.central;
     let to = from.with_target(&m.target);
@@ -181,6 +198,8 @@ pub(super) fn plan(from: Orbit, m: &ManeuverInput) -> Result<Planned, AnalysisEr
         ideal,
         sites: Vec::new(),
         notes,
+        dated: None,
+        launcher_departure: false,
     })
 }
 
@@ -208,15 +227,44 @@ fn interbody(from: Orbit, body: CentralBody, m: &ManeuverInput) -> Result<Planne
         }
     };
     let capture = Apsides::new(rp, ra);
-    let pc = patched_conic(from.central, from.apsides, body, Some(capture))?;
-    let mut notes = vec![ManeuverNote::PatchedConic];
+    let (departure, arrival, coast_s, dated) = match m.transfer {
+        Some(t) => {
+            let d = dated_transfer(
+                from.central,
+                from.apsides,
+                body,
+                Some(capture),
+                t.departure,
+                t.arrival,
+            )?;
+            (d.departure, d.arrival, d.transfer_time_s, Some(d))
+        }
+        None => {
+            let pc = patched_conic(from.central, from.apsides, body, Some(capture))?;
+            (pc.departure, pc.arrival, pc.transfer_time_s, None)
+        }
+    };
+    let mut notes = vec![if dated.is_some() {
+        ManeuverNote::DatedLambert
+    } else {
+        ManeuverNote::PatchedConic
+    }];
     if m.via_altitude.is_some() {
         notes.push(ManeuverNote::ViaAltitudeIgnored);
     }
     if t.inclination.is_some() {
         notes.push(ManeuverNote::PlaneChangeIgnored);
     }
-    let legs = std::iter::once(pc.departure).chain(pc.arrival);
+    let launcher_departure = dated.is_some()
+        && m.transfer
+            .is_some_and(|t| t.departure_by == DepartureProvider::Launcher);
+    if launcher_departure {
+        notes.push(ManeuverNote::DepartureByLauncher);
+    }
+    let legs = (!launcher_departure)
+        .then_some(departure)
+        .into_iter()
+        .chain(arrival);
     let (burns, sites): (Vec<_>, Vec<_>) = legs
         .map(|b| {
             let burn = ImpulsiveBurn {
@@ -237,11 +285,10 @@ fn interbody(from: Orbit, body: CentralBody, m: &ManeuverInput) -> Result<Planne
             apsides: capture,
             inclination_rad: t.inclination.map_or(from.inclination_rad, |i| i.value()),
         },
-        ideal: Ideal::Impulsive(ImpulsiveTransfer {
-            burns,
-            coast_s: pc.transfer_time_s,
-        }),
+        ideal: Ideal::Impulsive(ImpulsiveTransfer { burns, coast_s }),
         sites,
         notes,
+        dated,
+        launcher_departure,
     })
 }

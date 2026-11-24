@@ -65,6 +65,7 @@ extends  = "component"
 role     = "thruster"
 states   = ["off", "standby", "on"]
 required = ["power", "thrust", "isp", "direction"]
+optional = ["plume_half_angle"]
 
 [star_tracker]
 label    = "スタートラッカ"
@@ -164,7 +165,7 @@ extends  = "component"
 role     = "propulsion_thruster"
 states   = ["off", "standby", "on"]
 required = ["power", "thrust", "isp"]
-optional = ["propellant", "min_impulse_bit", "rated_total_impulse", "rated_firing_time", "rated_firings", "direction"]
+optional = ["propellant", "min_impulse_bit", "rated_total_impulse", "rated_firing_time", "rated_firings", "direction", "plume_half_angle"]
 
 [propellant_tank]
 label    = "推薬タンク"
@@ -173,3 +174,15 @@ extends  = "component"
 role     = "propellant_tank"
 required = ["tank_volume", "propellant"]
 optional = ["propellant_density"]
+
+# 打ち上げ機とディスペンサー。衛星の部品ではない（`extends` を持たず、質量バジェットや部品の一覧に入らない）。
+# 設計は `conditions/launch.toml` の `launcher`・`dispenser` で、このカタログ品を選ぶ。属性はどれも任意で、書いたものだけが限度になる。
+[launcher]
+label    = "打ち上げ機"
+label_en = "Launch vehicle"
+optional = ["max_payload_mass", "payload_mass_by_c3", "launch_envelope", "launch_load_axial", "launch_load_lateral", "min_frequency_axial", "min_frequency_lateral", "max_tip_off_rate"]
+
+[dispenser]
+label    = "ディスペンサー"
+label_en = "Dispenser"
+optional = ["max_payload_mass", "payload_mass_by_c3", "launch_envelope", "launch_load_axial", "launch_load_lateral", "min_frequency_axial", "min_frequency_lateral", "max_tip_off_rate"]

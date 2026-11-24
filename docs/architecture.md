@@ -4,7 +4,7 @@ This document describes how the code is put together today.
 The shape of the design data and the file format are in [model.md](model.md), where each feature lives is in [architecture/registry.md](architecture/registry.md) (the registry),
 the development rules are in [CONTRIBUTING.md](../CONTRIBUTING.md), and upcoming features are in [roadmap.md](roadmap.md) and GitHub Issues.
 
-Conditions (orbit, ground stations, launch conditions) are in `conditions/`. `mission/` is a directory reserved for the future #9 (mission and success criteria) and is not read at present; phases are in `phases/` ([model.md §7.10](model.md#710-phases-one-file-per-mission-phase)).
+Conditions (orbit, ground stations, launch conditions) are in `conditions/`. `mission/` is a directory reserved for the future #9 (mission and success criteria) and is not read at present; phases are in `phases/` ([model.md §7.10](model.md#710-phases-one-file-per-mission-phase)) and named overlays of part poses in `configurations/` ([model.md §7.11](model.md#711-configurations-named-overlays-of-part-poses)).
 An analysis belongs to `sat_analysis::spec::AnalysisArea` (either a subsystem, `System`, or a condition topic, `Condition`).
 The settings of a topic are placed inside the condition's file, and the concrete types will be added in #3 ([model.md §1.1](model.md#11-conditions-and-analysis-categories)).
 The CLI, API and web use the same classification, and KPIs are shown per subsystem or topic. The web hides the KPIs of conditions when they are empty.
@@ -200,6 +200,7 @@ The correspondence between HTTP routes and the CLI and service (`crates/app/cli/
 | `POST /ops` | `fune apply` (each edit command) | `edit::apply` |
 | `POST /ops/from_text`, `/ops/unset_from_text`, `/ops/from_command` | `fune set`, `fune unset`, noun commands | `edit::{set_op, unset_op, command_ops}` |
 | `POST /ops/case_from_eclipse` | `fune case from-eclipse` | `edit::case_from_eclipse_op` |
+| `POST /ops/maneuver_window` | `fune maneuver set-window` | `edit::maneuver_window_op` |
 | `POST /ops/case_from_sun_distance` | `fune case from-sun-distance` | `edit::case_from_sun_distance_op` |
 | `GET /units`, `POST /units/parse`, `/units/format` | `fune units ls`, `parse`, `format` | `units::{units_catalog, parse_quantity, format_quantities}` |
 | `GET /analyses`, `POST /analyses/{id}` | `fune analyze ls`, `fune analyze <ID>` | `analysis::{analysis_catalog, run_analysis}` (exit-code verdict: `analysis::fails`) |
@@ -229,7 +230,7 @@ Tests verify the following two things.
 
 HTTP failures are returned as `{ "error": { "code", "message" }, "diagnostics": [...] }`, and the CLI prints the same shape with `--json`.
 When an unsaved draft (the `ops` of analysis, budget and part views) does not go through, it is returned with the same classification as saving (for a check failure, 422 and diagnostics).
-Missing input is not an error, so both analyses and budgets return 200 with `missing` (the targets of the missing inputs and the reasons).
+Missing input is not an error, so both analyses and budgets return 200 with `missing` (the targets of the missing inputs, the reasons, and the `fixes` that say what would fill each).
 `fune check` exits with 1 if there is an error (also for warnings with `--deny-warnings`).
 
 The exit code of the `fune` executable follows one convention: 0 is success; 1 is "the design or the result fails" (check errors, and for reads that judge a result: a missing input, a failed run or a violation verdict) or an internal error; 2 is invalid input or not found (an error that is not a service error, such as an unreadable file passed to `--ops`, also exits with 2); 3 is a conflict.
@@ -331,11 +332,17 @@ During development, `pnpm -C web dev` (port 5173) proxies `/api` to `127.0.0.1:3
 | C&DH | `cdh.data_budget` (data volume and storage) | — |
 | Communications | `comm.link_budget` (link budget) | `comm.visibility` (ground station visibility), `comm.data_throughput` (data transmitted and stored) |
 | Power | `power.mode_load` (power consumption per mode), `power.solar_sunlit` (generation while sunlit) | `power.orbit_generation` (on-orbit generation), `power.energy_balance` (power balance and DoD), `power.thrust_balance` (power balance during firing of numerically propagated maneuvers) |
-| Propulsion | `propulsion.maneuvers` (ΔV, burn time, propellant and orbits before and after for each maneuver), `propulsion.dv_budget` (the breakdown, total and margin of ΔV by category, and the ΔV of RCS unloading), `propulsion.propellant` (wet and dry propellant and the volume margin of the tanks), `propulsion.thruster_usage` (total impulse, cumulative burn time, number of burns and the ratings), `propulsion.mass_properties` (mass and center of mass with propellant loaded and after use) | `propulsion.orbit_history` (the orbit history in maneuver order. For numerically propagated maneuvers, the altitude, inclination and mass of the propagation with thrust) |
-| Structure | `structure.mass_properties` (mass properties), `structure.static_load` (quasi-static load), `structure.modal_estimate` (simple natural frequency. No FEM) | — |
+| Propulsion | `propulsion.maneuvers` (ΔV, burn time, propellant and orbits before and after for each maneuver), `propulsion.dv_budget` (the breakdown, total and margin of ΔV by category, and the ΔV of RCS unloading), `propulsion.propellant` (wet and dry propellant and the volume margin of the tanks), `propulsion.thruster_usage` (total impulse, cumulative burn time, number of burns and the ratings), `propulsion.mass_properties` (mass and center of mass with propellant loaded and after use) | `propulsion.launch_window` (departure × arrival date grid for interplanetary maneuvers: C3, excess speeds, declination and ΔV per grid point, the minimum points and the gap of the written dates), `propulsion.transfer_check` (re-propagates each dated interplanetary transfer under the gravity of the Sun and planets: miss distance on the arrival date, closest approach, arrival excess-speed difference and the trajectory; judged only with DE440), `propulsion.orbit_history` (the orbit history in maneuver order. For numerically propagated maneuvers, the altitude, inclination and mass of the propagation with thrust) |
+| Structure | `structure.mass_properties` (mass properties), `structure.static_load` (quasi-static load), `structure.modal_estimate` (simple natural frequency. No FEM), `structure.modal_fem` (coarse finite-element modes of the whole body from axis-aligned panels, lumped masses and a support type; the input is given as JSON for now and is not yet built from design data) | `structure.launch_fit` (mass, stowed envelope and natural frequencies against the launcher and dispenser), `structure.interference` (overlaps between the boxes of parts; warnings only), `structure.cone_clearance` (parts inside a thruster plume cone or a sensor field-of-view cone; warnings only), `structure.external_geometry` (projected and exposed areas of the part boxes; report only) |
 | Thermal | `thermal.steady` (multi-node steady-state temperature) | `thermal.transient` (multi-node transient temperature) |
 
 `fune analyze ls` and `GET /analyses` return the same list.
+
+`structure.modal_fem` (#370, stage 2) meshes axis-aligned rectangular panels with one common grid per body axis, so panels sharing an edge or meeting at a T-junction are joined rigidly at shared nodes (the joined pairs and the panel each lumped mass was attached to are in the output).
+The element is a flat 4-node shell with 6 degrees of freedom per node (bending MITC4, membrane Q4, a drilling penalty of `DRILLING_FACTOR` times G·t on the difference between the node rotation and the in-plane rotation) with a lumped diagonal mass; the lowest modes come from `sat_astro::math::lowest_modes`.
+Supports are `base_fixed`, `rails`, `tabs`, `fixed` (faces, edges, points) and `free`; an unconstrained or under-constrained model still solves and its near-zero modes are reported as rigid-body modes.
+Each mode carries the effective mass fraction per axis and a class (axial, lateral to the launch axis, local, rigid). It is a trend-and-order-of-magnitude tool, not a replacement for a detailed model.
+Until the projection exists (stage 3) the input can only be given as JSON.
 
 ### 6.2 The shape of an analysis
 
@@ -358,6 +365,7 @@ An analysis runs as follows (`fune_service::analysis::run_analysis`. `fune analy
    The correspondence between analysis IDs and projections is in one place, `fune_projection::dispatch`.
 3. If any input is missing, it returns `missing_inputs` without calling the analysis. `missing_inputs` expresses what is missing as a parameter path (`RW_X.max_momentum`, `conditions.orbit.altitude`) and a reason,
    and lists everything that was found.
+   Each missing input also carries `fixes`: structured candidates for what would fill it (enter a value, add or assign a part, pick the part a field refers to, add a list item; `fune_service::fixes`, the only place that decides them). `fune analyze` (and `fune budget`, `fune mode view`) prints each candidate as a command with `<…>` placeholders (for example `fune set RW_X.max_momentum "<value>"`), and `--json` returns the same candidates; the GUI row actions use them too.
 4. Run the analysis with `sat_analysis::catalog::run_json`.
 5. The service collects the dimension of each quantity of the output (JSON Pointer → dimension name) and the display names of vocabulary values (enumerations), attaches display names and display units to the time series,
    lines up the verdicts inside the output, and attaches the worst verdict. An analysis does not hold display names and returns only keys (`ChannelKind`, enumeration values, `span_fallback`)

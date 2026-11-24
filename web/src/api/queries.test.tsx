@@ -39,6 +39,22 @@ it("系と話題の解析を area で分け、ID の接頭辞では選ばない"
   client.clear();
 });
 
+it("設計データから入力を作れない解析（projectable でない）は系のページにも話題にも並べない", () => {
+  const client = new QueryClient();
+  client.setQueryData(keys.analyses, [
+    { ...entry("power.a", { kind: "system", value: "power" }), projectable: false },
+    entry("power.b", { kind: "system", value: "power" }),
+    { ...entry("orbit.c", { kind: "condition", value: "orbit" }), projectable: false },
+  ]);
+  const html = renderToStaticMarkup(
+    <QueryClientProvider client={client}>
+      <Selection />
+    </QueryClientProvider>,
+  );
+  expect(html).toBe(renderToStaticMarkup(<span>{JSON.stringify([["power.b"], []])}</span>));
+  client.clear();
+});
+
 it("系別のモード表示は、解析を回す依頼と回さない依頼でキャッシュを分け、ケースと足もとの範囲を本文で送る", async () => {
   const view = { system: "power", modes: [], missing: [], summary: [] };
   const fetcher = vi
@@ -59,6 +75,33 @@ it("系別のモード表示は、解析を回す依頼と回さない依頼で�
     expect(totals.queryKey).not.toEqual(analyzed.queryKey);
     await client.fetchQuery(totals);
     expect(body(1)).toEqual({ ops: [], case: null, analyzed: false, summary: "totals" });
+  } finally {
+    client.clear();
+    vi.unstubAllGlobals();
+  }
+});
+
+it("部品の一覧と詳細は形態ごとにキャッシュを分け、基準では形態を送らない", async () => {
+  const fetcher = vi.fn(async (_path: string) => new Response("[]"));
+  vi.stubGlobal("fetch", fetcher);
+  const client = new QueryClient();
+  try {
+    const list = q.parts();
+    const configuredList = q.parts("STOWED+1");
+    const part = q.part("P");
+    const configuredPart = q.part("P", [], "STOWED+1");
+    expect(list.queryKey).not.toEqual(configuredList.queryKey);
+    expect(part.queryKey).not.toEqual(configuredPart.queryKey);
+    await client.fetchQuery(list);
+    await client.fetchQuery(configuredList);
+    await client.fetchQuery(part);
+    await client.fetchQuery(configuredPart);
+    expect(fetcher.mock.calls.map(([path]) => path)).toEqual([
+      "/api/v1/parts",
+      "/api/v1/parts?configuration=STOWED%2B1",
+      "/api/v1/parts/P",
+      "/api/v1/parts/P?configuration=STOWED%2B1",
+    ]);
   } finally {
     client.clear();
     vi.unstubAllGlobals();

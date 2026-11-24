@@ -1,7 +1,7 @@
 //! 値 → 人が打つ文字列（`fune set` の値・`fune setting set` の値・旗の値。GUI の「CLI としてコピー」も同じ）。
 //! [`super`] の読み方の逆で、同じ型として読み直すと元の値に戻る（往復のテストは [`super`] の tests）。
 
-use crate::value::{Quantity, Quaternion, RangeValue, SettingValue, Value, Vector3};
+use crate::value::{Curve, Quantity, Quaternion, RangeValue, SettingValue, Value, Vector3};
 
 /// 数（`0.25`・`-5`・`1e-7`）。Rust の最短の往復表記（読み直すと同じ f64）。
 pub fn number_to_text(value: f64) -> String {
@@ -51,6 +51,21 @@ pub fn range_to_text(r: &RangeValue) -> String {
     )
 }
 
+/// 曲線（`"0:480 10:360 (km^2/s^2 -> kg)"`）。[`super::value_from_text`] の逆。
+pub fn curve_to_text(c: &Curve) -> String {
+    let points =
+        c.at.iter()
+            .zip(&c.values)
+            .map(|(a, v)| format!("{}:{}", number_to_text(*a), number_to_text(*v)))
+            .collect::<Vec<_>>()
+            .join(" ");
+    if c.at_unit.is_empty() && c.unit.is_empty() {
+        points
+    } else {
+        format!("{points} ({} -> {})", c.at_unit, c.unit)
+    }
+}
+
 /// 一覧（`"off,on"`）。[`super::list_from_text`] の逆（語にカンマや前後の空白が無いとき）。
 pub fn list_to_text<S: AsRef<str>>(items: impl IntoIterator<Item = S>) -> String {
     items
@@ -69,6 +84,7 @@ pub fn value_to_text(value: &Value) -> Option<String> {
         Value::Vec3(v) => vector_to_text(v),
         Value::Quat(q) => quaternion_to_text(q),
         Value::Range(r) => range_to_text(r),
+        Value::Curve(c) => curve_to_text(c),
         Value::Enum(s) | Value::Text(s) | Value::Table(s) => s.clone(),
         Value::Bool(b) => b.to_string(),
         Value::ByState(_) | Value::Tensor3(_) => return None,

@@ -20,6 +20,7 @@ fn attr_def(id: &str, dimension: &str, units: &[&str]) -> AttributeDef {
         value_type: ValueType::Scalar,
         by_state: false,
         dimension: Some(dimension.into()),
+        at_dimension: None,
         units: units.iter().map(|u| u.to_string()).collect(),
         display_unit: None,
         min: None,
@@ -143,6 +144,7 @@ fn set_field_place_and_unset() {
                 frame: None,
             }),
             orientation: Some(Quaternion::IDENTITY),
+            configuration: None,
         },
         Op::UnsetValue {
             part: "RW_X".into(),
@@ -183,6 +185,7 @@ fn set_field_place_and_unset() {
         point: None,
         position: None,
         orientation: None,
+        configuration: None,
     };
     assert!(matches!(
         plan(&snap, &[dangling]),

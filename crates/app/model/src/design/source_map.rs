@@ -23,6 +23,7 @@ pub enum EntityKey {
     Source(String),
     Maneuver(String),
     Phase(String),
+    Configuration(String),
     Requirement(String),
     /// 設定ファイル（`conditions.orbit`・`conditions.ground.<局の ID>`・`analysis.power` のパス）
     Setting(SettingPath),
