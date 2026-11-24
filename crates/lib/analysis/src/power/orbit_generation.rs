@@ -62,6 +62,9 @@ pub struct OrbitGenerationOutput {
     pub panels: Vec<OrbitGenerationPanel>,
     /// 時系列: `generation`・`sunlit`・`panel:<id>`
     pub series: Series,
+    /// パネルの面の日照割合（ほかの部品の影を引いた割合）の、日照中の標本での最小と平均。影を数えたときだけ付く
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadowing: Option<crate::structure::external_geometry::ShadowingReport>,
     /// 1 周に満たないときの代わりの集計（回り切った周回があれば `None`。service が注意 `span` にする）
     pub span_fallback: Option<SpanFallback>,
 }
@@ -140,6 +143,7 @@ fn summarize(
         eclipses,
         panels,
         series: generation_series(input, profile, gen_life),
+        shadowing: profile.shadowing.clone(),
         span_fallback: span_note(cycle, ranges.len(), SpanFallback::OrbitMeanOverSpan),
     }
 }
@@ -217,6 +221,7 @@ mod tests {
             }],
             solar_flux: Some(Qty::from_raw(1361.0)),
             conversion_efficiency: None,
+            shadowing: None,
         }
     }
 

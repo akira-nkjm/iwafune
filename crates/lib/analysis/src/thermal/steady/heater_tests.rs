@@ -65,6 +65,7 @@ fn run(cases: Vec<ThermalSteadyCase>) -> ThermalSteadyOutput {
                 emissivity: Some(0.8),
                 coatings: vec![],
             }],
+            shadowing: None,
         },
         cases,
         margin: ThermalMarginPolicy::default(),

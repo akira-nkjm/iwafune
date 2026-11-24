@@ -134,7 +134,14 @@ fn geometry(
             quads,
         });
     }
-    Ok((SurfaceMesh { nodes, groups }, cells))
+    Ok((
+        SurfaceMesh {
+            nodes,
+            groups,
+            lines: Vec::new(),
+        },
+        cells,
+    ))
 }
 
 /// 板の温度の分布。板が無ければ `None`。`sources` の節点の温度に、板の升の節点が無ければ入力の誤り。

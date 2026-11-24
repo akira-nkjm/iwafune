@@ -11,7 +11,7 @@ use crate::thermal::network::{
 };
 use crate::thermal::network::{HeaterSpec, HeaterSteady};
 use crate::thermal::orbit_heat::{
-    ThermalEnvironment, ThermalEnvironmentUsed, ThermalExposure, exposure_absorbed,
+    ThermalEnvironment, ThermalEnvironmentUsed, ThermalExposure, exposure_heat, shadow_loss_check,
 };
 use crate::thermal::plate_view::{
     PlateFieldSource, ThermalPlateQuantity, plate_temperatures, to_detail,
@@ -91,6 +91,9 @@ pub struct ThermalSteadyCaseResult {
     pub iterations: u32,
     /// 収束時の熱収支の残差の最大
     pub residual: Qty<Power>,
+    /// 外面の日照割合（ほかの部品の影を引いた割合。直達日射にだけ掛ける）の、日照中の標本での最小と平均。影を数えたときだけ付く
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadowing: Option<crate::structure::external_geometry::ShadowingReport>,
 }
 
 /// 全ケースを通した節点の最高・最低。
@@ -185,6 +188,19 @@ impl Analysis for ThermalSteady {
             .collect();
         checks.extend(steady_checks(&per_case, margin.heater_duty_warning.value()));
         checks.extend(warnings);
+        // 影の損失の警告は 1 つ（警告が出るケースのうち、割合が最大のケース）
+        let worst = cases
+            .iter()
+            .filter_map(|c| {
+                let report = c.shadowing.as_ref()?;
+                let check = shadow_loss_check(report, "shadow_loss")?;
+                Some((report.lost.as_ref()?.fraction.value(), c.id.as_str(), check))
+            })
+            .max_by(|a, b| a.0.total_cmp(&b.0));
+        checks.extend(worst.map(|(_, id, mut check)| {
+            check.message = format!("Case {id}: {}", check.message);
+            check
+        }));
         Ok(ThermalSteadyOutput {
             cases,
             envelope,
@@ -234,7 +250,8 @@ fn solve_case(
     case: &ThermalSteadyCase,
     margin: &ThermalMarginUsed,
 ) -> Result<ThermalSteadyCaseResult, AnalysisError> {
-    let absorbed = exposure_absorbed(net, &case.environment, &case.exposure)?;
+    let heat = exposure_heat(net, &case.environment, &case.exposure)?;
+    let absorbed = heat.q;
     let mut internal = net.loads(&case.loads)?;
     let q: Vec<f64> = absorbed.iter().zip(&internal).map(|(a, b)| a + b).collect();
     let modes = [case.mode_loads.as_ref().map(|l| &l.mode)];
@@ -278,6 +295,7 @@ fn solve_case(
         heaters,
         iterations: sol.iterations,
         residual: Qty::from_raw(sol.residual_w),
+        shadowing: heat.shadowing,
     })
 }
 

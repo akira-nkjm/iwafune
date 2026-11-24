@@ -37,6 +37,7 @@ fn network(cells: [u32; 2], g: f64) -> ThermalNetwork {
         radiative: Vec::new(),
         enclosure: None,
         surfaces: Vec::new(),
+        shadowing: None,
     }
 }
 

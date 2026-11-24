@@ -52,16 +52,33 @@ pub(super) fn read(
     m: &mut MissingInputs,
 ) -> Option<PanelRead> {
     let (name, mat) = material(ctx, p, m)?;
-    let mp = AnalysisSystem::Structure
-        .setting_path()
-        .child(&["material", &name]);
     let size = m.need(
         ctx.vec3(p, "size"),
         Target::attr(&p.id, "size"),
         "Panel outline (2 edges)",
     );
     let thickness = crate::parts::part_qty::<Length>(ctx, p, "thickness", "Panel thickness", m);
-    let at = [name.as_str()];
+    let (e, nu, rho) = properties(&name, mat, m);
+    Some(PanelRead {
+        size: size?,
+        thickness: thickness?,
+        youngs_modulus: e?,
+        poisson_ratio: nu?,
+        density: rho?,
+    })
+}
+
+/// 材料の物性（ヤング率・ポアソン比・密度）を `analysis.structure.material.<名前>` から読む。**材料の物性の読み方はここだけ**
+/// （パネルとフレームの部材が共有する）。足りないものは不足入力に記録する（読めたものまで全部）。
+pub(super) fn properties(
+    name: &str,
+    mat: &MaterialSettings,
+    m: &mut MissingInputs,
+) -> (Option<Qty<Pressure>>, Option<f64>, Option<Qty<MassDensity>>) {
+    let mp = AnalysisSystem::Structure
+        .setting_path()
+        .child(&["material", name]);
+    let at = [name];
     let e = setting(
         &dims::MATERIAL_YOUNGS_MODULUS,
         &at,
@@ -81,11 +98,5 @@ pub(super) fn read(
         mp.child(&["poisson_ratio"]),
         "Poisson's ratio",
     );
-    Some(PanelRead {
-        size: size?,
-        thickness: thickness?,
-        youngs_modulus: e?,
-        poisson_ratio: nu?,
-        density: rho?,
-    })
+    (e, nu, rho)
 }

@@ -39,6 +39,7 @@ fn input(span_s: f64, initial_k: f64, power: f64) -> ThermalTransientInput {
             radiative: vec![],
             enclosure: None,
             surfaces: vec![],
+            shadowing: None,
         },
         timeline: leo_timeline(span_s, STEP_S),
         environment: ThermalEnvironment::default(),

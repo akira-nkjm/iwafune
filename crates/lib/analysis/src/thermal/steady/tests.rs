@@ -38,6 +38,7 @@ fn input() -> ThermalSteadyInput {
                 emissivity: Some(0.8),
                 coatings: vec![],
             }],
+            shadowing: None,
         },
         cases: vec![ThermalSteadyCase {
             mode_loads: None,

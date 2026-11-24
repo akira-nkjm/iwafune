@@ -1,6 +1,6 @@
 //! 入力の検査（値の範囲・ID の重複）。
 
-use super::input::{ModalFemInput, ModalFemPanel};
+use super::input::{ModalFemFrame, ModalFemInput, ModalFemPanel};
 use crate::spec::AnalysisError;
 use std::collections::HashSet;
 
@@ -18,6 +18,8 @@ fn check_panel(p: &ModalFemPanel) -> Result<(), AnalysisError> {
         && positive(p.thickness.value())
         && positive(p.youngs_modulus.value())
         && (0.0..0.5).contains(&p.poisson_ratio)
+        && p.orientation
+            .is_none_or(|q| q.iter().all(|x| x.is_finite()) && q.iter().any(|x| *x != 0.0))
         && (positive(p.density.value()) || p.mass.is_some_and(|m| positive(m.value())))
         && p.mass.is_none_or(|m| positive(m.value()));
     if ok {
@@ -26,6 +28,24 @@ fn check_panel(p: &ModalFemPanel) -> Result<(), AnalysisError> {
         Err(invalid(format!(
             "{}: size, thickness, Young's modulus and mass or density must be positive (Poisson's ratio 0 to 0.5)",
             p.id
+        )))
+    }
+}
+
+fn check_frame(f: &ModalFemFrame) -> Result<(), AnalysisError> {
+    let ok = f.center.iter().all(|c| c.value().is_finite())
+        && f.size.iter().all(|s| positive(s.value()))
+        && positive(f.youngs_modulus.value())
+        && (0.0..0.5).contains(&f.poisson_ratio)
+        && f.mass.value().is_finite()
+        && f.mass.value() >= 0.0
+        && f.section.properties().is_some();
+    if ok {
+        Ok(())
+    } else {
+        Err(invalid(format!(
+            "{}: the frame size and Young's modulus must be positive (Poisson's ratio 0 to 0.5), the mass must not be negative, and the member width must be positive with a wall thinner than half of it",
+            f.id
         )))
     }
 }
@@ -42,6 +62,13 @@ pub fn check(input: &ModalFemInput) -> Result<(), AnalysisError> {
             return Err(invalid(format!("Duplicate panel id {}", p.id)));
         }
     }
+    let mut frame_ids = HashSet::new();
+    for f in &input.frames {
+        check_frame(f)?;
+        if !frame_ids.insert(f.id.as_str()) {
+            return Err(invalid(format!("Duplicate frame id {}", f.id)));
+        }
+    }
     let mut lumped_ids = HashSet::new();
     for l in &input.lumped {
         let size_ok = l
@@ -55,6 +82,12 @@ pub fn check(input: &ModalFemInput) -> Result<(), AnalysisError> {
                 "{}: the mass and the footprint must not be negative",
                 l.id
             )));
+        }
+        if l.frame
+            .as_ref()
+            .is_some_and(|f| !frame_ids.contains(f.as_str()))
+        {
+            return Err(invalid(format!("{}: unknown frame", l.id)));
         }
         if !lumped_ids.insert(l.id.as_str()) {
             return Err(invalid(format!("Duplicate lumped mass id {}", l.id)));

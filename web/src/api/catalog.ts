@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type ApiError, api } from "./client";
-import { invalidatedByOps } from "./keys";
+import { refreshDerived } from "./refresh";
 import type { CatalogFetchRequest, CatalogSyncResult, CatalogUpdateRequest } from "./types";
 
 /**
@@ -12,7 +12,7 @@ export function useFetchCatalogs() {
   return useMutation<CatalogSyncResult, ApiError, CatalogFetchRequest>({
     mutationFn: (req) => api<CatalogSyncResult>("/catalog/fetch", { method: "POST", body: req }),
     onSuccess: async () => {
-      await Promise.all(invalidatedByOps.map((k) => qc.invalidateQueries({ queryKey: k })));
+      await refreshDerived(qc);
     },
   });
 }
@@ -31,7 +31,7 @@ export function useUpdateCatalog() {
   return useMutation<CatalogSyncResult, ApiError, CatalogUpdateRequest>({
     mutationFn: updateCatalog,
     onSuccess: async () => {
-      await Promise.all(invalidatedByOps.map((k) => qc.invalidateQueries({ queryKey: k })));
+      await refreshDerived(qc);
     },
   });
 }

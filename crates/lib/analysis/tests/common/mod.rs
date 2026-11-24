@@ -104,6 +104,7 @@ pub fn network(nodes: Vec<ThermalNode>, surfaces: Vec<ThermalSurface>) -> Therma
         radiative: Vec::new(),
         surfaces,
         enclosure: None,
+        shadowing: None,
     }
 }
 

@@ -19,7 +19,11 @@ basis: SizingBasis,
 /**
  * モードごとの面積・容量の判定（`basis` の値で）。
  */
-mode_checks: { [key in string]: Array<Check> }, required_area: number, required_capacity: number, required_capacity_per_string: number, design_area: number, design_capacity: number, sap_margin: number | null, battery_margin: number | null, 
+mode_checks: { [key in string]: Array<Check> }, 
+/**
+ * 必要面積（`basis` の求め方）。
+ */
+required_area: number, required_capacity: number, required_capacity_per_string: number, design_area: number, design_capacity: number, sap_margin: number | null, battery_margin: number | null, 
 /**
  * 必要面積を決めた運用（モードの ID か `sequence`）
  */
@@ -39,4 +43,10 @@ time_series: SizingTimeSeries | null,
 /**
  * 直並列数（SMAD の必要発電と、面積を決めたモードの入射係数から）
  */
-strings: SizingStrings | null, modes: Array<SizingMode>, sunlit_duration: number, eclipse_duration: number, longest: EclipseSeasonPoint, used: SizingUsed, checks: Array<Check>, };
+strings: SizingStrings | null, modes: Array<SizingMode>, 
+/**
+ * 必要量に、部品どうしの影（部品の箱から出すパネルの面の日照割合）が入っているか。入っていれば、必要面積と容量は
+ * 現在の部品の配置の影を含んだ値（影を減らす配置の変更で変わる。パネルの面積を替えても影の割合は変わらない）。
+ * 影の割合は `power.orbit_generation` / `power.energy_balance` の `shadowing`
+ */
+shadowed: boolean, sunlit_duration: number, eclipse_duration: number, longest: EclipseSeasonPoint, used: SizingUsed, checks: Array<Check>, };
