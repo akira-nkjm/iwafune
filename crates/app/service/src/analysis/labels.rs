@@ -16,6 +16,7 @@ use sat_analysis::power::energy_balance::{
 use sat_analysis::power::sizing::SizingLifetimeSource;
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
+use sat_analysis::structure::cone_clearance::{ConeKind, ConeSkipReason};
 use sat_analysis::structure::interference::InterferenceSkipReason;
 use sat_analysis::structure::launch_fit::LaunchFitDirection;
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
@@ -326,6 +327,25 @@ fn interference_skip_reason(r: InterferenceSkipReason) -> AnalysisLabel {
     }
 }
 
+fn cone_kind(k: ConeKind) -> AnalysisLabel {
+    match k {
+        ConeKind::Plume => label("噴流", "Plume"),
+        ConeKind::FieldOfView => label("視野", "Field of view"),
+    }
+}
+
+fn cone_skip_reason(r: ConeSkipReason) -> AnalysisLabel {
+    match r {
+        ConeSkipReason::NoAxis => label("軸の向きが読めない", "No axis direction"),
+        ConeSkipReason::InvalidAxis => label("軸の向きが零または不正", "Axis is zero or invalid"),
+        ConeSkipReason::NoHalfAngle => label("半頂角が無い", "No half angle"),
+        ConeSkipReason::InvalidHalfAngle => label(
+            "半頂角が 0 より大きく 90° より小さくない",
+            "Half angle is not between 0 and 90 degrees",
+        ),
+    }
+}
+
 mod orbit;
 mod propulsion;
 
@@ -375,6 +395,8 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "ModalEstimateKind" => parse(value).map(modal_kind),
         "LaunchFitDirection" => parse(value).map(launch_fit_direction),
         "InterferenceSkipReason" => parse(value).map(interference_skip_reason),
+        "ConeKind" => parse(value).map(cone_kind),
+        "ConeSkipReason" => parse(value).map(cone_skip_reason),
         "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
         "DurationTiming" => parse(value).map(duration_timing),

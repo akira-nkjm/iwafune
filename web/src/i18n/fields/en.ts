@@ -371,6 +371,19 @@ const labels: Record<string, string> = {
   repeated: "Parts with several copies (one box)",
   count: "Count",
   tolerance: "Overlap tolerance",
+  cone_axis: "Cone axis (body frame)",
+  half_angle: "Half angle",
+  apex: "Apex (body frame)",
+  range: "Range from the apex",
+  range_is_default: "Range is the default (from the spacecraft size)",
+  parts_with_box: "Parts with a box",
+  cones: "Plume and field-of-view cones",
+  cones_judged: "Cones judged",
+  cones_obstructed: "Cones with a part inside",
+  obstructions: "Parts inside the cone",
+  min_distance: "Nearest distance from the apex",
+  parts_in_mount_chain: "Parts on the mount chain (not judged)",
+  skipped_carriers: "Carriers not judged",
 };
 
 export const fieldsEn: typeof fieldsJa = {

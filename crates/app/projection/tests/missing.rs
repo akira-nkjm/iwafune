@@ -58,7 +58,7 @@ fn missing_inputs_of_an_empty_design_name_no_parts() {
 }
 
 /// 入力が「比べるものが無い」ことを不足にしない解析（空の設計でも成功する）。
-const NEVER_MISSING: &[&str] = &["structure.interference"];
+const NEVER_MISSING: &[&str] = &["structure.interference", "structure.cone_clearance"];
 
 /// 部品の無い設計では、どの解析も「入力の不足」になる（入力を組み立てて、解析の側で失敗させない）。
 /// 射影の行が `None` の解析（`structure.modal_fem` は第 3 段階まで JSON の入力だけ）は、「作れない」と答える。

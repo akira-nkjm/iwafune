@@ -386,4 +386,7 @@ pub struct StructureSettings {
     /// 部品の箱の重なりを干渉に数えない深さ（`structure.interference`。書かなければ解析の既定）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub interference_tolerance: Option<Quantity>,
+    /// 噴流・視野の円錐を見る、頂点からの距離の上限（`structure.cone_clearance`。書かなければ機体の大きさから決める）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cone_clearance_range: Option<Quantity>,
 }
