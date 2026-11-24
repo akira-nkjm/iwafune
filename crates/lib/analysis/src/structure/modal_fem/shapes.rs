@@ -45,7 +45,7 @@ const BIG_FRACTION: f64 = 0.99;
 /// `Analysis::DETAIL_TYPE` の値。`ModalFemShapes` の TS の型名と一致する。
 pub const DETAIL_TYPE: &str = "ModalFemShapes";
 
-/// メッシュの幾何（節点とパネルごとの四角形）。
+/// メッシュの幾何（節点・パネルごとの四角形・フレームの部材の線）。
 pub fn surface(mesh: &Mesh) -> SurfaceMesh {
     let mut groups: Vec<SurfaceGroup> = mesh
         .panels
@@ -61,6 +61,7 @@ pub fn surface(mesh: &Mesh) -> SurfaceMesh {
     SurfaceMesh {
         nodes: mesh.coords.iter().map(|c| c.map(|x| x as f32)).collect(),
         groups,
+        lines: mesh.members().map(|m| m.nodes.map(|n| n as u32)).collect(),
     }
 }
 
