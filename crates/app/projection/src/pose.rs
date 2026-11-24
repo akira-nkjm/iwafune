@@ -3,17 +3,20 @@
 use fune_model::resolve::{PoseSi, Resolved};
 use sat_astro::math::{Quat, Vec3};
 
-/// 部品の機体座標での原点の位置 [m] と姿勢（部品 → 機体）。部品が無ければ None。取付が無ければ原点・恒等。
+/// 部品の機体座標での原点の位置 [m] と姿勢（部品 → 機体）。部品が無ければ None。取付の根は自分の `[pose]`
+/// （書かれていなければ原点・恒等）。
 pub fn body_pose(resolved: &Resolved, part: &str) -> Option<(Vec3, Quat)> {
     resolved.parts.get(part)?;
     Some(compose(&resolved.pose_chain(part)))
 }
 
-/// 部品の取付点の機体座標での位置 [m] と姿勢（取付点 → 機体）。取付が無ければ原点・恒等。
+/// 部品の取付点の機体座標での位置 [m] と姿勢（取付点 → 機体）。取付の根は機体座標そのもの（原点・恒等。
+/// 根の `[pose]` が機体座標での姿勢なので、取付点の座標系は機体座標になる）。
 pub fn mount_frame(resolved: &Resolved, part: &str) -> Option<(Vec3, Quat)> {
     let rp = resolved.parts.get(part)?;
     let mut chain = resolved.pose_chain(part);
-    if rp.mount.is_some() {
+    // 連鎖の最後は部品自身の姿勢（取付のある部品は `mount.pose`、根は `root_pose`）。取付点の座標系にはそれを含めない
+    if rp.mount.is_some() || rp.root_pose.is_some() {
         chain.pop();
     }
     Some(compose(&chain))

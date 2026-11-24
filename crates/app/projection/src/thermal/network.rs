@@ -88,18 +88,18 @@ fn pairs<D: sat_units::typed::Dimension>(
 /// 6 面と節点の対応と、使えるかの判断は解析が行う。
 fn enclosure(ctx: &Context<'_>, s: &ThermalSettings) -> Option<ThermalEnclosure> {
     let emissivity = s.enclosure.as_ref()?.emissivity?;
-    let mut roots = ctx
-        .resolved
-        .parts
-        .values()
-        .filter(|p| p.mount.is_none())
-        .filter_map(|p| ctx.vec3(p, "size"));
+    let mut roots = crate::outline::candidates(ctx.resolved)
+        .into_iter()
+        .filter_map(|p| Some((p, ctx.vec3(p, "size")?)));
     let size = match (roots.next(), roots.next()) {
-        (Some([x, y, z]), None) => Some(ThermalBoxSize {
-            x: Qty::from_raw(x),
-            y: Qty::from_raw(y),
-            z: Qty::from_raw(z),
-        }),
+        (Some((root, size)), None) => {
+            let [x, y, z] = crate::outline::body_extents(ctx.resolved, &root.id, size);
+            Some(ThermalBoxSize {
+                x: Qty::from_raw(x),
+                y: Qty::from_raw(y),
+                z: Qty::from_raw(z),
+            })
+        }
         _ => None,
     };
     Some(ThermalEnclosure { size, emissivity })

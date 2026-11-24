@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
   toggle: (_value: boolean) => {},
   slide: (_value: number) => {},
   scene: vi.fn(),
+  placeBody: vi.fn(),
 }));
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
@@ -77,7 +78,7 @@ vi.mock("@/i18n", async (original) => ({
   ...(await original<typeof import("@/i18n")>()),
   useT: () => getT(),
 }));
-vi.mock("@/api/ops", () => ({ usePlaceBody: () => ({ mutate: vi.fn() }) }));
+vi.mock("@/api/ops", () => ({ usePlaceBody: () => ({ mutate: state.placeBody }) }));
 vi.mock("@/features/components/detail/PlacementSection", () => ({ PlacementSection: () => null }));
 vi.mock("@/kit/selection/Switch", () => ({
   Switch: ({ onChange, children }: { onChange: typeof state.toggle; children: string }) => {
@@ -128,6 +129,7 @@ beforeEach(() => {
   state.home = 0;
   state.scene.mockClear();
   state.browser.mockClear();
+  state.placeBody.mockClear();
 });
 afterEach(() => setLang("ja"));
 
@@ -258,4 +260,32 @@ it("熱の画像: 太陽方向があれば矢印を最初から場面に渡し�
   expect(state.scene.mock.lastCall?.[0]).toMatchObject({ sun: null });
   expect(render()).not.toContain(L.helper.sun);
   expect(state.scene.mock.lastCall?.[0]).toMatchObject({ sun: null, helpers: { sun: false } });
+});
+
+it("取付の根も 3D で動かせる: 離したときの機体座標がそのまま配置の依頼になる", () => {
+  const s = Math.SQRT1_2;
+  const root = {
+    ...design.parts[0]!,
+    id: "FRAME",
+    mount: null,
+    body: bodyAt([-0.045, 0, 0], [1, 0, 0, 0], true),
+  };
+  renderToStaticMarkup(
+    <Layout3D variant="placement" design={{ ...design, parts: [root] }} com={null} />,
+  );
+  const props = state.scene.mock.lastCall![0] as {
+    boxes: { id: string; position: number[] }[];
+    edit?: { onPlace: (id: string, p: number[], q: number[]) => void };
+  };
+  // 根は掴む対象から外れない（箱は根の位置に出て、編集の手段が渡る）
+  expect(props.boxes).toMatchObject([{ id: "FRAME", position: [-0.045, 0, 0] }]);
+  expect(props.edit).toBeDefined();
+  props.edit!.onPlace("FRAME", [0.01, 0.02, 0.03], [s, 0, 0, s]);
+  expect(state.placeBody).toHaveBeenCalledWith(
+    expect.objectContaining({
+      part: "FRAME",
+      position: { x: 0.01, y: 0.02, z: 0.03, unit: "m" },
+      orientation: { w: s, x: 0, y: 0, z: s },
+    }),
+  );
 });

@@ -7,7 +7,7 @@ fn demo() -> Workspace {
         .expect("demo")
 }
 
-/// 機体座標の位置・姿勢は、取付のある部品と取付の根（`BUS_FRAME`。原点・恒等で動かせない）に付き、未配置の部品には付かない。
+/// 機体座標の位置・姿勢は、取付のある部品と取付の根（`BUS_FRAME`。姿勢を書かなければ原点・恒等）に付き、未配置の部品には付かない。
 #[test]
 fn body_pose_covers_mounted_parts_and_the_mount_root() {
     let ws = demo();
@@ -29,7 +29,8 @@ fn body_pose_covers_mounted_parts_and_the_mount_root() {
     {
         assert!(p.body.is_none(), "{} is not placed", p.id);
     }
-    let err = fune_service::edit::place_body_op(
+    // 根も機体座標で動かせる: 書く姿勢は取付先を持たない `Place`（位置はそのまま根の `[pose]`）
+    let op = fune_service::edit::place_body_op(
         &ws,
         "BUS_FRAME",
         &fune_model::value::Vector3 {
@@ -42,6 +43,19 @@ fn body_pose_covers_mounted_parts_and_the_mount_root() {
         None,
         None,
     )
-    .unwrap_err();
-    assert!(err.to_string().contains("mount root"));
+    .unwrap();
+    let fune_ops::Op::Place {
+        on,
+        point,
+        position,
+        ..
+    } = op
+    else {
+        panic!("{op:?}")
+    };
+    assert_eq!((on, point), (None, None));
+    assert_eq!(
+        position.map(|p| (p.x, p.unit)),
+        Some((1.0, Some("mm".into())))
+    );
 }

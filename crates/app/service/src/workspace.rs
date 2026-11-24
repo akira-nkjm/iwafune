@@ -35,6 +35,7 @@ impl Snapshot {
         let diagnostics = fune_model::check(&design)
             .into_iter()
             .chain(fune_projection::maneuver_dates::check(&design))
+            .chain(fune_projection::outline::check(&design, &resolved))
             .map(|d| with_excerpt(d, &files))
             .collect();
         Self {

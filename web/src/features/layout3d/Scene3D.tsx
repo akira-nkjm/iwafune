@@ -216,7 +216,7 @@ export function Scene3D({
         })}
       {sun && <SunArrowMark sun={sun} dimensions={dimensions} scheme={scheme} />}
       {com && <CenterOfMass position={com} radius={dimensions.comRadius} scheme={scheme} />}
-      {edit && target && selected && !boxes.find((b) => b.id === selected)?.fixed && (
+      {edit && target && selected && (
         <TransformControls
           object={target}
           mode={edit.mode}

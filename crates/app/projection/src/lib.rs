@@ -9,6 +9,7 @@
 //! | `context` | 解析ケースの文脈と、どの解析でも使う入力（軌道・地上局・姿勢則・モード） |
 //! | `timeline` | 時系列の仕様（軌道・姿勢則・期間・刻み・β） |
 //! | `parts` | 解決済みの部品から値を取り出す部品（役割での選択・型付きの量・機体座標の方向） |
+//! | `outline` | 機体の外形（取付を持たず `size` を持つ部品）の選び方と、根の姿勢（90° の倍数なら寸法の入れ替え）、姿勢が外形の消費者に読み違えられるときの警告 `outline.root_pose`（`fune check` の診断に service が足す） |
 //! | `pose` | 取付の連鎖 → 機体座標の位置・姿勢（sat-astro の Quat で合成。合成はここだけ） |
 //! | `quantity` | 書かれた量 → 型付きの SI 量（換算は sat-units） |
 //! | `missing` | 不足入力の型と収集 |
@@ -37,6 +38,7 @@ pub mod missing;
 /// 軌道条件の解析（季節解析・高度低下）への写し替え。
 pub mod orbit;
 mod orbit_central;
+pub mod outline;
 pub mod parts;
 pub mod pose;
 pub mod power;

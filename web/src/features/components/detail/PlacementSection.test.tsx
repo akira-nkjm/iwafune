@@ -2,8 +2,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vitest";
 import type { PartRow, PoseQuantities } from "@/api/types";
 import { getT, setLang } from "@/i18n";
-import { fixture, mountAt, qv, zeroPose } from "@/test/fixture";
-import { PlacementSection } from "./PlacementSection";
+import { bodyAt, fixture, mountAt, qv, zeroPose } from "@/test/fixture";
+import { initialForm, PlacementSection, placeText } from "./PlacementSection";
 
 vi.mock("@/api/ops", () => ({
   useApplyOps: () => ({ mutate: vi.fn(), isPending: false }),
@@ -93,4 +93,35 @@ it("書かれた取付点が取付先に無ければ、その名前を印付き�
     <PlacementSection design={{ ...fixture, parts: [parent, lost] }} part={lost} />,
   );
   expect(html).toContain(`<option value="GONE" selected="">${t.missingPoint("GONE")}</option>`);
+});
+
+it("取付の根の欄は機体座標での `[pose]` から始まり、打った位置は取付先なしの配置になる", () => {
+  const base = fixture.parts[0]!;
+  const body = {
+    ...bodyAt([-0.045, 0, 0], [1, 0, 0, 0], true),
+    authored_position: { x: -45, y: 0, z: 0, unit: "mm", frame: null },
+    quantities: {
+      position: [mm(-45), mm(0), mm(0)] as PoseQuantities["position"],
+      rotation: [deg(0, "0°"), deg(0, "0°"), deg(90, "90.0°")] as PoseQuantities["rotation"],
+    },
+  };
+  const root: PartRow = { ...base, id: "FRAME", mount: null, body };
+  const form = initialForm(root);
+  expect(form).toMatchObject({
+    on: "",
+    point: "",
+    position: "-45 0 0 mm",
+    angles: ["0", "0", "90"],
+  });
+  // 位置だけ変えると、取付先は空（根のまま）で位置を送る。姿勢は書かれた値（無ければ送らない）
+  const text = placeText(root, { ...form, position: "-30 0 0 mm" }, form);
+  expect(text).toMatchObject({
+    command: "part_place",
+    part: "FRAME",
+    on: "",
+    position: "-30 0 0 mm",
+    rotation: null,
+  });
+  const html = renderToStaticMarkup(<PlacementSection design={fixture} part={root} />);
+  expect(html).toMatch(/aria-label="Z 軸まわりの角度（度）"[^>]*value="90"/);
 });

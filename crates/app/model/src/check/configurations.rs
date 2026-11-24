@@ -1,7 +1,7 @@
 //! 形態（`configurations/<ID>.toml`）の検査。
 //!
 //! `[pose.<部品>]` のキーは部品であること（`ref.part`）、姿勢は部品の姿勢と同じ検査（`parts::check_pose`。対象は
-//! `configurations.<ID>.pose.<部品>`）。取付の無い部品（取付の根）への上書きは解決が使わないので警告する。
+//! `configurations.<ID>.pose.<部品>`）。取付の無い部品（根）の上書きは機体座標での姿勢で、取付のある部品と同じ検査。
 //! ID の規則と重複は `ids`。
 
 use super::Ctx;
@@ -27,7 +27,7 @@ fn check_pose_rows(ctx: &mut Ctx, configuration: &Configuration) {
             configuration.id.as_str(),
             Some(&field),
         ));
-        let Some(found) = design.parts.get(part) else {
+        if !design.parts.contains_key(part) {
             ctx.error(
                 "ref.part",
                 &entity,
@@ -36,18 +36,7 @@ fn check_pose_rows(ctx: &mut Ctx, configuration: &Configuration) {
                 format!("Part `{part}` is not defined"),
             );
             continue;
-        };
-        check_pose(ctx, &entity, &["pose", part], target.clone(), pose);
-        if found.mount.is_none() {
-            ctx.warning(
-                "configuration.pose_without_mount",
-                &entity,
-                &["pose", part],
-                target,
-                format!(
-                    "Part `{part}` has no mount, so its pose is not used. Override the pose of a mounted part"
-                ),
-            );
         }
+        check_pose(ctx, &entity, &["pose", part], target, pose);
     }
 }
