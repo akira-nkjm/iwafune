@@ -19,4 +19,9 @@ pub struct CheckView {
     pub at: String,
     /// 判定の持ち主の名前（同じ階層の `label`、無ければ `id`。例: `"ダウンリンク"`）。出力の最上位なら null
     pub scope: Option<String>,
+    /// 基準に対する余裕（解析の `Check::margin` そのまま。小さいほど厳しく、負なら基準を満たさない。種類は判定ごとに違い、
+    /// 比べるのは同じ要求のキーに当たる判定どうしだけ。基準との比較で判定を出す判定だけが持つ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub margin: Option<f64>,
 }

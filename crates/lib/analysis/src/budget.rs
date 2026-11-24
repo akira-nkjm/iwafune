@@ -114,18 +114,21 @@ impl BudgetRollup {
     /// 判定を `Check` にする（上限が無ければ `None`）。`key`・`label` と値の次元の型 `K` は呼び出し側が決める。
     pub fn check<K: NamedKind>(&self, key: &str, label: &str) -> Option<Check> {
         let (allowed, verdict, limit) = (self.allowed?, self.verdict?, self.limit?);
-        Some(Check::new(
-            key,
-            label,
-            verdict,
-            format!(
-                "With growth margin {} / usable {} (limit {} × (1 − system margin {}))",
-                quantity_text::<K>(self.total_with_growth),
-                quantity_text::<K>(allowed),
-                quantity_text::<K>(limit),
-                quantity_text::<Fraction>(self.system_margin)
-            ),
-        ))
+        Some(
+            Check::new(
+                key,
+                label,
+                verdict,
+                format!(
+                    "With growth margin {} / usable {} (limit {} × (1 − system margin {}))",
+                    quantity_text::<K>(self.total_with_growth),
+                    quantity_text::<K>(allowed),
+                    quantity_text::<K>(limit),
+                    quantity_text::<Fraction>(self.system_margin)
+                ),
+            )
+            .with_margin(self.margin),
+        )
     }
 }
 

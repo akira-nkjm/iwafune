@@ -58,12 +58,15 @@ fn rating(
     let verdict = margin.map_or(crate::spec::Verdict::Ok, |m| {
         margin_verdict(m.value(), RATING_MARGIN_WARNING)
     });
-    checks.push(Check::new(
-        key,
-        label,
-        verdict,
-        format!("Used {} / rated {}", text(used), text(rated)),
-    ));
+    checks.push(
+        Check::new(
+            key,
+            label,
+            verdict,
+            format!("Used {} / rated {}", text(used), text(rated)),
+        )
+        .with_ratio_margin(margin),
+    );
     margin
 }
 

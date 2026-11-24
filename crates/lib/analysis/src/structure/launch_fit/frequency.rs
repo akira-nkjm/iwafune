@@ -244,4 +244,5 @@ pub(super) fn check(f: &LaunchFitFrequency, notes: &[LaunchFitSourceNote]) -> Ch
         f.verdict,
         format!("{message}{}{}", local_text(f), unused_text(notes)),
     )
+    .with_ratio_margin(f.margin)
 }

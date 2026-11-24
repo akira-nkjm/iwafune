@@ -1,6 +1,6 @@
 //! 電力収支の判定（DoD の上限・周回の収支・電池切れ）。連続・並び・最長継続時間のどの評価もここで判定する。
 
-use crate::spec::{Check, Verdict, quantity_text};
+use crate::spec::{Check, Verdict, quantity_text, ratio_margin};
 use sat_units::typed::{Energy, Fraction, Qty};
 
 /// DoD の上限との比較の許容（SOC の積分の丸めで上限ちょうどが超過にならないように）。
@@ -19,6 +19,14 @@ pub(super) struct Judged {
 /// DoD の上限・周回の収支・電池切れの判定。`basis` はどの運用で評価したか（文の括弧に入れる）。
 pub(super) fn verdicts(limit: f64, j: &Judged, basis: &str) -> Vec<Check> {
     let dod_ok = j.max_dod <= limit + DOD_TOLERANCE;
+    // 余裕 = 上限 / DoD − 1（比の余裕）。上限ちょうど（許容の丸め）で負にならないよう、判定が良なら 0 を下回らせない
+    let dod_margin = ratio_margin(limit, j.max_dod).map(|m| {
+        if dod_ok {
+            m.value().max(0.0)
+        } else {
+            m.value()
+        }
+    });
     let mut checks = vec![
         Check::new(
             "dod",
@@ -29,7 +37,8 @@ pub(super) fn verdicts(limit: f64, j: &Judged, basis: &str) -> Vec<Check> {
                 quantity_text::<Fraction>(j.max_dod),
                 quantity_text::<Fraction>(limit)
             ),
-        ),
+        )
+        .with_margin(dod_margin),
         energy_balance_check(j, basis),
     ];
     if j.depleted {
@@ -67,4 +76,5 @@ fn energy_balance_check(j: &Judged, basis: &str) -> Check {
         ),
     };
     Check::new("energy_balance", "Orbital energy balance", verdict, message)
+        .with_margin(j.margin.map(|m| m.value()))
 }

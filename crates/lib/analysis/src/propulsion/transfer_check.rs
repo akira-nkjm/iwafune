@@ -16,7 +16,7 @@ use super::maneuvers::nominal;
 use super::sequence::Leg;
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check, Series,
-    System, Verdict, quantity_text,
+    System, Verdict, quantity_text, ratio_margin,
 };
 use sat_astro::ephem::{CentralBody, EphemerisSource};
 use sat_astro::time::Epoch;
@@ -110,7 +110,9 @@ pub(super) fn judge(
                 length(soi_m),
             )
         },
-    );
+    )
+    // 余裕 = 影響圏の半径 / ずれ − 1
+    .with_ratio_margin(ratio_margin(soi_m, miss_m));
     let approach = Check::new(
         "transfer_check_closest_approach",
         "Closest approach",
@@ -131,7 +133,8 @@ pub(super) fn judge(
                 length(soi_m),
             )
         },
-    );
+    )
+    .with_ratio_margin(ratio_margin(soi_m, closest_m));
     vec![miss, approach]
 }
 
