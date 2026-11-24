@@ -45,6 +45,8 @@ export const keys = {
     opsJson ? (["budget", kind, opsJson] as const) : (["budget", kind] as const),
   /** 要求適合表（`GET /requirements/compliance`。設計・解析・バジェットから導出される） */
   compliance: ["compliance"] as const,
+  /** Op を確定する mutation のキー（`useApplyOps` など）。確定の最中かを `useIsMutating` で見るのに使う */
+  applyOps: ["apply_ops"] as const,
   /** dry_run の結果（CLI のプレビュー）。revision が変われば別のキー */
   dryRun: (revision: string, opsJson: string) => ["dry_run", revision, opsJson] as const,
   /** 打った文字列から作った Op（`POST /ops/from_text`。書き込まない）。revision が変われば別のキー */
