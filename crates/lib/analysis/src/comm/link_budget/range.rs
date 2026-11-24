@@ -3,11 +3,11 @@
 //! - 月・惑星・太陽を回る衛星: 地球から衛星までの距離（`sat_astro::ground::earth_range`、地心で近似）の、期間中の最小と最大。
 //!   期間はミッション期間（無ければ [`DEFAULT_RANGE_SPAN`]）、1 回限りの軌道（惑星間の巡航）はその期間（飛行時間）。
 
-use super::LinkBudgetLink;
+use super::{DEFAULT_CONJUNCTION_ANGLE, LinkBudgetLink};
 use crate::spec::{AnalysisError, orbit_step_s};
 use sat_astro::constants::SECONDS_PER_DAY;
 use sat_astro::ephem::CentralBody;
-use sat_astro::ground::{EarthRange, earth_range, slant_range_m};
+use sat_astro::ground::{EarthRange, earth_range_with_sep, slant_range_m};
 use sat_astro::orbit::{Cycle, Trajectory};
 use sat_astro::time::Epoch;
 use sat_astro::timeline::geometry::light_time_s;
@@ -50,6 +50,11 @@ impl LinkRange {
         Qty::from_raw(light_time_s(self.max_m))
     }
 
+    /// 最小の距離を光が進む時間（片道）。
+    pub fn light_time_min(&self) -> Qty<Time> {
+        Qty::from_raw(light_time_s(self.min_m))
+    }
+
     pub fn min(&self) -> Qty<Length> {
         Qty::from_raw(self.min_m)
     }
@@ -85,11 +90,12 @@ pub(super) fn deep_space_range(
         ));
     }
     let step = orbit_step_s(orbit.cycle()).max(span / MAX_RANGE_SAMPLES);
-    Ok(Some(earth_range(
+    Ok(Some(earth_range_with_sep(
         orbit,
         orbit.epoch(),
         span,
         step.min(span),
+        DEFAULT_CONJUNCTION_ANGLE.value(),
     )?))
 }
 

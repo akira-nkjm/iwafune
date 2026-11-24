@@ -22,6 +22,7 @@ mod phases;
 mod requirements;
 mod settings;
 mod settings_analysis;
+mod settings_structure;
 mod settings_thermal;
 mod sources;
 mod system;

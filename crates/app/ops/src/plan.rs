@@ -24,8 +24,10 @@
 //! | `catalog` | カタログ品の Op（このプロジェクトの `catalog/` だけ） |
 //! | `catalog_source` | カタログの出所の Op（fune.toml の `[[catalog]]`。共有カタログ `git = …` とローカルのカタログ `path = …` を足す・外す） |
 //! | `subdir` | ディレクトリの下に置けるエンティティ（カタログ品・出典）の Op に共通の計画（ディレクトリを選ぶ・移す） |
+//! | `acknowledged` | 承知済みの組（幾何の所見）の Op（足す・取り消す） |
 //! | `attr` | 属性の値の書き込み（部品とカタログ品で共有） |
 
+mod acknowledged;
 mod attr;
 mod catalog;
 mod catalog_source;
@@ -211,6 +213,9 @@ fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError>
         | Op::RemoveConfiguration { .. }
         | Op::RenameConfiguration { .. }
         | Op::UnsetConfigurationPose { .. } => configurations::interpret(edits, design, op),
+        Op::Acknowledge { .. } | Op::Unacknowledge { .. } => {
+            acknowledged::interpret(edits, design, op)
+        }
         Op::CreateRequirement { .. } | Op::SetRequirement { .. } | Op::RemoveRequirement { .. } => {
             requirements::interpret(edits, design, op)
         }

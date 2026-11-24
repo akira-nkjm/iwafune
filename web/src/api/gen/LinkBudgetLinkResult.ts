@@ -35,6 +35,10 @@ range_max_epoch: string | null,
  */
 light_time: number, 
 /**
+ * 最小の距離を光が進む時間（片道。ほかの天体を回る衛星だけ）
+ */
+light_time_min?: number, 
+/**
  * EIRP [dBW]
  */
 eirp_dbw: number, 
@@ -75,9 +79,17 @@ margin_db: number,
  */
 required_margin_db: number, 
 /**
- * 要求余裕を残して通せる最大のデータレート
+ * 要求余裕を残して通せる最大のデータレート（最大の距離で。距離の 2 乗に反比例する）
  */
 max_data_rate: number, 
+/**
+ * 最小の距離での回線余裕 [dB]（最良の端。ほかの天体を回る衛星だけ。判定は最大の距離の `margin_db`）
+ */
+margin_db_at_range_min?: number, 
+/**
+ * 最小の距離で、要求余裕を残して通せる最大のデータレート（ほかの天体を回る衛星だけ）
+ */
+max_data_rate_at_range_min?: number, 
 /**
  * 地表の電力束密度 [dBW/m²（基準帯域あたり）]（下りだけ。最小の距離・大気損失なしの最悪の値）
  */

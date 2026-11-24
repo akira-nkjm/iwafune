@@ -34,6 +34,7 @@ pub(super) fn check_analysis(ctx: &mut Ctx, entries: &[SettingEntry]) {
     check_cdh(ctx);
     check_comm(ctx);
     super::settings_thermal::check_thermal(ctx);
+    super::settings_structure::check_structure(ctx);
     check_propulsion(ctx);
 }
 

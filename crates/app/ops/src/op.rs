@@ -3,9 +3,9 @@
 //! JSON では `{ "op": "set_value", ... }` の形（`op` が種類）。
 
 use fune_model::design::{
-    AttributeDef, Case, CatalogField, Harness, KindDef, LinkDirection, Maneuver, Maturity,
-    ModeSegment, ModeWhen, Net, NetField, PartField, Phase, Pose, ProjectField, Requirement,
-    Source, StartRef,
+    AttributeDef, Case, CatalogField, FindingKind, Harness, KindDef, LinkDirection, Maneuver,
+    Maturity, ModeSegment, ModeWhen, Net, NetField, PartField, Phase, Pose, ProjectField,
+    Requirement, Source, StartRef,
 };
 use fune_model::value::{Provenance, Quaternion, SettingValue, Value, Vector3};
 use serde::{Deserialize, Serialize};
@@ -274,6 +274,28 @@ pub enum Op {
     /// 電源のモードの並びを消す（使う並びだった場合は選択も外す）。
     RemoveSequence {
         name: String,
+    },
+    /// 幾何の所見（`structure.interference` の箱の重なり、`structure.cone_clearance` の円錐に入る部品）を、理由つきで承知済みとして記録する
+    /// （`analysis/structure.toml` の `[[acknowledged]]`）。所見は解析の出力に残り、判定が警告にならないだけ。
+    /// `first`・`second` は重なっている 2 つの部品（順序は問わない）か、円錐の担い手と円錐に入る部品（この順）。
+    /// `configuration` を指せばその形態だけに効く（無ければすべての形態と基準の配置）。同じ組・同じ形態があれば理由を書き換える。
+    Acknowledge {
+        finding: FindingKind,
+        first: String,
+        second: String,
+        #[serde(default)]
+        #[ts(optional = nullable)]
+        configuration: Option<String>,
+        reason: String,
+    },
+    /// 承知を取り消す（同じ組・同じ形態の承知を消す。無ければ拒む）。
+    Unacknowledge {
+        finding: FindingKind,
+        first: String,
+        second: String,
+        #[serde(default)]
+        #[ts(optional = nullable)]
+        configuration: Option<String>,
     },
     /// モード表のセルを一括で書く（GUI の表の編集）。
     SetModeStates {

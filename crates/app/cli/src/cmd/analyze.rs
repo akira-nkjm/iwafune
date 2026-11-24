@@ -86,8 +86,7 @@ fn print_kpis(kpis: &[KpiView], out: &Out) {
     for k in kpis {
         let value = match (&k.value, k.tally) {
             (Some(v), _) => C::Num(v.display.clone()),
-            (None, Some(t)) if t.flagged == 0 => C::Text(format!("All OK ({})", t.checked)),
-            (None, Some(t)) => C::Text(format!("{} / {} need review", t.flagged, t.checked)),
+            (None, Some(t)) => C::Text(tally_text(t)),
             (None, None) => C::Dim("—".into()),
         };
         let mark = k.verdict.map_or(C::Dim(String::new()), verdict_cell);
@@ -98,6 +97,19 @@ fn print_kpis(kpis: &[KpiView], out: &Out) {
         ]);
     }
     t.print();
+}
+
+/// 判定を数える KPI の文（承知済みの所見があれば、その数も添える）。
+fn tally_text(t: fune_service::dto::KpiTally) -> String {
+    let main = if t.flagged == 0 {
+        format!("All OK ({})", t.checked)
+    } else {
+        format!("{} / {} need review", t.flagged, t.checked)
+    };
+    match t.acknowledged {
+        Some(n) if n > 0 => format!("{main}, {n} acknowledged"),
+        _ => main,
+    }
 }
 
 /// 出力の `checks`（どの解析も同じ形）を表にする。モードごとなど同じ項目が並ぶので、対象の列を付ける。
