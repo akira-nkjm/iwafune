@@ -7,6 +7,7 @@ use sat_units::typed::{Frequency, Length, Mass};
 mod box_model;
 mod invariance;
 mod plates;
+mod shapes;
 mod strips;
 
 /// アルミ合金の代表値（E = 70 GPa、ρ = 2700 kg/m³）。

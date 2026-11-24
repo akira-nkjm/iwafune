@@ -34,6 +34,14 @@ pub struct AnalysisInfo {
     pub description_en: String,
 }
 
+/// 出力と、頼まれたときだけ付く重い任意の出力（`Analysis::run_detailed`）。
+/// `detail` は JSON（型は `Analysis::DETAIL_TYPE`）。共通の置き場なので、メッシュ上の場など次の解析も同じ仕組みを使う。
+#[derive(Debug, Clone)]
+pub struct Detailed<O> {
+    pub output: O,
+    pub detail: Option<serde_json::Value>,
+}
+
 /// すべての解析が実装する trait。
 pub trait Analysis {
     /// 例: `"power.energy_balance"`（`<区分のキー>.<名前>`）
@@ -49,11 +57,28 @@ pub trait Analysis {
     /// ここにその ID を書く（解析どうしのつながりの表示に使う。`catalog::uses`）
     const USES: &'static [&'static str] = &[];
 
+    /// 重い任意の出力（`run_detailed` が返す `detail`）の TS の型名。持たない解析は `None`。
+    /// 型名は `detail` の型の `TS::name` と一致する（service のテストが確かめる）
+    const DETAIL_TYPE: Option<&'static str> = None;
+
     type Input: Serialize + DeserializeOwned;
     type Output: Serialize;
 
     /// 解析を実行する。純粋な関数として振る舞う（I/O しない、乱数を使わない）。
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError>;
+
+    /// 解析を実行し、頼まれれば重い任意の出力（`detail`。メッシュ上の場など、既定の出力に入れると大きくなるもの）も返す。
+    /// `detail` が `false` なら `run` と同じ（出力は 1 バイトも変わらない）。`DETAIL_TYPE` を持つ解析だけが上書きする。
+    fn run_detailed(
+        input: &Self::Input,
+        detail: bool,
+    ) -> Result<Detailed<Self::Output>, AnalysisError> {
+        let _ = detail;
+        Ok(Detailed {
+            output: Self::run(input)?,
+            detail: None,
+        })
+    }
 
     fn info() -> AnalysisInfo {
         AnalysisInfo {
