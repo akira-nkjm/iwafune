@@ -115,6 +115,9 @@ pub enum RefSite {
     ThermalSurface,
     /// 発熱の場所を書いた部品（`analysis/thermal.toml` の `[heat_node]` のキー）
     ThermalHeatNode,
+    /// 部品の ID を節点の名前として書いた設定（既定の 1 部品 1 節点の節点。`[conductive.*]`・`[radiative.*]` の両端と
+    /// `[heat_node]` の値）。部品の名前の変更が一緒に書き換える
+    ThermalNodeName,
     /// 図の配置のノード（`view/<図>.toml` の `[nodes]` のキー）
     ViewNode { view: String },
     /// 解析ケースのモード（`cases/<ケース>.toml` の `mode`）
@@ -298,6 +301,7 @@ impl Design {
             if thermal.heat_node.contains_key(id) {
                 out.push(RefSite::ThermalHeatNode);
             }
+            out.extend(self.per_part_node_refs(thermal, id));
         }
         out.extend(
             self.maneuvers

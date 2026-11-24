@@ -13,6 +13,7 @@ use toml_edit::Item;
 
 mod defs;
 mod records;
+mod thermal;
 
 pub use defs::{rename_attribute, rename_kind};
 pub use records::{
@@ -230,6 +231,7 @@ fn rename_at(
         | RefSite::ThermalNode { .. }
         | RefSite::ThermalSurface
         | RefSite::ThermalHeatNode
+        | RefSite::ThermalNodeName
         | RefSite::CaseMode { .. }
         | RefSite::CasePhase { .. }
         | RefSite::PhaseMode { .. }
@@ -352,6 +354,7 @@ fn rename_setting_at(
         }),
         RefSite::ThermalSurface => rename_in(edits, &thermal(), &["surface"], from, to),
         RefSite::ThermalHeatNode => rename_in(edits, &thermal(), &["heat_node"], from, to),
+        RefSite::ThermalNodeName => thermal::rename_node_name(edits, from, to),
         RefSite::CaseMode { case } => set_top(edits, &layout::case_file(case), "mode", to),
         RefSite::CasePhase { case } => set_top(edits, &layout::case_file(case), "phase", to),
         RefSite::PhaseMode { phase } => {
