@@ -49,13 +49,18 @@ fn axis_aligned(rows: [[f64; 3]; 3]) -> Option<[[f64; 3]; 3]> {
     Some(out)
 }
 
+/// 部品の箱の、機体の軸に沿った寸法 [m]。部品の姿勢が軸の入れ替え（90° の倍数）のときだけ `Some`
+/// （`size` を入れ替えて返す）。姿勢が無いか斜めなら `None`。**箱の軸が機体の軸に沿うかの判定と寸法の入れ替えはここだけ**
+/// （外形の根・粗い有限要素のパネルと搭載部品の外形が共有する）。
+pub fn axis_aligned_extents(resolved: &Resolved, part: &str, size: [f64; 3]) -> Option<[f64; 3]> {
+    let m = rotation_rows(resolved, part).and_then(axis_aligned)?;
+    Some(m.map(|row| row.iter().zip(size).map(|(a, s)| a * s).sum()))
+}
+
 /// 外形の根の箱の、機体の軸に沿った寸法 [m]。根の姿勢が軸の入れ替え（90° の倍数）なら `size` を入れ替えて返す。
 /// そうでなければ `size` のまま（警告は [`check`]）。姿勢が無ければ `size` のまま。
 pub fn body_extents(resolved: &Resolved, root: &str, size: [f64; 3]) -> [f64; 3] {
-    let Some(m) = rotation_rows(resolved, root).and_then(axis_aligned) else {
-        return size;
-    };
-    m.map(|row| row.iter().zip(size).map(|(a, s)| a * s).sum())
+    axis_aligned_extents(resolved, root, size).unwrap_or(size)
 }
 
 /// 外形の根の `[pose]` を消費者が読み違えるときの警告（`outline.root_pose`）。機体座標の位置がずれているか、

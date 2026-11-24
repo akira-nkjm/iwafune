@@ -3,6 +3,7 @@ import type { ModalFemAttachment } from "./ModalFemAttachment";
 import type { ModalFemJoint } from "./ModalFemJoint";
 import type { ModalFemMode } from "./ModalFemMode";
 import type { ModalFemModelSize } from "./ModalFemModelSize";
+import type { ModalFemSkipped } from "./ModalFemSkipped";
 
 /**
  * `structure.modal_fem` の出力。
@@ -28,6 +29,10 @@ lowest_axial: number | null, model: ModalFemModelSize,
  * 節点を共有してつないだパネルの組
  */
 joints: Array<ModalFemJoint>, attachments: Array<ModalFemAttachment>, 
+/**
+ * モデルにしなかったパネルと理由（入力の `skipped_panels`）
+ */
+skipped_panels: Array<ModalFemSkipped>, 
 /**
  * 反復の回数（診断）
  */

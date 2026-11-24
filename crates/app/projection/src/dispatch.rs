@@ -172,7 +172,7 @@ table!(
     astructure::MassProperties => Some(structure::mass_properties),
     astructure::StaticLoad => Some(structure::static_load),
     astructure::ModalEstimate => Some(structure::modal_estimate),
-    astructure::ModalFem => None,
+    astructure::ModalFem => Some(structure::modal_fem),
     astructure::LaunchFit => Some(crate::launch_fit::launch_fit),
     astructure::Interference => Some(structure::interference),
     astructure::ConeClearance => Some(structure::cone_clearance),

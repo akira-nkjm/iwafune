@@ -2,12 +2,17 @@
 import type { ModalFemAxis } from "./ModalFemAxis";
 import type { ModalFemLumped } from "./ModalFemLumped";
 import type { ModalFemPanel } from "./ModalFemPanel";
+import type { ModalFemSkipped } from "./ModalFemSkipped";
 import type { ModalFemSupport } from "./ModalFemSupport";
 
 /**
  * `structure.modal_fem` の入力。
  */
 export type ModalFemInput = { panels: Array<ModalFemPanel>, lumped: Array<ModalFemLumped>, 
+/**
+ * 射影がモデルにできなかったパネル（斜めのパネルなど。出力の `skipped_panels` にそのまま出す。質量は `lumped` に入れる）
+ */
+skipped_panels: Array<ModalFemSkipped>, 
 /**
  * 全節点に、担当する面積に比例して配る非構造質量（配線・断熱材など）
  */

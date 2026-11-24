@@ -105,6 +105,8 @@ pub enum KpiKey {
     ConeObstructions,
     /// 外形の投影面積の平均
     MeanProjectedArea,
+    /// 有限要素の固有値解析の最低の固有振動数（剛体のモードを除く最初のモード）
+    FirstFrequency,
     /// 日付つきの遷移の、到着の日のずれ（遷移のうち最大）
     TransferMiss,
     /// 打ち上げの窓の ΔV の最小（窓のうち最小）

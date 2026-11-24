@@ -1,26 +1,28 @@
 //! 構造の射影: `structure.mass_properties`（と、姿勢の解析が使う慣性）。慣性の計算は sat-analysis に任せる。
-//! 部品の箱の置き場所は子の `body_boxes`、`structure.interference` の射影は子の `interference`、`structure.cone_clearance`（噴流・視野）の射影と担い手の表は子の `cone_clearance`、`structure.external_geometry`（外形の面積）の射影は子の `external_geometry`。
+//! 部品の箱の置き場所は子の `body_boxes`、`structure.interference` の射影は子の `interference`、`structure.cone_clearance`（噴流・視野）の射影と担い手の表は子の `cone_clearance`、`structure.external_geometry`（外形の面積）の射影は子の `external_geometry`、`structure.modal_fem`（有限要素の固有値解析）の射影は子の `modal_fem`、パネルの読み出しは子の `panel`（`modal_estimate` と共有）。
 
 mod body_boxes;
 mod cone_clearance;
 mod external_geometry;
 mod interference;
+mod modal_fem;
+mod panel;
 
 pub use body_boxes::{BodyBox, BodyBoxes, Placed, boxes, placed};
 pub use cone_clearance::{CARRIERS, CarrierRow, cone_clearance};
 pub use external_geometry::external_geometry;
 pub use interference::interference;
+pub use modal_fem::modal_fem;
 
 use crate::context::Context;
 use crate::launch::{LaunchValues, frequency_limits, launch_path};
 use crate::missing::MissingInputs;
-use crate::quantity::{qty_opt, setting, setting_opt};
+use crate::quantity::{qty_opt, setting_opt};
 use fune_model::Target;
 use fune_model::builtin::Role;
+use fune_model::design::BudgetKind;
 use fune_model::design::launch::attr;
 use fune_model::design::setting_dims::{self as dims, SettingQuantity};
-use fune_model::design::{AnalysisSystem, BudgetKind};
-use fune_model::resolve::SiValue;
 use sat_analysis::structure::launch_fit::tightest_min_frequency;
 use sat_analysis::structure::mass_properties::{MassPropertiesItem, MassPropertiesSummary};
 use sat_analysis::structure::modal_estimate::{
@@ -30,7 +32,7 @@ use sat_analysis::structure::static_load::{StaticLoadCase, StaticLoadInterface, 
 use sat_analysis::structure::{
     MassPropertiesInput, ModalEstimateInput, StaticLoadInput, mass_properties as compute,
 };
-use sat_units::typed::{Acceleration, Length, Mass, Qty};
+use sat_units::typed::{Acceleration, Mass, Qty};
 
 /// 質量を持つ部品の質量特性の項目（位置は取付をたどった機体座標の部品原点。外形 `size` があれば箱として慣性を足す）。
 pub fn items(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<MassPropertiesItem> {
@@ -214,62 +216,24 @@ pub fn static_load(ctx: &Context<'_>) -> Result<StaticLoadInput, MissingInputs> 
     })
 }
 
-/// パネル 1 枚（材料・外形・板厚。取付けられた部品の質量を非構造質量にする）。
+/// パネル 1 枚（読み方は [`panel::read`]。取付けられた部品の質量を非構造質量にする）。
 fn panel(
     ctx: &Context<'_>,
     p: &fune_model::resolve::ResolvedPart,
     m: &mut MissingInputs,
 ) -> Option<ModalEstimatePanel> {
-    let Some(SiValue::Enum(name)) = ctx.attr(p, "material") else {
-        m.push(Target::attr(&p.id, "material"), "Panel material");
-        return None;
-    };
-    let mp = AnalysisSystem::Structure
-        .setting_path()
-        .child(&["material", name]);
-    let materials = ctx.design.analysis.structure.as_ref().map(|s| &s.material);
-    let mat = m.need(
-        materials.and_then(|ms| ms.get(name.as_str())),
-        mp.clone(),
-        "Material properties",
-    )?;
-    let size = m.need(
-        ctx.vec3(p, "size"),
-        Target::attr(&p.id, "size"),
-        "Panel outline (2 edges)",
-    );
-    let thickness = crate::parts::part_qty::<Length>(ctx, p, "thickness", "Panel thickness", m);
-    let at = [name.as_str()];
-    let e = setting(
-        &dims::MATERIAL_YOUNGS_MODULUS,
-        &at,
-        mat.youngs_modulus.as_ref(),
-        "Young's modulus",
-        m,
-    );
-    let rho = setting(
-        &dims::MATERIAL_DENSITY,
-        &at,
-        mat.density.as_ref(),
-        "Density",
-        m,
-    );
-    let nu = m.need(
-        mat.poisson_ratio,
-        mp.child(&["poisson_ratio"]),
-        "Poisson's ratio",
-    );
-    let mut sides = size?;
+    let read = panel::read(ctx, p, m)?;
+    let mut sides = read.size;
     sides.sort_by(|a, b| b.total_cmp(a));
     let mounted = mounted_on(ctx, &p.id, m);
     Some(ModalEstimatePanel {
         id: p.id.clone(),
         length_a: Qty::from_raw(sides[0]),
         length_b: Qty::from_raw(sides[1]),
-        thickness: thickness?,
-        youngs_modulus: e?,
-        poisson_ratio: nu?,
-        density: rho?,
+        thickness: read.thickness,
+        youngs_modulus: read.youngs_modulus,
+        poisson_ratio: read.poisson_ratio,
+        density: read.density,
         mounted,
     })
 }

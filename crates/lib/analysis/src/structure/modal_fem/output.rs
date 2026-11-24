@@ -1,6 +1,6 @@
 //! `structure.modal_fem` の出力の型。
 
-use super::input::ModalFemAxis;
+use super::input::{ModalFemAxis, ModalFemSkipped};
 use sat_units::typed::{Fraction, Frequency, Length, Mass, Qty};
 use serde::{Deserialize, Serialize};
 
@@ -43,7 +43,7 @@ pub struct ModalFemJoint {
     pub shared_nodes: u32,
 }
 
-/// 集中質量の取り付け先。
+/// 集中質量の取り付け先（1 つの部品が複数のパネルに等分されれば、パネルごとに 1 行）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ModalFemAttachment {
@@ -54,6 +54,8 @@ pub struct ModalFemAttachment {
     pub distance: Qty<Length>,
     /// 最も近いパネルを自動で選んだ（`false` は名前で指定）
     pub automatic: bool,
+    /// この部品の質量のうち、このパネルに配った割合（名前で指定なら 1。最も近いパネルが複数なら等分）
+    pub share: Fraction,
 }
 
 /// モデルの大きさ。
@@ -86,6 +88,8 @@ pub struct ModalFemOutput {
     /// 節点を共有してつないだパネルの組
     pub joints: Vec<ModalFemJoint>,
     pub attachments: Vec<ModalFemAttachment>,
+    /// モデルにしなかったパネルと理由（入力の `skipped_panels`）
+    pub skipped_panels: Vec<ModalFemSkipped>,
     /// 反復の回数（診断）
     pub iterations: u32,
     /// 最後のモードが重根の途中で切れている（求める数を 1 つ増やすと、同じ値のモードがもう 1 つ出る）

@@ -1,9 +1,10 @@
 //! 集中質量の取り付け。質量の位置を取り付け先のパネルの面に投影し、その点を含む要素の 4 節点に双線形の重みで配る。
 //! 外形（フットプリント）があるときは、投影した範囲を格子状に並べた点それぞれに同じ質量を配る。
+//! 最も近いパネルが（許容差の範囲で）複数あれば、質量をそれらに等分する。
 //! 面から離れた位置のオフセット（回転慣性の増え方）は考えない。
 
 use super::input::{ModalFemInput, ModalFemLumped};
-use super::mesh::{Mesh, PanelMesh};
+use super::mesh::{DEFAULT_MERGE_TOLERANCE, Mesh, PanelMesh};
 use crate::spec::AnalysisError;
 
 /// フットプリントの 1 辺あたりの標本点の数。
@@ -19,6 +20,8 @@ pub struct Attachment {
     pub distance: f64,
     /// 最も近いパネルを自動で選んだか（`false` は名前で指定）
     pub automatic: bool,
+    /// この部品の質量のうち、このパネルに配った割合（名前で指定なら 1。最も近いパネルが複数なら等分）
+    pub share: f64,
 }
 
 /// 点からパネルの長方形までの最も近い点（面内の座標 (u, v) と距離）。
@@ -83,46 +86,63 @@ fn samples(p: &PanelMesh, l: &ModalFemLumped, pos: [f64; 3]) -> Vec<[f64; 2]> {
     out
 }
 
-/// 取り付け先のパネル（名前の指定があればそれ、なければ最も近いもの）。
+/// 取り付け先のパネルの組。名前の指定があればそのパネル 1 枚。無ければ、最も近い距離から許容差 `tol` 以内のパネルすべて
+/// （距離が同じ、またはほぼ同じパネルが複数あれば、質量を等分する。どれか 1 枚に偏らせる理由が無い）。
 fn choose<'a>(
     mesh: &'a Mesh,
     l: &ModalFemLumped,
     pos: [f64; 3],
-) -> Result<&'a PanelMesh, AnalysisError> {
+    tol: f64,
+) -> Result<Vec<&'a PanelMesh>, AnalysisError> {
     if let Some(name) = &l.panel {
         return mesh
             .panels
             .iter()
             .find(|p| &p.id == name)
+            .map(|p| vec![p])
             .ok_or_else(|| AnalysisError::InvalidInput(format!("{}: unknown panel {name}", l.id)));
     }
-    mesh.panels
+    let nearest = mesh
+        .panels
         .iter()
-        .min_by(|a, b| closest(a, pos).1.total_cmp(&closest(b, pos).1))
-        .ok_or_else(|| AnalysisError::InvalidInput("No panels".to_owned()))
+        .map(|p| closest(p, pos).1)
+        .min_by(f64::total_cmp)
+        .ok_or_else(|| AnalysisError::InvalidInput("No panels".to_owned()))?;
+    Ok(mesh
+        .panels
+        .iter()
+        .filter(|p| closest(p, pos).1 <= nearest + tol)
+        .collect())
 }
 
-/// 集中質量を節点の並進質量 `out` に足し、取り付け先を返す。
+/// 集中質量を節点の並進質量 `out` に足し、取り付け先（パネルごとの割合つき）を返す。
 pub fn attach(
     mesh: &Mesh,
     input: &ModalFemInput,
     out: &mut [f64],
 ) -> Result<Vec<Attachment>, AnalysisError> {
+    let tol = input
+        .merge_tolerance
+        .map_or(DEFAULT_MERGE_TOLERANCE, |t| t.value());
     let mut list = Vec::new();
     for l in &input.lumped {
         let pos = l.position.map(|x| x.value());
-        let p = choose(mesh, l, pos)?;
-        let pts = samples(p, l, pos);
-        let each = l.mass.value() / pts.len() as f64;
-        for uv in &pts {
-            spread(p, *uv, each, out);
+        let set = choose(mesh, l, pos, tol)?;
+        let share = 1.0 / set.len() as f64;
+        for p in set {
+            let pts = samples(p, l, pos);
+            let each = l.mass.value() * share / pts.len() as f64;
+            for uv in &pts {
+                spread(p, *uv, each, out);
+            }
+            list.push(Attachment {
+                id: l.id.clone(),
+                panel: p.id.clone(),
+                distance: closest(p, pos).1,
+                automatic: l.panel.is_none(),
+                share,
+            });
         }
-        list.push(Attachment {
-            id: l.id.clone(),
-            panel: p.id.clone(),
-            distance: closest(p, pos).1,
-            automatic: l.panel.is_none(),
-        });
     }
     Ok(list)
 }

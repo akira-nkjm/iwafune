@@ -11,3 +11,4 @@ launch_load_lateral   = { value = 2.5, unit = "g0" }
 min_frequency_axial   = { value = 90.0, unit = "Hz" }
 min_frequency_lateral = { value = 45.0, unit = "Hz" }
 max_tip_off_rate      = { value = 2.0, unit = "deg/s" }
+launch_constraint     = "rails"
