@@ -650,6 +650,7 @@ const labels: Record<string, string> = {
   v_inf_arrival_lambert: "到着の超過速度（Lambert）",
   v_inf_arrival_propagated: "到着の超過速度（伝搬）",
   values: "値",
+  velocity: "速度",
   view_factors: "形態係数",
   volume_margin: "容積の余裕",
   warning_band: "警告の幅",

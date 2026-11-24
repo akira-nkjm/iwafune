@@ -184,6 +184,42 @@ pub(super) fn check_orbit(s: &mut Scope, o: &OrbitSettings) {
     }
 }
 
+/// 状態ベクトルの軌道（`source = "state"`）の値の検査。足りない欄は検査の誤りにせず、射影が足りない入力として知らせる。
+/// - `position`・`velocity` に `frame` を書くことはできない（座標系は ECI = J2000 平均赤道の慣性系の 1 つだけ）。
+/// - `span` は正の値（単位は次元の表が見る）。
+fn check_state(s: &mut Scope, o: &OrbitSettings) {
+    for (key, v) in [("position", &o.position), ("velocity", &o.velocity)] {
+        if v.as_ref().is_some_and(|v| v.frame.is_some()) {
+            s.error(
+                &[key],
+                "orbit.state_frame",
+                format!(
+                    "`{key}` of a state orbit is in the J2000 mean-equator inertial frame (ECI); remove `frame`"
+                ),
+            );
+        }
+        if v.as_ref()
+            .is_some_and(|v| [v.x, v.y, v.z].iter().any(|c| !c.is_finite()))
+        {
+            s.error(
+                &[key],
+                "setting.range",
+                "Every component must be a finite number".into(),
+            );
+        }
+    }
+    if o.span
+        .as_ref()
+        .is_some_and(|q| !(q.value.is_finite() && q.value > 0.0))
+    {
+        s.error(
+            &["span"],
+            "setting.range",
+            "The span must be positive".into(),
+        );
+    }
+}
+
 /// 軌道の出どころ（`source`）の検査: `maneuver` が書かれていればマヌーバがあること、`transfer` ならそのマヌーバが日付つきの `[transfer]` を持つこと、
 /// 出どころが使わない欄（`transfer` に添えた要素・`elements` に添えた `maneuver`）は `setting.not_applied` の警告。
 /// 日付の読み方・暦の範囲はマヌーバ側の検査（`maneuver.transfer_*`）が見る。
@@ -198,6 +234,9 @@ fn check_orbit_source(s: &mut Scope, o: &OrbitSettings) {
                 "`{key}` is not used by an orbit with source = \"{source}\", so it has no effect. Remove it, or change the source"
             ),
         );
+    }
+    if source == OrbitSource::State {
+        check_state(s, o);
     }
     // `maneuver` が書かれていないのは足りない入力（射影が選べるマヌーバを添えて知らせる）で、検査の誤りにはしない。
     // 書かれていれば、出どころによらずマヌーバがあること（参照の索引と同じ。消す Op を拒むため）

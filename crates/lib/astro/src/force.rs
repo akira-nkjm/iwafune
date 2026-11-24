@@ -89,6 +89,29 @@ impl ForceConfig {
     }
 }
 
+impl ForceConfig {
+    /// 原点の天体 `central` のまわりの状態ベクトルから数値伝搬するときの、慣例の力モデル（**書かれていない力の設定の既定はここだけ**）。
+    /// 抗力・太陽輻射圧は機体の値（面積質量比・反射係数）が要るので入れない。
+    /// - 太陽: 太陽と惑星の点質量（[`Self::heliocentric_point_masses`]。地球は月を含めず地球の重力定数だけの第三体）。
+    /// - 地球: 地球の J2 に、太陽と月の点質量。
+    /// - 月・惑星: その天体の J2 に、太陽の点質量（地球は中心天体が地球でないので自動で第三体に入る。ほかの惑星・衛星は入れない）。
+    ///
+    /// 地球の高次重力場（EGM96）・固体潮汐・相対論は入れない（深宇宙の軌道の概念設計では効きが小さい）。
+    pub fn deep_space_defaults(central: CentralBody) -> Self {
+        match central {
+            CentralBody::Sun => Self::heliocentric_point_masses(&[]),
+            CentralBody::Earth => Self {
+                third_bodies: vec![Body::Sun, Body::Moon],
+                ..Self::gravity_only(GravityModel::J2)
+            },
+            _ => Self {
+                third_bodies: vec![Body::Sun],
+                ..Self::gravity_only(GravityModel::J2)
+            },
+        }
+    }
+}
+
 /// 力の項（[`acceleration_breakdown`] の内訳の名前）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]

@@ -7,16 +7,22 @@
 //!   日付つきの遷移と同じ `lambert_arc`）。親のまわりの二体の軌道（接触要素）で、期間（`Trajectory::with_span`）が 1 回限りにする。
 //!   遷移の軌道が楕円でないときは不足入力として理由を返す（状態ベクトルの出どころが受け持つ）。
 //!
+//! - `state`: 状態ベクトル（`epoch`・`central`・`position`・`velocity`・`span`）。`sat_astro::orbit::StateSpec`（既存の数値伝搬。
+//!   力の設定は書かせず、原点の天体で決まる慣例の既定 `ForceConfig::deep_space_defaults`）。向きは ECI。期間は 1 回限り（`Cycle::OneOff`）。
+//!
 //! ケプラー要素が本当に要る解析は [`Context::orbit`] を使い、出どころが `elements` でなければ対象外になる。
 
 use super::Context;
 use crate::maneuver_dates;
 use crate::missing::MissingInputs;
+use crate::orbit_central::central_body;
 use fune_model::Target;
+use fune_model::design::setting_dims as dims;
 use fune_model::design::{Maneuver, OrbitSettings, OrbitSource};
 use sat_astro::ephem::CentralBody;
-use sat_astro::orbit::Trajectory;
+use sat_astro::orbit::{OrbitState, StateSpec, Trajectory};
 use sat_astro::time::Epoch;
+use sat_units::typed::Qty;
 
 impl Context<'_> {
     /// 効いている軌道の出どころ（軌道の設定が無ければ `elements`）。
@@ -30,8 +36,50 @@ impl Context<'_> {
     pub fn trajectory(&self, m: &mut MissingInputs) -> Option<Trajectory> {
         match self.orbit_settings() {
             Some(o) if o.source_kind() == OrbitSource::Transfer => self.transfer_trajectory(o, m),
+            Some(o) if o.source_kind() == OrbitSource::State => self.state_trajectory(o, m),
             _ => self.orbit(m).map(Trajectory::Elements),
         }
+    }
+
+    /// `source = "state"`: 元期・原点の天体・位置・速度・期間から、既存の数値伝搬で伝搬する軌道。足りない欄・読めない欄は不足入力に記録する。
+    fn state_trajectory(&self, o: &OrbitSettings, m: &mut MissingInputs) -> Option<Trajectory> {
+        for key in ["source", "epoch", "central", "position", "velocity", "span"] {
+            self.note(self.orbit_target(&[key]));
+        }
+        let overrides = self.reject_case_overrides(m);
+        let epoch = self.epoch(o, m);
+        let central = o.central.map(central_body).unwrap_or_default();
+        let r = self.orbit_vector::<sat_units::typed::Length>(
+            &dims::ORBIT_POSITION,
+            o.position.as_ref(),
+            "Position of the state orbit (x, y, z with a length unit; from the centre of the origin body, in the J2000 mean-equator inertial frame)",
+            m,
+        );
+        let v = self.orbit_vector::<sat_units::typed::Velocity>(
+            &dims::ORBIT_VELOCITY,
+            o.velocity.as_ref(),
+            "Velocity of the state orbit (x, y, z with a velocity unit; same frame as the position)",
+            m,
+        );
+        let span: Option<Qty<sat_units::typed::Time>> = self.orbit_setting(
+            &dims::ORBIT_SPAN,
+            o.span.as_ref(),
+            "Span of the state orbit (the duration from the epoch that the analyses evaluate)",
+            m,
+        );
+        let state = OrbitState {
+            r_eci: r?,
+            v_eci: v?,
+        };
+        let spec = StateSpec::with_defaults(epoch?, central, state, span?.value(), None);
+        if let Err(e) = spec.validate() {
+            m.push(
+                self.orbit_target(&["position"]),
+                format!("Cannot use the state orbit ({e})"),
+            );
+            return None;
+        }
+        overrides.then_some(Trajectory::State(spec))
     }
 
     /// `source = "transfer"`: マヌーバの日付つきの遷移の巡航の軌道。

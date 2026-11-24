@@ -291,6 +291,10 @@ label_en = "Kepler elements"
 label    = "日付つきの遷移"
 label_en = "Dated transfer"
 
+[enum.orbit_source.state]
+label    = "状態ベクトル"
+label_en = "State vector"
+
 [enum.link_direction.down]
 label    = "ダウンリンク"
 label_en = "Downlink"

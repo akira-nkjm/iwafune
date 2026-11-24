@@ -121,6 +121,12 @@ setting_quantities! {
     ORBIT_ARG_PERIGEE: Angle = Conditions["orbit", "arg_perigee"];
     /// 平均近点角
     ORBIT_MEAN_ANOMALY: Angle = Conditions["orbit", "mean_anomaly"];
+    /// 状態ベクトルの軌道の位置（`source = "state"`。ベクトル）
+    ORBIT_POSITION: Length = Conditions["orbit", "position"];
+    /// 状態ベクトルの軌道の速度（ベクトル）
+    ORBIT_VELOCITY: Velocity = Conditions["orbit", "velocity"];
+    /// 状態ベクトルの軌道の期間
+    ORBIT_SPAN: Time = Conditions["orbit", "span"];
     /// 準静的荷重（機軸方向。`conditions/launch.toml`）
     LAUNCH_LOAD_AXIAL: Acceleration = Conditions["launch", "load_axial"];
     /// 準静的荷重（直交方向）

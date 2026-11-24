@@ -28,12 +28,12 @@ pub(crate) fn design_orbit(design: &Design) -> Option<&OrbitSettings> {
 }
 
 /// マヌーバの列の始めの軌道の中心天体（ケースを選ばない設計の軌道の中心。`maneuver_dates::central_before` の出発点）。
-/// ケプラー要素の軌道は `central`（省略は地球）。日付つきの遷移の巡航の軌道（`transfer`）は、出発の天体を何も語らない
+/// ケプラー要素の軌道と状態ベクトルの軌道は `central`（省略は地球）。日付つきの遷移の巡航の軌道（`transfer`）は、出発の天体を何も語らない
 /// （巡航は親のまわりの軌道で、出発の惑星のまわりの軌道ではない。循環もさせない）ので既定の天体（地球）とし、
 /// マヌーバの `after` の列が替える。
 pub(crate) fn design_orbit_central(design: &Design) -> CentralBody {
     match design_orbit(design) {
-        Some(o) if o.source_kind() == OrbitSource::Elements => {
+        Some(o) if matches!(o.source_kind(), OrbitSource::Elements | OrbitSource::State) => {
             o.central.map(central_body).unwrap_or_default()
         }
         _ => CentralBody::default(),
