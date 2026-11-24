@@ -381,6 +381,14 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
             case: s("eclipse_worst"),
             phase: None,
         },
+        Op::SetCaseEpoch {
+            case: s("eclipse_worst"),
+            epoch: Some(s("2031-05-02T00:00:00Z")),
+        },
+        Op::SetCaseEpoch {
+            case: s("eclipse_worst"),
+            epoch: None,
+        },
         Op::CreateGroundStation {
             id: s("SVALBARD"),
             label: Some(s("Svalbard \"test\"")),

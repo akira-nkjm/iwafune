@@ -180,3 +180,39 @@ fn the_source_reads_state_and_unused_keys_are_never_written() {
         "{text}"
     );
 }
+
+/// 設定の表に未入力でも出す欄は出どころごとに違う: 状態ベクトルの軌道は状態の欄を出し、ケプラー要素の欄は出さない。
+/// 設計の軌道（`settings_json`）とフェーズの `[orbit]` の表は、どちらも `OrbitSource::offered_keys` から作る。
+#[test]
+fn the_offered_orbit_keys_follow_the_source() {
+    let keys = |s: OrbitSource| s.offered_keys();
+    assert_eq!(
+        keys(OrbitSource::State),
+        ["source", "epoch", "central", "position", "velocity", "span"]
+    );
+    assert_eq!(keys(OrbitSource::Transfer), ["source", "maneuver"]);
+    // 既定の出どころは今までどおり（出どころと、遷移への切り替えに備えたマヌーバ）
+    assert_eq!(keys(OrbitSource::Elements), ["source", "maneuver"]);
+    // 出す欄は、その出どころが「使わない欄」と重ならない（出した欄が `setting.not_applied` の警告にならない）
+    for source in [OrbitSource::Transfer, OrbitSource::State] {
+        let unused = source.unused_keys();
+        assert!(
+            source.offered_keys().iter().all(|k| !unused.contains(k)),
+            "{source:?}"
+        );
+    }
+    // 設計の軌道の表: 状態の出どころは状態の欄を未入力で出し、ケプラー要素の欄は出さない
+    let mut design = Design::default();
+    design.conditions.orbit = Some(OrbitSettings {
+        source: Some(OrbitSource::State),
+        ..OrbitSettings::default()
+    });
+    let json = design.settings_json(fune_model::path::SettingScope::Conditions);
+    let orbit = json["orbit"].as_object().expect("orbit");
+    for key in ["position", "velocity", "span", "epoch", "central"] {
+        assert!(orbit.contains_key(key), "{key}");
+    }
+    for key in ["altitude", "inclination", "raan", "maneuver"] {
+        assert!(!orbit.contains_key(key), "{key}");
+    }
+}

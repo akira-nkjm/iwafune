@@ -19,6 +19,7 @@ import type {
   ApplyResult,
   BudgetKind,
   BudgetView,
+  CaseFromGeometryRequest,
   CatalogItemView,
   CommandText,
   DesignView,
@@ -390,5 +391,27 @@ export function useEclipseCaseOp(id: string, at: string | null, mode: string) {
   return {
     ops: json === now && now && query.data ? [query.data] : null,
     error: json === now ? query.error?.message : null,
+  };
+}
+
+/** 最悪の日（太陽距離の最大・最小、地球距離の最大）からケースの Op の列を作る（書き込まない。`POST /ops/cases_from_geometry`）。 */
+export function useGeometryCaseOps(request: CaseFromGeometryRequest | null) {
+  const qc = useQueryClient();
+  const revision = currentRevision(qc);
+  const now = request ? JSON.stringify(request) : "";
+  const json = useDebounced(now, 400);
+  const query = useQuery<Op[], ApiError>({
+    queryKey: keys.geometryCaseOps(revision, json),
+    queryFn: () =>
+      api<Op[]>("/ops/cases_from_geometry", { method: "POST", body: JSON.parse(json) }),
+    enabled: json.length > 0,
+    retry: false,
+    staleTime: Number.POSITIVE_INFINITY,
+  });
+  const settled = json === now && now.length > 0;
+  return {
+    ops: settled ? (query.data ?? null) : null,
+    error: settled ? (query.error?.message ?? null) : null,
+    pending: !settled || query.isFetching,
   };
 }

@@ -43,7 +43,7 @@ pub struct PhaseFieldView {
     pub value: super::ValueData,
     /// 編集の欄の初期値（`fune phase set-field` に打つのと同じ文字列）
     pub text: String,
-    /// 選んで入れる欄の選択肢（軌道の `source`・`maneuver`。空なら自由入力）
+    /// 選んで入れる欄の選択肢（軌道の `source`・`maneuver`。空なら自由入力。欄の一覧は API が出どころごとに返す）
     pub choices: Vec<fune_projection::Choice>,
 }
 
@@ -74,7 +74,7 @@ pub struct PhaseView {
     pub modes: Vec<String>,
     /// 軌道を上書きしているか（`[orbit]`）
     pub orbit_overridden: bool,
-    /// 上書きの軌道の書かれた欄（`[orbit]`。`orbit_overridden` のときだけ。選んで入れる `source`・`maneuver` は未入力でも並べる）
+    /// 上書きの軌道の書かれた欄（`[orbit]`。`orbit_overridden` のときだけ。出どころが使う欄（`source` と、その出どころの欄）は未入力でも並べる）
     pub orbit: Vec<PhaseFieldView>,
     /// 上書きの軌道が巡航の軌道を取る遷移のマヌーバ（`[orbit]` が `source = "transfer"` のとき）。一覧の「軌道は <マヌーバ> から」の表示用
     pub orbit_from: Option<String>,

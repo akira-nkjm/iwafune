@@ -85,13 +85,15 @@ fn view(design: &Design, p: &Phase, position: u32) -> PhaseView {
     }
 }
 
-/// 軌道の上書きの欄。書かれた葉に、選んで入れる欄（`source`・`maneuver`）の未入力のものを先頭に足す（上書きがあるときだけ）。
+/// 軌道の上書きの欄。書かれた葉に、出どころが使う欄（`OrbitSource::offered_keys`）の未入力のものを先頭に足す（上書きがあるときだけ）。
 fn orbit_fields(design: &Design, p: &Phase) -> Vec<PhaseFieldView> {
     let mut out = fields("orbit", &serde_json::to_value(&p.orbit).unwrap_or_default());
-    if p.orbit.is_none() {
+    let Some(orbit) = &p.orbit else {
         return out;
-    }
-    let missing = ["source", "maneuver"]
+    };
+    let missing = orbit
+        .source_kind()
+        .offered_keys()
         .into_iter()
         .filter(|k| !out.iter().any(|f| f.key == *k))
         .map(|k| PhaseFieldView {

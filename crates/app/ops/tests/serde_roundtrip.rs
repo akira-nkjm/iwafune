@@ -83,6 +83,7 @@ fn name(op: &Op) -> &'static str {
         Op::UnsetPhaseOrbit { .. } => "UnsetPhaseOrbit",
         Op::UnsetPhaseLaw { .. } => "UnsetPhaseLaw",
         Op::SetCasePhase { .. } => "SetCasePhase",
+        Op::SetCaseEpoch { .. } => "SetCaseEpoch",
         Op::CreateConfiguration { .. } => "CreateConfiguration",
         Op::SetConfiguration { .. } => "SetConfiguration",
         Op::RemoveConfiguration { .. } => "RemoveConfiguration",

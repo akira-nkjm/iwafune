@@ -60,6 +60,20 @@ pub enum CaseCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// Set the time an analysis case starts at on its orbit (ISO 8601; the other fields stay as they are)
+    SetEpoch {
+        id: String,
+        /// e.g. `"2031-05-02T00:00:00Z"` (within the span for a one-off orbit)
+        epoch: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
+    /// Clear the time of an analysis case (the analyses start at the orbit's own epoch)
+    UnsetEpoch {
+        id: String,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// Remove an analysis case
     Rm {
         id: String,

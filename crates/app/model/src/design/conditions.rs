@@ -68,6 +68,23 @@ const ELEMENT_ONLY_KEYS: &[&str] = &[
 ];
 
 impl OrbitSource {
+    /// 設定の表（設計の軌道・フェーズの `[orbit]`）に、まだ書かれていなくても欄として出すキー（編集の入口）。
+    /// `source` は常に。既定の出どころ（`elements`）と `transfer` は、遷移への切り替えに備えて `maneuver` も出す。
+    /// `state` は、状態ベクトルの軌道が使う欄（`unused_keys` の補集合）を出し、ケプラー要素の欄は出さない。
+    /// **どの出どころで何を出すかはここだけ**（Web は API の返した欄を並べるだけで、出どころごとの欄の一覧を持たない）。
+    pub fn offered_keys(self) -> Vec<&'static str> {
+        match self {
+            Self::Elements | Self::Transfer => vec!["source", "maneuver"],
+            Self::State => {
+                let unused = self.unused_keys();
+                ["source", "epoch", "central", "position", "velocity", "span"]
+                    .into_iter()
+                    .filter(|k| !unused.contains(k))
+                    .collect()
+            }
+        }
+    }
+
     /// この出どころでは使わない欄（書かれていても解析に効かない。検査が `setting.not_applied` で知らせる）。
     /// 出どころを足すときは、その出どころの欄をほかの出どころの「使わない欄」に足す。
     pub fn unused_keys(self) -> Vec<&'static str> {
