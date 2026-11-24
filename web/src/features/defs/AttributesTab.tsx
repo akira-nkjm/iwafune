@@ -16,6 +16,7 @@ import { Th } from "@/kit/table/Th";
 import { defName } from "@/lib/design";
 
 import { OpDialog } from "@/ops/OpDialog";
+import { useDimensionLabel } from "@/quantity/use-dimension-label";
 import { Button } from "@/ui/button";
 import { RenameDefinition } from "./RenameDefinition";
 
@@ -27,6 +28,7 @@ const EMPTY: NewAttribute = { id: "", label: "", dimension: "", units: [], bySta
  */
 export function AttributesTab({ design }: { design: DesignView }) {
   const t = useT();
+  const dimensionLabel = useDimensionLabel();
   const ta = t.defs.attributes;
   const [adding, setAdding] = useState(false);
   const [fresh, setFresh] = useState<NewAttribute>(EMPTY);
@@ -69,7 +71,7 @@ export function AttributesTab({ design }: { design: DesignView }) {
             <Td mono className="text-ink-3">
               {a.value_type}
             </Td>
-            <Td>{a.dimension ?? "—"}</Td>
+            <Td>{a.dimension ? dimensionLabel(a.dimension) : "—"}</Td>
             <Td mono className="text-ink-3">
               {a.units.join(", ") || ta.allUnits}
             </Td>

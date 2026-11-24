@@ -11,6 +11,7 @@ import { attrDef, findParamPath, paramPath } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
 import { attrEditMode } from "@/quantity/attr-mode";
 import { QuantityInput } from "@/quantity/QuantityInput";
+import { useDimensionLabel } from "@/quantity/use-dimension-label";
 import { AttributePicker } from "./AttributePicker";
 import { type NewAttribute, NewAttributeFields } from "./NewAttributeFields";
 import { type Provenance, ProvenanceFields } from "./ProvenanceFields";
@@ -37,6 +38,7 @@ export function AddParameterDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const tp = useT().components.param;
+  const dimensionLabel = useDimensionLabel();
   const [mode, setMode] = useState<Mode>("standard");
   const [picked, setPicked] = useState("");
   const [fresh, setFresh] = useState<NewAttribute>(EMPTY);
@@ -129,7 +131,7 @@ export function AddParameterDialog({
           <Field
             label={tp.value}
             error={mode === "standard" ? textOp.error : null}
-            hint={dimension ? tp.dimension(dimension) : undefined}
+            hint={dimension ? tp.dimension(dimensionLabel(dimension)) : undefined}
           >
             <QuantityInput
               key={`${attrId}-${dimension}`}
