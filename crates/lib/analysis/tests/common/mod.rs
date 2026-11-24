@@ -41,6 +41,7 @@ pub fn node_with(id: &str, mass_kg: f64, cp: f64, fixed: Option<f64>) -> Thermal
             redundancy: Redundancy::None,
             states: Vec::new(),
         }],
+        per_part: false,
         fixed_temperature: fixed.map(Qty::from_raw),
         required: Default::default(),
     }
