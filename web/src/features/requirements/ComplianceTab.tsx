@@ -73,7 +73,6 @@ function Summary({ summary }: { summary: ComplianceSummary }) {
 
 function ComplianceRowView({ row }: { row: ComplianceRow }) {
   const t = useT().requirements;
-  const cases = row.cases.map((c) => c.case ?? t.defaultCase).join(", ");
   return (
     <tr>
       <Td className="align-top">
@@ -95,12 +94,37 @@ function ComplianceRowView({ row }: { row: ComplianceRow }) {
       {/* 確かめる先の下に、判定したケースを添える */}
       <Td className="align-top">
         <VerifiedBy verify={row.verify} input={row.input} />
-        <span className="block whitespace-normal text-ink-3 text-xs">{cases}</span>
+        <Cases row={row} />
       </Td>
       <Td className="w-[30%] min-w-56 whitespace-normal align-top text-ink-2">
         <Result row={row} />
       </Td>
     </tr>
+  );
+}
+
+/** 判定したケース。行の結果を決めたケース（`decisive`）は濃く見せる（ケースが 1 つなら区別しない） */
+function Cases({ row }: { row: ComplianceRow }) {
+  const t = useT().requirements;
+  const many = row.cases.length > 1;
+  return (
+    <span className="block whitespace-normal text-ink-3 text-xs">
+      {row.cases.map((c, i) => {
+        const name = c.case ?? t.defaultCase;
+        return (
+          <span key={name}>
+            {i > 0 && ", "}
+            {many && c.decisive ? (
+              <span className="font-medium text-ink-2" title={t.decidedCase}>
+                {name}
+              </span>
+            ) : (
+              name
+            )}
+          </span>
+        );
+      })}
+    </span>
   );
 }
 
@@ -117,6 +141,12 @@ function Result({ row }: { row: ComplianceRow }) {
   }
   return (
     <span className="block">
+      {row.check && (
+        <span className="block text-ink-3 text-xs" title={t.decidedBy}>
+          {localized(row.check.label, row.check.label_en)}
+          {row.check.scope && ` (${row.check.scope})`}
+        </span>
+      )}
       {localized(row.message, row.message_en)}
       {row.value && <span className="num block text-ink-3">{row.value.display}</span>}
     </span>

@@ -25,6 +25,7 @@ mod tests {
             message_en: None,
             at: "/checks/0".into(),
             scope: None,
+            margin: None,
         }
     }
 
@@ -50,6 +51,7 @@ mod tests {
             part_heat: None,
             part_findings: None,
             space_weather: None,
+            detail: None,
         }
     }
 

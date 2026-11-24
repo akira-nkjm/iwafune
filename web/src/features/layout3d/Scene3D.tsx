@@ -1,13 +1,12 @@
-import { Bounds, Edges, GizmoHelper, Grid, TransformControls } from "@react-three/drei";
-import { Canvas, useThree } from "@react-three/fiber";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Edges, Grid, TransformControls } from "@react-three/drei";
+import { useThree } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Material, Mesh } from "three";
 import { ArrowHelper, Color, DoubleSide, Quaternion, Vector3 } from "three";
-import { useT } from "@/i18n";
+import { SceneShell } from "@/kit/scene3d/SceneShell";
+import type { ZoomRequest } from "@/kit/scene3d/ViewInput3D";
 import { useHex } from "@/lib/theme";
 import { paletteFor, type Scheme, toneHexFor, uiHexFor } from "@/lib/tone";
-import { CameraMover, type ViewRequest } from "./CameraMover";
-import { FreeOrbit } from "./FreeOrbit";
 import {
   type Axis3D,
   axisColor,
@@ -21,9 +20,6 @@ import {
   type sceneDimensions,
   type V3,
 } from "./scene";
-import { ViewCube } from "./ViewCube";
-import { ViewInput3D, type ZoomRequest } from "./ViewInput3D";
-import type { CubeView } from "./view-cube";
 import { DEFAULT_SCENE_HELPERS, type FocusRequest, type SceneHelpers } from "./visibility";
 
 /** 押してから離すまでにこれより動いたらドラッグ（視点の操作）とみなし、クリックにしない [px] */
@@ -87,14 +83,6 @@ export function Scene3D({
 }) {
   const { scheme, tone, ui } = useHex();
   const [target, setTarget] = useState<Mesh | null>(null);
-  const L = useT().systems.layout3d;
-  // ビューキューブの区画を押した依頼（押すたびに n が増える。動かすのは CameraMover）
-  const [view, setView] = useState<ViewRequest | null>(null);
-  const pickView = useCallback(
-    (v: CubeView) => setView((prev) => ({ n: (prev?.n ?? 0) + 1, view: v })),
-    [],
-  );
-  const cubeLabel = useCallback((name: string) => L.viewCubeFace(name), [L]);
   // 押したときの画面の位置（離したときに動いていればドラッグ）
   const pressed = useRef<{ x: number; y: number } | null>(null);
   const dragged = (e: MouseEvent) =>
@@ -106,152 +94,141 @@ export function Scene3D({
   // 選んだ部品があれば、ほかの部品を淡く描く
   const dimmed = (id: string) => selected !== null && ids.has(selected) && id !== selected;
   return (
-    // demand: 何かが変わったとき（カメラの操作・箱の移動・props の変更）だけ描き直す。
-    // 既定の always は止まっている間も毎フレーム描き、ページ全体の操作を重くする
-    <Canvas
-      frameloop="demand"
+    // 枠（Canvas・照明・視点の操作・ビューキューブ）は `kit/scene3d/SceneShell`。ここは箱と、箱に付くものを渡す
+    <SceneShell
       camera={{
         position: [dimensions.cameraX, dimensions.cameraY, dimensions.cameraZ],
-        up: [0, 0, 1],
-        fov: 40,
         near: dimensions.near,
         far: dimensions.far,
       }}
+      home={home}
+      zoom={zoom}
+      focus={focus}
+      gizmo={helpers.gizmo}
       onPointerDown={(e) => {
         pressed.current = { x: e.clientX, y: e.clientY };
       }}
       onPointerMissed={(e) => {
         if (!dragged(e)) onSelect(null);
       }}
-      style={{ background: "var(--color-panel-2)" }}
+      behind={
+        <>
+          {helpers.grid && (
+            <Grid
+              rotation={[Math.PI / 2, 0, 0]}
+              args={[dimensions.grid, dimensions.grid]}
+              cellSize={dimensions.gridCell}
+              sectionSize={dimensions.gridSection}
+              cellColor={ui.tick}
+              sectionColor={tone.gray}
+              fadeDistance={dimensions.gridFade}
+              infiniteGrid
+            />
+          )}
+          {helpers.origin && <axesHelper args={[dimensions.axes]} />}
+        </>
+      }
+      outside={
+        <>
+          {/* 視野は全体を収める範囲（Bounds）に入れない（広い円錐で機体が小さく映らないように）。部品の位置・姿勢に置く */}
+          {helpers.fov &&
+            fovs.map((f) => {
+              const b = boxes.find((x) => x.id === f.part);
+              return b ? (
+                <group
+                  key={f.part}
+                  position={b.position}
+                  quaternion={[
+                    b.orientation[1],
+                    b.orientation[2],
+                    b.orientation[3],
+                    b.orientation[0],
+                  ]}
+                >
+                  <FovCone fov={f} length={dimensions.fovLength} color={b.color} />
+                </group>
+              ) : null;
+            })}
+          {sun && <SunArrowMark sun={sun} dimensions={dimensions} scheme={scheme} />}
+          {com && <CenterOfMass position={com} radius={dimensions.comRadius} scheme={scheme} />}
+          {edit && target && selected && (
+            <TransformControls
+              object={target}
+              mode={edit.mode}
+              translationSnap={edit.snap}
+              rotationSnap={Math.PI / 12}
+              size={0.7}
+              onMouseDown={() => {
+                grabbed.current = { p: target.position.clone(), q: target.quaternion.clone() };
+              }}
+              onMouseUp={() => {
+                const p = target.position;
+                const q = target.quaternion;
+                const from = grabbed.current;
+                grabbed.current = null;
+                // 掴んで離しただけ（動いていない）なら書かない。押すだけで配置の変更が保存されないように
+                if (from?.p.equals(p) && from.q.equals(q)) return;
+                edit.onPlace(selected, [p.x, p.y, p.z], [q.w, q.x, q.y, q.z]);
+              }}
+            />
+          )}
+        </>
+      }
     >
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[2, -3, 4]} intensity={1.2} />
-      {helpers.grid && (
-        <Grid
-          rotation={[Math.PI / 2, 0, 0]}
-          args={[dimensions.grid, dimensions.grid]}
-          cellSize={dimensions.gridCell}
-          sectionSize={dimensions.gridSection}
-          cellColor={ui.tick}
-          sectionColor={tone.gray}
-          fadeDistance={dimensions.gridFade}
-          infiniteGrid
-        />
-      )}
-      {helpers.origin && <axesHelper args={[dimensions.axes]} />}
-      <Bounds fit clip margin={1.3}>
-        <CameraMover
-          home={home}
-          position={[dimensions.cameraX, dimensions.cameraY, dimensions.cameraZ]}
-          focus={focus}
-          view={view}
-        />
-        {boxes.map((b) => (
-          <mesh
-            key={b.id}
-            name={b.id}
-            ref={b.id === selected ? setTarget : undefined}
-            position={b.position}
-            quaternion={[b.orientation[1], b.orientation[2], b.orientation[3], b.orientation[0]]}
-            onClick={(e) => {
-              e.stopPropagation();
-              // 視点を回す・動かすドラッグの終わりはクリックとして扱わない（選択が奥へ移ったり外れたりしないように）
-              if (dragged(e.nativeEvent)) return;
-              // 光線上の当たり（近い順）のうち、箱の面（name = 部品の ID の mesh）に当たったものだけを数える。
-              // 縁の線・軸の矢印の線は three の既定では 1 m 以内を通れば当たりになり、離れた部品を拾うため
-              const hits = e.intersections
-                .map((hit) => hit.object.name)
-                .filter((name) => ids.has(name));
-              // 箱の面に当たらなければ（縁の線などに当たっただけなら）、何も無い所を押したのと同じく選択を外す
-              onSelect(pickBox(hits, selected));
-            }}
-          >
-            {b.sized ? (
-              <boxGeometry args={b.size} />
-            ) : (
-              <octahedronGeometry args={[b.size[0] / 2]} />
+      {boxes.map((b) => (
+        <mesh
+          key={b.id}
+          name={b.id}
+          ref={b.id === selected ? setTarget : undefined}
+          position={b.position}
+          quaternion={[b.orientation[1], b.orientation[2], b.orientation[3], b.orientation[0]]}
+          onClick={(e) => {
+            e.stopPropagation();
+            // 視点を回す・動かすドラッグの終わりはクリックとして扱わない（選択が奥へ移ったり外れたりしないように）
+            if (dragged(e.nativeEvent)) return;
+            // 光線上の当たり（近い順）のうち、箱の面（name = 部品の ID の mesh）に当たったものだけを数える。
+            // 縁の線・軸の矢印の線は three の既定では 1 m 以内を通れば当たりになり、離れた部品を拾うため
+            const hits = e.intersections
+              .map((hit) => hit.object.name)
+              .filter((name) => ids.has(name));
+            // 箱の面に当たらなければ（縁の線などに当たっただけなら）、何も無い所を押したのと同じく選択を外す
+            onSelect(pickBox(hits, selected));
+          }}
+        >
+          {b.sized ? <boxGeometry args={b.size} /> : <octahedronGeometry args={[b.size[0] / 2]} />}
+          <meshStandardMaterial
+            {...boxMaterial(
+              b,
+              b.id === selected,
+              structureOpacity,
+              dimmed(b.id),
+              helpers.wireframe,
             )}
-            <meshStandardMaterial
-              {...boxMaterial(
-                b,
-                b.id === selected,
-                structureOpacity,
-                dimmed(b.id),
-                helpers.wireframe,
-              )}
-            />
-            <Edges
-              color={b.id === selected ? ui.ink : dimmed(b.id) ? ui.tick : ui.ink3}
-              lineWidth={b.id === selected ? 2 : 1}
-            />
-            {axes
-              ?.filter((a) => a.part === b.id)
-              .map((a) => (
-                <primitive
-                  key={a.id}
-                  object={
-                    new ArrowHelper(
-                      new Vector3(...a.dir),
-                      new Vector3(),
-                      dimensions.arrow,
-                      new Color(axisColor(scheme, a.order)),
-                      dimensions.arrowHead,
-                      dimensions.arrowWidth,
-                    )
-                  }
-                />
-              ))}
-          </mesh>
-        ))}
-      </Bounds>
-      {/* 視野は全体を収める範囲（Bounds）に入れない（広い円錐で機体が小さく映らないように）。部品の位置・姿勢に置く */}
-      {helpers.fov &&
-        fovs.map((f) => {
-          const b = boxes.find((x) => x.id === f.part);
-          return b ? (
-            <group
-              key={f.part}
-              position={b.position}
-              quaternion={[b.orientation[1], b.orientation[2], b.orientation[3], b.orientation[0]]}
-            >
-              <FovCone fov={f} length={dimensions.fovLength} color={b.color} />
-            </group>
-          ) : null;
-        })}
-      {sun && <SunArrowMark sun={sun} dimensions={dimensions} scheme={scheme} />}
-      {com && <CenterOfMass position={com} radius={dimensions.comRadius} scheme={scheme} />}
-      {edit && target && selected && (
-        <TransformControls
-          object={target}
-          mode={edit.mode}
-          translationSnap={edit.snap}
-          rotationSnap={Math.PI / 12}
-          size={0.7}
-          onMouseDown={() => {
-            grabbed.current = { p: target.position.clone(), q: target.quaternion.clone() };
-          }}
-          onMouseUp={() => {
-            const p = target.position;
-            const q = target.quaternion;
-            const from = grabbed.current;
-            grabbed.current = null;
-            // 掴んで離しただけ（動いていない）なら書かない。押すだけで配置の変更が保存されないように
-            if (from?.p.equals(p) && from.q.equals(q)) return;
-            edit.onPlace(selected, [p.x, p.y, p.z], [q.w, q.x, q.y, q.z]);
-          }}
-        />
-      )}
-      {/* 視点の操作を controls に入れる: TransformControls を掴んでいる間は drei がその操作を止める */}
-      {/* 左ドラッグ = どの軸まわりにも回す、中・右ドラッグと Shift + 左ドラッグ = 移動。ホイールは ViewInput3D が読む */}
-      <FreeOrbit />
-      <ViewInput3D request={zoom} />
-      {helpers.gizmo && (
-        <GizmoHelper alignment="bottom-right" margin={[64, 64]}>
-          <ViewCube scheme={scheme} onPick={pickView} label={cubeLabel} />
-        </GizmoHelper>
-      )}
-    </Canvas>
+          />
+          <Edges
+            color={b.id === selected ? ui.ink : dimmed(b.id) ? ui.tick : ui.ink3}
+            lineWidth={b.id === selected ? 2 : 1}
+          />
+          {axes
+            ?.filter((a) => a.part === b.id)
+            .map((a) => (
+              <primitive
+                key={a.id}
+                object={
+                  new ArrowHelper(
+                    new Vector3(...a.dir),
+                    new Vector3(),
+                    dimensions.arrow,
+                    new Color(axisColor(scheme, a.order)),
+                    dimensions.arrowHead,
+                    dimensions.arrowWidth,
+                  )
+                }
+              />
+            ))}
+        </mesh>
+      ))}
+    </SceneShell>
   );
 }
 

@@ -20,6 +20,7 @@
 //! | `mode_systems` | モードの見方を持つ系の一覧（`DefsView.mode_systems` と `system_modes` の対応判定の共通の置き場。ほかの module に依存しない） |
 //! | `attitude_view` | 姿勢則の設定と実効軸の表示（AOCS のモードの姿勢則とフェーズの上書きの姿勢則が同じ欄を使う。どちらからも呼ばれる葉の module） |
 //! | `system_modes` | 系ごとのモードの見方（電源・C&DH・熱・AOCS の値・合計・判定） |
+//! | `thermal_tables` | 熱の結合・表面の編集の表（解析が使った結合の値と出どころ・表面材・面の割合・節点の温度。下書きを当てて作れる） |
 //! | `data` | 外部データ（DE440・宇宙天気）の取得・状態・読み込み（ユーザーごとのキャッシュ）、日付からの宇宙天気 |
 //! | `shared_catalog` | 共有カタログ（`[[catalog]] git = …`）の取得・更新（git の CLI。プロジェクトの `.fune/catalogs/` のキャッシュと `catalog.lock`） |
 //! | `fixes` | 不足入力の直し方の候補（操作の種類・絞り込み・CLI のコマンド。`fune analyze` と GUI の行の操作が同じ候補を使う） |
@@ -50,6 +51,7 @@ pub mod shared_catalog;
 pub mod skill;
 mod stale_acknowledgements;
 pub mod system_modes;
+pub mod thermal_tables;
 pub mod units;
 pub mod workspace;
 

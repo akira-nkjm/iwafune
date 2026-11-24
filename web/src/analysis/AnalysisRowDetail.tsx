@@ -2,6 +2,7 @@ import type { AnalysisRunResult, DesignView } from "@/api/types";
 import { localized, useT } from "@/i18n";
 import { VerdictPill } from "@/kit/status/VerdictPill";
 import { ChecksList } from "./ChecksList";
+import { AnalysisDetail, hasDetailView } from "./detail/AnalysisDetail";
 import { fieldLabel } from "./fields";
 import { GeometryFindings } from "./GeometryFindings";
 import { kpiText } from "./kpi";
@@ -23,9 +24,12 @@ export function isHiddenTable(table: Pick<FoundTable, "at">, hidden: readonly st
 export function AnalysisRowDetail({
   result,
   design,
+  detailType,
 }: {
   result: AnalysisRunResult;
   design?: DesignView;
+  /** 解析が持つ重い任意の出力の型名（`AnalysisEntry.detail_type`）。表示があれば、開いたときに取って出す */
+  detailType?: string;
 }) {
   const dict = useT();
   const overview = result.overview;
@@ -80,6 +84,9 @@ export function AnalysisRowDetail({
             </div>
           ))}
         </section>
+      )}
+      {detailType !== undefined && hasDetailView(detailType) && (
+        <AnalysisDetail result={result} detailType={detailType} />
       )}
       {tables.length > 0 && (
         <details>

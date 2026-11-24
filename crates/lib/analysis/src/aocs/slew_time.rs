@@ -12,7 +12,7 @@
 use super::wheels::{RwWheel, WheelSet, usable_momentum_fraction};
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict, ensure_positive,
-    quantity_text,
+    quantity_text, ratio_margin,
 };
 use sat_astro::math::{Mat3, Vec3};
 use sat_units::typed::{
@@ -241,16 +241,19 @@ fn verdicts(required: Option<Qty<Time>>, worst: &SlewTimeAxis) -> Vec<Check> {
     let Some(req) = required else {
         return Vec::new();
     };
-    vec![Check::new(
-        "slew_time",
-        "Slew time (worst axis)",
-        Verdict::from_ok(worst.time <= req),
-        format!(
-            "{} (required within {})",
-            quantity_text::<Time>(worst.time.value()),
-            quantity_text::<Time>(req.value())
-        ),
-    )]
+    vec![
+        Check::new(
+            "slew_time",
+            "Slew time (worst axis)",
+            Verdict::from_ok(worst.time <= req),
+            format!(
+                "{} (required within {})",
+                quantity_text::<Time>(worst.time.value()),
+                quantity_text::<Time>(req.value())
+            ),
+        )
+        .with_ratio_margin(ratio_margin(req.value(), worst.time.value())),
+    ]
 }
 
 #[cfg(test)]

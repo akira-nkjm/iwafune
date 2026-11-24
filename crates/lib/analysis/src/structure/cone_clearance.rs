@@ -1,7 +1,7 @@
-//! 円錐の遮りの確認（`structure.cone_clearance`）。スラスタの噴流と、センサの視野を、**同じ 1 つの判定**で見る。
+//! 円錐の遮りの確認（`structure.cone_clearance`）。スラスタの噴流と、センサの視野と、アンテナのビームを、**同じ 1 つの判定**で見る。
 //! どちらも「ある点から、ある向きに、ある半頂角で広がる円錐」で、その中に機体の部品の箱が入っていないかを調べる。
 //! 円錐を持つもの（担い手。[`ConeCarrier`]）の種類は [`ConeKind`] で区別するだけで、判定・規則・出力は共通。
-//! 担い手の属性の対応（どの属性が軸・半頂角か、軸の符号）は射影の表にだけある（アンテナのビームなどは表の 1 行を足すだけ）。
+//! 担い手の属性の対応（どの属性が軸・半頂角か、軸の符号、ビーム幅から半頂角への換算）は射影の表にだけある（担い手を増やすのは表の 1 行）。
 //!
 //! **噴流や視野を遮る部品が見つかっても警告で、エラーにも解析の失敗にもしない。** 箱は実際の形より大きいので、
 //! 箱が円錐に入っても実物は入らないことがある。判定の文にも箱での近似であることを書く（干渉の確認 `structure.interference` と同じ立場）。
@@ -49,6 +49,8 @@ pub enum ConeKind {
     Plume,
     /// センサの視野（視線のまわり）
     FieldOfView,
+    /// アンテナのビーム（ボアサイトのまわり。半頂角はビーム幅の半分）
+    Beam,
 }
 
 impl ConeKind {
@@ -57,6 +59,7 @@ impl ConeKind {
         match self {
             Self::Plume => ("plume", "Plume"),
             Self::FieldOfView => ("field of view", "Field of view"),
+            Self::Beam => ("antenna beam", "Antenna beam"),
         }
     }
 }
@@ -200,9 +203,9 @@ impl Analysis for ConeClearance {
     const TITLE: &'static str = "噴流・視野の遮り";
     const AREA: AnalysisArea = AnalysisArea::System(System::Structure);
     const KIND: AnalysisKind = AnalysisKind::Steady;
-    const DESCRIPTION: &'static str = "スラスタの噴流の円錐と、センサの視野の円錐に、機体の部品の箱が入っていないか（箱での近似。入っていれば警告）";
+    const DESCRIPTION: &'static str = "スラスタの噴流・センサの視野・アンテナのビームの円錐に、機体の部品の箱が入っていないか（箱での近似。入っていれば警告）";
     const TITLE_EN: &'static str = "Plume and FoV clearance";
-    const DESCRIPTION_EN: &'static str = "Whether the boxes of the spacecraft's own parts lie inside a thruster plume cone or a sensor field-of-view cone (a box approximation; a hit is a warning)";
+    const DESCRIPTION_EN: &'static str = "Whether the boxes of the spacecraft's own parts lie inside a thruster plume cone, a sensor field-of-view cone or an antenna beam cone (a box approximation; a hit is a warning)";
     type Input = ConeClearanceInput;
     type Output = ConeClearanceOutput;
 
@@ -375,7 +378,7 @@ fn checks(cones: &[ConeReport], skipped: usize, parts: usize, range: Qty<Length>
     }
     let message = if cones.is_empty() {
         format!(
-            "No thruster plume or sensor field of view could be judged ({skipped} carriers skipped, see the list)"
+            "No plume, field of view or antenna beam could be judged ({skipped} carriers skipped, see the list)"
         )
     } else {
         format!(

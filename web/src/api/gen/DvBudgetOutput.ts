@@ -22,6 +22,6 @@ unloading_note: UnloadingNote | null, total: number, margin: number, margin_delt
  */
 dated_transfers?: Array<DatedTransferResult>, 
 /**
- * 日付つきの遷移の判定（赤緯・出発の日の時刻）
+ * 日付つきの遷移の判定（赤緯・出発の日の時刻）と、アンロードを足せなかった区間の警告
  */
 checks?: Array<Check>, };

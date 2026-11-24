@@ -1,7 +1,7 @@
 import { type ComponentProps, isValidElement, type ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ConfigurationText, ConfigurationView } from "@/api/types";
-import { getT } from "@/i18n";
+import { getT, setLang } from "@/i18n";
 import { OpDialog } from "@/ops/OpDialog";
 import { RenameDialog } from "@/ops/RenameDialog";
 import { findElement, fire } from "@/test/elements";
@@ -182,4 +182,18 @@ it("切り替え欄は形態 ID を選び、基準を選ぶと指定を外す", 
   fire(select(null), "onChange", { target: { value: "STOWED" } });
   fire(select(stowed), "onChange", { target: { value: "" } });
   expect(state.select.mock.calls).toEqual([["STOWED"], [null]]);
+});
+
+it("切り替え欄の形態の名前は、表示の言語の名前（英語は ID、日本語は ID と表示名）", () => {
+  const labels = () => {
+    const select = findElement(
+      controls(null),
+      (props) => props["aria-label"] !== undefined && Array.isArray(props.options),
+    )!;
+    return (select.props.options as { value: string; label: string }[]).map((o) => o.label);
+  };
+  setLang("en");
+  expect(labels()).toEqual(["STOWED"]);
+  setLang("ja");
+  expect(labels()).toEqual(["STOWED（Stowed）"]);
 });

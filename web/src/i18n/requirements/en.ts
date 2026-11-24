@@ -26,6 +26,8 @@ export const requirementsEn: typeof requirementsJa = {
     file: "File",
     noSource: "No source",
     defaultCase: "default",
+    decidedBy: "Decided by",
+    decidedCase: "The case that decides the row",
     allCases: "All cases",
     inputOf: (name: string) => `Input (${name === "mission_duration" ? "mission duration" : name})`,
     budgetOf: (kind: string) => `Budget (${kind})`,

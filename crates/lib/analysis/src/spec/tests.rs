@@ -71,3 +71,38 @@ fn ratio_margin_by_hand() {
         Verdict::Ok
     );
 }
+
+/// 判定の余裕: 添えなければ持たず（JSON にも出ない）、添えた値はそのまま持つ。非有限の値は添えない。
+#[test]
+fn a_check_carries_its_margin_only_when_given() {
+    let plain = Check::new("k", "l", Verdict::Ok, "m");
+    assert_eq!(plain.margin, None);
+    assert!(!serde_json::to_string(&plain).unwrap().contains("margin"));
+    let with = plain.clone().with_margin(0.25);
+    assert_eq!(with.margin, Some(0.25));
+    let json = serde_json::to_string(&with).unwrap();
+    assert!(json.contains("\"margin\":0.25"));
+    // 余裕の欄が無い JSON も読める
+    let back: Check = serde_json::from_str(&serde_json::to_string(&plain).unwrap()).unwrap();
+    assert_eq!(back.margin, None);
+    assert_eq!(plain.clone().with_margin(f64::NAN).margin, None);
+    assert_eq!(plain.clone().with_margin(f64::INFINITY).margin, None);
+    assert_eq!(plain.clone().with_margin(None).margin, None);
+    // 比の余裕 1 / 0.8 − 1 = 0.25。無限大（None）は添えない
+    let ratio = plain.clone().with_ratio_margin(ratio_margin(1.0, 0.8));
+    assert!((ratio.margin.unwrap() - 0.25).abs() < 1e-12);
+    assert_eq!(plain.with_ratio_margin(ratio_margin(1.0, 0.0)).margin, None);
+}
+
+/// 厳しい（小さい）ほうが先。余裕の無い判定は持つ判定より後。どちらも無い・同じなら Equal。
+#[test]
+fn margin_order_puts_the_tightest_first_and_the_unmargined_last() {
+    use std::cmp::Ordering::{Equal, Greater, Less};
+    assert_eq!(margin_order(Some(0.2), Some(0.9)), Less);
+    assert_eq!(margin_order(Some(0.9), Some(0.2)), Greater);
+    assert_eq!(margin_order(Some(-0.1), Some(0.2)), Less);
+    assert_eq!(margin_order(Some(0.2), Some(0.2)), Equal);
+    assert_eq!(margin_order(Some(5.0), None), Less);
+    assert_eq!(margin_order(None, Some(-5.0)), Greater);
+    assert_eq!(margin_order(None, None), Equal);
+}

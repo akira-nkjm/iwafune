@@ -50,6 +50,7 @@ pub fn orbit_model_checks(input: Option<&Value>) -> Vec<CheckView> {
         message_en: Some(message.label_en),
         at,
         scope: None,
+        margin: None,
     }]
 }
 
@@ -86,6 +87,7 @@ fn walk(value: &Value, at: &str, out: &mut Vec<CheckView>) {
                             message_en: None,
                             at: format!("{here}/{i}"),
                             scope: scope.clone(),
+                            margin: c.margin,
                         }));
                     }
                 } else if key == SPAN_FALLBACK {
@@ -131,6 +133,7 @@ fn span_view(f: SpanFallback, at: String, scope: Option<String>) -> CheckView {
         message_en: Some(message.label_en),
         at,
         scope,
+        margin: None,
     }
 }
 
@@ -146,6 +149,7 @@ fn mtq_field_view(g: MtqFieldGap, at: String, scope: Option<String>) -> CheckVie
         message_en: Some(message.label_en),
         at,
         scope,
+        margin: None,
     }
 }
 
