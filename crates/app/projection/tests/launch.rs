@@ -94,9 +94,15 @@ fn launch_fit_input_carries_the_limits_with_their_origin() {
     assert!((num(&limits[1]["value"]) - 12.0).abs() < 1e-9);
     // 外形はディスペンサーの値（打ち上げ機の箱より先）
     assert_eq!(fit["envelope"]["origin"], "dispenser local/disp_6u_rs");
-    assert!((num(&fit["envelope"]["size"]["y"]) - 0.24).abs() < 1e-9);
-    // 構体の外形（0.1 × 0.226 × 0.366 m）
-    assert!((num(&fit["size"]["z"]) - 0.366).abs() < 1e-9);
+    assert!((num(&fit["envelope"]["size"]["y"]) - 0.245).abs() < 1e-9);
+    // 打ち上げ条件が収納の形態を指すので、外形は全部品の箱から出す（根の寸法は渡さない）
+    assert!(fit["size"].is_null() && fit["part_boxes"]["boxes"].as_array().unwrap().len() > 30);
+    // 形態を指さなければ、構体の外形（0.1 × 0.226 × 0.366 m）
+    let mut base = d.clone();
+    launch(&mut base).configuration = None;
+    let fit_base = input(&base, "structure.launch_fit").unwrap();
+    assert!((num(&fit_base["size"]["z"]) - 0.366).abs() < 1e-9);
+    assert!(fit_base.get("part_boxes").is_none());
     // ディスペンサーを外すと打ち上げ機の値になる
     launch(&mut d).dispenser = None;
     let fit = input(&d, "structure.launch_fit").unwrap();

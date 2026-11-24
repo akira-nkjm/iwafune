@@ -174,8 +174,9 @@ fn extent(b: &structure::BodyBox) -> ([f64; 3], [f64; 3]) {
 /// デモの STOWED: 包絡は、STOWED の配置の全部品の箱から試験の中で求め直した範囲と同じ（寸法を持たない 2 つは測らない）。
 /// 打ち上げ条件が STOWED を指す設計と、実行時に STOWED を明示した設計の結果は同じ。
 ///
-/// 既知: x はディスペンサーの許容に収まらない。太陽センサー SS_MX・SS_PX の箱が両面の外へ出る（−59.0〜56.5 mm = 115.5 mm）ので、
-/// 収納したパドルを面に重ねなくても 110 mm を超える。y・z は収まる。判断が付いたら、この断定を直す（#374）。
+/// 手計算（mm）: x は太陽センサー SS_MX の外面 −56.5（パネル外面 −51.5 から 5 の箱の半分）から、収納したパドルの外面 60.2 まで 116.7。
+/// y は SS_MY・SS_PY の外面 ∓119.5 で 239.0、z は EPT の −185 から PANEL_PZ の 184 まで 369。許容は 125・245・380 なので、
+/// 余裕は x 125 / 116.7 − 1 = 7.1 %、y 245 / 239 − 1 = 2.5 %、z 380 / 369 − 1 = 3.0 %。すべての軸で正（収まる）。
 #[test]
 fn the_demo_stowed_envelope_matches_its_part_boxes() {
     let d = demo();
@@ -209,8 +210,18 @@ fn the_demo_stowed_envelope_matches_its_part_boxes() {
         let fits = axis.limit.value() >= axis.size.value();
         assert_eq!(axis.verdict == Verdict::Ok, fits, "{}", axis.axis);
     }
-    let verdicts: Vec<Verdict> = out.envelope.iter().map(|a| a.verdict).collect();
-    assert_eq!(verdicts, [Verdict::Violation, Verdict::Ok, Verdict::Ok]);
+    // すべての軸が許容に収まり、余裕は正（許容 / 外形 − 1）
+    for axis in &out.envelope {
+        let margin = axis.margin.unwrap().value();
+        assert!(margin > 0.0 && axis.verdict == Verdict::Ok, "{}", axis.axis);
+        assert!((margin - (axis.limit.value() / axis.size.value() - 1.0)).abs() < 1e-12);
+    }
+    // 打ち上げ条件が STOWED を指すので、明示しなくても同じ（選択元は打ち上げ条件）
+    let (json, used) = project_json_with_configuration(LaunchFit::ID, &ctx, None);
+    assert_eq!(used, Some(("STOWED", ConfigurationSource::Launch)));
+    let input: LaunchFitInput = serde_json::from_value(json.unwrap()).unwrap();
+    let again = LaunchFit::run(&input).unwrap();
+    assert_eq!(sizes(&again), sizes(&out));
     assert_eq!(out.envelope[0].at_max, ["SAP_PY"]);
     let skipped: Vec<&str> = out.skipped.iter().map(|s| s.id.as_str()).collect();
     assert_eq!(skipped, boxes.unsized_parts);
@@ -268,4 +279,27 @@ fn the_demo_stowed_paddle_clears_the_body_panel_and_the_sun_sensor() {
         let g = gap(a, b);
         assert!((g - mm * 1e-3).abs() < 1e-9, "{a} {b}: {g}");
     }
+}
+
+/// 4 つの太陽センサーは、パネルの外面から同じだけ出る。SS_MX は SS_PX の鏡像（x が逆）で、y・z は同じ位置にあり、
+/// 箱の内側の面（x = ∓46.5）は内部の箱（PCDU・OBC は x = ±45）から 1.5 mm 離れる（隣り合う部品との隙間 1.5 mm は SS_PX と同じ）。
+/// 手計算（mm）: 外面は ∓(50 + 1.5 + 5) = ∓56.5、内側の面は ∓(51.5 − 5) = ∓46.5。
+#[test]
+fn the_x_sun_sensors_are_mirror_images_and_clear_the_internal_boxes() {
+    let d = demo();
+    let resolved = fune_model::resolve(&d);
+    let boxes = structure::boxes(&Context::bare(&d, &resolved));
+    let find = |id: &str| {
+        let b = boxes.boxes.iter().find(|b| b.id == id).unwrap();
+        OrientedBox::from_size(b.position, b.orientation, b.size)
+    };
+    let (mx, px) = (find("SS_MX"), find("SS_PX"));
+    assert!((mx.center.x + px.center.x).abs() < 1e-12);
+    assert!((mx.center.y - px.center.y).abs() < 1e-12 && (mx.center.z - px.center.z).abs() < 1e-12);
+    assert!((px.center.x - 0.0515).abs() < 1e-12);
+    for other in ["PCDU", "OBC", "STX", "BAT", "CAM"] {
+        let g = separation(&mx, &find(other)).distance;
+        assert!(g >= 1.5e-3 - 1e-9, "SS_MX {other}: {g}");
+    }
+    assert!((separation(&mx, &find("PCDU")).distance - 1.5e-3).abs() < 1e-9);
 }

@@ -52,13 +52,14 @@ fn demo_kpis_show_the_same_values_as_before() {
             "aocs.rw_unloading",
             &[
                 (KpiKey::UnloadInterval, "16.2 h"),
-                (KpiKey::PeakMomentum, "2.37 mN·m·s"),
+                (KpiKey::PeakMomentum, "2.39 mN·m·s"),
             ],
         ),
         // #168 から RCS のアンロード時間も KPI にしたが、デモにスラスタは無いので出ない
         ("aocs.unload_time", &[(KpiKey::MtqUnloadTime, "25.4 min")]),
         ("aocs.sensor_fov", &[(KpiKey::SensorIntrusion, "100 %")]),
-        ("aocs.slew_time", &[(KpiKey::SlewTime, "30.1 s")]),
+        // −X 側の太陽センサーの置き直し（#374）で I_xx が 0.11236 → 0.11226 kg·m² になり、30.06 → 30.04 s（表示 30.1 → 30.0 s）
+        ("aocs.slew_time", &[(KpiKey::SlewTime, "30.0 s")]),
         (
             "cdh.data_budget",
             &[
@@ -108,9 +109,11 @@ fn demo_kpis_show_the_same_values_as_before() {
         ),
         // 構造の新しい解析（#384 干渉・#397 円錐の遮り・#388 外形・打ち上げ適合）の代表値。
         // 干渉と円錐の遮りは判定を数える KPI なので値は「—」で、数は `demo_new_analyses_kpis` が見る
+        // 打ち上げ適合の最小の余裕: 外形が収納形態の全部品の箱になり（#374）、y が最小。手計算: 245 / 239 − 1 = 2.51 %
+        // （x は 125 / 116.7 − 1 = 7.1 %、z は 380 / 369 − 1 = 3.0 %、質量は 12 / 6.30 − 1 = 90 %）
         (
             "structure.launch_fit",
-            &[(KpiKey::LaunchFitMargin, "3.83 %")],
+            &[(KpiKey::LaunchFitMargin, "2.51 %")],
         ),
         (
             "structure.interference",
@@ -122,7 +125,7 @@ fn demo_kpis_show_the_same_values_as_before() {
         ),
         (
             "structure.external_geometry",
-            &[(KpiKey::MeanProjectedArea, "1083 cm²")],
+            &[(KpiKey::MeanProjectedArea, "1082 cm²")],
         ),
         // 軌道の幾何（区間のうち地球までの最大距離。デモは地球周回なので軌道半径）
         (
