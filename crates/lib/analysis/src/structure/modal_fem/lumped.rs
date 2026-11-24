@@ -1,38 +1,21 @@
-//! 集中質量の取り付け。質量の位置を取り付け先のパネルの面に投影し、その点を含む要素の 4 節点に双線形の重みで配る。
+//! 集中質量の取り付け。つなぎ先の優先は、名前の指定のパネル → 取り付け先のフレームの部材（[`super::frame_tie`]）→ 最も近いパネル。
+//! パネルへは、質量の位置をパネルの面に投影し、その点を含む要素の 4 節点に双線形の重みで配る。
 //! 外形（フットプリント）があるときは、投影した範囲を格子状に並べた点それぞれに同じ質量を配る。
 //! 最も近いパネルが（許容差の範囲で）複数あれば、質量をそれらに等分する。
 //! 面から離れた位置のオフセット（回転慣性の増え方）は考えない。
 
+use super::attachment::{Attachment, FOOTPRINT_SAMPLES};
+use super::frame_tie;
 use super::input::{ModalFemInput, ModalFemLumped};
 use super::mesh::{DEFAULT_MERGE_TOLERANCE, Mesh, PanelMesh};
 use crate::spec::AnalysisError;
 
-/// フットプリントの 1 辺あたりの標本点の数。
-pub const FOOTPRINT_SAMPLES: usize = 5;
-
-/// 集中質量の取り付け先。
-#[derive(Debug, Clone)]
-pub struct Attachment {
-    pub id: String,
-    /// 取り付けたパネルの ID
-    pub panel: String,
-    /// 質量の位置からパネルの面までの距離 [m]
-    pub distance: f64,
-    /// 最も近いパネルを自動で選んだか（`false` は名前で指定）
-    pub automatic: bool,
-    /// この部品の質量のうち、このパネルに配った割合（名前で指定なら 1。最も近いパネルが複数なら等分）
-    pub share: f64,
-}
-
-/// 点からパネルの長方形までの最も近い点（面内の座標 (u, v) と距離）。
+/// 点からパネルの長方形までの最も近い点（面内の局所の座標 (u, v) と距離）。
 fn closest(p: &PanelMesh, pos: [f64; 3]) -> ([f64; 2], f64) {
     let [u0, u1, v0, v1] = p.extent();
-    let q = [pos[p.axes[0]].clamp(u0, u1), pos[p.axes[1]].clamp(v0, v1)];
-    let d = [
-        pos[p.axes[0]] - q[0],
-        pos[p.axes[1]] - q[1],
-        pos[p.normal] - p.plane,
-    ];
+    let l = p.local(pos);
+    let q = [l[0].clamp(u0, u1), l[1].clamp(v0, v1)];
+    let d = [l[0] - q[0], l[1] - q[1], l[2]];
     (q, d.iter().map(|x| x * x).sum::<f64>().sqrt())
 }
 
@@ -63,14 +46,17 @@ fn spread(p: &PanelMesh, uv: [f64; 2], m: f64, out: &mut [f64]) {
     }
 }
 
-/// フットプリントの標本点（面内の座標）。無い・点なら中心 1 点。
+/// フットプリントの標本点（面内の局所の座標）。無い・点なら中心 1 点。
+/// 外形の箱（機体の軸に平行）の面内の軸への投影の長さは、箱の辺に軸の向きの成分の絶対値を掛けた和
+/// （軸に平行なパネルでは、面内の軸に対応する辺の長さそのもの）。
 fn samples(p: &PanelMesh, l: &ModalFemLumped, pos: [f64; 3]) -> Vec<[f64; 2]> {
     let [u0, u1, v0, v1] = p.extent();
-    let size = l
-        .footprint
-        .map_or([0.0, 0.0], |f| [f[p.axes[0]].value(), f[p.axes[1]].value()]);
+    let c = p.local(pos);
+    let size = l.footprint.map_or([0.0, 0.0], |f| {
+        [0, 1].map(|i| (0..3).map(|k| p.frame[i][k].abs() * f[k].value()).sum())
+    });
     if size[0] <= 0.0 && size[1] <= 0.0 {
-        return vec![[pos[p.axes[0]].clamp(u0, u1), pos[p.axes[1]].clamp(v0, v1)]];
+        return vec![[c[0].clamp(u0, u1), c[1].clamp(v0, v1)]];
     }
     let at =
         |k: usize, c: f64, len: f64| c + len * ((k as f64 + 0.5) / FOOTPRINT_SAMPLES as f64 - 0.5);
@@ -78,8 +64,8 @@ fn samples(p: &PanelMesh, l: &ModalFemLumped, pos: [f64; 3]) -> Vec<[f64; 2]> {
     for a in 0..FOOTPRINT_SAMPLES {
         for b in 0..FOOTPRINT_SAMPLES {
             out.push([
-                at(a, pos[p.axes[0]], size[0]).clamp(u0, u1),
-                at(b, pos[p.axes[1]], size[1]).clamp(v0, v1),
+                at(a, c[0], size[0]).clamp(u0, u1),
+                at(b, c[1], size[1]).clamp(v0, v1),
             ]);
         }
     }
@@ -115,6 +101,15 @@ fn choose<'a>(
         .collect())
 }
 
+/// 部品がつなぐフレーム（`Mesh::frames` の添字）。パネルを名前で指していず（設定・取り付け先のパネル）、
+/// 取り付け先のフレームに部材がある（辺に節点が 2 つ以上ある辺が 1 本以上ある）ときだけ。
+fn frame_of(mesh: &Mesh, l: &ModalFemLumped) -> Option<usize> {
+    let id = l.frame.as_ref().filter(|_| l.panel.is_none())?;
+    mesh.frames
+        .iter()
+        .position(|f| &f.id == id && !f.edges.is_empty())
+}
+
 /// 集中質量を節点の並進質量 `out` に足し、取り付け先（パネルごとの割合つき）を返す。
 pub fn attach(
     mesh: &Mesh,
@@ -127,6 +122,10 @@ pub fn attach(
     let mut list = Vec::new();
     for l in &input.lumped {
         let pos = l.position.map(|x| x.value());
+        if let Some(frame) = frame_of(mesh, l) {
+            list.extend(frame_tie::tie(mesh, frame, l, pos, out));
+            continue;
+        }
         let set = choose(mesh, l, pos, tol)?;
         let share = 1.0 / set.len() as f64;
         for p in set {
@@ -138,6 +137,7 @@ pub fn attach(
             list.push(Attachment {
                 id: l.id.clone(),
                 panel: p.id.clone(),
+                edge: None,
                 distance: closest(p, pos).1,
                 automatic: l.panel.is_none(),
                 share,

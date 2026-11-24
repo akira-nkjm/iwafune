@@ -139,7 +139,7 @@ pub enum Command {
         #[arg(long)]
         state: Option<String>,
     },
-    /// Remove an overridden value and revert to the catalog value
+    /// Remove an overridden value and revert to the catalog value (also removes one field of an analysis case: `fune unset cases.<ID>.<field>`)
     Unset {
         path: String,
         #[command(flatten)]

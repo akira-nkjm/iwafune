@@ -212,3 +212,60 @@ fn raan_for_beta_zero_is_noon_side() {
     let d = (raan - s.y.atan2(s.x) + core::f64::consts::PI).rem_euclid(TAU) - core::f64::consts::PI;
     assert!(d.abs().to_degrees() < 10.0, "{}", d.to_degrees());
 }
+
+/// 届かない β の誤りの文は、その元期と傾斜角で取れる範囲を度で示す。
+/// 赤道軌道（i = 0）の β は太陽の赤緯 δ ただ 1 つ（春分で 0°、夏至で 23.44°。暦の許容 0.3°）。
+/// 極軌道（i = 90°）は −(90° − δ) 〜 +(90° − δ)。
+#[test]
+fn unreachable_beta_names_the_attainable_range() {
+    let range = |at: &str, i_deg: f64, beta_deg: f64| -> String {
+        let at = Epoch::parse(at).expect("epoch");
+        let spec = OrbitSpec::circular(at, km(550.0), deg(i_deg), deg(0.0));
+        raan_for_beta(&spec, at, beta_deg.to_radians())
+            .unwrap_err()
+            .to_string()
+    };
+    let numbers = |msg: &str| -> Vec<f64> {
+        // 「from A deg to B deg」の 2 つの数
+        let tail = msg.split("can only be from ").nth(1).expect(msg);
+        let (a, rest) = tail.split_once(" to ").expect(msg);
+        let b = rest.split(". ").next().expect(msg);
+        [a, b]
+            .iter()
+            .map(|t| {
+                t.trim_end_matches("°")
+                    .trim()
+                    .split(' ')
+                    .next()
+                    .unwrap()
+                    .parse()
+                    .expect(t)
+            })
+            .collect()
+    };
+    // 春分: 赤道軌道の β は 0°
+    let m = range("2026-03-20T15:00:00Z", 0.0, 30.0);
+    assert!(m.contains("unreachable"), "{m}");
+    let r = numbers(&m);
+    assert!(r[0].abs() < 0.3 && r[1].abs() < 0.3, "{m}");
+    // 夏至: 赤道軌道の β は +23.44°
+    let m = range("2026-06-21T09:00:00Z", 0.0, 30.0);
+    let r = numbers(&m);
+    assert!(
+        (r[0] - 23.44).abs() < 0.3 && (r[1] - 23.44).abs() < 0.3,
+        "{m}"
+    );
+    // 夏至: 極軌道は ±66.56°
+    let m = range("2026-06-21T09:00:00Z", 90.0, 80.0);
+    let r = numbers(&m);
+    assert!(
+        (r[0] + 66.56).abs() < 0.3 && (r[1] - 66.56).abs() < 0.3,
+        "{m}"
+    );
+    // 直し方（元期・傾斜角・値）が書かれている
+    assert!(m.contains("epoch") && m.contains("inclination"), "{m}");
+    // 範囲の中の値は解ける
+    let at = Epoch::parse("2026-06-21T09:00:00Z").expect("epoch");
+    let spec = OrbitSpec::circular(at, km(550.0), deg(90.0), deg(0.0));
+    assert!(raan_for_beta(&spec, at, 60.0_f64.to_radians()).is_ok());
+}

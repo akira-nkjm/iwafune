@@ -104,3 +104,41 @@ fn node_aggregates_parts() {
     .unwrap();
     assert!((c.capacity[0] - 2050.0).abs() < 1e-9);
 }
+
+/// 熱容量が無い節点の判定（`lacks_heat_capacity`）: 質量 0、員数 0、部品なしは熱容量 0。
+/// 部品の 1 つに質量があれば足り、温度一定の境界節点は熱容量が要らない。解析の入力検査も同じ判定を通る。
+#[test]
+fn a_node_without_heat_capacity_is_refused() {
+    assert!(!node("n", None).lacks_heat_capacity());
+    let mut zero_mass = node("n", None);
+    zero_mass.parts[0].mass = Qty::from_raw(0.0);
+    assert!(zero_mass.lacks_heat_capacity());
+    let mut zero_count = node("n", None);
+    zero_count.parts[0].count = 0;
+    assert!(zero_count.lacks_heat_capacity());
+    let mut lumped = zero_mass.clone();
+    lumped.parts.push(node("m", None).parts.remove(0));
+    assert!(!lumped.lacks_heat_capacity());
+    let mut empty = node("n", None);
+    empty.parts.clear();
+    assert!(empty.lacks_heat_capacity());
+    let mut boundary = zero_mass.clone();
+    boundary.fixed_temperature = Some(Qty::from_raw(3.0));
+    assert!(!boundary.lacks_heat_capacity());
+    for n in [zero_mass, zero_count, empty] {
+        let net = ThermalNetwork {
+            mounts: None,
+            nodes: vec![n],
+            conductive: vec![],
+            radiative: vec![],
+            enclosure: None,
+            surfaces: vec![],
+            plates: vec![],
+        };
+        let e = Compiled::new(&net)
+            .map(|_| ())
+            .expect_err("refused")
+            .to_string();
+        assert!(e.contains("must be positive"), "{e}");
+    }
+}

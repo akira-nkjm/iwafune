@@ -98,6 +98,13 @@ impl ThermalNode {
             .sum()
     }
 
+    /// 熱容量が無い節点か（熱容量が正でなく、温度一定の境界節点でもない）。解析はこの節点を入力の誤りとして断る。
+    /// **「この節点には熱容量が無い」の判定はここだけ**（解析の入力検査と、設計の検査の警告が同じ判定を使う）。
+    pub fn lacks_heat_capacity(&self) -> bool {
+        let capacity = self.heat_capacity();
+        self.fixed_temperature.is_none() && (capacity.is_nan() || capacity <= 0.0)
+    }
+
     /// 種類ごとの温度範囲 = 範囲を持つ部品の範囲の共通部分（モードによらない。無い種類は `None`。重ならなければ min > max
     /// になる）。モードのあるケースの判定は [`Self::ranges_in`]。
     pub fn ranges(&self) -> ThermalRanges {
@@ -219,7 +226,7 @@ impl Compiled {
         for n in &plan.nodes {
             let cap = n.heat_capacity();
             let fixed = n.fixed_temperature.map(Qty::value);
-            if !(cap > 0.0 || fixed.is_some()) || fixed.is_some_and(|t| t.is_nan() || t <= 0.0) {
+            if n.lacks_heat_capacity() || fixed.is_some_and(|t| t.is_nan() || t <= 0.0) {
                 return Err(invalid(format!(
                     "Node {}: the sum of part mass × count × specific heat must be positive, and a fixed temperature must be positive",
                     n.id

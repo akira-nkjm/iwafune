@@ -12,4 +12,8 @@ nodes: Array<[number, number, number]>,
 /**
  * パネルごとの四角形
  */
-groups: Array<SurfaceGroup>, };
+groups: Array<SurfaceGroup>, 
+/**
+ * 面でない線（フレームの部材など）の両端の節点番号。面のメッシュだけの解析では空で、出力に出さない
+ */
+lines?: Array<[number, number]>, };

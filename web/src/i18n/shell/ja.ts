@@ -64,6 +64,8 @@ export const shellJa = {
     more: (n: number) => `ほか ${n} 件`,
     checking: "確認中…",
     changedFiles: "変わるファイル:",
+    removedKeys: (path: string, keys: string) =>
+      `${path} から消えます: ${keys}（新しい内容に含まれていません）`,
     change: { created: "新規", modified: "変更", deleted: "削除", renamed: "名前変更" },
   },
   ops: {

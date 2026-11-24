@@ -33,6 +33,7 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
     let mut names = names::NameCheck::new(cfg);
     export_types!(cfg, names;
         fune_store::FileChange,
+        fune_ops::RemovedKeys,
         FormatDesignRequest,
         FormatDesignResult,
         CatalogFetchRequest,

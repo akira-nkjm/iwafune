@@ -1,4 +1,4 @@
-//! `structure.modal_fem` の入力の型。座標はすべて機体座標（SI）。パネルは座標軸に平行な長方形に限る。
+//! `structure.modal_fem` の入力の型。座標はすべて機体座標（SI）。パネルは平らな長方形（座標軸に平行か、`orientation` で斜めに置く）。
 
 use sat_units::typed::{Length, Mass, MassDensity, Pressure, Qty};
 use serde::{Deserialize, Serialize};
@@ -90,17 +90,22 @@ impl ModalFemFace {
     }
 }
 
-/// 軸に平行な長方形のパネル（中央面）。
+/// 長方形のパネル（中央面）。`orientation` が無ければ座標軸に平行（法線は座標軸）、あれば箱の姿勢で斜めに置く。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ModalFemPanel {
     pub id: String,
     /// 中央面の中心 [m]
     pub center: [Qty<Length>; 3],
-    /// 板の法線の軸
+    /// 板の法線の軸（`orientation` があれば、箱の座標系（部品の座標系）の軸）
     pub normal: ModalFemAxis,
-    /// 面内の 2 辺の長さ [m]（法線以外の 2 軸を x, y, z の昇順に並べた順）
+    /// 面内の 2 辺の長さ [m]（法線以外の 2 軸を x, y, z の昇順に並べた順。`orientation` があれば箱の座標系の軸の順）
     pub size: [Qty<Length>; 2],
+    /// 箱の座標系 → 機体座標系の回転 `[w, x, y, z]`（単位クォータニオン）。**あれば斜めのパネル**で、`center` は箱の中心、
+    /// 面内の格子はパネルの面の中で作る（軸に平行なパネルと共通の格子は使わない）。無ければ座標軸に平行（`normal` は機体の軸）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub orientation: Option<[f64; 4]>,
     pub thickness: Qty<Length>,
     pub youngs_modulus: Qty<Pressure>,
     pub poisson_ratio: f64,
@@ -121,9 +126,41 @@ pub struct ModalFemLumped {
     /// 外形の箱の x, y, z 方向の長さ [m]。与えると、取り付けるパネルの面への投影の範囲に質量を配る（無ければ 1 点）
     #[serde(default)]
     pub footprint: Option<[Qty<Length>; 3]>,
-    /// 取り付けるパネルの ID（無ければ最も近いパネル。同じ距離のパネルが複数あれば質量を等分する）
+    /// 取り付けるパネルの ID（無ければ、`frame`、さらに無ければ最も近いパネル。同じ距離のパネルが複数あれば質量を等分する）
     #[serde(default)]
     pub panel: Option<String>,
+    /// 取り付け先をたどったフレーム（`ModalFemFrame::id`）。`panel` が無く、このフレームに部材があれば、質量はフレームの最も近い 2 本の辺に配る
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub frame: Option<String>,
+}
+
+/// フレームの部材の断面（正方形。中実か、肉厚一定の角パイプ）。面積と断面二次モーメントは解析が出す（`beam`）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct ModalFemMemberSection {
+    /// 外側の辺の長さ [m]
+    pub width: Qty<Length>,
+    /// 肉厚 [m]（無ければ中実）
+    #[serde(default)]
+    pub wall: Option<Qty<Length>>,
+}
+
+/// フレーム（構体の枠）。箱（軸に平行）の 12 本の辺を、辺の上のパネルの節点どうしをつなぐ梁（部材）にする。
+/// 質量は部材に沿って配る（断面の寸法から出る質量ではなく、`mass` が正）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct ModalFemFrame {
+    pub id: String,
+    /// 箱の中心 [m]
+    pub center: [Qty<Length>; 3],
+    /// 箱の辺の長さ（機体の x, y, z 方向）[m]
+    pub size: [Qty<Length>; 3],
+    pub youngs_modulus: Qty<Pressure>,
+    pub poisson_ratio: f64,
+    pub section: ModalFemMemberSection,
+    /// フレームの全質量（員数を掛けた素の質量）
+    pub mass: Qty<Mass>,
 }
 
 /// 固定する対象。
@@ -220,7 +257,11 @@ pub struct ModalFemInput {
     pub panels: Vec<ModalFemPanel>,
     #[serde(default)]
     pub lumped: Vec<ModalFemLumped>,
-    /// 射影がモデルにできなかったパネル（斜めのパネルなど。出力の `skipped_panels` にそのまま出す。質量は `lumped` に入れる）
+    /// フレーム（部材の剛性を入れるもの。無ければフレームの質量は `distributed_mass` として全体に配るだけ）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "ts", ts(optional, as = "Option<Vec<ModalFemFrame>>"))]
+    pub frames: Vec<ModalFemFrame>,
+    /// 射影がモデルにできなかったパネル（出力の `skipped_panels` にそのまま出す。質量は `lumped` に入れる）
     #[serde(default)]
     pub skipped_panels: Vec<ModalFemSkipped>,
     /// 全節点に、担当する面積に比例して配る非構造質量（配線・断熱材など）

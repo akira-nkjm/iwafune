@@ -131,6 +131,7 @@ fn print_apply(r: &ApplyResult, out: &Out) -> anyhow::Result<()> {
     if out.json {
         return out.json(r);
     }
+    print_removed(r, out);
     if r.dry_run {
         for f in &r.changed {
             out.diff(&f.diff);
@@ -153,6 +154,28 @@ fn print_apply(r: &ApplyResult, out: &Out) -> anyhow::Result<()> {
         eprint!("{}", diag::render(&r.diagnostics, out.color));
     }
     Ok(())
+}
+
+/// 置き換えで消えるキー（`set` に渡さなかった欄）の知らせ。誤りではないので警告として、書く前（dry run）にも書いた後にも出す。
+fn print_removed(r: &ApplyResult, out: &Out) {
+    let verb = if r.dry_run {
+        "Would remove from"
+    } else {
+        "Removed from"
+    };
+    for removed in &r.removed {
+        out.warn(format!(
+            "{verb} {}: {} (not given to set)",
+            removed.path,
+            removed.keys.join(", ")
+        ));
+    }
+    if !r.removed.is_empty() && !r.dry_run {
+        eprintln!(
+            "  {}",
+            out.dim("`fune undo` restores them; to change one field and keep the rest, see the --help of the command")
+        );
+    }
 }
 
 fn short(rev: &str) -> &str {

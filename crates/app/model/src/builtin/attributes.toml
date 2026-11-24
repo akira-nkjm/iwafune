@@ -501,6 +501,27 @@ display_unit = "mm"
 min          = 0.0
 section      = "structure"
 
+# 構体のフレームの部材（箱の辺の梁。`structure.modal_fem`）。外側の辺と、あれば肉厚（正方形の断面。肉厚が無ければ中実）
+[member_width]
+label        = "部材の外寸"
+label_en     = "Member width"
+type         = "scalar"
+dimension    = "Length"
+units        = ["mm", "m"]
+display_unit = "mm"
+min          = 0.0
+section      = "structure"
+
+[member_wall]
+label        = "部材の肉厚"
+label_en     = "Member wall thickness"
+type         = "scalar"
+dimension    = "Length"
+units        = ["mm", "m"]
+display_unit = "mm"
+min          = 0.0
+section      = "structure"
+
 [material]
 label       = "材料"
 label_en    = "Material"
