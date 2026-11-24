@@ -49,6 +49,7 @@ const NONE_HIDDEN: ReadonlySet<string> = new Set();
 interface PlacementProps {
   variant: "placement";
   design: DesignView;
+  configuration?: string | null;
   /** 重心（機体座標、m。質量特性の出力が無ければ null） */
   com: V3 | null;
 }
@@ -86,7 +87,7 @@ export function Layout3D(props: Layout3DProps) {
 }
 
 /** 構造: 移動・回転とスナップを選び、箱を離したときに Place を送る */
-function PlacementLayout3D({ design, com }: PlacementProps) {
+function PlacementLayout3D({ design, com, configuration }: PlacementProps) {
   const L = useT().systems.layout3d;
   const place = usePlaceBody();
   const [mode, setMode] = useState<TransformMode>("translate");
@@ -95,6 +96,7 @@ function PlacementLayout3D({ design, com }: PlacementProps) {
   return (
     <Layout3DFrame
       design={design}
+      configuration={configuration}
       note={com ? L.com : ""}
       com={com}
       fill
@@ -126,6 +128,7 @@ function PlacementLayout3D({ design, com }: PlacementProps) {
           // 機体座標のまま送る。取付点に対する相対への換算はサーバー（POST /parts/{id}/place_body）
           place.mutate({
             part: id,
+            configuration: configuration ?? undefined,
             position: { x: p[0], y: p[1], z: p[2], unit: "m" },
             orientation: { w: q[0], x: q[1], y: q[2], z: q[3] },
             summary: L.moved(id),
@@ -156,6 +159,7 @@ function HeatLayout3D({ design, colorOf, tools, overlay, corner, sun, aside }: H
 /** 2 つの用途で共通の中身: 見出しの帯・（配置のページでは左の部品のツリー）・3D の場面・右のインスペクタ */
 function Layout3DFrame({
   design,
+  configuration,
   title,
   note,
   colorOf,
@@ -170,6 +174,7 @@ function Layout3DFrame({
   aside,
 }: {
   design: DesignView;
+  configuration?: string | null;
   title?: string;
   /** 部品の数の後ろに添える補足（凡例・重心の印） */
   note: string;
@@ -278,6 +283,7 @@ function Layout3DFrame({
           >
             <LayoutBrowser
               design={design}
+              configuration={configuration}
               placed={placed}
               selected={selected}
               onSelect={pick}
@@ -291,6 +297,7 @@ function Layout3DFrame({
             <Empty className="m-auto">{L.empty}</Empty>
           ) : (
             <Scene3D
+              key={configuration}
               boxes={shown}
               dimensions={dimensions}
               selected={selected}
@@ -333,6 +340,7 @@ function Layout3DFrame({
         ) : (
           <Inspector
             design={design}
+            configuration={configuration}
             selected={selected}
             onSelect={pick}
             unplaced={unplaced}
@@ -352,12 +360,14 @@ function Layout3DFrame({
 /** 右（狭い幅では下）のインスペクタ: 選んだ部品の配置の欄か、操作の案内と未配置の部品 */
 function Inspector({
   design,
+  configuration,
   selected,
   onSelect,
   unplaced,
   className,
 }: {
   design: DesignView;
+  configuration?: string | null;
   selected: string | null;
   onSelect: (id: string) => void;
   unplaced: string[];
@@ -373,9 +383,10 @@ function Inspector({
         <DetailSection title={L.placementOf(part.id)}>
           {!hasSize(part) && <p className="mb-2 text-ink-3 text-xs">{L.noSize}</p>}
           <PlacementSection
-            key={`${part.id}-${design.project.revision}`}
+            key={JSON.stringify([part.id, design.project.revision, configuration, part.mount])}
             design={design}
             part={part}
+            configuration={configuration}
           />
         </DetailSection>
       ) : (

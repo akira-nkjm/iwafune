@@ -130,21 +130,23 @@ fn pose_problems_use_the_part_pose_check_with_the_configuration_target() {
     assert!(find(&d, "unit.parse").is_some(), "{d:?}");
 }
 
+/// 取付の無い部品（根）への上書きは、機体座標での姿勢として解決が使う。警告は出ない（検査は取付のある部品と同じ）。
 #[test]
-fn an_override_on_a_part_without_a_mount_is_a_warning() {
+fn an_override_on_a_root_is_not_a_warning() {
     let d = diags(&[(
         "configurations/X.toml",
         "[pose.BUS]\nposition = { x = 1.0, y = 0.0, z = 0.0 }\n",
     )]);
-    let f = find(&d, "configuration.pose_without_mount").expect("warning");
-    assert_eq!(f.severity, Severity::Warning);
-    assert_eq!(f.target, Some(Target::configuration("X", Some("pose.BUS"))));
-    // 取付のある部品には出ない
+    assert!(
+        find(&d, "configuration.pose_without_mount").is_none(),
+        "{d:?}"
+    );
+    // 取付のある部品と同じ姿勢の検査は根にも掛かる
     let d = diags(&[(
         "configurations/X.toml",
-        "[pose.PADDLE]\nposition = { x = 1.0, y = 0.0, z = 0.0 }\n",
+        "[pose.BUS]\nposition = { x = 1.0, y = 0.0, z = 0.0, unit = \"furlong\" }\n",
     )]);
-    assert!(find(&d, "configuration.pose_without_mount").is_none());
+    assert!(find(&d, "unit.parse").is_some(), "{d:?}");
 }
 
 #[test]

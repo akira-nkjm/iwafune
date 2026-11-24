@@ -108,7 +108,7 @@ pub(super) struct Placement<'a> {
 }
 
 /// 形態の `[pose.<部品>]` へ姿勢を書く（部品の `[pose]` は変えない）。取付先・取付点は部品の取付のまま変えられない
-/// （書かれていれば部品の取付と同じであること）。取付の無い部品への上書きは解決が使わないので拒む。
+/// （書かれていれば部品の取付と同じであること）。取付の無い部品（根）の姿勢は機体座標での姿勢で、これも書ける。
 pub(super) fn place_in(
     edits: &mut Edits,
     design: &Design,
@@ -120,23 +120,18 @@ pub(super) fn place_in(
         .parts
         .get(p.part)
         .ok_or_else(|| OpError::not_found(format!("Part `{}`", p.part)))?;
-    let Some(mount) = part.mount.as_ref() else {
-        return Err(OpError::invalid(format!(
-            "Part `{}` has no mount, so its pose cannot be overridden in a configuration. Mount it first (`fune part place`)",
-            p.part
-        )));
-    };
+    let base_on = part.mount.as_ref().map(|m| m.on.as_str());
+    let base_point = part.mount.as_ref().and_then(|m| m.point.as_deref());
     let differs = |given: Option<&str>, base: Option<&str>| given.is_some_and(|g| Some(g) != base);
-    if differs(p.on, Some(mount.on.as_str())) || differs(p.point, mount.point.as_deref()) {
+    if differs(p.on, base_on) || differs(p.point, base_point) {
+        let base = match (base_on, base_point) {
+            (Some(on), Some(point)) => format!("on `{on}`, point `{point}`"),
+            (Some(on), None) => format!("on `{on}`"),
+            (None, _) => "none, a root of the vehicle".to_owned(),
+        };
         return Err(OpError::invalid(format!(
-            "A configuration overrides only the pose of part `{}`, not its mount (base mount: on `{}`{}). Change the mount without --configuration",
-            p.part,
-            mount.on,
-            mount
-                .point
-                .as_deref()
-                .map(|x| format!(", point `{x}`"))
-                .unwrap_or_default()
+            "A configuration overrides only the pose of part `{}`, not its mount (base mount: {base}). Change the mount without --configuration",
+            p.part
         )));
     }
     if p.position.is_none() && p.orientation.is_none() {

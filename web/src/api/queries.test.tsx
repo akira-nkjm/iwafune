@@ -64,3 +64,30 @@ it("系別のモード表示は、解析を回す依頼と回さない依頼で�
     vi.unstubAllGlobals();
   }
 });
+
+it("部品の一覧と詳細は形態ごとにキャッシュを分け、基準では形態を送らない", async () => {
+  const fetcher = vi.fn(async (_path: string) => new Response("[]"));
+  vi.stubGlobal("fetch", fetcher);
+  const client = new QueryClient();
+  try {
+    const list = q.parts();
+    const configuredList = q.parts("STOWED+1");
+    const part = q.part("P");
+    const configuredPart = q.part("P", [], "STOWED+1");
+    expect(list.queryKey).not.toEqual(configuredList.queryKey);
+    expect(part.queryKey).not.toEqual(configuredPart.queryKey);
+    await client.fetchQuery(list);
+    await client.fetchQuery(configuredList);
+    await client.fetchQuery(part);
+    await client.fetchQuery(configuredPart);
+    expect(fetcher.mock.calls.map(([path]) => path)).toEqual([
+      "/api/v1/parts",
+      "/api/v1/parts?configuration=STOWED%2B1",
+      "/api/v1/parts/P",
+      "/api/v1/parts/P?configuration=STOWED%2B1",
+    ]);
+  } finally {
+    client.clear();
+    vi.unstubAllGlobals();
+  }
+});

@@ -249,8 +249,14 @@ fn a_mount_given_in_a_configuration_must_be_the_base_mount() {
 fn refusals_name_what_is_wrong() {
     let snap = run(snapshot(), &[create("STOWED")]);
     let msg = |op: Op| plan(&snap, &[op]).unwrap_err().to_string();
-    // 取付の無い部品（根）
-    assert!(msg(place_in("R", "STOWED", Some(mm(1.0, 0.0, 0.0)), None)).contains("has no mount"));
+    // 根（取付の無い部品）の姿勢は機体座標での姿勢で、形態の中に書ける（取付先を書けば付け替えになるので拒む）
+    assert!(
+        plan(
+            &snap,
+            &[place_in("R", "STOWED", Some(mm(1.0, 0.0, 0.0)), None)]
+        )
+        .is_ok()
+    );
     // 無い形態・無い部品
     assert!(matches!(
         plan(

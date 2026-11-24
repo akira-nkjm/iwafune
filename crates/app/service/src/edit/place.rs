@@ -65,7 +65,8 @@ pub fn rotation_from_text(text: &str) -> Result<Quaternion> {
 /// 機体座標の位置・姿勢から `Place` の Op を作る（取付先・取付点はそのまま。位置はファイルの今の単位で書く）。
 /// `configuration` があれば、機体座標はその形態で解決した設計で読み（親の姿勢が基準と違えば、取付点に対する姿勢も違う）、
 /// 結果はその形態の `[pose.<部品>]` に書く `Place`（`configuration` つき）になる。逆変換は 1 つ
-/// （`fune_projection::pose::body_to_mount_local`）で、形態ごとの合成は持たない。
+/// （`fune_projection::pose::body_to_mount_local`）で、形態ごとの合成は持たない。取付の根（取付先が無い）の取付点の座標系は
+/// 機体座標なので、同じ逆変換（恒等の座標系）で、機体座標での姿勢がそのまま根の `[pose]` になる。
 pub fn place_body_op(
     ws: &Workspace,
     id: &str,
@@ -80,11 +81,6 @@ pub fn place_body_op(
         .parts
         .get(id)
         .ok_or_else(|| ServiceError::not_found("part", id))?;
-    if rp.mount.is_none() && resolved.is_mount_root(id) {
-        return Err(ServiceError::InvalidInput(format!(
-            "Cannot move part `{id}` in body coordinates because it is the mount root (the origin of body coordinates)"
-        )));
-    }
     let unit = fune_model::design::position_unit(position);
     let si = |v: f64| to_si(v, unit).map_err(|e| ServiceError::InvalidInput(e.to_string()));
     let p_body = Vec3::new(si(position.x)?, si(position.y)?, si(position.z)?);

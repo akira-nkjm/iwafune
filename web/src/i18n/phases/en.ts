@@ -39,6 +39,8 @@ export const phasesEn: typeof phasesJa = {
       end: "Ends when",
       duration: "Duration",
       modes: "Modes used (comma-separated)",
+      configuration: "Configuration used by cases",
+      configurationNone: "Base placement",
       confirmAdd: "Add",
       confirmEdit: "Save",
       summaryAdd: (id: string) => `Add phase ${id}`,

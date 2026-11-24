@@ -276,7 +276,7 @@ section      = "aocs"
 [spin_axis]
 label       = "回転軸"
 label_en    = "Spin axis"
-description = "部品座標の単位ベクトル"
+description = "機体が押される力の向き（部品座標の単位ベクトル）。排気はこの向きの反対に出る。 / The direction of the force on the spacecraft (a unit vector in the part frame). The exhaust leaves in the opposite direction."
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true
@@ -285,7 +285,7 @@ section     = "aocs"
 [axis]
 label       = "軸"
 label_en    = "Axis"
-description = "部品座標の単位ベクトル"
+description = "機体が押される力の向き（部品座標の単位ベクトル）。排気はこの向きの反対に出る。 / The direction of the force on the spacecraft (a unit vector in the part frame). The exhaust leaves in the opposite direction."
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true
@@ -324,7 +324,7 @@ section      = "aocs"
 [direction]
 label       = "推力の向き"
 label_en    = "Thrust direction"
-description = "部品座標の単位ベクトル"
+description = "機体が押される力の向き（部品座標の単位ベクトル）。排気はこの向きの反対に出る。 / The direction of the force on the spacecraft (a unit vector in the part frame). The exhaust leaves in the opposite direction."
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true
@@ -345,7 +345,7 @@ section      = "propulsion"
 [boresight]
 label       = "視線方向"
 label_en    = "Boresight"
-description = "部品座標の単位ベクトル"
+description = "機体が押される力の向き（部品座標の単位ベクトル）。排気はこの向きの反対に出る。 / The direction of the force on the spacecraft (a unit vector in the part frame). The exhaust leaves in the opposite direction."
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true

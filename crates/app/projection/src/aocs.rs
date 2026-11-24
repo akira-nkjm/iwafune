@@ -92,12 +92,7 @@ fn spacecraft(
 
 /// 取付の根の部品（構体）の外形を渡す。面積の近似は解析が行う（空力・太陽輻射圧トルクと高度低下が共有する）。
 pub(crate) fn reference_box(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<Vec3> {
-    let roots: Vec<_> = ctx
-        .resolved
-        .parts
-        .values()
-        .filter(|p| p.mount.is_none() && p.vec3("size").is_some())
-        .collect();
+    let roots = crate::outline::candidates(ctx.resolved);
     let root = match roots.as_slice() {
         [] => return None,
         [root] => root,
@@ -113,7 +108,8 @@ pub(crate) fn reference_box(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<
             return None;
         }
     };
-    let [x, y, z] = ctx.vec3(root, "size")?;
+    let size = ctx.vec3(root, "size")?;
+    let [x, y, z] = crate::outline::body_extents(ctx.resolved, &root.id, size);
     Some(Vec3::new(x, y, z))
 }
 

@@ -13,6 +13,7 @@ import {
   paths,
   SEARCH,
   withDiagramHiddenSystems,
+  withLayoutConfiguration,
 } from "./nav";
 
 /** routes.ts のルートの形（`design/components/:id?`）→ 道筋に合うかの正規表現 */
@@ -200,4 +201,14 @@ describe("系統図の URL の表示状態", () => {
       expect(original.has(SEARCH.diagramHiddenSystem)).toBe(false);
     }
   });
+});
+
+it("配置の形態は URL を往復し、基準へ戻してもほかの検索条件を保つ", () => {
+  const id = "STOWED+1";
+  const url = new URL(paths.layout(id), "https://example.test");
+  expect(url.searchParams.get(SEARCH.configuration)).toBe(id);
+  const params = new URLSearchParams("other=keep");
+  const selected = withLayoutConfiguration(params, id);
+  expect(selected.get(SEARCH.configuration)).toBe(id);
+  expect(withLayoutConfiguration(selected, null)).toEqual(params);
 });

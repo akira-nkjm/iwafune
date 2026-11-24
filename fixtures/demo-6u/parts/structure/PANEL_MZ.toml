@@ -10,11 +10,11 @@ position    = { x = -20.0, y = -40.0, z = 30.0, unit = "mm" }
 orientation = { w = 0.7071067811865476, x = 0.0, y = 0.7071067811865476, z = 0.0 }
 
 [mount_points.RW_SLOT_Y]
-position    = { x = -20.0, y = 40.0, z = 30.0, unit = "mm" }
+position    = { x = -20.0, y = -90.0, z = 30.0, unit = "mm" }
 orientation = { w = 0.7071067811865476, x = -0.7071067811865476, y = 0.0, z = 0.0 }
 
 [mount_points.RW_SLOT_Z]
-position = { x = 25.0, y = 0.0, z = 20.0, unit = "mm" }
+position = { x = 25.0, y = -15.0, z = 20.0, unit = "mm" }
 
 [attr]
 specific_heat = { value = 896.0, unit = "J/(kg*K)" }
