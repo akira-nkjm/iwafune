@@ -3,7 +3,7 @@
 
 use crate::context::Context;
 use crate::missing::MissingInputs;
-use crate::parts::{self, by_role, direction_body};
+use crate::parts::{self, SENSOR_ROLES, by_role, direction_body};
 use crate::quantity::{setting, vec_si};
 use crate::{structure, timeline};
 use fune_model::Target;
@@ -21,9 +21,6 @@ use sat_astro::math::Vec3;
 use sat_units::typed::{Angle, AngularMomentum, Fraction, MagneticDipoleMoment, Qty, Time, Torque};
 
 mod thrust;
-
-/// センサの役割（禁止角を調べる対象）。
-const SENSOR_ROLES: &[Role] = &[Role::StarTracker, Role::SunSensor, Role::Camera];
 
 fn settings<'a>(ctx: &'a Context<'_>) -> Option<&'a fune_model::design::AocsSettings> {
     ctx.design.analysis.aocs.as_ref()

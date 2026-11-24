@@ -155,7 +155,7 @@ impl Analysis for Interference {
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         let tolerance = input.tolerance.unwrap_or(DEFAULT_TOLERANCE);
         ensure_non_negative("Interference tolerance", tolerance.value())?;
-        let (judged, mut skipped) = usable_boxes(input);
+        let (judged, mut skipped) = usable_boxes(&input.boxes, &input.unsized_parts);
         let scan = scan_pairs(&judged, tolerance.value());
         skipped.sort_by(|a, b| a.id.cmp(&b.id));
         let repeated = judged
@@ -181,14 +181,18 @@ impl Analysis for Interference {
     }
 }
 
-fn count(n: usize) -> u32 {
+/// 個数を `u32` にする（飽和）。`structure.cone_clearance` も使う。
+pub(crate) fn count(n: usize) -> u32 {
     u32::try_from(n).unwrap_or(u32::MAX)
 }
 
-/// 判定できる箱（ID の昇順）と、判定しない部品（寸法が無い・正の有限値でない）。
-fn usable_boxes(input: &InterferenceInput) -> (Vec<&InterferenceBox>, Vec<InterferenceSkipped>) {
-    let mut skipped: Vec<InterferenceSkipped> = input
-        .unsized_parts
+/// 判定できる箱（ID の昇順）と、判定しない部品（寸法が無い・正の有限値でない）。箱の使い方の規則はここだけ
+/// （`structure.cone_clearance` も同じ箱の入力を同じ規則で選ぶ）。
+pub(crate) fn usable_boxes<'a>(
+    boxes: &'a [InterferenceBox],
+    unsized_parts: &[String],
+) -> (Vec<&'a InterferenceBox>, Vec<InterferenceSkipped>) {
+    let mut skipped: Vec<InterferenceSkipped> = unsized_parts
         .iter()
         .map(|id| InterferenceSkipped {
             id: id.clone(),
@@ -196,7 +200,7 @@ fn usable_boxes(input: &InterferenceInput) -> (Vec<&InterferenceBox>, Vec<Interf
         })
         .collect();
     let mut judged = Vec::new();
-    for b in &input.boxes {
+    for b in boxes {
         let positive = [b.size.x, b.size.y, b.size.z]
             .iter()
             .all(|v| v.is_finite() && *v > 0.0);
@@ -226,7 +230,17 @@ struct Scan {
 
 /// 取付の連鎖の上にある（片方がもう片方の祖先の）組か。
 fn in_mount_chain(a: &InterferenceBox, b: &InterferenceBox) -> bool {
-    a.mount_ancestors.contains(&b.id) || b.mount_ancestors.contains(&a.id)
+    on_mount_chain(&a.id, &a.mount_ancestors, &b.id, &b.mount_ancestors)
+}
+
+/// ID と取付の祖先で、片方がもう片方の祖先か（連鎖の上にあるかの規則はここだけ。`structure.cone_clearance` も使う）。
+pub(crate) fn on_mount_chain(
+    a_id: &str,
+    a_ancestors: &[String],
+    b_id: &str,
+    b_ancestors: &[String],
+) -> bool {
+    a_ancestors.iter().any(|x| x == b_id) || b_ancestors.iter().any(|x| x == a_id)
 }
 
 /// 全組を調べる（組の順は ID の昇順で固定。軸は `a` から `b` へ）。

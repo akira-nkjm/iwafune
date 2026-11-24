@@ -360,6 +360,19 @@ const labels: Record<string, string> = {
   repeated: "員数が 2 以上の部品（箱は 1 つ）",
   count: "員数",
   tolerance: "重なりの許容差",
+  cone_axis: "円錐の軸（機体座標）",
+  half_angle: "半頂角",
+  apex: "頂点（機体座標）",
+  range: "頂点からの距離の上限",
+  range_is_default: "距離の上限は既定（機体の大きさから決めた値）",
+  parts_with_box: "箱を持つ部品の数",
+  cones: "噴流・視野の円錐",
+  cones_judged: "判定した円錐の数",
+  cones_obstructed: "部品が入っている円錐の数",
+  obstructions: "円錐に入る部品",
+  min_distance: "頂点からの最短距離",
+  parts_in_mount_chain: "取付の連鎖にあり判定しなかった部品の数",
+  skipped_carriers: "判定しなかった円錐の持ち主",
 };
 
 export const fieldsJa = {

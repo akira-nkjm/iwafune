@@ -37,11 +37,12 @@ impl OrientedBox {
     }
 
     /// 箱の 3 軸（機体座標系の単位ベクトル）。
-    fn axes(&self) -> [Vec3; 3] {
+    pub fn axes(&self) -> [Vec3; 3] {
         [Vec3::X, Vec3::Y, Vec3::Z].map(|e| self.orientation.rotate(e))
     }
 
-    fn half(&self) -> [f64; 3] {
+    /// 箱の座標系の各軸の半幅 [m]（`half_extent` の配列）。
+    pub fn half(&self) -> [f64; 3] {
         [self.half_extent.x, self.half_extent.y, self.half_extent.z]
     }
 }

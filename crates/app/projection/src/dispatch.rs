@@ -163,6 +163,7 @@ table!(
     astructure::ModalFem => None,
     astructure::LaunchFit => Some(crate::launch_fit::launch_fit),
     astructure::Interference => Some(structure::interference),
+    astructure::ConeClearance => Some(structure::cone_clearance),
     sat_analysis::orbit::EclipseSeason => Some(crate::orbit::eclipse_season),
     sat_analysis::orbit::OrbitDecay => Some(crate::orbit::decay),
     sat_analysis::propulsion::Maneuvers => Some(propulsion::maneuvers),

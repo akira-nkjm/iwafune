@@ -32,6 +32,10 @@ fn builders_and_readers_agree_for_every_family() {
             vec![(Part, "EPT"), (Part, "RW_Y")],
         ),
         (
+            cone_obstruction("EPT", "SAP_PY"),
+            vec![(Part, "EPT"), (Part, "SAP_PY")],
+        ),
+        (
             thermal_range(family::RANGE_LOW, "BUS", "operating"),
             vec![(ThermalNode, "BUS")],
         ),
