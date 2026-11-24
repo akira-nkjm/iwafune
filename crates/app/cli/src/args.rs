@@ -10,6 +10,7 @@ mod records;
 mod report;
 mod requirements;
 mod skill;
+mod thermal;
 
 pub use configurations::{ConfigurationArgs, ConfigurationCmd};
 pub use defs::{AttrAddArgs, AttrCmd, KindAddArgs, KindCmd};
@@ -27,6 +28,7 @@ pub use records::{
 pub use report::{ReportCmd, ReportExportArgs};
 pub use requirements::{RequirementArgs, RequirementCmd};
 pub use skill::SkillCmd;
+pub use thermal::ThermalCmd;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use std::path::PathBuf;
@@ -152,6 +154,9 @@ pub enum Command {
     /// Operating modes
     #[command(subcommand)]
     Mode(ModeCmd),
+    /// Thermal couplings, outer-surface coatings and coatings (read; edit with `fune set|unset analysis.thermal.…`)
+    #[command(subcommand)]
+    Thermal(ThermalCmd),
     /// Named mode sequences of the power analysis (analysis/power.toml)
     #[command(subcommand)]
     Sequence(SequenceCmd),
@@ -319,4 +324,7 @@ pub struct AnalyzeArgs {
     /// Apply unsaved edits (a JSON file of Ops, or `-` for stdin) without writing, then analyze
     #[arg(long)]
     pub ops: Option<PathBuf>,
+    /// Also return the heavy optional output of the analysis (for example the mode shapes of `structure.modal_fem`) as `detail` in `--json`; analyses without one ignore it
+    #[arg(long)]
+    pub detail: bool,
 }

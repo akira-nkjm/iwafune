@@ -130,3 +130,15 @@ pub async fn system_modes(
     .await
     .map(Json)
 }
+
+/// POST `/thermal/tables`: 熱の結合・表面の表。保存していない編集も同じ経路で評価する。
+pub async fn thermal_tables(
+    State(s): State<AppState>,
+    ApiJson(req): ApiJson<fune_service::dto::ThermalTablesRequest>,
+) -> Result<Json<fune_service::dto::ThermalTablesView>, ApiError> {
+    blocking(&s, move |ws| {
+        fune_service::thermal_tables::thermal_tables(ws, &req)
+    })
+    .await
+    .map(Json)
+}

@@ -21,4 +21,8 @@ projectable: boolean,
 /**
  * この解析が出す KPI（並びは系のページに並べる順。値は実行の結果の `kpis`）
  */
-kpis: Array<KpiDef>, };
+kpis: Array<KpiDef>, 
+/**
+ * 頼んだときだけ返す重い任意の出力（`AnalysisRunResult.detail`）の TS の型名。持たない解析は欄を出さない
+ */
+detail_type?: string, };

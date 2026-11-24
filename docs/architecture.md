@@ -204,13 +204,14 @@ The correspondence between HTTP routes and the CLI and service (`crates/app/cli/
 | `POST /ops/case_from_sun_distance` | `fune case from-sun-distance` | `edit::case_from_sun_distance_op` |
 | `POST /ops/cases_from_geometry` | `fune case from-geometry` | `edit::cases_from_geometry_ops` |
 | `GET /units`, `POST /units/parse`, `/units/format` | `fune units ls`, `parse`, `format` | `units::{units_catalog, parse_quantity, format_quantities}` |
-| `GET /analyses`, `POST /analyses/{id}` | `fune analyze ls`, `fune analyze <ID>` | `analysis::{analysis_catalog, run_analysis}` (exit-code verdict: `analysis::fails`) |
+| `GET /analyses`, `POST /analyses/{id}` | `fune analyze ls`, `fune analyze <ID>` | `analysis::{analysis_catalog, run_analysis}` (exit-code verdict: `analysis::fails`). `detail: true` in the request (`--detail` on the CLI) also returns the analysis's heavy optional output (`detail`, typed by `detail_type` of the list; for example the mode shapes of `structure.modal_fem`); by default it is absent |
 | `GET` and `POST /budgets/{kind}` | `fune budget <kind>` | `budget::budget` (exit-code verdict: `budget::failure::fails`) |
 | `POST /report/export` | `fune report export` | `report::export` (the service returns the files' contents; the CLI writes them to `--out`) |
 | `GET /data/status`, `/data/space_weather`, `POST /data/{id}/fetch` | `fune data status`, `space-weather`, `fetch` | `data::{data_status, space_weather::lookup, fetch}` |
 | `GET /catalog/{id}` | `fune catalog show` | `query::catalog_item` |
 | `POST /catalog/fetch`, `/catalog/update` | `fune catalog fetch`, `update` | `shared_catalog::{fetch, update}` |
 | `POST /system_modes/{system}` | `fune mode view <system> [--ops] [--case] [--analyzed] [--totals-only]` | `system_modes::system_modes` (exit-code verdict: `system_modes::fails`) |
+| `POST /thermal/tables` | `fune thermal tables [--ops] [--case]` | `thermal_tables::thermal_tables` |
 
 Tests verify the following two things.
 
@@ -264,6 +265,7 @@ Warnings never fail. The determination of "the result fails" is a service functi
 | `GET /units`, `POST /units/parse`, `/units/format` | The list of units, parsing of input (dimension and SI conversion), display strings of SI values |
 | `GET /analyses`, `POST /analyses/{id}`, `GET`/`POST /budgets/{kind}` | The list and execution of analyses, budgets (§6. The `case` and `ops` of POST specify the analysis case and the draft) |
 | `POST /system_modes/{system}` | The per-subsystem mode view (values, totals and verdicts of power, C&DH, thermal and AOCS; the `ops`, `case`, `analyzed` and `summary` of the request select the draft and the view) |
+| `POST /thermal/tables` | The thermal couplings (value in use, source), outer-surface coatings, coatings and node min/max temperatures, with the request's draft `ops` applied (the GUI's "Couplings and surfaces" tab) |
 | `GET /data/status`, `GET /data/space_weather`, `POST /data/{id}/fetch` | Status and fetching of external data, and the space weather table (§6.5) |
 | `POST /report/export` | Exports the design report |
 | `POST /catalog/fetch`, `POST /catalog/update` | Fetching and updating a shared catalog |
@@ -475,6 +477,6 @@ Planned features are in [roadmap.md](roadmap.md) and GitHub Issues. This documen
 
 The top-level division of parts is the subsystem (`parts/<subsystem ID>/`). `Design::system_of` decides it in the order of location → role → unassigned, and passes it to Resolved and the API's `PartRow.system`. The display names of subsystems and budgets are in the built-in vocabulary (Japanese and English), and the colors are held only by the mapping in the Web's `lib/systems.ts`. The key of an allocation is a subsystem or a part ID, and the limit is held by a requirement (`verify.budget`; check warns if there is none). init does not set limits.
 
-For 3D, `features/layout3d/scene.ts` builds the display dimensions from the longest side of the outline including rotation (Bounds). Provisional boxes, direction arrows, the center-of-mass sphere, the coordinate axes, the grid and the camera share the ratios of `SCENE_RATIOS`. The display reference is used only when there is neither a shape nor a spread of positions. The edit snap is the real size the user selects, and the manipulation handles and the corner gizmo have a size relative to the screen.
+The 3D scene shell (canvas, lights, fit-to-bounds, free orbit, view cube, camera moves) is `kit/scene3d/SceneShell`; placement, the thermal image and the mesh field view (`kit/scene3d/SurfaceField`, used for the mode shapes in the analysis row) share it. For 3D, `features/layout3d/scene.ts` builds the display dimensions from the longest side of the outline including rotation (Bounds). Provisional boxes, direction arrows, the center-of-mass sphere, the coordinate axes, the grid and the camera share the ratios of `SCENE_RATIOS`. The display reference is used only when there is neither a shape nor a spread of positions. The edit snap is the real size the user selects, and the manipulation handles and the corner gizmo have a size relative to the screen.
 
 Like a CAD browser, the placement page shows on the left the same product tree as the parts page (`PartsTree`; the folders of `parts/` and the parent-child relations of assemblies). Pressing a part in the tree also selects it in 3D, and the view moves toward the part's outline (the orientation is kept). A part selected in 3D is also selected in the tree, and a closed folder opens. The eye icons on parts and folders show and hide the 3D boxes (for a folder, all descendants together), and the operation bar shows and hides the origin axes, the ground grid and the corner axes. All of these are state inside the page and are written neither to the design data nor to the URL (the display dimensions remain the outline including hidden parts). When narrow, the 3D, tree and placement fields stack vertically in that order, and at medium widths the tree and 3D sit side by side with the placement fields below them.

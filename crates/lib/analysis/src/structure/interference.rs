@@ -10,6 +10,9 @@
 //!   取付の面では接して食い込む。祖先の箱は子孫を含んでいてよい箱として扱い、祖先と子孫の組（取付の連鎖の上にある 2 つ。
 //!   間に箱を持たない部品があってもよい）は数えない。子孫どうし（兄弟）や別の枝の部品との組は、いつも判定する。
 //!   限界: 子が自分の祖先の箱から外へはみ出す・祖先の箱の中で別の部品に当たらない、は祖先との組では見えない（箱では収容と干渉を区別できない）。
+//! - **縁の接触**: 重なりのうち、縁に沿った薄い切れ端だけが食い込むもの（隣り合うパネルの箱が、取付先の面に中心を置くために
+//!   共有する縁で板厚の半分ずつ重なる、など）は、干渉の警告にせず `edge_contacts` に分けて残す（規則は [`edge_contact`]。役割は見ない。
+//!   面に食い込む部品は縁の接触にならない）。
 //! - **員数（`count`）が 2 以上の部品は 1 つの位置に重ねて置く**: 同じ部品どうし（自分自身・複製）は比べない。ほかの部品との組は 1 つの箱で判定する。
 //! - 寸法が無い（または正でない）部品は判定せず、一覧に残す。箱が 2 つに満たなければ、重なり無しの成功にする。
 //!
@@ -18,17 +21,20 @@
 //!
 //! 幾何は [`obb`]（向きつきの箱の分離軸の判定）。
 
+pub mod edge_contact;
 pub mod obb;
+mod scan;
 
-use super::acknowledged::{Acknowledgement, find, note};
+use super::acknowledged::{Acknowledgement, note};
 use crate::spec::quantity_text;
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict,
     ensure_non_negative,
 };
-use obb::{OrientedBox, separation};
+use edge_contact::EdgeContact;
 use sat_astro::math::{Quat, Vec3};
 use sat_units::typed::{Dimensionless, Length, Qty};
+use scan::{Scan, scan_pairs};
 use serde::{Deserialize, Serialize};
 
 /// 重なりの深さの許容差の既定 [m]（0.1 mm）。これ以下の重なりは干渉に数えない。
@@ -145,6 +151,9 @@ pub struct InterferenceOutput {
     pub pairs_in_mount_chain: u32,
     /// 重なっている組（深い順）
     pub overlaps: Vec<InterferencePair>,
+    /// 縁に沿った薄い切れ端だけが重なる組（縁の接触。干渉の警告にはしないが、隠さず残す。規則は [`edge_contact`]。深い順）
+    #[serde(default)]
+    pub edge_contacts: Vec<EdgeContact>,
     /// 重なっていない組のうち最も近いもの（組が無ければ `None`）
     pub min_clearance: Option<InterferenceClearance>,
     /// 判定しなかった部品
@@ -191,6 +200,7 @@ impl Analysis for Interference {
             pairs_judged: count(scan.judged),
             pairs_in_mount_chain: count(scan.related),
             overlaps: scan.overlaps,
+            edge_contacts: scan.edge_contacts,
             min_clearance: scan.clearance,
             skipped,
             repeated,
@@ -243,19 +253,6 @@ pub(crate) fn usable_boxes<'a>(
     (judged, skipped)
 }
 
-/// 全組の走査の結果。
-struct Scan {
-    judged: usize,
-    related: usize,
-    overlaps: Vec<InterferencePair>,
-    clearance: Option<InterferenceClearance>,
-}
-
-/// 取付の連鎖の上にある（片方がもう片方の祖先の）組か。
-fn in_mount_chain(a: &InterferenceBox, b: &InterferenceBox) -> bool {
-    on_mount_chain(&a.id, &a.mount_ancestors, &b.id, &b.mount_ancestors)
-}
-
 /// ID と取付の祖先で、片方がもう片方の祖先か（連鎖の上にあるかの規則はここだけ。`structure.cone_clearance` も使う）。
 pub(crate) fn on_mount_chain(
     a_id: &str,
@@ -264,68 +261,6 @@ pub(crate) fn on_mount_chain(
     b_ancestors: &[String],
 ) -> bool {
     a_ancestors.iter().any(|x| x == b_id) || b_ancestors.iter().any(|x| x == a_id)
-}
-
-/// 全組を調べる（組の順は ID の昇順で固定。軸は `a` から `b` へ）。
-fn scan_pairs(
-    boxes: &[&InterferenceBox],
-    tolerance: f64,
-    acknowledged: &[Acknowledgement],
-) -> Scan {
-    let placed: Vec<OrientedBox> = boxes
-        .iter()
-        .map(|b| OrientedBox::from_size(b.position, b.orientation, b.size))
-        .collect();
-    let mut scan = Scan {
-        judged: 0,
-        related: 0,
-        overlaps: Vec::new(),
-        clearance: None,
-    };
-    for i in 0..boxes.len() {
-        for j in (i + 1)..boxes.len() {
-            let (a, b) = (boxes[i], boxes[j]);
-            // 同じ ID の箱は同じ部品として比べない
-            if a.id == b.id {
-                continue;
-            }
-            if in_mount_chain(a, b) {
-                scan.related += 1;
-                continue;
-            }
-            scan.judged += 1;
-            let s = separation(&placed[i], &placed[j]);
-            if s.depth() > tolerance {
-                let ack = find(acknowledged, &a.id, &b.id, false);
-                scan.overlaps.push(InterferencePair {
-                    first: a.id.clone(),
-                    second: b.id.clone(),
-                    depth: Qty::from_raw(s.depth()),
-                    separation_axis: s.axis,
-                    acknowledged: ack.is_some(),
-                    reason: ack.map(|a| a.reason.clone()),
-                    acknowledged_configuration: ack.and_then(|a| a.configuration.clone()),
-                });
-            } else {
-                let gap = s.distance.max(0.0);
-                let nearer = scan.clearance.as_ref().is_none_or(|c| gap < c.gap.value());
-                if nearer {
-                    scan.clearance = Some(InterferenceClearance {
-                        first: a.id.clone(),
-                        second: b.id.clone(),
-                        gap: Qty::from_raw(gap),
-                    });
-                }
-            }
-        }
-    }
-    scan.overlaps.sort_by(|x, y| {
-        y.depth
-            .value()
-            .total_cmp(&x.depth.value())
-            .then_with(|| (&x.first, &x.second).cmp(&(&y.first, &y.second)))
-    });
-    scan
 }
 
 /// 向きの成分の文（丸めた -0 は 0 にする）。
@@ -341,9 +276,10 @@ fn checks(scan: &Scan, parts: usize, tolerance: Qty<Length>) -> Vec<Check> {
             "Fewer than two parts have a size, so there is nothing to compare".to_owned()
         } else {
             format!(
-                "No boxes overlap by more than the tolerance {} ({parts} parts, {} pairs judged; boxes are an approximation of the real shapes)",
+                "No boxes overlap by more than the tolerance {} ({parts} parts, {} pairs judged, {} edge contacts listed separately; boxes are an approximation of the real shapes)",
                 quantity_text::<Length>(tolerance.value()),
-                scan.judged
+                scan.judged,
+                scan.edge_contacts.len()
             )
         };
         return vec![Check::new(

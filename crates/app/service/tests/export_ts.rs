@@ -8,3 +8,22 @@ fn export_ts() {
     let files = fune_service::dto::export_ts(&dir).expect("TS types can be written");
     assert!(files.iter().any(|f| f.ends_with("index.ts")));
 }
+
+/// 重い任意の出力の型名（`Analysis::DETAIL_TYPE`）は、その型の TS の名前と一致し、書き出される。
+#[test]
+fn detail_type_names_match_the_exported_types() {
+    use ts_rs::TS;
+    let cfg = ts_rs::Config::new();
+    let name = <sat_analysis::structure::ModalFemShapes as TS>::name(&cfg);
+    assert_eq!(
+        sat_analysis::catalog::detail_type("structure.modal_fem"),
+        Some(name.as_str())
+    );
+    let dir = tempfile::tempdir().unwrap();
+    fune_service::dto::export_ts(dir.path()).unwrap();
+    for entry in fune_service::analysis::analysis_catalog().unwrap() {
+        if let Some(name) = entry.detail_type {
+            assert!(dir.path().join(format!("{name}.ts")).exists(), "{name}");
+        }
+    }
+}

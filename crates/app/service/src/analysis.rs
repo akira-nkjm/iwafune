@@ -55,6 +55,7 @@ pub fn analysis_catalog() -> Result<Vec<AnalysisEntry>> {
                 output_type: row.output_type.clone(),
                 projectable: row.projectable,
                 kpis: kpi::defs(&info.id),
+                detail_type: sat_analysis::catalog::detail_type(&info.id).map(str::to_owned),
                 info,
             })
         })
@@ -75,6 +76,8 @@ struct Outcome {
     configuration: Option<(String, ConfigurationSource)>,
     /// 入力に足した宇宙天気の表の版
     space_weather: Option<crate::dto::SpaceWeatherVersion>,
+    /// 重い任意の出力（頼まれて、解析が持つときだけ）
+    detail: Option<Value>,
 }
 
 impl Outcome {
@@ -90,6 +93,7 @@ impl Outcome {
             case_mode: None,
             configuration: None,
             space_weather: None,
+            detail: None,
         }
     }
 }
@@ -166,6 +170,7 @@ fn finish(id: &str, (case, case_source, side): CaseInfo, outcome: Outcome) -> An
         dims: outcome.dims,
         labels: outcome.labels,
         space_weather: outcome.space_weather,
+        detail: outcome.detail,
         overview: crate::dto::AnalysisOverview::default(),
         part_heat: None,
         part_findings: None,
@@ -261,7 +266,7 @@ fn run_inner(
             }
         }
     };
-    Ok(evaluate(id, projected, configuration))
+    Ok(evaluate(id, projected, configuration, req.detail))
 }
 
 /// 組み立てた入力で解析を実行し、出力の表示情報も作る。
@@ -273,9 +278,10 @@ fn evaluate(
         space_weather,
     }: Projected,
     configuration: Option<(String, ConfigurationSource)>,
+    detail: bool,
 ) -> Outcome {
-    match sat_analysis::catalog::run_json(id, input.clone()) {
-        Ok(mut output) => {
+    match sat_analysis::catalog::run_json_detailed(id, input.clone(), detail) {
+        Ok((mut output, detail)) => {
             channels::fix_channels(&mut output);
             let (dims, labels) = output_meta(id, &output);
             Outcome {
@@ -289,6 +295,7 @@ fn evaluate(
                 case_mode,
                 configuration,
                 space_weather,
+                detail,
             }
         }
         Err(e) => Outcome {

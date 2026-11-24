@@ -160,3 +160,61 @@ pub struct ThermalSettings {
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub subdivide: BTreeMap<String, ThermalSubdivideSettings>,
 }
+
+impl ThermalSettings {
+    /// まだ書かれていない欄の値の形の見本（`analysis.thermal.` の後ろの区切り → 型。既定値ではない）。
+    /// 表面材の吸収率・放射率と面積割合は小数として読む（`1` を整数で書かせない）、ラベルは数に見えても文字列として読む。
+    /// 明示の結合は量。`fune set` と GUI の下書きが同じ読み方になるよう、型を決めるのはここだけ。
+    pub fn field_shape(segments: &[String]) -> Option<crate::value::SettingValue> {
+        use crate::value::SettingValue;
+        let s: Vec<&str> = segments.iter().map(String::as_str).collect();
+        match s.as_slice() {
+            ["conductive" | "radiative", _, _] => {
+                Some(SettingValue::Quantity(Quantity::new(0.0, "")))
+            }
+            ["coating", _, "absorptivity" | "emissivity"] | ["surface", _, _] => {
+                Some(SettingValue::Number(0.0))
+            }
+            ["coating", _, "label"] => Some(SettingValue::Text(String::new())),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod field_shape_tests {
+    use super::*;
+    use crate::value::SettingValue;
+
+    fn shape(path: &str) -> Option<SettingValue> {
+        let segments: Vec<String> = path.split('/').map(str::to_owned).collect();
+        ThermalSettings::field_shape(&segments)
+    }
+
+    /// 面積割合・吸収率・放射率は小数、ラベルは文字列、明示の結合は量として読む。
+    #[test]
+    fn unwritten_fields_get_their_type() {
+        assert!(matches!(
+            shape("surface/PANEL_PX/white"),
+            Some(SettingValue::Number(_))
+        ));
+        assert!(matches!(
+            shape("coating/white/emissivity"),
+            Some(SettingValue::Number(_))
+        ));
+        assert!(matches!(
+            shape("coating/white/label"),
+            Some(SettingValue::Text(_))
+        ));
+        assert!(matches!(
+            shape("conductive/A/B"),
+            Some(SettingValue::Quantity(_))
+        ));
+        assert!(matches!(
+            shape("radiative/A/B"),
+            Some(SettingValue::Quantity(_))
+        ));
+        assert!(shape("orbits").is_none());
+        assert!(shape("coating/white").is_none());
+    }
+}

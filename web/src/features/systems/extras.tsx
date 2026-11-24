@@ -7,6 +7,7 @@ import type { SystemTab } from "./SystemTabs";
 import { rangeChartOf } from "./thermal/rangeChart";
 import { ThermalImage } from "./thermal/ThermalImage";
 import { ThermalRangeChart } from "./thermal/ThermalRangeChart";
+import { ThermalNetworkTab } from "./thermal/tables/ThermalNetworkTab";
 
 function resultOf(states: readonly AnalysisState[], id: string) {
   return states.find((s) => s.id === id)?.result;
@@ -32,6 +33,7 @@ const EXTRAS: Record<
     const model = rangeChartOf(steady, transient);
     return {
       results: model ? <ThermalRangeChart model={model} kase={kase} /> : null,
+      couplings: <ThermalNetworkTab kase={kase} />,
       heat: (
         <ThermalImage
           design={design}

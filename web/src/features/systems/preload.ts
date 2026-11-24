@@ -13,11 +13,11 @@ export const EXTRA_CHUNKS = {
 } as const satisfies Partial<Record<System, readonly (() => Promise<unknown>)[]>>;
 
 /**
- * 系が、共通のタブのほかに出すタブ（熱の熱画像と、解析のカードを並べる解析結果。推進のマヌーバの定義）。
+ * 系が、共通のタブのほかに出すタブ（熱の熱画像と、結合・表面を直す結合と表面、解析のカードを並べる解析結果。推進のマヌーバの定義）。
  * 系のページのタブの出し分けはこれで決める。大きなチャンクを使わないタブだけの系（推進）も書ける。
  */
 export const EXTRA_TABS = {
-  thermal: ["heat", "analyses"],
+  thermal: ["heat", "couplings", "analyses"],
   propulsion: ["maneuvers"],
 } as const satisfies Partial<Record<System, readonly SystemTab[]>>;
 

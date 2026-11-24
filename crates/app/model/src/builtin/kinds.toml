@@ -124,7 +124,7 @@ label_en = "Antenna"
 extends  = "component"
 role     = "antenna"
 required = ["antenna_gain"]
-optional = ["boresight"]
+optional = ["boresight", "beamwidth"]
 
 [camera]
 label    = "カメラ"

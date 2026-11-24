@@ -450,6 +450,18 @@ units        = ["dBi", "dB"]
 display_unit = "dBi"
 section      = "comm"
 
+[beamwidth]
+label        = "ビーム幅"
+label_en     = "Beamwidth"
+description  = "アンテナの半値全幅（ボアサイトを中心にした全角。半頂角はこの半分）。機体の部品がビームに入っていないかの確認に使う / The full half-power beamwidth of an antenna, centred on its boresight (the cone's half angle is half of this). Used to check that no part of the spacecraft lies inside the beam."
+type         = "scalar"
+dimension    = "Angle"
+units        = ["deg", "rad"]
+display_unit = "deg"
+min          = 0.0
+max          = 3.141592653589793
+section      = "comm"
+
 [noise_temperature]
 label        = "雑音温度"
 label_en     = "Noise temperature"

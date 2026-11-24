@@ -33,6 +33,8 @@ import type {
   System,
   SystemModesRequest,
   SystemModesView,
+  ThermalTablesRequest,
+  ThermalTablesView,
   UnitsCatalog,
 } from "./types";
 
@@ -82,6 +84,20 @@ export const q = {
       ...(analyzed ? { staleTime: 30_000 } : {}),
     });
   },
+  /**
+   * 熱の結合・表面の表（`POST /thermal/tables`）。`ops` は保存していない編集（書き込まずに当てた設計の表。下書きの前後を並べて見せる）。
+   */
+  thermalTables: (kase: string | null, ops: readonly Op[] = []) =>
+    queryOptions({
+      queryKey: keys.thermalTables(kase, JSON.stringify(ops)),
+      queryFn: () =>
+        api<ThermalTablesView>("/thermal/tables", {
+          method: "POST",
+          body: { case: kase, ops: [...ops] } satisfies ThermalTablesRequest,
+        }),
+      staleTime: 30_000,
+      placeholderData: keepPreviousData,
+    }),
   /** 部品の一覧。形態の指定があれば、その形態での取付・姿勢を読む。 */
   parts: (configuration: PartsQuery["configuration"] = null) =>
     queryOptions({
@@ -101,6 +117,25 @@ export const q = {
       },
     });
   },
+  /**
+   * 解析の重い任意の出力つきの実行（`detail: true`。メッシュ上の場など。結果の `detail` に入る）。
+   * 解析の行を開いたときだけ取る。ケース・形態は、行の結果が使ったもの（`AnalysisRunResult.case`・`configuration`）
+   */
+  analysisDetail: (id: string, kase: string | null, configuration: string | null = null) =>
+    queryOptions({
+      queryKey: keys.analysisDetail(id, kase, configuration),
+      queryFn: () => {
+        const body: RunAnalysisRequest = {
+          case: kase,
+          ...(configuration ? { configuration } : {}),
+          source: { kind: "design" },
+          ops: [],
+          detail: true,
+        };
+        return api<AnalysisRunResult>(`/analyses/${seg(id)}`, { method: "POST", body });
+      },
+      staleTime: 30_000,
+    }),
   /** 編集の履歴（取り消し・やり直しのボタンの有効・無効） */
   history: () =>
     queryOptions({ queryKey: keys.history, queryFn: () => api<HistoryView>("/history") }),
@@ -138,6 +173,7 @@ export const q = {
           ...(configuration ? { configuration } : {}),
           source: { kind: "design" },
           ops: [...ops],
+          detail: false,
         };
         return api<AnalysisRunResult>(`/analyses/${seg(id)}`, { method: "POST", body });
       },
