@@ -45,10 +45,14 @@ export function AnalysisRowDetail({
                 {result.kpis.map((k) => (
                   <div key={k.key} className="flex items-center gap-2 px-3 py-1.5 text-xs">
                     <dt className="min-w-0 flex-1 text-ink-2">{localized(k.label, k.label_en)}</dt>
-                    <dd className="num font-medium text-ink">
+                    <dd className="num shrink-0 text-right font-medium text-ink">
                       {kpiText(k, (n) => dict.systems.kpiTally(n.checked, n.flagged))}
                     </dd>
-                    {k.verdict && <VerdictPill verdict={k.verdict} />}
+                    {k.verdict && (
+                      <span className="shrink-0">
+                        <VerdictPill verdict={k.verdict} />
+                      </span>
+                    )}
                   </div>
                 ))}
               </dl>

@@ -97,6 +97,20 @@ pub enum KpiKey {
     ComShift,
     /// 噴射中の最大 DoD（数値伝搬のマヌーバのうち最大）
     ThrustMaxDod,
+    /// 打ち上げ適合の最小の余裕（質量・包絡・固有振動数のうち最小）
+    LaunchFitMargin,
+    /// 部品の干渉（判定した組のうち重なっている組を数える）
+    InterferenceOverlaps,
+    /// 円錐の遮り（判定した円錐のうち部品が入っているものを数える）
+    ConeObstructions,
+    /// 外形の投影面積の平均
+    MeanProjectedArea,
+    /// 日付つきの遷移の、到着の日のずれ（遷移のうち最大）
+    TransferMiss,
+    /// 打ち上げの窓の ΔV の最小（窓のうち最小）
+    LaunchWindowDeltaV,
+    /// 地球までの距離の最大（区間のうち最大）
+    GreatestEarthDistance,
 }
 
 /// KPI の定義（`GET /analyses` の `AnalysisEntry.kpis`。結果が届く前に名前を並べるのに使う）。

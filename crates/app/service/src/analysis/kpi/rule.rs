@@ -144,6 +144,17 @@ pub(super) fn rule(key: KpiKey) -> Rule {
             Fill::OkShare,
             Tally::Items,
         ),
+        // 打ち上げ適合の余裕の KPI は判定にしない（質量・包絡の軸の check のキーは `envelope:<軸>` で部品の名前を持たず、
+        // 族の表に無い。解析の行の判定が全体の最悪を見せる）
+        // 重なりと遮りは組ごとの警告（`overlap:`・`obstruction:`）。数は出力から数える（`kpi_table!` の戻りが `KpiTally`）
+        K::InterferenceOverlaps => (Prefix(family::OVERLAP), Fill::None, Tally::None),
+        K::ConeObstructions => (Prefix(family::OBSTRUCTION), Fill::None, Tally::None),
+        // 到着のずれは `transfer_check_arrival_miss`（影響圏の半径との比較。DE440 のときだけ判定）
+        K::TransferMiss => (
+            Exact("transfer_check_arrival_miss"),
+            Fill::None,
+            Tally::None,
+        ),
         K::OrbitBalance => (Exact("energy_balance"), Fill::None, Tally::None),
         // 軌道寿命は、ミッション期間との比較と寿命の上限の 2 つ（推薬で保てる期間 `propellant_life` は別の量）
         K::OrbitLifetime => (
@@ -205,7 +216,11 @@ pub(super) fn rule(key: KpiKey) -> Rule {
         | K::DvWithMargin
         | K::LoadedPropellant
         | K::ManeuversEnd
-        | K::ComShift => (Unjudged, Fill::None, Tally::None),
+        | K::ComShift
+        | K::LaunchFitMargin
+        | K::MeanProjectedArea
+        | K::LaunchWindowDeltaV
+        | K::GreatestEarthDistance => (Unjudged, Fill::None, Tally::None),
     };
     Rule {
         checks,

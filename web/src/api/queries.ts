@@ -239,9 +239,20 @@ export function useAnalyses(
   });
 }
 
+/**
+ * ページに並べる解析: 設計データから入力を作れるもの（API の `projectable`）だけ。作れない解析（入力を JSON で渡す
+ * 解析）は並べない（走らせると「実装していない」という失敗になり、概要・判定の集計にも入ってしまう）。
+ * 作れない解析は CLI（`fune analyze <id> --input`・`fune analyze ls`）で使う。
+ */
+function listable(entries: readonly AnalysisEntry[]): AnalysisEntry[] {
+  return entries.filter((e) => e.projectable);
+}
+
 /** ある系の解析。系への所属は sat-analysis の info.area が正本 */
 function systemEntries(entries: readonly AnalysisEntry[], system: string | null): AnalysisEntry[] {
-  return entries.filter((e) => e.info.area.kind === "system" && e.info.area.value === system);
+  return listable(entries).filter(
+    (e) => e.info.area.kind === "system" && e.info.area.value === system,
+  );
 }
 
 /** 解析の一覧（GET /analyses）から、ある系の解析（一覧の順）とその ID を引く */
@@ -271,7 +282,7 @@ export async function prefetchSystemAnalyses(system: string): Promise<void> {
 /** 前提条件の話題に属する解析（系の解析とは別の区分）。 */
 export function useConditionAnalyses(topic: ConditionTopic) {
   const catalog = useQuery(q.analyses());
-  const entries = (catalog.data ?? []).filter(
+  const entries = listable(catalog.data ?? []).filter(
     (e) => e.info.area.kind === "condition" && e.info.area.value === topic,
   );
   return { entries, ids: entries.map((e) => e.info.id), loading: catalog.isPending };

@@ -6,7 +6,7 @@ use fune_model::design::{
     ManeuverTarget,
 };
 use fune_model::value::Quantity;
-use fune_service::dto::{AnalysisRunStatus, Op, RunAnalysisRequest};
+use fune_service::dto::{AnalysisRunStatus, KpiKey, Op, RunAnalysisRequest};
 use fune_service::{Workspace, analysis};
 use std::path::Path;
 
@@ -53,6 +53,10 @@ fn the_demo_has_no_interplanetary_maneuver_so_the_result_is_empty() {
     assert_eq!(out["windows"].as_array().unwrap().len(), 0);
     assert_eq!(out["points"].as_array().unwrap().len(), 0);
     assert!(result.checks.is_empty());
+    // 窓が無いことは KPI の値なし（行は「—」）
+    assert_eq!(result.kpis.len(), 1);
+    assert_eq!(result.kpis[0].key, KpiKey::LaunchWindowDeltaV);
+    assert!(result.kpis[0].value.is_none());
 }
 
 #[test]
@@ -65,6 +69,12 @@ fn a_mars_maneuver_gets_a_grid_labelled_points_and_dimensions() {
     assert_eq!(w["grid"]["departures"].as_array().unwrap().len(), 100);
     assert_eq!(w["grid"]["layers"].as_array().unwrap().len(), 5);
     assert!(w["solved_cells"].as_u64().unwrap() > 1000);
+    // 代表値は窓の最小 ΔV で、出力の値と一致する
+    assert_eq!(result.kpis[0].key, KpiKey::LaunchWindowDeltaV);
+    assert_eq!(
+        result.kpis[0].value.as_ref().unwrap().si,
+        w["minimum_delta_v"]["delta_v"].as_f64().unwrap()
+    );
     // 量の次元（点の C3・ΔV・飛行時間）と、点の種類の表示名
     assert_eq!(result.dims["/points/0/c3"], "SpecificEnergy");
     assert_eq!(result.dims["/points/0/delta_v"], "Velocity");

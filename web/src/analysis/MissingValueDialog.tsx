@@ -38,6 +38,8 @@ export function MissingValueDialog({
   const [value, setValue] = useState("");
   const onChange = useCallback((text: string) => setValue(text), []);
   const made = useTextOp(valueSetText(fix, scope, value));
+  // 単位付きの入力欄（QuantityInput）は次元を自分で出すので、補足では次元を重ねない（例だけ出す）
+  const quantityInput = fix.choices.length === 0 && fix.dimension !== null;
   const path = scope === "catalog" && fix.catalog ? fix.catalog.path : fix.path;
   return (
     <OpDialog
@@ -67,7 +69,7 @@ export function MissingValueDialog({
         label={t.label}
         htmlFor="missing-value"
         error={made.error}
-        hint={hintOf(fix.dimension, fix.example, t)}
+        hint={hintOf(quantityInput ? null : fix.dimension, fix.example, t)}
       >
         {fix.choices.length > 0 ? (
           <NativeSelect

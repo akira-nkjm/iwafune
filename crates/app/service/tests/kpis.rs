@@ -106,6 +106,35 @@ fn demo_kpis_show_the_same_values_as_before() {
             "structure.modal_estimate",
             &[(KpiKey::MinFrequency, "74.8 Hz")],
         ),
+        // 構造の新しい解析（#384 干渉・#397 円錐の遮り・#388 外形・打ち上げ適合）の代表値。
+        // 干渉と円錐の遮りは判定を数える KPI なので値は「—」で、数は `demo_new_analyses_kpis` が見る
+        (
+            "structure.launch_fit",
+            &[(KpiKey::LaunchFitMargin, "3.83 %")],
+        ),
+        (
+            "structure.interference",
+            &[(KpiKey::InterferenceOverlaps, "—")],
+        ),
+        (
+            "structure.cone_clearance",
+            &[(KpiKey::ConeObstructions, "—")],
+        ),
+        (
+            "structure.external_geometry",
+            &[(KpiKey::MeanProjectedArea, "1083 cm²")],
+        ),
+        // 軌道の幾何（区間のうち地球までの最大距離。デモは地球周回なので軌道半径）
+        (
+            "orbit.geometry",
+            &[(KpiKey::GreatestEarthDistance, "6928 km")],
+        ),
+        // 日付つきの遷移も窓も無いデモでは「当てはまるものが無い」で、値は「—」（KPI が無いのとは違う）
+        ("propulsion.transfer_check", &[(KpiKey::TransferMiss, "—")]),
+        (
+            "propulsion.launch_window",
+            &[(KpiKey::LaunchWindowDeltaV, "—")],
+        ),
         // 推進系（デモの電気推進スラスタで 550 → 600 km の低推力の上昇と、近地点 250 km への離脱）
         (
             "propulsion.maneuvers",
@@ -134,6 +163,31 @@ fn demo_kpis_show_the_same_values_as_before() {
         let want: Vec<(KpiKey, String)> = want.iter().map(|(k, d)| (*k, (*d).to_owned())).collect();
         assert_eq!(got, want, "{id}");
     }
+}
+
+/// 判定を数える新しい KPI（重なりの組・遮られた円錐）の数。デモの値を出力（`structure.interference` の重なり 18 組 /
+/// 判定した 573 組、`structure.cone_clearance` の遮られた円錐 2 / 判定した 7）と手で突き合わせた。
+#[test]
+fn demo_new_analyses_kpis_count_checks() {
+    let ws = demo();
+    let overlaps = &kpis(&ws, "structure.interference", None)[0];
+    assert_eq!(
+        overlaps.tally,
+        Some(KpiTally {
+            checked: 573,
+            flagged: 18
+        })
+    );
+    assert_eq!(overlaps.verdict, Some(Verdict::Warning));
+    let cones = &kpis(&ws, "structure.cone_clearance", None)[0];
+    assert_eq!(
+        cones.tally,
+        Some(KpiTally {
+            checked: 7,
+            flagged: 2
+        })
+    );
+    assert_eq!(cones.verdict, Some(Verdict::Warning));
 }
 
 /// 概要のカードに使う判定・塗りの比・判定の数え方。判定は解析の判定（節点と温度範囲の種類の組 13 件のうち 4 件が、
@@ -221,7 +275,11 @@ fn catalog_lists_kpi_definitions() {
         [
             KpiKey::TotalMass,
             KpiKey::MinSafetyMargin,
-            KpiKey::MinFrequency
+            KpiKey::MinFrequency,
+            KpiKey::LaunchFitMargin,
+            KpiKey::InterferenceOverlaps,
+            KpiKey::ConeObstructions,
+            KpiKey::MeanProjectedArea,
         ]
     );
     let sunlit = catalog

@@ -1,7 +1,7 @@
-//! 軌道の条件の解析（`orbit.eclipse_season`・`orbit.decay`）の KPI の値（`kpi_table!` から引く）。
+//! 軌道の解析（`orbit.eclipse_season`・`orbit.decay`・`orbit.geometry`）の KPI の値（`kpi_table!` から引く）。
 
 use super::{Ctx, Measured, largest, one, smallest};
-use sat_analysis::orbit::{EclipseSeasonOutput, OrbitDecayOutput};
+use sat_analysis::orbit::{EclipseSeasonOutput, GeometryOutput, OrbitDecayOutput};
 
 pub(super) fn longest_eclipse(o: &EclipseSeasonOutput, _: Ctx<'_>) -> Option<Measured> {
     one(o.max_eclipse_duration)
@@ -22,4 +22,9 @@ pub(super) fn decay_per_day(o: &OrbitDecayOutput, _: Ctx<'_>) -> Option<Measured
 }
 pub(super) fn station_keeping_delta_v(o: &OrbitDecayOutput, _: Ctx<'_>) -> Option<Measured> {
     largest(o.cases.iter().map(|c| c.station_keeping.delta_v_per_year))
+}
+
+/// 地球までの距離の最大（区間ごとの最大のうち最大。通信の距離・光の遅れの上限を決める側）。
+pub(super) fn greatest_earth_distance(o: &GeometryOutput, _: Ctx<'_>) -> Option<Measured> {
+    largest(o.legs.iter().map(|l| l.earth_distance.max.value))
 }
