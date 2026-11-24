@@ -4,10 +4,11 @@ maturity = "off_the_shelf"
 
 [mount]
 on    = "BUS_FRAME"
-point = "MTQ_BAY"
+point = "TANK_BAY"
 
 [pose]
-position = { x = 0.0, y = 0.0, z = 60.0, unit = "mm" }
+position    = { x = 0.0, y = 0.0, z = 0.0, unit = "mm" }
+orientation = { w = 0.7071067811865476, x = 0.7071067811865476, y = 0.0, z = 0.0 }
 
 [attr.mass]
 value       = 0.15
