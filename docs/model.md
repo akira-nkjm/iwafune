@@ -1082,8 +1082,15 @@ The declination of the departure asymptote against the launch site latitude is n
   The limit is the tightest of **all** candidates: the scalar catalog value `max_payload_mass` (the dispenser's, else the launcher's), the capability curve at the transfer's C3 (when it applies, above; the dispenser's curve, else the launcher's)
   and the mass budget requirement (`verify.budget = "mass"`). A scalar limit is therefore kept as a cap (for example an adapter or structural limit) while the curve gives the performance at this C3.
   The verdict text names where the winning limit came from (`dispenser local/…`, `requirement R_MASS`, `launcher local/… at C3 12.1 km²/s²`).
-- **Envelope**: the stowed outer dimensions are the `size` of the root part of the mounting tree (the same rule as the outer shape for attitude analysis, §5.3; parts that stick out of it are not measured). They are compared **axis by axis without rotation**:
-  body x with the allowed x, y with y, z with z. The launch axis is the body z axis, and an item's envelope is written in the same axes. A different orientation is a different `launch_envelope`, not a rotation inside the analysis.
+- **Envelope**: the stowed envelope is compared with the allowed one **axis by axis without rotation**: body x with the allowed x, y with y, z with z. The launch axis is the body z axis, and an item's envelope is written in the same axes.
+  A different orientation is a different `launch_envelope`, not a rotation inside the analysis. Only sizes (the extent, maximum minus minimum, per axis) are compared; there is no placement of the satellite inside the allowed box.
+  Where the extent comes from depends on whether a configuration is in effect (§7.11; the launch conditions name one in `configuration`, or the run names one with `--configuration`):
+  - **A configuration is in effect: from the parts** (`envelope_source = "parts"`). The extent is the axis-aligned box that encloses the boxes of **all** parts that have a `size`, placed in that configuration
+    (the same boxes as `structure.interference`, §5.7: `fune_projection::structure::boxes`; the enclosing box is `obb::axis_aligned_extents`). Parts that stick out of the structure (a sun sensor, a folded paddle) are therefore measured.
+    The verdict text of each axis names the part(s) whose box reaches the minimum and the maximum of that axis (`from -56.5 mm at SS_MX to 60.2 mm at SAP_PY`) and gives the offset of the centre of the extent from the body origin (information: a stowed assembly is often not centred; it is not judged).
+    The output carries them on each axis row as `at_min`, `at_max` and `centre_offset`. A part with no `size` is not measured and is listed in `skipped` (as in §5.7). The count of a part is ignored (copies are at one pose).
+  - **No configuration in effect: from the root part** (`envelope_source` is omitted, the same output as before). The extent is the `size` of the root part of the mounting tree (the same rule as the outer shape for attitude analysis, §5.3); parts that stick out of it are not measured.
+  If both could apply, the parts win: the root `size` is not read when a configuration is in effect. Which configuration is in effect follows the launch rule of §7.11 (the run's explicit one, else the launch conditions'; a case's phase is not read).
 - **Natural frequencies**: the lowest whole-body first mode estimated by `structure.modal_estimate` (beam results `lateral` / `axial`) against the larger of the catalog minimum and the requirement (`structure.modal_estimate` / `lateral`, `axial`).
   Panel out-of-plane modes are local and are not compared. The estimate has no beam model yet (the demo has none), so these checks end as a **warning "Not verified"**; they are never silently reported as fit.
 - Verdicts are two-level (fit or not): the margin is limit / value − 1, and a negative margin is a violation. Check keys are `mass`, `envelope:<x|y|z>` and `frequency:<lateral|axial>`.
@@ -1714,8 +1721,23 @@ orientation = { w = 0.707107, x = 0.0, y = 0.0, z = -0.707107 }
   Otherwise `structure.launch_fit`, `structure.static_load`, `structure.modal_estimate`, and `structure.modal_fem` use the launch selection. Other analyses use the configuration of the effective case's phase. A case can name a phase.
   If the applicable selection is absent, the analysis uses the base placement. A saved selection that names an unknown ID is an error in `fune check` and appears as a missing input with configuration candidates when projected.
   The result includes `configuration` and `configuration_source` (`explicit`, `launch`, or `phase`) when a named configuration is selected. Base results omit both fields. A nested case context resolves from the base again and carries any explicit request selection.
+- **Launch fit from the parts.** When the launch selection (or an explicit one) is in effect, `structure.launch_fit` measures the envelope from the boxes of all parts in that configuration (§5.6). The demo is the worked example: `configurations/STOWED.toml` folds the deployable paddle `SAP_PY` (2 × 226 × 366 mm, hinged on the +Y face at its +X edge, cells facing +X when deployed) flat onto the +X face:
+
+  ```toml
+  [pose.SAP_PY]   # relative to the hinge point of PANEL_PY (50, 114.5, 0) mm, which stays as it is
+  position    = { x = 9.2, y = -111.5, z = 0.0, unit = "mm" }
+  orientation = { w = 0.0, x = 0.0, y = 0.0, z = 1.0 }   # 180 degrees about the hinge line (body z)
+  ```
+
+  Hand calculation (mm). The deployed paddle centre is the hinge + (0, 111.5, 0) = (50, 226, 0). Turning it 180 degrees about the hinge line (z) puts the centre at the hinge + (0, -111.5, 0) in y, so y = 3.0 and the box spans y = -110 to 116, covering the face (y = ±113); z is unchanged (±183).
+  Its x is set by the hinge bracket offset: the paddle plane is moved 9.2 mm out of the hinge's plane to x = 59.2 (58.2 to 60.2), so that it clears the +X panel: the solar panel `SP_PX` reaches 52.8, and the sun sensor `SS_PX`, which sticks out of the panel, reaches 56.5.
+  The turn puts the cells (0.3 mm thick, 2 mm from the paddle plane on the cell side) on the body side, at 57.05 to 57.35: the gap to `SS_PX` is 57.05 - 56.5 = 0.55 mm and to `SP_PX` 57.05 - 52.8 = 4.25 mm (the paddle plate itself is 1.7 mm and 5.4 mm away). The cells face the body in this configuration.
+  `structure.interference` in `STOWED` has no overlap that the base placement does not have; the 1 mm hinge-edge overlap of `SAP_PY` and `SP_PY` in the base disappears.
+  The four sun sensors protrude from their panels by the same amount (the box centre is at 51.5 mm from the centre, 1.5 mm beyond the panel's mount plane, and the box is 10 mm thick: outer face at 56.5 mm, inner face at 46.5 mm). The two sensors on the ±X panels are placed at y = 80 mm, z = 150 mm, where the internal boxes `PCDU` and `OBC` (x = ±45) leave a 1.5 mm gap.
+  The stowed extent (all 36 boxes with a size): x from -56.5 (`SS_MX`) to 60.2 (`SAP_PY`) = 116.7 mm against the dispenser's 125 mm (margin 7.1 %); y from -119.5 (`SS_MY`) to 119.5 (`SS_PY`) = 239.0 mm against 245 mm (2.5 %); z from -185 (`EPT`) to 184 (`PANEL_PZ`) = 369 mm against 380 mm (3.0 %).
+  `LEOP` selects `STOWED` (cases on that phase are judged stowed), and so does the launch selection (`conditions/launch.toml`, `configuration = "STOWED"`), so `structure.launch_fit` measures the stowed assembly.
 - The phase dialog on the Phases page sets the phase's `configuration` (a select of the existing configurations; blank means the base placement).
-- Launch-fit envelopes derived from part boxes and a GUI control for the launch selection are later stages of #374.
+- A GUI control for the launch selection is a later stage of #374.
 
 ## 8. Allocations and margin policy (budget/)
 

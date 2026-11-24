@@ -27,13 +27,13 @@ fn configuration_edits_match_cli() {
             vec![
                 "configuration",
                 "add",
-                "STOWED",
+                "PACKED",
                 "--label",
                 "Stowed",
                 "--description",
                 "Paddle folded onto the body",
             ],
-            json!({ "command": "configuration_add", "id": "STOWED", "label": "Stowed",
+            json!({ "command": "configuration_add", "id": "PACKED", "label": "Stowed",
                 "description": "Paddle folded onto the body" }),
             "create_configuration",
         ),
@@ -44,13 +44,13 @@ fn configuration_edits_match_cli() {
                 "place",
                 "SAP_PY",
                 "--configuration",
-                "STOWED",
+                "PACKED",
                 "--position",
                 "0 5 1.5 mm",
                 "--rotation",
                 "0 0 -90 deg",
             ],
-            json!({ "command": "part_place", "part": "SAP_PY", "configuration": "STOWED",
+            json!({ "command": "part_place", "part": "SAP_PY", "configuration": "PACKED",
                 "position": "0 5 1.5 mm", "rotation": "0 0 -90 deg" }),
             "place",
         ),
@@ -61,7 +61,7 @@ fn configuration_edits_match_cli() {
                 "place",
                 "SAP_PY",
                 "--configuration",
-                "STOWED",
+                "PACKED",
                 "--on",
                 "PANEL_PY",
                 "--point",
@@ -69,7 +69,7 @@ fn configuration_edits_match_cli() {
                 "--position",
                 "0 6 1.5 mm",
             ],
-            json!({ "command": "part_place", "part": "SAP_PY", "configuration": "STOWED",
+            json!({ "command": "part_place", "part": "SAP_PY", "configuration": "PACKED",
                 "on": "PANEL_PY", "point": "HINGE", "position": "0 6 1.5 mm" }),
             "place",
         ),
@@ -77,11 +77,11 @@ fn configuration_edits_match_cli() {
             vec![
                 "configuration",
                 "set",
-                "STOWED",
+                "PACKED",
                 "--label",
                 "Stowed (folded)",
             ],
-            json!({ "command": "configuration_set", "id": "STOWED", "label": "Stowed (folded)" }),
+            json!({ "command": "configuration_set", "id": "PACKED", "label": "Stowed (folded)" }),
             "set_configuration",
         ),
     ];
@@ -91,7 +91,7 @@ fn configuration_edits_match_cli() {
         assert!(ops.iter().all(|o| o["op"] == op), "{ops:?}");
         assert_same_files(&cli_root, &http_root, &cli.join(" "));
     }
-    let text = std::fs::read_to_string(http_root.join("configurations/STOWED.toml")).unwrap();
+    let text = std::fs::read_to_string(http_root.join("configurations/PACKED.toml")).unwrap();
     assert!(
         text.contains("Stowed (folded)") && text.contains("[pose.SAP_PY]"),
         "{text}"
@@ -104,7 +104,7 @@ fn configuration_edits_match_cli() {
             "place",
             "SAP_PY",
             "--configuration",
-            "STOWED",
+            "PACKED",
             "--body-pos",
             "30 60 40 mm",
         ],
@@ -114,7 +114,7 @@ fn configuration_edits_match_cli() {
         &http_root,
         "/api/v1/parts/SAP_PY/place_body",
         json!({ "position": { "x": 30.0, "y": 60.0, "z": 40.0, "unit": "mm" },
-            "configuration": "STOWED" }),
+            "configuration": "PACKED" }),
     );
     assert_same_files(
         &cli_root,
@@ -130,24 +130,24 @@ fn configuration_edits_match_cli() {
     // 上書きを消す・名前の変更・削除は Op をそのまま送る
     run_cli(
         &cli_root,
-        &["configuration", "unset-pose", "STOWED", "SAP_PY"],
+        &["configuration", "unset-pose", "PACKED", "SAP_PY"],
     );
     post_json(
         &rt,
         &http_root,
         "/api/v1/ops",
-        json!({ "ops": [{ "op": "unset_configuration_pose", "configuration": "STOWED",
+        json!({ "ops": [{ "op": "unset_configuration_pose", "configuration": "PACKED",
             "part": "SAP_PY" }] }),
     );
     assert_same_files(&cli_root, &http_root, "configuration unset-pose");
-    let text = std::fs::read_to_string(http_root.join("configurations/STOWED.toml")).unwrap();
+    let text = std::fs::read_to_string(http_root.join("configurations/PACKED.toml")).unwrap();
     assert!(!text.contains("pose"), "{text}");
-    run_cli(&cli_root, &["configuration", "rename", "STOWED", "FOLDED"]);
+    run_cli(&cli_root, &["configuration", "rename", "PACKED", "FOLDED"]);
     post_json(
         &rt,
         &http_root,
         "/api/v1/ops",
-        json!({ "ops": [{ "op": "rename_configuration", "id": "STOWED", "to": "FOLDED" }] }),
+        json!({ "ops": [{ "op": "rename_configuration", "id": "PACKED", "to": "FOLDED" }] }),
     );
     assert_same_files(&cli_root, &http_root, "configuration rename");
     assert!(http_root.join("configurations/FOLDED.toml").exists());
@@ -169,7 +169,7 @@ fn configuration_reads_match_http() {
     let (_t, root) = demo_copy();
     run_cli(
         &root,
-        &["configuration", "add", "STOWED", "--label", "Stowed"],
+        &["configuration", "add", "PACKED", "--label", "Stowed"],
     );
     run_cli(
         &root,
@@ -178,27 +178,27 @@ fn configuration_reads_match_http() {
             "place",
             "SAP_PY",
             "--configuration",
-            "STOWED",
+            "PACKED",
             "--position",
             "0 5 1.5 mm",
         ],
     );
     let http = get_json(&rt, &root, "/api/v1/configurations");
     assert_eq!(cli_json(&root, &["configuration", "ls"]), http);
-    assert_eq!(http[0]["id"], "STOWED");
+    assert_eq!(http[0]["id"], "PACKED");
     assert_eq!(http[0]["overridden"], json!(["SAP_PY"]));
     assert_eq!(http[0]["text"]["label"], "Stowed");
     assert_eq!(
-        cli_json(&root, &["configuration", "show", "STOWED"]),
+        cli_json(&root, &["configuration", "show", "PACKED"]),
         http[0]
     );
     // `GET /design` にも載る
     let design = get_json(&rt, &root, "/api/v1/design");
     assert_eq!(design["configurations"], http);
 
-    let parts = get_json(&rt, &root, "/api/v1/parts?configuration=STOWED");
+    let parts = get_json(&rt, &root, "/api/v1/parts?configuration=PACKED");
     assert_eq!(
-        cli_json(&root, &["part", "ls", "--configuration", "STOWED"]),
+        cli_json(&root, &["part", "ls", "--configuration", "PACKED"]),
         parts
     );
     let row = |rows: &Value| -> Value {
@@ -218,11 +218,11 @@ fn configuration_reads_match_http() {
     // 取付先・取付点・部品の他の欄は同じ
     assert_eq!(stowed["mount"]["on"], base["mount"]["on"]);
     assert_eq!(stowed["file"], base["file"]);
-    let one = get_json(&rt, &root, "/api/v1/parts/SAP_PY?configuration=STOWED");
+    let one = get_json(&rt, &root, "/api/v1/parts/SAP_PY?configuration=PACKED");
     assert_eq!(
         cli_json(
             &root,
-            &["part", "show", "SAP_PY", "--configuration", "STOWED"]
+            &["part", "show", "SAP_PY", "--configuration", "PACKED"]
         ),
         one
     );
@@ -237,16 +237,16 @@ fn selection_edits_match_cli() {
     let rt = tokio::runtime::Runtime::new().unwrap();
     let (_t1, cli_root) = demo_copy();
     let (_t2, http_root) = demo_copy();
-    run_cli(&cli_root, &["configuration", "add", "STOWED"]);
+    run_cli(&cli_root, &["configuration", "add", "PACKED"]);
     http_command(
         &rt,
         &http_root,
-        json!({ "command": "configuration_add", "id": "STOWED" }),
+        json!({ "command": "configuration_add", "id": "PACKED" }),
     );
     for (args, body) in [
         (
-            vec!["phase", "set", "LEOP", "--configuration", "STOWED"],
-            json!({ "command": "phase_set", "id": "LEOP", "configuration": "STOWED" }),
+            vec!["phase", "set", "LEOP", "--configuration", "PACKED"],
+            json!({ "command": "phase_set", "id": "LEOP", "configuration": "PACKED" }),
         ),
         (
             vec!["phase", "set", "LEOP", "--configuration", ""],
@@ -260,9 +260,9 @@ fn selection_edits_match_cli() {
     let path = "conditions.launch.configuration";
     for (args, uri, body) in [
         (
-            vec!["set", path, "STOWED"],
+            vec!["set", path, "PACKED"],
             "/api/v1/ops/from_text",
-            json!({ "path": path, "value": "STOWED" }),
+            json!({ "path": path, "value": "PACKED" }),
         ),
         (
             vec!["unset", path],

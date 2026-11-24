@@ -40,6 +40,7 @@ fn base() -> LaunchFitInput {
         ],
         propellant_mass: Some(Qty::from_raw(1.5)),
         size: Some(Vec3::new(0.1, 0.2263, 0.366)),
+        part_boxes: None,
         max_mass: vec![mass_limit("launcher L", 11.0)],
         capability: None,
         envelope: Some(LaunchFitEnvelope {

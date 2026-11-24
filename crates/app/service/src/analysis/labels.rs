@@ -19,7 +19,7 @@ use sat_analysis::spec::{ChannelKind, SpanFallback};
 use sat_analysis::structure::cone_clearance::{ConeKind, ConeSkipReason};
 use sat_analysis::structure::external_geometry::{BodyAxis, FaceDirection};
 use sat_analysis::structure::interference::InterferenceSkipReason;
-use sat_analysis::structure::launch_fit::LaunchFitDirection;
+use sat_analysis::structure::launch_fit::{LaunchFitDirection, LaunchFitEnvelopeSource};
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
 use sat_analysis::thermal::ThermalHeaterState;
 use serde::de::DeserializeOwned;
@@ -321,6 +321,13 @@ fn launch_fit_direction(d: LaunchFitDirection) -> AnalysisLabel {
     }
 }
 
+fn launch_fit_envelope_source(s: LaunchFitEnvelopeSource) -> AnalysisLabel {
+    match s {
+        LaunchFitEnvelopeSource::RootSize => label("構体（取付の根）の寸法", "Root part size"),
+        LaunchFitEnvelopeSource::Parts => label("全部品の箱", "Part boxes"),
+    }
+}
+
 fn interference_skip_reason(r: InterferenceSkipReason) -> AnalysisLabel {
     match r {
         InterferenceSkipReason::NoSize => label("寸法が無い", "No size"),
@@ -414,6 +421,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "SolarLife" => parse(value).map(solar_life),
         "ModalEstimateKind" => parse(value).map(modal_kind),
         "LaunchFitDirection" => parse(value).map(launch_fit_direction),
+        "LaunchFitEnvelopeSource" => parse(value).map(launch_fit_envelope_source),
         "InterferenceSkipReason" => parse(value).map(interference_skip_reason),
         "BodyAxis" => parse(value).map(body_axis),
         "FaceDirection" => parse(value).map(face_direction),

@@ -9,7 +9,7 @@ point = "FACE_MX"
 position = { x = -1.5, y = 0.0, z = 0.0, unit = "mm" }
 
 [mount_points.SS]
-position = { x = -1.5, y = -80.0, z = 150.0, unit = "mm" }
+position = { x = -1.5, y = 80.0, z = 150.0, unit = "mm" }
 
 [attr]
 specific_heat = { value = 896.0, unit = "J/(kg*K)" }
