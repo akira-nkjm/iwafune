@@ -24,13 +24,13 @@ use fune_model::Target;
 use fune_model::builtin::{Role, STATE_THRUSTER_FIRING};
 use fune_model::design::DepartureBy as ModelDepartureBy;
 use fune_model::design::setting_dims as dims;
-use fune_model::design::{Maneuver, ManeuverCategory, ManeuverMethod, ManeuverSteering};
+use fune_model::design::{Maneuver, ManeuverCategory, ManeuverMethod, ManeuverSteering, Phase};
 use fune_model::resolve::{ResolvedPart, SiValue};
 use fune_model::value::Quantity;
 use sat_analysis::propulsion::{
     DatedTransferInput, DepartureProvider, DvCategory, ManeuverInput, OrbitTarget,
     PropellantMassInput, PropellantTank, PropulsionInput, PropulsionThruster, ThrustConstraints,
-    TransferMethod, UnloadingInput, UnloadingNote,
+    TransferMethod, UnloadingInput, UnloadingLeg, UnloadingNote,
 };
 use sat_astro::force::thrust::ThrustSteering;
 use sat_units::typed::{
@@ -379,28 +379,71 @@ fn tanks(ctx: &Context<'_>, m: &mut MissingInputs) -> Vec<PropellantTank> {
         .collect()
 }
 
-/// RCS でのアンロードの入力（`aocs.rw_unloading` の射影とミッション期間）。足せなければ理由。
+/// RCS でのアンロードの入力（区間ごとの `aocs.rw_unloading` の射影と長さ）。足せなければ理由。
+/// 区間はフェーズの並びの順で、フェーズの軌道・姿勢則・形態で評価し、長さはフェーズの `duration`
+/// （どのフェーズにも期間が無い、またはフェーズが無い設計は、設計の軌道とミッション期間の 1 区間）。
 fn unloading(ctx: &Context<'_>) -> (Option<UnloadingInput>, Option<UnloadingNote>) {
     if by_role(ctx, Role::Thruster).next().is_none() {
         return (None, Some(UnloadingNote::NoRcs));
     }
-    let Ok(rw) = aocs::rw_unloading(ctx) else {
-        return (None, Some(UnloadingNote::UnloadingInputsMissing));
+    let phases = ctx.design.ordered_phases();
+    let legs = if phases.iter().any(|p| p.duration.is_some()) {
+        phase_legs(ctx, &phases)
+    } else {
+        mission_leg(ctx)
     };
-    if rw.rcs.is_none() {
-        return (None, Some(UnloadingNote::NoRcs));
+    match legs {
+        Ok(legs) if legs.iter().all(|l| l.rw_unloading.rcs.is_none()) => {
+            (None, Some(UnloadingNote::NoRcs))
+        }
+        Ok(legs) if legs.iter().all(|l| l.duration.is_none()) => {
+            (None, Some(UnloadingNote::NoMissionDuration))
+        }
+        Ok(legs) => (Some(UnloadingInput { legs }), None),
+        Err(()) => (None, Some(UnloadingNote::UnloadingInputsMissing)),
     }
-    let duration = ctx.mission_duration();
-    match duration {
-        Some(d) => (
-            Some(UnloadingInput {
-                rw_unloading: rw,
-                mission_duration: d,
-            }),
-            None,
-        ),
-        None => (None, Some(UnloadingNote::NoMissionDuration)),
+}
+
+/// 設計の軌道とミッション期間の 1 区間（フェーズに期間が無い設計。期間が無ければ区間の長さも `None`）。
+fn mission_leg(ctx: &Context<'_>) -> Result<Vec<UnloadingLeg>, ()> {
+    let rw_unloading = aocs::rw_unloading(ctx).map_err(|_| ())?;
+    Ok(vec![UnloadingLeg {
+        phase: None,
+        rw_unloading,
+        duration: ctx.mission_duration(),
+    }])
+}
+
+/// フェーズごとの区間。軌道・姿勢則・形態はそのフェーズのもの（[`Context::in_phase`]）。姿勢則のモードは、ケースを選んでいればそのモード、
+/// なければフェーズの `modes` のうち姿勢則を持つ唯一のもの（無い・複数なら姿勢則の表から一意に選べるときだけ。選べなければ入力不足）。
+fn phase_legs(ctx: &Context<'_>, phases: &[&Phase]) -> Result<Vec<UnloadingLeg>, ()> {
+    let mut m = MissingInputs::new();
+    let legs: Vec<Option<UnloadingLeg>> = phases
+        .iter()
+        .map(|&p| {
+            let c = ctx.in_phase(p);
+            let target = Target::phase(p.id.as_str(), Some("duration"));
+            ctx.note(target.clone());
+            let duration = qty_opt::<Time>(p.duration.as_ref(), target, &mut m);
+            let laws = c.laws();
+            let mut with_law = p.modes.iter().filter(|id| laws.contains_key(id.as_str()));
+            let unique = with_law.next().filter(|_| with_law.next().is_none());
+            let mode = c
+                .case_mode()
+                .map(|x| x.id.as_str())
+                .or(unique.map(|id| id.as_str()));
+            let rw_unloading = aocs::rw_unloading_for_mode(&c, mode).ok()?;
+            Some(UnloadingLeg {
+                phase: Some(p.id.as_str().to_owned()),
+                rw_unloading,
+                duration,
+            })
+        })
+        .collect();
+    if !m.is_empty() {
+        return Err(());
     }
+    legs.into_iter().collect::<Option<Vec<_>>>().ok_or(())
 }
 
 #[cfg(test)]
