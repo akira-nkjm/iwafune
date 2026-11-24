@@ -230,6 +230,7 @@ fn removing_a_part_or_configuration_that_an_entry_names_is_refused() {
     let create = Op::CreateConfiguration {
         id: "SPARE".into(),
         label: None,
+        label_en: None,
         description: None,
     };
     let add = ack(Interference, "SS_MX", "CAM", Some("SPARE"), "x");

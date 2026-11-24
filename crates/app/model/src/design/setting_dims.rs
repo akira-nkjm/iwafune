@@ -127,6 +127,8 @@ setting_quantities! {
     ORBIT_VELOCITY: Velocity = Conditions["orbit", "velocity"];
     /// 状態ベクトルの軌道の期間
     ORBIT_SPAN: Time = Conditions["orbit", "span"];
+    /// ハロー軌道の z 方向の振幅（`source = "libration"`）
+    ORBIT_AMPLITUDE_Z: Length = Conditions["orbit", "amplitude_z"];
     /// 準静的荷重（機軸方向。`conditions/launch.toml`）
     LAUNCH_LOAD_AXIAL: Acceleration = Conditions["launch", "load_axial"];
     /// 準静的荷重（直交方向）
@@ -231,6 +233,8 @@ setting_quantities! {
     MATERIAL_YIELD_STRENGTH: Pressure = Analysis["structure", "material", ANY, "yield_strength"];
     /// 材料の引張強さ
     MATERIAL_ULTIMATE_STRENGTH: Pressure = Analysis["structure", "material", ANY, "ultimate_strength"];
+    /// 材料の熱伝導率（板の面内の伝導 `analysis.thermal.subdivide` が使う）
+    MATERIAL_THERMAL_CONDUCTIVITY: ThermalConductivity = Analysis["structure", "material", ANY, "thermal_conductivity"];
     /// 推進系の解析の乾燥質量の上書き（`analysis/propulsion.toml`）
     PROPULSION_DRY_MASS: Mass = Analysis["propulsion", "dry_mass"];
     /// 日付の探索の出発の窓の長さ（`[launch_window]`）
@@ -242,12 +246,7 @@ setting_quantities! {
 }
 
 /// 次元の型を持たない欄（名前の無い次元。射影は読まない）。
-pub const UNTYPED: &[SettingDimension] = &[SettingDimension {
-    scope: SettingScope::Analysis,
-    pattern: &["structure", "material", ANY, "thermal_conductivity"],
-    dimension: "W/(m*K)",
-    typed: None,
-}];
+pub const UNTYPED: &[SettingDimension] = &[];
 
 /// 設定のパスの次元（次元名か基準の単位。表に無ければ None）。
 pub fn setting_dimension(path: &SettingPath) -> Option<&'static str> {

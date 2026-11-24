@@ -19,18 +19,20 @@ pub(super) fn interpret(edits: &mut Edits, design: &Design, op: &Op) -> Result<(
         Op::CreateConfiguration {
             id,
             label,
+            label_en,
             description,
         } => {
             if design.configurations.contains_key(id.as_str()) {
                 return Err(OpError::exists(format!("Configuration `{id}`")));
             }
-            set_heading(edits, design, id, label, description)
+            set_heading(edits, design, id, [label, label_en, description])
         }
         Op::SetConfiguration {
             id,
             label,
+            label_en,
             description,
-        } => set_heading(edits, design, id, label, description),
+        } => set_heading(edits, design, id, [label, label_en, description]),
         Op::RemoveConfiguration { id } => remove(
             edits,
             design.configurations.contains_key(id.as_str()),
@@ -72,13 +74,12 @@ fn rewrite(edits: &mut Edits, c: &Configuration) -> Result<(), OpError> {
     )?)
 }
 
-/// 見出し（`label`・`description`）を書く。あれば今の `[pose.*]` を残し、無ければ作る。
+/// 見出し（`label`・`label_en`・`description`。この順）を書く。あれば今の `[pose.*]` を残し、無ければ作る。
 fn set_heading(
     edits: &mut Edits,
     design: &Design,
     id: &str,
-    label: &Option<String>,
-    description: &Option<String>,
+    [label, label_en, description]: [&Option<String>; 3],
 ) -> Result<(), OpError> {
     set_id(
         design.configurations.keys().map(|k| k.as_str()),
@@ -94,6 +95,7 @@ fn set_heading(
             ..Configuration::default()
         });
     c.label = label.clone();
+    c.label_en = label_en.clone();
     c.description = description.clone();
     rewrite(edits, &c)
 }

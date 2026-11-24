@@ -6,6 +6,7 @@
 mod capacity;
 mod heaters;
 mod network;
+mod plates;
 
 use crate::context::{Context, mode_def};
 use crate::missing::MissingInputs;

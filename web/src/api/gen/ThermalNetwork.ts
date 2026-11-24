@@ -3,6 +3,7 @@ import type { ThermalConductiveLink } from "./ThermalConductiveLink";
 import type { ThermalEnclosure } from "./ThermalEnclosure";
 import type { ThermalMounts } from "./ThermalMounts";
 import type { ThermalNode } from "./ThermalNode";
+import type { ThermalPlate } from "./ThermalPlate";
 import type { ThermalRadiativeLink } from "./ThermalRadiativeLink";
 import type { ThermalSurface } from "./ThermalSurface";
 
@@ -25,4 +26,8 @@ radiative: Array<ThermalRadiativeLink>,
 /**
  * 箱型の外殻の内面の放射（設計が求めたときだけ）。外面の法線と面積から 6 面の節点を決める
  */
-enclosure: ThermalEnclosure | null, surfaces: Array<ThermalSurface>, };
+enclosure: ThermalEnclosure | null, surfaces: Array<ThermalSurface>, 
+/**
+ * 升に分ける板（`subdivide`）。書いた部品の節点は升の節点に置き換わる
+ */
+plates?: Array<ThermalPlate>, };

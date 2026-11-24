@@ -35,6 +35,7 @@ fn text(a: &ConfigurationArgs) -> ConfigurationText {
     ConfigurationText {
         id: a.id.clone(),
         label: a.label.clone(),
+        label_en: a.label_en.clone(),
         description: a.description.clone(),
     }
 }
@@ -54,13 +55,21 @@ fn ls(ws: &Workspace, out: &Out) -> Handled {
         out.json(&all)?;
         return Ok(Some(0));
     }
-    let mut t = out.table(&["ID", "Name", "Overridden parts"]);
+    // 英語名は、どれかの形態が書いているときだけ列を足す（無ければ表の幅を変えない）
+    let with_en = all.iter().any(|c| c.label_en.is_some());
+    let mut head = vec!["ID", "Name"];
+    if with_en {
+        head.push("English name");
+    }
+    head.push("Overridden parts");
+    let mut t = out.table(&head);
     for c in &all {
-        t.row(vec![
-            C::Strong(c.id.clone()),
-            C::Text(c.label.clone()),
-            C::Dim(c.overridden.join(" ")),
-        ]);
+        let mut row = vec![C::Strong(c.id.clone()), C::Text(c.label.clone())];
+        if with_en {
+            row.push(C::Text(c.label_en.clone().unwrap_or_default()));
+        }
+        row.push(C::Dim(c.overridden.join(" ")));
+        t.row(row);
     }
     t.print();
     Ok(Some(0))
@@ -86,6 +95,7 @@ fn print_configuration(c: &ConfigurationView, out: &Out) {
             println!("  {:<12} {value}", out.dim(key));
         }
     };
+    line("label_en", c.label_en.clone().unwrap_or_default());
     line("description", c.description.clone().unwrap_or_default());
     line("overridden", c.overridden.join(", "));
     line("file", c.file.clone());

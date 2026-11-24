@@ -106,6 +106,9 @@ pub struct ThermalCouplings {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[cfg_attr(feature = "ts", ts(optional))]
     pub mount_contact: Option<ThermalContactUsed>,
+    /// 升に分けた板ごとの報告（板を分けたときだけ。結合は板の部品の名前のまま上に並び、升への配分はここの規則）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub plates: Vec<super::ThermalPlateUsed>,
 }
 
 type Pair = (String, String);
@@ -192,6 +195,7 @@ pub(super) fn resolve(net: &ThermalNetwork) -> Result<ThermalCouplings, Analysis
             .collect(),
         enclosure,
         mount_contact,
+        plates: Vec::new(),
     })
 }
 

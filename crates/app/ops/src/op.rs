@@ -451,13 +451,17 @@ pub enum Op {
         #[serde(default)]
         label: Option<String>,
         #[serde(default)]
+        label_en: Option<String>,
+        #[serde(default)]
         description: Option<String>,
     },
-    /// 形態の見出し（`label`・`description`）を書く（無ければ作る）。部品ごとの姿勢（`[pose.*]`）は今のまま残す。
+    /// 形態の見出し（`label`・`label_en`・`description`）を書く（無ければ作る）。部品ごとの姿勢（`[pose.*]`）は今のまま残す。
     SetConfiguration {
         id: String,
         #[serde(default)]
         label: Option<String>,
+        #[serde(default)]
+        label_en: Option<String>,
         #[serde(default)]
         description: Option<String>,
     },

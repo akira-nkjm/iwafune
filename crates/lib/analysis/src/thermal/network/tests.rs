@@ -2,6 +2,7 @@ use super::*;
 
 pub(crate) fn node(id: &str, fixed: Option<f64>) -> ThermalNode {
     ThermalNode {
+        cell: None,
         id: id.to_owned(),
         parts: vec![ThermalNodePart {
             id: id.to_owned(),
@@ -21,6 +22,7 @@ pub(crate) fn node(id: &str, fixed: Option<f64>) -> ThermalNode {
 #[test]
 fn loads_count_by_hand() {
     let net = Compiled::new(&ThermalNetwork {
+        plates: Vec::new(),
         mounts: None,
         nodes: vec![node("n", None)],
         conductive: vec![],
@@ -71,6 +73,7 @@ fn node_aggregates_parts() {
     let r = n.ranges().operating.unwrap();
     assert_eq!((r.min.value(), r.max.value()), (253.0, 343.0));
     let c = Compiled::new(&ThermalNetwork {
+        plates: Vec::new(),
         mounts: None,
         nodes: vec![n],
         conductive: vec![],
@@ -110,6 +113,7 @@ fn a_node_without_heat_capacity_is_refused() {
             radiative: vec![],
             enclosure: None,
             surfaces: vec![],
+            plates: vec![],
         };
         let e = Compiled::new(&net)
             .map(|_| ())

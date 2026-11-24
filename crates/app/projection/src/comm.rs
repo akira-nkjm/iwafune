@@ -70,8 +70,9 @@ pub fn link_budget(ctx: &Context<'_>) -> Result<LinkBudgetInput, MissingInputs> 
             }
         }
     }
-    // 中心天体が地球でないときだけ、地球から衛星までの距離を求めるための軌道と期間（ミッション期間）を渡す。
-    let far = orbit.filter(|o| o.central() != CentralBody::Earth);
+    // 地球からの距離を時系列で測る軌道（中心天体が地球でない、または高度を持たない。`Trajectory::ranges_from_earth`）のときだけ、
+    // 地球から衛星までの距離を求めるための軌道と期間（ミッション期間）を渡す。
+    let far = orbit.filter(sat_astro::orbit::Trajectory::ranges_from_earth);
     let duration = far.as_ref().and_then(|_| mission_duration(ctx));
     m.finish(|| {
         Some(LinkBudgetInput {

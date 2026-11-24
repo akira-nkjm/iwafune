@@ -538,7 +538,7 @@ fn settings_view_carries_the_choices_of_the_orbit_keys() {
     };
     assert_eq!(
         values(&setting("source").choices),
-        ["elements", "transfer", "state"]
+        ["elements", "transfer", "state", "libration"]
     );
     assert!(
         setting("maneuver").choices.is_empty(),

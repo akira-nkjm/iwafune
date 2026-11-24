@@ -11,7 +11,7 @@ import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
 import { Pill } from "@/kit/status/Pill";
-import { poseOverridden } from "@/lib/design";
+import { idWithName, poseOverridden } from "@/lib/design";
 import {
   AXES,
   numbersInputText,
@@ -287,11 +287,15 @@ export function PlacementOverrides({ design, part }: { design: DesignView; part:
     <div className="mt-3 space-y-1">
       <h3 className="font-medium text-ink-2 text-xs">{t.overrides}</h3>
       <PropertyList>
-        {overrides.map(({ id, label }, index) => (
-          <QueryState key={id} query={queries[index]!} skeleton={<SkeletonBlock className="h-9" />}>
+        {overrides.map((configuration, index) => (
+          <QueryState
+            key={configuration.id}
+            query={queries[index]!}
+            skeleton={<SkeletonBlock className="h-9" />}
+          >
             {({ part }) => (
               <Readout
-                label={label === id ? id : `${label} (${id})`}
+                label={idWithName(configuration)}
                 pose={part.mount?.overridden ? part.mount.relative : null}
                 empty="—"
               />

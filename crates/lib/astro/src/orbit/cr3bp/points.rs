@@ -2,9 +2,12 @@
 
 use super::{Cr3bp, Cr3bpError};
 use crate::math::bisect;
+use serde::{Deserialize, Serialize};
 
-/// ラグランジュ点。
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// ラグランジュ点。JSON・設計の綴りは `l1`〜`l5`。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+#[serde(rename_all = "lowercase")]
 pub enum LibrationPoint {
     L1,
     L2,

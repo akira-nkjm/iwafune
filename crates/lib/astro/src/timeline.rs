@@ -13,7 +13,7 @@ use crate::attitude::{AttitudeLaw, body_to_eci};
 use crate::ephem::Body;
 use crate::math::{Quat, Vec3};
 use crate::orbit::{OrbitState, Trajectory, raan_for_beta};
-use crate::shadow::{ShadowModel, central_shadow_factor};
+use crate::shadow::{ShadowModel, body_shadow_factor, central_shadow_factor};
 use crate::time::Epoch;
 use sat_units::typed::{Angle, Qty, Time};
 use serde::{Deserialize, Serialize};
@@ -209,7 +209,18 @@ fn sample(spec: &TimelineSpec, point: &OrbitPoint) -> TimelineSample {
     let central = spec.orbit().central();
     let r_sun = central.relative_position_m(Body::Sun, epoch);
     let to_sun = r_sun - state.r_eci;
-    let sunlit = central_shadow_factor(central, state.r_eci, r_sun, spec.shadow);
+    let mut sunlit = central_shadow_factor(central, state.r_eci, r_sun, spec.shadow);
+    // 中心天体のほかに日陰を作る天体があれば、いちばん暗い方（回転座標系の軌跡。既定の軌道には無い）
+    if let Some(caster) = spec.orbit().extra_shadow_caster() {
+        let at = caster.position_eci_m(epoch) - central.position_eci_m(epoch);
+        sunlit = sunlit.min(body_shadow_factor(
+            state.r_eci,
+            r_sun,
+            at,
+            caster.radius_m(),
+            spec.shadow,
+        ));
+    }
     let sun_distance_m = to_sun.norm();
     let sun_dir_eci = to_sun.normalized().unwrap_or(Vec3::X);
     TimelineSample {

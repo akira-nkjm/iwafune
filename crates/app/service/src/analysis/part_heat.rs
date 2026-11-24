@@ -22,7 +22,14 @@ pub(crate) fn part_heat(result: &AnalysisRunResult) -> Option<Vec<PartHeat>> {
 pub(crate) fn of_parts(input: &ThermalSteadyInput, output: &ThermalSteadyOutput) -> Vec<PartHeat> {
     let mut by_part: BTreeMap<&str, PartHeat> = BTreeMap::new();
     for node in &input.network.nodes {
-        let Some(env) = output.envelope.iter().find(|e| e.node == node.id) else {
+        // 升に分けた板は、節点の名前の包絡が無く、升ごとの包絡がある（部品の代表は最も高い升。解析が板を分ける規則は
+        // `thermal::network::subdivide`）。ここでは部品の ID で升をまとめるだけ
+        let Some(env) = output
+            .envelope
+            .iter()
+            .filter(|e| e.node == node.id || e.cell.as_ref().is_some_and(|c| c.part == node.id))
+            .max_by(|a, b| a.max.value().total_cmp(&b.max.value()))
+        else {
             continue;
         };
         for part in &node.parts {
@@ -52,6 +59,37 @@ mod tests {
 
     fn temp(k: f64) -> serde_json::Value {
         json!(k)
+    }
+
+    /// 板の部品 P は節点 `P` の包絡が無く、升（`P[0,0]`・`P[1,0]`）の包絡の最高が代表（最も高い升の温度・ケース・判定）。
+    #[test]
+    fn a_subdivided_plate_is_represented_by_its_hottest_cell() {
+        let part = json!({ "id": "P", "mass": 1.0, "specific_heat": 900.0 });
+        let input: ThermalSteadyInput = serde_json::from_value(json!({
+            "network": { "nodes": [{ "id": "P", "parts": [part], "per_part": true }] },
+            "cases": [],
+        }))
+        .unwrap();
+        let env = |id: &str, i: u32, max: f64, case: &str| {
+            json!({
+                "node": id, "cell": { "part": "P", "i": i, "j": 0 },
+                "min": temp(250.0), "min_case": "cold",
+                "max": temp(max), "max_case": case, "ranges": [], "verdict": "ok",
+            })
+        };
+        let output: ThermalSteadyOutput = serde_json::from_value(json!({
+            "cases": [],
+            "envelope": [env("P[0,0]", 0, 300.0, "cold"), env("P[1,0]", 1, 330.0, "hot")],
+            "margin": { "uncertainty": temp(0.0), "warning_band": temp(0.0) },
+            "checks": [],
+        }))
+        .unwrap();
+        let heat = of_parts(&input, &output);
+        assert_eq!(heat.len(), 1);
+        assert_eq!(
+            (heat[0].temperature.si, heat[0].case.as_str()),
+            (330.0, "hot")
+        );
     }
 
     /// 2 節点（`panel` に A と B、`box` に C）。節点の ID と部品の ID は一致しない。

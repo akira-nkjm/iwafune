@@ -6,7 +6,6 @@ use super::{
 };
 use crate::comm::passes::SearchWindow;
 use crate::spec::AnalysisError;
-use sat_astro::ephem::CentralBody;
 use sat_astro::ground::{EarthRange, GroundStation, earth_range};
 use sat_astro::orbit::Trajectory;
 use sat_units::typed::{Angle, Qty};
@@ -32,20 +31,25 @@ pub(super) fn station_closures(
 ) -> Result<Vec<DataThroughputStationClosure>, AnalysisError> {
     // 高度は平均（長半径 − 中心天体の半径）で代表させる。長半径を持つ軌道だけが持つ値。
     let altitude = w.orbit.altitude_m();
-    let far = (w.orbit.central() != CentralBody::Earth && !input.station_links.is_empty())
+    let far = (w.orbit.ranges_from_earth() && !input.station_links.is_empty())
         .then(|| earth_range(&w.orbit, w.start, w.span_s, w.step_s))
         .transpose()?;
     let counted = input.stations.iter().map(|st| {
         let closure = match link_for(input, &st.id) {
             None => DataThroughputLinkClosure::NotEvaluated,
             Some(link) => {
-                let Some(altitude) = altitude else {
-                    return Err(AnalysisError::InvalidInput(
-                        "The downlink closure needs an orbit given by Kepler elements (it uses the altitude)"
-                            .to_owned(),
-                    ));
+                // 距離を地球までの距離で測る軌道（`far`）は高度を使わない
+                let altitude = match (altitude, far.is_some()) {
+                    (Some(a), _) => a,
+                    (None, true) => 0.0,
+                    (None, false) => {
+                        return Err(AnalysisError::InvalidInput(
+                            "The downlink closure needs an orbit given by Kepler elements (it uses the altitude)"
+                                .to_owned(),
+                        ));
+                    }
                 };
-                if altitude <= 0.0 {
+                if far.is_none() && altitude <= 0.0 {
                     return Err(AnalysisError::InvalidInput(
                         "Orbit altitude is negative".to_owned(),
                     ));

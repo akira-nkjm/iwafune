@@ -10,6 +10,7 @@ use crate::thermal::orbit_heat::fixtures::{cube, leo_timeline};
 fn first_order_cooling() {
     let input = ThermalTransientInput {
         network: ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![node("sink", Some(300.0)), node("box", None)],
             conductive: vec![ThermalConductiveLink {
@@ -46,6 +47,7 @@ fn first_order_cooling() {
 #[test]
 fn phases_cycle() {
     let net = Compiled::new(&ThermalNetwork {
+        plates: Vec::new(),
         mounts: None,
         nodes: vec![node("a", None)],
         conductive: vec![],
@@ -194,6 +196,7 @@ fn single_phase_duration_defaults_without_changing_the_result() {
 #[test]
 fn phase_boundaries_inside_an_interval() {
     let net = Compiled::new(&ThermalNetwork {
+        plates: Vec::new(),
         mounts: None,
         nodes: vec![node("a", None)],
         conductive: vec![],

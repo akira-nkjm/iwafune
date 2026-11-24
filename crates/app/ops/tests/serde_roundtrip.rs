@@ -455,11 +455,13 @@ fn other_ops() -> Vec<Op> {
         Op::CreateConfiguration {
             id: "STOWED".into(),
             label: Some("Stowed".into()),
+            label_en: Some("Stowed (English)".into()),
             description: Some("Paddle folded onto the +X face".into()),
         },
         Op::SetConfiguration {
             id: "STOWED".into(),
             label: None,
+            label_en: None,
             description: None,
         },
         Op::RemoveConfiguration {

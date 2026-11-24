@@ -54,6 +54,7 @@ typed_dimensions![
     ElectricCharge,
     Volume,
     ThermalConductance,
+    ThermalConductivity,
     HeatTransferCoefficient,
     SpecificHeatCapacity,
     SpecificEnergy,
