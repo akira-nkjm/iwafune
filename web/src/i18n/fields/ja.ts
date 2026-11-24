@@ -33,6 +33,8 @@ const labels: Record<string, string> = {
   dod_max: "許容 DoD",
   battery_strings: "電池の組数",
   sun_distance: "太陽距離",
+  sun_distance_source: "太陽距離の出どころ",
+  sun_distance_epoch: "太陽距離が最大の日付",
   cell_efficiency: "セル効率",
   packing_factor: "実装率",
   eol_factor: "EOL 劣化係数",

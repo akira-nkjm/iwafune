@@ -31,7 +31,10 @@ pub fn case(c: &CaseCmd) -> Built<'_> {
             },
             edit,
         )),
-        CaseCmd::Ls | CaseCmd::FromEclipse { .. } | CaseCmd::FromSunDistance { .. } => None,
+        CaseCmd::Ls
+        | CaseCmd::FromEclipse { .. }
+        | CaseCmd::FromSunDistance { .. }
+        | CaseCmd::FromGeometry { .. } => None,
     })
 }
 
@@ -44,6 +47,7 @@ fn case_of(a: &CaseArgs) -> anyhow::Result<Case> {
         "side": a.side,
         "thermal_case": a.thermal_case,
         "orbits": a.orbits,
+        "epoch": a.epoch,
     });
     let mut case: Case = serde_json::from_value(value)
         .map_err(|e| anyhow::anyhow!("Cannot create the analysis case: {e}"))?;

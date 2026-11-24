@@ -79,6 +79,7 @@ fn case_cmd(case: &Case) -> String {
         .flag("beta", beta.as_deref())
         .flag("orbits", orbits.as_deref())
         .flag("sun-distance", sun_distance.as_deref())
+        .flag("epoch", case.epoch.as_deref())
         .done()
 }
 

@@ -9,6 +9,7 @@
 //! | `configuration` | `fune configuration add\|set\|unset-pose` の引数（[`configuration_op`]・[`unset_pose_op`]。逆の向きは `query::configurations`） |
 //! | `defs` | `fune attr add`・`fune kind add` |
 //! | `eclipse` | 季節解析の代表標本から新しい解析ケースの SetCase を作る |
+//! | `geometry_cases` | 軌道のミッション幾何の最悪の日（太陽距離の最大・最小、地球距離の最大）から `epoch` を持つ解析ケースの SetCase を作る・更新する |
 //! | `sun_distance` | 太陽を回る軌道の近日点・遠日点から新しい解析ケースの SetCase を作る |
 //! | `requirement` | `fune requirement add\|set` の引数（[`requirement_op`]。逆の向きは `query::requirements`） |
 //! | `maneuver` | `fune maneuver add\|set` の引数（[`maneuver_op`]。逆の向きは `query::maneuvers`） |
@@ -33,6 +34,7 @@ mod command;
 mod configuration;
 mod defs;
 mod eclipse;
+mod geometry_cases;
 mod ground;
 mod group;
 mod link;
@@ -56,6 +58,7 @@ pub use defs::{
 };
 pub use eclipse::case_from_eclipse_op;
 pub use fune_ops::{to_cli, to_cli_script};
+pub use geometry_cases::cases_from_geometry_ops;
 pub use ground::ground_add_op;
 pub use group::group_target;
 pub use link::link_add_op;

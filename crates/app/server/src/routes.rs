@@ -3,7 +3,7 @@
 //! | モジュール | パス |
 //! |---|---|
 //! | `design` | `/project` `/design` `/system_modes/{system}`（POST） `/maneuvers` `/phases` `/configurations` `/requirements` `/requirements/compliance` `/parts` `/parts/{id}`（POST は下書きを当てた部品） `/values/{path}` `/defs` `/diagnostics` |
-//! | `edit` | `/ops` `/ops/from_text` `/ops/unset_from_text` `/ops/from_command` `/ops/case_from_eclipse` `/ops/case_from_sun_distance` `/ops/maneuver_window` `/parts/{id}/place_body` `/fmt` |
+//! | `edit` | `/ops` `/ops/from_text` `/ops/unset_from_text` `/ops/from_command` `/ops/case_from_eclipse` `/ops/case_from_sun_distance` `/ops/cases_from_geometry` `/ops/maneuver_window` `/parts/{id}/place_body` `/fmt` |
 //! | `history` | `/history` `/undo` `/redo` |
 //! | `units` | `/units` `/units/parse` `/units/format` |
 //! | `analyses` | `/analyses` `/analyses/{id}` `/budgets/{kind}`（GET と、下書きを当てる POST） |
@@ -73,6 +73,7 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
             "/ops/case_from_sun_distance",
             post(edit::case_from_sun_distance),
         )
+        .route("/ops/cases_from_geometry", post(edit::cases_from_geometry))
         .route("/history", get(history::view))
         .route("/undo", post(history::undo))
         .route("/redo", post(history::redo))

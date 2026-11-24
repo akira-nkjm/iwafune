@@ -51,6 +51,7 @@ fn case_op(req: &CaseFromSunDistanceRequest, point: &SunDistancePoint, au: f64) 
             beta: None,
             orbits: None,
             sun_distance: Some(Quantity::new(au, DISTANCE_UNIT)),
+            epoch: None,
         },
     }
 }

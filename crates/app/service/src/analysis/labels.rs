@@ -13,7 +13,7 @@ use sat_analysis::comm::link_budget::{LinkBudgetDirection, LinkDistanceModel};
 use sat_analysis::power::energy_balance::{
     DurationTiming, EnergyBalanceDuty, EnergyBalanceEvaluation,
 };
-use sat_analysis::power::sizing::SizingLifetimeSource;
+use sat_analysis::power::sizing::{SizingLifetimeSource, SizingSunDistanceSource};
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
 use sat_analysis::structure::cone_clearance::{ConeKind, ConeSkipReason};
@@ -305,6 +305,19 @@ fn energy_balance_duty(d: EnergyBalanceDuty) -> AnalysisLabel {
     }
 }
 
+fn sizing_sun_distance_source(s: SizingSunDistanceSource) -> AnalysisLabel {
+    match s {
+        SizingSunDistanceSource::Setting => label("設定", "Setting"),
+        SizingSunDistanceSource::Nominal => {
+            label("中心天体の慣例値", "Conventional value of the central body")
+        }
+        SizingSunDistanceSource::SpanMax => label(
+            "期間の中の太陽距離の最大（最悪の日）",
+            "Farthest Sun distance over the span (worst day)",
+        ),
+    }
+}
+
 fn sizing_lifetime_source(s: SizingLifetimeSource) -> AnalysisLabel {
     match s {
         SizingLifetimeSource::SeasonSpan => label("季節の走査期間", "Season scan span"),
@@ -477,6 +490,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
         "DurationTiming" => parse(value).map(duration_timing),
         "SizingLifetimeSource" => parse(value).map(sizing_lifetime_source),
+        "SizingSunDistanceSource" => parse(value).map(sizing_sun_distance_source),
         "ThermalHeaterState" => parse(value).map(heater_state),
         "DataThroughputLinkClosure" => link_closure(value),
         "SolarActivity" => parse(value).map(orbit::solar_activity),
