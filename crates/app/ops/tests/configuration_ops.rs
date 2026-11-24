@@ -89,6 +89,7 @@ fn create(id: &str) -> Op {
     Op::CreateConfiguration {
         id: id.into(),
         label: Some("Stowed".into()),
+        label_en: None,
         description: Some("Paddle folded".into()),
     }
 }
@@ -146,6 +147,7 @@ fn set_replaces_the_heading_and_keeps_the_poses() {
     let set = Op::SetConfiguration {
         id: "STOWED".into(),
         label: Some("Folded".into()),
+        label_en: None,
         description: None,
     };
     let snap = run(snap, std::slice::from_ref(&set));
@@ -165,6 +167,7 @@ fn set_replaces_the_heading_and_keeps_the_poses() {
         &[Op::SetConfiguration {
             id: "NEW".into(),
             label: Some("New".into()),
+            label_en: None,
             description: None,
         }],
     );
@@ -471,4 +474,47 @@ fn changing_the_base_mount_warns_when_a_configuration_overrides_the_part() {
         configuration: None,
     };
     assert!(warnings(&plan(&snap, &[c]).unwrap()).is_empty());
+}
+
+/// 英語名は `label` の次に書き、空にすれば（`None`）キーごと消える。名前の変更は英語名を残す。
+#[test]
+fn label_en_is_written_after_label_cleared_by_none_and_kept_by_rename() {
+    let with_en = Op::CreateConfiguration {
+        id: "STOWED".into(),
+        label: Some("収納".into()),
+        label_en: Some("Stowed".into()),
+        description: Some("Paddle folded".into()),
+    };
+    let snap = run(snapshot(), &[with_en]);
+    assert_eq!(
+        text(&snap.files, "configurations/STOWED.toml"),
+        "label       = \"収納\"\nlabel_en    = \"Stowed\"\ndescription = \"Paddle folded\"\n"
+    );
+    assert_eq!(
+        snap.design.configurations["STOWED"].label_en.as_deref(),
+        Some("Stowed")
+    );
+    let snap = run(
+        snap,
+        &[Op::RenameConfiguration {
+            id: "STOWED".into(),
+            to: "FOLDED".into(),
+        }],
+    );
+    assert_eq!(
+        snap.design.configurations["FOLDED"].label_en.as_deref(),
+        Some("Stowed")
+    );
+    let snap = run(
+        snap,
+        &[Op::SetConfiguration {
+            id: "FOLDED".into(),
+            label: Some("収納".into()),
+            label_en: None,
+            description: Some("Paddle folded".into()),
+        }],
+    );
+    let after = text(&snap.files, "configurations/FOLDED.toml");
+    assert!(!after.contains("label_en"), "{after}");
+    assert_eq!(snap.design.configurations["FOLDED"].label_en, None);
 }

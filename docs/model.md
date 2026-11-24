@@ -51,7 +51,7 @@ A topic's settings location is looked up with `ConditionTopic::setting_path()`. 
 `sat_astro::ephem::CentralBody` (projection's `context::central_body` maps them). Sun-synchronous (`sun_synchronous`) applies to Earth only;
 writing it for any other body is a `check` error (`setting.central`).
 
-`source` is where the orbit comes from (`elements`, `transfer` or `state`; `elements` if omitted and then **never written to the file**, so existing files are unchanged; the display name is `orbit_source` in labels.toml).
+`source` is where the orbit comes from (`elements`, `transfer`, `state` or `libration`; `elements` if omitted and then **never written to the file**, so existing files are unchanged; the display name is `orbit_source` in labels.toml).
 It is valid in `conditions/orbit.toml` and in a phase's `[orbit]` (§7.10), and it is edited with the existing ops only (`fune set conditions.orbit.source transfer`, `fune phase set-field <ID> orbit.source transfer`; there is no orbit field on the phase itself).
 Analyses read an orbit through `fune_projection::Context::trajectory` (state at a time, central body, epoch and the length of one cycle); only analyses that really need Kepler elements read `Context::orbit`.
 
@@ -90,8 +90,33 @@ maneuver = "MARS_TRANSFER"    # a maneuver with a dated [transfer] (§7.7)
   The integrator is the adaptive DOP853 of the numerical propagator (relative tolerance 1e-11) with a step limit of one day about the Sun and 600 s about any other body. One propagation with dense output serves all requested times; where a table is needed for repeated evaluations
   (thermal and power integrals, the refinement of extremes) it is built once at a step of a hundredth of the circular period at the osculating periapsis and interpolated by cubic Hermite (relative error about 4e-8 for a circular orbit at that step).
   The ephemeris of the bodies is DE440 inside its range and the analytic one outside (as for `transfer`; `orbit.geometry` reports which was used).
-- The settings tables (the orbit page and a phase's override dialog) list, for a source, the keys it uses even when they are not written (`OrbitSource::offered_keys`): `state` lists `epoch`, `central`, `position`, `velocity` and `span` and none of the Kepler elements. A cell typed there is sent as text and read by the service (`orbit_field_type` / `/ops/from_text`; a vector is `1 0 0 km`); an unreadable value is shown under the cell.
-- Keys beside a source that it does not use get the warning `setting.not_applied`: for `transfer`, the Kepler elements, `epoch`, `central`, `propagator`, `[eclipse_season]`, `[decay]` and the state keys; for `state`, the Kepler-element keys (everything of `elements` except `epoch` and `central`), `propagator`, `[eclipse_season]`, `[decay]` and `maneuver`;
+- `source = "libration"` takes a libration point of two bodies, or a halo orbit around it, as the orbit (`sat_astro::orbit::SynodicSpec`, `Trajectory::Synodic`):
+
+  ```toml
+  # conditions/orbit.toml (or a phase's [orbit]): a halo orbit about the Sun-Earth L2
+  [orbit]
+  source      = "libration"
+  epoch       = "2030-01-01T00:00:00Z"
+  primary     = "sun"
+  secondary   = "earth"
+  point       = "l2"                                   # l1 .. l5; display name `libration_point`
+  amplitude_z = { value = 120000.0, unit = "km" }      # omit for the point itself
+  branch      = "north"                                # north (default) or south; display name `halo_branch`
+  ```
+
+  **This is a circular-restricted-three-body (CR3BP) orbit carried on the ephemeris, not a force-model propagation.** A halo orbit is a periodic orbit of the CR3BP (`sat_astro::orbit::cr3bp`: the third-order Richardson approximation as the first guess, then a differential correction with the state transition matrix) tabulated for one period.
+  Each time, the two bodies' actual state about the primary (`CentralBody::state_about_parent`: DE440 inside its range, the analytic ephemeris outside) fixes the instantaneous distance (the length unit), the instantaneous angular rate and the rotating axes (the pulsating frame, `Cr3bp::rotating_to_inertial`), and the rotating-frame state is mapped to the inertial one.
+  So the orbit follows the Earth's eccentricity (the distance scales with the instantaneous separation) and orbit plane, but third-body perturbations, solar radiation pressure and the eccentricity's effect on the dynamics are not in it. **Station keeping is not estimated**: write it as a ΔV allowance in a maneuver.
+  - `primary` must be what `secondary` orbits in the ephemeris (a planet about the Sun, or the Moon about the Earth; `CentralBodyKind::parent`, the check `orbit.libration_pair`). The mass ratio uses GM of the primary and of the secondary; for an Earth secondary the Moon's GM is added (the usual Sun–Earth value, and the ephemeris Earth is close to the Earth–Moon barycentre).
+  - `amplitude_z` is the maximum |z| of the CR3BP halo (the larger of its two xz-plane crossings; the usual `Az`), divided by the secondary's mean distance `a` to become normalised; at another instantaneous distance the real extent scales with it. A halo needs `l1` or `l2` (`orbit.libration_halo_point`; the approximation exists only there), a positive amplitude (`setting.range`), and the corrector must converge (otherwise a missing input names the reason).
+    `branch` without `amplitude_z` has no effect (the warning `orbit.libration_branch`). North is the side with z > 0 at the epoch, along the secondary's orbit normal; south is its mirror image.
+  - The epoch is the start of the table: the halo is at its xz-plane crossing there. The table's phase is the angle the secondary has swept about the primary (so the same orbit continues at another epoch; the case `epoch` starts it at any day, `Trajectory::starting_at`).
+  - **Origin, repetition, shadow**: the origin body (`central()`, used for the sub-point, shadow and occultation) is the secondary; `central` is not written for this source. The cycle is `Periodic` with the halo's corrected period (about 180 days for a 120 000 km Sun–Earth L2 halo, 177.9 days at L1) or, for a point, the sidereal period of the two bodies (the Sun geometry repeats with it).
+    A body other than the secondary can also cast the shadow (`Trajectory::extra_shadow_caster`: the primary unless it is the Sun, so the Earth shadows the Earth–Moon L1/L2; the sunlit fraction is the smaller of the two bodies' factors, and an orbit without one is unchanged). At Sun–Earth L2 the Earth's penumbra and umbra are the secondary's shadow as usual.
+  - Kepler-only analyses answer "Not applicable" as for `transfer` and `state`; the time-series analyses and `orbit.geometry` run. At the Sun–Earth L2 the Sun–probe–Earth angle is 0° and the Sun–Earth–probe angle 180° (Sun and Earth are on the same side of the probe), at L1 the reverse.
+    Every analysis result carries an `orbit_model` note (the check key; verdict ok) saying that the orbit is a CR3BP orbit carried on the ephemeris and that station keeping is not estimated.
+- The settings tables (the orbit page and a phase's override dialog) list, for a source, the keys it uses even when they are not written (`OrbitSource::offered_keys`): `state` lists `epoch`, `central`, `position`, `velocity` and `span` and none of the Kepler elements; `libration` lists `epoch`, `primary`, `secondary`, `point`, `amplitude_z` and `branch`. A cell typed there is sent as text and read by the service (`orbit_field_type` / `/ops/from_text`; a vector is `1 0 0 km`); an unreadable value is shown under the cell.
+- Keys beside a source that it does not use get the warning `setting.not_applied`: for `transfer`, the Kepler elements, `epoch`, `central`, `propagator`, `[eclipse_season]`, `[decay]` and the state keys; for `state`, the Kepler-element keys (everything of `elements` except `epoch` and `central`), `propagator`, `[eclipse_season]`, `[decay]` and `maneuver`; for `libration`, the Kepler-element keys, `central`, the state keys and `maneuver` (the libration keys beside any other source too);
   for `elements`, `maneuver` and the state keys (`position`, `velocity`, `span`). `span` must be positive and the components finite (`setting.range`), and the units must have the dimensions Length, Velocity and Time.
   `maneuver` must name an existing maneuver whenever it is written (`ref.maneuver`) and, for `transfer`, that maneuver must have a `[transfer]` (`orbit.maneuver_transfer`). A missing `maneuver` is not a check error but a missing input (`conditions.orbit.maneuver`),
   which offers the maneuvers with a dated transfer (`Fix::PickRef`).
@@ -315,7 +340,7 @@ flowchart LR
 | Harness | Cable segment (physical) | `harness/<ID>.toml` | ports at both ends, the nets it carries, wire, number of cores, length |
 | Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, a phase (§7.10), which side of the uncertainty to read, Sun distance (cruise), the start time `epoch` (a day on the orbit), orbit, attitude law, environment conditions, period |
 | Phase | Mission phase (commissioning, nominal operations, disposal) | `phases/<ID>.toml` | order, start and end conditions (free text), duration, the modes used, and optional configuration selection and overrides of the orbit and of the attitude law per mode for the cases that name the phase (§7.10) |
-| Configuration | A named overlay of part poses (stowed, deployed and other placement variants) | `configurations/<ID>.toml` | label, description, and a replacement pose per part (§7.11) |
+| Configuration | A named overlay of part poses (stowed, deployed and other placement variants) | `configurations/<ID>.toml` | label, optional English label (`label_en`), description, and a replacement pose per part (§7.11) |
 | Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only, dates of an interplanetary transfer (§7.7) |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, date, author |
 | Source | Ledger of sources | `sources/[<dir>/…]<ID>.toml` (§11.1) | kind (datasheet / measured / analysis / judgement / placeholder), reference, document version, retrieval date, SHA-256, distribution category, date, author (§7.8) |
@@ -739,6 +764,40 @@ all go through it. Node names and part IDs share one namespace, so the rules are
 
 Adding a part that `[nodes]` leaves out changes the thermal result (its mass is now counted and it is coupled along its mount). For the demo this applies to the electric thruster and the propellant tank.
 
+#### Temperature distribution inside a plate (subdividing a part)
+
+A plate-like part (a panel) is one isothermal node by default, so the difference between its edge and its middle, or between a hot component's footprint and the far corner, does not show.
+`[subdivide.<part>]` in `analysis/thermal.toml` splits one part into a grid of thermal cells (the choice belongs to the thermal analysis, not to the part):
+```toml
+# analysis/thermal.toml
+[subdivide.PANEL_PX]    # integers: the number of cells along the plate's two in-plane axes
+u = 3
+v = 5
+```
+It is edited with the generic setting operation (`fune set analysis.thermal.subdivide.PANEL_PX.u 3`, `… .v 5`, `fune unset …`; CLI and HTTP write the same bytes). A part is checked for: existing (`ref.part`), not lumped by `[nodes]` (`thermal.subdivide_lumped`),
+1 to 8 cells per axis (`thermal.subdivide_cells`: the transient solver is explicit, so more cells make it take much smaller steps; see "Stiff networks"), and both `u` and `v` written (`thermal.subdivide_incomplete`, a warning while one is still missing).
+Renaming the part renames the key. Whether the box is a plate is decided by the analysis from the resolved `size`: the thinnest side must be at most 1/4 of the next thinnest, otherwise the analysis stops with an input error naming the part.
+
+- **Axes** (`sat_analysis::plate_grid`, shared with the coarse finite-element mesh). The plate's normal is the thinnest side of its box and the plate thickness is that side. The in-plane axes follow the normal cyclically: normal x → `u` = y, `v` = z; normal y → `u` = z, `v` = x; normal z → `u` = x, `v` = y.
+  Cells are numbered `(i, j)` from 0 (`i` along `u`).
+- **Cells are internal nodes** named `<PART>[i,j]` (for example `PANEL_PX[2,4]`) in the results, the time series and the `couplings.plates` report; each carries `cell = { part, i, j }`. **Everything you write keeps naming the part**: an explicit `[conductive.*]` or `[radiative.*]` pair,
+  `[heat_node]`, `[surface.*]` and the requirement keys `range_high|range_low:<part>:<kind>`. Nothing stores a cell name, so renaming a part needs no migration.
+- **In-plane conduction** between cells that share an edge: `G = k · t · (shared edge length) / (centre distance)`, with `k` the thermal conductivity of the part's `material` (`analysis.structure.material.<name>.thermal_conductivity`; a missing one is a missing input),
+  `t` the thickness. For cells of `Δu × Δv`: `G_u = k t Δv/Δu` between neighbours along `u`, `G_v = k t Δu/Δv` along `v`. (A uniform grid: the shared edge is the other cell side and the centre distance is one cell side.)
+- **Heat capacity** of a cell is the part's capacity times its area fraction (`1/(u·v)`). **External heat** (solar, albedo, planet infrared, radiation to space) and **internal dissipation** on the part are distributed by cell area, with the surface's coatings unchanged.
+  A thermostat heater cannot be placed on a subdivided part (a thermostat senses one node): the analysis stops with an input error; put the heater on a part mounted on the plate.
+- **Couplings to the part** are resolved first as for any node (explicit > enclosure > contact area > mount default, so the `couplings` list still names the part and its sources) and then distributed over the cells with the total preserved:
+  explicit conduction and radiation, enclosure radiation and the radiation default by cell area; the conduction of a **mount** goes to the cells under the mounted part: the weight of a cell is its contact area with the other part's box
+  (`OrientedBox::contact_area` applied to the cell's box, so a box on the face and a box against the edge both work), and when the boxes do not touch within the tolerance (0.1 mm) the weight is the overlap of the other box projected onto the plate with the cell.
+  If neither can be determined (no box, no overlap) the coupling is spread by cell area and the other node is listed in `couplings.plates[].spread_by_area`. When both ends are subdivided plates the product of the area fractions is used.
+- **Requirement keys** `range_high:<part>:<kind>` and `range_low:<part>:<kind>` evaluate the **hottest cell** (high side) and the **coldest cell** (low side) of the plate, the conservative reading, and the check text names the cell
+  (`…, hottest cell PANEL_PX[2,4]`). The results still list every cell with its own verdict, and the KPIs (maximum and minimum temperature) include the cells.
+- **Stiffness.** The solvers are unchanged and still explicit. `couplings.plates[]` reports each plate's thickness, the two in-plane conductances and the smallest cell time constant `C / ΣG` (the sum is over every conduction on the cell, in-plane and distributed). `thermal.transient` adds a warning check
+  `plate_step:<part>` when that time constant is below 0.1 times the configured `time_step` (`PLATE_STEP_WARNING_FRACTION`); the message suggests fewer cells.
+  The thickness cancels in the in-plane part: `τ = ρ c Δ² / (4 k)` for an interior square cell of side `Δ` (aluminium, `Δ` = 7 cm → about 18 s), and the conduction to a mounted part (a few W/K) shortens it further.
+
+Not modelled: a plate with an irregular outline or holes (cells are a uniform grid of the box), conduction through the thickness, a thermostat on a plate, and colouring the 3D thermal image per cell (it still colours whole parts by the hottest cell; the per-cell field view is a follow-up).
+
 #### Heat dissipation
 
 Heat dissipation is found by `sat_analysis::thermal::network::load` from the part's mode average. In order of priority:
@@ -780,7 +839,7 @@ The output samples stay at the timeline's sample times; the integrator takes wha
 - **Stiff networks.** The method is explicit. A node with a very small heat capacity strongly coupled to a large one makes the step as small as the fast time constant, whatever the accuracy. A 12-node chain of alternating 0.09 J/K and 900 J/K nodes
   (G = 10 W/K) over five orbits takes about a million steps and 12 million evaluations of the right-hand side (about a minute in a debug build; see `stiff_chain_five_orbits_cost`). There is no implicit integrator: model such a node as part of its neighbour.
   With one node per part, small parts become small nodes. Measured on the demo with `[nodes]` removed (38 nodes, capacities 4.4 to 782 J/K, default 0.5 W/K per mount), `thermal.transient` over five orbits takes about 1100 steps and 15 000 evaluations (0.04 s in a release build), the same as with lumped nodes;
-  the cost only grows when a part's capacity per unit of coupling approaches a second: a 0.05 g heater (0.045 J/K) and a 0.02 g heater in the same design raise it to about 100 000 steps and 1.3 million evaluations (2 s in a release build, 27 s in a debug build). Nothing is limited or warned; list a very light part in `[nodes]` with the part it is mounted on.
+  the cost only grows when a part's capacity per unit of coupling approaches a second: a 0.05 g heater (0.045 J/K) and a 0.02 g heater in the same design raise it to about 100 000 steps and 1.3 million evaluations (2 s in a release build, 27 s in a debug build). Nothing is limited or warned for light parts; list a very light part in `[nodes]` with the part it is mounted on. Subdivided plates are the exception: their cell time constants are reported and warned about (see "Temperature distribution inside a plate").
 - **Accuracy.** The penumbra of the conical shadow begins and ends with a `x^(3/2)`-like rise of the sunlit fraction, which the error estimate sees only partly; with orbits through the penumbra the global error is a few times the tolerance
   (about 1e-5 K at the defaults). Without a penumbra (cylindrical model, or no eclipse) the error is far below the tolerance.
 
@@ -1922,6 +1981,7 @@ A configuration is a named variant of the placement (stowed, deployed, a cruise 
 ```toml
 # configurations/STOWED.toml
 label       = "Stowed"
+label_en    = "Stowed"                    # optional English name
 description = "Paddle folded onto the +X face"
 
 [pose.SAP_PY]          # REPLACES SAP_PY's [pose] as a whole in this configuration (no per-key merge), relative to its unchanged mount point
@@ -1929,6 +1989,7 @@ position    = { x = 2.6, y = -1.5, z = 0.0, unit = "mm" }
 orientation = { w = 0.707107, x = 0.0, y = 0.0, z = -0.707107 }
 ```
 
+- **Names.** `label` is the display name as written (users usually write it in their own language) and the optional `label_en` is the English one. The GUI shows `label_en` in English and, when there is none, the ID (the same rule as for other records with a `label_en`: `nodeName` / `idWithName`); in Japanese it shows the ID with `label`. The keys are written in the order `label`, `label_en`, `description`; a file without `label_en` is unchanged.
 - **What it overrides.** Only the pose (`position` and `orientation`) of a part, relative to the mount point written in the part file (for a root, which has no mount, the pose in the body frame, §7.1). The mount target and mount point are not overridable. A part that the file does not list keeps its base pose, and the children of an overridden part follow it through the mount chain.
   Because the table is replaced as a whole, a key that the configuration does not write is the default (a missing `orientation` is the identity), not the base value. A design with no `configurations/` directory has the same files and the same numbers as before.
 - **One place decides.** `Design::pose_in(part, configuration)` returns the written pose in effect (the configuration's row, otherwise the part's own `pose`; an unknown configuration is the base). The mount resolution calls it, and nothing else does
@@ -1938,17 +1999,17 @@ orientation = { w = 0.707107, x = 0.0, y = 0.0, z = -0.707107 }
   and nothing is special for a root (the warning `configuration.pose_without_mount` of the first version is gone: a root's override is its body-frame pose in that configuration). `outline.root_pose` (warning, §5.3) is also given for a configuration that overrides the outline root's pose.
 - **References.** The keys of `[pose]` are part references in the reference index (`RefSite::ConfigurationPose`). Renaming a part rewrites the key, and removing a part removes its row (and an emptied `[pose]`), the same policy as a mode's part rows. The launch and phase selections are indexed as `RefSite::LaunchConfiguration` and `RefSite::PhaseConfiguration`. Renaming a configuration rewrites both selections. Removing it while either site names it is rejected with `ref.configuration`.
 - **How to write.** After the top-level values, `[pose.<PART>]` are heading tables with inline `position` and `orientation` (`fune_store::write::records::CONFIGURATION_SECTIONS`). `fune fmt` keeps this form.
-- **Ops**: `CreateConfiguration` (refused if the ID exists), `SetConfiguration` (writes `label` and `description`, creates the file if missing, keeps the `[pose.*]` rows), `RemoveConfiguration`, `RenameConfiguration` (moves the file and follows the reference index to rewrite launch and phase selections),
+- **Ops**: `CreateConfiguration` (refused if the ID exists), `SetConfiguration` (writes `label`, `label_en` and `description`; an empty `label_en` removes the key, creates the file if missing, keeps the `[pose.*]` rows), `RemoveConfiguration`, `RenameConfiguration` (moves the file and follows the reference index to rewrite launch and phase selections),
   and `UnsetConfigurationPose` (removes one part's override; an emptied `[pose]` table disappears and the heading stays; refused if the part has no override there, so a repeated reset is an error and not a silent no-op).
   **Placing a part in a configuration is the same `Place` Op as placing a part**, with one more optional `configuration`: the pose (`position`, `orientation`) is written to `[pose.<PART>]` of that configuration's file as a whole instead of the part's own `[pose]`, which is left untouched.
   The rules: `on` and `point` may be omitted, and if given must equal the part's mount (re-mounting per configuration is not possible, and `--root` is refused; for a root, giving a mount target is a re-mount and is refused too); the pose of a part with no mount is its body-frame pose; at least one of `position` and `orientation` is required (to go back to the base pose, remove the override); an unknown configuration or part is refused.
   The Op JSON is unchanged when `configuration` is absent.
 - **Placing in vehicle coordinates** (`fune part place --body-pos`, the GUI's 3-D drag, `POST /parts/{id}/place_body`) takes the configuration too. The body position is read in the resolved design of that configuration (`Resolved::in_configuration`), because the parents' poses may be overridden there, and converted to the mount-local pose by the same `fune_projection::pose::body_to_mount_local` as in the base; the result is a `Place` with `configuration`.
 - **Reading.** `PartRow.mount` and `PartRow.body` (part listings and the part detail) take an optional configuration (`GET /parts?configuration=`, `GET /parts/{id}?configuration=`, `PartViewRequest.configuration`, `fune part ls|show --configuration <ID>`) and return the poses in that configuration; an unknown configuration is an error (it is not read as the base).
-  `MountView.overridden` tells whether the configuration overrides the part's pose (the written `authored_*` values and `relative` are then the override). `GET /configurations` and `GET /design` (`configurations`) list the configurations: ID, label, description, the overridden part IDs, and the initial values of the editing fields.
+  `MountView.overridden` tells whether the configuration overrides the part's pose (the written `authored_*` values and `relative` are then the override). `GET /configurations` and `GET /design` (`configurations`) list the configurations: ID, label (the label, or the ID when there is none), `label_en` (or null), description, the overridden part IDs, and the initial values of the editing fields.
 - **Diagnostic when the base mount changes.** `[pose.<PART>]` is relative to the part's base mount point, so `Place` on a part's own mount (without `configuration`) that changes `on` or `point` while a configuration overrides that part returns the warning `configuration.mount_changed` for each such configuration
   (target `configurations.<ID>.pose.<PART>`, with the location of the row). It is a warning of the edit (in the Op result's diagnostics), not of a stored design, because the check of a stored design cannot know that the mount changed. Moving a mount point of the parent (`SetMountPoint`) is not detected.
-- **CLI** (the GUI sends the same arguments to `POST /ops/from_command`): `fune configuration ls|show|add|set|rm|rename`, `fune configuration unset-pose <ID> <PART>`,
+- **CLI** (the GUI sends the same arguments to `POST /ops/from_command`): `fune configuration ls|show|add|set|rm|rename` (`add` and `set` take `--label`, `--label-en` and `--description`; `ls` adds an "English name" column only when some configuration has one), `fune configuration unset-pose <ID> <PART>`,
   `fune part place <PART> --configuration <ID> --position "…" --rotation "…"` (`--on`/`--point` optional; `--body-pos "x y z mm"` reads vehicle coordinates in that configuration), and `fune part ls|show --configuration <ID>`.
 - The Layout page switches between Base and named configurations using the `configuration` URL parameter. In a named configuration, 3-D dragging and the placement fields write pose overrides (a root part's pose can be overridden too), the mount controls are disabled, and **Reset to base** removes the selected part's override. The configuration menu manages the records, and component detail lists the part's overrides and mount-relative poses.
   The center-of-mass marker is the structure mass-properties analysis requested with the selected configuration, so it follows the configuration being viewed.

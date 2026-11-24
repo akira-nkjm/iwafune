@@ -35,7 +35,6 @@ enum_text! {
 enum_text! {
     /// 軌道の出どころ（`[orbit]` の `source`。書かなければ `elements`）。解析が軌道から読むのは時刻での状態・中心天体・元期・
     /// 繰り返しの長さで、出どころごとに射影（`fune_projection::Context::trajectory`）がそれを作る。
-    /// 出どころは `libration` が増える（値を足すだけで、ほかの欄の形は変わらない）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
     pub enum OrbitSource: "orbit source" {
         /// ケプラー要素（`altitude`・`semi_major_axis` 以下。既定）
@@ -45,11 +44,38 @@ enum_text! {
         /// 状態ベクトル（`epoch`・`central`・`position`・`velocity`・`span`）を多体の力で数値伝搬する軌道。位置・速度は
         /// 原点の天体の中心から、向きは ECI（J2000 平均赤道の慣性系）
         State = "state",
+        /// ラグランジュ点（`primary`・`secondary`・`point`・`epoch`）、`amplitude_z` を書けばそのまわりのハロー軌道（`branch`）。
+        /// 円制限三体問題の軌道を暦の 2 天体の位置に載せたもの。原点は副天体
+        Libration = "libration",
+    }
+}
+
+enum_text! {
+    /// ラグランジュ点（`source = "libration"` の `point`）。`sat_astro::orbit::cr3bp::LibrationPoint` に射影する。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+    pub enum LibrationPointKind: "libration point" {
+        L1 = "l1",
+        L2 = "l2",
+        L3 = "l3",
+        L4 = "l4",
+        L5 = "l5",
+    }
+}
+
+enum_text! {
+    /// ハロー軌道の枝（`source = "libration"` の `branch`）。北は元期に z > 0、南はその z → −z の鏡像。
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+    pub enum HaloBranchKind: "halo branch" {
+        North = "north",
+        South = "south",
     }
 }
 
 /// 状態ベクトルの軌道（`source = "state"`）だけが使う欄。
 const STATE_KEYS: &[&str] = &["position", "velocity", "span"];
+
+/// ラグランジュ点の軌道（`source = "libration"`）だけが使う欄（`epoch` は状態ベクトルの軌道も使う）。
+const LIBRATION_KEYS: &[&str] = &["primary", "secondary", "point", "amplitude_z", "branch"];
 
 /// ケプラー要素の軌道（`source = "elements"`）だけが使う欄（`epoch`・`central` は状態ベクトルの軌道も使う）。
 const ELEMENT_ONLY_KEYS: &[&str] = &[
@@ -82,6 +108,14 @@ impl OrbitSource {
                     .filter(|k| !unused.contains(k))
                     .collect()
             }
+            Self::Libration => {
+                let unused = self.unused_keys();
+                ["source", "epoch"]
+                    .into_iter()
+                    .chain(LIBRATION_KEYS.iter().copied())
+                    .filter(|k| !unused.contains(k))
+                    .collect()
+            }
         }
     }
 
@@ -90,14 +124,32 @@ impl OrbitSource {
     pub fn unused_keys(self) -> Vec<&'static str> {
         let (elements, shared): (&[&str], &[&str]) = (ELEMENT_ONLY_KEYS, &["epoch", "central"]);
         match self {
-            Self::Elements => ["maneuver"].iter().chain(STATE_KEYS).copied().collect(),
+            Self::Elements => ["maneuver"]
+                .iter()
+                .chain(STATE_KEYS)
+                .chain(LIBRATION_KEYS)
+                .copied()
+                .collect(),
             Self::Transfer => shared
+                .iter()
+                .chain(elements)
+                .chain(STATE_KEYS)
+                .chain(LIBRATION_KEYS)
+                .copied()
+                .collect(),
+            Self::State => ["maneuver"]
+                .iter()
+                .chain(elements)
+                .chain(LIBRATION_KEYS)
+                .copied()
+                .collect(),
+            // 原点の天体（`central`）は副天体で決まるので書かせない
+            Self::Libration => ["maneuver", "central"]
                 .iter()
                 .chain(elements)
                 .chain(STATE_KEYS)
                 .copied()
                 .collect(),
-            Self::State => ["maneuver"].iter().chain(elements).copied().collect(),
         }
     }
 }
@@ -117,6 +169,18 @@ enum_text! {
         Saturn = "saturn",
         Uranus = "uranus",
         Neptune = "neptune",
+    }
+}
+
+impl CentralBodyKind {
+    /// 暦で回っている先の天体（月は地球、太陽以外の惑星は太陽。太陽は無し）。ラグランジュ点の軌道の主天体と副天体の組の検査に使う。
+    /// `sat_astro::ephem::CentralBody::parent` と同じ（projection のテストで一致を確かめる。model は sat-astro に依存しない）。
+    pub fn parent(self) -> Option<Self> {
+        match self {
+            Self::Sun => None,
+            Self::Moon => Some(Self::Earth),
+            _ => Some(Self::Sun),
+        }
     }
 }
 
@@ -141,6 +205,21 @@ pub struct OrbitSettings {
     /// 中心天体（省略時は地球）。高度はこの天体の赤道半径から数える。`source = "state"` では位置・速度の原点の天体
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub central: Option<CentralBodyKind>,
+    /// `source = "libration"` の主天体（副天体の親。太陽–地球なら `sun`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary: Option<CentralBodyKind>,
+    /// `source = "libration"` の副天体（位置・速度の原点の天体。太陽–地球なら `earth`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub secondary: Option<CentralBodyKind>,
+    /// `source = "libration"` のラグランジュ点（`l1`〜`l5`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub point: Option<LibrationPointKind>,
+    /// `source = "libration"` のハロー軌道の z 方向の振幅（長さ。書けばハロー軌道、書かなければ点そのもの。`l1`・`l2` だけ）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub amplitude_z: Option<Quantity>,
+    /// `source = "libration"` のハロー軌道の枝（`north`・`south`。`amplitude_z` を書いたときだけ。省略は北）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub branch: Option<HaloBranchKind>,
     /// `source = "state"` の元期の位置（`{ x, y, z, unit }`。原点の天体の中心から。向きは ECI = J2000 平均赤道の慣性系。座標系を `frame` で選ぶことはできない）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub position: Option<Vector3>,
@@ -383,7 +462,8 @@ impl OrbitSettings {
     pub fn field_shape(key: &str) -> Option<crate::value::SettingValue> {
         use crate::value::SettingValue;
         match key {
-            "label" | "source" | "maneuver" | "epoch" | "ltdn" | "central" | "propagator" => {
+            "label" | "source" | "maneuver" | "epoch" | "ltdn" | "central" | "propagator"
+            | "primary" | "secondary" | "point" | "branch" => {
                 Some(SettingValue::Text(String::new()))
             }
             "position" | "velocity" => Some(SettingValue::Vector(Vector3::unitless(0.0, 0.0, 0.0))),

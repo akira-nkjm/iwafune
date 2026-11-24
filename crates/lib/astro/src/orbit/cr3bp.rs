@@ -38,6 +38,8 @@ mod tests_frame;
 mod tests_halo;
 #[cfg(test)]
 mod tests_points;
+#[cfg(test)]
+mod tests_richardson;
 
 pub use corrector::{CorrectorConfig, Fixed, PeriodicGuess, PeriodicOrbit};
 pub use dynamics::{State6, State42};

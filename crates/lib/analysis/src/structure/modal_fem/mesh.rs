@@ -138,10 +138,7 @@ fn invalid(msg: String) -> AnalysisError {
     AnalysisError::InvalidInput(msg)
 }
 
-/// パネルの面内の軸 (u, v)（法線から巡回順）。
-pub fn in_plane_axes(normal: usize) -> [usize; 2] {
-    [(normal + 1) % 3, (normal + 2) % 3]
-}
+pub use crate::plate_grid::in_plane_axes;
 
 /// 面内の軸 `axis` 方向の辺の長さ（入力の `size` は昇順の 2 軸の順）。
 fn side_along(p: &ModalFemPanel, axis: usize) -> f64 {

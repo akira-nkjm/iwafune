@@ -88,6 +88,8 @@ departure_by = ["spacecraft", "launcher"]
 constraint_kind = ["at_most", "at_least", "equal", "range"]
 mode_when = ["any", "sunlit", "eclipse"]
 start_from = ["eclipse_exit", "eclipse_entry"]
+libration_point = ["l1", "l2", "l3", "l4", "l5"]
+halo_branch = ["north", "south"]
 central_body = ["earth", "moon", "sun", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune"]
 distribution = ["public", "on_request", "restricted"]
 
@@ -298,6 +300,38 @@ label_en = "Dated transfer"
 [enum.orbit_source.state]
 label    = "状態ベクトル"
 label_en = "State vector"
+
+[enum.orbit_source.libration]
+label    = "ラグランジュ点・ハロー軌道"
+label_en = "Libration point / halo orbit"
+
+[enum.libration_point.l1]
+label    = "L1（2 天体の間）"
+label_en = "L1 (between the bodies)"
+
+[enum.libration_point.l2]
+label    = "L2（副天体の外側）"
+label_en = "L2 (beyond the secondary)"
+
+[enum.libration_point.l3]
+label    = "L3（主天体の反対側）"
+label_en = "L3 (opposite the secondary)"
+
+[enum.libration_point.l4]
+label    = "L4（副天体の 60° 先）"
+label_en = "L4 (60° ahead of the secondary)"
+
+[enum.libration_point.l5]
+label    = "L5（副天体の 60° 後）"
+label_en = "L5 (60° behind the secondary)"
+
+[enum.halo_branch.north]
+label    = "北"
+label_en = "North"
+
+[enum.halo_branch.south]
+label    = "南"
+label_en = "South"
 
 [enum.link_direction.down]
 label    = "ダウンリンク"
