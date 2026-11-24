@@ -6,7 +6,7 @@
 //!
 //! | 参照先 | 参照元（[`RefSite`]） |
 //! |---|---|
-//! | 部品 | 要求の `[verify].check` が名指す部品（`intrusion:<部品>`・`heater:<部品>`・`interface:<取付先>`・`panel:<部品>` など）・モードの `[states]` と `[eclipse]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part` / `antenna`・`analysis/thermal.toml` の `[nodes]` と `[surface]` と `[heat_node]` のキー・図の `[nodes]` のキー・マヌーバの `thruster`・形態の `[pose]` のキー・`analysis/structure.toml` の `[[acknowledged]]` の `first` / `second` |
+//! | 部品 | 要求の `[verify].check` が名指す部品（`intrusion:<部品>`・`heater:<部品>`・`interface:<取付先>`・`panel:<部品>` など）・モードの `[states]` と `[eclipse]` のキー・ネットの `source` / `master`・ハーネスの `from` / `to`・子部品の `mount.on`・配分のキー・`analysis/comm.toml` の `[link.*].part` / `antenna`・`analysis/thermal.toml` の `[nodes]` と `[surface]` と `[heat_node]` と `[subdivide]` のキー・図の `[nodes]` のキー・マヌーバの `thruster`・形態の `[pose]` のキー・`analysis/structure.toml` の `[[acknowledged]]` の `first` / `second` |
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
 //! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode`・フェーズの `modes` と `[law]` のキー |
 //! | フェーズ | ケースの `phase` |
@@ -118,6 +118,8 @@ pub enum RefSite {
     ThermalSurface,
     /// 発熱の場所を書いた部品（`analysis/thermal.toml` の `[heat_node]` のキー）
     ThermalHeatNode,
+    /// 面内の分け方を書いた部品（`analysis/thermal.toml` の `[subdivide.<部品>]` のキー）
+    ThermalSubdivide,
     /// 部品の ID を節点の名前として書いた設定（既定の 1 部品 1 節点の節点。`[conductive.*]`・`[radiative.*]` の両端と
     /// `[heat_node]` の値）。部品の名前の変更が一緒に書き換える
     ThermalNodeName,
@@ -312,6 +314,9 @@ impl Design {
             }
             if thermal.heat_node.contains_key(id) {
                 out.push(RefSite::ThermalHeatNode);
+            }
+            if thermal.subdivide.contains_key(id) {
+                out.push(RefSite::ThermalSubdivide);
             }
             out.extend(self.per_part_node_refs(thermal, id));
         }

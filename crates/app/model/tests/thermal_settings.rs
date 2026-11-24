@@ -2,6 +2,7 @@
 
 use fune_model::design::{
     Part, ThermalCoatingSettings, ThermalEnclosureSettings, ThermalMarginSettings, ThermalSettings,
+    ThermalSubdivideSettings,
 };
 use fune_model::value::Quantity;
 use fune_model::{Design, Severity};
@@ -211,4 +212,43 @@ fn a_node_named_like_an_unlisted_part_is_a_clash() {
     );
     assert!(clash(&[("BOX", &["PANEL", "BOX"])]).is_empty());
     assert!(clash(&[("BOX", &["PANEL"]), ("LUMP", &["BOX"])]).is_empty());
+}
+
+/// 板の分け方: 1〜8 の升の数は通る。部品が無い・`[nodes]` でまとめた部品・上限（8）を超える・0・片方だけ書いた途中は、
+/// それぞれ誤り・誤り・誤り・誤り・警告。
+#[test]
+fn subdivide_is_checked() {
+    let cells = |u: Option<u32>, v: Option<u32>| ThermalSubdivideSettings { u, v };
+    let with = |part: &str, c: ThermalSubdivideSettings, lump: bool| {
+        let mut d = design(ThermalSettings::default());
+        let other = Part::new("BOX");
+        d.parts.insert(other.id.clone(), other);
+        let t = d.analysis.thermal.as_mut().unwrap();
+        t.subdivide.insert(part.into(), c);
+        if lump {
+            t.nodes
+                .insert("LUMP".into(), vec!["PANEL".into(), "BOX".into()]);
+        }
+        codes(&d)
+    };
+    let ok = cells(Some(3), Some(8));
+    assert!(with("PANEL", ok, false).is_empty());
+    assert_eq!(
+        with("NOPE", ok, false),
+        [(Severity::Error, "ref.part".to_owned())]
+    );
+    assert_eq!(
+        with("PANEL", ok, true),
+        [(Severity::Error, "thermal.subdivide_lumped".to_owned())]
+    );
+    let cells_error = (Severity::Error, "thermal.subdivide_cells".to_owned());
+    assert_eq!(
+        with("PANEL", cells(Some(9), Some(2)), false),
+        std::slice::from_ref(&cells_error)
+    );
+    assert_eq!(with("PANEL", cells(Some(0), Some(2)), false), [cells_error]);
+    assert_eq!(
+        with("PANEL", cells(Some(2), None), false),
+        [(Severity::Warning, "thermal.subdivide_incomplete".to_owned())]
+    );
 }

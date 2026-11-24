@@ -5,8 +5,8 @@ use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::quantity::setting;
 use fune_model::Target;
-use fune_model::design::AnalysisSystem;
 use fune_model::design::setting_dims as dims;
+use fune_model::design::{AnalysisSystem, MaterialSettings};
 use fune_model::resolve::{ResolvedPart, SiValue};
 use sat_units::typed::{Length, MassDensity, Pressure, Qty};
 
@@ -21,6 +21,29 @@ pub(super) struct PanelRead {
     pub density: Qty<MassDensity>,
 }
 
+/// 部品の材料（属性 `material` の名前と、`analysis.structure.material.<名前>` の物性）。**部品の材料の引き方はここだけ**
+/// （パネルの読み出しと、熱の板の面内の伝導が共有する）。無ければ不足入力に記録して `None`。
+pub(crate) fn material<'a>(
+    ctx: &'a Context<'_>,
+    p: &ResolvedPart,
+    m: &mut MissingInputs,
+) -> Option<(String, &'a MaterialSettings)> {
+    let Some(SiValue::Enum(name)) = ctx.attr(p, "material") else {
+        m.push(Target::attr(&p.id, "material"), "Material");
+        return None;
+    };
+    let materials = ctx.design.analysis.structure.as_ref().map(|s| &s.material);
+    let mp = AnalysisSystem::Structure
+        .setting_path()
+        .child(&["material", name]);
+    let mat = m.need(
+        materials.and_then(|ms| ms.get(name.as_str())),
+        mp,
+        "Material properties",
+    )?;
+    Some((name.clone(), mat))
+}
+
 /// パネル 1 枚を読む（材料は `analysis.structure.material`、外形は `size`、板厚は `thickness`）。
 /// どれかが無ければ、読めたものまで全部を不足入力に記録して `None`。
 pub(super) fn read(
@@ -28,19 +51,10 @@ pub(super) fn read(
     p: &ResolvedPart,
     m: &mut MissingInputs,
 ) -> Option<PanelRead> {
-    let Some(SiValue::Enum(name)) = ctx.attr(p, "material") else {
-        m.push(Target::attr(&p.id, "material"), "Panel material");
-        return None;
-    };
+    let (name, mat) = material(ctx, p, m)?;
     let mp = AnalysisSystem::Structure
         .setting_path()
-        .child(&["material", name]);
-    let materials = ctx.design.analysis.structure.as_ref().map(|s| &s.material);
-    let mat = m.need(
-        materials.and_then(|ms| ms.get(name.as_str())),
-        mp.clone(),
-        "Material properties",
-    )?;
+        .child(&["material", &name]);
     let size = m.need(
         ctx.vec3(p, "size"),
         Target::attr(&p.id, "size"),

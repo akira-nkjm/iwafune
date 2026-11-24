@@ -140,6 +140,7 @@ mod tests {
     #[test]
     fn two_node_conduction() {
         let net = ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![node("sink", Some(300.0)), node("box", None)],
             conductive: vec![cond("sink", "box", 0.5)],
@@ -179,6 +180,7 @@ mod tests {
     #[test]
     fn single_node_radiation_balance() {
         let net = ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![node("plate", None)],
             conductive: vec![],
@@ -208,6 +210,7 @@ mod tests {
     #[test]
     fn isolated_node_is_rejected() {
         let net = ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![node("a", None)],
             conductive: vec![],

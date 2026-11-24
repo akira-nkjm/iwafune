@@ -20,6 +20,7 @@ use fune_model::design::AnalysisSystem;
 use fune_model::design::launch::attr;
 use fune_model::design::setting_dims as dims;
 use fune_model::resolve::ResolvedPart;
+use sat_analysis::plate_grid::thinnest_axis;
 use sat_analysis::structure::modal_fem::{
     ModalFemAxis, ModalFemFace, ModalFemInput, ModalFemLumped, ModalFemPanel, ModalFemSkipped,
     ModalFemSupport, ModalFemSupportError,
@@ -109,10 +110,7 @@ fn read_panels(ctx: &Context<'_>, m: &mut MissingInputs) -> Panels {
             continue;
         };
         let axes = [ModalFemAxis::X, ModalFemAxis::Y, ModalFemAxis::Z];
-        let Some(normal) = axes
-            .into_iter()
-            .min_by(|a, b| extents[a.index()].total_cmp(&extents[b.index()]))
-        else {
+        let Some(normal) = ModalFemAxis::from_index(thinnest_axis(extents)) else {
             continue;
         };
         let in_plane: Vec<f64> = axes

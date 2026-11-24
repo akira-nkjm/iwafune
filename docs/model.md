@@ -711,6 +711,40 @@ all go through it. Node names and part IDs share one namespace, so the rules are
 
 Adding a part that `[nodes]` leaves out changes the thermal result (its mass is now counted and it is coupled along its mount). For the demo this applies to the electric thruster and the propellant tank.
 
+#### Temperature distribution inside a plate (subdividing a part)
+
+A plate-like part (a panel) is one isothermal node by default, so the difference between its edge and its middle, or between a hot component's footprint and the far corner, does not show.
+`[subdivide.<part>]` in `analysis/thermal.toml` splits one part into a grid of thermal cells (the choice belongs to the thermal analysis, not to the part):
+```toml
+# analysis/thermal.toml
+[subdivide.PANEL_PX]    # integers: the number of cells along the plate's two in-plane axes
+u = 3
+v = 5
+```
+It is edited with the generic setting operation (`fune set analysis.thermal.subdivide.PANEL_PX.u 3`, `… .v 5`, `fune unset …`; CLI and HTTP write the same bytes). A part is checked for: existing (`ref.part`), not lumped by `[nodes]` (`thermal.subdivide_lumped`),
+1 to 8 cells per axis (`thermal.subdivide_cells`: the transient solver is explicit, so more cells make it take much smaller steps; see "Stiff networks"), and both `u` and `v` written (`thermal.subdivide_incomplete`, a warning while one is still missing).
+Renaming the part renames the key. Whether the box is a plate is decided by the analysis from the resolved `size`: the thinnest side must be at most 1/4 of the next thinnest, otherwise the analysis stops with an input error naming the part.
+
+- **Axes** (`sat_analysis::plate_grid`, shared with the coarse finite-element mesh). The plate's normal is the thinnest side of its box and the plate thickness is that side. The in-plane axes follow the normal cyclically: normal x → `u` = y, `v` = z; normal y → `u` = z, `v` = x; normal z → `u` = x, `v` = y.
+  Cells are numbered `(i, j)` from 0 (`i` along `u`).
+- **Cells are internal nodes** named `<PART>[i,j]` (for example `PANEL_PX[2,4]`) in the results, the time series and the `couplings.plates` report; each carries `cell = { part, i, j }`. **Everything you write keeps naming the part**: an explicit `[conductive.*]` or `[radiative.*]` pair,
+  `[heat_node]`, `[surface.*]` and the requirement keys `range_high|range_low:<part>:<kind>`. Nothing stores a cell name, so renaming a part needs no migration.
+- **In-plane conduction** between cells that share an edge: `G = k · t · (shared edge length) / (centre distance)`, with `k` the thermal conductivity of the part's `material` (`analysis.structure.material.<name>.thermal_conductivity`; a missing one is a missing input),
+  `t` the thickness. For cells of `Δu × Δv`: `G_u = k t Δv/Δu` between neighbours along `u`, `G_v = k t Δu/Δv` along `v`. (A uniform grid: the shared edge is the other cell side and the centre distance is one cell side.)
+- **Heat capacity** of a cell is the part's capacity times its area fraction (`1/(u·v)`). **External heat** (solar, albedo, planet infrared, radiation to space) and **internal dissipation** on the part are distributed by cell area, with the surface's coatings unchanged.
+  A thermostat heater cannot be placed on a subdivided part (a thermostat senses one node): the analysis stops with an input error; put the heater on a part mounted on the plate.
+- **Couplings to the part** are resolved first as for any node (explicit > enclosure > contact area > mount default, so the `couplings` list still names the part and its sources) and then distributed over the cells with the total preserved:
+  explicit conduction and radiation, enclosure radiation and the radiation default by cell area; the conduction of a **mount** goes to the cells under the mounted part: the weight of a cell is its contact area with the other part's box
+  (`OrientedBox::contact_area` applied to the cell's box, so a box on the face and a box against the edge both work), and when the boxes do not touch within the tolerance (0.1 mm) the weight is the overlap of the other box projected onto the plate with the cell.
+  If neither can be determined (no box, no overlap) the coupling is spread by cell area and the other node is listed in `couplings.plates[].spread_by_area`. When both ends are subdivided plates the product of the area fractions is used.
+- **Requirement keys** `range_high:<part>:<kind>` and `range_low:<part>:<kind>` evaluate the **hottest cell** (high side) and the **coldest cell** (low side) of the plate, the conservative reading, and the check text names the cell
+  (`…, hottest cell PANEL_PX[2,4]`). The results still list every cell with its own verdict, and the KPIs (maximum and minimum temperature) include the cells.
+- **Stiffness.** The solvers are unchanged and still explicit. `couplings.plates[]` reports each plate's thickness, the two in-plane conductances and the smallest cell time constant `C / ΣG` (the sum is over every conduction on the cell, in-plane and distributed). `thermal.transient` adds a warning check
+  `plate_step:<part>` when that time constant is below 0.1 times the configured `time_step` (`PLATE_STEP_WARNING_FRACTION`); the message suggests fewer cells.
+  The thickness cancels in the in-plane part: `τ = ρ c Δ² / (4 k)` for an interior square cell of side `Δ` (aluminium, `Δ` = 7 cm → about 18 s), and the conduction to a mounted part (a few W/K) shortens it further.
+
+Not modelled: a plate with an irregular outline or holes (cells are a uniform grid of the box), conduction through the thickness, a thermostat on a plate, and colouring the 3D thermal image per cell (it still colours whole parts by the hottest cell; the per-cell field view is a follow-up).
+
 #### Heat dissipation
 
 Heat dissipation is found by `sat_analysis::thermal::network::load` from the part's mode average. In order of priority:
@@ -752,7 +786,7 @@ The output samples stay at the timeline's sample times; the integrator takes wha
 - **Stiff networks.** The method is explicit. A node with a very small heat capacity strongly coupled to a large one makes the step as small as the fast time constant, whatever the accuracy. A 12-node chain of alternating 0.09 J/K and 900 J/K nodes
   (G = 10 W/K) over five orbits takes about a million steps and 12 million evaluations of the right-hand side (about a minute in a debug build; see `stiff_chain_five_orbits_cost`). There is no implicit integrator: model such a node as part of its neighbour.
   With one node per part, small parts become small nodes. Measured on the demo with `[nodes]` removed (38 nodes, capacities 4.4 to 782 J/K, default 0.5 W/K per mount), `thermal.transient` over five orbits takes about 1100 steps and 15 000 evaluations (0.04 s in a release build), the same as with lumped nodes;
-  the cost only grows when a part's capacity per unit of coupling approaches a second: a 0.05 g heater (0.045 J/K) and a 0.02 g heater in the same design raise it to about 100 000 steps and 1.3 million evaluations (2 s in a release build, 27 s in a debug build). Nothing is limited or warned; list a very light part in `[nodes]` with the part it is mounted on.
+  the cost only grows when a part's capacity per unit of coupling approaches a second: a 0.05 g heater (0.045 J/K) and a 0.02 g heater in the same design raise it to about 100 000 steps and 1.3 million evaluations (2 s in a release build, 27 s in a debug build). Nothing is limited or warned for light parts; list a very light part in `[nodes]` with the part it is mounted on. Subdivided plates are the exception: their cell time constants are reported and warned about (see "Temperature distribution inside a plate").
 - **Accuracy.** The penumbra of the conical shadow begins and ends with a `x^(3/2)`-like rise of the sunlit fraction, which the error estimate sees only partly; with orbits through the penumbra the global error is a few times the tolerance
   (about 1e-5 K at the defaults). Without a penumbra (cylindrical model, or no eclipse) the error is far below the tolerance.
 

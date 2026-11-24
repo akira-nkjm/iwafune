@@ -15,6 +15,7 @@ fn input() -> ThermalSteadyInput {
     });
     ThermalSteadyInput {
         network: ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![panel, node("box", None)],
             conductive: vec![ThermalConductiveLink {

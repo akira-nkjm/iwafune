@@ -340,7 +340,9 @@ mod policy;
 mod required;
 #[cfg(test)]
 use checks::excluded_text;
+#[cfg(test)]
 pub(crate) use checks::range_checks;
+pub(crate) use checks::{NodeJudged, node_checks};
 pub use policy::{
     DEFAULT_HEATER_DUTY_WARNING, DEFAULT_UNCERTAINTY_K, RANGE_WARNING_BAND_K, ThermalMarginPolicy,
     ThermalMarginUsed,
