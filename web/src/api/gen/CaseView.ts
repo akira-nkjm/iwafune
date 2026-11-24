@@ -11,4 +11,8 @@ modes: Array<string>,
 /**
  * フェーズ（`phases/<ID>.toml`。軌道・姿勢則がそのフェーズのものになる）
  */
-phase: string | null, file: string, };
+phase: string | null, 
+/**
+ * 解析を始める時刻（ISO 8601。無ければ軌道の元期から）
+ */
+epoch: string | null, file: string, };

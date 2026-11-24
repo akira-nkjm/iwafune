@@ -33,6 +33,20 @@ pub enum CaseCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
+    /// Create (or update) the analysis cases of the worst days of an orbit: the farthest and nearest Sun distance and the farthest Earth distance, each as a case with an epoch
+    FromGeometry {
+        /// Phase whose orbit is read (required when the design has phases; also set as the cases' phase)
+        #[arg(long)]
+        phase: Option<String>,
+        /// Prefix of the case IDs (`<prefix>_sun_far`, `<prefix>_sun_near`, `<prefix>_earth_far`; default: the phase ID in lower case, or none)
+        #[arg(long)]
+        prefix: Option<String>,
+        /// Mode of the cases (an existing case keeps its mode when omitted)
+        #[arg(long)]
+        mode: Option<String>,
+        #[command(flatten)]
+        edit: EditOpts,
+    },
     /// Set the phase of an analysis case (its orbit and attitude law overrides then apply)
     SetPhase {
         id: String,
@@ -90,6 +104,9 @@ pub struct CaseArgs {
     /// Distance from the Sun (e.g. `"0.7 AU"`; orbits about the Sun only: analyze a circular orbit at this distance)
     #[arg(long)]
     pub sun_distance: Option<String>,
+    /// Time the analyses start at on the case's orbit (ISO 8601, e.g. `"2031-05-02T00:00:00Z"`; within the span for a one-off orbit)
+    #[arg(long)]
+    pub epoch: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }

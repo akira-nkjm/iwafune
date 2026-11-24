@@ -13,4 +13,5 @@ pub use geometry::{
 };
 pub use sun_distance::{
     SunDistanceExtremes, SunDistanceInput, SunDistancePoint, sun_distance_extremes,
+    sun_distance_extremes_over,
 };

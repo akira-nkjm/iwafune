@@ -48,7 +48,7 @@ pub fn timeline_over(
     span: SamplingSpan,
     m: &mut MissingInputs,
 ) -> Option<TimelineSpec> {
-    let orbit = ctx.trajectory(m);
+    let orbit = ctx.case_trajectory(m);
     let law = ctx.attitude_law(mode, m);
     let sampling = with_case_beta(ctx, sampling(orbit?, span), m);
     Some(TimelineSpec::from_sampling(sampling, law?))
@@ -60,13 +60,13 @@ pub fn sampling_of(
     span: SamplingSpan,
     m: &mut MissingInputs,
 ) -> Option<OrbitSampling> {
-    let orbit = ctx.trajectory(m)?;
+    let orbit = ctx.case_trajectory(m)?;
     Some(with_case_beta(ctx, sampling(orbit, span), m))
 }
 
 /// 1 日分の標本の取り方（地上局の可視・送信量。β はケースの指定）。
 pub fn day_sampling(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<OrbitSampling> {
-    let orbit = ctx.trajectory(m)?;
+    let orbit = ctx.case_trajectory(m)?;
     Some(with_case_beta(ctx, daily_sampling(orbit), m))
 }
 

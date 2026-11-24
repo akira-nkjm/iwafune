@@ -41,6 +41,34 @@ impl Context<'_> {
         }
     }
 
+    /// 解析ケースの時刻から始まる軌道。**時系列の解析が標本を取る軌道は、これだけ**（`timeline.rs`）。ケースに `epoch` があれば、
+    /// [`Context::trajectory`] の軌道をその時刻から始まる同じ軌道にし（`Trajectory::starting_at`）、無ければ [`Context::trajectory`] そのもの。
+    /// ケースの `beta`・`sun_distance` は軌道の要素に当てる指定なので、`epoch` より先に効く（β は始めの時刻での値を指す）。
+    /// 1 回限りの期間を持つ軌道では、`epoch` が期間の外（または終わり）なら不足入力としてケースの `epoch` を指す。
+    /// 距離の最悪値を取る解析（回線の距離）は期間全体を見るので、これを使わず [`Context::trajectory`] を使う。
+    pub fn case_trajectory(&self, m: &mut MissingInputs) -> Option<Trajectory> {
+        let orbit = self.trajectory(m)?;
+        let Some((case, text)) = self.case.and_then(|c| Some((c, c.epoch.as_deref()?))) else {
+            return Some(orbit);
+        };
+        let target = Target::case(case.id.as_str(), Some("epoch"));
+        self.note(target.clone());
+        let start = match Epoch::parse(text) {
+            Ok(start) => start,
+            Err(e) => {
+                m.push(target, format!("Cannot parse the case epoch ({e})"));
+                return None;
+            }
+        };
+        match orbit.starting_at(start) {
+            Ok(orbit) => Some(orbit),
+            Err(e) => {
+                m.push(target, format!("Cannot start at the case epoch ({e})"));
+                None
+            }
+        }
+    }
+
     /// `source = "state"`: 元期・原点の天体・位置・速度・期間から、既存の数値伝搬で伝搬する軌道。足りない欄・読めない欄は不足入力に記録する。
     fn state_trajectory(&self, o: &OrbitSettings, m: &mut MissingInputs) -> Option<Trajectory> {
         for key in ["source", "epoch", "central", "position", "velocity", "span"] {

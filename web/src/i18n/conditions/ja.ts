@@ -11,6 +11,7 @@ export const conditionsJa = {
     file: "ファイル",
     phase: "フェーズ",
     setPhase: "フェーズを選ぶ",
+    epoch: "開始時刻",
     casePhase: {
       title: (id: string) => `ケース ${id} のフェーズ`,
       description:

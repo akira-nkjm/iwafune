@@ -35,6 +35,8 @@ const labels: Record<string, string> = {
   dod_max: "Allowed DoD",
   battery_strings: "Battery strings",
   sun_distance: "Sun distance",
+  sun_distance_source: "Sun distance source",
+  sun_distance_epoch: "Date of the farthest Sun distance",
   cell_efficiency: "Cell efficiency",
   packing_factor: "Packing factor",
   eol_factor: "EOL degradation factor",

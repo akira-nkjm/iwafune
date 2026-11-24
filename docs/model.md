@@ -143,8 +143,8 @@ The verdict is informational only and no checks are attached. The KPIs list the 
 the service's `case_from_eclipse_op` and builds an existing `SetCase` Op.
 HTTP sends `{ "id": "season_longest", "at": "longest", "mode": null }` to `POST /ops/case_from_eclipse`
 and saves the returned Op with the ordinary `POST /ops`. The GUI's orbit page uses the same entry point, so the preview and the CLI output are shared.
-The case stores β (rad) and an optional mode. A case has no epoch field, so the sample's date is recorded in the description.
-This is a case that reuses a representative β condition; it does not change the epoch of later analyses through the date in the description.
+The case stores β (rad) and an optional mode. The sample's date is recorded in the description and not in the case's `epoch` (below).
+This is a case that reuses a representative β condition; it does not change the start time of later analyses through the date in the description.
 Overwriting an existing ID and unknown modes are rejected. `to_cli` returns a `fune case set` that keeps the value and the date.
 
 **Heliocentric cruise (the Sun as central body).** The power and thermal analyses run with `central = "sun"`: the timeline gives the Sun distance `|r|` at each time (so the solar flux is `S₁ (AU/d)²`
@@ -156,7 +156,7 @@ The worst cases of a cruise are the perihelion and the aphelion, made as analysi
 `fune case from-sun-distance <new ID> --at min|max [--mode <mode>]` finds the smallest or largest Sun distance of the orbit between the epoch and `duration`
 (`sat_analysis::orbit::sun_distance_extremes`: samples at the usual step, then a golden-section refinement around the extreme; if the span is shorter than half an orbit the extreme is at the span's end)
 with the service's `case_from_sun_distance_op` and builds an existing `SetCase` Op (HTTP: `POST /ops/case_from_sun_distance` with `{ "id": "perihelion", "at": "min", "mode": null }`, saved with `POST /ops`).
-The distance is written in AU and the date of the extreme is recorded in the description (a case has no epoch field). The orbit must have the Sun as central body (otherwise an error).
+The distance is written in AU and the date of the extreme is recorded in the description (the day of the extreme as an `epoch` is made by `fune case from-geometry`, below). The orbit must have the Sun as central body (otherwise an error).
 A case with `sun_distance` makes every analysis use a **circular orbit at that distance** instead of the orbit conditions (inclination, RAAN, epoch and propagator are kept; `Context::orbit`).
 So `thermal.steady` is the steady state at that distance (the orbit average of a circular orbit is constant), and `thermal.transient`, `power.orbit_generation` and `power.energy_balance` run at that distance
 (for a circular orbit about the Sun the Sun direction turns slowly, one turn per orbit, and the attitude law follows it). A `sun_distance` on an orbit whose central body is not the Sun is a missing input naming `cases.<ID>.sun_distance`.
@@ -179,6 +179,25 @@ The distances and angles are computed in one place, `sat_astro::timeline::geomet
 - **Output per leg.** `sun_distance` and `earth_distance` each with `min` and `max` (a `value` and the `epoch` of it), `sep_min` (the closest approach to conjunction), `light_time_max`, and a `series` (time from the leg start; channels `sun_distance`, `earth_distance`, `sep`, `spe`).
   The extremes are refined between the samples around the extreme sample (golden section, one extremum assumed there); a variation faster than the sample step, such as the orbit of a low Earth satellite in SEP, is not resolved.
   The analysis judges nothing and has no notes. Later stages read `legs[].earth_distance.max` (the farthest distance and its date) and `legs[].sun_distance.max.epoch` by phase ID.
+
+#### The time of a case (`epoch`) and the worst-day cases
+
+A case may carry `epoch` (ISO 8601, `cases.<ID>.epoch`): **the time at which the time-series analyses run in that case start on the case's orbit** (the orbit in effect for the case's phase, any source), instead of the orbit's own epoch.
+`Context::case_trajectory` is the one place that applies it (`Trajectory::starting_at`; every time-series projection in `timeline.rs` goes through it). A case without `epoch` behaves exactly as before.
+
+- **Periodic orbits** (Kepler elements): the elements are advanced to the epoch (the J2 secular drift of RAAN, argument of perigee and mean anomaly for `j2`, two-body for `kepler`) and the series starts there, so the Sun geometry (season, β, Sun distance for a heliocentric orbit) is that of the date. The epoch may be before or after the orbit's epoch.
+- **One-off orbits** (`transfer`, `state`, a span): the epoch must lie in `[orbit epoch, orbit epoch + span)`; the span becomes what remains (end of the span minus the epoch), so the window is clipped at the end of the orbit's span. An epoch outside the span, or exactly at its end (nothing left to analyse), is a missing input naming `cases.<ID>.epoch` with the span in the message; an unparsable epoch is also a missing input on that key.
+  For a `state` orbit the state at the epoch is propagated once with the existing numerical propagation and becomes the new initial state.
+- **Precedence with the other overrides.** `epoch` is applied last, to the orbit as the other overrides leave it: the case's `sun_distance` first replaces the orbit by a circle, then the series starts at the epoch on it; the case's `beta` replaces the RAAN so that β holds **at the start time** (so an explicit `beta` always wins over the geometry that the epoch alone would give).
+  `beta` and `sun_distance` stay not applicable to non-`elements` orbits; `epoch` is applicable to every source. Analyses that read the orbit as Kepler elements rather than as a time series (`orbit.eclipse_season`, `orbit.decay`, `power.sizing`'s season) do not read `epoch`; the orbit averages of `thermal.steady` start at it like any time series (the same result over a whole periodic cycle, the remaining span for a one-off orbit).
+- **Worst-case calculations do not read `epoch`.** The link budget keeps the farthest Earth distance over the whole span of the phase's orbit (`distance_model = earth_to_body`, with `range_max_epoch`), and the power sizing keeps the farthest Sun distance over the mission duration (below). A case is a way to choose what a time series shows, not to weaken a worst-case sizing.
+
+`fune case from-geometry [--phase <ID>] [--prefix <name>] [--mode <mode>]` (service `cases_from_geometry_ops`; HTTP `POST /ops/cases_from_geometry` with `{ "phase": "NOMINAL_OPS", "prefix": null, "mode": null }` returns the Ops, saved with `POST /ops`)
+generalises the creation of cases from a date: it reads the leg of the phase from `orbit.geometry` (one geometry for every source; the leg's span as above) and writes three cases whose `epoch` is the day of
+the **maximum Sun distance** (`<prefix>_sun_far`), the **minimum Sun distance** (`<prefix>_sun_near`) and the **maximum Earth distance** (`<prefix>_earth_far`), with `phase` set to the given phase and the quantity and date in the description.
+The prefix defaults to the lower-case phase ID (none for a design without phases; a design with phases requires `--phase`). The names are fixed, so running it again gives the same files; a case that already exists keeps all its other fields (its mode only changes when `--mode` is given) and gets the new `epoch`, `phase` and description.
+The results are ordinary cases that can be edited (`fune case set … --epoch`). The days are as accurate as `orbit.geometry` (720 samples per leg, refined by golden section: about a second for a smooth extreme). An extreme at the very end of a one-off span gives an epoch with no window left (see above), which `fune case from-geometry` still writes.
+`fune case from-sun-distance` remains for the steady analyses (it writes a `sun_distance` override, a circular orbit, for an orbit about the Sun with Kepler elements); `from-geometry` is the one for time series on any orbit.
 
 #### Altitude decay by atmospheric drag and orbit maintenance (`orbit.decay`)
 
@@ -264,7 +283,7 @@ flowchart LR
 | Mode | The satellite's operating mode | `modes/<ID>.toml` | duration, part → {state, time fraction, active count, spare state}, eclipse override |
 | Net | Electrical connection (logical) | `nets/<ID>.toml` | kind (power / data / rf), rail voltage, source port, current limit, protocol |
 | Harness | Cable segment (physical) | `harness/<ID>.toml` | ports at both ends, the nets it carries, wire, number of cores, length |
-| Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, a phase (§7.10), which side of the uncertainty to read, Sun distance (cruise), orbit, attitude law, environment conditions, period |
+| Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, a phase (§7.10), which side of the uncertainty to read, Sun distance (cruise), the start time `epoch` (a day on the orbit), orbit, attitude law, environment conditions, period |
 | Phase | Mission phase (commissioning, nominal operations, disposal) | `phases/<ID>.toml` | order, start and end conditions (free text), duration, the modes used, and optional configuration selection and overrides of the orbit and of the attitude law per mode for the cases that name the phase (§7.10) |
 | Configuration | A named overlay of part poses (stowed, deployed and other placement variants) | `configurations/<ID>.toml` | label, description, and a replacement pose per part (§7.11) |
 | Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only, dates of an interplanetary transfer (§7.7) |
@@ -925,7 +944,9 @@ The distance used for the link depends on the central body of `conditions.orbit`
 
 - **`earth_orbit`** (Earth): the slant range from the station to the spacecraft. The link margin is judged at the longest distance (the station's `min_elevation`), and the shortest distance (zenith, equal to the altitude) is reported as `range_min`.
 - **`earth_to_body`** (Moon, a planet or the Sun): the distance from Earth to the spacecraft, `|r_body(t) − r_earth(t) + r_spacecraft(t)|`, with the body position from the ephemeris (`sat_astro::ephem`) and the spacecraft position from the orbit around the body.
-  It is evaluated over the mission duration (the requirement with `input = "mission_duration"`; one year when there is none; a planet's synodic period can be longer, so write the duration for Mars and beyond).
+  It is evaluated over the mission duration (the requirement with `input = "mission_duration"`; one year when there is none; a planet's synodic period can be longer, so write the duration for Mars and beyond), or over the whole span of a one-off orbit (`transfer`, `state`), of the phase's orbit in effect for the case.
+  The analysis case's `epoch` does not change it: the range is a worst case over the whole span. The extremes are the sample extremes at the usual step (`max(30 s, span / 200)`), so the margin is evaluated at a distance up to about 2·10⁻⁴ (relative) short of the true maximum for a heliocentric cruise (`orbit.geometry` reports the refined extremes).
+  An orbit given by a state vector has no altitude, so a link about another body does not need one (`LinkBudgetLink.altitude` is optional; an Earth-orbit link without an altitude is an input error). Before, such a design reported "No links".
   The margin is judged at the **maximum** distance (`slant_range`); `range_min`, `range_min_epoch` and `range_max_epoch` report the minimum and the epochs of the extremes. Approximation: the distance is measured to Earth's centre, not to the station (an error of up to Earth's radius, about 1.7 % at the Moon and 0.01 % or less beyond Mars; the elevation, see below, uses the real station position).
 - `light_time` is the one-way light time at the maximum distance. Atmospheric and rain losses are the link's `atmospheric_loss` as before.
 
@@ -1038,7 +1059,7 @@ Overrides are in `[sizing]` of `analysis/power.toml`. All are optional, and the 
 | `inherent_degradation` | 1 (no additional inherent degradation) |
 | `battery_strings` (N) | 1 |
 | `bus_voltage` | none (no series-parallel layout) |
-| `sun_distance` | the conventional Sun distance of the central body (1 AU for Earth and the Moon; `CentralBody::nominal_sun_distance_m`). For other bodies, a missing input. `power.sizing` does not run about the Sun (no eclipse season) |
+| `sun_distance` | the conventional Sun distance of the central body (1 AU for Earth and the Moon; `CentralBody::nominal_sun_distance_m`). For other bodies (a planet), the **maximum Sun distance over the mission duration** from the orbit (the worst day: the lowest flux; `sat_analysis::orbit::sun_distance_extremes_over`, which uses the mission geometry of `sat_astro::timeline::geometry`). `used.sun_distance_source` (`span_max`, with `used.sun_distance_epoch`) says so; a written value or the conventional one is not marked. `power.sizing` does not run about the Sun or for a `transfer` / `state` orbit (no eclipse season on Kepler elements: not applicable), and an analysis case's `epoch` does not change it |
 
 The solar flux is found from `illumination::solar_flux_w_m2` with `sun_distance` (the flux formula exists only there) and is used in both the SMAD and the time-series reverse computations
 (at 2 AU it is 1/4, and the required area is 4 times). When a part's `packing_factor` and `eol_factor` are omitted they are 1, as in the existing generation model.

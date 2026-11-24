@@ -12,6 +12,7 @@ export const conditionsEn: typeof conditionsJa = {
     file: "File",
     phase: "Phase",
     setPhase: "Choose phase",
+    epoch: "Start time",
     casePhase: {
       title: (id: string) => `Phase of case ${id}`,
       description:

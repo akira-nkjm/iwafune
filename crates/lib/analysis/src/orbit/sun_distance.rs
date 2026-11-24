@@ -37,7 +37,8 @@ pub struct SunDistanceExtremes {
 }
 
 /// 太陽中心の軌道の、元期から期間までの太陽距離の最小・最大。
-/// 中心天体が太陽でない軌道と、期間が正でない場合は `InvalidInput`。
+/// 中心天体が太陽でない軌道と、期間が正でない場合は `InvalidInput`（太陽を回る軌道の近日点・遠日点を求める入口。
+/// 中心天体を問わない最小・最大は [`sun_distance_extremes_over`]）。
 pub fn sun_distance_extremes(
     input: &SunDistanceInput,
 ) -> Result<SunDistanceExtremes, AnalysisError> {
@@ -47,20 +48,34 @@ pub fn sun_distance_extremes(
             "The Sun distance extremes are defined for an orbit around the Sun (the central body is not the Sun)".into(),
         ));
     }
-    let span = duration.value();
-    if !(span > 0.0 && span.is_finite()) {
+    sun_distance_extremes_over(&Trajectory::from(orbit.clone()), duration.value())
+}
+
+/// 標本の数の上限（中心天体の周りを速く回る軌道で、長い期間の刻みが細かくなりすぎないようにする）。
+const MAX_SAMPLES: f64 = 50_000.0;
+
+/// 軌道（どの出どころ・どの中心天体でもよい）の、元期から `span_s` 秒までの太陽距離の最小・最大と日付。
+/// 標本の刻みは軌道の繰り返しの 200 分の 1（`spec::orbit_step_s`）か、期間の [`MAX_SAMPLES`] 分の 1 の大きい方で、
+/// 極値の近くは黄金分割で詰める（`sat_astro::timeline::geometry::extremes_by`）。**距離の計算はミッション幾何の 1 か所**
+/// （`body_distances_m`）で、ここは標本の取り方と型だけ。期間が正でなければ `InvalidInput`。
+pub fn sun_distance_extremes_over(
+    orbit: &Trajectory,
+    span_s: f64,
+) -> Result<SunDistanceExtremes, AnalysisError> {
+    if !(span_s > 0.0 && span_s.is_finite()) {
         return Err(AnalysisError::InvalidInput(
             "The mission duration must be positive".into(),
         ));
     }
-    let times = sample_times(span, orbit_step_s(orbit.cycle()))?;
-    let trajectory = Trajectory::from(orbit.clone());
-    let sun = |times: &[f64]| body_distances_m(&trajectory, orbit.epoch, times, CentralBody::Sun);
+    let step = orbit_step_s(orbit.cycle()).max(span_s / MAX_SAMPLES);
+    let times = sample_times(span_s, step)?;
+    let start = orbit.epoch();
+    let sun = |times: &[f64]| body_distances_m(orbit, start, times, CentralBody::Sun);
     let values = sun(&times)?;
     let x = extremes_by(&times, &values, |t| Ok(sun(&[t])?[0]))?
         .ok_or_else(|| AnalysisError::InvalidInput("No samples".into()))?;
     let point = |e: sat_astro::timeline::geometry::Extremum| SunDistancePoint {
-        epoch: orbit.epoch.plus_seconds(e.t_s),
+        epoch: start.plus_seconds(e.t_s),
         distance: Qty::from_raw(e.value),
     };
     Ok(SunDistanceExtremes {
@@ -126,6 +141,47 @@ mod tests {
         let x = extremes(&o, span).unwrap();
         assert!((x.max.epoch.seconds_since(o.epoch) - span).abs() < 1e-6);
         assert!(x.max.distance.value() < 1.5 * AU);
+        assert!(x.max.distance.value() > x.min.distance.value());
+    }
+
+    /// 太陽中心の 1 AU の円（円速度）の状態ベクトルの軌道: どの出どころでも同じ入口で、太陽距離は期間を通して 1 AU の近く。
+    /// 許容は 1e-2 AU（惑星の摂動の変位の上限。`fune-projection` の状態軌道のテストと同じ見積もり）。
+    #[test]
+    fn a_state_orbit_on_a_one_au_circle_stays_at_one_au() {
+        use sat_astro::math::Vec3;
+        use sat_astro::orbit::{OrbitState, StateSpec};
+        let v = (CentralBody::Sun.gm() / AU).sqrt();
+        let state = OrbitState {
+            r_eci: Vec3::new(AU, 0.0, 0.0),
+            v_eci: Vec3::new(0.0, v, 0.0),
+        };
+        let span = 200.0 * 86_400.0;
+        let epoch = Epoch::parse("2030-01-01T00:00:00Z").expect("epoch");
+        let t = Trajectory::State(StateSpec::with_defaults(
+            epoch,
+            CentralBody::Sun,
+            state,
+            span,
+            None,
+        ));
+        let x = sun_distance_extremes_over(&t, span).unwrap();
+        for d in [x.min.distance.value(), x.max.distance.value()] {
+            assert!((d / AU - 1.0).abs() < 1e-2, "{} AU", d / AU);
+        }
+    }
+
+    /// 中心天体が太陽でない軌道（火星を回る衛星）でも、太陽距離の最大は火星の日心距離の最大（遠日点 1.666 AU 付近）に衛星の軌道半径を足した値以下。
+    #[test]
+    fn extremes_over_work_about_other_bodies() {
+        let mut o = ellipse(0.0);
+        o.central = CentralBody::Mars;
+        o.elements.semi_major_axis = Qty::from_raw(4.0e6);
+        o.elements.eccentricity = 0.0;
+        let span = 700.0 * 86_400.0;
+        let x = sun_distance_extremes_over(&Trajectory::from(o), span).unwrap();
+        // 火星の日心距離は 1.381〜1.666 AU（軌道の公称値）、衛星の軌道半径は 4000 km = 2.7e-5 AU
+        assert!((1.38..1.67).contains(&(x.min.distance.value() / AU)));
+        assert!((1.38..1.67).contains(&(x.max.distance.value() / AU)));
         assert!(x.max.distance.value() > x.min.distance.value());
     }
 

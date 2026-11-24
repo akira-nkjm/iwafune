@@ -57,6 +57,7 @@ fn cruise() -> Design {
                 beta: None,
                 orbits: None,
                 sun_distance: Some(Quantity::new(au, "AU")),
+                epoch: None,
             },
         );
     }

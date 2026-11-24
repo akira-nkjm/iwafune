@@ -45,6 +45,7 @@ fn cases_are_created_and_updated_minimally() {
         beta: Some(Quantity::new(20.0, "deg")),
         orbits: None,
         sun_distance: None,
+        epoch: None,
     };
     let op = Op::SetCase { case: new_case };
     let p = plan(&snap, std::slice::from_ref(&op)).unwrap();

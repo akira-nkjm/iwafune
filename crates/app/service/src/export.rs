@@ -69,6 +69,7 @@ pub fn export_ts(dir: &Path) -> Result<Vec<PathBuf>, ExportError> {
         CommandText,
         CaseFromEclipseRequest,
         CaseFromSunDistanceRequest,
+        CaseFromGeometryRequest,
         ManeuverWindowRequest,
         WindowObjective,
         SunDistanceCaseAt,

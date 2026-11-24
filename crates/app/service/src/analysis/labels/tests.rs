@@ -28,6 +28,13 @@ fn sizing_lifetime_source_has_both_languages() {
 }
 
 #[test]
+fn sizing_sun_distance_source_has_both_languages() {
+    let s = value_label("SizingSunDistanceSource", "span_max").unwrap();
+    assert!(s.label.contains("最悪の日"));
+    assert!(s.label_en.contains("worst day"));
+}
+
+#[test]
 fn values_are_looked_up_by_type_and_spelling() {
     let d = value_label("DisturbanceKind", "gravity_gradient").unwrap();
     assert_eq!(d.label, "重力傾斜トルク");

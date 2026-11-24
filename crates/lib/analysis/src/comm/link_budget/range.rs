@@ -100,7 +100,13 @@ pub(super) fn link_range(
 ) -> Result<LinkRange, AnalysisError> {
     match (link.central, deep) {
         (CentralBody::Earth, _) => {
-            let (radius, altitude) = (link.central.radius_m(), link.altitude.value());
+            let altitude = link.altitude.map(Qty::value).ok_or_else(|| {
+                AnalysisError::InvalidInput(format!(
+                    "{}: the slant range of an Earth orbit needs the altitude, which an orbit given by a state vector does not have",
+                    link.name
+                ))
+            })?;
+            let radius = link.central.radius_m();
             Ok(LinkRange {
                 model: LinkDistanceModel::EarthOrbit,
                 min_m: slant_range_m(radius, altitude, std::f64::consts::FRAC_PI_2),

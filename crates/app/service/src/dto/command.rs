@@ -292,6 +292,22 @@ pub struct CaseFromSunDistanceRequest {
     pub mode: Option<String>,
 }
 
+/// `fune case from-geometry` と HTTP が共有する要求。フェーズの軌道のミッション幾何（`orbit.geometry` の区間）の、
+/// 太陽距離の最大・最小と地球距離の最大の日付から、`epoch` を持つ解析ケースを作る（なければ作り、あれば `epoch` などを更新する）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize, TS)]
+pub struct CaseFromGeometryRequest {
+    /// 読むフェーズ（フェーズが無い設計は省略。フェーズがある設計では必須）。ケースの `phase` にもなる
+    #[serde(default)]
+    pub phase: Option<String>,
+    /// ケース ID の前置き（`<prefix>_sun_far`・`<prefix>_sun_near`・`<prefix>_earth_far`）。省略時はフェーズの ID（小文字）、
+    /// フェーズも無ければ前置きなし
+    #[serde(default)]
+    pub prefix: Option<String>,
+    /// ケースのモード（省略すると、新しいケースにはモードを書かず、既にあるケースのモードは変えない）
+    #[serde(default)]
+    pub mode: Option<String>,
+}
+
 /// 日付の探索で選ぶ点（`propulsion.launch_window` の最小の点）。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]

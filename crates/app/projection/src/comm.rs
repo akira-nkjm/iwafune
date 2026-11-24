@@ -52,10 +52,11 @@ pub fn link_budget(ctx: &Context<'_>) -> Result<LinkBudgetInput, MissingInputs> 
     let s = settings(ctx, &mut m);
     let stations = ctx.stations(s.map(|s| s.stations.as_slice()).unwrap_or(&[]), &mut m);
     let orbit = ctx.trajectory(&mut m);
-    // 高度は（要素の軌道の）長半径 − 中心天体の半径。1 回限りの軌道（巡航）も、中身の二体の軌道の長半径から
+    // 高度は（要素の軌道の）長半径 − 中心天体の半径。1 回限りの軌道（巡航）も、中身の二体の軌道の長半径から。
+    // 状態ベクトルの軌道には無い（地球以外を回る軌道の距離は高度を使わない）
     let height = orbit
         .as_ref()
-        .and_then(|o| Some((Qty::from_raw(o.altitude_m()?), o.central())));
+        .map(|o| (o.altitude_m().map(Qty::from_raw), o.central()));
     let mut links = Vec::new();
     if let Some(s) = s {
         if s.links.is_empty() {
@@ -122,7 +123,7 @@ fn budget_link(
     name: &str,
     link: &CommLinkSettings,
     station: &GroundStation,
-    height: Option<(Qty<Length>, CentralBody)>,
+    height: Option<(Option<Qty<Length>>, CentralBody)>,
     m: &mut MissingInputs,
 ) -> Option<LinkBudgetLink> {
     let (rf, data_rate) = rf_params(ctx, name, link, &station.id, m)?;
