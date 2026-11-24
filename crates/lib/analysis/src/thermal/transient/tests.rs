@@ -24,6 +24,7 @@ fn first_order_cooling() {
             radiative: vec![],
             enclosure: None,
             surfaces: vec![],
+            shadowing: None,
         },
         timeline: leo_timeline(1800.0, 60.0),
         environment: ThermalEnvironment::default(),
@@ -57,6 +58,7 @@ fn phases_cycle() {
         radiative: vec![],
         enclosure: None,
         surfaces: vec![],
+        shadowing: None,
     })
     .unwrap();
     let load = |w: f64| {
@@ -206,6 +208,7 @@ fn phase_boundaries_inside_an_interval() {
         radiative: vec![],
         enclosure: None,
         surfaces: vec![],
+        shadowing: None,
     })
     .unwrap();
     let phase = |label: &str, duration: f64| ThermalHeatPhase {
@@ -286,6 +289,7 @@ fn plate_detail_is_min_max_and_end_per_cell() {
             radiative: vec![],
             enclosure: None,
             surfaces: vec![],
+            shadowing: None,
         },
         timeline: leo_timeline(1800.0, 60.0),
         environment: ThermalEnvironment::default(),

@@ -9,7 +9,7 @@ use crate::quantity::{setting, setting_opt};
 use fune_model::Target;
 use fune_model::design::setting_dims as dims;
 use fune_model::design::setting_dims::SettingQuantity;
-use fune_model::design::{ThermalNodes, ThermalSettings};
+use fune_model::design::{AnalysisSystem, ThermalNodes, ThermalSettings};
 use fune_model::resolve::{ResolvedPart, SiValue};
 use fune_model::value::Quantity;
 use sat_analysis::structure::interference::InterferenceBox;
@@ -56,6 +56,7 @@ pub(super) fn network(
         radiative: radiative(s, m),
         enclosure: enclosure(ctx, s),
         surfaces: surfaces(ctx, s, &map, m),
+        shadowing: crate::structure::shadowing(ctx, AnalysisSystem::Thermal, s.shadowing),
     }
 }
 

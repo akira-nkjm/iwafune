@@ -108,6 +108,7 @@ fn chain(ranges: bool) -> ThermalNetwork {
         radiative: Vec::new(),
         enclosure: None,
         surfaces: Vec::new(),
+        shadowing: None,
     }
 }
 
@@ -199,6 +200,7 @@ fn heated_plate(cells: Option<[u32; 2]>) -> ThermalNetwork {
             surface("top", "P", 0.04, Vec3::X, 0.5, 0.8),
             surface("bottom", "P", 0.04, -Vec3::X, 0.5, 0.8),
         ],
+        shadowing: None,
     }
 }
 

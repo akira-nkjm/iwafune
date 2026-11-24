@@ -3,11 +3,13 @@
 //! ケースごとに、太陽方向を直接与えるか（機体座標系）、軌道と姿勢則の時系列を与える。
 //! 時系列のケースは日照中（[`crate::spec::is_sunlit`]）の時間だけの時間平均（台形則）と最小・最大を出し、
 //! **全日照（日照率 1）として**発電を評価する（姿勢による差だけを見るため）。発電モデルは [`super::solar`]。
+//! 入力に部品の箱があれば、パネルの面の日照割合（ほかの部品の影）も掛け、日照中の標本の最小・平均を `shadowing` に出す。
 
 use super::solar::{SolarArray, SolarLife, total};
 use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, System, is_sunlit, masked_time_mean,
 };
+use crate::structure::external_geometry::{LitSurfaces, ShadowingReport};
 use sat_astro::math::Vec3;
 use sat_astro::timeline::{self, TimelineSpec};
 use sat_units::typed::{Angle, Power, Qty};
@@ -67,6 +69,9 @@ pub struct SolarSunlitCaseResult {
     pub panels: Vec<SolarSunlitPanel>,
     /// 評価に使った日照中のサンプル数（方向のケースは 1）。0 なら値はすべて 0
     pub sunlit_samples: usize,
+    /// パネルの面の日照割合（ほかの部品の影を引いた割合）の、日照中の標本での最小と平均。影を数えたときだけ付く
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadowing: Option<ShadowingReport>,
 }
 
 /// 1 パネルの内訳。
@@ -99,10 +104,11 @@ impl Analysis for SolarSunlit {
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         input.array.validate()?;
+        let shading = input.array.shading();
         let cases = input
             .cases
             .iter()
-            .map(|c| evaluate_case(&input.array, c))
+            .map(|c| evaluate_case(&input.array, shading.as_ref(), c))
             .collect::<Result<_, _>>()?;
         Ok(SolarSunlitOutput { cases })
     }
@@ -120,6 +126,7 @@ struct SunSamples {
 
 fn evaluate_case(
     array: &SolarArray,
+    shading: Option<&LitSurfaces>,
     case: &SolarSunlitCase,
 ) -> Result<SolarSunlitCaseResult, AnalysisError> {
     let samples = match &case.sun {
@@ -148,19 +155,24 @@ fn evaluate_case(
             }
         }
     };
-    Ok(summarize(array, case, &samples))
+    Ok(summarize(array, shading, case, &samples))
 }
 
 /// 日照中の時間平均（台形則、`crate::spec::masked_time_mean`）と最小・最大。
-fn summarize(array: &SolarArray, case: &SolarSunlitCase, s: &SunSamples) -> SolarSunlitCaseResult {
+fn summarize(
+    array: &SolarArray,
+    shading: Option<&LitSurfaces>,
+    case: &SolarSunlitCase,
+    s: &SunSamples,
+) -> SolarSunlitCaseResult {
     let n = array.panels.len();
     let mut bol = vec![Vec::with_capacity(s.t.len()); n];
     let mut eol = vec![Vec::with_capacity(s.t.len()); n];
     let mut angle = vec![Vec::with_capacity(s.t.len()); n];
     let (mut eol_min, mut eol_max) = (f64::INFINITY, 0.0_f64);
     for (&(sun, flux), &lit) in s.points.iter().zip(&s.lit) {
-        let pb = array.panel_powers(sun, 1.0, flux, SolarLife::Bol);
-        let pe = array.panel_powers(sun, 1.0, flux, SolarLife::Eol);
+        let pb = array.panel_powers_shaded(shading, sun, 1.0, flux, SolarLife::Bol);
+        let pe = array.panel_powers_shaded(shading, sun, 1.0, flux, SolarLife::Eol);
         if lit {
             let te = total(&pe).value();
             eol_min = eol_min.min(te);
@@ -194,6 +206,16 @@ fn summarize(array: &SolarArray, case: &SolarSunlitCase, s: &SunSamples) -> Sola
         eol_max: Qty::from_raw(eol_max),
         panels,
         sunlit_samples: lit_count,
+        shadowing: shading.map(|sh| {
+            let sunward: Vec<Vec3> = s
+                .points
+                .iter()
+                .zip(&s.lit)
+                .filter(|(_, lit)| **lit)
+                .map(|(p, _)| p.0)
+                .collect();
+            sh.summary(&sunward)
+        }),
     }
 }
 
@@ -216,6 +238,7 @@ mod tests {
                 panels: vec![panel("PZ", Vec3::Z), panel("PX", Vec3::X)],
                 solar_flux: None,
                 conversion_efficiency: None,
+                shadowing: None,
             },
             cases: vec![SolarSunlitCase {
                 id: "sun_z".to_owned(),

@@ -137,6 +137,10 @@ pub struct ThermalSettings {
     pub time_step: Option<Quantity>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub orbits: Option<u32>,
+    /// 外面の直達日射に、ほかの部品の影（部品の箱から出す面の日照割合）を数えるか。省略時は数える
+    /// （部品に寸法があるとき。`false` で従来の式のまま。アルベドと惑星の赤外は影を数えない）。太陽電池は `analysis.power.shadowing`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadowing: Option<bool>,
     /// 解析マージンの方針
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub margin: Option<ThermalMarginSettings>,

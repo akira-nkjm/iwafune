@@ -2,10 +2,12 @@
 //!
 //! 入射の幾何は `sat_astro::illumination`（太陽の cos 則と日照率、中心天体の形態係数、太陽光の強さ）を使い、
 //! 軌道上の向きは `sat_astro::timeline` のサンプルから取る。ここでは吸収率・放射率を掛けて節点に配るだけ。
+//! **直達日射だけ**に、面の日照割合（ほかの部品の影。`structure::external_geometry::lit`。網に部品の箱があるとき）を掛ける。
+//! アルベドと惑星の赤外は広がった光源（空の半球の大きな部分）なので、影を数えない。
 //! アルベドは「形態係数 × max(0, 衛星の位置と太陽方向の cos)」で近似する（概念設計の精度）。天体の赤外放射は
 //! 同じ cos（直下点の太陽天頂角）で天体ごとのモデル（`thermal::planet`）から求める。環境の値は `thermal::environment`。
 
-use crate::spec::{AnalysisError, orbit_mean, orbit_ranges};
+use crate::spec::AnalysisError;
 use crate::thermal::environment::ResolvedEnvironment;
 pub use crate::thermal::environment::{
     DEFAULT_SPACE_TEMPERATURE_K, ThermalEnvironment, ThermalEnvironmentUsed,
@@ -14,7 +16,6 @@ use crate::thermal::network::{Compiled, Surface};
 use sat_astro::ephem::CentralBody;
 use sat_astro::illumination::{body_view_factor, solar_flux_w_m2, solar_incidence};
 use sat_astro::math::Vec3;
-use sat_astro::orbit::semi_major_axis_from_altitude;
 use sat_astro::timeline::{TimelineSample, TimelineSpec, build};
 use sat_units::typed::{Length, Qty};
 use serde::{Deserialize, Serialize};
@@ -76,10 +77,10 @@ impl Geometry {
     }
 }
 
-/// 外面 1 枚の吸収熱 [W]。
-fn surface_absorbed(s: &Surface, env: &ResolvedEnvironment, g: &Geometry) -> f64 {
+/// 外面 1 枚の吸収熱 [W]。`lit` は面の日照割合（直達日射にだけ掛ける）。
+fn surface_absorbed(s: &Surface, lit: f64, env: &ResolvedEnvironment, g: &Geometry) -> f64 {
     let flux = env.solar_flux_w_m2.unwrap_or(g.solar_flux_w_m2);
-    let solar = s.alpha * flux * s.area_m2 * solar_incidence(s.normal, g.sun_dir, g.sunlit);
+    let solar = s.alpha * flux * s.area_m2 * solar_incidence(s.normal, g.sun_dir, g.sunlit) * lit;
     let Some(r) = g.r_m else {
         return solar;
     };
@@ -92,9 +93,26 @@ fn surface_absorbed(s: &Surface, env: &ResolvedEnvironment, g: &Geometry) -> f64
 
 /// 節点ごとの外部入熱 [W]。
 pub(crate) fn absorbed(net: &Compiled, env: &ResolvedEnvironment, g: &Geometry) -> Vec<f64> {
+    absorbed_with(net, env, g, true)
+}
+
+/// 節点ごとの外部入熱 [W]。`shaded` が偽なら影を数えない（影で遮られた日射を知るための比較用）。
+pub(crate) fn absorbed_with(
+    net: &Compiled,
+    env: &ResolvedEnvironment,
+    g: &Geometry,
+    shaded: bool,
+) -> Vec<f64> {
     let mut q = vec![0.0; net.len()];
     for s in &net.surfaces {
-        q[s.node] += surface_absorbed(s, env, g);
+        // 光を受ける面だけ影を評価する（受けない面は直達日射が 0 なので、日照割合は効かない）
+        let lit = match &net.shading {
+            Some(shading) if shaded && g.sunlit > 0.0 && s.normal.dot(g.sun_dir) > 0.0 => {
+                shading.lit(s.input, g.sun_dir)
+            }
+            _ => 1.0,
+        };
+        q[s.node] += surface_absorbed(s, lit, env, g);
     }
     q
 }
@@ -113,62 +131,11 @@ pub(crate) fn timeline_geometry(
     Ok((t, samples.iter().map(Geometry::from_sample).collect()))
 }
 
-/// 時系列の入熱の周回平均 [W]（`crate::spec::orbit_mean`。完全な周回が無ければ全期間の平均）。
-pub(crate) fn mean_absorbed(
-    net: &Compiled,
-    env: &ThermalEnvironment,
-    spec: &TimelineSpec,
-) -> Result<Vec<f64>, AnalysisError> {
-    let env = env.resolve(spec.orbit().central())?;
-    let (t, geo) = timeline_geometry(spec)?;
-    let ranges = orbit_ranges(&t, spec.orbit().cycle());
-    let per_sample: Vec<Vec<f64>> = geo.iter().map(|g| absorbed(net, &env, g)).collect();
-    Ok((0..net.len())
-        .map(|i| {
-            let v: Vec<f64> = per_sample.iter().map(|q| q[i]).collect();
-            orbit_mean(&t, &v, &ranges)
-        })
-        .collect())
-}
+mod external;
+pub(crate) use external::{exposure_heat, mean_absorbed, sample_shadowing, shadow_loss_check};
 
-/// 定常解析の入熱 [W]。
-pub(crate) fn exposure_absorbed(
-    net: &Compiled,
-    env: &ThermalEnvironment,
-    exposure: &ThermalExposure,
-) -> Result<Vec<f64>, AnalysisError> {
-    match exposure {
-        ThermalExposure::OrbitAverage { timeline } => mean_absorbed(net, env, timeline),
-        ThermalExposure::Fixed {
-            sun_dir_body,
-            nadir_body,
-            altitude,
-            central,
-        } => {
-            let env = env.resolve(*central)?;
-            let flux = match (env.solar_flux_w_m2, central.nominal_solar_flux_w_m2()) {
-                (Some(f), _) | (None, Some(f)) => f,
-                (None, None) => {
-                    return Err(AnalysisError::InvalidInput(format!(
-                        "No conventional Sun distance for central body {central:?}. Set solar_flux"
-                    )));
-                }
-            };
-            let r = nadir_body
-                .and_then(Vec3::normalized)
-                .map(|n| -n * semi_major_axis_from_altitude(*central, altitude.value()));
-            let g = Geometry {
-                sun_dir: sun_dir_body
-                    .and_then(Vec3::normalized)
-                    .unwrap_or(Vec3::ZERO),
-                sunlit: if sun_dir_body.is_some() { 1.0 } else { 0.0 },
-                solar_flux_w_m2: flux,
-                r_m: r,
-            };
-            Ok(absorbed(net, &env, &g))
-        }
-    }
-}
+#[cfg(test)]
+mod shading_tests;
 
 #[cfg(test)]
 mod tests {
@@ -176,6 +143,15 @@ mod tests {
     use crate::thermal::network::{ThermalNetwork, ThermalSurface, tests::node};
     use crate::thermal::preset::ThermalPreset;
     use sat_astro::constants::{EARTH_IR, R_EARTH, R_MOON};
+
+    /// 定常解析の入熱 [W]（影の報告は使わない）。
+    fn exposure_absorbed(
+        net: &Compiled,
+        env: &ThermalEnvironment,
+        exposure: &ThermalExposure,
+    ) -> Result<Vec<f64>, AnalysisError> {
+        Ok(exposure_heat(net, env, exposure)?.q)
+    }
 
     fn plate(normal: Vec3) -> Compiled {
         Compiled::new(&ThermalNetwork {
@@ -195,6 +171,7 @@ mod tests {
                 emissivity: Some(0.8),
                 coatings: vec![],
             }],
+            shadowing: None,
         })
         .unwrap()
     }
@@ -364,6 +341,7 @@ pub(crate) mod fixtures {
                     coatings: vec![],
                 })
                 .collect(),
+            shadowing: None,
         }
     }
 }

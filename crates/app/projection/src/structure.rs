@@ -1,5 +1,5 @@
 //! 構造の射影: `structure.mass_properties`（と、姿勢の解析が使う慣性）。慣性の計算は sat-analysis に任せる。
-//! 部品の箱の置き場所は子の `body_boxes`、承知済みの組（干渉と円錐で共通）の射影は子の `acknowledged`、`structure.interference` の射影は子の `interference`、`structure.cone_clearance`（噴流・視野）の射影と担い手の表は子の `cone_clearance`、`structure.external_geometry`（外形の面積）の射影は子の `external_geometry`、`structure.modal_fem`（有限要素の固有値解析）の射影は子の `modal_fem`、パネルの読み出しは子の `panel`（`modal_estimate` と共有）。
+//! 部品の箱の置き場所は子の `body_boxes`、承知済みの組（干渉と円錐で共通）の射影は子の `acknowledged`、`structure.interference` の射影は子の `interference`、`structure.cone_clearance`（噴流・視野）の射影と担い手の表は子の `cone_clearance`、`structure.external_geometry`（外形の面積）の射影は子の `external_geometry`、`structure.modal_fem`（有限要素の固有値解析）の射影は子の `modal_fem`、電源と熱が影を数えるための部品の箱の入力は子の `shadowing`、パネルの読み出しは子の `panel`（`modal_estimate` と共有）。
 
 mod acknowledged;
 mod body_boxes;
@@ -8,6 +8,7 @@ mod external_geometry;
 mod interference;
 mod modal_fem;
 mod panel;
+mod shadowing;
 
 pub use acknowledged::acknowledgements;
 pub use body_boxes::{BodyBox, BodyBoxes, Placed, boxes, placed};
@@ -16,6 +17,7 @@ pub use external_geometry::external_geometry;
 pub use interference::interference;
 pub use modal_fem::modal_fem;
 pub(crate) use panel::material;
+pub use shadowing::shadowing;
 
 use crate::context::Context;
 use crate::launch::{LaunchValues, frequency_limits, launch_path};

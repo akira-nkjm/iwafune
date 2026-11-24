@@ -2,6 +2,7 @@
 import type { Check } from "./Check";
 import type { OrbitPlaneTrack } from "./OrbitPlaneTrack";
 import type { Series } from "./Series";
+import type { ShadowingReport } from "./ShadowingReport";
 import type { ThermalCouplings } from "./ThermalCouplings";
 import type { ThermalEnvironmentUsed } from "./ThermalEnvironmentUsed";
 import type { ThermalHeaterRun } from "./ThermalHeaterRun";
@@ -46,6 +47,10 @@ integration: ThermalIntegration,
  * 表示枠は最初の標本で決めた固定の軌道面（+x が太陽側）。模式で、実際の日陰は `sunlit`（`sat_astro::timeline`）
  */
 orbit_plane: OrbitPlaneTrack, 
+/**
+ * 外面の日照割合（ほかの部品の影を引いた割合。直達日射にだけ掛ける）の、日照中の標本での最小と平均。影を数えたときだけ付く
+ */
+shadowing?: ShadowingReport | null, 
 /**
  * 温度範囲を持つ節点の種類ごとの判定（key は `range_high|range_low:<node>:<storage|operating|performance>`）と、
  * ヒータごとの判定（key は `heater:<部品>`）

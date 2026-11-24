@@ -5,6 +5,7 @@
 //! Q_i は外部入熱（吸収した太陽・アルベド・地球赤外）と内部発熱（`load`）の和。外面の α/ε は `surface` が表面材から求める。`fixed_temperature` を持つ節点は境界（温度一定）。
 
 use crate::spec::AnalysisError;
+use crate::structure::external_geometry::{Footprint, LitSurfaces, ShadowingInput};
 use crate::thermal::enclosure::ThermalEnclosure;
 use crate::thermal::range::{ThermalRanges, ThermalRequiredRange};
 use sat_astro::constants::SIGMA_SB;
@@ -153,6 +154,10 @@ pub struct ThermalNetwork {
     pub enclosure: Option<ThermalEnclosure>,
     #[serde(default)]
     pub surfaces: Vec<ThermalSurface>,
+    /// 部品の箱。あれば、外面の直達日射に、その面の日照割合（ほかの部品の影を引いた割合）を掛ける
+    /// （アルベドと惑星の赤外は広がった光源なので影を数えない）。省略時は影を数えない
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadowing: Option<ShadowingInput>,
     /// 升に分ける板（`subdivide`）。書いた部品の節点は升の節点に置き換わる
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub plates: Vec<ThermalPlate>,
@@ -166,6 +171,9 @@ pub(crate) struct Surface {
     pub normal: Vec3,
     pub alpha: f64,
     pub eps: f64,
+    /// 入力の外面（`ThermalNetwork::surfaces`）の添字。板を升に分けると 1 つの外面が升ごとの複数の `Surface` になるので、
+    /// 日照割合（影）は入力の外面ごとに 1 つ求め、升には面積の割合で配った直達日射が同じ割合で掛かる
+    pub input: usize,
 }
 
 /// 添字に直した熱ネットワーク（SI の f64）。
@@ -184,6 +192,8 @@ pub(crate) struct Compiled {
     pub space: Vec<f64>,
     /// 使う結合の一覧（出力に載せる）
     pub couplings: ThermalCouplings,
+    /// 外面（`surfaces` と同じ順）の日照割合の評価器。影を数えないときは `None`
+    pub shading: Option<LitSurfaces>,
     /// 板を升に分けたあとの節点（結果は入力ではなくこの順・この ID で並ぶ。板が無ければ入力の節点と同じ）
     pub nodes: Vec<ThermalNode>,
     /// 板の部品 ID → 升の節点の添字と面積の割合（発熱・初期温度・外面を配る）
@@ -215,6 +225,7 @@ impl Compiled {
             surfaces: Vec::new(),
             space: vec![0.0; ids.len()],
             couplings: ThermalCouplings::default(),
+            shading: None,
             groups: plan
                 .groups
                 .iter()
@@ -254,18 +265,25 @@ impl Compiled {
         c.cond.extend(plan.inplane());
         couplings.plates = plan.used(&c.cond, &c.capacity, &unlocated);
         c.couplings = couplings;
-        for s in &net.surfaces {
-            for surface in c.surface(s)? {
+        for (k, s) in net.surfaces.iter().enumerate() {
+            for surface in c.surface(s, k)? {
                 c.space[surface.node] += surface.eps * SIGMA_SB * surface.area_m2;
                 c.surfaces.push(surface);
             }
         }
+        c.shading = net.shadowing.as_ref().and_then(|input| {
+            LitSurfaces::new(
+                input,
+                Footprint::Credited,
+                net.surfaces.iter().map(|s| (s.id.as_str(), s.normal)),
+            )
+        });
         c.nodes = plan.nodes;
         Ok(c)
     }
 
     /// 外面を節点の面（板なら升ごとに面積の割合で分けた面）にする。
-    fn surface(&self, s: &ThermalSurface) -> Result<Vec<Surface>, AnalysisError> {
+    fn surface(&self, s: &ThermalSurface, input: usize) -> Result<Vec<Surface>, AnalysisError> {
         let (alpha, eps) = s.optics()?;
         match (s.area.value() >= 0.0, s.normal.normalized()) {
             (true, Some(normal)) => Ok(self
@@ -277,6 +295,7 @@ impl Compiled {
                     normal,
                     alpha,
                     eps,
+                    input,
                 })
                 .collect()),
             _ => Err(invalid(format!(

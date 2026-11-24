@@ -42,6 +42,7 @@ pub(super) fn net(nodes: &[&str]) -> ThermalNetwork {
         radiative: vec![],
         enclosure: None,
         surfaces: vec![],
+        shadowing: None,
     }
 }
 

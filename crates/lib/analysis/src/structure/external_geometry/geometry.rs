@@ -12,6 +12,15 @@ use sat_astro::math::planar::union_measure;
 /// （`structure.interference` の許容差の既定と同じ尺度。意味が違う値なので、別の定数にしている）。
 pub const SURFACE_TOLERANCE: f64 = 1e-4;
 
+/// 向きの量子化の細かさ（成分を 1e-12 の刻みに丸めて、同じ向きの繰り返しを使い回す。差は浮動小数点の雑音の大きさ）。
+const DIRECTION_KEY_SCALE: f64 = 1e12;
+
+/// 向き（単位ベクトル）を、キャッシュの鍵にする量子化した整数の組にする。**向きごとの投影・日照割合を使い回す鍵はここだけ**
+/// （固定姿勢の機体の一定の向き、たとえば太陽指向の太陽の向きを、何度も解かないため）。
+pub fn direction_key(d: Vec3) -> [i64; 3] {
+    [d.x, d.y, d.z].map(|c| (c * DIRECTION_KEY_SCALE).round() as i64)
+}
+
 /// 部品の箱 1 つ。
 #[derive(Debug, Clone, PartialEq)]
 pub struct PartBox {

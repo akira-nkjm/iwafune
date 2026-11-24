@@ -44,7 +44,10 @@ fn about(body: CentralBodyKind) -> Design {
 /// 低温のケースより平均でも最高でも暖かい。季節解析の最長の蝕は高度 100 km の月の影（β = 0 で ≈ 46 分）以下。
 #[test]
 fn lunar_orbit_thermal_and_eclipse_use_lunar_environment() {
-    let design = about(CentralBodyKind::Moon);
+    let mut design = about(CentralBodyKind::Moon);
+    // 環境の値と「高温は低温より暖かい」を見るテストなので、外面の影（#424）は切る。影を数えると、高温のケース（天底指向・β 60°）は
+    // +Y 面のセル SP_PY の直達日射が展開パドルの影で半分ほどに減り（下の `lunar_shadowing_…` が測る）、平均温度が低温のケース（太陽指向）より低くなる
+    design.analysis.thermal.as_mut().unwrap().shadowing = Some(false);
     let resolved = fune_model::resolve(&design);
     let ctx = Context::new(&design, &resolved, Some("hot_imaging")).unwrap();
     let steady = thermal::steady(&ctx).unwrap();
@@ -210,4 +213,35 @@ fn eclipse_season_about_the_sun_is_an_error() {
     let input = orbit::eclipse_season(&ctx).unwrap();
     let err = EclipseSeason::run(&input).unwrap_err().to_string();
     assert!(err.contains("An orbit around the Sun"), "{err}");
+}
+
+/// 月周回の外面の影（#424）。低温のケースは太陽指向（+X が太陽）なので、太陽は常に +X 側の面だけを照らし、遮る箱が無く、影ありでも入熱は同じ。
+/// 高温のケースは天底指向で太陽が機体のいろいろな向きから来るので、+Y 面のセル SP_PY が展開パドル（+X の縁から +Y へ立つ）の影に入り、
+/// 影なしより入熱の合計が減る。この減りが、影を数えた平均温度が低温のケースを下回る原因（影なしでは高温が暖かい）。
+#[test]
+fn lunar_shadowing_removes_hot_case_input_but_not_the_sun_pointing_cold_case() {
+    let heat = |shadowing: Option<bool>| {
+        let mut design = about(CentralBodyKind::Moon);
+        design.analysis.thermal.as_mut().unwrap().shadowing = shadowing;
+        let resolved = fune_model::resolve(&design);
+        let ctx = Context::new(&design, &resolved, Some("hot_imaging")).unwrap();
+        ThermalSteady::run(&thermal::steady(&ctx).unwrap()).unwrap()
+    };
+    let (on, off) = (heat(None), heat(Some(false)));
+    let total = |o: &sat_analysis::thermal::steady::ThermalSteadyOutput, id: &str| -> f64 {
+        let c = o.cases.iter().find(|c| c.id == id).unwrap();
+        c.nodes.iter().map(|n| n.absorbed.value()).sum()
+    };
+    assert_eq!(total(&on, "cold"), total(&off, "cold"));
+    assert!(total(&on, "hot") < total(&off, "hot") - 1.0);
+    let hot = on.cases.iter().find(|c| c.id == "hot").unwrap();
+    let sp_py = hot
+        .shadowing
+        .as_ref()
+        .unwrap()
+        .parts
+        .iter()
+        .find(|p| p.id == "SP_PY")
+        .unwrap();
+    assert!(sp_py.mean.value() < 0.5, "{}", sp_py.mean.value());
 }

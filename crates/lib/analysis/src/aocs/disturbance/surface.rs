@@ -7,7 +7,7 @@
 //! 物理のモデル（係数 × 面積、力は向きに沿う）は [`super`] にあり、ここは面積と腕を決めるだけ。
 
 use super::DEFAULT_CP_OFFSET;
-use crate::structure::external_geometry::{ExternalGeometry, Projection};
+use crate::structure::external_geometry::{ExternalGeometry, Projection, direction_key};
 use crate::structure::interference::InterferenceBox;
 use sat_astro::math::Vec3;
 use sat_units::typed::{Area, Qty};
@@ -64,9 +64,6 @@ pub struct SurfaceSample {
     pub cp_source: SurfaceValueSource,
 }
 
-/// 向きの量子化の細かさ（成分を 1e-12 の刻みに丸めて、同じ向きの繰り返しを使い回す。差は浮動小数点の雑音の大きさ）。
-const DIRECTION_KEY_SCALE: f64 = 1e12;
-
 /// 面の評価器。箱の幾何（内部の判定込み）を 1 度だけ作り、向きごとの投影を使い回す。
 pub(super) struct SurfaceModel {
     geometry: Option<(ExternalGeometry, Vec3)>,
@@ -93,7 +90,7 @@ impl SurfaceModel {
     fn project(&self, direction: Vec3) -> Option<Projection> {
         let (geometry, _) = self.geometry.as_ref()?;
         let d = direction.normalized().filter(|d| d.x.is_finite())?;
-        let key = [d.x, d.y, d.z].map(|c| (c * DIRECTION_KEY_SCALE).round() as i64);
+        let key = direction_key(d);
         if let Some(hit) = self.cache.borrow().get(&key) {
             return *hit;
         }
