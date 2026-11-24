@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useSearchParams } from "react-router";
 import { FINDING_ANALYSES } from "@/analysis/geometry-findings";
 import { analysisOutput } from "@/api/analysis-output";
@@ -57,7 +57,16 @@ function LayoutContent({ design }: { design: DesignView }) {
     [interference.data, cones.data],
   );
 
+  // 自分で選んだ（選び直させた）形態。URL の更新は描画より遅れて届くので、届くまでの間に、設計の再読込で
+  // 古い形態が無くなったのを見て URL を基準に戻してしまわない（名前を変えた形態を選び直したのを上書きしない）
+  const chosen = useRef<string | null | undefined>(undefined);
+  const select = (id: string | null, options?: { replace: boolean }) => {
+    chosen.current = id;
+    setParams(withLayoutConfiguration(params, id), options);
+  };
   useEffect(() => {
+    if (chosen.current === requested) chosen.current = undefined;
+    else if (chosen.current !== undefined) return;
     if (requested !== null && !configuration)
       setParams(withLayoutConfiguration(params, null), { replace: true });
   }, [requested, configuration, params, setParams]);
@@ -67,7 +76,7 @@ function LayoutContent({ design }: { design: DesignView }) {
       <ConfigurationControls
         configurations={design.configurations}
         selected={selected}
-        onSelect={(id, options) => setParams(withLayoutConfiguration(params, id), options)}
+        onSelect={select}
       />
       <QueryState
         query={parts}

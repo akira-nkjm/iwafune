@@ -1,3 +1,5 @@
+import type { Op } from "./types";
+
 /**
  * TanStack Query のキーはここだけで作る。編集（POST /ops）の後に無効化する範囲もここで決める。
  */
@@ -81,3 +83,54 @@ export const invalidatedByOps: readonly (readonly string[])[] = [
   ["budget"],
   keys.compliance,
 ];
+
+/**
+ * 編集で消える・名前が変わる対象（変わる前の ID）。その ID をキーに持つ問い合わせは、編集のあとは 404 になる。
+ * 持っているのは、キーに ID が入る種類だけ（部品・形態・解析ケース）。ほかの対象（モード・フェーズ・マヌーバー・要求・
+ * 地上局・カタログ品・グループ）は問い合わせのキーに入らない
+ */
+export interface Retired {
+  parts: ReadonlySet<string>;
+  configurations: ReadonlySet<string>;
+  cases: ReadonlySet<string>;
+}
+
+/** 送った Op のうち、消す・名前を変えるものの対象（変わる前の ID） */
+export function retiredBy(ops: readonly Op[]): Retired {
+  const parts = new Set<string>();
+  const configurations = new Set<string>();
+  const cases = new Set<string>();
+  for (const o of ops) {
+    if (o.op === "remove_part" || o.op === "rename_part") parts.add(o.id);
+    else if (o.op === "remove_configuration" || o.op === "rename_configuration")
+      configurations.add(o.id);
+    else if (o.op === "remove_case" || o.op === "rename_case") cases.add(o.id);
+  }
+  return { parts, configurations, cases };
+}
+
+const isEmpty = (r: Retired) => r.parts.size + r.configurations.size + r.cases.size === 0;
+const has = (set: ReadonlySet<string>, v: unknown) => typeof v === "string" && set.has(v);
+
+/**
+ * このキーの問い合わせは、消えた・名前が変わった対象を指しているか。上の `keys` の形に合わせて読む
+ * （並びを変えたら、ここと keys.test.ts を合わせる）:
+ * - `parts(configuration)` = `design, parts, 形態`
+ * - `part(id, ops, configuration)` = `design, part, ID, ops, 形態`（形態は 5 番目のときだけ）
+ * - `analysis(id, case, ops, configuration)` と `analysisDetail` = `analysis, ID, ケース, ops|detail, 形態`（形態は 5 番目のときだけ）
+ * - `analyzedModes(system, case, ops)` = `analysis, system_modes, 系, ケース, ops`
+ * - `thermalTables(case, ops)` = `analysis, thermal_tables, ケース, ops`
+ */
+export function refersToRetired(key: readonly unknown[], r: Retired): boolean {
+  if (isEmpty(r)) return false;
+  if (key[0] === "design") {
+    if (key[1] === "parts") return has(r.configurations, key[2]);
+    if (key[1] === "part")
+      return has(r.parts, key[2]) || (key.length === 5 && has(r.configurations, key[4]));
+    return false;
+  }
+  if (key[0] !== "analysis") return false;
+  if (key[1] === "system_modes") return has(r.cases, key[3]);
+  if (key[1] === "thermal_tables") return has(r.cases, key[2]);
+  return has(r.cases, key[2]) || (key.length === 5 && has(r.configurations, key[4]));
+}

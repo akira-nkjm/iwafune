@@ -4,10 +4,13 @@
 use super::*;
 use sat_units::typed::{Frequency, Length, Mass};
 
+mod beam_element;
 mod box_model;
+mod frame;
 mod invariance;
 mod plates;
 mod shapes;
+mod skewed;
 mod strips;
 
 /// アルミ合金の代表値（E = 70 GPa、ρ = 2700 kg/m³）。
@@ -41,6 +44,7 @@ pub fn panel(
         poisson_ratio: nu,
         density: Qty::from_raw(RHO_AL),
         mass: None,
+        orientation: None,
     }
 }
 
@@ -48,6 +52,7 @@ pub fn input(panels: Vec<ModalFemPanel>, support: ModalFemSupport) -> ModalFemIn
     ModalFemInput {
         panels,
         lumped: vec![],
+        frames: vec![],
         skipped_panels: vec![],
         distributed_mass: None,
         launch_axis: ModalFemAxis::Z,
@@ -66,6 +71,7 @@ pub fn lumped(id: &str, p: [f64; 3], kg: f64) -> ModalFemLumped {
         mass: Qty::<Mass>::from_raw(kg),
         footprint: None,
         panel: None,
+        frame: None,
     }
 }
 
@@ -168,6 +174,10 @@ pub fn remap(
                 .1;
             p.size[slot] = size;
         }
+    }
+    for f in &mut out.frames {
+        f.center = point(&f.center);
+        f.size = std::array::from_fn(|k| f.size[perm[k]]);
     }
     for l in &mut out.lumped {
         l.position = point(&l.position);
