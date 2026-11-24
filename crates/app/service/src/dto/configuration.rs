@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-/// `fune configuration add|set <ID> --label … --description …` の引数（文字列のまま）。
+/// `fune configuration add|set <ID> --label … --label-en … --description …` の引数（文字列のまま）。
 /// 書かなかった旗（省略・null・空の文字列）は書かない。部品ごとの姿勢（`[pose.<部品>]`）はここには無い
 /// （`fune part place --configuration`・`fune configuration unset-pose`。`set` は今のまま残す）。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
@@ -13,6 +13,7 @@ use ts_rs::TS;
 pub struct ConfigurationText {
     pub id: String,
     pub label: Option<String>,
+    pub label_en: Option<String>,
     pub description: Option<String>,
 }
 
@@ -22,6 +23,8 @@ pub struct ConfigurationView {
     pub id: String,
     /// 表示名（無ければ ID）
     pub label: String,
+    /// 英語の表示名（書かれていなければ None。英語の画面は無ければ ID を出す）
+    pub label_en: Option<String>,
     pub description: Option<String>,
     /// 姿勢を上書きしている部品（ID 順。`[pose.<部品>]`）
     pub overridden: Vec<String>,

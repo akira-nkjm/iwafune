@@ -20,6 +20,9 @@ pub struct Configuration {
     pub id: Id<Configuration>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<String>,
+    /// 英語の表示名（英語の画面ではこれ、無ければ ID を出す）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label_en: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     /// 部品 ID → 姿勢（その部品の `[pose]` をこの形態だけ置き換える）

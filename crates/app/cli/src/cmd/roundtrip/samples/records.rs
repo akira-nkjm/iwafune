@@ -352,16 +352,19 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
         Op::CreateConfiguration {
             id: s("STOWED"),
             label: Some(s("Stowed \"test\"")),
+            label_en: Some(s("Stowed \"en\"")),
             description: Some(s("Paddle folded onto the +X face")),
         },
         Op::CreateConfiguration {
             id: s("DEPLOYED"),
             label: None,
+            label_en: None,
             description: None,
         },
         Op::SetConfiguration {
             id: s("STOWED"),
             label: Some(s("Stowed")),
+            label_en: Some(s("Stowed (English)")),
             description: None,
         },
         Op::RemoveConfiguration { id: s("STOWED") },

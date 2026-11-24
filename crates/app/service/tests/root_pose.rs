@@ -180,6 +180,7 @@ fn a_configuration_can_override_a_root() {
             &ConfigurationText {
                 id: "SHIFTED".into(),
                 label: None,
+                label_en: None,
                 description: None,
             },
             true,
