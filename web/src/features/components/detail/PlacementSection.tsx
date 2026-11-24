@@ -16,7 +16,7 @@ import {
 import { Button } from "@/ui/button";
 
 /** 配置の欄に打った文字列（角度は X・Y・Z の 3 つの欄。度） */
-interface PlacementForm {
+export interface PlacementForm {
   on: string;
   point: string;
   position: string;
@@ -26,14 +26,16 @@ interface PlacementForm {
 type Placement = ReturnType<typeof useT>["components"]["placement"];
 
 /** 欄の初期値: 位置は書かれたものだけを書かれた単位で、角度は API の取付点に対する姿勢の角度（度）で */
-function initialForm(part: PartRow): PlacementForm {
+export function initialForm(part: PartRow): PlacementForm {
   const m = part.mount;
-  const r = m?.relative.rotation;
+  // 取付の無い部品（根）の `[pose]` は機体座標での姿勢。書かれた値と角度は API の body から読む
+  const r = m ? m.relative.rotation : part.body?.quantities.rotation;
+  const authored = m ? m.authored_position : part.body?.authored_position;
   return {
     on: m?.on ?? "",
     point: m?.point ?? "",
     // 書かれていなければ空（空の欄は CLI で旗を書かないのと同じで、書かない）
-    position: m?.authored_position ? vectorInputText(m.authored_position) : "",
+    position: authored ? vectorInputText(authored) : "",
     angles: r ? [String(r[0].value), String(r[1].value), String(r[2].value)] : ["0", "0", "0"],
   };
 }
@@ -51,9 +53,9 @@ function sameForm(a: PlacementForm, b: PlacementForm): boolean {
  * `fune part place` の引数。角度を変えたら `--rotation "x y z deg"`、変えなければ書かれた四元数をそのまま
  * `--orientation` で送る（読むのはどちらも service）。
  */
-function placeText(part: PartRow, form: PlacementForm, initial: PlacementForm): CommandText {
+export function placeText(part: PartRow, form: PlacementForm, initial: PlacementForm): CommandText {
   const turned = form.angles.some((v, i) => v !== initial.angles[i]);
-  const q = part.mount?.authored_orientation;
+  const q = part.mount ? part.mount.authored_orientation : part.body?.authored_orientation;
   return {
     command: "part_place",
     part: part.id,

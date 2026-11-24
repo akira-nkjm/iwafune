@@ -95,14 +95,16 @@ pub(crate) fn mount_view(
     })
 }
 
-/// 機体座標での位置・姿勢。取付のある部品と、取付の根（ほかの部品の取付の連鎖の終わり）だけ。
+/// 機体座標での位置・姿勢。取付のある部品と、取付の根（ほかの部品の取付の連鎖の終わり）と、`[pose]` の書かれた取付の無い部品。
+/// 取付の無い部品の `[pose]` が機体座標での姿勢なので、書かれた値（`authored_*`）も返す。
 pub(crate) fn body_pose_view(
+    design: &Design,
     resolved: &Resolved,
-    rp: &ResolvedPart,
-    unit: &str,
+    (part, rp): (Option<&Part>, &ResolvedPart),
+    (unit, configuration): (&str, Option<&str>),
 ) -> Option<BodyPoseView> {
     let root = rp.mount.is_none() && resolved.is_mount_root(&rp.id);
-    if rp.mount.is_none() && !root {
+    if rp.mount.is_none() && !root && rp.root_pose.is_none() {
         return None;
     }
     // 解決済みの部品なら必ず求まる（`body_pose` が None になるのは部品が無いときだけ）
@@ -111,10 +113,15 @@ pub(crate) fn body_pose_view(
         position: [p.x, p.y, p.z],
         orientation: q.to_wxyz(),
     };
+    let authored = part
+        .filter(|_| rp.mount.is_none())
+        .and_then(|p| authored_pose(design, p, configuration));
     Some(BodyPoseView {
         position: pose.position,
         orientation: pose.orientation,
         root,
+        authored_position: authored.and_then(|p| p.position.clone()),
+        authored_orientation: authored.and_then(|p| p.orientation.clone()),
         quantities: quantities(&pose, unit),
     })
 }
