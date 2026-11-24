@@ -65,3 +65,5 @@ mod propagated_tests;
 mod tests;
 #[cfg(test)]
 mod transfer_check_tests;
+#[cfg(test)]
+mod written_tests;

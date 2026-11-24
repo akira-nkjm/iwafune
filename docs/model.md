@@ -1418,6 +1418,25 @@ duty        = 0.8        # fraction of the allowed firing time actually fired (0
 steering    = "tangential"  # tangential (velocity direction. If inclination also changes, Edelbaum's yaw angle) / inertial (fixed to the initial direction)
 ```
 
+A maneuver can instead carry a **written ΔV**, an allowance for trajectory correction, orbit maintenance or margin that is not computed from an orbit change:
+
+```toml
+# maneuvers/TCM.toml
+label    = "Trajectory correction allowance"
+category = "station_keeping"   # the row of the ΔV budget (the purpose; `label` says it in words)
+method   = "impulsive"         # impulsive or low_thrust
+thruster = "CHEM"
+after    = "MARS_TRANSFER"
+delta_v  = { value = 15.0, unit = "m/s" }
+```
+
+- It is the same maneuver entity: it takes its place in the sequence by `after`, fires the thruster it names, and `propulsion.maneuvers`, `propulsion.dv_budget`, `propulsion.propellant`, `propulsion.thruster_usage` and `propulsion.mass_properties` count it like any other maneuver
+  (propellant by the rocket equation with the mass at that point, the ΔV margin, the budget row of `category`). The orbit does not change, so the maneuvers after it see the same orbit.
+  `impulsive` is one burn (no finite-burn loss) and `low_thrust` a continuous burn (the transfer time is the burn time); without a thruster only the ΔV is counted (note `no_thruster`). The result carries the note `written_delta_v`.
+- It cannot be combined with `[target]`, `via_altitude` or `[transfer]` (`maneuver.delta_v_conflict`, error): those compute ΔV from an orbit change. `finite_burn` and `propagated` need an orbit (`maneuver.delta_v_method`, error),
+  a negative or non-finite value is an error (`maneuver.delta_v_negative`), and the unit must be a velocity (`unit.dimension`). There is no repeat count: write one maneuver per allowance (or the total).
+- Edit with `fune maneuver add|set ... --delta-v "15 m/s"` (the GUI maneuver dialog has the same field; `set` rewrites the whole maneuver, so leaving the flag out removes it).
+
 A maneuver that targets another planet can carry the two dates of the transfer:
 
 ```toml

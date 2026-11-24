@@ -208,6 +208,7 @@ pub(super) fn propulsion(orbit: &OrbitSpec, dry_kg: f64) -> PropulsionInput {
                 ..OrbitTarget::default()
             },
             via_altitude: None,
+            delta_v: None,
             ignored_constraints: Vec::new(),
             thrust: ThrustConstraints::default(),
             transfer: None,

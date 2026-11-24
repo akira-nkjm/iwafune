@@ -26,6 +26,7 @@ export const maneuversEn: typeof maneuversJa = {
       apogee_altitude: "Apogee altitude",
       inclination: "Inclination",
       transfer: "Departure → arrival",
+      delta_v: "Written ΔV",
     },
     dialog: {
       addTitle: "Add maneuver",
@@ -42,6 +43,7 @@ export const maneuversEn: typeof maneuversJa = {
       arrive: "Arrival date (after departure; leave both empty for the Hohmann-based estimate)",
       departureBy:
         "Who performs the departure burn (the launcher: it is not counted in delta-V or propellant, and launch fit takes the mass limit from the C3 capability curve)",
+      deltaV: "Written ΔV (allowance; no orbit change)",
       viaAltitude: "Intermediate apogee altitude (bi-elliptic)",
       sunlitOnly: "Fire in sunlight only",
       mode: "Firing mode",

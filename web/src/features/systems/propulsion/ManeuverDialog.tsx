@@ -117,6 +117,7 @@ export function ManeuverDialog({
         {text.body && input("arrive", td.arrive, "2029-09-25T00:00:00Z")}
         {text.body && select("departure_by", td.departureBy, departures)}
         {input("via_altitude", td.viaAltitude)}
+        {input("delta_v", td.deltaV, "15 m/s")}
         {select("sunlit_only", td.sunlitOnly, [
           { value: "true", label: td.yes },
           { value: "false", label: td.no },

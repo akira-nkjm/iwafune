@@ -18,6 +18,11 @@ thruster: string | null, target: OrbitTarget,
  */
 via_altitude: number | null, 
 /**
+ * 直接書いた ΔV（軌道修正・軌道維持・マージンなどの余裕。軌道は変えず、`target` などから ΔV を計算しない。
+ * 計算の段階はインパルスか低推力）
+ */
+delta_v?: number, 
+/**
  * 書かれているが粗い段階では効かない制約のキー（`sunlit_only`・`mode` など。結果に無視したことを書く）
  */
 ignored_constraints: Array<string>, 

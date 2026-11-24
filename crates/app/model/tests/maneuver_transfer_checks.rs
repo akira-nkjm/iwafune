@@ -22,6 +22,7 @@ fn design(
             thruster: None,
             after: None,
             via_altitude: None,
+            delta_v: None,
             target: ManeuverTarget {
                 body,
                 perigee_altitude: Some(fune_model::value::Quantity::new(300.0, "km")),

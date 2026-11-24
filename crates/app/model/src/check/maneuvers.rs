@@ -1,5 +1,5 @@
 //! マヌーバ（`maneuvers/<ID>.toml`）の検査: スラスタ・前のマヌーバ・制約のモードの参照、実行の順の循環、
-//! 目標の軌道の量の次元と書き方（天体間の遷移の捕獲の軌道）、計算の段階に要るもの、
+//! 直接書いた ΔV（`delta_v`）の次元・符号・ほかの書き方との併用、目標の軌道の量の次元と書き方（天体間の遷移の捕獲の軌道）、計算の段階に要るもの、
 //! 日付つきの遷移（`[transfer]`）の形（日付の読み方・暦の範囲・天体の組は暦を持つ `fune_projection::maneuver_dates` が見る）。
 
 use super::Ctx;
@@ -14,6 +14,7 @@ pub(super) fn check_maneuvers(ctx: &mut Ctx) {
         check_thruster(ctx, design, m, &entity);
         check_after(ctx, design, m, &entity);
         check_target(ctx, m, &entity);
+        check_delta_v(ctx, m, &entity);
         check_duty(ctx, m, &entity);
         check_transfer(ctx, m, &entity);
         if let Some(mode) = &m.constraints.mode
@@ -27,6 +28,51 @@ pub(super) fn check_maneuvers(ctx: &mut Ctx) {
                 format!("Mode `{mode}` is not defined"),
             );
         }
+    }
+}
+
+/// 直接書いた ΔV（`delta_v`）: 速度の次元で負でなく、軌道を変える書き方（`[target]`・`via_altitude`・`[transfer]`）と
+/// 一緒に書かず、計算の段階は impulsive か low_thrust（有限燃焼の損失・数値伝搬は軌道の計算が要る）。
+fn check_delta_v(ctx: &mut Ctx, m: &Maneuver, entity: &EntityKey) {
+    let Some(q) = &m.delta_v else {
+        return;
+    };
+    let id = m.id.as_str();
+    let target = |field: &str| Some(Target::maneuver(id, Some(field)));
+    if let Some((sev, code, msg)) = check_quantity_dimension(q, "Velocity") {
+        ctx.report(sev, code, entity, &["delta_v"], target("delta_v"), msg);
+    } else if !(q.value >= 0.0 && q.value.is_finite()) {
+        ctx.error(
+            "maneuver.delta_v_negative",
+            entity,
+            &["delta_v"],
+            target("delta_v"),
+            format!("delta_v must be a finite value of 0 or more ({})", q.value),
+        );
+    }
+    if !m.target.is_empty() || m.via_altitude.is_some() || m.transfer.is_some() {
+        ctx.error(
+            "maneuver.delta_v_conflict",
+            entity,
+            &["delta_v"],
+            target("delta_v"),
+            "delta_v (a written allowance) cannot be combined with [target], via_altitude or [transfer], which compute ΔV from an orbit change",
+        );
+    }
+    if matches!(
+        m.method,
+        ManeuverMethod::FiniteBurn | ManeuverMethod::Propagated
+    ) {
+        ctx.error(
+            "maneuver.delta_v_method",
+            entity,
+            &["method"],
+            target("method"),
+            format!(
+                "A written delta_v is used with impulsive or low_thrust, not {}",
+                m.method
+            ),
+        );
     }
 }
 

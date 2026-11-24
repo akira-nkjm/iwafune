@@ -298,6 +298,14 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
                     "departure_by": "launcher" } }),
             ),
         },
+        Op::CreateManeuver {
+            maneuver: maneuver(
+                "MV_Z",
+                json!({ "label": "Correction allowance", "category": "station_keeping",
+                "method": "impulsive", "thruster": "RW_X", "after": "MV_X",
+                "delta_v": { "value": 15.0, "unit": "m/s" } }),
+            ),
+        },
         Op::RemoveManeuver { id: s("MV_X") },
         Op::CreatePhase {
             phase: phase(

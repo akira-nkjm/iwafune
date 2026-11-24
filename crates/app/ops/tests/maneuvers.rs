@@ -21,6 +21,7 @@ fn maneuver(id: &str, after: Option<&str>) -> Maneuver {
         thruster: Some("RW_X".into()),
         after: after.map(str::to_owned),
         via_altitude: None,
+        delta_v: None,
         target: ManeuverTarget {
             altitude: Some(Quantity::new(600.0, "km")),
             ..ManeuverTarget::default()
