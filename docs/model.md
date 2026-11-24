@@ -1708,11 +1708,14 @@ orientation = { w = 0.707107, x = 0.0, y = 0.0, z = -0.707107 }
   (target `configurations.<ID>.pose.<PART>`, with the location of the row). It is a warning of the edit (in the Op result's diagnostics), not of a stored design, because the check of a stored design cannot know that the mount changed. Moving a mount point of the parent (`SetMountPoint`) is not detected.
 - **CLI** (the GUI sends the same arguments to `POST /ops/from_command`): `fune configuration ls|show|add|set|rm|rename`, `fune configuration unset-pose <ID> <PART>`,
   `fune part place <PART> --configuration <ID> --position "…" --rotation "…"` (`--on`/`--point` optional; `--body-pos "x y z mm"` reads vehicle coordinates in that configuration), and `fune part ls|show --configuration <ID>`.
+- The Layout page switches between Base and named configurations using the `configuration` URL parameter. In a named configuration, 3-D dragging and the placement fields write pose overrides (a root part's pose can be overridden too), the mount controls are disabled, and **Reset to base** removes the selected part's override. The configuration menu manages the records, and component detail lists the part's overrides and mount-relative poses.
+  The center-of-mass marker is the structure mass-properties analysis requested with the selected configuration, so it follows the configuration being viewed.
 - **Analysis selection.** `fune analyze <id> --configuration <ID>` and the `configuration` field of `POST /analyses/{id}` select a configuration explicitly when the input is built from a design. The request rejects an unknown ID.
   Otherwise `structure.launch_fit`, `structure.static_load`, `structure.modal_estimate`, and `structure.modal_fem` use the launch selection. Other analyses use the configuration of the effective case's phase. A case can name a phase.
   If the applicable selection is absent, the analysis uses the base placement. A saved selection that names an unknown ID is an error in `fune check` and appears as a missing input with configuration candidates when projected.
   The result includes `configuration` and `configuration_source` (`explicit`, `launch`, or `phase`) when a named configuration is selected. Base results omit both fields. A nested case context resolves from the base again and carries any explicit request selection.
-- Launch-fit envelopes derived from part boxes and GUI configuration controls are later stages of #374.
+- The phase dialog on the Phases page sets the phase's `configuration` (a select of the existing configurations; blank means the base placement).
+- Launch-fit envelopes derived from part boxes and a GUI control for the launch selection are later stages of #374.
 
 ## 8. Allocations and margin policy (budget/)
 

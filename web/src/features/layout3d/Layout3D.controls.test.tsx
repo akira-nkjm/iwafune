@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { getT, setLang } from "@/i18n";
 import { bodyAt, fixture, mountAt } from "@/test/fixture";
 import { Layout3D } from "./Layout3D";
+import type { SceneEdit } from "./Scene3D";
 import { DEFAULT_STRUCTURE_OPACITY } from "./scene";
 
 const state = vi.hoisted(() => ({
@@ -116,8 +117,10 @@ const design = {
     },
   ],
 };
-const render = () =>
-  renderToStaticMarkup(<Layout3D variant="placement" design={design} com={null} />);
+const render = (configuration?: string) =>
+  renderToStaticMarkup(
+    <Layout3D variant="placement" design={design} com={null} configuration={configuration} />,
+  );
 
 beforeEach(() => {
   state.axes = true;
@@ -260,6 +263,21 @@ it("熱の画像: 太陽方向があれば矢印を最初から場面に渡し�
   expect(state.scene.mock.lastCall?.[0]).toMatchObject({ sun: null });
   expect(render()).not.toContain(L.helper.sun);
   expect(state.scene.mock.lastCall?.[0]).toMatchObject({ sun: null, helpers: { sun: false } });
+});
+
+it.each([undefined, "STOWED"])("3D の移動は表示中の形態 %s に送る", (configuration) => {
+  render(configuration);
+  const { edit } = state.scene.mock.lastCall![0] as { edit: SceneEdit };
+  const id = design.parts[0]!.id;
+  edit.onPlace(id, [0.1, 0.2, 0.3], [1, 0, 0, 0]);
+  expect(state.placeBody).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      part: id,
+      configuration,
+      position: { x: 0.1, y: 0.2, z: 0.3, unit: "m" },
+      orientation: { w: 1, x: 0, y: 0, z: 0 },
+    }),
+  );
 });
 
 it("取付の根も 3D で動かせる: 離したときの機体座標がそのまま配置の依頼になる", () => {

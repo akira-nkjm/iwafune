@@ -165,6 +165,22 @@ export function nodeLabel(design: DesignView, id: string | null, lang: Lang = ge
   return node ? nodeName(node, lang) : id;
 }
 
+/**
+ * 形態 `configuration` が部品の配置を上書きしているか。取付のある部品は API の `mount.overridden`、
+ * 取付の無い部品（根）には取付が無いので、形態の一覧（`overridden`）から読む。
+ */
+export function poseOverridden(
+  design: Pick<DesignView, "configurations">,
+  configuration: string | null | undefined,
+  part: Pick<PartRow, "id" | "mount">,
+): boolean {
+  if (!configuration) return false;
+  if (part.mount) return part.mount.overridden;
+  return Boolean(
+    design.configurations.find((c) => c.id === configuration)?.overridden.includes(part.id),
+  );
+}
+
 export function partById(design: DesignView): Map<string, PartRow> {
   return new Map(design.parts.map((p) => [p.id, p]));
 }

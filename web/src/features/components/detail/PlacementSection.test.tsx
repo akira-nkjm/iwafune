@@ -1,19 +1,57 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vitest";
-import type { PartRow, PoseQuantities } from "@/api/types";
+import { q } from "@/api/queries";
+import type { ConfigurationView, PartRow, PoseQuantities } from "@/api/types";
 import { getT, setLang } from "@/i18n";
+import { byLabel, findElement, fire } from "@/test/elements";
 import { bodyAt, fixture, mountAt, qv, zeroPose } from "@/test/fixture";
-import { initialForm, PlacementSection, placeText } from "./PlacementSection";
+import { initialForm, PlacementOverrides, PlacementSection, placeText } from "./PlacementSection";
 
+const state = vi.hoisted(() => ({
+  mutate: vi.fn(),
+  make: vi.fn(),
+  form: undefined as unknown,
+  invoke: false,
+}));
+
+vi.mock("react", async (original) => {
+  const actual = await original<typeof import("react")>();
+  const renderState = actual.useState;
+  return {
+    ...actual,
+    useState: (initial: unknown) => {
+      if (!state.invoke) return renderState(initial);
+      if (typeof initial === "function") return [initial(), vi.fn()];
+      if (initial && typeof initial === "object" && "angles" in initial)
+        return [
+          state.form ?? initial,
+          (update: (form: unknown) => unknown) => {
+            state.form = update(state.form ?? initial);
+          },
+        ];
+      return [initial, vi.fn()];
+    },
+  };
+});
 vi.mock("@/api/ops", () => ({
-  useApplyOps: () => ({ mutate: vi.fn(), isPending: false }),
-  useCommandOps: () => ({ ops: null, error: null }),
+  useApplyOps: () => ({ mutate: state.mutate, isPending: false }),
+  useCommandOps: (command: unknown) => {
+    state.make(command);
+    return { ops: null, error: null };
+  },
 }));
 vi.mock("@/i18n", async (original) => ({
   ...(await original<typeof import("@/i18n")>()),
   useT: () => getT(),
 }));
-afterEach(() => setLang("ja"));
+afterEach(() => {
+  setLang("ja");
+  state.invoke = false;
+  state.form = undefined;
+  state.mutate.mockClear();
+  state.make.mockClear();
+});
 
 const deg = (value: number, display: string) => ({ ...qv(value, "deg", "Angle"), display });
 const mm = (value: number) => qv(value, "mm", "Length");
@@ -93,6 +131,119 @@ it("書かれた取付点が取付先に無ければ、その名前を印付き�
     <PlacementSection design={{ ...fixture, parts: [parent, lost] }} part={lost} />,
   );
   expect(html).toContain(`<option value="GONE" selected="">${t.missingPoint("GONE")}</option>`);
+});
+
+it.each([undefined, "STOWED"])("配置欄の変更は表示中の形態 %s を使う", (configuration) => {
+  const { part, parent } = mounted();
+  const t = getT().components.placement;
+  const design = { ...fixture, parts: [part, parent] };
+  state.invoke = true;
+  fire(byLabel(PlacementSection({ design, part, configuration }), t.position), "onChange", {
+    target: { value: "0 0 12 mm" },
+  });
+  PlacementSection({ design, part, configuration });
+  expect(state.make).toHaveBeenLastCalledWith({
+    command: "part_place",
+    part: part.id,
+    position: "0 0 12 mm",
+    rotation: null,
+    orientation: null,
+    ...(configuration ? { configuration } : { on: parent.id, point: "SLOT" }),
+  });
+});
+
+it("形態では取付を固定し、上書きがある部品の姿勢だけを基準に戻せる", () => {
+  const { part, parent } = mounted();
+  const overridden = { ...part, mount: { ...part.mount!, overridden: true } };
+  const design = { ...fixture, parts: [overridden, parent] };
+  const t = getT().components.placement;
+  const html = renderToStaticMarkup(
+    <PlacementSection design={design} part={overridden} configuration="STOWED" />,
+  );
+  expect(html).toContain(t.overridden);
+  expect(html).toContain(t.resetOverride);
+  expect(html).toMatch(new RegExp(`aria-label="${t.mountPart}"[^>]*disabled`));
+  expect(html).toMatch(new RegExp(`aria-label="${t.point}"[^>]*disabled`));
+  for (const [p, configuration] of [
+    [part, "STOWED"],
+    [overridden, undefined],
+  ] as const) {
+    const unchanged = renderToStaticMarkup(
+      <PlacementSection design={design} part={p} configuration={configuration} />,
+    );
+    expect(unchanged).not.toContain(t.overridden);
+    expect(unchanged).not.toContain(t.resetOverride);
+  }
+  state.invoke = true;
+  const reset = findElement(
+    PlacementSection({ design, part: overridden, configuration: "STOWED" }),
+    (props) => props.children === t.resetOverride,
+  )!;
+  fire(reset, "onClick");
+  expect(state.mutate).toHaveBeenCalledExactlyOnceWith({
+    ops: [{ op: "unset_configuration_pose", configuration: "STOWED", part: part.id }],
+    summary: t.resetSummary(part.id),
+  });
+});
+
+it("部品詳細は上書きのある形態の取付点からの姿勢を読み取り専用で並べる", () => {
+  const { part } = mounted();
+  const stowed: ConfigurationView = {
+    id: "STOWED",
+    label: "Stowed",
+    description: null,
+    file: "configurations/STOWED.toml",
+    text: { id: "STOWED" },
+    overridden: [part.id],
+  };
+  const design = {
+    ...fixture,
+    configurations: [stowed, { ...stowed, id: "OTHER", overridden: [] }],
+  };
+  const client = new QueryClient();
+  client.setQueryData(q.part(part.id, [], "STOWED").queryKey, {
+    part: { ...part, mount: { ...part.mount!, overridden: true } },
+    sections: [],
+    modes: {},
+    harnesses: [],
+    diagnostics: [],
+  });
+  const html = renderToStaticMarkup(
+    <QueryClientProvider client={client}>
+      <PlacementOverrides design={design} part={part} />
+    </QueryClientProvider>,
+  );
+  client.clear();
+  expect(html).toContain("Stowed (STOWED)");
+  expect(html).toContain("90.0°");
+  expect(html).not.toContain("OTHER");
+  expect(html).not.toContain("<input");
+});
+
+it("形態の中でも取付の根の姿勢を編集できる: 取付先は送らず、形態に位置を書く", () => {
+  const base = fixture.parts[0]!;
+  const body = {
+    ...bodyAt([-0.045, 0, 0], [1, 0, 0, 0], true),
+    authored_position: { x: -45, y: 0, z: 0, unit: "mm", frame: null },
+  };
+  const root: PartRow = { ...base, id: "FRAME", mount: null, body };
+  const form = initialForm(root);
+  const text = placeText(root, { ...form, position: "-30 0 0 mm" }, form, "STOWED");
+  expect(text).toEqual({
+    command: "part_place",
+    part: "FRAME",
+    configuration: "STOWED",
+    position: "-30 0 0 mm",
+    rotation: null,
+    orientation: null,
+  });
+  const html = renderToStaticMarkup(
+    <PlacementSection design={fixture} part={root} configuration="STOWED" />,
+  );
+  // 姿勢と位置の欄は形態でも有効（取付の欄だけが無効）
+  expect(html).not.toMatch(
+    new RegExp(`aria-label="${getT().components.placement.position}"[^>]*disabled`),
+  );
 });
 
 it("取付の根の欄は機体座標での `[pose]` から始まり、打った位置は取付先なしの配置になる", () => {
