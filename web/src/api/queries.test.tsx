@@ -39,6 +39,22 @@ it("系と話題の解析を area で分け、ID の接頭辞では選ばない"
   client.clear();
 });
 
+it("設計データから入力を作れない解析（projectable でない）は系のページにも話題にも並べない", () => {
+  const client = new QueryClient();
+  client.setQueryData(keys.analyses, [
+    { ...entry("power.a", { kind: "system", value: "power" }), projectable: false },
+    entry("power.b", { kind: "system", value: "power" }),
+    { ...entry("orbit.c", { kind: "condition", value: "orbit" }), projectable: false },
+  ]);
+  const html = renderToStaticMarkup(
+    <QueryClientProvider client={client}>
+      <Selection />
+    </QueryClientProvider>,
+  );
+  expect(html).toBe(renderToStaticMarkup(<span>{JSON.stringify([["power.b"], []])}</span>));
+  client.clear();
+});
+
 it("系別のモード表示は、解析を回す依頼と回さない依頼でキャッシュを分け、ケースと足もとの範囲を本文で送る", async () => {
   const view = { system: "power", modes: [], missing: [], summary: [] };
   const fetcher = vi
