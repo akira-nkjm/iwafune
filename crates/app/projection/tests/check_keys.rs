@@ -19,6 +19,7 @@ fn demo() -> (fune_model::Design, fune_model::Resolved) {
         .design;
     design.analysis.common = Some(CommonSettings {
         default_case: Some("hot_imaging".to_owned()),
+        ..Default::default()
     });
     let resolved = fune_model::resolve(&design);
     (design, resolved)

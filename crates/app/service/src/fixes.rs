@@ -14,7 +14,9 @@
 //!
 //! どの候補も既存の Op になる（新しい編集の道は作らない）。
 
-use fune_model::design::setting_dims::{ANY, pattern_matches, setting_dimension};
+use fune_model::design::setting_dims::{
+    ANY, pattern_matches, setting_curve_dimensions, setting_dimension,
+};
 use fune_model::design::{Design, Maneuver};
 use fune_model::path::{ParamPath, SettingPath, SettingScope};
 use fune_model::resolve::{Origin, Resolved};
@@ -126,6 +128,11 @@ fn setting_fixes(design: &Design, site: (&Target, &MissingInput), s: &SettingPat
     }
     let dimension = setting_dimension(s).map(str::to_owned);
     let mut fix = set_value(m, ParamPath::Setting(s.clone()), dimension);
+    // 曲線（表）の欄は、点と単位（`"1:1 2:0.5 (mm -> Gy/yr)"`）で打つ（量の例を曲線の例に直す）
+    if let (Some((at, v)), Fix::SetValue { example, .. }) = (setting_curve_dimensions(s), &mut fix)
+    {
+        *example = value::curve_example(at, v);
+    }
     // 状態ベクトルの軌道の位置・速度は 3 成分と単位（`"1 0 0 km"`）で打つ（量の例を 3 成分の例に直す）
     let vector = ["position", "velocity"]
         .iter()

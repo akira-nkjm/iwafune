@@ -15,6 +15,7 @@ expression: text
  orbit        orbit.eclipse_season          Beta angle and eclipse seasons    time series   built from design
  orbit        orbit.decay                   Drag decay and station keeping    time series   built from design
  orbit        orbit.geometry                Mission geometry                  time series   built from design
+ orbit        orbit.total_dose              Total ionising dose               steady        built from design
  power        power.mode_load               Mode power consumption            steady        built from design
  power        power.solar_sunlit            Sunlit power generation           steady        built from design
  power        power.orbit_generation        Orbital power generation          time series   built from design

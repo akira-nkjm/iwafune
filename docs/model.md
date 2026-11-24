@@ -201,6 +201,34 @@ The results are ordinary cases that can be edited (`fune case set … --epoch`; 
 The GUI's analysis cases page has the same two operations: a pencil in the start-time column (`set-epoch`, an empty field clears it) and "Cases from the worst days" (`from-geometry`; the phase list and mode list come from the design, the Ops and the equivalent commands are previewed before saving). The days are as accurate as `orbit.geometry` (720 samples per leg, refined by golden section: about a second for a smooth extreme). An extreme at the very end of a one-off span gives an epoch with no window left (see above), which `fune case from-geometry` still writes.
 `fune case from-sun-distance` remains for the steady analyses (it writes a `sun_distance` override, a circular orbit, for an orbit about the Sun with Kepler elements); `from-geometry` is the one for time series on any orbit.
 
+#### Total ionising dose (`orbit.total_dose`)
+
+`orbit.total_dose` is also `AnalysisArea::Condition(ConditionTopic::Orbit)` (the environment depends on the orbit). It adds up the radiation dose each part receives over the mission from an **environment table that you supply**, and compares it with the dose the part tolerates.
+**Limits.** No radiation-belt, solar-particle or shielding-transport model is built: the numbers in the table are yours. The shielding of a part is one equivalent aluminium thickness (a uniform spherical shell around the part); displacement damage and single-event effects are not computed.
+
+*The environment table.* A `curve` value (the type of `payload_mass_by_c3`, see "Capability curve") on the orbit table: dose **rate** (absorbed dose per time, e.g. `Gy/yr`) against shielding thickness (equivalent aluminium, a length). The values must be positive and the thicknesses strictly increasing. It is written in `conditions/orbit.toml`, or in a phase's `[orbit]` (the phase's orbit table replaces the design's as a whole, so a phase with its own `[orbit]` needs its own table):
+
+```toml
+dose_rate_by_shielding = { at = [0.5, 1.0, 2.0, 4.0, 8.0], at_unit = "mm", values = [400.0, 120.0, 30.0, 5.0, 0.8], unit = "Gy/yr" }
+```
+
+`fune set conditions.orbit.dose_rate_by_shielding "0.5:400 1:120 2:30 4:5 8:0.8 (mm -> Gy/yr)"`; for a phase `fune phase set-field <ID> orbit.dose_rate_by_shielding "…"`. Dose is written in `Gy` (`rad` is refused as ambiguous: 1 krad = 10 Gy). The dimension of the values is `AbsorbedDoseRate` (`L² T⁻³`).
+`check` reports `curve.shape` (arguments not increasing, a non-positive value) and `unit.dimension` for the units.
+
+*Part inputs* (optional built-in attributes of every component, section `radiation`): `shielding` (Length, equivalent aluminium thickness) and `tid_tolerance` (AbsorbedDose, the total dose the part withstands). A part is evaluated when it writes either. Design-wide, in `analysis/common.toml`:
+
+```toml
+[radiation]
+default_shielding = { value = 3.0, unit = "mm" }   # for parts that write a tolerance but no shielding (if absent they are not evaluated)
+design_margin     = 2.0                             # radiation design margin RDM (default 2, stated in the output)
+```
+
+*Method.* Legs are the phases in order when any phase has a `duration`, else one leg: the design orbit with the mission duration (as the RCS unloading of `propulsion.dv_budget`). For each part and leg the dose rate is read from the leg's table at the part's shielding and multiplied by the leg's duration; the part's total is the sum over the legs.
+**The table is read log-linearly**: linear in thickness and logarithmic in dose rate (so midway between two points it is the geometric mean of their rates), decided once in `sat_astro::math::interpolate` and echoed as `interpolation`. **There is no extrapolation**: a part whose shielding is outside a leg's table is *not evaluated* (no total, no verdict, a warning check `dose:<part>`); the nearest end value is never used.
+Margin = `tolerance / (total × RDM) − 1` (`spec::ratio_margin`); negative is a violation. A part without a tolerance gets its dose and no verdict. Example: 10 Gy/yr for 2 yr is 20 Gy; with a tolerance of 100 Gy and RDM 2 the margin is 100 / 40 − 1 = 1.5.
+A leg with no duration or no environment table is listed in `legs[].status` and left out of the totals, with the warning check `phases_left_out` (the totals are then lower bounds). The output also gives, per leg, the rate and dose at a reference shielding (the thinnest evaluated part), `reference_shielding`, and the part with the least margin (`worst`).
+The KPI is the minimum margin. Missing inputs: a part with `tid_tolerance` or `shielding`, an environment table, and (for the mission leg) the mission duration, each with a fix. No requirement keys the dose: the tolerance is a property of the part and the margin factor a design value, so a requirement can only verify the analysis as a whole (`verify.analysis = "orbit.total_dose"`).
+
 #### Altitude decay by atmospheric drag and orbit maintenance (`orbit.decay`)
 
 `orbit.decay` is also `AnalysisArea::Condition(ConditionTopic::Orbit)`. Its settings are `[decay]` in `conditions/orbit.toml` (all optional; the defaults are held by the analysis).

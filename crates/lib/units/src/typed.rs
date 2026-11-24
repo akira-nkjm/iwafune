@@ -94,7 +94,7 @@ mod named;
 pub use crate::dimensions::*;
 pub use decibel::{Decibel, DecibelHertz, DecibelPerKelvin, DecibelWatt};
 #[cfg(feature = "alloc")]
-pub use named::{NamedKind, TemperatureDifferenceKind, TorqueKind};
+pub use named::{AbsorbedDoseKind, NamedKind, TemperatureDifferenceKind, TorqueKind};
 
 /// Numeric values supported as quantity scalars.
 ///

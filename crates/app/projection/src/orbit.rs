@@ -1,4 +1,6 @@
 //! 軌道条件の解析（季節解析・高度低下・ミッション幾何）。既定値や物理計算を持たず、条件ファイル・部品から写す。
+mod total_dose;
+
 use crate::{Context, MissingInputs};
 use fune_model::Target;
 use fune_model::design::OrbitDecaySettings;
@@ -8,6 +10,8 @@ use sat_analysis::orbit::decay::OrbitDecayInput;
 use sat_analysis::orbit::{EclipseSeasonInput, GeometryInput, GeometryLegInput, SunDistanceInput};
 use sat_analysis::structure::interference::InterferenceBox;
 use sat_units::typed::{Area, Length, Qty, Time};
+
+pub use total_dose::total_dose;
 
 /// 軌道・Mission duration・任意の季節刻み。
 pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingInputs> {

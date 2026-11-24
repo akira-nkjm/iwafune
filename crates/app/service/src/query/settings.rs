@@ -119,6 +119,18 @@ pub(crate) fn value_data(v: &SettingValue) -> ValueData {
         SettingValue::List(items) => ValueData::Text {
             value: items.join(", "),
         },
+        SettingValue::Curve(c) => {
+            let si =
+                |xs: &[f64], unit: &str| xs.iter().map(|x| to_si(*x, unit).unwrap_or(*x)).collect();
+            ValueData::Curve {
+                at: c.at.clone(),
+                at_unit: c.at_unit.clone(),
+                values: c.values.clone(),
+                unit: c.unit.clone(),
+                si_at: si(&c.at, &c.at_unit),
+                si_values: si(&c.values, &c.unit),
+            }
+        }
         SettingValue::Vector(vec) => {
             let unit = vec.unit.clone().unwrap_or_default();
             let si = |x: f64| to_si(x, &unit).unwrap_or(x);
