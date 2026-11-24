@@ -24,6 +24,7 @@ export type * from "./AocsUnloadMeans";
 export type * from "./AocsUnloadTime";
 export type * from "./ApplyRequest";
 export type * from "./ApplyResult";
+export type * from "./ArcsRepr";
 export type * from "./AtmosphereModel";
 export type * from "./AttitudeLaw";
 export type * from "./AttitudeLawKind";

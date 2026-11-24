@@ -6,7 +6,8 @@ use crate::AstroError;
 use crate::orbit::Trajectory;
 use crate::time::Epoch;
 use crate::timeline::geometry::{
-    Metric, extreme_indices, geometry_at, refined_extremes, time_below_s,
+    Metric, breakpoints_from, extreme_indices, geometry_at, refined_extremes, time_below_s,
+    times_with_breaks,
 };
 use crate::timeline::sample_times;
 
@@ -47,6 +48,7 @@ pub fn earth_range(
 /// 刻みは中心天体を回る軌道の周期より十分細かくする（衛星の周回による変動は中心天体の軌道半径以下）。
 /// 距離と角は `geometry_at`（`timeline::geometry`。**距離・角度を出すのはそこだけ**）、距離の最小・最大の選び方は
 /// [`extreme_indices`]（同値は最初の標本）、SEP の最小は `refined_extremes`。
+/// 弧の連鎖の軌道（スイングバイのある巡航）は、境の時刻も標本に加える（`times_with_breaks`。境の無い軌道の標本は変わらない）。
 pub fn earth_range_with_sep(
     orbit: &Trajectory,
     start: Epoch,
@@ -54,7 +56,11 @@ pub fn earth_range_with_sep(
     step_s: f64,
     sep_threshold_rad: f64,
 ) -> Result<EarthRange, AstroError> {
-    let times = sample_times(span_s, step_s)?;
+    // 弧の連鎖の境（スイングバイの日）は標本に加える（距離の最小・最大が境にあっても取りこぼさない。境の無い軌道は変わらない）
+    let times = times_with_breaks(
+        &sample_times(span_s, step_s)?,
+        &breakpoints_from(orbit, start),
+    );
     let samples = geometry_at(orbit, start, &times)?;
     let d: Vec<f64> = samples.iter().map(|s| s.earth_distance_m).collect();
     let sep: Vec<f64> = samples.iter().map(|s| s.sep_rad).collect();
