@@ -2,11 +2,13 @@
 //! 打ち上げ機・ディスペンサー（と要求）の限度（読み出しと優先順は [`crate::launch`]）を解析の入力にする。
 
 use crate::context::Context;
-use crate::launch::{LaunchValues, frequency_limits, mass_limits, need_selection};
+use crate::launch::{
+    LaunchValues, LauncherDeparture, capability, frequency_limits, mass_limits, need_selection,
+};
 use crate::missing::MissingInputs;
 use fune_model::Target;
 use fune_model::design::launch::attr;
-use sat_analysis::propulsion::Propellant;
+use sat_analysis::propulsion::{DepartureProvider, Maneuvers, Propellant};
 use sat_analysis::spec::Analysis;
 use sat_analysis::structure::ModalEstimate;
 use sat_analysis::structure::launch_fit::{LaunchFitEnvelope, LaunchFitInput, LaunchFitMode};
@@ -57,6 +59,37 @@ fn propellant(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<Qty<Mass>> {
     }
 }
 
+/// 出発を打ち上げ機が受け持つ最初の遷移の C3（実行の順。無ければ、または求められなければ `None`。
+/// 求められないときは不足入力に記録する）。曲線を引く C3 の出どころは推進系の解析 `propulsion.maneuvers` の結果だけ。
+fn launcher_departure(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<LauncherDeparture> {
+    if !crate::propulsion::present(ctx) {
+        return None;
+    }
+    let input = crate::propulsion::maneuvers(ctx).ok()?;
+    let id = input.maneuvers.iter().find_map(|x| {
+        x.transfer
+            .filter(|t| t.departure_by == DepartureProvider::Launcher)
+            .map(|_| x.id.clone())
+    })?;
+    match Maneuvers::run(&input) {
+        Ok(out) => out
+            .maneuvers
+            .into_iter()
+            .find_map(|r| r.dated_transfer.filter(|d| d.maneuver == id))
+            .map(|d| LauncherDeparture {
+                maneuver: id,
+                c3: d.c3,
+            }),
+        Err(e) => {
+            m.push(
+                Target::maneuver(id.as_str(), Some("transfer")),
+                format!("Cannot compute the departure C3 of maneuver {id} ({e})"),
+            );
+            None
+        }
+    }
+}
+
 /// `structure.launch_fit`: 打ち上げ時の質量（乾燥 + 積む推薬）・収納外形（構体の外形。`aocs::reference_box`）・
 /// 簡易固有振動数と、打ち上げ機・ディスペンサー（と要求）の限度。
 pub fn launch_fit(ctx: &Context<'_>) -> Result<LaunchFitInput, MissingInputs> {
@@ -84,12 +117,14 @@ pub fn launch_fit(ctx: &Context<'_>) -> Result<LaunchFitInput, MissingInputs> {
         frequency_limits(ctx, &launch, "axial"),
     );
     let max_mass = mass_limits(ctx, &launch);
+    let capability = launcher_departure(ctx, &mut m).and_then(|d| capability(&launch, &d));
     m.finish(|| {
         Some(LaunchFitInput {
             parts,
             propellant_mass: propellant,
             size,
             max_mass,
+            capability,
             envelope,
             min_lateral,
             min_axial,
