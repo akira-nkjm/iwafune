@@ -205,6 +205,8 @@ setting_quantities! {
     STRUCTURE_FASTENER_ALLOWABLE: Force = Analysis["structure", "fastener_allowable"];
     /// 部品の箱の重なりを干渉に数えない深さ（`analysis/structure.toml`）
     STRUCTURE_INTERFERENCE_TOLERANCE: Length = Analysis["structure", "interference_tolerance"];
+    /// 噴流・視野の円錐を見る、頂点からの距離の上限（`analysis/structure.toml`）
+    STRUCTURE_CONE_CLEARANCE_RANGE: Length = Analysis["structure", "cone_clearance_range"];
     /// 材料の密度（`[material.<材料>]`）
     MATERIAL_DENSITY: MassDensity = Analysis["structure", "material", ANY, "density"];
     /// 材料のヤング率

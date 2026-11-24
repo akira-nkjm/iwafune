@@ -1105,7 +1105,32 @@ the verdict of every overlapping pair is `warning` (check key `overlap:<first>:<
 - **No `size`**: the part is listed in `skipped` (reason `no_size`; a `size` that is not positive is `invalid_size`). It is not a missing input. With fewer than two boxes the result is empty and successful.
 - **Output**: `overlaps` (pairs, deepest first: `first`, `second`, `depth`, `separation_axis`), `parts_judged`, `pairs_judged`, `pairs_in_mount_chain`, `tolerance` (the one used), `min_clearance` (the closest non-overlapping pair), `skipped`, `repeated` and `checks`.
 
-Not modeled: real shapes (STEP, #344), the path during deployment, and sensor fields of view or thruster plumes (the same boxes can serve them). A pair cannot yet be marked as "checked, intended".
+Not modeled: real shapes (STEP, #344), the path during deployment, and a pair cannot yet be marked as "checked, intended". Sensor fields of view and thruster plumes are judged against the same boxes by `structure.cone_clearance` (§5.8).
+
+### 5.8 Plume and field-of-view clearance (`structure.cone_clearance`, #397)
+
+`structure.cone_clearance` asks, for every part that carries a **cone**, which parts of the spacecraft lie inside it. A thruster plume and a sensor field of view are the same geometry (an apex, an axis, a half angle, an optional range), so there is one analysis, one geometry (`sat_analysis::structure::cone_clearance::cone`) and one report. The parts are the same oriented boxes as in §5.7
+(`fune_projection::structure::boxes`, so the configuration in effect is followed: stowed and deployed layouts give different answers). The box selection (parts without a `size` are listed, not an error), the mount-chain rule and the report shape (`checks`, `skipped`) are shared with `structure.interference` (`usable_boxes`, `on_mount_chain`).
+
+**A hit is only a warning**, for the same reason as §5.7: boxes are larger than the real shapes. No `fune check` diagnostic, the run is `ok`, never an analysis failure, and nothing blocks an edit. One `warning` check per (carrier, part), key `obstruction:<carrier>:<part>` (renaming a part rewrites the key); with no hit, one `ok` check `cone_clearance`.
+
+- **Carrier table** (`fune_projection::structure::CARRIERS`, the only place that says which attributes give the cone): a part of one of the roles in a row carries a cone whose axis is `axis_sign × <axis attribute>` (read through `parts::direction_body`, so it is in the body frame) and whose half angle is `<half-angle attribute>`.
+  Today: **thrusters** (roles `thruster`, `propulsion_thruster`): axis = −`direction` (the exhaust leaves opposite to the thrust, `direction` being the direction the spacecraft is pushed), half angle = `plume_half_angle`, kind `plume`.
+  **Sensors with a field of view** (the sensor roles of `aocs.sensor_fov`: `star_tracker`, `sun_sensor`, `camera`): axis = `boresight`, half angle = `fov_half_angle`, kind `field_of_view`. Adding another carrier (an antenna beam, say) is one row in this table
+  (and the half-angle attribute in the vocabulary); the geometry, rules and report do not change.
+- **`plume_half_angle`** (new built-in attribute, Angle, 0 to 90°, optional on `thruster` and `propulsion_thruster`): the half angle of the cone the exhaust spreads into. Nothing is assumed when it is absent: the thruster is listed in `skipped_carriers` with reason `no_half_angle`
+  (a carrier without a readable axis, with a zero axis, or with a half angle outside (0, 90°) is listed with `no_axis`, `invalid_axis` or `invalid_half_angle`). It is not a missing input.
+- **Apex**: where the axis leaves the carrier's own box (box centre + axis × the box's support along the axis); the part origin when the carrier has no `size`. A nozzle or an aperture is taken to be on the box face the axis points through.
+- **Not judged**: the carrier's own box, and parts on its mount chain (its mount ancestors, whose boxes contain the carrier and its apex, and any part mounted on the carrier). Siblings, parts on other branches and deployables are always judged.
+  The limit of this rule: a carrier that points into its own mount (for example a thruster that fires through the bus) is not detected through the mount part itself, only through the other parts in the way. The number of boxes skipped for this reason is `parts_in_mount_chain`.
+- **Range**: only points within the range of the apex count. The default is the diagonal of the axis-aligned box that holds all part boxes and all carrier positions, the largest possible distance between two points of the spacecraft, so by default nothing is excluded;
+  `analysis/structure.toml` `cone_clearance_range = { value = 0.5, unit = "m" }` (`fune set analysis.structure.cone_clearance_range "0.5 m"`) narrows it. `range_is_default` tells which was used.
+- **Geometry is exact for the box**: the cone is a circular cone (half angle strictly between 0 and 90°) and the box is a convex polytope. The minimum angle from the axis is 0 when the axis ray meets the box, else it is found in closed form on the 12 edges. The minimum distance from the apex to the part of the box inside the cone is the least of
+  closed-form candidates (vertices, edge–cone crossings, the foot of the perpendicular on a face, the point of a face where the cone surface has the generator nearest the face normal). Touching counts as a hit (±1e-12 rad). The reported angle is over the whole box, not limited to the range. The error that remains is the box approximation itself, not the geometry.
+- **Output**: `cones` (per judged carrier: `id`, `kind`, `half_angle`, `axis`, `apex`, `range`, `parts_judged`, `parts_in_mount_chain`, `obstructions` = `part`, `min_angle`, `min_distance`, nearest first), `skipped_carriers`, `skipped` (parts without a size), `range`, `range_is_default`, `parts_with_box`, `cones_judged`, `cones_obstructed`, `checks`.
+- **Relation to `aocs.sensor_fov`**: that analysis is the time-domain one (which celestial bodies enter the field of view and the exclusion angles over an orbit); this one is static geometry (which of the spacecraft's own parts block it). They read the same attributes (`boresight`, `fov_half_angle`) and neither feeds the other.
+
+Not modeled: the effect of a plume on what it hits (heating, force and torque, contamination: they need a plume flow model), real shapes (STEP, #344), fields of view that are not circular cones (rectangular fields), and drawing the cones in 3D (the layout view draws the field-of-view cone from `fov_axis`; the plume would also need the axis sign, so it is not drawn yet).
 
 ## 6. Product tree and mounting
 
@@ -1565,7 +1590,7 @@ Design values and modelling inputs stay settings or part attributes (see the tab
   `conditions.orbit.decay.max_lifetime`, `conditions.launch.min_frequency_axial|lateral` and `conditions.orbit.duration` are no longer read. A file that still has one gets the error
   `setting.moved_to_requirement` naming the key and the requirement to write; `fune setting set` refuses them; `fune setting unset <path>` removes them.
 - **Stays a setting or attribute** (design values and modelling inputs): `ebn0_required`, `system_margin`, `alloc`, growth/uncertainty/harness allowance, `storage_margin`, `usable_momentum_fraction`, `unload_dipole_fraction`,
-  `slew_angle`, `dv_margin`, `residual_fraction`, `safety_factor_*` (factors applied to loads, like `system_margin`), `fastener_allowable`, `interference_tolerance`, the thermal `[margin]`, ground station `min_elevation`, mode `max_duration`, and the part temperature ranges.
+  `slew_angle`, `dv_margin`, `residual_fraction`, `safety_factor_*` (factors applied to loads, like `system_margin`), `fastener_allowable`, `interference_tolerance`, `cone_clearance_range`, the thermal `[margin]`, ground station `min_elevation`, mode `max_duration`, and the part temperature ranges.
 
 ### 7.10 phases/: one file per mission phase
 

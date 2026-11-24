@@ -135,3 +135,41 @@ describe("部品の干渉（structure.interference）の出力の形", () => {
     ]);
   });
 });
+
+describe("噴流・視野の遮り（structure.cone_clearance）の出力の形", () => {
+  const cone = {
+    range: 0.6,
+    range_is_default: true,
+    parts_with_box: 36,
+    cones_judged: 1,
+    cones_obstructed: 1,
+    cones: [
+      {
+        id: "STT",
+        kind: "field_of_view",
+        half_angle: 0.17,
+        cone_axis: { x: 0, y: -1, z: 0 },
+        apex: { x: 0, y: -0.11, z: -0.03 },
+        range: 0.6,
+        parts_judged: 33,
+        parts_in_mount_chain: 2,
+        obstructions: [{ part: "SP_MY", min_angle: 0, min_distance: 0.0007 }],
+      },
+    ],
+    skipped_carriers: [{ id: "EPT", kind: "plume", reason: "no_half_angle" }],
+    skipped: [],
+    checks: [{ key: "obstruction:STT:SP_MY", label: "x", verdict: "warning", message: "" }],
+  };
+
+  it("円錐と判定しなかった持ち主は表になり、数は単独の値になる", () => {
+    const tables = collectTables(cone);
+    expect(tables.map((t) => t.key)).toEqual(["cones", "skipped_carriers"]);
+    expect(collectScalars(cone).map((s) => s.key)).toEqual([
+      "range",
+      "range_is_default",
+      "parts_with_box",
+      "cones_judged",
+      "cones_obstructed",
+    ]);
+  });
+});

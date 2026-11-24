@@ -330,6 +330,18 @@ dimension   = "Dimensionless"
 unit_vector = true
 section     = "aocs"
 
+[plume_half_angle]
+label        = "噴流の半角"
+label_en     = "Plume half angle"
+description  = "排気が広がる円錐の半頂角（推力の向きの反対が軸）。機体の部品が噴流に入っていないかの確認に使う"
+type         = "scalar"
+dimension    = "Angle"
+units        = ["deg", "rad"]
+display_unit = "deg"
+min          = 0.0
+max          = 1.5707963267948966
+section      = "propulsion"
+
 [boresight]
 label       = "視線方向"
 label_en    = "Boresight"

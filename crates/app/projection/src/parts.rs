@@ -13,6 +13,9 @@ use sat_astro::math::Vec3;
 use sat_units::typed::{Dimension, Qty};
 use std::collections::BTreeMap;
 
+/// 視線（`boresight`）と視野を持つセンサの役割。禁止角（`aocs.sensor_fov`）と視野の遮り（`structure.cone_clearance`）が共有する。
+pub const SENSOR_ROLES: &[Role] = &[Role::StarTracker, Role::SunSensor, Role::Camera];
+
 /// 部品の属性の読み出し。**射影は部品の属性をここからだけ読む**（読んだ属性を `Context::note` で記録するため）。
 impl Context<'_> {
     /// 部品の属性の値（設定されていれば）。部品の種別がその属性を持てば、値が無くても読んだものとして記録する
