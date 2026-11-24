@@ -109,6 +109,20 @@ pub const CRITERIA: &[CriterionDecl] = &[
         quantity: "Frequency",
         feeds: "ModalEstimateRequirements.axial and the limit candidates of structure.launch_fit. It only tightens the minimum of the selected launcher and dispenser. Without any of them no check is made",
     },
+    CriterionDecl {
+        analysis: "structure.launch_fit",
+        check: "frequency:lateral",
+        kind: ConstraintKind::AtLeast,
+        quantity: "Frequency",
+        feeds: "the limit candidates of structure.launch_fit (and of structure.modal_estimate, which takes its minimums from the same candidates). It only tightens the minimum of the selected launcher and dispenser",
+    },
+    CriterionDecl {
+        analysis: "structure.launch_fit",
+        check: "frequency:axial",
+        kind: ConstraintKind::AtLeast,
+        quantity: "Frequency",
+        feeds: "the limit candidates of structure.launch_fit (and of structure.modal_estimate, which takes its minimums from the same candidates). It only tightens the minimum of the selected launcher and dispenser",
+    },
 ];
 
 /// 要求の判定のキー `requirement_key` が、解析が作った判定のキー `produced` に当たるか。

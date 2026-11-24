@@ -78,6 +78,22 @@ fn the_demo_requirements_reach_the_analysis_inputs() {
     let modal = input(&d, "structure.modal_estimate").unwrap();
     close(&modal["requirements"]["axial"], 100.0);
     close(&modal["requirements"]["lateral"], 50.0);
+    // 同じ要求は打ち上げ適合を確かめ先にしていても、その限度の候補に入る（要求の `verify` が解析のどちらでも限度は届く）
+    let fit = input(&d, "structure.launch_fit").unwrap();
+    for (key, hz) in [("min_axial", 100.0), ("min_lateral", 50.0)] {
+        let from_requirement = fit[key]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|l| {
+                l["origin"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("requirement R_FREQ_")
+            })
+            .unwrap_or_else(|| panic!("{key}: {fit}"));
+        close(&from_requirement["value"], hz);
+    }
     // 質量の上限 12 kg（R_MASS）→ 構造の質量特性
     close(
         &input(&d, "structure.mass_properties").unwrap()["max_mass"],
