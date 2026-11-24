@@ -20,6 +20,7 @@ export const phasesEn: typeof phasesJa = {
     modes: "Modes used",
     overrides: "Overrides",
     orbitReplaced: "Orbit replaced",
+    orbitFrom: (maneuver: string) => `Orbit from ${maneuver}`,
     lawFor: (modes: string) => `Attitude law: ${modes}`,
     cases: "Analysis cases",
     file: "File",

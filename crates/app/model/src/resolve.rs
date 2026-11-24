@@ -148,6 +148,11 @@ pub enum SiValue {
         min: f64,
         max: f64,
     },
+    /// 1 変数の関数（SI。引数と値は同じ長さで、引数は増える順）
+    Curve {
+        at: Vec<f64>,
+        values: Vec<f64>,
+    },
     Table(String),
 }
 
@@ -266,6 +271,14 @@ impl Resolved {
         let mut parts = self.mount_chain(part);
         let last = parts.by_ref().last()?;
         (!parts.cycled() && last.mount.is_none()).then_some(last.id.as_str())
+    }
+
+    /// 部品の取付先をたどった ID（近いほうから。自分は含まない。循環か、取付先の部品が無いところで止まる）。
+    pub fn mount_ancestors(&self, part: &str) -> Vec<&str> {
+        self.mount_chain(part)
+            .skip(1)
+            .map(|p| p.id.as_str())
+            .collect()
     }
 
     /// 取付の根か（取付先を持たず、ほかの部品の取付の連鎖がここで終わる）。

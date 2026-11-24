@@ -562,6 +562,18 @@ display_unit = "kg"
 min          = 0.0
 section      = "structure"
 
+[payload_mass_by_c3]
+label        = "搭載質量の上限（C3 の関数）"
+label_en     = "Payload mass capability versus C3"
+description  = "出発の特性エネルギー C3 ごとに打ち上げ機が送れる質量。点の間は直線で結び、最後の点より大きい C3 は送れない（外挿しない）。最初の点より小さい C3 は最初の点の質量で見る"
+type         = "curve"
+dimension    = "Mass"
+at_dimension = "SpecificEnergy"
+units        = ["kg", "g"]
+display_unit = "kg"
+min          = 0.0
+section      = "structure"
+
 [launch_envelope]
 label        = "収納外形の許容（箱）"
 label_en     = "Allowed stowed envelope (box)"

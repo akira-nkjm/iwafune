@@ -3,6 +3,7 @@ import { expect, it } from "vitest";
 import {
   clampDollyFactor,
   cursorAnchor,
+  distanceRange,
   dollyAbout,
   panOffset,
   worldPerPixel,
@@ -61,4 +62,8 @@ it("カーソルを中心にした拡大: アンカーの画面上の位置が�
   expect(after.x).toBeCloseTo(before.x, 9);
   expect(after.y).toBeCloseTo(before.y, 9);
   expect(camera.position.distanceTo(target)).toBeCloseTo(d / 2, 9);
+});
+
+it("距離の範囲: カメラの near の 2 倍から far の半分まで", () => {
+  expect(distanceRange(0.1, 100)).toEqual({ min: 0.2, max: 50 });
 });

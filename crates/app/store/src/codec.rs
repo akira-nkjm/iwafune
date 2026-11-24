@@ -7,6 +7,7 @@
 //! | ベクトル | `{ x = 0.0, y = 0.0, z = 1.0 }`（単位があれば `unit`） |
 //! | クォータニオン | `{ w = 1.0, x = 0.0, y = 0.0, z = 0.0 }` |
 //! | 範囲 | `{ min = -20.0, max = 60.0, unit = "degC" }` |
+//! | 曲線（1 変数の関数） | `{ at = [0.0, 10.0], at_unit = "km^2/s^2", values = [480.0, 360.0], unit = "kg" }` |
 //! | 列挙・文字列・真偽 | `"al6061"`・`true`（出典を付けるなら `{ value = "al6061", from = … }`） |
 //! | 表 | `{ table = "SA_IV" }` |
 //!
@@ -15,7 +16,7 @@
 
 use crate::profile::lay_out;
 use fune_model::value::{
-    Authored, Provenance, Quaternion, RangeValue, Scalar, Tensor3, Value, ValueType, Vector3,
+    Authored, Curve, Provenance, Quaternion, RangeValue, Scalar, Tensor3, Value, ValueType, Vector3,
 };
 use std::collections::BTreeMap;
 use toml_edit::{InlineTable, Item, Table};
@@ -136,6 +137,14 @@ fn decode_table(t: &TomlTable, hint: Option<ValueType>) -> Result<Authored<Value
             max: req_number(t, "max")?,
             unit: opt_string(t, "unit")?.unwrap_or_default(),
         })
+    } else if has("at") {
+        only_keys(t, &["at", "at_unit", "values", "unit", "from"])?;
+        Value::Curve(Curve {
+            at: number_array(t, "at")?,
+            at_unit: opt_string(t, "at_unit")?.unwrap_or_default(),
+            values: number_array(t, "values")?,
+            unit: opt_string(t, "unit")?.unwrap_or_default(),
+        })
     } else if has("m") {
         only_keys(t, &["m", "unit", "frame", "from"])?;
         Value::Tensor3(tensor(t)?)
@@ -156,6 +165,16 @@ fn scalar(t: &TomlTable) -> Result<Scalar, String> {
         max: opt_number(t, "max")?,
         unit: opt_string(t, "unit")?.unwrap_or_default(),
     })
+}
+
+/// 数の配列（曲線の引数・値）。
+fn number_array(t: &TomlTable, key: &str) -> Result<Vec<f64>, String> {
+    t.get(key)
+        .and_then(toml::Value::as_array)
+        .ok_or_else(|| format!("`{key}` must be an array of numbers"))?
+        .iter()
+        .map(number)
+        .collect()
 }
 
 fn tensor(t: &TomlTable) -> Result<Tensor3, String> {
@@ -346,6 +365,18 @@ pub fn encode_value(value: &Authored<Value>) -> Item {
             t.insert("min", float(r.min));
             t.insert("max", float(r.max));
             t.insert("unit", r.unit.as_str().into());
+            push_from(&mut t, from);
+            toml_edit::Value::InlineTable(t)
+        }
+        Value::Curve(c) => {
+            let numbers = |xs: &[f64]| xs.iter().map(|x| float(*x)).collect::<toml_edit::Array>();
+            let mut t = InlineTable::new();
+            t.insert("at", numbers(&c.at).into());
+            if !c.at_unit.is_empty() {
+                t.insert("at_unit", c.at_unit.as_str().into());
+            }
+            t.insert("values", numbers(&c.values).into());
+            t.insert("unit", c.unit.as_str().into());
             push_from(&mut t, from);
             toml_edit::Value::InlineTable(t)
         }

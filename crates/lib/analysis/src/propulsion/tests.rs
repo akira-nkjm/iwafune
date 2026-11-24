@@ -9,7 +9,7 @@ use sat_astro::time::Epoch;
 use sat_astro::transfer::{edelbaum, hohmann};
 use sat_units::typed::{Fraction, Qty};
 
-const DRY: f64 = 10.0;
+pub(super) const DRY: f64 = 10.0;
 
 fn close(a: f64, b: f64, tol: f64) {
     assert!(

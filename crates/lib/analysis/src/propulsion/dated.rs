@@ -6,7 +6,7 @@
 //! - 前のマヌーバを最初の軌道の元期から続けて数えると、そのマヌーバの終わりが出発の日より後になる
 //!   （実行の順の時刻の置き方は [`super::history`] と同じ。待ちの時間はフェーズ（#9）で足す）。
 
-use super::input::PropulsionInput;
+use super::input::{DepartureProvider, PropulsionInput};
 use super::sequence::{Leg, Sequence};
 use crate::spec::{Check, Verdict, quantity_text};
 use sat_astro::ephem::EphemerisSource;
@@ -30,6 +30,8 @@ pub struct DatedTransferResult {
     /// 出発・到着の双曲線超過速度の大きさ
     pub v_inf_departure: Qty<Velocity>,
     pub v_inf_arrival: Qty<Velocity>,
+    /// 出発の噴射を行うもの（`launcher` なら ΔV・推薬に出発の噴射を数えず、C3・赤緯は打ち上げの要求）
+    pub departure_by: DepartureProvider,
     /// 出発の漸近線の赤緯（出発天体の赤道に対して）
     pub departure_declination: Qty<Angle>,
     /// 天体の位置の出所（出発・到着の両方が DE440 のときだけ `de440`。ΔV は出所で少し変わる）
@@ -48,6 +50,7 @@ pub(super) fn result(leg: &Leg<'_>) -> Option<DatedTransferResult> {
         c3: Qty::from_raw(d.c3_m2_s2),
         v_inf_departure: Qty::from_raw(d.v_inf_departure_m_s.norm()),
         v_inf_arrival: Qty::from_raw(d.v_inf_arrival_m_s.norm()),
+        departure_by: t.departure_by,
         departure_declination: Qty::from_raw(d.departure_declination_rad),
         ephemeris: d.ephemeris,
     })
@@ -75,6 +78,10 @@ pub(super) fn checks(seq: &Sequence<'_>, input: &PropulsionInput, i: usize) -> V
         return Vec::new();
     };
     let mut out = Vec::new();
+    // 打ち上げ機が出発の軌道まで送るときは、駐車軌道の面も、前のマヌーバが終わる時刻も効かない
+    if leg.planned.launcher_departure {
+        return out;
+    }
     let inclination = leg.planned.from.inclination_rad;
     if d.departure_declination_rad.abs() > inclination {
         out.push(Check::new(

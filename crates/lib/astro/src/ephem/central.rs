@@ -69,6 +69,22 @@ impl CentralBody {
         Some(a * (self.gm() / parent.gm()).powf(0.4))
     }
 
+    /// 同じ親を回る別々の 2 天体の会合周期 `2π / |n₁ − n₂|` [s]（`n` は親の重力定数と
+    /// [`CentralBody::orbit_radius_m`] から決める円軌道の平均運動。パッチドコニックの遷移と同じ軌道の半径）。
+    /// 親が違う・親が無い・同じ天体なら `None`。日付の探索の出発の窓の長さの既定値に使う。
+    pub fn synodic_period_s(self, other: CentralBody) -> Option<f64> {
+        let parent = self.parent().filter(|p| other.parent() == Some(*p))?;
+        if self == other {
+            return None;
+        }
+        let n = |b: CentralBody| {
+            let a = b.orbit_radius_m()?;
+            Some((parent.gm() / (a * a * a)).sqrt())
+        };
+        let dn = (n(self)? - n(other)?).abs();
+        (dn > 0.0).then(|| core::f64::consts::TAU / dn)
+    }
+
     /// 中心天体から見た天体 `body` の位置（ECI の向き）[m]。
     pub fn relative_position_m(self, body: Body, epoch: Epoch) -> Vec3 {
         position_eci_m(body, epoch) - self.position_eci_m(epoch)
@@ -87,6 +103,31 @@ mod tests {
         assert_eq!(e.j2(), J2_EARTH);
         assert_eq!(e.position_eci_m(Epoch { j2000_s: 0.0 }), Vec3::ZERO);
         assert_eq!(CentralBody::default(), CentralBody::Earth);
+    }
+
+    /// 会合周期: 地球 − 火星は約 780 日（記憶による参考値。検証していない）、月は親が違うので `None`。
+    #[test]
+    fn synodic_periods() {
+        let days = |a: CentralBody, b: CentralBody| a.synodic_period_s(b).map(|s| s / 86_400.0);
+        let em = days(CentralBody::Earth, CentralBody::Mars).expect("sibling");
+        assert!((em - 780.0).abs() < 3.0, "{em}");
+        assert_eq!(
+            days(CentralBody::Earth, CentralBody::Mars),
+            days(CentralBody::Mars, CentralBody::Earth)
+        );
+        // 定義どおりの手計算（円軌道の平均運動の差）
+        let n = |b: CentralBody| (GM_SUN / b.orbit_radius_m().unwrap().powi(3)).sqrt();
+        let hand = core::f64::consts::TAU / (n(CentralBody::Earth) - n(CentralBody::Mars)).abs();
+        let got = CentralBody::Earth
+            .synodic_period_s(CentralBody::Mars)
+            .unwrap();
+        assert!((got - hand).abs() < 1e-6 * hand);
+        assert_eq!(
+            CentralBody::Earth.synodic_period_s(CentralBody::Earth),
+            None
+        );
+        assert_eq!(CentralBody::Earth.synodic_period_s(CentralBody::Moon), None);
+        assert_eq!(CentralBody::Sun.synodic_period_s(CentralBody::Earth), None);
     }
 
     #[test]

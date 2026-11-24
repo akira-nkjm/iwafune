@@ -10,6 +10,7 @@
 //! | [`history`] | 軌道の推移（いつ・どの軌道にいるか）と時刻からの引き方 |
 //! | [`dated`] | 日付つきの惑星間遷移（マヌーバの `transfer`）の結果（C3・超過速度・赤緯・飛行時間・暦の出所）と判定 |
 //! | [`transfer_check`] | `propulsion.transfer_check` 日付つきの遷移を太陽と惑星の重力で数値伝搬し直した確認（到着のずれ・最接近・超過速度の差・軌跡）。伝搬は `sat_astro::transfer::check_cruise` |
+//! | [`launch_window`] | `propulsion.launch_window` 天体間の遷移の出発の日 × 到着の日の格子（C3・超過速度・赤緯・ΔV・最小の点）。格子の点は `plan` の日付つきの経路で解く |
 //! | [`maneuvers`] | `propulsion.maneuvers` マヌーバごとの ΔV・噴射時間・推薬・前後の軌道 |
 //! | [`mass_properties`] | `propulsion.mass_properties` 推薬を積んだとき（寿命初期）と使ったあと（寿命末期）の質量と重心 |
 //! | [`orbit_history`] | `propulsion.orbit_history` マヌーバの順の軌道の推移（時系列） |
@@ -24,6 +25,7 @@ pub mod dv_budget;
 mod flight;
 pub mod history;
 pub mod input;
+pub mod launch_window;
 pub mod maneuvers;
 pub mod mass_properties;
 pub mod orbit_history;
@@ -37,9 +39,14 @@ pub use dated::DatedTransferResult;
 pub use dv_budget::{DvBudget, DvBudgetOutput};
 pub use history::{OrbitHistory, OrbitSegment};
 pub use input::{
-    DEFAULT_DV_MARGIN, DEFAULT_RESIDUAL_FRACTION, DatedTransferInput, DvCategory, ManeuverInput,
-    OrbitTarget, PropellantTank, PropulsionInput, PropulsionThruster, ThrustConstraints,
-    TransferMethod, UnloadingInput, UnloadingNote,
+    DEFAULT_DV_MARGIN, DEFAULT_RESIDUAL_FRACTION, DatedTransferInput, DepartureProvider,
+    DvCategory, ManeuverInput, OrbitTarget, PropellantTank, PropulsionInput, PropulsionThruster,
+    ThrustConstraints, TransferMethod, UnloadingInput, UnloadingNote,
+};
+pub use launch_window::{
+    LaunchWindow, LaunchWindowGrid, LaunchWindowInput, LaunchWindowNote, LaunchWindowOutput,
+    LaunchWindowPoint, LaunchWindowPointKind, LaunchWindowQuantity, LaunchWindowResult,
+    LaunchWindowSettings,
 };
 pub use maneuvers::{ManeuverNote, ManeuverPropagation, Maneuvers, ManeuversOutput};
 pub use mass_properties::{PropellantMassInput, PropellantMassOutput, PropellantMassProperties};

@@ -161,6 +161,7 @@ fn a_dated_transfer_is_written_and_has_cli_flags() {
     m.transfer = Some(ManeuverTransfer {
         departure: Some("2028-12-10T00:00:00Z".into()),
         arrival: Some("2029-09-25T00:00:00Z".into()),
+        departure_by: None,
     });
     let op = Op::CreateManeuver { maneuver: m };
     let p = plan(&snap, std::slice::from_ref(&op)).unwrap();

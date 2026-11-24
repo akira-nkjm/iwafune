@@ -100,3 +100,38 @@ describe("dims（次元）の引き当て", () => {
     expect(dimOf(undefined, ["period"])).toBeNull();
   });
 });
+
+describe("部品の干渉（structure.interference）の出力の形", () => {
+  const interference = {
+    tolerance: 0.0001,
+    parts_judged: 3,
+    pairs_judged: 3,
+    pairs_in_mount_chain: 0,
+    overlaps: [
+      { first: "A", second: "B", depth: 0.04, separation_axis: { x: 0, y: 0, z: -1 } },
+      { first: "A", second: "C", depth: 0.001, separation_axis: { x: 1, y: 0, z: 0 } },
+    ],
+    min_clearance: null,
+    skipped: [{ id: "HTR", reason: "no_size" }],
+    repeated: [],
+    checks: [{ key: "overlap:A:B", label: "Boxes", verdict: "warning", message: "" }],
+  };
+
+  it("重なっている組と判定しなかった部品は表になり、深さは次元つきの数、向きは 1 つのセルになる", () => {
+    const tables = collectTables(interference);
+    expect(tables.map((t) => t.key)).toEqual(["overlaps", "skipped"]);
+    expect(tableColumns(tables[0]?.rows ?? [])).toEqual([
+      "first",
+      "second",
+      "depth",
+      "separation_axis",
+    ]);
+    expect(collectScalars(interference).map((s) => s.key)).toEqual([
+      "tolerance",
+      "parts_judged",
+      "pairs_judged",
+      "pairs_in_mount_chain",
+      "min_clearance",
+    ]);
+  });
+});

@@ -171,7 +171,7 @@ pub fn maneuver(c: &ManeuverCmd) -> Built<'_> {
             },
             edit,
         )),
-        ManeuverCmd::Ls => None,
+        ManeuverCmd::Ls | ManeuverCmd::SetWindow { .. } => None,
     })
 }
 
@@ -220,6 +220,7 @@ fn maneuver_text(a: &ManeuverArgs) -> ManeuverText {
         steering: a.steering.clone(),
         depart: a.depart.clone(),
         arrive: a.arrive.clone(),
+        departure_by: a.departure_by.clone(),
     }
 }
 
