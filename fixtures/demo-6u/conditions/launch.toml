@@ -9,3 +9,4 @@ safety_factor_yield    = 1.25
 safety_factor_ultimate = 1.4
 launcher               = "local/lv_alpha"
 dispenser              = "local/disp_6u_rs"
+configuration          = "STOWED"

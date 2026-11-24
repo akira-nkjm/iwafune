@@ -5,7 +5,7 @@ manufacturer = "Example Launch"
 
 [attr]
 max_payload_mass      = { value = 14.0, unit = "kg" }
-launch_envelope       = { x = 110.0, y = 240.0, z = 380.0, unit = "mm" }
+launch_envelope       = { x = 125.0, y = 245.0, z = 380.0, unit = "mm" }
 launch_load_axial     = { value = 7.0, unit = "g0" }
 launch_load_lateral   = { value = 2.5, unit = "g0" }
 min_frequency_axial   = { value = 90.0, unit = "Hz" }
