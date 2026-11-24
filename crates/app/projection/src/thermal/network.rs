@@ -12,9 +12,10 @@ use fune_model::design::setting_dims::SettingQuantity;
 use fune_model::design::{ThermalNodes, ThermalSettings};
 use fune_model::resolve::{ResolvedPart, SiValue};
 use fune_model::value::Quantity;
+use sat_analysis::structure::interference::InterferenceBox;
 use sat_analysis::thermal::network::{
-    ThermalCoating, ThermalConductiveLink, ThermalMounts, ThermalNetwork, ThermalNode,
-    ThermalNodePart, ThermalRadiativeLink, ThermalSurface,
+    ThermalCoating, ThermalConductiveLink, ThermalContact, ThermalMountBoxes, ThermalMounts,
+    ThermalNetwork, ThermalNode, ThermalNodePart, ThermalRadiativeLink, ThermalSurface,
 };
 use sat_analysis::thermal::{ThermalBoxSize, ThermalEnclosure};
 use sat_analysis::thermal::{
@@ -234,23 +235,55 @@ fn links(
         s.radiative_coupling.as_ref(),
         m,
     );
-    let mounts = ctx
+    let per_area = setting_opt(
+        &dims::THERMAL_CONTACT_CONDUCTANCE_PER_AREA,
+        &[],
+        s.contact_conductance_per_area.as_ref(),
+        m,
+    );
+    // 取付の両端の部品（取り付ける部品・取付先）と節点。両端が節点に入る取付だけ
+    let rows: Vec<([&str; 2], [String; 2])> = ctx
         .resolved
         .parts
         .values()
         .filter_map(|p| {
-            let mount = p.mount.as_ref()?;
-            Some([
-                node.node_of(&p.id)?.to_owned(),
-                node.node_of(mount.on.as_str())?.to_owned(),
-            ])
+            let on = p.mount.as_ref()?.on.as_str();
+            Some((
+                [p.id.as_str(), on],
+                [
+                    node.node_of(&p.id)?.to_owned(),
+                    node.node_of(on)?.to_owned(),
+                ],
+            ))
         })
         .collect();
+    let contact = per_area.map(|conductance_per_area| ThermalContact {
+        conductance_per_area,
+        mounts: mount_boxes(ctx, rows.iter().map(|(parts, _)| *parts)),
+    });
     Some(ThermalMounts {
-        mounts,
+        mounts: rows.into_iter().map(|(_, nodes)| nodes).collect(),
         conductance: g?,
         exchange_area: r,
+        contact,
     })
+}
+
+/// 取付ごとの両端の部品の箱（機体座標。寸法を持たない部品は `None`）。箱の置き方は `structure::boxes`、接触面積の計算は解析が行う。
+fn mount_boxes<'a>(
+    ctx: &Context<'_>,
+    mounts: impl Iterator<Item = [&'a str; 2]>,
+) -> Vec<ThermalMountBoxes> {
+    let all = crate::structure::boxes(ctx).boxes;
+    let find = |id: &str| -> Option<InterferenceBox> {
+        all.iter().find(|b| b.id == id).cloned().map(Into::into)
+    };
+    mounts
+        .map(|parts| ThermalMountBoxes {
+            parts: parts.map(str::to_owned),
+            boxes: parts.map(find),
+        })
+        .collect()
 }
 
 /// 外面: 節点に入る（既定はどの部品も節点に入る）部品のうち、面積と光学特性（設定の表面材 `[surface.<部品>]`、無ければ部品の吸収率・放射率）を持つ部品

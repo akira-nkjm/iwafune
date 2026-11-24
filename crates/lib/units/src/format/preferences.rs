@@ -180,6 +180,11 @@ pub(super) const PREFERENCES: &[Preference] = &[
     pref("ElectricCharge", "Ah", &[("mAh", 1.0), ("Ah", 1.0)]),
     pref("Volume", "L", &[("mL", 1.0), ("L", 1.0), ("m^3", 1.0)]),
     pref("ThermalConductance", "W/K", &[("mW/K", 1.0), ("W/K", 1.0)]),
+    pref(
+        "HeatTransferCoefficient",
+        "W/(m^2*K)",
+        &[("W/(m^2*K)", 1.0)],
+    ),
     pref("SpecificHeatCapacity", "J/(kg*K)", &[("J/(kg*K)", 1.0)]),
     pref(
         "SpecificEnergy",

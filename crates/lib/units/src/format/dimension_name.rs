@@ -89,6 +89,10 @@ const NAMES: &[(&str, DimensionDisplayName)] = &[
         names("熱コンダクタンス", "Thermal conductance"),
     ),
     (
+        "HeatTransferCoefficient",
+        names("熱伝達率", "Heat transfer coefficient"),
+    ),
+    (
         "SpecificHeatCapacity",
         names("比熱", "Specific heat capacity"),
     ),

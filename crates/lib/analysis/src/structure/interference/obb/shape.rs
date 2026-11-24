@@ -39,6 +39,17 @@ impl BoxFace {
         [d.dot(self.u), d.dot(self.v)]
     }
 
+    /// 面の 4 つの頂点（機体座標系）。
+    pub fn corners(&self) -> [Vec3; 4] {
+        let (u, v) = (self.u.scale(self.half_u), self.v.scale(self.half_v));
+        [
+            self.center - u - v,
+            self.center + u - v,
+            self.center + u + v,
+            self.center - u + v,
+        ]
+    }
+
     /// 面そのものの長方形（面の座標）。
     pub fn rectangle(&self) -> ConvexPolygon {
         ConvexPolygon::rectangle([-self.half_u, -self.half_v], [self.half_u, self.half_v])
@@ -130,6 +141,38 @@ impl OrientedBox {
             .map(|c| [c.dot(e1), c.dot(e2)])
             .collect();
         ConvexPolygon::hull(&points)
+    }
+
+    /// 別の箱と接している面の面積 [m²]。接していなければ（面積 0 を含め）`None`。**箱どうしの接触面の面積はここだけ**
+    /// （取付の熱伝導 `thermal` が使う。干渉の「接している」の判断にも同じ規則を使える）。
+    ///
+    /// 規則: 面の組 `(自分の面, 相手の面)` が接しているのは、(1) 法線が逆向き（内積が負。相手が自分の面の外側にある）、
+    /// (2) 相手の面の 4 頂点がすべて、自分の面の平面から `tolerance` 以内（これで面の平行のずれも許容差で抑えられる。
+    /// 面の幅 `w` なら傾きは `tolerance / w` ほどまで）。面積は、相手の面を自分の面の平面へ射影した凸四角形と
+    /// 自分の面の長方形の共通部分（`ConvexPolygon::intersection`）。接する面の組が複数あれば（板厚が許容差以下の薄い箱）最大の面積。
+    pub fn contact_area(&self, other: &OrientedBox, tolerance: f64) -> Option<f64> {
+        let mut best: Option<f64> = None;
+        for fa in self.faces() {
+            let rectangle = fa.rectangle();
+            for fb in other.faces() {
+                if fa.normal.dot(fb.normal) >= 0.0 {
+                    continue;
+                }
+                let corners = fb.corners();
+                if corners
+                    .iter()
+                    .any(|c| (*c - fa.center).dot(fa.normal).abs() > tolerance)
+                {
+                    continue;
+                }
+                let local: Vec<[f64; 2]> = corners.iter().map(|c| fa.local(*c)).collect();
+                let area = ConvexPolygon::hull(&local).intersection(&rectangle).area();
+                if area > 0.0 && best.is_none_or(|b| area > b) {
+                    best = Some(area);
+                }
+            }
+        }
+        best
     }
 
     /// 平面 `normal · x = offset`（`normal` は単位ベクトル）との交わりの点（機体座標系）。平面が箱から `tolerance` より離れていれば `None`。

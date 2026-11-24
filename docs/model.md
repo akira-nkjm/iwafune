@@ -784,8 +784,18 @@ Conduction and radiation between nodes come from three places. For each node pai
 1. **Explicit** (`[conductive.*]`, `[radiative.*]`): replaces the value of that pair from the two sources below (0 isolates the pair).
 2. **Enclosure** (`[enclosure]`, radiation only, between the six faces of the box): replaces the mount default of the face-to-face pairs.
 3. **Mount default** (`contact_conductance` and `radiative_coupling`): one conductive link per node pair that has mounts (`contact_conductance` × the number of mounts between the pair) and, if `radiative_coupling` is written, one radiative link per such pair.
+   If `contact_conductance_per_area` is also written, the conduction of each mount is taken from the geometry instead (the next paragraph).
+**Conduction from the contact area.** Writing `contact_conductance_per_area` (a heat-transfer coefficient `h`, `W/(m²·K)`, edited with `fune set analysis.thermal.contact_conductance_per_area "300 W/(m^2*K)"`)
+makes each mount's conductance `h × A_contact` instead of the fixed `contact_conductance`. `A_contact` is the area where the two parts' boxes touch (`OrientedBox::contact_area` in `sat_analysis::structure::interference::obb`;
+the same boxes as `structure.interference`). A face of one box and a face of the other **touch** when their outward normals point in opposite directions (negative dot product) and all four corners of the other face
+lie within the distance tolerance of the first face's plane (0.1 mm, the default of `structure.interference`; this also bounds the tilt between the faces, about `tolerance / width`). The contact area is the area of the intersection of the two face rectangles projected on that plane
+(the larger one if several face pairs touch). A mount whose contact cannot be determined — a part without a usable `size`, boxes that do not touch (a gap above the tolerance, a deeper overlap does not count either, or faces that are not parallel), or a zero area —
+**falls back to the fixed `contact_conductance`**, as if `contact_conductance_per_area` were not written. The fallbacks are listed in the output with the reason (`couplings.mount_contact.fallbacks`: `no_box` or `not_touching`).
+Mounts between two different nodes add as before: a node pair's conductance is the sum over its mounts of `h × A_contact` or the fixed value. Mounts inside one node contribute nothing. The setting does not change radiation (`radiative_coupling` and `[enclosure]` stay as they are);
+radiation between internal parts from view factors is not part of it. Without `contact_conductance_per_area` nothing changes: the setting is off and the output has no `mount_contact` or `from_contact` fields.
 ```toml
 # analysis/thermal.toml
+contact_conductance_per_area = { value = 300.0, unit = "W/(m^2*K)" }   # optional: conduction of each mount from the contact area
 [conductive.BAT]                              # node A -> node B -> conductance (the pair is unordered)
 PANEL_MZ = { value = 0.8, unit = "W/K" }
 [radiative.PANEL_PX]                          # node A -> node B -> effective radiative exchange area ε_eff·A·F
@@ -808,8 +818,8 @@ With the areas `A_i` of the box faces and `ρ = 1 − ε`, the Gebhart factors `
 The heat flow from face i to face j is `σ ε_i A_i B_ij (T_i⁴ − T_j⁴)`. For two parallel plates this approaches `A / (1/ε₁ + 1/ε₂ − 1)`.
 Assumptions: the six faces are the only surfaces of the enclosure, and **blockage of the face-to-face views by components inside is ignored**. Components inside are not part of the enclosure model in this version;
 their coupling stays the mount default or the explicit value. The wall thickness is ignored (the box is the outer size).
-Both thermal analyses return the couplings they used in `couplings`: for every pair the conductance (`conductive`) or exchange area (`radiative`) and its source (`mount`, `explicit` or `enclosure`),
-and, when `[enclosure]` is written, the faces with their nodes and areas and the 6×6 view-factor matrix. The GUI shows these as the analysis's data tables.
+Both thermal analyses return the couplings they used in `couplings`: for every pair the conductance (`conductive`) or exchange area (`radiative`) and its source (`mount`, `contact`, `explicit` or `enclosure`; `contact` means at least one mount of the pair was taken from the contact area, and the pair's `from_contact` field gives the total contact area, the number of such mounts and `fixed_mounts`, the mounts of the same pair that used the fixed value instead),
+and, when `[enclosure]` is written, the faces with their nodes and areas and the 6×6 view-factor matrix; when `contact_conductance_per_area` is written, the number of mounts taken from the contact area and the fallback mounts with their reasons. The GUI shows these as the analysis's data tables.
 
 #### Verification of the thermal analyses
 
