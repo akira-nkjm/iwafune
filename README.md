@@ -73,14 +73,16 @@ With cargo-binstall, running the install command again also works. If `fune` cam
 
 ### Get a project
 
-Start a new one in an empty directory (`fune init` writes into the current directory, or into `-C <dir>`, and does not run `git init`):
+Start a new one with `fune init <DIR>`. It creates the directory (parents included) and the project inside it; the project name is the last part of the path, or `--name`. It does not run `git init`:
 
 ```bash
-mkdir mysat && cd mysat
-git init
 fune init mysat
+cd mysat
+git init
 fune status
 ```
+
+`fune init` with no directory creates the project in the current directory (or in `-C <dir>`), named after that directory; add `--name` to choose another name. An existing directory is fine as long as it has no `fune.toml`. (Before this change `fune init <NAME>` wrote into the current directory; use `fune init --name <NAME>` for that.)
 
 Or explore the demo 6U satellite. It is in the repository (there is no template option in `fune init`); copy it so you can edit freely:
 

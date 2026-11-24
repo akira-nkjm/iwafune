@@ -9,9 +9,9 @@ use fune_service::edit;
 use fune_service::{Workspace, edit::apply};
 use std::path::Path;
 
-/// `fune init <name>`
-pub fn init(dir: &Path, name: &str, out: &Out) -> anyhow::Result<u8> {
-    let r = edit::init(dir, name)?;
+/// `fune init [DIR] [--name NAME]`
+pub fn init(base: &Path, dir: Option<&Path>, name: Option<&str>, out: &Out) -> anyhow::Result<u8> {
+    let r = edit::init(base, dir, name)?;
     if out.json {
         out.json(&r)?;
         return Ok(0);
@@ -23,7 +23,23 @@ pub fn init(dir: &Path, name: &str, out: &Out) -> anyhow::Result<u8> {
     for f in &r.created {
         println!("  {}", out.dim(f));
     }
+    if let Some(next) = dir.map(|d| next_steps(base, d)) {
+        println!("Next:");
+        println!("  cd {next}");
+        println!("  fune status");
+    } else {
+        println!("Next: fune status");
+    }
     Ok(0)
+}
+
+/// `fune init DIR` のあとに打つ `cd` の行き先（`-C` で基準が指定されていれば、それを頭に付ける）。
+fn next_steps(base: &Path, dir: &Path) -> String {
+    base.join(dir)
+        .display()
+        .to_string()
+        .trim_start_matches("./")
+        .to_owned()
 }
 
 /// Op の列を適用して結果を表示する。
