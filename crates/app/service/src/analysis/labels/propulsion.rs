@@ -131,6 +131,10 @@ pub(super) fn note(n: ManeuverNote) -> AnalysisLabel {
             "スラスタが無いので ΔV だけを求めた（推薬・噴射時間は求めない）",
             "No thruster, so only the delta-V is computed (no propellant or burn time)",
         ),
+        ManeuverNote::WrittenDeltaV => label(
+            "ΔV は設計データに書かれた値（余裕）で、軌道は変わらない",
+            "The delta-V is the value written in the design (an allowance); the orbit does not change",
+        ),
         ManeuverNote::PropagationNotReached => label(
             "数値伝搬が上限の時間までに目標に届かなかった（届いたところまでの値）",
             "The propagation did not reach the target within the time limit (values up to where it got)",

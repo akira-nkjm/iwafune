@@ -7,7 +7,7 @@ use sat_astro::force::thrust::ThrustSteering;
 use sat_astro::orbit::OrbitSpec;
 use sat_astro::time::Epoch;
 use sat_units::typed::{
-    Angle, Force, Fraction, Impulse, Length, Mass, MassDensity, Power, Qty, Time, Volume,
+    Angle, Force, Fraction, Impulse, Length, Mass, MassDensity, Power, Qty, Time, Velocity, Volume,
 };
 use serde::{Deserialize, Serialize};
 
@@ -142,6 +142,11 @@ pub struct ManeuverInput {
     /// バイエリプティック遷移の中間の遠地点の高度（インパルス・有限燃焼のときだけ使う）
     #[serde(default)]
     pub via_altitude: Option<Qty<Length>>,
+    /// 直接書いた ΔV（軌道修正・軌道維持・マージンなどの余裕。軌道は変えず、`target` などから ΔV を計算しない。
+    /// 計算の段階はインパルスか低推力）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub delta_v: Option<Qty<Velocity>>,
     /// 書かれているが粗い段階では効かない制約のキー（`sunlit_only`・`mode` など。結果に無視したことを書く）
     #[serde(default)]
     pub ignored_constraints: Vec<String>,

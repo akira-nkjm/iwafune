@@ -24,6 +24,7 @@ fn mars_maneuver() -> Maneuver {
         thruster: Some("EPT".into()),
         after: Some("DEORBIT".into()),
         via_altitude: None,
+        delta_v: None,
         target: ManeuverTarget {
             body: Some(CentralBodyKind::Mars),
             perigee_altitude: Some(Quantity::new(300.0, "km")),

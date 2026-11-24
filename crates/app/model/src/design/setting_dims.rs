@@ -159,7 +159,11 @@ setting_quantities! {
     POWER_SIZING_BUS_VOLTAGE: Voltage = Analysis["power", "sizing", "bus_voltage"];
     /// サイジングの太陽距離。
     POWER_SIZING_SUN_DISTANCE: Length = Analysis["power", "sizing", "sun_distance"];
-    /// 空力の圧力中心 − 重心（`analysis/aocs.toml`。ベクトル）
+    /// 空力の受圧面積（`analysis/aocs.toml`）
+    AOCS_AERO_AREA: Area = Analysis["aocs", "aero_area"];
+    /// 太陽輻射圧の受圧面積
+    AOCS_SRP_AREA: Area = Analysis["aocs", "srp_area"];
+    /// 空力の圧力中心 − 重心（ベクトル）
     AOCS_CP_OFFSET_AERO: Length = Analysis["aocs", "cp_offset_aero"];
     /// 太陽輻射圧の圧力中心 − 重心（ベクトル）
     AOCS_CP_OFFSET_SRP: Length = Analysis["aocs", "cp_offset_srp"];
@@ -213,6 +217,10 @@ setting_quantities! {
     STRUCTURE_INTERFERENCE_TOLERANCE: Length = Analysis["structure", "interference_tolerance"];
     /// 噴流・視野の円錐を見る、頂点からの距離の上限（`analysis/structure.toml`）
     STRUCTURE_CONE_CLEARANCE_RANGE: Length = Analysis["structure", "cone_clearance_range"];
+    /// 粗い有限要素の固有値解析の要素の大きさ（`analysis/structure.toml` の `[modal]`）
+    STRUCTURE_MODAL_MESH_SIZE: Length = Analysis["structure", "modal", "mesh_size"];
+    /// パネルの辺・面の位置を一致とみなす許容差
+    STRUCTURE_MODAL_JOINT_TOLERANCE: Length = Analysis["structure", "modal", "joint_tolerance"];
     /// 材料の密度（`[material.<材料>]`）
     MATERIAL_DENSITY: MassDensity = Analysis["structure", "material", ANY, "density"];
     /// 材料のヤング率

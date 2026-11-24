@@ -278,6 +278,13 @@ pub struct LaunchSettings {
     /// **旧い設定（基準は要求へ移った。読まない）**。最低固有振動数（直交方向）は、`verify.check = "lateral"` の要求が持つ
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_frequency_lateral: Option<Quantity>,
+    /// 打ち上げ時の拘束の種類（`structure.modal_fem`。語彙は属性 `launch_constraint` の `symbols`）。
+    /// 書けばディスペンサー・打ち上げ機の属性より先に使う
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launch_constraint: Option<String>,
+    /// 拘束する面（`base_fixed`・`tabs`・`fixed` が使う。語彙は属性 `launch_constraint_face` の `symbols`）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub launch_constraint_face: Option<String>,
     /// 安全率（降伏）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub safety_factor_yield: Option<f64>,
@@ -291,9 +298,13 @@ impl LaunchSettings {
     /// `fune set conditions.launch.<欄>` が使う）。
     pub fn field_shape(key: &str) -> Option<crate::value::SettingValue> {
         match key {
-            "label" | "vehicle" | "launcher" | "dispenser" | "configuration" => {
-                Some(crate::value::SettingValue::Text(String::new()))
-            }
+            "label"
+            | "vehicle"
+            | "launcher"
+            | "dispenser"
+            | "configuration"
+            | "launch_constraint"
+            | "launch_constraint_face" => Some(crate::value::SettingValue::Text(String::new())),
             _ => None,
         }
     }

@@ -2,6 +2,7 @@
 //! 次元の名前と入力の例は `sat_units`、列挙の語彙は属性定義（`AttributeDef::symbols`・`value_type`）から引き、表をここに持たない。
 
 use super::{Design, Fix, MissingInput, ParamPath, quote};
+use fune_model::path::{SettingPath, SettingScope};
 use fune_model::value::ValueType;
 use fune_model::value::units::unit_dimension;
 use fune_projection::{CatalogFix, Choice};
@@ -51,6 +52,26 @@ pub(super) fn choices_of_attr(design: &Design, attr: &str) -> Vec<Choice> {
             label_en: None,
         })
         .collect()
+}
+
+/// `conditions.launch.<キー>` の欄で、キーが列挙の属性（拘束の種類・面）と同じ名前のもの。選べる値は属性定義の語彙
+/// （カタログの品に書く値と同じ。語彙の表を持たない）。そうでなければ None。
+pub(super) fn launch_enum(design: &Design, m: &MissingInput, s: &SettingPath) -> Option<Fix> {
+    let [file, key] = s.segments.as_slice() else {
+        return None;
+    };
+    if s.scope != SettingScope::Conditions || file != "launch" {
+        return None;
+    }
+    let choices = choices_of_attr(design, key);
+    if choices.is_empty() {
+        return None;
+    }
+    let mut fix = set_value(m, ParamPath::Setting(s.clone()), None);
+    if let Fix::SetValue { choices: c, .. } = &mut fix {
+        *c = choices;
+    }
+    Some(fix)
 }
 
 /// 属性の次元名（定義の `dimension`、無ければ `units` の先頭の単位の次元）。

@@ -158,6 +158,10 @@ pub(super) const ALLOWED: &[(&str, &str)] = &[
         ANALYSIS_TEXT,
     ),
     (
+        "crates/lib/units/src/format/dimension_name.rs",
+        "Japanese and English display name of each dimension (label / label_en)",
+    ),
+    (
         "crates/lib/units/src/typed/decibel.rs",
         "Japanese rustdoc text passed through a macro (documentation, not output)",
     ),

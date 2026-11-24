@@ -180,9 +180,9 @@ optional = ["propellant_density"]
 [launcher]
 label    = "打ち上げ機"
 label_en = "Launch vehicle"
-optional = ["max_payload_mass", "payload_mass_by_c3", "launch_envelope", "launch_load_axial", "launch_load_lateral", "min_frequency_axial", "min_frequency_lateral", "max_tip_off_rate"]
+optional = ["max_payload_mass", "payload_mass_by_c3", "launch_envelope", "launch_load_axial", "launch_load_lateral", "min_frequency_axial", "min_frequency_lateral", "max_tip_off_rate", "launch_constraint", "launch_constraint_face"]
 
 [dispenser]
 label    = "ディスペンサー"
 label_en = "Dispenser"
-optional = ["max_payload_mass", "payload_mass_by_c3", "launch_envelope", "launch_load_axial", "launch_load_lateral", "min_frequency_axial", "min_frequency_lateral", "max_tip_off_rate"]
+optional = ["max_payload_mass", "payload_mass_by_c3", "launch_envelope", "launch_load_axial", "launch_load_lateral", "min_frequency_axial", "min_frequency_lateral", "max_tip_off_rate", "launch_constraint", "launch_constraint_face"]

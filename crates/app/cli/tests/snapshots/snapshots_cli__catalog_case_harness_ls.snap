@@ -7,10 +7,10 @@ expression: text
  local/awg24_ptfe                wire             AWG24 PTFE-insulated wire                                                 3 
  local/bat_2s2p      power       battery          Li-ion 18650 2S2P                                     BAT-2S2P           10 
  local/cam_ms_5m     payload     camera           Multispectral camera, 5 m class                       MSC-5              10 
- local/disp_6u_rs                dispenser        6U rideshare dispenser (fictional)                                        7 
+ local/disp_6u_rs                dispenser        6U rideshare dispenser (fictional)                                        8 
  local/fss_60        aocs        sun_sensor       Fine sun sensor (FoV ±60°)                            FSS-60              7 
  local/gps_l1        aocs        gps              GPS L1 receiver (antenna included)                    GPS-L1              6 
- local/lv_alpha                  launcher         Alpha launch vehicle (fictional)                                          7 
+ local/lv_alpha                  launcher         Alpha launch vehicle (fictional)                                          9 
  local/mtq_0p2       aocs        magnetorquer     Magnetorquer, 0.2 A·m² class                          MTQ-02              7 
  local/obc_m7        cdh         obc              OBC (Cortex-M7)                                       OBC-M7              7 
  local/pcdu_6u       power       pcdu             PCDU for 6U (4 MPPT channels)                         PCDU-6U             7 

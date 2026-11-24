@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useSearchParams } from "react-router";
 import { analysisOutput } from "@/api/analysis-output";
@@ -42,7 +42,8 @@ function LayoutContent({ design }: { design: DesignView }) {
   const requested = params.get(SEARCH.configuration);
   const selected = design.configurations.find(({ id }) => id === requested) ?? null;
   const configuration = selected?.id ?? null;
-  const parts = useQuery(q.parts(configuration));
+  // 形態を切り替えている間は前の一覧を出し続ける（3D を作り直さず、選択とカメラを保つ。変わるのは姿勢だけ）
+  const parts = useQuery({ ...q.parts(configuration), placeholderData: keepPreviousData });
   // 表示中の形態の配置で重心を求める（Base は選択なし）
   const mass = useQuery(q.analysis("structure.mass_properties", null, [], configuration));
   const c = analysisOutput(mass.data, "structure.mass_properties")?.summary.center_of_mass;

@@ -97,7 +97,8 @@ export function ConfigurationControls({
           ops={[{ op: "remove_configuration", id: target.id }]}
           summary={c.removeTitle(target.id)}
           confirmLabel={c.remove}
-          onDone={() => onSelect(null, { replace: true })}
+          // 消す前に基準へ移る（消した後の再読込が、消した形態の部品一覧を読みに行かないように）
+          onBeforeApply={() => onSelect(null, { replace: true })}
           destructive
         />
       )}

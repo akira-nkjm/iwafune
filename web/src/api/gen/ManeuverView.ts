@@ -23,6 +23,10 @@ label: string, category: ManeuverCategory, method: ManeuverMethod, thruster: str
  */
 body: CentralBodyKind | null, via_altitude: QuantityView | null, 
 /**
+ * 直接書かれた ΔV（余裕。書かなければ目標の軌道から計算する）
+ */
+delta_v: QuantityView | null, 
+/**
  * 書かれた目標の要素（宣言の順）
  */
 target: Array<ManeuverTargetView>, 

@@ -64,10 +64,20 @@ fn spacecraft(inertia: Mat3) -> DisturbanceSpacecraft {
         inertia,
         aero: None,
         srp: None,
+        geometry: None,
         residual_dipole: None,
         atmosphere: Default::default(),
         density_scale: None,
         thrust: None,
+    }
+}
+
+/// 係数・面積・圧力中心をすべて書いた面。
+fn written(coefficient: f64, area: f64, cp: Vec3) -> DisturbanceSurface {
+    DisturbanceSurface {
+        coefficient,
+        area: Some(Qty::from_raw(area)),
+        cp_offset: Some(cp),
     }
 }
 
@@ -98,10 +108,7 @@ fn srp_on_sun_pointing_accumulates_secularly() {
     // 太陽指向で CP が +X に 5 cm、Cr·A = 0.1 m²: τ = r × (−P·CrA·ẑ) は機体系で一定（日照中のみ）。
     // 太陽方向は 1 周ではほぼ慣性固定なので、1 周の永年成分 ≈ |τ| × 日照時間。
     let mut sc = spacecraft(Mat3::diagonal(Vec3::new(0.05, 0.05, 0.05)));
-    sc.srp = Some(DisturbanceSurface {
-        cp_offset: Some(Vec3::new(0.05, 0.0, 0.0)),
-        coefficient_area: Qty::from_raw(0.1),
-    });
+    sc.srp = Some(written(1.0, 0.1, Vec3::new(0.05, 0.0, 0.0)));
     let i = input(sc, sun_pointing_z());
     let out = RwUnloading::run(&i).unwrap();
     let srp = &out.disturbances[2];
@@ -187,10 +194,7 @@ fn aero_on_nadir_pointing_accumulates_about_orbit_normal() {
     // 地心指向で CP が地心側（+z）に 2 cm: 抗力は −x（速度と逆）なので τ = r × F は機体 y（軌道面の法線）まわり。
     // y は慣性空間で向きが変わらないので、1 周の永年成分 ≈ 空力トルクの平均 × 周期。
     let mut sc = spacecraft(Mat3::diagonal(Vec3::new(0.05, 0.05, 0.05)));
-    sc.aero = Some(DisturbanceSurface {
-        cp_offset: Some(Vec3::new(0.0, 0.0, 0.02)),
-        coefficient_area: Qty::from_raw(2.2 * 0.03),
-    });
+    sc.aero = Some(written(2.2, 0.03, Vec3::new(0.0, 0.0, 0.02)));
     let out = RwUnloading::run(&input(sc, nadir_pointing_z())).unwrap();
     let aero = &out.disturbances[1];
     assert_eq!(aero.key, DisturbanceKind::Aero);
@@ -330,10 +334,7 @@ fn rcs_without_a_direction_is_a_violation() {
 /// 中心天体 `body` の高度 100 km の極軌道に直した入力。空力の面と残留磁気を与えて、大気・磁場の扱いを見る。
 fn about_body(body: sat_astro::ephem::CentralBody) -> RwUnloadingInput {
     let mut sc = spacecraft(Mat3::diagonal(Vec3::new(0.05, 0.05, 0.05)));
-    sc.aero = Some(DisturbanceSurface {
-        cp_offset: Some(Vec3::new(0.05, 0.0, 0.0)),
-        coefficient_area: Qty::from_raw(0.1),
-    });
+    sc.aero = Some(written(1.0, 0.1, Vec3::new(0.05, 0.0, 0.0)));
     sc.residual_dipole = Some(Vec3::new(0.1, 0.0, 0.0));
     let mut i = input(sc, nadir_pointing_z());
     let epoch = i.timeline.orbit().epoch();

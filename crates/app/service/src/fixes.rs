@@ -7,7 +7,7 @@
 //! | 対象 | 候補 |
 //! |---|---|
 //! | 部品の属性・フィールド | `SetValue`（部品がカタログ品を選んでいれば品の側の書き先も。量には入力の例、列挙・真偽には選べる値） |
-//! | 設定 | `SetValue`（次元は `setting_dimension`）。回線の部品・アンテナの欄は `PickRef`（部品）、打ち上げ機・ディスペンサーは `PickRef`（カタログ品）、`data_downlink` は `PickRef`（回線）、軌道の `maneuver` は `PickRef`（日付つきの遷移を持つマヌーバ）。軌道の `source` は候補なし（対象外の理由） |
+//! | 設定 | `SetValue`（次元は `setting_dimension`。`conditions.launch` の欄が列挙の属性と同じ名前なら、選べる値は属性定義の語彙）。回線の部品・アンテナの欄は `PickRef`（部品）、打ち上げ機・ディスペンサーは `PickRef`（カタログ品）、`data_downlink` は `PickRef`（回線）、軌道の `maneuver` は `PickRef`（日付つきの遷移を持つマヌーバ）。軌道の `source` は候補なし（対象外の理由） |
 //! | 役割のどれかの部品 | その役割の部品が無ければ `AddPart` と `AssignPart`、有って値が無ければ `SetValueOnPart` |
 //! | マヌーバの `thruster` | `PickRef`（部品） |
 //! | モード・マヌーバ・地上局・回線・ケースの一覧の空 | `AddListItem` |
@@ -119,6 +119,9 @@ fn setting_fixes(design: &Design, site: (&Target, &MissingInput), s: &SettingPat
         .or_else(|| refs::launch_configuration(design, site, s))
         .or_else(|| refs::orbit_maneuver(design, site, s))
     {
+        return vec![fix];
+    }
+    if let Some(fix) = value::launch_enum(design, m, s) {
         return vec![fix];
     }
     let dimension = setting_dimension(s).map(str::to_owned);
