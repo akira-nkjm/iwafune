@@ -5,6 +5,7 @@ mod exposure;
 mod report;
 
 use super::*;
+use crate::structure::interference::obb::OrientedBox;
 use sat_astro::math::Quat;
 
 pub(super) fn part(id: &str, center: [f64; 3], size: [f64; 3]) -> PartBox {

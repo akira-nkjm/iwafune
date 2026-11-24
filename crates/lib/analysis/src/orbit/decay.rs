@@ -32,10 +32,11 @@ use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Channel, ChannelKind, Check,
     ConditionTopic, Series, ensure_positive,
 };
+use crate::structure::external_geometry::ExternalGeometry;
+use crate::structure::interference::InterferenceBox;
 use sat_astro::atmosphere::space_weather::{DatedSpaceWeather, SolarActivity};
 use sat_astro::constants::{SECONDS_PER_DAY, SECONDS_PER_JULIAN_CENTURY};
 use sat_astro::ephem::CentralBody;
-use sat_astro::math::Vec3;
 use sat_astro::orbit::{OrbitSpec, altitude_from_semi_major_axis};
 use sat_units::typed::{Area, Length, Mass, MassDensity, Qty, Time, Velocity};
 use serde::{Deserialize, Serialize};
@@ -73,10 +74,11 @@ pub struct OrbitDecayInput {
     pub orbit: OrbitSpec,
     /// 機体の質量
     pub mass: Qty<Mass>,
-    /// 抗力の面積（無ければ `body_size` の箱の平均の投影面積）
+    /// 抗力の面積（書かれていればこの値。無ければ `body_boxes` の和集合の、全方向の平均の投影面積）
     pub drag_area: Option<Qty<Area>>,
-    /// 機体の外形の箱 [m]（`drag_area` が無いときに使う）
-    pub body_size: Option<Vec3>,
+    /// 寸法を持つ部品の箱（機体座標系。`drag_area` が無いときに使う。報告 `structure.external_geometry` と同じ幾何）
+    #[serde(default)]
+    pub body_boxes: Vec<InterferenceBox>,
     /// 抗力係数 Cd（無ければ [`DEFAULT_DRAG_COEFFICIENT`]）
     pub drag_coefficient: Option<f64>,
     /// ミッション期間（寿命の判定と、軌道維持の ΔV を積算する期間）
@@ -182,18 +184,7 @@ fn used_values(input: &OrbitDecayInput) -> Result<(DecayUsed, Option<Vec<String>
     ensure_positive("Spacecraft mass", input.mass.value())?;
     let drag_coefficient = input.drag_coefficient.unwrap_or(DEFAULT_DRAG_COEFFICIENT);
     ensure_positive("Drag coefficient", drag_coefficient)?;
-    let (drag_area, area_source) = match (input.drag_area, input.body_size) {
-        (Some(a), _) => (a, DragAreaSource::Given),
-        (None, Some(size)) => (
-            Qty::from_raw(tumbling_area(size)),
-            DragAreaSource::TumblingBox,
-        ),
-        (None, None) => {
-            return Err(AnalysisError::InvalidInput(
-                "Either a drag area or the spacecraft outline is required".into(),
-            ));
-        }
-    };
+    let (drag_area, area_source) = drag_area(input)?;
     ensure_positive("Drag area", drag_area.value())?;
     let span = input.span_s();
     ensure_positive("Integration span", span)?;
@@ -232,6 +223,21 @@ fn used_values(input: &OrbitDecayInput) -> Result<(DecayUsed, Option<Vec<String>
     Ok((used, note))
 }
 
+/// 抗力の面積と出どころ。書かれていればその値、無ければ部品の箱の全方向の平均の投影面積。
+fn drag_area(input: &OrbitDecayInput) -> Result<(Qty<Area>, DragAreaSource), AnalysisError> {
+    if let Some(a) = input.drag_area {
+        return Ok((a, DragAreaSource::Given));
+    }
+    // 全方向の平均の投影面積は報告（`structure.external_geometry`）と同じ関数で出す
+    let geometry = ExternalGeometry::from_boxes(&input.body_boxes).ok_or_else(|| {
+        AnalysisError::InvalidInput("Either a drag area or a part with a size is required".into())
+    })?;
+    Ok((
+        Qty::from_raw(geometry.mean_projected_area()),
+        DragAreaSource::BodyBoxes,
+    ))
+}
+
 /// 再突入とみなす高度 [m]（既定値を当てる）。初期の近地点がそれより上か確かめる。
 fn reentry_altitude(input: &OrbitDecayInput) -> Result<f64, AnalysisError> {
     let reentry = input
@@ -254,12 +260,6 @@ fn reentry_altitude(input: &OrbitDecayInput) -> Result<f64, AnalysisError> {
         ));
     }
     Ok(reentry)
-}
-
-/// 箱（辺 `size` [m]）がどの向きも同じ確率でとるときの平均の投影面積 [m²]。
-/// 凸の物体の平均の投影面積は表面積の 1/4（Cauchy の公式）なので、箱では `(xy + yz + zx) / 2`。
-pub fn tumbling_area(size: Vec3) -> f64 {
-    (size.x * size.y + size.y * size.z + size.z * size.x) / 2.0
 }
 
 fn run_case(

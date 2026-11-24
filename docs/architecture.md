@@ -328,7 +328,7 @@ During development, `pnpm -C web dev` (port 5173) proxies `/api` to `127.0.0.1:3
 
 | Subsystem | Steady-state | Time series |
 |---|---|---|
-| AOCS | `aocs.unload_time` (time needed to unload with MTQ and RCS), `aocs.slew_time` (time needed to change attitude with RW) | `aocs.rw_unloading` (disturbance torque (including thrust error) and RW unloading frequency, daily propellant dumped by RCS and its ΔV equivalent), `aocs.sensor_fov` (sensor FoV and exclusion angles) |
+| AOCS | `aocs.unload_time` (time needed to unload with MTQ and RCS), `aocs.slew_time` (time needed to change attitude with RW) | `aocs.rw_unloading` (disturbance torque (including thrust error; aerodynamic and solar-pressure torque from the projected area and centroid of the part boxes) and RW unloading frequency, daily propellant dumped by RCS and its ΔV equivalent), `aocs.sensor_fov` (sensor FoV and exclusion angles) |
 | C&DH | `cdh.data_budget` (data volume and storage) | — |
 | Communications | `comm.link_budget` (link budget) | `comm.visibility` (ground station visibility), `comm.data_throughput` (data transmitted and stored) |
 | Power | `power.mode_load` (power consumption per mode), `power.solar_sunlit` (generation while sunlit) | `power.orbit_generation` (on-orbit generation), `power.energy_balance` (power balance and DoD), `power.thrust_balance` (power balance during firing of numerically propagated maneuvers) |

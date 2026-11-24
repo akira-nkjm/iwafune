@@ -239,10 +239,16 @@ pub struct AocsSettings {
     /// 太陽輻射圧の反射係数 Cr
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub srp_coefficient: Option<f64>,
-    /// 空力の圧力中心 − 重心（機体座標）
+    /// 空力の受圧面積（書けば、部品の箱から向きごとに出す面積に代えてこの値を使う）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub aero_area: Option<Quantity>,
+    /// 太陽輻射圧の受圧面積（書けば、部品の箱から向きごとに出す面積に代えてこの値を使う）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub srp_area: Option<Quantity>,
+    /// 空力の圧力中心 − 重心（機体座標。書けば、部品の箱から出す値に代えてこの値を使う）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cp_offset_aero: Option<Vector3>,
-    /// 太陽輻射圧の圧力中心 − 重心（機体座標）
+    /// 太陽輻射圧の圧力中心 − 重心（機体座標。書けば、部品の箱から出す値に代えてこの値を使う）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cp_offset_srp: Option<Vector3>,
     /// 残留磁気双極子（機体座標）

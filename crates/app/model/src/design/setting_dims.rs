@@ -153,7 +153,11 @@ setting_quantities! {
     POWER_SIZING_BUS_VOLTAGE: Voltage = Analysis["power", "sizing", "bus_voltage"];
     /// サイジングの太陽距離。
     POWER_SIZING_SUN_DISTANCE: Length = Analysis["power", "sizing", "sun_distance"];
-    /// 空力の圧力中心 − 重心（`analysis/aocs.toml`。ベクトル）
+    /// 空力の受圧面積（`analysis/aocs.toml`）
+    AOCS_AERO_AREA: Area = Analysis["aocs", "aero_area"];
+    /// 太陽輻射圧の受圧面積
+    AOCS_SRP_AREA: Area = Analysis["aocs", "srp_area"];
+    /// 空力の圧力中心 − 重心（ベクトル）
     AOCS_CP_OFFSET_AERO: Length = Analysis["aocs", "cp_offset_aero"];
     /// 太陽輻射圧の圧力中心 − 重心（ベクトル）
     AOCS_CP_OFFSET_SRP: Length = Analysis["aocs", "cp_offset_srp"];
