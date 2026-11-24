@@ -3,8 +3,8 @@
 use super::{Ctx, Measured, largest, one, smallest};
 use sat_analysis::power::ThrustBalanceOutput;
 use sat_analysis::propulsion::{
-    DvBudgetOutput, ManeuversOutput, OrbitHistoryOutput, PropellantMassOutput, PropellantOutput,
-    ThrusterUsageOutput,
+    DvBudgetOutput, LaunchWindowOutput, ManeuversOutput, OrbitHistoryOutput, PropellantMassOutput,
+    PropellantOutput, ThrusterUsageOutput, TransferCheckOutput,
 };
 
 pub(super) fn longest_transfer(o: &ManeuversOutput, _: Ctx<'_>) -> Option<Measured> {
@@ -31,4 +31,16 @@ pub(super) fn com_shift(o: &PropellantMassOutput, _: Ctx<'_>) -> Option<Measured
 /// 噴射中の電力収支の最大 DoD（マヌーバのうち最悪）。
 pub(super) fn thrust_max_dod(o: &ThrustBalanceOutput, _: Ctx<'_>) -> Option<Measured> {
     largest(o.thrusts.iter().map(|t| t.balance.max_dod))
+}
+/// 日付つきの遷移の、到着の日の到着天体の中心からのずれ（遷移のうち最大）。日付つきの遷移が無ければ None。
+pub(super) fn transfer_miss(o: &TransferCheckOutput, _: Ctx<'_>) -> Option<Measured> {
+    largest(o.transfers.iter().map(|t| t.miss_distance))
+}
+/// 打ち上げの窓の ΔV の最小（窓のうち最小）。窓が無いか、解けた点が無ければ None。
+pub(super) fn launch_window_delta_v(o: &LaunchWindowOutput, _: Ctx<'_>) -> Option<Measured> {
+    smallest(
+        o.windows
+            .iter()
+            .filter_map(|w| w.minimum_delta_v.as_ref().map(|p| p.delta_v)),
+    )
 }

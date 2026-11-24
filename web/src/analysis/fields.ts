@@ -6,8 +6,13 @@ import { isMat3, isVec3, type Json } from "./output";
  * **換算はせず**、単位と桁は POST /units/format（sat_units::format）に選ばせる。
  */
 
-export function fieldLabel(key: string): string {
-  return getT().fields.labels[key] ?? key;
+/**
+ * 欄の表示名。同じキーが解析ごとに違う意味を持つとき（`origin` は電力収支では時刻、打ち上げ適合では出所）のために、
+ * 持ち主のキー（`scope`。表なら表のキー、スカラーなら入れ子の親）を付けた `<持ち主>.<キー>` の項目を先に引く。
+ */
+export function fieldLabel(key: string, scope?: string): string {
+  const labels = getT().fields.labels;
+  return (scope ? labels[`${scope}.${key}`] : undefined) ?? labels[key] ?? key;
 }
 
 /**

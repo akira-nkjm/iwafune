@@ -221,10 +221,19 @@ function Legend({ scale }: { scale: HeatScale }) {
   );
 }
 
-/** 節点の名前のあとの注: 既定の 1 部品 1 節点は「部品ごと」、設計がまとめた節点は入っている部品の一覧 */
-function nodeNote(heat: readonly PartHeat[] | undefined, node: string, perPart: string): string {
+/**
+ * 節点の名前のあとの注: 既定の 1 部品 1 節点は「部品ごと」（短い目印なので名前が長くても切らない）、
+ * 設計がまとめた節点は入っている部品の一覧（長いので切ってよい）
+ */
+function nodeNote(
+  heat: readonly PartHeat[] | undefined,
+  node: string,
+  perPart: string,
+): { text: string; marker: boolean } {
   const parts = (heat ?? []).filter((h) => h.node === node);
-  return parts.some((h) => h.per_part) ? `(${perPart})` : parts.map((h) => h.part).join(", ");
+  return parts.some((h) => h.per_part)
+    ? { text: `(${perPart})`, marker: true }
+    : { text: parts.map((h) => h.part).join(", "), marker: false };
 }
 
 /** 節点の温度の一覧（色の見本・節点・その節点に入っている部品・温度） */
@@ -242,23 +251,33 @@ export function NodeList({
     <>
       <h3 className="mb-2 font-medium text-ink text-sm">{I.nodes}</h3>
       <ul className="space-y-1 text-xs">
-        {[...temps].map(([node, temp]) => (
-          <li key={node} className="flex items-center gap-2">
-            <span
-              aria-hidden
-              className="size-3 shrink-0 rounded-sm"
-              style={{ background: heatHex(heatRatio(temp, scale)) }}
-            />
-            <span className="min-w-0 flex-1 truncate font-mono text-ink-2">
-              {node}
-              <span className="text-ink-4"> {nodeNote(heat, node, I.nodePerPart)}</span>
-            </span>
-            {/* 温度の欄は幅を固定して右に寄せる（再生で桁や符号が変わっても、左の名前の切れ目が動かないように） */}
-            <span className="w-16 shrink-0 text-right">
-              <Temp si={temp} />
-            </span>
-          </li>
-        ))}
+        {[...temps].map(([node, temp]) => {
+          const note = nodeNote(heat, node, I.nodePerPart);
+          return (
+            <li key={node} className="flex items-center gap-2">
+              <span
+                aria-hidden
+                className="size-3 shrink-0 rounded-sm"
+                style={{ background: heatHex(heatRatio(temp, scale)) }}
+              />
+              {/* 名前が長いときは名前を切り、短い目印（部品ごと）は残す */}
+              <span className="flex min-w-0 flex-1 items-baseline gap-1 font-mono text-ink-2">
+                <span className="min-w-0 truncate" title={node}>
+                  {node}
+                </span>
+                <span
+                  className={note.marker ? "shrink-0 text-ink-4" : "min-w-0 truncate text-ink-4"}
+                >
+                  {note.text}
+                </span>
+              </span>
+              {/* 温度の欄は幅を固定して右に寄せる（再生で桁や符号が変わっても、左の名前の切れ目が動かないように） */}
+              <span className="w-16 shrink-0 text-right">
+                <Temp si={temp} />
+              </span>
+            </li>
+          );
+        })}
       </ul>
     </>
   );

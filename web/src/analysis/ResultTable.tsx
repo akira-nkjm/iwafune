@@ -30,6 +30,8 @@ export function ResultTable({
 }) {
   const tr = useT();
   const cols = tableColumns(rows);
+  // 表の持ち主のキー（`["cases", 0, "x"]` の入れ子なら x）。同じキーの欄が解析ごとに違う意味のとき、表示名を分ける
+  const scope = [...at].reverse().find((s): s is string => typeof s === "string");
   const [open, setOpen] = useState<Set<number>>(new Set());
   const hasNested = rows.some((r) => nestedTables(r).length > 0);
   const toggle = (i: number) => {
@@ -46,7 +48,7 @@ export function ResultTable({
           {hasNested && <Th className="w-6" />}
           {cols.map((c) => (
             <Th key={c} align={typeof rows[0]?.[c] === "number" ? "right" : "left"} title={c}>
-              {fieldLabel(c)}
+              {fieldLabel(c, scope)}
             </Th>
           ))}
         </>

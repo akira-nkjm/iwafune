@@ -78,7 +78,7 @@ export function ThermalRangeChart({
               {ticks.map((v) => (
                 <span
                   key={v}
-                  className="absolute bottom-0 -translate-x-1/2 text-[11px] text-ink-3"
+                  className="absolute bottom-0 -translate-x-1/2 whitespace-nowrap text-[11px] text-ink-3"
                   style={{ left: pct(axisPosition(v, model.lo, model.hi)) }}
                 >
                   <Temp si={v} />

@@ -512,6 +512,15 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
             "Center-of-mass shift from propellant",
         ),
         K::ThrustMaxDod => label("噴射中の最大 DoD", "Max DoD while thrusting"),
+        K::LaunchFitMargin => label("打ち上げ適合の余裕（最小）", "Launch fit margin (min)"),
+        K::InterferenceOverlaps => label("部品の重なり（組）", "Part overlaps (pairs)"),
+        K::ConeObstructions => label("円錐の遮り", "Cone obstructions"),
+        K::MeanProjectedArea => label("投影面積（平均）", "Projected area (mean)"),
+        K::TransferMiss => label("到着のずれ（最大）", "Arrival miss distance (max)"),
+        K::LaunchWindowDeltaV => label("窓の ΔV（最小）", "Launch window delta-v (min)"),
+        K::GreatestEarthDistance => {
+            label("地球までの距離（最大）", "Distance from the Earth (max)")
+        }
     }
 }
 
