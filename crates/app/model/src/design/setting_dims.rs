@@ -185,6 +185,8 @@ setting_quantities! {
     COMM_OCCUPIED_BANDWIDTH: Frequency = Analysis["comm", "link", ANY, "occupied_bandwidth"];
     /// 取付の接触熱コンダクタンス（`analysis/thermal.toml`）
     THERMAL_CONTACT_CONDUCTANCE: ThermalConductance = Analysis["thermal", "contact_conductance"];
+    /// 取付の接触熱コンダクタンスを接触面積から出すときの単位面積あたりの値（`analysis/thermal.toml`）
+    THERMAL_CONTACT_CONDUCTANCE_PER_AREA: HeatTransferCoefficient = Analysis["thermal", "contact_conductance_per_area"];
     /// 節点間の放射結合（面積）
     THERMAL_RADIATIVE_COUPLING: Area = Analysis["thermal", "radiative_coupling"];
     /// 明示の節点間の伝導（`[conductive.<節点>] <節点> = …`）

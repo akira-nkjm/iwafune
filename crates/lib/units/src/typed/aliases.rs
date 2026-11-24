@@ -95,6 +95,9 @@ pub type __Volume = Dim<Three, Zero, Zero, Zero, Zero, Zero, Zero, Zero, Zero>;
 pub type __ThermalConductance =
     Dim<Two, One, NegativeThree, Zero, NegativeOne, Zero, Zero, Zero, Zero>;
 #[doc(hidden)]
+pub type __HeatTransferCoefficient =
+    Dim<Zero, One, NegativeThree, Zero, NegativeOne, Zero, Zero, Zero, Zero>;
+#[doc(hidden)]
 pub type __SpecificHeatCapacity =
     Dim<Two, Zero, NegativeTwo, Zero, NegativeOne, Zero, Zero, Zero, Zero>;
 #[doc(hidden)]
@@ -213,6 +216,8 @@ pub type ElectricCharge = __ElectricCharge;
 pub type Volume = __Volume;
 /// Thermal-conductance dimension (`M L^2 T^-3 K^-1`, for example `W/K`).
 pub type ThermalConductance = __ThermalConductance;
+/// Heat-transfer-coefficient dimension (`M T^-3 K^-1`, for example `W/(m^2*K)`; the conductance per contact area).
+pub type HeatTransferCoefficient = __HeatTransferCoefficient;
 /// Specific-heat-capacity dimension (`L^2 T^-2 K^-1`, for example `J/(kg*K)`).
 pub type SpecificHeatCapacity = __SpecificHeatCapacity;
 /// Specific-energy dimension (`L^2 T^-2`, for example `J/kg` or `km^2/s^2`; the characteristic energy C3 of an interplanetary departure).

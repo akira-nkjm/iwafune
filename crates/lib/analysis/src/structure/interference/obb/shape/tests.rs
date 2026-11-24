@@ -171,3 +171,92 @@ fn plane_sections_of_a_unit_cube() {
     let edge = section_area(&c, unit(1.0, 0.0, 1.0), 0.5 * 2.0_f64.sqrt(), 1e-9).unwrap();
     assert!(edge.abs() < 1e-12);
 }
+
+/// 接触面の試験の基準: 200 mm の立方体 A（上面は z = 0.1 m）。許容差は 0.1 mm（干渉の既定と同じ）。
+fn base_block() -> OrientedBox {
+    boxed([0.0; 3], Quat::IDENTITY, [0.2; 3])
+}
+
+const CONTACT_TOLERANCE: f64 = 1e-4;
+
+/// 100 × 50 mm の板を A の上面にそのまま載せる: 接触面積は板の下面 100 × 50 mm = 0.005 m²（手計算）。
+#[test]
+fn stacked_plate_touches_with_its_own_face_area() {
+    let plate = boxed([0.0, 0.0, 0.15], Quat::IDENTITY, [0.1, 0.05, 0.1]);
+    let area = base_block()
+        .contact_area(&plate, CONTACT_TOLERANCE)
+        .unwrap();
+    assert!(close(area, 0.005), "{area}");
+    // 組の順を入れ替えても同じ
+    let swapped = plate
+        .contact_area(&base_block(), CONTACT_TOLERANCE)
+        .unwrap();
+    assert!(close(swapped, 0.005), "{swapped}");
+}
+
+/// 板を x 方向に 0.1 m ずらすと、板（x が 0.05〜0.15）のうち A の上面（x が −0.1〜0.1）に載る x の幅は 0.05 m、y は 0.05 m: 0.0025 m²。
+#[test]
+fn offset_plate_overlaps_partially() {
+    let plate = boxed([0.1, 0.0, 0.15], Quat::IDENTITY, [0.1, 0.05, 0.1]);
+    let area = base_block()
+        .contact_area(&plate, CONTACT_TOLERANCE)
+        .unwrap();
+    assert!(close(area, 0.0025), "{area}");
+}
+
+/// 面の法線まわりに 90° 回した板（x の幅 0.05・y の幅 0.1 になる）を x = 0.1 m に置くと、x は 0.075〜0.125 のうち 0.075〜0.1 の 0.025 m、
+/// y は 0.1 m 全部: 0.0025 m²。
+#[test]
+fn plate_turned_about_the_normal() {
+    let q = Quat::from_axis_angle(Vec3::Z, std::f64::consts::FRAC_PI_2);
+    let plate = boxed([0.1, 0.0, 0.15], q, [0.1, 0.05, 0.1]);
+    let area = base_block()
+        .contact_area(&plate, CONTACT_TOLERANCE)
+        .unwrap();
+    assert!(close(area, 0.0025), "{area}");
+}
+
+/// 面の間の隙間が許容差を超えれば接していない。許容差以内の隙間（5e-5 m）は接している。
+#[test]
+fn a_gap_larger_than_the_tolerance_is_no_contact() {
+    let apart = boxed([0.0, 0.0, 0.151], Quat::IDENTITY, [0.1, 0.05, 0.1]);
+    assert!(
+        base_block()
+            .contact_area(&apart, CONTACT_TOLERANCE)
+            .is_none()
+    );
+    let near = boxed([0.0, 0.0, 0.150_05], Quat::IDENTITY, [0.1, 0.05, 0.1]);
+    let area = base_block().contact_area(&near, CONTACT_TOLERANCE).unwrap();
+    assert!(close(area, 0.005), "{area}");
+}
+
+/// 辺だけで接する箱（x まわりに 45° 回した立方体を、辺が A の上面に触れる高さに置く）は、向き合う面の組が無いので接触面は無い。
+#[test]
+fn faces_that_are_not_parallel_do_not_touch() {
+    let q = Quat::from_axis_angle(Vec3::X, std::f64::consts::FRAC_PI_4);
+    let z = 0.1 + 0.1 * std::f64::consts::FRAC_1_SQRT_2;
+    let tilted = boxed([0.0, 0.0, z], q, [0.1; 3]);
+    assert!(
+        base_block()
+            .contact_area(&tilted, CONTACT_TOLERANCE)
+            .is_none()
+    );
+}
+
+/// 同じ向きの面（A の上面と同じ高さの隣の箱の上面）は、向き合っていないので接触面ではない。面が離れていて重ならなければ `None`。
+#[test]
+fn faces_on_the_same_side_or_beside_each_other_do_not_count() {
+    let beside = boxed([0.3, 0.0, 0.0], Quat::IDENTITY, [0.2; 3]);
+    // 隣の箱は x 方向に 0.1 m 離れていて（x が 0.2〜0.4、A は −0.1〜0.1）、面の組は離れている
+    assert!(
+        base_block()
+            .contact_area(&beside, CONTACT_TOLERANCE)
+            .is_none()
+    );
+    // ぴったり隣り合わせなら、向き合う側面（A の +X 面と隣の −X 面）が接する: 0.2 × 0.2 = 0.04 m²
+    let touching = boxed([0.2, 0.0, 0.0], Quat::IDENTITY, [0.2; 3]);
+    let area = base_block()
+        .contact_area(&touching, CONTACT_TOLERANCE)
+        .unwrap();
+    assert!(close(area, 0.04), "{area}");
+}
