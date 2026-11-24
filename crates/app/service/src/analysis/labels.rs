@@ -413,6 +413,7 @@ fn cone_kind(k: ConeKind) -> AnalysisLabel {
     match k {
         ConeKind::Plume => label("噴流", "Plume"),
         ConeKind::FieldOfView => label("視野", "Field of view"),
+        ConeKind::Beam => label("アンテナのビーム", "Antenna beam"),
     }
 }
 
