@@ -35,6 +35,7 @@ fn maneuver_of(t: &ManeuverText) -> Result<Maneuver> {
         thruster: owned(&t.thruster).map(Into::into),
         after: owned(&t.after),
         via_altitude: quantity(&t.via_altitude)?,
+        delta_v: quantity(&t.delta_v)?,
         target: ManeuverTarget {
             body: given(&t.body)
                 .map(|b| b.trim().parse())

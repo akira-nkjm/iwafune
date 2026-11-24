@@ -21,7 +21,12 @@ after?: string | null,
 /**
  * バイエリプティック遷移の中間の遠地点の高度（impulsive・finite_burn だけ）
  */
-via_altitude?: Quantity | null, target?: ManeuverTargetOrbit, constraints?: ManeuverConstraints, 
+via_altitude?: Quantity | null, 
+/**
+ * 直接書いた ΔV（速度。軌道の変更ではなく余裕として見込む軌道修正・軌道維持・マージン。軌道は変わらない。
+ * `[target]`・`via_altitude`・`[transfer]` とは一緒に書かず、`method` は impulsive か low_thrust）
+ */
+delta_v?: Quantity | null, target?: ManeuverTargetOrbit, constraints?: ManeuverConstraints, 
 /**
  * 日付つきの惑星間遷移（`target.body` があるときだけ。無ければホーマンのパッチドコニック）
  */

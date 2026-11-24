@@ -183,3 +183,61 @@ fn a_span_round_trips_and_a_plain_orbit_never_writes_it() {
     .to_string();
     assert!(bad.contains("span_s"), "{bad}");
 }
+
+fn state_orbit(span_s: f64) -> Trajectory {
+    let r = 1.5e11;
+    let mu = CentralBody::Sun.gm();
+    Trajectory::State(StateSpec::with_defaults(
+        epoch(),
+        CentralBody::Sun,
+        OrbitState {
+            r_eci: crate::math::Vec3::new(r, 0.0, 0.0),
+            v_eci: crate::math::Vec3::new(0.0, (mu / r).sqrt(), 0.0),
+        },
+        span_s,
+        None,
+    ))
+}
+
+/// 状態ベクトルの軌道の入口: 元期・中心天体・期間は書いたとおり、繰り返しは 1 回限り（期間）、要素も高度も持たない。
+/// `with_span` は期間の欄を置き換える（`Spanned` で包まない）。状態は `StateSpec::states_at` と同じ。
+#[test]
+fn a_state_orbit_is_one_off_with_its_written_span_and_has_no_elements() {
+    let t = state_orbit(3.0e7);
+    assert_eq!(t.epoch(), epoch());
+    assert_eq!(t.central(), CentralBody::Sun);
+    assert_eq!(t.cycle(), Cycle::OneOff { span_s: 3.0e7 });
+    assert_eq!(t.span_s(), Some(3.0e7));
+    assert!(t.elements().is_none() && t.altitude_m().is_none());
+    let longer = t.clone().with_span(5.0e7);
+    assert!(matches!(longer, Trajectory::State(_)));
+    assert_eq!(longer.cycle(), Cycle::OneOff { span_s: 5.0e7 });
+    let Trajectory::State(spec) = &t else {
+        unreachable!()
+    };
+    let times = [0.0, 1.0e6, 2.5e7];
+    assert_eq!(
+        t.states_at(&times).unwrap(),
+        spec.states_at(&times).unwrap()
+    );
+    assert_eq!(
+        t.state_at(1.0e6).unwrap(),
+        t.states_at(&[1.0e6]).unwrap()[0]
+    );
+    assert_eq!(t.table_step_s(), spec.table_step_s());
+}
+
+/// 状態ベクトルの軌道は `source = "state"` を足した形で書け、読み戻すと同じ。壊れた値は読むときに理由を返す。
+#[test]
+fn a_state_orbit_round_trips_with_the_source_tag() {
+    let t = state_orbit(3.0e7);
+    let v = serde_json::to_value(&t).unwrap();
+    assert_eq!(v["source"], "state");
+    assert_eq!(v["span_s"], 3.0e7);
+    let back: Trajectory = serde_json::from_value(v.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&back).unwrap(), v);
+    assert_eq!(back.cycle(), t.cycle());
+    let mut bad = v;
+    bad.as_object_mut().unwrap().remove("state");
+    assert!(serde_json::from_value::<Trajectory>(bad).is_err());
+}

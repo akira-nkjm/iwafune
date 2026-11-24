@@ -268,6 +268,9 @@ pub struct ManeuverArgs {
     /// Intermediate apoapsis altitude of a bi-elliptic transfer (e.g. `"20000 km"`)
     #[arg(long)]
     pub via_altitude: Option<String>,
+    /// Written delta-V of an allowance (e.g. `"15 m/s"`: trajectory correction, orbit maintenance, margin). The orbit does not change; not combined with the target orbit flags, --via-altitude or dates
+    #[arg(long)]
+    pub delta_v: Option<String>,
     /// Central body of the target (e.g. `moon`, `mars`; makes it a transfer between bodies, with altitudes measured from that body)
     #[arg(long)]
     pub body: Option<String>,

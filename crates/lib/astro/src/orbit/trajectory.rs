@@ -5,15 +5,18 @@
 //! [`Trajectory::Elements`]（[`OrbitSpec`]）の関数は [`OrbitSpec`] の関数にそのまま渡す（数値は変わらない）。
 //! どの軌道にも、1 回限りの期間を持たせられる（[`Trajectory::with_span`]。[`Trajectory::Spanned`]）。期間を持つと
 //! [`Cycle`] は [`Cycle::OneOff`] になり、中身の軌道の伝搬は変えない（日付つきの遷移の巡航のように、周期的でない弧を
-//! 二体の軌道で表すときに使う。状態ベクトル・回転座標系の軌跡の source も同じ仕組みで期間を持つ）。
-//! ほかの source（状態ベクトル・回転座標系の軌跡・表）は、この列挙型に変種を足し、
+//! 二体の軌道で表すときに使う）。状態ベクトルの軌道（[`Trajectory::State`]）は期間が必須で、同じ [`Cycle::OneOff`]・
+//! [`Trajectory::with_span`]・`span_s` の書き方を使う（期間は [`StateSpec`] の欄で、`Spanned` で包まない）。
+//! ほかの source（回転座標系の軌跡・表）は、この列挙型に変種を足し、
 //! 下の各メソッドに分岐を足すだけで増やせる（呼び出し側は変えない）。
 //! ケプラー要素が本当に要る処理は [`Trajectory::elements`] を通して取り、無ければ対象外として扱う
-//! （期間を持つ軌道は、要素で書かれていても周期的でないので `None`）。
+//! （期間を持つ軌道は、要素で書かれていても周期的でないので `None`。状態ベクトルの軌道も `None`）。
 
-use super::{OrbitSpec, OrbitState, OrbitTrack};
+use super::track::TABLE_STEPS_PER_ORBIT;
+use super::{OrbitSpec, OrbitState, OrbitTrack, StateSpec};
 use crate::AstroError;
 use crate::ephem::CentralBody;
+use crate::ode::step_offsets;
 use crate::time::Epoch;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -48,22 +51,45 @@ impl Cycle {
 ///
 /// JSON では、`source` が無ければ [`Trajectory::Elements`] と読み、`Elements` は [`OrbitSpec`] と同じ形（タグ無し）で
 /// 書く。このため、軌道を [`OrbitSpec`] で書いていた既存の入力はそのまま読め、書き出しも変わらない。
-/// 将来の source は `source` のタグで区別する。
+/// 要素以外の source は `source` のタグ（`"state"`）で区別する（[`TrajectoryRepr`]）。
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-// JSON の形は OrbitSpec（期間があれば `span_s` を足したもの）。変種が増えるときにこの指定を外す。
+// JSON の形は TrajectoryRepr（要素は OrbitSpec に期間があれば `span_s` を足したもの、状態ベクトルは `source = "state"` を足したもの）。
 #[cfg_attr(feature = "ts", ts(as = "TrajectoryRepr"))]
 pub enum Trajectory {
     /// ケプラー要素（今の軌道）。
     Elements(OrbitSpec),
+    /// 状態ベクトル（元期・原点の天体・位置・速度・力の設定・期間）を既存の数値伝搬で伝搬する軌道。繰り返しは常に 1 回限り。
+    State(StateSpec),
     /// 1 回限りの期間 `span_s` [s] を持つ軌道（[`Cycle::OneOff`]）。伝搬・中心天体・元期は `orbit` のまま。
     Spanned { orbit: Box<Trajectory>, span_s: f64 },
 }
 
-/// JSON の形（[`OrbitSpec`] の欄に、期間があれば `span_s` を並べる）。
+/// JSON の形。`source` が無い・`"elements"` なら要素（[`ElementsRepr`]）、`"state"` なら状態ベクトル（[`StateRepr`]）。
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct TrajectoryRepr {
+#[serde(untagged)]
+// 型は TS の型の名前（`ts(as = ...)`）に使うだけで、Rust の側からは使わない
+#[cfg_attr(not(feature = "ts"), allow(dead_code))]
+pub enum TrajectoryRepr {
+    State(StateRepr),
+    Elements(ElementsRepr),
+}
+
+/// 状態ベクトルの軌道の JSON の形（[`StateSpec`] の欄に `source = "state"` を足したもの）。
+#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct StateRepr {
+    #[cfg_attr(feature = "ts", ts(type = "\"state\""))]
+    pub source: String,
+    #[serde(flatten)]
+    pub spec: StateSpec,
+}
+
+/// 要素の軌道の JSON の形（[`OrbitSpec`] の欄に、期間があれば `span_s` を並べる）。
+#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
+pub struct ElementsRepr {
     #[serde(flatten)]
     pub orbit: OrbitSpec,
     /// 1 回限りの期間 [s]（周期的な軌道は書かない）
@@ -89,9 +115,11 @@ impl OrbitSpec {
 
 impl Trajectory {
     /// 1 回限りの期間 `span_s` [s] を持たせる（すでにあれば置き換える）。期間は正の有限の値（検査は呼ぶ側）。
+    /// 状態ベクトルの軌道は期間が自分の欄なので、その欄を置き換える。
     pub fn with_span(self, span_s: f64) -> Self {
         match self {
             Self::Spanned { orbit, .. } => Self::Spanned { orbit, span_s },
+            Self::State(spec) => Self::State(StateSpec { span_s, ..spec }),
             orbit => Self::Spanned {
                 orbit: Box::new(orbit),
                 span_s,
@@ -103,6 +131,7 @@ impl Trajectory {
     pub fn span_s(&self) -> Option<f64> {
         match self {
             Self::Elements(_) => None,
+            Self::State(s) => Some(s.span_s),
             Self::Spanned { span_s, .. } => Some(*span_s),
         }
     }
@@ -111,6 +140,7 @@ impl Trajectory {
     pub fn epoch(&self) -> Epoch {
         match self {
             Self::Elements(o) => o.epoch,
+            Self::State(s) => s.epoch,
             Self::Spanned { orbit, .. } => orbit.epoch(),
         }
     }
@@ -119,6 +149,7 @@ impl Trajectory {
     pub fn central(&self) -> CentralBody {
         match self {
             Self::Elements(o) => o.central,
+            Self::State(s) => s.central,
             Self::Spanned { orbit, .. } => orbit.central(),
         }
     }
@@ -127,6 +158,9 @@ impl Trajectory {
     pub fn state_at(&self, t_s: f64) -> Result<OrbitState, AstroError> {
         match self {
             Self::Elements(o) => o.state_at(t_s),
+            Self::State(_) => self.states_at(&[t_s])?.pop().ok_or_else(|| {
+                AstroError::InvalidInput("Numerical propagation returned no result".into())
+            }),
             Self::Spanned { orbit, .. } => orbit.state_at(t_s),
         }
     }
@@ -135,31 +169,50 @@ impl Trajectory {
     pub fn states_at(&self, times_s: &[f64]) -> Result<Vec<OrbitState>, AstroError> {
         match self {
             Self::Elements(o) => o.states_at(times_s),
+            Self::State(s) => s.states_at(times_s),
             Self::Spanned { orbit, .. } => orbit.states_at(times_s),
         }
     }
 
     /// 元期から `span_s` 秒までの任意の時刻の状態を求める道具（[`OrbitSpec::track`]）。
+    /// 状態ベクトルの軌道は、1 回の積分で格子（刻み `max_grid_s` と [`StateSpec::table_step_s`] の小さい方）の表を作り、
+    /// 格子の間をエルミート補間する（数値伝搬の要素の軌道と同じ表）。
     pub fn track(&self, span_s: f64, max_grid_s: f64) -> Result<OrbitTrack, AstroError> {
         match self {
             Self::Elements(o) => o.track(span_s, max_grid_s),
+            Self::State(s) => {
+                let t = step_offsets(span_s, max_grid_s.min(s.table_step_s()));
+                let states = s.states_at(&t)?;
+                Ok(OrbitTrack::from_table(t, states))
+            }
             Self::Spanned { orbit, .. } => orbit.track(span_s, max_grid_s),
         }
     }
 
-    /// 繰り返しの長さ。ケプラー要素は周期的（Kepler 周期）、期間を持つ軌道は 1 回限り。
+    /// 任意の時刻の表（[`Trajectory::track`]）の格子の刻み [s] の目安。繰り返しの 1 単位（周期、または期間）の
+    /// [`TABLE_STEPS_PER_ORBIT`] 分の 1。状態ベクトルの軌道は近点での 1 周の時間から（[`StateSpec::table_step_s`]）。
+    pub fn table_step_s(&self) -> f64 {
+        match self {
+            Self::State(s) => s.table_step_s(),
+            _ => self.cycle().length_s() / TABLE_STEPS_PER_ORBIT,
+        }
+    }
+
+    /// 繰り返しの長さ。ケプラー要素は周期的（Kepler 周期）、期間を持つ軌道・状態ベクトルの軌道は 1 回限り。
     pub fn cycle(&self) -> Cycle {
         match self {
             Self::Elements(o) => o.cycle(),
+            Self::State(s) => Cycle::OneOff { span_s: s.span_s },
             Self::Spanned { span_s, .. } => Cycle::OneOff { span_s: *span_s },
         }
     }
 
     /// 高度 [m] = 長半径 − 中心天体の赤道半径（[`OrbitSpec::altitude_m`]。楕円では平均の高さ）。
-    /// 期間を持つ軌道は中身の二体の軌道の値。長半径を持たない軌道（将来の状態ベクトルなど）は `None`。
+    /// 期間を持つ軌道は中身の二体の軌道の値。長半径を持たない軌道（状態ベクトルの軌道）は `None`。
     pub fn altitude_m(&self) -> Option<f64> {
         match self {
             Self::Elements(o) => Some(o.altitude_m()),
+            Self::State(_) => None,
             Self::Spanned { orbit, .. } => orbit.altitude_m(),
         }
     }
@@ -168,7 +221,7 @@ impl Trajectory {
     pub fn elements(&self) -> Option<&OrbitSpec> {
         match self {
             Self::Elements(o) => Some(o),
-            Self::Spanned { .. } => None,
+            Self::State(_) | Self::Spanned { .. } => None,
         }
     }
 
@@ -176,38 +229,49 @@ impl Trajectory {
     pub fn elements_mut(&mut self) -> Option<&mut OrbitSpec> {
         match self {
             Self::Elements(o) => Some(o),
-            Self::Spanned { .. } => None,
+            Self::State(_) | Self::Spanned { .. } => None,
         }
     }
 }
 
 impl Serialize for Trajectory {
     /// `Elements` は [`OrbitSpec`] と同じ形（タグ無し）。期間を持つ軌道は、その欄に `span_s` を足した形。
+    /// `State` は [`StateSpec`] の欄に `source = "state"` を足した形。
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         match self {
             Self::Elements(o) => o.serialize(s),
+            Self::State(spec) => StateRepr {
+                source: "state".to_owned(),
+                spec: spec.clone(),
+            }
+            .serialize(s),
             Self::Spanned { orbit, span_s } => match orbit.as_ref() {
-                Self::Elements(o) => TrajectoryRepr {
+                Self::Elements(o) => ElementsRepr {
                     orbit: o.clone(),
                     span_s: Some(*span_s),
                 }
                 .serialize(s),
                 // 期間は 1 段だけ（`with_span` が置き換える）。入れ子は作らない
-                Self::Spanned { .. } => Err(serde::ser::Error::custom("Nested trajectory span")),
+                Self::State(_) | Self::Spanned { .. } => {
+                    Err(serde::ser::Error::custom("Nested trajectory span"))
+                }
             },
         }
     }
 }
 
 impl<'de> Deserialize<'de> for Trajectory {
-    /// `source` が無い、または `"elements"` なら [`OrbitSpec`] として読む。
+    /// `source` が無い、または `"elements"` なら [`OrbitSpec`] として、`"state"` なら [`StateSpec`] として読む。
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         use serde::de::Error;
         let mut value = serde_json::Value::deserialize(d)?;
-        let (source, span) = match value.as_object_mut() {
-            Some(map) => (map.remove("source"), map.remove("span_s")),
-            None => (None, None),
-        };
+        let source = value.as_object_mut().and_then(|map| map.remove("source"));
+        if source.as_ref().and_then(serde_json::Value::as_str) == Some("state") {
+            return StateSpec::deserialize(value)
+                .map(Self::State)
+                .map_err(D::Error::custom);
+        }
+        let span = value.as_object_mut().and_then(|map| map.remove("span_s"));
         let span_s = match span {
             None | Some(serde_json::Value::Null) => None,
             Some(v) => Some(v.as_f64().ok_or_else(|| {

@@ -20,15 +20,12 @@ use crate::ephem::{CentralBody, EphemerisSource, covers, eci_to_ecliptic_j2000};
 use crate::force::ForceConfig;
 use crate::math::Vec3;
 use crate::ode::{Dop853, step_offsets};
-use crate::orbit::{ClosestApproach, NUMERICAL_INTEGRATOR, closest_approach, propagate_states};
+use crate::orbit::{ClosestApproach, HELIOCENTRIC_INTEGRATOR, closest_approach, propagate_states};
 use crate::state::OrbitState;
 use crate::time::Epoch;
 
 /// 巡航の積分器: 精度は既定の数値伝搬と同じで、刻みの上限だけを 1 日にする（惑星間は 600 s の上限が要らない）。
-pub const CRUISE_INTEGRATOR: Dop853 = Dop853 {
-    max_step: SECONDS_PER_DAY,
-    ..NUMERICAL_INTEGRATOR
-};
+pub const CRUISE_INTEGRATOR: Dop853 = HELIOCENTRIC_INTEGRATOR;
 
 /// 距離を測る粗い格子の間隔 [s]。
 const COARSE_STEP_S: f64 = 21_600.0;

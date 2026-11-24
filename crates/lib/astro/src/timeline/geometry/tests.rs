@@ -314,3 +314,63 @@ fn refined_geometry_extreme_is_not_worse_than_the_samples() {
     let coarse_max = g.iter().map(|s| s.earth_distance_m).fold(0.0, f64::max);
     assert!(r.max.value >= coarse_max && r.max.value < (2.5 + E_EARTH) * AU);
 }
+
+/// 解析的な軌道の `ProbeTrack` は、`geometry_at` の 1 時刻とビットまで同じ（表を使わない）。
+#[test]
+fn probe_track_of_an_analytic_orbit_equals_geometry_at_exactly() {
+    let (orbit, _) = leo();
+    let probe = ProbeTrack::new(&orbit, epoch(), 5_000.0).expect("track");
+    for t in [0.0, 17.3, 1234.5, 5_000.0] {
+        assert_eq!(
+            probe.geometry(t).expect("probe"),
+            geometry_at(&orbit, epoch(), &[t]).expect("direct")[0]
+        );
+    }
+}
+
+/// 状態ベクトルの軌道（太陽の点質量だけの 1 au の円軌道）: 太陽距離は 1 年を通して 1 au で、地球距離は直接の積分の
+/// 値と表の値で、位置の補間の上限 4.2e-8 au 以内で一致する（`orbit::state_spec` のテストと同じ導出: 円軌道の
+/// エルミート補間の相対誤差 `(2π/100)⁴/384` に積分の誤差を足したもの）。詰めた極値も 1 au のまま。
+#[test]
+fn a_heliocentric_state_orbit_has_constant_sun_distance_and_a_consistent_table() {
+    use crate::force::{ForceConfig, GravityModel};
+    use crate::orbit::StateSpec;
+    let central = CentralBody::Sun;
+    let t = std::f64::consts::TAU * (AU.powi(3) / central.gm()).sqrt();
+    let state = crate::orbit::OrbitState {
+        r_eci: Vec3::new(AU, 0.0, 0.0),
+        v_eci: Vec3::new(0.0, (central.gm() / AU).sqrt(), 0.0),
+    };
+    let forces = ForceConfig {
+        omit_earth: true,
+        ..ForceConfig::gravity_only(GravityModel::PointMass)
+    };
+    let orbit = Trajectory::State(StateSpec::with_defaults(
+        epoch(),
+        central,
+        state,
+        t,
+        Some(forces),
+    ));
+    let times = sample_times(t, t / 100.0).expect("times");
+    let samples = geometry_at(&orbit, epoch(), &times).expect("samples");
+    assert!(
+        samples
+            .iter()
+            .all(|s| (s.sun_distance_m - AU).abs() < 1e-8 * AU)
+    );
+    let probe = ProbeTrack::new(&orbit, epoch(), t).expect("track");
+    for s in &samples {
+        let p = probe.geometry(s.t_s + 1234.5).expect("probe");
+        let direct = geometry_at(&orbit, epoch(), &[s.t_s + 1234.5]).expect("direct")[0];
+        assert!(
+            (p.earth_distance_m - direct.earth_distance_m).abs() < 4.2e-8 * AU,
+            "t = {}",
+            s.t_s
+        );
+    }
+    let x = refined_extremes(&orbit, epoch(), &samples, Metric::SunDistance)
+        .expect("extremes")
+        .expect("some");
+    assert!((x.min.value - AU).abs() < 1e-7 * AU && (x.max.value - AU).abs() < 1e-7 * AU);
+}

@@ -197,6 +197,10 @@ pub struct Maneuver {
     /// バイエリプティック遷移の中間の遠地点の高度（impulsive・finite_burn だけ）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub via_altitude: Option<Quantity>,
+    /// 直接書いた ΔV（速度。軌道の変更ではなく余裕として見込む軌道修正・軌道維持・マージン。軌道は変わらない。
+    /// `[target]`・`via_altitude`・`[transfer]` とは一緒に書かず、`method` は impulsive か low_thrust）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delta_v: Option<Quantity>,
     #[serde(default, skip_serializing_if = "ManeuverTarget::is_empty")]
     pub target: ManeuverTarget,
     #[serde(default, skip_serializing_if = "ManeuverConstraints::is_empty")]
@@ -258,6 +262,7 @@ mod tests {
             thruster: None,
             after: after.map(str::to_owned),
             via_altitude: None,
+            delta_v: None,
             target: ManeuverTarget::default(),
             constraints: ManeuverConstraints::default(),
             transfer: None,
