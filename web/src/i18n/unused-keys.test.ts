@@ -48,6 +48,8 @@ const DYNAMIC_PREFIXES: Record<string, string> = {
   "project.data.ephemeris.": "DataPanel が API の天体暦の種別で引く",
   "diagram.toolbar.": "DiagramToolbar が層の名前（power / signal / gnd）で引く",
   "catalog.shared.hint.": "SharedCatalogsDialog が共有カタログの状態で引く",
+  "systems.plateTemperatures.quantity.":
+    "plate-temperatures.ts の場の選択肢が API の場の量（ThermalPlateQuantity）で引く",
   "systems.rangeChart.kinds.": "RangeTip などが温度範囲の種別で引く",
   "project.groups.": "SettingsPage が設定の区分（scope）で引く",
   "diagram.right": "RouteControls が接続の側（left / right / top / bottom）で引く",

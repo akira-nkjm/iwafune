@@ -49,5 +49,24 @@ fn the_catalog_names_the_detail_type() {
         .filter(|e| e.detail_type.is_some())
         .map(|e| (e.info.id.as_str(), e.detail_type.as_deref().unwrap()))
         .collect();
-    assert_eq!(with, [("structure.modal_fem", "ModalFemShapes")]);
+    assert_eq!(
+        with,
+        [
+            ("structure.modal_fem", "ModalFemShapes"),
+            ("thermal.steady", "ThermalPlateTemperatures"),
+            ("thermal.transient", "ThermalPlateTemperatures"),
+        ]
+    );
+}
+
+/// 板に分けていない設計（デモ）では、熱の解析は詳細を頼まれても詳細を付けず、出力も変わらない。
+#[test]
+fn a_design_without_subdivision_has_no_thermal_detail() {
+    let ws = demo();
+    for id in ["thermal.steady", "thermal.transient"] {
+        let plain = run(&ws, id, false);
+        let with = run(&ws, id, true);
+        assert!(with.detail.is_none(), "{id}");
+        assert_eq!(with.output, plain.output, "{id}");
+    }
 }

@@ -109,6 +109,18 @@ impl PlateGrid {
         at[v] = (j as f64 + 0.5) * dv - 0.5 * self.size[v];
         at
     }
+
+    /// 格子の頂点 (a, b)（a は 0 〜 u 方向の升の数、b は 0 〜 v 方向の升の数）の、箱の中心からのずれ
+    /// （箱の座標系の x, y, z。板の中央の面の上で、法線方向は 0）[m]。升 (i, j) の四隅は
+    /// (i, j)・(i + 1, j)・(i + 1, j + 1)・(i, j + 1) で、この順は法線に対して左回り（(u, v, 法線) が右手系だから）。
+    pub fn vertex_offset(&self, a: usize, b: usize) -> [f64; 3] {
+        let [du, dv] = self.cell_size();
+        let [u, v] = self.axes;
+        let mut at = [0.0; 3];
+        at[u] = a as f64 * du - 0.5 * self.size[u];
+        at[v] = b as f64 * dv - 0.5 * self.size[v];
+        at
+    }
 }
 
 #[cfg(test)]
@@ -140,6 +152,23 @@ mod tests {
         assert_eq!((g.index(2, 1), g.position(5)), (5, (2, 1)));
         assert!(g.is_plate());
         assert!(!PlateGrid::new([0.3, 0.2, 0.1], [2, 2]).unwrap().is_plate());
+    }
+
+    /// 手計算: 0.3 × 0.2 × 0.003 m の板を 3 × 2 に分けると、頂点 (0,0) は (−0.15, −0.1)、(3,2) は (0.15, 0.1)、
+    /// 升 (2,1) の中心 (0.1, 0.05) は頂点 (2,1) と (3,2) の中点。
+    #[test]
+    fn vertices_by_hand() {
+        let g = PlateGrid::new([0.3, 0.2, 0.003], [3, 2]).unwrap();
+        let (a, b, c) = (
+            g.vertex_offset(0, 0),
+            g.vertex_offset(3, 2),
+            g.vertex_offset(2, 1),
+        );
+        assert!((a[0] + 0.15).abs() < 1e-15 && (a[1] + 0.1).abs() < 1e-15 && a[2] == 0.0);
+        assert!((b[0] - 0.15).abs() < 1e-15 && (b[1] - 0.1).abs() < 1e-15);
+        let centre = g.centre_offset(2, 1);
+        assert!((0.5 * (b[0] + c[0]) - centre[0]).abs() < 1e-15);
+        assert!((0.5 * (b[1] + c[1]) - centre[1]).abs() < 1e-15);
     }
 
     #[test]

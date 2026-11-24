@@ -11,14 +11,14 @@ import { useT } from "@/i18n";
 import { Empty } from "@/kit/feedback/Empty";
 import { NativeSelect, type SelectOption } from "@/kit/forms/NativeSelect";
 import { RangeInput } from "@/kit/forms/RangeInput";
+import { FieldLegend } from "@/kit/scene3d/FieldLegend";
+import { type HeatScale, heatColor } from "@/lib/heat-scale";
 import { useScheme } from "@/lib/theme";
-import { heatHex } from "@/lib/tone";
 import { Formatted } from "@/quantity/Formatted";
+import { Temp } from "@/quantity/Temp";
 import { Button } from "@/ui/button";
 import {
-  type HeatScale,
   type HeatSource,
-  heatRatio,
   heatScaleOf,
   nodeTemperatures,
   partHeatColors,
@@ -26,7 +26,6 @@ import {
 } from "./heat";
 import { orbitView } from "./insetGeometry";
 import { OrbitInset } from "./OrbitInset";
-import { Temp } from "./RangeTip";
 
 /** 再生で 1 回に進める時刻の数と間隔。全体を約 10 秒で再生する */
 /** 再生の 1 コマの間隔 [ms]（等倍）と、選べる速さ。等倍は 1 コマに 1 標本（1 周がおよそ十数秒） */
@@ -40,10 +39,6 @@ const SPEEDS = [
   { value: "8", label: "8×", tickMs: TICK_MS, step: 8 },
 ] as const;
 const DEFAULT_SPEED = SPEEDS[2];
-
-/** 凡例の帯（CSS の線形グラデーション。色は `heatHex`） */
-const gradientOf = () =>
-  `linear-gradient(to right, ${Array.from({ length: 8 }, (_, i) => heatHex(i / 7)).join(", ")})`;
 
 /** 選択肢の値 → 出どころ。値は選択肢の並びで決める（ケースの ID を文字列として分解しない） */
 export function sourceOptions(
@@ -213,11 +208,7 @@ function TimeControl({
 function Legend({ scale }: { scale: HeatScale }) {
   const I = useT().systems.thermalImage;
   return (
-    <div className="flex items-center gap-2 text-ink-2 text-xs" role="img" aria-label={I.scale}>
-      <Temp si={scale.min} />
-      <span className="h-3 w-48 max-w-full rounded-sm" style={{ background: gradientOf() }} />
-      <Temp si={scale.max} />
-    </div>
+    <FieldLegend low={<Temp si={scale.min} />} high={<Temp si={scale.max} />} label={I.scale} />
   );
 }
 
@@ -258,7 +249,7 @@ export function NodeList({
               <span
                 aria-hidden
                 className="size-3 shrink-0 rounded-sm"
-                style={{ background: heatHex(heatRatio(temp, scale)) }}
+                style={{ background: heatColor(temp, scale) }}
               />
               {/* 名前が長いときは名前を切り、短い目印（部品ごと）は残す */}
               <span className="flex min-w-0 flex-1 items-baseline gap-1 font-mono text-ink-2">
