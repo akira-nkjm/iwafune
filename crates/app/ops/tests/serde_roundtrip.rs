@@ -4,8 +4,8 @@
 use fune_model::Id;
 use fune_model::builtin;
 use fune_model::design::{
-    Case, CatalogField, Distribution, Harness, Maturity, NetField, PartField, Pose, Source,
-    SourceKind, UncertaintySide,
+    Case, CaseField, CatalogField, Distribution, Harness, Maturity, NetField, PartField, Pose,
+    Source, SourceKind, UncertaintySide,
 };
 use fune_model::value::{
     Authored, Provenance, Quantity, Quaternion, Scalar, SettingValue, Value, Vector3,
@@ -86,6 +86,7 @@ fn name(op: &Op) -> &'static str {
         Op::UnsetPhaseLaw { .. } => "UnsetPhaseLaw",
         Op::SetCasePhase { .. } => "SetCasePhase",
         Op::SetCaseEpoch { .. } => "SetCaseEpoch",
+        Op::SetCaseField { .. } => "SetCaseField",
         Op::CreateConfiguration { .. } => "CreateConfiguration",
         Op::SetConfiguration { .. } => "SetConfiguration",
         Op::RemoveConfiguration { .. } => "RemoveConfiguration",
@@ -500,6 +501,10 @@ fn other_ops() -> Vec<Op> {
             case: "eclipse_worst".into(),
             phase: None,
         },
+        Op::SetCaseField {
+            case: "eclipse_worst".into(),
+            field: CaseField::Beta(Some(Quantity::new(60.0, "deg"))),
+        },
         Op::RenameNet {
             id: "P5V".into(),
             to: "P5V_MAIN".into(),
@@ -598,7 +603,7 @@ fn every_op_round_trips_through_json() {
     let mut seen: Vec<&str> = ops.iter().map(name).collect();
     seen.sort();
     seen.dedup();
-    assert_eq!(seen.len(), 88, "some op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 89, "some op kinds have no sample: {seen:?}");
     for op in &ops {
         let json = serde_json::to_string(op).unwrap();
         let back: Op =

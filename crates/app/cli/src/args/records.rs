@@ -9,7 +9,8 @@ use clap::{Args, Subcommand};
 pub enum CaseCmd {
     /// List analysis cases
     Ls,
-    /// Write an analysis case
+    /// Write an analysis case (creates it, or replaces the whole record: fields not given are removed and listed in the output;
+    /// to change one field and keep the rest use `fune set cases.<ID>.<field> <value>`, e.g. `fune set cases.hot.beta "60 deg"`)
     Set(CaseArgs),
     /// Create analysis cases from the representative days of a seasonal analysis
     FromEclipse {
@@ -47,7 +48,7 @@ pub enum CaseCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// Set the phase of an analysis case (its orbit and attitude law overrides then apply)
+    /// Set the phase of an analysis case (its orbit and attitude law overrides then apply; same as `fune set cases.<ID>.phase <PHASE>`)
     SetPhase {
         id: String,
         phase: String,
@@ -60,7 +61,7 @@ pub enum CaseCmd {
         #[command(flatten)]
         edit: EditOpts,
     },
-    /// Set the time an analysis case starts at on its orbit (ISO 8601; the other fields stay as they are)
+    /// Set the time an analysis case starts at on its orbit (ISO 8601; the other fields stay as they are; same as `fune set cases.<ID>.epoch <TIME>`)
     SetEpoch {
         id: String,
         /// e.g. `"2031-05-02T00:00:00Z"` (within the span for a one-off orbit)
@@ -130,7 +131,8 @@ pub struct CaseArgs {
 pub enum SourceCmd {
     /// List sources
     Ls,
-    /// Write a source
+    /// Write a source (creates it, or replaces the whole record: fields not given are removed and listed in the output;
+    /// there is no one-field edit for sources yet, so give every field you want to keep)
     Set(Box<SourceArgs>),
     /// Remove a source (refused if a value refers to it)
     Rm {
@@ -201,7 +203,8 @@ pub struct SourceArgs {
 pub enum HarnessCmd {
     /// List harness segments
     Ls,
-    /// Write a harness segment
+    /// Write a harness segment (creates it, or replaces the whole record: fields not given are removed and listed in the output;
+    /// there is no one-field edit for harness segments yet, so give every field you want to keep)
     Set(HarnessArgs),
     /// Remove a harness segment
     Rm {
@@ -252,7 +255,8 @@ pub enum ManeuverCmd {
     Ls,
     /// Add a maneuver (refused if the ID exists)
     Add(ManeuverArgs),
-    /// Write a maneuver (create it, or replace it entirely if it exists)
+    /// Write a maneuver (create it, or replace it entirely if it exists: fields not given are removed and listed in the output;
+    /// there is no one-field edit for maneuvers yet, so give every field you want to keep)
     Set(ManeuverArgs),
     /// Remove a maneuver (later maneuvers are re-linked to the one before it)
     Rm {

@@ -8,6 +8,7 @@
 //! | `mode` | Mode・StateAssign（運用モードの表） |
 //! | `phase` | フェーズ（ミッションの段階。軌道と姿勢則の上書き・並び `Design::ordered_phases`） |
 //! | `system` | Net・Harness・Case |
+//! | `case_field` | 解析ケースの欄の名前（`CaseFieldName`）と型付きの欄（`CaseField`。`fune set cases.<ID>.<欄>`） |
 //! | `source` | Source・SourceKind・Distribution（出典の台帳） |
 //! | `maneuver` | マヌーバ（区分・計算の段階・目標の軌道・制約）と実行の順（`Design::ordered_maneuvers`） |
 //! | `requirement` | 要求（文・制約・量化・出典・確かめる先）と解析の ID の一覧 |
@@ -21,6 +22,7 @@
 //! | `thermal_settings` | 熱の解析の設定（`analysis/thermal.toml`。環境条件・プリセット・解析マージン・表面材・発熱の場所・節点間の明示の結合と外殻の放射） |
 //! | `refs` | 参照の索引（ある ID をどのエンティティのどのキーが持っているか。`Design::references`） |
 //! | `setting_dims` | 設定の量の次元の表（パスの形 → 次元。検査と射影が引く） |
+//! | `setting_lists` | 値が文字列の一覧になる設定の欄の表（パスの形 → 一覧。人が打った文字列を読む型を決める） |
 //! | `settings_view` | 型付きの設定をパス記法で読む（`Design::setting`・`setting_entries`・`settings_json`） |
 //! | `source_map` | エンティティ → ファイル・キー → 行 |
 //! | `view` | 図の配置（見た目だけ） |
@@ -28,6 +30,7 @@
 pub mod acknowledged;
 pub mod analysis;
 pub mod budget;
+pub mod case_field;
 pub mod conditions;
 pub mod configuration;
 pub mod criteria;
@@ -46,6 +49,7 @@ pub mod project;
 pub mod refs;
 pub mod requirement;
 pub mod setting_dims;
+pub mod setting_lists;
 pub mod settings_view;
 pub mod shared_catalog;
 pub mod source;
@@ -59,6 +63,7 @@ pub mod view;
 pub use acknowledged::{AcknowledgedFinding, FindingKind};
 pub use analysis::*;
 pub use budget::*;
+pub use case_field::{CaseField, CaseFieldName};
 pub use conditions::*;
 pub use configuration::*;
 pub use criteria::{

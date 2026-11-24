@@ -7,9 +7,11 @@ use clap::{Args, Subcommand};
 /// `fune set`
 #[derive(Debug, Args)]
 pub struct SetArgs {
-    /// Path (`RW_X.mass`, `RW_X.power.on`, `RW_X.label`, `analysis.power.dod_max`)
+    /// Path (`RW_X.mass`, `RW_X.power.on`, `RW_X.label`, `analysis.power.dod_max`, or one field of an analysis case: `cases.<ID>.<field>`
+    /// with label, description, mode, phase, side, thermal_case, beta, orbits, sun_distance or epoch)
     pub path: String,
-    /// Value (e.g. `"620 g"`, `"-20 .. 60 degC"`, `"0 0 1"`)
+    /// Value (e.g. `"620 g"`, `"-20 .. 60 degC"`, `"0 0 1"`). A list setting (`analysis.thermal.nodes.<NODE>`, `analysis.comm.stations`)
+    /// takes comma-separated words (`"BAT_A, BAT_B"`) or a TOML array of strings (`'["BAT_A", "BAT_B"]'`)
     #[arg(allow_hyphen_values = true)]
     pub value: String,
     /// Source ID (sources/)
@@ -447,7 +449,8 @@ pub enum AcknowledgedCmd {
 pub enum SettingCmd {
     /// List settings
     Ls,
-    /// Change a setting (e.g. `fune setting set analysis.power.dod_max 0.3`)
+    /// Change a setting (e.g. `fune setting set analysis.power.dod_max 0.3`; a list setting such as `analysis.thermal.nodes.<NODE>`
+    /// takes comma-separated words `"A, B"` or a TOML array of strings `'["A", "B"]'`)
     Set {
         key: String,
         #[arg(allow_hyphen_values = true)]

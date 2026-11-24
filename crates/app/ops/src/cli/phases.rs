@@ -2,9 +2,9 @@
 
 use super::text::Cmd;
 use crate::op::Op;
-use fune_model::design::Phase;
 use fune_model::design::settings_view::entries_under;
-use fune_model::path::SettingPath;
+use fune_model::design::{CaseField, Phase};
+use fune_model::path::{CASES_ROOT, SettingPath};
 use fune_model::value::{list_to_text, quantity_to_text, setting_to_text};
 
 /// フェーズの Op のコマンド（1 行以上）。該当しなければ None。
@@ -37,8 +37,27 @@ pub(super) fn phase_op(op: &Op) -> Option<Vec<String>> {
             Some(e) => Cmd::new(&["fune", "case", "set-epoch", case, e]).done(),
             None => Cmd::new(&["fune", "case", "unset-epoch", case]).done(),
         }],
+        Op::SetCaseField { case, field } => vec![case_field_cmd(case, field)],
         _ => return None,
     })
+}
+
+/// ケースの欄 1 つを書くコマンド（`fune set cases.<ID>.<欄> <値>`。外すなら `fune unset`）。
+fn case_field_cmd(case: &str, field: &CaseField) -> String {
+    let path = format!("{}.{case}.{}", CASES_ROOT, field.key().as_str());
+    let text = match field {
+        CaseField::Label(v)
+        | CaseField::Description(v)
+        | CaseField::Mode(v)
+        | CaseField::ThermalCase(v) => v.clone(),
+        CaseField::Side(v) => v.map(|s| s.as_str().to_owned()),
+        CaseField::Beta(v) | CaseField::SunDistance(v) => v.as_ref().map(quantity_to_text),
+        CaseField::Orbits(v) => v.map(|n| n.to_string()),
+    };
+    match text {
+        Some(t) => Cmd::new(&["fune", "set", &path]).arg(&t).done(),
+        None => Cmd::new(&["fune", "unset", &path]).done(),
+    }
 }
 
 /// 見出しの欄の `phase add|set` と、軌道・姿勢則の葉ごとの `phase set-field`（フェーズの `set` は軌道と姿勢則を今のまま残すので、

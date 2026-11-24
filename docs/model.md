@@ -526,6 +526,17 @@ pub trait Project<I> {
 - Computation cache: Derived is memoized keyed by a fingerprint of the inputs. At the scale of thousands of items, simple full recomputation is enough.
   If it becomes slow, consider an incremental computation framework (such as salsa).
 
+### 5.0 Editing a case
+
+`fune case set <ID> --…` **writes the whole record** (`SetCase`): a field that is not given is removed. Every Op that replaces a record this way
+(`case set`, `maneuver set`, `requirement set`, `source set`, `harness set`, `phase set` for its heading fields, `configuration set`, `net replace`, `sequence set`, the attribute and kind replacements)
+reports the keys it removed from an existing file: the CLI prints `Removed from cases/hot.toml: beta, orbits (not given to set)` as a warning (`Would remove from …` before the diff of a `--dry-run`),
+`POST /ops` returns them as `removed: [{ path, keys }]` (also with `dry_run`), and the GUI preview shows them. Nested keys are dotted (`target.altitude`); a key that a later Op of the same batch writes back is not reported.
+To change one field and keep the rest, use the generic path: `fune set cases.<ID>.<field> <value>` and `fune unset cases.<ID>.<field>` (HTTP `POST /ops/from_text` and `/ops/unset_from_text` with the same `path`),
+where `<field>` is any of `label`, `description`, `mode`, `phase`, `side` (`nominal`/`min`/`max`), `thermal_case`, `beta` (`"60 deg"`), `orbits` (an integer), `sun_distance` (`"0.7 AU"`) and `epoch` (ISO 8601).
+They make the Op `SetCaseField` (one field of the case; the case must exist), except `phase` and `epoch`, which make `SetCasePhase` and `SetCaseEpoch` (the same as `fune case set-phase` / `set-epoch`).
+There is no one-field path yet for maneuvers, requirements, sources, harness segments and the heading fields of a phase; those commands list what they drop.
+
 ### 5.1 Condition selection for analysis cases
 
 Projection's `case_policy::effective_case` gives priority to an explicit case. The targets to which `analysis.common.default_case` is applied
@@ -755,7 +766,7 @@ all go through it. Node names and part IDs share one namespace, so the rules are
 - A `[nodes]` key that equals the ID of a part that `[nodes]` does not list (and the part's own list is not that key) is a check error (`thermal.node_name_clash`): the part would be a node of the same name. Rename the key or list the part.
   (A key equal to the ID of a part that is listed in another node, or in the key's own list, is fine.)
 - A node needs a positive heat capacity. A part without `mass` (a required attribute of every component kind) is a missing input `<part>.mass`, exactly as for a listed part; a part without `specific_heat` uses the attribute's default;
-  `count` multiplies the capacity. A part of zero mass (or `count = 0`) would be a node of zero capacity, which the analysis refuses as an input error naming the node; give it a mass or list it in `[nodes]` with a part that has one.
+  `count` multiplies the capacity. A part of zero mass would be a node of zero capacity, which the analysis refuses as an input error naming the node. `fune check` reports it before any analysis runs, as the warning `thermal.zero_capacity` on the part (or on `analysis.thermal.nodes.<NODE>` when every part of a lumped node has zero mass), only when the design has `analysis/thermal.toml`; give the part a mass or list it in `[nodes]` with a part that has one. (`count = 0` is read as 1, so it never makes a node of zero capacity.)
   There is no separate notion of an organisational or purely logical part: groups and assemblies are not parts, and every part is a physical component with a mass. A launcher or dispenser is not a satellite part and is not a node.
 - Node names in `[conductive.*]`, `[radiative.*]`, `[heat_node]` and in the requirement check keys `range_high:<node>:<kind>`/`range_low:<node>:<kind>` are part IDs or `[nodes]` keys. Renaming a part that is a per-part node rewrites those names
   (couplings, `[heat_node]` values, check keys) and removing it is refused while a requirement check key names it. The analysis input marks per-part nodes with `per_part` (display only, so the GUI can tell "per part" from "lumped").
@@ -2239,6 +2250,11 @@ Writing rules enforced by `fune fmt` and `fune check`.
 9. A renamed key is also read from its old name with the same value, and a `toml.renamed_key` warning urges migration. `fune fmt` (and `fune set` on that file) rewrites it to
    the new name (the line position, value and comments are kept; `=` is realigned). Typing the old name into `fune set` also writes the new name. The mapping is in one place, `fune_store::profile::renamed`. At present the only entry is
    `[case.*] earth_ir` → `planet_ir` in `analysis/thermal.toml` (§5.2).
+10. **List settings.** A setting whose value is a list of strings is written with `fune set` / `fune setting set` / `POST /ops/from_text` as comma-separated words
+   (`fune set analysis.thermal.nodes.BUS "OBC, PCDU, BAT"`) or as a TOML array of strings (`fune set analysis.thermal.nodes.BUS '["OBC", "PCDU", "BAT"]'`; the array may be empty).
+   Which keys are lists is decided by the key alone, from the one table `fune_model::design::setting_lists::LIST_SETTINGS` (at present `analysis.thermal.nodes.<NODE>` and `analysis.comm.stations`), never guessed from the text;
+   an unset key is typed the same way, and `fune unset` removes the key. The words are checked like the same references written in the file (`ref.*`), and `fune part rename` / `fune ground rename` rewrite them.
+   `to_cli` prints the comma-separated form.
 
 ### 10.3 TOML versions
 
