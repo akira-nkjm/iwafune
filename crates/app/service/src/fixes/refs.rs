@@ -186,7 +186,7 @@ fn configuration(design: &Design, site: Site<'_>, command: String) -> Fix {
         .map(|c| Choice {
             value: c.id.to_string(),
             label: c.label.clone().unwrap_or_else(|| c.id.to_string()),
-            label_en: None,
+            label_en: c.label_en.clone(),
         })
         .collect();
     pick(

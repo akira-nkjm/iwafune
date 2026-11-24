@@ -101,7 +101,7 @@ pub enum CommandText {
         #[serde(default)]
         epoch: Option<String>,
     },
-    /// `fune configuration add <ID> --label … --description …`（同じ ID があれば拒む）
+    /// `fune configuration add <ID> --label … --label-en … --description …`（同じ ID があれば拒む）
     ConfigurationAdd(super::ConfigurationText),
     /// `fune configuration set <ID> …`（無ければ作り、あれば見出しの欄を置き換える。部品ごとの姿勢は今のまま残す）
     ConfigurationSet(super::ConfigurationText),
