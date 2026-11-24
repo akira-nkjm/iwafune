@@ -122,14 +122,20 @@ export const q = {
       queryFn: () => api<AnalysisEntry[]>("/analyses"),
       staleTime: Number.POSITIVE_INFINITY,
     }),
-  /** 解析の実行。`ops` を渡すと、保存していない編集を書き込まずに当てた設計で計算する */
-  analysis: (id: string, kase: string | null, ops: readonly Op[] = []) => {
+  /** 解析の実行。`ops` を渡すと、保存していない編集を書き込まずに当てた設計で計算する。`configuration` はその形態の配置で計算する */
+  analysis: (
+    id: string,
+    kase: string | null,
+    ops: readonly Op[] = [],
+    configuration: string | null = null,
+  ) => {
     const json = ops.length > 0 ? JSON.stringify(ops) : "";
     return queryOptions({
-      queryKey: keys.analysis(id, kase, json),
+      queryKey: keys.analysis(id, kase, json, configuration),
       queryFn: () => {
         const body: RunAnalysisRequest = {
           case: kase,
+          ...(configuration ? { configuration } : {}),
           source: { kind: "design" },
           ops: [...ops],
         };

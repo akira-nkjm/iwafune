@@ -77,6 +77,12 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
     ),
     (
         "POST",
+        "/ops/maneuver_window",
+        &["maneuver", "set-window"],
+        "edit::maneuver_window_op",
+    ),
+    (
+        "POST",
         "/ops/case_from_eclipse",
         &["case", "from-eclipse"],
         "edit::case_from_eclipse_op",

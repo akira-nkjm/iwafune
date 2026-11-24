@@ -88,6 +88,12 @@ export function pickEdit(fix: PickFix, chosen: string, design: DesignView): Pick
     if (!maneuver) return null;
     return { command: { command: "maneuver_set", ...maneuver.text, thruster: chosen } };
   }
+  if (fix.target.kind === "phase") {
+    const id = fix.target.id;
+    const phase = design.phases.find((x) => x.id === id);
+    if (!phase) return null;
+    return { command: { command: "phase_set", ...phase.text, configuration: chosen } };
+  }
   return {
     text: {
       item: null,

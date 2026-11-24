@@ -43,9 +43,9 @@ function LayoutContent({ design }: { design: DesignView }) {
   const selected = design.configurations.find(({ id }) => id === requested) ?? null;
   const configuration = selected?.id ?? null;
   const parts = useQuery(q.parts(configuration));
-  const mass = useQuery({ ...q.analysis("structure.mass_properties", null), enabled: !selected });
-  const c =
-    !selected && analysisOutput(mass.data, "structure.mass_properties")?.summary.center_of_mass;
+  // 表示中の形態の配置で重心を求める（Base は選択なし）
+  const mass = useQuery(q.analysis("structure.mass_properties", null, [], configuration));
+  const c = analysisOutput(mass.data, "structure.mass_properties")?.summary.center_of_mass;
   const com: V3 | null = c ? [c.x, c.y, c.z] : null;
 
   useEffect(() => {

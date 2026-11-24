@@ -1,6 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { PlaceBodyEdit } from "@/api/ops";
 import { getT, setLang } from "@/i18n";
 import { bodyAt, fixture, mountAt } from "@/test/fixture";
 import { Layout3D } from "./Layout3D";
@@ -19,7 +18,7 @@ const state = vi.hoisted(() => ({
   toggle: (_value: boolean) => {},
   slide: (_value: number) => {},
   scene: vi.fn(),
-  place: vi.fn(),
+  placeBody: vi.fn(),
 }));
 vi.mock("react", async (original) => ({
   ...(await original<typeof import("react")>()),
@@ -80,17 +79,7 @@ vi.mock("@/i18n", async (original) => ({
   ...(await original<typeof import("@/i18n")>()),
   useT: () => getT(),
 }));
-vi.mock("@tanstack/react-query", async (original) => {
-  const actual = await original<typeof import("@tanstack/react-query")>();
-  const client = new actual.QueryClient();
-  return {
-    ...actual,
-    useQueryClient: () => client,
-    useMutation: ({ mutationFn }: { mutationFn: (edit: PlaceBodyEdit) => Promise<unknown> }) => ({
-      mutate: (edit: PlaceBodyEdit) => state.place(mutationFn(edit)),
-    }),
-  };
-});
+vi.mock("@/api/ops", () => ({ usePlaceBody: () => ({ mutate: state.placeBody }) }));
 vi.mock("@/features/components/detail/PlacementSection", () => ({ PlacementSection: () => null }));
 vi.mock("@/kit/selection/Switch", () => ({
   Switch: ({ onChange, children }: { onChange: typeof state.toggle; children: string }) => {
@@ -143,6 +132,7 @@ beforeEach(() => {
   state.home = 0;
   state.scene.mockClear();
   state.browser.mockClear();
+  state.placeBody.mockClear();
 });
 afterEach(() => setLang("ja"));
 
@@ -275,25 +265,45 @@ it("熱の画像: 太陽方向があれば矢印を最初から場面に渡し�
   expect(state.scene.mock.lastCall?.[0]).toMatchObject({ sun: null, helpers: { sun: false } });
 });
 
-it.each([undefined, "STOWED"])("3D の移動は表示中の形態 %s に送る", async (configuration) => {
-  const network = vi.fn(async (_url: string, _init: RequestInit) => new Response("{}"));
-  vi.stubGlobal("fetch", network);
-  try {
-    render(configuration);
-    const { edit } = state.scene.mock.lastCall![0] as { edit: SceneEdit };
-    const id = design.parts[0]!.id;
-    edit.onPlace(id, [0.1, 0.2, 0.3], [1, 0, 0, 0]);
-    await state.place.mock.lastCall?.[0];
-    const [url, init] = network.mock.calls[0]!;
-    expect(url).toBe(`/api/v1/parts/${id}/place_body`);
-    expect(JSON.parse(String(init.body))).toEqual({
+it.each([undefined, "STOWED"])("3D の移動は表示中の形態 %s に送る", (configuration) => {
+  render(configuration);
+  const { edit } = state.scene.mock.lastCall![0] as { edit: SceneEdit };
+  const id = design.parts[0]!.id;
+  edit.onPlace(id, [0.1, 0.2, 0.3], [1, 0, 0, 0]);
+  expect(state.placeBody).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      part: id,
+      configuration,
       position: { x: 0.1, y: 0.2, z: 0.3, unit: "m" },
       orientation: { w: 1, x: 0, y: 0, z: 0 },
-      base_revision: null,
-      dry_run: false,
-      ...(configuration ? { configuration } : {}),
-    });
-  } finally {
-    vi.unstubAllGlobals();
-  }
+    }),
+  );
+});
+
+it("取付の根も 3D で動かせる: 離したときの機体座標がそのまま配置の依頼になる", () => {
+  const s = Math.SQRT1_2;
+  const root = {
+    ...design.parts[0]!,
+    id: "FRAME",
+    mount: null,
+    body: bodyAt([-0.045, 0, 0], [1, 0, 0, 0], true),
+  };
+  renderToStaticMarkup(
+    <Layout3D variant="placement" design={{ ...design, parts: [root] }} com={null} />,
+  );
+  const props = state.scene.mock.lastCall![0] as {
+    boxes: { id: string; position: number[] }[];
+    edit?: { onPlace: (id: string, p: number[], q: number[]) => void };
+  };
+  // 根は掴む対象から外れない（箱は根の位置に出て、編集の手段が渡る）
+  expect(props.boxes).toMatchObject([{ id: "FRAME", position: [-0.045, 0, 0] }]);
+  expect(props.edit).toBeDefined();
+  props.edit!.onPlace("FRAME", [0.01, 0.02, 0.03], [s, 0, 0, s]);
+  expect(state.placeBody).toHaveBeenCalledWith(
+    expect.objectContaining({
+      part: "FRAME",
+      position: { x: 0.01, y: 0.02, z: 0.03, unit: "m" },
+      orientation: { w: s, x: 0, y: 0, z: s },
+    }),
+  );
 });

@@ -52,6 +52,7 @@ function render(
   mass?: AnalysisRunResult,
   url = paths.layout(),
   configurations: ConfigurationView[] = [],
+  stowedMass?: AnalysisRunResult,
 ) {
   route.params = new URL(url, "https://example.test").searchParams;
   route.set.mockClear();
@@ -61,6 +62,11 @@ function render(
   client.setQueryData(q.parts().queryKey, fixture.parts);
   client.setQueryData(q.parts(stowed.id).queryKey, stowedParts);
   if (mass) client.setQueryData(q.analysis("structure.mass_properties", null).queryKey, mass);
+  if (stowedMass)
+    client.setQueryData(
+      q.analysis("structure.mass_properties", null, [], stowed.id).queryKey,
+      stowedMass,
+    );
   const html = renderToStaticMarkup(
     <QueryClientProvider client={client}>
       <LayoutPage />
@@ -108,12 +114,18 @@ describe("LayoutPage", () => {
   });
 });
 
-it("URL の形態に切り替えると対応する部品を表示し、基準の重心を隠す", () => {
-  const html = render(mass, paths.layout(stowed.id), [stowed]);
+it("URL の形態に切り替えると対応する部品と、その形態の配置で求めた重心を表示する", () => {
+  const stowedMass: AnalysisRunResult = {
+    ...mass,
+    output: { summary: { center_of_mass: { x: 0.4, y: 0.5, z: 0.6 } } },
+  };
+  const html = render(mass, paths.layout(stowed.id), [stowed], stowedMass);
   expect(html).toContain('data-configuration="STOWED"');
   expect(html).toContain(`data-overridden="[&quot;${stowedParts[0]!.id}&quot;]"`);
-  expect(html).toContain('data-com="null"');
+  expect(html).toContain('data-com="[0.4,0.5,0.6]"');
   expect(html).toContain('value="STOWED" selected=""');
+  // その形態の重心が未取得の間は、基準の重心を出さずに印を隠す
+  expect(render(mass, paths.layout(stowed.id), [stowed])).toContain('data-com="null"');
 });
 
 it.each(["UNKNOWN", stowed.id])("未知または削除済みの形態 %s は基準に戻る", (id) => {

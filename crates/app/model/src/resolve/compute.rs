@@ -46,6 +46,7 @@ fn resolve_configuration(
             let mut resolved = resolved.clone();
             if let Some(part) = design.parts.get(id) {
                 resolved.mount = resolve_mount(design, part, Some(configuration));
+                resolved.root_pose = resolve_root_pose(design, part, Some(configuration));
             }
             (id.clone(), resolved)
         })
@@ -102,6 +103,7 @@ fn resolve_part(design: &Design, part: &Part) -> ResolvedPart {
         maturity: part.maturity.or_else(|| catalog.and_then(|c| c.maturity)),
         attr,
         mount: resolve_mount(design, part, None),
+        root_pose: resolve_root_pose(design, part, None),
         ports: resolve_ports(design, part, catalog),
         evidence,
     }
@@ -357,6 +359,17 @@ fn resolve_mount(
         point_pose,
         pose: pose_si(design.pose_in(part, configuration)),
     })
+}
+
+/// 取付を持たない部品（根）の `[pose]`（機体座標での姿勢）。形態 `configuration`（`None` は基準）で有効な書かれた姿勢
+/// （`Design::pose_in`。書かれていなければ None）。取付のある部品は None。**根の姿勢を決めるのはここだけ**。
+fn resolve_root_pose(design: &Design, part: &Part, configuration: Option<&str>) -> Option<PoseSi> {
+    if part.mount.is_some() {
+        return None;
+    }
+    design
+        .pose_in(part, configuration)
+        .map(|pose| pose_si(Some(pose)))
 }
 
 fn resolve_ports(

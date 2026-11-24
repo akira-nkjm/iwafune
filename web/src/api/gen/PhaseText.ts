@@ -25,4 +25,8 @@ duration?: string | null,
 /**
  * 使うモード（カンマ区切り）
  */
-modes?: string | null, };
+modes?: string | null, 
+/**
+ * 解析ケースがこのフェーズで使う形態の ID。
+ */
+configuration?: string | null, };

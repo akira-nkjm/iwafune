@@ -13,6 +13,7 @@ use toml_edit::Item;
 
 mod defs;
 mod records;
+mod thermal;
 
 pub use defs::{rename_attribute, rename_kind};
 pub use records::{
@@ -245,8 +246,11 @@ fn rename_at(
         | RefSite::ThermalNode { .. }
         | RefSite::ThermalSurface
         | RefSite::ThermalHeatNode
+        | RefSite::ThermalNodeName
         | RefSite::CaseMode { .. }
         | RefSite::CasePhase { .. }
+        | RefSite::PhaseConfiguration { .. }
+        | RefSite::LaunchConfiguration
         | RefSite::PhaseMode { .. }
         | RefSite::PhaseLaw { .. }
         | RefSite::PowerModeShare
@@ -278,6 +282,8 @@ fn rename_at(
         | RefSite::CatalogItemDatasheet { .. }
         | RefSite::RequirementSource { .. }
         | RefSite::ManeuverAfter { .. }
+        | RefSite::OrbitManeuver
+        | RefSite::PhaseOrbitManeuver { .. }
         | RefSite::CommDataDownlink
         | RefSite::RequirementCheck { .. } => records::rename_record_at(edits, design, site, names),
     }
@@ -365,8 +371,13 @@ fn rename_setting_at(
         }),
         RefSite::ThermalSurface => rename_in(edits, &thermal(), &["surface"], from, to),
         RefSite::ThermalHeatNode => rename_in(edits, &thermal(), &["heat_node"], from, to),
+        RefSite::ThermalNodeName => thermal::rename_node_name(edits, from, to),
         RefSite::CaseMode { case } => set_top(edits, &layout::case_file(case), "mode", to),
         RefSite::CasePhase { case } => set_top(edits, &layout::case_file(case), "phase", to),
+        RefSite::PhaseConfiguration { phase } => {
+            set_top(edits, &layout::phase_file(phase), "configuration", to)
+        }
+        RefSite::LaunchConfiguration => set_top(edits, &layout::launch_file(), "configuration", to),
         RefSite::PhaseMode { phase } => {
             replace_in(edits, &layout::phase_file(phase), "modes", from, to)
         }

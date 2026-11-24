@@ -5,8 +5,8 @@ import { q } from "@/api/queries";
 import type { ConfigurationView, PartRow, PoseQuantities } from "@/api/types";
 import { getT, setLang } from "@/i18n";
 import { byLabel, findElement, fire } from "@/test/elements";
-import { fixture, mountAt, qv, zeroPose } from "@/test/fixture";
-import { PlacementOverrides, PlacementSection } from "./PlacementSection";
+import { bodyAt, fixture, mountAt, qv, zeroPose } from "@/test/fixture";
+import { initialForm, PlacementOverrides, PlacementSection, placeText } from "./PlacementSection";
 
 const state = vi.hoisted(() => ({
   mutate: vi.fn(),
@@ -220,12 +220,59 @@ it("部品詳細は上書きのある形態の取付点からの姿勢を読み�
   expect(html).not.toContain("<input");
 });
 
-it("形態を選んでも取付の根の姿勢は編集できない", () => {
-  const t = getT().components.placement;
-  const part = { ...fixture.parts[0]!, mount: null };
+it("形態の中でも取付の根の姿勢を編集できる: 取付先は送らず、形態に位置を書く", () => {
+  const base = fixture.parts[0]!;
+  const body = {
+    ...bodyAt([-0.045, 0, 0], [1, 0, 0, 0], true),
+    authored_position: { x: -45, y: 0, z: 0, unit: "mm", frame: null },
+  };
+  const root: PartRow = { ...base, id: "FRAME", mount: null, body };
+  const form = initialForm(root);
+  const text = placeText(root, { ...form, position: "-30 0 0 mm" }, form, "STOWED");
+  expect(text).toEqual({
+    command: "part_place",
+    part: "FRAME",
+    configuration: "STOWED",
+    position: "-30 0 0 mm",
+    rotation: null,
+    orientation: null,
+  });
   const html = renderToStaticMarkup(
-    <PlacementSection design={fixture} part={part} configuration="STOWED" />,
+    <PlacementSection design={fixture} part={root} configuration="STOWED" />,
   );
-  expect(html).toContain(t.poseLocked);
-  expect(html).toMatch(new RegExp(`aria-label="${t.position}"[^>]*disabled`));
+  // 姿勢と位置の欄は形態でも有効（取付の欄だけが無効）
+  expect(html).not.toMatch(
+    new RegExp(`aria-label="${getT().components.placement.position}"[^>]*disabled`),
+  );
+});
+
+it("取付の根の欄は機体座標での `[pose]` から始まり、打った位置は取付先なしの配置になる", () => {
+  const base = fixture.parts[0]!;
+  const body = {
+    ...bodyAt([-0.045, 0, 0], [1, 0, 0, 0], true),
+    authored_position: { x: -45, y: 0, z: 0, unit: "mm", frame: null },
+    quantities: {
+      position: [mm(-45), mm(0), mm(0)] as PoseQuantities["position"],
+      rotation: [deg(0, "0°"), deg(0, "0°"), deg(90, "90.0°")] as PoseQuantities["rotation"],
+    },
+  };
+  const root: PartRow = { ...base, id: "FRAME", mount: null, body };
+  const form = initialForm(root);
+  expect(form).toMatchObject({
+    on: "",
+    point: "",
+    position: "-45 0 0 mm",
+    angles: ["0", "0", "90"],
+  });
+  // 位置だけ変えると、取付先は空（根のまま）で位置を送る。姿勢は書かれた値（無ければ送らない）
+  const text = placeText(root, { ...form, position: "-30 0 0 mm" }, form);
+  expect(text).toMatchObject({
+    command: "part_place",
+    part: "FRAME",
+    on: "",
+    position: "-30 0 0 mm",
+    rotation: null,
+  });
+  const html = renderToStaticMarkup(<PlacementSection design={fixture} part={root} />);
+  expect(html).toMatch(/aria-label="Z 軸まわりの角度（度）"[^>]*value="90"/);
 });

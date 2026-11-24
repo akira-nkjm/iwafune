@@ -8,10 +8,16 @@ import { LayoutBrowser } from "./LayoutBrowser";
 const L = getT().systems.layout3d;
 
 /** RW_X と PCDU は 3D に箱があり、TRX は未配置 */
-function render(hidden: string[] = [], selected: string | null = null, design = fixture) {
+function render(
+  hidden: string[] = [],
+  selected: string | null = null,
+  design = fixture,
+  configuration: string | null = null,
+) {
   return renderToStaticMarkup(
     <LayoutBrowser
       design={design}
+      configuration={configuration}
       placed={new Set(["RW_X", "PCDU"])}
       selected={selected}
       onSelect={() => {}}
@@ -49,7 +55,7 @@ describe("LayoutBrowser", () => {
   });
 });
 
-it("上書きの印は上書きされた部品にだけ出す", () => {
+it("上書きの印は、形態を表示しているときに上書きされた部品にだけ出す（根は形態の一覧から読む）", () => {
   const label = getT().components.placement.overridden;
   const design = {
     ...fixture,
@@ -58,5 +64,24 @@ it("上書きの印は上書きされた部品にだけ出す", () => {
     ),
   };
   expect(render()).not.toContain(label);
-  expect(render([], null, design).split(label)).toHaveLength(2);
+  expect(render([], null, design).split(label)).toHaveLength(1);
+  expect(render([], null, design, "STOWED").split(label)).toHaveLength(2);
+  // 取付の無い部品（根）は API の mount が無いので、形態の `overridden` に載っているかで決める
+  const root = { ...fixture.parts[0]!, id: "RW_X", mount: null };
+  const rooted = {
+    ...fixture,
+    parts: [root],
+    configurations: [
+      {
+        id: "STOWED",
+        label: "Stowed",
+        description: null,
+        overridden: ["RW_X"],
+        text: { id: "STOWED" },
+        file: "configurations/STOWED.toml",
+      },
+    ],
+  };
+  expect(render([], null, rooted, "STOWED").split(label)).toHaveLength(2);
+  expect(render([], null, rooted).split(label)).toHaveLength(1);
 });

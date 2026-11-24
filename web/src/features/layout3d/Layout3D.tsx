@@ -283,6 +283,7 @@ function Layout3DFrame({
           >
             <LayoutBrowser
               design={design}
+              configuration={configuration}
               placed={placed}
               selected={selected}
               onSelect={pick}

@@ -18,8 +18,6 @@ export interface Box3D {
   sized: boolean;
   /** API が構造の部品と返したもの（`PartRow.structural`。名前や ID から推測しない）。 */
   structure: boolean;
-  /** 取付の根（機体座標の原点。3D で掴んで動かさない） */
-  fixed: boolean;
 }
 
 /**
@@ -177,7 +175,7 @@ export function boxesOf(
   const boxes: Box3D[] = [];
   const unplaced: string[] = [];
   for (const p of design.parts) {
-    // 機体座標の位置・姿勢がある部品（取付のある部品と取付の根。API が決める）だけを置く
+    // 機体座標の位置・姿勢がある部品（取付のある部品・取付の根・姿勢の書かれた根。API が決める）だけを置く。根も動かせる
     const body = p.body;
     if (!body) {
       unplaced.push(p.id);
@@ -192,7 +190,6 @@ export function boxesOf(
       color: colorOf?.(p.id) ?? toneHexFor(scheme)[systemTone(p.system)],
       sized: size !== null,
       structure: p.structural,
-      fixed: body.root,
     });
   }
   const bounds = boundsOf(boxes);

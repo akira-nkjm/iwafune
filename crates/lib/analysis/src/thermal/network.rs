@@ -66,6 +66,9 @@ pub struct ThermalNode {
     /// 節点に含まれる部品（熱容量 = Σ 質量 × 員数 × 比熱）
     #[serde(default)]
     pub parts: Vec<ThermalNodePart>,
+    /// 設計の既定の 1 部品 1 節点か（偽は設計が複数の部品をまとめた節点）。表示の区別だけで、計算には使わない
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub per_part: bool,
     /// 温度一定の境界節点にするときの温度
     #[serde(default)]
     pub fixed_temperature: Option<Qty<Temperature>>,

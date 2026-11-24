@@ -51,14 +51,14 @@ fn demo_kpis_show_the_same_values_as_before() {
         (
             "aocs.rw_unloading",
             &[
-                (KpiKey::UnloadInterval, "16.1 h"),
-                (KpiKey::PeakMomentum, "2.31 mN·m·s"),
+                (KpiKey::UnloadInterval, "16.2 h"),
+                (KpiKey::PeakMomentum, "2.37 mN·m·s"),
             ],
         ),
         // #168 から RCS のアンロード時間も KPI にしたが、デモにスラスタは無いので出ない
         ("aocs.unload_time", &[(KpiKey::MtqUnloadTime, "25.4 min")]),
         ("aocs.sensor_fov", &[(KpiKey::SensorIntrusion, "100 %")]),
-        ("aocs.slew_time", &[(KpiKey::SlewTime, "29.6 s")]),
+        ("aocs.slew_time", &[(KpiKey::SlewTime, "30.1 s")]),
         (
             "cdh.data_budget",
             &[
@@ -90,7 +90,7 @@ fn demo_kpis_show_the_same_values_as_before() {
             "thermal.transient",
             &[
                 (KpiKey::TransientMaxTemperature, "58.0 °C"),
-                (KpiKey::TransientMaxHeaterDuty, "41.8 %"),
+                (KpiKey::TransientMaxHeaterDuty, "41.5 %"),
             ],
         ),
         (

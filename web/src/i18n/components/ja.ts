@@ -72,7 +72,6 @@ export const componentsJa = {
       overridden: "上書きあり",
       resetOverride: "基準に戻す",
       resetSummary: (id: string) => `${id} の姿勢を基準に戻す`,
-      poseLocked: "姿勢を上書きできるのは取付先がある部品です。",
       overrides: "形態ごとの姿勢の上書き",
       mountOn: "取付先",
       mountPart: "取付先の部品",

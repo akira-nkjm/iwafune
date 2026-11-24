@@ -86,8 +86,24 @@ pub fn post_json(
     uri: &str,
     body: serde_json::Value,
 ) -> serde_json::Value {
+    let (status, text) = post_json_response(rt, root, uri, body);
+    assert_eq!(
+        status,
+        axum::http::StatusCode::OK,
+        "POST {uri} failed: {text}"
+    );
+    text
+}
+
+/// HTTP の JSON と状態を返す（エラーを確かめるテストでも使う）。
+pub fn post_json_response(
+    rt: &tokio::runtime::Runtime,
+    root: &Path,
+    uri: &str,
+    body: serde_json::Value,
+) -> (axum::http::StatusCode, serde_json::Value) {
     use axum::body::{Body, to_bytes};
-    use axum::http::{Request, StatusCode};
+    use axum::http::Request;
     use tower::ServiceExt;
     let ws = fune_service::Workspace::open(root).unwrap();
     let router = fune_server::router(std::sync::Arc::new(ws));
@@ -101,8 +117,10 @@ pub fn post_json(
         let bytes = to_bytes(res.into_body(), usize::MAX).await.unwrap();
         (status, String::from_utf8_lossy(&bytes).into_owned())
     });
-    assert_eq!(status, StatusCode::OK, "POST {uri} failed: {text}");
-    serde_json::from_str(&text).unwrap()
+    (
+        status,
+        serde_json::from_str(&text).unwrap_or_else(|e| panic!("POST {uri}: {status}: {text}: {e}")),
+    )
 }
 
 /// `root` を開いた HTTP のルーターに GET し、200 であることを確かめて本文の JSON を返す（パリティテスト用）。
@@ -138,4 +156,22 @@ pub fn assert_same_files(cli: &Path, http: &Path, after: &str) {
             String::from_utf8_lossy(&b[path])
         );
     }
+}
+
+/// 成功した CLI の JSON を読む。
+pub fn cli_json(root: &Path, args: &[&str]) -> serde_json::Value {
+    let out = fune()
+        .arg("-C")
+        .arg(root)
+        .arg("--json")
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{args:?}: {}\n{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    serde_json::from_slice(&out.stdout).unwrap()
 }

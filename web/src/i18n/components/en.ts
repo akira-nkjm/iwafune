@@ -73,7 +73,6 @@ export const componentsEn: typeof componentsJa = {
       overridden: "Overridden",
       resetOverride: "Reset to base",
       resetSummary: (id: string) => `Reset ${id} to its base pose`,
-      poseLocked: "Only mounted parts can have pose overrides.",
       overrides: "Pose overrides by configuration",
       mountOn: "Mounted on",
       mountPart: "Mounting part",

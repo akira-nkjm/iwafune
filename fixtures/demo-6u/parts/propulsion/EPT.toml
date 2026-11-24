@@ -7,7 +7,7 @@ on    = "BUS_FRAME"
 point = "FACE_MZ"
 
 [pose]
-position = { x = 0.0, y = 60.0, z = 30.0, unit = "mm" }
+position = { x = 0.0, y = 60.0, z = 28.0, unit = "mm" }
 
 [attr.mass]
 value       = 0.4
@@ -62,7 +62,7 @@ from.source = "sys_judgement"
 [attr.direction]
 x           = 0.0
 y           = 0.0
-z           = -1.0
+z           = 1.0
 from.source = "sys_judgement"
 
 [attr.size]
@@ -70,4 +70,9 @@ x           = 90.0
 y           = 90.0
 z           = 60.0
 unit        = "mm"
+from.source = "sys_judgement"
+
+[attr.plume_half_angle]
+value       = 20.0
+unit        = "deg"
 from.source = "sys_judgement"

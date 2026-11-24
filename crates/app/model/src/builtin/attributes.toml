@@ -276,7 +276,7 @@ section      = "aocs"
 [spin_axis]
 label       = "回転軸"
 label_en    = "Spin axis"
-description = "部品座標の単位ベクトル"
+description = "機体が押される力の向き（部品座標の単位ベクトル）。排気はこの向きの反対に出る。 / The direction of the force on the spacecraft (a unit vector in the part frame). The exhaust leaves in the opposite direction."
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true
@@ -285,7 +285,7 @@ section     = "aocs"
 [axis]
 label       = "軸"
 label_en    = "Axis"
-description = "部品座標の単位ベクトル"
+description = "機体が押される力の向き（部品座標の単位ベクトル）。排気はこの向きの反対に出る。 / The direction of the force on the spacecraft (a unit vector in the part frame). The exhaust leaves in the opposite direction."
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true
@@ -324,16 +324,28 @@ section      = "aocs"
 [direction]
 label       = "推力の向き"
 label_en    = "Thrust direction"
-description = "部品座標の単位ベクトル"
+description = "機体が押される力の向き（部品座標の単位ベクトル）。排気はこの向きの反対に出る。 / The direction of the force on the spacecraft (a unit vector in the part frame). The exhaust leaves in the opposite direction."
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true
 section     = "aocs"
 
+[plume_half_angle]
+label        = "噴流の半角"
+label_en     = "Plume half angle"
+description  = "排気が広がる円錐の半頂角（推力の向きの反対が軸）。機体の部品が噴流に入っていないかの確認に使う"
+type         = "scalar"
+dimension    = "Angle"
+units        = ["deg", "rad"]
+display_unit = "deg"
+min          = 0.0
+max          = 1.5707963267948966
+section      = "propulsion"
+
 [boresight]
 label       = "視線方向"
 label_en    = "Boresight"
-description = "部品座標の単位ベクトル"
+description = "機体が押される力の向き（部品座標の単位ベクトル）。排気はこの向きの反対に出る。 / The direction of the force on the spacecraft (a unit vector in the part frame). The exhaust leaves in the opposite direction."
 type        = "vec3"
 dimension   = "Dimensionless"
 unit_vector = true

@@ -11,6 +11,7 @@ import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
 import { Pill } from "@/kit/status/Pill";
+import { poseOverridden } from "@/lib/design";
 import {
   AXES,
   numbersInputText,
@@ -21,7 +22,7 @@ import {
 import { Button } from "@/ui/button";
 
 /** 配置の欄に打った文字列（角度は X・Y・Z の 3 つの欄。度） */
-interface PlacementForm {
+export interface PlacementForm {
   on: string;
   point: string;
   position: string;
@@ -31,14 +32,16 @@ interface PlacementForm {
 type Placement = ReturnType<typeof useT>["components"]["placement"];
 
 /** 欄の初期値: 位置は書かれたものだけを書かれた単位で、角度は API の取付点に対する姿勢の角度（度）で */
-function initialForm(part: PartRow): PlacementForm {
+export function initialForm(part: PartRow): PlacementForm {
   const m = part.mount;
-  const r = m?.relative.rotation;
+  // 取付の無い部品（根）の `[pose]` は機体座標での姿勢。書かれた値と角度は API の body から読む
+  const r = m ? m.relative.rotation : part.body?.quantities.rotation;
+  const authored = m ? m.authored_position : part.body?.authored_position;
   return {
     on: m?.on ?? "",
     point: m?.point ?? "",
     // 書かれていなければ空（空の欄は CLI で旗を書かないのと同じで、書かない）
-    position: m?.authored_position ? vectorInputText(m.authored_position) : "",
+    position: authored ? vectorInputText(authored) : "",
     angles: r ? [String(r[0].value), String(r[1].value), String(r[2].value)] : ["0", "0", "0"],
   };
 }
@@ -56,14 +59,17 @@ function sameForm(a: PlacementForm, b: PlacementForm): boolean {
  * `fune part place` の引数。角度を変えたら `--rotation "x y z deg"`、変えなければ書かれた四元数をそのまま
  * `--orientation` で送る（読むのはどちらも service）。
  */
-function placeText(
+export function placeText(
   part: PartRow,
   form: PlacementForm,
   initial: PlacementForm,
   configuration?: string | null,
 ): CommandText {
   const turned = form.angles.some((v, i) => v !== initial.angles[i]);
-  const orientation = part.mount?.authored_orientation;
+  // 取付の無い部品（根）の姿勢は機体座標の `[pose]` の書かれた値
+  const orientation = part.mount
+    ? part.mount.authored_orientation
+    : part.body?.authored_orientation;
   // 位置を空にした場合も、形態の姿勢には位置か姿勢のどちらかが必要。
   const writeAngles = turned || (configuration && !form.position.trim() && !orientation);
   return {
@@ -97,9 +103,8 @@ export function PlacementSection({
   const t = useT().components.placement;
   const [initial] = useState(() => initialForm(part));
   const [form, setForm] = useState(initial);
-  const poseLocked = Boolean(configuration && (!part.mount || part.body?.root));
   const made = useCommandOps(
-    poseLocked || sameForm(form, initial) ? null : placeText(part, form, initial, configuration),
+    sameForm(form, initial) ? null : placeText(part, form, initial, configuration),
   );
   const edit = (patch: Partial<PlacementForm>) => setForm((f) => ({ ...f, ...patch }));
   const place = () => {
@@ -107,7 +112,7 @@ export function PlacementSection({
   };
   return (
     <PropertyList className="@container min-w-0">
-      {configuration && part.mount?.overridden && (
+      {configuration && poseOverridden(design, configuration, part) && (
         <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
           <Pill tone="accent" dot={false}>
             {t.overridden}
@@ -127,7 +132,6 @@ export function PlacementSection({
           </Button>
         </div>
       )}
-      {poseLocked && <p className="px-3 py-2 text-ink-3 text-xs">{t.poseLocked}</p>}
       <MountFields
         design={design}
         part={part}
@@ -146,7 +150,6 @@ export function PlacementSection({
           aria-label={t.position}
           mono
           size="sm"
-          disabled={poseLocked}
           value={form.position}
           placeholder={t.positionPlaceholder}
           onChange={(e) => edit({ position: e.target.value })}
@@ -161,7 +164,6 @@ export function PlacementSection({
                 aria-label={t.axisAngle(axis)}
                 mono
                 size="sm"
-                disabled={poseLocked}
                 value={form.angles[i]}
                 onChange={(e) => {
                   const angles: [string, string, string] = [...form.angles];

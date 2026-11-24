@@ -266,3 +266,134 @@ fn passes_through_lambert_rejection() {
         .is_err()
     );
 }
+
+/// 巡航の軌道（`cruise_orbit`）は Lambert の弧そのもの: 元期（出発の日）に出発天体の位置にあり、飛行時間の後に到着天体の位置にあり、
+/// 中心は共通の親（太陽）、伝搬は二体。位置は暦の天体の位置（`state_about_parent`）と比べる。
+///
+/// 許容は 1 m。Lambert は二分法を `1e-13` の幅まで詰める（飛行時間の誤差は 1e-13 × 2.9×10⁷ s ほど。速さ 30 km/s で 0.1 m 未満）。
+/// 接触要素への往復と Kepler 方程式の反復の丸めはそれより小さい。
+#[test]
+fn cruise_orbit_passes_through_both_bodies_at_the_dates() {
+    let depart = epoch("2028-12-10T00:00:00Z");
+    let arrive = epoch("2029-09-25T00:00:00Z");
+    let spec = cruise_orbit(CentralBody::Earth, CentralBody::Mars, depart, arrive).expect("orbit");
+    let tof = arrive.seconds_since(depart);
+    assert_eq!(spec.central, CentralBody::Sun);
+    assert_eq!(spec.epoch, depart);
+    let earth = CentralBody::Earth
+        .state_about_parent(depart)
+        .expect("earth");
+    let mars = CentralBody::Mars.state_about_parent(arrive).expect("mars");
+    let start = spec.state_at(0.0).expect("state");
+    let end = spec.state_at(tof).expect("state");
+    close((start.r_eci - earth.r_eci).norm(), 0.0, 1.0);
+    close((end.r_eci - mars.r_eci).norm(), 0.0, 1.0);
+    // 二体の軌道: 出発の状態は dated_transfer の巡航の状態と一致する（速度の差は丸めだけ）
+    let dated = dated_transfer(
+        CentralBody::Earth,
+        leo(),
+        CentralBody::Mars,
+        Some(lmo()),
+        depart,
+        arrive,
+    )
+    .expect("transfer");
+    close((start.v_eci - dated.cruise_state.v_eci).norm(), 0.0, 1e-6);
+    assert_eq!(dated.transfer_time_s, tof);
+}
+
+/// 日心の距離の幾何の境界: 二体の楕円なので、弧の上の距離は近日点 `a(1-e)` と遠日点 `a(1+e)` のあいだにあり、両端の天体の距離も
+/// 同じ範囲にある。弧が近日点・遠日点を通れば距離は両端の天体の距離の外へ出る（出発・到着の距離のあいだに収まるとは限らない）。
+#[test]
+fn cruise_distance_is_bounded_by_the_apsides() {
+    for (a, b) in [
+        ("1996-11-07T00:00:00Z", "1997-09-12T00:00:00Z"),
+        ("2028-12-10T00:00:00Z", "2029-09-25T00:00:00Z"),
+    ] {
+        let (depart, arrive) = (epoch(a), epoch(b));
+        let spec =
+            cruise_orbit(CentralBody::Earth, CentralBody::Mars, depart, arrive).expect("orbit");
+        let (a, e) = (
+            spec.elements.semi_major_axis.value(),
+            spec.elements.eccentricity,
+        );
+        let (q, big_q) = (a * (1.0 - e), a * (1.0 + e));
+        let tof = arrive.seconds_since(depart);
+        let r_at = |t: f64| spec.state_at(t).expect("state").r_eci.norm();
+        for k in 0..=200 {
+            let r = r_at(tof * f64::from(k) / 200.0);
+            assert!(
+                r >= q * (1.0 - 1e-9) && r <= big_q * (1.0 + 1e-9),
+                "r = {r}"
+            );
+        }
+    }
+}
+
+/// 双曲線の弧（短い飛行時間）は理由つきのエラーにする。
+#[test]
+fn a_hyperbolic_cruise_arc_is_an_error() {
+    let depart = epoch("2028-12-10T00:00:00Z");
+    let arrive = epoch("2029-01-20T00:00:00Z");
+    let e = cruise_orbit(CentralBody::Earth, CentralBody::Mars, depart, arrive)
+        .expect_err("hyperbolic");
+    assert!(e.to_string().contains("not an ellipse"), "{e}");
+}
+
+fn distance_to(body: CentralBody, orbit: &crate::orbit::OrbitSpec, t: f64) -> f64 {
+    let at = orbit.epoch.plus_seconds(t);
+    let planet = body.state_about_parent(at).expect("state");
+    (orbit.state_at(t).expect("state").r_eci - planet.r_eci).norm()
+}
+
+/// 巡航の区間は、出発の天体の影響圏を出てから到着の天体の影響圏に入るまで: 区間の始め（t = 0）で出発の天体との距離が
+/// 影響圏の半径に等しく、終わり（t = 期間）で到着の天体との距離が影響圏の半径に等しい。許容は 100 m
+/// （境の時刻は二分法で 1 ms まで詰め、探査機と天体の相対速度は最大でも 5×10⁴ m/s 未満なので距離の誤差は 50 m 未満）。
+#[test]
+fn the_cruise_leg_runs_from_one_sphere_of_influence_to_the_other() {
+    let (depart, arrive) = (epoch("2028-12-10T00:00:00Z"), epoch("2029-09-25T00:00:00Z"));
+    let leg = cruise_leg(CentralBody::Earth, CentralBody::Mars, depart, arrive).expect("leg");
+    let soi_earth = CentralBody::Earth.soi_radius_m().expect("soi");
+    let soi_mars = CentralBody::Mars.soi_radius_m().expect("soi");
+    close(
+        distance_to(CentralBody::Earth, &leg.orbit, 0.0),
+        soi_earth,
+        100.0,
+    );
+    close(
+        distance_to(CentralBody::Mars, &leg.orbit, leg.span_s),
+        soi_mars,
+        100.0,
+    );
+    assert_eq!(leg.orbit.epoch, depart.plus_seconds(leg.leave_s));
+    assert_eq!(leg.span_s, leg.enter_s - leg.leave_s);
+    let tof = arrive.seconds_since(depart);
+    assert!(0.0 < leg.leave_s && leg.leave_s < leg.enter_s && leg.enter_s < tof);
+    // 影響圏の中にいる時間は日の単位（地球の影響圏は半径 9.2×10⁸ m 級、相対速度 3 km/s 級）
+    assert!(leg.leave_s > 86_400.0 && leg.leave_s < 10.0 * 86_400.0);
+}
+
+/// 切り出した弧は同じ楕円（長半径・離心率・面）で、共通の時刻の位置は元の弧と同じ。許容は位置 1 mm
+/// （同じ状態から要素へ往復するだけで、丸めは 1.5×10¹¹ m の 10⁻¹⁵ 倍級）。
+#[test]
+fn the_clipped_arc_is_the_same_ellipse_and_the_same_positions() {
+    let (depart, arrive) = (epoch("2028-12-10T00:00:00Z"), epoch("2029-09-25T00:00:00Z"));
+    let full = cruise_orbit(CentralBody::Earth, CentralBody::Mars, depart, arrive).expect("full");
+    let leg = cruise_leg(CentralBody::Earth, CentralBody::Mars, depart, arrive).expect("leg");
+    let (f, l) = (&full.elements, &leg.orbit.elements);
+    close(
+        l.semi_major_axis.value() / f.semi_major_axis.value(),
+        1.0,
+        1e-12,
+    );
+    close(l.eccentricity, f.eccentricity, 1e-12);
+    close(l.inclination.value(), f.inclination.value(), 1e-12);
+    close(l.raan.value(), f.raan.value(), 1e-12);
+    close(l.arg_perigee.value(), f.arg_perigee.value(), 1e-9);
+    for k in 0..=20 {
+        let t = leg.span_s * f64::from(k) / 20.0;
+        let a = leg.orbit.state_at(t).expect("clipped").r_eci;
+        let b = full.state_at(leg.leave_s + t).expect("full").r_eci;
+        assert!((a - b).norm() < 1e-3, "t = {t}: {}", (a - b).norm());
+    }
+}

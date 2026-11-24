@@ -278,11 +278,7 @@ fn reset_returns_to_the_base_and_unknown_configurations_are_refused() {
     };
     assert!(query::list_parts(&ws, &unknown).is_err());
     assert!(edit::place_body_op(&ws, "B", &m(0.3, 0.7, 0.1), None, Some("NOPE")).is_err());
-    // 根は機体座標の配置の対象にならない（形態の中でも）
-    assert!(
-        edit::place_body_op(&ws, "R", &m(0.3, 0.7, 0.1), None, Some("STOWED"))
-            .unwrap_err()
-            .to_string()
-            .contains("mount root")
-    );
+    // 根も形態の中で機体座標に置ける（根の `[pose]` は機体座標そのもの。`root_pose.rs` が手計算で確かめる）
+    let op = edit::place_body_op(&ws, "R", &m(0.3, 0.7, 0.1), None, Some("STOWED")).unwrap();
+    assert_eq!(written(&op), ([0.3, 0.7, 0.1], None));
 }
