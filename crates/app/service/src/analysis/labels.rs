@@ -19,7 +19,9 @@ use sat_analysis::spec::{ChannelKind, SpanFallback};
 use sat_analysis::structure::cone_clearance::{ConeKind, ConeSkipReason};
 use sat_analysis::structure::external_geometry::{BodyAxis, FaceDirection};
 use sat_analysis::structure::interference::InterferenceSkipReason;
-use sat_analysis::structure::launch_fit::{LaunchFitDirection, LaunchFitEnvelopeSource};
+use sat_analysis::structure::launch_fit::{
+    LaunchFitDirection, LaunchFitEnvelopeSource, LaunchFitSource,
+};
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
 use sat_analysis::structure::modal_fem::{ModalFemAxis, ModalFemModeClass};
 use sat_analysis::thermal::ThermalHeaterState;
@@ -336,6 +338,13 @@ fn launch_fit_direction(d: LaunchFitDirection) -> AnalysisLabel {
     }
 }
 
+fn launch_fit_source(s: LaunchFitSource) -> AnalysisLabel {
+    match s {
+        LaunchFitSource::BeamEstimate => label("梁の見積もり", "Beam estimate"),
+        LaunchFitSource::FiniteElement => label("粗い有限要素", "Coarse finite element"),
+    }
+}
+
 fn launch_fit_envelope_source(s: LaunchFitEnvelopeSource) -> AnalysisLabel {
     match s {
         LaunchFitEnvelopeSource::RootSize => label("構体（取付の根）の寸法", "Root part size"),
@@ -456,6 +465,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "ModalEstimateKind" => parse(value).map(modal_kind),
         "LaunchFitDirection" => parse(value).map(launch_fit_direction),
         "LaunchFitEnvelopeSource" => parse(value).map(launch_fit_envelope_source),
+        "LaunchFitSource" => parse(value).map(launch_fit_source),
         "InterferenceSkipReason" => parse(value).map(interference_skip_reason),
         "BodyAxis" => parse(value).map(body_axis),
         "ModalFemAxis" => parse(value).map(modal_fem_axis),

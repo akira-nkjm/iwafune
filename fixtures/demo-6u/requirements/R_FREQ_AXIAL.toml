@@ -9,5 +9,5 @@ kind  = "at_least"
 value = { value = 100.0, unit = "Hz" }
 
 [verify]
-analysis = "structure.modal_estimate"
-check    = "axial"
+analysis = "structure.launch_fit"
+check    = "frequency:axial"
