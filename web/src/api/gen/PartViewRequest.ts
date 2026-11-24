@@ -9,4 +9,8 @@ export type PartViewRequest = {
  * 保存していない編集。書き込まずに当てた設計で表示する（空なら保存済みの設計。`GET` と同じ）。
  * GUI のパラメーター追加は、同じ編集で定義を作る属性のパス（`PartRow.paths`）をここから引く
  */
-ops: Array<Op>, };
+ops: Array<Op>, 
+/**
+ * この形態での取付・姿勢を返す（省略は基準。無い形態は拒む）
+ */
+configuration: string | null, };

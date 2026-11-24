@@ -26,6 +26,12 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
     ),
     (
         "GET",
+        "/configurations",
+        &["configuration", "ls"],
+        "query::configurations (`configuration show` picks one)",
+    ),
+    (
+        "GET",
         "/requirements",
         &["requirement", "ls"],
         "query::requirements",

@@ -10,6 +10,7 @@
 //! | グループ | 配分のキー・図の `[nodes]` のキー |
 //! | モード | ケースの `mode`・`analysis/power.toml` の `[mode_share]` のキーと `[[sequence]]`・`[[sequences.<名前>.segments]]` の `mode` と `base_mode`・`analysis/aocs.toml` の `[law]` のキー・`analysis/thermal.toml` の `[case.*].mode`・マヌーバの `[constraints].mode`・フェーズの `modes` と `[law]` のキー |
 //! | フェーズ | ケースの `phase` |
+//! | 形態 | 参照元は無い（打上げ条件とフェーズが選ぶのは段階 3。名前の変更の索引を揃えるための空の索引） |
 //! | ネット | 部品のポートの `net`・ハーネスの `nets`・図の `[nodes]` のキー |
 //! | カタログ品 | 部品の `catalog`・`candidates`・ハーネスの `wire`・`conditions/launch.toml` の `launcher`・`dispenser` |
 //! | カタログ（`[[catalog]]` の名前。出所を外すのを拒むためだけ。書き換えはしない） | 部品の `catalog`・`candidates`・ハーネスの `wire`・打ち上げ条件の `launcher`・`dispenser` のうち `<名前>/…` のもの |
@@ -39,6 +40,8 @@ pub enum Referent<'a> {
     Mode(&'a str),
     /// フェーズの ID（`phases/<ID>.toml`）
     Phase(&'a str),
+    /// 形態の ID（`configurations/<ID>.toml`）。参照元はまだ無い（段階 3 で打上げ条件・フェーズが指す）。名前の変更の索引を揃えるための索引
+    Configuration(&'a str),
     Net(&'a str),
     /// カタログ品の参照（`"local/rw_10mNms"`）
     Catalog(&'a str),
@@ -208,6 +211,7 @@ impl Design {
             Referent::Group(id) => self.group_refs(id),
             Referent::Mode(id) => self.mode_refs(id),
             Referent::Phase(id) => self.phase_refs(id),
+            Referent::Configuration(id) => self.configuration_refs(id),
             Referent::Net(id) => self.net_refs(id),
             Referent::Catalog(reference) => self.catalog_refs(|r| r == reference),
             Referent::CatalogSource(name) => {
@@ -424,6 +428,11 @@ impl Design {
                 case: c.id.to_string(),
             })
             .collect()
+    }
+
+    /// 形態を指している場所。今は無い（打上げ条件とフェーズが形態を選ぶのは段階 3。参照元を足すのはここと `RefSite` だけ）。
+    fn configuration_refs(&self, _id: &str) -> Vec<RefSite> {
+        Vec::new()
     }
 
     fn net_refs(&self, id: &str) -> Vec<RefSite> {

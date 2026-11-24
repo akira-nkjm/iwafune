@@ -49,12 +49,12 @@ pub(super) fn part_op(op: &Op) -> Option<Vec<String>> {
             point,
             position,
             orientation,
+            configuration,
         } => vec![place(
             part,
-            on.as_deref(),
-            point.as_deref(),
-            position.as_ref(),
-            orientation.as_ref(),
+            (on.as_deref(), point.as_deref()),
+            (position.as_ref(), orientation.as_ref()),
+            configuration.as_deref(),
         )],
         Op::SetPort { part, port, net } => vec![set_port(part, port, net.as_deref())],
         _ => return None,
@@ -111,15 +111,19 @@ fn set_port(part: &str, port: &str, net: Option<&str>) -> String {
 
 fn place(
     part: &str,
-    on: Option<&str>,
-    point: Option<&str>,
-    position: Option<&fune_model::value::Vector3>,
-    orientation: Option<&fune_model::value::Quaternion>,
+    (on, point): (Option<&str>, Option<&str>),
+    (position, orientation): (
+        Option<&fune_model::value::Vector3>,
+        Option<&fune_model::value::Quaternion>,
+    ),
+    configuration: Option<&str>,
 ) -> String {
-    let cmd = Cmd::new(&["fune", "part", "place", part]);
-    let cmd = match on {
-        Some(on) => cmd.flag("on", Some(on)).flag("point", point),
-        None => cmd.switch("root", true),
+    let cmd = Cmd::new(&["fune", "part", "place", part]).flag("configuration", configuration);
+    // 形態の中の配置は取付を変えないので、取付先が無いことは「機体の根にする」ではない（`--root` を書かない）
+    let cmd = match (on, configuration) {
+        (Some(on), _) => cmd.flag("on", Some(on)).flag("point", point),
+        (None, None) => cmd.switch("root", true),
+        (None, Some(_)) => cmd.flag("point", point),
     };
     let pos = position.map(vector_to_text);
     let ori = orientation.map(quaternion_to_text);

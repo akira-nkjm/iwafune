@@ -1,5 +1,6 @@
 //! 引数の定義（clap）。コマンド体系は `fune <名詞> <動詞>` と、よく使うものの短縮。
 
+mod configurations;
 mod defs;
 mod ground;
 mod links;
@@ -10,6 +11,7 @@ mod report;
 mod requirements;
 mod skill;
 
+pub use configurations::{ConfigurationArgs, ConfigurationCmd};
 pub use defs::{AttrAddArgs, AttrCmd, KindAddArgs, KindCmd};
 pub use ground::GroundCmd;
 pub use links::{LinkCmd, ProjectCmd};
@@ -177,6 +179,9 @@ pub enum Command {
     /// Mission phases (phases/)
     #[command(subcommand)]
     Phase(PhaseCmd),
+    /// Configurations: named overlays of part poses, e.g. stowed and deployed (configurations/)
+    #[command(subcommand)]
+    Configuration(ConfigurationCmd),
     /// Ground stations (conditions/ground/)
     #[command(subcommand)]
     Ground(GroundCmd),

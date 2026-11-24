@@ -2,6 +2,7 @@
 
 use super::attr::{AttrTarget, unset_attr, write_attr};
 use super::check_keys::refuse_if_checked_by_requirements;
+use super::configurations::{Placement, place_in};
 use super::groups::{new_node_id, target_dirs};
 use crate::error::OpError;
 use crate::op::Op;
@@ -101,10 +102,21 @@ fn place_op(edits: &mut Edits, design: &Design, op: &Op) -> Result<(), OpError> 
         point,
         position,
         orientation,
+        configuration,
     } = op
     else {
         return Err(OpError::invalid("Not a Place op"));
     };
+    if let Some(configuration) = configuration {
+        let placement = Placement {
+            part,
+            on: on.as_deref(),
+            point: point.as_deref(),
+            position,
+            orientation,
+        };
+        return place_in(edits, design, configuration, &placement);
+    }
     let file = existing_file(design, part)?;
     let mount = on.as_ref().map(|on| Mount {
         on: Id::new(on),

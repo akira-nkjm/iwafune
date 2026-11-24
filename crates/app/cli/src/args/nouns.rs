@@ -39,10 +39,16 @@ pub enum PartCmd {
         group: Option<String>,
         #[arg(long)]
         kind: Option<String>,
+        /// Poses (`mount`, `body` in `--json`) as they are in this configuration (default: the base placement)
+        #[arg(long)]
+        configuration: Option<String>,
     },
     /// Show everything about one part
     Show {
         id: String,
+        /// Poses as they are in this configuration (default: the base placement)
+        #[arg(long)]
+        configuration: Option<String>,
         /// Apply unsaved edits (a JSON file of Ops, or `-` for stdin) without writing, then show
         #[arg(long)]
         ops: Option<std::path::PathBuf>,
@@ -111,7 +117,7 @@ pub enum PartCmd {
 pub struct PlaceArgs {
     pub id: String,
     /// Part to mount on
-    #[arg(long, required_unless_present_any = ["root", "body_pos"])]
+    #[arg(long, required_unless_present_any = ["root", "body_pos", "configuration"])]
     pub on: Option<String>,
     /// Mount point
     #[arg(long)]
@@ -135,6 +141,11 @@ pub struct PlaceArgs {
     /// Attitude in vehicle coordinates (part to vehicle, `"w x y z"`); use with `--body-pos`
     #[arg(long, allow_hyphen_values = true, requires = "body_pos")]
     pub body_rot: Option<String>,
+    /// Write the pose to this configuration (`fune configuration add`) instead of the part's own `[pose]`. The mount stays as it is
+    /// (`--on` and `--point` may be omitted, and must match the part's mount if given); the pose replaces the part's pose in that
+    /// configuration as a whole, and `--body-pos` reads vehicle coordinates in that configuration. Undo with `fune configuration unset-pose`
+    #[arg(long, conflicts_with = "root")]
+    pub configuration: Option<String>,
     #[command(flatten)]
     pub edit: EditOpts,
 }
