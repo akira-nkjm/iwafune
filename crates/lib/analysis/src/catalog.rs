@@ -66,6 +66,8 @@ registry!(
     structure::ModalEstimate,
     structure::ModalFem,
     structure::LaunchFit,
+    structure::Interference,
+    structure::ConeClearance,
     thermal::ThermalSteady,
     thermal::ThermalTransient,
 );

@@ -21,6 +21,7 @@
 //! | `aocs` `cdh` `comm` `power` `propulsion` `structure` `thermal` | 系ごとの射影 |
 //! | `orbit_central` | 設計の中心天体の読み替え（`central_body`）と設計の軌道の中心天体（葉のモジュール。`context` と `maneuver_dates` が使う） |
 //! | `orbit` | 軌道条件の解析の入力（季節解析: 軌道・期間・任意の刻み。高度低下: 軌道・質量・外形・抗力係数・`[decay]` の設定・推進系） |
+//! | `configuration_policy` | 解析が使う形態と選択元の決定 |
 //! | `dispatch` | 解析 ID → 射影（入力の JSON）の対応表と、同じ表から引く型付きの射影（`Projects`・`project_typed`）。実行は service（`sat_analysis::catalog::run_json`・`run_typed`） |
 //! | `system` | 解析の系の対応（model の `AnalysisSystem` ⇄ sat-analysis の `System`）と一致のテスト |
 
@@ -28,6 +29,7 @@ pub mod aocs;
 pub mod case_policy;
 pub mod cdh;
 pub mod comm;
+pub mod configuration_policy;
 pub mod context;
 pub mod dispatch;
 pub mod fix;
@@ -52,8 +54,8 @@ pub mod timeline;
 
 pub use context::Context;
 pub use dispatch::{
-    Entry, OutputVisitor, ProjectionError, Projects, entries, project_json, project_typed,
-    visit_output,
+    Entry, OutputVisitor, ProjectionError, Projects, entries, project_json,
+    project_json_with_configuration, project_typed, visit_output,
 };
 pub use fix::{CatalogFix, Choice, Fix, ListKind, RefKind};
 pub use missing::{MissingInput, MissingInputs};

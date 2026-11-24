@@ -238,6 +238,8 @@ pub const ANALYSIS_IDS: &[&str] = &[
     "structure.modal_estimate",
     "structure.modal_fem",
     "structure.launch_fit",
+    "structure.interference",
+    "structure.cone_clearance",
     "thermal.steady",
     "thermal.transient",
 ];

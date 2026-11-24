@@ -6,13 +6,63 @@
 
 use super::Ctx;
 use super::parts::check_pose;
+use crate::Id;
 use crate::design::{Configuration, EntityKey};
+use crate::path::SettingPath;
 use crate::target::Target;
 
 pub(super) fn check_configurations(ctx: &mut Ctx) {
     let design = ctx.design;
     for configuration in design.configurations.values() {
         check_pose_rows(ctx, configuration);
+    }
+    check_selections(ctx);
+}
+
+/// 形態を選ぶ欄の参照と、打ち上げ形態の省略。
+fn check_selections(ctx: &mut Ctx) {
+    let launch = SettingPath::conditions(&["launch"]);
+    let entity = EntityKey::Setting(launch.clone());
+    let target = Target::from(launch.child(&["configuration"]));
+    if let Some(id) = ctx
+        .design
+        .conditions
+        .launch
+        .as_ref()
+        .and_then(|s| s.configuration.as_ref())
+    {
+        check_selection(ctx, &entity, target, id);
+    } else if !ctx.design.configurations.is_empty() {
+        ctx.info(
+            "launch.configuration_unset",
+            &entity,
+            &["configuration"],
+            Some(target),
+            "No launch configuration is selected. Launch analyses use the base placement",
+        );
+    }
+    for phase in ctx.design.phases.values() {
+        if let Some(id) = &phase.configuration {
+            check_selection(
+                ctx,
+                &EntityKey::Phase(phase.id.to_string()),
+                Target::phase(phase.id.as_str(), Some("configuration")),
+                id,
+            );
+        }
+    }
+}
+
+/// 参照先の実在を検査する。参照された形態の削除も適用後の同じ検査で拒まれる。
+fn check_selection(ctx: &mut Ctx, entity: &EntityKey, target: Target, id: &Id<Configuration>) {
+    if !ctx.design.configurations.contains_key(id) {
+        ctx.error(
+            "ref.configuration",
+            entity,
+            &["configuration"],
+            Some(target),
+            format!("Configuration `{id}` is not defined"),
+        );
     }
 }
 

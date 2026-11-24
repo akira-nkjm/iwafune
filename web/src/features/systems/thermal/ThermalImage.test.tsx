@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { ThermalSteadyOutput, ThermalTransientOutput } from "@/api/types";
+import type { PartHeat, ThermalSteadyOutput, ThermalTransientOutput } from "@/api/types";
 import { getT } from "@/i18n";
 import { fixture } from "@/test/fixture";
 import { rangeChartOf } from "./rangeChart";
-import { sourceOptions, ThermalImage } from "./ThermalImage";
+import { NodeList, sourceOptions, ThermalImage } from "./ThermalImage";
 import { ThermalRangeChart } from "./ThermalRangeChart";
 
 const node = (n: string, temperature: number, verdict: "ok" | "warning" | "violation") => ({
@@ -96,5 +96,21 @@ describe("熱画像（描画と出どころの選択肢）", () => {
     );
     expect(html).not.toContain(I.empty);
     expect(html).toContain('role="status"');
+  });
+  it("節点の一覧は、既定の 1 部品 1 節点を「部品ごと」と示し、まとめた節点は入っている部品を並べる", () => {
+    const I = getT().systems.thermalImage;
+    const q = { si: 320, display: "", unit: "K" } as PartHeat["temperature"];
+    const heat: PartHeat[] = [
+      { part: "OBC", node: "OBC", per_part: true, temperature: q, case: "hot", verdict: "ok" },
+      { part: "A", node: "LUMP", per_part: false, temperature: q, case: "hot", verdict: "ok" },
+      { part: "B", node: "LUMP", per_part: false, temperature: q, case: "hot", verdict: "ok" },
+    ];
+    const temps = new Map([
+      ["OBC", 320],
+      ["LUMP", 300],
+    ]);
+    const html = wrap(<NodeList temps={temps} heat={heat} scale={{ min: 250, max: 330 }} />);
+    expect(html).toContain(`(${I.nodePerPart})`);
+    expect(html).toContain("A, B");
   });
 });

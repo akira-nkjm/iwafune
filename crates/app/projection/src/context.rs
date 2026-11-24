@@ -1,5 +1,6 @@
 //! 解析ケースの文脈: 設計・解決済みの値・ケースと、どの解析でも使う入力（軌道・地上局・姿勢則・モード）の組み立て。
 
+mod configuration;
 mod orbit;
 mod orbit_source;
 
@@ -31,6 +32,11 @@ use std::collections::BTreeMap;
 pub struct Context<'a> {
     pub design: &'a Design,
     pub resolved: &'a Resolved,
+    /// 形態を切り替えるときの基準の解決結果。
+    base: &'a Resolved,
+    configuration: Option<(&'a str, crate::configuration_policy::ConfigurationSource)>,
+    /// 形態を選んだ解析が打ち上げ向けか（選択元が変わる。[`Context::in_phase`] が同じ方針で選び直す）。
+    launch_analysis: bool,
     /// 選んだ解析ケース（無ければケース未選択）
     pub case: Option<&'a Case>,
     /// 読んだものの記録先（無ければ記録しない）
@@ -45,6 +51,9 @@ impl<'a> Context<'a> {
         Self {
             design,
             resolved,
+            base: resolved,
+            configuration: None,
+            launch_analysis: false,
             case: None,
             reads: None,
             phase_override: None,
@@ -53,14 +62,14 @@ impl<'a> Context<'a> {
 
     /// フェーズ `phase` が効いている文脈（ケース・記録先はそのまま。軌道・姿勢則はケースのフェーズの代わりにこのフェーズのものを読む）。
     /// ケースを持たずにフェーズごとの軌道を並べる解析（`orbit.geometry`）が使う。**ケースを介さずフェーズを指定する入口はここだけ。**
+    /// 形態も同じ方針で選び直す（実行時に明示した形態はそのまま、打ち上げ向けの解析は打ち上げ条件、それ以外はこのフェーズの形態）。
     pub fn in_phase(&self, phase: &'a Phase) -> Self {
+        let explicit = self.explicit_configuration();
         Self {
-            design: self.design,
-            resolved: self.resolved,
-            case: self.case,
-            reads: self.reads,
             phase_override: Some(phase),
+            ..*self
         }
+        .select_configuration(self.launch_analysis, explicit)
     }
 
     /// 読んだものを `reads` に記録する文脈にする。
@@ -149,13 +158,18 @@ impl<'a> Context<'a> {
                 }
             },
         };
-        Ok(Self {
-            design,
-            resolved,
-            case,
-            reads: None,
-            phase_override: None,
-        })
+        let mut ctx = Self::bare(design, resolved);
+        ctx.case = case;
+        Ok(ctx.select_configuration(false, None))
+    }
+
+    fn select_configuration(mut self, launch: bool, explicit: Option<&'a str>) -> Self {
+        let (id, source) =
+            crate::configuration_policy::select(self.design, launch, || self.phase(), explicit);
+        self.configuration = id.zip(source);
+        self.launch_analysis = launch;
+        self.resolved = self.base.in_configuration(id);
+        self
     }
 
     /// ケースが指すモード（無ければ None）。

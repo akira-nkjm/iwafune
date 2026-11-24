@@ -3,6 +3,8 @@
 //! 明示の結合は `[conductive.<節点>] <節点> = { value, unit }`（`radiative` も同じ形）で、設定のパスは
 //! `analysis.thermal.conductive.<節点>.<節点>`（`SetSetting` でそのまま編集できる）。
 //!
+//! 節点は既定で 1 部品 1 節点（名前は部品の ID）。`nodes` はまとめたい部品だけを書く上書き（`thermal_nodes`）。
+//!
 //! 部品・モード・表面材・節点の参照（`nodes` の値・`surface` と `heat_node` のキーと値・`case.<条件>.mode`・結合の両端の節点）は
 //! `check` が検査し、部品の名前の変更（RenamePart）で一緒に書き換わる（`refs`）。
 
@@ -114,7 +116,8 @@ pub struct ThermalSettings {
     /// 環境条件の名前 → 条件
     #[serde(default, rename = "case", skip_serializing_if = "BTreeMap::is_empty")]
     pub cases: BTreeMap<String, ThermalCaseSettings>,
-    /// 節点の名前 → まとめる部品の ID
+    /// 節点の名前 → まとめる部品の ID。**書いた分だけが「まとめた節点」で、書かれていない部品は自分の ID の節点になる**
+    /// （既定の 1 部品 1 節点。節点の対応を決めるのは [`ThermalSettings::node_map`] だけ）
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub nodes: BTreeMap<String, Vec<String>>,
     /// 表面材の名前 → α/ε

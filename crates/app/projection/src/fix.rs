@@ -42,6 +42,8 @@ pub enum RefKind {
     CatalogItem,
     /// 通信の回線（`analysis.comm` の回線の名前）
     CommLink,
+    /// 部品の配置の形態（`configurations/<ID>.toml`）
+    Configuration,
     /// マヌーバ（`maneuvers/<ID>.toml`。軌道の `maneuver` の欄が指す、日付つきの遷移を持つもの）
     Maneuver,
 }

@@ -6,7 +6,7 @@
 
 mod common;
 
-use common::{assert_same_files, demo_copy, fune, get_json, post_json, run_cli};
+use common::{assert_same_files, cli_json, demo_copy, get_json, post_json, run_cli};
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -14,22 +14,6 @@ fn http_command(rt: &tokio::runtime::Runtime, root: &Path, body: Value) -> Vec<V
     let ops = post_json(rt, root, "/api/v1/ops/from_command", body);
     post_json(rt, root, "/api/v1/ops", json!({ "ops": ops.clone() }));
     ops.as_array().cloned().unwrap_or_default()
-}
-
-fn cli_json(root: &Path, args: &[&str]) -> Value {
-    let out = fune()
-        .arg("-C")
-        .arg(root)
-        .arg("--json")
-        .args(args)
-        .output()
-        .unwrap();
-    assert!(
-        out.status.success(),
-        "{args:?}: {}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    serde_json::from_slice(&out.stdout).unwrap()
 }
 
 #[test]
@@ -245,4 +229,55 @@ fn configuration_reads_match_http() {
     assert_eq!(one["part"], stowed);
     // 形態を指さない読み取りは今まで通り基準
     assert_eq!(get_json(&rt, &root, "/api/v1/parts/SAP_PY")["part"], base);
+}
+
+/// 形態の選択元の編集も、CLI と HTTP で同じファイルを書き、同じキーを消す。
+#[test]
+fn selection_edits_match_cli() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let (_t1, cli_root) = demo_copy();
+    let (_t2, http_root) = demo_copy();
+    run_cli(&cli_root, &["configuration", "add", "STOWED"]);
+    http_command(
+        &rt,
+        &http_root,
+        json!({ "command": "configuration_add", "id": "STOWED" }),
+    );
+    for (args, body) in [
+        (
+            vec!["phase", "set", "LEOP", "--configuration", "STOWED"],
+            json!({ "command": "phase_set", "id": "LEOP", "configuration": "STOWED" }),
+        ),
+        (
+            vec!["phase", "set", "LEOP", "--configuration", ""],
+            json!({ "command": "phase_set", "id": "LEOP", "configuration": null }),
+        ),
+    ] {
+        run_cli(&cli_root, &args);
+        http_command(&rt, &http_root, body);
+        assert_same_files(&cli_root, &http_root, &args.join(" "));
+    }
+    let path = "conditions.launch.configuration";
+    for (args, uri, body) in [
+        (
+            vec!["set", path, "STOWED"],
+            "/api/v1/ops/from_text",
+            json!({ "path": path, "value": "STOWED" }),
+        ),
+        (
+            vec!["unset", path],
+            "/api/v1/ops/unset_from_text",
+            json!({ "path": path }),
+        ),
+    ] {
+        run_cli(&cli_root, &args);
+        let op = post_json(&rt, &http_root, uri, body);
+        assert_eq!(op["op"], "set_setting");
+        post_json(&rt, &http_root, "/api/v1/ops", json!({ "ops": [op] }));
+        assert_same_files(&cli_root, &http_root, &args.join(" "));
+    }
+    for file in ["conditions/launch.toml", "phases/LEOP.toml"] {
+        let text = std::fs::read_to_string(http_root.join(file)).unwrap();
+        assert!(!text.contains("configuration"), "{text}");
+    }
 }

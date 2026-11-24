@@ -116,3 +116,71 @@ fn removing_the_last_row_leaves_no_empty_table() {
         "label = \"Stowed\"\n"
     );
 }
+
+/// 選択元を両方書き換え、参照のどちらかが残る限り削除を拒む。
+#[test]
+fn configuration_selection_references_follow_rename_and_block_removal() {
+    use fune_model::value::SettingValue;
+    use fune_ops::OpError;
+
+    let snap = snapshot();
+    let launch = |id: Option<&str>| Op::SetSetting {
+        path: "conditions.launch.configuration".into(),
+        value: id.map(|id| SettingValue::Text(id.into())),
+    };
+    let phase = |id: Option<&str>| Op::SetPhase {
+        phase: fune_model::design::Phase {
+            id: "EARLY".into(),
+            configuration: id.map(Into::into),
+            ..Default::default()
+        },
+    };
+    let setup = [launch(Some("STOWED")), phase(Some("STOWED"))];
+    let rename = Op::RenameConfiguration {
+        id: "STOWED".into(),
+        to: "FOLDED".into(),
+    };
+    let renamed = plan(&snap, &[setup.as_slice(), &[rename]].concat()).unwrap();
+    assert_eq!(
+        renamed.design.references(Referent::Configuration("FOLDED")),
+        [
+            RefSite::LaunchConfiguration,
+            RefSite::PhaseConfiguration {
+                phase: "EARLY".into()
+            }
+        ]
+    );
+    assert!(
+        renamed
+            .design
+            .references(Referent::Configuration("STOWED"))
+            .is_empty()
+    );
+    assert_eq!(
+        after(&renamed, "conditions/launch.toml"),
+        "configuration = \"FOLDED\"\n"
+    );
+    assert!(after(&renamed, "phases/EARLY.toml").contains("= \"FOLDED\""));
+
+    let remove = Op::RemoveConfiguration {
+        id: "STOWED".into(),
+    };
+    for (clear, path) in [
+        (launch(None), "phases.EARLY.configuration"),
+        (phase(None), "conditions.launch.configuration"),
+    ] {
+        let ops = [setup.as_slice(), &[clear, remove.clone()]].concat();
+        let Err(OpError::Rejected { diagnostics }) = plan(&snap, &ops) else {
+            panic!("missing reference rejection");
+        };
+        assert!(diagnostics.iter().any(|d| {
+            d.code == "ref.configuration" && d.target.as_ref().unwrap().to_string() == path
+        }));
+    }
+    let cleared = plan(
+        &snap,
+        &[setup.as_slice(), &[launch(None), phase(None), remove]].concat(),
+    )
+    .unwrap();
+    assert!(!cleared.design.configurations.contains_key("STOWED"));
+}

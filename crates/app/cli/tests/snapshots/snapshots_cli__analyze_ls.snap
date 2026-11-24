@@ -34,5 +34,7 @@ expression: text
  structure    structure.modal_estimate     Natural frequency estimate        steady        built from design
  structure    structure.modal_fem          Finite-element modal analysis     steady        unsupported
  structure    structure.launch_fit         Launch vehicle fit                steady        built from design
+ structure    structure.interference       Part interference                 steady        built from design
+ structure    structure.cone_clearance     Plume and FoV clearance           steady        built from design
  thermal      thermal.steady               Thermal (steady state)            steady        built from design
  thermal      thermal.transient            Thermal (transient)               time series   built from design

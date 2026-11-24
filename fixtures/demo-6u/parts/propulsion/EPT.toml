@@ -71,3 +71,8 @@ y           = 90.0
 z           = 60.0
 unit        = "mm"
 from.source = "sys_judgement"
+
+[attr.plume_half_angle]
+value       = 20.0
+unit        = "deg"
+from.source = "sys_judgement"

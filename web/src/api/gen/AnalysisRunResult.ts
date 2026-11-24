@@ -4,6 +4,7 @@ import type { AnalysisLabel } from "./AnalysisLabel";
 import type { AnalysisOverview } from "./AnalysisOverview";
 import type { AnalysisRunStatus } from "./AnalysisRunStatus";
 import type { CheckView } from "./CheckView";
+import type { ConfigurationSource } from "./ConfigurationSource";
 import type { KpiView } from "./KpiView";
 import type { MissingInput } from "./MissingInput";
 import type { PartHeat } from "./PartHeat";
@@ -15,6 +16,14 @@ import type { Verdict } from "./Verdict";
  * 解析の実行結果。
  */
 export type AnalysisRunResult = { id: string, case: string | null, case_source: AnalysisCaseSource | null, 
+/**
+ * 解析が使った形態の ID（基準なら省略）。
+ */
+configuration?: string, 
+/**
+ * 形態の選択元（基準なら省略）。
+ */
+configuration_source?: ConfigurationSource, 
 /**
  * 解析が読んだ不確かさの側（ケースの `side`。ケースがあれば書かれていなくても `nominal`、ケースが無ければ欄を出さない）。
  * `min` / `max` のときは、その側が書かれた値だけがその値で、書かれていない値は nominal を使っている
