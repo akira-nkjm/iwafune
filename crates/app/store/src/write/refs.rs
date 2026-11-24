@@ -247,6 +247,7 @@ fn rename_at(
         | RefSite::ThermalNode { .. }
         | RefSite::ThermalSurface
         | RefSite::ThermalHeatNode
+        | RefSite::ThermalSubdivide
         | RefSite::ThermalNodeName
         | RefSite::CaseMode { .. }
         | RefSite::CasePhase { .. }
@@ -384,6 +385,7 @@ fn rename_setting_at(
         }),
         RefSite::ThermalSurface => rename_in(edits, &thermal(), &["surface"], from, to),
         RefSite::ThermalHeatNode => rename_in(edits, &thermal(), &["heat_node"], from, to),
+        RefSite::ThermalSubdivide => rename_in(edits, &thermal(), &["subdivide"], from, to),
         RefSite::ThermalNodeName => thermal::rename_node_name(edits, from, to),
         RefSite::CaseMode { case } => set_top(edits, &layout::case_file(case), "mode", to),
         RefSite::CasePhase { case } => set_top(edits, &layout::case_file(case), "phase", to),

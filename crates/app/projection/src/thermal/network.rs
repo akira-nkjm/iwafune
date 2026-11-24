@@ -49,6 +49,7 @@ pub(super) fn network(
     }
     let mounts = links(ctx, s, &map, m);
     ThermalNetwork {
+        plates: super::plates::plates(ctx, s, &map, m),
         nodes: nodes(ctx, &map, analysis, m),
         mounts,
         conductive: conductive(s, m),
@@ -127,6 +128,7 @@ fn nodes(
 ) -> Vec<ThermalNode> {
     map.iter()
         .map(|(id, def)| ThermalNode {
+            cell: None,
             id: id.to_owned(),
             parts: def
                 .parts

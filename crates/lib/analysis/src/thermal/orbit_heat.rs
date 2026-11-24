@@ -179,6 +179,7 @@ mod tests {
 
     fn plate(normal: Vec3) -> Compiled {
         Compiled::new(&ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![node("p", None)],
             conductive: vec![],
@@ -343,6 +344,7 @@ pub(crate) mod fixtures {
         n.parts[0].mass = Qty::from_raw(mass_kg);
         let faces = [Vec3::X, -Vec3::X, Vec3::Y, -Vec3::Y, Vec3::Z, -Vec3::Z];
         ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![n],
             conductive: vec![],
