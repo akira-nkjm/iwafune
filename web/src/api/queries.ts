@@ -33,6 +33,8 @@ import type {
   System,
   SystemModesRequest,
   SystemModesView,
+  ThermalTablesRequest,
+  ThermalTablesView,
   UnitsCatalog,
 } from "./types";
 
@@ -82,6 +84,20 @@ export const q = {
       ...(analyzed ? { staleTime: 30_000 } : {}),
     });
   },
+  /**
+   * 熱の結合・表面の表（`POST /thermal/tables`）。`ops` は保存していない編集（書き込まずに当てた設計の表。下書きの前後を並べて見せる）。
+   */
+  thermalTables: (kase: string | null, ops: readonly Op[] = []) =>
+    queryOptions({
+      queryKey: keys.thermalTables(kase, JSON.stringify(ops)),
+      queryFn: () =>
+        api<ThermalTablesView>("/thermal/tables", {
+          method: "POST",
+          body: { case: kase, ops: [...ops] } satisfies ThermalTablesRequest,
+        }),
+      staleTime: 30_000,
+      placeholderData: keepPreviousData,
+    }),
   /** 部品の一覧。形態の指定があれば、その形態での取付・姿勢を読む。 */
   parts: (configuration: PartsQuery["configuration"] = null) =>
     queryOptions({

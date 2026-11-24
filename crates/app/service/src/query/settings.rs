@@ -87,8 +87,8 @@ pub(crate) fn budget_system(kind: BudgetKind) -> System {
     }
 }
 
-/// 無次元の数値（線形の比）。
-fn number(x: f64) -> QuantityView {
+/// 無次元の数値（線形の比）。熱の表面の表も使う。
+pub(crate) fn number(x: f64) -> QuantityView {
     QuantityView {
         value: x,
         unit: String::new(),

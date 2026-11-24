@@ -2,7 +2,7 @@
 //!
 //! | モジュール | パス |
 //! |---|---|
-//! | `design` | `/project` `/design` `/system_modes/{system}`（POST） `/maneuvers` `/phases` `/configurations` `/requirements` `/requirements/compliance` `/parts` `/parts/{id}`（POST は下書きを当てた部品） `/values/{path}` `/defs` `/diagnostics` |
+//! | `design` | `/project` `/design` `/system_modes/{system}`（POST） `/thermal/tables`（POST。熱の結合・表面の表。下書きを当てる） `/maneuvers` `/phases` `/configurations` `/requirements` `/requirements/compliance` `/parts` `/parts/{id}`（POST は下書きを当てた部品） `/values/{path}` `/defs` `/diagnostics` |
 //! | `edit` | `/ops` `/ops/from_text` `/ops/unset_from_text` `/ops/from_command` `/ops/case_from_eclipse` `/ops/case_from_sun_distance` `/ops/cases_from_geometry` `/ops/maneuver_window` `/parts/{id}/place_body` `/fmt` |
 //! | `history` | `/history` `/undo` `/redo` |
 //! | `units` | `/units` `/units/parse` `/units/format` |
@@ -51,6 +51,7 @@ pub fn router_with(workspace: Arc<Workspace>, hosts: HostPolicy) -> Router {
         .route("/project", get(design::project))
         .route("/design", get(design::design))
         .route("/system_modes/{system}", post(design::system_modes))
+        .route("/thermal/tables", post(design::thermal_tables))
         .route("/maneuvers", get(design::maneuvers))
         .route("/phases", get(design::phases))
         .route("/configurations", get(design::configurations))

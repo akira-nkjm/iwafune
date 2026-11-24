@@ -14,12 +14,13 @@ import type { PhaseText } from "./PhaseText";
 import type { PlaceText } from "./PlaceText";
 import type { ProjectSetText } from "./ProjectSetText";
 import type { RequirementText } from "./RequirementText";
+import type { ThermalSetText } from "./ThermalSetText";
 
 /**
  * 名詞のコマンドの引数（`POST /ops/from_command` の本文）。`command` でコマンドを選ぶ。
  * 書かなかった旗（省略・null）は CLI で旗を書かないのと同じ。読み方（量・ベクトル・割合・一覧・`名前=種類`）は service が持つ。
  */
-export type CommandText = { "command": "net_set" } & NetSetText | { "command": "net_unset" } & NetUnsetText | { "command": "part_place" } & PlaceText | { "command": "mode_set" } & ModeSetText | { "command": "mode_move", id: string, before: string | null, after: string | null, first: boolean, last: boolean, } | { "command": "mode_duration", mode: string, duration: string | null, } | { "command": "mode_timing", mode: string, when: string | null, start: string | null, offset: string | null, } | { "command": "sequence_set", name: string, 
+export type CommandText = { "command": "net_set" } & NetSetText | { "command": "net_unset" } & NetUnsetText | { "command": "part_place" } & PlaceText | { "command": "mode_set" } & ModeSetText | { "command": "thermal_set" } & ThermalSetText | { "command": "mode_move", id: string, before: string | null, after: string | null, first: boolean, last: boolean, } | { "command": "mode_duration", mode: string, duration: string | null, } | { "command": "mode_timing", mode: string, when: string | null, start: string | null, offset: string | null, } | { "command": "sequence_set", name: string, 
 /**
  * `モード=長さ` のカンマ区切り（`--duty` と同じ書き方）
  */

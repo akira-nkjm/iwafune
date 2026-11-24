@@ -2,7 +2,7 @@
 //! SEP の計算は `sat_astro::timeline::geometry`（`ground::earth_range` が標本にして最小と下回り時間を求める）。
 //! ここは出力の形・しきい値の既定・判定だけ。雑音温度の上昇（太陽の雑音が受信に入る）は扱わない。
 
-use crate::spec::{Check, Verdict, quantity_text};
+use crate::spec::{Check, Verdict, quantity_text, ratio_margin};
 use sat_astro::ground::EarthRange;
 use sat_astro::time::Epoch;
 use sat_units::typed::{Angle, Qty, Time};
@@ -61,6 +61,8 @@ impl SolarConjunction {
                 quantity_text::<Angle>(self.threshold.value())
             )
         };
+        // 余裕 = 最小の SEP / しきい値 − 1
         Check::new(CHECK_KEY, "Solar conjunction", verdict, message)
+            .with_ratio_margin(ratio_margin(self.sep_min.value(), self.threshold.value()))
     }
 }

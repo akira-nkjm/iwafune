@@ -204,16 +204,19 @@ fn check(r: &ModalEstimateResult) -> Option<Check> {
         ModalEstimateKind::BeamLateral => (sat_checkkey::family::LATERAL, "lateral"),
         ModalEstimateKind::BeamAxial => (sat_checkkey::family::AXIAL, "axial"),
     };
-    Some(Check::new(
-        &sat_checkkey::modal_frequency(kind.0, &r.id),
-        &format!("{} first natural frequency ({})", r.id, kind.1),
-        r.verdict,
-        format!(
-            "{} (required at least {})",
-            quantity_text::<Frequency>(r.frequency.value()),
-            quantity_text::<Frequency>(req.value())
-        ),
-    ))
+    Some(
+        Check::new(
+            &sat_checkkey::modal_frequency(kind.0, &r.id),
+            &format!("{} first natural frequency ({})", r.id, kind.1),
+            r.verdict,
+            format!(
+                "{} (required at least {})",
+                quantity_text::<Frequency>(r.frequency.value()),
+                quantity_text::<Frequency>(req.value())
+            ),
+        )
+        .with_ratio_margin(r.margin),
+    )
 }
 
 fn invalid(id: &str) -> AnalysisError {
