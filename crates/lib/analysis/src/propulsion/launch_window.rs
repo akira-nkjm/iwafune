@@ -164,7 +164,7 @@ fn is_interplanetary(leg: &Leg<'_>) -> bool {
 fn search(
     leg: &Leg<'_>,
     input: &LaunchWindowInput,
-    written: Option<DatedTransferInput>,
+    written: Option<&DatedTransferInput>,
     i: usize,
 ) -> Result<LaunchWindowResult, AnalysisError> {
     let (from, to) = (leg.planned.from.central, leg.planned.to.central);
@@ -282,6 +282,18 @@ impl Analysis for LaunchWindow {
     type Output = LaunchWindowOutput;
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
+        // 日付を探索するのは出発と到着の 2 つ。途中の通過（スイングバイ）の日は探索しないので、断る
+        if let Some(m) = input
+            .propulsion
+            .maneuvers
+            .iter()
+            .find(|m| m.transfer.as_ref().is_some_and(|t| !t.flybys.is_empty()))
+        {
+            return Err(AnalysisError::InvalidInput(format!(
+                "Maneuver {}: the launch window search covers the two dates of a transfer without flybys; it does not search the dates of a swing-by transfer (remove the flybys to search, or set the dates by hand)",
+                m.id
+            )));
+        }
         // マヌーバの前の軌道は日付によらないので、日付を外した公称の列から取る（日付が不正でも探索はできる）
         let mut undated = input.propulsion.clone();
         undated.maneuvers.iter_mut().for_each(|m| m.transfer = None);
@@ -291,7 +303,14 @@ impl Analysis for LaunchWindow {
             .iter()
             .enumerate()
             .filter(|(_, leg)| is_interplanetary(leg))
-            .map(|(i, leg)| search(leg, input, input.propulsion.maneuvers[i].transfer, i))
+            .map(|(i, leg)| {
+                search(
+                    leg,
+                    input,
+                    input.propulsion.maneuvers[i].transfer.as_ref(),
+                    i,
+                )
+            })
             .collect::<Result<Vec<_>, _>>()?;
         let points = windows.iter().flat_map(|w| w.points().cloned()).collect();
         Ok(LaunchWindowOutput { windows, points })

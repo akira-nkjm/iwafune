@@ -6,6 +6,7 @@
 //!   日付の読み方は `maneuver_dates::parse`、巡航の区間は `sat_astro::transfer::cruise_leg`（Lambert の弧 `cruise_orbit` を影響圏の外に切り出す）（`propulsion.maneuvers` の
 //!   日付つきの遷移と同じ `lambert_arc`）。親のまわりの二体の軌道（接触要素）で、期間（`Trajectory::with_span`）が 1 回限りにする。
 //!   遷移の軌道が楕円でないときは不足入力として理由を返す（状態ベクトルの出どころが受け持つ）。
+//!   途中のスイングバイ（`[[transfer.flybys]]`）のある遷移は、通過をまたぐ軌道がまだ無いので不足入力として断る（最初の脚だけを返さない）。
 //!
 //! - `state`: 状態ベクトル（`epoch`・`central`・`position`・`velocity`・`span`）。`sat_astro::orbit::StateSpec`（既存の数値伝搬。
 //!   力の設定は書かせず、原点の天体で決まる慣例の既定 `ForceConfig::deep_space_defaults`）。向きは ECI。期間は 1 回限り（`Cycle::OneOff`）。
@@ -131,6 +132,19 @@ impl Context<'_> {
                 return None;
             }
         };
+        // 途中のスイングバイのある遷移の巡航は、通過をまたぐ区間ごとの軌道（区分的な軌道）が要る。まだ作っていないので、黙って
+        // 最初の脚だけを返さずに断る（ΔV・推薬・バジェットと、`propulsion.transfer_check`（脚ごと）は通過に対応している）
+        if maneuver
+            .transfer
+            .as_ref()
+            .is_some_and(|t| !t.flybys.is_empty())
+        {
+            m.push(
+                self.orbit_target(&["maneuver"]),
+                format!("Maneuver {id} has swing-bys ([[transfer.flybys]]); a cruise orbit across the flybys (a piecewise trajectory) is not supported yet, so source = \"transfer\" cannot take its orbit"),
+            );
+            return None;
+        }
         let to = self.maneuver_target_body(maneuver, m)?;
         let from = maneuver_dates::central_before(self.design, maneuver);
         let orbit = self.cruise_orbit(maneuver, (from, to), dates, m)?;

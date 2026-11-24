@@ -1670,6 +1670,39 @@ arrival   = "2029-09-25T00:00:00Z"
     The dated transfer result still carries C3, the excess speeds and the departure declination (as launch requirements; `departure_by` is in the result), and `dated_transfer_plane` and `dated_transfer_timing` are not raised
     (the parking orbit and the end of the previous maneuver play no part). `structure.launch_fit` takes the C3 of the first such transfer for the capability curve (§5.6), and its launch mass is the mass at injection.
     Check: `maneuver.departure_by_launcher_after` (warning) when such a maneuver follows another maneuver (`after`): the launcher injects the spacecraft directly, so a maneuver before it does not fit (it is still counted).
+  - **Swing-bys** (`[[transfer.flybys]]`, optional, in date order between `departure` and `arrival`): the transfer passes intermediate planets (planets that orbit the same parent as the departure and arrival bodies; a body may not be followed by itself).
+    ```toml
+    [transfer]
+    departure = "2028-10-01T00:00:00Z"
+    arrival   = "2030-03-01T00:00:00Z"
+
+    [[transfer.flybys]]
+    body         = "venus"
+    date         = "2029-01-10T00:00:00Z"
+    powered      = true                                  # optional, default true
+    min_altitude = { value = 400.0, unit = "km" }        # optional minimum periapsis altitude
+
+    [[transfer.flybys]]
+    body = "earth"
+    date = "2029-06-01T00:00:00Z"
+    ```
+    The transfer becomes a chain of Lambert legs between the positions of consecutive bodies on the given dates (`sat_astro::transfer::dated_transfer_via`; a transfer without flybys is the same code with one leg and gives identical numbers).
+    The departure burn comes from the first leg, the capture burn from the last, and each flyby from the two legs around it (patched conics, `sat_astro::transfer::flyby_geometry`):
+    - v∞ in and out are the leg velocities minus the body's velocity; the turn angle δ is the angle between them. A half turn is `asin(1/e)` with `e = 1 + r_p v∞²/μ`; the periapsis radius `r_p` is solved (bisection) so that the two half turns sum to δ.
+      For `|v∞in| = |v∞out|` this is `sin(δ/2) = 1/(1 + r_p v∞²/μ)`, i.e. `r_p = μ/v∞² (1/sin(δ/2) − 1)`. If the two speeds differ, the **periapsis burn** is the difference of the periapsis speeds `√(v∞² + 2μ/r_p)` of the two hyperbolas (zero within `1e-3 m/s` for a ballistic flyby).
+    - `min_altitude` is the minimum periapsis altitude above the body's equatorial radius; it must be positive (`maneuver.flyby_altitude`; a periapsis at or below the surface is never accepted). If omitted, a convention per body class applies (`transfer::default_min_altitude_m`, the only place):
+      300 km for Venus, Earth and Mars (outside the sensible atmosphere and navigation uncertainty), 200 km for Mercury (no atmosphere). **The giant planets have no convention** (radiation belts, rings and the depth of the atmosphere differ), so omitting it for them is an error: write the altitude. These are concept-design conventions, not mission values.
+    - If δ exceeds the maximum turn at the minimum altitude, the flyby is **infeasible with these dates** in this model: the result has `feasible = false`, the required periapsis radius/altitude (below the minimum, possibly below the surface), and a warning `swing_by_turn`.
+      The periapsis burn is taken at the minimum radius and the missing turn `δ − δ_max` is charged as the chord `2 |v∞out| sin(Δ/2)` (a change of the outgoing excess velocity), so the total delta-v is still the sum of the pieces; this is a simple estimate of the cost, not an optimised solution.
+    - `powered = false` declares the flyby unpowered: the periapsis burn is not counted (and `swing_by_unpowered` warns when the speeds differ by more than `1e-3 m/s`).
+    - Total transfer delta-v = departure burn (unless `departure_by = "launcher"`) + the flyby burns + the capture burn. The flyby burns are burns of the maneuver between departure and capture (central body = the flyby body, `v_inf` = the incoming excess speed), counted by the budget, propellant, thruster usage and mass analyses like any other burn;
+      a finite-burn transfer time ignores them (they are in the middle of the flight). The note `swing_by` says the flybys are patched conics. The flyby is **instantaneous**: the time inside the flyby body's sphere of influence and the hyperbolic arc are not modelled.
+    - The result (`dated_transfer.flybys` of `propulsion.maneuvers`, `dated_transfers[].flybys` of `propulsion.dv_budget`) has per flyby: the body and date, v∞ in/out, the turn angle, the required periapsis radius and altitude, the minimum altitude, the maximum turn, the periapsis burn, the missing-turn delta-v, whether it is counted (`powered`) and `feasible`.
+    - Checks: `maneuver.flyby_date`, `maneuver.flyby_altitude` (model); `maneuver.flyby_epoch`, `maneuver.flyby_ephemeris`, `maneuver.flyby_order` (flyby dates strictly increasing between the departure and arrival dates), `maneuver.flyby_bodies` (`fune_projection::maneuver_dates`).
+    - Edit with the repeatable flag `--flyby "venus@2029-01-10T00:00:00Z,min_altitude=400 km,powered=false"` (`BODY@DATE`, the options optional; needs `--depart` and `--arrive`; `fune maneuver add|set`, HTTP `maneuver_add|maneuver_set` with `flybys`, the text form `ManeuverFlyby::{to_text, from_text}`).
+      The GUI maneuver dialog has a list editor for them (and the maneuver table shows them), and sends the written flybys back unchanged when other fields are edited.
+    - Not supported (refused, not ignored): `propulsion.launch_window` returns an error for a design where a maneuver has flybys (it searches two dates); `source = "transfer"` for such a maneuver is a missing input (a cruise orbit across the flybys needs a piecewise trajectory, a planned extension of `Trajectory::Spanned`:
+      one `Spanned` per leg with breakpoints at the flyby dates, so that position is continuous and velocity jumps by the change of the heliocentric velocity at each flyby). `propulsion.transfer_check` runs **leg by leg** (`leg` 1, 2, … on each result, note `legs_not_chained`): each leg is propagated from its own Lambert velocity, so the arrival miss of a leg is the aim error at that leg's end body; what is not verified is the flight through the flyby body's sphere of influence and a propagation chained across the flyby.
   - `propulsion.transfer_check` re-propagates each dated transfer and reports the arrival miss (against the arrival body's sphere of influence), the closest approach (distance and time), the difference of
     the arrival excess speed from Lambert's, the bodies used as third bodies, and a coarse trajectory (heliocentric ecliptic x and y of the spacecraft and both bodies, and the distance to the arrival body, in the `series`).
     The cruise starts at the centre of the departure body on the departure date with Lambert's heliocentric velocity and runs under the point-mass gravity of the Sun and the other planets (Earth too, unless it is an end).

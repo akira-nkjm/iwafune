@@ -160,6 +160,7 @@ fn grid_points_equal_the_maneuvers_analysis_for_those_dates() {
             departure: w.grid.departures[*di],
             arrival: w.grid.arrivals[*aj],
             departure_by: Default::default(),
+            flybys: Vec::new(),
         });
         let m = Maneuvers::run(&j).unwrap().maneuvers.remove(0);
         let d = m.dated_transfer.unwrap();

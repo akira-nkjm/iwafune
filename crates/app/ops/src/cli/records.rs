@@ -120,6 +120,11 @@ fn maneuver_cmd(verb: &str, m: &Maneuver) -> String {
     let t = &m.target;
     let sunlit = m.constraints.sunlit_only.map(|b| b.to_string());
     let duty = m.constraints.duty.map(|d| d.to_string());
+    let flybys: Vec<String> = m
+        .transfer
+        .iter()
+        .flat_map(|t| t.flybys.iter().map(|f| f.to_text()))
+        .collect();
     Cmd::new(&["fune", "maneuver", verb, m.id.as_str()])
         .flag("category", Some(m.category.as_str()))
         .flag("method", Some(m.method.as_str()))
@@ -152,5 +157,6 @@ fn maneuver_cmd(verb: &str, m: &Maneuver) -> String {
                 .and_then(|t| t.departure_by)
                 .map(|d| d.as_str()),
         )
+        .flags("flyby", flybys.iter().map(String::as_str))
         .done()
 }

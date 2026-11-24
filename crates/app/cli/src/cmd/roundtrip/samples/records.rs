@@ -321,7 +321,11 @@ pub(in super::super) fn record_ops() -> Vec<Op> {
                     "inclination": { "value": 97.5, "unit": "deg" } },
                 "constraints": { "sunlit_only": false, "mode": "NOMINAL" },
                 "transfer": { "departure": "2028-12-10T00:00:00Z", "arrival": "2029-09-25T00:00:00Z",
-                    "departure_by": "launcher" } }),
+                    "departure_by": "launcher",
+                    "flybys": [
+                        { "body": "venus", "date": "2029-02-01T00:00:00Z", "powered": false,
+                          "min_altitude": { "value": 400.0, "unit": "km" } },
+                        { "body": "earth", "date": "2029-06-01T00:00:00Z" } ] } }),
             ),
         },
         Op::CreateManeuver {

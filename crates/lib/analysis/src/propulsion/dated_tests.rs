@@ -33,6 +33,7 @@ pub(super) fn mars_input(incl_deg: f64, departure: &str) -> PropulsionInput {
             departure: epoch(departure),
             arrival: epoch("1997-09-12T00:00:00Z"),
             departure_by: DepartureProvider::Spacecraft,
+            flybys: Vec::new(),
         }),
         ..maneuver(
             "MARS",
