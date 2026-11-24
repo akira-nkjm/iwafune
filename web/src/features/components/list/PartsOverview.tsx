@@ -9,6 +9,7 @@ import { kindLabel, nodeName, systemTree } from "@/lib/design";
 import { systemTone } from "@/lib/systems";
 import type { Tone } from "@/lib/tone";
 import { GroupActions } from "../groups/GroupActions";
+import { foldable, foldedByDefault, partsWithin } from "./overview-fold";
 
 /**
  * コンポーネントの「一覧」のタブ: サブシステム（Group）の枠ごとに部品のカードを並べる（製品ツリーの形のまま）。
@@ -16,8 +17,9 @@ import { GroupActions } from "../groups/GroupActions";
  * 小さな枠で、見出しを押すと組立品そのものを選び、子の部品をその中に並べる。サブシステムの枠は隙間が少なくなるよう
  * 詰めて並べる（`kit/Packed.tsx`）。表示するのは絞り込んだ部品（`items`）と、それを含む枠だけ。
  * 枠の名前は表示の言語の名前だけ（英語は ID、日本語は表示名）。
- * 入れ子のグループ（中が部品だけのもの）は、ふだんは部品と同じ大きさの 1 枚のカード（名前と部品の数）にたたんで並べ、
- * 押すと枠に開いて中の部品を見せる（枠の見出しを押すとたたむ）。選んでいる部品を含むグループは開いておく。
+ * 入れ子のグループは、1 枚のカード（名前と中の部品の数）にたためる（枠の見出しを押すとたたみ、カードを押すと開く）。
+ * 中が部品だけのグループは、ふだんはたたんで並べる。中に組立品や別のグループを持つグループは、ふだんは開いておく。
+ * 選んでいる部品を（組立品の中も含めて）持つグループは開いておく。
  * 開いた枠には名前の変更と解除の操作が付く。
  */
 export function PartsOverview({
@@ -100,10 +102,10 @@ function Box({
   onFold?: () => void;
 }) {
   const td = useT().components;
-  // 押して開いた入れ子のグループ（この枠の中のもの）
-  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
+  // 既定の状態から押して切り替えた入れ子のグループ（この枠の中のもの。既定は、中が部品だけならたたむ、それ以外は開く）
+  const [flipped, setFlipped] = useState<ReadonlySet<string>>(new Set());
   const toggle = (id: string) =>
-    setOpened((old) => {
+    setFlipped((old) => {
       const next = new Set(old);
       if (!next.delete(id)) next.add(id);
       return next;
@@ -114,12 +116,12 @@ function Box({
   // 子を持たない部品はカード、子を持つ部品（組立品）と入れ子の Group は小さな枠
   const cards = children.filter((n) => n.node === "part" && n.children.length === 0);
   const nestedAll = children.filter((n) => n.node === "group" || n.children.length > 0);
-  // たたんでカードにするグループ: 中が部品だけで、開いておらず、選んでいる部品を含まないもの
+  // たたんでカードにするグループ: たためるもののうち、いまたたむ状態で、選んでいる部品を中に持たないもの
   const folded = nestedAll.filter(
     (n) =>
       foldable(n, ctx) &&
-      !opened.has(n.id) &&
-      !(ctx.selected !== null && n.children.includes(ctx.selected)),
+      foldedByDefault(n, ctx) !== flipped.has(n.id) &&
+      !(ctx.selected !== null && partsWithin(n, ctx).includes(ctx.selected)),
   );
   const inner = nestedAll.filter((n) => !folded.includes(n));
   const assembly = node?.node === "part";
@@ -178,20 +180,13 @@ function Box({
   );
 }
 
-/** たためるグループ: 系の下の入れ子の Group で、中が（子を持たない）部品だけのもの */
-function foldable(n: TreeNode, ctx: Ctx): boolean {
-  if (n.node !== "group" || n.parent === null) return false;
-  const kids = n.children.map((id) => ctx.nodes.get(id)).filter((k) => !!k && ctx.shown(k.id));
-  return kids.length > 0 && kids.every((k) => k?.node === "part" && k.children.length === 0);
-}
-
 /**
  * たたんだグループのカード（部品のカードと同じ大きさ）。アイコンと種類は中の部品がそろっているときだけ出し、
- * 右上の数は中の部品の数。押すと枠に開く。
+ * 右上の数は中の部品の数（組立品とその子も数える）。押すと枠に開く。
  */
 function FoldedGroupCard({ node, ctx, onOpen }: { node: TreeNode; ctx: Ctx; onOpen: () => void }) {
   const td = useT().components;
-  const rows = node.children.flatMap((id) => {
+  const rows = partsWithin(node, ctx).flatMap((id) => {
     const r = ctx.rows.get(id);
     return r ? [r] : [];
   });
