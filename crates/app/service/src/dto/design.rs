@@ -394,6 +394,8 @@ pub struct CaseView {
     pub modes: Vec<String>,
     /// フェーズ（`phases/<ID>.toml`。軌道・姿勢則がそのフェーズのものになる）
     pub phase: Option<String>,
+    /// 解析を始める時刻（ISO 8601。無ければ軌道の元期から）
+    pub epoch: Option<String>,
     pub file: String,
 }
 

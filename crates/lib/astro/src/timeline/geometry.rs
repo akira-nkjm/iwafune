@@ -19,8 +19,10 @@
 //! 極値は標本の最小・最大（[`extreme_indices`]）と、標本の前後の区間で黄金分割（`math::golden_section_min`）して詰めたもの
 //! （[`extremes_by`]）の 2 つ。詰める区間では単峰とみなす（軌道の周回による細かい変動が標本の刻みより速い成分は、詰めても拾えない）。
 
+mod below;
 mod extremes;
 
+pub use below::time_below_s;
 pub use extremes::{Extremes, Extremum, ExtremumKind, extreme_indices, extremes_by};
 
 use crate::AstroError;

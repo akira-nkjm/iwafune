@@ -9,14 +9,16 @@ use sat_analysis::structure::{
     ModalFemOutput,
 };
 
-/// 打ち上げ適合の最小の余裕（質量と包絡の軸のうち、余裕を持つもの。どれも持たなければ None）。
-/// 固有振動数の余裕は `structure.modal_estimate` の推定が要り、無いことが多いので入れない（その判定は行の判定に出る）。
+/// 打ち上げ適合の最小の余裕（質量・包絡の軸・固有振動数のうち、余裕を持つもの。どれも持たなければ None）。
+/// 固有振動数の余裕は、見積もり（有限要素か梁の式）が無ければ持たない（その判定は行の判定に出る）。
+/// 探した範囲で適合とした向きの余裕は下界。
 pub(super) fn launch_fit_margin(o: &LaunchFitOutput, _: Ctx<'_>) -> Option<Measured> {
     smallest(
         o.mass
             .iter()
             .filter_map(|m| m.margin)
-            .chain(o.envelope.iter().filter_map(|a| a.margin)),
+            .chain(o.envelope.iter().filter_map(|a| a.margin))
+            .chain(o.frequencies.iter().filter_map(|f| f.margin)),
     )
 }
 

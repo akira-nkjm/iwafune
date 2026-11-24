@@ -228,7 +228,7 @@ pub(crate) struct LauncherDeparture {
 }
 
 /// 最低固有振動数の候補（基本の限度 = 打ち上げ機・ディスペンサーの値、続いて `structure.modal_estimate` の判定
-/// `lateral`・`axial` の要求）。`direction` は `lateral` か `axial`。
+/// `lateral`・`axial` か `structure.launch_fit` の判定 `frequency:<向き>` を確かめ先にする要求）。`direction` は `lateral` か `axial`。
 pub(crate) fn frequency_limits(
     ctx: &Context<'_>,
     launch: &LaunchValues<'_>,
@@ -239,12 +239,20 @@ pub(crate) fn frequency_limits(
         _ => attr::MIN_FREQUENCY_LATERAL,
     };
     let base = launch.scalar(attr_id).map(|f| (f.origin, f.value));
-    let requirement = ctx
-        .criterion("structure.modal_estimate", direction)
-        .map(|c| (format!("requirement {}", c.requirement), c.si));
-    [base, requirement]
-        .into_iter()
-        .flatten()
+    // 要求は、簡易固有振動数の判定（`lateral`・`axial`）か打ち上げ適合の判定（`frequency:<向き>`）のどちらを確かめ先にしていてもよい。
+    // 同じ下限なので、どちらも限度の候補に入る（効く 1 つは解析が選ぶ）
+    let requirements = [
+        ctx.criterion("structure.modal_estimate", direction),
+        ctx.criterion(
+            "structure.launch_fit",
+            &sat_checkkey::launch_frequency(direction),
+        ),
+    ]
+    .into_iter()
+    .flatten()
+    .map(|c| (format!("requirement {}", c.requirement), c.si));
+    base.into_iter()
+        .chain(requirements)
         .map(|(origin, hz)| LaunchFitFrequencyLimit {
             origin,
             value: Qty::<Frequency>::from_raw(hz),

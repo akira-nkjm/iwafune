@@ -289,6 +289,7 @@ fn other_ops() -> Vec<Op> {
         beta: Some(Quantity::new(20.0, "deg")),
         orbits: Some(3),
         sun_distance: None,
+        epoch: None,
     };
     let source = Source {
         id: Id::new("tvac"),

@@ -69,6 +69,7 @@ fn with_phases() -> Design {
                 beta: None,
                 orbits: None,
                 sun_distance: None,
+                epoch: None,
             },
         );
     }

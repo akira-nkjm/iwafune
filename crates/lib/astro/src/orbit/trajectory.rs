@@ -12,6 +12,8 @@
 //! ケプラー要素が本当に要る処理は [`Trajectory::elements`] を通して取り、無ければ対象外として扱う
 //! （期間を持つ軌道は、要素で書かれていても周期的でないので `None`。状態ベクトルの軌道も `None`）。
 
+mod rebase;
+
 use super::track::TABLE_STEPS_PER_ORBIT;
 use super::{OrbitSpec, OrbitState, OrbitTrack, StateSpec};
 use crate::AstroError;

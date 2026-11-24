@@ -5,6 +5,7 @@ import type { LaunchFitAxis } from "./LaunchFitAxis";
 import type { LaunchFitEnvelopeSource } from "./LaunchFitEnvelopeSource";
 import type { LaunchFitFrequency } from "./LaunchFitFrequency";
 import type { LaunchFitMass } from "./LaunchFitMass";
+import type { LaunchFitSourceNote } from "./LaunchFitSourceNote";
 
 /**
  * 打ち上げ適合の出力。
@@ -30,6 +31,10 @@ skipped?: Array<InterferenceSkipped>,
  * 横 → 機軸の順（下限のあるものだけ）
  */
 frequencies: Array<LaunchFitFrequency>, 
+/**
+ * 見積もりに使えなかった出どころと理由（入力のもの）
+ */
+unavailable?: Array<LaunchFitSourceNote>, 
 /**
  * 判定ごとの結果（key は `mass`・`envelope:<軸>`・`frequency:<向き>`）
  */

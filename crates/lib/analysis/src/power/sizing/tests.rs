@@ -173,7 +173,7 @@ fn incidence_follows_the_attitude() {
 }
 
 /// 太陽光の強さは (1 AU/d)² に比例するので、2 AU では SMAD の必要面積が 4 倍（入射係数・容量は変わらない）。
-/// 太陽距離の慣例値の無い中心天体（火星）では sun_distance を書かないと止まる。
+/// 太陽距離の慣例値の無い中心天体（火星）では、書かなければ期間（ミッション期間）の中の最大の太陽距離（最悪の日）を使い、出力が出どころと日付を言う。
 #[test]
 fn sun_distance_scales_the_required_area() {
     let base = Sizing::run(&input()).unwrap();
@@ -188,14 +188,27 @@ fn sun_distance_scales_the_required_area() {
     );
     assert_eq!(far.used.sun_distance.value(), 2.0 * AU);
     assert_eq!(base.used.sun_distance.value(), AU);
-    let mut mars = input();
-    mars.season.orbit.central = sat_astro::ephem::CentralBody::Mars;
-    assert!(
-        Sizing::run(&mars)
-            .unwrap_err()
-            .to_string()
-            .contains("sun_distance")
+    assert!(base.used.sun_distance_source.is_conventional());
+    assert!(far.used.sun_distance_source.is_conventional());
+    let mut mars_in = input();
+    mars_in.season.orbit.central = sat_astro::ephem::CentralBody::Mars;
+    let mars = Sizing::run(&mars_in).unwrap();
+    let d = mars.used.sun_distance.value() / AU;
+    // 火星の日心距離は 1.381〜1.666 AU（公称の近日点・遠日点。期間は 1 年強で最大の近くまで届く）。最大なので 1 AU の SMAD 面積より (d/1 AU)² 倍
+    assert!((1.38..1.67).contains(&d), "{d}");
+    assert_eq!(
+        mars.used.sun_distance_source,
+        SizingSunDistanceSource::SpanMax
     );
+    assert!(mars.used.sun_distance_epoch.is_some());
+    // 最大の距離をそのまま設定に書いたのと同じ結果（ほかの入力は同じ）
+    mars_in.options.sun_distance = Some(mars.used.sun_distance);
+    let written = Sizing::run(&mars_in).unwrap();
+    assert_eq!(
+        written.used.sun_distance_source,
+        SizingSunDistanceSource::Setting
+    );
+    assert_eq!(written.smad.required_area, mars.smad.required_area);
 }
 
 #[test]

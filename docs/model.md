@@ -143,8 +143,8 @@ The verdict is informational only and no checks are attached. The KPIs list the 
 the service's `case_from_eclipse_op` and builds an existing `SetCase` Op.
 HTTP sends `{ "id": "season_longest", "at": "longest", "mode": null }` to `POST /ops/case_from_eclipse`
 and saves the returned Op with the ordinary `POST /ops`. The GUI's orbit page uses the same entry point, so the preview and the CLI output are shared.
-The case stores β (rad) and an optional mode. A case has no epoch field, so the sample's date is recorded in the description.
-This is a case that reuses a representative β condition; it does not change the epoch of later analyses through the date in the description.
+The case stores β (rad) and an optional mode. The sample's date is recorded in the description and not in the case's `epoch` (below).
+This is a case that reuses a representative β condition; it does not change the start time of later analyses through the date in the description.
 Overwriting an existing ID and unknown modes are rejected. `to_cli` returns a `fune case set` that keeps the value and the date.
 
 **Heliocentric cruise (the Sun as central body).** The power and thermal analyses run with `central = "sun"`: the timeline gives the Sun distance `|r|` at each time (so the solar flux is `S₁ (AU/d)²`
@@ -156,7 +156,7 @@ The worst cases of a cruise are the perihelion and the aphelion, made as analysi
 `fune case from-sun-distance <new ID> --at min|max [--mode <mode>]` finds the smallest or largest Sun distance of the orbit between the epoch and `duration`
 (`sat_analysis::orbit::sun_distance_extremes`: samples at the usual step, then a golden-section refinement around the extreme; if the span is shorter than half an orbit the extreme is at the span's end)
 with the service's `case_from_sun_distance_op` and builds an existing `SetCase` Op (HTTP: `POST /ops/case_from_sun_distance` with `{ "id": "perihelion", "at": "min", "mode": null }`, saved with `POST /ops`).
-The distance is written in AU and the date of the extreme is recorded in the description (a case has no epoch field). The orbit must have the Sun as central body (otherwise an error).
+The distance is written in AU and the date of the extreme is recorded in the description (the day of the extreme as an `epoch` is made by `fune case from-geometry`, below). The orbit must have the Sun as central body (otherwise an error).
 A case with `sun_distance` makes every analysis use a **circular orbit at that distance** instead of the orbit conditions (inclination, RAAN, epoch and propagator are kept; `Context::orbit`).
 So `thermal.steady` is the steady state at that distance (the orbit average of a circular orbit is constant), and `thermal.transient`, `power.orbit_generation` and `power.energy_balance` run at that distance
 (for a circular orbit about the Sun the Sun direction turns slowly, one turn per orbit, and the attitude law follows it). A `sun_distance` on an orbit whose central body is not the Sun is a missing input naming `cases.<ID>.sun_distance`.
@@ -179,6 +179,25 @@ The distances and angles are computed in one place, `sat_astro::timeline::geomet
 - **Output per leg.** `sun_distance` and `earth_distance` each with `min` and `max` (a `value` and the `epoch` of it), `sep_min` (the closest approach to conjunction), `light_time_max`, and a `series` (time from the leg start; channels `sun_distance`, `earth_distance`, `sep`, `spe`).
   The extremes are refined between the samples around the extreme sample (golden section, one extremum assumed there); a variation faster than the sample step, such as the orbit of a low Earth satellite in SEP, is not resolved.
   The analysis judges nothing and has no notes. Later stages read `legs[].earth_distance.max` (the farthest distance and its date) and `legs[].sun_distance.max.epoch` by phase ID.
+
+#### The time of a case (`epoch`) and the worst-day cases
+
+A case may carry `epoch` (ISO 8601, `cases.<ID>.epoch`): **the time at which the time-series analyses run in that case start on the case's orbit** (the orbit in effect for the case's phase, any source), instead of the orbit's own epoch.
+`Context::case_trajectory` is the one place that applies it (`Trajectory::starting_at`; every time-series projection in `timeline.rs` goes through it). A case without `epoch` behaves exactly as before.
+
+- **Periodic orbits** (Kepler elements): the elements are advanced to the epoch (the J2 secular drift of RAAN, argument of perigee and mean anomaly for `j2`, two-body for `kepler`) and the series starts there, so the Sun geometry (season, β, Sun distance for a heliocentric orbit) is that of the date. The epoch may be before or after the orbit's epoch.
+- **One-off orbits** (`transfer`, `state`, a span): the epoch must lie in `[orbit epoch, orbit epoch + span)`; the span becomes what remains (end of the span minus the epoch), so the window is clipped at the end of the orbit's span. An epoch outside the span, or exactly at its end (nothing left to analyse), is a missing input naming `cases.<ID>.epoch` with the span in the message; an unparsable epoch is also a missing input on that key.
+  For a `state` orbit the state at the epoch is propagated once with the existing numerical propagation and becomes the new initial state.
+- **Precedence with the other overrides.** `epoch` is applied last, to the orbit as the other overrides leave it: the case's `sun_distance` first replaces the orbit by a circle, then the series starts at the epoch on it; the case's `beta` replaces the RAAN so that β holds **at the start time** (so an explicit `beta` always wins over the geometry that the epoch alone would give).
+  `beta` and `sun_distance` stay not applicable to non-`elements` orbits; `epoch` is applicable to every source. Analyses that read the orbit as Kepler elements rather than as a time series (`orbit.eclipse_season`, `orbit.decay`, `power.sizing`'s season) do not read `epoch`; the orbit averages of `thermal.steady` start at it like any time series (the same result over a whole periodic cycle, the remaining span for a one-off orbit).
+- **Worst-case calculations do not read `epoch`.** The link budget keeps the farthest Earth distance over the whole span of the phase's orbit (`distance_model = earth_to_body`, with `range_max_epoch`), and the power sizing keeps the farthest Sun distance over the mission duration (below). A case is a way to choose what a time series shows, not to weaken a worst-case sizing.
+
+`fune case from-geometry [--phase <ID>] [--prefix <name>] [--mode <mode>]` (service `cases_from_geometry_ops`; HTTP `POST /ops/cases_from_geometry` with `{ "phase": "NOMINAL_OPS", "prefix": null, "mode": null }` returns the Ops, saved with `POST /ops`)
+generalises the creation of cases from a date: it reads the leg of the phase from `orbit.geometry` (one geometry for every source; the leg's span as above) and writes three cases whose `epoch` is the day of
+the **maximum Sun distance** (`<prefix>_sun_far`), the **minimum Sun distance** (`<prefix>_sun_near`) and the **maximum Earth distance** (`<prefix>_earth_far`), with `phase` set to the given phase and the quantity and date in the description.
+The prefix defaults to the lower-case phase ID (none for a design without phases; a design with phases requires `--phase`). The names are fixed, so running it again gives the same files; a case that already exists keeps all its other fields (its mode only changes when `--mode` is given) and gets the new `epoch`, `phase` and description.
+The results are ordinary cases that can be edited (`fune case set … --epoch`). The days are as accurate as `orbit.geometry` (720 samples per leg, refined by golden section: about a second for a smooth extreme). An extreme at the very end of a one-off span gives an epoch with no window left (see above), which `fune case from-geometry` still writes.
+`fune case from-sun-distance` remains for the steady analyses (it writes a `sun_distance` override, a circular orbit, for an orbit about the Sun with Kepler elements); `from-geometry` is the one for time series on any orbit.
 
 #### Altitude decay by atmospheric drag and orbit maintenance (`orbit.decay`)
 
@@ -264,7 +283,7 @@ flowchart LR
 | Mode | The satellite's operating mode | `modes/<ID>.toml` | duration, part → {state, time fraction, active count, spare state}, eclipse override |
 | Net | Electrical connection (logical) | `nets/<ID>.toml` | kind (power / data / rf), rail voltage, source port, current limit, protocol |
 | Harness | Cable segment (physical) | `harness/<ID>.toml` | ports at both ends, the nets it carries, wire, number of cores, length |
-| Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, a phase (§7.10), which side of the uncertainty to read, Sun distance (cruise), orbit, attitude law, environment conditions, period |
+| Case | Analysis case | `cases/<ID>.toml` | a mode or mode time series, a phase (§7.10), which side of the uncertainty to read, Sun distance (cruise), the start time `epoch` (a day on the orbit), orbit, attitude law, environment conditions, period |
 | Phase | Mission phase (commissioning, nominal operations, disposal) | `phases/<ID>.toml` | order, start and end conditions (free text), duration, the modes used, and optional configuration selection and overrides of the orbit and of the attitude law per mode for the cases that name the phase (§7.10) |
 | Configuration | A named overlay of part poses (stowed, deployed and other placement variants) | `configurations/<ID>.toml` | label, description, and a replacement pose per part (§7.11) |
 | Maneuver | Maneuver | `maneuvers/<ID>.toml` | category (a row of the ΔV budget), calculation stage, thrusters, preceding maneuver, target orbit, constraints for fine-grained stages only, dates of an interplanetary transfer (§7.7) |
@@ -935,9 +954,21 @@ The distance used for the link depends on the central body of `conditions.orbit`
 
 - **`earth_orbit`** (Earth): the slant range from the station to the spacecraft. The link margin is judged at the longest distance (the station's `min_elevation`), and the shortest distance (zenith, equal to the altitude) is reported as `range_min`.
 - **`earth_to_body`** (Moon, a planet or the Sun): the distance from Earth to the spacecraft, `|r_body(t) − r_earth(t) + r_spacecraft(t)|`, with the body position from the ephemeris (`sat_astro::ephem`) and the spacecraft position from the orbit around the body.
-  It is evaluated over the mission duration (the requirement with `input = "mission_duration"`; one year when there is none; a planet's synodic period can be longer, so write the duration for Mars and beyond).
+  It is evaluated over the mission duration (the requirement with `input = "mission_duration"`; one year when there is none; a planet's synodic period can be longer, so write the duration for Mars and beyond), or over the whole span of a one-off orbit (`transfer`, `state`), of the phase's orbit in effect for the case.
+  The analysis case's `epoch` does not change it: the range is a worst case over the whole span. The extremes are the sample extremes at the usual step (`max(30 s, span / 200)`), so the margin is evaluated at a distance up to about 2·10⁻⁴ (relative) short of the true maximum for a heliocentric cruise (`orbit.geometry` reports the refined extremes).
+  An orbit given by a state vector has no altitude, so a link about another body does not need one (`LinkBudgetLink.altitude` is optional; an Earth-orbit link without an altitude is an input error). Before, such a design reported "No links".
   The margin is judged at the **maximum** distance (`slant_range`); `range_min`, `range_min_epoch` and `range_max_epoch` report the minimum and the epochs of the extremes. Approximation: the distance is measured to Earth's centre, not to the station (an error of up to Earth's radius, about 1.7 % at the Moon and 0.01 % or less beyond Mars; the elevation, see below, uses the real station position).
 - `light_time` is the one-way light time at the maximum distance. Atmospheric and rain losses are the link's `atmospheric_loss` as before.
+
+**Deep-space links.** For `earth_to_body` the result also shows the other end of the range, so that the worst and the best case are both visible
+(the keys are absent for an `earth_orbit` link, whose output is unchanged). Everything uses the one link equation; only the distance changes:
+
+- `margin_db_at_range_min` is the link margin at the **minimum** distance (the best case; the verdict stays on `margin_db` at the maximum). It is higher than `margin_db` by `20·log10(range_max / range_min)`.
+- `max_data_rate` (at the maximum distance) and `max_data_rate_at_range_min` are the highest data rates that keep the required margin at the two ends. The rate scales with `1 / d²` (twice the distance, a quarter of the rate; 6.02 dB less margin at a fixed rate). They are information; no verdict unless a requirement points at the margin as before.
+- `light_time` (maximum distance) and `light_time_min` are the one-way light times, `distance / c` (1 au is 499.005 s). For the distance over time, see `orbit.geometry`.
+- `solar_conjunction` gives the minimum of the Sun–Earth–probe angle (SEP, see `orbit.geometry`) over the same span with its date (`sep_min`, `sep_min_epoch`) and the total time SEP is below the threshold (`time_below_threshold`, samples joined by straight lines).
+  The threshold is 3° (`threshold`, the analysis default; there is no setting for it). The check `solar_conjunction` is a warning when SEP falls below the threshold, because the link is assumed to be needed over the whole span. The increase of the receiver noise near conjunction is not modelled.
+  The extremes of the distance and the time below the threshold are found at the sample resolution of the span (period / 200 for a one-off orbit), the minimum SEP is refined between the samples.
 
 `comm.visibility` and `comm.data_throughput` find passes from the real geocentric position of a spacecraft around another body (a daily pass of the Earth's rotation, above the station's `min_elevation`).
 The central body occults the spacecraft: while the line from the station to the spacecraft passes through the sphere of the body (equatorial radius), the spacecraft is not visible and the pass is cut (so a Moon or Mars orbiter has several passes a day).
@@ -1048,7 +1079,7 @@ Overrides are in `[sizing]` of `analysis/power.toml`. All are optional, and the 
 | `inherent_degradation` | 1 (no additional inherent degradation) |
 | `battery_strings` (N) | 1 |
 | `bus_voltage` | none (no series-parallel layout) |
-| `sun_distance` | the conventional Sun distance of the central body (1 AU for Earth and the Moon; `CentralBody::nominal_sun_distance_m`). For other bodies, a missing input. `power.sizing` does not run about the Sun (no eclipse season) |
+| `sun_distance` | the conventional Sun distance of the central body (1 AU for Earth and the Moon; `CentralBody::nominal_sun_distance_m`). For other bodies (a planet), the **maximum Sun distance over the mission duration** from the orbit (the worst day: the lowest flux; `sat_analysis::orbit::sun_distance_extremes_over`, which uses the mission geometry of `sat_astro::timeline::geometry`). `used.sun_distance_source` (`span_max`, with `used.sun_distance_epoch`) says so; a written value or the conventional one is not marked. `power.sizing` does not run about the Sun or for a `transfer` / `state` orbit (no eclipse season on Kepler elements: not applicable), and an analysis case's `epoch` does not change it |
 
 The solar flux is found from `illumination::solar_flux_w_m2` with `sun_distance` (the flux formula exists only there) and is used in both the SMAD and the time-series reverse computations
 (at 2 AU it is 1/4, and the required area is 4 times). When a part's `packing_factor` and `eol_factor` are omitted they are 1, as in the existing generation model.
@@ -1137,8 +1168,17 @@ If that source gives a kind that needs a face (`base_fixed`, `tabs`, `fixed`) an
     The output carries them on each axis row as `at_min`, `at_max` and `centre_offset`. A part with no `size` is not measured and is listed in `skipped` (as in §5.7). The count of a part is ignored (copies are at one pose).
   - **No configuration in effect: from the root part** (`envelope_source` is omitted, the same output as before). The extent is the `size` of the root part of the mounting tree (the same rule as the outer shape for attitude analysis, §5.3); parts that stick out of it are not measured.
   If both could apply, the parts win: the root `size` is not read when a configuration is in effect. Which configuration is in effect follows the launch rule of §7.11 (the run's explicit one, else the launch conditions'; a case's phase is not read).
-- **Natural frequencies**: the lowest whole-body first mode estimated by `structure.modal_estimate` (beam results `lateral` / `axial`) against the larger of the catalog minimum and the requirement (`structure.modal_estimate` / `lateral`, `axial`).
-  Panel out-of-plane modes are local and are not compared. The estimate has no beam model yet (the demo has none), so these checks end as a **warning "Not verified"**; they are never silently reported as fit.
+- **Natural frequencies**: the whole-body first mode in each direction (lateral, axial) against the larger of the catalog minimum and the requirement (`structure.modal_estimate` / `lateral`, `axial`).
+  The estimates come as **one list with a source for each entry**: the finite-element model (`structure.modal_fem`, §5.10) and the beam estimate (`structure.modal_estimate`). For each direction the rule is (`sat_analysis::structure::launch_fit::frequency`, the only place):
+  1. a global mode in that direction from the first source that has one (priority: finite element, then beam estimate); its lowest one is compared with the limit, and the verdict text says which source it came from (`81.9 Hz by the finite-element model, mode 2 (required at least 50.0 Hz from …)`);
+  2. otherwise, when a source computed all modes up to a frequency and none of them was global in that direction, the first global mode there is **above** that frequency (the eigenvalue solver checks that no mode below the highest one returned is missed). If that frequency is at least the limit the check is **ok** (a lower bound: `estimated` stays empty, `searched_up_to` is set, and the margin is that frequency / limit − 1);
+     if the searched range does not reach the limit, a lower first mode cannot be ruled out, so it is a **warning "Not verified"** with the range;
+  3. otherwise a **warning "Not verified"**; a missing estimate is never reported as fit.
+
+  What counts as global is the mode class of `structure.modal_fem` (an effective mass fraction of at least 5 % on one axis, §5.10); a mode with less is local, so rule 2 says "no global mode", not "no mode".
+  The finite-element model is asked for 12 modes here (`FEM_MODE_COUNT`; its own default is 6), because the first axial mode of a satellite made of panels is often a few modes above the first lateral one.
+  The finite-element model is an **optional** input: when it cannot be built (no launch constraint, no panels, …) or solved, `structure.launch_fit` runs as before from the beam estimate, and the reason is listed in the output (`unavailable`) and at the end of the frequency rows (`; finite-element model not used: …`); it never becomes a missing input of `structure.launch_fit`.
+  **Local modes** (panel out-of-plane, or a panel carrying heavy parts) are not compared with the whole-body requirement, but the lowest one that is below the limit is reported on the row (`lowest_local`, and in the text) as information, so it is not hidden.
 - Verdicts are two-level (fit or not): the margin is limit / value − 1, and a negative margin is a violation. Check keys are `mass`, `envelope:<x|y|z>` and `frequency:<lateral|axial>`.
 
 Not modeled yet: random vibration (PSD), interface details (the mechanical interface, separation springs) and shock. The angular rate at separation is only stored.
@@ -1284,7 +1324,7 @@ It is an order-of-magnitude and trend tool, not a detailed model. How the model 
 
   A `tie` that names a part that does not exist or something that is not a modelled panel is a missing input at that setting. A rename of a part or panel does not rewrite `tie` (the check at analysis time catches it).
   Pairs of panels that must not be joined are not supported yet.
-- **KPI.** `first_frequency`: the lowest non-rigid mode (it may be a local mode such as a panel carrying heavy parts; the output separates `lowest_lateral` and `lowest_axial`). There is no verdict yet: the frequencies are compared with the launcher's minimums by `structure.launch_fit` in a later stage.
+- **KPI.** `first_frequency`: the lowest non-rigid mode (it may be a local mode such as a panel carrying heavy parts; the output separates `lowest_lateral` and `lowest_axial`). There is no verdict of its own: `structure.launch_fit` takes the lowest global lateral and axial modes (and the searched range) and compares them with the launcher's minimums (§5.6).
 
 Known biases: the frame stiffness is omitted (low), parts are tied rigidly at one point or one projected area (a heavy part on a thin panel gives a low local mode), the nearest-panel tie is a modelling choice made by distance only, and the joints between panels are rigid.
 
@@ -1754,7 +1794,7 @@ Design values and modelling inputs stay settings or part attributes (see the tab
 | `comm.link_budget` / `pfd` | `at_most`, Dimensionless (dB) | the PFD limit of a downlink; without one no PFD check is made |
 | `aocs.slew_time` / `slew_time` | `at_most`, Time | the required slew time; without one no check is made |
 | `orbit.decay` / `max_lifetime` | `at_most`, Time | the lifetime limit; without one no check is made |
-| `structure.modal_estimate` / `lateral`, `axial` | `at_least`, Frequency | the required natural frequency of beams, and it only tightens the minimum of the selected launcher and dispenser (§5.6; the larger applies, and `structure.launch_fit` names which one). The demo has no beams, so these rows stay "not verified" |
+| `structure.modal_estimate` / `lateral`, `axial` and `structure.launch_fit` / `frequency:lateral`, `frequency:axial` | `at_least`, Frequency | the required natural frequency. A requirement may verify against either analysis; its value is a limit candidate of **both** (it only tightens the minimum of the selected launcher and dispenser; §5.6; the larger applies, and `structure.launch_fit` names which one). The demo has no beams, so its requirements verify against `structure.launch_fit` (judged with the finite-element mode, §5.6); against `structure.modal_estimate` they would stay "not verified" |
 | `thermal.steady`, `thermal.transient` / `range_low`, `range_high` | `at_least` / `at_most`, Temperature | a node's lower or upper temperature limit (see below) |
 
 - **Several requirements on one criterion**: the tightest applies (`at_most` the smallest, `at_least` the largest). The compliance table still judges **each row against its own constraint**:

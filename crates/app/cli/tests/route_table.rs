@@ -93,6 +93,12 @@ const TABLE: &[(&str, &str, &[&str], &str)] = &[
         &["case", "from-sun-distance"],
         "edit::case_from_sun_distance_op",
     ),
+    (
+        "POST",
+        "/ops/cases_from_geometry",
+        &["case", "from-geometry"],
+        "edit::cases_from_geometry_ops",
+    ),
     ("GET", "/history", &["history"], "history::view"),
     ("POST", "/undo", &["undo"], "history::undo"),
     ("POST", "/redo", &["redo"], "history::redo"),

@@ -81,8 +81,8 @@ fn lunar_orbit_thermal_and_eclipse_use_lunar_environment() {
     assert!(longest > 0.0 && longest < 47.0 * 60.0, "{longest}");
 }
 
-/// 既定値の無い天体（火星）: 熱の環境条件のアルベド・赤外と、プリセットの 1 AU の太陽光の代わりの太陽光の強さ、
-/// 電源の逆算の太陽距離を不足入力にする。
+/// 既定値の無い天体（火星）: 熱の環境条件のアルベド・赤外と、プリセットの 1 AU の太陽光の代わりの太陽光の強さを不足入力にする。
+/// 電源の逆算の太陽距離は不足にしない（書かなければ、ミッション期間の中の最大の太陽距離を解析が使う）。
 #[test]
 fn mars_orbit_requires_environment_values() {
     let design = about(CentralBodyKind::Mars);
@@ -98,14 +98,16 @@ fn mars_orbit_requires_environment_values() {
         let path = format!("analysis.thermal.case.hot.{key}");
         assert!(missing.contains(&path), "{path}: {missing:?}");
     }
-    let sizing: Vec<String> = power::sizing(&ctx)
-        .unwrap_err()
-        .into_vec()
-        .iter()
-        .filter_map(|m| m.target.as_ref().map(ToString::to_string))
-        .collect();
+    let sizing: Vec<String> = match power::sizing(&ctx) {
+        Ok(_) => Vec::new(),
+        Err(m) => m
+            .into_vec()
+            .iter()
+            .filter_map(|m| m.target.as_ref().map(ToString::to_string))
+            .collect(),
+    };
     assert!(
-        sizing.contains(&"analysis.power.sizing.sun_distance".to_owned()),
+        !sizing.contains(&"analysis.power.sizing.sun_distance".to_owned()),
         "{sizing:?}"
     );
 }

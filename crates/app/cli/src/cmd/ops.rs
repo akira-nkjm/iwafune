@@ -67,6 +67,22 @@ pub fn edit_of<'a>(ws: &Workspace, command: &'a Command) -> anyhow::Result<Optio
             )?],
             opts,
         }),
+        Command::Case(crate::args::CaseCmd::FromGeometry {
+            phase,
+            prefix,
+            mode,
+            edit: opts,
+        }) => Some(Edit {
+            ops: edit::cases_from_geometry_ops(
+                ws,
+                &fune_service::dto::CaseFromGeometryRequest {
+                    phase: phase.clone(),
+                    prefix: prefix.clone(),
+                    mode: mode.clone(),
+                },
+            )?,
+            opts,
+        }),
         Command::Maneuver(crate::args::ManeuverCmd::SetWindow {
             id,
             min,

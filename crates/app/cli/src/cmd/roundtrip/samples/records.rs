@@ -257,7 +257,7 @@ pub(in super::super) fn view_ops() -> Vec<Op> {
 
 pub(in super::super) fn record_ops() -> Vec<Op> {
     let mut case: Case = serde_json::from_value(json!({ "label": "Worst-case eclipse", "description": "β 0",
-        "mode": "NOMINAL", "phase": "NOMINAL_OPS", "side": "max", "thermal_case": "cold", "beta": { "value": 0.0, "unit": "deg" }, "orbits": 5, "sun_distance": { "value": 0.7, "unit": "AU" } })).unwrap();
+        "mode": "NOMINAL", "phase": "NOMINAL_OPS", "side": "max", "thermal_case": "cold", "beta": { "value": 0.0, "unit": "deg" }, "orbits": 5, "sun_distance": { "value": 0.7, "unit": "AU" }, "epoch": "2031-05-02T00:00:00Z" })).unwrap();
     case.id = "eclipse_worst".into();
     let source = Source {
         id: "ds_x".into(),
