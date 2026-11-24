@@ -87,6 +87,7 @@ export type * from "./ConeKind";
 export type * from "./ConeObstruction";
 export type * from "./ConeReport";
 export type * from "./ConeSkipReason";
+export type * from "./ConfigurationSource";
 export type * from "./ConfigurationText";
 export type * from "./ConfigurationView";
 export type * from "./Constraint";

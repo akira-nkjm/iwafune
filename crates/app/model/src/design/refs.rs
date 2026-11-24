@@ -40,7 +40,7 @@ pub enum Referent<'a> {
     Mode(&'a str),
     /// フェーズの ID（`phases/<ID>.toml`）
     Phase(&'a str),
-    /// 形態の ID（`configurations/<ID>.toml`）。参照元はまだ無い（段階 3 で打上げ条件・フェーズが指す）。名前の変更の索引を揃えるための索引
+    /// 形態の ID（`configurations/<ID>.toml`）
     Configuration(&'a str),
     Net(&'a str),
     /// カタログ品の参照（`"local/rw_10mNms"`）
@@ -155,6 +155,10 @@ pub enum RefSite {
     ManeuverMode { maneuver: String },
     /// 解析ケースのフェーズ（`cases/<ケース>.toml` の `phase`）
     CasePhase { case: String },
+    /// 打ち上げ条件の形態（`conditions/launch.toml` の `configuration`）
+    LaunchConfiguration,
+    /// フェーズの形態（`phases/<フェーズ>.toml` の `configuration`）
+    PhaseConfiguration { phase: String },
     /// フェーズが使うモード（`phases/<フェーズ>.toml` の `modes`）
     PhaseMode { phase: String },
     /// フェーズの姿勢則のキー（`phases/<フェーズ>.toml` の `[law]`）
@@ -430,9 +434,29 @@ impl Design {
             .collect()
     }
 
-    /// 形態を指している場所。今は無い（打上げ条件とフェーズが形態を選ぶのは段階 3。参照元を足すのはここと `RefSite` だけ）。
-    fn configuration_refs(&self, _id: &str) -> Vec<RefSite> {
-        Vec::new()
+    /// 形態を指している打ち上げ条件とフェーズ。
+    fn configuration_refs(&self, id: &str) -> Vec<RefSite> {
+        let matches = |c: Option<&crate::Id<super::configuration::Configuration>>| {
+            c.is_some_and(|c| c.as_str() == id)
+        };
+        let launch = matches(
+            self.conditions
+                .launch
+                .as_ref()
+                .and_then(|s| s.configuration.as_ref()),
+        );
+        launch
+            .then_some(RefSite::LaunchConfiguration)
+            .into_iter()
+            .chain(
+                self.phases
+                    .values()
+                    .filter(|p| matches(p.configuration.as_ref()))
+                    .map(|p| RefSite::PhaseConfiguration {
+                        phase: p.id.to_string(),
+                    }),
+            )
+            .collect()
     }
 
     fn net_refs(&self, id: &str) -> Vec<RefSite> {

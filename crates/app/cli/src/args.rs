@@ -307,6 +307,9 @@ pub struct AnalyzeArgs {
     /// Analysis case
     #[arg(long)]
     pub case: Option<String>,
+    /// Configuration to use when building input from the design
+    #[arg(long)]
+    pub configuration: Option<String>,
     /// JSON file that supplies the whole input (not built from the design data)
     #[arg(long)]
     pub input: Option<PathBuf>,

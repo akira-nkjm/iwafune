@@ -2,7 +2,9 @@
 //!
 //! 値はすべて任意（`Option`）。足りない入力は projection が `conditions.orbit.altitude` のようなパスで列挙する。
 
+use super::configuration::Configuration;
 use crate::enum_text::enum_text;
+use crate::id::Id;
 use crate::value::Quantity;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -240,6 +242,9 @@ pub struct LaunchSettings {
     /// ディスペンサーのカタログ品（同じ形。種別は `dispenser`）。打ち上げ機より衛星に近い接点なので、同じ属性があれば打ち上げ機より先に使う
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dispenser: Option<String>,
+    /// 打ち上げの解析が使う形態。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub configuration: Option<Id<Configuration>>,
     /// 準静的荷重（機軸方向。単位は `g0`）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub load_axial: Option<Quantity>,
@@ -266,7 +271,7 @@ impl LaunchSettings {
     /// `fune set conditions.launch.<欄>` が使う）。
     pub fn field_shape(key: &str) -> Option<crate::value::SettingValue> {
         match key {
-            "label" | "vehicle" | "launcher" | "dispenser" => {
+            "label" | "vehicle" | "launcher" | "dispenser" | "configuration" => {
                 Some(crate::value::SettingValue::Text(String::new()))
             }
             _ => None,

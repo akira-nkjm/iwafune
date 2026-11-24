@@ -105,3 +105,70 @@ fn the_tolerance_setting_is_read() {
     assert!((out.tolerance.value() - 0.06).abs() < 1e-12);
     assert!(out.overlaps.is_empty());
 }
+
+const SPREAD_PHASE: &str = "configuration = \"FAR\"\n";
+
+/// 形態 FAR を名指すフェーズを持つケースは、解析の入力の配置もそのフェーズの形態になる（コードを足さずに従う）。
+/// フェーズの無いケースは基準の配置のまま（重なり 1 組）。
+#[test]
+fn a_case_whose_phase_names_a_configuration_judges_that_placement() {
+    let d = design(&[
+        ("configurations/FAR.toml", FAR),
+        ("phases/SPREAD.toml", SPREAD_PHASE),
+        ("cases/SPREAD.toml", "phase = \"SPREAD\"\n"),
+        ("cases/PLAIN.toml", ""),
+    ]);
+    let resolved = fune_model::resolve(&d);
+    let judged = |case: &str| {
+        let ctx = Context::new(&d, &resolved, Some(case)).unwrap();
+        let input = fune_projection::project_typed::<Interference>(&ctx).unwrap();
+        Interference::run(&input).unwrap()
+    };
+    assert!(judged("SPREAD").overlaps.is_empty());
+    assert_eq!(judged("PLAIN").overlaps.len(), 1);
+}
+
+/// 実行時に形態を明示しても同じ（使う形態と選択元も返る）。明示は基準のケースにも効く。
+#[test]
+fn an_explicit_configuration_changes_the_result_too() {
+    let d = design(&[("configurations/FAR.toml", FAR)]);
+    let resolved = fune_model::resolve(&d);
+    let ctx = Context::bare(&d, &resolved);
+    let (json, used) =
+        fune_projection::project_json_with_configuration(Interference::ID, &ctx, Some("FAR"));
+    assert_eq!(
+        used,
+        Some((
+            "FAR",
+            fune_projection::configuration_policy::ConfigurationSource::Explicit
+        ))
+    );
+    let input: sat_analysis::structure::InterferenceInput =
+        serde_json::from_value(json.unwrap()).unwrap();
+    assert!(Interference::run(&input).unwrap().overlaps.is_empty());
+    let (json, used) =
+        fune_projection::project_json_with_configuration(Interference::ID, &ctx, None);
+    assert_eq!(used, None);
+    let input: sat_analysis::structure::InterferenceInput =
+        serde_json::from_value(json.unwrap()).unwrap();
+    assert_eq!(Interference::run(&input).unwrap().overlaps.len(), 1);
+}
+
+/// `Context::in_phase` は、そのフェーズの形態の配置を読む（フェーズが形態を持たなければ基準）。
+#[test]
+fn in_phase_reads_the_placement_of_that_phase() {
+    let d = design(&[
+        ("configurations/FAR.toml", FAR),
+        ("phases/SPREAD.toml", SPREAD_PHASE),
+        ("phases/PLAIN.toml", ""),
+    ]);
+    let resolved = fune_model::resolve(&d);
+    let ctx = Context::bare(&d, &resolved);
+    let overlaps = |phase: &str| {
+        let c = ctx.in_phase(d.phases.get(phase).unwrap());
+        let input = structure::interference(&c).unwrap();
+        Interference::run(&input).unwrap().overlaps.len()
+    };
+    assert_eq!(overlaps("SPREAD"), 0);
+    assert_eq!(overlaps("PLAIN"), 1);
+}
