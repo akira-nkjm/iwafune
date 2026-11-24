@@ -4,7 +4,8 @@ import { useT } from "@/i18n";
 import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
 import { cn } from "@/lib/cn";
-import { RangeTip, Temp } from "./RangeTip";
+import { Temp } from "@/quantity/Temp";
+import { RangeTip } from "./RangeTip";
 import {
   axisPosition,
   axisTicks,

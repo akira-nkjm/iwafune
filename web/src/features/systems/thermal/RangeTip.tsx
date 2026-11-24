@@ -2,14 +2,7 @@ import type { ThermalRangeMargin, Verdict } from "@/api/types";
 import { useT } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { Formatted } from "@/quantity/Formatted";
-
-/** 整形が届くまでの代わり（生の SI の数は桁が長く、単位も違って見えるので出さない） */
-const PENDING = "…";
-
-/** 温度（SI の K）を API の整形で出す */
-export function Temp({ si }: { si: number }) {
-  return <Formatted si={si} dimension="Temperature" fallback={PENDING} />;
-}
+import { PENDING, Temp } from "@/quantity/Temp";
 
 /** 温度差（余裕。K のまま） */
 function Delta({ si }: { si: number }) {

@@ -19,6 +19,26 @@ pub(crate) fn node(id: &str, fixed: Option<f64>) -> ThermalNode {
     }
 }
 
+/// 板の詳細の確かめ用: 節点 `part` を 3 × 2 の升に分ける（箱 0.3 × 0.2 × 0.003 m を (1, 2, 3) に置く）。
+pub(crate) fn plate_of(part: &str) -> ThermalPlate {
+    use crate::structure::interference::InterferenceBox;
+    use sat_astro::math::{Quat, Vec3};
+    ThermalPlate {
+        part: part.to_owned(),
+        cells: [3, 2],
+        conductivity: Qty::from_raw(100.0),
+        frame: InterferenceBox {
+            id: part.to_owned(),
+            count: 1,
+            position: Vec3::new(1.0, 2.0, 3.0),
+            orientation: Quat::IDENTITY,
+            size: Vec3::new(0.3, 0.2, 0.003),
+            mount_ancestors: Vec::new(),
+        },
+        attachments: Vec::new(),
+    }
+}
+
 #[test]
 fn loads_count_by_hand() {
     let net = Compiled::new(&ThermalNetwork {

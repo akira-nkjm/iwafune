@@ -796,7 +796,15 @@ Renaming the part renames the key. Whether the box is a plate is decided by the 
   `plate_step:<part>` when that time constant is below 0.1 times the configured `time_step` (`PLATE_STEP_WARNING_FRACTION`); the message suggests fewer cells.
   The thickness cancels in the in-plane part: `τ = ρ c Δ² / (4 k)` for an interior square cell of side `Δ` (aluminium, `Δ` = 7 cm → about 18 s), and the conduction to a mounted part (a few W/K) shortens it further.
 
-Not modelled: a plate with an irregular outline or holes (cells are a uniform grid of the box), conduction through the thickness, a thermostat on a plate, and colouring the 3D thermal image per cell (it still colours whole parts by the hottest cell; the per-cell field view is a follow-up).
+- **Per-cell view.** The analyses `thermal.steady` and `thermal.transient` can also return the temperature of every cell with the geometry to draw it (the analysis *detail*, the same mechanism as the mode shapes of `structure.modal_fem`). Ask for it explicitly; the default output does not contain it (about 8 KB for two plates of 15 and 16 cells and three cases):
+  `fune analyze thermal.steady --json --detail`, or `POST /analyses/thermal.steady` with `{ "detail": true }` (the same for `thermal.transient`). The result then has a `detail` field of the type named by `detail_type` in `fune analyze ls --json` (`ThermalPlateTemperatures`); a design with no subdivided plate has no `detail` even when it is requested.
+  `mesh` (`nodes`: grid vertices in the body frame in m, built from the plate's box pose and the shared `PlateGrid` and lying on the plate's mid-plane; `groups`: for each plate its part `id` and the vertex indices of its cells as quadrilaterals, counter-clockwise about the plate normal, in cell order `i · v + j`),
+  `cells` (the same order as the quadrilaterals over all plates: the cell node ID and `cell = { part, i, j }`) and `fields`, each with a `quantity` and `temperature`, one value per entry of `cells`. For `thermal.steady` there is one field per case (`quantity` `steady`, with the case `case` and `label`), the solution of that case.
+  For `thermal.transient` there are three fields: `min` and `max` over the run and `end` (the last sample of the run) per cell; the time history of a cell is not repeated, it stays in the output's `series` (key `<PART>[i,j]`).
+  The GUI draws it in the row of the analysis on the Thermal page: every subdivided plate in its place, each cell in one colour of the same scale as the thermal image (the range is the lowest to the highest temperature over all fields shown, so switching the field does not change what a colour means), the plate IDs and
+  the cell temperatures in a list beside the 3D view (pointing at a cell or a list entry shows its ID and temperature), and a selector for the case (steady) or min / max / end (transient).
+
+Not modelled: a plate with an irregular outline or holes (cells are a uniform grid of the box), conduction through the thickness, a thermostat on a plate, and colouring the whole-spacecraft 3D thermal image per cell (it still colours whole parts by the hottest cell, `part_heat`; the per-cell view above is the way to see the field).
 
 #### Heat dissipation
 

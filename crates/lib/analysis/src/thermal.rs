@@ -8,6 +8,7 @@
 //! | [`environment`] | 熱環境の値と、中心天体に合わせた決め方（書いた値 → プリセット → 天体の既定値） |
 //! | [`heater`] | ヒータの結果（定常・非定常）と判定（key `heater:<部品>`）。制御則と定常の定義は `network::{heater, heater_steady}` |
 //! | [`planet`] | 中心天体ごとのアルベド・赤外放射の既定値（月の赤外は直下点の地方時で変わる） |
+//! | [`plate_view`] | 升に分けた板の温度の分布の重い任意の出力（`ThermalPlateTemperatures`。板のメッシュと升ごとの温度）。定常・非定常で共有する葉 |
 //! | [`orbit_heat`] | 外面への入熱（太陽・中心天体のアルベドと赤外）。入射の幾何は `sat_astro::illumination` |
 //! | [`preset`] | 最悪ケース（高温・低温・セーフモード）のプリセットの熱環境の値 |
 //! | [`range`] | 3 種の温度範囲（保管・動作・性能）と解析マージンの方針、節点の温度との比較と判定。定常・非定常で共有 |
@@ -23,6 +24,7 @@ pub mod heater;
 pub mod network;
 pub mod orbit_heat;
 pub mod planet;
+pub mod plate_view;
 pub mod preset;
 pub mod range;
 pub mod steady;
@@ -35,6 +37,9 @@ pub use network::{
     ThermalNetwork, ThermalNode, ThermalRadiativeLink, ThermalSurface,
 };
 pub use orbit_heat::{ThermalEnvironment, ThermalEnvironmentUsed, ThermalExposure};
+pub use plate_view::{
+    ThermalPlateCell, ThermalPlateField, ThermalPlateQuantity, ThermalPlateTemperatures,
+};
 pub use preset::ThermalPreset;
 pub use range::{
     ThermalMarginPolicy, ThermalMarginUsed, ThermalNodeRange, ThermalPowerState,
