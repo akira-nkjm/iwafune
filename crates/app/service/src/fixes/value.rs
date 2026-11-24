@@ -27,6 +27,12 @@ pub(super) fn example_of(dimension: Option<&str>) -> Option<String> {
     sat_units::format::input_example(dimension?)
 }
 
+/// 量の入力の例（`1 km`）→ ベクトルの入力の例（`1 0 0 km`。単位は共通）。読めなければ None。
+pub(super) fn vector_example(quantity: &str) -> Option<String> {
+    let (value, unit) = quantity.split_once(' ')?;
+    Some(format!("{value} 0 0 {unit}"))
+}
+
 /// 属性の選べる値: 列挙で語彙（`symbols`）が決まっていればその値、真偽なら `true`・`false`。自由入力なら空。
 pub(super) fn choices_of_attr(design: &Design, attr: &str) -> Vec<Choice> {
     let Some(def) = design.attribute(attr) else {

@@ -645,6 +645,7 @@ const labels: Record<string, string> = {
   v_inf_arrival_lambert: "Arrival excess speed (Lambert)",
   v_inf_arrival_propagated: "Arrival excess speed (propagated)",
   values: "Values",
+  velocity: "Velocity",
   view_factors: "View factors",
   volume_margin: "Volume margin",
   warning_band: "Warning band",

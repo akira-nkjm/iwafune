@@ -8,6 +8,10 @@ use super::{OrbitSpec, OrbitState, Propagator};
 use crate::AstroError;
 use crate::ode::step_offsets;
 
+/// 数値伝搬の表の格子の刻みを、周期（繰り返しの 1 単位）のこの分の 1 以下にする。**表の格子の細かさの基準はここだけ**
+/// （時系列の評価器・極値の詰め・状態ベクトルの軌道の表が使う）。
+pub(crate) const TABLE_STEPS_PER_ORBIT: f64 = 100.0;
+
 /// 任意の時刻の状態を求める道具（[`OrbitSpec::track`]）。
 pub struct OrbitTrack {
     kind: Kind,
@@ -43,6 +47,13 @@ impl OrbitSpec {
 }
 
 impl OrbitTrack {
+    /// 格子（昇順の時刻 `t` [s] と、その時刻の状態 `s`）から作る。格子の間は 3 次のエルミート補間。
+    pub(super) fn from_table(t: Vec<f64>, s: Vec<OrbitState>) -> Self {
+        Self {
+            kind: Kind::Table { t, s },
+        }
+    }
+
     /// 元期から `t_s` 秒後の状態（表の範囲の外は端の区間の補間式の延長）。
     pub fn state_at(&self, t_s: f64) -> OrbitState {
         match &self.kind {

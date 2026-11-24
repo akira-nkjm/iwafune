@@ -5,6 +5,7 @@ import type { OrbitDecaySettings } from "./OrbitDecaySettings";
 import type { OrbitPropagatorKind } from "./OrbitPropagatorKind";
 import type { OrbitSource } from "./OrbitSource";
 import type { Quantity } from "./Quantity";
+import type { Vector3 } from "./Vector3";
 
 /**
  * 軌道（`conditions/orbit.toml`）。円軌道は `altitude`、一般の軌道は `semi_major_axis` 以下の要素で書く。
@@ -24,9 +25,21 @@ maneuver?: string | null,
  */
 epoch?: string | null, propagator?: OrbitPropagatorKind | null, 
 /**
- * 中心天体（省略時は地球）。高度はこの天体の赤道半径から数える
+ * 中心天体（省略時は地球）。高度はこの天体の赤道半径から数える。`source = "state"` では位置・速度の原点の天体
  */
 central?: CentralBodyKind | null, 
+/**
+ * `source = "state"` の元期の位置（`{ x, y, z, unit }`。原点の天体の中心から。向きは ECI = J2000 平均赤道の慣性系。座標系を `frame` で選ぶことはできない）
+ */
+position?: Vector3 | null, 
+/**
+ * `source = "state"` の元期の速度（`{ x, y, z, unit }`。位置と同じ座標系）
+ */
+velocity?: Vector3 | null, 
+/**
+ * `source = "state"` の期間（時間。元期から。解析はこの期間を評価する）
+ */
+span?: Quantity | null, 
 /**
  * 円軌道の高度
  */

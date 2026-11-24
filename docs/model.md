@@ -51,7 +51,7 @@ A topic's settings location is looked up with `ConditionTopic::setting_path()`. 
 `sat_astro::ephem::CentralBody` (projection's `context::central_body` maps them). Sun-synchronous (`sun_synchronous`) applies to Earth only;
 writing it for any other body is a `check` error (`setting.central`).
 
-`source` is where the orbit comes from (`elements` or `transfer`; `elements` if omitted and then **never written to the file**, so existing files are unchanged; the display name is `orbit_source` in labels.toml).
+`source` is where the orbit comes from (`elements`, `transfer` or `state`; `elements` if omitted and then **never written to the file**, so existing files are unchanged; the display name is `orbit_source` in labels.toml).
 It is valid in `conditions/orbit.toml` and in a phase's `[orbit]` (§7.10), and it is edited with the existing ops only (`fune set conditions.orbit.source transfer`, `fune phase set-field <ID> orbit.source transfer`; there is no orbit field on the phase itself).
 Analyses read an orbit through `fune_projection::Context::trajectory` (state at a time, central body, epoch and the length of one cycle); only analyses that really need Kepler elements read `Context::orbit`.
 
@@ -69,7 +69,29 @@ maneuver = "MARS_TRANSFER"    # a maneuver with a dated [transfer] (§7.7)
   the trajectory's epoch is the first time (the same ellipse, advanced through its state), its span (`Cycle::OneOff`) is the interval between them, so the Earth range starts at about the Earth's sphere of influence (not at its centre).
   The dates are read by the one reader of `[transfer]` (`fune_projection::maneuver_dates`); the departure body is the central body before the maneuver (`maneuver_dates::central_before`).
   A hyperbolic arc (a short flight time), a body without a sphere of influence, or an arc that does not leave the departure sphere / stay outside the arrival one is a missing input with the reason.
-- Keys beside `source = "transfer"` that the source does not use (the Kepler elements, `epoch`, `central`, `propagator`, `[eclipse_season]`, `[decay]`) get the warning `setting.not_applied`; `maneuver` beside `source = "elements"` gets it too.
+- `source = "state"` takes the orbit from a state vector that is propagated numerically (`sat_astro::orbit::StateSpec`; the existing N-body propagation `propagate_states`, nothing new):
+
+  ```toml
+  # phases/CRUISE.toml (or conditions/orbit.toml): a heliocentric circular orbit at 1 au
+  [orbit]
+  source   = "state"
+  epoch    = "2030-01-01T00:00:00Z"
+  central  = "sun"
+  position = { x = 149597870.7, y = 0.0, z = 0.0, unit = "km" }
+  velocity = { x = 0.0, y = 29.78, z = 0.0, unit = "km/s" }
+  span     = { value = 365.0, unit = "d" }
+  ```
+
+  `epoch`, `central` (the origin body, Earth if omitted), `position`, `velocity` (`{ x, y, z, unit }`) and `span` (a duration from the epoch: the range the analyses evaluate) are all needed; a missing one is a missing input on its own key (`conditions.orbit.position`, `phases.<ID>.orbit.span`, ...), with `fune set` as the fix (the example shown for a vector is `1 0 0 km`).
+  **The frame is one fixed inertial frame**: the same ECI as every orbit state in the model, the J2000 mean-equator frame (not the ecliptic), with the origin at the centre of `central`. There is no `frame` key (writing `frame` inside `position` or `velocity` is the error `orbit.state_frame`); a vocabulary of frames is added only when a second one is needed.
+  The orbit is **one-off** (`Cycle::OneOff { span }`): analyses sample the span, "per orbit" quantities are over the span, and it has no Kepler elements or altitude.
+  Forces are not written; they are a conventional default decided in one place from the origin body (`ForceConfig::deep_space_defaults`): about the **Sun**, the Sun's point mass plus the planets Mercury to Neptune as point-mass third bodies and the Earth as a third body with the Earth's GM only (no Moon);
+  about the **Earth**, the Earth's gravity with J2 plus the Sun and the Moon as point masses; about the **Moon or another planet**, that body's gravity with J2 plus the Sun, and the Earth as a third body (the automatic one) unless that body is the Earth. No drag, solar radiation pressure, EGM96 harmonics, tides or relativity.
+  The integrator is the adaptive DOP853 of the numerical propagator (relative tolerance 1e-11) with a step limit of one day about the Sun and 600 s about any other body. One propagation with dense output serves all requested times; where a table is needed for repeated evaluations
+  (thermal and power integrals, the refinement of extremes) it is built once at a step of a hundredth of the circular period at the osculating periapsis and interpolated by cubic Hermite (relative error about 4e-8 for a circular orbit at that step).
+  The ephemeris of the bodies is DE440 inside its range and the analytic one outside (as for `transfer`; `orbit.geometry` reports which was used).
+- Keys beside a source that it does not use get the warning `setting.not_applied`: for `transfer`, the Kepler elements, `epoch`, `central`, `propagator`, `[eclipse_season]`, `[decay]` and the state keys; for `state`, the Kepler-element keys (everything of `elements` except `epoch` and `central`), `propagator`, `[eclipse_season]`, `[decay]` and `maneuver`;
+  for `elements`, `maneuver` and the state keys (`position`, `velocity`, `span`). `span` must be positive and the components finite (`setting.range`), and the units must have the dimensions Length, Velocity and Time.
   `maneuver` must name an existing maneuver whenever it is written (`ref.maneuver`) and, for `transfer`, that maneuver must have a `[transfer]` (`orbit.maneuver_transfer`). A missing `maneuver` is not a check error but a missing input (`conditions.orbit.maneuver`),
   which offers the maneuvers with a dated transfer (`Fix::PickRef`).
 - `maneuver` is a reference to a maneuver (`RefSite::OrbitManeuver` for the design orbit, `RefSite::PhaseOrbitManeuver` for a phase orbit): renaming the maneuver rewrites both, and removing a maneuver they name is rejected by the check (`ref.maneuver`).

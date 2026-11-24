@@ -5,7 +5,7 @@
 use super::configuration::Configuration;
 use crate::enum_text::enum_text;
 use crate::id::Id;
-use crate::value::Quantity;
+use crate::value::{Quantity, Vector3};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use ts_rs::TS;
@@ -35,21 +35,25 @@ enum_text! {
 enum_text! {
     /// 軌道の出どころ（`[orbit]` の `source`。書かなければ `elements`）。解析が軌道から読むのは時刻での状態・中心天体・元期・
     /// 繰り返しの長さで、出どころごとに射影（`fune_projection::Context::trajectory`）がそれを作る。
-    /// 出どころは `state`・`libration` が増える（値を足すだけで、ほかの欄の形は変わらない）。
+    /// 出どころは `libration` が増える（値を足すだけで、ほかの欄の形は変わらない）。
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
     pub enum OrbitSource: "orbit source" {
         /// ケプラー要素（`altitude`・`semi_major_axis` 以下。既定）
         Elements = "elements",
         /// 日付つきの遷移のマヌーバ（`maneuver`）の巡航の軌道。元期は出発、中心は共通の親、期間は飛行時間
         Transfer = "transfer",
+        /// 状態ベクトル（`epoch`・`central`・`position`・`velocity`・`span`）を多体の力で数値伝搬する軌道。位置・速度は
+        /// 原点の天体の中心から、向きは ECI（J2000 平均赤道の慣性系）
+        State = "state",
     }
 }
 
-/// ケプラー要素の軌道（`source = "elements"`）だけが使う欄。
-const ELEMENT_KEYS: &[&str] = &[
-    "epoch",
+/// 状態ベクトルの軌道（`source = "state"`）だけが使う欄。
+const STATE_KEYS: &[&str] = &["position", "velocity", "span"];
+
+/// ケプラー要素の軌道（`source = "elements"`）だけが使う欄（`epoch`・`central` は状態ベクトルの軌道も使う）。
+const ELEMENT_ONLY_KEYS: &[&str] = &[
     "propagator",
-    "central",
     "altitude",
     "semi_major_axis",
     "eccentricity",
@@ -66,10 +70,17 @@ const ELEMENT_KEYS: &[&str] = &[
 impl OrbitSource {
     /// この出どころでは使わない欄（書かれていても解析に効かない。検査が `setting.not_applied` で知らせる）。
     /// 出どころを足すときは、その出どころの欄をほかの出どころの「使わない欄」に足す。
-    pub fn unused_keys(self) -> &'static [&'static str] {
+    pub fn unused_keys(self) -> Vec<&'static str> {
+        let (elements, shared): (&[&str], &[&str]) = (ELEMENT_ONLY_KEYS, &["epoch", "central"]);
         match self {
-            Self::Elements => &["maneuver"],
-            Self::Transfer => ELEMENT_KEYS,
+            Self::Elements => ["maneuver"].iter().chain(STATE_KEYS).copied().collect(),
+            Self::Transfer => shared
+                .iter()
+                .chain(elements)
+                .chain(STATE_KEYS)
+                .copied()
+                .collect(),
+            Self::State => ["maneuver"].iter().chain(elements).copied().collect(),
         }
     }
 }
@@ -110,9 +121,18 @@ pub struct OrbitSettings {
     pub epoch: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub propagator: Option<PropagatorKind>,
-    /// 中心天体（省略時は地球）。高度はこの天体の赤道半径から数える
+    /// 中心天体（省略時は地球）。高度はこの天体の赤道半径から数える。`source = "state"` では位置・速度の原点の天体
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub central: Option<CentralBodyKind>,
+    /// `source = "state"` の元期の位置（`{ x, y, z, unit }`。原点の天体の中心から。向きは ECI = J2000 平均赤道の慣性系。座標系を `frame` で選ぶことはできない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position: Option<Vector3>,
+    /// `source = "state"` の元期の速度（`{ x, y, z, unit }`。位置と同じ座標系）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub velocity: Option<Vector3>,
+    /// `source = "state"` の期間（時間。元期から。解析はこの期間を評価する）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub span: Option<Quantity>,
     /// 円軌道の高度
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub altitude: Option<Quantity>,
@@ -325,13 +345,16 @@ impl OrbitSettings {
             .collect()
     }
 
-    /// 欄の名前 → 値の形の見本（文字列で書く欄だけ。数値に見える文字列も文字列として読むための型で、既定値ではない。
-    /// フェーズの `[orbit]` の欄を文字列から読むとき（`fune phase set-field`）に使う）。
+    /// 欄の名前 → 値の形の見本（文字列で書く欄と、ベクトルの欄。数値に見える文字列も文字列として、`"1 0 0 km"` はベクトルとして
+    /// 読むための型で、既定値ではない。まだ書かれていない欄を文字列から読むとき（`fune set conditions.orbit.<欄>`・
+    /// `fune phase set-field`）に使う）。
     pub fn field_shape(key: &str) -> Option<crate::value::SettingValue> {
+        use crate::value::SettingValue;
         match key {
             "label" | "source" | "maneuver" | "epoch" | "ltdn" | "central" | "propagator" => {
-                Some(crate::value::SettingValue::Text(String::new()))
+                Some(SettingValue::Text(String::new()))
             }
+            "position" | "velocity" => Some(SettingValue::Vector(Vector3::unitless(0.0, 0.0, 0.0))),
             _ => None,
         }
     }

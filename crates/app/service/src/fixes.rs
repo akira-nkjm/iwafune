@@ -122,7 +122,15 @@ fn setting_fixes(design: &Design, site: (&Target, &MissingInput), s: &SettingPat
         return vec![fix];
     }
     let dimension = setting_dimension(s).map(str::to_owned);
-    vec![set_value(m, ParamPath::Setting(s.clone()), dimension)]
+    let mut fix = set_value(m, ParamPath::Setting(s.clone()), dimension);
+    // 状態ベクトルの軌道の位置・速度は 3 成分と単位（`"1 0 0 km"`）で打つ（量の例を 3 成分の例に直す）
+    let vector = ["position", "velocity"]
+        .iter()
+        .any(|k| pattern_matches(SettingScope::Conditions, &["orbit", k], s));
+    if let (true, Fix::SetValue { example, .. }) = (vector, &mut fix) {
+        *example = example.as_deref().and_then(value::vector_example);
+    }
+    vec![fix]
 }
 
 fn add_item(list: ListKind, command: &str) -> Fix {
