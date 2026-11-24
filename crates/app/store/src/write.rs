@@ -141,7 +141,10 @@ impl Edits {
             .get(path)
             .ok_or_else(|| StoreError::Missing { path: path.into() })?;
         let mut doc = doc::parse(path, text)?;
+        let before = doc.clone();
         let out = f(&mut doc)?;
+        // 編集でキーが増減した表は、ここで `=` を揃え直す（書き込みごとの揃えに頼らない。fmt と同じ定義）
+        crate::profile::realign_changed(before.as_table(), doc.as_table_mut());
         self.current.insert(path, doc.to_string());
         Ok(out)
     }

@@ -156,6 +156,7 @@ export const systemsJa = {
       speed: "再生の速さ",
       scale: "色の範囲（低い温度から高い温度）",
       nodes: "節点の温度",
+      nodePerPart: "部品ごと",
       empty: "熱の解析結果がまだありません",
       orbit: {
         label: "軌道の図（太陽は右、影は左）",
@@ -177,11 +178,12 @@ export const systemsJa = {
       zoomIn: "拡大",
       zoomOut: "縮小",
       home: "ホームポジション（初めの視点に戻す）",
+      viewCubeFace: (name: string) => `${name} の向きから見る`,
       helper: {
         fov: "視野",
         origin: "原点の軸",
         grid: "格子",
-        gizmo: "隅の軸",
+        gizmo: "ビューキューブ",
         sun: "太陽",
         wireframe: "枠線だけ",
       },

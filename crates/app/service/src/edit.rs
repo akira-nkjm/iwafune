@@ -41,6 +41,7 @@ mod project;
 mod requirement;
 mod sun_distance;
 mod text;
+mod window;
 
 pub use catalog::{catalog_local_add_op, catalog_source_add_op};
 pub use command::{
@@ -67,6 +68,7 @@ pub use text::{
     SetText, UnsetText, list_from_text, maturity, net_kind, pair_from_text, points_from_text,
     quantity_from_text, quaternion_from_text, vector_from_text, xy_from_text,
 };
+pub use window::maneuver_window_op;
 
 /// 人が打った値の文字列 → Op（`fune set`・`fune catalog set`・`POST /ops/from_text`）。
 /// `item` があればカタログ品の値かフィールド（`SetCatalogValue`・`SetCatalogField`）、無ければ部品の値・フィールドか設定

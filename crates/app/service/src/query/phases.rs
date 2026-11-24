@@ -1,13 +1,14 @@
 //! フェーズ → 表示（並びの順。`Design::ordered_phases`）。軌道・姿勢則の上書きの葉は model の `entries_under`
 //! （設定の葉の歩き方と同じ）で列挙し、値の表示は設定の表示（`query::settings`）と同じ。
 
+use super::orbit_choices::orbit_choices;
 use super::settings::value_data;
 use super::values::{authored_quantity, display_of};
 use super::views::file_of;
-use crate::dto::{PhaseFieldView, PhaseLawView, PhaseText, PhaseView};
+use crate::dto::{PhaseFieldView, PhaseLawView, PhaseText, PhaseView, ValueData};
 use fune_model::Target;
 use fune_model::design::settings_view::entries_under;
-use fune_model::design::{Design, EntityKey, Phase};
+use fune_model::design::{Design, EntityKey, OrbitSource, Phase};
 use fune_model::path::SettingPath;
 use fune_model::value::{list_to_text, quantity_to_text, setting_to_text};
 use std::collections::BTreeMap;
@@ -47,7 +48,12 @@ fn view(design: &Design, p: &Phase, position: u32) -> PhaseView {
             .map(|q| authored_quantity(q, Some("Time"))),
         modes: p.modes.iter().map(ToString::to_string).collect(),
         orbit_overridden: p.orbit.is_some(),
-        orbit: fields("orbit", &serde_json::to_value(&p.orbit).unwrap_or_default()),
+        orbit: orbit_fields(design, p),
+        orbit_from: p
+            .orbit
+            .as_ref()
+            .filter(|o| o.source_kind() == OrbitSource::Transfer)
+            .and_then(|o| o.maneuver.clone()),
         laws: p
             .law
             .iter()
@@ -78,6 +84,31 @@ fn view(design: &Design, p: &Phase, position: u32) -> PhaseView {
     }
 }
 
+/// 軌道の上書きの欄。書かれた葉に、選んで入れる欄（`source`・`maneuver`）の未入力のものを先頭に足す（上書きがあるときだけ）。
+fn orbit_fields(design: &Design, p: &Phase) -> Vec<PhaseFieldView> {
+    let mut out = fields("orbit", &serde_json::to_value(&p.orbit).unwrap_or_default());
+    if p.orbit.is_none() {
+        return out;
+    }
+    let missing = ["source", "maneuver"]
+        .into_iter()
+        .filter(|k| !out.iter().any(|f| f.key == *k))
+        .map(|k| PhaseFieldView {
+            path: format!("orbit.{k}"),
+            key: k.to_owned(),
+            display: "—".to_owned(),
+            value: ValueData::Unset,
+            text: String::new(),
+            choices: Vec::new(),
+        })
+        .collect::<Vec<_>>();
+    out.splice(0..0, missing);
+    for f in &mut out {
+        f.choices = orbit_choices(design, &f.key);
+    }
+    out
+}
+
 /// 表（`orbit`・`law`）の書かれた葉（`orbit.altitude`・`law.NOMINAL.law`）。
 fn fields(root: &str, json: &serde_json::Value) -> Vec<PhaseFieldView> {
     let base = SettingPath::conditions(&[root]);
@@ -92,6 +123,7 @@ fn fields(root: &str, json: &serde_json::Value) -> Vec<PhaseFieldView> {
                 display: display_of(&data).unwrap_or_else(|| setting_to_text(&value)),
                 value: data,
                 text: setting_to_text(&value),
+                choices: Vec::new(),
             })
         })
         .collect()

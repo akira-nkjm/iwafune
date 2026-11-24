@@ -273,6 +273,14 @@ impl Resolved {
         (!parts.cycled() && last.mount.is_none()).then_some(last.id.as_str())
     }
 
+    /// 部品の取付先をたどった ID（近いほうから。自分は含まない。循環か、取付先の部品が無いところで止まる）。
+    pub fn mount_ancestors(&self, part: &str) -> Vec<&str> {
+        self.mount_chain(part)
+            .skip(1)
+            .map(|p| p.id.as_str())
+            .collect()
+    }
+
     /// 取付の根か（取付先を持たず、ほかの部品の取付の連鎖がここで終わる）。
     pub fn is_mount_root(&self, part: &str) -> bool {
         self.parts.get(part).is_some_and(|p| p.mount.is_none())

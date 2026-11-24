@@ -8,7 +8,7 @@ import { connectedNodes, type Tree, treeOf } from "./pack";
 import { type Arrangement, arrangements, place } from "./place";
 import { cardSizes, planPorts, portPositions } from "./ports";
 import { type PortChoice, type Proposal, refinePorts } from "./refine";
-import { routeWires } from "./route";
+import { type Router, routeKeeping } from "./route";
 import { layoutCost } from "./score";
 import { wiresOf } from "./wires";
 
@@ -76,14 +76,22 @@ function arrange(
   };
 }
 
-/** 配置（`geometry`。書き換えない）の上に、表示する線（`model`）のジャンクションと経路を置く */
-function wire(model: DiagramModel, tree: Tree, geometry: DiagramLayout): DiagramLayout {
+/**
+ * 配置（`geometry`。書き換えない）の上に、表示する線（`model`）のジャンクションと経路を置く。線を引き終えた係も返す
+ * （同じ配置の端子を選び直すときに、引き直さず使う。refine.ts）
+ */
+function wire(
+  model: DiagramModel,
+  tree: Tree,
+  geometry: DiagramLayout,
+): { layout: DiagramLayout; router: Router } {
   const layout = copyOf(geometry);
   const { wires, cards, frames } = wiresOf(model, tree, layout);
   const unrouted = new Set<string>();
-  layout.routes = routeWires(wires, cards, frames, unrouted);
+  const { routes, router } = routeKeeping(wires, cards, frames, unrouted);
+  layout.routes = routes;
   layout.unrouted = unrouted;
-  return layout;
+  return { layout, router };
 }
 
 /** 配置の写し（箱と位置の表は新しく作る。ジャンクションを書き足しても元を変えない） */
@@ -114,14 +122,15 @@ export function planLayout(full: DiagramModel): LayoutPlan {
   const inGraph = connectedNodes(full);
   const tree = treeOf(full, inGraph);
   const unlinked = gridUnlinked(full, inGraph);
-  let best: { geometry: DiagramLayout; cost: number; arr: Arrangement } | null = null;
+  let best: Best | null = null;
   const candidates = arrangements(full, tree, base, unlinked.roots)
     .toSorted((a, b) => a.estimate - b.estimate)
     .slice(0, CANDIDATES);
   for (const arr of candidates) {
     const geometry = arrange(full, tree, arr);
-    const cost = layoutCost(full, wire(full, tree, geometry), unlinked.roots);
-    if (!best || cost < best.cost) best = { geometry, cost, arr };
+    const wired = wire(full, tree, geometry);
+    const cost = layoutCost(full, wired.layout, unlinked.roots);
+    if (!best || cost < best.cost) best = { geometry, cost, arr, router: wired.router };
   }
   if (best) best = { ...best, ...refine(full, tree, best, unlinked.roots) };
   const geometry = best?.geometry ?? {
@@ -136,6 +145,14 @@ export function planLayout(full: DiagramModel): LayoutPlan {
   return { tree, geometry };
 }
 
+/** 選んだ候補: 配置、その費用、並べ方、線を引き終えた係（端子の選び直しで使い回す） */
+interface Best {
+  geometry: DiagramLayout;
+  cost: number;
+  arr: Arrangement;
+  router: Router;
+}
+
 /** 1 回の選び直しで試す案の数の上限（得の大きい順） */
 const PROPOSALS = 6;
 /** 選び直しを繰り返す回数の上限（案が通らなくなればそこで終わる） */
@@ -146,19 +163,20 @@ const REFINE_ROUNDS = 4;
  * 1 つずつ試して、全体の費用が下がる案だけを採る。採った案があれば、もう一度案を出し直す（ある端子を動かすと、
  * 別の端子が動ける空きができることがあるため。例: SPW1 を下へ移すと、LVDS1 が左へ移れる）。
  */
-function refine(
-  full: DiagramModel,
-  tree: Tree,
-  start: { geometry: DiagramLayout; cost: number; arr: Arrangement },
-  unlinked: readonly Size[],
-): { geometry: DiagramLayout; cost: number } {
-  let best = { geometry: start.geometry, cost: start.cost };
+function refine(full: DiagramModel, tree: Tree, start: Best, unlinked: readonly Size[]): Best {
+  let best = start;
   let choice: PortChoice = { sides: new Map(), offsets: new Map() };
+  // 試した案（同じ案をもう一度試しても、費用は同じで、採られた案より安くはならない。やり直さない）
+  const tried = new Set<string>();
   const tryChoice = (next: PortChoice) => {
+    const key = JSON.stringify([[...next.sides].sort(), [...next.offsets].sort()]);
+    if (tried.has(key)) return false;
+    tried.add(key);
     const geometry = arrange(full, tree, start.arr, next);
-    const cost = layoutCost(full, wire(full, tree, geometry), unlinked);
+    const wired = wire(full, tree, geometry);
+    const cost = layoutCost(full, wired.layout, unlinked);
     if (cost >= best.cost - 1e-6) return false;
-    best = { geometry, cost };
+    best = { ...start, geometry, cost, router: wired.router };
     choice = next;
     return true;
   };
@@ -175,7 +193,7 @@ function refine(
   for (let round = 0; round < REFINE_ROUNDS; round++) {
     let improved = false;
     for (const mode of ["sides", "offsets"] as const) {
-      const proposals = refinePorts(full, tree, best.geometry, mode)
+      const proposals = refinePorts(full, tree, best.geometry, mode, best.router)
         .toSorted((a, b) => b.gain - a.gain)
         .slice(0, PROPOSALS);
       for (const p of proposals) improved = tryChoice(withAll(choice, [p])) || improved;
@@ -187,7 +205,7 @@ function refine(
 
 /** 決めた配置の上に、表示する層の線（`model`）を引き、ラベルを置く */
 export function drawLayout(plan: LayoutPlan, model: DiagramModel): DiagramLayout {
-  const layout = wire(model, plan.tree, plan.geometry);
+  const { layout } = wire(model, plan.tree, plan.geometry);
   layout.labels = labelPositions(model, layout, labelledEdges(model));
   return layout;
 }
