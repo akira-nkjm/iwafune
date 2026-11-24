@@ -146,6 +146,7 @@ mod tests {
             conductive: vec![cond("sink", "box", 0.5)],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![],
             shadowing: None,
         };
@@ -187,6 +188,7 @@ mod tests {
             conductive: vec![],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![ThermalSurface {
                 id: "s".to_owned(),
                 node: "plate".to_owned(),
@@ -218,6 +220,7 @@ mod tests {
             conductive: vec![],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![],
             shadowing: None,
         };

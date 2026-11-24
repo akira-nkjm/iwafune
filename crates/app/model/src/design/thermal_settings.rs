@@ -85,6 +85,16 @@ pub struct ThermalEnclosureSettings {
     pub emissivity: Option<f64>,
 }
 
+/// 内部の放射を形態係数から出す設定（`[view_factors]`）。書くと、構造の箱が部品を囲む空洞の中の面どうし（壁の内側と内部の部品の面）の放射を、
+/// 部品の箱の形態係数（遮蔽つき）から求める（書かなければ従来どおり `radiative_coupling` の既定値）。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ThermalViewFactorSettings {
+    /// 内部の面の赤外の放射率 ε（0 を超え 1 以下。壁と部品の全面で共通。部品の `emissivity` は外面の値なので使わない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub emissivity: Option<f64>,
+}
+
 /// 板の形の部品の面内の分け方（`[subdivide.<部品>]`）。熱の解析が板を格子の節点に分ける
 /// （`sat_analysis::thermal::network::subdivide`）。`u`・`v` は板の面内の 2 軸（部品の軸の巡回順: 法線が x なら u = y・v = z、
 /// 法線が y なら u = z・v = x、法線が z なら u = x・v = y。法線は箱の最も薄い軸）に沿った升の数。
@@ -129,6 +139,9 @@ pub struct ThermalSettings {
     /// 箱型の外殻の内面の放射（書いたときだけ外殻の放射を求める）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enclosure: Option<ThermalEnclosureSettings>,
+    /// 内部の放射を形態係数から出す設定（書いたときだけ。`emissivity` が要る）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub view_factors: Option<ThermalViewFactorSettings>,
     /// 非定常解析の初期温度
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub initial_temperature: Option<Quantity>,
@@ -176,9 +189,9 @@ impl ThermalSettings {
             ["conductive" | "radiative", _, _] => {
                 Some(SettingValue::Quantity(Quantity::new(0.0, "")))
             }
-            ["coating", _, "absorptivity" | "emissivity"] | ["surface", _, _] => {
-                Some(SettingValue::Number(0.0))
-            }
+            ["coating", _, "absorptivity" | "emissivity"]
+            | ["surface", _, _]
+            | ["enclosure" | "view_factors", "emissivity"] => Some(SettingValue::Number(0.0)),
             ["coating", _, "label"] => Some(SettingValue::Text(String::new())),
             _ => None,
         }
@@ -217,6 +230,10 @@ mod field_shape_tests {
         assert!(matches!(
             shape("radiative/A/B"),
             Some(SettingValue::Quantity(_))
+        ));
+        assert!(matches!(
+            shape("view_factors/emissivity"),
+            Some(SettingValue::Number(_))
         ));
         assert!(shape("orbits").is_none());
         assert!(shape("coating/white").is_none());

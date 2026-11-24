@@ -16,6 +16,7 @@ use sat_analysis::structure::interference::InterferenceBox;
 use sat_analysis::thermal::network::{
     ThermalCoating, ThermalConductiveLink, ThermalContact, ThermalMountBoxes, ThermalMounts,
     ThermalNetwork, ThermalNode, ThermalNodePart, ThermalRadiativeLink, ThermalSurface,
+    ThermalViewFactors,
 };
 use sat_analysis::thermal::{ThermalBoxSize, ThermalEnclosure};
 use sat_analysis::thermal::{
@@ -55,6 +56,7 @@ pub(super) fn network(
         conductive: conductive(s, m),
         radiative: radiative(s, m),
         enclosure: enclosure(ctx, s),
+        view_factors: view_factors(ctx, s),
         surfaces: surfaces(ctx, s, &map, m),
         shadowing: crate::structure::shadowing(ctx, AnalysisSystem::Thermal, s.shadowing),
     }
@@ -116,6 +118,18 @@ fn enclosure(ctx: &Context<'_>, s: &ThermalSettings) -> Option<ThermalEnclosure>
         _ => None,
     };
     Some(ThermalEnclosure { size, emissivity })
+}
+
+/// 内部の放射を形態係数から出す入力（`[view_factors] emissivity` を書いたときだけ）。部品の箱（`structure::boxes`。いま有効な形態の配置）と放射率を渡すだけで、
+/// 空洞・面の組・遮蔽・有効放射率の計算は解析が行う。
+fn view_factors(ctx: &Context<'_>, s: &ThermalSettings) -> Option<ThermalViewFactors> {
+    let emissivity = s.view_factors.as_ref()?.emissivity?;
+    let boxes = crate::structure::boxes(ctx)
+        .boxes
+        .into_iter()
+        .map(InterferenceBox::from)
+        .collect();
+    Some(ThermalViewFactors { emissivity, boxes })
 }
 
 /// 節点（部品ごとの質量・比熱・温度範囲。熱容量と範囲の共通部分は解析が求める）。節点は既定で 1 部品 1 節点、

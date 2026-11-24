@@ -216,6 +216,7 @@ export const systemsEn: typeof systemsJa = {
         fixed > 0
           ? `Contact area ${area} (${mounts} mounts; ${fixed} use the fixed value)`
           : `Contact area ${area} (${mounts} mounts)`,
+      viewFactor: (area: string, pairs: number) => `Visible area ${area} (${pairs} face pairs)`,
       withdraw: "Withdraw",
       withdrawHint: "Withdraw the written value and fall back to the default source",
       undo: "Undo this change",

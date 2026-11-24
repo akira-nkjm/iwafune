@@ -23,6 +23,7 @@ const row = (b: string, explicit: boolean): ThermalCouplingRow => ({
     : { label: "取付の既定値", label_en: "Mount default" },
   explicit,
   contact: null,
+  view_factor: null,
 });
 
 const table = (available: boolean): ThermalCouplingsTable => ({

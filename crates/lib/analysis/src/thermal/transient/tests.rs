@@ -23,6 +23,7 @@ fn first_order_cooling() {
             }],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![],
             shadowing: None,
         },
@@ -57,6 +58,7 @@ fn phases_cycle() {
         conductive: vec![],
         radiative: vec![],
         enclosure: None,
+        view_factors: None,
         surfaces: vec![],
         shadowing: None,
     })
@@ -207,6 +209,7 @@ fn phase_boundaries_inside_an_interval() {
         conductive: vec![],
         radiative: vec![],
         enclosure: None,
+        view_factors: None,
         surfaces: vec![],
         shadowing: None,
     })
@@ -288,6 +291,7 @@ fn plate_detail_is_min_max_and_end_per_cell() {
             }],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![],
             shadowing: None,
         },

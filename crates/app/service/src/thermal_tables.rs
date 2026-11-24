@@ -9,6 +9,7 @@ use crate::dto::{
     ThermalCoatingRow, ThermalContactRow, ThermalCouplingKind, ThermalCouplingKindView,
     ThermalCouplingRow, ThermalCouplingsTable, ThermalFractionRow, ThermalNodeTemperature,
     ThermalSurfaceRow, ThermalTablesRequest, ThermalTablesView, ThermalUniformOptics,
+    ThermalViewFactorRow,
 };
 use crate::error::Result;
 use crate::query::settings::number;
@@ -66,7 +67,10 @@ fn couplings_table(s: &ThermalSettings, run: &TypedRun<ThermalSteady>) -> Therma
             pair.written(&s.conductive),
             c.conductance.value(),
             c.source,
-            contact,
+            Detail {
+                contact,
+                view_factor: None,
+            },
         )
     });
     let radiative = used.radiative.iter().map(|r| {
@@ -76,7 +80,13 @@ fn couplings_table(s: &ThermalSettings, run: &TypedRun<ThermalSteady>) -> Therma
             pair.written(&s.radiative),
             r.exchange_area.value(),
             r.source,
-            None,
+            Detail {
+                contact: None,
+                view_factor: r.from_view_factors.as_ref().map(|f| ThermalViewFactorRow {
+                    area_factor: quantity_auto(f.area_factor.value(), "Area"),
+                    face_pairs: f.face_pairs,
+                }),
+            },
         )
     });
     ThermalCouplingsTable {
@@ -134,12 +144,18 @@ impl<'a> Pair<'a> {
     }
 }
 
+/// 出どころごとの内訳（接触面積・形態係数）。
+struct Detail {
+    contact: Option<ThermalContactRow>,
+    view_factor: Option<ThermalViewFactorRow>,
+}
+
 fn row(
     kind: ThermalCouplingKind,
     (pair, written): (Pair<'_>, Option<Written<'_>>),
     si: f64,
     source: ThermalCouplingSource,
-    contact: Option<ThermalContactRow>,
+    detail: Detail,
 ) -> ThermalCouplingRow {
     let explicit = source == ThermalCouplingSource::Explicit;
     let dimension = kind_dimension(kind);
@@ -157,7 +173,8 @@ fn row(
         source,
         source_label: coupling_source(source),
         explicit,
-        contact,
+        contact: detail.contact,
+        view_factor: detail.view_factor,
     }
 }
 

@@ -107,6 +107,7 @@ fn chain(ranges: bool) -> ThermalNetwork {
         conductive: Vec::new(),
         radiative: Vec::new(),
         enclosure: None,
+        view_factors: None,
         surfaces: Vec::new(),
         shadowing: None,
     }
@@ -196,6 +197,7 @@ fn heated_plate(cells: Option<[u32; 2]>) -> ThermalNetwork {
         }],
         radiative: Vec::new(),
         enclosure: None,
+        view_factors: None,
         surfaces: vec![
             surface("top", "P", 0.04, Vec3::X, 0.5, 0.8),
             surface("bottom", "P", 0.04, -Vec3::X, 0.5, 0.8),

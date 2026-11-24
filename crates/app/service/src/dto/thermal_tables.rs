@@ -116,6 +116,17 @@ pub struct ThermalCouplingRow {
     pub explicit: bool,
     /// 接触面積から出した取付があるとき、その内訳
     pub contact: Option<ThermalContactRow>,
+    /// 形態係数から出した放射のとき、その内訳
+    pub view_factor: Option<ThermalViewFactorRow>,
+}
+
+/// 形態係数から出した放射の内訳。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ThermalViewFactorRow {
+    /// 面の組の `A·F` の和（放射率を入れる前の、見える面積）
+    pub area_factor: QuantityView,
+    /// 数えた面の組の数
+    pub face_pairs: u32,
 }
 
 /// 接触面積から出した取付の内訳。

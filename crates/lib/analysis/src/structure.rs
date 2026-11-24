@@ -10,9 +10,11 @@
 //! | [`interference`] | `structure.interference`（寸法を持つ部品の箱どうしの重なり。警告で、エラーにしない。縁に沿った薄い切れ端だけの重なりは縁の接触として別に残す（子の `edge_contact`）。向きつきの箱の距離・重なりの幾何は子の `obb`） |
 //! | [`cone_clearance`] | `structure.cone_clearance`（噴流・視野の円錐に、機体の部品の箱が入っていないか。警告で、エラーにしない。円錐と箱の厳密な交差は子の `cone`。箱・取付の連鎖の規則は `interference` と共有） |
 //! | [`external_geometry`] | `structure.external_geometry`（部品の箱から出した外形。投影面積は箱の輪郭の和集合で厳密、外に出ている表面積は面の被覆。報告だけ。幾何は子の `geometry`・`exposed`・`directions`。箱の形は `interference::obb` と共有） |
+//! | [`cavity_views`] | 箱の中の空洞（構造の箱が部品を囲む）の面どうしの形態係数（遮蔽つき。接する面の組は除く）。熱の内部の放射が使う。一般の長方形の積分は `sat_astro::view_factor::rect`、視線と箱の交差は `interference::obb` |
 //! | [`launch_fit`] | `structure.launch_fit`（質量・収納外形・固有振動数が打ち上げ機・ディスペンサーの条件に収まるか。限度の候補から効く 1 つを選ぶ規則もここ） |
 
 pub mod acknowledged;
+pub mod cavity_views;
 pub mod cone_clearance;
 pub mod external_geometry;
 pub mod interference;

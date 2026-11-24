@@ -149,7 +149,7 @@ pub use thermal_tables::{
     ThermalCellText, ThermalCoatingRow, ThermalContactRow, ThermalCouplingKind,
     ThermalCouplingKindView, ThermalCouplingRow, ThermalCouplingsTable, ThermalFractionRow,
     ThermalNodeTemperature, ThermalSetText, ThermalSurfaceRow, ThermalTablesRequest,
-    ThermalTablesView, ThermalUniformOptics,
+    ThermalTablesView, ThermalUniformOptics, ThermalViewFactorRow,
 };
 pub use units::{
     DimensionInfo, FormatItem, FormatRequest, FormatResponse, ParseQuantityRequest, ParsedQuantity,

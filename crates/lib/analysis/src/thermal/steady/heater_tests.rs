@@ -55,6 +55,7 @@ fn run(cases: Vec<ThermalSteadyCase>) -> ThermalSteadyOutput {
             conductive: vec![],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![ThermalSurface {
                 id: "s".to_owned(),
                 node: "n".to_owned(),

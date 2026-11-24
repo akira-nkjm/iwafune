@@ -5,6 +5,7 @@
 use super::OrientedBox;
 use sat_astro::math::Vec3;
 use sat_astro::math::planar::ConvexPolygon;
+use sat_astro::view_factor::Rect;
 
 /// 平面との交わりを頂点・辺の上と見る距離 [m]。座標（m 単位の 1 前後）の丸め誤差 ~1e-16 より十分大きい。
 pub const PLANE_EPS: f64 = 1e-12;
@@ -53,6 +54,51 @@ impl BoxFace {
     /// 面そのものの長方形（面の座標）。
     pub fn rectangle(&self) -> ConvexPolygon {
         ConvexPolygon::rectangle([-self.half_u, -self.half_v], [self.half_u, self.half_v])
+    }
+
+    /// 面の反対側（内側。法線を反転し、`v` を反転して `u × v = normal` を保つ）。箱の中の空洞の壁の面に使う。
+    /// `axis`・`positive` は箱の面の呼び名のまま。
+    pub fn flipped(&self) -> Self {
+        Self {
+            normal: -self.normal,
+            v: -self.v,
+            ..*self
+        }
+    }
+
+    /// 形態係数の計算（`sat_astro::view_factor`）に渡す長方形。
+    pub fn rect(&self) -> Rect {
+        Rect {
+            center: self.center,
+            normal: self.normal,
+            u: self.u,
+            v: self.v,
+            half_u: self.half_u,
+            half_v: self.half_v,
+        }
+    }
+
+    /// 別の面と接している面積 [m²]（接していなければ、面積 0 を含め `None`）。**面どうしが接している規則はここだけ**。
+    ///
+    /// 規則: (1) 法線が逆向き（内積が負。相手が自分の面の外側にある）、(2) 相手の面の 4 頂点がすべて、自分の面の平面から
+    /// `tolerance` 以内（これで面の平行のずれも許容差で抑えられる。面の幅 `w` なら傾きは `tolerance / w` ほどまで）。
+    /// 面積は、相手の面を自分の面の平面へ射影した凸四角形と自分の面の長方形の共通部分（`ConvexPolygon::intersection`）。
+    pub fn contact_area(&self, other: &BoxFace, tolerance: f64) -> Option<f64> {
+        if self.normal.dot(other.normal) >= 0.0 {
+            return None;
+        }
+        let corners = other.corners();
+        if corners
+            .iter()
+            .any(|c| (*c - self.center).dot(self.normal).abs() > tolerance)
+        {
+            return None;
+        }
+        let local: Vec<[f64; 2]> = corners.iter().map(|c| self.local(*c)).collect();
+        let area = ConvexPolygon::hull(&local)
+            .intersection(&self.rectangle())
+            .area();
+        (area > 0.0).then_some(area)
     }
 }
 
@@ -145,29 +191,15 @@ impl OrientedBox {
 
     /// 別の箱と接している面の面積 [m²]。接していなければ（面積 0 を含め）`None`。**箱どうしの接触面の面積はここだけ**
     /// （取付の熱伝導 `thermal` が使う。干渉の「接している」の判断にも同じ規則を使える）。
-    ///
-    /// 規則: 面の組 `(自分の面, 相手の面)` が接しているのは、(1) 法線が逆向き（内積が負。相手が自分の面の外側にある）、
-    /// (2) 相手の面の 4 頂点がすべて、自分の面の平面から `tolerance` 以内（これで面の平行のずれも許容差で抑えられる。
-    /// 面の幅 `w` なら傾きは `tolerance / w` ほどまで）。面積は、相手の面を自分の面の平面へ射影した凸四角形と
-    /// 自分の面の長方形の共通部分（`ConvexPolygon::intersection`）。接する面の組が複数あれば（板厚が許容差以下の薄い箱）最大の面積。
+    /// 面の組ごとの規則は [`BoxFace::contact_area`]。接する面の組が複数あれば（板厚が許容差以下の薄い箱）最大の面積。
     pub fn contact_area(&self, other: &OrientedBox, tolerance: f64) -> Option<f64> {
+        let others = other.faces();
         let mut best: Option<f64> = None;
         for fa in self.faces() {
-            let rectangle = fa.rectangle();
-            for fb in other.faces() {
-                if fa.normal.dot(fb.normal) >= 0.0 {
-                    continue;
-                }
-                let corners = fb.corners();
-                if corners
-                    .iter()
-                    .any(|c| (*c - fa.center).dot(fa.normal).abs() > tolerance)
+            for fb in &others {
+                if let Some(area) = fa.contact_area(fb, tolerance)
+                    && best.is_none_or(|b| area > b)
                 {
-                    continue;
-                }
-                let local: Vec<[f64; 2]> = corners.iter().map(|c| fa.local(*c)).collect();
-                let area = ConvexPolygon::hull(&local).intersection(&rectangle).area();
-                if area > 0.0 && best.is_none_or(|b| area > b) {
                     best = Some(area);
                 }
             }
