@@ -249,6 +249,7 @@ pub struct SizingOutput {
     pub basis: SizingBasis,
     /// モードごとの面積・容量の判定（`basis` の値で）。
     pub mode_checks: BTreeMap<String, Vec<Check>>,
+    /// 必要面積（`basis` の求め方）。
     pub required_area: Qty<Area>,
     pub required_capacity: Qty<Energy>,
     pub required_capacity_per_string: Qty<Energy>,
@@ -267,6 +268,11 @@ pub struct SizingOutput {
     /// 直並列数（SMAD の必要発電と、面積を決めたモードの入射係数から）
     pub strings: Option<SizingStrings>,
     pub modes: Vec<SizingMode>,
+    /// 必要量に、部品どうしの影（部品の箱から出すパネルの面の日照割合）が入っているか。入っていれば、必要面積と容量は
+    /// 現在の部品の配置の影を含んだ値（影を減らす配置の変更で変わる。パネルの面積を替えても影の割合は変わらない）。
+    /// 影の割合は `power.orbit_generation` / `power.energy_balance` の `shadowing`
+    #[serde(default)]
+    pub shadowed: bool,
     pub sunlit_duration: Qty<Time>,
     pub eclipse_duration: Qty<Time>,
     pub longest: EclipseSeasonPoint,
@@ -343,6 +349,7 @@ impl Analysis for Sizing {
             eclipse_duration: Qty::from_raw(te),
             longest: season.longest,
             modes,
+            shadowed: input.array.shading().is_some(),
             used,
             checks,
         })

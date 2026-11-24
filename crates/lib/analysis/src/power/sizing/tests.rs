@@ -20,6 +20,7 @@ fn sap(area: f64, normal: Vec3) -> SolarArray {
         }],
         solar_flux: None,
         conversion_efficiency: None,
+        shadowing: None,
     }
 }
 

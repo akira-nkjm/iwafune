@@ -3,6 +3,7 @@
 
 mod exposure;
 mod report;
+mod shading;
 
 use super::*;
 use crate::structure::interference::obb::OrientedBox;

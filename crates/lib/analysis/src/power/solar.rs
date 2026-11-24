@@ -8,9 +8,16 @@
 //! - A: パネル面積、η_cell: セル効率、f_pack: 実装率、η_conv: パネル → バスの変換効率
 //! - f_life: BOL なら 1、EOL なら `eol_factor`
 //! - n̂: パネルの法線（機体座標系）、ŝ: 太陽方向（機体座標系）、ν: 日照率（入射は `sat_astro::illumination`）
+//!
+//! **部品どうしの影**: 入力に部品の箱（`SolarArray::shadowing`）があれば、パネルの発電に、そのパネルの面の日照割合
+//! （`structure::external_geometry::lit`。ほかの箱が落とす影を引いた割合）をさらに掛ける。影の規則と報告はそちらが持つ。
+//! 箱が無い（または影を切った）ときは、掛けない（従来の式のまま）。
 
 use crate::spec::{
     AnalysisError, SUNLIT_THRESHOLD, ensure_fraction, ensure_non_negative, is_sunlit,
+};
+use crate::structure::external_geometry::{
+    Footprint, LitSurfaces, ShadowingInput, ShadowingReport,
 };
 use sat_astro::illumination::{solar_flux_or_nominal_w_m2, solar_incidence};
 use sat_astro::math::Vec3;
@@ -49,6 +56,9 @@ pub struct SolarArray {
     /// パネル → バスの変換効率（MPPT・配線など、0〜1）。省略時は 1
     #[serde(default)]
     pub conversion_efficiency: Option<f64>,
+    /// 部品の箱。あれば、パネルの面の日照割合（ほかの部品の影を引いた割合）を発電に掛ける。省略時は影を数えない
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadowing: Option<ShadowingInput>,
 }
 
 /// 寿命のどの時点で評価するか。
@@ -126,9 +136,33 @@ impl SolarArray {
             .unwrap_or_else(|| Qty::from_raw(solar_flux_or_nominal_w_m2(sun_distance_m)))
     }
 
+    /// 影を数えるための、パネルの面の日照割合の評価器（[`SolarArray::shadowing`] があって使える箱があるときだけ）。
+    /// 時系列では 1 度だけ作って使い回す（向きごとの結果の使い回しを持つ）。
+    pub fn shading(&self) -> Option<LitSurfaces> {
+        let input = self.shadowing.as_ref()?;
+        LitSurfaces::new(
+            input,
+            Footprint::Blocks,
+            self.panels.iter().map(|p| (p.id.as_str(), p.normal)),
+        )
+    }
+
     /// パネルごとの発電（バス側）[W]。`sun_dir_body` は機体座標系の太陽方向（正規化して使う）、`sunlit` は日照率。
+    /// 部品どうしの影は数えない（[`SolarArray::panel_powers_shaded`] に `None` を渡したものと同じ）。
     pub fn panel_powers(
         &self,
+        sun_dir_body: Vec3,
+        sunlit: f64,
+        flux: Qty<Irradiance>,
+        life: SolarLife,
+    ) -> Vec<Qty<Power>> {
+        self.panel_powers_shaded(None, sun_dir_body, sunlit, flux, life)
+    }
+
+    /// [`SolarArray::panel_powers`] に、`shading`（[`SolarArray::shading`]）の日照割合を掛けたもの。`None` なら影を数えない。
+    pub fn panel_powers_shaded(
+        &self,
+        shading: Option<&LitSurfaces>,
         sun_dir_body: Vec3,
         sunlit: f64,
         flux: Qty<Irradiance>,
@@ -140,9 +174,16 @@ impl SolarArray {
         let conv = self.conversion_efficiency();
         self.panels
             .iter()
-            .map(|p| {
+            .enumerate()
+            .map(|(i, p)| {
                 let normal = p.normal.normalized().unwrap_or(Vec3::ZERO);
-                p.power(flux, solar_incidence(normal, sun, sunlit), life) * conv
+                let mut incidence = solar_incidence(normal, sun, sunlit);
+                if incidence > 0.0
+                    && let Some(shading) = shading
+                {
+                    incidence *= shading.lit(i, sun);
+                }
+                p.power(flux, incidence, life) * conv
             })
             .collect()
     }
@@ -155,10 +196,15 @@ impl SolarArray {
             .fold(Qty::ZERO, |sum, p| sum + p.power(flux, 1.0, life) * conv)
     }
 
-    /// 時系列の 1 点でのパネルごとの発電（バス側）[W]。太陽方向・日照率・太陽距離はサンプルから取る。
-    pub fn sample_powers(&self, sample: &TimelineSample, life: SolarLife) -> Vec<Qty<Power>> {
+    /// 時系列の 1 点でのパネルごとの発電（バス側）[W]。太陽方向・日照率・太陽距離はサンプルから取る。影は `shading` で数える。
+    pub fn sample_powers(
+        &self,
+        shading: Option<&LitSurfaces>,
+        sample: &TimelineSample,
+        life: SolarLife,
+    ) -> Vec<Qty<Power>> {
         let flux = self.flux(Some(sample.sun_distance_m));
-        self.panel_powers(sample.sun_dir_body(), sample.sunlit, flux, life)
+        self.panel_powers_shaded(shading, sample.sun_dir_body(), sample.sunlit, flux, life)
     }
 }
 
@@ -180,6 +226,8 @@ pub struct SolarProfile {
     pub lit: Vec<bool>,
     /// `panel_bol[i][k]`: パネル `i` のサンプル `k` での発電（BOL、バス側）[W]
     pub panel_bol: Vec<Vec<f64>>,
+    /// 影を数えたときの、パネルの面の日照割合の報告（日照中の標本の太陽方向について）。数えなければ `None`
+    pub shadowing: Option<ShadowingReport>,
     eol_factors: Vec<f64>,
 }
 
@@ -187,12 +235,23 @@ impl SolarProfile {
     /// 時系列のサンプルから作る。
     pub fn build(array: &SolarArray, samples: &[TimelineSample]) -> Self {
         let mut panel_bol = vec![Vec::with_capacity(samples.len()); array.panels.len()];
+        let shading = array.shading();
         for s in samples {
-            for (i, p) in array.sample_powers(s, SolarLife::Bol).iter().enumerate() {
+            for (i, p) in array
+                .sample_powers(shading.as_ref(), s, SolarLife::Bol)
+                .iter()
+                .enumerate()
+            {
                 panel_bol[i].push(p.value());
             }
         }
+        let sunward: Vec<Vec3> = samples
+            .iter()
+            .filter(|s| is_sunlit(s))
+            .map(TimelineSample::sun_dir_body)
+            .collect();
         Self {
+            shadowing: shading.map(|s| s.summary(&sunward)),
             eclipses: eclipses(samples),
             t: samples.iter().map(|s| s.t_s).collect(),
             sunlit: samples.iter().map(|s| s.sunlit).collect(),
@@ -229,6 +288,9 @@ pub fn eclipses(samples: &[TimelineSample]) -> Vec<Window> {
 }
 
 #[cfg(test)]
+mod shading_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -248,6 +310,7 @@ mod tests {
             panels,
             solar_flux: None,
             conversion_efficiency: None,
+            shadowing: None,
         }
     }
 

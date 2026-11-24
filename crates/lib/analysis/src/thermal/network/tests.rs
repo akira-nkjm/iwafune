@@ -27,6 +27,7 @@ fn loads_count_by_hand() {
         radiative: vec![],
         enclosure: None,
         surfaces: vec![],
+        shadowing: None,
     })
     .unwrap();
     let q = net
@@ -77,6 +78,7 @@ fn node_aggregates_parts() {
         radiative: vec![],
         enclosure: None,
         surfaces: vec![],
+        shadowing: None,
     })
     .unwrap();
     assert!((c.capacity[0] - 2050.0).abs() < 1e-9);

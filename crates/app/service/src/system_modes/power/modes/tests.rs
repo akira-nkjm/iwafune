@@ -97,6 +97,7 @@ fn builder_returns_selected_mode_values_bands_and_soc_limit() {
             panels: Vec::new(),
             solar_flux: None,
             conversion_efficiency: None,
+            shadowing: None,
         },
         batteries: Vec::new(),
         life: Some(SolarLife::Bol),
@@ -160,6 +161,7 @@ fn builder_returns_selected_mode_values_bands_and_soc_limit() {
         cases: vec![case],
         sequence: None,
         checks: Vec::new(),
+        shadowing: None,
     };
     let modes = balance(&input, &out);
     let mode = &modes[0];

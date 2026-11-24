@@ -4,6 +4,7 @@ import type { EnergyBalanceCaseResult } from "./EnergyBalanceCaseResult";
 import type { EnergyBalanceSequence } from "./EnergyBalanceSequence";
 import type { ModeLoadOutput } from "./ModeLoadOutput";
 import type { Series } from "./Series";
+import type { ShadowingReport } from "./ShadowingReport";
 import type { SolarLife } from "./SolarLife";
 import type { SpanFallback } from "./SpanFallback";
 import type { Window } from "./Window";
@@ -48,6 +49,10 @@ eclipses: Array<Window>,
  * 時系列（`timeline.attitude` の姿勢則）: `generation`・`sunlit`
  */
 series: Series, 
+/**
+ * パネルの面の日照割合（ほかの部品の影を引いた割合）の、日照中の標本での最小と平均（`timeline.attitude` の姿勢則）。影を数えたときだけ付く
+ */
+shadowing?: ShadowingReport | null, 
 /**
  * モードごとのケース。`max_dod` などの欄は解析期間ずっと続けたときの値、判定は `evaluation` の運用で
  */

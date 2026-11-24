@@ -34,19 +34,22 @@ fn demo_kpis_show_the_same_values_as_before() {
         ("power.mode_load", &[(KpiKey::ModeLoad, "17.4 W")]),
         (
             "power.orbit_generation",
-            // #147 で日照率を足した（軌道 1 周の日照の時間の割合）
+            // #147 で日照率を足した（軌道 1 周の日照の時間の割合）。
+            // #424 部品どうしの影: 展開したパドルが +Y 面のセル（SP_PY）に落とす影と、太陽センサーが +X・−X・−Y 面のセルに落とす影で、
+            // 28.3 W → 27.1 W（日照率は変わらない）
             &[
-                (KpiKey::OrbitGeneration, "28.3 W"),
+                (KpiKey::OrbitGeneration, "27.1 W"),
                 (KpiKey::SunlitFraction, "78.4 %"),
             ],
         ),
         // #106 から、最長継続時間を持つモード（撮像・ダウンリンク）は定常の上でその時間だけ続けたときで、
         // モードの並びも入れて選ぶ（以前はダウンリンクを丸 1 日続けた -5.09 W・100 %）。
         // #138 から撮像は日照中だけ（`when = "sunlit"`）で、1 周の軌道平均の収支は 15.8 W → 15.0 W（最悪の撮像が日陰でなくなる）。
-        // 最大 DoD は継続時間の長いダウンリンク（指定なし）のまま
+        // 最大 DoD は継続時間の長いダウンリンク（指定なし）のまま。
+        // #424 部品どうしの影（発電が 28.3 → 27.1 W に下がる）で、軌道平均の収支は 15.0 W → 14.2 W、最大 DoD は 15.1 % のまま
         (
             "power.energy_balance",
-            &[(KpiKey::OrbitBalance, "15.0 W"), (KpiKey::MaxDod, "15.1 %")],
+            &[(KpiKey::OrbitBalance, "14.2 W"), (KpiKey::MaxDod, "15.1 %")],
         ),
         // #388 段階 4: 空力・太陽輻射圧の面積と腕を部品の箱から出す（デモの `cp_offset_*` は消した）。16.2 h → 17.6 h、
         // 2.39 → 2.25 mN·m·s。合計は残留磁気トルク（約 8e-7 N·m）が支配し、空力は 1.9e-8 → 5.9e-9 N·m、
@@ -85,7 +88,9 @@ fn demo_kpis_show_the_same_values_as_before() {
         (
             "thermal.steady",
             &[
-                (KpiKey::MaxTemperature, "39.3 °C"),
+                // #424 部品どうしの影（外面の直達日射に影を数える）: 高温のケースで +Y 面のセルが展開パドルの影になり、
+                // 最高温度 39.3 → 38.0 °C（最低温度は影の無い低温のケースなので -21.9 °C のまま）
+                (KpiKey::MaxTemperature, "38.0 °C"),
                 (KpiKey::MinTemperature, "-21.9 °C"),
                 (KpiKey::NodesInRange, "—"),
                 // 冷たいケースではヒータが容量いっぱい（飽和）
@@ -95,8 +100,10 @@ fn demo_kpis_show_the_same_values_as_before() {
         (
             "thermal.transient",
             &[
-                (KpiKey::TransientMaxTemperature, "58.0 °C"),
-                (KpiKey::TransientMaxHeaterDuty, "41.5 %"),
+                // #424 部品どうしの影: 最高温度 58.0 → 57.9 °C、ヒータの最大のデューティ 41.5 → 60.0 %（影で外面の入熱が減って全体が冷え、
+                // BAT のヒータ HTR_BAT が多く働く。どちらも判定は ok）
+                (KpiKey::TransientMaxTemperature, "57.9 °C"),
+                (KpiKey::TransientMaxHeaterDuty, "60.0 %"),
             ],
         ),
         (
@@ -232,11 +239,13 @@ fn demo_verdicts_fills_and_tallies() {
         range.tally,
         Some(KpiTally {
             checked: 13,
-            flagged: 4,
+            // #424 部品どうしの影: 高温のケースでカメラ（CAM）の性能の範囲の上限の警告が無くなる（最高 21.3 → 18.6 °C）ので 4 → 3
+            flagged: 3,
             acknowledged: None
         })
     );
-    assert!((range.fill.unwrap().ratio - 9.0 / 13.0).abs() < 1e-12);
+    // 当てはまる割合は（判定した数 − 印の付いた数）/ 判定した数: 上の 3 に合わせて 10/13（#424 で 9/13 から）
+    assert!((range.fill.unwrap().ratio - 10.0 / 13.0).abs() < 1e-12);
     // 判定の対象でない KPI（発生量・角運動量）は判定を持たない
     assert!(kpis(&ws, "cdh.data_budget", None)[0].verdict.is_none());
     assert!(kpis(&ws, "aocs.rw_unloading", None)[1].verdict.is_none());

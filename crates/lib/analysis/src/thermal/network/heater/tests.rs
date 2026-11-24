@@ -54,6 +54,7 @@ fn network(parts: &[(&str, f64)], links: &[(&str, &str, f64)]) -> Compiled {
         radiative: vec![],
         enclosure: None,
         surfaces,
+        shadowing: None,
     })
     .unwrap()
 }

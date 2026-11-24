@@ -146,6 +146,7 @@ mod tests {
             radiative: vec![],
             enclosure: None,
             surfaces: vec![],
+            shadowing: None,
         };
         let c = Compiled::new(&net).unwrap();
         let q = c
@@ -194,6 +195,7 @@ mod tests {
                 emissivity: Some(0.8),
                 coatings: vec![],
             }],
+            shadowing: None,
         };
         let c = Compiled::new(&net).unwrap();
         let s = c.solve_steady(&[20.0], 0.0, 290.0).unwrap();
@@ -214,6 +216,7 @@ mod tests {
             radiative: vec![],
             enclosure: None,
             surfaces: vec![],
+            shadowing: None,
         };
         let c = Compiled::new(&net).unwrap();
         assert!(c.solve_steady(&[1.0], 3.0, 290.0).is_err());

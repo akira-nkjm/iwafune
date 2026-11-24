@@ -5,6 +5,7 @@
 //! Q_i は外部入熱（吸収した太陽・アルベド・地球赤外）と内部発熱（`load`）の和。外面の α/ε は `surface` が表面材から求める。`fixed_temperature` を持つ節点は境界（温度一定）。
 
 use crate::spec::AnalysisError;
+use crate::structure::external_geometry::{Footprint, LitSurfaces, ShadowingInput};
 use crate::thermal::enclosure::ThermalEnclosure;
 use crate::thermal::range::{ThermalRanges, ThermalRequiredRange};
 use sat_astro::constants::SIGMA_SB;
@@ -139,6 +140,10 @@ pub struct ThermalNetwork {
     pub enclosure: Option<ThermalEnclosure>,
     #[serde(default)]
     pub surfaces: Vec<ThermalSurface>,
+    /// 部品の箱。あれば、外面の直達日射に、その面の日照割合（ほかの部品の影を引いた割合）を掛ける
+    /// （アルベドと惑星の赤外は広がった光源なので影を数えない）。省略時は影を数えない
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadowing: Option<ShadowingInput>,
 }
 
 /// 添字に直した外面。
@@ -167,6 +172,8 @@ pub(crate) struct Compiled {
     pub space: Vec<f64>,
     /// 使う結合の一覧（出力に載せる）
     pub couplings: ThermalCouplings,
+    /// 外面（`surfaces` と同じ順）の日照割合の評価器。影を数えないときは `None`
+    pub shading: Option<LitSurfaces>,
 }
 
 fn invalid(msg: String) -> AnalysisError {
@@ -193,6 +200,7 @@ impl Compiled {
             surfaces: Vec::new(),
             space: vec![0.0; ids.len()],
             couplings: ThermalCouplings::default(),
+            shading: None,
             ids,
         };
         for n in &net.nodes {
@@ -222,6 +230,13 @@ impl Compiled {
             c.space[surface.node] += surface.eps * SIGMA_SB * surface.area_m2;
             c.surfaces.push(surface);
         }
+        c.shading = net.shadowing.as_ref().and_then(|input| {
+            LitSurfaces::new(
+                input,
+                Footprint::Credited,
+                net.surfaces.iter().map(|s| (s.id.as_str(), s.normal)),
+            )
+        });
         Ok(c)
     }
 

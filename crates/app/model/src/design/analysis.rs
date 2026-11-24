@@ -135,6 +135,10 @@ pub struct PowerSettings {
     /// 時系列の解析で回す周回数
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub orbits: Option<u32>,
+    /// 太陽電池の発電に、ほかの部品の影（部品の箱から出す面の日照割合）を数えるか。省略時は数える
+    /// （部品に寸法があるとき。`false` で従来の式のまま）。熱の外面は `analysis.thermal.shadowing`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadowing: Option<bool>,
     /// 軌道平均で各モードにいる時間の割合（モード ID → 割合。合計 1）
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub mode_share: BTreeMap<String, f64>,

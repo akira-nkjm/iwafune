@@ -14,7 +14,9 @@ use crate::thermal::heater::{ThermalHeaterRun, run_checks};
 use crate::thermal::network::{
     Compiled, ThermalCouplings, ThermalHeater, ThermalLoad, ThermalModeLoads, ThermalNetwork,
 };
-use crate::thermal::orbit_heat::{ThermalEnvironment, ThermalEnvironmentUsed};
+use crate::thermal::orbit_heat::{
+    ThermalEnvironment, ThermalEnvironmentUsed, sample_shadowing, shadow_loss_check,
+};
 use crate::thermal::range::{
     ThermalMarginPolicy, ThermalMarginUsed, ThermalNodeRange, ThermalRangeMargin, range_checks,
     range_margins, worst_verdict,
@@ -147,6 +149,9 @@ pub struct ThermalTransientOutput {
     /// 表示枠は最初の標本で決めた固定の軌道面（+x が太陽側）。模式で、実際の日陰は `sunlit`（`sat_astro::timeline`）
     #[serde(default)]
     pub orbit_plane: OrbitPlaneTrack,
+    /// 外面の日照割合（ほかの部品の影を引いた割合。直達日射にだけ掛ける）の、日照中の標本での最小と平均。影を数えたときだけ付く
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shadowing: Option<crate::structure::external_geometry::ShadowingReport>,
     /// 温度範囲を持つ節点の種類ごとの判定（key は `range_high|range_low:<node>:<storage|operating|performance>`）と、
     /// ヒータごとの判定（key は `heater:<部品>`）
     pub checks: Vec<Check>,
@@ -206,10 +211,17 @@ impl Analysis for ThermalTransient {
             input.environment.used(central)?,
             margin,
         );
-        output.couplings = net.couplings;
         output.integration = integration;
         let shadow_below = crate::spec::SUNLIT_THRESHOLD;
-        output.orbit_plane = orbit_plane_track(&build(timeline)?, central, shadow_below);
+        let samples = build(timeline)?;
+        output.orbit_plane = orbit_plane_track(&samples, central, shadow_below);
+        output.shadowing = sample_shadowing(&net, &env, &samples);
+        let loss = output
+            .shadowing
+            .as_ref()
+            .and_then(|r| shadow_loss_check(r, "shadow_loss"));
+        output.checks.extend(loss);
+        output.couplings = net.couplings;
         output
             .checks
             .extend(run_checks(&runs, margin.heater_duty_warning.value()));
@@ -289,6 +301,7 @@ fn build_output(
         heaters: Vec::new(),
         integration: ThermalIntegration::default(),
         orbit_plane: OrbitPlaneTrack::default(),
+        shadowing: None,
         checks,
     }
 }
