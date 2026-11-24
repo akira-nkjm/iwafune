@@ -43,6 +43,7 @@ pub fn coupling_source(s: ThermalCouplingSource) -> AnalysisLabel {
         S::Contact => label("接触面積", "Contact area"),
         S::Explicit => label("書いた値", "Written value"),
         S::Enclosure => label("箱の放射", "Enclosure radiation"),
+        S::ViewFactor => label("形態係数", "View factors"),
     }
 }
 

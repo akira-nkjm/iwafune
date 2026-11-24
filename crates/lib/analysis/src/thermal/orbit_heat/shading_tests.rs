@@ -29,6 +29,7 @@ fn network(enabled: Option<bool>, cells: Option<[u32; 2]>) -> ThermalNetwork {
         conductive: vec![],
         radiative: vec![],
         enclosure: None,
+        view_factors: None,
         surfaces: vec![ThermalSurface {
             id: "P".to_owned(),
             node: "P".to_owned(),

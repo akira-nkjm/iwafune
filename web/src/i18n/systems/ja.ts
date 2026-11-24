@@ -211,6 +211,7 @@ export const systemsJa = {
         fixed > 0
           ? `接触面積 ${area}（${mounts} 取付。${fixed} 取付は固定値）`
           : `接触面積 ${area}（${mounts} 取付）`,
+      viewFactor: (area: string, pairs: number) => `見える面積 ${area}（${pairs} 面の組）`,
       withdraw: "取り消す",
       withdrawHint: "書いた値を取り消して、既定の出どころに戻す",
       undo: "この変更を戻す",

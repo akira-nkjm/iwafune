@@ -3,4 +3,4 @@
 /**
  * 結合の出どころ。
  */
-export type ThermalCouplingSource = "mount" | "contact" | "explicit" | "enclosure";
+export type ThermalCouplingSource = "mount" | "contact" | "explicit" | "enclosure" | "view_factor";

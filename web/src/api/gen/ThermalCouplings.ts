@@ -4,6 +4,7 @@ import type { ThermalContactUsed } from "./ThermalContactUsed";
 import type { ThermalEnclosureUsed } from "./ThermalEnclosureUsed";
 import type { ThermalExchangeUsed } from "./ThermalExchangeUsed";
 import type { ThermalPlateUsed } from "./ThermalPlateUsed";
+import type { ThermalViewFactorsUsed } from "./ThermalViewFactorsUsed";
 
 /**
  * 熱ネットワークが使う結合の一覧。
@@ -13,6 +14,10 @@ export type ThermalCouplings = { conductive: Array<ThermalConductanceUsed>, radi
  * 外殻の放射を設計が求めたときだけ
  */
 enclosure: ThermalEnclosureUsed | null, 
+/**
+ * 内部の放射を形態係数から出す設定のときだけ（使えなければ理由つき）
+ */
+view_factors?: ThermalViewFactorsUsed, 
 /**
  * 取付の伝導を接触面積から出す設定のときだけ（出せなかった取付はここに理由つきで残る）
  */

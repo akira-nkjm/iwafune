@@ -89,6 +89,14 @@ export function CouplingsPanel({
                         )}
                       </span>
                     )}
+                    {row.view_factor && (
+                      <span className="ml-2 text-[11px] text-ink-3">
+                        {t.viewFactor(
+                          row.view_factor.area_factor.display,
+                          row.view_factor.face_pairs,
+                        )}
+                      </span>
+                    )}
                   </Td>
                   <Td className="whitespace-nowrap text-right">
                     {changed && (

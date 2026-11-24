@@ -28,6 +28,7 @@ fn input() -> ThermalSteadyInput {
             }],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![ThermalSurface {
                 id: "px".to_owned(),
                 node: "panel".to_owned(),

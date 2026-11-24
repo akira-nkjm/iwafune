@@ -7,6 +7,7 @@ import type { ThermalNode } from "./ThermalNode";
 import type { ThermalPlate } from "./ThermalPlate";
 import type { ThermalRadiativeLink } from "./ThermalRadiativeLink";
 import type { ThermalSurface } from "./ThermalSurface";
+import type { ThermalViewFactors } from "./ThermalViewFactors";
 
 /**
  * 熱ネットワーク。
@@ -27,7 +28,11 @@ radiative: Array<ThermalRadiativeLink>,
 /**
  * 箱型の外殻の内面の放射（設計が求めたときだけ）。外面の法線と面積から 6 面の節点を決める
  */
-enclosure: ThermalEnclosure | null, surfaces: Array<ThermalSurface>, 
+enclosure: ThermalEnclosure | null, 
+/**
+ * 内部の部品と構造の殻の内側の放射を形態係数から出す設定（設計が求めたときだけ。箱と放射率）。優先順位は `couplings`
+ */
+view_factors?: ThermalViewFactors | null, surfaces: Array<ThermalSurface>, 
 /**
  * 部品の箱。あれば、外面の直達日射に、その面の日照割合（ほかの部品の影を引いた割合）を掛ける
  * （アルベドと惑星の赤外は広がった光源なので影を数えない）。省略時は影を数えない

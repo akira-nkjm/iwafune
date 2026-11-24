@@ -48,6 +48,7 @@ fn loads_count_by_hand() {
         conductive: vec![],
         radiative: vec![],
         enclosure: None,
+        view_factors: None,
         surfaces: vec![],
         shadowing: None,
     })
@@ -100,6 +101,7 @@ fn node_aggregates_parts() {
         conductive: vec![],
         radiative: vec![],
         enclosure: None,
+        view_factors: None,
         surfaces: vec![],
         shadowing: None,
     })
@@ -134,6 +136,7 @@ fn a_node_without_heat_capacity_is_refused() {
             conductive: vec![],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![],
             plates: vec![],
             shadowing: None,

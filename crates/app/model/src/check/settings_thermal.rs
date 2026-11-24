@@ -276,4 +276,26 @@ fn check_couplings(s: &mut Scope, t: &ThermalSettings, nodes: &ThermalNodes) {
             _ => {}
         }
     }
+    check_view_factors(s, t);
+}
+
+/// 形態係数の放射率（0 を超え 1 以下。無ければ警告で、形態係数は使われない）。
+fn check_view_factors(s: &mut Scope, t: &ThermalSettings) {
+    let Some(v) = &t.view_factors else {
+        return;
+    };
+    match v.emissivity {
+        Some(e) if !(e > 0.0 && e <= 1.0) => s.error(
+            &["view_factors", "emissivity"],
+            "setting.range",
+            "Must be a value above 0 and at most 1".into(),
+        ),
+        None => s.warning(
+            &["view_factors"],
+            "thermal.view_factors_emissivity",
+            "The view-factor radiation needs an emissivity (`emissivity`); without it the view factors are not used"
+                .into(),
+        ),
+        _ => {}
+    }
 }

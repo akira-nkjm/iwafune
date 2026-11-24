@@ -21,7 +21,11 @@ fn rad(a: &str, b: &str, area: f64) -> ThermalRadiativeLink {
     }
 }
 
-pub(super) fn mounts(pairs: &[[&str; 2]], g: f64, area: Option<f64>) -> Option<ThermalMounts> {
+pub(in crate::thermal::network) fn mounts(
+    pairs: &[[&str; 2]],
+    g: f64,
+    area: Option<f64>,
+) -> Option<ThermalMounts> {
     Some(ThermalMounts {
         mounts: pairs
             .iter()
@@ -33,7 +37,7 @@ pub(super) fn mounts(pairs: &[[&str; 2]], g: f64, area: Option<f64>) -> Option<T
     })
 }
 
-pub(super) fn net(nodes: &[&str]) -> ThermalNetwork {
+pub(in crate::thermal::network) fn net(nodes: &[&str]) -> ThermalNetwork {
     ThermalNetwork {
         plates: Vec::new(),
         mounts: None,
@@ -41,6 +45,7 @@ pub(super) fn net(nodes: &[&str]) -> ThermalNetwork {
         conductive: vec![],
         radiative: vec![],
         enclosure: None,
+        view_factors: None,
         surfaces: vec![],
         shadowing: None,
     }

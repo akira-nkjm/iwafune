@@ -2,7 +2,7 @@
 
 use fune_model::design::{
     Part, ThermalCoatingSettings, ThermalEnclosureSettings, ThermalMarginSettings, ThermalSettings,
-    ThermalSubdivideSettings,
+    ThermalSubdivideSettings, ThermalViewFactorSettings,
 };
 use fune_model::value::Quantity;
 use fune_model::{Design, Severity};
@@ -165,6 +165,27 @@ fn enclosure_emissivity_is_checked() {
     assert_eq!(
         codes(&design(enclosure(None))),
         [(Severity::Warning, "thermal.enclosure_emissivity".to_owned())]
+    );
+}
+
+/// 形態係数の放射率も同じ: 0 を超え 1 以下。無ければ警告（形態係数は使われない）。
+#[test]
+fn view_factor_emissivity_is_checked() {
+    let view = |e: Option<f64>| ThermalSettings {
+        view_factors: Some(ThermalViewFactorSettings { emissivity: e }),
+        ..ThermalSettings::default()
+    };
+    assert!(codes(&design(view(Some(0.8)))).is_empty());
+    for bad in [0.0, 1.2, -0.1] {
+        let found = fune_model::check(&design(view(Some(bad))));
+        assert!(found.iter().any(|d| d.code == "setting.range"), "{bad}");
+    }
+    assert_eq!(
+        codes(&design(view(None))),
+        [(
+            Severity::Warning,
+            "thermal.view_factors_emissivity".to_owned()
+        )]
     );
 }
 

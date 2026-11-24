@@ -24,6 +24,7 @@ mod newton;
 mod ranges;
 mod subdivide;
 mod surface;
+mod view_factors;
 pub use crate::thermal::cell::ThermalCell;
 pub use couplings::{
     ThermalConductanceUsed, ThermalCouplingSource, ThermalCouplings, ThermalEnclosureFace,
@@ -42,6 +43,10 @@ pub use mounts::{MountConductance, MountLinks, ThermalMounts};
 pub use newton::INITIAL_GUESS_K;
 pub use subdivide::{MAX_CELLS, ThermalPlate, ThermalPlateAttachment, ThermalPlateUsed};
 pub use surface::{ThermalCoating, ThermalSurface};
+pub use view_factors::{
+    ThermalViewFactorNode, ThermalViewFactorPair, ThermalViewFactors, ThermalViewFactorsUsed,
+    gray_pair_exchange,
+};
 
 /// 節点に含まれる部品。熱容量と温度範囲は、部品からここで節点にまとめる。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -152,6 +157,9 @@ pub struct ThermalNetwork {
     /// 箱型の外殻の内面の放射（設計が求めたときだけ）。外面の法線と面積から 6 面の節点を決める
     #[serde(default)]
     pub enclosure: Option<ThermalEnclosure>,
+    /// 内部の部品と構造の殻の内側の放射を形態係数から出す設定（設計が求めたときだけ。箱と放射率）。優先順位は `couplings`
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub view_factors: Option<ThermalViewFactors>,
     #[serde(default)]
     pub surfaces: Vec<ThermalSurface>,
     /// 部品の箱。あれば、外面の直達日射に、その面の日照割合（ほかの部品の影を引いた割合）を掛ける

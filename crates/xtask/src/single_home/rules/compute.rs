@@ -302,6 +302,31 @@ pub(in crate::single_home) const RULES: &[Rule] = &[
         &["crates/lib/analysis/src/thermal/enclosure.rs"],
         "Gebhart factors of an enclosure",
     ),
+    (
+        "fn rect_view_factor(",
+        &["crates/lib/astro/src/view_factor/rect.rs"],
+        "view factors (general rectangles, numerical)",
+    ),
+    (
+        "fn point_to_rect(",
+        &["crates/lib/astro/src/view_factor/rect.rs"],
+        "view factors (a point to a rectangle)",
+    ),
+    (
+        "fn cavity_views(",
+        &["crates/lib/analysis/src/structure/cavity_views.rs"],
+        "view factors between the faces of boxes inside a cavity (with occlusion)",
+    ),
+    (
+        "fn blocks_segment(",
+        &["crates/lib/analysis/src/structure/interference/obb/segment.rs"],
+        "segment-box intersection",
+    ),
+    (
+        "fn gray_pair_exchange(",
+        &["crates/lib/analysis/src/thermal/network/view_factors.rs"],
+        "radiative exchange area of two gray diffuse faces",
+    ),
     // 積分の 1 区間（`Dop853::integrate_segment` の公開口と、`ode/segment.rs` の本体。どちらも ode の中）
     (
         "fn integrate_segment",

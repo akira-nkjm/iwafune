@@ -38,6 +38,7 @@ fn input(span_s: f64, initial_k: f64, power: f64) -> ThermalTransientInput {
             }],
             radiative: vec![],
             enclosure: None,
+            view_factors: None,
             surfaces: vec![],
             shadowing: None,
         },

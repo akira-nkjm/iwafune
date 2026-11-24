@@ -4,6 +4,7 @@ import type { QuantityView } from "./QuantityView";
 import type { ThermalContactRow } from "./ThermalContactRow";
 import type { ThermalCouplingKind } from "./ThermalCouplingKind";
 import type { ThermalCouplingSource } from "./ThermalCouplingSource";
+import type { ThermalViewFactorRow } from "./ThermalViewFactorRow";
 
 /**
  * 節点の対 1 つの結合（解析が使った値）。
@@ -24,4 +25,8 @@ explicit: boolean,
 /**
  * 接触面積から出した取付があるとき、その内訳
  */
-contact: ThermalContactRow | null, };
+contact: ThermalContactRow | null, 
+/**
+ * 形態係数から出した放射のとき、その内訳
+ */
+view_factor: ThermalViewFactorRow | null, };
