@@ -303,7 +303,7 @@ pub struct Part {
     pub count: u32,                        // count. If individual attitudes or wiring are needed, make them separate Parts
     pub redundancy: Redundancy,            // none (default) / cold / warm
     pub mount: Option<Mount>,              // the mounting target Part and mount point
-    pub pose: Option<Pose>,                // position and attitude relative to the mount point's frame
+    pub pose: Option<Pose>,                // position and attitude relative to the mount point's frame (for a root, which has no mount: in the body frame)
     pub mount_points: BTreeMap<Id<MountPoint>, Pose>,       // points where other parts attach to this one
     pub attr: BTreeMap<Id<AttributeDef>, Authored<Value>>,  // overrides of catalog values
     pub ports: BTreeMap<Id<Port>, PortBinding>,             // port → the net it belongs to
@@ -775,7 +775,7 @@ A pair is written once, in either order; writing `A`→`B` and `B`→`A` is a ch
 a node that is neither a part ID nor a `[nodes]` key (`ref.thermal_node`) and a negative value (`setting.range`). The dimension is checked against the setting-dimension table (`THERMAL_CONDUCTIVE`: W/K, `THERMAL_RADIATIVE`: m²).
 Because a pair is a path (`analysis.thermal.conductive.BAT.PANEL_MZ`), it is edited with the generic setting operation (`fune set analysis.thermal.conductive.BAT.PANEL_MZ "0.8 W/K"`, `fune unset …`),
 the same on the CLI and over HTTP; there is no separate operation. A `[nodes]` key cannot be renamed; renaming a part that is a per-part node rewrites the node name in these tables (see "Thermal nodes").
-**Enclosure model.** The box is the root part's `size` (the one part without a mount; its frame is the body frame), and its six inner faces are matched to nodes through the outer surfaces:
+**Enclosure model.** The box is the root part's `size` (the one part without a mount; its frame is the body frame, the box is centred on the body origin and a root turned by a multiple of 90° gives the permuted extents, §5.3), and its six inner faces are matched to nodes through the outer surfaces:
 for each face (±X, ±Y, ±Z) the node of the outer surface whose normal points that way (within about 2.6°) and whose area is within 5 % of the face area. If any of the six faces
 is not found or ambiguous, two faces share a node, or the box size is not known, the model is **not applied**: it is not an error, the mount defaults stay, and the reason is returned in the output's `couplings.enclosure.note` (`applied: false`).
 When it is applied, all 15 face-to-face pairs use the enclosure value (so the mount default `radiative_coupling` is not added on top of it). Pairs that involve a component node (not a face) keep the mount default or the explicit value.
@@ -828,6 +828,12 @@ the heater switching times, duty (1e-9) and longest on period (1e-5 s instead of
 
 The outer shape used for disturbances is the part with `size` and no mount parent, if there is exactly one such part.
 If there are several, the analysis stops with the candidate part IDs shown in the missing-input message, and does not choose by ID order. The handling of zero is as before.
+
+A root's `[pose]` is its placement in the body frame (§7.1), but the outline consumers (this reference box, the decay area, the launch-fit envelope fallback and the thermal enclosure) still read the box as "the root's `size`, centred on the body origin, aligned to the body axes" (#388 replaces this rule by geometry from all part boxes).
+So that a pose is never silently misread (`fune_projection::outline`):
+- a root rotated by a multiple of 90° about the body axes gives the box extents permuted into the body axes (a quarter turn about z swaps the x and y extents), which is exact;
+- a root with an offset from the body origin, or a rotation that is not a multiple of 90°, keeps its `size` as written and `fune check` warns `outline.root_pose` (the offset is ignored and the box is not turned by these consumers; mass properties, interference and the 3-D view do use the pose).
+  The warning is given for the base, and for a configuration that overrides the outline root's pose. It appears only when exactly one part is the outline candidate. No numbers of a design whose root has no `[pose]` change.
 
 ### 5.4 Common analysis settings
 
@@ -1183,6 +1189,12 @@ parts/
 - **Things that span several parts and have their own names or attributes** (modes, nets, harnesses) get their own directories.
 - **References are by ID.** Part IDs are unique overall, so a part can be pointed to as `RW_X` from any directory.
 - `nets/` and `harness/` are laid out flat. Only `parts/` gives directories the meaning of "parent".
+- **Placement of a part** (`[mount]`, `mount_points`, `[pose]`). A part with a mount is placed by its `[pose]` relative to the mount point of the part it is mounted on (the point's own pose, or the origin and no rotation when no point is given). A part **without** a mount (a root) is placed by its `[pose]` in the **body frame**: its position and orientation are the root's own place in the vehicle, and not written means the origin with no rotation, exactly as before.
+  The body-frame pose of any part is one composition (`Resolved::pose_chain`, composed by `fune_projection::pose`) that starts with the root's `[pose]` and follows the mounts down, so children follow a moved or rotated root, several roots can sit at their own places, and everything that reads body poses (mass properties, interference, cone clearance, thermal surface normals, solar panel normals, thrust directions, the 3-D view) follows without a second composition.
+  The body origin is wherever the design puts it: a dummy "origin" part whose centre happens to be the origin is not needed. The "root = vehicle outline" rule of the analyses is a separate matter (§5.3).
+  `fune part place <ROOT> --root --position … --rotation …` (or the GUI's placement fields with no mount target) writes the root's `[pose]`; the same command with `--root` also un-mounts a mounted part, so un-mounting and giving the body pose are one command.
+  Placing in vehicle coordinates (`--body-pos`, `POST /parts/{id}/place_body`, the 3-D drag) goes through the same inverse for a root, where the mount frame is the body frame itself, so the requested pose is written as the root's `[pose]` unchanged.
+  *Change in behaviour:* a root's `[pose]` used to be ignored; a design that has one written now has it applied (numbers change). Designs whose roots have no `[pose]` are byte-identical in files and numbers.
 
 ```
 my-sat-design/
@@ -1649,19 +1661,19 @@ position    = { x = 2.6, y = -1.5, z = 0.0, unit = "mm" }
 orientation = { w = 0.707107, x = 0.0, y = 0.0, z = -0.707107 }
 ```
 
-- **What it overrides.** Only the pose (`position` and `orientation`) of a part, relative to the mount point written in the part file. The mount target and mount point are not overridable. A part that the file does not list keeps its base pose, and the children of an overridden part follow it through the mount chain.
+- **What it overrides.** Only the pose (`position` and `orientation`) of a part, relative to the mount point written in the part file (for a root, which has no mount, the pose in the body frame, §7.1). The mount target and mount point are not overridable. A part that the file does not list keeps its base pose, and the children of an overridden part follow it through the mount chain.
   Because the table is replaced as a whole, a key that the configuration does not write is the default (a missing `orientation` is the identity), not the base value. A design with no `configurations/` directory has the same files and the same numbers as before.
 - **One place decides.** `Design::pose_in(part, configuration)` returns the written pose in effect (the configuration's row, otherwise the part's own `pose`; an unknown configuration is the base). The mount resolution calls it, and nothing else does
   (`cargo xtask check` enforces it); there is no second pose composition. `resolve` also builds a resolved design per configuration (only the mounts differ from the base), and `Resolved::in_configuration(Some(id))` returns it
   (`None` and an unknown ID return the base). These per-configuration designs are not part of any API output. Analyses read the effective resolved placement through the projection context.
 - **Checks** (`fune check`): the ID rules (`id.invalid`, `id.duplicate`); a key of `[pose]` must be a part (`ref.part`); a pose gets the same checks as a part's `pose` (`unit.dimension`, `unit.parse`, `pose.quaternion_norm`; the targets are `configurations.<ID>.pose.<PART>`);
-  and `configuration.pose_without_mount` (warning) when the part has no `mount`, because the resolution does not use the pose of a part that is not mounted.
+  and nothing is special for a root (the warning `configuration.pose_without_mount` of the first version is gone: a root's override is its body-frame pose in that configuration). `outline.root_pose` (warning, §5.3) is also given for a configuration that overrides the outline root's pose.
 - **References.** The keys of `[pose]` are part references in the reference index (`RefSite::ConfigurationPose`). Renaming a part rewrites the key, and removing a part removes its row (and an emptied `[pose]`), the same policy as a mode's part rows. The launch and phase selections are indexed as `RefSite::LaunchConfiguration` and `RefSite::PhaseConfiguration`. Renaming a configuration rewrites both selections. Removing it while either site names it is rejected with `ref.configuration`.
 - **How to write.** After the top-level values, `[pose.<PART>]` are heading tables with inline `position` and `orientation` (`fune_store::write::records::CONFIGURATION_SECTIONS`). `fune fmt` keeps this form.
 - **Ops**: `CreateConfiguration` (refused if the ID exists), `SetConfiguration` (writes `label` and `description`, creates the file if missing, keeps the `[pose.*]` rows), `RemoveConfiguration`, `RenameConfiguration` (moves the file and follows the reference index to rewrite launch and phase selections),
   and `UnsetConfigurationPose` (removes one part's override; an emptied `[pose]` table disappears and the heading stays; refused if the part has no override there, so a repeated reset is an error and not a silent no-op).
   **Placing a part in a configuration is the same `Place` Op as placing a part**, with one more optional `configuration`: the pose (`position`, `orientation`) is written to `[pose.<PART>]` of that configuration's file as a whole instead of the part's own `[pose]`, which is left untouched.
-  The rules: the part must have a mount (an override on a mount root is refused, as the check warns about it); `on` and `point` may be omitted, and if given must equal the part's mount (re-mounting per configuration is not possible, and `--root` is refused); at least one of `position` and `orientation` is required (to go back to the base pose, remove the override); an unknown configuration or part is refused.
+  The rules: `on` and `point` may be omitted, and if given must equal the part's mount (re-mounting per configuration is not possible, and `--root` is refused; for a root, giving a mount target is a re-mount and is refused too); the pose of a part with no mount is its body-frame pose; at least one of `position` and `orientation` is required (to go back to the base pose, remove the override); an unknown configuration or part is refused.
   The Op JSON is unchanged when `configuration` is absent.
 - **Placing in vehicle coordinates** (`fune part place --body-pos`, the GUI's 3-D drag, `POST /parts/{id}/place_body`) takes the configuration too. The body position is read in the resolved design of that configuration (`Resolved::in_configuration`), because the parents' poses may be overridden there, and converted to the mount-local pose by the same `fune_projection::pose::body_to_mount_local` as in the base; the result is a `Place` with `configuration`.
 - **Reading.** `PartRow.mount` and `PartRow.body` (part listings and the part detail) take an optional configuration (`GET /parts?configuration=`, `GET /parts/{id}?configuration=`, `PartViewRequest.configuration`, `fune part ls|show --configuration <ID>`) and return the poses in that configuration; an unknown configuration is an error (it is not read as the base).

@@ -87,10 +87,10 @@ pub enum Op {
         part: String,
         field: PartField,
     },
-    /// 取付と姿勢。`on` が None なら取付を外す（機体の根になる）。
+    /// 取付と姿勢。`on` が None なら取付を外す（機体の根になる。このとき `position`・`orientation` は機体座標での根の姿勢）。
     /// `configuration` があれば、取付は変えずに、その形態の `[pose.<部品>]` へ姿勢（`position`・`orientation`）だけを
     /// 丸ごと書く（部品自身の `[pose]` は変えない）。このとき `on`・`point` は、書くなら部品の取付と同じでなければならない
-    /// （形態ごとの付け替えはできない）。部品に取付が無ければ拒む。位置も姿勢も無ければ拒む（上書きを消すのは `UnsetConfigurationPose`）。
+    /// （形態ごとの付け替えはできない）。取付の無い部品（根）の姿勢は機体座標での姿勢（形態の中でも同じ）。位置も姿勢も無ければ拒む（上書きを消すのは `UnsetConfigurationPose`）。
     Place {
         part: String,
         #[serde(default)]

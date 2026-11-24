@@ -337,3 +337,30 @@ fn view_edge_apply_persists_routes_without_changing_design_connections() {
     let reset = load(dir.path()).unwrap();
     assert!(reset.design.views["electrical"].edge.is_empty());
 }
+
+/// 根（取付先なし）の配置の CLI 表記は `--root` つきで、取付先なしの配置が根の機体座標での姿勢だと分かる。形態の中では `--root` を書かない。
+#[test]
+fn a_root_placement_is_shown_with_root() {
+    let at = |configuration: Option<&str>| Op::Place {
+        part: "BUS".into(),
+        on: None,
+        point: None,
+        position: Some(fune_model::value::Vector3 {
+            x: -45.0,
+            y: 0.0,
+            z: 0.0,
+            unit: Some("mm".into()),
+            frame: None,
+        }),
+        orientation: None,
+        configuration: configuration.map(Into::into),
+    };
+    assert_eq!(
+        to_cli(&at(None)),
+        vec!["fune part place BUS --root \"--position=-45 0 0 mm\""]
+    );
+    assert_eq!(
+        to_cli(&at(Some("SHIFTED"))),
+        vec!["fune part place BUS --configuration SHIFTED \"--position=-45 0 0 mm\""]
+    );
+}

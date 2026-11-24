@@ -72,7 +72,7 @@ pub(crate) fn part_row(
             .collect(),
         mount: super::pose::mount_view(design, part, rp_posed, (&unit, configuration)),
         mount_points: super::pose::mount_points(part),
-        body: super::pose::body_pose_view(posed, rp_posed, &unit),
+        body: super::pose::body_pose_view(design, posed, (part, rp_posed), (&unit, configuration)),
         states: rp.states.clone(),
         file: file_of(design, EntityKey::Part(rp.id.clone())),
         // 置き場所の区間はディレクトリの規約（`fune_store::layout`）が親の連鎖から作る（パスの文字列は分解しない）

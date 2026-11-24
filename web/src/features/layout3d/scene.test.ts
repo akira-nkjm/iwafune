@@ -29,15 +29,22 @@ describe("3D 配置", () => {
     expect(unplaced).toEqual(["RW_X", "PCDU", "TRX"]);
   });
 
-  it("取付の根は取付が無くても API の body で原点に置き、動かさない印を付ける", () => {
+  it("取付の根は取付が無くても API の body で置き、姿勢が書かれていればその位置・姿勢に置く（根も動かせる）", () => {
+    const s = Math.SQRT1_2;
     const root: PartRow = {
       ...base,
       id: "FRAME",
-      body: bodyAt([0, 0, 0], [1, 0, 0, 0], true),
+      body: bodyAt([-0.045, 0, 0], [s, 0, 0, s], true),
     };
     const { boxes, unplaced } = boxesOf({ ...fixture, parts: [root] });
     expect(unplaced).toEqual([]);
-    expect(boxes[0]).toMatchObject({ id: "FRAME", position: [0, 0, 0], fixed: true });
+    expect(boxes[0]).toMatchObject({
+      id: "FRAME",
+      position: [-0.045, 0, 0],
+      orientation: [s, 0, 0, s],
+    });
+    // 掴んで動かせないことを表す印は無い（根も外板も同じ箱）
+    expect(boxes[0]).not.toHaveProperty("fixed");
   });
 });
 
