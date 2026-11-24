@@ -18,7 +18,6 @@ pub mod directions;
 pub mod exposed;
 pub mod geometry;
 
-use super::interference::obb::OrientedBox;
 use super::interference::{
     InterferenceBox, InterferenceRepeated, InterferenceSkipped, count, usable_boxes,
 };
@@ -197,15 +196,7 @@ impl Analysis for ExternalGeometryReport {
                 count: b.count,
             })
             .collect();
-        let geometry = ExternalGeometry::new(
-            judged
-                .iter()
-                .map(|b| PartBox {
-                    id: b.id.clone(),
-                    shape: OrientedBox::from_size(b.position, b.orientation, b.size),
-                })
-                .collect(),
-        );
+        let geometry = ExternalGeometry::from_usable(&judged);
         Ok(report(&geometry, skipped, repeated))
     }
 }

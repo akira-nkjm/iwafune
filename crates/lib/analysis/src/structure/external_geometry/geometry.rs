@@ -2,6 +2,7 @@
 //! 表面積（面の被覆）は子の `exposed`（`ExternalGeometry::exposure`）、平均の向きの組は子の `directions`。
 
 use super::super::interference::obb::{OrientedBox, PLANE_EPS, plane_basis};
+use super::super::interference::{InterferenceBox, usable_boxes};
 use super::directions::DirectionSet;
 use sat_astro::math::Vec3;
 use sat_astro::math::planar::union_measure;
@@ -49,6 +50,26 @@ impl ExternalGeometry {
             internal,
             hidden,
         }
+    }
+
+    /// 判定に使える箱（`usable_boxes` が選んだもの。ID の昇順）から作る。
+    pub(crate) fn from_usable(boxes: &[&InterferenceBox]) -> Self {
+        Self::new(
+            boxes
+                .iter()
+                .map(|b| PartBox {
+                    id: b.id.clone(),
+                    shape: OrientedBox::from_size(b.position, b.orientation, b.size),
+                })
+                .collect(),
+        )
+    }
+
+    /// 解析の入力の箱から作る（寸法が正の有限値でない箱は除く。選び方は `usable_boxes`＝箱の使い方の規則）。
+    /// 使える箱が 1 つも無ければ `None`。高度低下と擾乱トルクが、報告（`structure.external_geometry`）と同じ幾何を使うための入口。
+    pub fn from_boxes(boxes: &[InterferenceBox]) -> Option<Self> {
+        let (usable, _) = usable_boxes(boxes, &[]);
+        (!usable.is_empty()).then(|| Self::from_usable(&usable))
     }
 
     /// 全部の箱。

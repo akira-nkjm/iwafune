@@ -48,11 +48,16 @@ fn demo_kpis_show_the_same_values_as_before() {
             "power.energy_balance",
             &[(KpiKey::OrbitBalance, "15.0 W"), (KpiKey::MaxDod, "15.1 %")],
         ),
+        // #388 段階 4: 空力・太陽輻射圧の面積と腕を部品の箱から出す（デモの `cp_offset_*` は消した）。16.2 h → 17.6 h、
+        // 2.39 → 2.25 mN·m·s。合計は残留磁気トルク（約 8e-7 N·m）が支配し、空力は 1.9e-8 → 5.9e-9 N·m、
+        // 太陽輻射圧は 4.5e-9 → 8.8e-8 N·m（+X 側の面積 約 0.145〜0.166 m² × Cr 1.3 × P 4.5e-6 N/m² × 腕 約 0.09 m
+        // ≈ 8e-8 N·m と桁が合う）。値そのものの手計算は無理なので、面積と腕の単体の手計算は
+        // `disturbance/surface/tests.rs` と `rw_unloading/geometry_tests.rs` が持つ。
         (
             "aocs.rw_unloading",
             &[
-                (KpiKey::UnloadInterval, "16.2 h"),
-                (KpiKey::PeakMomentum, "2.39 mN·m·s"),
+                (KpiKey::UnloadInterval, "17.6 h"),
+                (KpiKey::PeakMomentum, "2.25 mN·m·s"),
             ],
         ),
         // #168 から RCS のアンロード時間も KPI にしたが、デモにスラスタは無いので出ない
