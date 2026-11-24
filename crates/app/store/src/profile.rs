@@ -148,9 +148,9 @@ fn row_signature(table: &Table) -> Vec<String> {
         .collect()
 }
 
-/// 編集の前後を比べ、値の行のキーが変わった表だけ `=` を揃え直す（正規形の揃えは [`align_rows`] が唯一の定義）。
-/// キーを消す・名前を変える編集で、残りの行の揃えが古い幅のまま残るのを防ぐ。変わっていない表は触らない
-/// （手で書いたコメントや装飾を保つ）。
+/// 編集の前後を比べ、値の行のキーが変わった表と、新しく足した表だけ `=` を揃え直す（正規形の揃えは [`align_rows`] が唯一の定義）。
+/// キーを消す・名前を変える編集で残りの行の揃えが古い幅のまま残ること、足した表が揃わないまま書かれることを防ぐ。
+/// 変わっていない表は触らない（手で書いたコメントや装飾を保つ）。
 pub fn realign_changed(before: &Table, after: &mut Table) {
     if row_signature(before) != row_signature(after) {
         align_rows(after);
@@ -158,15 +158,21 @@ pub fn realign_changed(before: &Table, after: &mut Table) {
     for (key, item) in after.iter_mut() {
         let old = before.get(&key);
         match item {
-            Item::Table(t) if !t.is_dotted() => {
-                if let Some(Item::Table(o)) = old {
-                    realign_changed(o, t);
-                }
-            }
+            Item::Table(t) if !t.is_dotted() => match old {
+                Some(Item::Table(o)) => realign_changed(o, t),
+                // 編集で新しく足した表: 比べる相手が無いので、まるごと揃える
+                _ => align_table(t),
+            },
             Item::ArrayOfTables(a) => {
-                if let Some(Item::ArrayOfTables(o)) = old {
-                    for (t, o) in a.iter_mut().zip(o.iter()) {
-                        realign_changed(o, t);
+                let old_rows: Vec<&Table> = match old {
+                    Some(Item::ArrayOfTables(o)) => o.iter().collect(),
+                    _ => Vec::new(),
+                };
+                for (i, t) in a.iter_mut().enumerate() {
+                    match old_rows.get(i) {
+                        Some(o) => realign_changed(o, t),
+                        // 新しく足した行（表）も、まるごと揃える
+                        None => align_table(t),
                     }
                 }
             }
@@ -218,5 +224,34 @@ mod tests {
             .remove("longer");
         realign_changed(before.as_table(), after.as_table_mut());
         assert_eq!(after.to_string(), "[[s]]\nk = 2.0\n");
+    }
+
+    #[test]
+    fn realign_changed_aligns_tables_and_rows_the_edit_added() {
+        // 新しく足した表（入れ子も）と、表の配列に足した行は、比べる相手が無くても揃える。元からある表は触らない
+        let before = doc("[a]\nx   = 1.0\nyyyy = 2.0\n\n[[s]]\nk = 1.0\n");
+        let mut after = before.clone();
+        let added = doc("[b.c]\nlong_key = 1.0\nk = 2.0\n\n[[s]]\nlonger = 1.0\nk = 2.0\n");
+        after["b"] = added["b"].clone();
+        let row = added["s"]
+            .as_array_of_tables()
+            .unwrap()
+            .get(0)
+            .unwrap()
+            .clone();
+        after["s"].as_array_of_tables_mut().unwrap().push(row);
+        realign_changed(before.as_table(), after.as_table_mut());
+        let text = after.to_string();
+        // 表が並ぶ順は見ない（揃えだけを確かめる）
+        assert!(
+            text.contains("[b.c]\nlong_key = 1.0\nk        = 2.0\n"),
+            "{text}"
+        );
+        assert!(
+            text.contains("[[s]]\nlonger = 1.0\nk      = 2.0\n"),
+            "{text}"
+        );
+        assert!(text.contains("[a]\nx   = 1.0\nyyyy = 2.0\n"), "{text}");
+        assert!(text.contains("[[s]]\nk = 1.0\n"), "{text}");
     }
 }
