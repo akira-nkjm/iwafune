@@ -6,6 +6,7 @@ import { useT } from "@/i18n";
 import { Field } from "@/kit/forms/Field";
 import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { TextInput } from "@/kit/forms/TextInput";
+import { idWithName } from "@/lib/design";
 import { OpDialog } from "@/ops/OpDialog";
 import { useOpCheck } from "@/ops/use-op-check";
 import { phaseCommand } from "./phase-form";
@@ -79,9 +80,9 @@ export function PhaseDialog({
             className="w-full"
             value={text.configuration ?? ""}
             placeholder={td.configurationNone}
-            options={configurations.map(({ id, label }) => ({
-              value: id,
-              label: id === label ? id : `${label} (${id})`,
+            options={configurations.map((c) => ({
+              value: c.id,
+              label: idWithName(c),
             }))}
             onChange={(e) => set("configuration", e.target.value)}
           />
