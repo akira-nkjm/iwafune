@@ -338,13 +338,14 @@ pub fn ensure_non_negative(name: &str, v: f64) -> Result<(), AnalysisError> {
 mod sampling;
 pub use sampling::{
     DEFAULT_ORBITS, MAX_DAILY_STEP_S, MAX_STEPS_PER_ORBIT, ORBIT_AVERAGE_ORBITS, SamplingSpan,
-    daily_sampling, orbit_count, orbit_step_s, orbits_sampling, sampling, step_for_period,
+    daily_sampling, orbit_count, orbit_step_s, orbits_sampling, requested_step_s, sampling,
+    step_for_period,
 };
 
 mod orbit;
 pub use orbit::{
     SUNLIT_THRESHOLD, SpanFallback, is_sunlit, longest_window, masked_time_mean, orbit_mean,
-    orbit_ranges, orbit_segment, orbit_segments, span_fallback, time_fraction,
+    orbit_ranges, orbit_segment, orbit_segments, span_fallback, span_note, time_fraction,
 };
 
 /// 時系列の中の区間と、その抽出。実体は sat-astro（下の層）にあり、ここでは再公開するだけ。

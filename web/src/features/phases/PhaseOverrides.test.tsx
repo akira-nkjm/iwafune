@@ -30,8 +30,16 @@ const phase: PhaseView = {
   duration: null,
   modes: ["SAFE"],
   orbit_overridden: true,
+  orbit_from: null,
   orbit: [
-    { path: "orbit.altitude", key: "altitude", display: "250 km", value: altitude, text: "250 km" },
+    {
+      path: "orbit.altitude",
+      key: "altitude",
+      display: "250 km",
+      value: altitude,
+      text: "250 km",
+      choices: [],
+    },
   ],
   laws: [
     {
@@ -73,6 +81,46 @@ describe("軌道の上書きの編集", () => {
     expect(html).toContain("250 km");
     expect(html).toContain("Copy the design orbit again");
     expect(html).toContain("Remove override");
+  });
+
+  it("API が選択肢を返した欄（出どころ・遷移のマヌーバ）は選択欄にし、いまの値を選んでおく", () => {
+    const text = (value: string) => ({ type: "text" as const, value });
+    const unset = { type: "unset" as const };
+    const html = render(
+      <OrbitOverride
+        phase={{
+          ...phase,
+          orbit_from: "MARS_TRANSFER",
+          orbit: [
+            {
+              path: "orbit.source",
+              key: "source",
+              display: "transfer",
+              value: text("transfer"),
+              text: "transfer",
+              choices: [
+                { value: "elements", label: "ケプラー要素", label_en: "Kepler elements" },
+                { value: "transfer", label: "日付つきの遷移", label_en: "Dated transfer" },
+              ],
+            },
+            {
+              path: "orbit.maneuver",
+              key: "maneuver",
+              display: "—",
+              value: unset,
+              text: "",
+              choices: [{ value: "MARS_TRANSFER", label: "Earth → Mars", label_en: null }],
+            },
+          ],
+        }}
+      />,
+    );
+    expect(html).toContain('aria-label="orbit.source"');
+    expect(html).toContain('<option value="transfer" selected="">');
+    expect(html).toContain('<option value="MARS_TRANSFER">');
+    // 未入力の欄は「未設定」の選択肢が選ばれている
+    expect(html).toContain('aria-label="orbit.maneuver"');
+    expect(html).toContain("Not set");
   });
 
   it("上書きが無ければ、設計の軌道を写して始める操作だけを出す", () => {

@@ -35,7 +35,16 @@ describe("overrideRows", () => {
       max: null,
     };
     const rows = overrideRows(
-      [{ path: "orbit.altitude", key: "altitude", display: "250 km", value, text: "250 km" }],
+      [
+        {
+          path: "orbit.altitude",
+          key: "altitude",
+          display: "250 km",
+          value,
+          text: "250 km",
+          choices: [],
+        },
+      ],
       "phases/DISPOSAL.toml",
     );
     expect(rows).toEqual([
@@ -45,6 +54,7 @@ describe("overrideRows", () => {
         value,
         display: "250 km",
         file: "phases/DISPOSAL.toml",
+        choices: [],
       },
     ]);
   });

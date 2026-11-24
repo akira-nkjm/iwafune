@@ -71,15 +71,33 @@ impl Design {
         out
     }
 
-    /// マヌーバを指すもの: ほかのマヌーバの `after`。
+    /// マヌーバを指すもの: ほかのマヌーバの `after` → 設計の軌道の `maneuver` → フェーズの軌道の `maneuver`。
     pub(super) fn maneuver_refs(&self, id: &str) -> Vec<RefSite> {
-        self.maneuvers
+        let after = self
+            .maneuvers
             .values()
             .filter(|m| m.after.as_deref() == Some(id))
             .map(|m| RefSite::ManeuverAfter {
                 maneuver: m.id.to_string(),
+            });
+        let design_orbit = self
+            .conditions
+            .orbit
+            .as_ref()
+            .filter(|o| o.maneuver.as_deref() == Some(id))
+            .map(|_| RefSite::OrbitManeuver);
+        let phase_orbits = self
+            .phases
+            .values()
+            .filter(|p| {
+                p.orbit
+                    .as_ref()
+                    .is_some_and(|o| o.maneuver.as_deref() == Some(id))
             })
-            .collect()
+            .map(|p| RefSite::PhaseOrbitManeuver {
+                phase: p.id.to_string(),
+            });
+        after.chain(design_orbit).chain(phase_orbits).collect()
     }
 
     /// 通信の回線を指すもの: 下りの回線の選択 → 判定のキーが名指す要求。

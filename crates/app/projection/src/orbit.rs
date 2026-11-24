@@ -44,16 +44,16 @@ pub fn eclipse_season(ctx: &Context<'_>) -> Result<EclipseSeasonInput, MissingIn
     })
 }
 
-/// `orbit.geometry`: フェーズごとの区間（並びの順。フェーズが無い設計は設計の軌道 1 つ）。区間の軌道はそのフェーズで効いている軌道
+/// `orbit.geometry`: フェーズごとの区間（並びの順。フェーズが無い設計は設計の軌道 1 つ）。区間の軌道はそのフェーズで効いている軌道（出どころは問わない。遷移から取る巡航の区間も入る）
 /// （フェーズが `[orbit]` を持たなければ設計の軌道）、期間はフェーズの `duration`（書かれていれば）。ケースは選ばなくてよく、
 /// ケースが指すフェーズは使わず全フェーズを並べる。
 pub fn geometry(ctx: &Context<'_>) -> Result<GeometryInput, MissingInputs> {
     let mut m = MissingInputs::new();
     let phases = ctx.design.ordered_phases();
     let legs: Vec<Option<GeometryLegInput>> = if phases.is_empty() {
-        vec![ctx.orbit(&mut m).map(|orbit| GeometryLegInput {
+        vec![ctx.trajectory(&mut m).map(|orbit| GeometryLegInput {
             phase: None,
-            orbit: orbit.into(),
+            orbit,
             duration: None,
         })]
     } else {
@@ -65,9 +65,9 @@ pub fn geometry(ctx: &Context<'_>) -> Result<GeometryInput, MissingInputs> {
                 ctx.note(target.clone());
                 let duration =
                     crate::quantity::qty_opt::<Time>(p.duration.as_ref(), target, &mut m);
-                c.orbit(&mut m).map(|orbit| GeometryLegInput {
+                c.trajectory(&mut m).map(|orbit| GeometryLegInput {
                     phase: Some(p.id.as_str().to_owned()),
-                    orbit: orbit.into(),
+                    orbit,
                     duration,
                 })
             })

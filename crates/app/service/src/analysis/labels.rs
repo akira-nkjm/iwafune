@@ -204,6 +204,10 @@ fn span_fallback(f: SpanFallback) -> AnalysisLabel {
         SpanFallback::SecularExtrapolated => {
             label("全期間からの外挿", "Extrapolated from the whole span")
         }
+        SpanFallback::OneOffSpan => label(
+            "全期間の平均（1 回限りの軌道）",
+            "Mean over the whole span (one-off orbit)",
+        ),
     }
 }
 
@@ -447,7 +451,7 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
     }
 }
 
-/// 期間不足の注意（key `span`）の項目名と文。
+/// 期間不足の注意（key `span`）の項目名と文。1 回限りの軌道（`OneOffSpan`）は期間不足ではなく、周回が無いことの説明。
 pub fn span_check(f: SpanFallback) -> (AnalysisLabel, AnalysisLabel) {
     let consequence = match f {
         SpanFallback::OrbitMeanOverSpan => label(
@@ -458,6 +462,15 @@ pub fn span_check(f: SpanFallback) -> (AnalysisLabel, AnalysisLabel) {
             "永年成分は全期間から外挿しています",
             "the secular part is extrapolated from the whole span",
         ),
+        SpanFallback::OneOffSpan => {
+            return (
+                label("解析期間", "Analysis span"),
+                label(
+                    "軌道は 1 回限りの区間（惑星間の巡航の、両端の天体の影響圏のあいだなど）で周回が無いため、軌道平均と 1 周あたりの量は区間全体で求めています（影響圏の中の双曲線の弧は解析しません）",
+                    "The orbit is a one-off arc (such as an interplanetary cruise between the spheres of influence of its end bodies; the hyperbolic legs inside them are not analysed) with no repeating orbit, so orbit averages and per-orbit quantities are taken over the whole arc",
+                ),
+            );
+        }
     };
     (
         label("解析期間", "Analysis span"),
