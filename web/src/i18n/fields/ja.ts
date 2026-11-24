@@ -294,6 +294,7 @@ const labels: Record<string, string> = {
   dated_transfers: "日付つきの惑星間遷移",
   dated_transfer: "日付つきの惑星間遷移",
   departure: "出発の日",
+  departure_by: "出発の噴射を行うもの",
   arrival: "到着の日",
   time_of_flight: "飛行時間",
   c3: "出発の C3（特性エネルギー）",

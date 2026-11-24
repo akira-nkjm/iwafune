@@ -4,6 +4,10 @@
 //! 打ち上げ機（衛星に近い接点が先。`LaunchInterface::NEAREST_FIRST`）。要求は限度を厳しくする側にだけ働き
 //! （質量・固有振動数。[`mass_limits`]・[`frequency_limits`]）、効く 1 つの選び方は解析 `structure.launch_fit` が持つ
 //! （`tightest_max_mass`・`tightest_min_frequency`）。値の出所は文字列（`launcher local/lv_alpha`）で持ち、判定の文に出す。
+//!
+//! 質量の上限の候補は、スカラーの `max_payload_mass`（ディスペンサー → 打ち上げ機の順で最初のもの）、能力の曲線 `payload_mass_by_c3`
+//! （同じ順で最初のもの。出発を打ち上げ機が受け持つ遷移があるときだけ、その C3 で引く）、質量バジェットの要求で、**全部が候補**として並び、
+//! 厳しいほうが効く（スカラーは曲線の外の構造などの別の限度でもありうる）。
 
 use crate::context::Context;
 use crate::missing::MissingInputs;
@@ -12,8 +16,10 @@ use fune_model::design::launch::attr;
 use fune_model::design::{BudgetKind, CatalogItem, LaunchInterface};
 use fune_model::path::{AttrPath, SettingPath};
 use fune_model::resolve::{Cell, ResolvedValue, SiValue, resolve_catalog_item};
-use sat_analysis::structure::launch_fit::{LaunchFitFrequencyLimit, LaunchFitMassLimit};
-use sat_units::typed::{Frequency, Mass, Qty};
+use sat_analysis::structure::launch_fit::{
+    CapabilityPoint, LaunchFitCapability, LaunchFitFrequencyLimit, LaunchFitMassLimit,
+};
+use sat_units::typed::{Frequency, Mass, Qty, SpecificEnergy};
 use std::collections::BTreeMap;
 
 /// 選ばれた品 1 つの SI の値。
@@ -97,6 +103,18 @@ impl<'a> LaunchValues<'a> {
         }
     }
 
+    /// 曲線の属性（SI。引数と値の対の並び）。
+    pub fn curve(&self, attr_id: &str) -> Option<Found<Vec<(f64, f64)>>> {
+        let f = self.first(attr_id)?;
+        match f.value {
+            SiValue::Curve { at, values } => Some(Found {
+                value: at.iter().copied().zip(values.iter().copied()).collect(),
+                origin: f.origin,
+            }),
+            _ => None,
+        }
+    }
+
     /// ベクトルの属性（SI）。
     pub fn vec3(&self, attr_id: &str) -> Option<Found<[f64; 3]>> {
         let f = self.first(attr_id)?;
@@ -126,6 +144,34 @@ pub(crate) fn mass_limits(ctx: &Context<'_>, launch: &LaunchValues<'_>) -> Vec<L
             value: Qty::<Mass>::from_raw(kg),
         })
         .collect()
+}
+
+/// 打ち上げ機・ディスペンサーの能力の曲線（`payload_mass_by_c3`）に、出発を打ち上げ機が受け持つ遷移の C3 を添える
+/// （曲線が無ければ `None`。**質量の上限の候補になる曲線の読み方はここだけ**で、C3 で引くのと候補から選ぶのは解析）。
+pub(crate) fn capability(
+    launch: &LaunchValues<'_>,
+    departure: &LauncherDeparture,
+) -> Option<LaunchFitCapability> {
+    let found = launch.curve(attr::PAYLOAD_MASS_BY_C3)?;
+    Some(LaunchFitCapability {
+        origin: found.origin,
+        maneuver: departure.maneuver.clone(),
+        c3: departure.c3,
+        curve: found
+            .value
+            .into_iter()
+            .map(|(c3, kg)| CapabilityPoint {
+                c3: Qty::<SpecificEnergy>::from_raw(c3),
+                mass: Qty::<Mass>::from_raw(kg),
+            })
+            .collect(),
+    })
+}
+
+/// 出発を打ち上げ機が受け持つ遷移（マヌーバの ID と出発の C3）。
+pub(crate) struct LauncherDeparture {
+    pub maneuver: String,
+    pub c3: Qty<SpecificEnergy>,
 }
 
 /// 最低固有振動数の候補（基本の限度 = 打ち上げ機・ディスペンサーの値、続いて `structure.modal_estimate` の判定

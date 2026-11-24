@@ -143,5 +143,12 @@ fn maneuver_cmd(verb: &str, m: &Maneuver) -> String {
             "arrive",
             m.transfer.as_ref().and_then(|t| t.arrival.as_deref()),
         )
+        .flag(
+            "departure-by",
+            m.transfer
+                .as_ref()
+                .and_then(|t| t.departure_by)
+                .map(|d| d.as_str()),
+        )
         .done()
 }

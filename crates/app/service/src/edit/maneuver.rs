@@ -4,7 +4,9 @@
 use super::text::{bool_from_text as flag, fraction_from_text, given, invalid, quantity_from_text};
 use crate::dto::ManeuverText;
 use crate::error::Result;
-use fune_model::design::{Maneuver, ManeuverConstraints, ManeuverTarget, ManeuverTransfer};
+use fune_model::design::{
+    DepartureBy, Maneuver, ManeuverConstraints, ManeuverTarget, ManeuverTransfer,
+};
 use fune_model::value::Quantity;
 use fune_ops::Op;
 use sat_astro::time::Epoch;
@@ -55,7 +57,7 @@ fn maneuver_of(t: &ManeuverText) -> Result<Maneuver> {
     })
 }
 
-/// `--depart`・`--arrive`（両方か、どちらも書かない）→ `[transfer]`。日付の読み方は `sat_astro::time::Epoch::parse` だけ。
+/// `--depart`・`--arrive`（両方か、どちらも書かない）と `--departure-by`（日付と一緒にだけ）→ `[transfer]`。日付の読み方は `sat_astro::time::Epoch::parse` だけ。
 /// 日付どうしの順・暦の範囲・天体の組は検査（`fune check`）が見る。
 fn transfer_of(t: &ManeuverText) -> Result<Option<ManeuverTransfer>> {
     let date = |flag: &str, text: &Option<String>| -> Result<Option<String>> {
@@ -68,11 +70,18 @@ fn transfer_of(t: &ManeuverText) -> Result<Option<ManeuverTransfer>> {
             })
             .transpose()
     };
+    let departure_by = given(&t.departure_by)
+        .map(|s| s.trim().parse::<DepartureBy>().map_err(invalid))
+        .transpose()?;
     match (date("depart", &t.depart)?, date("arrive", &t.arrive)?) {
+        (None, None) if departure_by.is_some() => Err(invalid(
+            "--departure-by needs --depart and --arrive (it belongs to a dated transfer)",
+        )),
         (None, None) => Ok(None),
         (Some(departure), Some(arrival)) => Ok(Some(ManeuverTransfer {
             departure: Some(departure),
             arrival: Some(arrival),
+            departure_by,
         })),
         _ => Err(invalid("--depart and --arrive must be given together")),
     }

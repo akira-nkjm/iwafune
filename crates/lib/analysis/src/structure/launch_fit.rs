@@ -13,6 +13,10 @@
 //! 続くものが要求の値。**限度の候補から効く 1 つを選ぶ規則はここだけ**（[`tightest_max_mass`]・[`tightest_min_frequency`]。
 //! 厳しいほうが効く）で、どこから来た値かは判定の文に書く。
 
+mod capability;
+
+pub use capability::{CapabilityPoint, LaunchFitCapability, mass_at_c3};
+
 use super::modal_estimate::ModalEstimateKind;
 use crate::budget::{BudgetItem, budget_rollup};
 use crate::spec::quantity_text;
@@ -21,7 +25,7 @@ use crate::spec::{
     ratio_margin_verdict,
 };
 use sat_astro::math::Vec3;
-use sat_units::typed::{Fraction, Frequency, Length, Mass, Qty};
+use sat_units::typed::{Fraction, Frequency, Length, Mass, Qty, SpecificEnergy};
 use serde::{Deserialize, Serialize};
 
 /// 適合の余裕の警告の幅。0 なので、収まれば ok、収まらなければ違反の二段階（適合か不適合か）。
@@ -82,6 +86,10 @@ pub struct LaunchFitInput {
     /// 質量の上限の候補（無ければ質量は判定しない）
     #[serde(default)]
     pub max_mass: Vec<LaunchFitMassLimit>,
+    /// 打ち上げ機が出発を受け持つ遷移の C3 と、能力の曲線（あれば、曲線を C3 で引いた質量が上限の候補に加わる）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub capability: Option<LaunchFitCapability>,
     /// 許容の外形（無ければ外形は判定しない）
     #[serde(default)]
     pub envelope: Option<LaunchFitEnvelope>,
@@ -110,6 +118,10 @@ pub struct LaunchFitMass {
     pub origin: String,
     /// 余裕 = 上限 / 成長余裕込みの質量 − 1
     pub margin: Option<Fraction>,
+    /// 能力の曲線を引いた C3（曲線を使ったときだけ。上限がほかの候補のものでも、引いたなら入る）
+    pub c3: Option<Qty<SpecificEnergy>>,
+    /// 曲線の終わりの C3（遷移の C3 がこれより大きく、送れないときだけ。上限は 0 kg になり違反）
+    pub beyond_curve_end: Option<Qty<SpecificEnergy>>,
     pub verdict: Verdict,
 }
 
@@ -248,11 +260,30 @@ fn positive(name: &str, v: f64) -> Result<(), AnalysisError> {
 }
 
 fn judge_mass(input: &LaunchFitInput) -> Result<Option<LaunchFitMass>, AnalysisError> {
-    let Some(limit) = tightest_max_mass(&input.max_mass) else {
+    // 質量の上限の候補は、基本の限度・要求と、能力の曲線を遷移の C3 で引いた質量（あれば）。効く 1 つはここだけで選ぶ
+    let mut candidates = input.max_mass.clone();
+    let mut beyond_end = None;
+    if let Some(cap) = &input.capability {
+        match capability::evaluate(cap)? {
+            capability::Evaluated::Limit(l) => candidates.push(l),
+            capability::Evaluated::BeyondEnd(end) => beyond_end = Some(end),
+        }
+    }
+    // 曲線の終わりより大きい C3 は送れない: 上限 0 kg の違反（ほかの候補があっても、送れないことが先）
+    let limit = match (&input.capability, beyond_end) {
+        (Some(cap), Some(_)) => Some(LaunchFitMassLimit {
+            origin: cap.origin.clone(),
+            value: Qty::from_raw(0.0),
+        }),
+        _ => tightest_max_mass(&candidates).cloned(),
+    };
+    let Some(limit) = limit else {
         return Ok(None);
     };
     let propellant = input.propellant_mass.map_or(0.0, Qty::value);
-    positive("Mass limit", limit.value.value())?;
+    if beyond_end.is_none() {
+        positive("Mass limit", limit.value.value())?;
+    }
     if !(propellant.is_finite() && propellant >= 0.0) {
         return Err(AnalysisError::InvalidInput(format!(
             "Propellant mass must not be negative ({propellant})"
@@ -269,8 +300,10 @@ fn judge_mass(input: &LaunchFitInput) -> Result<Option<LaunchFitMass>, AnalysisE
         launch_mass: Qty::from_raw(launch),
         bare_mass: Qty::from_raw(rollup.total),
         limit: limit.value,
-        origin: limit.origin.clone(),
+        origin: limit.origin,
         margin,
+        c3: input.capability.as_ref().map(|c| c.c3),
+        beyond_curve_end: beyond_end,
         verdict: ratio_margin_verdict(margin, FIT_MARGIN_WARNING_BAND),
     }))
 }
@@ -345,6 +378,21 @@ fn judge_frequencies(input: &LaunchFitInput) -> Result<Vec<LaunchFitFrequency>, 
 }
 
 fn mass_check(m: &LaunchFitMass) -> Check {
+    if let (Some(end), Some(c3)) = (m.beyond_curve_end, m.c3) {
+        return Check::new(
+            "mass",
+            "Launch mass",
+            m.verdict,
+            format!(
+                "Not capable: the departure needs C3 {}, above the last point ({}) of the capability curve of {} (not extrapolated); launch mass with growth allowance {} (bare {})",
+                quantity_text::<SpecificEnergy>(c3.value()),
+                quantity_text::<SpecificEnergy>(end.value()),
+                m.origin,
+                quantity_text::<Mass>(m.launch_mass.value()),
+                quantity_text::<Mass>(m.bare_mass.value()),
+            ),
+        );
+    }
     Check::new(
         "mass",
         "Launch mass",
