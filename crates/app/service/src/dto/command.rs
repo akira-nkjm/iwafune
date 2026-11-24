@@ -284,6 +284,24 @@ pub struct CaseFromSunDistanceRequest {
     pub mode: Option<String>,
 }
 
+/// 日付の探索で選ぶ点（`propulsion.launch_window` の最小の点）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum WindowObjective {
+    /// マヌーバの ΔV が最小の点
+    Dv,
+    /// 出発の C3 が最小の点
+    C3,
+}
+
+/// `fune maneuver set-window` と HTTP が共有する要求（マヌーバの日付を探索の最小の点の日付にする）。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct ManeuverWindowRequest {
+    /// マヌーバの ID
+    pub id: String,
+    pub min: WindowObjective,
+}
+
 /// `fune case from-eclipse` と HTTP が共有する要求。
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct CaseFromEclipseRequest {
