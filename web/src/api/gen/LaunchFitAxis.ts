@@ -12,4 +12,16 @@ axis: string, size: number, limit: number,
 /**
  * 余裕 = 許容 / 外形 − 1
  */
-margin: number | null, verdict: Verdict, };
+margin: number | null, verdict: Verdict, 
+/**
+ * 最小の端に届く部品（部品の箱から出したときだけ）
+ */
+at_min?: Array<string>, 
+/**
+ * 最大の端に届く部品（部品の箱から出したときだけ）
+ */
+at_max?: Array<string>, 
+/**
+ * 包絡の中心の機体原点からのずれ（符号つき。部品の箱から出したときだけ。情報で、判定には使わない）
+ */
+centre_offset?: number, };

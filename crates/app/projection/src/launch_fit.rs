@@ -1,4 +1,4 @@
-//! `structure.launch_fit` の射影。打ち上げ時の質量（質量バジェットと同じ部品の行（成長余裕つき）+ 積む推薬）・収納外形（構体の外形）・簡易固有振動数と、
+//! `structure.launch_fit` の射影。打ち上げ時の質量（質量バジェットと同じ部品の行（成長余裕つき）+ 積む推薬）・収納外形（形態が効いていれば全部品の箱、無ければ構体の外形）・簡易固有振動数と、
 //! 打ち上げ機・ディスペンサー（と要求）の限度（読み出しと優先順は [`crate::launch`]）を解析の入力にする。
 
 use crate::context::Context;
@@ -11,7 +11,10 @@ use fune_model::design::launch::attr;
 use sat_analysis::propulsion::{DepartureProvider, Maneuvers, Propellant};
 use sat_analysis::spec::Analysis;
 use sat_analysis::structure::ModalEstimate;
-use sat_analysis::structure::launch_fit::{LaunchFitEnvelope, LaunchFitInput, LaunchFitMode};
+use sat_analysis::structure::interference::InterferenceBox;
+use sat_analysis::structure::launch_fit::{
+    LaunchFitEnvelope, LaunchFitInput, LaunchFitMode, LaunchFitPartBoxes,
+};
 use sat_astro::math::Vec3;
 use sat_units::typed::{Mass, Qty};
 
@@ -90,7 +93,39 @@ fn launcher_departure(ctx: &Context<'_>, m: &mut MissingInputs) -> Option<Launch
     }
 }
 
-/// `structure.launch_fit`: 打ち上げ時の質量（乾燥 + 積む推薬）・収納外形（構体の外形。`aocs::reference_box`）・
+/// 収納外形の入力 `(根の寸法, 部品の箱)`。形態が効いている（打ち上げ条件か実行時の指定が形態を指す）ときは、
+/// 寸法を持つ全部品の箱（[`crate::structure::boxes`]。姿勢は形態のもの）を渡し、根の寸法は読まない。効いていなければ根の寸法（従来どおり）。
+/// どちらから外形を出すかの規則は解析にある。外形を判定するとき（許容の外形がある）に測るものが無ければ、不足入力にする。
+fn stowed_outline(
+    ctx: &Context<'_>,
+    judged: bool,
+    m: &mut MissingInputs,
+) -> (Option<Vec3>, Option<LaunchFitPartBoxes>) {
+    if ctx.configuration().is_some() {
+        let body = crate::structure::boxes(ctx);
+        if judged && body.boxes.is_empty() {
+            m.push(
+                Target::any_part("size"),
+                "A part with a size (its box makes the stowed envelope in the configuration)",
+            );
+        }
+        let part_boxes = LaunchFitPartBoxes {
+            boxes: body.boxes.into_iter().map(InterferenceBox::from).collect(),
+            unsized_parts: body.unsized_parts,
+        };
+        return (None, Some(part_boxes));
+    }
+    let size = crate::aocs::reference_box(ctx, m);
+    if judged && size.is_none() {
+        m.push(
+            Target::any_part("size"),
+            "Stowed outer dimensions (the `size` of the root part of the mounting tree)",
+        );
+    }
+    (size, None)
+}
+
+/// `structure.launch_fit`: 打ち上げ時の質量（乾燥 + 積む推薬）・収納外形（形態が効いていれば全部品の箱、無ければ構体の外形 `aocs::reference_box`）・
 /// 簡易固有振動数と、打ち上げ機・ディスペンサー（と要求）の限度。
 pub fn launch_fit(ctx: &Context<'_>) -> Result<LaunchFitInput, MissingInputs> {
     let mut m = MissingInputs::new();
@@ -105,13 +140,7 @@ pub fn launch_fit(ctx: &Context<'_>) -> Result<LaunchFitInput, MissingInputs> {
         origin: f.origin,
         size: Vec3::new(f.value[0], f.value[1], f.value[2]),
     });
-    let size = crate::aocs::reference_box(ctx, &mut m);
-    if envelope.is_some() && size.is_none() {
-        m.push(
-            Target::any_part("size"),
-            "Stowed outer dimensions (the `size` of the root part of the mounting tree)",
-        );
-    }
+    let (size, part_boxes) = stowed_outline(ctx, envelope.is_some(), &mut m);
     let (min_lateral, min_axial) = (
         frequency_limits(ctx, &launch, "lateral"),
         frequency_limits(ctx, &launch, "axial"),
@@ -123,6 +152,7 @@ pub fn launch_fit(ctx: &Context<'_>) -> Result<LaunchFitInput, MissingInputs> {
             parts,
             propellant_mass: propellant,
             size,
+            part_boxes,
             max_mass,
             capability,
             envelope,

@@ -160,7 +160,7 @@ fn launch_analyses_use_launch_selection_or_base() {
 #[test]
 fn energy_balance_uses_the_runs_configuration_with_attitude_cases() {
     let (_tmp, root) = demo_copy();
-    run_cli(&root, &["configuration", "add", "STOWED"]);
+    run_cli(&root, &["configuration", "add", "PACKED"]);
     run_cli(
         &root,
         &[
@@ -168,14 +168,14 @@ fn energy_balance_uses_the_runs_configuration_with_attitude_cases() {
             "place",
             "SAP_PY",
             "--configuration",
-            "STOWED",
+            "PACKED",
             "--rotation",
             "0 0 -90 deg",
         ],
     );
     run_cli(
         &root,
-        &["phase", "set", "NOMINAL_OPS", "--configuration", "STOWED"],
+        &["phase", "set", "NOMINAL_OPS", "--configuration", "PACKED"],
     );
     run_cli(
         &root,
@@ -198,7 +198,7 @@ fn energy_balance_uses_the_runs_configuration_with_attitude_cases() {
     let phased = cli_json(&root, &["analyze", id, "--case", "hot_imaging"]);
     assert_eq!(phased["configuration_source"], "phase");
     assert_vector(&normal(&phased), [0.0, -1.0, 0.0]);
-    let explicit = cli_json(&root, &["analyze", id, "--configuration", "STOWED"]);
+    let explicit = cli_json(&root, &["analyze", id, "--configuration", "PACKED"]);
     assert_eq!(explicit["configuration_source"], "explicit");
     assert_vector(&normal(&explicit), [0.0, -1.0, 0.0]);
 }

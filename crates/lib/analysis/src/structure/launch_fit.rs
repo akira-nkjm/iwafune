@@ -5,6 +5,7 @@
 //!   余裕を掛けない質量（素の質量）も出力に残す。
 //! - 外形: 収納状態の外形を **回転せずに軸ごとに** 許容の箱と比べる（機体座標の x は x と、y は y と、z は z と。発射軸は z）。
 //!   辺の入れ替えは許さない（置き方は設計が決めるので、解析は軸の入れ替えで合わせにいかない）。
+//!   外形は、打ち上げ条件が形態を指していれば寸法を持つ全部品の箱の包絡、指していなければ取付の根の寸法（子の `envelope`）。
 //! - 固有振動数: 簡易固有振動数（`structure.modal_estimate`）の機体全体の梁の一次（横・機軸）の最小値を、下限と比べる。
 //!   パネルの面外モードは局所のモードで、機体全体の剛性の条件とは別なので比べない。機体全体の見積もりが無ければ、判定せず
 //!   警告にする（「確かめていない」を適合と読まれないため）。
@@ -14,8 +15,10 @@
 //! 厳しいほうが効く）で、どこから来た値かは判定の文に書く。
 
 mod capability;
+mod envelope;
 
 pub use capability::{CapabilityPoint, LaunchFitCapability, mass_at_c3};
+pub use envelope::{LaunchFitAxis, LaunchFitEnvelope, LaunchFitEnvelopeSource, LaunchFitPartBoxes};
 
 use super::modal_estimate::ModalEstimateKind;
 use crate::budget::{BudgetItem, budget_rollup};
@@ -24,15 +27,13 @@ use crate::spec::{
     Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict, ratio_margin,
     ratio_margin_verdict,
 };
+use crate::structure::interference::InterferenceSkipped;
 use sat_astro::math::Vec3;
-use sat_units::typed::{Fraction, Frequency, Length, Mass, Qty, SpecificEnergy};
+use sat_units::typed::{Fraction, Frequency, Mass, Qty, SpecificEnergy};
 use serde::{Deserialize, Serialize};
 
 /// 適合の余裕の警告の幅。0 なので、収まれば ok、収まらなければ違反の二段階（適合か不適合か）。
 pub const FIT_MARGIN_WARNING_BAND: Fraction = Fraction::new(0.0);
-
-/// 軸の名前（機体座標。外形の並びと同じ順）。
-const AXES: [&str; 3] = ["x", "y", "z"];
 
 /// 質量の上限の候補 1 つ。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,16 +51,6 @@ pub struct LaunchFitFrequencyLimit {
     /// 値の出所
     pub origin: String,
     pub value: Qty<Frequency>,
-}
-
-/// 許容の外形（機体座標の軸ごとの長さ [m]）。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct LaunchFitEnvelope {
-    /// 値の出所
-    pub origin: String,
-    /// x, y, z 方向の許容の長さ [m]（z が発射軸）
-    pub size: Vec3,
 }
 
 /// 機体全体の一次固有振動数の見積もり 1 つ（`structure.modal_estimate` の結果）。
@@ -80,9 +71,14 @@ pub struct LaunchFitInput {
     /// 積む推薬（推進系が無ければ `None`）
     #[serde(default)]
     pub propellant_mass: Option<Qty<Mass>>,
-    /// 収納状態の外形（機体座標の x, y, z の長さ [m]。無ければ外形は判定しない）
+    /// 収納状態の外形（取付の根の部品の寸法。機体座標の x, y, z の長さ [m]。無ければ外形は判定しない。
+    /// `part_boxes` があればそちらが先で、この値は使わない）
     #[serde(default)]
     pub size: Option<Vec3>,
+    /// 寸法を持つ全部品の箱（打ち上げ条件が形態を指しているときだけ。あれば、外形はこの箱を囲む範囲）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub part_boxes: Option<LaunchFitPartBoxes>,
     /// 質量の上限の候補（無ければ質量は判定しない）
     #[serde(default)]
     pub max_mass: Vec<LaunchFitMassLimit>,
@@ -122,19 +118,6 @@ pub struct LaunchFitMass {
     pub c3: Option<Qty<SpecificEnergy>>,
     /// 曲線の終わりの C3（遷移の C3 がこれより大きく、送れないときだけ。上限は 0 kg になり違反）
     pub beyond_curve_end: Option<Qty<SpecificEnergy>>,
-    pub verdict: Verdict,
-}
-
-/// 外形の 1 軸の判定。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct LaunchFitAxis {
-    /// `x`・`y`・`z`
-    pub axis: String,
-    pub size: Qty<Length>,
-    pub limit: Qty<Length>,
-    /// 余裕 = 許容 / 外形 − 1
-    pub margin: Option<Fraction>,
     pub verdict: Verdict,
 }
 
@@ -183,8 +166,16 @@ pub struct LaunchFitOutput {
     pub mass: Option<LaunchFitMass>,
     /// 許容の外形の出所（外形を判定したとき）
     pub envelope_origin: Option<String>,
+    /// 収納外形の出どころ（根の寸法のときは書かない）
+    #[serde(default, skip_serializing_if = "LaunchFitEnvelopeSource::is_root_size")]
+    #[cfg_attr(feature = "ts", ts(optional, as = "Option<LaunchFitEnvelopeSource>"))]
+    pub envelope_source: LaunchFitEnvelopeSource,
     /// x → y → z の順
     pub envelope: Vec<LaunchFitAxis>,
+    /// 寸法が無く、外形に測れなかった部品（部品の箱から出したときだけ）
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "ts", ts(optional, as = "Option<Vec<InterferenceSkipped>>"))]
+    pub skipped: Vec<InterferenceSkipped>,
     /// 横 → 機軸の順（下限のあるものだけ）
     pub frequencies: Vec<LaunchFitFrequency>,
     /// 判定ごとの結果（key は `mass`・`envelope:<軸>`・`frequency:<向き>`）
@@ -226,7 +217,16 @@ impl Analysis for LaunchFit {
 
     fn run(input: &Self::Input) -> Result<Self::Output, AnalysisError> {
         let mass = judge_mass(input)?;
-        let (envelope_origin, envelope) = judge_envelope(input)?;
+        let judged = envelope::judge(input)?;
+        let (envelope_origin, envelope_source, envelope, skipped) = match judged {
+            Some(j) => (Some(j.origin), j.source, j.axes, j.skipped),
+            None => (
+                None,
+                LaunchFitEnvelopeSource::default(),
+                Vec::new(),
+                Vec::new(),
+            ),
+        };
         let frequencies = judge_frequencies(input)?;
         if mass.is_none() && envelope.is_empty() && frequencies.is_empty() {
             return Err(AnalysisError::InvalidInput(
@@ -236,13 +236,15 @@ impl Analysis for LaunchFit {
         let mut checks = Vec::new();
         checks.extend(mass.as_ref().map(mass_check));
         if let Some(origin) = &envelope_origin {
-            checks.extend(envelope.iter().map(|a| axis_check(a, origin)));
+            checks.extend(envelope.iter().map(|a| envelope::axis_check(a, origin)));
         }
         checks.extend(frequencies.iter().map(frequency_check));
         Ok(LaunchFitOutput {
             mass,
             envelope_origin,
+            envelope_source,
             envelope,
+            skipped,
             frequencies,
             checks,
         })
@@ -306,32 +308,6 @@ fn judge_mass(input: &LaunchFitInput) -> Result<Option<LaunchFitMass>, AnalysisE
         beyond_curve_end: beyond_end,
         verdict: ratio_margin_verdict(margin, FIT_MARGIN_WARNING_BAND),
     }))
-}
-
-fn judge_envelope(
-    input: &LaunchFitInput,
-) -> Result<(Option<String>, Vec<LaunchFitAxis>), AnalysisError> {
-    let (Some(envelope), Some(size)) = (&input.envelope, input.size) else {
-        return Ok((None, Vec::new()));
-    };
-    let (sizes, limits) = (
-        [size.x, size.y, size.z],
-        [envelope.size.x, envelope.size.y, envelope.size.z],
-    );
-    let mut axes = Vec::new();
-    for ((name, s), l) in AXES.iter().zip(sizes).zip(limits) {
-        positive(&format!("Outer dimension {name}"), s)?;
-        positive(&format!("Envelope {name}"), l)?;
-        let margin = ratio_margin(l, s);
-        axes.push(LaunchFitAxis {
-            axis: (*name).to_owned(),
-            size: Qty::from_raw(s),
-            limit: Qty::from_raw(l),
-            margin,
-            verdict: ratio_margin_verdict(margin, FIT_MARGIN_WARNING_BAND),
-        });
-    }
-    Ok((Some(envelope.origin.clone()), axes))
 }
 
 /// 機体全体の梁の一次の最小値（向きの梁の結果。無ければ `None`）。
@@ -403,19 +379,6 @@ fn mass_check(m: &LaunchFitMass) -> Check {
             quantity_text::<Mass>(m.bare_mass.value()),
             quantity_text::<Mass>(m.limit.value()),
             m.origin
-        ),
-    )
-}
-
-fn axis_check(a: &LaunchFitAxis, origin: &str) -> Check {
-    Check::new(
-        &format!("envelope:{}", a.axis),
-        &format!("Envelope {}", a.axis),
-        a.verdict,
-        format!(
-            "{} (allowed {} from {origin})",
-            quantity_text::<Length>(a.size.value()),
-            quantity_text::<Length>(a.limit.value())
         ),
     )
 }

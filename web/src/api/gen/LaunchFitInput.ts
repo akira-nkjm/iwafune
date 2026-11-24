@@ -5,6 +5,7 @@ import type { LaunchFitEnvelope } from "./LaunchFitEnvelope";
 import type { LaunchFitFrequencyLimit } from "./LaunchFitFrequencyLimit";
 import type { LaunchFitMassLimit } from "./LaunchFitMassLimit";
 import type { LaunchFitMode } from "./LaunchFitMode";
+import type { LaunchFitPartBoxes } from "./LaunchFitPartBoxes";
 import type { Vec3 } from "./Vec3";
 
 /**
@@ -20,9 +21,14 @@ parts: Array<BudgetItem>,
  */
 propellant_mass: number | null, 
 /**
- * 収納状態の外形（機体座標の x, y, z の長さ [m]。無ければ外形は判定しない）
+ * 収納状態の外形（取付の根の部品の寸法。機体座標の x, y, z の長さ [m]。無ければ外形は判定しない。
+ * `part_boxes` があればそちらが先で、この値は使わない）
  */
 size: Vec3 | null, 
+/**
+ * 寸法を持つ全部品の箱（打ち上げ条件が形態を指しているときだけ。あれば、外形はこの箱を囲む範囲）
+ */
+part_boxes?: LaunchFitPartBoxes, 
 /**
  * 質量の上限の候補（無ければ質量は判定しない）
  */
