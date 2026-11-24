@@ -75,6 +75,9 @@ pub struct AttributeDef {
     /// 次元名（sat-units の名前。例: `"Mass"`）。無ければ `units` の先頭の単位の次元
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dimension: Option<String>,
+    /// 曲線（`curve`）の引数の次元名（`dimension` は値の次元）。曲線だけが持つ
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub at_dimension: Option<String>,
     /// 許可する単位（主な単位）。この外の単位は同じ次元でも warning
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub units: Vec<String>,

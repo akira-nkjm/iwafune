@@ -12,4 +12,8 @@ states: { [key in string]: QuantityView }, } | { "type": "vector", x: number, y:
 /**
  * SI 値 `[x, y, z]`
  */
-si: [number, number, number], frame: string | null, } | { "type": "quat", w: number, x: number, y: number, z: number, } | { "type": "tensor", m: [[number, number, number], [number, number, number], [number, number, number]], unit: string, } | { "type": "range", min: QuantityView, max: QuantityView, } | { "type": "enum", value: string, } | { "type": "bool", value: boolean, } | { "type": "text", value: string, } | { "type": "table", id: string, };
+si: [number, number, number], frame: string | null, } | { "type": "quat", w: number, x: number, y: number, z: number, } | { "type": "tensor", m: [[number, number, number], [number, number, number], [number, number, number]], unit: string, } | { "type": "range", min: QuantityView, max: QuantityView, } | { "type": "curve", at: Array<number>, at_unit: string, values: Array<number>, unit: string, 
+/**
+ * SI の引数と値（同じ並び）
+ */
+si_at: Array<number>, si_values: Array<number>, } | { "type": "enum", value: string, } | { "type": "bool", value: boolean, } | { "type": "text", value: string, } | { "type": "table", id: string, };

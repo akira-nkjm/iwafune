@@ -60,4 +60,8 @@ depart?: string | null,
 /**
  * 日付つきの惑星間遷移の到着の日（出発より後）
  */
-arrive?: string | null, };
+arrive?: string | null, 
+/**
+ * 出発の噴射を行うもの（`spacecraft` / `launcher`。書かなければ衛星。日付と一緒にだけ書ける）
+ */
+departure_by?: string | null, };

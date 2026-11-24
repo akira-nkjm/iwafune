@@ -36,6 +36,9 @@ pub fn check_value_against(def: &AttributeDef, value: &Value, states: &[String])
     for unit in units_of(value) {
         out.extend(unit_findings(def, &unit));
     }
+    if let Value::Curve(c) = value {
+        out.extend(curve_argument_findings(def, &c.at_unit));
+    }
     if out.iter().any(|f| f.0 == Severity::Error) {
         return out;
     }
@@ -82,6 +85,7 @@ fn units_of(value: &Value) -> Vec<String> {
         Value::Vec3(v) => vec![v.unit.clone().unwrap_or_default()],
         Value::Tensor3(t) => vec![t.unit.clone()],
         Value::Range(r) => vec![r.unit.clone()],
+        Value::Curve(c) => vec![c.unit.clone()],
         _ => Vec::new(),
     }
 }
@@ -127,6 +131,50 @@ fn unit_findings(def: &AttributeDef, unit: &str) -> Vec<Finding> {
     out
 }
 
+/// 曲線の引数の単位を、定義の `at_dimension` と比べる。
+fn curve_argument_findings(def: &AttributeDef, unit: &str) -> Vec<Finding> {
+    let info = match unit_info(unit) {
+        Ok(info) => info,
+        Err(e) => return vec![(Severity::Error, "unit.parse", e.to_string())],
+    };
+    let want = def
+        .at_dimension
+        .as_deref()
+        .and_then(|d| parse_dimension_name(d).ok());
+    match want {
+        Some(want) if !info.dimension.is_compatible_with(want) => vec![(
+            Severity::Error,
+            "unit.dimension",
+            format!(
+                "Argument unit `{unit}` is {}, but the argument of attribute `{}` is {}",
+                dimension_label(info.dimension),
+                def.id,
+                dimension_label(want)
+            ),
+        )],
+        _ => Vec::new(),
+    }
+}
+
+/// 曲線の形（点が 1 つ以上、引数と値が同じ数、引数が有限で増える順）。
+fn curve_shape(at: &[f64], values: &[f64]) -> Option<Finding> {
+    let bad = |message: String| Some((Severity::Error, "curve.shape", message));
+    if at.is_empty() || at.len() != values.len() {
+        return bad(format!(
+            "A curve needs at least one point and as many values as arguments ({} arguments, {} values)",
+            at.len(),
+            values.len()
+        ));
+    }
+    if at.iter().chain(values).any(|v| !v.is_finite()) {
+        return bad("A curve point is not a finite number".to_string());
+    }
+    if at.windows(2).any(|w| w[1] <= w[0]) {
+        return bad("The arguments of a curve must be strictly increasing".to_string());
+    }
+    None
+}
+
 /// 範囲の向き・不確かさの順序・値域・方向ベクトル・列挙の語彙。
 fn shape_findings(def: &AttributeDef, value: &Value) -> Vec<Finding> {
     let mut out = Vec::new();
@@ -156,6 +204,10 @@ fn shape_findings(def: &AttributeDef, value: &Value) -> Vec<Finding> {
                     ),
                 ));
             }
+        }
+        SiValue::Curve { at, values } => {
+            out.extend(curve_shape(at, values));
+            nominals.extend(values.iter().copied());
         }
         SiValue::Vec3(v) if def.unit_vector => out.extend(direction(v)),
         SiValue::Enum(s) | SiValue::Text(s)

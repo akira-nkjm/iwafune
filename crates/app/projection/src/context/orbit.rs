@@ -16,8 +16,12 @@ use sat_astro::time::Epoch;
 use sat_units::typed::{Angle, Dimension, Length, Qty};
 
 impl<'a> Context<'a> {
-    /// ケースが指すフェーズ（ケースにフェーズが無い・フェーズが無ければ None。無い ID は検査が `ref.phase` で知らせる）。
+    /// 効いているフェーズ（[`Context::in_phase`] の指定、なければケースが指すフェーズ。ケースにフェーズが無い・フェーズが無ければ None。無い ID は検査が `ref.phase` で知らせる）。
     pub fn phase(&self) -> Option<&'a Phase> {
+        if let Some(p) = self.phase_override {
+            self.note(Target::phase(p.id.as_str(), None));
+            return Some(p);
+        }
         let case = self.case?;
         let id = case.phase.as_ref()?;
         self.note(Target::case(case.id.as_str(), Some("phase")));

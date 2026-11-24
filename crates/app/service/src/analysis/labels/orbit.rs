@@ -1,7 +1,8 @@
-//! 軌道の高度低下（`orbit.decay`）と宇宙天気の列挙の表示名。
+//! 軌道の高度低下（`orbit.decay`）・ミッション幾何（`orbit.geometry`）と宇宙天気の列挙の表示名。
 
 use super::label;
 use crate::dto::AnalysisLabel;
+use sat_analysis::orbit::GeometrySpanBasis;
 use sat_analysis::orbit::decay::{DecayCondition, DragAreaSource};
 use sat_astro::atmosphere::space_weather::{SolarActivity, WeatherSource};
 
@@ -10,6 +11,14 @@ pub(super) fn solar_activity(a: SolarActivity) -> AnalysisLabel {
         SolarActivity::Low => label("低い太陽活動", "Low solar activity"),
         SolarActivity::Moderate => label("中程度の太陽活動", "Moderate solar activity"),
         SolarActivity::High => label("高い太陽活動", "High solar activity"),
+    }
+}
+
+pub(super) fn geometry_span_basis(b: GeometrySpanBasis) -> AnalysisLabel {
+    match b {
+        GeometrySpanBasis::OneOff => label("軌道の 1 回限りの期間", "The orbit's one-off span"),
+        GeometrySpanBasis::PhaseDuration => label("フェーズの期間", "The phase duration"),
+        GeometrySpanBasis::OneCycle => label("軌道の 1 周", "One orbit"),
     }
 }
 

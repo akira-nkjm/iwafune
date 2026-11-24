@@ -218,6 +218,7 @@ pub const ANALYSIS_IDS: &[&str] = &[
     "comm.data_throughput",
     "orbit.eclipse_season",
     "orbit.decay",
+    "orbit.geometry",
     "power.mode_load",
     "power.solar_sunlit",
     "power.orbit_generation",

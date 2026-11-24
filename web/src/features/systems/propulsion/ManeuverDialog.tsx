@@ -34,6 +34,7 @@ export function ManeuverDialog({
   const methods = useEnumOptions("maneuver_method");
   const bodies = useEnumOptions("central_body");
   const steerings = useEnumOptions("maneuver_steering");
+  const departures = useEnumOptions("departure_by");
   const made = useCommandOps(maneuverCommand(text, adding));
   const failed = useOpCheck(made.ops).failed;
   const error = made.error;
@@ -114,6 +115,7 @@ export function ManeuverDialog({
         {input("apogee_altitude", td.apogeeAltitude)}
         {text.body && input("depart", td.depart, "2028-12-10T00:00:00Z")}
         {text.body && input("arrive", td.arrive, "2029-09-25T00:00:00Z")}
+        {text.body && select("departure_by", td.departureBy, departures)}
         {input("via_altitude", td.viaAltitude)}
         {select("sunlit_only", td.sunlitOnly, [
           { value: "true", label: td.yes },
