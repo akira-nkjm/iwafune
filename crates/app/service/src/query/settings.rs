@@ -33,6 +33,17 @@ pub(crate) fn setting_view(design: &Design, e: &SettingEntry) -> SettingView {
         display: display_of(&value),
         value,
         file: fune_store::layout::locate_setting(design, &e.path).map(|l| l.file),
+        choices: choices_of(design, &e.path),
+    }
+}
+
+/// 選んで入れる欄（設計の軌道の `source`・`maneuver`）の選択肢。
+fn choices_of(design: &Design, path: &SettingPath) -> Vec<fune_projection::Choice> {
+    match (path.scope, path.segments.as_slice()) {
+        (SettingScope::Conditions, [orbit, key]) if orbit == "orbit" => {
+            super::orbit_choices::orbit_choices(design, key)
+        }
+        _ => Vec::new(),
     }
 }
 

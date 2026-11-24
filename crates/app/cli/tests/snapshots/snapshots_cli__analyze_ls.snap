@@ -27,11 +27,13 @@ expression: text
  propulsion   propulsion.thruster_usage    Thruster usage                    steady        built from design
  propulsion   propulsion.orbit_history     Orbit history                     time series   built from design
  propulsion   propulsion.transfer_check    Transfer check (n-body)           steady        built from design
+ propulsion   propulsion.launch_window     Launch window (date search)       steady        built from design
  propulsion   propulsion.mass_properties   Mass properties with propellant   steady        built from design
  structure    structure.mass_properties    Mass properties                   steady        built from design
  structure    structure.static_load        Quasi-static loads                steady        built from design
  structure    structure.modal_estimate     Natural frequency estimate        steady        built from design
  structure    structure.modal_fem          Finite-element modal analysis     steady        unsupported
  structure    structure.launch_fit         Launch vehicle fit                steady        built from design
+ structure    structure.interference       Part interference                 steady        built from design
  thermal      thermal.steady               Thermal (steady state)            steady        built from design
  thermal      thermal.transient            Thermal (transient)               time series   built from design

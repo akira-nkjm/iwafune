@@ -42,7 +42,8 @@ pub struct Phase {
     /// このフェーズを選んだ解析ケースが使う形態。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub configuration: Option<Id<Configuration>>,
-    /// 軌道の上書き（`conditions/orbit.toml` と同じ形。あれば設計の軌道を丸ごと置き換える。キーごとの合成はしない）
+    /// 軌道の上書き（`conditions/orbit.toml` と同じ形。あれば設計の軌道を丸ごと置き換える。キーごとの合成はしない）。
+    /// `source = "transfer"` と `maneuver` で、日付つきの遷移のマヌーバから巡航の軌道を取れる（フェーズの専用の欄は無い）
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub orbit: Option<OrbitSettings>,
     /// モード ID → 姿勢則（`analysis/aocs.toml` の `[law.<モード>]` と同じ形。そのモードの姿勢則をこのフェーズだけ置き換える）

@@ -140,6 +140,8 @@ pub struct PartHeat {
     pub part: String,
     /// 部品の属する熱の節点の ID
     pub node: String,
+    /// その節点が既定の 1 部品 1 節点か（偽は設計が `[nodes]` で複数の部品をまとめた節点）
+    pub per_part: bool,
     /// 代表の温度（全ケースの最高）
     pub temperature: super::QuantityView,
     /// 最高になったケースの ID

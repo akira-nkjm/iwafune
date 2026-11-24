@@ -18,6 +18,7 @@
 //! | `interface` | `interface:<取付先の部品>` | 部品（`LV` はロケットで部品ではない） |
 //! | `heater` | `heater:<ヒータの部品>` | 部品 |
 //! | `panel`・`lateral`・`axial` | `<族>:<パネルの部品>` | 部品 |
+//! | `overlap` | `overlap:<部品>:<部品>` | 箱が重なっている 2 つの部品（ID の昇順） |
 //! | `range_low`・`range_high` | `<族>:<節点>:<範囲の種類>` | 熱の節点（`analysis/thermal.toml` の `[nodes]` のキー。部品の ID ではない） |
 
 /// キーに名前が入るエンティティの種類。
@@ -44,6 +45,7 @@ pub mod family {
     pub const PANEL: &str = "panel";
     pub const LATERAL: &str = "lateral";
     pub const AXIAL: &str = "axial";
+    pub const OVERLAP: &str = "overlap";
     pub const RANGE_LOW: &str = "range_low";
     pub const RANGE_HIGH: &str = "range_high";
 }
@@ -105,6 +107,10 @@ const FAMILIES: &[Family] = &[
         slots: &[(':', Entity(Part))],
     },
     Family {
+        name: family::OVERLAP,
+        slots: &[(':', Entity(Part)), (':', Entity(Part))],
+    },
+    Family {
         name: family::RANGE_LOW,
         slots: &[(':', Entity(ThermalNode)), (':', Plain)],
     },
@@ -161,6 +167,11 @@ pub fn mount_interface(mount: &str) -> String {
 /// ヒータのデューティの判定のキー `heater:<ヒータの部品>`。
 pub fn heater(part: &str) -> String {
     build(family::HEATER, &[part])
+}
+
+/// 部品の箱の重なりの判定のキー `overlap:<部品>:<部品>`。
+pub fn part_overlap(first: &str, second: &str) -> String {
+    build(family::OVERLAP, &[first, second])
 }
 
 /// 固有振動数の判定のキー（`family` は [`family::PANEL`]・[`family::LATERAL`]・[`family::AXIAL`]）。

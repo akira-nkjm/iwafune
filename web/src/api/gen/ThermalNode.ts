@@ -15,6 +15,10 @@ id: string,
  */
 parts: Array<ThermalNodePart>, 
 /**
+ * 設計の既定の 1 部品 1 節点か（偽は設計が複数の部品をまとめた節点）。表示の区別だけで、計算には使わない
+ */
+per_part?: boolean, 
+/**
  * 温度一定の境界節点にするときの温度
  */
 fixed_temperature: number | null, 

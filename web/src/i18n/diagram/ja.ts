@@ -11,6 +11,7 @@ export const diagramJa = {
     redo: "やり直す",
     undoTitle: "直前の編集を元に戻す（⌘Z / Ctrl+Z）",
     redoTitle: "元に戻した編集をやり直す（⇧⌘Z / Ctrl+Y）",
+    cannotLayOut: (msg: string) => `システム図の配置を計算できません: ${msg}`,
     resetLayout: "位置と線を自動に戻す",
     resetLayoutTitle: "手で動かした位置と手で引いた線をすべて消して、自動で並べた図に戻します。",
     resetRoute: "線を自動経路に戻す",

@@ -2,7 +2,7 @@
 //! `ThermalHeater` として解析に渡す（二重に数えない）。オンの電力は `power` の `on` の状態の値、熱を入れる節点は発熱と同じ規則
 //! （`[heat_node]` に書いた節点、無ければ部品の属する節点）。制御則・モードでの有効/無効・判定は sat-analysis が行う（既定値も解析）。
 
-use super::node_of;
+use super::thermal_nodes;
 use crate::context::Context;
 use crate::missing::MissingInputs;
 use crate::parts::state_values;
@@ -19,12 +19,21 @@ pub(super) fn is_thermostat(ctx: &Context<'_>, p: &ResolvedPart) -> bool {
 }
 
 /// 熱を入れる節点の対応（部品 → 節点。`[heat_node]` が節点への所属より優先）。
-pub(super) fn heat_nodes(s: &ThermalSettings) -> std::collections::BTreeMap<&str, &str> {
-    let mut nodes = node_of(s);
+pub(super) fn heat_nodes<'a>(
+    ctx: &'a Context<'_>,
+    s: &'a ThermalSettings,
+) -> std::collections::BTreeMap<&'a str, String> {
+    let nodes = thermal_nodes(ctx, s);
+    let mut out: std::collections::BTreeMap<&str, String> = ctx
+        .resolved
+        .parts
+        .keys()
+        .filter_map(|p| Some((p.as_str(), nodes.node_of(p.as_str())?.to_owned())))
+        .collect();
     for (pid, node) in &s.heat_node {
-        nodes.insert(pid.as_str(), node.as_str());
+        out.insert(pid.as_str(), node.clone());
     }
-    nodes
+    out
 }
 
 /// サーモスタット付きのヒータ（節点が決まる部品だけ）。オンの電力が無ければ不足入力。
@@ -33,7 +42,7 @@ pub fn heaters(
     s: &ThermalSettings,
     m: &mut MissingInputs,
 ) -> Vec<ThermalHeater> {
-    let nodes = heat_nodes(s);
+    let nodes = heat_nodes(ctx, s);
     let mut out = Vec::new();
     for (pid, node) in nodes {
         let Some(p) = ctx.resolved.parts.get(pid) else {
@@ -52,7 +61,7 @@ pub fn heaters(
         };
         out.push(ThermalHeater {
             id: p.id.clone(),
-            node: node.to_owned(),
+            node,
             on_below: Qty::from_raw(*min),
             off_above: Qty::from_raw(*max),
             power,

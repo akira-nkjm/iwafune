@@ -62,7 +62,13 @@ export function DiagramPage() {
     () => diagramHiddenSystems(params, d?.defs.systems ?? []),
     [params, d?.defs.systems],
   );
-  const { model, layout, pending } = useDiagramModel(d, layers, merge, hiddenSystems);
+  const {
+    model,
+    layout,
+    pending,
+    error: layoutError,
+    retry,
+  } = useDiagramModel(d, layers, merge, hiddenSystems);
   // 表示の切り替え（系・層・まとめ方）は図を作り直す重い更新なので、先に「作り直し中」を画面に出してから始める。
   // そうしないと、押しても作り直しが終わるまで何も変わらず、固まって見える
   const [queued, setQueued] = useState(false);
@@ -96,10 +102,11 @@ export function DiagramPage() {
           探し直す間は、前の図を薄くして残し、上端に読み込み中の帯を出す（useDiagramModel の pending） */}
       <QueryState
         query={{
-          data: d && model && layout ? { design: d, model } : undefined,
-          error: design.error,
-          refetch: design.refetch,
+          data: d && model && layout && !layoutError ? { design: d, model } : undefined,
+          error: design.error ?? layoutError,
+          refetch: design.error ? design.refetch : retry,
         }}
+        failure={design.error ? undefined : td.cannotLayOut}
         className="flex min-h-0 flex-1 flex-col"
         skeleton={<SkeletonCanvas label={t.common.working.layingOutDiagram} />}
       >

@@ -2,6 +2,9 @@
 
 mod configuration;
 mod orbit;
+mod orbit_source;
+
+pub use crate::orbit_central::central_body;
 
 use crate::missing::MissingInputs;
 use crate::quantity::{setting, setting_opt};
@@ -11,7 +14,7 @@ use fune_model::design::setting_dims as dims;
 use fune_model::design::{
     AnalysisSystem, AttitudeLawKind, AttitudeLawSetting, Case, Design, Mode, Phase,
 };
-use fune_model::design::{BudgetKind, CentralBodyKind, Criterion};
+use fune_model::design::{BudgetKind, Criterion};
 use fune_model::path::SettingPath;
 use fune_model::resolve::Resolved;
 use fune_model::value::{Quaternion, Vector3};
@@ -19,27 +22,10 @@ use sat_analysis::modes::{ModeDef, StateAssignment};
 use sat_astro::attitude::{
     AttitudeLaw, DEFAULT_INERTIAL_ORIENTATION, DEFAULT_PRIMARY_AXIS, DEFAULT_SECONDARY_AXIS,
 };
-use sat_astro::ephem::CentralBody;
 use sat_astro::ground::GroundStation;
 use sat_astro::math::{Quat, Vec3};
 use sat_units::typed::{Qty, Time};
 use std::collections::BTreeMap;
-
-/// 設計の中心天体 → sat-astro の中心天体（μ・半径・暦・環境の値は sat-astro と解析が持つ）。
-pub fn central_body(c: CentralBodyKind) -> CentralBody {
-    match c {
-        CentralBodyKind::Earth => CentralBody::Earth,
-        CentralBodyKind::Moon => CentralBody::Moon,
-        CentralBodyKind::Sun => CentralBody::Sun,
-        CentralBodyKind::Mercury => CentralBody::Mercury,
-        CentralBodyKind::Venus => CentralBody::Venus,
-        CentralBodyKind::Mars => CentralBody::Mars,
-        CentralBodyKind::Jupiter => CentralBody::Jupiter,
-        CentralBodyKind::Saturn => CentralBody::Saturn,
-        CentralBodyKind::Uranus => CentralBody::Uranus,
-        CentralBodyKind::Neptune => CentralBody::Neptune,
-    }
-}
 
 /// 射影の文脈。部品の属性・設定・モード・ケースの読み出しは、読んだものを記録できるよう文脈の入口（部品の属性は
 /// `parts` の `Context::attr`・`scalar`・`vec3`、設定は `setting`、ほかは `orbit`・`modes` など。記録は `note`）を通す。
@@ -49,6 +35,8 @@ pub struct Context<'a> {
     /// 形態を切り替えるときの基準の解決結果。
     base: &'a Resolved,
     configuration: Option<(&'a str, crate::configuration_policy::ConfigurationSource)>,
+    /// 形態を選んだ解析が打ち上げ向けか（選択元が変わる。[`Context::in_phase`] が同じ方針で選び直す）。
+    launch_analysis: bool,
     /// 選んだ解析ケース（無ければケース未選択）
     pub case: Option<&'a Case>,
     /// 読んだものの記録先（無ければ記録しない）
@@ -65,6 +53,7 @@ impl<'a> Context<'a> {
             resolved,
             base: resolved,
             configuration: None,
+            launch_analysis: false,
             case: None,
             reads: None,
             phase_override: None,
@@ -73,11 +62,14 @@ impl<'a> Context<'a> {
 
     /// フェーズ `phase` が効いている文脈（ケース・記録先はそのまま。軌道・姿勢則はケースのフェーズの代わりにこのフェーズのものを読む）。
     /// ケースを持たずにフェーズごとの軌道を並べる解析（`orbit.geometry`）が使う。**ケースを介さずフェーズを指定する入口はここだけ。**
+    /// 形態も同じ方針で選び直す（実行時に明示した形態はそのまま、打ち上げ向けの解析は打ち上げ条件、それ以外はこのフェーズの形態）。
     pub fn in_phase(&self, phase: &'a Phase) -> Self {
+        let explicit = self.explicit_configuration();
         Self {
             phase_override: Some(phase),
             ..*self
         }
+        .select_configuration(self.launch_analysis, explicit)
     }
 
     /// 読んだものを `reads` に記録する文脈にする。
@@ -168,21 +160,14 @@ impl<'a> Context<'a> {
         };
         let mut ctx = Self::bare(design, resolved);
         ctx.case = case;
-        Ok(ctx.select_configuration(None, None))
+        Ok(ctx.select_configuration(false, None))
     }
 
-    fn select_configuration(
-        mut self,
-        analysis_id: Option<&str>,
-        explicit: Option<&'a str>,
-    ) -> Self {
-        let (id, source) = crate::configuration_policy::select(
-            self.design,
-            analysis_id,
-            || self.phase(),
-            explicit,
-        );
+    fn select_configuration(mut self, launch: bool, explicit: Option<&'a str>) -> Self {
+        let (id, source) =
+            crate::configuration_policy::select(self.design, launch, || self.phase(), explicit);
         self.configuration = id.zip(source);
+        self.launch_analysis = launch;
         self.resolved = self.base.in_configuration(id);
         self
     }
@@ -356,19 +341,5 @@ pub fn mode_def(mode: &Mode) -> ModeDef {
         label: mode.label.clone().unwrap_or_else(|| mode.id.to_string()),
         assignments: assignments(&mode.states),
         eclipse: assignments(&mode.eclipse),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// 中心天体の綴り（fune-model）と sat-astro の綴りが一致する。
-    #[test]
-    fn central_body_spellings_match_sat_astro() {
-        for &kind in CentralBodyKind::ALL {
-            let model = serde_json::to_value(kind).unwrap();
-            assert_eq!(model, serde_json::to_value(central_body(kind)).unwrap());
-        }
     }
 }

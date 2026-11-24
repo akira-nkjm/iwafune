@@ -3,4 +3,4 @@
 /**
  * 欄が指すものの種類（[`Fix::PickRef`]）。
  */
-export type RefKind = "part" | "catalog_item" | "comm_link" | "configuration";
+export type RefKind = "part" | "catalog_item" | "comm_link" | "configuration" | "maneuver";

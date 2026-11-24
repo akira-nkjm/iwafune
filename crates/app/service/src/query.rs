@@ -9,6 +9,7 @@
 //! | `ground` | 地上局（ID 順・表示名・ファイル・解析が使っているか） |
 //! | `maneuvers` | マヌーバ（実行の順・目標の要素・編集の欄の初期値） |
 //! | `configurations` | 形態（ID 順・姿勢を上書きしている部品・編集の欄の初期値） |
+//! | `orbit_choices` | 軌道の設定の選ぶ欄（`source`・`maneuver`）の選択肢 |
 //! | `phases` | フェーズ（並びの順・軌道と姿勢則の上書きの欄・編集の欄の初期値） |
 //! | `requirements` | 要求（制約の文・編集の欄の初期値。ID 順） |
 //! | `catalog` | カタログ品（値・パス・使っている部品・書き換えられるか） |
@@ -21,6 +22,7 @@ pub(crate) mod configurations;
 pub(crate) mod ground;
 pub(crate) mod maneuvers;
 mod net_class;
+pub(crate) mod orbit_choices;
 mod parts;
 pub(crate) mod phases;
 pub(crate) mod pose;

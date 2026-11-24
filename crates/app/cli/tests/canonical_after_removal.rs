@@ -54,6 +54,36 @@ const SCENARIOS: &[Scenario] = &[
             ],
         ],
     ),
+    // マヌーバ: 既にあるファイルに、新しい表（[transfer]）を足す
+    (
+        "maneuver gains a table",
+        &[
+            MANEUVER_ADD,
+            &[
+                "maneuver",
+                "set",
+                "T1",
+                "--category",
+                "insertion",
+                "--method",
+                "impulsive",
+                "--thruster",
+                "EPT",
+                "--after",
+                "DEORBIT",
+                "--body",
+                "mars",
+                "--perigee-altitude",
+                "300 km",
+                "--apogee-altitude",
+                "33000 km",
+                "--depart",
+                "2028-12-10T00:00:00Z",
+                "--arrive",
+                "2029-09-25T00:00:00Z",
+            ],
+        ],
+    ),
     (
         "maneuver top-level key",
         &[

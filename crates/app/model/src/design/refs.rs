@@ -19,7 +19,7 @@
 //! | ハーネス区間 | 参照元は無い（ほかのエンティティはハーネスの ID を持たない。名前の変更の索引を揃えるための空の索引） |
 //! | 解析ケース | `analysis/common.toml` の `default_case`・要求の `[quantify].cases` |
 //! | 出典 | 部品とカタログ品の属性の値の `from.source`（状態ごとのセルも）・カタログ品の `source` と `datasheet`・要求の `source` |
-//! | マヌーバ | ほかのマヌーバの `after` |
+//! | マヌーバ | ほかのマヌーバの `after`・設計の軌道（`conditions/orbit.toml`）とフェーズの `[orbit]` の `maneuver` |
 //! | 通信の回線 | `analysis/comm.toml` の `data_downlink`・要求の `[verify].check` が名指す回線（`margin:<回線>@<局>`） |
 //! | 種別（名前の変更と、プロジェクト独自の定義の削除の拒否に使う） | 部品とカタログ品の `kind`・種別の `extends` |
 //! | 属性（同上） | 種別の `required` / `optional`・部品とカタログ品の属性の値 |
@@ -118,6 +118,9 @@ pub enum RefSite {
     ThermalSurface,
     /// 発熱の場所を書いた部品（`analysis/thermal.toml` の `[heat_node]` のキー）
     ThermalHeatNode,
+    /// 部品の ID を節点の名前として書いた設定（既定の 1 部品 1 節点の節点。`[conductive.*]`・`[radiative.*]` の両端と
+    /// `[heat_node]` の値）。部品の名前の変更が一緒に書き換える
+    ThermalNodeName,
     /// 図の配置のノード（`view/<図>.toml` の `[nodes]` のキー）
     ViewNode { view: String },
     /// 解析ケースのモード（`cases/<ケース>.toml` の `mode`）
@@ -196,6 +199,10 @@ pub enum RefSite {
     RequirementSource { requirement: String },
     /// マヌーバの前（`after`）
     ManeuverAfter { maneuver: String },
+    /// 設計の軌道が巡航の軌道を取る遷移のマヌーバ（`conditions/orbit.toml` の `maneuver`）
+    OrbitManeuver,
+    /// フェーズの軌道が巡航の軌道を取る遷移のマヌーバ（`phases/<フェーズ>.toml` の `[orbit]` の `maneuver`）
+    PhaseOrbitManeuver { phase: String },
     /// 通信の解析の下りの回線（`analysis/comm.toml` の `data_downlink`）
     CommDataDownlink,
 }
@@ -302,6 +309,7 @@ impl Design {
             if thermal.heat_node.contains_key(id) {
                 out.push(RefSite::ThermalHeatNode);
             }
+            out.extend(self.per_part_node_refs(thermal, id));
         }
         out.extend(
             self.maneuvers

@@ -33,6 +33,7 @@ export const fixesJa = {
         catalog_item: "カタログ品を選ぶ",
         comm_link: "回線を選ぶ",
         configuration: "形態を選ぶ",
+        maneuver: "マヌーバを選ぶ",
       },
       title: (path: string) => `${path} に入れるものを選ぶ`,
       prompt: {
@@ -40,8 +41,15 @@ export const fixesJa = {
         catalog_item: (kinds: string) => `カタログから、種別 ${kinds} の品を選んでください。`,
         comm_link: () => "通信の設定にある下りの回線から選んでください。",
         configuration: () => "設計にある形態から選んでください。",
+        maneuver: () => "日付つきの遷移（出発と到着の日）を持つマヌーバから選んでください。",
       },
-      label: { part: "部品", catalog_item: "カタログ品", comm_link: "回線", configuration: "形態" },
+      label: {
+        part: "部品",
+        catalog_item: "カタログ品",
+        comm_link: "回線",
+        configuration: "形態",
+        maneuver: "マヌーバ",
+      },
       choose: "選んでください",
       none: {
         part: () => "条件に合う部品がありません。先に部品を追加してください:",
@@ -49,6 +57,7 @@ export const fixesJa = {
           `カタログに種別 ${kinds} の品がありません。先に追加してください:`,
         comm_link: () => "下りの回線がありません。先に下りの回線を追加してください:",
         configuration: () => "形態がありません。先に形態を追加してください:",
+        maneuver: () => "日付つきの遷移を持つマヌーバがありません。先に追加してください:",
       },
       summary: (path: string, chosen: string) => `${path} を ${chosen} にする`,
       confirm: "入れる",

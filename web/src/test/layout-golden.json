@@ -1,0 +1,1176 @@
+{
+  "demo": {
+    "boxes": [
+      ["card:BAT", { "x": 24, "y": 224, "width": 150, "height": 52 }],
+      ["card:BUS_FRAME", { "x": 16, "y": 34, "width": 150, "height": 52 }],
+      ["card:CAM", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:CELLS", { "x": 16, "y": 56, "width": 150, "height": 52 }],
+      ["card:EPT", { "x": 16, "y": 34, "width": 150, "height": 52 }],
+      ["card:GPS", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:HTR_BAT", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:HTR_CAM", { "x": 232, "y": 48, "width": 150, "height": 52 }],
+      ["card:MTQ_X", { "x": 232, "y": 48, "width": 150, "height": 52 }],
+      ["card:OBC", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:PANEL_MX", { "x": 190, "y": 34, "width": 150, "height": 52 }],
+      ["card:PANEL_MY", { "x": 364, "y": 34, "width": 150, "height": 52 }],
+      ["card:PANEL_MZ", { "x": 16, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PX", { "x": 190, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PY", { "x": 364, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PZ", { "x": 16, "y": 178, "width": 150, "height": 52 }],
+      ["card:PCDU", { "x": 24, "y": 80, "width": 150, "height": 52 }],
+      ["card:RW_X", { "x": 24, "y": 152, "width": 150, "height": 52 }],
+      ["card:SAP_PY", { "x": 232, "y": 48, "width": 184, "height": 128 }],
+      ["card:SP_MX", { "x": 472, "y": 80, "width": 150, "height": 52 }],
+      ["card:SP_MY", { "x": 248, "y": 224, "width": 150, "height": 52 }],
+      ["card:SS_MX", { "x": 232, "y": 152, "width": 150, "height": 52 }],
+      ["card:STT", { "x": 24, "y": 256, "width": 150, "height": 52 }],
+      ["card:STX", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:UHF_TRX", { "x": 24, "y": 152, "width": 150, "height": 52 }],
+      ["card:XE_TANK", { "x": 190, "y": 34, "width": 150, "height": 52 }],
+      ["group:aocs", { "x": 264, "y": 0, "width": 408, "height": 336 }],
+      ["group:cdh", { "x": 0, "y": 240, "width": 200, "height": 128 }],
+      ["group:comm", { "x": 0, "y": 432, "width": 200, "height": 232 }],
+      ["group:payload", { "x": 0, "y": 728, "width": 200, "height": 128 }],
+      ["group:power", { "x": 264, "y": 400, "width": 648, "height": 304 }],
+      ["group:propulsion", { "x": 972, "y": 0, "width": 356, "height": 102 }],
+      ["group:structure", { "x": 972, "y": 162, "width": 530, "height": 246 }],
+      ["group:thermal", { "x": 264, "y": 768, "width": 408, "height": 128 }]
+    ],
+    "absolute": [
+      ["card:BAT", { "x": 288, "y": 624 }],
+      ["card:BUS_FRAME", { "x": 988, "y": 196 }],
+      ["card:CAM", { "x": 24, "y": 776 }],
+      ["card:CELLS", { "x": 512, "y": 504 }],
+      ["card:EPT", { "x": 988, "y": 34 }],
+      ["card:GPS", { "x": 288, "y": 48 }],
+      ["card:HTR_BAT", { "x": 288, "y": 816 }],
+      ["card:HTR_CAM", { "x": 496, "y": 816 }],
+      ["card:MTQ_X", { "x": 496, "y": 48 }],
+      ["card:OBC", { "x": 24, "y": 288 }],
+      ["card:PANEL_MX", { "x": 1162, "y": 196 }],
+      ["card:PANEL_MY", { "x": 1336, "y": 196 }],
+      ["card:PANEL_MZ", { "x": 988, "y": 268 }],
+      ["card:PANEL_PX", { "x": 1162, "y": 268 }],
+      ["card:PANEL_PY", { "x": 1336, "y": 268 }],
+      ["card:PANEL_PZ", { "x": 988, "y": 340 }],
+      ["card:PCDU", { "x": 288, "y": 480 }],
+      ["card:RW_X", { "x": 288, "y": 152 }],
+      ["card:SAP_PY", { "x": 496, "y": 448 }],
+      ["card:SP_MX", { "x": 736, "y": 480 }],
+      ["card:SP_MY", { "x": 512, "y": 624 }],
+      ["card:SS_MX", { "x": 496, "y": 152 }],
+      ["card:STT", { "x": 288, "y": 256 }],
+      ["card:STX", { "x": 24, "y": 480 }],
+      ["card:UHF_TRX", { "x": 24, "y": 584 }],
+      ["card:XE_TANK", { "x": 1162, "y": 34 }],
+      ["group:aocs", { "x": 264, "y": 0 }],
+      ["group:cdh", { "x": 0, "y": 240 }],
+      ["group:comm", { "x": 0, "y": 432 }],
+      ["group:payload", { "x": 0, "y": 728 }],
+      ["group:power", { "x": 264, "y": 400 }],
+      ["group:propulsion", { "x": 972, "y": 0 }],
+      ["group:structure", { "x": 972, "y": 162 }],
+      ["group:thermal", { "x": 264, "y": 768 }]
+    ],
+    "ports": [
+      ["card:BAT::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:CAM::DATA", { "x": 0, "y": 24, "side": "left" }],
+      ["card:CAM::PWR", { "x": 150, "y": 24, "side": "right" }],
+      ["card:CELLS::PWR", { "x": 0, "y": 24, "side": "left" }],
+      ["card:GPS::DATA", { "x": 0, "y": 24, "side": "left" }],
+      ["card:GPS::PWR", { "x": 150, "y": 24, "side": "right" }],
+      ["card:HTR_BAT::PWR", { "x": 72, "y": 0, "side": "top" }],
+      ["card:HTR_CAM::PWR", { "x": 0, "y": 24, "side": "left" }],
+      ["card:MTQ_X::PWR", { "x": 150, "y": 24, "side": "right" }],
+      ["card:OBC::CAN1", { "x": 150, "y": 8, "side": "right" }],
+      ["card:OBC::LVDS1", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:OBC::PWR", { "x": 150, "y": 32, "side": "right" }],
+      ["card:OBC::SPW1", { "x": 0, "y": 24, "side": "left" }],
+      ["card:PCDU::BAT", { "x": 88, "y": 52, "side": "bottom" }],
+      ["card:PCDU::CAN", { "x": 0, "y": 8, "side": "left" }],
+      ["card:PCDU::OUT1", { "x": 32, "y": 0, "side": "top" }],
+      ["card:PCDU::OUT2", { "x": 48, "y": 52, "side": "bottom" }],
+      ["card:PCDU::OUT3", { "x": 0, "y": 32, "side": "left" }],
+      ["card:PCDU::SA", { "x": 150, "y": 24, "side": "right" }],
+      ["card:RW_X::DATA", { "x": 0, "y": 8, "side": "left" }],
+      ["card:RW_X::PWR", { "x": 0, "y": 32, "side": "left" }],
+      ["card:SP_MX::PWR", { "x": 0, "y": 8, "side": "left" }],
+      ["card:SP_MY::PWR", { "x": 0, "y": 24, "side": "left" }],
+      ["card:SS_MX::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:STT::DATA", { "x": 0, "y": 40, "side": "left" }],
+      ["card:STT::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:STX::DATA", { "x": 72, "y": 0, "side": "top" }],
+      ["card:STX::PWR", { "x": 150, "y": 32, "side": "right" }],
+      ["card:UHF_TRX::DATA", { "x": 150, "y": 8, "side": "right" }],
+      ["card:UHF_TRX::PWR", { "x": 150, "y": 32, "side": "right" }]
+    ],
+    "taps": [
+      ["BAT_BUS#1", { "source": { "x": 72, "y": 0, "side": "top" } }],
+      ["P5V#2", { "source": { "x": 112, "y": 0, "side": "top" } }],
+      ["P5V#3", { "source": { "x": 72, "y": 0, "side": "top" } }]
+    ],
+    "routes": [
+      ["BAT_BUS#0", [{ "x": 360, "y": 679 }, { "x": 360, "y": 813 }]],
+      [
+        "BAT_BUS#1",
+        [
+          { "x": 360, "y": 621 },
+          { "x": 360, "y": 560 },
+          { "x": 376, "y": 560 },
+          { "x": 376, "y": 535 }
+        ]
+      ],
+      [
+        "CAN_BUS#0",
+        [
+          { "x": 177, "y": 296 },
+          { "x": 216, "y": 296 },
+          { "x": 216, "y": 72 },
+          { "x": 285, "y": 72 }
+        ]
+      ],
+      [
+        "CAN_BUS#1",
+        [
+          { "x": 177, "y": 296 },
+          { "x": 248, "y": 296 },
+          { "x": 248, "y": 488 },
+          { "x": 285, "y": 488 }
+        ]
+      ],
+      [
+        "CAN_BUS#2",
+        [
+          { "x": 177, "y": 296 },
+          { "x": 216, "y": 296 },
+          { "x": 216, "y": 160 },
+          { "x": 285, "y": 160 }
+        ]
+      ],
+      ["CAN_BUS#3", [{ "x": 177, "y": 296 }, { "x": 285, "y": 296 }]],
+      [
+        "CAN_BUS#4",
+        [
+          { "x": 177, "y": 296 },
+          { "x": 216, "y": 296 },
+          { "x": 216, "y": 592 },
+          { "x": 177, "y": 592 }
+        ]
+      ],
+      ["LVDS_STX#0", [{ "x": 96, "y": 343 }, { "x": 96, "y": 477 }]],
+      [
+        "P12V#0",
+        [
+          { "x": 285, "y": 512 },
+          { "x": 232, "y": 512 },
+          { "x": 232, "y": 184 },
+          { "x": 285, "y": 184 }
+        ]
+      ],
+      ["P12V#1", [{ "x": 285, "y": 512 }, { "x": 177, "y": 512 }]],
+      [
+        "P3V3#0",
+        [
+          { "x": 320, "y": 477 },
+          { "x": 320, "y": 368 },
+          { "x": 456, "y": 368 },
+          { "x": 456, "y": 72 },
+          { "x": 441, "y": 72 }
+        ]
+      ],
+      [
+        "P3V3#1",
+        [
+          { "x": 320, "y": 477 },
+          { "x": 320, "y": 352 },
+          { "x": 240, "y": 352 },
+          { "x": 240, "y": 320 },
+          { "x": 177, "y": 320 }
+        ]
+      ],
+      [
+        "P3V3#2",
+        [
+          { "x": 320, "y": 477 },
+          { "x": 320, "y": 368 },
+          { "x": 568, "y": 368 },
+          { "x": 568, "y": 207 }
+        ]
+      ],
+      [
+        "P5V#0",
+        [
+          { "x": 336, "y": 535 },
+          { "x": 336, "y": 608 },
+          { "x": 216, "y": 608 },
+          { "x": 216, "y": 800 },
+          { "x": 177, "y": 800 }
+        ]
+      ],
+      [
+        "P5V#1",
+        [
+          { "x": 336, "y": 535 },
+          { "x": 336, "y": 608 },
+          { "x": 464, "y": 608 },
+          { "x": 464, "y": 840 },
+          { "x": 493, "y": 840 }
+        ]
+      ],
+      [
+        "P5V#2",
+        [
+          { "x": 400, "y": 477 },
+          { "x": 400, "y": 384 },
+          { "x": 688, "y": 384 },
+          { "x": 688, "y": 72 },
+          { "x": 649, "y": 72 }
+        ]
+      ],
+      ["P5V#3", [{ "x": 360, "y": 477 }, { "x": 360, "y": 311 }]],
+      [
+        "P5V#4",
+        [
+          { "x": 336, "y": 535 },
+          { "x": 336, "y": 608 },
+          { "x": 216, "y": 608 },
+          { "x": 216, "y": 616 },
+          { "x": 177, "y": 616 }
+        ]
+      ],
+      [
+        "SA_BUS#0",
+        [
+          { "x": 509, "y": 528 },
+          { "x": 480, "y": 528 },
+          { "x": 480, "y": 504 },
+          { "x": 441, "y": 504 }
+        ]
+      ],
+      [
+        "SA_BUS#1",
+        [
+          { "x": 733, "y": 488 },
+          { "x": 480, "y": 488 },
+          { "x": 480, "y": 504 },
+          { "x": 441, "y": 504 }
+        ]
+      ],
+      [
+        "SA_BUS#2",
+        [
+          { "x": 509, "y": 648 },
+          { "x": 480, "y": 648 },
+          { "x": 480, "y": 504 },
+          { "x": 441, "y": 504 }
+        ]
+      ],
+      [
+        "SPW_PL#0",
+        [
+          { "x": 21, "y": 312 },
+          { "x": -16, "y": 312 },
+          { "x": -16, "y": 800 },
+          { "x": 21, "y": 800 }
+        ]
+      ]
+    ],
+    "labels": [
+      ["CAN_BUS#0", { "x": 196.5, "y": 278 }],
+      ["LVDS_STX#0", { "x": 134, "y": 410 }],
+      ["SPW_PL#0", { "x": 2.5, "y": 280 }]
+    ],
+    "unrouted": []
+  },
+  "demo-power": {
+    "boxes": [
+      ["card:BAT", { "x": 24, "y": 224, "width": 150, "height": 52 }],
+      ["card:BUS_FRAME", { "x": 16, "y": 34, "width": 150, "height": 52 }],
+      ["card:CAM", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:CELLS", { "x": 16, "y": 56, "width": 150, "height": 52 }],
+      ["card:EPT", { "x": 16, "y": 34, "width": 150, "height": 52 }],
+      ["card:GPS", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:HTR_BAT", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:HTR_CAM", { "x": 232, "y": 48, "width": 150, "height": 52 }],
+      ["card:MTQ_X", { "x": 232, "y": 48, "width": 150, "height": 52 }],
+      ["card:OBC", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:PANEL_MX", { "x": 190, "y": 34, "width": 150, "height": 52 }],
+      ["card:PANEL_MY", { "x": 364, "y": 34, "width": 150, "height": 52 }],
+      ["card:PANEL_MZ", { "x": 16, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PX", { "x": 190, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PY", { "x": 364, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PZ", { "x": 16, "y": 178, "width": 150, "height": 52 }],
+      ["card:PCDU", { "x": 24, "y": 80, "width": 150, "height": 52 }],
+      ["card:RW_X", { "x": 24, "y": 152, "width": 150, "height": 52 }],
+      ["card:SAP_PY", { "x": 232, "y": 48, "width": 184, "height": 128 }],
+      ["card:SP_MX", { "x": 472, "y": 80, "width": 150, "height": 52 }],
+      ["card:SP_MY", { "x": 248, "y": 224, "width": 150, "height": 52 }],
+      ["card:SS_MX", { "x": 232, "y": 152, "width": 150, "height": 52 }],
+      ["card:STT", { "x": 24, "y": 256, "width": 150, "height": 52 }],
+      ["card:STX", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:UHF_TRX", { "x": 24, "y": 152, "width": 150, "height": 52 }],
+      ["card:XE_TANK", { "x": 190, "y": 34, "width": 150, "height": 52 }],
+      ["group:aocs", { "x": 264, "y": 0, "width": 408, "height": 336 }],
+      ["group:cdh", { "x": 0, "y": 240, "width": 200, "height": 128 }],
+      ["group:comm", { "x": 0, "y": 432, "width": 200, "height": 232 }],
+      ["group:payload", { "x": 0, "y": 728, "width": 200, "height": 128 }],
+      ["group:power", { "x": 264, "y": 400, "width": 648, "height": 304 }],
+      ["group:propulsion", { "x": 972, "y": 0, "width": 356, "height": 102 }],
+      ["group:structure", { "x": 972, "y": 162, "width": 530, "height": 246 }],
+      ["group:thermal", { "x": 264, "y": 768, "width": 408, "height": 128 }]
+    ],
+    "absolute": [
+      ["card:BAT", { "x": 288, "y": 624 }],
+      ["card:BUS_FRAME", { "x": 988, "y": 196 }],
+      ["card:CAM", { "x": 24, "y": 776 }],
+      ["card:CELLS", { "x": 512, "y": 504 }],
+      ["card:EPT", { "x": 988, "y": 34 }],
+      ["card:GPS", { "x": 288, "y": 48 }],
+      ["card:HTR_BAT", { "x": 288, "y": 816 }],
+      ["card:HTR_CAM", { "x": 496, "y": 816 }],
+      ["card:MTQ_X", { "x": 496, "y": 48 }],
+      ["card:OBC", { "x": 24, "y": 288 }],
+      ["card:PANEL_MX", { "x": 1162, "y": 196 }],
+      ["card:PANEL_MY", { "x": 1336, "y": 196 }],
+      ["card:PANEL_MZ", { "x": 988, "y": 268 }],
+      ["card:PANEL_PX", { "x": 1162, "y": 268 }],
+      ["card:PANEL_PY", { "x": 1336, "y": 268 }],
+      ["card:PANEL_PZ", { "x": 988, "y": 340 }],
+      ["card:PCDU", { "x": 288, "y": 480 }],
+      ["card:RW_X", { "x": 288, "y": 152 }],
+      ["card:SAP_PY", { "x": 496, "y": 448 }],
+      ["card:SP_MX", { "x": 736, "y": 480 }],
+      ["card:SP_MY", { "x": 512, "y": 624 }],
+      ["card:SS_MX", { "x": 496, "y": 152 }],
+      ["card:STT", { "x": 288, "y": 256 }],
+      ["card:STX", { "x": 24, "y": 480 }],
+      ["card:UHF_TRX", { "x": 24, "y": 584 }],
+      ["card:XE_TANK", { "x": 1162, "y": 34 }],
+      ["group:aocs", { "x": 264, "y": 0 }],
+      ["group:cdh", { "x": 0, "y": 240 }],
+      ["group:comm", { "x": 0, "y": 432 }],
+      ["group:payload", { "x": 0, "y": 728 }],
+      ["group:power", { "x": 264, "y": 400 }],
+      ["group:propulsion", { "x": 972, "y": 0 }],
+      ["group:structure", { "x": 972, "y": 162 }],
+      ["group:thermal", { "x": 264, "y": 768 }]
+    ],
+    "ports": [
+      ["card:BAT::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:CAM::DATA", { "x": 0, "y": 24, "side": "left" }],
+      ["card:CAM::PWR", { "x": 150, "y": 24, "side": "right" }],
+      ["card:CELLS::PWR", { "x": 0, "y": 24, "side": "left" }],
+      ["card:GPS::DATA", { "x": 0, "y": 24, "side": "left" }],
+      ["card:GPS::PWR", { "x": 150, "y": 24, "side": "right" }],
+      ["card:HTR_BAT::PWR", { "x": 72, "y": 0, "side": "top" }],
+      ["card:HTR_CAM::PWR", { "x": 0, "y": 24, "side": "left" }],
+      ["card:MTQ_X::PWR", { "x": 150, "y": 24, "side": "right" }],
+      ["card:OBC::CAN1", { "x": 150, "y": 8, "side": "right" }],
+      ["card:OBC::LVDS1", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:OBC::PWR", { "x": 150, "y": 32, "side": "right" }],
+      ["card:OBC::SPW1", { "x": 0, "y": 24, "side": "left" }],
+      ["card:PCDU::BAT", { "x": 88, "y": 52, "side": "bottom" }],
+      ["card:PCDU::CAN", { "x": 0, "y": 8, "side": "left" }],
+      ["card:PCDU::OUT1", { "x": 32, "y": 0, "side": "top" }],
+      ["card:PCDU::OUT2", { "x": 48, "y": 52, "side": "bottom" }],
+      ["card:PCDU::OUT3", { "x": 0, "y": 32, "side": "left" }],
+      ["card:PCDU::SA", { "x": 150, "y": 24, "side": "right" }],
+      ["card:RW_X::DATA", { "x": 0, "y": 8, "side": "left" }],
+      ["card:RW_X::PWR", { "x": 0, "y": 32, "side": "left" }],
+      ["card:SP_MX::PWR", { "x": 0, "y": 8, "side": "left" }],
+      ["card:SP_MY::PWR", { "x": 0, "y": 24, "side": "left" }],
+      ["card:SS_MX::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:STT::DATA", { "x": 0, "y": 40, "side": "left" }],
+      ["card:STT::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:STX::DATA", { "x": 72, "y": 0, "side": "top" }],
+      ["card:STX::PWR", { "x": 150, "y": 32, "side": "right" }],
+      ["card:UHF_TRX::DATA", { "x": 150, "y": 8, "side": "right" }],
+      ["card:UHF_TRX::PWR", { "x": 150, "y": 32, "side": "right" }]
+    ],
+    "taps": [
+      ["BAT_BUS#1", { "source": { "x": 72, "y": 0, "side": "top" } }],
+      ["P5V#2", { "source": { "x": 112, "y": 0, "side": "top" } }],
+      ["P5V#3", { "source": { "x": 72, "y": 0, "side": "top" } }]
+    ],
+    "routes": [
+      ["BAT_BUS#0", [{ "x": 360, "y": 679 }, { "x": 360, "y": 813 }]],
+      [
+        "BAT_BUS#1",
+        [
+          { "x": 360, "y": 621 },
+          { "x": 360, "y": 560 },
+          { "x": 376, "y": 560 },
+          { "x": 376, "y": 535 }
+        ]
+      ],
+      [
+        "P12V#0",
+        [
+          { "x": 285, "y": 512 },
+          { "x": 232, "y": 512 },
+          { "x": 232, "y": 184 },
+          { "x": 285, "y": 184 }
+        ]
+      ],
+      ["P12V#1", [{ "x": 285, "y": 512 }, { "x": 177, "y": 512 }]],
+      [
+        "P3V3#0",
+        [
+          { "x": 320, "y": 477 },
+          { "x": 320, "y": 352 },
+          { "x": 248, "y": 352 },
+          { "x": 248, "y": 224 },
+          { "x": 456, "y": 224 },
+          { "x": 456, "y": 72 },
+          { "x": 441, "y": 72 }
+        ]
+      ],
+      [
+        "P3V3#1",
+        [
+          { "x": 320, "y": 477 },
+          { "x": 320, "y": 352 },
+          { "x": 248, "y": 352 },
+          { "x": 248, "y": 320 },
+          { "x": 177, "y": 320 }
+        ]
+      ],
+      [
+        "P3V3#2",
+        [
+          { "x": 320, "y": 477 },
+          { "x": 320, "y": 352 },
+          { "x": 248, "y": 352 },
+          { "x": 248, "y": 224 },
+          { "x": 568, "y": 224 },
+          { "x": 568, "y": 207 }
+        ]
+      ],
+      [
+        "P5V#0",
+        [
+          { "x": 336, "y": 535 },
+          { "x": 336, "y": 608 },
+          { "x": 216, "y": 608 },
+          { "x": 216, "y": 800 },
+          { "x": 177, "y": 800 }
+        ]
+      ],
+      [
+        "P5V#1",
+        [
+          { "x": 336, "y": 535 },
+          { "x": 336, "y": 608 },
+          { "x": 464, "y": 608 },
+          { "x": 464, "y": 840 },
+          { "x": 493, "y": 840 }
+        ]
+      ],
+      [
+        "P5V#2",
+        [
+          { "x": 400, "y": 477 },
+          { "x": 400, "y": 352 },
+          { "x": 688, "y": 352 },
+          { "x": 688, "y": 72 },
+          { "x": 649, "y": 72 }
+        ]
+      ],
+      ["P5V#3", [{ "x": 360, "y": 477 }, { "x": 360, "y": 311 }]],
+      [
+        "P5V#4",
+        [
+          { "x": 336, "y": 535 },
+          { "x": 336, "y": 608 },
+          { "x": 216, "y": 608 },
+          { "x": 216, "y": 616 },
+          { "x": 177, "y": 616 }
+        ]
+      ],
+      [
+        "SA_BUS#0",
+        [
+          { "x": 509, "y": 528 },
+          { "x": 480, "y": 528 },
+          { "x": 480, "y": 504 },
+          { "x": 441, "y": 504 }
+        ]
+      ],
+      [
+        "SA_BUS#1",
+        [
+          { "x": 733, "y": 488 },
+          { "x": 480, "y": 488 },
+          { "x": 480, "y": 504 },
+          { "x": 441, "y": 504 }
+        ]
+      ],
+      [
+        "SA_BUS#2",
+        [
+          { "x": 509, "y": 648 },
+          { "x": 480, "y": 648 },
+          { "x": 480, "y": 504 },
+          { "x": 441, "y": 504 }
+        ]
+      ]
+    ],
+    "labels": [],
+    "unrouted": []
+  },
+  "demo-signal": {
+    "boxes": [
+      ["card:BAT", { "x": 24, "y": 224, "width": 150, "height": 52 }],
+      ["card:BUS_FRAME", { "x": 16, "y": 34, "width": 150, "height": 52 }],
+      ["card:CAM", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:CELLS", { "x": 16, "y": 56, "width": 150, "height": 52 }],
+      ["card:EPT", { "x": 16, "y": 34, "width": 150, "height": 52 }],
+      ["card:GPS", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:HTR_BAT", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:HTR_CAM", { "x": 232, "y": 48, "width": 150, "height": 52 }],
+      ["card:MTQ_X", { "x": 232, "y": 48, "width": 150, "height": 52 }],
+      ["card:OBC", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:PANEL_MX", { "x": 190, "y": 34, "width": 150, "height": 52 }],
+      ["card:PANEL_MY", { "x": 364, "y": 34, "width": 150, "height": 52 }],
+      ["card:PANEL_MZ", { "x": 16, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PX", { "x": 190, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PY", { "x": 364, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PZ", { "x": 16, "y": 178, "width": 150, "height": 52 }],
+      ["card:PCDU", { "x": 24, "y": 80, "width": 150, "height": 52 }],
+      ["card:RW_X", { "x": 24, "y": 152, "width": 150, "height": 52 }],
+      ["card:SAP_PY", { "x": 232, "y": 48, "width": 184, "height": 128 }],
+      ["card:SP_MX", { "x": 472, "y": 80, "width": 150, "height": 52 }],
+      ["card:SP_MY", { "x": 248, "y": 224, "width": 150, "height": 52 }],
+      ["card:SS_MX", { "x": 232, "y": 152, "width": 150, "height": 52 }],
+      ["card:STT", { "x": 24, "y": 256, "width": 150, "height": 52 }],
+      ["card:STX", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:UHF_TRX", { "x": 24, "y": 152, "width": 150, "height": 52 }],
+      ["card:XE_TANK", { "x": 190, "y": 34, "width": 150, "height": 52 }],
+      ["group:aocs", { "x": 264, "y": 0, "width": 408, "height": 336 }],
+      ["group:cdh", { "x": 0, "y": 240, "width": 200, "height": 128 }],
+      ["group:comm", { "x": 0, "y": 432, "width": 200, "height": 232 }],
+      ["group:payload", { "x": 0, "y": 728, "width": 200, "height": 128 }],
+      ["group:power", { "x": 264, "y": 400, "width": 648, "height": 304 }],
+      ["group:propulsion", { "x": 972, "y": 0, "width": 356, "height": 102 }],
+      ["group:structure", { "x": 972, "y": 162, "width": 530, "height": 246 }],
+      ["group:thermal", { "x": 264, "y": 768, "width": 408, "height": 128 }]
+    ],
+    "absolute": [
+      ["card:BAT", { "x": 288, "y": 624 }],
+      ["card:BUS_FRAME", { "x": 988, "y": 196 }],
+      ["card:CAM", { "x": 24, "y": 776 }],
+      ["card:CELLS", { "x": 512, "y": 504 }],
+      ["card:EPT", { "x": 988, "y": 34 }],
+      ["card:GPS", { "x": 288, "y": 48 }],
+      ["card:HTR_BAT", { "x": 288, "y": 816 }],
+      ["card:HTR_CAM", { "x": 496, "y": 816 }],
+      ["card:MTQ_X", { "x": 496, "y": 48 }],
+      ["card:OBC", { "x": 24, "y": 288 }],
+      ["card:PANEL_MX", { "x": 1162, "y": 196 }],
+      ["card:PANEL_MY", { "x": 1336, "y": 196 }],
+      ["card:PANEL_MZ", { "x": 988, "y": 268 }],
+      ["card:PANEL_PX", { "x": 1162, "y": 268 }],
+      ["card:PANEL_PY", { "x": 1336, "y": 268 }],
+      ["card:PANEL_PZ", { "x": 988, "y": 340 }],
+      ["card:PCDU", { "x": 288, "y": 480 }],
+      ["card:RW_X", { "x": 288, "y": 152 }],
+      ["card:SAP_PY", { "x": 496, "y": 448 }],
+      ["card:SP_MX", { "x": 736, "y": 480 }],
+      ["card:SP_MY", { "x": 512, "y": 624 }],
+      ["card:SS_MX", { "x": 496, "y": 152 }],
+      ["card:STT", { "x": 288, "y": 256 }],
+      ["card:STX", { "x": 24, "y": 480 }],
+      ["card:UHF_TRX", { "x": 24, "y": 584 }],
+      ["card:XE_TANK", { "x": 1162, "y": 34 }],
+      ["group:aocs", { "x": 264, "y": 0 }],
+      ["group:cdh", { "x": 0, "y": 240 }],
+      ["group:comm", { "x": 0, "y": 432 }],
+      ["group:payload", { "x": 0, "y": 728 }],
+      ["group:power", { "x": 264, "y": 400 }],
+      ["group:propulsion", { "x": 972, "y": 0 }],
+      ["group:structure", { "x": 972, "y": 162 }],
+      ["group:thermal", { "x": 264, "y": 768 }]
+    ],
+    "ports": [
+      ["card:BAT::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:CAM::DATA", { "x": 0, "y": 24, "side": "left" }],
+      ["card:CAM::PWR", { "x": 150, "y": 24, "side": "right" }],
+      ["card:CELLS::PWR", { "x": 0, "y": 24, "side": "left" }],
+      ["card:GPS::DATA", { "x": 0, "y": 24, "side": "left" }],
+      ["card:GPS::PWR", { "x": 150, "y": 24, "side": "right" }],
+      ["card:HTR_BAT::PWR", { "x": 72, "y": 0, "side": "top" }],
+      ["card:HTR_CAM::PWR", { "x": 0, "y": 24, "side": "left" }],
+      ["card:MTQ_X::PWR", { "x": 150, "y": 24, "side": "right" }],
+      ["card:OBC::CAN1", { "x": 150, "y": 8, "side": "right" }],
+      ["card:OBC::LVDS1", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:OBC::PWR", { "x": 150, "y": 32, "side": "right" }],
+      ["card:OBC::SPW1", { "x": 0, "y": 24, "side": "left" }],
+      ["card:PCDU::BAT", { "x": 88, "y": 52, "side": "bottom" }],
+      ["card:PCDU::CAN", { "x": 0, "y": 8, "side": "left" }],
+      ["card:PCDU::OUT1", { "x": 32, "y": 0, "side": "top" }],
+      ["card:PCDU::OUT2", { "x": 48, "y": 52, "side": "bottom" }],
+      ["card:PCDU::OUT3", { "x": 0, "y": 32, "side": "left" }],
+      ["card:PCDU::SA", { "x": 150, "y": 24, "side": "right" }],
+      ["card:RW_X::DATA", { "x": 0, "y": 8, "side": "left" }],
+      ["card:RW_X::PWR", { "x": 0, "y": 32, "side": "left" }],
+      ["card:SP_MX::PWR", { "x": 0, "y": 8, "side": "left" }],
+      ["card:SP_MY::PWR", { "x": 0, "y": 24, "side": "left" }],
+      ["card:SS_MX::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:STT::DATA", { "x": 0, "y": 40, "side": "left" }],
+      ["card:STT::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:STX::DATA", { "x": 72, "y": 0, "side": "top" }],
+      ["card:STX::PWR", { "x": 150, "y": 32, "side": "right" }],
+      ["card:UHF_TRX::DATA", { "x": 150, "y": 8, "side": "right" }],
+      ["card:UHF_TRX::PWR", { "x": 150, "y": 32, "side": "right" }]
+    ],
+    "taps": [
+      ["BAT_BUS#1", { "source": { "x": 72, "y": 0, "side": "top" } }],
+      ["P5V#2", { "source": { "x": 112, "y": 0, "side": "top" } }],
+      ["P5V#3", { "source": { "x": 72, "y": 0, "side": "top" } }]
+    ],
+    "routes": [
+      [
+        "CAN_BUS#0",
+        [
+          { "x": 177, "y": 296 },
+          { "x": 248, "y": 296 },
+          { "x": 248, "y": 72 },
+          { "x": 285, "y": 72 }
+        ]
+      ],
+      [
+        "CAN_BUS#1",
+        [
+          { "x": 177, "y": 296 },
+          { "x": 216, "y": 296 },
+          { "x": 216, "y": 488 },
+          { "x": 285, "y": 488 }
+        ]
+      ],
+      [
+        "CAN_BUS#2",
+        [
+          { "x": 177, "y": 296 },
+          { "x": 248, "y": 296 },
+          { "x": 248, "y": 160 },
+          { "x": 285, "y": 160 }
+        ]
+      ],
+      ["CAN_BUS#3", [{ "x": 177, "y": 296 }, { "x": 285, "y": 296 }]],
+      [
+        "CAN_BUS#4",
+        [
+          { "x": 177, "y": 296 },
+          { "x": 216, "y": 296 },
+          { "x": 216, "y": 592 },
+          { "x": 177, "y": 592 }
+        ]
+      ],
+      ["LVDS_STX#0", [{ "x": 96, "y": 343 }, { "x": 96, "y": 477 }]],
+      [
+        "SPW_PL#0",
+        [
+          { "x": 21, "y": 312 },
+          { "x": -16, "y": 312 },
+          { "x": -16, "y": 800 },
+          { "x": 21, "y": 800 }
+        ]
+      ]
+    ],
+    "labels": [
+      ["CAN_BUS#0", { "x": 212.5, "y": 278 }],
+      ["LVDS_STX#0", { "x": 134, "y": 410 }],
+      ["SPW_PL#0", { "x": 2.5, "y": 280 }]
+    ],
+    "unrouted": []
+  },
+  "demo-no-aocs": {
+    "boxes": [
+      ["card:BAT", { "x": 264, "y": 224, "width": 150, "height": 52 }],
+      ["card:BUS_FRAME", { "x": 16, "y": 34, "width": 150, "height": 52 }],
+      ["card:CAM", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:CELLS", { "x": 16, "y": 56, "width": 150, "height": 52 }],
+      ["card:EPT", { "x": 16, "y": 34, "width": 150, "height": 52 }],
+      ["card:HTR_BAT", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:HTR_CAM", { "x": 24, "y": 152, "width": 150, "height": 52 }],
+      ["card:OBC", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:PANEL_MX", { "x": 190, "y": 34, "width": 150, "height": 52 }],
+      ["card:PANEL_MY", { "x": 364, "y": 34, "width": 150, "height": 52 }],
+      ["card:PANEL_MZ", { "x": 16, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PX", { "x": 190, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PY", { "x": 364, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PZ", { "x": 16, "y": 178, "width": 150, "height": 52 }],
+      ["card:PCDU", { "x": 472, "y": 80, "width": 150, "height": 52 }],
+      ["card:SAP_PY", { "x": 24, "y": 48, "width": 184, "height": 128 }],
+      ["card:SP_MX", { "x": 264, "y": 80, "width": 150, "height": 52 }],
+      ["card:SP_MY", { "x": 40, "y": 224, "width": 150, "height": 52 }],
+      ["card:STX", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:UHF_TRX", { "x": 24, "y": 152, "width": 150, "height": 52 }],
+      ["card:XE_TANK", { "x": 190, "y": 34, "width": 150, "height": 52 }],
+      ["group:cdh", { "x": 488, "y": 0, "width": 200, "height": 128 }],
+      ["group:comm", { "x": 712, "y": 192, "width": 200, "height": 232 }],
+      ["group:payload", { "x": 224, "y": 0, "width": 200, "height": 128 }],
+      ["group:power", { "x": 0, "y": 192, "width": 648, "height": 304 }],
+      ["group:propulsion", { "x": 972, "y": 0, "width": 356, "height": 102 }],
+      ["group:structure", { "x": 972, "y": 162, "width": 530, "height": 246 }],
+      ["group:thermal", { "x": 240, "y": 560, "width": 200, "height": 232 }]
+    ],
+    "absolute": [
+      ["card:BAT", { "x": 264, "y": 416 }],
+      ["card:BUS_FRAME", { "x": 988, "y": 196 }],
+      ["card:CAM", { "x": 248, "y": 48 }],
+      ["card:CELLS", { "x": 40, "y": 296 }],
+      ["card:EPT", { "x": 988, "y": 34 }],
+      ["card:HTR_BAT", { "x": 264, "y": 608 }],
+      ["card:HTR_CAM", { "x": 264, "y": 712 }],
+      ["card:OBC", { "x": 512, "y": 48 }],
+      ["card:PANEL_MX", { "x": 1162, "y": 196 }],
+      ["card:PANEL_MY", { "x": 1336, "y": 196 }],
+      ["card:PANEL_MZ", { "x": 988, "y": 268 }],
+      ["card:PANEL_PX", { "x": 1162, "y": 268 }],
+      ["card:PANEL_PY", { "x": 1336, "y": 268 }],
+      ["card:PANEL_PZ", { "x": 988, "y": 340 }],
+      ["card:PCDU", { "x": 472, "y": 272 }],
+      ["card:SAP_PY", { "x": 24, "y": 240 }],
+      ["card:SP_MX", { "x": 264, "y": 272 }],
+      ["card:SP_MY", { "x": 40, "y": 416 }],
+      ["card:STX", { "x": 736, "y": 240 }],
+      ["card:UHF_TRX", { "x": 736, "y": 344 }],
+      ["card:XE_TANK", { "x": 1162, "y": 34 }],
+      ["group:cdh", { "x": 488, "y": 0 }],
+      ["group:comm", { "x": 712, "y": 192 }],
+      ["group:payload", { "x": 224, "y": 0 }],
+      ["group:power", { "x": 0, "y": 192 }],
+      ["group:propulsion", { "x": 972, "y": 0 }],
+      ["group:structure", { "x": 972, "y": 162 }],
+      ["group:thermal", { "x": 240, "y": 560 }]
+    ],
+    "ports": [
+      ["card:BAT::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:CAM::DATA", { "x": 150, "y": 24, "side": "right" }],
+      ["card:CAM::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:CELLS::PWR", { "x": 150, "y": 24, "side": "right" }],
+      ["card:HTR_BAT::PWR", { "x": 72, "y": 0, "side": "top" }],
+      ["card:HTR_CAM::PWR", { "x": 150, "y": 24, "side": "right" }],
+      ["card:OBC::CAN1", { "x": 96, "y": 52, "side": "bottom" }],
+      ["card:OBC::LVDS1", { "x": 150, "y": 24, "side": "right" }],
+      ["card:OBC::PWR", { "x": 48, "y": 52, "side": "bottom" }],
+      ["card:OBC::SPW1", { "x": 0, "y": 24, "side": "left" }],
+      ["card:PCDU::BAT", { "x": 0, "y": 32, "side": "left" }],
+      ["card:PCDU::CAN", { "x": 150, "y": 8, "side": "right" }],
+      ["card:PCDU::OUT1", { "x": 88, "y": 0, "side": "top" }],
+      ["card:PCDU::OUT2", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:PCDU::OUT3", { "x": 150, "y": 32, "side": "right" }],
+      ["card:PCDU::SA", { "x": 0, "y": 8, "side": "left" }],
+      ["card:SP_MX::PWR", { "x": 150, "y": 8, "side": "right" }],
+      ["card:SP_MY::PWR", { "x": 72, "y": 0, "side": "top" }],
+      ["card:STX::DATA", { "x": 72, "y": 0, "side": "top" }],
+      ["card:STX::PWR", { "x": 0, "y": 24, "side": "left" }],
+      ["card:UHF_TRX::DATA", { "x": 0, "y": 8, "side": "left" }],
+      ["card:UHF_TRX::PWR", { "x": 0, "y": 32, "side": "left" }]
+    ],
+    "taps": [
+      ["BAT_BUS#1", { "source": { "x": 150, "y": 24, "side": "right" } }],
+      ["P5V#0", { "source": { "x": 48, "y": 0, "side": "top" } }]
+    ],
+    "routes": [
+      ["BAT_BUS#0", [{ "x": 336, "y": 471 }, { "x": 336, "y": 605 }]],
+      [
+        "BAT_BUS#1",
+        [
+          { "x": 417, "y": 440 },
+          { "x": 448, "y": 440 },
+          { "x": 448, "y": 304 },
+          { "x": 469, "y": 304 }
+        ]
+      ],
+      [
+        "CAN_BUS#1",
+        [
+          { "x": 608, "y": 103 },
+          { "x": 608, "y": 176 },
+          { "x": 664, "y": 176 },
+          { "x": 664, "y": 280 },
+          { "x": 625, "y": 280 }
+        ]
+      ],
+      [
+        "CAN_BUS#4",
+        [
+          { "x": 608, "y": 103 },
+          { "x": 608, "y": 176 },
+          { "x": 664, "y": 176 },
+          { "x": 664, "y": 352 },
+          { "x": 733, "y": 352 }
+        ]
+      ],
+      ["LVDS_STX#0", [{ "x": 665, "y": 72 }, { "x": 808, "y": 72 }, { "x": 808, "y": 237 }]],
+      [
+        "P12V#1",
+        [
+          { "x": 625, "y": 304 },
+          { "x": 696, "y": 304 },
+          { "x": 696, "y": 264 },
+          { "x": 733, "y": 264 }
+        ]
+      ],
+      ["P3V3#1", [{ "x": 560, "y": 269 }, { "x": 560, "y": 103 }]],
+      [
+        "P5V#0",
+        [
+          { "x": 520, "y": 269 },
+          { "x": 520, "y": 144 },
+          { "x": 320, "y": 144 },
+          { "x": 320, "y": 103 }
+        ]
+      ],
+      ["P5V#1", [{ "x": 544, "y": 327 }, { "x": 544, "y": 736 }, { "x": 417, "y": 736 }]],
+      ["P5V#4", [{ "x": 544, "y": 327 }, { "x": 544, "y": 376 }, { "x": 733, "y": 376 }]],
+      [
+        "SA_BUS#0",
+        [
+          { "x": 193, "y": 320 },
+          { "x": 248, "y": 320 },
+          { "x": 248, "y": 344 },
+          { "x": 432, "y": 344 },
+          { "x": 432, "y": 280 },
+          { "x": 469, "y": 280 }
+        ]
+      ],
+      ["SA_BUS#1", [{ "x": 417, "y": 280 }, { "x": 469, "y": 280 }]],
+      [
+        "SA_BUS#2",
+        [
+          { "x": 112, "y": 413 },
+          { "x": 112, "y": 384 },
+          { "x": 432, "y": 384 },
+          { "x": 432, "y": 280 },
+          { "x": 469, "y": 280 }
+        ]
+      ],
+      ["SPW_PL#0", [{ "x": 509, "y": 72 }, { "x": 401, "y": 72 }]]
+    ],
+    "labels": [
+      ["CAN_BUS#1", { "x": 642, "y": 139.5 }],
+      ["LVDS_STX#0", { "x": 736.5, "y": 90 }],
+      ["SPW_PL#0", { "x": 455, "y": 90 }]
+    ],
+    "unrouted": []
+  },
+  "demo-no-payload": {
+    "boxes": [
+      ["card:BAT", { "x": 40, "y": 160, "width": 150, "height": 52 }],
+      ["card:BUS_FRAME", { "x": 16, "y": 34, "width": 150, "height": 52 }],
+      ["card:CELLS", { "x": 16, "y": 56, "width": 150, "height": 52 }],
+      ["card:EPT", { "x": 16, "y": 34, "width": 150, "height": 52 }],
+      ["card:GPS", { "x": 232, "y": 152, "width": 150, "height": 52 }],
+      ["card:HTR_BAT", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:HTR_CAM", { "x": 24, "y": 152, "width": 150, "height": 52 }],
+      ["card:MTQ_X", { "x": 24, "y": 152, "width": 150, "height": 52 }],
+      ["card:OBC", { "x": 24, "y": 48, "width": 150, "height": 72 }],
+      ["card:PANEL_MX", { "x": 190, "y": 34, "width": 150, "height": 52 }],
+      ["card:PANEL_MY", { "x": 364, "y": 34, "width": 150, "height": 52 }],
+      ["card:PANEL_MZ", { "x": 16, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PX", { "x": 190, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PY", { "x": 364, "y": 106, "width": 150, "height": 52 }],
+      ["card:PANEL_PZ", { "x": 16, "y": 178, "width": 150, "height": 52 }],
+      ["card:PCDU", { "x": 264, "y": 152, "width": 150, "height": 72 }],
+      ["card:RW_X", { "x": 232, "y": 48, "width": 150, "height": 52 }],
+      ["card:SAP_PY", { "x": 24, "y": 272, "width": 184, "height": 128 }],
+      ["card:SP_MX", { "x": 40, "y": 48, "width": 150, "height": 52 }],
+      ["card:SP_MY", { "x": 264, "y": 48, "width": 150, "height": 52 }],
+      ["card:SS_MX", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:STT", { "x": 24, "y": 256, "width": 150, "height": 52 }],
+      ["card:STX", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:UHF_TRX", { "x": 24, "y": 152, "width": 150, "height": 52 }],
+      ["card:XE_TANK", { "x": 190, "y": 34, "width": 150, "height": 52 }],
+      ["group:aocs", { "x": 768, "y": 16, "width": 408, "height": 336 }],
+      ["group:cdh", { "x": 1240, "y": 112, "width": 200, "height": 144 }],
+      ["group:comm", { "x": 1504, "y": 16, "width": 200, "height": 232 }],
+      ["group:power", { "x": 264, "y": 0, "width": 440, "height": 424 }],
+      ["group:propulsion", { "x": 0, "y": 484, "width": 356, "height": 102 }],
+      ["group:structure", { "x": 416, "y": 484, "width": 530, "height": 246 }],
+      ["group:thermal", { "x": 0, "y": 8, "width": 200, "height": 232 }]
+    ],
+    "absolute": [
+      ["card:BAT", { "x": 304, "y": 160 }],
+      ["card:BUS_FRAME", { "x": 432, "y": 518 }],
+      ["card:CELLS", { "x": 304, "y": 328 }],
+      ["card:EPT", { "x": 16, "y": 518 }],
+      ["card:GPS", { "x": 1000, "y": 168 }],
+      ["card:HTR_BAT", { "x": 24, "y": 56 }],
+      ["card:HTR_CAM", { "x": 24, "y": 160 }],
+      ["card:MTQ_X", { "x": 792, "y": 168 }],
+      ["card:OBC", { "x": 1264, "y": 160 }],
+      ["card:PANEL_MX", { "x": 606, "y": 518 }],
+      ["card:PANEL_MY", { "x": 780, "y": 518 }],
+      ["card:PANEL_MZ", { "x": 432, "y": 590 }],
+      ["card:PANEL_PX", { "x": 606, "y": 590 }],
+      ["card:PANEL_PY", { "x": 780, "y": 590 }],
+      ["card:PANEL_PZ", { "x": 432, "y": 662 }],
+      ["card:PCDU", { "x": 528, "y": 152 }],
+      ["card:RW_X", { "x": 1000, "y": 64 }],
+      ["card:SAP_PY", { "x": 288, "y": 272 }],
+      ["card:SP_MX", { "x": 304, "y": 48 }],
+      ["card:SP_MY", { "x": 528, "y": 48 }],
+      ["card:SS_MX", { "x": 792, "y": 64 }],
+      ["card:STT", { "x": 792, "y": 272 }],
+      ["card:STX", { "x": 1528, "y": 64 }],
+      ["card:UHF_TRX", { "x": 1528, "y": 168 }],
+      ["card:XE_TANK", { "x": 190, "y": 518 }],
+      ["group:aocs", { "x": 768, "y": 16 }],
+      ["group:cdh", { "x": 1240, "y": 112 }],
+      ["group:comm", { "x": 1504, "y": 16 }],
+      ["group:power", { "x": 264, "y": 0 }],
+      ["group:propulsion", { "x": 0, "y": 484 }],
+      ["group:structure", { "x": 416, "y": 484 }],
+      ["group:thermal", { "x": 0, "y": 8 }]
+    ],
+    "ports": [
+      ["card:BAT::PWR", { "x": 150, "y": 16, "side": "right" }],
+      ["card:CELLS::PWR", { "x": 150, "y": 24, "side": "right" }],
+      ["card:GPS::DATA", { "x": 150, "y": 24, "side": "right" }],
+      ["card:GPS::PWR", { "x": 72, "y": 0, "side": "top" }],
+      ["card:HTR_BAT::PWR", { "x": 150, "y": 24, "side": "right" }],
+      ["card:HTR_CAM::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:MTQ_X::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:OBC::CAN1", { "x": 0, "y": 56, "side": "left" }],
+      ["card:OBC::LVDS1", { "x": 150, "y": 24, "side": "right" }],
+      ["card:OBC::PWR", { "x": 0, "y": 32, "side": "left" }],
+      ["card:OBC::SPW1", { "x": 0, "y": 8, "side": "left" }],
+      ["card:PCDU::BAT", { "x": 0, "y": 24, "side": "left" }],
+      ["card:PCDU::CAN", { "x": 150, "y": 56, "side": "right" }],
+      ["card:PCDU::OUT1", { "x": 150, "y": 32, "side": "right" }],
+      ["card:PCDU::OUT2", { "x": 72, "y": 72, "side": "bottom" }],
+      ["card:PCDU::OUT3", { "x": 150, "y": 8, "side": "right" }],
+      ["card:PCDU::SA", { "x": 72, "y": 0, "side": "top" }],
+      ["card:RW_X::DATA", { "x": 150, "y": 24, "side": "right" }],
+      ["card:RW_X::PWR", { "x": 72, "y": 0, "side": "top" }],
+      ["card:SP_MX::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:SP_MY::PWR", { "x": 72, "y": 52, "side": "bottom" }],
+      ["card:SS_MX::PWR", { "x": 0, "y": 24, "side": "left" }],
+      ["card:STT::DATA", { "x": 150, "y": 24, "side": "right" }],
+      ["card:STT::PWR", { "x": 0, "y": 24, "side": "left" }],
+      ["card:STX::DATA", { "x": 0, "y": 24, "side": "left" }],
+      ["card:STX::PWR", { "x": 72, "y": 0, "side": "top" }],
+      ["card:UHF_TRX::DATA", { "x": 0, "y": 40, "side": "left" }],
+      ["card:UHF_TRX::PWR", { "x": 72, "y": 52, "side": "bottom" }]
+    ],
+    "taps": [
+      ["BAT_BUS#0", { "source": { "x": 0, "y": 24, "side": "left" } }],
+      ["CAN_BUS#4", { "source": { "x": 150, "y": 48, "side": "right" } }],
+      ["SA_BUS#0", { "target": { "x": 0, "y": 48, "side": "left" } }]
+    ],
+    "routes": [
+      [
+        "BAT_BUS#0",
+        [
+          { "x": 301, "y": 184 },
+          { "x": 216, "y": 184 },
+          { "x": 216, "y": 80 },
+          { "x": 177, "y": 80 }
+        ]
+      ],
+      ["BAT_BUS#1", [{ "x": 457, "y": 176 }, { "x": 525, "y": 176 }]],
+      [
+        "CAN_BUS#0",
+        [
+          { "x": 1261, "y": 216 },
+          { "x": 1192, "y": 216 },
+          { "x": 1192, "y": 192 },
+          { "x": 1153, "y": 192 }
+        ]
+      ],
+      [
+        "CAN_BUS#1",
+        [
+          { "x": 1261, "y": 216 },
+          { "x": 1192, "y": 216 },
+          { "x": 1192, "y": 240 },
+          { "x": 720, "y": 240 },
+          { "x": 720, "y": 208 },
+          { "x": 681, "y": 208 }
+        ]
+      ],
+      [
+        "CAN_BUS#2",
+        [
+          { "x": 1261, "y": 216 },
+          { "x": 1192, "y": 216 },
+          { "x": 1192, "y": 88 },
+          { "x": 1153, "y": 88 }
+        ]
+      ],
+      [
+        "CAN_BUS#3",
+        [
+          { "x": 1261, "y": 216 },
+          { "x": 1192, "y": 216 },
+          { "x": 1192, "y": 296 },
+          { "x": 945, "y": 296 }
+        ]
+      ],
+      ["CAN_BUS#4", [{ "x": 1417, "y": 208 }, { "x": 1525, "y": 208 }]],
+      [
+        "LVDS_STX#0",
+        [
+          { "x": 1417, "y": 184 },
+          { "x": 1488, "y": 184 },
+          { "x": 1488, "y": 88 },
+          { "x": 1525, "y": 88 }
+        ]
+      ],
+      [
+        "P12V#0",
+        [
+          { "x": 681, "y": 160 },
+          { "x": 736, "y": 160 },
+          { "x": 736, "y": 48 },
+          { "x": 1072, "y": 48 },
+          { "x": 1072, "y": 61 }
+        ]
+      ],
+      [
+        "P12V#1",
+        [
+          { "x": 681, "y": 160 },
+          { "x": 736, "y": 160 },
+          { "x": 736, "y": 0 },
+          { "x": 1600, "y": 0 },
+          { "x": 1600, "y": 61 }
+        ]
+      ],
+      [
+        "P3V3#0",
+        [
+          { "x": 681, "y": 184 },
+          { "x": 752, "y": 184 },
+          { "x": 752, "y": 152 },
+          { "x": 1072, "y": 152 },
+          { "x": 1072, "y": 165 }
+        ]
+      ],
+      [
+        "P3V3#1",
+        [
+          { "x": 681, "y": 184 },
+          { "x": 752, "y": 184 },
+          { "x": 752, "y": 152 },
+          { "x": 1224, "y": 152 },
+          { "x": 1224, "y": 192 },
+          { "x": 1261, "y": 192 }
+        ]
+      ],
+      [
+        "P3V3#2",
+        [
+          { "x": 681, "y": 184 },
+          { "x": 752, "y": 184 },
+          { "x": 752, "y": 88 },
+          { "x": 789, "y": 88 }
+        ]
+      ],
+      [
+        "P5V#1",
+        [
+          { "x": 600, "y": 227 },
+          { "x": 600, "y": 256 },
+          { "x": 96, "y": 256 },
+          { "x": 96, "y": 215 }
+        ]
+      ],
+      [
+        "P5V#2",
+        [
+          { "x": 600, "y": 227 },
+          { "x": 600, "y": 256 },
+          { "x": 864, "y": 256 },
+          { "x": 864, "y": 223 }
+        ]
+      ],
+      ["P5V#3", [{ "x": 600, "y": 227 }, { "x": 600, "y": 296 }, { "x": 789, "y": 296 }]],
+      [
+        "P5V#4",
+        [
+          { "x": 600, "y": 227 },
+          { "x": 600, "y": 368 },
+          { "x": 1600, "y": 368 },
+          { "x": 1600, "y": 223 }
+        ]
+      ],
+      [
+        "SA_BUS#0",
+        [
+          { "x": 457, "y": 352 },
+          { "x": 504, "y": 352 },
+          { "x": 504, "y": 200 },
+          { "x": 525, "y": 200 }
+        ]
+      ],
+      [
+        "SA_BUS#1",
+        [
+          { "x": 376, "y": 103 },
+          { "x": 376, "y": 120 },
+          { "x": 600, "y": 120 },
+          { "x": 600, "y": 149 }
+        ]
+      ],
+      ["SA_BUS#2", [{ "x": 600, "y": 103 }, { "x": 600, "y": 149 }]]
+    ],
+    "labels": [["CAN_BUS#0", { "x": 1226.5, "y": 234 }], ["LVDS_STX#0", { "x": 1452.5, "y": 166 }]],
+    "unrouted": []
+  },
+  "small": {
+    "boxes": [
+      ["card:PCDU", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:RW_X", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["card:TRX", { "x": 24, "y": 48, "width": 150, "height": 52 }],
+      ["group:aocs", { "x": 0, "y": 192, "width": 200, "height": 128 }],
+      ["group:comm", { "x": 264, "y": 0, "width": 200, "height": 128 }],
+      ["group:power", { "x": 0, "y": 0, "width": 200, "height": 128 }]
+    ],
+    "absolute": [
+      ["card:PCDU", { "x": 24, "y": 48 }],
+      ["card:RW_X", { "x": 24, "y": 240 }],
+      ["card:TRX", { "x": 288, "y": 48 }],
+      ["group:aocs", { "x": 0, "y": 192 }],
+      ["group:comm", { "x": 264, "y": 0 }],
+      ["group:power", { "x": 0, "y": 0 }]
+    ],
+    "ports": [
+      ["card:PCDU::CAN1", { "x": 88, "y": 52, "side": "bottom" }],
+      ["card:PCDU::OUT3", { "x": 48, "y": 52, "side": "bottom" }],
+      ["card:RW_X::DATA", { "x": 88, "y": 0, "side": "top" }],
+      ["card:RW_X::PWR", { "x": 48, "y": 0, "side": "top" }],
+      ["card:TRX::CAN", { "x": 0, "y": 24, "side": "left" }],
+      ["card:TRX::PWR", { "x": 72, "y": 52, "side": "bottom" }]
+    ],
+    "taps": [],
+    "routes": [
+      ["CAN#0", [{ "x": 112, "y": 103 }, { "x": 112, "y": 237 }]],
+      [
+        "CAN#1",
+        [
+          { "x": 112, "y": 103 },
+          { "x": 112, "y": 144 },
+          { "x": 248, "y": 144 },
+          { "x": 248, "y": 72 },
+          { "x": 285, "y": 72 }
+        ]
+      ],
+      ["P12V#0", [{ "x": 72, "y": 103 }, { "x": 72, "y": 237 }]],
+      [
+        "P12V#1",
+        [
+          { "x": 72, "y": 103 },
+          { "x": 72, "y": 160 },
+          { "x": 360, "y": 160 },
+          { "x": 360, "y": 103 }
+        ]
+      ]
+    ],
+    "labels": [["CAN#0", { "x": 146, "y": 170 }]],
+    "unrouted": []
+  }
+}

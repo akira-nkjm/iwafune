@@ -16,6 +16,7 @@ use sat_analysis::power::energy_balance::{
 use sat_analysis::power::sizing::SizingLifetimeSource;
 use sat_analysis::power::solar::SolarLife;
 use sat_analysis::spec::{ChannelKind, SpanFallback};
+use sat_analysis::structure::interference::InterferenceSkipReason;
 use sat_analysis::structure::launch_fit::LaunchFitDirection;
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
 use sat_analysis::thermal::ThermalHeaterState;
@@ -204,6 +205,10 @@ fn span_fallback(f: SpanFallback) -> AnalysisLabel {
         SpanFallback::SecularExtrapolated => {
             label("全期間からの外挿", "Extrapolated from the whole span")
         }
+        SpanFallback::OneOffSpan => label(
+            "全期間の平均（1 回限りの軌道）",
+            "Mean over the whole span (one-off orbit)",
+        ),
     }
 }
 
@@ -314,6 +319,13 @@ fn launch_fit_direction(d: LaunchFitDirection) -> AnalysisLabel {
     }
 }
 
+fn interference_skip_reason(r: InterferenceSkipReason) -> AnalysisLabel {
+    match r {
+        InterferenceSkipReason::NoSize => label("寸法が無い", "No size"),
+        InterferenceSkipReason::InvalidSize => label("寸法が正の値でない", "Size is not positive"),
+    }
+}
+
 mod orbit;
 mod propulsion;
 
@@ -362,6 +374,7 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "SolarLife" => parse(value).map(solar_life),
         "ModalEstimateKind" => parse(value).map(modal_kind),
         "LaunchFitDirection" => parse(value).map(launch_fit_direction),
+        "InterferenceSkipReason" => parse(value).map(interference_skip_reason),
         "EnergyBalanceEvaluation" => parse(value).map(energy_balance_evaluation),
         "EnergyBalanceDuty" => parse(value).map(energy_balance_duty),
         "DurationTiming" => parse(value).map(duration_timing),
@@ -379,6 +392,9 @@ pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
         "EphemerisSource" => parse(value).map(propulsion::ephemeris_source),
         "ThrustSteering" => parse(value).map(propulsion::steering),
         "ThrustBalanceNote" => parse(value).map(propulsion::thrust_balance_note),
+        "LaunchWindowNote" => parse(value).map(propulsion::launch_window_note),
+        "LaunchWindowPointKind" => parse(value).map(propulsion::launch_window_point_kind),
+        "LaunchWindowQuantity" => parse(value).map(propulsion::launch_window_quantity),
         "TransferCheckNote" => parse(value).map(propulsion::transfer_check_note),
         "UnloadingNote" => parse(value).map(propulsion::unloading),
         _ => None,
@@ -447,7 +463,7 @@ pub fn kpi_label(key: KpiKey) -> AnalysisLabel {
     }
 }
 
-/// 期間不足の注意（key `span`）の項目名と文。
+/// 期間不足の注意（key `span`）の項目名と文。1 回限りの軌道（`OneOffSpan`）は期間不足ではなく、周回が無いことの説明。
 pub fn span_check(f: SpanFallback) -> (AnalysisLabel, AnalysisLabel) {
     let consequence = match f {
         SpanFallback::OrbitMeanOverSpan => label(
@@ -458,6 +474,15 @@ pub fn span_check(f: SpanFallback) -> (AnalysisLabel, AnalysisLabel) {
             "永年成分は全期間から外挿しています",
             "the secular part is extrapolated from the whole span",
         ),
+        SpanFallback::OneOffSpan => {
+            return (
+                label("解析期間", "Analysis span"),
+                label(
+                    "軌道は 1 回限りの区間（惑星間の巡航の、両端の天体の影響圏のあいだなど）で周回が無いため、軌道平均と 1 周あたりの量は区間全体で求めています（影響圏の中の双曲線の弧は解析しません）",
+                    "The orbit is a one-off arc (such as an interplanetary cruise between the spheres of influence of its end bodies; the hyperbolic legs inside them are not analysed) with no repeating orbit, so orbit averages and per-orbit quantities are taken over the whole arc",
+                ),
+            );
+        }
     };
     (
         label("解析期間", "Analysis span"),

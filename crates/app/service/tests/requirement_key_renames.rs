@@ -205,3 +205,47 @@ fn removing_an_entity_named_by_a_check_key_is_refused() {
         "Thermal node `BAT`",
     );
 }
+
+/// 既定の 1 部品 1 節点では、部品の ID が節点の名前（EPT はデモの `[nodes]` に載っていない）。その節点を名指す判定のキー
+/// （`range_high:EPT:operating`）と、節点の名前を書いた設定（明示の結合の両端・`[heat_node]` の値）は、部品の名前の変更に追従する。
+/// 節点を名指すキーがある間は、その部品の削除を拒む。
+#[test]
+fn per_part_node_names_follow_a_part_rename() {
+    use fune_model::value::{Quantity, SettingValue};
+    let tmp = tempfile::tempdir().unwrap();
+    let ws = workspace(&tmp);
+    let body = "statement = \"s\"\nquantity = \"Temperature\"\nsource = \"sys_judgement\"\n[constraint]\nkind = \"at_most\"\nvalue = { value = 40.0, unit = \"degC\" }\n[verify]\nanalysis = \"thermal.steady\"\ncheck = \"range_high:EPT:operating\"\n";
+    std::fs::write(tmp.path().join("demo-6u/requirements/X_NODE.toml"), body).unwrap();
+    let ws = Workspace::open(ws.root()).unwrap();
+    let set = |path: &str, value: SettingValue| Op::SetSetting {
+        path: path.into(),
+        value: Some(value),
+    };
+    apply(
+        &ws,
+        vec![
+            set(
+                "analysis.thermal.conductive.BUS.EPT",
+                SettingValue::Quantity(Quantity::new(0.3, "W/K")),
+            ),
+            set(
+                "analysis.thermal.heat_node.HTR_CAM",
+                SettingValue::Text("EPT".into()),
+            ),
+        ],
+    )
+    .unwrap();
+    let refused = apply(&ws, vec![Op::RemovePart { id: "EPT".into() }]).unwrap_err();
+    assert!(refused.contains("verify.check"), "{refused}");
+    apply(&ws, vec![rename_part("EPT", "EPT_A")]).unwrap();
+    assert_eq!(check_of(&ws, "X_NODE"), "range_high:EPT_A:operating");
+    let design = ws.snapshot().unwrap().design;
+    let t = design.analysis.thermal.as_ref().unwrap();
+    assert!(t.conductive["BUS"].contains_key("EPT_A") && !t.conductive["BUS"].contains_key("EPT"));
+    assert_eq!(t.heat_node["HTR_CAM"], "EPT_A");
+    let problems: Vec<_> = fune_model::check(&design)
+        .into_iter()
+        .filter(|d| d.is_error() && (d.code.starts_with("ref.") || d.code.starts_with("thermal.")))
+        .collect();
+    assert!(problems.is_empty(), "{problems:?}");
+}

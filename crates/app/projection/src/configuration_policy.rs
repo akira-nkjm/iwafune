@@ -32,16 +32,21 @@ pub fn effective_configuration<'a>(
 ) -> (Option<&'a str>, Option<ConfigurationSource>) {
     select(
         design,
-        Some(analysis_id),
+        is_launch_analysis(analysis_id),
         || case_phase(design, case),
         explicit,
     )
 }
 
+/// 打ち上げ向けの解析か（形態を打ち上げ条件から選ぶ）。
+pub(crate) fn is_launch_analysis(id: &str) -> bool {
+    LAUNCH_ANALYSES.contains(&id)
+}
+
 /// フェーズは選択に必要なときだけ文脈から読む。
 pub(crate) fn select<'a>(
     design: &'a Design,
-    analysis_id: Option<&str>,
+    launch: bool,
     phase: impl FnOnce() -> Option<&'a Phase>,
     explicit: Option<&'a str>,
 ) -> (Option<&'a str>, Option<ConfigurationSource>) {
@@ -49,7 +54,7 @@ pub(crate) fn select<'a>(
     if let Some(id) = explicit {
         return (Some(id), Some(Explicit));
     }
-    let (id, source) = if analysis_id.is_some_and(|id| LAUNCH_ANALYSES.contains(&id)) {
+    let (id, source) = if launch {
         let id = design
             .conditions
             .launch

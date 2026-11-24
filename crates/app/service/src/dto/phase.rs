@@ -43,6 +43,8 @@ pub struct PhaseFieldView {
     pub value: super::ValueData,
     /// 編集の欄の初期値（`fune phase set-field` に打つのと同じ文字列）
     pub text: String,
+    /// 選んで入れる欄の選択肢（軌道の `source`・`maneuver`。空なら自由入力）
+    pub choices: Vec<fune_projection::Choice>,
 }
 
 /// フェーズが姿勢則を上書きしているモード 1 つ（`[law.<モード>]`）。
@@ -72,8 +74,10 @@ pub struct PhaseView {
     pub modes: Vec<String>,
     /// 軌道を上書きしているか（`[orbit]`）
     pub orbit_overridden: bool,
-    /// 上書きの軌道の書かれた欄（`[orbit]`。`orbit_overridden` のときだけ）
+    /// 上書きの軌道の書かれた欄（`[orbit]`。`orbit_overridden` のときだけ。選んで入れる `source`・`maneuver` は未入力でも並べる）
     pub orbit: Vec<PhaseFieldView>,
+    /// 上書きの軌道が巡航の軌道を取る遷移のマヌーバ（`[orbit]` が `source = "transfer"` のとき）。一覧の「軌道は <マヌーバ> から」の表示用
+    pub orbit_from: Option<String>,
     /// 姿勢則の上書き（モードの ID 順。`[law.<モード>]`）
     pub laws: Vec<PhaseLawView>,
     /// このフェーズを指している解析ケース

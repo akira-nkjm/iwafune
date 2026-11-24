@@ -283,6 +283,14 @@ label_en = "J2 secular"
 label    = "数値積分"
 label_en = "Numerical"
 
+[enum.orbit_source.elements]
+label    = "ケプラー要素"
+label_en = "Kepler elements"
+
+[enum.orbit_source.transfer]
+label    = "日付つきの遷移"
+label_en = "Dated transfer"
+
 [enum.link_direction.down]
 label    = "ダウンリンク"
 label_en = "Downlink"

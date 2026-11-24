@@ -380,6 +380,8 @@ pub struct SettingView {
     /// 値の表示文字列（未設定なら null。文言は CLI と Web が作る）
     pub display: Option<String>,
     pub file: Option<String>,
+    /// 選んで入れる欄の選択肢（`conditions.orbit.source`・`conditions.orbit.maneuver`。空なら自由入力）
+    pub choices: Vec<fune_projection::Choice>,
 }
 
 /// 解析ケース。

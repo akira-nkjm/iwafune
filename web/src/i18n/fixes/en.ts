@@ -36,6 +36,7 @@ export const fixesEn: typeof fixesJa = {
         catalog_item: "Pick a catalog item",
         comm_link: "Pick a link",
         configuration: "Pick a configuration",
+        maneuver: "Pick a maneuver",
       },
       title: (path: string) => `Choose a value for ${path}`,
       prompt: {
@@ -43,12 +44,15 @@ export const fixesEn: typeof fixesJa = {
         catalog_item: (kinds: string) => `Choose the item of kind ${kinds} from the catalog.`,
         comm_link: () => "Choose one of the downlinks defined in the comm settings.",
         configuration: () => "Choose a configuration from the design.",
+        maneuver: () =>
+          "Choose a maneuver that has a dated transfer (departure and arrival dates).",
       },
       label: {
         part: "Part",
         catalog_item: "Catalog item",
         comm_link: "Link",
         configuration: "Configuration",
+        maneuver: "Maneuver",
       },
       choose: "Choose one",
       none: {
@@ -56,6 +60,7 @@ export const fixesEn: typeof fixesJa = {
         catalog_item: (kinds: string) => `The catalog has no item of kind ${kinds}. Add one first:`,
         comm_link: () => "No downlink is defined. Add a downlink first:",
         configuration: () => "No configuration is defined. Add a configuration first:",
+        maneuver: () => "No maneuver has a dated transfer. Add one first:",
       },
       summary: (path: string, chosen: string) => `Set ${path} to ${chosen}`,
       confirm: "Set",
