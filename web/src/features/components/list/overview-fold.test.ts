@@ -45,9 +45,15 @@ describe("一覧のグループのたたみ方", () => {
     expect(foldedByDefault(get("CELLS"), all)).toBe(true);
   });
 
-  it("系の枠（親の無いグループ）と組立品はたたまない", () => {
+  it("系の枠（親の無いグループ）はたたまない", () => {
     expect(foldable(get("power"), all)).toBe(false);
-    expect(foldable(get("SAP"), all)).toBe(false);
+  });
+
+  it("組立品もたためる（ふだんは開いておく）。子を持たない部品はたたまない", () => {
+    expect(foldable(get("SAP"), all)).toBe(true);
+    expect(foldedByDefault(get("SAP"), all)).toBe(false);
+    expect(foldable(get("SAP_A"), all)).toBe(false);
+    expect(partsWithin(get("SAP"), all)).toEqual(["SAP_A", "SAP_B"]);
   });
 
   it("中の部品は、組立品とその子まで数える", () => {

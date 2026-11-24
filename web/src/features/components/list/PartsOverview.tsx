@@ -1,9 +1,11 @@
+import { ChevronsDownUp } from "lucide-react";
 import { useState } from "react";
 import type { DesignView, PartRow, TreeNode } from "@/api/types";
 import { useLang, useT } from "@/i18n";
 import { CARD_WIDTH, CardGrid, NestedBoxes } from "@/kit/cards/CardGrid";
 import { GroupBox } from "@/kit/cards/GroupBox";
 import { ItemCard } from "@/kit/cards/ItemCard";
+import { DetailAction } from "@/kit/detail/DetailPane";
 import { Packed } from "@/kit/Packed";
 import { kindLabel, nodeName, systemTree } from "@/lib/design";
 import { systemTone } from "@/lib/systems";
@@ -20,6 +22,8 @@ import { foldable, foldedByDefault, partsWithin } from "./overview-fold";
  * 入れ子のグループは、1 枚のカード（名前と中の部品の数）にたためる（枠の見出しを押すとたたみ、カードを押すと開く）。
  * 中が部品だけのグループは、ふだんはたたんで並べる。中に組立品や別のグループを持つグループは、ふだんは開いておく。
  * 選んでいる部品を（組立品の中も含めて）持つグループは開いておく。
+ * 組立品の枠も、見出しの操作でカード 1 枚（組立品そのもののカード。右上は中の部品の数）にたためる。たたんだカードを押すと、
+ * 組立品を選んで枠を開く。
  * 開いた枠には名前の変更と解除の操作が付く。
  */
 export function PartsOverview({
@@ -149,6 +153,8 @@ function Box({
       actions={
         nestedGroup && node ? (
           <GroupActions group={node} nodes={ctx.nodes} onFold={onFold} />
+        ) : assembly && onFold ? (
+          <FoldAction onFold={onFold} />
         ) : undefined
       }
     >
@@ -158,9 +164,13 @@ function Box({
             const r = ctx.rows.get(n.id);
             return r ? <PartCard key={n.id} row={r} ctx={ctx} /> : null;
           })}
-          {folded.map((n) => (
-            <FoldedGroupCard key={n.id} node={n} ctx={ctx} onOpen={() => toggle(n.id)} />
-          ))}
+          {folded.map((n) =>
+            n.node === "part" ? (
+              <FoldedAssemblyCard key={n.id} node={n} ctx={ctx} onOpen={() => toggle(n.id)} />
+            ) : (
+              <FoldedGroupCard key={n.id} node={n} ctx={ctx} onOpen={() => toggle(n.id)} />
+            ),
+          )}
         </CardGrid>
       )}
       {inner.length > 0 && (
@@ -204,6 +214,52 @@ function FoldedGroupCard({ node, ctx, onOpen }: { node: TreeNode; ctx: Ctx; onOp
       title={rows.map((r) => r.id).join(", ")}
       selected={false}
       onSelect={onOpen}
+      width={CARD_WIDTH}
+    />
+  );
+}
+
+/** 組立品の枠の見出しの操作: たたむ（1 枚のカードに戻す）。押しても、見出しの「組立品を選ぶ」や枠の外の選択解除は起きない */
+function FoldAction({ onFold }: { onFold: () => void }) {
+  const tg = useT().components.group;
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: 見出しと枠の外へ押下を伝えないための囲み
+    // biome-ignore lint/a11y/useKeyWithClickEvents: 同上（中のボタンがキーで操作できる）
+    <span className="ml-auto flex gap-1" onClick={(e) => e.stopPropagation()}>
+      <DetailAction icon={ChevronsDownUp} label={tg.foldAction} onClick={onFold} />
+    </span>
+  );
+}
+
+/**
+ * たたんだ組立品のカード: 組立品そのものの部品のカードで、右上の数は中の部品の数。押すと組立品を選び、枠に開く。
+ */
+function FoldedAssemblyCard({
+  node,
+  ctx,
+  onOpen,
+}: {
+  node: TreeNode;
+  ctx: Ctx;
+  onOpen: () => void;
+}) {
+  const td = useT().components;
+  const row = ctx.rows.get(node.id);
+  const inside = partsWithin(node, ctx);
+  const kind = row ? ctx.kindName(row.kind) : "";
+  return (
+    <ItemCard
+      role={row?.role ?? null}
+      tone={systemTone(row?.system ?? node.system)}
+      caption={kind ? `${td.overviewAssembly} · ${kind}` : td.overviewAssembly}
+      name={node.id}
+      count={inside.length}
+      title={inside.join(", ")}
+      selected={ctx.selected === node.id}
+      onSelect={() => {
+        ctx.onSelect(node.id);
+        onOpen();
+      }}
       width={CARD_WIDTH}
     />
   );
