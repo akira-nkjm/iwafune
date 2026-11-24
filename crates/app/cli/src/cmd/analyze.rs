@@ -27,6 +27,7 @@ pub fn run(ws: &Workspace, a: &AnalyzeArgs, out: &Out) -> anyhow::Result<u8> {
         configuration: a.configuration.clone(),
         source,
         ops,
+        detail: a.detail,
     };
     let r = analysis::run_analysis(ws, &a.target, &req)?;
     if out.json {

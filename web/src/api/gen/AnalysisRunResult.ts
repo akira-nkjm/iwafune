@@ -80,4 +80,8 @@ part_heat?: Array<PartHeat>,
 /**
  * 入力に使った宇宙天気の表の版（日付で引いた宇宙天気を使った解析だけ。使わなければ欄を出さない）
  */
-space_weather?: SpaceWeatherVersion, };
+space_weather?: SpaceWeatherVersion, 
+/**
+ * 重い任意の出力（依頼の `detail` が真で、解析が持つときだけ。型は `AnalysisEntry.detail_type`。それ以外は欄を出さない）
+ */
+detail?: unknown, };

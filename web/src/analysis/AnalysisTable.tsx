@@ -155,7 +155,7 @@ export function AnalysisTableRow({
       {open && (
         <tr id={detailId}>
           <td colSpan={COLUMNS} className="px-3 pt-2 pb-4">
-            <AnalysisRowDetail result={result} design={design} />
+            <AnalysisRowDetail result={result} design={design} detailType={entry.detail_type} />
           </td>
         </tr>
       )}

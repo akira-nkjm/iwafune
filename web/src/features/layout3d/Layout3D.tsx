@@ -1,4 +1,4 @@
-import { type ReactNode, useId, useMemo, useReducer, useState } from "react";
+import { type ReactNode, useId, useMemo, useState } from "react";
 import { usePlaceBody } from "@/api/ops";
 import type { DesignView } from "@/api/types";
 import { PlacementSection } from "@/features/components/detail/PlacementSection";
@@ -9,6 +9,8 @@ import { NativeSelect } from "@/kit/forms/NativeSelect";
 import { RangeInput } from "@/kit/forms/RangeInput";
 import { Panel } from "@/kit/panel/Panel";
 import { PanelHeader } from "@/kit/panel/PanelHeader";
+import { useViewRequests } from "@/kit/scene3d/SceneShell";
+import { ViewControls3D } from "@/kit/scene3d/ViewControls3D";
 import { Chip } from "@/kit/selection/Chip";
 import { Segmented } from "@/kit/selection/Segmented";
 import { Switch } from "@/kit/selection/Switch";
@@ -26,8 +28,6 @@ import {
   type SunArrow,
   type V3,
 } from "./scene";
-import { ViewControls3D } from "./ViewControls3D";
-import type { ZoomRequest } from "./ViewInput3D";
 import {
   DEFAULT_SCENE_HELPERS,
   type FocusRequest,
@@ -205,12 +205,7 @@ function Layout3DFrame({
   const [hidden, setHidden] = useState<ReadonlySet<string>>(NONE_HIDDEN);
   const [helpers, setHelpers] = useState<SceneHelpers>(initialHelpers);
   const [focus, setFocus] = useState<FocusRequest | undefined>(undefined);
-  const [home, setHome] = useState(0);
-  // ボタンの拡大・縮小の依頼（押すたびに n が増える）
-  const [zoom, zoomBy] = useReducer(
-    (old: ZoomRequest | null, factor: number) => ({ n: (old?.n ?? 0) + 1, factor }),
-    null,
-  );
+  const { home, zoom, zoomBy, goHome } = useViewRequests();
   const { boxes, unplaced, dimensions } = useMemo(
     () => boxesOf(design, colorOf, scheme),
     [design, colorOf, scheme],
@@ -313,9 +308,7 @@ function Layout3DFrame({
               sun={helpers.sun ? (sun ?? null) : null}
             />
           )}
-          {boxes.length > 0 && (
-            <ViewControls3D onZoom={zoomBy} onHome={() => setHome((n) => n + 1)} />
-          )}
+          {boxes.length > 0 && <ViewControls3D onZoom={zoomBy} onHome={goHome} />}
           {overlay && (
             <div className="pointer-events-none absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)] rounded-control bg-panel/90 px-2 py-1">
               {overlay}

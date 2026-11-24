@@ -49,6 +49,7 @@ mod tests {
             overview: Default::default(),
             part_heat: None,
             space_weather: None,
+            detail: None,
         }
     }
 

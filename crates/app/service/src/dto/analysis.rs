@@ -19,6 +19,10 @@ pub struct AnalysisEntry {
     pub projectable: bool,
     /// この解析が出す KPI（並びは系のページに並べる順。値は実行の結果の `kpis`）
     pub kpis: Vec<KpiDef>,
+    /// 頼んだときだけ返す重い任意の出力（`AnalysisRunResult.detail`）の TS の型名。持たない解析は欄を出さない
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub detail_type: Option<String>,
 }
 
 /// 解析の実行の依頼（`POST /analyses/{id}`、`fune analyze <id>`）。
@@ -36,6 +40,8 @@ pub struct RunAnalysisRequest {
     /// 保存していない編集。書き込まずに当てた設計から入力を組み立てる（空なら保存済みの設計）。
     /// `source` が `given` のときは使わない
     pub ops: Vec<fune_ops::Op>,
+    /// 重い任意の出力（メッシュ上の場など。`AnalysisEntry.detail_type` を持つ解析だけ）も返す。既定は返さない
+    pub detail: bool,
 }
 
 /// 解析の入力の与え方。
@@ -122,6 +128,10 @@ pub struct AnalysisRunResult {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub space_weather: Option<super::data::SpaceWeatherVersion>,
+    /// 重い任意の出力（依頼の `detail` が真で、解析が持つときだけ。型は `AnalysisEntry.detail_type`。それ以外は欄を出さない）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(type = "unknown", optional)]
+    pub detail: Option<serde_json::Value>,
 }
 
 /// 解析の実行の状態。

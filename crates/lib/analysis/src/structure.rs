@@ -31,5 +31,5 @@ pub use mass_properties::{
     MassPropertiesSummary, mass_properties,
 };
 pub use modal_estimate::{ModalEstimate, ModalEstimateInput, ModalEstimateOutput};
-pub use modal_fem::{ModalFem, ModalFemInput, ModalFemOutput};
+pub use modal_fem::{ModalFem, ModalFemInput, ModalFemOutput, ModalFemShapes};
 pub use static_load::{StaticLoad, StaticLoadInput, StaticLoadOutput};
