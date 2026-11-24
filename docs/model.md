@@ -166,7 +166,7 @@ The distances and angles are computed in one place, `sat_astro::timeline::geomet
 [decay]
 span             = { value = 25, unit = "yr" }   # upper limit of the integration span (default 25 years)
 reentry_altitude = { value = 120, unit = "km" }  # perigee altitude regarded as reentry (default 120 km)
-drag_area        = { value = 0.06, unit = "m^2" } # drag area (if absent, the area of the structure's bounding box averaged over orientation = surface area / 4)
+drag_area        = { value = 0.06, unit = "m^2" } # drag area (if absent, the mean projected area over all directions of the union of the part boxes; §5.9)
 band             = { value = 2, unit = "km" }    # altitude band for orbit maintenance (if absent, drag is cancelled continuously)
 ```
 
@@ -174,7 +174,7 @@ The upper limit of the lifetime (the disposal requirement) is **not** a setting:
 Without such a requirement no lifetime check is made.
 
 Other input values use existing ones: the orbit (`conditions/orbit.toml`; the case β is not used), the mass (the sum of the parts' mass properties),
-the outer shape (the structure's `size`; the same `aocs::reference_box` as for aerodynamic torque), the drag coefficient (`analysis.aocs.drag_coefficient`, 2.2 if absent), and
+the outer shape (the boxes of all parts with a `size`, placed by the configuration in effect: the phase's configuration of the case, else the base; the same geometry as `structure.external_geometry`, §5.9), the drag coefficient (`analysis.aocs.drag_coefficient`, 2.2 if absent), and
 the mission duration (the requirement `input = "mission_duration"`; the period used to judge lifetime and to accumulate the orbit-maintenance ΔV; 1 year if absent).
 The propellant for orbit maintenance is the usable propellant of the propulsion analysis (`propulsion.propellant`, §7.7) (the propellant used with margin included); the propellant is not written here.
 The specific impulse is the lowest among the propulsion subsystem's thrusters (conservative side), and the mass before firing is the mass with propellant loaded (`wet_mass`). The propellant and thruster used appear in the result's
@@ -826,10 +826,19 @@ the heater switching times, duty (1e-9) and longest on period (1e-5 s instead of
 
 ### 5.3 Outer shape for attitude analysis
 
-The outer shape used for disturbances is the part with `size` and no mount parent, if there is exactly one such part.
+**Drag area** (#388 stage 3). `drag_area` in `[decay]`, if written, is used as it is (`used.area_source = given`). Otherwise the area is the **mean projected area over all directions of the union of the part boxes** (`used.area_source = body_boxes`): exactly the `mean_projected_area` that `structure.external_geometry` reports (one function, `ExternalGeometry::mean_projected_area`).
+The part boxes are the input `body_boxes` (`fune_projection::structure::boxes`, so the configuration in effect is followed). A design with a single box and nothing else gets `(xy + yz + zx) / 2` as before; the deployed demo gets a larger area than its structure box alone. With no part that has a `size` (and no written area) the analysis reports a missing input.
+
+**Aerodynamic and solar-pressure torque** (`aocs.rw_unloading`, #388 stage 4). The physical model is unchanged (force = coefficient × area along the flow, or away from the Sun, `τ = r × F`); only the area and the arm change. At every time sample the area is the exact projected area of the union of the part boxes along the flow (aerodynamic) or the Sun direction (solar pressure) in the body frame,
+and the arm is the perpendicular part of the vector from the centre of mass (the mass properties) to the centroid of that projection (`ExternalGeometry::projected`; the same function as for the report and the drag area). A direction that repeats (the Sun direction of a sun-pointing law) is solved once.
+`analysis.aocs.aero_area` / `srp_area` (an area) and `cp_offset_aero` / `cp_offset_srp` (a body-frame vector) replace the geometric value when they are written; each of area and arm is replaced on its own. The output `surfaces` says, for the aerodynamic and the solar-pressure surface, where the area and the centre of pressure came from (`written` or `geometry`)
+and the range of the area and the arm over the time series. With a written area and a written centre of pressure no boxes are needed; otherwise a part with a `size` is required (a missing input if none). Cd and Cr remain `drag_coefficient` and `srp_coefficient`.
+The aerodynamic area is no longer "the largest face of the structure box whatever the attitude": it is the area seen along the flow in the current attitude, so a design that relied on the old fixed value gets different torques (write `aero_area` to fix it).
+
+The thermal enclosure and the launch-fit envelope fallback still use the root part: the part with `size` and no mount parent, if there is exactly one such part.
 If there are several, the analysis stops with the candidate part IDs shown in the missing-input message, and does not choose by ID order. The handling of zero is as before.
 
-A root's `[pose]` is its placement in the body frame (§7.1), but the outline consumers (this reference box, the decay area, the launch-fit envelope fallback and the thermal enclosure) still read the box as "the root's `size`, centred on the body origin, aligned to the body axes" (#388 replaces this rule by geometry from all part boxes).
+A root's `[pose]` is its placement in the body frame (§7.1), but the remaining outline consumers (the launch-fit envelope fallback and the thermal enclosure) still read the box as "the root's `size`, centred on the body origin, aligned to the body axes".
 So that a pose is never silently misread (`fune_projection::outline`):
 - a root rotated by a multiple of 90° about the body axes gives the box extents permuted into the body axes (a quarter turn about z swaps the x and y extents), which is exact;
 - a root with an offset from the body origin, or a rotation that is not a multiple of 90°, keeps its `size` as written and `fune check` warns `outline.root_pose` (the offset is ignored and the box is not turned by these consumers; mass properties, interference and the 3-D view do use the pose).
@@ -1148,8 +1157,7 @@ Not modeled: the effect of a plume on what it hits (heating, force and torque, c
 ### 5.9 External geometry (`structure.external_geometry`, #388)
 
 `structure.external_geometry` reports the spacecraft's outer shape as the parts' boxes give it: the **projected area** along any direction (boxes hide each other, so the areas are not summed) and the **exposed surface area** (the faces not covered by other boxes).
-It is a report: no verdict is produced (one `ok` check with the numbers), and nothing consumes it yet. The drag area of `orbit.decay`, the aerodynamic and solar-pressure torques of `aocs.rw_unloading`, the launch envelope and the thermal enclosure still use what they used before;
-making them read this geometry is the next stages of #388 (the numbers they produce will change then, and the demo's results with them). The boxes are the same oriented boxes as §5.7 (`fune_projection::structure::boxes`, so the configuration in effect is followed), with the same skip of parts without a `size`.
+It is a report: no verdict is produced (one `ok` check with the numbers). The drag area of `orbit.decay` (§5.3) and the aerodynamic and solar-pressure torques of `aocs.rw_unloading` (§5.3) take their areas (and the torque arm) from the same geometry; the launch envelope (§5.6) takes the stowed envelope from the same boxes under a configuration, and the thermal enclosure still uses the root box. The boxes are the same oriented boxes as §5.7 (`fune_projection::structure::boxes`, so the configuration in effect is followed), with the same skip of parts without a `size`.
 
 - **Projected area**: the silhouette of an oriented box along a direction is the convex hull of its 8 projected corners (a hexagon at most; a rectangle along a face normal, a segment edge-on). The projected area is the **exact area of the union of the silhouettes**, by a slab sweep in `sat_astro::math::planar`:
   the plane is cut at every vertex ordinate and every edge-crossing ordinate, inside a slab each silhouette is a trapezoid and their order does not change, so the union of intervals gives the area and the first moments in closed form (the trapezoid rule and Simpson's rule are exact on linear widths).
@@ -1169,7 +1177,7 @@ making them read this geometry is the next stages of #388 (the numbers they prod
 - **Output**: `projected` (X, Y, Z: `area`, `centre`; +/− directions are equal), `mean_projected_area`, `min_projected` and `max_projected` (`area` and the `direction`; the extremes over the direction set and the three body axes: `directions_measured` in all, so the maximum is a lower bound and the minimum an upper bound of the true extremes),
   `exposed_area`, `exposed_by_direction` (−X, +X, −Y, +Y, −Z, +Z), `exposed_by_part`, `internal_parts`, `skipped`, `repeated`, `parts_with_box`, `checks`.
 
-Not modeled: real shapes (STEP, #344), shadowing between parts for the thermal surfaces and the solar cells (a later issue, on the same geometry), and the drag coefficient or the pressure centre that would use these areas.
+Not modeled: real shapes (STEP, #344), shadowing between parts for the thermal surfaces and the solar cells (a later issue, on the same geometry), and a drag or reflection coefficient that depends on the face.
 
 ## 6. Product tree and mounting
 

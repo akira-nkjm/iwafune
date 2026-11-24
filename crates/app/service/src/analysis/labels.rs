@@ -4,7 +4,7 @@
 //! `match` で書くので、解析に値が増えたら、ここが書かれるまでコンパイルが通らない。
 
 use crate::dto::{AnalysisLabel, AocsUnloadMeans, KpiKey};
-use sat_analysis::aocs::disturbance::DisturbanceKind;
+use sat_analysis::aocs::disturbance::{DisturbanceKind, SurfaceValueSource};
 use sat_analysis::aocs::sensor_fov::SensorFovTarget;
 use sat_analysis::aocs::slew_time::{SlewAssumption, SlewProfile};
 use sat_analysis::aocs::unload_time::{MtqFieldGap, MtqFieldReason, UnloadAssumption};
@@ -105,6 +105,20 @@ fn disturbance(k: DisturbanceKind) -> AnalysisLabel {
         DisturbanceKind::Srp => label("太陽輻射圧トルク", "Solar radiation pressure torque"),
         DisturbanceKind::Magnetic => label("残留磁気トルク", "Residual magnetic torque"),
         DisturbanceKind::Thrust => label("推力誤差トルク", "Thrust misalignment torque"),
+    }
+}
+
+fn surface_value_source(s: SurfaceValueSource) -> AnalysisLabel {
+    match s {
+        SurfaceValueSource::Written => label("設定に書いた値", "Written in the settings"),
+        SurfaceValueSource::Geometry => label(
+            "部品の箱の投影から向きごとに出した値",
+            "Per direction from the projection of the part boxes",
+        ),
+        SurfaceValueSource::CentreOfMass => label(
+            "重心に置いた（トルクは 0）",
+            "Placed at the centre of mass (zero torque)",
+        ),
     }
 }
 
@@ -410,6 +424,7 @@ fn parse<T: DeserializeOwned>(value: &str) -> Option<T> {
 pub fn value_label(ty: &str, value: &str) -> Option<AnalysisLabel> {
     match ty {
         "DisturbanceKind" => parse(value).map(disturbance),
+        "SurfaceValueSource" => parse(value).map(surface_value_source),
         "SensorFovTarget" => parse(value).map(sensor_target),
         "UnloadAssumption" => parse(value).map(unload_assumption),
         "MtqFieldReason" => parse(value).map(mtq_field_reason),

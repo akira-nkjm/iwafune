@@ -91,6 +91,7 @@ fn rw_unloading_and_disturbance_fields_record_torque_kind() {
         "period": 5400.0, "complete_orbits": 1, "span_fallback": null,
         "usable_momentum_fraction": 0.8,
         "disturbances": [{"key": "srp", "peak": 0.012, "mean": 0.006}],
+        "surfaces": [],
         "peak_disturbance": 0.012,
         "secular_per_orbit_eci": {"x": 0.0, "y": 0.01, "z": 0.0},
         "secular_per_orbit": 0.01, "cyclic_amplitude": 0.001,

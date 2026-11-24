@@ -2,6 +2,7 @@
 import type { Check } from "./Check";
 import type { RwUnloadingDisturbance } from "./RwUnloadingDisturbance";
 import type { RwUnloadingRcs } from "./RwUnloadingRcs";
+import type { RwUnloadingSurface } from "./RwUnloadingSurface";
 import type { RwUnloadingWheelResult } from "./RwUnloadingWheelResult";
 import type { Series } from "./Series";
 import type { SpanFallback } from "./SpanFallback";
@@ -27,6 +28,10 @@ usable_momentum_fraction: number,
  * 種類別の擾乱トルク（大きさの最大・平均）
  */
 disturbances: Array<RwUnloadingDisturbance>, 
+/**
+ * 空力・太陽輻射圧の面の、受圧面積と腕の出どころ（書かれた値か、部品の箱から出した値か）と範囲
+ */
+surfaces: Array<RwUnloadingSurface>, 
 /**
  * 合計の擾乱トルクの大きさの最大
  */
