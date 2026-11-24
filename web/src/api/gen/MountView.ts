@@ -38,4 +38,8 @@ point_pose: PoseQuantities,
 /**
  * 取付点に対する位置（書かれていなければ 0）・姿勢（書かれていなければ 0°）
  */
-relative: PoseQuantities, };
+relative: PoseQuantities, 
+/**
+ * 問い合わせた形態がこの部品の姿勢を上書きしているか（基準を読んだときは常に false。`authored_*`・`relative` は上書きの値）
+ */
+overridden: boolean, };

@@ -6,6 +6,7 @@
 //! | `text` | `fune set`・`fune unset`・`fune setting set|unset` のパスと値（[`set_op`]・[`unset_op`]）と、値の読み方 |
 //! | `catalog` | `fune catalog set|unset`・`fune catalog source add`・`add-local`（[`catalog_source_add_op`]・[`catalog_local_add_op`]） |
 //! | `command` | 名詞のコマンドの引数（[`command_ops`]。`fune net set|unset`・`fune part place`・`fune mode set|unset`） |
+//! | `configuration` | `fune configuration add\|set\|unset-pose` の引数（[`configuration_op`]・[`unset_pose_op`]。逆の向きは `query::configurations`） |
 //! | `defs` | `fune attr add`・`fune kind add` |
 //! | `eclipse` | 季節解析の代表標本から新しい解析ケースの SetCase を作る |
 //! | `sun_distance` | 太陽を回る軌道の近日点・遠日点から新しい解析ケースの SetCase を作る |
@@ -29,6 +30,7 @@ use std::path::{Component, Path, PathBuf};
 
 mod catalog;
 mod command;
+mod configuration;
 mod defs;
 mod eclipse;
 mod ground;
@@ -48,6 +50,7 @@ pub use command::{
     command_ops, duty_from_text, mode_duration_op, mode_move_op, mode_set_op, mode_timing_op,
     net_set_ops, net_unset_op, sequence_set_op,
 };
+pub use configuration::{configuration_op, unset_pose_op};
 pub use defs::{
     attr_add_op, attr_replace_op, kind_add_op, kind_replace_op, port_template_from_text,
 };

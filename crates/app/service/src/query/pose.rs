@@ -2,8 +2,9 @@
 //! 姿勢は固定軸 X → Y → Z の角度（換算は `sat_astro::math::Quat::to_fixed_xyz`）。合成は `fune_projection::pose`。
 
 use crate::dto::{BodyPoseView, MountPointView, MountView, PoseQuantities};
+use crate::error::{Result, ServiceError};
 use crate::units::quantity_from_si;
-use fune_model::design::{DEFAULT_POSITION_UNIT, Design, Part, position_unit as unit_of};
+use fune_model::design::{DEFAULT_POSITION_UNIT, Design, Part, Pose, position_unit as unit_of};
 use fune_model::resolve::{PoseSi, Resolved, ResolvedPart, pose_si};
 use sat_astro::math::Quat;
 
@@ -14,11 +15,49 @@ const ANGLE_STEP_DEG: f64 = 1e-6;
 /// これより小さい位置 [m] は 0 と見せる（合成の丸め誤差で 1e-17 m などと出ないように）。
 const LENGTH_EPS_M: f64 = 1e-12;
 
+/// 問い合わせの形態が実在するか（`None` は基準で常に実在。無い ID は NotFound。`Resolved::in_configuration` は無い ID を
+/// 基準として扱うので、入口でここを通して取り違えを防ぐ）。
+pub(crate) fn require_configuration(design: &Design, configuration: Option<&str>) -> Result<()> {
+    match configuration {
+        Some(id) if !design.configurations.contains_key(id) => {
+            Err(ServiceError::not_found("configuration", id))
+        }
+        _ => Ok(()),
+    }
+}
+
+/// 形態 `configuration`（`None` は基準）で解決した設計。**サービスが形態を選ぶのはここだけ**（読み取りの配置の表示と、
+/// 機体座標での配置の逆変換が通る）。
+pub(crate) fn resolved_in<'a>(resolved: &'a Resolved, configuration: Option<&str>) -> &'a Resolved {
+    resolved.in_configuration(configuration)
+}
+
+/// 形態 `configuration` で有効な、部品に書かれた姿勢（形態が書いていればその行、無ければ部品の `[pose]`）。
+/// **サービスが書かれた姿勢を選ぶのはここだけ**（選び方は `Design::pose_in`）。
+pub(crate) fn authored_pose<'a>(
+    design: &'a Design,
+    part: &'a Part,
+    configuration: Option<&str>,
+) -> Option<&'a Pose> {
+    design.pose_in(part, configuration)
+}
+
+/// 形態が部品の姿勢を上書きしているか（基準は常に false）。
+pub(crate) fn is_overridden(design: &Design, part: &str, configuration: Option<&str>) -> bool {
+    configuration
+        .and_then(|c| design.configurations.get(c))
+        .is_some_and(|c| c.pose.contains_key(part))
+}
+
 /// 部品の配置の位置を見せる単位: 取付点に対する位置の書かれた単位 → 取付点の位置の書かれた単位 → 既定（m）。
 /// 取付点の位置・取付点に対する位置・機体座標の位置を、この 1 つの単位でそろえる。
-pub(crate) fn position_unit(design: &Design, part: Option<&Part>) -> String {
+pub(crate) fn position_unit(
+    design: &Design,
+    part: Option<&Part>,
+    configuration: Option<&str>,
+) -> String {
     let offset = part
-        .and_then(|p| p.pose.as_ref())
+        .and_then(|p| authored_pose(design, p, configuration))
         .and_then(|p| p.position.as_ref());
     let point = part.and_then(|p| p.mount.as_ref()).and_then(|m| {
         let parent = design.parts.get(m.on.as_str())?;
@@ -35,9 +74,14 @@ pub(crate) fn position_unit(design: &Design, part: Option<&Part>) -> String {
 }
 
 /// 取付先と、取付点に対する位置・姿勢（取付のある部品だけ）。
-pub(crate) fn mount_view(part: Option<&Part>, rp: &ResolvedPart, unit: &str) -> Option<MountView> {
+pub(crate) fn mount_view(
+    design: &Design,
+    part: Option<&Part>,
+    rp: &ResolvedPart,
+    (unit, configuration): (&str, Option<&str>),
+) -> Option<MountView> {
     let m = rp.mount.as_ref()?;
-    let pose = part.and_then(|p| p.pose.as_ref());
+    let pose = part.and_then(|p| authored_pose(design, p, configuration));
     Some(MountView {
         on: m.on.clone(),
         point: m.point.clone(),
@@ -47,6 +91,7 @@ pub(crate) fn mount_view(part: Option<&Part>, rp: &ResolvedPart, unit: &str) -> 
         authored_orientation: pose.and_then(|p| p.orientation.clone()),
         point_pose: quantities(&m.point_pose, unit),
         relative: quantities(&m.pose, unit),
+        overridden: is_overridden(design, &rp.id, configuration),
     })
 }
 

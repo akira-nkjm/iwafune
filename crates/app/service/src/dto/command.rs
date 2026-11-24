@@ -95,6 +95,10 @@ pub enum CommandText {
         #[serde(default)]
         phase: Option<String>,
     },
+    /// `fune configuration add <ID> --label … --description …`（同じ ID があれば拒む）
+    ConfigurationAdd(super::ConfigurationText),
+    /// `fune configuration set <ID> …`（無ければ作り、あれば見出しの欄を置き換える。部品ごとの姿勢は今のまま残す）
+    ConfigurationSet(super::ConfigurationText),
     /// `fune ground add <ID> --label … --latitude "35.7 deg" …`（`conditions/ground/<ID>.toml` を作る。同じ ID があれば拒む）
     GroundAdd(super::GroundAddText),
     /// `fune requirement add <ID> --statement … --quantity Mass --kind at_most --value "12 kg" …`（同じ ID があれば拒む）
@@ -174,6 +178,10 @@ pub struct PlaceText {
     /// 省略か空なら書かない。`orientation` と両方は書けない
     #[serde(default)]
     pub rotation: Option<String>,
+    /// この形態に姿勢を書く（`--configuration`。取付は変えない。取付先・取付点は書かなくてよく、書くなら部品の取付と同じ）。
+    /// 省略か空なら部品自身の取付と姿勢
+    #[serde(default)]
+    pub configuration: Option<String>,
 }
 
 /// モード表のセルの編集（`fune mode set|unset` の引数の列）。
