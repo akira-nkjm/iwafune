@@ -3,6 +3,7 @@ import type { ThermalConductanceUsed } from "./ThermalConductanceUsed";
 import type { ThermalContactUsed } from "./ThermalContactUsed";
 import type { ThermalEnclosureUsed } from "./ThermalEnclosureUsed";
 import type { ThermalExchangeUsed } from "./ThermalExchangeUsed";
+import type { ThermalPlateUsed } from "./ThermalPlateUsed";
 
 /**
  * 熱ネットワークが使う結合の一覧。
@@ -15,4 +16,8 @@ enclosure: ThermalEnclosureUsed | null,
 /**
  * 取付の伝導を接触面積から出す設定のときだけ（出せなかった取付はここに理由つきで残る）
  */
-mount_contact?: ThermalContactUsed, };
+mount_contact?: ThermalContactUsed, 
+/**
+ * 升に分けた板ごとの報告（板を分けたときだけ。結合は板の部品の名前のまま上に並び、升への配分はここの規則）
+ */
+plates?: Array<ThermalPlateUsed>, };

@@ -49,6 +49,7 @@ fn case(id: &str, other_w: f64, heaters: Vec<ThermalHeater>) -> ThermalSteadyCas
 fn run(cases: Vec<ThermalSteadyCase>) -> ThermalSteadyOutput {
     ThermalSteady::run(&ThermalSteadyInput {
         network: ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![node("n", None)],
             conductive: vec![],

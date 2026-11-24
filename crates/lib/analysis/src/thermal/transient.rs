@@ -12,12 +12,13 @@ use crate::spec::{
 };
 use crate::thermal::heater::{ThermalHeaterRun, run_checks};
 use crate::thermal::network::{
-    Compiled, ThermalCouplings, ThermalHeater, ThermalLoad, ThermalModeLoads, ThermalNetwork,
+    Compiled, ThermalCell, ThermalCouplings, ThermalHeater, ThermalLoad, ThermalModeLoads,
+    ThermalNetwork, ThermalNode, ThermalPlateUsed,
 };
 use crate::thermal::orbit_heat::{ThermalEnvironment, ThermalEnvironmentUsed};
 use crate::thermal::range::{
-    ThermalMarginPolicy, ThermalMarginUsed, ThermalNodeRange, ThermalRangeMargin, range_checks,
-    range_margins, worst_verdict,
+    NodeJudged, ThermalMarginPolicy, ThermalMarginUsed, ThermalNodeRange, ThermalRangeMargin,
+    node_checks, range_margins, worst_verdict,
 };
 use sat_astro::timeline::{
     OrbitPlaneTrack, TimelineEvaluator, TimelineSpec, build, orbit_plane_track, time_mean,
@@ -110,6 +111,10 @@ pub struct ThermalTransientInput {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThermalTransientNodeResult {
     pub node: String,
+    /// 板の升の節点のとき、どの板のどの升か
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub cell: Option<ThermalCell>,
     pub min: Qty<Temperature>,
     pub max: Qty<Temperature>,
     pub mean: Qty<Temperature>,
@@ -196,9 +201,9 @@ impl Analysis for ThermalTransient {
         let run = sim.run(&t, temps, &mut control)?;
         let integration = ThermalIntegration::new(&sim.cfg, input, run.segments, &run.cost);
         let (runs, heater_power) = control.finish(&input.heaters, t0, t_end);
-        let ranges = node_ranges(input)?;
+        let ranges = node_ranges(&net.nodes, input)?;
         let mut output = build_output(
-            &input.network,
+            &net.nodes,
             &ranges,
             t,
             &run.history,
@@ -222,28 +227,58 @@ impl Analysis for ThermalTransient {
             }));
         output.heaters = runs;
         output.checks.extend(phases.checks);
+        output.checks.extend(plate_step_checks(
+            &output.couplings.plates,
+            timeline.sampling.step.value(),
+        ));
         Ok(output)
     }
 }
 
+/// 板の升の最小の時定数が、設定した刻み（出力の時刻の間隔）のこの倍率を下回れば警告する。陽解法は時定数の数倍までの刻みしか
+/// 取れないので、この割合より速い升は 1 つの出力の間隔に何十もの刻みを使う（費用の目安は docs/model.md の "Stiff networks"）。
+pub const PLATE_STEP_WARNING_FRACTION: f64 = 0.1;
+
+/// 升に分けた板ごとの刻みの警告（key は `plate_step:<部品>`）。最小の時定数は `ThermalPlateUsed::min_time_constant`。
+fn plate_step_checks(plates: &[ThermalPlateUsed], step_s: f64) -> Vec<Check> {
+    plates
+        .iter()
+        .filter(|p| p.min_time_constant.value() < PLATE_STEP_WARNING_FRACTION * step_s)
+        .map(|p| {
+            Check::new(
+                &format!("plate_step:{}", p.part),
+                &format!("{} cell time constant", p.part),
+                Verdict::Warning,
+                format!(
+                    "The smallest cell time constant of plate {} is {:.3} s, below {} times the {:.0} s time step, so the explicit solver takes many small steps. Use fewer cells ({} × {} now)",
+                    p.part,
+                    p.min_time_constant.value(),
+                    PLATE_STEP_WARNING_FRACTION,
+                    step_s,
+                    p.cells[0],
+                    p.cells[1]
+                ),
+            )
+        })
+        .collect()
+}
+
 /// 節点ごとの温度範囲（区間のモードがあれば部品の電源の状態で選ぶ）。
-fn node_ranges(input: &ThermalTransientInput) -> Result<Vec<Vec<ThermalNodeRange>>, AnalysisError> {
+fn node_ranges(
+    nodes: &[ThermalNode],
+    input: &ThermalTransientInput,
+) -> Result<Vec<Vec<ThermalNodeRange>>, AnalysisError> {
     let modes: Vec<_> = input
         .phases
         .iter()
         .map(|p| p.mode_loads.as_ref().map(|l| &l.mode))
         .collect();
-    input
-        .network
-        .nodes
-        .iter()
-        .map(|n| n.ranges_in(&modes))
-        .collect()
+    nodes.iter().map(|n| n.ranges_in(&modes)).collect()
 }
 
 /// 出力を組み立てる。`ranges` は節点ごとの温度範囲（`ThermalNode::ranges_in`。入力の節点の順）。
 fn build_output(
-    network: &ThermalNetwork,
+    network: &[ThermalNode],
     ranges: &[Vec<ThermalNodeRange>],
     t: Vec<f64>,
     history: &[Vec<f64>],
@@ -251,18 +286,17 @@ fn build_output(
     environment: ThermalEnvironmentUsed,
     margin: ThermalMarginUsed,
 ) -> ThermalTransientOutput {
-    let mut channels = Vec::with_capacity(network.nodes.len() + 1);
-    let mut nodes = Vec::with_capacity(network.nodes.len());
-    let mut checks = Vec::new();
-    for (i, n) in network.nodes.iter().enumerate() {
+    let mut channels = Vec::with_capacity(network.len() + 1);
+    let mut nodes = Vec::with_capacity(network.len());
+    for (i, n) in network.iter().enumerate() {
         let values: Vec<f64> = history.iter().map(|row| row[i]).collect();
         let (i_min, min) = extreme(&values, |a, b| a < b);
         let (i_max, max) = extreme(&values, |a, b| a > b);
         let mean = time_mean(&t, &values);
         let ranges = range_margins(min, max, &ranges[i], &margin);
-        checks.extend(range_checks(&n.id, &ranges, &margin));
         nodes.push(ThermalTransientNodeResult {
             node: n.id.clone(),
+            cell: n.cell.clone(),
             min: Qty::from_raw(min),
             max: Qty::from_raw(max),
             mean: Qty::from_raw(mean),
@@ -272,9 +306,18 @@ fn build_output(
             ranges,
         });
         channels.push(
-            Channel::of::<Temperature>(&n.id, ChannelKind::NodeTemperature, values).about(&n.id),
+            Channel::of::<Temperature>(&n.id, ChannelKind::NodeTemperature, values)
+                .about(n.cell.as_ref().map_or(&n.id, |c| &c.part)),
         );
     }
+    let checks = node_checks(
+        nodes.iter().map(|n| NodeJudged {
+            id: &n.node,
+            cell: n.cell.as_ref(),
+            ranges: &n.ranges,
+        }),
+        &margin,
+    );
     channels.push(Channel::of::<Power>(
         "absorbed",
         ChannelKind::AbsorbedHeat,
