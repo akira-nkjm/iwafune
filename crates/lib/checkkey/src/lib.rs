@@ -21,6 +21,7 @@
 //! | `frequency` | `frequency:<向き>`（`lateral`・`axial`。打ち上げ適合） | 名前ではない欄 |
 //! | `overlap` | `overlap:<部品>:<部品>` | 箱が重なっている 2 つの部品（ID の昇順） |
 //! | `obstruction` | `obstruction:<担い手の部品>:<部品>` | 円錐（噴流・視野）を持つ部品と、その円錐に入る部品 |
+//! | `dose` | `dose:<部品>` | 部品（放射線の総線量の余裕） |
 //! | `range_low`・`range_high` | `<族>:<節点>:<範囲の種類>` | 熱の節点（`analysis/thermal.toml` の `[nodes]` のキー。部品の ID ではない） |
 
 /// キーに名前が入るエンティティの種類。
@@ -50,6 +51,7 @@ pub mod family {
     pub const FREQUENCY: &str = "frequency";
     pub const OVERLAP: &str = "overlap";
     pub const OBSTRUCTION: &str = "obstruction";
+    pub const DOSE: &str = "dose";
     pub const RANGE_LOW: &str = "range_low";
     pub const RANGE_HIGH: &str = "range_high";
 }
@@ -121,6 +123,10 @@ const FAMILIES: &[Family] = &[
     Family {
         name: family::OBSTRUCTION,
         slots: &[(':', Entity(Part)), (':', Entity(Part))],
+    },
+    Family {
+        name: family::DOSE,
+        slots: &[(':', Entity(Part))],
     },
     Family {
         name: family::RANGE_LOW,
@@ -199,6 +205,11 @@ pub fn modal_frequency(family: &str, part: &str) -> String {
 /// 打ち上げ適合の固有振動数の判定のキー `frequency:<向き>`（向きは `lateral` か `axial`）。
 pub fn launch_frequency(direction: &str) -> String {
     build(family::FREQUENCY, &[direction])
+}
+
+/// 放射線の総線量の判定のキー `dose:<部品>`。
+pub fn total_dose(part: &str) -> String {
+    build(family::DOSE, &[part])
 }
 
 /// 温度範囲の判定のキー（`family` は [`family::RANGE_LOW`]・[`family::RANGE_HIGH`]。`kind` は範囲の種類）。

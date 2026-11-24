@@ -59,7 +59,7 @@ pub use maneuver::{ManeuverTargetView, ManeuverText, ManeuverView};
 pub use phase::{PhaseFieldView, PhaseLawView, PhaseText, PhaseView};
 pub use requirement::{
     ComplianceCase, ComplianceReport, ComplianceRow, ComplianceSummary, ConstraintView,
-    NotVerifiedReason, RequirementText, RequirementView,
+    DecisiveCheck, NotVerifiedReason, RequirementText, RequirementView,
 };
 mod overview;
 pub use overview::{

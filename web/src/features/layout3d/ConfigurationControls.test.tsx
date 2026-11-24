@@ -1,7 +1,7 @@
 import { type ComponentProps, isValidElement, type ReactNode } from "react";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ConfigurationText, ConfigurationView } from "@/api/types";
-import { getT } from "@/i18n";
+import { getT, setLang } from "@/i18n";
 import { OpDialog } from "@/ops/OpDialog";
 import { RenameDialog } from "@/ops/RenameDialog";
 import { findElement, fire } from "@/test/elements";
@@ -76,6 +76,7 @@ afterEach(() => {
 const stowed: ConfigurationView = {
   id: "STOWED",
   label: "Stowed",
+  label_en: null,
   description: "Folded",
   overridden: [],
   text: { id: "STOWED", label: "Stowed", description: "Folded" },
@@ -103,18 +104,20 @@ function field(node: ReactNode, key: keyof ConfigurationText, value: string) {
   });
 }
 
-it("追加と編集のフォームは ID・表示名・説明をコマンドに渡す", () => {
+it("追加と編集のフォームは ID・表示名・英語名・説明をコマンドに渡す", () => {
   open(text.add, null);
   form();
   expect(state.command).toHaveBeenLastCalledWith(null);
   field(form(), "id", "DEPLOYED");
-  field(form(), "label", "Deployed");
+  field(form(), "label", "展開");
+  field(form(), "label_en", "Deployed");
   field(form(), "description", "Open");
   form();
   expect(state.command).toHaveBeenLastCalledWith({
     command: "configuration_add",
     id: "DEPLOYED",
-    label: "Deployed",
+    label: "展開",
+    label_en: "Deployed",
     description: "Open",
   });
 
@@ -124,12 +127,14 @@ it("追加と編集のフォームは ID・表示名・説明をコマンドに�
     true,
   );
   field(form(), "label", "Launch");
+  field(form(), "label_en", "");
   field(form(), "description", "");
   form();
   expect(state.command).toHaveBeenLastCalledWith({
     command: "configuration_set",
     id: "STOWED",
     label: "Launch",
+    label_en: "",
     description: "",
   });
 });
@@ -182,4 +187,21 @@ it("切り替え欄は形態 ID を選び、基準を選ぶと指定を外す", 
   fire(select(null), "onChange", { target: { value: "STOWED" } });
   fire(select(stowed), "onChange", { target: { value: "" } });
   expect(state.select.mock.calls).toEqual([["STOWED"], [null]]);
+});
+
+it("切り替え欄の形態の名前は、表示の言語の名前（英語は英語名か ID、日本語は ID と表示名）", () => {
+  const labels = (configurations: ConfigurationView[]) => {
+    const select = findElement(
+      ConfigurationControls({ configurations, selected: null, onSelect: state.select }),
+      (props) => props["aria-label"] !== undefined && Array.isArray(props.options),
+    )!;
+    return (select.props.options as { value: string; label: string }[]).map((o) => o.label);
+  };
+  const named = { ...stowed, label: "収納", label_en: "Stowed" };
+  setLang("en");
+  expect(labels([stowed])).toEqual(["STOWED"]);
+  expect(labels([named])).toEqual(["STOWED (Stowed)"]);
+  setLang("ja");
+  expect(labels([stowed])).toEqual(["STOWED（Stowed）"]);
+  expect(labels([named])).toEqual(["STOWED（収納）"]);
 });

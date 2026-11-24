@@ -113,6 +113,8 @@ pub enum KpiKey {
     LaunchWindowDeltaV,
     /// 地球までの距離の最大（区間のうち最大）
     GreatestEarthDistance,
+    /// 放射線の総線量の余裕の最小（許容線量を持つ部品のうち最小）
+    TotalDoseMargin,
 }
 
 /// KPI の定義（`GET /analyses` の `AnalysisEntry.kpis`。結果が届く前に名前を並べるのに使う）。

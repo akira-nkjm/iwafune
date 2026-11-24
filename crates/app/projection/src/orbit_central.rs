@@ -3,8 +3,11 @@
 //! 設計の軌道（`conditions/orbit.toml`）の設定を読むのは [`design_orbit`] と `Context::orbit_settings` だけ。
 
 use fune_model::Design;
-use fune_model::design::{CentralBodyKind, OrbitSettings, OrbitSource};
+use fune_model::design::{
+    CentralBodyKind, HaloBranchKind, LibrationPointKind, OrbitSettings, OrbitSource,
+};
 use sat_astro::ephem::CentralBody;
+use sat_astro::orbit::cr3bp::{Branch, LibrationPoint};
 
 /// 設計の中心天体 → sat-astro の中心天体（μ・半径・暦・環境の値は sat-astro と解析が持つ）。
 pub fn central_body(c: CentralBodyKind) -> CentralBody {
@@ -22,19 +25,41 @@ pub fn central_body(c: CentralBodyKind) -> CentralBody {
     }
 }
 
+/// 設計のラグランジュ点 → sat-astro のラグランジュ点。
+pub fn libration_point(p: LibrationPointKind) -> LibrationPoint {
+    match p {
+        LibrationPointKind::L1 => LibrationPoint::L1,
+        LibrationPointKind::L2 => LibrationPoint::L2,
+        LibrationPointKind::L3 => LibrationPoint::L3,
+        LibrationPointKind::L4 => LibrationPoint::L4,
+        LibrationPointKind::L5 => LibrationPoint::L5,
+    }
+}
+
+/// 設計のハロー軌道の枝 → sat-astro の枝。
+pub fn halo_branch(b: HaloBranchKind) -> Branch {
+    match b {
+        HaloBranchKind::North => Branch::North,
+        HaloBranchKind::South => Branch::South,
+    }
+}
+
 /// 設計の軌道の設定（`conditions/orbit.toml`）。ケースのフェーズを見ない。
 pub(crate) fn design_orbit(design: &Design) -> Option<&OrbitSettings> {
     design.conditions.orbit.as_ref()
 }
 
 /// マヌーバの列の始めの軌道の中心天体（ケースを選ばない設計の軌道の中心。`maneuver_dates::central_before` の出発点）。
-/// ケプラー要素の軌道と状態ベクトルの軌道は `central`（省略は地球）。日付つきの遷移の巡航の軌道（`transfer`）は、出発の天体を何も語らない
+/// ラグランジュ点の軌道は副天体（原点の天体）。ケプラー要素の軌道と状態ベクトルの軌道は `central`（省略は地球）。日付つきの遷移の巡航の軌道（`transfer`）は、出発の天体を何も語らない
 /// （巡航は親のまわりの軌道で、出発の惑星のまわりの軌道ではない。循環もさせない）ので既定の天体（地球）とし、
 /// マヌーバの `after` の列が替える。
 pub(crate) fn design_orbit_central(design: &Design) -> CentralBody {
     match design_orbit(design) {
         Some(o) if matches!(o.source_kind(), OrbitSource::Elements | OrbitSource::State) => {
             o.central.map(central_body).unwrap_or_default()
+        }
+        Some(o) if o.source_kind() == OrbitSource::Libration => {
+            o.secondary.map(central_body).unwrap_or_default()
         }
         _ => CentralBody::default(),
     }
@@ -45,6 +70,30 @@ mod tests {
     use super::*;
 
     /// 中心天体の綴り（fune-model）と sat-astro の綴りが一致する。
+    #[test]
+    fn libration_spellings_match_sat_astro() {
+        for &kind in LibrationPointKind::ALL {
+            let model = serde_json::to_value(kind).unwrap();
+            assert_eq!(model, serde_json::to_value(libration_point(kind)).unwrap());
+        }
+        for &kind in HaloBranchKind::ALL {
+            let model = serde_json::to_value(kind).unwrap();
+            assert_eq!(model, serde_json::to_value(halo_branch(kind)).unwrap());
+        }
+    }
+
+    /// 暦で回っている先の天体（model の `CentralBodyKind::parent`）は sat-astro の `CentralBody::parent` と同じ。
+    #[test]
+    fn parents_match_sat_astro() {
+        for &kind in CentralBodyKind::ALL {
+            assert_eq!(
+                kind.parent().map(central_body),
+                central_body(kind).parent(),
+                "{kind}"
+            );
+        }
+    }
+
     #[test]
     fn central_body_spellings_match_sat_astro() {
         for &kind in CentralBodyKind::ALL {

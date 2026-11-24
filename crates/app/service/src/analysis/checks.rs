@@ -2,7 +2,7 @@
 //! 評価できなかった理由（`mtq_field_gap`）は、語彙から判定を作る。
 
 use super::dims::pointer_token;
-use super::labels::{mtq_field_check, span_check};
+use super::labels::{mtq_field_check, orbit_model_check, span_check};
 use crate::dto::CheckView;
 use sat_analysis::aocs::unload_time::{MTQ_FIELD_MODEL_CHECK, MtqFieldGap};
 use sat_analysis::spec::{Check, SpanFallback, Verdict};
@@ -13,6 +13,46 @@ const SPAN_FALLBACK: &str = "span_fallback";
 
 /// MTQ を中心天体の磁場で評価できなかった理由を入れる欄（`aocs.unload_time` の出力）。
 const MTQ_FIELD_GAP: &str = "mtq_field_gap";
+
+/// 解析の入力の中の、円制限三体問題の軌道（`source = "libration"`）を暦の 2 天体の位置に載せた軌道について、そのことを伝える説明（key `orbit_model`。
+/// 判定は ok で、結果を悪くしない）。軌道は入力のどこにあってもよく（時系列の軌道・フェーズの軌道・通信の軌道）、見つかった最初の場所を `at` に
+/// （`/input` からの JSON Pointer）入れて 1 つだけ作る。ほかの軌道の入力では空（出力は変わらない）。
+pub fn orbit_model_checks(input: Option<&Value>) -> Vec<CheckView> {
+    fn find(value: &Value, at: &str) -> Option<String> {
+        match value {
+            Value::Object(map) => {
+                if map.get("source").and_then(Value::as_str)
+                    == Some(sat_astro::orbit::LIBRATION_SOURCE)
+                    && map.contains_key("point")
+                {
+                    return Some(at.to_owned());
+                }
+                map.iter()
+                    .find_map(|(k, v)| find(v, &format!("{at}/{}", pointer_token(k))))
+            }
+            Value::Array(items) => items
+                .iter()
+                .enumerate()
+                .find_map(|(i, v)| find(v, &format!("{at}/{i}"))),
+            _ => None,
+        }
+    }
+    let Some(at) = input.and_then(|v| find(v, "/input")) else {
+        return Vec::new();
+    };
+    let (label, message) = orbit_model_check();
+    vec![CheckView {
+        key: "orbit_model".to_owned(),
+        label: label.label,
+        label_en: Some(label.label_en),
+        verdict: Verdict::Ok,
+        message: message.label,
+        message_en: Some(message.label_en),
+        at,
+        scope: None,
+        margin: None,
+    }]
+}
 
 /// 出力の中の `checks` を、出てきた順に集める（`series` の中は見ない）。
 /// 場所（JSON Pointer）と、`checks` を持つオブジェクトの `label`（無ければ `id`）を添える。
@@ -47,6 +87,7 @@ fn walk(value: &Value, at: &str, out: &mut Vec<CheckView>) {
                             message_en: None,
                             at: format!("{here}/{i}"),
                             scope: scope.clone(),
+                            margin: c.margin,
                         }));
                     }
                 } else if key == SPAN_FALLBACK {
@@ -92,6 +133,7 @@ fn span_view(f: SpanFallback, at: String, scope: Option<String>) -> CheckView {
         message_en: Some(message.label_en),
         at,
         scope,
+        margin: None,
     }
 }
 
@@ -107,6 +149,7 @@ fn mtq_field_view(g: MtqFieldGap, at: String, scope: Option<String>) -> CheckVie
         message_en: Some(message.label_en),
         at,
         scope,
+        margin: None,
     }
 }
 

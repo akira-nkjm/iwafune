@@ -6,6 +6,9 @@
 use sat_units::typed::{Fraction, NamedKind};
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
+mod check;
+pub use check::{Check, margin_order};
+
 mod area;
 pub use area::{AnalysisArea, ConditionTopic, System};
 
@@ -255,16 +258,6 @@ pub enum Verdict {
     Violation,
 }
 
-/// 要求や制約との比較（例: DoD が上限を超えていないか）。
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
-pub struct Check {
-    pub key: String,
-    pub label: String,
-    pub verdict: Verdict,
-    pub message: String,
-}
-
 impl Verdict {
     /// 最も悪い判定。判定が無ければ None。
     pub fn worst(verdicts: impl IntoIterator<Item = Self>) -> Option<Self> {
@@ -273,17 +266,6 @@ impl Verdict {
             Self::Warning => 1,
             Self::Violation => 2,
         })
-    }
-}
-
-impl Check {
-    pub fn new(key: &str, label: &str, verdict: Verdict, message: impl Into<String>) -> Self {
-        Self {
-            key: key.to_owned(),
-            label: label.to_owned(),
-            verdict,
-            message: message.into(),
-        }
     }
 }
 

@@ -17,6 +17,7 @@ fn keyed(key: &str, verdict: Verdict) -> CheckView {
         message_en: None,
         at: "/checks/0".into(),
         scope: None,
+        margin: None,
     }
 }
 
@@ -58,7 +59,7 @@ fn every_kpi_comes_from_exactly_one_analysis() {
                 .all(|d| !d.label.is_empty() && !d.label_en.is_empty())
         );
     }
-    assert_eq!(seen.len(), 51, "every KpiKey value is in the table");
+    assert_eq!(seen.len(), 52, "every KpiKey value is in the table");
 }
 
 /// 判定を数える KPI: 数と OK でない数、塗りは OK の割合（手で数えた 9 件中 4 件）。

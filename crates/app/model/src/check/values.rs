@@ -157,7 +157,7 @@ fn curve_argument_findings(def: &AttributeDef, unit: &str) -> Vec<Finding> {
 }
 
 /// 曲線の形（点が 1 つ以上、引数と値が同じ数、引数が有限で増える順）。
-fn curve_shape(at: &[f64], values: &[f64]) -> Option<Finding> {
+pub(super) fn curve_shape(at: &[f64], values: &[f64]) -> Option<Finding> {
     let bad = |message: String| Some((Severity::Error, "curve.shape", message));
     if at.is_empty() || at.len() != values.len() {
         return bad(format!(

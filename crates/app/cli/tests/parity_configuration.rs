@@ -30,11 +30,13 @@ fn configuration_edits_match_cli() {
                 "PACKED",
                 "--label",
                 "Stowed",
+                "--label-en",
+                "Stowed",
                 "--description",
                 "Paddle folded onto the body",
             ],
             json!({ "command": "configuration_add", "id": "PACKED", "label": "Stowed",
-                "description": "Paddle folded onto the body" }),
+                "label_en": "Stowed", "description": "Paddle folded onto the body" }),
             "create_configuration",
         ),
         // 取付先を書かなくてよい。位置は取付点に対する相対、姿勢は角度（四元数にして書く）
@@ -80,8 +82,26 @@ fn configuration_edits_match_cli() {
                 "PACKED",
                 "--label",
                 "Stowed (folded)",
+                "--label-en",
+                "Stowed, folded",
             ],
-            json!({ "command": "configuration_set", "id": "PACKED", "label": "Stowed (folded)" }),
+            json!({ "command": "configuration_set", "id": "PACKED", "label": "Stowed (folded)",
+                "label_en": "Stowed, folded" }),
+            "set_configuration",
+        ),
+        // 英語名を空にするとキーごと消える（空の旗は書かない）
+        (
+            vec![
+                "configuration",
+                "set",
+                "PACKED",
+                "--label",
+                "Stowed (folded)",
+                "--label-en",
+                "",
+            ],
+            json!({ "command": "configuration_set", "id": "PACKED", "label": "Stowed (folded)",
+                "label_en": "" }),
             "set_configuration",
         ),
     ];
@@ -90,10 +110,17 @@ fn configuration_edits_match_cli() {
         let ops = http_command(&rt, &http_root, body);
         assert!(ops.iter().all(|o| o["op"] == op), "{ops:?}");
         assert_same_files(&cli_root, &http_root, &cli.join(" "));
+        // 英語名を書いた段階では `label_en` が `label` と `description` の間に入っている
+        let file = std::fs::read_to_string(http_root.join("configurations/PACKED.toml")).unwrap();
+        if cli.contains(&"Stowed, folded") {
+            assert!(file.contains("label_en = \"Stowed, folded\""), "{file}");
+        }
     }
     let text = std::fs::read_to_string(http_root.join("configurations/PACKED.toml")).unwrap();
     assert!(
-        text.contains("Stowed (folded)") && text.contains("[pose.SAP_PY]"),
+        text.contains("Stowed (folded)")
+            && text.contains("[pose.SAP_PY]")
+            && !text.contains("label_en"),
         "{text}"
     );
     // 機体座標での配置: CLI は `--body-pos`、HTTP は `/parts/{id}/place_body`（どちらも形態の中の機体座標を読み、形態の `[pose]` に書く）
@@ -169,7 +196,15 @@ fn configuration_reads_match_http() {
     let (_t, root) = demo_copy();
     run_cli(
         &root,
-        &["configuration", "add", "PACKED", "--label", "Stowed"],
+        &[
+            "configuration",
+            "add",
+            "PACKED",
+            "--label",
+            "Stowed",
+            "--label-en",
+            "Stowed (English)",
+        ],
     );
     run_cli(
         &root,
@@ -188,6 +223,8 @@ fn configuration_reads_match_http() {
     assert_eq!(http[0]["id"], "PACKED");
     assert_eq!(http[0]["overridden"], json!(["SAP_PY"]));
     assert_eq!(http[0]["text"]["label"], "Stowed");
+    assert_eq!(http[0]["label_en"], "Stowed (English)");
+    assert_eq!(http[0]["text"]["label_en"], "Stowed (English)");
     assert_eq!(
         cli_json(&root, &["configuration", "show", "PACKED"]),
         http[0]

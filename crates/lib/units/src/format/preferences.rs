@@ -180,6 +180,7 @@ pub(super) const PREFERENCES: &[Preference] = &[
     pref("ElectricCharge", "Ah", &[("mAh", 1.0), ("Ah", 1.0)]),
     pref("Volume", "L", &[("mL", 1.0), ("L", 1.0), ("m^3", 1.0)]),
     pref("ThermalConductance", "W/K", &[("mW/K", 1.0), ("W/K", 1.0)]),
+    pref("ThermalConductivity", "W/(m*K)", &[("W/(m*K)", 1.0)]),
     pref(
         "HeatTransferCoefficient",
         "W/(m^2*K)",
@@ -230,6 +231,11 @@ pub(super) const PREFERENCES: &[Preference] = &[
         "AbsorbedDose",
         "Gy",
         &[("mGy", 1.0), ("Gy", 1.0), ("kGy", 1.0)],
+    ),
+    pref(
+        "AbsorbedDoseRate",
+        "Gy/yr",
+        &[("mGy/yr", 1.0), ("Gy/yr", 1.0), ("kGy/yr", 1.0)],
     ),
     pref(
         "Impulse",

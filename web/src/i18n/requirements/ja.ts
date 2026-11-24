@@ -24,6 +24,8 @@ export const requirementsJa = {
     file: "ファイル",
     noSource: "出典なし",
     defaultCase: "既定",
+    decidedBy: "決めた判定",
+    decidedCase: "行の結果を決めたケース",
     allCases: "すべてのケース",
     inputOf: (name: string) => `入力（${name === "mission_duration" ? "ミッション期間" : name}）`,
     budgetOf: (kind: string) => `バジェット（${kind}）`,

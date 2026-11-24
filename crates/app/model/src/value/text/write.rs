@@ -102,5 +102,6 @@ pub fn setting_to_text(value: &SettingValue) -> String {
         SettingValue::Vector(v) => vector_to_text(v),
         SettingValue::Quaternion(q) => quaternion_to_text(q),
         SettingValue::List(l) => list_to_text(l),
+        SettingValue::Curve(c) => curve_to_text(c),
     }
 }
