@@ -211,6 +211,7 @@ The correspondence between HTTP routes and the CLI and service (`crates/app/cli/
 | `GET /catalog/{id}` | `fune catalog show` | `query::catalog_item` |
 | `POST /catalog/fetch`, `/catalog/update` | `fune catalog fetch`, `update` | `shared_catalog::{fetch, update}` |
 | `POST /system_modes/{system}` | `fune mode view <system> [--ops] [--case] [--analyzed] [--totals-only]` | `system_modes::system_modes` (exit-code verdict: `system_modes::fails`) |
+| `POST /thermal/tables` | `fune thermal tables [--ops] [--case]` | `thermal_tables::thermal_tables` |
 
 Tests verify the following two things.
 
@@ -264,6 +265,7 @@ Warnings never fail. The determination of "the result fails" is a service functi
 | `GET /units`, `POST /units/parse`, `/units/format` | The list of units, parsing of input (dimension and SI conversion), display strings of SI values |
 | `GET /analyses`, `POST /analyses/{id}`, `GET`/`POST /budgets/{kind}` | The list and execution of analyses, budgets (§6. The `case` and `ops` of POST specify the analysis case and the draft) |
 | `POST /system_modes/{system}` | The per-subsystem mode view (values, totals and verdicts of power, C&DH, thermal and AOCS; the `ops`, `case`, `analyzed` and `summary` of the request select the draft and the view) |
+| `POST /thermal/tables` | The thermal couplings (value in use, source), outer-surface coatings, coatings and node min/max temperatures, with the request's draft `ops` applied (the GUI's "Couplings and surfaces" tab) |
 | `GET /data/status`, `GET /data/space_weather`, `POST /data/{id}/fetch` | Status and fetching of external data, and the space weather table (§6.5) |
 | `POST /report/export` | Exports the design report |
 | `POST /catalog/fetch`, `POST /catalog/update` | Fetching and updating a shared catalog |

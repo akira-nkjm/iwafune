@@ -25,12 +25,33 @@ use sat_analysis::structure::launch_fit::{
 use sat_analysis::structure::modal_estimate::ModalEstimateKind;
 use sat_analysis::structure::modal_fem::{ModalFemAxis, ModalFemModeClass};
 use sat_analysis::thermal::ThermalHeaterState;
+use sat_analysis::thermal::network::ThermalCouplingSource;
 use serde::de::DeserializeOwned;
 
 pub(crate) fn label(ja: impl Into<String>, en: impl Into<String>) -> AnalysisLabel {
     AnalysisLabel {
         label: ja.into(),
         label_en: en.into(),
+    }
+}
+
+/// 熱の結合の出どころの表示名。
+pub fn coupling_source(s: ThermalCouplingSource) -> AnalysisLabel {
+    use ThermalCouplingSource as S;
+    match s {
+        S::Mount => label("取付の既定値", "Mount default"),
+        S::Contact => label("接触面積", "Contact area"),
+        S::Explicit => label("書いた値", "Written value"),
+        S::Enclosure => label("箱の放射", "Enclosure radiation"),
+    }
+}
+
+/// 熱の結合の種類の表示名（伝導・放射）。
+pub fn coupling_kind(k: crate::dto::ThermalCouplingKind) -> AnalysisLabel {
+    use crate::dto::ThermalCouplingKind as K;
+    match k {
+        K::Conductive => label("伝導", "Conduction"),
+        K::Radiative => label("放射", "Radiation"),
     }
 }
 
