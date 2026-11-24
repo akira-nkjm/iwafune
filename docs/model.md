@@ -1897,6 +1897,7 @@ The conditions for the automatic layout are as follows (`web/src/features/diagra
   (because moving one terminal can open space for another to move. Example: moving the OBC's SPW1 down lets LVDS1 move left).
   The side of a terminal is decided by the direction of the counterpart's center, but actual lines go around cards in between and around the trunk of the same net, so reselecting can make lines shorter
   with fewer bends.
+- The layout runs in a Web Worker so that the page stays responsive, and its result (frame and card positions and terminals, before the lines of the shown layers are drawn) is kept in memory and in the browser (IndexedDB) under a key made from the layout input and `LAYOUT_VERSION`. The same input always gives the same diagram, so a kept result is used as is. Positions and routes saved in `view/electrical.toml` are applied on top and never enter the key.
 - Frames with no lines (such as the structure) are made a 3-column grid and placed below or to the right of the diagram, whichever brings the whole closer to 16:10.
 - A line's label (protocol name) is attached only once to lines of the same protocol coming from the same terminal, and is placed beside the line where it does not overlap cards, frame headings,
   other labels or lines.

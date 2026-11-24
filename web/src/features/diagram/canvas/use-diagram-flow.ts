@@ -2,11 +2,12 @@ import { type Edge, type Node, useEdgesState, useNodesState } from "@xyflow/reac
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DesignView, System, ViewNodePos, ViewPortSide } from "@/api/types";
 import { getT, useLang } from "@/i18n";
-import { afterPaint } from "@/lib/after-paint";
 import { savedLayout, snap, viewId } from "../editing/saved";
 import { useViewEdits, VIEW } from "../editing/view-edits";
 import type { DiagramLayout } from "../layout/geometry";
-import { drawLayout, type LayoutPlan, planLayout } from "../layout/layout";
+import { drawLayout, type LayoutPlan } from "../layout/layout";
+import { SupersededError } from "../layout/plan-service";
+import { diagramPlans } from "../layout/plans";
 import { buildModel, type DiagramModel } from "../model";
 import { LAYERS, type Layer } from "../power";
 import type { Attachment } from "./CardNode";
@@ -63,11 +64,29 @@ export function useDiagramModel(
     ),
   );
   const [plan, setPlan] = useState<{ full: DiagramModel; plan: LayoutPlan } | null>(null);
+  const [failed, setFailed] = useState<{ full: DiagramModel; message: string } | null>(null);
+  // 計算し直す（失敗のあとの再試行）
+  const [attempt, setAttempt] = useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: attempt は再試行のためだけに依存に入れる
   useEffect(() => {
     if (!full) return;
-    // 位置の計算は重いので、読み込み中の表示（最初はロゴ、やり直しは薄くした前の図）が画面に出てから始める
-    return afterPaint(() => setPlan({ full, plan: planLayout(full) }));
-  }, [full]);
+    let live = true;
+    // 位置の計算はワーカーで行う（主スレッドを止めない）。同じ入力の結果は残してあり、あればすぐ返る
+    diagramPlans.plan(full).then(
+      (done) => {
+        if (!live) return;
+        setFailed(null);
+        setPlan({ full, plan: done });
+      },
+      (e: unknown) => {
+        if (!live || e instanceof SupersededError) return;
+        setFailed({ full, message: e instanceof Error ? e.message : String(e) });
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [full, attempt]);
   const layout = useMemo(
     () => (plan && model && plan.full === full ? drawLayout(plan.plan, model) : null),
     [plan, model, full],
@@ -80,11 +99,19 @@ export function useDiagramModel(
   }
   const fresh = model !== null && layout !== null;
   const shown = fresh ? { model, layout } : last.current;
+  // 失敗は、いまの入力についてのものだけ出す（別の入力に替わったら、新しい計算の結果を待つ）
+  const error = failed && failed.full === full ? { message: failed.message } : null;
   return {
     model: shown?.model ?? model,
     layout: shown?.layout ?? null,
     /** 前の図を出したまま、新しい位置を探している */
-    pending: !fresh && shown !== null,
+    pending: !fresh && shown !== null && error === null,
+    /** 位置の計算に失敗した（再試行は `retry`） */
+    error,
+    retry: () => {
+      setFailed(null);
+      setAttempt((n) => n + 1);
+    },
   };
 }
 
