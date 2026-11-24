@@ -23,6 +23,9 @@ export const keys = {
     ["analysis", "system_modes", system, kase, opsJson] as const,
   /** 解析も回した系別のモード表示すべて（「再計算」で無効化する先頭） */
   analyzedModesAll: ["analysis", "system_modes"] as const,
+  /** 熱の結合・表面の表。`opsJson` は保存していない編集（下書き）を当てたもの（空なら保存済みの設計）。解析の結果と同じく編集で無効化する */
+  thermalTables: (kase: string | null, opsJson: string) =>
+    ["analysis", "thermal_tables", kase, opsJson] as const,
   diagnostics: ["diagnostics"] as const,
   /** 編集の履歴（`GET /history`。取り消し・やり直しができるか）。編集・取り消し・やり直しのたびに変わる */
   history: ["history"] as const,
