@@ -55,6 +55,10 @@ pub(super) fn transfer_check_note(n: TransferCheckNote) -> AnalysisLabel {
             "天体の位置が解析式（DE440 でない）なので、ずれは暦の誤差と同程度で意味を持たず、判定しない",
             "Body positions are analytic (not DE440), so the miss is of the order of the ephemeris error and is not judged",
         ),
+        TransferCheckNote::LegsNotChained => label(
+            "スイングバイのある遷移なので、脚ごとに伝搬した（各脚は自分の Lambert の速度から始まる。通過の天体の近くの双曲線の弧と、通過の前後をつなげた伝搬は検証しない）",
+            "The transfer has swing-bys, so each leg was propagated separately from its own Lambert velocity (the hyperbolic arc near the flyby body and a propagation chained through the flyby are not verified)",
+        ),
         TransferCheckNote::ClosestApproachAtEnd => label(
             "最接近が探した期間の端で、まだ近づいている（極小は期間の外）",
             "The closest approach is at the end of the searched span: still approaching (the minimum lies outside it)",
@@ -150,6 +154,10 @@ pub(super) fn note(n: ManeuverNote) -> AnalysisLabel {
         ManeuverNote::DatedLambert => label(
             "天体間の遷移を、出発の日・到着の日の天体の位置からの Lambert（日付つきのパッチドコニック）で計算した",
             "Computed as a dated patched-conic transfer: a Lambert solution between the body positions on the departure and arrival dates",
+        ),
+        ManeuverNote::SwingBy => label(
+            "途中の惑星のスイングバイをパッチドコニックで計算した（通過は一瞬で、影響圏の中の時間・双曲線の弧は扱わない。近点の噴射は ΔV に数える）",
+            "The swing-bys were computed by patched conics (each flyby is instantaneous; the time inside the sphere of influence and the hyperbolic arc are not modelled; the periapsis burns are counted in the delta-V)",
         ),
         ManeuverNote::DepartureByLauncher => label(
             "出発の噴射は打ち上げ機が行うので、ΔV・推薬に数えない（C3・超過速度は打ち上げの要求）",

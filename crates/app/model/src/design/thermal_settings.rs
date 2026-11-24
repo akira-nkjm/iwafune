@@ -4,6 +4,8 @@
 //! `analysis.thermal.conductive.<節点>.<節点>`（`SetSetting` でそのまま編集できる）。
 //!
 //! 節点は既定で 1 部品 1 節点（名前は部品の ID）。`nodes` はまとめたい部品だけを書く上書き（`thermal_nodes`）。
+//! 板の形の部品は `[subdivide.<部品>] u = 3, v = 5` で面内の格子（升ごとの節点）に分けられる（設定のパスは
+//! `analysis.thermal.subdivide.<部品>.u`）。分け方は解析の設定なので部品には書かない。
 //!
 //! 部品・モード・表面材・節点の参照（`nodes` の値・`surface` と `heat_node` のキーと値・`case.<条件>.mode`・結合の両端の節点）は
 //! `check` が検査し、部品の名前の変更（RenamePart）で一緒に書き換わる（`refs`）。
@@ -83,6 +85,27 @@ pub struct ThermalEnclosureSettings {
     pub emissivity: Option<f64>,
 }
 
+/// 板の形の部品の面内の分け方（`[subdivide.<部品>]`）。熱の解析が板を格子の節点に分ける
+/// （`sat_analysis::thermal::network::subdivide`）。`u`・`v` は板の面内の 2 軸（部品の軸の巡回順: 法線が x なら u = y・v = z、
+/// 法線が y なら u = z・v = x、法線が z なら u = x・v = y。法線は箱の最も薄い軸）に沿った升の数。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct ThermalSubdivideSettings {
+    /// u 軸に沿った升の数（1〜[`ThermalSubdivideSettings::MAX_CELLS`]）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub u: Option<u32>,
+    /// v 軸に沿った升の数
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub v: Option<u32>,
+}
+
+impl ThermalSubdivideSettings {
+    /// 1 枚の板を分ける升の数の、軸ごとの上限。非定常の陽解法の費用が升の数と細かさで増えるための上限
+    /// （`thermal.transient` の刻みは最小の時定数に縛られる。docs/model.md の "Stiff networks"）。
+    /// 解析の入力の検査（`sat_analysis::thermal::network::subdivide::MAX_CELLS`）と同じ値で、同じであることは射影の試験が確かめる。
+    pub const MAX_CELLS: u32 = 8;
+}
+
 /// 熱の解析（`analysis/thermal.toml`）。
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
 #[serde(deny_unknown_fields)]
@@ -137,6 +160,9 @@ pub struct ThermalSettings {
     /// 部品 ID → 発熱を置く節点（既定は部品の属する節点）
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub heat_node: BTreeMap<String, String>,
+    /// 板の形の部品 ID → 面内の分け方（升の数。書いた部品は升ごとの節点になる。節点にまとめた部品は分けられない）
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub subdivide: BTreeMap<String, ThermalSubdivideSettings>,
 }
 
 impl ThermalSettings {

@@ -20,7 +20,7 @@ use crate::spec::{
 };
 use sat_astro::ephem::{CentralBody, EphemerisSource};
 use sat_astro::time::Epoch;
-use sat_astro::transfer::{CruiseCheck, CruiseSample, check_cruise};
+use sat_astro::transfer::{CruiseCheck, CruiseSample, check_cruise, check_cruise_leg};
 use sat_units::typed::{Length, Qty, Time, Velocity};
 use serde::{Deserialize, Serialize};
 
@@ -33,6 +33,8 @@ pub enum TransferCheckNote {
     PointMassCruise,
     /// 天体の位置が解析式（DE440 でない）なので、ずれの大きさは暦の誤差と同程度で、判定しない
     AnalyticEphemerisNotJudged,
+    /// スイングバイのある遷移なので脚ごとに伝搬した（各脚は自分の Lambert の速度から始まり、通過の前後はつなげていない）
+    LegsNotChained,
     /// 最接近が探した期間の端で、期間の中に極小が無い（まだ近づいている）
     ClosestApproachAtEnd,
 }
@@ -43,6 +45,10 @@ pub enum TransferCheckNote {
 pub struct TransferCheckResult {
     /// マヌーバの ID
     pub maneuver: String,
+    /// 通過のある遷移の脚の番号（1 から。通過のない遷移は無し。`from`・`to`・日付はその脚のもの）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub leg: Option<u32>,
     /// 出発・到着の天体
     pub from: CentralBody,
     pub to: CentralBody,
@@ -172,34 +178,50 @@ fn series(samples: &[CruiseSample]) -> Series {
     }
 }
 
-/// 区間の遷移の確認（日付つきの遷移が無ければ `None`）。
-fn check_leg(leg: &Leg<'_>) -> Result<Option<TransferCheckResult>, AnalysisError> {
-    let (Some(dated), Some(t)) = (leg.planned.dated, leg.maneuver.transfer) else {
-        return Ok(None);
+/// 区間の遷移の確認（日付つきの遷移が無ければ空）。通過のない遷移は 1 つ、通過のある遷移は脚ごとに 1 つ
+/// （通過の前後をつなげた伝搬はしない。注記 [`TransferCheckNote::LegsNotChained`]）。
+fn check_leg(leg: &Leg<'_>) -> Result<Vec<TransferCheckResult>, AnalysisError> {
+    let (Some(dated), Some(t)) = (leg.planned.dated.as_ref(), leg.maneuver.transfer.as_ref())
+    else {
+        return Ok(Vec::new());
     };
     let (from, to) = (leg.planned.from.central, leg.planned.to.central);
-    let c = check_cruise(&dated, from, to, t.departure)?;
-    Ok(Some(result(
-        &leg.maneuver.id,
-        (from, to),
-        t.departure,
-        t.arrival,
-        &dated,
-        &c,
-    )))
+    if dated.flybys.is_empty() {
+        let c = check_cruise(dated, from, to, t.departure)?;
+        let args = (from, to, t.departure, t.arrival);
+        return Ok(vec![result(&leg.maneuver.id, None, args, dated, &c)]);
+    }
+    // 脚 i は、節点 i（出発・通過）から節点 i+1（通過・到着）まで
+    let mut nodes = vec![(from, t.departure)];
+    nodes.extend(t.flybys.iter().map(|f| (f.body, f.date)));
+    nodes.push((to, t.arrival));
+    dated
+        .legs
+        .iter()
+        .zip(nodes.windows(2))
+        .enumerate()
+        .map(|(i, (arc, pair))| {
+            let ((a, ta), (b, tb)) = (pair[0], pair[1]);
+            let c = check_cruise_leg(arc, a, b, ta, dated.ephemeris)?;
+            let leg_no = u32::try_from(i + 1).ok();
+            Ok(result(&leg.maneuver.id, leg_no, (a, b, ta, tb), dated, &c))
+        })
+        .collect()
 }
 
 fn result(
     maneuver: &str,
-    (from, to): (CentralBody, CentralBody),
-    departure: Epoch,
-    arrival: Epoch,
+    leg: Option<u32>,
+    (from, to, departure, arrival): (CentralBody, CentralBody, Epoch, Epoch),
     dated: &sat_astro::transfer::DatedTransfer,
     c: &CruiseCheck,
 ) -> TransferCheckResult {
     let judged = c.ephemeris == EphemerisSource::De440;
     let miss = c.miss_distance_m();
     let mut notes = vec![TransferCheckNote::PointMassCruise];
+    if leg.is_some() {
+        notes.push(TransferCheckNote::LegsNotChained);
+    }
     if !judged {
         notes.push(TransferCheckNote::AnalyticEphemerisNotJudged);
     }
@@ -210,8 +232,14 @@ fn result(
         Some(soi) => judge(maneuver, to, (miss, c.closest.distance_m, soi)),
         None => Vec::new(),
     };
+    // 脚の到着の超過速度の Lambert の値（最後の脚は遷移の到着、途中の脚はその脚の到着の速度 − 到着天体の速度）
+    let v_inf_lambert = match leg.and_then(|n| dated.legs.get(n as usize - 1)) {
+        Some(arc) => arc.v_arrival_m_s - arc.to_state.v_eci,
+        None => dated.v_inf_arrival_m_s,
+    };
     TransferCheckResult {
         maneuver: maneuver.to_owned(),
+        leg,
         from,
         to,
         departure,
@@ -224,11 +252,9 @@ fn result(
         closest_approach_distance: Qty::from_raw(c.closest.distance_m),
         closest_approach_time: Qty::from_raw(c.closest.t_s),
         closest_approach_epoch: departure.plus_seconds(c.closest.t_s),
-        v_inf_arrival_lambert: Qty::from_raw(dated.v_inf_arrival_m_s.norm()),
+        v_inf_arrival_lambert: Qty::from_raw(v_inf_lambert.norm()),
         v_inf_arrival_propagated: Qty::from_raw(c.v_inf_arrival_m_s.norm()),
-        v_inf_arrival_difference: Qty::from_raw(
-            (c.v_inf_arrival_m_s - dated.v_inf_arrival_m_s).norm(),
-        ),
+        v_inf_arrival_difference: Qty::from_raw((c.v_inf_arrival_m_s - v_inf_lambert).norm()),
         perturbers: c.perturbers.clone(),
         notes,
         checks,

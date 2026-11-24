@@ -1,19 +1,24 @@
 //! 熱（定常）（`thermal.steady`）。ケース（高温・低温など）ごとに節点温度の定常解を求め、保管・動作・性能の温度範囲と比べる。
 //! 解法は [`crate::thermal::network`]、入熱は [`crate::thermal::orbit_heat`]。
 
-use crate::spec::{Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, System, Verdict};
+use crate::spec::{
+    Analysis, AnalysisArea, AnalysisError, AnalysisKind, Check, Detailed, System, Verdict,
+};
 use crate::thermal::heater::{ThermalHeaterSteady, steady_checks};
 use crate::thermal::network::{
-    Compiled, INITIAL_GUESS_K, ThermalCouplings, ThermalHeater, ThermalLoad, ThermalModeLoads,
-    ThermalNetwork, enabled_flags,
+    Compiled, INITIAL_GUESS_K, ThermalCell, ThermalCouplings, ThermalHeater, ThermalLoad,
+    ThermalModeLoads, ThermalNetwork, ThermalNode, enabled_flags,
 };
 use crate::thermal::network::{HeaterSpec, HeaterSteady};
 use crate::thermal::orbit_heat::{
     ThermalEnvironment, ThermalEnvironmentUsed, ThermalExposure, exposure_heat, shadow_loss_check,
 };
+use crate::thermal::plate_view::{
+    PlateFieldSource, ThermalPlateQuantity, plate_temperatures, to_detail,
+};
 use crate::thermal::range::{
-    ThermalMarginPolicy, ThermalMarginUsed, ThermalRangeMargin, envelope_margins, range_checks,
-    range_margins, worst_verdict,
+    NodeJudged, ThermalMarginPolicy, ThermalMarginUsed, ThermalRangeMargin, envelope_margins,
+    node_checks, range_margins, worst_verdict,
 };
 use sat_units::typed::{Fraction, Power, Qty, Temperature};
 use serde::{Deserialize, Serialize};
@@ -55,6 +60,10 @@ pub struct ThermalSteadyInput {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThermalSteadyNodeResult {
     pub node: String,
+    /// 板の升の節点のとき、どの板のどの升か
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub cell: Option<ThermalCell>,
     pub temperature: Qty<Temperature>,
     /// 外部入熱（太陽・アルベド・地球赤外の吸収）
     pub absorbed: Qty<Power>,
@@ -92,6 +101,10 @@ pub struct ThermalSteadyCaseResult {
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ThermalSteadyEnvelope {
     pub node: String,
+    /// 板の升の節点のとき、どの板のどの升か
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub cell: Option<ThermalCell>,
     pub min: Qty<Temperature>,
     pub min_case: String,
     pub max: Qty<Temperature>,
@@ -132,6 +145,7 @@ impl Analysis for ThermalSteady {
     const TITLE_EN: &'static str = "Thermal (steady state)";
     const DESCRIPTION_EN: &'static str =
         "Steady-state node temperatures of the multi-node model for hot and cold cases";
+    const DETAIL_TYPE: Option<&'static str> = Some(crate::thermal::plate_view::DETAIL_TYPE);
     type Input = ThermalSteadyInput;
     type Output = ThermalSteadyOutput;
 
@@ -156,14 +170,18 @@ impl Analysis for ThermalSteady {
                         check
                     }));
                 }
-                solve_case(&net, &input.network, &case, &margin)
+                solve_case(&net, &case, &margin)
             })
             .collect::<Result<Vec<_>, _>>()?;
-        let envelope = envelope(&input.network, &cases, &margin);
-        let mut checks: Vec<Check> = envelope
-            .iter()
-            .flat_map(|e| range_checks(&e.node, &e.ranges, &margin))
-            .collect();
+        let envelope = envelope(&net.nodes, &cases, &margin);
+        let mut checks = node_checks(
+            envelope.iter().map(|e| NodeJudged {
+                id: &e.node,
+                cell: e.cell.as_ref(),
+                ranges: &e.ranges,
+            }),
+            &margin,
+        );
         let per_case: Vec<_> = cases
             .iter()
             .map(|c| (c.id.as_str(), c.heaters.as_slice()))
@@ -191,11 +209,44 @@ impl Analysis for ThermalSteady {
             checks,
         })
     }
+
+    fn run_detailed(
+        input: &Self::Input,
+        detail: bool,
+    ) -> Result<Detailed<Self::Output>, AnalysisError> {
+        let output = Self::run(input)?;
+        let detail = if detail {
+            plate_detail(input, &output)?
+        } else {
+            None
+        };
+        Ok(Detailed { output, detail })
+    }
+}
+
+/// 板の温度の分布（ケースごとの場）。板に分けていなければ詳細は無い。
+fn plate_detail(
+    input: &ThermalSteadyInput,
+    output: &ThermalSteadyOutput,
+) -> Result<Option<serde_json::Value>, AnalysisError> {
+    let sources = output
+        .cases
+        .iter()
+        .map(|c| PlateFieldSource {
+            quantity: ThermalPlateQuantity::Steady,
+            case: Some((c.id.as_str(), c.label.as_str())),
+            temperatures: c
+                .nodes
+                .iter()
+                .map(|n| (n.node.as_str(), n.temperature.value()))
+                .collect(),
+        })
+        .collect();
+    to_detail(plate_temperatures(&input.network.plates, sources)?)
 }
 
 fn solve_case(
     net: &Compiled,
-    network: &ThermalNetwork,
     case: &ThermalSteadyCase,
     margin: &ThermalMarginUsed,
 ) -> Result<ThermalSteadyCaseResult, AnalysisError> {
@@ -218,7 +269,7 @@ fn solve_case(
     for (spec, h) in specs.iter().zip(&heated.heaters) {
         internal[spec.node] += h.power_w;
     }
-    let nodes = network
+    let nodes = net
         .nodes
         .iter()
         .enumerate()
@@ -227,6 +278,7 @@ fn solve_case(
             let ranges = range_margins(t, t, &n.ranges_in(&modes)?, margin);
             Ok(ThermalSteadyNodeResult {
                 node: n.id.clone(),
+                cell: n.cell.clone(),
                 temperature: Qty::from_raw(t),
                 absorbed: Qty::from_raw(absorbed[i]),
                 internal: Qty::from_raw(internal[i]),
@@ -272,12 +324,11 @@ fn heater_results(
 }
 
 fn envelope(
-    network: &ThermalNetwork,
+    nodes: &[ThermalNode],
     cases: &[ThermalSteadyCaseResult],
     margin: &ThermalMarginUsed,
 ) -> Vec<ThermalSteadyEnvelope> {
-    network
-        .nodes
+    nodes
         .iter()
         .enumerate()
         .map(|(i, n)| {
@@ -295,6 +346,7 @@ fn envelope(
                 envelope_margins(cases.iter().map(|c| c.nodes[i].ranges.as_slice()), margin);
             ThermalSteadyEnvelope {
                 node: n.id.clone(),
+                cell: n.cell.clone(),
                 min: Qty::from_raw(lo),
                 min_case: case_id(lo),
                 max: Qty::from_raw(hi),

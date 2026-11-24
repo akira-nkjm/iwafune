@@ -4,7 +4,11 @@ import type { V3 } from "./types";
 /**
  * メッシュ上の場の表示用の幾何（`SurfaceMesh` から three.js の BufferGeometry に渡す配列を作る）。
  * 位置の足し算（節点 + 倍率 × 変位）と配列の組み立てだけで、物理は計算しない（変位・場の値・規格化は API）。
+ * 場の値は節点ごと（`"node"`）か、四角形（升）ごと（`"cell"`）。四角形の通し番号は、パネルの順に四角形を並べた順。
  */
+
+/** 場の値の置き場所: 節点ごと（滑らかに塗る）か、四角形ごと（升を 1 色で塗る） */
+export type FieldAt = "node" | "cell";
 
 /** 四角形（節点 4 つ）を 2 つの三角形に分けた頂点の番号（0-1-2, 0-2-3）。パネルの区別は要らないので全部つなぐ */
 export function triangleIndices(mesh: Pick<SurfaceMesh, "groups">): Uint32Array {
@@ -86,4 +90,74 @@ export function meshExtent(nodes: readonly V3[]): number {
       hi[k] = Math.max(hi[k] as number, p[k] as number);
     }
   return Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1;
+}
+
+/** 四角形の数 */
+export function quadCount(mesh: Pick<SurfaceMesh, "groups">): number {
+  return mesh.groups.reduce((n, g) => n + g.quads.length, 0);
+}
+
+/**
+ * 四角形ごとに塗るための頂点の元の節点番号（四角形の通し番号 × 4 + 角）。四角形は頂点を共有せずに 1 枚ずつ 4 頂点にして、
+ * 色を四角形の中で一定にする。
+ */
+export function quadVertexNodes(mesh: Pick<SurfaceMesh, "groups">): Uint32Array {
+  const out: number[] = [];
+  for (const g of mesh.groups) for (const q of g.quads) out.push(...q);
+  return Uint32Array.from(out);
+}
+
+/** 四角形ごとの頂点（`quadVertexNodes` の並び）の三角形の番号（0-1-2, 0-2-3 を四角形ごとに 4 つずつずらす） */
+export function quadTriangleIndices(quads: number): Uint32Array {
+  const out = new Uint32Array(quads * 6);
+  for (let k = 0; k < quads; k += 1)
+    out.set(
+      [0, 1, 2, 0, 2, 3].map((i) => 4 * k + i),
+      6 * k,
+    );
+  return out;
+}
+
+/** 節点の位置 `positions`（x, y, z, …）を、頂点ごとの元の節点番号 `nodeOf` で引き写す（`out` に書く） */
+export function gatherPositions(
+  positions: Float32Array,
+  nodeOf: Uint32Array,
+  out: Float32Array,
+): Float32Array {
+  for (let v = 0; v < nodeOf.length; v += 1) {
+    const n = (nodeOf[v] as number) * 3;
+    out[v * 3] = positions[n] as number;
+    out[v * 3 + 1] = positions[n + 1] as number;
+    out[v * 3 + 2] = positions[n + 2] as number;
+  }
+  return out;
+}
+
+/** 四角形ごとの場の値（0 〜 1）を、色の写し方 `rgbOf` で、四角形の 4 頂点すべての RGB にする（`quadVertexNodes` の並び） */
+export function quadColors(
+  values: readonly number[],
+  rgbOf: (ratio: number) => readonly [number, number, number],
+): Float32Array {
+  const out = new Float32Array(values.length * 12);
+  values.forEach((v, k) => {
+    const rgb = rgbOf(v);
+    for (let c = 0; c < 4; c += 1) out.set(rgb, (4 * k + c) * 3);
+  });
+  return out;
+}
+
+/** 三角形の番号 → 四角形の通し番号（`triangleIndices` も `quadTriangleIndices` も、四角形ごとに 2 三角形を順に並べる） */
+export function quadOfFace(faceIndex: number): number {
+  return Math.floor(faceIndex / 2);
+}
+
+/** 通し番号 `quad` の四角形の 4 辺（線分の両端の節点番号の対）。範囲外なら空 */
+export function quadEdges(mesh: Pick<SurfaceMesh, "groups">, quad: number): Uint32Array {
+  let k = quad;
+  for (const g of mesh.groups) {
+    const q = g.quads[k];
+    if (q) return Uint32Array.from([q[0], q[1], q[1], q[2], q[2], q[3], q[3], q[0]]);
+    k -= g.quads.length;
+  }
+  return new Uint32Array(0);
 }

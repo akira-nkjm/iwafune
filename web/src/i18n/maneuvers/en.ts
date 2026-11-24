@@ -25,6 +25,7 @@ export const maneuversEn: typeof maneuversJa = {
       perigee_altitude: "Perigee altitude",
       apogee_altitude: "Apogee altitude",
       inclination: "Inclination",
+      flybys: "Swing-by",
       transfer: "Departure → arrival",
       delta_v: "Written ΔV",
     },
@@ -43,6 +44,11 @@ export const maneuversEn: typeof maneuversJa = {
       arrive: "Arrival date (after departure; leave both empty for the Hohmann-based estimate)",
       departureBy:
         "Who performs the departure burn (the launcher: it is not counted in delta-V or propellant, and launch fit takes the mass limit from the C3 capability curve)",
+      flybys: "Swing-bys (between departure and arrival, in date order)",
+      flybysHint:
+        "One per line: BODY@DATE, optionally followed by ,min_altitude=400 km (default per body; required for the giant planets) and ,powered=false (declared unpowered: the periapsis burn is not counted)",
+      addFlyby: "Add swing-by",
+      removeFlyby: "Remove swing-by",
       deltaV: "Written ΔV (allowance; no orbit change)",
       viaAltitude: "Intermediate apogee altitude (bi-elliptic)",
       sunlitOnly: "Fire in sunlight only",

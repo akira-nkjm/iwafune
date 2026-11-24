@@ -49,6 +49,7 @@ pub(super) fn network(
     }
     let mounts = links(ctx, s, &map, m);
     ThermalNetwork {
+        plates: super::plates::plates(ctx, s, &map, m),
         nodes: nodes(ctx, &map, analysis, m),
         mounts,
         conductive: conductive(s, m),
@@ -120,7 +121,7 @@ fn enclosure(ctx: &Context<'_>, s: &ThermalSettings) -> Option<ThermalEnclosure>
 /// 節点（部品ごとの質量・比熱・温度範囲。熱容量と範囲の共通部分は解析が求める）。節点は既定で 1 部品 1 節点、
 /// `[nodes]` に書いた節点は複数の部品をまとめる（`ThermalSettings::node_map`）。質量か比熱が無い部品は、
 /// まとめた節点の部品と同じく不足入力にする（比熱は属性の既定値がある）。
-fn nodes(
+pub(super) fn nodes(
     ctx: &Context<'_>,
     map: &ThermalNodes,
     analysis: &str,
@@ -128,6 +129,7 @@ fn nodes(
 ) -> Vec<ThermalNode> {
     map.iter()
         .map(|(id, def)| ThermalNode {
+            cell: None,
             id: id.to_owned(),
             parts: def
                 .parts

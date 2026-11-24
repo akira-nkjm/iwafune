@@ -148,6 +148,7 @@ function ConfigurationDialog({
     >
       {input("id", c.id, Boolean(initial))}
       {input("label", c.label)}
+      {input("label_en", c.labelEn)}
       {input("description", c.description)}
       {made.error && (
         <p role="alert" className="text-neg-ink text-xs">

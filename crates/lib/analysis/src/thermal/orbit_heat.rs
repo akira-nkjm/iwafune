@@ -104,11 +104,11 @@ pub(crate) fn absorbed_with(
     shaded: bool,
 ) -> Vec<f64> {
     let mut q = vec![0.0; net.len()];
-    for (i, s) in net.surfaces.iter().enumerate() {
+    for s in &net.surfaces {
         // 光を受ける面だけ影を評価する（受けない面は直達日射が 0 なので、日照割合は効かない）
         let lit = match &net.shading {
             Some(shading) if shaded && g.sunlit > 0.0 && s.normal.dot(g.sun_dir) > 0.0 => {
-                shading.lit(i, g.sun_dir)
+                shading.lit(s.input, g.sun_dir)
             }
             _ => 1.0,
         };
@@ -155,6 +155,7 @@ mod tests {
 
     fn plate(normal: Vec3) -> Compiled {
         Compiled::new(&ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![node("p", None)],
             conductive: vec![],
@@ -320,6 +321,7 @@ pub(crate) mod fixtures {
         n.parts[0].mass = Qty::from_raw(mass_kg);
         let faces = [Vec3::X, -Vec3::X, Vec3::Y, -Vec3::Y, Vec3::Z, -Vec3::Z];
         ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![n],
             conductive: vec![],

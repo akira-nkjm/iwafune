@@ -16,6 +16,7 @@ pub use cone_clearance::{CARRIERS, CarrierRow, cone_clearance};
 pub use external_geometry::external_geometry;
 pub use interference::interference;
 pub use modal_fem::modal_fem;
+pub(crate) use panel::material;
 pub use shadowing::shadowing;
 
 use crate::context::Context;

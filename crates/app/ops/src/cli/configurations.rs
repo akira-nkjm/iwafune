@@ -10,13 +10,15 @@ pub(super) fn configuration_op(op: &Op) -> Option<Vec<String>> {
         Op::CreateConfiguration {
             id,
             label,
+            label_en,
             description,
-        } => heading("add", id, label, description),
+        } => heading("add", id, label, label_en, description),
         Op::SetConfiguration {
             id,
             label,
+            label_en,
             description,
-        } => heading("set", id, label, description),
+        } => heading("set", id, label, label_en, description),
         Op::RemoveConfiguration { id } => Cmd::new(&["fune", "configuration", "rm", id]).done(),
         Op::RenameConfiguration { id, to } => {
             Cmd::new(&["fune", "configuration", "rename", id, to]).done()
@@ -29,10 +31,17 @@ pub(super) fn configuration_op(op: &Op) -> Option<Vec<String>> {
     }])
 }
 
-/// `fune configuration add|set <ID> --label … --description …`
-fn heading(verb: &str, id: &str, label: &Option<String>, description: &Option<String>) -> String {
+/// `fune configuration add|set <ID> --label … --label-en … --description …`
+fn heading(
+    verb: &str,
+    id: &str,
+    label: &Option<String>,
+    label_en: &Option<String>,
+    description: &Option<String>,
+) -> String {
     Cmd::new(&["fune", "configuration", verb, id])
         .flag("label", label.as_deref())
+        .flag("label-en", label_en.as_deref())
         .flag("description", description.as_deref())
         .done()
 }

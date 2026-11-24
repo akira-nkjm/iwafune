@@ -3,7 +3,7 @@
 use super::*;
 use crate::structure::external_geometry::ShadowingInput;
 use crate::structure::interference::InterferenceBox;
-use crate::thermal::network::{ThermalNetwork, ThermalSurface, tests::node};
+use crate::thermal::network::{ThermalNetwork, ThermalPlate, ThermalSurface, tests::node};
 use sat_astro::math::Quat;
 
 const TOP: f64 = 0.005;
@@ -20,16 +20,18 @@ fn boxed(id: &str, c: [f64; 3], size: [f64; 3]) -> InterferenceBox {
 }
 
 /// 外面 "P"（0.01 m²、法線 +Z、α = 0.9、ε = 0.8）。箱は 1 m × 1 m の板と、その上面の半分（x ∈ [0, 0.5]）を覆う箱。
-fn plate(enabled: Option<bool>) -> Compiled {
-    Compiled::new(&ThermalNetwork {
+/// `cells` があれば、板 P を (u, v) の升に分ける（#340）。
+fn network(enabled: Option<bool>, cells: Option<[u32; 2]>) -> ThermalNetwork {
+    let frame = boxed("P", [0.0, 0.0, 0.0], [1.0, 1.0, 0.01]);
+    ThermalNetwork {
         mounts: None,
-        nodes: vec![node("p", None)],
+        nodes: vec![node("P", None)],
         conductive: vec![],
         radiative: vec![],
         enclosure: None,
         surfaces: vec![ThermalSurface {
             id: "P".to_owned(),
-            node: "p".to_owned(),
+            node: "P".to_owned(),
             area: Qty::from_raw(0.01),
             normal: Vec3::Z,
             count: 1,
@@ -39,13 +41,26 @@ fn plate(enabled: Option<bool>) -> Compiled {
         }],
         shadowing: Some(ShadowingInput {
             boxes: vec![
-                boxed("P", [0.0, 0.0, 0.0], [1.0, 1.0, 0.01]),
+                frame.clone(),
                 boxed("A", [0.25, 0.0, TOP + 0.15], [0.5, 1.0, 0.1]),
             ],
             enabled,
         }),
-    })
-    .unwrap()
+        plates: cells
+            .map(|cells| ThermalPlate {
+                part: "P".to_owned(),
+                cells,
+                conductivity: Qty::from_raw(100.0),
+                frame,
+                attachments: Vec::new(),
+            })
+            .into_iter()
+            .collect(),
+    }
+}
+
+fn plate(enabled: Option<bool>) -> Compiled {
+    Compiled::new(&network(enabled, None)).unwrap()
 }
 
 /// 真上の太陽と、真上にある地球（高度 500 km。アルベドと赤外が入る）。
@@ -141,4 +156,34 @@ fn intercepted_sunlight_of_a_part_without_a_surface_is_reported_and_warned() {
     // 影を数えない: 報告も警告も無い
     let off = exposure_heat(&plate(Some(false)), &env, &exposure).unwrap();
     assert!(off.shadowing.is_none());
+}
+
+/// 板を升に分けても影は面ごとに 1 つの日照割合で、升には面積の割合で配った直達日射にそのまま掛かる（#340 との合成）。
+/// 板を 2 × 1 に分けたときの直達日射の合計は、分けない面の影ありの値（0.5 · 0.9 · 1361 · 0.01 = 6.1245 W）と等しく（保存）、
+/// 2 つの升は半分ずつ。影を切れば分けた板も影なしの値（12.249 W）。分けても影の報告は面ごとに 1 つ。
+#[test]
+fn shadowing_composes_with_plate_subdivision_by_area() {
+    let env = ThermalEnvironment::default();
+    let exposure = ThermalExposure::Fixed {
+        sun_dir_body: Some(Vec3::Z),
+        nadir_body: None,
+        altitude: Qty::from_raw(500.0e3),
+        central: CentralBody::Earth,
+    };
+    let heat = |enabled: Option<bool>, cells: Option<[u32; 2]>| {
+        let net = Compiled::new(&network(enabled, cells)).unwrap();
+        exposure_heat(&net, &env, &exposure).unwrap()
+    };
+    let (whole, split) = (heat(None, None), heat(None, Some([2, 1])));
+    assert_eq!(split.q.len(), 2);
+    let total: f64 = split.q.iter().sum();
+    assert!((total - whole.q[0]).abs() < 1e-12);
+    assert!((total - 0.5 * 0.9 * 1361.0 * 0.01).abs() < 1e-9);
+    assert!((split.q[0] - split.q[1]).abs() < 1e-12);
+    // 影を切る: 分けた板も分けない板も影なしの値
+    let (off_whole, off_split) = (heat(Some(false), None), heat(Some(false), Some([2, 1])));
+    let off_total: f64 = off_split.q.iter().sum();
+    assert!((off_total - off_whole.q[0]).abs() < 1e-12);
+    assert!((off_total - 0.9 * 1361.0 * 0.01).abs() < 1e-9);
+    assert_eq!(split.shadowing.unwrap().parts.len(), 1);
 }

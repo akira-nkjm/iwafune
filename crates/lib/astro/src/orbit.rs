@@ -7,7 +7,8 @@
 //! 同じ積分器と力モデルに推力の項（[`crate::force::thrust`]）と質量を足す。平均の長半径（J2 の短周期項を引く）は `mean`。
 //! 円制限三体問題（ラグランジュ点・ハロー軌道の補正・回転系と慣性系の変換）の数学は [`cr3bp`] にある。
 //! 解析が軌道から読むもの（時刻での状態・中心天体・元期・繰り返しの長さ）の共通の入口は `trajectory`（[`Trajectory`]・[`Cycle`]）。
-//! 軌道の出どころは、要素で書かれた軌道（[`OrbitSpec`]）と、状態ベクトルから多体の力で数値伝搬する軌道（[`StateSpec`]。`state_spec`）。
+//! 軌道の出どころは、要素で書かれた軌道（[`OrbitSpec`]）と、状態ベクトルから多体の力で数値伝搬する軌道（[`StateSpec`]。`state_spec`）と、
+//! ラグランジュ点・ハロー軌道を暦の 2 天体の位置に載せた軌跡（[`SynodicSpec`]。`synodic`）。
 
 mod analytic;
 mod approach;
@@ -18,6 +19,7 @@ mod mean;
 mod numerical;
 mod powered;
 mod state_spec;
+mod synodic;
 mod track;
 mod trajectory;
 pub use crate::kepler::{perifocal_to_eci, solve_kepler};
@@ -33,8 +35,9 @@ pub use mean::{mean_semi_major_axis_m, orbit_averaged_elements, osculating_state
 pub use numerical::{HELIOCENTRIC_INTEGRATOR, NUMERICAL_INTEGRATOR, propagate_states};
 pub use powered::{PoweredArc, PoweredSample, PoweredTarget, ThrustArc, propagate_powered};
 pub use state_spec::StateSpec;
+pub use synodic::{HaloSpec, SynodicSpec};
 pub use track::OrbitTrack;
-pub use trajectory::{Cycle, Trajectory};
+pub use trajectory::{Cycle, LIBRATION_SOURCE, Trajectory, measures_range_from_earth};
 
 use crate::AstroError;
 use crate::ephem::CentralBody;

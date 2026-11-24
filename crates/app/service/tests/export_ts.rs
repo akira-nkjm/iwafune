@@ -19,6 +19,10 @@ fn detail_type_names_match_the_exported_types() {
         sat_analysis::catalog::detail_type("structure.modal_fem"),
         Some(name.as_str())
     );
+    let name = <sat_analysis::thermal::ThermalPlateTemperatures as TS>::name(&cfg);
+    for id in ["thermal.steady", "thermal.transient"] {
+        assert_eq!(sat_analysis::catalog::detail_type(id), Some(name.as_str()));
+    }
     let dir = tempfile::tempdir().unwrap();
     fune_service::dto::export_ts(dir.path()).unwrap();
     for entry in fune_service::analysis::analysis_catalog().unwrap() {

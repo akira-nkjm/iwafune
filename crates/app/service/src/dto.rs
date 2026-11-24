@@ -123,20 +123,21 @@ pub use edit::{
     ApplyRequest, ApplyResult, ChangedFile, FileChangeKind, InitResult, PlaceBodyRequest, SetText,
     UnsetText,
 };
-pub use fune_model::design::PartField;
 pub use fune_model::design::{
     AttributeDef, Case, CatalogField, CatalogItem, DepartureBy, Distribution, Harness, KindDef,
-    Maneuver, ManeuverCategory, ManeuverConstraints, ManeuverMethod, ManeuverTarget,
+    Maneuver, ManeuverCategory, ManeuverConstraints, ManeuverFlyby, ManeuverMethod, ManeuverTarget,
     ManeuverTransfer, ModeSegment, ModeWhen, Net, NetField, NetKind, Phase, Pose, Requirement,
     Source, SourceKind, StartFrom, StartRef, UncertaintySide,
 };
 pub use fune_model::design::{BudgetKind, SharedCatalogState, SharedCatalogStatus, StateAssign};
+pub use fune_model::design::{CaseField, PartField};
 pub use fune_model::design::{FindingKind, LinkDirection, ProjectField};
 pub use fune_model::design::{ViewEdge, ViewLayout, ViewNode, ViewPortSide};
 pub use fune_model::path::PortRef;
 pub use fune_model::resolve::{Evidence, Origin};
 pub use fune_model::value::{Provenance, Quantity, Quaternion, SettingValue, Value, Vector3};
 pub use fune_model::{Diagnostic, Severity};
+pub use fune_ops::RemovedKeys;
 pub use fune_ops::{ModeCell, ModePosition, Op, ViewNodePos};
 pub use fune_projection::{CatalogFix, Choice, Fix, ListKind, MissingInput, RefKind};
 pub use history::{HistoryAction, HistoryEntryView, HistoryStepResult, HistoryView};

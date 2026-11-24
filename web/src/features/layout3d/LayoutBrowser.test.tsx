@@ -79,6 +79,7 @@ it("上書きの印は、形態を表示しているときに上書きされた�
       {
         id: "STOWED",
         label: "Stowed",
+        label_en: null,
         description: null,
         overridden: ["RW_X"],
         text: { id: "STOWED" },

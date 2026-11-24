@@ -24,6 +24,7 @@
 pub mod dated;
 pub mod dv_budget;
 mod flight;
+pub mod flyby;
 pub mod history;
 pub mod input;
 pub mod launch_window;
@@ -39,11 +40,13 @@ pub mod unloading;
 
 pub use dated::DatedTransferResult;
 pub use dv_budget::{DvBudget, DvBudgetOutput};
+pub use flyby::FlybyResult;
 pub use history::{OrbitHistory, OrbitSegment};
 pub use input::{
     DEFAULT_DV_MARGIN, DEFAULT_RESIDUAL_FRACTION, DatedTransferInput, DepartureProvider,
-    DvCategory, ManeuverInput, OrbitTarget, PropellantTank, PropulsionInput, PropulsionThruster,
-    ThrustConstraints, TransferMethod, UnloadingInput, UnloadingLeg, UnloadingNote,
+    DvCategory, FlybyInput, ManeuverInput, OrbitTarget, PropellantTank, PropulsionInput,
+    PropulsionThruster, ThrustConstraints, TransferMethod, UnloadingInput, UnloadingLeg,
+    UnloadingNote,
 };
 pub use launch_window::{
     LaunchWindow, LaunchWindowGrid, LaunchWindowInput, LaunchWindowNote, LaunchWindowOutput,
@@ -64,6 +67,8 @@ pub use unloading::{DvUnloading, DvUnloadingLeg};
 mod dated_tests;
 #[cfg(test)]
 mod propagated_tests;
+#[cfg(test)]
+mod swing_by_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

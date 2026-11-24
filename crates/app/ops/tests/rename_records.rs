@@ -351,6 +351,7 @@ fn rename_maneuver_rewrites_the_orbit_maneuver_of_the_design_and_of_a_phase() {
         departure: Some("2028-12-10T00:00:00Z".to_owned()),
         arrival: Some("2029-09-25T00:00:00Z".to_owned()),
         departure_by: None,
+        flybys: Vec::new(),
     });
     let text = |v: &str| Some(SettingValue::Text(v.to_owned()));
     let snap = applied(

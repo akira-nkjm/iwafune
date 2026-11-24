@@ -113,6 +113,21 @@ pub struct PropulsionLaunchWindow {
 pub struct CommonSettings {
     /// 解析ケースを明示しなかったときに使うケース ID。
     pub default_case: Option<String>,
+    /// 放射線の総線量（`orbit.total_dose`）の設定（`[radiation]`）。環境の表は軌道の設定が持つ
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub radiation: Option<RadiationSettings>,
+}
+
+/// 放射線の総線量の設計全体の設定（`analysis/common.toml` の `[radiation]`）。どれも任意で、既定値は解析が持つ。
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(deny_unknown_fields)]
+pub struct RadiationSettings {
+    /// 遮蔽厚さ（`shielding`）を書かない部品に使う等価アルミの厚さ（長さ。書かなければその部品は評価しない）
+    #[serde(default)]
+    pub default_shielding: Option<Quantity>,
+    /// 設計余裕 RDM（許容線量を総線量の何倍以上に取るか。既定は解析が持つ）
+    #[serde(default)]
+    pub design_margin: Option<f64>,
 }
 
 /// 電源の解析（`analysis/power.toml`）。

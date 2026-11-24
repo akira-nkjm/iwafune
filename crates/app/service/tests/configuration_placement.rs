@@ -117,6 +117,7 @@ fn body_placement_in_a_configuration_matches_the_hand_calculation() {
             &fune_service::dto::ConfigurationText {
                 id: "STOWED".into(),
                 label: Some("Stowed".into()),
+                label_en: None,
                 description: None,
             },
             true,
@@ -180,6 +181,7 @@ fn an_overridden_parent_changes_the_mount_local_pose() {
         vec![fune_ops::Op::CreateConfiguration {
             id: "STOWED".into(),
             label: None,
+            label_en: None,
             description: None,
         }],
     );
@@ -225,6 +227,7 @@ fn a_body_orientation_is_written_as_the_inverse_of_the_mount_frame() {
         vec![fune_ops::Op::CreateConfiguration {
             id: "STOWED".into(),
             label: None,
+            label_en: None,
             description: None,
         }],
     );
@@ -252,6 +255,7 @@ fn reset_returns_to_the_base_and_unknown_configurations_are_refused() {
         vec![fune_ops::Op::CreateConfiguration {
             id: "STOWED".into(),
             label: Some("Stowed".into()),
+            label_en: None,
             description: None,
         }],
     );

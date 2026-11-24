@@ -3,6 +3,7 @@ pub mod decay;
 pub mod eclipse_season;
 pub mod geometry;
 pub mod sun_distance;
+pub mod total_dose;
 pub use decay::{OrbitDecay, OrbitDecayInput, OrbitDecayOutput};
 pub use eclipse_season::{
     EclipseSeason, EclipseSeasonInput, EclipseSeasonOutput, EclipseSeasonPoint,
@@ -14,4 +15,9 @@ pub use geometry::{
 pub use sun_distance::{
     SunDistanceExtremes, SunDistanceInput, SunDistancePoint, sun_distance_extremes,
     sun_distance_extremes_over,
+};
+pub use total_dose::{
+    DEFAULT_DESIGN_MARGIN, DesignMarginSource, DoseDepthPoint, DoseInterpolation, DoseLeg,
+    DoseLegInput, DoseLegStatus, DoseNotEvaluated, DosePart, DosePartInput, DosePhase, DoseWorst,
+    ShieldingSource, TotalDose, TotalDoseInput, TotalDoseOutput,
 };

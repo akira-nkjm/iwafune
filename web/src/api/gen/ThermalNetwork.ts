@@ -4,6 +4,7 @@ import type { ThermalConductiveLink } from "./ThermalConductiveLink";
 import type { ThermalEnclosure } from "./ThermalEnclosure";
 import type { ThermalMounts } from "./ThermalMounts";
 import type { ThermalNode } from "./ThermalNode";
+import type { ThermalPlate } from "./ThermalPlate";
 import type { ThermalRadiativeLink } from "./ThermalRadiativeLink";
 import type { ThermalSurface } from "./ThermalSurface";
 
@@ -31,4 +32,8 @@ enclosure: ThermalEnclosure | null, surfaces: Array<ThermalSurface>,
  * 部品の箱。あれば、外面の直達日射に、その面の日照割合（ほかの部品の影を引いた割合）を掛ける
  * （アルベドと惑星の赤外は広がった光源なので影を数えない）。省略時は影を数えない
  */
-shadowing?: ShadowingInput | null, };
+shadowing?: ShadowingInput | null, 
+/**
+ * 升に分ける板（`subdivide`）。書いた部品の節点は升の節点に置き換わる
+ */
+plates?: Array<ThermalPlate>, };

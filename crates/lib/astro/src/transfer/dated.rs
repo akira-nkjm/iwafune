@@ -7,6 +7,7 @@
 //! （Curtis, *Orbital Mechanics for Engineering Students*, 3rd ed., §8.6〜8.10。Vallado §12.4）。
 //! 影響圏は点とみなす。軌道面の違いは天体の実際の位置・速度に含まれる。
 
+use super::flyby::{FlybyPass, FlybyStop, default_min_altitude_m, flyby_geometry};
 use super::lambert::lambert_about_normal;
 use super::patched::{PatchedBurn, capture_burn};
 use super::{Apsides, check_mu};
@@ -20,8 +21,9 @@ use crate::state::OrbitState;
 use crate::time::Epoch;
 use sat_units::typed::Qty;
 
-/// 日付を決めた遷移。ベクトルは ECI（J2000 平均赤道）の向き。
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// 日付を決めた遷移。ベクトルは ECI（J2000 平均赤道）の向き。途中に天体を通過（スイングバイ。[`super::flyby`]）するなら、
+/// 前後の天体の組ごとの Lambert の弧（脚）をつなぐ（通過のないときは弧 1 本）。
+#[derive(Debug, Clone, PartialEq)]
 pub struct DatedTransfer {
     /// 出発の天体のまわりの駐車軌道の近点での脱出の噴射
     pub departure: PatchedBurn,
@@ -29,20 +31,31 @@ pub struct DatedTransfer {
     pub arrival: Option<PatchedBurn>,
     /// 出発の特性エネルギー C3 = |v∞|² [m²/s²]
     pub c3_m2_s2: f64,
-    /// 出発の双曲線超過速度ベクトル（遷移の出発の速度 − 出発天体の速度）[m/s]
+    /// 出発の双曲線超過速度ベクトル（最初の脚の出発の速度 − 出発天体の速度）[m/s]
     pub v_inf_departure_m_s: Vec3,
-    /// 到着の双曲線超過速度ベクトル（遷移の到着の速度 − 到着天体の速度）[m/s]
+    /// 到着の双曲線超過速度ベクトル（最後の脚の到着の速度 − 到着天体の速度）[m/s]
     pub v_inf_arrival_m_s: Vec3,
+    /// 途中のスイングバイ（日付の順。無ければ空）
+    pub flybys: Vec<FlybyPass>,
+    /// 脚ごとの Lambert の弧（出発 → 最初の通過 → … → 到着。通過がなければ 1 本）
+    pub legs: Vec<LambertArc>,
     /// 出発の漸近線の赤緯 [rad]（出発天体の赤道に対して。出発の駐車軌道の傾斜角はこれ以上にならないと直接は出られない）
     pub departure_declination_rad: f64,
-    /// 飛行時間 [s]
+    /// 飛行時間（出発 → 到着の全体）[s]
     pub transfer_time_s: f64,
     /// 遷移の軌道の中心（共通の親）
     pub parent: CentralBody,
-    /// 出発の日の遷移の軌道の状態（親の中心から。ECI の向き）
+    /// 出発の日の遷移の軌道（最初の脚）の状態（親の中心から。ECI の向き）
     pub cruise_state: OrbitState,
     /// 天体の位置の出所（出発・到着の両方が DE440 のときだけ `De440`）
     pub ephemeris: EphemerisSource,
+}
+
+impl DatedTransfer {
+    /// スイングバイの ΔV の合計 [m/s]（近点の噴射 + 足りない回頭の分。通過がなければ 0）。
+    pub fn flyby_dv_m_s(&self) -> f64 {
+        self.flybys.iter().map(FlybyPass::total_dv_m_s).sum()
+    }
 }
 
 fn iso(epoch: Epoch) -> String {
@@ -176,6 +189,7 @@ pub(super) fn spec_from_state(
 
 /// 天体 `from` の軌道 `parking` から、日付 `depart` に出発して `arrive` に天体 `to` に着く遷移
 /// （`capture` はその軌道への捕獲。`None` なら捕獲しない）。出発・到着の噴射は軌道の近点で行う。
+/// 途中の通過がない遷移（[`dated_transfer_via`] に空の列を渡したもの）。
 /// `from` と `to` が同じ親を回る別々の天体でない、到着が出発より後でない、日付が暦の外にある、
 /// Lambert の問題が解けない（2 点が正反対に近く面が決まらない）ときはエラー。
 pub fn dated_transfer(
@@ -186,36 +200,117 @@ pub fn dated_transfer(
     depart: Epoch,
     arrive: Epoch,
 ) -> Result<DatedTransfer, AstroError> {
+    dated_transfer_via(from, parking, to, capture, depart, arrive, &[])
+}
+
+/// 日付つきの脚の並び（出発 → `flybys` の通過 → 到着）の Lambert の弧。通過の日は出発と到着の間で、
+/// 順に厳密に増える必要がある。隣り合う天体は別々でなければならない（同じ天体の脚は周回数 0 の弧にならない）。
+/// **脚の弧を並べるのはここだけ**（[`dated_transfer_via`] が使う）。
+pub fn lambert_chain(
+    from: CentralBody,
+    to: CentralBody,
+    depart: Epoch,
+    arrive: Epoch,
+    flybys: &[FlybyStop],
+) -> Result<Vec<LambertArc>, AstroError> {
+    let with_flybys = !flybys.is_empty();
+    let mut nodes = vec![(from, depart)];
+    nodes.extend(flybys.iter().map(|f| (f.body, f.date)));
+    nodes.push((to, arrive));
+    nodes
+        .windows(2)
+        .map(|pair| {
+            let ((a, ta), (b, tb)) = (pair[0], pair[1]);
+            // 通過のない遷移の同じ天体は `lambert_arc` が従来どおり `NotSiblingBodies` にする
+            if a == b && with_flybys {
+                return Err(AstroError::InvalidInput(format!(
+                    "Consecutive bodies of a transfer must differ ({a:?} is followed by {b:?}); a flyby of the departure or arrival body needs another body in between"
+                )));
+            }
+            lambert_arc(a, b, ta, tb)
+        })
+        .collect()
+}
+
+/// [`dated_transfer`] に途中のスイングバイ（`flybys`。日付の順）を足したもの。脚ごとに日心の Lambert を解き
+/// （[`lambert_chain`]）、出発の噴射は最初の脚、捕獲の噴射は最後の脚の超過速度から、各通過は前後の脚の超過速度から
+/// [`flyby_geometry`] で求める（近点の高度の下限は書かれていなければ [`default_min_altitude_m`]。慣例の無い天体は書かせる）。
+/// 通過がなければ [`dated_transfer`] と同じ数値になる。
+pub fn dated_transfer_via(
+    from: CentralBody,
+    parking: Apsides,
+    to: CentralBody,
+    capture: Option<Apsides>,
+    depart: Epoch,
+    arrive: Epoch,
+    flybys: &[FlybyStop],
+) -> Result<DatedTransfer, AstroError> {
     parking.check()?;
     if let Some(c) = capture {
         c.check()?;
     }
-    let arc = lambert_arc(from, to, depart, arrive)?;
-    let v_inf_dep = arc.v_departure_m_s - arc.from_state.v_eci;
-    let v_inf_arr = arc.v_arrival_m_s - arc.to_state.v_eci;
+    let legs = lambert_chain(from, to, depart, arrive, flybys)?;
+    let (Some(first), Some(last)) = (legs.first().copied(), legs.last().copied()) else {
+        return Err(AstroError::InvalidInput(
+            "A transfer needs at least one leg".to_owned(),
+        ));
+    };
+    let v_inf_dep = first.v_departure_m_s - first.from_state.v_eci;
+    let v_inf_arr = last.v_arrival_m_s - last.to_state.v_eci;
     let v_dep = v_inf_dep.norm();
     let declination = v_inf_dep.normalized().map_or(0.0, |u| {
         u.dot(pole_eci(from, depart)).clamp(-1.0, 1.0).asin()
     });
-    let both_de440 =
-        source_at(depart) == EphemerisSource::De440 && source_at(arrive) == EphemerisSource::De440;
+    let passes = flyby_passes(&legs, flybys)?;
+    let all_de440 = std::iter::once(depart)
+        .chain(flybys.iter().map(|f| f.date))
+        .chain(std::iter::once(arrive))
+        .all(|t| source_at(t) == EphemerisSource::De440);
     Ok(DatedTransfer {
         departure: capture_burn(from, v_dep, parking),
         arrival: capture.map(|c| capture_burn(to, v_inf_arr.norm(), c)),
         c3_m2_s2: v_dep * v_dep,
         v_inf_departure_m_s: v_inf_dep,
         v_inf_arrival_m_s: v_inf_arr,
+        flybys: passes,
+        legs,
         departure_declination_rad: declination,
-        transfer_time_s: arc.transfer_time_s,
-        parent: arc.parent,
+        transfer_time_s: arrive.seconds_since(depart),
+        parent: first.parent,
         cruise_state: OrbitState {
-            r_eci: arc.from_state.r_eci,
-            v_eci: arc.v_departure_m_s,
+            r_eci: first.from_state.r_eci,
+            v_eci: first.v_departure_m_s,
         },
-        ephemeris: if both_de440 {
+        ephemeris: if all_de440 {
             EphemerisSource::De440
         } else {
             EphemerisSource::Analytic
         },
     })
+}
+
+/// 隣り合う脚の組（`legs[i]` の到着・`legs[i+1]` の出発が `flybys[i]` の通過）から、通過ごとの幾何を求める。
+fn flyby_passes(legs: &[LambertArc], flybys: &[FlybyStop]) -> Result<Vec<FlybyPass>, AstroError> {
+    legs.windows(2)
+        .zip(flybys)
+        .map(|(pair, stop)| {
+            let min_altitude = stop
+                .min_altitude_m
+                .or_else(|| default_min_altitude_m(stop.body))
+                .ok_or_else(|| {
+                    AstroError::InvalidInput(format!(
+                        "No default minimum flyby altitude exists for {:?}; write one",
+                        stop.body
+                    ))
+                })?;
+            let body_v = pair[0].to_state.v_eci;
+            flyby_geometry(
+                stop.body,
+                stop.date,
+                pair[0].v_arrival_m_s - body_v,
+                pair[1].v_departure_m_s - body_v,
+                min_altitude,
+            )
+        })
+        .collect()
 }

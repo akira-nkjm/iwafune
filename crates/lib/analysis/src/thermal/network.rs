@@ -22,7 +22,9 @@ mod mount_contact;
 mod mounts;
 mod newton;
 mod ranges;
+mod subdivide;
 mod surface;
+pub use crate::thermal::cell::ThermalCell;
 pub use couplings::{
     ThermalConductanceUsed, ThermalCouplingSource, ThermalCouplings, ThermalEnclosureFace,
     ThermalEnclosureUsed, ThermalExchangeUsed,
@@ -38,6 +40,7 @@ pub use mount_contact::{
 };
 pub use mounts::{MountConductance, MountLinks, ThermalMounts};
 pub use newton::INITIAL_GUESS_K;
+pub use subdivide::{MAX_CELLS, ThermalPlate, ThermalPlateAttachment, ThermalPlateUsed};
 pub use surface::{ThermalCoating, ThermalSurface};
 
 /// 節点に含まれる部品。熱容量と温度範囲は、部品からここで節点にまとめる。
@@ -81,6 +84,10 @@ pub struct ThermalNode {
     /// 要求が部品の範囲に重ねる限界（種類の綴り `storage`・`operating`・`performance` → 下限と上限。部品の範囲を厳しくするだけ）
     #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub required: std::collections::BTreeMap<String, ThermalRequiredRange>,
+    /// 板の升の節点のとき、どの板のどの升か（入力の節点には書かない。解析が板を分けて作る）
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
+    pub cell: Option<ThermalCell>,
 }
 
 impl ThermalNode {
@@ -90,6 +97,13 @@ impl ThermalNode {
             .iter()
             .map(|p| p.mass.value() * f64::from(p.count) * p.specific_heat.value())
             .sum()
+    }
+
+    /// 熱容量が無い節点か（熱容量が正でなく、温度一定の境界節点でもない）。解析はこの節点を入力の誤りとして断る。
+    /// **「この節点には熱容量が無い」の判定はここだけ**（解析の入力検査と、設計の検査の警告が同じ判定を使う）。
+    pub fn lacks_heat_capacity(&self) -> bool {
+        let capacity = self.heat_capacity();
+        self.fixed_temperature.is_none() && (capacity.is_nan() || capacity <= 0.0)
     }
 
     /// 種類ごとの温度範囲 = 範囲を持つ部品の範囲の共通部分（モードによらない。無い種類は `None`。重ならなければ min > max
@@ -144,6 +158,9 @@ pub struct ThermalNetwork {
     /// （アルベドと惑星の赤外は広がった光源なので影を数えない）。省略時は影を数えない
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shadowing: Option<ShadowingInput>,
+    /// 升に分ける板（`subdivide`）。書いた部品の節点は升の節点に置き換わる
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub plates: Vec<ThermalPlate>,
 }
 
 /// 添字に直した外面。
@@ -154,6 +171,9 @@ pub(crate) struct Surface {
     pub normal: Vec3,
     pub alpha: f64,
     pub eps: f64,
+    /// 入力の外面（`ThermalNetwork::surfaces`）の添字。板を升に分けると 1 つの外面が升ごとの複数の `Surface` になるので、
+    /// 日照割合（影）は入力の外面ごとに 1 つ求め、升には面積の割合で配った直達日射が同じ割合で掛かる
+    pub input: usize,
 }
 
 /// 添字に直した熱ネットワーク（SI の f64）。
@@ -174,6 +194,10 @@ pub(crate) struct Compiled {
     pub couplings: ThermalCouplings,
     /// 外面（`surfaces` と同じ順）の日照割合の評価器。影を数えないときは `None`
     pub shading: Option<LitSurfaces>,
+    /// 板を升に分けたあとの節点（結果は入力ではなくこの順・この ID で並ぶ。板が無ければ入力の節点と同じ）
+    pub nodes: Vec<ThermalNode>,
+    /// 板の部品 ID → 升の節点の添字と面積の割合（発熱・初期温度・外面を配る）
+    pub groups: std::collections::BTreeMap<String, Vec<(usize, f64)>>,
 }
 
 fn invalid(msg: String) -> AnalysisError {
@@ -186,7 +210,8 @@ impl Compiled {
         if net.nodes.is_empty() {
             return Err(invalid("No thermal nodes".to_owned()));
         }
-        let ids: Vec<String> = net.nodes.iter().map(|n| n.id.clone()).collect();
+        let plan = subdivide::Plan::new(&net.nodes, &net.plates)?;
+        let ids: Vec<String> = plan.nodes.iter().map(|n| n.id.clone()).collect();
         for (i, id) in ids.iter().enumerate() {
             if ids[..i].contains(id) {
                 return Err(invalid(format!("Thermal node {id} is duplicated")));
@@ -201,12 +226,18 @@ impl Compiled {
             space: vec![0.0; ids.len()],
             couplings: ThermalCouplings::default(),
             shading: None,
+            groups: plan
+                .groups
+                .iter()
+                .map(|(k, g)| (k.clone(), g.slots.clone()))
+                .collect(),
+            nodes: Vec::new(),
             ids,
         };
-        for n in &net.nodes {
+        for n in &plan.nodes {
             let cap = n.heat_capacity();
             let fixed = n.fixed_temperature.map(Qty::value);
-            if !(cap > 0.0 || fixed.is_some()) || fixed.is_some_and(|t| t.is_nan() || t <= 0.0) {
+            if n.lacks_heat_capacity() || fixed.is_some_and(|t| t.is_nan() || t <= 0.0) {
                 return Err(invalid(format!(
                     "Node {}: the sum of part mass × count × specific heat must be positive, and a fixed temperature must be positive",
                     n.id
@@ -215,20 +246,30 @@ impl Compiled {
             c.capacity.push(cap);
             c.fixed.push(fixed);
         }
-        let couplings = couplings::resolve(net)?;
+        let mut couplings = couplings::resolve(net)?;
+        let mut unlocated = std::collections::BTreeMap::new();
         for l in &couplings.conductive {
             let g = nonneg(l.conductance.value(), &l.a, &l.b)?;
-            c.cond.push((c.index(&l.a)?, c.index(&l.b)?, g));
+            let geometric = matches!(
+                l.source,
+                ThermalCouplingSource::Mount | ThermalCouplingSource::Contact
+            );
+            c.cond
+                .extend(plan.spread((&l.a, &l.b), g, geometric, &mut unlocated)?);
         }
         for l in &couplings.radiative {
             let r = nonneg(l.exchange_area.value(), &l.a, &l.b)?;
-            c.rad.push((c.index(&l.a)?, c.index(&l.b)?, SIGMA_SB * r));
+            c.rad
+                .extend(plan.spread((&l.a, &l.b), SIGMA_SB * r, false, &mut unlocated)?);
         }
+        c.cond.extend(plan.inplane());
+        couplings.plates = plan.used(&c.cond, &c.capacity, &unlocated);
         c.couplings = couplings;
-        for s in &net.surfaces {
-            let surface = c.surface(s)?;
-            c.space[surface.node] += surface.eps * SIGMA_SB * surface.area_m2;
-            c.surfaces.push(surface);
+        for (k, s) in net.surfaces.iter().enumerate() {
+            for surface in c.surface(s, k)? {
+                c.space[surface.node] += surface.eps * SIGMA_SB * surface.area_m2;
+                c.surfaces.push(surface);
+            }
         }
         c.shading = net.shadowing.as_ref().and_then(|input| {
             LitSurfaces::new(
@@ -237,19 +278,26 @@ impl Compiled {
                 net.surfaces.iter().map(|s| (s.id.as_str(), s.normal)),
             )
         });
+        c.nodes = plan.nodes;
         Ok(c)
     }
 
-    fn surface(&self, s: &ThermalSurface) -> Result<Surface, AnalysisError> {
+    /// 外面を節点の面（板なら升ごとに面積の割合で分けた面）にする。
+    fn surface(&self, s: &ThermalSurface, input: usize) -> Result<Vec<Surface>, AnalysisError> {
         let (alpha, eps) = s.optics()?;
         match (s.area.value() >= 0.0, s.normal.normalized()) {
-            (true, Some(normal)) => Ok(Surface {
-                node: self.index(&s.node)?,
-                area_m2: s.area.value() * f64::from(s.count),
-                normal,
-                alpha,
-                eps,
-            }),
+            (true, Some(normal)) => Ok(self
+                .slots(&s.node)?
+                .into_iter()
+                .map(|(node, share)| Surface {
+                    node,
+                    area_m2: s.area.value() * f64::from(s.count) * share,
+                    normal,
+                    alpha,
+                    eps,
+                    input,
+                })
+                .collect()),
             _ => Err(invalid(format!(
                 "Surface {}: area must be 0 or more and the normal must be a non-zero vector",
                 s.id
@@ -257,12 +305,25 @@ impl Compiled {
         }
     }
 
+    /// 節点 `id` の（添字, 面積の割合）。板なら升すべて、そうでなければ 1 つ（割合 1）。
+    pub fn slots(&self, id: &str) -> Result<Vec<(usize, f64)>, AnalysisError> {
+        match self.groups.get(id) {
+            Some(g) => Ok(g.clone()),
+            None => Ok(vec![(self.index(id)?, 1.0)]),
+        }
+    }
+
     /// 節点 ID の添字。
     pub fn index(&self, id: &str) -> Result<usize, AnalysisError> {
-        self.ids
-            .iter()
-            .position(|x| x == id)
-            .ok_or_else(|| invalid(format!("Thermal node {id} does not exist")))
+        self.ids.iter().position(|x| x == id).ok_or_else(|| {
+            if self.groups.contains_key(id) {
+                invalid(format!(
+                    "Thermal node {id} is a subdivided plate (cells {id}[i,j]); a thermostat heater needs a single node, so put it on a part mounted on the plate"
+                ))
+            } else {
+                invalid(format!("Thermal node {id} does not exist"))
+            }
+        })
     }
 
     pub fn len(&self) -> usize {
@@ -273,7 +334,10 @@ impl Compiled {
     pub fn loads(&self, loads: &[ThermalLoad]) -> Result<Vec<f64>, AnalysisError> {
         let mut q = vec![0.0; self.len()];
         for l in loads {
-            q[self.index(&l.node)?] += l.dissipation()?.value();
+            let w = l.dissipation()?.value();
+            for (i, share) in self.slots(&l.node)? {
+                q[i] += w * share;
+            }
         }
         Ok(q)
     }

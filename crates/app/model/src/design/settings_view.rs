@@ -5,7 +5,9 @@
 
 use super::Design;
 use crate::path::{SettingPath, SettingScope};
-use crate::value::{SettingValue, quantity_from_json, quaternion_from_json, vector_from_json};
+use crate::value::{
+    SettingValue, curve_from_json, quantity_from_json, quaternion_from_json, vector_from_json,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value as Json};
 use ts_rs::TS;
@@ -48,7 +50,11 @@ impl Design {
             SettingScope::Analysis => {
                 // 共通設定は未作成でも設定一覧に欄を出す。
                 let mut analysis = self.analysis.clone();
-                analysis.common.get_or_insert_default();
+                analysis
+                    .common
+                    .get_or_insert_default()
+                    .radiation
+                    .get_or_insert_default();
                 to(serde_json::to_value(&analysis))
             }
             SettingScope::Budget => {
@@ -114,6 +120,9 @@ fn leaf(v: &Json) -> Option<Option<SettingValue>> {
     }
     if let Some(q) = quaternion_from_json(v) {
         return Some(Some(SettingValue::Quaternion(q)));
+    }
+    if let Some(c) = curve_from_json(v) {
+        return Some(Some(SettingValue::Curve(c)));
     }
     if let Some(vec) = vector_from_json(v) {
         return Some(Some(SettingValue::Vector(vec)));

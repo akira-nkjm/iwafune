@@ -28,6 +28,7 @@ fn heater(power: f64) -> ThermalHeater {
 fn input(span_s: f64, initial_k: f64, power: f64) -> ThermalTransientInput {
     ThermalTransientInput {
         network: ThermalNetwork {
+            plates: Vec::new(),
             mounts: None,
             nodes: vec![node("sink", Some(250.0)), node("box", None)],
             conductive: vec![ThermalConductiveLink {

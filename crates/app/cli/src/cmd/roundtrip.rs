@@ -155,6 +155,7 @@ fn covers(op: &Op) -> &'static str {
         Op::UnsetPhaseLaw { .. } => "UnsetPhaseLaw",
         Op::SetCasePhase { .. } => "SetCasePhase",
         Op::SetCaseEpoch { .. } => "SetCaseEpoch",
+        Op::SetCaseField { .. } => "SetCaseField",
         Op::CreateConfiguration { .. } => "CreateConfiguration",
         Op::SetConfiguration { .. } => "SetConfiguration",
         Op::RemoveConfiguration { .. } => "RemoveConfiguration",
@@ -218,5 +219,5 @@ fn every_op_survives_to_cli_and_back() {
     }
     seen.sort_unstable();
     seen.dedup();
-    assert_eq!(seen.len(), 89, "some Op kinds have no sample: {seen:?}");
+    assert_eq!(seen.len(), 90, "some Op kinds have no sample: {seen:?}");
 }

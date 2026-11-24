@@ -28,6 +28,17 @@ pub(super) fn example_of(dimension: Option<&str>) -> Option<String> {
     sat_units::format::input_example(dimension?)
 }
 
+/// 曲線（表）の入力の例（`1:1 2:0.5 (mm -> Gy/yr)`。引数と値の次元名から、それぞれの表示単位で書く）。読めなければ None。
+pub(super) fn curve_example(at_dimension: &str, dimension: &str) -> Option<String> {
+    let unit =
+        |d: &str| example_of(Some(d)).and_then(|e| e.split_once(' ').map(|(_, u)| u.to_owned()));
+    Some(format!(
+        "1:1 2:0.5 ({} -> {})",
+        unit(at_dimension)?,
+        unit(dimension)?
+    ))
+}
+
 /// 量の入力の例（`1 km`）→ ベクトルの入力の例（`1 0 0 km`。単位は共通）。読めなければ None。
 pub(super) fn vector_example(quantity: &str) -> Option<String> {
     let (value, unit) = quantity.split_once(' ')?;

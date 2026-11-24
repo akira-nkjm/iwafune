@@ -13,7 +13,27 @@ const source: EvidenceSource = {
   distribution: "on_request",
 };
 
+// `Required` にするので、`EvidenceSource` に欄が増えて下書きが持たないままだと、型の誤りで気づく
+// （置き換える Op で欄を黙って落とさないための確認。ダイアログが持たない欄は、保存のたびに消える）
+const everyField: Required<EvidenceSource> = {
+  id: "ds_all",
+  kind: "datasheet",
+  label: "All fields",
+  ref: "https://example.com/all.pdf",
+  revision: "Rev. A",
+  retrieved: "2026-10-15",
+  sha256: "0".repeat(64),
+  distribution: "public",
+  date: "2026-10-16",
+  by: "tester",
+  note: "note",
+};
+
 describe("setSourceOp", () => {
+  it("keeps every field of a source the dialog edits", () => {
+    expect(setSourceOp(draftOf(everyField))).toEqual({ op: "set_source", source: everyField });
+  });
+
   it("round-trips a source through the draft and drops empty fields", () => {
     const op = setSourceOp(draftOf(source));
     expect(op).toEqual({

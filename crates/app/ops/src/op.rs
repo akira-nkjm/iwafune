@@ -3,8 +3,8 @@
 //! JSON では `{ "op": "set_value", ... }` の形（`op` が種類）。
 
 use fune_model::design::{
-    AttributeDef, Case, CatalogField, FindingKind, Harness, KindDef, LinkDirection, Maneuver,
-    Maturity, ModeSegment, ModeWhen, Net, NetField, PartField, Phase, Pose, ProjectField,
+    AttributeDef, Case, CaseField, CatalogField, FindingKind, Harness, KindDef, LinkDirection,
+    Maneuver, Maturity, ModeSegment, ModeWhen, Net, NetField, PartField, Phase, Pose, ProjectField,
     Requirement, Source, StartRef,
 };
 use fune_model::value::{Provenance, Quaternion, SettingValue, Value, Vector3};
@@ -438,19 +438,30 @@ pub enum Op {
         #[serde(default)]
         epoch: Option<String>,
     },
+    /// 解析ケースの欄を 1 つだけ書く（`field` の値が None ならその欄を外す。ケースのほかの欄は変えない。ケースが無ければ拒む。
+    /// `SetCase` が丸ごと置き換えるのに対し、これは書いた欄だけを変える: `fune set cases.<ID>.<欄>`）。
+    /// フェーズと時刻の欄は専用の Op（`SetCasePhase`・`SetCaseEpoch`）。
+    SetCaseField {
+        case: String,
+        field: CaseField,
+    },
     /// 形態を足す（同じ ID があれば拒む）。
     CreateConfiguration {
         id: String,
         #[serde(default)]
         label: Option<String>,
         #[serde(default)]
+        label_en: Option<String>,
+        #[serde(default)]
         description: Option<String>,
     },
-    /// 形態の見出し（`label`・`description`）を書く（無ければ作る）。部品ごとの姿勢（`[pose.*]`）は今のまま残す。
+    /// 形態の見出し（`label`・`label_en`・`description`）を書く（無ければ作る）。部品ごとの姿勢（`[pose.*]`）は今のまま残す。
     SetConfiguration {
         id: String,
         #[serde(default)]
         label: Option<String>,
+        #[serde(default)]
+        label_en: Option<String>,
         #[serde(default)]
         description: Option<String>,
     },

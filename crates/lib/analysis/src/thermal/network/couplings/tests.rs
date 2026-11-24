@@ -35,6 +35,7 @@ pub(super) fn mounts(pairs: &[[&str; 2]], g: f64, area: Option<f64>) -> Option<T
 
 pub(super) fn net(nodes: &[&str]) -> ThermalNetwork {
     ThermalNetwork {
+        plates: Vec::new(),
         mounts: None,
         nodes: nodes.iter().map(|n| node(n, None)).collect(),
         conductive: vec![],
