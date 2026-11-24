@@ -173,3 +173,44 @@ describe("噴流・視野の遮り（structure.cone_clearance）の出力の形"
     ]);
   });
 });
+
+describe("外形の面積（structure.external_geometry）の出力の形", () => {
+  const geometry = {
+    parts_with_box: 36,
+    projected: [
+      { along: "x", area: 0.167, centre: { x: 0, y: 0.11, z: 0 } },
+      { along: "y", area: 0.039, centre: { x: 0, y: 0, z: 0.001 } },
+      { along: "z", area: 0.025, centre: { x: 0, y: 0.004, z: 0 } },
+    ],
+    mean_projected_area: 0.108,
+    min_projected: { area: 0.025, direction: { x: 0, y: 0, z: 1 } },
+    max_projected: { area: 0.172, direction: { x: 0.97, y: -0.16, z: 0.18 } },
+    directions_measured: 387,
+    exposed_area: 0.91,
+    exposed_by_direction: [{ face: "neg_x", area: 0.39 }],
+    exposed_by_part: [{ id: "PANEL_MX", area: 0.08 }],
+    internal_parts: [{ id: "BAT", inside: "BUS_FRAME" }],
+    skipped: [],
+    repeated: [],
+    checks: [{ key: "external_geometry", label: "x", verdict: "ok", message: "" }],
+  };
+
+  it("軸ごとの投影・面の向き別・部品別・内部の部品は表になり、数と最小・最大は単独の値になる", () => {
+    expect(collectTables(geometry).map((t) => t.key)).toEqual([
+      "projected",
+      "exposed_by_direction",
+      "exposed_by_part",
+      "internal_parts",
+    ]);
+    expect(collectScalars(geometry).map((s) => s.path)).toEqual([
+      "parts_with_box",
+      "mean_projected_area",
+      "min_projected.area",
+      "min_projected.direction",
+      "max_projected.area",
+      "max_projected.direction",
+      "directions_measured",
+      "exposed_area",
+    ]);
+  });
+});

@@ -240,6 +240,7 @@ pub const ANALYSIS_IDS: &[&str] = &[
     "structure.launch_fit",
     "structure.interference",
     "structure.cone_clearance",
+    "structure.external_geometry",
     "thermal.steady",
     "thermal.transient",
 ];

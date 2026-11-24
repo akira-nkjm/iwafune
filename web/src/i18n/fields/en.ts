@@ -384,6 +384,18 @@ const labels: Record<string, string> = {
   min_distance: "Nearest distance from the apex",
   parts_in_mount_chain: "Parts on the mount chain (not judged)",
   skipped_carriers: "Carriers not judged",
+  projected: "Projected area along the body axes",
+  along: "Viewed along",
+  centre: "Silhouette centroid (body frame)",
+  mean_projected_area: "Mean projected area (all directions)",
+  min_projected: "Smallest projected area (measured directions)",
+  max_projected: "Largest projected area (measured directions)",
+  directions_measured: "Directions measured",
+  exposed_area: "Exposed surface area",
+  exposed_by_direction: "Exposed surface by face direction",
+  exposed_by_part: "Exposed surface by part",
+  internal_parts: "Parts inside another box (not counted as surface)",
+  inside: "Inside the box of part",
 };
 
 export const fieldsEn: typeof fieldsJa = {
